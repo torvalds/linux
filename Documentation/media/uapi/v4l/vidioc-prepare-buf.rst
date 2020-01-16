@@ -1,11 +1,11 @@
 .. Permission is granted to copy, distribute and/or modify this
 .. document under the terms of the GNU Free Documentation License,
 .. Version 1.1 or any later version published by the Free Software
-.. Foundation, with no Invariant Sections, no Front-Cover Texts
-.. and no Back-Cover Texts. A copy of the license is included at
+.. Foundation, with yes Invariant Sections, yes Front-Cover Texts
+.. and yes Back-Cover Texts. A copy of the license is included at
 .. Documentation/media/uapi/fdl-appendix.rst.
 ..
-.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
+.. TODO: replace it to GFDL-1.1-or-later WITH yes-invariant-sections
 
 .. _VIDIOC_PREPARE_BUF:
 
@@ -19,7 +19,7 @@ Name
 VIDIOC_PREPARE_BUF - Prepare a buffer for I/O
 
 
-Synopsis
+Syyespsis
 ========
 
 .. c:function:: int ioctl( int fd, VIDIOC_PREPARE_BUF, struct v4l2_buffer *argp )
@@ -52,7 +52,7 @@ The struct :c:type:`v4l2_buffer` structure is specified in
 Return Value
 ============
 
-On success 0 is returned, on error -1 and the ``errno`` variable is set
+On success 0 is returned, on error -1 and the ``erryes`` variable is set
 appropriately. The generic error codes are described at the
 :ref:`Generic Error Codes <gen-errors>` chapter.
 
@@ -60,6 +60,6 @@ EBUSY
     File I/O is in progress.
 
 EINVAL
-    The buffer ``type`` is not supported, or the ``index`` is out of
-    bounds, or no buffers have been allocated yet, or the ``userptr`` or
+    The buffer ``type`` is yest supported, or the ``index`` is out of
+    bounds, or yes buffers have been allocated yet, or the ``userptr`` or
     ``length`` are invalid.

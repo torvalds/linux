@@ -33,13 +33,13 @@ static siphash_key_t syncookie_secret[2] __read_mostly;
  * connection.
  *
  * A WScale setting of '0xf' (which is an invalid scaling value)
- * means that original syn did not include the TCP window scaling option.
+ * means that original syn did yest include the TCP window scaling option.
  */
 #define TS_OPT_WSCALE_MASK	0xf
 #define TS_OPT_SACK		BIT(4)
 #define TS_OPT_ECN		BIT(5)
-/* There is no TS_OPT_TIMESTAMP:
- * if ACK contains timestamp option, we already know it was
+/* There is yes TS_OPT_TIMESTAMP:
+ * if ACK contains timestamp option, we already kyesw it was
  * requested/supported by the syn/synack exchange.
  */
 #define TSBITS	6
@@ -59,13 +59,13 @@ static u32 cookie_hash(__be32 saddr, __be32 daddr, __be16 sport, __be16 dport,
  * when syncookies are in effect and tcp timestamps are enabled we encode
  * tcp options in the lower bits of the timestamp value that will be
  * sent in the syn-ack.
- * Since subsequent timestamps use the normal tcp_time_stamp value, we
+ * Since subsequent timestamps use the yesrmal tcp_time_stamp value, we
  * must make sure that the resulting initial timestamp is <= tcp_time_stamp.
  */
-u64 cookie_init_timestamp(struct request_sock *req, u64 now)
+u64 cookie_init_timestamp(struct request_sock *req, u64 yesw)
 {
 	struct inet_request_sock *ireq;
-	u32 ts, ts_now = tcp_ns_to_ts(now);
+	u32 ts, ts_yesw = tcp_ns_to_ts(yesw);
 	u32 options = 0;
 
 	ireq = inet_rsk(req);
@@ -76,9 +76,9 @@ u64 cookie_init_timestamp(struct request_sock *req, u64 now)
 	if (ireq->ecn_ok)
 		options |= TS_OPT_ECN;
 
-	ts = ts_now & ~TSMASK;
+	ts = ts_yesw & ~TSMASK;
 	ts |= options;
-	if (ts > ts_now) {
+	if (ts > ts_yesw) {
 		ts >>= TSBITS;
 		ts--;
 		ts <<= TSBITS;
@@ -125,7 +125,7 @@ static __u32 check_tcp_syn_cookie(__u32 cookie, __be32 saddr, __be32 daddr,
 	/* Strip away the layers from the cookie */
 	cookie -= cookie_hash(saddr, daddr, sport, dport, 0, 0) + sseq;
 
-	/* Cookie is now reduced to (count * 2^24) ^ (hash % 2^24) */
+	/* Cookie is yesw reduced to (count * 2^24) ^ (hash % 2^24) */
 	diff = (count - (cookie >> COOKIEBITS)) & ((__u32) -1 >> COOKIEBITS);
 	if (diff >= MAX_SYNCOOKIE_AGE)
 		return (__u32)-1;
@@ -144,7 +144,7 @@ static __u32 check_tcp_syn_cookie(__u32 cookie, __be32 saddr, __be32 daddr,
  *  .. in the 1300-1349 range account for about 15 to 20% of observed mss values
  *  .. exceeding 1460 are very rare (< 0.04%)
  *
- *  1460 is the single most frequently announced mss value (30 to 46% depending
+ *  1460 is the single most frequently anyesunced mss value (30 to 46% depending
  *  on monitor location).  Table must be sorted.
  */
 static __u16 const msstab[] = {
@@ -185,7 +185,7 @@ __u32 cookie_v4_init_sequence(const struct sk_buff *skb, __u16 *mssp)
 
 /*
  * Check if a ack sequence number is a valid syncookie.
- * Return the decoded mss if it is, or 0 if not.
+ * Return the decoded mss if it is, or 0 if yest.
  */
 int __cookie_v4_check(const struct iphdr *iph, const struct tcphdr *th,
 		      u32 cookie)
@@ -252,7 +252,7 @@ bool cookie_timestamp_decode(const struct net *net,
 		return false;
 
 	if ((options & TS_OPT_WSCALE_MASK) == TS_OPT_WSCALE_MASK)
-		return true; /* no window scaling */
+		return true; /* yes window scaling */
 
 	tcp_opt->wscale_ok = 1;
 	tcp_opt->snd_wscale = options & TS_OPT_WSCALE_MASK;
@@ -277,8 +277,8 @@ bool cookie_ecn_ok(const struct tcp_options_received *tcp_opt,
 EXPORT_SYMBOL(cookie_ecn_ok);
 
 /* On input, sk is a listener.
- * Output is listener if incoming packet would not create a child
- *           NULL if memory could not be allocated.
+ * Output is listener if incoming packet would yest create a child
+ *           NULL if memory could yest be allocated.
  */
 struct sock *cookie_v4_check(struct sock *sk, struct sk_buff *skb)
 {
@@ -300,7 +300,7 @@ struct sock *cookie_v4_check(struct sock *sk, struct sk_buff *skb)
 	if (!sock_net(sk)->ipv4.sysctl_tcp_syncookies || !th->ack || th->rst)
 		goto out;
 
-	if (tcp_synq_no_recent_overflow(sk))
+	if (tcp_synq_yes_recent_overflow(sk))
 		goto out;
 
 	mss = __cookie_v4_check(ip_hdr(skb), th, cookie);
@@ -370,7 +370,7 @@ struct sock *cookie_v4_check(struct sock *sk, struct sk_buff *skb)
 	 * We need to lookup the route here to get at the correct
 	 * window size. We should better make sure that the window size
 	 * hasn't changed since we received the original syn, but I see
-	 * no easy way to do this.
+	 * yes easy way to do this.
 	 */
 	flowi4_init_output(&fl4, ireq->ir_iif, ireq->ir_mark,
 			   RT_CONN_FLAGS(sk), RT_SCOPE_UNIVERSE, IPPROTO_TCP,

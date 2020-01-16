@@ -6,7 +6,7 @@
 #include "i915_drv.h"
 #include "intel_pch.h"
 
-/* Map PCH device id to PCH type, or PCH_NONE if unknown. */
+/* Map PCH device id to PCH type, or PCH_NONE if unkyeswn. */
 static enum intel_pch
 intel_pch_type(const struct drm_i915_private *dev_priv, unsigned short id)
 {
@@ -62,11 +62,11 @@ intel_pch_type(const struct drm_i915_private *dev_priv, unsigned short id)
 		/* KBP is SPT compatible */
 		return PCH_SPT;
 	case INTEL_PCH_CNP_DEVICE_ID_TYPE:
-		DRM_DEBUG_KMS("Found Cannon Lake PCH (CNP)\n");
+		DRM_DEBUG_KMS("Found Canyesn Lake PCH (CNP)\n");
 		WARN_ON(!IS_CANNONLAKE(dev_priv) && !IS_COFFEELAKE(dev_priv));
 		return PCH_CNP;
 	case INTEL_PCH_CNP_LP_DEVICE_ID_TYPE:
-		DRM_DEBUG_KMS("Found Cannon Lake LP PCH (CNP-LP)\n");
+		DRM_DEBUG_KMS("Found Canyesn Lake LP PCH (CNP-LP)\n");
 		WARN_ON(!IS_CANNONLAKE(dev_priv) && !IS_COFFEELAKE(dev_priv));
 		return PCH_CNP;
 	case INTEL_PCH_CMP_DEVICE_ID_TYPE:
@@ -119,7 +119,7 @@ intel_virt_detect_pch(const struct drm_i915_private *dev_priv)
 
 	/*
 	 * In a virtualized passthrough environment we can be in a
-	 * setup where the ISA bridge is not able to be passed through.
+	 * setup where the ISA bridge is yest able to be passed through.
 	 * In this case, a south bridge can be emulated and we have to
 	 * make an educated guess as to which PCH is really there.
 	 */
@@ -146,7 +146,7 @@ intel_virt_detect_pch(const struct drm_i915_private *dev_priv)
 	if (id)
 		DRM_DEBUG_KMS("Assuming PCH ID %04x\n", id);
 	else
-		DRM_DEBUG_KMS("Assuming no PCH\n");
+		DRM_DEBUG_KMS("Assuming yes PCH\n");
 
 	return id;
 }
@@ -158,7 +158,7 @@ void intel_detect_pch(struct drm_i915_private *dev_priv)
 	/*
 	 * The reason to probe ISA bridge instead of Dev31:Fun0 is to
 	 * make graphics device passthrough work easy for VMM, that only
-	 * need to expose ISA bridge to let driver know the real hardware
+	 * need to expose ISA bridge to let driver kyesw the real hardware
 	 * underneath. This is a requirement from virtualization team.
 	 *
 	 * In some virtualized environments (e.g. XEN), there is irrelevant
@@ -196,7 +196,7 @@ void intel_detect_pch(struct drm_i915_private *dev_priv)
 	}
 
 	/*
-	 * Use PCH_NOP (PCH but no South Display) for PCH platforms without
+	 * Use PCH_NOP (PCH but yes South Display) for PCH platforms without
 	 * display.
 	 */
 	if (pch && !HAS_DISPLAY(dev_priv)) {

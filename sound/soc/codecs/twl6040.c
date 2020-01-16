@@ -187,7 +187,7 @@ static void twl6040_init_chip(struct snd_soc_component *component)
 	/*
 	 * We need to lower the default gain values, so the ramp code
 	 * can work correctly for the first playback.
-	 * This reduces the pop noise heard at the first playback.
+	 * This reduces the pop yesise heard at the first playback.
 	 */
 	twl6040_write(component, TWL6040_REG_HSGAIN, 0xff);
 	twl6040_write(component, TWL6040_REG_EARCTL, 0x1e);
@@ -226,7 +226,7 @@ static int twl6040_hs_dac_event(struct snd_soc_dapm_widget *w,
 	u8 hslctl, hsrctl;
 
 	/*
-	 * Workaround for Headset DC offset caused pop noise:
+	 * Workaround for Headset DC offset caused pop yesise:
 	 * Both HS DAC need to be turned on (before the HS driver) and off at
 	 * the same time.
 	 */
@@ -327,7 +327,7 @@ static int twl6040_soc_dapm_put_vibra_enum(struct snd_kcontrol *kcontrol,
 	struct soc_enum *e = (struct soc_enum *)kcontrol->private_value;
 	unsigned int val;
 
-	/* Do not allow changes while Input/FF efect is running */
+	/* Do yest allow changes while Input/FF efect is running */
 	val = twl6040_read(component, e->reg);
 	if (val & TWL6040_VIBENA && !(val & TWL6040_VIBSEL))
 		return -EBUSY;
@@ -595,11 +595,11 @@ static const struct snd_kcontrol_new twl6040_snd_controls[] = {
 		twl6040_headset_power_put_enum),
 
 	/* Left HS PDM data routed to Right HSDAC */
-	SOC_SINGLE("Headset Mono to Stereo Playback Switch",
+	SOC_SINGLE("Headset Moyes to Stereo Playback Switch",
 		TWL6040_REG_HSRCTL, 7, 1, 0),
 
 	/* Left HF PDM data routed to Right HFDAC */
-	SOC_SINGLE("Handsfree Mono to Stereo Playback Switch",
+	SOC_SINGLE("Handsfree Moyes to Stereo Playback Switch",
 		TWL6040_REG_HFRCTL, 5, 1, 0),
 
 	SOC_ENUM_EXT("PLL Selection", twl6040_power_mode_enum,
@@ -883,9 +883,9 @@ static int twl6040_hw_params(struct snd_pcm_substream *substream,
 	case 22500:
 	case 44100:
 	case 88200:
-		/* These rates are not supported when HPPLL is in use */
+		/* These rates are yest supported when HPPLL is in use */
 		if (unlikely(priv->pll == TWL6040_SYSCLK_SEL_HPPLL)) {
-			dev_err(component->dev, "HPPLL does not support rate %d\n",
+			dev_err(component->dev, "HPPLL does yest support rate %d\n",
 				rate);
 			return -EINVAL;
 		}
@@ -916,13 +916,13 @@ static int twl6040_prepare(struct snd_pcm_substream *substream,
 
 	if (!priv->sysclk) {
 		dev_err(component->dev,
-			"no mclk configured, call set_sysclk() on init\n");
+			"yes mclk configured, call set_sysclk() on init\n");
 		return -EINVAL;
 	}
 
 	ret = twl6040_set_pll(twl6040, priv->pll, priv->clk_in, priv->sysclk);
 	if (ret) {
-		dev_err(component->dev, "Can not set PLL (%d)\n", ret);
+		dev_err(component->dev, "Can yest set PLL (%d)\n", ret);
 		return -EPERM;
 	}
 
@@ -942,7 +942,7 @@ static int twl6040_set_dai_sysclk(struct snd_soc_dai *codec_dai,
 		priv->clk_in = freq;
 		break;
 	default:
-		dev_err(component->dev, "unknown clk_id %d\n", clk_id);
+		dev_err(component->dev, "unkyeswn clk_id %d\n", clk_id);
 		return -EINVAL;
 	}
 
@@ -1152,7 +1152,7 @@ static const struct snd_soc_component_driver soc_component_dev_twl6040 = {
 	.suspend_bias_off	= 1,
 	.idle_bias_on		= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
+	.yesn_legacy_dai_naming	= 1,
 };
 
 static int twl6040_codec_probe(struct platform_device *pdev)

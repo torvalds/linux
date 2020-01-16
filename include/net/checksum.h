@@ -7,7 +7,7 @@
  *		Checksumming functions for IP, TCP, UDP and so on
  *
  * Authors:	Jorge Cwik, <jorge@laser.satlink.net>
- *		Arnt Gulbrandsen, <agulbra@nvg.unit.no>
+ *		Arnt Gulbrandsen, <agulbra@nvg.unit.yes>
  *		Borrows very liberally from tcp.c and ip.c, see those
  *		files for more names.
  */
@@ -15,7 +15,7 @@
 #ifndef _CHECKSUM_H
 #define _CHECKSUM_H
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <asm/types.h>
 #include <asm/byteorder.h>
 #include <linux/uaccess.h>

@@ -48,7 +48,7 @@ static inline void vcpu_reset_hcr(struct kvm_vcpu *vcpu)
 	if (is_kernel_in_hyp_mode())
 		vcpu->arch.hcr_el2 |= HCR_E2H;
 	if (cpus_have_const_cap(ARM64_HAS_RAS_EXTN)) {
-		/* route synchronous external abort exceptions to EL2 */
+		/* route synchroyesus external abort exceptions to EL2 */
 		vcpu->arch.hcr_el2 |= HCR_TEA;
 		/* trap error record accesses */
 		vcpu->arch.hcr_el2 |= HCR_TERR;
@@ -58,7 +58,7 @@ static inline void vcpu_reset_hcr(struct kvm_vcpu *vcpu)
 		vcpu->arch.hcr_el2 |= HCR_FWB;
 	} else {
 		/*
-		 * For non-FWB CPUs, we trap VM ops (HCR_EL2.TVM) until M+C
+		 * For yesn-FWB CPUs, we trap VM ops (HCR_EL2.TVM) until M+C
 		 * get set in SCTLR_EL1 such that we can detect when the guest
 		 * MMU gets turned on and do the necessary cache maintenance
 		 * then.
@@ -71,7 +71,7 @@ static inline void vcpu_reset_hcr(struct kvm_vcpu *vcpu)
 
 	/*
 	 * TID3: trap feature register accesses that we virtualise.
-	 * For now this is conditional, since no AArch32 feature regs
+	 * For yesw this is conditional, since yes AArch32 feature regs
 	 * are currently virtualised.
 	 */
 	if (!vcpu_el1_is_32bit(vcpu))
@@ -309,7 +309,7 @@ static inline int kvm_vcpu_dabt_get_as(const struct kvm_vcpu *vcpu)
 	return 1 << ((kvm_vcpu_get_hsr(vcpu) & ESR_ELx_SAS) >> ESR_ELx_SAS_SHIFT);
 }
 
-/* This one is not specific to Data Abort */
+/* This one is yest specific to Data Abort */
 static inline bool kvm_vcpu_trap_il_is32bit(const struct kvm_vcpu *vcpu)
 {
 	return !!(kvm_vcpu_get_hsr(vcpu) & ESR_ELx_IL);

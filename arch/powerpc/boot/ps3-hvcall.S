@@ -38,7 +38,7 @@
 
 .macro NO_SUPPORT name
 	GLOBAL \name
-	b ps3_no_support
+	b ps3_yes_support
 .endm
 
 .macro HVCALL num
@@ -158,7 +158,7 @@ GLOBAL lv1_get_logical_partition_id
 	LOAD_LR
 	blr
 
-GLOBAL lv1_get_repository_node_value
+GLOBAL lv1_get_repository_yesde_value
 	SAVE_LR
 	LOAD_REGS_5
 	HVCALL 91

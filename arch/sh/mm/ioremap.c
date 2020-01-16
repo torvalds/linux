@@ -30,9 +30,9 @@
  * address space. Needed when the kernel wants to access high addresses
  * directly.
  *
- * NOTE! We need to allow non-page-aligned mappings too: we will obviously
+ * NOTE! We need to allow yesn-page-aligned mappings too: we will obviously
  * have to convert them into an offset in a page-aligned mapping, but the
- * caller shouldn't need to know that small detail.
+ * caller shouldn't need to kyesw that small detail.
  */
 void __iomem * __ref
 __ioremap_caller(phys_addr_t phys_addr, unsigned long size,
@@ -87,9 +87,9 @@ __ioremap_caller(phys_addr_t phys_addr, unsigned long size,
 EXPORT_SYMBOL(__ioremap_caller);
 
 /*
- * Simple checks for non-translatable mappings.
+ * Simple checks for yesn-translatable mappings.
  */
-static inline int iomapping_nontranslatable(unsigned long offset)
+static inline int iomapping_yesntranslatable(unsigned long offset)
 {
 #ifdef CONFIG_29BIT
 	/*
@@ -109,19 +109,19 @@ void iounmap(void __iomem *addr)
 	struct vm_struct *p;
 
 	/*
-	 * Nothing to do if there is no translatable mapping.
+	 * Nothing to do if there is yes translatable mapping.
 	 */
-	if (iomapping_nontranslatable(vaddr))
+	if (iomapping_yesntranslatable(vaddr))
 		return;
 
 	/*
-	 * There's no VMA if it's from an early fixed mapping.
+	 * There's yes VMA if it's from an early fixed mapping.
 	 */
 	if (iounmap_fixed(addr) == 0)
 		return;
 
 	/*
-	 * If the PMB handled it, there's nothing else to do.
+	 * If the PMB handled it, there's yesthing else to do.
 	 */
 	if (pmb_unmap(addr) == 0)
 		return;

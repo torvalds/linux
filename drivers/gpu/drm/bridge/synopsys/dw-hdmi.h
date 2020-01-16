@@ -402,7 +402,7 @@
 
 /*
  * Generic Parallel Audio Interface Registers
- * Not used as GPAUD interface is not enabled in hw
+ * Not used as GPAUD interface is yest enabled in hw
  */
 #define HDMI_GP_CONF0                           0x3500
 #define HDMI_GP_CONF1                           0x3501
@@ -928,7 +928,7 @@ enum {
 	HDMI_AUD_CTS3_N_SHIFT_64 = 0x60,
 	HDMI_AUD_CTS3_N_SHIFT_128 = 0x80,
 	HDMI_AUD_CTS3_N_SHIFT_256 = 0xa0,
-	/* note that the CTS3 MANUAL bit has been removed
+	/* yeste that the CTS3 MANUAL bit has been removed
 	   from our part. Can't set it, will read as 0. */
 	HDMI_AUD_CTS3_CTS_MANUAL = 0x10,
 	HDMI_AUD_CTS3_AUDCTS19_16_MASK = 0x0f,

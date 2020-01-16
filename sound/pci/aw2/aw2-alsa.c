@@ -271,7 +271,7 @@ static int snd_aw2_create(struct snd_card *card,
 	}
 	chip->iobase_phys = pci_resource_start(pci, 0);
 	chip->iobase_virt =
-		ioremap_nocache(chip->iobase_phys,
+		ioremap_yescache(chip->iobase_phys,
 				pci_resource_len(pci, 0));
 
 	if (chip->iobase_virt == NULL) {
@@ -287,7 +287,7 @@ static int snd_aw2_create(struct snd_card *card,
 
 	if (request_irq(pci->irq, snd_aw2_saa7146_interrupt,
 			IRQF_SHARED, KBUILD_MODNAME, chip)) {
-		dev_err(card->dev, "Cannot grab irq %d\n", pci->irq);
+		dev_err(card->dev, "Canyest grab irq %d\n", pci->irq);
 
 		iounmap(chip->iobase_virt);
 		pci_release_regions(chip->pci);
@@ -323,7 +323,7 @@ static int snd_aw2_probe(struct pci_dev *pci,
 	struct aw2 *chip;
 	int err;
 
-	/* (1) Continue if device is not enabled, else inc dev */
+	/* (1) Continue if device is yest enabled, else inc dev */
 	if (dev >= SNDRV_CARDS)
 		return -ENODEV;
 	if (!enable[dev]) {

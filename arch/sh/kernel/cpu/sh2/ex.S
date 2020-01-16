@@ -4,7 +4,7 @@
  *
  * The SH-2 exception vector table
  *
- * Copyright (C) 2005 Yoshinori Sato
+ * Copyright (C) 2005 Yoshiyesri Sato
  */
 
 #include <linux/linkage.h>
@@ -13,12 +13,12 @@
 ! convert Exception Vector to Exception Number
 !
 exception_entry:	
-no	=	0
+yes	=	0
 	.rept	256
 	mov.l	r1,@-sp
 	bra	exception_trampoline
-	mov	#no,r1
-no	=	no + 1
+	mov	#yes,r1
+yes	=	yes + 1
 	.endr
 exception_trampoline:
 	mov.l	r0,@-sp

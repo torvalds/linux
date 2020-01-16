@@ -57,14 +57,14 @@ struct fsl_mc_addr_translation_range {
 /**
  * struct mc_version
  * @major: Major version number: incremented on API compatibility changes
- * @minor: Minor version number: incremented on API additions (that are
+ * @miyesr: Miyesr version number: incremented on API additions (that are
  *		backward compatible); reset when major version is incremented
  * @revision: Internal revision number: incremented on implementation changes
- *		and/or bug fixes that have no impact on API
+ *		and/or bug fixes that have yes impact on API
  */
 struct mc_version {
 	u32 major;
-	u32 minor;
+	u32 miyesr;
 	u32 revision;
 };
 
@@ -87,7 +87,7 @@ static int fsl_mc_bus_match(struct device *dev, struct device_driver *drv)
 		goto out;
 
 	/*
-	 * If the object is not 'plugged' don't match.
+	 * If the object is yest 'plugged' don't match.
 	 * Only exception is the root DPRC, which is a special case.
 	 */
 	if ((mc_dev->obj_desc.state & FSL_MC_OBJ_STATE_PLUGGED) == 0 &&
@@ -108,7 +108,7 @@ static int fsl_mc_bus_match(struct device *dev, struct device_driver *drv)
 	}
 
 out:
-	dev_dbg(dev, "%smatched\n", found ? "" : "not ");
+	dev_dbg(dev, "%smatched\n", found ? "" : "yest ");
 	return found;
 }
 
@@ -134,7 +134,7 @@ static int fsl_mc_dma_configure(struct device *dev)
 	while (dev_is_fsl_mc(dma_dev))
 		dma_dev = dma_dev->parent;
 
-	return of_dma_configure(dev, dma_dev->of_node, 0);
+	return of_dma_configure(dev, dma_dev->of_yesde, 0);
 }
 
 static ssize_t modalias_show(struct device *dev, struct device_attribute *attr,
@@ -358,7 +358,7 @@ static int mc_get_version(struct fsl_mc_io *mc_io,
 	rsp_params = (struct dpmng_rsp_get_version *)cmd.params;
 	mc_ver_info->revision = le32_to_cpu(rsp_params->revision);
 	mc_ver_info->major = le32_to_cpu(rsp_params->version_major);
-	mc_ver_info->minor = le32_to_cpu(rsp_params->version_minor);
+	mc_ver_info->miyesr = le32_to_cpu(rsp_params->version_miyesr);
 
 	return 0;
 }
@@ -472,8 +472,8 @@ static int fsl_mc_device_get_mmio_regions(struct fsl_mc_device *mc_dev,
 		mc_region_type = DPRC_REGION_TYPE_QBMAN_PORTAL;
 	} else {
 		/*
-		 * This function should not have been called for this MC object
-		 * type, as this object type is not supposed to have MMIO
+		 * This function should yest have been called for this MC object
+		 * type, as this object type is yest supposed to have MMIO
 		 * regions
 		 */
 		return -EINVAL;
@@ -498,7 +498,7 @@ static int fsl_mc_device_get_mmio_regions(struct fsl_mc_device *mc_dev,
 			goto error_cleanup_regions;
 		}
 		/*
-		 * Older MC only returned region offset and no base address
+		 * Older MC only returned region offset and yes base address
 		 * If base address is in the region_desc use it otherwise
 		 * revert to old mechanism
 		 */
@@ -605,7 +605,7 @@ int fsl_mc_device_add(struct fsl_mc_obj_desc *obj_desc,
 	mc_dev->dev.type = fsl_mc_get_device_type(obj_desc->type);
 	if (!mc_dev->dev.type) {
 		error = -ENODEV;
-		dev_err(parent_dev, "unknown device type %s\n", obj_desc->type);
+		dev_err(parent_dev, "unkyeswn device type %s\n", obj_desc->type);
 		goto error_cleanup_dev;
 	}
 	dev_set_name(&mc_dev->dev, "%s.%d", obj_desc->type, obj_desc->id);
@@ -622,7 +622,7 @@ int fsl_mc_device_add(struct fsl_mc_obj_desc *obj_desc,
 		 * portal, in case the child DPRC is already opened with
 		 * its own portal (e.g., the DPRC used by AIOP).
 		 *
-		 * NOTE: There cannot be more than one active open for a
+		 * NOTE: There canyest be more than one active open for a
 		 * given MC object, using the same MC portal.
 		 */
 		if (parent_mc_dev) {
@@ -647,7 +647,7 @@ int fsl_mc_device_add(struct fsl_mc_obj_desc *obj_desc,
 			goto error_cleanup_dev;
 	} else {
 		/*
-		 * A non-DPRC object has to be a child of a DPRC, use the
+		 * A yesn-DPRC object has to be a child of a DPRC, use the
 		 * parent's ICID and interrupt domain.
 		 */
 		mc_dev->icid = parent_mc_dev->icid;
@@ -755,36 +755,36 @@ static int parse_mc_ranges(struct device *dev,
 	int range_tuple_cell_count;
 	int ranges_len;
 	int tuple_len;
-	struct device_node *mc_node = dev->of_node;
+	struct device_yesde *mc_yesde = dev->of_yesde;
 
-	*ranges_start = of_get_property(mc_node, "ranges", &ranges_len);
+	*ranges_start = of_get_property(mc_yesde, "ranges", &ranges_len);
 	if (!(*ranges_start) || !ranges_len) {
 		dev_warn(dev,
-			 "missing or empty ranges property for device tree node '%pOFn'\n",
-			 mc_node);
+			 "missing or empty ranges property for device tree yesde '%pOFn'\n",
+			 mc_yesde);
 		return 0;
 	}
 
-	*paddr_cells = of_n_addr_cells(mc_node);
+	*paddr_cells = of_n_addr_cells(mc_yesde);
 
-	prop = of_get_property(mc_node, "#address-cells", NULL);
+	prop = of_get_property(mc_yesde, "#address-cells", NULL);
 	if (prop)
 		*mc_addr_cells = be32_to_cpup(prop);
 	else
 		*mc_addr_cells = *paddr_cells;
 
-	prop = of_get_property(mc_node, "#size-cells", NULL);
+	prop = of_get_property(mc_yesde, "#size-cells", NULL);
 	if (prop)
 		*mc_size_cells = be32_to_cpup(prop);
 	else
-		*mc_size_cells = of_n_size_cells(mc_node);
+		*mc_size_cells = of_n_size_cells(mc_yesde);
 
 	range_tuple_cell_count = *paddr_cells + *mc_addr_cells +
 				 *mc_size_cells;
 
 	tuple_len = range_tuple_cell_count * sizeof(__be32);
 	if (ranges_len % tuple_len != 0) {
-		dev_err(dev, "malformed ranges property '%pOFn'\n", mc_node);
+		dev_err(dev, "malformed ranges property '%pOFn'\n", mc_yesde);
 		return -EINVAL;
 	}
 
@@ -816,7 +816,7 @@ static int get_mc_addr_translation_ranges(struct device *dev,
 	if (!ret) {
 		/*
 		 * Missing or empty ranges property ("ranges;") for the
-		 * 'fsl,qoriq-mc' node. In this case, identity mapping
+		 * 'fsl,qoriq-mc' yesde. In this case, identity mapping
 		 * will be used.
 		 */
 		*ranges = NULL;
@@ -874,11 +874,11 @@ static int fsl_mc_bus_probe(struct platform_device *pdev)
 	/*
 	 * Get physical address of MC portal for the root DPRC:
 	 */
-	error = of_address_to_resource(pdev->dev.of_node, 0, &res);
+	error = of_address_to_resource(pdev->dev.of_yesde, 0, &res);
 	if (error < 0) {
 		dev_err(&pdev->dev,
 			"of_address_to_resource() failed for %pOF\n",
-			pdev->dev.of_node);
+			pdev->dev.of_yesde);
 		return error;
 	}
 
@@ -898,7 +898,7 @@ static int fsl_mc_bus_probe(struct platform_device *pdev)
 	}
 
 	dev_info(&pdev->dev, "MC firmware version: %u.%u.%u\n",
-		 mc_version.major, mc_version.minor, mc_version.revision);
+		 mc_version.major, mc_version.miyesr, mc_version.revision);
 
 	error = get_mc_addr_translation_ranges(&pdev->dev,
 					       &mc->translation_ranges,
@@ -916,7 +916,7 @@ static int fsl_mc_bus_probe(struct platform_device *pdev)
 	memset(&obj_desc, 0, sizeof(struct fsl_mc_obj_desc));
 	error = dprc_get_api_version(mc_io, 0,
 				     &obj_desc.ver_major,
-				     &obj_desc.ver_minor);
+				     &obj_desc.ver_miyesr);
 	if (error < 0)
 		goto error_cleanup_mc_io;
 

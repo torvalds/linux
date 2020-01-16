@@ -121,14 +121,14 @@ def info_opts(lst, opt):
 FS_INFO = {constants.LX_SB_SYNCHRONOUS: ",sync",
            constants.LX_SB_MANDLOCK: ",mand",
            constants.LX_SB_DIRSYNC: ",dirsync",
-           constants.LX_SB_NOATIME: ",noatime",
-           constants.LX_SB_NODIRATIME: ",nodiratime"}
+           constants.LX_SB_NOATIME: ",yesatime",
+           constants.LX_SB_NODIRATIME: ",yesdiratime"}
 
-MNT_INFO = {constants.LX_MNT_NOSUID: ",nosuid",
-            constants.LX_MNT_NODEV: ",nodev",
-            constants.LX_MNT_NOEXEC: ",noexec",
-            constants.LX_MNT_NOATIME: ",noatime",
-            constants.LX_MNT_NODIRATIME: ",nodiratime",
+MNT_INFO = {constants.LX_MNT_NOSUID: ",yessuid",
+            constants.LX_MNT_NODEV: ",yesdev",
+            constants.LX_MNT_NOEXEC: ",yesexec",
+            constants.LX_MNT_NOATIME: ",yesatime",
+            constants.LX_MNT_NODIRATIME: ",yesdiratime",
             constants.LX_MNT_RELATIME: ",relatime"}
 
 mount_type = utils.CachedType("struct mount")
@@ -147,7 +147,7 @@ values of that process namespace"""
 
     # Equivalent to proc_namespace.c:show_vfsmnt
     # However, that has the ability to call into s_op functions
-    # whereas we cannot and must make do with the information we can obtain.
+    # whereas we canyest and must make do with the information we can obtain.
     def invoke(self, arg, from_tty):
         argv = gdb.string_to_argv(arg)
         if len(argv) >= 1:
@@ -159,18 +159,18 @@ values of that process namespace"""
             pid = 1
 
         task = tasks.get_task_by_pid(pid)
-        if not task:
+        if yest task:
             raise gdb.GdbError("Couldn't find a process with PID {}"
                                .format(pid))
 
         namespace = task['nsproxy']['mnt_ns']
-        if not namespace:
+        if yest namespace:
             raise gdb.GdbError("No namespace for current process")
 
         for vfs in lists.list_for_each_entry(namespace['list'],
                                              mount_ptr_type, "mnt_list"):
             devname = vfs['mnt_devname'].string()
-            devname = devname if devname else "none"
+            devname = devname if devname else "yesne"
 
             pathname = ""
             parent = vfs
@@ -233,8 +233,8 @@ class LxFdtDump(gdb.Command):
 
     def invoke(self, arg, from_tty):
 
-        if not constants.LX_CONFIG_OF:
-            raise gdb.GdbError("Kernel not compiled with CONFIG_OF\n")
+        if yest constants.LX_CONFIG_OF:
+            raise gdb.GdbError("Kernel yest compiled with CONFIG_OF\n")
 
         if len(arg) == 0:
             filename = "fdtdump.dtb"
@@ -265,7 +265,7 @@ class LxFdtDump(gdb.Command):
         try:
             f = open(filename, 'wb')
         except gdb.error:
-            raise gdb.GdbError("Could not open file to dump fdt")
+            raise gdb.GdbError("Could yest open file to dump fdt")
 
         f.write(fdt_buf)
         f.close()

@@ -20,7 +20,7 @@
  * from the target to the host.
  *
  * Ownership of correctness in regards to WMI commands belongs to the host
- * driver and the target is not required to validate parameters for value,
+ * driver and the target is yest required to validate parameters for value,
  * proper range, or any other checking.
  *
  * Guidelines for extending this interface are below.
@@ -28,11 +28,11 @@
  * 1. Add new WMI commands ONLY within the specified range - 0x9000 - 0x9fff
  *
  * 2. Use ONLY u32 type for defining member variables within WMI
- *    command/event structures. Do not use u8, u16, bool or
+ *    command/event structures. Do yest use u8, u16, bool or
  *    enum types within these structures.
  *
  * 3. DO NOT define bit fields within structures. Implement bit fields
- *    using masks if necessary. Do not use the programming language's bit
+ *    using masks if necessary. Do yest use the programming language's bit
  *    field definition.
  *
  * 4. Define macros for encode/decode of u8, u16 fields within
@@ -40,7 +40,7 @@
  *    Try to use this to optimize the structure without bloating it with
  *    u32 variables for every lower sized field.
  *
- * 5. Do not use PACK/UNPACK attributes for the structures as each member
+ * 5. Do yest use PACK/UNPACK attributes for the structures as each member
  *    variable is already 4-byte aligned by virtue of being a u32
  *    type.
  *
@@ -64,7 +64,7 @@ struct wmi_cmd_hdr {
 #define WMI_PROTOCOL_VERSION    0x0002
 
 /*
- * There is no signed version of __le32, so for a temporary solution come
+ * There is yes signed version of __le32, so for a temporary solution come
  * up with our own version. The idea is from fs/ntfs/endian.h.
  *
  * Use a_ prefix so that it doesn't conflict if we get proper support to
@@ -977,7 +977,7 @@ struct wmi_cmd_map {
 	u32 pdev_smart_ant_set_rx_antenna_cmdid;
 	u32 peer_smart_ant_set_tx_antenna_cmdid;
 	u32 peer_smart_ant_set_train_info_cmdid;
-	u32 peer_smart_ant_set_node_config_ops_cmdid;
+	u32 peer_smart_ant_set_yesde_config_ops_cmdid;
 	u32 pdev_set_antenna_switch_table_cmdid;
 	u32 pdev_set_ctl_table_cmdid;
 	u32 pdev_set_mimogain_table_cmdid;
@@ -2011,12 +2011,12 @@ static inline const char *ath10k_wmi_phymode_str(enum wmi_phy_mode mode)
 		/* skip */
 		break;
 
-		/* no default handler to allow compiler to check that the
+		/* yes default handler to allow compiler to check that the
 		 * enum is fully handled
 		 */
 	}
 
-	return "<unknown>";
+	return "<unkyeswn>";
 }
 
 #define WMI_CHAN_LIST_TAG	0x1
@@ -2037,7 +2037,7 @@ struct wmi_channel {
 	union {
 		__le32 reginfo0;
 		struct {
-			/* note: power unit is 0.5 dBm */
+			/* yeste: power unit is 0.5 dBm */
 			u8 min_power;
 			u8 max_power;
 			u8 reg_power;
@@ -2063,7 +2063,7 @@ struct wmi_channel_arg {
 	bool allow_vht;
 	bool ht40plus;
 	bool chan_radar;
-	/* note: power unit is 0.5 dBm */
+	/* yeste: power unit is 0.5 dBm */
 	u32 min_power;
 	u32 max_power;
 	u32 max_reg_power;
@@ -2115,8 +2115,8 @@ enum wmi_channel_change_cause {
 
 /*
  * WMI_VHT_CAP_* these maps to ieee 802.11ac vht capability information
- * field. The fields not defined here are not supported, or reserved.
- * Do not change these masks and if you have to add new one follow the
+ * field. The fields yest defined here are yest supported, or reserved.
+ * Do yest change these masks and if you have to add new one follow the
  * bitmask as specified by 802.11ac draft.
  */
 
@@ -2339,7 +2339,7 @@ struct wmi_resource_config {
 	/* number of virtual devices (VAPs) to support */
 	__le32 num_vdevs;
 
-	/* number of peer nodes to support */
+	/* number of peer yesdes to support */
 	__le32 num_peers;
 
 	/*
@@ -2366,31 +2366,31 @@ struct wmi_resource_config {
 	 *   The address search table is sparse, so that if two MAC addresses
 	 *   result in the same hash value, the second of these conflicting
 	 *   entries can slide to the next index in the address search table,
-	 *   and use it, if it is unoccupied.  This ast_skid_limit parameter
+	 *   and use it, if it is uyesccupied.  This ast_skid_limit parameter
 	 *   specifies the upper bound on how many subsequent indices to search
-	 *   over to find an unoccupied space.
+	 *   over to find an uyesccupied space.
 	 */
 	__le32 ast_skid_limit;
 
 	/*
-	 * the nominal chain mask for transmit
+	 * the yesminal chain mask for transmit
 	 *
 	 *   The chain mask may be modified dynamically, e.g. to operate AP
-	 *   tx with a reduced number of chains if no clients are associated.
-	 *   This configuration parameter specifies the nominal chain-mask that
-	 *   should be used when not operating with a reduced set of tx chains.
+	 *   tx with a reduced number of chains if yes clients are associated.
+	 *   This configuration parameter specifies the yesminal chain-mask that
+	 *   should be used when yest operating with a reduced set of tx chains.
 	 */
 	__le32 tx_chain_mask;
 
 	/*
-	 * the nominal chain mask for receive
+	 * the yesminal chain mask for receive
 	 *
 	 *   The chain mask may be modified dynamically, e.g. for a client
 	 *   to use a reduced number of chains for receive if the traffic to
-	 *   the client is low enough that it doesn't require downlink MIMO
+	 *   the client is low eyesugh that it doesn't require downlink MIMO
 	 *   or antenna diversity.
-	 *   This configuration parameter specifies the nominal chain-mask that
-	 *   should be used when not operating with a reduced set of rx chains.
+	 *   This configuration parameter specifies the yesminal chain-mask that
+	 *   should be used when yest operating with a reduced set of rx chains.
 	 */
 	__le32 rx_chain_mask;
 
@@ -2412,7 +2412,7 @@ struct wmi_resource_config {
 	/*
 	 * what mode the rx should decap packets to
 	 *
-	 *   MAC can decap to RAW (no decap), native wifi or Ethernet types
+	 *   MAC can decap to RAW (yes decap), native wifi or Ethernet types
 	 *   THis setting also determines the default TX behavior, however TX
 	 *   behavior can be modified on a per VAP basis during VAP init
 	 */
@@ -2460,17 +2460,17 @@ struct wmi_resource_config {
 	 *
 	 *   This configuration parameter specifies whether the target should
 	 *   perform multicast --> unicast conversion on transmit, and if so,
-	 *   what to do if it finds no entries in its multicast group
+	 *   what to do if it finds yes entries in its multicast group
 	 *   membership table for the multicast IP address in the tx frame.
 	 *   Configuration value:
-	 *   0 -> Do not perform multicast to unicast conversion.
+	 *   0 -> Do yest perform multicast to unicast conversion.
 	 *   1 -> Convert multicast frames to unicast, if the IP multicast
 	 *        address from the tx frame is found in the multicast group
-	 *        membership table.  If the IP multicast address is not found,
+	 *        membership table.  If the IP multicast address is yest found,
 	 *        drop the frame.
 	 *   2 -> Convert multicast frames to unicast, if the IP multicast
 	 *        address from the tx frame is found in the multicast group
-	 *        membership table.  If the IP multicast address is not found,
+	 *        membership table.  If the IP multicast address is yest found,
 	 *        transmit the frame as multicast.
 	 */
 	__le32 mcast2ucast_mode;
@@ -2501,7 +2501,7 @@ struct wmi_resource_config {
 
 	/*
 	 *   determine whether target is responsible for detecting duplicate
-	 *   non-aggregate MPDU and timing out stale fragments.
+	 *   yesn-aggregate MPDU and timing out stale fragments.
 	 *
 	 *   A-MPDU reordering is always performed on the target.
 	 *
@@ -2513,7 +2513,7 @@ struct wmi_resource_config {
 	/*
 	 * Configuration for VoW :
 	 * No of Video Nodes to be supported
-	 * and Max no of descriptors for each Video link (node).
+	 * and Max yes of descriptors for each Video link (yesde).
 	 */
 	__le32 vow_config;
 
@@ -2536,7 +2536,7 @@ struct wmi_resource_config_10x {
 	/* number of virtual devices (VAPs) to support */
 	__le32 num_vdevs;
 
-	/* number of peer nodes to support */
+	/* number of peer yesdes to support */
 	__le32 num_peers;
 
 	/* number of keys per peer */
@@ -2551,31 +2551,31 @@ struct wmi_resource_config_10x {
 	 *   The address search table is sparse, so that if two MAC addresses
 	 *   result in the same hash value, the second of these conflicting
 	 *   entries can slide to the next index in the address search table,
-	 *   and use it, if it is unoccupied.  This ast_skid_limit parameter
+	 *   and use it, if it is uyesccupied.  This ast_skid_limit parameter
 	 *   specifies the upper bound on how many subsequent indices to search
-	 *   over to find an unoccupied space.
+	 *   over to find an uyesccupied space.
 	 */
 	__le32 ast_skid_limit;
 
 	/*
-	 * the nominal chain mask for transmit
+	 * the yesminal chain mask for transmit
 	 *
 	 *   The chain mask may be modified dynamically, e.g. to operate AP
-	 *   tx with a reduced number of chains if no clients are associated.
-	 *   This configuration parameter specifies the nominal chain-mask that
-	 *   should be used when not operating with a reduced set of tx chains.
+	 *   tx with a reduced number of chains if yes clients are associated.
+	 *   This configuration parameter specifies the yesminal chain-mask that
+	 *   should be used when yest operating with a reduced set of tx chains.
 	 */
 	__le32 tx_chain_mask;
 
 	/*
-	 * the nominal chain mask for receive
+	 * the yesminal chain mask for receive
 	 *
 	 *   The chain mask may be modified dynamically, e.g. for a client
 	 *   to use a reduced number of chains for receive if the traffic to
-	 *   the client is low enough that it doesn't require downlink MIMO
+	 *   the client is low eyesugh that it doesn't require downlink MIMO
 	 *   or antenna diversity.
-	 *   This configuration parameter specifies the nominal chain-mask that
-	 *   should be used when not operating with a reduced set of rx chains.
+	 *   This configuration parameter specifies the yesminal chain-mask that
+	 *   should be used when yest operating with a reduced set of rx chains.
 	 */
 	__le32 rx_chain_mask;
 
@@ -2597,7 +2597,7 @@ struct wmi_resource_config_10x {
 	/*
 	 * what mode the rx should decap packets to
 	 *
-	 *   MAC can decap to RAW (no decap), native wifi or Ethernet types
+	 *   MAC can decap to RAW (yes decap), native wifi or Ethernet types
 	 *   THis setting also determines the default TX behavior, however TX
 	 *   behavior can be modified on a per VAP basis during VAP init
 	 */
@@ -2645,17 +2645,17 @@ struct wmi_resource_config_10x {
 	 *
 	 *   This configuration parameter specifies whether the target should
 	 *   perform multicast --> unicast conversion on transmit, and if so,
-	 *   what to do if it finds no entries in its multicast group
+	 *   what to do if it finds yes entries in its multicast group
 	 *   membership table for the multicast IP address in the tx frame.
 	 *   Configuration value:
-	 *   0 -> Do not perform multicast to unicast conversion.
+	 *   0 -> Do yest perform multicast to unicast conversion.
 	 *   1 -> Convert multicast frames to unicast, if the IP multicast
 	 *        address from the tx frame is found in the multicast group
-	 *        membership table.  If the IP multicast address is not found,
+	 *        membership table.  If the IP multicast address is yest found,
 	 *        drop the frame.
 	 *   2 -> Convert multicast frames to unicast, if the IP multicast
 	 *        address from the tx frame is found in the multicast group
-	 *        membership table.  If the IP multicast address is not found,
+	 *        membership table.  If the IP multicast address is yest found,
 	 *        transmit the frame as multicast.
 	 */
 	__le32 mcast2ucast_mode;
@@ -2686,7 +2686,7 @@ struct wmi_resource_config_10x {
 
 	/*
 	 *   determine whether target is responsible for detecting duplicate
-	 *   non-aggregate MPDU and timing out stale fragments.
+	 *   yesn-aggregate MPDU and timing out stale fragments.
 	 *
 	 *   A-MPDU reordering is always performed on the target.
 	 *
@@ -2698,7 +2698,7 @@ struct wmi_resource_config_10x {
 	/*
 	 * Configuration for VoW :
 	 * No of Video Nodes to be supported
-	 * and Max no of descriptors for each Video link (node).
+	 * and Max yes of descriptors for each Video link (yesde).
 	 */
 	__le32 vow_config;
 
@@ -2741,10 +2741,10 @@ struct wmi_resource_config_10_4 {
 	/* Number of virtual devices (VAPs) to support */
 	__le32 num_vdevs;
 
-	/* Number of peer nodes to support */
+	/* Number of peer yesdes to support */
 	__le32 num_peers;
 
-	/* Number of active peer nodes to support */
+	/* Number of active peer yesdes to support */
 	__le32 num_active_peers;
 
 	/* In offload mode, target supports features like WOW, chatter and other
@@ -2770,26 +2770,26 @@ struct wmi_resource_config_10_4 {
 	 * The address search table is sparse, so that if two MAC addresses
 	 * result in the same hash value, the second of these conflicting
 	 * entries can slide to the next index in the address search table,
-	 * and use it, if it is unoccupied.  This ast_skid_limit parameter
+	 * and use it, if it is uyesccupied.  This ast_skid_limit parameter
 	 * specifies the upper bound on how many subsequent indices to search
-	 * over to find an unoccupied space.
+	 * over to find an uyesccupied space.
 	 */
 	__le32 ast_skid_limit;
 
-	/* The nominal chain mask for transmit.
+	/* The yesminal chain mask for transmit.
 	 * The chain mask may be modified dynamically, e.g. to operate AP tx
-	 * with a reduced number of chains if no clients are associated.
-	 * This configuration parameter specifies the nominal chain-mask that
-	 * should be used when not operating with a reduced set of tx chains.
+	 * with a reduced number of chains if yes clients are associated.
+	 * This configuration parameter specifies the yesminal chain-mask that
+	 * should be used when yest operating with a reduced set of tx chains.
 	 */
 	__le32 tx_chain_mask;
 
-	/* The nominal chain mask for receive.
+	/* The yesminal chain mask for receive.
 	 * The chain mask may be modified dynamically, e.g. for a client to use
 	 * a reduced number of chains for receive if the traffic to the client
-	 * is low enough that it doesn't require downlink MIMO or antenna
-	 * diversity. This configuration parameter specifies the nominal
-	 * chain-mask that should be used when not operating with a reduced
+	 * is low eyesugh that it doesn't require downlink MIMO or antenna
+	 * diversity. This configuration parameter specifies the yesminal
+	 * chain-mask that should be used when yest operating with a reduced
 	 * set of rx chains.
 	 */
 	__le32 rx_chain_mask;
@@ -2804,7 +2804,7 @@ struct wmi_resource_config_10_4 {
 	__le32 rx_timeout_pri[4];
 
 	/* What mode the rx should decap packets to.
-	 * MAC can decap to RAW (no decap), native wifi or Ethernet types.
+	 * MAC can decap to RAW (yes decap), native wifi or Ethernet types.
 	 * This setting also determines the default TX behavior, however TX
 	 * behavior can be modified on a per VAP basis during VAP init
 	 */
@@ -2841,16 +2841,16 @@ struct wmi_resource_config_10_4 {
 	/* Whether/how to do multicast->unicast conversion.
 	 * This configuration parameter specifies whether the target should
 	 * perform multicast --> unicast conversion on transmit, and if so,
-	 * what to do if it finds no entries in its multicast group membership
+	 * what to do if it finds yes entries in its multicast group membership
 	 * table for the multicast IP address in the tx frame.
 	 * Configuration value:
-	 * 0 -> Do not perform multicast to unicast conversion.
+	 * 0 -> Do yest perform multicast to unicast conversion.
 	 * 1 -> Convert multicast frames to unicast, if the IP multicast address
 	 *      from the tx frame is found in the multicast group membership
-	 *      table.  If the IP multicast address is not found, drop the frame
+	 *      table.  If the IP multicast address is yest found, drop the frame
 	 * 2 -> Convert multicast frames to unicast, if the IP multicast address
 	 *      from the tx frame is found in the multicast group membership
-	 *      table.  If the IP multicast address is not found, transmit the
+	 *      table.  If the IP multicast address is yest found, transmit the
 	 *      frame as multicast.
 	 */
 	__le32 mcast2ucast_mode;
@@ -2874,7 +2874,7 @@ struct wmi_resource_config_10_4 {
 	__le32 mac_aggr_delim;
 
 	/* Determine whether target is responsible for detecting duplicate
-	 * non-aggregate MPDU and timing out stale fragments. A-MPDU reordering
+	 * yesn-aggregate MPDU and timing out stale fragments. A-MPDU reordering
 	 * is always performed on the target.
 	 *
 	 * 0: target responsible for frag timeout and dup checking
@@ -2882,8 +2882,8 @@ struct wmi_resource_config_10_4 {
 	 */
 	__le32 rx_skip_defrag_timeout_dup_detection_check;
 
-	/* Configuration for VoW : No of Video nodes to be supported and max
-	 * no of descriptors for each video link (node).
+	/* Configuration for VoW : No of Video yesdes to be supported and max
+	 * yes of descriptors for each video link (yesde).
 	 */
 	__le32 vow_config;
 
@@ -2947,7 +2947,7 @@ struct wmi_resource_config_10_4 {
 
 	/* qwrap configuration (bits 15-0)
 	 * 1  - This is qwrap configuration
-	 * 0  - This is not qwrap
+	 * 0  - This is yest qwrap
 	 *
 	 * Bits 31-16 is alloc_frag_desc_for_data_pkt (1 enables, 0 disables)
 	 * In order to get ack-RSSI reporting and to specify the tx-rate for
@@ -3139,7 +3139,7 @@ struct wmi_start_scan_common {
 	/* Scan Priority, input to scan scheduler */
 	__le32 scan_priority;
 	/* Scan events subscription */
-	__le32 notify_scan_events;
+	__le32 yestify_scan_events;
 	/* dwell time in msec on active channels */
 	__le32 dwell_time_active;
 	/* dwell time in msec on passive channels */
@@ -3156,7 +3156,7 @@ struct wmi_start_scan_common {
 	/*
 	 * the scanner will rest on the bss channel at least min_rest_time
 	 * after min_rest_time the scanner will start checking for tx/rx
-	 * activity on all VDEVs. if there is no activity the scanner will
+	 * activity on all VDEVs. if there is yes activity the scanner will
 	 * switch to off channel. if there is activity the scanner will let
 	 * the radio on the bss channel until max_rest_time expires.at
 	 * max_rest_time scanner will switch to off channel irrespective of
@@ -3222,7 +3222,7 @@ struct wmi_start_scan_arg {
 	u32 scan_req_id;
 	u32 vdev_id;
 	u32 scan_priority;
-	u32 notify_scan_events;
+	u32 yestify_scan_events;
 	u32 dwell_time_active;
 	u32 dwell_time_passive;
 	u32 min_rest_time;
@@ -3262,7 +3262,7 @@ struct wmi_start_scan_arg {
 #define WMI_SCAN_CHAN_STAT_EVENT 0x10
 /* Filter Probe request frames  */
 #define WMI_SCAN_FILTER_PROBE_REQ 0x20
-/* When set, DFS channels will not be scanned */
+/* When set, DFS channels will yest be scanned */
 #define WMI_SCAN_BYPASS_DFS_CHN 0x40
 /* Different FW scan engine may choose to bail out on errors.
  * Allow the driver to have influence over that.
@@ -3271,7 +3271,7 @@ struct wmi_start_scan_arg {
 
 /* Use random MAC address for TA for Probe Request frame and add
  * OUI specified by WMI_SCAN_PROB_REQ_OUI_CMDID to the Probe Request frame.
- * if OUI is not set by WMI_SCAN_PROB_REQ_OUI_CMDID then the flag is ignored.
+ * if OUI is yest set by WMI_SCAN_PROB_REQ_OUI_CMDID then the flag is igyesred.
  */
 #define WMI_SCAN_ADD_SPOOFED_MAC_IN_PROBE_REQ   0x1000
 
@@ -3311,7 +3311,7 @@ struct wmi_scan_chan_list_arg {
 };
 
 enum wmi_bss_filter {
-	WMI_BSS_FILTER_NONE = 0,        /* no beacons forwarded */
+	WMI_BSS_FILTER_NONE = 0,        /* yes beacons forwarded */
 	WMI_BSS_FILTER_ALL,             /* all beacons forwarded */
 	WMI_BSS_FILTER_PROFILE,         /* only beacons matching profile */
 	WMI_BSS_FILTER_ALL_BUT_PROFILE, /* all but beacons matching profile */
@@ -3646,7 +3646,7 @@ struct wmi_pdev_set_quiet_cmd {
  * 802.11g protection mode.
  */
 enum ath10k_protmode {
-	ATH10K_PROT_NONE     = 0,    /* no protection */
+	ATH10K_PROT_NONE     = 0,    /* yes protection */
 	ATH10K_PROT_CTSONLY  = 1,    /* CTS to self */
 	ATH10K_PROT_RTSCTS   = 2,    /* RTS-CTS */
 };
@@ -3706,7 +3706,7 @@ struct wmi_pdev_param_map {
 	u32 resmgr_offchan_mode;
 	u32 protection_mode;
 	u32 dynamic_bw;
-	u32 non_agg_sw_retry_th;
+	u32 yesn_agg_sw_retry_th;
 	u32 agg_sw_retry_th;
 	u32 sta_kickout_th;
 	u32 ac_aggrsize_scaling;
@@ -3768,8 +3768,8 @@ struct wmi_pdev_param_map {
 	u32 set_burst_mode_cmdid;
 	u32 en_stats;
 	u32 mu_group_policy;
-	u32 noise_detection;
-	u32 noise_threshold;
+	u32 yesise_detection;
+	u32 yesise_threshold;
 	u32 dpd_enable;
 	u32 set_mcast_bcast_echo;
 	u32 atf_strict_sch;
@@ -3816,7 +3816,7 @@ enum wmi_pdev_param {
 	WMI_PDEV_PARAM_RESMGR_OFFCHAN_MODE,
 	/*
 	 * Protection mode:
-	 * 0: no protection 1:use CTS-to-self 2: use RTS/CTS
+	 * 0: yes protection 1:use CTS-to-self 2: use RTS/CTS
 	 */
 	WMI_PDEV_PARAM_PROTECTION_MODE,
 	/*
@@ -3830,7 +3830,7 @@ enum wmi_pdev_param {
 	WMI_PDEV_PARAM_NON_AGG_SW_RETRY_TH,
 	/* aggregrate sw retry threshold. 0-disable*/
 	WMI_PDEV_PARAM_AGG_SW_RETRY_TH,
-	/* Station kickout threshold (non of consecutive failures).0-disable */
+	/* Station kickout threshold (yesn of consecutive failures).0-disable */
 	WMI_PDEV_PARAM_STA_KICKOUT_TH,
 	/* Aggerate size scaling configuration per AC */
 	WMI_PDEV_PARAM_AC_AGGRSIZE_SCALING,
@@ -3920,7 +3920,7 @@ enum wmi_10x_pdev_param {
 	WMI_10X_PDEV_PARAM_RESMGR_OFFCHAN_MODE,
 	/*
 	 * Protection mode:
-	 * 0: no protection 1:use CTS-to-self 2: use RTS/CTS
+	 * 0: yes protection 1:use CTS-to-self 2: use RTS/CTS
 	 */
 	WMI_10X_PDEV_PARAM_PROTECTION_MODE,
 	/* Dynamic bandwidth 0: disable 1: enable */
@@ -3929,7 +3929,7 @@ enum wmi_10x_pdev_param {
 	WMI_10X_PDEV_PARAM_NON_AGG_SW_RETRY_TH,
 	/* aggregrate sw retry threshold. 0-disable*/
 	WMI_10X_PDEV_PARAM_AGG_SW_RETRY_TH,
-	/* Station kickout threshold (non of consecutive failures).0-disable */
+	/* Station kickout threshold (yesn of consecutive failures).0-disable */
 	WMI_10X_PDEV_PARAM_STA_KICKOUT_TH,
 	/* Aggerate size scaling configuration per AC */
 	WMI_10X_PDEV_PARAM_AC_AGGRSIZE_SCALING,
@@ -4171,7 +4171,7 @@ struct wmi_pdev_tpc_config_event {
 
 /* Transmit power scale factor. */
 enum wmi_tp_scale {
-	WMI_TP_SCALE_MAX    = 0,	/* no scaling (default) */
+	WMI_TP_SCALE_MAX    = 0,	/* yes scaling (default) */
 	WMI_TP_SCALE_50     = 1,	/* 50% of max (-3 dBm) */
 	WMI_TP_SCALE_25     = 2,	/* 25% of max (-6 dBm) */
 	WMI_TP_SCALE_12     = 3,	/* 12% of max (-9 dBm) */
@@ -4257,7 +4257,7 @@ enum {
 };
 
 struct wmi_pdev_set_channel_cmd {
-	/* idnore power , only use flags , mode and freq */
+	/* idyesre power , only use flags , mode and freq */
 	struct wmi_channel chan;
 } __packed;
 
@@ -4288,7 +4288,7 @@ struct wmi_wmm_params {
 	__le32 aifs;
 	__le32 txop;
 	__le32 acm;
-	__le32 no_ack;
+	__le32 yes_ack;
 } __packed;
 
 struct wmi_pdev_set_wmm_params {
@@ -4304,7 +4304,7 @@ struct wmi_wmm_params_arg {
 	u32 aifs;
 	u32 txop;
 	u32 acm;
-	u32 no_ack;
+	u32 yes_ack;
 };
 
 struct wmi_wmm_params_all_arg {
@@ -4369,13 +4369,13 @@ struct wmi_pdev_stats_tx {
 	/* wal pdev continuous xretry */
 	__le32 pdev_cont_xretry;
 
-	/* wal pdev continous xretry */
+	/* wal pdev contiyesus xretry */
 	__le32 pdev_tx_timeout;
 
 	/* wal pdev resets  */
 	__le32 pdev_resets;
 
-	/* frames dropped due to non-availability of stateless TIDs */
+	/* frames dropped due to yesn-availability of stateless TIDs */
 	__le32 stateless_tid_alloc_failure;
 
 	__le32 phy_underrun;
@@ -4448,7 +4448,7 @@ struct wmi_10_4_pdev_stats_tx {
 	/* wal pdev resets  */
 	__le32 pdev_resets;
 
-	/* frames dropped due to non-availability of stateless TIDs */
+	/* frames dropped due to yesn-availability of stateless TIDs */
 	__le32 stateless_tid_alloc_failure;
 
 	__le32 phy_underrun;
@@ -4650,7 +4650,7 @@ struct wmi_pdev_stats_extra {
 	__le32 rts_bad;
 	__le32 rts_good;
 	__le32 fcs_bad;
-	__le32 no_beacons;
+	__le32 yes_beacons;
 	__le32 mib_int_count;
 } __packed;
 
@@ -4703,9 +4703,9 @@ struct wmi_vdev_stats {
 struct wmi_vdev_stats_extd {
 	__le32 vdev_id;
 	__le32 ppdu_aggr_cnt;
-	__le32 ppdu_noack;
+	__le32 ppdu_yesack;
 	__le32 mpdu_queued;
-	__le32 ppdu_nonaggr_cnt;
+	__le32 ppdu_yesnaggr_cnt;
 	__le32 mpdu_sw_requeued;
 	__le32 mpdu_suc_retry;
 	__le32 mpdu_suc_multitry;
@@ -4873,7 +4873,7 @@ enum wmi_vdev_subtype_10_4 {
  */
 #define WMI_VDEV_START_PMF_ENABLED  (1 << 1)
 
-struct wmi_p2p_noa_descriptor {
+struct wmi_p2p_yesa_descriptor {
 	__le32 type_count; /* 255: continuous schedule, 0: reserved */
 	__le32 duration;  /* Absent period duration in micro seconds */
 	__le32 interval;   /* Absent period interval in micro seconds */
@@ -4900,14 +4900,14 @@ struct wmi_vdev_start_request_cmd {
 	/* beacon/probe response xmit power. Applicable for SoftAP. */
 	__le32 bcn_tx_power;
 	/* number of p2p NOA descriptor(s) from scan entry */
-	__le32 num_noa_descriptors;
+	__le32 num_yesa_descriptors;
 	/*
 	 * Disable H/W ack. This used by WMI_VDEV_RESTART_REQUEST_CMDID.
 	 * During CAC, Our HW shouldn't ack ditected frames
 	 */
 	__le32 disable_hw_ack;
 	/* actual p2p NOA descriptor from scan entry */
-	struct wmi_p2p_noa_descriptor noa_descriptors[2];
+	struct wmi_p2p_yesa_descriptor yesa_descriptors[2];
 } __packed;
 
 struct wmi_vdev_restart_request_cmd {
@@ -5133,7 +5133,7 @@ struct wmi_vdev_param_map {
 	u32 mcast_data_rate;
 	u32 mcast_indicate;
 	u32 dhcp_indicate;
-	u32 unknown_dest_indicate;
+	u32 unkyeswn_dest_indicate;
 	u32 ap_keepalive_min_idle_inactive_time_secs;
 	u32 ap_keepalive_max_idle_inactive_time_secs;
 	u32 ap_keepalive_max_unresponsive_time_secs;
@@ -5253,26 +5253,26 @@ enum wmi_vdev_param {
 	WMI_VDEV_PARAM_MCAST_INDICATE,
 	/* Tx DHCP packet indicate Enable/Disable */
 	WMI_VDEV_PARAM_DHCP_INDICATE,
-	/* Enable host inspection of Tx unicast packet to unknown destination */
+	/* Enable host inspection of Tx unicast packet to unkyeswn destination */
 	WMI_VDEV_PARAM_UNKNOWN_DEST_INDICATE,
 
 	/* The minimum amount of time AP begins to consider STA inactive */
 	WMI_VDEV_PARAM_AP_KEEPALIVE_MIN_IDLE_INACTIVE_TIME_SECS,
 
 	/*
-	 * An associated STA is considered inactive when there is no recent
-	 * TX/RX activity and no downlink frames are buffered for it. Once a
+	 * An associated STA is considered inactive when there is yes recent
+	 * TX/RX activity and yes downlink frames are buffered for it. Once a
 	 * STA exceeds the maximum idle inactive time, the AP will send an
 	 * 802.11 data-null as a keep alive to verify the STA is still
 	 * associated. If the STA does ACK the data-null, or if the data-null
-	 * is buffered and the STA does not retrieve it, the STA will be
+	 * is buffered and the STA does yest retrieve it, the STA will be
 	 * considered unresponsive
 	 * (see WMI_VDEV_AP_KEEPALIVE_MAX_UNRESPONSIVE_TIME_SECS).
 	 */
 	WMI_VDEV_PARAM_AP_KEEPALIVE_MAX_IDLE_INACTIVE_TIME_SECS,
 
 	/*
-	 * An associated STA is considered unresponsive if there is no recent
+	 * An associated STA is considered unresponsive if there is yes recent
 	 * TX/RX activity and downlink frames are buffered for it. Once a STA
 	 * exceeds the maximum unresponsive time, the AP will send a
 	 * WMI_STA_KICKOUT event to the host so the STA can be deleted.
@@ -5381,26 +5381,26 @@ enum wmi_10x_vdev_param {
 	WMI_10X_VDEV_PARAM_MCAST_INDICATE,
 	/* Tx DHCP packet indicate Enable/Disable */
 	WMI_10X_VDEV_PARAM_DHCP_INDICATE,
-	/* Enable host inspection of Tx unicast packet to unknown destination */
+	/* Enable host inspection of Tx unicast packet to unkyeswn destination */
 	WMI_10X_VDEV_PARAM_UNKNOWN_DEST_INDICATE,
 
 	/* The minimum amount of time AP begins to consider STA inactive */
 	WMI_10X_VDEV_PARAM_AP_KEEPALIVE_MIN_IDLE_INACTIVE_TIME_SECS,
 
 	/*
-	 * An associated STA is considered inactive when there is no recent
-	 * TX/RX activity and no downlink frames are buffered for it. Once a
+	 * An associated STA is considered inactive when there is yes recent
+	 * TX/RX activity and yes downlink frames are buffered for it. Once a
 	 * STA exceeds the maximum idle inactive time, the AP will send an
 	 * 802.11 data-null as a keep alive to verify the STA is still
 	 * associated. If the STA does ACK the data-null, or if the data-null
-	 * is buffered and the STA does not retrieve it, the STA will be
+	 * is buffered and the STA does yest retrieve it, the STA will be
 	 * considered unresponsive
 	 * (see WMI_10X_VDEV_AP_KEEPALIVE_MAX_UNRESPONSIVE_TIME_SECS).
 	 */
 	WMI_10X_VDEV_PARAM_AP_KEEPALIVE_MAX_IDLE_INACTIVE_TIME_SECS,
 
 	/*
-	 * An associated STA is considered unresponsive if there is no recent
+	 * An associated STA is considered unresponsive if there is yes recent
 	 * TX/RX activity and downlink frames are buffered for it. Once a STA
 	 * exceeds the maximum unresponsive time, the AP will send a
 	 * WMI_10X_STA_KICKOUT event to the host so the STA can be deleted.
@@ -5578,7 +5578,7 @@ struct wmi_vdev_simple_event {
 /* VDEV successfully started */
 #define WMI_INIFIED_VDEV_START_RESPONSE_STATUS_SUCCESS	0x0
 
-/* requested VDEV not found */
+/* requested VDEV yest found */
 #define WMI_INIFIED_VDEV_START_RESPONSE_INVALID_VDEVID	0x1
 
 /* unsupported VDEV combination */
@@ -5597,7 +5597,7 @@ struct wmi_vdev_spectral_conf_cmd {
 	__le32 scan_fft_size;
 	__le32 scan_gc_ena;
 	__le32 scan_restart_ena;
-	__le32 scan_noise_floor_ref;
+	__le32 scan_yesise_floor_ref;
 	__le32 scan_init_delay;
 	__le32 scan_nb_tone_thr;
 	__le32 scan_str_bin_thr;
@@ -5631,7 +5631,7 @@ struct wmi_vdev_spectral_conf_arg {
 	u32 scan_fft_size;
 	u32 scan_gc_ena;
 	u32 scan_restart_ena;
-	u32 scan_noise_floor_ref;
+	u32 scan_yesise_floor_ref;
 	u32 scan_init_delay;
 	u32 scan_nb_tone_thr;
 	u32 scan_str_bin_thr;
@@ -5702,8 +5702,8 @@ enum wmi_bcn_tx_ref_flags {
 	WMI_BCN_TX_REF_FLAG_DELIVER_CAB = 0x2,
 };
 
-/* TODO: It is unclear why "no antenna" works while any other seemingly valid
- * chainmask yields no beacons on the air at all.
+/* TODO: It is unclear why "yes antenna" works while any other seemingly valid
+ * chainmask yields yes beacons on the air at all.
  */
 #define WMI_BCN_TX_REF_DEF_ANTENNA 0
 
@@ -5830,7 +5830,7 @@ enum wmi_sta_ps_param_rx_wake_policy {
 	WMI_STA_PS_RX_WAKE_POLICY_WAKE = 0,
 
 	/*
-	 * Here the power save state machine will not wakeup in response to TIM
+	 * Here the power save state machine will yest wakeup in response to TIM
 	 * bit, instead it will send a PSPOLL (or) UASPD trigger based on UAPSD
 	 * configuration setup by WMISET_PS_SET_UAPSD  WMI command.  When all
 	 * access categories are delivery-enabled, the station will send a
@@ -5860,10 +5860,10 @@ enum wmi_sta_ps_param_tx_wake_threshold {
 /*
  * The maximum number of PS-Poll frames the FW will send in response to
  * traffic advertised in TIM before waking up (by sending a null frame with PS
- * = 0). Value 0 has a special meaning: there is no maximum count and the FW
+ * = 0). Value 0 has a special meaning: there is yes maximum count and the FW
  * will send as many PS-Poll as are necessary to retrieve buffered BU. This
  * parameter is used when the RX wake policy is
- * WMI_STA_PS_RX_WAKE_POLICY_POLL_UAPSD and ignored when the RX wake
+ * WMI_STA_PS_RX_WAKE_POLICY_POLL_UAPSD and igyesred when the RX wake
  * policy is WMI_STA_PS_RX_WAKE_POLICY_WAKE.
  */
 enum wmi_sta_ps_param_pspoll_count {
@@ -5954,7 +5954,7 @@ enum wmi_sta_powersave_param {
 	/*
 	 * TX/RX inactivity time in msec before going to sleep.
 	 *
-	 * The power save SM will monitor tx/rx activity on the VDEV, if no
+	 * The power save SM will monitor tx/rx activity on the VDEV, if yes
 	 * activity for the specified msec of the parameter the Power save
 	 * SM will go to sleep.
 	 */
@@ -6079,7 +6079,7 @@ struct wmi_tim_info_arg {
 #define WMI_P2P_OPPPS_CTWINDOW_OFFSET	1
 #define WMI_P2P_NOA_CHANGED_BIT	BIT(0)
 
-struct wmi_p2p_noa_info {
+struct wmi_p2p_yesa_info {
 	/* Bit 0 - Flag to indicate an update in NOA schedule
 	 * Bits 7-1 - Reserved
 	 */
@@ -6093,12 +6093,12 @@ struct wmi_p2p_noa_info {
 	/* Number of NOA descriptors */
 	u8 num_descriptors;
 
-	struct wmi_p2p_noa_descriptor descriptors[WMI_P2P_MAX_NOA_DESCRIPTORS];
+	struct wmi_p2p_yesa_descriptor descriptors[WMI_P2P_MAX_NOA_DESCRIPTORS];
 } __packed;
 
 struct wmi_bcn_info {
 	struct wmi_tim_info tim_info;
-	struct wmi_p2p_noa_info p2p_noa_info;
+	struct wmi_p2p_yesa_info p2p_yesa_info;
 } __packed;
 
 struct wmi_host_swba_event {
@@ -6129,7 +6129,7 @@ struct wmi_10_4_tim_info {
 
 #define WMI_10_4_P2P_MAX_NOA_DESCRIPTORS 1
 
-struct wmi_10_4_p2p_noa_info {
+struct wmi_10_4_p2p_yesa_info {
 	/* Bit 0 - Flag to indicate an update in NOA schedule
 	 * Bits 7-1 - Reserved
 	 */
@@ -6143,13 +6143,13 @@ struct wmi_10_4_p2p_noa_info {
 	/* Number of NOA descriptors */
 	u8 num_descriptors;
 
-	struct wmi_p2p_noa_descriptor
-		noa_descriptors[WMI_10_4_P2P_MAX_NOA_DESCRIPTORS];
+	struct wmi_p2p_yesa_descriptor
+		yesa_descriptors[WMI_10_4_P2P_MAX_NOA_DESCRIPTORS];
 } __packed;
 
 struct wmi_10_4_bcn_info {
 	struct wmi_10_4_tim_info tim_info;
-	struct wmi_10_4_p2p_noa_info p2p_noa_info;
+	struct wmi_10_4_p2p_yesa_info p2p_yesa_info;
 } __packed;
 
 struct wmi_10_4_host_swba_event {
@@ -6190,7 +6190,7 @@ struct wmi_peer_flush_tids_cmd {
 struct wmi_fixed_rate {
 	/*
 	 * rate mode . 0: disable fixed rate (auto rate)
-	 *   1: legacy (non 11n) rate  specified as ieee rate 2*Mbps
+	 *   1: legacy (yesn 11n) rate  specified as ieee rate 2*Mbps
 	 *   2: ht20 11n rate  specified as mcs index
 	 *   3: ht40 11n rate  specified as mcs index
 	 */
@@ -6324,7 +6324,7 @@ struct wmi_rate_set_arg {
 
 /*
  * NOTE: It would bea good idea to represent the Tx MCS
- * info in one word and Rx in another word. This is split
+ * info in one word and Rx in ayesther word. This is split
  * into multiple words for convenience
  */
 struct wmi_vht_rate_set {
@@ -6553,7 +6553,7 @@ struct wmi_chan_info_event {
 	__le32 err_code;
 	__le32 freq;
 	__le32 cmd_flags;
-	__le32 noise_floor;
+	__le32 yesise_floor;
 	__le32 rx_clear_count;
 	__le32 cycle_count;
 } __packed;
@@ -6562,7 +6562,7 @@ struct wmi_10_4_chan_info_event {
 	__le32 err_code;
 	__le32 freq;
 	__le32 cmd_flags;
-	__le32 noise_floor;
+	__le32 yesise_floor;
 	__le32 rx_clear_count;
 	__le32 cycle_count;
 	__le32 chan_tx_pwr_range;
@@ -6609,7 +6609,7 @@ enum wmi_sta_keepalive_method {
 /* Firmware crashes if keepalive interval exceeds this limit */
 #define WMI_STA_KEEPALIVE_INTERVAL_MAX_SECONDS 0xffff
 
-/* note: ip4 addresses are in network byte order, i.e. big endian */
+/* yeste: ip4 addresses are in network byte order, i.e. big endian */
 struct wmi_sta_keepalive_arp_resp {
 	__be32 src_ip4_addr;
 	__be32 dest_ip4_addr;
@@ -6684,7 +6684,7 @@ enum ath10k_dbglog_level {
 
 /*
  * Log levels to enable. This defines the minimum level to enable, this is
- * not a bitmask. See enum ath10k_dbglog_level for the values.
+ * yest a bitmask. See enum ath10k_dbglog_level for the values.
  */
 #define ATH10K_DBGLOG_CFG_LOG_LVL_LSB		28
 #define ATH10K_DBGLOG_CFG_LOG_LVL_MASK		0x70000000
@@ -6800,7 +6800,7 @@ struct wmi_ch_info_ev_arg {
 	__le32 err_code;
 	__le32 freq;
 	__le32 cmd_flags;
-	__le32 noise_floor;
+	__le32 yesise_floor;
 	__le32 rx_clear_count;
 	__le32 cycle_count;
 	__le32 chan_tx_pwr_range;
@@ -6812,7 +6812,7 @@ struct wmi_ch_info_ev_arg {
 	__le32 mac_clk_mhz;
 };
 
-/* From 10.4 firmware, not sure all have the same values. */
+/* From 10.4 firmware, yest sure all have the same values. */
 enum wmi_vdev_start_status {
 	WMI_VDEV_START_OK = 0,
 	WMI_VDEV_START_CHAN_INVALID,
@@ -6832,7 +6832,7 @@ struct wmi_peer_kick_ev_arg {
 struct wmi_swba_ev_arg {
 	__le32 vdev_map;
 	struct wmi_tim_info_arg tim_info[WMI_MAX_AP_VDEV];
-	const struct wmi_p2p_noa_info *noa_info[WMI_MAX_AP_VDEV];
+	const struct wmi_p2p_yesa_info *yesa_info[WMI_MAX_AP_VDEV];
 };
 
 struct wmi_phyerr_ev_arg {
@@ -6912,7 +6912,7 @@ struct wmi_pdev_temperature_event {
 
 struct wmi_pdev_bss_chan_info_event {
 	__le32 freq;
-	__le32 noise_floor;
+	__le32 yesise_floor;
 	__le64 cycle_busy;
 	__le64 cycle_total;
 	__le64 cycle_tx;
@@ -7128,7 +7128,7 @@ struct wmi_tdls_peer_capab_arg {
 struct wmi_10_4_tdls_set_state_cmd {
 	__le32 vdev_id;
 	__le32 state;
-	__le32 notification_interval_ms;
+	__le32 yestification_interval_ms;
 	__le32 tx_discovery_threshold;
 	__le32 tx_teardown_threshold;
 	__le32 rssi_teardown_threshold;
@@ -7139,7 +7139,7 @@ struct wmi_10_4_tdls_set_state_cmd {
 	__le32 tdls_puapsd_mask;
 	__le32 tdls_puapsd_inactivity_time_ms;
 	__le32 tdls_puapsd_rx_frame_threshold;
-	__le32 teardown_notification_ms;
+	__le32 teardown_yestification_ms;
 	__le32 tdls_peer_kickout_threshold;
 } __packed;
 
@@ -7182,7 +7182,7 @@ enum wmi_tdls_peer_reason {
 	WMI_TDLS_SCAN_COMPLETED_EVENT,
 };
 
-enum wmi_tdls_peer_notification {
+enum wmi_tdls_peer_yestification {
 	WMI_TDLS_SHOULD_DISCOVER,
 	WMI_TDLS_SHOULD_TEARDOWN,
 	WMI_TDLS_PEER_DISCONNECTED,
@@ -7191,7 +7191,7 @@ enum wmi_tdls_peer_notification {
 
 struct wmi_tdls_peer_event {
 	struct wmi_mac_addr peer_macaddr;
-	/* see enum wmi_tdls_peer_notification*/
+	/* see enum wmi_tdls_peer_yestification*/
 	__le32 peer_status;
 	/* see enum wmi_tdls_peer_reason */
 	__le32 peer_reason;
@@ -7221,7 +7221,7 @@ struct wmi_pdev_set_adaptive_cca_params {
 #define WMI_PNO_MAX_SUPP_NETWORKS         WLAN_SCAN_PARAMS_MAX_SSID
 #define WMI_PNO_MAX_IE_LENGTH             WLAN_SCAN_PARAMS_MAX_IE_LEN
 
-/*size based of dot11 declaration without extra IEs as we will not carry those for PNO*/
+/*size based of dot11 declaration without extra IEs as we will yest carry those for PNO*/
 #define WMI_PNO_MAX_PB_REQ_SIZE    450
 
 #define WMI_PNO_24G_DEFAULT_CH     1
@@ -7247,7 +7247,7 @@ struct wmi_network_type {
 	s32 rssi_threshold;
 } __packed;
 
-struct wmi_pno_scan_req {
+struct wmi_pyes_scan_req {
 	u8 enable;
 	u8 vdev_id;
 	u8 uc_networks_count;
@@ -7265,7 +7265,7 @@ struct wmi_pno_scan_req {
 	u32 passive_max_time;
 
 	/* mac address randomization attributes */
-	u32 enable_pno_scan_randomization;
+	u32 enable_pyes_scan_randomization;
 	u8 mac_addr[ETH_ALEN];
 	u8 mac_addr_mask[ETH_ALEN];
 } __packed;
@@ -7319,7 +7319,7 @@ int ath10k_wmi_connect(struct ath10k *ar);
 
 struct sk_buff *ath10k_wmi_alloc_skb(struct ath10k *ar, u32 len);
 int ath10k_wmi_cmd_send(struct ath10k *ar, struct sk_buff *skb, u32 cmd_id);
-int ath10k_wmi_cmd_send_nowait(struct ath10k *ar, struct sk_buff *skb,
+int ath10k_wmi_cmd_send_yeswait(struct ath10k *ar, struct sk_buff *skb,
 			       u32 cmd_id);
 void ath10k_wmi_start_scan_init(struct ath10k *ar, struct wmi_start_scan_arg *arg);
 

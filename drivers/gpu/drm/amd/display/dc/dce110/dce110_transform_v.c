@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -51,7 +51,7 @@ static void calculate_viewport(
 		struct rect *luma_viewport,
 		struct rect *chroma_viewport)
 {
-	/*Do not set chroma vp for rgb444 pixel format*/
+	/*Do yest set chroma vp for rgb444 pixel format*/
 	luma_viewport->x = scl_data->viewport.x - scl_data->viewport.x % 2;
 	luma_viewport->y = scl_data->viewport.y - scl_data->viewport.y % 2;
 	luma_viewport->width =
@@ -674,7 +674,7 @@ static void dce110_xfmv_set_pixel_storage_depth(
 	if (!(xfm_dce->lb_pixel_depth_supported & depth)) {
 		/*we should use unsupported capabilities
 		 *  unless it is required by w/a*/
-		DC_LOG_WARNING("%s: Capability not supported",
+		DC_LOG_WARNING("%s: Capability yest supported",
 			__func__);
 	}
 }

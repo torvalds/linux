@@ -7,7 +7,7 @@
 
 #include <linux/mm.h>
 #include <linux/sched.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #define __FRAME_OFFSETS
 #include <asm/ptrace.h>
 #include <linux/uaccess.h>
@@ -15,7 +15,7 @@
 
 /*
  * determines which flags the user has access to.
- * 1 = access 0 = no access
+ * 1 = access 0 = yes access
  */
 #define FLAG_MASK 0x44dd5UL
 
@@ -50,17 +50,17 @@ static const int reg_offsets[] =
 	[ORIG_RAX >> 3] = HOST_ORIG_AX,
 };
 
-int putreg(struct task_struct *child, int regno, unsigned long value)
+int putreg(struct task_struct *child, int regyes, unsigned long value)
 {
 #ifdef TIF_IA32
 	/*
-	 * Some code in the 64bit emulation may not be 64bit clean.
+	 * Some code in the 64bit emulation may yest be 64bit clean.
 	 * Don't take any chances.
 	 */
 	if (test_tsk_thread_flag(child, TIF_IA32))
 		value &= 0xffffffff;
 #endif
-	switch (regno) {
+	switch (regyes) {
 	case R8:
 	case R9:
 	case R10:
@@ -108,10 +108,10 @@ int putreg(struct task_struct *child, int regno, unsigned long value)
 		return 0;
 
 	default:
-		panic("Bad register in putreg(): %d\n", regno);
+		panic("Bad register in putreg(): %d\n", regyes);
 	}
 
-	child->thread.regs.regs.gp[reg_offsets[regno >> 3]] = value;
+	child->thread.regs.regs.gp[reg_offsets[regyes >> 3]] = value;
 	return 0;
 }
 
@@ -134,14 +134,14 @@ int poke_user(struct task_struct *child, long addr, long data)
 	return -EIO;
 }
 
-unsigned long getreg(struct task_struct *child, int regno)
+unsigned long getreg(struct task_struct *child, int regyes)
 {
 	unsigned long mask = ~0UL;
 #ifdef TIF_IA32
 	if (test_tsk_thread_flag(child, TIF_IA32))
 		mask = 0xffffffff;
 #endif
-	switch (regno) {
+	switch (regyes) {
 	case R8:
 	case R9:
 	case R10:
@@ -173,9 +173,9 @@ unsigned long getreg(struct task_struct *child, int regno)
 		mask = 0xffff;
 		break;
 	default:
-		panic("Bad register in getreg: %d\n", regno);
+		panic("Bad register in getreg: %d\n", regyes);
 	}
-	return mask & child->thread.regs.regs.gp[reg_offsets[regno >> 3]];
+	return mask & child->thread.regs.regs.gp[reg_offsets[regyes >> 3]];
 }
 
 int peek_user(struct task_struct *child, long addr, long data)

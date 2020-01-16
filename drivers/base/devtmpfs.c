@@ -6,7 +6,7 @@
  *
  * During bootup, before any driver core device is registered,
  * devtmpfs, a tmpfs-based filesystem is created. Every driver-core
- * device which requests a device node, will add a node in this
+ * device which requests a device yesde, will add a yesde in this
  * filesystem.
  * By default, all devices are named after the name of the device,
  * owned by root and have a default mode of 0600. Subsystems can
@@ -93,7 +93,7 @@ static inline int is_blockdev(struct device *dev)
 static inline int is_blockdev(struct device *dev) { return 0; }
 #endif
 
-int devtmpfs_create_node(struct device *dev)
+int devtmpfs_create_yesde(struct device *dev)
 {
 	const char *tmp = NULL;
 	struct req req;
@@ -104,7 +104,7 @@ int devtmpfs_create_node(struct device *dev)
 	req.mode = 0;
 	req.uid = GLOBAL_ROOT_UID;
 	req.gid = GLOBAL_ROOT_GID;
-	req.name = device_get_devnode(dev, &req.mode, &req.uid, &req.gid, &tmp);
+	req.name = device_get_devyesde(dev, &req.mode, &req.uid, &req.gid, &tmp);
 	if (!req.name)
 		return -ENOMEM;
 
@@ -132,7 +132,7 @@ int devtmpfs_create_node(struct device *dev)
 	return req.err;
 }
 
-int devtmpfs_delete_node(struct device *dev)
+int devtmpfs_delete_yesde(struct device *dev)
 {
 	const char *tmp = NULL;
 	struct req req;
@@ -140,7 +140,7 @@ int devtmpfs_delete_node(struct device *dev)
 	if (!thread)
 		return 0;
 
-	req.name = device_get_devnode(dev, NULL, NULL, NULL, &tmp);
+	req.name = device_get_devyesde(dev, NULL, NULL, NULL, &tmp);
 	if (!req.name)
 		return -ENOMEM;
 
@@ -171,22 +171,22 @@ static int dev_mkdir(const char *name, umode_t mode)
 	if (IS_ERR(dentry))
 		return PTR_ERR(dentry);
 
-	err = vfs_mkdir(d_inode(path.dentry), dentry, mode);
+	err = vfs_mkdir(d_iyesde(path.dentry), dentry, mode);
 	if (!err)
-		/* mark as kernel-created inode */
-		d_inode(dentry)->i_private = &thread;
+		/* mark as kernel-created iyesde */
+		d_iyesde(dentry)->i_private = &thread;
 	done_path_create(&path, dentry);
 	return err;
 }
 
-static int create_path(const char *nodepath)
+static int create_path(const char *yesdepath)
 {
 	char *path;
 	char *s;
 	int err = 0;
 
-	/* parent directories do not exist, create them */
-	path = kstrdup(nodepath, GFP_KERNEL);
+	/* parent directories do yest exist, create them */
+	path = kstrdup(yesdepath, GFP_KERNEL);
 	if (!path)
 		return -ENOMEM;
 
@@ -206,22 +206,22 @@ static int create_path(const char *nodepath)
 	return err;
 }
 
-static int handle_create(const char *nodename, umode_t mode, kuid_t uid,
+static int handle_create(const char *yesdename, umode_t mode, kuid_t uid,
 			 kgid_t gid, struct device *dev)
 {
 	struct dentry *dentry;
 	struct path path;
 	int err;
 
-	dentry = kern_path_create(AT_FDCWD, nodename, &path, 0);
+	dentry = kern_path_create(AT_FDCWD, yesdename, &path, 0);
 	if (dentry == ERR_PTR(-ENOENT)) {
-		create_path(nodename);
-		dentry = kern_path_create(AT_FDCWD, nodename, &path, 0);
+		create_path(yesdename);
+		dentry = kern_path_create(AT_FDCWD, yesdename, &path, 0);
 	}
 	if (IS_ERR(dentry))
 		return PTR_ERR(dentry);
 
-	err = vfs_mknod(d_inode(path.dentry), dentry, mode, dev->devt);
+	err = vfs_mkyesd(d_iyesde(path.dentry), dentry, mode, dev->devt);
 	if (!err) {
 		struct iattr newattrs;
 
@@ -229,12 +229,12 @@ static int handle_create(const char *nodename, umode_t mode, kuid_t uid,
 		newattrs.ia_uid = uid;
 		newattrs.ia_gid = gid;
 		newattrs.ia_valid = ATTR_MODE|ATTR_UID|ATTR_GID;
-		inode_lock(d_inode(dentry));
-		notify_change(dentry, &newattrs, NULL);
-		inode_unlock(d_inode(dentry));
+		iyesde_lock(d_iyesde(dentry));
+		yestify_change(dentry, &newattrs, NULL);
+		iyesde_unlock(d_iyesde(dentry));
 
-		/* mark as kernel-created inode */
-		d_inode(dentry)->i_private = &thread;
+		/* mark as kernel-created iyesde */
+		d_iyesde(dentry)->i_private = &thread;
 	}
 	done_path_create(&path, dentry);
 	return err;
@@ -250,25 +250,25 @@ static int dev_rmdir(const char *name)
 	if (IS_ERR(dentry))
 		return PTR_ERR(dentry);
 	if (d_really_is_positive(dentry)) {
-		if (d_inode(dentry)->i_private == &thread)
-			err = vfs_rmdir(d_inode(parent.dentry), dentry);
+		if (d_iyesde(dentry)->i_private == &thread)
+			err = vfs_rmdir(d_iyesde(parent.dentry), dentry);
 		else
 			err = -EPERM;
 	} else {
 		err = -ENOENT;
 	}
 	dput(dentry);
-	inode_unlock(d_inode(parent.dentry));
+	iyesde_unlock(d_iyesde(parent.dentry));
 	path_put(&parent);
 	return err;
 }
 
-static int delete_path(const char *nodepath)
+static int delete_path(const char *yesdepath)
 {
 	char *path;
 	int err = 0;
 
-	path = kstrdup(nodepath, GFP_KERNEL);
+	path = kstrdup(yesdepath, GFP_KERNEL);
 	if (!path)
 		return -ENOMEM;
 
@@ -288,10 +288,10 @@ static int delete_path(const char *nodepath)
 	return err;
 }
 
-static int dev_mynode(struct device *dev, struct inode *inode, struct kstat *stat)
+static int dev_myyesde(struct device *dev, struct iyesde *iyesde, struct kstat *stat)
 {
 	/* did we create it */
-	if (inode->i_private != &thread)
+	if (iyesde->i_private != &thread)
 		return 0;
 
 	/* does the dev_t match */
@@ -309,14 +309,14 @@ static int dev_mynode(struct device *dev, struct inode *inode, struct kstat *sta
 	return 1;
 }
 
-static int handle_remove(const char *nodename, struct device *dev)
+static int handle_remove(const char *yesdename, struct device *dev)
 {
 	struct path parent;
 	struct dentry *dentry;
 	int deleted = 0;
 	int err;
 
-	dentry = kern_path_locked(nodename, &parent);
+	dentry = kern_path_locked(yesdename, &parent);
 	if (IS_ERR(dentry))
 		return PTR_ERR(dentry);
 
@@ -325,10 +325,10 @@ static int handle_remove(const char *nodename, struct device *dev)
 		struct path p = {.mnt = parent.mnt, .dentry = dentry};
 		err = vfs_getattr(&p, &stat, STATX_TYPE | STATX_MODE,
 				  AT_STATX_SYNC_AS_STAT);
-		if (!err && dev_mynode(dev, d_inode(dentry), &stat)) {
+		if (!err && dev_myyesde(dev, d_iyesde(dentry), &stat)) {
 			struct iattr newattrs;
 			/*
-			 * before unlinking this node, reset permissions
+			 * before unlinking this yesde, reset permissions
 			 * of possible references like hardlinks
 			 */
 			newattrs.ia_uid = GLOBAL_ROOT_UID;
@@ -336,10 +336,10 @@ static int handle_remove(const char *nodename, struct device *dev)
 			newattrs.ia_mode = stat.mode & ~0777;
 			newattrs.ia_valid =
 				ATTR_UID|ATTR_GID|ATTR_MODE;
-			inode_lock(d_inode(dentry));
-			notify_change(dentry, &newattrs, NULL);
-			inode_unlock(d_inode(dentry));
-			err = vfs_unlink(d_inode(parent.dentry), dentry, NULL);
+			iyesde_lock(d_iyesde(dentry));
+			yestify_change(dentry, &newattrs, NULL);
+			iyesde_unlock(d_iyesde(dentry));
+			err = vfs_unlink(d_iyesde(parent.dentry), dentry, NULL);
 			if (!err || err == -ENOENT)
 				deleted = 1;
 		}
@@ -347,11 +347,11 @@ static int handle_remove(const char *nodename, struct device *dev)
 		err = -ENOENT;
 	}
 	dput(dentry);
-	inode_unlock(d_inode(parent.dentry));
+	iyesde_unlock(d_iyesde(parent.dentry));
 
 	path_put(&parent);
-	if (deleted && strchr(nodename, '/'))
-		delete_path(nodename);
+	if (deleted && strchr(yesdename, '/'))
+		delete_path(yesdename);
 	return err;
 }
 
@@ -427,7 +427,7 @@ out:
 
 /*
  * Create devtmpfs instance, driver-core devices will add their device
- * nodes here.
+ * yesdes here.
  */
 int __init devtmpfs_init(void)
 {

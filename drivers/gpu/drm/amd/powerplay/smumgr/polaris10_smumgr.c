@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -130,7 +130,7 @@ static int polaris10_setup_graphics_level_structure(struct pp_hwmgr *hwmgr)
 	PP_ASSERT_WITH_CODE(0 == smu7_read_smc_sram_dword(hwmgr,
 				SMU7_FIRMWARE_HEADER_LOCATION + offsetof(SMU74_Firmware_Header, DpmTable),
 				&dpm_table_start, 0x40000),
-			"[AVFS][Polaris10_SetupGfxLvlStruct] SMU could not communicate starting address of DPM table",
+			"[AVFS][Polaris10_SetupGfxLvlStruct] SMU could yest communicate starting address of DPM table",
 			return -1);
 
 	/*  Default value for VRConfig = VR_MERGED_WITH_VDDC + VR_STATIC_VOLTAGE(VDDCI) */
@@ -179,13 +179,13 @@ static int polaris10_avfs_event_mgr(struct pp_hwmgr *hwmgr)
 		return 0;
 
 	PP_ASSERT_WITH_CODE(0 == polaris10_setup_graphics_level_structure(hwmgr),
-		"[AVFS][Polaris10_AVFSEventMgr] Could not Copy Graphics Level table over to SMU",
+		"[AVFS][Polaris10_AVFSEventMgr] Could yest Copy Graphics Level table over to SMU",
 		return -EINVAL);
 
 	if (smu_data->avfs_btc_param > 1) {
-		pr_info("[AVFS][Polaris10_AVFSEventMgr] AC BTC has not been successfully verified on Fiji. There may be in this setting.");
+		pr_info("[AVFS][Polaris10_AVFSEventMgr] AC BTC has yest been successfully verified on Fiji. There may be in this setting.");
 		PP_ASSERT_WITH_CODE(0 == smu7_setup_pwr_virus(hwmgr),
-		"[AVFS][Polaris10_AVFSEventMgr] Could not setup Pwr Virus for AVFS ",
+		"[AVFS][Polaris10_AVFSEventMgr] Could yest setup Pwr Virus for AVFS ",
 		return -EINVAL);
 	}
 
@@ -251,7 +251,7 @@ static int polaris10_start_smu_in_protection_mode(struct pp_hwmgr *hwmgr)
 	return result;
 }
 
-static int polaris10_start_smu_in_non_protection_mode(struct pp_hwmgr *hwmgr)
+static int polaris10_start_smu_in_yesn_protection_mode(struct pp_hwmgr *hwmgr)
 {
 	int result = 0;
 
@@ -293,14 +293,14 @@ static int polaris10_start_smu(struct pp_hwmgr *hwmgr)
 	int result = 0;
 	struct polaris10_smumgr *smu_data = (struct polaris10_smumgr *)(hwmgr->smu_backend);
 
-	/* Only start SMC if SMC RAM is not running */
-	if (!smu7_is_smc_ram_running(hwmgr) && hwmgr->not_vf) {
+	/* Only start SMC if SMC RAM is yest running */
+	if (!smu7_is_smc_ram_running(hwmgr) && hwmgr->yest_vf) {
 		smu_data->protected_mode = (uint8_t) (PHM_READ_VFPF_INDIRECT_FIELD(hwmgr->device, CGS_IND_REG__SMC, SMU_FIRMWARE, SMU_MODE));
 		smu_data->smu7_data.security_hard_key = (uint8_t) (PHM_READ_VFPF_INDIRECT_FIELD(hwmgr->device, CGS_IND_REG__SMC, SMU_FIRMWARE, SMU_SEL));
 
 		/* Check if SMU is running in protected mode */
 		if (smu_data->protected_mode == 0)
-			result = polaris10_start_smu_in_non_protection_mode(hwmgr);
+			result = polaris10_start_smu_in_yesn_protection_mode(hwmgr);
 		else
 			result = polaris10_start_smu_in_protection_mode(hwmgr);
 
@@ -310,7 +310,7 @@ static int polaris10_start_smu(struct pp_hwmgr *hwmgr)
 		polaris10_avfs_event_mgr(hwmgr);
 	}
 
-	/* Setup SoftRegsStart here for register lookup in case DummyBackEnd is used and ProcessFirmwareHeader is not executed */
+	/* Setup SoftRegsStart here for register lookup in case DummyBackEnd is used and ProcessFirmwareHeader is yest executed */
 	smu7_read_smc_sram_dword(hwmgr, SMU7_FIRMWARE_HEADER_LOCATION + offsetof(SMU74_Firmware_Header, SoftRegisters),
 					&(smu_data->smu7_data.soft_regs_start), 0x40000);
 
@@ -529,7 +529,7 @@ static int polaris10_populate_temperature_scaler(struct pp_hwmgr *hwmgr)
 	int i;
 	struct polaris10_smumgr *smu_data = (struct polaris10_smumgr *)(hwmgr->smu_backend);
 
-	/* Currently not used. Set all to zero. */
+	/* Currently yest used. Set all to zero. */
 	for (i = 0; i < 16; i++)
 		smu_data->power_tune_table.LPMLTemperatureScaler[i] = 0;
 
@@ -556,7 +556,7 @@ static int polaris10_populate_gnb_lpml(struct pp_hwmgr *hwmgr)
 	int i;
 	struct polaris10_smumgr *smu_data = (struct polaris10_smumgr *)(hwmgr->smu_backend);
 
-	/* Currently not used. Set all to zero. */
+	/* Currently yest used. Set all to zero. */
 	for (i = 0; i < 16; i++)
 		smu_data->power_tune_table.GnbLPML[i] = 0;
 
@@ -884,11 +884,11 @@ static int polaris10_calculate_sclk_params(struct pp_hwmgr *hwmgr,
 	do_div(temp, ref_clock);
 	sclk_setting->Fcw_frac = temp & 0xffff;
 
-	pcc_target_percent = 10; /*  Hardcode 10% for now. */
+	pcc_target_percent = 10; /*  Hardcode 10% for yesw. */
 	pcc_target_freq = clock - (clock * pcc_target_percent / 100);
 	sclk_setting->Pcc_fcw_int = (uint16_t)((pcc_target_freq << table->SclkFcwRangeTable[sclk_setting->PllRange].postdiv) / ref_clock);
 
-	ss_target_percent = 2; /*  Hardcode 2% for now. */
+	ss_target_percent = 2; /*  Hardcode 2% for yesw. */
 	sclk_setting->SSc_En = 0;
 	if (ss_target_percent) {
 		sclk_setting->SSc_En = 1;
@@ -928,7 +928,7 @@ static int polaris10_populate_single_graphic_level(struct pp_hwmgr *hwmgr,
 			&level->MinVoltage, &mvdd);
 
 	PP_ASSERT_WITH_CODE((0 == result),
-			"can not find VDDC voltage value for "
+			"can yest find VDDC voltage value for "
 			"VDDC engine clock dependency table",
 			return result);
 	level->ActivityLevel = data->current_profile_setting.sclk_activity;
@@ -1089,7 +1089,7 @@ static int polaris10_populate_single_memory_level(struct pp_hwmgr *hwmgr,
 				vdd_dep_table, clock,
 				&mem_level->MinVoltage, &mem_level->MinMvdd);
 		PP_ASSERT_WITH_CODE((0 == result),
-				"can not find MinVddc voltage value from memory "
+				"can yest find MinVddc voltage value from memory "
 				"VDDC voltage dependency table", return result);
 	}
 
@@ -1138,7 +1138,7 @@ static int polaris10_populate_all_memory_levels(struct pp_hwmgr *hwmgr)
 
 	for (i = 0; i < dpm_table->mclk_table.count; i++) {
 		PP_ASSERT_WITH_CODE((0 != dpm_table->mclk_table.dpm_levels[i].value),
-				"can not populate memory level as memory clock is zero",
+				"can yest populate memory level as memory clock is zero",
 				return -EINVAL);
 		result = polaris10_populate_single_memory_level(hwmgr,
 				dpm_table->mclk_table.dpm_levels[i].value,
@@ -1153,7 +1153,7 @@ static int polaris10_populate_all_memory_levels(struct pp_hwmgr *hwmgr)
 
 	/* In order to prevent MC activity from stutter mode to push DPM up,
 	 * the UVD change complements this by putting the MCLK in
-	 * a higher state by default such that we are not affected by
+	 * a higher state by default such that we are yest affected by
 	 * up threshold or and MCLK DPM latency.
 	 */
 	levels[0].ActivityLevel = 0x1f;
@@ -1217,7 +1217,7 @@ static int polaris10_populate_smc_acpi_level(struct pp_hwmgr *hwmgr,
 			sclk_frequency,
 			&table->ACPILevel.MinVoltage, &mvdd);
 	PP_ASSERT_WITH_CODE((0 == result),
-			"Cannot find ACPI VDDC voltage value "
+			"Canyest find ACPI VDDC voltage value "
 			"in Clock Dependency Table",
 			);
 
@@ -1252,7 +1252,7 @@ static int polaris10_populate_smc_acpi_level(struct pp_hwmgr *hwmgr,
 			table->MemoryACPILevel.MclkFrequency,
 			&table->MemoryACPILevel.MinVoltage, &mvdd);
 	PP_ASSERT_WITH_CODE((0 == result),
-			"Cannot find ACPI VDDCI voltage value "
+			"Canyest find ACPI VDDCI voltage value "
 			"in Clock Dependency Table",
 			);
 
@@ -1322,7 +1322,7 @@ static int polaris10_populate_smc_vce_level(struct pp_hwmgr *hwmgr,
 		result = atomctrl_get_dfs_pll_dividers_vi(hwmgr,
 				table->VceLevel[count].Frequency, &dividers);
 		PP_ASSERT_WITH_CODE((0 == result),
-				"can not find divide id for VCE engine clock",
+				"can yest find divide id for VCE engine clock",
 				return result);
 
 		table->VceLevel[count].Divider = (uint8_t)dividers.pll_post_divider;
@@ -1427,14 +1427,14 @@ static int polaris10_populate_smc_uvd_level(struct pp_hwmgr *hwmgr,
 		result = atomctrl_get_dfs_pll_dividers_vi(hwmgr,
 				table->UvdLevel[count].VclkFrequency, &dividers);
 		PP_ASSERT_WITH_CODE((0 == result),
-				"can not find divide id for Vclk clock", return result);
+				"can yest find divide id for Vclk clock", return result);
 
 		table->UvdLevel[count].VclkDivider = (uint8_t)dividers.pll_post_divider;
 
 		result = atomctrl_get_dfs_pll_dividers_vi(hwmgr,
 				table->UvdLevel[count].DclkFrequency, &dividers);
 		PP_ASSERT_WITH_CODE((0 == result),
-				"can not find divide id for Dclk clock", return result);
+				"can yest find divide id for Dclk clock", return result);
 
 		table->UvdLevel[count].DclkDivider = (uint8_t)dividers.pll_post_divider;
 
@@ -1581,7 +1581,7 @@ static int polaris10_populate_clock_stretcher_data_table(struct pp_hwmgr *hwmgr)
 		phm_cap_unset(hwmgr->platform_descriptor.platformCaps,
 				PHM_PlatformCaps_ClockStretcher);
 		PP_ASSERT_WITH_CODE(false,
-				"Stretch Amount in PPTable not supported",
+				"Stretch Amount in PPTable yest supported",
 				return -EINVAL);
 	}
 
@@ -1784,7 +1784,7 @@ static int polaris10_init_arb_table_index(struct pp_hwmgr *hwmgr)
 	 * is the field 'current'.
 	 * This solution is ugly, but we never write the whole table only
 	 * individual fields in it.
-	 * In reality this field should not be in that structure
+	 * In reality this field should yest be in that structure
 	 * but in a soft register.
 	 */
 	result = smu7_read_smc_sram_dword(hwmgr,
@@ -1987,7 +1987,7 @@ static int polaris10_init_smc_table(struct pp_hwmgr *hwmgr)
 	/* Populate BIF_SCLK levels into SMC DPM table */
 	for (i = 0; i <= hw_data->dpm_table.pcie_speed_table.count; i++) {
 		result = atomctrl_get_dfs_pll_dividers_vi(hwmgr, smu_data->bif_sclk_table[i], &dividers);
-		PP_ASSERT_WITH_CODE((result == 0), "Can not find DFS divide id for Sclk", return result);
+		PP_ASSERT_WITH_CODE((result == 0), "Can yest find DFS divide id for Sclk", return result);
 
 		if (i == 0)
 			table->Ulv.BifSclkDfs = PP_HOST_TO_SMC_US((USHORT)(dividers.pll_post_divider));

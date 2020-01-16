@@ -51,7 +51,7 @@ struct mediatek_dwmac_plat_data {
 	const struct mediatek_dwmac_variant *variant;
 	struct mac_delay_struct mac_delay;
 	struct clk_bulk_data *clks;
-	struct device_node *np;
+	struct device_yesde *np;
 	struct regmap *peri_regmap;
 	struct device *dev;
 	phy_interface_t phy_mode;
@@ -96,7 +96,7 @@ static int mt2712_set_interface(struct mediatek_dwmac_plat_data *plat)
 		intf_val |= PHY_INTF_RGMII;
 		break;
 	default:
-		dev_err(plat->dev, "phy interface not supported\n");
+		dev_err(plat->dev, "phy interface yest supported\n");
 		return -EINVAL;
 	}
 
@@ -125,7 +125,7 @@ static void mt2712_delay_ps2stage(struct mediatek_dwmac_plat_data *plat)
 		mac_delay->rx_delay /= 170;
 		break;
 	default:
-		dev_err(plat->dev, "phy interface not supported\n");
+		dev_err(plat->dev, "phy interface yest supported\n");
 		break;
 	}
 }
@@ -150,7 +150,7 @@ static void mt2712_delay_stage2ps(struct mediatek_dwmac_plat_data *plat)
 		mac_delay->rx_delay *= 170;
 		break;
 	default:
-		dev_err(plat->dev, "phy interface not supported\n");
+		dev_err(plat->dev, "phy interface yest supported\n");
 		break;
 	}
 }
@@ -218,7 +218,7 @@ static int mt2712_set_delay(struct mediatek_dwmac_plat_data *plat)
 		delay_val |= FIELD_PREP(ETH_DLY_RXC_INV, mac_delay->rx_inv);
 		break;
 	default:
-		dev_err(plat->dev, "phy interface not supported\n");
+		dev_err(plat->dev, "phy interface yest supported\n");
 		return -EINVAL;
 	}
 	regmap_write(plat->peri_regmap, PERI_ETH_DLY, delay_val);
@@ -253,7 +253,7 @@ static int mediatek_dwmac_config_dt(struct mediatek_dwmac_plat_data *plat)
 
 	err = of_get_phy_mode(plat->np, &plat->phy_mode);
 	if (err) {
-		dev_err(plat->dev, "not find phy-mode\n");
+		dev_err(plat->dev, "yest find phy-mode\n");
 		return err;
 	}
 
@@ -362,7 +362,7 @@ static int mediatek_dwmac_probe(struct platform_device *pdev)
 	}
 
 	priv_plat->dev = &pdev->dev;
-	priv_plat->np = pdev->dev.of_node;
+	priv_plat->np = pdev->dev.of_yesde;
 
 	ret = mediatek_dwmac_config_dt(priv_plat);
 	if (ret)

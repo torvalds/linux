@@ -9,7 +9,7 @@
 #include <linux/linkage.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/syscalls.h>
 #include <linux/ktime.h>
 #include <linux/timekeeping.h>
@@ -24,7 +24,7 @@
 asmlinkage long sys_ni_posix_timers(void)
 {
 	pr_err_once("process %d (%s) attempted a POSIX timer syscall "
-		    "while CONFIG_POSIX_TIMERS is not set\n",
+		    "while CONFIG_POSIX_TIMERS is yest set\n",
 		    current->pid, current->comm);
 	return -ENOSYS;
 }
@@ -121,7 +121,7 @@ SYSCALL_DEFINE2(clock_getres, const clockid_t, which_clock, struct __kernel_time
 	}
 }
 
-SYSCALL_DEFINE4(clock_nanosleep, const clockid_t, which_clock, int, flags,
+SYSCALL_DEFINE4(clock_nayessleep, const clockid_t, which_clock, int, flags,
 		const struct __kernel_timespec __user *, rqtp,
 		struct __kernel_timespec __user *, rmtp)
 {
@@ -142,9 +142,9 @@ SYSCALL_DEFINE4(clock_nanosleep, const clockid_t, which_clock, int, flags,
 		return -EINVAL;
 	if (flags & TIMER_ABSTIME)
 		rmtp = NULL;
-	current->restart_block.nanosleep.type = rmtp ? TT_NATIVE : TT_NONE;
-	current->restart_block.nanosleep.rmtp = rmtp;
-	return hrtimer_nanosleep(&t, flags & TIMER_ABSTIME ?
+	current->restart_block.nayessleep.type = rmtp ? TT_NATIVE : TT_NONE;
+	current->restart_block.nayessleep.rmtp = rmtp;
+	return hrtimer_nayessleep(&t, flags & TIMER_ABSTIME ?
 				 HRTIMER_MODE_ABS : HRTIMER_MODE_REL,
 				 which_clock);
 }
@@ -207,7 +207,7 @@ SYSCALL_DEFINE2(clock_getres_time32, clockid_t, which_clock,
 	}
 }
 
-SYSCALL_DEFINE4(clock_nanosleep_time32, clockid_t, which_clock, int, flags,
+SYSCALL_DEFINE4(clock_nayessleep_time32, clockid_t, which_clock, int, flags,
 		struct old_timespec32 __user *, rqtp,
 		struct old_timespec32 __user *, rmtp)
 {
@@ -228,9 +228,9 @@ SYSCALL_DEFINE4(clock_nanosleep_time32, clockid_t, which_clock, int, flags,
 		return -EINVAL;
 	if (flags & TIMER_ABSTIME)
 		rmtp = NULL;
-	current->restart_block.nanosleep.type = rmtp ? TT_COMPAT : TT_NONE;
-	current->restart_block.nanosleep.compat_rmtp = rmtp;
-	return hrtimer_nanosleep(&t, flags & TIMER_ABSTIME ?
+	current->restart_block.nayessleep.type = rmtp ? TT_COMPAT : TT_NONE;
+	current->restart_block.nayessleep.compat_rmtp = rmtp;
+	return hrtimer_nayessleep(&t, flags & TIMER_ABSTIME ?
 				 HRTIMER_MODE_ABS : HRTIMER_MODE_REL,
 				 which_clock);
 }

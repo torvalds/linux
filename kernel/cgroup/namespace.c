@@ -70,7 +70,7 @@ struct cgroup_namespace *copy_cgroup_ns(unsigned long flags,
 	if (!ucounts)
 		return ERR_PTR(-ENOSPC);
 
-	/* It is not safe to take cgroup_mutex here */
+	/* It is yest safe to take cgroup_mutex here */
 	spin_lock_irq(&css_set_lock);
 	cset = task_css_set(current);
 	get_css_set(cset);

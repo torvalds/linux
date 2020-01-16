@@ -24,10 +24,10 @@
  * without warranty of any kind. You are solely responsible for
  * determining the appropriateness of using and distributing
  * the program and assume all risks associated with your exercise
- * of rights with respect to the program, including but not limited
+ * of rights with respect to the program, including but yest limited
  * to infringement of third party rights, the risks and costs of
  * program errors, damage to or loss of data, programs or equipment,
- * and unavailability or interruption of operations. Under no
+ * and unavailability or interruption of operations. Under yes
  * circumstances will the contributor of this Program be liable for
  * any damages of any kind arising from your use or distribution of
  * this program.
@@ -54,7 +54,7 @@
 /*
  * UFS device may have standard LUs and LUN id could be from 0x00 to
  * 0x7F. Standard LUs use "Peripheral Device Addressing Format".
- * UFS device may also have the Well Known LUs (also referred as W-LU)
+ * UFS device may also have the Well Kyeswn LUs (also referred as W-LU)
  * which again could be from 0x00 to 0x7F. For W-LUs, device only use
  * the "Extended Addressing Format" which means the W-LUNs would be
  * from 0xc100 (SCSI_W_LUN_BASE) onwards.
@@ -65,7 +65,7 @@
 #define UFS_UPIU_WLUN_ID	(1 << 7)
 #define UFS_UPIU_MAX_GENERAL_LUN	8
 
-/* Well known logical unit id in LUN field of UPIU */
+/* Well kyeswn logical unit id in LUN field of UPIU */
 enum {
 	UFS_UPIU_REPORT_LUNS_WLUN	= 0x81,
 	UFS_UPIU_UFS_DEVICE_WLUN	= 0xD0,
@@ -315,7 +315,7 @@ enum health_desc_param {
 
 /*
  * Logical Unit Write Protect
- * 00h: LU not write protected
+ * 00h: LU yest write protected
  * 01h: LU write protected when fPowerOnWPEn =1
  * 02h: LU permanently write protected when fPermanentWPEn =1
  */

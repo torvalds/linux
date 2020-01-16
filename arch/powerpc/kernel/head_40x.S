@@ -63,7 +63,7 @@ _ENTRY(_start);
 	 */
 	bl	initial_mmu
 
-/* We now have the lower 16 Meg mapped into TLB entries, and the caches
+/* We yesw have the lower 16 Meg mapped into TLB entries, and the caches
  * ready to work.
  */
 turn_on_mmu:
@@ -96,16 +96,16 @@ _ENTRY(saved_ksp_limit)
 
 /*
  * Exception prolog for critical exceptions.  This is a little different
- * from the normal exception prolog above since a critical exception
- * can potentially occur at any point during normal exception processing.
- * Thus we cannot use the same SPRG registers as the normal prolog above.
+ * from the yesrmal exception prolog above since a critical exception
+ * can potentially occur at any point during yesrmal exception processing.
+ * Thus we canyest use the same SPRG registers as the yesrmal prolog above.
  * Instead we use a couple of words of memory at low physical addresses.
  * This is OK since we don't support SMP on these processors.
  */
 #define CRITICAL_EXCEPTION_PROLOG					     \
 	stw	r10,crit_r10@l(0);	/* save two registers to work with */\
 	stw	r11,crit_r11@l(0);					     \
-	mfcr	r10;			/* save CR in r10 for now	   */\
+	mfcr	r10;			/* save CR in r10 for yesw	   */\
 	mfspr	r11,SPRN_SRR3;		/* check whether user or kernel    */\
 	andi.	r11,r11,MSR_PR;						     \
 	lis	r11,critirq_ctx@ha;					     \
@@ -141,14 +141,14 @@ _ENTRY(saved_ksp_limit)
 
 	/*
 	 * State at this point:
-	 * r9 saved in stack frame, now saved SRR3 & ~MSR_WE
+	 * r9 saved in stack frame, yesw saved SRR3 & ~MSR_WE
 	 * r10 saved in crit_r10 and in stack frame, trashed
 	 * r11 saved in crit_r11 and in stack frame,
-	 *	now phys stack/exception frame pointer
-	 * r12 saved in stack frame, now saved SRR2
+	 *	yesw phys stack/exception frame pointer
+	 * r12 saved in stack frame, yesw saved SRR2
 	 * CR saved in stack frame, CR0.EQ = !SRR3.PR
 	 * LR, DEAR, ESR in stack frame
-	 * r1 saved in stack frame, now virt stack/excframe pointer
+	 * r1 saved in stack frame, yesw virt stack/excframe pointer
 	 * r0, r3-r8 saved in stack frame
 	 */
 
@@ -165,7 +165,7 @@ _ENTRY(saved_ksp_limit)
 /*
  * 0x0100 - Critical Interrupt Exception
  */
-	CRITICAL_EXCEPTION(0x0100, CriticalInterrupt, unknown_exception)
+	CRITICAL_EXCEPTION(0x0100, CriticalInterrupt, unkyeswn_exception)
 
 /*
  * 0x0200 - Machine Check Exception
@@ -200,7 +200,7 @@ _ENTRY(saved_ksp_limit)
 
 	/* First, check if it was a zone fault (which means a user
 	* tried to access a kernel or read-protected page - always
-	* a SEGV).  All other faults here must be stores, so no
+	* a SEGV).  All other faults here must be stores, so yes
 	* need to check ESR_DST as well. */
 	mfspr	r10, SPRN_ESR
 	andis.	r10, r10, ESR_DIZ@h
@@ -230,13 +230,13 @@ _ENTRY(saved_ksp_limit)
 	rlwimi	r11, r10, 12, 20, 29	/* Create L1 (pgdir/pmd) address */
 	lwz	r11, 0(r11)		/* Get L1 entry */
 	rlwinm.	r12, r11, 0, 0, 19	/* Extract L2 (pte) base address */
-	beq	2f			/* Bail if no table */
+	beq	2f			/* Bail if yes table */
 
 	rlwimi	r12, r10, 22, 20, 29	/* Compute PTE address */
 	lwz	r11, 0(r12)		/* Get Linux PTE */
 
 	andi.	r9, r11, _PAGE_RW	/* Is it writeable? */
-	beq	2f			/* Bail if not */
+	beq	2f			/* Bail if yest */
 
 	/* Update 'changed'.
 	*/
@@ -308,7 +308,7 @@ _ENTRY(saved_ksp_limit)
 
 /*
  * 0x0400 - Instruction Storage Exception
- * This is caused by a fetch from non-execute or guarded pages.
+ * This is caused by a fetch from yesn-execute or guarded pages.
  */
 	START_EXCEPTION(0x0400, InstructionAccess)
 	EXCEPTION_PROLOG
@@ -335,18 +335,18 @@ _ENTRY(saved_ksp_limit)
 	addi	r3,r1,STACK_FRAME_OVERHEAD
 	EXC_XFER_STD(0x700, program_check_exception)
 
-	EXCEPTION(0x0800, Trap_08, unknown_exception, EXC_XFER_STD)
-	EXCEPTION(0x0900, Trap_09, unknown_exception, EXC_XFER_STD)
-	EXCEPTION(0x0A00, Trap_0A, unknown_exception, EXC_XFER_STD)
-	EXCEPTION(0x0B00, Trap_0B, unknown_exception, EXC_XFER_STD)
+	EXCEPTION(0x0800, Trap_08, unkyeswn_exception, EXC_XFER_STD)
+	EXCEPTION(0x0900, Trap_09, unkyeswn_exception, EXC_XFER_STD)
+	EXCEPTION(0x0A00, Trap_0A, unkyeswn_exception, EXC_XFER_STD)
+	EXCEPTION(0x0B00, Trap_0B, unkyeswn_exception, EXC_XFER_STD)
 
 /* 0x0C00 - System Call Exception */
 	START_EXCEPTION(0x0C00,	SystemCall)
 	SYSCALL_ENTRY	0xc00
 
-	EXCEPTION(0x0D00, Trap_0D, unknown_exception, EXC_XFER_STD)
-	EXCEPTION(0x0E00, Trap_0E, unknown_exception, EXC_XFER_STD)
-	EXCEPTION(0x0F00, Trap_0F, unknown_exception, EXC_XFER_STD)
+	EXCEPTION(0x0D00, Trap_0D, unkyeswn_exception, EXC_XFER_STD)
+	EXCEPTION(0x0E00, Trap_0E, unkyeswn_exception, EXC_XFER_STD)
+	EXCEPTION(0x0F00, Trap_0F, unkyeswn_exception, EXC_XFER_STD)
 
 /* 0x1000 - Programmable Interval Timer (PIT) Exception */
 	. = 0x1000
@@ -363,7 +363,7 @@ _ENTRY(saved_ksp_limit)
 	b WDTException
 
 /* 0x1100 - Data TLB Miss Exception
- * As the name implies, translation is not in the MMU, so search the
+ * As the name implies, translation is yest in the MMU, so search the
  * page tables and fix it.  The only purpose of this function is to
  * load TLB entries from the page table if they exist.
  */
@@ -409,7 +409,7 @@ _ENTRY(saved_ksp_limit)
 	rlwimi	r11, r10, 12, 20, 29	/* Create L1 (pgdir/pmd) address */
 	lwz	r12, 0(r11)		/* Get L1 entry */
 	andi.	r9, r12, _PMD_PRESENT	/* Check if it points to a PTE page */
-	beq	2f			/* Bail if no table */
+	beq	2f			/* Bail if yes table */
 
 	rlwimi	r12, r10, 22, 20, 29	/* Compute PTE address */
 	lwz	r11, 0(r12)		/* Get Linux PTE */
@@ -509,7 +509,7 @@ _ENTRY(saved_ksp_limit)
 	rlwimi	r11, r10, 12, 20, 29	/* Create L1 (pgdir/pmd) address */
 	lwz	r12, 0(r11)		/* Get L1 entry */
 	andi.	r9, r12, _PMD_PRESENT	/* Check if it points to a PTE page */
-	beq	2f			/* Bail if no table */
+	beq	2f			/* Bail if yes table */
 
 	rlwimi	r12, r10, 22, 20, 29	/* Compute PTE address */
 	lwz	r11, 0(r12)		/* Get Linux PTE */
@@ -563,25 +563,25 @@ _ENTRY(saved_ksp_limit)
 	mfspr	r10, SPRN_SPRG_SCRATCH0
 	b	InstructionAccess
 
-	EXCEPTION(0x1300, Trap_13, unknown_exception, EXC_XFER_STD)
-	EXCEPTION(0x1400, Trap_14, unknown_exception, EXC_XFER_STD)
-	EXCEPTION(0x1500, Trap_15, unknown_exception, EXC_XFER_STD)
-	EXCEPTION(0x1600, Trap_16, unknown_exception, EXC_XFER_STD)
+	EXCEPTION(0x1300, Trap_13, unkyeswn_exception, EXC_XFER_STD)
+	EXCEPTION(0x1400, Trap_14, unkyeswn_exception, EXC_XFER_STD)
+	EXCEPTION(0x1500, Trap_15, unkyeswn_exception, EXC_XFER_STD)
+	EXCEPTION(0x1600, Trap_16, unkyeswn_exception, EXC_XFER_STD)
 #ifdef CONFIG_IBM405_ERR51
 	/* 405GP errata 51 */
 	START_EXCEPTION(0x1700, Trap_17)
 	b DTLBMiss
 #else
-	EXCEPTION(0x1700, Trap_17, unknown_exception, EXC_XFER_STD)
+	EXCEPTION(0x1700, Trap_17, unkyeswn_exception, EXC_XFER_STD)
 #endif
-	EXCEPTION(0x1800, Trap_18, unknown_exception, EXC_XFER_STD)
-	EXCEPTION(0x1900, Trap_19, unknown_exception, EXC_XFER_STD)
-	EXCEPTION(0x1A00, Trap_1A, unknown_exception, EXC_XFER_STD)
-	EXCEPTION(0x1B00, Trap_1B, unknown_exception, EXC_XFER_STD)
-	EXCEPTION(0x1C00, Trap_1C, unknown_exception, EXC_XFER_STD)
-	EXCEPTION(0x1D00, Trap_1D, unknown_exception, EXC_XFER_STD)
-	EXCEPTION(0x1E00, Trap_1E, unknown_exception, EXC_XFER_STD)
-	EXCEPTION(0x1F00, Trap_1F, unknown_exception, EXC_XFER_STD)
+	EXCEPTION(0x1800, Trap_18, unkyeswn_exception, EXC_XFER_STD)
+	EXCEPTION(0x1900, Trap_19, unkyeswn_exception, EXC_XFER_STD)
+	EXCEPTION(0x1A00, Trap_1A, unkyeswn_exception, EXC_XFER_STD)
+	EXCEPTION(0x1B00, Trap_1B, unkyeswn_exception, EXC_XFER_STD)
+	EXCEPTION(0x1C00, Trap_1C, unkyeswn_exception, EXC_XFER_STD)
+	EXCEPTION(0x1D00, Trap_1D, unkyeswn_exception, EXC_XFER_STD)
+	EXCEPTION(0x1E00, Trap_1E, unkyeswn_exception, EXC_XFER_STD)
+	EXCEPTION(0x1F00, Trap_1F, unkyeswn_exception, EXC_XFER_STD)
 
 /* Check for a single step debug exception while in an exception
  * handler before state has been saved.  This is to catch the case
@@ -592,7 +592,7 @@ _ENTRY(saved_ksp_limit)
  * If we get a debug trap on the first instruction of an exception handler,
  * we reset the MSR_DE in the _exception handler's_ MSR (the debug trap is
  * a critical exception, so we are using SPRN_CSRR1 to manipulate the MSR).
- * The exception handler was handling a non-critical interrupt, so it will
+ * The exception handler was handling a yesn-critical interrupt, so it will
  * save (and later restore) the MSR via SPRN_SRR1, which will still have
  * the MSR_DE bit set.
  */
@@ -638,7 +638,7 @@ _ENTRY(saved_ksp_limit)
 	rfci
 	b	.
 
-	/* continue normal handling for a critical exception... */
+	/* continue yesrmal handling for a critical exception... */
 2:	mfspr	r4,SPRN_DBSR
 	addi	r3,r1,STACK_FRAME_OVERHEAD
 	EXC_XFER_TEMPLATE(DebugException, 0x2002, \
@@ -657,7 +657,7 @@ Decrementer:
 FITException:
 	EXCEPTION_PROLOG
 	addi	r3,r1,STACK_FRAME_OVERHEAD;
-	EXC_XFER_STD(0x1010, unknown_exception)
+	EXC_XFER_STD(0x1010, unkyeswn_exception)
 
 	/* Watchdog Timer (WDT) Exception. (from 0x1020) */
 WDTException:
@@ -680,7 +680,7 @@ DataAccess:
 
 /* Other PowerPC processors, namely those derived from the 6xx-series
  * have vectors from 0x2100 through 0x2F00 defined, but marked as reserved.
- * However, for the 4xx-series processors these are neither defined nor
+ * However, for the 4xx-series processors these are neither defined yesr
  * reserved.
  */
 
@@ -692,7 +692,7 @@ DataAccess:
 	 *	r12, r9 - available to use
 	 *	PID - loaded with proper value when we get here
 	 *	Upon exit, we reload everything and RFI.
-	 * Actually, it will fit now, but oh well.....a common place
+	 * Actually, it will fit yesw, but oh well.....a common place
 	 * to load the TLB.
 	 */
 tlb_4xx_index:

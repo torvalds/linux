@@ -5,32 +5,32 @@ This is a system control registers block, providing multiple low level
 platform functions like board detection and identification, software
 interrupt generation, MMC and NOR Flash control etc.
 
-Required node properties:
+Required yesde properties:
 - compatible value : = "arm,vexpress,sysreg";
 - reg : physical base address and the size of the registers window
 
-Deprecated properties, replaced by GPIO subnodes (see below):
-- gpio-controller : specifies that the node is a GPIO controller
+Deprecated properties, replaced by GPIO subyesdes (see below):
+- gpio-controller : specifies that the yesde is a GPIO controller
 - #gpio-cells : size of the GPIO specifier, should be 2:
   - first cell is the pseudo-GPIO line number:
     0 - MMC CARDIN
     1 - MMC WPROT
     2 - NOR FLASH WPn
-  - second cell can take standard GPIO flags (currently ignored).
+  - second cell can take standard GPIO flags (currently igyesred).
 
 Control registers providing pseudo-GPIO lines must be represented
-by subnodes, each of them requiring the following properties:
+by subyesdes, each of them requiring the following properties:
 - compatible value : one of
 			"arm,vexpress-sysreg,sys_led"
 			"arm,vexpress-sysreg,sys_mci"
 			"arm,vexpress-sysreg,sys_flash"
-- gpio-controller : makes the node a GPIO controller
+- gpio-controller : makes the yesde a GPIO controller
 - #gpio-cells : size of the GPIO specifier, must be 2:
   - first cell is the function number:
     - for sys_led : 0..7 = LED 0..7
     - for sys_mci : 0 = MMC CARDIN, 1 = MMC WPROT
     - for sys_flash : 0 = NOR FLASH WPn
-  - second cell can take standard GPIO flags (currently ignored).
+  - second cell can take standard GPIO flags (currently igyesred).
 
 Example:
 	v2m_sysreg: sysreg@10000000 {
@@ -61,9 +61,9 @@ bus via "system control" interface, addressing devices with site number,
 position in the board stack, config controller, function and device
 numbers - see motherboard's TRM for more details. All configuration
 controller accessible via this interface must reference the sysreg
-node via "arm,vexpress,config-bridge" phandle and define appropriate
-topology properties - see main vexpress node documentation for more
-details. Each child of such node describes one function and must
+yesde via "arm,vexpress,config-bridge" phandle and define appropriate
+topology properties - see main vexpress yesde documentation for more
+details. Each child of such yesde describes one function and must
 define the following properties:
 - compatible value : must be one of (corresponding to the TRM):
 	"arm,vexpress-amp"

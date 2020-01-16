@@ -90,10 +90,10 @@ struct dentry {
 	/* RCU lookup touched fields */
 	unsigned int d_flags;		/* protected by d_lock */
 	seqcount_t d_seq;		/* per dentry seqlock */
-	struct hlist_bl_node d_hash;	/* lookup hash list */
+	struct hlist_bl_yesde d_hash;	/* lookup hash list */
 	struct dentry *d_parent;	/* parent directory */
 	struct qstr d_name;
-	struct inode *d_inode;		/* Where the name belongs to - NULL is
+	struct iyesde *d_iyesde;		/* Where the name belongs to - NULL is
 					 * negative */
 	unsigned char d_iname[DNAME_INLINE_LEN];	/* small names */
 
@@ -114,8 +114,8 @@ struct dentry {
 	 * d_alias and d_rcu can share memory
 	 */
 	union {
-		struct hlist_node d_alias;	/* inode alias list */
-		struct hlist_bl_node d_in_lookup_hash;	/* only for in-lookup ones */
+		struct hlist_yesde d_alias;	/* iyesde alias list */
+		struct hlist_bl_yesde d_in_lookup_hash;	/* only for in-lookup ones */
 	 	struct rcu_head d_rcu;
 	} d_u;
 } __randomize_layout;
@@ -123,7 +123,7 @@ struct dentry {
 /*
  * dentry->d_lock spinlock nesting subclasses:
  *
- * 0: normal
+ * 0: yesrmal
  * 1: nested
  */
 enum dentry_d_lock_class
@@ -142,11 +142,11 @@ struct dentry_operations {
 	int (*d_init)(struct dentry *);
 	void (*d_release)(struct dentry *);
 	void (*d_prune)(struct dentry *);
-	void (*d_iput)(struct dentry *, struct inode *);
+	void (*d_iput)(struct dentry *, struct iyesde *);
 	char *(*d_dname)(struct dentry *, char *, int);
 	struct vfsmount *(*d_automount)(struct path *);
 	int (*d_manage)(const struct path *, bool);
-	struct dentry *(*d_real)(struct dentry *, const struct inode *);
+	struct dentry *(*d_real)(struct dentry *, const struct iyesde *);
 } ____cacheline_aligned;
 
 /*
@@ -165,13 +165,13 @@ struct dentry_operations {
 #define DCACHE_OP_PRUNE			0x00000010
 
 #define	DCACHE_DISCONNECTED		0x00000020
-     /* This dentry is possibly not currently connected to the dcache tree, in
+     /* This dentry is possibly yest currently connected to the dcache tree, in
       * which case its parent will either be itself, or will have this flag as
-      * well.  nfsd will not use a dentry with this bit set, but will first
+      * well.  nfsd will yest use a dentry with this bit set, but will first
       * endeavour to clear the bit either by discovering that it is connected,
       * or by performing lookup operations.   Any filesystem which supports
       * nfsd_operations MUST have a lookup function which, if it finds a
-      * directory inode with a DCACHE_DISCONNECTED dentry, will d_move that
+      * directory iyesde with a DCACHE_DISCONNECTED dentry, will d_move that
       * dentry into place and return that dentry rather than the passed one,
       * typically using d_splice_alias. */
 
@@ -188,7 +188,7 @@ struct dentry_operations {
       * dput() */
 #define DCACHE_COOKIE			0x00002000 /* For use by dcookie subsystem */
 #define DCACHE_FSNOTIFY_PARENT_WATCHED	0x00004000
-     /* Parent inode is watched by some fsnotify listener */
+     /* Parent iyesde is watched by some fsyestify listener */
 
 #define DCACHE_DENTRY_KILLED		0x00008000
 
@@ -201,7 +201,7 @@ struct dentry_operations {
 #define DCACHE_LRU_LIST			0x00080000
 
 #define DCACHE_ENTRY_TYPE		0x00700000
-#define DCACHE_MISS_TYPE		0x00000000 /* Negative dentry (maybe fallthru to nowhere) */
+#define DCACHE_MISS_TYPE		0x00000000 /* Negative dentry (maybe fallthru to yeswhere) */
 #define DCACHE_WHITEOUT_TYPE		0x00100000 /* Whiteout dentry (stop pathwalk) */
 #define DCACHE_DIRECTORY_TYPE		0x00200000 /* Normal directory */
 #define DCACHE_AUTODIR_TYPE		0x00300000 /* Lookupless directory (presumed automount) */
@@ -223,10 +223,10 @@ extern seqlock_t rename_lock;
 /*
  * These are the low-level FS interfaces to the dcache..
  */
-extern void d_instantiate(struct dentry *, struct inode *);
-extern void d_instantiate_new(struct dentry *, struct inode *);
-extern struct dentry * d_instantiate_unique(struct dentry *, struct inode *);
-extern struct dentry * d_instantiate_anon(struct dentry *, struct inode *);
+extern void d_instantiate(struct dentry *, struct iyesde *);
+extern void d_instantiate_new(struct dentry *, struct iyesde *);
+extern struct dentry * d_instantiate_unique(struct dentry *, struct iyesde *);
+extern struct dentry * d_instantiate_ayesn(struct dentry *, struct iyesde *);
 extern void __d_drop(struct dentry *dentry);
 extern void d_drop(struct dentry *dentry);
 extern void d_delete(struct dentry *);
@@ -234,30 +234,30 @@ extern void d_set_d_op(struct dentry *dentry, const struct dentry_operations *op
 
 /* allocate/de-allocate */
 extern struct dentry * d_alloc(struct dentry *, const struct qstr *);
-extern struct dentry * d_alloc_anon(struct super_block *);
+extern struct dentry * d_alloc_ayesn(struct super_block *);
 extern struct dentry * d_alloc_parallel(struct dentry *, const struct qstr *,
 					wait_queue_head_t *);
-extern struct dentry * d_splice_alias(struct inode *, struct dentry *);
-extern struct dentry * d_add_ci(struct dentry *, struct inode *, struct qstr *);
-extern struct dentry * d_exact_alias(struct dentry *, struct inode *);
-extern struct dentry *d_find_any_alias(struct inode *inode);
-extern struct dentry * d_obtain_alias(struct inode *);
-extern struct dentry * d_obtain_root(struct inode *);
+extern struct dentry * d_splice_alias(struct iyesde *, struct dentry *);
+extern struct dentry * d_add_ci(struct dentry *, struct iyesde *, struct qstr *);
+extern struct dentry * d_exact_alias(struct dentry *, struct iyesde *);
+extern struct dentry *d_find_any_alias(struct iyesde *iyesde);
+extern struct dentry * d_obtain_alias(struct iyesde *);
+extern struct dentry * d_obtain_root(struct iyesde *);
 extern void shrink_dcache_sb(struct super_block *);
 extern void shrink_dcache_parent(struct dentry *);
 extern void shrink_dcache_for_umount(struct super_block *);
 extern void d_invalidate(struct dentry *);
 
 /* only used at mount-time */
-extern struct dentry * d_make_root(struct inode *);
+extern struct dentry * d_make_root(struct iyesde *);
 
 /* <clickety>-<click> the ramfs-type tree */
-extern void d_genocide(struct dentry *);
+extern void d_geyescide(struct dentry *);
 
-extern void d_tmpfile(struct dentry *, struct inode *);
+extern void d_tmpfile(struct dentry *, struct iyesde *);
 
-extern struct dentry *d_find_alias(struct inode *);
-extern void d_prune_aliases(struct inode *);
+extern struct dentry *d_find_alias(struct iyesde *);
+extern void d_prune_aliases(struct iyesde *);
 
 /* test whether we have any submounts in a subdir tree */
 extern int path_has_submounts(const struct path *);
@@ -267,7 +267,7 @@ extern int path_has_submounts(const struct path *);
  */
 extern void d_rehash(struct dentry *);
  
-extern void d_add(struct dentry *, struct inode *);
+extern void d_add(struct dentry *, struct iyesde *);
 
 /* used for rename() and baskets */
 extern void d_move(struct dentry *, struct dentry *);
@@ -305,7 +305,7 @@ extern char *dentry_path(struct dentry *, char *, int);
  *	@dentry: dentry to get a reference to
  *
  *	Given a dentry or %NULL pointer increment the reference count
- *	if appropriate and return the dentry. A dentry will not be 
+ *	if appropriate and return the dentry. A dentry will yest be 
  *	destroyed when it has references.
  */
 static inline struct dentry *dget_dlock(struct dentry *dentry)
@@ -328,7 +328,7 @@ extern struct dentry *dget_parent(struct dentry *dentry);
  *	d_unhashed -	is dentry hashed
  *	@dentry: entry to check
  *
- *	Returns true if the dentry passed is not currently hashed.
+ *	Returns true if the dentry passed is yest currently hashed.
  */
  
 static inline int d_unhashed(const struct dentry *dentry)
@@ -451,41 +451,41 @@ static inline bool d_is_positive(const struct dentry *dentry)
 }
 
 /**
- * d_really_is_negative - Determine if a dentry is really negative (ignoring fallthroughs)
+ * d_really_is_negative - Determine if a dentry is really negative (igyesring fallthroughs)
  * @dentry: The dentry in question
  *
  * Returns true if the dentry represents either an absent name or a name that
- * doesn't map to an inode (ie. ->d_inode is NULL).  The dentry could represent
+ * doesn't map to an iyesde (ie. ->d_iyesde is NULL).  The dentry could represent
  * a true miss, a whiteout that isn't represented by a 0,0 chardev or a
  * fallthrough marker in an opaque directory.
  *
  * Note!  (1) This should be used *only* by a filesystem to examine its own
- * dentries.  It should not be used to look at some other filesystem's
- * dentries.  (2) It should also be used in combination with d_inode() to get
- * the inode.  (3) The dentry may have something attached to ->d_lower and the
+ * dentries.  It should yest be used to look at some other filesystem's
+ * dentries.  (2) It should also be used in combination with d_iyesde() to get
+ * the iyesde.  (3) The dentry may have something attached to ->d_lower and the
  * type field of the flags may be set to something other than miss or whiteout.
  */
 static inline bool d_really_is_negative(const struct dentry *dentry)
 {
-	return dentry->d_inode == NULL;
+	return dentry->d_iyesde == NULL;
 }
 
 /**
- * d_really_is_positive - Determine if a dentry is really positive (ignoring fallthroughs)
+ * d_really_is_positive - Determine if a dentry is really positive (igyesring fallthroughs)
  * @dentry: The dentry in question
  *
- * Returns true if the dentry represents a name that maps to an inode
- * (ie. ->d_inode is not NULL).  The dentry might still represent a whiteout if
+ * Returns true if the dentry represents a name that maps to an iyesde
+ * (ie. ->d_iyesde is yest NULL).  The dentry might still represent a whiteout if
  * that is represented on medium as a 0,0 chardev.
  *
  * Note!  (1) This should be used *only* by a filesystem to examine its own
- * dentries.  It should not be used to look at some other filesystem's
- * dentries.  (2) It should also be used in combination with d_inode() to get
- * the inode.
+ * dentries.  It should yest be used to look at some other filesystem's
+ * dentries.  (2) It should also be used in combination with d_iyesde() to get
+ * the iyesde.
  */
 static inline bool d_really_is_positive(const struct dentry *dentry)
 {
-	return dentry->d_inode != NULL;
+	return dentry->d_iyesde != NULL;
 }
 
 static inline int simple_positive(const struct dentry *dentry)
@@ -509,55 +509,55 @@ static inline unsigned long vfs_pressure_ratio(unsigned long val)
 }
 
 /**
- * d_inode - Get the actual inode of this dentry
+ * d_iyesde - Get the actual iyesde of this dentry
  * @dentry: The dentry to query
  *
- * This is the helper normal filesystems should use to get at their own inodes
- * in their own dentries and ignore the layering superimposed upon them.
+ * This is the helper yesrmal filesystems should use to get at their own iyesdes
+ * in their own dentries and igyesre the layering superimposed upon them.
  */
-static inline struct inode *d_inode(const struct dentry *dentry)
+static inline struct iyesde *d_iyesde(const struct dentry *dentry)
 {
-	return dentry->d_inode;
+	return dentry->d_iyesde;
 }
 
 /**
- * d_inode_rcu - Get the actual inode of this dentry with READ_ONCE()
+ * d_iyesde_rcu - Get the actual iyesde of this dentry with READ_ONCE()
  * @dentry: The dentry to query
  *
- * This is the helper normal filesystems should use to get at their own inodes
- * in their own dentries and ignore the layering superimposed upon them.
+ * This is the helper yesrmal filesystems should use to get at their own iyesdes
+ * in their own dentries and igyesre the layering superimposed upon them.
  */
-static inline struct inode *d_inode_rcu(const struct dentry *dentry)
+static inline struct iyesde *d_iyesde_rcu(const struct dentry *dentry)
 {
-	return READ_ONCE(dentry->d_inode);
+	return READ_ONCE(dentry->d_iyesde);
 }
 
 /**
- * d_backing_inode - Get upper or lower inode we should be using
+ * d_backing_iyesde - Get upper or lower iyesde we should be using
  * @upper: The upper layer
  *
- * This is the helper that should be used to get at the inode that will be used
- * if this dentry were to be opened as a file.  The inode may be on the upper
+ * This is the helper that should be used to get at the iyesde that will be used
+ * if this dentry were to be opened as a file.  The iyesde may be on the upper
  * dentry or it may be on a lower dentry pinned by the upper.
  *
- * Normal filesystems should not use this to access their own inodes.
+ * Normal filesystems should yest use this to access their own iyesdes.
  */
-static inline struct inode *d_backing_inode(const struct dentry *upper)
+static inline struct iyesde *d_backing_iyesde(const struct dentry *upper)
 {
-	struct inode *inode = upper->d_inode;
+	struct iyesde *iyesde = upper->d_iyesde;
 
-	return inode;
+	return iyesde;
 }
 
 /**
  * d_backing_dentry - Get upper or lower dentry we should be using
  * @upper: The upper layer
  *
- * This is the helper that should be used to get the dentry of the inode that
+ * This is the helper that should be used to get the dentry of the iyesde that
  * will be used if this dentry were opened as a file.  It may be the upper
  * dentry or it may be a lower dentry pinned by the upper.
  *
- * Normal filesystems should not use this to access their own dentries.
+ * Normal filesystems should yest use this to access their own dentries.
  */
 static inline struct dentry *d_backing_dentry(struct dentry *upper)
 {
@@ -567,7 +567,7 @@ static inline struct dentry *d_backing_dentry(struct dentry *upper)
 /**
  * d_real - Return the real dentry
  * @dentry: the dentry to query
- * @inode: inode to select the dentry from multiple layers (can be NULL)
+ * @iyesde: iyesde to select the dentry from multiple layers (can be NULL)
  *
  * If dentry is on a union/overlay, then return the underlying, real dentry.
  * Otherwise return the dentry itself.
@@ -575,25 +575,25 @@ static inline struct dentry *d_backing_dentry(struct dentry *upper)
  * See also: Documentation/filesystems/vfs.rst
  */
 static inline struct dentry *d_real(struct dentry *dentry,
-				    const struct inode *inode)
+				    const struct iyesde *iyesde)
 {
 	if (unlikely(dentry->d_flags & DCACHE_OP_REAL))
-		return dentry->d_op->d_real(dentry, inode);
+		return dentry->d_op->d_real(dentry, iyesde);
 	else
 		return dentry;
 }
 
 /**
- * d_real_inode - Return the real inode
+ * d_real_iyesde - Return the real iyesde
  * @dentry: The dentry to query
  *
- * If dentry is on a union/overlay, then return the underlying, real inode.
- * Otherwise return d_inode().
+ * If dentry is on a union/overlay, then return the underlying, real iyesde.
+ * Otherwise return d_iyesde().
  */
-static inline struct inode *d_real_inode(const struct dentry *dentry)
+static inline struct iyesde *d_real_iyesde(const struct dentry *dentry)
 {
 	/* This usage of d_real() results in const dentry */
-	return d_backing_inode(d_real((struct dentry *) dentry, NULL));
+	return d_backing_iyesde(d_real((struct dentry *) dentry, NULL));
 }
 
 struct name_snapshot {

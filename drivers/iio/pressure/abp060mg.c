@@ -80,7 +80,7 @@ struct abp_state {
 
 	/*
 	 * bus-dependent MEASURE_REQUEST length.
-	 * If no SMBUS_QUICK support, need to send dummy byte
+	 * If yes SMBUS_QUICK support, need to send dummy byte
 	 */
 	int mreq_len;
 

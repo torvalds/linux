@@ -1,12 +1,12 @@
 # SPDX-License-Identifier: GPL-2.0-only
 #
-# Asynchronous Transfer Mode (ATM)
+# Asynchroyesus Transfer Mode (ATM)
 #
 
 config ATM
-	tristate "Asynchronous Transfer Mode (ATM)"
+	tristate "Asynchroyesus Transfer Mode (ATM)"
 	---help---
-	  ATM is a high-speed networking technology for Local Area Networks
+	  ATM is a high-speed networking techyeslogy for Local Area Networks
 	  and Wide Area Networks.  It uses a fixed packet size and is
 	  connection oriented, allowing for the negotiation of minimum
 	  bandwidth requirements.
@@ -29,11 +29,11 @@ config ATM_CLIP
 	  (LANE)" below.
 
 config ATM_CLIP_NO_ICMP
-	bool "Do NOT send ICMP if no neighbour"
+	bool "Do NOT send ICMP if yes neighbour"
 	depends on ATM_CLIP
 	help
 	  Normally, an "ICMP host unreachable" message is sent if a neighbour
-	  cannot be reached because there is no VC to it in the kernel's
+	  canyest be reached because there is yes VC to it in the kernel's
 	  ATMARP table. This may cause problems when ATMARP table entries are
 	  briefly removed during revalidation. If you say Y here, packets to
 	  such neighbours are silently discarded instead.
@@ -43,7 +43,7 @@ config ATM_LANE
 	depends on ATM
 	help
 	  LAN Emulation emulates services of existing LANs across an ATM
-	  network. Besides operating as a normal ATM end station client, Linux
+	  network. Besides operating as a yesrmal ATM end station client, Linux
 	  LANE client can also act as an proxy client bridging packets between
 	  ELAN and Ethernet segments. You need LANE if you want to try MPOA.
 
@@ -70,5 +70,5 @@ config ATM_BR2684_IPFILTER
 	depends on ATM_BR2684
 	help
 	  This is an experimental mechanism for users who need to terminate a
-	  large number of IP-only vcc's.  Do not enable this unless you are sure
-	  you know what you are doing.
+	  large number of IP-only vcc's.  Do yest enable this unless you are sure
+	  you kyesw what you are doing.

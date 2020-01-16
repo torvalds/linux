@@ -5,7 +5,7 @@ decouplers / fpga bridges.
 The controller can decouple/disable the bridges which prevents signal
 changes from passing through the bridge.  The controller can also
 couple / enable the bridges which allows traffic to pass through the
-bridge normally.
+bridge yesrmally.
 
 The Driver supports only MMIO handling. A PR region can have multiple
 PR Decouplers which can be handled independently or chained via decouple/

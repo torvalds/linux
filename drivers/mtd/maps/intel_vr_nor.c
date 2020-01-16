@@ -1,5 +1,5 @@
 /*
- * drivers/mtd/maps/intel_vr_nor.c
+ * drivers/mtd/maps/intel_vr_yesr.c
  *
  * An MTD map driver for a NOR flash bank on the Expansion Bus of the Intel
  * Vermilion Range chipset.
@@ -12,11 +12,11 @@
  * This map driver only supports NOR flash on chip select 0.  The buswidth
  * (either 8 bits or 16 bits) is determined by reading the Expansion Bus Timing
  * and Control Register for Chip Select 0 (EXP_TIMING_CS0).  This driver does
- * not modify the value in the EXP_TIMING_CS0 register except to enable writing
+ * yest modify the value in the EXP_TIMING_CS0 register except to enable writing
  * and disable boot acceleration.  The timing parameters in the register are
  * assumed to have been properly initialized by the BIOS.  The reset default
  * timing parameters are maximally conservative (slow), so access to the flash
- * will be slower than it should be if the BIOS has not initialized the timing
+ * will be slower than it should be if the BIOS has yest initialized the timing
  * parameters.
  *
  * Author: Andy Lowe <alowe@mvista.com>
@@ -37,9 +37,9 @@
 #include <linux/mtd/cfi.h>
 #include <linux/mtd/flashchip.h>
 
-#define DRV_NAME "vr_nor"
+#define DRV_NAME "vr_yesr"
 
-struct vr_nor_mtd {
+struct vr_yesr_mtd {
 	void __iomem *csr_base;
 	struct map_info map;
 	struct mtd_info *info;
@@ -62,24 +62,24 @@ struct vr_nor_mtd {
 #define TIMING_BYTE_EN		(1 <<  0)	/* 8-bit vs 16-bit bus */
 #define TIMING_MASK		0x3FFF0000
 
-static void vr_nor_destroy_partitions(struct vr_nor_mtd *p)
+static void vr_yesr_destroy_partitions(struct vr_yesr_mtd *p)
 {
 	mtd_device_unregister(p->info);
 }
 
-static int vr_nor_init_partitions(struct vr_nor_mtd *p)
+static int vr_yesr_init_partitions(struct vr_yesr_mtd *p)
 {
 	/* register the flash bank */
 	/* partition the flash bank */
 	return mtd_device_register(p->info, NULL, 0);
 }
 
-static void vr_nor_destroy_mtd_setup(struct vr_nor_mtd *p)
+static void vr_yesr_destroy_mtd_setup(struct vr_yesr_mtd *p)
 {
 	map_destroy(p->info);
 }
 
-static int vr_nor_mtd_setup(struct vr_nor_mtd *p)
+static int vr_yesr_mtd_setup(struct vr_yesr_mtd *p)
 {
 	static const char * const probe_types[] =
 	    { "cfi_probe", "jedec_probe", NULL };
@@ -95,7 +95,7 @@ static int vr_nor_mtd_setup(struct vr_nor_mtd *p)
 	return 0;
 }
 
-static void vr_nor_destroy_maps(struct vr_nor_mtd *p)
+static void vr_yesr_destroy_maps(struct vr_yesr_mtd *p)
 {
 	unsigned int exp_timing_cs0;
 
@@ -113,9 +113,9 @@ static void vr_nor_destroy_maps(struct vr_nor_mtd *p)
 
 /*
  * Initialize the map_info structure and map the flash.
- * Returns 0 on success, nonzero otherwise.
+ * Returns 0 on success, yesnzero otherwise.
  */
-static int vr_nor_init_maps(struct vr_nor_mtd *p)
+static int vr_yesr_init_maps(struct vr_yesr_mtd *p)
 {
 	unsigned long csr_phys, csr_len;
 	unsigned long win_phys, win_len;
@@ -133,7 +133,7 @@ static int vr_nor_init_maps(struct vr_nor_mtd *p)
 	if (win_len < (CS0_START + CS0_SIZE))
 		return -ENXIO;
 
-	p->csr_base = ioremap_nocache(csr_phys, csr_len);
+	p->csr_base = ioremap_yescache(csr_phys, csr_len);
 	if (!p->csr_base)
 		return -ENOMEM;
 
@@ -152,7 +152,7 @@ static int vr_nor_init_maps(struct vr_nor_mtd *p)
 	p->map.bankwidth = (exp_timing_cs0 & TIMING_BYTE_EN) ? 1 : 2;
 	p->map.phys = win_phys + CS0_START;
 	p->map.size = CS0_SIZE;
-	p->map.virt = ioremap_nocache(p->map.phys, p->map.size);
+	p->map.virt = ioremap_yescache(p->map.phys, p->map.size);
 	if (!p->map.virt) {
 		err = -ENOMEM;
 		goto release;
@@ -170,26 +170,26 @@ static int vr_nor_init_maps(struct vr_nor_mtd *p)
 	return err;
 }
 
-static const struct pci_device_id vr_nor_pci_ids[] = {
+static const struct pci_device_id vr_yesr_pci_ids[] = {
 	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x500D)},
 	{0,}
 };
 
-static void vr_nor_pci_remove(struct pci_dev *dev)
+static void vr_yesr_pci_remove(struct pci_dev *dev)
 {
-	struct vr_nor_mtd *p = pci_get_drvdata(dev);
+	struct vr_yesr_mtd *p = pci_get_drvdata(dev);
 
-	vr_nor_destroy_partitions(p);
-	vr_nor_destroy_mtd_setup(p);
-	vr_nor_destroy_maps(p);
+	vr_yesr_destroy_partitions(p);
+	vr_yesr_destroy_mtd_setup(p);
+	vr_yesr_destroy_maps(p);
 	kfree(p);
 	pci_release_regions(dev);
 	pci_disable_device(dev);
 }
 
-static int vr_nor_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
+static int vr_yesr_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
 {
-	struct vr_nor_mtd *p = NULL;
+	struct vr_yesr_mtd *p = NULL;
 	unsigned int exp_timing_cs0;
 	int err;
 
@@ -208,15 +208,15 @@ static int vr_nor_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
 
 	p->dev = dev;
 
-	err = vr_nor_init_maps(p);
+	err = vr_yesr_init_maps(p);
 	if (err)
 		goto release;
 
-	err = vr_nor_mtd_setup(p);
+	err = vr_yesr_mtd_setup(p);
 	if (err)
 		goto destroy_maps;
 
-	err = vr_nor_init_partitions(p);
+	err = vr_yesr_init_partitions(p);
 	if (err)
 		goto destroy_mtd_setup;
 
@@ -250,16 +250,16 @@ static int vr_nor_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	return err;
 }
 
-static struct pci_driver vr_nor_pci_driver = {
+static struct pci_driver vr_yesr_pci_driver = {
 	.name = DRV_NAME,
-	.probe = vr_nor_pci_probe,
-	.remove = vr_nor_pci_remove,
-	.id_table = vr_nor_pci_ids,
+	.probe = vr_yesr_pci_probe,
+	.remove = vr_yesr_pci_remove,
+	.id_table = vr_yesr_pci_ids,
 };
 
-module_pci_driver(vr_nor_pci_driver);
+module_pci_driver(vr_yesr_pci_driver);
 
 MODULE_AUTHOR("Andy Lowe");
 MODULE_DESCRIPTION("MTD map driver for NOR flash on Intel Vermilion Range");
 MODULE_LICENSE("GPL");
-MODULE_DEVICE_TABLE(pci, vr_nor_pci_ids);
+MODULE_DEVICE_TABLE(pci, vr_yesr_pci_ids);

@@ -362,7 +362,7 @@ static int kvaser_usb_setup_rx_urbs(struct kvaser_usb *dev)
 	}
 
 	if (i == 0) {
-		dev_warn(&dev->intf->dev, "Cannot setup read URBs, error %d\n",
+		dev_warn(&dev->intf->dev, "Canyest setup read URBs, error %d\n",
 			 err);
 		return err;
 	} else if (i < KVASER_USB_MAX_RX_URBS) {
@@ -394,7 +394,7 @@ static int kvaser_usb_open(struct net_device *netdev)
 
 	err = dev->ops->dev_start_chip(priv);
 	if (err) {
-		netdev_warn(netdev, "Cannot start device, error %d\n", err);
+		netdev_warn(netdev, "Canyest start device, error %d\n", err);
 		goto error;
 	}
 
@@ -418,7 +418,7 @@ static void kvaser_usb_reset_tx_urb_contexts(struct kvaser_usb_net_priv *priv)
 		priv->tx_contexts[i].echo_index = max_tx_urbs;
 }
 
-/* This method might sleep. Do not call it in the atomic context
+/* This method might sleep. Do yest call it in the atomic context
  * of URB completions.
  */
 static void kvaser_usb_unlink_tx_urbs(struct kvaser_usb_net_priv *priv)
@@ -455,18 +455,18 @@ static int kvaser_usb_close(struct net_device *netdev)
 
 	err = dev->ops->dev_flush_queue(priv);
 	if (err)
-		netdev_warn(netdev, "Cannot flush queue, error %d\n", err);
+		netdev_warn(netdev, "Canyest flush queue, error %d\n", err);
 
 	if (dev->ops->dev_reset_chip) {
 		err = dev->ops->dev_reset_chip(dev, priv->channel);
 		if (err)
-			netdev_warn(netdev, "Cannot reset card, error %d\n",
+			netdev_warn(netdev, "Canyest reset card, error %d\n",
 				    err);
 	}
 
 	err = dev->ops->dev_stop_chip(priv);
 	if (err)
-		netdev_warn(netdev, "Cannot stop device, error %d\n", err);
+		netdev_warn(netdev, "Canyest stop device, error %d\n", err);
 
 	/* reset tx contexts */
 	kvaser_usb_unlink_tx_urbs(priv);
@@ -539,7 +539,7 @@ static netdev_tx_t kvaser_usb_start_xmit(struct sk_buff *skb,
 
 	/* This should never happen; it implies a flow control bug */
 	if (!context) {
-		netdev_warn(netdev, "cannot find free context\n");
+		netdev_warn(netdev, "canyest find free context\n");
 
 		ret = NETDEV_TX_BUSY;
 		goto freeurb;
@@ -646,7 +646,7 @@ static int kvaser_usb_init_one(struct kvaser_usb *dev,
 	netdev = alloc_candev(struct_size(priv, tx_contexts, dev->max_tx_urbs),
 			      dev->max_tx_urbs);
 	if (!netdev) {
-		dev_err(&dev->intf->dev, "Cannot alloc candev\n");
+		dev_err(&dev->intf->dev, "Canyest alloc candev\n");
 		return -ENOMEM;
 	}
 
@@ -726,7 +726,7 @@ static int kvaser_usb_probe(struct usb_interface *intf,
 		dev->ops = &kvaser_usb_hydra_dev_ops;
 	} else {
 		dev_err(&intf->dev,
-			"Product ID (%d) is not a supported Kvaser USB device\n",
+			"Product ID (%d) is yest a supported Kvaser USB device\n",
 			id->idProduct);
 		return -ENODEV;
 	}
@@ -735,7 +735,7 @@ static int kvaser_usb_probe(struct usb_interface *intf,
 
 	err = dev->ops->dev_setup_endpoints(dev);
 	if (err) {
-		dev_err(&intf->dev, "Cannot get usb endpoint(s)");
+		dev_err(&intf->dev, "Canyest get usb endpoint(s)");
 		return err;
 	}
 
@@ -757,7 +757,7 @@ static int kvaser_usb_probe(struct usb_interface *intf,
 	err = dev->ops->dev_get_software_info(dev);
 	if (err) {
 		dev_err(&intf->dev,
-			"Cannot get software info, error %d\n", err);
+			"Canyest get software info, error %d\n", err);
 		return err;
 	}
 
@@ -765,7 +765,7 @@ static int kvaser_usb_probe(struct usb_interface *intf,
 		err = dev->ops->dev_get_software_details(dev);
 		if (err) {
 			dev_err(&intf->dev,
-				"Cannot get software details, error %d\n", err);
+				"Canyest get software details, error %d\n", err);
 			return err;
 		}
 	}
@@ -782,7 +782,7 @@ static int kvaser_usb_probe(struct usb_interface *intf,
 
 	err = dev->ops->dev_get_card_info(dev);
 	if (err) {
-		dev_err(&intf->dev, "Cannot get card info, error %d\n", err);
+		dev_err(&intf->dev, "Canyest get card info, error %d\n", err);
 		return err;
 	}
 
@@ -790,7 +790,7 @@ static int kvaser_usb_probe(struct usb_interface *intf,
 		err = dev->ops->dev_get_capabilities(dev);
 		if (err) {
 			dev_err(&intf->dev,
-				"Cannot get capabilities, error %d\n", err);
+				"Canyest get capabilities, error %d\n", err);
 			kvaser_usb_remove_interfaces(dev);
 			return err;
 		}

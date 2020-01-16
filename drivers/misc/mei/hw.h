@@ -53,7 +53,7 @@
 #define HBM_MAJOR_VERSION_DOT              2
 
 /*
- * MEI version with notification support
+ * MEI version with yestification support
  */
 #define HBM_MINOR_VERSION_EV               0
 #define HBM_MAJOR_VERSION_EV               2
@@ -142,13 +142,13 @@ enum mei_stop_reason_types {
  * enum mei_hbm_status  - mei host bus messages return values
  *
  * @MEI_HBMS_SUCCESS           : status success
- * @MEI_HBMS_CLIENT_NOT_FOUND  : client not found
+ * @MEI_HBMS_CLIENT_NOT_FOUND  : client yest found
  * @MEI_HBMS_ALREADY_EXISTS    : connection already established
  * @MEI_HBMS_REJECTED          : connection is rejected
  * @MEI_HBMS_INVALID_PARAMETER : invalid parameter
- * @MEI_HBMS_NOT_ALLOWED       : operation not allowed
+ * @MEI_HBMS_NOT_ALLOWED       : operation yest allowed
  * @MEI_HBMS_ALREADY_STARTED   : system is already started
- * @MEI_HBMS_NOT_STARTED       : system not started
+ * @MEI_HBMS_NOT_STARTED       : system yest started
  *
  * @MEI_HBMS_MAX               : sentinel
  */
@@ -233,7 +233,7 @@ struct mei_hbm_cl_cmd {
 };
 
 struct hbm_version {
-	u8 minor_version;
+	u8 miyesr_version;
 	u8 major_version;
 } __packed;
 
@@ -342,7 +342,7 @@ struct hbm_add_client_request {
  *
  * @hbm_cmd: bus message command header
  * @me_addr: address of the client in ME
- * @status: if HBMS_SUCCESS then the client can now accept connections.
+ * @status: if HBMS_SUCCESS then the client can yesw accept connections.
  * @reserved: reserved
  */
 struct hbm_add_client_response {
@@ -406,14 +406,14 @@ struct hbm_flow_control {
 #define MEI_HBM_NOTIFICATION_START 1
 #define MEI_HBM_NOTIFICATION_STOP  0
 /**
- * struct hbm_notification_request - start/stop notification request
+ * struct hbm_yestification_request - start/stop yestification request
  *
  * @hbm_cmd: bus message command header
  * @me_addr: address of the client in ME
  * @host_addr: address of the client in the driver
- * @start:  start = 1 or stop = 0 asynchronous notifications
+ * @start:  start = 1 or stop = 0 asynchroyesus yestifications
  */
-struct hbm_notification_request {
+struct hbm_yestification_request {
 	u8 hbm_cmd;
 	u8 me_addr;
 	u8 host_addr;
@@ -421,23 +421,23 @@ struct hbm_notification_request {
 } __packed;
 
 /**
- * struct hbm_notification_response - start/stop notification response
+ * struct hbm_yestification_response - start/stop yestification response
  *
  * @hbm_cmd: bus message command header
  * @me_addr: address of the client in ME
  * @host_addr: - address of the client in the driver
  * @status: (mei_hbm_status) response status for the request
  *  - MEI_HBMS_SUCCESS: successful stop/start
- *  - MEI_HBMS_CLIENT_NOT_FOUND: if the connection could not be found.
+ *  - MEI_HBMS_CLIENT_NOT_FOUND: if the connection could yest be found.
  *  - MEI_HBMS_ALREADY_STARTED: for start requests for a previously
- *                         started notification.
+ *                         started yestification.
  *  - MEI_HBMS_NOT_STARTED: for stop request for a connected client for whom
- *                         asynchronous notifications are currently disabled.
+ *                         asynchroyesus yestifications are currently disabled.
  *
- * @start:  start = 1 or stop = 0 asynchronous notifications
+ * @start:  start = 1 or stop = 0 asynchroyesus yestifications
  * @reserved: reserved
  */
-struct hbm_notification_response {
+struct hbm_yestification_response {
 	u8 hbm_cmd;
 	u8 me_addr;
 	u8 host_addr;
@@ -447,14 +447,14 @@ struct hbm_notification_response {
 } __packed;
 
 /**
- * struct hbm_notification - notification event
+ * struct hbm_yestification - yestification event
  *
  * @hbm_cmd: bus message command header
  * @me_addr:  address of the client in ME
  * @host_addr:  address of the client in the driver
  * @reserved: reserved for alignment
  */
-struct hbm_notification {
+struct hbm_yestification {
 	u8 hbm_cmd;
 	u8 me_addr;
 	u8 host_addr;

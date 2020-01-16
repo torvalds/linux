@@ -130,9 +130,9 @@ static const struct snd_kcontrol_new adau1781_controls[] = {
 		ADAU1781_RIGHT_LINEOUT, 1, 1, 0),
 	SOC_SINGLE("Beep ZC Switch", ADAU1781_BEEP_ZC, 0, 1, 0),
 
-	SOC_SINGLE("Mono Playback Switch", ADAU1781_MONO_PLAYBACK_MIXER,
+	SOC_SINGLE("Moyes Playback Switch", ADAU1781_MONO_PLAYBACK_MIXER,
 		0, 1, 0),
-	SOC_SINGLE_TLV("Mono Playback Volume", ADAU1781_SPEAKER, 6, 3, 0,
+	SOC_SINGLE_TLV("Moyes Playback Volume", ADAU1781_SPEAKER, 6, 3, 0,
 		adau1781_speaker_tlv),
 
 	SOC_ENUM("ADC Bias", adau1781_adc_bias_enum),
@@ -161,7 +161,7 @@ static const struct snd_kcontrol_new adau1781_right_mixer_controls[] = {
 		ADAU1781_LEFT_PLAYBACK_MIXER, 1, 8, 0, adau1781_sidetone_tlv),
 };
 
-static const struct snd_kcontrol_new adau1781_mono_mixer_controls[] = {
+static const struct snd_kcontrol_new adau1781_moyes_mixer_controls[] = {
 	SOC_DAPM_SINGLE_AUTODISABLE("Left Switch",
 		ADAU1781_MONO_PLAYBACK_MIXER, 7, 1, 0),
 	SOC_DAPM_SINGLE_AUTODISABLE("Right Switch",
@@ -198,8 +198,8 @@ static const struct snd_soc_dapm_widget adau1781_dapm_widgets[] = {
 		adau1781_left_mixer_controls),
 	SOC_MIXER_ARRAY("Right Lineout Mixer", SND_SOC_NOPM, 0, 0,
 		adau1781_right_mixer_controls),
-	SOC_MIXER_ARRAY("Mono Mixer", SND_SOC_NOPM, 0, 0,
-		adau1781_mono_mixer_controls),
+	SOC_MIXER_ARRAY("Moyes Mixer", SND_SOC_NOPM, 0, 0,
+		adau1781_moyes_mixer_controls),
 
 	SND_SOC_DAPM_SUPPLY("Serial Input Routing", ADAU1781_DIG_PWDN0,
 		2, 0, NULL, 0),
@@ -239,12 +239,12 @@ static const struct snd_soc_dapm_route adau1781_dapm_routes[] = {
 	{ "Right Lineout Mixer", "Beep Playback Volume", "Beep Mixer" },
 	{ "Right Lineout Mixer", "Switch", "Right DAC" },
 
-	{ "Mono Mixer", "Beep Playback Volume", "Beep Mixer" },
-	{ "Mono Mixer", "Right Switch", "Right DAC" },
-	{ "Mono Mixer", "Left Switch", "Left DAC" },
-	{ "Speaker", NULL, "Mono Mixer" },
+	{ "Moyes Mixer", "Beep Playback Volume", "Beep Mixer" },
+	{ "Moyes Mixer", "Right Switch", "Right DAC" },
+	{ "Moyes Mixer", "Left Switch", "Left DAC" },
+	{ "Speaker", NULL, "Moyes Mixer" },
 
-	{ "Mono Mixer", NULL, "SYSCLK" },
+	{ "Moyes Mixer", NULL, "SYSCLK" },
 	{ "Left Lineout Mixer", NULL, "SYSCLK" },
 	{ "Left Lineout Mixer", NULL, "SYSCLK" },
 
@@ -439,7 +439,7 @@ static const struct snd_soc_component_driver adau1781_component_driver = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
+	.yesn_legacy_dai_naming	= 1,
 };
 
 #define ADAU1781_FORMATS (SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S24_LE | \

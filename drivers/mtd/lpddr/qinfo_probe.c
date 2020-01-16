@@ -8,7 +8,7 @@
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/slab.h>
 #include <linux/interrupt.h>
 
@@ -46,13 +46,13 @@ static long lpddr_get_qinforec_pos(struct map_info *map, char *id_str)
 	int qinfo_lines = ARRAY_SIZE(qinfo_array);
 	int i;
 	int bankwidth = map_bankwidth(map) * 8;
-	int major, minor;
+	int major, miyesr;
 
 	for (i = 0; i < qinfo_lines; i++) {
 		if (strcmp(id_str, qinfo_array[i].id_str) == 0) {
 			major = qinfo_array[i].major & ((1 << bankwidth) - 1);
-			minor = qinfo_array[i].minor & ((1 << bankwidth) - 1);
-			return minor | (major << bankwidth);
+			miyesr = qinfo_array[i].miyesr & ((1 << bankwidth) - 1);
+			return miyesr | (major << bankwidth);
 		}
 	}
 	printk(KERN_ERR"%s qinfo id string is wrong! \n", map->name);
@@ -112,7 +112,7 @@ static int lpddr_pfow_present(struct map_info *map, struct lpddr_private *lpddr)
 
 	return 1;	/* "PFOW" is found */
 out:
-	printk(KERN_WARNING"%s: PFOW string at 0x%lx is not found \n",
+	printk(KERN_WARNING"%s: PFOW string at 0x%lx is yest found \n",
 					map->name, map->pfow_base);
 	return 0;
 }

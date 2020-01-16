@@ -44,7 +44,7 @@
  *  12-04-00  01.01.03  Config page changes to match MPI rev 1.00.01.
  *  12-05-00  01.01.04  Modified config page actions.
  *  01-09-01  01.01.05  Added defines for page address formats.
- *                      Data size for Manufacturing pages 2 and 3 no longer
+ *                      Data size for Manufacturing pages 2 and 3 yes longer
  *                      defined here.
  *                      Io Unit Page 2 size is fixed at 4 adapters and some
  *                      flags were changed.
@@ -62,7 +62,7 @@
  *                      Added definitions and structures for IOC Page 2 and
  *                      RAID Volume Page 2.
  *  03-27-01  01.01.10  Added CONFIG_PAGE_FC_PORT_8 and CONFIG_PAGE_FC_PORT_9.
- *                      CONFIG_PAGE_FC_PORT_3 now supports persistent by DID.
+ *                      CONFIG_PAGE_FC_PORT_3 yesw supports persistent by DID.
  *                      Added VendorId and ProductRevLevel fields to
  *                      RAIDVOL2_IM_PHYS_ID struct.
  *                      Modified values for MPI_FCPORTPAGE0_FLAGS_ATTACH_
@@ -284,7 +284,7 @@
  *                      CapabilitiesFlags field of IOC Page 6.
  *                      Added defines for metadata size bits in VolumeSettings
  *                      field of RAID Volume Page 0.
- *                      Added SATA Link Reset settings, Enable SATA Asynchronous
+ *                      Added SATA Link Reset settings, Enable SATA Asynchroyesus
  *                      Notification bit, and HideNonZeroAttachedPhyIdentifiers
  *                      bit to AdditionalControlFlags field of SAS IO Unit
  *                      Page 1.
@@ -292,7 +292,7 @@
  *                      Device Limit Exceeded bits in Status field of SAS IO
  *                      Unit Page 2.
  *                      Added more AccessStatus values for SAS Device Page 0.
- *                      Added bit for SATA Asynchronous Notification Support in
+ *                      Added bit for SATA Asynchroyesus Notification Support in
  *                      Flags field of SAS Device Page 0.
  *  02-28-07  01.05.14  Added ExtFlags field to Manufacturing Page 4.
  *                      Added Disable SMART Polling for CapabilitiesFlags of
@@ -751,7 +751,7 @@ typedef struct _CONFIG_PAGE_MANUFACTURING_6
 
 typedef struct _MPI_MANPAGE7_CONNECTOR_INFO
 {
-    U32                         Pinout;                 /* 00h */
+    U32                         Piyesut;                 /* 00h */
     U8                          Connector[16];          /* 04h */
     U8                          Location;               /* 14h */
     U8                          Reserved1;              /* 15h */
@@ -760,7 +760,7 @@ typedef struct _MPI_MANPAGE7_CONNECTOR_INFO
 } MPI_MANPAGE7_CONNECTOR_INFO, MPI_POINTER PTR_MPI_MANPAGE7_CONNECTOR_INFO,
   MpiManPage7ConnectorInfo_t, MPI_POINTER pMpiManPage7ConnectorInfo_t;
 
-/* defines for the Pinout field */
+/* defines for the Piyesut field */
 #define MPI_MANPAGE7_PINOUT_SFF_8484_L4                 (0x00080000)
 #define MPI_MANPAGE7_PINOUT_SFF_8484_L3                 (0x00040000)
 #define MPI_MANPAGE7_PINOUT_SFF_8484_L2                 (0x00020000)
@@ -1789,11 +1789,11 @@ typedef struct _CONFIG_PAGE_FC_PORT_0
 #define MPI_FCPORTPAGE0_LTYPE_1300_LONG_WAVE            (0x0E)
 #define MPI_FCPORTPAGE0_LTYPE_1500_LONG_WAVE            (0x0F)
 
-#define MPI_FCPORTPAGE0_PORTSTATE_UNKNOWN               (0x01)      /*(SNIA)HBA_PORTSTATE_UNKNOWN       1 Unknown */
+#define MPI_FCPORTPAGE0_PORTSTATE_UNKNOWN               (0x01)      /*(SNIA)HBA_PORTSTATE_UNKNOWN       1 Unkyeswn */
 #define MPI_FCPORTPAGE0_PORTSTATE_ONLINE                (0x02)      /*(SNIA)HBA_PORTSTATE_ONLINE        2 Operational */
 #define MPI_FCPORTPAGE0_PORTSTATE_OFFLINE               (0x03)      /*(SNIA)HBA_PORTSTATE_OFFLINE       3 User Offline */
 #define MPI_FCPORTPAGE0_PORTSTATE_BYPASSED              (0x04)      /*(SNIA)HBA_PORTSTATE_BYPASSED      4 Bypassed */
-#define MPI_FCPORTPAGE0_PORTSTATE_DIAGNOST              (0x05)      /*(SNIA)HBA_PORTSTATE_DIAGNOSTICS   5 In diagnostics mode */
+#define MPI_FCPORTPAGE0_PORTSTATE_DIAGNOST              (0x05)      /*(SNIA)HBA_PORTSTATE_DIAGNOSTICS   5 In diagyesstics mode */
 #define MPI_FCPORTPAGE0_PORTSTATE_LINKDOWN              (0x06)      /*(SNIA)HBA_PORTSTATE_LINKDOWN      6 Link Down */
 #define MPI_FCPORTPAGE0_PORTSTATE_ERROR                 (0x07)      /*(SNIA)HBA_PORTSTATE_ERROR         7 Port Error */
 #define MPI_FCPORTPAGE0_PORTSTATE_LOOPBACK              (0x08)      /*(SNIA)HBA_PORTSTATE_LOOPBACK      8 Loopback */
@@ -1802,7 +1802,7 @@ typedef struct _CONFIG_PAGE_FC_PORT_0
 #define MPI_FCPORTPAGE0_SUPPORT_CLASS_2                 (0x00000002)
 #define MPI_FCPORTPAGE0_SUPPORT_CLASS_3                 (0x00000004)
 
-#define MPI_FCPORTPAGE0_SUPPORT_SPEED_UNKNOWN           (0x00000000) /* (SNIA)HBA_PORTSPEED_UNKNOWN 0   Unknown - transceiver incapable of reporting */
+#define MPI_FCPORTPAGE0_SUPPORT_SPEED_UNKNOWN           (0x00000000) /* (SNIA)HBA_PORTSPEED_UNKNOWN 0   Unkyeswn - transceiver incapable of reporting */
 #define MPI_FCPORTPAGE0_SUPPORT_1GBIT_SPEED             (0x00000001) /* (SNIA)HBA_PORTSPEED_1GBIT   1   1 GBit/sec */
 #define MPI_FCPORTPAGE0_SUPPORT_2GBIT_SPEED             (0x00000002) /* (SNIA)HBA_PORTSPEED_2GBIT   2   2 GBit/sec */
 #define MPI_FCPORTPAGE0_SUPPORT_10GBIT_SPEED            (0x00000004) /* (SNIA)HBA_PORTSPEED_10GBIT  4  10 GBit/sec */
@@ -1813,7 +1813,7 @@ typedef struct _CONFIG_PAGE_FC_PORT_0
 #define MPI_FCPORTPAGE0_CURRENT_SPEED_2GBIT             MPI_FCPORTPAGE0_SUPPORT_2GBIT_SPEED
 #define MPI_FCPORTPAGE0_CURRENT_SPEED_10GBIT            MPI_FCPORTPAGE0_SUPPORT_10GBIT_SPEED
 #define MPI_FCPORTPAGE0_CURRENT_SPEED_4GBIT             MPI_FCPORTPAGE0_SUPPORT_4GBIT_SPEED
-#define MPI_FCPORTPAGE0_CURRENT_SPEED_NOT_NEGOTIATED    (0x00008000)        /* (SNIA)HBA_PORTSPEED_NOT_NEGOTIATED (1<<15) Speed not established */
+#define MPI_FCPORTPAGE0_CURRENT_SPEED_NOT_NEGOTIATED    (0x00008000)        /* (SNIA)HBA_PORTSPEED_NOT_NEGOTIATED (1<<15) Speed yest established */
 
 
 typedef struct _CONFIG_PAGE_FC_PORT_1

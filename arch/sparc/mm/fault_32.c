@@ -36,7 +36,7 @@
 
 int show_unhandled_signals = 1;
 
-static void __noreturn unhandled_fault(unsigned long address,
+static void __yesreturn unhandled_fault(unsigned long address,
 				       struct task_struct *tsk,
 				       struct pt_regs *regs)
 {
@@ -94,9 +94,9 @@ asmlinkage int lookup_fault(unsigned long pc, unsigned long ret_pc,
 	regs.npc = pc + 4;
 	__asm__ __volatile__(
 		"rd %%psr, %0\n\t"
-		"nop\n\t"
-		"nop\n\t"
-		"nop\n" : "=r" (regs.psr));
+		"yesp\n\t"
+		"yesp\n\t"
+		"yesp\n" : "=r" (regs.psr));
 	unhandled_fault(address, current, &regs);
 
 	/* Not reached */
@@ -149,7 +149,7 @@ static unsigned long compute_si_addr(struct pt_regs *regs, int text_fault)
 	return safe_compute_effective_address(regs, insn);
 }
 
-static noinline void do_fault_siginfo(int code, int sig, struct pt_regs *regs,
+static yesinline void do_fault_siginfo(int code, int sig, struct pt_regs *regs,
 				      int text_fault)
 {
 	unsigned long addr = compute_si_addr(regs, text_fault);
@@ -180,18 +180,18 @@ asmlinkage void do_sparc_fault(struct pt_regs *regs, int text_fault, int write,
 	 * NOTE! We MUST NOT take any locks for this case. We may
 	 * be in an interrupt or a critical region, and should
 	 * only copy the information from the master page table,
-	 * nothing more.
+	 * yesthing more.
 	 */
 	code = SEGV_MAPERR;
 	if (address >= TASK_SIZE)
 		goto vmalloc_fault;
 
 	/*
-	 * If we're in an interrupt or have no user
-	 * context, we must not take the fault..
+	 * If we're in an interrupt or have yes user
+	 * context, we must yest take the fault..
 	 */
 	if (pagefault_disabled() || !mm)
-		goto no_context;
+		goto yes_context;
 
 	perf_sw_event(PERF_COUNT_SW_PAGE_FAULTS, 1, regs, address);
 
@@ -283,7 +283,7 @@ good_area:
 bad_area:
 	up_read(&mm->mmap_sem);
 
-bad_area_nosemaphore:
+bad_area_yessemaphore:
 	/* User mode accesses just cause a SIGSEGV */
 	if (from_user) {
 		do_fault_siginfo(code, SIGSEGV, regs, text_fault);
@@ -291,7 +291,7 @@ bad_area_nosemaphore:
 	}
 
 	/* Is this in ex_table? */
-no_context:
+yes_context:
 	g2 = regs->u_regs[UREG_G2];
 	if (!from_user) {
 		fixup = search_extables_range(regs->pc, &g2);
@@ -335,13 +335,13 @@ out_of_memory:
 		pagefault_out_of_memory();
 		return;
 	}
-	goto no_context;
+	goto yes_context;
 
 do_sigbus:
 	up_read(&mm->mmap_sem);
 	do_fault_siginfo(BUS_ADRERR, SIGBUS, regs, text_fault);
 	if (!from_user)
-		goto no_context;
+		goto yes_context;
 
 vmalloc_fault:
 	{
@@ -360,7 +360,7 @@ vmalloc_fault:
 
 		if (!pgd_present(*pgd)) {
 			if (!pgd_present(*pgd_k))
-				goto bad_area_nosemaphore;
+				goto bad_area_yessemaphore;
 			pgd_val(*pgd) = pgd_val(*pgd_k);
 			return;
 		}
@@ -374,7 +374,7 @@ vmalloc_fault:
 		pmd_k = pmd_offset(pud_k, address);
 
 		if (pmd_present(*pmd) || !pmd_present(*pmd_k))
-			goto bad_area_nosemaphore;
+			goto bad_area_yessemaphore;
 
 		*pmd = *pmd_k;
 		return;

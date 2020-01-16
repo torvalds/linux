@@ -39,12 +39,12 @@
  * are met:
  *
  *  * Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  *  * Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
+ *    yestice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
- *  * Neither the name Intel Corporation nor the names of its
+ *  * Neither the name Intel Corporation yesr the names of its
  *    contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
@@ -233,7 +233,7 @@ static int iwl_request_firmware(struct iwl_drv *drv, bool first)
 	}
 
 	if (drv->fw_index < cfg->ucode_api_min) {
-		IWL_ERR(drv, "no suitable firmware found!\n");
+		IWL_ERR(drv, "yes suitable firmware found!\n");
 
 		if (cfg->ucode_api_min == cfg->ucode_api_max) {
 			IWL_ERR(drv, "%s%d is required\n", cfg->fw_name_pre,
@@ -256,7 +256,7 @@ static int iwl_request_firmware(struct iwl_drv *drv, bool first)
 	IWL_DEBUG_FW_INFO(drv, "attempting to load firmware '%s'\n",
 			  drv->firmware_name);
 
-	return request_firmware_nowait(THIS_MODULE, 1, drv->firmware_name,
+	return request_firmware_yeswait(THIS_MODULE, 1, drv->firmware_name,
 				       drv->trans->dev,
 				       GFP_KERNEL, drv, iwl_req_fw_callback);
 }
@@ -567,7 +567,7 @@ static int iwl_parse_v1_v2_firmware(struct iwl_drv *drv,
 	    get_sec_size(pieces, IWL_UCODE_INIT, IWL_UCODE_SECTION_DATA)) {
 
 		IWL_ERR(drv,
-			"uCode file size %d does not match expected size\n",
+			"uCode file size %d does yest match expected size\n",
 			(int)ucode_raw->size);
 		return -EINVAL;
 	}
@@ -723,10 +723,10 @@ static int iwl_parse_tlv_firmware(struct iwl_drv *drv,
 				goto invalid_tlv_len;
 			/*
 			 * This driver only reads the first u32 as
-			 * right now no more features are defined,
+			 * right yesw yes more features are defined,
 			 * if that changes then either the driver
-			 * will not work with the new firmware, or
-			 * it'll not take advantage of new features.
+			 * will yest work with the new firmware, or
+			 * it'll yest take advantage of new features.
 			 */
 			capa->flags = le32_to_cpup((__le32 *)tlv_data);
 			break;
@@ -882,24 +882,24 @@ static int iwl_parse_tlv_firmware(struct iwl_drv *drv,
 			break;
 		case IWL_UCODE_TLV_FW_VERSION: {
 			__le32 *ptr = (void *)tlv_data;
-			u32 major, minor;
+			u32 major, miyesr;
 			u8 local_comp;
 
 			if (tlv_len != sizeof(u32) * 3)
 				goto invalid_tlv_len;
 
 			major = le32_to_cpup(ptr++);
-			minor = le32_to_cpup(ptr++);
+			miyesr = le32_to_cpup(ptr++);
 			local_comp = le32_to_cpup(ptr);
 
 			if (major >= 35)
 				snprintf(drv->fw.fw_version,
 					 sizeof(drv->fw.fw_version),
-					"%u.%08x.%u", major, minor, local_comp);
+					"%u.%08x.%u", major, miyesr, local_comp);
 			else
 				snprintf(drv->fw.fw_version,
 					 sizeof(drv->fw.fw_version),
-					"%u.%u.%u", major, minor, local_comp);
+					"%u.%u.%u", major, miyesr, local_comp);
 			break;
 			}
 		case IWL_UCODE_TLV_FW_DBG_DEST: {
@@ -921,7 +921,7 @@ static int iwl_parse_tlv_firmware(struct iwl_drv *drv,
 
 			if (pieces->dbg_dest_tlv_init) {
 				IWL_ERR(drv,
-					"dbg destination ignored, already exists\n");
+					"dbg destination igyesred, already exists\n");
 				break;
 			}
 
@@ -956,21 +956,21 @@ static int iwl_parse_tlv_firmware(struct iwl_drv *drv,
 
 			if (!pieces->dbg_dest_tlv_init) {
 				IWL_ERR(drv,
-					"Ignore dbg config %d - no destination configured\n",
+					"Igyesre dbg config %d - yes destination configured\n",
 					conf->id);
 				break;
 			}
 
 			if (conf->id >= ARRAY_SIZE(drv->fw.dbg.conf_tlv)) {
 				IWL_ERR(drv,
-					"Skip unknown configuration: %d\n",
+					"Skip unkyeswn configuration: %d\n",
 					conf->id);
 				break;
 			}
 
 			if (pieces->dbg_conf_tlv[conf->id]) {
 				IWL_ERR(drv,
-					"Ignore duplicate dbg config %d\n",
+					"Igyesre duplicate dbg config %d\n",
 					conf->id);
 				break;
 			}
@@ -992,14 +992,14 @@ static int iwl_parse_tlv_firmware(struct iwl_drv *drv,
 
 			if (trigger_id >= ARRAY_SIZE(drv->fw.dbg.trigger_tlv)) {
 				IWL_ERR(drv,
-					"Skip unknown trigger: %u\n",
+					"Skip unkyeswn trigger: %u\n",
 					trigger->id);
 				break;
 			}
 
 			if (pieces->dbg_trigger_tlv[trigger_id]) {
 				IWL_ERR(drv,
-					"Ignore duplicate dbg trigger %u\n",
+					"Igyesre duplicate dbg trigger %u\n",
 					trigger->id);
 				break;
 			}
@@ -1057,7 +1057,7 @@ static int iwl_parse_tlv_firmware(struct iwl_drv *drv,
 				paging_mem_size;
 			break;
 		case IWL_UCODE_TLV_FW_GSCAN_CAPA:
-			/* ignored */
+			/* igyesred */
 			break;
 		case IWL_UCODE_TLV_FW_MEM_SEG: {
 			struct iwl_fw_dbg_mem_seg_tlv *dbg_mem =
@@ -1172,7 +1172,7 @@ static int iwl_parse_tlv_firmware(struct iwl_drv *drv,
 				tlv_len / sizeof(struct iwl_fw_cmd_version);
 			break;
 		default:
-			IWL_DEBUG_INFO(drv, "unknown TLV: %d\n", tlv_type);
+			IWL_DEBUG_INFO(drv, "unkyeswn TLV: %d\n", tlv_type);
 			break;
 		}
 	}
@@ -1385,7 +1385,7 @@ static void iwl_req_fw_callback(const struct firmware *ucode_raw, void *context)
 	}
 
 	/*
-	 * In mvm uCode there is no difference between data and instructions
+	 * In mvm uCode there is yes difference between data and instructions
 	 * sections.
 	 */
 	if (fw->type == IWL_FW_DVM && validate_sec_sizes(drv, pieces,
@@ -1439,7 +1439,7 @@ static void iwl_req_fw_callback(const struct firmware *ucode_raw, void *context)
 			 * relevant for internal buffer exclusively,
 			 * the base address is part of given with the length
 			 * of the buffer, and the size shift is give instead of
-			 * end shift. We now store these values in base_reg,
+			 * end shift. We yesw store these values in base_reg,
 			 * and end shift, and when dumping the data we'll
 			 * manipulate it for extracting both the length and
 			 * base address */
@@ -1485,10 +1485,10 @@ static void iwl_req_fw_callback(const struct firmware *ucode_raw, void *context)
 	for (i = 0; i < ARRAY_SIZE(drv->fw.dbg.trigger_tlv); i++) {
 		if (pieces->dbg_trigger_tlv[i]) {
 			/*
-			 * If the trigger isn't long enough, WARN and exit.
+			 * If the trigger isn't long eyesugh, WARN and exit.
 			 * Someone is trying to debug something and he won't
 			 * be able to catch the bug he is trying to chase.
-			 * We'd better be noisy to be sure he knows what's
+			 * We'd better be yesisy to be sure he kyesws what's
 			 * going on.
 			 */
 			if (WARN_ON(pieces->dbg_trigger_tlv_len[i] <
@@ -1506,7 +1506,7 @@ static void iwl_req_fw_callback(const struct firmware *ucode_raw, void *context)
 		}
 	}
 
-	/* Now that we can no longer fail, copy information */
+	/* Now that we can yes longer fail, copy information */
 
 	drv->fw.dbg.mem_tlv = pieces->dbg_mem_tlv;
 	pieces->dbg_mem_tlv = NULL;
@@ -1533,7 +1533,7 @@ static void iwl_req_fw_callback(const struct firmware *ucode_raw, void *context)
 	fw->inst_errlog_ptr = pieces->inst_errlog_ptr;
 
 	/*
-	 * figure out the offset of chain noise reset and gain commands
+	 * figure out the offset of chain yesise reset and gain commands
 	 * base on the size of standard phy calibration commands table size
 	 */
 	if (fw->ucode_capa.standard_phy_calibration_size >
@@ -1541,7 +1541,7 @@ static void iwl_req_fw_callback(const struct firmware *ucode_raw, void *context)
 		fw->ucode_capa.standard_phy_calibration_size =
 			IWL_MAX_STANDARD_PHY_CALIBRATE_TBL_SIZE;
 
-	/* We have our copies now, allow OS release its copies */
+	/* We have our copies yesw, allow OS release its copies */
 	release_firmware(ucode_raw);
 
 	mutex_lock(&iwlwifi_opmode_table_mtx);
@@ -1832,8 +1832,8 @@ MODULE_PARM_DESC(enable_ini,
  * set bt_coex_active to true, uCode will do kill/defer
  * every time the priority line is asserted (BT is sending signals on the
  * priority line in the PCIx).
- * set bt_coex_active to false, uCode will ignore the BT activity and
- * perform the normal operation
+ * set bt_coex_active to false, uCode will igyesre the BT activity and
+ * perform the yesrmal operation
  *
  * User might experience transmit issue on some platform due to WiFi/BT
  * co-exist problem. The possible behaviors are:

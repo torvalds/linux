@@ -29,13 +29,13 @@
 /*
  * Mouse Mode: some panel may configure the controller to mouse mode,
  * which can only report one point at a given time.
- * This driver will ignore events in this mode.
+ * This driver will igyesre events in this mode.
  */
 #define REPORT_MODE_MOUSE		0x1
 /*
  * Vendor Mode: this mode is used to transfer some vendor specific
  * messages.
- * This driver will ignore events in this mode.
+ * This driver will igyesre events in this mode.
  */
 #define REPORT_MODE_VENDOR		0x3
 /* Multiple Touch Mode */
@@ -80,7 +80,7 @@ static irqreturn_t egalax_ts_interrupt(int irq, void *dev_id)
 		return IRQ_HANDLED;
 
 	if (buf[0] != REPORT_MODE_MTTOUCH) {
-		/* ignore mouse events and vendor events */
+		/* igyesre mouse events and vendor events */
 		return IRQ_HANDLED;
 	}
 
@@ -119,7 +119,7 @@ static irqreturn_t egalax_ts_interrupt(int irq, void *dev_id)
 /* wake up controller by an falling edge of interrupt gpio.  */
 static int egalax_wake_up_device(struct i2c_client *client)
 {
-	struct device_node *np = client->dev.of_node;
+	struct device_yesde *np = client->dev.of_yesde;
 	int gpio;
 	int ret;
 
@@ -133,7 +133,7 @@ static int egalax_wake_up_device(struct i2c_client *client)
 	ret = gpio_request(gpio, "egalax_irq");
 	if (ret < 0) {
 		dev_err(&client->dev,
-			"request gpio failed, cannot wake up controller: %d\n",
+			"request gpio failed, canyest wake up controller: %d\n",
 			ret);
 		return ret;
 	}

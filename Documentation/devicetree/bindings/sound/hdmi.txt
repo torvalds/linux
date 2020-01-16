@@ -9,7 +9,7 @@ CODEC output pins:
 CODEC input pins:
   * RX
 
-Example node:
+Example yesde:
 
 	hdmi_audio: hdmi_audio@0 {
 		compatible = "linux,hdmi-audio";

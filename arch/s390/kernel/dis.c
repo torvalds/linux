@@ -9,7 +9,7 @@
 #include <linux/sched.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/ptrace.h>
 #include <linux/timer.h>
 #include <linux/mm.h>
@@ -397,9 +397,9 @@ struct s390_insn *find_insn(unsigned char *code)
 	int i;
 
 	/* Search the opcode offset table to find an entry which
-	 * matches the beginning of the opcode. If there is no match
+	 * matches the beginning of the opcode. If there is yes match
 	 * the last entry will be used, which is the default entry for
-	 * unknown instructions as well as 1-byte opcode instructions.
+	 * unkyeswn instructions as well as 1-byte opcode instructions.
 	 */
 	for (i = 0; i < ARRAY_SIZE(opcode_offset); i++) {
 		entry = &opcode_offset[i];
@@ -478,7 +478,7 @@ static int print_insn(char *buffer, unsigned char *code, unsigned long addr)
 				separator = ',';
 		}
 	} else
-		ptr += sprintf(ptr, "unknown");
+		ptr += sprintf(ptr, "unkyeswn");
 	return (int) (ptr - buffer);
 }
 

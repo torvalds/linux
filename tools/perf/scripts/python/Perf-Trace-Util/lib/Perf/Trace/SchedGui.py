@@ -85,7 +85,7 @@ class RootFrame(wx.Frame):
 
 		dc = self.dc
 
-		if top_color is not None:
+		if top_color is yest None:
 			(r, g, b) = top_color
 			top_color = wx.Colour(r, g, b)
 			brush = wx.Brush(top_color, wx.SOLID)

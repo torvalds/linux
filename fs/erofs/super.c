@@ -15,7 +15,7 @@
 #define CREATE_TRACE_POINTS
 #include <trace/events/erofs.h>
 
-static struct kmem_cache *erofs_inode_cachep __read_mostly;
+static struct kmem_cache *erofs_iyesde_cachep __read_mostly;
 
 void _erofs_err(struct super_block *sb, const char *function,
 		const char *fmt, ...)
@@ -71,36 +71,36 @@ static int erofs_superblock_csum_verify(struct super_block *sb, void *sbdata)
 	return 0;
 }
 
-static void erofs_inode_init_once(void *ptr)
+static void erofs_iyesde_init_once(void *ptr)
 {
-	struct erofs_inode *vi = ptr;
+	struct erofs_iyesde *vi = ptr;
 
-	inode_init_once(&vi->vfs_inode);
+	iyesde_init_once(&vi->vfs_iyesde);
 }
 
-static struct inode *erofs_alloc_inode(struct super_block *sb)
+static struct iyesde *erofs_alloc_iyesde(struct super_block *sb)
 {
-	struct erofs_inode *vi =
-		kmem_cache_alloc(erofs_inode_cachep, GFP_KERNEL);
+	struct erofs_iyesde *vi =
+		kmem_cache_alloc(erofs_iyesde_cachep, GFP_KERNEL);
 
 	if (!vi)
 		return NULL;
 
-	/* zero out everything except vfs_inode */
-	memset(vi, 0, offsetof(struct erofs_inode, vfs_inode));
-	return &vi->vfs_inode;
+	/* zero out everything except vfs_iyesde */
+	memset(vi, 0, offsetof(struct erofs_iyesde, vfs_iyesde));
+	return &vi->vfs_iyesde;
 }
 
-static void erofs_free_inode(struct inode *inode)
+static void erofs_free_iyesde(struct iyesde *iyesde)
 {
-	struct erofs_inode *vi = EROFS_I(inode);
+	struct erofs_iyesde *vi = EROFS_I(iyesde);
 
 	/* be careful of RCU symlink path */
-	if (inode->i_op == &erofs_fast_symlink_iops)
-		kfree(inode->i_link);
+	if (iyesde->i_op == &erofs_fast_symlink_iops)
+		kfree(iyesde->i_link);
 	kfree(vi->xattr_shared_xattrs);
 
-	kmem_cache_free(erofs_inode_cachep, vi);
+	kmem_cache_free(erofs_iyesde_cachep, vi);
 }
 
 static bool check_layout_compatibility(struct super_block *sb,
@@ -129,9 +129,9 @@ static int erofs_read_superblock(struct super_block *sb)
 	void *data;
 	int ret;
 
-	page = read_mapping_page(sb->s_bdev->bd_inode->i_mapping, 0, NULL);
+	page = read_mapping_page(sb->s_bdev->bd_iyesde->i_mapping, 0, NULL);
 	if (IS_ERR(page)) {
-		erofs_err(sb, "cannot read erofs superblock");
+		erofs_err(sb, "canyest read erofs superblock");
 		return PTR_ERR(page);
 	}
 
@@ -142,7 +142,7 @@ static int erofs_read_superblock(struct super_block *sb)
 
 	ret = -EINVAL;
 	if (le32_to_cpu(dsb->magic) != EROFS_SUPER_MAGIC_V1) {
-		erofs_err(sb, "cannot find valid erofs superblock");
+		erofs_err(sb, "canyest find valid erofs superblock");
 		goto out;
 	}
 
@@ -169,9 +169,9 @@ static int erofs_read_superblock(struct super_block *sb)
 #ifdef CONFIG_EROFS_FS_XATTR
 	sbi->xattr_blkaddr = le32_to_cpu(dsb->xattr_blkaddr);
 #endif
-	sbi->islotbits = ilog2(sizeof(struct erofs_inode_compact));
+	sbi->islotbits = ilog2(sizeof(struct erofs_iyesde_compact));
 	sbi->root_nid = le16_to_cpu(dsb->root_nid);
-	sbi->inos = le64_to_cpu(dsb->inos);
+	sbi->iyess = le64_to_cpu(dsb->iyess);
 
 	sbi->build_time = le64_to_cpu(dsb->build_time);
 	sbi->build_time_nsec = le32_to_cpu(dsb->build_time_nsec);
@@ -201,7 +201,7 @@ static int erofs_build_cache_strategy(struct super_block *sb,
 	int err = 0;
 
 	if (!cs) {
-		erofs_err(sb, "Not enough memory to store cache strategy");
+		erofs_err(sb, "Not eyesugh memory to store cache strategy");
 		return -ENOMEM;
 	}
 
@@ -222,7 +222,7 @@ static int erofs_build_cache_strategy(struct super_block *sb,
 static int erofs_build_cache_strategy(struct super_block *sb,
 				      substring_t *args)
 {
-	erofs_info(sb, "EROFS compression is disabled, so cache strategy is ignored");
+	erofs_info(sb, "EROFS compression is disabled, so cache strategy is igyesred");
 	return 0;
 }
 #endif
@@ -244,18 +244,18 @@ static void erofs_default_options(struct erofs_sb_info *sbi)
 
 enum {
 	Opt_user_xattr,
-	Opt_nouser_xattr,
+	Opt_yesuser_xattr,
 	Opt_acl,
-	Opt_noacl,
+	Opt_yesacl,
 	Opt_cache_strategy,
 	Opt_err
 };
 
 static match_table_t erofs_tokens = {
 	{Opt_user_xattr, "user_xattr"},
-	{Opt_nouser_xattr, "nouser_xattr"},
+	{Opt_yesuser_xattr, "yesuser_xattr"},
 	{Opt_acl, "acl"},
-	{Opt_noacl, "noacl"},
+	{Opt_yesacl, "yesacl"},
 	{Opt_cache_strategy, "cache_strategy=%s"},
 	{Opt_err, NULL}
 };
@@ -283,30 +283,30 @@ static int erofs_parse_options(struct super_block *sb, char *options)
 		case Opt_user_xattr:
 			set_opt(EROFS_SB(sb), XATTR_USER);
 			break;
-		case Opt_nouser_xattr:
+		case Opt_yesuser_xattr:
 			clear_opt(EROFS_SB(sb), XATTR_USER);
 			break;
 #else
 		case Opt_user_xattr:
-			erofs_info(sb, "user_xattr options not supported");
+			erofs_info(sb, "user_xattr options yest supported");
 			break;
-		case Opt_nouser_xattr:
-			erofs_info(sb, "nouser_xattr options not supported");
+		case Opt_yesuser_xattr:
+			erofs_info(sb, "yesuser_xattr options yest supported");
 			break;
 #endif
 #ifdef CONFIG_EROFS_FS_POSIX_ACL
 		case Opt_acl:
 			set_opt(EROFS_SB(sb), POSIX_ACL);
 			break;
-		case Opt_noacl:
+		case Opt_yesacl:
 			clear_opt(EROFS_SB(sb), POSIX_ACL);
 			break;
 #else
 		case Opt_acl:
-			erofs_info(sb, "acl options not supported");
+			erofs_info(sb, "acl options yest supported");
 			break;
-		case Opt_noacl:
-			erofs_info(sb, "noacl options not supported");
+		case Opt_yesacl:
+			erofs_info(sb, "yesacl options yest supported");
 			break;
 #endif
 		case Opt_cache_strategy:
@@ -363,18 +363,18 @@ static const struct address_space_operations managed_cache_aops = {
 static int erofs_init_managed_cache(struct super_block *sb)
 {
 	struct erofs_sb_info *const sbi = EROFS_SB(sb);
-	struct inode *const inode = new_inode(sb);
+	struct iyesde *const iyesde = new_iyesde(sb);
 
-	if (!inode)
+	if (!iyesde)
 		return -ENOMEM;
 
-	set_nlink(inode, 1);
-	inode->i_size = OFFSET_MAX;
+	set_nlink(iyesde, 1);
+	iyesde->i_size = OFFSET_MAX;
 
-	inode->i_mapping->a_ops = &managed_cache_aops;
-	mapping_set_gfp_mask(inode->i_mapping,
+	iyesde->i_mapping->a_ops = &managed_cache_aops;
+	mapping_set_gfp_mask(iyesde->i_mapping,
 			     GFP_NOFS | __GFP_HIGHMEM | __GFP_MOVABLE);
-	sbi->managed_cache = inode;
+	sbi->managed_cache = iyesde;
 	return 0;
 }
 #else
@@ -383,7 +383,7 @@ static int erofs_init_managed_cache(struct super_block *sb) { return 0; }
 
 static int erofs_fill_super(struct super_block *sb, void *data, int silent)
 {
-	struct inode *inode;
+	struct iyesde *iyesde;
 	struct erofs_sb_info *sbi;
 	int err;
 
@@ -428,29 +428,29 @@ static int erofs_fill_super(struct super_block *sb, void *data, int silent)
 	INIT_RADIX_TREE(&sbi->workstn_tree, GFP_ATOMIC);
 #endif
 
-	/* get the root inode */
-	inode = erofs_iget(sb, ROOT_NID(sbi), true);
-	if (IS_ERR(inode))
-		return PTR_ERR(inode);
+	/* get the root iyesde */
+	iyesde = erofs_iget(sb, ROOT_NID(sbi), true);
+	if (IS_ERR(iyesde))
+		return PTR_ERR(iyesde);
 
-	if (!S_ISDIR(inode->i_mode)) {
-		erofs_err(sb, "rootino(nid %llu) is not a directory(i_mode %o)",
-			  ROOT_NID(sbi), inode->i_mode);
-		iput(inode);
+	if (!S_ISDIR(iyesde->i_mode)) {
+		erofs_err(sb, "rootiyes(nid %llu) is yest a directory(i_mode %o)",
+			  ROOT_NID(sbi), iyesde->i_mode);
+		iput(iyesde);
 		return -EINVAL;
 	}
 
-	sb->s_root = d_make_root(inode);
+	sb->s_root = d_make_root(iyesde);
 	if (!sb->s_root)
 		return -ENOMEM;
 
 	erofs_shrinker_register(sb);
-	/* sb->s_umount is already locked, SB_ACTIVE and SB_BORN are not set */
+	/* sb->s_umount is already locked, SB_ACTIVE and SB_BORN are yest set */
 	err = erofs_init_managed_cache(sb);
 	if (err)
 		return err;
 
-	erofs_info(sb, "mounted with opts: %s, root inode @ nid %llu.",
+	erofs_info(sb, "mounted with opts: %s, root iyesde @ nid %llu.",
 		   (char *)data, ROOT_NID(sbi));
 	return 0;
 }
@@ -480,7 +480,7 @@ static void erofs_kill_sb(struct super_block *sb)
 	sb->s_fs_info = NULL;
 }
 
-/* called when ->s_root is non-NULL */
+/* called when ->s_root is yesn-NULL */
 static void erofs_put_super(struct super_block *sb)
 {
 	struct erofs_sb_info *const sbi = EROFS_SB(sb);
@@ -509,11 +509,11 @@ static int __init erofs_module_init(void)
 
 	erofs_check_ondisk_layout_definitions();
 
-	erofs_inode_cachep = kmem_cache_create("erofs_inode",
-					       sizeof(struct erofs_inode), 0,
+	erofs_iyesde_cachep = kmem_cache_create("erofs_iyesde",
+					       sizeof(struct erofs_iyesde), 0,
 					       SLAB_RECLAIM_ACCOUNT,
-					       erofs_inode_init_once);
-	if (!erofs_inode_cachep) {
+					       erofs_iyesde_init_once);
+	if (!erofs_iyesde_cachep) {
 		err = -ENOMEM;
 		goto icache_err;
 	}
@@ -537,7 +537,7 @@ fs_err:
 zip_err:
 	erofs_exit_shrinker();
 shrinker_err:
-	kmem_cache_destroy(erofs_inode_cachep);
+	kmem_cache_destroy(erofs_iyesde_cachep);
 icache_err:
 	return err;
 }
@@ -548,9 +548,9 @@ static void __exit erofs_module_exit(void)
 	z_erofs_exit_zip_subsystem();
 	erofs_exit_shrinker();
 
-	/* Ensure all RCU free inodes are safe before cache is destroyed. */
+	/* Ensure all RCU free iyesdes are safe before cache is destroyed. */
 	rcu_barrier();
-	kmem_cache_destroy(erofs_inode_cachep);
+	kmem_cache_destroy(erofs_iyesde_cachep);
 }
 
 /* get filesystem statistics */
@@ -566,7 +566,7 @@ static int erofs_statfs(struct dentry *dentry, struct kstatfs *buf)
 	buf->f_bfree = buf->f_bavail = 0;
 
 	buf->f_files = ULLONG_MAX;
-	buf->f_ffree = ULLONG_MAX - sbi->inos;
+	buf->f_ffree = ULLONG_MAX - sbi->iyess;
 
 	buf->f_namelen = EROFS_NAME_LEN;
 
@@ -583,13 +583,13 @@ static int erofs_show_options(struct seq_file *seq, struct dentry *root)
 	if (test_opt(sbi, XATTR_USER))
 		seq_puts(seq, ",user_xattr");
 	else
-		seq_puts(seq, ",nouser_xattr");
+		seq_puts(seq, ",yesuser_xattr");
 #endif
 #ifdef CONFIG_EROFS_FS_POSIX_ACL
 	if (test_opt(sbi, POSIX_ACL))
 		seq_puts(seq, ",acl");
 	else
-		seq_puts(seq, ",noacl");
+		seq_puts(seq, ",yesacl");
 #endif
 #ifdef CONFIG_EROFS_FS_ZIP
 	if (sbi->cache_strategy == EROFS_ZIP_CACHE_DISABLED) {
@@ -628,8 +628,8 @@ out:
 
 const struct super_operations erofs_sops = {
 	.put_super = erofs_put_super,
-	.alloc_inode = erofs_alloc_inode,
-	.free_inode = erofs_free_inode,
+	.alloc_iyesde = erofs_alloc_iyesde,
+	.free_iyesde = erofs_free_iyesde,
 	.statfs = erofs_statfs,
 	.show_options = erofs_show_options,
 	.remount_fs = erofs_remount,

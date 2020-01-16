@@ -4,7 +4,7 @@
  *
  * Copyright (C) 2008-2009 Nokia Corporation
  *
- * Contact: Luciano Coelho <luciano.coelho@nokia.com>
+ * Contact: Luciayes Coelho <luciayes.coelho@yeskia.com>
  */
 
 #include "wlcore.h"
@@ -115,7 +115,7 @@ void wlcore_event_rssi_trigger(struct wl1271 *wl, s8 *metric_arr)
 
 		vif = wl12xx_wlvif_to_vif(wlvif);
 		if (event != wlvif->last_rssi_event)
-			ieee80211_cqm_rssi_notify(vif, event, metric,
+			ieee80211_cqm_rssi_yestify(vif, event, metric,
 						  GFP_KERNEL);
 		wlvif->last_rssi_event = event;
 	}
@@ -233,7 +233,7 @@ EXPORT_SYMBOL_GPL(wlcore_event_channel_switch);
 void wlcore_event_dummy_packet(struct wl1271 *wl)
 {
 	if (wl->plt) {
-		wl1271_info("Got DUMMY_PACKET event in PLT mode.  FW bug, ignoring.");
+		wl1271_info("Got DUMMY_PACKET event in PLT mode.  FW bug, igyesring.");
 		return;
 	}
 
@@ -333,7 +333,7 @@ void wlcore_event_beacon_loss(struct wl1271 *wl, unsigned long roles_bitmap)
 					     &wlvif->connection_loss_work,
 					     msecs_to_jiffies(delay));
 
-		ieee80211_cqm_beacon_loss_notify(vif, GFP_KERNEL);
+		ieee80211_cqm_beacon_loss_yestify(vif, GFP_KERNEL);
 	}
 }
 EXPORT_SYMBOL_GPL(wlcore_event_beacon_loss);

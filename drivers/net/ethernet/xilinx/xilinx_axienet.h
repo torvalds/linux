@@ -2,7 +2,7 @@
 /*
  * Definitions for Xilinx Axi Ethernet device driver.
  *
- * Copyright (c) 2009 Secret Lab Technologies, Ltd.
+ * Copyright (c) 2009 Secret Lab Techyeslogies, Ltd.
  * Copyright (c) 2010 - 2012 Xilinx, Inc. All rights reserved.
  */
 
@@ -39,7 +39,7 @@
 /* Enable recognition of flow control frames on Rx. Default: enabled (set) */
 #define XAE_OPTION_FLOW_CONTROL			(1 << 4)
 
-/* Strip FCS and PAD from incoming frames. Note: PAD from VLAN frames is not
+/* Strip FCS and PAD from incoming frames. Note: PAD from VLAN frames is yest
  * stripped. Default: disabled (set)
  */
 #define XAE_OPTION_FCS_STRIP			(1 << 5)
@@ -51,7 +51,7 @@
 
 /* Enable Length/Type error checking for incoming frames. When this option is
  * set, the MAC will filter frames that have a mismatched type/length field
- * and if XAE_OPTION_REPORT_RXERR is set, the user is notified when these
+ * and if XAE_OPTION_REPORT_RXERR is set, the user is yestified when these
  * types of frames are encountered. When this option is cleared, the MAC will
  * allow these types of frames to be received. Default: enabled (set)
  */
@@ -237,7 +237,7 @@
 /* Bit masks for Axi Ethernet RCW1 register */
 #define XAE_RCW1_RST_MASK	0x80000000 /* Reset */
 #define XAE_RCW1_JUM_MASK	0x40000000 /* Jumbo frame enable */
-/* In-Band FCS enable (FCS not stripped) */
+/* In-Band FCS enable (FCS yest stripped) */
 #define XAE_RCW1_FCS_MASK	0x20000000
 #define XAE_RCW1_RX_MASK	0x10000000 /* Receiver enable */
 #define XAE_RCW1_VLAN_MASK	0x08000000 /* VLAN frame enable */
@@ -253,7 +253,7 @@
 /* Bit masks for Axi Ethernet TC register */
 #define XAE_TC_RST_MASK		0x80000000 /* Reset */
 #define XAE_TC_JUM_MASK		0x40000000 /* Jumbo frame enable */
-/* In-Band FCS enable (FCS not generated) */
+/* In-Band FCS enable (FCS yest generated) */
 #define XAE_TC_FCS_MASK		0x20000000
 #define XAE_TC_TX_MASK		0x10000000 /* Transmitter enable */
 #define XAE_TC_VLAN_MASK	0x08000000 /* VLAN frame enable */
@@ -347,11 +347,11 @@
 /**
  * struct axidma_bd - Axi Dma buffer descriptor layout
  * @next:         MM2S/S2MM Next Descriptor Pointer
- * @reserved1:    Reserved and not used
+ * @reserved1:    Reserved and yest used
  * @phys:         MM2S/S2MM Buffer Address
- * @reserved2:    Reserved and not used
- * @reserved3:    Reserved and not used
- * @reserved4:    Reserved and not used
+ * @reserved2:    Reserved and yest used
+ * @reserved3:    Reserved and yest used
+ * @reserved4:    Reserved and yest used
  * @cntrl:        MM2S/S2MM Control value
  * @status:       MM2S/S2MM Status value
  * @app0:         MM2S/S2MM User Application Field 0.
@@ -381,7 +381,7 @@ struct axidma_bd {
  * struct axienet_local - axienet private per device data
  * @ndev:	Pointer for net_device to which it will be attached.
  * @dev:	Pointer to device structure
- * @phy_node:	Pointer to device node structure
+ * @phy_yesde:	Pointer to device yesde structure
  * @mii_bus:	Pointer to MII bus structure
  * @regs_start: Resource start for axienet device addresses
  * @regs:	Base address for the axienet_local device address space
@@ -419,7 +419,7 @@ struct axienet_local {
 	struct device *dev;
 
 	/* Connection to PHY device */
-	struct device_node *phy_node;
+	struct device_yesde *phy_yesde;
 
 	struct phylink *phylink;
 	struct phylink_config phylink_config;

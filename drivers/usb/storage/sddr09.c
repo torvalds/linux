@@ -15,7 +15,7 @@
  */
 
 /*
- * Known vendor commands: 12 bytes, first byte is opcode
+ * Kyeswn vendor commands: 12 bytes, first byte is opcode
  *
  * E7: read scatter gather
  * E8: read
@@ -28,7 +28,7 @@
  * EF: compute checksum (?)
  */
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/module.h>
 #include <linux/slab.h>
 
@@ -98,7 +98,7 @@ static struct us_unusual_dev sddr09_unusual_dev_list[] = {
 #define MSB_of(s) ((s)>>8)
 
 /*
- * First some stuff that does not belong here:
+ * First some stuff that does yest belong here:
  * data on SmartMedia and other cards, completely
  * unrelated to this driver.
  * Similar stuff occurs in <linux/mtd/nand_ids.h>.
@@ -133,7 +133,7 @@ static inline char *nand_flash_manufacturer(int manuf_id) {
 	case NAND_MFR_SAMSUNG:
 		return "Samsung";
 	default:
-		return "unknown";
+		return "unkyeswn";
 	}
 }
 
@@ -261,8 +261,8 @@ struct sddr09_card_info {
 /*
  * On my 16MB card, control blocks have size 64 (16 real control bytes,
  * and 48 junk bytes). In reality of course the card uses 16 control bytes,
- * so the reader makes up the remaining 48. Don't know whether these numbers
- * depend on the card. For now a constant.
+ * so the reader makes up the remaining 48. Don't kyesw whether these numbers
+ * depend on the card. For yesw a constant.
  */
 #define CONTROL_SHIFT 6
 
@@ -430,7 +430,7 @@ sddr09_readX(struct us_data *us, int x, unsigned long fromaddress,
  *
  * fromaddress counts data shorts:
  * increasing it by 256 shifts the bytestream by 512 bytes;
- * the last 8 bits are ignored.
+ * the last 8 bits are igyesred.
  *
  * nr_of_pages counts pages of size (1 << pageshift).
  */
@@ -439,7 +439,7 @@ sddr09_read20(struct us_data *us, unsigned long fromaddress,
 	      int nr_of_pages, int pageshift, unsigned char *buf, int use_sg) {
 	int bulklen = nr_of_pages << pageshift;
 
-	/* The last 8 bits of fromaddress are ignored. */
+	/* The last 8 bits of fromaddress are igyesred. */
 	return sddr09_readX(us, 0, fromaddress, nr_of_pages, bulklen,
 			    buf, use_sg);
 }
@@ -448,7 +448,7 @@ sddr09_read20(struct us_data *us, unsigned long fromaddress,
  * Read Blockwise Control
  *
  * fromaddress gives the starting position (as in read data;
- * the last 8 bits are ignored); increasing it by 32*256 shifts
+ * the last 8 bits are igyesred); increasing it by 32*256 shifts
  * the output stream by 64 bytes.
  *
  * count counts control groups of size (1 << controlshift).
@@ -469,9 +469,9 @@ sddr09_read21(struct us_data *us, unsigned long fromaddress,
 /*
  * Read both Data and Control
  *
- * fromaddress counts data shorts, ignoring control:
+ * fromaddress counts data shorts, igyesring control:
  * increasing it by 256 shifts the bytestream by 576 = 512+64 bytes;
- * the last 8 bits are ignored.
+ * the last 8 bits are igyesred.
  *
  * nr_of_pages counts pages of size (1 << pageshift) + (1 << controlshift).
  */
@@ -490,7 +490,7 @@ sddr09_read22(struct us_data *us, unsigned long fromaddress,
  * Read Pagewise Control
  *
  * fromaddress gives the starting position (as in read data;
- * the last 8 bits are ignored); increasing it by 256 shifts
+ * the last 8 bits are igyesred); increasing it by 256 shifts
  * the output stream by 64 bytes.
  *
  * count counts control groups of size (1 << controlshift).
@@ -514,9 +514,9 @@ sddr09_read23(struct us_data *us, unsigned long fromaddress,
  * byte 0: opcode: EA
  * bytes 6-9: erase address (big-endian, counting shorts, sector aligned).
  * 
- * Always precisely one block is erased; bytes 2-5 and 10-11 are ignored.
+ * Always precisely one block is erased; bytes 2-5 and 10-11 are igyesred.
  * The byte address being erased is 2*Eaddress.
- * The CIS cannot be erased.
+ * The CIS canyest be erased.
  */
 static int
 sddr09_erase(struct us_data *us, unsigned long Eaddress) {
@@ -548,12 +548,12 @@ sddr09_erase(struct us_data *us, unsigned long Eaddress) {
  * bytes 2-5: write address in shorts
  * bytes 10-11: sector count
  *
- * This writes at the indicated address. Don't know how it differs
- * from E9. Maybe it does not erase? However, it will also write to
+ * This writes at the indicated address. Don't kyesw how it differs
+ * from E9. Maybe it does yest erase? However, it will also write to
  * the CIS.
  *
  * When two such commands on the same page follow each other directly,
- * the second one is not done.
+ * the second one is yest done.
  */
 
 /*
@@ -565,7 +565,7 @@ sddr09_erase(struct us_data *us, unsigned long Eaddress) {
  *
  * If write address equals erase address, the erase is done first,
  * otherwise the write is done first. When erase address equals zero
- * no erase is done?
+ * yes erase is done?
  */
 static int
 sddr09_writeX(struct us_data *us,
@@ -758,7 +758,7 @@ sddr09_read_data(struct us_data *us,
 		return -ENOMEM;
 
 	// This could be made much more efficient by checking for
-	// contiguous LBA's. Another exercise left to the student.
+	// contiguous LBA's. Ayesther exercise left to the student.
 
 	result = 0;
 	offset = 0;
@@ -787,7 +787,7 @@ sddr09_read_data(struct us_data *us,
 				     pages, lba, page);
 
 			/*
-			 * This is not really an error. It just means
+			 * This is yest really an error. It just means
 			 * that the block has never been written.
 			 * Instead of returning an error
 			 * it is better to return all zero data.
@@ -939,7 +939,7 @@ sddr09_write_lba(struct us_data *us, unsigned int lba,
 		unsigned char status = 0;
 		int result2 = sddr09_read_status(us, &status);
 		if (result2)
-			usb_stor_dbg(us, "cannot read status\n");
+			usb_stor_dbg(us, "canyest read status\n");
 		else if (status != 0xc0)
 			usb_stor_dbg(us, "status after write: 0x%x\n", status);
 	}
@@ -1146,7 +1146,7 @@ sddr09_get_cardinfo(struct us_data *us, unsigned char flags) {
 
 	if (result) {
 		usb_stor_dbg(us, "Result of read_deviceID is %d\n", result);
-		printk(KERN_WARNING "sddr09: could not read card info\n");
+		printk(KERN_WARNING "sddr09: could yest read card info\n");
 		return NULL;
 	}
 
@@ -1178,7 +1178,7 @@ sddr09_get_cardinfo(struct us_data *us, unsigned char flags) {
 			", 128-bit ID");
 	}
 
-	/* Byte 3 announces the availability of another read ID command */
+	/* Byte 3 anyesunces the availability of ayesther read ID command */
 	if (deviceID[3] == 0xc0) {
 		sprintf(blurbtxt + strlen(blurbtxt),
 			", extra cmd");
@@ -1274,24 +1274,24 @@ sddr09_read_map(struct us_data *us) {
 		/* special PBAs have control field 0^16 */
 		for (j = 0; j < 16; j++)
 			if (ptr[j] != 0)
-				goto nonz;
+				goto yesnz;
 		info->pba_to_lba[i] = UNUSABLE;
-		printk(KERN_WARNING "sddr09: PBA %d has no logical mapping\n",
+		printk(KERN_WARNING "sddr09: PBA %d has yes logical mapping\n",
 		       i);
 		continue;
 
-	nonz:
+	yesnz:
 		/* unwritten PBAs have control field FF^16 */
 		for (j = 0; j < 16; j++)
 			if (ptr[j] != 0xff)
-				goto nonff;
+				goto yesnff;
 		continue;
 
-	nonff:
-		/* normal PBAs start with six FFs */
+	yesnff:
+		/* yesrmal PBAs start with six FFs */
 		if (j < 6) {
 			printk(KERN_WARNING
-			       "sddr09: PBA %d has no logical mapping: "
+			       "sddr09: PBA %d has yes logical mapping: "
 			       "reserved area = %02X%02X%02X%02X "
 			       "data status %02X block status %02X\n",
 			       i, ptr[0], ptr[1], ptr[2], ptr[3],
@@ -1362,7 +1362,7 @@ sddr09_read_map(struct us_data *us) {
 	}
 
 	/*
-	 * Approximate capacity. This is not entirely correct yet,
+	 * Approximate capacity. This is yest entirely correct yet,
 	 * since a zone with less than 1000 usable pages leads to
 	 * missing LBAs. Especially if it is the last zone, some
 	 * LBAs can be past capacity.
@@ -1423,8 +1423,8 @@ sddr09_common_init(struct us_data *us) {
 	if (result == -EPIPE) {
 		usb_stor_dbg(us, "-- stall on control interface\n");
 	} else if (result != 0) {
-		/* it's not a stall, but another error -- time to bail */
-		usb_stor_dbg(us, "-- Unknown error.  Rejecting device\n");
+		/* it's yest a stall, but ayesther error -- time to bail */
+		usb_stor_dbg(us, "-- Unkyeswn error.  Rejecting device\n");
 		return -EINVAL;
 	}
 
@@ -1439,9 +1439,9 @@ sddr09_common_init(struct us_data *us) {
 
 
 /*
- * This is needed at a very early stage. If this is not listed in the
+ * This is needed at a very early stage. If this is yest listed in the
  * unusual devices list but called from here then LUN 0 of the combo reader
- * is not recognized. But I do not know what precisely these calls do.
+ * is yest recognized. But I do yest kyesw what precisely these calls do.
  */
 static int
 usb_stor_sddr09_dpcm_init(struct us_data *us) {
@@ -1482,12 +1482,12 @@ usb_stor_sddr09_dpcm_init(struct us_data *us) {
 		// additional transfer length * = sizeof(data) - 7
 		// Or: 70 00 06 00 00 00 00 0b 00 00 00 00 28 00 00 00 00 00
 		// sense key 06, sense code 28: unit attention,
-		// not ready to ready transition
+		// yest ready to ready transition
 	}
 
 	// test unit ready
 
-	return 0;		/* not result */
+	return 0;		/* yest result */
 }
 
 /*
@@ -1549,7 +1549,7 @@ static int sddr09_transport(struct scsi_cmnd *srb, struct us_data *us)
 		0x00, 0x80, 0x00, 0x02, 0x1F, 0x00, 0x00, 0x00
 	};
 
-	/* note: no block descriptor support */
+	/* yeste: yes block descriptor support */
 	static unsigned char mode_page_01[19] = {
 		0x00, 0x0F, 0x00, 0x0, 0x0, 0x0, 0x00,
 		0x01, 0x0A,
@@ -1590,10 +1590,10 @@ static int sddr09_transport(struct scsi_cmnd *srb, struct us_data *us)
 
 		cardinfo = sddr09_get_cardinfo(us, info->flags);
 		if (!cardinfo) {
-			/* probably no media */
+			/* probably yes media */
 		init_error:
-			sensekey = 0x02;	/* not ready */
-			sensecode = 0x3a;	/* medium not present */
+			sensekey = 0x02;	/* yest ready */
+			sensecode = 0x3a;	/* medium yest present */
 			return USB_STOR_TRANSPORT_FAILED;
 		}
 
@@ -1784,7 +1784,7 @@ static struct usb_driver sddr09_driver = {
 	.post_reset =	usb_stor_post_reset,
 	.id_table =	sddr09_usb_ids,
 	.soft_unbind =	1,
-	.no_dynamic_id = 1,
+	.yes_dynamic_id = 1,
 };
 
 module_usb_stor_driver(sddr09_driver, sddr09_host_template, DRV_NAME);

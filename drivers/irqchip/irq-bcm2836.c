@@ -152,7 +152,7 @@ static void bcm2836_arm_irqchip_send_ipi(const struct cpumask *mask,
 	void __iomem *mailbox0_base = intc.base + LOCAL_MAILBOX0_SET0;
 
 	/*
-	 * Ensure that stores to normal memory are visible to the
+	 * Ensure that stores to yesrmal memory are visible to the
 	 * other CPUs before issuing the IPI.
 	 */
 	smp_wmb();
@@ -216,21 +216,21 @@ static void bcm2835_init_local_timer_frequency(void)
 	writel(0x80000000, intc.base + LOCAL_PRESCALER);
 }
 
-static int __init bcm2836_arm_irqchip_l1_intc_of_init(struct device_node *node,
-						      struct device_node *parent)
+static int __init bcm2836_arm_irqchip_l1_intc_of_init(struct device_yesde *yesde,
+						      struct device_yesde *parent)
 {
-	intc.base = of_iomap(node, 0);
+	intc.base = of_iomap(yesde, 0);
 	if (!intc.base) {
-		panic("%pOF: unable to map local interrupt registers\n", node);
+		panic("%pOF: unable to map local interrupt registers\n", yesde);
 	}
 
 	bcm2835_init_local_timer_frequency();
 
-	intc.domain = irq_domain_add_linear(node, LAST_IRQ + 1,
+	intc.domain = irq_domain_add_linear(yesde, LAST_IRQ + 1,
 					    &bcm2836_arm_irqchip_intc_ops,
 					    NULL);
 	if (!intc.domain)
-		panic("%pOF: unable to create IRQ domain\n", node);
+		panic("%pOF: unable to create IRQ domain\n", yesde);
 
 	bcm2836_arm_irqchip_smp_init();
 

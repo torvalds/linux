@@ -10,7 +10,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -22,7 +22,7 @@
  * SOFTWARE.
  */
 
-#include "nouveau_drv.h"
+#include "yesuveau_drv.h"
 #include "hw.h"
 
 #include <subdev/bios/pll.h>
@@ -65,16 +65,16 @@ NVReadVgaGr(struct drm_device *dev, int head, uint8_t index)
 /* CR44 takes values 0 (head A), 3 (head B) and 4 (heads tied)
  * it affects only the 8 bit vga io regs, which we access using mmio at
  * 0xc{0,2}3c*, 0x60{1,3}3*, and 0x68{1,3}3d*
- * in general, the set value of cr44 does not matter: reg access works as
+ * in general, the set value of cr44 does yest matter: reg access works as
  * expected and values can be set for the appropriate head by using a 0x2000
  * offset as required
  * however:
- * a) pre nv40, the head B range of PRMVIO regs at 0xc23c* was not exposed and
+ * a) pre nv40, the head B range of PRMVIO regs at 0xc23c* was yest exposed and
  *    cr44 must be set to 0 or 3 for accessing values on the correct head
  *    through the common 0xc03c* addresses
  * b) in tied mode (4) head B is programmed to the values set on head A, and
  *    access using the head B addresses can have strange results, ergo we leave
- *    tied mode in init once we know to what cr44 should be restored on exit
+ *    tied mode in init once we kyesw to what cr44 should be restored on exit
  *
  * the owner parameter is slightly abused:
  * 0 and 1 are treated as head values and so the set value is (owner * 3)
@@ -83,7 +83,7 @@ NVReadVgaGr(struct drm_device *dev, int head, uint8_t index)
 void
 NVSetOwner(struct drm_device *dev, int owner)
 {
-	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct yesuveau_drm *drm = yesuveau_drm(dev);
 
 	if (owner == 1)
 		owner *= 3;
@@ -128,10 +128,10 @@ NVBlankScreen(struct drm_device *dev, int head, bool blank)
  */
 
 static void
-nouveau_hw_decode_pll(struct drm_device *dev, uint32_t reg1, uint32_t pll1,
+yesuveau_hw_decode_pll(struct drm_device *dev, uint32_t reg1, uint32_t pll1,
 		      uint32_t pll2, struct nvkm_pll_vals *pllvals)
 {
-	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct yesuveau_drm *drm = yesuveau_drm(dev);
 
 	/* to force parsing as single stage (i.e. nv40 vplls) pass pll2 as 0 */
 
@@ -160,10 +160,10 @@ nouveau_hw_decode_pll(struct drm_device *dev, uint32_t reg1, uint32_t pll1,
 }
 
 int
-nouveau_hw_get_pllvals(struct drm_device *dev, enum nvbios_pll_type plltype,
+yesuveau_hw_get_pllvals(struct drm_device *dev, enum nvbios_pll_type plltype,
 		       struct nvkm_pll_vals *pllvals)
 {
-	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct yesuveau_drm *drm = yesuveau_drm(dev);
 	struct nvif_object *device = &drm->client.device.object;
 	struct nvkm_bios *bios = nvxx_bios(&drm->client.device);
 	uint32_t reg1, pll1, pll2 = 0;
@@ -195,13 +195,13 @@ nouveau_hw_get_pllvals(struct drm_device *dev, enum nvbios_pll_type plltype,
 				pll2 = 0;
 	}
 
-	nouveau_hw_decode_pll(dev, reg1, pll1, pll2, pllvals);
+	yesuveau_hw_decode_pll(dev, reg1, pll1, pll2, pllvals);
 	pllvals->refclk = pll_lim.refclk;
 	return 0;
 }
 
 int
-nouveau_hw_pllvals_to_clk(struct nvkm_pll_vals *pv)
+yesuveau_hw_pllvals_to_clk(struct nvkm_pll_vals *pv)
 {
 	/* Avoid divide by zero if called at an inappropriate time */
 	if (!pv->M1 || !pv->M2)
@@ -211,7 +211,7 @@ nouveau_hw_pllvals_to_clk(struct nvkm_pll_vals *pv)
 }
 
 int
-nouveau_hw_get_clock(struct drm_device *dev, enum nvbios_pll_type plltype)
+yesuveau_hw_get_clock(struct drm_device *dev, enum nvbios_pll_type plltype)
 {
 	struct nvkm_pll_vals pllvals;
 	int ret;
@@ -239,15 +239,15 @@ nouveau_hw_get_clock(struct drm_device *dev, enum nvbios_pll_type plltype)
 		return clock / 1000;
 	}
 
-	ret = nouveau_hw_get_pllvals(dev, plltype, &pllvals);
+	ret = yesuveau_hw_get_pllvals(dev, plltype, &pllvals);
 	if (ret)
 		return ret;
 
-	return nouveau_hw_pllvals_to_clk(&pllvals);
+	return yesuveau_hw_pllvals_to_clk(&pllvals);
 }
 
 static void
-nouveau_hw_fix_bad_vpll(struct drm_device *dev, int head)
+yesuveau_hw_fix_bad_vpll(struct drm_device *dev, int head)
 {
 	/* the vpll on an unused head can come up with a random value, way
 	 * beyond the pll limits.  for some reason this causes the chip to
@@ -255,7 +255,7 @@ nouveau_hw_fix_bad_vpll(struct drm_device *dev, int head)
 	 * when such a condition detected.  only seen on nv11 to date
 	 */
 
-	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct yesuveau_drm *drm = yesuveau_drm(dev);
 	struct nvif_device *device = &drm->client.device;
 	struct nvkm_clk *clk = nvxx_clk(device);
 	struct nvkm_bios *bios = nvxx_bios(device);
@@ -265,7 +265,7 @@ nouveau_hw_fix_bad_vpll(struct drm_device *dev, int head)
 
 	if (nvbios_pll_parse(bios, pll, &pll_lim))
 		return;
-	nouveau_hw_get_pllvals(dev, pll, &pv);
+	yesuveau_hw_get_pllvals(dev, pll, &pv);
 
 	if (pv.M1 >= pll_lim.vco1.min_m && pv.M1 <= pll_lim.vco1.max_m &&
 	    pv.N1 >= pll_lim.vco1.min_n && pv.N1 <= pll_lim.vco1.max_n &&
@@ -285,7 +285,7 @@ nouveau_hw_fix_bad_vpll(struct drm_device *dev, int head)
  * vga font save/restore
  */
 
-static void nouveau_vga_font_io(struct drm_device *dev,
+static void yesuveau_vga_font_io(struct drm_device *dev,
 				void __iomem *iovram,
 				bool save, unsigned plane)
 {
@@ -305,9 +305,9 @@ static void nouveau_vga_font_io(struct drm_device *dev,
 }
 
 void
-nouveau_hw_save_vga_fonts(struct drm_device *dev, bool save)
+yesuveau_hw_save_vga_fonts(struct drm_device *dev, bool save)
 {
-	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct yesuveau_drm *drm = yesuveau_drm(dev);
 	uint8_t misc, gr4, gr5, gr6, seq2, seq4;
 	bool graphicsmode;
 	unsigned plane;
@@ -320,7 +320,7 @@ nouveau_hw_save_vga_fonts(struct drm_device *dev, bool save)
 	graphicsmode = NVReadVgaAttr(dev, 0, NV_CIO_AR_MODE_INDEX) & 1;
 	NVSetEnablePalette(dev, 0, false);
 
-	if (graphicsmode) /* graphics mode => framebuffer => no need to save */
+	if (graphicsmode) /* graphics mode => framebuffer => yes need to save */
 		return;
 
 	NV_INFO(drm, "%sing VGA fonts\n", save ? "Sav" : "Restor");
@@ -329,7 +329,7 @@ nouveau_hw_save_vga_fonts(struct drm_device *dev, bool save)
 	iovram = ioremap(pci_resource_start(dev->pdev, 1), 65536);
 	if (!iovram) {
 		NV_ERROR(drm, "Failed to map VRAM, "
-					"cannot save/restore VGA fonts.\n");
+					"canyest save/restore VGA fonts.\n");
 		return;
 	}
 
@@ -352,7 +352,7 @@ nouveau_hw_save_vga_fonts(struct drm_device *dev, bool save)
 
 	/* store font in planes 0..3 */
 	for (plane = 0; plane < 4; plane++)
-		nouveau_vga_font_io(dev, iovram, save, plane);
+		yesuveau_vga_font_io(dev, iovram, save, plane);
 
 	/* restore control regs */
 	NVWritePRMVIO(dev, 0, NV_PRMVIO_MISC__WRITE, misc);
@@ -391,14 +391,14 @@ static void
 nv_save_state_ramdac(struct drm_device *dev, int head,
 		     struct nv04_mode_state *state)
 {
-	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct yesuveau_drm *drm = yesuveau_drm(dev);
 	struct nv04_crtc_reg *regp = &state->crtc_reg[head];
 	int i;
 
 	if (drm->client.device.info.family >= NV_DEVICE_INFO_V0_CELSIUS)
 		regp->nv10_cursync = NVReadRAMDAC(dev, head, NV_RAMDAC_NV10_CURSYNC);
 
-	nouveau_hw_get_pllvals(dev, head ? PLL_VPLL1 : PLL_VPLL0, &regp->pllvals);
+	yesuveau_hw_get_pllvals(dev, head ? PLL_VPLL1 : PLL_VPLL0, &regp->pllvals);
 	state->pllsel = NVReadRAMDAC(dev, 0, NV_PRAMDAC_PLL_COEFF_SELECT);
 	if (nv_two_heads(dev))
 		state->sel_clk = NVReadRAMDAC(dev, 0, NV_PRAMDAC_SEL_CLK);
@@ -466,7 +466,7 @@ static void
 nv_load_state_ramdac(struct drm_device *dev, int head,
 		     struct nv04_mode_state *state)
 {
-	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct yesuveau_drm *drm = yesuveau_drm(dev);
 	struct nvkm_clk *clk = nvxx_clk(&drm->client.device);
 	struct nv04_crtc_reg *regp = &state->crtc_reg[head];
 	uint32_t pllreg = head ? NV_RAMDAC_VPLL2 : NV_PRAMDAC_VPLL_COEFF;
@@ -588,7 +588,7 @@ static void
 nv_save_state_ext(struct drm_device *dev, int head,
 		  struct nv04_mode_state *state)
 {
-	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct yesuveau_drm *drm = yesuveau_drm(dev);
 	struct nv04_crtc_reg *regp = &state->crtc_reg[head];
 	int i;
 
@@ -663,7 +663,7 @@ static void
 nv_load_state_ext(struct drm_device *dev, int head,
 		  struct nv04_mode_state *state)
 {
-	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct yesuveau_drm *drm = yesuveau_drm(dev);
 	struct nvif_object *device = &drm->client.device.object;
 	struct nv04_crtc_reg *regp = &state->crtc_reg[head];
 	uint32_t reg900;
@@ -673,7 +673,7 @@ nv_load_state_ext(struct drm_device *dev, int head,
 		if (nv_two_heads(dev))
 			/* setting ENGINE_CTRL (EC) *must* come before
 			 * CIO_CRE_LCD, as writing CRE_LCD sets bits 16 & 17 in
-			 * EC that should not be overwritten by writing stale EC
+			 * EC that should yest be overwritten by writing stale EC
 			 */
 			NVWriteCRTC(dev, head, NV_PCRTC_ENGINE_CTRL, regp->crtc_eng_ctrl);
 
@@ -774,7 +774,7 @@ static void
 nv_save_state_palette(struct drm_device *dev, int head,
 		      struct nv04_mode_state *state)
 {
-	struct nvif_object *device = &nouveau_drm(dev)->client.device.object;
+	struct nvif_object *device = &yesuveau_drm(dev)->client.device.object;
 	int head_offset = head * NV_PRMDIO_SIZE, i;
 
 	nvif_wr08(device, NV_PRMDIO_PIXEL_MASK + head_offset,
@@ -790,10 +790,10 @@ nv_save_state_palette(struct drm_device *dev, int head,
 }
 
 void
-nouveau_hw_load_state_palette(struct drm_device *dev, int head,
+yesuveau_hw_load_state_palette(struct drm_device *dev, int head,
 			      struct nv04_mode_state *state)
 {
-	struct nvif_object *device = &nouveau_drm(dev)->client.device.object;
+	struct nvif_object *device = &yesuveau_drm(dev)->client.device.object;
 	int head_offset = head * NV_PRMDIO_SIZE, i;
 
 	nvif_wr08(device, NV_PRMDIO_PIXEL_MASK + head_offset,
@@ -808,27 +808,27 @@ nouveau_hw_load_state_palette(struct drm_device *dev, int head,
 	NVSetEnablePalette(dev, head, false);
 }
 
-void nouveau_hw_save_state(struct drm_device *dev, int head,
+void yesuveau_hw_save_state(struct drm_device *dev, int head,
 			   struct nv04_mode_state *state)
 {
-	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct yesuveau_drm *drm = yesuveau_drm(dev);
 
 	if (drm->client.device.info.chipset == 0x11)
-		/* NB: no attempt is made to restore the bad pll later on */
-		nouveau_hw_fix_bad_vpll(dev, head);
+		/* NB: yes attempt is made to restore the bad pll later on */
+		yesuveau_hw_fix_bad_vpll(dev, head);
 	nv_save_state_ramdac(dev, head, state);
 	nv_save_state_vga(dev, head, state);
 	nv_save_state_palette(dev, head, state);
 	nv_save_state_ext(dev, head, state);
 }
 
-void nouveau_hw_load_state(struct drm_device *dev, int head,
+void yesuveau_hw_load_state(struct drm_device *dev, int head,
 			   struct nv04_mode_state *state)
 {
 	NVVgaProtect(dev, head, true);
 	nv_load_state_ramdac(dev, head, state);
 	nv_load_state_ext(dev, head, state);
-	nouveau_hw_load_state_palette(dev, head, state);
+	yesuveau_hw_load_state_palette(dev, head, state);
 	nv_load_state_vga(dev, head, state);
 	NVVgaProtect(dev, head, false);
 }

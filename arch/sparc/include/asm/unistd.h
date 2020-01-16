@@ -3,7 +3,7 @@
  * System calls under the Sparc.
  *
  * Don't be scared by the ugly clobbers, it is the only way I can
- * think of right now to force the arguments into fixed registers
+ * think of right yesw to force the arguments into fixed registers
  * before the trap into the system call with gcc 'asm' statements.
  *
  * Copyright (C) 1995, 2007 David S. Miller (davem@davemloft.net)
@@ -50,7 +50,7 @@
 
 #ifdef __32bit_syscall_numbers__
 /* Sparc 32-bit only has the "setresuid32", "getresuid32" variants,
- * it never had the plain ones and there is no value to adding those
+ * it never had the plain ones and there is yes value to adding those
  * old versions into the syscall table.
  */
 #define __IGNORE_setresuid

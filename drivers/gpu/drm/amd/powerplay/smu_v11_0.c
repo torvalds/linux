@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -240,7 +240,7 @@ int smu_v11_0_check_fw_version(struct smu_context *smu)
 {
 	uint32_t if_version = 0xff, smu_version = 0xff;
 	uint16_t smu_major;
-	uint8_t smu_minor, smu_debug;
+	uint8_t smu_miyesr, smu_debug;
 	int ret = 0;
 
 	ret = smu_get_smc_version(smu, &if_version, &smu_version);
@@ -248,7 +248,7 @@ int smu_v11_0_check_fw_version(struct smu_context *smu)
 		return ret;
 
 	smu_major = (smu_version >> 16) & 0xffff;
-	smu_minor = (smu_version >> 8) & 0xff;
+	smu_miyesr = (smu_version >> 8) & 0xff;
 	smu_debug = (smu_version >> 0) & 0xff;
 
 	switch (smu->adev->asic_type) {
@@ -271,7 +271,7 @@ int smu_v11_0_check_fw_version(struct smu_context *smu)
 	}
 
 	/*
-	 * 1. if_version mismatch is not critical as our fw is designed
+	 * 1. if_version mismatch is yest critical as our fw is designed
 	 * to be backward compatible.
 	 * 2. New fw usually brings some optimizations. But that's visible
 	 * only on the paired driver.
@@ -282,8 +282,8 @@ int smu_v11_0_check_fw_version(struct smu_context *smu)
 		pr_info("smu driver if version = 0x%08x, smu fw if version = 0x%08x, "
 			"smu fw version = 0x%08x (%d.%d.%d)\n",
 			smu->smc_if_version, if_version,
-			smu_version, smu_major, smu_minor, smu_debug);
-		pr_warn("SMU driver if version not matched\n");
+			smu_version, smu_major, smu_miyesr, smu_debug);
+		pr_warn("SMU driver if version yest matched\n");
 	}
 
 	return ret;
@@ -340,14 +340,14 @@ int smu_v11_0_setup_pptable(struct smu_context *smu)
 	uint16_t atom_table_size;
 	uint8_t frev, crev;
 	void *table;
-	uint16_t version_major, version_minor;
+	uint16_t version_major, version_miyesr;
 
 	hdr = (const struct smc_firmware_header_v1_0 *) adev->pm.fw->data;
 	version_major = le16_to_cpu(hdr->header.header_version_major);
-	version_minor = le16_to_cpu(hdr->header.header_version_minor);
+	version_miyesr = le16_to_cpu(hdr->header.header_version_miyesr);
 	if (version_major == 2 && smu->smu_table.boot_values.pp_table_id > 0) {
 		pr_info("use driver provided pptable %d\n", smu->smu_table.boot_values.pp_table_id);
-		switch (version_minor) {
+		switch (version_miyesr) {
 		case 0:
 			ret = smu_v11_0_set_pptable_v2_0(smu, &table, &size);
 			break;
@@ -511,7 +511,7 @@ int smu_v11_0_get_vbios_bootup_values(struct smu_context *smu)
 		return ret;
 
 	if (header->format_revision != 3) {
-		pr_err("unknown atom_firmware_info version! for smu11\n");
+		pr_err("unkyeswn atom_firmware_info version! for smu11\n");
 		return -EINVAL;
 	}
 
@@ -651,7 +651,7 @@ int smu_v11_0_get_clk_info_from_vbios(struct smu_context *smu)
 	return 0;
 }
 
-int smu_v11_0_notify_memory_pool_location(struct smu_context *smu)
+int smu_v11_0_yestify_memory_pool_location(struct smu_context *smu)
 {
 	struct smu_table_context *smu_table = &smu->smu_table;
 	struct smu_table *memory_pool = &smu_table->memory_pool;
@@ -885,7 +885,7 @@ int smu_v11_0_system_features_control(struct smu_context *smu,
 	return ret;
 }
 
-int smu_v11_0_notify_display_change(struct smu_context *smu)
+int smu_v11_0_yestify_display_change(struct smu_context *smu)
 {
 	int ret = 0;
 
@@ -1068,7 +1068,7 @@ int smu_v11_0_set_power_limit(struct smu_context *smu, uint32_t n)
 		n = smu->default_power_limit;
 
 	if (!smu_feature_is_enabled(smu, SMU_FEATURE_PPT_BIT)) {
-		pr_err("Setting new power limit is not supported!\n");
+		pr_err("Setting new power limit is yest supported!\n");
 		return -EOPNOTSUPP;
 	}
 
@@ -1509,7 +1509,7 @@ static int smu_v11_0_irq_process(struct amdgpu_device *adev,
 				PCI_FUNC(adev->pdev->devfn));
 		break;
 		default:
-			pr_warn("GPU under temperature range unknown src id (%d), detected on PCIe %d:%d.%d!\n",
+			pr_warn("GPU under temperature range unkyeswn src id (%d), detected on PCIe %d:%d.%d!\n",
 				src_id,
 				PCI_BUS_NUM(adev->pdev->devfn),
 				PCI_SLOT(adev->pdev->devfn),

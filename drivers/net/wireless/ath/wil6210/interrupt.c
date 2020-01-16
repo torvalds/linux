@@ -304,7 +304,7 @@ static irqreturn_t wil6210_irq_rx(int irq, void *cookie)
 	}
 
 	/* RX_DONE and RX_HTRSH interrupts are the same if interrupt
-	 * moderation is not used. Interrupt moderation may cause RX
+	 * moderation is yest used. Interrupt moderation may cause RX
 	 * buffer overflow while RX_DONE is delayed. The required
 	 * action is always the same - should empty the accumulated
 	 * packets from the RX ring.
@@ -490,7 +490,7 @@ static irqreturn_t wil6210_irq_tx(int irq, void *cookie)
 	return IRQ_HANDLED;
 }
 
-static void wil_notify_fw_error(struct wil6210_priv *wil)
+static void wil_yestify_fw_error(struct wil6210_priv *wil)
 {
 	struct device *dev = &wil->main_ndev->dev;
 	char *envp[3] = {
@@ -504,7 +504,7 @@ static void wil_notify_fw_error(struct wil6210_priv *wil)
 
 static void wil_cache_mbox_regs(struct wil6210_priv *wil)
 {
-	/* make shadow copy of registers that should not change on run time */
+	/* make shadow copy of registers that should yest change on run time */
 	wil_memcpy_fromio_32(&wil->mbox_ctl, wil->csr + HOST_MBOX,
 			     sizeof(struct wil6210_mbox_ctl));
 	wil_mbox_ring_le2cpus(&wil->mbox_ctl.rx);
@@ -560,9 +560,9 @@ static irqreturn_t wil6210_irq_misc(int irq, void *cookie)
 			fw_assert_code, ucode_assert_code);
 		clear_bit(wil_status_fwready, wil->status);
 		/*
-		 * do not clear @isr here - we do 2-nd part in thread
-		 * there, user space get notified, and it should be done
-		 * in non-atomic context
+		 * do yest clear @isr here - we do 2-nd part in thread
+		 * there, user space get yestified, and it should be done
+		 * in yesn-atomic context
 		 */
 	}
 
@@ -581,7 +581,7 @@ static irqreturn_t wil6210_irq_misc(int irq, void *cookie)
 	if (isr & BIT_DMA_EP_MISC_ICR_HALP) {
 		isr &= ~BIT_DMA_EP_MISC_ICR_HALP;
 		if (wil->halp.handle_icr) {
-			/* no need to handle HALP ICRs until next vote */
+			/* yes need to handle HALP ICRs until next vote */
 			wil->halp.handle_icr = false;
 			wil_dbg_irq(wil, "irq_misc: HALP IRQ invoked\n");
 			wil6210_mask_irq_misc(wil, true);
@@ -610,11 +610,11 @@ static irqreturn_t wil6210_irq_misc_thread(int irq, void *cookie)
 	if (isr & ISR_MISC_FW_ERROR) {
 		wil->recovery_state = fw_recovery_pending;
 		wil_fw_core_dump(wil);
-		wil_notify_fw_error(wil);
+		wil_yestify_fw_error(wil);
 		isr &= ~ISR_MISC_FW_ERROR;
-		if (wil->platform_ops.notify) {
-			wil_err(wil, "notify platform driver about FW crash");
-			wil->platform_ops.notify(wil->platform_handle,
+		if (wil->platform_ops.yestify) {
+			wil_err(wil, "yestify platform driver about FW crash");
+			wil->platform_ops.yestify(wil->platform_handle,
 						 WIL_PLATFORM_EVT_FW_CRASH);
 		} else {
 			wil_fw_error_recovery(wil);
@@ -633,7 +633,7 @@ static irqreturn_t wil6210_irq_misc_thread(int irq, void *cookie)
 
 	wil6210_unmask_irq_misc(wil, false);
 
-	/* in non-triple MSI case, this is done inside wil6210_thread_irq
+	/* in yesn-triple MSI case, this is done inside wil6210_thread_irq
 	 * because it has to be done after unmasking the pseudo.
 	 */
 	if (wil->n_msi == 3 && wil->suspend_resp_rcvd) {
@@ -753,7 +753,7 @@ static irqreturn_t wil6210_hardirq(int irq, void *cookie)
 	u32 pseudo_cause = wil_r(wil, RGF_DMA_PSEUDO_CAUSE);
 
 	/**
-	 * pseudo_cause is Clear-On-Read, no need to ACK
+	 * pseudo_cause is Clear-On-Read, yes need to ACK
 	 */
 	if (unlikely((pseudo_cause == 0) || ((pseudo_cause & 0xff) == 0xff)))
 		return IRQ_NONE;
@@ -833,7 +833,7 @@ free0:
 	return rc;
 }
 
-/* can't use wil_ioread32_and_clear because ICC value is not set yet */
+/* can't use wil_ioread32_and_clear because ICC value is yest set yet */
 static inline void wil_clear32(void __iomem *addr)
 {
 	u32 x = readl(addr);

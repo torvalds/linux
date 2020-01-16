@@ -28,7 +28,7 @@ static int init_vas_instance(struct platform_device *pdev)
 	int rc, cpu, vasid;
 	struct resource *res;
 	struct vas_instance *vinst;
-	struct device_node *dn = pdev->dev.of_node;
+	struct device_yesde *dn = pdev->dev.of_yesde;
 
 	rc = of_property_read_u32(dn, "ibm,vas-id", &vasid);
 	if (rc) {
@@ -46,7 +46,7 @@ static int init_vas_instance(struct platform_device *pdev)
 	if (!vinst)
 		return -ENOMEM;
 
-	INIT_LIST_HEAD(&vinst->node);
+	INIT_LIST_HEAD(&vinst->yesde);
 	ida_init(&vinst->ida);
 	mutex_init(&vinst->mutex);
 	vinst->vas_id = vasid;
@@ -79,7 +79,7 @@ static int init_vas_instance(struct platform_device *pdev)
 	}
 
 	mutex_lock(&vas_mutex);
-	list_add(&vinst->node, &vas_instances);
+	list_add(&vinst->yesde, &vas_instances);
 	mutex_unlock(&vas_mutex);
 
 	vas_instance_init_dbgdir(vinst);
@@ -109,7 +109,7 @@ struct vas_instance *find_vas_instance(int vasid)
 		vasid = per_cpu(cpu_vas_id, smp_processor_id());
 
 	list_for_each(ent, &vas_instances) {
-		vinst = list_entry(ent, struct vas_instance, node);
+		vinst = list_entry(ent, struct vas_instance, yesde);
 		if (vinst->vas_id == vasid) {
 			mutex_unlock(&vas_mutex);
 			return vinst;
@@ -117,7 +117,7 @@ struct vas_instance *find_vas_instance(int vasid)
 	}
 	mutex_unlock(&vas_mutex);
 
-	pr_devel("Instance %d not found\n", vasid);
+	pr_devel("Instance %d yest found\n", vasid);
 	return NULL;
 }
 
@@ -154,11 +154,11 @@ static struct platform_driver vas_driver = {
 static int __init vas_init(void)
 {
 	int found = 0;
-	struct device_node *dn;
+	struct device_yesde *dn;
 
 	platform_driver_register(&vas_driver);
 
-	for_each_compatible_node(dn, NULL, "ibm,vas") {
+	for_each_compatible_yesde(dn, NULL, "ibm,vas") {
 		of_platform_device_create(dn, NULL, NULL);
 		found++;
 	}

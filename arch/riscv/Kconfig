@@ -235,11 +235,11 @@ config SMP
 	  you say N here, the kernel will run on single and
 	  multiprocessor machines, but will use only one CPU of a
 	  multiprocessor machine. If you say Y here, the kernel will run
-	  on many, but not all, single processor machines. On a single
+	  on many, but yest all, single processor machines. On a single
 	  processor machine, the kernel will run faster if you say N
 	  here.
 
-	  If you don't know what to do here, say N.
+	  If you don't kyesw what to do here, say N.
 
 config NR_CPUS
 	int "Maximum number of CPUs (2-32)"
@@ -264,7 +264,7 @@ config RISCV_ISA_C
 	   when building Linux, which results in compressed instructions in the
 	   Linux binary.
 
-	   If you don't know what to do here, say Y.
+	   If you don't kyesw what to do here, say Y.
 
 menu "supported PMU type"
 	depends on PERF_EVENTS
@@ -286,7 +286,7 @@ config FPU
 	  Say N here if you want to disable all floating-point related procedure
 	  in the kernel.
 
-	  If you don't know what to do here, say Y.
+	  If you don't kyesw what to do here, say Y.
 
 endmenu
 
@@ -303,7 +303,7 @@ config SECCOMP
 	  the process as file descriptors supporting the read/write
 	  syscalls, it's possible to isolate those applications in
 	  their own address space using seccomp. Once seccomp is
-	  enabled via prctl(PR_SET_SECCOMP), it cannot be disabled
+	  enabled via prctl(PR_SET_SECCOMP), it canyest be disabled
 	  and the task is only allowed to execute a few safe syscalls
 	  defined by each seccomp mode.
 
@@ -316,7 +316,7 @@ config CMDLINE
 	help
 	  For most platforms, the arguments for the kernel's command line
 	  are provided at run-time, during boot. However, there are cases
-	  where either no arguments are being provided or the provided
+	  where either yes arguments are being provided or the provided
 	  arguments are insufficient or even invalid.
 
 	  When that occurs, it is possible to define a built-in command
@@ -332,7 +332,7 @@ choice
 config CMDLINE_FALLBACK
 	bool "Use bootloader kernel arguments if available"
 	help
-	  Use the built-in command line as fallback in case we get nothing
+	  Use the built-in command line as fallback in case we get yesthing
 	  during boot. This is the default behaviour.
 
 config CMDLINE_EXTEND
@@ -341,7 +341,7 @@ config CMDLINE_EXTEND
 	  The command-line arguments provided during boot will be
 	  appended to the built-in command line. This is useful in
 	  cases where the provided arguments are insufficient and
-	  you don't want to or cannot modify them.
+	  you don't want to or canyest modify them.
 
 
 config CMDLINE_FORCE

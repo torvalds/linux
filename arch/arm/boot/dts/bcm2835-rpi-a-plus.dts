@@ -32,7 +32,7 @@
 	 * This is based on the unreleased schematic for the Model A+.
 	 *
 	 * Legend:
-	 * "NC" = not connected (no rail from the SoC)
+	 * "NC" = yest connected (yes rail from the SoC)
 	 * "FOO" = GPIO line named "FOO" on the schematic
 	 * "FOO_N" = GPIO line named "FOO" on schematic, active low
 	 */

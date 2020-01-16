@@ -56,9 +56,9 @@ static struct map_desc s3c2410_iodesc[] __initdata = {
 
 /* uart registration process */
 
-void __init s3c2410_init_uarts(struct s3c2410_uartcfg *cfg, int no)
+void __init s3c2410_init_uarts(struct s3c2410_uartcfg *cfg, int yes)
 {
-	s3c24xx_init_uartdevs("s3c2410-uart", s3c2410_uart_resources, cfg, no);
+	s3c24xx_init_uartdevs("s3c2410-uart", s3c2410_uart_resources, cfg, yes);
 }
 
 /* s3c2410_map_io
@@ -80,7 +80,7 @@ struct bus_type s3c2410_subsys = {
 	.dev_name = "s3c2410-core",
 };
 
-/* Note, we would have liked to name this s3c2410-core, but we cannot
+/* Note, we would have liked to name this s3c2410-core, but we canyest
  * register two subsystems with the same name.
  */
 struct bus_type s3c2410a_subsys = {
@@ -94,7 +94,7 @@ static struct device s3c2410_dev = {
 
 /* need to register the subsystem before we actually register the device, and
  * we also need to ensure that it has been initialised before any of the
- * drivers even try to use it (even if not on an s3c2410 based system)
+ * drivers even try to use it (even if yest on an s3c2410 based system)
  * as a driver which may support both 2410 and 2440 may try and use it.
 */
 

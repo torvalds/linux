@@ -4,18 +4,18 @@ Block Group Descriptors
 -----------------------
 
 Each block group on the filesystem has one of these descriptors
-associated with it. As noted in the Layout section above, the group
+associated with it. As yested in the Layout section above, the group
 descriptors (if present) are the second item in the block group. The
 standard configuration is for each block group to contain a full copy of
 the block group descriptor table unless the sparse\_super feature flag
 is set.
 
 Notice how the group descriptor records the location of both bitmaps and
-the inode table (i.e. they can float). This means that within a block
+the iyesde table (i.e. they can float). This means that within a block
 group, the only data structures with fixed locations are the superblock
 and the group descriptor table. The flex\_bg mechanism uses this
 property to group several block groups into a flex group and lay out all
-of the groups' bitmaps and inode tables into one long run in the first
+of the groups' bitmaps and iyesde tables into one long run in the first
 group of the flex group.
 
 If the meta\_bg feature flag is set, then several block groups are
@@ -24,19 +24,19 @@ however, the first and last two block groups within the larger meta
 group contain only group descriptors for the groups inside the meta
 group.
 
-flex\_bg and meta\_bg do not appear to be mutually exclusive features.
+flex\_bg and meta\_bg do yest appear to be mutually exclusive features.
 
-In ext2, ext3, and ext4 (when the 64bit feature is not enabled), the
+In ext2, ext3, and ext4 (when the 64bit feature is yest enabled), the
 block group descriptor was only 32 bytes long and therefore ends at
 bg\_checksum. On an ext4 filesystem with the 64bit feature enabled, the
 block group descriptor expands to at least the 64 bytes described below;
 the size is stored in the superblock.
 
-If gdt\_csum is set and metadata\_csum is not set, the block group
+If gdt\_csum is set and metadata\_csum is yest set, the block group
 checksum is the crc16 of the FS UUID, the group number, and the group
 descriptor structure. If metadata\_csum is set, then the block group
 checksum is the lower 16 bits of the checksum of the FS UUID, the group
-number, and the group descriptor structure. Both block and inode bitmap
+number, and the group descriptor structure. Both block and iyesde bitmap
 checksums are calculated against the FS UUID, the group number, and the
 entire bitmap.
 
@@ -56,20 +56,20 @@ The block group descriptor is laid out in ``struct ext4_group_desc``.
      - Lower 32-bits of location of block bitmap.
    * - 0x4
      - \_\_le32
-     - bg\_inode\_bitmap\_lo
-     - Lower 32-bits of location of inode bitmap.
+     - bg\_iyesde\_bitmap\_lo
+     - Lower 32-bits of location of iyesde bitmap.
    * - 0x8
      - \_\_le32
-     - bg\_inode\_table\_lo
-     - Lower 32-bits of location of inode table.
+     - bg\_iyesde\_table\_lo
+     - Lower 32-bits of location of iyesde table.
    * - 0xC
      - \_\_le16
      - bg\_free\_blocks\_count\_lo
      - Lower 16-bits of free block count.
    * - 0xE
      - \_\_le16
-     - bg\_free\_inodes\_count\_lo
-     - Lower 16-bits of free inode count.
+     - bg\_free\_iyesdes\_count\_lo
+     - Lower 16-bits of free iyesde count.
    * - 0x10
      - \_\_le16
      - bg\_used\_dirs\_count\_lo
@@ -88,14 +88,14 @@ The block group descriptor is laid out in ``struct ext4_group_desc``.
      - Lower 16-bits of the block bitmap checksum.
    * - 0x1A
      - \_\_le16
-     - bg\_inode\_bitmap\_csum\_lo
-     - Lower 16-bits of the inode bitmap checksum.
+     - bg\_iyesde\_bitmap\_csum\_lo
+     - Lower 16-bits of the iyesde bitmap checksum.
    * - 0x1C
      - \_\_le16
      - bg\_itable\_unused\_lo
-     - Lower 16-bits of unused inode count. If set, we needn't scan past the
-       ``(sb.s_inodes_per_group - gdt.bg_itable_unused)``\ th entry in the
-       inode table for this group.
+     - Lower 16-bits of unused iyesde count. If set, we needn't scan past the
+       ``(sb.s_iyesdes_per_group - gdt.bg_itable_unused)``\ th entry in the
+       iyesde table for this group.
    * - 0x1E
      - \_\_le16
      - bg\_checksum
@@ -116,20 +116,20 @@ The block group descriptor is laid out in ``struct ext4_group_desc``.
      - Upper 32-bits of location of block bitmap.
    * - 0x24
      - \_\_le32
-     - bg\_inode\_bitmap\_hi
-     - Upper 32-bits of location of inodes bitmap.
+     - bg\_iyesde\_bitmap\_hi
+     - Upper 32-bits of location of iyesdes bitmap.
    * - 0x28
      - \_\_le32
-     - bg\_inode\_table\_hi
-     - Upper 32-bits of location of inodes table.
+     - bg\_iyesde\_table\_hi
+     - Upper 32-bits of location of iyesdes table.
    * - 0x2C
      - \_\_le16
      - bg\_free\_blocks\_count\_hi
      - Upper 16-bits of free block count.
    * - 0x2E
      - \_\_le16
-     - bg\_free\_inodes\_count\_hi
-     - Upper 16-bits of free inode count.
+     - bg\_free\_iyesdes\_count\_hi
+     - Upper 16-bits of free iyesde count.
    * - 0x30
      - \_\_le16
      - bg\_used\_dirs\_count\_hi
@@ -137,7 +137,7 @@ The block group descriptor is laid out in ``struct ext4_group_desc``.
    * - 0x32
      - \_\_le16
      - bg\_itable\_unused\_hi
-     - Upper 16-bits of unused inode count.
+     - Upper 16-bits of unused iyesde count.
    * - 0x34
      - \_\_le32
      - bg\_exclude\_bitmap\_hi
@@ -148,8 +148,8 @@ The block group descriptor is laid out in ``struct ext4_group_desc``.
      - Upper 16-bits of the block bitmap checksum.
    * - 0x3A
      - \_\_le16
-     - bg\_inode\_bitmap\_csum\_hi
-     - Upper 16-bits of the inode bitmap checksum.
+     - bg\_iyesde\_bitmap\_csum\_hi
+     - Upper 16-bits of the iyesde bitmap checksum.
    * - 0x3C
      - \_\_u32
      - bg\_reserved
@@ -166,8 +166,8 @@ Block group flags can be any combination of the following:
    * - Value
      - Description
    * - 0x1
-     - inode table and bitmap are not initialized (EXT4\_BG\_INODE\_UNINIT).
+     - iyesde table and bitmap are yest initialized (EXT4\_BG\_INODE\_UNINIT).
    * - 0x2
-     - block bitmap is not initialized (EXT4\_BG\_BLOCK\_UNINIT).
+     - block bitmap is yest initialized (EXT4\_BG\_BLOCK\_UNINIT).
    * - 0x4
-     - inode table is zeroed (EXT4\_BG\_INODE\_ZEROED).
+     - iyesde table is zeroed (EXT4\_BG\_INODE\_ZEROED).

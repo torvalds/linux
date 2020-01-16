@@ -15,7 +15,7 @@
  * Kevin Chea
  */
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/sched.h>
 #include <linux/sched/debug.h>
 #include <linux/sched/task.h>
@@ -166,12 +166,12 @@ int arch_dup_task_struct(struct task_struct *dst, struct task_struct *src)
  * There are two modes in which this function is called:
  * 1) Userspace thread creation,
  *    regs != NULL, usp_thread_fn is userspace stack pointer.
- *    It is expected to copy parent regs (in case CLONE_VM is not set
+ *    It is expected to copy parent regs (in case CLONE_VM is yest set
  *    in the clone_flags) and set up passed usp in the childregs.
  * 2) Kernel thread creation,
  *    regs == NULL, usp_thread_fn is the function to run in the new thread
  *    and thread_fn_arg is its parameter.
- *    childregs are not used for the kernel threads.
+ *    childregs are yest used for the kernel threads.
  *
  * The stack layout for the new thread looks like this:
  *
@@ -192,14 +192,14 @@ int arch_dup_task_struct(struct task_struct *dst, struct task_struct *src)
  *       childregs.
  *
  * The fun part:  if we're keeping the same VM (i.e. cloning a thread,
- * not an entire process), we're normally given a new usp, and we CANNOT share
+ * yest an entire process), we're yesrmally given a new usp, and we CANNOT share
  * any live address register windows.  If we just copy those live frames over,
  * the two threads (parent and child) will overflow the same frames onto the
  * parent stack at different times, likely corrupting the parent stack (esp.
  * if the parent returns from functions that called clone() and calls new
- * ones, before the child overflows its now old copies of its parent windows).
+ * ones, before the child overflows its yesw old copies of its parent windows).
  * One solution is to spill windows to the parent stack, but that's fairly
- * involved.  Much simpler to just not copy those live frames across.
+ * involved.  Much simpler to just yest copy those live frames across.
  */
 
 int copy_thread_tls(unsigned long clone_flags, unsigned long usp_thread_fn,
@@ -226,7 +226,7 @@ int copy_thread_tls(unsigned long clone_flags, unsigned long usp_thread_fn,
 		p->thread.ra = MAKE_RA_FOR_CALL(
 				(unsigned long)ret_from_fork, 0x1);
 
-		/* This does not copy all the regs.
+		/* This does yest copy all the regs.
 		 * In a bout of brilliance or madness,
 		 * ARs beyond a0-a15 exist past the end of the struct.
 		 */

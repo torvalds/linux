@@ -29,17 +29,17 @@
 *  12. ALDIE    0 (Disables the unit from interrupt when it loses arbitration
 *                                       in master mode)
 *  11. SSDIE    0 (Disables interrupts from a slave stop detected, in slave mode)
-*  10. BEIE     1 (Enable interrupts from detected bus errors, no ACK sent)
+*  10. BEIE     1 (Enable interrupts from detected bus errors, yes ACK sent)
 *  9.  IRFIE    1 (Enable interrupts from full buffer received)
 *  8.  ITEIE    1 (Enables the I2C unit to interrupt when transmit buffer empty)
 *  7.  GCD      1 (Disables i2c unit response to general call messages as a slave)
 *  6.  IUE      0 (Disable unit until we change settings)
 *  5.  SCLE     1 (Enables the i2c clock output for master mode (drives SCL)
 *  4.  MA       0 (Only send stop with the ICR stop bit)
-*  3.  TB       0 (We are not transmitting a byte initially)
+*  3.  TB       0 (We are yest transmitting a byte initially)
 *  2.  ACKNAK   0 (Send an ACK after the unit receives a byte)
-*  1.  STOP     0 (Do not send a STOP)
-*  0.  START    0 (Do not send a START)
+*  1.  STOP     0 (Do yest send a STOP)
+*  0.  START    0 (Do yest send a START)
 *
 */
 #define I2C_ICR_INIT	(ICR_BEIE | ICR_IRFIE | ICR_ITEIE | ICR_GCD | ICR_SCLE)

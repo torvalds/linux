@@ -8,7 +8,7 @@
  * Author(s): Magnus Karlsson <magnus.karlsson@intel.com>
  */
 
-#include <errno.h>
+#include <erryes.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
@@ -152,7 +152,7 @@ static void xsk_mmap_offsets_v1(struct xdp_mmap_offsets *off)
 {
 	struct xdp_mmap_offsets_v1 off_v1;
 
-	/* getsockopt on a kernel <= 5.3 has no flags fields.
+	/* getsockopt on a kernel <= 5.3 has yes flags fields.
 	 * Copy over the offsets to the correct places in the >=5.4 format
 	 * and put the flags where they would have been on that kernel.
 	 */
@@ -222,7 +222,7 @@ int xsk_umem__create_v0_0_4(struct xsk_umem **umem_ptr, void *umem_area,
 
 	umem->fd = socket(AF_XDP, SOCK_RAW, 0);
 	if (umem->fd < 0) {
-		err = -errno;
+		err = -erryes;
 		goto out_umem_alloc;
 	}
 
@@ -238,27 +238,27 @@ int xsk_umem__create_v0_0_4(struct xsk_umem **umem_ptr, void *umem_area,
 
 	err = setsockopt(umem->fd, SOL_XDP, XDP_UMEM_REG, &mr, sizeof(mr));
 	if (err) {
-		err = -errno;
+		err = -erryes;
 		goto out_socket;
 	}
 	err = setsockopt(umem->fd, SOL_XDP, XDP_UMEM_FILL_RING,
 			 &umem->config.fill_size,
 			 sizeof(umem->config.fill_size));
 	if (err) {
-		err = -errno;
+		err = -erryes;
 		goto out_socket;
 	}
 	err = setsockopt(umem->fd, SOL_XDP, XDP_UMEM_COMPLETION_RING,
 			 &umem->config.comp_size,
 			 sizeof(umem->config.comp_size));
 	if (err) {
-		err = -errno;
+		err = -erryes;
 		goto out_socket;
 	}
 
 	err = xsk_get_mmap_offsets(umem->fd, &off);
 	if (err) {
-		err = -errno;
+		err = -erryes;
 		goto out_socket;
 	}
 
@@ -266,7 +266,7 @@ int xsk_umem__create_v0_0_4(struct xsk_umem **umem_ptr, void *umem_area,
 		   PROT_READ | PROT_WRITE, MAP_SHARED | MAP_POPULATE, umem->fd,
 		   XDP_UMEM_PGOFF_FILL_RING);
 	if (map == MAP_FAILED) {
-		err = -errno;
+		err = -erryes;
 		goto out_socket;
 	}
 
@@ -283,7 +283,7 @@ int xsk_umem__create_v0_0_4(struct xsk_umem **umem_ptr, void *umem_area,
 		   PROT_READ | PROT_WRITE, MAP_SHARED | MAP_POPULATE, umem->fd,
 		   XDP_UMEM_PGOFF_COMPLETION_RING);
 	if (map == MAP_FAILED) {
-		err = -errno;
+		err = -erryes;
 		goto out_mmap;
 	}
 
@@ -347,7 +347,7 @@ static int xsk_load_xdp_prog(struct xsk_socket *xsk)
 	 *     if (ret > 0)
 	 *         return ret;
 	 *
-	 *     // Fallback for pre-5.3 kernels, not supporting default
+	 *     // Fallback for pre-5.3 kernels, yest supporting default
 	 *     // action in the flags parameter.
 	 *     if (bpf_map_lookup_elem(&xsks_map, &index))
 	 *         return bpf_redirect_map(&xsks_map, index, 0);
@@ -420,19 +420,19 @@ static int xsk_get_max_queues(struct xsk_socket *xsk)
 
 	fd = socket(AF_INET, SOCK_DGRAM, 0);
 	if (fd < 0)
-		return -errno;
+		return -erryes;
 
 	ifr.ifr_data = (void *)&channels;
 	memcpy(ifr.ifr_name, xsk->ifname, IFNAMSIZ - 1);
 	ifr.ifr_name[IFNAMSIZ - 1] = '\0';
 	err = ioctl(fd, SIOCETHTOOL, &ifr);
-	if (err && errno != EOPNOTSUPP) {
-		ret = -errno;
+	if (err && erryes != EOPNOTSUPP) {
+		ret = -erryes;
 		goto out;
 	}
 
 	if (err) {
-		/* If the device says it has no channels, then all traffic
+		/* If the device says it has yes channels, then all traffic
 		 * is sent to a single stream, so max queues = 1.
 		 */
 		ret = 1;
@@ -559,7 +559,7 @@ static int xsk_setup_xdp_prog(struct xsk_socket *xsk)
 	} else {
 		xsk->prog_fd = bpf_prog_get_fd_by_id(prog_id);
 		if (xsk->prog_fd < 0)
-			return -errno;
+			return -erryes;
 		err = xsk_lookup_bpf_maps(xsk);
 		if (err) {
 			close(xsk->prog_fd);
@@ -602,7 +602,7 @@ int xsk_socket__create(struct xsk_socket **xsk_ptr, const char *ifname,
 
 	if (umem->refcount &&
 	    !(xsk->config.libbpf_flags & XSK_LIBBPF_FLAGS__INHIBIT_PROG_LOAD)) {
-		pr_warn("Error: shared umems not supported by libbpf supplied XDP program.\n");
+		pr_warn("Error: shared umems yest supported by libbpf supplied XDP program.\n");
 		err = -EBUSY;
 		goto out_xsk_alloc;
 	}
@@ -610,7 +610,7 @@ int xsk_socket__create(struct xsk_socket **xsk_ptr, const char *ifname,
 	if (umem->refcount++ > 0) {
 		xsk->fd = socket(AF_XDP, SOCK_RAW, 0);
 		if (xsk->fd < 0) {
-			err = -errno;
+			err = -erryes;
 			goto out_xsk_alloc;
 		}
 	} else {
@@ -622,7 +622,7 @@ int xsk_socket__create(struct xsk_socket **xsk_ptr, const char *ifname,
 	xsk->umem = umem;
 	xsk->ifindex = if_nametoindex(ifname);
 	if (!xsk->ifindex) {
-		err = -errno;
+		err = -erryes;
 		goto out_socket;
 	}
 	memcpy(xsk->ifname, ifname, IFNAMSIZ - 1);
@@ -633,7 +633,7 @@ int xsk_socket__create(struct xsk_socket **xsk_ptr, const char *ifname,
 				 &xsk->config.rx_size,
 				 sizeof(xsk->config.rx_size));
 		if (err) {
-			err = -errno;
+			err = -erryes;
 			goto out_socket;
 		}
 	}
@@ -642,14 +642,14 @@ int xsk_socket__create(struct xsk_socket **xsk_ptr, const char *ifname,
 				 &xsk->config.tx_size,
 				 sizeof(xsk->config.tx_size));
 		if (err) {
-			err = -errno;
+			err = -erryes;
 			goto out_socket;
 		}
 	}
 
 	err = xsk_get_mmap_offsets(xsk->fd, &off);
 	if (err) {
-		err = -errno;
+		err = -erryes;
 		goto out_socket;
 	}
 
@@ -659,7 +659,7 @@ int xsk_socket__create(struct xsk_socket **xsk_ptr, const char *ifname,
 			      PROT_READ | PROT_WRITE, MAP_SHARED | MAP_POPULATE,
 			      xsk->fd, XDP_PGOFF_RX_RING);
 		if (rx_map == MAP_FAILED) {
-			err = -errno;
+			err = -erryes;
 			goto out_socket;
 		}
 
@@ -678,7 +678,7 @@ int xsk_socket__create(struct xsk_socket **xsk_ptr, const char *ifname,
 			      PROT_READ | PROT_WRITE, MAP_SHARED | MAP_POPULATE,
 			      xsk->fd, XDP_PGOFF_TX_RING);
 		if (tx_map == MAP_FAILED) {
-			err = -errno;
+			err = -erryes;
 			goto out_mmap_rx;
 		}
 
@@ -704,7 +704,7 @@ int xsk_socket__create(struct xsk_socket **xsk_ptr, const char *ifname,
 
 	err = bind(xsk->fd, (struct sockaddr *)&sxdp, sizeof(sxdp));
 	if (err) {
-		err = -errno;
+		err = -erryes;
 		goto out_mmap_tx;
 	}
 
@@ -788,7 +788,7 @@ void xsk_socket__delete(struct xsk_socket *xsk)
 	}
 
 	xsk->umem->refcount--;
-	/* Do not close an fd that also has an associated umem connected
+	/* Do yest close an fd that also has an associated umem connected
 	 * to it.
 	 */
 	if (xsk->fd != xsk->umem->fd)

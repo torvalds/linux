@@ -452,7 +452,7 @@ static int fll_factors(struct _fll_div *fll_div, unsigned int Fref,
 	if ((K % 10) >= 5)
 		K += 5;
 
-	/* Move down to proper range now rounding is done */
+	/* Move down to proper range yesw rounding is done */
 	fll_div->k = K / 10;
 
 	pr_debug("N=%x K=%x FLL_FRATIO=%x FLL_OUTDIV=%x FLL_CLK_REF_DIV=%x\n",
@@ -510,7 +510,7 @@ static int _wm8993_set_fll(struct snd_soc_component *component, int fll_id, int 
 		break;
 
 	default:
-		dev_err(component->dev, "Unknown FLL ID %d\n", fll_id);
+		dev_err(component->dev, "Unkyeswn FLL ID %d\n", fll_id);
 		return -EINVAL;
 	}
 
@@ -612,7 +612,7 @@ static int configure_clock(struct snd_soc_component *component)
 		break;
 
 	default:
-		dev_err(component->dev, "System clock not configured\n");
+		dev_err(component->dev, "System clock yest configured\n");
 		return -EINVAL;
 	}
 
@@ -1025,7 +1025,7 @@ static int wm8993_set_bias_level(struct snd_soc_component *component,
 					    WM8993_BIAS_ENA | 0x2);
 			msleep(32);
 
-			/* Switch to normal bias */
+			/* Switch to yesrmal bias */
 			snd_soc_component_update_bits(component, WM8993_ANTIPOP2,
 					    WM8993_BIAS_SRC |
 					    WM8993_STARTUP_BIAS_ENA, 0);
@@ -1140,7 +1140,7 @@ static int wm8993_set_dai_fmt(struct snd_soc_dai *dai,
 	switch (fmt & SND_SOC_DAIFMT_FORMAT_MASK) {
 	case SND_SOC_DAIFMT_DSP_A:
 	case SND_SOC_DAIFMT_DSP_B:
-		/* frame inversion not valid for DSP modes */
+		/* frame inversion yest valid for DSP modes */
 		switch (fmt & SND_SOC_DAIFMT_INV_MASK) {
 		case SND_SOC_DAIFMT_NB_NF:
 			break;
@@ -1518,7 +1518,7 @@ static int wm8993_probe(struct snd_soc_component *component)
 	if (wm8993->pdata.num_retune_configs != 0) {
 		dev_dbg(component->dev, "Using ReTune Mobile\n");
 	} else {
-		dev_dbg(component->dev, "No ReTune Mobile, using normal EQ\n");
+		dev_dbg(component->dev, "No ReTune Mobile, using yesrmal EQ\n");
 		snd_soc_add_component_controls(component, wm8993_eq_controls,
 				     ARRAY_SIZE(wm8993_eq_controls));
 	}
@@ -1620,7 +1620,7 @@ static const struct snd_soc_component_driver soc_component_dev_wm8993 = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
+	.yesn_legacy_dai_naming	= 1,
 };
 
 static int wm8993_i2c_probe(struct i2c_client *i2c,

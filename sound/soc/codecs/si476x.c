@@ -2,10 +2,10 @@
 /*
  * sound/soc/codecs/si476x.c -- Codec driver for SI476X chips
  *
- * Copyright (C) 2012 Innovative Converged Devices(ICD)
- * Copyright (C) 2013 Andrey Smirnov
+ * Copyright (C) 2012 Inyesvative Converged Devices(ICD)
+ * Copyright (C) 2013 Andrey Smiryesv
  *
- * Author: Andrey Smirnov <andrew.smirnov@gmail.com>
+ * Author: Andrey Smiryesv <andrew.smiryesv@gmail.com>
  */
 
 #include <linux/module.h>
@@ -154,7 +154,7 @@ static int si476x_codec_hw_params(struct snd_pcm_substream *substream,
 
 	rate = params_rate(params);
 	if (rate < 32000 || rate > 48000) {
-		dev_err(dai->component->dev, "Rate: %d is not supported\n", rate);
+		dev_err(dai->component->dev, "Rate: %d is yest supported\n", rate);
 		return -EINVAL;
 	}
 
@@ -239,7 +239,7 @@ static const struct snd_soc_component_driver soc_component_dev_si476x = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
+	.yesn_legacy_dai_naming	= 1,
 };
 
 static int si476x_platform_probe(struct platform_device *pdev)
@@ -259,6 +259,6 @@ static struct platform_driver si476x_platform_driver = {
 };
 module_platform_driver(si476x_platform_driver);
 
-MODULE_AUTHOR("Andrey Smirnov <andrew.smirnov@gmail.com>");
+MODULE_AUTHOR("Andrey Smiryesv <andrew.smiryesv@gmail.com>");
 MODULE_DESCRIPTION("ASoC Si4761/64 codec driver");
 MODULE_LICENSE("GPL");

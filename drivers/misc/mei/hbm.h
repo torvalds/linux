@@ -14,7 +14,7 @@ struct mei_cl;
 /**
  * enum mei_hbm_state - host bus message protocol state
  *
- * @MEI_HBM_IDLE : protocol not started
+ * @MEI_HBM_IDLE : protocol yest started
  * @MEI_HBM_STARTING : start request message was sent
  * @MEI_HBM_DR_SETUP : dma ring setup request message was sent
  * @MEI_HBM_ENUM_CLIENTS : enumeration request was sent
@@ -47,7 +47,7 @@ int mei_hbm_cl_connect_req(struct mei_device *dev, struct mei_cl *cl);
 bool mei_hbm_version_is_supported(struct mei_device *dev);
 int mei_hbm_pg(struct mei_device *dev, u8 pg_cmd);
 void mei_hbm_pg_resume(struct mei_device *dev);
-int mei_hbm_cl_notify_req(struct mei_device *dev,
+int mei_hbm_cl_yestify_req(struct mei_device *dev,
 			  struct mei_cl *cl, u8 request);
 
 #endif /* _MEI_HBM_H_ */

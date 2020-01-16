@@ -104,7 +104,7 @@ static int qcom_rng_enable(struct qcom_rng *rng)
 	if (ret)
 		return ret;
 
-	/* Enable PRNG only if it is not already enabled */
+	/* Enable PRNG only if it is yest already enabled */
 	val = readl_relaxed(rng->base + PRNG_CONFIG);
 	if (val & PRNG_CONFIG_HW_ENABLE)
 		goto already_enabled;

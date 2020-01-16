@@ -23,7 +23,7 @@ extern const struct dev_pm_ops imx_pinctrl_pm_ops;
  * struct imx_pin_mmio - MMIO pin configurations
  * @mux_mode: the mux mode for this pin.
  * @input_reg: the select input register offset for this pin if any
- *	0 if no select input setting needed.
+ *	0 if yes select input setting needed.
  * @input_val: the select input value for this pin.
  * @configs: the config for this pin.
  */

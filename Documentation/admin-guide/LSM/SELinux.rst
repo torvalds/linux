@@ -17,7 +17,7 @@ fixfiles to label the filesystem.
 
 	1. Compile the kernel with selinux enabled.
 	2. Type ``make`` to compile ``mdp``.
-	3. Make sure that you are not running with
+	3. Make sure that you are yest running with
 	   SELinux enabled and a real policy.  If
 	   you are, reboot with selinux disabled
 	   before continuing.

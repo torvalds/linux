@@ -5,7 +5,7 @@ Supported Modules :
  - WP8548 : Includes MDM9615 and PM8018 in a module
 
 Sierra Wireless modules shall have the following properties :
-  Required root node property
+  Required root yesde property
    - compatible: "swir,wp8548" for the WP8548 CF3 Module
 
 Board compatible values:

@@ -190,7 +190,7 @@
 		compatible = "arm,cortex-a7-timer",
 			     "arm,armv7-timer";
 		interrupt-parent = <&gic>;
-		arm,cpu-registers-not-fw-configured;
+		arm,cpu-registers-yest-fw-configured;
 		always-on;
 		interrupts =
 			<GIC_PPI 13 (GIC_CPU_MASK_SIMPLE(2) | IRQ_TYPE_LEVEL_LOW)>,

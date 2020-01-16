@@ -27,10 +27,10 @@ static struct completion bind_complete;
  * are used to convert CDClk (Core Display Clock) to 24MHz BCLK:
  * BCLK = CDCLK * M / N
  * The values will be lost when the display power well is disabled and need to
- * be restored to avoid abnormal playback speed.
+ * be restored to avoid abyesrmal playback speed.
  *
  * Call this function at initializing and changing power well, as well as
- * at ELD notifier for the hotplug.
+ * at ELD yestifier for the hotplug.
  */
 void snd_hdac_i915_set_bclk(struct hdac_bus *bus)
 {

@@ -113,11 +113,11 @@ static void __init ls_uart_init(void)
 
 static int __init ls_uarts_init(void)
 {
-	struct device_node *avr;
+	struct device_yesde *avr;
 	phys_addr_t phys_addr;
 	int len;
 
-	avr = of_find_node_by_path("/soc10x/serial@80004500");
+	avr = of_find_yesde_by_path("/soc10x/serial@80004500");
 	if (!avr)
 		return -EINVAL;
 

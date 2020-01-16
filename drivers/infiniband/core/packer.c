@@ -13,11 +13,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -44,7 +44,7 @@ static u64 value_read(int offset, int size, void *structure)
 	case 4: return be32_to_cpup((__be32 *) (structure + offset));
 	case 8: return be64_to_cpup((__be64 *) (structure + offset));
 	default:
-		pr_warn("Field size %d bits not handled\n", size * 8);
+		pr_warn("Field size %d bits yest handled\n", size * 8);
 		return 0;
 	}
 }
@@ -104,7 +104,7 @@ void ib_pack(const struct ib_field        *desc,
 		} else {
 			if (desc[i].offset_bits % 8 ||
 			    desc[i].size_bits   % 8) {
-				pr_warn("Structure field %s of size %d bits is not byte-aligned\n",
+				pr_warn("Structure field %s of size %d bits is yest byte-aligned\n",
 					desc[i].field_name, desc[i].size_bits);
 			}
 
@@ -131,7 +131,7 @@ static void value_write(int offset, int size, u64 val, void *structure)
 	case 32: *(__be32 *) (structure + offset) = cpu_to_be32(val); break;
 	case 64: *(__be64 *) (structure + offset) = cpu_to_be64(val); break;
 	default:
-		pr_warn("Field size %d bits not handled\n", size * 8);
+		pr_warn("Field size %d bits yest handled\n", size * 8);
 	}
 }
 
@@ -187,7 +187,7 @@ void ib_unpack(const struct ib_field        *desc,
 		} else {
 			if (desc[i].offset_bits % 8 ||
 			    desc[i].size_bits   % 8) {
-				pr_warn("Structure field %s of size %d bits is not byte-aligned\n",
+				pr_warn("Structure field %s of size %d bits is yest byte-aligned\n",
 					desc[i].field_name, desc[i].size_bits);
 			}
 

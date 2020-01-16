@@ -142,7 +142,7 @@ static int cpcap_rtc_set_time(struct device *dev, struct rtc_time *tm)
 					  DAY_MASK, cpcap_tm.day);
 	} else {
 		/* Clearing the upper lower 8 bits of the TOD guarantees that
-		 * the upper half of TOD (TOD2) will not increment for 0xFF RTC
+		 * the upper half of TOD (TOD2) will yest increment for 0xFF RTC
 		 * ticks (255 seconds).  During this time we can safely write
 		 * to DAY, TOD2, then TOD1 (in that order) and expect RTC to be
 		 * synchronized to the exact time requested upon the final write
@@ -271,15 +271,15 @@ static int cpcap_rtc_probe(struct platform_device *pdev)
 					cpcap_rtc_alarm_irq, IRQF_TRIGGER_NONE,
 					"rtc_alarm", rtc);
 	if (err) {
-		dev_err(dev, "Could not request alarm irq: %d\n", err);
+		dev_err(dev, "Could yest request alarm irq: %d\n", err);
 		return err;
 	}
 	disable_irq(rtc->alarm_irq);
 
 	/* Stock Android uses the 1 Hz interrupt for "secure clock daemon",
-	 * which is not supported by the mainline kernel. The mainline kernel
-	 * does not use the irq at the moment, but we explicitly request and
-	 * disable it, so that its masked and does not wake up the processor
+	 * which is yest supported by the mainline kernel. The mainline kernel
+	 * does yest use the irq at the moment, but we explicitly request and
+	 * disable it, so that its masked and does yest wake up the processor
 	 * every second.
 	 */
 	rtc->update_irq = platform_get_irq(pdev, 1);
@@ -287,7 +287,7 @@ static int cpcap_rtc_probe(struct platform_device *pdev)
 					cpcap_rtc_update_irq, IRQF_TRIGGER_NONE,
 					"rtc_1hz", rtc);
 	if (err) {
-		dev_err(dev, "Could not request update irq: %d\n", err);
+		dev_err(dev, "Could yest request update irq: %d\n", err);
 		return err;
 	}
 	disable_irq(rtc->update_irq);
@@ -295,7 +295,7 @@ static int cpcap_rtc_probe(struct platform_device *pdev)
 	err = device_init_wakeup(dev, 1);
 	if (err) {
 		dev_err(dev, "wakeup initialization failed (%d)\n", err);
-		/* ignore error and continue without wakeup support */
+		/* igyesre error and continue without wakeup support */
 	}
 
 	return 0;

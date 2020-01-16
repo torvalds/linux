@@ -358,7 +358,7 @@ static const struct regulator_ops tps6507x_pmic_ops = {
 	.map_voltage = regulator_map_voltage_ascend,
 };
 
-static int tps6507x_pmic_of_parse_cb(struct device_node *np,
+static int tps6507x_pmic_of_parse_cb(struct device_yesde *np,
 				     const struct regulator_desc *desc,
 				     struct regulator_config *config)
 {
@@ -414,7 +414,7 @@ static int tps6507x_pmic_probe(struct platform_device *pdev)
 
 		tps->desc[i].name = info->name;
 		tps->desc[i].of_match = of_match_ptr(info->name);
-		tps->desc[i].regulators_node = of_match_ptr("regulators");
+		tps->desc[i].regulators_yesde = of_match_ptr("regulators");
 		tps->desc[i].of_parse_cb = tps6507x_pmic_of_parse_cb;
 		tps->desc[i].id = i;
 		tps->desc[i].n_voltages = info->table_len;

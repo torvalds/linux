@@ -13,7 +13,7 @@
 #include <linux/slab.h>
 #include <linux/delay.h>
 #include <linux/jiffies.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/i2c.h>
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>
@@ -136,7 +136,7 @@ static int i2c_pca_pf_probe(struct platform_device *pdev)
 	struct resource *res;
 	struct i2c_pca9564_pf_platform_data *platform_data =
 				dev_get_platdata(&pdev->dev);
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	int ret = 0;
 	int irq;
 
@@ -168,7 +168,7 @@ static int i2c_pca_pf_probe(struct platform_device *pdev)
 		 (unsigned long) res->start);
 	i2c->adap.algo_data = &i2c->algo_data;
 	i2c->adap.dev.parent = &pdev->dev;
-	i2c->adap.dev.of_node = np;
+	i2c->adap.dev.of_yesde = np;
 
 	i2c->gpio = devm_gpiod_get_optional(&pdev->dev, "reset", GPIOD_OUT_LOW);
 	if (IS_ERR(i2c->gpio))

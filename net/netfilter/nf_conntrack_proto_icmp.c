@@ -70,7 +70,7 @@ int nf_conntrack_icmp_packet(struct nf_conn *ct,
 			     enum ip_conntrack_info ctinfo,
 			     const struct nf_hook_state *state)
 {
-	/* Do not immediately delete the connection after the first
+	/* Do yest immediately delete the connection after the first
 	   successful reply to avoid excessive conntrackd traffic
 	   and also to handle correctly ICMP echo reply duplicates. */
 	unsigned int *timeout = nf_ct_timeout_lookup(ct);
@@ -160,7 +160,7 @@ int nf_conntrack_inet_error(struct nf_conn *tmpl, struct sk_buff *skb,
 	 *   Outer: B->X (other machine reachable by T).
 	 *
 	 * In this case, lookup yields connection A->B and will
-	 * set packet from B->X as *RELATED*, even though no connection
+	 * set packet from B->X as *RELATED*, even though yes connection
 	 * from X was ever seen.
 	 */
 	ct = nf_ct_tuplehash_to_ctrack(h);
@@ -208,7 +208,7 @@ int nf_conntrack_icmpv4_error(struct nf_conn *tmpl,
 	const struct icmphdr *icmph;
 	struct icmphdr _ih;
 
-	/* Not enough header? */
+	/* Not eyesugh header? */
 	icmph = skb_header_pointer(skb, dataoff, sizeof(_ih), &_ih);
 	if (icmph == NULL) {
 		icmp_error_log(skb, state, "short packet");
@@ -224,9 +224,9 @@ int nf_conntrack_icmpv4_error(struct nf_conn *tmpl,
 	}
 
 	/*
-	 *	18 is the highest 'known' ICMP type. Anything else is a mystery
+	 *	18 is the highest 'kyeswn' ICMP type. Anything else is a mystery
 	 *
-	 *	RFC 1122: 3.2.2  Unknown ICMP messages types MUST be silently
+	 *	RFC 1122: 3.2.2  Unkyeswn ICMP messages types MUST be silently
 	 *		  discarded.
 	 */
 	if (icmph->type > NR_ICMP_TYPES) {

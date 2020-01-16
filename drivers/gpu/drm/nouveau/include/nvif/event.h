@@ -2,7 +2,7 @@
 #ifndef __NVIF_EVENT_H__
 #define __NVIF_EVENT_H__
 
-struct nvif_notify_req_v0 {
+struct nvif_yestify_req_v0 {
 	__u8  version;
 	__u8  reply;
 	__u8  pad02[5];
@@ -12,7 +12,7 @@ struct nvif_notify_req_v0 {
 	__u8  data[];	/* request data (below) */
 };
 
-struct nvif_notify_rep_v0 {
+struct nvif_yestify_rep_v0 {
 	__u8  version;
 	__u8  pad01[6];
 	__u8  route;
@@ -20,21 +20,21 @@ struct nvif_notify_rep_v0 {
 	__u8  data[];	/* reply data (below) */
 };
 
-struct nvif_notify_head_req_v0 {
-	/* nvif_notify_req ... */
+struct nvif_yestify_head_req_v0 {
+	/* nvif_yestify_req ... */
 	__u8  version;
 	__u8  head;
 	__u8  pad02[6];
 };
 
-struct nvif_notify_head_rep_v0 {
-	/* nvif_notify_rep ... */
+struct nvif_yestify_head_rep_v0 {
+	/* nvif_yestify_rep ... */
 	__u8  version;
 	__u8  pad01[7];
 };
 
-struct nvif_notify_conn_req_v0 {
-	/* nvif_notify_req ... */
+struct nvif_yestify_conn_req_v0 {
+	/* nvif_yestify_req ... */
 	__u8  version;
 #define NVIF_NOTIFY_CONN_V0_PLUG                                           0x01
 #define NVIF_NOTIFY_CONN_V0_UNPLUG                                         0x02
@@ -45,19 +45,19 @@ struct nvif_notify_conn_req_v0 {
 	__u8  pad03[5];
 };
 
-struct nvif_notify_conn_rep_v0 {
-	/* nvif_notify_rep ... */
+struct nvif_yestify_conn_rep_v0 {
+	/* nvif_yestify_rep ... */
 	__u8  version;
 	__u8  mask;
 	__u8  pad02[6];
 };
 
-struct nvif_notify_uevent_req {
-	/* nvif_notify_req ... */
+struct nvif_yestify_uevent_req {
+	/* nvif_yestify_req ... */
 };
 
-struct nvif_notify_uevent_rep {
-	/* nvif_notify_rep ... */
+struct nvif_yestify_uevent_rep {
+	/* nvif_yestify_rep ... */
 };
 
 #endif

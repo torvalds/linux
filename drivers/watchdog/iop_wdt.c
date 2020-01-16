@@ -24,7 +24,7 @@
 #include <linux/uaccess.h>
 #include <mach/hardware.h>
 
-static bool nowayout = WATCHDOG_NOWAYOUT;
+static bool yeswayout = WATCHDOG_NOWAYOUT;
 static unsigned long wdt_status;
 static unsigned long boot_status;
 static DEFINE_SPINLOCK(wdt_lock);
@@ -81,7 +81,7 @@ static int wdt_disable(void)
 		return 1;
 }
 
-static int iop_wdt_open(struct inode *inode, struct file *file)
+static int iop_wdt_open(struct iyesde *iyesde, struct file *file)
 {
 	if (test_and_set_bit(WDT_IN_USE, &wdt_status))
 		return -EBUSY;
@@ -89,14 +89,14 @@ static int iop_wdt_open(struct inode *inode, struct file *file)
 	clear_bit(WDT_OK_TO_CLOSE, &wdt_status);
 	wdt_enable();
 	set_bit(WDT_ENABLED, &wdt_status);
-	return stream_open(inode, file);
+	return stream_open(iyesde, file);
 }
 
 static ssize_t iop_wdt_write(struct file *file, const char *data, size_t len,
 		  loff_t *ppos)
 {
 	if (len) {
-		if (!nowayout) {
+		if (!yeswayout) {
 			size_t i;
 
 			clear_bit(WDT_OK_TO_CLOSE, &wdt_status);
@@ -148,7 +148,7 @@ static long iop_wdt_ioctl(struct file *file,
 			return -EFAULT;
 
 		if (options & WDIOS_DISABLECARD) {
-			if (!nowayout) {
+			if (!yeswayout) {
 				if (wdt_disable() == 0) {
 					set_bit(WDT_OK_TO_CLOSE, &wdt_status);
 					ret = 0;
@@ -175,14 +175,14 @@ static long iop_wdt_ioctl(struct file *file,
 	return ret;
 }
 
-static int iop_wdt_release(struct inode *inode, struct file *file)
+static int iop_wdt_release(struct iyesde *iyesde, struct file *file)
 {
 	int state = 1;
 	if (test_bit(WDT_OK_TO_CLOSE, &wdt_status))
 		if (test_bit(WDT_ENABLED, &wdt_status))
 			state = wdt_disable();
 
-	/* if the timer is not disabled reload and notify that we are still
+	/* if the timer is yest disabled reload and yestify that we are still
 	 * going down
 	 */
 	if (state != 0) {
@@ -199,7 +199,7 @@ static int iop_wdt_release(struct inode *inode, struct file *file)
 
 static const struct file_operations iop_wdt_fops = {
 	.owner = THIS_MODULE,
-	.llseek = no_llseek,
+	.llseek = yes_llseek,
 	.write = iop_wdt_write,
 	.unlocked_ioctl = iop_wdt_ioctl,
 	.compat_ioctl = compat_ptr_ioctl,
@@ -208,7 +208,7 @@ static const struct file_operations iop_wdt_fops = {
 };
 
 static struct miscdevice iop_wdt_miscdev = {
-	.minor = WATCHDOG_MINOR,
+	.miyesr = WATCHDOG_MINOR,
 	.name = "watchdog",
 	.fops = &iop_wdt_fops,
 };
@@ -225,7 +225,7 @@ static int __init iop_wdt_init(void)
 	 */
 	write_wdtsr(IOP13XX_WDTCR_IB_RESET);
 
-	/* Register after we have the device set up so we cannot race
+	/* Register after we have the device set up so we canyest race
 	   with an open */
 	ret = misc_register(&iop_wdt_miscdev);
 	if (ret == 0)
@@ -242,8 +242,8 @@ static void __exit iop_wdt_exit(void)
 module_init(iop_wdt_init);
 module_exit(iop_wdt_exit);
 
-module_param(nowayout, bool, 0);
-MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started");
+module_param(yeswayout, bool, 0);
+MODULE_PARM_DESC(yeswayout, "Watchdog canyest be stopped once started");
 
 MODULE_AUTHOR("Curt E Bruns <curt.e.bruns@intel.com>");
 MODULE_DESCRIPTION("iop watchdog timer driver");

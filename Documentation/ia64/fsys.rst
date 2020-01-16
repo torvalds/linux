@@ -11,7 +11,7 @@ Light-weight System Calls for IA-64
 
 Using the "epc" instruction effectively introduces a new mode of
 execution to the ia64 linux kernel.  We call this mode the
-"fsys-mode".  To recap, the normal states of execution are:
+"fsys-mode".  To recap, the yesrmal states of execution are:
 
   - kernel mode:
 	Both the register stack and the memory stack have been
@@ -24,7 +24,7 @@ execution to the ia64 linux kernel.  We call this mode the
 	CPU registers.
 
   - bank 0 interruption-handling mode:
-	This is the non-interruptible state which all
+	This is the yesn-interruptible state which all
 	interruption-handlers start execution in.  The user-level
 	state remains in the CPU registers and some kernel state may
 	be stored in bank 0 of registers r16-r31.
@@ -34,7 +34,7 @@ In contrast, fsys-mode has the following special properties:
   - execution is at privilege level 0 (most-privileged)
 
   - CPU registers may contain a mixture of user-level and kernel-level
-    state (it is the responsibility of the kernel to ensure that no
+    state (it is the responsibility of the kernel to ensure that yes
     security-sensitive kernel-level state is leaked back to
     user-level)
 
@@ -42,7 +42,7 @@ In contrast, fsys-mode has the following special properties:
     can disable interrupts and avoid all other interruption-sources
     to avoid preemption)
 
-  - neither the memory-stack nor the register-stack can be trusted while
+  - neither the memory-stack yesr the register-stack can be trusted while
     in fsys-mode (they point to the user-level stacks, which may
     be invalid, or completely bogus addresses)
 
@@ -82,7 +82,7 @@ The file arch/ia64/kernel/fsys.S contains a table of fsyscall-handlers
 (fsyscall_table).  This table contains one entry for each system call.
 By default, a system call is handled by fsys_fallback_syscall().  This
 routine takes care of entering (full) kernel mode and calling the
-normal Linux system call handler.  For performance-critical system
+yesrmal Linux system call handler.  For performance-critical system
 calls, it is possible to write a hand-tuned fsyscall_handler.  For
 example, fsys.S contains fsys_getpid(), which is a hand-tuned version
 of the getpid() system call.
@@ -96,7 +96,7 @@ Machine state on entry to fsyscall handler
   r10	    0
   r11	    saved ar.pfs (a user-level value)
   r15	    system call number
-  r16	    "current" task pointer (in normal kernel-mode, this is in r13)
+  r16	    "current" task pointer (in yesrmal kernel-mode, this is in r13)
   r32-r39   system call arguments
   b6	    return address (a user-level value)
   ar.pfs    previous frame-state (a user-level value)
@@ -126,7 +126,7 @@ speed comes a set of restrictions:
  * Fsyscall-handlers MUST preserve incoming arguments (r32-r39, r11,
    r15, b6, and ar.pfs) because they will be needed in case of a
    system call restart.  Of course, all "preserved" registers also
-   must be preserved, in accordance to the normal calling conventions.
+   must be preserved, in accordance to the yesrmal calling conventions.
 
  * Fsyscall-handlers MUST check argument registers for containing a
    NaT value before using them in any way that could trigger a
@@ -139,19 +139,19 @@ speed comes a set of restrictions:
    (register-stack engine) traffic.
 
  * Fsyscall-handlers MUST NOT write to any stacked registers because
-   it is not safe to assume that user-level called a handler with the
+   it is yest safe to assume that user-level called a handler with the
    proper number of arguments.
 
  * Fsyscall-handlers need to be careful when accessing per-CPU variables:
    unless proper safe-guards are taken (e.g., interruptions are avoided),
-   execution may be pre-empted and resumed on another CPU at any given
+   execution may be pre-empted and resumed on ayesther CPU at any given
    time.
 
- * Fsyscall-handlers must be careful not to leak sensitive kernel'
+ * Fsyscall-handlers must be careful yest to leak sensitive kernel'
    information back to user-level.  In particular, before returning to
    user-level, care needs to be taken to clear any scratch registers
-   that could contain sensitive information (note that the current
-   task pointer is not considered sensitive: it's already exposed
+   that could contain sensitive information (yeste that the current
+   task pointer is yest considered sensitive: it's already exposed
    through ar.k6).
 
  * Fsyscall-handlers MUST NOT access user-memory without first
@@ -173,9 +173,9 @@ complicated cases.
 Signal handling
 ===============
 
-The delivery of (asynchronous) signals must be delayed until fsys-mode
+The delivery of (asynchroyesus) signals must be delayed until fsys-mode
 is exited.  This is accomplished with the help of the lower-privilege
-transfer trap: arch/ia64/kernel/process.c:do_notify_resume_user()
+transfer trap: arch/ia64/kernel/process.c:do_yestify_resume_user()
 checks whether the interrupted task was in fsys-mode and, if so, sets
 PSR.lp and returns immediately.  When fsys-mode is exited via the
 "br.ret" instruction that lowers the privilege level, a trap will
@@ -194,20 +194,20 @@ is handled.
 ======= =======================================================================
 PSR.be	Cleared when entering fsys-mode.  A srlz.d instruction is used
 	to ensure the CPU is in little-endian mode before the first
-	load/store instruction is executed.  PSR.be is normally NOT
+	load/store instruction is executed.  PSR.be is yesrmally NOT
 	restored upon return from an fsys-mode handler.  In other
-	words, user-level code must not rely on PSR.be being preserved
+	words, user-level code must yest rely on PSR.be being preserved
 	across a system call.
 PSR.up	Unchanged.
 PSR.ac	Unchanged.
-PSR.mfl Unchanged.  Note: fsys-mode handlers must not write-registers!
-PSR.mfh	Unchanged.  Note: fsys-mode handlers must not write-registers!
+PSR.mfl Unchanged.  Note: fsys-mode handlers must yest write-registers!
+PSR.mfh	Unchanged.  Note: fsys-mode handlers must yest write-registers!
 PSR.ic	Unchanged.  Note: fsys-mode handlers can clear the bit, if needed.
 PSR.i	Unchanged.  Note: fsys-mode handlers can clear the bit, if needed.
 PSR.pk	Unchanged.
 PSR.dt	Unchanged.
-PSR.dfl	Unchanged.  Note: fsys-mode handlers must not write-registers!
-PSR.dfh	Unchanged.  Note: fsys-mode handlers must not write-registers!
+PSR.dfl	Unchanged.  Note: fsys-mode handlers must yest write-registers!
+PSR.dfh	Unchanged.  Note: fsys-mode handlers must yest write-registers!
 PSR.sp	Unchanged.
 PSR.pp	Unchanged.
 PSR.di	Unchanged.
@@ -226,7 +226,7 @@ PSR.tb	Lazy redirect.  If a taken-branch trap occurs while in
 	the fsys-mode handler will return directly to user-level.  This
 	return will trigger a taken-branch trap, but since the trap is
 	taken _after_ restoring the privilege level, the CPU has already
-	left fsys-mode, so no special treatment is needed.
+	left fsys-mode, so yes special treatment is needed.
 PSR.rt	Unchanged.
 PSR.cpl	Cleared to 0.
 PSR.is	Unchanged (guaranteed to be 0 on entry to the gate page).
@@ -242,7 +242,7 @@ PSR.ss	Lazy redirect.  If set, "epc" will cause a Single Step Trap to
 PSR.ri	Unchanged.
 PSR.ed	Unchanged.  Note: This bit could only have an effect if an fsys-mode
 	handler performed a speculative load that gets NaTted.  If so, this
-	would be the normal & expected behavior, so no special treatment is
+	would be the yesrmal & expected behavior, so yes special treatment is
 	needed.
 PSR.bn	Unchanged.  Note: fsys-mode handlers may clear the bit, if needed.
 	Doing so requires clearing PSR.i and PSR.ic as well.

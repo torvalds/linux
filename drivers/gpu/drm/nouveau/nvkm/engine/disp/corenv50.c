@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -187,7 +187,7 @@ nv50_disp_core_init(struct nv50_disp_chan *chan)
 	struct nvkm_subdev *subdev = &chan->disp->base.engine.subdev;
 	struct nvkm_device *device = subdev->device;
 
-	/* attempt to unstick channel from some unknown state */
+	/* attempt to unstick channel from some unkyeswn state */
 	if ((nvkm_rd32(device, 0x610200) & 0x009f0000) == 0x00020000)
 		nvkm_mask(device, 0x610200, 0x00800000, 0x00800000);
 	if ((nvkm_rd32(device, 0x610200) & 0x003f0000) == 0x00030000)

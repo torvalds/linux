@@ -64,7 +64,7 @@ const char acpi_gbl_upper_hex_digits[] = "0123456789ABCDEF";
  *    during the initialization sequence.
  * 2) _TZ_ is defined to be a thermal zone in order to allow ASL code to
  *    perform a Notify() operation on it. 09/2010: Changed to type Device.
- *    This still allows notifies, but does not confuse host code that
+ *    This still allows yestifies, but does yest confuse host code that
  *    searches for valid thermal_zone objects.
  */
 const struct acpi_predefined_names acpi_gbl_pre_defined_names[] = {
@@ -77,7 +77,7 @@ const struct acpi_predefined_names acpi_gbl_pre_defined_names[] = {
 	 * March, 2015:
 	 * The _REV object is in the process of being deprecated, because
 	 * other ACPI implementations permanently return 2. Thus, it
-	 * has little or no value. Return 2 for compatibility with
+	 * has little or yes value. Return 2 for compatibility with
 	 * other ACPI implementations.
 	 */
 	{"_REV", ACPI_TYPE_INTEGER, ACPI_CAST_PTR(char, 2)},

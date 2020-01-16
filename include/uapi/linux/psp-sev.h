@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0-only WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0-only WITH Linux-syscall-yeste */
 /*
  * Userspace interface for AMD Secure Encrypted Virtualization (SEV)
  * platform management commands.
@@ -68,7 +68,7 @@ typedef enum {
  * struct sev_user_data_status - PLATFORM_STATUS command parameters
  *
  * @major: major API version
- * @minor: minor API version
+ * @miyesr: miyesr API version
  * @state: platform state
  * @flags: platform config flags
  * @build: firmware build id for API version
@@ -76,7 +76,7 @@ typedef enum {
  */
 struct sev_user_data_status {
 	__u8 api_major;				/* Out */
-	__u8 api_minor;				/* Out */
+	__u8 api_miyesr;				/* Out */
 	__u8 state;				/* Out */
 	__u32 flags;				/* Out */
 	__u8 build;				/* Out */

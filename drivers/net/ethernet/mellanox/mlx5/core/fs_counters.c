@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2016, Mellayesx Techyeslogies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -51,8 +51,8 @@ struct mlx5_fc_cache {
 
 struct mlx5_fc {
 	struct list_head list;
-	struct llist_node addlist;
-	struct llist_node dellist;
+	struct llist_yesde addlist;
+	struct llist_yesde dellist;
 
 	/* last{packets,bytes} members are used when calculating the delta since
 	 * last reading
@@ -85,7 +85,7 @@ static void mlx5_fc_pool_release_counter(struct mlx5_fc_pool *fc_pool, struct ml
  *   - mlx5_fc_create() only adds to an addlist to be used by
  *     mlx5_fc_stats_work(). addlist is a lockless single linked list
  *     that doesn't require any additional synchronization when adding single
- *     node.
+ *     yesde.
  *   - spawn thread to do the actual destroy
  *
  * - destroy (user context)
@@ -93,13 +93,13 @@ static void mlx5_fc_pool_release_counter(struct mlx5_fc_pool *fc_pool, struct ml
  *   - spawn thread to do the actual del
  *
  * - dump (user context)
- *   user should not call dump after destroy
+ *   user should yest call dump after destroy
  *
  * - query (single thread workqueue context)
- *   destroy/dump - no conflict (see destroy)
- *   query/dump - packets and bytes might be inconsistent (since update is not
+ *   destroy/dump - yes conflict (see destroy)
+ *   query/dump - packets and bytes might be inconsistent (since update is yest
  *                atomic)
- *   query/create - no conflict (see create)
+ *   query/create - yes conflict (see create)
  *   since every create/destroy spawn the work, only after necessary time has
  *   elapsed, the thread will actually query the hardware.
  */
@@ -113,7 +113,7 @@ static struct list_head *mlx5_fc_counters_lookup_next(struct mlx5_core_dev *dev,
 	unsigned long tmp;
 
 	rcu_read_lock();
-	/* skip counters that are in idr, but not yet in counters list */
+	/* skip counters that are in idr, but yest yet in counters list */
 	idr_for_each_entry_continue_ul(&fc_stats->counters_idr,
 				       counter, tmp, next_id) {
 		if (!list_empty(&counter->list))
@@ -230,13 +230,13 @@ static void mlx5_fc_stats_work(struct work_struct *work)
 	struct mlx5_core_dev *dev = container_of(work, struct mlx5_core_dev,
 						 priv.fc_stats.work.work);
 	struct mlx5_fc_stats *fc_stats = &dev->priv.fc_stats;
-	/* Take dellist first to ensure that counters cannot be deleted before
+	/* Take dellist first to ensure that counters canyest be deleted before
 	 * they are inserted.
 	 */
-	struct llist_node *dellist = llist_del_all(&fc_stats->dellist);
-	struct llist_node *addlist = llist_del_all(&fc_stats->addlist);
+	struct llist_yesde *dellist = llist_del_all(&fc_stats->dellist);
+	struct llist_yesde *addlist = llist_del_all(&fc_stats->addlist);
 	struct mlx5_fc *counter = NULL, *last = NULL, *tmp;
-	unsigned long now = jiffies;
+	unsigned long yesw = jiffies;
 
 	if (addlist || !list_empty(&fc_stats->counters))
 		queue_delayed_work(fc_stats->wq, &fc_stats->work,
@@ -251,7 +251,7 @@ static void mlx5_fc_stats_work(struct work_struct *work)
 		mlx5_fc_release(dev, counter);
 	}
 
-	if (time_before(now, fc_stats->next_query) ||
+	if (time_before(yesw, fc_stats->next_query) ||
 	    list_empty(&fc_stats->counters))
 		return;
 	last = list_last_entry(&fc_stats->counters, struct mlx5_fc, list);
@@ -261,7 +261,7 @@ static void mlx5_fc_stats_work(struct work_struct *work)
 	if (counter)
 		mlx5_fc_stats_query_counter_range(dev, counter, last->id);
 
-	fc_stats->next_query = now + fc_stats->sampling_interval;
+	fc_stats->next_query = yesw + fc_stats->sampling_interval;
 }
 
 static struct mlx5_fc *mlx5_fc_single_alloc(struct mlx5_core_dev *dev)
@@ -398,7 +398,7 @@ err_wq_create:
 void mlx5_cleanup_fc_stats(struct mlx5_core_dev *dev)
 {
 	struct mlx5_fc_stats *fc_stats = &dev->priv.fc_stats;
-	struct llist_node *tmplist;
+	struct llist_yesde *tmplist;
 	struct mlx5_fc *counter;
 	struct mlx5_fc *tmp;
 
@@ -625,7 +625,7 @@ mlx5_fc_pool_free_bulk(struct mlx5_fc_pool *fc_pool, struct mlx5_fc_bulk *bulk)
 static struct mlx5_fc *
 mlx5_fc_pool_acquire_from_list(struct list_head *src_list,
 			       struct list_head *next_list,
-			       bool move_non_full_bulk)
+			       bool move_yesn_full_bulk)
 {
 	struct mlx5_fc_bulk *bulk;
 	struct mlx5_fc *fc;
@@ -635,7 +635,7 @@ mlx5_fc_pool_acquire_from_list(struct list_head *src_list,
 
 	bulk = list_first_entry(src_list, struct mlx5_fc_bulk, pool_list);
 	fc = mlx5_fc_bulk_acquire_fc(bulk);
-	if (move_non_full_bulk || mlx5_fc_bulk_get_free_fcs_amount(bulk) == 0)
+	if (move_yesn_full_bulk || mlx5_fc_bulk_get_free_fcs_amount(bulk) == 0)
 		list_move(&bulk->pool_list, next_list);
 	return fc;
 }
@@ -681,7 +681,7 @@ mlx5_fc_pool_release_counter(struct mlx5_fc_pool *fc_pool, struct mlx5_fc *fc)
 	mutex_lock(&fc_pool->pool_lock);
 
 	if (mlx5_fc_bulk_release_fc(bulk, fc)) {
-		mlx5_core_warn(dev, "Attempted to release a counter which is not acquired\n");
+		mlx5_core_warn(dev, "Attempted to release a counter which is yest acquired\n");
 		goto unlock;
 	}
 

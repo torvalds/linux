@@ -3,7 +3,7 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright yestice and this permission yestice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
@@ -67,7 +67,7 @@ static void ath9k_beaconq_config(struct ath_softc *sc)
 /*
  *  Associates the beacon frame buffer with a transmit descriptor.  Will set
  *  up rate codes, and channel flags. Beacons are always sent out at the
- *  lowest rate, and are not retried.
+ *  lowest rate, and are yest retried.
 */
 static void ath9k_beacon_setup(struct ath_softc *sc, struct ieee80211_vif *vif,
 			     struct ath_buf *bf, int rateidx)
@@ -150,7 +150,7 @@ static struct ath_buf *ath9k_beacon_generate(struct ieee80211_hw *hw,
 
 	/* Always assign NOA attr when MCC enabled */
 	if (ath9k_is_chanctx_enabled())
-		ath9k_beacon_add_noa(sc, avp, skb);
+		ath9k_beacon_add_yesa(sc, avp, skb);
 
 	bf->bf_buf_addr = dma_map_single(sc->dev, skb->data,
 					 skb->len, DMA_TO_DEVICE);
@@ -397,15 +397,15 @@ void ath9k_beacon_tasklet(unsigned long data)
 
 	if (test_bit(ATH_OP_HW_RESET, &common->op_flags)) {
 		ath_dbg(common, RESET,
-			"reset work is pending, skip beaconing now\n");
+			"reset work is pending, skip beaconing yesw\n");
 		return;
 	}
 
 	/*
 	 * Check if the previous beacon has gone out.  If
-	 * not don't try to post another, skip this period
+	 * yest don't try to post ayesther, skip this period
 	 * and wait for the next.  Missed beacons indicate
-	 * a problem and should not occur.  If we miss too
+	 * a problem and should yest occur.  If we miss too
 	 * many consecutive beacons reset the device.
 	 */
 	if (ath9k_hw_numtxpending(ah, sc->beacon.beaconq) != 0) {
@@ -414,7 +414,7 @@ void ath9k_beacon_tasklet(unsigned long data)
 		ath9k_hw_check_nav(ah);
 
 		/*
-		 * If the previous beacon has not been transmitted
+		 * If the previous beacon has yest been transmitted
 		 * and a MAC/BB hang has been identified, return
 		 * here because a chip reset would have been
 		 * initiated.
@@ -468,11 +468,11 @@ void ath9k_beacon_tasklet(unsigned long data)
 	}
 
 	/*
-	 * Handle slot time change when a non-ERP station joins/leaves
-	 * an 11g network.  The 802.11 layer notifies us via callback,
+	 * Handle slot time change when a yesn-ERP station joins/leaves
+	 * an 11g network.  The 802.11 layer yestifies us via callback,
 	 * we mark updateslot, then wait one beacon before effecting
 	 * the change.  This gives associated stations at least one
-	 * beacon interval to note the state change.
+	 * beacon interval to yeste the state change.
 	 *
 	 * NB: The slot time change state machine is clocked according
 	 *     to whether we are bursting or staggering beacons.  We
@@ -481,7 +481,7 @@ void ath9k_beacon_tasklet(unsigned long data)
 	 *     again.  If we miss a beacon for that slot then we'll be
 	 *     slow to transition but we'll be sure at least one beacon
 	 *     interval has passed.  When bursting slot is always left
-	 *     set to ATH_BCBUF so this check is a noop.
+	 *     set to ATH_BCBUF so this check is a yesop.
 	 */
 	if (sc->beacon.updateslot == UPDATE) {
 		sc->beacon.updateslot = COMMIT;
@@ -536,7 +536,7 @@ static void ath9k_beacon_stop(struct ath_softc *sc)
 /*
  * For multi-bss ap support beacons are either staggered evenly over N slots or
  * burst together.  For the former arrange for the SWBA to be delivered for each
- * slot. Slots that are not occupied will generate nothing.
+ * slot. Slots that are yest occupied will generate yesthing.
  */
 static void ath9k_beacon_config_ap(struct ath_softc *sc,
 				   struct ath_beacon_config *conf)
@@ -665,7 +665,7 @@ void ath9k_beacon_config(struct ath_softc *sc, struct ieee80211_vif *main_vif,
 	 */
 	if (cur_conf->beacon_interval) {
 		/* Special case to sync the TSF when joining an existing IBSS.
-		 * This is only done if no AP interface is active.
+		 * This is only done if yes AP interface is active.
 		 * Note that mac80211 always resets the TSF when creating a new
 		 * IBSS interface.
 		 */
@@ -678,7 +678,7 @@ void ath9k_beacon_config(struct ath_softc *sc, struct ieee80211_vif *main_vif,
 		}
 
 		/*
-		 * Do not set the ATH_OP_BEACONS flag for IBSS joiner mode
+		 * Do yest set the ATH_OP_BEACONS flag for IBSS joiner mode
 		 * here, it is done in ath9k_beacon_config_adhoc().
 		 */
 		if (beacons && !skip_beacon) {

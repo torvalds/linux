@@ -10,7 +10,7 @@
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright yestice and this permission yestice (including the
  * next paragraph) shall be included in all copies or substantial
  * portions of the Software.
  *
@@ -100,7 +100,7 @@ struct virtio_gpu_fence_driver {
 struct virtio_gpu_fence {
 	struct dma_fence f;
 	struct virtio_gpu_fence_driver *drv;
-	struct list_head node;
+	struct list_head yesde;
 };
 #define to_virtio_fence(x) \
 	container_of(x, struct virtio_gpu_fence, f)
@@ -175,7 +175,7 @@ struct virtio_gpu_device {
 	struct virtio_device *vdev;
 
 	struct virtio_gpu_output outputs[VIRTIO_GPU_MAX_SCANOUTS];
-	uint32_t num_scanouts;
+	uint32_t num_scayesuts;
 
 	struct virtio_gpu_queue ctrlq;
 	struct virtio_gpu_queue cursorq;
@@ -275,8 +275,8 @@ void virtio_gpu_cmd_resource_flush(struct virtio_gpu_device *vgdev,
 				   uint32_t resource_id,
 				   uint32_t x, uint32_t y,
 				   uint32_t width, uint32_t height);
-void virtio_gpu_cmd_set_scanout(struct virtio_gpu_device *vgdev,
-				uint32_t scanout_id, uint32_t resource_id,
+void virtio_gpu_cmd_set_scayesut(struct virtio_gpu_device *vgdev,
+				uint32_t scayesut_id, uint32_t resource_id,
 				uint32_t width, uint32_t height,
 				uint32_t x, uint32_t y);
 int virtio_gpu_object_attach(struct virtio_gpu_device *vgdev,
@@ -373,10 +373,10 @@ struct drm_gem_object *virtgpu_gem_prime_import_sg_table(
 
 static inline u64 virtio_gpu_object_mmap_offset(struct virtio_gpu_object *bo)
 {
-	return drm_vma_node_offset_addr(&bo->base.base.vma_node);
+	return drm_vma_yesde_offset_addr(&bo->base.base.vma_yesde);
 }
 
 /* virgl debufs */
-int virtio_gpu_debugfs_init(struct drm_minor *minor);
+int virtio_gpu_debugfs_init(struct drm_miyesr *miyesr);
 
 #endif

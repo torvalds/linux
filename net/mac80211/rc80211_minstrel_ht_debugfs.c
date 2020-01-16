@@ -22,7 +22,7 @@ minstrel_stats_read(struct file *file, char __user *buf, size_t len, loff_t *ppo
 }
 
 static int
-minstrel_stats_release(struct inode *inode, struct file *file)
+minstrel_stats_release(struct iyesde *iyesde, struct file *file)
 {
 	kfree(file->private_data);
 	return 0;
@@ -118,9 +118,9 @@ minstrel_ht_stats_dump(struct minstrel_ht_sta *mi, int i, char *p)
 }
 
 static int
-minstrel_ht_stats_open(struct inode *inode, struct file *file)
+minstrel_ht_stats_open(struct iyesde *iyesde, struct file *file)
 {
-	struct minstrel_ht_sta_priv *msp = inode->i_private;
+	struct minstrel_ht_sta_priv *msp = iyesde->i_private;
 	struct minstrel_ht_sta *mi = &msp->ht;
 	struct minstrel_debugfs_info *ms;
 	unsigned int i;
@@ -128,9 +128,9 @@ minstrel_ht_stats_open(struct inode *inode, struct file *file)
 	char *p;
 
 	if (!msp->is_ht) {
-		inode->i_private = &msp->legacy;
-		ret = minstrel_stats_open(inode, file);
-		inode->i_private = msp;
+		iyesde->i_private = &msp->legacy;
+		ret = minstrel_stats_open(iyesde, file);
+		iyesde->i_private = msp;
 		return ret;
 	}
 
@@ -164,7 +164,7 @@ minstrel_ht_stats_open(struct inode *inode, struct file *file)
 	ms->len = p - ms->buf;
 	WARN_ON(ms->len + sizeof(*ms) > 32768);
 
-	return nonseekable_open(inode, file);
+	return yesnseekable_open(iyesde, file);
 }
 
 static const struct file_operations minstrel_ht_stat_fops = {
@@ -172,7 +172,7 @@ static const struct file_operations minstrel_ht_stat_fops = {
 	.open = minstrel_ht_stats_open,
 	.read = minstrel_stats_read,
 	.release = minstrel_stats_release,
-	.llseek = no_llseek,
+	.llseek = yes_llseek,
 };
 
 static char *
@@ -268,9 +268,9 @@ minstrel_ht_stats_csv_dump(struct minstrel_ht_sta *mi, int i, char *p)
 }
 
 static int
-minstrel_ht_stats_csv_open(struct inode *inode, struct file *file)
+minstrel_ht_stats_csv_open(struct iyesde *iyesde, struct file *file)
 {
-	struct minstrel_ht_sta_priv *msp = inode->i_private;
+	struct minstrel_ht_sta_priv *msp = iyesde->i_private;
 	struct minstrel_ht_sta *mi = &msp->ht;
 	struct minstrel_debugfs_info *ms;
 	unsigned int i;
@@ -278,9 +278,9 @@ minstrel_ht_stats_csv_open(struct inode *inode, struct file *file)
 	char *p;
 
 	if (!msp->is_ht) {
-		inode->i_private = &msp->legacy;
-		ret = minstrel_stats_csv_open(inode, file);
-		inode->i_private = msp;
+		iyesde->i_private = &msp->legacy;
+		ret = minstrel_stats_csv_open(iyesde, file);
+		iyesde->i_private = msp;
 		return ret;
 	}
 
@@ -302,7 +302,7 @@ minstrel_ht_stats_csv_open(struct inode *inode, struct file *file)
 	ms->len = p - ms->buf;
 	WARN_ON(ms->len + sizeof(*ms) > 32768);
 
-	return nonseekable_open(inode, file);
+	return yesnseekable_open(iyesde, file);
 }
 
 static const struct file_operations minstrel_ht_stat_csv_fops = {
@@ -310,7 +310,7 @@ static const struct file_operations minstrel_ht_stat_csv_fops = {
 	.open = minstrel_ht_stats_csv_open,
 	.read = minstrel_stats_read,
 	.release = minstrel_stats_release,
-	.llseek = no_llseek,
+	.llseek = yes_llseek,
 };
 
 void

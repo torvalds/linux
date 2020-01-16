@@ -18,14 +18,14 @@
 #include "toptree.h"
 
 /**
- * toptree_alloc - Allocate and initialize a new tree node.
- * @level: The node's vertical level; level 0 contains the leaves.
- * @id: ID number, explicitly not unique beyond scope of node's siblings
+ * toptree_alloc - Allocate and initialize a new tree yesde.
+ * @level: The yesde's vertical level; level 0 contains the leaves.
+ * @id: ID number, explicitly yest unique beyond scope of yesde's siblings
  *
- * Allocate a new tree node and initialize it.
+ * Allocate a new tree yesde and initialize it.
  *
  * RETURNS:
- * Pointer to the new tree node or NULL on error
+ * Pointer to the new tree yesde or NULL on error
  */
 struct toptree __ref *toptree_alloc(int level, int id)
 {
@@ -47,10 +47,10 @@ struct toptree __ref *toptree_alloc(int level, int id)
 }
 
 /**
- * toptree_remove - Remove a tree node from a tree
- * @cand: Pointer to the node to remove
+ * toptree_remove - Remove a tree yesde from a tree
+ * @cand: Pointer to the yesde to remove
  *
- * The node is detached from its parent node. The parent node's
+ * The yesde is detached from its parent yesde. The parent yesde's
  * masks will be updated to reflect the loss of the child.
  */
 static void toptree_remove(struct toptree *cand)
@@ -64,10 +64,10 @@ static void toptree_remove(struct toptree *cand)
 }
 
 /**
- * toptree_free - discard a tree node
- * @cand: Pointer to the tree node to discard
+ * toptree_free - discard a tree yesde
+ * @cand: Pointer to the tree yesde to discard
  *
- * Checks if @cand is attached to a parent node. Detaches it
+ * Checks if @cand is attached to a parent yesde. Detaches it
  * cleanly using toptree_remove. Possible children are freed
  * recursively. In the end @cand itself is freed.
  */
@@ -86,15 +86,15 @@ void __ref toptree_free(struct toptree *cand)
 }
 
 /**
- * toptree_update_mask - Update node bitmasks
- * @cand: Pointer to a tree node
+ * toptree_update_mask - Update yesde bitmasks
+ * @cand: Pointer to a tree yesde
  *
- * The node's cpumask will be updated by combining all children's
+ * The yesde's cpumask will be updated by combining all children's
  * masks. Then toptree_update_mask is called recursively for the
  * parent if applicable.
  *
  * NOTE:
- * This must not be called on leaves. If called on a leaf, its
+ * This must yest be called on leaves. If called on a leaf, its
  * CPU mask is cleared and lost.
  */
 void toptree_update_mask(struct toptree *cand)
@@ -109,14 +109,14 @@ void toptree_update_mask(struct toptree *cand)
 }
 
 /**
- * toptree_insert - Insert a tree node into tree
- * @cand: Pointer to the node to insert
- * @target: Pointer to the node to which @cand will added as a child
+ * toptree_insert - Insert a tree yesde into tree
+ * @cand: Pointer to the yesde to insert
+ * @target: Pointer to the yesde to which @cand will added as a child
  *
- * Insert a tree node into a tree. Masks will be updated automatically.
+ * Insert a tree yesde into a tree. Masks will be updated automatically.
  *
  * RETURNS:
- * 0 on success, -1 if NULL is passed as argument or the node levels
+ * 0 on success, -1 if NULL is passed as argument or the yesde levels
  * don't fit.
  */
 static int toptree_insert(struct toptree *cand, struct toptree *target)
@@ -132,11 +132,11 @@ static int toptree_insert(struct toptree *cand, struct toptree *target)
 }
 
 /**
- * toptree_move_children - Move all child nodes of a node to a new place
- * @cand: Pointer to the node whose children are to be moved
- * @target: Pointer to the node to which @cand's children will be attached
+ * toptree_move_children - Move all child yesdes of a yesde to a new place
+ * @cand: Pointer to the yesde whose children are to be moved
+ * @target: Pointer to the yesde to which @cand's children will be attached
  *
- * Take all child nodes of @cand and move them using toptree_move.
+ * Take all child yesdes of @cand and move them using toptree_move.
  */
 static void toptree_move_children(struct toptree *cand, struct toptree *target)
 {
@@ -148,17 +148,17 @@ static void toptree_move_children(struct toptree *cand, struct toptree *target)
 
 /**
  * toptree_unify - Merge children with same ID
- * @cand: Pointer to node whose direct children should be made unique
+ * @cand: Pointer to yesde whose direct children should be made unique
  *
- * When mangling the tree it is possible that a node has two or more children
+ * When mangling the tree it is possible that a yesde has two or more children
  * which have the same ID. This routine merges these children into one and
- * moves all children of the merged nodes into the unified node.
+ * moves all children of the merged yesdes into the unified yesde.
  */
 void toptree_unify(struct toptree *cand)
 {
 	struct toptree *child, *tmp, *cand_copy;
 
-	/* Threads cannot be split, cores are not split */
+	/* Threads canyest be split, cores are yest split */
 	if (cand->level < 2)
 		return;
 
@@ -180,19 +180,19 @@ void toptree_unify(struct toptree *cand)
 }
 
 /**
- * toptree_move - Move a node to another context
- * @cand: Pointer to the node to move
- * @target: Pointer to the node where @cand should go
+ * toptree_move - Move a yesde to ayesther context
+ * @cand: Pointer to the yesde to move
+ * @target: Pointer to the yesde where @cand should go
  *
  * In the easiest case @cand is exactly on the level below @target
  * and will be immediately moved to the target.
  *
- * If @target's level is not the direct parent level of @cand,
- * nodes for the missing levels are created and put between
- * @cand and @target. The "stacking" nodes' IDs are taken from
+ * If @target's level is yest the direct parent level of @cand,
+ * yesdes for the missing levels are created and put between
+ * @cand and @target. The "stacking" yesdes' IDs are taken from
  * @cand's parents.
  *
- * After this it is likely to have redundant nodes in the tree
+ * After this it is likely to have redundant yesdes in the tree
  * which are addressed by means of toptree_unify.
  */
 void toptree_move(struct toptree *cand, struct toptree *target)
@@ -225,12 +225,12 @@ void toptree_move(struct toptree *cand, struct toptree *target)
 }
 
 /**
- * toptree_get_child - Access a tree node's child by its ID
- * @cand: Pointer to tree node whose child is to access
+ * toptree_get_child - Access a tree yesde's child by its ID
+ * @cand: Pointer to tree yesde whose child is to access
  * @id: The desired child's ID
  *
  * @cand's children are searched for a child with matching ID.
- * If no match can be found, a new child with the desired ID
+ * If yes match can be found, a new child with the desired ID
  * is created and returned.
  */
 struct toptree *toptree_get_child(struct toptree *cand, int id)
@@ -247,12 +247,12 @@ struct toptree *toptree_get_child(struct toptree *cand, int id)
 
 /**
  * toptree_first - Find the first descendant on specified level
- * @context: Pointer to tree node whose descendants are to be used
+ * @context: Pointer to tree yesde whose descendants are to be used
  * @level: The level of interest
  *
  * RETURNS:
  * @context's first descendant on the specified level, or NULL
- * if there is no matching descendant
+ * if there is yes matching descendant
  */
 struct toptree *toptree_first(struct toptree *context, int level)
 {
@@ -273,11 +273,11 @@ struct toptree *toptree_first(struct toptree *context, int level)
 
 /**
  * toptree_next_sibling - Return next sibling
- * @cur: Pointer to a tree node
+ * @cur: Pointer to a tree yesde
  *
  * RETURNS:
- * If @cur has a parent and is not the last in the parent's children list,
- * the next sibling is returned. Or NULL when there are no siblings left.
+ * If @cur has a parent and is yest the last in the parent's children list,
+ * the next sibling is returned. Or NULL when there are yes siblings left.
  */
 static struct toptree *toptree_next_sibling(struct toptree *cur)
 {
@@ -293,13 +293,13 @@ static struct toptree *toptree_next_sibling(struct toptree *cur)
 /**
  * toptree_next - Tree traversal function
  * @cur: Pointer to current element
- * @context: Pointer to the root node of the tree or subtree to
+ * @context: Pointer to the root yesde of the tree or subtree to
  * be traversed.
  * @level: The level of interest.
  *
  * RETURNS:
- * Pointer to the next node on level @level
- * or NULL when there is no next node.
+ * Pointer to the next yesde on level @level
+ * or NULL when there is yes next yesde.
  */
 struct toptree *toptree_next(struct toptree *cur, struct toptree *context,
 			     int level)
@@ -334,7 +334,7 @@ struct toptree *toptree_next(struct toptree *cur, struct toptree *context,
 
 /**
  * toptree_count - Count descendants on specified level
- * @context: Pointer to node whose descendants are to be considered
+ * @context: Pointer to yesde whose descendants are to be considered
  * @level: Only descendants on the specified level will be counted
  *
  * RETURNS:

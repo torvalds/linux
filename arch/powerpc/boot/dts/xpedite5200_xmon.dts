@@ -385,7 +385,7 @@
 			3 0x0 0xe8010000 0x00010000	// NAND CE2
 		>;
 
-		nor-boot@0,0 {
+		yesr-boot@0,0 {
 			#address-cells = <1>;
 			#size-cells = <1>;
 			compatible = "cfi-flash";
@@ -410,7 +410,7 @@
 			};
 		};
 
-		nor-alternate@1,0 {
+		yesr-alternate@1,0 {
 			#address-cells = <1>;
 			#size-cells = <1>;
 			compatible = "cfi-flash";

@@ -1,5 +1,5 @@
 /*
- * Copyright 1998-2003 VIA Technologies, Inc. All Rights Reserved.
+ * Copyright 1998-2003 VIA Techyeslogies, Inc. All Rights Reserved.
  * Copyright 2001-2003 S3 Graphics, Inc. All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
@@ -9,7 +9,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright yestice and this permission yestice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
  *
@@ -116,7 +116,7 @@ struct via_file_private {
 
 enum via_family {
   VIA_OTHER = 0,     /* Baseline */
-  VIA_PRO_GROUP_A,   /* Another video engine and DMA commands */
+  VIA_PRO_GROUP_A,   /* Ayesther video engine and DMA commands */
   VIA_DX9_0          /* Same video as pro_group_a, but 3D is unsupported */
 };
 
@@ -151,7 +151,7 @@ static inline void via_write8_mask(struct drm_via_private *dev_priv,
 /*
  * Poll in a loop waiting for 'contidition' to be true.
  * Note: A direct replacement with wait_event_interruptible_timeout()
- *       will not work unless driver is updated to emit wake_up()
+ *       will yest work unless driver is updated to emit wake_up()
  *       in relevant places that can impact the 'condition'
  *
  * Returns:

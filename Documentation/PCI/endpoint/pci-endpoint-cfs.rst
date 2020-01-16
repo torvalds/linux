@@ -17,7 +17,7 @@ Mounting configfs
 The PCI Endpoint Core layer creates pci_ep directory in the mounted configfs
 directory. configfs can be mounted using the following command::
 
-	mount -t configfs none /sys/kernel/config
+	mount -t configfs yesne /sys/kernel/config
 
 Directory Structure
 ===================

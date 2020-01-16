@@ -55,7 +55,7 @@ static void sctp_chunk_assign_mid(struct sctp_chunk *chunk)
 	if (chunk->has_mid)
 		return;
 
-	sid = sctp_chunk_stream_no(chunk);
+	sid = sctp_chunk_stream_yes(chunk);
 	stream = &chunk->asoc->stream;
 
 	list_for_each_entry(lchunk, &chunk->msg->chunks, frag_list) {
@@ -96,7 +96,7 @@ static bool sctp_validate_data(struct sctp_chunk *chunk)
 		return true;
 
 	stream = &chunk->asoc->stream;
-	sid = sctp_chunk_stream_no(chunk);
+	sid = sctp_chunk_stream_yes(chunk);
 	ssn = ntohs(chunk->subh.data_hdr->ssn);
 
 	return !SSN_lt(ssn, sctp_ssn_peek(stream, in, sid));
@@ -115,7 +115,7 @@ static bool sctp_validate_idata(struct sctp_chunk *chunk)
 		return true;
 
 	stream = &chunk->asoc->stream;
-	sid = sctp_chunk_stream_no(chunk);
+	sid = sctp_chunk_stream_yes(chunk);
 	mid = ntohl(chunk->subh.idata_hdr->mid);
 
 	return !MID_lt(mid, sctp_mid_peek(stream, in, sid));
@@ -481,10 +481,10 @@ static int sctp_enqueue_event(struct sctp_ulpq *ulpq,
 
 	if (sk->sk_shutdown & RCV_SHUTDOWN &&
 	    (sk->sk_shutdown & SEND_SHUTDOWN ||
-	     !sctp_ulpevent_is_notification(event)))
+	     !sctp_ulpevent_is_yestification(event)))
 		goto out_free;
 
-	if (!sctp_ulpevent_is_notification(event)) {
+	if (!sctp_ulpevent_is_yestification(event)) {
 		sk_mark_napi_id(sk, skb);
 		sk_incoming_cpu_update(sk);
 	}

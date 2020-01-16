@@ -1,5 +1,5 @@
 /*
- * Synopsys DDR ECC Driver
+ * Syyespsys DDR ECC Driver
  * This driver is based on ppc4xx_edac.c drivers
  *
  * Copyright (C) 2012 - 2014 Xilinx, Inc.
@@ -42,7 +42,7 @@
 #define SYNPS_EDAC_MOD_STRING		"synps_edac"
 #define SYNPS_EDAC_MOD_VER		"1"
 
-/* Synopsys DDR memory controller registers that are relevant to ECC */
+/* Syyespsys DDR memory controller registers that are relevant to ECC */
 #define CTRL_OFST			0x0
 #define T_ZQ_OFST			0xA4
 
@@ -352,7 +352,7 @@ struct synps_platform_data {
  * zynq_get_error_info - Get the current ECC error info.
  * @priv:	DDR memory controller private instance data.
  *
- * Return: one if there is no error, otherwise zero.
+ * Return: one if there is yes error, otherwise zero.
  */
 static int zynq_get_error_info(struct synps_edac_priv *priv)
 {
@@ -407,7 +407,7 @@ out:
  * zynqmp_get_error_info - Get the current ECC error info.
  * @priv:	DDR memory controller private instance data.
  *
- * Return: one if there is no error otherwise returns zero.
+ * Return: one if there is yes error otherwise returns zero.
  */
 static int zynqmp_get_error_info(struct synps_edac_priv *priv)
 {
@@ -466,7 +466,7 @@ out:
 /**
  * handle_error - Handle Correctable and Uncorrectable errors.
  * @mci:	EDAC memory controller instance.
- * @p:		Synopsys ECC status structure.
+ * @p:		Syyespsys ECC status structure.
  *
  * Handles ECC correctable and uncorrectable errors.
  */
@@ -529,7 +529,7 @@ static void handle_error(struct mem_ctl_info *mci, struct synps_ecc_status *p)
  * @irq:        IRQ number.
  * @dev_id:     Device ID.
  *
- * Return: IRQ_NONE, if interrupt not set or IRQ_HANDLED otherwise.
+ * Return: IRQ_NONE, if interrupt yest set or IRQ_HANDLED otherwise.
  */
 static irqreturn_t intr_handler(int irq, void *dev_id)
 {
@@ -716,7 +716,7 @@ static u32 get_memsize(void)
 
 /**
  * zynq_get_mtype - Return the controller memory type.
- * @base:	Synopsys ECC status structure.
+ * @base:	Syyespsys ECC status structure.
  *
  * Get the EDAC memory type appropriate for the current controller
  * configuration.
@@ -740,7 +740,7 @@ static enum mem_type zynq_get_mtype(const void __iomem *base)
 
 /**
  * zynqmp_get_mtype - Returns controller memory type.
- * @base:	Synopsys ECC status structure.
+ * @base:	Syyespsys ECC status structure.
  *
  * Get the EDAC memory type appropriate for the current controller
  * configuration.
@@ -922,7 +922,7 @@ MODULE_DEVICE_TABLE(of, synps_edac_match);
  * @priv:		DDR memory controller private instance data.
  *
  * Update poison registers as per DDR mapping.
- * Return: none.
+ * Return: yesne.
  */
 static void ddr_poison_setup(struct synps_edac_priv *priv)
 {
@@ -1257,7 +1257,7 @@ static void setup_rank_address_map(struct synps_edac_priv *priv, u32 *addrmap)
  *
  * Set Address Map by querying ADDRMAP registers.
  *
- * Return: none.
+ * Return: yesne.
  */
 static void setup_address_map(struct synps_edac_priv *priv)
 {
@@ -1312,7 +1312,7 @@ static int mc_probe(struct platform_device *pdev)
 		return -ENODEV;
 
 	if (!p_data->get_ecc_state(baseaddr)) {
-		edac_printk(KERN_INFO, EDAC_MC, "ECC not enabled\n");
+		edac_printk(KERN_INFO, EDAC_MC, "ECC yest enabled\n");
 		return -ENXIO;
 	}
 
@@ -1359,7 +1359,7 @@ static int mc_probe(struct platform_device *pdev)
 		}
 	}
 
-	if (of_device_is_compatible(pdev->dev.of_node,
+	if (of_device_is_compatible(pdev->dev.of_yesde,
 				    "xlnx,zynqmp-ddrc-2.40a"))
 		setup_address_map(priv);
 #endif
@@ -1406,7 +1406,7 @@ static int mc_remove(struct platform_device *pdev)
 
 static struct platform_driver synps_edac_mc_driver = {
 	.driver = {
-		   .name = "synopsys-edac",
+		   .name = "syyespsys-edac",
 		   .of_match_table = synps_edac_match,
 		   },
 	.probe = mc_probe,
@@ -1416,5 +1416,5 @@ static struct platform_driver synps_edac_mc_driver = {
 module_platform_driver(synps_edac_mc_driver);
 
 MODULE_AUTHOR("Xilinx Inc");
-MODULE_DESCRIPTION("Synopsys DDR ECC driver");
+MODULE_DESCRIPTION("Syyespsys DDR ECC driver");
 MODULE_LICENSE("GPL v2");

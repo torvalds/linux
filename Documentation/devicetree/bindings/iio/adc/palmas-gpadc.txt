@@ -22,7 +22,7 @@ Required properties:
 - compatible : Must be "ti,palmas-gpadc".
 - #io-channel-cells: Should be set to <1>.
 
-Optional sub-nodes:
+Optional sub-yesdes:
 ti,channel0-current-microamp: Channel 0 current in uA.
 	Values are rounded to derive 0uA, 5uA, 15uA, 20uA.
 ti,channel3-current-microamp: Channel 3 current in uA.

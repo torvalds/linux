@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -160,7 +160,7 @@ struct amdgpu_display_manager {
 	/**
 	 * @audio_component:
 	 *
-	 * Used to notify ELD changes to sound driver.
+	 * Used to yestify ELD changes to sound driver.
 	 */
 	struct drm_audio_component *audio_component;
 
@@ -192,7 +192,7 @@ struct amdgpu_display_manager {
 	 * High priority IRQ handler table.
 	 *
 	 * It is a n*m table, same as &irq_handler_list_low_tab. However,
-	 * handlers in this table are not deferred and are called immediately.
+	 * handlers in this table are yest deferred and are called immediately.
 	 */
 	struct list_head irq_handler_list_high_tab[DAL_IRQ_SOURCES_NUMBER];
 
@@ -245,7 +245,7 @@ struct amdgpu_display_manager {
 	/**
 	 * @soc_bounding_box:
 	 *
-	 * gpu_info FW provided soc bounding box struct or 0 if not
+	 * gpu_info FW provided soc bounding box struct or 0 if yest
 	 * available in FW
 	 */
 	const struct gpu_info_soc_bounding_box_v1_0 *soc_bounding_box;

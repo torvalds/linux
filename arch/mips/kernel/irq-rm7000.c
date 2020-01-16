@@ -2,7 +2,7 @@
 /*
  * Copyright (C) 2003 Ralf Baechle
  *
- * Handler for RM7000 extended interrupts.  These are a non-standard
+ * Handler for RM7000 extended interrupts.  These are a yesn-standard
  * feature so we handle them separately from standard interrupts.
  */
 #include <linux/init.h>

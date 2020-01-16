@@ -10,7 +10,7 @@
 #include <linux/module.h>
 #include <linux/interrupt.h>
 #include <linux/delay.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/io.h>
 #include <linux/clk.h>
 #include <linux/err.h>
@@ -53,7 +53,7 @@
 #define U300_GPIO_PXICR_IRQ_CONFIG_FALLING_EDGE		(0x00000000UL)
 #define U300_GPIO_PXICR_IRQ_CONFIG_RISING_EDGE		(0x00000001UL)
 
-/* 8 bits per port, no version has more than 7 ports */
+/* 8 bits per port, yes version has more than 7 ports */
 #define U300_GPIO_NUM_PORTS 7
 #define U300_GPIO_PINS_PER_PORT 8
 #define U300_GPIO_MAX (U300_GPIO_PINS_PER_PORT * U300_GPIO_NUM_PORTS)
@@ -240,7 +240,7 @@ static int u300_gpio_direction_input(struct gpio_chip *chip, unsigned offset)
 
 	local_irq_save(flags);
 	val = readl(U300_PIN_REG(offset, pcr));
-	/* Mask out this pin, note 2 bits per setting */
+	/* Mask out this pin, yeste 2 bits per setting */
 	val &= ~(U300_GPIO_PXPCR_PIN_MODE_MASK << ((offset & 0x07) << 1));
 	writel(val, U300_PIN_REG(offset, pcr));
 	local_irq_restore(flags);
@@ -259,7 +259,7 @@ static int u300_gpio_direction_output(struct gpio_chip *chip, unsigned offset,
 	val = readl(U300_PIN_REG(offset, pcr));
 	/*
 	 * Drive mode must be set by the special mode set function, set
-	 * push/pull mode by default if no mode has been selected.
+	 * push/pull mode by default if yes mode has been selected.
 	 */
 	oldmode = val & (U300_GPIO_PXPCR_PIN_MODE_MASK <<
 			 ((offset & 0x07) << 1));
@@ -276,7 +276,7 @@ static int u300_gpio_direction_output(struct gpio_chip *chip, unsigned offset,
 	return 0;
 }
 
-/* Returning -EINVAL means "supported but not available" */
+/* Returning -EINVAL means "supported but yest available" */
 int u300_gpio_config_get(struct gpio_chip *chip,
 			 unsigned offset,
 			 unsigned long *config)
@@ -405,12 +405,12 @@ static void u300_toggle_trigger(struct u300_gpio *gpio, unsigned offset)
 	val = readl(U300_PIN_REG(offset, icr));
 	/* Set mode depending on state */
 	if (u300_gpio_get(&gpio->chip, offset)) {
-		/* High now, let's trigger on falling edge next then */
+		/* High yesw, let's trigger on falling edge next then */
 		writel(val & ~U300_PIN_BIT(offset), U300_PIN_REG(offset, icr));
 		dev_dbg(gpio->dev, "next IRQ on falling edge on pin %d\n",
 			offset);
 	} else {
-		/* Low now, let's trigger on rising edge next then */
+		/* Low yesw, let's trigger on rising edge next then */
 		writel(val | U300_PIN_BIT(offset), U300_PIN_REG(offset, icr));
 		dev_dbg(gpio->dev, "next IRQ on rising edge on pin %d\n",
 			offset);
@@ -429,7 +429,7 @@ static int u300_gpio_irq_type(struct irq_data *d, unsigned trigger)
 	    (trigger & IRQF_TRIGGER_FALLING)) {
 		/*
 		 * The GPIO block can only trigger on falling OR rising edges,
-		 * not both. So we need to toggle the mode whenever the pin
+		 * yest both. So we need to toggle the mode whenever the pin
 		 * goes from one state to the other with a special state flag
 		 */
 		dev_dbg(gpio->dev,
@@ -499,24 +499,24 @@ static void u300_gpio_irq_handler(struct irq_desc *desc)
 	struct gpio_chip *chip = irq_desc_get_handler_data(desc);
 	struct u300_gpio *gpio = gpiochip_get_data(chip);
 	struct u300_gpio_port *port = &gpio->ports[irq - chip->base];
-	int pinoffset = port->number << 3; /* get the right stride */
+	int piyesffset = port->number << 3; /* get the right stride */
 	unsigned long val;
 
 	chained_irq_enter(parent_chip, desc);
 
 	/* Read event register */
-	val = readl(U300_PIN_REG(pinoffset, iev));
+	val = readl(U300_PIN_REG(piyesffset, iev));
 	/* Mask relevant bits */
 	val &= 0xFFU; /* 8 bits per port */
 	/* ACK IRQ (clear event) */
-	writel(val, U300_PIN_REG(pinoffset, iev));
+	writel(val, U300_PIN_REG(piyesffset, iev));
 
 	/* Call IRQ handler */
 	if (val != 0) {
 		int irqoffset;
 
 		for_each_set_bit(irqoffset, &val, U300_GPIO_PINS_PER_PORT) {
-			int offset = pinoffset + irqoffset;
+			int offset = piyesffset + irqoffset;
 			int pin_irq = irq_find_mapping(chip->irq.domain, offset);
 
 			dev_dbg(gpio->dev, "GPIO IRQ %d on pin %d\n",
@@ -617,7 +617,7 @@ static int __init u300_gpio_probe(struct platform_device *pdev)
 	struct u300_gpio *gpio;
 	struct gpio_irq_chip *girq;
 	int err = 0;
-	int portno;
+	int portyes;
 	u32 val;
 	u32 ifr;
 	int i;
@@ -639,13 +639,13 @@ static int __init u300_gpio_probe(struct platform_device *pdev)
 	gpio->clk = devm_clk_get(gpio->dev, NULL);
 	if (IS_ERR(gpio->clk)) {
 		err = PTR_ERR(gpio->clk);
-		dev_err(gpio->dev, "could not get GPIO clock\n");
+		dev_err(gpio->dev, "could yest get GPIO clock\n");
 		return err;
 	}
 
 	err = clk_prepare_enable(gpio->clk);
 	if (err) {
-		dev_err(gpio->dev, "could not enable GPIO clock\n");
+		dev_err(gpio->dev, "could yest enable GPIO clock\n");
 		return err;
 	}
 
@@ -682,23 +682,23 @@ static int __init u300_gpio_probe(struct platform_device *pdev)
 		err = -ENOMEM;
 		goto err_dis_clk;
 	}
-	for (portno = 0 ; portno < U300_GPIO_NUM_PORTS; portno++) {
-		struct u300_gpio_port *port = &gpio->ports[portno];
+	for (portyes = 0 ; portyes < U300_GPIO_NUM_PORTS; portyes++) {
+		struct u300_gpio_port *port = &gpio->ports[portyes];
 
-		snprintf(port->name, 8, "gpio%d", portno);
-		port->number = portno;
+		snprintf(port->name, 8, "gpio%d", portyes);
+		port->number = portyes;
 		port->gpio = gpio;
 
-		port->irq = platform_get_irq(pdev, portno);
-		girq->parents[portno] = port->irq;
+		port->irq = platform_get_irq(pdev, portyes);
+		girq->parents[portyes] = port->irq;
 
 		/* Turns off irq force (test register) for this port */
-		writel(0x0, gpio->base + portno * gpio->stride + ifr);
+		writel(0x0, gpio->base + portyes * gpio->stride + ifr);
 	}
 	girq->default_type = IRQ_TYPE_EDGE_FALLING;
 	girq->handler = handle_simple_irq;
 #ifdef CONFIG_OF_GPIO
-	gpio->chip.of_node = pdev->dev.of_node;
+	gpio->chip.of_yesde = pdev->dev.of_yesde;
 #endif
 	err = gpiochip_add_data(&gpio->chip, gpio);
 	if (err) {
@@ -716,14 +716,14 @@ static int __init u300_gpio_probe(struct platform_device *pdev)
 		err = gpiochip_add_pin_range(&gpio->chip, "pinctrl-u300",
 					     p->offset, p->pin_base, 1);
 		if (err)
-			goto err_no_range;
+			goto err_yes_range;
 	}
 
 	platform_set_drvdata(pdev, gpio);
 
 	return 0;
 
-err_no_range:
+err_yes_range:
 	gpiochip_remove(&gpio->chip);
 err_dis_clk:
 	clk_disable_unprepare(gpio->clk);

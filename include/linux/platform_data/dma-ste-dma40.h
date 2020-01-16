@@ -124,7 +124,7 @@ struct stedma40_chan_cfg {
  * @dev_tx: mapping between destination event line and io address
  * @dev_rx: mapping between source event line and io address
  * @disabled_channels: A vector, ending with -1, that marks physical channels
- * that are for different reasons not available for the driver.
+ * that are for different reasons yest available for the driver.
  * @soft_lli_chans: A vector, that marks physical channels will use LLI by SW
  * which avoids HW bug that exists in some versions of the controller.
  * SoftLLI introduces relink overhead that could impact performace for

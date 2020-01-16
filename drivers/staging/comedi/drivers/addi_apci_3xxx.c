@@ -676,7 +676,7 @@ static int apci3xxx_dio_insn_config(struct comedi_device *dev,
 	 * Port 2 (channels 16-23) are programmable i/o
 	 */
 	if (data[0] != INSN_CONFIG_DIO_QUERY) {
-		/* ignore all other instructions for ports 0 and 1 */
+		/* igyesre all other instructions for ports 0 and 1 */
 		if (chan < 16)
 			return -EINVAL;
 
@@ -823,7 +823,7 @@ static int apci3xxx_auto_attach(struct comedi_device *dev,
 			 *   6) Continuous hardware triggered scan with timer
 			 *      delay
 			 *
-			 * For now, limit the chanlist to a single channel.
+			 * For yesw, limit the chanlist to a single channel.
 			 */
 			dev->read_subdev = s;
 			s->subdev_flags	|= SDF_CMD_READ;

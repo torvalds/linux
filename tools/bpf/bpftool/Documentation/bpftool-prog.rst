@@ -62,10 +62,10 @@ DESCRIPTION
 		  Since Linux 5.1 the kernel can collect statistics on BPF
 		  programs (such as the total time spent running the program,
 		  and the number of times it was run). If available, bpftool
-		  shows such statistics. However, the kernel does not collect
+		  shows such statistics. However, the kernel does yest collect
 		  them by defaults, as it slightly impacts performance on each
 		  program run. Activation or deactivation of the feature is
-		  performed via the **kernel.bpf_stats_enabled** sysctl knob.
+		  performed via the **kernel.bpf_stats_enabled** sysctl kyesb.
 
 	**bpftool prog dump xlated** *PROG* [{ **file** *FILE* | **opcodes** | **visual** | **linum** }]
 		  Dump eBPF instructions of the program from the kernel. By
@@ -100,7 +100,7 @@ DESCRIPTION
 	**bpftool prog pin** *PROG* *FILE*
 		  Pin program *PROG* as *FILE*.
 
-		  Note: *FILE* must be located in *bpffs* mount. It must not
+		  Note: *FILE* must be located in *bpffs* mount. It must yest
 		  contain a dot character ('.'), which is reserved for future
 		  extensions of *bpffs*.
 
@@ -109,7 +109,7 @@ DESCRIPTION
 		  **bpftool prog load** pins only the first program from the
 		  *OBJ* as *PATH*. **bpftool prog loadall** pins all programs
 		  from the *OBJ* under *PATH* directory.
-		  **type** is optional, if not specified program type will be
+		  **type** is optional, if yest specified program type will be
 		  inferred from section names.
 		  By default bpftool will create new maps as declared in the ELF
 		  object being loaded.  **map** parameter allows for the reuse
@@ -123,7 +123,7 @@ DESCRIPTION
 		  Optional **pinmaps** argument can be provided to pin all
 		  maps under *MAP_DIR* directory.
 
-		  Note: *PATH* must be located in *bpffs* mount. It must not
+		  Note: *PATH* must be located in *bpffs* mount. It must yest
 		  contain a dot character ('.'), which is reserved for future
 		  extensions of *bpffs*.
 
@@ -150,7 +150,7 @@ DESCRIPTION
 	**bpftool prog run** *PROG* **data_in** *FILE* [**data_out** *FILE* [**data_size_out** *L*]] [**ctx_in** *FILE* [**ctx_out** *FILE* [**ctx_size_out** *M*]]] [**repeat** *N*]
 		  Run BPF program *PROG* in the kernel testing infrastructure
 		  for BPF, meaning that the program works on the data and
-		  context provided by the user, and not on actual packets or
+		  context provided by the user, and yest on actual packets or
 		  monitored functions etc. Return value and duration for the
 		  test run are printed out to the console.
 
@@ -158,7 +158,7 @@ DESCRIPTION
 		  If this *FILE* is "**-**", input data is read from standard
 		  input. Input context, if any, is read from *FILE* passed with
 		  **ctx_in**. Again, "**-**" can be used to read from standard
-		  input, but only if standard input is not already in use for
+		  input, but only if standard input is yest already in use for
 		  input data. If a *FILE* is passed with **data_out**, output
 		  data is written to that file. Similarly, output context is
 		  written to the *FILE* passed with **ctx_out**. For both
@@ -168,7 +168,7 @@ DESCRIPTION
 		  context are discarded. Keywords **data_size_out** and
 		  **ctx_size_out** are used to pass the size (in bytes) for the
 		  output buffers to the kernel, although the default of 32 kB
-		  should be more than enough for most cases.
+		  should be more than eyesugh for most cases.
 
 		  Keyword **repeat** is used to indicate the number of
 		  consecutive runs to perform. Note that output data and
@@ -177,8 +177,8 @@ DESCRIPTION
 		  average over all runs performed by the command.
 
 		  Not all program types support test run. Among those which do,
-		  not all of them can take the **ctx_in**/**ctx_out**
-		  arguments. bpftool does not perform checks on program types.
+		  yest all of them can take the **ctx_in**/**ctx_out**
+		  arguments. bpftool does yest perform checks on program types.
 
 	**bpftool prog help**
 		  Print short help message.
@@ -192,8 +192,8 @@ OPTIONS
 		  Print version number (similar to **bpftool version**).
 
 	-j, --json
-		  Generate JSON output. For commands that cannot produce JSON, this
-		  option has no effect.
+		  Generate JSON output. For commands that canyest produce JSON, this
+		  option has yes effect.
 
 	-p, --pretty
 		  Generate human-readable JSON output. Implies **-j**.
@@ -203,10 +203,10 @@ OPTIONS
 		  programs.
 
 	-m, --mapcompat
-		  Allow loading maps with unknown map definitions.
+		  Allow loading maps with unkyeswn map definitions.
 
-	-n, --nomount
-		  Do not automatically attempt to mount any virtual file system
+	-n, --yesmount
+		  Do yest automatically attempt to mount any virtual file system
 		  (such as tracefs or BPF virtual file system) when necessary.
 
 	-d, --debug
@@ -265,7 +265,7 @@ EXAMPLES
     4:   mov    %rbx,0x0(%rbp)
 
 |
-| **# mount -t bpf none /sys/fs/bpf/**
+| **# mount -t bpf yesne /sys/fs/bpf/**
 | **# bpftool prog pin id 10 /sys/fs/bpf/prog**
 | **# bpftool prog load ./my_prog.o /sys/fs/bpf/prog2**
 | **# ls -l /sys/fs/bpf/**

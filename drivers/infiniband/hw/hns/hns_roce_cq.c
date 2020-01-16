@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -393,7 +393,7 @@ int hns_roce_create_cq(struct ib_cq *ib_cq, const struct ib_cq_init_attr *attr,
 
 	/*
 	 * For the QP created by kernel space, tptr value should be initialized
-	 * to zero; For the QP created by user space, it will cause synchronous
+	 * to zero; For the QP created by user space, it will cause synchroyesus
 	 * problems if tptr is set to zero here, so we initialze it in user
 	 * space.
 	 */

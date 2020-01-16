@@ -186,7 +186,7 @@ static int atl1c_get_eeprom(struct net_device *netdev,
 	if (eeprom->len == 0)
 		return -EINVAL;
 
-	if (!atl1c_check_eeprom_exist(hw)) /* not exist */
+	if (!atl1c_check_eeprom_exist(hw)) /* yest exist */
 		return -EINVAL;
 
 	eeprom->magic = adapter->pdev->vendor |

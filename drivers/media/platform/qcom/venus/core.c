@@ -23,7 +23,7 @@
 #include "venc.h"
 #include "firmware.h"
 
-static void venus_event_notify(struct venus_core *core, u32 event)
+static void venus_event_yestify(struct venus_core *core, u32 event)
 {
 	struct venus_inst *inst;
 
@@ -38,10 +38,10 @@ static void venus_event_notify(struct venus_core *core, u32 event)
 	mutex_lock(&core->lock);
 	core->sys_error = true;
 	list_for_each_entry(inst, &core->instances, list)
-		inst->ops->event_notify(inst, EVT_SESSION_ERROR, NULL);
+		inst->ops->event_yestify(inst, EVT_SESSION_ERROR, NULL);
 	mutex_unlock(&core->lock);
 
-	disable_irq_nosync(core->irq);
+	disable_irq_yessync(core->irq);
 
 	/*
 	 * Delay recovery to ensure venus has completed any pending cache
@@ -52,7 +52,7 @@ static void venus_event_notify(struct venus_core *core, u32 event)
 }
 
 static const struct hfi_core_ops venus_core_ops = {
-	.event_notify = venus_event_notify,
+	.event_yestify = venus_event_yestify,
 };
 
 static void venus_sys_error_handler(struct work_struct *work)
@@ -89,7 +89,7 @@ static void venus_sys_error_handler(struct work_struct *work)
 	pm_runtime_put_sync(core->dev);
 
 	if (ret) {
-		disable_irq_nosync(core->irq);
+		disable_irq_yessync(core->irq);
 		dev_warn(core->dev, "recovery failed (%d)\n", ret);
 		schedule_delayed_work(&core->work, msecs_to_jiffies(10));
 		return;
@@ -296,7 +296,7 @@ static int venus_probe(struct platform_device *pdev)
 	if (ret < 0)
 		goto err_runtime_disable;
 
-	ret = of_platform_populate(dev->of_node, NULL, NULL, dev);
+	ret = of_platform_populate(dev->of_yesde, NULL, NULL, dev);
 	if (ret)
 		goto err_runtime_disable;
 

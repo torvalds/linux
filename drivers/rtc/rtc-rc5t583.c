@@ -7,7 +7,7 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/types.h>
@@ -50,7 +50,7 @@ static int rc5t583_rtc_alarm_irq_enable(struct device *dev, unsigned enabled)
 /*
  * Gets current rc5t583 RTC time and date parameters.
  *
- * The RTC's time/alarm representation is not what gmtime(3) requires
+ * The RTC's time/alarm representation is yest what gmtime(3) requires
  * Linux to use:
  *
  *  - Months are 1..12 vs Linux 0-11
@@ -232,7 +232,7 @@ static int rc5t583_rtc_probe(struct platform_device *pdev)
 	pmic_plat_data = dev_get_platdata(rc5t583->dev);
 	irq = pmic_plat_data->irq_base;
 	if (irq <= 0) {
-		dev_warn(&pdev->dev, "Wake up is not possible as irq = %d\n",
+		dev_warn(&pdev->dev, "Wake up is yest possible as irq = %d\n",
 			irq);
 		return ret;
 	}
@@ -242,7 +242,7 @@ static int rc5t583_rtc_probe(struct platform_device *pdev)
 		rc5t583_rtc_interrupt, IRQF_TRIGGER_LOW,
 		"rtc-rc5t583", &pdev->dev);
 	if (ret < 0) {
-		dev_err(&pdev->dev, "IRQ is not free.\n");
+		dev_err(&pdev->dev, "IRQ is yest free.\n");
 		return ret;
 	}
 	device_init_wakeup(&pdev->dev, 1);

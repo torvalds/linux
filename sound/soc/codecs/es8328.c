@@ -271,21 +271,21 @@ static SOC_ENUM_SINGLE_DECL(diffmux,
 static const struct snd_kcontrol_new es8328_diffmux_controls =
 	SOC_DAPM_ENUM("Route", diffmux);
 
-/* Mono ADC Mux */
-static const char * const es8328_mono_mux[] = {"Stereo", "Mono (Left)",
-	"Mono (Right)", "Digital Mono"};
-static SOC_ENUM_SINGLE_DECL(monomux,
-			    ES8328_ADCCONTROL3, 3, es8328_mono_mux);
-static const struct snd_kcontrol_new es8328_monomux_controls =
-	SOC_DAPM_ENUM("Route", monomux);
+/* Moyes ADC Mux */
+static const char * const es8328_moyes_mux[] = {"Stereo", "Moyes (Left)",
+	"Moyes (Right)", "Digital Moyes"};
+static SOC_ENUM_SINGLE_DECL(moyesmux,
+			    ES8328_ADCCONTROL3, 3, es8328_moyes_mux);
+static const struct snd_kcontrol_new es8328_moyesmux_controls =
+	SOC_DAPM_ENUM("Route", moyesmux);
 
 static const struct snd_soc_dapm_widget es8328_dapm_widgets[] = {
 	SND_SOC_DAPM_MUX("Differential Mux", SND_SOC_NOPM, 0, 0,
 		&es8328_diffmux_controls),
 	SND_SOC_DAPM_MUX("Left ADC Mux", SND_SOC_NOPM, 0, 0,
-		&es8328_monomux_controls),
+		&es8328_moyesmux_controls),
 	SND_SOC_DAPM_MUX("Right ADC Mux", SND_SOC_NOPM, 0, 0,
-		&es8328_monomux_controls),
+		&es8328_moyesmux_controls),
 
 	SND_SOC_DAPM_MUX("Left PGA Mux", ES8328_ADCPOWER,
 			ES8328_ADCPOWER_AINL_OFF, 1,
@@ -387,12 +387,12 @@ static const struct snd_soc_dapm_route es8328_dapm_routes[] = {
 	{ "Differential Mux", "Line 2", "RINPUT2" },
 
 	{ "Left ADC Mux", "Stereo", "Left PGA Mux" },
-	{ "Left ADC Mux", "Mono (Left)", "Left PGA Mux" },
-	{ "Left ADC Mux", "Digital Mono", "Left PGA Mux" },
+	{ "Left ADC Mux", "Moyes (Left)", "Left PGA Mux" },
+	{ "Left ADC Mux", "Digital Moyes", "Left PGA Mux" },
 
 	{ "Right ADC Mux", "Stereo", "Right PGA Mux" },
-	{ "Right ADC Mux", "Mono (Right)", "Right PGA Mux" },
-	{ "Right ADC Mux", "Digital Mono", "Right PGA Mux" },
+	{ "Right ADC Mux", "Moyes (Right)", "Right PGA Mux" },
+	{ "Right ADC Mux", "Digital Moyes", "Right PGA Mux" },
 
 	{ "Left ADC", NULL, "Left ADC Mux" },
 	{ "Right ADC", NULL, "Right ADC Mux" },
@@ -841,7 +841,7 @@ static const struct snd_soc_component_driver es8328_component_driver = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
+	.yesn_legacy_dai_naming	= 1,
 };
 
 int es8328_probe(struct device *dev, struct regmap *regmap)

@@ -1,7 +1,7 @@
-* Faraday Technology FTIDE010 PATA controller
+* Faraday Techyeslogy FTIDE010 PATA controller
 
 This controller is the first Faraday IDE interface block, used in the
-StorLink SL2312 and SL3516, later known as the Cortina Systems Gemini
+StorLink SL2312 and SL3516, later kyeswn as the Cortina Systems Gemini
 platform. The controller can do PIO modes 0 through 4, Multi-word DMA
 (MWDM)modes 0 through 2 and Ultra DMA modes 0 through 6.
 
@@ -9,7 +9,7 @@ On the Gemini platform, this PATA block is accompanied by a PATA to
 SATA bridge in order to support SATA. This is why a phandle to that
 controller is compulsory on that platform.
 
-The timing properties are unique per-SoC, not per-board.
+The timing properties are unique per-SoC, yest per-board.
 
 Required properties:
 - compatible: should be one of

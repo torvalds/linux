@@ -29,7 +29,7 @@
 // #define MEM_MAPPED_IO	/* use memory mapped I/O */
 
 
-#define USE_CAN_ADDR		/* DA and SA in MAC header are canonical. */
+#define USE_CAN_ADDR		/* DA and SA in MAC header are cayesnical. */
 
 #define MB_OUTSIDE_SMC		/* SMT Mbufs outside of smc struct. */
 
@@ -38,10 +38,10 @@
 
 // SMT Definitions 
 // -----------------------
-#define SYNC	       		/* allow synchronous frames */
+#define SYNC	       		/* allow synchroyesus frames */
 
-// #define SBA			/* Synchronous Bandwidth Allocator support */
-				/* not available as free source */
+// #define SBA			/* Synchroyesus Bandwidth Allocator support */
+				/* yest available as free source */
 
 #define ESS			/* SBA End Station Support */
 
@@ -69,10 +69,10 @@
 // Number of SMT buffers (Mbufs).
 #define NUM_SMT_BUF	4
 
-// Number of TXDs for asynchronous transmit queue.
+// Number of TXDs for asynchroyesus transmit queue.
 #define HWM_ASYNC_TXD_COUNT	(NUM_TRANSMIT_BUFFERS + NUM_SMT_BUF)
 
-// Number of TXDs for synchronous transmit queue.
+// Number of TXDs for synchroyesus transmit queue.
 #define HWM_SYNC_TXD_COUNT	HWM_ASYNC_TXD_COUNT
 
 
@@ -113,7 +113,7 @@ struct s_rxd_os {	// os-specific part of receive descriptor
 
 
 /*
- * So we do not need to make too many modifications to the generic driver
+ * So we do yest need to make too many modifications to the generic driver
  * parts, we take advantage of the AIX byte swapping macro interface.
  */
 

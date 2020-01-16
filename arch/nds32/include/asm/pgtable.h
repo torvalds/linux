@@ -1,10 +1,10 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-// Copyright (C) 2005-2017 Andes Technology Corporation
+// Copyright (C) 2005-2017 Andes Techyeslogy Corporation
 
 #ifndef _ASMNDS32_PGTABLE_H
 #define _ASMNDS32_PGTABLE_H
 
-#include <asm-generic/pgtable-nopmd.h>
+#include <asm-generic/pgtable-yespmd.h>
 #include <linux/sizes.h>
 
 #include <asm/memory.h>
@@ -42,7 +42,7 @@ extern void __pgd_error(const char *file, int line, unsigned long val);
 /*
  * This is the lowest virtual address we can permit any user space
  * mapping to be mapped at.  This is particularly important for
- * non-high vector CPUs.
+ * yesn-high vector CPUs.
  */
 #define FIRST_USER_ADDRESS	0x8000
 
@@ -182,7 +182,7 @@ extern void paging_init(void);
 #define pte_pfn(pte)		(pte_val(pte) >> PAGE_SHIFT)
 #define pfn_pte(pfn,prot)	(__pte(((pfn) << PAGE_SHIFT) | pgprot_val(prot)))
 
-#define pte_none(pte)	        !(pte_val(pte))
+#define pte_yesne(pte)	        !(pte_val(pte))
 #define pte_clear(mm,addr,ptep)	set_pte_at((mm),(addr),(ptep), __pte(0))
 #define pte_page(pte)		(pfn_to_page(pte_pfn(pte)))
 
@@ -229,7 +229,7 @@ static inline void set_pte(pte_t * ptep, pte_t pte)
 
 /*
  * The following only work if pte_present() is true.
- * Undefined behaviour if not..
+ * Undefined behaviour if yest..
  */
 
 /*
@@ -255,7 +255,7 @@ static inline void set_pte(pte_t * ptep, pte_t pte)
 #define pte_young(pte)		(pte_val(pte) & _PAGE_YOUNG)
 
 /*
- * The following only works if pte_present() is not true.
+ * The following only works if pte_present() is yest true.
  */
 #define pte_file(pte)		(pte_val(pte) & _PAGE_FILE)
 #define pte_to_pgoff(x)		(pte_val(x) >> 2)
@@ -299,12 +299,12 @@ static inline pte_t pte_mkspecial(pte_t pte)
 /*
  * Mark the prot value as uncacheable and unbufferable.
  */
-#define pgprot_noncached(prot)	   __pgprot((pgprot_val(prot)&~_PAGE_C_MASK) | _PAGE_C_DEV)
+#define pgprot_yesncached(prot)	   __pgprot((pgprot_val(prot)&~_PAGE_C_MASK) | _PAGE_C_DEV)
 #define pgprot_writecombine(prot)  __pgprot((pgprot_val(prot)&~_PAGE_C_MASK) | _PAGE_C_DEV_WB)
 
-#define pmd_none(pmd)         (pmd_val(pmd)&0x1)
-#define pmd_present(pmd)      (!pmd_none(pmd))
-#define	pmd_bad(pmd)	      pmd_none(pmd)
+#define pmd_yesne(pmd)         (pmd_val(pmd)&0x1)
+#define pmd_present(pmd)      (!pmd_yesne(pmd))
+#define	pmd_bad(pmd)	      pmd_yesne(pmd)
 
 #define copy_pmd(pmdpd,pmdps)	set_pmd((pmdpd), *(pmdps))
 #define pmd_clear(pmdp)		set_pmd((pmdp), __pmd(1))
@@ -341,7 +341,7 @@ static inline pmd_t __mk_pmd(pte_t * ptep, unsigned long prot)
  * setup: the pgd is never bad, and a pmd always exists (as it's folded
  * into the pgd entry)
  */
-#define pgd_none(pgd)		(0)
+#define pgd_yesne(pgd)		(0)
 #define pgd_bad(pgd)		(0)
 #define pgd_present(pgd)  	(1)
 #define pgd_clear(pgdp)		do { } while (0)
@@ -380,7 +380,7 @@ extern pgd_t swapper_pg_dir[PTRS_PER_PGD];
 #define __pte_to_swp_entry(pte)	     ((swp_entry_t) { pte_val(pte) })
 #define __swp_entry_to_pte(swp)	     ((pte_t) { (swp).val })
 
-/* Needs to be defined here and not in linux/mm.h, as it is arch dependent */
+/* Needs to be defined here and yest in linux/mm.h, as it is arch dependent */
 #define kern_addr_valid(addr)	(1)
 
 #include <asm-generic/pgtable.h>

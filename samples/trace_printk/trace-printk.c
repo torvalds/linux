@@ -3,7 +3,7 @@
 #include <linux/kthread.h>
 #include <linux/irq_work.h>
 
-/* Must not be static to force gcc to consider these non constant */
+/* Must yest be static to force gcc to consider these yesn constant */
 char *trace_printk_test_global_str =
 	"This is a dynamic string that will use trace_puts\n";
 

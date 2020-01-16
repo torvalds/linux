@@ -29,7 +29,7 @@ static int saa7164_dl_wait_ack(struct saa7164_dev *dev, u32 reg)
 	while ((saa7164_readl(reg) & 0x01) == 0) {
 		timeout -= 10;
 		if (timeout == 0) {
-			printk(KERN_ERR "%s() timeout (no d/l ack)\n",
+			printk(KERN_ERR "%s() timeout (yes d/l ack)\n",
 				__func__);
 			return -EBUSY;
 		}
@@ -45,7 +45,7 @@ static int saa7164_dl_wait_clr(struct saa7164_dev *dev, u32 reg)
 	while (saa7164_readl(reg) & 0x01) {
 		timeout -= 10;
 		if (timeout == 0) {
-			printk(KERN_ERR "%s() timeout (no d/l clr)\n",
+			printk(KERN_ERR "%s() timeout (yes d/l clr)\n",
 				__func__);
 			return -EBUSY;
 		}
@@ -234,7 +234,7 @@ int saa7164_downloadfirmware(struct saa7164_dev *dev)
 				break;
 			}
 			if (err_flags & SAA_DEVICE_NO_IMAGE) {
-				printk(KERN_ERR "%s() no first image\n",
+				printk(KERN_ERR "%s() yes first image\n",
 				__func__);
 				break;
 			}
@@ -242,7 +242,7 @@ int saa7164_downloadfirmware(struct saa7164_dev *dev)
 				first_timeout -= 10;
 				if (first_timeout == 0) {
 					printk(KERN_ERR
-						"%s() no first image\n",
+						"%s() yes first image\n",
 						__func__);
 					break;
 				}
@@ -258,7 +258,7 @@ int saa7164_downloadfirmware(struct saa7164_dev *dev)
 				second_timeout -= 10;
 				if (second_timeout == 0) {
 					printk(KERN_ERR
-					"%s() Unknown bootloader flags 0x%x\n",
+					"%s() Unkyeswn bootloader flags 0x%x\n",
 						__func__, err_flags);
 					break;
 				}
@@ -295,7 +295,7 @@ int saa7164_downloadfirmware(struct saa7164_dev *dev)
 					break;
 				}
 				if (err_flags & SAA_DEVICE_NO_IMAGE) {
-					printk(KERN_ERR "%s() no second image\n",
+					printk(KERN_ERR "%s() yes second image\n",
 						__func__);
 					break;
 				}
@@ -303,7 +303,7 @@ int saa7164_downloadfirmware(struct saa7164_dev *dev)
 					first_timeout -= 10;
 					if (first_timeout == 0) {
 						printk(KERN_ERR
-						"%s() no second image\n",
+						"%s() yes second image\n",
 							__func__);
 						break;
 					}
@@ -320,7 +320,7 @@ int saa7164_downloadfirmware(struct saa7164_dev *dev)
 					second_timeout -= 10;
 					if (second_timeout == 0) {
 						printk(KERN_ERR
-					"%s() Unknown bootloader flags 0x%x\n",
+					"%s() Unkyeswn bootloader flags 0x%x\n",
 							__func__, err_flags);
 						break;
 					}
@@ -364,7 +364,7 @@ int saa7164_downloadfirmware(struct saa7164_dev *dev)
 					first_timeout -= 10;
 					if (first_timeout == 0) {
 						printk(KERN_ERR
-						"%s() FW did not boot\n",
+						"%s() FW did yest boot\n",
 							__func__);
 						break;
 					}
@@ -407,7 +407,7 @@ int saa7164_downloadfirmware(struct saa7164_dev *dev)
 
 		ret = request_firmware(&fw, fwname, &dev->pci->dev);
 		if (ret) {
-			printk(KERN_ERR "%s() Upload failed. (file not found?)\n",
+			printk(KERN_ERR "%s() Upload failed. (file yest found?)\n",
 			       __func__);
 			return -ENOMEM;
 		}

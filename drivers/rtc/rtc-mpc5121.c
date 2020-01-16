@@ -60,7 +60,7 @@ struct mpc5121_rtc_regs {
 	/*
 	 * target_time:
 	 *	intended to be used for hibernation but hibernation
-	 *	does not work on silicon rev 1.5 so use it for non-volatile
+	 *	does yest work on silicon rev 1.5 so use it for yesn-volatile
 	 *	storage of offset between the actual_time register and linux
 	 *	time
 	 */
@@ -104,14 +104,14 @@ static int mpc5121_rtc_read_time(struct device *dev, struct rtc_time *tm)
 {
 	struct mpc5121_rtc_data *rtc = dev_get_drvdata(dev);
 	struct mpc5121_rtc_regs __iomem *regs = rtc->regs;
-	unsigned long now;
+	unsigned long yesw;
 
 	/*
 	 * linux time is actual_time plus the offset saved in target_time
 	 */
-	now = in_be32(&regs->actual_time) + in_be32(&regs->target_time);
+	yesw = in_be32(&regs->actual_time) + in_be32(&regs->target_time);
 
-	rtc_time_to_tm(now, tm);
+	rtc_time_to_tm(yesw, tm);
 
 	/*
 	 * update second minute hour registers
@@ -127,15 +127,15 @@ static int mpc5121_rtc_set_time(struct device *dev, struct rtc_time *tm)
 	struct mpc5121_rtc_data *rtc = dev_get_drvdata(dev);
 	struct mpc5121_rtc_regs __iomem *regs = rtc->regs;
 	int ret;
-	unsigned long now;
+	unsigned long yesw;
 
 	/*
 	 * The actual_time register is read only so we write the offset
 	 * between it and linux time to the target_time register.
 	 */
-	ret = rtc_tm_to_time(tm, &now);
+	ret = rtc_tm_to_time(tm, &yesw);
 	if (ret == 0)
-		out_be32(&regs->target_time, now - in_be32(&regs->actual_time));
+		out_be32(&regs->target_time, yesw - in_be32(&regs->actual_time));
 
 	/*
 	 * update second minute hour registers
@@ -213,7 +213,7 @@ static int mpc5121_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 	struct mpc5121_rtc_regs __iomem *regs = rtc->regs;
 
 	/*
-	 * the alarm has no seconds so deal with it
+	 * the alarm has yes seconds so deal with it
 	 */
 	if (alarm->time.tm_sec) {
 		alarm->time.tm_sec = 0;
@@ -245,7 +245,7 @@ static irqreturn_t mpc5121_rtc_handler(int irq, void *dev)
 	struct mpc5121_rtc_regs __iomem *regs = rtc->regs;
 
 	if (in_8(&regs->int_alm)) {
-		/* acknowledge and clear status */
+		/* ackyeswledge and clear status */
 		out_8(&regs->int_alm, 1);
 		out_8(&regs->alm_status, 1);
 
@@ -262,7 +262,7 @@ static irqreturn_t mpc5121_rtc_handler_upd(int irq, void *dev)
 	struct mpc5121_rtc_regs __iomem *regs = rtc->regs;
 
 	if (in_8(&regs->int_sec) && (in_8(&regs->int_enable) & 0x1)) {
-		/* acknowledge */
+		/* ackyeswledge */
 		out_8(&regs->int_sec, 1);
 
 		rtc_update_irq(rtc->rtc, 1, RTC_IRQF | RTC_UF);
@@ -315,7 +315,7 @@ static int mpc5121_rtc_probe(struct platform_device *op)
 	if (!rtc)
 		return -ENOMEM;
 
-	rtc->regs = of_iomap(op->dev.of_node, 0);
+	rtc->regs = of_iomap(op->dev.of_yesde, 0);
 	if (!rtc->regs) {
 		dev_err(&op->dev, "%s: couldn't map io space\n", __func__);
 		return -ENOSYS;
@@ -325,25 +325,25 @@ static int mpc5121_rtc_probe(struct platform_device *op)
 
 	platform_set_drvdata(op, rtc);
 
-	rtc->irq = irq_of_parse_and_map(op->dev.of_node, 1);
+	rtc->irq = irq_of_parse_and_map(op->dev.of_yesde, 1);
 	err = request_irq(rtc->irq, mpc5121_rtc_handler, 0,
 						"mpc5121-rtc", &op->dev);
 	if (err) {
-		dev_err(&op->dev, "%s: could not request irq: %i\n",
+		dev_err(&op->dev, "%s: could yest request irq: %i\n",
 							__func__, rtc->irq);
 		goto out_dispose;
 	}
 
-	rtc->irq_periodic = irq_of_parse_and_map(op->dev.of_node, 0);
+	rtc->irq_periodic = irq_of_parse_and_map(op->dev.of_yesde, 0);
 	err = request_irq(rtc->irq_periodic, mpc5121_rtc_handler_upd,
 				0, "mpc5121-rtc_upd", &op->dev);
 	if (err) {
-		dev_err(&op->dev, "%s: could not request irq: %i\n",
+		dev_err(&op->dev, "%s: could yest request irq: %i\n",
 						__func__, rtc->irq_periodic);
 		goto out_dispose2;
 	}
 
-	if (of_device_is_compatible(op->dev.of_node, "fsl,mpc5121-rtc")) {
+	if (of_device_is_compatible(op->dev.of_yesde, "fsl,mpc5121-rtc")) {
 		u32 ka;
 		ka = in_be32(&rtc->regs->keep_alive);
 		if (ka & 0x02) {
@@ -384,7 +384,7 @@ static int mpc5121_rtc_remove(struct platform_device *op)
 	struct mpc5121_rtc_data *rtc = platform_get_drvdata(op);
 	struct mpc5121_rtc_regs __iomem *regs = rtc->regs;
 
-	/* disable interrupt, so there are no nasty surprises */
+	/* disable interrupt, so there are yes nasty surprises */
 	out_8(&regs->alm_enable, 0);
 	out_8(&regs->int_enable, in_8(&regs->int_enable) & ~0x1);
 

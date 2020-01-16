@@ -156,62 +156,62 @@ static int snd_rk_mc_probe(struct platform_device *pdev)
 {
 	int ret = 0;
 	struct snd_soc_card *card = &snd_soc_card_rk;
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 
 	/* register the soc card */
 	card->dev = &pdev->dev;
 
-	rk_dailink.codecs->of_node = of_parse_phandle(np,
+	rk_dailink.codecs->of_yesde = of_parse_phandle(np,
 			"rockchip,audio-codec", 0);
-	if (!rk_dailink.codecs->of_node) {
+	if (!rk_dailink.codecs->of_yesde) {
 		dev_err(&pdev->dev,
 			"Property 'rockchip,audio-codec' missing or invalid\n");
 		return -EINVAL;
 	}
 
-	rk_dailink.cpus->of_node = of_parse_phandle(np,
+	rk_dailink.cpus->of_yesde = of_parse_phandle(np,
 			"rockchip,i2s-controller", 0);
-	if (!rk_dailink.cpus->of_node) {
+	if (!rk_dailink.cpus->of_yesde) {
 		dev_err(&pdev->dev,
 			"Property 'rockchip,i2s-controller' missing or invalid\n");
 		ret = -EINVAL;
-		goto put_codec_of_node;
+		goto put_codec_of_yesde;
 	}
 
-	rk_dailink.platforms->of_node = rk_dailink.cpus->of_node;
+	rk_dailink.platforms->of_yesde = rk_dailink.cpus->of_yesde;
 
 	ret = snd_soc_of_parse_card_name(card, "rockchip,model");
 	if (ret) {
 		dev_err(&pdev->dev,
 			"Soc parse card name failed %d\n", ret);
-		goto put_cpu_of_node;
+		goto put_cpu_of_yesde;
 	}
 
 	ret = devm_snd_soc_register_card(&pdev->dev, card);
 	if (ret) {
 		dev_err(&pdev->dev,
 			"Soc register card failed %d\n", ret);
-		goto put_cpu_of_node;
+		goto put_cpu_of_yesde;
 	}
 
 	return ret;
 
-put_cpu_of_node:
-	of_node_put(rk_dailink.cpus->of_node);
-	rk_dailink.cpus->of_node = NULL;
-put_codec_of_node:
-	of_node_put(rk_dailink.codecs->of_node);
-	rk_dailink.codecs->of_node = NULL;
+put_cpu_of_yesde:
+	of_yesde_put(rk_dailink.cpus->of_yesde);
+	rk_dailink.cpus->of_yesde = NULL;
+put_codec_of_yesde:
+	of_yesde_put(rk_dailink.codecs->of_yesde);
+	rk_dailink.codecs->of_yesde = NULL;
 
 	return ret;
 }
 
 static int snd_rk_mc_remove(struct platform_device *pdev)
 {
-	of_node_put(rk_dailink.cpus->of_node);
-	rk_dailink.cpus->of_node = NULL;
-	of_node_put(rk_dailink.codecs->of_node);
-	rk_dailink.codecs->of_node = NULL;
+	of_yesde_put(rk_dailink.cpus->of_yesde);
+	rk_dailink.cpus->of_yesde = NULL;
+	of_yesde_put(rk_dailink.codecs->of_yesde);
+	rk_dailink.codecs->of_yesde = NULL;
 
 	return 0;
 }

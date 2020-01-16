@@ -38,27 +38,27 @@
  * Upon allocating a STA info structure with sta_info_alloc(), the caller
  * owns that structure. It must then insert it into the hash table using
  * either sta_info_insert() or sta_info_insert_rcu(); only in the latter
- * case (which acquires an rcu read section but must not be called from
+ * case (which acquires an rcu read section but must yest be called from
  * within one) will the pointer still be valid after the call. Note that
- * the caller may not do much with the STA info before inserting it, in
- * particular, it may not start any mesh peer link management or add
+ * the caller may yest do much with the STA info before inserting it, in
+ * particular, it may yest start any mesh peer link management or add
  * encryption keys.
  *
- * When the insertion fails (sta_info_insert()) returns non-zero), the
+ * When the insertion fails (sta_info_insert()) returns yesn-zero), the
  * structure will have been freed by sta_info_insert()!
  *
  * Station entries are added by mac80211 when you establish a link with a
  * peer. This means different things for the different type of interfaces
  * we support. For a regular station this mean we add the AP sta when we
  * receive an association response from the AP. For IBSS this occurs when
- * get to know about a peer on the same IBSS. For WDS we add the sta for
+ * get to kyesw about a peer on the same IBSS. For WDS we add the sta for
  * the peer immediately upon device open. When using AP mode we add stations
  * for each respective station upon request from userspace through nl80211.
  *
  * In order to remove a STA info structure, various sta_info_destroy_*()
  * calls are available.
  *
- * There is no concept of ownership on a STA entry, each structure is
+ * There is yes concept of ownership on a STA entry, each structure is
  * owned by the global hash table/list until it is removed. All users of
  * the structure need to be RCU protected so that the structure won't be
  * freed before they are done using it.
@@ -67,7 +67,7 @@
 static const struct rhashtable_params sta_rht_params = {
 	.nelem_hint = 3, /* start small */
 	.automatic_shrinking = true,
-	.head_offset = offsetof(struct sta_info, hash_node),
+	.head_offset = offsetof(struct sta_info, hash_yesde),
 	.key_offset = offsetof(struct sta_info, addr),
 	.key_len = ETH_ALEN,
 	.max_size = CONFIG_MAC80211_STA_HASH_MAX_SIZE,
@@ -77,7 +77,7 @@ static const struct rhashtable_params sta_rht_params = {
 static int sta_info_hash_del(struct ieee80211_local *local,
 			     struct sta_info *sta)
 {
-	return rhltable_remove(&local->sta_hash, &sta->hash_node,
+	return rhltable_remove(&local->sta_hash, &sta->hash_yesde,
 			       sta_rht_params);
 }
 
@@ -133,7 +133,7 @@ static void __cleanup_single_sta(struct sta_info *sta)
 
 	/*
 	 * Destroy aggregation state here. It would be nice to wait for the
-	 * driver to finish aggregation stop and then clean up, but for now
+	 * driver to finish aggregation stop and then clean up, but for yesw
 	 * drivers have to handle aggregation stop being requested, followed
 	 * directly by station destruction.
 	 */
@@ -175,7 +175,7 @@ struct sta_info *sta_info_get(struct ieee80211_sub_if_data *sdata,
 		if (sta->sdata == sdata) {
 			rcu_read_unlock();
 			/* this is safe as the caller must already hold
-			 * another rcu read section or the mutex
+			 * ayesther rcu read section or the mutex
 			 */
 			return sta;
 		}
@@ -201,7 +201,7 @@ struct sta_info *sta_info_get_bss(struct ieee80211_sub_if_data *sdata,
 		    (sta->sdata->bss && sta->sdata->bss == sdata->bss)) {
 			rcu_read_unlock();
 			/* this is safe as the caller must already hold
-			 * another rcu read section or the mutex
+			 * ayesther rcu read section or the mutex
 			 */
 			return sta;
 		}
@@ -252,7 +252,7 @@ struct sta_info *sta_info_get_by_idx(struct ieee80211_sub_if_data *sdata,
  *
  * This function must undo everything done by sta_info_alloc()
  * that may happen before sta_info_insert(). It may only be
- * called when sta_info_insert() has not been attempted (and
+ * called when sta_info_insert() has yest been attempted (and
  * if that fails, the station is freed anyway.)
  */
 void sta_info_free(struct ieee80211_local *local, struct sta_info *sta)
@@ -276,7 +276,7 @@ void sta_info_free(struct ieee80211_local *local, struct sta_info *sta)
 static int sta_info_hash_add(struct ieee80211_local *local,
 			     struct sta_info *sta)
 {
-	return rhltable_insert(&local->sta_hash, &sta->hash_node,
+	return rhltable_insert(&local->sta_hash, &sta->hash_yesde,
 			       sta_rht_params);
 }
 
@@ -349,7 +349,7 @@ struct sta_info *sta_info_alloc(struct ieee80211_sub_if_data *sdata,
 		    !sdata->u.mesh.user_mpm)
 			timer_setup(&sta->mesh->plink_timer, mesh_plink_timer,
 				    0);
-		sta->mesh->nonpeer_pm = NL80211_MESH_POWER_ACTIVE;
+		sta->mesh->yesnpeer_pm = NL80211_MESH_POWER_ACTIVE;
 	}
 #endif
 
@@ -360,7 +360,7 @@ struct sta_info *sta_info_alloc(struct ieee80211_sub_if_data *sdata,
 
 	/* Extended Key ID needs to install keys for keyid 0 and 1 Rx-only.
 	 * The Tx path starts to use a key as soon as the key slot ptk_idx
-	 * references to is not NULL. To not use the initial Rx-only key
+	 * references to is yest NULL. To yest use the initial Rx-only key
 	 * prematurely for Tx initialize ptk_idx to an impossible PTK keyid
 	 * which always will refer to a NULL key.
 	 */
@@ -396,7 +396,7 @@ struct sta_info *sta_info_alloc(struct ieee80211_sub_if_data *sdata,
 		for (i = 0; i < ARRAY_SIZE(sta->sta.txq); i++) {
 			struct txq_info *txq = txq_data + i * size;
 
-			/* might not do anything for the bufferable MMPDU TXQ */
+			/* might yest do anything for the bufferable MMPDU TXQ */
 			ieee80211_txq_init(sdata, sta, txq, i);
 		}
 	}
@@ -428,12 +428,12 @@ struct sta_info *sta_info_alloc(struct ieee80211_sub_if_data *sdata,
 		switch (i) {
 		case NL80211_BAND_2GHZ:
 			/*
-			 * We use both here, even if we cannot really know for
+			 * We use both here, even if we canyest really kyesw for
 			 * sure the station will support both, but the only use
-			 * for this is when we don't know anything yet and send
+			 * for this is when we don't kyesw anything yet and send
 			 * management frames, and then we'll pick the lowest
 			 * possible rate anyway.
-			 * If we don't include _G here, we cannot find a rate
+			 * If we don't include _G here, we canyest find a rate
 			 * in P2P, and thus trigger the WARN_ONCE() in rate.c
 			 */
 			mandatory = IEEE80211_RATE_MANDATORY_B |
@@ -473,17 +473,17 @@ struct sta_info *sta_info_alloc(struct ieee80211_sub_if_data *sdata,
 			IEEE80211_HT_CAP_SM_PS_SHIFT;
 		/*
 		 * Assume that hostapd advertises our caps in the beacon and
-		 * this is the known_smps_mode for a station that just assciated
+		 * this is the kyeswn_smps_mode for a station that just assciated
 		 */
 		switch (smps) {
 		case WLAN_HT_SMPS_CONTROL_DISABLED:
-			sta->known_smps_mode = IEEE80211_SMPS_OFF;
+			sta->kyeswn_smps_mode = IEEE80211_SMPS_OFF;
 			break;
 		case WLAN_HT_SMPS_CONTROL_STATIC:
-			sta->known_smps_mode = IEEE80211_SMPS_STATIC;
+			sta->kyeswn_smps_mode = IEEE80211_SMPS_STATIC;
 			break;
 		case WLAN_HT_SMPS_CONTROL_DYNAMIC:
-			sta->known_smps_mode = IEEE80211_SMPS_DYNAMIC;
+			sta->kyeswn_smps_mode = IEEE80211_SMPS_DYNAMIC;
 			break;
 		default:
 			WARN_ON(1);
@@ -520,7 +520,7 @@ static int sta_info_insert_check(struct sta_info *sta)
 	/*
 	 * Can't be a WARN_ON because it can be triggered through a race:
 	 * something inserts a STA (on one CPU) without holding the RTNL
-	 * and another CPU turns off the net device.
+	 * and ayesther CPU turns off the net device.
 	 */
 	if (unlikely(!ieee80211_sdata_running(sdata)))
 		return -ENETDOWN;
@@ -530,7 +530,7 @@ static int sta_info_insert_check(struct sta_info *sta)
 		return -EINVAL;
 
 	/* The RCU read lock is required by rhashtable due to
-	 * asynchronous resize/rehash.  We also require the mutex
+	 * asynchroyesus resize/rehash.  We also require the mutex
 	 * for correctness.
 	 */
 	rcu_read_lock();
@@ -603,7 +603,7 @@ ieee80211_recalc_p2p_go_ps_allowed(struct ieee80211_sub_if_data *sdata)
 
 	if (allow_p2p_go_ps != sdata->vif.bss_conf.allow_p2p_go_ps) {
 		sdata->vif.bss_conf.allow_p2p_go_ps = allow_p2p_go_ps;
-		ieee80211_bss_info_change_notify(sdata, BSS_CHANGED_P2P_PS);
+		ieee80211_bss_info_change_yestify(sdata, BSS_CHANGED_P2P_PS);
 	}
 }
 
@@ -647,7 +647,7 @@ static int sta_info_insert_finish(struct sta_info *sta) __acquires(RCU)
 
 	list_add_tail_rcu(&sta->list, &local->sta_list);
 
-	/* notify driver */
+	/* yestify driver */
 	err = sta_info_insert_drv_state(local, sdata, sta);
 	if (err)
 		goto out_remove;
@@ -660,7 +660,7 @@ static int sta_info_insert_finish(struct sta_info *sta) __acquires(RCU)
 			ieee80211_recalc_p2p_go_ps_allowed(sta->sdata);
 	}
 
-	/* accept BA sessions now */
+	/* accept BA sessions yesw */
 	clear_sta_flag(sta, WLAN_STA_BLOCK_BA);
 
 	ieee80211_sta_debugfs_add(sta);
@@ -733,7 +733,7 @@ static inline void __bss_tim_set(u8 *tim, u16 id)
 {
 	/*
 	 * This format has been mandated by the IEEE specifications,
-	 * so this line may not be changed to use the __set_bit() format.
+	 * so this line may yest be changed to use the __set_bit() format.
 	 */
 	tim[id / 8] |= (1 << (id % 8));
 }
@@ -742,7 +742,7 @@ static inline void __bss_tim_clear(u8 *tim, u16 id)
 {
 	/*
 	 * This format has been mandated by the IEEE specifications,
-	 * so this line may not be changed to use the __clear_bit() format.
+	 * so this line may yest be changed to use the __clear_bit() format.
 	 */
 	tim[id / 8] &= ~(1 << (id % 8));
 }
@@ -751,7 +751,7 @@ static inline bool __bss_tim_get(u8 *tim, u16 id)
 {
 	/*
 	 * This format has been mandated by the IEEE specifications,
-	 * so this line may not be changed to use the test_bit() format.
+	 * so this line may yest be changed to use the test_bit() format.
 	 */
 	return tim[id / 8] & (1 << (id % 8));
 }
@@ -774,12 +774,12 @@ static unsigned long ieee80211_tids_for_ac(int ac)
 	}
 }
 
-static void __sta_info_recalc_tim(struct sta_info *sta, bool ignore_pending)
+static void __sta_info_recalc_tim(struct sta_info *sta, bool igyesre_pending)
 {
 	struct ieee80211_local *local = sta->local;
 	struct ps_data *ps;
 	bool indicate_tim = false;
-	u8 ignore_for_tim = sta->sta.uapsd_queues;
+	u8 igyesre_for_tim = sta->sta.uapsd_queues;
 	int ac;
 	u16 id = sta->sta.aid;
 
@@ -807,19 +807,19 @@ static void __sta_info_recalc_tim(struct sta_info *sta, bool ignore_pending)
 	/*
 	 * If all ACs are delivery-enabled then we should build
 	 * the TIM bit for all ACs anyway; if only some are then
-	 * we ignore those and build the TIM bit using only the
-	 * non-enabled ones.
+	 * we igyesre those and build the TIM bit using only the
+	 * yesn-enabled ones.
 	 */
-	if (ignore_for_tim == BIT(IEEE80211_NUM_ACS) - 1)
-		ignore_for_tim = 0;
+	if (igyesre_for_tim == BIT(IEEE80211_NUM_ACS) - 1)
+		igyesre_for_tim = 0;
 
-	if (ignore_pending)
-		ignore_for_tim = BIT(IEEE80211_NUM_ACS) - 1;
+	if (igyesre_pending)
+		igyesre_for_tim = BIT(IEEE80211_NUM_ACS) - 1;
 
 	for (ac = 0; ac < IEEE80211_NUM_ACS; ac++) {
 		unsigned long tids;
 
-		if (ignore_for_tim & ieee80211_ac_to_qos_mask[ac])
+		if (igyesre_for_tim & ieee80211_ac_to_qos_mask[ac])
 			continue;
 
 		indicate_tim |= !skb_queue_empty(&sta->tx_filtered[ac]) ||
@@ -890,8 +890,8 @@ static bool sta_info_cleanup_expire_buffered_ac(struct ieee80211_local *local,
 	/*
 	 * First check for frames that should expire on the filtered
 	 * queue. Frames here were rejected by the driver and are on
-	 * a separate queue to avoid reordering with normal PS-buffered
-	 * frames. They also aren't accounted for right now in the
+	 * a separate queue to avoid reordering with yesrmal PS-buffered
+	 * frames. They also aren't accounted for right yesw in the
 	 * total_ps_buffered counter.
 	 */
 	for (;;) {
@@ -915,9 +915,9 @@ static bool sta_info_cleanup_expire_buffered_ac(struct ieee80211_local *local,
 	}
 
 	/*
-	 * Now also check the normal PS-buffered queue, this will
+	 * Now also check the yesrmal PS-buffered queue, this will
 	 * only find something if the filtered queue was emptied
-	 * since the filtered frames are all before the normal PS
+	 * since the filtered frames are all before the yesrmal PS
 	 * buffered frames.
 	 */
 	for (;;) {
@@ -945,7 +945,7 @@ static bool sta_info_cleanup_expire_buffered_ac(struct ieee80211_local *local,
 
 	/*
 	 * Finally, recalculate the TIM bit for this station -- it might
-	 * now be clear because the station was too slow to retrieve its
+	 * yesw be clear because the station was too slow to retrieve its
 	 * frames.
 	 */
 	sta_info_recalc_tim(sta);
@@ -953,7 +953,7 @@ static bool sta_info_cleanup_expire_buffered_ac(struct ieee80211_local *local,
 	/*
 	 * Return whether there are any frames still buffered, this is
 	 * used to check whether the cleanup timer still needs to run,
-	 * if there are no frames we don't need to rearm the timer.
+	 * if there are yes frames we don't need to rearm the timer.
 	 */
 	return !(skb_queue_empty(&sta->ps_tx_buf[ac]) &&
 		 skb_queue_empty(&sta->tx_filtered[ac]));
@@ -1049,7 +1049,7 @@ static void __sta_info_destroy_part2(struct sta_info *sta)
 	might_sleep();
 	lockdep_assert_held(&local->sta_mtx);
 
-	/* now keys can no longer be reached */
+	/* yesw keys can yes longer be reached */
 	ieee80211_free_sta_keys(local, sta);
 
 	/* disable TIM bit - last chance to tell driver */
@@ -1306,7 +1306,7 @@ void ieee80211_sta_ps_deliver_wakeup(struct sta_info *sta)
 	sta->txq_buffered_tids = 0;
 
 	if (!ieee80211_hw_check(&local->hw, AP_LINK_PS))
-		drv_sta_notify(local, sdata, STA_NOTIFY_AWAKE, &sta->sta);
+		drv_sta_yestify(local, sdata, STA_NOTIFY_AWAKE, &sta->sta);
 
 	for (i = 0; i < ARRAY_SIZE(sta->sta.txq); i++) {
 		if (!sta->sta.txq[i] || !txq_has_queue(sta->sta.txq[i]))
@@ -1339,11 +1339,11 @@ void ieee80211_sta_ps_deliver_wakeup(struct sta_info *sta)
 
 	ieee80211_add_pending_skbs(local, &pending);
 
-	/* now we're no longer in the deliver code */
+	/* yesw we're yes longer in the deliver code */
 	clear_sta_flag(sta, WLAN_STA_PS_DELIVER);
 
 	/* The station might have polled and then woken up before we responded,
-	 * so clear these flags now to avoid them sticking around.
+	 * so clear these flags yesw to avoid them sticking around.
 	 */
 	clear_sta_flag(sta, WLAN_STA_PSPOLL);
 	clear_sta_flag(sta, WLAN_STA_UAPSD);
@@ -1353,9 +1353,9 @@ void ieee80211_sta_ps_deliver_wakeup(struct sta_info *sta)
 
 	/* This station just woke up and isn't aware of our SMPS state */
 	if (!ieee80211_vif_is_mesh(&sdata->vif) &&
-	    !ieee80211_smps_is_restrictive(sta->known_smps_mode,
+	    !ieee80211_smps_is_restrictive(sta->kyeswn_smps_mode,
 					   sdata->smps_mode) &&
-	    sta->known_smps_mode != sdata->bss->req_smps &&
+	    sta->kyeswn_smps_mode != sdata->bss->req_smps &&
 	    sta_info_tx_streams(sta) != 1) {
 		ht_dbg(sdata,
 		       "%pM just woke up and MIMO capable - update SMPS\n",
@@ -1484,7 +1484,7 @@ static int find_highest_prio_tid(unsigned long tids)
  * reason = IEEE80211_FRAME_RELEASE_PSPOLL
  */
 static bool
-ieee80211_sta_ps_more_data(struct sta_info *sta, u8 ignored_acs,
+ieee80211_sta_ps_more_data(struct sta_info *sta, u8 igyesred_acs,
 			   enum ieee80211_frame_release_type reason,
 			   unsigned long driver_release_tids)
 {
@@ -1492,7 +1492,7 @@ ieee80211_sta_ps_more_data(struct sta_info *sta, u8 ignored_acs,
 
 	/* If the driver has data on more than one TID then
 	 * certainly there's more data if we release just a
-	 * single frame now (from a single TID). This will
+	 * single frame yesw (from a single TID). This will
 	 * only happen for PS-Poll.
 	 */
 	if (reason == IEEE80211_FRAME_RELEASE_PSPOLL &&
@@ -1500,7 +1500,7 @@ ieee80211_sta_ps_more_data(struct sta_info *sta, u8 ignored_acs,
 		return true;
 
 	for (ac = 0; ac < IEEE80211_NUM_ACS; ac++) {
-		if (ignored_acs & ieee80211_ac_to_qos_mask[ac])
+		if (igyesred_acs & ieee80211_ac_to_qos_mask[ac])
 			continue;
 
 		if (!skb_queue_empty(&sta->tx_filtered[ac]) ||
@@ -1512,7 +1512,7 @@ ieee80211_sta_ps_more_data(struct sta_info *sta, u8 ignored_acs,
 }
 
 static void
-ieee80211_sta_ps_get_frames(struct sta_info *sta, int n_frames, u8 ignored_acs,
+ieee80211_sta_ps_get_frames(struct sta_info *sta, int n_frames, u8 igyesred_acs,
 			    enum ieee80211_frame_release_type reason,
 			    struct sk_buff_head *frames,
 			    unsigned long *driver_release_tids)
@@ -1525,7 +1525,7 @@ ieee80211_sta_ps_get_frames(struct sta_info *sta, int n_frames, u8 ignored_acs,
 	for (ac = 0; ac < IEEE80211_NUM_ACS; ac++) {
 		unsigned long tids;
 
-		if (ignored_acs & ieee80211_ac_to_qos_mask[ac])
+		if (igyesred_acs & ieee80211_ac_to_qos_mask[ac])
 			continue;
 
 		tids = ieee80211_tids_for_ac(ac);
@@ -1569,7 +1569,7 @@ ieee80211_sta_ps_get_frames(struct sta_info *sta, int n_frames, u8 ignored_acs,
 
 static void
 ieee80211_sta_ps_deliver_response(struct sta_info *sta,
-				  int n_frames, u8 ignored_acs,
+				  int n_frames, u8 igyesred_acs,
 				  enum ieee80211_frame_release_type reason)
 {
 	struct ieee80211_sub_if_data *sdata = sta->sdata;
@@ -1583,10 +1583,10 @@ ieee80211_sta_ps_deliver_response(struct sta_info *sta,
 
 	__skb_queue_head_init(&frames);
 
-	ieee80211_sta_ps_get_frames(sta, n_frames, ignored_acs, reason,
+	ieee80211_sta_ps_get_frames(sta, n_frames, igyesred_acs, reason,
 				    &frames, &driver_release_tids);
 
-	more_data = ieee80211_sta_ps_more_data(sta, ignored_acs, reason, driver_release_tids);
+	more_data = ieee80211_sta_ps_more_data(sta, igyesred_acs, reason, driver_release_tids);
 
 	if (driver_release_tids && reason == IEEE80211_FRAME_RELEASE_PSPOLL)
 		driver_release_tids =
@@ -1597,22 +1597,22 @@ ieee80211_sta_ps_deliver_response(struct sta_info *sta,
 
 		/*
 		 * For PS-Poll, this can only happen due to a race condition
-		 * when we set the TIM bit and the station notices it, but
+		 * when we set the TIM bit and the station yestices it, but
 		 * before it can poll for the frame we expire it.
 		 *
 		 * For uAPSD, this is said in the standard (11.2.1.5 h):
-		 *	At each unscheduled SP for a non-AP STA, the AP shall
-		 *	attempt to transmit at least one MSDU or MMPDU, but no
+		 *	At each unscheduled SP for a yesn-AP STA, the AP shall
+		 *	attempt to transmit at least one MSDU or MMPDU, but yes
 		 *	more than the value specified in the Max SP Length field
 		 *	in the QoS Capability element from delivery-enabled ACs,
-		 *	that are destined for the non-AP STA.
+		 *	that are destined for the yesn-AP STA.
 		 *
-		 * Since we have no other MSDU/MMPDU, transmit a QoS null frame.
+		 * Since we have yes other MSDU/MMPDU, transmit a QoS null frame.
 		 */
 
 		/* This will evaluate to 1, 3, 5 or 7. */
 		for (ac = IEEE80211_AC_VO; ac < IEEE80211_NUM_ACS; ac++)
-			if (!(ignored_acs & ieee80211_ac_to_qos_mask[ac]))
+			if (!(igyesred_acs & ieee80211_ac_to_qos_mask[ac]))
 				break;
 		tid = 7 - 2 * ac;
 
@@ -1681,7 +1681,7 @@ ieee80211_sta_ps_deliver_response(struct sta_info *sta,
 			 * frame to the list to send it after the MMPDU.
 			 *
 			 * Note that this code is only in the mac80211-release
-			 * code path, we assume that the driver will not buffer
+			 * code path, we assume that the driver will yest buffer
 			 * anything but QoS-data frames, or if it does, will
 			 * create the QoS-nulldata frame by itself if needed.
 			 *
@@ -1738,7 +1738,7 @@ ieee80211_sta_ps_deliver_response(struct sta_info *sta,
 
 		/*
 		 * Note that we don't recalculate the TIM bit here as it would
-		 * most likely have no effect at all unless the driver told us
+		 * most likely have yes effect at all unless the driver told us
 		 * that the TID(s) became empty before returning here from the
 		 * release function.
 		 * Either way, however, when the driver tells us that the TID(s)
@@ -1763,17 +1763,17 @@ ieee80211_sta_ps_deliver_response(struct sta_info *sta,
 
 void ieee80211_sta_ps_deliver_poll_response(struct sta_info *sta)
 {
-	u8 ignore_for_response = sta->sta.uapsd_queues;
+	u8 igyesre_for_response = sta->sta.uapsd_queues;
 
 	/*
 	 * If all ACs are delivery-enabled then we should reply
 	 * from any of them, if only some are enabled we reply
-	 * only from the non-enabled ones.
+	 * only from the yesn-enabled ones.
 	 */
-	if (ignore_for_response == BIT(IEEE80211_NUM_ACS) - 1)
-		ignore_for_response = 0;
+	if (igyesre_for_response == BIT(IEEE80211_NUM_ACS) - 1)
+		igyesre_for_response = 0;
 
-	ieee80211_sta_ps_deliver_response(sta, 1, ignore_for_response,
+	ieee80211_sta_ps_deliver_response(sta, 1, igyesre_for_response,
 					  IEEE80211_FRAME_RELEASE_PSPOLL);
 }
 
@@ -1986,7 +1986,7 @@ int sta_info_move_state(struct sta_info *sta,
 		sta->sta.addr, new_state);
 
 	/*
-	 * notify the driver before the actual changes so it can
+	 * yestify the driver before the actual changes so it can
 	 * fail the transition
 	 */
 	if (test_sta_flag(sta, WLAN_STA_INSERTED)) {
@@ -2422,7 +2422,7 @@ void sta_set_sinfo(struct sta_info *sta, struct station_info *sinfo,
 		}
 		sinfo->local_pm = sta->mesh->local_pm;
 		sinfo->peer_pm = sta->mesh->peer_pm;
-		sinfo->nonpeer_pm = sta->mesh->nonpeer_pm;
+		sinfo->yesnpeer_pm = sta->mesh->yesnpeer_pm;
 		sinfo->connected_to_gate = sta->mesh->connected_to_gate;
 #endif
 	}

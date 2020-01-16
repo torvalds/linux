@@ -16,7 +16,7 @@ published by the Free Software Foundation.
 Virtual Function I/O (VFIO) Mediated devices[1]
 ===============================================
 
-The number of use cases for virtualizing DMA devices that do not have built-in
+The number of use cases for virtualizing DMA devices that do yest have built-in
 SR_IOV capability is increasing. Previously, to virtualize such devices,
 developers had to create their own management interfaces and APIs, and then
 integrate them with user space software. To simplify integration with user space
@@ -24,7 +24,7 @@ software, we have identified common requirements and a unified management
 interface for such devices.
 
 The VFIO driver framework provides unified APIs for direct device access. It is
-an IOMMU/device-agnostic framework for exposing direct device access to user
+an IOMMU/device-agyesstic framework for exposing direct device access to user
 space in a secure, IOMMU-protected environment. This framework is used for
 multiple devices, such as GPUs, network adapters, and compute accelerators. With
 direct device access, virtual machines or user space applications have direct
@@ -145,9 +145,9 @@ The functions in the mdev_parent_ops structure are as follows:
 * create: allocate basic resources in a driver for a mediated device
 * remove: free resources in a driver when a mediated device is destroyed
 
-(Note that mdev-core provides no implicit serialization of create/remove
+(Note that mdev-core provides yes implicit serialization of create/remove
 callbacks per mdev parent device, per mdev type, or any other categorization.
-Vendor drivers are expected to be fully asynchronous in this respect or
+Vendor drivers are expected to be fully asynchroyesus in this respect or
 provide their own internal resource protection.)
 
 The callbacks in the mdev_parent_ops structure are as follows:
@@ -165,7 +165,7 @@ register itself with the mdev core driver::
 	extern int  mdev_register_device(struct device *dev,
 	                                 const struct mdev_parent_ops *ops);
 
-However, the mdev_parent_ops structure is not required in the function call
+However, the mdev_parent_ops structure is yest required in the function call
 that a driver should use to unregister itself with the mdev core driver::
 
 	extern void mdev_unregister_device(struct device *dev);
@@ -175,7 +175,7 @@ Mediated Device Management Interface Through sysfs
 ==================================================
 
 The management interface through sysfs enables user space software, such as
-libvirt, to query and configure mediated devices in a hardware-agnostic fashion.
+libvirt, to query and configure mediated devices in a hardware-agyesstic fashion.
 This management interface provides flexibility to the underlying physical
 device's driver to support features such as:
 
@@ -359,14 +359,14 @@ card.
 
 4. Boot the VM.
 
-   In the Linux guest VM, with no hardware on the host, the device appears
+   In the Linux guest VM, with yes hardware on the host, the device appears
    as  follows::
 
      # lspci -s 00:05.0 -xxvv
      00:05.0 Serial controller: Device 4348:3253 (rev 10) (prog-if 02 [16550])
              Subsystem: Device 4348:3253
              Physical Slot: 5
-             Control: I/O+ Mem- BusMaster- SpecCycle- MemWINV- VGASnoop- ParErr-
+             Control: I/O+ Mem- BusMaster- SpecCycle- MemWINV- VGASyesop- ParErr-
      Stepping- SERR- FastB2B- DisINTx-
              Status: Cap- 66MHz- UDF- FastB2B- ParErr- DEVSEL=medium >TAbort-
      <TAbort- <MAbort- >SERR- <PERR- INTx-

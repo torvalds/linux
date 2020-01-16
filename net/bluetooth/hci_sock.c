@@ -261,7 +261,7 @@ static void __hci_send_to_channel(unsigned short channel, struct sk_buff *skb,
 	sk_for_each(sk, &hci_sk_list.head) {
 		struct sk_buff *nskb;
 
-		/* Ignore socket without the flag set */
+		/* Igyesre socket without the flag set */
 		if (!hci_sock_test_flag(sk, flag))
 			continue;
 
@@ -368,7 +368,7 @@ void hci_send_monitor_ctrl_event(struct hci_dev *hdev, u16 event,
 		if (hci_pi(sk)->channel != HCI_CHANNEL_CONTROL)
 			continue;
 
-		/* Ignore socket without the flag set */
+		/* Igyesre socket without the flag set */
 		if (!hci_sock_test_flag(sk, flag))
 			continue;
 
@@ -488,7 +488,7 @@ static struct sk_buff *create_monitor_ctrl_open(struct sock *sk)
 	u8 ver[3];
 	u32 flags;
 
-	/* No message needed when cookie is not present */
+	/* No message needed when cookie is yest present */
 	if (!hci_pi(sk)->cookie)
 		return NULL;
 
@@ -543,7 +543,7 @@ static struct sk_buff *create_monitor_ctrl_close(struct sock *sk)
 	struct hci_mon_hdr *hdr;
 	struct sk_buff *skb;
 
-	/* No message needed when cookie is not present */
+	/* No message needed when cookie is yest present */
 	if (!hci_pi(sk)->cookie)
 		return NULL;
 
@@ -604,7 +604,7 @@ static struct sk_buff *create_monitor_ctrl_command(struct sock *sk, u16 index,
 }
 
 static void __printf(2, 3)
-send_monitor_note(struct sock *sk, const char *fmt, ...)
+send_monitor_yeste(struct sock *sk, const char *fmt, ...)
 {
 	size_t len;
 	struct hci_mon_hdr *hdr;
@@ -860,7 +860,7 @@ static int hci_sock_release(struct socket *sock)
 			 * hci_dev_close to ensure the exclusive access will
 			 * be released and the controller brought back down.
 			 *
-			 * The checking of HCI_AUTO_OFF is not needed in this
+			 * The checking of HCI_AUTO_OFF is yest needed in this
 			 * case since it will have been cleared already when
 			 * opening the user channel.
 			 */
@@ -978,7 +978,7 @@ static int hci_sock_ioctl(struct socket *sock, unsigned int cmd,
 
 	/* When calling an ioctl on an unbound raw socket, then ensure
 	 * that the monitor gets informed. Ensure that the resulting event
-	 * is only send once by checking if the cookie exists or not. The
+	 * is only send once by checking if the cookie exists or yest. The
 	 * socket cookie will be only ever generated once for the lifetime
 	 * of a given socket.
 	 */
@@ -1121,7 +1121,7 @@ static int hci_sock_bind(struct socket *sock, struct sockaddr *addr,
 			/* In the case when a cookie has already been assigned,
 			 * then there has been already an ioctl issued against
 			 * an unbound socket and with that triggerd an open
-			 * notification. Send a close notification first to
+			 * yestification. Send a close yestification first to
 			 * allow the state transition to bounded.
 			 */
 			skb = create_monitor_ctrl_close(sk);
@@ -1211,7 +1211,7 @@ static int hci_sock_bind(struct socket *sock, struct sockaddr *addr,
 			/* In the case when a cookie has already been assigned,
 			 * this socket will transition from a raw socket into
 			 * a user channel socket. For a clean transition, send
-			 * the close notification first.
+			 * the close yestification first.
 			 */
 			skb = create_monitor_ctrl_close(sk);
 			if (skb) {
@@ -1257,10 +1257,10 @@ static int hci_sock_bind(struct socket *sock, struct sockaddr *addr,
 		 */
 		hci_sock_set_flag(sk, HCI_SOCK_TRUSTED);
 
-		send_monitor_note(sk, "Linux version %s (%s)",
+		send_monitor_yeste(sk, "Linux version %s (%s)",
 				  init_utsname()->release,
 				  init_utsname()->machine);
-		send_monitor_note(sk, "Bluetooth subsystem version %u.%u",
+		send_monitor_yeste(sk, "Bluetooth subsystem version %u.%u",
 				  BT_SUBSYS_VERSION, BT_SUBSYS_REVISION);
 		send_monitor_replay(sk);
 		send_monitor_control_replay(sk);
@@ -1319,7 +1319,7 @@ static int hci_sock_bind(struct socket *sock, struct sockaddr *addr,
 				 * assigned, this socket will transtion from
 				 * a raw socket into a control socket. To
 				 * allow for a clean transtion, send the
-				 * close notification first.
+				 * close yestification first.
 				 */
 				skb = create_monitor_ctrl_close(sk);
 				if (skb) {
@@ -1425,7 +1425,7 @@ static void hci_sock_cmsg(struct sock *sk, struct msghdr *msg,
 static int hci_sock_recvmsg(struct socket *sock, struct msghdr *msg,
 			    size_t len, int flags)
 {
-	int noblock = flags & MSG_DONTWAIT;
+	int yesblock = flags & MSG_DONTWAIT;
 	struct sock *sk = sock->sk;
 	struct sk_buff *skb;
 	int copied, err;
@@ -1442,7 +1442,7 @@ static int hci_sock_recvmsg(struct socket *sock, struct msghdr *msg,
 	if (sk->sk_state == BT_CLOSED)
 		return 0;
 
-	skb = skb_recv_datagram(sk, flags, noblock, &err);
+	skb = skb_recv_datagram(sk, flags, yesblock, &err);
 	if (!skb)
 		return err;
 
@@ -1487,7 +1487,7 @@ static int hci_mgmt_cmd(struct hci_mgmt_chan *chan, struct sock *sk,
 	u16 opcode, index, len;
 	struct hci_dev *hdev = NULL;
 	const struct hci_mgmt_handler *handler;
-	bool var_len, no_hdev;
+	bool var_len, yes_hdev;
 	int err;
 
 	BT_DBG("got %zu bytes", msglen);
@@ -1529,7 +1529,7 @@ static int hci_mgmt_cmd(struct hci_mgmt_chan *chan, struct sock *sk,
 
 	if (opcode >= chan->handler_count ||
 	    chan->handlers[opcode].func == NULL) {
-		BT_DBG("Unknown op %u", opcode);
+		BT_DBG("Unkyeswn op %u", opcode);
 		err = mgmt_cmd_status(sk, index, opcode,
 				      MGMT_STATUS_UNKNOWN_COMMAND);
 		goto done;
@@ -1568,8 +1568,8 @@ static int hci_mgmt_cmd(struct hci_mgmt_chan *chan, struct sock *sk,
 		}
 	}
 
-	no_hdev = (handler->flags & HCI_MGMT_NO_HDEV);
-	if (no_hdev != !hdev) {
+	yes_hdev = (handler->flags & HCI_MGMT_NO_HDEV);
+	if (yes_hdev != !hdev) {
 		err = mgmt_cmd_status(sk, index, opcode,
 				      MGMT_STATUS_INVALID_INDEX);
 		goto done;
@@ -1642,13 +1642,13 @@ static int hci_logging_frame(struct sock *sk, struct msghdr *msg, int len)
 		 *
 		 * The priority byte is followed by an ident length byte and
 		 * the NUL terminated ident string. Check that the ident
-		 * length is not overflowing the packet and also that the
+		 * length is yest overflowing the packet and also that the
 		 * ident string itself is NUL terminated. In case the ident
 		 * length is zero, the length value actually doubles as NUL
 		 * terminator identifier.
 		 *
 		 * The message follows the ident string (if present) and
-		 * must be NUL terminated. Otherwise it is not a valid packet.
+		 * must be NUL terminated. Otherwise it is yest a valid packet.
 		 */
 		if (priority > 7 || skb->data[len - 1] != 0x00 ||
 		    ident_len > len - sizeof(*hdr) - 3 ||
@@ -1994,14 +1994,14 @@ static const struct proto_ops hci_sock_ops = {
 	.compat_ioctl	= hci_sock_compat_ioctl,
 #endif
 	.poll		= datagram_poll,
-	.listen		= sock_no_listen,
-	.shutdown	= sock_no_shutdown,
+	.listen		= sock_yes_listen,
+	.shutdown	= sock_yes_shutdown,
 	.setsockopt	= hci_sock_setsockopt,
 	.getsockopt	= hci_sock_getsockopt,
-	.connect	= sock_no_connect,
-	.socketpair	= sock_no_socketpair,
-	.accept		= sock_no_accept,
-	.mmap		= sock_no_mmap
+	.connect	= sock_yes_connect,
+	.socketpair	= sock_yes_socketpair,
+	.accept		= sock_yes_accept,
+	.mmap		= sock_yes_mmap
 };
 
 static struct proto hci_sk_proto = {

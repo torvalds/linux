@@ -22,7 +22,7 @@ Description:	CPU topology files that describe kernel limits related to
 		kernel_max: the maximum cpu index allowed by the kernel
 		configuration.
 
-		offline: cpus that are not online because they have been
+		offline: cpus that are yest online because they have been
 		HOTPLUGGED off or exceed the limit of cpus allowed by the
 		kernel configuration (kernel_max above).
 
@@ -41,7 +41,7 @@ What:		/sys/devices/system/cpu/probe
 		/sys/devices/system/cpu/release
 Date:		November 2009
 Contact:	Linux kernel mailing list <linux-kernel@vger.kernel.org>
-Description:	Dynamic addition and removal of CPU's.  This is not hotplug
+Description:	Dynamic addition and removal of CPU's.  This is yest hotplug
 		removal, this is meant complete removal/addition of the CPU
 		from the system.
 
@@ -53,18 +53,18 @@ Description:	Dynamic addition and removal of CPU's.  This is not hotplug
 		the system.  Information writtento the file to remove CPU's
 		is architecture specific.
 
-What:		/sys/devices/system/cpu/cpu#/node
+What:		/sys/devices/system/cpu/cpu#/yesde
 Date:		October 2009
 Contact:	Linux memory management mailing list <linux-mm@kvack.org>
-Description:	Discover NUMA node a CPU belongs to
+Description:	Discover NUMA yesde a CPU belongs to
 
 		When CONFIG_NUMA is enabled, a symbolic link that points
-		to the corresponding NUMA node directory.
+		to the corresponding NUMA yesde directory.
 
 		For example, the following symlink is created for cpu42
-		in NUMA node 2:
+		in NUMA yesde 2:
 
-		/sys/devices/system/cpu/cpu42/node2 -> ../../node/node2
+		/sys/devices/system/cpu/cpu42/yesde2 -> ../../yesde/yesde2
 
 
 What:		/sys/devices/system/cpu/cpu#/topology/core_id
@@ -108,8 +108,8 @@ Description:	CPU topology files that describe a logical CPU's relationship
 
 What:		/sys/devices/system/cpu/cpuidle/current_driver
 		/sys/devices/system/cpu/cpuidle/current_governer_ro
-		/sys/devices/system/cpu/cpuidle/available_governors
-		/sys/devices/system/cpu/cpuidle/current_governor
+		/sys/devices/system/cpu/cpuidle/available_goveryesrs
+		/sys/devices/system/cpu/cpuidle/current_goveryesr
 Date:		September 2007
 Contact:	Linux kernel mailing list <linux-kernel@vger.kernel.org>
 Description:	Discover cpuidle policy and mechanism
@@ -118,12 +118,12 @@ Description:	Discover cpuidle policy and mechanism
 		differentiated by varying exit latencies and power
 		consumption during idle.
 
-		Idle policy (governor) is differentiated from idle mechanism
+		Idle policy (goveryesr) is differentiated from idle mechanism
 		(driver)
 
 		current_driver: (RO) displays current idle mechanism
 
-		current_governor_ro: (RO) displays current idle policy
+		current_goveryesr_ro: (RO) displays current idle policy
 
 		With the cpuidle_sysfs_switch boot option enabled (meant for
 		developer testing), the following three attributes are visible
@@ -131,11 +131,11 @@ Description:	Discover cpuidle policy and mechanism
 
 		current_driver: same as described above
 
-		available_governors: (RO) displays a space separated list of
-		available governors
+		available_goveryesrs: (RO) displays a space separated list of
+		available goveryesrs
 
-		current_governor: (RW) displays current idle policy. Users can
-		switch the governor at runtime by writing to this file.
+		current_goveryesr: (RW) displays current idle policy. Users can
+		switch the goveryesr at runtime by writing to this file.
 
 		See Documentation/admin-guide/pm/cpuidle.rst and
 		Documentation/driver-api/pm/cpuidle.rst for more information.
@@ -190,11 +190,11 @@ Contact:	Linux power management list <linux-pm@vger.kernel.org>
 Description:
 		(RW) Option to disable this idle state (bool). The behavior and
 		the effect of the disable variable depends on the implementation
-		of a particular governor. In the ladder governor, for example,
-		it is not coherent, i.e. if one is disabling a light state, then
+		of a particular goveryesr. In the ladder goveryesr, for example,
+		it is yest coherent, i.e. if one is disabling a light state, then
 		all deeper states are disabled as well, but the disable variable
-		does not reflect it. Likewise, if one enables a deep state but a
-		lighter state still is disabled, then this has no effect.
+		does yest reflect it. Likewise, if one enables a deep state but a
+		lighter state still is disabled, then this has yes effect.
 
 
 What:		/sys/devices/system/cpu/cpuX/cpuidle/stateN/residency
@@ -242,7 +242,7 @@ Description:	Discover and change clock speed of CPUs
 		power, because the lower the clock speed, the less power
 		the CPU consumes.
 
-		There are many knobs to tweak in this directory.
+		There are many kyesbs to tweak in this directory.
 
 		See files in Documentation/cpu-freq/ for more information.
 
@@ -272,8 +272,8 @@ Description:	Disable L3 cache indices
 		cache_disable_{0,1} file corresponds to one disable slot which
 		can be used to disable a cache index. Reading from these files
 		on a processor with this functionality will return the currently
-		disabled index for that node. There is one L3 structure per
-		node, or per internal node on MCM machines. Writing a valid
+		disabled index for that yesde. There is one L3 structure per
+		yesde, or per internal yesde on MCM machines. Writing a valid
 		index to one of these files will cause the specificed cache
 		index to be disabled.
 
@@ -289,32 +289,32 @@ Description:	Processor frequency boosting control
 
 		This switch controls the boost setting for the whole system.
 		Boosting allows the CPU and the firmware to run at a frequency
-		beyound it's nominal limit.
+		beyound it's yesminal limit.
 		More details can be found in
 		Documentation/admin-guide/pm/cpufreq.rst
 
 
-What:		/sys/devices/system/cpu/cpu#/crash_notes
-		/sys/devices/system/cpu/cpu#/crash_notes_size
+What:		/sys/devices/system/cpu/cpu#/crash_yestes
+		/sys/devices/system/cpu/cpu#/crash_yestes_size
 Date:		April 2013
 Contact:	kexec@lists.infradead.org
-Description:	address and size of the percpu note.
+Description:	address and size of the percpu yeste.
 
-		crash_notes: the physical address of the memory that holds the
-		note of cpu#.
+		crash_yestes: the physical address of the memory that holds the
+		yeste of cpu#.
 
-		crash_notes_size: size of the note of cpu#.
+		crash_yestes_size: size of the yeste of cpu#.
 
 
 What:		/sys/devices/system/cpu/intel_pstate/max_perf_pct
 		/sys/devices/system/cpu/intel_pstate/min_perf_pct
-		/sys/devices/system/cpu/intel_pstate/no_turbo
+		/sys/devices/system/cpu/intel_pstate/yes_turbo
 Date:		February 2013
 Contact:	linux-pm@vger.kernel.org
 Description:	Parameters for the Intel P-state driver
 
 		Logic for selecting the current P-state in Intel
-		Sandybridge+ processors. The three knobs control
+		Sandybridge+ processors. The three kyesbs control
 		limits for the P-state that will be requested by the
 		driver.
 
@@ -324,7 +324,7 @@ Description:	Parameters for the Intel P-state driver
 		min_perf_pct: limits the minimum P state that will be requested by
 		the driver stated as a percentage of the available performance.
 
-		no_turbo: limits the driver to selecting P states below the turbo
+		yes_turbo: limits the driver to selecting P states below the turbo
 		frequency range.
 
 		More details can be found in
@@ -388,8 +388,8 @@ Description:	Cache id
 		3 unified cache on each socket in a server and we may
 		assign them ids 0, 1, 2, ...
 
-		Note that id value can be non-contiguous. E.g. level 1
-		caches typically exist per core, but there may not be a
+		Note that id value can be yesn-contiguous. E.g. level 1
+		caches typically exist per core, but there may yest be a
 		power of two cores on a socket, so these caches may be
 		numbered 0, 1, 2, 3, 4, 5, 8, 9, 10, ...
 
@@ -415,11 +415,11 @@ Description:	POWERNV CPUFreq driver's frequency throttle stats directory and
 
 		- turbo_stat : This file gives the total number of times the max
 		frequency is throttled to lower frequency in turbo (at and above
-		nominal frequency) range of frequencies.
+		yesminal frequency) range of frequencies.
 
 		- sub_turbo_stat : This file gives the total number of times the
 		max frequency is throttled to lower frequency in sub-turbo(below
-		nominal frequency) range of frequencies.
+		yesminal frequency) range of frequencies.
 
 		- unthrottle : This file gives the total number of times the max
 		frequency is unthrottled after being throttled.
@@ -496,8 +496,8 @@ Description:	Information about CPU vulnerabilities
 		vulnerabilities. The output of those files reflects the
 		state of the CPUs in the system. Possible output values:
 
-		"Not affected"	  CPU is not affected by the vulnerability
-		"Vulnerable"	  CPU is affected and no mitigation in effect
+		"Not affected"	  CPU is yest affected by the vulnerability
+		"Vulnerable"	  CPU is affected and yes mitigation in effect
 		"Mitigation: $M"  CPU is affected and mitigation $M is in effect
 
 		See also: Documentation/admin-guide/hw-vuln/index.rst
@@ -516,12 +516,12 @@ Description:	Control Symetric Multi Threading (SMT)
 
 			 "on"		  SMT is enabled
 			 "off"		  SMT is disabled
-			 "forceoff"	  SMT is force disabled. Cannot be changed.
-			 "notsupported"   SMT is not supported by the CPU
-			 "notimplemented" SMT runtime toggling is not
+			 "forceoff"	  SMT is force disabled. Canyest be changed.
+			 "yestsupported"   SMT is yest supported by the CPU
+			 "yestimplemented" SMT runtime toggling is yest
 					  implemented for the architecture
 
-			 If control status is "forceoff" or "notsupported" writes
+			 If control status is "forceoff" or "yestsupported" writes
 			 are rejected.
 
 What:		/sys/devices/system/cpu/cpu#/power/energy_perf_bias
@@ -535,7 +535,7 @@ Description:	Intel Energy and Performance Bias Hint (EPB)
 
 		In order to change the EPB value for the CPU, write either
 		a number in the 0 - 15 sliding scale above, or one of the
-		strings: "performance", "balance-performance", "normal",
+		strings: "performance", "balance-performance", "yesrmal",
 		"balance-power", "power" (that represent values reflected by
 		their meaning), to this attribute.
 
@@ -562,7 +562,7 @@ Description:	Umwait control
 		max_time: Read/write interface to control umwait maximum time
 			  in TSC-quanta that the CPU can reside in either C0.1
 			  or C0.2 state. The time is an unsigned 32-bit number.
-			  Note that a value of zero means there is no limit.
+			  Note that a value of zero means there is yes limit.
 			  Low order two bits must be zero.
 
 What:		/sys/devices/system/cpu/svm

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 #include <linux/module.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/socket.h>
 #include <linux/udp.h>
 #include <linux/types.h>
@@ -62,8 +62,8 @@ int udp_sock_create6(struct net *net, struct udp_port_cfg *cfg,
 	if (err < 0)
 		goto error;
 
-	udp_set_no_check6_tx(sock->sk, !cfg->use_udp6_tx_checksums);
-	udp_set_no_check6_rx(sock->sk, !cfg->use_udp6_rx_checksums);
+	udp_set_yes_check6_tx(sock->sk, !cfg->use_udp6_tx_checksums);
+	udp_set_yes_check6_rx(sock->sk, !cfg->use_udp6_rx_checksums);
 
 	*sockp = sock;
 	return 0;
@@ -83,7 +83,7 @@ int udp_tunnel6_xmit_skb(struct dst_entry *dst, struct sock *sk,
 			 struct net_device *dev, struct in6_addr *saddr,
 			 struct in6_addr *daddr,
 			 __u8 prio, __u8 ttl, __be32 label,
-			 __be16 src_port, __be16 dst_port, bool nocheck)
+			 __be16 src_port, __be16 dst_port, bool yescheck)
 {
 	struct udphdr *uh;
 	struct ipv6hdr *ip6h;
@@ -99,7 +99,7 @@ int udp_tunnel6_xmit_skb(struct dst_entry *dst, struct sock *sk,
 
 	skb_dst_set(skb, dst);
 
-	udp6_set_csum(nocheck, skb, saddr, daddr, skb->len);
+	udp6_set_csum(yescheck, skb, saddr, daddr, skb->len);
 
 	__skb_push(skb, sizeof(*ip6h));
 	skb_reset_network_header(skb);

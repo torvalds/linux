@@ -216,13 +216,13 @@ static const struct regmap_range write_range[] = {
 };
 
 static const struct regmap_access_table driver_read_table = {
-	.yes_ranges =   read_range,
-	.n_yes_ranges = ARRAY_SIZE(read_range),
+	.no_ranges =   read_range,
+	.n_no_ranges = ARRAY_SIZE(read_range),
 };
 
 static const struct regmap_access_table driver_write_table = {
-	.yes_ranges =   write_range,
-	.n_yes_ranges = ARRAY_SIZE(write_range),
+	.no_ranges =   write_range,
+	.n_no_ranges = ARRAY_SIZE(write_range),
 };
 
 const struct regmap_config fxos8700_regmap_config = {

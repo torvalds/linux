@@ -22,12 +22,12 @@
  * are met:
  *
  *  - Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  *  - Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
+ *    yestice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
- *  - Neither the name of Intel Corporation nor the names of its
+ *  - Neither the name of Intel Corporation yesr the names of its
  *    contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
@@ -69,7 +69,7 @@ const char opa_vnic_driver_version[] = DRV_VERSION;
  */
 #define GET_TRAP_SL_FROM_CLASS_PORT_INFO(x)  (((x) >> 3) & 0x1f)
 
-/* Cap trap bursts to a reasonable limit good for normal cases */
+/* Cap trap bursts to a reasonable limit good for yesrmal cases */
 #define OPA_VNIC_TRAP_BURST_LIMIT 4
 
 /*
@@ -416,7 +416,7 @@ static void vema_set_mac_entries(struct opa_vnic_vema_port *port,
  * @rsp_mad:   pointer to respose mad
  *
  * This function clears all the fields of veswport info for the requested vesw
- * and sets them back to the power-on default values. It does not delete the
+ * and sets them back to the power-on default values. It does yest delete the
  * vesw.
  */
 static void vema_set_delete_vesw(struct opa_vnic_vema_port *port,
@@ -651,7 +651,7 @@ static void vema_recv(struct ib_mad_agent *mad_agent,
 	vema_mad->mad_hdr.method = IB_MGMT_METHOD_GET_RESP;
 	vema_mad->mad_hdr.status = 0;
 
-	/* Lock ensures network adapter is not removed */
+	/* Lock ensures network adapter is yest removed */
 	mutex_lock(&port->lock);
 
 	switch (mad_wc->recv_buf.mad->mad_hdr.method) {
@@ -695,7 +695,7 @@ free_recv_mad:
  * with the OPA port number
  *
  * Return: ptr to requested opa_vnic_vema_port strucure
- *         if success, NULL if not
+ *         if success, NULL if yest
  */
 static struct opa_vnic_vema_port *
 vema_get_port(struct opa_vnic_ctrl_port *cport, u8 port_num)
@@ -715,13 +715,13 @@ vema_get_port(struct opa_vnic_ctrl_port *cport, u8 port_num)
  * @lid:  issuers lid (encap_slid from vesw_port_info)
  *
  * This function is called from the VNIC driver to send a trap if there
- * is somethng the EM should be notified about. These events currently
+ * is somethng the EM should be yestified about. These events currently
  * are
  * 1) UNICAST INTERFACE MACADDRESS changes
  * 2) MULTICAST INTERFACE MACADDRESS changes
  * 3) ETHERNET LINK STATUS changes
  * While allocating the send mad the remote site qpn used is 1
- * as this is the well known QP.
+ * as this is the well kyeswn QP.
  *
  */
 void opa_vnic_vema_send_trap(struct opa_vnic_adapter *adapter,
@@ -766,9 +766,9 @@ void opa_vnic_vema_send_trap(struct opa_vnic_adapter *adapter,
 	rdma_ah_set_port_num(&ah_attr, port->port_num);
 	trap_lid = be32_to_cpu(class->trap_lid);
 	/*
-	 * check for trap lid validity, must not be zero
+	 * check for trap lid validity, must yest be zero
 	 * The trap sink could change after we fashion the MAD but since traps
-	 * are not guaranteed we won't use a lock as anyway the change will take
+	 * are yest guaranteed we won't use a lock as anyway the change will take
 	 * place even with locking.
 	 */
 	if (!trap_lid) {
@@ -788,7 +788,7 @@ void opa_vnic_vema_send_trap(struct opa_vnic_adapter *adapter,
 
 	if (ib_find_pkey(ibp, data->opaportnum, IB_DEFAULT_PKEY_FULL,
 			 &pkey_idx) < 0) {
-		c_err("%s:full key not found, defaulting to partial\n",
+		c_err("%s:full key yest found, defaulting to partial\n",
 		      __func__);
 		if (ib_find_pkey(ibp, data->opaportnum, IB_DEFAULT_PKEY_PARTIAL,
 				 &pkey_idx) < 0)
@@ -820,15 +820,15 @@ void opa_vnic_vema_send_trap(struct opa_vnic_adapter *adapter,
 	trap_mad->oui[1] = INTEL_OUI_2;
 	trap_mad->oui[2] = INTEL_OUI_3;
 
-	/* Setup notice attribute portion */
-	trap_mad->notice.gen_type = OPA_INTEL_EMA_NOTICE_TYPE_INFO << 1;
-	trap_mad->notice.oui_1 = INTEL_OUI_1;
-	trap_mad->notice.oui_2 = INTEL_OUI_2;
-	trap_mad->notice.oui_3 = INTEL_OUI_3;
-	trap_mad->notice.issuer_lid = cpu_to_be32(lid);
+	/* Setup yestice attribute portion */
+	trap_mad->yestice.gen_type = OPA_INTEL_EMA_NOTICE_TYPE_INFO << 1;
+	trap_mad->yestice.oui_1 = INTEL_OUI_1;
+	trap_mad->yestice.oui_2 = INTEL_OUI_2;
+	trap_mad->yestice.oui_3 = INTEL_OUI_3;
+	trap_mad->yestice.issuer_lid = cpu_to_be32(lid);
 
 	/* copy the actual trap data */
-	trap = (struct opa_veswport_trap *)trap_mad->notice.raw_data;
+	trap = (struct opa_veswport_trap *)trap_mad->yestice.raw_data;
 	trap->fabric_id = cpu_to_be16(data->fabric_id);
 	trap->veswid = cpu_to_be16(data->veswid);
 	trap->veswportnum = cpu_to_be32(data->veswportnum);
@@ -899,7 +899,7 @@ static void vema_unregister(struct opa_vnic_ctrl_port *cport)
 		if (!port->mad_agent)
 			continue;
 
-		/* Lock ensures no MAD is being processed */
+		/* Lock ensures yes MAD is being processed */
 		mutex_lock(&port->lock);
 		xa_for_each(&port->vports, index, adapter)
 			opa_vnic_rem_netdev(adapter);
@@ -919,7 +919,7 @@ static void vema_unregister(struct opa_vnic_ctrl_port *cport)
  *
  * This function registers the handlers for the VEMA MADs
  *
- * Return: returns 0 on success. non zero otherwise
+ * Return: returns 0 on success. yesn zero otherwise
  */
 static int vema_register(struct opa_vnic_ctrl_port *cport)
 {

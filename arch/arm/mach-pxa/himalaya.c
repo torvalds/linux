@@ -138,7 +138,7 @@ static void __init himalaya_lcd_init(void)
 		himalaya_fb_info.modelist = &himalaya6_lcd_mode;
 	break;
 	default:
-		printk(KERN_INFO "himalaya lcd_init: unknown boardid=%d. Using 0x4\n",
+		printk(KERN_INFO "himalaya lcd_init: unkyeswn boardid=%d. Using 0x4\n",
 			himalaya_boardid);
 		himalaya_fb_info.modelist = &himalaya4_lcd_mode;
 	}

@@ -28,7 +28,7 @@
 		PowerPC,7410 {
 			device_type = "cpu";
 			reg = <0x0>;
-			/* Following required by dtc but not used */
+			/* Following required by dtc but yest used */
 			d-cache-line-size = <32>;
 			i-cache-line-size = <32>;
 			i-cache-size = <32768>;
@@ -90,7 +90,7 @@
 		device_type = "pci";
 		compatible = "hawk-pci";
 		reg = <0xfec00000 0x400000>;
-		8259-interrupt-acknowledge = <0xfeff0030>;
+		8259-interrupt-ackyeswledge = <0xfeff0030>;
 		ranges = <0x1000000 0x0        0x0 0xfe000000 0x0 0x800000
 			  0x2000000 0x0 0x80000000 0x80000000 0x0 0x74000000>;
 		bus-range = <0 255>;
@@ -104,7 +104,7 @@
 			 * interrupts definition in the i8259
 			 * interrupt controller below.
 			 *
-			 * Do not change the interrupt sense/polarity from
+			 * Do yest change the interrupt sense/polarity from
 			 * 0x2 to anything else, doing so will cause endless
 			 * "spurious" i8259 interrupts to be fielded.
 			 */

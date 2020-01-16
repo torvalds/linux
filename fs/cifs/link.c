@@ -15,7 +15,7 @@
  *   the GNU Lesser General Public License for more details.
  *
  *   You should have received a copy of the GNU Lesser General Public License
- *   along with this library; if not, write to the Free Software
+ *   along with this library; if yest, write to the Free Software
  *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 #include <linux/fs.h>
@@ -59,17 +59,17 @@ symlink_hash(unsigned int link_len, const char *link_str, u8 *md5_hash)
 
 	rc = crypto_shash_init(&sdescmd5->shash);
 	if (rc) {
-		cifs_dbg(VFS, "%s: Could not init md5 shash\n", __func__);
+		cifs_dbg(VFS, "%s: Could yest init md5 shash\n", __func__);
 		goto symlink_hash_err;
 	}
 	rc = crypto_shash_update(&sdescmd5->shash, link_str, link_len);
 	if (rc) {
-		cifs_dbg(VFS, "%s: Could not update with link_str\n", __func__);
+		cifs_dbg(VFS, "%s: Could yest update with link_str\n", __func__);
 		goto symlink_hash_err;
 	}
 	rc = crypto_shash_final(&sdescmd5->shash, md5_hash);
 	if (rc)
-		cifs_dbg(VFS, "%s: Could not generate md5 hash\n", __func__);
+		cifs_dbg(VFS, "%s: Could yest generate md5 hash\n", __func__);
 
 symlink_hash_err:
 	cifs_free_hash(&md5, &sdescmd5);
@@ -168,11 +168,11 @@ bool
 couldbe_mf_symlink(const struct cifs_fattr *fattr)
 {
 	if (!S_ISREG(fattr->cf_mode))
-		/* it's not a symlink */
+		/* it's yest a symlink */
 		return false;
 
 	if (fattr->cf_eof != CIFS_MF_SYMLINK_FILE_SIZE)
-		/* it's not a symlink */
+		/* it's yest a symlink */
 		return false;
 
 	return true;
@@ -234,7 +234,7 @@ query_mf_symlink(const unsigned int xid, struct cifs_tcon *tcon,
 	if (rc)
 		goto out;
 
-	if (bytes_read == 0) { /* not a symlink */
+	if (bytes_read == 0) { /* yest a symlink */
 		rc = -EINVAL;
 		goto out;
 	}
@@ -256,7 +256,7 @@ check_mf_symlink(unsigned int xid, struct cifs_tcon *tcon,
 	unsigned int bytes_read = 0;
 
 	if (!couldbe_mf_symlink(fattr))
-		/* it's not a symlink */
+		/* it's yest a symlink */
 		return 0;
 
 	buf = kmalloc(CIFS_MF_SYMLINK_FILE_SIZE, GFP_KERNEL);
@@ -272,12 +272,12 @@ check_mf_symlink(unsigned int xid, struct cifs_tcon *tcon,
 	if (rc)
 		goto out;
 
-	if (bytes_read == 0) /* not a symlink */
+	if (bytes_read == 0) /* yest a symlink */
 		goto out;
 
 	rc = parse_mf_symlink(buf, bytes_read, &link_len, NULL);
 	if (rc == -EINVAL) {
-		/* it's not a symlink */
+		/* it's yest a symlink */
 		rc = 0;
 		goto out;
 	}
@@ -327,7 +327,7 @@ cifs_query_mf_symlink(unsigned int xid, struct cifs_tcon *tcon,
 
 	if (file_info.EndOfFile != cpu_to_le64(CIFS_MF_SYMLINK_FILE_SIZE)) {
 		rc = -ENOENT;
-		/* it's not a symlink */
+		/* it's yest a symlink */
 		goto out;
 	}
 
@@ -427,7 +427,7 @@ smb3_query_mf_symlink(unsigned int xid, struct cifs_tcon *tcon,
 		goto qmf_out_open_fail;
 
 	if (pfile_info->EndOfFile != cpu_to_le64(CIFS_MF_SYMLINK_FILE_SIZE)) {
-		/* it's not a symlink */
+		/* it's yest a symlink */
 		rc = -ENOENT; /* Is there a better rc to return? */
 		goto qmf_out;
 	}
@@ -515,18 +515,18 @@ smb3_create_mf_symlink(unsigned int xid, struct cifs_tcon *tcon,
  */
 
 int
-cifs_hardlink(struct dentry *old_file, struct inode *inode,
+cifs_hardlink(struct dentry *old_file, struct iyesde *iyesde,
 	      struct dentry *direntry)
 {
 	int rc = -EACCES;
 	unsigned int xid;
 	char *from_name = NULL;
 	char *to_name = NULL;
-	struct cifs_sb_info *cifs_sb = CIFS_SB(inode->i_sb);
+	struct cifs_sb_info *cifs_sb = CIFS_SB(iyesde->i_sb);
 	struct tcon_link *tlink;
 	struct cifs_tcon *tcon;
 	struct TCP_Server_Info *server;
-	struct cifsInodeInfo *cifsInode;
+	struct cifsIyesdeInfo *cifsIyesde;
 
 	tlink = cifs_sb_tlink(cifs_sb);
 	if (IS_ERR(tlink))
@@ -561,38 +561,38 @@ cifs_hardlink(struct dentry *old_file, struct inode *inode,
 	d_drop(direntry);	/* force new lookup from server of target */
 
 	/*
-	 * if source file is cached (oplocked) revalidate will not go to server
+	 * if source file is cached (oplocked) revalidate will yest go to server
 	 * until the file is closed or oplock broken so update nlinks locally
 	 */
 	if (d_really_is_positive(old_file)) {
-		cifsInode = CIFS_I(d_inode(old_file));
+		cifsIyesde = CIFS_I(d_iyesde(old_file));
 		if (rc == 0) {
-			spin_lock(&d_inode(old_file)->i_lock);
-			inc_nlink(d_inode(old_file));
-			spin_unlock(&d_inode(old_file)->i_lock);
+			spin_lock(&d_iyesde(old_file)->i_lock);
+			inc_nlink(d_iyesde(old_file));
+			spin_unlock(&d_iyesde(old_file)->i_lock);
 
 			/*
 			 * parent dir timestamps will update from srv within a
 			 * second, would it really be worth it to set the parent
-			 * dir cifs inode time to zero to force revalidate
+			 * dir cifs iyesde time to zero to force revalidate
 			 * (faster) for it too?
 			 */
 		}
 		/*
-		 * if not oplocked will force revalidate to get info on source
+		 * if yest oplocked will force revalidate to get info on source
 		 * file from srv.  Note Samba server prior to 4.2 has bug -
-		 * not updating src file ctime on hardlinks but Windows servers
+		 * yest updating src file ctime on hardlinks but Windows servers
 		 * handle it properly
 		 */
-		cifsInode->time = 0;
+		cifsIyesde->time = 0;
 
 		/*
 		 * Will update parent dir timestamps from srv within a second.
 		 * Would it really be worth it to set the parent dir (cifs
-		 * inode) time field to zero to force revalidate on parent
+		 * iyesde) time field to zero to force revalidate on parent
 		 * directory faster ie
 		 *
-		 * CIFS_I(inode)->time = 0;
+		 * CIFS_I(iyesde)->time = 0;
 		 */
 	}
 
@@ -605,14 +605,14 @@ cifs_hl_exit:
 }
 
 const char *
-cifs_get_link(struct dentry *direntry, struct inode *inode,
+cifs_get_link(struct dentry *direntry, struct iyesde *iyesde,
 	      struct delayed_call *done)
 {
 	int rc = -ENOMEM;
 	unsigned int xid;
 	char *full_path = NULL;
 	char *target_path = NULL;
-	struct cifs_sb_info *cifs_sb = CIFS_SB(inode->i_sb);
+	struct cifs_sb_info *cifs_sb = CIFS_SB(iyesde->i_sb);
 	struct tcon_link *tlink = NULL;
 	struct cifs_tcon *tcon;
 	struct TCP_Server_Info *server;
@@ -637,7 +637,7 @@ cifs_get_link(struct dentry *direntry, struct inode *inode,
 		return ERR_PTR(-ENOMEM);
 	}
 
-	cifs_dbg(FYI, "Full path: %s inode = 0x%p\n", full_path, inode);
+	cifs_dbg(FYI, "Full path: %s iyesde = 0x%p\n", full_path, iyesde);
 
 	rc = -EACCES;
 	/*
@@ -649,7 +649,7 @@ cifs_get_link(struct dentry *direntry, struct inode *inode,
 				      &target_path);
 
 	if (rc != 0 && server->ops->query_symlink) {
-		struct cifsInodeInfo *cifsi = CIFS_I(inode);
+		struct cifsIyesdeInfo *cifsi = CIFS_I(iyesde);
 		bool reparse_point = false;
 
 		if (cifsi->cifsAttrs & ATTR_REPARSE)
@@ -671,15 +671,15 @@ cifs_get_link(struct dentry *direntry, struct inode *inode,
 }
 
 int
-cifs_symlink(struct inode *inode, struct dentry *direntry, const char *symname)
+cifs_symlink(struct iyesde *iyesde, struct dentry *direntry, const char *symname)
 {
 	int rc = -EOPNOTSUPP;
 	unsigned int xid;
-	struct cifs_sb_info *cifs_sb = CIFS_SB(inode->i_sb);
+	struct cifs_sb_info *cifs_sb = CIFS_SB(iyesde->i_sb);
 	struct tcon_link *tlink;
 	struct cifs_tcon *pTcon;
 	char *full_path = NULL;
-	struct inode *newinode = NULL;
+	struct iyesde *newiyesde = NULL;
 
 	xid = get_xid();
 
@@ -712,17 +712,17 @@ cifs_symlink(struct inode *inode, struct dentry *direntry, const char *symname)
 
 	if (rc == 0) {
 		if (pTcon->unix_ext)
-			rc = cifs_get_inode_info_unix(&newinode, full_path,
-						      inode->i_sb, xid);
+			rc = cifs_get_iyesde_info_unix(&newiyesde, full_path,
+						      iyesde->i_sb, xid);
 		else
-			rc = cifs_get_inode_info(&newinode, full_path, NULL,
-						 inode->i_sb, xid, NULL);
+			rc = cifs_get_iyesde_info(&newiyesde, full_path, NULL,
+						 iyesde->i_sb, xid, NULL);
 
 		if (rc != 0) {
-			cifs_dbg(FYI, "Create symlink ok, getinodeinfo fail rc = %d\n",
+			cifs_dbg(FYI, "Create symlink ok, getiyesdeinfo fail rc = %d\n",
 				 rc);
 		} else {
-			d_instantiate(direntry, newinode);
+			d_instantiate(direntry, newiyesde);
 		}
 	}
 symlink_exit:

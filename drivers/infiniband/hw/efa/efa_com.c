@@ -74,7 +74,7 @@ static const char *efa_com_cmd_str(u8 cmd)
 	EFA_CMD_STR_CASE(DEALLOC_PD);
 	EFA_CMD_STR_CASE(ALLOC_UAR);
 	EFA_CMD_STR_CASE(DEALLOC_UAR);
-	default: return "unknown command opcode";
+	default: return "unkyeswn command opcode";
 	}
 #undef EFA_CMD_STR_CASE
 }
@@ -361,7 +361,7 @@ static struct efa_comp_ctx *__efa_com_submit_admin_cmd(struct efa_com_admin_queu
 	if ((aq->sq.pc & queue_size_mask) == 0)
 		aq->sq.phase = !aq->sq.phase;
 
-	/* barrier not needed in case of writel */
+	/* barrier yest needed in case of writel */
 	writel(aq->sq.pc, aq->sq.db_addr);
 
 	return comp_ctx;
@@ -466,7 +466,7 @@ static void efa_com_handle_admin_completion(struct efa_com_admin_queue *aq)
 	while ((READ_ONCE(cqe->acq_common_descriptor.flags) &
 		EFA_ADMIN_ACQ_COMMON_DESC_PHASE_MASK) == phase) {
 		/*
-		 * Do not read the rest of the completion entry before the
+		 * Do yest read the rest of the completion entry before the
 		 * phase bit was validated
 		 */
 		dma_rmb();
@@ -488,7 +488,7 @@ static void efa_com_handle_admin_completion(struct efa_com_admin_queue *aq)
 	atomic64_add(comp_num, &aq->stats.completed_cmd);
 }
 
-static int efa_com_comp_status_to_errno(u8 comp_status)
+static int efa_com_comp_status_to_erryes(u8 comp_status)
 {
 	switch (comp_status) {
 	case EFA_ADMIN_SUCCESS:
@@ -529,7 +529,7 @@ static int efa_com_wait_and_process_admin_cq_polling(struct efa_comp_ctx *comp_c
 				aq->efa_dev,
 				"Wait for completion (polling) timeout\n");
 			/* EFA didn't have any completion */
-			atomic64_inc(&aq->stats.no_completion);
+			atomic64_inc(&aq->stats.yes_completion);
 
 			clear_bit(EFA_AQ_STATE_RUNNING_BIT, &aq->state);
 			err = -ETIME;
@@ -539,7 +539,7 @@ static int efa_com_wait_and_process_admin_cq_polling(struct efa_comp_ctx *comp_c
 		msleep(aq->poll_interval);
 	}
 
-	err = efa_com_comp_status_to_errno(comp_ctx->comp_status);
+	err = efa_com_comp_status_to_erryes(comp_ctx->comp_status);
 out:
 	efa_com_put_comp_ctx(aq, comp_ctx);
 	return err;
@@ -565,7 +565,7 @@ static int efa_com_wait_and_process_admin_cq_interrupts(struct efa_comp_ctx *com
 		efa_com_handle_admin_completion(aq);
 		spin_unlock_irqrestore(&aq->cq.lock, flags);
 
-		atomic64_inc(&aq->stats.no_completion);
+		atomic64_inc(&aq->stats.yes_completion);
 
 		if (comp_ctx->status == EFA_CMD_COMPLETED)
 			ibdev_err_ratelimited(
@@ -587,7 +587,7 @@ static int efa_com_wait_and_process_admin_cq_interrupts(struct efa_comp_ctx *com
 		goto out;
 	}
 
-	err = efa_com_comp_status_to_errno(comp_ctx->comp_status);
+	err = efa_com_comp_status_to_erryes(comp_ctx->comp_status);
 out:
 	efa_com_put_comp_ctx(aq, comp_ctx);
 	return err;
@@ -729,7 +729,7 @@ static void efa_com_stats_init(struct efa_com_dev *edev)
  * @aenq_handlers: Those handlers to be called upon event.
  *
  * Initialize the admin submission and completion queues.
- * Initialize the asynchronous events notification queues.
+ * Initialize the asynchroyesus events yestification queues.
  *
  * @return - 0 on success, negative value on failure.
  */
@@ -811,7 +811,7 @@ err_destroy_comp_ctxt:
  * This method goes over the admin completion queue and wakes up
  * all the pending threads that wait on the commands wait event.
  *
- * @note: Should be called after MSI-X interrupt.
+ * @yeste: Should be called after MSI-X interrupt.
  */
 void efa_com_admin_q_comp_intr_handler(struct efa_com_dev *edev)
 {
@@ -842,7 +842,7 @@ static efa_aenq_handler efa_com_get_specific_aenq_cb(struct efa_com_dev *edev,
  * @edev: EFA communication layer struct
  * @data: Data of interrupt handler.
  *
- * Go over the async event notification queue and call the proper aenq handler.
+ * Go over the async event yestification queue and call the proper aenq handler.
  */
 void efa_com_aenq_intr_handler(struct efa_com_dev *edev, void *data)
 {
@@ -863,7 +863,7 @@ void efa_com_aenq_intr_handler(struct efa_com_dev *edev, void *data)
 	while ((READ_ONCE(aenq_common->flags) &
 		EFA_ADMIN_AENQ_COMMON_DESC_PHASE_MASK) == phase) {
 		/*
-		 * Do not read the rest of the completion entry before the
+		 * Do yest read the rest of the completion entry before the
 		 * phase bit was validated
 		 */
 		dma_rmb();
@@ -892,7 +892,7 @@ void efa_com_aenq_intr_handler(struct efa_com_dev *edev, void *data)
 	if (!processed)
 		return;
 
-	/* barrier not needed in case of writel */
+	/* barrier yest needed in case of writel */
 	writel(aenq->cc, edev->reg_bar + EFA_REGS_AENQ_CONS_DB_OFF);
 }
 
@@ -902,7 +902,7 @@ static void efa_com_mmio_reg_read_resp_addr_init(struct efa_com_dev *edev)
 	u32 addr_high;
 	u32 addr_low;
 
-	/* dma_addr_bits is unknown at this point */
+	/* dma_addr_bits is unkyeswn at this point */
 	addr_high = (mmio_read->read_resp_dma_addr >> 32) & GENMASK(31, 0);
 	addr_low = mmio_read->read_resp_dma_addr & GENMASK(31, 0);
 

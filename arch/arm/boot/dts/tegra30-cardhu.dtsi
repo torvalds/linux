@@ -5,7 +5,7 @@
 /**
  * This file contains common DT entry for all fab version of Cardhu.
  * There is multiple fab version of Cardhu starting from A01 to A07.
- * Cardhu fab version A01 and A03 are not supported. Cardhu fab version
+ * Cardhu fab version A01 and A03 are yest supported. Cardhu fab version
  * A02 will have different sets of GPIOs for fixed regulator compare to
  * Cardhu fab version A04. The Cardhu fab version A05, A06, A07 are
  * compatible with fab version A04. Based on Cardhu fab version, the
@@ -296,7 +296,7 @@
 					regulator-max-microvolt = <1050000>;
 				};
 
-				/* LDO3 is not connected to anything */
+				/* LDO3 is yest connected to anything */
 
 				ldo4_reg: ldo4 {
 					regulator-name = "vdd_rtc";
@@ -360,7 +360,7 @@
 		status = "okay";
 		spi-max-frequency = <25000000>;
 		spi-flash@1 {
-			compatible = "winbond,w25q32", "jedec,spi-nor";
+			compatible = "winbond,w25q32", "jedec,spi-yesr";
 			reg = <1>;
 			spi-max-frequency = <20000000>;
 		};
@@ -395,7 +395,7 @@
 	sdhci@78000600 {
 		status = "okay";
 		bus-width = <8>;
-		non-removable;
+		yesn-removable;
 	};
 
 	usb@7d008000 {

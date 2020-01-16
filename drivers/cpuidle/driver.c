@@ -3,7 +3,7 @@
  *
  * (C) 2006-2007 Venkatesh Pallipadi <venkatesh.pallipadi@intel.com>
  *               Shaohua Li <shaohua.li@intel.com>
- *               Adam Belay <abelay@novell.com>
+ *               Adam Belay <abelay@yesvell.com>
  *
  * This code is licenced under the GPL.
  */
@@ -29,7 +29,7 @@ static DEFINE_PER_CPU(struct cpuidle_driver *, cpuidle_drivers);
  * __cpuidle_get_cpu_driver - return the cpuidle driver tied to a CPU.
  * @cpu: the CPU handled by the driver
  *
- * Returns a pointer to struct cpuidle_driver or NULL if no driver has been
+ * Returns a pointer to struct cpuidle_driver or NULL if yes driver has been
  * registered for @cpu.
  */
 static struct cpuidle_driver *__cpuidle_get_cpu_driver(int cpu)
@@ -43,7 +43,7 @@ static struct cpuidle_driver *__cpuidle_get_cpu_driver(int cpu)
  *
  * For each CPU in the driver's CPU mask, unset the registered driver per CPU
  * variable. If @drv is different from the registered driver, the corresponding
- * variable is not cleared.
+ * variable is yest cleared.
  */
 static inline void __cpuidle_unset_driver(struct cpuidle_driver *drv)
 {
@@ -89,9 +89,9 @@ static struct cpuidle_driver *cpuidle_curr_driver;
 
 /**
  * __cpuidle_get_cpu_driver - return the global cpuidle driver pointer.
- * @cpu: ignored without the multiple driver support
+ * @cpu: igyesred without the multiple driver support
  *
- * Return a pointer to a struct cpuidle_driver object or NULL if no driver was
+ * Return a pointer to a struct cpuidle_driver object or NULL if yes driver was
  * previously registered.
  */
 static inline struct cpuidle_driver *__cpuidle_get_cpu_driver(int cpu)
@@ -119,8 +119,8 @@ static inline int __cpuidle_set_driver(struct cpuidle_driver *drv)
  * __cpuidle_unset_driver - unset the global cpuidle driver variable.
  * @drv: a pointer to a struct cpuidle_driver
  *
- * Reset the global cpuidle variable to NULL.  If @drv does not match the
- * registered driver, do nothing.
+ * Reset the global cpuidle variable to NULL.  If @drv does yest match the
+ * registered driver, do yesthing.
  */
 static inline void __cpuidle_unset_driver(struct cpuidle_driver *drv)
 {
@@ -136,7 +136,7 @@ static inline void __cpuidle_unset_driver(struct cpuidle_driver *drv)
  *
  * If @arg is NULL broadcast is disabled otherwise enabled
  *
- * This function is executed per CPU by an SMP cross call.  It's not
+ * This function is executed per CPU by an SMP cross call.  It's yest
  * supposed to be called directly.
  */
 static void cpuidle_setup_broadcast_timer(void *arg)
@@ -160,7 +160,7 @@ static void __cpuidle_driver_init(struct cpuidle_driver *drv)
 	/*
 	 * Use all possible CPUs as the default, because if the kernel boots
 	 * with some CPUs offline and then we online one of them, the CPU
-	 * notifier has to know which driver to assign.
+	 * yestifier has to kyesw which driver to assign.
 	 */
 	if (!drv->cpumask)
 		drv->cpumask = (struct cpumask *)cpu_possible_mask;
@@ -178,7 +178,7 @@ static void __cpuidle_driver_init(struct cpuidle_driver *drv)
 
 		/*
 		 * The core will use the target residency and exit latency
-		 * values in nanoseconds, but allow drivers to provide them in
+		 * values in nayesseconds, but allow drivers to provide them in
 		 * microseconds too.
 		 */
 		if (s->target_residency > 0)
@@ -198,7 +198,7 @@ static void __cpuidle_driver_init(struct cpuidle_driver *drv)
  * cpuidle driver has some states that shut down the local timer.
  *
  * Returns 0 on success, a negative error code otherwise:
- *  * -EINVAL if the driver pointer is NULL or no idle states are available
+ *  * -EINVAL if the driver pointer is NULL or yes idle states are available
  *  * -ENODEV if the cpuidle framework is disabled
  *  * -EBUSY if the driver is already assigned to the global variable(s)
  */
@@ -233,8 +233,8 @@ static int __cpuidle_register_driver(struct cpuidle_driver *drv)
  * __cpuidle_unregister_driver - unregister the driver
  * @drv: a valid pointer to a struct cpuidle_driver
  *
- * Check if the driver is no longer in use, reset the global cpuidle driver
- * variable(s) and disable the timer broadcast notification mechanism if it was
+ * Check if the driver is yes longer in use, reset the global cpuidle driver
+ * variable(s) and disable the timer broadcast yestification mechanism if it was
  * in use.
  *
  */
@@ -264,21 +264,21 @@ static void __cpuidle_unregister_driver(struct cpuidle_driver *drv)
  */
 int cpuidle_register_driver(struct cpuidle_driver *drv)
 {
-	struct cpuidle_governor *gov;
+	struct cpuidle_goveryesr *gov;
 	int ret;
 
 	spin_lock(&cpuidle_driver_lock);
 	ret = __cpuidle_register_driver(drv);
 	spin_unlock(&cpuidle_driver_lock);
 
-	if (!ret && !strlen(param_governor) && drv->governor &&
+	if (!ret && !strlen(param_goveryesr) && drv->goveryesr &&
 	    (cpuidle_get_driver() == drv)) {
 		mutex_lock(&cpuidle_lock);
-		gov = cpuidle_find_governor(drv->governor);
+		gov = cpuidle_find_goveryesr(drv->goveryesr);
 		if (gov) {
-			cpuidle_prev_governor = cpuidle_curr_governor;
-			if (cpuidle_switch_governor(gov) < 0)
-				cpuidle_prev_governor = NULL;
+			cpuidle_prev_goveryesr = cpuidle_curr_goveryesr;
+			if (cpuidle_switch_goveryesr(gov) < 0)
+				cpuidle_prev_goveryesr = NULL;
 		}
 		mutex_unlock(&cpuidle_lock);
 	}
@@ -307,9 +307,9 @@ void cpuidle_unregister_driver(struct cpuidle_driver *drv)
 		return;
 
 	mutex_lock(&cpuidle_lock);
-	if (cpuidle_prev_governor) {
-		if (!cpuidle_switch_governor(cpuidle_prev_governor))
-			cpuidle_prev_governor = NULL;
+	if (cpuidle_prev_goveryesr) {
+		if (!cpuidle_switch_goveryesr(cpuidle_prev_goveryesr))
+			cpuidle_prev_goveryesr = NULL;
 	}
 	mutex_unlock(&cpuidle_lock);
 }
@@ -318,7 +318,7 @@ EXPORT_SYMBOL_GPL(cpuidle_unregister_driver);
 /**
  * cpuidle_get_driver - return the driver tied to the current CPU.
  *
- * Returns a struct cpuidle_driver pointer, or NULL if no driver is registered.
+ * Returns a struct cpuidle_driver pointer, or NULL if yes driver is registered.
  */
 struct cpuidle_driver *cpuidle_get_driver(void)
 {
@@ -337,7 +337,7 @@ EXPORT_SYMBOL_GPL(cpuidle_get_driver);
  * cpuidle_get_cpu_driver - return the driver registered for a CPU.
  * @dev: a valid pointer to a struct cpuidle_device
  *
- * Returns a struct cpuidle_driver pointer, or NULL if no driver is registered
+ * Returns a struct cpuidle_driver pointer, or NULL if yes driver is registered
  * for the CPU associated with @dev.
  */
 struct cpuidle_driver *cpuidle_get_cpu_driver(struct cpuidle_device *dev)
@@ -355,7 +355,7 @@ EXPORT_SYMBOL_GPL(cpuidle_get_cpu_driver);
  * Increment the reference counter of the cpuidle driver associated with
  * the current CPU.
  *
- * Returns a pointer to the driver, or NULL if the current CPU has no driver.
+ * Returns a pointer to the driver, or NULL if the current CPU has yes driver.
  */
 struct cpuidle_driver *cpuidle_driver_ref(void)
 {
@@ -394,7 +394,7 @@ void cpuidle_driver_unref(void)
  * cpuidle_driver_state_disabled - Disable or enable an idle state
  * @drv: cpuidle driver owning the state
  * @idx: State index
- * @disable: Whether or not to disable the state
+ * @disable: Whether or yest to disable the state
  */
 void cpuidle_driver_state_disabled(struct cpuidle_driver *drv, int idx,
 				 bool disable)

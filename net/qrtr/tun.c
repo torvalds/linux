@@ -28,7 +28,7 @@ static int qrtr_tun_send(struct qrtr_endpoint *ep, struct sk_buff *skb)
 	return 0;
 }
 
-static int qrtr_tun_open(struct inode *inode, struct file *filp)
+static int qrtr_tun_open(struct iyesde *iyesde, struct file *filp)
 {
 	struct qrtr_tun *tun;
 
@@ -108,7 +108,7 @@ static __poll_t qrtr_tun_poll(struct file *filp, poll_table *wait)
 	return mask;
 }
 
-static int qrtr_tun_release(struct inode *inode, struct file *filp)
+static int qrtr_tun_release(struct iyesde *iyesde, struct file *filp)
 {
 	struct qrtr_tun *tun = filp->private_data;
 

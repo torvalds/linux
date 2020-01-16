@@ -101,7 +101,7 @@ static int devm_regulator_match(struct device *dev, void *res, void *data)
  * @regulator: regulator to free
  *
  * Deallocate a regulator allocated with devm_regulator_get(). Normally
- * this function will not need to be called and the resource management
+ * this function will yest need to be called and the resource management
  * code will ensure that the resource is freed.
  */
 void devm_regulator_put(struct regulator *regulator)
@@ -134,12 +134,12 @@ static void devm_regulator_bulk_release(struct device *dev, void *res)
  * @num_consumers: Number of consumers to register
  * @consumers:     Configuration of consumers; clients are stored here.
  *
- * @return 0 on success, an errno on failure.
+ * @return 0 on success, an erryes on failure.
  *
  * This helper function allows drivers to get several regulator
  * consumers in one operation with management, the regulators will
  * automatically be freed when the device is unbound.  If any of the
- * regulators cannot be acquired then any regulators that were
+ * regulators canyest be acquired then any regulators that were
  * allocated will be freed before returning to the caller.
  */
 int devm_regulator_bulk_get(struct device *dev, int num_consumers,
@@ -219,7 +219,7 @@ static int devm_rdev_match(struct device *dev, void *res, void *data)
  * @regulator: regulator to free
  *
  * Unregister a regulator registered with devm_regulator_register().
- * Normally this function will not need to be called and the resource
+ * Normally this function will yest need to be called and the resource
  * management code will ensure that the resource is freed.
  */
 void devm_regulator_unregister(struct device *dev, struct regulator_dev *rdev)
@@ -303,7 +303,7 @@ EXPORT_SYMBOL_GPL(devm_regulator_register_supply_alias);
  *
  * Unregister an alias registered with
  * devm_regulator_register_supply_alias(). Normally this function
- * will not need to be called and the resource management code
+ * will yest need to be called and the resource management code
  * will ensure that the resource is freed.
  */
 void devm_regulator_unregister_supply_alias(struct device *dev, const char *id)
@@ -332,12 +332,12 @@ EXPORT_SYMBOL_GPL(devm_regulator_unregister_supply_alias);
  * lookup the supply
  * @num_id: Number of aliases to register
  *
- * @return 0 on success, an errno on failure.
+ * @return 0 on success, an erryes on failure.
  *
  * This helper function allows drivers to register several supply
  * aliases in one operation, the aliases will be automatically
  * unregisters when the source device is unbound.  If any of the
- * aliases cannot be registered any aliases that were registered
+ * aliases canyest be registered any aliases that were registered
  * will be removed before returning to the caller.
  */
 int devm_regulator_bulk_register_supply_alias(struct device *dev,
@@ -381,7 +381,7 @@ EXPORT_SYMBOL_GPL(devm_regulator_bulk_register_supply_alias);
  *
  * Unregister aliases registered with
  * devm_regulator_bulk_register_supply_alias(). Normally this function
- * will not need to be called and the resource management code
+ * will yest need to be called and the resource management code
  * will ensure that the resource is freed.
  */
 void devm_regulator_bulk_unregister_supply_alias(struct device *dev,
@@ -395,45 +395,45 @@ void devm_regulator_bulk_unregister_supply_alias(struct device *dev,
 }
 EXPORT_SYMBOL_GPL(devm_regulator_bulk_unregister_supply_alias);
 
-struct regulator_notifier_match {
+struct regulator_yestifier_match {
 	struct regulator *regulator;
-	struct notifier_block *nb;
+	struct yestifier_block *nb;
 };
 
-static int devm_regulator_match_notifier(struct device *dev, void *res,
+static int devm_regulator_match_yestifier(struct device *dev, void *res,
 					 void *data)
 {
-	struct regulator_notifier_match *match = res;
-	struct regulator_notifier_match *target = data;
+	struct regulator_yestifier_match *match = res;
+	struct regulator_yestifier_match *target = data;
 
 	return match->regulator == target->regulator && match->nb == target->nb;
 }
 
-static void devm_regulator_destroy_notifier(struct device *dev, void *res)
+static void devm_regulator_destroy_yestifier(struct device *dev, void *res)
 {
-	struct regulator_notifier_match *match = res;
+	struct regulator_yestifier_match *match = res;
 
-	regulator_unregister_notifier(match->regulator, match->nb);
+	regulator_unregister_yestifier(match->regulator, match->nb);
 }
 
 /**
- * devm_regulator_register_notifier - Resource managed
- * regulator_register_notifier
+ * devm_regulator_register_yestifier - Resource managed
+ * regulator_register_yestifier
  *
  * @regulator: regulator source
- * @nb: notifier block
+ * @nb: yestifier block
  *
- * The notifier will be registers under the consumer device and be
+ * The yestifier will be registers under the consumer device and be
  * automatically be unregistered when the source device is unbound.
  */
-int devm_regulator_register_notifier(struct regulator *regulator,
-				     struct notifier_block *nb)
+int devm_regulator_register_yestifier(struct regulator *regulator,
+				     struct yestifier_block *nb)
 {
-	struct regulator_notifier_match *match;
+	struct regulator_yestifier_match *match;
 	int ret;
 
-	match = devres_alloc(devm_regulator_destroy_notifier,
-			     sizeof(struct regulator_notifier_match),
+	match = devres_alloc(devm_regulator_destroy_yestifier,
+			     sizeof(struct regulator_yestifier_match),
 			     GFP_KERNEL);
 	if (!match)
 		return -ENOMEM;
@@ -441,7 +441,7 @@ int devm_regulator_register_notifier(struct regulator *regulator,
 	match->regulator = regulator;
 	match->nb = nb;
 
-	ret = regulator_register_notifier(regulator, nb);
+	ret = regulator_register_yestifier(regulator, nb);
 	if (ret < 0) {
 		devres_free(match);
 		return ret;
@@ -451,31 +451,31 @@ int devm_regulator_register_notifier(struct regulator *regulator,
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(devm_regulator_register_notifier);
+EXPORT_SYMBOL_GPL(devm_regulator_register_yestifier);
 
 /**
- * devm_regulator_unregister_notifier - Resource managed
- * regulator_unregister_notifier()
+ * devm_regulator_unregister_yestifier - Resource managed
+ * regulator_unregister_yestifier()
  *
  * @regulator: regulator source
- * @nb: notifier block
+ * @nb: yestifier block
  *
- * Unregister a notifier registered with devm_regulator_register_notifier().
- * Normally this function will not need to be called and the resource
+ * Unregister a yestifier registered with devm_regulator_register_yestifier().
+ * Normally this function will yest need to be called and the resource
  * management code will ensure that the resource is freed.
  */
-void devm_regulator_unregister_notifier(struct regulator *regulator,
-					struct notifier_block *nb)
+void devm_regulator_unregister_yestifier(struct regulator *regulator,
+					struct yestifier_block *nb)
 {
-	struct regulator_notifier_match match;
+	struct regulator_yestifier_match match;
 	int rc;
 
 	match.regulator = regulator;
 	match.nb = nb;
 
-	rc = devres_release(regulator->dev, devm_regulator_destroy_notifier,
-			    devm_regulator_match_notifier, &match);
+	rc = devres_release(regulator->dev, devm_regulator_destroy_yestifier,
+			    devm_regulator_match_yestifier, &match);
 	if (rc != 0)
 		WARN_ON(rc);
 }
-EXPORT_SYMBOL_GPL(devm_regulator_unregister_notifier);
+EXPORT_SYMBOL_GPL(devm_regulator_unregister_yestifier);

@@ -24,7 +24,7 @@ extern struct cpuinfo_csky cpu_data[];
 
 /*
  * User space process size: 2GB. This is hardcoded into a few places,
- * so don't change it unless you know what you are doing.  TASK_SIZE
+ * so don't change it unless you kyesw what you are doing.  TASK_SIZE
  * for a 64 bit kernel expandable to 8192EB, of which the current CSKY
  * implementations will "only" be able to use 1TB ...
  */

@@ -48,18 +48,18 @@ acpi_ds_init_one_object(acpi_handle obj_handle,
 {
 	struct acpi_init_walk_info *info =
 	    (struct acpi_init_walk_info *)context;
-	struct acpi_namespace_node *node =
-	    (struct acpi_namespace_node *)obj_handle;
+	struct acpi_namespace_yesde *yesde =
+	    (struct acpi_namespace_yesde *)obj_handle;
 	acpi_status status;
 	union acpi_operand_object *obj_desc;
 
 	ACPI_FUNCTION_ENTRY();
 
 	/*
-	 * We are only interested in NS nodes owned by the table that
+	 * We are only interested in NS yesdes owned by the table that
 	 * was just loaded
 	 */
-	if (node->owner_id != info->owner_id) {
+	if (yesde->owner_id != info->owner_id) {
 		return (AE_OK);
 	}
 
@@ -75,7 +75,7 @@ acpi_ds_init_one_object(acpi_handle obj_handle,
 			ACPI_EXCEPTION((AE_INFO, status,
 					"During Region initialization %p [%4.4s]",
 					obj_handle,
-					acpi_ut_get_node_name(obj_handle)));
+					acpi_ut_get_yesde_name(obj_handle)));
 		}
 
 		info->op_region_count++;
@@ -84,19 +84,19 @@ acpi_ds_init_one_object(acpi_handle obj_handle,
 	case ACPI_TYPE_METHOD:
 		/*
 		 * Auto-serialization support. We will examine each method that is
-		 * not_serialized to determine if it creates any Named objects. If
+		 * yest_serialized to determine if it creates any Named objects. If
 		 * it does, it will be marked serialized to prevent problems if
 		 * the method is entered by two or more threads and an attempt is
 		 * made to create the same named object twice -- which results in
 		 * an AE_ALREADY_EXISTS exception and method abort.
 		 */
 		info->method_count++;
-		obj_desc = acpi_ns_get_attached_object(node);
+		obj_desc = acpi_ns_get_attached_object(yesde);
 		if (!obj_desc) {
 			break;
 		}
 
-		/* Ignore if already serialized */
+		/* Igyesre if already serialized */
 
 		if (obj_desc->method.info_flags & ACPI_METHOD_SERIALIZED) {
 			info->serial_method_count++;
@@ -107,7 +107,7 @@ acpi_ds_init_one_object(acpi_handle obj_handle,
 
 			/* Parse/scan method and serialize it if necessary */
 
-			acpi_ds_auto_serialize_method(node, obj_desc);
+			acpi_ds_auto_serialize_method(yesde, obj_desc);
 			if (obj_desc->method.
 			    info_flags & ACPI_METHOD_SERIALIZED) {
 
@@ -119,7 +119,7 @@ acpi_ds_init_one_object(acpi_handle obj_handle,
 			}
 		}
 
-		info->non_serial_method_count++;
+		info->yesn_serial_method_count++;
 		break;
 
 	case ACPI_TYPE_DEVICE:
@@ -133,7 +133,7 @@ acpi_ds_init_one_object(acpi_handle obj_handle,
 	}
 
 	/*
-	 * We ignore errors from above, and always return OK, since
+	 * We igyesre errors from above, and always return OK, since
 	 * we don't want to abort the walk on a single error.
 	 */
 	return (AE_OK);
@@ -144,7 +144,7 @@ acpi_ds_init_one_object(acpi_handle obj_handle,
  * FUNCTION:    acpi_ds_initialize_objects
  *
  * PARAMETERS:  table_desc      - Descriptor for parent ACPI table
- *              start_node      - Root of subtree to be initialized.
+ *              start_yesde      - Root of subtree to be initialized.
  *
  * RETURN:      Status
  *
@@ -155,7 +155,7 @@ acpi_ds_init_one_object(acpi_handle obj_handle,
 
 acpi_status
 acpi_ds_initialize_objects(u32 table_index,
-			   struct acpi_namespace_node *start_node)
+			   struct acpi_namespace_yesde *start_yesde)
 {
 	acpi_status status;
 	struct acpi_init_walk_info info;
@@ -182,11 +182,11 @@ acpi_ds_initialize_objects(u32 table_index,
 	/* Walk entire namespace from the supplied root */
 
 	/*
-	 * We don't use acpi_walk_namespace since we do not want to acquire
+	 * We don't use acpi_walk_namespace since we do yest want to acquire
 	 * the namespace reader lock.
 	 */
 	status =
-	    acpi_ns_walk_namespace(ACPI_TYPE_ANY, start_node, ACPI_UINT32_MAX,
+	    acpi_ns_walk_namespace(ACPI_TYPE_ANY, start_yesde, ACPI_UINT32_MAX,
 				   ACPI_NS_WALK_NO_UNLOCK,
 				   acpi_ds_init_one_object, NULL, &info, NULL);
 	if (ACPI_FAILURE(status)) {
@@ -214,7 +214,7 @@ acpi_ds_initialize_objects(u32 table_index,
 			      info.object_count, info.device_count,
 			      info.op_region_count, info.method_count,
 			      info.serial_method_count,
-			      info.non_serial_method_count,
+			      info.yesn_serial_method_count,
 			      info.serialized_method_count));
 
 	ACPI_DEBUG_PRINT((ACPI_DB_DISPATCH, "%u Methods, %u Regions\n",

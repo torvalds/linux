@@ -18,7 +18,7 @@ static struct usb_device_id mt76x0_device_table[] = {
 	{ USB_DEVICE(0x7392, 0xa711) },	/* Edimax 7711mac */
 	{ USB_DEVICE(0x7392, 0xb711) },	/* Edimax / Elecom  */
 	{ USB_DEVICE(0x148f, 0x761a) },	/* TP-Link TL-WDN5200 */
-	{ USB_DEVICE(0x148f, 0x760a) },	/* TP-Link unknown */
+	{ USB_DEVICE(0x148f, 0x760a) },	/* TP-Link unkyeswn */
 	{ USB_DEVICE(0x0b05, 0x17d1) },	/* Asus USB-AC51 */
 	{ USB_DEVICE(0x0b05, 0x17db) },	/* Asus USB-AC50 */
 	{ USB_DEVICE(0x0df6, 0x0075) },	/* Sitecom WLA-3100 */
@@ -59,7 +59,7 @@ static void mt76x0_init_usb_dma(struct mt76x02_dev *dev)
 
 	val = mt76_rr(dev, MT_COM_REG0);
 	if (val & 1)
-		dev_dbg(dev->mt76.dev, "MCU not ready\n");
+		dev_dbg(dev->mt76.dev, "MCU yest ready\n");
 
 	val = mt76_rr(dev, MT_USB_DMA_CFG);
 
@@ -72,7 +72,7 @@ static void mt76x0_init_usb_dma(struct mt76x02_dev *dev)
 static void mt76x0u_cleanup(struct mt76x02_dev *dev)
 {
 	clear_bit(MT76_STATE_INITIALIZED, &dev->mt76.state);
-	mt76x0_chip_onoff(dev, false, false);
+	mt76x0_chip_oyesff(dev, false, false);
 	mt76u_queues_deinit(&dev->mt76);
 }
 
@@ -90,12 +90,12 @@ static void mt76x0u_stop(struct ieee80211_hw *hw)
 		return;
 
 	if (!mt76_poll(dev, MT_USB_DMA_CFG, MT_USB_DMA_CFG_TX_BUSY, 0, 1000))
-		dev_warn(dev->mt76.dev, "TX DMA did not stop\n");
+		dev_warn(dev->mt76.dev, "TX DMA did yest stop\n");
 
 	mt76x0_mac_stop(dev);
 
 	if (!mt76_poll(dev, MT_USB_DMA_CFG, MT_USB_DMA_CFG_RX_BUSY, 0, 1000))
-		dev_warn(dev->mt76.dev, "RX DMA did not stop\n");
+		dev_warn(dev->mt76.dev, "RX DMA did yest stop\n");
 }
 
 static int mt76x0u_start(struct ieee80211_hw *hw)
@@ -145,7 +145,7 @@ static int mt76x0u_init_hardware(struct mt76x02_dev *dev, bool reset)
 {
 	int err;
 
-	mt76x0_chip_onoff(dev, true, reset);
+	mt76x0_chip_oyesff(dev, true, reset);
 
 	if (!mt76x02_wait_for_mac(&dev->mt76))
 		return -ETIMEDOUT;
@@ -232,7 +232,7 @@ static int mt76x0u_probe(struct usb_interface *usb_intf,
 
 	/* Quirk for Archer T1U */
 	if (id->driver_info)
-		dev->no_2ghz = true;
+		dev->yes_2ghz = true;
 
 	usb_dev = usb_get_dev(usb_dev);
 	usb_reset_device(usb_dev);
@@ -245,7 +245,7 @@ static int mt76x0u_probe(struct usb_interface *usb_intf,
 		goto err;
 
 	/* Disable the HW, otherwise MCU fail to initialize on hot reboot */
-	mt76x0_chip_onoff(dev, false, false);
+	mt76x0_chip_oyesff(dev, false, false);
 
 	if (!mt76x02_wait_for_mac(mdev)) {
 		ret = -ETIMEDOUT;
@@ -263,7 +263,7 @@ static int mt76x0u_probe(struct usb_interface *usb_intf,
 
 	/* Note: vendor driver skips this check for MT76X0U */
 	if (!(mt76_rr(dev, MT_EFUSE_CTRL) & MT_EFUSE_CTRL_SEL))
-		dev_warn(mdev->dev, "Warning: eFUSE not present\n");
+		dev_warn(mdev->dev, "Warning: eFUSE yest present\n");
 
 	ret = mt76x0u_register_device(dev);
 	if (ret < 0)
@@ -305,7 +305,7 @@ static int __maybe_unused mt76x0_suspend(struct usb_interface *usb_intf,
 
 	mt76u_stop_rx(&dev->mt76);
 	clear_bit(MT76_STATE_MCU_RUNNING, &dev->mt76.state);
-	mt76x0_chip_onoff(dev, false, false);
+	mt76x0_chip_oyesff(dev, false, false);
 
 	return 0;
 }

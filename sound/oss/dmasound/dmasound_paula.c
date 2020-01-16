@@ -127,7 +127,7 @@ static int AmiStateInfo(char *buffer, size_t space);
 
 /* ++TeSche: radically changed for new expanding purposes...
  *
- * These two routines now deal with copying/expanding/translating the samples
+ * These two routines yesw deal with copying/expanding/translating the samples
  * from user space into our buffer at the right frequency. They take care about
  * how much data there's actually to read, how much buffer space there is and
  * to convert samples into the right frequency/encoding. They will only work on
@@ -142,7 +142,7 @@ static int AmiStateInfo(char *buffer, size_t space);
  * parameterized loop would only produce slower code. Feel free to optimize
  * this in assembler if you like. :)
  *
- * I think these routines belong here because they're not yet really hardware
+ * I think these routines belong here because they're yest yet really hardware
  * independent, especially the fact that the Falcon can play 16bit samples
  * only in stereo is hardcoded in both of them!
  *
@@ -541,8 +541,8 @@ static void AmiPlay(void)
 
 	if (write_sq.count <= minframes &&
 	    write_sq.rear_size < write_sq.block_size && !write_sq.syncing) {
-		/* hmmm, the only existing frame is not
-		 * yet filled and we're not syncing?
+		/* hmmm, the only existing frame is yest
+		 * yet filled and we're yest syncing?
 		 */
 		custom.intena = IF_SETCLR | IF_AUD0;
 		return;

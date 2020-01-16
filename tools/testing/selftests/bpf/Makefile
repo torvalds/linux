@@ -29,8 +29,8 @@ TEST_GEN_PROGS = test_verifier test_tag test_maps test_lru_map test_lpm_map test
 	test_align test_verifier_log test_dev_cgroup test_tcpbpf_user \
 	test_sock test_btf test_sockmap get_cgroup_id_user test_socket_cookie \
 	test_cgroup_storage test_select_reuseport \
-	test_netcnt test_tcpnotify_user test_sock_fields test_sysctl test_hashmap \
-	test_cgroup_attach test_progs-no_alu32
+	test_netcnt test_tcpyestify_user test_sock_fields test_sysctl test_hashmap \
+	test_cgroup_attach test_progs-yes_alu32
 
 # Also test bpf-gcc, if present
 ifneq ($(BPF_GCC),)
@@ -68,7 +68,7 @@ TEST_PROGS_EXTENDED := with_addr.sh \
 	tcp_server.py \
 	test_xdp_vlan.sh
 
-# Compile but not part of 'make run_tests'
+# Compile but yest part of 'make run_tests'
 TEST_GEN_PROGS_EXTENDED = test_sock_addr test_skb_cgroup_id_user \
 	flow_dissector_load test_flow_dissector test_tcp_check_syncookie_user \
 	test_lirc_mode2_user xdping test_cpp
@@ -81,7 +81,7 @@ include ../lib.mk
 # to build individual tests.
 # NOTE: Semicolon at the end is critical to override lib.mk's default static
 # rule for binaries.
-$(notdir $(TEST_GEN_PROGS)						\
+$(yestdir $(TEST_GEN_PROGS)						\
 	 $(TEST_PROGS)							\
 	 $(TEST_PROGS_EXTENDED)						\
 	 $(TEST_GEN_PROGS_EXTENDED)					\
@@ -104,7 +104,7 @@ $(OUTPUT)/test_sock_addr: cgroup_helpers.c
 $(OUTPUT)/test_socket_cookie: cgroup_helpers.c
 $(OUTPUT)/test_sockmap: cgroup_helpers.c
 $(OUTPUT)/test_tcpbpf_user: cgroup_helpers.c
-$(OUTPUT)/test_tcpnotify_user: cgroup_helpers.c trace_helpers.c
+$(OUTPUT)/test_tcpyestify_user: cgroup_helpers.c trace_helpers.c
 $(OUTPUT)/get_cgroup_id_user: cgroup_helpers.c
 $(OUTPUT)/test_cgroup_storage: cgroup_helpers.c
 $(OUTPUT)/test_netcnt: cgroup_helpers.c
@@ -146,10 +146,10 @@ BPF_CFLAGS = -g -D__TARGET_ARCH_$(SRCARCH) $(MENDIAN) 			\
 	     -I$(BPFDIR) -I$(abspath $(OUTPUT)/../usr/include)
 
 CLANG_CFLAGS = $(CLANG_SYS_INCLUDES) \
-	       -Wno-compare-distinct-pointer-types
+	       -Wyes-compare-distinct-pointer-types
 
-$(OUTPUT)/test_l4lb_noinline.o: BPF_CFLAGS += -fno-inline
-$(OUTPUT)/test_xdp_noinline.o: BPF_CFLAGS += -fno-inline
+$(OUTPUT)/test_l4lb_yesinline.o: BPF_CFLAGS += -fyes-inline
+$(OUTPUT)/test_xdp_yesinline.o: BPF_CFLAGS += -fyes-inline
 
 $(OUTPUT)/flow_dissector_load.o: flow_dissector_load.h
 
@@ -184,21 +184,21 @@ endef
 # $eval()) and pass control to DEFINE_TEST_RUNNER_RULES.
 # Parameters:
 # $1 - test runner base binary name (e.g., test_progs)
-# $2 - test runner extra "flavor" (e.g., no_alu32, gcc-bpf, etc)
+# $2 - test runner extra "flavor" (e.g., yes_alu32, gcc-bpf, etc)
 define DEFINE_TEST_RUNNER
 
 TRUNNER_OUTPUT := $(OUTPUT)$(if $2,/)$2
 TRUNNER_BINARY := $1$(if $2,-)$2
 TRUNNER_TEST_OBJS := $$(patsubst %.c,$$(TRUNNER_OUTPUT)/%.test.o,	\
-				 $$(notdir $$(wildcard $(TRUNNER_TESTS_DIR)/*.c)))
+				 $$(yestdir $$(wildcard $(TRUNNER_TESTS_DIR)/*.c)))
 TRUNNER_EXTRA_OBJS := $$(patsubst %.c,$$(TRUNNER_OUTPUT)/%.o,		\
 				 $$(filter %.c,$(TRUNNER_EXTRA_SOURCES)))
 TRUNNER_EXTRA_HDRS := $$(filter %.h,$(TRUNNER_EXTRA_SOURCES))
 TRUNNER_TESTS_HDR := $(TRUNNER_TESTS_DIR)/tests.h
 TRUNNER_BPF_OBJS := $$(patsubst %.c,$$(TRUNNER_OUTPUT)/%.o,		\
-				$$(notdir $$(wildcard $(TRUNNER_BPF_PROGS_DIR)/*.c)))
+				$$(yestdir $$(wildcard $(TRUNNER_BPF_PROGS_DIR)/*.c)))
 
-# Evaluate rules now with extra TRUNNER_XXX variables above already defined
+# Evaluate rules yesw with extra TRUNNER_XXX variables above already defined
 $$(eval $$(call DEFINE_TEST_RUNNER_RULES,$1,$2))
 
 endef
@@ -206,7 +206,7 @@ endef
 # Using TRUNNER_XXX variables, provided by callers of DEFINE_TEST_RUNNER and
 # set up by DEFINE_TEST_RUNNER itself, create test runner build rules with:
 # $1 - test runner base binary name (e.g., test_progs)
-# $2 - test runner extra "flavor" (e.g., no_alu32, gcc-bpf, etc)
+# $2 - test runner extra "flavor" (e.g., yes_alu32, gcc-bpf, etc)
 define DEFINE_TEST_RUNNER_RULES
 
 ifeq ($($(TRUNNER_OUTPUT)-dir),)
@@ -233,7 +233,7 @@ ifeq ($($(TRUNNER_TESTS_DIR)-tests-hdr),)
 $(TRUNNER_TESTS_DIR)-tests-hdr := y
 $(TRUNNER_TESTS_HDR): $(TRUNNER_TESTS_DIR)/*.c
 	$$(shell ( cd $(TRUNNER_TESTS_DIR);				\
-		  echo '/* Generated header, do not edit */';		\
+		  echo '/* Generated header, do yest edit */';		\
 		  ls *.c 2> /dev/null |					\
 			sed -e 's@\([^\.]*\)\.c@DEFINE_TEST(\1)@';	\
 		 ) > $$@)
@@ -280,10 +280,10 @@ TRUNNER_BPF_CFLAGS := -I. -I$(OUTPUT) $(BPF_CFLAGS) $(CLANG_CFLAGS)
 TRUNNER_BPF_LDFLAGS := -mattr=+alu32
 $(eval $(call DEFINE_TEST_RUNNER,test_progs))
 
-# Define test_progs-no_alu32 test runner.
+# Define test_progs-yes_alu32 test runner.
 TRUNNER_BPF_BUILD_RULE := CLANG_NOALU32_BPF_BUILD_RULE
 TRUNNER_BPF_LDFLAGS :=
-$(eval $(call DEFINE_TEST_RUNNER,test_progs,no_alu32))
+$(eval $(call DEFINE_TEST_RUNNER,test_progs,yes_alu32))
 
 # Define test_progs BPF-GCC-flavored test runner.
 ifneq ($(BPF_GCC),)
@@ -298,7 +298,7 @@ TRUNNER_TESTS_DIR := map_tests
 TRUNNER_BPF_PROGS_DIR := progs
 TRUNNER_EXTRA_SOURCES := test_maps.c
 TRUNNER_EXTRA_FILES :=
-TRUNNER_BPF_BUILD_RULE := $$(error no BPF objects should be built)
+TRUNNER_BPF_BUILD_RULE := $$(error yes BPF objects should be built)
 TRUNNER_BPF_CFLAGS :=
 TRUNNER_BPF_LDFLAGS :=
 $(eval $(call DEFINE_TEST_RUNNER,test_maps))
@@ -309,7 +309,7 @@ $(eval $(call DEFINE_TEST_RUNNER,test_maps))
 # explicitly defining all the rules explicitly.
 verifier/tests.h: verifier/*.c
 	$(shell ( cd verifier/; \
-		  echo '/* Generated header, do not edit */'; \
+		  echo '/* Generated header, do yest edit */'; \
 		  echo '#ifdef FILL_ARRAY'; \
 		  ls *.c 2> /dev/null | sed -e 's@\(.*\)@#include \"\1\"@'; \
 		  echo '#endif' \
@@ -323,4 +323,4 @@ $(OUTPUT)/test_cpp: test_cpp.cpp $(BPFOBJ)
 
 EXTRA_CLEAN := $(TEST_CUSTOM_PROGS)					\
 	prog_tests/tests.h map_tests/tests.h verifier/tests.h		\
-	feature $(OUTPUT)/*.o $(OUTPUT)/no_alu32 $(OUTPUT)/bpf_gcc
+	feature $(OUTPUT)/*.o $(OUTPUT)/yes_alu32 $(OUTPUT)/bpf_gcc

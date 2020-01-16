@@ -25,21 +25,21 @@ static LIST_HEAD(devices);
 
 struct host1x_subdev {
 	struct host1x_client *client;
-	struct device_node *np;
+	struct device_yesde *np;
 	struct list_head list;
 };
 
 /**
- * host1x_subdev_add() - add a new subdevice with an associated device node
+ * host1x_subdev_add() - add a new subdevice with an associated device yesde
  * @device: host1x device to add the subdevice to
- * @np: device node
+ * @np: device yesde
  */
 static int host1x_subdev_add(struct host1x_device *device,
 			     struct host1x_driver *driver,
-			     struct device_node *np)
+			     struct device_yesde *np)
 {
 	struct host1x_subdev *subdev;
-	struct device_node *child;
+	struct device_yesde *child;
 	int err;
 
 	subdev = kzalloc(sizeof(*subdev), GFP_KERNEL);
@@ -47,20 +47,20 @@ static int host1x_subdev_add(struct host1x_device *device,
 		return -ENOMEM;
 
 	INIT_LIST_HEAD(&subdev->list);
-	subdev->np = of_node_get(np);
+	subdev->np = of_yesde_get(np);
 
 	mutex_lock(&device->subdevs_lock);
 	list_add_tail(&subdev->list, &device->subdevs);
 	mutex_unlock(&device->subdevs_lock);
 
 	/* recursively add children */
-	for_each_child_of_node(np, child) {
-		if (of_match_node(driver->subdevs, child) &&
+	for_each_child_of_yesde(np, child) {
+		if (of_match_yesde(driver->subdevs, child) &&
 		    of_device_is_available(child)) {
 			err = host1x_subdev_add(device, driver, child);
 			if (err < 0) {
 				/* XXX cleanup? */
-				of_node_put(child);
+				of_yesde_put(child);
 				return err;
 			}
 		}
@@ -76,7 +76,7 @@ static int host1x_subdev_add(struct host1x_device *device,
 static void host1x_subdev_del(struct host1x_subdev *subdev)
 {
 	list_del(&subdev->list);
-	of_node_put(subdev->np);
+	of_yesde_put(subdev->np);
 	kfree(subdev);
 }
 
@@ -88,15 +88,15 @@ static void host1x_subdev_del(struct host1x_subdev *subdev)
 static int host1x_device_parse_dt(struct host1x_device *device,
 				  struct host1x_driver *driver)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 	int err;
 
-	for_each_child_of_node(device->dev.parent->of_node, np) {
-		if (of_match_node(driver->subdevs, np) &&
+	for_each_child_of_yesde(device->dev.parent->of_yesde, np) {
+		if (of_match_yesde(driver->subdevs, np) &&
 		    of_device_is_available(np)) {
 			err = host1x_subdev_add(device, driver, np);
 			if (err < 0) {
-				of_node_put(np);
+				of_yesde_put(np);
 				return err;
 			}
 		}
@@ -227,7 +227,7 @@ EXPORT_SYMBOL(host1x_device_init);
  *
  * When the driver for a host1x logical device is unloaded, it can call this
  * function to tear down each of its clients. Typically this is done after a
- * subsystem-specific data structure is removed and the functionality can no
+ * subsystem-specific data structure is removed and the functionality can yes
  * longer be used.
  */
 int host1x_device_exit(struct host1x_device *device)
@@ -266,7 +266,7 @@ static int host1x_add_client(struct host1x *host1x,
 
 	list_for_each_entry(device, &host1x->devices, list) {
 		list_for_each_entry(subdev, &device->subdevs, list) {
-			if (subdev->np == client->dev->of_node) {
+			if (subdev->np == client->dev->of_yesde) {
 				host1x_subdev_register(device, subdev, client);
 				mutex_unlock(&host1x->devices_lock);
 				return 0;
@@ -308,14 +308,14 @@ static int host1x_device_match(struct device *dev, struct device_driver *drv)
 static int host1x_device_uevent(struct device *dev,
 				struct kobj_uevent_env *env)
 {
-	struct device_node *np = dev->parent->of_node;
+	struct device_yesde *np = dev->parent->of_yesde;
 	unsigned int count = 0;
 	struct property *p;
 	const char *compat;
 
 	/*
-	 * This duplicates most of of_device_uevent(), but the latter cannot
-	 * be called from modules and operates on dev->of_node, which is not
+	 * This duplicates most of of_device_uevent(), but the latter canyest
+	 * be called from modules and operates on dev->of_yesde, which is yest
 	 * available in this case.
 	 *
 	 * Note that this is really only needed for backwards compatibility
@@ -337,7 +337,7 @@ static int host1x_device_uevent(struct device *dev,
 
 static int host1x_dma_configure(struct device *dev)
 {
-	return of_dma_configure(dev, dev->of_node, true);
+	return of_dma_configure(dev, dev->of_yesde, true);
 }
 
 static const struct dev_pm_ops host1x_device_pm_ops = {
@@ -442,7 +442,7 @@ static int host1x_device_add(struct host1x *host1x,
 	device->dev.bus = &host1x_bus_type;
 	device->dev.parent = host1x->dev;
 
-	of_dma_configure(&device->dev, host1x->dev->of_node, true);
+	of_dma_configure(&device->dev, host1x->dev->of_yesde, true);
 
 	device->dev.dma_parms = &device->dma_parms;
 	dma_set_max_seg_size(&device->dev, UINT_MAX);
@@ -459,7 +459,7 @@ static int host1x_device_add(struct host1x *host1x,
 
 	list_for_each_entry_safe(client, tmp, &clients, list) {
 		list_for_each_entry(subdev, &device->subdevs, list) {
-			if (subdev->np == client->dev->of_node) {
+			if (subdev->np == client->dev->of_yesde) {
 				host1x_subdev_register(device, subdev, client);
 				break;
 			}

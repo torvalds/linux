@@ -10,19 +10,19 @@
 
 static inline int myisspace(u8 c)
 {
-	return c <= ' ';	/* Close enough approximation */
+	return c <= ' ';	/* Close eyesugh approximation */
 }
 
 /**
- * Find a boolean option (like quiet,noapic,nosmp....)
+ * Find a boolean option (like quiet,yesapic,yessmp....)
  *
  * @cmdline: the cmdline string
  * @option: option string to look for
  *
  * Returns the position of that @option (starts counting with 1)
- * or 0 on not found.  @option will only be found if it is found
+ * or 0 on yest found.  @option will only be found if it is found
  * as an entire word in @cmdline.  For instance, if @option="car"
- * then a cmdline which contains "cart" will not match.
+ * then a cmdline which contains "cart" will yest match.
  */
 static int
 __cmdline_find_option_bool(const char *cmdline, int max_cmdline_size,
@@ -41,8 +41,8 @@ __cmdline_find_option_bool(const char *cmdline, int max_cmdline_size,
 		return -1;      /* No command line */
 
 	/*
-	 * This 'pos' check ensures we do not overrun
-	 * a non-NULL-terminated 'cmdline'
+	 * This 'pos' check ensures we do yest overrun
+	 * a yesn-NULL-terminated 'cmdline'
 	 */
 	while (pos < max_cmdline_size) {
 		c = *(char *)cmdline++;
@@ -71,7 +71,7 @@ __cmdline_find_option_bool(const char *cmdline, int max_cmdline_size,
 				if (!c || myisspace(c))
 					return wstart;
 				/*
-				 * We hit the end of the option, but _not_
+				 * We hit the end of the option, but _yest_
 				 * the end of a word on the cmdline.  Not
 				 * a match.
 				 */
@@ -104,7 +104,7 @@ __cmdline_find_option_bool(const char *cmdline, int max_cmdline_size,
 }
 
 /*
- * Find a non-boolean option (i.e. option=argument). In accordance with
+ * Find a yesn-boolean option (i.e. option=argument). In accordance with
  * standard Linux practice, if this option is repeated, this returns the
  * last instance on the command line.
  *
@@ -115,7 +115,7 @@ __cmdline_find_option_bool(const char *cmdline, int max_cmdline_size,
  * @bufsize: size of the supplied memory buffer
  *
  * Returns the length of the argument (regardless of if it was
- * truncated to fit in the buffer), or -1 on not found.
+ * truncated to fit in the buffer), or -1 on yest found.
  */
 static int
 __cmdline_find_option(const char *cmdline, int max_cmdline_size,
@@ -136,8 +136,8 @@ __cmdline_find_option(const char *cmdline, int max_cmdline_size,
 		return -1;      /* No command line */
 
 	/*
-	 * This 'pos' check ensures we do not overrun
-	 * a non-NULL-terminated 'cmdline'
+	 * This 'pos' check ensures we do yest overrun
+	 * a yesn-NULL-terminated 'cmdline'
 	 */
 	while (pos++ < max_cmdline_size) {
 		c = *(char *)cmdline++;

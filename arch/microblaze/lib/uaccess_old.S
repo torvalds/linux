@@ -8,7 +8,7 @@
  * for more details.
  */
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/linkage.h>
 #include <asm/page.h>
 
@@ -50,7 +50,7 @@ __strncpy_user:
 	rsubk	r3,r3,r7	/* temp_count = len - temp_count */
 3:
 	rtsd	r15,8
-	nop
+	yesp
 	.size   __strncpy_user, . - __strncpy_user
 
 	.section	.fixup, "ax"
@@ -67,7 +67,7 @@ __strncpy_user:
  *
  * Returns:
  *  0 on error
- *  maxlen + 1  if no NUL byte found within maxlen bytes
+ *  maxlen + 1  if yes NUL byte found within maxlen bytes
  *  size of the string (including NUL byte)
  */
 
@@ -91,7 +91,7 @@ __strnlen_user:
 	rsubk	r3,r3,r6
 3:
 	rtsd	r15,8
-	nop
+	yesp
 	.size   __strnlen_user, . - __strnlen_user
 
 	.section	.fixup,"ax"
@@ -149,7 +149,7 @@ __strnlen_user:
  * int __copy_tofrom_user(char *to, char *from, int len)
  * Return:
  *   0 on success
- *   number of not copied bytes on error
+ *   number of yest copied bytes on error
  */
 	.text
 .globl __copy_tofrom_user;
@@ -162,11 +162,11 @@ __copy_tofrom_user:
 	 * r7, r3 - count
 	 * r4 - tempval
 	 */
-	beqid	r7, 0f /* zero size is not likely */
+	beqid	r7, 0f /* zero size is yest likely */
 	or	r3, r5, r6 /* find if is any to/from unaligned */
 	or	r3, r3, r7 /* find if count is unaligned */
 	andi	r3, r3, 0x3 /* mask last 3 bits */
-	bneid	r3, bu1 /* if r3 is not zero then byte copying */
+	bneid	r3, bu1 /* if r3 is yest zero then byte copying */
 	or	r3, r0, r0
 
 	rsubi	r3, r7, PAGE_SIZE /* detect PAGE_SIZE */
@@ -180,7 +180,7 @@ w2:	sw	r4, r5, r3
 	addik	r3, r3, 4
 	addik	r3, r7, 0
 	rtsd	r15, 8
-	nop
+	yesp
 
 	.section	__ex_table,"a"
 	.word	w1, 0f;
@@ -227,7 +227,7 @@ loop:	/* r4, r19, r20, r21, r22, r23, r24, r25 are used for storing values */
 	/* return back */
 	addik	r3, r0, 0
 	rtsd	r15, 8
-	nop
+	yesp
 
 /* Fault case - return temp count */
 33:
@@ -246,7 +246,7 @@ loop:	/* r4, r19, r20, r21, r22, r23, r24, r25 are used for storing values */
 	addik   r1, r1, 40
 	/* return back */
 	rtsd	r15, 8
-	nop
+	yesp
 
 .align 4 /* Alignment is important to keep icache happy */
 bu1:	lbu	r4,r6,r3
@@ -257,7 +257,7 @@ bu2:	sb	r4,r5,r3
 0:
 	addik	r3,r7,0
 	rtsd	r15,8
-	nop
+	yesp
 	.size   __copy_tofrom_user, . - __copy_tofrom_user
 
 	.section	__ex_table,"a"

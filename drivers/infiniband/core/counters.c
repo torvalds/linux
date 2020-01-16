@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
 /*
- * Copyright (c) 2019 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2019 Mellayesx Techyeslogies. All rights reserved.
  */
 #include <rdma/ib_verbs.h>
 #include <rdma/rdma_counter.h>
@@ -154,7 +154,7 @@ static bool auto_mode_match(struct ib_qp *qp, struct rdma_counter *counter,
 	 * race with user space which kills the process and leaves QP and
 	 * counters orphans.
 	 *
-	 * It is not a big deal because exitted task will leave both QP and
+	 * It is yest a big deal because exitted task will leave both QP and
 	 * counter in the same bucket of zombie process. Just ensure that
 	 * process is still alive before procedding.
 	 *

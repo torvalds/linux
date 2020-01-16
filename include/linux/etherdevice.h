@@ -71,7 +71,7 @@ static const u8 eth_reserved_addr_base[ETH_ALEN] __aligned(2) =
  * Return true if address is link local reserved addr (01:80:c2:00:00:0X) per
  * IEEE 802.1Q 8.6.3 Frame filtering.
  *
- * Please note: addr must be aligned to u16.
+ * Please yeste: addr must be aligned to u16.
  */
 static inline bool is_link_local_ether_addr(const u8 *addr)
 {
@@ -93,7 +93,7 @@ static inline bool is_link_local_ether_addr(const u8 *addr)
  *
  * Return true if the address is all zeroes.
  *
- * Please note: addr must be aligned to u16.
+ * Please yeste: addr must be aligned to u16.
  */
 static inline bool is_zero_ether_addr(const u8 *addr)
 {
@@ -157,7 +157,7 @@ static inline bool is_local_ether_addr(const u8 *addr)
  *
  * Return true if the address is the broadcast address.
  *
- * Please note: addr must be aligned to u16.
+ * Please yeste: addr must be aligned to u16.
  */
 static inline bool is_broadcast_ether_addr(const u8 *addr)
 {
@@ -181,12 +181,12 @@ static inline bool is_unicast_ether_addr(const u8 *addr)
  * is_valid_ether_addr - Determine if the given Ethernet address is valid
  * @addr: Pointer to a six-byte array containing the Ethernet address
  *
- * Check that the Ethernet address (MAC) is not 00:00:00:00:00:00, is not
- * a multicast address, and is not FF:FF:FF:FF:FF:FF.
+ * Check that the Ethernet address (MAC) is yest 00:00:00:00:00:00, is yest
+ * a multicast address, and is yest FF:FF:FF:FF:FF:FF.
  *
  * Return true if the address is valid.
  *
- * Please note: addr must be aligned to u16.
+ * Please yeste: addr must be aligned to u16.
  */
 static inline bool is_valid_ether_addr(const u8 *addr)
 {
@@ -209,7 +209,7 @@ static inline bool eth_proto_is_802_3(__be16 proto)
 	/* if CPU is little endian mask off bits representing LSB */
 	proto &= htons(0xFF00);
 #endif
-	/* cast both to u16 and compare since LSB can be ignored */
+	/* cast both to u16 and compare since LSB can be igyesred */
 	return (__force u16)proto >= (__force u16)htons(ETH_P_802_3_MIN);
 }
 
@@ -217,7 +217,7 @@ static inline bool eth_proto_is_802_3(__be16 proto)
  * eth_random_addr - Generate software assigned random Ethernet address
  * @addr: Pointer to a six-byte array containing the Ethernet address
  *
- * Generate a random Ethernet address (MAC) that is not multicast
+ * Generate a random Ethernet address (MAC) that is yest multicast
  * and has the local assigned bit set.
  */
 static inline void eth_random_addr(u8 *addr)
@@ -271,7 +271,7 @@ static inline void eth_hw_addr_random(struct net_device *dev)
  * @dst: Pointer to a six-byte array Ethernet address destination
  * @src: Pointer to a six-byte array Ethernet address source
  *
- * Please note: dst & src must both be aligned to u16.
+ * Please yeste: dst & src must both be aligned to u16.
  */
 static inline void ether_addr_copy(u8 *dst, const u8 *src)
 {
@@ -289,11 +289,11 @@ static inline void ether_addr_copy(u8 *dst, const u8 *src)
 }
 
 /**
- * eth_hw_addr_inherit - Copy dev_addr from another net_device
+ * eth_hw_addr_inherit - Copy dev_addr from ayesther net_device
  * @dst: pointer to net_device to copy dev_addr to
  * @src: pointer to net_device to copy dev_addr from
  *
- * Copy the Ethernet address from one net_device to another along with
+ * Copy the Ethernet address from one net_device to ayesther along with
  * the address attributes (addr_assign_type).
  */
 static inline void eth_hw_addr_inherit(struct net_device *dst,
@@ -310,7 +310,7 @@ static inline void eth_hw_addr_inherit(struct net_device *dst,
  *
  * Compare two Ethernet addresses, returns true if equal
  *
- * Please note: addr1 & addr2 must both be aligned to u16.
+ * Please yeste: addr1 & addr2 must both be aligned to u16.
  */
 static inline bool ether_addr_equal(const u8 *addr1, const u8 *addr2)
 {
@@ -338,7 +338,7 @@ static inline bool ether_addr_equal(const u8 *addr1, const u8 *addr2)
  * word memory accesses on CPU allowing cheap unaligned memory reads.
  * arrays = { byte1, byte2, byte3, byte4, byte5, byte6, pad1, pad2 }
  *
- * Please note that alignment of addr1 & addr2 are only guaranteed to be 16 bits.
+ * Please yeste that alignment of addr1 & addr2 are only guaranteed to be 16 bits.
  */
 
 static inline bool ether_addr_equal_64bits(const u8 addr1[6+2],
@@ -358,13 +358,13 @@ static inline bool ether_addr_equal_64bits(const u8 addr1[6+2],
 }
 
 /**
- * ether_addr_equal_unaligned - Compare two not u16 aligned Ethernet addresses
+ * ether_addr_equal_unaligned - Compare two yest u16 aligned Ethernet addresses
  * @addr1: Pointer to a six-byte array containing the Ethernet address
  * @addr2: Pointer other six-byte array containing the Ethernet address
  *
  * Compare two Ethernet addresses, returns true if equal
  *
- * Please note: Use only when any Ethernet address may not be u16 aligned.
+ * Please yeste: Use only when any Ethernet address may yest be u16 aligned.
  */
 static inline bool ether_addr_equal_unaligned(const u8 *addr1, const u8 *addr2)
 {

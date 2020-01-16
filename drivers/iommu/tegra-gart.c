@@ -363,7 +363,7 @@ struct gart_device *tegra_gart_probe(struct device *dev, struct tegra_mc *mc)
 		goto free_gart;
 
 	iommu_device_set_ops(&gart->iommu, &gart_iommu_ops);
-	iommu_device_set_fwnode(&gart->iommu, dev->fwnode);
+	iommu_device_set_fwyesde(&gart->iommu, dev->fwyesde);
 
 	err = iommu_device_register(&gart->iommu);
 	if (err)

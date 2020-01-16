@@ -136,14 +136,14 @@ mwifiex_search_oui_in_ie(struct ie_body *iebody, u8 *oui)
 						sizeof(iebody->ptk_body));
 	}
 
-	pr_debug("info: %s: OUI is not found in PTK\n", __func__);
+	pr_debug("info: %s: OUI is yest found in PTK\n", __func__);
 	return MWIFIEX_OUI_NOT_PRESENT;
 }
 
 /*
  * This function checks if a given OUI is present in a RSN IE.
  *
- * The function first checks if a RSN IE is present or not in the
+ * The function first checks if a RSN IE is present or yest in the
  * BSS descriptor. It tries to locate the OUI only if such an IE is
  * present.
  */
@@ -169,7 +169,7 @@ mwifiex_is_rsn_oui_present(struct mwifiex_bssdescriptor *bss_desc, u32 cipher)
 /*
  * This function checks if a given OUI is present in a WPA IE.
  *
- * The function first checks if a WPA IE is present or not in the
+ * The function first checks if a WPA IE is present or yest in the
  * BSS descriptor. It tries to locate the OUI only if such an IE is
  * present.
  */
@@ -217,11 +217,11 @@ mwifiex_is_bss_wapi(struct mwifiex_private *priv,
 }
 
 /*
- * This function checks if driver is configured with no security mode and
+ * This function checks if driver is configured with yes security mode and
  * scanned network is compatible with it.
  */
 static bool
-mwifiex_is_bss_no_sec(struct mwifiex_private *priv,
+mwifiex_is_bss_yes_sec(struct mwifiex_private *priv,
 		      struct mwifiex_bssdescriptor *bss_desc)
 {
 	if (!priv->sec_info.wep_enabled && !priv->sec_info.wpa_enabled &&
@@ -335,17 +335,17 @@ mwifiex_is_bss_dynamic_wep(struct mwifiex_private *priv,
  *
  *   WEP     WPA    WPA2   ad-hoc encrypt                  Network
  * enabled enabled enabled  AES    mode   Privacy WPA WPA2 Compatible
- *    0       0       0      0     NONE      0     0   0   yes No security
- *    0       1       0      0      x        1x    1   x   yes WPA (disable
- *                                                         HT if no AES)
- *    0       0       1      0      x        1x    x   1   yes WPA2 (disable
- *                                                         HT if no AES)
- *    0       0       0      1     NONE      1     0   0   yes Ad-hoc AES
- *    1       0       0      0     NONE      1     0   0   yes Static WEP
+ *    0       0       0      0     NONE      0     0   0   no No security
+ *    0       1       0      0      x        1x    1   x   no WPA (disable
+ *                                                         HT if yes AES)
+ *    0       0       1      0      x        1x    x   1   no WPA2 (disable
+ *                                                         HT if yes AES)
+ *    0       0       0      1     NONE      1     0   0   no Ad-hoc AES
+ *    1       0       0      0     NONE      1     0   0   no Static WEP
  *                                                         (disable HT)
- *    0       0       0      0    !=NONE     1     0   0   yes Dynamic WEP
+ *    0       0       0      0    !=NONE     1     0   0   no Dynamic WEP
  *
- * Compatibility is not matched while roaming, except for mode.
+ * Compatibility is yest matched while roaming, except for mode.
  */
 static s32
 mwifiex_is_network_compatible(struct mwifiex_private *priv,
@@ -380,7 +380,7 @@ mwifiex_is_network_compatible(struct mwifiex_private *priv,
 	}
 
 	if (bss_desc->bss_mode == mode) {
-		if (mwifiex_is_bss_no_sec(priv, bss_desc)) {
+		if (mwifiex_is_bss_yes_sec(priv, bss_desc)) {
 			/* No security */
 			return 0;
 		} else if (mwifiex_is_bss_static_wep(priv, bss_desc)) {
@@ -401,7 +401,7 @@ mwifiex_is_network_compatible(struct mwifiex_private *priv,
 						(bss_desc, CIPHER_SUITE_TKIP)) {
 					mwifiex_dbg(adapter, INFO,
 						    "info: Disable 11n if AES\t"
-						    "is not supported by AP\n");
+						    "is yest supported by AP\n");
 					bss_desc->disable_11n = true;
 				} else {
 					return -1;
@@ -420,7 +420,7 @@ mwifiex_is_network_compatible(struct mwifiex_private *priv,
 						(bss_desc, CIPHER_SUITE_TKIP)) {
 					mwifiex_dbg(adapter, INFO,
 						    "info: Disable 11n if AES\t"
-						    "is not supported by AP\n");
+						    "is yest supported by AP\n");
 					bss_desc->disable_11n = true;
 				} else {
 					return -1;
@@ -448,7 +448,7 @@ mwifiex_is_network_compatible(struct mwifiex_private *priv,
  * This function creates a channel list for the driver to scan, based
  * on region/band information.
  *
- * This routine is used for any scan that is not provided with a
+ * This routine is used for any scan that is yest provided with a
  * specific channel list to scan.
  */
 static int
@@ -625,7 +625,7 @@ mwifiex_scan_channel_list(struct mwifiex_private *priv,
 	int ret = 0;
 	struct mwifiex_chan_scan_param_set *tmp_chan_list;
 	struct mwifiex_chan_scan_param_set *start_chan;
-	u32 tlv_idx, rates_size, cmd_no;
+	u32 tlv_idx, rates_size, cmd_yes;
 	u32 total_scan_time;
 	u32 done_early;
 	u8 radio_type;
@@ -725,7 +725,7 @@ mwifiex_scan_channel_list(struct mwifiex_private *priv,
 			done_early = false;
 
 			/* Stop the loop if the *current* channel is in the
-			   1,6,11 set and we are not filtering on a BSSID
+			   1,6,11 set and we are yest filtering on a BSSID
 			   or SSID. */
 			if (!filtered_scan &&
 			    (tmp_chan_list->chan_number == 1 ||
@@ -767,11 +767,11 @@ mwifiex_scan_channel_list(struct mwifiex_private *priv,
 		/* Send the scan command to the firmware with the specified
 		   cfg */
 		if (priv->adapter->ext_scan)
-			cmd_no = HostCmd_CMD_802_11_SCAN_EXT;
+			cmd_yes = HostCmd_CMD_802_11_SCAN_EXT;
 		else
-			cmd_no = HostCmd_CMD_802_11_SCAN;
+			cmd_yes = HostCmd_CMD_802_11_SCAN;
 
-		ret = mwifiex_send_cmd(priv, cmd_no, HostCmd_ACT_GEN_SET,
+		ret = mwifiex_send_cmd(priv, cmd_yes, HostCmd_ACT_GEN_SET,
 				       0, scan_cfg_out, false);
 
 		/* rate IE is updated per scan command but same starting
@@ -810,8 +810,8 @@ mwifiex_scan_channel_list(struct mwifiex_private *priv,
  *      - Number of Probes to be sent
  *      - Channel list
  *
- * If the SSID or BSSID filter is not present, the filter is disabled/cleared.
- * If the number of probes is not set, adapter default setting is used.
+ * If the SSID or BSSID filter is yest present, the filter is disabled/cleared.
+ * If the number of probes is yest set, adapter default setting is used.
  */
 static void
 mwifiex_config_scan(struct mwifiex_private *priv,
@@ -850,7 +850,7 @@ mwifiex_config_scan(struct mwifiex_private *priv,
 	scan_cfg_out->tlv_buf_len = 0;
 
 	/* Running tlv pointer.  Assigned to chan_list_out at end of function
-	   so later routines know where channels can be added to the command
+	   so later routines kyesw where channels can be added to the command
 	   buf */
 	tlv_pos = scan_cfg_out->tlv_buf;
 
@@ -858,9 +858,9 @@ mwifiex_config_scan(struct mwifiex_private *priv,
 	   below if a SSID or BSSID filter is sent in the command */
 	*filtered_scan = false;
 
-	/* Initialize the scan as not being only on the current channel.  If
+	/* Initialize the scan as yest being only on the current channel.  If
 	   the channel list is customized, only contains one channel, and is
-	   the active channel, this is set true and data flow is not halted. */
+	   the active channel, this is set true and data flow is yest halted. */
 	*scan_current_only = false;
 
 	if (user_scan_in) {
@@ -882,7 +882,7 @@ mwifiex_config_scan(struct mwifiex_private *priv,
 
 		/*
 		 * Set the BSSID filter to the incoming configuration,
-		 * if non-zero.  If not set, it will remain disabled
+		 * if yesn-zero.  If yest set, it will remain disabled
 		 * (all zeros).
 		 */
 		memcpy(scan_cfg_out->specific_bssid,
@@ -943,7 +943,7 @@ mwifiex_config_scan(struct mwifiex_private *priv,
 
 			/* Empty wildcard ssid with a maxlen will match many or
 			   potentially all SSIDs (maxlen == 32), therefore do
-			   not treat the scan as
+			   yest treat the scan as
 			   filtered. */
 			if (!ssid_len && wildcard_ssid_tlv->max_ssid_length)
 				ssid_filter = false;
@@ -951,8 +951,8 @@ mwifiex_config_scan(struct mwifiex_private *priv,
 
 		/*
 		 *  The default number of channels sent in the command is low to
-		 *  ensure the response buffer from the firmware does not
-		 *  truncate scan results.  That is not an issue with an SSID
+		 *  ensure the response buffer from the firmware does yest
+		 *  truncate scan results.  That is yest an issue with an SSID
 		 *  or BSSID filter applied to the scan results in the firmware.
 		 */
 		memcpy(tmpaddr, scan_cfg_out->specific_bssid, ETH_ALEN);
@@ -1369,7 +1369,7 @@ int mwifiex_update_bss_desc_with_ie(struct mwifiex_adapter *adapter,
 			if (element_len < sizeof(vendor_ie->vend_hdr.oui.oui))
 				return -EINVAL;
 
-			/* Not long enough for a match? Skip it. */
+			/* Not long eyesugh for a match? Skip it. */
 			if (element_len < sizeof(wpa_oui))
 				break;
 
@@ -1496,7 +1496,7 @@ int mwifiex_scan_networks(struct mwifiex_private *priv,
 {
 	int ret;
 	struct mwifiex_adapter *adapter = priv->adapter;
-	struct cmd_ctrl_node *cmd_node;
+	struct cmd_ctrl_yesde *cmd_yesde;
 	union mwifiex_scan_cmd_config_tlv *scan_cfg_out;
 	struct mwifiex_ie_types_chan_list_param_set *chan_list_out;
 	struct mwifiex_chan_scan_param_set *scan_chan_list;
@@ -1519,7 +1519,7 @@ int mwifiex_scan_networks(struct mwifiex_private *priv,
 	if (test_bit(MWIFIEX_SURPRISE_REMOVED, &adapter->work_flags) ||
 	    test_bit(MWIFIEX_IS_CMD_TIMEDOUT, &adapter->work_flags)) {
 		mwifiex_dbg(adapter, ERROR,
-			    "Ignore scan. Card removed or firmware in bad state\n");
+			    "Igyesre scan. Card removed or firmware in bad state\n");
 		return -EFAULT;
 	}
 
@@ -1555,18 +1555,18 @@ int mwifiex_scan_networks(struct mwifiex_private *priv,
 	if (!ret) {
 		spin_lock_bh(&adapter->scan_pending_q_lock);
 		if (!list_empty(&adapter->scan_pending_q)) {
-			cmd_node = list_first_entry(&adapter->scan_pending_q,
-						    struct cmd_ctrl_node, list);
-			list_del(&cmd_node->list);
+			cmd_yesde = list_first_entry(&adapter->scan_pending_q,
+						    struct cmd_ctrl_yesde, list);
+			list_del(&cmd_yesde->list);
 			spin_unlock_bh(&adapter->scan_pending_q_lock);
-			mwifiex_insert_cmd_to_pending_q(adapter, cmd_node);
+			mwifiex_insert_cmd_to_pending_q(adapter, cmd_yesde);
 			queue_work(adapter->workqueue, &adapter->main_work);
 
-			/* Perform internal scan synchronously */
+			/* Perform internal scan synchroyesusly */
 			if (!priv->scan_request) {
 				mwifiex_dbg(adapter, INFO,
 					    "wait internal scan\n");
-				mwifiex_wait_queue_complete(adapter, cmd_node);
+				mwifiex_wait_queue_complete(adapter, cmd_yesde);
 			}
 		} else {
 			spin_unlock_bh(&adapter->scan_pending_q_lock);
@@ -1703,7 +1703,7 @@ static int mwifiex_save_hidden_ssid_channels(struct mwifiex_private *priv,
 
 done:
 	/* beacon_ie buffer was allocated in function
-	 * mwifiex_fill_new_bss_desc(). Free it now.
+	 * mwifiex_fill_new_bss_desc(). Free it yesw.
 	 */
 	kfree(bss_desc->beacon_buf);
 	kfree(bss_desc);
@@ -1742,7 +1742,7 @@ static int mwifiex_update_curr_bss_params(struct mwifiex_private *priv,
 
 done:
 	/* beacon_ie buffer was allocated in function
-	 * mwifiex_fill_new_bss_desc(). Free it now.
+	 * mwifiex_fill_new_bss_desc(). Free it yesw.
 	 */
 	kfree(bss_desc->beacon_buf);
 	kfree(bss_desc);
@@ -1802,7 +1802,7 @@ mwifiex_parse_single_response_buf(struct mwifiex_private *priv, u8 **bss_info,
 	if (curr_bcn_bytes < ETH_ALEN + sizeof(u8) +
 	    sizeof(struct mwifiex_fixed_bcn_param)) {
 		mwifiex_dbg(adapter, ERROR,
-			    "InterpretIE: not enough bytes left\n");
+			    "InterpretIE: yest eyesugh bytes left\n");
 		return -EFAULT;
 	}
 
@@ -1991,7 +1991,7 @@ mwifiex_active_scan_req_for_passive_chan(struct mwifiex_private *priv)
 static void mwifiex_check_next_scan_command(struct mwifiex_private *priv)
 {
 	struct mwifiex_adapter *adapter = priv->adapter;
-	struct cmd_ctrl_node *cmd_node;
+	struct cmd_ctrl_yesde *cmd_yesde;
 
 	spin_lock_bh(&adapter->scan_pending_q_lock);
 	if (list_empty(&adapter->scan_pending_q)) {
@@ -2012,7 +2012,7 @@ static void mwifiex_check_next_scan_command(struct mwifiex_private *priv)
 			};
 
 			mwifiex_dbg(adapter, INFO,
-				    "info: notifying scan done\n");
+				    "info: yestifying scan done\n");
 			cfg80211_scan_done(priv->scan_request, &info);
 			priv->scan_request = NULL;
 			priv->scan_aborting = false;
@@ -2052,11 +2052,11 @@ static void mwifiex_check_next_scan_command(struct mwifiex_private *priv)
 		/* Get scan command from scan_pending_q and put to
 		 * cmd_pending_q
 		 */
-		cmd_node = list_first_entry(&adapter->scan_pending_q,
-					    struct cmd_ctrl_node, list);
-		list_del(&cmd_node->list);
+		cmd_yesde = list_first_entry(&adapter->scan_pending_q,
+					    struct cmd_ctrl_yesde, list);
+		list_del(&cmd_yesde->list);
 		spin_unlock_bh(&adapter->scan_pending_q_lock);
-		mwifiex_insert_cmd_to_pending_q(adapter, cmd_node);
+		mwifiex_insert_cmd_to_pending_q(adapter, cmd_yesde);
 	}
 
 	return;
@@ -2523,16 +2523,16 @@ mwifiex_update_chan_statistics(struct mwifiex_private *priv,
 		chan_stats.chan_num = fw_chan_stats->chan_num;
 		chan_stats.bandcfg = fw_chan_stats->bandcfg;
 		chan_stats.flags = fw_chan_stats->flags;
-		chan_stats.noise = fw_chan_stats->noise;
+		chan_stats.yesise = fw_chan_stats->yesise;
 		chan_stats.total_bss = le16_to_cpu(fw_chan_stats->total_bss);
 		chan_stats.cca_scan_dur =
 				       le16_to_cpu(fw_chan_stats->cca_scan_dur);
 		chan_stats.cca_busy_dur =
 				       le16_to_cpu(fw_chan_stats->cca_busy_dur);
 		mwifiex_dbg(adapter, INFO,
-			    "chan=%d, noise=%d, total_network=%d scan_duration=%d, busy_duration=%d\n",
+			    "chan=%d, yesise=%d, total_network=%d scan_duration=%d, busy_duration=%d\n",
 			    chan_stats.chan_num,
-			    chan_stats.noise,
+			    chan_stats.yesise,
 			    chan_stats.total_bss,
 			    chan_stats.cca_scan_dur,
 			    chan_stats.cca_busy_dur);
@@ -2553,7 +2553,7 @@ int mwifiex_ret_802_11_scan_ext(struct mwifiex_private *priv,
 	u16 buf_left, type, len;
 
 	struct host_cmd_ds_command *cmd_ptr;
-	struct cmd_ctrl_node *cmd_node;
+	struct cmd_ctrl_yesde *cmd_yesde;
 	bool complete_scan = false;
 
 	mwifiex_dbg(adapter, INFO, "info: EXT scan returns successfully\n");
@@ -2592,8 +2592,8 @@ int mwifiex_ret_802_11_scan_ext(struct mwifiex_private *priv,
 	spin_lock_bh(&adapter->scan_pending_q_lock);
 	if (list_empty(&adapter->scan_pending_q)) {
 		complete_scan = true;
-		list_for_each_entry(cmd_node, &adapter->cmd_pending_q, list) {
-			cmd_ptr = (void *)cmd_node->cmd_skb->data;
+		list_for_each_entry(cmd_yesde, &adapter->cmd_pending_q, list) {
+			cmd_ptr = (void *)cmd_yesde->cmd_skb->data;
 			if (le16_to_cpu(cmd_ptr->command) ==
 			    HostCmd_CMD_802_11_SCAN_EXT) {
 				mwifiex_dbg(adapter, INFO,
@@ -2769,18 +2769,18 @@ int mwifiex_cmd_802_11_bg_scan_query(struct host_cmd_ds_command *cmd)
 }
 
 /*
- * This function inserts scan command node to the scan pending queue.
+ * This function inserts scan command yesde to the scan pending queue.
  */
 void
 mwifiex_queue_scan_cmd(struct mwifiex_private *priv,
-		       struct cmd_ctrl_node *cmd_node)
+		       struct cmd_ctrl_yesde *cmd_yesde)
 {
 	struct mwifiex_adapter *adapter = priv->adapter;
 
-	cmd_node->wait_q_enabled = true;
-	cmd_node->condition = &adapter->scan_wait_q_woken;
+	cmd_yesde->wait_q_enabled = true;
+	cmd_yesde->condition = &adapter->scan_wait_q_woken;
 	spin_lock_bh(&adapter->scan_pending_q_lock);
-	list_add_tail(&cmd_node->list, &adapter->scan_pending_q);
+	list_add_tail(&cmd_yesde->list, &adapter->scan_pending_q);
 	spin_unlock_bh(&adapter->scan_pending_q_lock);
 }
 
@@ -2826,8 +2826,8 @@ static int mwifiex_scan_specific_ssid(struct mwifiex_private *priv,
  * This function allocates the IOCTL request buffer, fills it
  * with requisite parameters and calls the IOCTL handler.
  *
- * Scan command can be issued for both normal scan and specific SSID
- * scan, depending upon whether an SSID is provided or not.
+ * Scan command can be issued for both yesrmal scan and specific SSID
+ * scan, depending upon whether an SSID is provided or yest.
  */
 int mwifiex_request_scan(struct mwifiex_private *priv,
 			 struct cfg80211_ssid *req_ssid)
@@ -2899,9 +2899,9 @@ mwifiex_cmd_append_vsie_tlv(struct mwifiex_private *priv,
  * This function saves a beacon buffer of the current BSS descriptor.
  *
  * The current beacon buffer is saved so that it can be restored in the
- * following cases that makes the beacon buffer not to contain the current
+ * following cases that makes the beacon buffer yest to contain the current
  * ssid's beacon buffer.
- *      - The current ssid was not found somehow in the last scan.
+ *      - The current ssid was yest found somehow in the last scan.
  *      - The current ssid was the last entry of the scan table and overloaded.
  */
 void

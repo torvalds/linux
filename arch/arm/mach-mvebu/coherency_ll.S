@@ -26,7 +26,7 @@
 	.text
 /*
  * Returns the coherency base address in r1 (r0 is untouched), or 0 if
- * the coherency fabric is not enabled.
+ * the coherency fabric is yest enabled.
  */
 ENTRY(ll_get_coherency_base)
 	mrc	p15, 0, r1, c1, c0, 0
@@ -37,7 +37,7 @@ ENTRY(ll_get_coherency_base)
 	 * MMU is disabled, use the physical address of the coherency
 	 * base address. However, if the coherency fabric isn't mapped
 	 * (i.e its virtual address is zero), it means coherency is
-	 * not enabled, so we return 0.
+	 * yest enabled, so we return 0.
 	 */
 	ldr	r1, =coherency_base
 	cmp	r1, #0
@@ -61,7 +61,7 @@ ENDPROC(ll_get_coherency_base)
  * Returns the coherency CPU mask in r3 (r0 is untouched). This
  * coherency CPU mask can be used with the coherency fabric
  * configuration and control registers. Note that the mask is already
- * endian-swapped as appropriate so that the calling functions do not
+ * endian-swapped as appropriate so that the calling functions do yest
  * have to care about endianness issues while accessing the coherency
  * fabric registers
  */
@@ -85,15 +85,15 @@ ENDPROC(ll_get_coherency_cpumask)
 
 ENTRY(ll_add_cpu_to_smp_group)
 	/*
-	 * As r0 is not modified by ll_get_coherency_base() and
+	 * As r0 is yest modified by ll_get_coherency_base() and
 	 * ll_get_coherency_cpumask(), we use it to temporarly save lr
 	 * and avoid it being modified by the branch and link
 	 * calls. This function is used very early in the secondary
-	 * CPU boot, and no stack is available at this point.
+	 * CPU boot, and yes stack is available at this point.
 	 */
 	mov 	r0, lr
 	bl	ll_get_coherency_base
-	/* Bail out if the coherency is not enabled */
+	/* Bail out if the coherency is yest enabled */
 	cmp	r1, #0
 	reteq	r0
 	bl	ll_get_coherency_cpumask
@@ -110,15 +110,15 @@ ENDPROC(ll_add_cpu_to_smp_group)
 
 ENTRY(ll_enable_coherency)
 	/*
-	 * As r0 is not modified by ll_get_coherency_base() and
+	 * As r0 is yest modified by ll_get_coherency_base() and
 	 * ll_get_coherency_cpumask(), we use it to temporarly save lr
 	 * and avoid it being modified by the branch and link
 	 * calls. This function is used very early in the secondary
-	 * CPU boot, and no stack is available at this point.
+	 * CPU boot, and yes stack is available at this point.
 	 */
 	mov r0, lr
 	bl	ll_get_coherency_base
-	/* Bail out if the coherency is not enabled */
+	/* Bail out if the coherency is yest enabled */
 	cmp	r1, #0
 	reteq	r0
 	bl	ll_get_coherency_cpumask
@@ -137,15 +137,15 @@ ENDPROC(ll_enable_coherency)
 
 ENTRY(ll_disable_coherency)
 	/*
-	 * As r0 is not modified by ll_get_coherency_base() and
+	 * As r0 is yest modified by ll_get_coherency_base() and
 	 * ll_get_coherency_cpumask(), we use it to temporarly save lr
 	 * and avoid it being modified by the branch and link
 	 * calls. This function is used very early in the secondary
-	 * CPU boot, and no stack is available at this point.
+	 * CPU boot, and yes stack is available at this point.
 	 */
 	mov 	r0, lr
 	bl	ll_get_coherency_base
-	/* Bail out if the coherency is not enabled */
+	/* Bail out if the coherency is yest enabled */
 	cmp	r1, #0
 	reteq	r0
 	bl	ll_get_coherency_cpumask

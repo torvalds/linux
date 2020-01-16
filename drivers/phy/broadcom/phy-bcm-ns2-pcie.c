@@ -58,7 +58,7 @@ static int ns2_pci_phy_probe(struct mdio_device *mdiodev)
 	struct phy_provider *provider;
 	struct phy *phy;
 
-	phy = devm_phy_create(dev, dev->of_node, &ns2_pci_phy_ops);
+	phy = devm_phy_create(dev, dev->of_yesde, &ns2_pci_phy_ops);
 	if (IS_ERR(phy)) {
 		dev_err(dev, "failed to create Phy\n");
 		return PTR_ERR(phy);

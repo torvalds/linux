@@ -14,8 +14,8 @@
 
 static inline bool _a6xx_check_idle(struct msm_gpu *gpu)
 {
-	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
-	struct a6xx_gpu *a6xx_gpu = to_a6xx_gpu(adreno_gpu);
+	struct adreyes_gpu *adreyes_gpu = to_adreyes_gpu(gpu);
+	struct a6xx_gpu *a6xx_gpu = to_a6xx_gpu(adreyes_gpu);
 
 	/* Check that the GMU is idle */
 	if (!a6xx_gmu_isidle(&a6xx_gpu->gmu))
@@ -33,7 +33,7 @@ static inline bool _a6xx_check_idle(struct msm_gpu *gpu)
 bool a6xx_idle(struct msm_gpu *gpu, struct msm_ringbuffer *ring)
 {
 	/* wait for CP to drain ringbuffer: */
-	if (!adreno_idle(gpu, ring))
+	if (!adreyes_idle(gpu, ring))
 		return false;
 
 	if (spin_until(_a6xx_check_idle(gpu))) {
@@ -82,10 +82,10 @@ static void get_stats_counter(struct msm_ringbuffer *ring, u32 counter,
 static void a6xx_submit(struct msm_gpu *gpu, struct msm_gem_submit *submit,
 	struct msm_file_private *ctx)
 {
-	unsigned int index = submit->seqno % MSM_GPU_SUBMIT_STATS_COUNT;
+	unsigned int index = submit->seqyes % MSM_GPU_SUBMIT_STATS_COUNT;
 	struct msm_drm_private *priv = gpu->dev->dev_private;
-	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
-	struct a6xx_gpu *a6xx_gpu = to_a6xx_gpu(adreno_gpu);
+	struct adreyes_gpu *adreyes_gpu = to_adreyes_gpu(gpu);
+	struct a6xx_gpu *a6xx_gpu = to_a6xx_gpu(adreyes_gpu);
 	struct msm_ringbuffer *ring = submit->ring;
 	unsigned int i;
 
@@ -132,7 +132,7 @@ static void a6xx_submit(struct msm_gpu *gpu, struct msm_gem_submit *submit,
 
 	/* Write the fence to the scratch register */
 	OUT_PKT4(ring, REG_A6XX_CP_SCRATCH_REG(2), 1);
-	OUT_RING(ring, submit->seqno);
+	OUT_RING(ring, submit->seqyes);
 
 	/*
 	 * Execute a CACHE_FLUSH_TS event. This will ensure that the
@@ -142,7 +142,7 @@ static void a6xx_submit(struct msm_gpu *gpu, struct msm_gem_submit *submit,
 	OUT_RING(ring, CACHE_FLUSH_TS | (1 << 31));
 	OUT_RING(ring, lower_32_bits(rbmemptr(ring, fence)));
 	OUT_RING(ring, upper_32_bits(rbmemptr(ring, fence)));
-	OUT_RING(ring, submit->seqno);
+	OUT_RING(ring, submit->seqyes);
 
 	trace_msm_gpu_submit_flush(submit,
 		gmu_read64(&a6xx_gpu->gmu, REG_A6XX_GMU_ALWAYS_ON_COUNTER_L,
@@ -264,8 +264,8 @@ static const struct {
 
 static void a6xx_set_hwcg(struct msm_gpu *gpu, bool state)
 {
-	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
-	struct a6xx_gpu *a6xx_gpu = to_a6xx_gpu(adreno_gpu);
+	struct adreyes_gpu *adreyes_gpu = to_adreyes_gpu(gpu);
+	struct a6xx_gpu *a6xx_gpu = to_a6xx_gpu(adreyes_gpu);
 	struct a6xx_gmu *gmu = &a6xx_gpu->gmu;
 	unsigned int i;
 	u32 val;
@@ -320,19 +320,19 @@ static int a6xx_cp_init(struct msm_gpu *gpu)
 
 static int a6xx_ucode_init(struct msm_gpu *gpu)
 {
-	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
-	struct a6xx_gpu *a6xx_gpu = to_a6xx_gpu(adreno_gpu);
+	struct adreyes_gpu *adreyes_gpu = to_adreyes_gpu(gpu);
+	struct a6xx_gpu *a6xx_gpu = to_a6xx_gpu(adreyes_gpu);
 
 	if (!a6xx_gpu->sqe_bo) {
-		a6xx_gpu->sqe_bo = adreno_fw_create_bo(gpu,
-			adreno_gpu->fw[ADRENO_FW_SQE], &a6xx_gpu->sqe_iova);
+		a6xx_gpu->sqe_bo = adreyes_fw_create_bo(gpu,
+			adreyes_gpu->fw[ADRENO_FW_SQE], &a6xx_gpu->sqe_iova);
 
 		if (IS_ERR(a6xx_gpu->sqe_bo)) {
 			int ret = PTR_ERR(a6xx_gpu->sqe_bo);
 
 			a6xx_gpu->sqe_bo = NULL;
 			DRM_DEV_ERROR(&gpu->pdev->dev,
-				"Could not allocate SQE ucode: %d\n", ret);
+				"Could yest allocate SQE ucode: %d\n", ret);
 
 			return ret;
 		}
@@ -354,7 +354,7 @@ static int a6xx_zap_shader_init(struct msm_gpu *gpu)
 	if (loaded)
 		return 0;
 
-	ret = adreno_zap_shader_load(gpu, GPU_PAS_ID);
+	ret = adreyes_zap_shader_load(gpu, GPU_PAS_ID);
 
 	loaded = !ret;
 	return ret;
@@ -374,8 +374,8 @@ static int a6xx_zap_shader_init(struct msm_gpu *gpu)
 
 static int a6xx_hw_init(struct msm_gpu *gpu)
 {
-	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
-	struct a6xx_gpu *a6xx_gpu = to_a6xx_gpu(adreno_gpu);
+	struct adreyes_gpu *adreyes_gpu = to_adreyes_gpu(gpu);
+	struct a6xx_gpu *a6xx_gpu = to_a6xx_gpu(adreyes_gpu);
 	int ret;
 
 	/* Make sure the GMU keeps the GPU on while we set it up */
@@ -430,7 +430,7 @@ static int a6xx_hw_init(struct msm_gpu *gpu)
 
 	gpu_write64(gpu, REG_A6XX_UCHE_GMEM_RANGE_MAX_LO,
 		REG_A6XX_UCHE_GMEM_RANGE_MAX_HI,
-		0x00100000 + adreno_gpu->gmem - 1);
+		0x00100000 + adreyes_gpu->gmem - 1);
 
 	gpu_write(gpu, REG_A6XX_UCHE_FILTER_CNTL, 0x804);
 	gpu_write(gpu, REG_A6XX_UCHE_CACHE_WAYS, 0x4);
@@ -504,7 +504,7 @@ static int a6xx_hw_init(struct msm_gpu *gpu)
 	/* Enable interrupts */
 	gpu_write(gpu, REG_A6XX_RBBM_INT_0_MASK, A6XX_INT_MASK);
 
-	ret = adreno_hw_init(gpu);
+	ret = adreyes_hw_init(gpu);
 	if (ret)
 		goto out;
 
@@ -524,8 +524,8 @@ static int a6xx_hw_init(struct msm_gpu *gpu)
 
 	/*
 	 * Try to load a zap shader into the secure world. If successful
-	 * we can use the CP to switch out of secure mode. If not then we
-	 * have no resource but to try to switch ourselves out manually. If we
+	 * we can use the CP to switch out of secure mode. If yest then we
+	 * have yes resource but to try to switch ourselves out manually. If we
 	 * guessed wrong then access to the RBBM_SECVID_TRUST_CNTL register will
 	 * be blocked and a permissions violation will soon follow.
 	 */
@@ -538,9 +538,9 @@ static int a6xx_hw_init(struct msm_gpu *gpu)
 		if (!a6xx_idle(gpu, gpu->rb[0]))
 			return -EINVAL;
 	} else {
-		/* Print a warning so if we die, we know why */
+		/* Print a warning so if we die, we kyesw why */
 		dev_warn_once(gpu->dev->dev,
-			"Zap shader not enabled - using SECVID_TRUST_CNTL instead\n");
+			"Zap shader yest enabled - using SECVID_TRUST_CNTL instead\n");
 		gpu_write(gpu, REG_A6XX_RBBM_SECVID_TRUST_CNTL, 0x0);
 		ret = 0;
 	}
@@ -562,7 +562,7 @@ static void a6xx_dump(struct msm_gpu *gpu)
 {
 	DRM_DEV_INFO(&gpu->pdev->dev, "status:   %08x\n",
 			gpu_read(gpu, REG_A6XX_RBBM_STATUS));
-	adreno_dump(gpu);
+	adreyes_dump(gpu);
 }
 
 #define VBIF_RESET_ACK_TIMEOUT	100
@@ -570,11 +570,11 @@ static void a6xx_dump(struct msm_gpu *gpu)
 
 static void a6xx_recover(struct msm_gpu *gpu)
 {
-	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
-	struct a6xx_gpu *a6xx_gpu = to_a6xx_gpu(adreno_gpu);
+	struct adreyes_gpu *adreyes_gpu = to_adreyes_gpu(gpu);
+	struct a6xx_gpu *a6xx_gpu = to_a6xx_gpu(adreyes_gpu);
 	int i;
 
-	adreno_dump_info(gpu);
+	adreyes_dump_info(gpu);
 
 	for (i = 0; i < 8; i++)
 		DRM_DEV_INFO(&gpu->pdev->dev, "CP_SCRATCH_REG%d: %u\n", i,
@@ -653,8 +653,8 @@ static void a6xx_cp_hw_err_irq(struct msm_gpu *gpu)
 
 static void a6xx_fault_detect_irq(struct msm_gpu *gpu)
 {
-	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
-	struct a6xx_gpu *a6xx_gpu = to_a6xx_gpu(adreno_gpu);
+	struct adreyes_gpu *adreyes_gpu = to_adreyes_gpu(gpu);
+	struct a6xx_gpu *a6xx_gpu = to_a6xx_gpu(adreyes_gpu);
 	struct drm_device *dev = gpu->dev;
 	struct msm_drm_private *priv = dev->dev_private;
 	struct msm_ringbuffer *ring = gpu->funcs->active_ring(gpu);
@@ -667,7 +667,7 @@ static void a6xx_fault_detect_irq(struct msm_gpu *gpu)
 
 	DRM_DEV_ERROR(&gpu->pdev->dev,
 		"gpu fault ring %d fence %x status %8.8X rb %4.4x/%4.4x ib1 %16.16llX/%4.4x ib2 %16.16llX/%4.4x\n",
-		ring ? ring->id : -1, ring ? ring->seqno : 0,
+		ring ? ring->id : -1, ring ? ring->seqyes : 0,
 		gpu_read(gpu, REG_A6XX_RBBM_STATUS),
 		gpu_read(gpu, REG_A6XX_CP_RB_RPTR),
 		gpu_read(gpu, REG_A6XX_CP_RB_WPTR),
@@ -726,8 +726,8 @@ static const u32 a6xx_register_offsets[REG_ADRENO_REGISTER_MAX] = {
 
 static int a6xx_pm_resume(struct msm_gpu *gpu)
 {
-	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
-	struct a6xx_gpu *a6xx_gpu = to_a6xx_gpu(adreno_gpu);
+	struct adreyes_gpu *adreyes_gpu = to_adreyes_gpu(gpu);
+	struct a6xx_gpu *a6xx_gpu = to_a6xx_gpu(adreyes_gpu);
 	int ret;
 
 	gpu->needs_hw_init = true;
@@ -743,8 +743,8 @@ static int a6xx_pm_resume(struct msm_gpu *gpu)
 
 static int a6xx_pm_suspend(struct msm_gpu *gpu)
 {
-	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
-	struct a6xx_gpu *a6xx_gpu = to_a6xx_gpu(adreno_gpu);
+	struct adreyes_gpu *adreyes_gpu = to_adreyes_gpu(gpu);
+	struct a6xx_gpu *a6xx_gpu = to_a6xx_gpu(adreyes_gpu);
 
 	devfreq_suspend_device(gpu->devfreq.devfreq);
 
@@ -753,8 +753,8 @@ static int a6xx_pm_suspend(struct msm_gpu *gpu)
 
 static int a6xx_get_timestamp(struct msm_gpu *gpu, uint64_t *value)
 {
-	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
-	struct a6xx_gpu *a6xx_gpu = to_a6xx_gpu(adreno_gpu);
+	struct adreyes_gpu *adreyes_gpu = to_adreyes_gpu(gpu);
+	struct a6xx_gpu *a6xx_gpu = to_a6xx_gpu(adreyes_gpu);
 
 	/* Force the GPU power on so we can read this register */
 	a6xx_gmu_set_oob(&a6xx_gpu->gmu, GMU_OOB_GPU_SET);
@@ -768,16 +768,16 @@ static int a6xx_get_timestamp(struct msm_gpu *gpu, uint64_t *value)
 
 static struct msm_ringbuffer *a6xx_active_ring(struct msm_gpu *gpu)
 {
-	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
-	struct a6xx_gpu *a6xx_gpu = to_a6xx_gpu(adreno_gpu);
+	struct adreyes_gpu *adreyes_gpu = to_adreyes_gpu(gpu);
+	struct a6xx_gpu *a6xx_gpu = to_a6xx_gpu(adreyes_gpu);
 
 	return a6xx_gpu->cur_ring;
 }
 
 static void a6xx_destroy(struct msm_gpu *gpu)
 {
-	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
-	struct a6xx_gpu *a6xx_gpu = to_a6xx_gpu(adreno_gpu);
+	struct adreyes_gpu *adreyes_gpu = to_adreyes_gpu(gpu);
+	struct a6xx_gpu *a6xx_gpu = to_a6xx_gpu(adreyes_gpu);
 
 	if (a6xx_gpu->sqe_bo) {
 		msm_gem_unpin_iova(a6xx_gpu->sqe_bo, gpu->aspace);
@@ -786,14 +786,14 @@ static void a6xx_destroy(struct msm_gpu *gpu)
 
 	a6xx_gmu_remove(a6xx_gpu);
 
-	adreno_gpu_cleanup(adreno_gpu);
+	adreyes_gpu_cleanup(adreyes_gpu);
 	kfree(a6xx_gpu);
 }
 
 static unsigned long a6xx_gpu_busy(struct msm_gpu *gpu)
 {
-	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
-	struct a6xx_gpu *a6xx_gpu = to_a6xx_gpu(adreno_gpu);
+	struct adreyes_gpu *adreyes_gpu = to_adreyes_gpu(gpu);
+	struct a6xx_gpu *a6xx_gpu = to_a6xx_gpu(adreyes_gpu);
 	u64 busy_cycles, busy_time;
 
 	busy_cycles = gmu_read64(&a6xx_gpu->gmu,
@@ -811,9 +811,9 @@ static unsigned long a6xx_gpu_busy(struct msm_gpu *gpu)
 	return (unsigned long)busy_time;
 }
 
-static const struct adreno_gpu_funcs funcs = {
+static const struct adreyes_gpu_funcs funcs = {
 	.base = {
-		.get_param = adreno_get_param,
+		.get_param = adreyes_get_param,
 		.hw_init = a6xx_hw_init,
 		.pm_suspend = a6xx_pm_suspend,
 		.pm_resume = a6xx_pm_resume,
@@ -841,9 +841,9 @@ struct msm_gpu *a6xx_gpu_init(struct drm_device *dev)
 {
 	struct msm_drm_private *priv = dev->dev_private;
 	struct platform_device *pdev = priv->gpu_pdev;
-	struct device_node *node;
+	struct device_yesde *yesde;
 	struct a6xx_gpu *a6xx_gpu;
-	struct adreno_gpu *adreno_gpu;
+	struct adreyes_gpu *adreyes_gpu;
 	struct msm_gpu *gpu;
 	int ret;
 
@@ -851,25 +851,25 @@ struct msm_gpu *a6xx_gpu_init(struct drm_device *dev)
 	if (!a6xx_gpu)
 		return ERR_PTR(-ENOMEM);
 
-	adreno_gpu = &a6xx_gpu->base;
-	gpu = &adreno_gpu->base;
+	adreyes_gpu = &a6xx_gpu->base;
+	gpu = &adreyes_gpu->base;
 
-	adreno_gpu->registers = NULL;
-	adreno_gpu->reg_offsets = a6xx_register_offsets;
+	adreyes_gpu->registers = NULL;
+	adreyes_gpu->reg_offsets = a6xx_register_offsets;
 
-	ret = adreno_gpu_init(dev, pdev, adreno_gpu, &funcs, 1);
+	ret = adreyes_gpu_init(dev, pdev, adreyes_gpu, &funcs, 1);
 	if (ret) {
 		a6xx_destroy(&(a6xx_gpu->base.base));
 		return ERR_PTR(ret);
 	}
 
 	/* Check if there is a GMU phandle and set it up */
-	node = of_parse_phandle(pdev->dev.of_node, "qcom,gmu", 0);
+	yesde = of_parse_phandle(pdev->dev.of_yesde, "qcom,gmu", 0);
 
 	/* FIXME: How do we gracefully handle this? */
-	BUG_ON(!node);
+	BUG_ON(!yesde);
 
-	ret = a6xx_gmu_init(a6xx_gpu, node);
+	ret = a6xx_gmu_init(a6xx_gpu, yesde);
 	if (ret) {
 		a6xx_destroy(&(a6xx_gpu->base.base));
 		return ERR_PTR(ret);

@@ -55,7 +55,7 @@ void hgsmi_process_display_info(struct gen_pool *ctx, u32 display,
  * expressed.  This information remains valid until the next VBVA resize event
  * for any screen, at which time it is reset to the bounding rectangle of all
  * virtual screens.
- * Return: 0 or negative errno value.
+ * Return: 0 or negative erryes value.
  * @ctx:       The context containing the heap to use.
  * @origin_x:  Upper left X co-ordinate relative to the first screen.
  * @origin_y:  Upper left Y co-ordinate relative to the first screen.
@@ -85,7 +85,7 @@ int hgsmi_update_input_mapping(struct gen_pool *ctx, s32 origin_x, s32 origin_y,
 
 /**
  * Get most recent video mode hints.
- * Return: 0 or negative errno value.
+ * Return: 0 or negative erryes value.
  * @ctx:      The context containing the heap to use.
  * @screens:  The number of screens to query hints for, starting at 0.
  * @hints:    Array of vbva_modehint structures for receiving the hints.

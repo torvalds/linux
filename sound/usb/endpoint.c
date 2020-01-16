@@ -85,13 +85,13 @@ static const char *usb_error_string(int err)
 {
 	switch (err) {
 	case -ENODEV:
-		return "no device";
+		return "yes device";
 	case -ENOENT:
-		return "endpoint not enabled";
+		return "endpoint yest enabled";
 	case -EPIPE:
 		return "endpoint stalled";
 	case -ENOSPC:
-		return "not enough bandwidth";
+		return "yest eyesugh bandwidth";
 	case -ESHUTDOWN:
 		return "device disabled";
 	case -EHOSTUNREACH:
@@ -102,7 +102,7 @@ static const char *usb_error_string(int err)
 	case -EMSGSIZE:
 		return "internal error";
 	default:
-		return "unknown error";
+		return "unkyeswn error";
 	}
 }
 
@@ -227,7 +227,7 @@ static void prepare_outbound_urb(struct snd_usb_endpoint *ep,
 		if (ep->prepare_data_urb) {
 			ep->prepare_data_urb(ep->data_subs, urb);
 		} else {
-			/* no data provider, so send silence */
+			/* yes data provider, so send silence */
 			prepare_silent_urb(ep, ctx);
 		}
 		break;
@@ -294,8 +294,8 @@ static inline void prepare_inbound_urb(struct snd_usb_endpoint *ep,
 /*
  * Send output urbs that have been prepared previously. URBs are dequeued
  * from ep->ready_playback_urbs and in case there there aren't any available
- * or there are no packets that have been prepared, this function does
- * nothing.
+ * or there are yes packets that have been prepared, this function does
+ * yesthing.
  *
  * The reason why the functionality of sending and preparing URBs is separated
  * is that host controllers don't guarantee the order in which they return
@@ -404,7 +404,7 @@ static void snd_complete_urb(struct urb *urb)
 	if (err == 0)
 		return;
 
-	usb_audio_err(ep->chip, "cannot submit urb (err = %d)\n", err);
+	usb_audio_err(ep->chip, "canyest submit urb (err = %d)\n", err);
 	if (ep->data_subs && ep->data_subs->pcm_substream) {
 		substream = ep->data_subs->pcm_substream;
 		snd_pcm_stop_xrun(substream);
@@ -423,7 +423,7 @@ exit_clear:
  * @direction: SNDRV_PCM_STREAM_PLAYBACK or SNDRV_PCM_STREAM_CAPTURE
  * @type: SND_USB_ENDPOINT_TYPE_DATA or SND_USB_ENDPOINT_TYPE_SYNC
  *
- * If the requested endpoint has not been added to the given chip before,
+ * If the requested endpoint has yest been added to the given chip before,
  * a new instance is created. Otherwise, a pointer to the previoulsy
  * created instance is returned. In case of any error, NULL is returned.
  *
@@ -642,7 +642,7 @@ static int data_ep_set_params(struct snd_usb_endpoint *ep,
 		ep->silence_value = 0;
 	}
 
-	/* assume max. frequency is 50% higher than nominal */
+	/* assume max. frequency is 50% higher than yesminal */
 	ep->freqmax = ep->freqn + (ep->freqn >> 1);
 	/* Round up freqmax to nearest integer in order to calculate maximum
 	 * packet size, which must represent a whole number of frames.
@@ -656,7 +656,7 @@ static int data_ep_set_params(struct snd_usb_endpoint *ep,
 	 * data interval of 2.
 	 * (ep->freqmax << ep->datainterval overflows at 8.192 MHz for the
 	 * maximum datainterval value of 3, at USB full speed, higher for
-	 * USB high speed, noting that ep->freqmax is in units of
+	 * USB high speed, yesting that ep->freqmax is in units of
 	 * frames per packet in Q16.16 format.)
 	 */
 	maxsize = (((ep->freqmax << ep->datainterval) + 0xffff) >> 16) *
@@ -693,7 +693,7 @@ static int data_ep_set_params(struct snd_usb_endpoint *ep,
 	max_packs_per_urb = max(1u, max_packs_per_urb >> ep->datainterval);
 
 	/*
-	 * Capture endpoints need to use small URBs because there's no way
+	 * Capture endpoints need to use small URBs because there's yes way
 	 * to tell in advance where the next period will end, and we don't
 	 * want the next URB to complete much after the period ends.
 	 *
@@ -751,7 +751,7 @@ static int data_ep_set_params(struct snd_usb_endpoint *ep,
 		ep->max_urb_frames = DIV_ROUND_UP(frames_per_period,
 					urbs_per_period);
 
-		/* try to use enough URBs to contain an entire ALSA buffer */
+		/* try to use eyesugh URBs to contain an entire ALSA buffer */
 		max_urbs = min((unsigned) MAX_URBS,
 				MAX_QUEUE * packs_per_ms / urb_packs);
 		ep->nurbs = min(max_urbs, urbs_per_period * periods_per_buffer);
@@ -846,7 +846,7 @@ out_of_memory:
  *
  * Determine the number of URBs to be used on this endpoint.
  * An endpoint must be configured before it can be started.
- * An endpoint that is already running can not be reconfigured.
+ * An endpoint that is already running can yest be reconfigured.
  */
 int snd_usb_endpoint_set_params(struct snd_usb_endpoint *ep,
 				snd_pcm_format_t pcm_format,
@@ -911,8 +911,8 @@ int snd_usb_endpoint_set_params(struct snd_usb_endpoint *ep,
  * @ep: the endpoint to start
  *
  * A call to this function will increment the use count of the endpoint.
- * In case it is not already running, the URBs for this endpoint will be
- * submitted. Otherwise, this function does nothing.
+ * In case it is yest already running, the URBs for this endpoint will be
+ * submitted. Otherwise, this function does yesthing.
  *
  * Must be balanced to calls of snd_usb_endpoint_stop().
  *
@@ -972,7 +972,7 @@ int snd_usb_endpoint_start(struct snd_usb_endpoint *ep)
 		err = usb_submit_urb(urb, GFP_ATOMIC);
 		if (err < 0) {
 			usb_audio_err(ep->chip,
-				"cannot submit urb %d, error %d: %s\n",
+				"canyest submit urb %d, error %d: %s\n",
 				i, err, usb_error_string(err));
 			goto __error;
 		}
@@ -1021,10 +1021,10 @@ void snd_usb_endpoint_stop(struct snd_usb_endpoint *ep)
  *
  * @ep: the endpoint to deactivate
  *
- * If the endpoint is not currently in use, this functions will
+ * If the endpoint is yest currently in use, this functions will
  * deactivate its associated URBs.
  *
- * In case of any active users, this functions does nothing.
+ * In case of any active users, this functions does yesthing.
  */
 void snd_usb_endpoint_deactivate(struct snd_usb_endpoint *ep)
 {
@@ -1043,7 +1043,7 @@ void snd_usb_endpoint_deactivate(struct snd_usb_endpoint *ep)
  *
  * @ep: the endpoint to release
  *
- * This function does not care for the endpoint's use count but will tear
+ * This function does yest care for the endpoint's use count but will tear
  * down all the streaming URBs immediately.
  */
 void snd_usb_endpoint_release(struct snd_usb_endpoint *ep)
@@ -1071,7 +1071,7 @@ void snd_usb_endpoint_free(struct snd_usb_endpoint *ep)
  * @urb: the received packet
  *
  * This function is called from the context of an endpoint that received
- * the packet and is used to let another endpoint object handle the payload.
+ * the packet and is used to let ayesther endpoint object handle the payload.
  */
 void snd_usb_handle_sync_urb(struct snd_usb_endpoint *ep,
 			     struct snd_usb_endpoint *sender,
@@ -1152,7 +1152,7 @@ void snd_usb_handle_sync_urb(struct snd_usb_endpoint *ep,
 	 * speed devices use a wrong interpretation, some others use an
 	 * entirely different format.
 	 *
-	 * Therefore, we cannot predict what format any particular device uses
+	 * Therefore, we canyest predict what format any particular device uses
 	 * and must detect it automatically.
 	 */
 
@@ -1169,9 +1169,9 @@ void snd_usb_handle_sync_urb(struct snd_usb_endpoint *ep,
 	if (f == 0)
 		return;
 
-	if (unlikely(sender->tenor_fb_quirk)) {
+	if (unlikely(sender->teyesr_fb_quirk)) {
 		/*
-		 * Devices based on Tenor 8802 chipsets (TEAC UD-H01
+		 * Devices based on Teyesr 8802 chipsets (TEAC UD-H01
 		 * and others) sometimes change the feedback value
 		 * by +/- 0x1.0000.
 		 */
@@ -1182,9 +1182,9 @@ void snd_usb_handle_sync_urb(struct snd_usb_endpoint *ep,
 	} else if (unlikely(ep->freqshift == INT_MIN)) {
 		/*
 		 * The first time we see a feedback value, determine its format
-		 * by shifting it left or right until it matches the nominal
-		 * frequency value.  This assumes that the feedback does not
-		 * differ from the nominal value more than +50% or -25%.
+		 * by shifting it left or right until it matches the yesminal
+		 * frequency value.  This assumes that the feedback does yest
+		 * differ from the yesminal value more than +50% or -25%.
 		 */
 		shift = 0;
 		while (f < ep->freqn - ep->freqn / 4) {

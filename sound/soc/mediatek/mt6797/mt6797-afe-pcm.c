@@ -315,14 +315,14 @@ static const struct snd_kcontrol_new memif_ul3_ch2_mix[] = {
 				    I_ADDA_UL_CH2, 1, 0),
 };
 
-static const struct snd_kcontrol_new memif_ul_mono_1_mix[] = {
+static const struct snd_kcontrol_new memif_ul_moyes_1_mix[] = {
 	SOC_DAPM_SINGLE_AUTODISABLE("ADDA_UL_CH1", AFE_CONN12,
 				    I_ADDA_UL_CH1, 1, 0),
 	SOC_DAPM_SINGLE_AUTODISABLE("ADDA_UL_CH2", AFE_CONN12,
 				    I_ADDA_UL_CH2, 1, 0),
 };
 
-static const struct snd_kcontrol_new memif_ul_mono_2_mix[] = {
+static const struct snd_kcontrol_new memif_ul_moyes_2_mix[] = {
 	SOC_DAPM_SINGLE_AUTODISABLE("ADDA_UL_CH1", AFE_CONN11,
 				    I_ADDA_UL_CH1, 1, 0),
 	SOC_DAPM_SINGLE_AUTODISABLE("ADDA_UL_CH2", AFE_CONN11,
@@ -347,12 +347,12 @@ static const struct snd_soc_dapm_widget mt6797_memif_widgets[] = {
 			   memif_ul3_ch2_mix, ARRAY_SIZE(memif_ul3_ch2_mix)),
 
 	SND_SOC_DAPM_MIXER("UL_MONO_1_CH1", SND_SOC_NOPM, 0, 0,
-			   memif_ul_mono_1_mix,
-			   ARRAY_SIZE(memif_ul_mono_1_mix)),
+			   memif_ul_moyes_1_mix,
+			   ARRAY_SIZE(memif_ul_moyes_1_mix)),
 
 	SND_SOC_DAPM_MIXER("UL_MONO_2_CH1", SND_SOC_NOPM, 0, 0,
-			   memif_ul_mono_2_mix,
-			   ARRAY_SIZE(memif_ul_mono_2_mix)),
+			   memif_ul_moyes_2_mix,
+			   ARRAY_SIZE(memif_ul_moyes_2_mix)),
 };
 
 static const struct snd_soc_dapm_route mt6797_memif_routes[] = {
@@ -394,8 +394,8 @@ static const struct mtk_base_memif_data memif_data[MT6797_MEMIF_NUM] = {
 		.fs_reg = AFE_DAC_CON1,
 		.fs_shift = DL1_MODE_SFT,
 		.fs_maskbit = DL1_MODE_MASK,
-		.mono_reg = AFE_DAC_CON1,
-		.mono_shift = DL1_DATA_SFT,
+		.moyes_reg = AFE_DAC_CON1,
+		.moyes_shift = DL1_DATA_SFT,
 		.enable_reg = AFE_DAC_CON0,
 		.enable_shift = DL1_ON_SFT,
 		.hd_reg = AFE_MEMIF_HD_MODE,
@@ -411,8 +411,8 @@ static const struct mtk_base_memif_data memif_data[MT6797_MEMIF_NUM] = {
 		.fs_reg = AFE_DAC_CON1,
 		.fs_shift = DL2_MODE_SFT,
 		.fs_maskbit = DL2_MODE_MASK,
-		.mono_reg = AFE_DAC_CON1,
-		.mono_shift = DL2_DATA_SFT,
+		.moyes_reg = AFE_DAC_CON1,
+		.moyes_shift = DL2_DATA_SFT,
 		.enable_reg = AFE_DAC_CON0,
 		.enable_shift = DL2_ON_SFT,
 		.hd_reg = AFE_MEMIF_HD_MODE,
@@ -428,8 +428,8 @@ static const struct mtk_base_memif_data memif_data[MT6797_MEMIF_NUM] = {
 		.fs_reg = AFE_DAC_CON0,
 		.fs_shift = DL3_MODE_SFT,
 		.fs_maskbit = DL3_MODE_MASK,
-		.mono_reg = AFE_DAC_CON1,
-		.mono_shift = DL3_DATA_SFT,
+		.moyes_reg = AFE_DAC_CON1,
+		.moyes_shift = DL3_DATA_SFT,
 		.enable_reg = AFE_DAC_CON0,
 		.enable_shift = DL3_ON_SFT,
 		.hd_reg = AFE_MEMIF_HD_MODE,
@@ -445,8 +445,8 @@ static const struct mtk_base_memif_data memif_data[MT6797_MEMIF_NUM] = {
 		.fs_reg = AFE_DAC_CON1,
 		.fs_shift = VUL_MODE_SFT,
 		.fs_maskbit = VUL_MODE_MASK,
-		.mono_reg = AFE_DAC_CON1,
-		.mono_shift = VUL_DATA_SFT,
+		.moyes_reg = AFE_DAC_CON1,
+		.moyes_shift = VUL_DATA_SFT,
 		.enable_reg = AFE_DAC_CON0,
 		.enable_shift = VUL_ON_SFT,
 		.hd_reg = AFE_MEMIF_HD_MODE,
@@ -462,8 +462,8 @@ static const struct mtk_base_memif_data memif_data[MT6797_MEMIF_NUM] = {
 		.fs_reg = AFE_DAC_CON1,
 		.fs_shift = AWB_MODE_SFT,
 		.fs_maskbit = AWB_MODE_MASK,
-		.mono_reg = AFE_DAC_CON1,
-		.mono_shift = AWB_DATA_SFT,
+		.moyes_reg = AFE_DAC_CON1,
+		.moyes_shift = AWB_DATA_SFT,
 		.enable_reg = AFE_DAC_CON0,
 		.enable_shift = AWB_ON_SFT,
 		.hd_reg = AFE_MEMIF_HD_MODE,
@@ -479,8 +479,8 @@ static const struct mtk_base_memif_data memif_data[MT6797_MEMIF_NUM] = {
 		.fs_reg = AFE_DAC_CON0,
 		.fs_shift = VUL_DATA2_MODE_SFT,
 		.fs_maskbit = VUL_DATA2_MODE_MASK,
-		.mono_reg = AFE_DAC_CON0,
-		.mono_shift = VUL_DATA2_DATA_SFT,
+		.moyes_reg = AFE_DAC_CON0,
+		.moyes_shift = VUL_DATA2_DATA_SFT,
 		.enable_reg = AFE_DAC_CON0,
 		.enable_shift = VUL_DATA2_ON_SFT,
 		.hd_reg = AFE_MEMIF_HD_MODE,
@@ -496,8 +496,8 @@ static const struct mtk_base_memif_data memif_data[MT6797_MEMIF_NUM] = {
 		.fs_reg = AFE_DAC_CON0,
 		.fs_shift = DAI_MODE_SFT,
 		.fs_maskbit = DAI_MODE_MASK,
-		.mono_reg = -1,
-		.mono_shift = 0,
+		.moyes_reg = -1,
+		.moyes_shift = 0,
 		.enable_reg = AFE_DAC_CON0,
 		.enable_shift = DAI_ON_SFT,
 		.hd_reg = AFE_MEMIF_HD_MODE,
@@ -513,8 +513,8 @@ static const struct mtk_base_memif_data memif_data[MT6797_MEMIF_NUM] = {
 		.fs_reg = AFE_DAC_CON1,
 		.fs_shift = MOD_DAI_MODE_SFT,
 		.fs_maskbit = MOD_DAI_MODE_MASK,
-		.mono_reg = -1,
-		.mono_shift = 0,
+		.moyes_reg = -1,
+		.moyes_shift = 0,
 		.enable_reg = AFE_DAC_CON0,
 		.enable_shift = MOD_DAI_ON_SFT,
 		.hd_reg = AFE_MEMIF_HD_MODE,
@@ -682,10 +682,10 @@ static int mt6797_afe_runtime_resume(struct device *dev)
 	/* irq signal to mcu only */
 	regmap_write(afe->regmap, AFE_IRQ_MCU_EN, AFE_IRQ_MCU_EN_MASK_SFT);
 
-	/* force all memif use normal mode */
+	/* force all memif use yesrmal mode */
 	regmap_update_bits(afe->regmap, AFE_MEMIF_HDALIGN,
 			   0x7ff << 16, 0x7ff << 16);
-	/* force cpu use normal mode when access sram data */
+	/* force cpu use yesrmal mode when access sram data */
 	regmap_update_bits(afe->regmap, AFE_MEMIF_MSB,
 			   CPU_COMPACT_MODE_MASK_SFT, 0);
 	/* force cpu use 8_24 format when writing 32bit data */
@@ -810,13 +810,13 @@ static int mt6797_afe_pcm_dev_probe(struct platform_device *pdev)
 	/* request irq */
 	irq_id = platform_get_irq(pdev, 0);
 	if (!irq_id) {
-		dev_err(dev, "%pOFn no irq found\n", dev->of_node);
+		dev_err(dev, "%pOFn yes irq found\n", dev->of_yesde);
 		return -ENXIO;
 	}
 	ret = devm_request_irq(dev, irq_id, mt6797_afe_irq_handler,
 			       IRQF_TRIGGER_NONE, "asys-isr", (void *)afe);
 	if (ret) {
-		dev_err(dev, "could not request_irq for asys-isr\n");
+		dev_err(dev, "could yest request_irq for asys-isr\n");
 		return ret;
 	}
 

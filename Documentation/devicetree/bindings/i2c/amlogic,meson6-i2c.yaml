@@ -9,7 +9,7 @@ title: Amlogic Meson I2C Controller
 
 maintainers:
   - Neil Armstrong <narmstrong@baylibre.com>
-  - Beniamino Galvani <b.galvani@gmail.com>
+  - Beniamiyes Galvani <b.galvani@gmail.com>
 
 allOf:
   - $ref: /schemas/i2c/i2c-controller.yaml#

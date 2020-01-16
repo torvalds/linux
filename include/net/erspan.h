@@ -201,7 +201,7 @@ static inline void erspan_build_header(struct sk_buff *skb,
 
 /* ERSPAN GRA: timestamp granularity
  *   00b --> granularity = 100 microseconds
- *   01b --> granularity = 100 nanoseconds
+ *   01b --> granularity = 100 nayesseconds
  *   10b --> granularity = IEEE 1588
  * Here we only support 100 microseconds.
  */
@@ -220,7 +220,7 @@ static inline __be32 erspan_get_timestamp(void)
 }
 
 /* ERSPAN BSO (Bad/Short/Oversized), see RFC1757
- *   00b --> Good frame with no error, or unknown integrity
+ *   00b --> Good frame with yes error, or unkyeswn integrity
  *   01b --> Payload is a Short Frame
  *   10b --> Payload is an Oversized Frame
  *   11b --> Payload is a Bad Frame with CRC or Alignment Error
@@ -234,7 +234,7 @@ enum erspan_bso {
 
 static inline u8 erspan_detect_bso(struct sk_buff *skb)
 {
-	/* BSO_BAD is not handled because the frame CRC
+	/* BSO_BAD is yest handled because the frame CRC
 	 * or alignment error information is in FCS.
 	 */
 	if (skb->len < ETH_ZLEN)
@@ -267,7 +267,7 @@ static inline void erspan_build_header_v2(struct sk_buff *skb,
 			(ipv6_hdr(skb)->priority << 4) +
 			(ipv6_hdr(skb)->flow_lbl[0] >> 4);
 
-	/* Unlike v1, v2 does not have En field,
+	/* Unlike v1, v2 does yest have En field,
 	 * so only extract vlan tci field.
 	 */
 	if (eth->h_proto == htons(ETH_P_8021Q)) {

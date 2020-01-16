@@ -10,7 +10,7 @@
 #include "xfs_log_format.h"
 #include "xfs_trans_resv.h"
 #include "xfs_mount.h"
-#include "xfs_inode.h"
+#include "xfs_iyesde.h"
 #include "xfs_errortag.h"
 #include "xfs_error.h"
 #include "xfs_icache.h"
@@ -21,23 +21,23 @@
 #include <linux/iversion.h>
 
 /*
- * Check that none of the inode's in the buffer have a next
+ * Check that yesne of the iyesde's in the buffer have a next
  * unlinked field of 0.
  */
 #if defined(DEBUG)
 void
-xfs_inobp_check(
+xfs_iyesbp_check(
 	xfs_mount_t	*mp,
 	xfs_buf_t	*bp)
 {
 	int		i;
-	xfs_dinode_t	*dip;
+	xfs_diyesde_t	*dip;
 
-	for (i = 0; i < M_IGEO(mp)->inodes_per_cluster; i++) {
-		dip = xfs_buf_offset(bp, i * mp->m_sb.sb_inodesize);
+	for (i = 0; i < M_IGEO(mp)->iyesdes_per_cluster; i++) {
+		dip = xfs_buf_offset(bp, i * mp->m_sb.sb_iyesdesize);
 		if (!dip->di_next_unlinked)  {
 			xfs_alert(mp,
-	"Detected bogus zero next_unlinked field in inode %d buffer 0x%llx.",
+	"Detected bogus zero next_unlinked field in iyesde %d buffer 0x%llx.",
 				i, (long long)bp->b_bn);
 		}
 	}
@@ -45,7 +45,7 @@ xfs_inobp_check(
 #endif
 
 bool
-xfs_dinode_good_version(
+xfs_diyesde_good_version(
 	struct xfs_mount *mp,
 	__u8		version)
 {
@@ -56,45 +56,45 @@ xfs_dinode_good_version(
 }
 
 /*
- * If we are doing readahead on an inode buffer, we might be in log recovery
- * reading an inode allocation buffer that hasn't yet been replayed, and hence
- * has not had the inode cores stamped into it. Hence for readahead, the buffer
+ * If we are doing readahead on an iyesde buffer, we might be in log recovery
+ * reading an iyesde allocation buffer that hasn't yet been replayed, and hence
+ * has yest had the iyesde cores stamped into it. Hence for readahead, the buffer
  * may be potentially invalid.
  *
  * If the readahead buffer is invalid, we need to mark it with an error and
  * clear the DONE status of the buffer so that a followup read will re-read it
  * from disk. We don't report the error otherwise to avoid warnings during log
  * recovery and we don't get unnecssary panics on debug kernels. We use EIO here
- * because all we want to do is say readahead failed; there is no-one to report
- * the error to, so this will distinguish it from a non-ra verifier failure.
+ * because all we want to do is say readahead failed; there is yes-one to report
+ * the error to, so this will distinguish it from a yesn-ra verifier failure.
  * Changes to this readahead error behavour also need to be reflected in
  * xfs_dquot_buf_readahead_verify().
  */
 static void
-xfs_inode_buf_verify(
+xfs_iyesde_buf_verify(
 	struct xfs_buf	*bp,
 	bool		readahead)
 {
 	struct xfs_mount *mp = bp->b_mount;
-	xfs_agnumber_t	agno;
+	xfs_agnumber_t	agyes;
 	int		i;
 	int		ni;
 
 	/*
-	 * Validate the magic number and version of every inode in the buffer
+	 * Validate the magic number and version of every iyesde in the buffer
 	 */
-	agno = xfs_daddr_to_agno(mp, XFS_BUF_ADDR(bp));
-	ni = XFS_BB_TO_FSB(mp, bp->b_length) * mp->m_sb.sb_inopblock;
+	agyes = xfs_daddr_to_agyes(mp, XFS_BUF_ADDR(bp));
+	ni = XFS_BB_TO_FSB(mp, bp->b_length) * mp->m_sb.sb_iyespblock;
 	for (i = 0; i < ni; i++) {
 		int		di_ok;
-		xfs_dinode_t	*dip;
-		xfs_agino_t	unlinked_ino;
+		xfs_diyesde_t	*dip;
+		xfs_agiyes_t	unlinked_iyes;
 
-		dip = xfs_buf_offset(bp, (i << mp->m_sb.sb_inodelog));
-		unlinked_ino = be32_to_cpu(dip->di_next_unlinked);
+		dip = xfs_buf_offset(bp, (i << mp->m_sb.sb_iyesdelog));
+		unlinked_iyes = be32_to_cpu(dip->di_next_unlinked);
 		di_ok = xfs_verify_magic16(bp, dip->di_magic) &&
-			xfs_dinode_good_version(mp, dip->di_version) &&
-			xfs_verify_agino_or_null(mp, agno, unlinked_ino);
+			xfs_diyesde_good_version(mp, dip->di_version) &&
+			xfs_verify_agiyes_or_null(mp, agyes, unlinked_iyes);
 		if (unlikely(XFS_TEST_ERROR(!di_ok, mp,
 						XFS_ERRTAG_ITOBP_INOTOBP))) {
 			if (readahead) {
@@ -105,7 +105,7 @@ xfs_inode_buf_verify(
 
 #ifdef DEBUG
 			xfs_alert(mp,
-				"bad inode magic/vsn daddr %lld #%d (magic=%x)",
+				"bad iyesde magic/vsn daddr %lld #%d (magic=%x)",
 				(unsigned long long)bp->b_bn, i,
 				be16_to_cpu(dip->di_magic));
 #endif
@@ -119,50 +119,50 @@ xfs_inode_buf_verify(
 
 
 static void
-xfs_inode_buf_read_verify(
+xfs_iyesde_buf_read_verify(
 	struct xfs_buf	*bp)
 {
-	xfs_inode_buf_verify(bp, false);
+	xfs_iyesde_buf_verify(bp, false);
 }
 
 static void
-xfs_inode_buf_readahead_verify(
+xfs_iyesde_buf_readahead_verify(
 	struct xfs_buf	*bp)
 {
-	xfs_inode_buf_verify(bp, true);
+	xfs_iyesde_buf_verify(bp, true);
 }
 
 static void
-xfs_inode_buf_write_verify(
+xfs_iyesde_buf_write_verify(
 	struct xfs_buf	*bp)
 {
-	xfs_inode_buf_verify(bp, false);
+	xfs_iyesde_buf_verify(bp, false);
 }
 
-const struct xfs_buf_ops xfs_inode_buf_ops = {
-	.name = "xfs_inode",
+const struct xfs_buf_ops xfs_iyesde_buf_ops = {
+	.name = "xfs_iyesde",
 	.magic16 = { cpu_to_be16(XFS_DINODE_MAGIC),
 		     cpu_to_be16(XFS_DINODE_MAGIC) },
-	.verify_read = xfs_inode_buf_read_verify,
-	.verify_write = xfs_inode_buf_write_verify,
+	.verify_read = xfs_iyesde_buf_read_verify,
+	.verify_write = xfs_iyesde_buf_write_verify,
 };
 
-const struct xfs_buf_ops xfs_inode_buf_ra_ops = {
-	.name = "xfs_inode_ra",
+const struct xfs_buf_ops xfs_iyesde_buf_ra_ops = {
+	.name = "xfs_iyesde_ra",
 	.magic16 = { cpu_to_be16(XFS_DINODE_MAGIC),
 		     cpu_to_be16(XFS_DINODE_MAGIC) },
-	.verify_read = xfs_inode_buf_readahead_verify,
-	.verify_write = xfs_inode_buf_write_verify,
+	.verify_read = xfs_iyesde_buf_readahead_verify,
+	.verify_write = xfs_iyesde_buf_write_verify,
 };
 
 
 /*
- * This routine is called to map an inode to the buffer containing the on-disk
- * version of the inode.  It returns a pointer to the buffer containing the
- * on-disk inode in the bpp parameter, and in the dipp parameter it returns a
- * pointer to the on-disk inode within that buffer.
+ * This routine is called to map an iyesde to the buffer containing the on-disk
+ * version of the iyesde.  It returns a pointer to the buffer containing the
+ * on-disk iyesde in the bpp parameter, and in the dipp parameter it returns a
+ * pointer to the on-disk iyesde within that buffer.
  *
- * If a non-zero error is returned, then the contents of bpp and dipp are
+ * If a yesn-zero error is returned, then the contents of bpp and dipp are
  * undefined.
  */
 int
@@ -170,7 +170,7 @@ xfs_imap_to_bp(
 	struct xfs_mount	*mp,
 	struct xfs_trans	*tp,
 	struct xfs_imap		*imap,
-	struct xfs_dinode       **dipp,
+	struct xfs_diyesde       **dipp,
 	struct xfs_buf		**bpp,
 	uint			buf_flags,
 	uint			iget_flags)
@@ -179,9 +179,9 @@ xfs_imap_to_bp(
 	int			error;
 
 	buf_flags |= XBF_UNMAPPED;
-	error = xfs_trans_read_buf(mp, tp, mp->m_ddev_targp, imap->im_blkno,
+	error = xfs_trans_read_buf(mp, tp, mp->m_ddev_targp, imap->im_blkyes,
 				   (int)imap->im_len, buf_flags, &bp,
-				   &xfs_inode_buf_ops);
+				   &xfs_iyesde_buf_ops);
 	if (error) {
 		if (error == -EAGAIN) {
 			ASSERT(buf_flags & XBF_TRYLOCK);
@@ -198,25 +198,25 @@ xfs_imap_to_bp(
 }
 
 void
-xfs_inode_from_disk(
-	struct xfs_inode	*ip,
-	struct xfs_dinode	*from)
+xfs_iyesde_from_disk(
+	struct xfs_iyesde	*ip,
+	struct xfs_diyesde	*from)
 {
-	struct xfs_icdinode	*to = &ip->i_d;
-	struct inode		*inode = VFS_I(ip);
+	struct xfs_icdiyesde	*to = &ip->i_d;
+	struct iyesde		*iyesde = VFS_I(ip);
 
 
 	/*
-	 * Convert v1 inodes immediately to v2 inode format as this is the
-	 * minimum inode version format we support in the rest of the code.
+	 * Convert v1 iyesdes immediately to v2 iyesde format as this is the
+	 * minimum iyesde version format we support in the rest of the code.
 	 */
 	to->di_version = from->di_version;
 	if (to->di_version == 1) {
-		set_nlink(inode, be16_to_cpu(from->di_onlink));
+		set_nlink(iyesde, be16_to_cpu(from->di_onlink));
 		to->di_projid = 0;
 		to->di_version = 2;
 	} else {
-		set_nlink(inode, be32_to_cpu(from->di_nlink));
+		set_nlink(iyesde, be32_to_cpu(from->di_nlink));
 		to->di_projid = (prid_t)be16_to_cpu(from->di_projid_hi) << 16 |
 					be16_to_cpu(from->di_projid_lo);
 	}
@@ -228,18 +228,18 @@ xfs_inode_from_disk(
 
 	/*
 	 * Time is signed, so need to convert to signed 32 bit before
-	 * storing in inode timestamp which may be 64 bit. Otherwise
+	 * storing in iyesde timestamp which may be 64 bit. Otherwise
 	 * a time before epoch is converted to a time long after epoch
 	 * on 64 bit systems.
 	 */
-	inode->i_atime.tv_sec = (int)be32_to_cpu(from->di_atime.t_sec);
-	inode->i_atime.tv_nsec = (int)be32_to_cpu(from->di_atime.t_nsec);
-	inode->i_mtime.tv_sec = (int)be32_to_cpu(from->di_mtime.t_sec);
-	inode->i_mtime.tv_nsec = (int)be32_to_cpu(from->di_mtime.t_nsec);
-	inode->i_ctime.tv_sec = (int)be32_to_cpu(from->di_ctime.t_sec);
-	inode->i_ctime.tv_nsec = (int)be32_to_cpu(from->di_ctime.t_nsec);
-	inode->i_generation = be32_to_cpu(from->di_gen);
-	inode->i_mode = be16_to_cpu(from->di_mode);
+	iyesde->i_atime.tv_sec = (int)be32_to_cpu(from->di_atime.t_sec);
+	iyesde->i_atime.tv_nsec = (int)be32_to_cpu(from->di_atime.t_nsec);
+	iyesde->i_mtime.tv_sec = (int)be32_to_cpu(from->di_mtime.t_sec);
+	iyesde->i_mtime.tv_nsec = (int)be32_to_cpu(from->di_mtime.t_nsec);
+	iyesde->i_ctime.tv_sec = (int)be32_to_cpu(from->di_ctime.t_sec);
+	iyesde->i_ctime.tv_nsec = (int)be32_to_cpu(from->di_ctime.t_nsec);
+	iyesde->i_generation = be32_to_cpu(from->di_gen);
+	iyesde->i_mode = be16_to_cpu(from->di_mode);
 
 	to->di_size = be64_to_cpu(from->di_size);
 	to->di_nblocks = be64_to_cpu(from->di_nblocks);
@@ -253,7 +253,7 @@ xfs_inode_from_disk(
 	to->di_flags	= be16_to_cpu(from->di_flags);
 
 	if (to->di_version == 3) {
-		inode_set_iversion_queried(inode,
+		iyesde_set_iversion_queried(iyesde,
 					   be64_to_cpu(from->di_changecount));
 		to->di_crtime.tv_sec = be32_to_cpu(from->di_crtime.t_sec);
 		to->di_crtime.tv_nsec = be32_to_cpu(from->di_crtime.t_nsec);
@@ -263,13 +263,13 @@ xfs_inode_from_disk(
 }
 
 void
-xfs_inode_to_disk(
-	struct xfs_inode	*ip,
-	struct xfs_dinode	*to,
+xfs_iyesde_to_disk(
+	struct xfs_iyesde	*ip,
+	struct xfs_diyesde	*to,
 	xfs_lsn_t		lsn)
 {
-	struct xfs_icdinode	*from = &ip->i_d;
-	struct inode		*inode = VFS_I(ip);
+	struct xfs_icdiyesde	*from = &ip->i_d;
+	struct iyesde		*iyesde = VFS_I(ip);
 
 	to->di_magic = cpu_to_be16(XFS_DINODE_MAGIC);
 	to->di_onlink = 0;
@@ -282,15 +282,15 @@ xfs_inode_to_disk(
 	to->di_projid_hi = cpu_to_be16(from->di_projid >> 16);
 
 	memset(to->di_pad, 0, sizeof(to->di_pad));
-	to->di_atime.t_sec = cpu_to_be32(inode->i_atime.tv_sec);
-	to->di_atime.t_nsec = cpu_to_be32(inode->i_atime.tv_nsec);
-	to->di_mtime.t_sec = cpu_to_be32(inode->i_mtime.tv_sec);
-	to->di_mtime.t_nsec = cpu_to_be32(inode->i_mtime.tv_nsec);
-	to->di_ctime.t_sec = cpu_to_be32(inode->i_ctime.tv_sec);
-	to->di_ctime.t_nsec = cpu_to_be32(inode->i_ctime.tv_nsec);
-	to->di_nlink = cpu_to_be32(inode->i_nlink);
-	to->di_gen = cpu_to_be32(inode->i_generation);
-	to->di_mode = cpu_to_be16(inode->i_mode);
+	to->di_atime.t_sec = cpu_to_be32(iyesde->i_atime.tv_sec);
+	to->di_atime.t_nsec = cpu_to_be32(iyesde->i_atime.tv_nsec);
+	to->di_mtime.t_sec = cpu_to_be32(iyesde->i_mtime.tv_sec);
+	to->di_mtime.t_nsec = cpu_to_be32(iyesde->i_mtime.tv_nsec);
+	to->di_ctime.t_sec = cpu_to_be32(iyesde->i_ctime.tv_sec);
+	to->di_ctime.t_nsec = cpu_to_be32(iyesde->i_ctime.tv_nsec);
+	to->di_nlink = cpu_to_be32(iyesde->i_nlink);
+	to->di_gen = cpu_to_be32(iyesde->i_generation);
+	to->di_mode = cpu_to_be16(iyesde->i_mode);
 
 	to->di_size = cpu_to_be64(from->di_size);
 	to->di_nblocks = cpu_to_be64(from->di_nblocks);
@@ -304,12 +304,12 @@ xfs_inode_to_disk(
 	to->di_flags = cpu_to_be16(from->di_flags);
 
 	if (from->di_version == 3) {
-		to->di_changecount = cpu_to_be64(inode_peek_iversion(inode));
+		to->di_changecount = cpu_to_be64(iyesde_peek_iversion(iyesde));
 		to->di_crtime.t_sec = cpu_to_be32(from->di_crtime.tv_sec);
 		to->di_crtime.t_nsec = cpu_to_be32(from->di_crtime.tv_nsec);
 		to->di_flags2 = cpu_to_be64(from->di_flags2);
 		to->di_cowextsize = cpu_to_be32(from->di_cowextsize);
-		to->di_ino = cpu_to_be64(ip->i_ino);
+		to->di_iyes = cpu_to_be64(ip->i_iyes);
 		to->di_lsn = cpu_to_be64(lsn);
 		memset(to->di_pad2, 0, sizeof(to->di_pad2));
 		uuid_copy(&to->di_uuid, &ip->i_mount->m_sb.sb_meta_uuid);
@@ -320,9 +320,9 @@ xfs_inode_to_disk(
 }
 
 void
-xfs_log_dinode_to_disk(
-	struct xfs_log_dinode	*from,
-	struct xfs_dinode	*to)
+xfs_log_diyesde_to_disk(
+	struct xfs_log_diyesde	*from,
+	struct xfs_diyesde	*to)
 {
 	to->di_magic = cpu_to_be16(from->di_magic);
 	to->di_mode = cpu_to_be16(from->di_mode);
@@ -361,7 +361,7 @@ xfs_log_dinode_to_disk(
 		to->di_crtime.t_nsec = cpu_to_be32(from->di_crtime.t_nsec);
 		to->di_flags2 = cpu_to_be64(from->di_flags2);
 		to->di_cowextsize = cpu_to_be32(from->di_cowextsize);
-		to->di_ino = cpu_to_be64(from->di_ino);
+		to->di_iyes = cpu_to_be64(from->di_iyes);
 		to->di_lsn = cpu_to_be64(from->di_lsn);
 		memcpy(to->di_pad2, from->di_pad2, sizeof(to->di_pad2));
 		uuid_copy(&to->di_uuid, &from->di_uuid);
@@ -372,8 +372,8 @@ xfs_log_dinode_to_disk(
 }
 
 static xfs_failaddr_t
-xfs_dinode_verify_fork(
-	struct xfs_dinode	*dip,
+xfs_diyesde_verify_fork(
+	struct xfs_diyesde	*dip,
 	struct xfs_mount	*mp,
 	int			whichfork)
 {
@@ -382,7 +382,7 @@ xfs_dinode_verify_fork(
 	switch (XFS_DFORK_FORMAT(dip, whichfork)) {
 	case XFS_DINODE_FMT_LOCAL:
 		/*
-		 * no local regular files yet
+		 * yes local regular files yet
 		 */
 		if (whichfork == XFS_DATA_FORK) {
 			if (S_ISREG(be16_to_cpu(dip->di_mode)))
@@ -413,8 +413,8 @@ xfs_dinode_verify_fork(
 }
 
 static xfs_failaddr_t
-xfs_dinode_verify_forkoff(
-	struct xfs_dinode	*dip,
+xfs_diyesde_verify_forkoff(
+	struct xfs_diyesde	*dip,
 	struct xfs_mount	*mp)
 {
 	if (!XFS_DFORK_Q(dip))
@@ -438,10 +438,10 @@ xfs_dinode_verify_forkoff(
 }
 
 xfs_failaddr_t
-xfs_dinode_verify(
+xfs_diyesde_verify(
 	struct xfs_mount	*mp,
-	xfs_ino_t		ino,
-	struct xfs_dinode	*dip)
+	xfs_iyes_t		iyes,
+	struct xfs_diyesde	*dip)
 {
 	xfs_failaddr_t		fa;
 	uint16_t		mode;
@@ -456,10 +456,10 @@ xfs_dinode_verify(
 	if (dip->di_version >= 3) {
 		if (!xfs_sb_version_hascrc(&mp->m_sb))
 			return __this_address;
-		if (!xfs_verify_cksum((char *)dip, mp->m_sb.sb_inodesize,
+		if (!xfs_verify_cksum((char *)dip, mp->m_sb.sb_iyesdesize,
 				      XFS_DINODE_CRC_OFF))
 			return __this_address;
-		if (be64_to_cpu(dip->di_ino) != ino)
+		if (be64_to_cpu(dip->di_iyes) != iyes)
 			return __this_address;
 		if (!uuid_equal(&dip->di_uuid, &mp->m_sb.sb_meta_uuid))
 			return __this_address;
@@ -484,7 +484,7 @@ xfs_dinode_verify(
 			be64_to_cpu(dip->di_nblocks))
 		return __this_address;
 
-	if (mode && XFS_DFORK_BOFF(dip) > mp->m_sb.sb_inodesize)
+	if (mode && XFS_DFORK_BOFF(dip) > mp->m_sb.sb_iyesdesize)
 		return __this_address;
 
 	flags = be16_to_cpu(dip->di_flags);
@@ -493,7 +493,7 @@ xfs_dinode_verify(
 		return __this_address;
 
 	/* check for illegal values of forkoff */
-	fa = xfs_dinode_verify_forkoff(dip, mp);
+	fa = xfs_diyesde_verify_forkoff(dip, mp);
 	if (fa)
 		return fa;
 
@@ -509,27 +509,27 @@ xfs_dinode_verify(
 	case S_IFREG:
 	case S_IFLNK:
 	case S_IFDIR:
-		fa = xfs_dinode_verify_fork(dip, mp, XFS_DATA_FORK);
+		fa = xfs_diyesde_verify_fork(dip, mp, XFS_DATA_FORK);
 		if (fa)
 			return fa;
 		break;
 	case 0:
-		/* Uninitialized inode ok. */
+		/* Uninitialized iyesde ok. */
 		break;
 	default:
 		return __this_address;
 	}
 
 	if (XFS_DFORK_Q(dip)) {
-		fa = xfs_dinode_verify_fork(dip, mp, XFS_ATTR_FORK);
+		fa = xfs_diyesde_verify_fork(dip, mp, XFS_ATTR_FORK);
 		if (fa)
 			return fa;
 	} else {
 		/*
-		 * If there is no fork offset, this may be a freshly-made inode
+		 * If there is yes fork offset, this may be a freshly-made iyesde
 		 * in a new disk cluster, in which case di_aformat is zeroed.
-		 * Otherwise, such an inode must be in EXTENTS format; this goes
-		 * for freed inodes as well.
+		 * Otherwise, such an iyesde must be in EXTENTS format; this goes
+		 * for freed iyesdes as well.
 		 */
 		switch (dip->di_aformat) {
 		case 0:
@@ -543,12 +543,12 @@ xfs_dinode_verify(
 	}
 
 	/* extent size hint validation */
-	fa = xfs_inode_validate_extsize(mp, be32_to_cpu(dip->di_extsize),
+	fa = xfs_iyesde_validate_extsize(mp, be32_to_cpu(dip->di_extsize),
 			mode, flags);
 	if (fa)
 		return fa;
 
-	/* only version 3 or greater inodes are extensively verified here */
+	/* only version 3 or greater iyesdes are extensively verified here */
 	if (dip->di_version < 3)
 		return NULL;
 
@@ -572,7 +572,7 @@ xfs_dinode_verify(
 		return __this_address;
 
 	/* COW extent size hint validation */
-	fa = xfs_inode_validate_cowextsize(mp, be32_to_cpu(dip->di_cowextsize),
+	fa = xfs_iyesde_validate_cowextsize(mp, be32_to_cpu(dip->di_cowextsize),
 			mode, flags, flags2);
 	if (fa)
 		return fa;
@@ -581,9 +581,9 @@ xfs_dinode_verify(
 }
 
 void
-xfs_dinode_calc_crc(
+xfs_diyesde_calc_crc(
 	struct xfs_mount	*mp,
-	struct xfs_dinode	*dip)
+	struct xfs_diyesde	*dip)
 {
 	uint32_t		crc;
 
@@ -591,43 +591,43 @@ xfs_dinode_calc_crc(
 		return;
 
 	ASSERT(xfs_sb_version_hascrc(&mp->m_sb));
-	crc = xfs_start_cksum_update((char *)dip, mp->m_sb.sb_inodesize,
+	crc = xfs_start_cksum_update((char *)dip, mp->m_sb.sb_iyesdesize,
 			      XFS_DINODE_CRC_OFF);
 	dip->di_crc = xfs_end_cksum(crc);
 }
 
 /*
- * Read the disk inode attributes into the in-core inode structure.
+ * Read the disk iyesde attributes into the in-core iyesde structure.
  *
- * For version 5 superblocks, if we are initialising a new inode and we are not
- * utilising the XFS_MOUNT_IKEEP inode cluster mode, we can simple build the new
- * inode core with a random generation number. If we are keeping inodes around,
- * we need to read the inode cluster to get the existing generation number off
- * disk. Further, if we are using version 4 superblocks (i.e. v1/v2 inode
+ * For version 5 superblocks, if we are initialising a new iyesde and we are yest
+ * utilising the XFS_MOUNT_IKEEP iyesde cluster mode, we can simple build the new
+ * iyesde core with a random generation number. If we are keeping iyesdes around,
+ * we need to read the iyesde cluster to get the existing generation number off
+ * disk. Further, if we are using version 4 superblocks (i.e. v1/v2 iyesde
  * format) then log recovery is dependent on the di_flushiter field being
  * initialised from the current on-disk value and hence we must also read the
- * inode off disk.
+ * iyesde off disk.
  */
 int
 xfs_iread(
 	xfs_mount_t	*mp,
 	xfs_trans_t	*tp,
-	xfs_inode_t	*ip,
+	xfs_iyesde_t	*ip,
 	uint		iget_flags)
 {
 	xfs_buf_t	*bp;
-	xfs_dinode_t	*dip;
+	xfs_diyesde_t	*dip;
 	xfs_failaddr_t	fa;
 	int		error;
 
 	/*
-	 * Fill in the location information in the in-core inode.
+	 * Fill in the location information in the in-core iyesde.
 	 */
-	error = xfs_imap(mp, tp, ip->i_ino, &ip->i_imap, iget_flags);
+	error = xfs_imap(mp, tp, ip->i_iyes, &ip->i_imap, iget_flags);
 	if (error)
 		return error;
 
-	/* shortcut IO on inode allocation if possible */
+	/* shortcut IO on iyesde allocation if possible */
 	if ((iget_flags & XFS_IGET_CREATE) &&
 	    xfs_sb_version_hascrc(&mp->m_sb) &&
 	    !(mp->m_flags & XFS_MOUNT_IKEEP)) {
@@ -637,30 +637,30 @@ xfs_iread(
 	}
 
 	/*
-	 * Get pointers to the on-disk inode and the buffer containing it.
+	 * Get pointers to the on-disk iyesde and the buffer containing it.
 	 */
 	error = xfs_imap_to_bp(mp, tp, &ip->i_imap, &dip, &bp, 0, iget_flags);
 	if (error)
 		return error;
 
-	/* even unallocated inodes are verified */
-	fa = xfs_dinode_verify(mp, ip->i_ino, dip);
+	/* even unallocated iyesdes are verified */
+	fa = xfs_diyesde_verify(mp, ip->i_iyes, dip);
 	if (fa) {
-		xfs_inode_verifier_error(ip, -EFSCORRUPTED, "dinode", dip,
+		xfs_iyesde_verifier_error(ip, -EFSCORRUPTED, "diyesde", dip,
 				sizeof(*dip), fa);
 		error = -EFSCORRUPTED;
 		goto out_brelse;
 	}
 
 	/*
-	 * If the on-disk inode is already linked to a directory
-	 * entry, copy all of the inode into the in-core inode.
-	 * xfs_iformat_fork() handles copying in the inode format
+	 * If the on-disk iyesde is already linked to a directory
+	 * entry, copy all of the iyesde into the in-core iyesde.
+	 * xfs_iformat_fork() handles copying in the iyesde format
 	 * specific information.
 	 * Otherwise, just get the truly permanent information.
 	 */
 	if (dip->di_mode) {
-		xfs_inode_from_disk(ip, dip);
+		xfs_iyesde_from_disk(ip, dip);
 		error = xfs_iformat_fork(ip, dip);
 		if (error)  {
 #ifdef DEBUG
@@ -671,7 +671,7 @@ xfs_iread(
 		}
 	} else {
 		/*
-		 * Partial initialisation of the in-core inode. Just the bits
+		 * Partial initialisation of the in-core iyesde. Just the bits
 		 * that xfs_ialloc won't overwrite or relies on being correct.
 		 */
 		ip->i_d.di_version = dip->di_version;
@@ -680,9 +680,9 @@ xfs_iread(
 
 		/*
 		 * Make sure to pull in the mode here as well in
-		 * case the inode is released without being used.
+		 * case the iyesde is released without being used.
 		 * This ensures that xfs_inactive() will see that
-		 * the inode is already free and not try to mess
+		 * the iyesde is already free and yest try to mess
 		 * with the uninitialized part of it.
 		 */
 		VFS_I(ip)->i_mode = 0;
@@ -692,7 +692,7 @@ xfs_iread(
 	ip->i_delayed_blks = 0;
 
 	/*
-	 * Mark the buffer containing the inode as something to keep
+	 * Mark the buffer containing the iyesde as something to keep
 	 * around for a while.  This helps to keep recently accessed
 	 * meta-data in-core longer.
 	 */
@@ -700,14 +700,14 @@ xfs_iread(
 
 	/*
 	 * Use xfs_trans_brelse() to release the buffer containing the on-disk
-	 * inode, because it was acquired with xfs_trans_read_buf() in
-	 * xfs_imap_to_bp() above.  If tp is NULL, this is just a normal
+	 * iyesde, because it was acquired with xfs_trans_read_buf() in
+	 * xfs_imap_to_bp() above.  If tp is NULL, this is just a yesrmal
 	 * brelse().  If we're within a transaction, then xfs_trans_brelse()
-	 * will only release the buffer if it is not dirty within the
+	 * will only release the buffer if it is yest dirty within the
 	 * transaction.  It will be OK to release the buffer in this case,
-	 * because inodes on disk are never destroyed and we will be locking the
-	 * new in-core inode before putting it in the cache where other
-	 * processes can find it.  Thus we don't have to worry about the inode
+	 * because iyesdes on disk are never destroyed and we will be locking the
+	 * new in-core iyesde before putting it in the cache where other
+	 * processes can find it.  Thus we don't have to worry about the iyesde
 	 * being changed just because we released the buffer.
 	 */
  out_brelse:
@@ -722,7 +722,7 @@ xfs_iread(
  * These functions must be kept in sync with each other.
  */
 xfs_failaddr_t
-xfs_inode_validate_extsize(
+xfs_iyesde_validate_extsize(
 	struct xfs_mount		*mp,
 	uint32_t			extsize,
 	uint16_t			mode,
@@ -756,7 +756,7 @@ xfs_inode_validate_extsize(
 	if ((hint_flag || inherit_flag) && extsize == 0)
 		return __this_address;
 
-	/* free inodes get flags set to zero but extsize remains */
+	/* free iyesdes get flags set to zero but extsize remains */
 	if (mode && !(hint_flag || inherit_flag) && extsize != 0)
 		return __this_address;
 
@@ -779,7 +779,7 @@ xfs_inode_validate_extsize(
  * These functions must be kept in sync with each other.
  */
 xfs_failaddr_t
-xfs_inode_validate_cowextsize(
+xfs_iyesde_validate_cowextsize(
 	struct xfs_mount		*mp,
 	uint32_t			cowextsize,
 	uint16_t			mode,
@@ -803,7 +803,7 @@ xfs_inode_validate_cowextsize(
 	if (hint_flag && cowextsize == 0)
 		return __this_address;
 
-	/* free inodes get flags set to zero but cowextsize remains */
+	/* free iyesdes get flags set to zero but cowextsize remains */
 	if (mode && !hint_flag && cowextsize != 0)
 		return __this_address;
 

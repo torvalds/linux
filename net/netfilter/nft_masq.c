@@ -280,7 +280,7 @@ static int __init nft_masq_module_init(void)
 		return ret;
 	}
 
-	ret = nf_nat_masquerade_inet_register_notifiers();
+	ret = nf_nat_masquerade_inet_register_yestifiers();
 	if (ret < 0) {
 		nft_masq_module_exit_ipv6();
 		nft_masq_module_exit_inet();
@@ -296,7 +296,7 @@ static void __exit nft_masq_module_exit(void)
 	nft_masq_module_exit_ipv6();
 	nft_masq_module_exit_inet();
 	nft_unregister_expr(&nft_masq_ipv4_type);
-	nf_nat_masquerade_inet_unregister_notifiers();
+	nf_nat_masquerade_inet_unregister_yestifiers();
 }
 
 module_init(nft_masq_module_init);

@@ -86,7 +86,7 @@ Address is read/write RAM address.
 
 Value Byte is writing data when you send the write commands.
 
-When you read RAM, there is no meaning.
+When you read RAM, there is yes meaning.
 
 DataByte(GET_REPORT)
 

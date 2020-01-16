@@ -8,15 +8,15 @@
  * Driver: ni_atmio16d
  * Description: National Instruments AT-MIO-16D
  * Author: Chris R. Baugher <baugher@enteract.com>
- * Status: unknown
+ * Status: unkyeswn
  * Devices: [National Instruments] AT-MIO-16 (atmio16), AT-MIO-16D (atmio16d)
  *
  * Configuration options:
  *   [0] - I/O port
- *   [1] - MIO irq (0 == no irq; or 3,4,5,6,7,9,10,11,12,14,15)
- *   [2] - DIO irq (0 == no irq; or 3,4,5,6,7,9)
- *   [3] - DMA1 channel (0 == no DMA; or 5,6,7)
- *   [4] - DMA2 channel (0 == no DMA; or 5,6,7)
+ *   [1] - MIO irq (0 == yes irq; or 3,4,5,6,7,9,10,11,12,14,15)
+ *   [2] - DIO irq (0 == yes irq; or 3,4,5,6,7,9)
+ *   [3] - DMA1 channel (0 == yes DMA; or 5,6,7)
+ *   [4] - DMA2 channel (0 == yes DMA; or 5,6,7)
  *   [5] - a/d mux (0=differential; 1=single)
  *   [6] - a/d range (0=bipolar10; 1=bipolar5; 2=unipolar10)
  *   [7] - dac0 range (0=bipolar; 1=unipolar)
@@ -190,7 +190,7 @@ static void reset_atmio16d(struct comedi_device *dev)
 	struct atmio16d_private *devpriv = dev->private;
 	int i;
 
-	/* now we need to initialize the board */
+	/* yesw we need to initialize the board */
 	outw(0, dev->iobase + COM_REG_1);
 	outw(0, dev->iobase + COM_REG_2);
 	outw(0, dev->iobase + MUX_GAIN_REG);
@@ -495,7 +495,7 @@ static int atmio16d_ai_insn_read(struct comedi_device *dev,
 		if (ret)
 			return ret;
 
-		/* read the data now */
+		/* read the data yesw */
 		data[i] = inw(dev->iobase + AD_FIFO_REG);
 		/* change to two's complement if need be */
 		if (devpriv->adc_coding == adc_2comp)
@@ -695,7 +695,7 @@ static int atmio16d_attach(struct comedi_device *dev,
 		s->type = COMEDI_SUBD_UNUSED;
 	}
 
-/* don't yet know how to deal with counter/timers */
+/* don't yet kyesw how to deal with counter/timers */
 #if 0
 	s = &dev->subdevices[4];
 	/* do */

@@ -10,7 +10,7 @@
 
 #include <linux/netdevice.h>
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/rtnetlink.h>
 #include <linux/interrupt.h>
 #include <linux/pci.h>
@@ -358,7 +358,7 @@ static int bnxt_hwrm_set_dcbx_app(struct bnxt *bp, struct dcb_app *app,
 	} else {
 		size_t len = 0;
 
-		/* not found, nothing to delete */
+		/* yest found, yesthing to delete */
 		if (n == i)
 			goto set_app_exit;
 

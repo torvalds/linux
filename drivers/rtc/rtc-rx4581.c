@@ -6,7 +6,7 @@
  * Based on:
  * drivers/rtc/rtc-max6902.c
  *
- * Copyright (C) 2006 8D Technologies inc.
+ * Copyright (C) 2006 8D Techyeslogies inc.
  * Copyright (C) 2004 Compulab Ltd.
  *
  * Driver for MAX6902 spi RTC
@@ -20,7 +20,7 @@
  * Copyright 2008 GE Intelligent Platforms Embedded Systems, Inc.
  *
  * Based on: rtc-pcf8563.c (An I2C driver for the Philips PCF8563 RTC)
- * Copyright 2005-06 Tower Technologies
+ * Copyright 2005-06 Tower Techyeslogies
  */
 
 #include <linux/module.h>
@@ -98,9 +98,9 @@ static int rx4581_get_datetime(struct device *dev, struct rtc_time *tm)
 	unsigned char data;
 	int err;
 
-	/* First we ensure that the "update flag" is not set, we read the
+	/* First we ensure that the "update flag" is yest set, we read the
 	 * time and date then re-read the "update flag". If the update flag
-	 * has been set, we know that the time has changed during the read so
+	 * has been set, we kyesw that the time has changed during the read so
 	 * we repeat the whole process again.
 	 */
 	err = rx4581_get_reg(dev, RX4581_REG_FLAG, &data);
@@ -139,7 +139,7 @@ static int rx4581_get_datetime(struct device *dev, struct rtc_time *tm)
 
 	if (data & RX4581_FLAG_VLF)
 		dev_info(dev,
-			"low voltage detected, date/time is not reliable.\n");
+			"low voltage detected, date/time is yest reliable.\n");
 
 	dev_dbg(dev,
 		"%s: raw data is sec=%02x, min=%02x, hr=%02x, "

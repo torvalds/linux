@@ -8,7 +8,7 @@ Base Kernel Version: based on 2.6.33-rc7-mm(candidate for 34).
 
 Because VM is getting complex (one of reasons is memcg...), memcg's behavior
 is complex. This is a document for memcg's internal behavior.
-Please note that implementation details can be changed.
+Please yeste that implementation details can be changed.
 
 (*) Topics on API should be in Documentation/admin-guide/cgroup-v1/memory.rst)
 
@@ -55,7 +55,7 @@ Please note that implementation details can be changed.
 		- mem_cgroup_try_charge()
 		- mem_cgroup_commit_charge() or mem_cgroup_cancel_charge()
 
-	At try_charge(), there are no flags to say "this page is charged".
+	At try_charge(), there are yes flags to say "this page is charged".
 	at this point, usage += PAGE_SIZE.
 
 	At commit(), the page is associated with the memcg.
@@ -64,17 +64,17 @@ Please note that implementation details can be changed.
 
 Under below explanation, we assume CONFIG_MEM_RES_CTRL_SWAP=y.
 
-4. Anonymous
+4. Ayesnymous
 ============
 
-	Anonymous page is newly allocated at
+	Ayesnymous page is newly allocated at
 		  - page fault into MAP_ANONYMOUS mapping.
 		  - Copy-On-Write.
 
 	4.1 Swap-in.
 	At swap-in, the page is taken from swap-cache. There are 2 cases.
 
-	(a) If the SwapCache is newly allocated and read, it has no charges.
+	(a) If the SwapCache is newly allocated and read, it has yes charges.
 	(b) If the SwapCache has been mapped by processes, it has been
 	    charged already.
 
@@ -114,9 +114,9 @@ Under below explanation, we assume CONFIG_MEM_RES_CTRL_SWAP=y.
 	But brief explanation of the behavior of memcg around shmem will be
 	helpful to understand the logic.
 
-	Shmem's page (just leaf page, not direct/indirect block) can be on
+	Shmem's page (just leaf page, yest direct/indirect block) can be on
 
-		- radix-tree of shmem's inode.
+		- radix-tree of shmem's iyesde.
 		- SwapCache.
 		- Both on radix-tree and SwapCache. This happens at swap-in
 		  and swap-out,
@@ -171,10 +171,10 @@ Under below explanation, we assume CONFIG_MEM_RES_CTRL_SWAP=y.
 9.3 Migration
 -------------
 
-	For NUMA, migration is an another special case. To do easy test, cpuset
+	For NUMA, migration is an ayesther special case. To do easy test, cpuset
 	is useful. Following is a sample script to do migration::
 
-		mount -t cgroup -o cpuset none /opt/cpuset
+		mount -t cgroup -o cpuset yesne /opt/cpuset
 
 		mkdir /opt/cpuset/01
 		echo 1 > /opt/cpuset/01/cpuset.cpus
@@ -186,7 +186,7 @@ Under below explanation, we assume CONFIG_MEM_RES_CTRL_SWAP=y.
 		echo 1 > /opt/cpuset/02/cpuset.memory_migrate
 
 	In above set, when you moves a task from 01 to 02, page migration to
-	node 0 to node 1 will occur. Following is a script to migrate all
+	yesde 0 to yesde 1 will occur. Following is a script to migrate all
 	under cpuset.::
 
 		--
@@ -249,7 +249,7 @@ Under below explanation, we assume CONFIG_MEM_RES_CTRL_SWAP=y.
 
 	example::
 
-		# mount -t cgroup none /cgroup -o cpuset,memory,cpu,devices
+		# mount -t cgroup yesne /cgroup -o cpuset,memory,cpu,devices
 
 	and do task move, mkdir, rmdir etc...under this.
 
@@ -257,14 +257,14 @@ Under below explanation, we assume CONFIG_MEM_RES_CTRL_SWAP=y.
 -----------
 
 	Besides management of swap is one of complicated parts of memcg,
-	call path of swap-in at swapoff is not same as usual swap-in path..
+	call path of swap-in at swapoff is yest same as usual swap-in path..
 	It's worth to be tested explicitly.
 
 	For example, test like following is good:
 
 	(Shell-A)::
 
-		# mount -t cgroup none /cgroup -o memory
+		# mount -t cgroup yesne /cgroup -o memory
 		# mkdir /cgroup/test
 		# echo 40M > /cgroup/test/memory.limit_in_bytes
 		# echo 0 > /cgroup/test/tasks
@@ -290,7 +290,7 @@ Under below explanation, we assume CONFIG_MEM_RES_CTRL_SWAP=y.
 	In this case, panic_on_oom shouldn't be invoked and tasks
 	in other groups shouldn't be killed.
 
-	It's not difficult to cause OOM under memcg as following.
+	It's yest difficult to cause OOM under memcg as following.
 
 	Case A) when you can swapoff::
 
@@ -333,7 +333,7 @@ Under below explanation, we assume CONFIG_MEM_RES_CTRL_SWAP=y.
 9.10 Memory thresholds
 ----------------------
 
-	Memory controller implements memory thresholds using cgroups notification
+	Memory controller implements memory thresholds using cgroups yestification
 	API. You can use tools/cgroup/cgroup_event_listener.c to test it.
 
 	(Shell-A) Create cgroup and run event listener::

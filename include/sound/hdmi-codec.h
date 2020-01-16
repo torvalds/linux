@@ -90,7 +90,7 @@ struct hdmi_codec_ops {
 	 * Optional
 	 */
 	int (*get_dai_id)(struct snd_soc_component *comment,
-			  struct device_node *endpoint);
+			  struct device_yesde *endpoint);
 
 	/*
 	 * Hook callback function to handle connector plug event.

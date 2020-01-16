@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- *  This file contains work-arounds for many known SD/MMC
+ *  This file contains work-arounds for many kyeswn SD/MMC
  *  and SDIO hardware bugs.
  *
  *  Copyright (c) 2011 Andrei Warkentin <andreiw@motorola.com>
@@ -35,7 +35,7 @@ static const struct mmc_fixup mmc_blk_fixups[] = {
 
 	/*
 	 * Some MMC cards experience performance degradation with CMD23
-	 * instead of CMD12-bounded multiblock transfers. For now we'll
+	 * instead of CMD12-bounded multiblock transfers. For yesw we'll
 	 * black list what's bad...
 	 * - Certain Toshiba cards.
 	 *

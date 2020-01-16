@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: GPL-2.0
 //
-// Driver for the MAX9860 Mono Audio Voice Codec
+// Driver for the MAX9860 Moyes Audio Voice Codec
 //
 // https://datasheets.maximintegrated.com/en/ds/MAX9860.pdf
 //
-// The driver does not support sidetone since the DVST register field is
+// The driver does yest support sidetone since the DVST register field is
 // backwards with the mute near the maximum level instead of the minimum.
 //
 // Author: Peter Rosin <peda@axentia.s>
-//         Copyright 2016 Axentia Technologies
+//         Copyright 2016 Axentia Techyeslogies
 
 #include <linux/init.h>
 #include <linux/module.h>
@@ -28,13 +28,13 @@
 struct max9860_priv {
 	struct regmap *regmap;
 	struct regulator *dvddio;
-	struct notifier_block dvddio_nb;
+	struct yestifier_block dvddio_nb;
 	u8 psclk;
 	unsigned long pclk_rate;
 	int fmt;
 };
 
-static int max9860_dvddio_event(struct notifier_block *nb,
+static int max9860_dvddio_event(struct yestifier_block *nb,
 				unsigned long event, void *data)
 {
 	struct max9860_priv *max9860 = container_of(nb, struct max9860_priv,
@@ -164,9 +164,9 @@ static SOC_ENUM_SINGLE_DECL(agcrls_enum, MAX9860_MICADC,
 
 static const char * const filter_text[] = {
 	"Disabled",
-	"Elliptical HP 217Hz notch (16kHz)",
+	"Elliptical HP 217Hz yestch (16kHz)",
 	"Butterworth HP 500Hz (16kHz)",
-	"Elliptical HP 217Hz notch (8kHz)",
+	"Elliptical HP 217Hz yestch (8kHz)",
 	"Butterworth HP 500Hz (8kHz)",
 	"Butterworth HP 200Hz (48kHz)"
 };
@@ -358,7 +358,7 @@ static int max9860_hw_params(struct snd_pcm_substream *substream,
 
 	/*
 	 * Check if Integer Clock Mode is possible, but avoid it in slave mode
-	 * since we then do not know if lrclk is derived from pclk and the
+	 * since we then do yest kyesw if lrclk is derived from pclk and the
 	 * datasheet mentions that the frequencies have to match exactly in
 	 * order for this to work.
 	 */
@@ -376,7 +376,7 @@ static int max9860_hw_params(struct snd_pcm_substream *substream,
 				break;
 			default:
 				/*
-				 * Integer Clock Mode not possible. Leave
+				 * Integer Clock Mode yest possible. Leave
 				 * sysclk at zero and fall through to the
 				 * code below for PLL mode.
 				 */
@@ -393,7 +393,7 @@ static int max9860_hw_params(struct snd_pcm_substream *substream,
 	 *    65536 * 96 * 48kHz / 10MHz -> 30199
 	 * Smallest possible n:
 	 *    65536 * 96 *  8kHz / 20MHz -> 2517
-	 * Both fit nicely in the available 15 bits, no need to apply any mask.
+	 * Both fit nicely in the available 15 bits, yes need to apply any mask.
 	 */
 	n = DIV_ROUND_CLOSEST_ULL(65536ULL * 96 * params_rate(params),
 				  max9860->pclk_rate);
@@ -537,7 +537,7 @@ static const struct snd_soc_component_driver max9860_component_driver = {
 	.num_dapm_routes	= ARRAY_SIZE(max9860_dapm_routes),
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
+	.yesn_legacy_dai_naming	= 1,
 };
 
 #ifdef CONFIG_PM
@@ -613,12 +613,12 @@ static int max9860_probe(struct i2c_client *i2c)
 		return ret;
 	}
 
-	max9860->dvddio_nb.notifier_call = max9860_dvddio_event;
+	max9860->dvddio_nb.yestifier_call = max9860_dvddio_event;
 
-	ret = devm_regulator_register_notifier(max9860->dvddio,
+	ret = devm_regulator_register_yestifier(max9860->dvddio,
 					       &max9860->dvddio_nb);
 	if (ret)
-		dev_err(dev, "Failed to register DVDDIO notifier: %d\n", ret);
+		dev_err(dev, "Failed to register DVDDIO yestifier: %d\n", ret);
 
 	ret = regulator_enable(max9860->dvddio);
 	if (ret != 0) {
@@ -741,6 +741,6 @@ static struct i2c_driver max9860_i2c_driver = {
 
 module_i2c_driver(max9860_i2c_driver);
 
-MODULE_DESCRIPTION("ASoC MAX9860 Mono Audio Voice Codec driver");
+MODULE_DESCRIPTION("ASoC MAX9860 Moyes Audio Voice Codec driver");
 MODULE_AUTHOR("Peter Rosin <peda@axentia.se>");
 MODULE_LICENSE("GPL v2");

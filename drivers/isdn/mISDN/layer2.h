@@ -2,7 +2,7 @@
 /*
  * Layer 2 defines
  *
- * Copyright 2008  by Karsten Keil <kkeil@novell.com>
+ * Copyright 2008  by Karsten Keil <kkeil@yesvell.com>
  */
 
 #include <linux/mISDNif.h>

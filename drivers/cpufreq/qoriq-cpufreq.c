@@ -10,7 +10,7 @@
 #include <linux/clk.h>
 #include <linux/clk-provider.h>
 #include <linux/cpufreq.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -45,16 +45,16 @@ struct soc_data {
 
 static u32 get_bus_freq(void)
 {
-	struct device_node *soc;
+	struct device_yesde *soc;
 	u32 sysfreq;
 	struct clk *pltclk;
 	int ret;
 
 	/* get platform freq by searching bus-frequency property */
-	soc = of_find_node_by_type(NULL, "soc");
+	soc = of_find_yesde_by_type(NULL, "soc");
 	if (soc) {
 		ret = of_property_read_u32(soc, "bus-frequency", &sysfreq);
-		of_node_put(soc);
+		of_yesde_put(soc);
 		if (!ret)
 			return sysfreq;
 	}
@@ -72,22 +72,22 @@ static u32 get_bus_freq(void)
 
 static struct clk *cpu_to_clk(int cpu)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 	struct clk *clk;
 
 	if (!cpu_present(cpu))
 		return NULL;
 
-	np = of_get_cpu_node(cpu, NULL);
+	np = of_get_cpu_yesde(cpu, NULL);
 	if (!np)
 		return NULL;
 
 	clk = of_clk_get(np, 0);
-	of_node_put(np);
+	of_yesde_put(np);
 	return clk;
 }
 
-/* traverse cpu nodes to get cpu mask of sharing clock wire */
+/* traverse cpu yesdes to get cpu mask of sharing clock wire */
 static void set_affected_cpus(struct cpufreq_policy *policy)
 {
 	struct cpumask *dstp = policy->cpus;
@@ -97,7 +97,7 @@ static void set_affected_cpus(struct cpufreq_policy *policy)
 	for_each_present_cpu(i) {
 		clk = cpu_to_clk(i);
 		if (IS_ERR(clk)) {
-			pr_err("%s: no clock for cpu %d\n", __func__, i);
+			pr_err("%s: yes clock for cpu %d\n", __func__, i);
 			continue;
 		}
 
@@ -159,7 +159,7 @@ static void freq_table_sort(struct cpufreq_frequency_table *freq_table,
 
 static int qoriq_cpufreq_cpu_init(struct cpufreq_policy *policy)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 	int i, count;
 	u32 freq;
 	struct clk *clk;
@@ -169,7 +169,7 @@ static int qoriq_cpufreq_cpu_init(struct cpufreq_policy *policy)
 	unsigned int cpu = policy->cpu;
 	u64 u64temp;
 
-	np = of_get_cpu_node(cpu, NULL);
+	np = of_get_cpu_yesde(cpu, NULL);
 	if (!np)
 		return -ENODEV;
 
@@ -179,8 +179,8 @@ static int qoriq_cpufreq_cpu_init(struct cpufreq_policy *policy)
 
 	policy->clk = of_clk_get(np, 0);
 	if (IS_ERR(policy->clk)) {
-		pr_err("%s: no clock information\n", __func__);
-		goto err_nomem2;
+		pr_err("%s: yes clock information\n", __func__);
+		goto err_yesmem2;
 	}
 
 	hwclk = __clk_get_hw(policy->clk);
@@ -188,7 +188,7 @@ static int qoriq_cpufreq_cpu_init(struct cpufreq_policy *policy)
 
 	data->pclk = kcalloc(count, sizeof(struct clk *), GFP_KERNEL);
 	if (!data->pclk)
-		goto err_nomem2;
+		goto err_yesmem2;
 
 	table = kcalloc(count + 1, sizeof(*table), GFP_KERNEL);
 	if (!table)
@@ -207,7 +207,7 @@ static int qoriq_cpufreq_cpu_init(struct cpufreq_policy *policy)
 	policy->freq_table = table;
 	data->table = table;
 
-	/* update ->cpus if we have cluster, no harm if not */
+	/* update ->cpus if we have cluster, yes harm if yest */
 	set_affected_cpus(policy);
 	policy->driver_data = data;
 
@@ -216,16 +216,16 @@ static int qoriq_cpufreq_cpu_init(struct cpufreq_policy *policy)
 	do_div(u64temp, get_bus_freq());
 	policy->cpuinfo.transition_latency = u64temp + 1;
 
-	of_node_put(np);
+	of_yesde_put(np);
 
 	return 0;
 
 err_pclk:
 	kfree(data->pclk);
-err_nomem2:
+err_yesmem2:
 	kfree(data);
 err_np:
-	of_node_put(np);
+	of_yesde_put(np);
 
 	return -ENODEV;
 }
@@ -268,8 +268,8 @@ static const struct soc_data blacklist = {
 	.flags = SOC_BLACKLIST,
 };
 
-static const struct of_device_id node_matches[] __initconst = {
-	/* e6500 cannot use cpufreq due to erratum A-008083 */
+static const struct of_device_id yesde_matches[] __initconst = {
+	/* e6500 canyest use cpufreq due to erratum A-008083 */
 	{ .compatible = "fsl,b4420-clockgen", &blacklist },
 	{ .compatible = "fsl,b4860-clockgen", &blacklist },
 	{ .compatible = "fsl,t2080-clockgen", &blacklist },
@@ -292,18 +292,18 @@ static const struct of_device_id node_matches[] __initconst = {
 static int __init qoriq_cpufreq_init(void)
 {
 	int ret;
-	struct device_node  *np;
+	struct device_yesde  *np;
 	const struct of_device_id *match;
 	const struct soc_data *data;
 
-	np = of_find_matching_node(NULL, node_matches);
+	np = of_find_matching_yesde(NULL, yesde_matches);
 	if (!np)
 		return -ENODEV;
 
-	match = of_match_node(node_matches, np);
+	match = of_match_yesde(yesde_matches, np);
 	data = match->data;
 
-	of_node_put(np);
+	of_yesde_put(np);
 
 	if (data && data->flags & SOC_BLACKLIST)
 		return -ENODEV;

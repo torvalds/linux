@@ -43,13 +43,13 @@ void ps3_get_firmware_version(union ps3_firmware_version *v)
 }
 EXPORT_SYMBOL_GPL(ps3_get_firmware_version);
 
-int ps3_compare_firmware_version(u16 major, u16 minor, u16 rev)
+int ps3_compare_firmware_version(u16 major, u16 miyesr, u16 rev)
 {
 	union ps3_firmware_version x;
 
 	x.pad = 0;
 	x.major = major;
-	x.minor = minor;
+	x.miyesr = miyesr;
 	x.rev = rev;
 
 	return (ps3_firmware_version.raw > x.raw) -
@@ -61,14 +61,14 @@ static void ps3_power_save(void)
 {
 	/*
 	 * lv1_pause() puts the PPE thread into inactive state until an
-	 * irq on an unmasked plug exists. MSR[EE] has no effect.
-	 * flags: 0 = wake on DEC interrupt, 1 = ignore DEC interrupt.
+	 * irq on an unmasked plug exists. MSR[EE] has yes effect.
+	 * flags: 0 = wake on DEC interrupt, 1 = igyesre DEC interrupt.
 	 */
 
 	lv1_pause(0);
 }
 
-static void __noreturn ps3_restart(char *cmd)
+static void __yesreturn ps3_restart(char *cmd)
 {
 	DBG("%s:%d cmd '%s'\n", __func__, __LINE__, cmd);
 
@@ -84,7 +84,7 @@ static void ps3_power_off(void)
 	ps3_sys_manager_power_off(); /* never returns */
 }
 
-static void __noreturn ps3_halt(void)
+static void __yesreturn ps3_halt(void)
 {
 	DBG("%s:%d\n", __func__, __LINE__);
 
@@ -98,7 +98,7 @@ static void ps3_panic(char *str)
 
 	smp_send_stop();
 	printk("\n");
-	printk("   System does not reboot automatically.\n");
+	printk("   System does yest reboot automatically.\n");
 	printk("   Please press POWER button.\n");
 	printk("\n");
 	panic_flush_kmsg_end();
@@ -191,7 +191,7 @@ static void __init ps3_setup_arch(void)
 	lv1_get_version_info(&ps3_firmware_version.raw, &tmp);
 
 	printk(KERN_INFO "PS3 firmware version %u.%u.%u\n",
-	       ps3_firmware_version.major, ps3_firmware_version.minor,
+	       ps3_firmware_version.major, ps3_firmware_version.miyesr,
 	       ps3_firmware_version.rev);
 
 	ps3_spu_set_platform();

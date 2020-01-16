@@ -16,9 +16,9 @@ Required properties:
 
     <cs number> 0 <physical address of mapping> <size of mapping>
 
-Each child of the NEMC node describes a device connected to the NEMC.
+Each child of the NEMC yesde describes a device connected to the NEMC.
 
-Required child node properties:
+Required child yesde properties:
 - reg: Should contain at least one register specifier, given in the following
   format:
 
@@ -26,24 +26,24 @@ Required child node properties:
 
   Multiple registers can be specified across multiple banks. This is needed,
   for example, for packaged NAND devices with multiple dies. Such devices
-  should be grouped into a single node.
+  should be grouped into a single yesde.
 
-Optional child node properties:
+Optional child yesde properties:
 - ingenic,nemc-bus-width: Specifies the bus width in bits. Defaults to 8 bits.
-- ingenic,nemc-tAS: Address setup time in nanoseconds.
-- ingenic,nemc-tAH: Address hold time in nanoseconds.
-- ingenic,nemc-tBP: Burst pitch time in nanoseconds.
-- ingenic,nemc-tAW: Access wait time in nanoseconds.
-- ingenic,nemc-tSTRV: Static memory recovery time in nanoseconds.
+- ingenic,nemc-tAS: Address setup time in nayesseconds.
+- ingenic,nemc-tAH: Address hold time in nayesseconds.
+- ingenic,nemc-tBP: Burst pitch time in nayesseconds.
+- ingenic,nemc-tAW: Access wait time in nayesseconds.
+- ingenic,nemc-tSTRV: Static memory recovery time in nayesseconds.
 
-If a child node references multiple banks in its "reg" property, the same value
+If a child yesde references multiple banks in its "reg" property, the same value
 for all optional parameters will be configured for all banks. If any optional
 parameters are omitted, they will be left unchanged from whatever they are
 configured to when the NEMC device is probed (which may be the reset value as
 given in the hardware reference manual, or a value configured by the boot
 loader).
 
-Example (NEMC node with a NAND child device attached at CS1):
+Example (NEMC yesde with a NAND child device attached at CS1):
 
 nemc: nemc@13410000 {
 	compatible = "ingenic,jz4780-nemc";

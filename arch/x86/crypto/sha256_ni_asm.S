@@ -30,12 +30,12 @@
  * are met:
  *
  * 	* Redistributions of source code must retain the above copyright
- * 	  notice, this list of conditions and the following disclaimer.
+ * 	  yestice, this list of conditions and the following disclaimer.
  * 	* Redistributions in binary form must reproduce the above copyright
- * 	  notice, this list of conditions and the following disclaimer in
+ * 	  yestice, this list of conditions and the following disclaimer in
  * 	  the documentation and/or other materials provided with the
  * 	  distribution.
- * 	* Neither the name of Intel Corporation nor the names of its
+ * 	* Neither the name of Intel Corporation yesr the names of its
  * 	  contributors may be used to endorse or promote products derived
  * 	  from this software without specific prior written permission.
  *
@@ -81,12 +81,12 @@
  * The function takes a pointer to the current hash values, a pointer to the
  * input data, and a number of 64 byte blocks to process.  Once all blocks have
  * been processed, the digest pointer is  updated with the resulting hash value.
- * The function only processes complete blocks, there is no functionality to
+ * The function only processes complete blocks, there is yes functionality to
  * store partial blocks.  All message padding and hash value initialization must
  * be done outside the update function.
  *
  * The indented lines in the loop are instructions related to rounds processing.
- * The non-indented lines are instructions related to the message schedule.
+ * The yesn-indented lines are instructions related to the message schedule.
  *
  * void sha256_ni_transform(uint32_t *digest, const void *data,
 		uint32_t numBlocks);

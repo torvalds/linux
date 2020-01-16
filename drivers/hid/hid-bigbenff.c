@@ -7,7 +7,7 @@
  *  "Kid-friendly Wired Controller" PS3OFMINIPAD SONY
  *  sold for use with the PS3
  *
- *  Copyright (c) 2018 Hanno Zulla <kontakt@hanno.de>
+ *  Copyright (c) 2018 Hanyes Zulla <kontakt@hanyes.de>
  */
 
 #include <linux/input.h>
@@ -209,7 +209,7 @@ static void bigben_worker(struct work_struct *work)
 		report_field->value[1] = 0x08; /* reserved value, always 8 */
 		report_field->value[2] = bigben->right_motor_on;
 		report_field->value[3] = bigben->left_motor_force;
-		report_field->value[4] = 0xff; /* duration 0-254 (255 = nonstop) */
+		report_field->value[4] = 0xff; /* duration 0-254 (255 = yesnstop) */
 		report_field->value[5] = 0x00; /* padding */
 		report_field->value[6] = 0x00; /* padding */
 		report_field->value[7] = 0x00; /* padding */
@@ -251,7 +251,7 @@ static void bigben_set_led(struct led_classdev *led,
 	bool work;
 
 	if (!bigben) {
-		hid_err(hid, "no device data\n");
+		hid_err(hid, "yes device data\n");
 		return;
 	}
 
@@ -282,7 +282,7 @@ static enum led_brightness bigben_get_led(struct led_classdev *led)
 	int n;
 
 	if (!bigben) {
-		hid_err(hid, "no device data\n");
+		hid_err(hid, "yes device data\n");
 		return LED_OFF;
 	}
 
@@ -372,7 +372,7 @@ static int bigben_probe(struct hid_device *hid,
 			return error;
 	}
 
-	/* initial state: LED1 is on, no rumble effect */
+	/* initial state: LED1 is on, yes rumble effect */
 	bigben->led_state = BIT(0);
 	bigben->right_motor_on = 0;
 	bigben->left_motor_force = 0;

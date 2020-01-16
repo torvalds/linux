@@ -105,7 +105,7 @@ static irqreturn_t pm8916_wdt_isr(int irq, void *arg)
 		return IRQ_HANDLED;
 
 	if (sts & PMIC_WD_BARK_STS_BIT)
-		watchdog_notify_pretimeout(&wdt->wdev);
+		watchdog_yestify_pretimeout(&wdt->wdev);
 
 	return IRQ_HANDLED;
 }

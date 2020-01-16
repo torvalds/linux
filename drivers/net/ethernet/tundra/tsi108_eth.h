@@ -251,7 +251,7 @@
 
 /* Station Enable -- accept packets destined for us */
 #define TSI108_EC_RXCFG_SE		(1 << 13)
-/* Unicast Frame Enable -- for packets not destined for us */
+/* Unicast Frame Enable -- for packets yest destined for us */
 #define TSI108_EC_RXCFG_UFE		(1 << 12)
 /* Multicast Frame Enable */
 #define TSI108_EC_RXCFG_MFE		(1 << 11)
@@ -314,7 +314,7 @@ typedef struct {
 #define TSI108_RX_EOF	(1 << 0)	/* End of frame; last fragment of packet */
 #define TSI108_RX_SOF	(1 << 1)	/* Start of frame; first frag. of packet */
 #define TSI108_RX_VLAN	(1 << 2)	/* Set on SOF if packet has a VLAN */
-#define TSI108_RX_FTYPE	(1 << 3)	/* Length/Type field is type, not length */
+#define TSI108_RX_FTYPE	(1 << 3)	/* Length/Type field is type, yest length */
 #define TSI108_RX_RUNT	(1 << 4)/* Packet is less than minimum size */
 #define TSI108_RX_HASH	(1 << 7)/* Hash table match */
 #define TSI108_RX_BAD	(1 << 8)	/* Bad frame */

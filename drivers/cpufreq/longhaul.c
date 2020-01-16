@@ -350,10 +350,10 @@ retry_loop:
 		pr_info("Failed to set requested frequency!\n");
 		/* Revision ID = 1 but processor is expecting revision key
 		 * equal to 0. Jumpers at the bottom of processor will change
-		 * multiplier and FSB, but will not change bits in Longhaul
-		 * MSR nor enable voltage scaling. */
+		 * multiplier and FSB, but will yest change bits in Longhaul
+		 * MSR yesr enable voltage scaling. */
 		if (!revid_errata) {
-			pr_info("Enabling \"Ignore Revision ID\" option\n");
+			pr_info("Enabling \"Igyesre Revision ID\" option\n");
 			revid_errata = 1;
 			msleep(200);
 			goto retry_loop;
@@ -361,18 +361,18 @@ retry_loop:
 		/* Why ACPI C3 sometimes doesn't work is a mystery for me.
 		 * But it does happen. Processor is entering ACPI C3 state,
 		 * but it doesn't change frequency. I tried poking various
-		 * bits in northbridge registers, but without success. */
+		 * bits in yesrthbridge registers, but without success. */
 		if (longhaul_flags & USE_ACPI_C3) {
 			pr_info("Disabling ACPI C3 support\n");
 			longhaul_flags &= ~USE_ACPI_C3;
 			if (revid_errata) {
-				pr_info("Disabling \"Ignore Revision ID\" option\n");
+				pr_info("Disabling \"Igyesre Revision ID\" option\n");
 				revid_errata = 0;
 			}
 			msleep(200);
 			goto retry_loop;
 		}
-		/* This shouldn't happen. Longhaul ver. 2 was reported not
+		/* This shouldn't happen. Longhaul ver. 2 was reported yest
 		 * working on processors without voltage scaling, but with
 		 * RevID = 1. RevID errata will make things right. Just
 		 * to be 100% sure. */
@@ -398,7 +398,7 @@ retry_loop:
  * Samuel2 and above have to try and guess what the FSB is.
  * We do this by assuming we booted at maximum multiplier, and interpolate
  * between that value multiplied by possible FSBs and cpu_mhz which
- * was calculated at boot time. Really ugly, but no other way to do this.
+ * was calculated at boot time. Really ugly, but yes other way to do this.
  */
 
 #define ROUNDING	0xf
@@ -469,7 +469,7 @@ static int longhaul_get_ranges(void)
 		return -EINVAL;
 	}
 	if (lowest_speed > highest_speed) {
-		pr_info("nonsense! lowest (%d > %d) !\n",
+		pr_info("yesnsense! lowest (%d > %d) !\n",
 			lowest_speed, highest_speed);
 		return -EINVAL;
 	}
@@ -535,7 +535,7 @@ static void longhaul_setup_voltagescaling(void)
 
 	rdmsrl(MSR_VIA_LONGHAUL, longhaul.val);
 	if (!(longhaul.bits.RevisionID & 1)) {
-		pr_info("Voltage scaling not supported by CPU\n");
+		pr_info("Voltage scaling yest supported by CPU\n");
 		return;
 	}
 
@@ -780,7 +780,7 @@ static int longhaul_cpu_init(struct cpufreq_policy *policy)
 			longhaul_version = TYPE_LONGHAUL_V1;
 			cpu_model = CPU_SAMUEL2;
 			cpuname = "C3 'Samuel 2' [C5B]";
-			/* Note, this is not a typo, early Samuel2's had
+			/* Note, this is yest a typo, early Samuel2's had
 			 * Samuel1 ratios. */
 			memcpy(mults, samuel1_mults, sizeof(samuel1_mults));
 			memcpy(eblcr, samuel2_eblcr, sizeof(samuel2_eblcr));
@@ -831,7 +831,7 @@ static int longhaul_cpu_init(struct cpufreq_policy *policy)
 		break;
 
 	default:
-		cpuname = "Unknown";
+		cpuname = "Unkyeswn";
 		break;
 	}
 	/* Check Longhaul ver. 2 */
@@ -870,7 +870,7 @@ static int longhaul_cpu_init(struct cpufreq_policy *policy)
 	/* Disable if it isn't working */
 	if (disable_acpi_c3)
 		longhaul_flags &= ~USE_ACPI_C3;
-	/* Check if northbridge is friendly */
+	/* Check if yesrthbridge is friendly */
 	if (enable_arbiter_disable())
 		longhaul_flags |= USE_NORTHBRIDGE;
 
@@ -878,12 +878,12 @@ static int longhaul_cpu_init(struct cpufreq_policy *policy)
 	if (!(longhaul_flags & USE_ACPI_C3
 	     || longhaul_flags & USE_NORTHBRIDGE)
 	    && ((pr == NULL) || !(pr->flags.bm_control))) {
-		pr_err("No ACPI support: Unsupported northbridge\n");
+		pr_err("No ACPI support: Unsupported yesrthbridge\n");
 		return -ENODEV;
 	}
 
 	if (longhaul_flags & USE_NORTHBRIDGE)
-		pr_info("Using northbridge support\n");
+		pr_info("Using yesrthbridge support\n");
 	if (longhaul_flags & USE_ACPI_C3)
 		pr_info("Using ACPI support\n");
 
@@ -923,7 +923,7 @@ static int __init longhaul_init(void)
 		return -ENODEV;
 
 	if (!enable) {
-		pr_err("Option \"enable\" not set - Aborting\n");
+		pr_err("Option \"enable\" yest set - Aborting\n");
 		return -ENODEV;
 	}
 #ifdef CONFIG_SMP
@@ -989,7 +989,7 @@ MODULE_PARM_DESC(scale_voltage, "Scale voltage of processor");
  * support voltage scaling, but are introducing itself as
  * such. */
 module_param(revid_errata, int, 0644);
-MODULE_PARM_DESC(revid_errata, "Ignore CPU Revision ID");
+MODULE_PARM_DESC(revid_errata, "Igyesre CPU Revision ID");
 /* By default driver is disabled to prevent incompatible
  * system freeze. */
 module_param(enable, int, 0644);

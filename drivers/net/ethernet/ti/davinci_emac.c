@@ -20,7 +20,7 @@
 #include <linux/sched.h>
 #include <linux/string.h>
 #include <linux/timer.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/in.h>
 #include <linux/ioport.h>
 #include <linux/slab.h>
@@ -89,7 +89,7 @@ MODULE_VERSION(EMAC_MODULE_VERSION);
 static const char emac_version_string[] = "TI DaVinci EMAC Linux v6.1";
 
 /* Configuration items */
-#define EMAC_DEF_PASS_CRC		(0) /* Do not pass CRC up to frames */
+#define EMAC_DEF_PASS_CRC		(0) /* Do yest pass CRC up to frames */
 #define EMAC_DEF_QOS_EN			(0) /* EMAC proprietary QoS disabled */
 #define EMAC_DEF_NO_BUFF_CHAIN		(0) /* No buffer chain */
 #define EMAC_DEF_MACCTRL_FRAME_EN	(0) /* Discard Maccontrol frames */
@@ -333,7 +333,7 @@ struct emac_priv {
 	u32 multicast_hash_cnt[EMAC_NUM_MULTICAST_BITS];
 	u32 rx_addr_type;
 	const char *phy_id;
-	struct device_node *phy_node;
+	struct device_yesde *phy_yesde;
 	spinlock_t lock;
 	/*platform specific members*/
 	void (*int_enable) (void);
@@ -342,7 +342,7 @@ struct emac_priv {
 
 /* EMAC TX Host Error description strings */
 static char *emac_txhost_errcodes[16] = {
-	"No error", "SOP error", "Ownership bit not set in SOP buffer",
+	"No error", "SOP error", "Ownership bit yest set in SOP buffer",
 	"Zero Next Buffer Descriptor Pointer Without EOP",
 	"Zero Buffer Pointer", "Zero Buffer Length", "Packet Length Error",
 	"Reserved", "Reserved", "Reserved", "Reserved", "Reserved",
@@ -351,7 +351,7 @@ static char *emac_txhost_errcodes[16] = {
 
 /* EMAC RX Host Error description strings */
 static char *emac_rxhost_errcodes[16] = {
-	"No error", "Reserved", "Ownership bit not set in input buffer",
+	"No error", "Reserved", "Ownership bit yest set in input buffer",
 	"Reserved", "Zero Buffer Pointer", "Reserved", "Reserved",
 	"Reserved", "Reserved", "Reserved", "Reserved", "Reserved",
 	"Reserved", "Reserved", "Reserved", "Reserved"
@@ -600,13 +600,13 @@ static int emac_hash_add(struct emac_priv *priv, u8 *mac_addr)
 	if (hash_value >= EMAC_NUM_MULTICAST_BITS) {
 		if (netif_msg_drv(priv)) {
 			dev_err(emac_dev, "DaVinci EMAC: emac_hash_add(): Invalid "\
-				"Hash %08x, should not be greater than %08x",
+				"Hash %08x, should yest be greater than %08x",
 				hash_value, (EMAC_NUM_MULTICAST_BITS - 1));
 		}
 		return -1;
 	}
 
-	/* set the hash bit only if not previously set */
+	/* set the hash bit only if yest previously set */
 	if (priv->multicast_hash_cnt[hash_value] == 0) {
 		rc = 1; /* hash value changed */
 		if (hash_value < 32) {
@@ -777,11 +777,11 @@ static void emac_int_disable(struct emac_priv *priv)
 		* interrupts to the CPU */
 		emac_ctrl_write(EMAC_DM646X_CMRXINTEN, 0x0);
 		emac_ctrl_write(EMAC_DM646X_CMTXINTEN, 0x0);
-		/* NOTE: Rx Threshold and Misc interrupts are not disabled */
+		/* NOTE: Rx Threshold and Misc interrupts are yest disabled */
 		if (priv->int_disable)
 			priv->int_disable();
 
-		/* NOTE: Rx Threshold and Misc interrupts are not enabled */
+		/* NOTE: Rx Threshold and Misc interrupts are yest enabled */
 
 		/* ack rxen only then a new pulse will be generated */
 		emac_write(EMAC_DM646X_MACEOIVECTOR,
@@ -819,7 +819,7 @@ static void emac_int_enable(struct emac_priv *priv)
 		 * ack by writing appropriate values to the EOI
 		 * register */
 
-		/* NOTE: Rx Threshold and Misc interrupts are not enabled */
+		/* NOTE: Rx Threshold and Misc interrupts are yest enabled */
 	} else {
 		/* Set DM644x control registers for interrupt control */
 		emac_ctrl_write(EMAC_CTRL_EWCTL, 0x1);
@@ -831,7 +831,7 @@ static void emac_int_enable(struct emac_priv *priv)
  * @irq: interrupt number
  * @dev_id: EMAC network adapter data structure ptr
  *
- * EMAC Interrupt handler - we only schedule NAPI and not process any packets
+ * EMAC Interrupt handler - we only schedule NAPI and yest process any packets
  * here. EVen the interrupt status is checked (TX/RX/Err) in NAPI poll function
  *
  * Returns interrupt handled condition
@@ -935,7 +935,7 @@ static int emac_dev_xmit(struct sk_buff *skb, struct net_device *ndev)
 	int ret_code;
 	struct emac_priv *priv = netdev_priv(ndev);
 
-	/* If no link, return */
+	/* If yes link, return */
 	if (unlikely(!priv->link)) {
 		if (netif_msg_tx_err(priv) && net_ratelimit())
 			dev_err(emac_dev, "DaVinci EMAC: No link to transmit");
@@ -959,7 +959,7 @@ static int emac_dev_xmit(struct sk_buff *skb, struct net_device *ndev)
 		goto fail_tx;
 	}
 
-	/* If there is no more tx desc left free then we need to
+	/* If there is yes more tx desc left free then we need to
 	 * tell the kernel to stop sending us tx frames.
 	 */
 	if (unlikely(!cpdma_check_free_tx_desc(priv->txchan)))
@@ -978,7 +978,7 @@ fail_tx:
  * @ndev: The DaVinci EMAC network adapter
  *
  * Called when system detects that a skb timeout period has expired
- * potentially due to a fault in the adapter in not being able to send
+ * potentially due to a fault in the adapter in yest being able to send
  * it out on the wire. We teardown the TX channel assuming a hardware
  * error and re-initialize the TX channel for hardware operation
  *
@@ -1006,7 +1006,7 @@ static void emac_dev_tx_timeout(struct net_device *ndev)
  *
  * Called internally to set Type0 mac address of the adapter (Device)
  *
- * Returns success (0) or appropriate error code (none as of now)
+ * Returns success (0) or appropriate error code (yesne as of yesw)
  */
 static void emac_set_type0addr(struct emac_priv *priv, u32 ch, char *mac_addr)
 {
@@ -1033,7 +1033,7 @@ static void emac_set_type0addr(struct emac_priv *priv, u32 ch, char *mac_addr)
  *
  * Called internally to set Type1 mac address of the adapter (Device)
  *
- * Returns success (0) or appropriate error code (none as of now)
+ * Returns success (0) or appropriate error code (yesne as of yesw)
  */
 static void emac_set_type1addr(struct emac_priv *priv, u32 ch, char *mac_addr)
 {
@@ -1057,7 +1057,7 @@ static void emac_set_type1addr(struct emac_priv *priv, u32 ch, char *mac_addr)
  *
  * Called internally to set Type2 mac address of the adapter (Device)
  *
- * Returns success (0) or appropriate error code (none as of now)
+ * Returns success (0) or appropriate error code (yesne as of yesw)
  */
 static void emac_set_type2addr(struct emac_priv *priv, u32 ch,
 			       char *mac_addr, int index, int match)
@@ -1081,7 +1081,7 @@ static void emac_set_type2addr(struct emac_priv *priv, u32 ch,
  *
  * Called internally to set the mac address of the adapter (Device)
  *
- * Returns success (0) or appropriate error code (none as of now)
+ * Returns success (0) or appropriate error code (yesne as of yesw)
  */
 static void emac_setmac(struct emac_priv *priv, u32 ch, char *mac_addr)
 {
@@ -1109,7 +1109,7 @@ static void emac_setmac(struct emac_priv *priv, u32 ch, char *mac_addr)
  *
  * Called by the system to set the mac address of the adapter (Device)
  *
- * Returns success (0) or appropriate error code (none as of now)
+ * Returns success (0) or appropriate error code (yesne as of yesw)
  */
 static int emac_dev_setmac_addr(struct net_device *ndev, void *addr)
 {
@@ -1130,7 +1130,7 @@ static int emac_dev_setmac_addr(struct net_device *ndev, void *addr)
 	}
 
 	if (netif_msg_drv(priv))
-		dev_notice(emac_dev, "DaVinci EMAC: emac_dev_setmac_addr %pM\n",
+		dev_yestice(emac_dev, "DaVinci EMAC: emac_dev_setmac_addr %pM\n",
 					priv->mac_addr);
 
 	return 0;
@@ -1143,7 +1143,7 @@ static int emac_dev_setmac_addr(struct net_device *ndev, void *addr)
  * Enables EMAC hardware for packet processing - enables PHY, enables RX
  * for packet reception and enables device interrupts and then NAPI
  *
- * Returns success (0) or appropriate error code (none right now)
+ * Returns success (0) or appropriate error code (yesne right yesw)
  */
 static int emac_hw_enable(struct emac_priv *priv)
 {
@@ -1293,7 +1293,7 @@ static int emac_poll(struct napi_struct *napi, int budget)
  * emac_poll_controller - EMAC Poll controller function
  * @ndev: The DaVinci EMAC network adapter
  *
- * Polled functionality used by netconsole and others in non interrupt mode
+ * Polled functionality used by netconsole and others in yesn interrupt mode
  *
  */
 static void emac_poll_controller(struct net_device *ndev)
@@ -1373,8 +1373,8 @@ static int emac_devioctl(struct net_device *ndev, struct ifreq *ifrq, int cmd)
 
 static int match_first_device(struct device *dev, const void *data)
 {
-	if (dev->parent && dev->parent->of_node)
-		return of_device_is_compatible(dev->parent->of_node,
+	if (dev->parent && dev->parent->of_yesde)
+		return of_device_is_compatible(dev->parent->of_yesde,
 					       "ti,davinci_mdio");
 
 	return !strncmp(dev_name(dev), "davinci_mdio", 12);
@@ -1404,7 +1404,7 @@ static int emac_dev_open(struct net_device *ndev)
 
 	ret = pm_runtime_get_sync(&priv->pdev->dev);
 	if (ret < 0) {
-		pm_runtime_put_noidle(&priv->pdev->dev);
+		pm_runtime_put_yesidle(&priv->pdev->dev);
 		dev_err(&priv->pdev->dev, "%s: failed to get_sync(%d)\n",
 			__func__, ret);
 		return ret;
@@ -1466,21 +1466,21 @@ static int emac_dev_open(struct net_device *ndev)
 
 	cpdma_ctlr_start(priv->dma);
 
-	if (priv->phy_node) {
-		phydev = of_phy_connect(ndev, priv->phy_node,
+	if (priv->phy_yesde) {
+		phydev = of_phy_connect(ndev, priv->phy_yesde,
 					&emac_adjust_link, 0, 0);
 		if (!phydev) {
-			dev_err(emac_dev, "could not connect to phy %pOF\n",
-				priv->phy_node);
+			dev_err(emac_dev, "could yest connect to phy %pOF\n",
+				priv->phy_yesde);
 			ret = -ENODEV;
 			goto err;
 		}
 	}
 
-	/* use the first phy on the bus if pdata did not give us a phy id */
+	/* use the first phy on the bus if pdata did yest give us a phy id */
 	if (!phydev && !priv->phy_id) {
 		/* NOTE: we can't use bus_find_device_by_name() here because
-		 * the device name is not guaranteed to be 'davinci_mdio'. On
+		 * the device name is yest guaranteed to be 'davinci_mdio'. On
 		 * some systems it can be 'davinci_mdio.0' so we need to use
 		 * strncmp() against the first part of the string to correctly
 		 * match it.
@@ -1500,7 +1500,7 @@ static int emac_dev_open(struct net_device *ndev)
 				     PHY_INTERFACE_MODE_MII);
 		put_device(phy);	/* reference taken by bus_find_device */
 		if (IS_ERR(phydev)) {
-			dev_err(emac_dev, "could not connect to phy %s\n",
+			dev_err(emac_dev, "could yest connect to phy %s\n",
 				priv->phy_id);
 			ret = PTR_ERR(phydev);
 			goto err;
@@ -1515,7 +1515,7 @@ static int emac_dev_open(struct net_device *ndev)
 
 	if (!phydev) {
 		/* No PHY , fix the link, speed and duplex settings */
-		dev_notice(emac_dev, "no phy, defaulting to 100/full\n");
+		dev_yestice(emac_dev, "yes phy, defaulting to 100/full\n");
 		priv->link = 1;
 		priv->speed = SPEED_100;
 		priv->duplex = DUPLEX_FULL;
@@ -1523,7 +1523,7 @@ static int emac_dev_open(struct net_device *ndev)
 	}
 
 	if (netif_msg_drv(priv))
-		dev_notice(emac_dev, "DaVinci EMAC: Opened %s\n", ndev->name);
+		dev_yestice(emac_dev, "DaVinci EMAC: Opened %s\n", ndev->name);
 
 	if (phydev)
 		phy_start(phydev);
@@ -1588,7 +1588,7 @@ static int emac_dev_stop(struct net_device *ndev)
 	}
 
 	if (netif_msg_drv(priv))
-		dev_notice(emac_dev, "DaVinci EMAC: %s stopped\n", ndev->name);
+		dev_yestice(emac_dev, "DaVinci EMAC: %s stopped\n", ndev->name);
 
 	pm_runtime_put(&priv->pdev->dev);
 	return 0;
@@ -1611,7 +1611,7 @@ static struct net_device_stats *emac_dev_getnetstats(struct net_device *ndev)
 
 	err = pm_runtime_get_sync(&priv->pdev->dev);
 	if (err < 0) {
-		pm_runtime_put_noidle(&priv->pdev->dev);
+		pm_runtime_put_yesidle(&priv->pdev->dev);
 		dev_err(&priv->pdev->dev, "%s: failed to get_sync(%d)\n",
 			__func__, err);
 		return &ndev->stats;
@@ -1682,20 +1682,20 @@ static const struct of_device_id davinci_emac_of_match[];
 static struct emac_platform_data *
 davinci_emac_of_get_pdata(struct platform_device *pdev, struct emac_priv *priv)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 	const struct of_device_id *match;
 	const struct emac_platform_data *auxdata;
 	struct emac_platform_data *pdata = NULL;
 	const u8 *mac_addr;
 
-	if (!IS_ENABLED(CONFIG_OF) || !pdev->dev.of_node)
+	if (!IS_ENABLED(CONFIG_OF) || !pdev->dev.of_yesde)
 		return dev_get_platdata(&pdev->dev);
 
 	pdata = devm_kzalloc(&pdev->dev, sizeof(*pdata), GFP_KERNEL);
 	if (!pdata)
 		return NULL;
 
-	np = pdev->dev.of_node;
+	np = pdev->dev.of_yesde;
 	pdata->version = EMAC_VERSION_2;
 
 	if (!is_valid_ether_addr(pdata->mac_addr)) {
@@ -1718,14 +1718,14 @@ davinci_emac_of_get_pdata(struct platform_device *pdev, struct emac_priv *priv)
 
 	of_property_read_u8(np, "ti,davinci-rmii-en", &pdata->rmii_en);
 
-	pdata->no_bd_ram = of_property_read_bool(np, "ti,davinci-no-bd-ram");
+	pdata->yes_bd_ram = of_property_read_bool(np, "ti,davinci-yes-bd-ram");
 
-	priv->phy_node = of_parse_phandle(np, "phy-handle", 0);
-	if (!priv->phy_node) {
+	priv->phy_yesde = of_parse_phandle(np, "phy-handle", 0);
+	if (!priv->phy_yesde) {
 		if (!of_phy_is_fixed_link(np))
 			pdata->phy_id = NULL;
 		else if (of_phy_register_fixed_link(np) >= 0)
-			priv->phy_node = of_node_get(np);
+			priv->phy_yesde = of_yesde_get(np);
 	}
 
 	auxdata = pdev->dev.platform_data;
@@ -1747,7 +1747,7 @@ davinci_emac_of_get_pdata(struct platform_device *pdev, struct emac_priv *priv)
 static int davinci_emac_try_get_mac(struct platform_device *pdev,
 				    int instance, u8 *mac_addr)
 {
-	if (!pdev->dev.of_node)
+	if (!pdev->dev.of_yesde)
 		return -EINVAL;
 
 	return ti_cm_get_macid(&pdev->dev, instance, mac_addr);
@@ -1763,7 +1763,7 @@ static int davinci_emac_try_get_mac(struct platform_device *pdev,
  */
 static int davinci_emac_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	int rc = 0;
 	struct resource *res, *res_ctrl;
 	struct net_device *ndev;
@@ -1800,7 +1800,7 @@ static int davinci_emac_probe(struct platform_device *pdev)
 
 	pdata = davinci_emac_of_get_pdata(pdev, priv);
 	if (!pdata) {
-		dev_err(&pdev->dev, "no platform data\n");
+		dev_err(&pdev->dev, "yes platform data\n");
 		rc = -ENODEV;
 		goto err_free_netdev;
 	}
@@ -1822,7 +1822,7 @@ static int davinci_emac_probe(struct platform_device *pdev)
 	priv->remap_addr = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(priv->remap_addr)) {
 		rc = PTR_ERR(priv->remap_addr);
-		goto no_pdata;
+		goto yes_pdata;
 	}
 
 	res_ctrl = platform_get_resource(pdev, IORESOURCE_MEM, 1);
@@ -1831,7 +1831,7 @@ static int davinci_emac_probe(struct platform_device *pdev)
 			devm_ioremap_resource(&pdev->dev, res_ctrl);
 		if (IS_ERR(priv->ctrl_base)) {
 			rc = PTR_ERR(priv->ctrl_base);
-			goto no_pdata;
+			goto yes_pdata;
 		}
 	} else {
 		priv->ctrl_base = priv->remap_addr + pdata->ctrl_mod_reg_offset;
@@ -1859,14 +1859,14 @@ static int davinci_emac_probe(struct platform_device *pdev)
 	dma_params.desc_mem_size	= pdata->ctrl_ram_size;
 	dma_params.desc_align		= 16;
 
-	dma_params.desc_mem_phys = pdata->no_bd_ram ? 0 :
+	dma_params.desc_mem_phys = pdata->yes_bd_ram ? 0 :
 			(u32 __force)res->start + pdata->ctrl_ram_offset;
 
 	priv->dma = cpdma_ctlr_create(&dma_params);
 	if (!priv->dma) {
 		dev_err(&pdev->dev, "error initializing DMA\n");
 		rc = -ENOMEM;
-		goto no_pdata;
+		goto yes_pdata;
 	}
 
 	priv->txchan = cpdma_chan_create(priv->dma, EMAC_DEF_TX_CH,
@@ -1898,7 +1898,7 @@ static int davinci_emac_probe(struct platform_device *pdev)
 		ether_addr_copy(ndev->dev_addr, priv->mac_addr);
 
 	if (!is_valid_ether_addr(priv->mac_addr)) {
-		/* Use random MAC if still none obtained. */
+		/* Use random MAC if still yesne obtained. */
 		eth_hw_addr_random(ndev);
 		memcpy(priv->mac_addr, ndev->dev_addr, ndev->addr_len);
 		dev_warn(&pdev->dev, "using random MAC addr: %pM\n",
@@ -1912,7 +1912,7 @@ static int davinci_emac_probe(struct platform_device *pdev)
 	pm_runtime_enable(&pdev->dev);
 	rc = pm_runtime_get_sync(&pdev->dev);
 	if (rc < 0) {
-		pm_runtime_put_noidle(&pdev->dev);
+		pm_runtime_put_yesidle(&pdev->dev);
 		dev_err(&pdev->dev, "%s: failed to get_sync(%d)\n",
 			__func__, rc);
 		goto err_napi_del;
@@ -1930,7 +1930,7 @@ static int davinci_emac_probe(struct platform_device *pdev)
 
 
 	if (netif_msg_probe(priv)) {
-		dev_notice(&pdev->dev, "DaVinci EMAC Probe found device "
+		dev_yestice(&pdev->dev, "DaVinci EMAC Probe found device "
 			   "(regs: %pa, irq: %d)\n",
 			   &priv->emac_base_phys, ndev->irq);
 	}
@@ -1946,10 +1946,10 @@ err_free_txchan:
 	cpdma_chan_destroy(priv->txchan);
 err_free_dma:
 	cpdma_ctlr_destroy(priv->dma);
-no_pdata:
+yes_pdata:
 	if (of_phy_is_fixed_link(np))
 		of_phy_deregister_fixed_link(np);
-	of_node_put(priv->phy_node);
+	of_yesde_put(priv->phy_yesde);
 err_free_netdev:
 	free_netdev(ndev);
 	return rc;
@@ -1966,9 +1966,9 @@ static int davinci_emac_remove(struct platform_device *pdev)
 {
 	struct net_device *ndev = platform_get_drvdata(pdev);
 	struct emac_priv *priv = netdev_priv(ndev);
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 
-	dev_notice(&ndev->dev, "DaVinci EMAC: davinci_emac_remove()\n");
+	dev_yestice(&ndev->dev, "DaVinci EMAC: davinci_emac_remove()\n");
 
 	if (priv->txchan)
 		cpdma_chan_destroy(priv->txchan);
@@ -1977,7 +1977,7 @@ static int davinci_emac_remove(struct platform_device *pdev)
 	cpdma_ctlr_destroy(priv->dma);
 
 	unregister_netdev(ndev);
-	of_node_put(priv->phy_node);
+	of_yesde_put(priv->phy_yesde);
 	pm_runtime_disable(&pdev->dev);
 	if (of_phy_is_fixed_link(np))
 		of_phy_deregister_fixed_link(np);

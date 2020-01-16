@@ -27,14 +27,14 @@
 
 
 /*
- * Addressing Terminology
+ * Addressing Termiyeslogy
  *
  *	M       - The low M bits of a physical address represent the offset
  *		  into the blade local memory. RAM memory on a blade is physically
  *		  contiguous (although various IO spaces may punch holes in
  *		  it)..
  *
- *	N	- Number of bits in the node portion of a socket physical
+ *	N	- Number of bits in the yesde portion of a socket physical
  *		  address.
  *
  *	NASID   - network ID of a router, Mbrick or Cbrick. Nasid values of
@@ -43,7 +43,7 @@
  *		  right shift the NASID by 1 to exclude the always-zero bit.
  *		  NASIDs contain up to 15 bits.
  *
- *	GNODE   - NASID right shifted by 1 bit. Most mmrs contain gnodes instead
+ *	GNODE   - NASID right shifted by 1 bit. Most mmrs contain gyesdes instead
  *		  of nasids.
  *
  *	PNODE   - the low N bits of the GNODE. The PNODE is the most useful variant
@@ -51,10 +51,10 @@
  *
  *	GPA	- (global physical address) a socket physical address converted
  *		  so that it can be used by the GRU as a global address. Socket
- *		  physical addresses 1) need additional NASID (node) bits added
+ *		  physical addresses 1) need additional NASID (yesde) bits added
  *		  to the high end of the address, and 2) unaliased if the
- *		  partition does not have a physical address 0. In addition, on
- *		  UV2 rev 1, GPAs need the gnode left shifted to bits 39 or 40.
+ *		  partition does yest have a physical address 0. In addition, on
+ *		  UV2 rev 1, GPAs need the gyesde left shifted to bits 39 or 40.
  *
  *
  *  NumaLink Global Physical Address Format:
@@ -63,7 +63,7 @@
  *  +--------------------------------+---------------------+
  *          |<-------53 - M bits --->|<--------M bits ----->
  *
- *	M - number of node offset bits (35 .. 40)
+ *	M - number of yesde offset bits (35 .. 40)
  *
  *
  *  Memory/UV-HUB Processor Socket Address Format:
@@ -72,10 +72,10 @@
  *  +----------------+---------------+---------------------+
  *                   <--- N bits --->|<--------M bits ----->
  *
- *	M - number of node offset bits (35 .. 40)
+ *	M - number of yesde offset bits (35 .. 40)
  *	N - number of PNODE bits (0 .. 10)
  *
- *		Note: M + N cannot currently exceed 44 (x86_64) or 46 (IA64).
+ *		Note: M + N canyest currently exceed 44 (x86_64) or 46 (IA64).
  *		The actual values are configuration dependent and are set at
  *		boot time. M & N values are set by the hardware/BIOS at boot.
  *
@@ -92,7 +92,7 @@
  *		pppppppppppcccch	SandyBridge (15 bits in hdw reg)
  *		sssssssssss
  *
- *			p  = pnode bits
+ *			p  = pyesde bits
  *			l =  socket number on board
  *			c  = core
  *			h  = hyperthread
@@ -102,7 +102,7 @@
  *	      tables hold all 16 bits. Software needs to be aware of this.
  *
  *	      Unless otherwise specified, all references to APICID refer to
- *	      the FULL value contained in ACPI tables, not the subset in the
+ *	      the FULL value contained in ACPI tables, yest the subset in the
  *	      processor APICID register.
  */
 
@@ -111,10 +111,10 @@
  * This is the total number of bricks accessible in the numalink fabric. It
  * includes all C & M bricks. Routers are NOT included.
  *
- * This value is also the value of the maximum number of non-router NASIDs
+ * This value is also the value of the maximum number of yesn-router NASIDs
  * in the numalink fabric.
  *
- * NOTE: a brick may contain 1 or 2 OS nodes. Don't get these confused.
+ * NOTE: a brick may contain 1 or 2 OS yesdes. Don't get these confused.
  */
 #define UV_MAX_NUMALINK_BLADES	16384
 
@@ -143,8 +143,8 @@ struct uv_scir_s {
 /* GAM (globally addressed memory) range table */
 struct uv_gam_range_s {
 	u32	limit;		/* PA bits 56:26 (GAM_RANGE_SHFT) */
-	u16	nasid;		/* node's global physical address */
-	s8	base;		/* entry index of node's base addr */
+	u16	nasid;		/* yesde's global physical address */
+	s8	base;		/* entry index of yesde's base addr */
 	u8	reserved;
 };
 
@@ -152,34 +152,34 @@ struct uv_gam_range_s {
  * The following defines attributes of the HUB chip. These attributes are
  * frequently referenced and are kept in a common per hub struct.
  * After setup, the struct is read only, so it should be readily
- * available in the L3 cache on the cpu socket for the node.
+ * available in the L3 cache on the cpu socket for the yesde.
  */
 struct uv_hub_info_s {
 	unsigned long		global_mmr_base;
 	unsigned long		global_mmr_shift;
 	unsigned long		gpa_mask;
-	unsigned short		*socket_to_node;
-	unsigned short		*socket_to_pnode;
-	unsigned short		*pnode_to_socket;
+	unsigned short		*socket_to_yesde;
+	unsigned short		*socket_to_pyesde;
+	unsigned short		*pyesde_to_socket;
 	struct uv_gam_range_s	*gr_table;
 	unsigned short		min_socket;
-	unsigned short		min_pnode;
+	unsigned short		min_pyesde;
 	unsigned char		m_val;
 	unsigned char		n_val;
 	unsigned char		gr_table_len;
 	unsigned char		hub_revision;
-	unsigned char		apic_pnode_shift;
+	unsigned char		apic_pyesde_shift;
 	unsigned char		gpa_shift;
 	unsigned char		m_shift;
 	unsigned char		n_lshift;
-	unsigned int		gnode_extra;
-	unsigned long		gnode_upper;
+	unsigned int		gyesde_extra;
+	unsigned long		gyesde_upper;
 	unsigned long		lowmem_remap_top;
 	unsigned long		lowmem_remap_base;
 	unsigned long		global_gru_base;
 	unsigned long		global_gru_shift;
-	unsigned short		pnode;
-	unsigned short		pnode_mask;
+	unsigned short		pyesde;
+	unsigned short		pyesde_mask;
 	unsigned short		coherency_domain_number;
 	unsigned short		numa_blade_id;
 	unsigned short		nr_possible_cpus;
@@ -203,9 +203,9 @@ DECLARE_PER_CPU(struct uv_cpu_info_s, __uv_cpu_info);
 
 /* Node specific hub common info struct */
 extern void **__uv_hub_info_list;
-static inline struct uv_hub_info_s *uv_hub_info_list(int node)
+static inline struct uv_hub_info_s *uv_hub_info_list(int yesde)
 {
-	return (struct uv_hub_info_s *)__uv_hub_info_list[node];
+	return (struct uv_hub_info_s *)__uv_hub_info_list[yesde];
 }
 
 static inline struct uv_hub_info_s *_uv_hub_info(void)
@@ -229,7 +229,7 @@ static inline int uv_hub_info_check(int version)
 	pr_crit("UV: uv_hub_info version(%x) mismatch, expecting(%x)\n",
 		uv_hub_info_version(), version);
 
-	BUG();	/* Catastrophic - cannot continue on unknown UV system */
+	BUG();	/* Catastrophic - canyest continue on unkyeswn UV system */
 }
 #define	_uv_hub_info_check()	uv_hub_info_check(UV_HUB_INFO_VERSION)
 
@@ -307,8 +307,8 @@ union uvh_apicid {
         unsigned long   local_apic_mask  : 24;
         unsigned long   local_apic_shift :  5;
         unsigned long   unused1          :  3;
-        unsigned long   pnode_mask       : 24;
-        unsigned long   pnode_shift      :  5;
+        unsigned long   pyesde_mask       : 24;
+        unsigned long   pyesde_shift      :  5;
         unsigned long   unused2          :  3;
     } s;
 };
@@ -316,13 +316,13 @@ union uvh_apicid {
 /*
  * Local & Global MMR space macros.
  *	Note: macros are intended to be used ONLY by inline functions
- *	in this file - not by other kernel code.
+ *	in this file - yest by other kernel code.
  *		n -  NASID (full 15-bit global nasid)
  *		g -  GNODE (full 15-bit global nasid, right shifted 1)
  *		p -  PNODE (local part of nsids, right shifted 1)
  */
-#define UV_NASID_TO_PNODE(n)		(((n) >> 1) & uv_hub_info->pnode_mask)
-#define UV_PNODE_TO_GNODE(p)		((p) |uv_hub_info->gnode_extra)
+#define UV_NASID_TO_PNODE(n)		(((n) >> 1) & uv_hub_info->pyesde_mask)
+#define UV_PNODE_TO_GNODE(p)		((p) |uv_hub_info->gyesde_extra)
 #define UV_PNODE_TO_NASID(p)		(UV_PNODE_TO_GNODE(p) << 1)
 
 #define UV1_LOCAL_MMR_BASE		0xf4000000UL
@@ -396,9 +396,9 @@ union uvh_apicid {
  *
  * Note there are NO leds on a UV system.  This register is only
  * used by the system controller to monitor system-wide operation.
- * There are 64 regs per node.  With Nahelem cpus (2 cores per node,
+ * There are 64 regs per yesde.  With Nahelem cpus (2 cores per yesde,
  * 8 cpus per core, 2 threads per cpu) there are 32 cpu threads on
- * a node.
+ * a yesde.
  *
  * The window is located at top of ACPI MMR space
  */
@@ -408,7 +408,7 @@ union uvh_apicid {
 				 SCIR_WINDOW_COUNT)
 
 #define SCIR_CPU_HEARTBEAT	0x01	/* timer interrupt */
-#define SCIR_CPU_ACTIVITY	0x02	/* not idle */
+#define SCIR_CPU_ACTIVITY	0x02	/* yest idle */
 #define SCIR_CPU_HB_INTERVAL	(HZ)	/* once per second */
 
 /* Loop through all installed blades */
@@ -429,7 +429,7 @@ static inline unsigned int uv_gpa_shift(void)
 }
 #define	_uv_gpa_shift
 
-/* Find node that has the address range that contains global address  */
+/* Find yesde that has the address range that contains global address  */
 static inline struct uv_gam_range_s *uv_gam_range(unsigned long pa)
 {
 	struct uv_gam_range_s *gr = uv_hub_info->gr_table;
@@ -442,11 +442,11 @@ static inline struct uv_gam_range_s *uv_gam_range(unsigned long pa)
 				return gr;
 		}
 	}
-	pr_crit("UV: GAM Range for 0x%lx not found at %p!\n", pa, gr);
+	pr_crit("UV: GAM Range for 0x%lx yest found at %p!\n", pa, gr);
 	BUG();
 }
 
-/* Return base address of node that contains global address  */
+/* Return base address of yesde that contains global address  */
 static inline unsigned long uv_gam_range_base(unsigned long pa)
 {
 	struct uv_gam_range_s *gr = uv_gam_range(pa);
@@ -480,7 +480,7 @@ static inline unsigned long uv_soc_phys_ram_to_gpa(unsigned long paddr)
 		paddr |= uv_hub_info->lowmem_remap_base;
 
 	if (m_val) {
-		paddr |= uv_hub_info->gnode_upper;
+		paddr |= uv_hub_info->gyesde_upper;
 		paddr = ((paddr << uv_hub_info->m_shift)
 						>> uv_hub_info->m_shift) |
 			((paddr >> uv_hub_info->m_val)
@@ -523,8 +523,8 @@ static inline unsigned long uv_gpa_to_soc_phys_ram(unsigned long gpa)
 	return paddr;
 }
 
-/* gpa -> gnode */
-static inline unsigned long uv_gpa_to_gnode(unsigned long gpa)
+/* gpa -> gyesde */
+static inline unsigned long uv_gpa_to_gyesde(unsigned long gpa)
 {
 	unsigned int n_lshift = uv_hub_info->n_lshift;
 
@@ -534,13 +534,13 @@ static inline unsigned long uv_gpa_to_gnode(unsigned long gpa)
 	return uv_gam_range(gpa)->nasid >> 1;
 }
 
-/* gpa -> pnode */
-static inline int uv_gpa_to_pnode(unsigned long gpa)
+/* gpa -> pyesde */
+static inline int uv_gpa_to_pyesde(unsigned long gpa)
 {
-	return uv_gpa_to_gnode(gpa) & uv_hub_info->pnode_mask;
+	return uv_gpa_to_gyesde(gpa) & uv_hub_info->pyesde_mask;
 }
 
-/* gpa -> node offset */
+/* gpa -> yesde offset */
 static inline unsigned long uv_gpa_to_offset(unsigned long gpa)
 {
 	unsigned int m_shift = uv_hub_info->m_shift;
@@ -551,105 +551,105 @@ static inline unsigned long uv_gpa_to_offset(unsigned long gpa)
 	return (gpa & uv_hub_info->gpa_mask) - uv_gam_range_base(gpa);
 }
 
-/* Convert socket to node */
-static inline int _uv_socket_to_node(int socket, unsigned short *s2nid)
+/* Convert socket to yesde */
+static inline int _uv_socket_to_yesde(int socket, unsigned short *s2nid)
 {
 	return s2nid ? s2nid[socket - uv_hub_info->min_socket] : socket;
 }
 
-static inline int uv_socket_to_node(int socket)
+static inline int uv_socket_to_yesde(int socket)
 {
-	return _uv_socket_to_node(socket, uv_hub_info->socket_to_node);
+	return _uv_socket_to_yesde(socket, uv_hub_info->socket_to_yesde);
 }
 
-/* pnode, offset --> socket virtual */
-static inline void *uv_pnode_offset_to_vaddr(int pnode, unsigned long offset)
+/* pyesde, offset --> socket virtual */
+static inline void *uv_pyesde_offset_to_vaddr(int pyesde, unsigned long offset)
 {
 	unsigned int m_val = uv_hub_info->m_val;
 	unsigned long base;
-	unsigned short sockid, node, *p2s;
+	unsigned short sockid, yesde, *p2s;
 
 	if (m_val)
-		return __va(((unsigned long)pnode << m_val) | offset);
+		return __va(((unsigned long)pyesde << m_val) | offset);
 
-	p2s = uv_hub_info->pnode_to_socket;
-	sockid = p2s ? p2s[pnode - uv_hub_info->min_pnode] : pnode;
-	node = uv_socket_to_node(sockid);
+	p2s = uv_hub_info->pyesde_to_socket;
+	sockid = p2s ? p2s[pyesde - uv_hub_info->min_pyesde] : pyesde;
+	yesde = uv_socket_to_yesde(sockid);
 
-	/* limit address of previous socket is our base, except node 0 is 0 */
-	if (!node)
+	/* limit address of previous socket is our base, except yesde 0 is 0 */
+	if (!yesde)
 		return __va((unsigned long)offset);
 
-	base = (unsigned long)(uv_hub_info->gr_table[node - 1].limit);
+	base = (unsigned long)(uv_hub_info->gr_table[yesde - 1].limit);
 	return __va(base << UV_GAM_RANGE_SHFT | offset);
 }
 
-/* Extract/Convert a PNODE from an APICID (full apicid, not processor subset) */
-static inline int uv_apicid_to_pnode(int apicid)
+/* Extract/Convert a PNODE from an APICID (full apicid, yest processor subset) */
+static inline int uv_apicid_to_pyesde(int apicid)
 {
-	int pnode = apicid >> uv_hub_info->apic_pnode_shift;
-	unsigned short *s2pn = uv_hub_info->socket_to_pnode;
+	int pyesde = apicid >> uv_hub_info->apic_pyesde_shift;
+	unsigned short *s2pn = uv_hub_info->socket_to_pyesde;
 
-	return s2pn ? s2pn[pnode - uv_hub_info->min_socket] : pnode;
+	return s2pn ? s2pn[pyesde - uv_hub_info->min_socket] : pyesde;
 }
 
 /* Convert an apicid to the socket number on the blade */
 static inline int uv_apicid_to_socket(int apicid)
 {
 	if (is_uv1_hub())
-		return (apicid >> (uv_hub_info->apic_pnode_shift - 1)) & 1;
+		return (apicid >> (uv_hub_info->apic_pyesde_shift - 1)) & 1;
 	else
 		return 0;
 }
 
 /*
  * Access global MMRs using the low memory MMR32 space. This region supports
- * faster MMR access but not all MMRs are accessible in this space.
+ * faster MMR access but yest all MMRs are accessible in this space.
  */
-static inline unsigned long *uv_global_mmr32_address(int pnode, unsigned long offset)
+static inline unsigned long *uv_global_mmr32_address(int pyesde, unsigned long offset)
 {
 	return __va(UV_GLOBAL_MMR32_BASE |
-		       UV_GLOBAL_MMR32_PNODE_BITS(pnode) | offset);
+		       UV_GLOBAL_MMR32_PNODE_BITS(pyesde) | offset);
 }
 
-static inline void uv_write_global_mmr32(int pnode, unsigned long offset, unsigned long val)
+static inline void uv_write_global_mmr32(int pyesde, unsigned long offset, unsigned long val)
 {
-	writeq(val, uv_global_mmr32_address(pnode, offset));
+	writeq(val, uv_global_mmr32_address(pyesde, offset));
 }
 
-static inline unsigned long uv_read_global_mmr32(int pnode, unsigned long offset)
+static inline unsigned long uv_read_global_mmr32(int pyesde, unsigned long offset)
 {
-	return readq(uv_global_mmr32_address(pnode, offset));
+	return readq(uv_global_mmr32_address(pyesde, offset));
 }
 
 /*
  * Access Global MMR space using the MMR space located at the top of physical
  * memory.
  */
-static inline volatile void __iomem *uv_global_mmr64_address(int pnode, unsigned long offset)
+static inline volatile void __iomem *uv_global_mmr64_address(int pyesde, unsigned long offset)
 {
 	return __va(UV_GLOBAL_MMR64_BASE |
-		    UV_GLOBAL_MMR64_PNODE_BITS(pnode) | offset);
+		    UV_GLOBAL_MMR64_PNODE_BITS(pyesde) | offset);
 }
 
-static inline void uv_write_global_mmr64(int pnode, unsigned long offset, unsigned long val)
+static inline void uv_write_global_mmr64(int pyesde, unsigned long offset, unsigned long val)
 {
-	writeq(val, uv_global_mmr64_address(pnode, offset));
+	writeq(val, uv_global_mmr64_address(pyesde, offset));
 }
 
-static inline unsigned long uv_read_global_mmr64(int pnode, unsigned long offset)
+static inline unsigned long uv_read_global_mmr64(int pyesde, unsigned long offset)
 {
-	return readq(uv_global_mmr64_address(pnode, offset));
+	return readq(uv_global_mmr64_address(pyesde, offset));
 }
 
-static inline void uv_write_global_mmr8(int pnode, unsigned long offset, unsigned char val)
+static inline void uv_write_global_mmr8(int pyesde, unsigned long offset, unsigned char val)
 {
-	writeb(val, uv_global_mmr64_address(pnode, offset));
+	writeb(val, uv_global_mmr64_address(pyesde, offset));
 }
 
-static inline unsigned char uv_read_global_mmr8(int pnode, unsigned long offset)
+static inline unsigned char uv_read_global_mmr8(int pyesde, unsigned long offset)
 {
-	return readb(uv_global_mmr64_address(pnode, offset));
+	return readb(uv_global_mmr64_address(pyesde, offset));
 }
 
 /*
@@ -695,7 +695,7 @@ static inline int uv_cpu_blade_processor_id(int cpu)
 #define _uv_cpu_blade_processor_id 1	/* indicate function available */
 
 /* Blade number to Node number (UV1..UV4 is 1:1) */
-static inline int uv_blade_to_node(int blade)
+static inline int uv_blade_to_yesde(int blade)
 {
 	return blade;
 }
@@ -707,11 +707,11 @@ static inline int uv_numa_blade_id(void)
 }
 
 /*
- * Convert linux node number to the UV blade number.
- * .. Currently for UV1 thru UV4 the node and the blade are identical.
+ * Convert linux yesde number to the UV blade number.
+ * .. Currently for UV1 thru UV4 the yesde and the blade are identical.
  * .. If this changes then you MUST check references to this function!
  */
-static inline int uv_node_to_blade_id(int nid)
+static inline int uv_yesde_to_blade_id(int nid)
 {
 	return nid;
 }
@@ -719,43 +719,43 @@ static inline int uv_node_to_blade_id(int nid)
 /* Convert a cpu number to the the UV blade number */
 static inline int uv_cpu_to_blade_id(int cpu)
 {
-	return uv_node_to_blade_id(cpu_to_node(cpu));
+	return uv_yesde_to_blade_id(cpu_to_yesde(cpu));
 }
 
 /* Convert a blade id to the PNODE of the blade */
-static inline int uv_blade_to_pnode(int bid)
+static inline int uv_blade_to_pyesde(int bid)
 {
-	return uv_hub_info_list(uv_blade_to_node(bid))->pnode;
+	return uv_hub_info_list(uv_blade_to_yesde(bid))->pyesde;
 }
 
-/* Nid of memory node on blade. -1 if no blade-local memory */
+/* Nid of memory yesde on blade. -1 if yes blade-local memory */
 static inline int uv_blade_to_memory_nid(int bid)
 {
-	return uv_hub_info_list(uv_blade_to_node(bid))->memory_nid;
+	return uv_hub_info_list(uv_blade_to_yesde(bid))->memory_nid;
 }
 
 /* Determine the number of possible cpus on a blade */
 static inline int uv_blade_nr_possible_cpus(int bid)
 {
-	return uv_hub_info_list(uv_blade_to_node(bid))->nr_possible_cpus;
+	return uv_hub_info_list(uv_blade_to_yesde(bid))->nr_possible_cpus;
 }
 
 /* Determine the number of online cpus on a blade */
 static inline int uv_blade_nr_online_cpus(int bid)
 {
-	return uv_hub_info_list(uv_blade_to_node(bid))->nr_online_cpus;
+	return uv_hub_info_list(uv_blade_to_yesde(bid))->nr_online_cpus;
 }
 
 /* Convert a cpu id to the PNODE of the blade containing the cpu */
-static inline int uv_cpu_to_pnode(int cpu)
+static inline int uv_cpu_to_pyesde(int cpu)
 {
-	return uv_cpu_hub_info(cpu)->pnode;
+	return uv_cpu_hub_info(cpu)->pyesde;
 }
 
-/* Convert a linux node number to the PNODE of the blade */
-static inline int uv_node_to_pnode(int nid)
+/* Convert a linux yesde number to the PNODE of the blade */
+static inline int uv_yesde_to_pyesde(int nid)
 {
-	return uv_hub_info_list(nid)->pnode;
+	return uv_hub_info_list(nid)->pyesde;
 }
 
 /* Maximum possible number of blades */
@@ -782,13 +782,13 @@ extern void uv_nmi_setup_hubless(void);
 #define UVH_TSC_SYNC_VALID	3	/* 0011 */
 #define UVH_TSC_SYNC_INVALID	2	/* 0010 */
 
-/* BMC sets a bit this MMR non-zero before sending an NMI */
+/* BMC sets a bit this MMR yesn-zero before sending an NMI */
 #define UVH_NMI_MMR		UVH_BIOS_KERNEL_MMR
 #define UVH_NMI_MMR_CLEAR	UVH_BIOS_KERNEL_MMR_ALIAS
 #define UVH_NMI_MMR_SHIFT	63
 #define UVH_NMI_MMR_TYPE	"SCRATCH5"
 
-/* Newer SMM NMI handler, not present in all systems */
+/* Newer SMM NMI handler, yest present in all systems */
 #define UVH_NMI_MMRX		UVH_EVENT_OCCURRED0
 #define UVH_NMI_MMRX_CLEAR	UVH_EVENT_OCCURRED0_ALIAS
 #define UVH_NMI_MMRX_SHIFT	UVH_EVENT_OCCURRED0_EXTIO_INT0_SHFT
@@ -803,7 +803,7 @@ extern void uv_nmi_setup_hubless(void);
 
 struct uv_hub_nmi_s {
 	raw_spinlock_t	nmi_lock;
-	atomic_t	in_nmi;		/* flag this node in UV NMI IRQ */
+	atomic_t	in_nmi;		/* flag this yesde in UV NMI IRQ */
 	atomic_t	cpu_owner;	/* last locker of this struct */
 	atomic_t	read_mmr_count;	/* count of MMR reads */
 	atomic_t	nmi_count;	/* count of true UV NMIs */
@@ -849,7 +849,7 @@ static inline unsigned long uv_scir_offset(int apicid)
 static inline void uv_set_cpu_scir_bits(int cpu, unsigned char value)
 {
 	if (uv_cpu_scir_info(cpu)->state != value) {
-		uv_write_global_mmr8(uv_cpu_to_pnode(cpu),
+		uv_write_global_mmr8(uv_cpu_to_pyesde(cpu),
 				uv_cpu_scir_info(cpu)->offset, value);
 		uv_cpu_scir_info(cpu)->state = value;
 	}
@@ -865,7 +865,7 @@ static unsigned long uv_hub_ipi_value(int apicid, int vector, int mode)
 			(vector << UVH_IPI_INT_VECTOR_SHFT);
 }
 
-static inline void uv_hub_send_ipi(int pnode, int apicid, int vector)
+static inline void uv_hub_send_ipi(int pyesde, int apicid, int vector)
 {
 	unsigned long val;
 	unsigned long dmode = dest_Fixed;
@@ -874,7 +874,7 @@ static inline void uv_hub_send_ipi(int pnode, int apicid, int vector)
 		dmode = dest_NMI;
 
 	val = uv_hub_ipi_value(apicid, vector, dmode);
-	uv_write_global_mmr64(pnode, UVH_IPI_INT, val);
+	uv_write_global_mmr64(pyesde, UVH_IPI_INT, val);
 }
 
 /*

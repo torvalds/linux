@@ -16,7 +16,7 @@ __kernel_vsyscall:
 	CFI_STARTPROC
 	/*
 	 * Reshuffle regs so that all of any of the entry instructions
-	 * will preserve enough state.
+	 * will preserve eyesugh state.
 	 *
 	 * A really nice entry sequence would be:
 	 *  pushl %edx
@@ -65,7 +65,7 @@ __kernel_vsyscall:
 SYM_INNER_LABEL(int80_landing_pad, SYM_L_GLOBAL)
 
 	/*
-	 * Restore EDX and ECX in case they were clobbered.  EBP is not
+	 * Restore EDX and ECX in case they were clobbered.  EBP is yest
 	 * clobbered (the kernel restores it), but it's cleaner and
 	 * probably faster to pop it than to adjust ESP using addl.
 	 */

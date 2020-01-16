@@ -2,7 +2,7 @@
 /*
 	usa28msg.h
 
-	Copyright (C) 1998-2000 InnoSys Incorporated.  All Rights Reserved
+	Copyright (C) 1998-2000 InyesSys Incorporated.  All Rights Reserved
 	This file is available under a BSD-style copyright
 
 	Keyspan USB Async Message Formats for the USA26X
@@ -13,14 +13,14 @@
 
 	1. Redistributions of source code must retain this licence text
    	without modification, this list of conditions, and the following
-   	disclaimer.  The following copyright notice must appear immediately at
+   	disclaimer.  The following copyright yestice must appear immediately at
    	the beginning of all source files:
 
-        	Copyright (C) 1998-2000 InnoSys Incorporated.  All Rights Reserved
+        	Copyright (C) 1998-2000 InyesSys Incorporated.  All Rights Reserved
 
         	This file is available under a BSD-style copyright
 
-	2. The name of InnoSys Incorporated may not be used to endorse or promote
+	2. The name of InyesSys Incorporated may yest be used to endorse or promote
    	products derived from this software without specific prior written
    	permission.
 
@@ -39,7 +39,7 @@
 	Note: these message formats are common to USA18, USA19, and USA28;
 	(for USA28X, see usa26msg.h)
 
-	Buffer formats for RX/TX data messages are not defined by
+	Buffer formats for RX/TX data messages are yest defined by
 	a structure, but are described here:
 
 	USB OUT (host -> USA28, transmit) messages contain a 
@@ -54,7 +54,7 @@
 	so the maximum length is 63 bytes (1 + 62, or 31 data bytes);
 	always an odd number for the total message length.
 
-	If there is no parity, the format is simply:
+	If there is yes parity, the format is simply:
 
 		RQSTACK DAT DAT DAT ...
 
@@ -67,7 +67,7 @@
 
 	for a total of 32 data bytes;
 	
-	If parity is not configured, the format is:
+	If parity is yest configured, the format is:
 
 		DAT DAT DAT ...
 
@@ -117,19 +117,19 @@ struct keyspan_usa28_portControlMessage
 		dtr;			// 1=on, 0=off
 
 	/*
-		3.	configuration data which is simply used as is (no overhead,
+		3.	configuration data which is simply used as is (yes overhead,
 			but must be correct in every host message).
 	*/
 	u8	forwardingLength,  // forward when this number of chars available
 		forwardMs,		// forward this many ms after last rx data
-		breakThreshold,	// specified in ms, 1-255 (see note below)
+		breakThreshold,	// specified in ms, 1-255 (see yeste below)
 		xonChar,		// specified in current character format
 		xoffChar;		// specified in current character format
 
 	/*
 		4.	commands which are flags only; these are processed in order
 			(so that, e.g., if both _txOn and _txOff flags are set, the
-			port ends in a TX_OFF state); any non-zero value is respected
+			port ends in a TX_OFF state); any yesn-zero value is respected
 	*/
 	u8	_txOn,			// enable transmitting (and continue if there's data)
 		_txOff,			// stop transmitting
@@ -149,17 +149,17 @@ struct keyspan_usa28_portStatusMessage
 {
 	u8	port,			// 0=first, 1=second, 2=global (see below)
 		cts,
-		dsr,			// (not used in all products)
+		dsr,			// (yest used in all products)
 		dcd,
 
-		ri,				// (not used in all products)
+		ri,				// (yest used in all products)
 		_txOff,			// port has been disabled (by host)
 		_txXoff,		// port is in XOFF state (either host or RX XOFF)
-		dataLost,		// count of lost chars; wraps; not guaranteed exact
+		dataLost,		// count of lost chars; wraps; yest guaranteed exact
 
 		rxEnabled,		// as configured by rxOn/rxOff 1=on, 0=off
 		rxBreak,		// 1=we're in break state
-		rs232invalid,	// 1=no valid signals on rs-232 inputs
+		rs232invalid,	// 1=yes valid signals on rs-232 inputs
 		controlResponse;// 1=a control messages has been processed
 };
 

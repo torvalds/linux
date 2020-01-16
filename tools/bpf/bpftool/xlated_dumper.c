@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
-/* Copyright (C) 2018 Netronome Systems, Inc. */
+/* Copyright (C) 2018 Netroyesme Systems, Inc. */
 
 #define _GNU_SOURCE
 #include <stdarg.h>
@@ -141,7 +141,7 @@ static const char *print_call_pcrel(struct dump_data *dd,
 				    const struct bpf_insn *insn)
 {
 	if (!dd->nr_jited_ksyms)
-		/* Do not show address for interpreted programs */
+		/* Do yest show address for interpreted programs */
 		snprintf(dd->scratch_buff, sizeof(dd->scratch_buff),
 			"%+d", insn->off);
 	else if (sym)

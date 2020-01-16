@@ -218,7 +218,7 @@ err_ret:
 /*
  * Integer array controls for setting biquad, mixer, DRC coefficients.
  * According to the datasheet each coefficient is effectively 26bits,
- * i.e. stored as 32bits, where bits [31:26] are ignored.
+ * i.e. stored as 32bits, where bits [31:26] are igyesred.
  * TI's TAS57xx Graphical Development Environment tool however produces
  * coefficients with more than 26 bits. For this reason we allow values
  * in the full 32-bits reange.
@@ -401,13 +401,13 @@ static const struct regmap_range tas571x_volatile_regs_range[] = {
 };
 
 static const struct regmap_access_table tas571x_write_regs = {
-	.no_ranges =	tas571x_readonly_regs_range,
-	.n_no_ranges =	ARRAY_SIZE(tas571x_readonly_regs_range),
+	.yes_ranges =	tas571x_readonly_regs_range,
+	.n_yes_ranges =	ARRAY_SIZE(tas571x_readonly_regs_range),
 };
 
 static const struct regmap_access_table tas571x_volatile_regs = {
-	.yes_ranges =	tas571x_volatile_regs_range,
-	.n_yes_ranges =	ARRAY_SIZE(tas571x_volatile_regs_range),
+	.no_ranges =	tas571x_volatile_regs_range,
+	.n_no_ranges =	ARRAY_SIZE(tas571x_volatile_regs_range),
 
 };
 
@@ -450,8 +450,8 @@ static const struct regmap_range tas5707_volatile_regs_range[] = {
 };
 
 static const struct regmap_access_table tas5707_volatile_regs = {
-	.yes_ranges =	tas5707_volatile_regs_range,
-	.n_yes_ranges =	ARRAY_SIZE(tas5707_volatile_regs_range),
+	.no_ranges =	tas5707_volatile_regs_range,
+	.n_no_ranges =	ARRAY_SIZE(tas5707_volatile_regs_range),
 
 };
 
@@ -559,7 +559,7 @@ static const char *const tas5717_supply_names[] = {
 static const DECLARE_TLV_DB_SCALE(tas5717_volume_tlv, -10375, 25, 0);
 
 static const struct snd_kcontrol_new tas5717_controls[] = {
-	/* MVOL LSB is ignored - see comments in tas571x_i2c_probe() */
+	/* MVOL LSB is igyesred - see comments in tas571x_i2c_probe() */
 	SOC_SINGLE_TLV("Master Volume",
 		       TAS571X_MVOL_REG, 1, 0x1ff, 1,
 		       tas5717_volume_tlv),
@@ -583,7 +583,7 @@ static const struct snd_kcontrol_new tas5717_controls[] = {
 
 	/*
 	 * The biquads are named according to the register names.
-	 * Please note that TI's TAS57xx Graphical Development Environment
+	 * Please yeste that TI's TAS57xx Graphical Development Environment
 	 * tool names them different.
 	 */
 	BIQUAD_COEFS("CH1 - Biquad 0", TAS5717_CH1_BQ0_REG),
@@ -755,7 +755,7 @@ static const struct snd_soc_component_driver tas571x_component = {
 	.num_dapm_routes	= ARRAY_SIZE(tas571x_dapm_routes),
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
+	.yesn_legacy_dai_naming	= 1,
 };
 
 static struct snd_soc_dai_driver tas571x_dai = {
@@ -855,7 +855,7 @@ static int tas571x_i2c_probe(struct i2c_client *client,
 
 	if (priv->chip->vol_reg_size == 2) {
 		/*
-		 * The master volume defaults to 0x3ff (mute), but we ignore
+		 * The master volume defaults to 0x3ff (mute), but we igyesre
 		 * (zero) the LSB because the hardware step size is 0.125 dB
 		 * and TLV_DB_SCALE_ITEM has a resolution of 0.01 dB.
 		 */

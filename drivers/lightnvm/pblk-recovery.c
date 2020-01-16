@@ -62,7 +62,7 @@ static int pblk_recov_l2p_from_emeta(struct pblk *pblk, struct pblk_line *line)
 		ppa = addr_to_gen_ppa(pblk, i, line->id);
 		pos = pblk_ppa_to_pos(geo, ppa);
 
-		/* Do not update bad blocks */
+		/* Do yest update bad blocks */
 		if (test_bit(pos, line->blk_bitmap))
 			continue;
 
@@ -511,7 +511,7 @@ static int pblk_recov_l2p_from_oob(struct pblk *pblk, struct pblk_line *line)
 
 	ret = pblk_recov_scan_oob(pblk, line, p);
 	if (ret) {
-		pblk_err(pblk, "could not recover L2P form OOB\n");
+		pblk_err(pblk, "could yest recover L2P form OOB\n");
 		goto out;
 	}
 
@@ -576,9 +576,9 @@ static int pblk_recov_check_line_version(struct pblk *pblk,
 	}
 
 #ifdef CONFIG_NVM_PBLK_DEBUG
-	if (header->version_minor > EMETA_VERSION_MINOR)
-		pblk_info(pblk, "newer line minor version found: %d\n",
-				header->version_minor);
+	if (header->version_miyesr > EMETA_VERSION_MINOR)
+		pblk_info(pblk, "newer line miyesr version found: %d\n",
+				header->version_miyesr);
 #endif
 
 	return 0;
@@ -592,7 +592,7 @@ static void pblk_recov_wa_counters(struct pblk *pblk,
 	struct wa_counters *wa = emeta_to_wa(lm, emeta);
 
 	/* WA counters were introduced in emeta version 0.2 */
-	if (header->version_major > 0 || header->version_minor >= 2) {
+	if (header->version_major > 0 || header->version_miyesr >= 2) {
 		u64 user = le64_to_cpu(wa->user);
 		u64 pad = le64_to_cpu(wa->pad);
 		u64 gc = le64_to_cpu(wa->gc);
@@ -687,7 +687,7 @@ struct pblk_line *pblk_recov_l2p(struct pblk *pblk)
 		if (!pblk_line_was_written(line, pblk))
 			continue;
 
-		/* Lines that cannot be read are assumed as not written here */
+		/* Lines that canyest be read are assumed as yest written here */
 		if (pblk_line_smeta_read(pblk, line))
 			continue;
 
@@ -713,7 +713,7 @@ struct pblk_line *pblk_recov_l2p(struct pblk *pblk)
 
 		if (!guid_equal(&pblk->instance_uuid,
 				(guid_t *)&smeta_buf->header.uuid)) {
-			pblk_debug(pblk, "ignore line %u due to uuid mismatch\n",
+			pblk_debug(pblk, "igyesre line %u due to uuid mismatch\n",
 					i);
 			continue;
 		}

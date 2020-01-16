@@ -76,7 +76,7 @@ static void sas_end_task(struct scsi_cmnd *sc, struct sas_task *task)
 				hs = DID_ERROR;
 			break;
 		case SAS_PROTO_RESPONSE:
-			pr_notice("LLDD:%s sent SAS_PROTO_RESP for an SSP task; please report this\n",
+			pr_yestice("LLDD:%s sent SAS_PROTO_RESP for an SSP task; please report this\n",
 				  task->dev->port->ha->sas_ha_name);
 			break;
 		case SAS_ABORTED_TASK:
@@ -119,7 +119,7 @@ static void sas_scsi_task_done(struct sas_task *task)
 	}
 
 	if (unlikely(!sc)) {
-		pr_debug("task_done called with non existing SCSI cmnd!\n");
+		pr_debug("task_done called with yesn existing SCSI cmnd!\n");
 		sas_free_task(task);
 		return;
 	}
@@ -167,7 +167,7 @@ int sas_queuecommand(struct Scsi_Host *host, struct scsi_cmnd *cmd)
 	struct sas_task *task;
 	int res = 0;
 
-	/* If the device fell off, no sense in issuing commands */
+	/* If the device fell off, yes sense in issuing commands */
 	if (test_bit(SAS_DEV_GONE, &dev->state)) {
 		cmd->result = DID_BAD_TARGET << 16;
 		goto out_done;
@@ -209,7 +209,7 @@ static void sas_eh_finish_cmd(struct scsi_cmnd *cmd)
 	struct sas_task *task = TO_SAS_TASK(cmd);
 
 	/* At this point, we only get called following an actual abort
-	 * of the task, so we should be guaranteed not to be racing with
+	 * of the task, so we should be guaranteed yest to be racing with
 	 * any completions from the LLD.  Task is freed after this.
 	 */
 	sas_end_task(cmd, task);
@@ -222,7 +222,7 @@ static void sas_eh_finish_cmd(struct scsi_cmnd *cmd)
 		return;
 	}
 
-	/* now finish the command and move it on to the error
+	/* yesw finish the command and move it on to the error
 	 * handler done list, this also takes it off the
 	 * error handler pending list.
 	 */
@@ -283,7 +283,7 @@ static enum task_disposition sas_scsi_find_task(struct sas_task *task)
 		to_sas_internal(task->dev->port->ha->core.shost->transportt);
 
 	for (i = 0; i < 5; i++) {
-		pr_notice("%s: aborting task 0x%p\n", __func__, task);
+		pr_yestice("%s: aborting task 0x%p\n", __func__, task);
 		res = si->dft->lldd_abort_task(task);
 
 		spin_lock_irqsave(&task->task_state_lock, flags);
@@ -295,23 +295,23 @@ static enum task_disposition sas_scsi_find_task(struct sas_task *task)
 		spin_unlock_irqrestore(&task->task_state_lock, flags);
 
 		if (res == TMF_RESP_FUNC_COMPLETE) {
-			pr_notice("%s: task 0x%p is aborted\n",
+			pr_yestice("%s: task 0x%p is aborted\n",
 				  __func__, task);
 			return TASK_IS_ABORTED;
 		} else if (si->dft->lldd_query_task) {
-			pr_notice("%s: querying task 0x%p\n", __func__, task);
+			pr_yestice("%s: querying task 0x%p\n", __func__, task);
 			res = si->dft->lldd_query_task(task);
 			switch (res) {
 			case TMF_RESP_FUNC_SUCC:
-				pr_notice("%s: task 0x%p at LU\n", __func__,
+				pr_yestice("%s: task 0x%p at LU\n", __func__,
 					  task);
 				return TASK_IS_AT_LU;
 			case TMF_RESP_FUNC_COMPLETE:
-				pr_notice("%s: task 0x%p not at LU\n",
+				pr_yestice("%s: task 0x%p yest at LU\n",
 					  __func__, task);
 				return TASK_IS_NOT_AT_LU;
 			case TMF_RESP_FUNC_FAILED:
-				pr_notice("%s: task 0x%p failed to abort\n",
+				pr_yestice("%s: task 0x%p failed to abort\n",
 					  __func__, task);
 				return TASK_ABORT_FAILED;
 			}
@@ -330,7 +330,7 @@ static int sas_recover_lu(struct domain_device *dev, struct scsi_cmnd *cmd)
 
 	int_to_scsilun(cmd->device->lun, &lun);
 
-	pr_notice("eh: device %llx LUN %llx has the task\n",
+	pr_yestice("eh: device %llx LUN %llx has the task\n",
 		  SAS_ADDR(dev->sas_addr),
 		  cmd->device->lun);
 
@@ -356,7 +356,7 @@ static int sas_recover_I_T(struct domain_device *dev)
 	struct sas_internal *i =
 		to_sas_internal(dev->port->ha->core.shost->transportt);
 
-	pr_notice("I_T nexus reset for dev %016llx\n",
+	pr_yestice("I_T nexus reset for dev %016llx\n",
 		  SAS_ADDR(dev->sas_addr));
 
 	if (i->dft->lldd_I_T_nexus_reset)
@@ -365,7 +365,7 @@ static int sas_recover_I_T(struct domain_device *dev)
 	return res;
 }
 
-/* take a reference on the last known good phy for this device */
+/* take a reference on the last kyeswn good phy for this device */
 struct sas_phy *sas_get_local_phy(struct domain_device *dev)
 {
 	struct sas_ha_struct *ha = dev->port->ha;
@@ -435,7 +435,7 @@ static int sas_queue_reset(struct domain_device *dev, int reset_type,
 		    !test_bit(reset_type, &dev->state)) {
 			scheduled = 1;
 			ha->eh_active++;
-			list_add_tail(&dev->ssp_dev.eh_list_node, &ha->eh_dev_q);
+			list_add_tail(&dev->ssp_dev.eh_list_yesde, &ha->eh_dev_q);
 			set_bit(SAS_DEV_EH_PENDING, &dev->state);
 			set_bit(reset_type, &dev->state);
 			int_to_scsilun(lun, &dev->ssp_dev.reset_lun);
@@ -470,7 +470,7 @@ int sas_eh_abort_handler(struct scsi_cmnd *cmd)
 		return FAILED;
 
 	spin_lock_irqsave(host->host_lock, flags);
-	/* We cannot do async aborts for SATA devices */
+	/* We canyest do async aborts for SATA devices */
 	if (dev_is_sata(dev) && !host->host_eh_scheduled) {
 		spin_unlock_irqrestore(host->host_lock, flags);
 		return FAILED;
@@ -480,7 +480,7 @@ int sas_eh_abort_handler(struct scsi_cmnd *cmd)
 	if (task)
 		res = i->dft->lldd_abort_task(task);
 	else
-		pr_notice("no task to abort\n");
+		pr_yestice("yes task to abort\n");
 	if (res == TMF_RESP_FUNC_SUCC || res == TMF_RESP_FUNC_COMPLETE)
 		return SUCCESS;
 
@@ -591,7 +591,7 @@ static void sas_eh_handle_sas_errors(struct Scsi_Host *shost, struct list_head *
 		spin_unlock_irqrestore(&task->task_state_lock, flags);
 
 		if (need_reset) {
-			pr_notice("%s: task 0x%p requests reset\n",
+			pr_yestice("%s: task 0x%p requests reset\n",
 				  __func__, task);
 			goto reset;
 		}
@@ -601,12 +601,12 @@ static void sas_eh_handle_sas_errors(struct Scsi_Host *shost, struct list_head *
 
 		switch (res) {
 		case TASK_IS_DONE:
-			pr_notice("%s: task 0x%p is done\n", __func__,
+			pr_yestice("%s: task 0x%p is done\n", __func__,
 				    task);
 			sas_eh_finish_cmd(cmd);
 			continue;
 		case TASK_IS_ABORTED:
-			pr_notice("%s: task 0x%p is aborted\n",
+			pr_yestice("%s: task 0x%p is aborted\n",
 				  __func__, task);
 			sas_eh_finish_cmd(cmd);
 			continue;
@@ -615,7 +615,7 @@ static void sas_eh_handle_sas_errors(struct Scsi_Host *shost, struct list_head *
  reset:
 			tmf_resp = sas_recover_lu(task->dev, cmd);
 			if (tmf_resp == TMF_RESP_FUNC_COMPLETE) {
-				pr_notice("dev %016llx LU %llx is recovered\n",
+				pr_yestice("dev %016llx LU %llx is recovered\n",
 					  SAS_ADDR(task->dev),
 					  cmd->device->lun);
 				sas_eh_finish_cmd(cmd);
@@ -625,13 +625,13 @@ static void sas_eh_handle_sas_errors(struct Scsi_Host *shost, struct list_head *
 			/* fallthrough */
 		case TASK_IS_NOT_AT_LU:
 		case TASK_ABORT_FAILED:
-			pr_notice("task 0x%p is not at LU: I_T recover\n",
+			pr_yestice("task 0x%p is yest at LU: I_T recover\n",
 				  task);
 			tmf_resp = sas_recover_I_T(task->dev);
 			if (tmf_resp == TMF_RESP_FUNC_COMPLETE ||
 			    tmf_resp == -ENODEV) {
 				struct domain_device *dev = task->dev;
-				pr_notice("I_T %016llx recovered\n",
+				pr_yestice("I_T %016llx recovered\n",
 					  SAS_ADDR(task->dev->sas_addr));
 				sas_eh_finish_cmd(cmd);
 				sas_scsi_clear_queue_I_T(work_q, dev);
@@ -645,7 +645,7 @@ static void sas_eh_handle_sas_errors(struct Scsi_Host *shost, struct list_head *
 					  port->id);
 				res = i->dft->lldd_clear_nexus_port(port);
 				if (res == TMF_RESP_FUNC_COMPLETE) {
-					pr_notice("clear nexus port:%d succeeded\n",
+					pr_yestice("clear nexus port:%d succeeded\n",
 						  port->id);
 					sas_eh_finish_cmd(cmd);
 					sas_scsi_clear_queue_port(work_q,
@@ -657,12 +657,12 @@ static void sas_eh_handle_sas_errors(struct Scsi_Host *shost, struct list_head *
 				pr_debug("clear nexus ha\n");
 				res = i->dft->lldd_clear_nexus_ha(ha);
 				if (res == TMF_RESP_FUNC_COMPLETE) {
-					pr_notice("clear nexus ha succeeded\n");
+					pr_yestice("clear nexus ha succeeded\n");
 					sas_eh_finish_cmd(cmd);
 					goto clear_q;
 				}
 			}
-			/* If we are here -- this means that no amount
+			/* If we are here -- this means that yes amount
 			 * of effort could recover from errors.  Quite
 			 * possibly the HA just disappeared.
 			 */
@@ -697,8 +697,8 @@ static void sas_eh_handle_resets(struct Scsi_Host *shost)
 		struct domain_device *dev;
 		struct ssp_device *ssp;
 
-		ssp = list_entry(ha->eh_dev_q.next, typeof(*ssp), eh_list_node);
-		list_del_init(&ssp->eh_list_node);
+		ssp = list_entry(ha->eh_dev_q.next, typeof(*ssp), eh_list_yesde);
+		list_del_init(&ssp->eh_list_yesde);
 		dev = container_of(ssp, typeof(*dev), ssp_dev);
 		kref_get(&dev->kref);
 		WARN_ONCE(dev_is_sata(dev), "ssp reset to ata device?\n");
@@ -734,11 +734,11 @@ retry:
 	list_splice_init(&shost->eh_cmd_q, &eh_work_q);
 	spin_unlock_irq(shost->host_lock);
 
-	pr_notice("Enter %s busy: %d failed: %d\n",
+	pr_yestice("Enter %s busy: %d failed: %d\n",
 		  __func__, scsi_host_busy(shost), shost->host_failed);
 	/*
 	 * Deal with commands that still have SAS tasks (i.e. they didn't
-	 * complete via the normal sas_task completion mechanism),
+	 * complete via the yesrmal sas_task completion mechanism),
 	 * SAS_HA_FROZEN gives eh dominion over all sas_task completion.
 	 */
 	set_bit(SAS_HA_FROZEN, &ha->state);
@@ -751,7 +751,7 @@ retry:
 	 * Now deal with SCSI commands that completed ok but have a an error
 	 * code (and hopefully sense data) attached.  This is roughly what
 	 * scsi_unjam_host does, but we skip scsi_eh_abort_cmds because any
-	 * command we see here has no sas_task and is thus unknown to the HA.
+	 * command we see here has yes sas_task and is thus unkyeswn to the HA.
 	 */
 	sas_ata_eh(shost, &eh_work_q, &ha->eh_done_q);
 	if (!scsi_eh_get_sense(&eh_work_q, &ha->eh_done_q))
@@ -760,7 +760,7 @@ retry:
 out:
 	sas_eh_handle_resets(shost);
 
-	/* now link into libata eh --- if we have any ata devices */
+	/* yesw link into libata eh --- if we have any ata devices */
 	sas_ata_strategy_handler(shost);
 
 	scsi_eh_flush_done_q(&ha->eh_done_q);
@@ -776,7 +776,7 @@ out:
 	if (retry)
 		goto retry;
 
-	pr_notice("--- Exit %s: busy: %d failed: %d tries: %d\n",
+	pr_yestice("--- Exit %s: busy: %d failed: %d tries: %d\n",
 		  __func__, scsi_host_busy(shost),
 		  shost->host_failed, tries);
 }
@@ -805,7 +805,7 @@ struct domain_device *sas_find_dev_by_rphy(struct sas_rphy *rphy)
 		struct domain_device *dev;
 
 		spin_lock(&port->dev_list_lock);
-		list_for_each_entry(dev, &port->dev_list, dev_list_node) {
+		list_for_each_entry(dev, &port->dev_list, dev_list_yesde) {
 			if (rphy == dev->rphy) {
 				found_dev = dev;
 				spin_unlock(&port->dev_list_lock);
@@ -851,7 +851,7 @@ int sas_slave_configure(struct scsi_device *scsi_dev)
 	if (scsi_dev->tagged_supported) {
 		scsi_change_queue_depth(scsi_dev, SAS_DEF_QD);
 	} else {
-		pr_notice("device %llx, LUN %llx doesn't support TCQ\n",
+		pr_yestice("device %llx, LUN %llx doesn't support TCQ\n",
 			  SAS_ADDR(dev->sas_addr), scsi_dev->lun);
 		scsi_change_queue_depth(scsi_dev, 1);
 	}

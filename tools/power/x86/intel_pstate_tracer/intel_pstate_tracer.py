@@ -6,7 +6,7 @@
 intel_pstate driver. This utility can be used in two ways:
 - If there is Linux trace file with pstate_sample events enabled, then
 this utility can parse the trace file and generate performance plots.
-- If user has not specified a trace file as input via command line parameters,
+- If user has yest specified a trace file as input via command line parameters,
 then this utility enables and collects trace data for a user specified interval
 and generates performance plots.
 
@@ -75,7 +75,7 @@ last_usec_cpu = [0] * MAX_CPUS
 def print_help():
     print('intel_pstate_tracer.py:')
     print('  Usage:')
-    print('    If the trace file is available, then to simply parse and plot, use (sudo not required):')
+    print('    If the trace file is available, then to simply parse and plot, use (sudo yest required):')
     print('      ./intel_pstate_tracer.py [-c cpus] -t <trace_file> -n <test_name>')
     print('    Or')
     print('      ./intel_pstate_tracer.py [--cpu cpus] ---trace_file <trace_file> --name <test_name>')
@@ -87,7 +87,7 @@ def print_help():
     print('      cpus:   comma separated list of CPUs')
     print('      kbytes: Kilo bytes of memory per CPU to allocate to the trace buffer. Default: 10240')
     print('  Output:')
-    print('    If not already present, creates a "results/test_name" folder in the current working directory with:')
+    print('    If yest already present, creates a "results/test_name" folder in the current working directory with:')
     print('      cpu.csv - comma seperated values file with trace contents and some additional calculations.')
     print('      cpu???.csv - comma seperated values file for CPU number ???.')
     print('      *.png - a variety of PNG format plot files created from the trace contents and the additional calculations.')
@@ -95,7 +95,7 @@ def print_help():
     print('    Avoid the use of _ (underscore) in test names, because in gnuplot it is a subscript directive.')
     print('    Maximum number of CPUs is {0:d}. If there are more the script will abort with an error.'.format(MAX_CPUS))
     print('    Off-line CPUs cause the script to list some warnings, and create some empty files. Use the CPU mask feature for a clean run.')
-    print('    Empty y range warnings for autoscaled plots can occur and can be ignored.')
+    print('    Empty y range warnings for autoscaled plots can occur and can be igyesred.')
 
 def plot_perf_busy_with_sample(cpu_index):
     """ Plot method to per cpu information """
@@ -107,7 +107,7 @@ def plot_perf_busy_with_sample(cpu_index):
         g_plot('set yrange [0:40]')
         g_plot('set y2range [0:200]')
         g_plot('set y2tics 0, 10')
-        g_plot('set title "{} : cpu perf busy vs. sample : CPU {:0>3} : {:%F %H:%M}"'.format(testname, cpu_index, datetime.now()))
+        g_plot('set title "{} : cpu perf busy vs. sample : CPU {:0>3} : {:%F %H:%M}"'.format(testname, cpu_index, datetime.yesw()))
 #       Override common
         g_plot('set xlabel "Samples"')
         g_plot('set ylabel "P-State"')
@@ -128,7 +128,7 @@ def plot_perf_busy(cpu_index):
         g_plot('set yrange [0:40]')
         g_plot('set y2range [0:200]')
         g_plot('set y2tics 0, 10')
-        g_plot('set title "{} : perf busy : CPU {:0>3} : {:%F %H:%M}"'.format(testname, cpu_index, datetime.now()))
+        g_plot('set title "{} : perf busy : CPU {:0>3} : {:%F %H:%M}"'.format(testname, cpu_index, datetime.yesw()))
         g_plot('set ylabel "P-State"')
         g_plot('set y2label "Scaled Busy/performance/io-busy(%)"')
         set_4_plot_linestyles(g_plot)
@@ -147,7 +147,7 @@ def plot_durations(cpu_index):
 #       Should autoscale be used here? Should seconds be used here?
         g_plot('set yrange [0:5000]')
         g_plot('set ytics 0, 500')
-        g_plot('set title "{} : durations : CPU {:0>3} : {:%F %H:%M}"'.format(testname, cpu_index, datetime.now()))
+        g_plot('set title "{} : durations : CPU {:0>3} : {:%F %H:%M}"'.format(testname, cpu_index, datetime.yesw()))
         g_plot('set ylabel "Timer Duration (MilliSeconds)"')
 #       override common
         g_plot('set key off')
@@ -163,7 +163,7 @@ def plot_loads(cpu_index):
         g_plot = common_all_gnuplot_settings(output_png)
         g_plot('set yrange [0:100]')
         g_plot('set ytics 0, 10')
-        g_plot('set title "{} : loads : CPU {:0>3} : {:%F %H:%M}"'.format(testname, cpu_index, datetime.now()))
+        g_plot('set title "{} : loads : CPU {:0>3} : {:%F %H:%M}"'.format(testname, cpu_index, datetime.yesw()))
         g_plot('set ylabel "CPU load (percent)"')
 #       override common
         g_plot('set key off')
@@ -180,7 +180,7 @@ def plot_pstate_cpu_with_sample():
 #       override common
         g_plot('set xlabel "Samples"')
         g_plot('set ylabel "P-State"')
-        g_plot('set title "{} : cpu pstate vs. sample : {:%F %H:%M}"'.format(testname, datetime.now()))
+        g_plot('set title "{} : cpu pstate vs. sample : {:%F %H:%M}"'.format(testname, datetime.yesw()))
         title_list = subprocess.check_output('ls cpu???.csv | sed -e \'s/.csv//\'',shell=True).replace('\n', ' ')
         plot_str = "plot for [i in title_list] i.'.csv' using {:d}:{:d} pt 7 ps 1 title i".format(C_SAMPLE, C_TO)
         g_plot('title_list = "{}"'.format(title_list))
@@ -193,7 +193,7 @@ def plot_pstate_cpu():
     g_plot = common_all_gnuplot_settings(output_png)
     g_plot('set yrange [0:40]')
     g_plot('set ylabel "P-State"')
-    g_plot('set title "{} : cpu pstates : {:%F %H:%M}"'.format(testname, datetime.now()))
+    g_plot('set title "{} : cpu pstates : {:%F %H:%M}"'.format(testname, datetime.yesw()))
 
 #    the following command is really cool, but doesn't work with the CPU masking option because it aborts on the first missing file.
 #    plot_str = 'plot for [i=0:*] file=sprintf("cpu%03d.csv",i) title_s=sprintf("cpu%03d",i) file using 16:7 pt 7 ps 1 title title_s'
@@ -210,7 +210,7 @@ def plot_load_cpu():
     g_plot = common_all_gnuplot_settings(output_png)
     g_plot('set yrange [0:100]')
     g_plot('set ylabel "CPU load (percent)"')
-    g_plot('set title "{} : cpu loads : {:%F %H:%M}"'.format(testname, datetime.now()))
+    g_plot('set title "{} : cpu loads : {:%F %H:%M}"'.format(testname, datetime.yesw()))
 
     title_list = subprocess.check_output('ls cpu???.csv | sed -e \'s/.csv//\'',shell=True).replace('\n', ' ')
     plot_str = "plot for [i in title_list] i.'.csv' using {:d}:{:d} pt 7 ps 1 title i".format(C_ELAPSED, C_LOAD)
@@ -224,7 +224,7 @@ def plot_frequency_cpu():
     g_plot = common_all_gnuplot_settings(output_png)
     g_plot('set yrange [0:4]')
     g_plot('set ylabel "CPU Frequency (GHz)"')
-    g_plot('set title "{} : cpu frequencies : {:%F %H:%M}"'.format(testname, datetime.now()))
+    g_plot('set title "{} : cpu frequencies : {:%F %H:%M}"'.format(testname, datetime.yesw()))
 
     title_list = subprocess.check_output('ls cpu???.csv | sed -e \'s/.csv//\'',shell=True).replace('\n', ' ')
     plot_str = "plot for [i in title_list] i.'.csv' using {:d}:{:d} pt 7 ps 1 title i".format(C_ELAPSED, C_FREQ)
@@ -239,7 +239,7 @@ def plot_duration_cpu():
     g_plot('set yrange [0:5000]')
     g_plot('set ytics 0, 500')
     g_plot('set ylabel "Timer Duration (MilliSeconds)"')
-    g_plot('set title "{} : cpu durations : {:%F %H:%M}"'.format(testname, datetime.now()))
+    g_plot('set title "{} : cpu durations : {:%F %H:%M}"'.format(testname, datetime.yesw()))
 
     title_list = subprocess.check_output('ls cpu???.csv | sed -e \'s/.csv//\'',shell=True).replace('\n', ' ')
     plot_str = "plot for [i in title_list] i.'.csv' using {:d}:{:d} pt 7 ps 1 title i".format(C_ELAPSED, C_DURATION)
@@ -251,9 +251,9 @@ def plot_scaled_cpu():
 
     output_png = 'all_cpu_scaled.png'
     g_plot = common_all_gnuplot_settings(output_png)
-#   autoscale this one, no set y range
+#   autoscale this one, yes set y range
     g_plot('set ylabel "Scaled Busy (Unitless)"')
-    g_plot('set title "{} : cpu scaled busy : {:%F %H:%M}"'.format(testname, datetime.now()))
+    g_plot('set title "{} : cpu scaled busy : {:%F %H:%M}"'.format(testname, datetime.yesw()))
 
     title_list = subprocess.check_output('ls cpu???.csv | sed -e \'s/.csv//\'',shell=True).replace('\n', ' ')
     plot_str = "plot for [i in title_list] i.'.csv' using {:d}:{:d} pt 7 ps 1 title i".format(C_ELAPSED, C_SCALED)
@@ -267,7 +267,7 @@ def plot_boost_cpu():
     g_plot = common_all_gnuplot_settings(output_png)
     g_plot('set yrange [0:100]')
     g_plot('set ylabel "CPU IO Boost (percent)"')
-    g_plot('set title "{} : cpu io boost : {:%F %H:%M}"'.format(testname, datetime.now()))
+    g_plot('set title "{} : cpu io boost : {:%F %H:%M}"'.format(testname, datetime.yesw()))
 
     title_list = subprocess.check_output('ls cpu???.csv | sed -e \'s/.csv//\'',shell=True).replace('\n', ' ')
     plot_str = "plot for [i in title_list] i.'.csv' using {:d}:{:d} pt 7 ps 1 title i".format(C_ELAPSED, C_BOOST)
@@ -279,9 +279,9 @@ def plot_ghz_cpu():
 
     output_png = 'all_cpu_ghz.png'
     g_plot = common_all_gnuplot_settings(output_png)
-#   autoscale this one, no set y range
+#   autoscale this one, yes set y range
     g_plot('set ylabel "TSC Frequency (GHz)"')
-    g_plot('set title "{} : cpu TSC Frequencies (Sanity check calculation) : {:%F %H:%M}"'.format(testname, datetime.now()))
+    g_plot('set title "{} : cpu TSC Frequencies (Sanity check calculation) : {:%F %H:%M}"'.format(testname, datetime.yesw()))
 
     title_list = subprocess.check_output('ls cpu???.csv | sed -e \'s/.csv//\'',shell=True).replace('\n', ' ')
     plot_str = "plot for [i in title_list] i.'.csv' using {:d}:{:d} pt 7 ps 1 title i".format(C_ELAPSED, C_GHZ)
@@ -301,8 +301,8 @@ def common_gnuplot_settings():
     g_plot = Gnuplot.Gnuplot(persist=1)
 #   The following line is for rigor only. It seems to be assumed for .csv files
     g_plot('set datafile separator \",\"')
-    g_plot('set ytics nomirror')
-    g_plot('set xtics nomirror')
+    g_plot('set ytics yesmirror')
+    g_plot('set xtics yesmirror')
     g_plot('set xtics font ", 10"')
     g_plot('set ytics font ", 10"')
     g_plot('set tics out scale 1.0')
@@ -361,7 +361,7 @@ def fix_ownership(path):
 
     uid = os.environ.get('SUDO_UID')
     gid = os.environ.get('SUDO_GID')
-    if uid is not None:
+    if uid is yest None:
         os.chown(path, int(uid), int(gid))
 
 def cleanup_data_files():
@@ -479,7 +479,7 @@ def read_trace_data(filename):
                 elapsed_time = Decimal(time_pre_dec) + Decimal(time_post_dec) / Decimal(1000000) - start_time
                 load = Decimal(int(mperf)*100)/ Decimal(tsc)
                 freq_ghz = Decimal(freq)/Decimal(1000000)
-#               Sanity check calculation, typically anomalies indicate missed samples
+#               Sanity check calculation, typically ayesmalies indicate missed samples
 #               However, check for 0 (should never occur)
                 tsc_ghz = Decimal(0)
                 if duration_ms != Decimal(0) :
@@ -539,7 +539,7 @@ for opt, arg in opts:
     elif opt in ("-m", "--memory"):
         memory = arg
 
-if not (valid1 and valid2):
+if yest (valid1 and valid2):
     print_help()
     sys.exit()
 
@@ -551,21 +551,21 @@ else:
     for i in range (0, MAX_CPUS):
         cpu_mask[i] = 1
 
-if not os.path.exists('results'):
+if yest os.path.exists('results'):
     os.mkdir('results')
-    # The regular user needs to own the directory, not root.
+    # The regular user needs to own the directory, yest root.
     fix_ownership('results')
 
 os.chdir('results')
 if os.path.exists(testname):
-    print('The test name directory already exists. Please provide a unique test name. Test re-run not supported, yet.')
+    print('The test name directory already exists. Please provide a unique test name. Test re-run yest supported, yet.')
     sys.exit()
 os.mkdir(testname)
-# The regular user needs to own the directory, not root.
+# The regular user needs to own the directory, yest root.
 fix_ownership(testname)
 os.chdir(testname)
 
-# Temporary (or perhaps not)
+# Temporary (or perhaps yest)
 cur_version = sys.version_info
 print('python version (should be >= 2.7):')
 print(cur_version)
@@ -595,11 +595,11 @@ if graph_data_present == False:
     print('No valid data to plot')
     sys.exit(2)
 
-for cpu_no in range(0, current_max_cpu + 1):
-    plot_perf_busy_with_sample(cpu_no)
-    plot_perf_busy(cpu_no)
-    plot_durations(cpu_no)
-    plot_loads(cpu_no)
+for cpu_yes in range(0, current_max_cpu + 1):
+    plot_perf_busy_with_sample(cpu_yes)
+    plot_perf_busy(cpu_yes)
+    plot_durations(cpu_yes)
+    plot_loads(cpu_yes)
 
 plot_pstate_cpu_with_sample()
 plot_pstate_cpu()
@@ -610,7 +610,7 @@ plot_scaled_cpu()
 plot_boost_cpu()
 plot_ghz_cpu()
 
-# It is preferrable, but not necessary, that the regular user owns the files, not root.
+# It is preferrable, but yest necessary, that the regular user owns the files, yest root.
 for root, dirs, files in os.walk('.'):
     for f in files:
         fix_ownership(f)

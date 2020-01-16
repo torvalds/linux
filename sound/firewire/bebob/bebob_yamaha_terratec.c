@@ -9,9 +9,9 @@
 
 /*
  * NOTE:
- * Yamaha GO44 is not designed to be used as stand-alone mixer. So any streams
+ * Yamaha GO44 is yest designed to be used as stand-alone mixer. So any streams
  * must be accompanied. If changing the state, a LED on the device starts to
- * blink and its sync status is false. In this state, the device sounds nothing
+ * blink and its sync status is false. In this state, the device sounds yesthing
  * even if streaming. To start streaming at the current sampling rate is only
  * way to recover this state. GO46 is better for stand-alone mixer.
  *
@@ -20,9 +20,9 @@
  * But Yamaha's driver reduce 2 PCM-in, 1 MIDI-in, 2 PCM-out, 1 MIDI-out to use
  * 'Extended Stream Format Information Command - Single Request' in 'Additional
  * AVC commands' defined by BridgeCo.
- * This ALSA driver don't do this because a bit tiresome. Then isochronous
- * streaming with many asynchronous transactions brings sounds with noises.
- * Unfortunately current 'ffado-mixer' generated many asynchronous transaction
+ * This ALSA driver don't do this because a bit tiresome. Then isochroyesus
+ * streaming with many asynchroyesus transactions brings sounds with yesises.
+ * Unfortunately current 'ffado-mixer' generated many asynchroyesus transaction
  * to observe device's state, mainly check cmp connection and signal format. I
  * recommend users to close ffado-mixer at 192.0kHz if mixer is needless.
  *

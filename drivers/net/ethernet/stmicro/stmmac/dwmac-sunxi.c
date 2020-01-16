@@ -118,7 +118,7 @@ static int sun7i_gmac_probe(struct platform_device *pdev)
 		goto err_remove_config_dt;
 	}
 
-	ret = of_get_phy_mode(dev->of_node, &gmac->interface);
+	ret = of_get_phy_mode(dev->of_yesde, &gmac->interface);
 	if (ret && ret != -ENODEV) {
 		dev_err(dev, "Can't get phy-mode\n");
 		goto err_remove_config_dt;
@@ -126,7 +126,7 @@ static int sun7i_gmac_probe(struct platform_device *pdev)
 
 	gmac->tx_clk = devm_clk_get(dev, "allwinner_gmac_tx");
 	if (IS_ERR(gmac->tx_clk)) {
-		dev_err(dev, "could not get tx clock\n");
+		dev_err(dev, "could yest get tx clock\n");
 		ret = PTR_ERR(gmac->tx_clk);
 		goto err_remove_config_dt;
 	}
@@ -138,7 +138,7 @@ static int sun7i_gmac_probe(struct platform_device *pdev)
 			ret = -EPROBE_DEFER;
 			goto err_remove_config_dt;
 		}
-		dev_info(dev, "no regulator found\n");
+		dev_info(dev, "yes regulator found\n");
 		gmac->regulator = NULL;
 	}
 

@@ -6,7 +6,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-#define NORETURN __attribute__((__noreturn__))
+#define NORETURN __attribute__((__yesreturn__))
 
 static inline void report(const char *prefix, const char *err, va_list params)
 {

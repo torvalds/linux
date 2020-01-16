@@ -25,7 +25,7 @@
  * REPEAT_BYTE - repeat the value @x multiple times as an unsigned long value
  * @x: value to repeat
  *
- * NOTE: @x is not checked for > 0xff; larger values produce odd results.
+ * NOTE: @x is yest checked for > 0xff; larger values produce odd results.
  */
 #define REPEAT_BYTE(x)	((~0ul / 0xff) * (x))
 
@@ -158,11 +158,11 @@
  * Multiplies an integer by a fraction, while avoiding unnecessary
  * overflow or loss of precision.
  */
-#define mult_frac(x, numer, denom)(			\
+#define mult_frac(x, numer, deyesm)(			\
 {							\
-	typeof(x) quot = (x) / (denom);			\
-	typeof(x) rem  = (x) % (denom);			\
-	(quot * (numer)) + ((rem * (numer)) / (denom));	\
+	typeof(x) quot = (x) / (deyesm);			\
+	typeof(x) rem  = (x) % (deyesm);			\
+	(quot * (numer)) + ((rem * (numer)) / (deyesm));	\
 }							\
 )
 
@@ -205,44 +205,44 @@ extern void __might_sleep(const char *file, int line, int preempt_offset);
 extern void __cant_sleep(const char *file, int line, int preempt_offset);
 
 /**
- * might_sleep - annotation for functions that can sleep
+ * might_sleep - anyestation for functions that can sleep
  *
  * this macro will print a stack trace if it is executed in an atomic
  * context (spinlock, irq-handler, ...). Additional sections where blocking is
- * not allowed can be annotated with non_block_start() and non_block_end()
+ * yest allowed can be anyestated with yesn_block_start() and yesn_block_end()
  * pairs.
  *
- * This is a useful debugging help to be able to catch problems early and not
- * be bitten later when the calling function happens to sleep when it is not
+ * This is a useful debugging help to be able to catch problems early and yest
+ * be bitten later when the calling function happens to sleep when it is yest
  * supposed to.
  */
 # define might_sleep() \
 	do { __might_sleep(__FILE__, __LINE__, 0); might_resched(); } while (0)
 /**
- * cant_sleep - annotation for functions that cannot sleep
+ * cant_sleep - anyestation for functions that canyest sleep
  *
  * this macro will print a stack trace if it is executed with preemption enabled
  */
 # define cant_sleep() \
 	do { __cant_sleep(__FILE__, __LINE__, 0); } while (0)
-# define sched_annotate_sleep()	(current->task_state_change = 0)
+# define sched_anyestate_sleep()	(current->task_state_change = 0)
 /**
- * non_block_start - annotate the start of section where sleeping is prohibited
+ * yesn_block_start - anyestate the start of section where sleeping is prohibited
  *
  * This is on behalf of the oom reaper, specifically when it is calling the mmu
- * notifiers. The problem is that if the notifier were to block on, for example,
+ * yestifiers. The problem is that if the yestifier were to block on, for example,
  * mutex_lock() and if the process which holds that mutex were to perform a
- * sleeping memory allocation, the oom reaper is now blocked on completion of
+ * sleeping memory allocation, the oom reaper is yesw blocked on completion of
  * that memory allocation. Other blocking calls like wait_event() pose similar
  * issues.
  */
-# define non_block_start() (current->non_block_count++)
+# define yesn_block_start() (current->yesn_block_count++)
 /**
- * non_block_end - annotate the end of section where sleeping is prohibited
+ * yesn_block_end - anyestate the end of section where sleeping is prohibited
  *
- * Closes a section opened by non_block_start().
+ * Closes a section opened by yesn_block_start().
  */
-# define non_block_end() WARN_ON(current->non_block_count-- == 0)
+# define yesn_block_end() WARN_ON(current->yesn_block_count-- == 0)
 #else
   static inline void ___might_sleep(const char *file, int line,
 				   int preempt_offset) { }
@@ -250,9 +250,9 @@ extern void __cant_sleep(const char *file, int line, int preempt_offset);
 				   int preempt_offset) { }
 # define might_sleep() do { might_resched(); } while (0)
 # define cant_sleep() do { } while (0)
-# define sched_annotate_sleep() do { } while (0)
-# define non_block_start() do { } while (0)
-# define non_block_end() do { } while (0)
+# define sched_anyestate_sleep() do { } while (0)
+# define yesn_block_start() do { } while (0)
+# define yesn_block_end() do { } while (0)
 #endif
 
 #define might_sleep_if(cond) do { if (cond) might_sleep(); } while (0)
@@ -307,19 +307,19 @@ void __might_fault(const char *file, int line);
 static inline void might_fault(void) { }
 #endif
 
-extern struct atomic_notifier_head panic_notifier_list;
+extern struct atomic_yestifier_head panic_yestifier_list;
 extern long (*panic_blink)(int state);
 __printf(1, 2)
-void panic(const char *fmt, ...) __noreturn __cold;
+void panic(const char *fmt, ...) __yesreturn __cold;
 void nmi_panic(struct pt_regs *regs, const char *msg);
 extern void oops_enter(void);
 extern void oops_exit(void);
 void print_oops_end_marker(void);
 extern int oops_may_print(void);
-void do_exit(long error_code) __noreturn;
-void complete_and_exit(struct completion *, long) __noreturn;
+void do_exit(long error_code) __yesreturn;
+void complete_and_exit(struct completion *, long) __yesreturn;
 
-/* Internal, do not use. */
+/* Internal, do yest use. */
 int __must_check _kstrtoul(const char *s, unsigned int base, unsigned long *res);
 int __must_check _kstrtol(const char *s, unsigned int base, long *res);
 
@@ -330,7 +330,7 @@ int __must_check kstrtoll(const char *s, unsigned int base, long long *res);
  * kstrtoul - convert a string to an unsigned long
  * @s: The start of the string. The string must be null-terminated, and may also
  *  include a single newline before its terminating null. The first character
- *  may also be a plus sign, but not a minus sign.
+ *  may also be a plus sign, but yest a minus sign.
  * @base: The number base to use. The maximum supported base is 16. If base is
  *  given as 0, then the base of the string is automatically detected with the
  *  conventional semantics - If it begins with 0x the number will be parsed as a
@@ -348,7 +348,7 @@ static inline int __must_check kstrtoul(const char *s, unsigned int base, unsign
 	 * __builtin_types_compatible_p(unsigned long, unsigned long long) = 0.
 	 */
 	if (sizeof(unsigned long) == sizeof(unsigned long long) &&
-	    __alignof__(unsigned long) == __alignof__(unsigned long long))
+	    __aligyesf__(unsigned long) == __aligyesf__(unsigned long long))
 		return kstrtoull(s, base, (unsigned long long *)res);
 	else
 		return _kstrtoul(s, base, res);
@@ -376,7 +376,7 @@ static inline int __must_check kstrtol(const char *s, unsigned int base, long *r
 	 * __builtin_types_compatible_p(long, long long) = 0.
 	 */
 	if (sizeof(long) == sizeof(long long) &&
-	    __alignof__(long) == __alignof__(long long))
+	    __aligyesf__(long) == __aligyesf__(long long))
 		return kstrtoll(s, base, (long long *)res);
 	else
 		return _kstrtol(s, base, res);
@@ -446,11 +446,11 @@ static inline int __must_check kstrtos32_from_user(const char __user *s, size_t 
 /*
  * Use kstrto<foo> instead.
  *
- * NOTE: simple_strto<foo> does not check for the range overflow and,
+ * NOTE: simple_strto<foo> does yest check for the range overflow and,
  *	 depending on the input, may give interesting results.
  *
- * Use these functions if and only if you cannot use kstrto<foo>, because
- * the conversion ends on the first non-digit character, which may be far
+ * Use these functions if and only if you canyest use kstrto<foo>, because
+ * the conversion ends on the first yesn-digit character, which may be far
  * beyond the supported range. It might be useful to parse the strings like
  * 10x50 or 12:21 without altering original string or temporary buffer in use.
  * Keep in mind above caveat.
@@ -513,7 +513,7 @@ static inline u32 int_sqrt64(u64 x)
 }
 #endif
 
-extern void bust_spinlocks(int yes);
+extern void bust_spinlocks(int no);
 extern int oops_in_progress;		/* If set, an oops, panic(), BUG() or die() is in progress */
 extern int panic_timeout;
 extern unsigned long panic_print;
@@ -524,19 +524,19 @@ extern int panic_on_warn;
 extern int sysctl_panic_on_rcu_stall;
 extern int sysctl_panic_on_stackoverflow;
 
-extern bool crash_kexec_post_notifiers;
+extern bool crash_kexec_post_yestifiers;
 
 /*
  * panic_cpu is used for synchronizing panic() and crash_kexec() execution. It
  * holds a CPU number which is executing panic() currently. A value of
- * PANIC_CPU_INVALID means no CPU has entered panic() or crash_kexec().
+ * PANIC_CPU_INVALID means yes CPU has entered panic() or crash_kexec().
  */
 extern atomic_t panic_cpu;
 #define PANIC_CPU_INVALID	-1
 
 /*
  * Only to be used by arch init code. If the user over-wrote the default
- * CONFIG_PANIC_TIMEOUT, honor it.
+ * CONFIG_PANIC_TIMEOUT, hoyesr it.
  */
 static inline void set_arch_panic_timeout(int timeout, int arch_default_timeout)
 {
@@ -556,7 +556,7 @@ extern int root_mountflags;
 extern bool early_boot_irqs_disabled;
 
 /*
- * Values used for system_state. Ordering of the states must not be changed
+ * Values used for system_state. Ordering of the states must yest be changed
  * as code checks for <, <=, >, >= STATE.
  */
 extern enum system_states {
@@ -569,7 +569,7 @@ extern enum system_states {
 	SYSTEM_SUSPEND,
 } system_state;
 
-/* This cannot be an enum because some may be used in assembly source. */
+/* This canyest be an enum because some may be used in assembly source. */
 #define TAINT_PROPRIETARY_MODULE	0
 #define TAINT_FORCED_MODULE		1
 #define TAINT_CPU_OUT_OF_SPEC		2
@@ -592,7 +592,7 @@ extern enum system_states {
 
 struct taint_flag {
 	char c_true;	/* character printed when tainted */
-	char c_false;	/* character printed when not tainted */
+	char c_false;	/* character printed when yest tainted */
 	bool module;	/* also show as a per-module taint flag */
 };
 
@@ -640,7 +640,7 @@ bool mac_pton(const char *s, u8 *mac);
  *
  * tracing_stop/tracing_start has slightly more overhead. It is used
  * by things like suspend to ram where disabling the recording of the
- * trace is not enough, but tracing must actually stop because things
+ * trace is yest eyesugh, but tracing must actually stop because things
  * like calling smp_processor_id() may crash the system.
  *
  * Most likely, you want to use tracing_on/tracing_off.
@@ -680,7 +680,7 @@ do {									\
  *       the @ip is passed in via the trace_printk() macro.
  *
  * This function allows a kernel developer to debug fast path sections
- * that printk is not appropriate for. By scattering in various
+ * that printk is yest appropriate for. By scattering in various
  * printk like tracing in the code, a developer can quickly see
  * where problems are occurring.
  *
@@ -690,12 +690,12 @@ do {									\
  * allocated when trace_printk() is used.)
  *
  * A little optimization trick is done here. If there's only one
- * argument, there's no need to scan the string for printf formats.
+ * argument, there's yes need to scan the string for printf formats.
  * The trace_puts() will suffice. But how can we take advantage of
  * using trace_puts() when trace_printk() has only one argument?
  * By stringifying the args and checking the size we can tell
- * whether or not there are args. __stringify((__VA_ARGS__)) will
- * turn into "()\0" with a size of 3 when there are no args, anything
+ * whether or yest there are args. __stringify((__VA_ARGS__)) will
+ * turn into "()\0" with a size of 3 when there are yes args, anything
  * else will be bigger. All we need to do is define a string to this,
  * and then take its size and compare to 3. If it's bigger, use
  * do_trace_printk() otherwise, optimize it to trace_puts(). Then just
@@ -743,7 +743,7 @@ int __trace_printk(unsigned long ip, const char *fmt, ...);
  * where the processing of the print format is still too much.
  *
  * This function allows a kernel developer to debug fast path sections
- * that printk is not appropriate for. By scattering in various
+ * that printk is yest appropriate for. By scattering in various
  * printk like tracing in the code, a developer can quickly see
  * where problems are occurring.
  *
@@ -752,7 +752,7 @@ int __trace_printk(unsigned long ip, const char *fmt, ...);
  * your code. (Extra memory is used for special buffers that are
  * allocated when trace_puts() is used.)
  *
- * Returns: 0 if nothing was written, positive # if string was.
+ * Returns: 0 if yesthing was written, positive # if string was.
  *  (1 when __trace_bputs is used, strlen(str) when __trace_puts is used)
  */
 
@@ -773,7 +773,7 @@ extern void trace_dump_stack(int skip);
 
 /*
  * The double __builtin_constant_p is because gcc will give us an error
- * if we try to allocate the static variable to fmt if it is not a
+ * if we try to allocate the static variable to fmt if it is yest a
  * constant. Even with the outer if statement.
  */
 #define ftrace_vprintk(fmt, vargs)					\
@@ -823,7 +823,7 @@ static inline void ftrace_dump(enum ftrace_dump_mode oops_dump_mode) { }
  * min()/max()/clamp() macros must accomplish three things:
  *
  * - avoid multiple evaluations of the arguments (so side-effects like
- *   "x++" happen only once) when non-constant.
+ *   "x++" happen only once) when yesn-constant.
  * - perform strict type-checking (to generate warnings instead of
  *   nasty runtime surprises). See the "unnecessary" pointer comparison
  *   in __typecheck().
@@ -842,11 +842,11 @@ static inline void ftrace_dump(enum ftrace_dump_mode oops_dump_mode) { }
 #define __is_constexpr(x) \
 	(sizeof(int) == sizeof(*(8 ? ((void *)((long)(x) * 0l)) : (int *)8)))
 
-#define __no_side_effects(x, y) \
+#define __yes_side_effects(x, y) \
 		(__is_constexpr(x) && __is_constexpr(y))
 
 #define __safe_cmp(x, y) \
-		(__typecheck(x, y) && __no_side_effects(x, y))
+		(__typecheck(x, y) && __yes_side_effects(x, y))
 
 #define __cmp(x, y, op)	((x) op (y) ? (x) : (y))
 
@@ -891,11 +891,11 @@ static inline void ftrace_dump(enum ftrace_dump_mode oops_dump_mode) { }
 #define max3(x, y, z) max((typeof(x))max(x, y), z)
 
 /**
- * min_not_zero - return the minimum that is _not_ zero, unless both are zero
+ * min_yest_zero - return the minimum that is _yest_ zero, unless both are zero
  * @x: value1
  * @y: value2
  */
-#define min_not_zero(x, y) ({			\
+#define min_yest_zero(x, y) ({			\
 	typeof(x) __x = (x);			\
 	typeof(y) __y = (y);			\
 	__x == 0 ? __y : ((__y == 0) ? __x : min(__x, __y)); })
@@ -915,7 +915,7 @@ static inline void ftrace_dump(enum ftrace_dump_mode oops_dump_mode) { }
  * ..and if you can't take the strict
  * types, you can specify one yourself.
  *
- * Or not use min/max/clamp at all, of course.
+ * Or yest use min/max/clamp at all, of course.
  */
 
 /**
@@ -941,7 +941,7 @@ static inline void ftrace_dump(enum ftrace_dump_mode oops_dump_mode) { }
  * @lo: minimum allowable value
  * @hi: maximum allowable value
  *
- * This macro does no typechecking and uses temporary variables of type
+ * This macro does yes typechecking and uses temporary variables of type
  * @type to make all the comparisons.
  */
 #define clamp_t(type, val, lo, hi) min_t(type, max_t(type, val, lo), hi)
@@ -952,7 +952,7 @@ static inline void ftrace_dump(enum ftrace_dump_mode oops_dump_mode) { }
  * @lo: minimum allowable value
  * @hi: maximum allowable value
  *
- * This macro does no typechecking and uses temporary variables of whatever
+ * This macro does yes typechecking and uses temporary variables of whatever
  * type the input argument @val is.  This is useful when @val is an unsigned
  * type and @lo and @hi are literals that will otherwise be assigned a signed
  * integer type.

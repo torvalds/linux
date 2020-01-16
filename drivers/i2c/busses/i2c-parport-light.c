@@ -94,7 +94,7 @@ static int parport_getsda(void *data)
 
 /* Encapsulate the functions above in the correct structure
    Note that getscl will be set to NULL by the attaching code for adapters
-   that cannot read SCL back */
+   that canyest read SCL back */
 static struct i2c_algo_bit_data parport_algo_data = {
 	.setsda		= parport_setsda,
 	.setscl		= parport_setscl,

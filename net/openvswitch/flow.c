@@ -90,12 +90,12 @@ void ovs_flow_stats_update(struct sw_flow *flow, __be16 tcp_flags,
 				struct sw_flow_stats *new_stats;
 
 				new_stats =
-					kmem_cache_alloc_node(flow_stats_cache,
+					kmem_cache_alloc_yesde(flow_stats_cache,
 							      GFP_NOWAIT |
 							      __GFP_THISNODE |
 							      __GFP_NOWARN |
 							      __GFP_NOMEMALLOC,
-							      numa_node_id());
+							      numa_yesde_id());
 				if (likely(new_stats)) {
 					new_stats->used = jiffies;
 					new_stats->packet_count = 1;
@@ -137,7 +137,7 @@ void ovs_flow_stats_get(const struct sw_flow *flow,
 		struct sw_flow_stats *stats = rcu_dereference_ovsl(flow->stats[cpu]);
 
 		if (stats) {
-			/* Local CPU may write on non-local stats, so we must
+			/* Local CPU may write on yesn-local stats, so we must
 			 * block bottom-halves here.
 			 */
 			spin_lock_bh(&stats->lock);
@@ -295,7 +295,7 @@ static bool icmp6hdr_ok(struct sk_buff *skb)
 /**
  * Parse vlan tag from vlan header.
  * Returns ERROR on memory error.
- * Returns 0 if it encounters a non-vlan or incomplete packet.
+ * Returns 0 if it encounters a yesn-vlan or incomplete packet.
  * Returns 1 after successfully parsing vlan tag.
  */
 static int parse_vlan_tag(struct sk_buff *skb, struct vlan_head *key_vh,
@@ -350,7 +350,7 @@ static int parse_vlan(struct sk_buff *skb, struct sw_flow_key *key)
 		key->eth.vlan.tci = htons(skb->vlan_tci) | htons(VLAN_CFI_MASK);
 		key->eth.vlan.tpid = skb->vlan_proto;
 	} else {
-		/* Parse outer vlan tag in the non-accelerated case. */
+		/* Parse outer vlan tag in the yesn-accelerated case. */
 		res = parse_vlan_tag(skb, &key->eth.vlan, true);
 		if (res <= 0)
 			return res;
@@ -744,7 +744,7 @@ static int key_extract_l3l4(struct sk_buff *skb, struct sw_flow_key *key)
  *
  * The caller must ensure that skb->len >= ETH_HLEN.
  *
- * Returns 0 if successful, otherwise a negative errno value.
+ * Returns 0 if successful, otherwise a negative erryes value.
  *
  * Initializes @skb header fields as follows:
  *
@@ -784,7 +784,7 @@ static int key_extract(struct sk_buff *skb, struct sw_flow_key *key)
 		ether_addr_copy(key->eth.dst, eth->h_dest);
 
 		__skb_pull(skb, 2 * ETH_ALEN);
-		/* We are going to push all headers that we pull, so no need to
+		/* We are going to push all headers that we pull, so yes need to
 		 * update skb->csum here.
 		 */
 
@@ -878,7 +878,7 @@ int ovs_flow_key_extract(const struct ip_tunnel_info *tun_info,
 	}
 
 	key->phy.priority = skb->priority;
-	key->phy.in_port = OVS_CB(skb)->input_vport->port_no;
+	key->phy.in_port = OVS_CB(skb)->input_vport->port_yes;
 	key->phy.skb_mark = skb->mark;
 	key->ovs_flow_hash = 0;
 	res = key_extract_mac_proto(skb);

@@ -13,9 +13,9 @@
  * are met:
  *
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
+ *    yestice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
  *
@@ -39,8 +39,8 @@
  * XLR and XLP interrupt request and interrupt mask registers
  */
 /*
- * NOTE: Do not save/restore flags around write_c0_eimr().
- * On non-R2 platforms the flags has part of EIMR that is shadowed in STATUS
+ * NOTE: Do yest save/restore flags around write_c0_eimr().
+ * On yesn-R2 platforms the flags has part of EIMR that is shadowed in STATUS
  * register. Restoring flags will overwrite the lower 8 bits of EIMR.
  *
  * Call with interrupts disabled.
@@ -64,7 +64,7 @@ do {									\
 /*
  * Handling the 64 bit EIMR and EIRR registers in 32-bit mode with
  * standard functions will be very inefficient. This provides
- * optimized functions for the normal operations on the registers.
+ * optimized functions for the yesrmal operations on the registers.
  *
  * Call with interrupts disabled.
  */
@@ -73,7 +73,7 @@ static inline void ack_c0_eirr(int irq)
 	__asm__ __volatile__(
 		".set	push\n\t"
 		".set	mips64\n\t"
-		".set	noat\n\t"
+		".set	yesat\n\t"
 		"li	$1, 1\n\t"
 		"dsllv	$1, $1, %0\n\t"
 		"dmtc0	$1, $9, 6\n\t"
@@ -86,7 +86,7 @@ static inline void set_c0_eimr(int irq)
 	__asm__ __volatile__(
 		".set	push\n\t"
 		".set	mips64\n\t"
-		".set	noat\n\t"
+		".set	yesat\n\t"
 		"li	$1, 1\n\t"
 		"dsllv	%0, $1, %0\n\t"
 		"dmfc0	$1, $9, 7\n\t"
@@ -101,7 +101,7 @@ static inline void clear_c0_eimr(int irq)
 	__asm__ __volatile__(
 		".set	push\n\t"
 		".set	mips64\n\t"
-		".set	noat\n\t"
+		".set	yesat\n\t"
 		"li	$1, 1\n\t"
 		"dsllv	%0, $1, %0\n\t"
 		"dmfc0	$1, $9, 7\n\t"
@@ -114,7 +114,7 @@ static inline void clear_c0_eimr(int irq)
 
 /*
  * Read c0 eimr and c0 eirr, do AND of the two values, the result is
- * the interrupts which are raised and are not masked.
+ * the interrupts which are raised and are yest masked.
  */
 static inline uint64_t read_c0_eirr_and_eimr(void)
 {
@@ -126,7 +126,7 @@ static inline uint64_t read_c0_eirr_and_eimr(void)
 	__asm__ __volatile__(
 		".set	push\n\t"
 		".set	mips64\n\t"
-		".set	noat\n\t"
+		".set	yesat\n\t"
 		"dmfc0	%M0, $9, 6\n\t"
 		"dmfc0	%L0, $9, 7\n\t"
 		"and	%M0, %L0\n\t"
@@ -144,7 +144,7 @@ static inline int hard_smp_processor_id(void)
 	return __read_32bit_c0_register($15, 1) & 0x3ff;
 }
 
-static inline int nlm_nodeid(void)
+static inline int nlm_yesdeid(void)
 {
 	uint32_t prid = read_c0_prid() & PRID_IMP_MASK;
 

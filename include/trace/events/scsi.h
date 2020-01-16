@@ -204,7 +204,7 @@ TRACE_EVENT(scsi_dispatch_cmd_start,
 	TP_ARGS(cmd),
 
 	TP_STRUCT__entry(
-		__field( unsigned int,	host_no	)
+		__field( unsigned int,	host_yes	)
 		__field( unsigned int,	channel	)
 		__field( unsigned int,	id	)
 		__field( unsigned int,	lun	)
@@ -217,7 +217,7 @@ TRACE_EVENT(scsi_dispatch_cmd_start,
 	),
 
 	TP_fast_assign(
-		__entry->host_no	= cmd->device->host->host_no;
+		__entry->host_yes	= cmd->device->host->host_yes;
 		__entry->channel	= cmd->device->channel;
 		__entry->id		= cmd->device->id;
 		__entry->lun		= cmd->device->lun;
@@ -229,9 +229,9 @@ TRACE_EVENT(scsi_dispatch_cmd_start,
 		memcpy(__get_dynamic_array(cmnd), cmd->cmnd, cmd->cmd_len);
 	),
 
-	TP_printk("host_no=%u channel=%u id=%u lun=%u data_sgl=%u prot_sgl=%u" \
+	TP_printk("host_yes=%u channel=%u id=%u lun=%u data_sgl=%u prot_sgl=%u" \
 		  " prot_op=%s cmnd=(%s %s raw=%s)",
-		  __entry->host_no, __entry->channel, __entry->id,
+		  __entry->host_yes, __entry->channel, __entry->id,
 		  __entry->lun, __entry->data_sglen, __entry->prot_sglen,
 		  show_prot_op_name(__entry->prot_op),
 		  show_opcode_name(__entry->opcode),
@@ -246,7 +246,7 @@ TRACE_EVENT(scsi_dispatch_cmd_error,
 	TP_ARGS(cmd, rtn),
 
 	TP_STRUCT__entry(
-		__field( unsigned int,	host_no	)
+		__field( unsigned int,	host_yes	)
 		__field( unsigned int,	channel	)
 		__field( unsigned int,	id	)
 		__field( unsigned int,	lun	)
@@ -260,7 +260,7 @@ TRACE_EVENT(scsi_dispatch_cmd_error,
 	),
 
 	TP_fast_assign(
-		__entry->host_no	= cmd->device->host->host_no;
+		__entry->host_yes	= cmd->device->host->host_yes;
 		__entry->channel	= cmd->device->channel;
 		__entry->id		= cmd->device->id;
 		__entry->lun		= cmd->device->lun;
@@ -273,9 +273,9 @@ TRACE_EVENT(scsi_dispatch_cmd_error,
 		memcpy(__get_dynamic_array(cmnd), cmd->cmnd, cmd->cmd_len);
 	),
 
-	TP_printk("host_no=%u channel=%u id=%u lun=%u data_sgl=%u prot_sgl=%u" \
+	TP_printk("host_yes=%u channel=%u id=%u lun=%u data_sgl=%u prot_sgl=%u" \
 		  " prot_op=%s cmnd=(%s %s raw=%s) rtn=%d",
-		  __entry->host_no, __entry->channel, __entry->id,
+		  __entry->host_yes, __entry->channel, __entry->id,
 		  __entry->lun, __entry->data_sglen, __entry->prot_sglen,
 		  show_prot_op_name(__entry->prot_op),
 		  show_opcode_name(__entry->opcode),
@@ -291,7 +291,7 @@ DECLARE_EVENT_CLASS(scsi_cmd_done_timeout_template,
 	TP_ARGS(cmd),
 
 	TP_STRUCT__entry(
-		__field( unsigned int,	host_no	)
+		__field( unsigned int,	host_yes	)
 		__field( unsigned int,	channel	)
 		__field( unsigned int,	id	)
 		__field( unsigned int,	lun	)
@@ -305,7 +305,7 @@ DECLARE_EVENT_CLASS(scsi_cmd_done_timeout_template,
 	),
 
 	TP_fast_assign(
-		__entry->host_no	= cmd->device->host->host_no;
+		__entry->host_yes	= cmd->device->host->host_yes;
 		__entry->channel	= cmd->device->channel;
 		__entry->id		= cmd->device->id;
 		__entry->lun		= cmd->device->lun;
@@ -318,10 +318,10 @@ DECLARE_EVENT_CLASS(scsi_cmd_done_timeout_template,
 		memcpy(__get_dynamic_array(cmnd), cmd->cmnd, cmd->cmd_len);
 	),
 
-	TP_printk("host_no=%u channel=%u id=%u lun=%u data_sgl=%u " \
+	TP_printk("host_yes=%u channel=%u id=%u lun=%u data_sgl=%u " \
 		  "prot_sgl=%u prot_op=%s cmnd=(%s %s raw=%s) result=(driver=" \
 		  "%s host=%s message=%s status=%s)",
-		  __entry->host_no, __entry->channel, __entry->id,
+		  __entry->host_yes, __entry->channel, __entry->id,
 		  __entry->lun, __entry->data_sglen, __entry->prot_sglen,
 		  show_prot_op_name(__entry->prot_op),
 		  show_opcode_name(__entry->opcode),
@@ -348,14 +348,14 @@ TRACE_EVENT(scsi_eh_wakeup,
 	TP_ARGS(shost),
 
 	TP_STRUCT__entry(
-		__field( unsigned int,	host_no	)
+		__field( unsigned int,	host_yes	)
 	),
 
 	TP_fast_assign(
-		__entry->host_no	= shost->host_no;
+		__entry->host_yes	= shost->host_yes;
 	),
 
-	TP_printk("host_no=%u", __entry->host_no)
+	TP_printk("host_yes=%u", __entry->host_yes)
 );
 
 #endif /*  _TRACE_SCSI_H */

@@ -65,7 +65,7 @@ static int cobalt_buf_init(struct vb2_buffer *vb)
 
 	size = s->stride * s->height;
 	if (vb2_plane_size(vb, 0) < size) {
-		cobalt_info("data will not fit into plane (%lu < %u)\n",
+		cobalt_info("data will yest fit into plane (%lu < %u)\n",
 					vb2_plane_size(vb, 0), size);
 		return -EINVAL;
 	}
@@ -522,9 +522,9 @@ static void cobalt_video_input_status_show(struct cobalt_stream *s)
 			"VSync- " : "VSync+ ");
 	cobalt_info("rx%d: cvi status: %s%s\n", rx,
 		(cvi_stat & M00389_STATUS_BITMAP_LOCK_MSK) ?
-			"lock " : "no-lock ",
+			"lock " : "yes-lock ",
 		(cvi_stat & M00389_STATUS_BITMAP_ERROR_MSK) ?
-			"error " : "no-error ");
+			"error " : "yes-error ");
 
 	cobalt_info("rx%d: Measurements: %s%s%s%s%s%s%s\n", rx,
 		(vmr_ctrl & M00233_CONTROL_BITMAP_HSYNC_POLARITY_LOW_MSK) ?
@@ -595,7 +595,7 @@ static int cobalt_log_status(struct file *file, void *priv_fh)
 
 	cobalt_info("tx: status: %s%s\n",
 		(stat & M00514_RD_STATUS_BITMAP_FLOW_CTRL_NO_DATA_ERROR_MSK) ?
-			"no_data " : "",
+			"yes_data " : "",
 		(stat & M00514_RD_STATUS_BITMAP_READY_BUFFER_FULL_MSK) ?
 			"ready_buffer_full " : "");
 	cobalt_info("tx: evcnt: %d\n", ioread32(&vo->rd_evcnt_count));
@@ -1061,7 +1061,7 @@ static int cobalt_g_parm(struct file *file, void *fh, struct v4l2_streamparm *a)
 
 	fps = v4l2_calc_timeperframe(&s->timings);
 	a->parm.capture.timeperframe.numerator = fps.numerator;
-	a->parm.capture.timeperframe.denominator = fps.denominator;
+	a->parm.capture.timeperframe.deyesminator = fps.deyesminator;
 	a->parm.capture.readbuffers = 3;
 	return 0;
 }
@@ -1167,7 +1167,7 @@ static const struct v4l2_ioctl_ops cobalt_ioctl_empty_ops = {
 #endif
 };
 
-/* Register device nodes */
+/* Register device yesdes */
 
 static const struct v4l2_file_operations cobalt_fops = {
 	.owner = THIS_MODULE,
@@ -1196,11 +1196,11 @@ static const struct v4l2_file_operations cobalt_empty_fops = {
 	.release = v4l2_fh_release,
 };
 
-static int cobalt_node_register(struct cobalt *cobalt, int node)
+static int cobalt_yesde_register(struct cobalt *cobalt, int yesde)
 {
 	static const struct v4l2_dv_timings dv1080p60 =
 		V4L2_DV_BT_CEA_1920X1080P60;
-	struct cobalt_stream *s = cobalt->streams + node;
+	struct cobalt_stream *s = cobalt->streams + yesde;
 	struct video_device *vdev = &s->vdev;
 	struct vb2_queue *q = &s->q;
 	int ret;
@@ -1209,7 +1209,7 @@ static int cobalt_node_register(struct cobalt *cobalt, int node)
 	spin_lock_init(&s->irqlock);
 
 	snprintf(vdev->name, sizeof(vdev->name),
-			"%s-%d", cobalt->v4l2_dev.name, node);
+			"%s-%d", cobalt->v4l2_dev.name, yesde);
 	s->width = 1920;
 	/* Audio frames are just 4 lines of 1920 bytes */
 	s->height = s->is_audio ? 4 : 1080;
@@ -1229,7 +1229,7 @@ static int cobalt_node_register(struct cobalt *cobalt, int node)
 
 	if (!s->is_audio) {
 		if (s->is_dummy)
-			cobalt_warn("Setting up dummy video node %d\n", node);
+			cobalt_warn("Setting up dummy video yesde %d\n", yesde);
 		vdev->v4l2_dev = &cobalt->v4l2_dev;
 		if (s->is_dummy)
 			vdev->fops = &cobalt_empty_fops;
@@ -1278,22 +1278,22 @@ static int cobalt_node_register(struct cobalt *cobalt, int node)
 
 	if (ret < 0) {
 		if (!s->is_audio)
-			cobalt_err("couldn't register v4l2 device node %d\n",
-					node);
+			cobalt_err("couldn't register v4l2 device yesde %d\n",
+					yesde);
 		return ret;
 	}
-	cobalt_info("registered node %d\n", node);
+	cobalt_info("registered yesde %d\n", yesde);
 	return 0;
 }
 
 /* Initialize v4l2 variables and register v4l2 devices */
-int cobalt_nodes_register(struct cobalt *cobalt)
+int cobalt_yesdes_register(struct cobalt *cobalt)
 {
-	int node, ret;
+	int yesde, ret;
 
 	/* Setup V4L2 Devices */
-	for (node = 0; node < COBALT_NUM_STREAMS; node++) {
-		ret = cobalt_node_register(cobalt, node);
+	for (yesde = 0; yesde < COBALT_NUM_STREAMS; yesde++) {
+		ret = cobalt_yesde_register(cobalt, yesde);
 		if (ret)
 			return ret;
 	}
@@ -1301,13 +1301,13 @@ int cobalt_nodes_register(struct cobalt *cobalt)
 }
 
 /* Unregister v4l2 devices */
-void cobalt_nodes_unregister(struct cobalt *cobalt)
+void cobalt_yesdes_unregister(struct cobalt *cobalt)
 {
-	int node;
+	int yesde;
 
 	/* Teardown all streams */
-	for (node = 0; node < COBALT_NUM_STREAMS; node++) {
-		struct cobalt_stream *s = cobalt->streams + node;
+	for (yesde = 0; yesde < COBALT_NUM_STREAMS; yesde++) {
+		struct cobalt_stream *s = cobalt->streams + yesde;
 		struct video_device *vdev = &s->vdev;
 
 		if (!s->is_audio)

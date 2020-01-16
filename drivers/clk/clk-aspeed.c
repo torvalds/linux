@@ -190,7 +190,7 @@ static int aspeed_clk_is_enabled(struct clk_hw *hw)
 	u32 reg;
 
 	/*
-	 * If the IP is in reset, treat the clock as not enabled,
+	 * If the IP is in reset, treat the clock as yest enabled,
 	 * this happens with some clocks such as the USB one when
 	 * coming from cold reset. Without this, aspeed_clk_enable()
 	 * will fail to lift the reset.
@@ -389,9 +389,9 @@ static int aspeed_clk_probe(struct platform_device *pdev)
 	u32 val, rate;
 	int i, ret;
 
-	map = syscon_node_to_regmap(dev->of_node);
+	map = syscon_yesde_to_regmap(dev->of_yesde);
 	if (IS_ERR(map)) {
-		dev_err(dev, "no syscon regmap\n");
+		dev_err(dev, "yes syscon regmap\n");
 		return PTR_ERR(map);
 	}
 
@@ -403,18 +403,18 @@ static int aspeed_clk_probe(struct platform_device *pdev)
 	ar->rcdev.owner = THIS_MODULE;
 	ar->rcdev.nr_resets = ARRAY_SIZE(aspeed_resets);
 	ar->rcdev.ops = &aspeed_reset_ops;
-	ar->rcdev.of_node = dev->of_node;
+	ar->rcdev.of_yesde = dev->of_yesde;
 
 	ret = devm_reset_controller_register(dev, &ar->rcdev);
 	if (ret) {
-		dev_err(dev, "could not register reset controller\n");
+		dev_err(dev, "could yest register reset controller\n");
 		return ret;
 	}
 
 	/* SoC generations share common layouts but have different divisors */
 	soc_data = of_device_get_match_data(dev);
 	if (!soc_data) {
-		dev_err(dev, "no match data for platform\n");
+		dev_err(dev, "yes match data for platform\n");
 		return -EINVAL;
 	}
 
@@ -463,7 +463,7 @@ static int aspeed_clk_probe(struct platform_device *pdev)
 		return PTR_ERR(hw);
 	aspeed_clk_data->hws[ASPEED_CLK_MAC] = hw;
 
-	if (of_device_is_compatible(pdev->dev.of_node, "aspeed,ast2500-scu")) {
+	if (of_device_is_compatible(pdev->dev.of_yesde, "aspeed,ast2500-scu")) {
 		/* RMII 50MHz RCLK */
 		hw = clk_hw_register_fixed_rate(dev, "mac12rclk", "hpll", 0,
 						50000000);
@@ -529,7 +529,7 @@ static int aspeed_clk_probe(struct platform_device *pdev)
 	aspeed_clk_data->hws[ASPEED_CLK_ECLK] = hw;
 
 	/*
-	 * TODO: There are a number of clocks that not included in this driver
+	 * TODO: There are a number of clocks that yest included in this driver
 	 * as more information is required:
 	 *   D2-PLL
 	 *   D-PLL
@@ -672,7 +672,7 @@ static void __init aspeed_ast2500_cc(struct regmap *map)
 	/* Strap bits 11:9 define the AXI/AHB clock frequency ratio (aka HCLK)*/
 	regmap_read(map, ASPEED_STRAP, &val);
 	val = (val >> 9) & 0x7;
-	WARN(val == 0, "strapping is zero: cannot determine ahb clock");
+	WARN(val == 0, "strapping is zero: canyest determine ahb clock");
 	div = 2 * (val + 1);
 	hw = clk_hw_register_fixed_factor(NULL, "ahb", "hpll", 0, 1, div);
 	aspeed_clk_data->hws[ASPEED_CLK_AHB] = hw;
@@ -685,7 +685,7 @@ static void __init aspeed_ast2500_cc(struct regmap *map)
 	aspeed_clk_data->hws[ASPEED_CLK_APB] = hw;
 };
 
-static void __init aspeed_cc_init(struct device_node *np)
+static void __init aspeed_cc_init(struct device_yesde *np)
 {
 	struct regmap *map;
 	u32 val;
@@ -709,15 +709,15 @@ static void __init aspeed_cc_init(struct device_node *np)
 	for (i = 0; i < ASPEED_NUM_CLKS; i++)
 		aspeed_clk_data->hws[i] = ERR_PTR(-EPROBE_DEFER);
 
-	map = syscon_node_to_regmap(np);
+	map = syscon_yesde_to_regmap(np);
 	if (IS_ERR(map)) {
-		pr_err("no syscon regmap\n");
+		pr_err("yes syscon regmap\n");
 		return;
 	}
 	/*
 	 * We check that the regmap works on this very first access,
 	 * but as this is an MMIO-backed regmap, subsequent regmap
-	 * access is not going to fail and we skip error checks from
+	 * access is yest going to fail and we skip error checks from
 	 * this point.
 	 */
 	ret = regmap_read(map, ASPEED_STRAP, &val);
@@ -731,7 +731,7 @@ static void __init aspeed_cc_init(struct device_node *np)
 	else if (of_device_is_compatible(np, "aspeed,ast2500-scu"))
 		aspeed_ast2500_cc(map);
 	else
-		pr_err("unknown platform, failed to add clocks\n");
+		pr_err("unkyeswn platform, failed to add clocks\n");
 
 	aspeed_clk_data->num = ASPEED_NUM_CLKS;
 	ret = of_clk_add_hw_provider(np, of_clk_hw_onecell_get, aspeed_clk_data);

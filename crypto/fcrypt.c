@@ -11,7 +11,7 @@
  * Based on code:
  *
  * Copyright (c) 1995 - 2000 Kungliga Tekniska Högskolan
- * (Royal Institute of Technology, Stockholm, Sweden).
+ * (Royal Institute of Techyeslogy, Stockholm, Sweden).
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -19,13 +19,13 @@
  * are met:
  *
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  *
  * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
+ *    yestice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * 3. Neither the name of the Institute nor the names of its contributors
+ * 3. Neither the name of the Institute yesr the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -296,7 +296,7 @@ static void fcrypt_decrypt(struct crypto_tfm *tfm, u8 *dst, const u8 *src)
 
 /*
  * Generate a key schedule from key, the least significant bit in each key byte
- * is parity and shall be ignored. This leaves 56 significant bits in the key
+ * is parity and shall be igyesred. This leaves 56 significant bits in the key
  * to scatter over the 16 key schedules. For each schedule extract the low
  * order 32 bits and use as schedule, then rotate right by 11 bits.
  */
@@ -308,7 +308,7 @@ static int fcrypt_setkey(struct crypto_tfm *tfm, const u8 *key, unsigned int key
 			  * kernels - it seems to be faster but the code is
 			  * larger */
 
-	u64 k;	/* k holds all 56 non-parity bits */
+	u64 k;	/* k holds all 56 yesn-parity bits */
 
 	/* discard the parity bits */
 	k = (*key++) >> 1;

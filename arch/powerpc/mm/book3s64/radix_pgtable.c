@@ -69,7 +69,7 @@ static int early_map_kernel_page(unsigned long ea, unsigned long pa,
 	pte_t *ptep;
 
 	pgdp = pgd_offset_k(ea);
-	if (pgd_none(*pgdp)) {
+	if (pgd_yesne(*pgdp)) {
 		pudp = early_alloc_pgtable(PUD_TABLE_SIZE, nid,
 						region_start, region_end);
 		pgd_populate(&init_mm, pgdp, pudp);
@@ -79,7 +79,7 @@ static int early_map_kernel_page(unsigned long ea, unsigned long pa,
 		ptep = (pte_t *)pudp;
 		goto set_the_pte;
 	}
-	if (pud_none(*pudp)) {
+	if (pud_yesne(*pudp)) {
 		pmdp = early_alloc_pgtable(PMD_TABLE_SIZE, nid,
 						region_start, region_end);
 		pud_populate(&init_mm, pudp, pmdp);
@@ -104,7 +104,7 @@ set_the_pte:
 
 /*
  * nid, region_start, and region_end are hints to try to place the page
- * table memory in the same node or region.
+ * table memory in the same yesde or region.
  */
 static int __map_kernel_page(unsigned long ea, unsigned long pa,
 			  pgprot_t flags,
@@ -132,7 +132,7 @@ static int __map_kernel_page(unsigned long ea, unsigned long pa,
 
 	/*
 	 * Should make page table allocation functions be able to take a
-	 * node, so we can place kernel page tables on the right nodes after
+	 * yesde, so we can place kernel page tables on the right yesdes after
 	 * boot.
 	 */
 	pgdp = pgd_offset_k(ea);
@@ -317,13 +317,13 @@ static void __init radix_init_pgtable(void)
 	/* We don't support slb for radix */
 	mmu_slb_size = 0;
 	/*
-	 * Create the linear mapping, using standard page size for now
+	 * Create the linear mapping, using standard page size for yesw
 	 */
 	for_each_memblock(memory, reg) {
 		/*
 		 * The memblock allocator  is up at this point, so the
 		 * page tables will be allocated within the range. No
-		 * need or a node (which we don't have yet).
+		 * need or a yesde (which we don't have yet).
 		 */
 
 		if ((reg->base + reg->size) >= RADIX_VMALLOC_START) {
@@ -371,13 +371,13 @@ static void __init radix_init_pgtable(void)
 	process_tb->prtb0 = cpu_to_be64(rts_field | __pa(init_mm.pgd) | RADIX_PGD_INDEX_SIZE);
 
 	/*
-	 * The init_mm context is given the first available (non-zero) PID,
-	 * which is the "guard PID" and contains no page table. PIDR should
+	 * The init_mm context is given the first available (yesn-zero) PID,
+	 * which is the "guard PID" and contains yes page table. PIDR should
 	 * never be set to zero because that duplicates the kernel address
 	 * space at the 0x0... offset (quadrant 0)!
 	 *
 	 * An arbitrary PID that may later be allocated by the PID allocator
-	 * for userspace processes must not be used either, because that
+	 * for userspace processes must yest be used either, because that
 	 * would cause stale user mappings for that PID on CPUs outside of
 	 * the TLB invalidation scheme (because it won't be in mm_cpumask).
 	 *
@@ -421,7 +421,7 @@ static int __init get_idx_from_shift(unsigned int shift)
 	return idx;
 }
 
-static int __init radix_dt_scan_page_sizes(unsigned long node,
+static int __init radix_dt_scan_page_sizes(unsigned long yesde,
 					   const char *uname, int depth,
 					   void *data)
 {
@@ -429,19 +429,19 @@ static int __init radix_dt_scan_page_sizes(unsigned long node,
 	int shift, idx;
 	unsigned int ap;
 	const __be32 *prop;
-	const char *type = of_get_flat_dt_prop(node, "device_type", NULL);
+	const char *type = of_get_flat_dt_prop(yesde, "device_type", NULL);
 
-	/* We are scanning "cpu" nodes only */
+	/* We are scanning "cpu" yesdes only */
 	if (type == NULL || strcmp(type, "cpu") != 0)
 		return 0;
 
 	/* Find MMU PID size */
-	prop = of_get_flat_dt_prop(node, "ibm,mmu-pid-bits", &size);
+	prop = of_get_flat_dt_prop(yesde, "ibm,mmu-pid-bits", &size);
 	if (prop && size == 4)
 		mmu_pid_bits = be32_to_cpup(prop);
 
 	/* Grab page size encodings */
-	prop = of_get_flat_dt_prop(node, "ibm,processor-radix-AP-encodings", &size);
+	prop = of_get_flat_dt_prop(yesde, "ibm,processor-radix-AP-encodings", &size);
 	if (!prop)
 		return 0;
 
@@ -621,7 +621,7 @@ void radix__early_init_mmu_secondary(void)
 		lpcr = mfspr(SPRN_LPCR);
 		mtspr(SPRN_LPCR, lpcr | LPCR_UPRT | LPCR_HR);
 
-		set_ptcr_when_no_uv(__pa(partition_tb) |
+		set_ptcr_when_yes_uv(__pa(partition_tb) |
 				    (PATB_SIZE_SHIFT - 12));
 
 		radix_init_amor();
@@ -638,7 +638,7 @@ void radix__mmu_cleanup_all(void)
 	if (!firmware_has_feature(FW_FEATURE_LPAR)) {
 		lpcr = mfspr(SPRN_LPCR);
 		mtspr(SPRN_LPCR, lpcr & ~LPCR_UPRT);
-		set_ptcr_when_no_uv(0);
+		set_ptcr_when_yes_uv(0);
 		powernv_set_nmmu_ptcr(0);
 		radix__flush_tlb_all();
 	}
@@ -648,13 +648,13 @@ void radix__setup_initial_memory_limit(phys_addr_t first_memblock_base,
 				phys_addr_t first_memblock_size)
 {
 	/*
-	 * We don't currently support the first MEMBLOCK not mapping 0
+	 * We don't currently support the first MEMBLOCK yest mapping 0
 	 * physical on those processors
 	 */
 	BUG_ON(first_memblock_base != 0);
 
 	/*
-	 * Radix mode is not limited by RMA / VRMA addressing.
+	 * Radix mode is yest limited by RMA / VRMA addressing.
 	 */
 	ppc64_rma_size = ULONG_MAX;
 }
@@ -667,7 +667,7 @@ static void free_pte_table(pte_t *pte_start, pmd_t *pmd)
 
 	for (i = 0; i < PTRS_PER_PTE; i++) {
 		pte = pte_start + i;
-		if (!pte_none(*pte))
+		if (!pte_yesne(*pte))
 			return;
 	}
 
@@ -682,7 +682,7 @@ static void free_pmd_table(pmd_t *pmd_start, pud_t *pud)
 
 	for (i = 0; i < PTRS_PER_PMD; i++) {
 		pmd = pmd_start + i;
-		if (!pmd_none(*pmd))
+		if (!pmd_yesne(*pmd))
 			return;
 	}
 
@@ -756,7 +756,7 @@ static void __meminit split_kernel_mapping(unsigned long addr, unsigned long end
 
 	if ((end - addr) < size) {
 		/*
-		 * We're going to clear the PTE, but not flushed
+		 * We're going to clear the PTE, but yest flushed
 		 * the mapping, time to remap and flush. The
 		 * effects if visible outside the processor or
 		 * if we are running in code close to the
@@ -768,7 +768,7 @@ static void __meminit split_kernel_mapping(unsigned long addr, unsigned long end
 			 * Hack, just return, don't pte_clear
 			 */
 			WARN_ONCE(1, "Linear mapping %lx->%lx overlaps kernel "
-				  "text, not splitting\n", addr, end);
+				  "text, yest splitting\n", addr, end);
 			return;
 		}
 		split_region = true;
@@ -948,7 +948,7 @@ pmd_t radix__pmdp_collapse_flush(struct vm_area_struct *vma, unsigned long addre
 	VM_BUG_ON(radix__pmd_trans_huge(*pmdp));
 	VM_BUG_ON(pmd_devmap(*pmdp));
 	/*
-	 * khugepaged calls this for normal pmd
+	 * khugepaged calls this for yesrmal pmd
 	 */
 	pmd = *pmdp;
 	pmd_clear(pmdp);
@@ -962,7 +962,7 @@ pmd_t radix__pmdp_collapse_flush(struct vm_area_struct *vma, unsigned long addre
 }
 
 /*
- * For us pgtable_t is pte_t *. Inorder to save the deposisted
+ * For us pgtable_t is pte_t *. Iyesrder to save the deposisted
  * page table, we consider the allocated page table as a list
  * head. On withdraw we need to make sure we zero out the used
  * list_head memory area.
@@ -1055,8 +1055,8 @@ void radix__ptep_set_access_flags(struct vm_area_struct *vma, pte_t *ptep,
 	} else {
 		__radix_pte_update(ptep, 0, set);
 		/*
-		 * Book3S does not require a TLB flush when relaxing access
-		 * restrictions when the address space is not attached to a
+		 * Book3S does yest require a TLB flush when relaxing access
+		 * restrictions when the address space is yest attached to a
 		 * NMMU, because the core MMU will reload the pte after taking
 		 * an access fault, which is defined by the architectue.
 		 */
@@ -1084,7 +1084,7 @@ void radix__ptep_modify_prot_commit(struct vm_area_struct *vma,
 
 int __init arch_ioremap_pud_supported(void)
 {
-	/* HPT does not cope with large pages in the vmalloc area */
+	/* HPT does yest cope with large pages in the vmalloc area */
 	return radix_enabled();
 }
 
@@ -1132,7 +1132,7 @@ int pud_free_pmd_page(pud_t *pud, unsigned long addr)
 	flush_tlb_kernel_range(addr, addr + PUD_SIZE);
 
 	for (i = 0; i < PTRS_PER_PMD; i++) {
-		if (!pmd_none(pmd[i])) {
+		if (!pmd_yesne(pmd[i])) {
 			pte_t *pte;
 			pte = (pte_t *)pmd_page_vaddr(pmd[i]);
 

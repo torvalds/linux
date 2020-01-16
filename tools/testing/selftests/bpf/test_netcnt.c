@@ -2,7 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <errno.h>
+#include <erryes.h>
 #include <assert.h>
 #include <sys/sysinfo.h>
 #include <sys/time.h>
@@ -25,7 +25,7 @@ static int bpf_find_map(const char *test, struct bpf_object *obj,
 
 	map = bpf_object__find_map_by_name(obj, name);
 	if (!map) {
-		printf("%s:FAIL:map '%s' not found\n", test, name);
+		printf("%s:FAIL:map '%s' yest found\n", test, name);
 		return -1;
 	}
 	return bpf_map__fd(map);
@@ -48,7 +48,7 @@ int main(int argc, char **argv)
 	nproc = get_nprocs_conf();
 	percpu_netcnt = malloc(sizeof(*percpu_netcnt) * nproc);
 	if (!percpu_netcnt) {
-		printf("Not enough memory for per-cpu area (%d cpus)\n", nproc);
+		printf("Not eyesugh memory for per-cpu area (%d cpus)\n", nproc);
 		goto err;
 	}
 
@@ -119,7 +119,7 @@ int main(int argc, char **argv)
 		goto err;
 	}
 
-	/* Some packets can be still in per-cpu cache, but not more than
+	/* Some packets can be still in per-cpu cache, but yest more than
 	 * MAX_PERCPU_PACKETS.
 	 */
 	packets = netcnt.packets;

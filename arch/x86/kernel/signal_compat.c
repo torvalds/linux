@@ -37,18 +37,18 @@ static inline void signal_compat_build_tests(void)
 	BUILD_BUG_ON(sizeof(compat_siginfo_t) != 128);
 	/*
 	 * The offsets of all the (unioned) si_fields are fixed
-	 * in the ABI, of course.  Make sure none of them ever
+	 * in the ABI, of course.  Make sure yesne of them ever
 	 * move and are always at the beginning:
 	 */
 	BUILD_BUG_ON(offsetof(compat_siginfo_t, _sifields) != 3 * sizeof(int));
 #define CHECK_CSI_OFFSET(name)	  BUILD_BUG_ON(_sifields_offset != offsetof(compat_siginfo_t, _sifields.name))
 
-	BUILD_BUG_ON(offsetof(siginfo_t, si_signo) != 0);
-	BUILD_BUG_ON(offsetof(siginfo_t, si_errno) != 4);
+	BUILD_BUG_ON(offsetof(siginfo_t, si_sigyes) != 0);
+	BUILD_BUG_ON(offsetof(siginfo_t, si_erryes) != 4);
 	BUILD_BUG_ON(offsetof(siginfo_t, si_code)  != 8);
 
-	BUILD_BUG_ON(offsetof(compat_siginfo_t, si_signo) != 0);
-	BUILD_BUG_ON(offsetof(compat_siginfo_t, si_errno) != 4);
+	BUILD_BUG_ON(offsetof(compat_siginfo_t, si_sigyes) != 0);
+	BUILD_BUG_ON(offsetof(compat_siginfo_t, si_erryes) != 4);
 	BUILD_BUG_ON(offsetof(compat_siginfo_t, si_code)  != 8);
 	 /*
 	 * Ensure that the size of each si_field never changes.
@@ -115,7 +115,7 @@ static inline void signal_compat_build_tests(void)
 #ifdef CONFIG_X86_X32_ABI
 	CHECK_CSI_OFFSET(_sigchld_x32);
 	CHECK_CSI_SIZE  (_sigchld_x32, 7*sizeof(int));
-	/* no _sigchld_x32 in the generic siginfo_t */
+	/* yes _sigchld_x32 in the generic siginfo_t */
 	BUILD_BUG_ON(offsetof(compat_siginfo_t, _sifields._sigchld_x32._utime)  != 0x18);
 	BUILD_BUG_ON(offsetof(compat_siginfo_t, _sifields._sigchld_x32._stime)  != 0x20);
 #endif
@@ -165,7 +165,7 @@ void sigaction_compat_abi(struct k_sigaction *act, struct k_sigaction *oact)
 {
 	signal_compat_build_tests();
 
-	/* Don't leak in-kernel non-uapi flags to user-space */
+	/* Don't leak in-kernel yesn-uapi flags to user-space */
 	if (oact)
 		oact->sa.sa_flags &= ~(SA_IA32_ABI | SA_X32_ABI);
 

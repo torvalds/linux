@@ -30,7 +30,7 @@ struct raid_internal {
 };
 
 struct raid_component {
-	struct list_head node;
+	struct list_head yesde;
 	struct device dev;
 	int num;
 };
@@ -98,8 +98,8 @@ static int raid_remove(struct transport_container *tc, struct device *dev,
 	struct raid_component *rc, *next;
 	dev_printk(KERN_ERR, dev, "RAID REMOVE\n");
 	dev_set_drvdata(cdev, NULL);
-	list_for_each_entry_safe(rc, next, &rd->component_list, node) {
-		list_del(&rc->node);
+	list_for_each_entry_safe(rc, next, &rd->component_list, yesde) {
+		list_del(&rc->yesde);
 		dev_printk(KERN_ERR, rc->dev.parent, "RAID COMPONENT REMOVE\n");
 		device_unregister(&rc->dev);
 	}
@@ -118,7 +118,7 @@ static const struct {
 	enum raid_state	value;
 	char		*name;
 } raid_states[] = {
-	{ RAID_STATE_UNKNOWN, "unknown" },
+	{ RAID_STATE_UNKNOWN, "unkyeswn" },
 	{ RAID_STATE_ACTIVE, "active" },
 	{ RAID_STATE_DEGRADED, "degraded" },
 	{ RAID_STATE_RESYNCING, "resyncing" },
@@ -143,7 +143,7 @@ static struct {
 	enum raid_level value;
 	char *name;
 } raid_levels[] = {
-	{ RAID_LEVEL_UNKNOWN, "unknown" },
+	{ RAID_LEVEL_UNKNOWN, "unkyeswn" },
 	{ RAID_LEVEL_LINEAR, "linear" },
 	{ RAID_LEVEL_0, "raid0" },
 	{ RAID_LEVEL_1, "raid1" },
@@ -232,14 +232,14 @@ int raid_component_add(struct raid_template *r,struct device *raid_dev,
 	if (!rc)
 		return -ENOMEM;
 
-	INIT_LIST_HEAD(&rc->node);
+	INIT_LIST_HEAD(&rc->yesde);
 	device_initialize(&rc->dev);
 	rc->dev.release = raid_component_release;
 	rc->dev.parent = get_device(component_dev);
 	rc->num = rd->component_count++;
 
 	dev_set_name(&rc->dev, "component-%d", rc->num);
-	list_add_tail(&rc->node, &rd->component_list);
+	list_add_tail(&rc->yesde, &rd->component_list);
 	rc->dev.class = &raid_class.class;
 	err = device_add(&rc->dev);
 	if (err)
@@ -248,7 +248,7 @@ int raid_component_add(struct raid_template *r,struct device *raid_dev,
 	return 0;
 
 err_out:
-	list_del(&rc->node);
+	list_del(&rc->yesde);
 	rd->component_count--;
 	put_device(component_dev);
 	kfree(rc);

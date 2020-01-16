@@ -38,7 +38,7 @@ struct nxp_nci_i2c_phy {
 
 	int hard_fault; /*
 			 * < 0 if hardware error occurred (e.g. i2c err)
-			 * and prevents normal operation.
+			 * and prevents yesrmal operation.
 			 */
 };
 
@@ -81,7 +81,7 @@ static int nxp_nci_i2c_write(void *phy_id, struct sk_buff *skb)
 			r, skb->len);
 		r = -EREMOTEIO;
 	} else {
-		/* Success but return 0 and not number of bytes */
+		/* Success but return 0 and yest number of bytes */
 		r = 0;
 	}
 
@@ -189,17 +189,17 @@ static irqreturn_t nxp_nci_i2c_irq_thread_fn(int irq, void *phy_id)
 	int r = 0;
 
 	if (!phy || !phy->ndev)
-		goto exit_irq_none;
+		goto exit_irq_yesne;
 
 	client = phy->i2c_dev;
 
 	if (!client || irq != client->irq)
-		goto exit_irq_none;
+		goto exit_irq_yesne;
 
 	info = nci_get_drvdata(phy->ndev);
 
 	if (!info)
-		goto exit_irq_none;
+		goto exit_irq_yesne;
 
 	mutex_lock(&info->info_lock);
 
@@ -242,7 +242,7 @@ static irqreturn_t nxp_nci_i2c_irq_thread_fn(int irq, void *phy_id)
 exit_irq_handled:
 	mutex_unlock(&info->info_lock);
 	return IRQ_HANDLED;
-exit_irq_none:
+exit_irq_yesne:
 	WARN_ON_ONCE(1);
 	return IRQ_NONE;
 }

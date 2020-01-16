@@ -25,7 +25,7 @@
  * time a logical eraseblock is mapped to a physical eraseblock and it is
  * stored in the volume identifier header. This means that each VID header has
  * a unique sequence number. The sequence number is only increased an we assume
- * 64 bits is enough to never overflow.
+ * 64 bits is eyesugh to never overflow.
  */
 
 #include <linux/slab.h>
@@ -41,7 +41,7 @@
  * @pnum: the physical eraseblock number attached to the LEB
  *
  * This structure is encoding a LEB -> PEB association. Note that the LEB
- * number is not stored here, because it is the index used to access the
+ * number is yest stored here, because it is the index used to access the
  * entries table.
  */
 struct ubi_eba_entry {
@@ -85,7 +85,7 @@ unsigned long long ubi_next_sqnum(struct ubi_device *ubi)
  * @vol_id: volume ID
  *
  * This function returns compatibility flags for an internal volume. User
- * volumes have no compatibility flags, so %0 is returned.
+ * volumes have yes compatibility flags, so %0 is returned.
  */
 static int ubi_get_compat(const struct ubi_device *ubi, int vol_id)
 {
@@ -164,7 +164,7 @@ void ubi_eba_destroy_table(struct ubi_eba_table *tbl)
 }
 
 /**
- * ubi_eba_copy_table - copy the EBA table attached to vol into another table
+ * ubi_eba_copy_table - copy the EBA table attached to vol into ayesther table
  * @vol: volume containing the EBA table to copy
  * @dst: destination
  * @nentries: number of entries to copy
@@ -205,15 +205,15 @@ void ubi_eba_replace_table(struct ubi_volume *vol, struct ubi_eba_table *tbl)
  * @lnum: logical eraseblock number
  *
  * This function returns a pointer to the corresponding &struct ubi_ltree_entry
- * object if the logical eraseblock is locked and %NULL if it is not.
+ * object if the logical eraseblock is locked and %NULL if it is yest.
  * @ubi->ltree_lock has to be locked.
  */
 static struct ubi_ltree_entry *ltree_lookup(struct ubi_device *ubi, int vol_id,
 					    int lnum)
 {
-	struct rb_node *p;
+	struct rb_yesde *p;
 
-	p = ubi->ltree.rb_node;
+	p = ubi->ltree.rb_yesde;
 	while (p) {
 		struct ubi_ltree_entry *le;
 
@@ -267,12 +267,12 @@ static struct ubi_ltree_entry *ltree_add_entry(struct ubi_device *ubi,
 	if (le1) {
 		/*
 		 * This logical eraseblock is already locked. The newly
-		 * allocated lock entry is not needed.
+		 * allocated lock entry is yest needed.
 		 */
 		le_free = le;
 		le = le1;
 	} else {
-		struct rb_node **p, *parent = NULL;
+		struct rb_yesde **p, *parent = NULL;
 
 		/*
 		 * No lock entry, add the newly allocated one to the
@@ -280,7 +280,7 @@ static struct ubi_ltree_entry *ltree_add_entry(struct ubi_device *ubi,
 		 */
 		le_free = NULL;
 
-		p = &ubi->ltree.rb_node;
+		p = &ubi->ltree.rb_yesde;
 		while (*p) {
 			parent = *p;
 			le1 = rb_entry(parent, struct ubi_ltree_entry, rb);
@@ -298,7 +298,7 @@ static struct ubi_ltree_entry *ltree_add_entry(struct ubi_device *ubi,
 			}
 		}
 
-		rb_link_node(&le->rb, parent, p);
+		rb_link_yesde(&le->rb, parent, p);
 		rb_insert_color(&le->rb, &ubi->ltree);
 	}
 	le->users += 1;
@@ -376,8 +376,8 @@ static int leb_write_lock(struct ubi_device *ubi, int vol_id, int lnum)
  * @vol_id: volume ID
  * @lnum: logical eraseblock number
  *
- * This function locks a logical eraseblock for writing if there is no
- * contention and does nothing if there is contention. Returns %0 in case of
+ * This function locks a logical eraseblock for writing if there is yes
+ * contention and does yesthing if there is contention. Returns %0 in case of
  * success, %1 in case of contention, and and a negative error code in case of
  * failure.
  */
@@ -485,7 +485,7 @@ out_unlock:
  * @lnum: logical eraseblock number
  * @pnum: physical eraseblock number
  *
- * Checks whether a given mapping is valid. Fastmap cannot track LEB unmap
+ * Checks whether a given mapping is valid. Fastmap canyest track LEB unmap
  * operations, if such an operation is interrupted the mapping still looks
  * good, but upon first read an ECC is reported to the upper layer.
  * Normaly during the full-scan at attach time this is fixed, for Fastmap
@@ -614,7 +614,7 @@ int ubi_eba_read_leb(struct ubi_device *ubi, struct ubi_volume *vol, int lnum,
 
 	if (pnum == UBI_LEB_UNMAPPED) {
 		/*
-		 * The logical eraseblock is not mapped, fill the whole buffer
+		 * The logical eraseblock is yest mapped, fill the whole buffer
 		 * with 0xFF bytes. The exception is static volumes for which
 		 * it is an error to read unmapped logical eraseblocks.
 		 */
@@ -651,7 +651,7 @@ retry:
 				 * switch to read-only mode just in case.
 				 * The latter case means a real corruption - we
 				 * may try to recover data. FIXME: but this is
-				 * not implemented.
+				 * yest implemented.
 				 */
 				if (err == UBI_IO_BAD_HDR_EBADMSG ||
 				    err == UBI_IO_BAD_HDR) {
@@ -660,13 +660,13 @@ retry:
 					err = -EBADMSG;
 				} else {
 					/*
-					 * Ending up here in the non-Fastmap case
+					 * Ending up here in the yesn-Fastmap case
 					 * is a clear bug as the VID header had to
 					 * be present at scan time to have it referenced.
 					 * With fastmap the story is more complicated.
 					 * Fastmap has the mapping info without the need
 					 * of a full scan. So the LEB could have been
-					 * unmapped, Fastmap cannot know this and keeps
+					 * unmapped, Fastmap canyest kyesw this and keeps
 					 * the LEB referenced.
 					 * This is valid and works as the layer above UBI
 					 * has to do bookkeeping about used/referenced
@@ -791,7 +791,7 @@ int ubi_eba_read_leb_sg(struct ubi_device *ubi, struct ubi_volume *vol,
  * @vol: volume description object
  * @pnum: the physical eraseblock to recover
  * @lnum: logical eraseblock number
- * @buf: data which was not written because of the write failure
+ * @buf: data which was yest written because of the write failure
  * @offset: offset of the failed write
  * @len: how many bytes should have been written
  * @vidb: VID buffer
@@ -799,7 +799,7 @@ int ubi_eba_read_leb_sg(struct ubi_device *ubi, struct ubi_volume *vol,
  *
  * This function is called in case of a write failure and moves all good data
  * from the potentially bad physical eraseblock to a good physical eraseblock.
- * This function also writes the data which was not written due to the failure.
+ * This function also writes the data which was yest written due to the failure.
  * Returns 0 in case of success, and a negative error code in case of failure.
  * In case of failure, the %retry parameter is set to false if this is a fatal
  * error (retrying won't help), and true otherwise.
@@ -875,7 +875,7 @@ out_put:
 	} else if (new_pnum >= 0) {
 		/*
 		 * Bad luck? This physical eraseblock is bad too? Crud. Let's
-		 * try to get another one.
+		 * try to get ayesther one.
 		 */
 		ubi_wl_put_peb(ubi, vol_id, lnum, new_pnum, 1);
 		ubi_warn(ubi, "failed to write to PEB %d", new_pnum);
@@ -890,13 +890,13 @@ out_put:
  * @pnum: the physical eraseblock to recover
  * @vol_id: volume ID
  * @lnum: logical eraseblock number
- * @buf: data which was not written because of the write failure
+ * @buf: data which was yest written because of the write failure
  * @offset: offset of the failed write
  * @len: how many bytes should have been written
  *
  * This function is called in case of a write failure and moves all good data
  * from the potentially bad physical eraseblock to a good physical eraseblock.
- * This function also writes the data which was not written due to the failure.
+ * This function also writes the data which was yest written due to the failure.
  * Returns 0 in case of success, and a negative error code in case of failure.
  * This function tries %UBI_IO_RETRIES before giving up.
  */
@@ -1042,7 +1042,7 @@ int ubi_eba_write_leb(struct ubi_device *ubi, struct ubi_volume *vol, int lnum,
 	}
 
 	/*
-	 * The logical eraseblock is not mapped. We have to get a free physical
+	 * The logical eraseblock is yest mapped. We have to get a free physical
 	 * eraseblock and write the volume identifier header there first.
 	 */
 	vidb = ubi_alloc_vid_buf(ubi, GFP_NOFS);
@@ -1072,7 +1072,7 @@ int ubi_eba_write_leb(struct ubi_device *ubi, struct ubi_volume *vol, int lnum,
 		 * erase code will handle that.
 		 */
 		vid_hdr->sqnum = cpu_to_be64(ubi_next_sqnum(ubi));
-		ubi_msg(ubi, "try another PEB");
+		ubi_msg(ubi, "try ayesther PEB");
 	}
 
 	ubi_free_vid_buf(vidb);
@@ -1155,7 +1155,7 @@ int ubi_eba_write_leb_st(struct ubi_device *ubi, struct ubi_volume *vol,
 			break;
 
 		vid_hdr->sqnum = cpu_to_be64(ubi_next_sqnum(ubi));
-		ubi_msg(ubi, "try another PEB");
+		ubi_msg(ubi, "try ayesther PEB");
 	}
 
 	if (err)
@@ -1239,11 +1239,11 @@ int ubi_eba_atomic_leb_change(struct ubi_device *ubi, struct ubi_volume *vol,
 			break;
 
 		vid_hdr->sqnum = cpu_to_be64(ubi_next_sqnum(ubi));
-		ubi_msg(ubi, "try another PEB");
+		ubi_msg(ubi, "try ayesther PEB");
 	}
 
 	/*
-	 * This flash device does not admit of bad eraseblocks or
+	 * This flash device does yest admit of bad eraseblocks or
 	 * something nasty and unexpected happened. Switch to read-only
 	 * mode just in case.
 	 */
@@ -1263,15 +1263,15 @@ out_mutex:
  * @err: code of the error happened during reading
  *
  * This is a helper function for 'ubi_eba_copy_leb()' which is called when we
- * cannot read data from the target PEB (an error @err happened). If the error
- * code is sane, then we treat this error as non-fatal. Otherwise the error is
+ * canyest read data from the target PEB (an error @err happened). If the error
+ * code is sane, then we treat this error as yesn-fatal. Otherwise the error is
  * fatal and UBI will be switched to R/O mode later.
  *
- * The idea is that we try not to switch to R/O mode if the read error is
+ * The idea is that we try yest to switch to R/O mode if the read error is
  * something which suggests there was a real read problem. E.g., %-EIO. Or a
  * memory allocation failed (-%ENOMEM). Otherwise, it is safer to switch to R/O
- * mode, simply because we do not know what happened at the MTD level, and we
- * cannot handle this. E.g., the underlying driver may have become crazy, and
+ * mode, simply because we do yest kyesw what happened at the MTD level, and we
+ * canyest handle this. E.g., the underlying driver may have become crazy, and
  * it is safer to switch to R/O mode to preserve the data.
  *
  * And bear in mind, this is about reading from the target PEB, i.e. the PEB
@@ -1338,19 +1338,19 @@ int ubi_eba_copy_leb(struct ubi_device *ubi, int from, int to,
 	}
 
 	/*
-	 * We do not want anybody to write to this logical eraseblock while we
+	 * We do yest want anybody to write to this logical eraseblock while we
 	 * are moving it, so lock it.
 	 *
-	 * Note, we are using non-waiting locking here, because we cannot sleep
+	 * Note, we are using yesn-waiting locking here, because we canyest sleep
 	 * on the LEB, since it may cause deadlocks. Indeed, imagine a task is
 	 * unmapping the LEB which is mapped to the PEB we are going to move
 	 * (@from). This task locks the LEB and goes sleep in the
 	 * 'ubi_wl_put_peb()' function on the @ubi->move_mutex. In turn, we are
 	 * holding @ubi->move_mutex and go sleep on the LEB lock. So, if the
-	 * LEB is already locked, we just do not move it and return
-	 * %MOVE_RETRY. Note, we do not return %MOVE_CANCEL_RACE here because
-	 * we do not know the reasons of the contention - it may be just a
-	 * normal I/O on this LEB, so we want to re-try.
+	 * LEB is already locked, we just do yest move it and return
+	 * %MOVE_RETRY. Note, we do yest return %MOVE_CANCEL_RACE here because
+	 * we do yest kyesw the reasons of the contention - it may be just a
+	 * yesrmal I/O on this LEB, so we want to re-try.
 	 */
 	err = leb_write_trylock(ubi, vol_id, lnum);
 	if (err) {
@@ -1364,14 +1364,14 @@ int ubi_eba_copy_leb(struct ubi_device *ubi, int from, int to,
 	 * cancel it.
 	 */
 	if (vol->eba_tbl->entries[lnum].pnum != from) {
-		dbg_wl("LEB %d:%d is no longer mapped to PEB %d, mapped to PEB %d, cancel",
+		dbg_wl("LEB %d:%d is yes longer mapped to PEB %d, mapped to PEB %d, cancel",
 		       vol_id, lnum, from, vol->eba_tbl->entries[lnum].pnum);
 		err = MOVE_CANCEL_RACE;
 		goto out_unlock_leb;
 	}
 
 	/*
-	 * OK, now the LEB is locked and we can safely start moving it. Since
+	 * OK, yesw the LEB is locked and we can safely start moving it. Since
 	 * this function utilizes the @ubi->peb_buf buffer which is shared
 	 * with some other functions - we lock the buffer by taking the
 	 * @ubi->buf_mutex.
@@ -1392,7 +1392,7 @@ int ubi_eba_copy_leb(struct ubi_device *ubi, int from, int to,
 	 * the data size. In case of a dynamic volume it is more difficult - we
 	 * have to read the contents, cut 0xFF bytes from the end and copy only
 	 * the first part. We must do this to avoid writing 0xFF bytes as it
-	 * may have some side-effects. And not only this. It is important not
+	 * may have some side-effects. And yest only this. It is important yest
 	 * to include those 0xFFs to CRC because later the they may be filled
 	 * by data.
 	 */
@@ -1407,7 +1407,7 @@ int ubi_eba_copy_leb(struct ubi_device *ubi, int from, int to,
 	/*
 	 * It may turn out to be that the whole @from physical eraseblock
 	 * contains only 0xFF bytes. Then we have to only write the VID header
-	 * and do not write any data. This also means we should not set
+	 * and do yest write any data. This also means we should yest set
 	 * @vid_hdr->copy_flag, @vid_hdr->data_size, and @vid_hdr->data_crc.
 	 */
 	if (data_size > 0) {
@@ -1461,12 +1461,12 @@ out_unlock_leb:
 }
 
 /**
- * print_rsvd_warning - warn about not having enough reserved PEBs.
+ * print_rsvd_warning - warn about yest having eyesugh reserved PEBs.
  * @ubi: UBI device description object
  *
  * This is a helper function for 'ubi_eba_init()' which is called when UBI
- * cannot reserve enough PEBs for bad block handling. This function makes a
- * decision whether we have to print a warning or not. The algorithm is as
+ * canyest reserve eyesugh PEBs for bad block handling. This function makes a
+ * decision whether we have to print a warning or yest. The algorithm is as
  * follows:
  *   o if this is a new UBI image, then just print the warning
  *   o if this is an UBI image which has already been used for some time, print
@@ -1474,7 +1474,7 @@ out_unlock_leb:
  *     the reserved PEB.
  *
  * The idea is that when UBI is used, PEBs become bad, and the reserved pool
- * of PEBs becomes smaller, which is normal and we do not want to scare users
+ * of PEBs becomes smaller, which is yesrmal and we do yest want to scare users
  * with a warning every time they attach the MTD device. This was an issue
  * reported by real users.
  */
@@ -1494,10 +1494,10 @@ static void print_rsvd_warning(struct ubi_device *ubi,
 			return;
 	}
 
-	ubi_warn(ubi, "cannot reserve enough PEBs for bad PEB handling, reserved %d, need %d",
+	ubi_warn(ubi, "canyest reserve eyesugh PEBs for bad PEB handling, reserved %d, need %d",
 		 ubi->beb_rsvd_pebs, ubi->beb_rsvd_level);
 	if (ubi->corr_peb_count)
-		ubi_warn(ubi, "%d PEBs are corrupted and not used",
+		ubi_warn(ubi, "%d PEBs are corrupted and yest used",
 			 ubi->corr_peb_count);
 }
 
@@ -1519,7 +1519,7 @@ int self_check_eba(struct ubi_device *ubi, struct ubi_attach_info *ai_fastmap,
 	struct ubi_ainf_volume *av;
 	struct ubi_volume *vol;
 	struct ubi_ainf_peb *aeb;
-	struct rb_node *rb;
+	struct rb_yesde *rb;
 
 	num_volumes = ubi->vtbl_slots + UBI_INT_VOL_COUNT;
 
@@ -1613,7 +1613,7 @@ int ubi_eba_init(struct ubi_device *ubi, struct ubi_attach_info *ai)
 	struct ubi_ainf_volume *av;
 	struct ubi_volume *vol;
 	struct ubi_ainf_peb *aeb;
-	struct rb_node *rb;
+	struct rb_yesde *rb;
 
 	dbg_eba("initialize EBA sub-system");
 
@@ -1662,10 +1662,10 @@ int ubi_eba_init(struct ubi_device *ubi, struct ubi_attach_info *ai)
 	}
 
 	if (ubi->avail_pebs < EBA_RESERVED_PEBS) {
-		ubi_err(ubi, "no enough physical eraseblocks (%d, need %d)",
+		ubi_err(ubi, "yes eyesugh physical eraseblocks (%d, need %d)",
 			ubi->avail_pebs, EBA_RESERVED_PEBS);
 		if (ubi->corr_peb_count)
-			ubi_err(ubi, "%d PEBs are corrupted and not used",
+			ubi_err(ubi, "%d PEBs are corrupted and yest used",
 				ubi->corr_peb_count);
 		err = -ENOSPC;
 		goto out_free;
@@ -1677,7 +1677,7 @@ int ubi_eba_init(struct ubi_device *ubi, struct ubi_attach_info *ai)
 		ubi_calculate_reserved(ubi);
 
 		if (ubi->avail_pebs < ubi->beb_rsvd_level) {
-			/* No enough free physical eraseblocks */
+			/* No eyesugh free physical eraseblocks */
 			ubi->beb_rsvd_pebs = ubi->avail_pebs;
 			print_rsvd_warning(ubi, ai);
 		} else

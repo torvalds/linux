@@ -14,7 +14,7 @@ Optional properties:
 - timeout-sec : Contains the watchdog timeout in seconds.
 - zte,wdt-reset-sysctrl : Directs how to reset system by the watchdog.
 	if we don't want to restart system when watchdog been triggered,
-	it's not required, vice versa.
+	it's yest required, vice versa.
 	It should include following fields.
 	  * phandle of aon-sysctrl.
 	  * offset of register that be written, should be 0xb0.

@@ -75,7 +75,7 @@ bool ins__is_fused(struct arch *arch, const char *ins1, const char *ins2);
 #define ANNOTATION__MINMAX_CYCLES_WIDTH 19
 #define ANNOTATION__AVG_IPC_WIDTH 36
 
-struct annotation_options {
+struct anyestation_options {
 	bool hide_src_code,
 	     use_offset,
 	     jump_arrows,
@@ -87,7 +87,7 @@ struct annotation_options {
 	     show_total_period,
 	     show_minmax_cycle,
 	     show_asm_raw,
-	     annotate_src;
+	     anyestate_src;
 	u8   offset_level;
 	int  min_pcnt;
 	int  max_lines;
@@ -105,9 +105,9 @@ enum {
 
 #define ANNOTATION__MIN_OFFSET_LEVEL ANNOTATION__OFFSET_JUMP_TARGETS
 
-extern struct annotation_options annotation__default_options;
+extern struct anyestation_options anyestation__default_options;
 
-struct annotation;
+struct anyestation;
 
 struct sym_hist_entry {
 	u64		nr_samples;
@@ -122,15 +122,15 @@ enum {
 	PERCENT_MAX,
 };
 
-struct annotation_data {
+struct anyestation_data {
 	double			 percent[PERCENT_MAX];
 	double			 percent_sum;
 	struct sym_hist_entry	 he;
 };
 
-struct annotation_line {
-	struct list_head	 node;
-	struct rb_node		 rb_node;
+struct anyestation_line {
+	struct list_head	 yesde;
+	struct rb_yesde		 rb_yesde;
 	s64			 offset;
 	char			*line;
 	int			 line_nr;
@@ -144,7 +144,7 @@ struct annotation_line {
 	u32			 idx;
 	int			 idx_asm;
 	int			 data_nr;
-	struct annotation_data	 data[0];
+	struct anyestation_data	 data[0];
 };
 
 struct disasm_line {
@@ -152,10 +152,10 @@ struct disasm_line {
 	struct ins_operands	 ops;
 
 	/* This needs to be at the end. */
-	struct annotation_line	 al;
+	struct anyestation_line	 al;
 };
 
-static inline double annotation_data__percent(struct annotation_data *data,
+static inline double anyestation_data__percent(struct anyestation_data *data,
 					      unsigned int which)
 {
 	return which < PERCENT_MAX ? data->percent[which] : -1;
@@ -176,7 +176,7 @@ static inline const char *percent_type_str(unsigned int type)
 	return str[type];
 }
 
-static inline struct disasm_line *disasm_line(struct annotation_line *al)
+static inline struct disasm_line *disasm_line(struct anyestation_line *al)
 {
 	return al ? container_of(al, struct disasm_line, al) : NULL;
 }
@@ -197,10 +197,10 @@ static inline bool disasm_line__has_local_offset(const struct disasm_line *dl)
 bool disasm_line__is_valid_local_jump(struct disasm_line *dl, struct symbol *sym);
 
 void disasm_line__free(struct disasm_line *dl);
-struct annotation_line *
-annotation_line__next(struct annotation_line *pos, struct list_head *head);
+struct anyestation_line *
+anyestation_line__next(struct anyestation_line *pos, struct list_head *head);
 
-struct annotation_write_ops {
+struct anyestation_write_ops {
 	bool first_line, current_entry, change_color;
 	int  width;
 	void *obj;
@@ -211,11 +211,11 @@ struct annotation_write_ops {
 	void (*write_graph)(void *obj, int graph);
 };
 
-void annotation_line__write(struct annotation_line *al, struct annotation *notes,
-			    struct annotation_write_ops *ops,
-			    struct annotation_options *opts);
+void anyestation_line__write(struct anyestation_line *al, struct anyestation *yestes,
+			    struct anyestation_write_ops *ops,
+			    struct anyestation_options *opts);
 
-int __annotation__scnprintf_samples_period(struct annotation *notes,
+int __anyestation__scnprintf_samples_period(struct anyestation *yestes,
 					   char *bf, size_t size,
 					   struct evsel *evsel,
 					   bool show_freq);
@@ -244,24 +244,24 @@ struct cyc_hist {
 	u16	reset;
 };
 
-/** struct annotated_source - symbols with hits have this attached as in sannotation
+/** struct anyestated_source - symbols with hits have this attached as in sanyestation
  *
  * @histograms: Array of addr hit histograms per event being monitored
- * nr_histograms: This may not be the same as evsel->evlist->core.nr_entries if
+ * nr_histograms: This may yest be the same as evsel->evlist->core.nr_entries if
  * 		  we have more than a group in a evlist, where we will want
- * 		  to see each group separately, that is why symbol__annotate2()
+ * 		  to see each group separately, that is why symbol__anyestate2()
  * 		  sets src->nr_histograms to evsel->nr_members.
  * @lines: If 'print_lines' is specified, per source code line percentages
  * @source: source parsed from a disassembler like objdump -dS
  * @cyc_hist: Average cycles per basic block
  *
  * lines is allocated, percentages calculated and all sorted by percentage
- * when the annotation is about to be presented, so the percentages are for
+ * when the anyestation is about to be presented, so the percentages are for
  * one of the entries in the histogram array, i.e. for the event/counter being
- * presented. It is deallocated right after symbol__{tui,tty,etc}_annotate
+ * presented. It is deallocated right after symbol__{tui,tty,etc}_anyestate
  * returns.
  */
-struct annotated_source {
+struct anyestated_source {
 	struct list_head   source;
 	int    		   nr_histograms;
 	size_t		   sizeof_sym_hist;
@@ -269,7 +269,7 @@ struct annotated_source {
 	struct sym_hist	   *histograms;
 };
 
-struct annotation {
+struct anyestation {
 	pthread_mutex_t		lock;
 	u64			max_coverage;
 	u64			start;
@@ -277,8 +277,8 @@ struct annotation {
 	u64			hit_insn;
 	unsigned int		total_insn;
 	unsigned int		cover_insn;
-	struct annotation_options *options;
-	struct annotation_line	**offsets;
+	struct anyestation_options *options;
+	struct anyestation_line	**offsets;
 	int			nr_events;
 	int			nr_jumps;
 	int			max_jump_sources;
@@ -294,44 +294,44 @@ struct annotation {
 		u8		max_ins_name;
 	} widths;
 	bool			have_cycles;
-	struct annotated_source *src;
+	struct anyestated_source *src;
 };
 
-static inline int annotation__cycles_width(struct annotation *notes)
+static inline int anyestation__cycles_width(struct anyestation *yestes)
 {
-	if (notes->have_cycles && notes->options->show_minmax_cycle)
+	if (yestes->have_cycles && yestes->options->show_minmax_cycle)
 		return ANNOTATION__IPC_WIDTH + ANNOTATION__MINMAX_CYCLES_WIDTH;
 
-	return notes->have_cycles ? ANNOTATION__IPC_WIDTH + ANNOTATION__CYCLES_WIDTH : 0;
+	return yestes->have_cycles ? ANNOTATION__IPC_WIDTH + ANNOTATION__CYCLES_WIDTH : 0;
 }
 
-static inline int annotation__pcnt_width(struct annotation *notes)
+static inline int anyestation__pcnt_width(struct anyestation *yestes)
 {
-	return (notes->options->show_total_period ? 12 : 7) * notes->nr_events;
+	return (yestes->options->show_total_period ? 12 : 7) * yestes->nr_events;
 }
 
-static inline bool annotation_line__filter(struct annotation_line *al, struct annotation *notes)
+static inline bool anyestation_line__filter(struct anyestation_line *al, struct anyestation *yestes)
 {
-	return notes->options->hide_src_code && al->offset == -1;
+	return yestes->options->hide_src_code && al->offset == -1;
 }
 
-void annotation__set_offsets(struct annotation *notes, s64 size);
-void annotation__compute_ipc(struct annotation *notes, size_t size);
-void annotation__mark_jump_targets(struct annotation *notes, struct symbol *sym);
-void annotation__update_column_widths(struct annotation *notes);
-void annotation__init_column_widths(struct annotation *notes, struct symbol *sym);
+void anyestation__set_offsets(struct anyestation *yestes, s64 size);
+void anyestation__compute_ipc(struct anyestation *yestes, size_t size);
+void anyestation__mark_jump_targets(struct anyestation *yestes, struct symbol *sym);
+void anyestation__update_column_widths(struct anyestation *yestes);
+void anyestation__init_column_widths(struct anyestation *yestes, struct symbol *sym);
 
-static inline struct sym_hist *annotated_source__histogram(struct annotated_source *src, int idx)
+static inline struct sym_hist *anyestated_source__histogram(struct anyestated_source *src, int idx)
 {
 	return ((void *)src->histograms) + (src->sizeof_sym_hist * idx);
 }
 
-static inline struct sym_hist *annotation__histogram(struct annotation *notes, int idx)
+static inline struct sym_hist *anyestation__histogram(struct anyestation *yestes, int idx)
 {
-	return annotated_source__histogram(notes->src, idx);
+	return anyestated_source__histogram(yestes->src, idx);
 }
 
-static inline struct annotation *symbol__annotation(struct symbol *sym)
+static inline struct anyestation *symbol__anyestation(struct symbol *sym)
 {
 	return (void *)sym - symbol_conf.priv_size;
 }
@@ -346,27 +346,27 @@ int addr_map_symbol__account_cycles(struct addr_map_symbol *ams,
 int hist_entry__inc_addr_samples(struct hist_entry *he, struct perf_sample *sample,
 				 struct evsel *evsel, u64 addr);
 
-struct annotated_source *symbol__hists(struct symbol *sym, int nr_hists);
-void symbol__annotate_zero_histograms(struct symbol *sym);
+struct anyestated_source *symbol__hists(struct symbol *sym, int nr_hists);
+void symbol__anyestate_zero_histograms(struct symbol *sym);
 
-int symbol__annotate(struct map_symbol *ms,
+int symbol__anyestate(struct map_symbol *ms,
 		     struct evsel *evsel, size_t privsize,
-		     struct annotation_options *options,
+		     struct anyestation_options *options,
 		     struct arch **parch);
-int symbol__annotate2(struct map_symbol *ms,
+int symbol__anyestate2(struct map_symbol *ms,
 		      struct evsel *evsel,
-		      struct annotation_options *options,
+		      struct anyestation_options *options,
 		      struct arch **parch);
 
-enum symbol_disassemble_errno {
+enum symbol_disassemble_erryes {
 	SYMBOL_ANNOTATE_ERRNO__SUCCESS		= 0,
 
 	/*
-	 * Choose an arbitrary negative big number not to clash with standard
-	 * errno since SUS requires the errno has distinct positive values.
+	 * Choose an arbitrary negative big number yest to clash with standard
+	 * erryes since SUS requires the erryes has distinct positive values.
 	 * See 'Issue 6' in the link below.
 	 *
-	 * http://pubs.opengroup.org/onlinepubs/9699919799/basedefs/errno.h.html
+	 * http://pubs.opengroup.org/onlinepubs/9699919799/basedefs/erryes.h.html
 	 */
 	__SYMBOL_ANNOTATE_ERRNO__START		= -10000,
 
@@ -382,37 +382,37 @@ enum symbol_disassemble_errno {
 
 int symbol__strerror_disassemble(struct map_symbol *ms, int errnum, char *buf, size_t buflen);
 
-int symbol__annotate_printf(struct map_symbol *ms, struct evsel *evsel,
-			    struct annotation_options *options);
-void symbol__annotate_zero_histogram(struct symbol *sym, int evidx);
-void symbol__annotate_decay_histogram(struct symbol *sym, int evidx);
-void annotated_source__purge(struct annotated_source *as);
+int symbol__anyestate_printf(struct map_symbol *ms, struct evsel *evsel,
+			    struct anyestation_options *options);
+void symbol__anyestate_zero_histogram(struct symbol *sym, int evidx);
+void symbol__anyestate_decay_histogram(struct symbol *sym, int evidx);
+void anyestated_source__purge(struct anyestated_source *as);
 
-int map_symbol__annotation_dump(struct map_symbol *ms, struct evsel *evsel,
-				struct annotation_options *opts);
+int map_symbol__anyestation_dump(struct map_symbol *ms, struct evsel *evsel,
+				struct anyestation_options *opts);
 
-bool ui__has_annotation(void);
+bool ui__has_anyestation(void);
 
-int symbol__tty_annotate(struct map_symbol *ms, struct evsel *evsel, struct annotation_options *opts);
+int symbol__tty_anyestate(struct map_symbol *ms, struct evsel *evsel, struct anyestation_options *opts);
 
-int symbol__tty_annotate2(struct map_symbol *ms, struct evsel *evsel, struct annotation_options *opts);
+int symbol__tty_anyestate2(struct map_symbol *ms, struct evsel *evsel, struct anyestation_options *opts);
 
 #ifdef HAVE_SLANG_SUPPORT
-int symbol__tui_annotate(struct map_symbol *ms, struct evsel *evsel,
+int symbol__tui_anyestate(struct map_symbol *ms, struct evsel *evsel,
 			 struct hist_browser_timer *hbt,
-			 struct annotation_options *opts);
+			 struct anyestation_options *opts);
 #else
-static inline int symbol__tui_annotate(struct map_symbol *ms __maybe_unused,
+static inline int symbol__tui_anyestate(struct map_symbol *ms __maybe_unused,
 				struct evsel *evsel  __maybe_unused,
 				struct hist_browser_timer *hbt __maybe_unused,
-				struct annotation_options *opts __maybe_unused)
+				struct anyestation_options *opts __maybe_unused)
 {
 	return 0;
 }
 #endif
 
-void annotation_config__init(void);
+void anyestation_config__init(void);
 
-int annotate_parse_percent_type(const struct option *opt, const char *_str,
+int anyestate_parse_percent_type(const struct option *opt, const char *_str,
 				int unset);
 #endif	/* __PERF_ANNOTATE_H */

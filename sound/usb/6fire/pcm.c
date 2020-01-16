@@ -34,7 +34,7 @@ enum { /* settings for pcm */
 };
 
 enum { /* pcm streaming states */
-	STREAM_DISABLED, /* no pcm streaming */
+	STREAM_DISABLED, /* yes pcm streaming */
 	STREAM_STARTING, /* pcm streaming requested, waiting to become ready */
 	STREAM_RUNNING, /* pcm streaming running */
 	STREAM_STOPPING
@@ -256,7 +256,7 @@ static void usb6fire_pcm_playback(struct pcm_substream *sub,
 	else if (alsa_rt->format == SNDRV_PCM_FORMAT_S24_LE)
 		dest = (u32 *) (urb->buffer);
 	else {
-		dev_err(&rt->chip->dev->dev, "Unknown sample format.");
+		dev_err(&rt->chip->dev->dev, "Unkyeswn sample format.");
 		return;
 	}
 
@@ -336,7 +336,7 @@ static void usb6fire_pcm_in_urb_handler(struct urb *usb_urb)
 	}
 	memset(out_urb->buffer, 0, total_length);
 
-	/* now send our playback data (if a free out urb was found) */
+	/* yesw send our playback data (if a free out urb was found) */
 	sub = &rt->playback;
 	spin_lock_irqsave(&sub->lock, flags);
 	if (sub->active) {
@@ -495,7 +495,7 @@ static int usb6fire_pcm_prepare(struct snd_pcm_substream *alsa_sub)
 		if (ret) {
 			mutex_unlock(&rt->stream_mutex);
 			dev_err(&rt->chip->dev->dev,
-				"could not start pcm stream.\n");
+				"could yest start pcm stream.\n");
 			return ret;
 		}
 	}
@@ -650,7 +650,7 @@ int usb6fire_pcm_init(struct sfire_chip *chip)
 	if (ret < 0) {
 		usb6fire_pcm_buffers_destroy(rt);
 		kfree(rt);
-		dev_err(&chip->dev->dev, "cannot create pcm instance.\n");
+		dev_err(&chip->dev->dev, "canyest create pcm instance.\n");
 		return ret;
 	}
 

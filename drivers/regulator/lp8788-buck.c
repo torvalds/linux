@@ -463,11 +463,11 @@ static int lp8788_init_dvs(struct platform_device *pdev,
 	u8 val[]  = { LP8788_BUCK1_DVS_PIN, LP8788_BUCK2_DVS_PIN };
 	u8 default_dvs_mode[] = { LP8788_BUCK1_DVS_I2C, LP8788_BUCK2_DVS_I2C };
 
-	/* no dvs for buck3, 4 */
+	/* yes dvs for buck3, 4 */
 	if (id > BUCK2)
 		return 0;
 
-	/* no dvs platform data, then dvs will be selected by I2C registers */
+	/* yes dvs platform data, then dvs will be selected by I2C registers */
 	if (!pdata)
 		goto set_default_dvs_mode;
 

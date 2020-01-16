@@ -12,7 +12,7 @@
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/workqueue.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/pm.h>
 #include <linux/platform_device.h>
 #include <linux/input.h>
@@ -317,7 +317,7 @@ static irqreturn_t adp5588_irq(int irq, void *handle)
 
 	/*
 	 * use keventd context to read the event fifo registers
-	 * Schedule readout at least 25ms after notification for
+	 * Schedule readout at least 25ms after yestification for
 	 * REVID < 4
 	 */
 
@@ -441,17 +441,17 @@ static int adp5588_probe(struct i2c_client *client,
 
 	if (!i2c_check_functionality(client->adapter,
 					I2C_FUNC_SMBUS_BYTE_DATA)) {
-		dev_err(&client->dev, "SMBUS Byte Data not Supported\n");
+		dev_err(&client->dev, "SMBUS Byte Data yest Supported\n");
 		return -EIO;
 	}
 
 	if (!pdata) {
-		dev_err(&client->dev, "no platform data?\n");
+		dev_err(&client->dev, "yes platform data?\n");
 		return -EINVAL;
 	}
 
 	if (!pdata->rows || !pdata->cols || !pdata->keymap) {
-		dev_err(&client->dev, "no rows, cols or keymap from pdata\n");
+		dev_err(&client->dev, "yes rows, cols or keymap from pdata\n");
 		return -EINVAL;
 	}
 
@@ -492,7 +492,7 @@ static int adp5588_probe(struct i2c_client *client,
 	}
 
 	if (!client->irq) {
-		dev_err(&client->dev, "no IRQ?\n");
+		dev_err(&client->dev, "yes IRQ?\n");
 		return -EINVAL;
 	}
 

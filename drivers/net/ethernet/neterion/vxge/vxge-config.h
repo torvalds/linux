@@ -2,7 +2,7 @@
  * This software may be used and distributed according to the terms of
  * the GNU General Public License (GPL), incorporated herein by reference.
  * Drivers based on or derived from this code fall under the GPL and must
- * retain the authorship, copyright and license notice.  This file is not
+ * retain the authorship, copyright and license yestice.  This file is yest
  * a complete program and may only be used when the entire operating
  * system is licensed under the GPL.
  * See the file COPYING in this distribution for more information.
@@ -61,11 +61,11 @@ struct eprom_image {
  * @VXGE_NONE: debug disabled
  * @VXGE_ERR: all errors going to be logged out
  * @VXGE_TRACE: all errors plus all kind of verbose tracing print outs
- *                 going to be logged out. Very noisy.
+ *                 going to be logged out. Very yesisy.
  *
  * This enumeration going to be used to switch between different
  * debug levels during runtime if DEBUG macro defined during
- * compilation. If DEBUG macro not defined than code will be
+ * compilation. If DEBUG macro yest defined than code will be
  * compiled out.
  */
 enum vxge_debug_level {
@@ -89,7 +89,7 @@ enum vxge_debug_level {
 
 /*
  * @VXGE_COMPONENT_LL: do debug for vxge link layer module
- * @VXGE_COMPONENT_ALL: activate debug for all modules with no exceptions
+ * @VXGE_COMPONENT_ALL: activate debug for all modules with yes exceptions
  *
  * This enumeration going to be used to distinguish modules
  * or libraries during compilation and runtime.  Makefile must declare
@@ -183,7 +183,7 @@ enum vxge_hw_fw_upgrade_code {
  * @VXGE_HW_FW_UPGRADE_ERR_INV_NCF_FILE_6: invalid .ncf file
  * @VXGE_HW_FW_UPGRADE_ERR_CORRUPT_DATA_7: corrupt data
  * @VXGE_HW_FW_UPGRADE_ERR_INV_NCF_FILE_8: invalid .ncf file
- * @VXGE_HW_FW_UPGRADE_ERR_GENERIC_ERROR_UNKNOWN: generic error unknown type
+ * @VXGE_HW_FW_UPGRADE_ERR_GENERIC_ERROR_UNKNOWN: generic error unkyeswn type
  * @VXGE_HW_FW_UPGRADE_ERR_FAILED_TO_FLASH: failed to flash image check failed
  */
 enum vxge_hw_fw_upgrade_err_code {
@@ -219,7 +219,7 @@ struct vxge_hw_device_date {
 
 struct vxge_hw_device_version {
 	u32     major;
-	u32     minor;
+	u32     miyesr;
 	u32     build;
 	char    version[VXGE_HW_FW_STRLEN];
 };
@@ -240,7 +240,7 @@ struct vxge_hw_device_version {
  *             (e.g., to align on a cache line).
  * @intr: Boolean. Use 1 to generate interrupt for each completed TxDL.
  *             Use 0 otherwise.
- * @no_snoop_bits: If non-zero, specifies no-snoop PCI operation,
+ * @yes_syesop_bits: If yesn-zero, specifies yes-syesop PCI operation,
  *             which generally improves latency of the host bridge operation
  *             (see PCI specification). For valid values please refer
  *             to struct vxge_hw_fifo_config{} in the driver sources.
@@ -276,7 +276,7 @@ struct vxge_hw_fifo_config {
 #define VXGE_HW_FIFO_QUEUE_INTR_DISABLE			0
 #define VXGE_HW_FIFO_QUEUE_INTR_DEFAULT			0
 
-	u32				no_snoop_bits;
+	u32				yes_syesop_bits;
 #define VXGE_HW_FIFO_NO_SNOOP_DISABLED			0
 #define VXGE_HW_FIFO_NO_SNOOP_TXD			1
 #define VXGE_HW_FIFO_NO_SNOOP_FRM			2
@@ -298,14 +298,14 @@ struct vxge_hw_fifo_config {
  *             that are consumed and still on board when a timer interrupt
  *             triggers. If Clear, then if the device has already returned
  *             RxD before current timer interrupt trigerred and after the
- *             previous timer interrupt triggered, then the device is not
+ *             previous timer interrupt triggered, then the device is yest
  *             forced to returned the rest of the consumed RxD that it has
  *             on board which account for a byte count less than the one
  *             programmed into PRC_CFG6.RXD_CRXDT field
  * @rx_timer_ci: TBD
  * @backoff_interval_us: Time (in microseconds), after which Titan
  *             tries to download RxDs posted by the host.
- *             Note that the "backoff" does not happen if host posts receive
+ *             Note that the "backoff" does yest happen if host posts receive
  *             descriptors in the timely fashion.
  * Ring configuration.
  */
@@ -348,9 +348,9 @@ struct vxge_hw_ring_config {
  *              see struct vxge_hw_tim_intr_config();
  * @mtu: mtu size used on this port.
  * @rpa_strip_vlan_tag: Strip VLAN Tag enable/disable. Instructs the device to
- *             remove the VLAN tag from all received tagged frames that are not
+ *             remove the VLAN tag from all received tagged frames that are yest
  *             replicated at the internal L2 switch.
- *             0 - Do not strip the VLAN tag.
+ *             0 - Do yest strip the VLAN tag.
  *             1 - Strip the VLAN tag. Regardless of this setting, VLAN tags are
  *                 always placed into the RxDMA descriptor.
  *
@@ -461,7 +461,7 @@ struct vxge_hw_device_config {
 /**
  * function vxge_uld_link_up_f - Link-Up callback provided by driver.
  * @devh: HW device handle.
- * Link-up notification callback provided by the driver.
+ * Link-up yestification callback provided by the driver.
  * This is one of the per-driver callbacks, see struct vxge_hw_uld_cbs{}.
  *
  * See also: struct vxge_hw_uld_cbs{}, vxge_uld_link_down_f{},
@@ -473,7 +473,7 @@ struct vxge_hw_device_config {
  * driver.
  * @devh: HW device handle.
  *
- * Link-Down notification callback provided by the driver.
+ * Link-Down yestification callback provided by the driver.
  * This is one of the per-driver callbacks, see struct vxge_hw_uld_cbs{}.
  *
  * See also: struct vxge_hw_uld_cbs{}, vxge_uld_link_up_f{},
@@ -481,14 +481,14 @@ struct vxge_hw_device_config {
  */
 
 /**
- * function vxge_uld_crit_err_f - Critical Error notification callback.
+ * function vxge_uld_crit_err_f - Critical Error yestification callback.
  * @devh: HW device handle.
  * (typically - at HW device iinitialization time).
  * @type: Enumerated hw error, e.g.: double ECC.
  * @serr_data: Titan status.
  * @ext_data: Extended data. The contents depends on the @type.
  *
- * Link-Down notification callback provided by the driver.
+ * Link-Down yestification callback provided by the driver.
  * This is one of the per-driver callbacks, see struct vxge_hw_uld_cbs{}.
  *
  * See also: struct vxge_hw_uld_cbs{}, enum vxge_hw_event{},
@@ -504,7 +504,7 @@ struct vxge_hw_device_config {
  * Driver slow-path (per-driver) callbacks.
  * Implemented by driver and provided to HW via
  * vxge_hw_driver_initialize().
- * Note that these callbacks are not mandatory: HW will not invoke
+ * Note that these callbacks are yest mandatory: HW will yest invoke
  * a callback if NULL is specified.
  *
  * See also: vxge_hw_driver_initialize().
@@ -561,7 +561,7 @@ struct __vxge_hw_blockpool {
 
 /*
  * enum enum __vxge_hw_channel_type - Enumerated channel types.
- * @VXGE_HW_CHANNEL_TYPE_UNKNOWN: Unknown channel.
+ * @VXGE_HW_CHANNEL_TYPE_UNKNOWN: Unkyeswn channel.
  * @VXGE_HW_CHANNEL_TYPE_FIFO: fifo.
  * @VXGE_HW_CHANNEL_TYPE_RING: ring.
  * @VXGE_HW_CHANNEL_TYPE_MAX: Maximum number of HW-supported
@@ -596,9 +596,9 @@ enum __vxge_hw_channel_type {
  * @work_arr: Work array. Contains descriptors posted to the channel.
  *            Note that at any point in time @work_arr contains 3 types of
  *            descriptors:
- *            1) posted but not yet consumed by Titan device;
- *            2) consumed but not yet completed;
- *            3) completed but not yet freed
+ *            1) posted but yest yet consumed by Titan device;
+ *            2) consumed but yest yet completed;
+ *            3) completed but yest yet freed
  *            (via vxge_hw_fifo_txdl_free() or vxge_hw_ring_rxd_free())
  * @post_index: Post index. At any point in time points on the
  *              position in the channel, which'll contain next to-be-posted
@@ -658,7 +658,7 @@ struct __vxge_hw_channel {
  * @max_mtu: Max mtu that can be supported
  * @vsport_number: vsport attached to this vpath
  * @max_kdfc_db: Maximum kernel mode doorbells
- * @max_nofl_db: Maximum non offload doorbells
+ * @max_yesfl_db: Maximum yesn offload doorbells
  * @tx_intr_num: Interrupt Number associated with the TX
 
  * @ringh: Ring Queue
@@ -682,12 +682,12 @@ struct __vxge_hw_virtualpath {
 	struct vxge_hw_vp_config	*vp_config;
 	struct vxge_hw_vpath_reg	__iomem *vp_reg;
 	struct vxge_hw_vpmgmt_reg	__iomem *vpmgmt_reg;
-	struct __vxge_hw_non_offload_db_wrapper	__iomem *nofl_db;
+	struct __vxge_hw_yesn_offload_db_wrapper	__iomem *yesfl_db;
 
 	u32				max_mtu;
 	u32				vsport_number;
 	u32				max_kdfc_db;
-	u32				max_nofl_db;
+	u32				max_yesfl_db;
 	u64				tim_tti_cfg1_saved;
 	u64				tim_tti_cfg3_saved;
 	u64				tim_rti_cfg1_saved;
@@ -903,9 +903,9 @@ struct vxge_hw_device_attr {
  *            the @callback executes in the hw interrupt context.
  * @rxd_init: Channel's descriptor-initialize callback.
  *            See vxge_hw_ring_rxd_init_f{}.
- *            If not NULL, HW invokes the callback when opening
+ *            If yest NULL, HW invokes the callback when opening
  *            the ring.
- * @rxd_term: Channel's descriptor-terminate callback. If not NULL,
+ * @rxd_term: Channel's descriptor-terminate callback. If yest NULL,
  *          HW invokes the callback when closing the corresponding channel.
  *          See also vxge_hw_channel_rxd_term_f{}.
  * @stats: Statistics for ring
@@ -980,7 +980,7 @@ enum vxge_hw_txdl_state {
  * @config: Fifo configuration, part of device configuration
  *             (see struct vxge_hw_device_config{}).
  * @interrupt_type: Interrupt type to be used
- * @no_snoop_bits: See struct vxge_hw_fifo_config{}.
+ * @yes_syesop_bits: See struct vxge_hw_fifo_config{}.
  * @txdl_per_memblock: Number of TxDLs (TxD lists) per memblock.
  *             on TxDL please refer to Titan UG.
  * @txdl_size: Configured TxDL size (i.e., number of TxDs in a list), plus
@@ -991,7 +991,7 @@ enum vxge_hw_txdl_state {
  * @callback: Fifo completion callback. HW invokes the callback when there
  *             are new completions on that fifo. In many implementations
  *             the @callback executes in the hw interrupt context.
- * @txdl_term: Fifo's descriptor-terminate callback. If not NULL,
+ * @txdl_term: Fifo's descriptor-terminate callback. If yest NULL,
  *             HW invokes the callback when closing the corresponding fifo.
  *             See also vxge_hw_fifo_txdl_term_f{}.
  * @stats: Statistics of this fifo
@@ -1004,9 +1004,9 @@ struct __vxge_hw_fifo {
 	struct vxge_hw_mempool			*mempool;
 	struct vxge_hw_fifo_config		*config;
 	struct vxge_hw_vpath_reg		__iomem *vp_reg;
-	struct __vxge_hw_non_offload_db_wrapper	__iomem *nofl_db;
+	struct __vxge_hw_yesn_offload_db_wrapper	__iomem *yesfl_db;
 	u64					interrupt_type;
-	u32					no_snoop_bits;
+	u32					yes_syesop_bits;
 	u32					txdl_per_memblock;
 	u32					txdl_size;
 	u32					priv_size;
@@ -1094,21 +1094,21 @@ struct __vxge_hw_fifo_txdl_priv {
 };
 
 /*
- * struct __vxge_hw_non_offload_db_wrapper - Non-offload Doorbell Wrapper
+ * struct __vxge_hw_yesn_offload_db_wrapper - Non-offload Doorbell Wrapper
  * @control_0: Bits 0 to 7 - Doorbell type.
  *             Bits 8 to 31 - Reserved.
  *             Bits 32 to 39 - The highest TxD in this TxDL.
  *             Bits 40 to 47 - Reserved.
 	*	       Bits 48 to 55 - Reserved.
- *             Bits 56 to 63 - No snoop flags.
+ *             Bits 56 to 63 - No syesop flags.
  * @txdl_ptr:  The starting location of the TxDL in host memory.
  *
  * Created by the host and written to the adapter via PIO to a Kernel Doorbell
- * FIFO. All non-offload doorbell wrapper fields must be written by the host as
- * part of a doorbell write. Consumed by the adapter but is not written by the
+ * FIFO. All yesn-offload doorbell wrapper fields must be written by the host as
+ * part of a doorbell write. Consumed by the adapter but is yest written by the
  * adapter.
  */
-struct __vxge_hw_non_offload_db_wrapper {
+struct __vxge_hw_yesn_offload_db_wrapper {
 	u64		control_0;
 #define	VXGE_HW_NODBW_GET_TYPE(ctrl0)			vxge_bVALn(ctrl0, 0, 8)
 #define VXGE_HW_NODBW_TYPE(val) vxge_vBIT(val, 0, 8)
@@ -1137,7 +1137,7 @@ struct __vxge_hw_non_offload_db_wrapper {
  *             written to the adapter. This field will be set to '0' by the
  *             adapter once it has completed transmitting the frame or frames in
  *             the list. Note - This field is only valid in TxD0. Additionally,
- *             for multi-list sequences, the driver should not release any
+ *             for multi-list sequences, the driver should yest release any
  *             buffers until the ownership of the last list in the multi-list
  *             sequence has been returned to the host.
  *             Bits 8 to 11 - Reserved
@@ -1188,14 +1188,14 @@ struct __vxge_hw_non_offload_db_wrapper {
  *             This field is valid only in TxD0.
  *             Bits 31 to 33 - Reserved.
  *             Bits 34 to 47 - LSO_MSS. TCP/UDP LSO Maximum Segment Size
- *             This field is meaningful only when LSO_Control is non-zero.
+ *             This field is meaningful only when LSO_Control is yesn-zero.
  *             When LSO_Control is set to TCP_LSO, the single (possibly large)
  *             TCP segment described by this TxDL will be sent as a series of
- *             TCP segments each of which contains no more than LSO_MSS
+ *             TCP segments each of which contains yes more than LSO_MSS
  *             payload bytes.
  *             When LSO_Control is set to UDP_LSO, the single (possibly large)
  *             UDP datagram described by this TxDL will be sent as a series of
- *             UDP datagrams each of which contains no more than LSO_MSS
+ *             UDP datagrams each of which contains yes more than LSO_MSS
  *             payload bytes.
  *             All outgoing frames from this TxDL will have LSO_MSS bytes of UDP
  *             or TCP payload, with the exception of the last, which will have
@@ -1206,7 +1206,7 @@ struct __vxge_hw_non_offload_db_wrapper {
  *	       Bits 32 to 63 - This value is written by the adapter upon
  *	       completion of a UDP or TCP LSO operation and indicates the number
  *             of UDP or TCP payload bytes that were transmitted. 0x0000 will be
- *             returned for any non-LSO operation.
+ *             returned for any yesn-LSO operation.
  * @control_1: Bits 0 to 4 - Reserved.
  *             Bit 5 - Tx_CKO_IPv4 Set to a '1' to enable IPv4 header checksum
  *             offload. This field is only valid in the first TxD of a frame.
@@ -1322,15 +1322,15 @@ struct vxge_hw_fifo_txd {
  *            used to report the status of the frame transfer to the host.
  *	      0x0 - Transfer OK
  *	      0x4 - RDA Failure During Transfer
- *	      0x5 - Unparseable Packet, such as unknown IPv6 header.
+ *	      0x5 - Unparseable Packet, such as unkyeswn IPv6 header.
  *	      0x6 - Frame integrity error (FCS or ECC).
- *	      0x7 - Buffer Size Error. The provided buffer(s) were not
+ *	      0x7 - Buffer Size Error. The provided buffer(s) were yest
  *                  appropriately sized and data loss occurred.
  *	      0x8 - Internal ECC Error. RxD corrupted.
  *	      0x9 - IPv4 Checksum error
  *	      0xA - TCP/UDP Checksum error
- *	      0xF - Unknown Error or Multiple Error. Indicates an
- *               unknown problem or that more than one of transfer codes is set.
+ *	      0xF - Unkyeswn Error or Multiple Error. Indicates an
+ *               unkyeswn problem or that more than one of transfer codes is set.
  *	      Bit 16 - SYN The adapter sets this field to indicate that
  *                the incoming frame contained a TCP segment with its SYN bit
  *	          set and its ACK bit NOT set. (same meaning for all RxD buffer
@@ -1360,11 +1360,11 @@ struct vxge_hw_fifo_txd {
  *	      Bit 31 - IS_UDP Set to '1' if the frame contains a UDP message.
  *	      Bit 32 to 47 - L3_Checksum[0:15] The IPv4 checksum value 	that
  *            arrived with the frame. If the resulting computed IPv4 header
- *            checksum for the frame did not produce the expected 0xFFFF value,
+ *            checksum for the frame did yest produce the expected 0xFFFF value,
  *            then the transfer code would be set to 0x9.
  *	      Bit 48 to 63 - L4_Checksum[0:15] The TCP/UDP checksum value that
  *            arrived with the frame. If the resulting computed TCP/UDP checksum
- *            for the frame did not produce the expected 0xFFFF value, then the
+ *            for the frame did yest produce the expected 0xFFFF value, then the
  *            transfer code would be set to 0xA.
  * @control_1:Bits 0 to 1 - Reserved
  *            Bits 2 to 15 - Buffer0_Size.This field is set by the host and
@@ -1374,7 +1374,7 @@ struct vxge_hw_fifo_txd {
  *            populates this field with the number of bytes written into the
  *            buffer. The largest supported buffer is 16, 383 bytes.
  *	      Bit 16 to 47 - RTH Hash Value 32-bit RTH hash value. Only valid if
- *	      RTH_HASH_TYPE (Control_0, bits 20:23) is nonzero.
+ *	      RTH_HASH_TYPE (Control_0, bits 20:23) is yesnzero.
  *	      Bit 48 to 63 - VLAN_Tag[0:15] The contents of the variable portion
  *            of the VLAN tag, if one was detected by the adapter. This field is
  *            populated even if VLAN-tag stripping is enabled.
@@ -1506,7 +1506,7 @@ static inline u32 vxge_hw_ring_rxds_per_block_get(u32 buf_mode)
  * Prepare 1-buffer-mode Rx	descriptor for posting
  * (via	vxge_hw_ring_rxd_post()).
  *
- * This	inline helper-function does not	return any parameters and always
+ * This	inline helper-function does yest	return any parameters and always
  * succeeds.
  *
  */
@@ -1700,9 +1700,9 @@ static inline void *vxge_hw_fifo_txdl_private_get(void *txdlh)
  *            the @callback executes in the hw interrupt context.
  * @rxd_init: Ring's descriptor-initialize callback.
  *            See vxge_hw_ring_rxd_init_f{}.
- *            If not NULL, HW invokes the callback when opening
+ *            If yest NULL, HW invokes the callback when opening
  *            the ring.
- * @rxd_term: Ring's descriptor-terminate callback. If not NULL,
+ * @rxd_term: Ring's descriptor-terminate callback. If yest NULL,
  *          HW invokes the callback when closing the corresponding ring.
  *          See also vxge_hw_ring_rxd_term_f{}.
  * @userdata: User-defined "context" of _that_ ring. Passed back to the
@@ -1768,7 +1768,7 @@ struct vxge_hw_ring_attr {
  *
  * In the "transmit" case the failure could happen, for instance, when the
  * link is down, in which case Titan completes the descriptor because it
- * is not able to send the data out.
+ * is yest able to send the data out.
  *
  * For details please refer to Titan User Guide.
  *
@@ -1799,7 +1799,7 @@ struct vxge_hw_ring_attr {
  * @callback: Fifo completion callback. HW invokes the callback when there
  *            are new completions on that fifo. In many implementations
  *            the @callback executes in the hw interrupt context.
- * @txdl_term: Fifo's descriptor-terminate callback. If not NULL,
+ * @txdl_term: Fifo's descriptor-terminate callback. If yest NULL,
  *          HW invokes the callback when closing the corresponding fifo.
  *          See also vxge_hw_fifo_txdl_term_f{}.
  * @userdata: User-defined "context" of _that_ fifo. Passed back to the
@@ -1834,8 +1834,8 @@ struct vxge_hw_fifo_attr {
 /**
  * struct vxge_hw_vpath_attr - Attributes of virtual path
  * @vp_id: Identifier of Virtual Path
- * @ring_attr: Attributes of ring for non-offload receive
- * @fifo_attr: Attributes of fifo for non-offload transmit
+ * @ring_attr: Attributes of ring for yesn-offload receive
+ * @fifo_attr: Attributes of fifo for yesn-offload transmit
  *
  * Attributes of virtual path.  This structure is passed as parameter
  * to the vxge_hw_vpath_open() routine to set the attributes of ring and fifo.
@@ -2075,7 +2075,7 @@ vxge_hw_device_wait_receive_idle(struct __vxge_hw_device *hldev);
 
 enum vxge_hw_status
 vxge_hw_upgrade_read_version(struct __vxge_hw_device *hldev, u32 *major,
-			     u32 *minor, u32 *build);
+			     u32 *miyesr, u32 *build);
 
 enum vxge_hw_status vxge_hw_flash_fw(struct __vxge_hw_device *hldev);
 

@@ -81,7 +81,7 @@ struct stratix10_svc_sh_memory {
  * @vaddr: virtual address
  * @paddr: physical address
  * @size: size of memory
- * @node: link list head node
+ * @yesde: link list head yesde
  *
  * This struct is used in a list that keeps track of buffers which have
  * been allocated or freed from the memory pool. Service layer driver also
@@ -91,7 +91,7 @@ struct stratix10_svc_data_mem {
 	void *vaddr;
 	phys_addr_t paddr;
 	size_t size;
-	struct list_head node;
+	struct list_head yesde;
 };
 
 /**
@@ -101,7 +101,7 @@ struct stratix10_svc_data_mem {
  * @size: playload size
  * @command: service command requested by client
  * @flag: configuration type (full or partial)
- * @arg: args to be passed via registers and not physically mapped buffers
+ * @arg: args to be passed via registers and yest physically mapped buffers
  *
  * This struct is used in service FIFO for inter-process communication.
  */
@@ -120,7 +120,7 @@ struct stratix10_svc_data {
  * @chans: array of service channels
  * @num_chans: number of channels in 'chans' array
  * @num_active_client: number of active service client
- * @node: list management
+ * @yesde: list management
  * @genpool: memory pool pointing to the memory region
  * @task: pointer to the thread task which handles SMC or HVC call
  * @svc_fifo: a queue for storing service message data
@@ -136,7 +136,7 @@ struct stratix10_svc_controller {
 	struct stratix10_svc_chan *chans;
 	int num_chans;
 	int num_active_client;
-	struct list_head node;
+	struct list_head yesde;
 	struct gen_pool *genpool;
 	struct task_struct *task;
 	struct kfifo svc_fifo;
@@ -177,11 +177,11 @@ static void *svc_pa_to_va(unsigned long addr)
 	struct stratix10_svc_data_mem *pmem;
 
 	pr_debug("claim back P-addr=0x%016x\n", (unsigned int)addr);
-	list_for_each_entry(pmem, &svc_data_mem, node)
+	list_for_each_entry(pmem, &svc_data_mem, yesde)
 		if (pmem->paddr == addr)
 			return pmem->vaddr;
 
-	/* physical address is not found */
+	/* physical address is yest found */
 	return NULL;
 }
 
@@ -324,16 +324,16 @@ static void svc_thread_recv_status_ok(struct stratix10_svc_data *p_data,
 }
 
 /**
- * svc_normal_to_secure_thread() - the function to run in the kthread
+ * svc_yesrmal_to_secure_thread() - the function to run in the kthread
  * @data: data pointer for kthread function
  *
  * Service layer driver creates stratix10_svc_smc_hvc_call kthread on CPU
- * node 0, its function stratix10_svc_secure_call_thread is used to handle
+ * yesde 0, its function stratix10_svc_secure_call_thread is used to handle
  * SMC or HVC calls between kernel driver and secure monitor software.
  *
  * Return: 0 for success or -ENOMEM on error.
  */
-static int svc_normal_to_secure_thread(void *data)
+static int svc_yesrmal_to_secure_thread(void *data)
 {
 	struct stratix10_svc_controller
 			*ctrl = (struct stratix10_svc_controller *)data;
@@ -497,7 +497,7 @@ static int svc_normal_to_secure_thread(void *data)
 
 			/*
 			 * be compatible with older version firmware which
-			 * doesn't support RSU notify or retry
+			 * doesn't support RSU yestify or retry
 			 */
 			if ((pdata->command == COMMAND_RSU_RETRY) ||
 				(pdata->command == COMMAND_RSU_NOTIFY)) {
@@ -521,19 +521,19 @@ static int svc_normal_to_secure_thread(void *data)
 }
 
 /**
- * svc_normal_to_secure_shm_thread() - the function to run in the kthread
+ * svc_yesrmal_to_secure_shm_thread() - the function to run in the kthread
  * @data: data pointer for kthread function
  *
  * Service layer driver creates stratix10_svc_smc_hvc_shm kthread on CPU
- * node 0, its function stratix10_svc_secure_shm_thread is used to query the
+ * yesde 0, its function stratix10_svc_secure_shm_thread is used to query the
  * physical address of memory block reserved by secure monitor software at
  * secure world.
  *
- * svc_normal_to_secure_shm_thread() calls do_exit() directly since it is a
- * standlone thread for which no one will call kthread_stop() or return when
+ * svc_yesrmal_to_secure_shm_thread() calls do_exit() directly since it is a
+ * standlone thread for which yes one will call kthread_stop() or return when
  * 'kthread_should_stop()' is true.
  */
-static int svc_normal_to_secure_shm_thread(void *data)
+static int svc_yesrmal_to_secure_shm_thread(void *data)
 {
 	struct stratix10_svc_sh_memory
 			*sh_mem = (struct stratix10_svc_sh_memory *)data;
@@ -574,9 +574,9 @@ static int svc_get_sh_memory(struct platform_device *pdev,
 	init_completion(&sh_memory->sync_complete);
 
 	/* smc or hvc call happens on cpu 0 bound kthread */
-	sh_memory_task = kthread_create_on_node(svc_normal_to_secure_shm_thread,
+	sh_memory_task = kthread_create_on_yesde(svc_yesrmal_to_secure_shm_thread,
 					       (void *)sh_memory,
-						cpu_to_node(cpu),
+						cpu_to_yesde(cpu),
 						"svc_smc_hvc_shm_thread");
 	if (IS_ERR(sh_memory_task)) {
 		dev_err(dev, "fail to create stratix10_svc_smc_shm_thread\n");
@@ -642,7 +642,7 @@ svc_create_memory_pool(struct platform_device *pdev,
 		va, (unsigned int)paddr, (unsigned int)size);
 	if ((vaddr & page_mask) || (paddr & page_mask) ||
 	    (size & page_mask)) {
-		dev_err(dev, "page is not aligned\n");
+		dev_err(dev, "page is yest aligned\n");
 		return ERR_PTR(-EINVAL);
 	}
 	genpool = gen_pool_create(min_alloc_order, -1);
@@ -662,7 +662,7 @@ svc_create_memory_pool(struct platform_device *pdev,
 }
 
 /**
- * svc_smccc_smc() - secure monitor call between normal and secure world
+ * svc_smccc_smc() - secure monitor call between yesrmal and secure world
  * @a0: argument passed in registers 0
  * @a1: argument passed in registers 1
  * @a2: argument passed in registers 2
@@ -683,7 +683,7 @@ static void svc_smccc_smc(unsigned long a0, unsigned long a1,
 }
 
 /**
- * svc_smccc_hvc() - hypervisor call between normal and secure world
+ * svc_smccc_hvc() - hypervisor call between yesrmal and secure world
  * @a0: argument passed in registers 0
  * @a1: argument passed in registers 1
  * @a2: argument passed in registers 2
@@ -713,7 +713,7 @@ static svc_invoke_fn *get_invoke_func(struct device *dev)
 {
 	const char *method;
 
-	if (of_property_read_string(dev->of_node, "method", &method)) {
+	if (of_property_read_string(dev->of_yesde, "method", &method)) {
 		dev_warn(dev, "missing \"method\" property\n");
 		return ERR_PTR(-ENXIO);
 	}
@@ -752,7 +752,7 @@ struct stratix10_svc_chan *stratix10_svc_request_channel_byname(
 		return ERR_PTR(-EPROBE_DEFER);
 
 	controller = list_first_entry(&svc_ctrl,
-				      struct stratix10_svc_controller, node);
+				      struct stratix10_svc_controller, yesde);
 	for (i = 0; i < SVC_NUM_CHANNEL; i++) {
 		if (!strcmp(controller->chans[i].name, name)) {
 			chan = &controller->chans[i];
@@ -760,14 +760,14 @@ struct stratix10_svc_chan *stratix10_svc_request_channel_byname(
 		}
 	}
 
-	/* if there was no channel match */
+	/* if there was yes channel match */
 	if (i == SVC_NUM_CHANNEL) {
-		dev_err(dev, "%s: channel not allocated\n", __func__);
+		dev_err(dev, "%s: channel yest allocated\n", __func__);
 		return ERR_PTR(-EINVAL);
 	}
 
 	if (chan->scl || !try_module_get(controller->dev->driver->owner)) {
-		dev_dbg(dev, "%s: svc not free\n", __func__);
+		dev_dbg(dev, "%s: svc yest free\n", __func__);
 		return ERR_PTR(-EBUSY);
 	}
 
@@ -825,9 +825,9 @@ int stratix10_svc_send(struct stratix10_svc_chan *chan, void *msg)
 	/* first client will create kernel thread */
 	if (!chan->ctrl->task) {
 		chan->ctrl->task =
-			kthread_create_on_node(svc_normal_to_secure_thread,
+			kthread_create_on_yesde(svc_yesrmal_to_secure_thread,
 					      (void *)chan->ctrl,
-					      cpu_to_node(cpu),
+					      cpu_to_yesde(cpu),
 					      "svc_smc_hvc_thread");
 			if (IS_ERR(chan->ctrl->task)) {
 				dev_err(chan->ctrl->dev,
@@ -851,7 +851,7 @@ int stratix10_svc_send(struct stratix10_svc_chan *chan, void *msg)
 			p_data->flag = ct->flags;
 		}
 	} else {
-		list_for_each_entry(p_mem, &svc_data_mem, node)
+		list_for_each_entry(p_mem, &svc_data_mem, yesde)
 			if (p_mem->vaddr == p_msg->payload) {
 				p_data->paddr = p_mem->paddr;
 				break;
@@ -932,7 +932,7 @@ void *stratix10_svc_allocate_memory(struct stratix10_svc_chan *chan,
 	pmem->vaddr = (void *)va;
 	pmem->paddr = pa;
 	pmem->size = s;
-	list_add_tail(&pmem->node, &svc_data_mem);
+	list_add_tail(&pmem->yesde, &svc_data_mem);
 	pr_debug("%s: va=%p, pa=0x%016x\n", __func__,
 		 pmem->vaddr, (unsigned int)pmem->paddr);
 
@@ -952,7 +952,7 @@ void stratix10_svc_free_memory(struct stratix10_svc_chan *chan, void *kaddr)
 	struct stratix10_svc_data_mem *pmem;
 	size_t size = 0;
 
-	list_for_each_entry(pmem, &svc_data_mem, node)
+	list_for_each_entry(pmem, &svc_data_mem, yesde)
 		if (pmem->vaddr == kaddr) {
 			size = pmem->size;
 			break;
@@ -960,7 +960,7 @@ void stratix10_svc_free_memory(struct stratix10_svc_chan *chan, void *kaddr)
 
 	gen_pool_free(chan->ctrl->genpool, (unsigned long)kaddr, size);
 	pmem->vaddr = NULL;
-	list_del(&pmem->node);
+	list_del(&pmem->yesde);
 }
 EXPORT_SYMBOL_GPL(stratix10_svc_free_memory);
 
@@ -1037,7 +1037,7 @@ static int stratix10_svc_drv_probe(struct platform_device *pdev)
 	chans[1].name = SVC_CLIENT_RSU;
 	spin_lock_init(&chans[1].lock);
 
-	list_add_tail(&controller->node, &svc_ctrl);
+	list_add_tail(&controller->yesde, &svc_ctrl);
 	platform_set_drvdata(pdev, controller);
 
 	/* add svc client device(s) */
@@ -1077,7 +1077,7 @@ static int stratix10_svc_drv_remove(struct platform_device *pdev)
 	}
 	if (ctrl->genpool)
 		gen_pool_destroy(ctrl->genpool);
-	list_del(&ctrl->node);
+	list_del(&ctrl->yesde);
 
 	return 0;
 }
@@ -1093,19 +1093,19 @@ static struct platform_driver stratix10_svc_driver = {
 
 static int __init stratix10_svc_init(void)
 {
-	struct device_node *fw_np;
-	struct device_node *np;
+	struct device_yesde *fw_np;
+	struct device_yesde *np;
 	int ret;
 
-	fw_np = of_find_node_by_name(NULL, "firmware");
+	fw_np = of_find_yesde_by_name(NULL, "firmware");
 	if (!fw_np)
 		return -ENODEV;
 
-	np = of_find_matching_node(fw_np, stratix10_svc_drv_match);
+	np = of_find_matching_yesde(fw_np, stratix10_svc_drv_match);
 	if (!np)
 		return -ENODEV;
 
-	of_node_put(np);
+	of_yesde_put(np);
 	ret = of_platform_populate(fw_np, stratix10_svc_drv_match, NULL, NULL);
 	if (ret)
 		return ret;

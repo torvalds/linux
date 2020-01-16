@@ -17,7 +17,7 @@ Required properties:
     "tx" - Mailbox for transmitting data to hardware UART
 - mboxes: Mailboxes corresponding to the mbox-names.
 
-This node is a mailbox consumer. See the following files for details of
+This yesde is a mailbox consumer. See the following files for details of
 the mailbox subsystem, and the specifiers implemented by the relevant
 provider(s):
 

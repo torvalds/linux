@@ -4,7 +4,7 @@
  * Author: Jun Sun, jsun@mvista.com or jsun@junsun.net
  * Copyright (C) 2000, 2001 Ralf Baechle (ralf@gnu.org)
  *
- * Copyright (C) 2007 Lemote Inc. & Institute of Computing Technology
+ * Copyright (C) 2007 Lemote Inc. & Institute of Computing Techyeslogy
  * Author: Fuxin Zhang, zhangfx@lemote.com
  */
 #include <linux/interrupt.h>
@@ -31,7 +31,7 @@ static struct irq_chip bonito_irq_type = {
 };
 
 static struct irqaction __maybe_unused dma_timeout_irqaction = {
-	.handler	= no_action,
+	.handler	= yes_action,
 	.name		= "dma_timeout",
 };
 

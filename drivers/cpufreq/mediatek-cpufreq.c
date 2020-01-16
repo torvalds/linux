@@ -29,7 +29,7 @@
  * 100mV < Vsram - Vproc < 200mV
  *
  * When scaling the clock frequency of a CPU clock domain, the clock source
- * needs to be switched to another stable PLL clock temporarily until
+ * needs to be switched to ayesther stable PLL clock temporarily until
  * the original PLL becomes stable at target frequency.
  */
 struct mtk_cpu_dvfs_info {
@@ -70,7 +70,7 @@ static int mtk_cpufreq_voltage_tracking(struct mtk_cpu_dvfs_info *info,
 		pr_err("%s: invalid Vproc value: %d\n", __func__, old_vproc);
 		return old_vproc;
 	}
-	/* Vsram should not exceed the maximum allowed voltage of SoC. */
+	/* Vsram should yest exceed the maximum allowed voltage of SoC. */
 	new_vsram = min(new_vproc + MIN_VOLT_SHIFT, MAX_VOLT_LIMIT);
 
 	if (old_vproc < new_vproc) {
@@ -317,7 +317,7 @@ static int mtk_cpu_dvfs_info_init(struct mtk_cpu_dvfs_info *info, int cpu)
 	cpu_clk = clk_get(cpu_dev, "cpu");
 	if (IS_ERR(cpu_clk)) {
 		if (PTR_ERR(cpu_clk) == -EPROBE_DEFER)
-			pr_warn("cpu clk for cpu%d not ready, retry.\n", cpu);
+			pr_warn("cpu clk for cpu%d yest ready, retry.\n", cpu);
 		else
 			pr_err("failed to get cpu clk for cpu%d\n", cpu);
 
@@ -328,7 +328,7 @@ static int mtk_cpu_dvfs_info_init(struct mtk_cpu_dvfs_info *info, int cpu)
 	inter_clk = clk_get(cpu_dev, "intermediate");
 	if (IS_ERR(inter_clk)) {
 		if (PTR_ERR(inter_clk) == -EPROBE_DEFER)
-			pr_warn("intermediate clk for cpu%d not ready, retry.\n",
+			pr_warn("intermediate clk for cpu%d yest ready, retry.\n",
 				cpu);
 		else
 			pr_err("failed to get intermediate clk for cpu%d\n",
@@ -341,7 +341,7 @@ static int mtk_cpu_dvfs_info_init(struct mtk_cpu_dvfs_info *info, int cpu)
 	proc_reg = regulator_get_optional(cpu_dev, "proc");
 	if (IS_ERR(proc_reg)) {
 		if (PTR_ERR(proc_reg) == -EPROBE_DEFER)
-			pr_warn("proc regulator for cpu%d not ready, retry.\n",
+			pr_warn("proc regulator for cpu%d yest ready, retry.\n",
 				cpu);
 		else
 			pr_err("failed to get proc regulator for cpu%d\n",
@@ -364,7 +364,7 @@ static int mtk_cpu_dvfs_info_init(struct mtk_cpu_dvfs_info *info, int cpu)
 
 	ret = dev_pm_opp_of_cpumask_add_table(&info->cpus);
 	if (ret) {
-		pr_warn("no OPP table for cpu%d\n", cpu);
+		pr_warn("yes OPP table for cpu%d\n", cpu);
 		goto out_free_resources;
 	}
 
@@ -431,7 +431,7 @@ static int mtk_cpufreq_init(struct cpufreq_policy *policy)
 
 	info = mtk_cpu_dvfs_info_lookup(policy->cpu);
 	if (!info) {
-		pr_err("dvfs info for cpu%d is not initialized.\n",
+		pr_err("dvfs info for cpu%d is yest initialized.\n",
 		       policy->cpu);
 		return -EINVAL;
 	}
@@ -543,19 +543,19 @@ static const struct of_device_id mtk_cpufreq_machines[] __initconst = {
 
 static int __init mtk_cpufreq_driver_init(void)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 	const struct of_device_id *match;
 	struct platform_device *pdev;
 	int err;
 
-	np = of_find_node_by_path("/");
+	np = of_find_yesde_by_path("/");
 	if (!np)
 		return -ENODEV;
 
-	match = of_match_node(mtk_cpufreq_machines, np);
-	of_node_put(np);
+	match = of_match_yesde(mtk_cpufreq_machines, np);
+	of_yesde_put(np);
 	if (!match) {
-		pr_debug("Machine is not compatible with mtk-cpufreq\n");
+		pr_debug("Machine is yest compatible with mtk-cpufreq\n");
 		return -ENODEV;
 	}
 
@@ -564,7 +564,7 @@ static int __init mtk_cpufreq_driver_init(void)
 		return err;
 
 	/*
-	 * Since there's no place to hold device registration code and no
+	 * Since there's yes place to hold device registration code and yes
 	 * device tree based way to match cpufreq driver yet, both the driver
 	 * and the device registration codes are put here to handle defer
 	 * probing.

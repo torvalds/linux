@@ -7,7 +7,7 @@
 
 #include <linux/acpi.h>
 #include <linux/cache.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/of.h>
 #include <linux/string.h>
 #include <asm/acpi.h>
@@ -55,18 +55,18 @@ static const char *__init cpu_read_enable_method(int cpu)
 	const char *enable_method;
 
 	if (acpi_disabled) {
-		struct device_node *dn = of_get_cpu_node(cpu, NULL);
+		struct device_yesde *dn = of_get_cpu_yesde(cpu, NULL);
 
 		if (!dn) {
 			if (!cpu)
-				pr_err("Failed to find device node for boot cpu\n");
+				pr_err("Failed to find device yesde for boot cpu\n");
 			return NULL;
 		}
 
 		enable_method = of_get_property(dn, "enable-method", NULL);
 		if (!enable_method) {
 			/*
-			 * The boot CPU may not have an enable method (e.g.
+			 * The boot CPU may yest have an enable method (e.g.
 			 * when spin-table is used for secondaries).
 			 * Don't warn spuriously.
 			 */
@@ -74,14 +74,14 @@ static const char *__init cpu_read_enable_method(int cpu)
 				pr_err("%pOF: missing enable-method property\n",
 					dn);
 		}
-		of_node_put(dn);
+		of_yesde_put(dn);
 	} else {
 		enable_method = acpi_get_enable_method(cpu);
 		if (!enable_method) {
 			/*
-			 * In ACPI systems the boot CPU does not require
+			 * In ACPI systems the boot CPU does yest require
 			 * checking the enable method since for some
-			 * boot protocol (ie parking protocol) it need not
+			 * boot protocol (ie parking protocol) it need yest
 			 * be initialized. Don't warn spuriously.
 			 */
 			if (cpu != 0)

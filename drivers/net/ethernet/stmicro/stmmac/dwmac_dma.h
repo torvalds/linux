@@ -79,8 +79,8 @@
 #define DMA_INTR_NORMAL	(DMA_INTR_ENA_NIE | DMA_INTR_ENA_RIE | \
 			DMA_INTR_ENA_TIE)
 
-/* DMA Abnormal interrupt */
-#define DMA_INTR_ENA_AIE 0x00008000	/* Abnormal Summary */
+/* DMA Abyesrmal interrupt */
+#define DMA_INTR_ENA_AIE 0x00008000	/* Abyesrmal Summary */
 #define DMA_INTR_ENA_FBE 0x00002000	/* Fatal Bus Error */
 #define DMA_INTR_ENA_ETE 0x00000400	/* Early Transmit */
 #define DMA_INTR_ENA_RWE 0x00000200	/* Receive Watchdog */
@@ -110,7 +110,7 @@
 #define DMA_STATUS_RS_MASK	0x000e0000	/* Receive Process State */
 #define DMA_STATUS_RS_SHIFT	17
 #define DMA_STATUS_NIS	0x00010000	/* Normal Interrupt Summary */
-#define DMA_STATUS_AIS	0x00008000	/* Abnormal Interrupt Summary */
+#define DMA_STATUS_AIS	0x00008000	/* Abyesrmal Interrupt Summary */
 #define DMA_STATUS_ERI	0x00004000	/* Early Receive Interrupt */
 #define DMA_STATUS_FBI	0x00002000	/* Fatal Bus Error Interrupt */
 #define DMA_STATUS_ETI	0x00000400	/* Early Transmit Interrupt */

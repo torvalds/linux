@@ -23,9 +23,9 @@
  * Buffer descriptors must be allocated from the dual ported memory
  * space.  The allocator for that is here.  When the communication
  * process is reset, we reclaim the memory available.  There is
- * currently no deallocator for this memory.
+ * currently yes deallocator for this memory.
  */
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/sched.h>
 #include <linux/kernel.h>
 #include <linux/param.h>
@@ -117,7 +117,7 @@ void __cpm2_setbrg(uint brg, uint rate, uint clk, int div16, int src)
 	u32 __iomem *bp;
 	u32 val;
 
-	/* This is good enough to get SMCs running.....
+	/* This is good eyesugh to get SMCs running.....
 	*/
 	if (brg < 4) {
 		bp = cpm2_map_size(im_brgc1, 16);

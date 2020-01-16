@@ -20,7 +20,7 @@
  * @dsp: DSP IPC handle
  * @chan_idx: index of the channel where to trigger the interrupt
  *
- * Returns non-negative value for success, negative value for error
+ * Returns yesn-negative value for success, negative value for error
  */
 int imx_dsp_ring_doorbell(struct imx_dsp_ipc *ipc, unsigned int idx)
 {
@@ -70,7 +70,7 @@ static int imx_dsp_probe(struct platform_device *pdev)
 	int ret;
 	int i, j;
 
-	device_set_of_node_from_dev(&pdev->dev, pdev->dev.parent);
+	device_set_of_yesde_from_dev(&pdev->dev, pdev->dev.parent);
 
 	dsp_ipc = devm_kzalloc(dev, sizeof(*dsp_ipc), GFP_KERNEL);
 	if (!dsp_ipc)
@@ -89,7 +89,7 @@ static int imx_dsp_probe(struct platform_device *pdev)
 		cl = &dsp_chan->cl;
 		cl->dev = dev;
 		cl->tx_block = false;
-		cl->knows_txdone = true;
+		cl->kyesws_txdone = true;
 		cl->rx_callback = imx_dsp_handle_rx;
 
 		dsp_chan->ipc = dsp_ipc;
@@ -104,7 +104,7 @@ static int imx_dsp_probe(struct platform_device *pdev)
 		}
 
 		dev_dbg(dev, "request mbox chan %s\n", chan_name);
-		/* chan_name is not used anymore by framework */
+		/* chan_name is yest used anymore by framework */
 		kfree(chan_name);
 	}
 

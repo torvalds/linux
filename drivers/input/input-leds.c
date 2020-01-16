@@ -88,7 +88,7 @@ static int input_leds_connect(struct input_handler *handler,
 	struct input_led *led;
 	unsigned int num_leds;
 	unsigned int led_code;
-	int led_no;
+	int led_yes;
 	int error;
 
 	num_leds = input_leds_get_count(dev);
@@ -114,12 +114,12 @@ static int input_leds_connect(struct input_handler *handler,
 	if (error)
 		goto err_unregister_handle;
 
-	led_no = 0;
+	led_yes = 0;
 	for_each_set_bit(led_code, dev->ledbit, LED_CNT) {
 		if (!input_led_info[led_code].name)
 			continue;
 
-		led = &leds->leds[led_no];
+		led = &leds->leds[led_yes];
 		led->handle = &leds->handle;
 		led->code = led_code;
 
@@ -144,14 +144,14 @@ static int input_leds_connect(struct input_handler *handler,
 			goto err_unregister_leds;
 		}
 
-		led_no++;
+		led_yes++;
 	}
 
 	return 0;
 
 err_unregister_leds:
-	while (--led_no >= 0) {
-		struct input_led *led = &leds->leds[led_no];
+	while (--led_yes >= 0) {
+		struct input_led *led = &leds->leds[led_yes];
 
 		led_classdev_unregister(&led->cdev);
 		kfree(led->cdev.name);

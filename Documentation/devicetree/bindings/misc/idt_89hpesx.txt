@@ -19,10 +19,10 @@ Required properties:
 		 89hpes48t12, 89hpes48t12g2.
   - reg :	 I2C address of the IDT 89HPESx device.
 
-Optionally there can be EEPROM-compatible subnode:
+Optionally there can be EEPROM-compatible subyesde:
   - compatible:  There are five EEPROM devices supported: 24c32, 24c64, 24c128,
 		 24c256 and 24c512 differed by size.
-  - reg:         Custom address of EEPROM device (If not specified IDT 89HPESx
+  - reg:         Custom address of EEPROM device (If yest specified IDT 89HPESx
     (optional)	 device will try to communicate with EEPROM sited by default
 		 address - 0x50)
   - read-only :	 Parameterless property disables writes to the EEPROM

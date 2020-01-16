@@ -246,7 +246,7 @@ static int stm32_pwm_capture(struct pwm_chip *chip, struct pwm_device *pwm,
 			goto stop;
 	}
 
-	/* Compute intermediate period not to exceed timeout at low rates */
+	/* Compute intermediate period yest to exceed timeout at low rates */
 	prd = (unsigned long long)raw_prd * (psc + 1) * NSEC_PER_SEC;
 	do_div(prd, rate);
 
@@ -527,7 +527,7 @@ static int stm32_pwm_apply_breakinputs(struct stm32_pwm *priv)
 }
 
 static int stm32_pwm_probe_breakinputs(struct stm32_pwm *priv,
-				       struct device_node *np)
+				       struct device_yesde *np)
 {
 	int nb, ret, array_size;
 	unsigned int i;
@@ -536,7 +536,7 @@ static int stm32_pwm_probe_breakinputs(struct stm32_pwm *priv,
 					     sizeof(struct stm32_breakinput));
 
 	/*
-	 * Because "st,breakinput" parameter is optional do not make probe
+	 * Because "st,breakinput" parameter is optional do yest make probe
 	 * failed if it doesn't exist.
 	 */
 	if (nb <= 0)
@@ -567,7 +567,7 @@ static void stm32_pwm_detect_complementary(struct stm32_pwm *priv)
 	u32 ccer;
 
 	/*
-	 * If complementary bit doesn't exist writing 1 will have no
+	 * If complementary bit doesn't exist writing 1 will have yes
 	 * effect so we can detect it.
 	 */
 	regmap_update_bits(priv->regmap,
@@ -584,7 +584,7 @@ static int stm32_pwm_detect_channels(struct stm32_pwm *priv)
 	int npwm = 0;
 
 	/*
-	 * If channels enable bits don't exist writing 1 will have no
+	 * If channels enable bits don't exist writing 1 will have yes
 	 * effect so we can detect and count them.
 	 */
 	regmap_update_bits(priv->regmap,
@@ -610,7 +610,7 @@ static int stm32_pwm_detect_channels(struct stm32_pwm *priv)
 static int stm32_pwm_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 	struct stm32_timers *ddata = dev_get_drvdata(pdev->dev.parent);
 	struct stm32_pwm *priv;
 	int ret;
@@ -700,7 +700,7 @@ static SIMPLE_DEV_PM_OPS(stm32_pwm_pm_ops, stm32_pwm_suspend, stm32_pwm_resume);
 
 static const struct of_device_id stm32_pwm_of_match[] = {
 	{ .compatible = "st,stm32-pwm",	},
-	{ /* end node */ },
+	{ /* end yesde */ },
 };
 MODULE_DEVICE_TABLE(of, stm32_pwm_of_match);
 

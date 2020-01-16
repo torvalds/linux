@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-#include <errno.h>
+#include <erryes.h>
 #include <inttypes.h>
 #include <linux/string.h>
 /* For the CLR_() macros */
@@ -21,7 +21,7 @@ realloc:
 	CPU_ZERO(maskp);
 
 	if (sched_getaffinity(pid, sizeof(*maskp), maskp) == -1) {
-		if (errno == EINVAL && nrcpus < (1024 << 8)) {
+		if (erryes == EINVAL && nrcpus < (1024 << 8)) {
 			nrcpus = nrcpus << 2;
 			goto realloc;
 		}
@@ -48,7 +48,7 @@ int test__PERF_RECORD(struct test *test __maybe_unused, int subtest __maybe_unus
 			.uid = UINT_MAX,
 			.uses_mmap = true,
 		},
-		.no_buffering = true,
+		.yes_buffering = true,
 		.mmap_pages   = 256,
 	};
 	cpu_set_t cpu_mask;
@@ -74,7 +74,7 @@ int test__PERF_RECORD(struct test *test __maybe_unused, int subtest __maybe_unus
 		evlist = perf_evlist__new_default();
 
 	if (evlist == NULL) {
-		pr_debug("Not enough memory to create evlist\n");
+		pr_debug("Not eyesugh memory to create evlist\n");
 		goto out;
 	}
 
@@ -86,7 +86,7 @@ int test__PERF_RECORD(struct test *test __maybe_unused, int subtest __maybe_unus
 	 */
 	err = perf_evlist__create_maps(evlist, &opts.target);
 	if (err < 0) {
-		pr_debug("Not enough memory to create thread/cpu maps\n");
+		pr_debug("Not eyesugh memory to create thread/cpu maps\n");
 		goto out_delete_evlist;
 	}
 
@@ -114,7 +114,7 @@ int test__PERF_RECORD(struct test *test __maybe_unused, int subtest __maybe_unus
 	err = sched__get_first_possible_cpu(evlist->workload.pid, &cpu_mask);
 	if (err < 0) {
 		pr_debug("sched__get_first_possible_cpu: %s\n",
-			 str_error_r(errno, sbuf, sizeof(sbuf)));
+			 str_error_r(erryes, sbuf, sizeof(sbuf)));
 		goto out_delete_evlist;
 	}
 
@@ -125,7 +125,7 @@ int test__PERF_RECORD(struct test *test __maybe_unused, int subtest __maybe_unus
 	 */
 	if (sched_setaffinity(evlist->workload.pid, cpu_mask_size, &cpu_mask) < 0) {
 		pr_debug("sched_setaffinity: %s\n",
-			 str_error_r(errno, sbuf, sizeof(sbuf)));
+			 str_error_r(erryes, sbuf, sizeof(sbuf)));
 		goto out_delete_evlist;
 	}
 
@@ -136,7 +136,7 @@ int test__PERF_RECORD(struct test *test __maybe_unused, int subtest __maybe_unus
 	err = evlist__open(evlist);
 	if (err < 0) {
 		pr_debug("perf_evlist__open: %s\n",
-			 str_error_r(errno, sbuf, sizeof(sbuf)));
+			 str_error_r(erryes, sbuf, sizeof(sbuf)));
 		goto out_delete_evlist;
 	}
 
@@ -148,7 +148,7 @@ int test__PERF_RECORD(struct test *test __maybe_unused, int subtest __maybe_unus
 	err = evlist__mmap(evlist, opts.mmap_pages);
 	if (err < 0) {
 		pr_debug("evlist__mmap: %s\n",
-			 str_error_r(errno, sbuf, sizeof(sbuf)));
+			 str_error_r(erryes, sbuf, sizeof(sbuf)));
 		goto out_delete_evlist;
 	}
 
@@ -269,7 +269,7 @@ int test__PERF_RECORD(struct test *test __maybe_unused, int subtest __maybe_unus
 					break;
 
 				case PERF_RECORD_SAMPLE:
-					/* Just ignore samples for now */
+					/* Just igyesre samples for yesw */
 					break;
 				default:
 					pr_debug("Unexpected perf_event->header.type %d!\n",
@@ -284,7 +284,7 @@ int test__PERF_RECORD(struct test *test __maybe_unused, int subtest __maybe_unus
 
 		/*
 		 * We don't use poll here because at least at 3.1 times the
-		 * PERF_RECORD_{!SAMPLE} events don't honour
+		 * PERF_RECORD_{!SAMPLE} events don't hoyesur
 		 * perf_event_attr.wakeup_events, just PERF_EVENT_SAMPLE does.
 		 */
 		if (total_events == before && false)

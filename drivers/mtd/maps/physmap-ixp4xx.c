@@ -112,7 +112,7 @@ static void ixp4xx_write16(struct map_info *map, map_word d, unsigned long adr)
 }
 
 int of_flash_probe_ixp4xx(struct platform_device *pdev,
-			  struct device_node *np,
+			  struct device_yesde *np,
 			  struct map_info *map)
 {
 	struct device *dev = &pdev->dev;

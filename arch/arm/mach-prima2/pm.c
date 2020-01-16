@@ -94,23 +94,23 @@ static const struct of_device_id pwrc_ids[] = {
 
 static int __init sirfsoc_of_pwrc_init(void)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 
-	np = of_find_matching_node(NULL, pwrc_ids);
+	np = of_find_matching_yesde(NULL, pwrc_ids);
 	if (!np) {
-		pr_err("unable to find compatible sirf pwrc node in dtb\n");
+		pr_err("unable to find compatible sirf pwrc yesde in dtb\n");
 		return -ENOENT;
 	}
 
 	/*
-	 * pwrc behind rtciobrg is not located in memory space
+	 * pwrc behind rtciobrg is yest located in memory space
 	 * though the property is named reg. reg only means base
-	 * offset for pwrc. then of_iomap is not suitable here.
+	 * offset for pwrc. then of_iomap is yest suitable here.
 	 */
 	if (of_property_read_u32(np, "reg", &sirfsoc_pwrc_base))
-		panic("unable to find base address of pwrc node in dtb\n");
+		panic("unable to find base address of pwrc yesde in dtb\n");
 
-	of_node_put(np);
+	of_yesde_put(np);
 
 	return 0;
 }
@@ -122,7 +122,7 @@ static const struct of_device_id memc_ids[] = {
 
 static int sirfsoc_memc_probe(struct platform_device *op)
 {
-	struct device_node *np = op->dev.of_node;
+	struct device_yesde *np = op->dev.of_yesde;
 
 	sirfsoc_memc_base = of_iomap(np, 0);
 	if (!sirfsoc_memc_base)

@@ -157,7 +157,7 @@
 #define U300_SYSCON_CFSR_SLOW_BRIDGE_CLK_FORCE_EN		(0x0001)
 /* Clock force FAST peripherals 16bit (R/W) */
 #define U300_SYSCON_CFFR					(0x40)
-/* Values not defined. Define if you want to use them. */
+/* Values yest defined. Define if you want to use them. */
 /* Clock force the rest of the peripherals 16bit (R/W) */
 #define U300_SYSCON_CFRR					(0x44)
 #define U300_SYSCON_CFRR_CDS_CLK_FORCE_EN			(0x2000)
@@ -360,10 +360,10 @@
  * The clocking hierarchy currently looks like this.
  * NOTE: the idea is NOT to show how the clocks are routed on the chip!
  * The ideas is to show dependencies, so a clock higher up in the
- * hierarchy has to be on in order for another clock to be on. Now,
+ * hierarchy has to be on in order for ayesther clock to be on. Now,
  * both CPU and DMA can actually be on top of the hierarchy, and that
- * is not modeled currently. Instead we have the backbone AMBA bus on
- * top. This bus cannot be programmed in any way but conceptually it
+ * is yest modeled currently. Instead we have the backbone AMBA bus on
+ * top. This bus canyest be programmed in any way but conceptually it
  * needs to be active for the bridges and devices to transport data.
  *
  * Please be aware that a few clocks are hw controlled, which mean that
@@ -402,16 +402,16 @@
  *  |
  *  +- slow:0 SLOW bridge
  *     |
- *     +- slow:1 SYSCON (not possible to control)
+ *     +- slow:1 SYSCON (yest possible to control)
  *     +- slow:2 WDOG Watchdog
  *     +- slow:3 UART0 primary UART
  *     +- slow:4 TIMER_APP Application timer - used in Linux
  *     +- slow:5 KEYPAD controller
  *     +- slow:6 GPIO controller
  *     +- slow:7 RTC controller
- *     +- slow:8 BT Bus Tracer (not used currently)
- *     +- slow:9 EH Event Handler (not used currently)
- *     +- slow:a TIMER_ACC Access style timer (not used currently)
+ *     +- slow:8 BT Bus Tracer (yest used currently)
+ *     +- slow:9 EH Event Handler (yest used currently)
+ *     +- slow:a TIMER_ACC Access style timer (yest used currently)
  *     +- slow:b PPM (U335 only, what is that?)
  */
 
@@ -422,8 +422,8 @@ static void __iomem *syscon_vbase;
  * struct clk_syscon - U300 syscon clock
  * @hw: corresponding clock hardware entry
  * @hw_ctrld: whether this clock is hardware controlled (for refcount etc)
- *	and does not need any magic pokes to be enabled/disabled
- * @reset: state holder, whether this block's reset line is asserted or not
+ *	and does yest need any magic pokes to be enabled/disabled
+ * @reset: state holder, whether this block's reset line is asserted or yest
  * @res_reg: reset line enable/disable flag register
  * @res_bit: bit for resetting or taking this consumer out of reset
  * @en_reg: clock line enable/disable flag register
@@ -513,7 +513,7 @@ static int syscon_clk_enable(struct clk_hw *hw)
 	/* Don't touch the hardware controlled clocks */
 	if (sclk->hw_ctrld)
 		return 0;
-	/* These cannot be controlled */
+	/* These canyest be controlled */
 	if (sclk->clk_val == 0xFFFFU)
 		return 0;
 
@@ -542,7 +542,7 @@ static int syscon_clk_is_enabled(struct clk_hw *hw)
 	struct clk_syscon *sclk = to_syscon(hw);
 	u16 val;
 
-	/* If no enable register defined, it's always-on */
+	/* If yes enable register defined, it's always-on */
 	if (!sclk->en_reg)
 		return 1;
 
@@ -796,7 +796,7 @@ static struct u300_clock const u300_clk_lookup[] __initconst = {
 		.type = U300_CLK_TYPE_REST,
 		.id = 12,
 		.hw_ctrld = false,
-		/* INTCON: cannot be enabled, just taken out of reset */
+		/* INTCON: canyest be enabled, just taken out of reset */
 		.clk_val = 0xFFFFU,
 	},
 	{
@@ -868,7 +868,7 @@ static struct u300_clock const u300_clk_lookup[] __initconst = {
 	},
 };
 
-static void __init of_u300_syscon_clk_init(struct device_node *np)
+static void __init of_u300_syscon_clk_init(struct device_yesde *np)
 {
 	struct clk_hw *hw = ERR_PTR(-EINVAL);
 	const char *clk_name = np->name;
@@ -905,7 +905,7 @@ static void __init of_u300_syscon_clk_init(struct device_node *np)
 		en_reg = syscon_vbase + U300_SYSCON_CERR;
 		break;
 	default:
-		pr_err("unknown clock type %x specified\n", clk_type);
+		pr_err("unkyeswn clock type %x specified\n", clk_type);
 		return;
 	}
 
@@ -924,9 +924,9 @@ static void __init of_u300_syscon_clk_init(struct device_node *np)
 		of_clk_add_hw_provider(np, of_clk_hw_simple_get, hw);
 
 		/*
-		 * Some few system clocks - device tree does not
-		 * represent clocks without a corresponding device node.
-		 * for now we add these three clocks here.
+		 * Some few system clocks - device tree does yest
+		 * represent clocks without a corresponding device yesde.
+		 * for yesw we add these three clocks here.
 		 */
 		if (clk_type == U300_CLK_TYPE_REST && clk_id == 5)
 			clk_hw_register_clkdev(hw, NULL, "pl172");
@@ -999,7 +999,7 @@ mclk_clk_recalc_rate(struct clk_hw *hw,
 		 * This clock is under program control. The register is
 		 * divided in two nybbles, bit 7-4 gives cycles-1 to count
 		 * high, bit 3-0 gives cycles-1 to count low. Distribute
-		 * these with no more than 1 cycle difference between
+		 * these with yes more than 1 cycle difference between
 		 * low and high and add low and high to get the actual
 		 * divisor. The base PLL is 208 MHz. Writing 0x00 will
 		 * divide by 1 and 1 so the highest frequency possible
@@ -1143,7 +1143,7 @@ mclk_clk_register(struct device *dev, const char *name,
 	return hw;
 }
 
-static void __init of_u300_syscon_mclk_init(struct device_node *np)
+static void __init of_u300_syscon_mclk_init(struct device_yesde *np)
 {
 	struct clk_hw *hw;
 	const char *clk_name = np->name;
@@ -1182,11 +1182,11 @@ void __init u300_clk_init(void __iomem *base)
 
 	syscon_vbase = base;
 
-	/* Set system to run at PLL208, max performance, a known state. */
+	/* Set system to run at PLL208, max performance, a kyeswn state. */
 	val = readw(syscon_vbase + U300_SYSCON_CCR);
 	val &= ~U300_SYSCON_CCR_CLKING_PERFORMANCE_MASK;
 	writew(val, syscon_vbase + U300_SYSCON_CCR);
-	/* Wait for the PLL208 to lock if not locked in yet */
+	/* Wait for the PLL208 to lock if yest locked in yet */
 	while (!(readw(syscon_vbase + U300_SYSCON_CSR) &
 		 U300_SYSCON_CSR_PLL208_LOCK_IND));
 

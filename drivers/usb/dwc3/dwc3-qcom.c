@@ -68,8 +68,8 @@ struct dwc3_qcom {
 
 	struct extcon_dev	*edev;
 	struct extcon_dev	*host_edev;
-	struct notifier_block	vbus_nb;
-	struct notifier_block	host_nb;
+	struct yestifier_block	vbus_nb;
+	struct yestifier_block	host_nb;
 
 	const struct dwc3_acpi_pdata *acpi_pdata;
 
@@ -117,7 +117,7 @@ static void dwc3_qcom_vbus_overrride_enable(struct dwc3_qcom *qcom, bool enable)
 	}
 }
 
-static int dwc3_qcom_vbus_notifier(struct notifier_block *nb,
+static int dwc3_qcom_vbus_yestifier(struct yestifier_block *nb,
 				   unsigned long event, void *ptr)
 {
 	struct dwc3_qcom *qcom = container_of(nb, struct dwc3_qcom, vbus_nb);
@@ -129,7 +129,7 @@ static int dwc3_qcom_vbus_notifier(struct notifier_block *nb,
 	return NOTIFY_DONE;
 }
 
-static int dwc3_qcom_host_notifier(struct notifier_block *nb,
+static int dwc3_qcom_host_yestifier(struct yestifier_block *nb,
 				   unsigned long event, void *ptr)
 {
 	struct dwc3_qcom *qcom = container_of(nb, struct dwc3_qcom, host_nb);
@@ -147,23 +147,23 @@ static int dwc3_qcom_register_extcon(struct dwc3_qcom *qcom)
 	struct extcon_dev	*host_edev;
 	int			ret;
 
-	if (!of_property_read_bool(dev->of_node, "extcon"))
+	if (!of_property_read_bool(dev->of_yesde, "extcon"))
 		return 0;
 
 	qcom->edev = extcon_get_edev_by_phandle(dev, 0);
 	if (IS_ERR(qcom->edev))
 		return PTR_ERR(qcom->edev);
 
-	qcom->vbus_nb.notifier_call = dwc3_qcom_vbus_notifier;
+	qcom->vbus_nb.yestifier_call = dwc3_qcom_vbus_yestifier;
 
 	qcom->host_edev = extcon_get_edev_by_phandle(dev, 1);
 	if (IS_ERR(qcom->host_edev))
 		qcom->host_edev = NULL;
 
-	ret = devm_extcon_register_notifier(dev, qcom->edev, EXTCON_USB,
+	ret = devm_extcon_register_yestifier(dev, qcom->edev, EXTCON_USB,
 					    &qcom->vbus_nb);
 	if (ret < 0) {
-		dev_err(dev, "VBUS notifier register failed\n");
+		dev_err(dev, "VBUS yestifier register failed\n");
 		return ret;
 	}
 
@@ -172,20 +172,20 @@ static int dwc3_qcom_register_extcon(struct dwc3_qcom *qcom)
 	else
 		host_edev = qcom->edev;
 
-	qcom->host_nb.notifier_call = dwc3_qcom_host_notifier;
-	ret = devm_extcon_register_notifier(dev, host_edev, EXTCON_USB_HOST,
+	qcom->host_nb.yestifier_call = dwc3_qcom_host_yestifier;
+	ret = devm_extcon_register_yestifier(dev, host_edev, EXTCON_USB_HOST,
 					    &qcom->host_nb);
 	if (ret < 0) {
-		dev_err(dev, "Host notifier register failed\n");
+		dev_err(dev, "Host yestifier register failed\n");
 		return ret;
 	}
 
 	/* Update initial VBUS override based on extcon state */
 	if (extcon_get_state(qcom->edev, EXTCON_USB) ||
 	    !extcon_get_state(host_edev, EXTCON_USB_HOST))
-		dwc3_qcom_vbus_notifier(&qcom->vbus_nb, true, qcom->edev);
+		dwc3_qcom_vbus_yestifier(&qcom->vbus_nb, true, qcom->edev);
 	else
-		dwc3_qcom_vbus_notifier(&qcom->vbus_nb, false, qcom->edev);
+		dwc3_qcom_vbus_yestifier(&qcom->vbus_nb, false, qcom->edev);
 
 	return 0;
 }
@@ -194,22 +194,22 @@ static void dwc3_qcom_disable_interrupts(struct dwc3_qcom *qcom)
 {
 	if (qcom->hs_phy_irq) {
 		disable_irq_wake(qcom->hs_phy_irq);
-		disable_irq_nosync(qcom->hs_phy_irq);
+		disable_irq_yessync(qcom->hs_phy_irq);
 	}
 
 	if (qcom->dp_hs_phy_irq) {
 		disable_irq_wake(qcom->dp_hs_phy_irq);
-		disable_irq_nosync(qcom->dp_hs_phy_irq);
+		disable_irq_yessync(qcom->dp_hs_phy_irq);
 	}
 
 	if (qcom->dm_hs_phy_irq) {
 		disable_irq_wake(qcom->dm_hs_phy_irq);
-		disable_irq_nosync(qcom->dm_hs_phy_irq);
+		disable_irq_yessync(qcom->dm_hs_phy_irq);
 	}
 
 	if (qcom->ss_phy_irq) {
 		disable_irq_wake(qcom->ss_phy_irq);
-		disable_irq_nosync(qcom->ss_phy_irq);
+		disable_irq_yessync(qcom->ss_phy_irq);
 	}
 }
 
@@ -246,7 +246,7 @@ static int dwc3_qcom_suspend(struct dwc3_qcom *qcom)
 
 	val = readl(qcom->qscratch_base + PWR_EVNT_IRQ_STAT_REG);
 	if (!(val & PWR_EVNT_LPM_IN_L2_MASK))
-		dev_err(qcom->dev, "HS-PHY not in L2\n");
+		dev_err(qcom->dev, "HS-PHY yest in L2\n");
 
 	for (i = qcom->num_clocks - 1; i >= 0; i--)
 		clk_disable_unprepare(qcom->clks[i]);
@@ -302,7 +302,7 @@ static irqreturn_t qcom_dwc3_resume_irq(int irq, void *data)
 
 static void dwc3_qcom_select_utmi_clk(struct dwc3_qcom *qcom)
 {
-	/* Configure dwc3 to use UTMI clock as PIPE clock not present */
+	/* Configure dwc3 to use UTMI clock as PIPE clock yest present */
 	dwc3_qcom_setbits(qcom->qscratch_base, QSCRATCH_GENERAL_CFG,
 			  PIPE_UTMI_CLK_DIS);
 
@@ -320,7 +320,7 @@ static void dwc3_qcom_select_utmi_clk(struct dwc3_qcom *qcom)
 static int dwc3_qcom_get_irq(struct platform_device *pdev,
 			     const char *name, int num)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	int ret;
 
 	if (np)
@@ -403,7 +403,7 @@ static int dwc3_qcom_setup_irq(struct platform_device *pdev)
 static int dwc3_qcom_clk_init(struct dwc3_qcom *qcom, int count)
 {
 	struct device		*dev = qcom->dev;
-	struct device_node	*np = dev->of_node;
+	struct device_yesde	*np = dev->of_yesde;
 	int			i;
 
 	if (!np || !count)
@@ -515,7 +515,7 @@ out:
 static int dwc3_qcom_of_register_core(struct platform_device *pdev)
 {
 	struct dwc3_qcom 	*qcom = platform_get_drvdata(pdev);
-	struct device_node	*np = pdev->dev.of_node, *dwc3_np;
+	struct device_yesde	*np = pdev->dev.of_yesde, *dwc3_np;
 	struct device		*dev = &pdev->dev;
 	int			ret;
 
@@ -531,7 +531,7 @@ static int dwc3_qcom_of_register_core(struct platform_device *pdev)
 		return ret;
 	}
 
-	qcom->dwc3 = of_find_device_by_node(dwc3_np);
+	qcom->dwc3 = of_find_device_by_yesde(dwc3_np);
 	if (!qcom->dwc3) {
 		dev_err(dev, "failed to get dwc3 platform device\n");
 		return -ENODEV;
@@ -552,12 +552,12 @@ static const struct dwc3_acpi_pdata sdm845_acpi_pdata = {
 
 static int dwc3_qcom_probe(struct platform_device *pdev)
 {
-	struct device_node	*np = pdev->dev.of_node;
+	struct device_yesde	*np = pdev->dev.of_yesde;
 	struct device		*dev = &pdev->dev;
 	struct dwc3_qcom	*qcom;
 	struct resource		*res, *parent_res = NULL;
 	int			ret, i;
-	bool			ignore_pipe_clk;
+	bool			igyesre_pipe_clk;
 
 	qcom = devm_kzalloc(&pdev->dev, sizeof(*qcom), GFP_KERNEL);
 	if (!qcom)
@@ -569,7 +569,7 @@ static int dwc3_qcom_probe(struct platform_device *pdev)
 	if (has_acpi_companion(dev)) {
 		qcom->acpi_pdata = acpi_device_get_match_data(dev);
 		if (!qcom->acpi_pdata) {
-			dev_err(&pdev->dev, "no supporting ACPI device data\n");
+			dev_err(&pdev->dev, "yes supporting ACPI device data\n");
 			return -EINVAL;
 		}
 	}
@@ -633,9 +633,9 @@ static int dwc3_qcom_probe(struct platform_device *pdev)
 	 * Disable pipe_clk requirement if specified. Used when dwc3
 	 * operates without SSPHY and only HS/FS/LS modes are supported.
 	 */
-	ignore_pipe_clk = device_property_read_bool(dev,
+	igyesre_pipe_clk = device_property_read_bool(dev,
 				"qcom,select-utmi-as-pipe-clk");
-	if (ignore_pipe_clk)
+	if (igyesre_pipe_clk)
 		dwc3_qcom_select_utmi_clk(qcom);
 
 	if (np)

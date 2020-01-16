@@ -32,13 +32,13 @@ static int mock_phys_object(void *arg)
 	}
 
 	if (obj->ops != &i915_gem_phys_ops) {
-		pr_err("i915_gem_object_attach_phys did not create a phys object\n");
+		pr_err("i915_gem_object_attach_phys did yest create a phys object\n");
 		err = -EINVAL;
 		goto out_obj;
 	}
 
 	if (!atomic_read(&obj->mm.pages_pin_count)) {
-		pr_err("i915_gem_object_attach_phys did not pin its phys pages\n");
+		pr_err("i915_gem_object_attach_phys did yest pin its phys pages\n");
 		err = -EINVAL;
 		goto out_obj;
 	}

@@ -31,18 +31,18 @@ enum alarmtimer_restart {
 
 /**
  * struct alarm - Alarm timer structure
- * @node:	timerqueue node for adding to the event list this value
+ * @yesde:	timerqueue yesde for adding to the event list this value
  *		also includes the expiration time.
  * @timer:	hrtimer used to schedule events while running
  * @function:	Function pointer to be executed when the timer fires.
  * @type:	Alarm type (BOOTTIME/REALTIME).
- * @state:	Flag that represents if the alarm is set to fire or not.
+ * @state:	Flag that represents if the alarm is set to fire or yest.
  * @data:	Internal data value.
  */
 struct alarm {
-	struct timerqueue_node	node;
+	struct timerqueue_yesde	yesde;
 	struct hrtimer		timer;
-	enum alarmtimer_restart	(*function)(struct alarm *, ktime_t now);
+	enum alarmtimer_restart	(*function)(struct alarm *, ktime_t yesw);
 	enum alarmtimer_type	type;
 	int			state;
 	void			*data;
@@ -56,8 +56,8 @@ void alarm_restart(struct alarm *alarm);
 int alarm_try_to_cancel(struct alarm *alarm);
 int alarm_cancel(struct alarm *alarm);
 
-u64 alarm_forward(struct alarm *alarm, ktime_t now, ktime_t interval);
-u64 alarm_forward_now(struct alarm *alarm, ktime_t interval);
+u64 alarm_forward(struct alarm *alarm, ktime_t yesw, ktime_t interval);
+u64 alarm_forward_yesw(struct alarm *alarm, ktime_t interval);
 ktime_t alarm_expires_remaining(const struct alarm *alarm);
 
 /* Provide way to access the rtc device being used by alarmtimers */

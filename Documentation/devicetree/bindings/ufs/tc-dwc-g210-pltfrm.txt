@@ -1,7 +1,7 @@
 * Universal Flash Storage (UFS) DesignWare Host Controller
 
-DWC_UFS nodes are defined to describe on-chip UFS host controllers and MPHY.
-Each UFS controller instance should have its own node.
+DWC_UFS yesdes are defined to describe on-chip UFS host controllers and MPHY.
+Each UFS controller instance should have its own yesde.
 
 Required properties:
 - compatible	: compatible list must contain the PHY type & version:

@@ -12,10 +12,10 @@ List Management Functions
 Basic C Library Functions
 =========================
 
-When writing drivers, you cannot in general use routines which are from
+When writing drivers, you canyest in general use routines which are from
 the C Library. Some of the functions have been found generally useful
 and they are listed below. The behaviour of these functions may vary
-slightly from those defined by ANSI, and these deviations are noted in
+slightly from those defined by ANSI, and these deviations are yested in
 the text.
 
 String Conversions
@@ -60,7 +60,7 @@ Bit Operations
 .. kernel-doc:: include/asm-generic/bitops/instrumented-atomic.h
    :internal:
 
-.. kernel-doc:: include/asm-generic/bitops/instrumented-non-atomic.h
+.. kernel-doc:: include/asm-generic/bitops/instrumented-yesn-atomic.h
    :internal:
 
 .. kernel-doc:: include/asm-generic/bitops/instrumented-lock.h
@@ -264,7 +264,7 @@ Security Framework
 .. kernel-doc:: security/security.c
    :internal:
 
-.. kernel-doc:: security/inode.c
+.. kernel-doc:: security/iyesde.c
    :export:
 
 Audit Interfaces
@@ -341,13 +341,13 @@ don't relate to timekeeping or real time clocks (RTCs), each of which
 have separate frameworks. These :c:type:`struct clk <clk>`
 instances may be used to manage for example a 96 MHz signal that is used
 to shift bits into and out of peripherals or busses, or otherwise
-trigger synchronous state machine transitions in system hardware.
+trigger synchroyesus state machine transitions in system hardware.
 
 Power management is supported by explicit software clock gating: unused
 clocks are disabled, so the system doesn't waste power changing the
 state of transistors that aren't in active use. On some systems this may
 be backed by hardware clock gating, where clocks are gated without being
-disabled in software. Sections of chips that are powered but not clocked
+disabled in software. Sections of chips that are powered but yest clocked
 may be able to retain their last state. This low power state is often
 called a *retention mode*. This mode still incurs leakage currents,
 especially with finer circuit geometries, but for CMOS circuits power is

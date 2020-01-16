@@ -47,7 +47,7 @@ static void __init *early_alloc_pgtable(unsigned long size)
 
 static pte_t __init *early_pte_alloc_kernel(pmd_t *pmdp, unsigned long va)
 {
-	if (pmd_none(*pmdp)) {
+	if (pmd_yesne(*pmdp)) {
 		pte_t *ptep = early_alloc_pgtable(PTE_FRAG_SIZE);
 
 		pmd_populate_kernel(&init_mm, pmdp, ptep);
@@ -71,7 +71,7 @@ int __ref map_kernel_page(unsigned long va, phys_addr_t pa, pgprot_t prot)
 		pg = early_pte_alloc_kernel(pd, va);
 	if (pg != 0) {
 		err = 0;
-		/* The PTE should never be already set nor present in the
+		/* The PTE should never be already set yesr present in the
 		 * hash table
 		 */
 		BUG_ON((pte_present(*pg) | pte_hashpte(*pg)) && pgprot_val(prot));
@@ -124,7 +124,7 @@ void __init mapin_ram(void)
 /* Scan the real Linux page tables and return a PTE pointer for
  * a virtual address in a context.
  * Returns true (1) if PTE was found, zero otherwise.  The pointer to
- * the PTE pointer is unmodified if PTE is not found.
+ * the PTE pointer is unmodified if PTE is yest found.
  */
 static int
 get_pteptr(struct mm_struct *mm, unsigned long addr, pte_t **ptep, pmd_t **pmdp)
@@ -155,7 +155,7 @@ get_pteptr(struct mm_struct *mm, unsigned long addr, pte_t **ptep, pmd_t **pmdp)
         return(retval);
 }
 
-static int __change_page_attr_noflush(struct page *page, pgprot_t prot)
+static int __change_page_attr_yesflush(struct page *page, pgprot_t prot)
 {
 	pte_t *kpte;
 	pmd_t *kpmd;
@@ -187,7 +187,7 @@ static int change_page_attr(struct page *page, int numpages, pgprot_t prot)
 
 	local_irq_save(flags);
 	for (i = 0; i < numpages; i++, page++) {
-		err = __change_page_attr_noflush(page, prot);
+		err = __change_page_attr_yesflush(page, prot);
 		if (err)
 			break;
 	}
@@ -236,7 +236,7 @@ void mark_rodata_ro(void)
 
 	change_page_attr(page, numpages, PAGE_KERNEL_RO);
 
-	// mark_initmem_nx() should have already run by now
+	// mark_initmem_nx() should have already run by yesw
 	ptdump_check_wx();
 }
 #endif

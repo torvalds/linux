@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and /or other materials
  *        provided with the distribution.
  *
@@ -34,7 +34,7 @@
 #include <linux/bitops.h>
 #include <linux/delay.h>
 #include <linux/dma-mapping.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/io.h>
 #include <linux/kernel.h>
 #include <linux/list.h>
@@ -329,10 +329,10 @@ void qed_rdma_bmap_free(struct qed_hwfn *p_hwfn,
 		goto end;
 
 	DP_NOTICE(p_hwfn,
-		  "%s bitmap not free - size=%d, weight=%d, 512 bits per line\n",
+		  "%s bitmap yest free - size=%d, weight=%d, 512 bits per line\n",
 		  bmap->name, bmap->max_count, weight);
 
-	/* print aligned non-zero lines, if any */
+	/* print aligned yesn-zero lines, if any */
 	for (item = 0, line = 0; line < last_line; line++, item += 8)
 		if (bitmap_weight((unsigned long *)&pmap[item], 64 * 8))
 			DP_NOTICE(p_hwfn,
@@ -346,7 +346,7 @@ void qed_rdma_bmap_free(struct qed_hwfn *p_hwfn,
 				  pmap[item + 5],
 				  pmap[item + 6], pmap[item + 7]);
 
-	/* print last unaligned non-zero line, if any */
+	/* print last unaligned yesn-zero line, if any */
 	if ((bmap->max_count % (64 * 8)) &&
 	    (bitmap_weight((unsigned long *)&pmap[item],
 			   bmap->max_count - item * 64))) {
@@ -447,7 +447,7 @@ static void qed_rdma_init_devinfo(struct qed_hwfn *p_hwfn,
 		      (FW_REVISION_VERSION << 8) | (FW_ENGINEERING_VERSION);
 
 	qed_rdma_get_guid(p_hwfn, (u8 *)&dev->sys_image_guid);
-	dev->node_guid = dev->sys_image_guid;
+	dev->yesde_guid = dev->sys_image_guid;
 
 	dev->max_sge = min_t(u32, RDMA_MAX_SGE_PER_SQ_WQE,
 			     RDMA_MAX_SGE_PER_RQ_WQE);
@@ -665,7 +665,7 @@ static int qed_rdma_reserve_lkey(struct qed_hwfn *p_hwfn)
 	struct qed_rdma_device *dev = p_hwfn->p_rdma_info->dev;
 
 	/* Tid 0 will be used as the key for "reserved MR".
-	 * The driver should allocate memory for it so it can be loaded but no
+	 * The driver should allocate memory for it so it can be loaded but yes
 	 * ramrod should be passed on it.
 	 */
 	qed_rdma_alloc_tid(p_hwfn, &dev->reserved_lkey);
@@ -878,7 +878,7 @@ static int qed_fill_rdma_dev_info(struct qed_dev *cdev,
 	info->rdma_type = QED_IS_ROCE_PERSONALITY(p_hwfn) ?
 	    QED_RDMA_TYPE_ROCE : QED_RDMA_TYPE_IWARP;
 
-	info->user_dpm_enabled = (p_hwfn->db_bar_no_edpm == 0);
+	info->user_dpm_enabled = (p_hwfn->db_bar_yes_edpm == 0);
 
 	qed_fill_dev_info(cdev, &info->common);
 
@@ -934,7 +934,7 @@ static int qed_rdma_get_int(struct qed_dev *cdev, struct qed_int_info *info)
 
 	if (!cdev->int_params.fp_initialized) {
 		DP_INFO(cdev,
-			"Protocol driver requested interrupt information, but its support is not yet configured\n");
+			"Protocol driver requested interrupt information, but its support is yest yet configured\n");
 		return -EINVAL;
 	}
 
@@ -1117,7 +1117,7 @@ qed_rdma_destroy_cq(void *rdma_cxt,
 			       &ramrod_res_phys, GFP_KERNEL);
 	if (!p_ramrod_res) {
 		DP_NOTICE(p_hwfn,
-			  "qed destroy cq failed: cannot allocate memory (ramrod)\n");
+			  "qed destroy cq failed: canyest allocate memory (ramrod)\n");
 		return rc;
 	}
 
@@ -1141,7 +1141,7 @@ qed_rdma_destroy_cq(void *rdma_cxt,
 	if (rc)
 		goto err;
 
-	out_params->num_cq_notif = le16_to_cpu(p_ramrod_res->cnq_num);
+	out_params->num_cq_yestif = le16_to_cpu(p_ramrod_res->cnq_num);
 
 	dma_free_coherent(&p_hwfn->cdev->pdev->dev,
 			  sizeof(struct rdma_destroy_cq_output_params),
@@ -1183,7 +1183,7 @@ static int qed_rdma_query_qp(void *rdma_cxt,
 
 	DP_VERBOSE(p_hwfn, QED_MSG_RDMA, "icid = %08x\n", qp->icid);
 
-	/* The following fields are filled in from qp and not FW as they can't
+	/* The following fields are filled in from qp and yest FW as they can't
 	 * be modified by FW
 	 */
 	out_params->mtu = qp->mtu;
@@ -1764,7 +1764,7 @@ qed_rdma_create_srq(void *rdma_cxt,
 	rc = qed_cxt_dynamic_ilt_alloc(p_hwfn, elem_type, returned_id);
 	if (rc)
 		goto err;
-	/* returned id is no greater than u16 */
+	/* returned id is yes greater than u16 */
 	srq_id = (u16)returned_id;
 	opaque_fid = p_hwfn->hw_info.opaque_fid;
 
@@ -1810,7 +1810,7 @@ bool qed_rdma_allocated_qps(struct qed_hwfn *p_hwfn)
 {
 	bool result;
 
-	/* if rdma wasn't activated yet, naturally there are no qps */
+	/* if rdma wasn't activated yet, naturally there are yes qps */
 	if (!p_hwfn->p_rdma_info->active)
 		return false;
 
@@ -1827,18 +1827,18 @@ void qed_rdma_dpm_conf(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 {
 	u32 val;
 
-	val = (p_hwfn->dcbx_no_edpm || p_hwfn->db_bar_no_edpm) ? 0 : 1;
+	val = (p_hwfn->dcbx_yes_edpm || p_hwfn->db_bar_yes_edpm) ? 0 : 1;
 
 	qed_wr(p_hwfn, p_ptt, DORQ_REG_PF_DPM_ENABLE, val);
 	DP_VERBOSE(p_hwfn, (QED_MSG_DCB | QED_MSG_RDMA),
 		   "Changing DPM_EN state to %d (DCBX=%d, DB_BAR=%d)\n",
-		   val, p_hwfn->dcbx_no_edpm, p_hwfn->db_bar_no_edpm);
+		   val, p_hwfn->dcbx_yes_edpm, p_hwfn->db_bar_yes_edpm);
 }
 
 
 void qed_rdma_dpm_bar(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 {
-	p_hwfn->db_bar_no_edpm = true;
+	p_hwfn->db_bar_yes_edpm = true;
 
 	qed_rdma_dpm_conf(p_hwfn, p_ptt);
 }
@@ -1938,7 +1938,7 @@ static int qed_iwarp_set_engine_affin(struct qed_dev *cdev, bool b_reset)
 	}
 
 	DP_VERBOSE(cdev, (QED_MSG_RDMA | QED_MSG_SP),
-		   "LLH: Set the engine affinity of non-RoCE packets as %d\n",
+		   "LLH: Set the engine affinity of yesn-RoCE packets as %d\n",
 		   eng);
 
 	return 0;

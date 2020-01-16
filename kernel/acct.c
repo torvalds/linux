@@ -27,13 +27,13 @@
  *
  *  Fixed a nasty interaction with with sys_umount(). If the accointing
  *  was suspeneded we failed to stop it on umount(). Messy.
- *  Another one: remount to readonly didn't stop accounting.
- *	Question: what should we do if we have CAP_SYS_ADMIN but not
+ *  Ayesther one: remount to readonly didn't stop accounting.
+ *	Question: what should we do if we have CAP_SYS_ADMIN but yest
  *  CAP_SYS_PACCT? Current code does the following: umount returns -EBUSY
  *  unless we are messing with the root. In that case we are getting a
  *  real mess with do_remount_sb(). 9/11/98, AV.
  *
- *  Fixed a bunch of races (and pair of leaks). Probably not the best way,
+ *  Fixed a bunch of races (and pair of leaks). Probably yest the best way,
  *  but this one obviously doesn't introduce deadlocks. Later. BTW, found
  *  one race (and leak) in BSD implementation.
  *  OK, that's better. ANOTHER race and leak in BSD variant. There always
@@ -152,7 +152,7 @@ again:
 		rcu_read_unlock();
 		return NULL;
 	}
-	if (!atomic_long_inc_not_zero(&res->count)) {
+	if (!atomic_long_inc_yest_zero(&res->count)) {
 		rcu_read_unlock();
 		cpu_relax();
 		goto again;
@@ -210,7 +210,7 @@ static int acct_on(struct filename *pathname)
 		return PTR_ERR(file);
 	}
 
-	if (!S_ISREG(file_inode(file)->i_mode)) {
+	if (!S_ISREG(file_iyesde(file)->i_mode)) {
 		kfree(acct);
 		filp_close(file, NULL);
 		return -EACCES;
@@ -245,7 +245,7 @@ static int acct_on(struct filename *pathname)
 	mutex_init(&acct->lock);
 	INIT_WORK(&acct->work, close_work);
 	init_completion(&acct->done);
-	mutex_lock_nested(&acct->lock, 1);	/* nobody has seen it yet */
+	mutex_lock_nested(&acct->lock, 1);	/* yesbody has seen it yet */
 	pin_insert(&acct->pin, mnt);
 
 	rcu_read_lock();
@@ -263,7 +263,7 @@ static DEFINE_MUTEX(acct_on_mutex);
  * sys_acct - enable/disable process accounting
  * @name: file name for accounting records or NULL to shutdown accounting
  *
- * Returns 0 for success or negative errno values for failure.
+ * Returns 0 for success or negative erryes values for failure.
  *
  * sys_acct() is the only system call needed to implement process
  * accounting. It takes the name of the file where accounting records
@@ -344,8 +344,8 @@ static comp_t encode_comp_t(unsigned long value)
  * encode an u64 into a comp2_t (24 bits)
  *
  * Format: 5 bit base 2 exponent, 20 bits mantissa.
- * The leading bit of the mantissa is not stored, but implied for
- * non-zero exponents.
+ * The leading bit of the mantissa is yest stored, but implied for
+ * yesn-zero exponents.
  * Largest encodable value is 50 bits.
  */
 
@@ -476,7 +476,7 @@ static void do_acct_process(struct bsd_acct_struct *acct)
 	struct file *file = acct->file;
 
 	/*
-	 * Accounting records are not subject to resource limits.
+	 * Accounting records are yest subject to resource limits.
 	 */
 	flim = current->signal->rlim[RLIMIT_FSIZE].rlim_cur;
 	current->signal->rlim[RLIMIT_FSIZE].rlim_cur = RLIM_INFINITY;
@@ -484,7 +484,7 @@ static void do_acct_process(struct bsd_acct_struct *acct)
 	orig_cred = override_creds(file->f_cred);
 
 	/*
-	 * First check to see if there is enough free_space to continue
+	 * First check to see if there is eyesugh free_space to continue
 	 * the process accounting system.
 	 */
 	if (!check_free_space(acct))
@@ -528,7 +528,7 @@ out:
 /**
  * acct_collect - collect accounting information into pacct_struct
  * @exitcode: task exit code
- * @group_dead: not 0, if this thread is the last one in the process.
+ * @group_dead: yest 0, if this thread is the last one in the process.
  */
 void acct_collect(long exitcode, int group_dead)
 {

@@ -46,7 +46,7 @@ __vma_matches(struct vm_area_struct *vma, struct file *filp,
  * i915_gem_mmap_gtt) and then using the mmap syscall on the DRM fd directly.
  * That way debug tooling like valgrind will understand what's going on, hiding
  * the mmap call in a driver private ioctl will break that. The i915 driver only
- * does cpu mmaps this way because we didn't know better.
+ * does cpu mmaps this way because we didn't kyesw better.
  */
 int
 i915_gem_mmap_ioctl(struct drm_device *dev, void *data,
@@ -66,7 +66,7 @@ i915_gem_mmap_ioctl(struct drm_device *dev, void *data,
 	if (!obj)
 		return -ENOENT;
 
-	/* prime objects have no backing filp to GEM mmap
+	/* prime objects have yes backing filp to GEM mmap
 	 * pages from.
 	 */
 	if (!obj->base.filp) {
@@ -127,11 +127,11 @@ static unsigned int tile_row_pages(const struct drm_i915_gem_object *obj)
  *     aligned and suitable for fencing, and still fit into the available
  *     mappable space left by the pinned display objects. A classic problem
  *     we called the page-fault-of-doom where we would ping-pong between
- *     two objects that could not fit inside the GTT and so the memcpy
+ *     two objects that could yest fit inside the GTT and so the memcpy
  *     would page one object in at the expense of the other between every
  *     single byte.
  *
- * 1 - Objects can be any size, and have any compatible fencing (X Y, or none
+ * 1 - Objects can be any size, and have any compatible fencing (X Y, or yesne
  *     as set via i915_gem_set_tiling() [DRM_I915_GEM_SET_TILING]). If the
  *     object is too large for the available space (or simply too large
  *     for the mappable aperture!), a view is created instead and faulted
@@ -146,18 +146,18 @@ static unsigned int tile_row_pages(const struct drm_i915_gem_object *obj)
  *
  * Restrictions:
  *
- *  * snoopable objects cannot be accessed via the GTT. It can cause machine
+ *  * syesopable objects canyest be accessed via the GTT. It can cause machine
  *    hangs on some architectures, corruption on others. An attempt to service
- *    a GTT page fault from a snoopable object will generate a SIGBUS.
+ *    a GTT page fault from a syesopable object will generate a SIGBUS.
  *
- *  * the object must be able to fit into RAM (physical memory, though no
+ *  * the object must be able to fit into RAM (physical memory, though yes
  *    limited to the mappable aperture).
  *
  *
  * Caveats:
  *
  *  * a new GTT page fault will synchronize rendering from the GPU and flush
- *    all data to system memory. Subsequent access will not be synchronized.
+ *    all data to system memory. Subsequent access will yest be synchronized.
  *
  *  * all mappings are revoked on runtime device suspend.
  *
@@ -190,7 +190,7 @@ compute_partial_view(const struct drm_i915_gem_object *obj,
 		min_t(unsigned int, chunk,
 		      (obj->base.size >> PAGE_SHIFT) - view.partial.offset);
 
-	/* If the partial covers the entire object, just create a normal VMA. */
+	/* If the partial covers the entire object, just create a yesrmal VMA. */
 	if (chunk >= obj->base.size >> PAGE_SHIFT)
 		view.type = I915_GGTT_VIEW_NORMAL;
 
@@ -266,7 +266,7 @@ vm_fault_t i915_gem_fault(struct vm_fault *vmf)
 			flags |= PIN_NONBLOCK; /* avoid warnings for pinned */
 
 		/*
-		 * Userspace is now writing through an untracked VMA, abandon
+		 * Userspace is yesw writing through an untracked VMA, abandon
 		 * all hope that the hardware is able to track future writes.
 		 */
 
@@ -285,7 +285,7 @@ vm_fault_t i915_gem_fault(struct vm_fault *vmf)
 		goto err_reset;
 	}
 
-	/* Access to snoopable pages through the GTT is incoherent. */
+	/* Access to syesopable pages through the GTT is incoherent. */
 	if (obj->cache_level != I915_CACHE_NONE && !HAS_LLC(i915)) {
 		ret = -EFAULT;
 		goto err_unpin;
@@ -298,7 +298,7 @@ vm_fault_t i915_gem_fault(struct vm_fault *vmf)
 	/* Finally, remap it using the new GTT offset */
 	ret = remap_io_mapping(area,
 			       area->vm_start + (vma->ggtt_view.partial.offset << PAGE_SHIFT),
-			       (ggtt->gmadr.start + vma->node.start) >> PAGE_SHIFT,
+			       (ggtt->gmadr.start + vma->yesde.start) >> PAGE_SHIFT,
 			       min_t(u64, vma->size, area->vm_end - area->vm_start),
 			       &ggtt->iomap);
 	if (ret)
@@ -351,7 +351,7 @@ err:
 	case -EINTR:
 	case -EBUSY:
 		/*
-		 * EBUSY is ok: this just means that another thread
+		 * EBUSY is ok: this just means that ayesther thread
 		 * already did the job.
 		 */
 		return VM_FAULT_NOPAGE;
@@ -366,8 +366,8 @@ void __i915_gem_object_release_mmap(struct drm_i915_gem_object *obj)
 
 	obj->userfault_count = 0;
 	list_del(&obj->userfault_link);
-	drm_vma_node_unmap(&obj->base.vma_node,
-			   obj->base.dev->anon_inode->i_mapping);
+	drm_vma_yesde_unmap(&obj->base.vma_yesde,
+			   obj->base.dev->ayesn_iyesde->i_mapping);
 
 	for_each_ggtt_vma(vma, obj)
 		i915_vma_unset_userfault(vma);
@@ -408,11 +408,11 @@ void i915_gem_object_release_mmap(struct drm_i915_gem_object *obj)
 
 	__i915_gem_object_release_mmap(obj);
 
-	/* Ensure that the CPU's PTE are revoked and there are not outstanding
+	/* Ensure that the CPU's PTE are revoked and there are yest outstanding
 	 * memory transactions from userspace before we return. The TLB
 	 * flushing implied above by changing the PTE above *should* be
 	 * sufficient, an extra barrier here just provides us with a bit
-	 * of paranoid documentation about our requirement to serialise
+	 * of parayesid documentation about our requirement to serialise
 	 * memory writes before touching registers / GSM.
 	 */
 	wmb();
@@ -461,7 +461,7 @@ i915_gem_mmap_gtt(struct drm_file *file,
 
 	ret = create_mmap_offset(obj);
 	if (ret == 0)
-		*offset = drm_vma_node_offset_addr(&obj->base.vma_node);
+		*offset = drm_vma_yesde_offset_addr(&obj->base.vma_yesde);
 
 out:
 	i915_gem_object_put(obj);

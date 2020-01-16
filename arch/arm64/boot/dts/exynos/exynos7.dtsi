@@ -6,11 +6,11 @@
  *		http://www.samsung.com
  */
 
-#include <dt-bindings/clock/exynos7-clk.h>
+#include <dt-bindings/clock/exyyess7-clk.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 
 / {
-	compatible = "samsung,exynos7";
+	compatible = "samsung,exyyess7";
 	interrupt-parent = <&gic>;
 	#address-cells = <2>;
 	#size-cells = <2>;
@@ -90,7 +90,7 @@
 		ranges = <0 0 0 0x18000000>;
 
 		chipid@10000000 {
-			compatible = "samsung,exynos4210-chipid";
+			compatible = "samsung,exyyess4210-chipid";
 			reg = <0x10000000 0x100>;
 		};
 
@@ -135,13 +135,13 @@
 		};
 
 		clock_topc: clock-controller@10570000 {
-			compatible = "samsung,exynos7-clock-topc";
+			compatible = "samsung,exyyess7-clock-topc";
 			reg = <0x10570000 0x10000>;
 			#clock-cells = <1>;
 		};
 
 		clock_top0: clock-controller@105d0000 {
-			compatible = "samsung,exynos7-clock-top0";
+			compatible = "samsung,exyyess7-clock-top0";
 			reg = <0x105d0000 0xb000>;
 			#clock-cells = <1>;
 			clocks = <&fin_pll>, <&clock_topc DOUT_SCLK_BUS0_PLL>,
@@ -154,7 +154,7 @@
 		};
 
 		clock_top1: clock-controller@105e0000 {
-			compatible = "samsung,exynos7-clock-top1";
+			compatible = "samsung,exyyess7-clock-top1";
 			reg = <0x105e0000 0xb000>;
 			#clock-cells = <1>;
 			clocks = <&fin_pll>, <&clock_topc DOUT_SCLK_BUS0_PLL>,
@@ -167,7 +167,7 @@
 		};
 
 		clock_ccore: clock-controller@105b0000 {
-			compatible = "samsung,exynos7-clock-ccore";
+			compatible = "samsung,exyyess7-clock-ccore";
 			reg = <0x105b0000 0xd00>;
 			#clock-cells = <1>;
 			clocks = <&fin_pll>, <&clock_topc DOUT_ACLK_CCORE_133>;
@@ -175,7 +175,7 @@
 		};
 
 		clock_peric0: clock-controller@13610000 {
-			compatible = "samsung,exynos7-clock-peric0";
+			compatible = "samsung,exyyess7-clock-peric0";
 			reg = <0x13610000 0xd00>;
 			#clock-cells = <1>;
 			clocks = <&fin_pll>, <&clock_top0 DOUT_ACLK_PERIC0>,
@@ -185,7 +185,7 @@
 		};
 
 		clock_peric1: clock-controller@14c80000 {
-			compatible = "samsung,exynos7-clock-peric1";
+			compatible = "samsung,exyyess7-clock-peric1";
 			reg = <0x14c80000 0xd00>;
 			#clock-cells = <1>;
 			clocks = <&fin_pll>, <&clock_top0 DOUT_ACLK_PERIC1>,
@@ -197,7 +197,7 @@
 		};
 
 		clock_peris: clock-controller@10040000 {
-			compatible = "samsung,exynos7-clock-peris";
+			compatible = "samsung,exyyess7-clock-peris";
 			reg = <0x10040000 0xd00>;
 			#clock-cells = <1>;
 			clocks = <&fin_pll>, <&clock_topc DOUT_ACLK_PERIS>;
@@ -205,7 +205,7 @@
 		};
 
 		clock_fsys0: clock-controller@10e90000 {
-			compatible = "samsung,exynos7-clock-fsys0";
+			compatible = "samsung,exyyess7-clock-fsys0";
 			reg = <0x10e90000 0xd00>;
 			#clock-cells = <1>;
 			clocks = <&fin_pll>, <&clock_top1 DOUT_ACLK_FSYS0_200>,
@@ -215,7 +215,7 @@
 		};
 
 		clock_fsys1: clock-controller@156e0000 {
-			compatible = "samsung,exynos7-clock-fsys1";
+			compatible = "samsung,exyyess7-clock-fsys1";
 			reg = <0x156e0000 0xd00>;
 			#clock-cells = <1>;
 			clocks = <&fin_pll>, <&clock_top1 DOUT_ACLK_FSYS1_200>,
@@ -226,7 +226,7 @@
 		};
 
 		serial_0: serial@13630000 {
-			compatible = "samsung,exynos4210-uart";
+			compatible = "samsung,exyyess4210-uart";
 			reg = <0x13630000 0x100>;
 			interrupts = <GIC_SPI 440 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&clock_peric0 PCLK_UART0>,
@@ -236,7 +236,7 @@
 		};
 
 		serial_1: serial@14c20000 {
-			compatible = "samsung,exynos4210-uart";
+			compatible = "samsung,exyyess4210-uart";
 			reg = <0x14c20000 0x100>;
 			interrupts = <GIC_SPI 456 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&clock_peric1 PCLK_UART1>,
@@ -246,7 +246,7 @@
 		};
 
 		serial_2: serial@14c30000 {
-			compatible = "samsung,exynos4210-uart";
+			compatible = "samsung,exyyess4210-uart";
 			reg = <0x14c30000 0x100>;
 			interrupts = <GIC_SPI 457 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&clock_peric1 PCLK_UART2>,
@@ -256,7 +256,7 @@
 		};
 
 		serial_3: serial@14c40000 {
-			compatible = "samsung,exynos4210-uart";
+			compatible = "samsung,exyyess4210-uart";
 			reg = <0x14c40000 0x100>;
 			interrupts = <GIC_SPI 458 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&clock_peric1 PCLK_UART3>,
@@ -266,66 +266,66 @@
 		};
 
 		pinctrl_alive: pinctrl@10580000 {
-			compatible = "samsung,exynos7-pinctrl";
+			compatible = "samsung,exyyess7-pinctrl";
 			reg = <0x10580000 0x1000>;
 
 			wakeup-interrupt-controller {
-				compatible = "samsung,exynos7-wakeup-eint";
+				compatible = "samsung,exyyess7-wakeup-eint";
 				interrupt-parent = <&gic>;
 				interrupts = <GIC_SPI 16 IRQ_TYPE_LEVEL_HIGH>;
 			};
 		};
 
 		pinctrl_bus0: pinctrl@13470000 {
-			compatible = "samsung,exynos7-pinctrl";
+			compatible = "samsung,exyyess7-pinctrl";
 			reg = <0x13470000 0x1000>;
 			interrupts = <GIC_SPI 383 IRQ_TYPE_LEVEL_HIGH>;
 		};
 
 		pinctrl_nfc: pinctrl@14cd0000 {
-			compatible = "samsung,exynos7-pinctrl";
+			compatible = "samsung,exyyess7-pinctrl";
 			reg = <0x14cd0000 0x1000>;
 			interrupts = <GIC_SPI 473 IRQ_TYPE_LEVEL_HIGH>;
 		};
 
 		pinctrl_touch: pinctrl@14ce0000 {
-			compatible = "samsung,exynos7-pinctrl";
+			compatible = "samsung,exyyess7-pinctrl";
 			reg = <0x14ce0000 0x1000>;
 			interrupts = <GIC_SPI 474 IRQ_TYPE_LEVEL_HIGH>;
 		};
 
 		pinctrl_ff: pinctrl@14c90000 {
-			compatible = "samsung,exynos7-pinctrl";
+			compatible = "samsung,exyyess7-pinctrl";
 			reg = <0x14c90000 0x1000>;
 			interrupts = <GIC_SPI 475 IRQ_TYPE_LEVEL_HIGH>;
 		};
 
 		pinctrl_ese: pinctrl@14ca0000 {
-			compatible = "samsung,exynos7-pinctrl";
+			compatible = "samsung,exyyess7-pinctrl";
 			reg = <0x14ca0000 0x1000>;
 			interrupts = <GIC_SPI 476 IRQ_TYPE_LEVEL_HIGH>;
 		};
 
 		pinctrl_fsys0: pinctrl@10e60000 {
-			compatible = "samsung,exynos7-pinctrl";
+			compatible = "samsung,exyyess7-pinctrl";
 			reg = <0x10e60000 0x1000>;
 			interrupts = <GIC_SPI 221 IRQ_TYPE_LEVEL_HIGH>;
 		};
 
 		pinctrl_fsys1: pinctrl@15690000 {
-			compatible = "samsung,exynos7-pinctrl";
+			compatible = "samsung,exyyess7-pinctrl";
 			reg = <0x15690000 0x1000>;
 			interrupts = <GIC_SPI 203 IRQ_TYPE_LEVEL_HIGH>;
 		};
 
 		pinctrl_bus1: pinctrl@14870000 {
-			compatible = "samsung,exynos7-pinctrl";
+			compatible = "samsung,exyyess7-pinctrl";
 			reg = <0x14870000 0x1000>;
 			interrupts = <GIC_SPI 384 IRQ_TYPE_LEVEL_HIGH>;
 		};
 
 		hsi2c_0: hsi2c@13640000 {
-			compatible = "samsung,exynos7-hsi2c";
+			compatible = "samsung,exyyess7-hsi2c";
 			reg = <0x13640000 0x1000>;
 			interrupts = <GIC_SPI 441 IRQ_TYPE_LEVEL_HIGH>;
 			#address-cells = <1>;
@@ -338,7 +338,7 @@
 		};
 
 		hsi2c_1: hsi2c@13650000 {
-			compatible = "samsung,exynos7-hsi2c";
+			compatible = "samsung,exyyess7-hsi2c";
 			reg = <0x13650000 0x1000>;
 			interrupts = <GIC_SPI 442 IRQ_TYPE_LEVEL_HIGH>;
 			#address-cells = <1>;
@@ -351,7 +351,7 @@
 		};
 
 		hsi2c_2: hsi2c@14e60000 {
-			compatible = "samsung,exynos7-hsi2c";
+			compatible = "samsung,exyyess7-hsi2c";
 			reg = <0x14e60000 0x1000>;
 			interrupts = <GIC_SPI 459 IRQ_TYPE_LEVEL_HIGH>;
 			#address-cells = <1>;
@@ -364,7 +364,7 @@
 		};
 
 		hsi2c_3: hsi2c@14e70000 {
-			compatible = "samsung,exynos7-hsi2c";
+			compatible = "samsung,exyyess7-hsi2c";
 			reg = <0x14e70000 0x1000>;
 			interrupts = <GIC_SPI 460 IRQ_TYPE_LEVEL_HIGH>;
 			#address-cells = <1>;
@@ -377,7 +377,7 @@
 		};
 
 		hsi2c_4: hsi2c@13660000 {
-			compatible = "samsung,exynos7-hsi2c";
+			compatible = "samsung,exyyess7-hsi2c";
 			reg = <0x13660000 0x1000>;
 			interrupts = <GIC_SPI 443 IRQ_TYPE_LEVEL_HIGH>;
 			#address-cells = <1>;
@@ -390,7 +390,7 @@
 		};
 
 		hsi2c_5: hsi2c@13670000 {
-			compatible = "samsung,exynos7-hsi2c";
+			compatible = "samsung,exyyess7-hsi2c";
 			reg = <0x13670000 0x1000>;
 			interrupts = <GIC_SPI 444 IRQ_TYPE_LEVEL_HIGH>;
 			#address-cells = <1>;
@@ -403,7 +403,7 @@
 		};
 
 		hsi2c_6: hsi2c@14e00000 {
-			compatible = "samsung,exynos7-hsi2c";
+			compatible = "samsung,exyyess7-hsi2c";
 			reg = <0x14e00000 0x1000>;
 			interrupts = <GIC_SPI 461 IRQ_TYPE_LEVEL_HIGH>;
 			#address-cells = <1>;
@@ -416,7 +416,7 @@
 		};
 
 		hsi2c_7: hsi2c@13e10000 {
-			compatible = "samsung,exynos7-hsi2c";
+			compatible = "samsung,exyyess7-hsi2c";
 			reg = <0x13e10000 0x1000>;
 			interrupts = <GIC_SPI 462 IRQ_TYPE_LEVEL_HIGH>;
 			#address-cells = <1>;
@@ -429,7 +429,7 @@
 		};
 
 		hsi2c_8: hsi2c@14e20000 {
-			compatible = "samsung,exynos7-hsi2c";
+			compatible = "samsung,exyyess7-hsi2c";
 			reg = <0x14e20000 0x1000>;
 			interrupts = <GIC_SPI 463 IRQ_TYPE_LEVEL_HIGH>;
 			#address-cells = <1>;
@@ -442,7 +442,7 @@
 		};
 
 		hsi2c_9: hsi2c@13680000 {
-			compatible = "samsung,exynos7-hsi2c";
+			compatible = "samsung,exyyess7-hsi2c";
 			reg = <0x13680000 0x1000>;
 			interrupts = <GIC_SPI 445 IRQ_TYPE_LEVEL_HIGH>;
 			#address-cells = <1>;
@@ -455,7 +455,7 @@
 		};
 
 		hsi2c_10: hsi2c@13690000 {
-			compatible = "samsung,exynos7-hsi2c";
+			compatible = "samsung,exyyess7-hsi2c";
 			reg = <0x13690000 0x1000>;
 			interrupts = <GIC_SPI 446 IRQ_TYPE_LEVEL_HIGH>;
 			#address-cells = <1>;
@@ -468,7 +468,7 @@
 		};
 
 		hsi2c_11: hsi2c@136a0000 {
-			compatible = "samsung,exynos7-hsi2c";
+			compatible = "samsung,exyyess7-hsi2c";
 			reg = <0x136a0000 0x1000>;
 			interrupts = <GIC_SPI 447 IRQ_TYPE_LEVEL_HIGH>;
 			#address-cells = <1>;
@@ -481,7 +481,7 @@
 		};
 
 		pmu_system_controller: system-controller@105c0000 {
-			compatible = "samsung,exynos7-pmu", "syscon";
+			compatible = "samsung,exyyess7-pmu", "syscon";
 			reg = <0x105c0000 0x5000>;
 
 			reboot: syscon-reboot {
@@ -503,7 +503,7 @@
 		};
 
 		watchdog: watchdog@101d0000 {
-			compatible = "samsung,exynos7-wdt";
+			compatible = "samsung,exyyess7-wdt";
 			reg = <0x101d0000 0x100>;
 			interrupts = <GIC_SPI 110 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&clock_peris PCLK_WDT>;
@@ -513,7 +513,7 @@
 		};
 
 		gpu: gpu@14ac0000 {
-			compatible = "samsung,exynos5433-mali", "arm,mali-t760";
+			compatible = "samsung,exyyess5433-mali", "arm,mali-t760";
 			reg = <0x14ac0000 0x5000>;
 			interrupts = <GIC_SPI 241 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 242 IRQ_TYPE_LEVEL_HIGH>,
@@ -524,7 +524,7 @@
 		};
 
 		mmc_0: mmc@15740000 {
-			compatible = "samsung,exynos7-dw-mshc-smu";
+			compatible = "samsung,exyyess7-dw-mshc-smu";
 			interrupts = <GIC_SPI 201 IRQ_TYPE_LEVEL_HIGH>;
 			#address-cells = <1>;
 			#size-cells = <0>;
@@ -537,7 +537,7 @@
 		};
 
 		mmc_1: mmc@15750000 {
-			compatible = "samsung,exynos7-dw-mshc";
+			compatible = "samsung,exyyess7-dw-mshc";
 			interrupts = <GIC_SPI 202 IRQ_TYPE_LEVEL_HIGH>;
 			#address-cells = <1>;
 			#size-cells = <0>;
@@ -550,7 +550,7 @@
 		};
 
 		mmc_2: mmc@15560000 {
-			compatible = "samsung,exynos7-dw-mshc-smu";
+			compatible = "samsung,exyyess7-dw-mshc-smu";
 			interrupts = <GIC_SPI 216 IRQ_TYPE_LEVEL_HIGH>;
 			#address-cells = <1>;
 			#size-cells = <0>;
@@ -563,7 +563,7 @@
 		};
 
 		adc: adc@13620000 {
-			compatible = "samsung,exynos7-adc";
+			compatible = "samsung,exyyess7-adc";
 			reg = <0x13620000 0x100>;
 			interrupts = <GIC_SPI 448 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&clock_peric0 PCLK_ADCIF>;
@@ -574,7 +574,7 @@
 		};
 
 		pwm: pwm@136c0000 {
-			compatible = "samsung,exynos4210-pwm";
+			compatible = "samsung,exyyess4210-pwm";
 			reg = <0x136c0000 0x100>;
 			samsung,pwm-outputs = <0>, <1>, <2>, <3>;
 			#pwm-cells = <3>;
@@ -583,7 +583,7 @@
 		};
 
 		tmuctrl_0: tmu@10060000 {
-			compatible = "samsung,exynos7-tmu";
+			compatible = "samsung,exyyess7-tmu";
 			reg = <0x10060000 0x200>;
 			interrupts = <GIC_SPI 108 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&clock_peris PCLK_TMU>,
@@ -597,12 +597,12 @@
 				polling-delay-passive = <0>; /* milliseconds */
 				polling-delay = <0>; /* milliseconds */
 				thermal-sensors = <&tmuctrl_0>;
-				#include "exynos7-trip-points.dtsi"
+				#include "exyyess7-trip-points.dtsi"
 			};
 		};
 
 		usbdrd_phy: phy@15500000 {
-			compatible = "samsung,exynos7-usbdrd-phy";
+			compatible = "samsung,exyyess7-usbdrd-phy";
 			reg = <0x15500000 0x100>;
 			clocks = <&clock_fsys0 ACLK_USBDRD300>,
 			       <&clock_fsys0 OSCCLK_PHY_CLKOUT_USB30_PHY>,
@@ -616,7 +616,7 @@
 		};
 
 		usbdrd3 {
-			compatible = "samsung,exynos7-dwusb3";
+			compatible = "samsung,exyyess7-dwusb3";
 			clocks = <&clock_fsys0 ACLK_USBDRD300>,
 			       <&clock_fsys0 SCLK_USBDRD300_SUSPENDCLK>,
 			       <&clock_fsys0 ACLK_AXIUS_USBDRD30X_FSYS0X>;
@@ -649,4 +649,4 @@
 	};
 };
 
-#include "exynos7-pinctrl.dtsi"
+#include "exyyess7-pinctrl.dtsi"

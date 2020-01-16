@@ -8,7 +8,7 @@
 #include <linux/clk.h>
 #include <linux/clk-provider.h>
 #include <linux/err.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/io.h>
 #include <linux/module.h>
 #include <linux/of_platform.h>
@@ -190,7 +190,7 @@ static int aspeed_adc_probe(struct platform_device *pdev)
 
 	/* Register ADC clock prescaler with source specified by device tree. */
 	spin_lock_init(&data->clk_lock);
-	clk_parent_name = of_clk_get_parent_name(pdev->dev.of_node, 0);
+	clk_parent_name = of_clk_get_parent_name(pdev->dev.of_yesde, 0);
 
 	data->clk_prescaler = clk_hw_register_divider(
 				&pdev->dev, "prescaler", clk_parent_name, 0,
@@ -225,7 +225,7 @@ static int aspeed_adc_probe(struct platform_device *pdev)
 	model_data = of_device_get_match_data(&pdev->dev);
 
 	if (model_data->wait_init_sequence) {
-		/* Enable engine in normal mode. */
+		/* Enable engine in yesrmal mode. */
 		writel(ASPEED_OPERATION_MODE_NORMAL | ASPEED_ENGINE_ENABLE,
 		       data->base + ASPEED_REG_ENGINE_CONTROL);
 
@@ -240,7 +240,7 @@ static int aspeed_adc_probe(struct platform_device *pdev)
 			goto poll_timeout_error;
 	}
 
-	/* Start all channels in normal mode. */
+	/* Start all channels in yesrmal mode. */
 	ret = clk_prepare_enable(data->clk_scaler->clk);
 	if (ret)
 		goto clk_enable_error;

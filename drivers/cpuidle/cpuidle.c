@@ -3,7 +3,7 @@
  *
  * (C) 2006-2007 Venkatesh Pallipadi <venkatesh.pallipadi@intel.com>
  *               Shaohua Li <shaohua.li@intel.com>
- *               Adam Belay <abelay@novell.com>
+ *               Adam Belay <abelay@yesvell.com>
  *
  * This code is licenced under the GPL.
  */
@@ -13,7 +13,7 @@
 #include <linux/mutex.h>
 #include <linux/sched.h>
 #include <linux/sched/clock.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/pm_qos.h>
 #include <linux/cpu.h>
 #include <linux/cpuidle.h>
@@ -45,7 +45,7 @@ void disable_cpuidle(void)
 	off = 1;
 }
 
-bool cpuidle_not_available(struct cpuidle_driver *drv,
+bool cpuidle_yest_available(struct cpuidle_driver *drv,
 			   struct cpuidle_device *dev)
 {
 	return off || !initialized || !drv || !dev || !dev->enabled;
@@ -54,7 +54,7 @@ bool cpuidle_not_available(struct cpuidle_driver *drv,
 /**
  * cpuidle_play_dead - cpu off-lining
  *
- * Returns in case of an error or no driver
+ * Returns in case of an error or yes driver
  */
 int cpuidle_play_dead(void)
 {
@@ -99,12 +99,12 @@ static int find_deepest_state(struct cpuidle_driver *drv,
 }
 
 /**
- * cpuidle_use_deepest_state - Set/unset governor override mode.
- * @latency_limit_ns: Idle state exit latency limit (or no override if 0).
+ * cpuidle_use_deepest_state - Set/unset goveryesr override mode.
+ * @latency_limit_ns: Idle state exit latency limit (or yes override if 0).
  *
- * If @latency_limit_ns is nonzero, set the current CPU to use the deepest idle
- * state with exit latency within @latency_limit_ns (override governors going
- * forward), or do not override governors if it is zero.
+ * If @latency_limit_ns is yesnzero, set the current CPU to use the deepest idle
+ * state with exit latency within @latency_limit_ns (override goveryesrs going
+ * forward), or do yest override goveryesrs if it is zero.
  */
 void cpuidle_use_deepest_state(u64 latency_limit_ns)
 {
@@ -144,7 +144,7 @@ static void enter_s2idle_proper(struct cpuidle_driver *drv,
 	 */
 	RCU_NONIDLE(tick_freeze());
 	/*
-	 * The state used here cannot be a "coupled" one, because the "coupled"
+	 * The state used here canyest be a "coupled" one, because the "coupled"
 	 * cpuidle mechanism enables interrupts and doing that with timekeeping
 	 * suspended is generally unsafe.
 	 */
@@ -207,8 +207,8 @@ int cpuidle_enter_state(struct cpuidle_device *dev, struct cpuidle_driver *drv,
 
 	/*
 	 * Tell the time framework to switch to a broadcast timer because our
-	 * local timer will be shut down.  If a local timer is used from another
-	 * CPU as a broadcast timer, this call may fail if it is not available.
+	 * local timer will be shut down.  If a local timer is used from ayesther
+	 * CPU as a broadcast timer, this call may fail if it is yest available.
 	 */
 	if (broadcast && tick_broadcast_enter()) {
 		index = find_deepest_state(drv, dev, target_state->exit_latency_ns,
@@ -221,7 +221,7 @@ int cpuidle_enter_state(struct cpuidle_device *dev, struct cpuidle_driver *drv,
 		broadcast = false;
 	}
 
-	/* Take note of the planned idle state. */
+	/* Take yeste of the planned idle state. */
 	sched_idle_set_state(target_state);
 
 	trace_cpu_idle_rcuidle(index, dev->cpu);
@@ -235,7 +235,7 @@ int cpuidle_enter_state(struct cpuidle_device *dev, struct cpuidle_driver *drv,
 	time_end = ns_to_ktime(local_clock());
 	trace_cpu_idle_rcuidle(PWR_EVENT_EXIT, dev->cpu);
 
-	/* The cpu is no longer idle or about to enter idle. */
+	/* The cpu is yes longer idle or about to enter idle. */
 	sched_idle_set_state(NULL);
 
 	if (broadcast) {
@@ -299,18 +299,18 @@ int cpuidle_enter_state(struct cpuidle_device *dev, struct cpuidle_driver *drv,
  *
  * @drv: the cpuidle driver
  * @dev: the cpuidle device
- * @stop_tick: indication on whether or not to stop the tick
+ * @stop_tick: indication on whether or yest to stop the tick
  *
- * Returns the index of the idle state.  The return value must not be negative.
+ * Returns the index of the idle state.  The return value must yest be negative.
  *
  * The memory location pointed to by @stop_tick is expected to be written the
- * 'false' boolean value if the scheduler tick should not be stopped before
+ * 'false' boolean value if the scheduler tick should yest be stopped before
  * entering the returned state.
  */
 int cpuidle_select(struct cpuidle_driver *drv, struct cpuidle_device *dev,
 		   bool *stop_tick)
 {
-	return cpuidle_curr_governor->select(drv, dev, stop_tick);
+	return cpuidle_curr_goveryesr->select(drv, dev, stop_tick);
 }
 
 /**
@@ -331,10 +331,10 @@ int cpuidle_enter(struct cpuidle_driver *drv, struct cpuidle_device *dev,
 	/*
 	 * Store the next hrtimer, which becomes either next tick or the next
 	 * timer event, whatever expires first. Additionally, to make this data
-	 * useful for consumers outside cpuidle, we rely on that the governor's
-	 * ->select() callback have decided, whether to stop the tick or not.
+	 * useful for consumers outside cpuidle, we rely on that the goveryesr's
+	 * ->select() callback have decided, whether to stop the tick or yest.
 	 */
-	WRITE_ONCE(dev->next_hrtimer, tick_nohz_get_next_hrtimer());
+	WRITE_ONCE(dev->next_hrtimer, tick_yeshz_get_next_hrtimer());
 
 	if (cpuidle_state_is_coupled(drv, index))
 		ret = cpuidle_enter_state_coupled(dev, drv, index);
@@ -346,7 +346,7 @@ int cpuidle_enter(struct cpuidle_driver *drv, struct cpuidle_device *dev,
 }
 
 /**
- * cpuidle_reflect - tell the underlying governor what was the state
+ * cpuidle_reflect - tell the underlying goveryesr what was the state
  * we were in
  *
  * @dev  : the cpuidle device
@@ -355,13 +355,13 @@ int cpuidle_enter(struct cpuidle_driver *drv, struct cpuidle_device *dev,
  */
 void cpuidle_reflect(struct cpuidle_device *dev, int index)
 {
-	if (cpuidle_curr_governor->reflect && index >= 0)
-		cpuidle_curr_governor->reflect(dev, index);
+	if (cpuidle_curr_goveryesr->reflect && index >= 0)
+		cpuidle_curr_goveryesr->reflect(dev, index);
 }
 
 /**
  * cpuidle_poll_time - return amount of time to poll for,
- * governors can override dev->poll_limit_ns if necessary
+ * goveryesrs can override dev->poll_limit_ns if necessary
  *
  * @drv:   the cpuidle driver tied with the cpu
  * @dev:   the cpuidle device
@@ -475,7 +475,7 @@ int cpuidle_enable_device(struct cpuidle_device *dev)
 	if (dev->enabled)
 		return 0;
 
-	if (!cpuidle_curr_governor)
+	if (!cpuidle_curr_goveryesr)
 		return -EIO;
 
 	drv = cpuidle_get_cpu_driver(dev);
@@ -490,8 +490,8 @@ int cpuidle_enable_device(struct cpuidle_device *dev)
 	if (ret)
 		return ret;
 
-	if (cpuidle_curr_governor->enable) {
-		ret = cpuidle_curr_governor->enable(drv, dev);
+	if (cpuidle_curr_goveryesr->enable) {
+		ret = cpuidle_curr_goveryesr->enable(drv, dev);
 		if (ret)
 			goto fail_sysfs;
 	}
@@ -525,13 +525,13 @@ void cpuidle_disable_device(struct cpuidle_device *dev)
 	if (!dev || !dev->enabled)
 		return;
 
-	if (!drv || !cpuidle_curr_governor)
+	if (!drv || !cpuidle_curr_goveryesr)
 		return;
 
 	dev->enabled = 0;
 
-	if (cpuidle_curr_governor->disable)
-		cpuidle_curr_governor->disable(drv, dev);
+	if (cpuidle_curr_goveryesr->disable)
+		cpuidle_curr_goveryesr->disable(drv, dev);
 
 	cpuidle_remove_device_sysfs(dev);
 	enabled_devices--;
@@ -709,7 +709,7 @@ int cpuidle_register(struct cpuidle_driver *drv,
 #ifdef CONFIG_ARCH_NEEDS_CPU_IDLE_COUPLED
 		/*
 		 * On multiplatform for ARM, the coupled idle states could be
-		 * enabled in the kernel even if the cpuidle driver does not
+		 * enabled in the kernel even if the cpuidle driver does yest
 		 * use it. Note, coupled_cpus is a struct copy.
 		 */
 		if (coupled_cpus)
@@ -737,25 +737,25 @@ EXPORT_SYMBOL_GPL(cpuidle_register);
  * and then recalculate a new suitable C-state. Just do a cross-cpu IPI; that
  * wakes them all right up.
  */
-static int cpuidle_latency_notify(struct notifier_block *b,
+static int cpuidle_latency_yestify(struct yestifier_block *b,
 		unsigned long l, void *v)
 {
 	wake_up_all_idle_cpus();
 	return NOTIFY_OK;
 }
 
-static struct notifier_block cpuidle_latency_notifier = {
-	.notifier_call = cpuidle_latency_notify,
+static struct yestifier_block cpuidle_latency_yestifier = {
+	.yestifier_call = cpuidle_latency_yestify,
 };
 
-static inline void latency_notifier_init(struct notifier_block *n)
+static inline void latency_yestifier_init(struct yestifier_block *n)
 {
-	pm_qos_add_notifier(PM_QOS_CPU_DMA_LATENCY, n);
+	pm_qos_add_yestifier(PM_QOS_CPU_DMA_LATENCY, n);
 }
 
 #else /* CONFIG_SMP */
 
-#define latency_notifier_init(x) do { } while (0)
+#define latency_yestifier_init(x) do { } while (0)
 
 #endif /* CONFIG_SMP */
 
@@ -773,11 +773,11 @@ static int __init cpuidle_init(void)
 	if (ret)
 		return ret;
 
-	latency_notifier_init(&cpuidle_latency_notifier);
+	latency_yestifier_init(&cpuidle_latency_yestifier);
 
 	return 0;
 }
 
 module_param(off, int, 0444);
-module_param_string(governor, param_governor, CPUIDLE_NAME_LEN, 0444);
+module_param_string(goveryesr, param_goveryesr, CPUIDLE_NAME_LEN, 0444);
 core_initcall(cpuidle_init);

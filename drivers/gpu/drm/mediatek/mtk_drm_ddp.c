@@ -157,7 +157,7 @@ struct mtk_ddp_data {
 	const unsigned int *mutex_sof;
 	const unsigned int mutex_mod_reg;
 	const unsigned int mutex_sof_reg;
-	const bool no_clk;
+	const bool yes_clk;
 };
 
 struct mtk_ddp {
@@ -598,7 +598,7 @@ void mtk_disp_mutex_acquire(struct mtk_disp_mutex *mutex)
 	writel(1, ddp->regs + DISP_REG_MUTEX(mutex->id));
 	if (readl_poll_timeout_atomic(ddp->regs + DISP_REG_MUTEX(mutex->id),
 				      tmp, tmp & INT_MUTEX, 1, 10000))
-		pr_err("could not acquire mutex %d\n", mutex->id);
+		pr_err("could yest acquire mutex %d\n", mutex->id);
 }
 
 void mtk_disp_mutex_release(struct mtk_disp_mutex *mutex)
@@ -625,7 +625,7 @@ static int mtk_ddp_probe(struct platform_device *pdev)
 
 	ddp->data = of_device_get_match_data(dev);
 
-	if (!ddp->data->no_clk) {
+	if (!ddp->data->yes_clk) {
 		ddp->clk = devm_clk_get(dev, NULL);
 		if (IS_ERR(ddp->clk)) {
 			dev_err(dev, "Failed to get clock\n");

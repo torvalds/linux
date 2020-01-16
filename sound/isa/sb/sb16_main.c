@@ -199,13 +199,13 @@ static void snd_sb16_csp_capture_close(struct snd_sb *chip)
 	}
 }
 #else
-#define snd_sb16_csp_playback_prepare(chip, runtime)	/*nop*/
-#define snd_sb16_csp_capture_prepare(chip, runtime)	/*nop*/
-#define snd_sb16_csp_update(chip)			/*nop*/
-#define snd_sb16_csp_playback_open(chip, runtime)	/*nop*/
-#define snd_sb16_csp_playback_close(chip)		/*nop*/
-#define snd_sb16_csp_capture_open(chip, runtime)	/*nop*/
-#define snd_sb16_csp_capture_close(chip)      	 	/*nop*/
+#define snd_sb16_csp_playback_prepare(chip, runtime)	/*yesp*/
+#define snd_sb16_csp_capture_prepare(chip, runtime)	/*yesp*/
+#define snd_sb16_csp_update(chip)			/*yesp*/
+#define snd_sb16_csp_playback_open(chip, runtime)	/*yesp*/
+#define snd_sb16_csp_playback_close(chip)		/*yesp*/
+#define snd_sb16_csp_capture_open(chip, runtime)	/*yesp*/
+#define snd_sb16_csp_capture_close(chip)      	 	/*yesp*/
 #endif
 
 
@@ -742,7 +742,7 @@ int snd_sb16dsp_configure(struct snd_sb * chip)
 	unsigned long flags;
 	unsigned char irqreg = 0, dmareg = 0, mpureg;
 	unsigned char realirq, realdma, realmpureg;
-	/* note: mpu register should be present only on SB16 Vibra soundcards */
+	/* yeste: mpu register should be present only on SB16 Vibra soundcards */
 
 	// printk(KERN_DEBUG "codec->irq=%i, codec->dma8=%i, codec->dma16=%i\n", chip->irq, chip->dma8, chip->dma16);
 	spin_lock_irqsave(&chip->mixer_lock, flags);

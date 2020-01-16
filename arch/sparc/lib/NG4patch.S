@@ -32,7 +32,7 @@ niagara4_patch_copyops:
 	NG_DO_PATCH(raw_copy_from_user, NG4copy_from_user)
 	NG_DO_PATCH(raw_copy_to_user, NG4copy_to_user)
 	retl
-	 nop
+	 yesp
 	.size	niagara4_patch_copyops,.-niagara4_patch_copyops
 
 	.globl	niagara4_patch_bzero
@@ -43,7 +43,7 @@ niagara4_patch_bzero:
 	NG_DO_PATCH(__clear_user, NGclear_user)
 	NG_DO_PATCH(tsb_init, NGtsb_init)
 	retl
-	 nop
+	 yesp
 	.size	niagara4_patch_bzero,.-niagara4_patch_bzero
 
 	.globl	niagara4_patch_pageops
@@ -53,12 +53,12 @@ niagara4_patch_pageops:
 	NG_DO_PATCH(_clear_page, NG4clear_page)
 	NG_DO_PATCH(clear_user_page, NG4clear_user_page)
 	retl
-	 nop
+	 yesp
 	.size	niagara4_patch_pageops,.-niagara4_patch_pageops
 
 ENTRY(niagara4_patch_fls)
 	NG_DO_PATCH(fls, NG4fls)
 	NG_DO_PATCH(__fls, __NG4fls)
 	retl
-	 nop
+	 yesp
 ENDPROC(niagara4_patch_fls)

@@ -10,7 +10,7 @@
 # Copyright (C) 2001~2010 GUAN Xue-tao
 #
 
-ccflags-y	:= -fpic -fno-builtin
+ccflags-y	:= -fpic -fyes-builtin
 asflags-y	:= -Wa,-march=all
 
 OBJS		:= misc.o
@@ -44,7 +44,7 @@ extra-y		+= piggy.gzip piggy.bz2 piggy.lzo piggy.lzma
 # ?
 LDFLAGS_vmlinux += -p
 # Report unresolved symbol references
-LDFLAGS_vmlinux += --no-undefined
+LDFLAGS_vmlinux += --yes-undefined
 # Delete all temporary local symbols
 LDFLAGS_vmlinux += -X
 # Next argument is a linker script
@@ -55,8 +55,8 @@ $(obj)/vmlinux: $(obj)/vmlinux.lds $(obj)/head.o $(obj)/piggy.o \
 		$(obj)/misc.o FORCE
 	$(call if_changed,ld)
 
-# We now have a PIC decompressor implementation.  Decompressors running
-# from RAM should not define ZTEXTADDR.  Decompressors running directly
+# We yesw have a PIC decompressor implementation.  Decompressors running
+# from RAM should yest define ZTEXTADDR.  Decompressors running directly
 # from ROM or Flash must define ZTEXTADDR (preferably via the config)
 ZTEXTADDR	:= 0x03000000
 ZBSSADDR	:= ALIGN(4)

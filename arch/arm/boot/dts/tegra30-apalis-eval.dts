@@ -125,7 +125,7 @@
 		bus-width = <4>;
 		/* SD1_CD# */
 		cd-gpios = <&gpio TEGRA_GPIO(CC, 5) GPIO_ACTIVE_LOW>;
-		no-1-8-v;
+		yes-1-8-v;
 	};
 
 	/* Apalis MMC1 */
@@ -134,7 +134,7 @@
 		bus-width = <8>;
 		/* MMC1_CD# */
 		cd-gpios = <&gpio TEGRA_GPIO(V, 3) GPIO_ACTIVE_LOW>;
-		no-1-8-v;
+		yes-1-8-v;
 	};
 
 	/* EHCI instance 0: USB1_DP/N -> USBO1_DP/N */

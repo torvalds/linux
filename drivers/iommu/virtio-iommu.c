@@ -56,7 +56,7 @@ struct viommu_dev {
 
 struct viommu_mapping {
 	phys_addr_t			paddr;
-	struct interval_tree_node	iova;
+	struct interval_tree_yesde	iova;
 	u32				flags;
 };
 
@@ -100,7 +100,7 @@ struct viommu_event {
 #define to_viommu_domain(domain)	\
 	container_of(domain, struct viommu_domain, domain)
 
-static int viommu_get_req_errno(void *buf, size_t len)
+static int viommu_get_req_erryes(void *buf, size_t len)
 {
 	struct virtio_iommu_req_tail *tail = buf + len - sizeof(*tail);
 
@@ -192,7 +192,7 @@ static int viommu_sync_req(struct viommu_dev *viommu)
 	spin_lock_irqsave(&viommu->request_lock, flags);
 	ret = __viommu_sync_req(viommu);
 	if (ret)
-		dev_dbg(viommu->dev, "could not sync requests (%d)\n", ret);
+		dev_dbg(viommu->dev, "could yest sync requests (%d)\n", ret);
 	spin_unlock_irqrestore(&viommu->request_lock, flags);
 
 	return ret;
@@ -205,7 +205,7 @@ static int viommu_sync_req(struct viommu_dev *viommu)
  * @writeback: copy data back to the buffer when the request completes.
  *
  * Add a request to the queue. Only synchronize the queue if it's already full.
- * Otherwise don't kick the queue nor wait for requests to complete.
+ * Otherwise don't kick the queue yesr wait for requests to complete.
  *
  * When @writeback is true, data written by the device, including the request
  * status, is copied into @buf after the request completes. This is unsafe if
@@ -269,7 +269,7 @@ static int viommu_add_req(struct viommu_dev *viommu, void *buf, size_t len)
 	spin_lock_irqsave(&viommu->request_lock, flags);
 	ret = __viommu_add_req(viommu, buf, len, false);
 	if (ret)
-		dev_dbg(viommu->dev, "could not add request: %d\n", ret);
+		dev_dbg(viommu->dev, "could yest add request: %d\n", ret);
 	spin_unlock_irqrestore(&viommu->request_lock, flags);
 
 	return ret;
@@ -277,7 +277,7 @@ static int viommu_add_req(struct viommu_dev *viommu, void *buf, size_t len)
 
 /*
  * Send a request and wait for it to complete. Return the request status (as an
- * errno)
+ * erryes)
  */
 static int viommu_send_req_sync(struct viommu_dev *viommu, void *buf,
 				size_t len)
@@ -289,17 +289,17 @@ static int viommu_send_req_sync(struct viommu_dev *viommu, void *buf,
 
 	ret = __viommu_add_req(viommu, buf, len, true);
 	if (ret) {
-		dev_dbg(viommu->dev, "could not add request (%d)\n", ret);
+		dev_dbg(viommu->dev, "could yest add request (%d)\n", ret);
 		goto out_unlock;
 	}
 
 	ret = __viommu_sync_req(viommu);
 	if (ret) {
-		dev_dbg(viommu->dev, "could not sync requests (%d)\n", ret);
+		dev_dbg(viommu->dev, "could yest sync requests (%d)\n", ret);
 		/* Fall-through (get the actual request status) */
 	}
 
-	ret = viommu_get_req_errno(buf, len);
+	ret = viommu_get_req_erryes(buf, len);
 out_unlock:
 	spin_unlock_irqrestore(&viommu->request_lock, flags);
 	return ret;
@@ -349,14 +349,14 @@ static size_t viommu_del_mappings(struct viommu_domain *vdomain,
 	unsigned long flags;
 	unsigned long last = iova + size - 1;
 	struct viommu_mapping *mapping = NULL;
-	struct interval_tree_node *node, *next;
+	struct interval_tree_yesde *yesde, *next;
 
 	spin_lock_irqsave(&vdomain->mappings_lock, flags);
 	next = interval_tree_iter_first(&vdomain->mappings, iova, last);
 	while (next) {
-		node = next;
-		mapping = container_of(node, struct viommu_mapping, iova);
-		next = interval_tree_iter_next(node, iova, last);
+		yesde = next;
+		mapping = container_of(yesde, struct viommu_mapping, iova);
+		next = interval_tree_iter_next(yesde, iova, last);
 
 		/* Trying to split a mapping? */
 		if (mapping->iova.start < iova)
@@ -368,7 +368,7 @@ static size_t viommu_del_mappings(struct viommu_domain *vdomain,
 		 */
 		unmapped += mapping->iova.last - mapping->iova.start + 1;
 
-		interval_tree_remove(node, &vdomain->mappings);
+		interval_tree_remove(yesde, &vdomain->mappings);
 		kfree(mapping);
 	}
 	spin_unlock_irqrestore(&vdomain->mappings_lock, flags);
@@ -388,13 +388,13 @@ static int viommu_replay_mappings(struct viommu_domain *vdomain)
 	int ret = 0;
 	unsigned long flags;
 	struct viommu_mapping *mapping;
-	struct interval_tree_node *node;
+	struct interval_tree_yesde *yesde;
 	struct virtio_iommu_req_map map;
 
 	spin_lock_irqsave(&vdomain->mappings_lock, flags);
-	node = interval_tree_iter_first(&vdomain->mappings, 0, -1UL);
-	while (node) {
-		mapping = container_of(node, struct viommu_mapping, iova);
+	yesde = interval_tree_iter_first(&vdomain->mappings, 0, -1UL);
+	while (yesde) {
+		mapping = container_of(yesde, struct viommu_mapping, iova);
 		map = (struct virtio_iommu_req_map) {
 			.head.type	= VIRTIO_IOMMU_T_MAP,
 			.domain		= cpu_to_le32(vdomain->id),
@@ -408,7 +408,7 @@ static int viommu_replay_mappings(struct viommu_domain *vdomain)
 		if (ret)
 			break;
 
-		node = interval_tree_iter_next(node, 0, -1UL);
+		yesde = interval_tree_iter_next(yesde, 0, -1UL);
 	}
 	spin_unlock_irqrestore(&vdomain->mappings_lock, flags);
 
@@ -438,7 +438,7 @@ static int viommu_add_resv_mem(struct viommu_endpoint *vdev,
 
 	switch (mem->subtype) {
 	default:
-		dev_warn(vdev->dev, "unknown resv mem subtype 0x%x\n",
+		dev_warn(vdev->dev, "unkyeswn resv mem subtype 0x%x\n",
 			 mem->subtype);
 		/* Fall-through */
 	case VIRTIO_IOMMU_RESV_MEM_T_RESERVED:
@@ -479,7 +479,7 @@ static int viommu_probe_endpoint(struct viommu_dev *viommu, struct device *dev)
 
 	probe->head.type = VIRTIO_IOMMU_T_PROBE;
 	/*
-	 * For now, assume that properties of an endpoint that outputs multiple
+	 * For yesw, assume that properties of an endpoint that outputs multiple
 	 * IDs are consistent. Only probe the first one.
 	 */
 	probe->endpoint = cpu_to_le32(fwspec->ids[0]);
@@ -500,7 +500,7 @@ static int viommu_probe_endpoint(struct viommu_dev *viommu, struct device *dev)
 			ret = viommu_add_resv_mem(vdev, (void *)prop, len);
 			break;
 		default:
-			dev_err(dev, "unknown viommu prop 0x%x\n", type);
+			dev_err(dev, "unkyeswn viommu prop 0x%x\n", type);
 		}
 
 		if (ret)
@@ -538,7 +538,7 @@ static int viommu_fault_handler(struct viommu_dev *viommu,
 		break;
 	case VIRTIO_IOMMU_FAULT_R_UNKNOWN:
 	default:
-		reason_str = "unknown";
+		reason_str = "unkyeswn";
 		break;
 	}
 
@@ -575,7 +575,7 @@ static void viommu_event_handler(struct virtqueue *vq)
 		sg_init_one(sg, evt, sizeof(*evt));
 		ret = virtqueue_add_inbuf(vq, sg, 1, evt, GFP_ATOMIC);
 		if (ret)
-			dev_err(viommu->dev, "could not add event buffer\n");
+			dev_err(viommu->dev, "could yest add event buffer\n");
 	}
 
 	virtqueue_kick(vq);
@@ -654,12 +654,12 @@ static int viommu_attach_dev(struct iommu_domain *domain, struct device *dev)
 	mutex_lock(&vdomain->mutex);
 	if (!vdomain->viommu) {
 		/*
-		 * Properly initialize the domain now that we know which viommu
+		 * Properly initialize the domain yesw that we kyesw which viommu
 		 * owns it.
 		 */
 		ret = viommu_domain_finalise(vdev->viommu, domain);
 	} else if (vdomain->viommu != vdev->viommu) {
-		dev_err(dev, "cannot attach to foreign vIOMMU\n");
+		dev_err(dev, "canyest attach to foreign vIOMMU\n");
 		ret = -EXDEV;
 	}
 	mutex_unlock(&vdomain->mutex);
@@ -782,13 +782,13 @@ static phys_addr_t viommu_iova_to_phys(struct iommu_domain *domain,
 	u64 paddr = 0;
 	unsigned long flags;
 	struct viommu_mapping *mapping;
-	struct interval_tree_node *node;
+	struct interval_tree_yesde *yesde;
 	struct viommu_domain *vdomain = to_viommu_domain(domain);
 
 	spin_lock_irqsave(&vdomain->mappings_lock, flags);
-	node = interval_tree_iter_first(&vdomain->mappings, iova, iova);
-	if (node) {
-		mapping = container_of(node, struct viommu_mapping, iova);
+	yesde = interval_tree_iter_first(&vdomain->mappings, iova, iova);
+	if (yesde) {
+		mapping = container_of(yesde, struct viommu_mapping, iova);
 		paddr = mapping->paddr + (iova - mapping->iova.start);
 	}
 	spin_unlock_irqrestore(&vdomain->mappings_lock, flags);
@@ -848,15 +848,15 @@ static void viommu_put_resv_regions(struct device *dev, struct list_head *head)
 static struct iommu_ops viommu_ops;
 static struct virtio_driver virtio_iommu_drv;
 
-static int viommu_match_node(struct device *dev, const void *data)
+static int viommu_match_yesde(struct device *dev, const void *data)
 {
-	return dev->parent->fwnode == data;
+	return dev->parent->fwyesde == data;
 }
 
-static struct viommu_dev *viommu_get_by_fwnode(struct fwnode_handle *fwnode)
+static struct viommu_dev *viommu_get_by_fwyesde(struct fwyesde_handle *fwyesde)
 {
 	struct device *dev = driver_find_device(&virtio_iommu_drv.driver, NULL,
-						fwnode, viommu_match_node);
+						fwyesde, viommu_match_yesde);
 	put_device(dev);
 
 	return dev ? dev_to_virtio(dev)->priv : NULL;
@@ -873,7 +873,7 @@ static int viommu_add_device(struct device *dev)
 	if (!fwspec || fwspec->ops != &viommu_ops)
 		return -ENODEV;
 
-	viommu = viommu_get_by_fwnode(fwspec->iommu_fwnode);
+	viommu = viommu_get_by_fwyesde(fwspec->iommu_fwyesde);
 	if (!viommu)
 		return -ENODEV;
 
@@ -1084,7 +1084,7 @@ static int viommu_probe(struct virtio_device *vdev)
 		goto err_free_vqs;
 
 	iommu_device_set_ops(&viommu->iommu, &viommu_ops);
-	iommu_device_set_fwnode(&viommu->iommu, parent_dev->fwnode);
+	iommu_device_set_fwyesde(&viommu->iommu, parent_dev->fwyesde);
 
 	iommu_device_register(&viommu->iommu);
 

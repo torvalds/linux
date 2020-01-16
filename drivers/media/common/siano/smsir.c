@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: GPL-2.0+
 //
-// Siano Mobile Silicon, Inc.
+// Siayes Mobile Silicon, Inc.
 // MDTV receiver kernel modules.
 // Copyright (C) 2006-2009, Uri Shkolnik
 //
 // Copyright (c) 2010 - Mauro Carvalho Chehab
 //	- Ported the driver to use rc-core
-//	- IR raw event decoding is now done at rc-core
+//	- IR raw event decoding is yesw done at rc-core
 //	- Code almost re-written
 
 
@@ -47,7 +47,7 @@ int sms_ir_init(struct smscore_device_t *coredev)
 	if (!dev)
 		return -ENOMEM;
 
-	coredev->ir.controller = 0;	/* Todo: vega/nova SPI number */
+	coredev->ir.controller = 0;	/* Todo: vega/yesva SPI number */
 	coredev->ir.timeout = IR_DEFAULT_TIMEOUT;
 	pr_debug("IR port %d, timeout %d ms\n",
 			coredev->ir.controller, coredev->ir.timeout);

@@ -105,11 +105,11 @@ static const struct usb_device_id btusb_table[] = {
 	/* Bluetooth Ultraport Module from IBM */
 	{ USB_DEVICE(0x04bf, 0x030a) },
 
-	/* ALPS Modules with non-standard id */
+	/* ALPS Modules with yesn-standard id */
 	{ USB_DEVICE(0x044e, 0x3001) },
 	{ USB_DEVICE(0x044e, 0x3002) },
 
-	/* Ericsson with non-standard id */
+	/* Ericsson with yesn-standard id */
 	{ USB_DEVICE(0x0bdb, 0x1002) },
 
 	/* Canyon CN-BTU1 with HID interfaces */
@@ -121,7 +121,7 @@ static const struct usb_device_id btusb_table[] = {
 	/* Broadcom BCM20702B0 (Dynex/Insignia) */
 	{ USB_DEVICE(0x19ff, 0x0239), .driver_info = BTUSB_BCM_PATCHRAM },
 
-	/* Broadcom BCM43142A0 (Foxconn/Lenovo) */
+	/* Broadcom BCM43142A0 (Foxconn/Leyesvo) */
 	{ USB_VENDOR_AND_INTERFACE_INFO(0x105b, 0xff, 0x01, 0x01),
 	  .driver_info = BTUSB_BCM_PATCHRAM },
 
@@ -133,7 +133,7 @@ static const struct usb_device_id btusb_table[] = {
 	{ USB_VENDOR_AND_INTERFACE_INFO(0x0489, 0xff, 0x01, 0x01),
 	  .driver_info = BTUSB_BCM_PATCHRAM },
 
-	/* Lite-On Technology - Broadcom based */
+	/* Lite-On Techyeslogy - Broadcom based */
 	{ USB_VENDOR_AND_INTERFACE_INFO(0x04ca, 0xff, 0x01, 0x01),
 	  .driver_info = BTUSB_BCM_PATCHRAM },
 
@@ -279,7 +279,7 @@ static const struct usb_device_id blacklist_table[] = {
 	{ USB_DEVICE(0x0a5c, 0x2039), .driver_info = BTUSB_WRONG_SCO_MTU },
 	{ USB_DEVICE(0x0a5c, 0x2101), .driver_info = BTUSB_WRONG_SCO_MTU },
 
-	/* IBM/Lenovo ThinkPad with Broadcom chip */
+	/* IBM/Leyesvo ThinkPad with Broadcom chip */
 	{ USB_DEVICE(0x0a5c, 0x201e), .driver_info = BTUSB_WRONG_SCO_MTU },
 	{ USB_DEVICE(0x0a5c, 0x2110), .driver_info = BTUSB_WRONG_SCO_MTU },
 
@@ -307,7 +307,7 @@ static const struct usb_device_id blacklist_table[] = {
 	{ USB_DEVICE(0x0400, 0x0807), .driver_info = BTUSB_BROKEN_ISOC },
 	{ USB_DEVICE(0x0400, 0x080a), .driver_info = BTUSB_BROKEN_ISOC },
 
-	/* CONWISE Technology based adapters with buggy SCO support */
+	/* CONWISE Techyeslogy based adapters with buggy SCO support */
 	{ USB_DEVICE(0x0e5e, 0x6622),
 	  .driver_info = BTUSB_BROKEN_ISOC | BTUSB_CW6622},
 
@@ -394,8 +394,8 @@ static const struct usb_device_id blacklist_table[] = {
 };
 
 /* The Bluetooth USB module build into some devices needs to be reset on resume,
- * this is a problem with the platform (likely shutting off all power) not with
- * the module itself. So we use a DMI list to match known broken platforms.
+ * this is a problem with the platform (likely shutting off all power) yest with
+ * the module itself. So we use a DMI list to match kyeswn broken platforms.
  */
 static const struct dmi_system_id btusb_needs_reset_resume_table[] = {
 	{
@@ -505,14 +505,14 @@ static void btusb_intel_cmd_timeout(struct hci_dev *hdev)
 		return;
 
 	if (!reset_gpio) {
-		bt_dev_err(hdev, "No way to reset. Ignoring and continuing");
+		bt_dev_err(hdev, "No way to reset. Igyesring and continuing");
 		return;
 	}
 
 	/*
 	 * Toggle the hard reset line if the platform provides one. The reset
 	 * is going to yank the device off the USB and then replug. So doing
-	 * once is enough. The cleanup is handled correctly on the way out
+	 * once is eyesugh. The cleanup is handled correctly on the way out
 	 * (standard USB disconnect), and the new device is detected cleanly
 	 * and bound to the driver again like it should be.
 	 */
@@ -536,7 +536,7 @@ static void btusb_rtl_cmd_timeout(struct hci_dev *hdev)
 		return;
 
 	if (!reset_gpio) {
-		bt_dev_err(hdev, "No gpio to reset Realtek device, ignoring");
+		bt_dev_err(hdev, "No gpio to reset Realtek device, igyesring");
 		return;
 	}
 
@@ -1467,7 +1467,7 @@ static int btusb_send_frame(struct hci_dev *hdev, struct sk_buff *skb)
 	return -EILSEQ;
 }
 
-static void btusb_notify(struct hci_dev *hdev, unsigned int evt)
+static void btusb_yestify(struct hci_dev *hdev, unsigned int evt)
 {
 	struct btusb_data *data = hci_get_drvdata(hdev);
 
@@ -1555,7 +1555,7 @@ static void btusb_work(struct work_struct *work)
 			clear_bit(BTUSB_ISOC_RUNNING, &data->flags);
 			usb_kill_anchored_urbs(&data->isoc_anchor);
 
-			/* When isochronous alternate setting needs to be
+			/* When isochroyesus alternate setting needs to be
 			 * changed, because SCO connection has been added
 			 * or removed, a packet fragment may be left in the
 			 * reassembling state. This could lead to wrongly
@@ -1643,7 +1643,7 @@ static int btusb_setup_csr(struct hci_dev *hdev)
 	/* Detect controllers which aren't real CSR ones. */
 	if (le16_to_cpu(rp->manufacturer) != 10 ||
 	    le16_to_cpu(rp->lmp_subver) == 0x0c5c) {
-		/* Clear the reset quirk since this is not an actual
+		/* Clear the reset quirk since this is yest an actual
 		 * early Bluetooth 1.1 device from CSR.
 		 */
 		clear_bit(HCI_QUIRK_RESET_ON_CLOSE, &hdev->quirks);
@@ -1683,7 +1683,7 @@ static const struct firmware *btusb_setup_intel_get_fw(struct hci_dev *hdev,
 		bt_dev_err(hdev, "failed to open Intel firmware file: %s (%d)",
 			   fwname, ret);
 
-		/* If the correct firmware patch file is not found, use the
+		/* If the correct firmware patch file is yest found, use the
 		 * default firmware patch file instead
 		 */
 		snprintf(fwname, sizeof(fwname), "intel/ibt-hw-%x.%x.bseq",
@@ -1729,8 +1729,8 @@ static int btusb_setup_intel_patching(struct hci_dev *hdev,
 	*fw_ptr += sizeof(*cmd);
 	remain -= sizeof(*cmd);
 
-	/* Ensure that the remain firmware data is long enough than the length
-	 * of command parameter. If not, the firmware file is corrupted.
+	/* Ensure that the remain firmware data is long eyesugh than the length
+	 * of command parameter. If yest, the firmware file is corrupted.
 	 */
 	if (remain < cmd->plen) {
 		bt_dev_err(hdev, "Intel fw corrupted: invalid cmd len");
@@ -1740,8 +1740,8 @@ static int btusb_setup_intel_patching(struct hci_dev *hdev,
 	/* If there is a command that loads a patch in the firmware
 	 * file, then enable the patch upon success, otherwise just
 	 * disable the manufacturer mode, for example patch activation
-	 * is not required when the default firmware patch file is used
-	 * because there are no patch data to load.
+	 * is yest required when the default firmware patch file is used
+	 * because there are yes patch data to load.
 	 */
 	if (*disable_patch && le16_to_cpu(cmd->opcode) == 0xfc8e)
 		*disable_patch = 0;
@@ -1776,7 +1776,7 @@ static int btusb_setup_intel_patching(struct hci_dev *hdev,
 	}
 
 	/* Every HCI commands in the firmware file has its correspond event.
-	 * If event is not found or remain is smaller than zero, the firmware
+	 * If event is yest found or remain is smaller than zero, the firmware
 	 * file is corrupted.
 	 */
 	if (!evt || !evt_param || remain < 0) {
@@ -1829,8 +1829,8 @@ static int btusb_setup_intel(struct hci_dev *hdev)
 	 * command processing in the Bluetooth core.
 	 *
 	 * As a workaround, send HCI Reset command first which will reset the
-	 * number of completed commands and allow normal command processing
-	 * from now on.
+	 * number of completed commands and allow yesrmal command processing
+	 * from yesw on.
 	 */
 	skb = __hci_cmd_sync(hdev, HCI_OP_RESET, 0, NULL, HCI_INIT_TIMEOUT);
 	if (IS_ERR(skb)) {
@@ -1856,8 +1856,8 @@ static int btusb_setup_intel(struct hci_dev *hdev)
 		    ver.fw_build_ww, ver.fw_build_yy, ver.fw_patch_num);
 
 	/* fw_patch_num indicates the version of patch the device currently
-	 * have. If there is no patch data in the device, it is always 0x00.
-	 * So, if it is other than 0x00, no need to patch the device again.
+	 * have. If there is yes patch data in the device, it is always 0x00.
+	 * So, if it is other than 0x00, yes need to patch the device again.
 	 */
 	if (ver.fw_patch_num) {
 		bt_dev_info(hdev, "Intel device is already patched. "
@@ -1868,7 +1868,7 @@ static int btusb_setup_intel(struct hci_dev *hdev)
 	/* Opens the firmware patch file based on the firmware version read
 	 * from the controller. If it fails to open the matching firmware
 	 * patch file, it tries to open the default firmware patch file.
-	 * If no patch file is found, allow the device to operate without
+	 * If yes patch file is found, allow the device to operate without
 	 * a patch.
 	 */
 	fw = btusb_setup_intel_get_fw(hdev, &ver);
@@ -1905,7 +1905,7 @@ static int btusb_setup_intel(struct hci_dev *hdev)
 	 * If the firmware patching fails, the manufacturer mode is
 	 * disabled with reset and deactivating the patch.
 	 *
-	 * If the default patch file is used, no reset is done when disabling
+	 * If the default patch file is used, yes reset is done when disabling
 	 * the manufacturer.
 	 */
 	while (fw->size > fw_ptr - fw->data) {
@@ -2089,7 +2089,7 @@ static int btusb_send_frame_intel(struct hci_dev *hdev, struct sk_buff *skb)
 				urb = alloc_ctrl_urb(hdev, skb);
 
 			/* When the 0xfc01 command is issued to boot into
-			 * the operational firmware, it will actually not
+			 * the operational firmware, it will actually yest
 			 * send a command complete event. To keep the flow
 			 * control working inject that event here.
 			 */
@@ -2190,7 +2190,7 @@ static int btusb_setup_intel_new(struct hci_dev *hdev)
 	}
 
 	/* The hardware platform number has a fixed value of 0x37 and
-	 * for now only accept this single value.
+	 * for yesw only accept this single value.
 	 */
 	if (ver.hw_platform != 0x37) {
 		bt_dev_err(hdev, "Unsupported Intel hardware platform (%u)",
@@ -2230,7 +2230,7 @@ static int btusb_setup_intel_new(struct hci_dev *hdev)
 	 * determines if the device will be added as configured or
 	 * unconfigured controller.
 	 *
-	 * It is not possible to use the Secure Boot Parameters in this
+	 * It is yest possible to use the Secure Boot Parameters in this
 	 * case since that command is only available in bootloader mode.
 	 */
 	if (ver.fw_variant == 0x23) {
@@ -2239,7 +2239,7 @@ static int btusb_setup_intel_new(struct hci_dev *hdev)
 		return 0;
 	}
 
-	/* If the device is not in bootloader mode, then the only possible
+	/* If the device is yest in bootloader mode, then the only possible
 	 * choice is to return an error and abort the device initialization.
 	 */
 	if (ver.fw_variant != 0x06) {
@@ -2255,9 +2255,9 @@ static int btusb_setup_intel_new(struct hci_dev *hdev)
 	if (err)
 		return err;
 
-	/* It is required that every single firmware fragment is acknowledged
+	/* It is required that every single firmware fragment is ackyeswledged
 	 * with a command complete event. If the boot parameters indicate
-	 * that this bootloader does not send them, then abort the setup.
+	 * that this bootloader does yest send them, then abort the setup.
 	 */
 	if (params.limited_cce != 0x00) {
 		bt_dev_err(hdev, "Unsupported Intel firmware loading method (%u)",
@@ -2265,8 +2265,8 @@ static int btusb_setup_intel_new(struct hci_dev *hdev)
 		return -EINVAL;
 	}
 
-	/* If the OTP has no valid Bluetooth device address, then there will
-	 * also be no valid address for the operational firmware.
+	/* If the OTP has yes valid Bluetooth device address, then there will
+	 * also be yes valid address for the operational firmware.
 	 */
 	if (!bacmp(&params.otp_bdaddr, BDADDR_ANY)) {
 		bt_dev_info(hdev, "No device address configured");
@@ -2342,13 +2342,13 @@ static int btusb_setup_intel_new(struct hci_dev *hdev)
 	bt_dev_info(hdev, "Waiting for firmware download to complete");
 
 	/* Before switching the device into operational mode and with that
-	 * booting the loaded firmware, wait for the bootloader notification
+	 * booting the loaded firmware, wait for the bootloader yestification
 	 * that all fragments have been successfully received.
 	 *
-	 * When the event processing receives the notification, then the
+	 * When the event processing receives the yestification, then the
 	 * BTUSB_DOWNLOADING flag will be cleared.
 	 *
-	 * The firmware loading should not take longer than 5 seconds
+	 * The firmware loading should yest take longer than 5 seconds
 	 * and thus just timeout if that happens and fail the setup
 	 * of this device.
 	 */
@@ -2396,10 +2396,10 @@ done:
 		return err;
 	}
 
-	/* The bootloader will not indicate when the device is ready. This
-	 * is done by the operational firmware sending bootup notification.
+	/* The bootloader will yest indicate when the device is ready. This
+	 * is done by the operational firmware sending bootup yestification.
 	 *
-	 * Booting into operational firmware should not take longer than
+	 * Booting into operational firmware should yest take longer than
 	 * 1 second. However if that happens, then just fail the setup
 	 * since something went wrong.
 	 */
@@ -2432,16 +2432,16 @@ done:
 	 * the device configuration (DDC) parameters.
 	 *
 	 * The device can work without DDC parameters, so even if it fails
-	 * to load the file, no need to fail the setup.
+	 * to load the file, yes need to fail the setup.
 	 */
 	btintel_load_ddc_config(hdev, fwname);
 
 	/* Set the event mask for Intel specific vendor events. This enables
 	 * a few extra events that are useful during general operation. It
-	 * does not enable any debugging related events.
+	 * does yest enable any debugging related events.
 	 *
 	 * The device will function correctly without these events enabled
-	 * and thus no need to fail the setup.
+	 * and thus yes need to fail the setup.
 	 */
 	btintel_set_event_mask(hdev, false);
 
@@ -2632,10 +2632,10 @@ err_free_skb:
 	usb_mark_last_busy(data->udev);
 
 	/* The URB complete handler is still called with urb->actual_length = 0
-	 * when the event is not available, so we should keep re-submitting
+	 * when the event is yest available, so we should keep re-submitting
 	 * URB until WMT event returns, Also, It's necessary to wait some time
 	 * between the two consecutive control URBs to relax the target device
-	 * to generate the event. Otherwise, the WMT event cannot return from
+	 * to generate the event. Otherwise, the WMT event canyest return from
 	 * the device successfully.
 	 */
 	udelay(100);
@@ -2980,7 +2980,7 @@ static int btusb_mtk_setup(struct hci_dev *hdev)
 
 	if (status == BTMTK_WMT_PATCH_DONE) {
 		bt_dev_info(hdev, "firmware already downloaded");
-		goto ignore_setup_fw;
+		goto igyesre_setup_fw;
 	}
 
 	/* Setup a firmware which the device definitely requires */
@@ -2988,7 +2988,7 @@ static int btusb_mtk_setup(struct hci_dev *hdev)
 	if (err < 0)
 		return err;
 
-ignore_setup_fw:
+igyesre_setup_fw:
 	err = readx_poll_timeout(btusb_mtk_func_query, hdev, status,
 				 status < 0 || status != BTMTK_WMT_ON_PROGRESS,
 				 2000, 5000000);
@@ -3002,7 +3002,7 @@ ignore_setup_fw:
 
 	if (status == BTMTK_WMT_ON_DONE) {
 		bt_dev_info(hdev, "function already on");
-		goto ignore_func_on;
+		goto igyesre_func_on;
 	}
 
 	/* Enable Bluetooth protocol */
@@ -3019,7 +3019,7 @@ ignore_setup_fw:
 		return err;
 	}
 
-ignore_func_on:
+igyesre_func_on:
 	/* Apply the low power environment setup */
 	tci_sleep.mode = 0x5;
 	tci_sleep.duration = cpu_to_le16(0x640);
@@ -3081,9 +3081,9 @@ static int marvell_config_oob_wake(struct hci_dev *hdev)
 	int ret;
 	u8 cmd[5];
 
-	/* Move on if no wakeup pin specified */
-	if (of_property_read_u16(dev->of_node, "marvell,wakeup-pin", &pin) ||
-	    of_property_read_u16(dev->of_node, "marvell,wakeup-gap-ms", &gap))
+	/* Move on if yes wakeup pin specified */
+	if (of_property_read_u16(dev->of_yesde, "marvell,wakeup-pin", &pin) ||
+	    of_property_read_u16(dev->of_yesde, "marvell,wakeup-gap-ms", &gap))
 		return 0;
 
 	/* Vendor specific command to configure a GPIO as wake-up pin */
@@ -3211,7 +3211,7 @@ static int btusb_qca_send_vendor_req(struct usb_device *udev, u8 request,
 		return -ENOMEM;
 
 	/* Found some of USB hosts have IOT issues with ours so that we should
-	 * not wait until HCI layer is ready.
+	 * yest wait until HCI layer is ready.
 	 */
 	pipe = usb_rcvctrlpipe(udev, 0);
 	err = usb_control_msg(udev, pipe, request, USB_TYPE_VENDOR | USB_DIR_IN,
@@ -3327,7 +3327,7 @@ static int btusb_setup_qca_load_rampatch(struct hci_dev *hdev,
 		    rver_rom, rver_patch, ver_rom, ver_patch);
 
 	if (rver_rom != ver_rom || rver_patch <= ver_patch) {
-		bt_dev_err(hdev, "rampatch file version did not match with firmware");
+		bt_dev_err(hdev, "rampatch file version did yest match with firmware");
 		err = -EINVAL;
 		goto done;
 	}
@@ -3457,7 +3457,7 @@ static inline int __set_diag_interface(struct hci_dev *hdev)
 	}
 
 	if (!data->diag_tx_ep || !data->diag_rx_ep) {
-		bt_dev_err(hdev, "invalid diagnostic descriptors");
+		bt_dev_err(hdev, "invalid diagyesstic descriptors");
 		return -ENODEV;
 	}
 
@@ -3523,9 +3523,9 @@ static irqreturn_t btusb_oob_wake_handler(int irq, void *priv)
 	pm_wakeup_event(&data->udev->dev, 0);
 	pm_system_wakeup();
 
-	/* Disable only if not already disabled (keep it balanced) */
+	/* Disable only if yest already disabled (keep it balanced) */
 	if (test_and_clear_bit(BTUSB_OOB_WAKE_ENABLED, &data->flags)) {
-		disable_irq_nosync(irq);
+		disable_irq_yessync(irq);
 		disable_irq_wake(irq);
 	}
 	return IRQ_HANDLED;
@@ -3551,10 +3551,10 @@ static int btusb_config_oob_wake(struct hci_dev *hdev)
 	if (!of_match_device(btusb_match_table, dev))
 		return 0;
 
-	/* Move on if no IRQ specified */
-	irq = of_irq_get_byname(dev->of_node, "wakeup");
+	/* Move on if yes IRQ specified */
+	irq = of_irq_get_byname(dev->of_yesde, "wakeup");
 	if (irq <= 0) {
-		bt_dev_dbg(hdev, "%s: no OOB Wakeup IRQ in DT", __func__);
+		bt_dev_dbg(hdev, "%s: yes OOB Wakeup IRQ in DT", __func__);
 		return 0;
 	}
 
@@ -3716,7 +3716,7 @@ static int btusb_probe(struct usb_interface *intf,
 	hdev->close  = btusb_close;
 	hdev->flush  = btusb_flush;
 	hdev->send   = btusb_send_frame;
-	hdev->notify = btusb_notify;
+	hdev->yestify = btusb_yestify;
 
 #ifdef CONFIG_PM
 	err = btusb_config_oob_wake(hdev);
@@ -3835,7 +3835,7 @@ static int btusb_probe(struct usb_interface *intf,
 	}
 
 	if (id->driver_info & BTUSB_AMP) {
-		/* AMP controllers do not support SCO packets */
+		/* AMP controllers do yest support SCO packets */
 		data->isoc = NULL;
 	} else {
 		/* Interface orders are hardcoded in the specification */
@@ -4005,7 +4005,7 @@ static int btusb_suspend(struct usb_interface *intf, pm_message_t message)
 	/* For global suspend, Realtek devices lose the loaded fw
 	 * in them. But for autosuspend, firmware should remain.
 	 * Actually, it depends on whether the usb host sends
-	 * set feature (enable wakeup) or not.
+	 * set feature (enable wakeup) or yest.
 	 */
 	if (test_bit(BTUSB_WAKEUP_DISABLE, &data->flags)) {
 		if (PMSG_IS_AUTO(message) &&
@@ -4059,7 +4059,7 @@ static int btusb_resume(struct usb_interface *intf)
 	if (--data->suspend_count)
 		return 0;
 
-	/* Disable only if not already disabled (keep it balanced) */
+	/* Disable only if yest already disabled (keep it balanced) */
 	if (test_and_clear_bit(BTUSB_OOB_WAKE_ENABLED, &data->flags)) {
 		disable_irq(data->oob_wake_irq);
 		disable_irq_wake(data->oob_wake_irq);

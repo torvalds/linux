@@ -86,7 +86,7 @@ responded:
 		set_bit(AFS_VLSERVER_FL_IS_YFS, &server->flags);
 		alist->addrs[index].srx_service = call->service_id;
 	} else {
-		server->probe.not_yfs = true;
+		server->probe.yest_yfs = true;
 		if (!server->probe.is_yfs) {
 			clear_bit(AFS_VLSERVER_FL_IS_YFS, &server->flags);
 			alist->addrs[index].srx_service = call->service_id;

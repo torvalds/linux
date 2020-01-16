@@ -4,7 +4,7 @@
  *
  * Copyright (C) 2003-2005,2008 David Brownell
  * Copyright (C) 2008 Nokia Corporation
- * Copyright (C) 2009 EF Johnson Technologies
+ * Copyright (C) 2009 EF Johnson Techyeslogies
  */
 
 #include <linux/kernel.h>
@@ -185,7 +185,7 @@ static int eem_set_alt(struct usb_function *f, unsigned intf, unsigned alt)
 	struct usb_composite_dev *cdev = f->config->cdev;
 	struct net_device	*net;
 
-	/* we know alt == 0, so this is an activation or a reset */
+	/* we kyesw alt == 0, so this is an activation or a reset */
 	if (alt != 0)
 		goto fail;
 
@@ -205,7 +205,7 @@ static int eem_set_alt(struct usb_function *f, unsigned intf, unsigned alt)
 			}
 		}
 
-		/* zlps should not occur because zero-length EEM packets
+		/* zlps should yest occur because zero-length EEM packets
 		 * will be inserted in those cases where they would occur
 		 */
 		eem->port.is_zlp_ok = 1;
@@ -252,7 +252,7 @@ static int eem_bind(struct usb_configuration *c, struct usb_function *f)
 	 * in drivers/usb/gadget/configfs.c:configfs_composite_bind()
 	 * configurations are bound in sequence with list_for_each_entry,
 	 * in each configuration its functions are bound in sequence
-	 * with list_for_each_entry, so we assume no race condition
+	 * with list_for_each_entry, so we assume yes race condition
 	 * with regard to eem_opts->bound access
 	 */
 	if (!eem_opts->bound) {
@@ -329,7 +329,7 @@ static void eem_cmd_complete(struct usb_ep *ep, struct usb_request *req)
 
 /*
  * Add the EEM header and ethernet checksum.
- * We currently do not attempt to put multiple ethernet frames
+ * We currently do yest attempt to put multiple ethernet frames
  * into a single USB transfer
  */
 static struct sk_buff *eem_wrap(struct gether *port, struct sk_buff *skb)
@@ -363,7 +363,7 @@ static struct sk_buff *eem_wrap(struct gether *port, struct sk_buff *skb)
 		return skb;
 
 done:
-	/* use the "no CRC" option */
+	/* use the "yes CRC" option */
 	put_unaligned_be32(0xdeadbeef, skb_put(skb, 4));
 
 	/* EEM packet header format:

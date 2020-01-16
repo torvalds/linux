@@ -18,7 +18,7 @@
 
 #define RMR_CSRE 0x00000001
 
-void __noreturn pq2_restart(char *cmd)
+void __yesreturn pq2_restart(char *cmd)
 {
 	local_irq_disable();
 	setbits32(&cpm2_immr->im_clkrst.car_rmr, RMR_CSRE);
@@ -40,7 +40,7 @@ static int pq2_pci_exclude_device(struct pci_controller *hose,
 		return PCIBIOS_SUCCESSFUL;
 }
 
-static void __init pq2_pci_add_bridge(struct device_node *np)
+static void __init pq2_pci_add_bridge(struct device_yesde *np)
 {
 	struct pci_controller *hose;
 	struct resource r;
@@ -67,11 +67,11 @@ err:
 
 void __init pq2_init_pci(void)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 
 	ppc_md.pci_exclude_device = pq2_pci_exclude_device;
 
-	for_each_compatible_node(np, NULL, "fsl,pq2-pci")
+	for_each_compatible_yesde(np, NULL, "fsl,pq2-pci")
 		pq2_pci_add_bridge(np);
 }
 #endif

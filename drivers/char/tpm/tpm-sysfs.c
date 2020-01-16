@@ -253,8 +253,8 @@ static ssize_t caps_show(struct device *dev, struct device_attribute *attr,
 out_print:
 	str += sprintf(str,
 		       "TCG version: %d.%d\nFirmware version: %d.%d\n",
-		       version->major, version->minor,
-		       version->rev_major, version->rev_minor);
+		       version->major, version->miyesr,
+		       version->rev_major, version->rev_miyesr);
 
 	rc = str - buf;
 

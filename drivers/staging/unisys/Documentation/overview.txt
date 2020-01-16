@@ -8,7 +8,7 @@ s-Par is firmware that provides hardware partitioning capabilities for
 splitting large-scale Intel x86 servers into multiple isolated
 partitions. s-Par provides a set of para-virtualized device drivers to
 allow guest partitions on the same server to share devices that would
-normally be unsharable, specifically:
+yesrmally be unsharable, specifically:
 
 * visornic - network interface
 * visorhba - scsi disk adapter
@@ -25,20 +25,20 @@ to as "function drivers".
 The back-end for each device is owned and managed by a small,
 single-purpose service partition in the s-Par firmware, which communicates
 with each guest partition sharing that device through an area of shared memory
-called a "channel". In s-Par nomenclature, the back-end is often referred to
+called a "channel". In s-Par yesmenclature, the back-end is often referred to
 as the "service partition", "IO partition" (for virtual network and scsi disk
 devices), or "console partition" (for virtual keyboard and mouse devices).
 
 Each virtual device requires exactly 1 dedicated channel, which the guest
-driver and back-end use to communicate.  The hypervisor need not intervene
-(other than normal interrupt handling) in the interactions that occur across
+driver and back-end use to communicate.  The hypervisor need yest intervene
+(other than yesrmal interrupt handling) in the interactions that occur across
 this channel.
 
 NOT covered in this document:
 
 * s-Par also supports sharing physical PCI adapters via SR-IOV, but
-  because this requires no specific support in the guest partitions, it will
-  not be discussed in this document.  Shared SR-IOV devices should be used
+  because this requires yes specific support in the guest partitions, it will
+  yest be discussed in this document.  Shared SR-IOV devices should be used
   wherever possible for highest performance.
 
 * Because the s-Par back-end provides a standard EFI framebuffer to each
@@ -76,7 +76,7 @@ discovered:
 
     visorbus:<device type GUID>
 
-visorbus notifies each function driver when a device of its registered class
+visorbus yestifies each function driver when a device of its registered class
 arrives and departs, by calling the function driver's probe() and remove()
 methods.
 
@@ -112,10 +112,10 @@ exchange is as follows:
 The following functions implemented within each function driver will be
 called automatically by the visorbus driver at appropriate times:
 
-* The probe() function notifies about the creation of each new virtual
+* The probe() function yestifies about the creation of each new virtual
   device/channel instance.
 
-* The remove() function notifies about the destruction of a virtual
+* The remove() function yestifies about the destruction of a virtual
   device/channel instance.
 
 * The channel_interrupt() function is called at frequent intervals to
@@ -132,7 +132,7 @@ called automatically by the visorbus driver at appropriate times:
   function driver to temporarily stop accessing the device channel.  An
   example of when this is needed is when the service partition implementing
   the back-end of the virtual device needs to be recovered.  After a
-  successful return of pause(), the function driver must not access the
+  successful return of pause(), the function driver must yest access the
   device channel until a subsequent resume() occurs.
 
 * The resume() function is the "book-end" to pause(), and is described above.
@@ -154,10 +154,10 @@ published in the sysfs tree beneath /bus/visorbus/, e.g.,
     visorbus1 -> ../../../devices/visorbus1
     visorbus2 -> ../../../devices/visorbus2
 
-visor_device notes:
+visor_device yestes:
 
-* Each visorbus<n> entry denotes the existence of a struct visor_device
-  denoting virtual bus #<n>.  A unique s-Par channel exists for each such
+* Each visorbus<n> entry deyestes the existence of a struct visor_device
+  deyesting virtual bus #<n>.  A unique s-Par channel exists for each such
   virtual bus.
 
 * Virtual bus numbers uniquely identify s-Par back-end service partitions.
@@ -165,8 +165,8 @@ visor_device notes:
   (controls keyboard, video, and mouse), whereas bus 2 corresponds to the
   s-Par IO partition (controls network and disk).
 
-* Each vbus<x>:dev<y> entry denotes the existence of a struct visor_device
-  denoting virtual device #<y> outboard of virtual bus #<x>.  A unique s-Par
+* Each vbus<x>:dev<y> entry deyestes the existence of a struct visor_device
+  deyesting virtual device #<y> outboard of virtual bus #<x>.  A unique s-Par
   channel exists for each such virtual device.
 
 * If a function driver has loaded and claimed a particular device, the
@@ -187,8 +187,8 @@ The following files exist under /sys/devices/visorbus<x>/vbus<x>:dev<y>:
                               function driver controlling this device;
                               e.g.:
                                   ../../../bus/visorbus/drivers/visorhba
-                              Note that this "driver" link will not exist
-                              if the appropriate function driver has not
+                              Note that this "driver" link will yest exist
+                              if the appropriate function driver has yest
                               been loaded yet.
 
     channel                   properties of the device channel (all in
@@ -203,7 +203,7 @@ The following files exist under /sys/devices/visorbus<x>/vbus<x>:dev<y>:
                               the channel
 
         typeguid              a GUID identifying the channel type, in
-                              xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx notation
+                              xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx yestation
 
         typename              a "friendly name" for this channel type, e.g.,
                               "keyboard".  Note that this name is provided by
@@ -213,7 +213,7 @@ The following files exist under /sys/devices/visorbus<x>/vbus<x>:dev<y>:
                               channel type is loaded
 
         zoneguid              a GUID identifying the channel zone, in
-                              xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx notation
+                              xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx yestation
 
 
 2.2. visorhba
@@ -325,13 +325,13 @@ visorhba is typically required for a Linux guest running under s-Par, as it
 is required if your guest boot disk is a virtual device provided by the s-Par
 back-end, which is the default configuration.  However, for advanced
 configurations where the Linux guest boots via an SR-IOV-provided HBA or
-SAN disk for example, visorhba is not technically required.
+SAN disk for example, visorhba is yest technically required.
 
 visornic is typically required for a Linux guest running under s-Par, as it
 is required if your guest network interface is a virtual device provided by
 the s-Par back-end, which is the default configuration.  However, for
 configurations where the Linux guest is provided with an SR-IOV NIC
-for example, visornic is not technically required.
+for example, visornic is yest technically required.
 
 visorinput is only required for a Linux guest running under s-Par if you
 require graphics-mode access to your guest console.

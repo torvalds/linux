@@ -12,7 +12,7 @@ Optional properties:
   - brightness-levels: Array of distinct brightness levels. The levels must be
                        in the range accepted by the underlying LED devices.
                        This is used to translate a backlight brightness level
-                       into a LED brightness level. If it is not provided, the
+                       into a LED brightness level. If it is yest provided, the
                        identity mapping is used.
 
   - default-brightness-level: The default brightness level.

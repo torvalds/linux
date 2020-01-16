@@ -112,7 +112,7 @@ static const char * const ia_check_op_strs[] = {
 	"instruction fetch",
 	"prefetch",
 	"eviction",
-	"snoop",
+	"syesop",
 };
 
 static const char * const ia_check_bus_part_type_strs[] = {
@@ -161,7 +161,7 @@ static void print_err_info_ms(const char *pfx, u16 validation_bits, u64 check)
 
 		printk("%sError Type: %u, %s\n", pfx, err_type,
 		       err_type < ARRAY_SIZE(ia_check_ms_error_type_strs) ?
-		       ia_check_ms_error_type_strs[err_type] : "unknown");
+		       ia_check_ms_error_type_strs[err_type] : "unkyeswn");
 	}
 
 	if (validation_bits & CHECK_VALID_MS_PCC)
@@ -196,7 +196,7 @@ static void print_err_info(const char *pfx, u8 err_type, u64 check)
 
 		printk("%sTransaction Type: %u, %s\n", pfx, trans_type,
 		       trans_type < ARRAY_SIZE(ia_check_trans_type_strs) ?
-		       ia_check_trans_type_strs[trans_type] : "unknown");
+		       ia_check_trans_type_strs[trans_type] : "unkyeswn");
 	}
 
 	if (validation_bits & CHECK_VALID_OPERATION) {
@@ -209,7 +209,7 @@ static void print_err_info(const char *pfx, u8 err_type, u64 check)
 		u8 max_ops = (err_type == ERR_TYPE_CACHE) ? 9 : 7;
 
 		printk("%sOperation: %u, %s\n", pfx, op,
-		       op < max_ops ? ia_check_op_strs[op] : "unknown");
+		       op < max_ops ? ia_check_op_strs[op] : "unkyeswn");
 	}
 
 	if (validation_bits & CHECK_VALID_LEVEL)
@@ -238,7 +238,7 @@ static void print_err_info(const char *pfx, u8 err_type, u64 check)
 
 		printk("%sParticipation Type: %u, %s\n", pfx, part_type,
 		       part_type < ARRAY_SIZE(ia_check_bus_part_type_strs) ?
-		       ia_check_bus_part_type_strs[part_type] : "unknown");
+		       ia_check_bus_part_type_strs[part_type] : "unkyeswn");
 	}
 
 	if (validation_bits & CHECK_VALID_BUS_TIME_OUT)
@@ -249,7 +249,7 @@ static void print_err_info(const char *pfx, u8 err_type, u64 check)
 
 		printk("%sAddress Space: %u, %s\n", pfx, addr_space,
 		       addr_space < ARRAY_SIZE(ia_check_bus_addr_space_strs) ?
-		       ia_check_bus_addr_space_strs[addr_space] : "unknown");
+		       ia_check_bus_addr_space_strs[addr_space] : "unkyeswn");
 	}
 }
 
@@ -279,7 +279,7 @@ void cper_print_proc_ia(const char *pfx, const struct cper_sec_proc_ia *proc)
 		err_type = cper_get_err_type(&err_info->err_type);
 		printk("%sError Structure Type: %s\n", newpfx,
 		       err_type < ARRAY_SIZE(cper_proc_error_type_strs) ?
-		       cper_proc_error_type_strs[err_type] : "unknown");
+		       cper_proc_error_type_strs[err_type] : "unkyeswn");
 
 		if (err_type >= N_ERR_TYPES) {
 			printk("%sError Structure Type: %pUl\n", newpfx,
@@ -331,7 +331,7 @@ void cper_print_proc_ia(const char *pfx, const struct cper_sec_proc_ia *proc)
 
 		printk("%sRegister Context Type: %s\n", newpfx,
 		       ctx_info->reg_ctx_type < ARRAY_SIZE(ia_reg_ctx_strs) ?
-		       ia_reg_ctx_strs[ctx_info->reg_ctx_type] : "unknown");
+		       ia_reg_ctx_strs[ctx_info->reg_ctx_type] : "unkyeswn");
 
 		printk("%sRegister Array Size: 0x%04x\n", newpfx,
 		       ctx_info->reg_arr_size);

@@ -24,7 +24,7 @@
  */
 #define FIP_VN_FC_MAP	0x0efd00 /* MAC OUI for VN2VN use */
 #define FIP_VN_PROBE_WAIT 100	/* interval between VN2VN probes (ms) */
-#define FIP_VN_ANN_WAIT 400	/* interval between VN2VN announcements (ms) */
+#define FIP_VN_ANN_WAIT 400	/* interval between VN2VN anyesuncements (ms) */
 #define FIP_VN_RLIM_INT 10000	/* interval between probes when rate limited */
 #define FIP_VN_RLIM_COUNT 10	/* number of probes before rate limiting */
 #define FIP_VN_BEACON_INT 8000	/* interval between VN2VN beacons */
@@ -98,8 +98,8 @@ enum fip_reset_subcode {
  */
 enum fip_vlan_subcode {
 	FIP_SC_VL_REQ =	1,		/* vlan request */
-	FIP_SC_VL_NOTE = 2,		/* vlan notification */
-	FIP_SC_VL_VN2VN_NOTE = 3,	/* VN2VN vlan notification */
+	FIP_SC_VL_NOTE = 2,		/* vlan yestification */
+	FIP_SC_VL_VN2VN_NOTE = 3,	/* VN2VN vlan yestification */
 };
 
 /*
@@ -108,7 +108,7 @@ enum fip_vlan_subcode {
 enum fip_vn2vn_subcode {
 	FIP_SC_VN_PROBE_REQ = 1,	/* probe request */
 	FIP_SC_VN_PROBE_REP = 2,	/* probe reply */
-	FIP_SC_VN_CLAIM_NOTIFY = 3,	/* claim notification */
+	FIP_SC_VN_CLAIM_NOTIFY = 3,	/* claim yestification */
 	FIP_SC_VN_CLAIM_REP = 4,	/* claim response */
 	FIP_SC_VN_BEACON = 5,		/* beacon */
 };
@@ -139,7 +139,7 @@ enum fip_desc_type {
 	FIP_DT_PRI =	1,		/* priority for forwarder selection */
 	FIP_DT_MAC =	2,		/* MAC address */
 	FIP_DT_MAP_OUI = 3,		/* FC-MAP OUI */
-	FIP_DT_NAME =	4,		/* switch name or node name */
+	FIP_DT_NAME =	4,		/* switch name or yesde name */
 	FIP_DT_FAB =	5,		/* fabric descriptor */
 	FIP_DT_FCOE_SIZE = 6,		/* max FCoE frame size */
 	FIP_DT_FLOGI =	7,		/* FLOGI request or response */
@@ -152,7 +152,7 @@ enum fip_desc_type {
 	FIP_DT_VLAN =	14,		/* vlan number */
 	FIP_DT_FC4F =	15,		/* FC-4 features */
 	FIP_DT_LIMIT,			/* max defined desc_type + 1 */
-	FIP_DT_NON_CRITICAL = 128,	/* First non-critical descriptor */
+	FIP_DT_NON_CRITICAL = 128,	/* First yesn-critical descriptor */
 	FIP_DT_CLR_VLINKS = 128,	/* Clear virtual links reason code */
 	FIP_DT_VENDOR_BASE = 241,	/* first vendor-specific desc_type */
 };
@@ -246,7 +246,7 @@ struct fip_fka_desc {
  * flags for fip_fka_desc.fd_flags
  */
 enum fip_fka_flags {
-	FIP_FKA_ADV_D =	0x01,		/* no need for FKA from ENode */
+	FIP_FKA_ADV_D =	0x01,		/* yes need for FKA from ENode */
 };
 
 /* FIP_DT_FKA flags */

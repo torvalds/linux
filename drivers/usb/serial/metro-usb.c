@@ -11,7 +11,7 @@
 #include <linux/tty.h>
 #include <linux/module.h>
 #include <linux/usb.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/slab.h>
 #include <linux/tty_driver.h>
 #include <linux/tty_flip.h>
@@ -129,7 +129,7 @@ static void metrousb_read_int_callback(struct urb *urb)
 		return;
 	default:
 		dev_dbg(&port->dev,
-			"%s - non-zero urb received, error code=%d\n",
+			"%s - yesn-zero urb received, error code=%d\n",
 			__func__, urb->status);
 		goto exit;
 	}

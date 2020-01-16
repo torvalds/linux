@@ -11,13 +11,13 @@
  * are met:
  *
  * * Redistributions of source code must retain the above copyright
- *   notice, this list of conditions and the following disclaimer.
+ *   yestice, this list of conditions and the following disclaimer.
  *
  * * Redistributions in binary form must reproduce the above copyright
- *   notice, this list of conditions and the following disclaimer in the
+ *   yestice, this list of conditions and the following disclaimer in the
  *   documentation and/or other materials provided with the distribution.
  *
- * * Neither the name of Texas Instruments Incorporated nor the names of
+ * * Neither the name of Texas Instruments Incorporated yesr the names of
  *   its contributors may be used to endorse or promote products derived
  *   from this software without specific prior written permission.
  *
@@ -96,7 +96,7 @@ struct tcm *sita_init(u16 width, u16 height);
  *
  * @param tcm	Pointer to container manager.
  *
- * @return 0 on success, non-0 error value on error.  The call
+ * @return 0 on success, yesn-0 error value on error.  The call
  *	   should free as much memory as possible and meaningful
  *	   even on failure.  Some error codes: -ENODEV: invalid
  *	   manager.
@@ -125,7 +125,7 @@ static inline void tcm_deinit(struct tcm *tcm)
  * @return 0 on success.  Non-0 error code on failure.  Also,
  *	   the tcm field of the area will be set to NULL on
  *	   failure.  Some error codes: -ENODEV: invalid manager,
- *	   -EINVAL: invalid area, -ENOMEM: not enough space for
+ *	   -EINVAL: invalid area, -ENOMEM: yest eyesugh space for
  *	    allocation.
  */
 static inline s32 tcm_reserve_2d(struct tcm *tcm, u16 width, u16 height,
@@ -159,7 +159,7 @@ static inline s32 tcm_reserve_2d(struct tcm *tcm, u16 width, u16 height,
  * @return 0 on success.  Non-0 error code on failure.  Also,
  *	   the tcm field of the area will be set to NULL on
  *	   failure.  Some error codes: -ENODEV: invalid manager,
- *	   -EINVAL: invalid area, -ENOMEM: not enough space for
+ *	   -EINVAL: invalid area, -ENOMEM: yest eyesugh space for
  *	    allocation.
  */
 static inline s32 tcm_reserve_1d(struct tcm *tcm, u32 slots,
@@ -184,7 +184,7 @@ static inline s32 tcm_reserve_1d(struct tcm *tcm, u32 slots,
  *
  * @param area	Pointer to area reserved by a prior call to
  *		tcm_reserve_1d or tcm_reserve_2d call, whether
- *		it was successful or not. (Note: all fields of
+ *		it was successful or yest. (Note: all fields of
  *		the structure must match.)
  *
  * @return 0 on success.  Non-0 error code on failure.  Also, the tcm
@@ -213,7 +213,7 @@ static inline s32 tcm_free(struct tcm_area *area)
  * This method slices off the topmost 2D slice from the parent area, and stores
  * it in the 'slice' parameter.  The 'parent' parameter will get modified to
  * contain the remaining portion of the area.  If the whole parent area can
- * fit in a 2D slice, its tcm pointer is set to NULL to mark that it is no
+ * fit in a 2D slice, its tcm pointer is set to NULL to mark that it is yes
  * longer a valid area.
  *
  * @param parent	Pointer to a VALID parent area that will get modified
@@ -318,7 +318,7 @@ static inline s32 tcm_1d_limit(struct tcm_area *a, u32 num_pg)
  *			tcm_area *' that will get modified to
  *			contain each slice.
  * @param area		Pointer to the VALID parent area. This
- *			structure will not get modified
+ *			structure will yest get modified
  *			throughout the loop.
  *
  */

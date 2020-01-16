@@ -2,7 +2,7 @@
 //
 // simple-card-utils.c
 //
-// Copyright (c) 2016 Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
+// Copyright (c) 2016 Kuniyesri Morimoto <kuniyesri.morimoto.gx@renesas.com>
 
 #include <linux/clk.h>
 #include <linux/gpio.h>
@@ -33,7 +33,7 @@ void asoc_simple_convert_fixup(struct asoc_simple_data *data,
 EXPORT_SYMBOL_GPL(asoc_simple_convert_fixup);
 
 void asoc_simple_parse_convert(struct device *dev,
-			       struct device_node *np,
+			       struct device_yesde *np,
 			       char *prefix,
 			       struct asoc_simple_data *data)
 {
@@ -53,24 +53,24 @@ void asoc_simple_parse_convert(struct device *dev,
 EXPORT_SYMBOL_GPL(asoc_simple_parse_convert);
 
 int asoc_simple_parse_daifmt(struct device *dev,
-			     struct device_node *node,
-			     struct device_node *codec,
+			     struct device_yesde *yesde,
+			     struct device_yesde *codec,
 			     char *prefix,
 			     unsigned int *retfmt)
 {
-	struct device_node *bitclkmaster = NULL;
-	struct device_node *framemaster = NULL;
+	struct device_yesde *bitclkmaster = NULL;
+	struct device_yesde *framemaster = NULL;
 	unsigned int daifmt;
 
-	daifmt = snd_soc_of_parse_daifmt(node, prefix,
+	daifmt = snd_soc_of_parse_daifmt(yesde, prefix,
 					 &bitclkmaster, &framemaster);
 	daifmt &= ~SND_SOC_DAIFMT_MASTER_MASK;
 
 	if (!bitclkmaster && !framemaster) {
 		/*
-		 * No dai-link level and master setting was not found from
-		 * sound node level, revert back to legacy DT parsing and
-		 * take the settings from codec node.
+		 * No dai-link level and master setting was yest found from
+		 * sound yesde level, revert back to legacy DT parsing and
+		 * take the settings from codec yesde.
 		 */
 		dev_dbg(dev, "Revert to legacy daifmt parsing\n");
 
@@ -85,8 +85,8 @@ int asoc_simple_parse_daifmt(struct device *dev,
 				SND_SOC_DAIFMT_CBS_CFM : SND_SOC_DAIFMT_CBS_CFS;
 	}
 
-	of_node_put(bitclkmaster);
-	of_node_put(framemaster);
+	of_yesde_put(bitclkmaster);
+	of_yesde_put(framemaster);
 
 	*retfmt = daifmt;
 
@@ -158,7 +158,7 @@ static void asoc_simple_clk_disable(struct asoc_simple_dai *dai)
 }
 
 int asoc_simple_parse_clk(struct device *dev,
-			  struct device_node *node,
+			  struct device_yesde *yesde,
 			  struct asoc_simple_dai *simple_dai,
 			  struct snd_soc_dai_link_component *dlc)
 {
@@ -171,20 +171,20 @@ int asoc_simple_parse_clk(struct device *dev,
 	 *  or "system-clock-frequency = <xxx>"
 	 *  or device's module clock.
 	 */
-	clk = devm_get_clk_from_child(dev, node, NULL);
+	clk = devm_get_clk_from_child(dev, yesde, NULL);
 	if (!IS_ERR(clk)) {
 		simple_dai->sysclk = clk_get_rate(clk);
 
 		simple_dai->clk = clk;
-	} else if (!of_property_read_u32(node, "system-clock-frequency", &val)) {
+	} else if (!of_property_read_u32(yesde, "system-clock-frequency", &val)) {
 		simple_dai->sysclk = val;
 	} else {
-		clk = devm_get_clk_from_child(dev, dlc->of_node, NULL);
+		clk = devm_get_clk_from_child(dev, dlc->of_yesde, NULL);
 		if (!IS_ERR(clk))
 			simple_dai->sysclk = clk_get_rate(clk);
 	}
 
-	if (of_property_read_bool(node, "system-clock-direction-out"))
+	if (of_property_read_bool(yesde, "system-clock-direction-out"))
 		simple_dai->clk_direction = SND_SOC_CLOCK_OUT;
 
 	return 0;
@@ -351,27 +351,27 @@ int asoc_simple_dai_init(struct snd_soc_pcm_runtime *rtd)
 }
 EXPORT_SYMBOL_GPL(asoc_simple_dai_init);
 
-void asoc_simple_canonicalize_platform(struct snd_soc_dai_link *dai_link)
+void asoc_simple_cayesnicalize_platform(struct snd_soc_dai_link *dai_link)
 {
 	/* Assumes platform == cpu */
-	if (!dai_link->platforms->of_node)
-		dai_link->platforms->of_node = dai_link->cpus->of_node;
+	if (!dai_link->platforms->of_yesde)
+		dai_link->platforms->of_yesde = dai_link->cpus->of_yesde;
 
 	/*
-	 * DPCM BE can be no platform.
-	 * Alloced memory will be waste, but not leak.
+	 * DPCM BE can be yes platform.
+	 * Alloced memory will be waste, but yest leak.
 	 */
-	if (!dai_link->platforms->of_node)
+	if (!dai_link->platforms->of_yesde)
 		dai_link->num_platforms = 0;
 }
-EXPORT_SYMBOL_GPL(asoc_simple_canonicalize_platform);
+EXPORT_SYMBOL_GPL(asoc_simple_cayesnicalize_platform);
 
-void asoc_simple_canonicalize_cpu(struct snd_soc_dai_link *dai_link,
+void asoc_simple_cayesnicalize_cpu(struct snd_soc_dai_link *dai_link,
 				  int is_single_links)
 {
 	/*
 	 * In soc_bind_dai_link() will check cpu name after
-	 * of_node matching if dai_link has cpu_dai_name.
+	 * of_yesde matching if dai_link has cpu_dai_name.
 	 * but, it will never match if name was created by
 	 * fmt_single_name() remove cpu_dai_name if cpu_args
 	 * was 0. See:
@@ -381,7 +381,7 @@ void asoc_simple_canonicalize_cpu(struct snd_soc_dai_link *dai_link,
 	if (is_single_links)
 		dai_link->cpus->dai_name = NULL;
 }
-EXPORT_SYMBOL_GPL(asoc_simple_canonicalize_cpu);
+EXPORT_SYMBOL_GPL(asoc_simple_cayesnicalize_cpu);
 
 int asoc_simple_clean_reference(struct snd_soc_card *card)
 {
@@ -389,8 +389,8 @@ int asoc_simple_clean_reference(struct snd_soc_card *card)
 	int i;
 
 	for_each_card_prelinks(card, i, dai_link) {
-		of_node_put(dai_link->cpus->of_node);
-		of_node_put(dai_link->codecs->of_node);
+		of_yesde_put(dai_link->cpus->of_yesde);
+		of_yesde_put(dai_link->codecs->of_yesde);
 	}
 	return 0;
 }
@@ -399,7 +399,7 @@ EXPORT_SYMBOL_GPL(asoc_simple_clean_reference);
 int asoc_simple_parse_routing(struct snd_soc_card *card,
 			      char *prefix)
 {
-	struct device_node *node = card->dev->of_node;
+	struct device_yesde *yesde = card->dev->of_yesde;
 	char prop[128];
 
 	if (!prefix)
@@ -407,7 +407,7 @@ int asoc_simple_parse_routing(struct snd_soc_card *card,
 
 	snprintf(prop, sizeof(prop), "%s%s", prefix, "routing");
 
-	if (!of_property_read_bool(node, prop))
+	if (!of_property_read_bool(yesde, prop))
 		return 0;
 
 	return snd_soc_of_parse_audio_routing(card, prop);
@@ -417,7 +417,7 @@ EXPORT_SYMBOL_GPL(asoc_simple_parse_routing);
 int asoc_simple_parse_widgets(struct snd_soc_card *card,
 			      char *prefix)
 {
-	struct device_node *node = card->dev->of_node;
+	struct device_yesde *yesde = card->dev->of_yesde;
 	char prop[128];
 
 	if (!prefix)
@@ -425,10 +425,10 @@ int asoc_simple_parse_widgets(struct snd_soc_card *card,
 
 	snprintf(prop, sizeof(prop), "%s%s", prefix, "widgets");
 
-	if (of_property_read_bool(node, prop))
+	if (of_property_read_bool(yesde, prop))
 		return snd_soc_of_parse_audio_simple_widgets(card, prop);
 
-	/* no widgets is not error */
+	/* yes widgets is yest error */
 	return 0;
 }
 EXPORT_SYMBOL_GPL(asoc_simple_parse_widgets);
@@ -449,7 +449,7 @@ int asoc_simple_parse_pin_switches(struct snd_soc_card *card,
 
 	snprintf(prop, sizeof(prop), "%s%s", prefix, "pin-switches");
 
-	if (!of_property_read_bool(dev->of_node, prop))
+	if (!of_property_read_bool(dev->of_yesde, prop))
 		return 0;
 
 	strings = devm_kcalloc(dev, nb_controls_max,
@@ -457,7 +457,7 @@ int asoc_simple_parse_pin_switches(struct snd_soc_card *card,
 	if (!strings)
 		return -ENOMEM;
 
-	ret = of_property_read_string_array(dev->of_node, prop,
+	ret = of_property_read_string_array(dev->of_yesde, prop,
 					    strings, nb_controls_max);
 	if (ret < 0)
 		return ret;
@@ -519,7 +519,7 @@ int asoc_simple_init_jack(struct snd_soc_card *card,
 		mask		= SND_JACK_MICROPHONE;
 	}
 
-	det = of_get_named_gpio_flags(dev->of_node, prop, 0, &flags);
+	det = of_get_named_gpio_flags(dev->of_yesde, prop, 0, &flags);
 	if (det == -EPROBE_DEFER)
 		return -EPROBE_DEFER;
 
@@ -576,7 +576,7 @@ int asoc_simple_init_priv(struct asoc_simple_priv *priv,
 	 *
 	 * "platform" might be removed
 	 * see
-	 *	simple-card-utils.c :: asoc_simple_canonicalize_platform()
+	 *	simple-card-utils.c :: asoc_simple_cayesnicalize_platform()
 	 */
 	for (i = 0; i < li->link; i++) {
 		dai_link[i].cpus		= &dai_props[i].cpus;
@@ -602,6 +602,6 @@ int asoc_simple_init_priv(struct asoc_simple_priv *priv,
 EXPORT_SYMBOL_GPL(asoc_simple_init_priv);
 
 /* Module information */
-MODULE_AUTHOR("Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>");
+MODULE_AUTHOR("Kuniyesri Morimoto <kuniyesri.morimoto.gx@renesas.com>");
 MODULE_DESCRIPTION("ALSA SoC Simple Card Utils");
 MODULE_LICENSE("GPL v2");

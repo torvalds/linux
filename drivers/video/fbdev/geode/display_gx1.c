@@ -189,7 +189,7 @@ static void gx1_set_mode(struct fb_info *info)
 	 * register. */
 }
 
-static void gx1_set_hw_palette_reg(struct fb_info *info, unsigned regno,
+static void gx1_set_hw_palette_reg(struct fb_info *info, unsigned regyes,
 				   unsigned red, unsigned green, unsigned blue)
 {
 	struct geodefb_par *par = info->par;
@@ -200,7 +200,7 @@ static void gx1_set_hw_palette_reg(struct fb_info *info, unsigned regno,
 	val |= (green >>  4) & 0x00fc0;
 	val |= (blue  >> 10) & 0x0003f;
 
-	writel(regno, par->dc_regs + DC_PAL_ADDRESS);
+	writel(regyes, par->dc_regs + DC_PAL_ADDRESS);
 	writel(val, par->dc_regs + DC_PAL_DATA);
 }
 

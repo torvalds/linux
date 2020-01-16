@@ -9,7 +9,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -44,7 +44,7 @@ void amdgpu_connector_hotplug(struct drm_connector *connector)
 	struct amdgpu_device *adev = dev->dev_private;
 	struct amdgpu_connector *amdgpu_connector = to_amdgpu_connector(connector);
 
-	/* bail if the connector does not have hpd pin, e.g.,
+	/* bail if the connector does yest have hpd pin, e.g.,
 	 * VGA, TV, etc.
 	 */
 	if (amdgpu_connector->hpd.hpd == AMDGPU_HPD_NONE)
@@ -56,18 +56,18 @@ void amdgpu_connector_hotplug(struct drm_connector *connector)
 	if (connector->dpms != DRM_MODE_DPMS_ON)
 		return;
 
-	/* just deal with DP (not eDP) here. */
+	/* just deal with DP (yest eDP) here. */
 	if (connector->connector_type == DRM_MODE_CONNECTOR_DisplayPort) {
 		struct amdgpu_connector_atom_dig *dig_connector =
 			amdgpu_connector->con_priv;
 
-		/* if existing sink type was not DP no need to retrain */
+		/* if existing sink type was yest DP yes need to retrain */
 		if (dig_connector->dp_sink_type != CONNECTOR_OBJECT_ID_DISPLAYPORT)
 			return;
 
 		/* first get sink type as it may be reset after (un)plug */
 		dig_connector->dp_sink_type = amdgpu_atombios_dp_get_sinktype(amdgpu_connector);
-		/* don't do anything if sink is not display port, i.e.,
+		/* don't do anything if sink is yest display port, i.e.,
 		 * passive dp->(dvi|hdmi) adaptor
 		 */
 		if (dig_connector->dp_sink_type == CONNECTOR_OBJECT_ID_DISPLAYPORT &&
@@ -161,7 +161,7 @@ int amdgpu_connector_get_monitor_bpc(struct drm_connector *connector)
 			bpc = 12;
 		}
 
-		/* Any defined maximum tmds clock limit we must not exceed? */
+		/* Any defined maximum tmds clock limit we must yest exceed? */
 		if (connector->display_info.max_tmds_clock > 0) {
 			/* mode_clock is clock in kHz for mode to be modeset on this connector */
 			mode_clock = amdgpu_connector->pixelclock_for_modeset;
@@ -393,7 +393,7 @@ amdgpu_connector_lcd_native_mode(struct drm_encoder *encoder)
 	} else if (native_mode->hdisplay != 0 &&
 		   native_mode->vdisplay != 0) {
 		/* mac laptops without an edid */
-		/* Note that this is not necessarily the exact panel mode,
+		/* Note that this is yest necessarily the exact panel mode,
 		 * but an approximation based on the cvt formula.  For these
 		 * systems we should ideally read the mode info out of the
 		 * registers or add a mode table, but this works and is much
@@ -661,7 +661,7 @@ static int amdgpu_connector_lvds_get_modes(struct drm_connector *connector)
 	if (!encoder)
 		return 0;
 
-	/* we have no EDID modes */
+	/* we have yes EDID modes */
 	mode = amdgpu_connector_lcd_native_mode(encoder);
 	if (mode) {
 		ret = 1;
@@ -689,13 +689,13 @@ static enum drm_mode_status amdgpu_connector_lvds_mode_valid(struct drm_connecto
 		struct drm_display_mode *native_mode = &amdgpu_encoder->native_mode;
 
 		/* AVIVO hardware supports downscaling modes larger than the panel
-		 * to the panel size, but I'm not sure this is desirable.
+		 * to the panel size, but I'm yest sure this is desirable.
 		 */
 		if ((mode->hdisplay > native_mode->hdisplay) ||
 		    (mode->vdisplay > native_mode->vdisplay))
 			return MODE_PANEL;
 
-		/* if scaling is disabled, block non-native modes */
+		/* if scaling is disabled, block yesn-native modes */
 		if (amdgpu_encoder->rmx_type == RMX_OFF) {
 			if ((mode->hdisplay != native_mode->hdisplay) ||
 			    (mode->vdisplay != native_mode->vdisplay))
@@ -870,7 +870,7 @@ amdgpu_connector_vga_detect(struct drm_connector *connector, bool force)
 		amdgpu_connector_get_edid(connector);
 
 		if (!amdgpu_connector->edid) {
-			DRM_ERROR("%s: probed a monitor but no|invalid EDID\n",
+			DRM_ERROR("%s: probed a monitor but yes|invalid EDID\n",
 					connector->name);
 			ret = connector_status_connected;
 		} else {
@@ -957,9 +957,9 @@ amdgpu_connector_check_hpd_status_unchanged(struct drm_connector *connector)
  * DVI is complicated
  * Do a DDC probe, if DDC probe passes, get the full EDID so
  * we can do analog/digital monitor detection at this point.
- * If the monitor is an analog monitor or we got no DDC,
+ * If the monitor is an analog monitor or we got yes DDC,
  * we need to find the DAC encoder object for this connector.
- * If we got no DDC, we do load detection on the DAC encoder object.
+ * If we got yes DDC, we do load detection on the DAC encoder object.
  * If we got analog DDC or load detection passes on the DAC encoder
  * we have to check if this analog encoder is shared with anyone else (TV)
  * if its shared we have to set the other connector to disconnected.
@@ -994,7 +994,7 @@ amdgpu_connector_dvi_detect(struct drm_connector *connector, bool force)
 		amdgpu_connector_get_edid(connector);
 
 		if (!amdgpu_connector->edid) {
-			DRM_ERROR("%s: probed a monitor but no|invalid EDID\n",
+			DRM_ERROR("%s: probed a monitor but yes|invalid EDID\n",
 					connector->name);
 			ret = connector_status_connected;
 			broken_edid = true; /* defer use_digital to later */
@@ -1015,7 +1015,7 @@ amdgpu_connector_dvi_detect(struct drm_connector *connector, bool force)
 			/* This gets complicated.  We have boards with VGA + HDMI with a
 			 * shared DDC line and we have boards with DVI-D + HDMI with a shared
 			 * DDC line.  The latter is more complex because with DVI<->HDMI adapters
-			 * you don't really know what's connected to which port as both are digital.
+			 * you don't really kyesw what's connected to which port as both are digital.
 			 */
 			if (amdgpu_connector->shared_ddc && (ret == connector_status_connected)) {
 				struct drm_connector *list_connector;
@@ -1100,7 +1100,7 @@ amdgpu_connector_dvi_detect(struct drm_connector *connector, bool force)
 	}
 
 out:
-	/* updated in get modes as well since we need to know if it's analog or digital */
+	/* updated in get modes as well since we need to kyesw if it's analog or digital */
 	amdgpu_connector_update_scratch_regs(connector, ret);
 
 exit:
@@ -1240,7 +1240,7 @@ static int amdgpu_connector_dp_get_modes(struct drm_connector *connector)
 		if (!encoder)
 			return 0;
 
-		/* we have no EDID modes */
+		/* we have yes EDID modes */
 		mode = amdgpu_connector_lcd_native_mode(encoder);
 		if (mode) {
 			ret = 1;
@@ -1390,7 +1390,7 @@ amdgpu_connector_dp_detect(struct drm_connector *connector, bool force)
 				if (!amdgpu_atombios_dp_get_dpcd(amdgpu_connector))
 					ret = connector_status_connected;
 			} else {
-				/* try non-aux ddc (DP to DVI/HDMI/etc. adapter) */
+				/* try yesn-aux ddc (DP to DVI/HDMI/etc. adapter) */
 				if (amdgpu_display_ddc_probe(amdgpu_connector,
 							     false))
 					ret = connector_status_connected;
@@ -1428,13 +1428,13 @@ static enum drm_mode_status amdgpu_connector_dp_mode_valid(struct drm_connector 
 			struct drm_display_mode *native_mode = &amdgpu_encoder->native_mode;
 
 			/* AVIVO hardware supports downscaling modes larger than the panel
-			 * to the panel size, but I'm not sure this is desirable.
+			 * to the panel size, but I'm yest sure this is desirable.
 			 */
 			if ((mode->hdisplay > native_mode->hdisplay) ||
 			    (mode->vdisplay > native_mode->vdisplay))
 				return MODE_PANEL;
 
-			/* if scaling is disabled, block non-native modes */
+			/* if scaling is disabled, block yesn-native modes */
 			if (amdgpu_encoder->rmx_type == RMX_OFF) {
 				if ((mode->hdisplay != native_mode->hdisplay) ||
 				    (mode->vdisplay != native_mode->vdisplay))
@@ -1510,7 +1510,7 @@ amdgpu_connector_add(struct amdgpu_device *adev,
 	bool is_dp_bridge = false;
 	bool has_aux = false;
 
-	if (connector_type == DRM_MODE_CONNECTOR_Unknown)
+	if (connector_type == DRM_MODE_CONNECTOR_Unkyeswn)
 		return;
 
 	/* see if we already added it */
@@ -1689,7 +1689,7 @@ amdgpu_connector_add(struct amdgpu_device *adev,
 			drm_object_attach_property(&amdgpu_connector->base.base,
 						   dev->mode_config.scaling_mode_property,
 						   DRM_MODE_SCALE_NONE);
-			/* no HPD on analog connectors */
+			/* yes HPD on analog connectors */
 			amdgpu_connector->hpd.hpd = AMDGPU_HPD_NONE;
 			connector->interlace_allowed = true;
 			connector->doublescan_allowed = true;
@@ -1714,7 +1714,7 @@ amdgpu_connector_add(struct amdgpu_device *adev,
 			drm_object_attach_property(&amdgpu_connector->base.base,
 						   dev->mode_config.scaling_mode_property,
 						   DRM_MODE_SCALE_NONE);
-			/* no HPD on analog connectors */
+			/* yes HPD on analog connectors */
 			amdgpu_connector->hpd.hpd = AMDGPU_HPD_NONE;
 			connector->interlace_allowed = true;
 			connector->doublescan_allowed = true;

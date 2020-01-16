@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Samsung Exynos4 SoC series FIMC-IS slave interface driver
+ * Samsung Exyyess4 SoC series FIMC-IS slave interface driver
  *
  * FIMC-IS error code definition
  *
@@ -114,19 +114,19 @@ enum fimc_is_error {
 	ERROR_COMMON_NONE		= 0,
 	ERROR_COMMON_CMD		= 1,	/* Invalid command */
 	ERROR_COMMON_PARAMETER		= 2,	/* Invalid parameter */
-	/* setfile is not loaded before adjusting */
+	/* setfile is yest loaded before adjusting */
 	ERROR_COMMON_SETFILE_LOAD	= 3,
-	/* setfile is not Adjusted before runnng. */
+	/* setfile is yest Adjusted before runnng. */
 	ERROR_COMMON_SETFILE_ADJUST	= 4,
-	/* Index of setfile is not valid (0~MAX_SETFILE_NUM-1) */
+	/* Index of setfile is yest valid (0~MAX_SETFILE_NUM-1) */
 	ERROR_COMMON_SETFILE_INDEX	= 5,
 	/* Input path can be changed in ready state(stop) */
 	ERROR_COMMON_INPUT_PATH		= 6,
-	/* IP can not start if input path is not set */
+	/* IP can yest start if input path is yest set */
 	ERROR_COMMON_INPUT_INIT		= 7,
 	/* Output path can be changed in ready state (stop) */
 	ERROR_COMMON_OUTPUT_PATH	= 8,
-	/* IP can not start if output path is not set */
+	/* IP can yest start if output path is yest set */
 	ERROR_COMMON_OUTPUT_INIT	= 9,
 
 	ERROR_CONTROL_NONE		= ERROR_COMMON_NONE,

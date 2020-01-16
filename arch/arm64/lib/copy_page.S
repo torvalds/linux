@@ -23,7 +23,7 @@ alternative_if ARM64_HAS_NO_HW_PREFETCH
 	prfm	pldl1strm, [x1, #128]
 	prfm	pldl1strm, [x1, #256]
 	prfm	pldl1strm, [x1, #384]
-alternative_else_nop_endif
+alternative_else_yesp_endif
 
 	ldp	x2, x3, [x1]
 	ldp	x4, x5, [x1, #16]
@@ -41,7 +41,7 @@ alternative_else_nop_endif
 
 alternative_if ARM64_HAS_NO_HW_PREFETCH
 	prfm	pldl1strm, [x1, #384]
-alternative_else_nop_endif
+alternative_else_yesp_endif
 
 	stnp	x2, x3, [x0]
 	ldp	x2, x3, [x1]

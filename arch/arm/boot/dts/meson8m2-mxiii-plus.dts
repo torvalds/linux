@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
- * Copyright (c) 2018 Oleg Ivanov <balbes-150@yandex.ru>
+ * Copyright (c) 2018 Oleg Ivayesv <balbes-150@yandex.ru>
  * Copyright (c) 2018 Martin Blumenstingl <martin.blumenstingl@googlemail.com>
  */
 
@@ -212,7 +212,7 @@
 		status = "okay";
 
 		bus-width = <4>;
-		no-sdio;
+		yes-sdio;
 		cap-mmc-highspeed;
 		cap-sd-highspeed;
 		disable-wp;

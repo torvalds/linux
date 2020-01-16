@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
- * Copyright (C) 2015 Microchip Technology
+ * Copyright (C) 2015 Microchip Techyeslogy
  */
 
 #ifndef _MICROCHIPPHY_H

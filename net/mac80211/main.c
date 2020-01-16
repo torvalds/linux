@@ -178,7 +178,7 @@ int ieee80211_hw_config(struct ieee80211_local *local, u32 changed)
 		 * us what it can support so it should live up to that promise.
 		 *
 		 * Current status:
-		 * rfkill is not integrated with mac80211 and a
+		 * rfkill is yest integrated with mac80211 and a
 		 * configuration command can thus fail if hardware rfkill
 		 * is enabled
 		 *
@@ -192,7 +192,7 @@ int ieee80211_hw_config(struct ieee80211_local *local, u32 changed)
 	return ret;
 }
 
-void ieee80211_bss_info_change_notify(struct ieee80211_sub_if_data *sdata,
+void ieee80211_bss_info_change_yestify(struct ieee80211_sub_if_data *sdata,
 				      u32 changed)
 {
 	struct ieee80211_local *local = sdata->local;
@@ -222,7 +222,7 @@ static void ieee80211_tasklet_handler(unsigned long data)
 	       (skb = skb_dequeue(&local->skb_queue_unreliable))) {
 		switch (skb->pkt_type) {
 		case IEEE80211_RX_MSG:
-			/* Clear skb->pkt_type in order to not confuse kernel
+			/* Clear skb->pkt_type in order to yest confuse kernel
 			 * netstack. */
 			skb->pkt_type = 0;
 			ieee80211_rx(&local->hw, skb);
@@ -232,7 +232,7 @@ static void ieee80211_tasklet_handler(unsigned long data)
 			ieee80211_tx_status(&local->hw, skb);
 			break;
 		default:
-			WARN(1, "mac80211: Packet is of unknown type %d\n",
+			WARN(1, "mac80211: Packet is of unkyeswn type %d\n",
 			     skb->pkt_type);
 			dev_kfree_skb(skb);
 			break;
@@ -261,7 +261,7 @@ static void ieee80211_restart_work(struct work_struct *work)
 		 * for station mode: a good thing would be to run most of
 		 * the iface type's dependent _stop (ieee80211_mg_stop,
 		 * ieee80211_ibss_stop) etc...
-		 * For now, fix only the specific bug that was seen: race
+		 * For yesw, fix only the specific bug that was seen: race
 		 * between csa_connection_drop_work and us.
 		 */
 		if (sdata->vif.type == NL80211_IFTYPE_STATION) {
@@ -315,13 +315,13 @@ void ieee80211_restart_hw(struct ieee80211_hw *hw)
 EXPORT_SYMBOL(ieee80211_restart_hw);
 
 #ifdef CONFIG_INET
-static int ieee80211_ifa_changed(struct notifier_block *nb,
+static int ieee80211_ifa_changed(struct yestifier_block *nb,
 				 unsigned long data, void *arg)
 {
 	struct in_ifaddr *ifa = arg;
 	struct ieee80211_local *local =
 		container_of(nb, struct ieee80211_local,
-			     ifa_notifier);
+			     ifa_yestifier);
 	struct net_device *ndev = ifa->ifa_dev->dev;
 	struct wireless_dev *wdev = ndev->ieee80211_ptr;
 	struct in_device *idev;
@@ -364,7 +364,7 @@ static int ieee80211_ifa_changed(struct notifier_block *nb,
 
 	/* Configure driver only if associated (which also implies it is up) */
 	if (ifmgd->associated)
-		ieee80211_bss_info_change_notify(sdata,
+		ieee80211_bss_info_change_yestify(sdata,
 						 BSS_CHANGED_ARP_FILTER);
 
 	sdata_unlock(sdata);
@@ -374,14 +374,14 @@ static int ieee80211_ifa_changed(struct notifier_block *nb,
 #endif
 
 #if IS_ENABLED(CONFIG_IPV6)
-static int ieee80211_ifa6_changed(struct notifier_block *nb,
+static int ieee80211_ifa6_changed(struct yestifier_block *nb,
 				  unsigned long data, void *arg)
 {
 	struct inet6_ifaddr *ifa = (struct inet6_ifaddr *)arg;
 	struct inet6_dev *idev = ifa->idev;
 	struct net_device *ndev = ifa->idev->dev;
 	struct ieee80211_local *local =
-		container_of(nb, struct ieee80211_local, ifa6_notifier);
+		container_of(nb, struct ieee80211_local, ifa6_yestifier);
 	struct wireless_dev *wdev = ndev->ieee80211_ptr;
 	struct ieee80211_sub_if_data *sdata;
 
@@ -392,7 +392,7 @@ static int ieee80211_ifa6_changed(struct notifier_block *nb,
 	sdata = IEEE80211_DEV_TO_SUB_IF(ndev);
 
 	/*
-	 * For now only support station mode. This is mostly because
+	 * For yesw only support station mode. This is mostly because
 	 * doing AP would have to handle AP_VLAN in some way ...
 	 */
 	if (sdata->vif.type != NL80211_IFTYPE_STATION)
@@ -521,7 +521,7 @@ struct ieee80211_hw *ieee80211_alloc_hw_nm(size_t priv_data_len,
 	if (WARN_ON(ops->sta_state && (ops->sta_add || ops->sta_remove)))
 		return NULL;
 
-	/* check all or no channel context operations exist */
+	/* check all or yes channel context operations exist */
 	i = !!ops->add_chanctx + !!ops->remove_chanctx +
 	    !!ops->change_chanctx + !!ops->assign_vif_chanctx +
 	    !!ops->unassign_vif_chanctx;
@@ -738,7 +738,7 @@ EXPORT_SYMBOL(ieee80211_alloc_hw_nm);
 
 static int ieee80211_init_cipher_suites(struct ieee80211_local *local)
 {
-	bool have_wep = !fips_enabled; /* FIPS does not permit the use of RC4 */
+	bool have_wep = !fips_enabled; /* FIPS does yest permit the use of RC4 */
 	bool have_mfp = ieee80211_hw_check(&local->hw, MFP_CAPABLE);
 	int n_suites = 0, r = 0, w = 0;
 	u32 *suites;
@@ -767,7 +767,7 @@ static int ieee80211_init_cipher_suites(struct ieee80211_local *local)
 		if (have_wep)
 			return 0;
 
-		/* well if it has _no_ ciphers ... fine */
+		/* well if it has _yes_ ciphers ... fine */
 		if (!local->hw.wiphy->n_cipher_suites)
 			return 0;
 
@@ -787,7 +787,7 @@ static int ieee80211_init_cipher_suites(struct ieee80211_local *local)
 			suites[w++] = suite;
 		}
 	} else if (!local->hw.cipher_schemes) {
-		/* If the driver doesn't have cipher schemes, there's nothing
+		/* If the driver doesn't have cipher schemes, there's yesthing
 		 * else to do other than assign the (software supported and
 		 * perhaps offloaded) cipher suites.
 		 */
@@ -802,14 +802,14 @@ static int ieee80211_init_cipher_suites(struct ieee80211_local *local)
 			local->hw.wiphy->n_cipher_suites -= 2;
 		}
 
-		/* not dynamically allocated, so just return */
+		/* yest dynamically allocated, so just return */
 		return 0;
 	} else {
 		const struct ieee80211_cipher_scheme *cs;
 
 		cs = local->hw.cipher_schemes;
 
-		/* Driver specifies cipher schemes only (but not cipher suites
+		/* Driver specifies cipher schemes only (but yest cipher suites
 		 * including the schemes)
 		 *
 		 * We start counting ciphers defined by schemes, TKIP, CCMP,
@@ -912,13 +912,13 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 	} else {
 		/*
 		 * WDS is currently prohibited when channel contexts are used
-		 * because there's no clear definition of which channel WDS
+		 * because there's yes clear definition of which channel WDS
 		 * type interfaces use
 		 */
 		if (local->hw.wiphy->interface_modes & BIT(NL80211_IFTYPE_WDS))
 			return -EINVAL;
 
-		/* DFS is not supported with multi-channel combinations yet */
+		/* DFS is yest supported with multi-channel combinations yet */
 		for (i = 0; i < local->hw.wiphy->n_iface_combinations; i++) {
 			const struct ieee80211_iface_combination *comb;
 
@@ -989,7 +989,7 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 			max(ieee80211_mcs_to_chains(&sband->ht_cap.mcs),
 			    local->rx_chains);
 
-		/* no need to mask, SM_PS_DISABLED has all bits set */
+		/* yes need to mask, SM_PS_DISABLED has all bits set */
 		sband->ht_cap.cap |= WLAN_HT_CAP_SM_PS_DISABLED <<
 			             IEEE80211_HT_CAP_SM_PS_SHIFT;
 	}
@@ -1008,7 +1008,7 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 	hw->wiphy->interface_modes |= BIT(NL80211_IFTYPE_MONITOR);
 	hw->wiphy->software_iftypes |= BIT(NL80211_IFTYPE_MONITOR);
 
-	/* mac80211 doesn't support more than one IBSS interface right now */
+	/* mac80211 doesn't support more than one IBSS interface right yesw */
 	for (i = 0; i < hw->wiphy->n_iface_combinations; i++) {
 		const struct ieee80211_iface_combination *c;
 		int j;
@@ -1103,7 +1103,7 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 	 * limit includes the IEs mac80211 will add, otherwise
 	 * leave it at zero and let the driver sort it out; we
 	 * still pass our IEs to the driver but userspace will
-	 * not be allowed to in that case.
+	 * yest be allowed to in that case.
 	 */
 	if (local->hw.wiphy->max_scan_ie_len)
 		local->hw.wiphy->max_scan_ie_len -= local->scan_ies_len;
@@ -1269,15 +1269,15 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 	rtnl_unlock();
 
 #ifdef CONFIG_INET
-	local->ifa_notifier.notifier_call = ieee80211_ifa_changed;
-	result = register_inetaddr_notifier(&local->ifa_notifier);
+	local->ifa_yestifier.yestifier_call = ieee80211_ifa_changed;
+	result = register_inetaddr_yestifier(&local->ifa_yestifier);
 	if (result)
 		goto fail_ifa;
 #endif
 
 #if IS_ENABLED(CONFIG_IPV6)
-	local->ifa6_notifier.notifier_call = ieee80211_ifa6_changed;
-	result = register_inet6addr_notifier(&local->ifa6_notifier);
+	local->ifa6_yestifier.yestifier_call = ieee80211_ifa6_changed;
+	result = register_inet6addr_yestifier(&local->ifa6_yestifier);
 	if (result)
 		goto fail_ifa6;
 #endif
@@ -1287,7 +1287,7 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 #if IS_ENABLED(CONFIG_IPV6)
  fail_ifa6:
 #ifdef CONFIG_INET
-	unregister_inetaddr_notifier(&local->ifa_notifier);
+	unregister_inetaddr_yestifier(&local->ifa_yestifier);
 #endif
 #endif
 #if defined(CONFIG_INET) || defined(CONFIG_IPV6)
@@ -1319,17 +1319,17 @@ void ieee80211_unregister_hw(struct ieee80211_hw *hw)
 	tasklet_kill(&local->tasklet);
 
 #ifdef CONFIG_INET
-	unregister_inetaddr_notifier(&local->ifa_notifier);
+	unregister_inetaddr_yestifier(&local->ifa_yestifier);
 #endif
 #if IS_ENABLED(CONFIG_IPV6)
-	unregister_inet6addr_notifier(&local->ifa6_notifier);
+	unregister_inet6addr_yestifier(&local->ifa6_yestifier);
 #endif
 
 	rtnl_lock();
 
 	/*
 	 * At this point, interface list manipulations are fine
-	 * because the driver cannot be handing us frames any
+	 * because the driver canyest be handing us frames any
 	 * more and the tasklet is killed.
 	 */
 	ieee80211_remove_interfaces(local);
@@ -1348,7 +1348,7 @@ void ieee80211_unregister_hw(struct ieee80211_hw *hw)
 
 	if (skb_queue_len(&local->skb_queue) ||
 	    skb_queue_len(&local->skb_queue_unreliable))
-		wiphy_warn(local->hw.wiphy, "skb_queue not empty\n");
+		wiphy_warn(local->hw.wiphy, "skb_queue yest empty\n");
 	skb_queue_purge(&local->skb_queue);
 	skb_queue_purge(&local->skb_queue_unreliable);
 	skb_queue_purge(&local->skb_queue_tdls_chsw);

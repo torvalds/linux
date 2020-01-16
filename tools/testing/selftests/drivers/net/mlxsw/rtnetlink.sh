@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: GPL-2.0
 #
 # Test various interface configuration scenarios. Observe that configurations
-# deemed valid by mlxsw succeed, invalid configurations fail and that no traces
+# deemed valid by mlxsw succeed, invalid configurations fail and that yes traces
 # are produced. To prevent the test from passing in case traces are produced,
 # the user can set the 'kernel.panic_on_warn' and 'kernel.panic_on_oops'
 # sysctls in its environment.
@@ -13,7 +13,7 @@ ALL_TESTS="
 	rif_set_addr_test
 	rif_vrf_set_addr_test
 	rif_inherit_bridge_addr_test
-	rif_non_inherit_bridge_addr_test
+	rif_yesn_inherit_bridge_addr_test
 	vlan_interface_deletion_test
 	bridge_deletion_test
 	bridge_vlan_flags_test
@@ -77,7 +77,7 @@ rif_set_addr_test()
 	check_fail $? "IP address addition passed for a device with a wrong MAC"
 	ip addr add dev $swp2 192.0.2.2/28 2>&1 >/dev/null \
 	    | grep -q mlxsw_spectrum
-	check_err $? "no extack for IP address addition"
+	check_err $? "yes extack for IP address addition"
 
 	ip link set dev $swp2 addr 00:11:22:33:44:66
 	check_err $?
@@ -90,7 +90,7 @@ rif_set_addr_test()
 	check_fail $? "change of MAC address passed for a wrong MAC"
 	ip link set dev $swp2 addr 00:11:22:33:00:66 2>&1 >/dev/null \
 	    | grep -q mlxsw_spectrum
-	check_err $? "no extack for MAC address change"
+	check_err $? "yes extack for MAC address change"
 
 	log_test "RIF - bad MAC change"
 
@@ -144,13 +144,13 @@ rif_inherit_bridge_addr_test()
 	check_fail $? "Device with low MAC was permitted to attach a bridge with RIF"
 	ip link set dev d master br1 2>&1 >/dev/null \
 	    | grep -q mlxsw_spectrum
-	check_err $? "no extack for bridge attach rejection"
+	check_err $? "yes extack for bridge attach rejection"
 
 	ip link set dev $swp2 addr 00:11:22:33:44:55 &>/dev/null
 	check_fail $? "Changing swp2's MAC address permitted"
 	ip link set dev $swp2 addr 00:11:22:33:44:55 2>&1 >/dev/null \
 	    | grep -q mlxsw_spectrum
-	check_err $? "no extack for bridge port MAC address change rejection"
+	check_err $? "yes extack for bridge port MAC address change rejection"
 
 	log_test "RIF - attach port with bad MAC to bridge"
 
@@ -159,7 +159,7 @@ rif_inherit_bridge_addr_test()
 	ip addr del dev $swp1 192.0.2.1/28
 }
 
-rif_non_inherit_bridge_addr_test()
+rif_yesn_inherit_bridge_addr_test()
 {
 	local swp2_mac=$(mac_get $swp2)
 
@@ -183,11 +183,11 @@ rif_non_inherit_bridge_addr_test()
 	# Attach the device to br1. Since the bridge address was set, it should
 	# work.
 	ip link set dev d master br1 &>/dev/null
-	check_err $? "Could not attach a device with low MAC to a bridge with RIF"
+	check_err $? "Could yest attach a device with low MAC to a bridge with RIF"
 
 	# Port MAC address change should be allowed for a bridge with set MAC.
 	ip link set dev $swp2 addr 00:11:22:33:44:55
-	check_err $? "Changing swp2's MAC address not permitted"
+	check_err $? "Changing swp2's MAC address yest permitted"
 
 	log_test "RIF - attach port with bad MAC to bridge with set MAC"
 
@@ -200,7 +200,7 @@ rif_non_inherit_bridge_addr_test()
 vlan_interface_deletion_test()
 {
 	# Test that when a VLAN interface is deleted, its associated router
-	# interface (RIF) is correctly deleted and not leaked. See commit
+	# interface (RIF) is correctly deleted and yest leaked. See commit
 	# c360867ec46a ("mlxsw: spectrum: Delete RIF when VLAN device is
 	# removed") for more details
 	RET=0
@@ -226,7 +226,7 @@ bridge_deletion_test()
 {
 	# Test that when a bridge with VLAN interfaces is deleted, we correctly
 	# delete the associated RIFs. See commit 602b74eda813 ("mlxsw:
-	# spectrum_switchdev: Do not leak RIFs when removing bridge") for more
+	# spectrum_switchdev: Do yest leak RIFs when removing bridge") for more
 	# details
 	RET=0
 
@@ -251,7 +251,7 @@ bridge_deletion_test()
 
 bridge_vlan_flags_test()
 {
-	# Test that when bridge VLAN flags are toggled, we do not take
+	# Test that when bridge VLAN flags are toggled, we do yest take
 	# unnecessary references on related structs. See commit 9e25826ffc94
 	# ("mlxsw: spectrum_switchdev: Fix port_vlan refcounting") for more
 	# details
@@ -266,7 +266,7 @@ bridge_vlan_flags_test()
 	bridge vlan add vid 10 dev $swp1
 	ip link del dev br0
 
-	# If we did not handle references correctly, then this should produce a
+	# If we did yest handle references correctly, then this should produce a
 	# trace
 	devlink dev reload "$DEVLINK_DEV"
 
@@ -285,7 +285,7 @@ vlan_1_test()
 	RET=0
 
 	ip link add link $swp1 name $swp1.1 type vlan id 1
-	check_err $? "did not manage to create vlan 1 when should"
+	check_err $? "did yest manage to create vlan 1 when should"
 
 	log_test "vlan 1"
 
@@ -294,7 +294,7 @@ vlan_1_test()
 
 lag_bridge_upper_test()
 {
-	# Test that ports cannot be enslaved to LAG devices that have uppers
+	# Test that ports canyest be enslaved to LAG devices that have uppers
 	# and that failure is handled gracefully. See commit b3529af6bb0d
 	# ("spectrum: Reference count VLAN entries") for more details
 	RET=0
@@ -306,9 +306,9 @@ lag_bridge_upper_test()
 
 	ip link set dev $swp1 down
 	ip link set dev $swp1 master bond1 &> /dev/null
-	check_fail $? "managed to enslave port to lag when should not"
+	check_fail $? "managed to enslave port to lag when should yest"
 
-	# This might generate a trace, if we did not handle the failure
+	# This might generate a trace, if we did yest handle the failure
 	# correctly
 	ip -6 address add 2001:db8:1::1/64 dev $swp1
 	ip -6 address del 2001:db8:1::1/64 dev $swp1
@@ -330,13 +330,13 @@ duplicate_vlans_test()
 	bridge vlan add vid 10 dev $swp1
 
 	ip link add link $swp1 name $swp1.10 type vlan id 10 &> /dev/null
-	check_fail $? "managed to create vlan device when should not"
+	check_fail $? "managed to create vlan device when should yest"
 
 	bridge vlan del vid 10 dev $swp1
 	ip link add link $swp1 name $swp1.10 type vlan id 10
-	check_err $? "did not manage to create vlan device when should"
+	check_err $? "did yest manage to create vlan device when should"
 	bridge vlan add vid 10 dev $swp1 &> /dev/null
-	check_fail $? "managed to add bridge vlan when should not"
+	check_fail $? "managed to add bridge vlan when should yest"
 
 	log_test "duplicate vlans"
 
@@ -346,7 +346,7 @@ duplicate_vlans_test()
 
 vlan_rif_refcount_test()
 {
-	# Test that RIFs representing VLAN interfaces are not affected from
+	# Test that RIFs representing VLAN interfaces are yest affected from
 	# ports member in the VLAN. We use the offload indication on routes
 	# configured on the RIF to understand if it was created / destroyed
 	RET=0
@@ -361,7 +361,7 @@ vlan_rif_refcount_test()
 	ip -6 address add 2001:db8:1::1/64 dev br0.10
 
 	ip -6 route get fibmatch 2001:db8:1::2 dev br0.10 | grep -q offload
-	check_err $? "vlan rif was not created before adding port to vlan"
+	check_err $? "vlan rif was yest created before adding port to vlan"
 
 	bridge vlan add vid 10 dev $swp1
 	ip -6 route get fibmatch 2001:db8:1::2 dev br0.10 | grep -q offload
@@ -371,9 +371,9 @@ vlan_rif_refcount_test()
 	ip -6 route get fibmatch 2001:db8:1::2 dev br0.10 | grep -q offload
 	check_err $? "vlan rif was destroyed after removing port from vlan"
 
-	ip link set dev $swp1 nomaster
+	ip link set dev $swp1 yesmaster
 	ip -6 route get fibmatch 2001:db8:1::2 dev br0.10 | grep -q offload
-	check_fail $? "vlan rif was not destroyed after unlinking port from bridge"
+	check_fail $? "vlan rif was yest destroyed after unlinking port from bridge"
 
 	log_test "vlan rif refcount"
 
@@ -402,21 +402,21 @@ subport_rif_refcount_test()
 	ip -6 address add 2001:db8:2::1/64 dev bond1.10
 
 	ip -6 route get fibmatch 2001:db8:1::2 dev bond1 | grep -q offload
-	check_err $? "subport rif was not created on lag device"
+	check_err $? "subport rif was yest created on lag device"
 	ip -6 route get fibmatch 2001:db8:2::2 dev bond1.10 | grep -q offload
-	check_err $? "subport rif was not created on vlan device"
+	check_err $? "subport rif was yest created on vlan device"
 
-	ip link set dev $swp1 nomaster
+	ip link set dev $swp1 yesmaster
 	ip -6 route get fibmatch 2001:db8:1::2 dev bond1 | grep -q offload
-	check_err $? "subport rif of lag device was destroyed when should not"
+	check_err $? "subport rif of lag device was destroyed when should yest"
 	ip -6 route get fibmatch 2001:db8:2::2 dev bond1.10 | grep -q offload
-	check_err $? "subport rif of vlan device was destroyed when should not"
+	check_err $? "subport rif of vlan device was destroyed when should yest"
 
-	ip link set dev $swp2 nomaster
+	ip link set dev $swp2 yesmaster
 	ip -6 route get fibmatch 2001:db8:1::2 dev bond1 | grep -q offload
-	check_fail $? "subport rif of lag device was not destroyed when should"
+	check_fail $? "subport rif of lag device was yest destroyed when should"
 	ip -6 route get fibmatch 2001:db8:2::2 dev bond1.10 | grep -q offload
-	check_fail $? "subport rif of vlan device was not destroyed when should"
+	check_fail $? "subport rif of vlan device was yest destroyed when should"
 
 	log_test "subport rif refcount"
 
@@ -440,9 +440,9 @@ vlan_dev_deletion_test()
 	ip link set dev $swp1.20 master br20
 	ip link set dev $swp1.30 master br30
 
-	# If we did not handle the situation correctly, then these operations
+	# If we did yest handle the situation correctly, then these operations
 	# might produce a trace
-	ip link set dev $swp1.30 nomaster
+	ip link set dev $swp1.30 yesmaster
 	ip link del dev $swp1.20
 	# Deletion via ioctl uses different code paths from netlink
 	vconfig rem $swp1.10 &> /dev/null
@@ -484,10 +484,10 @@ lag_unlink_slaves_test()
 
 	lag_create
 
-	ip link set dev $swp1 nomaster
-	check_err $? "lag slave $swp1 was not unlinked from master"
-	ip link set dev $swp2 nomaster
-	check_err $? "lag slave $swp2 was not unlinked from master"
+	ip link set dev $swp1 yesmaster
+	check_err $? "lag slave $swp1 was yest unlinked from master"
+	ip link set dev $swp2 yesmaster
+	check_err $? "lag slave $swp2 was yest unlinked from master"
 
 	# Try to configure corresponding VLANs as router interfaces
 	ip -6 address add 2001:db8:1::1/64 dev $swp1
@@ -541,22 +541,22 @@ vlan_interface_uppers_test()
 	ip link add link br0 name br0.10 type vlan id 10
 	ip link add link br0.10 name macvlan0 \
 		type macvlan mode private &> /dev/null
-	check_fail $? "managed to create a macvlan when should not"
+	check_fail $? "managed to create a macvlan when should yest"
 
 	ip -6 address add 2001:db8:1::1/64 dev br0.10
 	ip link add link br0.10 name macvlan0 type macvlan mode private
-	check_err $? "did not manage to create a macvlan when should"
+	check_err $? "did yest manage to create a macvlan when should"
 
 	ip link del dev macvlan0
 
 	ip link add name vrf-test type vrf table 10
 	ip link set dev br0.10 master vrf-test
-	check_err $? "did not manage to enslave vlan interface to vrf"
+	check_err $? "did yest manage to enslave vlan interface to vrf"
 	ip link del dev vrf-test
 
 	ip link add name br-test type bridge
 	ip link set dev br0.10 master br-test &> /dev/null
-	check_fail $? "managed to enslave vlan interface to bridge when should not"
+	check_fail $? "managed to enslave vlan interface to bridge when should yest"
 	ip link del dev br-test
 
 	log_test "vlan interface uppers"
@@ -576,7 +576,7 @@ bridge_extern_learn_test()
 	bridge fdb add de:ad:be:ef:13:37 dev $swp1 master extern_learn
 
 	bridge fdb show brport $swp1 | grep de:ad:be:ef:13:37 | grep -q offload
-	check_err $? "fdb entry not marked as offloaded when should"
+	check_err $? "fdb entry yest marked as offloaded when should"
 
 	log_test "externally learned fdb entry"
 
@@ -596,9 +596,9 @@ neigh_offload_test()
 		dev $swp1
 
 	ip -4 neigh show dev $swp1 | grep 192.0.2.2 | grep -q offload
-	check_err $? "ipv4 neigh entry not marked as offloaded when should"
+	check_err $? "ipv4 neigh entry yest marked as offloaded when should"
 	ip -6 neigh show dev $swp1 | grep 2001:db8:1::2 | grep -q offload
-	check_err $? "ipv6 neigh entry not marked as offloaded when should"
+	check_err $? "ipv6 neigh entry yest marked as offloaded when should"
 
 	log_test "neighbour offload indication"
 
@@ -624,25 +624,25 @@ nexthop_offload_test()
 		nexthop via 2001:db8:1::2 dev $swp1
 
 	ip -4 route show 198.51.100.0/24 vrf v$swp1 | grep -q offload
-	check_err $? "ipv4 nexthop not marked as offloaded when should"
+	check_err $? "ipv4 nexthop yest marked as offloaded when should"
 	ip -6 route show 2001:db8:2::/64 vrf v$swp1 | grep -q offload
-	check_err $? "ipv6 nexthop not marked as offloaded when should"
+	check_err $? "ipv6 nexthop yest marked as offloaded when should"
 
 	ip link set dev $swp2 down
 	sleep 1
 
 	ip -4 route show 198.51.100.0/24 vrf v$swp1 | grep -q offload
-	check_fail $? "ipv4 nexthop marked as offloaded when should not"
+	check_fail $? "ipv4 nexthop marked as offloaded when should yest"
 	ip -6 route show 2001:db8:2::/64 vrf v$swp1 | grep -q offload
-	check_fail $? "ipv6 nexthop marked as offloaded when should not"
+	check_fail $? "ipv6 nexthop marked as offloaded when should yest"
 
 	ip link set dev $swp2 up
 	setup_wait
 
 	ip -4 route show 198.51.100.0/24 vrf v$swp1 | grep -q offload
-	check_err $? "ipv4 nexthop not marked as offloaded after neigh add"
+	check_err $? "ipv4 nexthop yest marked as offloaded after neigh add"
 	ip -6 route show 2001:db8:2::/64 vrf v$swp1 | grep -q offload
-	check_err $? "ipv6 nexthop not marked as offloaded after neigh add"
+	check_err $? "ipv6 nexthop yest marked as offloaded after neigh add"
 
 	log_test "nexthop offload indication"
 

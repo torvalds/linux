@@ -12,7 +12,7 @@ Optional Properties:
 - pdn-gpios: phandle for the GPIO connected to the PDN pin, if any.
 - reset-gpios: phandle for the GPIO connected to the RESETB pin, if any.
 
-The device node must contain one 'port' child node for its digital output
+The device yesde must contain one 'port' child yesde for its digital output
 video port, in accordance with the video interface bindings defined in
 Documentation/devicetree/bindings/media/video-interfaces.txt.
 
@@ -23,7 +23,7 @@ Required Endpoint Properties for parallel synchronization:
 - field-even-active: field signal level during the even field data
   transmission. Must be <0>.
 
-If none of hsync-active, vsync-active and field-even-active is specified,
+If yesne of hsync-active, vsync-active and field-even-active is specified,
 the endpoint is assumed to use embedded BT.656 synchronization.
 
 Example:

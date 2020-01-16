@@ -12,7 +12,7 @@ About
 This file describes the 'drivers/ide/au1xxx-ide.c', related files and the
 services they provide.
 
-If you are short in patience and just want to know how to add your hard disc to
+If you are short in patience and just want to kyesw how to add your hard disc to
 the white or black list, go to the 'ADD NEW HARD DISC TO WHITE OR BLACK LIST'
 section.
 
@@ -39,7 +39,7 @@ ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 POSSIBILITY OF SUCH DAMAGE.
 
 You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc.,
+this program; if yest, write to the Free Software Foundation, Inc.,
 675 Mass Ave, Cambridge, MA 02139, USA.
 
 Note:
@@ -73,7 +73,7 @@ Supported IDE Modes
 ===================
 
 The AU1XXX IDE driver supported all PIO modes - PIO mode 0/1/2/3/4 - and all
-MWDMA modes - MWDMA 0/1/2 -. There is no support for SWDMA and UDMA mode.
+MWDMA modes - MWDMA 0/1/2 -. There is yes support for SWDMA and UDMA mode.
 
 To change the PIO mode use the program hdparm with option -p, e.g.
 'hdparm -p0 [device]' for PIO mode 0. To enable the MWDMA mode use the option
@@ -116,7 +116,7 @@ Also undefine 'IDE_AU1XXX_BURSTMODE' in 'drivers/ide/mips/au1xxx-ide.c' to
 disable the burst support on DBDMA controller.
 
 
-Acknowledgments
+Ackyeswledgments
 ===============
 
 These drivers wouldn't have been done without the base of kernel 2.4.x AU1XXX

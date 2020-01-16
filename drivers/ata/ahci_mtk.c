@@ -103,7 +103,7 @@ static int mtk_ahci_parse_property(struct ahci_host_priv *hpriv,
 				   struct device *dev)
 {
 	struct mtk_ahci_plat *plat = hpriv->plat_data;
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 
 	/* enable SATA function if needed */
 	if (of_find_property(np, "mediatek,phy-mode", NULL)) {

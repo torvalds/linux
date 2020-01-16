@@ -25,12 +25,12 @@
  * are met:
  *
  *  - Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  *  - Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
+ *    yestice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
- *  - Neither the name of Intel Corporation nor the names of its
+ *  - Neither the name of Intel Corporation yesr the names of its
  *    contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
@@ -50,7 +50,7 @@
 
 /*
  * For Memory Regions. This stuff should probably be moved into rdmavt/mr.h once
- * drivers no longer need access to the MR directly.
+ * drivers yes longer need access to the MR directly.
  */
 #include <linux/percpu-refcount.h>
 
@@ -81,7 +81,7 @@ struct rvt_mregion {
 	u32 max_segs;           /* number of rvt_segs in all the arrays */
 	u32 mapsz;              /* size of the map array */
 	atomic_t lkey_invalid;	/* true if current lkey is invalid */
-	u8  page_shift;         /* 0 - non unform/non powerof2 sizes */
+	u8  page_shift;         /* 0 - yesn unform/yesn powerof2 sizes */
 	u8  lkey_published;     /* in global table */
 	struct percpu_ref refcount;
 	struct completion comp; /* complete when refcount goes to zero */

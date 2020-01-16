@@ -9,7 +9,7 @@
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/delay.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/string.h>
 #include <linux/scatterlist.h>
 #include <linux/interrupt.h>
@@ -38,7 +38,7 @@ static char version[] =
 
 /* Packet header layout for unreliable and reliable mode frames.
  * When in RAW mode, packets are simply straight 64-byte payloads
- * with no headers.
+ * with yes headers.
  */
 struct ldc_packet {
 	u8			type;
@@ -78,12 +78,12 @@ struct ldc_packet {
 
 struct ldc_version {
 	u16 major;
-	u16 minor;
+	u16 miyesr;
 };
 
 /* Ordered from largest major to lowest.  */
 static struct ldc_version ver_arr[] = {
-	{ .major = 1, .minor = 0 },
+	{ .major = 1, .miyesr = 0 },
 };
 
 #define LDC_DEFAULT_MTU			(4 * LDC_PACKET_SIZE)
@@ -97,7 +97,7 @@ struct ldc_mode_ops {
 };
 
 static const struct ldc_mode_ops raw_ops;
-static const struct ldc_mode_ops nonraw_ops;
+static const struct ldc_mode_ops yesnraw_ops;
 static const struct ldc_mode_ops stream_ops;
 
 int ldom_domaining_enabled;
@@ -170,7 +170,7 @@ struct ldc_channel {
 
 	struct hlist_head		mh_list;
 
-	struct hlist_node		list;
+	struct hlist_yesde		list;
 };
 
 #define ldcdbg(TYPE, f, a...) \
@@ -235,9 +235,9 @@ static struct ldc_packet *handshake_get_tx_packet(struct ldc_channel *lp,
 
 /* When we are in reliable or stream mode, have to track the next packet
  * we haven't gotten an ACK for in the TX queue using tx_acked.  We have
- * to be careful not to stomp over the queue past that point.  During
+ * to be careful yest to stomp over the queue past that point.  During
  * the handshake, we don't have TX data packets pending in the queue
- * and that's why handshake_get_tx_packet() need not be mindful of
+ * and that's why handshake_get_tx_packet() need yest be mindful of
  * lp->tx_acked.
  */
 static unsigned long head_for_data(struct ldc_channel *lp)
@@ -373,7 +373,7 @@ static int start_handshake(struct ldc_channel *lp)
 	ver = &ver_arr[0];
 
 	ldcdbg(HS, "SEND VER INFO maj[%u] min[%u]\n",
-	       ver->major, ver->minor);
+	       ver->major, ver->miyesr);
 
 	p = handshake_compose_ctrl(lp, LDC_INFO, LDC_VERS,
 				   ver, sizeof(*ver), &new_tail);
@@ -387,20 +387,20 @@ static int start_handshake(struct ldc_channel *lp)
 }
 
 static int send_version_nack(struct ldc_channel *lp,
-			     u16 major, u16 minor)
+			     u16 major, u16 miyesr)
 {
 	struct ldc_packet *p;
 	struct ldc_version ver;
 	unsigned long new_tail;
 
 	ver.major = major;
-	ver.minor = minor;
+	ver.miyesr = miyesr;
 
 	p = handshake_compose_ctrl(lp, LDC_NACK, LDC_VERS,
 				   &ver, sizeof(ver), &new_tail);
 	if (p) {
 		ldcdbg(HS, "SEND VER NACK maj[%u] min[%u]\n",
-		       ver.major, ver.minor);
+		       ver.major, ver.miyesr);
 
 		return send_tx_packet(lp, p, new_tail);
 	}
@@ -417,7 +417,7 @@ static int send_version_ack(struct ldc_channel *lp,
 				   vp, sizeof(*vp), &new_tail);
 	if (p) {
 		ldcdbg(HS, "SEND VER ACK maj[%u] min[%u]\n",
-		       vp->major, vp->minor);
+		       vp->major, vp->miyesr);
 
 		return send_tx_packet(lp, p, new_tail);
 	}
@@ -516,7 +516,7 @@ static int ldc_abort(struct ldc_channel *lp, const char *msg)
 	ldcdbg(STATE, "ABORT[%s]\n", msg);
 	ldc_print(lp);
 
-	/* We report but do not act upon the hypervisor errors because
+	/* We report but do yest act upon the hypervisor errors because
 	 * there really isn't much we can do if they fail at this point.
 	 */
 	hv_err = sun4v_ldc_tx_qconf(lp->id, lp->tx_ra, lp->tx_num_entries);
@@ -575,8 +575,8 @@ static int process_ver_info(struct ldc_channel *lp, struct ldc_version *vp)
 	struct ldc_version *vap;
 	int err;
 
-	ldcdbg(HS, "GOT VERSION INFO major[%x] minor[%x]\n",
-	       vp->major, vp->minor);
+	ldcdbg(HS, "GOT VERSION INFO major[%x] miyesr[%x]\n",
+	       vp->major, vp->miyesr);
 
 	if (lp->hs_state == LDC_HS_GOTVERS) {
 		lp->hs_state = LDC_HS_OPEN;
@@ -587,11 +587,11 @@ static int process_ver_info(struct ldc_channel *lp, struct ldc_version *vp)
 	if (!vap) {
 		err = send_version_nack(lp, 0, 0);
 	} else if (vap->major != vp->major) {
-		err = send_version_nack(lp, vap->major, vap->minor);
+		err = send_version_nack(lp, vap->major, vap->miyesr);
 	} else {
 		struct ldc_version ver = *vp;
-		if (ver.minor > vap->minor)
-			ver.minor = vap->minor;
+		if (ver.miyesr > vap->miyesr)
+			ver.miyesr = vap->miyesr;
 		err = send_version_ack(lp, &ver);
 		if (!err) {
 			lp->ver = ver;
@@ -606,12 +606,12 @@ static int process_ver_info(struct ldc_channel *lp, struct ldc_version *vp)
 
 static int process_ver_ack(struct ldc_channel *lp, struct ldc_version *vp)
 {
-	ldcdbg(HS, "GOT VERSION ACK major[%x] minor[%x]\n",
-	       vp->major, vp->minor);
+	ldcdbg(HS, "GOT VERSION ACK major[%x] miyesr[%x]\n",
+	       vp->major, vp->miyesr);
 
 	if (lp->hs_state == LDC_HS_GOTVERS) {
 		if (lp->ver.major != vp->major ||
-		    lp->ver.minor != vp->minor)
+		    lp->ver.miyesr != vp->miyesr)
 			return LDC_ABORT(lp);
 	} else {
 		lp->ver = *vp;
@@ -628,7 +628,7 @@ static int process_ver_nack(struct ldc_channel *lp, struct ldc_version *vp)
 	struct ldc_packet *p;
 	unsigned long new_tail;
 
-	if (vp->major == 0 && vp->minor == 0)
+	if (vp->major == 0 && vp->miyesr == 0)
 		return LDC_ABORT(lp);
 
 	vap = find_by_major(vp->major);
@@ -816,7 +816,7 @@ static irqreturn_t ldc_rx(int irq, void *dev_id)
 
 		/*
 		 * Generate an LDC_EVENT_UP event if the channel
-		 * was not already up.
+		 * was yest already up.
 		 */
 		if (orig_state != LDC_CHANNEL_UP) {
 			event_mask |= LDC_EVENT_UP;
@@ -824,7 +824,7 @@ static irqreturn_t ldc_rx(int irq, void *dev_id)
 		}
 	}
 
-	/* If we are in reset state, flush the RX queue and ignore
+	/* If we are in reset state, flush the RX queue and igyesre
 	 * everything.
 	 */
 	if (lp->flags & LDC_FLAG_RESET) {
@@ -937,7 +937,7 @@ static irqreturn_t ldc_tx(int irq, void *dev_id)
 
 		/*
 		 * Generate an LDC_EVENT_UP event if the channel
-		 * was not already up.
+		 * was yest already up.
 		 */
 		if (orig_state != LDC_CHANNEL_UP) {
 			event_mask |= LDC_EVENT_UP;
@@ -955,7 +955,7 @@ static irqreturn_t ldc_tx(int irq, void *dev_id)
 /* XXX ldc_alloc() and ldc_free() needs to run under a mutex so
  * XXX that addition and removal from the ldc_channel_list has
  * XXX atomicity, otherwise the __ldc_channel_exists() check is
- * XXX totally pointless as another thread can slip into ldc_alloc()
+ * XXX totally pointless as ayesther thread can slip into ldc_alloc()
  * XXX and add a channel with the same ID.  There also needs to be
  * XXX a spinlock for ldc_channel_list.
  */
@@ -1059,7 +1059,7 @@ static int ldc_iommu_init(const char *name, struct ldc_channel *lp)
 		return -ENOMEM;
 	}
 	iommu_tbl_pool_init(iommu, num_tsb_entries, PAGE_SHIFT,
-			    NULL, false /* no large pool */,
+			    NULL, false /* yes large pool */,
 			    1 /* npools */,
 			    true /* skip span boundary check */);
 
@@ -1144,7 +1144,7 @@ struct ldc_channel *ldc_alloc(unsigned long id,
 		break;
 
 	case LDC_MODE_UNRELIABLE:
-		mops = &nonraw_ops;
+		mops = &yesnraw_ops;
 		mss = LDC_PACKET_SIZE - 8;
 		break;
 
@@ -1298,7 +1298,7 @@ EXPORT_SYMBOL(ldc_free);
 
 /* Bind the channel.  This registers the LDC queues with
  * the hypervisor and puts the channel into a pseudo-listening
- * state.  This does not initiate a handshake, ldc_connect() does
+ * state.  This does yest initiate a handshake, ldc_connect() does
  * that.
  */
 int ldc_bind(struct ldc_channel *lp)
@@ -1350,7 +1350,7 @@ int ldc_bind(struct ldc_channel *lp)
 
 	if (lp->cfg.mode == LDC_MODE_RAW) {
 		/*
-		 * There is no handshake in RAW mode, so handshake
+		 * There is yes handshake in RAW mode, so handshake
 		 * is completed.
 		 */
 		lp->hs_state = LDC_HS_COMPLETE;
@@ -1570,7 +1570,7 @@ static const struct ldc_mode_ops raw_ops = {
 	.read		=	read_raw,
 };
 
-static int write_nonraw(struct ldc_channel *lp, const void *buf,
+static int write_yesnraw(struct ldc_channel *lp, const void *buf,
 			unsigned int size)
 {
 	unsigned long hv_err, tail;
@@ -1736,7 +1736,7 @@ static void send_data_ack(struct ldc_channel *lp)
 	}
 }
 
-static int read_nonraw(struct ldc_channel *lp, void *buf, unsigned int size)
+static int read_yesnraw(struct ldc_channel *lp, void *buf, unsigned int size)
 {
 	struct ldc_packet *first_frag;
 	unsigned long hv_err, new;
@@ -1792,7 +1792,7 @@ static int read_nonraw(struct ldc_channel *lp, void *buf, unsigned int size)
 		lp->rcv_nxt = p->seqid;
 
 		/*
-		 * If this is a control-only packet, there is nothing
+		 * If this is a control-only packet, there is yesthing
 		 * else to do but advance the rx queue since the packet
 		 * was already processed above.
 		 */
@@ -1810,7 +1810,7 @@ static int read_nonraw(struct ldc_channel *lp, void *buf, unsigned int size)
 			err = rx_set_head(lp, new);
 			if (err)
 				break;
-			goto no_data;
+			goto yes_data;
 		}
 
 		pkt_len = p->env & LDC_LEN;
@@ -1838,13 +1838,13 @@ static int read_nonraw(struct ldc_channel *lp, void *buf, unsigned int size)
 				break;
 
 			if (!first_frag)
-				goto no_data;
+				goto yes_data;
 		}
 		if (!first_frag)
 			first_frag = p;
 
 		if (pkt_len > size - copied) {
-			/* User didn't give us a big enough buffer,
+			/* User didn't give us a big eyesugh buffer,
 			 * what to do?  This is a pretty serious error.
 			 *
 			 * Since we haven't updated the RX ring head to
@@ -1872,7 +1872,7 @@ static int read_nonraw(struct ldc_channel *lp, void *buf, unsigned int size)
 		if (p->env & LDC_STOP)
 			break;
 
-no_data:
+yes_data:
 		if (new == lp->rx_tail) {
 			err = rx_data_wait(lp, new);
 			if (err)
@@ -1895,9 +1895,9 @@ no_data:
 	return err;
 }
 
-static const struct ldc_mode_ops nonraw_ops = {
-	.write		=	write_nonraw,
-	.read		=	read_nonraw,
+static const struct ldc_mode_ops yesnraw_ops = {
+	.write		=	write_yesnraw,
+	.read		=	read_yesnraw,
 };
 
 static int write_stream(struct ldc_channel *lp, const void *buf,
@@ -1905,13 +1905,13 @@ static int write_stream(struct ldc_channel *lp, const void *buf,
 {
 	if (size > lp->cfg.mtu)
 		size = lp->cfg.mtu;
-	return write_nonraw(lp, buf, size);
+	return write_yesnraw(lp, buf, size);
 }
 
 static int read_stream(struct ldc_channel *lp, void *buf, unsigned int size)
 {
 	if (!lp->mssbuf_len) {
-		int err = read_nonraw(lp, lp->mssbuf, lp->cfg.mtu);
+		int err = read_yesnraw(lp, lp->mssbuf, lp->cfg.mtu);
 		if (err < 0)
 			return err;
 
@@ -2385,7 +2385,7 @@ EXPORT_SYMBOL(ldc_free_exp_dring);
 
 static int __init ldc_init(void)
 {
-	unsigned long major, minor;
+	unsigned long major, miyesr;
 	struct mdesc_handle *hp;
 	const u64 *v;
 	int err;
@@ -2395,7 +2395,7 @@ static int __init ldc_init(void)
 	if (!hp)
 		return -ENODEV;
 
-	mp = mdesc_node_by_name(hp, MDESC_NODE_NULL, "platform");
+	mp = mdesc_yesde_by_name(hp, MDESC_NODE_NULL, "platform");
 	err = -ENODEV;
 	if (mp == MDESC_NODE_NULL)
 		goto out;
@@ -2405,9 +2405,9 @@ static int __init ldc_init(void)
 		goto out;
 
 	major = 1;
-	minor = 0;
-	if (sun4v_hvapi_register(HV_GRP_LDOM, major, &minor)) {
-		printk(KERN_INFO PFX "Could not register LDOM hvapi.\n");
+	miyesr = 0;
+	if (sun4v_hvapi_register(HV_GRP_LDOM, major, &miyesr)) {
+		printk(KERN_INFO PFX "Could yest register LDOM hvapi.\n");
 		goto out;
 	}
 

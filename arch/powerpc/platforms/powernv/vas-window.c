@@ -147,8 +147,8 @@ static void unmap_paste_region(struct vas_window *window)
 /*
  * Unmap the MMIO regions for a window. Hold the vas_mutex so we don't
  * unmap when the window's debugfs dir is in use. This serializes close
- * of a window even on another VAS instance but since its not a critical
- * path, just minimize the time we hold the mutex for now. We can add
+ * of a window even on ayesther VAS instance but since its yest a critical
+ * path, just minimize the time we hold the mutex for yesw. We can add
  * a per-instance mutex later if necessary.
  */
 static void unmap_winctx_mmio_bars(struct vas_window *window)
@@ -207,9 +207,9 @@ int map_winctx_mmio_bars(struct vas_window *window)
  * Reset all valid registers in the HV and OS/User Window Contexts for
  * the window identified by @window.
  *
- * NOTE: We cannot really use a for loop to reset window context. Not all
+ * NOTE: We canyest really use a for loop to reset window context. Not all
  *	 offsets in a window context are valid registers and the valid
- *	 registers are not sequential. And, we can only write to offsets
+ *	 registers are yest sequential. And, we can only write to offsets
  *	 with valid registers.
  */
 void reset_window_regs(struct vas_window *window)
@@ -326,12 +326,12 @@ static void init_xlate_regs(struct vas_window *window, bool user_win)
 /*
  * Initialize Reserved Send Buffer Count for the send window. It involves
  * writing to the register, reading it back to confirm that the hardware
- * has enough buffers to reserve. See section 1.3.1.2.1 of VAS workbook.
+ * has eyesugh buffers to reserve. See section 1.3.1.2.1 of VAS workbook.
  *
  * Since we can only make a best-effort attempt to fulfill the request,
- * we don't return any errors if we cannot.
+ * we don't return any errors if we canyest.
  *
- * TODO: Reserved (aka dedicated) send buffers are not supported yet.
+ * TODO: Reserved (aka dedicated) send buffers are yest supported yet.
  */
 static void init_rsvd_tx_buf_count(struct vas_window *txwin,
 				struct vas_winctx *winctx)
@@ -347,13 +347,13 @@ static void init_rsvd_tx_buf_count(struct vas_window *txwin,
  *	Cache Register Details) of the VAS workbook although they don't need
  *	to be.
  *
- * Design note: For NX receive windows, NX allocates the FIFO buffer in OPAL
+ * Design yeste: For NX receive windows, NX allocates the FIFO buffer in OPAL
  *	(so that it can get a large contiguous area) and passes that buffer
- *	to kernel via device tree. We now write that buffer address to the
+ *	to kernel via device tree. We yesw write that buffer address to the
  *	FIFO BAR. Would it make sense to do this all in OPAL? i.e have OPAL
  *	write the per-chip RX FIFO addresses to the windows during boot-up
  *	as a one-time task? That could work for NX but what about other
- *	receivers?  Let the receivers tell us the rx-fifo buffers for now.
+ *	receivers?  Let the receivers tell us the rx-fifo buffers for yesw.
  */
 int init_winctx_regs(struct vas_window *window, struct vas_winctx *winctx)
 {
@@ -395,10 +395,10 @@ int init_winctx_regs(struct vas_window *window, struct vas_winctx *winctx)
 	 * NOTE: VAS expects the FIFO address to be copied into the LFIFO_BAR
 	 *	 register as is - do NOT shift the address into VAS_LFIFO_BAR
 	 *	 bit fields! Ok to set the page migration select fields -
-	 *	 VAS ignores the lower 10+ bits in the address anyway, because
+	 *	 VAS igyesres the lower 10+ bits in the address anyway, because
 	 *	 the minimum FIFO size is 1K?
 	 *
-	 * See also: Design note in function header.
+	 * See also: Design yeste in function header.
 	 */
 	val = __pa(winctx->rx_fifo);
 	val = SET_FIELD(VAS_PAGE_MIGRATION_SELECT, val, 0);
@@ -451,22 +451,22 @@ int init_winctx_regs(struct vas_window *window, struct vas_winctx *winctx)
 	write_hvwc_reg(window, VREG(SPARE4), 0ULL);
 
 	val = 0ULL;
-	val = SET_FIELD(VAS_NOTIFY_DISABLE, val, winctx->notify_disable);
+	val = SET_FIELD(VAS_NOTIFY_DISABLE, val, winctx->yestify_disable);
 	val = SET_FIELD(VAS_INTR_DISABLE, val, winctx->intr_disable);
-	val = SET_FIELD(VAS_NOTIFY_EARLY, val, winctx->notify_early);
-	val = SET_FIELD(VAS_NOTIFY_OSU_INTR, val, winctx->notify_os_intr_reg);
+	val = SET_FIELD(VAS_NOTIFY_EARLY, val, winctx->yestify_early);
+	val = SET_FIELD(VAS_NOTIFY_OSU_INTR, val, winctx->yestify_os_intr_reg);
 	write_hvwc_reg(window, VREG(LNOTIFY_CTL), val);
 
 	val = 0ULL;
-	val = SET_FIELD(VAS_LNOTIFY_PID, val, winctx->lnotify_pid);
+	val = SET_FIELD(VAS_LNOTIFY_PID, val, winctx->lyestify_pid);
 	write_hvwc_reg(window, VREG(LNOTIFY_PID), val);
 
 	val = 0ULL;
-	val = SET_FIELD(VAS_LNOTIFY_LPID, val, winctx->lnotify_lpid);
+	val = SET_FIELD(VAS_LNOTIFY_LPID, val, winctx->lyestify_lpid);
 	write_hvwc_reg(window, VREG(LNOTIFY_LPID), val);
 
 	val = 0ULL;
-	val = SET_FIELD(VAS_LNOTIFY_TID, val, winctx->lnotify_tid);
+	val = SET_FIELD(VAS_LNOTIFY_TID, val, winctx->lyestify_tid);
 	write_hvwc_reg(window, VREG(LNOTIFY_TID), val);
 
 	val = 0ULL;
@@ -487,7 +487,7 @@ int init_winctx_regs(struct vas_window *window, struct vas_winctx *winctx)
 
 	/* ... mark the window open for business */
 	val = 0ULL;
-	val = SET_FIELD(VAS_WINCTL_REJ_NO_CREDIT, val, winctx->rej_no_credit);
+	val = SET_FIELD(VAS_WINCTL_REJ_NO_CREDIT, val, winctx->rej_yes_credit);
 	val = SET_FIELD(VAS_WINCTL_PIN, val, winctx->pin_win);
 	val = SET_FIELD(VAS_WINCTL_TX_WCRED_MODE, val, winctx->tx_wcred_mode);
 	val = SET_FIELD(VAS_WINCTL_RX_WCRED_MODE, val, winctx->rx_wcred_mode);
@@ -563,7 +563,7 @@ out_free:
 
 static void put_rx_win(struct vas_window *rxwin)
 {
-	/* Better not be a send window! */
+	/* Better yest be a send window! */
 	WARN_ON_ONCE(rxwin->tx_win);
 
 	atomic_dec(&rxwin->num_txwins);
@@ -685,14 +685,14 @@ static void init_winctx_for_rxwin(struct vas_window *rxwin,
 			struct vas_winctx *winctx)
 {
 	/*
-	 * We first zero (memset()) all fields and only set non-zero fields.
+	 * We first zero (memset()) all fields and only set yesn-zero fields.
 	 * Following fields are 0/false but maybe deserve a comment:
 	 *
-	 *	->notify_os_intr_reg	In powerNV, send intrs to HV
-	 *	->notify_disable	False for NX windows
+	 *	->yestify_os_intr_reg	In powerNV, send intrs to HV
+	 *	->yestify_disable	False for NX windows
 	 *	->intr_disable		False for Fault Windows
 	 *	->xtra_write		False for NX windows
-	 *	->notify_early		NA for NX windows
+	 *	->yestify_early		NA for NX windows
 	 *	->rsvd_txbuf_count	NA for Rx windows
 	 *	->lpid, ->pid, ->tid	NA for Rx windows
 	 */
@@ -707,12 +707,12 @@ static void init_winctx_for_rxwin(struct vas_window *rxwin,
 	winctx->nx_win = rxattr->nx_win;
 	winctx->fault_win = rxattr->fault_win;
 	winctx->user_win = rxattr->user_win;
-	winctx->rej_no_credit = rxattr->rej_no_credit;
+	winctx->rej_yes_credit = rxattr->rej_yes_credit;
 	winctx->rx_word_mode = rxattr->rx_win_ord_mode;
 	winctx->tx_word_mode = rxattr->tx_win_ord_mode;
 	winctx->rx_wcred_mode = rxattr->rx_wcred_mode;
 	winctx->tx_wcred_mode = rxattr->tx_wcred_mode;
-	winctx->notify_early = rxattr->notify_early;
+	winctx->yestify_early = rxattr->yestify_early;
 
 	if (winctx->nx_win) {
 		winctx->data_stamp = true;
@@ -722,9 +722,9 @@ static void init_winctx_for_rxwin(struct vas_window *rxwin,
 		WARN_ON_ONCE(winctx->fault_win);
 		WARN_ON_ONCE(!winctx->rx_word_mode);
 		WARN_ON_ONCE(!winctx->tx_word_mode);
-		WARN_ON_ONCE(winctx->notify_after_count);
+		WARN_ON_ONCE(winctx->yestify_after_count);
 	} else if (winctx->fault_win) {
-		winctx->notify_disable = true;
+		winctx->yestify_disable = true;
 	} else if (winctx->user_win) {
 		/*
 		 * Section 1.8.1 Low Latency Core-Core Wake up of
@@ -739,9 +739,9 @@ static void init_winctx_for_rxwin(struct vas_window *rxwin,
 		winctx->rx_fifo = NULL;
 	}
 
-	winctx->lnotify_lpid = rxattr->lnotify_lpid;
-	winctx->lnotify_pid = rxattr->lnotify_pid;
-	winctx->lnotify_tid = rxattr->lnotify_tid;
+	winctx->lyestify_lpid = rxattr->lyestify_lpid;
+	winctx->lyestify_pid = rxattr->lyestify_pid;
+	winctx->lyestify_tid = rxattr->lyestify_tid;
 	winctx->pswid = rxattr->pswid;
 	winctx->dma_type = VAS_DMA_TYPE_INJECT;
 	winctx->tc_mode = rxattr->tc_mode;
@@ -753,9 +753,9 @@ static void init_winctx_for_rxwin(struct vas_window *rxwin,
 static bool rx_win_args_valid(enum vas_cop_type cop,
 			struct vas_rx_win_attr *attr)
 {
-	pr_debug("Rxattr: fault %d, notify %d, intr %d, early %d, fifo %d\n",
-			attr->fault_win, attr->notify_disable,
-			attr->intr_disable, attr->notify_early,
+	pr_debug("Rxattr: fault %d, yestify %d, intr %d, early %d, fifo %d\n",
+			attr->fault_win, attr->yestify_disable,
+			attr->intr_disable, attr->yestify_early,
 			attr->rx_fifo_size);
 
 	if (cop >= VAS_COP_TYPE_MAX)
@@ -772,26 +772,26 @@ static bool rx_win_args_valid(enum vas_cop_type cop,
 		return false;
 
 	if (attr->nx_win) {
-		/* cannot be fault or user window if it is nx */
+		/* canyest be fault or user window if it is nx */
 		if (attr->fault_win || attr->user_win)
 			return false;
 		/*
-		 * Section 3.1.4.32: NX Windows must not disable notification,
-		 *	and must not enable interrupts or early notification.
+		 * Section 3.1.4.32: NX Windows must yest disable yestification,
+		 *	and must yest enable interrupts or early yestification.
 		 */
-		if (attr->notify_disable || !attr->intr_disable ||
-				attr->notify_early)
+		if (attr->yestify_disable || !attr->intr_disable ||
+				attr->yestify_early)
 			return false;
 	} else if (attr->fault_win) {
-		/* cannot be both fault and user window */
+		/* canyest be both fault and user window */
 		if (attr->user_win)
 			return false;
 
 		/*
-		 * Section 3.1.4.32: Fault windows must disable notification
-		 *	but not interrupts.
+		 * Section 3.1.4.32: Fault windows must disable yestification
+		 *	but yest interrupts.
 		 */
-		if (!attr->notify_disable || attr->intr_disable)
+		if (!attr->yestify_disable || attr->intr_disable)
 			return false;
 
 	} else if (attr->user_win) {
@@ -825,7 +825,7 @@ void vas_init_rx_win_attr(struct vas_rx_win_attr *rxattr, enum vas_cop_type cop)
 	} else if (cop == VAS_COP_TYPE_FAULT) {
 		rxattr->pin_win = true;
 		rxattr->fault_win = true;
-		rxattr->notify_disable = true;
+		rxattr->yestify_disable = true;
 		rxattr->rx_wcred_mode = true;
 		rxattr->tx_wcred_mode = true;
 		rxattr->rx_win_ord_mode = true;
@@ -835,7 +835,7 @@ void vas_init_rx_win_attr(struct vas_rx_win_attr *rxattr, enum vas_cop_type cop)
 		rxattr->intr_disable = true;
 
 		/*
-		 * As noted in the VAS Workbook we disable credit checks.
+		 * As yested in the VAS Workbook we disable credit checks.
 		 * If we enable credit checks in the future, we must also
 		 * implement a mechanism to return the user credits or new
 		 * paste operations will fail.
@@ -858,7 +858,7 @@ struct vas_window *vas_rx_win_open(int vasid, enum vas_cop_type cop,
 
 	vinst = find_vas_instance(vasid);
 	if (!vinst) {
-		pr_devel("vasid %d not found!\n", vasid);
+		pr_devel("vasid %d yest found!\n", vasid);
 		return ERR_PTR(-EINVAL);
 	}
 	pr_devel("Found instance %d\n", vasid);
@@ -891,7 +891,7 @@ void vas_init_tx_win_attr(struct vas_tx_win_attr *txattr, enum vas_cop_type cop)
 	memset(txattr, 0, sizeof(*txattr));
 
 	if (cop == VAS_COP_TYPE_842 || cop == VAS_COP_TYPE_842_HIPRI) {
-		txattr->rej_no_credit = false;
+		txattr->rej_yes_credit = false;
 		txattr->rx_wcred_mode = true;
 		txattr->tx_wcred_mode = true;
 		txattr->rx_win_ord_mode = true;
@@ -907,19 +907,19 @@ static void init_winctx_for_txwin(struct vas_window *txwin,
 			struct vas_winctx *winctx)
 {
 	/*
-	 * We first zero all fields and only set non-zero ones. Following
+	 * We first zero all fields and only set yesn-zero ones. Following
 	 * are some fields set to 0/false for the stated reason:
 	 *
-	 *	->notify_os_intr_reg	In powernv, send intrs to HV
+	 *	->yestify_os_intr_reg	In powernv, send intrs to HV
 	 *	->rsvd_txbuf_count	Not supported yet.
-	 *	->notify_disable	False for NX windows
+	 *	->yestify_disable	False for NX windows
 	 *	->xtra_write		False for NX windows
-	 *	->notify_early		NA for NX windows
-	 *	->lnotify_lpid		NA for Tx windows
-	 *	->lnotify_pid		NA for Tx windows
-	 *	->lnotify_tid		NA for Tx windows
-	 *	->tx_win_cred_mode	Ignore for now for NX windows
-	 *	->rx_win_cred_mode	Ignore for now for NX windows
+	 *	->yestify_early		NA for NX windows
+	 *	->lyestify_lpid		NA for Tx windows
+	 *	->lyestify_pid		NA for Tx windows
+	 *	->lyestify_tid		NA for Tx windows
+	 *	->tx_win_cred_mode	Igyesre for yesw for NX windows
+	 *	->rx_win_cred_mode	Igyesre for yesw for NX windows
 	 */
 	memset(winctx, 0, sizeof(struct vas_winctx));
 
@@ -928,7 +928,7 @@ static void init_winctx_for_txwin(struct vas_window *txwin,
 	winctx->user_win = txattr->user_win;
 	winctx->nx_win = txwin->rxwin->nx_win;
 	winctx->pin_win = txattr->pin_win;
-	winctx->rej_no_credit = txattr->rej_no_credit;
+	winctx->rej_yes_credit = txattr->rej_yes_credit;
 	winctx->rsvd_txbuf_enable = txattr->rsvd_txbuf_enable;
 
 	winctx->rx_wcred_mode = txattr->rx_wcred_mode;
@@ -987,7 +987,7 @@ struct vas_window *vas_tx_win_open(int vasid, enum vas_cop_type cop,
 		return ERR_PTR(-EINVAL);
 
 	/*
-	 * If caller did not specify a vasid but specified the PSWID of a
+	 * If caller did yest specify a vasid but specified the PSWID of a
 	 * receive window (applicable only to FTW windows), use the vasid
 	 * from that receive window.
 	 */
@@ -996,7 +996,7 @@ struct vas_window *vas_tx_win_open(int vasid, enum vas_cop_type cop,
 
 	vinst = find_vas_instance(vasid);
 	if (!vinst) {
-		pr_devel("vasid %d not found!\n", vasid);
+		pr_devel("vasid %d yest found!\n", vasid);
 		return ERR_PTR(-EINVAL);
 	}
 
@@ -1078,7 +1078,7 @@ int vas_paste_crb(struct vas_window *txwin, int offset, bool re)
 	trace_vas_paste_crb(current, txwin);
 
 	/*
-	 * Only NX windows are supported for now and hardware assumes
+	 * Only NX windows are supported for yesw and hardware assumes
 	 * report-enable flag is set for NX windows. Ensure software
 	 * complies too.
 	 */
@@ -1096,7 +1096,7 @@ int vas_paste_crb(struct vas_window *txwin, int offset, bool re)
 
 	/*
 	 * Map the raw CR value from vas_paste() to an error code (there
-	 * is just pass or fail for now though).
+	 * is just pass or fail for yesw though).
 	 */
 	rc = vas_paste(addr, offset);
 	if (rc == 2)
@@ -1115,12 +1115,12 @@ EXPORT_SYMBOL_GPL(vas_paste_crb);
  * If credit checking is enabled for this window, poll for the return
  * of window credits (i.e for NX engines to process any outstanding CRBs).
  * Since NX-842 waits for the CRBs to be processed before closing the
- * window, we should not have to wait for too long.
+ * window, we should yest have to wait for too long.
  *
- * TODO: We retry in 10ms intervals now. We could/should probably peek at
+ * TODO: We retry in 10ms intervals yesw. We could/should probably peek at
  *	the VAS_LRFIFO_PUSH_OFFSET register to get an estimate of pending
  *	CRBs on the FIFO and compute the delay dynamically on each retry.
- *	But that is not really needed until we support NX-GZIP access from
+ *	But that is yest really needed until we support NX-GZIP access from
  *	user space. (NX-842 driver waits for CSB and Fast thread-wakeup
  *	doesn't use credit checking).
  */
@@ -1155,8 +1155,8 @@ retry:
 }
 
 /*
- * Wait for the window to go to "not-busy" state. It should only take a
- * short time to queue a CRB, so window should not be busy for too long.
+ * Wait for the window to go to "yest-busy" state. It should only take a
+ * short time to queue a CRB, so window should yest be busy for too long.
  * Trying 5ms intervals.
  */
 static void poll_window_busy_state(struct vas_window *window)
@@ -1180,24 +1180,24 @@ retry:
  * be completed.
  *
  * NOTE: It can take a relatively long time to cast the window context
- *	out of the cache. It is not strictly necessary to cast out if:
+ *	out of the cache. It is yest strictly necessary to cast out if:
  *
  *	- we clear the "Pin Window" bit (so hardware is free to evict)
  *
  *	- we re-initialize the window context when it is reassigned.
  *
  *	We do the former in vas_win_close() and latter in vas_win_open().
- *	So, ignoring the cast-out for now. We can add it as needed. If
+ *	So, igyesring the cast-out for yesw. We can add it as needed. If
  *	casting out becomes necessary we should consider offloading the
  *	job to a worker thread, so the window close can proceed quickly.
  */
 static void poll_window_castout(struct vas_window *window)
 {
-	/* stub for now */
+	/* stub for yesw */
 }
 
 /*
- * Unpin and close a window so no new requests are accepted and the
+ * Unpin and close a window so yes new requests are accepted and the
  * hardware can evict this window from cache if necessary.
  */
 static void unpin_close_window(struct vas_window *window)

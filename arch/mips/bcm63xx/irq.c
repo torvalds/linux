@@ -65,8 +65,8 @@ static inline int enable_irq_for_cpu(int cpu, struct irq_data *d,
 }
 
 /*
- * dispatch internal devices IRQ (uart, enet, watchdog, ...). do not
- * prioritize any interrupt relatively to another. the static counter
+ * dispatch internal devices IRQ (uart, enet, watchdog, ...). do yest
+ * prioritize any interrupt relatively to ayesther. the static counter
  * will resume the loop where it ended the last time we left this
  * function.
  */
@@ -400,21 +400,21 @@ static struct irq_chip bcm63xx_external_irq_chip = {
 };
 
 static struct irqaction cpu_ip2_cascade_action = {
-	.handler	= no_action,
+	.handler	= yes_action,
 	.name		= "cascade_ip2",
 	.flags		= IRQF_NO_THREAD,
 };
 
 #ifdef CONFIG_SMP
 static struct irqaction cpu_ip3_cascade_action = {
-	.handler	= no_action,
+	.handler	= yes_action,
 	.name		= "cascade_ip3",
 	.flags		= IRQF_NO_THREAD,
 };
 #endif
 
 static struct irqaction cpu_ext_cascade_action = {
-	.handler	= no_action,
+	.handler	= yes_action,
 	.name		= "cascade_extirq",
 	.flags		= IRQF_NO_THREAD,
 };

@@ -4,7 +4,7 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/tty.h>
 #include <linux/tty_driver.h>
 #include <linux/tty_flip.h>
@@ -41,7 +41,7 @@ static void gdm_port_destruct(struct tty_port *port)
 	struct gdm *gdm = container_of(port, struct gdm, port);
 
 	mutex_lock(&gdm_table_lock);
-	gdm_table[gdm->index][gdm->minor] = NULL;
+	gdm_table[gdm->index][gdm->miyesr] = NULL;
 	mutex_unlock(&gdm_table_lock);
 
 	kfree(gdm);
@@ -224,11 +224,11 @@ int register_lte_tty_device(struct tty_dev *tty_dev, struct device *device)
 
 		gdm->port.ops = &gdm_port_ops;
 		gdm->index = i;
-		gdm->minor = j;
+		gdm->miyesr = j;
 		gdm->tty_dev = tty_dev;
 
 		tty_port_register_device(&gdm->port, gdm_driver[i],
-					 gdm->minor, device);
+					 gdm->miyesr, device);
 	}
 
 	for (i = 0; i < MAX_ISSUE_NUM; i++)
@@ -250,7 +250,7 @@ void unregister_lte_tty_device(struct tty_dev *tty_dev)
 			continue;
 
 		mutex_lock(&gdm_table_lock);
-		gdm_table[gdm->index][gdm->minor] = NULL;
+		gdm_table[gdm->index][gdm->miyesr] = NULL;
 		mutex_unlock(&gdm_table_lock);
 
 		tty = tty_port_tty_get(&gdm->port);
@@ -259,7 +259,7 @@ void unregister_lte_tty_device(struct tty_dev *tty_dev)
 			tty_kref_put(tty);
 		}
 
-		tty_unregister_device(gdm_driver[i], gdm->minor);
+		tty_unregister_device(gdm_driver[i], gdm->miyesr);
 		tty_port_put(&gdm->port);
 	}
 }

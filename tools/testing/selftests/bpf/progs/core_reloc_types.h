@@ -19,7 +19,7 @@ struct core_reloc_flavors {
 	int c;
 };
 
-/* this is not a flavor, as it doesn't have triple underscore */
+/* this is yest a flavor, as it doesn't have triple underscore */
 struct core_reloc_flavors__err_wrong_name {
 	int a;
 	int b;
@@ -47,8 +47,8 @@ struct core_reloc_nesting {
 	} b;
 };
 
-/* inlined anonymous struct/union instead of named structs in original */
-struct core_reloc_nesting___anon_embed {
+/* inlined ayesnymous struct/union instead of named structs in original */
+struct core_reloc_nesting___ayesn_embed {
 	int __just_for_padding;
 	union {
 		struct {
@@ -82,7 +82,7 @@ struct core_reloc_nesting___struct_union_mixup {
 	} b;
 };
 
-/* extra anon structs/unions, but still valid a.a.a and b.b.b accessors */
+/* extra ayesn structs/unions, but still valid a.a.a and b.b.b accessors */
 struct core_reloc_nesting___extra_nesting {
 	int __padding;
 	struct {
@@ -131,9 +131,9 @@ struct core_reloc_nesting___dup_compat_types {
 struct core_reloc_nesting___dup_compat_types__2 {
 	int __aligned_padding;
 	struct {
-		int __trickier_noop[0];
+		int __trickier_yesop[0];
 		struct {
-			char __some_more_noops[0];
+			char __some_more_yesops[0];
 			int a; /* offset 4 */
 		} a;
 	} a;
@@ -144,7 +144,7 @@ struct core_reloc_nesting___dup_compat_types__2 {
 				int __critical_padding;
 				int b; /* offset 16 */
 			} b;
-			int __does_not_matter;
+			int __does_yest_matter;
 		};
 	} b;
 	int __more_irrelevant_stuff;
@@ -206,7 +206,7 @@ struct core_reloc_nesting___err_missing_container {
 };
 
 /* middle b container is referenced through pointer instead of being embedded */
-struct core_reloc_nesting___err_nonstruct_container {
+struct core_reloc_nesting___err_yesnstruct_container {
 	struct {
 		struct {
 			int a;
@@ -261,7 +261,7 @@ struct core_reloc_nesting___err_dup_incompat_types__2 {
 	} b;
 };
 
-/* two flavors of same struct having one of a.a.a and b.b.b, but not both */
+/* two flavors of same struct having one of a.a.a and b.b.b, but yest both */
 struct core_reloc_nesting___err_partial_match_dups__a {
 	struct {
 		struct {
@@ -379,8 +379,8 @@ struct core_reloc_arrays___err_too_shallow {
 	struct core_reloc_arrays_substruct d[1][2];
 };
 
-struct core_reloc_arrays___err_non_array {
-	int a; /* not an array */
+struct core_reloc_arrays___err_yesn_array {
+	int a; /* yest an array */
 	char b[2][3][4];
 	struct core_reloc_arrays_substruct c[3];
 	struct core_reloc_arrays_substruct d[1][2];
@@ -389,7 +389,7 @@ struct core_reloc_arrays___err_non_array {
 struct core_reloc_arrays___err_wrong_val_type {
 	int a[5];
 	char b[2][3][4];
-	int c[3]; /* value is not a struct */
+	int c[3]; /* value is yest a struct */
 	struct core_reloc_arrays_substruct d[1][2];
 };
 
@@ -436,7 +436,7 @@ struct core_reloc_primitives___diff_ptr_type {
 	int (*f)(const char *);
 };
 
-struct core_reloc_primitives___err_non_enum {
+struct core_reloc_primitives___err_yesn_enum {
 	char a[1];
 	int b;
 	int c; /* int instead of enum */
@@ -444,7 +444,7 @@ struct core_reloc_primitives___err_non_enum {
 	int (*f)(const char *);
 };
 
-struct core_reloc_primitives___err_non_int {
+struct core_reloc_primitives___err_yesn_int {
 	char a[1];
 	int *b; /* ptr instead of int */
 	enum core_reloc_primitives_enum c;
@@ -452,7 +452,7 @@ struct core_reloc_primitives___err_non_int {
 	int (*f)(const char *);
 };
 
-struct core_reloc_primitives___err_non_ptr {
+struct core_reloc_primitives___err_yesn_ptr {
 	char a[1];
 	int b;
 	enum core_reloc_primitives_enum c;
@@ -685,7 +685,7 @@ struct core_reloc_bitfields {
 	/* signed bitfields */
 	int8_t		sb4: 4;
 	int32_t		sb20: 20;
-	/* non-bitfields */
+	/* yesn-bitfields */
 	uint32_t	u32;
 	int32_t		s32;
 };
@@ -699,23 +699,23 @@ struct core_reloc_bitfields___bit_sz_change {
 	/* signed bitfields */
 	int8_t		sb4: 1;		/*  4 ->  1 */
 	int32_t		sb20: 30;	/* 20 -> 30 */
-	/* non-bitfields */
+	/* yesn-bitfields */
 	uint16_t	u32;		/* 32 -> 16 */
 	int64_t		s32;		/* 32 -> 64 */
 };
 
-/* turn bitfield into non-bitfield and vice versa */
+/* turn bitfield into yesn-bitfield and vice versa */
 struct core_reloc_bitfields___bitfield_vs_int {
-	uint64_t	ub1;		/*  3 -> 64 non-bitfield */
-	uint8_t		ub2;		/* 20 ->  8 non-bitfield */
-	int64_t		ub7;		/*  7 -> 64 non-bitfield signed */
-	int64_t		sb4;		/*  4 -> 64 non-bitfield signed */
-	uint64_t	sb20;		/* 20 -> 16 non-bitfield unsigned */
-	int32_t		u32: 20;	/* 32 non-bitfield -> 20 bitfield */
-	uint64_t	s32: 60;	/* 32 non-bitfield -> 60 bitfield */
+	uint64_t	ub1;		/*  3 -> 64 yesn-bitfield */
+	uint8_t		ub2;		/* 20 ->  8 yesn-bitfield */
+	int64_t		ub7;		/*  7 -> 64 yesn-bitfield signed */
+	int64_t		sb4;		/*  4 -> 64 yesn-bitfield signed */
+	uint64_t	sb20;		/* 20 -> 16 yesn-bitfield unsigned */
+	int32_t		u32: 20;	/* 32 yesn-bitfield -> 20 bitfield */
+	uint64_t	s32: 60;	/* 32 yesn-bitfield -> 60 bitfield */
 };
 
-struct core_reloc_bitfields___just_big_enough {
+struct core_reloc_bitfields___just_big_eyesugh {
 	uint64_t	ub1: 4;
 	uint64_t	ub2: 60; /* packed tightly */
 	uint32_t	ub7;

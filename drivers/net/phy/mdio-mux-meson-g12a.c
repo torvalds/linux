@@ -95,7 +95,7 @@ static int g12a_ephy_pll_enable(struct clk_hw *hw)
 
 	/* Poll on the digital lock instead of the usual analog lock
 	 * This is done because bit 31 is unreliable on some SoC. Bit
-	 * 31 may indicate that the PLL is not lock eventhough the clock
+	 * 31 may indicate that the PLL is yest lock eventhough the clock
 	 * is actually running
 	 */
 	return readl_poll_timeout(pll->base + ETH_PLL_CTL0, val,
@@ -334,7 +334,7 @@ static int g12a_mdio_mux_probe(struct platform_device *pdev)
 	if (ret)
 		goto err;
 
-	ret = mdio_mux_init(dev, dev->of_node, g12a_mdio_switch_fn,
+	ret = mdio_mux_init(dev, dev->of_yesde, g12a_mdio_switch_fn,
 			    &priv->mux_handle, dev, NULL);
 	if (ret) {
 		if (ret != -EPROBE_DEFER)

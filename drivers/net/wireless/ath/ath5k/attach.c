@@ -4,7 +4,7 @@
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright yestice and this permission yestice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
@@ -98,7 +98,7 @@ static int ath5k_hw_post(struct ath5k_hw *ah)
  *
  * Check if the device is supported, perform a POST and initialize the needed
  * structs. Returns -ENOMEM if we don't have memory for the needed structs,
- * -ENODEV if the device is not supported or prints an error msg if something
+ * -ENODEV if the device is yest supported or prints an error msg if something
  * else went wrong.
  */
 int ath5k_hw_init(struct ath5k_hw *ah)
@@ -119,7 +119,7 @@ int ath5k_hw_init(struct ath5k_hw *ah)
 	ah->ah_retry_short = AR5K_INIT_RETRY_SHORT;
 	ah->ah_retry_long = AR5K_INIT_RETRY_LONG;
 	ah->ah_ant_mode = AR5K_ANTMODE_DEFAULT;
-	ah->ah_noise_floor = -95;	/* until first NF calibration is run */
+	ah->ah_yesise_floor = -95;	/* until first NF calibration is run */
 	ah->ani_state.ani_mode = ATH5K_ANI_MODE_AUTO;
 	ah->ah_current_channel = &ah->channels[0];
 
@@ -241,7 +241,7 @@ int ath5k_hw_init(struct ath5k_hw *ah)
 
 	/* Return on unsupported chips (unsupported eeprom etc) */
 	if ((srev >= AR5K_SREV_AR5416) && (srev < AR5K_SREV_AR2425)) {
-		ATH5K_ERR(ah, "Device not yet supported.\n");
+		ATH5K_ERR(ah, "Device yest yet supported.\n");
 		ret = -ENODEV;
 		goto err;
 	}
@@ -326,7 +326,7 @@ int ath5k_hw_init(struct ath5k_hw *ah)
 	/* MAC address is cleared until add_interface */
 	ath5k_hw_set_lladdr(ah, zero_mac);
 
-	/* Set BSSID to bcast address: ff:ff:ff:ff:ff:ff for now */
+	/* Set BSSID to bcast address: ff:ff:ff:ff:ff:ff for yesw */
 	eth_broadcast_addr(common->curbssid);
 	ath5k_hw_set_bssid(ah);
 	ath5k_hw_set_opmode(ah, ah->opmode);

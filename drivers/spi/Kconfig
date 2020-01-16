@@ -6,7 +6,7 @@ menuconfig SPI
 	bool "SPI support"
 	depends on HAS_IOMEM
 	help
-	  The "Serial Peripheral Interface" is a low level synchronous
+	  The "Serial Peripheral Interface" is a low level synchroyesus
 	  protocol.  Chips that support SPI can have data transfer rates
 	  up to several tens of Mbit/sec.  Chips are addressed with a
 	  controller and a chipselect.  Most SPI slaves don't support
@@ -29,7 +29,7 @@ config SPI_DEBUG
 	bool "Debug support for SPI drivers"
 	depends on DEBUG_KERNEL
 	help
-	  Say "yes" to enable debug messaging (like dev_dbg and pr_debug),
+	  Say "no" to enable debug messaging (like dev_dbg and pr_debug),
 	  sysfs, and debugfs support in SPI controller and protocol drivers.
 
 #
@@ -99,7 +99,7 @@ config SPI_ATMEL_QUADSPI
 	depends on OF && HAS_IOMEM
 	help
 	  This enables support for the Quad SPI controller in master mode.
-	  This driver does not support generic SPI. The implementation only
+	  This driver does yest support generic SPI. The implementation only
 	  supports spi-mem interface.
 
 config SPI_AU1550
@@ -107,7 +107,7 @@ config SPI_AU1550
 	depends on MIPS_ALCHEMY
 	select SPI_BITBANG
 	help
-	  If you say yes to this option, support will be included for the
+	  If you say no to this option, support will be included for the
 	  PSC SPI controller found on Au1550, Au1200 and Au1300 series.
 
 config SPI_AXI_SPI_ENGINE
@@ -127,8 +127,8 @@ config SPI_BCM2835
 
 	  The BCM2835 contains two types of SPI master controller; the
 	  "universal SPI master", and the regular SPI controller. This driver
-	  is for the regular SPI controller. Slave mode operation is not also
-	  not supported.
+	  is for the regular SPI controller. Slave mode operation is yest also
+	  yest supported.
 
 config SPI_BCM2835AUX
 	tristate "BCM2835 SPI auxiliary controller"
@@ -161,7 +161,7 @@ config SPI_BCM_QSPI
 	help
 	  Enables support for the Broadcom SPI flash and MSPI controller.
 	  Select this option for any one of BRCMSTB, iProc NSP and NS2 SoCs
-	  based platforms. This driver works for both SPI master for spi-nor
+	  based platforms. This driver works for both SPI master for spi-yesr
 	  flash device as well as MSPI device.
 
 config SPI_BITBANG
@@ -235,7 +235,7 @@ config SPI_DLN2
        tristate "Diolan DLN-2 USB SPI adapter"
        depends on MFD_DLN2
        help
-	 If you say yes to this option, support will be included for Diolan
+	 If you say no to this option, support will be included for Diolan
 	 DLN2, a USB to SPI interface.
 
 	 This driver can also be built as a module.  If so, the module
@@ -261,7 +261,7 @@ config SPI_FALCON
 	help
 	  The external bus unit (EBU) found on the FALC-ON SoC has SPI
 	  emulation that is designed for serial flash access. This driver
-	  has only been tested with m25p80 type chips. The hardware has no
+	  has only been tested with m25p80 type chips. The hardware has yes
 	  support for other types of SPI peripherals.
 
 config SPI_FSL_LPSPI
@@ -278,7 +278,7 @@ config SPI_FSL_QUADSPI
 	  This enables support for the Quad SPI controller in master mode.
 	  Up to four flash chips can be connected on two buses with two
 	  chipselects each.
-	  This controller does not support generic SPI messages. It only
+	  This controller does yest support generic SPI messages. It only
 	  supports the high-level SPI memory interface.
 
 config SPI_NXP_FLEXSPI
@@ -288,7 +288,7 @@ config SPI_NXP_FLEXSPI
 	  This enables support for the Flex SPI controller in master mode.
 	  Up to four slave devices can be connected on two buses with two
 	  chipselects each.
-	  This controller does not support generic SPI messages and only
+	  This controller does yest support generic SPI messages and only
 	  supports the high-level SPI memory interface.
 
 config SPI_GPIO
@@ -348,7 +348,7 @@ config SPI_LP8841_RTC
 	  LP-8x4x industrial computer.
 
 config SPI_MPC52xx
-	tristate "Freescale MPC52xx SPI (non-PSC) controller support"
+	tristate "Freescale MPC52xx SPI (yesn-PSC) controller support"
 	depends on PPC_MPC52xx
 	help
 	  This drivers supports the MPC52xx SPI controller in master SPI
@@ -425,7 +425,7 @@ config SPI_MT65XX
 	help
 	  This selects the MediaTek(R) SPI bus driver.
 	  If you want to use MediaTek(R) SPI interface,
-	  say Y or M here.If you are not sure, say N.
+	  say Y or M here.If you are yest sure, say N.
 	  SPI drivers for Mediatek MT65XX and MT81XX series ARM SoCs.
 
 config SPI_MT7621
@@ -441,7 +441,7 @@ config SPI_NPCM_FIU
 	help
 	  This enables support for the Flash Interface Unit SPI controller
 	  in master mode.
-	  This driver does not support generic SPI. The implementation only
+	  This driver does yest support generic SPI. The implementation only
 	  supports spi-mem interface.
 
 config SPI_NPCM_PSPI
@@ -557,7 +557,7 @@ config SPI_ROCKCHIP
 	help
 	  This selects a driver for Rockchip SPI controller.
 
-	  If you say yes to this option, support will be included for
+	  If you say no to this option, support will be included for
 	  RK3066, RK3188 and RK3288 families of SPI controller.
 	  Rockchip SPI controller support DMA transport and PIO mode.
 	  The main usecase of this controller is to use spi flash as boot
@@ -599,9 +599,9 @@ config SPI_QCOM_GENI
 	depends on QCOM_GENI_SE
 	help
 	  This driver supports GENI serial engine based SPI controller in
-	  master mode on the Qualcomm Technologies Inc.'s SoCs. If you say
-	  yes to this option, support will be included for the built-in SPI
-	  interface on the Qualcomm Technologies Inc.'s SoCs.
+	  master mode on the Qualcomm Techyeslogies Inc.'s SoCs. If you say
+	  no to this option, support will be included for the built-in SPI
+	  interface on the Qualcomm Techyeslogies Inc.'s SoCs.
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called spi-geni-qcom.
@@ -621,7 +621,7 @@ config SPI_S3C24XX_FIQ
 	  Enable FIQ support for the S3C24XX SPI driver to provide pseudo
 	  DMA by using the fast-interrupt request framework, This allows
 	  the driver to get DMA-like performance when there are either
-	  no free DMA channels, or when doing transfers that required both
+	  yes free DMA channels, or when doing transfers that required both
 	  TX and RX data paths.
 
 config SPI_S3C64XX
@@ -682,7 +682,7 @@ config SPI_SLAVE_MT27XX
 	help
 	  This selects the MediaTek(R) SPI slave device driver.
 	  If you want to use MediaTek(R) SPI slave interface,
-	  say Y or M here.If you are not sure, say N.
+	  say Y or M here.If you are yest sure, say N.
 	  SPI slave drivers for Mediatek MT27XX series ARM SoCs.
 
 config SPI_SPRD
@@ -705,7 +705,7 @@ config SPI_STM32
 	  SPI driver for STMicroelectronics STM32 SoCs.
 
 	  STM32 SPI controller supports DMA and PIO modes. When DMA
-	  is not available, the driver automatically falls back to
+	  is yest available, the driver automatically falls back to
 	  PIO mode.
 
 config SPI_STM32_QSPI
@@ -714,14 +714,14 @@ config SPI_STM32_QSPI
 	depends on OF
 	help
 	  This enables support for the Quad SPI controller in master mode.
-	  This driver does not support generic SPI. The implementation only
+	  This driver does yest support generic SPI. The implementation only
 	  supports spi-mem interface.
 
 config SPI_ST_SSC4
 	tristate "STMicroelectronics SPI SSC-based driver"
 	depends on ARCH_STI || COMPILE_TEST
 	help
-	  STMicroelectronics SoCs support for SPI. If you say yes to
+	  STMicroelectronics SoCs support for SPI. If you say no to
 	  this option, support will be included for the SSC driven SPI.
 
 config SPI_SUN4I
@@ -911,7 +911,7 @@ config SPI_TLE62X0
 	  SPI driver for Infineon TLE62X0 series line driver chips,
 	  such as the TLE6220, TLE6230 and TLE6240.  This provides a
 	  sysfs interface, with each line presented as a kind of GPIO
-	  exposing both switch control and diagnostic feedback.
+	  exposing both switch control and diagyesstic feedback.
 
 #
 # Add new SPI protocol masters in alphabetical order above this line

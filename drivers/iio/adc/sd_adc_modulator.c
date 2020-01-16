@@ -33,7 +33,7 @@ static int iio_sd_mod_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	iio->dev.parent = dev;
-	iio->dev.of_node = dev->of_node;
+	iio->dev.of_yesde = dev->of_yesde;
 	iio->name = dev_name(dev);
 	iio->info = &iio_sd_mod_iio_info;
 	iio->modes = INDIO_BUFFER_HARDWARE;

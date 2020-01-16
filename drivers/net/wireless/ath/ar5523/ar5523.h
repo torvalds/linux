@@ -1,13 +1,13 @@
 /*
  * Copyright (c) 2006 Damien Bergamini <damien.bergamini@free.fr>
- * Copyright (c) 2006 Sam Leffler, Errno Consulting
+ * Copyright (c) 2006 Sam Leffler, Erryes Consulting
  * Copyright (c) 2007 Christoph Hellwig <hch@lst.de>
  * Copyright (c) 2008-2009 Weongyo Jeong <weongyo@freebsd.org>
  * Copyright (c) 2012 Pontus Fuchs <pontus.fuchs@gmail.com>
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright yestice and this permission yestice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
@@ -68,7 +68,7 @@ struct ar5523_tx_cmd {
 	struct completion	done;
 };
 
-/* This struct is placed in tx_info->driver_data. It must not be larger
+/* This struct is placed in tx_info->driver_data. It must yest be larger
  *  than IEEE80211_TX_INFO_DRIVER_DATA_SIZE.
  */
 struct ar5523_tx_data {

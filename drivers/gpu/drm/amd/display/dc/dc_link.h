@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -31,7 +31,7 @@
 
 #ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
 enum dc_link_fec_state {
-	dc_link_fec_not_ready,
+	dc_link_fec_yest_ready,
 	dc_link_fec_ready,
 	dc_link_fec_enabled
 };
@@ -151,7 +151,7 @@ const struct dc_link_status *dc_link_get_status(const struct dc_link *dc_link);
  * dc_get_link_at_index() - Return an enumerated dc_link.
  *
  * dc_link order is constant and determined at
- * boot time.  They cannot be created or destroyed.
+ * boot time.  They canyest be created or destroyed.
  * Use dc_get_caps() to get number of links.
  */
 static inline struct dc_link *dc_get_link_at_index(struct dc *dc, uint32_t link_index)
@@ -195,7 +195,7 @@ bool dc_link_setup_psr(struct dc_link *dc_link,
  * boot - If this call is during initial boot.
  * Return false for any type of detection failure or MST detection
  * true otherwise. True meaning further action is required (status update
- * and OS notification).
+ * and OS yestification).
  */
 enum dc_detect_reason {
 	DETECT_REASON_BOOT,
@@ -211,7 +211,7 @@ enum dc_status dc_link_allocate_mst_payload(struct pipe_ctx *pipe_ctx);
  * Return:
  * true - Downstream port status changed. DM should call DC to do the
  * detection.
- * false - no change in Downstream port status. No further action required
+ * false - yes change in Downstream port status. No further action required
  * from DM. */
 bool dc_link_handle_hpd_rx_irq(struct dc_link *dc_link,
 		union hpd_irq_data *hpd_irq_dpcd_data, bool *out_link_loss);
@@ -228,7 +228,7 @@ void dc_link_remove_remote_sink(
 	struct dc_link *link,
 	struct dc_sink *sink);
 
-/* Used by diagnostics for virtual link at the moment */
+/* Used by diagyesstics for virtual link at the moment */
 
 void dc_link_dp_set_drive_settings(
 	struct dc_link *link,

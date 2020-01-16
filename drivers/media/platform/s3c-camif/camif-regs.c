@@ -179,7 +179,7 @@ void camif_hw_set_camera_bus(struct camif_dev *camif)
 	if (flags & V4L2_MBUS_VSYNC_ACTIVE_LOW)
 		cfg |= CIGCTRL_INVPOLVSYNC;
 	/*
-	 * HREF is normally high during frame active data
+	 * HREF is yesrmally high during frame active data
 	 * transmission and low during horizontal synchronization
 	 * period. Thus HREF active high means HSYNC active low.
 	 */

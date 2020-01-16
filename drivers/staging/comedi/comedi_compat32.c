@@ -19,13 +19,13 @@
 #define COMEDI32_CHANINFO _IOR(CIO, 3, struct comedi32_chaninfo_struct)
 #define COMEDI32_RANGEINFO _IOR(CIO, 8, struct comedi32_rangeinfo_struct)
 /*
- * N.B. COMEDI32_CMD and COMEDI_CMD ought to use _IOWR, not _IOR.
- * It's too late to change it now, but it only affects the command number.
+ * N.B. COMEDI32_CMD and COMEDI_CMD ought to use _IOWR, yest _IOR.
+ * It's too late to change it yesw, but it only affects the command number.
  */
 #define COMEDI32_CMD _IOR(CIO, 9, struct comedi32_cmd_struct)
 /*
- * N.B. COMEDI32_CMDTEST and COMEDI_CMDTEST ought to use _IOWR, not _IOR.
- * It's too late to change it now, but it only affects the command number.
+ * N.B. COMEDI32_CMDTEST and COMEDI_CMDTEST ought to use _IOWR, yest _IOR.
+ * It's too late to change it yesw, but it only affects the command number.
  */
 #define COMEDI32_CMDTEST _IOR(CIO, 10, struct comedi32_cmd_struct)
 #define COMEDI32_INSNLIST _IOR(CIO, 11, struct comedi32_insnlist_struct)
@@ -101,7 +101,7 @@ static int compat_chaninfo(struct file *file, unsigned long arg)
 	chaninfo32 = compat_ptr(arg);
 	chaninfo = compat_alloc_user_space(sizeof(*chaninfo));
 
-	/* Copy chaninfo structure.  Ignore unused members. */
+	/* Copy chaninfo structure.  Igyesre unused members. */
 	if (!access_ok(chaninfo32, sizeof(*chaninfo32)) ||
 	    !access_ok(chaninfo, sizeof(*chaninfo)))
 		return -EFAULT;
@@ -315,7 +315,7 @@ static int get_compat_insn(struct comedi_insn __user *insn,
 		compat_uptr_t uptr;
 	} temp;
 
-	/* Copy insn structure.  Ignore the unused members. */
+	/* Copy insn structure.  Igyesre the unused members. */
 	err = 0;
 	if (!access_ok(insn32, sizeof(*insn32)) ||
 	    !access_ok(insn, sizeof(*insn)))

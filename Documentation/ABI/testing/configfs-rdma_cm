@@ -6,7 +6,7 @@ Description: 	Interface is used to configure RDMA-cable HCAs in respect to
 
 		Attributes are visible only when configfs is mounted. To mount
 		configfs in /config directory use:
-		# mount -t configfs none /config/
+		# mount -t configfs yesne /config/
 
 		In order to set parameters related to a specific HCA, a directory
 		for this HCA has to be created:

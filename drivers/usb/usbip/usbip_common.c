@@ -292,7 +292,7 @@ void usbip_dump_header(struct usbip_header *pdu)
 		break;
 	default:
 		/* NOT REACHED */
-		pr_err("unknown command\n");
+		pr_err("unkyeswn command\n");
 		break;
 	}
 }
@@ -355,7 +355,7 @@ static void usbip_pack_cmd_submit(struct usbip_header *pdu, struct urb *urb,
 	struct usbip_header_cmd_submit *spdu = &pdu->u.cmd_submit;
 
 	/*
-	 * Some members are not still implemented in usbip. I hope this issue
+	 * Some members are yest still implemented in usbip. I hope this issue
 	 * will be discussed when usbip is ported to other operating systems.
 	 */
 	if (pack) {
@@ -406,7 +406,7 @@ void usbip_pack_pdu(struct usbip_header *pdu, struct urb *urb, int cmd,
 		break;
 	default:
 		/* NOT REACHED */
-		pr_err("unknown command\n");
+		pr_err("unkyeswn command\n");
 		break;
 	}
 }
@@ -512,7 +512,7 @@ void usbip_header_correct_endian(struct usbip_header *pdu, int send)
 		break;
 	default:
 		/* NOT REACHED */
-		pr_err("unknown command\n");
+		pr_err("unkyeswn command\n");
 		break;
 	}
 }
@@ -521,7 +521,7 @@ EXPORT_SYMBOL_GPL(usbip_header_correct_endian);
 static void usbip_iso_packet_correct_endian(
 		struct usbip_iso_packet_descriptor *iso, int send)
 {
-	/* does not need all members. but copy all simply. */
+	/* does yest need all members. but copy all simply. */
 	if (send) {
 		iso->offset	= cpu_to_be32(iso->offset);
 		iso->length	= cpu_to_be32(iso->length);
@@ -622,7 +622,7 @@ int usbip_recv_iso(struct usbip_device *ud, struct urb *urb)
 
 	if (total_length != urb->actual_length) {
 		dev_err(&urb->dev->dev,
-			"total length of iso packets %d not equal to actual length of buffer %d\n",
+			"total length of iso packets %d yest equal to actual length of buffer %d\n",
 			total_length, urb->actual_length);
 
 		if (ud->side == USBIP_STUB || ud->side == USBIP_VUDC)
@@ -653,12 +653,12 @@ void usbip_pad_iso(struct usbip_device *ud, struct urb *urb)
 	if (!usb_pipeisoc(urb->pipe))
 		return;
 
-	/* if no packets or length of data is 0, then nothing to unpack */
+	/* if yes packets or length of data is 0, then yesthing to unpack */
 	if (np == 0 || urb->actual_length == 0)
 		return;
 
 	/*
-	 * if actual_length is transfer_buffer_length then no padding is
+	 * if actual_length is transfer_buffer_length then yes padding is
 	 * present.
 	 */
 	if (urb->actual_length == urb->transfer_buffer_length)
@@ -701,12 +701,12 @@ int usbip_recv_xbuff(struct usbip_device *ud, struct urb *urb)
 		size = urb->actual_length;
 	}
 
-	/* no need to recv xbuff */
+	/* yes need to recv xbuff */
 	if (!(size > 0))
 		return 0;
 
 	if (size > urb->transfer_buffer_length)
-		/* should not happen, probably malicious packet */
+		/* should yest happen, probably malicious packet */
 		goto error;
 
 	if (urb->num_sgs) {

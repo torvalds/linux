@@ -11,21 +11,21 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
+ *    yestice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the name of Volkswagen nor the names of its contributors
+ * 3. Neither the name of Volkswagen yesr the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
- * Alternatively, provided that this notice is retained in full, this
+ * Alternatively, provided that this yestice is retained in full, this
  * software may be distributed under the terms of the GNU General
  * Public License ("GPL") version 2, in which case the provisions of the
  * GPL apply INSTEAD OF those given above.
  *
  * The provided data structures and external interfaces from this code
- * are not restricted to be used by modules with a GPL compatible license.
+ * are yest restricted to be used by modules with a GPL compatible license.
  *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
  * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
@@ -51,7 +51,7 @@
 #include <linux/interrupt.h>
 #include <linux/ptrace.h>
 #include <linux/string.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/netdevice.h>
 #include <linux/if_arp.h>
 #include <linux/if_ether.h>
@@ -137,7 +137,7 @@ static void set_reset_mode(struct net_device *dev)
 	netdev_err(dev, "setting SJA1000 into reset mode failed!\n");
 }
 
-static void set_normal_mode(struct net_device *dev)
+static void set_yesrmal_mode(struct net_device *dev)
 {
 	struct sja1000_priv *priv = netdev_priv(dev);
 	unsigned char status = priv->read_reg(priv, SJA1000_MOD);
@@ -157,7 +157,7 @@ static void set_normal_mode(struct net_device *dev)
 			return;
 		}
 
-		/* set chip to normal mode */
+		/* set chip to yesrmal mode */
 		if (priv->can.ctrlmode & CAN_CTRLMODE_LISTENONLY)
 			mod_reg_val |= MOD_LOM;
 		if (priv->can.ctrlmode & CAN_CTRLMODE_PRESUME_ACK)
@@ -169,7 +169,7 @@ static void set_normal_mode(struct net_device *dev)
 		status = priv->read_reg(priv, SJA1000_MOD);
 	}
 
-	netdev_err(dev, "setting SJA1000 into normal mode failed!\n");
+	netdev_err(dev, "setting SJA1000 into yesrmal mode failed!\n");
 }
 
 /*
@@ -222,7 +222,7 @@ static void sja1000_start(struct net_device *dev)
 	priv->read_reg(priv, SJA1000_IR);
 
 	/* leave reset mode */
-	set_normal_mode(dev);
+	set_yesrmal_mode(dev);
 }
 
 static int sja1000_set_mode(struct net_device *dev, enum can_mode mode)
@@ -579,7 +579,7 @@ static int sja1000_open(struct net_device *dev)
 	if (err)
 		return err;
 
-	/* register interrupt handler, if not done by the device driver */
+	/* register interrupt handler, if yest done by the device driver */
 	if (!(priv->flags & SJA1000_CUSTOM_IRQ_HANDLER)) {
 		err = request_irq(dev->irq, sja1000_interrupt, priv->irq_flags,
 				  dev->name, (void *)dev);

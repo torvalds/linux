@@ -89,8 +89,8 @@ static unsigned int pti_control_channel;
  *  @len: Size of buffer.
  *
  *  Since each aperture is specified by a unique
- *  master/channel ID, no two processes will be writing
- *  to the same aperture at the same time so no lock is required. The
+ *  master/channel ID, yes two processes will be writing
+ *  to the same aperture at the same time so yes lock is required. The
  *  PTI-Output agent will send these out in the order that they arrived, and
  *  thus, it will intermix these messages. The debug tool can then later
  *  regroup the appropriate message segments together reconstituting each
@@ -146,7 +146,7 @@ static void pti_write_to_aperture(struct pti_masterchannel *mc,
  *                'NULL' if using the 'current' global variable.
  *
  *  To be able to post process the PTI contents on host side, a control frame
- *  is added before sending any PTI content. So the host side knows on
+ *  is added before sending any PTI content. So the host side kyesws on
  *  each PTI frame the name of the thread using a dedicated master / channel.
  *  The thread name is retrieved from 'current' global variable if 'thread_name'
  *  is 'NULL', else it is retrieved from 'thread_name' parameter.
@@ -366,11 +366,11 @@ EXPORT_SYMBOL_GPL(pti_release_masterchannel);
  *                  debugging data to PTI HW.
  *
  * @mc:    Master, channel aperture ID address to write to.
- *         Null value will return with no write occurring.
+ *         Null value will return with yes write occurring.
  * @buf:   Trace debuging data to write to the PTI HW.
- *         Null value will return with no write occurring.
+ *         Null value will return with yes write occurring.
  * @count: Size of buf. Value of 0 or a negative number will
- *         return with no write occuring.
+ *         return with yes write occuring.
  */
 void pti_writedata(struct pti_masterchannel *mc, u8 *buf, int count)
 {
@@ -405,7 +405,7 @@ EXPORT_SYMBOL_GPL(pti_writedata);
  * each tty port to have a unique PTI write aperture.  In an
  * example use case, ttyPTI0 gets syslogd and an APP aperture
  * ID and ttyPTI1 is where the n_tracesink ldisc hooks to route
- * modem messages into PTI.  Modem trace data does not have to
+ * modem messages into PTI.  Modem trace data does yest have to
  * go to ttyPTI1, but ttyPTI0 and ttyPTI1 do need to be distinct
  * master IDs.  These messages go through the PTI HW and out of
  * the handheld platform and to the Fido/Lauterbach device.
@@ -515,7 +515,7 @@ static int pti_tty_driver_write(struct tty_struct *tty,
 	}
 	/*
 	 * we can't write to the pti hardware if the private driver_data
-	 * and the mc address is not there.
+	 * and the mc address is yest there.
 	 */
 	else
 		return -EFAULT;
@@ -535,7 +535,7 @@ static int pti_tty_write_room(struct tty_struct *tty)
  * pti_char_open()- Open an Application master, channel aperture
  * ID to the PTI device. Part of the misc device implementation.
  *
- * @inode: not used.
+ * @iyesde: yest used.
  * @filp:  Output- will have a masterchannel struct set containing
  *                 the allocated application PTI aperture write address.
  *
@@ -543,7 +543,7 @@ static int pti_tty_write_room(struct tty_struct *tty)
  *	int, 0 for success
  *	otherwise, a fail value
  */
-static int pti_char_open(struct inode *inode, struct file *filp)
+static int pti_char_open(struct iyesde *iyesde, struct file *filp)
 {
 	struct pti_masterchannel *mc;
 
@@ -564,14 +564,14 @@ static int pti_char_open(struct inode *inode, struct file *filp)
  * pti_char_release()-  Close a char channel to the PTI device. Part
  * of the misc device implementation.
  *
- * @inode: Not used in this implementaiton.
+ * @iyesde: Not used in this implementaiton.
  * @filp:  Contains private_data that contains the master, channel
  *         ID to be released by the PTI device.
  *
  * Returns:
  *	always 0
  */
-static int pti_char_release(struct inode *inode, struct file *filp)
+static int pti_char_release(struct iyesde *iyesde, struct file *filp)
 {
 	pti_release_masterchannel(filp->private_data);
 	filp->private_data = NULL;
@@ -655,7 +655,7 @@ static const struct file_operations pti_char_driver_ops = {
 };
 
 static struct miscdevice pti_char_driver = {
-	.minor		= MISC_DYNAMIC_MINOR,
+	.miyesr		= MISC_DYNAMIC_MINOR,
 	.name		= CHARNAME,
 	.fops		= &pti_char_driver_ops
 };
@@ -713,7 +713,7 @@ static int pti_console_setup(struct console *c, char *opts)
 
 /*
  * pti_console struct, used to capture OS printk()'s and shift
- * out to the PTI device for debugging.  This cannot be
+ * out to the PTI device for debugging.  This canyest be
  * enabled upon boot because of the possibility of eating
  * any serial console printk's (race condition discovered).
  * The console should be enabled upon when the tty port is
@@ -834,7 +834,7 @@ static int pti_pci_probe(struct pci_dev *pdev,
 	}
 	drv_data->aperture_base = drv_data->pti_addr+APERTURE_14;
 	drv_data->pti_ioaddr =
-		ioremap_nocache((u32)drv_data->aperture_base,
+		ioremap_yescache((u32)drv_data->aperture_base,
 		APERTURE_LEN);
 	if (!drv_data->pti_ioaddr) {
 		retval = -ENOMEM;
@@ -924,7 +924,7 @@ static int __init pti_init(void)
 	pti_tty_driver->driver_name		= DRIVERNAME;
 	pti_tty_driver->name			= TTYNAME;
 	pti_tty_driver->major			= 0;
-	pti_tty_driver->minor_start		= PTITTY_MINOR_START;
+	pti_tty_driver->miyesr_start		= PTITTY_MINOR_START;
 	pti_tty_driver->type			= TTY_DRIVER_TYPE_SYSTEM;
 	pti_tty_driver->subtype			= SYSTEM_TYPE_SYSCONS;
 	pti_tty_driver->flags			= TTY_DRIVER_REAL_RAW |

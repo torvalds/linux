@@ -11,7 +11,7 @@
  *
  * Rewrite of larges part of the code in order to stabilize TCP stuff.
  * Fix behaviour when socket buffer is full.
- *  (C) 1999 Trond Myklebust <trond.myklebust@fys.uio.no>
+ *  (C) 1999 Trond Myklebust <trond.myklebust@fys.uio.yes>
  *
  * IP socket transport implementation, (C) 2005 Chuck Lever <cel@netapp.com>
  *
@@ -25,7 +25,7 @@
 #include <linux/module.h>
 #include <linux/capability.h>
 #include <linux/pagemap.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/socket.h>
 #include <linux/in.h>
 #include <linux/net.h>
@@ -177,14 +177,14 @@ static struct ctl_table sunrpc_table[] = {
  * We implement an exponential backoff when trying to reestablish a TCP
  * transport connection with the server.  Some servers like to drop a TCP
  * connection when they are overworked, so we start with a short timeout and
- * increase over time if the server is down or not responding.
+ * increase over time if the server is down or yest responding.
  */
 #define XS_TCP_INIT_REEST_TO	(3U * HZ)
 
 /*
  * TCP idle timeout; client drops the transport socket if it is idle
  * for this long.  Note that we also timeout UDP sockets to prevent
- * holding port numbers when there is no RPC traffic.
+ * holding port numbers when there is yes RPC traffic.
  */
 #define XS_IDLE_DISC_TO		(5U * 60 * HZ)
 
@@ -725,10 +725,10 @@ static void xs_stream_data_receive_workfn(struct work_struct *work)
 {
 	struct sock_xprt *transport =
 		container_of(work, struct sock_xprt, recv_worker);
-	unsigned int pflags = memalloc_nofs_save();
+	unsigned int pflags = memalloc_yesfs_save();
 
 	xs_stream_data_receive(transport);
-	memalloc_nofs_restore(pflags);
+	memalloc_yesfs_restore(pflags);
 }
 
 static void
@@ -869,11 +869,11 @@ out:
 }
 
 /**
- * xs_nospace - handle transmit was incomplete
+ * xs_yesspace - handle transmit was incomplete
  * @req: pointer to RPC request
  *
  */
-static int xs_nospace(struct rpc_rqst *req)
+static int xs_yesspace(struct rpc_rqst *req)
 {
 	struct rpc_xprt *xprt = req->rq_xprt;
 	struct sock_xprt *transport = container_of(xprt, struct sock_xprt, xprt);
@@ -949,7 +949,7 @@ xs_stream_record_marker(struct xdr_buf *xdr)
  *   EAGAIN:	The socket was blocked, please call again later to
  *		complete the request
  * ENOTCONN:	Caller needs to invoke connect logic then call again
- *    other:	Some other error occured, the request was not sent
+ *    other:	Some other error occured, the request was yest sent
  */
 static int xs_local_send_request(struct rpc_rqst *req)
 {
@@ -995,7 +995,7 @@ static int xs_local_send_request(struct rpc_rqst *req)
 	case -ENOBUFS:
 		break;
 	case -EAGAIN:
-		status = xs_nospace(req);
+		status = xs_yesspace(req);
 		break;
 	default:
 		dprintk("RPC:       sendmsg returned unrecognized error %d\n",
@@ -1018,7 +1018,7 @@ static int xs_local_send_request(struct rpc_rqst *req)
  *   EAGAIN:	The socket was blocked, please call again later to
  *		complete the request
  * ENOTCONN:	Caller needs to invoke connect logic then call again
- *    other:	Some other error occurred, the request was not sent
+ *    other:	Some other error occurred, the request was yest sent
  */
 static int xs_udp_send_request(struct rpc_rqst *req)
 {
@@ -1067,7 +1067,7 @@ process_status:
 		/* Should we call xs_close() here? */
 		break;
 	case -EAGAIN:
-		status = xs_nospace(req);
+		status = xs_yesspace(req);
 		break;
 	case -ENETUNREACH:
 	case -ENOBUFS:
@@ -1094,10 +1094,10 @@ process_status:
  *   EAGAIN:	The socket was blocked, please call again later to
  *		complete the request
  * ENOTCONN:	Caller needs to invoke connect logic then call again
- *    other:	Some other error occurred, the request was not sent
+ *    other:	Some other error occurred, the request was yest sent
  *
  * XXX: In the case of soft timeouts, should we eventually give up
- *	if sendmsg is not able to make progress?
+ *	if sendmsg is yest able to make progress?
  */
 static int xs_tcp_send_request(struct rpc_rqst *req)
 {
@@ -1162,7 +1162,7 @@ static int xs_tcp_send_request(struct rpc_rqst *req)
 				status = -ENOBUFS;
 				if (vm_wait)
 					break;
-				/* Retry, knowing now that we're below the
+				/* Retry, kyeswing yesw that we're below the
 				 * socket send buffer limit
 				 */
 				vm_wait = true;
@@ -1180,7 +1180,7 @@ static int xs_tcp_send_request(struct rpc_rqst *req)
 		/* Should we call xs_close() here? */
 		break;
 	case -EAGAIN:
-		status = xs_nospace(req);
+		status = xs_yesspace(req);
 		break;
 	case -ECONNRESET:
 	case -ECONNREFUSED:
@@ -1310,7 +1310,7 @@ static void xs_reset_transport(struct sock_xprt *transport)
  * xs_close - close a socket
  * @xprt: transport
  *
- * This is used when all requests are complete; ie, no DRC state remains
+ * This is used when all requests are complete; ie, yes DRC state remains
  * on the server we want to save.
  *
  * The caller _must_ be holding XPRT_LOCKED in order to avoid issues with
@@ -1399,7 +1399,7 @@ static void xs_udp_data_read_skb(struct rpc_xprt *xprt,
 	if ((copied = rovr->rq_private_buf.buflen) > repsize)
 		copied = repsize;
 
-	/* Suck it into the iovec, verify checksum if not done by hw. */
+	/* Suck it into the iovec, verify checksum if yest done by hw. */
 	if (csum_partial_copy_to_xdr(&rovr->rq_private_buf, skb)) {
 		spin_lock(&xprt->queue_lock);
 		__UDPX_INC_STATS(sk, UDP_MIB_INERRORS);
@@ -1446,10 +1446,10 @@ static void xs_udp_data_receive_workfn(struct work_struct *work)
 {
 	struct sock_xprt *transport =
 		container_of(work, struct sock_xprt, recv_worker);
-	unsigned int pflags = memalloc_nofs_save();
+	unsigned int pflags = memalloc_yesfs_save();
 
 	xs_udp_data_receive(transport);
-	memalloc_nofs_restore(pflags);
+	memalloc_yesfs_restore(pflags);
 }
 
 /**
@@ -1602,7 +1602,7 @@ out:
  * @sk: socket whose state has changed
  *
  * Called when more output buffer space is available for this socket.
- * We try not to wake our writers until they can make "significant"
+ * We try yest to wake our writers until they can make "significant"
  * progress, otherwise we'll waste resources thrashing kernel_sendmsg
  * with a bunch of small requests.
  */
@@ -1623,7 +1623,7 @@ static void xs_udp_write_space(struct sock *sk)
  * @sk: socket whose state has changed
  *
  * Called when more output buffer space is available for this socket.
- * We try not to wake our writers until they can make "significant"
+ * We try yest to wake our writers until they can make "significant"
  * progress, otherwise we'll waste resources thrashing kernel_sendmsg
  * with a bunch of small requests.
  */
@@ -1790,12 +1790,12 @@ static int xs_bind(struct sock_xprt *transport, struct socket *sock)
 	 *
 	 * This ensures that we can continue to establish TCP
 	 * connections even when all local ephemeral ports are already
-	 * a part of some TCP connection.  This makes no difference
+	 * a part of some TCP connection.  This makes yes difference
 	 * for UDP sockets, but also doens't harm them.
 	 *
 	 * If we're asking for any reserved port (i.e. port == 0 &&
 	 * transport->xprt.resvport == 1) xs_get_srcport above will
-	 * ensure that port is non-zero and we will bind as needed.
+	 * ensure that port is yesn-zero and we will bind as needed.
 	 */
 	if (port <= 0)
 		return port;
@@ -2004,7 +2004,7 @@ static int xs_local_setup_socket(struct sock_xprt *transport)
 	case -ENOBUFS:
 		break;
 	case -ENOENT:
-		dprintk("RPC:       xprt %p: socket %s does not exist\n",
+		dprintk("RPC:       xprt %p: socket %s does yest exist\n",
 				xprt, xprt->address_strings[RPC_DISPLAY_ADDR]);
 		break;
 	case -ECONNREFUSED:
@@ -2032,9 +2032,9 @@ static void xs_local_connect(struct rpc_xprt *xprt, struct rpc_task *task)
 		/*
 		 * We want the AF_LOCAL connect to be resolved in the
 		 * filesystem namespace of the process making the rpc
-		 * call.  Thus we connect synchronously.
+		 * call.  Thus we connect synchroyesusly.
 		 *
-		 * If we want to support asynchronous AF_LOCAL calls,
+		 * If we want to support asynchroyesus AF_LOCAL calls,
 		 * we'll need to figure out how to pass a namespace to
 		 * connect.
 		 */
@@ -2050,7 +2050,7 @@ static void xs_local_connect(struct rpc_xprt *xprt, struct rpc_task *task)
 #if IS_ENABLED(CONFIG_SUNRPC_SWAP)
 /*
  * Note that this should be called with XPRT_LOCKED held (or when we otherwise
- * know that we have exclusive access to the socket), to guard against
+ * kyesw that we have exclusive access to the socket), to guard against
  * races with xs_reset_transport.
  */
 static void xs_set_memalloc(struct rpc_xprt *xprt)
@@ -2059,7 +2059,7 @@ static void xs_set_memalloc(struct rpc_xprt *xprt)
 			xprt);
 
 	/*
-	 * If there's no sock, then we have nothing to set. The
+	 * If there's yes sock, then we have yesthing to set. The
 	 * reconnecting process will get it for us.
 	 */
 	if (!transport->inet)
@@ -2286,7 +2286,7 @@ static int xs_tcp_finish_connecting(struct rpc_xprt *xprt, struct socket *sock)
 		 * connections such as NFS mounts.
 		 * RFC4941, section 3.6 suggests that:
 		 *    Individual applications, which have specific
-		 *    knowledge about the normal duration of connections,
+		 *    kyeswledge about the yesrmal duration of connections,
 		 *    MAY override this as appropriate.
 		 */
 		kernel_setsockopt(sock, SOL_IPV6, IPV6_ADDR_PREFERENCES,
@@ -2307,7 +2307,7 @@ static int xs_tcp_finish_connecting(struct rpc_xprt *xprt, struct socket *sock)
 
 		/* socket options */
 		sock_reset_flag(sk, SOCK_LINGER);
-		tcp_sk(sk)->nonagle |= TCP_NAGLE_OFF;
+		tcp_sk(sk)->yesnagle |= TCP_NAGLE_OFF;
 
 		xprt_clear_connected(xprt);
 
@@ -2430,7 +2430,7 @@ out:
  *
  * TCP: If the remote end dropped the connection, delay reconnecting.
  *
- * UDP socket connects are synchronous, but we use a work queue anyway
+ * UDP socket connects are synchroyesus, but we use a work queue anyway
  * to guarantee that even unprivileged user processes can set up a
  * socket on a privileged port.
  *
@@ -2709,7 +2709,7 @@ static int bc_send_request(struct rpc_rqst *req)
 }
 
 /*
- * The close routine. Since this is client initiated, we do nothing
+ * The close routine. Since this is client initiated, we do yesthing
  */
 
 static void bc_close(struct rpc_xprt *xprt)
@@ -2718,7 +2718,7 @@ static void bc_close(struct rpc_xprt *xprt)
 
 /*
  * The xprt destroy routine. Again, because this connection is client
- * initiated, we do nothing
+ * initiated, we do yesthing
  */
 
 static void bc_destroy(struct rpc_xprt *xprt)

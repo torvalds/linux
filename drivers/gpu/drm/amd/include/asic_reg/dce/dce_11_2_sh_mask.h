@@ -10,7 +10,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included
+ * The above copyright yestice and this permission yestice shall be included
  * in all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
@@ -18105,14 +18105,14 @@
 #define TX_DISP_RFU12_LANE2__rfu_value12__SHIFT 0x0
 #define TX_DISP_RFU12_LANE3__rfu_value12_MASK 0xffffffff
 #define TX_DISP_RFU12_LANE3__rfu_value12__SHIFT 0x0
-#define COMMON_MAR_DEEMPH_NOM__tx_margin_nom_MASK 0xff
-#define COMMON_MAR_DEEMPH_NOM__tx_margin_nom__SHIFT 0x0
-#define COMMON_MAR_DEEMPH_NOM__deemph_gen1_nom_MASK 0xff00
-#define COMMON_MAR_DEEMPH_NOM__deemph_gen1_nom__SHIFT 0x8
-#define COMMON_MAR_DEEMPH_NOM__deemph35_gen2_nom_MASK 0xff0000
-#define COMMON_MAR_DEEMPH_NOM__deemph35_gen2_nom__SHIFT 0x10
-#define COMMON_MAR_DEEMPH_NOM__deemph60_gen2_nom_MASK 0xff000000
-#define COMMON_MAR_DEEMPH_NOM__deemph60_gen2_nom__SHIFT 0x18
+#define COMMON_MAR_DEEMPH_NOM__tx_margin_yesm_MASK 0xff
+#define COMMON_MAR_DEEMPH_NOM__tx_margin_yesm__SHIFT 0x0
+#define COMMON_MAR_DEEMPH_NOM__deemph_gen1_yesm_MASK 0xff00
+#define COMMON_MAR_DEEMPH_NOM__deemph_gen1_yesm__SHIFT 0x8
+#define COMMON_MAR_DEEMPH_NOM__deemph35_gen2_yesm_MASK 0xff0000
+#define COMMON_MAR_DEEMPH_NOM__deemph35_gen2_yesm__SHIFT 0x10
+#define COMMON_MAR_DEEMPH_NOM__deemph60_gen2_yesm_MASK 0xff000000
+#define COMMON_MAR_DEEMPH_NOM__deemph60_gen2_yesm__SHIFT 0x18
 #define COMMON_LANE_PWRMGMT__pgdelay_MASK 0xf
 #define COMMON_LANE_PWRMGMT__pgdelay__SHIFT 0x0
 #define COMMON_LANE_PWRMGMT__pgmask_MASK 0x3f0
@@ -18179,8 +18179,8 @@
 #define FREQ_CTRL1__fcw1_frac__SHIFT 0x0
 #define FREQ_CTRL1__fcw1_int_MASK 0x1ff0000
 #define FREQ_CTRL1__fcw1_int__SHIFT 0x10
-#define FREQ_CTRL2__fcw_denom_MASK 0xffff
-#define FREQ_CTRL2__fcw_denom__SHIFT 0x0
+#define FREQ_CTRL2__fcw_deyesm_MASK 0xffff
+#define FREQ_CTRL2__fcw_deyesm__SHIFT 0x0
 #define FREQ_CTRL2__fcw_slew_frac_MASK 0xffff0000
 #define FREQ_CTRL2__fcw_slew_frac__SHIFT 0x10
 #define FREQ_CTRL3__refclk_div_MASK 0x3
@@ -18367,8 +18367,8 @@
 #define PPLL_FREQ_CTRL1__reg_tmg_fcw1_frac__SHIFT 0x0
 #define PPLL_FREQ_CTRL1__reg_tmg_fcw1_int_MASK 0x1ff0000
 #define PPLL_FREQ_CTRL1__reg_tmg_fcw1_int__SHIFT 0x10
-#define PPLL_FREQ_CTRL2__reg_tmg_fcw_denom_MASK 0xffff
-#define PPLL_FREQ_CTRL2__reg_tmg_fcw_denom__SHIFT 0x0
+#define PPLL_FREQ_CTRL2__reg_tmg_fcw_deyesm_MASK 0xffff
+#define PPLL_FREQ_CTRL2__reg_tmg_fcw_deyesm__SHIFT 0x0
 #define PPLL_FREQ_CTRL2__reg_tmg_fcw_slew_frac_MASK 0xffff0000
 #define PPLL_FREQ_CTRL2__reg_tmg_fcw_slew_frac__SHIFT 0x10
 #define PPLL_FREQ_CTRL3__reg_tmg_refclk_div_MASK 0x3

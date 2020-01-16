@@ -8,9 +8,9 @@
  * asm-ARCH/syscall.h files need to define.  Most arch definitions
  * will be simple inlines.
  *
- * All of these functions expect to be called with no locks,
+ * All of these functions expect to be called with yes locks,
  * and only when the caller is sure that the task of interest
- * cannot return to user mode while we are looking at it.
+ * canyest return to user mode while we are looking at it.
  */
 
 #ifndef _ASM_SYSCALL_H
@@ -26,14 +26,14 @@ struct pt_regs;
  *
  * If @task is executing a system call or is at system call
  * tracing about to attempt one, returns the system call number.
- * If @task is not executing a system call, i.e. it's blocked
+ * If @task is yest executing a system call, i.e. it's blocked
  * inside the kernel for a fault or signal, returns -1.
  *
  * Note this returns int even on 64-bit machines.  Only 32 bits of
  * system call number can be meaningful.  If the actual arch value
  * is 64 bits, this truncates to 32 bits so 0xffffffff means -1.
  *
- * It's only valid to call this when @task is known to be blocked.
+ * It's only valid to call this when @task is kyeswn to be blocked.
  */
 int syscall_get_nr(struct task_struct *task, struct pt_regs *regs);
 
@@ -44,13 +44,13 @@ int syscall_get_nr(struct task_struct *task, struct pt_regs *regs);
  *
  * It's only valid to call this when @task is stopped for system
  * call exit tracing (due to TIF_SYSCALL_TRACE or TIF_SYSCALL_AUDIT),
- * after tracehook_report_syscall_entry() returned nonzero to prevent
+ * after tracehook_report_syscall_entry() returned yesnzero to prevent
  * the system call from taking place.
  *
  * This rolls back the register state in @regs so it's as if the
- * system call instruction was a no-op.  The registers containing
+ * system call instruction was a yes-op.  The registers containing
  * the system call number and arguments are as they were before the
- * system call instruction.  This may not be the same as what the
+ * system call instruction.  This may yest be the same as what the
  * register state looked like at system call entry tracing.
  */
 void syscall_rollback(struct task_struct *task, struct pt_regs *regs);
@@ -73,7 +73,7 @@ long syscall_get_error(struct task_struct *task, struct pt_regs *regs);
  * @regs:	task_pt_regs() of @task
  *
  * Returns the return value of the successful system call.
- * This value is meaningless if syscall_get_error() returned nonzero.
+ * This value is meaningless if syscall_get_error() returned yesnzero.
  *
  * It's only valid to call this when @task is stopped for tracing on exit
  * from a system call, due to %TIF_SYSCALL_TRACE or %TIF_SYSCALL_AUDIT.
@@ -89,8 +89,8 @@ long syscall_get_return_value(struct task_struct *task, struct pt_regs *regs);
  *
  * This changes the results of the system call that user mode will see.
  * If @error is zero, the user sees a successful system call with a
- * return value of @val.  If @error is nonzero, it's a negated errno
- * code; the user sees a failed system call with this errno code.
+ * return value of @val.  If @error is yesnzero, it's a negated erryes
+ * code; the user sees a failed system call with this erryes code.
  *
  * It's only valid to call this when @task is stopped for tracing on exit
  * from a system call, due to %TIF_SYSCALL_TRACE or %TIF_SYSCALL_AUDIT.

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright(c) 2015 EZchip Technologies.
+ * Copyright(c) 2015 EZchip Techyeslogies.
  */
 
 #include <linux/smp.h>
@@ -79,7 +79,7 @@ static void eznps_init_core(unsigned int cpu)
 }
 
 /*
- * Master kick starting another CPU
+ * Master kick starting ayesther CPU
  */
 static void __init eznps_smp_wakeup_cpu(int cpu, unsigned long pc)
 {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2016, Mellayesx Techyeslogies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -532,7 +532,7 @@ void mlx5e_rep_queue_neigh_stats_work(struct mlx5e_priv *priv)
 
 static bool mlx5e_rep_neigh_entry_hold(struct mlx5e_neigh_hash_entry *nhe)
 {
-	return refcount_inc_not_zero(&nhe->refcnt);
+	return refcount_inc_yest_zero(&nhe->refcnt);
 }
 
 static void mlx5e_rep_neigh_entry_remove(struct mlx5e_neigh_hash_entry *nhe);
@@ -651,7 +651,7 @@ static void mlx5e_rep_neigh_update(struct work_struct *work)
 	rtnl_lock();
 
 	/* If these parameters are changed after we release the lock,
-	 * we'll receive another event letting us know about it.
+	 * we'll receive ayesther event letting us kyesw about it.
 	 * We use this lock to avoid inconsistency between the neigh validity
 	 * and it's hw address.
 	 */
@@ -841,7 +841,7 @@ static int mlx5e_rep_indr_register_block(struct mlx5e_rep_priv *rpriv,
 	if (err) {
 		struct mlx5e_priv *priv = netdev_priv(rpriv->netdev);
 
-		mlx5_core_err(priv->mdev, "Failed to register remote block notifier for %s err=%d\n",
+		mlx5_core_err(priv->mdev, "Failed to register remote block yestifier for %s err=%d\n",
 			      netdev_name(netdev), err);
 	}
 	return err;
@@ -854,13 +854,13 @@ static void mlx5e_rep_indr_unregister_block(struct mlx5e_rep_priv *rpriv,
 					rpriv);
 }
 
-static int mlx5e_nic_rep_netdevice_event(struct notifier_block *nb,
+static int mlx5e_nic_rep_netdevice_event(struct yestifier_block *nb,
 					 unsigned long event, void *ptr)
 {
 	struct mlx5e_rep_priv *rpriv = container_of(nb, struct mlx5e_rep_priv,
 						     uplink_priv.netdevice_nb);
 	struct mlx5e_priv *priv = netdev_priv(rpriv->netdev);
-	struct net_device *netdev = netdev_notifier_info_to_dev(ptr);
+	struct net_device *netdev = netdev_yestifier_info_to_dev(ptr);
 
 	if (!mlx5e_tc_tun_device_to_offload(priv, netdev) &&
 	    !(is_vlan_dev(netdev) && vlan_dev_real_dev(netdev) == rpriv->netdev))
@@ -903,7 +903,7 @@ static struct mlx5e_neigh_hash_entry *
 mlx5e_rep_neigh_entry_lookup(struct mlx5e_priv *priv,
 			     struct mlx5e_neigh *m_neigh);
 
-static int mlx5e_rep_netevent_event(struct notifier_block *nb,
+static int mlx5e_rep_netevent_event(struct yestifier_block *nb,
 				    unsigned long event, void *ptr)
 {
 	struct mlx5e_rep_priv *rpriv = container_of(nb, struct mlx5e_rep_priv,
@@ -977,7 +977,7 @@ static int mlx5e_rep_netevent_event(struct notifier_block *nb,
 }
 
 static const struct rhashtable_params mlx5e_neigh_ht_params = {
-	.head_offset = offsetof(struct mlx5e_neigh_hash_entry, rhash_node),
+	.head_offset = offsetof(struct mlx5e_neigh_hash_entry, rhash_yesde),
 	.key_offset = offsetof(struct mlx5e_neigh_hash_entry, m_neigh),
 	.key_len = sizeof(struct mlx5e_neigh),
 	.automatic_shrinking = true,
@@ -998,8 +998,8 @@ static int mlx5e_rep_neigh_init(struct mlx5e_rep_priv *rpriv)
 			  mlx5e_rep_neigh_stats_work);
 	mlx5e_rep_neigh_update_init_interval(rpriv);
 
-	rpriv->neigh_update.netevent_nb.notifier_call = mlx5e_rep_netevent_event;
-	err = register_netevent_notifier(&rpriv->neigh_update.netevent_nb);
+	rpriv->neigh_update.netevent_nb.yestifier_call = mlx5e_rep_netevent_event;
+	err = register_netevent_yestifier(&rpriv->neigh_update.netevent_nb);
 	if (err)
 		goto out_err;
 	return 0;
@@ -1014,7 +1014,7 @@ static void mlx5e_rep_neigh_cleanup(struct mlx5e_rep_priv *rpriv)
 	struct mlx5e_neigh_update_table *neigh_update = &rpriv->neigh_update;
 	struct mlx5e_priv *priv = netdev_priv(rpriv->netdev);
 
-	unregister_netevent_notifier(&neigh_update->netevent_nb);
+	unregister_netevent_yestifier(&neigh_update->netevent_nb);
 
 	flush_workqueue(priv->wq); /* flush neigh update works */
 
@@ -1031,7 +1031,7 @@ static int mlx5e_rep_neigh_entry_insert(struct mlx5e_priv *priv,
 	int err;
 
 	err = rhashtable_insert_fast(&rpriv->neigh_update.neigh_ht,
-				     &nhe->rhash_node,
+				     &nhe->rhash_yesde,
 				     mlx5e_neigh_ht_params);
 	if (err)
 		return err;
@@ -1050,7 +1050,7 @@ static void mlx5e_rep_neigh_entry_remove(struct mlx5e_neigh_hash_entry *nhe)
 	list_del_rcu(&nhe->neigh_list);
 
 	rhashtable_remove_fast(&rpriv->neigh_update.neigh_ht,
-			       &nhe->rhash_node,
+			       &nhe->rhash_yesde,
 			       mlx5e_neigh_ht_params);
 	mutex_unlock(&rpriv->neigh_update.encap_lock);
 }
@@ -1311,7 +1311,7 @@ bool mlx5e_is_uplink_rep(struct mlx5e_priv *priv)
 	if (!MLX5_ESWITCH_MANAGER(priv->mdev))
 		return false;
 
-	if (!rpriv) /* non vport rep mlx5e instances don't use this field */
+	if (!rpriv) /* yesn vport rep mlx5e instances don't use this field */
 		return false;
 
 	rep = rpriv->rep;
@@ -1560,7 +1560,7 @@ static int mlx5e_create_rep_ttc_table(struct mlx5e_priv *priv)
 	priv->fs.ns = mlx5_get_flow_namespace(priv->mdev,
 					      MLX5_FLOW_NAMESPACE_KERNEL);
 
-	/* The inner_ttc in the ttc params is intentionally not set */
+	/* The inner_ttc in the ttc params is intentionally yest set */
 	ttc_params.any_tt_tirn = priv->direct_tir[0].tirn;
 	mlx5e_set_ttc_ft_params(&ttc_params);
 	for (tt = 0; tt < MLX5E_NUM_INDIR_TIRS; tt++)
@@ -1685,12 +1685,12 @@ static int mlx5e_init_rep_tx(struct mlx5e_priv *priv)
 
 		mlx5_init_port_tun_entropy(&uplink_priv->tun_entropy, priv->mdev);
 
-		/* init indirect block notifications */
+		/* init indirect block yestifications */
 		INIT_LIST_HEAD(&uplink_priv->tc_indr_block_priv_list);
-		uplink_priv->netdevice_nb.notifier_call = mlx5e_nic_rep_netdevice_event;
-		err = register_netdevice_notifier(&uplink_priv->netdevice_nb);
+		uplink_priv->netdevice_nb.yestifier_call = mlx5e_nic_rep_netdevice_event;
+		err = register_netdevice_yestifier(&uplink_priv->netdevice_nb);
 		if (err) {
-			mlx5_core_err(priv->mdev, "Failed to register netdev notifier\n");
+			mlx5_core_err(priv->mdev, "Failed to register netdev yestifier\n");
 			goto tc_esw_cleanup;
 		}
 	}
@@ -1711,8 +1711,8 @@ static void mlx5e_cleanup_rep_tx(struct mlx5e_priv *priv)
 	mlx5e_destroy_tises(priv);
 
 	if (rpriv->rep->vport == MLX5_VPORT_UPLINK) {
-		/* clean indirect TC block notifications */
-		unregister_netdevice_notifier(&rpriv->uplink_priv.netdevice_nb);
+		/* clean indirect TC block yestifications */
+		unregister_netdevice_yestifier(&rpriv->uplink_priv.netdevice_nb);
 		mlx5e_rep_indr_clean_block_privs(rpriv);
 
 		/* delete shared tc flow table */
@@ -1731,7 +1731,7 @@ static int mlx5e_update_rep_rx(struct mlx5e_priv *priv)
 	return 0;
 }
 
-static int uplink_rep_async_event(struct notifier_block *nb, unsigned long event, void *data)
+static int uplink_rep_async_event(struct yestifier_block *nb, unsigned long event, void *data)
 {
 	struct mlx5e_priv *priv = container_of(nb, struct mlx5e_priv, events_nb);
 
@@ -1777,8 +1777,8 @@ static void mlx5e_uplink_rep_enable(struct mlx5e_priv *priv)
 		  mlx5e_tc_reoffload_flows_work);
 
 	mlx5_lag_add(mdev, netdev);
-	priv->events_nb.notifier_call = uplink_rep_async_event;
-	mlx5_notifier_register(mdev, &priv->events_nb);
+	priv->events_nb.yestifier_call = uplink_rep_async_event;
+	mlx5_yestifier_register(mdev, &priv->events_nb);
 #ifdef CONFIG_MLX5_CORE_EN_DCB
 	mlx5e_dcbnl_initialize(priv);
 	mlx5e_dcbnl_init_app(priv);
@@ -1793,7 +1793,7 @@ static void mlx5e_uplink_rep_disable(struct mlx5e_priv *priv)
 #ifdef CONFIG_MLX5_CORE_EN_DCB
 	mlx5e_dcbnl_delete_app(priv);
 #endif
-	mlx5_notifier_unregister(mdev, &priv->events_nb);
+	mlx5_yestifier_unregister(mdev, &priv->events_nb);
 	cancel_work_sync(&rpriv->uplink_priv.reoffload_flows_work);
 	mlx5_lag_remove(mdev);
 }

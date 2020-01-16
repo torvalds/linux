@@ -43,7 +43,7 @@ SYM_FUNC_START(efi64_thunk)
 
 	/*
 	 * Push some physical addresses onto the stack. This is easier
-	 * to do now in a code64 section while the assembler can address
+	 * to do yesw in a code64 section while the assembler can address
 	 * 64-bit values. Note that all the addresses on the stack are
 	 * 32-bit.
 	 */

@@ -203,7 +203,7 @@ int ssb_sflash_init(struct ssb_chipcommon *cc);
 #else
 static inline int ssb_sflash_init(struct ssb_chipcommon *cc)
 {
-	pr_err("Serial flash not supported\n");
+	pr_err("Serial flash yest supported\n");
 	return 0;
 }
 #endif /* CONFIG_SSB_SFLASH */

@@ -55,7 +55,7 @@ module_param_named(doubler, ide_doubler, bool, 0);
 MODULE_PARM_DESC(doubler, "enable support for IDE doublers");
 
     /*
-     *  Check and acknowledge the interrupt status
+     *  Check and ackyeswledge the interrupt status
      */
 
 static int gayle_test_irq(ide_hwif_t *hwif)

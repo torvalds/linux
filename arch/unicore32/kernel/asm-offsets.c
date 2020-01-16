@@ -28,7 +28,7 @@
  */
 #if (__GNUC__ < 4)
 #error Your compiler should upgrade to uc4
-#error	Known good compilers: 4.2.2
+#error	Kyeswn good compilers: 4.2.2
 #endif
 
 int main(void)

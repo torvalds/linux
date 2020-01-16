@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2007 Cisco Systems, Inc. All rights reserved.
- * Copyright (c) 2007, 2008 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2007, 2008 Mellayesx Techyeslogies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -13,11 +13,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -713,7 +713,7 @@ repoll:
 	if (!*cur_qp ||
 	    (be32_to_cpu(cqe->vlan_my_qpn) & MLX4_CQE_QPN_MASK) != (*cur_qp)->mqp.qpn) {
 		/*
-		 * We do not have to take the QP table lock here,
+		 * We do yest have to take the QP table lock here,
 		 * because CQs will be locked while QPs are removed
 		 * from the table.
 		 */
@@ -905,7 +905,7 @@ out:
 	return npolled;
 }
 
-int mlx4_ib_arm_cq(struct ib_cq *ibcq, enum ib_cq_notify_flags flags)
+int mlx4_ib_arm_cq(struct ib_cq *ibcq, enum ib_cq_yestify_flags flags)
 {
 	mlx4_cq_arm(&to_mcq(ibcq)->mcq,
 		    (flags & IB_CQ_SOLICITED_MASK) == IB_CQ_SOLICITED ?
@@ -926,7 +926,7 @@ void __mlx4_ib_cq_clean(struct mlx4_ib_cq *cq, u32 qpn, struct mlx4_ib_srq *srq)
 
 	/*
 	 * First we need to find the current producer index, so we
-	 * know where to start cleaning from.  It doesn't matter if HW
+	 * kyesw where to start cleaning from.  It doesn't matter if HW
 	 * adds new entries after this loop -- the QP we're worried
 	 * about is already in RESET, so the new entries won't come
 	 * from our QP and therefore don't need to be checked.

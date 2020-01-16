@@ -22,8 +22,8 @@ extern const char *field_order;
 extern const char default_parent_pattern[];
 extern const char *parent_pattern;
 extern const char *default_sort_order;
-extern regex_t ignore_callees_regex;
-extern int have_ignore_callees;
+extern regex_t igyesre_callees_regex;
+extern int have_igyesre_callees;
 extern enum sort_mode sort__mode;
 extern struct sort_entry sort_comm;
 extern struct sort_entry sort_dso;
@@ -55,7 +55,7 @@ struct he_stat {
 
 struct namespace_id {
 	u64			dev;
-	u64			ino;
+	u64			iyes;
 };
 
 struct hist_entry_diff {
@@ -89,10 +89,10 @@ struct hist_entry_ops {
  * @nr_rows - rows expanded in callchain, recalculated on folding/unfolding
  */
 struct hist_entry {
-	struct rb_node		rb_node_in;
-	struct rb_node		rb_node;
+	struct rb_yesde		rb_yesde_in;
+	struct rb_yesde		rb_yesde;
 	union {
-		struct list_head node;
+		struct list_head yesde;
 		struct list_head head;
 	} pairs;
 	struct he_stat		stat;
@@ -129,7 +129,7 @@ struct hist_entry {
 			bool	init_have_children;
 			bool	unfolded;
 			bool	has_children;
-			bool	has_no_entry;
+			bool	has_yes_entry;
 		};
 	};
 	char			*srcline;
@@ -153,7 +153,7 @@ struct hist_entry {
 		struct {
 			struct rb_root_cached	hroot_in;
 			struct rb_root_cached   hroot_out;
-		};				/* non-leaf entries */
+		};				/* yesn-leaf entries */
 		struct rb_root	sorted_chain;	/* leaf entry has callchains */
 	};
 	struct callchain_root	callchain[0]; /* must be last member */
@@ -166,20 +166,20 @@ static __pure inline bool hist_entry__has_callchains(struct hist_entry *he)
 
 static inline bool hist_entry__has_pairs(struct hist_entry *he)
 {
-	return !list_empty(&he->pairs.node);
+	return !list_empty(&he->pairs.yesde);
 }
 
 static inline struct hist_entry *hist_entry__next_pair(struct hist_entry *he)
 {
 	if (hist_entry__has_pairs(he))
-		return list_entry(he->pairs.node.next, struct hist_entry, pairs.node);
+		return list_entry(he->pairs.yesde.next, struct hist_entry, pairs.yesde);
 	return NULL;
 }
 
 static inline void hist_entry__add_pair(struct hist_entry *pair,
 					struct hist_entry *he)
 {
-	list_add_tail(&pair->pairs.node, &he->pairs.head);
+	list_add_tail(&pair->pairs.yesde, &he->pairs.head);
 }
 
 static inline float hist_entry__get_percent_limit(struct hist_entry *he)
@@ -291,7 +291,7 @@ void perf_hpp__set_elide(int idx, bool elide);
 
 const char *sort_help(const char *prefix);
 
-int report_parse_ignore_callees_opt(const struct option *opt, const char *arg, int unset);
+int report_parse_igyesre_callees_opt(const struct option *opt, const char *arg, int unset);
 
 bool is_strict_order(const char *order);
 

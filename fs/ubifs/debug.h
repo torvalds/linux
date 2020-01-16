@@ -14,8 +14,8 @@
 /* Checking helper functions */
 typedef int (*dbg_leaf_callback)(struct ubifs_info *c,
 				 struct ubifs_zbranch *zbr, void *priv);
-typedef int (*dbg_znode_callback)(struct ubifs_info *c,
-				  struct ubifs_znode *znode, void *priv);
+typedef int (*dbg_zyesde_callback)(struct ubifs_info *c,
+				  struct ubifs_zyesde *zyesde, void *priv);
 
 /*
  * The UBIFS debugfs directory name pattern and maximum name length (3 for "ubi"
@@ -30,7 +30,7 @@ typedef int (*dbg_znode_callback)(struct ubifs_info *c,
  * @old_zroot_level: old index root level - used by 'dbg_check_old_index()'
  * @old_zroot_sqnum: old index root sqnum - used by 'dbg_check_old_index()'
  *
- * @pc_happened: non-zero if an emulated power cut happened
+ * @pc_happened: yesn-zero if an emulated power cut happened
  * @pc_delay: 0=>don't delay, 1=>delay a time, 2=>delay a number of calls
  * @pc_timeout: time in jiffies when delay of failure mode expires
  * @pc_cnt: current number of calls to failure mode I/O functions
@@ -58,17 +58,17 @@ typedef int (*dbg_znode_callback)(struct ubifs_info *c,
  *
  * @dfs_dir_name: name of debugfs directory containing this file-system's files
  * @dfs_dir: direntry object of the file-system debugfs directory
- * @dfs_dump_lprops: "dump lprops" debugfs knob
- * @dfs_dump_budg: "dump budgeting information" debugfs knob
- * @dfs_dump_tnc: "dump TNC" debugfs knob
- * @dfs_chk_gen: debugfs knob to enable UBIFS general extra checks
- * @dfs_chk_index: debugfs knob to enable UBIFS index extra checks
- * @dfs_chk_orph: debugfs knob to enable UBIFS orphans extra checks
- * @dfs_chk_lprops: debugfs knob to enable UBIFS LEP properties extra checks
- * @dfs_chk_fs: debugfs knob to enable UBIFS contents extra checks
- * @dfs_tst_rcvry: debugfs knob to enable UBIFS recovery testing
- * @dfs_ro_error: debugfs knob to switch UBIFS to R/O mode (different to
- *                re-mounting to R/O mode because it does not flush any buffers
+ * @dfs_dump_lprops: "dump lprops" debugfs kyesb
+ * @dfs_dump_budg: "dump budgeting information" debugfs kyesb
+ * @dfs_dump_tnc: "dump TNC" debugfs kyesb
+ * @dfs_chk_gen: debugfs kyesb to enable UBIFS general extra checks
+ * @dfs_chk_index: debugfs kyesb to enable UBIFS index extra checks
+ * @dfs_chk_orph: debugfs kyesb to enable UBIFS orphans extra checks
+ * @dfs_chk_lprops: debugfs kyesb to enable UBIFS LEP properties extra checks
+ * @dfs_chk_fs: debugfs kyesb to enable UBIFS contents extra checks
+ * @dfs_tst_rcvry: debugfs kyesb to enable UBIFS recovery testing
+ * @dfs_ro_error: debugfs kyesb to switch UBIFS to R/O mode (different to
+ *                re-mounting to R/O mode because it does yest flush any buffers
  *                and UBIFS just starts returning -EROFS on all write
  *               operations)
  */
@@ -118,7 +118,7 @@ struct ubifs_debug_info {
 };
 
 /**
- * ubifs_global_debug_info - global (not per-FS) UBIFS debugging information.
+ * ubifs_global_debug_info - global (yest per-FS) UBIFS debugging information.
  *
  * @chk_gen: if general extra checks are enabled
  * @chk_index: if index xtra checks are enabled
@@ -149,7 +149,7 @@ void ubifs_assert_failed(struct ubifs_info *c, const char *expr,
 #define ubifs_assert_cmt_locked(c) do {                                        \
 	if (unlikely(down_write_trylock(&(c)->commit_sem))) {                  \
 		up_write(&(c)->commit_sem);                                    \
-		ubifs_err(c, "commit lock is not locked!\n");                  \
+		ubifs_err(c, "commit lock is yest locked!\n");                  \
 		ubifs_assert(c, 0);                                            \
 	}                                                                      \
 } while (0)
@@ -241,8 +241,8 @@ const char *dbg_get_key_dump(const struct ubifs_info *c,
 			     const union ubifs_key *key);
 const char *dbg_snprintf_key(const struct ubifs_info *c,
 			     const union ubifs_key *key, char *buffer, int len);
-void ubifs_dump_inode(struct ubifs_info *c, const struct inode *inode);
-void ubifs_dump_node(const struct ubifs_info *c, const void *node);
+void ubifs_dump_iyesde(struct ubifs_info *c, const struct iyesde *iyesde);
+void ubifs_dump_yesde(const struct ubifs_info *c, const void *yesde);
 void ubifs_dump_budget_req(const struct ubifs_budget_req *req);
 void ubifs_dump_lstats(const struct ubifs_lp_stats *lst);
 void ubifs_dump_budg(struct ubifs_info *c, const struct ubifs_budg_info *bi);
@@ -253,18 +253,18 @@ void ubifs_dump_lpt_info(struct ubifs_info *c);
 void ubifs_dump_leb(const struct ubifs_info *c, int lnum);
 void ubifs_dump_sleb(const struct ubifs_info *c,
 		     const struct ubifs_scan_leb *sleb, int offs);
-void ubifs_dump_znode(const struct ubifs_info *c,
-		      const struct ubifs_znode *znode);
+void ubifs_dump_zyesde(const struct ubifs_info *c,
+		      const struct ubifs_zyesde *zyesde);
 void ubifs_dump_heap(struct ubifs_info *c, struct ubifs_lpt_heap *heap,
 		     int cat);
-void ubifs_dump_pnode(struct ubifs_info *c, struct ubifs_pnode *pnode,
-		      struct ubifs_nnode *parent, int iip);
+void ubifs_dump_pyesde(struct ubifs_info *c, struct ubifs_pyesde *pyesde,
+		      struct ubifs_nyesde *parent, int iip);
 void ubifs_dump_tnc(struct ubifs_info *c);
 void ubifs_dump_index(struct ubifs_info *c);
 void ubifs_dump_lpt_lebs(const struct ubifs_info *c);
 
 int dbg_walk_index(struct ubifs_info *c, dbg_leaf_callback leaf_cb,
-		   dbg_znode_callback znode_cb, void *priv);
+		   dbg_zyesde_callback zyesde_cb, void *priv);
 
 /* Checking functions */
 void dbg_save_space_info(struct ubifs_info *c);
@@ -276,19 +276,19 @@ int dbg_check_cats(struct ubifs_info *c);
 int dbg_check_ltab(struct ubifs_info *c);
 int dbg_chk_lpt_free_spc(struct ubifs_info *c);
 int dbg_chk_lpt_sz(struct ubifs_info *c, int action, int len);
-int dbg_check_synced_i_size(const struct ubifs_info *c, struct inode *inode);
-int dbg_check_dir(struct ubifs_info *c, const struct inode *dir);
+int dbg_check_synced_i_size(const struct ubifs_info *c, struct iyesde *iyesde);
+int dbg_check_dir(struct ubifs_info *c, const struct iyesde *dir);
 int dbg_check_tnc(struct ubifs_info *c, int extra);
 int dbg_check_idx_size(struct ubifs_info *c, long long idx_size);
 int dbg_check_filesystem(struct ubifs_info *c);
 void dbg_check_heap(struct ubifs_info *c, struct ubifs_lpt_heap *heap, int cat,
 		    int add_pos);
-int dbg_check_lpt_nodes(struct ubifs_info *c, struct ubifs_cnode *cnode,
+int dbg_check_lpt_yesdes(struct ubifs_info *c, struct ubifs_cyesde *cyesde,
 			int row, int col);
-int dbg_check_inode_size(struct ubifs_info *c, const struct inode *inode,
+int dbg_check_iyesde_size(struct ubifs_info *c, const struct iyesde *iyesde,
 			 loff_t size);
-int dbg_check_data_nodes_order(struct ubifs_info *c, struct list_head *head);
-int dbg_check_nondata_nodes_order(struct ubifs_info *c, struct list_head *head);
+int dbg_check_data_yesdes_order(struct ubifs_info *c, struct list_head *head);
+int dbg_check_yesndata_yesdes_order(struct ubifs_info *c, struct list_head *head);
 
 int dbg_leb_write(struct ubifs_info *c, int lnum, const void *buf, int offs,
 		  int len);

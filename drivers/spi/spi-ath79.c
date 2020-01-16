@@ -149,7 +149,7 @@ static int ath79_spi_probe(struct platform_device *pdev)
 	}
 
 	sp = spi_master_get_devdata(master);
-	master->dev.of_node = pdev->dev.of_node;
+	master->dev.of_yesde = pdev->dev.of_yesde;
 	platform_set_drvdata(pdev, sp);
 
 	pdata = dev_get_platdata(&pdev->dev);

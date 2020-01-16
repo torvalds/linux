@@ -3,12 +3,12 @@
 # description: Test wakeup tracer
 
 if ! which chrt ; then
-  echo "chrt is not found. This test requires nice command."
+  echo "chrt is yest found. This test requires nice command."
   exit_unresolved
 fi
 
 if ! grep -wq "wakeup" available_tracers ; then
-  echo "wakeup tracer is not supported"
+  echo "wakeup tracer is yest supported"
   exit_unsupported
 fi
 

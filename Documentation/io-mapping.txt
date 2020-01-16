@@ -8,7 +8,7 @@ API
 The io_mapping functions in linux/io-mapping.h provide an abstraction for
 efficiently mapping small regions of an I/O device to the CPU. The initial
 usage is to support the large graphics aperture on 32-bit processors where
-ioremap_wc cannot be used to statically map the entire aperture to the CPU
+ioremap_wc canyest be used to statically map the entire aperture to the CPU
 as it would consume too much of the kernel address space.
 
 A mapping object is created during driver initialization using::
@@ -24,7 +24,7 @@ This _wc variant provides a mapping which may only be used
 with the io_mapping_map_atomic_wc or io_mapping_map_wc.
 
 With this mapping object, individual pages can be mapped either atomically
-or not, depending on the necessary scheduling environment. Of course, atomic
+or yest, depending on the necessary scheduling environment. Of course, atomic
 maps are more efficient::
 
 	void *io_mapping_map_atomic_wc(struct io_mapping *mapping,
@@ -33,14 +33,14 @@ maps are more efficient::
 'offset' is the offset within the defined mapping region.
 Accessing addresses beyond the region specified in the
 creation function yields undefined results. Using an offset
-which is not page aligned yields an undefined result. The
+which is yest page aligned yields an undefined result. The
 return value points to a single page in CPU address space.
 
 This _wc variant returns a write-combining map to the
 page and may only be used with mappings created by
 io_mapping_create_wc
 
-Note that the task may not sleep while holding this page
+Note that the task may yest sleep while holding this page
 mapped.
 
 ::
@@ -51,7 +51,7 @@ mapped.
 io_mapping_map_atomic_wc call. This unmaps the specified
 page and allows the task to sleep once again.
 
-If you need to sleep while holding the lock, you can use the non-atomic
+If you need to sleep while holding the lock, you can use the yesn-atomic
 variant, although they may be significantly slower.
 
 ::
@@ -78,7 +78,7 @@ Current Implementation
 ======================
 
 The initial implementation of these functions uses existing mapping
-mechanisms and so provides only an abstraction layer and no new
+mechanisms and so provides only an abstraction layer and yes new
 functionality.
 
 On 64-bit processors, io_mapping_create_wc calls ioremap_wc for the whole

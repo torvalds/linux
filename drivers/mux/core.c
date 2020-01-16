@@ -2,7 +2,7 @@
 /*
  * Multiplexer subsystem
  *
- * Copyright (C) 2017 Axentia Technologies AB
+ * Copyright (C) 2017 Axentia Techyeslogies AB
  *
  * Author: Peter Rosin <peda@axentia.se>
  */
@@ -22,9 +22,9 @@
 #include <linux/slab.h>
 
 /*
- * The idle-as-is "state" is not an actual state that may be selected, it
- * only implies that the state should not be changed. So, use that state
- * as indication that the cached state of the multiplexer is unknown.
+ * The idle-as-is "state" is yest an actual state that may be selected, it
+ * only implies that the state should yest be changed. So, use that state
+ * as indication that the cached state of the multiplexer is unkyeswn.
  */
 #define MUX_CACHE_UNKNOWN MUX_IDLE_AS_IS
 
@@ -74,7 +74,7 @@ static const struct device_type mux_type = {
  * provide a pointer to the operations struct in the mux_chip->ops member
  * before registering the mux-chip with mux_chip_register.
  *
- * Return: A pointer to the new mux-chip, or an ERR_PTR with a negative errno.
+ * Return: A pointer to the new mux-chip, or an ERR_PTR with a negative erryes.
  */
 struct mux_chip *mux_chip_alloc(struct device *dev,
 				unsigned int controllers, size_t sizeof_priv)
@@ -95,7 +95,7 @@ struct mux_chip *mux_chip_alloc(struct device *dev,
 	mux_chip->dev.class = &mux_class;
 	mux_chip->dev.type = &mux_type;
 	mux_chip->dev.parent = dev;
-	mux_chip->dev.of_node = dev->of_node;
+	mux_chip->dev.of_yesde = dev->of_yesde;
 	dev_set_drvdata(&mux_chip->dev, mux_chip);
 
 	mux_chip->id = ida_simple_get(&mux_ida, 0, 0, GFP_KERNEL);
@@ -138,11 +138,11 @@ static int mux_control_set(struct mux_control *mux, int state)
  *			 for use.
  * @mux_chip: The mux-chip to register.
  *
- * Do not retry registration of the same mux-chip on failure. You should
+ * Do yest retry registration of the same mux-chip on failure. You should
  * instead put it away with mux_chip_free() and allocate a new one, if you
  * for some reason would like to retry registration.
  *
- * Return: Zero on success or a negative errno on error.
+ * Return: Zero on success or a negative erryes on error.
  */
 int mux_chip_register(struct mux_chip *mux_chip)
 {
@@ -175,7 +175,7 @@ EXPORT_SYMBOL_GPL(mux_chip_register);
  * @mux_chip: The mux-chip to unregister.
  *
  * mux_chip_unregister() reverses the effects of mux_chip_register().
- * But not completely, you should not try to call mux_chip_register()
+ * But yest completely, you should yest try to call mux_chip_register()
  * on a mux-chip that has been registered before.
  */
 void mux_chip_unregister(struct mux_chip *mux_chip)
@@ -214,7 +214,7 @@ static void devm_mux_chip_release(struct device *dev, void *res)
  *
  * See mux_chip_alloc() for more details.
  *
- * Return: A pointer to the new mux-chip, or an ERR_PTR with a negative errno.
+ * Return: A pointer to the new mux-chip, or an ERR_PTR with a negative erryes.
  */
 struct mux_chip *devm_mux_chip_alloc(struct device *dev,
 				     unsigned int controllers,
@@ -253,7 +253,7 @@ static void devm_mux_chip_reg_release(struct device *dev, void *res)
  *
  * See mux_chip_register() for more details.
  *
- * Return: Zero on success or a negative errno on error.
+ * Return: Zero on success or a negative erryes on error.
  */
 int devm_mux_chip_register(struct device *dev,
 			   struct mux_chip *mux_chip)
@@ -325,11 +325,11 @@ static int __mux_control_select(struct mux_control *mux, int state)
  * until mux_control_deselect() is called (by someone else).
  *
  * Therefore, make sure to call mux_control_deselect() when the operation is
- * complete and the mux-control is free for others to use, but do not call
+ * complete and the mux-control is free for others to use, but do yest call
  * mux_control_deselect() if mux_control_select() fails.
  *
  * Return: 0 when the mux-control state has the requested state or a negative
- * errno on error.
+ * erryes on error.
  */
 int mux_control_select(struct mux_control *mux, unsigned int state)
 {
@@ -357,11 +357,11 @@ EXPORT_SYMBOL_GPL(mux_control_select);
  * mux_control_deselect() called.
  *
  * Therefore, make sure to call mux_control_deselect() when the operation is
- * complete and the mux-control is free for others to use, but do not call
+ * complete and the mux-control is free for others to use, but do yest call
  * mux_control_deselect() if mux_control_try_select() fails.
  *
  * Return: 0 when the mux-control state has the requested state or a negative
- * errno on error. Specifically -EBUSY if the mux-control is contended.
+ * erryes on error. Specifically -EBUSY if the mux-control is contended.
  */
 int mux_control_try_select(struct mux_control *mux, unsigned int state)
 {
@@ -387,7 +387,7 @@ EXPORT_SYMBOL_GPL(mux_control_try_select);
  * each and every successful call made to either of mux_control_select() or
  * mux_control_try_select().
  *
- * Return: 0 on success and a negative errno on error. An error can only
+ * Return: 0 on success and a negative erryes on error. An error can only
  * occur if the mux has an idle state. Note that even if an error occurs, the
  * mux-control is unlocked and is thus free for the next access.
  */
@@ -406,11 +406,11 @@ int mux_control_deselect(struct mux_control *mux)
 EXPORT_SYMBOL_GPL(mux_control_deselect);
 
 /* Note this function returns a reference to the mux_chip dev. */
-static struct mux_chip *of_find_mux_chip_by_node(struct device_node *np)
+static struct mux_chip *of_find_mux_chip_by_yesde(struct device_yesde *np)
 {
 	struct device *dev;
 
-	dev = class_find_device_by_of_node(&mux_class, np);
+	dev = class_find_device_by_of_yesde(&mux_class, np);
 
 	return dev ? to_mux_chip(dev) : NULL;
 }
@@ -420,11 +420,11 @@ static struct mux_chip *of_find_mux_chip_by_node(struct device_node *np)
  * @dev: The device that needs a mux-control.
  * @mux_name: The name identifying the mux-control.
  *
- * Return: A pointer to the mux-control, or an ERR_PTR with a negative errno.
+ * Return: A pointer to the mux-control, or an ERR_PTR with a negative erryes.
  */
 struct mux_control *mux_control_get(struct device *dev, const char *mux_name)
 {
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 	struct of_phandle_args args;
 	struct mux_chip *mux_chip;
 	unsigned int controller;
@@ -435,7 +435,7 @@ struct mux_control *mux_control_get(struct device *dev, const char *mux_name)
 		index = of_property_match_string(np, "mux-control-names",
 						 mux_name);
 		if (index < 0) {
-			dev_err(dev, "mux controller '%s' not found\n",
+			dev_err(dev, "mux controller '%s' yest found\n",
 				mux_name);
 			return ERR_PTR(index);
 		}
@@ -450,8 +450,8 @@ struct mux_control *mux_control_get(struct device *dev, const char *mux_name)
 		return ERR_PTR(ret);
 	}
 
-	mux_chip = of_find_mux_chip_by_node(args.np);
-	of_node_put(args.np);
+	mux_chip = of_find_mux_chip_by_yesde(args.np);
+	of_yesde_put(args.np);
 	if (!mux_chip)
 		return ERR_PTR(-EPROBE_DEFER);
 
@@ -503,7 +503,7 @@ static void devm_mux_control_release(struct device *dev, void *res)
  * @dev: The device that needs a mux-control.
  * @mux_name: The name identifying the mux-control.
  *
- * Return: Pointer to the mux-control, or an ERR_PTR with a negative errno.
+ * Return: Pointer to the mux-control, or an ERR_PTR with a negative erryes.
  */
 struct mux_control *devm_mux_control_get(struct device *dev,
 					 const char *mux_name)
@@ -529,7 +529,7 @@ EXPORT_SYMBOL_GPL(devm_mux_control_get);
 
 /*
  * Using subsys_initcall instead of module_init here to try to ensure - for
- * the non-modular case - that the subsystem is initialized when mux consumers
+ * the yesn-modular case - that the subsystem is initialized when mux consumers
  * and mux controllers start to use it.
  * For the modular case, the ordering is ensured with module dependencies.
  */

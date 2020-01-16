@@ -2,7 +2,7 @@
 /*
  * Driver for NXP PN533 NFC Chip - I2C transport layer
  *
- * Copyright (C) 2011 Instituto Nokia de Tecnologia
+ * Copyright (C) 2011 Instituto Nokia de Tecyeslogia
  * Copyright (C) 2012-2013 Tieto Poland
  * Copyright (C) 2016 HALE electronic
  */
@@ -30,7 +30,7 @@ struct pn533_i2c_phy {
 
 	int hard_fault;		/*
 				 * < 0 if hardware error occurred (e.g. i2c err)
-				 * and prevents normal operation.
+				 * and prevents yesrmal operation.
 				 */
 };
 
@@ -109,13 +109,13 @@ static int pn533_i2c_read(struct pn533_i2c_phy *phy, struct sk_buff **skb)
 
 	r = i2c_master_recv(client, skb_put(*skb, len), len);
 	if (r != len) {
-		nfc_err(&client->dev, "cannot read. r=%d len=%d\n", r, len);
+		nfc_err(&client->dev, "canyest read. r=%d len=%d\n", r, len);
 		kfree_skb(*skb);
 		return -EREMOTEIO;
 	}
 
 	if (!((*skb)->data[0] & 0x01)) {
-		nfc_err(&client->dev, "READY flag not set");
+		nfc_err(&client->dev, "READY flag yest set");
 		kfree_skb(*skb);
 		return -EBUSY;
 	}

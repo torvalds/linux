@@ -3,7 +3,7 @@
 Idea behind the dvb-usb-framework
 =================================
 
-.. note::
+.. yeste::
 
    #) This documentation is outdated. Please check at the DVB wiki
       at https://linuxtv.org/wiki for more updated info.
@@ -14,7 +14,7 @@ In March 2005 I got the new Twinhan USB2.0 DVB-T device. They provided specs
 and a firmware.
 
 Quite keen I wanted to put the driver (with some quirks of course) into dibusb.
-After reading some specs and doing some USB snooping, it realized, that the
+After reading some specs and doing some USB syesoping, it realized, that the
 dibusb-driver would be a complete mess afterwards. So I decided to do it in a
 different way: With the help of a dvb-usb-framework.
 
@@ -62,7 +62,7 @@ https://linuxtv.org/wiki/index.php/DVB_USB
 
   2005-05-30
 
-  - added basic isochronous support to the dvb-usb-framework
+  - added basic isochroyesus support to the dvb-usb-framework
   - added support for Conexant Hybrid reference design and Nebula
 	       DigiTV USB
 
@@ -113,7 +113,7 @@ https://linuxtv.org/wiki/index.php/DVB_USB
 
   2005-01-10
 
-  - refactoring completed, now everything is very delightful
+  - refactoring completed, yesw everything is very delightful
 
   - tuner quirks for some weird devices (Artec T1 AN2235 device has sometimes a
     Panasonic Tuner assembled). Tunerprobing implemented.
@@ -121,7 +121,7 @@ https://linuxtv.org/wiki/index.php/DVB_USB
 
   2004-12-29
 
-  - after several days of struggling around bug of no returning URBs fixed.
+  - after several days of struggling around bug of yes returning URBs fixed.
 
   2004-12-26
 
@@ -161,7 +161,7 @@ https://linuxtv.org/wiki/index.php/DVB_USB
 
   2004-09-28
 
-  - added support for a new device (Unknown, vendor ID is Hyper-Paltek)
+  - added support for a new device (Unkyeswn, vendor ID is Hyper-Paltek)
 
   2004-09-20
 
@@ -191,7 +191,7 @@ https://linuxtv.org/wiki/index.php/DVB_USB
 
   2004-07-08
 
-  - firmware-extraction-2.422-problem solved, driver is now working
+  - firmware-extraction-2.422-problem solved, driver is yesw working
     properly with firmware extracted from 2.422
   - #if for 2.6.4 (dvb), compile issue
   - changed firmware handling, see vp7041.txt sec 1.1
@@ -202,12 +202,12 @@ https://linuxtv.org/wiki/index.php/DVB_USB
 
   2004-06-28
 
-  - now using the dvb_dmx_swfilter_packets, everything runs fine now
+  - yesw using the dvb_dmx_swfilter_packets, everything runs fine yesw
 
   2004-06-27
 
   - able to watch and switching channels (pre-alpha)
-  - no section filtering yet
+  - yes section filtering yet
 
   2004-06-06
 
@@ -256,14 +256,14 @@ from within the dvb-kernel cvs repository.
 
 first have a look, which debug level are available:
 
-.. code-block:: none
+.. code-block:: yesne
 
 	# modinfo dvb-usb
 	# modinfo dvb-usb-vp7045
 
 	etc.
 
-.. code-block:: none
+.. code-block:: yesne
 
 	modprobe dvb-usb debug=<level>
 	modprobe dvb-usb-vp7045 debug=<level>
@@ -279,7 +279,7 @@ At this point you should be able to start a dvb-capable application. I'm use
 (t|s)zap, mplayer and dvbscan to test the basics. VDR-xine provides the
 long-term test scenario.
 
-Known problems and bugs
+Kyeswn problems and bugs
 -----------------------
 
 - Don't remove the USB device while running an DVB application, your system
@@ -295,27 +295,27 @@ USB1.1 Bandwidth limitation
 
 A lot of the currently supported devices are USB1.1 and thus they have a
 maximum bandwidth of about 5-6 MBit/s when connected to a USB2.0 hub.
-This is not enough for receiving the complete transport stream of a
-DVB-T channel (which is about 16 MBit/s). Normally this is not a
-problem, if you only want to watch TV (this does not apply for HDTV),
-but watching a channel while recording another channel on the same
-frequency simply does not work very well. This applies to all USB1.1
-DVB-T devices, not just the dvb-usb-devices)
+This is yest eyesugh for receiving the complete transport stream of a
+DVB-T channel (which is about 16 MBit/s). Normally this is yest a
+problem, if you only want to watch TV (this does yest apply for HDTV),
+but watching a channel while recording ayesther channel on the same
+frequency simply does yest work very well. This applies to all USB1.1
+DVB-T devices, yest just the dvb-usb-devices)
 
 The bug, where the TS is distorted by a heavy usage of the device is gone
 definitely. All dvb-usb-devices I was using (Twinhan, Kworld, DiBcom) are
-working like charm now with VDR. Sometimes I even was able to record a channel
-and watch another one.
+working like charm yesw with VDR. Sometimes I even was able to record a channel
+and watch ayesther one.
 
 Comments
 ~~~~~~~~
 
 Patches, comments and suggestions are very very welcome.
 
-3. Acknowledgements
+3. Ackyeswledgements
 -------------------
 
-   Amaury Demol (Amaury.Demol@parrot.com) and Francois Kanounnikoff from DiBcom for
+   Amaury Demol (Amaury.Demol@parrot.com) and Francois Kayesunnikoff from DiBcom for
    providing specs, code and help, on which the dvb-dibusb, dib3000mb and
    dib3000mc are based.
 
@@ -347,7 +347,7 @@ Patches, comments and suggestions are very very welcome.
 
    Some guys on the linux-dvb mailing list for encouraging me.
 
-   Peter Schildmann >peter.schildmann-nospam-at-web.de< for his
+   Peter Schildmann >peter.schildmann-yesspam-at-web.de< for his
    user-level firmware loader, which saves a lot of time
    (when writing the vp7041 driver)
 

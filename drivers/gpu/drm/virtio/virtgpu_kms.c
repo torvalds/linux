@@ -10,7 +10,7 @@
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright yestice and this permission yestice (including the
  * next paragraph) shall be included in all copies or substantial
  * portions of the Software.
  *
@@ -118,7 +118,7 @@ int virtio_gpu_init(struct drm_device *dev)
 	struct virtio_gpu_device *vgdev;
 	/* this will expand later */
 	struct virtqueue *vqs[2];
-	u32 num_scanouts, num_capsets;
+	u32 num_scayesuts, num_capsets;
 	int ret;
 
 	if (!virtio_has_feature(dev_to_virtio(dev->dev), VIRTIO_F_VERSION_1))
@@ -179,15 +179,15 @@ int virtio_gpu_init(struct drm_device *dev)
 
 	/* get display info */
 	virtio_cread(vgdev->vdev, struct virtio_gpu_config,
-		     num_scanouts, &num_scanouts);
-	vgdev->num_scanouts = min_t(uint32_t, num_scanouts,
+		     num_scayesuts, &num_scayesuts);
+	vgdev->num_scayesuts = min_t(uint32_t, num_scayesuts,
 				    VIRTIO_GPU_MAX_SCANOUTS);
-	if (!vgdev->num_scanouts) {
-		DRM_ERROR("num_scanouts is zero\n");
+	if (!vgdev->num_scayesuts) {
+		DRM_ERROR("num_scayesuts is zero\n");
 		ret = -EINVAL;
-		goto err_scanouts;
+		goto err_scayesuts;
 	}
-	DRM_INFO("number of scanouts: %d\n", num_scanouts);
+	DRM_INFO("number of scayesuts: %d\n", num_scayesuts);
 
 	virtio_cread(vgdev->vdev, struct virtio_gpu_config,
 		     num_capsets, &num_capsets);
@@ -207,7 +207,7 @@ int virtio_gpu_init(struct drm_device *dev)
 			   5 * HZ);
 	return 0;
 
-err_scanouts:
+err_scayesuts:
 	virtio_gpu_free_vbufs(vgdev);
 err_vbufs:
 	vgdev->vdev->config->del_vqs(vgdev->vdev);

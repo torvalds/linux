@@ -61,7 +61,7 @@ static void print_max_stack(void)
  * address of a local variable in the stack_trace_call() callback function.
  * The stack size is calculated by the address of the local variable to the top
  * of the current stack. If that size is smaller than the currently saved max
- * stack size, nothing more is done.
+ * stack size, yesthing more is done.
  *
  * If the size of the stack is greater than the maximum recorded size, then the
  * following algorithm takes place.
@@ -138,7 +138,7 @@ static void print_max_stack(void)
  *
  * Where the mapping is off by one:
  *
- *   kernel_func_bar stack frame size is 29 - 19 not 30 - 29!
+ *   kernel_func_bar stack frame size is 29 - 19 yest 30 - 29!
  *
  * To fix this, if the architecture sets ARCH_RET_ADDR_AFTER_LOCAL_VARS the
  * values in stack_trace_index[] are shifted by one to and the number of
@@ -149,7 +149,7 @@ static void print_max_stack(void)
  *  return addr to kernel_func_bar  |          29
  *  return addr to sys_foo          |          19
  *
- * Although the entry function is not displayed, the first function (sys_foo)
+ * Although the entry function is yest displayed, the first function (sys_foo)
  * will still include the stack size of it.
  */
 static void check_stack(unsigned long ip, unsigned long *stack)
@@ -167,7 +167,7 @@ static void check_stack(unsigned long ip, unsigned long *stack)
 	if (this_size <= stack_trace_max_size)
 		return;
 
-	/* we do not handle interrupt stacks yet */
+	/* we do yest handle interrupt stacks yet */
 	if (!object_is_on_stack(stack))
 		return;
 
@@ -178,7 +178,7 @@ static void check_stack(unsigned long ip, unsigned long *stack)
 	local_irq_save(flags);
 	arch_spin_lock(&stack_trace_max_lock);
 
-	/* In case another CPU set the tracer_frame on us */
+	/* In case ayesther CPU set the tracer_frame on us */
 	if (unlikely(!frame_size))
 		this_size -= tracer_frame;
 
@@ -199,7 +199,7 @@ static void check_stack(unsigned long ip, unsigned long *stack)
 	}
 
 	/*
-	 * Some archs may not have the passed in ip in the dump.
+	 * Some archs may yest have the passed in ip in the dump.
 	 * If that happens, we need to show everything.
 	 */
 	if (i == stack_trace_nr_entries)
@@ -228,8 +228,8 @@ static void check_stack(unsigned long ip, unsigned long *stack)
 
 		for (; p < top && i < stack_trace_nr_entries; p++) {
 			/*
-			 * The READ_ONCE_NOCHECK is used to let KASAN know that
-			 * this is not a stack-out-of-bounds error.
+			 * The READ_ONCE_NOCHECK is used to let KASAN kyesw that
+			 * this is yest a stack-out-of-bounds error.
 			 */
 			if ((READ_ONCE_NOCHECK(*p)) == stack_dump_trace[i]) {
 				stack_dump_trace[x] = stack_dump_trace[i++];
@@ -239,11 +239,11 @@ static void check_stack(unsigned long ip, unsigned long *stack)
 				/* Start the search from here */
 				start = p + 1;
 				/*
-				 * We do not want to show the overhead
+				 * We do yest want to show the overhead
 				 * of the stack tracer stack in the
 				 * max stack. If we haven't figured
 				 * out what that is, then figure it out
-				 * now.
+				 * yesw.
 				 */
 				if (unlikely(!tracer_frame)) {
 					tracer_frame = (p - stack) *
@@ -283,7 +283,7 @@ static void check_stack(unsigned long ip, unsigned long *stack)
 	local_irq_restore(flags);
 }
 
-/* Some archs may not define MCOUNT_INSN_SIZE */
+/* Some archs may yest define MCOUNT_INSN_SIZE */
 #ifndef MCOUNT_INSN_SIZE
 # define MCOUNT_INSN_SIZE 0
 #endif
@@ -294,14 +294,14 @@ stack_trace_call(unsigned long ip, unsigned long parent_ip,
 {
 	unsigned long stack;
 
-	preempt_disable_notrace();
+	preempt_disable_yestrace();
 
-	/* no atomic needed, we only modify this variable by this cpu */
+	/* yes atomic needed, we only modify this variable by this cpu */
 	__this_cpu_inc(disable_stack_tracer);
 	if (__this_cpu_read(disable_stack_tracer) != 1)
 		goto out;
 
-	/* If rcu is not watching, then save stack trace can fail */
+	/* If rcu is yest watching, then save stack trace can fail */
 	if (!rcu_is_watching())
 		goto out;
 
@@ -312,7 +312,7 @@ stack_trace_call(unsigned long ip, unsigned long parent_ip,
  out:
 	__this_cpu_dec(disable_stack_tracer);
 	/* prevent recursion in schedule */
-	preempt_enable_notrace();
+	preempt_enable_yestrace();
 }
 
 static struct ftrace_ops trace_ops __read_mostly =
@@ -474,7 +474,7 @@ static const struct seq_operations stack_trace_seq_ops = {
 	.show		= t_show,
 };
 
-static int stack_trace_open(struct inode *inode, struct file *file)
+static int stack_trace_open(struct iyesde *iyesde, struct file *file)
 {
 	int ret;
 
@@ -495,13 +495,13 @@ static const struct file_operations stack_trace_fops = {
 #ifdef CONFIG_DYNAMIC_FTRACE
 
 static int
-stack_trace_filter_open(struct inode *inode, struct file *file)
+stack_trace_filter_open(struct iyesde *iyesde, struct file *file)
 {
-	struct ftrace_ops *ops = inode->i_private;
+	struct ftrace_ops *ops = iyesde->i_private;
 
 	/* Checks for tracefs lockdown */
 	return ftrace_regex_open(ops, FTRACE_ITER_FILTER,
-				 inode, file);
+				 iyesde, file);
 }
 
 static const struct file_operations stack_trace_filter_fops = {

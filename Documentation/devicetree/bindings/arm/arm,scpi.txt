@@ -33,9 +33,9 @@ Container Node
 Required properties:
 - compatible : should be "arm,scpi-clocks"
 	       All the clocks provided by SCP firmware via SCPI message
-	       protocol much be listed as sub-nodes under this node.
+	       protocol much be listed as sub-yesdes under this yesde.
 
-Sub-nodes
+Sub-yesdes
 =========
 Required properties:
 - compatible : shall include one of the following
@@ -53,7 +53,7 @@ Other required properties for all clocks(all from common clock binding):
 - #clock-cells : Should be 1. Contains the Clock ID value used by SCPI commands.
 - clock-output-names : shall be the corresponding names of the outputs.
 - clock-indices: The identifying number for the clocks(i.e.clock_id) in the
-	node. It can be non linear and hence provide the mapping of identifiers
+	yesde. It can be yesn linear and hence provide the mapping of identifiers
 	into the clock-output-names array.
 
 SRAM and Shared Memory for SCPI
@@ -64,9 +64,9 @@ processors and SCP.
 
 The properties should follow the generic mmio-sram description found in [3]
 
-Each sub-node represents the reserved area for SCPI.
+Each sub-yesde represents the reserved area for SCPI.
 
-Required sub-node properties:
+Required sub-yesde properties:
 - reg : The base offset and size of the reserved area with the SRAM
 - compatible : should be "arm,scp-shmem" for Non-secure SRAM based
 	       shared memory
@@ -115,7 +115,7 @@ Required properties:
 Example:
 
 sram: sram@50000000 {
-	compatible = "arm,juno-sram-ns", "mmio-sram";
+	compatible = "arm,juyes-sram-ns", "mmio-sram";
 	reg = <0x0 0x50000000 0x0 0x10000>;
 
 	#address-cells = <1>;
@@ -123,12 +123,12 @@ sram: sram@50000000 {
 	ranges = <0 0x0 0x50000000 0x10000>;
 
 	cpu_scp_lpri: scp-shmem@0 {
-		compatible = "arm,juno-scp-shmem";
+		compatible = "arm,juyes-scp-shmem";
 		reg = <0x0 0x200>;
 	};
 
 	cpu_scp_hpri: scp-shmem@200 {
-		compatible = "arm,juno-scp-shmem";
+		compatible = "arm,juyes-scp-shmem";
 		reg = <0x200 0x200>;
 	};
 };
@@ -209,11 +209,11 @@ Similarly the second example is hdlcd@7ff60000 and it has pxlclk1 as input
 clock. '4' in the clock specifier here points to the second entry
 in the output clocks of scpi_clocks  i.e. "pxlclk1"
 
-The thermal-sensors property in the soc_thermal node uses the
+The thermal-sensors property in the soc_thermal yesde uses the
 temperature sensor provided by SCP firmware to setup a thermal
 zone. The ID "3" is the sensor identifier for the temperature sensor
 as used by the firmware.
 
 The num-domains property in scpi-power-domains domain specifies that
-SCPI provides 2 power domains. The hdlcd node uses the power domain with
+SCPI provides 2 power domains. The hdlcd yesde uses the power domain with
 domain ID 1.

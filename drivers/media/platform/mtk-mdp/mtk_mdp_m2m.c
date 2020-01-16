@@ -6,7 +6,7 @@
  */
 
 #include <linux/device.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/kernel.h>
 #include <linux/pm_runtime.h>
 #include <linux/slab.h>
@@ -97,7 +97,7 @@ static struct mtk_mdp_pix_limit mtk_mdp_size_min = {
 	.target_rot_en_h	= 16,
 };
 
-/* align size for normal raster scan pixel format */
+/* align size for yesrmal raster scan pixel format */
 static struct mtk_mdp_pix_align mtk_mdp_rs_align = {
 	.org_w			= 2,
 	.org_h			= 2,

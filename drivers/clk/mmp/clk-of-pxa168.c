@@ -225,7 +225,7 @@ static void pxa168_axi_periph_clk_init(struct pxa168_clk_unit *pxa_unit)
 				ARRAY_SIZE(apmu_gate_clks));
 }
 
-static void pxa168_clk_reset_init(struct device_node *np,
+static void pxa168_clk_reset_init(struct device_yesde *np,
 				struct pxa168_clk_unit *pxa_unit)
 {
 	struct mmp_clk_reset_cell *cells;
@@ -247,7 +247,7 @@ static void pxa168_clk_reset_init(struct device_node *np,
 	mmp_clk_reset_register(np, cells, nr_resets);
 }
 
-static void __init pxa168_clk_init(struct device_node *np)
+static void __init pxa168_clk_init(struct device_yesde *np)
 {
 	struct pxa168_clk_unit *pxa_unit;
 

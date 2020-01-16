@@ -4,7 +4,7 @@ Broadcom Bluetooth Chips
 This documents the binding structure and common properties for serial
 attached Broadcom devices.
 
-Serial attached Broadcom devices shall be a child node of the host UART
+Serial attached Broadcom devices shall be a child yesde of the host UART
 device the slave device is attached to.
 
 Required properties:
@@ -26,7 +26,7 @@ Optional properties:
  - clocks: 1 or 2 clocks as defined in clock-names below, in that order
  - clock-names: names for clock inputs, matching the clocks given
    - "extclk": deprecated, replaced by "txco"
-   - "txco": external reference clock (not a standalone crystal)
+   - "txco": external reference clock (yest a standalone crystal)
    - "lpo": external low power 32.768 kHz clock
  - vbat-supply: phandle to regulator supply for VBAT
  - vddio-supply: phandle to regulator supply for VDDIO

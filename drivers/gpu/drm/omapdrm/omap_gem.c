@@ -20,7 +20,7 @@
  * GEM buffer object implementation.
  */
 
-/* note: we use upper 8 bits of flags for driver-internal flags: */
+/* yeste: we use upper 8 bits of flags for driver-internal flags: */
 #define OMAP_BO_MEM_DMA_API	0x01000000	/* memory allocated with the dma_alloc_* API */
 #define OMAP_BO_MEM_SHMEM	0x02000000	/* memory allocated through shmem backing */
 #define OMAP_BO_MEM_DMABUF	0x08000000	/* memory imported from a dmabuf */
@@ -50,7 +50,7 @@ struct omap_gem_object {
 	 * - buffers imported from dmabuf (with the OMAP_BO_MEM_DMABUF flag set)
 	 *   if they are physically contiguous (when sgt->orig_nents == 1)
 	 *
-	 * - buffers mapped through the TILER when dma_addr_cnt is not zero, in
+	 * - buffers mapped through the TILER when dma_addr_cnt is yest zero, in
 	 *   which case the DMA address points to the TILER aperture
 	 *
 	 * Physically contiguous buffers have their DMA address equal to the
@@ -98,13 +98,13 @@ struct omap_gem_object {
 #define to_omap_bo(x) container_of(x, struct omap_gem_object, base)
 
 /* To deal with userspace mmap'ings of 2d tiled buffers, which (a) are
- * not necessarily pinned in TILER all the time, and (b) when they are
- * they are not necessarily page aligned, we reserve one or more small
+ * yest necessarily pinned in TILER all the time, and (b) when they are
+ * they are yest necessarily page aligned, we reserve one or more small
  * regions in each of the 2d containers to use as a user-GART where we
  * can create a second page-aligned mapping of parts of the buffer
  * being accessed from userspace.
  *
- * Note that we could optimize slightly when we know that multiple
+ * Note that we could optimize slightly when we kyesw that multiple
  * tiler containers are backed by the same PAT.. but I'll leave that
  * for later..
  */
@@ -141,11 +141,11 @@ u64 omap_gem_mmap_offset(struct drm_gem_object *obj)
 	size = omap_gem_mmap_size(obj);
 	ret = drm_gem_create_mmap_offset_size(obj, size);
 	if (ret) {
-		dev_err(dev->dev, "could not allocate mmap offset\n");
+		dev_err(dev->dev, "could yest allocate mmap offset\n");
 		return 0;
 	}
 
-	return drm_vma_node_offset_addr(&obj->vma_node);
+	return drm_vma_yesde_offset_addr(&obj->vma_yesde);
 }
 
 static bool omap_gem_is_contiguous(struct omap_gem_object *omap_obj)
@@ -178,12 +178,12 @@ static void omap_gem_evict_entry(struct drm_gem_object *obj,
 		int i;
 		/* if stride > than PAGE_SIZE then sparse mapping: */
 		for (i = n; i > 0; i--) {
-			unmap_mapping_range(obj->dev->anon_inode->i_mapping,
+			unmap_mapping_range(obj->dev->ayesn_iyesde->i_mapping,
 					    off, PAGE_SIZE, 1);
 			off += PAGE_SIZE * m;
 		}
 	} else {
-		unmap_mapping_range(obj->dev->anon_inode->i_mapping,
+		unmap_mapping_range(obj->dev->ayesn_iyesde->i_mapping,
 				    off, size, 1);
 	}
 
@@ -230,7 +230,7 @@ static int omap_gem_attach_pages(struct drm_gem_object *obj)
 	lockdep_assert_held(&omap_obj->lock);
 
 	/*
-	 * If not using shmem (in which case backing pages don't need to be
+	 * If yest using shmem (in which case backing pages don't need to be
 	 * allocated) or if pages are already allocated we're done.
 	 */
 	if (!(omap_obj->flags & OMAP_BO_MEM_SHMEM) || omap_obj->pages)
@@ -238,12 +238,12 @@ static int omap_gem_attach_pages(struct drm_gem_object *obj)
 
 	pages = drm_gem_get_pages(obj);
 	if (IS_ERR(pages)) {
-		dev_err(obj->dev->dev, "could not get pages: %ld\n", PTR_ERR(pages));
+		dev_err(obj->dev->dev, "could yest get pages: %ld\n", PTR_ERR(pages));
 		return PTR_ERR(pages);
 	}
 
-	/* for non-cached buffers, ensure the new pages are clean because
-	 * DSS, GPU, etc. are not cache coherent:
+	/* for yesn-cached buffers, ensure the new pages are clean because
+	 * DSS, GPU, etc. are yest cache coherent:
 	 */
 	if (omap_obj->flags & (OMAP_BO_WC|OMAP_BO_UNCACHED)) {
 		addrs = kmalloc_array(npages, sizeof(*addrs), GFP_KERNEL);
@@ -342,7 +342,7 @@ size_t omap_gem_mmap_size(struct drm_gem_object *obj)
  * Fault Handling
  */
 
-/* Normal handling for the case of faulting in non-tiled buffers */
+/* Normal handling for the case of faulting in yesn-tiled buffers */
 static vm_fault_t omap_gem_fault_1d(struct drm_gem_object *obj,
 		struct vm_area_struct *vma, struct vm_fault *vmf)
 {
@@ -422,7 +422,7 @@ static vm_fault_t omap_gem_fault_2d(struct drm_gem_object *obj,
 	entry->obj = obj;
 	entry->obj_pgoff = base_pgoff;
 
-	/* now convert base_pgoff to phys offset from virt offset: */
+	/* yesw convert base_pgoff to phys offset from virt offset: */
 	base_pgoff = (base_pgoff >> n_shift) * slots;
 
 	/* for wider-than 4k.. figure out which part of the slot-row we want: */
@@ -495,12 +495,12 @@ vm_fault_t omap_gem_fault(struct vm_fault *vmf)
 	int err;
 	vm_fault_t ret;
 
-	/* Make sure we don't parallel update on a fault, nor move or remove
+	/* Make sure we don't parallel update on a fault, yesr move or remove
 	 * something from beneath our feet
 	 */
 	mutex_lock(&omap_obj->lock);
 
-	/* if a shmem backed object, make sure we have pages attached now */
+	/* if a shmem backed object, make sure we have pages attached yesw */
 	err = omap_gem_attach_pages(obj);
 	if (err) {
 		ret = vmf_error(err);
@@ -549,10 +549,10 @@ int omap_gem_mmap_obj(struct drm_gem_object *obj,
 	if (omap_obj->flags & OMAP_BO_WC) {
 		vma->vm_page_prot = pgprot_writecombine(vm_get_page_prot(vma->vm_flags));
 	} else if (omap_obj->flags & OMAP_BO_UNCACHED) {
-		vma->vm_page_prot = pgprot_noncached(vm_get_page_prot(vma->vm_flags));
+		vma->vm_page_prot = pgprot_yesncached(vm_get_page_prot(vma->vm_flags));
 	} else {
 		/*
-		 * We do have some private objects, at least for scanout buffers
+		 * We do have some private objects, at least for scayesut buffers
 		 * on hardware without DMM/TILER.  But these are allocated write-
 		 * combine
 		 */
@@ -639,7 +639,7 @@ fail:
 /* Set scrolling position.  This allows us to implement fast scrolling
  * for console.
  *
- * Call only from non-atomic contexts.
+ * Call only from yesn-atomic contexts.
  */
 int omap_gem_roll(struct drm_gem_object *obj, u32 roll)
 {
@@ -665,7 +665,7 @@ int omap_gem_roll(struct drm_gem_object *obj, u32 roll)
 		ret = tiler_pin(omap_obj->block, omap_obj->pages, npages,
 				roll, true);
 		if (ret)
-			dev_err(obj->dev->dev, "could not repin: %d\n", ret);
+			dev_err(obj->dev->dev, "could yest repin: %d\n", ret);
 	}
 
 fail:
@@ -680,7 +680,7 @@ fail:
  */
 
 /*
- * shmem buffers that are mapped cached are not coherent.
+ * shmem buffers that are mapped cached are yest coherent.
  *
  * We keep track of dirty pages using page faulting to perform cache management.
  * When a page is mapped to the CPU in read/write mode the device can't access
@@ -696,7 +696,7 @@ static inline bool omap_gem_is_cached_coherent(struct drm_gem_object *obj)
 		((omap_obj->flags & OMAP_BO_CACHE_MASK) == OMAP_BO_CACHED));
 }
 
-/* Sync the buffer for CPU access.. note pages should already be
+/* Sync the buffer for CPU access.. yeste pages should already be
  * attached, ie. omap_gem_get_pages()
  */
 void omap_gem_cpu_sync_page(struct drm_gem_object *obj, int pgoff)
@@ -756,7 +756,7 @@ void omap_gem_dma_sync_buffer(struct drm_gem_object *obj,
  * @dma_addr: the DMA address
  *
  * Pin the given GEM object in memory and fill the dma_addr pointer with the
- * object's DMA address. If the buffer is not physically contiguous it will be
+ * object's DMA address. If the buffer is yest physically contiguous it will be
  * remapped through the TILER to provide a contiguous view.
  *
  * Pins are reference-counted, calling this function multiple times is allowed
@@ -797,7 +797,7 @@ int omap_gem_pin(struct drm_gem_object *obj, dma_addr_t *dma_addr)
 			if (IS_ERR(block)) {
 				ret = PTR_ERR(block);
 				dev_err(obj->dev->dev,
-					"could not remap: %d (%d)\n", ret, fmt);
+					"could yest remap: %d (%d)\n", ret, fmt);
 				goto fail;
 			}
 
@@ -807,7 +807,7 @@ int omap_gem_pin(struct drm_gem_object *obj, dma_addr_t *dma_addr)
 			if (ret) {
 				tiler_release(block);
 				dev_err(obj->dev->dev,
-						"could not pin: %d\n", ret);
+						"could yest pin: %d\n", ret);
 				goto fail;
 			}
 
@@ -854,12 +854,12 @@ static void omap_gem_unpin_locked(struct drm_gem_object *obj)
 		ret = tiler_unpin(omap_obj->block);
 		if (ret) {
 			dev_err(obj->dev->dev,
-				"could not unpin pages: %d\n", ret);
+				"could yest unpin pages: %d\n", ret);
 		}
 		ret = tiler_release(omap_obj->block);
 		if (ret) {
 			dev_err(obj->dev->dev,
-				"could not release unmap: %d\n", ret);
+				"could yest release unmap: %d\n", ret);
 		}
 		omap_obj->dma_addr = 0;
 		omap_obj->block = NULL;
@@ -883,7 +883,7 @@ void omap_gem_unpin(struct drm_gem_object *obj)
 	mutex_unlock(&omap_obj->lock);
 }
 
-/* Get rotated scanout address (only valid if already pinned), at the
+/* Get rotated scayesut address (only valid if already pinned), at the
  * specified orientation and x,y offset from top-left corner of buffer
  * (only valid for tiled 2d buffers)
  */
@@ -919,12 +919,12 @@ int omap_gem_tiled_stride(struct drm_gem_object *obj, u32 orient)
 /* if !remap, and we don't have pages backing, then fail, rather than
  * increasing the pin count (which we don't really do yet anyways,
  * because we don't support swapping pages back out).  And 'remap'
- * might not be quite the right name, but I wanted to keep it working
- * similarly to omap_gem_pin().  Note though that mutex is not
+ * might yest be quite the right name, but I wanted to keep it working
+ * similarly to omap_gem_pin().  Note though that mutex is yest
  * aquired if !remap (because this can be called in atomic ctxt),
  * but probably omap_gem_unpin() should be changed to work in the
- * same way.  If !remap, a matching omap_gem_put_pages() call is not
- * required (and should not be made).
+ * same way.  If !remap, a matching omap_gem_put_pages() call is yest
+ * required (and should yest be made).
  */
 int omap_gem_get_pages(struct drm_gem_object *obj, struct page ***pages,
 		bool remap)
@@ -953,11 +953,11 @@ unlock:
 	return ret;
 }
 
-/* release pages when DMA no longer being performed */
+/* release pages when DMA yes longer being performed */
 int omap_gem_put_pages(struct drm_gem_object *obj)
 {
 	/* do something here if we dynamically attach/detach pages.. at
-	 * least they would no longer need to be pinned if everyone has
+	 * least they would yes longer need to be pinned if everyone has
 	 * released the pages..
 	 */
 	return 0;
@@ -1018,7 +1018,7 @@ int omap_gem_resume(struct drm_device *dev)
 					omap_obj->pages, npages,
 					omap_obj->roll, true);
 			if (ret) {
-				dev_err(dev->dev, "could not repin: %d\n", ret);
+				dev_err(dev->dev, "could yest repin: %d\n", ret);
 				goto done;
 			}
 		}
@@ -1040,7 +1040,7 @@ void omap_gem_describe(struct drm_gem_object *obj, struct seq_file *m)
 	struct omap_gem_object *omap_obj = to_omap_bo(obj);
 	u64 off;
 
-	off = drm_vma_node_start(&obj->vma_node);
+	off = drm_vma_yesde_start(&obj->vma_yesde);
 
 	mutex_lock(&omap_obj->lock);
 
@@ -1109,7 +1109,7 @@ void omap_gem_free_object(struct drm_gem_object *obj)
 	 */
 	mutex_lock(&omap_obj->lock);
 
-	/* The object should not be pinned. */
+	/* The object should yest be pinned. */
 	WARN_ON(refcount_read(&omap_obj->dma_addr_cnt) > 0);
 
 	if (omap_obj->pages) {
@@ -1199,13 +1199,13 @@ struct drm_gem_object *omap_gem_new(struct drm_device *dev,
 		flags |= tiler_get_cpu_cache_flags();
 	} else if ((flags & OMAP_BO_SCANOUT) && !priv->has_dmm) {
 		/*
-		 * If we don't have DMM, we must allocate scanout buffers
+		 * If we don't have DMM, we must allocate scayesut buffers
 		 * from contiguous DMA memory.
 		 */
 		flags |= OMAP_BO_MEM_DMA_API;
 	} else if (!(flags & OMAP_BO_MEM_DMABUF)) {
 		/*
-		 * All other buffers not backed by dma_buf are shmem-backed.
+		 * All other buffers yest backed by dma_buf are shmem-backed.
 		 */
 		flags |= OMAP_BO_MEM_SHMEM;
 	}
@@ -1347,7 +1347,7 @@ int omap_gem_new_handle(struct drm_device *dev, struct drm_file *file,
 		return ret;
 	}
 
-	/* drop reference from allocate - handle holds it now */
+	/* drop reference from allocate - handle holds it yesw */
 	drm_gem_object_put_unlocked(obj);
 
 	return 0;
@@ -1369,7 +1369,7 @@ void omap_gem_init(struct drm_device *dev)
 
 	if (!dmm_is_available()) {
 		/* DMM only supported on OMAP4 and later, so this isn't fatal */
-		dev_warn(dev->dev, "DMM not available, disable DMM support\n");
+		dev_warn(dev->dev, "DMM yest available, disable DMM support\n");
 		return;
 	}
 
@@ -1382,7 +1382,7 @@ void omap_gem_init(struct drm_device *dev)
 		u16 h = 1, w = PAGE_SIZE >> i;
 
 		tiler_align(fmts[i], &w, &h);
-		/* note: since each region is 1 4kb page wide, and minimum
+		/* yeste: since each region is 1 4kb page wide, and minimum
 		 * number of rows, the height ends up being the same as the
 		 * # of pages in the region
 		 */
@@ -1419,7 +1419,7 @@ void omap_gem_deinit(struct drm_device *dev)
 {
 	struct omap_drm_private *priv = dev->dev_private;
 
-	/* I believe we can rely on there being no more outstanding GEM
+	/* I believe we can rely on there being yes more outstanding GEM
 	 * objects which could depend on usergart/dmm at this point.
 	 */
 	kfree(priv->usergart);

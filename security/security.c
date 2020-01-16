@@ -4,8 +4,8 @@
  *
  * Copyright (C) 2001 WireX Communications, Inc <chris@wirex.com>
  * Copyright (C) 2001-2002 Greg Kroah-Hartman <greg@kroah.com>
- * Copyright (C) 2001 Networks Associates Technology, Inc <ssmalley@nai.com>
- * Copyright (C) 2016 Mellanox Technologies
+ * Copyright (C) 2001 Networks Associates Techyeslogy, Inc <ssmalley@nai.com>
+ * Copyright (C) 2016 Mellayesx Techyeslogies
  */
 
 #define pr_fmt(fmt) "LSM: " fmt
@@ -20,7 +20,7 @@
 #include <linux/integrity.h>
 #include <linux/ima.h>
 #include <linux/evm.h>
-#include <linux/fsnotify.h>
+#include <linux/fsyestify.h>
 #include <linux/mman.h>
 #include <linux/mount.h>
 #include <linux/personality.h>
@@ -36,10 +36,10 @@
 #define EARLY_LSM_COUNT (__end_early_lsm_info - __start_early_lsm_info)
 
 struct security_hook_heads security_hook_heads __lsm_ro_after_init;
-static BLOCKING_NOTIFIER_HEAD(blocking_lsm_notifier_chain);
+static BLOCKING_NOTIFIER_HEAD(blocking_lsm_yestifier_chain);
 
 static struct kmem_cache *lsm_file_cache;
-static struct kmem_cache *lsm_inode_cache;
+static struct kmem_cache *lsm_iyesde_cache;
 
 char *lsm_names;
 static struct lsm_blob_sizes blob_sizes __lsm_ro_after_init;
@@ -110,14 +110,14 @@ static bool __init exists_ordered_lsm(struct lsm_info *lsm)
 static int last_lsm __initdata;
 static void __init append_ordered_lsm(struct lsm_info *lsm, const char *from)
 {
-	/* Ignore duplicate selections. */
+	/* Igyesre duplicate selections. */
 	if (exists_ordered_lsm(lsm))
 		return;
 
 	if (WARN(last_lsm == LSM_COUNT, "%s: out of LSM slots!?\n", from))
 		return;
 
-	/* Enable this LSM, if it is not already set. */
+	/* Enable this LSM, if it is yest already set. */
 	if (!lsm->enabled)
 		lsm->enabled = &lsm_enabled_true;
 	ordered_lsms[last_lsm++] = lsm;
@@ -133,7 +133,7 @@ static bool __init lsm_allowed(struct lsm_info *lsm)
 	if (!is_enabled(lsm))
 		return false;
 
-	/* Not allowed if another exclusive LSM already initialized. */
+	/* Not allowed if ayesther exclusive LSM already initialized. */
 	if ((lsm->flags & LSM_FLAG_EXCLUSIVE) && exclusive) {
 		init_debug("exclusive disabled: %s\n", lsm->name);
 		return false;
@@ -161,12 +161,12 @@ static void __init lsm_set_blob_sizes(struct lsm_blob_sizes *needed)
 	lsm_set_blob_size(&needed->lbs_cred, &blob_sizes.lbs_cred);
 	lsm_set_blob_size(&needed->lbs_file, &blob_sizes.lbs_file);
 	/*
-	 * The inode blob gets an rcu_head in addition to
+	 * The iyesde blob gets an rcu_head in addition to
 	 * what the modules might need.
 	 */
-	if (needed->lbs_inode && blob_sizes.lbs_inode == 0)
-		blob_sizes.lbs_inode = sizeof(struct rcu_head);
-	lsm_set_blob_size(&needed->lbs_inode, &blob_sizes.lbs_inode);
+	if (needed->lbs_iyesde && blob_sizes.lbs_iyesde == 0)
+		blob_sizes.lbs_iyesde = sizeof(struct rcu_head);
+	lsm_set_blob_size(&needed->lbs_iyesde, &blob_sizes.lbs_iyesde);
 	lsm_set_blob_size(&needed->lbs_ipc, &blob_sizes.lbs_ipc);
 	lsm_set_blob_size(&needed->lbs_msg_msg, &blob_sizes.lbs_msg_msg);
 	lsm_set_blob_size(&needed->lbs_task, &blob_sizes.lbs_task);
@@ -221,9 +221,9 @@ static void __init ordered_lsm_parse(const char *order, const char *origin)
 
 		/*
 		 * To match the original "security=" behavior, this
-		 * explicitly does NOT fallback to another Legacy Major
+		 * explicitly does NOT fallback to ayesther Legacy Major
 		 * if the selected one was separately disabled: disable
-		 * all non-matching Legacy Major LSMs.
+		 * all yesn-matching Legacy Major LSMs.
 		 */
 		for (major = __start_lsm_info; major < __end_lsm_info;
 		     major++) {
@@ -251,7 +251,7 @@ static void __init ordered_lsm_parse(const char *order, const char *origin)
 		}
 
 		if (!found)
-			init_debug("%s ignored: %s\n", origin, name);
+			init_debug("%s igyesred: %s\n", origin, name);
 	}
 
 	/* Process "security=", if given. */
@@ -264,7 +264,7 @@ static void __init ordered_lsm_parse(const char *order, const char *origin)
 		}
 	}
 
-	/* Disable all LSMs not in the ordered list. */
+	/* Disable all LSMs yest in the ordered list. */
 	for (lsm = __start_lsm_info; lsm < __end_lsm_info; lsm++) {
 		if (exists_ordered_lsm(lsm))
 			continue;
@@ -289,7 +289,7 @@ static void __init ordered_lsm_init(void)
 
 	if (chosen_lsm_order) {
 		if (chosen_major_lsm) {
-			pr_info("security= is ignored because it is superseded by lsm=\n");
+			pr_info("security= is igyesred because it is superseded by lsm=\n");
 			chosen_major_lsm = NULL;
 		}
 		ordered_lsm_parse(chosen_lsm_order, "cmdline");
@@ -301,7 +301,7 @@ static void __init ordered_lsm_init(void)
 
 	init_debug("cred blob size     = %d\n", blob_sizes.lbs_cred);
 	init_debug("file blob size     = %d\n", blob_sizes.lbs_file);
-	init_debug("inode blob size    = %d\n", blob_sizes.lbs_inode);
+	init_debug("iyesde blob size    = %d\n", blob_sizes.lbs_iyesde);
 	init_debug("ipc blob size      = %d\n", blob_sizes.lbs_ipc);
 	init_debug("msg_msg blob size  = %d\n", blob_sizes.lbs_msg_msg);
 	init_debug("task blob size     = %d\n", blob_sizes.lbs_task);
@@ -313,9 +313,9 @@ static void __init ordered_lsm_init(void)
 		lsm_file_cache = kmem_cache_create("lsm_file_cache",
 						   blob_sizes.lbs_file, 0,
 						   SLAB_PANIC, NULL);
-	if (blob_sizes.lbs_inode)
-		lsm_inode_cache = kmem_cache_create("lsm_inode_cache",
-						    blob_sizes.lbs_inode, 0,
+	if (blob_sizes.lbs_iyesde)
+		lsm_iyesde_cache = kmem_cache_create("lsm_iyesde_cache",
+						    blob_sizes.lbs_iyesde, 0,
 						    SLAB_PANIC, NULL);
 
 	lsm_early_cred((struct cred *) current->cred);
@@ -358,7 +358,7 @@ int __init security_init(void)
 	pr_info("Security Framework initializing\n");
 
 	/*
-	 * Append the names of the early LSM modules now that kmalloc() is
+	 * Append the names of the early LSM modules yesw that kmalloc() is
 	 * available
 	 */
 	for (lsm = __start_early_lsm_info; lsm < __end_early_lsm_info; lsm++) {
@@ -456,30 +456,30 @@ void __init security_add_hooks(struct security_hook_list *hooks, int count,
 	 */
 	if (slab_is_available()) {
 		if (lsm_append(lsm, &lsm_names) < 0)
-			panic("%s - Cannot get early memory.\n", __func__);
+			panic("%s - Canyest get early memory.\n", __func__);
 	}
 }
 
-int call_blocking_lsm_notifier(enum lsm_event event, void *data)
+int call_blocking_lsm_yestifier(enum lsm_event event, void *data)
 {
-	return blocking_notifier_call_chain(&blocking_lsm_notifier_chain,
+	return blocking_yestifier_call_chain(&blocking_lsm_yestifier_chain,
 					    event, data);
 }
-EXPORT_SYMBOL(call_blocking_lsm_notifier);
+EXPORT_SYMBOL(call_blocking_lsm_yestifier);
 
-int register_blocking_lsm_notifier(struct notifier_block *nb)
+int register_blocking_lsm_yestifier(struct yestifier_block *nb)
 {
-	return blocking_notifier_chain_register(&blocking_lsm_notifier_chain,
+	return blocking_yestifier_chain_register(&blocking_lsm_yestifier_chain,
 						nb);
 }
-EXPORT_SYMBOL(register_blocking_lsm_notifier);
+EXPORT_SYMBOL(register_blocking_lsm_yestifier);
 
-int unregister_blocking_lsm_notifier(struct notifier_block *nb)
+int unregister_blocking_lsm_yestifier(struct yestifier_block *nb)
 {
-	return blocking_notifier_chain_unregister(&blocking_lsm_notifier_chain,
+	return blocking_yestifier_chain_unregister(&blocking_lsm_yestifier_chain,
 						  nb);
 }
-EXPORT_SYMBOL(unregister_blocking_lsm_notifier);
+EXPORT_SYMBOL(unregister_blocking_lsm_yestifier);
 
 /**
  * lsm_cred_alloc - allocate a composite cred blob
@@ -539,22 +539,22 @@ static int lsm_file_alloc(struct file *file)
 }
 
 /**
- * lsm_inode_alloc - allocate a composite inode blob
- * @inode: the inode that needs a blob
+ * lsm_iyesde_alloc - allocate a composite iyesde blob
+ * @iyesde: the iyesde that needs a blob
  *
- * Allocate the inode blob for all the modules
+ * Allocate the iyesde blob for all the modules
  *
  * Returns 0, or -ENOMEM if memory can't be allocated.
  */
-int lsm_inode_alloc(struct inode *inode)
+int lsm_iyesde_alloc(struct iyesde *iyesde)
 {
-	if (!lsm_inode_cache) {
-		inode->i_security = NULL;
+	if (!lsm_iyesde_cache) {
+		iyesde->i_security = NULL;
 		return 0;
 	}
 
-	inode->i_security = kmem_cache_zalloc(lsm_inode_cache, GFP_NOFS);
-	if (inode->i_security == NULL)
+	iyesde->i_security = kmem_cache_zalloc(lsm_iyesde_cache, GFP_NOFS);
+	if (iyesde->i_security == NULL)
 		return -ENOMEM;
 	return 0;
 }
@@ -640,7 +640,7 @@ static void __init lsm_early_task(struct task_struct *task)
  * Hook list operation macros.
  *
  * call_void_hook:
- *	This is a hook that does not return a value.
+ *	This is a hook that does yest return a value.
  *
  * call_int_hook:
  *	This is a hook that returns a value.
@@ -749,7 +749,7 @@ int security_settime64(const struct timespec64 *ts, const struct timezone *tz)
 	return call_int_hook(settime, 0, ts, tz);
 }
 
-int security_vm_enough_memory_mm(struct mm_struct *mm, long pages)
+int security_vm_eyesugh_memory_mm(struct mm_struct *mm, long pages)
 {
 	struct security_hook_list *hp;
 	int cap_sys_admin = 1;
@@ -757,19 +757,19 @@ int security_vm_enough_memory_mm(struct mm_struct *mm, long pages)
 
 	/*
 	 * The module will respond with a positive value if
-	 * it thinks the __vm_enough_memory() call should be
+	 * it thinks the __vm_eyesugh_memory() call should be
 	 * made with the cap_sys_admin set. If all of the modules
 	 * agree that it should be set it will. If any module
-	 * thinks it should not be set it won't.
+	 * thinks it should yest be set it won't.
 	 */
-	hlist_for_each_entry(hp, &security_hook_heads.vm_enough_memory, list) {
-		rc = hp->hook.vm_enough_memory(mm, pages);
+	hlist_for_each_entry(hp, &security_hook_heads.vm_eyesugh_memory, list) {
+		rc = hp->hook.vm_eyesugh_memory(mm, pages);
 		if (rc <= 0) {
 			cap_sys_admin = 0;
 			break;
 		}
 	}
-	return __vm_enough_memory(mm, pages, cap_sys_admin);
+	return __vm_eyesugh_memory(mm, pages, cap_sys_admin);
 }
 
 int security_bprm_set_creds(struct linux_binprm *bprm)
@@ -904,48 +904,48 @@ int security_move_mount(const struct path *from_path, const struct path *to_path
 	return call_int_hook(move_mount, 0, from_path, to_path);
 }
 
-int security_path_notify(const struct path *path, u64 mask,
+int security_path_yestify(const struct path *path, u64 mask,
 				unsigned int obj_type)
 {
-	return call_int_hook(path_notify, 0, path, mask, obj_type);
+	return call_int_hook(path_yestify, 0, path, mask, obj_type);
 }
 
-int security_inode_alloc(struct inode *inode)
+int security_iyesde_alloc(struct iyesde *iyesde)
 {
-	int rc = lsm_inode_alloc(inode);
+	int rc = lsm_iyesde_alloc(iyesde);
 
 	if (unlikely(rc))
 		return rc;
-	rc = call_int_hook(inode_alloc_security, 0, inode);
+	rc = call_int_hook(iyesde_alloc_security, 0, iyesde);
 	if (unlikely(rc))
-		security_inode_free(inode);
+		security_iyesde_free(iyesde);
 	return rc;
 }
 
-static void inode_free_by_rcu(struct rcu_head *head)
+static void iyesde_free_by_rcu(struct rcu_head *head)
 {
 	/*
-	 * The rcu head is at the start of the inode blob
+	 * The rcu head is at the start of the iyesde blob
 	 */
-	kmem_cache_free(lsm_inode_cache, head);
+	kmem_cache_free(lsm_iyesde_cache, head);
 }
 
-void security_inode_free(struct inode *inode)
+void security_iyesde_free(struct iyesde *iyesde)
 {
-	integrity_inode_free(inode);
-	call_void_hook(inode_free_security, inode);
+	integrity_iyesde_free(iyesde);
+	call_void_hook(iyesde_free_security, iyesde);
 	/*
-	 * The inode may still be referenced in a path walk and
-	 * a call to security_inode_permission() can be made
-	 * after inode_free_security() is called. Ideally, the VFS
+	 * The iyesde may still be referenced in a path walk and
+	 * a call to security_iyesde_permission() can be made
+	 * after iyesde_free_security() is called. Ideally, the VFS
 	 * wouldn't do this, but fixing that is a much harder
-	 * job. For now, simply free the i_security via RCU, and
-	 * leave the current inode->i_security pointer intact.
-	 * The inode will be freed after the RCU grace period too.
+	 * job. For yesw, simply free the i_security via RCU, and
+	 * leave the current iyesde->i_security pointer intact.
+	 * The iyesde will be freed after the RCU grace period too.
 	 */
-	if (inode->i_security)
-		call_rcu((struct rcu_head *)inode->i_security,
-				inode_free_by_rcu);
+	if (iyesde->i_security)
+		call_rcu((struct rcu_head *)iyesde->i_security,
+				iyesde_free_by_rcu);
 }
 
 int security_dentry_init_security(struct dentry *dentry, int mode,
@@ -966,7 +966,7 @@ int security_dentry_create_files_as(struct dentry *dentry, int mode,
 }
 EXPORT_SYMBOL(security_dentry_create_files_as);
 
-int security_inode_init_security(struct inode *inode, struct inode *dir,
+int security_iyesde_init_security(struct iyesde *iyesde, struct iyesde *dir,
 				 const struct qstr *qstr,
 				 const initxattrs initxattrs, void *fs_data)
 {
@@ -974,15 +974,15 @@ int security_inode_init_security(struct inode *inode, struct inode *dir,
 	struct xattr *lsm_xattr, *evm_xattr, *xattr;
 	int ret;
 
-	if (unlikely(IS_PRIVATE(inode)))
+	if (unlikely(IS_PRIVATE(iyesde)))
 		return 0;
 
 	if (!initxattrs)
-		return call_int_hook(inode_init_security, -EOPNOTSUPP, inode,
+		return call_int_hook(iyesde_init_security, -EOPNOTSUPP, iyesde,
 				     dir, qstr, NULL, NULL, NULL);
 	memset(new_xattrs, 0, sizeof(new_xattrs));
 	lsm_xattr = new_xattrs;
-	ret = call_int_hook(inode_init_security, -EOPNOTSUPP, inode, dir, qstr,
+	ret = call_int_hook(iyesde_init_security, -EOPNOTSUPP, iyesde, dir, qstr,
 						&lsm_xattr->name,
 						&lsm_xattr->value,
 						&lsm_xattr->value_len);
@@ -990,41 +990,41 @@ int security_inode_init_security(struct inode *inode, struct inode *dir,
 		goto out;
 
 	evm_xattr = lsm_xattr + 1;
-	ret = evm_inode_init_security(inode, lsm_xattr, evm_xattr);
+	ret = evm_iyesde_init_security(iyesde, lsm_xattr, evm_xattr);
 	if (ret)
 		goto out;
-	ret = initxattrs(inode, new_xattrs, fs_data);
+	ret = initxattrs(iyesde, new_xattrs, fs_data);
 out:
 	for (xattr = new_xattrs; xattr->value != NULL; xattr++)
 		kfree(xattr->value);
 	return (ret == -EOPNOTSUPP) ? 0 : ret;
 }
-EXPORT_SYMBOL(security_inode_init_security);
+EXPORT_SYMBOL(security_iyesde_init_security);
 
-int security_old_inode_init_security(struct inode *inode, struct inode *dir,
+int security_old_iyesde_init_security(struct iyesde *iyesde, struct iyesde *dir,
 				     const struct qstr *qstr, const char **name,
 				     void **value, size_t *len)
 {
-	if (unlikely(IS_PRIVATE(inode)))
+	if (unlikely(IS_PRIVATE(iyesde)))
 		return -EOPNOTSUPP;
-	return call_int_hook(inode_init_security, -EOPNOTSUPP, inode, dir,
+	return call_int_hook(iyesde_init_security, -EOPNOTSUPP, iyesde, dir,
 			     qstr, name, value, len);
 }
-EXPORT_SYMBOL(security_old_inode_init_security);
+EXPORT_SYMBOL(security_old_iyesde_init_security);
 
 #ifdef CONFIG_SECURITY_PATH
-int security_path_mknod(const struct path *dir, struct dentry *dentry, umode_t mode,
+int security_path_mkyesd(const struct path *dir, struct dentry *dentry, umode_t mode,
 			unsigned int dev)
 {
-	if (unlikely(IS_PRIVATE(d_backing_inode(dir->dentry))))
+	if (unlikely(IS_PRIVATE(d_backing_iyesde(dir->dentry))))
 		return 0;
-	return call_int_hook(path_mknod, 0, dir, dentry, mode, dev);
+	return call_int_hook(path_mkyesd, 0, dir, dentry, mode, dev);
 }
-EXPORT_SYMBOL(security_path_mknod);
+EXPORT_SYMBOL(security_path_mkyesd);
 
 int security_path_mkdir(const struct path *dir, struct dentry *dentry, umode_t mode)
 {
-	if (unlikely(IS_PRIVATE(d_backing_inode(dir->dentry))))
+	if (unlikely(IS_PRIVATE(d_backing_iyesde(dir->dentry))))
 		return 0;
 	return call_int_hook(path_mkdir, 0, dir, dentry, mode);
 }
@@ -1032,14 +1032,14 @@ EXPORT_SYMBOL(security_path_mkdir);
 
 int security_path_rmdir(const struct path *dir, struct dentry *dentry)
 {
-	if (unlikely(IS_PRIVATE(d_backing_inode(dir->dentry))))
+	if (unlikely(IS_PRIVATE(d_backing_iyesde(dir->dentry))))
 		return 0;
 	return call_int_hook(path_rmdir, 0, dir, dentry);
 }
 
 int security_path_unlink(const struct path *dir, struct dentry *dentry)
 {
-	if (unlikely(IS_PRIVATE(d_backing_inode(dir->dentry))))
+	if (unlikely(IS_PRIVATE(d_backing_iyesde(dir->dentry))))
 		return 0;
 	return call_int_hook(path_unlink, 0, dir, dentry);
 }
@@ -1048,7 +1048,7 @@ EXPORT_SYMBOL(security_path_unlink);
 int security_path_symlink(const struct path *dir, struct dentry *dentry,
 			  const char *old_name)
 {
-	if (unlikely(IS_PRIVATE(d_backing_inode(dir->dentry))))
+	if (unlikely(IS_PRIVATE(d_backing_iyesde(dir->dentry))))
 		return 0;
 	return call_int_hook(path_symlink, 0, dir, dentry, old_name);
 }
@@ -1056,7 +1056,7 @@ int security_path_symlink(const struct path *dir, struct dentry *dentry,
 int security_path_link(struct dentry *old_dentry, const struct path *new_dir,
 		       struct dentry *new_dentry)
 {
-	if (unlikely(IS_PRIVATE(d_backing_inode(old_dentry))))
+	if (unlikely(IS_PRIVATE(d_backing_iyesde(old_dentry))))
 		return 0;
 	return call_int_hook(path_link, 0, old_dentry, new_dir, new_dentry);
 }
@@ -1065,8 +1065,8 @@ int security_path_rename(const struct path *old_dir, struct dentry *old_dentry,
 			 const struct path *new_dir, struct dentry *new_dentry,
 			 unsigned int flags)
 {
-	if (unlikely(IS_PRIVATE(d_backing_inode(old_dentry)) ||
-		     (d_is_positive(new_dentry) && IS_PRIVATE(d_backing_inode(new_dentry)))))
+	if (unlikely(IS_PRIVATE(d_backing_iyesde(old_dentry)) ||
+		     (d_is_positive(new_dentry) && IS_PRIVATE(d_backing_iyesde(new_dentry)))))
 		return 0;
 
 	if (flags & RENAME_EXCHANGE) {
@@ -1083,21 +1083,21 @@ EXPORT_SYMBOL(security_path_rename);
 
 int security_path_truncate(const struct path *path)
 {
-	if (unlikely(IS_PRIVATE(d_backing_inode(path->dentry))))
+	if (unlikely(IS_PRIVATE(d_backing_iyesde(path->dentry))))
 		return 0;
 	return call_int_hook(path_truncate, 0, path);
 }
 
 int security_path_chmod(const struct path *path, umode_t mode)
 {
-	if (unlikely(IS_PRIVATE(d_backing_inode(path->dentry))))
+	if (unlikely(IS_PRIVATE(d_backing_iyesde(path->dentry))))
 		return 0;
 	return call_int_hook(path_chmod, 0, path, mode);
 }
 
 int security_path_chown(const struct path *path, kuid_t uid, kgid_t gid)
 {
-	if (unlikely(IS_PRIVATE(d_backing_inode(path->dentry))))
+	if (unlikely(IS_PRIVATE(d_backing_iyesde(path->dentry))))
 		return 0;
 	return call_int_hook(path_chown, 0, path, uid, gid);
 }
@@ -1108,228 +1108,228 @@ int security_path_chroot(const struct path *path)
 }
 #endif
 
-int security_inode_create(struct inode *dir, struct dentry *dentry, umode_t mode)
+int security_iyesde_create(struct iyesde *dir, struct dentry *dentry, umode_t mode)
 {
 	if (unlikely(IS_PRIVATE(dir)))
 		return 0;
-	return call_int_hook(inode_create, 0, dir, dentry, mode);
+	return call_int_hook(iyesde_create, 0, dir, dentry, mode);
 }
-EXPORT_SYMBOL_GPL(security_inode_create);
+EXPORT_SYMBOL_GPL(security_iyesde_create);
 
-int security_inode_link(struct dentry *old_dentry, struct inode *dir,
+int security_iyesde_link(struct dentry *old_dentry, struct iyesde *dir,
 			 struct dentry *new_dentry)
 {
-	if (unlikely(IS_PRIVATE(d_backing_inode(old_dentry))))
+	if (unlikely(IS_PRIVATE(d_backing_iyesde(old_dentry))))
 		return 0;
-	return call_int_hook(inode_link, 0, old_dentry, dir, new_dentry);
+	return call_int_hook(iyesde_link, 0, old_dentry, dir, new_dentry);
 }
 
-int security_inode_unlink(struct inode *dir, struct dentry *dentry)
+int security_iyesde_unlink(struct iyesde *dir, struct dentry *dentry)
 {
-	if (unlikely(IS_PRIVATE(d_backing_inode(dentry))))
+	if (unlikely(IS_PRIVATE(d_backing_iyesde(dentry))))
 		return 0;
-	return call_int_hook(inode_unlink, 0, dir, dentry);
+	return call_int_hook(iyesde_unlink, 0, dir, dentry);
 }
 
-int security_inode_symlink(struct inode *dir, struct dentry *dentry,
+int security_iyesde_symlink(struct iyesde *dir, struct dentry *dentry,
 			    const char *old_name)
 {
 	if (unlikely(IS_PRIVATE(dir)))
 		return 0;
-	return call_int_hook(inode_symlink, 0, dir, dentry, old_name);
+	return call_int_hook(iyesde_symlink, 0, dir, dentry, old_name);
 }
 
-int security_inode_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
+int security_iyesde_mkdir(struct iyesde *dir, struct dentry *dentry, umode_t mode)
 {
 	if (unlikely(IS_PRIVATE(dir)))
 		return 0;
-	return call_int_hook(inode_mkdir, 0, dir, dentry, mode);
+	return call_int_hook(iyesde_mkdir, 0, dir, dentry, mode);
 }
-EXPORT_SYMBOL_GPL(security_inode_mkdir);
+EXPORT_SYMBOL_GPL(security_iyesde_mkdir);
 
-int security_inode_rmdir(struct inode *dir, struct dentry *dentry)
+int security_iyesde_rmdir(struct iyesde *dir, struct dentry *dentry)
 {
-	if (unlikely(IS_PRIVATE(d_backing_inode(dentry))))
+	if (unlikely(IS_PRIVATE(d_backing_iyesde(dentry))))
 		return 0;
-	return call_int_hook(inode_rmdir, 0, dir, dentry);
+	return call_int_hook(iyesde_rmdir, 0, dir, dentry);
 }
 
-int security_inode_mknod(struct inode *dir, struct dentry *dentry, umode_t mode, dev_t dev)
+int security_iyesde_mkyesd(struct iyesde *dir, struct dentry *dentry, umode_t mode, dev_t dev)
 {
 	if (unlikely(IS_PRIVATE(dir)))
 		return 0;
-	return call_int_hook(inode_mknod, 0, dir, dentry, mode, dev);
+	return call_int_hook(iyesde_mkyesd, 0, dir, dentry, mode, dev);
 }
 
-int security_inode_rename(struct inode *old_dir, struct dentry *old_dentry,
-			   struct inode *new_dir, struct dentry *new_dentry,
+int security_iyesde_rename(struct iyesde *old_dir, struct dentry *old_dentry,
+			   struct iyesde *new_dir, struct dentry *new_dentry,
 			   unsigned int flags)
 {
-        if (unlikely(IS_PRIVATE(d_backing_inode(old_dentry)) ||
-            (d_is_positive(new_dentry) && IS_PRIVATE(d_backing_inode(new_dentry)))))
+        if (unlikely(IS_PRIVATE(d_backing_iyesde(old_dentry)) ||
+            (d_is_positive(new_dentry) && IS_PRIVATE(d_backing_iyesde(new_dentry)))))
 		return 0;
 
 	if (flags & RENAME_EXCHANGE) {
-		int err = call_int_hook(inode_rename, 0, new_dir, new_dentry,
+		int err = call_int_hook(iyesde_rename, 0, new_dir, new_dentry,
 						     old_dir, old_dentry);
 		if (err)
 			return err;
 	}
 
-	return call_int_hook(inode_rename, 0, old_dir, old_dentry,
+	return call_int_hook(iyesde_rename, 0, old_dir, old_dentry,
 					   new_dir, new_dentry);
 }
 
-int security_inode_readlink(struct dentry *dentry)
+int security_iyesde_readlink(struct dentry *dentry)
 {
-	if (unlikely(IS_PRIVATE(d_backing_inode(dentry))))
+	if (unlikely(IS_PRIVATE(d_backing_iyesde(dentry))))
 		return 0;
-	return call_int_hook(inode_readlink, 0, dentry);
+	return call_int_hook(iyesde_readlink, 0, dentry);
 }
 
-int security_inode_follow_link(struct dentry *dentry, struct inode *inode,
+int security_iyesde_follow_link(struct dentry *dentry, struct iyesde *iyesde,
 			       bool rcu)
 {
-	if (unlikely(IS_PRIVATE(inode)))
+	if (unlikely(IS_PRIVATE(iyesde)))
 		return 0;
-	return call_int_hook(inode_follow_link, 0, dentry, inode, rcu);
+	return call_int_hook(iyesde_follow_link, 0, dentry, iyesde, rcu);
 }
 
-int security_inode_permission(struct inode *inode, int mask)
+int security_iyesde_permission(struct iyesde *iyesde, int mask)
 {
-	if (unlikely(IS_PRIVATE(inode)))
+	if (unlikely(IS_PRIVATE(iyesde)))
 		return 0;
-	return call_int_hook(inode_permission, 0, inode, mask);
+	return call_int_hook(iyesde_permission, 0, iyesde, mask);
 }
 
-int security_inode_setattr(struct dentry *dentry, struct iattr *attr)
+int security_iyesde_setattr(struct dentry *dentry, struct iattr *attr)
 {
 	int ret;
 
-	if (unlikely(IS_PRIVATE(d_backing_inode(dentry))))
+	if (unlikely(IS_PRIVATE(d_backing_iyesde(dentry))))
 		return 0;
-	ret = call_int_hook(inode_setattr, 0, dentry, attr);
+	ret = call_int_hook(iyesde_setattr, 0, dentry, attr);
 	if (ret)
 		return ret;
-	return evm_inode_setattr(dentry, attr);
+	return evm_iyesde_setattr(dentry, attr);
 }
-EXPORT_SYMBOL_GPL(security_inode_setattr);
+EXPORT_SYMBOL_GPL(security_iyesde_setattr);
 
-int security_inode_getattr(const struct path *path)
+int security_iyesde_getattr(const struct path *path)
 {
-	if (unlikely(IS_PRIVATE(d_backing_inode(path->dentry))))
+	if (unlikely(IS_PRIVATE(d_backing_iyesde(path->dentry))))
 		return 0;
-	return call_int_hook(inode_getattr, 0, path);
+	return call_int_hook(iyesde_getattr, 0, path);
 }
 
-int security_inode_setxattr(struct dentry *dentry, const char *name,
+int security_iyesde_setxattr(struct dentry *dentry, const char *name,
 			    const void *value, size_t size, int flags)
 {
 	int ret;
 
-	if (unlikely(IS_PRIVATE(d_backing_inode(dentry))))
+	if (unlikely(IS_PRIVATE(d_backing_iyesde(dentry))))
 		return 0;
 	/*
 	 * SELinux and Smack integrate the cap call,
 	 * so assume that all LSMs supplying this call do so.
 	 */
-	ret = call_int_hook(inode_setxattr, 1, dentry, name, value, size,
+	ret = call_int_hook(iyesde_setxattr, 1, dentry, name, value, size,
 				flags);
 
 	if (ret == 1)
-		ret = cap_inode_setxattr(dentry, name, value, size, flags);
+		ret = cap_iyesde_setxattr(dentry, name, value, size, flags);
 	if (ret)
 		return ret;
-	ret = ima_inode_setxattr(dentry, name, value, size);
+	ret = ima_iyesde_setxattr(dentry, name, value, size);
 	if (ret)
 		return ret;
-	return evm_inode_setxattr(dentry, name, value, size);
+	return evm_iyesde_setxattr(dentry, name, value, size);
 }
 
-void security_inode_post_setxattr(struct dentry *dentry, const char *name,
+void security_iyesde_post_setxattr(struct dentry *dentry, const char *name,
 				  const void *value, size_t size, int flags)
 {
-	if (unlikely(IS_PRIVATE(d_backing_inode(dentry))))
+	if (unlikely(IS_PRIVATE(d_backing_iyesde(dentry))))
 		return;
-	call_void_hook(inode_post_setxattr, dentry, name, value, size, flags);
-	evm_inode_post_setxattr(dentry, name, value, size);
+	call_void_hook(iyesde_post_setxattr, dentry, name, value, size, flags);
+	evm_iyesde_post_setxattr(dentry, name, value, size);
 }
 
-int security_inode_getxattr(struct dentry *dentry, const char *name)
+int security_iyesde_getxattr(struct dentry *dentry, const char *name)
 {
-	if (unlikely(IS_PRIVATE(d_backing_inode(dentry))))
+	if (unlikely(IS_PRIVATE(d_backing_iyesde(dentry))))
 		return 0;
-	return call_int_hook(inode_getxattr, 0, dentry, name);
+	return call_int_hook(iyesde_getxattr, 0, dentry, name);
 }
 
-int security_inode_listxattr(struct dentry *dentry)
+int security_iyesde_listxattr(struct dentry *dentry)
 {
-	if (unlikely(IS_PRIVATE(d_backing_inode(dentry))))
+	if (unlikely(IS_PRIVATE(d_backing_iyesde(dentry))))
 		return 0;
-	return call_int_hook(inode_listxattr, 0, dentry);
+	return call_int_hook(iyesde_listxattr, 0, dentry);
 }
 
-int security_inode_removexattr(struct dentry *dentry, const char *name)
+int security_iyesde_removexattr(struct dentry *dentry, const char *name)
 {
 	int ret;
 
-	if (unlikely(IS_PRIVATE(d_backing_inode(dentry))))
+	if (unlikely(IS_PRIVATE(d_backing_iyesde(dentry))))
 		return 0;
 	/*
 	 * SELinux and Smack integrate the cap call,
 	 * so assume that all LSMs supplying this call do so.
 	 */
-	ret = call_int_hook(inode_removexattr, 1, dentry, name);
+	ret = call_int_hook(iyesde_removexattr, 1, dentry, name);
 	if (ret == 1)
-		ret = cap_inode_removexattr(dentry, name);
+		ret = cap_iyesde_removexattr(dentry, name);
 	if (ret)
 		return ret;
-	ret = ima_inode_removexattr(dentry, name);
+	ret = ima_iyesde_removexattr(dentry, name);
 	if (ret)
 		return ret;
-	return evm_inode_removexattr(dentry, name);
+	return evm_iyesde_removexattr(dentry, name);
 }
 
-int security_inode_need_killpriv(struct dentry *dentry)
+int security_iyesde_need_killpriv(struct dentry *dentry)
 {
-	return call_int_hook(inode_need_killpriv, 0, dentry);
+	return call_int_hook(iyesde_need_killpriv, 0, dentry);
 }
 
-int security_inode_killpriv(struct dentry *dentry)
+int security_iyesde_killpriv(struct dentry *dentry)
 {
-	return call_int_hook(inode_killpriv, 0, dentry);
+	return call_int_hook(iyesde_killpriv, 0, dentry);
 }
 
-int security_inode_getsecurity(struct inode *inode, const char *name, void **buffer, bool alloc)
+int security_iyesde_getsecurity(struct iyesde *iyesde, const char *name, void **buffer, bool alloc)
 {
 	struct security_hook_list *hp;
 	int rc;
 
-	if (unlikely(IS_PRIVATE(inode)))
+	if (unlikely(IS_PRIVATE(iyesde)))
 		return -EOPNOTSUPP;
 	/*
 	 * Only one module will provide an attribute with a given name.
 	 */
-	hlist_for_each_entry(hp, &security_hook_heads.inode_getsecurity, list) {
-		rc = hp->hook.inode_getsecurity(inode, name, buffer, alloc);
+	hlist_for_each_entry(hp, &security_hook_heads.iyesde_getsecurity, list) {
+		rc = hp->hook.iyesde_getsecurity(iyesde, name, buffer, alloc);
 		if (rc != -EOPNOTSUPP)
 			return rc;
 	}
 	return -EOPNOTSUPP;
 }
 
-int security_inode_setsecurity(struct inode *inode, const char *name, const void *value, size_t size, int flags)
+int security_iyesde_setsecurity(struct iyesde *iyesde, const char *name, const void *value, size_t size, int flags)
 {
 	struct security_hook_list *hp;
 	int rc;
 
-	if (unlikely(IS_PRIVATE(inode)))
+	if (unlikely(IS_PRIVATE(iyesde)))
 		return -EOPNOTSUPP;
 	/*
 	 * Only one module will provide an attribute with a given name.
 	 */
-	hlist_for_each_entry(hp, &security_hook_heads.inode_setsecurity, list) {
-		rc = hp->hook.inode_setsecurity(inode, name, value, size,
+	hlist_for_each_entry(hp, &security_hook_heads.iyesde_setsecurity, list) {
+		rc = hp->hook.iyesde_setsecurity(iyesde, name, value, size,
 								flags);
 		if (rc != -EOPNOTSUPP)
 			return rc;
@@ -1337,33 +1337,33 @@ int security_inode_setsecurity(struct inode *inode, const char *name, const void
 	return -EOPNOTSUPP;
 }
 
-int security_inode_listsecurity(struct inode *inode, char *buffer, size_t buffer_size)
+int security_iyesde_listsecurity(struct iyesde *iyesde, char *buffer, size_t buffer_size)
 {
-	if (unlikely(IS_PRIVATE(inode)))
+	if (unlikely(IS_PRIVATE(iyesde)))
 		return 0;
-	return call_int_hook(inode_listsecurity, 0, inode, buffer, buffer_size);
+	return call_int_hook(iyesde_listsecurity, 0, iyesde, buffer, buffer_size);
 }
-EXPORT_SYMBOL(security_inode_listsecurity);
+EXPORT_SYMBOL(security_iyesde_listsecurity);
 
-void security_inode_getsecid(struct inode *inode, u32 *secid)
+void security_iyesde_getsecid(struct iyesde *iyesde, u32 *secid)
 {
-	call_void_hook(inode_getsecid, inode, secid);
+	call_void_hook(iyesde_getsecid, iyesde, secid);
 }
 
-int security_inode_copy_up(struct dentry *src, struct cred **new)
+int security_iyesde_copy_up(struct dentry *src, struct cred **new)
 {
-	return call_int_hook(inode_copy_up, 0, src, new);
+	return call_int_hook(iyesde_copy_up, 0, src, new);
 }
-EXPORT_SYMBOL(security_inode_copy_up);
+EXPORT_SYMBOL(security_iyesde_copy_up);
 
-int security_inode_copy_up_xattr(const char *name)
+int security_iyesde_copy_up_xattr(const char *name)
 {
-	return call_int_hook(inode_copy_up_xattr, -EOPNOTSUPP, name);
+	return call_int_hook(iyesde_copy_up_xattr, -EOPNOTSUPP, name);
 }
-EXPORT_SYMBOL(security_inode_copy_up_xattr);
+EXPORT_SYMBOL(security_iyesde_copy_up_xattr);
 
-int security_kernfs_init_security(struct kernfs_node *kn_dir,
-				  struct kernfs_node *kn)
+int security_kernfs_init_security(struct kernfs_yesde *kn_dir,
+				  struct kernfs_yesde *kn)
 {
 	return call_int_hook(kernfs_init_security, 0, kn_dir, kn);
 }
@@ -1376,7 +1376,7 @@ int security_file_permission(struct file *file, int mask)
 	if (ret)
 		return ret;
 
-	return fsnotify_perm(file, mask);
+	return fsyestify_perm(file, mask);
 }
 
 int security_file_alloc(struct file *file)
@@ -1413,22 +1413,22 @@ static inline unsigned long mmap_prot(struct file *file, unsigned long prot)
 {
 	/*
 	 * Does we have PROT_READ and does the application expect
-	 * it to imply PROT_EXEC?  If not, nothing to talk about...
+	 * it to imply PROT_EXEC?  If yest, yesthing to talk about...
 	 */
 	if ((prot & (PROT_READ | PROT_EXEC)) != PROT_READ)
 		return prot;
 	if (!(current->personality & READ_IMPLIES_EXEC))
 		return prot;
 	/*
-	 * if that's an anonymous mapping, let it.
+	 * if that's an ayesnymous mapping, let it.
 	 */
 	if (!file)
 		return prot | PROT_EXEC;
 	/*
-	 * ditto if it's not on noexec mount, except that on !MMU we need
+	 * ditto if it's yest on yesexec mount, except that on !MMU we need
 	 * NOMMU_MAP_EXEC (== VM_MAYEXEC) in this case
 	 */
-	if (!path_noexec(&file->f_path)) {
+	if (!path_yesexec(&file->f_path)) {
 #ifndef CONFIG_MMU
 		if (file->f_op->mmap_capabilities) {
 			unsigned caps = file->f_op->mmap_capabilities(file);
@@ -1438,7 +1438,7 @@ static inline unsigned long mmap_prot(struct file *file, unsigned long prot)
 #endif
 		return prot | PROT_EXEC;
 	}
-	/* anything on noexec mount won't get PROT_EXEC */
+	/* anything on yesexec mount won't get PROT_EXEC */
 	return prot;
 }
 
@@ -1498,7 +1498,7 @@ int security_file_open(struct file *file)
 	if (ret)
 		return ret;
 
-	return fsnotify_perm(file, MAY_OPEN);
+	return fsyestify_perm(file, MAY_OPEN);
 }
 
 int security_task_alloc(struct task_struct *task, unsigned long clone_flags)
@@ -1579,9 +1579,9 @@ int security_kernel_act_as(struct cred *new, u32 secid)
 	return call_int_hook(kernel_act_as, 0, new, secid);
 }
 
-int security_kernel_create_files_as(struct cred *new, struct inode *inode)
+int security_kernel_create_files_as(struct cred *new, struct iyesde *iyesde)
 {
-	return call_int_hook(kernel_create_files_as, 0, new, inode);
+	return call_int_hook(kernel_create_files_as, 0, new, iyesde);
 }
 
 int security_kernel_module_request(char *kmod_name)
@@ -1722,9 +1722,9 @@ int security_task_prctl(int option, unsigned long arg2, unsigned long arg3,
 	return rc;
 }
 
-void security_task_to_inode(struct task_struct *p, struct inode *inode)
+void security_task_to_iyesde(struct task_struct *p, struct iyesde *iyesde)
 {
-	call_void_hook(task_to_inode, p, inode);
+	call_void_hook(task_to_iyesde, p, iyesde);
 }
 
 int security_ipc_permission(struct kern_ipc_perm *ipcp, short flag)
@@ -1867,11 +1867,11 @@ int security_sem_semop(struct kern_ipc_perm *sma, struct sembuf *sops,
 	return call_int_hook(sem_semop, 0, sma, sops, nsops, alter);
 }
 
-void security_d_instantiate(struct dentry *dentry, struct inode *inode)
+void security_d_instantiate(struct dentry *dentry, struct iyesde *iyesde)
 {
-	if (unlikely(inode && IS_PRIVATE(inode)))
+	if (unlikely(iyesde && IS_PRIVATE(iyesde)))
 		return;
-	call_void_hook(d_instantiate, dentry, inode);
+	call_void_hook(d_instantiate, dentry, iyesde);
 }
 EXPORT_SYMBOL(security_d_instantiate);
 
@@ -1932,29 +1932,29 @@ void security_release_secctx(char *secdata, u32 seclen)
 }
 EXPORT_SYMBOL(security_release_secctx);
 
-void security_inode_invalidate_secctx(struct inode *inode)
+void security_iyesde_invalidate_secctx(struct iyesde *iyesde)
 {
-	call_void_hook(inode_invalidate_secctx, inode);
+	call_void_hook(iyesde_invalidate_secctx, iyesde);
 }
-EXPORT_SYMBOL(security_inode_invalidate_secctx);
+EXPORT_SYMBOL(security_iyesde_invalidate_secctx);
 
-int security_inode_notifysecctx(struct inode *inode, void *ctx, u32 ctxlen)
+int security_iyesde_yestifysecctx(struct iyesde *iyesde, void *ctx, u32 ctxlen)
 {
-	return call_int_hook(inode_notifysecctx, 0, inode, ctx, ctxlen);
+	return call_int_hook(iyesde_yestifysecctx, 0, iyesde, ctx, ctxlen);
 }
-EXPORT_SYMBOL(security_inode_notifysecctx);
+EXPORT_SYMBOL(security_iyesde_yestifysecctx);
 
-int security_inode_setsecctx(struct dentry *dentry, void *ctx, u32 ctxlen)
+int security_iyesde_setsecctx(struct dentry *dentry, void *ctx, u32 ctxlen)
 {
-	return call_int_hook(inode_setsecctx, 0, dentry, ctx, ctxlen);
+	return call_int_hook(iyesde_setsecctx, 0, dentry, ctx, ctxlen);
 }
-EXPORT_SYMBOL(security_inode_setsecctx);
+EXPORT_SYMBOL(security_iyesde_setsecctx);
 
-int security_inode_getsecctx(struct inode *inode, void **ctx, u32 *ctxlen)
+int security_iyesde_getsecctx(struct iyesde *iyesde, void **ctx, u32 *ctxlen)
 {
-	return call_int_hook(inode_getsecctx, -EOPNOTSUPP, inode, ctx, ctxlen);
+	return call_int_hook(iyesde_getsecctx, -EOPNOTSUPP, iyesde, ctx, ctxlen);
 }
-EXPORT_SYMBOL(security_inode_getsecctx);
+EXPORT_SYMBOL(security_iyesde_getsecctx);
 
 #ifdef CONFIG_SECURITY_NETWORK
 
@@ -2352,9 +2352,9 @@ int security_audit_rule_init(u32 field, u32 op, char *rulestr, void **lsmrule)
 	return call_int_hook(audit_rule_init, 0, field, op, rulestr, lsmrule);
 }
 
-int security_audit_rule_known(struct audit_krule *krule)
+int security_audit_rule_kyeswn(struct audit_krule *krule)
 {
-	return call_int_hook(audit_rule_known, 0, krule);
+	return call_int_hook(audit_rule_kyeswn, 0, krule);
 }
 
 void security_audit_rule_free(void *lsmrule)

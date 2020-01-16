@@ -6,7 +6,7 @@
  *
  * Disclaimer: The codes contained in these modules may be specific to
  * the Intel Software Development Platform codenamed: Knights Ferry, and
- * the Intel product codenamed: Knights Corner, and are not backward
+ * the Intel product codenamed: Knights Corner, and are yest backward
  * compatible with other Intel products. Additionally, Intel will NOT
  * support the codes or instruction set in future products.
  *
@@ -71,7 +71,7 @@ static void mic_x100_send_sbox_intr(struct mic_mw *mw, int doorbell)
 	apicicr_low = (apicicr_low | (1 << 13));
 	/*
 	 * Ensure that the interrupt is ordered w.r.t. previous stores
-	 * to main memory. Fence instructions are not implemented in X100
+	 * to main memory. Fence instructions are yest implemented in X100
 	 * since execution is in order but a compiler barrier is still
 	 * required.
 	 */
@@ -85,7 +85,7 @@ static void mic_x100_send_rdmasr_intr(struct mic_mw *mw, int doorbell)
 	int rdmasr_offset = MIC_X100_SBOX_RDMASR0 + (doorbell << 2);
 	/*
 	 * Ensure that the interrupt is ordered w.r.t. previous stores
-	 * to main memory. Fence instructions are not implemented in X100
+	 * to main memory. Fence instructions are yest implemented in X100
 	 * since execution is in order but a compiler barrier is still
 	 * required.
 	 */
@@ -245,7 +245,7 @@ static int __init mic_probe(struct platform_device *pdev)
 	mdev->mmio.va = devm_ioremap(&pdev->dev, MIC_X100_MMIO_BASE,
 				     MIC_X100_MMIO_LEN);
 	if (!mdev->mmio.va) {
-		dev_err(&pdev->dev, "Cannot remap MMIO BAR\n");
+		dev_err(&pdev->dev, "Canyest remap MMIO BAR\n");
 		rc = -EIO;
 		goto done;
 	}
@@ -303,7 +303,7 @@ static int __init mic_init(void)
 
 	if (!(c->x86 == 11 && c->x86_model == 1)) {
 		ret = -ENODEV;
-		pr_err("%s not running on X100 ret %d\n", __func__, ret);
+		pr_err("%s yest running on X100 ret %d\n", __func__, ret);
 		goto done;
 	}
 

@@ -7,7 +7,7 @@ site: http://royale.zerezo.com/zr364xx/
 
 mail: royale@zerezo.com
 
-.. note::
+.. yeste::
 
    This documentation is outdated
 
@@ -39,7 +39,7 @@ If you manage to use your cam with this code, you can send me a mail
 
 This is a beta release of the driver. Since version 0.70, this driver is
 only compatible with V4L2 API and 2.6.x kernels. If you need V4L1 or
-2.4x kernels support, please use an older version, but the code is not
+2.4x kernels support, please use an older version, but the code is yest
 maintained anymore. Good luck!
 
 Install
@@ -81,7 +81,7 @@ Vendor  Product  Distributor     Model
 0x0d64  0x0108   Aiptek          Fidelity 3200
 0x0d64  0x0108   Praktica        DCZ 1.3 S
 0x0d64  0x0108   Genius          Digital Camera (?)
-0x0d64  0x0108   DXG Technology  Fashion Cam
+0x0d64  0x0108   DXG Techyeslogy  Fashion Cam
 0x0546  0x3187   Polaroid        iON 230
 0x0d64  0x3108   Praktica        Exakta DC 2200
 0x0d64  0x3108   Genius          G-Shot D211

@@ -42,7 +42,7 @@ static void intel_menlow_unregister_sensor(void);
 /*
  * GTHS returning 'n' would mean that [0,n-1] states are supported
  * In that case max_cstate would be n-1
- * GTHS returning '0' would mean that no bandwidth control states are supported
+ * GTHS returning '0' would mean that yes bandwidth control states are supported
  */
 static int memory_get_max_bandwidth(struct thermal_cooling_device *cdev,
 				    unsigned long *max_state)
@@ -225,7 +225,7 @@ struct intel_menlow_attribute {
 	struct device_attribute attr;
 	struct device *device;
 	acpi_handle handle;
-	struct list_head node;
+	struct list_head yesde;
 };
 
 static LIST_HEAD(intel_menlow_attr_list);
@@ -392,7 +392,7 @@ static int intel_menlow_add_one_attribute(char *name, umode_t mode, void *show,
 	}
 
 	mutex_lock(&intel_menlow_attr_lock);
-	list_add_tail(&attr->node, &intel_menlow_attr_list);
+	list_add_tail(&attr->yesde, &intel_menlow_attr_list);
 	mutex_unlock(&intel_menlow_attr_lock);
 
 	return 0;
@@ -427,11 +427,11 @@ static acpi_status intel_menlow_register_sensor(acpi_handle handle, u32 lvl,
 
 	status = acpi_get_handle(handle, GET_AUX1, &dummy);
 	if (ACPI_FAILURE(status))
-		goto aux1_not_found;
+		goto aux1_yest_found;
 
 	status = acpi_get_handle(handle, SET_AUX1, &dummy);
 	if (ACPI_FAILURE(status))
-		goto aux1_not_found;
+		goto aux1_yest_found;
 
 	result = intel_menlow_add_one_attribute("aux1", 0644,
 						aux1_show, aux1_store,
@@ -443,7 +443,7 @@ static acpi_status intel_menlow_register_sensor(acpi_handle handle, u32 lvl,
 
 	/*
 	 * create the "dabney_enabled" attribute which means the user app
-	 * should be loaded or not
+	 * should be loaded or yest
 	 */
 
 	result = intel_menlow_add_one_attribute("bios_enabled", 0444,
@@ -456,7 +456,7 @@ static acpi_status intel_menlow_register_sensor(acpi_handle handle, u32 lvl,
 
 	return AE_OK;
 
- aux1_not_found:
+ aux1_yest_found:
 	if (status == AE_NOT_FOUND)
 		return AE_OK;
 
@@ -469,8 +469,8 @@ static void intel_menlow_unregister_sensor(void)
 	struct intel_menlow_attribute *pos, *next;
 
 	mutex_lock(&intel_menlow_attr_lock);
-	list_for_each_entry_safe(pos, next, &intel_menlow_attr_list, node) {
-		list_del(&pos->node);
+	list_for_each_entry_safe(pos, next, &intel_menlow_attr_list, yesde) {
+		list_del(&pos->yesde);
 		device_remove_file(pos->device, &pos->attr);
 		kfree(pos);
 	}

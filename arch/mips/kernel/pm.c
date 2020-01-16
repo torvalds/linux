@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Copyright (C) 2014 Imagination Technologies Ltd.
+ * Copyright (C) 2014 Imagination Techyeslogies Ltd.
  *
- * CPU PM notifiers for saving/restoring general CPU state.
+ * CPU PM yestifiers for saving/restoring general CPU state.
  */
 
 #include <linux/cpu_pm.h>
@@ -19,7 +19,7 @@ struct mips_static_suspend_state mips_static_suspend_state;
 
 /**
  * mips_cpu_save() - Save general CPU state.
- * Ensures that general CPU context is saved, notably FPU and DSP.
+ * Ensures that general CPU context is saved, yestably FPU and DSP.
  */
 static int mips_cpu_save(void)
 {
@@ -56,7 +56,7 @@ static void mips_cpu_restore(void)
 }
 
 /**
- * mips_pm_notifier() - Notifier for preserving general CPU context.
+ * mips_pm_yestifier() - Notifier for preserving general CPU context.
  * @self:	Notifier block.
  * @cmd:	CPU PM event.
  * @v:		Private data (unused).
@@ -64,7 +64,7 @@ static void mips_cpu_restore(void)
  * This is called when a CPU power management event occurs, and is used to
  * ensure that important CPU context is preserved across a CPU power down.
  */
-static int mips_pm_notifier(struct notifier_block *self, unsigned long cmd,
+static int mips_pm_yestifier(struct yestifier_block *self, unsigned long cmd,
 			    void *v)
 {
 	int ret;
@@ -84,12 +84,12 @@ static int mips_pm_notifier(struct notifier_block *self, unsigned long cmd,
 	return NOTIFY_OK;
 }
 
-static struct notifier_block mips_pm_notifier_block = {
-	.notifier_call = mips_pm_notifier,
+static struct yestifier_block mips_pm_yestifier_block = {
+	.yestifier_call = mips_pm_yestifier,
 };
 
 static int __init mips_pm_init(void)
 {
-	return cpu_pm_register_notifier(&mips_pm_notifier_block);
+	return cpu_pm_register_yestifier(&mips_pm_yestifier_block);
 }
 arch_initcall(mips_pm_init);

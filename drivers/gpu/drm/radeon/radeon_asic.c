@@ -10,7 +10,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -98,7 +98,7 @@ static void radeon_register_accessor_init(struct radeon_device *rdev)
 	} else {
 		rdev->pcie_reg_mask = 0x7ff;
 	}
-	/* FIXME: not sure here */
+	/* FIXME: yest sure here */
 	if (rdev->family <= CHIP_R580) {
 		rdev->pll_rreg = &r100_pll_rreg;
 		rdev->pll_wreg = &r100_pll_wreg;
@@ -2689,7 +2689,7 @@ int radeon_asic_init(struct radeon_device *rdev)
 		rdev->has_vce = true;
 		break;
 	default:
-		/* FIXME: not supported yet */
+		/* FIXME: yest supported yet */
 		return -EINVAL;
 	}
 

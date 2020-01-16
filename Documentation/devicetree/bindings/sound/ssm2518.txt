@@ -8,7 +8,7 @@ Required properties:
 	or 0x35 (ADDR pin high)
 
 Optional properties:
-  - gpios : GPIO connected to the nSD pin. If the property is not present it is
+  - gpios : GPIO connected to the nSD pin. If the property is yest present it is
 	        assumed that the nSD pin is hardwired to always on.
 
 Example:

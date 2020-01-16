@@ -100,7 +100,7 @@ static const struct gemini_gate_data gemini_gates[] = {
 	{ 9, "pci-gate", "ahb", 0 },
 	/*
 	 * The DDR controller may never have a driver, but certainly must
-	 * not be gated off.
+	 * yest be gated off.
 	 */
 	{ 10, "ddr-gate", "ahb", CLK_IS_CRITICAL },
 	/*
@@ -274,7 +274,7 @@ static int gemini_clk_probe(struct platform_device *pdev)
 	struct regmap *map;
 	struct clk_hw *hw;
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 	unsigned int mult, div;
 	struct resource *res;
 	u32 val;
@@ -291,9 +291,9 @@ static int gemini_clk_probe(struct platform_device *pdev)
 	if (IS_ERR(base))
 		return PTR_ERR(base);
 
-	map = syscon_node_to_regmap(np);
+	map = syscon_yesde_to_regmap(np);
 	if (IS_ERR(map)) {
-		dev_err(dev, "no syscon regmap\n");
+		dev_err(dev, "yes syscon regmap\n");
 		return PTR_ERR(map);
 	}
 
@@ -301,11 +301,11 @@ static int gemini_clk_probe(struct platform_device *pdev)
 	gr->rcdev.owner = THIS_MODULE;
 	gr->rcdev.nr_resets = 32;
 	gr->rcdev.ops = &gemini_reset_ops;
-	gr->rcdev.of_node = np;
+	gr->rcdev.of_yesde = np;
 
 	ret = devm_reset_controller_register(dev, &gr->rcdev);
 	if (ret) {
-		dev_err(dev, "could not register reset controller\n");
+		dev_err(dev, "could yest register reset controller\n");
 		return ret;
 	}
 
@@ -334,7 +334,7 @@ static int gemini_clk_probe(struct platform_device *pdev)
 	hw = clk_hw_register_fixed_factor(NULL, "secdiv", "ahb", 0, mult, div);
 
 	/*
-	 * These are the leaf gates, at boot no clocks are gated.
+	 * These are the leaf gates, at boot yes clocks are gated.
 	 */
 	for (i = 0; i < ARRAY_SIZE(gemini_gates); i++) {
 		const struct gemini_gate_data *gd;
@@ -389,7 +389,7 @@ static struct platform_driver gemini_clk_driver = {
 };
 builtin_platform_driver(gemini_clk_driver);
 
-static void __init gemini_cc_init(struct device_node *np)
+static void __init gemini_cc_init(struct device_yesde *np)
 {
 	struct regmap *map;
 	struct clk_hw *hw;
@@ -412,15 +412,15 @@ static void __init gemini_cc_init(struct device_node *np)
 	for (i = 0; i < GEMINI_NUM_CLKS; i++)
 		gemini_clk_data->hws[i] = ERR_PTR(-EPROBE_DEFER);
 
-	map = syscon_node_to_regmap(np);
+	map = syscon_yesde_to_regmap(np);
 	if (IS_ERR(map)) {
-		pr_err("no syscon regmap\n");
+		pr_err("yes syscon regmap\n");
 		return;
 	}
 	/*
 	 * We check that the regmap works on this very first access,
 	 * but as this is an MMIO-backed regmap, subsequent regmap
-	 * access is not going to fail and we skip error checks from
+	 * access is yest going to fail and we skip error checks from
 	 * this point.
 	 */
 	ret = regmap_read(map, GEMINI_GLOBAL_STATUS, &val);

@@ -139,18 +139,18 @@ EXPORT_SYMBOL_GPL(mc13xxx_fixed_regulator_ops);
 #ifdef CONFIG_OF
 int mc13xxx_get_num_regulators_dt(struct platform_device *pdev)
 {
-	struct device_node *parent;
+	struct device_yesde *parent;
 	int num;
 
-	if (!pdev->dev.parent->of_node)
+	if (!pdev->dev.parent->of_yesde)
 		return -ENODEV;
 
-	parent = of_get_child_by_name(pdev->dev.parent->of_node, "regulators");
+	parent = of_get_child_by_name(pdev->dev.parent->of_yesde, "regulators");
 	if (!parent)
 		return -ENODEV;
 
 	num = of_get_child_count(parent);
-	of_node_put(parent);
+	of_yesde_put(parent);
 	return num;
 }
 EXPORT_SYMBOL_GPL(mc13xxx_get_num_regulators_dt);
@@ -161,38 +161,38 @@ struct mc13xxx_regulator_init_data *mc13xxx_parse_regulators_dt(
 {
 	struct mc13xxx_regulator_priv *priv = platform_get_drvdata(pdev);
 	struct mc13xxx_regulator_init_data *data, *p;
-	struct device_node *parent, *child;
+	struct device_yesde *parent, *child;
 	int i, parsed = 0;
 
-	if (!pdev->dev.parent->of_node)
+	if (!pdev->dev.parent->of_yesde)
 		return NULL;
 
-	parent = of_get_child_by_name(pdev->dev.parent->of_node, "regulators");
+	parent = of_get_child_by_name(pdev->dev.parent->of_yesde, "regulators");
 	if (!parent)
 		return NULL;
 
 	data = devm_kcalloc(&pdev->dev, priv->num_regulators, sizeof(*data),
 			    GFP_KERNEL);
 	if (!data) {
-		of_node_put(parent);
+		of_yesde_put(parent);
 		return NULL;
 	}
 
 	p = data;
 
-	for_each_child_of_node(parent, child) {
+	for_each_child_of_yesde(parent, child) {
 		int found = 0;
 
 		for (i = 0; i < num_regulators; i++) {
 			if (!regulators[i].desc.name)
 				continue;
-			if (of_node_name_eq(child,
+			if (of_yesde_name_eq(child,
 					 regulators[i].desc.name)) {
 				p->id = i;
 				p->init_data = of_get_regulator_init_data(
 							&pdev->dev, child,
 							&regulators[i].desc);
-				p->node = child;
+				p->yesde = child;
 				p++;
 
 				parsed++;
@@ -203,9 +203,9 @@ struct mc13xxx_regulator_init_data *mc13xxx_parse_regulators_dt(
 
 		if (!found)
 			dev_warn(&pdev->dev,
-				 "Unknown regulator: %pOFn\n", child);
+				 "Unkyeswn regulator: %pOFn\n", child);
 	}
-	of_node_put(parent);
+	of_yesde_put(parent);
 
 	priv->num_regulators = parsed;
 

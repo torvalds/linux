@@ -100,7 +100,7 @@ static int bcm_ns_usb2_probe(struct platform_device *pdev)
 
 	usb2->ref_clk = devm_clk_get(dev, "phy-ref-clk");
 	if (IS_ERR(usb2->ref_clk)) {
-		dev_err(dev, "Clock not defined\n");
+		dev_err(dev, "Clock yest defined\n");
 		return PTR_ERR(usb2->ref_clk);
 	}
 

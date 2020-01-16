@@ -10,7 +10,7 @@
  */
 
 #include <linux/bitops.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/ioport.h>
@@ -34,7 +34,7 @@ int gsc_alloc_irq(struct gsc_irq *i)
 {
 	int irq = txn_alloc_irq(GSC_EIM_WIDTH);
 	if (irq < 0) {
-		printk("cannot get irq\n");
+		printk("canyest get irq\n");
 		return irq;
 	}
 
@@ -53,7 +53,7 @@ int gsc_claim_irq(struct gsc_irq *i, int irq)
 
 	irq = txn_claim_irq(irq);
 	if (irq < 0) {
-		printk("cannot claim irq %d\n", c);
+		printk("canyest claim irq %d\n", c);
 		return irq;
 	}
 
@@ -213,14 +213,14 @@ int gsc_common_setup(struct parisc_device *parent, struct gsc_asic *gsc_asic)
 	/* allocate resource region */
 	res = request_mem_region(gsc_asic->hpa, 0x100000, gsc_asic->name);
 	if (res) {
-		res->flags = IORESOURCE_MEM; 	/* do not mark it busy ! */
+		res->flags = IORESOURCE_MEM; 	/* do yest mark it busy ! */
 	}
 
 #if 0
 	printk(KERN_WARNING "%s IRQ %d EIM 0x%x", gsc_asic->name,
 			parent->irq, gsc_asic->eim);
 	if (gsc_readl(gsc_asic->hpa + OFFSET_IMR))
-		printk("  IMR is non-zero! (0x%x)",
+		printk("  IMR is yesn-zero! (0x%x)",
 				gsc_readl(gsc_asic->hpa + OFFSET_IMR));
 	printk("\n");
 #endif

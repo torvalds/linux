@@ -367,8 +367,8 @@ static inline struct wm8350_irq_data *irq_to_wm8350_irq(struct wm8350 *wm8350,
 /*
  * This is a threaded IRQ handler so can access I2C/SPI.  Since all
  * interrupts are clear on read the IRQ line will be reasserted and
- * the physical IRQ will be handled again if another interrupt is
- * asserted while we run - in the normal course of events this is a
+ * the physical IRQ will be handled again if ayesther interrupt is
+ * asserted while we run - in the yesrmal course of events this is a
  * rare occurrence so we save I2C/SPI reads.  We're also assuming that
  * it's rare to get lots of interrupts firing simultaneously so try to
  * minimise I/O.
@@ -468,7 +468,7 @@ int wm8350_irq_init(struct wm8350 *wm8350, int irq,
 	int irq_base = -1;
 
 	if (!irq) {
-		dev_warn(wm8350->dev, "No interrupt support, no core IRQ\n");
+		dev_warn(wm8350->dev, "No interrupt support, yes core IRQ\n");
 		return 0;
 	}
 

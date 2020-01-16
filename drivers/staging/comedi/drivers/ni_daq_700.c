@@ -12,7 +12,7 @@
  * Driver: ni_daq_700
  * Description: National Instruments PCMCIA DAQCard-700
  * Author: Fred Brooks <nsaspook@nsaspook.com>,
- *   based on ni_daq_dio24 by Daniel Vecino Castel <dvecino@able.es>
+ *   based on ni_daq_dio24 by Daniel Veciyes Castel <dveciyes@able.es>
  * Devices: [National Instruments] PCMCIA DAQ-Card-700 (ni_daq_700)
  * Status: works
  * Updated: Wed, 21 May 2014 12:07:20 +0000
@@ -32,7 +32,7 @@
  *       1 for -5 to 5V bipolar
  *       2 for -2.5 to 2.5V bipolar
  *
- * IRQ is assigned but not used.
+ * IRQ is assigned but yest used.
  *
  * Manuals:	Register level:	http://www.ni.com/pdf/manuals/340698.pdf
  *		User Manual:	http://www.ni.com/pdf/manuals/320676d.pdf
@@ -104,7 +104,7 @@ static int daq700_dio_insn_config(struct comedi_device *dev,
 	if (ret)
 		return ret;
 
-	/* The DIO channels are not configurable, fix the io_bits */
+	/* The DIO channels are yest configurable, fix the io_bits */
 	s->io_bits = 0x00ff;
 
 	return insn->n;

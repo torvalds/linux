@@ -10,9 +10,9 @@ Required properties:
 Optional properties:
 
   - wakeup-gpios: device tree identifier of the GPIO connected to the SDA line
-      to hold low in order to wake up the device.  In normal operation, the
-      GPIO is set as input and will not interfere in I2C communication.  There
-      is no need for a GPIO driving the SCL line.  If no GPIO is given, power
+      to hold low in order to wake up the device.  In yesrmal operation, the
+      GPIO is set as input and will yest interfere in I2C communication.  There
+      is yes need for a GPIO driving the SCL line.  If yes GPIO is given, power
       management is disabled.
 
 Example:

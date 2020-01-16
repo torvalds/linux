@@ -36,9 +36,9 @@ Required properties:
 		has 4 channels. A total of 16 channels. Following types are
 		supported:
 		0 - TX channel with 32bit transmit register and IRQ transmit
-		acknowledgment support.
+		ackyeswledgment support.
 		1 - RX channel with 32bit receive register and IRQ support
-		2 - TX doorbell channel. Without own register and no ACK support.
+		2 - TX doorbell channel. Without own register and yes ACK support.
 		3 - RX doorbell channel.
 
 Optional properties:

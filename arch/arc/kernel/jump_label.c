@@ -14,7 +14,7 @@
 	BUG();								\
 })
 
-static inline u32 arc_gen_nop(void)
+static inline u32 arc_gen_yesp(void)
 {
 	/* 1x 32bit NOP in middle endian */
 	return 0x7000264a;
@@ -56,12 +56,12 @@ static inline u32 arc_gen_branch(jump_label_t pc, jump_label_t target)
 	 * function.
 	 */
 	if ((s32)u_offset < -16777216 || (s32)u_offset > 16777214)
-		arc_jl_fatal("gen branch with offset (%d) not fit in s25",
+		arc_jl_fatal("gen branch with offset (%d) yest fit in s25",
 			     (s32)u_offset);
 
 	/*
 	 * All instructions are aligned by 2 bytes so we should never get offset
-	 * here which is not 2 bytes aligned.
+	 * here which is yest 2 bytes aligned.
 	 */
 	if (u_offset & 0x1)
 		arc_jl_fatal("gen branch with offset (%d) unaligned to 2 bytes",
@@ -90,7 +90,7 @@ void arch_jump_label_transform(struct jump_entry *entry,
 	if (type == JUMP_LABEL_JMP)
 		instr = arc_gen_branch(entry->code, entry->target);
 	else
-		instr = arc_gen_nop();
+		instr = arc_gen_yesp();
 
 	WRITE_ONCE(*instr_addr, instr);
 	flush_icache_range(entry->code, entry->code + JUMP_LABEL_NOP_SIZE);
@@ -101,7 +101,7 @@ void arch_jump_label_transform_static(struct jump_entry *entry,
 {
 	/*
 	 * We use only one NOP type (1x, 4 byte) in arch_static_branch, so
-	 * there's no need to patch an identical NOP over the top of it here.
+	 * there's yes need to patch an identical NOP over the top of it here.
 	 * The generic code calls 'arch_jump_label_transform' if the NOP needs
 	 * to be replaced by a branch, so 'arch_jump_label_transform_static' is
 	 * never called with type other than JUMP_LABEL_NOP.
@@ -134,7 +134,7 @@ static __init int branch_gen_test(const struct arc_gen_branch_testdata *test)
 }
 
 /*
- * Offset field in branch instruction is not continuous. Test all
+ * Offset field in branch instruction is yest continuous. Test all
  * available offset field and sign combinations. Test data is generated
  * from real working code.
  */

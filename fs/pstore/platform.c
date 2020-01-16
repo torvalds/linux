@@ -10,7 +10,7 @@
 
 #include <linux/atomic.h>
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/init.h>
 #include <linux/kmsg_dump.h>
 #include <linux/console.h>
@@ -37,14 +37,14 @@
 
 /*
  * We defer making "oops" entries appear in pstore - see
- * whether the system is actually still running well enough
+ * whether the system is actually still running well eyesugh
  * to let someone see the entry
  */
 static int pstore_update_ms = -1;
 module_param_named(update_ms, pstore_update_ms, int, 0600);
 MODULE_PARM_DESC(update_ms, "milliseconds before pstore updates its content "
 		 "(default is -1, which means runtime updates are disabled; "
-		 "enabling this option is not safe, it may lead to further "
+		 "enabling this option is yest safe, it may lead to further "
 		 "corruption on Oopses)");
 
 /* Names should be in the same order as the enum pstore_type_id */
@@ -110,7 +110,7 @@ const char *pstore_type_to_name(enum pstore_type_id type)
 	BUILD_BUG_ON(ARRAY_SIZE(pstore_type_names) != PSTORE_TYPE_MAX);
 
 	if (WARN_ON_ONCE(type >= PSTORE_TYPE_MAX))
-		return "unknown";
+		return "unkyeswn";
 
 	return pstore_type_names[type];
 }
@@ -145,16 +145,16 @@ static const char *get_reason_str(enum kmsg_dump_reason reason)
 	case KMSG_DUMP_POWEROFF:
 		return "Poweroff";
 	default:
-		return "Unknown";
+		return "Unkyeswn";
 	}
 }
 
 /*
  * Should pstore_dump() wait for a concurrent pstore_dump()? If
- * not, the current pstore_dump() will report a failure to dump
+ * yest, the current pstore_dump() will report a failure to dump
  * and return.
  */
-static bool pstore_cannot_wait(enum kmsg_dump_reason reason)
+static bool pstore_canyest_wait(enum kmsg_dump_reason reason)
 {
 	/* In NMI path, pstore shouldn't block regardless of reason. */
 	if (in_nmi())
@@ -290,16 +290,16 @@ static void allocate_buf_for_compression(void)
 	int size;
 	char *buf;
 
-	/* Skip if not built-in or compression backend not selected yet. */
+	/* Skip if yest built-in or compression backend yest selected yet. */
 	if (!IS_ENABLED(CONFIG_PSTORE_COMPRESS) || !zbackend)
 		return;
 
-	/* Skip if no pstore backend yet or compression init already done. */
+	/* Skip if yes pstore backend yet or compression init already done. */
 	if (!psinfo || tfm)
 		return;
 
 	if (!crypto_has_comp(zbackend->name, 0, 0)) {
-		pr_err("Unknown compression: %s\n", zbackend->name);
+		pr_err("Unkyeswn compression: %s\n", zbackend->name);
 		return;
 	}
 
@@ -325,7 +325,7 @@ static void allocate_buf_for_compression(void)
 		return;
 	}
 
-	/* A non-NULL big_oops_buf indicates compression is available. */
+	/* A yesn-NULL big_oops_buf indicates compression is available. */
 	tfm = ctx;
 	big_oops_buf_sz = size;
 	big_oops_buf = buf;
@@ -396,14 +396,14 @@ static void pstore_dump(struct kmsg_dumper *dumper,
 	why = get_reason_str(reason);
 
 	if (down_trylock(&psinfo->buf_lock)) {
-		/* Failed to acquire lock: give up if we cannot wait. */
-		if (pstore_cannot_wait(reason)) {
+		/* Failed to acquire lock: give up if we canyest wait. */
+		if (pstore_canyest_wait(reason)) {
 			pr_err("dump skipped in %s path: may corrupt error record\n",
 				in_nmi() ? "NMI" : why);
 			return;
 		}
 		if (down_interruptible(&psinfo->buf_lock)) {
-			pr_err("could not grab semaphore?!\n");
+			pr_err("could yest grab semaphore?!\n");
 			return;
 		}
 	}
@@ -549,7 +549,7 @@ out:
 /*
  * platform specific persistent storage driver registers with
  * us here. If pstore is already mounted, call the platform
- * read function right away to populate the file system. If not
+ * read function right away to populate the file system. If yest
  * then the pstore mount code will call us later to fill out
  * the file system.
  */
@@ -558,7 +558,7 @@ int pstore_register(struct pstore_info *psi)
 	struct module *owner = psi->owner;
 
 	if (backend && strcmp(backend, psi->name)) {
-		pr_warn("ignoring unexpected backend '%s'\n", psi->name);
+		pr_warn("igyesring unexpected backend '%s'\n", psi->name);
 		return -EPERM;
 	}
 
@@ -578,7 +578,7 @@ int pstore_register(struct pstore_info *psi)
 
 	spin_lock(&pstore_lock);
 	if (psinfo) {
-		pr_warn("backend '%s' already loaded: ignoring '%s'\n",
+		pr_warn("backend '%s' already loaded: igyesring '%s'\n",
 			psinfo->name, psi->name);
 		spin_unlock(&pstore_lock);
 		return -EBUSY;
@@ -666,19 +666,19 @@ static void decompress_record(struct pstore_record *record)
 
 	/* Only PSTORE_TYPE_DMESG support compression. */
 	if (record->type != PSTORE_TYPE_DMESG) {
-		pr_warn("ignored compressed record type %d\n", record->type);
+		pr_warn("igyesred compressed record type %d\n", record->type);
 		return;
 	}
 
-	/* Missing compression buffer means compression was not initialized. */
+	/* Missing compression buffer means compression was yest initialized. */
 	if (!big_oops_buf) {
-		pr_warn("no decompression method initialized!\n");
+		pr_warn("yes decompression method initialized!\n");
 		return;
 	}
 
-	/* Allocate enough space to hold max decompression and ECC. */
+	/* Allocate eyesugh space to hold max decompression and ECC. */
 	unzipped_len = big_oops_buf_sz;
-	workspace = kmalloc(unzipped_len + record->ecc_notice_size,
+	workspace = kmalloc(unzipped_len + record->ecc_yestice_size,
 			    GFP_KERNEL);
 	if (!workspace)
 		return;
@@ -692,12 +692,12 @@ static void decompress_record(struct pstore_record *record)
 		return;
 	}
 
-	/* Append ECC notice to decompressed buffer. */
+	/* Append ECC yestice to decompressed buffer. */
 	memcpy(workspace + unzipped_len, record->buf + record->size,
-	       record->ecc_notice_size);
+	       record->ecc_yestice_size);
 
 	/* Copy decompressed contents into an minimum-sized allocation. */
-	unzipped = kmemdup(workspace, unzipped_len + record->ecc_notice_size,
+	unzipped = kmemdup(workspace, unzipped_len + record->ecc_yestice_size,
 			   GFP_KERNEL);
 	kfree(workspace);
 	if (!unzipped)
@@ -756,7 +756,7 @@ void pstore_get_backend_records(struct pstore_info *psi,
 		decompress_record(record);
 		rc = pstore_mkfile(root, record);
 		if (rc) {
-			/* pstore_mkfile() did not take record, so free it. */
+			/* pstore_mkfile() did yest take record, so free it. */
 			kfree(record->buf);
 			kfree(record);
 			if (rc != -EEXIST || !quiet)
@@ -815,9 +815,9 @@ static int __init pstore_init(void)
 	pstore_choose_compression();
 
 	/*
-	 * Check if any pstore backends registered earlier but did not
-	 * initialize compression because crypto was not ready. If so,
-	 * initialize compression now.
+	 * Check if any pstore backends registered earlier but did yest
+	 * initialize compression because crypto was yest ready. If so,
+	 * initialize compression yesw.
 	 */
 	allocate_buf_for_compression();
 

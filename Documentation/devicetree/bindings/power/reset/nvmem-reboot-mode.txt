@@ -19,7 +19,7 @@ Example:
 		nvmem-cells = <&reboot_mode>;
 		nvmem-cell-names = "reboot-mode";
 
-		mode-normal     = <0xAAAA5501>;
+		mode-yesrmal     = <0xAAAA5501>;
 		mode-bootloader = <0xBBBB5500>;
 		mode-recovery   = <0xCCCC5502>;
 		mode-test       = <0xDDDD5503>;

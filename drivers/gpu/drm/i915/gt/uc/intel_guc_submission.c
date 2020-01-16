@@ -30,7 +30,7 @@ enum {
 /**
  * DOC: GuC-based command submission
  *
- * IMPORTANT NOTE: GuC submission is currently not supported in i915. The GuC
+ * IMPORTANT NOTE: GuC submission is currently yest supported in i915. The GuC
  * firmware is moving to an updated submission interface and we plan to
  * turn submission back on when that lands. The below documentation (and related
  * code) matches the old submission model and will be updated as part of the
@@ -48,9 +48,9 @@ enum {
  * descriptors, and shares them with the GuC.
  * Currently, there exists a 1:1 mapping between a intel_guc_client and a
  * guc_stage_desc (via the client's stage_id), so effectively only one
- * gets used. This stage descriptor lets the GuC know about the doorbell,
+ * gets used. This stage descriptor lets the GuC kyesw about the doorbell,
  * workqueue and process descriptor. Theoretically, it also lets the GuC
- * know about our HW contexts (context ID, etc...), but we actually
+ * kyesw about our HW contexts (context ID, etc...), but we actually
  * employ a kind of submission where the GuC uses the LRCA sent via the work
  * item instead (the single guc_stage_desc associated to execbuf client
  * contains information about the default kernel context only, but this is
@@ -59,7 +59,7 @@ enum {
  * The Scratch registers:
  * There are 16 MMIO-based registers start from 0xC180. The kernel driver writes
  * a value to the action register (SOFT_SCRATCH_0) along with any data. It then
- * triggers an interrupt on the GuC via another register write (0xC4C8).
+ * triggers an interrupt on the GuC via ayesther register write (0xC4C8).
  * Firmware writes a success/fail code back to the action register after
  * processes the request. The kernel driver polls waiting for this update and
  * then proceeds.
@@ -79,9 +79,9 @@ enum {
  *
  */
 
-static inline struct i915_priolist *to_priolist(struct rb_node *rb)
+static inline struct i915_priolist *to_priolist(struct rb_yesde *rb)
 {
-	return rb_entry(rb, struct i915_priolist, node);
+	return rb_entry(rb, struct i915_priolist, yesde);
 }
 
 static inline bool is_high_priority(struct intel_guc_client *client)
@@ -100,7 +100,7 @@ static int reserve_doorbell(struct intel_guc_client *client)
 
 	/*
 	 * The bitmap tracks which doorbell registers are currently in use.
-	 * It is split into two halves; the first half is used for normal
+	 * It is split into two halves; the first half is used for yesrmal
 	 * priority contexts, the second half for high-priority ones.
 	 */
 	offset = 0;
@@ -117,7 +117,7 @@ static int reserve_doorbell(struct intel_guc_client *client)
 	__set_bit(id, client->guc->doorbell_bitmap);
 	client->doorbell_id = id;
 	DRM_DEBUG_DRIVER("client %u (high prio=%s) reserved doorbell: %d\n",
-			 client->stage_id, yesno(is_high_priority(client)),
+			 client->stage_id, noyes(is_high_priority(client)),
 			 id);
 	return 0;
 }
@@ -398,7 +398,7 @@ static void guc_wq_item_append(struct intel_guc_client *client,
 			       u32 target_engine, u32 context_desc,
 			       u32 ring_tail, u32 fence_id)
 {
-	/* wqi_len is in DWords, and does not include the one-word header */
+	/* wqi_len is in DWords, and does yest include the one-word header */
 	const size_t wqi_size = sizeof(struct guc_wq_item);
 	const u32 wqi_len = wqi_size / sizeof(u32) - 1;
 	struct guc_process_desc *desc = __get_process_desc(client);
@@ -407,11 +407,11 @@ static void guc_wq_item_append(struct intel_guc_client *client,
 
 	lockdep_assert_held(&client->wq_lock);
 
-	/* For now workqueue item is 4 DWs; workqueue buffer is 2 pages. So we
-	 * should not have the case where structure wqi is across page, neither
+	/* For yesw workqueue item is 4 DWs; workqueue buffer is 2 pages. So we
+	 * should yest have the case where structure wqi is across page, neither
 	 * wrapped to the beginning. This simplifies the implementation below.
 	 *
-	 * XXX: if not the case, we need save data to a temp wqi and copy it to
+	 * XXX: if yest the case, we need save data to a temp wqi and copy it to
 	 * workqueue buffer dw by dw.
 	 */
 	BUILD_BUG_ON(wqi_size != 16);
@@ -428,7 +428,7 @@ static void guc_wq_item_append(struct intel_guc_client *client,
 	/* WQ starts from the page after doorbell / process_desc */
 	wqi = client->vaddr + wq_off + GUC_DB_SIZE;
 
-	if (I915_SELFTEST_ONLY(client->use_nop_wqi)) {
+	if (I915_SELFTEST_ONLY(client->use_yesp_wqi)) {
 		wqi->header = WQ_TYPE_NOOP | (wqi_len << WQ_LEN_SHIFT);
 	} else {
 		/* Now fill in the 4-word work queue item */
@@ -457,7 +457,7 @@ static void guc_ring_doorbell(struct intel_guc_client *client)
 	db = __get_doorbell(client);
 
 	/*
-	 * We're not expecting the doorbell cookie to change behind our back,
+	 * We're yest expecting the doorbell cookie to change behind our back,
 	 * we also need to treat 0 as a reserved value.
 	 */
 	cookie = READ_ONCE(db->cookie);
@@ -475,15 +475,15 @@ static void guc_add_request(struct intel_guc *guc, struct i915_request *rq)
 	u32 ring_tail = intel_ring_set_tail(rq->ring, rq->tail) / sizeof(u64);
 
 	guc_wq_item_append(client, engine->guc_id, ctx_desc,
-			   ring_tail, rq->fence.seqno);
+			   ring_tail, rq->fence.seqyes);
 	guc_ring_doorbell(client);
 }
 
 /*
  * When we're doing submissions using regular execlists backend, writing to
- * ELSP from CPU side is enough to make sure that writes to ringbuffer pages
+ * ELSP from CPU side is eyesugh to make sure that writes to ringbuffer pages
  * pinned in mappable aperture portion of GGTT are visible to command streamer.
- * Writes done by GuC on our behalf are not guaranteeing such ordering,
+ * Writes done by GuC on our behalf are yest guaranteeing such ordering,
  * therefore, to ensure the flush, we're issuing a POSTING READ.
  */
 static void flush_ggtt_writes(struct i915_vma *vma)
@@ -523,7 +523,7 @@ static struct i915_request *schedule_in(struct i915_request *rq, int idx)
 	trace_i915_request_in(rq, idx);
 
 	/*
-	 * Currently we are not tracking the rq->context being inflight
+	 * Currently we are yest tracking the rq->context being inflight
 	 * (ce->inflight = rq->engine). It is only used by the execlists
 	 * backend at the moment, a similar counting strategy would be
 	 * required if we generalise the inflight tracking.
@@ -549,7 +549,7 @@ static void __guc_dequeue(struct intel_engine_cs *engine)
 	struct i915_request *last = first[0];
 	struct i915_request **port;
 	bool submit = false;
-	struct rb_node *rb;
+	struct rb_yesde *rb;
 
 	lockdep_assert_held(&engine->active.lock);
 
@@ -587,7 +587,7 @@ static void __guc_dequeue(struct intel_engine_cs *engine)
 			last = rq;
 		}
 
-		rb_erase_cached(&p->node, &execlists->queue);
+		rb_erase_cached(&p->yesde, &execlists->queue);
 		i915_priolist_free(p);
 	}
 done:
@@ -650,7 +650,7 @@ cancel_port_requests(struct intel_engine_execlists * const execlists)
 {
 	struct i915_request * const *port, *rq;
 
-	/* Note we are only using the inflight and not the pending queue */
+	/* Note we are only using the inflight and yest the pending queue */
 
 	for (port = execlists->active; (rq = *port); port++)
 		schedule_out(rq);
@@ -687,7 +687,7 @@ static void guc_cancel_requests(struct intel_engine_cs *engine)
 {
 	struct intel_engine_execlists * const execlists = &engine->execlists;
 	struct i915_request *rq, *rn;
-	struct rb_node *rb;
+	struct rb_yesde *rb;
 	unsigned long flags;
 
 	GEM_TRACE("%s\n", engine->name);
@@ -698,9 +698,9 @@ static void guc_cancel_requests(struct intel_engine_cs *engine)
 	 * caller disabling the interrupt generation, the tasklet and other
 	 * threads that may then access the same state, giving us a free hand
 	 * to reset state. However, we still need to let lockdep be aware that
-	 * we know this state may be accessed in hardirq context, so we
+	 * we kyesw this state may be accessed in hardirq context, so we
 	 * disable the irq around this manipulation and we want to keep
-	 * the spinlock focused on its duties and not accidentally conflate
+	 * the spinlock focused on its duties and yest accidentally conflate
 	 * coverage to the submission's irq state. (Similarly, although we
 	 * shouldn't need to disable irq around the manipulation of the
 	 * submission's irq state, we also wish to remind ourselves that
@@ -731,11 +731,11 @@ static void guc_cancel_requests(struct intel_engine_cs *engine)
 			i915_request_mark_complete(rq);
 		}
 
-		rb_erase_cached(&p->node, &execlists->queue);
+		rb_erase_cached(&p->yesde, &execlists->queue);
 		i915_priolist_free(p);
 	}
 
-	/* Remaining _unready_ requests will be nop'ed when submitted */
+	/* Remaining _unready_ requests will be yesp'ed when submitted */
 
 	execlists->queue_priority_hint = INT_MIN;
 	execlists->queue = RB_ROOT_CACHED;
@@ -757,7 +757,7 @@ static void guc_reset_finish(struct intel_engine_cs *engine)
 
 /*
  * Everything below here is concerned with setup & teardown, and is
- * therefore not part of the somewhat time-critical batch-submission
+ * therefore yest part of the somewhat time-critical batch-submission
  * path of guc_submit() above.
  */
 
@@ -774,7 +774,7 @@ static bool doorbell_ok(struct intel_guc *guc, u16 db_id)
 		return true;
 
 	DRM_DEBUG_DRIVER("Doorbell %u has unexpected state: valid=%s\n",
-			 db_id, yesno(valid));
+			 db_id, noyes(valid));
 
 	return false;
 }
@@ -983,7 +983,7 @@ int intel_guc_submission_init(struct intel_guc *guc)
 	if (ret)
 		return ret;
 	/*
-	 * Keep static analysers happy, let them know that we allocated the
+	 * Keep static analysers happy, let them kyesw that we allocated the
 	 * vma after testing that it didn't exist earlier.
 	 */
 	GEM_BUG_ON(!guc->stage_desc_pool);
@@ -1017,7 +1017,7 @@ static void guc_interrupts_capture(struct intel_gt *gt)
 	enum intel_engine_id id;
 	int irqs;
 
-	/* tell all command streamers to forward interrupts (but not vblank)
+	/* tell all command streamers to forward interrupts (but yest vblank)
 	 * to GuC
 	 */
 	irqs = _MASKED_BIT_ENABLE(GFX_INTERRUPT_STEERING);
@@ -1039,9 +1039,9 @@ static void guc_interrupts_capture(struct intel_gt *gt)
 	 *
 	 * 'pm_intrmsk_mbz' indicates bits that are NOT to be set when
 	 * writing to the PM interrupt mask register, i.e. interrupts
-	 * that must not be disabled.
+	 * that must yest be disabled.
 	 *
-	 * If the GuC is handling these interrupts, then we must not let
+	 * If the GuC is handling these interrupts, then we must yest let
 	 * the PM code disable ANY interrupt that the GuC is expecting.
 	 * So for each ENABLED (0) bit in this register, we must SET the
 	 * bit in pm_intrmsk_mbz so that it's left enabled for the GuC.
@@ -1098,7 +1098,7 @@ static void guc_set_default_submission(struct intel_engine_cs *engine)
 
 	engine->execlists.tasklet.func = guc_submission_tasklet;
 
-	/* do not use execlists park/unpark */
+	/* do yest use execlists park/unpark */
 	engine->park = engine->unpark = NULL;
 
 	engine->reset.prepare = guc_reset_prepare;
@@ -1172,7 +1172,7 @@ void intel_guc_submission_disable(struct intel_guc *guc)
 
 static bool __guc_submission_support(struct intel_guc *guc)
 {
-	/* XXX: GuC submission is unavailable for now */
+	/* XXX: GuC submission is unavailable for yesw */
 	return false;
 
 	if (!intel_guc_is_supported(guc))

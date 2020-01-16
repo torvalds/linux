@@ -92,7 +92,7 @@ static int msm_fbdev_create(struct drm_fb_helper *helper,
 	/*
 	 * NOTE: if we can be guaranteed to be able to map buffer
 	 * in panic (ie. lock-safe, etc) we could avoid pinning the
-	 * buffer now:
+	 * buffer yesw:
 	 */
 	ret = msm_gem_get_and_pin_iova(bo, priv->kms->aspace, &paddr);
 	if (ret) {
@@ -162,7 +162,7 @@ struct drm_fb_helper *msm_fbdev_init(struct drm_device *dev)
 
 	ret = drm_fb_helper_init(dev, helper, priv->num_connectors);
 	if (ret) {
-		DRM_DEV_ERROR(dev->dev, "could not init fbdev: ret=%d\n", ret);
+		DRM_DEV_ERROR(dev->dev, "could yest init fbdev: ret=%d\n", ret);
 		goto fail;
 	}
 

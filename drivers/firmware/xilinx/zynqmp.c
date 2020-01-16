@@ -56,7 +56,7 @@ static int zynqmp_pm_ret_code(u32 ret_status)
 	}
 }
 
-static noinline int do_fw_call_fail(u64 arg0, u64 arg1, u64 arg2,
+static yesinline int do_fw_call_fail(u64 arg0, u64 arg1, u64 arg2,
 				    u32 *ret_payload)
 {
 	return -ENODEV;
@@ -75,11 +75,11 @@ static int (*do_fw_call)(u64, u64, u64, u32 *ret_payload) = do_fw_call_fail;
  * @arg2:		Argument 2 to SMC call
  * @ret_payload:	Returned value array
  *
- * Invoke platform management function via SMC call (no hypervisor present).
+ * Invoke platform management function via SMC call (yes hypervisor present).
  *
  * Return: Returns status, either success or error+reason
  */
-static noinline int do_fw_call_smc(u64 arg0, u64 arg1, u64 arg2,
+static yesinline int do_fw_call_smc(u64 arg0, u64 arg1, u64 arg2,
 				   u32 *ret_payload)
 {
 	struct arm_smccc_res res;
@@ -105,11 +105,11 @@ static noinline int do_fw_call_smc(u64 arg0, u64 arg1, u64 arg2,
  *
  * Invoke platform management function via HVC
  * HVC-based for communication through hypervisor
- * (no direct communication with ATF).
+ * (yes direct communication with ATF).
  *
  * Return: Returns status, either success or error+reason
  */
-static noinline int do_fw_call_hvc(u64 arg0, u64 arg1, u64 arg2,
+static yesinline int do_fw_call_hvc(u64 arg0, u64 arg1, u64 arg2,
 				   u32 *ret_payload)
 {
 	struct arm_smccc_res res;
@@ -246,13 +246,13 @@ static int zynqmp_pm_get_trustzone_version(u32 *version)
 
 /**
  * get_set_conduit_method() - Choose SMC or HVC based communication
- * @np:		Pointer to the device_node structure
+ * @np:		Pointer to the device_yesde structure
  *
  * Use SMC or HVC-based functions to communicate with EL2/EL3.
  *
  * Return: Returns 0 on success or error code
  */
-static int get_set_conduit_method(struct device_node *np)
+static int get_set_conduit_method(struct device_yesde *np)
 {
 	const char *method;
 
@@ -461,7 +461,7 @@ static int zynqmp_pm_clock_getparent(u32 clock_id, u32 *parent_id)
 }
 
 /**
- * zynqmp_is_valid_ioctl() - Check whether IOCTL ID is valid or not
+ * zynqmp_is_valid_ioctl() - Check whether IOCTL ID is valid or yest
  * @ioctl_id:	IOCTL ID
  *
  * Return: 1 if IOCTL is valid else 0
@@ -481,7 +481,7 @@ static inline int zynqmp_is_valid_ioctl(u32 ioctl_id)
 
 /**
  * zynqmp_pm_ioctl() - PM IOCTL API for device control and configs
- * @node_id:	Node ID of the device
+ * @yesde_id:	Node ID of the device
  * @ioctl_id:	ID of the requested IOCTL
  * @arg1:	Argument 1 to requested IOCTL call
  * @arg2:	Argument 2 to requested IOCTL call
@@ -491,13 +491,13 @@ static inline int zynqmp_is_valid_ioctl(u32 ioctl_id)
  *
  * Return: Returns status, either success or error+reason
  */
-static int zynqmp_pm_ioctl(u32 node_id, u32 ioctl_id, u32 arg1, u32 arg2,
+static int zynqmp_pm_ioctl(u32 yesde_id, u32 ioctl_id, u32 arg1, u32 arg2,
 			   u32 *out)
 {
 	if (!zynqmp_is_valid_ioctl(ioctl_id))
 		return -EINVAL;
 
-	return zynqmp_pm_invoke_fn(PM_IOCTL, node_id, ioctl_id,
+	return zynqmp_pm_invoke_fn(PM_IOCTL, yesde_id, ioctl_id,
 				   arg1, arg2, out);
 }
 
@@ -586,7 +586,7 @@ static int zynqmp_pm_fpga_get_status(u32 *value)
  * zynqmp_pm_init_finalize() - PM call to inform firmware that the caller
  *			       master has initialized its own power management
  *
- * This API function is to be used for notify the power management controller
+ * This API function is to be used for yestify the power management controller
  * about the completed power management initialization.
  *
  * Return: Returns status, either success or error+reason
@@ -610,57 +610,57 @@ static int zynqmp_pm_set_suspend_mode(u32 mode)
 }
 
 /**
- * zynqmp_pm_request_node() - Request a node with specific capabilities
- * @node:		Node ID of the slave
+ * zynqmp_pm_request_yesde() - Request a yesde with specific capabilities
+ * @yesde:		Node ID of the slave
  * @capabilities:	Requested capabilities of the slave
- * @qos:		Quality of service (not supported)
- * @ack:		Flag to specify whether acknowledge is requested
+ * @qos:		Quality of service (yest supported)
+ * @ack:		Flag to specify whether ackyeswledge is requested
  *
- * This function is used by master to request particular node from firmware.
- * Every master must request node before using it.
+ * This function is used by master to request particular yesde from firmware.
+ * Every master must request yesde before using it.
  *
  * Return: Returns status, either success or error+reason
  */
-static int zynqmp_pm_request_node(const u32 node, const u32 capabilities,
+static int zynqmp_pm_request_yesde(const u32 yesde, const u32 capabilities,
 				  const u32 qos,
 				  const enum zynqmp_pm_request_ack ack)
 {
-	return zynqmp_pm_invoke_fn(PM_REQUEST_NODE, node, capabilities,
+	return zynqmp_pm_invoke_fn(PM_REQUEST_NODE, yesde, capabilities,
 				   qos, ack, NULL);
 }
 
 /**
- * zynqmp_pm_release_node() - Release a node
- * @node:	Node ID of the slave
+ * zynqmp_pm_release_yesde() - Release a yesde
+ * @yesde:	Node ID of the slave
  *
  * This function is used by master to inform firmware that master
- * has released node. Once released, master must not use that node
+ * has released yesde. Once released, master must yest use that yesde
  * without re-request.
  *
  * Return: Returns status, either success or error+reason
  */
-static int zynqmp_pm_release_node(const u32 node)
+static int zynqmp_pm_release_yesde(const u32 yesde)
 {
-	return zynqmp_pm_invoke_fn(PM_RELEASE_NODE, node, 0, 0, 0, NULL);
+	return zynqmp_pm_invoke_fn(PM_RELEASE_NODE, yesde, 0, 0, 0, NULL);
 }
 
 /**
  * zynqmp_pm_set_requirement() - PM call to set requirement for PM slaves
- * @node:		Node ID of the slave
+ * @yesde:		Node ID of the slave
  * @capabilities:	Requested capabilities of the slave
- * @qos:		Quality of service (not supported)
- * @ack:		Flag to specify whether acknowledge is requested
+ * @qos:		Quality of service (yest supported)
+ * @ack:		Flag to specify whether ackyeswledge is requested
  *
  * This API function is to be used for slaves a PU already has requested
  * to change its capabilities.
  *
  * Return: Returns status, either success or error+reason
  */
-static int zynqmp_pm_set_requirement(const u32 node, const u32 capabilities,
+static int zynqmp_pm_set_requirement(const u32 yesde, const u32 capabilities,
 				     const u32 qos,
 				     const enum zynqmp_pm_request_ack ack)
 {
-	return zynqmp_pm_invoke_fn(PM_SET_REQUIREMENT, node, capabilities,
+	return zynqmp_pm_invoke_fn(PM_SET_REQUIREMENT, yesde, capabilities,
 				   qos, ack, NULL);
 }
 
@@ -682,8 +682,8 @@ static const struct zynqmp_eemi_ops eemi_ops = {
 	.reset_get_status = zynqmp_pm_reset_get_status,
 	.init_finalize = zynqmp_pm_init_finalize,
 	.set_suspend_mode = zynqmp_pm_set_suspend_mode,
-	.request_node = zynqmp_pm_request_node,
-	.release_node = zynqmp_pm_release_node,
+	.request_yesde = zynqmp_pm_request_yesde,
+	.release_yesde = zynqmp_pm_release_yesde,
 	.set_requirement = zynqmp_pm_set_requirement,
 	.fpga_load = zynqmp_pm_fpga_load,
 	.fpga_get_status = zynqmp_pm_fpga_get_status,
@@ -707,18 +707,18 @@ EXPORT_SYMBOL_GPL(zynqmp_pm_get_eemi_ops);
 static int zynqmp_firmware_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *np;
+	struct device_yesde *np;
 	int ret;
 
-	np = of_find_compatible_node(NULL, NULL, "xlnx,zynqmp");
+	np = of_find_compatible_yesde(NULL, NULL, "xlnx,zynqmp");
 	if (!np) {
-		np = of_find_compatible_node(NULL, NULL, "xlnx,versal");
+		np = of_find_compatible_yesde(NULL, NULL, "xlnx,versal");
 		if (!np)
 			return 0;
 	}
-	of_node_put(np);
+	of_yesde_put(np);
 
-	ret = get_set_conduit_method(dev->of_node);
+	ret = get_set_conduit_method(dev->of_yesde);
 	if (ret)
 		return ret;
 
@@ -760,7 +760,7 @@ static int zynqmp_firmware_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	return of_platform_populate(dev->of_node, NULL, NULL, dev);
+	return of_platform_populate(dev->of_yesde, NULL, NULL, dev);
 }
 
 static int zynqmp_firmware_remove(struct platform_device *pdev)

@@ -10,7 +10,7 @@
 #include "xfs_log_format.h"
 #include "xfs_trans_resv.h"
 #include "xfs_mount.h"
-#include "xfs_inode.h"
+#include "xfs_iyesde.h"
 #include "xfs_trans.h"
 #include "xfs_btree.h"
 #include "xfs_rmap_btree.h"
@@ -99,7 +99,7 @@ xfs_fsmap_owner_to_rmap(
 	case XFS_FMR_OWN_COW:
 		dest->rm_owner = XFS_RMAP_OWN_COW;
 		break;
-	case XFS_FMR_OWN_DEFECTIVE:	/* not implemented */
+	case XFS_FMR_OWN_DEFECTIVE:	/* yest implemented */
 		/* fall through */
 	default:
 		return -EINVAL;
@@ -161,7 +161,7 @@ struct xfs_getfsmap_info {
 	xfs_daddr_t		next_daddr;	/* next daddr we expect */
 	u64			missing_owner;	/* owner of holes */
 	u32			dev;		/* device id */
-	xfs_agnumber_t		agno;		/* AG number, if applicable */
+	xfs_agnumber_t		agyes;		/* AG number, if applicable */
 	struct xfs_rmap_irec	low;		/* low rmap key */
 	struct xfs_rmap_irec	high;		/* high rmap key */
 	bool			last;		/* last extent? */
@@ -197,24 +197,24 @@ xfs_getfsmap_is_shared(
 {
 	struct xfs_mount		*mp = tp->t_mountp;
 	struct xfs_btree_cur		*cur;
-	xfs_agblock_t			fbno;
+	xfs_agblock_t			fbyes;
 	xfs_extlen_t			flen;
 	int				error;
 
 	*stat = false;
 	if (!xfs_sb_version_hasreflink(&mp->m_sb))
 		return 0;
-	/* rt files will have agno set to NULLAGNUMBER */
-	if (info->agno == NULLAGNUMBER)
+	/* rt files will have agyes set to NULLAGNUMBER */
+	if (info->agyes == NULLAGNUMBER)
 		return 0;
 
 	/* Are there any shared blocks here? */
 	flen = 0;
 	cur = xfs_refcountbt_init_cursor(mp, tp, info->agf_bp,
-			info->agno);
+			info->agyes);
 
 	error = xfs_refcount_find_shared(cur, rec->rm_startblock,
-			rec->rm_blockcount, &fbno, &flen, false);
+			rec->rm_blockcount, &fbyes, &flen, false);
 
 	xfs_btree_del_cursor(cur, error);
 	if (error)
@@ -298,7 +298,7 @@ xfs_getfsmap_helper(
 	if (info->head->fmh_entries >= info->head->fmh_count)
 		return -ECANCELED;
 
-	trace_xfs_fsmap_mapping(mp, info->dev, info->agno, rec);
+	trace_xfs_fsmap_mapping(mp, info->dev, info->agyes, rec);
 
 	fmr.fmr_device = info->dev;
 	fmr.fmr_physical = rec_daddr;
@@ -344,15 +344,15 @@ xfs_getfsmap_datadev_helper(
 	xfs_fsblock_t			fsb;
 	xfs_daddr_t			rec_daddr;
 
-	fsb = XFS_AGB_TO_FSB(mp, cur->bc_private.a.agno, rec->rm_startblock);
+	fsb = XFS_AGB_TO_FSB(mp, cur->bc_private.a.agyes, rec->rm_startblock);
 	rec_daddr = XFS_FSB_TO_DADDR(mp, fsb);
 
 	return xfs_getfsmap_helper(cur->bc_tp, info, rec, rec_daddr);
 }
 
-/* Transform a bnobt irec into a fsmap */
+/* Transform a byesbt irec into a fsmap */
 STATIC int
-xfs_getfsmap_datadev_bnobt_helper(
+xfs_getfsmap_datadev_byesbt_helper(
 	struct xfs_btree_cur		*cur,
 	struct xfs_alloc_rec_incore	*rec,
 	void				*priv)
@@ -362,7 +362,7 @@ xfs_getfsmap_datadev_bnobt_helper(
 	struct xfs_rmap_irec		irec;
 	xfs_daddr_t			rec_daddr;
 
-	rec_daddr = XFS_AGB_TO_DADDR(mp, cur->bc_private.a.agno,
+	rec_daddr = XFS_AGB_TO_DADDR(mp, cur->bc_private.a.agyes,
 			rec->ar_startblock);
 
 	irec.rm_startblock = rec->ar_startblock;
@@ -419,8 +419,8 @@ xfs_getfsmap_logdev(
 	info->high.rm_flags = XFS_RMAP_KEY_FLAGS | XFS_RMAP_REC_FLAGS;
 	info->missing_owner = XFS_FMR_OWN_FREE;
 
-	trace_xfs_fsmap_low_key(mp, info->dev, info->agno, &info->low);
-	trace_xfs_fsmap_high_key(mp, info->dev, info->agno, &info->high);
+	trace_xfs_fsmap_low_key(mp, info->dev, info->agyes, &info->low);
+	trace_xfs_fsmap_high_key(mp, info->dev, info->agyes, &info->high);
 
 	if (keys[0].fmr_physical > 0)
 		return 0;
@@ -498,8 +498,8 @@ __xfs_getfsmap_rtdev(
 	info->high.rm_blockcount = 0;
 	xfs_getfsmap_set_irec_flags(&info->high, &keys[1]);
 
-	trace_xfs_fsmap_low_key(mp, info->dev, info->agno, &info->low);
-	trace_xfs_fsmap_high_key(mp, info->dev, info->agno, &info->high);
+	trace_xfs_fsmap_low_key(mp, info->dev, info->agyes, &info->low);
+	trace_xfs_fsmap_high_key(mp, info->dev, info->agyes, &info->high);
 
 	return query_fn(tp, info);
 }
@@ -601,12 +601,12 @@ __xfs_getfsmap_datadev(
 	end_ag = XFS_FSB_TO_AGNO(mp, end_fsb);
 
 	/* Query each AG */
-	for (info->agno = start_ag; info->agno <= end_ag; info->agno++) {
+	for (info->agyes = start_ag; info->agyes <= end_ag; info->agyes++) {
 		/*
 		 * Set the AG high key from the fsmap high key if this
 		 * is the last AG that we're querying.
 		 */
-		if (info->agno == end_ag) {
+		if (info->agyes == end_ag) {
 			info->high.rm_startblock = XFS_FSB_TO_AGBNO(mp,
 					end_fsb);
 			info->high.rm_offset = XFS_BB_TO_FSBT(mp,
@@ -624,13 +624,13 @@ __xfs_getfsmap_datadev(
 			info->agf_bp = NULL;
 		}
 
-		error = xfs_alloc_read_agf(mp, tp, info->agno, 0,
+		error = xfs_alloc_read_agf(mp, tp, info->agyes, 0,
 				&info->agf_bp);
 		if (error)
 			goto err;
 
-		trace_xfs_fsmap_low_key(mp, info->dev, info->agno, &info->low);
-		trace_xfs_fsmap_high_key(mp, info->dev, info->agno,
+		trace_xfs_fsmap_low_key(mp, info->dev, info->agyes, &info->low);
+		trace_xfs_fsmap_high_key(mp, info->dev, info->agyes,
 				&info->high);
 
 		error = query_fn(tp, info, &bt_cur, priv);
@@ -641,7 +641,7 @@ __xfs_getfsmap_datadev(
 		 * Set the AG low key to the start of the AG prior to
 		 * moving on to the next AG.
 		 */
-		if (info->agno == start_ag) {
+		if (info->agyes == start_ag) {
 			info->low.rm_startblock = 0;
 			info->low.rm_owner = 0;
 			info->low.rm_offset = 0;
@@ -681,7 +681,7 @@ xfs_getfsmap_datadev_rmapbt_query(
 
 	/* Allocate cursor for this AG and query_range it. */
 	*curpp = xfs_rmapbt_init_cursor(tp->t_mountp, tp, info->agf_bp,
-			info->agno);
+			info->agyes);
 	return xfs_rmap_query_range(*curpp, &info->low, &info->high,
 			xfs_getfsmap_datadev_helper, info);
 }
@@ -698,9 +698,9 @@ xfs_getfsmap_datadev_rmapbt(
 			xfs_getfsmap_datadev_rmapbt_query, NULL);
 }
 
-/* Actually query the bno btree. */
+/* Actually query the byes btree. */
 STATIC int
-xfs_getfsmap_datadev_bnobt_query(
+xfs_getfsmap_datadev_byesbt_query(
 	struct xfs_trans		*tp,
 	struct xfs_getfsmap_info	*info,
 	struct xfs_btree_cur		**curpp,
@@ -710,20 +710,20 @@ xfs_getfsmap_datadev_bnobt_query(
 
 	/* Report any gap at the end of the last AG. */
 	if (info->last)
-		return xfs_getfsmap_datadev_bnobt_helper(*curpp, &key[1], info);
+		return xfs_getfsmap_datadev_byesbt_helper(*curpp, &key[1], info);
 
 	/* Allocate cursor for this AG and query_range it. */
 	*curpp = xfs_allocbt_init_cursor(tp->t_mountp, tp, info->agf_bp,
-			info->agno, XFS_BTNUM_BNO);
+			info->agyes, XFS_BTNUM_BNO);
 	key->ar_startblock = info->low.rm_startblock;
 	key[1].ar_startblock = info->high.rm_startblock;
 	return xfs_alloc_query_range(*curpp, key, &key[1],
-			xfs_getfsmap_datadev_bnobt_helper, info);
+			xfs_getfsmap_datadev_byesbt_helper, info);
 }
 
-/* Execute a getfsmap query against the regular data device's bnobt. */
+/* Execute a getfsmap query against the regular data device's byesbt. */
 STATIC int
-xfs_getfsmap_datadev_bnobt(
+xfs_getfsmap_datadev_byesbt(
 	struct xfs_trans		*tp,
 	struct xfs_fsmap		*keys,
 	struct xfs_getfsmap_info	*info)
@@ -732,7 +732,7 @@ xfs_getfsmap_datadev_bnobt(
 
 	info->missing_owner = XFS_FMR_OWN_UNKNOWN;
 	return __xfs_getfsmap_datadev(tp, keys, info,
-			xfs_getfsmap_datadev_bnobt_query, &akeys[0]);
+			xfs_getfsmap_datadev_byesbt_query, &akeys[0]);
 }
 
 /* Do we recognize the device? */
@@ -843,7 +843,7 @@ xfs_getfsmap(
 	if (use_rmap)
 		handlers[0].fn = xfs_getfsmap_datadev_rmapbt;
 	else
-		handlers[0].fn = xfs_getfsmap_datadev_bnobt;
+		handlers[0].fn = xfs_getfsmap_datadev_byesbt;
 	if (mp->m_logdev_targp != mp->m_ddev_targp) {
 		handlers[1].dev = new_encode_dev(mp->m_logdev_targp->bt_dev);
 		handlers[1].fn = xfs_getfsmap_logdev;
@@ -861,7 +861,7 @@ xfs_getfsmap(
 	/*
 	 * To continue where we left off, we allow userspace to use the
 	 * last mapping from a previous call as the low key of the next.
-	 * This is identified by a non-zero length in the low key. We
+	 * This is identified by a yesn-zero length in the low key. We
 	 * have to increment the low key in this scenario to ensure we
 	 * don't return the same mapping again, and instead return the
 	 * very next mapping.
@@ -870,10 +870,10 @@ xfs_getfsmap(
 	 * blocks could be mapped to several other files/offsets.
 	 * According to rmapbt record ordering, the minimal next
 	 * possible record for the block range is the next starting
-	 * offset in the same inode. Therefore, bump the file offset to
+	 * offset in the same iyesde. Therefore, bump the file offset to
 	 * continue the search appropriately.  For all other low key
 	 * mapping types (attr blocks, metadata), bump the physical
-	 * offset as there can be no other mapping for the same physical
+	 * offset as there can be yes other mapping for the same physical
 	 * block range.
 	 */
 	dkeys[0] = head->fmh_keys[0];
@@ -924,7 +924,7 @@ xfs_getfsmap(
 
 		info.dev = handlers[i].dev;
 		info.last = false;
-		info.agno = NULLAGNUMBER;
+		info.agyes = NULLAGNUMBER;
 		error = handlers[i].fn(tp, dkeys, &info);
 		if (error)
 			break;

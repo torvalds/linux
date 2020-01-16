@@ -120,7 +120,7 @@ static struct amd_iommu_event_desc amd_iommu_v2_event_descs[] = {
 	AMD_IOMMU_EVENT_DESC(cmd_processed_inv,       "csource=0x12"),
 	AMD_IOMMU_EVENT_DESC(tlb_inv,                 "csource=0x13"),
 	AMD_IOMMU_EVENT_DESC(ign_rd_wr_mmio_1ff8h,    "csource=0x14"),
-	AMD_IOMMU_EVENT_DESC(vapic_int_non_guest,     "csource=0x15"),
+	AMD_IOMMU_EVENT_DESC(vapic_int_yesn_guest,     "csource=0x15"),
 	AMD_IOMMU_EVENT_DESC(vapic_int_guest,         "csource=0x16"),
 	AMD_IOMMU_EVENT_DESC(smi_recv,                "csource=0x17"),
 	AMD_IOMMU_EVENT_DESC(smi_blk,                 "csource=0x18"),
@@ -214,8 +214,8 @@ static int perf_iommu_event_init(struct perf_event *event)
 
 	/*
 	 * IOMMU counters are shared across all cores.
-	 * Therefore, it does not support per-process mode.
-	 * Also, it does not support event sampling mode.
+	 * Therefore, it does yest support per-process mode.
+	 * Also, it does yest support event sampling mode.
 	 */
 	if (is_sampling_event(event) || event->attach_state & PERF_ATTACH_TASK)
 		return -EINVAL;
@@ -461,7 +461,7 @@ static __init int amd_iommu_pc_init(void)
 
 	/*
 	 * An IOMMU PMU is specific to an IOMMU, and can function independently.
-	 * So we go through all IOMMUs and ignore the one that fails init
+	 * So we go through all IOMMUs and igyesre the one that fails init
 	 * unless all IOMMU are failing.
 	 */
 	for (i = 0; i < amd_iommu_get_num_iommus(); i++) {

@@ -8,7 +8,7 @@
 /*
  * We select the channels by sending commands to the Philips
  * PCA9556 chip at I2C address 0x18. The main adapter is used for
- * the non-multiplexed part of the bus, and 4 virtual adapters
+ * the yesn-multiplexed part of the bus, and 4 virtual adapters
  * are defined for the multiplexed addresses: 0x50-0x53 (memory
  * module EEPROM) located on channels 1-4, and 0x4c (LM63)
  * located on multiplexed channels 0 and 5-7. We define one
@@ -59,7 +59,7 @@ static s32 amd756_access_virt0(struct i2c_adapter * adap, u16 addr,
 
 /* We remember the last used channels combination so as to only switch
    channels when it is really needed. This greatly reduces the SMBus
-   overhead, but also assumes that nobody will be writing to the PCA9556
+   overhead, but also assumes that yesbody will be writing to the PCA9556
    in our back. */
 static u8 last_channels;
 
@@ -71,7 +71,7 @@ static inline s32 amd756_access_channel(struct i2c_adapter * adap, u16 addr,
 {
 	int error;
 
-	/* We exclude the non-multiplexed addresses */
+	/* We exclude the yesn-multiplexed addresses */
 	if (addr != 0x4c && (addr & 0xfc) != 0x50 && (addr & 0xfc) != 0x30)
 		return -ENXIO;
 
@@ -196,7 +196,7 @@ static int __init amd756_s4882_init(void)
 		if (error) {
 			printk(KERN_ERR "i2c-amd756-s4882: "
 			       "Virtual adapter %d registration "
-			       "failed, module not inserted\n", i);
+			       "failed, module yest inserted\n", i);
 			for (i--; i >= 0; i--)
 				i2c_del_adapter(s4882_adapter+i);
 			goto ERROR3;

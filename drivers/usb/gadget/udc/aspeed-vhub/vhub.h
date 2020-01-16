@@ -19,7 +19,7 @@
 #define AST_VHUB_SW_RESET	0x20	/* Device Controller Soft Reset Enable Register */
 #define AST_VHUB_USBSTS		0x24	/* USB Status Register */
 #define AST_VHUB_EP_TOGGLE	0x28	/* Programmable Endpoint Pool Data Toggle Value Set */
-#define AST_VHUB_ISO_FAIL_ACC	0x2C	/* Isochronous Transaction Fail Accumulator */
+#define AST_VHUB_ISO_FAIL_ACC	0x2C	/* Isochroyesus Transaction Fail Accumulator */
 #define AST_VHUB_EP0_CTRL	0x30	/* Endpoint 0 Contrl/Status Register */
 #define AST_VHUB_EP0_DATA	0x34	/* Base Address of Endpoint 0 In/OUT Data Buffer Register */
 #define AST_VHUB_EP1_CTRL	0x38	/* Endpoint 1 Contrl/Status Register */
@@ -210,7 +210,7 @@
  *                                      *
  ****************************************/
 
-#define AST_VHUB_NUM_GEN_EPs	15	/* Generic non-0 EPs */
+#define AST_VHUB_NUM_GEN_EPs	15	/* Generic yesn-0 EPs */
 #define AST_VHUB_NUM_PORTS	5	/* vHub ports */
 #define AST_VHUB_EP0_MAX_PACKET	64	/* EP0's max packet size */
 #define AST_VHUB_EPn_MAX_PACKET	1024	/* Generic EPs max packet size */
@@ -239,7 +239,7 @@ struct ast_vhub_req {
 	unsigned int		act_count;
 
 	/*
-	 * Desc number of the final packet or -1. For non-desc
+	 * Desc number of the final packet or -1. For yesn-desc
 	 * mode (or ep0), any >= 0 value means "last packet"
 	 */
 	int			last_desc;
@@ -414,7 +414,7 @@ struct ast_vhub {
 /* Standard request handlers result codes */
 enum std_req_rc {
 	std_req_stall = -1,	/* Stall requested */
-	std_req_complete = 0,	/* Request completed with no data */
+	std_req_complete = 0,	/* Request completed with yes data */
 	std_req_data = 1,	/* Request completed with data */
 	std_req_driver = 2,	/* Pass to driver pls */
 };

@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0
-// Copyright (C) 2005-2017 Andes Technology Corporation
+// Copyright (C) 2005-2017 Andes Techyeslogy Corporation
 
 #include <linux/types.h>
 #include <linux/mm.h>
-#include <linux/dma-noncoherent.h>
+#include <linux/dma-yesncoherent.h>
 #include <linux/cache.h>
 #include <linux/highmem.h>
 #include <asm/cacheflush.h>

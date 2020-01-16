@@ -127,7 +127,7 @@ static int mtk_syst_clkevt_oneshot(struct clock_event_device *clkevt)
 	return 0;
 }
 
-static u64 notrace mtk_gpt_read_sched_clock(void)
+static u64 yestrace mtk_gpt_read_sched_clock(void)
 {
 	return readl_relaxed(gpt_sched_reg);
 }
@@ -152,7 +152,7 @@ static void mtk_gpt_clkevt_time_start(struct timer_of *to,
 {
 	u32 val;
 
-	/* Acknowledge interrupt */
+	/* Ackyeswledge interrupt */
 	writel(GPT_IRQ_ACK(timer), timer_of_base(to) + GPT_IRQ_ACK_REG);
 
 	val = readl(timer_of_base(to) + GPT_CTRL_REG(timer));
@@ -204,7 +204,7 @@ static irqreturn_t mtk_gpt_interrupt(int irq, void *dev_id)
 	struct clock_event_device *clkevt = (struct clock_event_device *)dev_id;
 	struct timer_of *to = to_timer_of(clkevt);
 
-	/* Acknowledge timer0 irq */
+	/* Ackyeswledge timer0 irq */
 	writel(GPT_IRQ_ACK(TIMER_CLK_EVT), timer_of_base(to) + GPT_IRQ_ACK_REG);
 	clkevt->event_handler(clkevt);
 
@@ -233,7 +233,7 @@ static void mtk_gpt_enable_irq(struct timer_of *to, u8 timer)
 	/* Disable all interrupts */
 	writel(0x0, timer_of_base(to) + GPT_IRQ_EN_REG);
 
-	/* Acknowledge all spurious pending interrupts */
+	/* Ackyeswledge all spurious pending interrupts */
 	writel(0x3f, timer_of_base(to) + GPT_IRQ_ACK_REG);
 
 	val = readl(timer_of_base(to) + GPT_IRQ_EN_REG);
@@ -255,7 +255,7 @@ static struct timer_of to = {
 	},
 };
 
-static int __init mtk_syst_init(struct device_node *node)
+static int __init mtk_syst_init(struct device_yesde *yesde)
 {
 	int ret;
 
@@ -266,7 +266,7 @@ static int __init mtk_syst_init(struct device_node *node)
 	to.clkevt.set_next_event = mtk_syst_clkevt_next_event;
 	to.of_irq.handler = mtk_syst_handler;
 
-	ret = timer_of_init(node, &to);
+	ret = timer_of_init(yesde, &to);
 	if (ret)
 		return ret;
 
@@ -276,7 +276,7 @@ static int __init mtk_syst_init(struct device_node *node)
 	return 0;
 }
 
-static int __init mtk_gpt_init(struct device_node *node)
+static int __init mtk_gpt_init(struct device_yesde *yesde)
 {
 	int ret;
 
@@ -288,14 +288,14 @@ static int __init mtk_gpt_init(struct device_node *node)
 	to.clkevt.set_next_event = mtk_gpt_clkevt_next_event;
 	to.of_irq.handler = mtk_gpt_interrupt;
 
-	ret = timer_of_init(node, &to);
+	ret = timer_of_init(yesde, &to);
 	if (ret)
 		return ret;
 
 	/* Configure clock source */
 	mtk_gpt_setup(&to, TIMER_CLK_SRC, GPT_CTRL_OP_FREERUN);
 	clocksource_mmio_init(timer_of_base(&to) + GPT_CNT_REG(TIMER_CLK_SRC),
-			      node->name, timer_of_rate(&to), 300, 32,
+			      yesde->name, timer_of_rate(&to), 300, 32,
 			      clocksource_mmio_readl_up);
 	gpt_sched_reg = timer_of_base(&to) + GPT_CNT_REG(TIMER_CLK_SRC);
 	sched_clock_register(mtk_gpt_read_sched_clock, 32, timer_of_rate(&to));

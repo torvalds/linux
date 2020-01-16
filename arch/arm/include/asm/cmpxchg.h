@@ -10,13 +10,13 @@
 /*
  * On the StrongARM, "swp" is terminally broken since it bypasses the
  * cache totally.  This means that the cache becomes inconsistent, and,
- * since we use normal loads/stores as well, this is really bad.
+ * since we use yesrmal loads/stores as well, this is really bad.
  * Typically, this causes oopsen in filp_close, but could have other,
  * more disastrous effects.  There are two work-arounds:
  *  1. Disable interrupts and emulate the atomic swap
  *  2. Clean the cache, perform atomic swap, flush the cache
  *
- * We choose (1) since its the "easiest" to achieve here and is not
+ * We choose (1) since its the "easiest" to achieve here and is yest
  * dependent on the processor type.
  *
  * NOTE that this solution won't work on an SMP system, so explcitly
@@ -74,7 +74,7 @@ static inline unsigned long __xchg(unsigned long x, volatile void *ptr, int size
 		break;
 #elif defined(swp_is_buggy)
 #ifdef CONFIG_SMP
-#error SMP is not supported on this platform
+#error SMP is yest supported on this platform
 #endif
 	case 1:
 		raw_local_irq_save(flags);
@@ -106,7 +106,7 @@ static inline unsigned long __xchg(unsigned long x, volatile void *ptr, int size
 		break;
 #endif
 	default:
-		/* Cause a link-time error, the xchg() size is not supported */
+		/* Cause a link-time error, the xchg() size is yest supported */
 		__bad_xchg(ptr, size), ret = 0;
 		break;
 	}
@@ -125,7 +125,7 @@ static inline unsigned long __xchg(unsigned long x, volatile void *ptr, int size
 /* min ARCH < ARMv6 */
 
 #ifdef CONFIG_SMP
-#error "SMP is not supported on this platform"
+#error "SMP is yest supported on this platform"
 #endif
 
 #define xchg xchg_relaxed

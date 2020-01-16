@@ -10,7 +10,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -27,7 +27,7 @@
  */
 
 /* this file defines the CHIP_  and family flags used in the pciids,
- * its is common between kms and non-kms because duplicating it and
+ * its is common between kms and yesn-kms because duplicating it and
  * changing one place is fail.
  */
 #ifndef RADEON_FAMILY_H

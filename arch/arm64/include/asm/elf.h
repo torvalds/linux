@@ -128,7 +128,7 @@ typedef struct user_fpsimd_state elf_fpregset_t;
 
 /*
  * When the program starts, a1 contains a pointer to a function to be
- * registered with atexit, as per the SVR4 ABI.  A value of 0 means we have no
+ * registered with atexit, as per the SVR4 ABI.  A value of 0 means we have yes
  * such handler.
  */
 #define ELF_PLAT_INIT(_r, load_addr)	(_r)->regs[0] = 0
@@ -146,7 +146,7 @@ do {									\
 		    (elf_addr_t)current->mm->context.vdso);		\
 									\
 	/*								\
-	 * Should always be nonzero unless there's a kernel bug.	\
+	 * Should always be yesnzero unless there's a kernel bug.	\
 	 * If we haven't determined a sensible value to give to		\
 	 * userspace, omit the entry:					\
 	 */								\

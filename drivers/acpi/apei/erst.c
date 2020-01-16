@@ -72,7 +72,7 @@ static struct erst_erange {
 
 /*
  * Prevent ERST interpreter to run simultaneously, because the
- * corresponding firmware implementation may not work properly when
+ * corresponding firmware implementation may yest work properly when
  * invoked simultaneously.
  *
  * It is used to provide exclusive accessing for ERST Error Log
@@ -80,7 +80,7 @@ static struct erst_erange {
  */
 static DEFINE_RAW_SPINLOCK(erst_lock);
 
-static inline int erst_errno(int command_status)
+static inline int erst_erryes(int command_status)
 {
 	switch (command_status) {
 	case ERST_STATUS_SUCCESS:
@@ -100,7 +100,7 @@ static inline int erst_errno(int command_status)
 static int erst_timedout(u64 *t, u64 spin_unit)
 {
 	if ((s64)*t < spin_unit) {
-		pr_warn(FW_WARN "Firmware does not respond in time.\n");
+		pr_warn(FW_WARN "Firmware does yest respond in time.\n");
 		return 1;
 	}
 	*t -= spin_unit;
@@ -259,9 +259,9 @@ static int erst_exec_move_data(struct apei_exec_context *ctx,
 	u64 offset;
 	void *src, *dst;
 
-	/* ioremap does not work in interrupt context */
+	/* ioremap does yest work in interrupt context */
 	if (in_interrupt()) {
-		pr_warn("MOVE_DATA can not be used in interrupt context.\n");
+		pr_warn("MOVE_DATA can yest be used in interrupt context.\n");
 		return -EBUSY;
 	}
 
@@ -305,7 +305,7 @@ static struct apei_exec_ins_type erst_ins_type[] = {
 	},
 	[ACPI_ERST_NOOP] = {
 		.flags = 0,
-		.run = apei_exec_noop,
+		.run = apei_exec_yesop,
 	},
 	[ACPI_ERST_LOAD_VAR1] = {
 		.flags = APEI_EXEC_INS_ACCESS_REGISTER,
@@ -489,7 +489,7 @@ retry:
 		return rc;
 	if (id == APEI_ERST_INVALID_RECORD_ID)
 		return 0;
-	/* can not skip current ID, or loop back to first ID */
+	/* can yest skip current ID, or loop back to first ID */
 	if (id == prev_id || id == first_id)
 		return 0;
 	if (first_id == APEI_ERST_INVALID_RECORD_ID)
@@ -534,7 +534,7 @@ retry:
 
 /*
  * Get the record ID of an existing error record on the persistent
- * storage. If there is no error record on the persistent storage, the
+ * storage. If there is yes error record on the persistent storage, the
  * returned record_id is APEI_ERST_INVALID_RECORD_ID.
  */
 int erst_get_record_id_next(int *pos, u64 *record_id)
@@ -606,7 +606,7 @@ void erst_get_record_id_end(void)
 	/*
 	 * erst_disable != 0 should be detected by invoker via the
 	 * return value of erst_get_record_id_begin/next, so this
-	 * function should not be called for erst_disable != 0.
+	 * function should yest be called for erst_disable != 0.
 	 */
 	BUG_ON(erst_disable);
 
@@ -654,7 +654,7 @@ static int __erst_write_to_storage(u64 offset)
 	if (rc)
 		return rc;
 
-	return erst_errno(val);
+	return erst_erryes(val);
 }
 
 static int __erst_read_from_storage(u64 record_id, u64 offset)
@@ -697,7 +697,7 @@ static int __erst_read_from_storage(u64 record_id, u64 offset)
 	if (rc)
 		return rc;
 
-	return erst_errno(val);
+	return erst_erryes(val);
 }
 
 static int __erst_clear_from_storage(u64 record_id)
@@ -736,19 +736,19 @@ static int __erst_clear_from_storage(u64 record_id)
 	if (rc)
 		return rc;
 
-	return erst_errno(val);
+	return erst_erryes(val);
 }
 
-/* NVRAM ERST Error Log Address Range is not supported yet */
+/* NVRAM ERST Error Log Address Range is yest supported yet */
 static void pr_unimpl_nvram(void)
 {
 	if (printk_ratelimit())
-		pr_warn("NVRAM ERST Log Address Range not implemented yet.\n");
+		pr_warn("NVRAM ERST Log Address Range yest implemented yet.\n");
 }
 
 static int __erst_write_to_nvram(const struct cper_record_header *record)
 {
-	/* do not print message, because printk is not safe for NMI */
+	/* do yest print message, because printk is yest safe for NMI */
 	return -ENOSYS;
 }
 
@@ -836,7 +836,7 @@ static ssize_t __erst_read(u64 record_id, struct cper_record_header *record,
 }
 
 /*
- * If return value > buflen, the buffer size is not big enough,
+ * If return value > buflen, the buffer size is yest big eyesugh,
  * else if return value < 0, something goes wrong,
  * else everything is OK, and return value is record length
  */
@@ -990,7 +990,7 @@ skip:
 	if (rc)
 		goto out;
 
-	/* no more record */
+	/* yes more record */
 	if (record_id == APEI_ERST_INVALID_RECORD_ID) {
 		rc = -EINVAL;
 		goto out;
@@ -1015,7 +1015,7 @@ skip:
 	memcpy(record->buf, rcd->data, len - sizeof(*rcd));
 	record->id = record_id;
 	record->compressed = false;
-	record->ecc_notice_size = 0;
+	record->ecc_yestice_size = 0;
 	if (guid_equal(&rcd->sec_hdr.section_type, &CPER_SECTION_TYPE_DMESG_Z)) {
 		record->type = PSTORE_TYPE_DMESG;
 		record->compressed = true;
@@ -1054,7 +1054,7 @@ static int erst_writer(struct pstore_record *record)
 	rcd->hdr.timestamp = ktime_get_real_seconds();
 	rcd->hdr.record_length = sizeof(*rcd) + record->size;
 	rcd->hdr.creator_id = CPER_CREATOR_PSTORE;
-	rcd->hdr.notification_type = CPER_NOTIFY_MCE;
+	rcd->hdr.yestification_type = CPER_NOTIFY_MCE;
 	rcd->hdr.record_id = cper_next_record_id();
 	rcd->hdr.flags = CPER_HW_ERROR_FLAGS_PREVERR;
 
@@ -1141,7 +1141,7 @@ static int __init erst_init(void)
 		if (rc == -ENODEV)
 			pr_info(
 	"The corresponding hardware device or firmware implementation "
-	"is not available.\n");
+	"is yest available.\n");
 		else
 			pr_err("Failed to get Error Log Address Range.\n");
 		goto err_unmap_reg;
@@ -1149,7 +1149,7 @@ static int __init erst_init(void)
 
 	r = request_mem_region(erst_erange.base, erst_erange.size, "APEI ERST");
 	if (!r) {
-		pr_err("Can not request [mem %#010llx-%#010llx] for ERST.\n",
+		pr_err("Can yest request [mem %#010llx-%#010llx] for ERST.\n",
 		       (unsigned long long)erst_erange.base,
 		       (unsigned long long)erst_erange.base + erst_erange.size - 1);
 		rc = -EIO;
@@ -1173,7 +1173,7 @@ static int __init erst_init(void)
 		if (rc) {
 			if (rc != -EPERM)
 				pr_info(
-				"Could not register with persistent store.\n");
+				"Could yest register with persistent store.\n");
 			erst_info.buf = NULL;
 			erst_info.bufsize = 0;
 			kfree(buf);

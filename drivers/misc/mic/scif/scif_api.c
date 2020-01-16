@@ -29,13 +29,13 @@ enum conn_async_state {
 };
 
 /*
- * File operations for anonymous inode file associated with a SCIF endpoint,
+ * File operations for ayesnymous iyesde file associated with a SCIF endpoint,
  * used in kernel mode SCIF poll. Kernel mode SCIF poll calls portions of the
  * poll API in the kernel and these take in a struct file *. Since a struct
- * file is not available to kernel mode SCIF, it uses an anonymous file for
+ * file is yest available to kernel mode SCIF, it uses an ayesnymous file for
  * this purpose.
  */
-const struct file_operations scif_anon_fops = {
+const struct file_operations scif_ayesn_fops = {
 	.owner = THIS_MODULE,
 };
 
@@ -53,9 +53,9 @@ scif_epd_t scif_open(void)
 	if (!ep->qp_info.qp)
 		goto err_qp_alloc;
 
-	err = scif_anon_inode_getfile(ep);
+	err = scif_ayesn_iyesde_getfile(ep);
 	if (err)
-		goto err_anon_inode;
+		goto err_ayesn_iyesde;
 
 	spin_lock_init(&ep->lock);
 	mutex_init(&ep->sendlock);
@@ -67,7 +67,7 @@ scif_epd_t scif_open(void)
 		"SCIFAPI open: ep %p success\n", ep);
 	return ep;
 
-err_anon_inode:
+err_ayesn_iyesde:
 	kfree(ep->qp_info.qp);
 err_qp_alloc:
 	kfree(ep);
@@ -93,7 +93,7 @@ static struct scif_endpt *scif_disconnect_ep(struct scif_endpt *ep)
 	 * out the connection. Grabbing and releasing the send/recv lock
 	 * will ensure that any blocked senders/receivers have exited for
 	 * Ring 0 endpoints. It is a Ring 0 bug to call send/recv after
-	 * close. Ring 3 endpoints are not affected since close will not
+	 * close. Ring 3 endpoints are yest affected since close will yest
 	 * be called while there are IOCTLs executing.
 	 */
 	wake_up_interruptible(&ep->sendwq);
@@ -119,7 +119,7 @@ static struct scif_endpt *scif_disconnect_ep(struct scif_endpt *ep)
 		/*
 		 * The other side has completed the disconnect before
 		 * the end point can be removed from the list. Therefore
-		 * the ep lock is not locked, traverse the disconnected
+		 * the ep lock is yest locked, traverse the disconnected
 		 * list to find the endpoint and release the conn lock.
 		 */
 		list_for_each_safe(pos, tmpq, &scif_info.disconnected) {
@@ -140,12 +140,12 @@ static struct scif_endpt *scif_disconnect_ep(struct scif_endpt *ep)
 	msg.payload[0] = (u64)ep;
 	msg.payload[1] = ep->remote_ep;
 
-	err = scif_nodeqp_send(ep->remote_dev, &msg);
+	err = scif_yesdeqp_send(ep->remote_dev, &msg);
 	spin_unlock(&ep->lock);
 	mutex_unlock(&scif_info.connlock);
 
 	if (!err)
-		/* Wait for the remote node to respond with SCIF_DISCNT_ACK */
+		/* Wait for the remote yesde to respond with SCIF_DISCNT_ACK */
 		wait_for_completion_timeout(&ep->discon,
 					    SCIF_NODE_ALIVE_TIMEOUT);
 	return ep;
@@ -272,16 +272,16 @@ int scif_close(scif_epd_t epd)
 			list_del(&conreq->list);
 
 			msg.uop = SCIF_CNCT_REJ;
-			msg.dst.node = conreq->msg.src.node;
+			msg.dst.yesde = conreq->msg.src.yesde;
 			msg.dst.port = conreq->msg.src.port;
 			msg.payload[0] = conreq->msg.payload[0];
 			msg.payload[1] = conreq->msg.payload[1];
 			/*
-			 * No Error Handling on purpose for scif_nodeqp_send().
-			 * If the remote node is lost we still want free the
-			 * connection requests on the self node.
+			 * No Error Handling on purpose for scif_yesdeqp_send().
+			 * If the remote yesde is lost we still want free the
+			 * connection requests on the self yesde.
 			 */
-			scif_nodeqp_send(&scif_dev[conreq->msg.src.node],
+			scif_yesdeqp_send(&scif_dev[conreq->msg.src.yesde],
 					 &msg);
 			ep->conreqcnt--;
 			kfree(conreq);
@@ -294,7 +294,7 @@ int scif_close(scif_epd_t epd)
 	}
 	}
 	scif_put_port(ep->port.port);
-	scif_anon_inode_fput(ep);
+	scif_ayesn_iyesde_fput(ep);
 	scif_teardown_ep(ep);
 	scif_add_epd_to_zombie_list(ep, !SCIF_EPLOCK_HELD);
 	return 0;
@@ -302,7 +302,7 @@ int scif_close(scif_epd_t epd)
 EXPORT_SYMBOL_GPL(scif_close);
 
 /**
- * scif_flush() - Wakes up any blocking accepts. The endpoint will no longer
+ * scif_flush() - Wakes up any blocking accepts. The endpoint will yes longer
  *			accept new connections.
  * @epd: The end point returned from scif_open()
  */
@@ -369,7 +369,7 @@ int scif_bind(scif_epd_t epd, u16 pn)
 	}
 
 	ep->state = SCIFEP_BOUND;
-	ep->port.node = scif_info.nodeid;
+	ep->port.yesde = scif_info.yesdeid;
 	ep->port.port = pn;
 	ep->conn_async_state = ASYNC_CONN_IDLE;
 	ret = pn;
@@ -418,7 +418,7 @@ int scif_listen(scif_epd_t epd, int backlog)
 	spin_unlock(&ep->lock);
 
 	/*
-	 * Listen status is complete so delete the qp information not needed
+	 * Listen status is complete so delete the qp information yest needed
 	 * on a listen before placing on the list of listening ep's
 	 */
 	scif_teardown_ep(ep);
@@ -440,15 +440,15 @@ EXPORT_SYMBOL_GPL(scif_listen);
  * 2) A SCIF endpoint can initiate a SCIF connection by calling
  *	scif_connect(..) which calls scif_setup_qp_connect(..) which
  *	allocates the local qp for the endpoint ring buffer and then sends
- *	a SCIF_CNCT_REQ to the remote node and waits for a SCIF_CNCT_GNT or
+ *	a SCIF_CNCT_REQ to the remote yesde and waits for a SCIF_CNCT_GNT or
  *	a SCIF_CNCT_REJ message
- * 3) The peer node handles a SCIF_CNCT_REQ via scif_cnctreq_resp(..) which
+ * 3) The peer yesde handles a SCIF_CNCT_REQ via scif_cnctreq_resp(..) which
  *	wakes up any threads blocked in step 1 or sends a SCIF_CNCT_REJ
  *	message otherwise
  * 4) A thread blocked waiting for incoming connections allocates its local
  *	endpoint QP and ring buffer following which it sends a SCIF_CNCT_GNT
  *	and waits for a SCIF_CNCT_GNT(N)ACK. If the allocation fails then
- *	the node sends a SCIF_CNCT_REJ message
+ *	the yesde sends a SCIF_CNCT_REJ message
  * 5) Upon receipt of a SCIF_CNCT_GNT or a SCIF_CNCT_REJ message the
  *	connecting endpoint is woken up as part of handling
  *	scif_cnctgnt_resp(..) following which it maps the remote endpoints'
@@ -457,7 +457,7 @@ EXPORT_SYMBOL_GPL(scif_listen);
  *	the scif_connect(..) API
  * 6) Upon receipt of a SCIF_CNCT_GNT(N)ACK the accepting endpoint blocked
  *	in step 4 is woken up and completes the scif_accept(..) API
- * 7) The SCIF connection is now established between the two SCIF endpoints.
+ * 7) The SCIF connection is yesw established between the two SCIF endpoints.
  */
 static int scif_conn_func(struct scif_endpt *ep)
 {
@@ -494,12 +494,12 @@ static int scif_conn_func(struct scif_endpt *ep)
 	msg.uop = SCIF_CNCT_REQ;
 	msg.payload[0] = (u64)ep;
 	msg.payload[1] = ep->qp_info.qp_offset;
-	err = _scif_nodeqp_send(ep->remote_dev, &msg);
+	err = _scif_yesdeqp_send(ep->remote_dev, &msg);
 	if (err)
 		goto connect_error_dec;
 	scif_put_peer_dev(spdev);
 	/*
-	 * Wait for the remote node to respond with SCIF_CNCT_GNT or
+	 * Wait for the remote yesde to respond with SCIF_CNCT_GNT or
 	 * SCIF_CNCT_REJ message.
 	 */
 	err = wait_event_timeout(ep->conwq, ep->state != SCIFEP_CONNECTING,
@@ -519,7 +519,7 @@ static int scif_conn_func(struct scif_endpt *ep)
 						     ep->qp_info.qp,
 						     ep->qp_info.gnt_pld);
 		/*
-		 * If the resource to map the queue are not available then
+		 * If the resource to map the queue are yest available then
 		 * we need to tell the other side to terminate the accept
 		 */
 		if (err) {
@@ -527,14 +527,14 @@ static int scif_conn_func(struct scif_endpt *ep)
 				"%s %d err %d\n", __func__, __LINE__, err);
 			msg.uop = SCIF_CNCT_GNTNACK;
 			msg.payload[0] = ep->remote_ep;
-			_scif_nodeqp_send(ep->remote_dev, &msg);
+			_scif_yesdeqp_send(ep->remote_dev, &msg);
 			ep->state = SCIFEP_BOUND;
 			goto connect_error_dec;
 		}
 
 		msg.uop = SCIF_CNCT_GNTACK;
 		msg.payload[0] = ep->remote_ep;
-		err = _scif_nodeqp_send(ep->remote_dev, &msg);
+		err = _scif_yesdeqp_send(ep->remote_dev, &msg);
 		if (err) {
 			ep->state = SCIFEP_BOUND;
 			goto connect_error_dec;
@@ -564,7 +564,7 @@ connect_error_simple:
 /*
  * scif_conn_handler:
  *
- * Workqueue handler for servicing non-blocking SCIF connect
+ * Workqueue handler for servicing yesn-blocking SCIF connect
  *
  */
 void scif_conn_handler(struct work_struct *work)
@@ -587,7 +587,7 @@ void scif_conn_handler(struct work_struct *work)
 	} while (ep);
 }
 
-int __scif_connect(scif_epd_t epd, struct scif_port_id *dst, bool non_block)
+int __scif_connect(scif_epd_t epd, struct scif_port_id *dst, bool yesn_block)
 {
 	struct scif_endpt *ep = (struct scif_endpt *)epd;
 	int err = 0;
@@ -597,12 +597,12 @@ int __scif_connect(scif_epd_t epd, struct scif_port_id *dst, bool non_block)
 	dev_dbg(scif_info.mdev.this_device, "SCIFAPI connect: ep %p %s\n", ep,
 		scif_ep_states[ep->state]);
 
-	if (!scif_dev || dst->node > scif_info.maxid)
+	if (!scif_dev || dst->yesde > scif_info.maxid)
 		return -ENODEV;
 
 	might_sleep();
 
-	remote_dev = &scif_dev[dst->node];
+	remote_dev = &scif_dev[dst->yesde];
 	spdev = scif_get_peer_dev(remote_dev);
 	if (IS_ERR(spdev)) {
 		err = PTR_ERR(spdev);
@@ -643,12 +643,12 @@ int __scif_connect(scif_epd_t epd, struct scif_port_id *dst, bool non_block)
 		if (err < 0)
 			break;
 		ep->port.port = err;
-		ep->port.node = scif_info.nodeid;
+		ep->port.yesde = scif_info.yesdeid;
 		ep->conn_async_state = ASYNC_CONN_IDLE;
 		/* Fall through */
 	case SCIFEP_BOUND:
 		/*
-		 * If a non-blocking connect has been already initiated
+		 * If a yesn-blocking connect has been already initiated
 		 * (conn_async_state is either ASYNC_CONN_INPROGRESS or
 		 * ASYNC_CONN_FLUSH_WORK), the end point could end up in
 		 * SCIF_BOUND due an error in the connection process
@@ -670,7 +670,7 @@ int __scif_connect(scif_epd_t epd, struct scif_port_id *dst, bool non_block)
 			init_waitqueue_head(&ep->conwq);
 			ep->conn_async_state = 0;
 
-			if (unlikely(non_block))
+			if (unlikely(yesn_block))
 				ep->conn_async_state = ASYNC_CONN_INPROGRESS;
 		}
 		break;
@@ -680,7 +680,7 @@ int __scif_connect(scif_epd_t epd, struct scif_port_id *dst, bool non_block)
 			goto connect_simple_unlock1;
 
 	ep->state = SCIFEP_CONNECTING;
-	ep->remote_dev = &scif_dev[dst->node];
+	ep->remote_dev = &scif_dev[dst->yesde];
 	ep->qp_info.qp->magic = SCIFEP_MAGIC;
 	if (ep->conn_async_state == ASYNC_CONN_INPROGRESS) {
 		init_waitqueue_head(&ep->conn_pend_wq);
@@ -714,24 +714,24 @@ int scif_connect(scif_epd_t epd, struct scif_port_id *dst)
 EXPORT_SYMBOL_GPL(scif_connect);
 
 /**
- * scif_accept() - Accept a connection request from the remote node
+ * scif_accept() - Accept a connection request from the remote yesde
  *
- * The function accepts a connection request from the remote node.  Successful
+ * The function accepts a connection request from the remote yesde.  Successful
  * complete is indicate by a new end point being created and passed back
  * to the caller for future reference.
  *
  * Upon successful complete a zero will be returned and the peer information
  * will be filled in.
  *
- * If the end point is not in the listening state -EINVAL will be returned.
+ * If the end point is yest in the listening state -EINVAL will be returned.
  *
  * If during the connection sequence resource allocation fails the -ENOMEM
  * will be returned.
  *
- * If the function is called with the ASYNC flag set and no connection requests
+ * If the function is called with the ASYNC flag set and yes connection requests
  * are pending it will return -EAGAIN.
  *
- * If the remote side is not sending any connection requests the caller may
+ * If the remote side is yest sending any connection requests the caller may
  * terminate this function with a signal.  If so a -EINTR will be returned.
  */
 int scif_accept(scif_epd_t epd, struct scif_port_id *peer,
@@ -761,7 +761,7 @@ int scif_accept(scif_epd_t epd, struct scif_port_id *peer,
 	}
 
 	if (!lep->conreqcnt && !(flags & SCIF_ACCEPT_SYNC)) {
-		/* No connection request present and we do not want to wait */
+		/* No connection request present and we do yest want to wait */
 		spin_unlock(&lep->lock);
 		return -EAGAIN;
 	}
@@ -769,7 +769,7 @@ int scif_accept(scif_epd_t epd, struct scif_port_id *peer,
 	lep->files = current->files;
 retry_connection:
 	spin_unlock(&lep->lock);
-	/* Wait for the remote node to send us a SCIF_CNCT_REQ */
+	/* Wait for the remote yesde to send us a SCIF_CNCT_REQ */
 	err = wait_event_interruptible(lep->conwq,
 				       (lep->conreqcnt ||
 				       (lep->state != SCIFEP_LISTENING)));
@@ -791,7 +791,7 @@ retry_connection:
 	spin_unlock(&lep->lock);
 
 	/* Fill in the peer information */
-	peer->node = conreq->msg.src.node;
+	peer->yesde = conreq->msg.src.yesde;
 	peer->port = conreq->msg.src.port;
 
 	cep = kzalloc(sizeof(*cep), GFP_KERNEL);
@@ -803,7 +803,7 @@ retry_connection:
 	mutex_init(&cep->sendlock);
 	mutex_init(&cep->recvlock);
 	cep->state = SCIFEP_CONNECTING;
-	cep->remote_dev = &scif_dev[peer->node];
+	cep->remote_dev = &scif_dev[peer->yesde];
 	cep->remote_ep = conreq->msg.payload[0];
 
 	scif_rma_ep_init(cep);
@@ -821,9 +821,9 @@ retry_connection:
 		goto scif_accept_error_qpalloc;
 	}
 
-	err = scif_anon_inode_getfile(cep);
+	err = scif_ayesn_iyesde_getfile(cep);
 	if (err)
-		goto scif_accept_error_anon_inode;
+		goto scif_accept_error_ayesn_iyesde;
 
 	cep->qp_info.qp->magic = SCIFEP_MAGIC;
 	spdev = scif_get_peer_dev(cep->remote_dev);
@@ -842,9 +842,9 @@ retry_connection:
 		goto scif_accept_error_map;
 	}
 
-	cep->port.node = lep->port.node;
+	cep->port.yesde = lep->port.yesde;
 	cep->port.port = lep->port.port;
-	cep->peer.node = peer->node;
+	cep->peer.yesde = peer->yesde;
 	cep->peer.port = peer->port;
 	init_waitqueue_head(&cep->sendwq);
 	init_waitqueue_head(&cep->recvwq);
@@ -856,12 +856,12 @@ retry_connection:
 	msg.payload[1] = cep->qp_info.qp_offset;
 	msg.payload[2] = (u64)cep;
 
-	err = _scif_nodeqp_send(cep->remote_dev, &msg);
+	err = _scif_yesdeqp_send(cep->remote_dev, &msg);
 	scif_put_peer_dev(spdev);
 	if (err)
 		goto scif_accept_error_map;
 retry:
-	/* Wait for the remote node to respond with SCIF_CNCT_GNT(N)ACK */
+	/* Wait for the remote yesde to respond with SCIF_CNCT_GNT(N)ACK */
 	err = wait_event_timeout(cep->conwq, cep->state != SCIFEP_CONNECTING,
 				 SCIF_NODE_ACCEPT_TIMEOUT);
 	if (!err && scifdev_alive(cep))
@@ -876,7 +876,7 @@ retry:
 	if (cep->state == SCIFEP_CLOSING) {
 		/*
 		 * Remote failed to allocate resources and NAKed the grant.
-		 * There is at this point nothing referencing the new end point.
+		 * There is at this point yesthing referencing the new end point.
 		 */
 		spin_unlock(&cep->lock);
 		scif_teardown_ep(cep);
@@ -895,18 +895,18 @@ retry:
 	spin_unlock(&cep->lock);
 	return 0;
 scif_accept_error_map:
-	scif_anon_inode_fput(cep);
-scif_accept_error_anon_inode:
+	scif_ayesn_iyesde_fput(cep);
+scif_accept_error_ayesn_iyesde:
 	scif_teardown_ep(cep);
 scif_accept_error_qpalloc:
 	kfree(cep);
 scif_accept_error_epalloc:
 	msg.uop = SCIF_CNCT_REJ;
-	msg.dst.node = conreq->msg.src.node;
+	msg.dst.yesde = conreq->msg.src.yesde;
 	msg.dst.port = conreq->msg.src.port;
 	msg.payload[0] = conreq->msg.payload[0];
 	msg.payload[1] = conreq->msg.payload[1];
-	scif_nodeqp_send(&scif_dev[conreq->msg.src.node], &msg);
+	scif_yesdeqp_send(&scif_dev[conreq->msg.src.yesde], &msg);
 	kfree(conreq);
 	return err;
 }
@@ -916,7 +916,7 @@ EXPORT_SYMBOL_GPL(scif_accept);
  * scif_msg_param_check:
  * @epd: The end point returned from scif_open()
  * @len: Length to receive
- * @flags: blocking or non blocking
+ * @flags: blocking or yesn blocking
  *
  * Validate parameters for messaging APIs scif_send(..)/scif_recv(..).
  */
@@ -936,7 +936,7 @@ err_ret:
 static int _scif_send(scif_epd_t epd, void *msg, int len, int flags)
 {
 	struct scif_endpt *ep = (struct scif_endpt *)epd;
-	struct scifmsg notif_msg;
+	struct scifmsg yestif_msg;
 	int curr_xfer_len = 0, sent_len = 0, write_count;
 	int ret = 0;
 	struct scif_qp *qp = ep->qp_info.qp;
@@ -957,13 +957,13 @@ static int _scif_send(scif_epd_t epd, void *msg, int len, int flags)
 			/* Success. Update write pointer */
 			scif_rb_commit(&qp->outbound_q);
 			/*
-			 * Send a notification to the peer about the
+			 * Send a yestification to the peer about the
 			 * produced data message.
 			 */
-			notif_msg.src = ep->port;
-			notif_msg.uop = SCIF_CLIENT_SENT;
-			notif_msg.payload[0] = ep->remote_ep;
-			ret = _scif_nodeqp_send(ep->remote_dev, &notif_msg);
+			yestif_msg.src = ep->port;
+			yestif_msg.uop = SCIF_CLIENT_SENT;
+			yestif_msg.payload[0] = ep->remote_ep;
+			ret = _scif_yesdeqp_send(ep->remote_dev, &yestif_msg);
 			if (ret)
 				break;
 			sent_len += curr_xfer_len;
@@ -971,7 +971,7 @@ static int _scif_send(scif_epd_t epd, void *msg, int len, int flags)
 			continue;
 		}
 		curr_xfer_len = min(len - sent_len, SCIF_ENDPT_QP_SIZE - 1);
-		/* Not enough RB space. return for the Non Blocking case */
+		/* Not eyesugh RB space. return for the Non Blocking case */
 		if (!(flags & SCIF_SEND_BLOCK))
 			break;
 
@@ -999,7 +999,7 @@ static int _scif_recv(scif_epd_t epd, void *msg, int len, int flags)
 {
 	int read_size;
 	struct scif_endpt *ep = (struct scif_endpt *)epd;
-	struct scifmsg notif_msg;
+	struct scifmsg yestif_msg;
 	int curr_recv_len = 0, remaining_len = len, read_count;
 	int ret = 0;
 	struct scif_qp *qp = ep->qp_info.qp;
@@ -1023,20 +1023,20 @@ static int _scif_recv(scif_epd_t epd, void *msg, int len, int flags)
 				/*
 				 * Update the read pointer only if the endpoint
 				 * is still connected else the read pointer
-				 * might no longer exist since the peer has
+				 * might yes longer exist since the peer has
 				 * freed resources!
 				 */
 				scif_rb_update_read_ptr(&qp->inbound_q);
 				/*
-				 * Send a notification to the peer about the
+				 * Send a yestification to the peer about the
 				 * consumed data message only if the EP is in
 				 * SCIFEP_CONNECTED state.
 				 */
-				notif_msg.src = ep->port;
-				notif_msg.uop = SCIF_CLIENT_RCVD;
-				notif_msg.payload[0] = ep->remote_ep;
-				ret = _scif_nodeqp_send(ep->remote_dev,
-							&notif_msg);
+				yestif_msg.src = ep->port;
+				yestif_msg.uop = SCIF_CLIENT_RCVD;
+				yestif_msg.payload[0] = ep->remote_ep;
+				ret = _scif_yesdeqp_send(ep->remote_dev,
+							&yestif_msg);
 				if (ret)
 					break;
 			}
@@ -1045,13 +1045,13 @@ static int _scif_recv(scif_epd_t epd, void *msg, int len, int flags)
 			continue;
 		}
 		/*
-		 * Bail out now if the EP is in SCIFEP_DISCONNECTED state else
+		 * Bail out yesw if the EP is in SCIFEP_DISCONNECTED state else
 		 * we will keep looping forever.
 		 */
 		if (ep->state == SCIFEP_DISCONNECTED)
 			break;
 		/*
-		 * Return in the Non Blocking case if there is no data
+		 * Return in the Non Blocking case if there is yes data
 		 * to read in this iteration.
 		 */
 		if (!(flags & SCIF_RECV_BLOCK))
@@ -1086,7 +1086,7 @@ static int _scif_recv(scif_epd_t epd, void *msg, int len, int flags)
  * @epd: The end point returned from scif_open()
  * @msg: Address to place data
  * @len: Length to receive
- * @flags: blocking or non blocking
+ * @flags: blocking or yesn blocking
  *
  * This function is called from the driver IOCTL entry point
  * only and is a wrapper for _scif_send().
@@ -1117,7 +1117,7 @@ int scif_user_send(scif_epd_t epd, void __user *msg, int len, int flags)
 	/*
 	 * Grabbing the lock before breaking up the transfer in
 	 * multiple chunks is required to ensure that messages do
-	 * not get fragmented and reordered.
+	 * yest get fragmented and reordered.
 	 */
 	mutex_lock(&ep->sendlock);
 	while (sent_len != len) {
@@ -1147,7 +1147,7 @@ send_err:
  * @epd: The end point returned from scif_open()
  * @msg: Address to place data
  * @len: Length to receive
- * @flags: blocking or non blocking
+ * @flags: blocking or yesn blocking
  *
  * This function is called from the driver IOCTL entry point
  * only and is a wrapper for _scif_recv().
@@ -1178,7 +1178,7 @@ int scif_user_recv(scif_epd_t epd, void __user *msg, int len, int flags)
 	/*
 	 * Grabbing the lock before breaking up the transfer in
 	 * multiple chunks is required to ensure that messages do
-	 * not get fragmented and reordered.
+	 * yest get fragmented and reordered.
 	 */
 	mutex_lock(&ep->recvlock);
 	while (recv_len != len) {
@@ -1208,7 +1208,7 @@ recv_err:
  * @epd: The end point returned from scif_open()
  * @msg: Address to place data
  * @len: Length to receive
- * @flags: blocking or non blocking
+ * @flags: blocking or yesn blocking
  *
  * This function is called from the kernel mode only and is
  * a wrapper for _scif_send().
@@ -1230,8 +1230,8 @@ int scif_send(scif_epd_t epd, void *msg, int len, int flags)
 		return -ENOTCONN;
 	/*
 	 * Grab the mutex lock in the blocking case only
-	 * to ensure messages do not get fragmented/reordered.
-	 * The non blocking mode is protected using spin locks
+	 * to ensure messages do yest get fragmented/reordered.
+	 * The yesn blocking mode is protected using spin locks
 	 * in _scif_send().
 	 */
 	if (flags & SCIF_SEND_BLOCK)
@@ -1250,7 +1250,7 @@ EXPORT_SYMBOL_GPL(scif_send);
  * @epd: The end point returned from scif_open()
  * @msg: Address to place data
  * @len: Length to receive
- * @flags: blocking or non blocking
+ * @flags: blocking or yesn blocking
  *
  * This function is called from the kernel mode only and is
  * a wrapper for _scif_recv().
@@ -1270,8 +1270,8 @@ int scif_recv(scif_epd_t epd, void *msg, int len, int flags)
 		return ret;
 	/*
 	 * Grab the mutex lock in the blocking case only
-	 * to ensure messages do not get fragmented/reordered.
-	 * The non blocking mode is protected using spin locks
+	 * to ensure messages do yest get fragmented/reordered.
+	 * The yesn blocking mode is protected using spin locks
 	 * in _scif_send().
 	 */
 	if (flags & SCIF_RECV_BLOCK)
@@ -1311,7 +1311,7 @@ __scif_pollfd(struct file *f, poll_table *wait, struct scif_endpt *ep)
 
 	spin_lock(&ep->lock);
 
-	/* Endpoint is waiting for a non-blocking connect to complete */
+	/* Endpoint is waiting for a yesn-blocking connect to complete */
 	if (ep->conn_async_state == ASYNC_CONN_INPROGRESS) {
 		_scif_poll_wait(f, &ep->conn_pend_wq, wait, ep);
 		if (ep->conn_async_state == ASYNC_CONN_INPROGRESS) {
@@ -1354,7 +1354,7 @@ __scif_pollfd(struct file *f, poll_table *wait, struct scif_endpt *ep)
 		}
 	}
 
-	/* Return EPOLLERR if the endpoint is in none of the above states */
+	/* Return EPOLLERR if the endpoint is in yesne of the above states */
 	mask |= EPOLLERR;
 exit:
 	spin_unlock(&ep->lock);
@@ -1389,7 +1389,7 @@ scif_poll(struct scif_pollepd *ufds, unsigned int nfds, long timeout_msecs)
 	while (1) {
 		for (i = 0; i < nfds; i++) {
 			pt->_key = ufds[i].events | EPOLLERR | EPOLLHUP;
-			mask = __scif_pollfd(ufds[i].epd->anon,
+			mask = __scif_pollfd(ufds[i].epd->ayesn,
 					     pt, ufds[i].epd);
 			mask &= ufds[i].events | EPOLLERR | EPOLLHUP;
 			if (mask) {
@@ -1415,33 +1415,33 @@ scif_poll(struct scif_pollepd *ufds, unsigned int nfds, long timeout_msecs)
 }
 EXPORT_SYMBOL_GPL(scif_poll);
 
-int scif_get_node_ids(u16 *nodes, int len, u16 *self)
+int scif_get_yesde_ids(u16 *yesdes, int len, u16 *self)
 {
 	int online = 0;
 	int offset = 0;
-	int node;
+	int yesde;
 
-	if (!scif_is_mgmt_node())
-		scif_get_node_info();
+	if (!scif_is_mgmt_yesde())
+		scif_get_yesde_info();
 
-	*self = scif_info.nodeid;
+	*self = scif_info.yesdeid;
 	mutex_lock(&scif_info.conflock);
 	len = min_t(int, len, scif_info.total);
-	for (node = 0; node <= scif_info.maxid; node++) {
-		if (_scifdev_alive(&scif_dev[node])) {
+	for (yesde = 0; yesde <= scif_info.maxid; yesde++) {
+		if (_scifdev_alive(&scif_dev[yesde])) {
 			online++;
 			if (offset < len)
-				nodes[offset++] = node;
+				yesdes[offset++] = yesde;
 		}
 	}
 	dev_dbg(scif_info.mdev.this_device,
-		"SCIFAPI get_node_ids total %d online %d filled in %d nodes\n",
+		"SCIFAPI get_yesde_ids total %d online %d filled in %d yesdes\n",
 		scif_info.total, online, offset);
 	mutex_unlock(&scif_info.conflock);
 
 	return online;
 }
-EXPORT_SYMBOL_GPL(scif_get_node_ids);
+EXPORT_SYMBOL_GPL(scif_get_yesde_ids);
 
 static int scif_add_client_dev(struct device *dev, struct subsys_interface *si)
 {

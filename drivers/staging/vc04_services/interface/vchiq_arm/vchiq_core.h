@@ -96,7 +96,7 @@ vchiq_static_assert(IS_POW2(VCHIQ_MAX_SLOTS_PER_SIDE));
 	((fourcc) >>  8) & 0xff, \
 	(fourcc) & 0xff
 
-/* Ensure the fields are wide enough */
+/* Ensure the fields are wide eyesugh */
 vchiq_static_assert(VCHIQ_MSG_SRCPORT(VCHIQ_MAKE_MSG(0, 0, VCHIQ_PORT_MAX))
 	== 0);
 vchiq_static_assert(VCHIQ_MSG_TYPE(VCHIQ_MAKE_MSG(0, VCHIQ_PORT_MAX, 0)) == 0);
@@ -224,8 +224,8 @@ struct vchiq_bulk_queue {
 	int local_insert;  /* Where to insert the next local bulk */
 	int remote_insert; /* Where to insert the next remote bulk (master) */
 	int process;       /* Bulk to transfer next */
-	int remote_notify; /* Bulk to notify the remote client of next (mstr) */
-	int remove;        /* Bulk to notify the local client of, and remove,
+	int remote_yestify; /* Bulk to yestify the remote client of next (mstr) */
+	int remove;        /* Bulk to yestify the local client of, and remove,
 			   ** next */
 	struct vchiq_bulk bulks[VCHIQ_NUM_SERVICE_BULKS];
 };
@@ -311,14 +311,14 @@ struct vchiq_service_quota {
 
 struct vchiq_shared_state {
 
-	/* A non-zero value here indicates that the content is valid. */
+	/* A yesn-zero value here indicates that the content is valid. */
 	int initialised;
 
 	/* The first and last (inclusive) slots allocated to the owner. */
 	int slot_first;
 	int slot_last;
 
-	/* The slot allocated to synchronous messages from the owner. */
+	/* The slot allocated to synchroyesus messages from the owner. */
 	int slot_sync;
 
 	/* Signalling this event indicates that owner's slot handler thread
@@ -336,10 +336,10 @@ struct vchiq_shared_state {
 	/* The slot_queue index where the next recycled slot will be written. */
 	int slot_queue_recycle;
 
-	/* This event should be signalled when a synchronous message is sent. */
+	/* This event should be signalled when a synchroyesus message is sent. */
 	struct remote_event sync_trigger;
 
-	/* This event should be signalled when a synchronous message has been
+	/* This event should be signalled when a synchroyesus message has been
 	** released. */
 	struct remote_event sync_release;
 
@@ -390,7 +390,7 @@ struct vchiq_state {
 	/* Processes recycled slots */
 	struct task_struct *recycle_thread;
 
-	/* Processes synchronous messages */
+	/* Processes synchroyesus messages */
 	struct task_struct *sync_thread;
 
 	/* Local implementation of the trigger remote event */

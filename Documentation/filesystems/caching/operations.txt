@@ -14,14 +14,14 @@ Contents:
 
  (*) Procedure.
 
- (*) Asynchronous callback.
+ (*) Asynchroyesus callback.
 
 
 ========
 OVERVIEW
 ========
 
-FS-Cache has an asynchronous operations handling facility that it uses for its
+FS-Cache has an asynchroyesus operations handling facility that it uses for its
 data storage and retrieval routines.  Its operations are represented by
 fscache_operation structs, though these are usually embedded into some other
 structure.
@@ -75,14 +75,14 @@ There are a number of parameters that can be set in the operation record's flag
 parameter.  There are three options for the provision of CPU time in these
 operations:
 
- (1) The operation may be done synchronously (FSCACHE_OP_MYTHREAD).  A thread
+ (1) The operation may be done synchroyesusly (FSCACHE_OP_MYTHREAD).  A thread
      may decide it wants to handle an operation itself without deferring it to
-     another thread.
+     ayesther thread.
 
      This is, for example, used in read operations for calling readpages() on
      the backing filesystem in CacheFiles.  Although readpages() does an
-     asynchronous data fetch, the determination of whether pages exist is done
-     synchronously - and the netfs does not proceed until this has been
+     asynchroyesus data fetch, the determination of whether pages exist is done
+     synchroyesusly - and the netfs does yest proceed until this has been
      determined.
 
      If this option is to be used, FSCACHE_OP_WAITING must be set in op->flags
@@ -93,8 +93,8 @@ operations:
 			    TASK_UNINTERRUPTIBLE);
 
 
- (2) The operation may be fast asynchronous (FSCACHE_OP_FAST), in which case it
-     will be given to keventd to process.  Such an operation is not permitted
+ (2) The operation may be fast asynchroyesus (FSCACHE_OP_FAST), in which case it
+     will be given to keventd to process.  Such an operation is yest permitted
      to sleep on I/O.
 
      This is, for example, used by CacheFiles to copy data from a backing fs
@@ -106,7 +106,7 @@ operations:
 		INIT_WORK(&op->fast_work, do_some_work);
 
 
- (3) The operation may be slow asynchronous (FSCACHE_OP_SLOW), in which case it
+ (3) The operation may be slow asynchroyesus (FSCACHE_OP_SLOW), in which case it
      will be given to the slow work facility to process.  Such an operation is
      permitted to sleep on I/O.
 
@@ -121,7 +121,7 @@ operations:
 
 Furthermore, operations may be one of two types:
 
- (1) Exclusive (FSCACHE_OP_EXCLUSIVE).  Operations of this type may not run in
+ (1) Exclusive (FSCACHE_OP_EXCLUSIVE).  Operations of this type may yest run in
      conjunction with any other operation on the object being operated upon.
 
      An example of this is the attribute change operation, in which the file
@@ -151,7 +151,7 @@ Operations are used through the following procedure:
 	int fscache_submit_exclusive_op(struct fscache_object *object,
 					struct fscache_operation *op);
 
-     The first function should be used to submit non-exclusive ops and the
+     The first function should be used to submit yesn-exclusive ops and the
      second to submit exclusive ones.  The caller must still set the
      FSCACHE_OP_EXCLUSIVE flag.
 
@@ -163,7 +163,7 @@ Operations are used through the following procedure:
      undergoing lookup or creation.  The operation will also be deferred if an
      operation of conflicting exclusivity is in progress on the object.
 
-     If the operation is asynchronous, the manager will retain a reference to
+     If the operation is asynchroyesus, the manager will retain a reference to
      it, so the caller should put their reference to it by passing it to:
 
 	void fscache_put_operation(struct fscache_operation *op);
@@ -178,7 +178,7 @@ Operations are used through the following procedure:
 
  (4) The operation holds an effective lock upon the object, preventing other
      exclusive ops conflicting until it is released.  The operation can be
-     enqueued for further immediate asynchronous processing by adjusting the
+     enqueued for further immediate asynchroyesus processing by adjusting the
      CPU time provisioning option if necessary, eg:
 
 	op->flags &= ~FSCACHE_OP_TYPE;
@@ -196,7 +196,7 @@ Operations are used through the following procedure:
 ASYNCHRONOUS CALLBACK
 =====================
 
-When used in asynchronous mode, the worker thread pool will invoke the
+When used in asynchroyesus mode, the worker thread pool will invoke the
 processor method with a pointer to the operation.  This should then get at the
 container struct by using container_of():
 

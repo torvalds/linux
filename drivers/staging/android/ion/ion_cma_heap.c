@@ -8,7 +8,7 @@
 
 #include <linux/device.h>
 #include <linux/slab.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/err.h>
 #include <linux/cma.h>
 #include <linux/scatterlist.h>

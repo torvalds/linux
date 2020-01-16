@@ -233,7 +233,7 @@ static int lola_mixer_set_src_gain(struct lola *chip, unsigned int id,
 				LOLA_VERB_SET_SOURCE_GAIN, id, 0);
 }
 
-#if 0 /* not used */
+#if 0 /* yest used */
 static int lola_mixer_set_src_gains(struct lola *chip, unsigned int mask,
 				    unsigned short *gains)
 {
@@ -263,7 +263,7 @@ static int lola_mixer_set_src_gains(struct lola *chip, unsigned int mask,
 	}
 	return 0;
 }
-#endif /* not used */
+#endif /* yest used */
 
 static int lola_mixer_set_mapping_gain(struct lola *chip,
 				       unsigned int src, unsigned int dest,
@@ -287,7 +287,7 @@ static int lola_mixer_set_mapping_gain(struct lola *chip,
 				src, dest);
 }
 
-#if 0 /* not used */
+#if 0 /* yest used */
 static int lola_mixer_set_dest_gains(struct lola *chip, unsigned int id,
 				     unsigned int mask, unsigned short *gains)
 {
@@ -308,7 +308,7 @@ static int lola_mixer_set_dest_gains(struct lola *chip, unsigned int id,
 	return lola_codec_write(chip, chip->mixer.nid,
 				LOLA_VERB_SET_DESTINATION_GAIN, id, 0);
 }
-#endif /* not used */
+#endif /* yest used */
 
 /*
  */
@@ -327,7 +327,7 @@ int lola_setup_all_analog_gains(struct lola *chip, int dir, bool mute)
 	for (idx = 0; idx < max_idx; idx++) {
 		if (pin[idx].is_analog) {
 			unsigned int val = mute ? 0 : pin[idx].cur_gain_step;
-			/* set volume and do not save the value */
+			/* set volume and do yest save the value */
 			set_analog_volume(chip, dir, idx, val, false);
 		}
 	}
@@ -355,7 +355,7 @@ void lola_restore_mixer(struct lola *chip)
 		memcpy_toio(chip->mixer.array, chip->mixer.array_saved,
 			    sizeof(*chip->mixer.array));
 		/* inform micro-controller about all restored values
-		 * and ignore return values
+		 * and igyesre return values
 		 */
 		for (i = 0; i < chip->mixer.src_phys_ins; i++)
 			lola_codec_write(chip, chip->mixer.nid,
@@ -428,7 +428,7 @@ int lola_set_src_config(struct lola *chip, unsigned int src_mask, bool update)
 		if (update) {
 			src_state = (chip->input_src_mask & mask) != 0;
 			if (src_state == new_src)
-				continue;   /* nothing to change for this IO */
+				continue;   /* yesthing to change for this IO */
 		}
 		err = lola_codec_write(chip, chip->pcm[CAPT].streams[n].nid,
 				       LOLA_VERB_SET_SRC, new_src, 0);
@@ -582,7 +582,7 @@ static int create_analog_mixer(struct lola *chip, int dir, char *name)
 {
 	if (!chip->pin[dir].num_pins)
 		return 0;
-	/* no analog volumes on digital only adapters */
+	/* yes analog volumes on digital only adapters */
 	if (chip->pin[dir].num_pins != chip->pin[dir].num_analog_pins)
 		return 0;
 	lola_analog_mixer.name = name;
@@ -733,7 +733,7 @@ static int create_src_gain_mixer(struct lola *chip,
 			   snd_ctl_new1(&lola_src_gain_mixer, chip));
 }
 
-#if 0 /* not used */
+#if 0 /* yest used */
 /*
  * destination gain (matrix-like) mixer
  */
@@ -822,7 +822,7 @@ static int create_dest_gain_mixer(struct lola *chip,
 	return snd_ctl_add(chip->card,
 			  snd_ctl_new1(&lola_dest_gain_mixer, chip));
 }
-#endif /* not used */
+#endif /* yest used */
 
 /*
  */

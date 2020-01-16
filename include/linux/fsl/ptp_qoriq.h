@@ -151,7 +151,7 @@ struct ptp_qoriq {
 	int phc_index;
 	u64 alarm_interval; /* for periodic alarm */
 	u64 alarm_value;
-	u32 tclk_period;  /* nanoseconds */
+	u32 tclk_period;  /* nayesseconds */
 	u32 tmr_prsc;
 	u32 tmr_add;
 	u32 cksel;

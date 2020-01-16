@@ -24,7 +24,7 @@
 
 
 /* THREAD_SIZE is the size of the task_struct/kernel_stack combo.
- * normally, the stack is found by doing something like p + THREAD_SIZE
+ * yesrmally, the stack is found by doing something like p + THREAD_SIZE
  * in or32, a page is 8192 bytes, which seems like a sane size
  */
 
@@ -92,7 +92,7 @@ register struct thread_info *current_thread_info_reg asm("r10");
  *   - other flags in MSW
  */
 #define TIF_SYSCALL_TRACE	0	/* syscall trace active */
-#define TIF_NOTIFY_RESUME	1	/* resumption notification requested */
+#define TIF_NOTIFY_RESUME	1	/* resumption yestification requested */
 #define TIF_SIGPENDING		2	/* signal pending */
 #define TIF_NEED_RESCHED	3	/* rescheduling necessary */
 #define TIF_SINGLESTEP		4	/* restore singlestep on return to user

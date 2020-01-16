@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
- * Copyright (c) 1996, 2003 VIA Networking Technologies, Inc.
+ * Copyright (c) 1996, 2003 VIA Networking Techyeslogies, Inc.
  * All rights reserved.
  *
  * File: dpc.c
@@ -47,7 +47,7 @@ int vnt_rx_data(struct vnt_private *priv, struct vnt_rcb *ptr_rcb,
 
 	skb = ptr_rcb->skb;
 
-	/* [31:16]RcvByteCount ( not include 4-byte Status ) */
+	/* [31:16]RcvByteCount ( yest include 4-byte Status ) */
 	wbk_status = *((u32 *)(skb->data));
 	frame_size = wbk_status >> 16;
 	frame_size += 4;
@@ -70,7 +70,7 @@ int vnt_rx_data(struct vnt_private *priv, struct vnt_rcb *ptr_rcb,
 	/* real Frame Size = USBframe_size -4WbkStatus - 4RxStatus */
 	/* -8TSF - 4RSR - 4SQ3 - ?Padding */
 
-	/* if SQ3 the range is 24~27, if no SQ3 the range is 20~23 */
+	/* if SQ3 the range is 24~27, if yes SQ3 the range is 20~23 */
 
 	pay_load_len = (u16 *)(skb_data + 6);
 

@@ -430,7 +430,7 @@ EXPORT_SYMBOL(vchi_msg_hold);
  *
  * Arguments: struct vchi_instance_handle **instance_handle
  *
- * Description: Initialises the hardware but does not transmit anything
+ * Description: Initialises the hardware but does yest transmit anything
  *              When run as a Host App this will be called twice hence the need
  *              to malloc the state information
  *
@@ -555,7 +555,7 @@ static enum vchiq_status shim_callback(enum vchiq_reason reason,
 		break;
 
 	default:
-		WARN(1, "not supported\n");
+		WARN(1, "yest supported\n");
 		break;
 	}
 

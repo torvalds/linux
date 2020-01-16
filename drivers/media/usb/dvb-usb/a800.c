@@ -20,9 +20,9 @@ DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
 
 #define deb_rc(args...)   dprintk(debug,0x01,args)
 
-static int a800_power_ctrl(struct dvb_usb_device *d, int onoff)
+static int a800_power_ctrl(struct dvb_usb_device *d, int oyesff)
 {
-	/* do nothing for the AVerMedia */
+	/* do yesthing for the AVerMedia */
 	return 0;
 }
 
@@ -69,7 +69,7 @@ static int a800_probe(struct usb_interface *intf,
 				   THIS_MODULE, NULL, adapter_nr);
 }
 
-/* do not change the order of the ID table */
+/* do yest change the order of the ID table */
 static struct usb_device_id a800_table [] = {
 /* 00 */	{ USB_DEVICE(USB_VID_AVERMEDIA,     USB_PID_AVERMEDIA_DVBT_USB2_COLD) },
 /* 01 */	{ USB_DEVICE(USB_VID_AVERMEDIA,     USB_PID_AVERMEDIA_DVBT_USB2_WARM) },

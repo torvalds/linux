@@ -7,7 +7,7 @@
  *
  * Copyright (C) 2000, 2001  Paolo Alberelli
  * Copyright (C) 2003  Paul Mundt
- * Copyright (C) 2004  Richard Curnow
+ * Copyright (C) 2004  Richard Curyesw
  */
 #ifndef __ASSEMBLY__
 
@@ -180,9 +180,9 @@ static inline void enable_fpu(void)
 			     : "r" (~SR_FD));
 }
 
-/* Round to nearest, no exceptions on inexact, overflow, underflow,
-   zero-divide, invalid.  Configure option for whether to flush denorms to
-   zero, or except if a denorm is encountered.  */
+/* Round to nearest, yes exceptions on inexact, overflow, underflow,
+   zero-divide, invalid.  Configure option for whether to flush deyesrms to
+   zero, or except if a deyesrm is encountered.  */
 #if defined(CONFIG_SH64_FPU_DENORM_FLUSH)
 #define FPSCR_INIT  0x00040000
 #else

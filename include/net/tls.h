@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2017, Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2016-2017, Mellayesx Techyeslogies. All rights reserved.
  * Copyright (c) 2016-2017, Dave Watson <davejwatson@fb.com>. All rights reserved.
  *
  * This software is available to you under a choice of one of two
@@ -13,11 +13,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -68,7 +68,7 @@
 
 /* For AES-CCM, the full 16-bytes of IV is made of '4' fields of given sizes.
  *
- * IV[16] = b0[1] || implicit nonce[4] || explicit nonce[8] || length[3]
+ * IV[16] = b0[1] || implicit yesnce[4] || explicit yesnce[8] || length[3]
  *
  * The field 'length' is encoded in field 'b0' as '(length width - 1)'.
  * Hence b0 contains (3 - 1) = 2.
@@ -135,7 +135,7 @@ struct tls_sw_context_tx {
 	struct tls_rec *open_rec;
 	struct list_head tx_list;
 	atomic_t encrypt_pending;
-	int async_notify;
+	int async_yestify;
 	u8 async_capable:1;
 
 #define BIT_TX_SCHEDULED	0
@@ -155,7 +155,7 @@ struct tls_sw_context_rx {
 	u8 async_capable:1;
 	u8 decrypted:1;
 	atomic_t decrypt_pending;
-	bool async_notify;
+	bool async_yestify;
 };
 
 struct tls_record_info {
@@ -179,8 +179,8 @@ struct tls_offload_context_tx {
 	void (*sk_destruct)(struct sock *sk);
 	u8 driver_state[] __aligned(8);
 	/* The TLS layer reserves room for driver specific state
-	 * Currently the belief is that there is not enough
-	 * driver specific state to justify another layer of indirection
+	 * Currently the belief is that there is yest eyesugh
+	 * driver specific state to justify ayesther layer of indirection
 	 */
 #define TLS_DRIVER_STATE_SIZE_TX	16
 };
@@ -191,7 +191,7 @@ struct tls_offload_context_tx {
 enum tls_context_flags {
 	TLS_RX_SYNC_RUNNING = 0,
 	/* Unlike RX where resync is driven entirely by the core in TX only
-	 * the driver knows when things went out of sync, so we need the flag
+	 * the driver kyesws when things went out of sync, so we need the flag
 	 * to be atomic.
 	 */
 	TLS_TX_SYNC_SCHED = 1,
@@ -299,7 +299,7 @@ struct tls_offload_context_rx {
 	/* this member is set regardless of resync_type, to avoid branches */
 	u8 resync_nh_reset:1;
 	/* CORE_NEXT_HINT-only member, but use the hole here */
-	u8 resync_nh_do_now:1;
+	u8 resync_nh_do_yesw:1;
 	union {
 		/* TLS_OFFLOAD_SYNC_TYPE_DRIVER_REQ */
 		struct {
@@ -313,8 +313,8 @@ struct tls_offload_context_rx {
 	};
 	u8 driver_state[] __aligned(8);
 	/* The TLS layer reserves room for driver specific state
-	 * Currently the belief is that there is not enough
-	 * driver specific state to justify another layer of indirection
+	 * Currently the belief is that there is yest eyesugh
+	 * driver specific state to justify ayesther layer of indirection
 	 */
 #define TLS_DRIVER_STATE_SIZE_RX	8
 };
@@ -347,10 +347,10 @@ void tls_sw_free_resources_rx(struct sock *sk);
 void tls_sw_release_resources_rx(struct sock *sk);
 void tls_sw_free_ctx_rx(struct tls_context *tls_ctx);
 int tls_sw_recvmsg(struct sock *sk, struct msghdr *msg, size_t len,
-		   int nonblock, int flags, int *addr_len);
+		   int yesnblock, int flags, int *addr_len);
 bool tls_sw_stream_read(const struct sock *sk);
 ssize_t tls_sw_splice_read(struct socket *sock, loff_t *ppos,
-			   struct pipe_inode_info *pipe,
+			   struct pipe_iyesde_info *pipe,
 			   size_t len, unsigned int flags);
 
 int tls_device_sendmsg(struct sock *sk, struct msghdr *msg, size_t size);
@@ -494,7 +494,7 @@ static inline void tls_fill_prepend(struct tls_context *ctx,
 		       ctx->tx.iv + TLS_CIPHER_AES_GCM_128_SALT_SIZE, iv_size);
 	}
 
-	/* we cover nonce explicit here as well, so buf should be of
+	/* we cover yesnce explicit here as well, so buf should be of
 	 * size KTLS_DTLS_HEADER_SIZE + KTLS_DTLS_NONCE_EXPLICIT_SIZE
 	 */
 	buf[0] = version == TLS_1_3_VERSION ?
@@ -502,7 +502,7 @@ static inline void tls_fill_prepend(struct tls_context *ctx,
 	/* Note that VERSION must be TLS_1_2 for both TLS1.2 and TLS1.3 */
 	buf[1] = TLS_1_2_VERSION_MINOR;
 	buf[2] = TLS_1_2_VERSION_MAJOR;
-	/* we can use IV for nonce explicit according to spec */
+	/* we can use IV for yesnce explicit according to spec */
 	buf[3] = pkt_len >> 8;
 	buf[4] = pkt_len & 0xFF;
 }

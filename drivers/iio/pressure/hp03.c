@@ -239,7 +239,7 @@ static int hp03_probe(struct i2c_client *client,
 	}
 
 	/*
-	 * Allocate another device for the on-sensor EEPROM,
+	 * Allocate ayesther device for the on-sensor EEPROM,
 	 * which has it's dedicated I2C address and contains
 	 * the calibration constants for the sensor.
 	 */

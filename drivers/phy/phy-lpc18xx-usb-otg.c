@@ -99,7 +99,7 @@ static int lpc18xx_usb_otg_phy_probe(struct platform_device *pdev)
 	if (!lpc)
 		return -ENOMEM;
 
-	lpc->reg = syscon_node_to_regmap(pdev->dev.of_node->parent);
+	lpc->reg = syscon_yesde_to_regmap(pdev->dev.of_yesde->parent);
 	if (IS_ERR(lpc->reg)) {
 		dev_err(&pdev->dev, "failed to get syscon\n");
 		return PTR_ERR(lpc->reg);

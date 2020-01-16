@@ -9,7 +9,7 @@
  * Simple helper function for initializing a register set.
  *
  * Note that this sets EFLAGS_CF in the input register set; this
- * makes it easier to catch functions which do nothing but don't
+ * makes it easier to catch functions which do yesthing but don't
  * explicitly set CF.
  */
 

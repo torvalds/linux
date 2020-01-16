@@ -62,7 +62,7 @@
 			compatible = "syscon-reboot-mode";
 			offset = <0x0>;
 
-			mode-normal	= <0x77665501>;
+			mode-yesrmal	= <0x77665501>;
 			mode-bootloader	= <0x77665500>;
 			mode-recovery	= <0x77665502>;
 		};
@@ -95,7 +95,7 @@
 			label = "green:user2";
 			/* gpio_151_user_led2 */
 			gpios = <&gpio18 7 0>;
-			linux,default-trigger = "none";
+			linux,default-trigger = "yesne";
 		};
 
 		user_led3 {
@@ -110,7 +110,7 @@
 			/* gpio_190_user_led4 */
 			gpios = <&gpio23 6 0>;
 			panic-indicator;
-			linux,default-trigger = "none";
+			linux,default-trigger = "yesne";
 		};
 
 		wlan_active_led {
@@ -200,11 +200,11 @@
 
 /*
  * Legend: proper name = the GPIO line is used as GPIO
- *         NC = not connected (pin out but not routed from the chip to
+ *         NC = yest connected (pin out but yest routed from the chip to
  *              anything the board)
- *         "[PER]" = pin is muxed for [peripheral] (not GPIO)
- *         "" = no idea, schematic doesn't say, could be
- *              unrouted (not connected to any external pin)
+ *         "[PER]" = pin is muxed for [peripheral] (yest GPIO)
+ *         "" = yes idea, schematic doesn't say, could be
+ *              unrouted (yest connected to any external pin)
  *         LSEC = Low Speed External Connector
  *         HSEC = High Speed External Connector
  *
@@ -593,7 +593,7 @@
 
 &dwmmc2 { /* WIFI */
 	bus-width = <0x4>;
-	non-removable;
+	yesn-removable;
 	broken-cd;
 	cap-power-off-card;
 	pinctrl-names = "default";

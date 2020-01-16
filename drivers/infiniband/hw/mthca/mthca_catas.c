@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -54,7 +54,7 @@ static struct work_struct catas_work;
 
 static int catas_reset_disable;
 module_param_named(catas_reset_disable, catas_reset_disable, int, 0644);
-MODULE_PARM_DESC(catas_reset_disable, "disable reset on catastrophic event if nonzero");
+MODULE_PARM_DESC(catas_reset_disable, "disable reset on catastrophic event if yesnzero");
 
 static void catas_reset(struct work_struct *work)
 {
@@ -71,7 +71,7 @@ static void catas_reset(struct work_struct *work)
 	list_for_each_entry_safe(dev, tmpdev, &tlist, catas_err.list) {
 		struct pci_dev *pdev = dev->pdev;
 		ret = __mthca_restart_one(dev->pdev);
-		/* 'dev' now is not valid */
+		/* 'dev' yesw is yest valid */
 		if (ret)
 			printk(KERN_ERR "mthca %s: Reset failed (%d)\n",
 			       pci_name(pdev), ret);
@@ -112,7 +112,7 @@ static void handle_catas(struct mthca_dev *dev)
 		type = "internal parity error";
 		break;
 	default:
-		type = "unknown error";
+		type = "unkyeswn error";
 		break;
 	}
 

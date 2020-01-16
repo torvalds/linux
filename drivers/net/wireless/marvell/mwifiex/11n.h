@@ -69,15 +69,15 @@ static inline u8
 mwifiex_is_station_ampdu_allowed(struct mwifiex_private *priv,
 				 struct mwifiex_ra_list_tbl *ptr, int tid)
 {
-	struct mwifiex_sta_node *node = mwifiex_get_sta_entry(priv, ptr->ra);
+	struct mwifiex_sta_yesde *yesde = mwifiex_get_sta_entry(priv, ptr->ra);
 
-	if (unlikely(!node))
+	if (unlikely(!yesde))
 		return false;
 
-	return (node->ampdu_sta[tid] != BA_STREAM_NOT_ALLOWED) ? true : false;
+	return (yesde->ampdu_sta[tid] != BA_STREAM_NOT_ALLOWED) ? true : false;
 }
 
-/* This function checks whether AMPDU is allowed or not for a particular TID. */
+/* This function checks whether AMPDU is allowed or yest for a particular TID. */
 static inline u8
 mwifiex_is_ampdu_allowed(struct mwifiex_private *priv,
 			 struct mwifiex_ra_list_tbl *ptr, int tid)
@@ -96,7 +96,7 @@ mwifiex_is_ampdu_allowed(struct mwifiex_private *priv,
 }
 
 /*
- * This function checks whether AMSDU is allowed or not for a particular TID.
+ * This function checks whether AMSDU is allowed or yest for a particular TID.
  */
 static inline u8
 mwifiex_is_amsdu_allowed(struct mwifiex_private *priv, int tid)
@@ -107,7 +107,7 @@ mwifiex_is_amsdu_allowed(struct mwifiex_private *priv, int tid)
 }
 
 /*
- * This function checks whether a space is available for new BA stream or not.
+ * This function checks whether a space is available for new BA stream or yest.
  */
 static inline u8 mwifiex_space_avail_for_new_ba_stream(
 					struct mwifiex_adapter *adapter)
@@ -168,23 +168,23 @@ mwifiex_find_stream_to_delete(struct mwifiex_private *priv, int ptr_tid,
  * This function checks whether associated station is 11n enabled
  */
 static inline int mwifiex_is_sta_11n_enabled(struct mwifiex_private *priv,
-					     struct mwifiex_sta_node *node)
+					     struct mwifiex_sta_yesde *yesde)
 {
-	if (!node || ((priv->bss_role == MWIFIEX_BSS_ROLE_UAP) &&
+	if (!yesde || ((priv->bss_role == MWIFIEX_BSS_ROLE_UAP) &&
 		      !priv->ap_11n_enabled) ||
 	    ((priv->bss_mode == NL80211_IFTYPE_ADHOC) &&
 	     !priv->adapter->adhoc_11n_enabled))
 		return 0;
 
-	return node->is_11n_enabled;
+	return yesde->is_11n_enabled;
 }
 
 static inline u8
 mwifiex_tdls_peer_11n_enabled(struct mwifiex_private *priv, const u8 *ra)
 {
-	struct mwifiex_sta_node *node = mwifiex_get_sta_entry(priv, ra);
-	if (node)
-		return node->is_11n_enabled;
+	struct mwifiex_sta_yesde *yesde = mwifiex_get_sta_entry(priv, ra);
+	if (yesde)
+		return yesde->is_11n_enabled;
 
 	return false;
 }

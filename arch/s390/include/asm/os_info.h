@@ -25,7 +25,7 @@ struct os_info {
 	u64	magic;
 	u32	csum;
 	u16	version_major;
-	u16	version_minor;
+	u16	version_miyesr;
 	u64	crashkernel_addr;
 	u64	crashkernel_size;
 	struct os_info_entry entry[2];

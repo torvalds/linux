@@ -327,7 +327,7 @@
 	},
 	.prog_type = BPF_PROG_TYPE_SCHED_CLS,
 	.result = REJECT,
-	.errstr = "last insn is not an exit or jmp",
+	.errstr = "last insn is yest an exit or jmp",
 },
 {
 	"jump/call test 11",

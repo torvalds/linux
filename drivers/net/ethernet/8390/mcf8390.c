@@ -12,7 +12,7 @@
 
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/platform_device.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
@@ -161,10 +161,10 @@ static void mcf8390_reset_8390(struct net_device *dev)
 	ei_status.txing = 0;
 	ei_status.dmaing = 0;
 
-	/* This check _should_not_ be necessary, omit eventually. */
+	/* This check _should_yest_ be necessary, omit eventually. */
 	while ((ei_inb(addr + NE_EN0_ISR) & ENISR_RESET) == 0) {
 		if (time_after(jiffies, reset_start_time + 2 * HZ / 100)) {
-			netdev_warn(dev, "%s: did not complete\n", __func__);
+			netdev_warn(dev, "%s: did yest complete\n", __func__);
 			break;
 		}
 	}
@@ -275,7 +275,7 @@ static void mcf8390_block_output(struct net_device *dev, int count,
 
 	ei_outb(ENISR_RDC, addr + NE_EN0_ISR);
 
-	/* Now the normal output. */
+	/* Now the yesrmal output. */
 	ei_outb(count & 0xff, addr + NE_EN0_RCNTLO);
 	ei_outb(count >> 8, addr + NE_EN0_RCNTHI);
 	ei_outb(0x00, addr + NE_EN0_RSARLO);
@@ -412,13 +412,13 @@ static int mcf8390_probe(struct platform_device *pdev)
 
 	irq = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
 	if (irq == NULL) {
-		dev_err(&pdev->dev, "no IRQ specified?\n");
+		dev_err(&pdev->dev, "yes IRQ specified?\n");
 		return -ENXIO;
 	}
 
 	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (mem == NULL) {
-		dev_err(&pdev->dev, "no memory address specified?\n");
+		dev_err(&pdev->dev, "yes memory address specified?\n");
 		return -ENXIO;
 	}
 	msize = resource_size(mem);

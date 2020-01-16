@@ -5,7 +5,7 @@
 
   PHY workarounds.
 
-  Copyright (c) 2005-2007 Stefano Brivio <stefano.brivio@polimi.it>
+  Copyright (c) 2005-2007 Stefayes Brivio <stefayes.brivio@polimi.it>
   Copyright (c) 2005-2007 Michael Buesch <m@bues.ch>
 
 
@@ -87,11 +87,11 @@ static void b43_wa_nft(struct b43_wldev *dev) /* Noise figure table */
 	if (phy->rev == 1)
 		for (i = 0; i < B43_TAB_NOISEG1_SIZE; i++)
 			b43_ofdmtab_write16(dev, B43_OFDMTAB_AGC2, i,
-					    b43_tab_noiseg1[i]);
+					    b43_tab_yesiseg1[i]);
 	else
 		for (i = 0; i < B43_TAB_NOISEG2_SIZE; i++)
 			b43_ofdmtab_write16(dev, B43_OFDMTAB_AGC2, i,
-					    b43_tab_noiseg2[i]);
+					    b43_tab_yesiseg2[i]);
 }
 
 static void b43_wa_rt(struct b43_wldev *dev) /* Rotor table */
@@ -116,11 +116,11 @@ static void b43_wa_nst(struct b43_wldev *dev) /* Noise scale table */
 
 	if (phy->rev >= 6) {
 		if (b43_phy_read(dev, B43_PHY_ENCORE) & B43_PHY_ENCORE_EN)
-			b43_write_nst(dev, b43_tab_noisescaleg3);
+			b43_write_nst(dev, b43_tab_yesisescaleg3);
 		else
-			b43_write_nst(dev, b43_tab_noisescaleg2);
+			b43_write_nst(dev, b43_tab_yesisescaleg2);
 	} else {
-		b43_write_nst(dev, b43_tab_noisescaleg1);
+		b43_write_nst(dev, b43_tab_yesisescaleg1);
 	}
 }
 
@@ -291,7 +291,7 @@ static void b43_wa_tr_ltov(struct b43_wldev *dev) /* TR Lookup Table Original Va
 	b43_gtab_write(dev, B43_GTAB_ORIGTR, 0, 0x7654);
 }
 
-static void b43_wa_cpll_nonpilot(struct b43_wldev *dev)
+static void b43_wa_cpll_yesnpilot(struct b43_wldev *dev)
 {
 	b43_ofdmtab_write16(dev, B43_OFDMTAB_UNKNOWN_11, 0, 0);
 	b43_ofdmtab_write16(dev, B43_OFDMTAB_UNKNOWN_11, 1, 0);
@@ -372,5 +372,5 @@ void b43_wa_all(struct b43_wldev *dev)
 		B43_WARN_ON(1);
 	}
 
-	b43_wa_cpll_nonpilot(dev);
+	b43_wa_cpll_yesnpilot(dev);
 }

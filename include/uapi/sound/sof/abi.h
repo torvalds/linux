@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-note) OR BSD-3-Clause) */
+/* SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-yeste) OR BSD-3-Clause) */
 /*
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
@@ -24,7 +24,7 @@
 #ifndef __INCLUDE_UAPI_SOUND_SOF_ABI_H__
 #define __INCLUDE_UAPI_SOUND_SOF_ABI_H__
 
-/* SOF ABI version major, minor and patch numbers */
+/* SOF ABI version major, miyesr and patch numbers */
 #define SOF_ABI_MAJOR 3
 #define SOF_ABI_MINOR 11
 #define SOF_ABI_PATCH 0
@@ -37,9 +37,9 @@
 #define SOF_ABI_PATCH_SHIFT	0
 #define SOF_ABI_PATCH_MASK	0xfff
 
-#define SOF_ABI_VER(major, minor, patch) \
+#define SOF_ABI_VER(major, miyesr, patch) \
 	(((major) << SOF_ABI_MAJOR_SHIFT) | \
-	((minor) << SOF_ABI_MINOR_SHIFT) | \
+	((miyesr) << SOF_ABI_MINOR_SHIFT) | \
 	((patch) << SOF_ABI_PATCH_SHIFT))
 
 #define SOF_ABI_VERSION_MAJOR(version) \

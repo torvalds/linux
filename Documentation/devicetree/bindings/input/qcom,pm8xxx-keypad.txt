@@ -20,7 +20,7 @@ PROPERTIES
 	Definition: the first interrupt specifies the key sense interrupt
 		    and the second interrupt specifies the key stuck interrupt.
 		    The format of the specifier is defined by the binding
-		    document describing the node's interrupt parent.
+		    document describing the yesde's interrupt parent.
 
 - linux,keymap:
 	Usage: required
@@ -28,7 +28,7 @@ PROPERTIES
 	Definition: the linux keymap. More information can be found in
 		    input/matrix-keymap.txt.
 
-- linux,keypad-no-autorepeat:
+- linux,keypad-yes-autorepeat:
 	Usage: optional
 	Value type: <bool>
 	Definition: don't enable autorepeat feature.
@@ -66,7 +66,7 @@ PROPERTIES
 - row-hold:
 	Usage: optional
 	Value type: <u32>
-	Definition: time in nanoseconds to pause between scans of each row in
+	Definition: time in nayesseconds to pause between scans of each row in
 		    the matrix array.
 
 EXAMPLE

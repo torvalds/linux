@@ -6,7 +6,7 @@
  *
  * Disclaimer: The codes contained in these modules may be specific to
  * the Intel Software Development Platform codenamed: Knights Ferry, and
- * the Intel product codenamed: Knights Corner, and are not backward
+ * the Intel product codenamed: Knights Corner, and are yest backward
  * compatible with other Intel products. Additionally, Intel will NOT
  * support the codes or instruction set in future products.
  *
@@ -106,7 +106,7 @@ static inline u32 mic_mmio_read(struct mic_mw *mw, u32 offset)
  * @val: the data value to put into the register
  * @offset: register offset.
  *
- * RETURNS: none.
+ * RETURNS: yesne.
  */
 static inline void
 mic_mmio_write(struct mic_mw *mw, u32 val, u32 offset)

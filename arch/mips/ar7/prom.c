@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Carsten Langgaard, carstenl@mips.com
- * Copyright (C) 1999,2000 MIPS Technologies, Inc.  All rights reserved.
+ * Copyright (C) 1999,2000 MIPS Techyeslogies, Inc.  All rights reserved.
  *
  * Putting things on the screen/serial line using YAMONs facilities.
  */
@@ -87,7 +87,7 @@ static const struct psp_var_map_entry psp_var_map[] = {
 
 /*
 
-Well-known variable (num is looked up in table above for matching variable name)
+Well-kyeswn variable (num is looked up in table above for matching variable name)
 Example: cpufrequency=211968000
 +----+----+----+----+----+----+----+----+----+----+----+----+----+----+----+---
 | 01 |CTRL|CHECKSUM | 01 | _2 | _1 | _1 | _9 | _6 | _8 | _0 | _0 | _0 | \0 | FF

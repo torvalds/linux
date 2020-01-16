@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: (GPL-2.0 OR MIT)
 /*
- * Copyright (C) 2016-2017 Zodiac Inflight Innovations
+ * Copyright (C) 2016-2017 Zodiac Inflight Inyesvations
  */
 
 #include <dt-bindings/gpio/gpio.h>
@@ -325,7 +325,7 @@
 	status = "okay";
 
 	flash@0 {
-		compatible = "st,m25p128", "jedec,spi-nor";
+		compatible = "st,m25p128", "jedec,spi-yesr";
 		spi-max-frequency = <20000000>;
 		reg = <0>;
 	};
@@ -562,7 +562,7 @@
 
 		rmi4-f01@1 {
 			reg = <0x1>;
-			syna,nosleep-mode = <2>;
+			syna,yessleep-mode = <2>;
 		};
 
 		rmi4-f11@11 {
@@ -632,8 +632,8 @@
 	wp-gpios = <&gpio2 3 GPIO_ACTIVE_HIGH>;
 	vmmc-supply = <&reg_3p3v_sd>;
 	vqmmc-supply = <&reg_3p3v>;
-	no-1-8-v;
-	no-sdio;
+	yes-1-8-v;
+	yes-sdio;
 	status = "okay";
 };
 
@@ -645,8 +645,8 @@
 	wp-gpios = <&gpio2 1 GPIO_ACTIVE_HIGH>;
 	vmmc-supply = <&reg_3p3v_sd>;
 	vqmmc-supply = <&reg_3p3v>;
-	no-1-8-v;
-	no-sdio;
+	yes-1-8-v;
+	yes-sdio;
 	status = "okay";
 };
 
@@ -656,10 +656,10 @@
 	bus-width = <8>;
 	vmmc-supply = <&reg_3p3v>;
 	vqmmc-supply = <&reg_3p3v>;
-	no-1-8-v;
-	non-removable;
-	no-sdio;
-	no-sd;
+	yes-1-8-v;
+	yesn-removable;
+	yes-sdio;
+	yes-sd;
 	status = "okay";
 };
 

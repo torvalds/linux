@@ -11,7 +11,7 @@
  * Red Hat Inc. http://www.redhat.com
  *
  * Forked and adapted from the i5000_edac driver which was
- * written by Douglas Thompson Linux Networx <norsk5@xmission.com>
+ * written by Douglas Thompson Linux Networx <yesrsk5@xmission.com>
  *
  * This module is based on the following document:
  *
@@ -19,7 +19,7 @@
  * 	http://developer.intel.com/design/chipsets/datashts/313070.htm
  *
  * This Memory Controller manages DDR2 FB-DIMMs. It has 2 branches, each with
- * 2 channels operating in lockstep no-mirror mode. Each channel can have up to
+ * 2 channels operating in lockstep yes-mirror mode. Each channel can have up to
  * 4 dimm's, each with up to 8GB.
  *
  */
@@ -141,7 +141,7 @@
  */
 
 enum error_mask {
-	EMASK_M1  = 1<<0,  /* Memory Write error on non-redundant retry */
+	EMASK_M1  = 1<<0,  /* Memory Write error on yesn-redundant retry */
 	EMASK_M2  = 1<<1,  /* Memory or FB-DIMM configuration CRC read error */
 	EMASK_M3  = 1<<2,  /* Reserved */
 	EMASK_M4  = 1<<3,  /* Uncorrectable Data ECC on Replay */
@@ -176,7 +176,7 @@ enum error_mask {
  * Names to translate bit error into something useful
  */
 static const char *error_name[] = {
-	[0]  = "Memory Write error on non-redundant retry",
+	[0]  = "Memory Write error on yesn-redundant retry",
 	[1]  = "Memory or FB-DIMM configuration CRC read error",
 	/* Reserved */
 	[3]  = "Uncorrectable Data ECC on Replay",
@@ -241,7 +241,7 @@ static const char *error_name[] = {
 /* uncorrectable errors */
 #define ERROR_NF_UNCORRECTABLE	(EMASK_M4)
 
-/* mask to all non-fatal errors */
+/* mask to all yesn-fatal errors */
 #define ERROR_NF_MASK		(ERROR_NF_CORRECTABLE   | \
 				 ERROR_NF_UNCORRECTABLE | \
 				 ERROR_NF_RECOVERABLE   | \
@@ -253,13 +253,13 @@ static const char *error_name[] = {
  * Define error masks for the several registers
  */
 
-/* Enable all fatal and non fatal errors */
+/* Enable all fatal and yesn fatal errors */
 #define ENABLE_EMASK_ALL	(ERROR_FAT_MASK | ERROR_NF_MASK)
 
 /* mask for fatal error registers */
 #define FERR_FAT_MASK ERROR_FAT_MASK
 
-/* masks for non-fatal error register */
+/* masks for yesn-fatal error register */
 static inline int to_nf_mask(unsigned int mask)
 {
 	return (mask & EMASK_M29) | (mask >> 3);
@@ -280,7 +280,7 @@ static inline int from_nf_ferr(unsigned int mask)
 #define FERR_NF_UNCORRECTABLE	to_nf_mask(ERROR_NF_UNCORRECTABLE)
 
 /* Defines to extract the vaious fields from the
- *	MTRx - Memory Technology Registers
+ *	MTRx - Memory Techyeslogy Registers
  */
 #define MTR_DIMMS_PRESENT(mtr)		((mtr) & (1 << 10))
 #define MTR_DIMMS_ETHROTTLE(mtr)	((mtr) & (1 << 9))
@@ -315,7 +315,7 @@ static const struct i5400_dev_info i5400_devs[] = {
 };
 
 struct i5400_dimm_info {
-	int megabytes;		/* size, 0 means not present  */
+	int megabytes;		/* size, 0 means yest present  */
 };
 
 /* driver private data structure */
@@ -372,7 +372,7 @@ struct i5400_error_info {
 
 };
 
-/* note that nrec_rdwr changed from NRECMEMA to NRECMEMB between the 5000 and
+/* yeste that nrec_rdwr changed from NRECMEMA to NRECMEMB between the 5000 and
    5400 better to use an inline function than a macro in this case */
 static inline int nrec_bank(struct i5400_error_info *info)
 {
@@ -502,13 +502,13 @@ static void i5400_get_error_info(struct mem_ctl_info *mci,
 }
 
 /*
- * i5400_proccess_non_recoverable_info(struct mem_ctl_info *mci,
+ * i5400_proccess_yesn_recoverable_info(struct mem_ctl_info *mci,
  * 					struct i5400_error_info *info,
  * 					int handle_errors);
  *
  *	handle the Intel FATAL and unrecoverable errors, if any
  */
-static void i5400_proccess_non_recoverable_info(struct mem_ctl_info *mci,
+static void i5400_proccess_yesn_recoverable_info(struct mem_ctl_info *mci,
 				    struct i5400_error_info *info,
 				    unsigned long allErrors)
 {
@@ -525,7 +525,7 @@ static void i5400_proccess_non_recoverable_info(struct mem_ctl_info *mci,
 	enum hw_event_mc_err_type tp_event = HW_EVENT_ERR_UNCORRECTED;
 
 	if (!allErrors)
-		return;		/* if no error, return now */
+		return;		/* if yes error, return yesw */
 
 	if (allErrors &  ERROR_FAT_MASK) {
 		type = "FATAL";
@@ -573,7 +573,7 @@ static void i5400_proccess_non_recoverable_info(struct mem_ctl_info *mci,
  *
  *	handle the Intel NON-FATAL errors, if any
  */
-static void i5400_process_nonfatal_error_info(struct mem_ctl_info *mci,
+static void i5400_process_yesnfatal_error_info(struct mem_ctl_info *mci,
 					struct i5400_error_info *info)
 {
 	char msg[EDAC_MC_LABEL_LEN + 1 + 90 + 80];
@@ -589,12 +589,12 @@ static void i5400_process_nonfatal_error_info(struct mem_ctl_info *mci,
 	/* mask off the Error bits that are possible */
 	allErrors = from_nf_ferr(info->ferr_nf_fbd & FERR_NF_MASK);
 	if (!allErrors)
-		return;		/* if no error, return now */
+		return;		/* if yes error, return yesw */
 
 	/* ONLY ONE of the possible error bits will be set, as per the docs */
 
 	if (allErrors & (ERROR_NF_UNCORRECTABLE | ERROR_NF_RECOVERABLE)) {
-		i5400_proccess_non_recoverable_info(mci, info, allErrors);
+		i5400_proccess_yesn_recoverable_info(mci, info, allErrors);
 		return;
 	}
 
@@ -660,10 +660,10 @@ static void i5400_process_error_info(struct mem_ctl_info *mci,
 
 	/* First handle any fatal errors that occurred */
 	allErrors = (info->ferr_fat_fbd & FERR_FAT_MASK);
-	i5400_proccess_non_recoverable_info(mci, info, allErrors);
+	i5400_proccess_yesn_recoverable_info(mci, info, allErrors);
 
-	/* now handle any non-fatal errors that occurred */
-	i5400_process_nonfatal_error_info(mci, info);
+	/* yesw handle any yesn-fatal errors that occurred */
+	i5400_process_yesnfatal_error_info(mci, info);
 }
 
 /*
@@ -734,7 +734,7 @@ static int i5400_get_devices(struct mem_ctl_info *mci, int dev_idx)
 			/* End of list, leave */
 			i5400_printk(KERN_ERR,
 				"'system address,Process Bus' "
-				"device not found:"
+				"device yest found:"
 				"vendor 0x%x device 0x%x ERR func 1 "
 				"(broken BIOS?)\n",
 				PCI_VENDOR_ID_INTEL,
@@ -756,7 +756,7 @@ static int i5400_get_devices(struct mem_ctl_info *mci, int dev_idx)
 			/* End of list, leave */
 			i5400_printk(KERN_ERR,
 				"'system address,Process Bus' "
-				"device not found:"
+				"device yest found:"
 				"vendor 0x%x device 0x%x ERR func 2 "
 				"(broken BIOS?)\n",
 				PCI_VENDOR_ID_INTEL,
@@ -787,7 +787,7 @@ static int i5400_get_devices(struct mem_ctl_info *mci, int dev_idx)
 				       PCI_DEVICE_ID_INTEL_5400_FBD0, NULL);
 	if (!pvt->branch_0) {
 		i5400_printk(KERN_ERR,
-			"MC: 'BRANCH 0' device not found:"
+			"MC: 'BRANCH 0' device yest found:"
 			"vendor 0x%x device 0x%x Func 0 (broken BIOS?)\n",
 			PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_5400_FBD0);
 
@@ -806,7 +806,7 @@ static int i5400_get_devices(struct mem_ctl_info *mci, int dev_idx)
 				       PCI_DEVICE_ID_INTEL_5400_FBD1, NULL);
 	if (!pvt->branch_1) {
 		i5400_printk(KERN_ERR,
-			"MC: 'BRANCH 1' device not found:"
+			"MC: 'BRANCH 1' device yest found:"
 			"vendor 0x%x device 0x%x Func 0 "
 			"(broken BIOS?)\n",
 			PCI_VENDOR_ID_INTEL,
@@ -826,7 +826,7 @@ static int i5400_get_devices(struct mem_ctl_info *mci, int dev_idx)
  *
  *		the information is contained in DIMMS_PER_CHANNEL different
  *		registers determining which of the DIMMS_PER_CHANNEL requires
- *              knowing which channel is in question
+ *              kyeswing which channel is in question
  *
  *	2 branches, each with 2 channels
  *		b0_ambpresent0 for channel '0'
@@ -1014,7 +1014,7 @@ static void calculate_dimm_size(struct i5400_pvt *pvt)
 	p = mem_buffer;
 	space = PAGE_SIZE;
 
-	/* now output the 'channel' labels */
+	/* yesw output the 'channel' labels */
 	n = snprintf(p, space, "           ");
 	p += n;
 	space -= n;
@@ -1115,7 +1115,7 @@ static void i5400_get_mc_regs(struct mem_ctl_info *mci)
 	}
 
 	/* Read and dump branch 0's MTRs */
-	edac_dbg(2, "Memory Technology Registers:\n");
+	edac_dbg(2, "Memory Techyeslogy Registers:\n");
 	edac_dbg(2, "   Branch 0:\n");
 	for (slot_row = 0; slot_row < DIMMS_PER_CHANNEL; slot_row++)
 		decode_mtr(slot_row, pvt->b0_mtr[slot_row]);
@@ -1159,7 +1159,7 @@ static void i5400_get_mc_regs(struct mem_ctl_info *mci)
  *
  *	return:
  *		0	success
- *		1	no actual memory found on this MC
+ *		1	yes actual memory found on this MC
  */
 static int i5400_init_dimms(struct mem_ctl_info *mci)
 {
@@ -1183,7 +1183,7 @@ static int i5400_init_dimms(struct mem_ctl_info *mci)
 		for (slot = 0; slot < mci->layers[2].size; slot++) {
 			mtr = determine_mtr(pvt, slot, channel);
 
-			/* if no DIMMS on this slot, continue */
+			/* if yes DIMMS on this slot, continue */
 			if (!MTR_DIMMS_PRESENT(mtr))
 				continue;
 
@@ -1315,10 +1315,10 @@ static int i5400_probe1(struct pci_dev *pdev, int dev_idx)
 	/* initialize the MC control structure 'dimms' table
 	 * with the mapping and control information */
 	if (i5400_init_dimms(mci)) {
-		edac_dbg(0, "MC: Setting mci->edac_cap to EDAC_FLAG_NONE because i5400_init_dimms() returned nonzero value\n");
-		mci->edac_cap = EDAC_FLAG_NONE;	/* no dimms found */
+		edac_dbg(0, "MC: Setting mci->edac_cap to EDAC_FLAG_NONE because i5400_init_dimms() returned yesnzero value\n");
+		mci->edac_cap = EDAC_FLAG_NONE;	/* yes dimms found */
 	} else {
-		edac_dbg(1, "MC: Enable error reporting now\n");
+		edac_dbg(1, "MC: Enable error reporting yesw\n");
 		i5400_enable_error_reporting(mci);
 	}
 
@@ -1340,7 +1340,7 @@ static int i5400_probe1(struct pci_dev *pdev, int dev_idx)
 			"%s(): Unable to create PCI control\n",
 			__func__);
 		printk(KERN_WARNING
-			"%s(): PCI error report via EDAC not setup\n",
+			"%s(): PCI error report via EDAC yest setup\n",
 			__func__);
 	}
 
@@ -1374,7 +1374,7 @@ static int i5400_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (rc)
 		return rc;
 
-	/* now probe and enable the device */
+	/* yesw probe and enable the device */
 	return i5400_probe1(pdev, id->driver_data);
 }
 

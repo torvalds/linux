@@ -573,14 +573,14 @@ static int rtsx_usb_ms_set_param(struct memstick_host *msh,
 			break;
 
 		if (value == MEMSTICK_POWER_ON) {
-			pm_runtime_get_noresume(ms_dev(host));
+			pm_runtime_get_yesresume(ms_dev(host));
 			err = ms_power_on(host);
 			if (err)
-				pm_runtime_put_noidle(ms_dev(host));
+				pm_runtime_put_yesidle(ms_dev(host));
 		} else if (value == MEMSTICK_POWER_OFF) {
 			err = ms_power_off(host);
 			if (!err)
-				pm_runtime_put_noidle(ms_dev(host));
+				pm_runtime_put_yesidle(ms_dev(host));
 		} else
 			err = -EINVAL;
 		if (!err)
@@ -787,7 +787,7 @@ static int rtsx_usb_ms_drv_probe(struct platform_device *pdev)
 	msh->set_param = rtsx_usb_ms_set_param;
 	msh->caps = MEMSTICK_CAP_PAR4;
 
-	pm_runtime_get_noresume(ms_dev(host));
+	pm_runtime_get_yesresume(ms_dev(host));
 	pm_runtime_set_active(ms_dev(host));
 	pm_runtime_enable(ms_dev(host));
 
@@ -801,7 +801,7 @@ static int rtsx_usb_ms_drv_probe(struct platform_device *pdev)
 err_out:
 	memstick_free_host(msh);
 	pm_runtime_disable(ms_dev(host));
-	pm_runtime_put_noidle(ms_dev(host));
+	pm_runtime_put_yesidle(ms_dev(host));
 	return err;
 }
 

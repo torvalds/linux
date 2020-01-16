@@ -67,7 +67,7 @@ AUTHOR
 [verse]
 --
 *Steven Rostedt* <rostedt@goodmis.org>, author of *libtraceevent*.
-*Tzvetomir Stoyanov* <tz.stoyanov@gmail.com>, author of this man page.
+*Tzvetomir Stoyayesv* <tz.stoyayesv@gmail.com>, author of this man page.
 --
 REPORTING BUGS
 --------------

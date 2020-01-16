@@ -100,27 +100,27 @@ struct dbg_reg_def_t dbg_reg_def[DBG_MAX_REG_NUM] = {
 	{ "fpcr", 4, -1 },
 };
 
-char *dbg_get_reg(int regno, void *mem, struct pt_regs *regs)
+char *dbg_get_reg(int regyes, void *mem, struct pt_regs *regs)
 {
-	if (regno >= DBG_MAX_REG_NUM || regno < 0)
+	if (regyes >= DBG_MAX_REG_NUM || regyes < 0)
 		return NULL;
 
-	if (dbg_reg_def[regno].offset != -1)
-		memcpy(mem, (void *)regs + dbg_reg_def[regno].offset,
-		       dbg_reg_def[regno].size);
+	if (dbg_reg_def[regyes].offset != -1)
+		memcpy(mem, (void *)regs + dbg_reg_def[regyes].offset,
+		       dbg_reg_def[regyes].size);
 	else
-		memset(mem, 0, dbg_reg_def[regno].size);
-	return dbg_reg_def[regno].name;
+		memset(mem, 0, dbg_reg_def[regyes].size);
+	return dbg_reg_def[regyes].name;
 }
 
-int dbg_set_reg(int regno, void *mem, struct pt_regs *regs)
+int dbg_set_reg(int regyes, void *mem, struct pt_regs *regs)
 {
-	if (regno >= DBG_MAX_REG_NUM || regno < 0)
+	if (regyes >= DBG_MAX_REG_NUM || regyes < 0)
 		return -EINVAL;
 
-	if (dbg_reg_def[regno].offset != -1)
-		memcpy((void *)regs + dbg_reg_def[regno].offset, mem,
-		       dbg_reg_def[regno].size);
+	if (dbg_reg_def[regyes].offset != -1)
+		memcpy((void *)regs + dbg_reg_def[regyes].offset, mem,
+		       dbg_reg_def[regyes].size);
 	return 0;
 }
 
@@ -170,7 +170,7 @@ static void kgdb_arch_update_addr(struct pt_regs *regs,
 	compiled_break = 0;
 }
 
-int kgdb_arch_handle_exception(int exception_vector, int signo,
+int kgdb_arch_handle_exception(int exception_vector, int sigyes,
 			       int err_code, char *remcom_in_buffer,
 			       char *remcom_out_buffer,
 			       struct pt_regs *linux_regs)
@@ -211,8 +211,8 @@ int kgdb_arch_handle_exception(int exception_vector, int signo,
 		 * with step packet.
 		 * On debug exception return PC is copied to ELR
 		 * So just update PC.
-		 * If no step address is passed, resume from the address
-		 * pointed by PC. Do not update PC
+		 * If yes step address is passed, resume from the address
+		 * pointed by PC. Do yest update PC
 		 */
 		kgdb_arch_update_addr(linux_regs, remcom_in_buffer);
 		atomic_set(&kgdb_cpu_doing_single_step, raw_smp_processor_id());
@@ -271,7 +271,7 @@ static struct step_hook kgdb_step_hook = {
 	.fn		= kgdb_step_brk_fn
 };
 
-static int __kgdb_notify(struct die_args *args, unsigned long cmd)
+static int __kgdb_yestify(struct die_args *args, unsigned long cmd)
 {
 	struct pt_regs *regs = args->regs;
 
@@ -281,20 +281,20 @@ static int __kgdb_notify(struct die_args *args, unsigned long cmd)
 }
 
 static int
-kgdb_notify(struct notifier_block *self, unsigned long cmd, void *ptr)
+kgdb_yestify(struct yestifier_block *self, unsigned long cmd, void *ptr)
 {
 	unsigned long flags;
 	int ret;
 
 	local_irq_save(flags);
-	ret = __kgdb_notify(ptr, cmd);
+	ret = __kgdb_yestify(ptr, cmd);
 	local_irq_restore(flags);
 
 	return ret;
 }
 
-static struct notifier_block kgdb_notifier = {
-	.notifier_call	= kgdb_notify,
+static struct yestifier_block kgdb_yestifier = {
+	.yestifier_call	= kgdb_yestify,
 	/*
 	 * Want to be lowest priority
 	 */
@@ -308,7 +308,7 @@ static struct notifier_block kgdb_notifier = {
  */
 int kgdb_arch_init(void)
 {
-	int ret = register_die_notifier(&kgdb_notifier);
+	int ret = register_die_yestifier(&kgdb_yestifier);
 
 	if (ret != 0)
 		return ret;
@@ -329,7 +329,7 @@ void kgdb_arch_exit(void)
 	unregister_kernel_break_hook(&kgdb_brkpt_hook);
 	unregister_kernel_break_hook(&kgdb_compiled_brkpt_hook);
 	unregister_kernel_step_hook(&kgdb_step_hook);
-	unregister_die_notifier(&kgdb_notifier);
+	unregister_die_yestifier(&kgdb_yestifier);
 }
 
 const struct kgdb_arch arch_kgdb_ops;

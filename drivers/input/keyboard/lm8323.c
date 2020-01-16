@@ -4,10 +4,10 @@
  *
  * Copyright (C) 2007-2009 Nokia Corporation
  *
- * Written by Daniel Stone <daniel.stone@nokia.com>
- *            Timo O. Karjalainen <timo.o.karjalainen@nokia.com>
+ * Written by Daniel Stone <daniel.stone@yeskia.com>
+ *            Timo O. Karjalainen <timo.o.karjalainen@yeskia.com>
  *
- * Updated by Felipe Balbi <felipe.balbi@nokia.com>
+ * Updated by Felipe Balbi <felipe.balbi@yeskia.com>
  */
 
 #include <linux/module.h>
@@ -32,7 +32,7 @@
 #define LM8323_CMD_READ_PORT_SEL	0x87 /* Get GPIO in/out. */
 #define LM8323_CMD_READ_PORT_STATE	0x88 /* Get GPIO pullup. */
 #define LM8323_CMD_READ_FIFO		0x89 /* Read byte from FIFO. */
-#define LM8323_CMD_RPT_READ_FIFO	0x8a /* Read FIFO (no increment). */
+#define LM8323_CMD_RPT_READ_FIFO	0x8a /* Read FIFO (yes increment). */
 #define LM8323_CMD_SET_ACTIVE		0x8b /* Set active time. */
 #define LM8323_CMD_READ_ERR		0x8c /* Get error status. */
 #define LM8323_CMD_READ_ROTATOR		0x8e /* Read rotator status. */
@@ -57,7 +57,7 @@
 
 /* Errors (signalled by INT_ERROR, read with CMD_READ_ERR). */
 #define ERR_BADPAR			0x01 /* Bad parameter. */
-#define ERR_CMDUNK			0x02 /* Unknown command. */
+#define ERR_CMDUNK			0x02 /* Unkyeswn command. */
 #define ERR_KEYOVR			0x04 /* Too many keys pressed. */
 #define ERR_FIFOOVER			0x40 /* FIFO overflow. */
 
@@ -110,7 +110,7 @@
 /*
  * Wait for trigger.  Argument is a mask of channels, shifted by the channel
  * number, e.g. 0xa for channels 3 and 1.  Note that channels are numbered
- * from 1, not 0.
+ * from 1, yest 0.
  */
 #define PWM_WAIT_TRIG(chans)		(0xe000 | (((chans) & 0x7) << 6))
 /* Send trigger.  Argument is same as PWM_WAIT_TRIG. */
@@ -286,7 +286,7 @@ static void process_keys(struct lm8323_chip *lm)
 	/*
 	 * Errata: We need to ensure that the chip never enters halt mode
 	 * during a keypress, so set active time to 0.  When it's released,
-	 * we can enter halt again, so set the active time back to normal.
+	 * we can enter halt again, so set the active time back to yesrmal.
 	 */
 	if (!old_keys_down && lm->keys_down)
 		lm8323_set_active_time(lm, 0);
@@ -306,7 +306,7 @@ static void lm8323_process_error(struct lm8323_chip *lm)
 					"more than two keys pressed\n");
 		if (error & ERR_CMDUNK)
 			dev_vdbg(&lm->client->dev,
-					"unknown command submitted\n");
+					"unkyeswn command submitted\n");
 		if (error & ERR_BADPAR)
 			dev_vdbg(&lm->client->dev, "bad command parameter\n");
 	}
@@ -421,7 +421,7 @@ static void lm8323_write_pwm_one(struct lm8323_pwm *pwm, int pos, u16 cmd)
 
 /*
  * Write a script into a given PWM engine, concluding with PWM_END.
- * If 'kill' is nonzero, the engine will be shut down at the end
+ * If 'kill' is yesnzero, the engine will be shut down at the end
  * of the script, producing a zero output. Otherwise the engine
  * will be kept running at the final PWM level indefinitely.
  */
@@ -448,8 +448,8 @@ static void lm8323_pwm_work(struct work_struct *work)
 	mutex_lock(&pwm->lock);
 
 	/*
-	 * Do nothing if we're already at the requested level,
-	 * or previous setting is not yet complete. In the latter
+	 * Do yesthing if we're already at the requested level,
+	 * or previous setting is yest yet complete. In the latter
 	 * case we will be called again when the previous PWM script
 	 * finishes.
 	 */
@@ -684,7 +684,7 @@ static int lm8323_probe(struct i2c_client *client,
 
 	/* If a true probe check the device */
 	if (lm8323_read_id(lm, data) != 0) {
-		dev_err(&client->dev, "device not found\n");
+		dev_err(&client->dev, "device yest found\n");
 		err = -ENODEV;
 		goto fail1;
 	}
@@ -726,7 +726,7 @@ static int lm8323_probe(struct i2c_client *client,
 	err = request_threaded_irq(client->irq, NULL, lm8323_irq,
 			  IRQF_TRIGGER_LOW|IRQF_ONESHOT, "lm8323", lm);
 	if (err) {
-		dev_err(&client->dev, "could not get IRQ %d\n", client->irq);
+		dev_err(&client->dev, "could yest get IRQ %d\n", client->irq);
 		goto fail4;
 	}
 
@@ -776,7 +776,7 @@ static int lm8323_remove(struct i2c_client *client)
 #ifdef CONFIG_PM_SLEEP
 /*
  * We don't need to explicitly suspend the chip, as it already switches off
- * when there's no activity.
+ * when there's yes activity.
  */
 static int lm8323_suspend(struct device *dev)
 {
@@ -839,9 +839,9 @@ MODULE_DEVICE_TABLE(i2c, lm8323_id);
 
 module_i2c_driver(lm8323_i2c_driver);
 
-MODULE_AUTHOR("Timo O. Karjalainen <timo.o.karjalainen@nokia.com>");
+MODULE_AUTHOR("Timo O. Karjalainen <timo.o.karjalainen@yeskia.com>");
 MODULE_AUTHOR("Daniel Stone");
-MODULE_AUTHOR("Felipe Balbi <felipe.balbi@nokia.com>");
+MODULE_AUTHOR("Felipe Balbi <felipe.balbi@yeskia.com>");
 MODULE_DESCRIPTION("LM8323 keypad driver");
 MODULE_LICENSE("GPL");
 

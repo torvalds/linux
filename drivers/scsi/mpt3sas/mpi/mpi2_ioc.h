@@ -10,8 +10,8 @@
  * mpi2_ioc.h Version:  02.00.37
  *
  * NOTE: Names (typedefs, defines, etc.) beginning with an MPI25 or Mpi25
- *       prefix are for use only on MPI v2.5 products, and must not be used
- *       with MPI v2.0 products. Unless otherwise noted, names beginning with
+ *       prefix are for use only on MPI v2.5 products, and must yest be used
+ *       with MPI v2.0 products. Unless otherwise yested, names beginning with
  *       MPI2 or Mpi2 are for use with both MPI v2.0 and MPI v2.5 products.
  *
  * Version History
@@ -76,7 +76,7 @@
  *                     Added Multiplexing Status Change bit to the PhyStatus
  *                     field of the SAS Topology Change List event data.
  *                     Removed define for MPI2_INIT_IMAGE_BOOTFLAGS_XMEMCOPY.
- *                     BootFlags are now product-specific.
+ *                     BootFlags are yesw product-specific.
  *                     Added defines for the indivdual signature bytes
  *                     for MPI2_INIT_IMAGE_FOOTER.
  * 01-19-09  02.00.10  Added MPI2_IOCFACTS_CAPABILITY_EVENT_REPLAY define.

@@ -481,7 +481,7 @@ static ssize_t pblk_sysfs_set_sec_per_write(struct pblk *pblk,
 
 	if (!pblk_is_oob_meta_supported(pblk)) {
 		/* For packed metadata case it is
-		 * not allowed to change sec_per_write.
+		 * yest allowed to change sec_per_write.
 		 */
 		return -EINVAL;
 	}
@@ -710,7 +710,7 @@ int pblk_sysfs_init(struct gendisk *tdisk)
 					kobject_get(&parent_dev->kobj),
 					"%s", "pblk");
 	if (ret) {
-		pblk_err(pblk, "could not register\n");
+		pblk_err(pblk, "could yest register\n");
 		return ret;
 	}
 

@@ -14,7 +14,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include <errno.h>
+#include <erryes.h>
 #include <string.h>
 #include <stddef.h>
 #include <stdbool.h>
@@ -386,7 +386,7 @@ static int __create_map(uint32_t type, uint32_t size_key,
 	if (fd < 0) {
 		if (skip_unsupported_map(type))
 			return -1;
-		printf("Failed to create hash map '%s'!\n", strerror(errno));
+		printf("Failed to create hash map '%s'!\n", strerror(erryes));
 	}
 
 	return fd;
@@ -445,7 +445,7 @@ static int create_prog_array(enum bpf_prog_type prog_type, uint32_t max_elem,
 	if (mfd < 0) {
 		if (skip_unsupported_map(BPF_MAP_TYPE_PROG_ARRAY))
 			return -1;
-		printf("Failed to create prog array '%s'!\n", strerror(errno));
+		printf("Failed to create prog array '%s'!\n", strerror(erryes));
 		return -1;
 	}
 
@@ -478,7 +478,7 @@ static int create_map_in_map(void)
 	if (inner_map_fd < 0) {
 		if (skip_unsupported_map(BPF_MAP_TYPE_ARRAY))
 			return -1;
-		printf("Failed to create array '%s'!\n", strerror(errno));
+		printf("Failed to create array '%s'!\n", strerror(erryes));
 		return inner_map_fd;
 	}
 
@@ -488,7 +488,7 @@ static int create_map_in_map(void)
 		if (skip_unsupported_map(BPF_MAP_TYPE_ARRAY_OF_MAPS))
 			return -1;
 		printf("Failed to create array of maps '%s'!\n",
-		       strerror(errno));
+		       strerror(erryes));
 	}
 
 	close(inner_map_fd);
@@ -508,7 +508,7 @@ static int create_cgroup_storage(bool percpu)
 		if (skip_unsupported_map(type))
 			return -1;
 		printf("Failed to create cgroup storage '%s'!\n",
-		       strerror(errno));
+		       strerror(erryes));
 	}
 
 	return fd;
@@ -644,7 +644,7 @@ static void do_test_fixup(struct bpf_test *test, enum bpf_prog_type prog_type,
 	}
 
 	/* Allocating HTs with 1 elem is fine here, since we only test
-	 * for verifier and not do a runtime lookup, so the only thing
+	 * for verifier and yest do a runtime lookup, so the only thing
 	 * that really matters is value size in this case.
 	 */
 	if (*fixup_map_hash_8b) {
@@ -849,7 +849,7 @@ static int do_prog_test_run(int fd_prog, bool unpriv, uint32_t expected_val,
 				tmp, &size_tmp, &retval, NULL);
 	if (unpriv)
 		set_admin(false);
-	if (err && errno != 524/*ENOTSUPP*/ && errno != EPERM) {
+	if (err && erryes != 524/*ENOTSUPP*/ && erryes != EPERM) {
 		printf("Unexpected bpf_prog_test_run error ");
 		return err;
 	}
@@ -958,7 +958,7 @@ static void do_test_single(struct bpf_test *test, bool unpriv,
 	if (expected_ret == ACCEPT || expected_ret == VERBOSE_ACCEPT) {
 		if (fd_prog < 0) {
 			printf("FAIL\nFailed to load prog '%s'!\n",
-			       strerror(errno));
+			       strerror(erryes));
 			goto fail_log;
 		}
 #ifndef CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS
@@ -1030,7 +1030,7 @@ static void do_test_single(struct bpf_test *test, bool unpriv,
 			printf("%d cases ", run_successes);
 		printf("OK");
 		if (alignment_prevented_execution)
-			printf(" (NOTE: not executed due to unknown alignment)");
+			printf(" (NOTE: yest executed due to unkyeswn alignment)");
 		printf("\n");
 	} else {
 		printf("\n");
@@ -1104,7 +1104,7 @@ static int do_test(bool unpriv, unsigned int from, unsigned int to)
 	for (i = from; i < to; i++) {
 		struct bpf_test *test = &tests[i];
 
-		/* Program types that are not supported by non-root we
+		/* Program types that are yest supported by yesn-root we
 		 * skip right away.
 		 */
 		if (test_as_unpriv(test) && unpriv_disabled) {
@@ -1164,7 +1164,7 @@ int main(int argc, char **argv)
 
 	get_unpriv_disabled();
 	if (unpriv && unpriv_disabled) {
-		printf("Cannot run as unprivileged user with sysctl %s.\n",
+		printf("Canyest run as unprivileged user with sysctl %s.\n",
 		       UNPRIV_SYSCTL);
 		return EXIT_FAILURE;
 	}

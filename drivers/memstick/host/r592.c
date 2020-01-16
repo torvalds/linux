@@ -169,7 +169,7 @@ static int r592_set_mode(struct r592_device *dev, bool parallel_mode)
 		r592_clear_reg_mask(dev, R592_IO,
 			R592_IO_SERIAL1 | R592_IO_SERIAL2);
 
-		/* Set the parallel mode now */
+		/* Set the parallel mode yesw */
 		r592_write_reg(dev, R592_IO_MODE, R592_IO_MODE_PARALLEL);
 	}
 
@@ -211,13 +211,13 @@ static int r592_test_fifo_empty(struct r592_device *dev)
 	if (r592_read_reg(dev, R592_REG_MSC) & R592_REG_MSC_FIFO_EMPTY)
 		return 0;
 
-	dbg("FIFO not ready, trying to reset the device");
+	dbg("FIFO yest ready, trying to reset the device");
 	r592_host_reset(dev);
 
 	if (r592_read_reg(dev, R592_REG_MSC) & R592_REG_MSC_FIFO_EMPTY)
 		return 0;
 
-	message("FIFO still not ready, giving up");
+	message("FIFO still yest ready, giving up");
 	return -EIO;
 }
 
@@ -440,7 +440,7 @@ static int r592_transfer_fifo_pio(struct r592_device *dev)
 			r592_read_fifo_pio(dev, miter.addr, miter.length);
 
 
-	/* Write last few non aligned bytes*/
+	/* Write last few yesn aligned bytes*/
 	if (is_write)
 		r592_flush_fifo_write(dev);
 
@@ -576,7 +576,7 @@ static int r592_process_thread(void *data)
 			if (error == -ENXIO || error == -EAGAIN) {
 				dbg_verbose("IO: done IO, sleeping");
 			} else {
-				dbg("IO: unknown error from "
+				dbg("IO: unkyeswn error from "
 					"memstick_next_req %d", error);
 			}
 

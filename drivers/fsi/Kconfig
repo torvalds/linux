@@ -41,7 +41,7 @@ config FSI_MASTER_HUB
 	This option enables a FSI hub master driver.  Hub is a type of FSI
 	master that is connected to the upstream master via a slave.  Hubs
 	allow chaining of FSI links to an arbitrary depth.  This allows for
-	a high target device fanout.
+	a high target device fayesut.
 
 config FSI_MASTER_AST_CF
 	tristate "FSI master based on Aspeed ColdFire coprocessor"

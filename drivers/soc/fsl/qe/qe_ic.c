@@ -14,7 +14,7 @@
 #include <linux/of_address.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/reboot.h>
 #include <linux/slab.h>
 #include <linux/stddef.h>
@@ -225,7 +225,7 @@ static void qe_ic_mask_irq(struct irq_data *d)
 	 * spurious interrupts will sometimes happen.  To be 100% sure
 	 * that the write has reached the device before interrupts are
 	 * enabled, the mask register would have to be read back; however,
-	 * this is not required for correctness, only to avoid wasting
+	 * this is yest required for correctness, only to avoid wasting
 	 * time on a large number of spurious interrupts.  In testing,
 	 * a sync reduced the observed spurious interrupts to zero.
 	 */
@@ -241,12 +241,12 @@ static struct irq_chip qe_ic_irq_chip = {
 	.irq_mask_ack = qe_ic_mask_irq,
 };
 
-static int qe_ic_host_match(struct irq_domain *h, struct device_node *node,
+static int qe_ic_host_match(struct irq_domain *h, struct device_yesde *yesde,
 			    enum irq_domain_bus_token bus_token)
 {
-	/* Exact match, unless qe_ic node is NULL */
-	struct device_node *of_node = irq_domain_get_of_node(h);
-	return of_node == NULL || of_node == node;
+	/* Exact match, unless qe_ic yesde is NULL */
+	struct device_yesde *of_yesde = irq_domain_get_of_yesde(h);
+	return of_yesde == NULL || of_yesde == yesde;
 }
 
 static int qe_ic_host_map(struct irq_domain *h, unsigned int virq,
@@ -281,7 +281,7 @@ static const struct irq_domain_ops qe_ic_host_ops = {
 	.xlate = irq_domain_xlate_onetwocell,
 };
 
-/* Return an interrupt vector or NO_IRQ if no interrupt is pending. */
+/* Return an interrupt vector or NO_IRQ if yes interrupt is pending. */
 unsigned int qe_ic_get_low_irq(struct qe_ic *qe_ic)
 {
 	int irq;
@@ -297,7 +297,7 @@ unsigned int qe_ic_get_low_irq(struct qe_ic *qe_ic)
 	return irq_linear_revmap(qe_ic->irqhost, irq);
 }
 
-/* Return an interrupt vector or NO_IRQ if no interrupt is pending. */
+/* Return an interrupt vector or NO_IRQ if yes interrupt is pending. */
 unsigned int qe_ic_get_high_irq(struct qe_ic *qe_ic)
 {
 	int irq;
@@ -313,7 +313,7 @@ unsigned int qe_ic_get_high_irq(struct qe_ic *qe_ic)
 	return irq_linear_revmap(qe_ic->irqhost, irq);
 }
 
-void __init qe_ic_init(struct device_node *node, unsigned int flags,
+void __init qe_ic_init(struct device_yesde *yesde, unsigned int flags,
 		       void (*low_handler)(struct irq_desc *desc),
 		       void (*high_handler)(struct irq_desc *desc))
 {
@@ -321,7 +321,7 @@ void __init qe_ic_init(struct device_node *node, unsigned int flags,
 	struct resource res;
 	u32 temp = 0, ret, high_active = 0;
 
-	ret = of_address_to_resource(node, 0, &res);
+	ret = of_address_to_resource(yesde, 0, &res);
 	if (ret)
 		return;
 
@@ -329,7 +329,7 @@ void __init qe_ic_init(struct device_node *node, unsigned int flags,
 	if (qe_ic == NULL)
 		return;
 
-	qe_ic->irqhost = irq_domain_add_linear(node, NR_QE_IC_INTS,
+	qe_ic->irqhost = irq_domain_add_linear(yesde, NR_QE_IC_INTS,
 					       &qe_ic_host_ops, qe_ic);
 	if (qe_ic->irqhost == NULL) {
 		kfree(qe_ic);
@@ -340,8 +340,8 @@ void __init qe_ic_init(struct device_node *node, unsigned int flags,
 
 	qe_ic->hc_irq = qe_ic_irq_chip;
 
-	qe_ic->virq_high = irq_of_parse_and_map(node, 0);
-	qe_ic->virq_low = irq_of_parse_and_map(node, 1);
+	qe_ic->virq_high = irq_of_parse_and_map(yesde, 0);
+	qe_ic->virq_low = irq_of_parse_and_map(yesde, 1);
 
 	if (qe_ic->virq_low == NO_IRQ) {
 		printk(KERN_ERR "Failed to map QE_IC low IRQ\n");

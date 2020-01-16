@@ -260,7 +260,7 @@ static int run_setsockopt_test(struct bpf_object *obj, int cg_parent,
 		goto detach;
 	}
 
-	/* Attach parent program and make sure it adds another 0x10. */
+	/* Attach parent program and make sure it adds ayesther 0x10. */
 
 	err = prog_attach(obj, cg_parent, "cgroup/setsockopt");
 	if (err)
@@ -303,7 +303,7 @@ void test_sockopt_multi(void)
 	struct bpf_object *obj = NULL;
 	int sock_fd = -1;
 	int err = -1;
-	int ignored;
+	int igyesred;
 
 	cg_parent = test__join_cgroup("/parent");
 	if (CHECK_FAIL(cg_parent < 0))
@@ -313,7 +313,7 @@ void test_sockopt_multi(void)
 	if (CHECK_FAIL(cg_child < 0))
 		goto out;
 
-	err = bpf_prog_load_xattr(&attr, &obj, &ignored);
+	err = bpf_prog_load_xattr(&attr, &obj, &igyesred);
 	if (CHECK_FAIL(err))
 		goto out;
 

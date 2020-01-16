@@ -73,7 +73,7 @@ char *pnp_resource_type_name(struct resource *res)
 	case IORESOURCE_BUS:
 		return "bus";
 	}
-	return "unknown";
+	return "unkyeswn";
 }
 
 void dbg_pnp_show_resources(struct pnp_dev *dev, char *desc)
@@ -81,7 +81,7 @@ void dbg_pnp_show_resources(struct pnp_dev *dev, char *desc)
 	struct pnp_resource *pnp_res;
 
 	if (list_empty(&dev->resources))
-		pnp_dbg(&dev->dev, "%s: no current resources\n", desc);
+		pnp_dbg(&dev->dev, "%s: yes current resources\n", desc);
 	else {
 		pnp_dbg(&dev->dev, "%s: current resources:\n", desc);
 		list_for_each_entry(pnp_res, &dev->resources, list)
@@ -144,7 +144,7 @@ void dbg_pnp_show_option(struct pnp_dev *dev, struct pnp_option *option)
 		len += scnprintf(buf + len, sizeof(buf) - len, "irq");
 		if (bitmap_empty(irq->map.bits, PNP_IRQ_NR))
 			len += scnprintf(buf + len, sizeof(buf) - len,
-					 " <none>");
+					 " <yesne>");
 		else {
 			for (i = 0; i < PNP_IRQ_NR; i++)
 				if (test_bit(i, irq->map.bits))
@@ -163,7 +163,7 @@ void dbg_pnp_show_option(struct pnp_dev *dev, struct pnp_option *option)
 		len += scnprintf(buf + len, sizeof(buf) - len, "dma");
 		if (!dma->map)
 			len += scnprintf(buf + len, sizeof(buf) - len,
-					 " <none>");
+					 " <yesne>");
 		else {
 			for (i = 0; i < 8; i++)
 				if (dma->map & (1 << i))

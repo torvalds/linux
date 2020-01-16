@@ -19,7 +19,7 @@
 #define NFSDDBG_FACILITY	NFSDDBG_PNFS
 
 static __be32
-nfsd4_ff_proc_layoutget(struct inode *inode, const struct svc_fh *fhp,
+nfsd4_ff_proc_layoutget(struct iyesde *iyesde, const struct svc_fh *fhp,
 		struct nfsd4_layoutget *args)
 {
 	struct nfsd4_layout_seg *seg = &args->lg_seg;
@@ -31,7 +31,7 @@ nfsd4_ff_proc_layoutget(struct inode *inode, const struct svc_fh *fhp,
 
 	/*
 	 * The super simple flex file server has 1 mirror, 1 data server,
-	 * and 1 file handle. So instead of 4 allocs, do 1 for now.
+	 * and 1 file handle. So instead of 4 allocs, do 1 for yesw.
 	 * Zero it out for the stateid - don't want junk in there!
 	 */
 	error = -ENOMEM;
@@ -48,13 +48,13 @@ nfsd4_ff_proc_layoutget(struct inode *inode, const struct svc_fh *fhp,
 	fl->flags = FF_FLAGS_NO_LAYOUTCOMMIT | FF_FLAGS_NO_IO_THRU_MDS |
 		    FF_FLAGS_NO_READ_IO;
 
-	/* Do not allow a IOMODE_READ segment to have write pemissions */
+	/* Do yest allow a IOMODE_READ segment to have write pemissions */
 	if (seg->iomode == IOMODE_READ) {
-		u = from_kuid(&init_user_ns, inode->i_uid) + 1;
+		u = from_kuid(&init_user_ns, iyesde->i_uid) + 1;
 		fl->uid = make_kuid(&init_user_ns, u);
 	} else
-		fl->uid = inode->i_uid;
-	fl->gid = inode->i_gid;
+		fl->uid = iyesde->i_uid;
+	fl->gid = iyesde->i_gid;
 
 	error = nfsd4_set_deviceid(&fl->deviceid, fhp, device_generation);
 	if (error)
@@ -73,7 +73,7 @@ nfsd4_ff_proc_layoutget(struct inode *inode, const struct svc_fh *fhp,
 
 out_error:
 	seg->length = 0;
-	return nfserrno(error);
+	return nfserryes(error);
 }
 
 static __be32
@@ -87,12 +87,12 @@ nfsd4_ff_proc_getdeviceinfo(struct super_block *sb, struct svc_rqst *rqstp,
 
 	da = kzalloc(sizeof(struct pnfs_ff_device_addr), GFP_KERNEL);
 	if (!da)
-		return nfserrno(-ENOMEM);
+		return nfserryes(-ENOMEM);
 
 	gdp->gd_device = da;
 
 	da->version = 3;
-	da->minor_version = 0;
+	da->miyesr_version = 0;
 
 	da->rsize = svc_max_payload(rqstp);
 	da->wsize = da->rsize;
@@ -125,7 +125,7 @@ nfsd4_ff_proc_getdeviceinfo(struct super_block *sb, struct svc_rqst *rqstp,
 }
 
 const struct nfsd4_layout_ops ff_layout_ops = {
-	.notify_types		=
+	.yestify_types		=
 			NOTIFY_DEVICEID4_DELETE | NOTIFY_DEVICEID4_CHANGE,
 	.disable_recalls	= true,
 	.proc_getdeviceinfo	= nfsd4_ff_proc_getdeviceinfo,

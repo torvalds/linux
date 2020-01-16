@@ -40,13 +40,13 @@ static dev_t cxl_dev;
 
 static struct class *cxl_class;
 
-static int __afu_open(struct inode *inode, struct file *file, bool master)
+static int __afu_open(struct iyesde *iyesde, struct file *file, bool master)
 {
 	struct cxl *adapter;
 	struct cxl_afu *afu;
 	struct cxl_context *ctx;
-	int adapter_num = CXL_DEVT_ADAPTER(inode->i_rdev);
-	int slice = CXL_DEVT_AFU(inode->i_rdev);
+	int adapter_num = CXL_DEVT_ADAPTER(iyesde->i_rdev);
+	int slice = CXL_DEVT_AFU(iyesde->i_rdev);
 	int rc = -ENODEV;
 
 	pr_devel("afu_open afu%i.%i\n", slice, adapter_num);
@@ -88,7 +88,7 @@ static int __afu_open(struct inode *inode, struct file *file, bool master)
 	if (rc)
 		goto err_put_afu;
 
-	cxl_context_set_mapping(ctx, inode->i_mapping);
+	cxl_context_set_mapping(ctx, iyesde->i_mapping);
 
 	pr_devel("afu_open pe: %i\n", ctx->pe);
 	file->private_data = ctx;
@@ -104,17 +104,17 @@ err_put_adapter:
 	return rc;
 }
 
-int afu_open(struct inode *inode, struct file *file)
+int afu_open(struct iyesde *iyesde, struct file *file)
 {
-	return __afu_open(inode, file, false);
+	return __afu_open(iyesde, file, false);
 }
 
-static int afu_master_open(struct inode *inode, struct file *file)
+static int afu_master_open(struct iyesde *iyesde, struct file *file)
 {
-	return __afu_open(inode, file, true);
+	return __afu_open(iyesde, file, true);
 }
 
-int afu_release(struct inode *inode, struct file *file)
+int afu_release(struct iyesde *iyesde, struct file *file)
 {
 	struct cxl_context *ctx = file->private_data;
 
@@ -135,7 +135,7 @@ int afu_release(struct inode *inode, struct file *file)
 
 	/*
 	 * At this this point all bottom halfs have finished and we should be
-	 * getting no more IRQs from the hardware for this context.  Once it's
+	 * getting yes more IRQs from the hardware for this context.  Once it's
 	 * removed from the IDR (and RCU synchronised) it's safe to free the
 	 * sstp and context.
 	 */
@@ -205,10 +205,10 @@ static long afu_ioctl_start_work(struct cxl_context *ctx,
 	}
 
 	/*
-	 * We grab the PID here and not in the file open to allow for the case
+	 * We grab the PID here and yest in the file open to allow for the case
 	 * where a process (master, some daemon, etc) has opened the chardev on
-	 * behalf of another process, so the AFU's mm gets bound to the process
-	 * that performs this ioctl and not the process that opened the file.
+	 * behalf of ayesther process, so the AFU's mm gets bound to the process
+	 * that performs this ioctl and yest the process that opened the file.
 	 * Also we grab the PID of the group leader so that if the task that
 	 * has performed the attach operation exits the mm context of the
 	 * process is still accessible.
@@ -376,7 +376,7 @@ __poll_t afu_poll(struct file *file, struct poll_table_struct *poll)
 	if (ctx_event_pending(ctx))
 		mask |= EPOLLIN | EPOLLRDNORM;
 	else if (ctx->status == CLOSED)
-		/* Only error on closed when there are no futher events pending
+		/* Only error on closed when there are yes futher events pending
 		 */
 		mask |= EPOLLERR;
 	spin_unlock_irqrestore(&ctx->lock, flags);
@@ -546,12 +546,12 @@ static const struct file_operations afu_master_fops = {
 };
 
 
-static char *cxl_devnode(struct device *dev, umode_t *mode)
+static char *cxl_devyesde(struct device *dev, umode_t *mode)
 {
 	if (cpu_has_feature(CPU_FTR_HVMODE) &&
 	    CXL_DEVT_IS_CARD(dev->devt)) {
 		/*
-		 * These minor numbers will eventually be used to program the
+		 * These miyesr numbers will eventually be used to program the
 		 * PSL and AFUs once we have dynamic reprogramming support
 		 */
 		return NULL;
@@ -683,7 +683,7 @@ int __init cxl_file_init(void)
 		rc = PTR_ERR(cxl_class);
 		goto err;
 	}
-	cxl_class->devnode = cxl_devnode;
+	cxl_class->devyesde = cxl_devyesde;
 
 	return 0;
 

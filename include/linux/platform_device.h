@@ -76,8 +76,8 @@ extern int platform_add_devices(struct platform_device **, int);
 
 struct platform_device_info {
 		struct device *parent;
-		struct fwnode_handle *fwnode;
-		bool of_node_reused;
+		struct fwyesde_handle *fwyesde;
+		bool of_yesde_reused;
 
 		const char *name;
 		int id;
@@ -141,7 +141,7 @@ static inline struct platform_device *platform_device_register_resndata(
  * dropped.
  *
  * This interface is primarily intended for use with legacy drivers which
- * probe hardware directly.  Because such drivers create sysfs device nodes
+ * probe hardware directly.  Because such drivers create sysfs device yesdes
  * themselves, rather than letting system infrastructure handle such device
  * enumeration tasks, they don't fully conform to the Linux driver model.
  * In particular, when such drivers are built as modules, they can't be
@@ -216,7 +216,7 @@ extern int __platform_driver_register(struct platform_driver *,
 					struct module *);
 extern void platform_driver_unregister(struct platform_driver *);
 
-/* non-hotpluggable platform devices may use this so that probe() and
+/* yesn-hotpluggable platform devices may use this so that probe() and
  * its support may live in __init sections, conserving runtime memory.
  */
 #define platform_driver_probe(drv, probe) \
@@ -336,7 +336,7 @@ extern int platform_dma_configure(struct device *dev);
 
 #ifndef CONFIG_SUPERH
 /*
- * REVISIT: This stub is needed for all non-SuperH users of early platform
+ * REVISIT: This stub is needed for all yesn-SuperH users of early platform
  * drivers. It should go away once we introduce the new platform_device-based
  * early driver framework.
  */

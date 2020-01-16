@@ -6,7 +6,7 @@ This is a description of the messages to be passed between the X.25 Packet
 Layer and the X.25 device driver. They are designed to allow for the easy
 setting of the LAPB mode from within the Packet Layer.
 
-The X.25 device driver will be coded normally as per the Linux device driver
+The X.25 device driver will be coded yesrmally as per the Linux device driver
 standards. Most X.25 device drivers will be moderately similar to the
 already existing Ethernet device drivers. However unlike those drivers, the
 X.25 device driver has a state associated with it, and this information
@@ -72,9 +72,9 @@ Possible Problems
 
 The X.25 packet layer protocol depends on a reliable datalink service.
 The LAPB protocol provides such reliable service. But this reliability
-is not preserved by the Linux network device driver interface:
+is yest preserved by the Linux network device driver interface:
 
-- With Linux 2.4.x (and above) SMP kernels, packet ordering is not
+- With Linux 2.4.x (and above) SMP kernels, packet ordering is yest
   preserved. Even if a device driver calls netif_rx(skb1) and later
   netif_rx(skb2), skb2 might be delivered to the network layer
   earlier that skb1.
@@ -82,13 +82,13 @@ is not preserved by the Linux network device driver interface:
   kernel if the backlog queue is congested.
 
 The X.25 packet layer protocol will detect this and reset the virtual
-call in question. But many upper layer protocols are not designed to
+call in question. But many upper layer protocols are yest designed to
 handle such N-Reset events gracefully. And frequent N-Reset events
 will always degrade performance.
 
 Thus, driver authors should make netif_rx() as reliable as possible:
 
-SMP re-ordering will not occur if the driver's interrupt handler is
+SMP re-ordering will yest occur if the driver's interrupt handler is
 always executed on the same CPU. Thus,
 
 - Driver authors should use irq affinity for the interrupt handler.
@@ -98,23 +98,23 @@ reduced by the following measures or a combination thereof:
 
 (1) Drivers for kernel versions 2.4.x and above should always check the
     return value of netif_rx(). If it returns NET_RX_DROP, the
-    driver's LAPB protocol must not confirm reception of the frame
+    driver's LAPB protocol must yest confirm reception of the frame
     to the peer. 
     This will reliably suppress packet loss. The LAPB protocol will
     automatically cause the peer to re-transmit the dropped packet
     later.
     The lapb module interface was modified to support this. Its
-    data_indication() method should now transparently pass the
+    data_indication() method should yesw transparently pass the
     netif_rx() return value to the (lapb module) caller.
 (2) Drivers for kernel versions 2.2.x should always check the global
     variable netdev_dropping when a new frame is received. The driver
     should only call netif_rx() if netdev_dropping is zero. Otherwise
-    the driver should not confirm delivery of the frame and drop it.
+    the driver should yest confirm delivery of the frame and drop it.
     Alternatively, the driver can queue the frame internally and call
     netif_rx() later when netif_dropping is 0 again. In that case, delivery
     confirmation should also be deferred such that the internal queue
-    cannot grow to much.
-    This will not reliably avoid packet loss, but the probability
+    canyest grow to much.
+    This will yest reliably avoid packet loss, but the probability
     of packet loss in netif_rx() path will be significantly reduced.
 (3) Additionally, driver authors might consider to support
     CONFIG_NET_HW_FLOWCONTROL. This allows the driver to be woken up

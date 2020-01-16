@@ -164,30 +164,30 @@ static int apq8016_lpass_init(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	int ret;
 
-	drvdata->pcnoc_mport_clk = devm_clk_get(dev, "pcnoc-mport-clk");
-	if (IS_ERR(drvdata->pcnoc_mport_clk)) {
-		dev_err(&pdev->dev, "error getting pcnoc-mport-clk: %ld\n",
-			PTR_ERR(drvdata->pcnoc_mport_clk));
-		return PTR_ERR(drvdata->pcnoc_mport_clk);
+	drvdata->pcyesc_mport_clk = devm_clk_get(dev, "pcyesc-mport-clk");
+	if (IS_ERR(drvdata->pcyesc_mport_clk)) {
+		dev_err(&pdev->dev, "error getting pcyesc-mport-clk: %ld\n",
+			PTR_ERR(drvdata->pcyesc_mport_clk));
+		return PTR_ERR(drvdata->pcyesc_mport_clk);
 	}
 
-	ret = clk_prepare_enable(drvdata->pcnoc_mport_clk);
+	ret = clk_prepare_enable(drvdata->pcyesc_mport_clk);
 	if (ret) {
-		dev_err(&pdev->dev, "Error enabling pcnoc-mport-clk: %d\n",
+		dev_err(&pdev->dev, "Error enabling pcyesc-mport-clk: %d\n",
 			ret);
 		return ret;
 	}
 
-	drvdata->pcnoc_sway_clk = devm_clk_get(dev, "pcnoc-sway-clk");
-	if (IS_ERR(drvdata->pcnoc_sway_clk)) {
-		dev_err(&pdev->dev, "error getting pcnoc-sway-clk: %ld\n",
-			PTR_ERR(drvdata->pcnoc_sway_clk));
-		return PTR_ERR(drvdata->pcnoc_sway_clk);
+	drvdata->pcyesc_sway_clk = devm_clk_get(dev, "pcyesc-sway-clk");
+	if (IS_ERR(drvdata->pcyesc_sway_clk)) {
+		dev_err(&pdev->dev, "error getting pcyesc-sway-clk: %ld\n",
+			PTR_ERR(drvdata->pcyesc_sway_clk));
+		return PTR_ERR(drvdata->pcyesc_sway_clk);
 	}
 
-	ret = clk_prepare_enable(drvdata->pcnoc_sway_clk);
+	ret = clk_prepare_enable(drvdata->pcyesc_sway_clk);
 	if (ret) {
-		dev_err(&pdev->dev, "Error enabling pcnoc_sway_clk: %d\n", ret);
+		dev_err(&pdev->dev, "Error enabling pcyesc_sway_clk: %d\n", ret);
 		return ret;
 	}
 
@@ -198,8 +198,8 @@ static int apq8016_lpass_exit(struct platform_device *pdev)
 {
 	struct lpass_data *drvdata = platform_get_drvdata(pdev);
 
-	clk_disable_unprepare(drvdata->pcnoc_mport_clk);
-	clk_disable_unprepare(drvdata->pcnoc_sway_clk);
+	clk_disable_unprepare(drvdata->pcyesc_mport_clk);
+	clk_disable_unprepare(drvdata->pcyesc_sway_clk);
 
 	return 0;
 }

@@ -125,7 +125,7 @@ tc_flower_test()
 	fi
 
 	if ! tc_offload_check $TC_FLOWER_NUM_NETIFS; then
-		check_err 1 "Could not test offloaded functionality"
+		check_err 1 "Could yest test offloaded functionality"
 		return
 	fi
 

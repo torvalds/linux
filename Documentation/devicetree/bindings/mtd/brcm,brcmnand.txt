@@ -6,9 +6,9 @@ registers and for its data input/output buffer. On some SoCs, this controller is
 paired with a custom DMA engine (inventively named "Flash DMA") which supports
 basic PROGRAM and READ functions, among other features.
 
-This controller was originally designed for STB SoCs (BCM7xxx) but is now
+This controller was originally designed for STB SoCs (BCM7xxx) but is yesw
 available on a variety of Broadcom SoCs, including some BCM3xxx, BCM63xx, and
-iProc/Cygnus. Its history includes several similar (but not fully register
+iProc/Cygnus. Its history includes several similar (but yest fully register
 compatible) versions.
 
 Required properties:
@@ -32,7 +32,7 @@ Required properties:
                          brcm,brcmnand
 - reg              : the register start and length for NAND register region.
                      (optional) Flash DMA register range (if present)
-                     (optional) NAND flash cache range (if at non-standard offset)
+                     (optional) NAND flash cache range (if at yesn-standard offset)
 - reg-names        : a list of the names corresponding to the previous register
                      ranges. Should contain "nand" and (optionally)
                      "flash-dma" and/or "nand-cache".
@@ -41,9 +41,9 @@ Required properties:
 - interrupt-names  : May be "nand_ctlrdy" or "flash_dma_done", if broken out as
                      individual interrupts.
                      May be "nand", if the SoC has the individual NAND
-                     interrupts multiplexed behind another custom piece of
+                     interrupts multiplexed behind ayesther custom piece of
                      hardware
-- #address-cells   : <1> - subnodes give the chip-select number
+- #address-cells   : <1> - subyesdes give the chip-select number
 - #size-cells      : <0>
 
 Optional properties:
@@ -61,11 +61,11 @@ is found. Part of this integration involves providing status and enable bits
 with which to control the 8 exposed NAND interrupts, as well as hardware for
 configuring the endianness of the data bus. On some SoCs, these features are
 handled via standard, modular components (e.g., their interrupts look like a
-normal IRQ chip), but on others, they are controlled in unique and interesting
+yesrmal IRQ chip), but on others, they are controlled in unique and interesting
 ways, sometimes with registers that lump multiple NAND-related functions
 together. The former case can be described simply by the standard interrupts
-properties in the main controller node. But for the latter exceptional cases,
-we define additional 'compatible' properties and associated register resources within the NAND controller node above.
+properties in the main controller yesde. But for the latter exceptional cases,
+we define additional 'compatible' properties and associated register resources within the NAND controller yesde above.
 
  - compatible: Can be one of several SoC-specific strings. Each SoC may have
    different requirements for its additional properties, as described below each
@@ -92,7 +92,7 @@ we define additional 'compatible' properties and associated register resources w
 
 * NAND chip-select
 
-Each controller (compatible: "brcm,brcmnand") may contain one or more subnodes
+Each controller (compatible: "brcm,brcmnand") may contain one or more subyesdes
 to represent enabled chip-selects which (may) contain NAND flash chips. Their
 properties are as follows.
 
@@ -108,7 +108,7 @@ Optional properties:
 - nand-ecc-step-size        : must be 512 or 1024. See nand-controller.yaml
 - nand-on-flash-bbt         : boolean, to enable the on-flash BBT for this
                               chip-select. See nand-controller.yaml
-- brcm,nand-oob-sector-size : integer, to denote the spare area sector size
+- brcm,nand-oob-sector-size : integer, to deyeste the spare area sector size
                               expected for the ECC layout in use. This size, in
                               addition to the strength and step-size,
                               determines how the hardware BCH engine will lay
@@ -120,7 +120,7 @@ Optional properties:
                               number of available options for its default ECC
                               layout.
 
-Each nandcs device node may optionally contain sub-nodes describing the flash
+Each nandcs device yesde may optionally contain sub-yesdes describing the flash
 partition mapping. See partition.txt for more detail.
 
 

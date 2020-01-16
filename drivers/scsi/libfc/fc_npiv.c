@@ -44,7 +44,7 @@ EXPORT_SYMBOL(libfc_vport_create);
  * @n_port: Top level N_Port which may have multiple NPIV VN_Ports
  * @port_id: Fabric ID to find a match for
  *
- * Returns: matching lport pointer or NULL if there is no match
+ * Returns: matching lport pointer or NULL if there is yes match
  */
 struct fc_lport *fc_vport_id_lookup(struct fc_lport *n_port, u32 port_id)
 {

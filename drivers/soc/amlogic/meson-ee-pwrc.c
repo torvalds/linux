@@ -359,7 +359,7 @@ static int meson_ee_pwrc_init_domain(struct platform_device *pdev,
 	/*
          * TOFIX: This is a special case for the VPU power domain, which can
 	 * be enabled previously by the bootloader. In this case the VPU
-         * pipeline may be functional but no driver maybe never attach
+         * pipeline may be functional but yes driver maybe never attach
          * to this power domain, and if the domain is disabled it could
          * cause system errors. This is why the pm_domain_always_on_gov
          * is used here.
@@ -411,13 +411,13 @@ static int meson_ee_pwrc_probe(struct platform_device *pdev)
 
 	pwrc->xlate.num_domains = match->count;
 
-	regmap_hhi = syscon_node_to_regmap(of_get_parent(pdev->dev.of_node));
+	regmap_hhi = syscon_yesde_to_regmap(of_get_parent(pdev->dev.of_yesde));
 	if (IS_ERR(regmap_hhi)) {
 		dev_err(&pdev->dev, "failed to get HHI regmap\n");
 		return PTR_ERR(regmap_hhi);
 	}
 
-	regmap_ao = syscon_regmap_lookup_by_phandle(pdev->dev.of_node,
+	regmap_ao = syscon_regmap_lookup_by_phandle(pdev->dev.of_yesde,
 						    "amlogic,ao-sysctrl");
 	if (IS_ERR(regmap_ao)) {
 		dev_err(&pdev->dev, "failed to get AO regmap\n");
@@ -441,7 +441,7 @@ static int meson_ee_pwrc_probe(struct platform_device *pdev)
 		pwrc->xlate.domains[i] = &dom->base;
 	}
 
-	of_genpd_add_provider_onecell(pdev->dev.of_node, &pwrc->xlate);
+	of_genpd_add_provider_onecell(pdev->dev.of_yesde, &pwrc->xlate);
 
 	return 0;
 }

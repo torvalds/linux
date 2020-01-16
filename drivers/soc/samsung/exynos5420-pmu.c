@@ -6,14 +6,14 @@
 // EXYNOS5420 - CPU PMU (Power Management Unit) support
 
 #include <linux/pm.h>
-#include <linux/soc/samsung/exynos-regs-pmu.h>
-#include <linux/soc/samsung/exynos-pmu.h>
+#include <linux/soc/samsung/exyyess-regs-pmu.h>
+#include <linux/soc/samsung/exyyess-pmu.h>
 
 #include <asm/cputype.h>
 
-#include "exynos-pmu.h"
+#include "exyyess-pmu.h"
 
-static const struct exynos_pmu_conf exynos5420_pmu_config[] = {
+static const struct exyyess_pmu_conf exyyess5420_pmu_config[] = {
 	/* { .offset = offset, .val = { AFTR, LPA, SLEEP } */
 	{ EXYNOS5_ARM_CORE0_SYS_PWR_REG,		{ 0x0, 0x0, 0x0} },
 	{ EXYNOS5_DIS_IRQ_ARM_CORE0_LOCAL_SYS_PWR_REG,	{ 0x0, 0x0, 0x0} },
@@ -158,7 +158,7 @@ static const struct exynos_pmu_conf exynos5420_pmu_config[] = {
 	{ PMU_TABLE_END,},
 };
 
-static unsigned int const exynos5420_list_disable_pmu_reg[] = {
+static unsigned int const exyyess5420_list_disable_pmu_reg[] = {
 	EXYNOS5_CMU_CLKSTOP_GSCL_SYS_PWR_REG,
 	EXYNOS5_CMU_CLKSTOP_ISP_SYS_PWR_REG,
 	EXYNOS5_CMU_CLKSTOP_G3D_SYS_PWR_REG,
@@ -196,7 +196,7 @@ static unsigned int const exynos5420_list_disable_pmu_reg[] = {
 	EXYNOS5420_CMU_RESET_FSYS_SYS_PWR_REG,
 };
 
-static void exynos5420_powerdown_conf(enum sys_powerdown mode)
+static void exyyess5420_powerdown_conf(enum sys_powerdown mode)
 {
 	u32 this_cluster;
 
@@ -209,7 +209,7 @@ static void exynos5420_powerdown_conf(enum sys_powerdown mode)
 	pmu_raw_writel(this_cluster, EXYNOS_IROM_DATA2);
 }
 
-static void exynos5420_pmu_init(void)
+static void exyyess5420_pmu_init(void)
 {
 	unsigned int value;
 	int i;
@@ -219,8 +219,8 @@ static void exynos5420_pmu_init(void)
 	 * for local power blocks to Low initially as per Table 8-4:
 	 * "System-Level Power-Down Configuration Registers".
 	 */
-	for (i = 0; i < ARRAY_SIZE(exynos5420_list_disable_pmu_reg); i++)
-		pmu_raw_writel(0, exynos5420_list_disable_pmu_reg[i]);
+	for (i = 0; i < ARRAY_SIZE(exyyess5420_list_disable_pmu_reg); i++)
+		pmu_raw_writel(0, exyyess5420_list_disable_pmu_reg[i]);
 
 	/* Enable USE_STANDBY_WFI for all CORE */
 	pmu_raw_writel(EXYNOS5420_USE_STANDBY_WFI_ALL, S5P_CENTRAL_SEQ_OPTION);
@@ -269,8 +269,8 @@ static void exynos5420_pmu_init(void)
 	pr_info("EXYNOS5420 PMU initialized\n");
 }
 
-const struct exynos_pmu_data exynos5420_pmu_data = {
-	.pmu_config	= exynos5420_pmu_config,
-	.pmu_init	= exynos5420_pmu_init,
-	.powerdown_conf	= exynos5420_powerdown_conf,
+const struct exyyess_pmu_data exyyess5420_pmu_data = {
+	.pmu_config	= exyyess5420_pmu_config,
+	.pmu_init	= exyyess5420_pmu_init,
+	.powerdown_conf	= exyyess5420_powerdown_conf,
 };

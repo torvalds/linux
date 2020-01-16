@@ -81,7 +81,7 @@
 
 #define COMMAND_3D	(0x00200000 + 0x120)
 
-/* register bitfields (not all, only as needed) */
+/* register bitfields (yest all, only as needed) */
 
 /* COMMAND_2D reg. values */
 #define TDFX_ROP_COPY		0xcc	/* src */

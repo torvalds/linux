@@ -14,7 +14,7 @@
  *      layout etc is internal to the driver and described within farsync.c.
  *      Overlap exists in that the values used for some fields within the
  *      ioctl interface extend into the cards firmware interface so values in
- *      this file may not be changed arbitrarily.
+ *      this file may yest be changed arbitrarily.
  */
 
 /*      What's in a name
@@ -22,7 +22,7 @@
  *      The project name for this driver is Oscar. The driver is intended to be
  *      used with the FarSite T-Series cards (T2P & T4P) running in the high
  *      speed frame shifter mode. This is sometimes referred to as X.21 mode
- *      which is a complete misnomer as the card continues to support V.24 and
+ *      which is a complete misyesmer as the card continues to support V.24 and
  *      V.35 as well as X.21.
  *
  *      A short common prefix is useful for routines within the driver to avoid
@@ -41,7 +41,7 @@
 /*      User version number
  *
  *      This version number is incremented with each official release of the
- *      package and is a simplified number for normal user reference.
+ *      package and is a simplified number for yesrmal user reference.
  *      Individual files are tracked by the version control system and may
  *      have individual versions (or IDs) that move much faster than the
  *      the release version as individual updates are tracked.
@@ -71,7 +71,7 @@ struct fstioc_write {
 
 /*      FSTCPURESET and FSTCPURELEASE
  *
- *      These take no additional data.
+ *      These take yes additional data.
  *      FSTCPURESET forces the cards CPU into a reset state and holds it there.
  *      FSTCPURELEASE releases the CPU from this reset state allowing it to run,
  *      the reset vector should be setup before this ioctl is run.
@@ -137,8 +137,8 @@ struct fstioc_info {
 };
 
 /* "valid" bitmask */
-#define FSTVAL_NONE     0x00000000      /* Nothing valid (firmware not running).
-                                         * Slight misnomer. In fact nports,
+#define FSTVAL_NONE     0x00000000      /* Nothing valid (firmware yest running).
+                                         * Slight misyesmer. In fact nports,
                                          * type, state and index will be set
                                          * based on hardware detected.
                                          */
@@ -158,7 +158,7 @@ struct fstioc_info {
 #define FSTVAL_PHASE    0x00000800      /* Clock phase */
 #define FSTVAL_TE1      0x00001000      /* T1E1 Configuration */
 #define FSTVAL_DEBUG    0x80000000      /* debug */
-#define FSTVAL_ALL      0x00001FFF      /* Note: does not include DEBUG flag */
+#define FSTVAL_ALL      0x00001FFF      /* Note: does yest include DEBUG flag */
 
 /* "type" */
 #define FST_TYPE_NONE   0               /* Probably should never happen */

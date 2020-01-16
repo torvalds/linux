@@ -70,7 +70,7 @@
 #define BCMA_PCIE2_BAR0_WIN2		0x70
 
 /* SiliconBackplane Address Map.
- * All regions may not exist on all chips.
+ * All regions may yest exist on all chips.
  */
 #define BCMA_SOC_SDRAM_BASE		0x00000000U	/* Physical SDRAM */
 #define BCMA_SOC_PCI_MEM		0x08000000U	/* Host Mode sb2pcitranslation0 (64 MB) */

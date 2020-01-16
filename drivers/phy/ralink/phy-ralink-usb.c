@@ -3,7 +3,7 @@
  * Copyright (C) 2017 John Crispin <john@phrozen.org>
  *
  * Based on code from
- * Allwinner Technology Co., Ltd. <www.allwinnertech.com>
+ * Allwinner Techyeslogy Co., Ltd. <www.allwinnertech.com>
  */
 
 #include <linux/delay.h>
@@ -108,7 +108,7 @@ static int ralink_usb_phy_power_on(struct phy *_phy)
 
 	/*
 	 * The SDK kernel had a delay of 100ms. however on device
-	 * testing showed that 10ms is enough
+	 * testing showed that 10ms is eyesugh
 	 */
 	mdelay(10);
 
@@ -186,14 +186,14 @@ static int ralink_usb_phy_probe(struct platform_device *pdev)
 	phy->clk = (uintptr_t)match->data;
 	phy->base = NULL;
 
-	phy->sysctl = syscon_regmap_lookup_by_phandle(dev->of_node, "ralink,sysctl");
+	phy->sysctl = syscon_regmap_lookup_by_phandle(dev->of_yesde, "ralink,sysctl");
 	if (IS_ERR(phy->sysctl)) {
 		dev_err(dev, "failed to get sysctl registers\n");
 		return PTR_ERR(phy->sysctl);
 	}
 
 	/* The MT7628 and MT7688 require extra setup of PHY registers. */
-	if (of_device_is_compatible(dev->of_node, "mediatek,mt7628-usbphy")) {
+	if (of_device_is_compatible(dev->of_yesde, "mediatek,mt7628-usbphy")) {
 		res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 		phy->base = devm_ioremap_resource(&pdev->dev, res);
 		if (IS_ERR(phy->base)) {

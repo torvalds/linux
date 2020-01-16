@@ -142,9 +142,9 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_usdhc1>;
 	bus-width = <8>;
-	no-sd;
-	no-sdio;
-	non-removable;
+	yes-sd;
+	yes-sdio;
+	yesn-removable;
 	status = "okay";
 };
 

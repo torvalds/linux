@@ -42,10 +42,10 @@ static void j2_smp_setup(void)
 
 static void j2_prepare_cpus(unsigned int max_cpus)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 	unsigned i, max = 1;
 
-	np = of_find_compatible_node(NULL, NULL, "jcore,ipi-controller");
+	np = of_find_compatible_yesde(NULL, NULL, "jcore,ipi-controller");
 	if (!np)
 		goto out;
 
@@ -54,7 +54,7 @@ static void j2_prepare_cpus(unsigned int max_cpus)
 	if (!j2_ipi_irq || !j2_ipi_trigger)
 		goto out;
 
-	np = of_find_compatible_node(NULL, NULL, "jcore,cpuid-mmio");
+	np = of_find_compatible_yesde(NULL, NULL, "jcore,cpuid-mmio");
 	if (!np)
 		goto out;
 
@@ -78,18 +78,18 @@ out:
 
 static void j2_start_cpu(unsigned int cpu, unsigned long entry_point)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 	u32 regs[2];
 	void __iomem *release, *initpc;
 
 	if (!cpu) return;
 
-	np = of_get_cpu_node(cpu, NULL);
+	np = of_get_cpu_yesde(cpu, NULL);
 	if (!np) return;
 
 	if (of_property_read_u32_array(np, "cpu-release-addr", regs, 2)) return;
-	release = ioremap_nocache(regs[0], sizeof(u32));
-	initpc = ioremap_nocache(regs[1], sizeof(u32));
+	release = ioremap_yescache(regs[0], sizeof(u32));
+	initpc = ioremap_yescache(regs[1], sizeof(u32));
 
 	__raw_writel(entry_point, initpc);
 	__raw_writel(1, release);

@@ -4,11 +4,11 @@
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
  *     * Redistributions of source code must retain the above copyright
- *       notice, this list of conditions and the following disclaimer.
+ *       yestice, this list of conditions and the following disclaimer.
  *     * Redistributions in binary form must reproduce the above copyright
- *       notice, this list of conditions and the following disclaimer in the
+ *       yestice, this list of conditions and the following disclaimer in the
  *       documentation and/or other materials provided with the distribution.
- *     * Neither the name of Freescale Semiconductor nor the
+ *     * Neither the name of Freescale Semiconductor yesr the
  *       names of its contributors may be used to endorse or promote products
  *       derived from this software without specific prior written permission.
  *
@@ -276,8 +276,8 @@
 
 #define TOTAL_NUM_OF_TASKS_FMAN_V3L	59
 #define TOTAL_NUM_OF_TASKS_FMAN_V3H	124
-#define DFLT_TOTAL_NUM_OF_TASKS(major, minor, bmi_max_num_of_tasks)	\
-	((major == 6) ? ((minor == 1 || minor == 4) ?			\
+#define DFLT_TOTAL_NUM_OF_TASKS(major, miyesr, bmi_max_num_of_tasks)	\
+	((major == 6) ? ((miyesr == 1 || miyesr == 4) ?			\
 	TOTAL_NUM_OF_TASKS_FMAN_V3L : TOTAL_NUM_OF_TASKS_FMAN_V3H) :	\
 	bmi_max_num_of_tasks)
 
@@ -843,9 +843,9 @@ static void fpm_init(struct fman_fpm_regs __iomem *fpm_rg, struct fman_cfg *cfg)
 		tmp_reg |= FPM_EV_MASK_DOUBLE_ECC_EN;
 	tmp_reg |= (cfg->catastrophic_err << FPM_EV_MASK_CAT_ERR_SHIFT);
 	tmp_reg |= (cfg->dma_err << FPM_EV_MASK_DMA_ERR_SHIFT);
-	/* FMan is not halted upon external halt activation */
+	/* FMan is yest halted upon external halt activation */
 	tmp_reg |= FPM_EV_MASK_EXTERNAL_HALT;
-	/* Man is not halted upon  Unrecoverable ECC error behavior */
+	/* Man is yest halted upon  Unrecoverable ECC error behavior */
 	tmp_reg |= FPM_EV_MASK_ECC_ERR_HALT;
 	iowrite32be(tmp_reg, &fpm_rg->fmfp_ee);
 
@@ -1075,7 +1075,7 @@ static int set_exception(struct fman *fman,
 	case FMAN_EX_IRAM_ECC:
 		tmp = ioread32be(&fman->fpm_regs->fm_rie);
 		if (enable) {
-			/* enable ECC if not enabled */
+			/* enable ECC if yest enabled */
 			enable_rams_ecc(fman->fpm_regs);
 			/* enable ECC interrupts */
 			tmp |= FPM_IRAM_ECC_ERR_EX_EN;
@@ -1091,7 +1091,7 @@ static int set_exception(struct fman *fman,
 	case FMAN_EX_MURAM_ECC:
 		tmp = ioread32be(&fman->fpm_regs->fm_rie);
 		if (enable) {
-			/* enable ECC if not enabled */
+			/* enable ECC if yest enabled */
 			enable_rams_ecc(fman->fpm_regs);
 			/* enable ECC interrupts */
 			tmp |= FPM_MURAM_ECC_ERR_EX_EN;
@@ -1115,7 +1115,7 @@ static void resume(struct fman_fpm_regs __iomem *fpm_rg)
 	u32 tmp;
 
 	tmp = ioread32be(&fpm_rg->fmfp_ee);
-	/* clear tmp_reg event bits in order not to clear standing events */
+	/* clear tmp_reg event bits in order yest to clear standing events */
 	tmp &= ~(FPM_EV_MASK_DOUBLE_ECC |
 		 FPM_EV_MASK_STALL | FPM_EV_MASK_SINGLE_ECC);
 	tmp |= FPM_EV_MASK_RELEASE_FM;
@@ -1125,7 +1125,7 @@ static void resume(struct fman_fpm_regs __iomem *fpm_rg)
 
 static int fill_soc_specific_params(struct fman_state_struct *state)
 {
-	u8 minor = state->rev_info.minor;
+	u8 miyesr = state->rev_info.miyesr;
 	/* P4080 - Major 2
 	 * P2041/P3041/P5020/P5040 - Major 3
 	 * Tx/Bx - Major 6
@@ -1167,19 +1167,19 @@ static int fill_soc_specific_params(struct fman_state_struct *state)
 		state->fm_port_num_of_cg	= 256;
 
 		/* FManV3L */
-		if (minor == 1 || minor == 4) {
+		if (miyesr == 1 || miyesr == 4) {
 			state->bmi_max_fifo_size	= 192 * 1024;
 			state->bmi_max_num_of_tasks	= 64;
 			state->max_num_of_open_dmas	= 32;
 			state->num_of_rx_ports		= 5;
-			if (minor == 1)
+			if (miyesr == 1)
 				state->fm_iram_size	= 32 * 1024;
 			else
 				state->fm_iram_size	= 64 * 1024;
 			state->total_fifo_size		= 156 * 1024;
 		}
 		/* FManV3H */
-		else if (minor == 0 || minor == 2 || minor == 3) {
+		else if (miyesr == 0 || miyesr == 2 || miyesr == 3) {
 			state->bmi_max_fifo_size	= 384 * 1024;
 			state->fm_iram_size		= 64 * 1024;
 			state->bmi_max_num_of_tasks	= 128;
@@ -1232,7 +1232,7 @@ static irqreturn_t bmi_err_event(struct fman *fman)
 	force = ioread32be(&bmi_rg->fmbm_ifr);
 	if (force & event)
 		iowrite32be(force & ~event, &bmi_rg->fmbm_ifr);
-	/* clear the acknowledged events */
+	/* clear the ackyeswledged events */
 	iowrite32be(event, &bmi_rg->fmbm_ievr);
 
 	if (event & BMI_ERR_INTR_EN_STORAGE_PROFILE_ECC)
@@ -1261,7 +1261,7 @@ static irqreturn_t qmi_err_event(struct fman *fman)
 	force = ioread32be(&qmi_rg->fmqm_eif);
 	if (force & event)
 		iowrite32be(force & ~event, &qmi_rg->fmqm_eif);
-	/* clear the acknowledged events */
+	/* clear the ackyeswledged events */
 	iowrite32be(event, &qmi_rg->fmqm_eie);
 
 	if (event & QMI_ERR_INTR_EN_DOUBLE_ECC)
@@ -1284,11 +1284,11 @@ static irqreturn_t dma_err_event(struct fman *fman)
 	status = ioread32be(&dma_rg->fmdmsr);
 	mask = ioread32be(&dma_rg->fmdmmr);
 
-	/* clear DMA_STATUS_BUS_ERR if mask has no DMA_MODE_BER */
+	/* clear DMA_STATUS_BUS_ERR if mask has yes DMA_MODE_BER */
 	if ((mask & DMA_MODE_BER) != DMA_MODE_BER)
 		status &= ~DMA_STATUS_BUS_ERR;
 
-	/* clear relevant bits if mask has no DMA_MODE_ECC */
+	/* clear relevant bits if mask has yes DMA_MODE_ECC */
 	if ((mask & DMA_MODE_ECC) != DMA_MODE_ECC)
 		status &= ~(DMA_STATUS_FM_SPDAT_ECC |
 			    DMA_STATUS_READ_ECC |
@@ -1358,7 +1358,7 @@ static irqreturn_t muram_err_intr(struct fman *fman)
 	event = ioread32be(&fpm_rg->fm_rcr);
 	mask = ioread32be(&fpm_rg->fm_rie);
 
-	/* clear MURAM event bit (do not clear IRAM event) */
+	/* clear MURAM event bit (do yest clear IRAM event) */
 	iowrite32be(event & ~FPM_RAM_IRAM_ECC, &fpm_rg->fm_rcr);
 
 	if ((mask & FPM_MURAM_ECC_ERR_EX_EN) && (event & FPM_RAM_MURAM_ECC))
@@ -1380,7 +1380,7 @@ static irqreturn_t qmi_event(struct fman *fman)
 	force = ioread32be(&qmi_rg->fmqm_if);
 	if (force & event)
 		iowrite32be(force & ~event, &qmi_rg->fmqm_if);
-	/* clear the acknowledged events */
+	/* clear the ackyeswledged events */
 	iowrite32be(event, &qmi_rg->fmqm_ie);
 
 	if (event & QMI_INTR_EN_SINGLE_ECC)
@@ -1407,12 +1407,12 @@ static void enable_time_stamp(struct fman *fman)
 
 	intgr = ts_freq / fm_clk_freq;
 	/* we multiply by 2^16 to keep the fraction of the division
-	 * we do not div back, since we write this value as a fraction
+	 * we do yest div back, since we write this value as a fraction
 	 * see spec
 	 */
 
 	frac = ((ts_freq << 16) - (intgr << 16) * fm_clk_freq) / fm_clk_freq;
-	/* we check remainder of the division in order to round up if not int */
+	/* we check remainder of the division in order to round up if yest int */
 	if (((ts_freq << 16) - (intgr << 16) * fm_clk_freq) % fm_clk_freq)
 		frac++;
 
@@ -1563,7 +1563,7 @@ static int set_size_of_fifo(struct fman *fman, u8 port_id, u32 *size_of_fifo,
 	fman->state->extra_fifo_pool_size =
 		max(fman->state->extra_fifo_pool_size, extra_fifo);
 
-	/* check that there are enough uncommitted fifo size */
+	/* check that there are eyesugh uncommitted fifo size */
 	if ((fman->state->accumulated_fifo_size + fifo) >
 	    (fman->state->total_fifo_size -
 	    fman->state->extra_fifo_pool_size)) {
@@ -1596,7 +1596,7 @@ static int set_num_of_tasks(struct fman *fman, u8 port_id, u8 *num_of_tasks,
 		fman->state->extra_tasks_pool_size =
 		max(fman->state->extra_tasks_pool_size, extra_tasks);
 
-	/* check that there are enough uncommitted tasks */
+	/* check that there are eyesugh uncommitted tasks */
 	if ((fman->state->accumulated_num_of_tasks + tasks) >
 	    (fman->state->total_num_of_tasks -
 	     fman->state->extra_tasks_pool_size)) {
@@ -1639,7 +1639,7 @@ static int set_num_of_open_dmas(struct fman *fman, u8 port_id,
 		current_val = (u8)(((tmp & BMI_NUM_OF_DMAS_MASK) >>
 				   BMI_NUM_OF_DMAS_SHIFT) + 1);
 
-		/* This is the first configuration and user did not
+		/* This is the first configuration and user did yest
 		 * specify value (!open_dmas), reset values will be used
 		 * and we just save these values for resource management
 		 */
@@ -1665,7 +1665,7 @@ static int set_num_of_open_dmas(struct fman *fman, u8 port_id,
 		return -EAGAIN;
 	} else if ((fman->state->rev_info.major >= 6) &&
 		   !((fman->state->rev_info.major == 6) &&
-		   (fman->state->rev_info.minor == 0)) &&
+		   (fman->state->rev_info.miyesr == 0)) &&
 		   (fman->state->accumulated_num_of_open_dmas -
 		   current_val + open_dmas >
 		   fman->state->dma_thresh_max_commq + 1)) {
@@ -1779,7 +1779,7 @@ static int fman_config(struct fman *fman)
 
 	fman->state->total_num_of_tasks =
 	(u8)DFLT_TOTAL_NUM_OF_TASKS(fman->state->rev_info.major,
-				    fman->state->rev_info.minor,
+				    fman->state->rev_info.miyesr,
 				    fman->state->bmi_max_num_of_tasks);
 
 	if (fman->state->rev_info.major < 6) {
@@ -1840,24 +1840,24 @@ static int fman_reset(struct fman *fman)
 		goto _return;
 	} else {
 #ifdef CONFIG_PPC
-		struct device_node *guts_node;
+		struct device_yesde *guts_yesde;
 		struct ccsr_guts __iomem *guts_regs;
 		u32 devdisr2, reg;
 
 		/* Errata A007273 */
-		guts_node =
-			of_find_compatible_node(NULL, NULL,
+		guts_yesde =
+			of_find_compatible_yesde(NULL, NULL,
 						"fsl,qoriq-device-config-2.0");
-		if (!guts_node) {
-			dev_err(fman->dev, "%s: Couldn't find guts node\n",
+		if (!guts_yesde) {
+			dev_err(fman->dev, "%s: Couldn't find guts yesde\n",
 				__func__);
-			goto guts_node;
+			goto guts_yesde;
 		}
 
-		guts_regs = of_iomap(guts_node, 0);
+		guts_regs = of_iomap(guts_yesde, 0);
 		if (!guts_regs) {
 			dev_err(fman->dev, "%s: Couldn't map %pOF regs\n",
-				__func__, guts_node);
+				__func__, guts_yesde);
 			goto guts_regs;
 		}
 #define FMAN1_ALL_MACS_MASK	0xFCC00000
@@ -1885,7 +1885,7 @@ static int fman_reset(struct fman *fman)
 		if (count == 0) {
 #ifdef CONFIG_PPC
 			iounmap(guts_regs);
-			of_node_put(guts_node);
+			of_yesde_put(guts_yesde);
 #endif
 			err = -EBUSY;
 			goto _return;
@@ -1896,15 +1896,15 @@ static int fman_reset(struct fman *fman)
 		iowrite32be(devdisr2, &guts_regs->devdisr2);
 
 		iounmap(guts_regs);
-		of_node_put(guts_node);
+		of_yesde_put(guts_yesde);
 #endif
 
 		goto _return;
 
 #ifdef CONFIG_PPC
 guts_regs:
-		of_node_put(guts_node);
-guts_node:
+		of_yesde_put(guts_yesde);
+guts_yesde:
 		dev_dbg(fman->dev, "%s: Didn't perform FManV3 reset due to Errata A007273!\n",
 			__func__);
 #endif
@@ -1925,7 +1925,7 @@ static int fman_init(struct fman *fman)
 
 	cfg = fman->cfg;
 
-	/* clear revision-dependent non existing exception */
+	/* clear revision-dependent yesn existing exception */
 	if (fman->state->rev_info.major < 6)
 		fman->state->exceptions &= ~FMAN_EX_BMI_DISPATCH_RAM_ECC;
 
@@ -1937,7 +1937,7 @@ static int fman_init(struct fman *fman)
 		  fman->state->fm_port_num_of_cg);
 
 	/* Save LIODN info before FMan reset
-	 * Skipping non-existent port 0 (i = 1)
+	 * Skipping yesn-existent port 0 (i = 1)
 	 */
 	for (i = 1; i < FMAN_LIODN_TBL; i++) {
 		u32 liodn_base;
@@ -1964,14 +1964,14 @@ static int fman_init(struct fman *fman)
 
 	if (ioread32be(&fman->qmi_regs->fmqm_gs) & QMI_GS_HALT_NOT_BUSY) {
 		resume(fman->fpm_regs);
-		/* Wait until QMI is not in halt not busy state */
+		/* Wait until QMI is yest in halt yest busy state */
 		count = 100;
 		do {
 			udelay(1);
 		} while (((ioread32be(&fman->qmi_regs->fmqm_gs)) &
 			 QMI_GS_HALT_NOT_BUSY) && --count);
 		if (count == 0)
-			dev_warn(fman->dev, "%s: QMI is in halt not busy state\n",
+			dev_warn(fman->dev, "%s: QMI is in halt yest busy state\n",
 				 __func__);
 	}
 
@@ -2060,8 +2060,8 @@ static int fman_set_exception(struct fman *fman,
  * fman_register_intr
  * @fman:	A Pointer to FMan device
  * @mod:	Calling module
- * @mod_id:	Module id (if more than 1 exists, '0' if not)
- * @intr_type:	Interrupt type (error/normal) selection.
+ * @mod_id:	Module id (if more than 1 exists, '0' if yest)
+ * @intr_type:	Interrupt type (error/yesrmal) selection.
  * @f_isr:	The interrupt service routine.
  * @h_src_arg:	Argument to be passed to f_isr.
  *
@@ -2088,8 +2088,8 @@ EXPORT_SYMBOL(fman_register_intr);
  * fman_unregister_intr
  * @fman:	A Pointer to FMan device
  * @mod:	Calling module
- * @mod_id:	Module id (if more than 1 exists, '0' if not)
- * @intr_type:	Interrupt type (error/normal) selection.
+ * @mod_id:	Module id (if more than 1 exists, '0' if yest)
+ * @intr_type:	Interrupt type (error/yesrmal) selection.
  *
  * Used to unregister an event handler to be processed by FMan
  *
@@ -2160,7 +2160,7 @@ int fman_set_port_params(struct fman *fman,
 				    QMI_CFG_DEQ_MASK;
 		/* if deq_th is too small, we enlarge it to the min
 		 * value that is still 0.
-		 * depTh may not be larger than 63
+		 * depTh may yest be larger than 63
 		 * (fman->state->qmi_max_num_of_tnums-1).
 		 */
 		if ((deq_th <= fman->state->accumulated_num_of_deq_tnums) &&
@@ -2227,7 +2227,7 @@ int fman_reset_mac(struct fman *fman, u8 mac_id)
 	u32 msk, timeout = 100;
 
 	if (fman->state->rev_info.major >= 6) {
-		dev_err(fman->dev, "%s: FMan MAC reset no available for FMan V3!\n",
+		dev_err(fman->dev, "%s: FMan MAC reset yes available for FMan V3!\n",
 			__func__);
 		return -EINVAL;
 	}
@@ -2354,7 +2354,7 @@ void fman_get_revision(struct fman *fman, struct fman_rev_info *rev_info)
 	tmp = ioread32be(&fman->fpm_regs->fm_ip_rev_1);
 	rev_info->major = (u8)((tmp & FPM_REV1_MAJOR_MASK) >>
 				FPM_REV1_MAJOR_SHIFT);
-	rev_info->minor = tmp & FPM_REV1_MINOR_MASK;
+	rev_info->miyesr = tmp & FPM_REV1_MINOR_MASK;
 }
 EXPORT_SYMBOL(fman_get_revision);
 
@@ -2429,7 +2429,7 @@ EXPORT_SYMBOL(fman_get_mem_region);
  * FMan is instructed to allocate, on the Rx path, this amount of
  * space at the beginning of a data buffer, beside the DPA private
  * data area and the IC fields.
- * Does not impact Tx buffer layout.
+ * Does yest impact Tx buffer layout.
  * Configurable from bootargs. 64 by default, it's needed on
  * particular forwarding scenarios that add extra headers to the
  * forwarded frame.
@@ -2440,8 +2440,8 @@ MODULE_PARM_DESC(fsl_fm_rx_extra_headroom, "Extra headroom for Rx buffers");
 
 /* Max frame size, across all interfaces.
  * Configurable from bootargs, to avoid allocating oversized (socket)
- * buffers when not using jumbo frames.
- * Must be large enough to accommodate the network MTU, but small enough
+ * buffers when yest using jumbo frames.
+ * Must be large eyesugh to accommodate the network MTU, but small eyesugh
  * to avoid wasting skb memory.
  */
 static int fsl_fm_max_frm = FSL_FM_MAX_FRAME_SIZE;
@@ -2628,7 +2628,7 @@ static irqreturn_t fman_irq(int irq, void *handle)
 
 	fpm_rg = fman->fpm_regs;
 
-	/* normal interrupts */
+	/* yesrmal interrupts */
 	pending = ioread32be(&fpm_rg->fm_npi);
 	if (!pending)
 		return IRQ_NONE;
@@ -2701,10 +2701,10 @@ static const struct of_device_id fman_muram_match[] = {
 };
 MODULE_DEVICE_TABLE(of, fman_muram_match);
 
-static struct fman *read_dts_node(struct platform_device *of_dev)
+static struct fman *read_dts_yesde(struct platform_device *of_dev)
 {
 	struct fman *fman;
-	struct device_node *fm_node, *muram_node;
+	struct device_yesde *fm_yesde, *muram_yesde;
 	struct resource *res;
 	u32 val, range[2];
 	int err, irq;
@@ -2717,13 +2717,13 @@ static struct fman *read_dts_node(struct platform_device *of_dev)
 	if (!fman)
 		return NULL;
 
-	fm_node = of_node_get(of_dev->dev.of_node);
+	fm_yesde = of_yesde_get(of_dev->dev.of_yesde);
 
-	err = of_property_read_u32(fm_node, "cell-index", &val);
+	err = of_property_read_u32(fm_yesde, "cell-index", &val);
 	if (err) {
 		dev_err(&of_dev->dev, "%s: failed to read cell-index for %pOF\n",
-			__func__, fm_node);
-		goto fman_node_put;
+			__func__, fm_yesde);
+		goto fman_yesde_put;
 	}
 	fman->dts_params.id = (u8)val;
 
@@ -2732,7 +2732,7 @@ static struct fman *read_dts_node(struct platform_device *of_dev)
 	if (!res) {
 		dev_err(&of_dev->dev, "%s: Can't get FMan IRQ resource\n",
 			__func__);
-		goto fman_node_put;
+		goto fman_yesde_put;
 	}
 	irq = res->start;
 
@@ -2741,7 +2741,7 @@ static struct fman *read_dts_node(struct platform_device *of_dev)
 	if (!res) {
 		dev_err(&of_dev->dev, "%s: Can't get FMan Error IRQ resource\n",
 			__func__);
-		goto fman_node_put;
+		goto fman_yesde_put;
 	}
 	fman->dts_params.err_irq = res->start;
 
@@ -2750,56 +2750,56 @@ static struct fman *read_dts_node(struct platform_device *of_dev)
 	if (!res) {
 		dev_err(&of_dev->dev, "%s: Can't get FMan memory resource\n",
 			__func__);
-		goto fman_node_put;
+		goto fman_yesde_put;
 	}
 
 	phys_base_addr = res->start;
 	mem_size = resource_size(res);
 
-	clk = of_clk_get(fm_node, 0);
+	clk = of_clk_get(fm_yesde, 0);
 	if (IS_ERR(clk)) {
 		dev_err(&of_dev->dev, "%s: Failed to get FM%d clock structure\n",
 			__func__, fman->dts_params.id);
-		goto fman_node_put;
+		goto fman_yesde_put;
 	}
 
 	clk_rate = clk_get_rate(clk);
 	if (!clk_rate) {
 		dev_err(&of_dev->dev, "%s: Failed to determine FM%d clock rate\n",
 			__func__, fman->dts_params.id);
-		goto fman_node_put;
+		goto fman_yesde_put;
 	}
 	/* Rounding to MHz */
 	fman->dts_params.clk_freq = DIV_ROUND_UP(clk_rate, 1000000);
 
-	err = of_property_read_u32_array(fm_node, "fsl,qman-channel-range",
+	err = of_property_read_u32_array(fm_yesde, "fsl,qman-channel-range",
 					 &range[0], 2);
 	if (err) {
 		dev_err(&of_dev->dev, "%s: failed to read fsl,qman-channel-range for %pOF\n",
-			__func__, fm_node);
-		goto fman_node_put;
+			__func__, fm_yesde);
+		goto fman_yesde_put;
 	}
 	fman->dts_params.qman_channel_base = range[0];
 	fman->dts_params.num_of_qman_channels = range[1];
 
 	/* Get the MURAM base address and size */
-	muram_node = of_find_matching_node(fm_node, fman_muram_match);
-	if (!muram_node) {
-		dev_err(&of_dev->dev, "%s: could not find MURAM node\n",
+	muram_yesde = of_find_matching_yesde(fm_yesde, fman_muram_match);
+	if (!muram_yesde) {
+		dev_err(&of_dev->dev, "%s: could yest find MURAM yesde\n",
 			__func__);
 		goto fman_free;
 	}
 
-	err = of_address_to_resource(muram_node, 0,
+	err = of_address_to_resource(muram_yesde, 0,
 				     &fman->dts_params.muram_res);
 	if (err) {
-		of_node_put(muram_node);
+		of_yesde_put(muram_yesde);
 		dev_err(&of_dev->dev, "%s: of_address_to_resource() = %d\n",
 			__func__, err);
 		goto fman_free;
 	}
 
-	of_node_put(muram_node);
+	of_yesde_put(muram_yesde);
 
 	err = devm_request_irq(&of_dev->dev, irq, fman_irq, IRQF_SHARED,
 			       "fman", fman);
@@ -2838,7 +2838,7 @@ static struct fman *read_dts_node(struct platform_device *of_dev)
 
 	fman->dev = &of_dev->dev;
 
-	err = of_platform_populate(fm_node, NULL, NULL, &of_dev->dev);
+	err = of_platform_populate(fm_yesde, NULL, NULL, &of_dev->dev);
 	if (err) {
 		dev_err(&of_dev->dev, "%s: of_platform_populate() failed\n",
 			__func__);
@@ -2847,8 +2847,8 @@ static struct fman *read_dts_node(struct platform_device *of_dev)
 
 	return fman;
 
-fman_node_put:
-	of_node_put(fm_node);
+fman_yesde_put:
+	of_yesde_put(fm_yesde);
 fman_free:
 	kfree(fman);
 	return NULL;
@@ -2862,7 +2862,7 @@ static int fman_probe(struct platform_device *of_dev)
 
 	dev = &of_dev->dev;
 
-	fman = read_dts_node(of_dev);
+	fman = read_dts_yesde(of_dev);
 	if (!fman)
 		return -EIO;
 

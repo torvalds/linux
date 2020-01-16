@@ -45,7 +45,7 @@ static int s5c73m3_get_af_status(struct s5c73m3 *state, struct v4l2_ctrl *ctrl)
 		ctrl->val = V4L2_AUTO_FOCUS_STATUS_REACHED;
 		break;
 	default:
-		v4l2_info(&state->sensor_sd, "Unknown AF status %#x\n", reg);
+		v4l2_info(&state->sensor_sd, "Unkyeswn AF status %#x\n", reg);
 		/* Fall through */
 	case REG_CAF_STATUS_UNFOCUSED:
 	case REG_AF_STATUS_UNFOCUSED:
@@ -345,8 +345,8 @@ static int s5c73m3_s_ctrl(struct v4l2_ctrl *ctrl)
 
 	mutex_lock(&state->lock);
 	/*
-	 * If the device is not powered up by the host driver do
-	 * not apply any controls to H/W at this time. Instead
+	 * If the device is yest powered up by the host driver do
+	 * yest apply any controls to H/W at this time. Instead
 	 * the controls will be restored right after power-up.
 	 */
 	if (state->power == 0)

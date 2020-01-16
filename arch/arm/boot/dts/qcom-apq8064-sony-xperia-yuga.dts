@@ -337,7 +337,7 @@
 				gpio@150 {
 					gpio_keys_pin_a: gpio-keys-pin-active {
 						pins = "gpio3", "gpio4", "gpio29", "gpio35";
-						function = "normal";
+						function = "yesrmal";
 
 						bias-pull-up;
 						drive-push-pull;

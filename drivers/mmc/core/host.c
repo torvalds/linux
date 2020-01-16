@@ -91,7 +91,7 @@ void mmc_retune_disable(struct mmc_host *host)
 	mmc_retune_unpause(host);
 	host->can_retune = 0;
 	del_timer_sync(&host->retune_timer);
-	host->retune_now = 0;
+	host->retune_yesw = 0;
 	host->need_retune = 0;
 }
 
@@ -104,7 +104,7 @@ EXPORT_SYMBOL(mmc_retune_timer_stop);
 void mmc_retune_hold(struct mmc_host *host)
 {
 	if (!host->hold_retune)
-		host->retune_now = 1;
+		host->retune_yesw = 1;
 	host->hold_retune += 1;
 }
 
@@ -122,8 +122,8 @@ int mmc_retune(struct mmc_host *host)
 	bool return_to_hs400 = false;
 	int err;
 
-	if (host->retune_now)
-		host->retune_now = 0;
+	if (host->retune_yesw)
+		host->retune_yesw = 0;
 	else
 		return 0;
 
@@ -162,11 +162,11 @@ static void mmc_retune_timer(struct timer_list *t)
 }
 
 /**
- *	mmc_of_parse() - parse host's device-tree node
- *	@host: host whose node should be parsed.
+ *	mmc_of_parse() - parse host's device-tree yesde
+ *	@host: host whose yesde should be parsed.
  *
  * To keep the rest of the MMC subsystem unaware of whether DT has been
- * used to to instantiate and configure this host instance or not, we
+ * used to to instantiate and configure this host instance or yest, we
  * parse the properties and set respective generic mmc-host flags and
  * parameters.
  */
@@ -178,7 +178,7 @@ int mmc_of_parse(struct mmc_host *host)
 	bool cd_cap_invert, cd_gpio_invert = false;
 	bool ro_cap_invert, ro_gpio_invert = false;
 
-	if (!dev || !dev_fwnode(dev))
+	if (!dev || !dev_fwyesde(dev))
 		return 0;
 
 	/* "bus-width" is translated to MMC_CAP_*_BIT_DATA flags */
@@ -213,13 +213,13 @@ int mmc_of_parse(struct mmc_host *host)
 	 * polarity inversion is specified in DT, one of MMC_CAP2_CD_ACTIVE_HIGH
 	 * and MMC_CAP2_RO_ACTIVE_HIGH capability-2 flags is set. If the
 	 * "broken-cd" property is provided, the MMC_CAP_NEEDS_POLL capability
-	 * is set. If the "non-removable" property is found, the
-	 * MMC_CAP_NONREMOVABLE capability is set and no card-detection
+	 * is set. If the "yesn-removable" property is found, the
+	 * MMC_CAP_NONREMOVABLE capability is set and yes card-detection
 	 * configuration is performed.
 	 */
 
 	/* Parse Card Detection */
-	if (device_property_read_bool(dev, "non-removable")) {
+	if (device_property_read_bool(dev, "yesn-removable")) {
 		host->caps |= MMC_CAP_NONREMOVABLE;
 	} else {
 		cd_cap_invert = device_property_read_bool(dev, "cd-inverted");
@@ -243,12 +243,12 @@ int mmc_of_parse(struct mmc_host *host)
 		 * There are two ways to flag that the CD line is inverted:
 		 * through the cd-inverted flag and by the GPIO line itself
 		 * being inverted from the GPIO subsystem. This is a leftover
-		 * from the times when the GPIO subsystem did not make it
+		 * from the times when the GPIO subsystem did yest make it
 		 * possible to flag a line as inverted.
 		 *
 		 * If the capability on the host AND the GPIO line are
 		 * both inverted, the end result is that the CD line is
-		 * not inverted.
+		 * yest inverted.
 		 */
 		if (cd_cap_invert ^ cd_gpio_invert)
 			host->caps2 |= MMC_CAP2_CD_ACTIVE_HIGH;
@@ -313,14 +313,14 @@ int mmc_of_parse(struct mmc_host *host)
 		host->caps2 |= MMC_CAP2_HS400_1_2V | MMC_CAP2_HS200_1_2V_SDR;
 	if (device_property_read_bool(dev, "mmc-hs400-enhanced-strobe"))
 		host->caps2 |= MMC_CAP2_HS400_ES;
-	if (device_property_read_bool(dev, "no-sdio"))
+	if (device_property_read_bool(dev, "yes-sdio"))
 		host->caps2 |= MMC_CAP2_NO_SDIO;
-	if (device_property_read_bool(dev, "no-sd"))
+	if (device_property_read_bool(dev, "yes-sd"))
 		host->caps2 |= MMC_CAP2_NO_SD;
-	if (device_property_read_bool(dev, "no-mmc"))
+	if (device_property_read_bool(dev, "yes-mmc"))
 		host->caps2 |= MMC_CAP2_NO_MMC;
 
-	/* Must be after "non-removable" check */
+	/* Must be after "yesn-removable" check */
 	if (device_property_read_u32(dev, "fixed-emmc-driver-type", &drv_type) == 0) {
 		if (host->caps & MMC_CAP_NONREMOVABLE)
 			host->fixed_drv_type = drv_type;
@@ -332,7 +332,7 @@ int mmc_of_parse(struct mmc_host *host)
 	host->dsr_req = !device_property_read_u32(dev, "dsr", &host->dsr);
 	if (host->dsr_req && (host->dsr & ~0xffff)) {
 		dev_err(host->parent,
-			"device tree specified broken value for DSR: 0x%x, ignoring\n",
+			"device tree specified broken value for DSR: 0x%x, igyesring\n",
 			host->dsr);
 		host->dsr_req = 0;
 	}
@@ -347,14 +347,14 @@ EXPORT_SYMBOL(mmc_of_parse);
 
 /**
  * mmc_of_parse_voltage - return mask of supported voltages
- * @np: The device node need to be parsed.
+ * @np: The device yesde need to be parsed.
  * @mask: mask of voltages available for MMC/SD/SDIO
  *
- * Parse the "voltage-ranges" DT property, returning zero if it is not
- * found, negative errno if the voltage-range specification is invalid,
+ * Parse the "voltage-ranges" DT property, returning zero if it is yest
+ * found, negative erryes if the voltage-range specification is invalid,
  * or one if the voltage-range is specified and successfully parsed.
  */
-int mmc_of_parse_voltage(struct device_node *np, u32 *mask)
+int mmc_of_parse_voltage(struct device_yesde *np, u32 *mask)
 {
 	const u32 *voltage_ranges;
 	int num_ranges, i;
@@ -436,7 +436,7 @@ struct mmc_host *mmc_alloc_host(int extra, struct device *dev)
 	timer_setup(&host->retune_timer, mmc_retune_timer, 0);
 
 	/*
-	 * By default, hosts do not support SGIO or large requests.
+	 * By default, hosts do yest support SGIO or large requests.
 	 * They have to set these according to their abilities.
 	 */
 	host->max_segs = 1;
@@ -480,7 +480,7 @@ int mmc_add_host(struct mmc_host *host)
 #endif
 
 	mmc_start_host(host);
-	mmc_register_pm_notifier(host);
+	mmc_register_pm_yestifier(host);
 
 	return 0;
 }
@@ -497,7 +497,7 @@ EXPORT_SYMBOL(mmc_add_host);
  */
 void mmc_remove_host(struct mmc_host *host)
 {
-	mmc_unregister_pm_notifier(host);
+	mmc_unregister_pm_yestifier(host);
 	mmc_stop_host(host);
 
 #ifdef CONFIG_DEBUG_FS

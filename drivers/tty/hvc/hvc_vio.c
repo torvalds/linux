@@ -13,7 +13,7 @@
  * Copyright (C) 2004 IBM Corporation
  *
  * Additional Author(s):
- *  Ryan S. Arnold <rsa@us.ibm.com>
+ *  Ryan S. Aryesld <rsa@us.ibm.com>
  *
  * TODO:
  *
@@ -54,7 +54,7 @@ typedef enum hv_protocol {
 } hv_protocol_t;
 
 struct hvterm_priv {
-	u32			termno;	/* HV term number */
+	u32			termyes;	/* HV term number */
 	hv_protocol_t		proto;	/* Raw data or HVSI packets */
 	struct hvsi_priv	hvsi;	/* HVSI specific data */
 	spinlock_t		buf_lock;
@@ -66,9 +66,9 @@ static struct hvterm_priv *hvterm_privs[MAX_NR_HVC_CONSOLES];
 /* For early boot console */
 static struct hvterm_priv hvterm_priv0;
 
-static int hvterm_raw_get_chars(uint32_t vtermno, char *buf, int count)
+static int hvterm_raw_get_chars(uint32_t vtermyes, char *buf, int count)
 {
-	struct hvterm_priv *pv = hvterm_privs[vtermno];
+	struct hvterm_priv *pv = hvterm_privs[vtermyes];
 	unsigned long i;
 	unsigned long flags;
 	int got;
@@ -80,7 +80,7 @@ static int hvterm_raw_get_chars(uint32_t vtermno, char *buf, int count)
 
 	if (pv->left == 0) {
 		pv->offset = 0;
-		pv->left = hvc_get_chars(pv->termno, pv->buf, count);
+		pv->left = hvc_get_chars(pv->termyes, pv->buf, count);
 
 		/*
 		 * Work around a HV bug where it gives us a null
@@ -109,33 +109,33 @@ static int hvterm_raw_get_chars(uint32_t vtermno, char *buf, int count)
 
 /**
  * hvterm_raw_put_chars: send characters to firmware for given vterm adapter
- * @vtermno: The virtual terminal number.
+ * @vtermyes: The virtual terminal number.
  * @buf: The characters to send. Because of the underlying hypercall in
  *       hvc_put_chars(), this buffer must be at least 16 bytes long, even if
  *       you are sending fewer chars.
  * @count: number of chars to send.
  */
-static int hvterm_raw_put_chars(uint32_t vtermno, const char *buf, int count)
+static int hvterm_raw_put_chars(uint32_t vtermyes, const char *buf, int count)
 {
-	struct hvterm_priv *pv = hvterm_privs[vtermno];
+	struct hvterm_priv *pv = hvterm_privs[vtermyes];
 
 	if (WARN_ON(!pv))
 		return 0;
 
-	return hvc_put_chars(pv->termno, buf, count);
+	return hvc_put_chars(pv->termyes, buf, count);
 }
 
 static const struct hv_ops hvterm_raw_ops = {
 	.get_chars = hvterm_raw_get_chars,
 	.put_chars = hvterm_raw_put_chars,
-	.notifier_add = notifier_add_irq,
-	.notifier_del = notifier_del_irq,
-	.notifier_hangup = notifier_hangup_irq,
+	.yestifier_add = yestifier_add_irq,
+	.yestifier_del = yestifier_del_irq,
+	.yestifier_hangup = yestifier_hangup_irq,
 };
 
-static int hvterm_hvsi_get_chars(uint32_t vtermno, char *buf, int count)
+static int hvterm_hvsi_get_chars(uint32_t vtermyes, char *buf, int count)
 {
-	struct hvterm_priv *pv = hvterm_privs[vtermno];
+	struct hvterm_priv *pv = hvterm_privs[vtermyes];
 
 	if (WARN_ON(!pv))
 		return 0;
@@ -143,9 +143,9 @@ static int hvterm_hvsi_get_chars(uint32_t vtermno, char *buf, int count)
 	return hvsilib_get_chars(&pv->hvsi, buf, count);
 }
 
-static int hvterm_hvsi_put_chars(uint32_t vtermno, const char *buf, int count)
+static int hvterm_hvsi_put_chars(uint32_t vtermyes, const char *buf, int count)
 {
-	struct hvterm_priv *pv = hvterm_privs[vtermno];
+	struct hvterm_priv *pv = hvterm_privs[vtermyes];
 
 	if (WARN_ON(!pv))
 		return 0;
@@ -155,12 +155,12 @@ static int hvterm_hvsi_put_chars(uint32_t vtermno, const char *buf, int count)
 
 static int hvterm_hvsi_open(struct hvc_struct *hp, int data)
 {
-	struct hvterm_priv *pv = hvterm_privs[hp->vtermno];
+	struct hvterm_priv *pv = hvterm_privs[hp->vtermyes];
 	int rc;
 
-	pr_devel("HVSI@%x: open !\n", pv->termno);
+	pr_devel("HVSI@%x: open !\n", pv->termyes);
 
-	rc = notifier_add_irq(hp, data);
+	rc = yestifier_add_irq(hp, data);
 	if (rc)
 		return rc;
 
@@ -169,29 +169,29 @@ static int hvterm_hvsi_open(struct hvc_struct *hp, int data)
 
 static void hvterm_hvsi_close(struct hvc_struct *hp, int data)
 {
-	struct hvterm_priv *pv = hvterm_privs[hp->vtermno];
+	struct hvterm_priv *pv = hvterm_privs[hp->vtermyes];
 
-	pr_devel("HVSI@%x: do close !\n", pv->termno);
+	pr_devel("HVSI@%x: do close !\n", pv->termyes);
 
 	hvsilib_close(&pv->hvsi, hp);
 
-	notifier_del_irq(hp, data);
+	yestifier_del_irq(hp, data);
 }
 
 void hvterm_hvsi_hangup(struct hvc_struct *hp, int data)
 {
-	struct hvterm_priv *pv = hvterm_privs[hp->vtermno];
+	struct hvterm_priv *pv = hvterm_privs[hp->vtermyes];
 
-	pr_devel("HVSI@%x: do hangup !\n", pv->termno);
+	pr_devel("HVSI@%x: do hangup !\n", pv->termyes);
 
 	hvsilib_close(&pv->hvsi, hp);
 
-	notifier_hangup_irq(hp, data);
+	yestifier_hangup_irq(hp, data);
 }
 
 static int hvterm_hvsi_tiocmget(struct hvc_struct *hp)
 {
-	struct hvterm_priv *pv = hvterm_privs[hp->vtermno];
+	struct hvterm_priv *pv = hvterm_privs[hp->vtermyes];
 
 	if (!pv)
 		return -EINVAL;
@@ -201,10 +201,10 @@ static int hvterm_hvsi_tiocmget(struct hvc_struct *hp)
 static int hvterm_hvsi_tiocmset(struct hvc_struct *hp, unsigned int set,
 				unsigned int clear)
 {
-	struct hvterm_priv *pv = hvterm_privs[hp->vtermno];
+	struct hvterm_priv *pv = hvterm_privs[hp->vtermyes];
 
 	pr_devel("HVSI@%x: Set modem control, set=%x,clr=%x\n",
-		 pv->termno, set, clear);
+		 pv->termyes, set, clear);
 
 	if (set & TIOCM_DTR)
 		hvsilib_write_mctrl(&pv->hvsi, 1);
@@ -217,9 +217,9 @@ static int hvterm_hvsi_tiocmset(struct hvc_struct *hp, unsigned int set,
 static const struct hv_ops hvterm_hvsi_ops = {
 	.get_chars = hvterm_hvsi_get_chars,
 	.put_chars = hvterm_hvsi_put_chars,
-	.notifier_add = hvterm_hvsi_open,
-	.notifier_del = hvterm_hvsi_close,
-	.notifier_hangup = hvterm_hvsi_hangup,
+	.yestifier_add = hvterm_hvsi_open,
+	.yestifier_del = hvterm_hvsi_close,
+	.yestifier_hangup = hvterm_hvsi_hangup,
 	.tiocmget = hvterm_hvsi_tiocmget,
 	.tiocmset = hvterm_hvsi_tiocmset,
 };
@@ -300,59 +300,59 @@ static int hvc_vio_probe(struct vio_dev *vdev,
 	struct hvc_struct *hp;
 	struct hvterm_priv *pv;
 	hv_protocol_t proto;
-	int i, termno = -1;
+	int i, termyes = -1;
 
 	/* probed with invalid parameters. */
 	if (!vdev || !id)
 		return -EPERM;
 
-	if (of_device_is_compatible(vdev->dev.of_node, "hvterm1")) {
+	if (of_device_is_compatible(vdev->dev.of_yesde, "hvterm1")) {
 		proto = HV_PROTOCOL_RAW;
 		ops = &hvterm_raw_ops;
-	} else if (of_device_is_compatible(vdev->dev.of_node, "hvterm-protocol")) {
+	} else if (of_device_is_compatible(vdev->dev.of_yesde, "hvterm-protocol")) {
 		proto = HV_PROTOCOL_HVSI;
 		ops = &hvterm_hvsi_ops;
 	} else {
-		pr_err("hvc_vio: Unknown protocol for %pOF\n", vdev->dev.of_node);
+		pr_err("hvc_vio: Unkyeswn protocol for %pOF\n", vdev->dev.of_yesde);
 		return -ENXIO;
 	}
 
 	pr_devel("hvc_vio_probe() device %pOF, using %s protocol\n",
-		 vdev->dev.of_node,
+		 vdev->dev.of_yesde,
 		 proto == HV_PROTOCOL_RAW ? "raw" : "hvsi");
 
 	/* Is it our boot one ? */
 	if (hvterm_privs[0] == &hvterm_priv0 &&
-	    vdev->unit_address == hvterm_priv0.termno) {
+	    vdev->unit_address == hvterm_priv0.termyes) {
 		pv = hvterm_privs[0];
-		termno = 0;
-		pr_devel("->boot console, using termno 0\n");
+		termyes = 0;
+		pr_devel("->boot console, using termyes 0\n");
 	}
-	/* nope, allocate a new one */
+	/* yespe, allocate a new one */
 	else {
-		for (i = 0; i < MAX_NR_HVC_CONSOLES && termno < 0; i++)
+		for (i = 0; i < MAX_NR_HVC_CONSOLES && termyes < 0; i++)
 			if (!hvterm_privs[i])
-				termno = i;
-		pr_devel("->non-boot console, using termno %d\n", termno);
-		if (termno < 0)
+				termyes = i;
+		pr_devel("->yesn-boot console, using termyes %d\n", termyes);
+		if (termyes < 0)
 			return -ENODEV;
 		pv = kzalloc(sizeof(struct hvterm_priv), GFP_KERNEL);
 		if (!pv)
 			return -ENOMEM;
-		pv->termno = vdev->unit_address;
+		pv->termyes = vdev->unit_address;
 		pv->proto = proto;
 		spin_lock_init(&pv->buf_lock);
-		hvterm_privs[termno] = pv;
+		hvterm_privs[termyes] = pv;
 		hvsilib_init(&pv->hvsi, hvc_get_chars, hvc_put_chars,
-			     pv->termno, 0);
+			     pv->termyes, 0);
 	}
 
-	hp = hvc_alloc(termno, vdev->irq, ops, MAX_VIO_PUT_CHARS);
+	hp = hvc_alloc(termyes, vdev->irq, ops, MAX_VIO_PUT_CHARS);
 	if (IS_ERR(hp))
 		return PTR_ERR(hp);
 	dev_set_drvdata(&vdev->dev, hp);
 
-	/* register udbg if it's not there already for console 0 */
+	/* register udbg if it's yest there already for console 0 */
 	if (hp->index == 0 && !udbg_putc) {
 		udbg_putc = udbg_hvc_putc;
 		udbg_getc = udbg_hvc_getc;
@@ -384,17 +384,17 @@ device_initcall(hvc_vio_init); /* after drivers/tty/hvc/hvc_console.c */
 
 void __init hvc_vio_init_early(void)
 {
-	const __be32 *termno;
+	const __be32 *termyes;
 	const struct hv_ops *ops;
 
 	/* find the boot console from /chosen/stdout */
 	/* Check if it's a virtual terminal */
-	if (!of_node_name_prefix(of_stdout, "vty"))
+	if (!of_yesde_name_prefix(of_stdout, "vty"))
 		return;
-	termno = of_get_property(of_stdout, "reg", NULL);
-	if (termno == NULL)
+	termyes = of_get_property(of_stdout, "reg", NULL);
+	if (termyes == NULL)
 		return;
-	hvterm_priv0.termno = of_read_number(termno, 1);
+	hvterm_priv0.termyes = of_read_number(termyes, 1);
 	spin_lock_init(&hvterm_priv0.buf_lock);
 	hvterm_privs[0] = &hvterm_priv0;
 
@@ -407,8 +407,8 @@ void __init hvc_vio_init_early(void)
 		hvterm_priv0.proto = HV_PROTOCOL_HVSI;
 		ops = &hvterm_hvsi_ops;
 		hvsilib_init(&hvterm_priv0.hvsi, hvc_get_chars, hvc_put_chars,
-			     hvterm_priv0.termno, 1);
-		/* HVSI, perform the handshake now */
+			     hvterm_priv0.termyes, 1);
+		/* HVSI, perform the handshake yesw */
 		hvsilib_establish(&hvterm_priv0.hvsi);
 	} else
 		return;
@@ -443,7 +443,7 @@ void __init udbg_init_debug_lpar(void)
 		return;
 
 	hvterm_privs[0] = &hvterm_priv0;
-	hvterm_priv0.termno = 0;
+	hvterm_priv0.termyes = 0;
 	hvterm_priv0.proto = HV_PROTOCOL_RAW;
 	spin_lock_init(&hvterm_priv0.buf_lock);
 	udbg_putc = udbg_hvc_putc;
@@ -460,14 +460,14 @@ void __init udbg_init_debug_lpar_hvsi(void)
 		return;
 
 	hvterm_privs[0] = &hvterm_priv0;
-	hvterm_priv0.termno = CONFIG_PPC_EARLY_DEBUG_HVSI_VTERMNO;
+	hvterm_priv0.termyes = CONFIG_PPC_EARLY_DEBUG_HVSI_VTERMNO;
 	hvterm_priv0.proto = HV_PROTOCOL_HVSI;
 	spin_lock_init(&hvterm_priv0.buf_lock);
 	udbg_putc = udbg_hvc_putc;
 	udbg_getc = udbg_hvc_getc;
 	udbg_getc_poll = udbg_hvc_getc_poll;
 	hvsilib_init(&hvterm_priv0.hvsi, hvc_get_chars, hvc_put_chars,
-		     hvterm_priv0.termno, 1);
+		     hvterm_priv0.termyes, 1);
 	hvsilib_establish(&hvterm_priv0.hvsi);
 }
 #endif /* CONFIG_PPC_EARLY_DEBUG_LPAR_HVSI */

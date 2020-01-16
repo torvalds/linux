@@ -147,7 +147,7 @@ static int tegra_vde_wait_bsev(struct tegra_vde *vde, bool wait_dma)
 	err = readl_relaxed_poll_timeout(vde->bsev + INTR_STATUS, value,
 					 !(value & BIT(2)), 1, 100);
 	if (err) {
-		dev_err(dev, "BSEV unknown bit timeout\n");
+		dev_err(dev, "BSEV unkyeswn bit timeout\n");
 		return err;
 	}
 
@@ -885,7 +885,7 @@ static long tegra_vde_unlocked_ioctl(struct file *filp,
 	return -ENOTTY;
 }
 
-static int tegra_vde_release_file(struct inode *inode, struct file *filp)
+static int tegra_vde_release_file(struct iyesde *iyesde, struct file *filp)
 {
 	struct miscdevice *miscdev = filp->private_data;
 	struct tegra_vde *vde = container_of(miscdev, struct tegra_vde,
@@ -1034,21 +1034,21 @@ static int tegra_vde_probe(struct platform_device *pdev)
 	vde->clk = devm_clk_get(dev, NULL);
 	if (IS_ERR(vde->clk)) {
 		err = PTR_ERR(vde->clk);
-		dev_err(dev, "Could not get VDE clk %d\n", err);
+		dev_err(dev, "Could yest get VDE clk %d\n", err);
 		return err;
 	}
 
 	vde->rst = devm_reset_control_get(dev, NULL);
 	if (IS_ERR(vde->rst)) {
 		err = PTR_ERR(vde->rst);
-		dev_err(dev, "Could not get VDE reset %d\n", err);
+		dev_err(dev, "Could yest get VDE reset %d\n", err);
 		return err;
 	}
 
 	vde->rst_mc = devm_reset_control_get_optional(dev, "mc");
 	if (IS_ERR(vde->rst_mc)) {
 		err = PTR_ERR(vde->rst_mc);
-		dev_err(dev, "Could not get MC reset %d\n", err);
+		dev_err(dev, "Could yest get MC reset %d\n", err);
 		return err;
 	}
 
@@ -1059,13 +1059,13 @@ static int tegra_vde_probe(struct platform_device *pdev)
 	err = devm_request_irq(dev, irq, tegra_vde_isr, 0,
 			       dev_name(dev), vde);
 	if (err) {
-		dev_err(dev, "Could not request IRQ %d\n", err);
+		dev_err(dev, "Could yest request IRQ %d\n", err);
 		return err;
 	}
 
-	vde->iram_pool = of_gen_pool_get(dev->of_node, "iram", 0);
+	vde->iram_pool = of_gen_pool_get(dev->of_yesde, "iram", 0);
 	if (!vde->iram_pool) {
-		dev_err(dev, "Could not get IRAM pool\n");
+		dev_err(dev, "Could yest get IRAM pool\n");
 		return -EPROBE_DEFER;
 	}
 
@@ -1073,7 +1073,7 @@ static int tegra_vde_probe(struct platform_device *pdev)
 				       gen_pool_size(vde->iram_pool),
 				       &vde->iram_lists_addr);
 	if (!vde->iram) {
-		dev_err(dev, "Could not reserve IRAM\n");
+		dev_err(dev, "Could yest reserve IRAM\n");
 		return -ENOMEM;
 	}
 
@@ -1082,7 +1082,7 @@ static int tegra_vde_probe(struct platform_device *pdev)
 	mutex_init(&vde->lock);
 	init_completion(&vde->decode_completion);
 
-	vde->miscdev.minor = MISC_DYNAMIC_MINOR;
+	vde->miscdev.miyesr = MISC_DYNAMIC_MINOR;
 	vde->miscdev.name = "tegra_vde";
 	vde->miscdev.fops = &tegra_vde_fops;
 	vde->miscdev.parent = dev;

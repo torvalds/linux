@@ -85,7 +85,7 @@ static const u8 VIA686A_REG_TEMP_HYST[]	= { 0x3a, 0x3e, 0x1e };
  * 3-2 for temp2, 5-4 for temp3).  Modes are:
  * 00 interrupt stays as long as value is out-of-range
  * 01 interrupt is cleared once register is read (default)
- * 10 comparator mode- like 00, but ignores hysteresis
+ * 10 comparator mode- like 00, but igyesres hysteresis
  * 11 same as 00
  */
 #define VIA686A_REG_TEMP_MODE		0x4b
@@ -151,7 +151,7 @@ static inline long IN_FROM_REG(u8 val, int in_num)
 /********* FAN RPM CONVERSIONS ********/
 /*
  * Higher register values = slower fans (the fan's strobe gates a counter).
- * But this chip saturates back at 0, not at 255 like all the other chips.
+ * But this chip saturates back at 0, yest at 255 like all the other chips.
  * So, 0 means 0 RPM
  */
 static inline u8 FAN_TO_REG(long rpm, int div)
@@ -175,7 +175,7 @@ static inline u8 FAN_TO_REG(long rpm, int div)
  *	else
  *		return double(temp)*0.924-127.33;
  *
- * A fifth-order polynomial fits the unofficial data (provided by Alex van
+ * A fifth-order polyyesmial fits the uyesfficial data (provided by Alex van
  * Kaam <darkside@chello.nl>) a bit better.  It also give more reasonable
  * numbers on my machine (ie. they agree with what my BIOS tells me).
  * Here's the fifth-order fit to the 8-bit data:
@@ -185,12 +185,12 @@ static inline u8 FAN_TO_REG(long rpm, int div)
  * (2000-10-25- RFD: thanks to Uwe Andersen <uandersen@mayah.com> for
  * finding my typos in this formula!)
  *
- * Alas, none of the elegant function-fit solutions will work because we
+ * Alas, yesne of the elegant function-fit solutions will work because we
  * aren't allowed to use floating point in the kernel and doing it with
- * integers doesn't provide enough precision.  So we'll do boring old
- * look-up table stuff.  The unofficial data (see below) have effectively
+ * integers doesn't provide eyesugh precision.  So we'll do boring old
+ * look-up table stuff.  The uyesfficial data (see below) have effectively
  * 7-bit resolution (they are rounded to the nearest degree).  I'm assuming
- * that the transfer function of the device is monotonic and smooth, so a
+ * that the transfer function of the device is moyestonic and smooth, so a
  * smooth function fit to the data will allow us to get better precision.
  * I used the 5th-order poly fit described above and solved for
  * VIA register values 0-255.  I *10 before rounding, so we get tenth-degree
@@ -283,7 +283,7 @@ static inline long TEMP_FROM_REG10(u16 val)
 	u16 eight_bits = val >> 2;
 	u16 two_bits = val & 3;
 
-	/* no interpolation for these */
+	/* yes interpolation for these */
 	if (two_bits == 0 || eight_bits == 255)
 		return TEMP_FROM_REG(eight_bits);
 
@@ -874,7 +874,7 @@ static int via686a_pci_probe(struct pci_dev *dev,
 	address = val & ~(VIA686A_EXTENT - 1);
 	if (address == 0) {
 		dev_err(&dev->dev,
-			"base address not set - upgrade BIOS or use force_addr=0xaddr\n");
+			"base address yest set - upgrade BIOS or use force_addr=0xaddr\n");
 		return -ENODEV;
 	}
 

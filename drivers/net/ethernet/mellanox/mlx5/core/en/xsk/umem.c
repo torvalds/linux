@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
-/* Copyright (c) 2019 Mellanox Technologies. */
+/* Copyright (c) 2019 Mellayesx Techyeslogies. */
 
 #include <net/xdp_sock.h>
 #include "umem.h"
@@ -90,13 +90,13 @@ static void mlx5e_xsk_remove_umem(struct mlx5e_xsk *xsk, u16 ix)
 
 static bool mlx5e_xsk_is_umem_sane(struct xdp_umem *umem)
 {
-	return umem->headroom <= 0xffff && umem->chunk_size_nohr <= 0xffff;
+	return umem->headroom <= 0xffff && umem->chunk_size_yeshr <= 0xffff;
 }
 
 void mlx5e_build_xsk_param(struct xdp_umem *umem, struct mlx5e_xsk_param *xsk)
 {
 	xsk->headroom = umem->headroom;
-	xsk->chunk_size = umem->chunk_size_nohr + umem->headroom;
+	xsk->chunk_size = umem->chunk_size_yeshr + umem->headroom;
 }
 
 static int mlx5e_xsk_enable_locked(struct mlx5e_priv *priv,
@@ -167,7 +167,7 @@ err_unmap_umem:
 
 validate_closed:
 	/* Check the configuration in advance, rather than fail at a later stage
-	 * (in mlx5e_xdp_set or on open) and end up with no channels.
+	 * (in mlx5e_xdp_set or on open) and end up with yes channels.
 	 */
 	if (!mlx5e_validate_xsk_param(params, &xsk, priv->mdev)) {
 		err = -EINVAL;

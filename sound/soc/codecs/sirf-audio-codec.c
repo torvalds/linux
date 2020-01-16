@@ -88,7 +88,7 @@ static struct snd_kcontrol_new left_dac_to_speaker_lineout_switch_control =
 static struct snd_kcontrol_new right_dac_to_speaker_lineout_switch_control =
 	SOC_DAPM_SINGLE("Switch", AUDIO_IC_CODEC_CTRL0, 10, 1, 0);
 
-/* After enable adc, Delay 200ms to avoid pop noise */
+/* After enable adc, Delay 200ms to avoid pop yesise */
 static int adc_enable_delay_event(struct snd_soc_dapm_widget *w,
 		struct snd_kcontrol *kcontrol, int event)
 {
@@ -338,7 +338,7 @@ static int sirf_audio_codec_trigger(struct snd_pcm_substream *substream,
 
 	/*
 	 * This is a workaround, When stop playback,
-	 * need disable HP amp, avoid the current noise.
+	 * need disable HP amp, avoid the current yesise.
 	 */
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_STOP:
@@ -398,7 +398,7 @@ static int sirf_audio_codec_probe(struct snd_soc_component *component)
 
 	pm_runtime_enable(component->dev);
 
-	if (of_device_is_compatible(component->dev->of_node, "sirf,prima2-audio-codec")) {
+	if (of_device_is_compatible(component->dev->of_yesde, "sirf,prima2-audio-codec")) {
 		snd_soc_dapm_new_controls(dapm,
 			prima2_output_driver_dapm_widgets,
 			ARRAY_SIZE(prima2_output_driver_dapm_widgets));
@@ -408,7 +408,7 @@ static int sirf_audio_codec_probe(struct snd_soc_component *component)
 			volume_controls_prima2,
 			ARRAY_SIZE(volume_controls_prima2));
 	}
-	if (of_device_is_compatible(component->dev->of_node, "sirf,atlas6-audio-codec")) {
+	if (of_device_is_compatible(component->dev->of_yesde, "sirf,atlas6-audio-codec")) {
 		snd_soc_dapm_new_controls(dapm,
 			atlas6_output_driver_dapm_widgets,
 			ARRAY_SIZE(atlas6_output_driver_dapm_widgets));
@@ -436,7 +436,7 @@ static const struct snd_soc_component_driver soc_codec_device_sirf_audio_codec =
 	.num_dapm_routes	= ARRAY_SIZE(sirf_audio_codec_map),
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
+	.yesn_legacy_dai_naming	= 1,
 };
 
 static const struct of_device_id sirf_audio_codec_of_match[] = {
@@ -497,13 +497,13 @@ static int sirf_audio_codec_driver_probe(struct platform_device *pdev)
 	}
 
 	/*
-	 * Always open charge pump, if not, when the charge pump closed the
-	 * adc will not stable
+	 * Always open charge pump, if yest, when the charge pump closed the
+	 * adc will yest stable
 	 */
 	regmap_update_bits(sirf_audio_codec->regmap, AUDIO_IC_CODEC_CTRL0,
 		IC_CPFREQ, IC_CPFREQ);
 
-	if (of_device_is_compatible(pdev->dev.of_node, "sirf,atlas6-audio-codec"))
+	if (of_device_is_compatible(pdev->dev.of_yesde, "sirf,atlas6-audio-codec"))
 		regmap_update_bits(sirf_audio_codec->regmap,
 				AUDIO_IC_CODEC_CTRL0, IC_CPEN, IC_CPEN);
 	return 0;

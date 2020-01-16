@@ -111,9 +111,9 @@ static inline int clk_on_imx6ull(void)
 	return of_machine_is_compatible("fsl,imx6ull");
 }
 
-static void __init imx6ul_clocks_init(struct device_node *ccm_node)
+static void __init imx6ul_clocks_init(struct device_yesde *ccm_yesde)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 	void __iomem *base;
 
 	clk_hw_data = kzalloc(struct_size(clk_hw_data, hws,
@@ -126,16 +126,16 @@ static void __init imx6ul_clocks_init(struct device_node *ccm_node)
 
 	hws[IMX6UL_CLK_DUMMY] = imx_clk_hw_fixed("dummy", 0);
 
-	hws[IMX6UL_CLK_CKIL] = imx_obtain_fixed_clk_hw(ccm_node, "ckil");
-	hws[IMX6UL_CLK_OSC] = imx_obtain_fixed_clk_hw(ccm_node, "osc");
+	hws[IMX6UL_CLK_CKIL] = imx_obtain_fixed_clk_hw(ccm_yesde, "ckil");
+	hws[IMX6UL_CLK_OSC] = imx_obtain_fixed_clk_hw(ccm_yesde, "osc");
 
 	/* ipp_di clock is external input */
-	hws[IMX6UL_CLK_IPP_DI0] = imx_obtain_fixed_clk_hw(ccm_node, "ipp_di0");
-	hws[IMX6UL_CLK_IPP_DI1] = imx_obtain_fixed_clk_hw(ccm_node, "ipp_di1");
+	hws[IMX6UL_CLK_IPP_DI0] = imx_obtain_fixed_clk_hw(ccm_yesde, "ipp_di0");
+	hws[IMX6UL_CLK_IPP_DI1] = imx_obtain_fixed_clk_hw(ccm_yesde, "ipp_di1");
 
-	np = of_find_compatible_node(NULL, NULL, "fsl,imx6ul-anatop");
+	np = of_find_compatible_yesde(NULL, NULL, "fsl,imx6ul-anatop");
 	base = of_iomap(np, 0);
-	of_node_put(np);
+	of_yesde_put(np);
 	WARN_ON(!base);
 
 	hws[IMX6UL_PLL1_BYPASS_SRC] = imx_clk_hw_mux("pll1_bypass_src", base + 0x00, 14, 1, pll_bypass_src_sels, ARRAY_SIZE(pll_bypass_src_sels));
@@ -163,7 +163,7 @@ static void __init imx6ul_clocks_init(struct device_node *ccm_node)
 	hws[IMX6UL_PLL7_BYPASS] = imx_clk_hw_mux_flags("pll7_bypass", base + 0x20, 16, 1, pll7_bypass_sels, ARRAY_SIZE(pll7_bypass_sels), CLK_SET_RATE_PARENT);
 	hws[IMX6UL_CLK_CSI_SEL] = imx_clk_hw_mux_flags("csi_sel", base + 0x3c, 9, 2, csi_sels, ARRAY_SIZE(csi_sels), CLK_SET_RATE_PARENT);
 
-	/* Do not bypass PLLs initially */
+	/* Do yest bypass PLLs initially */
 	clk_set_parent(hws[IMX6UL_PLL1_BYPASS]->clk, hws[IMX6UL_CLK_PLL1]->clk);
 	clk_set_parent(hws[IMX6UL_PLL2_BYPASS]->clk, hws[IMX6UL_CLK_PLL2]->clk);
 	clk_set_parent(hws[IMX6UL_PLL3_BYPASS]->clk, hws[IMX6UL_CLK_PLL3]->clk);
@@ -182,7 +182,7 @@ static void __init imx6ul_clocks_init(struct device_node *ccm_node)
 
 	/*
 	 * Bit 20 is the reserved and read-only bit, we do this only for:
-	 * - Do nothing for usbphy clk_enable/disable
+	 * - Do yesthing for usbphy clk_enable/disable
 	 * - Keep refcount when do usbphy clk_enable/disable, in that case,
 	 * the clk framework many need to enable/disable usbphy's parent
 	 */
@@ -230,7 +230,7 @@ static void __init imx6ul_clocks_init(struct device_node *ccm_node)
 	hws[IMX6UL_CLK_PLL3_60M]  = imx_clk_hw_fixed_factor("pll3_60m",  "pll3_usb_otg",   1,	8);
 	hws[IMX6UL_CLK_GPT_3M]	   = imx_clk_hw_fixed_factor("gpt_3m",	"osc",		 1,	8);
 
-	np = ccm_node;
+	np = ccm_yesde;
 	base = of_iomap(np, 0);
 	WARN_ON(!base);
 

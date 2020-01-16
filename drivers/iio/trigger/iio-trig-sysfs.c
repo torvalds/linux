@@ -108,10 +108,10 @@ static ssize_t iio_sysfs_trigger_poll(struct device *dev,
 	return count;
 }
 
-static DEVICE_ATTR(trigger_now, S_IWUSR, NULL, iio_sysfs_trigger_poll);
+static DEVICE_ATTR(trigger_yesw, S_IWUSR, NULL, iio_sysfs_trigger_poll);
 
 static struct attribute *iio_sysfs_trigger_attrs[] = {
-	&dev_attr_trigger_now.attr,
+	&dev_attr_trigger_yesw.attr,
 	NULL,
 };
 

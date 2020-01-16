@@ -17,14 +17,14 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
+   along with this program; if yest, write to the Free Software
    Foundation, Inc., 59 Temple Place - Suite 330, Boston,
    MA  02111-1307, USA.
 
    *************************************************************************
 
  Translation from C++ and adaptation for use in ALSA-Driver
- were made by Giuliano Pochini <pochini@shiny.it>
+ were made by Giuliayes Pochini <pochini@shiny.it>
 
 ****************************************************************************/
 
@@ -153,7 +153,7 @@ To use continuous mode:
 
 -Set double-speed mode if you want to use sample rates above 50 kHz
 
--Write the control register as you would normally
+-Write the control register as you would yesrmally
 
 -Now, you need to set the frequency register. First, you need to determine the
  value for the frequency register.  This is given by the following formula:
@@ -249,7 +249,7 @@ SET_LAYLA24_FREQUENCY_REG command.
  */
 
 #define DSP_FLAG_MIDI_INPUT		0x0001	/* Enable MIDI input */
-#define DSP_FLAG_SPDIF_NONAUDIO		0x0002	/* Sets the "non-audio" bit
+#define DSP_FLAG_SPDIF_NONAUDIO		0x0002	/* Sets the "yesn-audio" bit
 						 * in the S/PDIF out status
 						 * bits.  Clear this flag for
 						 * audio data;
@@ -371,25 +371,25 @@ SET_LAYLA24_FREQUENCY_REG command.
  *
  * DSP_AUDIOFORM_MS_8   
  *
- *    8-bit mono unsigned samples.  For playback,
- *    mono data is duplicated out the left and right channels
+ *    8-bit moyes unsigned samples.  For playback,
+ *    moyes data is duplicated out the left and right channels
  *    of the output bus.  The "MS" part of the name
- *    means mono->stereo.
+ *    means moyes->stereo.
  *
  * DSP_AUDIOFORM_MS_16LE
  *
- *    16-bit signed little-endian mono samples.  Playback works
+ *    16-bit signed little-endian moyes samples.  Playback works
  *    like the previous code.
  *
  * DSP_AUDIOFORM_MS_24LE
  *
- *    24-bit signed little-endian mono samples.  Data is packed
+ *    24-bit signed little-endian moyes samples.  Data is packed
  *    three bytes per sample; if you had two samples 0x112233 and 0x445566
  *    they would be stored in memory like this: 33 22 11 66 55 44.
  *
  * DSP_AUDIOFORM_MS_32LE
  * 
- *    24-bit signed little-endian mono samples in a 32-bit 
+ *    24-bit signed little-endian moyes samples in a 32-bit 
  *    container.  In other words, each sample is a 32-bit signed 
  *    integer, where the actual audio data is left-justified 
  *    in the 32 bits and only the 24 most significant bits are valid.
@@ -399,33 +399,33 @@ SET_LAYLA24_FREQUENCY_REG command.
  * DSP_AUDIOFORM_SS_24LE
  * DSP_AUDIOFORM_SS_32LE
  *
- *    Like the previous ones, except now with stereo interleaved
+ *    Like the previous ones, except yesw with stereo interleaved
  *    data.  "SS" means stereo->stereo.
  *
  * DSP_AUDIOFORM_MM_32LE
  *
- *    Similar to DSP_AUDIOFORM_MS_32LE, except that the mono
- *    data is not duplicated out both the left and right outputs.
+ *    Similar to DSP_AUDIOFORM_MS_32LE, except that the moyes
+ *    data is yest duplicated out both the left and right outputs.
  *    This mode is used by the ASIO driver.  Here, "MM" means
- *    mono->mono.
+ *    moyes->moyes.
  *
  * DSP_AUDIOFORM_MM_32BE
  *
- *    Just like DSP_AUDIOFORM_MM_32LE, but now the data is
+ *    Just like DSP_AUDIOFORM_MM_32LE, but yesw the data is
  *    in big-endian format.
  *
  */
 
-#define DSP_AUDIOFORM_MS_8	0	/* 8 bit mono */
-#define DSP_AUDIOFORM_MS_16LE	1	/* 16 bit mono */
-#define DSP_AUDIOFORM_MS_24LE	2	/* 24 bit mono */
-#define DSP_AUDIOFORM_MS_32LE	3	/* 32 bit mono */
+#define DSP_AUDIOFORM_MS_8	0	/* 8 bit moyes */
+#define DSP_AUDIOFORM_MS_16LE	1	/* 16 bit moyes */
+#define DSP_AUDIOFORM_MS_24LE	2	/* 24 bit moyes */
+#define DSP_AUDIOFORM_MS_32LE	3	/* 32 bit moyes */
 #define DSP_AUDIOFORM_SS_8	4	/* 8 bit stereo */
 #define DSP_AUDIOFORM_SS_16LE	5	/* 16 bit stereo */
 #define DSP_AUDIOFORM_SS_24LE	6	/* 24 bit stereo */
 #define DSP_AUDIOFORM_SS_32LE	7	/* 32 bit stereo */
-#define DSP_AUDIOFORM_MM_32LE	8	/* 32 bit mono->mono little-endian */
-#define DSP_AUDIOFORM_MM_32BE	9	/* 32 bit mono->mono big-endian */
+#define DSP_AUDIOFORM_MM_32LE	8	/* 32 bit moyes->moyes little-endian */
+#define DSP_AUDIOFORM_MM_32BE	9	/* 32 bit moyes->moyes big-endian */
 #define DSP_AUDIOFORM_SS_32BE	10	/* 32 bit stereo big endian */
 #define DSP_AUDIOFORM_INVALID	0xFF	/* Invalid audio format */
 
@@ -433,7 +433,7 @@ SET_LAYLA24_FREQUENCY_REG command.
 /*
  *
  * Super-interleave is defined as interleaving by 4 or more.  Darla20 and Gina20
- * do not support super interleave.
+ * do yest support super interleave.
  *
  * 16 bit, 24 bit, and 32 bit little endian samples are supported for super 
  * interleave.  The interleave factor must be even.  16 - way interleave is the 
@@ -607,7 +607,7 @@ SET_LAYLA24_FREQUENCY_REG command.
 /*
  *
  * Size of arrays for the comm page.  MAX_PLAY_TAPS and MAX_REC_TAPS are
- * no longer used, but the sizes must still be right for the DSP to see
+ * yes longer used, but the sizes must still be right for the DSP to see
  * the comm page correctly.
  *
  */
@@ -636,7 +636,7 @@ struct sg_entry {
 
   The comm page.  This structure is read and written by the DSP; the
   DSP code is a firm believer in the byte offsets written in the comments
-  at the end of each line.  This structure should not be changed.
+  at the end of each line.  This structure should yest be changed.
 
   Any reads from or writes to this structure should be in little-endian format.
 
@@ -676,7 +676,7 @@ struct comm_page {		/*				Base	Length*/
 	u8 gd_spdif_status;	/* Chg. Gina/Darla S/PDIF state	0xb61	1 */
 	u8 gd_resampler_state;	/* Should always be 3		0xb62	1 */
 	u8 filler2;		/*				0xb63	1 */
-	__le32 nominal_level_mask;	/* -10 level enable mask	0xb64	4 */
+	__le32 yesminal_level_mask;	/* -10 level enable mask	0xb64	4 */
 	__le16 input_clock;	/* Chg. Input clock state	0xb68	2 */
 	__le16 output_clock;	/* Chg. Output clock state	0xb6a	2 */
 	__le32 status_clocks;	/* Current Input clock state	0xb6c	4 */

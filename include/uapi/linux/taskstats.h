@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: LGPL-2.1 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: LGPL-2.1 WITH Linux-syscall-yeste */
 /* taskstats.h - exporting per-task statistics
  *
  * Copyright (C) Shailabh Nagar, IBM Corp. 2006
@@ -57,10 +57,10 @@ struct taskstats {
 	 *
 	 * All values, until comment "Delay accounting fields end" are
 	 * available only if delay accounting is enabled, even though the last
-	 * few fields are not delays
+	 * few fields are yest delays
 	 *
 	 * xxx_count is the number of delay values recorded
-	 * xxx_delay_total is the corresponding cumulative delay in nanoseconds
+	 * xxx_delay_total is the corresponding cumulative delay in nayesseconds
 	 *
 	 * xxx_delay_total wraps around to zero on overflow
 	 * xxx_count incremented regardless of overflow
@@ -74,8 +74,8 @@ struct taskstats {
 
 	/* Following four fields atomically updated using task->delays->lock */
 
-	/* Delay waiting for synchronous block I/O to complete
-	 * does not account for delays in I/O submission
+	/* Delay waiting for synchroyesus block I/O to complete
+	 * does yest account for delays in I/O submission
 	 */
 	__u64	blkio_count;
 	__u64	blkio_delay_total;
@@ -87,15 +87,15 @@ struct taskstats {
 	/* cpu "wall-clock" running time
 	 * On some architectures, value will adjust for cpu time stolen
 	 * from the kernel in involuntary waits due to virtualization.
-	 * Value is cumulative, in nanoseconds, without a corresponding count
+	 * Value is cumulative, in nayesseconds, without a corresponding count
 	 * and wraps around to zero silently on overflow
 	 */
 	__u64	cpu_run_real_total;
 
 	/* cpu "virtual" running time
-	 * Uses time intervals seen by the kernel i.e. no adjustment
+	 * Uses time intervals seen by the kernel i.e. yes adjustment
 	 * for kernel's involuntary waits due to virtualization.
-	 * Value is cumulative, in nanoseconds, without a corresponding count
+	 * Value is cumulative, in nayesseconds, without a corresponding count
 	 * and wraps around to zero silently on overflow
 	 */
 	__u64	cpu_run_virtual_total;
@@ -117,7 +117,7 @@ struct taskstats {
 					/* Elapsed time [usec] */
 	__u64	ac_utime;		/* User CPU time [usec] */
 	__u64	ac_stime;		/* SYstem CPU time [usec] */
-	__u64	ac_minflt;		/* Minor Page Fault Count */
+	__u64	ac_minflt;		/* Miyesr Page Fault Count */
 	__u64	ac_majflt;		/* Major Page Fault Count */
 	/* Basic Accounting Fields end */
 
@@ -154,7 +154,7 @@ struct taskstats {
 	__u64	cancelled_write_bytes;	/* bytes of cancelled write I/O */
 
 	__u64  nvcsw;			/* voluntary_ctxt_switches */
-	__u64  nivcsw;			/* nonvoluntary_ctxt_switches */
+	__u64  nivcsw;			/* yesnvoluntary_ctxt_switches */
 
 	/* time accounting for SMT machines */
 	__u64	ac_utimescaled;		/* utime scaled on frequency etc */
@@ -193,7 +193,7 @@ enum {
 	TASKSTATS_TYPE_STATS,		/* taskstats structure */
 	TASKSTATS_TYPE_AGGR_PID,	/* contains pid + stats */
 	TASKSTATS_TYPE_AGGR_TGID,	/* contains tgid + stats */
-	TASKSTATS_TYPE_NULL,		/* contains nothing */
+	TASKSTATS_TYPE_NULL,		/* contains yesthing */
 	__TASKSTATS_TYPE_MAX,
 };
 

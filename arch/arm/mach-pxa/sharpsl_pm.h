@@ -39,16 +39,16 @@ struct sharpsl_charger_machinfo {
 	int charge_acin_high;
 	int charge_acin_low;
 	int fatal_acin_volt;
-	int fatal_noacin_volt;
+	int fatal_yesacin_volt;
 	int bat_levels;
-	struct battery_thresh *bat_levels_noac;
+	struct battery_thresh *bat_levels_yesac;
 	struct battery_thresh *bat_levels_acin;
-	struct battery_thresh *bat_levels_noac_bl;
+	struct battery_thresh *bat_levels_yesac_bl;
 	struct battery_thresh *bat_levels_acin_bl;
 	int status_high_acin;
 	int status_low_acin;
-	int status_high_noac;
-	int status_low_noac;
+	int status_high_yesac;
+	int status_low_yesac;
 };
 
 struct battery_thresh {
@@ -76,7 +76,7 @@ struct sharpsl_pm_status {
 
 	unsigned int flags;
 #define SHARPSL_SUSPENDED       (1 << 0)  /* Device is Suspended */
-#define SHARPSL_ALARM_ACTIVE    (1 << 1)  /* Alarm is for charging event (not user) */
+#define SHARPSL_ALARM_ACTIVE    (1 << 1)  /* Alarm is for charging event (yest user) */
 #define SHARPSL_BL_LIMIT        (1 << 2)  /* Backlight Intensity Limited */
 #define SHARPSL_APM_QUEUED      (1 << 3)  /* APM Event Queued */
 #define SHARPSL_DO_OFFLINE_CHRG (1 << 4)  /* Trigger the offline charger */
@@ -90,7 +90,7 @@ struct sharpsl_pm_status {
 extern struct sharpsl_pm_status sharpsl_pm;
 
 extern struct battery_thresh sharpsl_battery_levels_acin[];
-extern struct battery_thresh sharpsl_battery_levels_noac[];
+extern struct battery_thresh sharpsl_battery_levels_yesac[];
 
 #define SHARPSL_LED_ERROR  2
 #define SHARPSL_LED_ON     1

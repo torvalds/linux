@@ -34,7 +34,7 @@ static inline int oxygen_uart_input_ready(struct oxygen *chip)
 static void oxygen_read_uart(struct oxygen *chip)
 {
 	if (unlikely(!oxygen_uart_input_ready(chip))) {
-		/* no data, but read it anyway to clear the interrupt */
+		/* yes data, but read it anyway to clear the interrupt */
 		oxygen_read8(chip, OXYGEN_MPU401);
 		return;
 	}
@@ -133,7 +133,7 @@ static void oxygen_spdif_input_bits_changed(struct work_struct *work)
 		    OXYGEN_SPDIF_LOCK_STATUS))
 	    == OXYGEN_SPDIF_SENSE_STATUS) {
 		/*
-		 * If we detect activity on the SPDIF input but cannot lock to
+		 * If we detect activity on the SPDIF input but canyest lock to
 		 * a signal, the clock bit is likely to be wrong.
 		 */
 		reg ^= OXYGEN_SPDIF_IN_CLOCK_MASK;
@@ -145,7 +145,7 @@ static void oxygen_spdif_input_bits_changed(struct work_struct *work)
 		if ((reg & (OXYGEN_SPDIF_SENSE_STATUS |
 			    OXYGEN_SPDIF_LOCK_STATUS))
 		    == OXYGEN_SPDIF_SENSE_STATUS) {
-			/* nothing detected with either clock; give up */
+			/* yesthing detected with either clock; give up */
 			if ((reg & OXYGEN_SPDIF_IN_CLOCK_MASK)
 			    == OXYGEN_SPDIF_IN_CLOCK_192) {
 				/*
@@ -168,10 +168,10 @@ static void oxygen_spdif_input_bits_changed(struct work_struct *work)
 		spin_unlock_irq(&chip->reg_lock);
 
 		/*
-		 * We don't actually know that any channel status bits have
-		 * changed, but let's send a notification just to be sure.
+		 * We don't actually kyesw that any channel status bits have
+		 * changed, but let's send a yestification just to be sure.
 		 */
-		snd_ctl_notify(chip->card, SNDRV_CTL_EVENT_MASK_VALUE,
+		snd_ctl_yestify(chip->card, SNDRV_CTL_EVENT_MASK_VALUE,
 			       &chip->controls[CONTROL_SPDIF_INPUT_BITS]->id);
 	}
 }
@@ -241,7 +241,7 @@ oxygen_search_pci_id(struct oxygen *chip, const struct pci_device_id ids[])
 	u16 subdevice;
 
 	/*
-	 * Make sure the EEPROM pins are available, i.e., not used for SPI.
+	 * Make sure the EEPROM pins are available, i.e., yest used for SPI.
 	 * (This function is called before we initialize or use SPI.)
 	 */
 	oxygen_clear_bits8(chip, OXYGEN_FUNCTION,
@@ -275,11 +275,11 @@ static void oxygen_restore_eeprom(struct oxygen *chip,
 	if (eeprom_id != OXYGEN_EEPROM_ID &&
 	    (eeprom_id != 0xffff || id->subdevice != 0x8788)) {
 		/*
-		 * This function gets called only when a known card model has
-		 * been detected, i.e., we know there is a valid subsystem
+		 * This function gets called only when a kyeswn card model has
+		 * been detected, i.e., we kyesw there is a valid subsystem
 		 * product ID at index 2 in the EEPROM.  Therefore, we have
 		 * been able to deduce the correct subsystem vendor ID, and
-		 * this is enough information to restore the original EEPROM
+		 * this is eyesugh information to restore the original EEPROM
 		 * contents.
 		 */
 		oxygen_write_eeprom(chip, 1, id->subvendor);
@@ -616,7 +616,7 @@ int oxygen_pci_probe(struct pci_dev *pci, int index, char *id,
 
 	err = pci_request_regions(pci, DRIVER);
 	if (err < 0) {
-		dev_err(card->dev, "cannot reserve PCI resources\n");
+		dev_err(card->dev, "canyest reserve PCI resources\n");
 		goto err_pci_enable;
 	}
 
@@ -657,7 +657,7 @@ int oxygen_pci_probe(struct pci_dev *pci, int index, char *id,
 	err = request_irq(pci->irq, oxygen_interrupt, IRQF_SHARED,
 			  KBUILD_MODNAME, chip);
 	if (err < 0) {
-		dev_err(card->dev, "cannot grab interrupt %d\n", pci->irq);
+		dev_err(card->dev, "canyest grab interrupt %d\n", pci->irq);
 		goto err_card;
 	}
 	chip->irq = pci->irq;

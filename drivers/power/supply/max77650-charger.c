@@ -300,7 +300,7 @@ static int max77650_charger_probe(struct platform_device *pdev)
 
 	chg->dev = dev;
 
-	pscfg.of_node = dev->of_node;
+	pscfg.of_yesde = dev->of_yesde;
 	pscfg.drv_data = chg;
 
 	chg_irq = platform_get_irq_byname(pdev, "CHG");
@@ -328,7 +328,7 @@ static int max77650_charger_probe(struct platform_device *pdev)
 	if (IS_ERR(battery))
 		return PTR_ERR(battery);
 
-	rv = of_property_read_u32(dev->of_node,
+	rv = of_property_read_u32(dev->of_yesde,
 				  "input-voltage-min-microvolt", &prop);
 	if (rv == 0) {
 		rv = max77650_charger_set_vchgin_min(chg, prop);
@@ -336,7 +336,7 @@ static int max77650_charger_probe(struct platform_device *pdev)
 			return rv;
 	}
 
-	rv = of_property_read_u32(dev->of_node,
+	rv = of_property_read_u32(dev->of_yesde,
 				  "input-current-limit-microamp", &prop);
 	if (rv == 0) {
 		rv = max77650_charger_set_ichgin_lim(chg, prop);

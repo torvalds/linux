@@ -5,7 +5,7 @@
 // Copyright (c) 2016-2018 Socionext Inc.
 
 #include <linux/bitfield.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <sound/core.h>
@@ -79,7 +79,7 @@ u64 aio_rb_space_to_end(struct uniphier_aio_sub *sub)
  * This function need to call at driver startup.
  *
  * The regmap of SoC glue is specified by 'socionext,syscon' optional property
- * of DT. This function has no effect if no property.
+ * of DT. This function has yes effect if yes property.
  */
 void aio_iecout_set_enable(struct uniphier_aio_chip *chip, bool enable)
 {
@@ -95,7 +95,7 @@ void aio_iecout_set_enable(struct uniphier_aio_chip *chip, bool enable)
  * aio_chip_set_pll - set frequency to audio PLL
  * @chip  : the AIO chip pointer
  * @source: PLL
- * @freq  : frequency in Hz, 0 is ignored
+ * @freq  : frequency in Hz, 0 is igyesred
  *
  * Sets frequency of audio PLL. This function can be called anytime,
  * but it takes time till PLL is locked.
@@ -128,7 +128,7 @@ int aio_chip_set_pll(struct uniphier_aio_chip *chip, int pll_id,
 		shift = 3;
 		break;
 	default:
-		dev_err(dev, "PLL(%d) not supported\n", pll_id);
+		dev_err(dev, "PLL(%d) yest supported\n", pll_id);
 		return -EINVAL;
 	}
 
@@ -140,7 +140,7 @@ int aio_chip_set_pll(struct uniphier_aio_chip *chip, int pll_id,
 		v = A2APLLCTR1_APLLX_33MHZ;
 		break;
 	default:
-		dev_err(dev, "PLL frequency not supported(%d)\n", freq);
+		dev_err(dev, "PLL frequency yest supported(%d)\n", freq);
 		return -EINVAL;
 	}
 	chip->plls[pll_id].freq = freq;
@@ -159,7 +159,7 @@ int aio_chip_set_pll(struct uniphier_aio_chip *chip, int pll_id,
  * This function need to call once at driver startup.
  *
  * The register area that is changed by this function is shared by all
- * modules of AIO. But there is not race condition since this function
+ * modules of AIO. But there is yest race condition since this function
  * has always set the same initialize values.
  */
 void aio_chip_init(struct uniphier_aio_chip *chip)
@@ -234,7 +234,7 @@ int aio_init(struct uniphier_aio_sub *sub)
 			     MAPCTR0_EN | sub->swm->iif.map);
 		break;
 	default:
-		dev_err(dev, "Unknown port type %d.\n", sub->swm->type);
+		dev_err(dev, "Unkyeswn port type %d.\n", sub->swm->type);
 		return -EINVAL;
 	}
 
@@ -271,7 +271,7 @@ void aio_port_reset(struct uniphier_aio_sub *sub)
  *
  * Set suitable slot selecting to input/output port block of AIO.
  *
- * This function may return error if non-PCM substream.
+ * This function may return error if yesn-PCM substream.
  *
  * Return: Zero if successful, otherwise a negative value on error.
  */
@@ -323,7 +323,7 @@ static int aio_port_set_ch(struct uniphier_aio_sub *sub)
  * Set suitable I2S format settings to input/output port block of AIO.
  * Parameter is specified by hw_params().
  *
- * This function may return error if non-PCM substream.
+ * This function may return error if yesn-PCM substream.
  *
  * Return: Zero if successful, otherwise a negative value on error.
  */
@@ -375,7 +375,7 @@ static int aio_port_set_rate(struct uniphier_aio_sub *sub, int rate)
 			v = OPORTMXCTR1_FSSEL_192;
 			break;
 		default:
-			dev_err(dev, "Rate not supported(%d)\n", rate);
+			dev_err(dev, "Rate yest supported(%d)\n", rate);
 			return -EINVAL;
 		}
 
@@ -423,7 +423,7 @@ static int aio_port_set_rate(struct uniphier_aio_sub *sub, int rate)
 			v = IPORTMXCTR1_FSSEL_192;
 			break;
 		default:
-			dev_err(dev, "Rate not supported(%d)\n", rate);
+			dev_err(dev, "Rate yest supported(%d)\n", rate);
 			return -EINVAL;
 		}
 
@@ -437,12 +437,12 @@ static int aio_port_set_rate(struct uniphier_aio_sub *sub, int rate)
 /**
  * aio_port_set_fmt - set format of I2S data
  * @sub: the AIO substream pointer, PCM substream only
- * This parameter has no effect if substream is I2S or PCM.
+ * This parameter has yes effect if substream is I2S or PCM.
  *
  * Set suitable I2S format settings to input/output port block of AIO.
  * Parameter is specified by set_fmt().
  *
- * This function may return error if non-PCM substream.
+ * This function may return error if yesn-PCM substream.
  *
  * Return: Zero if successful, otherwise a negative value on error.
  */
@@ -464,7 +464,7 @@ static int aio_port_set_fmt(struct uniphier_aio_sub *sub)
 			v = OPORTMXCTR1_I2SLRSEL_I2S;
 			break;
 		default:
-			dev_err(dev, "Format is not supported(%d)\n",
+			dev_err(dev, "Format is yest supported(%d)\n",
 				sub->aio->fmt);
 			return -EINVAL;
 		}
@@ -485,7 +485,7 @@ static int aio_port_set_fmt(struct uniphier_aio_sub *sub)
 			v = IPORTMXCTR1_LRSEL_I2S;
 			break;
 		default:
-			dev_err(dev, "Format is not supported(%d)\n",
+			dev_err(dev, "Format is yest supported(%d)\n",
 				sub->aio->fmt);
 			return -EINVAL;
 		}
@@ -601,8 +601,8 @@ static int aio_port_set_clk(struct uniphier_aio_sub *sub)
 /**
  * aio_port_set_param - set parameters of AIO port block
  * @sub: the AIO substream pointer
- * @pass_through: Zero if sound data is LPCM, otherwise if data is not LPCM.
- * This parameter has no effect if substream is I2S or PCM.
+ * @pass_through: Zero if sound data is LPCM, otherwise if data is yest LPCM.
+ * This parameter has yes effect if substream is I2S or PCM.
  * @params: hardware parameters of ALSA
  *
  * Set suitable setting to input/output port block of AIO to process the
@@ -775,8 +775,8 @@ void aio_port_set_volume(struct uniphier_aio_sub *sub, int vol)
 /**
  * aio_if_set_param - set parameters of AIO DMA I/F block
  * @sub: the AIO substream pointer
- * @pass_through: Zero if sound data is LPCM, otherwise if data is not LPCM.
- * This parameter has no effect if substream is I2S or PCM.
+ * @pass_through: Zero if sound data is LPCM, otherwise if data is yest LPCM.
+ * This parameter has yes effect if substream is I2S or PCM.
  *
  * Set suitable setting to DMA interface block of AIO to process the
  * specified in settings.
@@ -876,7 +876,7 @@ int aio_oport_set_stream_type(struct uniphier_aio_sub *sub,
 		pause |= OPORTMXPAUDAT_PAUSEPD_AAC;
 		break;
 	case IEC61937_PC_PAUSE:
-		/* Do nothing */
+		/* Do yesthing */
 		break;
 	}
 
@@ -892,7 +892,7 @@ int aio_oport_set_stream_type(struct uniphier_aio_sub *sub,
  *
  * Resets the digital signal input/output port with sampling rate converter
  * block of AIO.
- * This function has no effect if substream is not supported rate converter.
+ * This function has yes effect if substream is yest supported rate converter.
  */
 void aio_src_reset(struct uniphier_aio_sub *sub)
 {
@@ -912,7 +912,7 @@ void aio_src_reset(struct uniphier_aio_sub *sub)
  *
  * Set suitable setting to input/output port with sampling rate converter
  * block of AIO to process the specified in params.
- * This function has no effect if substream is not supported rate converter.
+ * This function has yes effect if substream is yest supported rate converter.
  *
  * Return: Zero if successful, otherwise a negative value on error.
  */

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0+
-/* vim: set ts=8 sw=8 noet tw=80 nowrap: */
+/* vim: set ts=8 sw=8 yeset tw=80 yeswrap: */
 /*
  *  comedi/drivers/ni_routes.c
  *  Route information for NI boards.
@@ -53,7 +53,7 @@
  * Find the proper route_values and ni_device_routes tables for this particular
  * device.
  *
- * Return: -ENODATA if either was not found; 0 if both were found.
+ * Return: -ENODATA if either was yest found; 0 if both were found.
  */
 static int ni_find_device_routes(const char *device_family,
 				 const char *board_name,
@@ -97,7 +97,7 @@ static int ni_find_device_routes(const char *device_family,
  * ni_assign_device_routes() - Assign the proper lookup table for NI signal
  *			       routing to the specified NI device.
  *
- * Return: -ENODATA if assignment was not successful; 0 if successful.
+ * Return: -ENODATA if assignment was yest successful; 0 if successful.
  */
 int ni_assign_device_routes(const char *device_family,
 			    const char *board_name,
@@ -337,7 +337,7 @@ static int _ni_bsearch_srccmp(const void *vkey, const void *velt)
  * @destination: Destination of which to search for the route set.
  * @valid_routes: Pointer to device routes within which to search.
  *
- * Return: NULL if no route_set is found with the specified @destination;
+ * Return: NULL if yes route_set is found with the specified @destination;
  *	otherwise, a pointer to the route_set if found.
  */
 const struct ni_route_set *
@@ -374,7 +374,7 @@ EXPORT_SYMBOL_GPL(ni_route_set_has_source);
  * @dest:	global-identifier for route destination
  * @tables:	pointer to relevant set of routing tables.
  *
- * Return: -EINVAL if the specified route is not valid for this device family.
+ * Return: -EINVAL if the specified route is yest valid for this device family.
  */
 s8 ni_lookup_route_register(int src, int dest,
 			    const struct ni_route_tables *tables)
@@ -408,13 +408,13 @@ EXPORT_SYMBOL_GPL(ni_lookup_route_register);
  * Generally speaking, most routes require the first six bits and a few require
  * 7 bits.  Special handling is given for the return value when the route is to
  * be handled by the RTSI sub-device.  In this case, the returned register may
- * not be sufficient to define the entire route path, but rather may only
+ * yest be sufficient to define the entire route path, but rather may only
  * indicate the intermediate route.  For example, if the route must go through
  * the RGOUT0 pin, the (src->RGOUT0) register value will be returned.
  * Similarly, if the route must go through the NI_RTSI_BRD lines, the BIT(6)
  * will be set:
  *
- * if route does not need RTSI_BRD lines:
+ * if route does yest need RTSI_BRD lines:
  *   bits 0:7 : register value
  *              for a route that must go through RGOUT0 pin, this will be equal
  *              to the (src->RGOUT0) register value.
@@ -424,7 +424,7 @@ EXPORT_SYMBOL_GPL(ni_lookup_route_register);
  *   bits 7:7 : zero
  *
  * Return: register value to be used for source at destination with special
- *	cases given above; Otherwise, -1 if the specified route is not valid for
+ *	cases given above; Otherwise, -1 if the specified route is yest valid for
  *	this particular device.
  */
 s8 ni_route_to_register(const int src, const int dest,
@@ -442,7 +442,7 @@ s8 ni_route_to_register(const int src, const int dest,
 	if (!ni_route_set_has_source(routes, src))
 		return -1;
 	/*
-	 * finally, check to see if we know how to route...
+	 * finally, check to see if we kyesw how to route...
 	 * Be sure to use the B() macro to subtract off the NI_NAMES_BASE before
 	 * indexing into the route_values array.
 	 */
@@ -450,7 +450,7 @@ s8 ni_route_to_register(const int src, const int dest,
 	regval = RVi(rv, B(src), B(dest));
 
 	/*
-	 * if we did not validate the route, we'll see if we can route through
+	 * if we did yest validate the route, we'll see if we can route through
 	 * one of the muxes
 	 */
 	if (!regval && channel_is_rtsi(dest)) {
@@ -475,11 +475,11 @@ EXPORT_SYMBOL_GPL(ni_route_to_register);
  *			    value and the specified route destination on the
  *			    specified device.
  *
- * Note that this function does _not_ validate the source based on device
+ * Note that this function does _yest_ validate the source based on device
  * routes.
  *
  * Return: The NI signal value (e.g. NI_PFI(0) or PXI_Clk10) if found.
- *	If the source was not found (i.e. the register value is not
+ *	If the source was yest found (i.e. the register value is yest
  *	valid for any routes to the destination), -EINVAL is returned.
  */
 int ni_find_route_source(const u8 src_sel_reg_value, int dest,
@@ -488,7 +488,7 @@ int ni_find_route_source(const u8 src_sel_reg_value, int dest,
 	int src;
 
 	dest = B(dest); /* subtract NI names offset */
-	/* ensure we are not going to under/over run the route value table */
+	/* ensure we are yest going to under/over run the route value table */
 	if (dest < 0 || dest >= NI_NUM_NAMES)
 		return -EINVAL;
 	for (src = 0; src < NI_NUM_NAMES; ++src)

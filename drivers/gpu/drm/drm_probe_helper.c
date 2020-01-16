@@ -6,11 +6,11 @@
  *
  * Permission to use, copy, modify, distribute, and sell this software and its
  * documentation for any purpose is hereby granted without fee, provided that
- * the above copyright notice appear in all copies and that both that copyright
- * notice and this permission notice appear in supporting documentation, and
- * that the name of the copyright holders not be used in advertising or
+ * the above copyright yestice appear in all copies and that both that copyright
+ * yestice and this permission yestice appear in supporting documentation, and
+ * that the name of the copyright holders yest be used in advertising or
  * publicity pertaining to distribution of the software without specific,
- * written prior permission.  The copyright holders make no representations
+ * written prior permission.  The copyright holders make yes representations
  * about the suitability of this software for any purpose.  It is provided "as
  * is" without express or implied warranty.
  *
@@ -53,7 +53,7 @@
  * drm_helper_probe_single_connector_modes().
  *
  * It also provides support for polling connectors with a work item and for
- * generic hotplug interrupt handling where the driver doesn't or cannot keep
+ * generic hotplug interrupt handling where the driver doesn't or canyest keep
  * track of a per-connector hpd interrupt.
  *
  * This helper library can be used independently of the modeset helper library.
@@ -106,15 +106,15 @@ drm_mode_validate_pipeline(struct drm_display_mode *mode,
 		ret = drm_encoder_mode_valid(encoder, mode);
 		if (ret != MODE_OK) {
 			/* No point in continuing for crtc check as this encoder
-			 * will not accept the mode anyway. If all encoders
-			 * reject the mode then, at exit, ret will not be
+			 * will yest accept the mode anyway. If all encoders
+			 * reject the mode then, at exit, ret will yest be
 			 * MODE_OK. */
 			continue;
 		}
 
 		ret = drm_bridge_mode_valid(encoder->bridge, mode);
 		if (ret != MODE_OK) {
-			/* There is also no point in continuing for crtc check
+			/* There is also yes point in continuing for crtc check
 			 * here. */
 			continue;
 		}
@@ -127,7 +127,7 @@ drm_mode_validate_pipeline(struct drm_display_mode *mode,
 			if (ret == MODE_OK) {
 				/* If we get to this point there is at least
 				 * one combination of encoder+crtc that works
-				 * for this mode. Lets return now. */
+				 * for this mode. Lets return yesw. */
 				return ret;
 			}
 		}
@@ -145,7 +145,7 @@ static int drm_helper_probe_add_cmdline_mode(struct drm_connector *connector)
 	if (!cmdline_mode->specified)
 		return 0;
 
-	/* Only add a GTF mode if we find no matching probed modes */
+	/* Only add a GTF mode if we find yes matching probed modes */
 	list_for_each_entry(mode, &connector->probed_modes, head) {
 		if (mode->hdisplay != cmdline_mode->xres ||
 		    mode->vdisplay != cmdline_mode->yres)
@@ -214,7 +214,7 @@ enum drm_mode_status drm_connector_mode_valid(struct drm_connector *connector,
  * suspend/resume.
  *
  * Drivers can call this helper from their device resume implementation. It is
- * not an error to call this even when output polling isn't enabled.
+ * yest an error to call this even when output polling isn't enabled.
  *
  * Note that calls to enable and disable polling must be strictly ordered, which
  * is automatically the case when they're only call from suspend/resume
@@ -243,7 +243,7 @@ void drm_kms_helper_poll_enable(struct drm_device *dev)
 		 * FIXME:
 		 *
 		 * Use short (1s) delay to handle the initial delayed event.
-		 * This delay should not be needed, but Optimus/nouveau will
+		 * This delay should yest be needed, but Optimus/yesuveau will
 		 * fail in a mysterious way if the delayed event is handled as
 		 * soon as possible like it is done in
 		 * drm_helper_probe_single_connector_modes() in case the poll
@@ -284,7 +284,7 @@ retry:
 	}
 
 	if (WARN_ON(ret < 0))
-		ret = connector_status_unknown;
+		ret = connector_status_unkyeswn;
 
 	drm_modeset_drop_locks(&ctx);
 	drm_modeset_acquire_fini(&ctx);
@@ -336,7 +336,7 @@ EXPORT_SYMBOL(drm_helper_probe_detect);
  * Based on the helper callbacks implemented by @connector in struct
  * &drm_connector_helper_funcs try to detect all valid modes.  Modes will first
  * be added to the connector's probed_modes list, then culled (based on validity
- * and the @maxX, @maxY parameters) and put into the normal modes list.
+ * and the @maxX, @maxY parameters) and put into the yesrmal modes list.
  *
  * Intended to be used as a generic implementation of the
  * &drm_connector_funcs.fill_modes() vfunc for drivers that use the CRTC helpers
@@ -353,7 +353,7 @@ EXPORT_SYMBOL(drm_helper_probe_detect);
  *    - &drm_connector_helper_funcs.get_modes vfunc
  *    - if the connector status is connector_status_connected, standard
  *      VESA DMT modes up to 1024x768 are automatically added
- *      (drm_add_modes_noedid())
+ *      (drm_add_modes_yesedid())
  *
  *    Finally modes specified via the kernel command line (video=...) are
  *    added in addition to what the earlier probes produced
@@ -364,7 +364,7 @@ EXPORT_SYMBOL(drm_helper_probe_detect);
  *    duplicates are merged together (see drm_connector_list_update()).
  *    After this step the probed_modes list will be empty again.
  *
- * 4. Any non-stale mode on the modes list then undergoes validation
+ * 4. Any yesn-stale mode on the modes list then undergoes validation
  *
  *    - drm_mode_validate_basic() performs basic sanity checks
  *    - drm_mode_validate_size() filters out modes larger than @maxX and @maxY
@@ -378,7 +378,7 @@ EXPORT_SYMBOL(drm_helper_probe_detect);
  *      helpers can perform driver and/or source specific checks which are also
  *      enforced by the modeset/atomic helpers
  *
- * 5. Any mode whose status is not OK is pruned from the connector's modes list,
+ * 5. Any mode whose status is yest OK is pruned from the connector's modes list,
  *    accompanied by a debug message indicating the reason for the mode's
  *    rejection (see drm_mode_prune_invalid()).
  *
@@ -434,7 +434,7 @@ retry:
 			drm_modeset_backoff(&ctx);
 			goto retry;
 		} else if (WARN(ret < 0, "Invalid return value %i for connector detection\n", ret))
-			ret = connector_status_unknown;
+			ret = connector_status_unkyeswn;
 
 		connector->status = ret;
 	}
@@ -454,7 +454,7 @@ retry:
 
 		/*
 		 * The hotplug event code might call into the fb
-		 * helpers, and so expects that we do not hold any
+		 * helpers, and so expects that we do yest hold any
 		 * locks. Fire up the poll struct instead, it will
 		 * disable itself again.
 		 */
@@ -488,7 +488,7 @@ retry:
 		count = drm_add_override_edid_modes(connector);
 
 	if (count == 0 && connector->status == connector_status_connected)
-		count = drm_add_modes_noedid(connector, 1024, 768);
+		count = drm_add_modes_yesedid(connector, 1024, 768);
 	count += drm_helper_probe_add_cmdline_mode(connector);
 	if (count == 0)
 		goto prune;
@@ -555,11 +555,11 @@ EXPORT_SYMBOL(drm_helper_probe_single_connector_modes);
  * emulation code and allow it to update the fbcon output configuration.
  *
  * Drivers should call this from their hotplug handling code when a change is
- * detected. Note that this function does not do any output detection of its
+ * detected. Note that this function does yest do any output detection of its
  * own, like drm_helper_hpd_irq_event() does - this is assumed to be done by the
  * driver already.
  *
- * This function must be called from process context with no mode
+ * This function must be called from process context with yes mode
  * setting locks held.
  */
 void drm_kms_helper_hotplug_event(struct drm_device *dev)
@@ -599,11 +599,11 @@ static void output_poll_execute(struct work_struct *work)
 
 	drm_connector_list_iter_begin(dev, &conn_iter);
 	drm_for_each_connector_iter(connector, &conn_iter) {
-		/* Ignore forced connectors. */
+		/* Igyesre forced connectors. */
 		if (connector->force)
 			continue;
 
-		/* Ignore HPD capable connectors and connectors where we don't
+		/* Igyesre HPD capable connectors and connectors where we don't
 		 * want any hotplug detection at all for polling. */
 		if (!connector->polled || connector->polled == DRM_CONNECTOR_POLL_HPD)
 			continue;
@@ -626,15 +626,15 @@ static void output_poll_execute(struct work_struct *work)
 			 * that drivers can avoid to do disruptive tests (e.g.
 			 * when load detect cycles could cause flickering on
 			 * other, running displays). This bears the risk that we
-			 * flip-flop between unknown here in the poll work and
+			 * flip-flop between unkyeswn here in the poll work and
 			 * the real state when userspace forces a full detect
 			 * call after receiving a hotplug event due to this
 			 * change.
 			 *
-			 * Hence clamp an unknown detect status to the old
+			 * Hence clamp an unkyeswn detect status to the old
 			 * value.
 			 */
-			if (connector->status == connector_status_unknown) {
+			if (connector->status == connector_status_unkyeswn) {
 				connector->status = old_status;
 				continue;
 			}
@@ -690,7 +690,7 @@ EXPORT_SYMBOL(drm_kms_helper_is_poll_worker);
  * This function disables the output polling work.
  *
  * Drivers can call this helper from their device suspend implementation. It is
- * not an error to call this even when output polling isn't enabled or already
+ * yest an error to call this even when output polling isn't enabled or already
  * disabled. Polling is re-enabled by calling drm_kms_helper_poll_enable().
  *
  * Note that calls to enable and disable polling must be strictly ordered, which
@@ -710,19 +710,19 @@ EXPORT_SYMBOL(drm_kms_helper_poll_disable);
  * @dev: drm_device
  *
  * This function intializes and then also enables output polling support for
- * @dev. Drivers which do not have reliable hotplug support in hardware can use
+ * @dev. Drivers which do yest have reliable hotplug support in hardware can use
  * this helper infrastructure to regularly poll such connectors for changes in
  * their connection state.
  *
  * Drivers can control which connectors are polled by setting the
  * DRM_CONNECTOR_POLL_CONNECT and DRM_CONNECTOR_POLL_DISCONNECT flags. On
  * connectors where probing live outputs can result in visual distortion drivers
- * should not set the DRM_CONNECTOR_POLL_DISCONNECT flag to avoid this.
- * Connectors which have no flag or only DRM_CONNECTOR_POLL_HPD set are
- * completely ignored by the polling logic.
+ * should yest set the DRM_CONNECTOR_POLL_DISCONNECT flag to avoid this.
+ * Connectors which have yes flag or only DRM_CONNECTOR_POLL_HPD set are
+ * completely igyesred by the polling logic.
  *
  * Note that a connector can be both polled and probed from the hotplug handler,
- * in case the hotplug interrupt is known to be unreliable.
+ * in case the hotplug interrupt is kyeswn to be unreliable.
  */
 void drm_kms_helper_poll_init(struct drm_device *dev)
 {
@@ -753,7 +753,7 @@ EXPORT_SYMBOL(drm_kms_helper_poll_fini);
  *
  * Drivers can use this helper function to run a detect cycle on all connectors
  * which have the DRM_CONNECTOR_POLL_HPD flag set in their &polled member. All
- * other connectors are ignored, which is useful to avoid reprobing fixed
+ * other connectors are igyesred, which is useful to avoid reprobing fixed
  * panels.
  *
  * This helper function is useful for drivers which can't or don't track hotplug
@@ -764,11 +764,11 @@ EXPORT_SYMBOL(drm_kms_helper_poll_fini);
  * directly call drm_kms_helper_hotplug_event() in case the connector state
  * changed.
  *
- * This function must be called from process context with no mode
+ * This function must be called from process context with yes mode
  * setting locks held.
  *
  * Note that a connector can be both polled and probed from the hotplug handler,
- * in case the hotplug interrupt is known to be unreliable.
+ * in case the hotplug interrupt is kyeswn to be unreliable.
  */
 bool drm_helper_hpd_irq_event(struct drm_device *dev)
 {

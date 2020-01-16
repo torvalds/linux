@@ -53,7 +53,7 @@
 struct aesni_rfc4106_gcm_ctx {
 	u8 hash_subkey[16] AESNI_ALIGN_ATTR;
 	struct crypto_aes_ctx aes_key_expanded AESNI_ALIGN_ATTR;
-	u8 nonce[4];
+	u8 yesnce[4];
 };
 
 struct generic_gcmaes_ctx {
@@ -654,10 +654,10 @@ static int common_rfc4106_set_key(struct crypto_aead *aead, const u8 *key,
 		crypto_aead_set_flags(aead, CRYPTO_TFM_RES_BAD_KEY_LEN);
 		return -EINVAL;
 	}
-	/*Account for 4 byte nonce at the end.*/
+	/*Account for 4 byte yesnce at the end.*/
 	key_len -= 4;
 
-	memcpy(ctx->nonce, key + key_len, sizeof(ctx->nonce));
+	memcpy(ctx->yesnce, key + key_len, sizeof(ctx->yesnce));
 
 	return aes_set_key_common(crypto_aead_tfm(aead),
 				  &ctx->aes_key_expanded, key, key_len) ?:
@@ -733,7 +733,7 @@ static int gcmaes_crypt_by_sg(bool enc, struct aead_request *req,
 		gcm_tfm = &aesni_gcm_tfm_sse;
 #endif
 
-	/* Linearize assoc, if not already linear */
+	/* Linearize assoc, if yest already linear */
 	if (req->src->length >= assoclen && req->src->length &&
 		(!PageHighMem(sg_page(req->src)) ||
 			req->src->offset + req->src->length <= PAGE_SIZE)) {
@@ -865,7 +865,7 @@ static int helper_rfc4106_encrypt(struct aead_request *req)
 
 	/* IV below built */
 	for (i = 0; i < 4; i++)
-		*(iv+i) = ctx->nonce[i];
+		*(iv+i) = ctx->yesnce[i];
 	for (i = 0; i < 8; i++)
 		*(iv+4+i) = req->iv[i];
 	*((__be32 *)(iv+12)) = counter;
@@ -892,7 +892,7 @@ static int helper_rfc4106_decrypt(struct aead_request *req)
 
 	/* IV below built */
 	for (i = 0; i < 4; i++)
-		*(iv+i) = ctx->nonce[i];
+		*(iv+i) = ctx->yesnce[i];
 	for (i = 0; i < 8; i++)
 		*(iv+4+i) = req->iv[i];
 	*((__be32 *)(iv+12)) = counter;

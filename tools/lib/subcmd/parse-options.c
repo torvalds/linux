@@ -22,7 +22,7 @@ static int opterror(const struct option *opt, const char *reason, int flags)
 	if (flags & OPT_SHORT)
 		fprintf(stderr, " Error: switch `%c' %s", opt->short_name, reason);
 	else if (flags & OPT_UNSET)
-		fprintf(stderr, " Error: option `no-%s' %s", opt->long_name, reason);
+		fprintf(stderr, " Error: option `yes-%s' %s", opt->long_name, reason);
 	else
 		fprintf(stderr, " Error: option `%s' %s", opt->long_name, reason);
 
@@ -40,7 +40,7 @@ static void optwarning(const struct option *opt, const char *reason, int flags)
 	if (flags & OPT_SHORT)
 		fprintf(stderr, " Warning: switch `%c' %s", opt->short_name, reason);
 	else if (flags & OPT_UNSET)
-		fprintf(stderr, " Warning: option `no-%s' %s", opt->long_name, reason);
+		fprintf(stderr, " Warning: option `yes-%s' %s", opt->long_name, reason);
 	else
 		fprintf(stderr, " Warning: option `%s' %s", opt->long_name, reason);
 }
@@ -74,11 +74,11 @@ static int get_value(struct parse_opt_ctx_t *p,
 	int err;
 
 	if (unset && p->opt)
-		return opterror(opt, "takes no value", flags);
+		return opterror(opt, "takes yes value", flags);
 	if (unset && (opt->flags & PARSE_OPT_NONEG))
 		return opterror(opt, "isn't available", flags);
 	if (opt->flags & PARSE_OPT_DISABLED)
-		return opterror(opt, "is not usable", flags);
+		return opterror(opt, "is yest usable", flags);
 
 	if (opt->flags & PARSE_OPT_EXCLUSIVE) {
 		if (p->excl_opt && p->excl_opt != opt) {
@@ -86,10 +86,10 @@ static int get_value(struct parse_opt_ctx_t *p,
 
 			if (((flags & OPT_SHORT) && p->excl_opt->short_name) ||
 			    p->excl_opt->long_name == NULL) {
-				snprintf(msg, sizeof(msg), "cannot be used with switch `%c'",
+				snprintf(msg, sizeof(msg), "canyest be used with switch `%c'",
 					 p->excl_opt->short_name);
 			} else {
-				snprintf(msg, sizeof(msg), "cannot be used with %s",
+				snprintf(msg, sizeof(msg), "canyest be used with %s",
 					 p->excl_opt->long_name);
 			}
 			opterror(opt, msg, flags);
@@ -108,7 +108,7 @@ static int get_value(struct parse_opt_ctx_t *p,
 		case OPTION_BIT:
 		case OPTION_SET_UINT:
 		case OPTION_SET_PTR:
-			return opterror(opt, "takes no value", flags);
+			return opterror(opt, "takes yes value", flags);
 		case OPTION_END:
 		case OPTION_ARGUMENT:
 		case OPTION_GROUP:
@@ -125,19 +125,19 @@ static int get_value(struct parse_opt_ctx_t *p,
 
 	if (opt->flags & PARSE_OPT_NOBUILD) {
 		char reason[128];
-		bool noarg = false;
+		bool yesarg = false;
 
 		err = snprintf(reason, sizeof(reason),
 				opt->flags & PARSE_OPT_CANSKIP ?
-					"is being ignored because %s " :
-					"is not available because %s",
+					"is being igyesred because %s " :
+					"is yest available because %s",
 				opt->build_opt);
 		reason[sizeof(reason) - 1] = '\0';
 
 		if (err < 0)
 			strncpy(reason, opt->flags & PARSE_OPT_CANSKIP ?
-					"is being ignored" :
-					"is not available",
+					"is being igyesred" :
+					"is yest available",
 					sizeof(reason));
 
 		if (!(opt->flags & PARSE_OPT_CANSKIP))
@@ -145,11 +145,11 @@ static int get_value(struct parse_opt_ctx_t *p,
 
 		err = 0;
 		if (unset)
-			noarg = true;
+			yesarg = true;
 		if (opt->flags & PARSE_OPT_NOARG)
-			noarg = true;
+			yesarg = true;
 		if (opt->flags & PARSE_OPT_OPTARG && !p->opt)
-			noarg = true;
+			yesarg = true;
 
 		switch (opt->type) {
 		case OPTION_BOOLEAN:
@@ -160,7 +160,7 @@ static int get_value(struct parse_opt_ctx_t *p,
 		case OPTION_END:
 		case OPTION_ARGUMENT:
 		case OPTION_GROUP:
-			noarg = true;
+			yesarg = true;
 			break;
 		case OPTION_CALLBACK:
 		case OPTION_STRING:
@@ -173,7 +173,7 @@ static int get_value(struct parse_opt_ctx_t *p,
 			break;
 		}
 
-		if (!noarg)
+		if (!yesarg)
 			err = get_arg(p, opt, flags, NULL);
 		if (err)
 			return err;
@@ -335,7 +335,7 @@ static int get_value(struct parse_opt_ctx_t *p,
 	case OPTION_ARGUMENT:
 	case OPTION_GROUP:
 	default:
-		die("should not happen, someone must be hit on the forehead");
+		die("should yest happen, someone must be hit on the forehead");
 	}
 }
 
@@ -380,18 +380,18 @@ retry:
 			if (!rest)
 				continue;
 			if (*rest == '=')
-				return opterror(options, "takes no value", flags);
+				return opterror(options, "takes yes value", flags);
 			if (*rest)
 				continue;
 			p->out[p->cpidx++] = arg - 2;
 			return 0;
 		}
 		if (!rest) {
-			if (strstarts(options->long_name, "no-")) {
+			if (strstarts(options->long_name, "yes-")) {
 				/*
-				 * The long name itself starts with "no-", so
-				 * accept the option without "no-" so that users
-				 * do not have to enter "no-no-" to get the
+				 * The long name itself starts with "yes-", so
+				 * accept the option without "yes-" so that users
+				 * do yest have to enter "yes-yes-" to get the
 				 * negation.
 				 */
 				rest = skip_prefix(arg, options->long_name + 3);
@@ -411,7 +411,7 @@ is_abbreviated:
 				if (abbrev_option) {
 					/*
 					 * If this is abbreviated, it is
-					 * ambiguous. So when there is no
+					 * ambiguous. So when there is yes
 					 * exact match later, we need to
 					 * error out.
 					 */
@@ -425,12 +425,12 @@ is_abbreviated:
 				continue;
 			}
 			/* negated and abbreviated very much? */
-			if (strstarts("no-", arg)) {
+			if (strstarts("yes-", arg)) {
 				flags |= OPT_UNSET;
 				goto is_abbreviated;
 			}
 			/* negated? */
-			if (strncmp(arg, "no-", 3))
+			if (strncmp(arg, "yes-", 3))
 				continue;
 			flags |= OPT_UNSET;
 			rest = skip_prefix(arg + 3, options->long_name);
@@ -453,9 +453,9 @@ match:
 		 fprintf(stderr,
 			 " Error: Ambiguous option: %s (could be --%s%s or --%s%s)\n",
 			 arg,
-			 (ambiguous_flags & OPT_UNSET) ?  "no-" : "",
+			 (ambiguous_flags & OPT_UNSET) ?  "yes-" : "",
 			 ambiguous_option->long_name,
-			 (abbrev_flags & OPT_UNSET) ?  "no-" : "",
+			 (abbrev_flags & OPT_UNSET) ?  "yes-" : "",
 			 abbrev_option->long_name);
 		 return -1;
 	}
@@ -475,7 +475,7 @@ static void check_typos(const char *arg, const struct option *options)
 	if (strlen(arg) < 3)
 		return;
 
-	if (strstarts(arg, "no-")) {
+	if (strstarts(arg, "yes-")) {
 		fprintf(stderr, " Error: did you mean `--%s` (with two dashes ?)\n", arg);
 		exit(129);
 	}
@@ -516,7 +516,7 @@ static int parse_options_step(struct parse_opt_ctx_t *ctx,
 	int excl_short_opt = 1;
 	const char *arg;
 
-	/* we must reset ->opt, unknown short option leave it dangling */
+	/* we must reset ->opt, unkyeswn short option leave it dangling */
 	ctx->opt = NULL;
 
 	for (; ctx->argc; ctx->argc--, ctx->argv++) {
@@ -537,7 +537,7 @@ static int parse_options_step(struct parse_opt_ctx_t *ctx,
 			case -1:
 				return parse_options_usage(usagestr, options, arg, 1);
 			case -2:
-				goto unknown;
+				goto unkyeswn;
 			case -3:
 				goto exclusive;
 			default:
@@ -560,7 +560,7 @@ static int parse_options_step(struct parse_opt_ctx_t *ctx,
 					 */
 					ctx->argv[0] = strdup(ctx->opt - 1);
 					*(char *)ctx->argv[0] = '-';
-					goto unknown;
+					goto unkyeswn;
 				case -3:
 					goto exclusive;
 				default:
@@ -591,7 +591,7 @@ static int parse_options_step(struct parse_opt_ctx_t *ctx,
 		case -1:
 			return parse_options_usage(usagestr, options, arg, 0);
 		case -2:
-			goto unknown;
+			goto unkyeswn;
 		case -3:
 			excl_short_opt = 0;
 			goto exclusive;
@@ -599,7 +599,7 @@ static int parse_options_step(struct parse_opt_ctx_t *ctx,
 			break;
 		}
 		continue;
-unknown:
+unkyeswn:
 		if (!(ctx->flags & PARSE_OPT_KEEP_UNKNOWN))
 			return PARSE_OPT_UNKNOWN;
 		ctx->out[ctx->cpidx++] = ctx->argv[0];
@@ -631,7 +631,7 @@ int parse_options_subcommand(int argc, const char **argv, const struct option *o
 {
 	struct parse_opt_ctx_t ctx;
 
-	/* build usage string if it's not provided */
+	/* build usage string if it's yest provided */
 	if (subcommands && !usagestr[0]) {
 		char *buf = NULL;
 
@@ -670,10 +670,10 @@ int parse_options_subcommand(int argc, const char **argv, const struct option *o
 		exit(130);
 	default: /* PARSE_OPT_UNKNOWN */
 		if (ctx.argv[0][1] == '-')
-			astrcatf(&error_buf, "unknown option `%s'",
+			astrcatf(&error_buf, "unkyeswn option `%s'",
 				 ctx.argv[0] + 2);
 		else
-			astrcatf(&error_buf, "unknown switch `%c'", *ctx.opt);
+			astrcatf(&error_buf, "unkyeswn switch `%c'", *ctx.opt);
 		usage_with_options(usagestr, options);
 	}
 
@@ -775,7 +775,7 @@ static void print_option_help(const struct option *opts, int full)
 	}
 	fprintf(stderr, "%*s%s\n", pad + USAGE_GAP, "", opts->help);
 	if (opts->flags & PARSE_OPT_NOBUILD)
-		fprintf(stderr, "%*s(not built-in because %s)\n",
+		fprintf(stderr, "%*s(yest built-in because %s)\n",
 			USAGE_OPTS_WIDTH + USAGE_GAP, "",
 			opts->build_opt);
 }
@@ -955,7 +955,7 @@ opt:
 
 		if (strstarts(opts->long_name, optstr))
 			print_option_help(opts, 0);
-		if (strstarts("no-", optstr) &&
+		if (strstarts("yes-", optstr) &&
 		    strstarts(opts->long_name, optstr + 3))
 			print_option_help(opts, 0);
 	}
@@ -971,7 +971,7 @@ int parse_opt_verbosity_cb(const struct option *opt,
 	int *target = opt->value;
 
 	if (unset)
-		/* --no-quiet, --no-verbose */
+		/* --yes-quiet, --yes-verbose */
 		*target = 0;
 	else if (opt->short_name == 'v') {
 		if (*target >= 0)
@@ -1009,7 +1009,7 @@ void set_option_flag(struct option *opts, int shortopt, const char *longopt,
 	return;
 }
 
-void set_option_nobuild(struct option *opts, int shortopt,
+void set_option_yesbuild(struct option *opts, int shortopt,
 			const char *longopt,
 			const char *build_opt,
 			bool can_skip)

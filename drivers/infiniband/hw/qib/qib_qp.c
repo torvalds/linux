@@ -14,11 +14,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -230,14 +230,14 @@ unsigned qib_free_all_qps(struct rvt_dev_info *rdi)
 	return qp_inuse;
 }
 
-void qib_notify_qp_reset(struct rvt_qp *qp)
+void qib_yestify_qp_reset(struct rvt_qp *qp)
 {
 	struct qib_qp_priv *priv = qp->priv;
 
 	atomic_set(&priv->s_dma_busy, 0);
 }
 
-void qib_notify_error_qp(struct rvt_qp *qp)
+void qib_yestify_error_qp(struct rvt_qp *qp)
 {
 	struct qib_qp_priv *priv = qp->priv;
 	struct qib_ibdev *dev = to_idev(qp->ibqp.device);

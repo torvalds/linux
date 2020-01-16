@@ -71,7 +71,7 @@ static int pnv_eeh_init(void)
 	 * doesn't do that. So we have to selectively enable I/O
 	 * prior to collecting error log.
 	 */
-	list_for_each_entry(hose, &hose_list, list_node) {
+	list_for_each_entry(hose, &hose_list, list_yesde) {
 		phb = hose->private_data;
 
 		if (phb->model == PNV_PHB_MODEL_P7IOC)
@@ -82,7 +82,7 @@ static int pnv_eeh_init(void)
 
 		/*
 		 * PE#0 should be regarded as valid by EEH core
-		 * if it's not the reserved one. Currently, we
+		 * if it's yest the reserved one. Currently, we
 		 * have the reserved PE#255 and PE#127 for PHB3
 		 * and P7IOC separately. So we should regard
 		 * PE#0 as valid for PHB3 and P7IOC.
@@ -107,7 +107,7 @@ static irqreturn_t pnv_eeh_event(int irq, void *data)
 	 * finished processing the outstanding ones. Event processing
 	 * gets unmasked in next_error() if EEH is enabled.
 	 */
-	disable_irq_nosync(irq);
+	disable_irq_yessync(irq);
 
 	if (eeh_enabled())
 		eeh_send_failure_event(NULL);
@@ -122,7 +122,7 @@ static ssize_t pnv_eeh_ei_write(struct file *filp,
 {
 	struct pci_controller *hose = filp->private_data;
 	struct eeh_pe *pe;
-	int pe_no, type, func;
+	int pe_yes, type, func;
 	unsigned long addr, mask;
 	char buf[50];
 	int ret;
@@ -137,12 +137,12 @@ static ssize_t pnv_eeh_ei_write(struct file *filp,
 
 	/* Retrieve parameters */
 	ret = sscanf(buf, "%x:%x:%x:%lx:%lx",
-		     &pe_no, &type, &func, &addr, &mask);
+		     &pe_yes, &type, &func, &addr, &mask);
 	if (ret != 5)
 		return -EINVAL;
 
 	/* Retrieve PE */
-	pe = eeh_pe_get(hose, pe_no, 0);
+	pe = eeh_pe_get(hose, pe_yes, 0);
 	if (!pe)
 		return -ENODEV;
 
@@ -153,7 +153,7 @@ static ssize_t pnv_eeh_ei_write(struct file *filp,
 
 static const struct file_operations pnv_eeh_ei_fops = {
 	.open	= simple_open,
-	.llseek	= no_llseek,
+	.llseek	= yes_llseek,
 	.write	= pnv_eeh_ei_write,
 };
 
@@ -202,7 +202,7 @@ void pnv_eeh_enable_phbs(void)
 	struct pci_controller *hose;
 	struct pnv_phb *phb;
 
-	list_for_each_entry(hose, &hose_list, list_node) {
+	list_for_each_entry(hose, &hose_list, list_yesde) {
 		phb = hose->private_data;
 		/*
 		 * If EEH is enabled, we're going to rely on that.
@@ -232,7 +232,7 @@ int pnv_eeh_post_init(void)
 
 	eeh_show_enabled();
 
-	/* Register OPAL event notifier */
+	/* Register OPAL event yestifier */
 	eeh_event_irq = opal_event_request(ilog2(OPAL_EVENT_PCI_ERROR));
 	if (eeh_event_irq < 0) {
 		pr_err("%s: Can't register OPAL event interrupt (%d)\n",
@@ -254,7 +254,7 @@ int pnv_eeh_post_init(void)
 
 	pnv_eeh_enable_phbs();
 
-	list_for_each_entry(hose, &hose_list, list_node) {
+	list_for_each_entry(hose, &hose_list, list_yesde) {
 		phb = hose->private_data;
 
 		/* Create debugfs entries */
@@ -347,7 +347,7 @@ static int pnv_eeh_find_ecap(struct pci_dn *pdn, int cap)
 
 /**
  * pnv_eeh_probe - Do probe on PCI device
- * @pdn: PCI device node
+ * @pdn: PCI device yesde
  * @data: unused
  *
  * When EEH module is installed during system boot, all PCI devices
@@ -357,7 +357,7 @@ static int pnv_eeh_find_ecap(struct pci_dn *pdn, int cap)
  * initialization on the corresponding eeh device and create PE
  * accordingly.
  *
- * It's notable that's unsafe to retrieve the EEH device through
+ * It's yestable that's unsafe to retrieve the EEH device through
  * the corresponding PCI device. During the PCI device hotplug, which
  * was possiblly triggered by EEH core, the binding between EEH device
  * and the PCI device isn't built yet.
@@ -369,12 +369,12 @@ static void *pnv_eeh_probe(struct pci_dn *pdn, void *data)
 	struct eeh_dev *edev = pdn_to_eeh_dev(pdn);
 	uint32_t pcie_flags;
 	int ret;
-	int config_addr = (pdn->busno << 8) | (pdn->devfn);
+	int config_addr = (pdn->busyes << 8) | (pdn->devfn);
 
 	/*
 	 * When probing the root bridge, which doesn't have any
-	 * subordinate PCI devices. We don't have OF node for
-	 * the root bridge. So it's not reasonable to continue
+	 * subordinate PCI devices. We don't have OF yesde for
+	 * the root bridge. So it's yest reasonable to continue
 	 * the probing.
 	 */
 	if (!edev || edev->pe)
@@ -451,7 +451,7 @@ static void *pnv_eeh_probe(struct pci_dn *pdn, void *data)
 	 */
 	if (!(edev->pe->state & EEH_PE_PRI_BUS)) {
 		edev->pe->bus = pci_find_bus(hose->global_number,
-					     pdn->busno);
+					     pdn->busyes);
 		if (edev->pe->bus)
 			edev->pe->state |= EEH_PE_PRI_BUS;
 	}
@@ -813,7 +813,7 @@ static int pnv_eeh_root_reset(struct pci_controller *hose, int option)
 
 	/*
 	 * During the reset deassert time, we needn't care
-	 * the reset scope because the firmware does nothing
+	 * the reset scope because the firmware does yesthing
 	 * for fundamental or hot reset during deassert phase.
 	 */
 	if (option == EEH_RESET_FUNDAMENTAL)
@@ -898,13 +898,13 @@ static int pnv_eeh_bridge_reset(struct pci_dev *pdev, int option)
 {
 	struct pci_controller *hose = pci_bus_to_host(pdev->bus);
 	struct pnv_phb *phb = hose->private_data;
-	struct device_node *dn = pci_device_to_OF_node(pdev);
+	struct device_yesde *dn = pci_device_to_OF_yesde(pdev);
 	uint64_t id = PCI_SLOT_ID(phb->opal_id,
 				  (pdev->bus->number << 8) | pdev->devfn);
 	uint8_t scope;
 	int64_t rc;
 
-	/* Hot reset to the bus if firmware cannot handle */
+	/* Hot reset to the bus if firmware canyest handle */
 	if (!dn || !of_get_property(dn, "ibm,reset-by-firmware", NULL))
 		return __pnv_eeh_bridge_reset(pdev, option);
 
@@ -966,7 +966,7 @@ static void pnv_eeh_wait_for_pending(struct pci_dn *pdn, const char *type,
 
 	pr_warn("%s: Pending transaction while issuing %sFLR to %04x:%02x:%02x.%01x\n",
 		__func__, type,
-		pdn->phb->global_number, pdn->busno,
+		pdn->phb->global_number, pdn->busyes,
 		PCI_SLOT(pdn->devfn), PCI_FUNC(pdn->devfn));
 }
 
@@ -1072,7 +1072,7 @@ static int pnv_eeh_reset_vf_pe(struct eeh_pe *pe, int option)
  * we need to reset the parent p2p bridge. The PHB has to
  * be reinitialized if the p2p bridge is root bridge. For
  * PCI device sensitive PE, we will try to reset the device
- * through FLR. For now, we don't have OPAL APIs to do HARD
+ * through FLR. For yesw, we don't have OPAL APIs to do HARD
  * reset yet, so all reset would be SOFT (HOT) reset.
  */
 static int pnv_eeh_reset(struct eeh_pe *pe, int option)
@@ -1103,7 +1103,7 @@ static int pnv_eeh_reset(struct eeh_pe *pe, int option)
 	 * The frozen PE might be caused by PAPR error injection
 	 * registers, which are expected to be cleared after hitting
 	 * frozen PE as stated in the hardware spec. Unfortunately,
-	 * that's not true on P7IOC. So we have to clear it manually
+	 * that's yest true on P7IOC. So we have to clear it manually
 	 * to avoid recursive EEH errors during recovery.
 	 */
 	phb = hose->private_data;
@@ -1125,7 +1125,7 @@ static int pnv_eeh_reset(struct eeh_pe *pe, int option)
 
 	bus = eeh_pe_bus_get(pe);
 	if (!bus) {
-		pr_err("%s: Cannot find PCI bus for PHB#%x-PE#%x\n",
+		pr_err("%s: Canyest find PCI bus for PHB#%x-PE#%x\n",
 			__func__, pe->phb->global_number, pe->addr);
 		return -EIO;
 	}
@@ -1141,12 +1141,12 @@ static int pnv_eeh_reset(struct eeh_pe *pe, int option)
 	 *
 	 * Fundemental resets need to be handled internally to EEH since the
 	 * PCI core doesn't really have a concept of a fundemental reset,
-	 * mainly because there's no standard way to generate one. Only a
+	 * mainly because there's yes standard way to generate one. Only a
 	 * few devices require an FRESET so it should be fine.
 	 */
 	if (option != EEH_RESET_FUNDAMENTAL) {
 		/*
-		 * NB: Skiboot and pnv_eeh_bridge_reset() also no-op the
+		 * NB: Skiboot and pnv_eeh_bridge_reset() also yes-op the
 		 *     de-assert step. It's like the OPAL reset API was
 		 *     poorly designed or something...
 		 */
@@ -1378,7 +1378,7 @@ static void pnv_eeh_get_and_dump_hub_diag(struct pci_controller *hose)
 }
 
 static int pnv_eeh_get_pe(struct pci_controller *hose,
-			  u16 pe_no, struct eeh_pe **pe)
+			  u16 pe_yes, struct eeh_pe **pe)
 {
 	struct pnv_phb *phb = hose->private_data;
 	struct pnv_ioda_pe *pnv_pe;
@@ -1389,23 +1389,23 @@ static int pnv_eeh_get_pe(struct pci_controller *hose,
 	 * the master PE because slave PE is invisible
 	 * to EEH core.
 	 */
-	pnv_pe = &phb->ioda.pe_array[pe_no];
+	pnv_pe = &phb->ioda.pe_array[pe_yes];
 	if (pnv_pe->flags & PNV_IODA_PE_SLAVE) {
 		pnv_pe = pnv_pe->master;
 		WARN_ON(!pnv_pe ||
 			!(pnv_pe->flags & PNV_IODA_PE_MASTER));
-		pe_no = pnv_pe->pe_number;
+		pe_yes = pnv_pe->pe_number;
 	}
 
 	/* Find the PE according to PE# */
-	dev_pe = eeh_pe_get(hose, pe_no, 0);
+	dev_pe = eeh_pe_get(hose, pe_yes, 0);
 	if (!dev_pe)
 		return -EEXIST;
 
 	/* Freeze the (compound) PE */
 	*pe = dev_pe;
 	if (!(dev_pe->state & EEH_PE_ISOLATED))
-		phb->freeze_pe(phb, pe_no);
+		phb->freeze_pe(phb, pe_yes);
 
 	/*
 	 * At this point, we're sure the (compound) PE should
@@ -1448,7 +1448,7 @@ static int pnv_eeh_next_error(struct eeh_pe **pe)
 	struct pci_controller *hose;
 	struct pnv_phb *phb;
 	struct eeh_pe *phb_pe, *parent_pe;
-	__be64 frozen_pe_no;
+	__be64 frozen_pe_yes;
 	__be16 err_type, severity;
 	long rc;
 	int state, ret = EEH_NEXT_ERR_NONE;
@@ -1459,7 +1459,7 @@ static int pnv_eeh_next_error(struct eeh_pe **pe)
 	 */
 	eeh_remove_event(NULL, false);
 
-	list_for_each_entry(hose, &hose_list, list_node) {
+	list_for_each_entry(hose, &hose_list, list_yesde) {
 		/*
 		 * If the subordinate PCI buses of the PHB has been
 		 * removed or is exactly under error recovery, we
@@ -1471,7 +1471,7 @@ static int pnv_eeh_next_error(struct eeh_pe **pe)
 			continue;
 
 		rc = opal_pci_next_error(phb->opal_id,
-					 &frozen_pe_no, &err_type, &severity);
+					 &frozen_pe_yes, &err_type, &severity);
 		if (rc != OPAL_SUCCESS) {
 			pr_devel("%s: Invalid return value on "
 				 "PHB#%x (0x%lx) from opal_pci_next_error",
@@ -1494,7 +1494,7 @@ static int pnv_eeh_next_error(struct eeh_pe **pe)
 		 */
 		pr_devel("%s: Error (%d, %d, %llu) on PHB#%x\n",
 			__func__, be16_to_cpu(err_type),
-			be16_to_cpu(severity), be64_to_cpu(frozen_pe_no),
+			be16_to_cpu(severity), be64_to_cpu(frozen_pe_yes),
 			hose->global_number);
 		switch (be16_to_cpu(err_type)) {
 		case OPAL_EEH_IOC_ERROR:
@@ -1542,9 +1542,9 @@ static int pnv_eeh_next_error(struct eeh_pe **pe)
 			 * just try to unfreeze.
 			 */
 			if (pnv_eeh_get_pe(hose,
-				be64_to_cpu(frozen_pe_no), pe)) {
-				pr_info("EEH: Clear non-existing PHB#%x-PE#%llx\n",
-					hose->global_number, be64_to_cpu(frozen_pe_no));
+				be64_to_cpu(frozen_pe_yes), pe)) {
+				pr_info("EEH: Clear yesn-existing PHB#%x-PE#%llx\n",
+					hose->global_number, be64_to_cpu(frozen_pe_yes));
 				pr_info("EEH: PHB location: %s\n",
 					eeh_pe_loc_get(phb_pe));
 
@@ -1557,7 +1557,7 @@ static int pnv_eeh_next_error(struct eeh_pe **pe)
 
 				/* Try best to clear it */
 				opal_pci_eeh_freeze_clear(phb->opal_id,
-					be64_to_cpu(frozen_pe_no),
+					be64_to_cpu(frozen_pe_yes),
 					OPAL_EEH_ACTION_CLEAR_FREEZE_ALL);
 				ret = EEH_NEXT_ERR_NONE;
 			} else if ((*pe)->state & EEH_PE_ISOLATED ||
@@ -1619,12 +1619,12 @@ static int pnv_eeh_next_error(struct eeh_pe **pe)
 				parent_pe = parent_pe->parent;
 			}
 
-			/* We possibly migrate to another PE */
+			/* We possibly migrate to ayesther PE */
 			eeh_pe_mark_isolated(*pe);
 		}
 
 		/*
-		 * If we have no errors on the specific PHB or only
+		 * If we have yes errors on the specific PHB or only
 		 * informative error there, we continue poking it.
 		 * Otherwise, we need actions to be taken by upper
 		 * layer.
@@ -1645,7 +1645,7 @@ static int pnv_eeh_restore_config(struct pci_dn *pdn)
 	struct eeh_dev *edev = pdn_to_eeh_dev(pdn);
 	struct pnv_phb *phb;
 	s64 ret = 0;
-	int config_addr = (pdn->busno << 8) | (pdn->devfn);
+	int config_addr = (pdn->busyes << 8) | (pdn->devfn);
 
 	if (!edev)
 		return -EEXIST;
@@ -1689,7 +1689,7 @@ static struct eeh_ops pnv_eeh_ops = {
 	.write_config           = pnv_eeh_write_config,
 	.next_error		= pnv_eeh_next_error,
 	.restore_config		= pnv_eeh_restore_config,
-	.notify_resume		= NULL
+	.yestify_resume		= NULL
 };
 
 #ifdef CONFIG_PCI_IOV

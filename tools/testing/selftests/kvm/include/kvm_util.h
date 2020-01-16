@@ -135,7 +135,7 @@ void vcpu_events_set(struct kvm_vm *vm, uint32_t vcpuid,
 void vcpu_nested_state_get(struct kvm_vm *vm, uint32_t vcpuid,
 			   struct kvm_nested_state *state);
 int vcpu_nested_state_set(struct kvm_vm *vm, uint32_t vcpuid,
-			  struct kvm_nested_state *state, bool ignore_error);
+			  struct kvm_nested_state *state, bool igyesre_error);
 #endif
 
 const char *exit_reason_str(unsigned int exit_reason);

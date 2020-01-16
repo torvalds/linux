@@ -12,7 +12,7 @@
 #include <linux/kernel.h>
 #include <linux/fs.h>
 #include <linux/device.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/mutex.h>
 #include <linux/of.h>
 #include <linux/slab.h>
@@ -111,7 +111,7 @@ static ssize_t oppanel_write(struct file *filp, const char __user *userbuf,
 	return ret;
 }
 
-static int oppanel_open(struct inode *inode, struct file *filp)
+static int oppanel_open(struct iyesde *iyesde, struct file *filp)
 {
 	if (!mutex_trylock(&oppanel_mutex)) {
 		pr_debug("Device Busy\n");
@@ -120,7 +120,7 @@ static int oppanel_open(struct inode *inode, struct file *filp)
 	return 0;
 }
 
-static int oppanel_release(struct inode *inode, struct file *filp)
+static int oppanel_release(struct iyesde *iyesde, struct file *filp)
 {
 	mutex_unlock(&oppanel_mutex);
 	return 0;
@@ -136,25 +136,25 @@ static const struct file_operations oppanel_fops = {
 };
 
 static struct miscdevice oppanel_dev = {
-	.minor		= MISC_DYNAMIC_MINOR,
+	.miyesr		= MISC_DYNAMIC_MINOR,
 	.name		= "op_panel",
 	.fops		= &oppanel_fops
 };
 
 static int oppanel_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	u32 line_len;
 	int rc, i;
 
 	rc = of_property_read_u32(np, "#length", &line_len);
 	if (rc) {
-		pr_err_ratelimited("Operator panel length property not found\n");
+		pr_err_ratelimited("Operator panel length property yest found\n");
 		return rc;
 	}
 	rc = of_property_read_u32(np, "#lines", &num_lines);
 	if (rc) {
-		pr_err_ratelimited("Operator panel lines property not found\n");
+		pr_err_ratelimited("Operator panel lines property yest found\n");
 		return rc;
 	}
 	oppanel_size = line_len * num_lines;

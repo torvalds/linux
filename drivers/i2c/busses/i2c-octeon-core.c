@@ -40,7 +40,7 @@ static bool octeon_i2c_test_iflg(struct octeon_i2c *i2c)
  * octeon_i2c_wait - wait for the IFLG to be set
  * @i2c: The struct octeon_i2c
  *
- * Returns 0 on success, otherwise a negative errno.
+ * Returns 0 on success, otherwise a negative erryes.
  */
 static int octeon_i2c_wait(struct octeon_i2c *i2c)
 {
@@ -179,7 +179,7 @@ static int octeon_i2c_check_status(struct octeon_i2c *i2c, int final_read)
 	u8 stat;
 
 	/*
-	 * This is ugly... in HLC mode the status is not in the status register
+	 * This is ugly... in HLC mode the status is yest in the status register
 	 * but in the lower 8 bits of SW_TWSI.
 	 */
 	if (i2c->hlc_enabled)
@@ -260,7 +260,7 @@ static int octeon_i2c_recovery(struct octeon_i2c *i2c)
  * octeon_i2c_start - send START to the bus
  * @i2c: The struct octeon_i2c
  *
- * Returns 0 on success, otherwise a negative errno.
+ * Returns 0 on success, otherwise a negative erryes.
  */
 static int octeon_i2c_start(struct octeon_i2c *i2c)
 {
@@ -301,7 +301,7 @@ static void octeon_i2c_stop(struct octeon_i2c *i2c)
  *
  * The address is sent over the bus, then the data is read.
  *
- * Returns 0 on success, otherwise a negative errno.
+ * Returns 0 on success, otherwise a negative erryes.
  */
 static int octeon_i2c_read(struct octeon_i2c *i2c, int target,
 			   u8 *data, u16 *rlength, bool recv_len)
@@ -323,11 +323,11 @@ static int octeon_i2c_read(struct octeon_i2c *i2c, int target,
 
 	for (i = 0; i < length; i++) {
 		/*
-		 * For the last byte to receive TWSI_CTL_AAK must not be set.
+		 * For the last byte to receive TWSI_CTL_AAK must yest be set.
 		 *
-		 * A special case is I2C_M_RECV_LEN where we don't know the
+		 * A special case is I2C_M_RECV_LEN where we don't kyesw the
 		 * additional length yet. If recv_len is set we assume we're
-		 * not reading the final byte and therefore need to set
+		 * yest reading the final byte and therefore need to set
 		 * TWSI_CTL_AAK.
 		 */
 		if ((i + 1 == length) && !(recv_len && i == 0))
@@ -369,7 +369,7 @@ static int octeon_i2c_read(struct octeon_i2c *i2c, int target,
  *
  * The address is sent over the bus, then the data.
  *
- * Returns 0 on success, otherwise a negative errno.
+ * Returns 0 on success, otherwise a negative erryes.
  */
 static int octeon_i2c_write(struct octeon_i2c *i2c, int target,
 			    const u8 *data, int length)
@@ -600,7 +600,7 @@ err:
  * @msgs: Pointer to the messages to be processed
  * @num: Length of the MSGS array
  *
- * Returns the number of messages processed, or a negative errno on failure.
+ * Returns the number of messages processed, or a negative erryes on failure.
  */
 int octeon_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs, int num)
 {
@@ -632,7 +632,7 @@ int octeon_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs, int num)
 	for (i = 0; ret == 0 && i < num; i++) {
 		struct i2c_msg *pmsg = &msgs[i];
 
-		/* zero-length messages are not supported */
+		/* zero-length messages are yest supported */
 		if (!pmsg->len) {
 			ret = -EOPNOTSUPP;
 			break;
@@ -662,7 +662,7 @@ void octeon_i2c_set_clock(struct octeon_i2c *i2c)
 
 	for (ndiv_idx = 0; ndiv_idx < 8 && delta_hz != 0; ndiv_idx++) {
 		/*
-		 * An mdiv value of less than 2 seems to not work well
+		 * An mdiv value of less than 2 seems to yest work well
 		 * with ds1337 RTCs, so we constrain it to larger values.
 		 */
 		for (mdiv_idx = 15; mdiv_idx >= 2 && delta_hz != 0; mdiv_idx--) {
@@ -773,7 +773,7 @@ static void octeon_i2c_unprepare_recovery(struct i2c_adapter *adap)
 	/*
 	 * Generate STOP to finish the unfinished transaction.
 	 * Can't generate STOP via the TWSI CTL register
-	 * since it could bring the TWSI controller into an inoperable state.
+	 * since it could bring the TWSI controller into an iyesperable state.
 	 */
 	octeon_i2c_write_int(i2c, TWSI_INT_SDA_OVR | TWSI_INT_SCL_OVR);
 	udelay(5);

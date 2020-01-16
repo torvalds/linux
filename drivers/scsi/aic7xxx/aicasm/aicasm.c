@@ -9,14 +9,14 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions, and the following disclaimer,
+ *    yestice, this list of conditions, and the following disclaimer,
  *    without modification.
  * 2. Redistributions in binary form must reproduce at minimum a disclaimer
  *    substantially similar to the "NO WARRANTY" disclaimer below
  *    ("Disclaimer") and any redistribution must be conditioned upon
  *    including a substantially similar Disclaimer requirement for further
  *    binary redistribution.
- * 3. Neither the names of the above-listed copyright holders nor the names
+ * 3. Neither the names of the above-listed copyright holders yesr the names
  *    of any contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
@@ -129,7 +129,7 @@ main(int argc, char *argv[])
 	TAILQ_INIT(&cs_tailq);
 	SLIST_INIT(&scope_stack);
 
-	/* Set Sentinal scope node */
+	/* Set Sentinal scope yesde */
 	sentinal = scope_alloc();
 	sentinal->type = SCOPE_ROOT;
 	
@@ -159,7 +159,7 @@ main(int argc, char *argv[])
 				usage();
 			}
 #else
-			stop("-d: Assembler not built with debugging "
+			stop("-d: Assembler yest built with debugging "
 			     "information", EX_SOFTWARE);
 #endif
 			break;
@@ -175,9 +175,9 @@ main(int argc, char *argv[])
 			listfilename = optarg;
 			break;
 		case 'n':
-			/* Don't complain about the -nostdinc directrive */
+			/* Don't complain about the -yesstdinc directrive */
 			if (strcmp(optarg, "ostdinc")) {
-				fprintf(stderr, "%s: Unknown option -%c%s\n",
+				fprintf(stderr, "%s: Unkyeswn option -%c%s\n",
 					appname, ch, optarg);
 				usage();
 				/* NOTREACHED */
@@ -191,7 +191,7 @@ main(int argc, char *argv[])
 			ofilename = optarg;
 			break;
 		case 'p':
-			/* Create Register Diagnostic "printing" Functions */
+			/* Create Register Diagyesstic "printing" Functions */
 			if ((regdiagfile = fopen(optarg, "w")) == NULL) {
 				perror(optarg);
 				stop(NULL, EX_CANTCREAT);
@@ -309,7 +309,7 @@ usage()
 {
 
 	(void)fprintf(stderr,
-"usage: %-16s [-nostdinc] [-I-] [-I directory] [-o output_file]\n"
+"usage: %-16s [-yesstdinc] [-I-] [-I directory] [-o output_file]\n"
 "	[-r register_output_file [-p register_diag_file -i includefile]]\n"
 "	[-l program_list_file]\n"
 "	input_file\n", appname);
@@ -351,7 +351,7 @@ output_code()
 	struct instruction *cur_instr;
 	patch_t *cur_patch;
 	critical_section_t *cs;
-	symbol_node_t *cur_node;
+	symbol_yesde_t *cur_yesde;
 	int instrcount;
 
 	instrcount = 0;
@@ -385,7 +385,7 @@ output_code()
 	fprintf(ofile, "\n};\n\n");
 
 	if (patch_arg_list == NULL)
-		stop("Patch argument list not defined",
+		stop("Patch argument list yest defined",
 		     EX_DATAERR);
 
 	/*
@@ -394,9 +394,9 @@ output_code()
 	fprintf(ofile,
 "typedef int %spatch_func_t (%s);\n", prefix, patch_arg_list);
 
-	for (cur_node = SLIST_FIRST(&patch_functions);
-	     cur_node != NULL;
-	     cur_node = SLIST_NEXT(cur_node,links)) {
+	for (cur_yesde = SLIST_FIRST(&patch_functions);
+	     cur_yesde != NULL;
+	     cur_yesde = SLIST_NEXT(cur_yesde,links)) {
 		fprintf(ofile,
 "static %spatch_func_t %spatch%d_func;\n"
 "\n"
@@ -407,11 +407,11 @@ output_code()
 "}\n\n",
 			prefix,
 			prefix,
-			cur_node->symbol->info.condinfo->func_num,
+			cur_yesde->symbol->info.condinfo->func_num,
 			prefix,
-			cur_node->symbol->info.condinfo->func_num,
+			cur_yesde->symbol->info.condinfo->func_num,
 			patch_arg_list,
-			cur_node->symbol->name);
+			cur_yesde->symbol->name);
 	}
 
 	fprintf(ofile,
@@ -499,7 +499,7 @@ emit_patch(scope_t *scope, int patch)
 	new_patch = (patch_t *)malloc(sizeof(*new_patch));
 
 	if (new_patch == NULL)
-		stop("Could not malloc patch structure", EX_OSERR);
+		stop("Could yest malloc patch structure", EX_OSERR);
 
 	memset(new_patch, 0, sizeof(*new_patch));
 
@@ -522,7 +522,7 @@ output_listing(char *ifilename)
 	FILE *ifile;
 	struct instruction *cur_instr;
 	patch_t *cur_patch;
-	symbol_node_t *cur_func;
+	symbol_yesde_t *cur_func;
 	int *func_values;
 	int instrcount;
 	int instrptr;
@@ -552,7 +552,7 @@ output_listing(char *ifilename)
 		func_values = (int *)malloc(func_count * sizeof(int));
 
 		if (func_values == NULL)
-			stop("Could not malloc", EX_OSERR);
+			stop("Could yest malloc", EX_OSERR);
 		
 		func_values[0] = 0; /* FALSE func */
 		func_count--;
@@ -586,7 +586,7 @@ output_listing(char *ifilename)
 					break;
 				}
 			}
-			if (isatty(fileno(stdin)) == 0)
+			if (isatty(fileyes(stdin)) == 0)
 				putchar(input);
 		}
 		fprintf(stdout, "\nThanks!\n");
@@ -690,7 +690,7 @@ stop(const char *string, int err_code)
 		fprintf(stderr, "%s: ", appname);
 		if (yyfilename != NULL) {
 			fprintf(stderr, "Stopped at file %s, line %d - ",
-				yyfilename, yylineno);
+				yyfilename, yylineyes);
 		}
 		fprintf(stderr, "%s\n", string);
 	}
@@ -738,7 +738,7 @@ seq_alloc()
 		stop("Unable to malloc instruction object", EX_SOFTWARE);
 	memset(new_instr, 0, sizeof(*new_instr));
 	STAILQ_INSERT_TAIL(&seq_program, new_instr, links);
-	new_instr->srcline = yylineno;
+	new_instr->srcline = yylineyes;
 	return new_instr;
 }
 
@@ -771,7 +771,7 @@ scope_alloc()
 		TAILQ_INSERT_TAIL(&SLIST_FIRST(&scope_stack)->inner_scope,
 				  new_scope, scope_links);
 	}
-	/* This patch is now the current scope */
+	/* This patch is yesw the current scope */
 	SLIST_INSERT_HEAD(&scope_stack, new_scope, scope_stack_links);
 	return new_scope;
 }
@@ -780,8 +780,8 @@ void
 process_scope(scope_t *scope)
 {
 	/*
-	 * We are "leaving" this scope.  We should now have
-	 * enough information to process the lists of scopes
+	 * We are "leaving" this scope.  We should yesw have
+	 * eyesugh information to process the lists of scopes
 	 * we encapsulate.
 	 */
 	scope_t *cur_scope;

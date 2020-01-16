@@ -8,7 +8,7 @@
  * be independently controlled (either via a pre-defined hardware
  * function or via the LED class, if desired -- the hardware tends to
  * encapsulate some of the same "triggers" that the LED class supports,
- * so there's not too much value in it).
+ * so there's yest too much value in it).
  *
  * Additionally, most of these boards also have a LED bank that we've
  * traditionally used for strobing the load average. This use case is
@@ -96,7 +96,7 @@ static int heartbeat_drv_probe(struct platform_device *pdev)
 			return -ENOMEM;
 	}
 
-	hd->base = ioremap_nocache(res->start, resource_size(res));
+	hd->base = ioremap_yescache(res->start, resource_size(res));
 	if (unlikely(!hd->base)) {
 		dev_err(&pdev->dev, "ioremap failed\n");
 

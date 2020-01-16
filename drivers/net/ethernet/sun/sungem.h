@@ -18,7 +18,7 @@
 #define GREG_PCIESTAT	0x1000UL	/* PCI Error Status Register	*/
 #define GREG_PCIEMASK	0x1004UL	/* PCI Error Mask Register	*/
 #define GREG_BIFCFG	0x1008UL	/* BIF Configuration Register	*/
-#define GREG_BIFDIAG	0x100CUL	/* BIF Diagnostics Register	*/
+#define GREG_BIFDIAG	0x100CUL	/* BIF Diagyesstics Register	*/
 #define GREG_SWRST	0x1010UL	/* Software Reset Register	*/
 
 /* Global SEB State Register */
@@ -36,7 +36,7 @@
 /* Global Interrupt Status Register.
  *
  * Reading this register automatically clears bits 0 through 6.
- * This auto-clearing does not occur when the alias at GREG_STAT2
+ * This auto-clearing does yest occur when the alias at GREG_STAT2
  * is read instead.  The rest of the interrupt bits only clear when
  * the secondary interrupt status register corresponding to that
  * bit is read (ie. if GREG_STAT_PCS is set, it will be cleared by
@@ -68,7 +68,7 @@
  * Bits set in GREG_IMASK will prevent that interrupt type from being
  * signalled to the cpu.  GREG_IACK can be used to clear specific top-level
  * interrupt conditions in GREG_STAT, ie. it only works for bits 0 through 6.
- * Setting the bit will clear that interrupt, clear bits will have no effect
+ * Setting the bit will clear that interrupt, clear bits will have yes effect
  * on GREG_STAT.
  */
 
@@ -87,7 +87,7 @@
 #define GREG_BIFCFG_B64DIS	0x00000002	/* Disable 64bit wide data cycle*/
 #define GREG_BIFCFG_M66EN	0x00000004	/* Set if on 66Mhz PCI segment	*/
 
-/* Global BIF Diagnostics Register */
+/* Global BIF Diagyesstics Register */
 #define GREG_BIFDIAG_BURSTSM	0x007f0000	/* PCI Burst state machine	*/
 #define GREG_BIFDIAG_BIFSM	0xff000000	/* BIF state machine		*/
 
@@ -95,7 +95,7 @@
  *
  * This register is used to perform a global reset of the RX and TX portions
  * of the GEM asic.  Setting the RX or TX reset bit will start the reset.
- * The driver _MUST_ poll these bits until they clear.  One may not attempt
+ * The driver _MUST_ poll these bits until they clear.  One may yest attempt
  * to program any other part of GEM until the bits clear.
  */
 #define GREG_SWRST_TXRST	0x00000001	/* TX Software Reset		*/
@@ -167,7 +167,7 @@
  * zero.  As a result, the TX descriptor table must be 2K aligned.
  */
 
-/* The rest of the TXDMA_* registers are for diagnostics and debug, I will document
+/* The rest of the TXDMA_* registers are for diagyesstics and debug, I will document
  * them later. -DaveM
  */
 
@@ -293,7 +293,7 @@
  * thresholds.
  */
 
-/* The rest of the RXDMA_* registers are for diagnostics and debug, I will document
+/* The rest of the RXDMA_* registers are for diagyesstics and debug, I will document
  * them later. -DaveM
  */
 
@@ -426,8 +426,8 @@
  *	 it must be disabled.
  */
 #define MAC_TXCFG_ENAB	0x00000001	/* TX MAC Enable		*/
-#define MAC_TXCFG_ICS	0x00000002	/* Ignore Carrier Sense		*/
-#define MAC_TXCFG_ICOLL	0x00000004	/* Ignore Collisions		*/
+#define MAC_TXCFG_ICS	0x00000002	/* Igyesre Carrier Sense		*/
+#define MAC_TXCFG_ICOLL	0x00000004	/* Igyesre Collisions		*/
 #define MAC_TXCFG_EIPG0	0x00000008	/* Enable IPG0			*/
 #define MAC_TXCFG_NGU	0x00000010	/* Never Give Up		*/
 #define MAC_TXCFG_NGUL	0x00000020	/* Never Give Up Limit		*/
@@ -475,7 +475,7 @@
 
 /* InterPacketGap0 Register.  This 8-bit value is used as an extension
  * to the InterPacketGap1 Register.  Specifically it contributes to the
- * timing of the RX-to-TX IPG.  This value is ignored and presumed to
+ * timing of the RX-to-TX IPG.  This value is igyesred and presumed to
  * be zero for TX-to-TX IPG calculations and/or when the Enable IPG0 bit
  * is cleared in the TX MAC Configuration Register.
  *
@@ -542,7 +542,7 @@
 /* Attempts Limit Register.  This 8-bit register specifies the number
  * of attempts that the TXMAC will make to transmit a frame, before it
  * resets its Attempts Counter.  After reaching the Attempts Limit the
- * TXMAC may or may not drop the frame, as determined by the NGU
+ * TXMAC may or may yest drop the frame, as determined by the NGU
  * (Never Give Up) and NGUL (Never Give Up Limit) bits in the TXMAC
  * Configuration Register.
  *
@@ -579,9 +579,9 @@
 
 /* Address Filter Registers.  Registers 0 through 2 specify bit
  * fields [47:32] through [15:0], respectively, of the address
- * filter.  The Address Filter 2&1 Mask Register denotes the 8-bit
+ * filter.  The Address Filter 2&1 Mask Register deyestes the 8-bit
  * nibble mask for Address Filter Registers 2 and 1.  The Address
- * Filter 0 Mask Register denotes the 16-bit mask for the Address
+ * Filter 0 Mask Register deyestes the 16-bit mask for the Address
  * Filter Register 0.
  */
 
@@ -604,7 +604,7 @@
 
 /* Pause Timer, read-only.  This 16-bit timer is used to time the pause
  * interval as indicated by a received pause flow control frame.
- * A non-zero value in this timer indicates that the MAC is currently in
+ * A yesn-zero value in this timer indicates that the MAC is currently in
  * the paused state.
  */
 
@@ -696,14 +696,14 @@
 #define PCS_SSTATE	0x905CUL	/* Serialink State Register	*/
 
 /* PCD MII Control Register. */
-#define PCS_MIICTRL_SPD	0x00000040	/* Read as one, writes ignored	*/
+#define PCS_MIICTRL_SPD	0x00000040	/* Read as one, writes igyesred	*/
 #define PCS_MIICTRL_CT	0x00000080	/* Force COL signal active	*/
 #define PCS_MIICTRL_DM	0x00000100	/* Duplex mode, forced low	*/
 #define PCS_MIICTRL_RAN	0x00000200	/* Restart auto-neg, self clear	*/
-#define PCS_MIICTRL_ISO	0x00000400	/* Read as zero, writes ignored	*/
-#define PCS_MIICTRL_PD	0x00000800	/* Read as zero, writes ignored	*/
+#define PCS_MIICTRL_ISO	0x00000400	/* Read as zero, writes igyesred	*/
+#define PCS_MIICTRL_PD	0x00000800	/* Read as zero, writes igyesred	*/
 #define PCS_MIICTRL_ANE	0x00001000	/* Auto-neg enable		*/
-#define PCS_MIICTRL_SS	0x00002000	/* Read as zero, writes ignored	*/
+#define PCS_MIICTRL_SS	0x00002000	/* Read as zero, writes igyesred	*/
 #define PCS_MIICTRL_WB	0x00004000	/* Wrapback, loopback at 10-bit
 					 * input side of Serialink
 					 */
@@ -739,7 +739,7 @@
 #define PCS_CFG_SDO	0x00000002	/* Signal detect override	*/
 #define PCS_CFG_SDL	0x00000004	/* Signal detect active low	*/
 #define PCS_CFG_JS	0x00000018	/* Jitter-study:
-					 * 0 = normal operation
+					 * 0 = yesrmal operation
 					 * 1 = high-frequency test pattern
 					 * 2 = low-frequency test pattern
 					 * 3 = reserved
@@ -773,7 +773,7 @@
 #define PCS_SCTRL_TXP	0x00030000	/* PLL input to Serialink	*/
 
 /* Shared Output Select Register.  For test and debug, allows multiplexing
- * test outputs into the PROM address pins.  Set to zero for normal
+ * test outputs into the PROM address pins.  Set to zero for yesrmal
  * operation.
  */
 #define PCS_SOS_PADDR	0x00000003	/* PROM Address			*/
@@ -819,9 +819,9 @@
 /* When it can, GEM internally caches 4 aligned TX descriptors
  * at a time, so that it can use full cacheline DMA reads.
  *
- * Note that unlike HME, there is no ownership bit in the descriptor
+ * Note that unlike HME, there is yes ownership bit in the descriptor
  * control word.  The same functionality is obtained via the TX-Kick
- * and TX-Complete registers.  As a result, GEM need not write back
+ * and TX-Complete registers.  As a result, GEM need yest write back
  * updated values to the TX descriptor ring, it only performs reads.
  *
  * Since TX descriptors are never modified by GEM, the driver can
@@ -843,7 +843,7 @@ struct gem_txd {
 #define TXDCTRL_NOCRC	0x0000000200000000ULL	/* No CRC Present	*/
 
 /* GEM requires that RX descriptors are provided four at a time,
- * aligned.  Also, the RX ring may not wrap around.  This means that
+ * aligned.  Also, the RX ring may yest wrap around.  This means that
  * there will be at least 4 unused descriptor entries in the middle
  * of the RX ring at all times.
  *
@@ -853,7 +853,7 @@ struct gem_txd {
  *
  * Unlike for TX, GEM does update the status word in the RX descriptors
  * when packets arrive.  Therefore an ownership bit does exist in the
- * RX descriptors.  It is advisory, GEM clears it but does not check
+ * RX descriptors.  It is advisory, GEM clears it but does yest check
  * it in any way.  So when buffers are posted to the RX ring (via the
  * RX Kick register) by the driver it must make sure the buffers are
  * truly ready and that the ownership bits are set properly.
@@ -1018,7 +1018,7 @@ struct gem {
 	struct pci_dev		*pdev;
 	struct net_device	*dev;
 #if defined(CONFIG_PPC_PMAC) || defined(CONFIG_SPARC)
-	struct device_node	*of_node;
+	struct device_yesde	*of_yesde;
 #endif
 };
 

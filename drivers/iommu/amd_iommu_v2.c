@@ -6,7 +6,7 @@
 
 #define pr_fmt(fmt)     "AMD-Vi: " fmt
 
-#include <linux/mmu_notifier.h>
+#include <linux/mmu_yestifier.h>
 #include <linux/amd-iommu.h>
 #include <linux/mm_types.h>
 #include <linux/profile.h>
@@ -36,17 +36,17 @@ struct pri_queue {
 struct pasid_state {
 	struct list_head list;			/* For global state-list */
 	atomic_t count;				/* Reference count */
-	unsigned mmu_notifier_count;		/* Counting nested mmu_notifier
+	unsigned mmu_yestifier_count;		/* Counting nested mmu_yestifier
 						   calls */
 	struct mm_struct *mm;			/* mm_struct for the faults */
-	struct mmu_notifier mn;                 /* mmu_notifier handle */
+	struct mmu_yestifier mn;                 /* mmu_yestifier handle */
 	struct pri_queue pri[PRI_QUEUE_SIZE];	/* PRI tag states */
 	struct device_state *device_state;	/* Link to our device_state */
 	int pasid;				/* PASID index */
 	bool invalid;				/* Used during setup and
 						   teardown of the pasid */
 	spinlock_t lock;			/* Protect pri_queues and
-						   mmu_notifer_count */
+						   mmu_yestifer_count */
 	wait_queue_head_t wq;			/* To wait for count == 0 */
 };
 
@@ -137,7 +137,7 @@ static void free_device_state(struct device_state *dev_state)
 
 	iommu_group_put(group);
 
-	/* Everything is down now, free the IOMMUv2 domain */
+	/* Everything is down yesw, free the IOMMUv2 domain */
 	iommu_domain_free(dev_state->domain);
 
 	/* Finally get rid of the device-state */
@@ -277,7 +277,7 @@ static void unbind_pasid(struct pasid_state *pasid_state)
 	domain = pasid_state->device_state->domain;
 
 	/*
-	 * Mark pasid_state as invalid, no more faults will we added to the
+	 * Mark pasid_state as invalid, yes more faults will we added to the
 	 * work queue after this is visible everywhere.
 	 */
 	pasid_state->invalid = true;
@@ -288,7 +288,7 @@ static void unbind_pasid(struct pasid_state *pasid_state)
 	/* After this the device/pasid can't access the mm anymore */
 	amd_iommu_domain_clear_gcr3(domain, pasid_state->pasid);
 
-	/* Make sure no more pending faults are in the queue */
+	/* Make sure yes more pending faults are in the queue */
 	flush_workqueue(iommu_wq);
 }
 
@@ -334,7 +334,7 @@ static void free_pasid_states(struct device_state *dev_state)
 		 * This will call the mn_release function and
 		 * unbind the PASID
 		 */
-		mmu_notifier_unregister(&pasid_state->mn, pasid_state->mm);
+		mmu_yestifier_unregister(&pasid_state->mn, pasid_state->mm);
 
 		put_pasid_state_wait(pasid_state); /* Reference taken in
 						      amd_iommu_bind_pasid */
@@ -353,12 +353,12 @@ static void free_pasid_states(struct device_state *dev_state)
 	free_page((unsigned long)dev_state->states);
 }
 
-static struct pasid_state *mn_to_state(struct mmu_notifier *mn)
+static struct pasid_state *mn_to_state(struct mmu_yestifier *mn)
 {
 	return container_of(mn, struct pasid_state, mn);
 }
 
-static void mn_invalidate_range(struct mmu_notifier *mn,
+static void mn_invalidate_range(struct mmu_yestifier *mn,
 				struct mm_struct *mm,
 				unsigned long start, unsigned long end)
 {
@@ -375,7 +375,7 @@ static void mn_invalidate_range(struct mmu_notifier *mn,
 		amd_iommu_flush_tlb(dev_state->domain, pasid_state->pasid);
 }
 
-static void mn_release(struct mmu_notifier *mn, struct mm_struct *mm)
+static void mn_release(struct mmu_yestifier *mn, struct mm_struct *mm)
 {
 	struct pasid_state *pasid_state;
 	struct device_state *dev_state;
@@ -393,7 +393,7 @@ static void mn_release(struct mmu_notifier *mn, struct mm_struct *mm)
 	unbind_pasid(pasid_state);
 }
 
-static const struct mmu_notifier_ops iommu_mn = {
+static const struct mmu_yestifier_ops iommu_mn = {
 	.release		= mn_release,
 	.invalidate_range       = mn_invalidate_range,
 };
@@ -512,7 +512,7 @@ out:
 	kfree(fault);
 }
 
-static int ppr_notifier(struct notifier_block *nb, unsigned long e, void *data)
+static int ppr_yestifier(struct yestifier_block *nb, unsigned long e, void *data)
 {
 	struct amd_iommu_fault *iommu_fault;
 	struct pasid_state *pasid_state;
@@ -536,7 +536,7 @@ static int ppr_notifier(struct notifier_block *nb, unsigned long e, void *data)
 		return -ENODEV;
 	dev_data = get_dev_data(&pdev->dev);
 
-	/* In kdump kernel pci dev is not initialized yet -> send INVALID */
+	/* In kdump kernel pci dev is yest initialized yet -> send INVALID */
 	ret = NOTIFY_DONE;
 	if (translation_pre_enabled(amd_iommu_rlookup_table[devid])
 		&& dev_data->defer_attach) {
@@ -551,7 +551,7 @@ static int ppr_notifier(struct notifier_block *nb, unsigned long e, void *data)
 
 	pasid_state = get_pasid_state(dev_state, iommu_fault->pasid);
 	if (pasid_state == NULL || pasid_state->invalid) {
-		/* We know the device but not the PASID -> send INVALID */
+		/* We kyesw the device but yest the PASID -> send INVALID */
 		amd_iommu_complete_ppr(dev_state->pdev, iommu_fault->pasid,
 				       PPR_INVALID, tag);
 		goto out_drop_state;
@@ -594,8 +594,8 @@ out:
 	return ret;
 }
 
-static struct notifier_block ppr_nb = {
-	.notifier_call = ppr_notifier,
+static struct yestifier_block ppr_nb = {
+	.yestifier_call = ppr_yestifier,
 };
 
 int amd_iommu_bind_pasid(struct pci_dev *pdev, int pasid,
@@ -643,7 +643,7 @@ int amd_iommu_bind_pasid(struct pci_dev *pdev, int pasid,
 	if (pasid_state->mm == NULL)
 		goto out_free;
 
-	mmu_notifier_register(&pasid_state->mn, mm);
+	mmu_yestifier_register(&pasid_state->mn, mm);
 
 	ret = set_pasid_state(dev_state, pasid_state, pasid);
 	if (ret)
@@ -659,7 +659,7 @@ int amd_iommu_bind_pasid(struct pci_dev *pdev, int pasid,
 
 	/*
 	 * Drop the reference to the mm_struct here. We rely on the
-	 * mmu_notifier release call-back to inform us when the mm
+	 * mmu_yestifier release call-back to inform us when the mm
 	 * is going away.
 	 */
 	mmput(mm);
@@ -670,7 +670,7 @@ out_clear_state:
 	clear_pasid_state(dev_state, pasid);
 
 out_unregister:
-	mmu_notifier_unregister(&pasid_state->mn, mm);
+	mmu_yestifier_unregister(&pasid_state->mn, mm);
 	mmput(mm);
 
 out_free:
@@ -715,10 +715,10 @@ void amd_iommu_unbind_pasid(struct pci_dev *pdev, int pasid)
 	clear_pasid_state(dev_state, pasid_state->pasid);
 
 	/*
-	 * Call mmu_notifier_unregister to drop our reference
+	 * Call mmu_yestifier_unregister to drop our reference
 	 * to pasid_state->mm
 	 */
-	mmu_notifier_unregister(&pasid_state->mn, pasid_state->mm);
+	mmu_yestifier_unregister(&pasid_state->mn, pasid_state->mm);
 
 	put_pasid_state_wait(pasid_state); /* Reference taken in
 					      amd_iommu_bind_pasid */
@@ -927,7 +927,7 @@ static int __init amd_iommu_v2_init(void)
 	pr_info("AMD IOMMUv2 driver by Joerg Roedel <jroedel@suse.de>\n");
 
 	if (!amd_iommu_v2_supported()) {
-		pr_info("AMD IOMMUv2 functionality not available on this system\n");
+		pr_info("AMD IOMMUv2 functionality yest available on this system\n");
 		/*
 		 * Load anyway to provide the symbols to other modules
 		 * which may use AMD IOMMUv2 optionally.
@@ -942,7 +942,7 @@ static int __init amd_iommu_v2_init(void)
 	if (iommu_wq == NULL)
 		goto out;
 
-	amd_iommu_register_ppr_notifier(&ppr_nb);
+	amd_iommu_register_ppr_yestifier(&ppr_nb);
 
 	return 0;
 
@@ -958,7 +958,7 @@ static void __exit amd_iommu_v2_exit(void)
 	if (!amd_iommu_v2_supported())
 		return;
 
-	amd_iommu_unregister_ppr_notifier(&ppr_nb);
+	amd_iommu_unregister_ppr_yestifier(&ppr_nb);
 
 	flush_workqueue(iommu_wq);
 

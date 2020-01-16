@@ -31,6 +31,6 @@ const struct file_operations adfs_file_operations = {
 	.splice_read	= generic_file_splice_read,
 };
 
-const struct inode_operations adfs_file_inode_operations = {
-	.setattr	= adfs_notify_change,
+const struct iyesde_operations adfs_file_iyesde_operations = {
+	.setattr	= adfs_yestify_change,
 };

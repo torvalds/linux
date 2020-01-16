@@ -49,7 +49,7 @@ struct dfw_binrec {
 struct dfw_inforec {
 	u8 info_version;
 	u8 tool_major_version;
-	u8 tool_minor_version;
+	u8 tool_miyesr_version;
 	u8 dsp_target;
 };
 
@@ -167,7 +167,7 @@ static void wm0010_halt(struct snd_soc_component *component)
 
 	switch (state) {
 	case WM0010_POWER_OFF:
-		/* If there's nothing to do, bail out */
+		/* If there's yesthing to do, bail out */
 		return;
 	case WM0010_OUT_OF_RESET:
 	case WM0010_BOOTROM:
@@ -374,7 +374,7 @@ static int wm0010_firmware_load(const char *name, struct snd_soc_component *comp
 
 	/* First record should be INFO */
 	if (rec->command != DFW_CMD_INFO) {
-		dev_err(component->dev, "First record not INFO\r\n");
+		dev_err(component->dev, "First record yest INFO\r\n");
 		ret = -EINVAL;
 		goto abort;
 	}
@@ -792,7 +792,7 @@ static const struct snd_soc_component_driver soc_component_dev_wm0010 = {
 	.num_dapm_routes	= ARRAY_SIZE(wm0010_dapm_routes),
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
+	.yesn_legacy_dai_naming	= 1,
 };
 
 #define WM0010_RATES (SNDRV_PCM_RATE_44100 | SNDRV_PCM_RATE_48000)

@@ -62,8 +62,8 @@ static void ltq_pinctrl_pin_dbg_show(struct pinctrl_dev *pctldev,
 	seq_printf(s, " %s", dev_name(pctldev->dev));
 }
 
-static void ltq_pinctrl_dt_subnode_to_map(struct pinctrl_dev *pctldev,
-				struct device_node *np,
+static void ltq_pinctrl_dt_subyesde_to_map(struct pinctrl_dev *pctldev,
+				struct device_yesde *np,
 				struct pinctrl_map **map)
 {
 	struct ltq_pinmux_info *info = pinctrl_dev_get_drvdata(pctldev);
@@ -77,7 +77,7 @@ static void ltq_pinctrl_dt_subnode_to_map(struct pinctrl_dev *pctldev,
 	int ret, i;
 
 	if (!pins && !groups) {
-		dev_err(pctldev->dev, "%pOFn defines neither pins nor groups\n",
+		dev_err(pctldev->dev, "%pOFn defines neither pins yesr groups\n",
 			np);
 		return;
 	}
@@ -134,7 +134,7 @@ static void ltq_pinctrl_dt_subnode_to_map(struct pinctrl_dev *pctldev,
 	}
 }
 
-static int ltq_pinctrl_dt_subnode_size(struct device_node *np)
+static int ltq_pinctrl_dt_subyesde_size(struct device_yesde *np)
 {
 	int ret;
 
@@ -144,25 +144,25 @@ static int ltq_pinctrl_dt_subnode_size(struct device_node *np)
 	return ret;
 }
 
-static int ltq_pinctrl_dt_node_to_map(struct pinctrl_dev *pctldev,
-				      struct device_node *np_config,
+static int ltq_pinctrl_dt_yesde_to_map(struct pinctrl_dev *pctldev,
+				      struct device_yesde *np_config,
 				      struct pinctrl_map **map,
 				      unsigned *num_maps)
 {
 	struct pinctrl_map *tmp;
-	struct device_node *np;
+	struct device_yesde *np;
 	int max_maps = 0;
 
-	for_each_child_of_node(np_config, np)
-		max_maps += ltq_pinctrl_dt_subnode_size(np);
+	for_each_child_of_yesde(np_config, np)
+		max_maps += ltq_pinctrl_dt_subyesde_size(np);
 	*map = kzalloc(array3_size(max_maps, sizeof(struct pinctrl_map), 2),
 		       GFP_KERNEL);
 	if (!*map)
 		return -ENOMEM;
 	tmp = *map;
 
-	for_each_child_of_node(np_config, np)
-		ltq_pinctrl_dt_subnode_to_map(pctldev, np, &tmp);
+	for_each_child_of_yesde(np_config, np)
+		ltq_pinctrl_dt_subyesde_to_map(pctldev, np, &tmp);
 	*num_maps = ((int)(tmp - *map));
 
 	return 0;
@@ -173,7 +173,7 @@ static const struct pinctrl_ops ltq_pctrl_ops = {
 	.get_group_name		= ltq_get_group_name,
 	.get_group_pins		= ltq_get_group_pins,
 	.pin_dbg_show		= ltq_pinctrl_pin_dbg_show,
-	.dt_node_to_map		= ltq_pinctrl_dt_node_to_map,
+	.dt_yesde_to_map		= ltq_pinctrl_dt_yesde_to_map,
 	.dt_free_map		= ltq_pinctrl_dt_free_map,
 };
 
@@ -241,7 +241,7 @@ static int match_group_mux(const struct ltq_pin_group *grp,
 	for (i = 0; i < grp->npins; i++) {
 		pin = match_mfp(info, grp->pins[i]);
 		if (pin < 0) {
-			dev_err(info->dev, "could not find mfp for pin %d\n",
+			dev_err(info->dev, "could yest find mfp for pin %d\n",
 				grp->pins[i]);
 			return -EINVAL;
 		}
@@ -272,7 +272,7 @@ static int ltq_pmx_set(struct pinctrl_dev *pctrldev,
 	for (i = 0; i < pin_grp->npins; i++) {
 		pin = match_mfp(info, pin_grp->pins[i]);
 		if (pin < 0) {
-			dev_err(info->dev, "could not find mfp for pin %d\n",
+			dev_err(info->dev, "could yest find mfp for pin %d\n",
 				pin_grp->pins[i]);
 			return -EINVAL;
 		}
@@ -297,7 +297,7 @@ static int ltq_pmx_gpio_request_enable(struct pinctrl_dev *pctrldev,
 	int pin_func;
 
 	if (mfp < 0) {
-		dev_err(info->dev, "could not find mfp for pin %d\n", pin);
+		dev_err(info->dev, "could yest find mfp for pin %d\n", pin);
 		return -EINVAL;
 	}
 

@@ -40,8 +40,8 @@
 #define LP3944_REG_LS0        0x06 /* LEDs 0-3 Selector (R/W) */
 #define LP3944_REG_LS1        0x07 /* LEDs 4-7 Selector (R/W) */
 
-/* These registers are not used to control leds in LP3944, they can store
- * arbitrary values which the chip will ignore.
+/* These registers are yest used to control leds in LP3944, they can store
+ * arbitrary values which the chip will igyesre.
  */
 #define LP3944_REG_REGISTER8  0x08
 #define LP3944_REG_REGISTER9  0x09
@@ -171,7 +171,7 @@ static int lp3944_led_set(struct lp3944_led_data *led, u8 status)
 	u8 val = 0;
 	int err;
 
-	dev_dbg(&led->client->dev, "%s: %s, status before normalization:%d\n",
+	dev_dbg(&led->client->dev, "%s: %s, status before yesrmalization:%d\n",
 		__func__, led->ldev.name, status);
 
 	switch (id) {
@@ -368,7 +368,7 @@ static int lp3944_probe(struct i2c_client *client,
 	int err;
 
 	if (lp3944_pdata == NULL) {
-		dev_err(&client->dev, "no platform data\n");
+		dev_err(&client->dev, "yes platform data\n");
 		return -EINVAL;
 	}
 

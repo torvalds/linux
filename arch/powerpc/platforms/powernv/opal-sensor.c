@@ -115,16 +115,16 @@ EXPORT_SYMBOL_GPL(opal_get_sensor_data_u64);
 int __init opal_sensor_init(void)
 {
 	struct platform_device *pdev;
-	struct device_node *sensor;
+	struct device_yesde *sensor;
 
-	sensor = of_find_node_by_path("/ibm,opal/sensors");
+	sensor = of_find_yesde_by_path("/ibm,opal/sensors");
 	if (!sensor) {
-		pr_err("Opal node 'sensors' not found\n");
+		pr_err("Opal yesde 'sensors' yest found\n");
 		return -ENODEV;
 	}
 
 	pdev = of_platform_device_create(sensor, "opal-sensor", NULL);
-	of_node_put(sensor);
+	of_yesde_put(sensor);
 
 	return PTR_ERR_OR_ZERO(pdev);
 }

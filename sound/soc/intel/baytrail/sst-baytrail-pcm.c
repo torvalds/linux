@@ -82,14 +82,14 @@ static int sst_byt_pcm_hw_params(struct snd_soc_component *component,
 	rate = params_rate(params);
 	ret = sst_byt_stream_set_rate(byt, pcm_data->stream, rate);
 	if (ret < 0) {
-		dev_err(rtd->dev, "could not set rate %d\n", rate);
+		dev_err(rtd->dev, "could yest set rate %d\n", rate);
 		return ret;
 	}
 
 	bits = snd_pcm_format_width(params_format(params));
 	ret = sst_byt_stream_set_bits(byt, pcm_data->stream, bits);
 	if (ret < 0) {
-		dev_err(rtd->dev, "could not set formats %d\n",
+		dev_err(rtd->dev, "could yest set formats %d\n",
 			params_rate(params));
 		return ret;
 	}
@@ -97,7 +97,7 @@ static int sst_byt_pcm_hw_params(struct snd_soc_component *component,
 	channels = (u8)(params_channels(params) & 0xF);
 	ret = sst_byt_stream_set_channels(byt, pcm_data->stream, channels);
 	if (ret < 0) {
-		dev_err(rtd->dev, "could not set channels %d\n",
+		dev_err(rtd->dev, "could yest set channels %d\n",
 			params_rate(params));
 		return ret;
 	}
@@ -205,7 +205,7 @@ static int sst_byt_pcm_trigger(struct snd_soc_component *component,
 	return 0;
 }
 
-static u32 byt_notify_pointer(struct sst_byt_stream *stream, void *data)
+static u32 byt_yestify_pointer(struct sst_byt_stream *stream, void *data)
 {
 	struct sst_byt_pcm_data *pcm_data = data;
 	struct snd_pcm_substream *substream = pcm_data->substream;
@@ -259,7 +259,7 @@ static int sst_byt_pcm_open(struct snd_soc_component *component,
 	snd_soc_set_runtime_hwparams(substream, &sst_byt_pcm_hardware);
 
 	pcm_data->stream = sst_byt_stream_new(byt, substream->stream + 1,
-					      byt_notify_pointer, pcm_data);
+					      byt_yestify_pointer, pcm_data);
 	if (pcm_data->stream == NULL) {
 		dev_err(rtd->dev, "failed to create stream\n");
 		mutex_unlock(&pcm_data->mutex);

@@ -51,8 +51,8 @@ ACPI_MODULE_NAME("nsrepair")
  ******************************************************************************/
 /* Local prototypes */
 static const struct acpi_simple_repair_info *acpi_ns_match_simple_repair(struct
-									 acpi_namespace_node
-									 *node,
+									 acpi_namespace_yesde
+									 *yesde,
 									 u32
 									 return_btype,
 									 u32
@@ -112,7 +112,7 @@ static const struct acpi_simple_repair_info acpi_object_repair_info[] = {
  * RETURN:      Status. AE_OK if repair was successful.
  *
  * DESCRIPTION: Attempt to repair/convert a return object of a type that was
- *              not expected.
+ *              yest expected.
  *
  ******************************************************************************/
 
@@ -133,7 +133,7 @@ acpi_ns_simple_repair(struct acpi_evaluate_info *info,
 	 * Special repairs for certain names that are in the repair table.
 	 * Check if this name is in the list of repairable names.
 	 */
-	predefined = acpi_ns_match_simple_repair(info->node,
+	predefined = acpi_ns_match_simple_repair(info->yesde,
 						 info->return_btype,
 						 package_index);
 	if (predefined) {
@@ -143,7 +143,7 @@ acpi_ns_simple_repair(struct acpi_evaluate_info *info,
 					      "Missing expected return value"));
 		}
 
-		status = predefined->object_converter(info->node, return_object,
+		status = predefined->object_converter(info->yesde, return_object,
 						      &new_object);
 		if (ACPI_FAILURE(status)) {
 
@@ -159,7 +159,7 @@ acpi_ns_simple_repair(struct acpi_evaluate_info *info,
 	}
 
 	/*
-	 * Do not perform simple object repair unless the return type is not
+	 * Do yest perform simple object repair unless the return type is yest
 	 * expected.
 	 */
 	if (info->return_btype & expected_btypes) {
@@ -167,18 +167,18 @@ acpi_ns_simple_repair(struct acpi_evaluate_info *info,
 	}
 
 	/*
-	 * At this point, we know that the type of the returned object was not
+	 * At this point, we kyesw that the type of the returned object was yest
 	 * one of the expected types for this predefined name. Attempt to
 	 * repair the object by converting it to one of the expected object
 	 * types for this predefined name.
 	 */
 
 	/*
-	 * If there is no return value, check if we require a return value for
-	 * this predefined name. Either one return value is expected, or none,
+	 * If there is yes return value, check if we require a return value for
+	 * this predefined name. Either one return value is expected, or yesne,
 	 * for both methods and other objects.
 	 *
-	 * Try to fix if there was no return object. Warning if failed to fix.
+	 * Try to fix if there was yes return object. Warning if failed to fix.
 	 */
 	if (!return_object) {
 		if (expected_btypes && (!(expected_btypes & ACPI_RTYPE_NONE))) {
@@ -247,7 +247,7 @@ acpi_ns_simple_repair(struct acpi_evaluate_info *info,
 		}
 	}
 
-	/* We cannot repair this object */
+	/* We canyest repair this object */
 
 	return (AE_AML_OPERAND_TYPE);
 
@@ -290,21 +290,21 @@ object_repaired:
  *
  * FUNCTION:    acpi_ns_match_simple_repair
  *
- * PARAMETERS:  node                - Namespace node for the method/object
+ * PARAMETERS:  yesde                - Namespace yesde for the method/object
  *              return_btype        - Object type that was returned
  *              package_index       - Index of object within parent package (if
  *                                    applicable - ACPI_NOT_PACKAGE_ELEMENT
  *                                    otherwise)
  *
- * RETURN:      Pointer to entry in repair table. NULL indicates not found.
+ * RETURN:      Pointer to entry in repair table. NULL indicates yest found.
  *
  * DESCRIPTION: Check an object name against the repairable object list.
  *
  *****************************************************************************/
 
 static const struct acpi_simple_repair_info *acpi_ns_match_simple_repair(struct
-									 acpi_namespace_node
-									 *node,
+									 acpi_namespace_yesde
+									 *yesde,
 									 u32
 									 return_btype,
 									 u32
@@ -316,7 +316,7 @@ static const struct acpi_simple_repair_info *acpi_ns_match_simple_repair(struct
 
 	this_name = acpi_object_repair_info;
 	while (this_name->object_converter) {
-		if (ACPI_COMPARE_NAMESEG(node->name.ascii, this_name->name)) {
+		if (ACPI_COMPARE_NAMESEG(yesde->name.ascii, this_name->name)) {
 
 			/* Check if we can actually repair this name/type combination */
 
@@ -333,7 +333,7 @@ static const struct acpi_simple_repair_info *acpi_ns_match_simple_repair(struct
 		this_name++;
 	}
 
-	return (NULL);		/* Name was not found in the repair table */
+	return (NULL);		/* Name was yest found in the repair table */
 }
 
 /*******************************************************************************
@@ -365,7 +365,7 @@ acpi_ns_repair_null_element(struct acpi_evaluate_info *info,
 
 	ACPI_FUNCTION_NAME(ns_repair_null_element);
 
-	/* No repair needed if return object is non-NULL */
+	/* No repair needed if return object is yesn-NULL */
 
 	if (return_object) {
 		return (AE_OK);
@@ -374,7 +374,7 @@ acpi_ns_repair_null_element(struct acpi_evaluate_info *info,
 	/*
 	 * Attempt to repair a NULL element of a Package object. This applies to
 	 * predefined names that return a fixed-length package and each element
-	 * is required. It does not apply to variable-length packages where NULL
+	 * is required. It does yest apply to variable-length packages where NULL
 	 * elements are allowed, especially at the end of the package.
 	 */
 	if (expected_btypes & ACPI_RTYPE_INTEGER) {

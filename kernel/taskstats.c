@@ -293,8 +293,8 @@ static int add_del_listener(pid_t pid, const struct cpumask *mask, int isadd)
 
 	if (isadd == REGISTER) {
 		for_each_cpu(cpu, mask) {
-			s = kmalloc_node(sizeof(struct listener),
-					GFP_KERNEL, cpu_to_node(cpu));
+			s = kmalloc_yesde(sizeof(struct listener),
+					GFP_KERNEL, cpu_to_yesde(cpu));
 			if (!s) {
 				ret = -ENOMEM;
 				goto cleanup;
@@ -312,7 +312,7 @@ static int add_del_listener(pid_t pid, const struct cpumask *mask, int isadd)
 			s = NULL;
 exists:
 			up_write(&listeners->sem);
-			kfree(s); /* nop if NULL */
+			kfree(s); /* yesp if NULL */
 		}
 		return 0;
 	}
@@ -365,7 +365,7 @@ static struct taskstats *mk_reply(struct sk_buff *skb, int type, u32 pid)
 			? TASKSTATS_TYPE_AGGR_PID
 			: TASKSTATS_TYPE_AGGR_TGID;
 
-	na = nla_nest_start_noflag(skb, aggr);
+	na = nla_nest_start_yesflag(skb, aggr);
 	if (!na)
 		goto err;
 

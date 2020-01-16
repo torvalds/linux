@@ -31,7 +31,7 @@ static u16 generate_cookie(struct b43_pio_txqueue *q,
 	 * in the lower 12 bits.
 	 * Note that the cookie must never be 0, as this
 	 * is a special value used in RX path.
-	 * It can also not be 0xFFFF because that is special
+	 * It can also yest be 0xFFFF because that is special
 	 * for multicast frames.
 	 */
 	cookie = (((u16)q->index + 1) << 12);
@@ -523,14 +523,14 @@ int b43_pio_tx(struct b43_wldev *dev, struct sk_buff *skb)
 	B43_WARN_ON(q->buffer_used > q->buffer_size);
 
 	if (total_len > (q->buffer_size - q->buffer_used)) {
-		/* Not enough memory on the queue. */
+		/* Not eyesugh memory on the queue. */
 		err = -EBUSY;
 		ieee80211_stop_queue(dev->wl->hw, skb_get_queue_mapping(skb));
 		q->stopped = true;
 		goto out;
 	}
 
-	/* Assign the queue number to the ring (if not already done before)
+	/* Assign the queue number to the ring (if yest already done before)
 	 * so TX status handling can use it. The mac80211-queue to b43-queue
 	 * mapping is static, so we don't need to store it per frame. */
 	q->queue_prio = skb_get_queue_mapping(skb);
@@ -538,7 +538,7 @@ int b43_pio_tx(struct b43_wldev *dev, struct sk_buff *skb)
 	err = pio_tx_frame(q, skb);
 	if (unlikely(err == -ENOKEY)) {
 		/* Drop this packet, as we don't have the encryption key
-		 * anymore and must not transmit it unencrypted. */
+		 * anymore and must yest transmit it unencrypted. */
 		ieee80211_free_txskb(dev->wl->hw, skb);
 		err = 0;
 		goto out;
@@ -592,7 +592,7 @@ void b43_pio_handle_txstatus(struct b43_wldev *dev,
 	}
 }
 
-/* Returns whether we should fetch another frame. */
+/* Returns whether we should fetch ayesther frame. */
 static bool pio_rx_frame(struct b43_pio_rxqueue *q)
 {
 	struct b43_wldev *dev = q->dev;
@@ -692,7 +692,7 @@ data_ready:
 
 	/* We always pad 2 bytes, as that's what upstream code expects
 	 * due to the RX-header being 30 bytes. In case the frame is
-	 * unaligned, we pad another 2 bytes. */
+	 * unaligned, we pad ayesther 2 bytes. */
 	padding = (macstat & B43_RX_MAC_PADDING) ? 2 : 0;
 	skb = dev_alloc_skb(len + padding + 2);
 	if (unlikely(!skb)) {

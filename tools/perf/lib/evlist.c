@@ -16,7 +16,7 @@
 #include <linux/zalloc.h>
 #include <sys/ioctl.h>
 #include <stdlib.h>
-#include <errno.h>
+#include <erryes.h>
 #include <unistd.h>
 #include <fcntl.h>
 #include <signal.h>
@@ -42,7 +42,7 @@ static void __perf_evlist__propagate_maps(struct perf_evlist *evlist,
 {
 	/*
 	 * We already have cpus for evsel (via PMU sysfs) so
-	 * keep it, if there's no target cpu list defined.
+	 * keep it, if there's yes target cpu list defined.
 	 */
 	if (!evsel->own_cpus || evlist->has_user_cpus) {
 		perf_cpu_map__put(evsel->cpus);
@@ -68,7 +68,7 @@ static void perf_evlist__propagate_maps(struct perf_evlist *evlist)
 void perf_evlist__add(struct perf_evlist *evlist,
 		      struct perf_evsel *evsel)
 {
-	list_add_tail(&evsel->node, &evlist->entries);
+	list_add_tail(&evsel->yesde, &evlist->entries);
 	evlist->nr_entries += 1;
 	__perf_evlist__propagate_maps(evlist, evsel);
 }
@@ -76,7 +76,7 @@ void perf_evlist__add(struct perf_evlist *evlist,
 void perf_evlist__remove(struct perf_evlist *evlist,
 			 struct perf_evsel *evsel)
 {
-	list_del_init(&evsel->node);
+	list_del_init(&evsel->yesde);
 	evlist->nr_entries -= 1;
 }
 
@@ -98,13 +98,13 @@ perf_evlist__next(struct perf_evlist *evlist, struct perf_evsel *prev)
 	if (!prev) {
 		next = list_first_entry(&evlist->entries,
 					struct perf_evsel,
-					node);
+					yesde);
 	} else {
-		next = list_next_entry(prev, node);
+		next = list_next_entry(prev, yesde);
 	}
 
-	/* Empty list is noticed here so don't need checking on entry. */
-	if (&next->node == &evlist->entries)
+	/* Empty list is yesticed here so don't need checking on entry. */
+	if (&next->yesde == &evlist->entries)
 		return NULL;
 
 	return next;
@@ -115,7 +115,7 @@ static void perf_evlist__purge(struct perf_evlist *evlist)
 	struct perf_evsel *pos, *n;
 
 	perf_evlist__for_each_entry_safe(evlist, n, pos) {
-		list_del_init(&pos->node);
+		list_del_init(&pos->yesde);
 		perf_evsel__delete(pos);
 	}
 
@@ -148,10 +148,10 @@ void perf_evlist__set_maps(struct perf_evlist *evlist,
 			   struct perf_thread_map *threads)
 {
 	/*
-	 * Allow for the possibility that one or another of the maps isn't being
+	 * Allow for the possibility that one or ayesther of the maps isn't being
 	 * changed i.e. don't put it.  Note we are assuming the maps that are
 	 * being applied are brand new and evlist is taking ownership of the
-	 * original reference count of 1.  If that is not the case it is up to
+	 * original reference count of 1.  If that is yest the case it is up to
 	 * the caller to increase the reference count.
 	 */
 	if (cpus != evlist->cpus) {
@@ -228,7 +228,7 @@ static void perf_evlist__id_hash(struct perf_evlist *evlist,
 	sid->id = id;
 	sid->evsel = evsel;
 	hash = hash_64(sid->id, PERF_EVLIST__HLIST_BITS);
-	hlist_add_head(&sid->node, &evlist->heads[hash]);
+	hlist_add_head(&sid->yesde, &evlist->heads[hash]);
 }
 
 void perf_evlist__id_add(struct perf_evlist *evlist,
@@ -252,13 +252,13 @@ int perf_evlist__id_add_fd(struct perf_evlist *evlist,
 	if (!ret)
 		goto add;
 
-	if (errno != ENOTTY)
+	if (erryes != ENOTTY)
 		return -1;
 
 	/* Legacy way to get event id.. All hail to old kernels! */
 
 	/*
-	 * This way does not work with group format read, so bail
+	 * This way does yest work with group format read, so bail
 	 * out in that case.
 	 */
 	if (perf_evlist__read_format(evlist) & PERF_FORMAT_GROUP)
@@ -464,7 +464,7 @@ mmap_per_evsel(struct perf_evlist *evlist, struct perf_evlist_mmap_ops *ops,
 			 * anymore, but the last events for it are still in the ring buffer,
 			 * waiting to be consumed.
 			 *
-			 * Tools can chose to ignore this at their own discretion, but the
+			 * Tools can chose to igyesre this at their own discretion, but the
 			 * evlist layer can't just drop it when filtering events in
 			 * perf_evlist__filter_pollfd().
 			 */

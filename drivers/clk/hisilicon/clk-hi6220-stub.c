@@ -196,7 +196,7 @@ static int hi6220_stub_clk_probe(struct platform_device *pdev)
 	struct clk_init_data init;
 	struct hi6220_stub_clk *stub_clk;
 	struct clk *clk;
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	int ret;
 
 	stub_clk = devm_kzalloc(dev, sizeof(*stub_clk), GFP_KERNEL);
@@ -219,7 +219,7 @@ static int hi6220_stub_clk_probe(struct platform_device *pdev)
 	stub_clk->cl.tx_done = NULL;
 	stub_clk->cl.tx_block = true;
 	stub_clk->cl.tx_tout = 500;
-	stub_clk->cl.knows_txdone = false;
+	stub_clk->cl.kyesws_txdone = false;
 
 	/* Allocate mailbox channel */
 	stub_clk->mbox = mbox_request_channel(&stub_clk->cl, 0);

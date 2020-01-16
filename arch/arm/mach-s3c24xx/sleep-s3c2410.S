@@ -42,7 +42,7 @@ ENTRY(s3c2410_cpu_suspend)
 
 	teq	pc, #0			@ first as a trial-run to load cache
 	bl	s3c2410_do_sleep
-	teq	r0, r0			@ now do it for real
+	teq	r0, r0			@ yesw do it for real
 	b	s3c2410_do_sleep	@
 
 	@@ align next bit of code to cache line

@@ -5,7 +5,7 @@
  * Copyright (c) 2019, Rishi Gupta <gupt21@gmail.com>
  *
  * Datasheet: https://www.vishay.com/docs/84366/veml6030.pdf
- * Appnote-84367: https://www.vishay.com/docs/84367/designingveml6030.pdf
+ * Appyeste-84367: https://www.vishay.com/docs/84367/designingveml6030.pdf
  */
 
 #include <linux/module.h>
@@ -44,7 +44,7 @@
  * table during startup and gets updated whenever integration time
  * or gain is changed.
  *
- * Table 'resolution and maximum detection range' in appnote 84367
+ * Table 'resolution and maximum detection range' in appyeste 84367
  * is visualized as a 2D array. The cur_gain stores index of gain
  * in this table (0-3) while the cur_integration_time holds index
  * of integration time (0-5).
@@ -639,7 +639,7 @@ static int veml6030_read_interrupt_config(struct iio_dev *indio_dev,
 }
 
 /*
- * Sensor should not be measuring light when interrupt is configured.
+ * Sensor should yest be measuring light when interrupt is configured.
  * Therefore correct sequence to configure interrupt functionality is:
  * shut down -> enable/disable interrupt -> power on
  *
@@ -683,7 +683,7 @@ static const struct iio_info veml6030_info = {
 	.event_attrs = &veml6030_event_attr_group,
 };
 
-static const struct iio_info veml6030_info_no_irq = {
+static const struct iio_info veml6030_info_yes_irq = {
 	.read_raw  = veml6030_read_raw,
 	.write_raw = veml6030_write_raw,
 	.attrs = &veml6030_attr_group,
@@ -832,7 +832,7 @@ static int veml6030_probe(struct i2c_client *client,
 		}
 		indio_dev->info = &veml6030_info;
 	} else {
-		indio_dev->info = &veml6030_info_no_irq;
+		indio_dev->info = &veml6030_info_yes_irq;
 	}
 
 	ret = veml6030_hw_init(indio_dev);

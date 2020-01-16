@@ -61,7 +61,7 @@ struct netns_sctp {
 	/* Max.Burst		    - 4 */
 	int max_burst;
 
-	/* Whether Cookie Preservative is enabled(1) or not(0) */
+	/* Whether Cookie Preservative is enabled(1) or yest(0) */
 	int cookie_preserve_enable;
 
 	/* The namespace default hmac alg */
@@ -103,7 +103,7 @@ struct netns_sctp {
 	int pf_enable;
 
 	/*
-	 * Disable Potentially-Failed state exposure, ignored by default
+	 * Disable Potentially-Failed state exposure, igyesred by default
 	 * pf_expose	-  0  : compatible with old applications (by default)
 	 *		-  1  : disable pf state exposure
 	 *		-  2  : enable  pf state exposure
@@ -128,7 +128,7 @@ struct netns_sctp {
 
 	/* Flag to indicate if addip is enabled. */
 	int addip_enable;
-	int addip_noauth;
+	int addip_yesauth;
 
 	/* Flag to indicate if PR-SCTP is enabled. */
 	int prsctp_enable;

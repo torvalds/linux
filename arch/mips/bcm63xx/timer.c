@@ -148,7 +148,7 @@ unsigned int bcm63xx_timer_countdown(unsigned int countdown_us)
 
 EXPORT_SYMBOL(bcm63xx_timer_countdown);
 
-int bcm63xx_timer_set(int id, int monotonic, unsigned int countdown_us)
+int bcm63xx_timer_set(int id, int moyestonic, unsigned int countdown_us)
 {
 	u32 reg, countdown;
 	unsigned long flags;
@@ -163,7 +163,7 @@ int bcm63xx_timer_set(int id, int monotonic, unsigned int countdown_us)
 	raw_spin_lock_irqsave(&timer_reg_lock, flags);
 	reg = bcm_timer_readl(TIMER_CTLx_REG(id));
 
-	if (monotonic)
+	if (moyestonic)
 		reg &= ~TIMER_CTL_MONOTONIC_MASK;
 	else
 		reg |= TIMER_CTL_MONOTONIC_MASK;

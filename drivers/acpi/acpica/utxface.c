@@ -236,8 +236,8 @@ acpi_status acpi_purge_cached_objects(void)
 
 	(void)acpi_os_purge_cache(acpi_gbl_state_cache);
 	(void)acpi_os_purge_cache(acpi_gbl_operand_cache);
-	(void)acpi_os_purge_cache(acpi_gbl_ps_node_cache);
-	(void)acpi_os_purge_cache(acpi_gbl_ps_node_ext_cache);
+	(void)acpi_os_purge_cache(acpi_gbl_ps_yesde_cache);
+	(void)acpi_os_purge_cache(acpi_gbl_ps_yesde_ext_cache);
 
 	return_ACPI_STATUS(AE_OK);
 }
@@ -471,7 +471,7 @@ acpi_decode_pld_buffer(u8 *in_buffer,
 
 	ACPI_MOVE_32_TO_32(&dword, &buffer[0]);
 	pld_info->revision = ACPI_PLD_GET_REVISION(&dword);
-	pld_info->ignore_color = ACPI_PLD_GET_IGNORE_COLOR(&dword);
+	pld_info->igyesre_color = ACPI_PLD_GET_IGNORE_COLOR(&dword);
 	pld_info->red = ACPI_PLD_GET_RED(&dword);
 	pld_info->green = ACPI_PLD_GET_GREEN(&dword);
 	pld_info->blue = ACPI_PLD_GET_BLUE(&dword);

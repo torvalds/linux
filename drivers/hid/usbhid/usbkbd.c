@@ -74,7 +74,7 @@ static const unsigned char usb_kbd_keycode[256] = {
  * @leds_dma:	DMA address for @led URB
  * @leds_lock:	spinlock that protects @leds, @newleds, and @led_urb_submitted
  * @led_urb_submitted: indicates whether @led is in progress, i.e. it has been
- *		submitted and its completion handler has not returned yet
+ *		submitted and its completion handler has yest returned yet
  *		without	resubmitting @led
  */
 struct usb_kbd {
@@ -124,7 +124,7 @@ static void usb_kbd_irq(struct urb *urb)
 				input_report_key(kbd->dev, usb_kbd_keycode[kbd->old[i]], 0);
 			else
 				hid_info(urb->dev,
-					 "Unknown key (scancode %#x) released.\n",
+					 "Unkyeswn key (scancode %#x) released.\n",
 					 kbd->old[i]);
 		}
 
@@ -133,7 +133,7 @@ static void usb_kbd_irq(struct urb *urb)
 				input_report_key(kbd->dev, usb_kbd_keycode[kbd->new[i]], 1);
 			else
 				hid_info(urb->dev,
-					 "Unknown key (scancode %#x) pressed.\n",
+					 "Unkyeswn key (scancode %#x) pressed.\n",
 					 kbd->new[i]);
 		}
 	}

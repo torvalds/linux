@@ -15,14 +15,14 @@ Required properties:
 Optional properties:
 - pinctrl-names : Must contain entries: "default", "host", "isp". Entries
 		"default" and "host" must refer to the same pin configuration
-		node, which sets the host as a strobe signal provider. Entry
-		"isp" must refer to the pin configuration node, which sets the
+		yesde, which sets the host as a strobe signal provider. Entry
+		"isp" must refer to the pin configuration yesde, which sets the
 		ISP as a strobe signal provider.
 
 A discrete LED element connected to the device must be represented by a child
-node - see Documentation/devicetree/bindings/leds/common.txt.
+yesde - see Documentation/devicetree/bindings/leds/common.txt.
 
-Required properties of the LED child node:
+Required properties of the LED child yesde:
 - led-max-microamp : see Documentation/devicetree/bindings/leds/common.txt
 - flash-max-microamp : see Documentation/devicetree/bindings/leds/common.txt
                        Maximum flash LED supply current can be calculated using
@@ -31,16 +31,16 @@ Required properties of the LED child node:
                          Maximum flash timeout can be calculated using following
                          formula: T = 8.82 * 10^9 * Ct.
 
-Optional properties of the LED child node:
+Optional properties of the LED child yesde:
 - function : see Documentation/devicetree/bindings/leds/common.txt
 - color : see Documentation/devicetree/bindings/leds/common.txt
 - label : see Documentation/devicetree/bindings/leds/common.txt (deprecated)
 
-Example (by Ct = 220nF, Rset = 160kohm and exynos4412-trats2 board with
+Example (by Ct = 220nF, Rset = 160kohm and exyyess4412-trats2 board with
 a switch that allows for routing strobe signal either from the host or from
 the camera sensor):
 
-#include "exynos4412.dtsi"
+#include "exyyess4412.dtsi"
 #include <dt-bindings/leds/common.h>
 
 led-controller {

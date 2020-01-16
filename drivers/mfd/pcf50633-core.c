@@ -84,7 +84,7 @@ static ssize_t show_dump_regs(struct device *dev, struct device_attribute *attr,
 	u8 dump[16];
 	int n, n1, idx = 0;
 	char *buf1 = buf;
-	static u8 address_no_read[] = { /* must be ascending */
+	static u8 address_yes_read[] = { /* must be ascending */
 		PCF50633_REG_INT1,
 		PCF50633_REG_INT2,
 		PCF50633_REG_INT3,
@@ -95,7 +95,7 @@ static ssize_t show_dump_regs(struct device *dev, struct device_attribute *attr,
 
 	for (n = 0; n < 256; n += sizeof(dump)) {
 		for (n1 = 0; n1 < sizeof(dump); n1++)
-			if (n == address_no_read[idx]) {
+			if (n == address_yes_read[idx]) {
 				idx++;
 				dump[n1] = 0x00;
 			} else

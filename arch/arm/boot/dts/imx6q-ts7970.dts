@@ -1,10 +1,10 @@
 /*
- * Copyright 2015 Technologic Systems
+ * Copyright 2015 Techyeslogic Systems
  * Copyright 2017 Savoir-faire Linux
  *
  * This file is dual-licensed: you can use it either under the terms
  * of the GPL or the X11 license, at your option. Note that this dual
- * licensing only applies to this file, and not this project as a
+ * licensing only applies to this file, and yest this project as a
  * whole.
  *
  *  a) This file is free software; you can redistribute it and/or
@@ -27,7 +27,7 @@
  *     Software is furnished to do so, subject to the following
  *     conditions:
  *
- *     The above copyright notice and this permission notice shall be
+ *     The above copyright yestice and this permission yestice shall be
  *     included in all copies or substantial portions of the Software.
  *
  *     THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -45,8 +45,8 @@
 #include "imx6qdl-ts7970.dtsi"
 
 / {
-	model = "Technologic Systems i.MX6 Quad TS-7970 (Default Device Tree)";
-	compatible = "technologic,imx6q-ts7970", "fsl,imx6q";
+	model = "Techyeslogic Systems i.MX6 Quad TS-7970 (Default Device Tree)";
+	compatible = "techyeslogic,imx6q-ts7970", "fsl,imx6q";
 
 	/* Will be filled by the bootloader */
 	memory@10000000 {

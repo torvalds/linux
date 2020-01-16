@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -1986,7 +1986,7 @@ static u32 dce6_line_buffer_adjust(struct radeon_device *rdev,
 	 */
 	/* this can get tricky if we have two large displays on a paired group
 	 * of crtcs.  Ideally for multiple large displays we'd assign them to
-	 * non-linked crtcs for maximum line buffer allocation.
+	 * yesn-linked crtcs for maximum line buffer allocation.
 	 */
 	if (radeon_crtc->base.enabled && mode) {
 		if (other_mode) {
@@ -2023,7 +2023,7 @@ static u32 dce6_line_buffer_adjust(struct radeon_device *rdev,
 		}
 	}
 
-	/* controller not enabled, so no lb used */
+	/* controller yest enabled, so yes lb used */
 	return 0;
 }
 
@@ -2169,7 +2169,7 @@ static u32 dce6_dmif_request_bandwidth(struct dce6_wm_params *wm)
 
 static u32 dce6_available_bandwidth(struct dce6_wm_params *wm)
 {
-	/* Calculate the Available bandwidth. Display can use this temporarily but not in average. */
+	/* Calculate the Available bandwidth. Display can use this temporarily but yest in average. */
 	u32 dram_bandwidth = dce6_dram_bandwidth(wm);
 	u32 data_return_bandwidth = dce6_data_return_bandwidth(wm);
 	u32 dmif_req_bandwidth = dce6_dmif_request_bandwidth(wm);
@@ -2427,7 +2427,7 @@ static void dce6_program_watermarks(struct radeon_device *rdev,
 		priority_b_mark = dfixed_trunc(c);
 		priority_b_cnt |= priority_b_mark & PRIORITY_MARK_MASK;
 
-		/* Save number of lines the linebuffer leads before the scanout */
+		/* Save number of lines the linebuffer leads before the scayesut */
 		radeon_crtc->lb_vblank_lead_lines = DIV_ROUND_UP(lb_size, mode->crtc_hdisplay);
 	}
 
@@ -2516,7 +2516,7 @@ static void si_tiling_mode_table_init(struct radeon_device *rdev)
 	switch(rdev->family) {
 	case CHIP_TAHITI:
 	case CHIP_PITCAIRN:
-		/* non-AA compressed depth or any compressed stencil */
+		/* yesn-AA compressed depth or any compressed stencil */
 		tile[0] = (ARRAY_MODE(ARRAY_2D_TILED_THIN1) |
 			   MICRO_TILE_MODE(ADDR_SURF_DEPTH_MICRO_TILING) |
 			   PIPE_CONFIG(ADDR_SURF_P8_32x32_8x16) |
@@ -2579,7 +2579,7 @@ static void si_tiling_mode_table_init(struct radeon_device *rdev)
 			   BANK_WIDTH(ADDR_SURF_BANK_WIDTH_1) |
 			   BANK_HEIGHT(ADDR_SURF_BANK_HEIGHT_1) |
 			   MACRO_TILE_ASPECT(ADDR_SURF_MACRO_ASPECT_1));
-		/* Uncompressed 8bpp stencil without depth (drivers typically do not use) */
+		/* Uncompressed 8bpp stencil without depth (drivers typically do yest use) */
 		tile[7] = (ARRAY_MODE(ARRAY_2D_TILED_THIN1) |
 			   MICRO_TILE_MODE(ADDR_SURF_DEPTH_MICRO_TILING) |
 			   PIPE_CONFIG(ADDR_SURF_P8_32x32_8x16) |
@@ -2731,7 +2731,7 @@ static void si_tiling_mode_table_init(struct radeon_device *rdev)
 	case CHIP_VERDE:
 	case CHIP_OLAND:
 	case CHIP_HAINAN:
-		/* non-AA compressed depth or any compressed stencil */
+		/* yesn-AA compressed depth or any compressed stencil */
 		tile[0] = (ARRAY_MODE(ARRAY_2D_TILED_THIN1) |
 			   MICRO_TILE_MODE(ADDR_SURF_DEPTH_MICRO_TILING) |
 			   PIPE_CONFIG(ADDR_SURF_P4_8x16) |
@@ -2794,7 +2794,7 @@ static void si_tiling_mode_table_init(struct radeon_device *rdev)
 			   BANK_WIDTH(ADDR_SURF_BANK_WIDTH_1) |
 			   BANK_HEIGHT(ADDR_SURF_BANK_HEIGHT_1) |
 			   MACRO_TILE_ASPECT(ADDR_SURF_MACRO_ASPECT_2));
-		/* Uncompressed 8bpp stencil without depth (drivers typically do not use) */
+		/* Uncompressed 8bpp stencil without depth (drivers typically do yest use) */
 		tile[7] = (ARRAY_MODE(ARRAY_2D_TILED_THIN1) |
 			   MICRO_TILE_MODE(ADDR_SURF_DEPTH_MICRO_TILING) |
 			   PIPE_CONFIG(ADDR_SURF_P4_8x16) |
@@ -2944,7 +2944,7 @@ static void si_tiling_mode_table_init(struct radeon_device *rdev)
 		break;
 
 	default:
-		DRM_ERROR("unknown asic: 0x%x\n", rdev->family);
+		DRM_ERROR("unkyeswn asic: 0x%x\n", rdev->family);
 	}
 }
 
@@ -3234,8 +3234,8 @@ static void si_gpu_init(struct radeon_device *rdev)
 		break;
 	}
 
-	/* setup tiling info dword.  gb_addr_config is not adequate since it does
-	 * not have bank info, so create a custom tiling dword.
+	/* setup tiling info dword.  gb_addr_config is yest adequate since it does
+	 * yest have bank info, so create a custom tiling dword.
 	 * bits 3:0   num_pipes
 	 * bits 7:4   num_banks
 	 * bits 11:8  group_size
@@ -3678,7 +3678,7 @@ static int si_cp_resume(struct radeon_device *rdev)
 	ring->wptr = 0;
 	WREG32(CP_RB0_WPTR, ring->wptr);
 
-	/* set the wb address whether it's enabled or not */
+	/* set the wb address whether it's enabled or yest */
 	WREG32(CP_RB0_RPTR_ADDR, (rdev->wb.gpu_addr + RADEON_WB_CP_RPTR_OFFSET) & 0xFFFFFFFC);
 	WREG32(CP_RB0_RPTR_ADDR_HI, upper_32_bits(rdev->wb.gpu_addr + RADEON_WB_CP_RPTR_OFFSET) & 0xFF);
 
@@ -3709,7 +3709,7 @@ static int si_cp_resume(struct radeon_device *rdev)
 	ring->wptr = 0;
 	WREG32(CP_RB1_WPTR, ring->wptr);
 
-	/* set the wb address whether it's enabled or not */
+	/* set the wb address whether it's enabled or yest */
 	WREG32(CP_RB1_RPTR_ADDR, (rdev->wb.gpu_addr + RADEON_WB_CP1_RPTR_OFFSET) & 0xFFFFFFFC);
 	WREG32(CP_RB1_RPTR_ADDR_HI, upper_32_bits(rdev->wb.gpu_addr + RADEON_WB_CP1_RPTR_OFFSET) & 0xFF);
 
@@ -3733,7 +3733,7 @@ static int si_cp_resume(struct radeon_device *rdev)
 	ring->wptr = 0;
 	WREG32(CP_RB2_WPTR, ring->wptr);
 
-	/* set the wb address whether it's enabled or not */
+	/* set the wb address whether it's enabled or yest */
 	WREG32(CP_RB2_RPTR_ADDR, (rdev->wb.gpu_addr + RADEON_WB_CP2_RPTR_OFFSET) & 0xFFFFFFFC);
 	WREG32(CP_RB2_RPTR_ADDR_HI, upper_32_bits(rdev->wb.gpu_addr + RADEON_WB_CP2_RPTR_OFFSET) & 0xFF);
 
@@ -3843,7 +3843,7 @@ u32 si_gpu_check_soft_reset(struct radeon_device *rdev)
 	if (tmp & L2_BUSY)
 		reset_mask |= RADEON_RESET_VMC;
 
-	/* Skip MC reset as it's mostly likely not hung, just busy */
+	/* Skip MC reset as it's mostly likely yest hung, just busy */
 	if (reset_mask & RADEON_RESET_MC) {
 		DRM_DEBUG("MC busy: 0x%08X, clearing.\n", reset_mask);
 		reset_mask &= ~RADEON_RESET_MC;
@@ -4122,7 +4122,7 @@ int si_asic_reset(struct radeon_device *rdev, bool hard)
  * @ring: radeon_ring structure holding ring information
  *
  * Check if the GFX engine is locked up.
- * Returns true if the engine appears to be locked up, false if not.
+ * Returns true if the engine appears to be locked up, false if yest.
  */
 bool si_gfx_is_lockup(struct radeon_device *rdev, struct radeon_ring *ring)
 {
@@ -4330,7 +4330,7 @@ static int si_pcie_gart_enable(struct radeon_device *rdev)
 	/* set vm size, must be a multiple of 4 */
 	WREG32(VM_CONTEXT1_PAGE_TABLE_START_ADDR, 0);
 	WREG32(VM_CONTEXT1_PAGE_TABLE_END_ADDR, rdev->vm_manager.max_pfn - 1);
-	/* Assign the pt base to something valid for now; the pts used for
+	/* Assign the pt base to something valid for yesw; the pts used for
 	 * the VMs are determined by the application and setup and assigned
 	 * on the fly in the vm part of radeon_gart.c
 	 */
@@ -4746,7 +4746,7 @@ int si_ib_parse(struct radeon_device *rdev, struct radeon_ib *ib)
 		pkt.one_reg_wr = 0;
 		switch (pkt.type) {
 		case RADEON_PACKET_TYPE0:
-			dev_err(rdev->dev, "Packet0 not allowed!\n");
+			dev_err(rdev->dev, "Packet0 yest allowed!\n");
 			ret = -EINVAL;
 			break;
 		case RADEON_PACKET_TYPE2:
@@ -4774,7 +4774,7 @@ int si_ib_parse(struct radeon_device *rdev, struct radeon_ib *ib)
 			idx += pkt.count + 2;
 			break;
 		default:
-			dev_err(rdev->dev, "Unknown packet type %d !\n", pkt.type);
+			dev_err(rdev->dev, "Unkyeswn packet type %d !\n", pkt.type);
 			ret = -EINVAL;
 			break;
 		}
@@ -4945,7 +4945,7 @@ static void si_vm_decode_fault(struct radeon_device *rdev,
 			block = "HDP";
 			break;
 		default:
-			block = "unknown";
+			block = "unkyeswn";
 			break;
 		}
 	} else {
@@ -5062,7 +5062,7 @@ static void si_vm_decode_fault(struct radeon_device *rdev,
 			block = "HDP";
 			break;
 		default:
-			block = "unknown";
+			block = "unkyeswn";
 			break;
 		}
 	}
@@ -6004,7 +6004,7 @@ static int si_irq_init(struct radeon_device *rdev)
 	 * IH_DUMMY_RD_OVERRIDE=1 - dummy read controlled by IH_DUMMY_RD_EN
 	 */
 	interrupt_cntl &= ~IH_DUMMY_RD_OVERRIDE;
-	/* IH_REQ_NONSNOOP_EN=1 if ring is in non-cacheable memory, e.g., vram */
+	/* IH_REQ_NONSNOOP_EN=1 if ring is in yesn-cacheable memory, e.g., vram */
 	interrupt_cntl &= ~IH_REQ_NONSNOOP_EN;
 	WREG32(INTERRUPT_CNTL, interrupt_cntl);
 
@@ -6018,7 +6018,7 @@ static int si_irq_init(struct radeon_device *rdev)
 	if (rdev->wb.enabled)
 		ih_rb_cntl |= IH_WPTR_WRITEBACK_ENABLE;
 
-	/* set the writeback address whether it's enabled or not */
+	/* set the writeback address whether it's enabled or yest */
 	WREG32(IH_RB_WPTR_ADDR_LO, (rdev->wb.gpu_addr + R600_WB_IH_WPTR_OFFSET) & 0xFFFFFFFC);
 	WREG32(IH_RB_WPTR_ADDR_HI, upper_32_bits(rdev->wb.gpu_addr + R600_WB_IH_WPTR_OFFSET) & 0xFF);
 
@@ -6057,7 +6057,7 @@ int si_irq_set(struct radeon_device *rdev)
 	u32 thermal_int = 0;
 
 	if (!rdev->irq.installed) {
-		WARN(1, "Can't enable IRQ/MSI because no handler is installed\n");
+		WARN(1, "Can't enable IRQ/MSI because yes handler is installed\n");
 		return -EINVAL;
 	}
 	/* don't enable anything if the ih is disabled */
@@ -6189,7 +6189,7 @@ static inline void si_irq_ack(struct radeon_device *rdev)
 static void si_irq_disable(struct radeon_device *rdev)
 {
 	si_disable_interrupts(rdev);
-	/* Wait and acknowledge irq */
+	/* Wait and ackyeswledge irq */
 	mdelay(1);
 	si_irq_ack(rdev);
 	si_disable_interrupt_state(rdev);
@@ -6219,7 +6219,7 @@ static inline u32 si_get_ih_wptr(struct radeon_device *rdev)
 	if (wptr & RB_OVERFLOW) {
 		wptr &= ~RB_OVERFLOW;
 		/* When a ring buffer overflow happen start parsing interrupt
-		 * from the last not overwritten vector (wptr + 16). Hopefully
+		 * from the last yest overwritten vector (wptr + 16). Hopefully
 		 * this should allow us to catchup.
 		 */
 		dev_warn(rdev->dev, "IH ring buffer overflow (0x%08X, 0x%08X, 0x%08X)\n",
@@ -6468,7 +6468,7 @@ static void si_uvd_init(struct radeon_device *rdev)
 		dev_err(rdev->dev, "failed UVD (%d) init.\n", r);
 		/*
 		 * At this point rdev->uvd.vcpu_bo is NULL which trickles down
-		 * to early fails uvd_v2_2_resume() and thus nothing happens
+		 * to early fails uvd_v2_2_resume() and thus yesthing happens
 		 * there. So it is pointless to try to go through that code
 		 * hence why we disable uvd here.
 		 */
@@ -6535,7 +6535,7 @@ static void si_vce_init(struct radeon_device *rdev)
 		dev_err(rdev->dev, "failed VCE (%d) init.\n", r);
 		/*
 		 * At this point rdev->vce.vcpu_bo is NULL which trickles down
-		 * to early fails si_vce_start() and thus nothing happens
+		 * to early fails si_vce_start() and thus yesthing happens
 		 * there. So it is pointless to try to go through that code
 		 * hence why we disable vce here.
 		 */
@@ -6772,7 +6772,7 @@ int si_resume(struct radeon_device *rdev)
 {
 	int r;
 
-	/* Do not reset GPU before posting, on rv770 hw unlike on r500 hw,
+	/* Do yest reset GPU before posting, on rv770 hw unlike on r500 hw,
 	 * posting will perform necessary task to bring back GPU into good
 	 * shape.
 	 */
@@ -6820,7 +6820,7 @@ int si_suspend(struct radeon_device *rdev)
 
 /* Plan is to move initialization in that function and use
  * helper function so that radeon_device_init pretty much
- * do nothing more than calling asic specific function. This
+ * do yesthing more than calling asic specific function. This
  * should also allow to remove a bunch of callback function
  * like vram_info.
  */
@@ -6846,10 +6846,10 @@ int si_init(struct radeon_device *rdev)
 	/* Post card if necessary */
 	if (!radeon_card_posted(rdev)) {
 		if (!rdev->bios) {
-			dev_err(rdev->dev, "Card not posted and no BIOS - ignoring\n");
+			dev_err(rdev->dev, "Card yest posted and yes BIOS - igyesring\n");
 			return -EINVAL;
 		}
-		DRM_INFO("GPU not posted. posting now...\n");
+		DRM_INFO("GPU yest posted. posting yesw...\n");
 		atom_asic_init(rdev->mode_info.atom_context);
 	}
 	/* init golden registers */
@@ -6935,7 +6935,7 @@ int si_init(struct radeon_device *rdev)
 
 	/* Don't start up if the MC ucode is missing.
 	 * The default clocks and voltages before the MC ucode
-	 * is loaded are not suffient for advanced operations.
+	 * is loaded are yest suffient for advanced operations.
 	 */
 	if (!rdev->mc_fw) {
 		DRM_ERROR("radeon: MC ucode required for NI+.\n");
@@ -7066,7 +7066,7 @@ int si_set_uvd_clocks(struct radeon_device *rdev, u32 vclk, u32 dclk)
 
 	mdelay(15);
 
-	/* switch from bypass mode to normal mode */
+	/* switch from bypass mode to yesrmal mode */
 	WREG32_P(CG_UPLL_FUNC_CNTL, 0, ~UPLL_BYPASS_EN_MASK);
 
 	r = radeon_uvd_send_upll_ctlreq(rdev, CG_UPLL_FUNC_CNTL);
@@ -7132,7 +7132,7 @@ static void si_pcie_gen3_enable(struct radeon_device *rdev)
 		return;
 
 	if (speed_cap == PCIE_SPEED_8_0GT) {
-		/* re-try equalization if gen3 is not already enabled */
+		/* re-try equalization if gen3 is yest already enabled */
 		if (current_data_rate != 2) {
 			u16 bridge_cfg, gpu_cfg;
 			u16 bridge_cfg2, gpu_cfg2;
@@ -7579,7 +7579,7 @@ int si_set_vce_clocks(struct radeon_device *rdev, u32 evclk, u32 ecclk)
 
 	mdelay(15);
 
-	/* switch from bypass mode to normal mode */
+	/* switch from bypass mode to yesrmal mode */
 	WREG32_SMC_P(CG_VCEPLL_FUNC_CNTL, 0, ~VCEPLL_BYPASS_EN_MASK);
 
 	r = si_vce_send_vcepll_ctlreq(rdev);

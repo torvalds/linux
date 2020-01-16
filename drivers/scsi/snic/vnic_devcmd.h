@@ -96,11 +96,11 @@ enum vnic_devcmd_cmd {
 	/* nic_cfg in (u32)a0 */
 	CMD_NIC_CFG             = _CMDCNW(_CMD_DIR_WRITE, _CMD_VTYPE_ALL, 16),
 
-	/* set struct vnic_devcmd_notify buffer in mem:
+	/* set struct vnic_devcmd_yestify buffer in mem:
 	 * in:
-	 *   (u64)a0=paddr to notify (set paddr=0 to unset)
-	 *   (u32)a1 & 0x00000000ffffffff=sizeof(struct vnic_devcmd_notify)
-	 *   (u16)a1 & 0x0000ffff00000000=intr num (-1 for no intr)
+	 *   (u64)a0=paddr to yestify (set paddr=0 to unset)
+	 *   (u32)a1 & 0x00000000ffffffff=sizeof(struct vnic_devcmd_yestify)
+	 *   (u16)a1 & 0x0000ffff00000000=intr num (-1 for yes intr)
 	 * out:
 	 *   (u32)a1 = effective size
 	 */
@@ -133,7 +133,7 @@ enum vnic_devcmd_cmd {
 
 	/* init status:
 	 *    out: a0=0 init complete, a0=1 init in progress
-	 *         if a0=0, a1=errno */
+	 *         if a0=0, a1=erryes */
 	CMD_INIT_STATUS		= _CMDC(_CMD_DIR_READ, _CMD_VTYPE_ALL, 31),
 
 	/* undo initialize of virtual link */
@@ -141,7 +141,7 @@ enum vnic_devcmd_cmd {
 
 	/* check fw capability of a cmd:
 	 * in:  (u32)a0=cmd
-	 * out: (u32)a0=errno, 0:valid cmd, a1=supported VNIC_STF_* bits */
+	 * out: (u32)a0=erryes, 0:valid cmd, a1=supported VNIC_STF_* bits */
 	CMD_CAPABILITY      = _CMDC(_CMD_DIR_RW, _CMD_VTYPE_ALL, 36),
 
 	/*
@@ -191,7 +191,7 @@ struct vnic_devcmd_fw_info {
 	char hw_serial_number[32];
 };
 
-struct vnic_devcmd_notify {
+struct vnic_devcmd_yestify {
 	u32 csum;		/* checksum over following words */
 
 	u32 link_state;		/* link up == 1 */
@@ -236,7 +236,7 @@ struct vnic_devcmd {
 /*
  * Version 2 of the interface.
  *
- * Some things are carried over, notably the vnic_devcmd_cmd enum.
+ * Some things are carried over, yestably the vnic_devcmd_cmd enum.
  */
 
 /*

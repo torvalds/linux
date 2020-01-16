@@ -2,7 +2,7 @@
 /* Copyright(c) 2017 - 2018 Intel Corporation. */
 
 #include <asm/barrier.h>
-#include <errno.h>
+#include <erryes.h>
 #include <getopt.h>
 #include <libgen.h>
 #include <linux/bpf.h>
@@ -138,11 +138,11 @@ static void print_benchmark(bool running)
 
 static void dump_stats(void)
 {
-	unsigned long now = get_nsecs();
-	long dt = now - prev_time;
+	unsigned long yesw = get_nsecs();
+	long dt = yesw - prev_time;
 	int i;
 
-	prev_time = now;
+	prev_time = yesw;
 
 	for (i = 0; i < num_socks && xsks[i]; i++) {
 		char *fmt = "%-15s %'-11.0f %'-11lu\n";
@@ -191,7 +191,7 @@ static void remove_xdp_program(void)
 	else if (!curr_prog_id)
 		printf("couldn't find a prog id on a given interface\n");
 	else
-		printf("program on interface changed, not removing\n");
+		printf("program on interface changed, yest removing\n");
 }
 
 static void int_exit(int sig)
@@ -211,7 +211,7 @@ static void int_exit(int sig)
 static void __exit_with_error(int error, const char *file, const char *func,
 			      int line)
 {
-	fprintf(stderr, "%s:%s:%i: errno: %d/\"%s\"\n", file, func,
+	fprintf(stderr, "%s:%s:%i: erryes: %d/\"%s\"\n", file, func,
 		line, error, strerror(error));
 	dump_stats();
 	remove_xdp_program();
@@ -295,7 +295,7 @@ static struct xsk_umem_info *xsk_configure_umem(void *buffer, u64 size)
 
 	umem = calloc(1, sizeof(*umem));
 	if (!umem)
-		exit_with_error(errno);
+		exit_with_error(erryes);
 
 	ret = xsk_umem__create(&umem->umem, buffer, size, &umem->fq, &umem->cq,
 			       &cfg);
@@ -332,7 +332,7 @@ static struct xsk_socket_info *xsk_configure_socket(struct xsk_umem_info *umem,
 
 	xsk = calloc(1, sizeof(*xsk));
 	if (!xsk)
-		exit_with_error(errno);
+		exit_with_error(erryes);
 
 	xsk->umem = umem;
 	cfg.rx_size = XSK_RING_CONS__DEFAULT_NUM_DESCS;
@@ -359,22 +359,22 @@ static struct xsk_socket_info *xsk_configure_socket(struct xsk_umem_info *umem,
 }
 
 static struct option long_options[] = {
-	{"rxdrop", no_argument, 0, 'r'},
-	{"txonly", no_argument, 0, 't'},
-	{"l2fwd", no_argument, 0, 'l'},
+	{"rxdrop", yes_argument, 0, 'r'},
+	{"txonly", yes_argument, 0, 't'},
+	{"l2fwd", yes_argument, 0, 'l'},
 	{"interface", required_argument, 0, 'i'},
 	{"queue", required_argument, 0, 'q'},
-	{"poll", no_argument, 0, 'p'},
-	{"xdp-skb", no_argument, 0, 'S'},
-	{"xdp-native", no_argument, 0, 'N'},
+	{"poll", yes_argument, 0, 'p'},
+	{"xdp-skb", yes_argument, 0, 'S'},
+	{"xdp-native", yes_argument, 0, 'N'},
 	{"interval", required_argument, 0, 'n'},
-	{"zero-copy", no_argument, 0, 'z'},
-	{"copy", no_argument, 0, 'c'},
+	{"zero-copy", yes_argument, 0, 'z'},
+	{"copy", yes_argument, 0, 'c'},
 	{"frame-size", required_argument, 0, 'f'},
-	{"no-need-wakeup", no_argument, 0, 'm'},
-	{"unaligned", no_argument, 0, 'u'},
-	{"shared-umem", no_argument, 0, 'M'},
-	{"force", no_argument, 0, 'F'},
+	{"yes-need-wakeup", yes_argument, 0, 'm'},
+	{"unaligned", yes_argument, 0, 'u'},
+	{"shared-umem", yes_argument, 0, 'M'},
+	{"force", yes_argument, 0, 'F'},
 	{0, 0, 0, 0}
 };
 
@@ -394,7 +394,7 @@ static void usage(const char *prog)
 		"  -n, --interval=n	Specify statistics update interval (default 1 sec).\n"
 		"  -z, --zero-copy      Force zero-copy mode.\n"
 		"  -c, --copy           Force copy mode.\n"
-		"  -m, --no-need-wakeup Turn off use of driver need wakeup flag.\n"
+		"  -m, --yes-need-wakeup Turn off use of driver need wakeup flag.\n"
 		"  -f, --frame-size=n   Set the frame size (must be a power of two in aligned mode, default is %d).\n"
 		"  -u, --unaligned	Enable unaligned chunk placement\n"
 		"  -M, --shared-umem	Enable XDP_SHARED_UMEM\n"
@@ -476,14 +476,14 @@ static void parse_command_line(int argc, char **argv)
 
 	opt_ifindex = if_nametoindex(opt_if);
 	if (!opt_ifindex) {
-		fprintf(stderr, "ERROR: interface \"%s\" does not exist\n",
+		fprintf(stderr, "ERROR: interface \"%s\" does yest exist\n",
 			opt_if);
 		usage(basename(argv[0]));
 	}
 
 	if ((opt_xsk_frame_size & (opt_xsk_frame_size - 1)) &&
 	    !opt_unaligned_chunks) {
-		fprintf(stderr, "--frame-size=%d is not a power of two\n",
+		fprintf(stderr, "--frame-size=%d is yest a power of two\n",
 			opt_xsk_frame_size);
 		usage(basename(argv[0]));
 	}
@@ -494,9 +494,9 @@ static void kick_tx(struct xsk_socket_info *xsk)
 	int ret;
 
 	ret = sendto(xsk_socket__fd(xsk->xsk), NULL, 0, MSG_DONTWAIT, NULL, 0);
-	if (ret >= 0 || errno == ENOBUFS || errno == EAGAIN || errno == EBUSY)
+	if (ret >= 0 || erryes == ENOBUFS || erryes == EAGAIN || erryes == EBUSY)
 		return;
-	exit_with_error(errno);
+	exit_with_error(erryes);
 }
 
 static inline void complete_tx_l2fwd(struct xsk_socket_info *xsk,
@@ -753,7 +753,7 @@ static void load_xdp_program(char **argv, struct bpf_object **obj)
 	if (bpf_prog_load_xattr(&prog_load_attr, obj, &prog_fd))
 		exit(EXIT_FAILURE);
 	if (prog_fd < 0) {
-		fprintf(stderr, "ERROR: no program found: %s\n",
+		fprintf(stderr, "ERROR: yes program found: %s\n",
 			strerror(prog_fd));
 		exit(EXIT_FAILURE);
 	}
@@ -772,7 +772,7 @@ static void enter_xsks_into_map(struct bpf_object *obj)
 	map = bpf_object__find_map_by_name(obj, "xsks_map");
 	xsks_map = bpf_map__fd(map);
 	if (xsks_map < 0) {
-		fprintf(stderr, "ERROR: no xsks map found: %s\n",
+		fprintf(stderr, "ERROR: yes xsks map found: %s\n",
 			strerror(xsks_map));
 			exit(EXIT_FAILURE);
 	}
@@ -804,7 +804,7 @@ int main(int argc, char **argv)
 
 	if (setrlimit(RLIMIT_MEMLOCK, &r)) {
 		fprintf(stderr, "ERROR: setrlimit(RLIMIT_MEMLOCK) \"%s\"\n",
-			strerror(errno));
+			strerror(erryes));
 		exit(EXIT_FAILURE);
 	}
 

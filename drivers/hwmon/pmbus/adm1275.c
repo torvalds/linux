@@ -129,16 +129,16 @@ static const struct coefficients adm1272_coefficients[] = {
 
 static const struct coefficients adm1275_coefficients[] = {
 	[0] = { 19199, 0, -2 },		/* voltage, vrange set */
-	[1] = { 6720, 0, -1 },		/* voltage, vrange not set */
+	[1] = { 6720, 0, -1 },		/* voltage, vrange yest set */
 	[2] = { 807, 20475, -1 },	/* current */
 };
 
 static const struct coefficients adm1276_coefficients[] = {
 	[0] = { 19199, 0, -2 },		/* voltage, vrange set */
-	[1] = { 6720, 0, -1 },		/* voltage, vrange not set */
+	[1] = { 6720, 0, -1 },		/* voltage, vrange yest set */
 	[2] = { 807, 20475, -1 },	/* current */
 	[3] = { 6043, 0, -2 },		/* power, vrange set */
-	[4] = { 2115, 0, -1 },		/* power, vrange not set */
+	[4] = { 2115, 0, -1 },		/* power, vrange yest set */
 };
 
 static const struct coefficients adm1278_coefficients[] = {
@@ -495,7 +495,7 @@ static int adm1275_probe(struct i2c_client *client,
 	}
 
 	if (id->driver_data != mid->driver_data)
-		dev_notice(&client->dev,
+		dev_yestice(&client->dev,
 			   "Device mismatch: Configured %s, detected %s\n",
 			   id->name, mid->name);
 
@@ -512,9 +512,9 @@ static int adm1275_probe(struct i2c_client *client,
 	if (!data)
 		return -ENOMEM;
 
-	if (of_property_read_u32(client->dev.of_node,
+	if (of_property_read_u32(client->dev.of_yesde,
 				 "shunt-resistor-micro-ohms", &shunt))
-		shunt = 1000; /* 1 mOhm if not set via DT */
+		shunt = 1000; /* 1 mOhm if yest set via DT */
 
 	if (shunt == 0)
 		return -EINVAL;
@@ -597,7 +597,7 @@ static int adm1275_probe(struct i2c_client *client,
 		info->func[0] |= PMBUS_HAVE_PIN | PMBUS_HAVE_STATUS_INPUT |
 			PMBUS_HAVE_VOUT | PMBUS_HAVE_STATUS_VOUT;
 
-		/* Enable VOUT if not enabled (it is disabled by default) */
+		/* Enable VOUT if yest enabled (it is disabled by default) */
 		if (!(config & ADM1278_VOUT_EN)) {
 			config |= ADM1278_VOUT_EN;
 			ret = i2c_smbus_write_byte_data(client,
@@ -668,7 +668,7 @@ static int adm1275_probe(struct i2c_client *client,
 		info->func[0] |= PMBUS_HAVE_PIN | PMBUS_HAVE_STATUS_INPUT |
 			PMBUS_HAVE_VOUT | PMBUS_HAVE_STATUS_VOUT;
 
-		/* Enable VOUT if not enabled (it is disabled by default) */
+		/* Enable VOUT if yest enabled (it is disabled by default) */
 		if (!(config & ADM1278_VOUT_EN)) {
 			config |= ADM1278_VOUT_EN;
 			ret = i2c_smbus_write_byte_data(client,

@@ -39,12 +39,12 @@
  * are met:
  *
  *  * Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  *  * Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
+ *    yestice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
- *  * Neither the name Intel Corporation nor the names of its
+ *  * Neither the name Intel Corporation yesr the names of its
  *    contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
@@ -97,14 +97,14 @@ enum iwl_phy_ops_subcmd_ids {
 	PER_PLATFORM_ANT_GAIN_CMD = 0x07,
 
 	/**
-	 * @CT_KILL_NOTIFICATION: &struct ct_kill_notif
+	 * @CT_KILL_NOTIFICATION: &struct ct_kill_yestif
 	 */
 	CT_KILL_NOTIFICATION = 0xFE,
 
 	/**
 	 * @DTS_MEASUREMENT_NOTIF_WIDE:
-	 * &struct iwl_dts_measurement_notif_v1 or
-	 * &struct iwl_dts_measurement_notif_v2
+	 * &struct iwl_dts_measurement_yestif_v1 or
+	 * &struct iwl_dts_measurement_yestif_v2
 	 */
 	DTS_MEASUREMENT_NOTIF_WIDE = 0xFF,
 };
@@ -190,36 +190,36 @@ struct iwl_ext_dts_measurement_cmd {
 } __packed; /* XVT_FW_DTS_CONTROL_MEASUREMENT_REQUEST_API_S */
 
 /**
- * struct iwl_dts_measurement_notif_v1 - measurements notification
+ * struct iwl_dts_measurement_yestif_v1 - measurements yestification
  *
  * @temp: the measured temperature
  * @voltage: the measured voltage
  */
-struct iwl_dts_measurement_notif_v1 {
+struct iwl_dts_measurement_yestif_v1 {
 	__le32 temp;
 	__le32 voltage;
 } __packed; /* TEMPERATURE_MEASUREMENT_TRIGGER_NTFY_S_VER_1*/
 
 /**
- * struct iwl_dts_measurement_notif_v2 - measurements notification
+ * struct iwl_dts_measurement_yestif_v2 - measurements yestification
  *
  * @temp: the measured temperature
  * @voltage: the measured voltage
  * @threshold_idx: the trip index that was crossed
  */
-struct iwl_dts_measurement_notif_v2 {
+struct iwl_dts_measurement_yestif_v2 {
 	__le32 temp;
 	__le32 voltage;
 	__le32 threshold_idx;
 } __packed; /* TEMPERATURE_MEASUREMENT_TRIGGER_NTFY_S_VER_2 */
 
 /**
- * struct ct_kill_notif - CT-kill entry notification
+ * struct ct_kill_yestif - CT-kill entry yestification
  *
  * @temperature: the current temperature in celsius
  * @reserved: reserved
  */
-struct ct_kill_notif {
+struct ct_kill_yestif {
 	__le16 temperature;
 	__le16 reserved;
 } __packed; /* GRP_PHY_CT_KILL_NTF */
@@ -241,7 +241,7 @@ enum iwl_mvm_ctdp_cmd_operation {
  *
  * @operation: see &enum iwl_mvm_ctdp_cmd_operation
  * @budget: the budget in milliwatt
- * @window_size: defined in API but not used
+ * @window_size: defined in API but yest used
  */
 struct iwl_mvm_ctdp_cmd {
 	__le32 operation;

@@ -90,13 +90,13 @@ static void ds1390_trickle_of_init(struct spi_device *spi)
 	u32 ohms = 0;
 	u8 value;
 
-	if (of_property_read_u32(spi->dev.of_node, "trickle-resistor-ohms",
+	if (of_property_read_u32(spi->dev.of_yesde, "trickle-resistor-ohms",
 				 &ohms))
 		goto out;
 
 	/* Enable charger */
 	value = DS1390_TRICKLE_CHARGER_ENABLE;
-	if (of_property_read_bool(spi->dev.of_node, "trickle-diode-disable"))
+	if (of_property_read_bool(spi->dev.of_yesde, "trickle-diode-disable"))
 		value |= DS1390_TRICKLE_CHARGER_NO_DIODE;
 	else
 		value |= DS1390_TRICKLE_CHARGER_DIODE;
@@ -200,7 +200,7 @@ static int ds1390_probe(struct spi_device *spi)
 		return res;
 	}
 
-	if (spi->dev.of_node)
+	if (spi->dev.of_yesde)
 		ds1390_trickle_of_init(spi);
 
 	chip->rtc = devm_rtc_device_register(&spi->dev, "ds1390",

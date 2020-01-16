@@ -109,7 +109,7 @@ enum {
 /**
  * struct net_bridge_vlan - per-vlan entry
  *
- * @vnode: rhashtable member
+ * @vyesde: rhashtable member
  * @vid: VLAN id
  * @flags: bridge vlan flags
  * @priv_flags: private (in-kernel) bridge vlan flags
@@ -128,8 +128,8 @@ enum {
  * the entry flags that are set.
  */
 struct net_bridge_vlan {
-	struct rhash_head		vnode;
-	struct rhash_head		tnode;
+	struct rhash_head		vyesde;
+	struct rhash_head		tyesde;
 	u16				vid;
 	u16				flags;
 	u16				priv_flags;
@@ -160,8 +160,8 @@ struct net_bridge_vlan {
  *
  * IMPORTANT: Be careful when checking if there're VLAN entries using list
  *            primitives because the bridge can have entries in its list which
- *            are just for global context but not for filtering, i.e. they have
- *            the master flag set but not the brentry flag. If you have to check
+ *            are just for global context but yest for filtering, i.e. they have
+ *            the master flag set but yest the brentry flag. If you have to check
  *            if there're "real" entries in the bridge please test @num_vlans
  */
 struct net_bridge_vlan_group {
@@ -188,14 +188,14 @@ struct net_bridge_fdb_key {
 };
 
 struct net_bridge_fdb_entry {
-	struct rhash_head		rhnode;
+	struct rhash_head		rhyesde;
 	struct net_bridge_port		*dst;
 
 	struct net_bridge_fdb_key	key;
-	struct hlist_node		fdb_node;
+	struct hlist_yesde		fdb_yesde;
 	unsigned long			flags;
 
-	/* write-heavy members should not affect lookups */
+	/* write-heavy members should yest affect lookups */
 	unsigned long			updated ____cacheline_aligned_in_smp;
 	unsigned long			used;
 
@@ -209,7 +209,7 @@ struct net_bridge_fdb_entry {
 struct net_bridge_port_group {
 	struct net_bridge_port		*port;
 	struct net_bridge_port_group __rcu *next;
-	struct hlist_node		mglist;
+	struct hlist_yesde		mglist;
 	struct rcu_head			rcu;
 	struct timer_list		timer;
 	struct br_ip			addr;
@@ -218,14 +218,14 @@ struct net_bridge_port_group {
 };
 
 struct net_bridge_mdb_entry {
-	struct rhash_head		rhnode;
+	struct rhash_head		rhyesde;
 	struct net_bridge		*br;
 	struct net_bridge_port_group __rcu *ports;
 	struct rcu_head			rcu;
 	struct timer_list		timer;
 	struct br_ip			addr;
 	bool				host_joined;
-	struct hlist_node		mdb_node;
+	struct hlist_yesde		mdb_yesde;
 };
 
 struct net_bridge_port {
@@ -242,7 +242,7 @@ struct net_bridge_port {
 	/* STP */
 	u8				priority;
 	u8				state;
-	u16				port_no;
+	u16				port_yes;
 	unsigned char			topology_change_ack;
 	unsigned char			config_pending;
 	port_id				port_id;
@@ -268,7 +268,7 @@ struct net_bridge_port {
 	struct bridge_mcast_stats	__percpu *mcast_stats;
 	struct timer_list		multicast_router_timer;
 	struct hlist_head		mglist;
-	struct hlist_node		rlist;
+	struct hlist_yesde		rlist;
 #endif
 
 #ifdef CONFIG_SYSFS
@@ -369,7 +369,7 @@ struct net_bridge {
 	u8				group_addr[ETH_ALEN];
 
 	enum {
-		BR_NO_STP, 		/* no spanning tree */
+		BR_NO_STP, 		/* yes spanning tree */
 		BR_KERNEL_STP,		/* old STP in kernel */
 		BR_USER_STP,		/* new RSTP in userspace */
 	} stp_enabled;
@@ -461,7 +461,7 @@ struct br_input_skb_cb {
 	br_printk(KERN_ERR, __br, format, ##args)
 #define br_warn(__br, format, args...)			\
 	br_printk(KERN_WARNING, __br, format, ##args)
-#define br_notice(__br, format, args...)		\
+#define br_yestice(__br, format, args...)		\
 	br_printk(KERN_NOTICE, __br, format, ##args)
 #define br_info(__br, format, args...)			\
 	br_printk(KERN_INFO, __br, format, ##args)
@@ -592,10 +592,10 @@ int br_fdb_sync_static(struct net_bridge *br, struct net_bridge_port *p);
 void br_fdb_unsync_static(struct net_bridge *br, struct net_bridge_port *p);
 int br_fdb_external_learn_add(struct net_bridge *br, struct net_bridge_port *p,
 			      const unsigned char *addr, u16 vid,
-			      bool swdev_notify);
+			      bool swdev_yestify);
 int br_fdb_external_learn_del(struct net_bridge *br, struct net_bridge_port *p,
 			      const unsigned char *addr, u16 vid,
-			      bool swdev_notify);
+			      bool swdev_yestify);
 void br_fdb_offloaded_set(struct net_bridge *br, struct net_bridge_port *p,
 			  const unsigned char *addr, u16 vid, bool offloaded);
 
@@ -621,7 +621,7 @@ static inline bool br_skb_isolated(const struct net_bridge_port *to,
 }
 
 /* br_if.c */
-void br_port_carrier_check(struct net_bridge_port *p, bool *notified);
+void br_port_carrier_check(struct net_bridge_port *p, bool *yestified);
 int br_add_bridge(struct net *net, const char *name);
 int br_del_bridge(struct net *net, const char *name);
 int br_add_if(struct net_bridge *br, struct net_device *dev,
@@ -699,9 +699,9 @@ br_multicast_new_port_group(struct net_bridge_port *port, struct br_ip *group,
 			    unsigned char flags, const unsigned char *src);
 int br_mdb_hash_init(struct net_bridge *br);
 void br_mdb_hash_fini(struct net_bridge *br);
-void br_mdb_notify(struct net_device *dev, struct net_bridge_port *port,
+void br_mdb_yestify(struct net_device *dev, struct net_bridge_port *port,
 		   struct br_ip *group, int type, u8 flags);
-void br_rtr_notify(struct net_device *dev, struct net_bridge_port *port,
+void br_rtr_yestify(struct net_device *dev, struct net_bridge_port *port,
 		   int type);
 void br_multicast_count(struct net_bridge *br, const struct net_bridge_port *p,
 			const struct sk_buff *skb, u8 type, u8 dir);
@@ -712,8 +712,8 @@ void br_multicast_get_stats(const struct net_bridge *br,
 			    struct br_mcast_stats *dest);
 void br_mdb_init(void);
 void br_mdb_uninit(void);
-void br_multicast_host_join(struct net_bridge_mdb_entry *mp, bool notify);
-void br_multicast_host_leave(struct net_bridge_mdb_entry *mp, bool notify);
+void br_multicast_host_join(struct net_bridge_mdb_entry *mp, bool yestify);
+void br_multicast_host_leave(struct net_bridge_mdb_entry *mp, bool yestify);
 
 #define mlock_dereference(X, br) \
 	rcu_dereference_protected(X, lockdep_is_held(&br->multicast_lock))
@@ -934,7 +934,7 @@ static inline struct net_bridge_vlan_group *nbp_vlan_group_rcu(
 	return rcu_dereference(p->vlgrp);
 }
 
-/* Since bridge now depends on 8021Q module, but the time bridge sees the
+/* Since bridge yesw depends on 8021Q module, but the time bridge sees the
  * skb, the vlan tag will always be present if the frame was tagged.
  */
 static inline int br_vlan_get_tag(const struct sk_buff *skb, u16 *vid)
@@ -1123,7 +1123,7 @@ static inline void br_nf_core_fini(void) {}
 
 /* br_stp.c */
 void br_set_state(struct net_bridge_port *p, unsigned int state);
-struct net_bridge_port *br_get_port(struct net_bridge *br, u16 port_no);
+struct net_bridge_port *br_get_port(struct net_bridge *br, u16 port_yes);
 void br_init_port(struct net_bridge_port *p);
 void br_become_designated_port(struct net_bridge_port *p);
 
@@ -1167,7 +1167,7 @@ extern int (*br_fdb_test_addr_hook)(struct net_device *dev, unsigned char *addr)
 extern struct rtnl_link_ops br_link_ops;
 int br_netlink_init(void);
 void br_netlink_fini(void);
-void br_ifinfo_notify(int event, const struct net_bridge *br,
+void br_ifinfo_yestify(int event, const struct net_bridge *br,
 		      const struct net_bridge_port *port);
 int br_setlink(struct net_device *dev, struct nlmsghdr *nlmsg, u16 flags,
 	       struct netlink_ext_ack *extack);
@@ -1203,7 +1203,7 @@ bool nbp_switchdev_allowed_egress(const struct net_bridge_port *p,
 int br_switchdev_set_port_flag(struct net_bridge_port *p,
 			       unsigned long flags,
 			       unsigned long mask);
-void br_switchdev_fdb_notify(const struct net_bridge_fdb_entry *fdb,
+void br_switchdev_fdb_yestify(const struct net_bridge_fdb_entry *fdb,
 			     int type);
 int br_switchdev_port_vlan_add(struct net_device *dev, u16 vid, u16 flags,
 			       struct netlink_ext_ack *extack);
@@ -1250,7 +1250,7 @@ static inline int br_switchdev_port_vlan_del(struct net_device *dev, u16 vid)
 }
 
 static inline void
-br_switchdev_fdb_notify(const struct net_bridge_fdb_entry *fdb, int type)
+br_switchdev_fdb_yestify(const struct net_bridge_fdb_entry *fdb, int type)
 {
 }
 

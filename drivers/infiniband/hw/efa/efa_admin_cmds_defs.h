@@ -117,7 +117,7 @@ struct efa_admin_create_qp_cmd {
 	u8 flags;
 
 	/*
-	 * Send queue (SQ) ring base physical address. This field is not
+	 * Send queue (SQ) ring base physical address. This field is yest
 	 * used if this is a Low Latency Queue(LLQ).
 	 */
 	u64 sq_base_addr;
@@ -132,7 +132,7 @@ struct efa_admin_create_qp_cmd {
 	u32 recv_cq_idx;
 
 	/*
-	 * Memory registration key for the SQ ring, used only when not in
+	 * Memory registration key for the SQ ring, used only when yest in
 	 * LLQ mode and base address is virtual
 	 */
 	u32 sq_l_key;
@@ -213,8 +213,8 @@ struct efa_admin_modify_qp_cmd {
 	/* SQ PSN */
 	u32 sq_psn;
 
-	/* Enable async notification when SQ is drained */
-	u8 sq_drained_async_notify;
+	/* Enable async yestification when SQ is drained */
+	u8 sq_drained_async_yestify;
 
 	/* MBZ */
 	u8 reserved1;
@@ -273,7 +273,7 @@ struct efa_admin_destroy_qp_resp {
 };
 
 /*
- * Create Address Handle command parameters. Must not be called more than
+ * Create Address Handle command parameters. Must yest be called more than
  * once for the same destination
  */
 struct efa_admin_create_ah_cmd {
@@ -354,7 +354,7 @@ struct efa_admin_reg_mr_cmd {
 	 *    building the Virtual to Physical address mapping
 	 * 6:5 : reserved - MBZ
 	 * 7 : mem_addr_phy_mode_en - Enable bit for physical
-	 *    memory registration (no translation), can be used
+	 *    memory registration (yes translation), can be used
 	 *    only by privileged clients. If set, PBL must
 	 *    contain a single entry.
 	 */
@@ -640,7 +640,7 @@ struct efa_admin_feature_network_attr_desc {
 };
 
 /*
- * When hint value is 0, hints capabilities are not supported or driver
+ * When hint value is 0, hints capabilities are yest supported or driver
  * should use its own predefined value
  */
 struct efa_admin_hw_hints {
@@ -764,7 +764,7 @@ struct efa_admin_dealloc_uar_resp {
 	struct efa_admin_acq_common_desc acq_common_desc;
 };
 
-/* asynchronous event notification groups */
+/* asynchroyesus event yestification groups */
 enum efa_admin_aenq_group {
 	EFA_ADMIN_FATAL_ERROR                       = 1,
 	EFA_ADMIN_WARNING                           = 2,
@@ -773,7 +773,7 @@ enum efa_admin_aenq_group {
 	EFA_ADMIN_AENQ_GROUPS_NUM                   = 5,
 };
 
-enum efa_admin_aenq_notification_syndrom {
+enum efa_admin_aenq_yestification_syndrom {
 	EFA_ADMIN_SUSPEND                           = 0,
 	EFA_ADMIN_RESUME                            = 1,
 	EFA_ADMIN_UPDATE_HINTS                      = 2,

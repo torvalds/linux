@@ -16,7 +16,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright yestice and this permission yestice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
  *
@@ -192,12 +192,12 @@ static int via_initialize(struct drm_device *dev,
 	}
 
 	if (!dev->agp || !dev->agp->base) {
-		DRM_ERROR("called with no agp memory available\n");
+		DRM_ERROR("called with yes agp memory available\n");
 		return -EFAULT;
 	}
 
 	if (dev_priv->chipset == VIA_DX9_0) {
-		DRM_ERROR("AGP DMA is not supported on this chip\n");
+		DRM_ERROR("AGP DMA is yest supported on this chip\n");
 		return -EINVAL;
 	}
 
@@ -211,7 +211,7 @@ static int via_initialize(struct drm_device *dev,
 
 	if (dev_priv->ring.map.handle == NULL) {
 		via_dma_cleanup(dev);
-		DRM_ERROR("can not ioremap virtual address for"
+		DRM_ERROR("can yest ioremap virtual address for"
 			  " ring buffer\n");
 		return -ENOMEM;
 	}
@@ -406,7 +406,7 @@ static inline uint32_t *via_get_dma(drm_via_private_t *dev_priv)
  */
 static int via_hook_segment(drm_via_private_t *dev_priv,
 			    uint32_t pause_addr_hi, uint32_t pause_addr_lo,
-			    int no_pci_fire)
+			    int yes_pci_fire)
 {
 	int paused, count;
 	volatile uint32_t *paused_at = dev_priv->last_pause_ptr;
@@ -446,7 +446,7 @@ static int via_hook_segment(drm_via_private_t *dev_priv,
 
 	paused = via_read(dev_priv, 0x41c) & 0x80000000;
 
-	if (paused && !no_pci_fire) {
+	if (paused && !yes_pci_fire) {
 		reader = *(dev_priv->hw_addr_ptr);
 		diff = (uint32_t) (ptr - reader) - dev_priv->dma_diff;
 		diff &= (dev_priv->dma_high - 1);
@@ -457,7 +457,7 @@ static int via_hook_segment(drm_via_private_t *dev_priv,
 		} else if (diff == 0) {
 			/*
 			 * There is a concern that these writes may stall the PCI bus
-			 * if the GPU is not idle. However, idling the GPU first
+			 * if the GPU is yest idle. However, idling the GPU first
 			 * doesn't make a difference.
 			 */
 
@@ -630,8 +630,8 @@ static void via_cmdbuf_jump(drm_via_private_t *dev_priv)
 	 * command buffer. (Which may happen if via_hook_segment detecs a command regulator pause
 	 * and reissues the jump command over PCI, while the regulator has already taken the jump
 	 * and actually paused at the current buffer end).
-	 * There appears to be no other way to detect this condition, since the hw_addr_pointer
-	 * does not seem to get updated immediately when a jump occurs.
+	 * There appears to be yes other way to detect this condition, since the hw_addr_pointer
+	 * does yest seem to get updated immediately when a jump occurs.
 	 */
 
 	last_pause_ptr =

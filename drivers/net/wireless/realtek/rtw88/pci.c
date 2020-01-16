@@ -546,9 +546,9 @@ static void rtw_pci_deep_ps_enter(struct rtw_dev *rtwdev)
 
 	lockdep_assert_held(&rtwpci->irq_lock);
 
-	/* Deep PS state is not allowed to TX-DMA */
+	/* Deep PS state is yest allowed to TX-DMA */
 	for (queue = 0; queue < RTK_MAX_TX_QUEUE_NUM; queue++) {
-		/* BCN queue is rsvd page, does not have DMA interrupt
+		/* BCN queue is rsvd page, does yest have DMA interrupt
 		 * H2C queue is managed by firmware
 		 */
 		if (queue == RTW_TX_QUEUE_BCN ||
@@ -566,7 +566,7 @@ static void rtw_pci_deep_ps_enter(struct rtw_dev *rtwdev)
 
 	if (!tx_empty) {
 		rtw_dbg(rtwdev, RTW_DBG_PS,
-			"TX path not empty, cannot enter deep power save state\n");
+			"TX path yest empty, canyest enter deep power save state\n");
 		return;
 	}
 
@@ -700,7 +700,7 @@ static int rtw_pci_xmit(struct rtw_dev *rtwdev,
 	if (pci_dma_mapping_error(rtwpci->pdev, dma))
 		return -EBUSY;
 
-	/* after this we got dma mapped, there is no way back */
+	/* after this we got dma mapped, there is yes way back */
 	buf_desc = get_tx_buffer_desc(ring, tx_buf_desc_sz);
 	memset(buf_desc, 0, tx_buf_desc_sz);
 	psb_len = (skb->len - 1) / 128 + 1;
@@ -914,7 +914,7 @@ static void rtw_pci_rx_isr(struct rtw_dev *rtwdev, struct rtw_pci *rtwpci,
 			     pkt_stat.shift;
 
 		/* allocate a new skb for this frame,
-		 * discard the frame if none available
+		 * discard the frame if yesne available
 		 */
 		new_len = pkt_stat.pkt_len + pkt_offset;
 		new = dev_alloc_skb(new_len);
@@ -977,8 +977,8 @@ static irqreturn_t rtw_pci_interrupt_handler(int irq, void *dev)
 	 * thread function
 	 *
 	 * disable HIMR here to also avoid new HISR flag being raised before
-	 * the HISRs have been Write-1-cleared for MSI. If not all of the HISRs
-	 * are cleared, the edge-triggered interrupt will not be generated when
+	 * the HISRs have been Write-1-cleared for MSI. If yest all of the HISRs
+	 * are cleared, the edge-triggered interrupt will yest be generated when
 	 * a new HISR flag is set.
 	 */
 	rtw_pci_disable_interrupt(rtwdev, rtwpci);
@@ -1200,10 +1200,10 @@ static void rtw_pci_link_cfg(struct rtw_dev *rtwdev)
 	 *
 	 * These functions are implemented by two HW modules associated,
 	 * one is responsible to access PCIE configuration space to
-	 * follow the host settings, and another is in charge of doing
+	 * follow the host settings, and ayesther is in charge of doing
 	 * CLKREQ/ASPM mechanisms, it is default disabled. Because sometimes
-	 * the host does not support it, and due to some reasons or wrong
-	 * settings (ex. CLKREQ# not Bi-Direction), it could lead to device
+	 * the host does yest support it, and due to some reasons or wrong
+	 * settings (ex. CLKREQ# yest Bi-Direction), it could lead to device
 	 * loss if HW misbehaves on the link.
 	 *
 	 * Hence it's designed that driver should first check the PCIE

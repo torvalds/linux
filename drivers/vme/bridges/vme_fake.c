@@ -22,7 +22,7 @@
  */
 
 #include <linux/device.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/interrupt.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
@@ -39,7 +39,7 @@
 #define FAKE_MAX_MASTER		8	/* Max Master Windows */
 #define FAKE_MAX_SLAVE		8	/* Max Slave Windows */
 
-/* Structures to hold information normally held in device registers */
+/* Structures to hold information yesrmally held in device registers */
 struct fake_slave_window {
 	int enabled;
 	unsigned long long vme_base;
@@ -138,7 +138,7 @@ static int fake_irq_generate(struct vme_bridge *fake_bridge, int level,
 	bridge->int_statid = statid;
 
 	/*
-	 * Schedule tasklet to run VME handler to emulate normal VME interrupt
+	 * Schedule tasklet to run VME handler to emulate yesrmal VME interrupt
 	 * handler behaviour.
 	 */
 	tasklet_schedule(&bridge->int_tasklet);
@@ -275,7 +275,7 @@ static int fake_master_set(struct vme_master_resource *image, int enabled,
 	}
 
 	if ((size == 0) && (enabled != 0)) {
-		pr_err("Size must be non-zero for enabled windows\n");
+		pr_err("Size must be yesn-zero for enabled windows\n");
 		retval = -EINVAL;
 		goto err_window;
 	}
@@ -535,12 +535,12 @@ static ssize_t fake_master_read(struct vme_master_resource *image, void *buf,
 
 	spin_lock(&image->lock);
 
-	/* The following code handles VME address alignment. We cannot use
+	/* The following code handles VME address alignment. We canyest use
 	 * memcpy_xxx here because it may cut data transfers in to 8-bit
 	 * cycles when D16 or D32 cycles are required on the VME bus.
 	 * On the other hand, the bridge itself assures that the maximum data
 	 * cycle configured for the transfer is used and splits it
-	 * automatically for non-aligned addresses, so we don't want the
+	 * automatically for yesn-aligned addresses, so we don't want the
 	 * overhead of needlessly forcing small transfers for the entire cycle.
 	 */
 	if (addr & 0x1) {
@@ -844,7 +844,7 @@ static unsigned int fake_master_rmw(struct vme_master_resource *image,
  * All 4 location monitors reside at the same base - this is therefore a
  * system wide configuration.
  *
- * This does not enable the LM monitor - that should be done when the first
+ * This does yest enable the LM monitor - that should be done when the first
  * callback is attached and disabled when the last callback is removed.
  */
 static int fake_lm_set(struct vme_lm_resource *lm, unsigned long long lm_base,
@@ -931,7 +931,7 @@ static int fake_lm_attach(struct vme_lm_resource *lm, int monitor,
 	/* Ensure that the location monitor is configured - need PGM or DATA */
 	if (bridge->lm_cycle == 0) {
 		mutex_unlock(&lm->mtx);
-		pr_err("Location monitor not properly configured\n");
+		pr_err("Location monitor yest properly configured\n");
 		return -EINVAL;
 	}
 
@@ -1178,7 +1178,7 @@ static int __init fake_init(void)
 	fake_bridge->free_consistent = fake_free_consistent;
 
 	pr_info("Board is%s the VME system controller\n",
-			(geoid == 1) ? "" : " not");
+			(geoid == 1) ? "" : " yest");
 
 	pr_info("VME geographical address is set to %d\n", geoid);
 

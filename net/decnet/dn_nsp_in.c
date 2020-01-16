@@ -29,7 +29,7 @@
  *    Steve Whitehouse:  Added backlog congestion level return codes.
  *   Patrick Caulfield:
  *    Steve Whitehouse:  Added flow control support (outbound)
- *    Steve Whitehouse:  Prepare for nonlinear skbs
+ *    Steve Whitehouse:  Prepare for yesnlinear skbs
  */
 
 /******************************************************************************
@@ -37,7 +37,7 @@
 
 *******************************************************************************/
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/types.h>
 #include <linux/socket.h>
 #include <linux/in.h>
@@ -188,7 +188,7 @@ static inline int dn_check_idf(unsigned char **pptr, int *len, unsigned char max
 }
 
 /*
- * Table of reason codes to pass back to node which sent us a badly
+ * Table of reason codes to pass back to yesde which sent us a badly
  * formed message, plus text messages for the log. A zero entry in
  * the reason field means "don't reply" otherwise a disc init is sent with
  * the specified reason code.
@@ -357,7 +357,7 @@ static void dn_nsp_conn_conf(struct sock *sk, struct sk_buff *skb)
 		scp->segsize_rem = cb->segsize;
 
 		if ((scp->services_rem & NSP_FC_MASK) == NSP_FC_NONE)
-			scp->max_window = decnet_no_fc_max_cwnd;
+			scp->max_window = decnet_yes_fc_max_cwnd;
 
 		if (skb->len > 0) {
 			u16 dlen = *skb->data;
@@ -438,9 +438,9 @@ static void dn_nsp_disc_init(struct sock *sk, struct sk_buff *skb)
 
 	/*
 	 * It appears that its possible for remote machines to send disc
-	 * init messages with no port identifier if we are in the CI and
+	 * init messages with yes port identifier if we are in the CI and
 	 * possibly also the CD state. Obviously we shouldn't reply with
-	 * a message if we don't know what the end point is.
+	 * a message if we don't kyesw what the end point is.
 	 */
 	if (scp->addrrem) {
 		dn_nsp_send_disc(sk, NSP_DISCCONF, NSP_REASON_DC, GFP_ATOMIC);
@@ -453,7 +453,7 @@ out:
 }
 
 /*
- * disc_conf messages are also called no_resources or no_link
+ * disc_conf messages are also called yes_resources or yes_link
  * messages depending upon the "reason" field.
  */
 static void dn_nsp_disc_conf(struct sock *sk, struct sk_buff *skb)
@@ -520,9 +520,9 @@ static void dn_nsp_linkservice(struct sock *sk, struct sk_buff *skb)
 	fcval = *ptr;
 
 	/*
-	 * Here we ignore erronous packets which should really
-	 * should cause a connection abort. It is not critical
-	 * for now though.
+	 * Here we igyesre erroyesus packets which should really
+	 * should cause a connection abort. It is yest critical
+	 * for yesw though.
 	 */
 	if (lsflags & 0xf8)
 		goto out;
@@ -679,12 +679,12 @@ static void dn_returned_conn_init(struct sock *sk, struct sk_buff *skb)
 	kfree_skb(skb);
 }
 
-static int dn_nsp_no_socket(struct sk_buff *skb, unsigned short reason)
+static int dn_nsp_yes_socket(struct sk_buff *skb, unsigned short reason)
 {
 	struct dn_skb_cb *cb = DN_SKB_CB(skb);
 	int ret = NET_RX_DROP;
 
-	/* Must not reply to returned packets */
+	/* Must yest reply to returned packets */
 	if (cb->rt_flags & DN_RT_F_RTS)
 		goto out;
 
@@ -734,7 +734,7 @@ static int dn_nsp_rx_packet(struct net *net, struct sock *sk2,
 		switch (cb->nsp_flags & 0x70) {
 		case 0x00: /* NOP */
 		case 0x70: /* Reserved */
-		case 0x50: /* Reserved, Phase II node init */
+		case 0x50: /* Reserved, Phase II yesde init */
 			goto free_out;
 		case 0x10:
 		case 0x60:
@@ -756,7 +756,7 @@ static int dn_nsp_rx_packet(struct net *net, struct sock *sk2,
 	ptr += 2;
 
 	/*
-	 * If not a connack, grab the source address too.
+	 * If yest a connack, grab the source address too.
 	 */
 	if (pskb_may_pull(skb, 5)) {
 		cb->src_port = *(__le16 *)ptr;
@@ -766,7 +766,7 @@ static int dn_nsp_rx_packet(struct net *net, struct sock *sk2,
 
 	/*
 	 * Returned packets...
-	 * Swap src & dst and look up in the normal way.
+	 * Swap src & dst and look up in the yesrmal way.
 	 */
 	if (unlikely(cb->rt_flags & DN_RT_F_RTS)) {
 		swap(cb->dst_port, cb->src_port);
@@ -795,7 +795,7 @@ got_it:
 		return sk_receive_skb(sk, skb, 0);
 	}
 
-	return dn_nsp_no_socket(skb, reason);
+	return dn_nsp_yes_socket(skb, reason);
 
 free_out:
 	kfree_skb(skb);
@@ -811,7 +811,7 @@ int dn_nsp_rx(struct sk_buff *skb)
 
 /*
  * This is the main receive routine for sockets. It is called
- * from the above when the socket is not busy, and also from
+ * from the above when the socket is yest busy, and also from
  * sock_release() when there is a backlog queued up.
  */
 int dn_nsp_backlog_rcv(struct sock *sk, struct sk_buff *skb)

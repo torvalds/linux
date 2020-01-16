@@ -130,7 +130,7 @@ static const struct of_device_id max8998_dt_match[] = {
  * to parse their own platform data elements from device tree.
  *
  * The max8998 platform data structure is instantiated here and the drivers for
- * the sub-modules need not instantiate another instance while parsing their
+ * the sub-modules need yest instantiate ayesther instance while parsing their
  * platform data.
  */
 static struct max8998_platform_data *max8998_i2c_parse_dt_pdata(
@@ -142,12 +142,12 @@ static struct max8998_platform_data *max8998_i2c_parse_dt_pdata(
 	if (!pd)
 		return ERR_PTR(-ENOMEM);
 
-	pd->ono = irq_of_parse_and_map(dev->of_node, 1);
+	pd->oyes = irq_of_parse_and_map(dev->of_yesde, 1);
 
 	/*
 	 * ToDo: the 'wakeup' member in the platform data is more of a linux
-	 * specfic information. Hence, there is no binding for that yet and
-	 * not parsed here.
+	 * specfic information. Hence, there is yes binding for that yet and
+	 * yest parsed here.
 	 */
 	return pd;
 }
@@ -155,9 +155,9 @@ static struct max8998_platform_data *max8998_i2c_parse_dt_pdata(
 static inline unsigned long max8998_i2c_get_driver_data(struct i2c_client *i2c,
 						const struct i2c_device_id *id)
 {
-	if (IS_ENABLED(CONFIG_OF) && i2c->dev.of_node) {
+	if (IS_ENABLED(CONFIG_OF) && i2c->dev.of_yesde) {
 		const struct of_device_id *match;
-		match = of_match_node(max8998_dt_match, i2c->dev.of_node);
+		match = of_match_yesde(max8998_dt_match, i2c->dev.of_yesde);
 		return (unsigned long)match->data;
 	}
 
@@ -176,7 +176,7 @@ static int max8998_i2c_probe(struct i2c_client *i2c,
 	if (max8998 == NULL)
 		return -ENOMEM;
 
-	if (IS_ENABLED(CONFIG_OF) && i2c->dev.of_node) {
+	if (IS_ENABLED(CONFIG_OF) && i2c->dev.of_yesde) {
 		pdata = max8998_i2c_parse_dt_pdata(&i2c->dev);
 		if (IS_ERR(pdata))
 			return PTR_ERR(pdata);
@@ -189,7 +189,7 @@ static int max8998_i2c_probe(struct i2c_client *i2c,
 	max8998->type = max8998_i2c_get_driver_data(i2c, id);
 	max8998->pdata = pdata;
 	if (pdata) {
-		max8998->ono = pdata->ono;
+		max8998->oyes = pdata->oyes;
 		max8998->irq_base = pdata->irq_base;
 		max8998->wakeup = pdata->wakeup;
 	}
@@ -259,7 +259,7 @@ static int max8998_resume(struct device *dev)
 	if (device_may_wakeup(dev))
 		irq_set_irq_wake(max8998->irq, 0);
 	/*
-	 * In LP3974, if IRQ registers are not "read & clear"
+	 * In LP3974, if IRQ registers are yest "read & clear"
 	 * when it's set during sleep, the interrupt becomes
 	 * disabled.
 	 */

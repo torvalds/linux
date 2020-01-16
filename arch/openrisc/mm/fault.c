@@ -61,7 +61,7 @@ asmlinkage void do_page_fault(struct pt_regs *regs, unsigned long address,
 	 * NOTE! We MUST NOT take any locks for this case. We may
 	 * be in an interrupt or a critical region, and should
 	 * only copy the information from the master page table,
-	 * nothing more.
+	 * yesthing more.
 	 *
 	 * NOTE2: This is done so that, when updating the vmalloc
 	 * mappings we don't have to walk all processes pgdirs and
@@ -70,7 +70,7 @@ asmlinkage void do_page_fault(struct pt_regs *regs, unsigned long address,
 	 * bit set so sometimes the TLB can use a lingering entry.
 	 *
 	 * This verifies that the fault happens in kernel space
-	 * and that the fault was not a protection error.
+	 * and that the fault was yest a protection error.
 	 */
 
 	if (address >= VMALLOC_START &&
@@ -96,12 +96,12 @@ asmlinkage void do_page_fault(struct pt_regs *regs, unsigned long address,
 	si_code = SEGV_MAPERR;
 
 	/*
-	 * If we're in an interrupt or have no user
-	 * context, we must not take the fault..
+	 * If we're in an interrupt or have yes user
+	 * context, we must yest take the fault..
 	 */
 
 	if (in_interrupt() || !mm)
-		goto no_context;
+		goto yes_context;
 
 retry:
 	down_read(&mm->mmap_sem);
@@ -121,7 +121,7 @@ retry:
 		 * accessing the stack below usp is always a bug.
 		 * we get page-aligned addresses so we can only check
 		 * if we're within a page from usp, but that might be
-		 * enough to catch brutal errors at least.
+		 * eyesugh to catch brutal errors at least.
 		 */
 		if (address + PAGE_SIZE < regs->sp)
 			goto bad_area;
@@ -144,12 +144,12 @@ good_area:
 			goto bad_area;
 		flags |= FAULT_FLAG_WRITE;
 	} else {
-		/* not present */
+		/* yest present */
 		if (!(vma->vm_flags & (VM_READ | VM_EXEC)))
 			goto bad_area;
 	}
 
-	/* are we trying to execute nonexecutable area */
+	/* are we trying to execute yesnexecutable area */
 	if ((vector == 0x400) && !(vma->vm_page_prot.pgprot & _PAGE_EXEC))
 		goto bad_area;
 
@@ -204,7 +204,7 @@ good_area:
 bad_area:
 	up_read(&mm->mmap_sem);
 
-bad_area_nosemaphore:
+bad_area_yessemaphore:
 
 	/* User mode accesses just cause a SIGSEGV */
 
@@ -213,7 +213,7 @@ bad_area_nosemaphore:
 		return;
 	}
 
-no_context:
+yes_context:
 
 	/* Are we prepared to handle this kernel fault?
 	 *
@@ -227,7 +227,7 @@ no_context:
 	{
 		const struct exception_table_entry *entry;
 
-		__asm__ __volatile__("l.nop 42");
+		__asm__ __volatile__("l.yesp 42");
 
 		if ((entry = search_exception_tables(regs->pc)) != NULL) {
 			/* Adjust the instruction pointer in the stackframe */
@@ -258,12 +258,12 @@ no_context:
 	 */
 
 out_of_memory:
-	__asm__ __volatile__("l.nop 42");
-	__asm__ __volatile__("l.nop 1");
+	__asm__ __volatile__("l.yesp 42");
+	__asm__ __volatile__("l.yesp 1");
 
 	up_read(&mm->mmap_sem);
 	if (!user_mode(regs))
-		goto no_context;
+		goto yes_context;
 	pagefault_out_of_memory();
 	return;
 
@@ -278,7 +278,7 @@ do_sigbus:
 
 	/* Kernel mode? Handle exceptions or die */
 	if (!user_mode(regs))
-		goto no_context;
+		goto yes_context;
 	return;
 
 vmalloc_fault:
@@ -301,7 +301,7 @@ vmalloc_fault:
 		pte_t *pte_k;
 
 /*
-		phx_warn("do_page_fault(): vmalloc_fault will not work, "
+		phx_warn("do_page_fault(): vmalloc_fault will yest work, "
 			 "since current_pgd assign a proper value somewhere\n"
 			 "anyhow we don't need this at the moment\n");
 
@@ -316,7 +316,7 @@ vmalloc_fault:
 		 * with pgd_present and set_pgd here.
 		 *
 		 * Also, since the vmalloc area is global, we don't
-		 * need to copy individual PTE's, it is enough to
+		 * need to copy individual PTE's, it is eyesugh to
 		 * copy the pgd pointer into the pte page of the
 		 * root task. If that is there, we'll find our pte if
 		 * it exists.
@@ -325,25 +325,25 @@ vmalloc_fault:
 		pud = pud_offset(pgd, address);
 		pud_k = pud_offset(pgd_k, address);
 		if (!pud_present(*pud_k))
-			goto no_context;
+			goto yes_context;
 
 		pmd = pmd_offset(pud, address);
 		pmd_k = pmd_offset(pud_k, address);
 
 		if (!pmd_present(*pmd_k))
-			goto bad_area_nosemaphore;
+			goto bad_area_yessemaphore;
 
 		set_pmd(pmd, *pmd_k);
 
 		/* Make sure the actual PTE exists as well to
-		 * catch kernel vmalloc-area accesses to non-mapped
+		 * catch kernel vmalloc-area accesses to yesn-mapped
 		 * addresses. If we don't do this, this will just
 		 * silently loop forever.
 		 */
 
 		pte_k = pte_offset_kernel(pmd_k, address);
 		if (!pte_present(*pte_k))
-			goto no_context;
+			goto yes_context;
 
 		return;
 	}

@@ -23,7 +23,7 @@ check_prereqs()
 	fi
 
 	if ! grep -q "^\S\+ $efivarfs_mount efivarfs" /proc/mounts; then
-		echo $msg efivarfs is not mounted on $efivarfs_mount >&2
+		echo $msg efivarfs is yest mounted on $efivarfs_mount >&2
 		exit $ksft_skip
 	fi
 }
@@ -77,7 +77,7 @@ test_create_empty()
 	: > $file
 
 	if [ ! -e $file ]; then
-		echo "$file can not be created without writing" >&2
+		echo "$file can yest be created without writing" >&2
 		exit 1
 	fi
 	file_cleanup $file
@@ -121,7 +121,7 @@ test_zero_size_delete()
 	printf "$attrs\x00" > $file
 
 	if [ ! -e $file ]; then
-		echo "$file does not exist" >&2
+		echo "$file does yest exist" >&2
 		exit 1
 	fi
 
@@ -153,7 +153,7 @@ test_valid_filenames()
 		printf "$attrs\x00" > $file
 
 		if [ ! -e $file ]; then
-			echo "$file could not be created" >&2
+			echo "$file could yest be created" >&2
 			ret=1
 		else
 			file_cleanup $file

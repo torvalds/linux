@@ -193,19 +193,19 @@ enum {
 	IS_R2_B		= 1<<14,	/* Q_R2 End of Buffer */
 	IS_R2_F		= 1<<13,	/* Q_R2 End of Frame */
 	IS_R2_C		= 1<<12,	/* Q_R2 Encoding Error */
-/* Synchronous Transmit Queue 1 */
+/* Synchroyesus Transmit Queue 1 */
 	IS_XS1_B	= 1<<11,	/* Q_XS1 End of Buffer */
 	IS_XS1_F	= 1<<10,	/* Q_XS1 End of Frame */
 	IS_XS1_C	= 1<<9,		/* Q_XS1 Encoding Error */
-/* Asynchronous Transmit Queue 1 */
+/* Asynchroyesus Transmit Queue 1 */
 	IS_XA1_B	= 1<<8,		/* Q_XA1 End of Buffer */
 	IS_XA1_F	= 1<<7,		/* Q_XA1 End of Frame */
 	IS_XA1_C	= 1<<6,		/* Q_XA1 Encoding Error */
-/* Synchronous Transmit Queue 2 */
+/* Synchroyesus Transmit Queue 2 */
 	IS_XS2_B	= 1<<5,		/* Q_XS2 End of Buffer */
 	IS_XS2_F	= 1<<4,		/* Q_XS2 End of Frame */
 	IS_XS2_C	= 1<<3,		/* Q_XS2 Encoding Error */
-/* Asynchronous Transmit Queue 2 */
+/* Asynchroyesus Transmit Queue 2 */
 	IS_XA2_B	= 1<<2,		/* Q_XA2 End of Buffer */
 	IS_XA2_F	= 1<<1,		/* Q_XA2 End of Frame */
 	IS_XA2_C	= 1<<0,		/* Q_XA2 Encoding Error */
@@ -504,10 +504,10 @@ enum {
 enum {
 	Q_R1	= 0x0000,	/* Receive Queue 1 */
 	Q_R2	= 0x0080,	/* Receive Queue 2 */
-	Q_XS1	= 0x0200,	/* Synchronous Transmit Queue 1 */
-	Q_XA1	= 0x0280,	/* Asynchronous Transmit Queue 1 */
-	Q_XS2	= 0x0300,	/* Synchronous Transmit Queue 2 */
-	Q_XA2	= 0x0380,	/* Asynchronous Transmit Queue 2 */
+	Q_XS1	= 0x0200,	/* Synchroyesus Transmit Queue 1 */
+	Q_XA1	= 0x0280,	/* Asynchroyesus Transmit Queue 1 */
+	Q_XS2	= 0x0300,	/* Synchroyesus Transmit Queue 2 */
+	Q_XA2	= 0x0380,	/* Asynchroyesus Transmit Queue 2 */
 };
 
 /* Different MAC Types */
@@ -520,8 +520,8 @@ enum {
 enum {
 	SK_PHY_XMAC	= 0,/* integrated in XMAC II */
 	SK_PHY_BCOM	= 1,/* Broadcom BCM5400 */
-	SK_PHY_LONE	= 2,/* Level One LXT1000  [not supported]*/
-	SK_PHY_NAT	= 3,/* National DP83891  [not supported] */
+	SK_PHY_LONE	= 2,/* Level One LXT1000  [yest supported]*/
+	SK_PHY_NAT	= 3,/* National DP83891  [yest supported] */
 	SK_PHY_MARV_COPPER= 4,/* Marvell 88E1011S */
 	SK_PHY_MARV_FIBER = 5,/* Marvell 88E1011S working on fiber */
 };
@@ -1004,7 +1004,7 @@ enum {
 	PHY_MARV_LED_OVER	= 0x19,/* 16 bit r/w	Manual LED Override Reg */
 	PHY_MARV_EXT_CTRL_2	= 0x1a,/* 16 bit r/w	Ext. PHY Specific Ctrl 2 */
 	PHY_MARV_EXT_P_STAT	= 0x1b,/* 16 bit r/w	Ext. PHY Spec. Stat Reg */
-	PHY_MARV_CABLE_DIAG	= 0x1c,/* 16 bit r/o	Cable Diagnostic Reg */
+	PHY_MARV_CABLE_DIAG	= 0x1c,/* 16 bit r/o	Cable Diagyesstic Reg */
 	PHY_MARV_PAGE_ADDR	= 0x1d,/* 16 bit r/w	Extended Page Address Reg */
 	PHY_MARV_PAGE_DATA	= 0x1e,/* 16 bit r/w	Extended Page Data Reg */
 
@@ -1073,7 +1073,7 @@ enum {
 /* Advertisement register bits */
 enum {
 	PHY_AN_NXT_PG	= 1<<15, /* Bit 15:	Request Next Page */
-	PHY_AN_ACK	= 1<<14, /* Bit 14:	(ro) Acknowledge Received */
+	PHY_AN_ACK	= 1<<14, /* Bit 14:	(ro) Ackyeswledge Received */
 	PHY_AN_RF	= 1<<13, /* Bit 13:	Remote Fault Bits */
 
 	PHY_AN_PAUSE_ASYM = 1<<11,/* Bit 11:	Try for asymmetric */
@@ -1093,7 +1093,7 @@ enum {
 /* Xmac Specific */
 enum {
 	PHY_X_AN_NXT_PG	= 1<<15, /* Bit 15:	Request Next Page */
-	PHY_X_AN_ACK	= 1<<14, /* Bit 14:	(ro) Acknowledge Received */
+	PHY_X_AN_ACK	= 1<<14, /* Bit 14:	(ro) Ackyeswledge Received */
 	PHY_X_AN_RFB	= 3<<12,/* Bit 13..12:	Remote Fault Bits */
 
 	PHY_X_AN_PAUSE	= 3<<7,/* Bit  8.. 7:	Pause Bits */
@@ -1103,7 +1103,7 @@ enum {
 
 /* Pause Bits (PHY_X_AN_PAUSE and PHY_X_RS_PAUSE) encoding */
 enum {
-	PHY_X_P_NO_PAUSE= 0<<7,/* Bit  8..7:	no Pause Mode */
+	PHY_X_P_NO_PAUSE= 0<<7,/* Bit  8..7:	yes Pause Mode */
 	PHY_X_P_SYM_MD	= 1<<7, /* Bit  8..7:	symmetric Pause Mode */
 	PHY_X_P_ASYM_MD	= 2<<7,/* Bit  8..7:	asymmetric Pause Mode */
 	PHY_X_P_BOTH_MD	= 3<<7,/* Bit  8..7:	both Pause Mode */
@@ -1232,7 +1232,7 @@ enum {
 									/* Bit  6:	reserved */
 	PHY_B_AC_DIS_PM	= 1<<5, /* Bit  5:	dis power management */
 									/* Bit  4:	reserved */
-	PHY_B_AC_DIAG	= 1<<3, /* Bit  3:	Diagnostic Mode */
+	PHY_B_AC_DIAG	= 1<<3, /* Bit  3:	Diagyesstic Mode */
 };
 
 /*****  PHY_BCOM_AUX_STAT	16 bit r/o	Auxiliary Status Reg *****/
@@ -1279,7 +1279,7 @@ enum {
 
 /* Pause Bits (PHY_B_AN_ASP and PHY_B_AN_PC) encoding */
 enum {
-	PHY_B_P_NO_PAUSE	= 0<<10,/* Bit 11..10:	no Pause Mode */
+	PHY_B_P_NO_PAUSE	= 0<<10,/* Bit 11..10:	yes Pause Mode */
 	PHY_B_P_SYM_MD	= 1<<10, /* Bit 11..10:	symmetric Pause Mode */
 	PHY_B_P_ASYM_MD	= 2<<10,/* Bit 11..10:	asymmetric Pause Mode */
 	PHY_B_P_BOTH_MD	= 3<<10,/* Bit 11..10:	both Pause Mode */
@@ -1295,7 +1295,7 @@ enum {
 /** Marvell-Specific */
 enum {
 	PHY_M_AN_NXT_PG	= 1<<15, /* Request Next Page */
-	PHY_M_AN_ACK	= 1<<14, /* (ro)	Acknowledge Received */
+	PHY_M_AN_ACK	= 1<<14, /* (ro)	Ackyeswledge Received */
 	PHY_M_AN_RF	= 1<<13, /* Remote Fault */
 
 	PHY_M_AN_ASP	= 1<<11, /* Asymmetric Pause */
@@ -1318,7 +1318,7 @@ enum {
 
 /* Pause Bits (PHY_M_AN_ASP_X and PHY_M_AN_PC_X) encoding */
 enum {
-	PHY_M_P_NO_PAUSE_X	= 0<<7,/* Bit  8.. 7:	no Pause Mode */
+	PHY_M_P_NO_PAUSE_X	= 0<<7,/* Bit  8.. 7:	yes Pause Mode */
 	PHY_M_P_SYM_MD_X	= 1<<7, /* Bit  8.. 7:	symmetric Pause Mode */
 	PHY_M_P_ASYM_MD_X	= 2<<7,/* Bit  8.. 7:	asymmetric Pause Mode */
 	PHY_M_P_BOTH_MD_X	= 3<<7,/* Bit  8.. 7:	both Pause Mode */
@@ -1486,7 +1486,7 @@ enum {
 };
 
 enum {
-	PULS_NO_STR	= 0, /* no pulse stretching */
+	PULS_NO_STR	= 0, /* yes pulse stretching */
 	PULS_21MS	= 1, /* 21 ms to 42 ms */
 	PULS_42MS	= 2, /* 42 ms to 84 ms */
 	PULS_84MS	= 3, /* 84 ms to 170 ms */
@@ -1547,7 +1547,7 @@ enum {
 	PHY_M_MODE_MASK	= 0xf, /* Bit  3.. 0: copy of HWCFG MODE[3:0] */
 };
 
-/*****  PHY_MARV_CABLE_DIAG	16 bit r/o	Cable Diagnostic Reg *****/
+/*****  PHY_MARV_CABLE_DIAG	16 bit r/o	Cable Diagyesstic Reg *****/
 enum {
 	PHY_M_CABD_ENA_TEST	= 1<<15, /* Enable Test (Page 0) */
 	PHY_M_CABD_DIS_WAIT	= 1<<15, /* Disable Waiting Period (Page 1) */
@@ -1558,7 +1558,7 @@ enum {
 	PHY_M_CABD_DIST_MSK	= 0xff, /* Bit  7.. 0: Distance Mask */
 };
 
-/* values for Cable Diagnostic Status (11=fail; 00=OK; 10=open; 01=short) */
+/* values for Cable Diagyesstic Status (11=fail; 00=OK; 10=open; 01=short) */
 enum {
 	CABD_STAT_NORMAL= 0,
 	CABD_STAT_SHORT	= 1,
@@ -2115,7 +2115,7 @@ enum {
 enum {
 	XM_MMU_PHY_RDY	= 1<<12, /* Bit 12:	PHY Read Ready */
 	XM_MMU_PHY_BUSY	= 1<<11, /* Bit 11:	PHY Busy */
-	XM_MMU_IGN_PF	= 1<<10, /* Bit 10:	Ignore Pause Frame */
+	XM_MMU_IGN_PF	= 1<<10, /* Bit 10:	Igyesre Pause Frame */
 	XM_MMU_MAC_LB	= 1<<9,	 /* Bit  9:	Enable MAC Loopback */
 	XM_MMU_FRC_COL	= 1<<7,	 /* Bit  7:	Force Collision */
 	XM_MMU_SIM_COL	= 1<<6,	 /* Bit  6:	Simulate Collision */
@@ -2130,7 +2130,7 @@ enum {
 
 /*	XM_TX_CMD	16 bit r/w	Transmit Command Register */
 enum {
-	XM_TX_BK2BK	= 1<<6,	/* Bit  6:	Ignor Carrier Sense (Tx Bk2Bk)*/
+	XM_TX_BK2BK	= 1<<6,	/* Bit  6:	Igyesr Carrier Sense (Tx Bk2Bk)*/
 	XM_TX_ENC_BYP	= 1<<5,	/* Bit  5:	Set Encoder in Bypass Mode */
 	XM_TX_SAM_LINE	= 1<<4,	/* Bit  4: (sc)	Start utilization calculation */
 	XM_TX_NO_GIG_MD	= 1<<3,	/* Bit  3:	Disable Carrier Extension */
@@ -2180,7 +2180,7 @@ enum {
 /*	XM_IMSK		16 bit r/w	Interrupt Mask Register */
 /*	XM_ISRC		16 bit r/o	Interrupt Status Register */
 enum {
-	XM_IS_LNK_AE	= 1<<14, /* Bit 14:	Link Asynchronous Event */
+	XM_IS_LNK_AE	= 1<<14, /* Bit 14:	Link Asynchroyesus Event */
 	XM_IS_TX_ABORT	= 1<<13, /* Bit 13:	Transmit Abort, late Col. etc */
 	XM_IS_FRC_INT	= 1<<12, /* Bit 12:	Force INT bit set in GP */
 	XM_IS_INP_ASS	= 1<<11, /* Bit 11:	Input Asserted, GP bit 0 set */

@@ -56,7 +56,7 @@ static DEFINE_RAW_SPINLOCK(list_lock);
 
 /**
  * struct vmd_irq - private data to map driver IRQ to the VMD shared vector
- * @node:	list item for parent traversal.
+ * @yesde:	list item for parent traversal.
  * @irq:	back pointer to parent.
  * @enabled:	true if driver enabled IRQ
  * @virq:	the virtual IRQ value provided to the requesting driver.
@@ -65,7 +65,7 @@ static DEFINE_RAW_SPINLOCK(list_lock);
  * a VMD IRQ using this structure.
  */
 struct vmd_irq {
-	struct list_head	node;
+	struct list_head	yesde;
 	struct vmd_irq_list	*irq;
 	bool			enabled;
 	unsigned int		virq;
@@ -144,7 +144,7 @@ static void vmd_irq_enable(struct irq_data *data)
 
 	raw_spin_lock_irqsave(&list_lock, flags);
 	WARN_ON(vmdirq->enabled);
-	list_add_tail_rcu(&vmdirq->node, &vmdirq->irq->irq_list);
+	list_add_tail_rcu(&vmdirq->yesde, &vmdirq->irq->irq_list);
 	vmdirq->enabled = true;
 	raw_spin_unlock_irqrestore(&list_lock, flags);
 
@@ -160,14 +160,14 @@ static void vmd_irq_disable(struct irq_data *data)
 
 	raw_spin_lock_irqsave(&list_lock, flags);
 	if (vmdirq->enabled) {
-		list_del_rcu(&vmdirq->node);
+		list_del_rcu(&vmdirq->yesde);
 		vmdirq->enabled = false;
 	}
 	raw_spin_unlock_irqrestore(&list_lock, flags);
 }
 
 /*
- * XXX: Stubbed until we develop acceptable way to not create conflicts with
+ * XXX: Stubbed until we develop acceptable way to yest create conflicts with
  * other devices sharing the same vector.
  */
 static int vmd_irq_set_affinity(struct irq_data *data,
@@ -235,7 +235,7 @@ static int vmd_msi_init(struct irq_domain *domain, struct msi_domain_info *info,
 	if (!vmdirq)
 		return -ENOMEM;
 
-	INIT_LIST_HEAD(&vmdirq->node);
+	INIT_LIST_HEAD(&vmdirq->yesde);
 	vmdirq->irq = vmd_next_irq(vmd, desc);
 	vmdirq->virq = virq;
 	index = index_from_irqs(vmd, vmdirq->irq);
@@ -297,7 +297,7 @@ static struct msi_domain_info vmd_msi_domain_info = {
 
 /*
  * VMD replaces the requester ID with its own.  DMA mappings for devices in a
- * VMD domain need to be mapped for the VMD, not the device requiring
+ * VMD domain need to be mapped for the VMD, yest the device requiring
  * the mapping.
  */
 static struct device *to_vmd_dev(struct device *dev)
@@ -455,7 +455,7 @@ static char __iomem *vmd_cfg_addr(struct vmd_dev *vmd, struct pci_bus *bus,
 }
 
 /*
- * CPU may deadlock if config space is not serialized on some versions of this
+ * CPU may deadlock if config space is yest serialized on some versions of this
  * hardware, so all config space access is done under a spinlock.
  */
 static int vmd_pci_read(struct pci_bus *bus, unsigned int devfn, int reg,
@@ -489,7 +489,7 @@ static int vmd_pci_read(struct pci_bus *bus, unsigned int devfn, int reg,
 }
 
 /*
- * VMD h/w converts non-posted config writes to posted memory writes. The
+ * VMD h/w converts yesn-posted config writes to posted memory writes. The
  * read-back in this function forces the completion so it returns only after
  * the config space was written, as expected.
  */
@@ -544,7 +544,7 @@ static void vmd_detach_resources(struct vmd_dev *vmd)
 }
 
 /*
- * VMD domains start at 0x10000 to not clash with ACPI _SEG domains.
+ * VMD domains start at 0x10000 to yest clash with ACPI _SEG domains.
  * Per ACPI r6.0, sec 6.5.6,  _SEG returns an integer, of which the lower
  * 16 bits are the PCI Segment Group (domain) number.  Other bits are
  * currently reserved.
@@ -562,7 +562,7 @@ static int vmd_find_free_domain(void)
 static int vmd_enable_domain(struct vmd_dev *vmd, unsigned long features)
 {
 	struct pci_sysdata *sd = &vmd->sysdata;
-	struct fwnode_handle *fn;
+	struct fwyesde_handle *fn;
 	struct resource *res;
 	u32 upper_bits;
 	unsigned long flags;
@@ -620,7 +620,7 @@ static int vmd_enable_domain(struct vmd_dev *vmd, unsigned long features)
 				vmd->busn_start = 224;
 				break;
 			case 3:
-				pci_err(vmd->dev, "Unknown Bus Offset Setting\n");
+				pci_err(vmd->dev, "Unkyeswn Bus Offset Setting\n");
 				return -ENODEV;
 			default:
 				break;
@@ -640,13 +640,13 @@ static int vmd_enable_domain(struct vmd_dev *vmd, unsigned long features)
 	 * If the window is below 4GB, clear IORESOURCE_MEM_64 so we can
 	 * put 32-bit resources in the window.
 	 *
-	 * There's no hardware reason why a 64-bit window *couldn't*
+	 * There's yes hardware reason why a 64-bit window *couldn't*
 	 * contain a 32-bit resource, but pbus_size_mem() computes the
-	 * bridge window size assuming a 64-bit window will contain no
+	 * bridge window size assuming a 64-bit window will contain yes
 	 * 32-bit resources.  __pci_assign_resource() enforces that
 	 * artificial restriction to make sure everything will fit.
 	 *
-	 * The only way we could use a 64-bit non-prefetchable MEMBAR is
+	 * The only way we could use a 64-bit yesn-prefetchable MEMBAR is
 	 * if its address is <4GB so that we can convert it to a 32-bit
 	 * resource.  To be visible to the host OS, all VMD endpoints must
 	 * be initially configured by platform BIOS, which includes setting
@@ -684,15 +684,15 @@ static int vmd_enable_domain(struct vmd_dev *vmd, unsigned long features)
 	if (sd->domain < 0)
 		return sd->domain;
 
-	sd->node = pcibus_to_node(vmd->dev->bus);
+	sd->yesde = pcibus_to_yesde(vmd->dev->bus);
 
-	fn = irq_domain_alloc_named_id_fwnode("VMD-MSI", vmd->sysdata.domain);
+	fn = irq_domain_alloc_named_id_fwyesde("VMD-MSI", vmd->sysdata.domain);
 	if (!fn)
 		return -ENODEV;
 
 	vmd->irq_domain = pci_msi_create_irq_domain(fn, &vmd_msi_domain_info,
 						    x86_vector_domain);
-	irq_domain_free_fwnode(fn);
+	irq_domain_free_fwyesde(fn);
 	if (!vmd->irq_domain)
 		return -ENODEV;
 
@@ -720,7 +720,7 @@ static int vmd_enable_domain(struct vmd_dev *vmd, unsigned long features)
 	 * and will fail pcie_bus_configure_settings() early. It can instead be
 	 * run on each of the real root ports.
 	 */
-	list_for_each_entry(child, &vmd->bus->children, node)
+	list_for_each_entry(child, &vmd->bus->children, yesde)
 		pcie_bus_configure_settings(child);
 
 	pci_bus_add_devices(vmd->bus);
@@ -737,7 +737,7 @@ static irqreturn_t vmd_irq(int irq, void *data)
 	int idx;
 
 	idx = srcu_read_lock(&irqs->srcu);
-	list_for_each_entry_rcu(vmdirq, &irqs->irq_list, node)
+	list_for_each_entry_rcu(vmdirq, &irqs->irq_list, yesde)
 		generic_handle_irq(vmdirq->virq);
 	srcu_read_unlock(&irqs->srcu, idx);
 

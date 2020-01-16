@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0+
-/* vim: set ts=8 sw=8 noet tw=80 nowrap: */
+/* vim: set ts=8 sw=8 yeset tw=80 yeswrap: */
 /*
  *  comedi/drivers/ni_routing/ni_device_routes/pci-6602.c
  *  List of valid routes for specific NI boards.

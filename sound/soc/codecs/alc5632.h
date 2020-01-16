@@ -4,7 +4,7 @@
 *
 * Copyright (C) 2011 The AC100 Kernel Team <ac100@lists.lauchpad.net>
 *
-* Authors:  Leon Romanovsky <leon@leon.nu>
+* Authors:  Leon Romayesvsky <leon@leon.nu>
 *           Andrey Danin <danindrey@mail.ru>
 *           Ilya Petrov <ilya.muromec@gmail.com>
 *           Marc Dietrich <marvin24@gmx.de>
@@ -89,7 +89,7 @@
 /* 0:voice, 1:main */
 #define ALC5632_DAI_MAIN_I2S_SYSCLK_SEL		(1 <<  8)
 #define ALC5632_DAI_MAIN_I2S_BCLK_POL_CTRL	(1 <<  7)
-/* 0:normal, 1:invert */
+/* 0:yesrmal, 1:invert */
 #define ALC5632_DAI_MAIN_I2S_LRCK_INV		(1 <<  6)
 #define ALC5632_DAI_I2S_DL_MASK			(3 <<  2)
 #define ALC5632_DAI_I2S_DL_8			(3 <<  2)
@@ -111,9 +111,9 @@
 #define ALC5632_DAI_HPF_CLK_CTRL		(1 << 13)
 /* 0:main, 1:voice */
 #define ALC5632_DAI_VOICE_I2S_SYSCLK_SEL	(1 <<  8)
-/* 0:normal, 1:invert */
+/* 0:yesrmal, 1:invert */
 #define ALC5632_DAI_VOICE_VBCLK_SYSCLK_SEL	(1 <<  7)
-/* 0:normal, 1:invert */
+/* 0:yesrmal, 1:invert */
 #define ALC5632_DAI_VOICE_I2S_LR_INV		(1 <<  6)
 #define ALC5632_DAI_VOICE_DL_MASK		(3 <<  2)
 #define ALC5632_DAI_VOICE_DL_16			(0 <<  2)

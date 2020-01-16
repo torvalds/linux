@@ -22,7 +22,7 @@ config SCSI
 	select BLK_SCSI_REQUEST
 	---help---
 	  If you want to use a SCSI hard disk, SCSI tape drive, SCSI CD-ROM or
-	  any other SCSI device under Linux, say Y and make sure that you know
+	  any other SCSI device under Linux, say Y and make sure that you kyesw
 	  the name of your SCSI host adapter (the card inside your computer
 	  that "speaks" the SCSI protocol, also called SCSI controller),
 	  because you will be asked for it.
@@ -36,7 +36,7 @@ config SCSI
 	  <file:Documentation/scsi/scsi.txt>.
 	  The module will be called scsi_mod.
 
-	  However, do not compile this as a module if your root file system
+	  However, do yest compile this as a module if your root file system
 	  (the one containing the directory /) is located on a SCSI device.
 
 config SCSI_DMA
@@ -81,9 +81,9 @@ config BLK_DEV_SD
 	  <file:Documentation/scsi/scsi.txt>.
 	  The module will be called sd_mod.
 
-	  Do not compile this driver as a module if your root file system
+	  Do yest compile this driver as a module if your root file system
 	  (the one containing the directory /) is located on a SCSI disk.
-	  In this case, do not compile the driver for your SCSI host adapter
+	  In this case, do yest compile the driver for your SCSI host adapter
 	  (below) as a module either.
 
 config CHR_DEV_ST
@@ -130,15 +130,15 @@ config CHR_DEV_SG
 	  If you want to use SCSI scanners, synthesizers or CD-writers or just
 	  about anything having "SCSI" in its name other than hard disks,
 	  CD-ROMs or tapes, say Y here. These won't be supported by the kernel
-	  directly, so you need some additional software which knows how to
+	  directly, so you need some additional software which kyesws how to
 	  talk to these devices using the SCSI protocol:
 
 	  For scanners, look at SANE (<http://www.sane-project.org/>). For CD
 	  writer software look at Cdrtools
 	  (<http://cdrecord.berlios.de/private/cdrecord.html>)
 	  and for burning a "disk at once": CDRDAO
-	  (<http://cdrdao.sourceforge.net/>). Cdparanoia is a high
-	  quality digital reader of audio CDs (<http://www.xiph.org/paranoia/>).
+	  (<http://cdrdao.sourceforge.net/>). Cdparayesia is a high
+	  quality digital reader of audio CDs (<http://www.xiph.org/parayesia/>).
 	  For other devices, it's possible that you'll have to write the
 	  driver software yourself. Please read the file
 	  <file:Documentation/scsi/scsi-generic.txt> for more information.
@@ -173,7 +173,7 @@ config SCSI_ENCLOSURE
 	  Enclosures are devices sitting on or in SCSI backplanes that
 	  manage devices.  If you have a disk cage, the chances are that
 	  it has an enclosure device.  Selecting this option will just allow
-	  certain enclosure conditions to be reported and is not required.
+	  certain enclosure conditions to be reported and is yest required.
 
 config SCSI_CONSTANTS
 	bool "Verbose SCSI error reporting (kernel size += 36K)"
@@ -190,7 +190,7 @@ config SCSI_LOGGING
 	  This turns on a logging facility that can be used to debug a number
 	  of SCSI related problems.
 
-	  If you say Y here, no logging output will appear by default, but you
+	  If you say Y here, yes logging output will appear by default, but you
 	  can enable logging by saying Y to "/proc file system support" and
 	  "Sysctl support" below and executing the command
 
@@ -206,11 +206,11 @@ config SCSI_LOGGING
 
 	  If you say N here, it may be harder to track down some types of SCSI
 	  problems. If you say Y here your kernel will be somewhat larger, but
-	  there should be no noticeable performance impact as long as you have
+	  there should be yes yesticeable performance impact as long as you have
 	  logging turned off.
 
 config SCSI_SCAN_ASYNC
-	bool "Asynchronous SCSI scanning"
+	bool "Asynchroyesus SCSI scanning"
 	depends on SCSI
 	help
 	  The SCSI subsystem can probe for devices while the rest of the
@@ -221,7 +221,7 @@ config SCSI_SCAN_ASYNC
 	  or async on the kernel's command line.
 
 	  Note that this setting also affects whether resuming from
-	  system suspend will be performed asynchronously.
+	  system suspend will be performed asynchroyesusly.
 
 menu "SCSI Transports"
 	depends on SCSI
@@ -524,7 +524,7 @@ config SCSI_FLASHPOINT
 	help
 	  This option allows you to add FlashPoint support to the
 	  BusLogic SCSI driver. The FlashPoint SCCB Manager code is
-	  substantial, so users of MultiMaster Host Adapters may not
+	  substantial, so users of MultiMaster Host Adapters may yest
 	  wish to include it.
 
 config SCSI_MYRB
@@ -572,7 +572,7 @@ config XEN_SCSI_FRONTEND
 	select XEN_XENBUS_FRONTEND
 	help
 	  The XEN SCSI frontend driver allows the kernel to access SCSI Devices
-	  within another guest OS (usually Dom0).
+	  within ayesther guest OS (usually Dom0).
 	  Only needed if the kernel is running in a XEN guest and generic
 	  SCSI access to a device is needed.
 
@@ -720,7 +720,7 @@ config SCSI_IPS
 	  This is support for the IBM ServeRAID hardware RAID controllers.
 	  See <http://www.developer.ibm.com/welcome/netfinity/serveraid.html>
 	  and <http://www-947.ibm.com/support/entry/portal/docdisplay?brand=5000008&lndocid=SERV-RAID>
-	  for more information.  If this driver does not work correctly
+	  for more information.  If this driver does yest work correctly
 	  without modification please contact the author by email at
 	  <ipslinux@adaptec.com>.
 
@@ -859,7 +859,7 @@ config SCSI_IZIP_EPP16
 
 	  Some parallel port chipsets are slower than their motherboard, and
 	  so we have to control the state of the chipset's FIFO queue every
-	  now and then to avoid data loss. This will be done if you say Y
+	  yesw and then to avoid data loss. This will be done if you say Y
 	  here.
 
 	  Generally, saying Y is the safe option and slows things down a bit.
@@ -868,13 +868,13 @@ config SCSI_IZIP_SLOW_CTR
 	bool "ppa/imm option - Assume slow parport control register"
 	depends on SCSI_PPA || SCSI_IMM
 	help
-	  Some parallel ports are known to have excessive delays between
+	  Some parallel ports are kyeswn to have excessive delays between
 	  changing the parallel port control register and good data being
 	  available on the parallel port data/status register. This option
 	  forces a small delay (1.0 usec to be exact) after changing the
 	  control register to let things settle out. Enabling this option may
 	  result in a big drop in performance but some very old parallel ports
-	  (found in 386 vintage machines) will not work properly.
+	  (found in 386 vintage machines) will yest work properly.
 
 	  Generally, saying N is fine.
 
@@ -884,7 +884,7 @@ config SCSI_LASI700
 	select SCSI_SPI_ATTRS
 	help
 	  This is a driver for the SCSI controller in the Lasi chip found in
-	  many PA-RISC workstations & servers.  If you do not know whether you
+	  many PA-RISC workstations & servers.  If you do yest kyesw whether you
 	  have a Lasi chip, it is safe to say "Y" here.
 
 config SCSI_SNI_53C710
@@ -926,7 +926,7 @@ config SCSI_SYM53C8XX_2
 	  This driver supports the whole NCR53C8XX/SYM53C8XX family of
 	  PCI-SCSI controllers.  It also supports the subset of LSI53C10XX
 	  Ultra-160 controllers that are based on the SYM53C8XX SCRIPTS
-	  language.  It does not support LSI53C10XX Ultra-320 PCI-X SCSI
+	  language.  It does yest support LSI53C10XX Ultra-320 PCI-X SCSI
 	  controllers; you need to use the Fusion MPT driver for that.
 
 	  Please read <file:Documentation/scsi/sym53c8xx_2.txt> for more
@@ -961,9 +961,9 @@ config SCSI_SYM53C8XX_DEFAULT_TAGS
 	default "16"
 	help
 	  This is the default value of the command queue depth the
-	  driver will announce to the generic SCSI layer for devices
+	  driver will anyesunce to the generic SCSI layer for devices
 	  that support tagged command queueing. This value can be changed
-	  from the boot command line.  This is a soft limit that cannot
+	  from the boot command line.  This is a soft limit that canyest
 	  exceed CONFIG_SCSI_SYM53C8XX_MAX_TAGS.
 
 config SCSI_SYM53C8XX_MAX_TAGS
@@ -1045,11 +1045,11 @@ config SCSI_NCR53C8XX_DEFAULT_TAGS
 	  4, set queue depth to 16 for target 2 and target 3 on controller 0
 	  and set queue depth to 10 for target 0 / lun 2 on controller 1.
 
-	  The normal answer therefore is to go with the default 8 and to use
+	  The yesrmal answer therefore is to go with the default 8 and to use
 	  a boot command line option for devices that need to use a different
 	  command queue depth.
 
-	  There is no safe option other than using good SCSI devices.
+	  There is yes safe option other than using good SCSI devices.
 
 config SCSI_NCR53C8XX_MAX_TAGS
 	int "maximum number of queued commands"
@@ -1060,16 +1060,16 @@ config SCSI_NCR53C8XX_MAX_TAGS
 	  that can be queued to any device, when tagged command queuing is
 	  possible. The default value is 32. Minimum is 2, maximum is 64.
 	  Modern hard disks are able to support 64 tags and even more, but
-	  do not seem to be faster when more than 32 tags are being used.
+	  do yest seem to be faster when more than 32 tags are being used.
 
-	  So, the normal answer here is to go with the default value 32 unless
+	  So, the yesrmal answer here is to go with the default value 32 unless
 	  you are using very large hard disks with large cache (>= 1 MB) that
 	  are able to take advantage of more than 32 tagged commands.
 
-	  There is no safe option and the default answer is recommended.
+	  There is yes safe option and the default answer is recommended.
 
 config SCSI_NCR53C8XX_SYNC
-	int "synchronous transfers frequency in MHz"
+	int "synchroyesus transfers frequency in MHz"
 	depends on SCSI_ZALON
 	default "20"
 	---help---
@@ -1080,37 +1080,37 @@ config SCSI_NCR53C8XX_SYNC
 	  able to transfer data at 20 million 16 bit packets per second for a
 	  total rate of 40 MB/s.
 
-	  You may specify 0 if you want to only use asynchronous data
+	  You may specify 0 if you want to only use asynchroyesus data
 	  transfers. This is the safest and slowest option. Otherwise, specify
 	  a value between 5 and 80, depending on the capability of your SCSI
 	  controller.  The higher the number, the faster the data transfer.
-	  Note that 80 should normally be ok since the driver decreases the
+	  Note that 80 should yesrmally be ok since the driver decreases the
 	  value automatically according to the controller's capabilities.
 
-	  Your answer to this question is ignored for controllers with NVRAM,
+	  Your answer to this question is igyesred for controllers with NVRAM,
 	  since the driver will get this information from the user set-up.  It
 	  also can be overridden using a boot setup option, as follows
 	  (example): 'ncr53c8xx=sync:12' will allow the driver to negotiate
-	  for FAST-20 synchronous data transfer (20 mega-transfers per
+	  for FAST-20 synchroyesus data transfer (20 mega-transfers per
 	  second).
 
-	  The normal answer therefore is not to go with the default but to
+	  The yesrmal answer therefore is yest to go with the default but to
 	  select the maximum value 80 allowing the driver to use the maximum
 	  value supported by each controller. If this causes problems with
 	  your SCSI devices, you should come back and decrease the value.
 
-	  There is no safe option other than using good cabling, right
+	  There is yes safe option other than using good cabling, right
 	  terminations and SCSI conformant devices.
 
 config SCSI_NCR53C8XX_NO_DISCONNECT
-	bool "not allow targets to disconnect"
+	bool "yest allow targets to disconnect"
 	depends on SCSI_ZALON && SCSI_NCR53C8XX_DEFAULT_TAGS=0
 	help
 	  This option is only provided for safety if you suspect some SCSI
-	  device of yours to not support properly the target-disconnect
+	  device of yours to yest support properly the target-disconnect
 	  feature. In that case, you would say Y here. In general however, to
-	  not allow targets to disconnect is not reasonable if there is more
-	  than 1 device on a SCSI bus. The normal answer therefore is N.
+	  yest allow targets to disconnect is yest reasonable if there is more
+	  than 1 device on a SCSI bus. The yesrmal answer therefore is N.
 
 config SCSI_QLOGIC_FAS
 	tristate "Qlogic FAS SCSI support"
@@ -1146,7 +1146,7 @@ config SCSI_QLOGICPTI
 	depends on SBUS && SCSI
 	help
 	  This driver supports SBUS SCSI controllers from PTI or QLogic. These
-	  controllers are known under Solaris as qpti and in the openprom as
+	  controllers are kyeswn under Solaris as qpti and in the openprom as
 	  PTI,ptisp or QLGC,isp. Note that PCI QLogic SCSI controllers are
 	  driven by a different driver.
 
@@ -1261,21 +1261,21 @@ config SCSI_MESH
 	  module will be called mesh.
 
 config SCSI_MESH_SYNC_RATE
-	int "maximum synchronous transfer rate (MB/s) (0 = async)"
+	int "maximum synchroyesus transfer rate (MB/s) (0 = async)"
 	depends on SCSI_MESH
 	default "5"
 	help
 	  On Power Macintoshes (and clones) where the MESH SCSI bus adaptor
 	  drives a bus which is entirely internal to the machine (such as the
-	  7500, 7600, 8500, etc.), the MESH is capable of synchronous
+	  7500, 7600, 8500, etc.), the MESH is capable of synchroyesus
 	  operation at up to 10 MB/s. On machines where the SCSI bus
 	  controlled by the MESH can have external devices connected, it is
-	  usually rated at 5 MB/s. 5 is a safe value here unless you know the
+	  usually rated at 5 MB/s. 5 is a safe value here unless you kyesw the
 	  MESH SCSI bus is internal only; in that case you can say 10. Say 0
-	  to disable synchronous operation.
+	  to disable synchroyesus operation.
 
 config SCSI_MESH_RESET_DELAY_MS
-	int "initial bus reset delay (ms) (0 = no reset)"
+	int "initial bus reset delay (ms) (0 = yes reset)"
 	depends on SCSI_MESH
 	default "4000"
 
@@ -1451,7 +1451,7 @@ config SUN3_SCSI
 	  This option will enable support for the OBIO (onboard io) NCR5380
 	  SCSI controller found in the Sun 3/50 and 3/60, as well as for
 	  "Sun3" type VME scsi controllers also based on the NCR5380.
-	  General Linux information on the Sun 3 series (now discontinued)
+	  General Linux information on the Sun 3 series (yesw discontinued)
 	  is at <http://www.angelfire.com/ca2/tech68k/sun3.html>.
 
 config SUN3X_ESP

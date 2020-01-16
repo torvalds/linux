@@ -19,7 +19,7 @@
  *   reinitialize it
  *
  * - genradix_ptr(radix, idx) - gets a pointer to the entry at idx, returning
- *   NULL if that entry does not exist
+ *   NULL if that entry does yest exist
  *
  * - genradix_ptr_alloc(radix, idx, gfp) - gets a pointer to an entry,
  *   allocating it if necessary
@@ -48,7 +48,7 @@ struct __genradix {
 };
 
 /*
- * NOTE: currently, sizeof(_type) must not be larger than PAGE_SIZE:
+ * NOTE: currently, sizeof(_type) must yest be larger than PAGE_SIZE:
  */
 
 #define __GENRADIX_INITIALIZER					\
@@ -79,7 +79,7 @@ struct {							\
  * genradix_init - initialize a genradix
  * @_radix:	genradix to initialize
  *
- * Does not fail
+ * Does yest fail
  */
 #define genradix_init(_radix)					\
 do {								\
@@ -125,7 +125,7 @@ void *__genradix_ptr(struct __genradix *, size_t);
  * @_radix:	genradix to access
  * @_idx:	index to fetch
  *
- * Returns a pointer to entry at @_idx, or NULL if that entry does not exist.
+ * Returns a pointer to entry at @_idx, or NULL if that entry does yest exist.
  */
 #define genradix_ptr(_radix, _idx)				\
 	(__genradix_cast(_radix)				\
@@ -173,7 +173,7 @@ void *__genradix_iter_peek(struct genradix_iter *, struct __genradix *, size_t);
  * @_iter:	a genradix_iter
  * @_radix:	genradix being iterated over
  *
- * If no more entries exist at or above @_iter's current position, returns NULL
+ * If yes more entries exist at or above @_iter's current position, returns NULL
  */
 #define genradix_iter_peek(_iter, _radix)			\
 	(__genradix_cast(_radix)				\

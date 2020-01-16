@@ -1,5 +1,5 @@
 /*
- * Based on linux/arch/arm/mm/nommu.c
+ * Based on linux/arch/arm/mm/yesmmu.c
  *
  * ARM PMSAv7 supporting functions.
  */
@@ -134,7 +134,7 @@ static inline u32 drbar_read(void)
 	return readl_relaxed(BASEADDR_V7M_SCB + PMSAv7_RBAR);
 }
 
-/* ARMv7-M only supports a unified MPU, so I-side operations are nop */
+/* ARMv7-M only supports a unified MPU, so I-side operations are yesp */
 
 static inline void iracr_write(u32 v) {}
 static inline void irsr_write(u32 v) {}
@@ -282,7 +282,7 @@ void __init pmsav7_adjust_lowmem_bounds(void)
 			 * all blocks afterwards in one go (we can't remove
 			 * blocks separately while iterating)
 			 */
-			pr_notice("Ignoring RAM after %pa, memory at %pa ignored\n",
+			pr_yestice("Igyesring RAM after %pa, memory at %pa igyesred\n",
 				  &mem_end, &reg->base);
 			memblock_remove(reg->base, 0 - reg->base);
 			break;
@@ -332,7 +332,7 @@ static int __init __mpu_max_regions(void)
 
 static int __init mpu_iside_independent(void)
 {
-	/* MPUIR.nU specifies whether there is *not* a unified memory map */
+	/* MPUIR.nU specifies whether there is *yest* a unified memory map */
 	return read_cpuid_mputype() & MPUIR_nU;
 }
 
@@ -350,7 +350,7 @@ static int __init __mpu_min_region_order(void)
 	drbar_write(0xFFFFFFFC);
 	drbar_result = irbar_result = drbar_read();
 	drbar_write(0x0);
-	/* If the MPU is non-unified, we use the larger of the two minima*/
+	/* If the MPU is yesn-unified, we use the larger of the two minima*/
 	if (mpu_iside_independent()) {
 		irbar_write(0xFFFFFFFC);
 		irbar_result = irbar_read();
@@ -414,7 +414,7 @@ static int __init mpu_setup_region(unsigned int number, phys_addr_t start,
 }
 
 /*
-* Set up default MPU regions, doing nothing if there is no MPU
+* Set up default MPU regions, doing yesthing if there is yes MPU
 */
 void __init pmsav7_setup(void)
 {
@@ -432,7 +432,7 @@ void __init pmsav7_setup(void)
 	for (i = 0; i < ARRAY_SIZE(xip); i++) {
 		/*
                  * In case we overwrite RAM region we set earlier in
-                 * head-nommu.S (which is cachable) all subsequent
+                 * head-yesmmu.S (which is cachable) all subsequent
                  * data access till we setup RAM bellow would be done
                  * with BG region (which is uncachable), thus we need
                  * to clean and invalidate cache.

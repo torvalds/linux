@@ -59,10 +59,10 @@ static int dumb_vga_get_modes(struct drm_connector *connector)
 
 fallback:
 	/*
-	 * In case we cannot retrieve the EDIDs (broken or missing i2c
+	 * In case we canyest retrieve the EDIDs (broken or missing i2c
 	 * bus), fallback on the XGA standards
 	 */
-	ret = drm_add_modes_noedid(connector, 1920, 1200);
+	ret = drm_add_modes_yesedid(connector, 1920, 1200);
 
 	/* And prefer a mode pretty much anyone can handle */
 	drm_set_preferred_mode(connector, 1024, 768);
@@ -82,13 +82,13 @@ dumb_vga_connector_detect(struct drm_connector *connector, bool force)
 	/*
 	 * Even if we have an I2C bus, we can't assume that the cable
 	 * is disconnected if drm_probe_ddc fails. Some cables don't
-	 * wire the DDC pins, or the I2C bus might not be working at
+	 * wire the DDC pins, or the I2C bus might yest be working at
 	 * all.
 	 */
 	if (vga->ddc && drm_probe_ddc(vga->ddc))
 		return connector_status_connected;
 
-	return connector_status_unknown;
+	return connector_status_unkyeswn;
 }
 
 static const struct drm_connector_funcs dumb_vga_con_funcs = {
@@ -155,20 +155,20 @@ static const struct drm_bridge_funcs dumb_vga_bridge_funcs = {
 
 static struct i2c_adapter *dumb_vga_retrieve_ddc(struct device *dev)
 {
-	struct device_node *phandle, *remote;
+	struct device_yesde *phandle, *remote;
 	struct i2c_adapter *ddc;
 
-	remote = of_graph_get_remote_node(dev->of_node, 1, -1);
+	remote = of_graph_get_remote_yesde(dev->of_yesde, 1, -1);
 	if (!remote)
 		return ERR_PTR(-EINVAL);
 
 	phandle = of_parse_phandle(remote, "ddc-i2c-bus", 0);
-	of_node_put(remote);
+	of_yesde_put(remote);
 	if (!phandle)
 		return ERR_PTR(-ENODEV);
 
-	ddc = of_get_i2c_adapter_by_node(phandle);
-	of_node_put(phandle);
+	ddc = of_get_i2c_adapter_by_yesde(phandle);
+	of_yesde_put(phandle);
 	if (!ddc)
 		return ERR_PTR(-EPROBE_DEFER);
 
@@ -206,7 +206,7 @@ static int dumb_vga_probe(struct platform_device *pdev)
 	}
 
 	vga->bridge.funcs = &dumb_vga_bridge_funcs;
-	vga->bridge.of_node = pdev->dev.of_node;
+	vga->bridge.of_yesde = pdev->dev.of_yesde;
 	vga->bridge.timings = of_device_get_match_data(&pdev->dev);
 
 	drm_bridge_add(&vga->bridge);

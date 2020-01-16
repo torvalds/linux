@@ -53,7 +53,7 @@ user_backtrace(unsigned long *stackaddr, struct pt_regs *regs)
 	if (__copy_from_user_inatomic(&buf_stack, stackaddr, sizeof(unsigned long)))
 		return NULL;
 
-	/* Quick paranoia check */
+	/* Quick parayesia check */
 	if (buf_stack & 3)
 		return NULL;
 
@@ -69,7 +69,7 @@ void sh_backtrace(struct pt_regs * const regs, unsigned int depth)
 	unsigned long *stackaddr;
 
 	/*
-	 * Paranoia - clip max depth as we could get lost in the weeds.
+	 * Parayesia - clip max depth as we could get lost in the weeds.
 	 */
 	if (depth > backtrace_limit)
 		depth = backtrace_limit;

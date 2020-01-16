@@ -24,7 +24,7 @@ ACPI_MODULE_NAME("hwesleep")
  * RETURN:      None
  *
  * DESCRIPTION: Execute a sleep/wake related method with one integer argument
- *              and no return value.
+ *              and yes return value.
  *
  ******************************************************************************/
 void acpi_hw_execute_sleep_method(char *method_pathname, u32 integer_argument)

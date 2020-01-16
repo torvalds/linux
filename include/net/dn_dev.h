@@ -16,7 +16,7 @@ struct dn_ifaddr {
 	struct rcu_head   rcu;
 };
 
-#define DN_DEV_S_RU  0 /* Run - working normally   */
+#define DN_DEV_S_RU  0 /* Run - working yesrmally   */
 #define DN_DEV_S_CR  1 /* Circuit Rejected         */
 #define DN_DEV_S_DS  2 /* Data Link Start          */
 #define DN_DEV_S_RI  3 /* Routing Layer Initialize */
@@ -37,9 +37,9 @@ struct dn_ifaddr {
  * come up.
  *
  * The mode field is used to find out if a device is broadcast,
- * multipoint, or pointopoint. Please note that DECnet thinks
+ * multipoint, or pointopoint. Please yeste that DECnet thinks
  * different ways about devices to the rest of the kernel
- * so the normal IFF_xxx flags are invalid here. For devices
+ * so the yesrmal IFF_xxx flags are invalid here. For devices
  * which can be any combination of the previously mentioned
  * attributes, you can set this on a per device basis by
  * installing an up() routine.
@@ -50,7 +50,7 @@ struct dn_ifaddr {
  *
  * Things have changed here. I've killed timer1 since it's a user space
  * issue for a user space routing deamon to sort out. The kernel does
- * not need to be bothered with it.
+ * yest need to be bothered with it.
  *
  * Timers:
  * t2 - Rate limit timer, min time between routing and hello messages
@@ -100,8 +100,8 @@ struct dn_dev {
 
 struct dn_short_packet {
 	__u8    msgflg;
-	__le16 dstnode;
-	__le16 srcnode;
+	__le16 dstyesde;
+	__le16 srcyesde;
 	__u8   forward;
 } __packed;
 
@@ -121,7 +121,7 @@ struct dn_long_packet {
 
 /*------------------------- DRP - Routing messages ---------------------*/
 
-struct endnode_hello_message {
+struct endyesde_hello_message {
 	__u8   msgflg;
 	__u8   tiver[3];
 	__u8   id[6];
@@ -136,7 +136,7 @@ struct endnode_hello_message {
 	__u8   data[2];
 } __packed;
 
-struct rtnode_hello_message {
+struct rtyesde_hello_message {
 	__u8   msgflg;
 	__u8   tiver[3];
 	__u8   id[6];
@@ -168,8 +168,8 @@ int dn_dev_set_default(struct net_device *dev, int force);
 struct net_device *dn_dev_get_default(void);
 int dn_dev_bind_default(__le16 *addr);
 
-int register_dnaddr_notifier(struct notifier_block *nb);
-int unregister_dnaddr_notifier(struct notifier_block *nb);
+int register_dnaddr_yestifier(struct yestifier_block *nb);
+int unregister_dnaddr_yestifier(struct yestifier_block *nb);
 
 static inline int dn_dev_islocal(struct net_device *dev, __le16 addr)
 {
@@ -180,7 +180,7 @@ static inline int dn_dev_islocal(struct net_device *dev, __le16 addr)
 	rcu_read_lock();
 	dn_db = rcu_dereference(dev->dn_ptr);
 	if (dn_db == NULL) {
-		printk(KERN_DEBUG "dn_dev_islocal: Called for non DECnet device\n");
+		printk(KERN_DEBUG "dn_dev_islocal: Called for yesn DECnet device\n");
 		goto out;
 	}
 

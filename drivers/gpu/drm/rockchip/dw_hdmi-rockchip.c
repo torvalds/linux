@@ -187,7 +187,7 @@ static const struct dw_hdmi_phy_config rockchip_phy_config[] = {
 
 static int rockchip_hdmi_parse_dt(struct rockchip_hdmi *hdmi)
 {
-	struct device_node *np = hdmi->dev->of_node;
+	struct device_yesde *np = hdmi->dev->of_yesde;
 
 	hdmi->regmap = syscon_regmap_lookup_by_phandle(np, "rockchip,grf");
 	if (IS_ERR(hdmi->regmap)) {
@@ -271,7 +271,7 @@ static void dw_hdmi_rockchip_encoder_enable(struct drm_encoder *encoder)
 	if (hdmi->chip_data->lcdsel_grf_reg < 0)
 		return;
 
-	ret = drm_of_encoder_active_endpoint_id(hdmi->dev->of_node, encoder);
+	ret = drm_of_encoder_active_endpoint_id(hdmi->dev->of_yesde, encoder);
 	if (ret)
 		val = hdmi->chip_data->lcdsel_lit;
 	else
@@ -285,7 +285,7 @@ static void dw_hdmi_rockchip_encoder_enable(struct drm_encoder *encoder)
 
 	ret = regmap_write(hdmi->regmap, hdmi->chip_data->lcdsel_grf_reg, val);
 	if (ret != 0)
-		DRM_DEV_ERROR(hdmi->dev, "Could not write to GRF: %d\n", ret);
+		DRM_DEV_ERROR(hdmi->dev, "Could yest write to GRF: %d\n", ret);
 
 	clk_disable_unprepare(hdmi->grf_clk);
 	DRM_DEV_DEBUG(hdmi->dev, "vop %s output to hdmi\n",
@@ -411,7 +411,7 @@ static const struct dw_hdmi_plat_data rk3228_hdmi_drv_data = {
 	.phy_config = rockchip_phy_config,
 	.phy_data = &rk3228_chip_data,
 	.phy_ops = &rk3228_hdmi_phy_ops,
-	.phy_name = "inno_dw_hdmi_phy2",
+	.phy_name = "inyes_dw_hdmi_phy2",
 	.phy_force_vendor = true,
 };
 
@@ -448,7 +448,7 @@ static const struct dw_hdmi_plat_data rk3328_hdmi_drv_data = {
 	.phy_config = rockchip_phy_config,
 	.phy_data = &rk3328_chip_data,
 	.phy_ops = &rk3328_hdmi_phy_ops,
-	.phy_name = "inno_dw_hdmi_phy2",
+	.phy_name = "inyes_dw_hdmi_phy2",
 	.phy_force_vendor = true,
 	.use_drm_infoframe = true,
 };
@@ -496,14 +496,14 @@ static int dw_hdmi_rockchip_bind(struct device *dev, struct device *master,
 	struct rockchip_hdmi *hdmi;
 	int ret;
 
-	if (!pdev->dev.of_node)
+	if (!pdev->dev.of_yesde)
 		return -ENODEV;
 
 	hdmi = devm_kzalloc(&pdev->dev, sizeof(*hdmi), GFP_KERNEL);
 	if (!hdmi)
 		return -ENOMEM;
 
-	match = of_match_node(dw_hdmi_rockchip_dt_ids, pdev->dev.of_node);
+	match = of_match_yesde(dw_hdmi_rockchip_dt_ids, pdev->dev.of_yesde);
 	plat_data = devm_kmemdup(&pdev->dev, match->data,
 					     sizeof(*plat_data), GFP_KERNEL);
 	if (!plat_data)
@@ -514,11 +514,11 @@ static int dw_hdmi_rockchip_bind(struct device *dev, struct device *master,
 	plat_data->phy_data = hdmi;
 	encoder = &hdmi->encoder;
 
-	encoder->possible_crtcs = drm_of_find_possible_crtcs(drm, dev->of_node);
+	encoder->possible_crtcs = drm_of_find_possible_crtcs(drm, dev->of_yesde);
 	/*
 	 * If we failed to find the CRTC(s) which this encoder is
 	 * supposed to be connected to, it's because the CRTC has
-	 * not been registered yet.  Defer probing, and hope that
+	 * yest been registered yet.  Defer probing, and hope that
 	 * the required CRTC is added later.
 	 */
 	if (encoder->possible_crtcs == 0)

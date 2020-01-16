@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <stdbool.h>
-#include <errno.h>
+#include <erryes.h>
 
 #include <linux/stddef.h>
 #include <linux/perf_event.h>

@@ -80,7 +80,7 @@ static int bd71837_clk_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	init.num_parents = 1;
-	parent_clk = of_clk_get_parent_name(parent->of_node, 0);
+	parent_clk = of_clk_get_parent_name(parent->of_yesde, 0);
 
 	init.parent_names = &parent_clk;
 	if (!parent_clk) {
@@ -98,14 +98,14 @@ static int bd71837_clk_probe(struct platform_device *pdev)
 		c->mask = BD70528_CLK_OUT_EN_MASK;
 		break;
 	default:
-		dev_err(&pdev->dev, "Unknown clk chip\n");
+		dev_err(&pdev->dev, "Unkyeswn clk chip\n");
 		return -EINVAL;
 	}
 	c->mfd = mfd;
 	c->pdev = pdev;
 	c->hw.init = &init;
 
-	of_property_read_string_index(parent->of_node,
+	of_property_read_string_index(parent->of_yesde,
 				      "clock-output-names", 0, &init.name);
 
 	rval = devm_clk_hw_register(&pdev->dev, &c->hw);

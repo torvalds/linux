@@ -115,7 +115,7 @@ static struct apq8016_sbc_data *apq8016_sbc_parse_of(struct snd_soc_card *card)
 {
 	struct device *dev = card->dev;
 	struct snd_soc_dai_link *link;
-	struct device_node *np, *codec, *cpu, *node  = dev->of_node;
+	struct device_yesde *np, *codec, *cpu, *yesde  = dev->of_yesde;
 	struct apq8016_sbc_data *data;
 	struct snd_soc_dai_link_component *dlc;
 	int ret, num_links;
@@ -127,7 +127,7 @@ static struct apq8016_sbc_data *apq8016_sbc_parse_of(struct snd_soc_card *card)
 	}
 
 	/* DAPM routes */
-	if (of_property_read_bool(node, "qcom,audio-routing")) {
+	if (of_property_read_bool(yesde, "qcom,audio-routing")) {
 		ret = snd_soc_of_parse_audio_routing(card,
 					"qcom,audio-routing");
 		if (ret)
@@ -136,7 +136,7 @@ static struct apq8016_sbc_data *apq8016_sbc_parse_of(struct snd_soc_card *card)
 
 
 	/* Populate links */
-	num_links = of_get_child_count(node);
+	num_links = of_get_child_count(yesde);
 
 	/* Allocate the private data and the DAI link array */
 	data = devm_kzalloc(dev,
@@ -150,7 +150,7 @@ static struct apq8016_sbc_data *apq8016_sbc_parse_of(struct snd_soc_card *card)
 
 	link = data->dai_link;
 
-	for_each_child_of_node(node, np) {
+	for_each_child_of_yesde(yesde, np) {
 		dlc = devm_kzalloc(dev, 2 * sizeof(*dlc), GFP_KERNEL);
 		if (!dlc)
 			return ERR_PTR(-ENOMEM);
@@ -165,13 +165,13 @@ static struct apq8016_sbc_data *apq8016_sbc_parse_of(struct snd_soc_card *card)
 		codec = of_get_child_by_name(np, "codec");
 
 		if (!cpu || !codec) {
-			dev_err(dev, "Can't find cpu/codec DT node\n");
+			dev_err(dev, "Can't find cpu/codec DT yesde\n");
 			ret = -EINVAL;
 			goto error;
 		}
 
-		link->cpus->of_node = of_parse_phandle(cpu, "sound-dai", 0);
-		if (!link->cpus->of_node) {
+		link->cpus->of_yesde = of_parse_phandle(cpu, "sound-dai", 0);
+		if (!link->cpus->of_yesde) {
 			dev_err(card->dev, "error getting cpu phandle\n");
 			ret = -EINVAL;
 			goto error;
@@ -190,7 +190,7 @@ static struct apq8016_sbc_data *apq8016_sbc_parse_of(struct snd_soc_card *card)
 			goto error;
 		}
 
-		link->platforms->of_node = link->cpus->of_node;
+		link->platforms->of_yesde = link->cpus->of_yesde;
 		ret = of_property_read_string(np, "link-name", &link->name);
 		if (ret) {
 			dev_err(card->dev, "error getting codec dai_link name\n");
@@ -201,16 +201,16 @@ static struct apq8016_sbc_data *apq8016_sbc_parse_of(struct snd_soc_card *card)
 		link->init = apq8016_sbc_dai_init;
 		link++;
 
-		of_node_put(cpu);
-		of_node_put(codec);
+		of_yesde_put(cpu);
+		of_yesde_put(codec);
 	}
 
 	return data;
 
  error:
-	of_node_put(np);
-	of_node_put(cpu);
-	of_node_put(codec);
+	of_yesde_put(np);
+	of_yesde_put(cpu);
+	of_yesde_put(codec);
 	return ERR_PTR(ret);
 }
 

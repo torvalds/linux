@@ -172,7 +172,7 @@ static ssize_t dump_write(struct file *file, char const __user *buf, size_t coun
 
 static const struct file_operations dump_fops = {
 	.write		= dump_write,
-	.llseek		= noop_llseek,
+	.llseek		= yesop_llseek,
 };
 
 void oprofile_create_files(struct dentry *root)

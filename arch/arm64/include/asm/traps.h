@@ -14,7 +14,7 @@
 struct pt_regs;
 
 struct undef_hook {
-	struct list_head node;
+	struct list_head yesde;
 	u32 instr_mask;
 	u32 instr_val;
 	u64 pstate_mask;
@@ -25,10 +25,10 @@ struct undef_hook {
 void register_undef_hook(struct undef_hook *hook);
 void unregister_undef_hook(struct undef_hook *hook);
 void force_signal_inject(int signal, int code, unsigned long address);
-void arm64_notify_segfault(unsigned long addr);
-void arm64_force_sig_fault(int signo, int code, void __user *addr, const char *str);
+void arm64_yestify_segfault(unsigned long addr);
+void arm64_force_sig_fault(int sigyes, int code, void __user *addr, const char *str);
 void arm64_force_sig_mceerr(int code, void __user *addr, short lsb, const char *str);
-void arm64_force_sig_ptrace_errno_trap(int errno, void __user *addr, const char *str);
+void arm64_force_sig_ptrace_erryes_trap(int erryes, void __user *addr, const char *str);
 
 /*
  * Move regs->pc to next instruction and do necessary setup before it
@@ -52,8 +52,8 @@ static inline int in_entry_text(unsigned long ptr)
  * CPUs with the RAS extensions have an Implementation-Defined-Syndrome bit
  * to indicate whether this ESR has a RAS encoding. CPUs without this feature
  * have a ISS-Valid bit in the same position.
- * If this bit is set, we know its not a RAS SError.
- * If its clear, we need to know if the CPU supports RAS. Uncategorized RAS
+ * If this bit is set, we kyesw its yest a RAS SError.
+ * If its clear, we need to kyesw if the CPU supports RAS. Uncategorized RAS
  * errors share the same encoding as an all-zeros encoding from a CPU that
  * doesn't support RAS.
  */
@@ -87,7 +87,7 @@ static inline u32 arm64_ras_serror_get_severity(u32 esr)
 	}
 
 	/*
-	 * AET is RES0 if 'the value returned in the DFSC field is not
+	 * AET is RES0 if 'the value returned in the DFSC field is yest
 	 * [ESR_ELx_FSC_SERROR]'
 	 */
 	if ((esr & ESR_ELx_FSC) != ESR_ELx_FSC_SERROR) {
@@ -99,5 +99,5 @@ static inline u32 arm64_ras_serror_get_severity(u32 esr)
 }
 
 bool arm64_is_fatal_ras_serror(struct pt_regs *regs, unsigned int esr);
-void __noreturn arm64_serror_panic(struct pt_regs *regs, u32 esr);
+void __yesreturn arm64_serror_panic(struct pt_regs *regs, u32 esr);
 #endif

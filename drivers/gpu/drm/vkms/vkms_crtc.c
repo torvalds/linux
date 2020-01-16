@@ -16,7 +16,7 @@ static enum hrtimer_restart vkms_vblank_simulate(struct hrtimer *timer)
 	u64 ret_overrun;
 	bool ret;
 
-	ret_overrun = hrtimer_forward_now(&output->vblank_hrtimer,
+	ret_overrun = hrtimer_forward_yesw(&output->vblank_hrtimer,
 					  output->period_ns);
 	WARN_ON(ret_overrun != 1);
 
@@ -84,7 +84,7 @@ bool vkms_get_vblank_timestamp(struct drm_device *dev, unsigned int pipe,
 	struct vkms_output *output = &vkmsdev->output;
 	struct drm_vblank_crtc *vblank = &dev->vblank[pipe];
 
-	*vblank_time = READ_ONCE(output->vblank_hrtimer.node.expires);
+	*vblank_time = READ_ONCE(output->vblank_hrtimer.yesde.expires);
 
 	if (WARN_ON(*vblank_time == vblank->time))
 		return true;

@@ -36,7 +36,7 @@ static const signed short ff_joystick[] = {
 
 #ifdef CONFIG_THRUSTMASTER_FF
 
-/* Usages for thrustmaster devices I know about */
+/* Usages for thrustmaster devices I kyesw about */
 #define THRUSTMASTER_USAGE_FF	(HID_UP_GENDESK | 0xbb)
 
 struct tmff_device {
@@ -130,7 +130,7 @@ static int tmff_init(struct hid_device *hid, const signed short *ff_bits)
 	int i;
 
 	if (list_empty(&hid->inputs)) {
-		hid_err(hid, "no inputs found\n");
+		hid_err(hid, "yes inputs found\n");
 		return -ENODEV;
 	}
 	hidinput = list_entry(hid->inputs.next, struct hid_input, list);
@@ -154,23 +154,23 @@ static int tmff_init(struct hid_device *hid, const signed short *ff_bits)
 			switch (field->usage[0].hid) {
 			case THRUSTMASTER_USAGE_FF:
 				if (field->report_count < 2) {
-					hid_warn(hid, "ignoring FF field with report_count < 2\n");
+					hid_warn(hid, "igyesring FF field with report_count < 2\n");
 					continue;
 				}
 
 				if (field->logical_maximum ==
 						field->logical_minimum) {
-					hid_warn(hid, "ignoring FF field with logical_maximum == logical_minimum\n");
+					hid_warn(hid, "igyesring FF field with logical_maximum == logical_minimum\n");
 					continue;
 				}
 
 				if (tmff->report && tmff->report != report) {
-					hid_warn(hid, "ignoring FF field in other report\n");
+					hid_warn(hid, "igyesring FF field in other report\n");
 					continue;
 				}
 
 				if (tmff->ff_field && tmff->ff_field != field) {
-					hid_warn(hid, "ignoring duplicate FF field\n");
+					hid_warn(hid, "igyesring duplicate FF field\n");
 					continue;
 				}
 
@@ -183,7 +183,7 @@ static int tmff_init(struct hid_device *hid, const signed short *ff_bits)
 				break;
 
 			default:
-				hid_warn(hid, "ignoring unknown output usage %08x\n",
+				hid_warn(hid, "igyesring unkyeswn output usage %08x\n",
 					 field->usage[0].hid);
 				continue;
 			}

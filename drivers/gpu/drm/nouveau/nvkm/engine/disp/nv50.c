@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -206,7 +206,7 @@ nv50_disp_super_ied_on(struct nvkm_head *head,
 	u32 data;
 
 	if (!outp) {
-		IOR_DBG(ior, "nothing to attach");
+		IOR_DBG(ior, "yesthing to attach");
 		return;
 	}
 
@@ -258,7 +258,7 @@ nv50_disp_super_ied_off(struct nvkm_head *head, struct nvkm_ior *ior, int id)
 	u32 data;
 
 	if (!outp) {
-		IOR_DBG(ior, "nothing attached");
+		IOR_DBG(ior, "yesthing attached");
 		return;
 	}
 
@@ -284,7 +284,7 @@ nv50_disp_super_ior_asy(struct nvkm_head *head)
 			return ior;
 		}
 	}
-	HEAD_DBG(head, "nothing to attach");
+	HEAD_DBG(head, "yesthing to attach");
 	return NULL;
 }
 
@@ -298,7 +298,7 @@ nv50_disp_super_ior_arm(struct nvkm_head *head)
 			return ior;
 		}
 	}
-	HEAD_DBG(head, "nothing attached");
+	HEAD_DBG(head, "yesthing attached");
 	return NULL;
 }
 
@@ -386,7 +386,7 @@ nv50_disp_super_2_2_dp(struct nvkm_head *head, struct nvkm_ior *ior)
 
 			diff = calc - tu_valid;
 		} else {
-			/* no remainder, but the hw doesn't like the fractional
+			/* yes remainder, but the hw doesn't like the fractional
 			 * part to be zero.  decrement the integer part and
 			 * have the fraction add a whole symbol back
 			 */
@@ -417,7 +417,7 @@ nv50_disp_super_2_2_dp(struct nvkm_head *head, struct nvkm_ior *ior)
 		bestTU = 64;
 	}
 
-	/* XXX close to vbios numbers, but not right */
+	/* XXX close to vbios numbers, but yest right */
 	unk  = (symbol - link_ratio) * bestTU;
 	unk *= link_ratio;
 	do_div(unk, symbol);
@@ -440,7 +440,7 @@ nv50_disp_super_2_2(struct nv50_disp *disp, struct nvkm_head *head)
 	if (!ior)
 		return;
 
-	/* For some reason, NVIDIA decided not to:
+	/* For some reason, NVIDIA decided yest to:
 	 *
 	 * A) Give dual-link LVDS a separate EVO protocol, like for TMDS.
 	 *  and
@@ -698,7 +698,7 @@ nv50_disp_init(struct nv50_disp *disp)
 	int i;
 
 	/* The below segments of code copying values from one register to
-	 * another appear to inform EVO of the display capabilities or
+	 * ayesther appear to inform EVO of the display capabilities or
 	 * something similar.  NFI what the 0x614004 caps are for..
 	 */
 	tmp = nvkm_rd32(device, 0x614004);

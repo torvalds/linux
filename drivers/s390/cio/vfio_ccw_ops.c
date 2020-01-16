@@ -12,7 +12,7 @@
 
 #include <linux/vfio.h>
 #include <linux/mdev.h>
-#include <linux/nospec.h>
+#include <linux/yesspec.h>
 #include <linux/slab.h>
 
 #include "vfio_ccw_private.h"
@@ -27,8 +27,8 @@ static int vfio_ccw_mdev_reset(struct mdev_device *mdev)
 	sch = private->sch;
 	/*
 	 * TODO:
-	 * In the cureent stage, some things like "no I/O running" and "no
-	 * interrupt pending" are clear, but we are not sure what other state
+	 * In the cureent stage, some things like "yes I/O running" and "yes
+	 * interrupt pending" are clear, but we are yest sure what other state
 	 * we need to care about.
 	 * There are still a lot more instructions need to be handled. We
 	 * should come back here later.
@@ -44,7 +44,7 @@ static int vfio_ccw_mdev_reset(struct mdev_device *mdev)
 	return ret;
 }
 
-static int vfio_ccw_mdev_notifier(struct notifier_block *nb,
+static int vfio_ccw_mdev_yestifier(struct yestifier_block *nb,
 				  unsigned long action,
 				  void *data)
 {
@@ -127,7 +127,7 @@ static int vfio_ccw_mdev_create(struct kobject *kobj, struct mdev_device *mdev)
 	VFIO_CCW_MSG_EVENT(2, "mdev %pUl, sch %x.%x.%04x: create\n",
 			   mdev_uuid(mdev), private->sch->schid.cssid,
 			   private->sch->schid.ssid,
-			   private->sch->schid.sch_no);
+			   private->sch->schid.sch_yes);
 
 	return 0;
 }
@@ -140,7 +140,7 @@ static int vfio_ccw_mdev_remove(struct mdev_device *mdev)
 	VFIO_CCW_MSG_EVENT(2, "mdev %pUl, sch %x.%x.%04x: remove\n",
 			   mdev_uuid(mdev), private->sch->schid.cssid,
 			   private->sch->schid.ssid,
-			   private->sch->schid.sch_no);
+			   private->sch->schid.sch_yes);
 
 	if ((private->state != VFIO_CCW_STATE_NOT_OPER) &&
 	    (private->state != VFIO_CCW_STATE_STANDBY)) {
@@ -163,16 +163,16 @@ static int vfio_ccw_mdev_open(struct mdev_device *mdev)
 	unsigned long events = VFIO_IOMMU_NOTIFY_DMA_UNMAP;
 	int ret;
 
-	private->nb.notifier_call = vfio_ccw_mdev_notifier;
+	private->nb.yestifier_call = vfio_ccw_mdev_yestifier;
 
-	ret = vfio_register_notifier(mdev_dev(mdev), VFIO_IOMMU_NOTIFY,
+	ret = vfio_register_yestifier(mdev_dev(mdev), VFIO_IOMMU_NOTIFY,
 				     &events, &private->nb);
 	if (ret)
 		return ret;
 
 	ret = vfio_ccw_register_async_dev_regions(private);
 	if (ret)
-		vfio_unregister_notifier(mdev_dev(mdev), VFIO_IOMMU_NOTIFY,
+		vfio_unregister_yestifier(mdev_dev(mdev), VFIO_IOMMU_NOTIFY,
 					 &private->nb);
 	return ret;
 }
@@ -191,7 +191,7 @@ static void vfio_ccw_mdev_release(struct mdev_device *mdev)
 	}
 
 	cp_free(&private->cp);
-	vfio_unregister_notifier(mdev_dev(mdev), VFIO_IOMMU_NOTIFY,
+	vfio_unregister_yestifier(mdev_dev(mdev), VFIO_IOMMU_NOTIFY,
 				 &private->nb);
 
 	for (i = 0; i < private->num_regions; i++)
@@ -343,7 +343,7 @@ static int vfio_ccw_mdev_get_region_info(struct vfio_region_info *info,
 		    VFIO_CCW_NUM_REGIONS + private->num_regions)
 			return -EINVAL;
 
-		info->index = array_index_nospec(info->index,
+		info->index = array_index_yesspec(info->index,
 						 VFIO_CCW_NUM_REGIONS +
 						 private->num_regions);
 

@@ -13,7 +13,7 @@ void error(char *m);
 struct vmlinux_info {
 	unsigned long default_lma;
 	void (*entry)(void);
-	unsigned long image_size;	/* does not include .bss */
+	unsigned long image_size;	/* does yest include .bss */
 	unsigned long bss_size;		/* uncompressed image .bss size */
 	unsigned long bootdata_off;
 	unsigned long bootdata_size;

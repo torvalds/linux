@@ -18,14 +18,14 @@
  * For Thumb syscalls, we pass the syscall number via r7.  We therefore
  * need two 16-bit instructions in .thumb encoding
  *
- * Please note sigreturn_codes code are not executed in place. Instead
+ * Please yeste sigreturn_codes code are yest executed in place. Instead
  * they just copied by kernel into appropriate places. Code inside of
  * arch/arm/kernel/signal.c is very sensitive to layout of these code
  * snippets.
  */
 
 /*
- * In CPU_THUMBONLY case kernel arm opcodes are not allowed.
+ * In CPU_THUMBONLY case kernel arm opcodes are yest allowed.
  * Note in this case codes skips those instructions but it uses .org
  * directive to keep correct layout of sigreturn_codes array.
  */
@@ -132,7 +132,7 @@ ARM_OK(	ret	r3 )
 	/*
 	 * Note on additional space: setup_return in signal.c
 	 * always copies the same number of words regardless whether
-	 * it is thumb case or not, so we need one additional padding
+	 * it is thumb case or yest, so we need one additional padding
 	 * word after the last entry.
 	 */
 	.space	4

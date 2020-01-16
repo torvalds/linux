@@ -2,7 +2,7 @@
 #ifndef __NVKM_CLK_H__
 #define __NVKM_CLK_H__
 #include <core/subdev.h>
-#include <core/notify.h>
+#include <core/yestify.h>
 #include <subdev/pci.h>
 struct nvbios_pll;
 struct nvkm_pll_vals;
@@ -72,7 +72,7 @@ struct nvkm_pstate {
 
 struct nvkm_domain {
 	enum nv_clk_src name;
-	u8 bios; /* 0xff for none */
+	u8 bios; /* 0xff for yesne */
 #define NVKM_CLK_DOM_FLAG_CORE    0x01
 #define NVKM_CLK_DOM_FLAG_VPSTATE 0x02
 	u8 flags;
@@ -94,7 +94,7 @@ struct nvkm_clk {
 	wait_queue_head_t wait;
 	atomic_t waiting;
 
-	struct nvkm_notify pwrsrc_ntfy;
+	struct nvkm_yestify pwrsrc_ntfy;
 	int pwrsrc;
 	int pstate; /* current */
 	int ustate_ac; /* user-requested (-1 disabled, -2 perfmon) */
@@ -112,7 +112,7 @@ struct nvkm_clk {
 	u32 boost_khz;
 
 	/*XXX: die, these are here *only* to support the completely
-	 *     bat-shit insane what-was-nouveau_hw.c code
+	 *     bat-shit insane what-was-yesuveau_hw.c code
 	 */
 	int (*pll_calc)(struct nvkm_clk *, struct nvbios_pll *, int clk,
 			struct nvkm_pll_vals *pv);

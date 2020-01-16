@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0
-// Copyright (C) 2005-2017 Andes Technology Corporation
+// Copyright (C) 2005-2017 Andes Techyeslogy Corporation
 /*
  *  Andestech ATCPIT100 Timer Device Driver Implementation
- * Rick Chen, Andes Technology Corporation <rick@andestech.com>
+ * Rick Chen, Andes Techyeslogy Corporation <rick@andestech.com>
  *
  */
 
@@ -195,36 +195,36 @@ static struct timer_of to = {
 
 	/*
 	 * FIXME: we currently only support clocking using PCLK
-	 * and using EXTCLK is not supported in the driver.
+	 * and using EXTCLK is yest supported in the driver.
 	 */
 	.of_clk = {
 		.name = "PCLK",
 	}
 };
 
-static u64 notrace atcpit100_timer_sched_read(void)
+static u64 yestrace atcpit100_timer_sched_read(void)
 {
 	return ~readl(timer_of_base(&to) + CH1_CNT);
 }
 
 #ifdef CONFIG_NDS32
-static void fill_vdso_need_info(struct device_node *node)
+static void fill_vdso_need_info(struct device_yesde *yesde)
 {
 	struct resource timer_res;
-	of_address_to_resource(node, 0, &timer_res);
+	of_address_to_resource(yesde, 0, &timer_res);
 	timer_info.mapping_base = (unsigned long)timer_res.start;
 	timer_info.cycle_count_down = true;
 	timer_info.cycle_count_reg_offset = CH1_CNT;
 }
 #endif
 
-static int __init atcpit100_timer_init(struct device_node *node)
+static int __init atcpit100_timer_init(struct device_yesde *yesde)
 {
 	int ret;
 	u32 val;
 	void __iomem *base;
 
-	ret = timer_of_init(node, &to);
+	ret = timer_of_init(yesde, &to);
 	if (ret)
 		return ret;
 
@@ -234,7 +234,7 @@ static int __init atcpit100_timer_init(struct device_node *node)
 		timer_of_rate(&to));
 
 	ret = clocksource_mmio_init(base + CH1_CNT,
-		node->name, timer_of_rate(&to), 300, 32,
+		yesde->name, timer_of_rate(&to), 300, 32,
 		clocksource_mmio_readl_down);
 
 	if (ret) {
@@ -257,7 +257,7 @@ static int __init atcpit100_timer_init(struct device_node *node)
 	writel(val | CH0INT0EN, base + INT_EN);
 
 #ifdef CONFIG_NDS32
-	fill_vdso_need_info(node);
+	fill_vdso_need_info(yesde);
 #endif
 
 	return ret;

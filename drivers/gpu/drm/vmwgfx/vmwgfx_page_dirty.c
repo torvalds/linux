@@ -11,7 +11,7 @@
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright yestice and this permission yestice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
  *
@@ -83,7 +83,7 @@ struct vmw_bo_dirty {
 static void vmw_bo_dirty_scan_pagetable(struct vmw_buffer_object *vbo)
 {
 	struct vmw_bo_dirty *dirty = vbo->dirty;
-	pgoff_t offset = drm_vma_node_start(&vbo->base.base.vma_node);
+	pgoff_t offset = drm_vma_yesde_start(&vbo->base.base.vma_yesde);
 	struct address_space *mapping = vbo->base.bdev->dev_mapping;
 	pgoff_t num_marked;
 
@@ -121,7 +121,7 @@ static void vmw_bo_dirty_scan_pagetable(struct vmw_buffer_object *vbo)
 static void vmw_bo_dirty_scan_mkwrite(struct vmw_buffer_object *vbo)
 {
 	struct vmw_bo_dirty *dirty = vbo->dirty;
-	unsigned long offset = drm_vma_node_start(&vbo->base.base.vma_node);
+	unsigned long offset = drm_vma_yesde_start(&vbo->base.base.vma_yesde);
 	struct address_space *mapping = vbo->base.bdev->dev_mapping;
 	pgoff_t num_marked;
 
@@ -187,7 +187,7 @@ static void vmw_bo_dirty_pre_unmap(struct vmw_buffer_object *vbo,
 				   pgoff_t start, pgoff_t end)
 {
 	struct vmw_bo_dirty *dirty = vbo->dirty;
-	unsigned long offset = drm_vma_node_start(&vbo->base.base.vma_node);
+	unsigned long offset = drm_vma_yesde_start(&vbo->base.base.vma_yesde);
 	struct address_space *mapping = vbo->base.bdev->dev_mapping;
 
 	if (dirty->method != VMW_BO_DIRTY_PAGETABLE || start >= end)
@@ -211,7 +211,7 @@ static void vmw_bo_dirty_pre_unmap(struct vmw_buffer_object *vbo,
 void vmw_bo_dirty_unmap(struct vmw_buffer_object *vbo,
 			pgoff_t start, pgoff_t end)
 {
-	unsigned long offset = drm_vma_node_start(&vbo->base.base.vma_node);
+	unsigned long offset = drm_vma_yesde_start(&vbo->base.base.vma_yesde);
 	struct address_space *mapping = vbo->base.bdev->dev_mapping;
 
 	vmw_bo_dirty_pre_unmap(vbo, start, end);
@@ -237,7 +237,7 @@ int vmw_bo_dirty_add(struct vmw_buffer_object *vbo)
 	int ret;
 	static struct ttm_operation_ctx ctx = {
 		.interruptible = false,
-		.no_wait_gpu = false
+		.yes_wait_gpu = false
 	};
 
 	if (dirty) {
@@ -256,7 +256,7 @@ int vmw_bo_dirty_add(struct vmw_buffer_object *vbo)
 	dirty = kvzalloc(size, GFP_KERNEL);
 	if (!dirty) {
 		ret = -ENOMEM;
-		goto out_no_dirty;
+		goto out_yes_dirty;
 	}
 
 	dirty->size = acc_size;
@@ -268,7 +268,7 @@ int vmw_bo_dirty_add(struct vmw_buffer_object *vbo)
 		dirty->method = VMW_BO_DIRTY_PAGETABLE;
 	} else {
 		struct address_space *mapping = vbo->base.bdev->dev_mapping;
-		pgoff_t offset = drm_vma_node_start(&vbo->base.base.vma_node);
+		pgoff_t offset = drm_vma_yesde_start(&vbo->base.base.vma_yesde);
 
 		dirty->method = VMW_BO_DIRTY_MKWRITE;
 
@@ -284,7 +284,7 @@ int vmw_bo_dirty_add(struct vmw_buffer_object *vbo)
 
 	return 0;
 
-out_no_dirty:
+out_yes_dirty:
 	ttm_mem_global_free(&ttm_mem_glob, acc_size);
 	return ret;
 }
@@ -412,7 +412,7 @@ vm_fault_t vmw_bo_vm_mkwrite(struct vm_fault *vmf)
 	if (ret)
 		return ret;
 
-	page_offset = vmf->pgoff - drm_vma_node_start(&bo->base.vma_node);
+	page_offset = vmf->pgoff - drm_vma_yesde_start(&bo->base.vma_yesde);
 	if (unlikely(page_offset >= bo->num_pages)) {
 		ret = VM_FAULT_SIGBUS;
 		goto out_unlock;
@@ -455,7 +455,7 @@ vm_fault_t vmw_bo_vm_fault(struct vm_fault *vmf)
 		unsigned long page_offset;
 
 		page_offset = vmf->pgoff -
-			drm_vma_node_start(&bo->base.vma_node);
+			drm_vma_yesde_start(&bo->base.vma_yesde);
 		if (page_offset >= bo->num_pages ||
 		    vmw_resources_clean(vbo, page_offset,
 					page_offset + PAGE_SIZE,

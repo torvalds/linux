@@ -698,9 +698,9 @@ static ssize_t telem_pss_trc_verb_write(struct file *file,
 	return count;
 }
 
-static int telem_pss_trc_verb_open(struct inode *inode, struct file *file)
+static int telem_pss_trc_verb_open(struct iyesde *iyesde, struct file *file)
 {
-	return single_open(file, telem_pss_trc_verb_show, inode->i_private);
+	return single_open(file, telem_pss_trc_verb_show, iyesde->i_private);
 }
 
 static const struct file_operations telem_pss_trc_verb_ops = {
@@ -745,9 +745,9 @@ static ssize_t telem_ioss_trc_verb_write(struct file *file,
 	return count;
 }
 
-static int telem_ioss_trc_verb_open(struct inode *inode, struct file *file)
+static int telem_ioss_trc_verb_open(struct iyesde *iyesde, struct file *file)
 {
-	return single_open(file, telem_ioss_trc_verb_show, inode->i_private);
+	return single_open(file, telem_ioss_trc_verb_show, iyesde->i_private);
 }
 
 static const struct file_operations telem_ioss_trc_verb_ops = {
@@ -830,9 +830,9 @@ static int pm_suspend_exit_cb(void)
 
 	/*
 	 * Due to some design limitations in the firmware, sometimes the
-	 * counters do not get updated by the time we reach here. As a
+	 * counters do yest get updated by the time we reach here. As a
 	 * workaround, we try to see if this was a genuine case of sleep
-	 * failure or not by cross-checking from PMC GCR registers directly.
+	 * failure or yest by cross-checking from PMC GCR registers directly.
 	 */
 	if (suspend_shlw_ctr_exit == suspend_shlw_ctr_temp &&
 	    suspend_deep_ctr_exit == suspend_deep_ctr_temp) {
@@ -879,7 +879,7 @@ out:
 	return NOTIFY_OK;
 }
 
-static int pm_notification(struct notifier_block *this,
+static int pm_yestification(struct yestifier_block *this,
 			   unsigned long event, void *ptr)
 {
 	switch (event) {
@@ -892,8 +892,8 @@ static int pm_notification(struct notifier_block *this,
 	return NOTIFY_DONE;
 }
 
-static struct notifier_block pm_notifier = {
-	.notifier_call = pm_notification,
+static struct yestifier_block pm_yestifier = {
+	.yestifier_call = pm_yestification,
 };
 
 static int __init telemetry_debugfs_init(void)
@@ -902,7 +902,7 @@ static int __init telemetry_debugfs_init(void)
 	int err;
 	struct dentry *dir;
 
-	/* Only APL supported for now */
+	/* Only APL supported for yesw */
 	id = x86_match_cpu(telemetry_debugfs_cpu_ids);
 	if (!id)
 		return -ENODEV;
@@ -921,7 +921,7 @@ static int __init telemetry_debugfs_init(void)
 		return -EINVAL;
 	}
 
-	register_pm_notifier(&pm_notifier);
+	register_pm_yestifier(&pm_yestifier);
 
 	dir = debugfs_create_dir("telemetry", NULL);
 	debugfs_conf->telemetry_dbg_dir = dir;
@@ -945,7 +945,7 @@ static void __exit telemetry_debugfs_exit(void)
 {
 	debugfs_remove_recursive(debugfs_conf->telemetry_dbg_dir);
 	debugfs_conf->telemetry_dbg_dir = NULL;
-	unregister_pm_notifier(&pm_notifier);
+	unregister_pm_yestifier(&pm_yestifier);
 }
 
 late_initcall(telemetry_debugfs_init);

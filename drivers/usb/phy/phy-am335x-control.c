@@ -120,22 +120,22 @@ MODULE_DEVICE_TABLE(of, omap_control_usb_id_table);
 static struct platform_driver am335x_control_driver;
 static int match(struct device *dev, const void *data)
 {
-	const struct device_node *node = (const struct device_node *)data;
-	return dev->of_node == node &&
+	const struct device_yesde *yesde = (const struct device_yesde *)data;
+	return dev->of_yesde == yesde &&
 		dev->driver == &am335x_control_driver.driver;
 }
 
 struct phy_control *am335x_get_phy_control(struct device *dev)
 {
-	struct device_node *node;
+	struct device_yesde *yesde;
 	struct am335x_control_usb *ctrl_usb;
 
-	node = of_parse_phandle(dev->of_node, "ti,ctrl_mod", 0);
-	if (!node)
+	yesde = of_parse_phandle(dev->of_yesde, "ti,ctrl_mod", 0);
+	if (!yesde)
 		return NULL;
 
-	dev = bus_find_device(&platform_bus_type, NULL, node, match);
-	of_node_put(node);
+	dev = bus_find_device(&platform_bus_type, NULL, yesde, match);
+	of_yesde_put(yesde);
 	if (!dev)
 		return NULL;
 
@@ -154,7 +154,7 @@ static int am335x_control_usb_probe(struct platform_device *pdev)
 	const struct of_device_id *of_id;
 	const struct phy_control *phy_ctrl;
 
-	of_id = of_match_node(omap_control_usb_id_table, pdev->dev.of_node);
+	of_id = of_match_yesde(omap_control_usb_id_table, pdev->dev.of_yesde);
 	if (!of_id)
 		return -EINVAL;
 

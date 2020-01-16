@@ -103,7 +103,7 @@ static bool pll_28nm_poll_for_ready(struct dsi_pll_28nm *pll_28nm,
 
 		udelay(timeout_us);
 	}
-	DBG("DSI PLL is %slocked", pll_locked ? "" : "*not* ");
+	DBG("DSI PLL is %slocked", pll_locked ? "" : "*yest* ");
 
 	return pll_locked;
 }
@@ -570,7 +570,7 @@ static int pll_28nm_register(struct dsi_pll_28nm *pll_28nm)
 	pll_28nm->clk_data.clk_num = NUM_PROVIDED_CLKS;
 	pll_28nm->clk_data.clks = provided_clks;
 
-	ret = of_clk_add_provider(dev->of_node,
+	ret = of_clk_add_provider(dev->of_yesde,
 			of_clk_src_onecell_get, &pll_28nm->clk_data);
 	if (ret) {
 		DRM_DEV_ERROR(dev, "failed to register clk provider: %d\n", ret);
@@ -625,7 +625,7 @@ struct msm_dsi_pll *msm_dsi_pll_28nm_init(struct platform_device *pdev,
 		pll->en_seq_cnt = 1;
 		pll->enable_seqs[0] = dsi_pll_28nm_enable_seq_lp;
 	} else {
-		DRM_DEV_ERROR(&pdev->dev, "phy type (%d) is not 28nm\n", type);
+		DRM_DEV_ERROR(&pdev->dev, "phy type (%d) is yest 28nm\n", type);
 		return ERR_PTR(-EINVAL);
 	}
 

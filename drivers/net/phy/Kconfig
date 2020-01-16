@@ -32,7 +32,7 @@ config MDIO_ASPEED
 	  revisions are the "old" and "new" interfaces found in the AST2400 and
 	  AST2500, embedded in the MAC. For legacy reasons, FTGMAC100 driver
 	  continues to drive the embedded MDIO controller for the AST2400 and
-	  AST2500 SoCs, so say N if AST2600 support is not required.
+	  AST2500 SoCs, so say N if AST2600 support is yest required.
 
 config MDIO_BCM_IPROC
 	tristate "Broadcom iProc MDIO bus controller"
@@ -246,7 +246,7 @@ config LED_TRIGGER_PHY
 
 	  Where speed is in the form:
 		<Speed in megabits>Mbps OR <Speed in gigabits>Gbps OR link
-		for any speed known to the PHY.
+		for any speed kyeswn to the PHY.
 
 
 comment "MII PHY device drivers"
@@ -371,7 +371,7 @@ config FIXED_PHY
 	select SWPHY
 	---help---
 	  Adds the platform "fixed" MDIO Bus to cover the boards that use
-	  PHYs that are not connected to the real MDIO bus.
+	  PHYs that are yest connected to the real MDIO bus.
 
 	  Currently tested with mpc866ads and mpc8349e-mitx.
 

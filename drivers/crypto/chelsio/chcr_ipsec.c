@@ -14,11 +14,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -140,7 +140,7 @@ static inline int chcr_ipsec_setkey(struct xfrm_state *x,
 	int ret = 0;
 
 	if (keylen > 3) {
-		keylen -= 4;  /* nonce/salt is present in the last 4 bytes */
+		keylen -= 4;  /* yesnce/salt is present in the last 4 bytes */
 		memcpy(sa_entry->salt, key + keylen, 4);
 	}
 
@@ -198,11 +198,11 @@ static int chcr_xfrm_add_state(struct xfrm_state *x)
 	int res = 0;
 
 	if (x->props.aalgo != SADB_AALG_NONE) {
-		pr_debug("CHCR: Cannot offload authenticated xfrm states\n");
+		pr_debug("CHCR: Canyest offload authenticated xfrm states\n");
 		return -EINVAL;
 	}
 	if (x->props.calgo != SADB_X_CALG_NONE) {
-		pr_debug("CHCR: Cannot offload compressed xfrm states\n");
+		pr_debug("CHCR: Canyest offload compressed xfrm states\n");
 		return -EINVAL;
 	}
 	if (x->props.family != AF_INET &&
@@ -220,33 +220,33 @@ static int chcr_xfrm_add_state(struct xfrm_state *x)
 		return -EINVAL;
 	}
 	if (x->encap) {
-		pr_debug("CHCR: Encapsulated xfrm state not offloaded\n");
+		pr_debug("CHCR: Encapsulated xfrm state yest offloaded\n");
 		return -EINVAL;
 	}
 	if (!x->aead) {
-		pr_debug("CHCR: Cannot offload xfrm states without aead\n");
+		pr_debug("CHCR: Canyest offload xfrm states without aead\n");
 		return -EINVAL;
 	}
 	if (x->aead->alg_icv_len != 128 &&
 	    x->aead->alg_icv_len != 96) {
-		pr_debug("CHCR: Cannot offload xfrm states with AEAD ICV length other than 96b & 128b\n");
+		pr_debug("CHCR: Canyest offload xfrm states with AEAD ICV length other than 96b & 128b\n");
 	return -EINVAL;
 	}
 	if ((x->aead->alg_key_len != 128 + 32) &&
 	    (x->aead->alg_key_len != 256 + 32)) {
-		pr_debug("CHCR: Cannot offload xfrm states with AEAD key length other than 128/256 bit\n");
+		pr_debug("CHCR: Canyest offload xfrm states with AEAD key length other than 128/256 bit\n");
 		return -EINVAL;
 	}
 	if (x->tfcpad) {
-		pr_debug("CHCR: Cannot offload xfrm states with tfc padding\n");
+		pr_debug("CHCR: Canyest offload xfrm states with tfc padding\n");
 		return -EINVAL;
 	}
 	if (!x->geniv) {
-		pr_debug("CHCR: Cannot offload xfrm states without geniv\n");
+		pr_debug("CHCR: Canyest offload xfrm states without geniv\n");
 		return -EINVAL;
 	}
 	if (strcmp(x->geniv, "seqiv")) {
-		pr_debug("CHCR: Cannot offload xfrm states with geniv other than seqiv\n");
+		pr_debug("CHCR: Canyest offload xfrm states with geniv other than seqiv\n");
 		return -EINVAL;
 	}
 
@@ -268,7 +268,7 @@ out:
 
 static void chcr_xfrm_del_state(struct xfrm_state *x)
 {
-	/* do nothing */
+	/* do yesthing */
 	if (!x->xso.offload_handle)
 		return;
 }
@@ -288,11 +288,11 @@ static void chcr_xfrm_free_state(struct xfrm_state *x)
 static bool chcr_ipsec_offload_ok(struct sk_buff *skb, struct xfrm_state *x)
 {
 	if (x->props.family == AF_INET) {
-		/* Offload with IP options is not supported yet */
+		/* Offload with IP options is yest supported yet */
 		if (ip_hdr(skb)->ihl > 5)
 			return false;
 	} else {
-		/* Offload with IPv6 extension headers is not support yet */
+		/* Offload with IPv6 extension headers is yest support yet */
 		if (ipv6_ext_hdr(ipv6_hdr(skb)->nexthdr))
 			return false;
 	}
@@ -304,7 +304,7 @@ static bool chcr_ipsec_offload_ok(struct sk_buff *skb, struct xfrm_state *x)
 
 static void chcr_advance_esn_state(struct xfrm_state *x)
 {
-	/* do nothing */
+	/* do yesthing */
 	if (!x->xso.offload_handle)
 		return;
 }
@@ -343,7 +343,7 @@ static inline unsigned int calc_tx_sec_flits(const struct sk_buff *skb,
 						16) : 0;
 	aadivlen <<= 4;
 
-	/* If the skb is small enough, we can pump it out as a work request
+	/* If the skb is small eyesugh, we can pump it out as a work request
 	 * with only immediate data.  In that case we just have to have the
 	 * TX Packet header plus the skb data in the Work Request.
 	 */
@@ -383,7 +383,7 @@ inline void *copy_esn_pktxt(struct sk_buff *skb,
 	struct sge_eth_txq *q;
 	struct adapter *adap;
 	struct port_info *pi;
-	__be64 seqno;
+	__be64 seqyes;
 	u32 qidx;
 	u32 seqlo;
 	u8 *iv;
@@ -408,13 +408,13 @@ inline void *copy_esn_pktxt(struct sk_buff *skb,
 	xo = xfrm_offload(skb);
 
 	aadiv->spi = (esphdr->spi);
-	seqlo = htonl(esphdr->seq_no);
-	seqno = cpu_to_be64(seqlo + ((u64)xo->seq.hi << 32));
-	memcpy(aadiv->seq_no, &seqno, 8);
+	seqlo = htonl(esphdr->seq_yes);
+	seqyes = cpu_to_be64(seqlo + ((u64)xo->seq.hi << 32));
+	memcpy(aadiv->seq_yes, &seqyes, 8);
 	iv = skb_transport_header(skb) + sizeof(struct ip_esp_hdr);
 	memcpy(aadiv->iv, iv, 8);
 
-	if (is_eth_imm(skb, sa_entry) && !skb_is_nonlinear(skb)) {
+	if (is_eth_imm(skb, sa_entry) && !skb_is_yesnlinear(skb)) {
 		sc_imm = (struct ulptx_idata *)(pos +
 			  (DIV_ROUND_UP(sizeof(struct chcr_ipsec_aadiv),
 					sizeof(__be64)) << 3));
@@ -530,7 +530,7 @@ inline void *chcr_crypto_wreq(struct sk_buff *skb,
 	bool immediate = false;
 	u16 immdatalen = 0;
 	unsigned int flits;
-	u32 ivinoffset;
+	u32 iviyesffset;
 	u32 aadstart;
 	u32 aadstop;
 	u32 ciphstart;
@@ -556,7 +556,7 @@ inline void *chcr_crypto_wreq(struct sk_buff *skb,
 
 	if (sa_entry->esn) {
 		esnlen = sizeof(struct chcr_ipsec_aadiv);
-		if (!skb_is_nonlinear(skb))
+		if (!skb_is_yesnlinear(skb))
 			sc_more  = 1;
 	}
 
@@ -588,7 +588,7 @@ inline void *chcr_crypto_wreq(struct sk_buff *skb,
 					 (esnlen ? 0 : immdatalen));
 
 	/* CPL_SEC_PDU */
-	ivinoffset = sa_entry->esn ? (ESN_IV_INSERT_OFFSET + 1) :
+	iviyesffset = sa_entry->esn ? (ESN_IV_INSERT_OFFSET + 1) :
 				     (skb_transport_offset(skb) +
 				      sizeof(struct ip_esp_hdr) + 1);
 	wr->req.sec_cpl.op_ivinsrtofst = htonl(
@@ -596,7 +596,7 @@ inline void *chcr_crypto_wreq(struct sk_buff *skb,
 				CPL_TX_SEC_PDU_CPLLEN_V(2) |
 				CPL_TX_SEC_PDU_PLACEHOLDER_V(1) |
 				CPL_TX_SEC_PDU_IVINSRTOFST_V(
-							     ivinoffset));
+							     iviyesffset));
 
 	wr->req.sec_cpl.pldlen = htonl(skb->len + esnlen);
 	aadstart = sa_entry->esn ? 1 : (skb_transport_offset(skb) + 1);
@@ -616,7 +616,7 @@ inline void *chcr_crypto_wreq(struct sk_buff *skb,
 		FILL_SEC_CPL_AUTHINSERT(0, ciphstart,
 					sa_entry->authsize,
 					 sa_entry->authsize);
-	wr->req.sec_cpl.seqno_numivs =
+	wr->req.sec_cpl.seqyes_numivs =
 		FILL_SEC_CPL_SCMD0_SEQNO(CHCR_ENCRYPT_OP, 1,
 					 CHCR_SCMD_CIPHER_MODE_AES_GCM,
 					 CHCR_SCMD_AUTH_MODE_GHASH,

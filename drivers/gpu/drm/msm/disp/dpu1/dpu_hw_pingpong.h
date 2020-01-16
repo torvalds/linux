@@ -15,7 +15,7 @@ struct dpu_hw_pingpong;
 struct dpu_hw_tear_check {
 	/*
 	 * This is ratio of MDP VSYNC clk freq(Hz) to
-	 * refresh rate divided by no of lines
+	 * refresh rate divided by yes of lines
 	 */
 	u32 vsync_count;
 	u32 sync_cfg_height;
@@ -60,7 +60,7 @@ struct dpu_hw_pingpong_ops {
 
 	/**
 	 * read, modify, write to either set or clear listening to external TE
-	 * @Return: 1 if TE was originally connected, 0 if not, or -ERROR
+	 * @Return: 1 if TE was originally connected, 0 if yest, or -ERROR
 	 */
 	int (*connect_external_te)(struct dpu_hw_pingpong *pp,
 			bool enable_external_te);

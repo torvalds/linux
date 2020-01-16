@@ -8,7 +8,7 @@ Required properties:
 
 Optional properties:
 - epson,vdet-disable : boolean, if present will disable voltage detector.
-  Should be set if no backup battery is used.
+  Should be set if yes backup battery is used.
 - trickle-diode-disable : boolean, if present will disable internal trickle
   charger diode
 

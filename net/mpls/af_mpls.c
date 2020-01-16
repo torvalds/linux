@@ -9,7 +9,7 @@
 #include <linux/ipv6.h>
 #include <linux/mpls.h>
 #include <linux/netconf.h>
-#include <linux/nospec.h>
+#include <linux/yesspec.h>
 #include <linux/vmalloc.h>
 #include <linux/percpu.h>
 #include <net/ip.h>
@@ -180,7 +180,7 @@ static u32 mpls_multipath_hash(struct mpls_route *rt, struct sk_buff *skb)
 
 			/* The entropy label follows the entropy label
 			 * indicator, so this means that the entropy
-			 * label was just added to the hash - no need to
+			 * label was just added to the hash - yes need to
 			 * go any deeper either in the label stack or in the
 			 * payload
 			 */
@@ -297,7 +297,7 @@ static bool mpls_egress(struct net *net, struct mpls_route *rt,
 
 		/* If propagating TTL, take the decremented TTL from
 		 * the incoming MPLS header, otherwise decrement the
-		 * TTL, but only if not 0 to avoid underflow.
+		 * TTL, but only if yest 0 to avoid underflow.
 		 */
 		if (rt->rt_ttl_propagate == MPLS_TTL_PROP_ENABLED ||
 		    (rt->rt_ttl_propagate == MPLS_TTL_PROP_DEFAULT &&
@@ -319,7 +319,7 @@ static bool mpls_egress(struct net *net, struct mpls_route *rt,
 
 		/* If propagating TTL, take the decremented TTL from
 		 * the incoming MPLS header, otherwise decrement the
-		 * hop limit, but only if not 0 to avoid underflow.
+		 * hop limit, but only if yest 0 to avoid underflow.
 		 */
 		if (rt->rt_ttl_propagate == MPLS_TTL_PROP_ENABLED ||
 		    (rt->rt_ttl_propagate == MPLS_TTL_PROP_DEFAULT &&
@@ -331,7 +331,7 @@ static bool mpls_egress(struct net *net, struct mpls_route *rt,
 		break;
 	}
 	case MPT_UNSPEC:
-		/* Should have decided which protocol it is by now */
+		/* Should have decided which protocol it is by yesw */
 		break;
 	}
 
@@ -383,7 +383,7 @@ static int mpls_forward(struct sk_buff *skb, struct net_device *dev,
 
 	rt = mpls_route_input_rcu(net, dec.label);
 	if (!rt) {
-		MPLS_INC_STATS(mdev, rx_noroute);
+		MPLS_INC_STATS(mdev, rx_yesroute);
 		goto drop;
 	}
 
@@ -422,7 +422,7 @@ static int mpls_forward(struct sk_buff *skb, struct net_device *dev,
 	if (!out_dev->header_ops)
 		hh_len = 0;
 
-	/* Ensure there is enough space for the headers in the skb */
+	/* Ensure there is eyesugh space for the headers in the skb */
 	if (skb_cow(skb, hh_len + new_header_size))
 		goto tx_err;
 
@@ -533,7 +533,7 @@ static void mpls_rt_free(struct mpls_route *rt)
 		kfree_rcu(rt, rt_rcu);
 }
 
-static void mpls_notify_route(struct net *net, unsigned index,
+static void mpls_yestify_route(struct net *net, unsigned index,
 			      struct mpls_route *old, struct mpls_route *new,
 			      const struct nl_info *info)
 {
@@ -542,7 +542,7 @@ static void mpls_notify_route(struct net *net, unsigned index,
 	int event = new ? RTM_NEWROUTE : RTM_DELROUTE;
 	struct mpls_route *rt = new ? new : old;
 	unsigned nlm_flags = (old && new) ? NLM_F_REPLACE : 0;
-	/* Ignore reserved labels for now */
+	/* Igyesre reserved labels for yesw */
 	if (rt && (index >= MPLS_LABEL_FIRST_UNRESERVED))
 		rtmsg_lfib(event, index, rt, nlh, net, portid, nlm_flags);
 }
@@ -560,9 +560,9 @@ static void mpls_route_update(struct net *net, unsigned index,
 	rt = rtnl_dereference(platform_label[index]);
 	rcu_assign_pointer(platform_label[index], new);
 
-	mpls_notify_route(net, index, rt, new, info);
+	mpls_yestify_route(net, index, rt, new, info);
 
-	/* If we removed a route free it now */
+	/* If we removed a route free it yesw */
 	mpls_rt_free(rt);
 }
 
@@ -899,7 +899,7 @@ static int mpls_nh_build_multi(struct mpls_route_config *cfg,
 		if (!rtnh_ok(rtnh, remaining))
 			goto errout;
 
-		/* neither weighted multipath nor any flags
+		/* neither weighted multipath yesr any flags
 		 * are supported
 		 */
 		if (rtnh->rtnh_hops || rtnh->rtnh_flags)
@@ -939,21 +939,21 @@ static bool mpls_label_ok(struct net *net, unsigned int *index,
 {
 	bool is_ok = true;
 
-	/* Reserved labels may not be set */
+	/* Reserved labels may yest be set */
 	if (*index < MPLS_LABEL_FIRST_UNRESERVED) {
 		NL_SET_ERR_MSG(extack,
 			       "Invalid label - must be MPLS_LABEL_FIRST_UNRESERVED or higher");
 		is_ok = false;
 	}
 
-	/* The full 20 bit range may not be supported. */
+	/* The full 20 bit range may yest be supported. */
 	if (is_ok && *index >= net->mpls.platform_labels) {
 		NL_SET_ERR_MSG(extack,
 			       "Label >= configured maximum in platform_labels");
 		is_ok = false;
 	}
 
-	*index = array_index_nospec(*index, net->mpls.platform_labels);
+	*index = array_index_yesspec(*index, net->mpls.platform_labels);
 	return is_ok;
 }
 
@@ -971,7 +971,7 @@ static int mpls_route_add(struct mpls_route_config *cfg,
 
 	index = cfg->rc_label;
 
-	/* If a label was not specified during insert pick one */
+	/* If a label was yest specified during insert pick one */
 	if ((index == LABEL_NOT_SPECIFIED) &&
 	    (cfg->rc_nlflags & NLM_F_CREATE)) {
 		index = find_free_label(net);
@@ -980,10 +980,10 @@ static int mpls_route_add(struct mpls_route_config *cfg,
 	if (!mpls_label_ok(net, &index, extack))
 		goto errout;
 
-	/* Append makes no sense with mpls */
+	/* Append makes yes sense with mpls */
 	err = -EOPNOTSUPP;
 	if (cfg->rc_nlflags & NLM_F_APPEND) {
-		NL_SET_ERR_MSG(extack, "MPLS does not support route append");
+		NL_SET_ERR_MSG(extack, "MPLS does yest support route append");
 		goto errout;
 	}
 
@@ -1013,7 +1013,7 @@ static int mpls_route_add(struct mpls_route_config *cfg,
 	}
 
 	if (nhs == 0) {
-		NL_SET_ERR_MSG(extack, "Route does not contain a nexthop");
+		NL_SET_ERR_MSG(extack, "Route does yest contain a nexthop");
 		goto errout;
 	}
 
@@ -1090,7 +1090,7 @@ static void mpls_get_stats(struct mpls_dev *mdev,
 		stats->tx_errors	+= local.tx_errors;
 		stats->rx_dropped	+= local.rx_dropped;
 		stats->tx_dropped	+= local.tx_dropped;
-		stats->rx_noroute	+= local.rx_noroute;
+		stats->rx_yesroute	+= local.rx_yesroute;
 	}
 }
 
@@ -1178,7 +1178,7 @@ static int mpls_netconf_msgsize_devconf(int type)
 	return size;
 }
 
-static void mpls_netconf_notify_devconf(struct net *net, int event,
+static void mpls_netconf_yestify_devconf(struct net *net, int event,
 					int type, struct mpls_dev *mdev)
 {
 	struct sk_buff *skb;
@@ -1196,7 +1196,7 @@ static void mpls_netconf_notify_devconf(struct net *net, int event,
 		goto errout;
 	}
 
-	rtnl_notify(skb, net, 0, RTNLGRP_MPLS_NETCONF, NULL, GFP_KERNEL);
+	rtnl_yestify(skb, net, 0, RTNLGRP_MPLS_NETCONF, NULL, GFP_KERNEL);
 	return;
 errout:
 	if (err < 0)
@@ -1376,7 +1376,7 @@ static int mpls_conf_proc(struct ctl_table *ctl, int write,
 
 		if (i == offsetof(struct mpls_dev, input_enabled) &&
 		    val != oval) {
-			mpls_netconf_notify_devconf(net, RTM_NEWNETCONF,
+			mpls_netconf_yestify_devconf(net, RTM_NEWNETCONF,
 						    NETCONFA_INPUT, mdev);
 		}
 	}
@@ -1422,7 +1422,7 @@ static int mpls_dev_sysctl_register(struct net_device *dev,
 	if (!mdev->sysctl)
 		goto free;
 
-	mpls_netconf_notify_devconf(net, RTM_NEWNETCONF, NETCONFA_ALL, mdev);
+	mpls_netconf_yestify_devconf(net, RTM_NEWNETCONF, NETCONFA_ALL, mdev);
 	return 0;
 
 free:
@@ -1441,7 +1441,7 @@ static void mpls_dev_sysctl_unregister(struct net_device *dev,
 	unregister_net_sysctl_table(mdev->sysctl);
 	kfree(table);
 
-	mpls_netconf_notify_devconf(net, RTM_DELNETCONF, 0, mdev);
+	mpls_netconf_yestify_devconf(net, RTM_DELNETCONF, 0, mdev);
 }
 
 static struct mpls_dev *mpls_add_dev(struct net_device *dev)
@@ -1536,7 +1536,7 @@ next:
 
 		WRITE_ONCE(rt->rt_nhn_alive, alive);
 
-		/* if there are no more nexthops, delete the route */
+		/* if there are yes more nexthops, delete the route */
 		if (event == NETDEV_UNREGISTER && deleted == rt->rt_nhn)
 			mpls_route_update(net, index, NULL, NULL);
 	}
@@ -1577,16 +1577,16 @@ static void mpls_ifup(struct net_device *dev, unsigned int flags)
 	}
 }
 
-static int mpls_dev_notify(struct notifier_block *this, unsigned long event,
+static int mpls_dev_yestify(struct yestifier_block *this, unsigned long event,
 			   void *ptr)
 {
-	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
+	struct net_device *dev = netdev_yestifier_info_to_dev(ptr);
 	struct mpls_dev *mdev;
 	unsigned int flags;
 
 	if (event == NETDEV_REGISTER) {
 
-		/* For now just support Ethernet, IPGRE, IP6GRE, SIT and
+		/* For yesw just support Ethernet, IPGRE, IP6GRE, SIT and
 		 * IPIP devices
 		 */
 		if (dev->type == ARPHRD_ETHER ||
@@ -1597,7 +1597,7 @@ static int mpls_dev_notify(struct notifier_block *this, unsigned long event,
 		    dev->type == ARPHRD_TUNNEL) {
 			mdev = mpls_add_dev(dev);
 			if (IS_ERR(mdev))
-				return notifier_from_errno(PTR_ERR(mdev));
+				return yestifier_from_erryes(PTR_ERR(mdev));
 		}
 		return NOTIFY_OK;
 	}
@@ -1641,15 +1641,15 @@ static int mpls_dev_notify(struct notifier_block *this, unsigned long event,
 			mpls_dev_sysctl_unregister(dev, mdev);
 			err = mpls_dev_sysctl_register(dev, mdev);
 			if (err)
-				return notifier_from_errno(err);
+				return yestifier_from_erryes(err);
 		}
 		break;
 	}
 	return NOTIFY_OK;
 }
 
-static struct notifier_block mpls_dev_notifier = {
-	.notifier_call = mpls_dev_notify,
+static struct yestifier_block mpls_dev_yestifier = {
+	.yestifier_call = mpls_dev_yestify,
 };
 
 static int nla_put_via(struct sk_buff *skb,
@@ -1766,7 +1766,7 @@ int nla_get_labels(const struct nlattr *nla, u8 max_labels, u8 *labels,
 			 * actually appears in the encapsulation.
 			 */
 			NL_SET_ERR_MSG_ATTR(extack, nla,
-					    "Implicit NULL Label (3) can not be used in encapsulation");
+					    "Implicit NULL Label (3) can yest be used in encapsulation");
 			return -EINVAL;
 		}
 
@@ -1875,7 +1875,7 @@ static int rtm_to_route_config(struct sk_buff *skb,
 			break;
 		}
 		case RTA_GATEWAY:
-			NL_SET_ERR_MSG(extack, "MPLS does not support RTA_GATEWAY attribute");
+			NL_SET_ERR_MSG(extack, "MPLS does yest support RTA_GATEWAY attribute");
 			goto errout;
 		case RTA_VIA:
 		{
@@ -1906,7 +1906,7 @@ static int rtm_to_route_config(struct sk_buff *skb,
 			break;
 		}
 		default:
-			NL_SET_ERR_MSG_ATTR(extack, nla, "Unknown attribute");
+			NL_SET_ERR_MSG_ATTR(extack, nla, "Unkyeswn attribute");
 			/* Unsupported attribute */
 			goto errout;
 		}
@@ -2017,7 +2017,7 @@ static int mpls_dump_route(struct sk_buff *skb, u32 portid, u32 seq, int event,
 		u8 linkdown = 0;
 		u8 dead = 0;
 
-		mp = nla_nest_start_noflag(skb, RTA_MULTIPATH);
+		mp = nla_nest_start_yesflag(skb, RTA_MULTIPATH);
 		if (!mp)
 			goto nla_put_failure;
 
@@ -2026,7 +2026,7 @@ static int mpls_dump_route(struct sk_buff *skb, u32 portid, u32 seq, int event,
 			if (!dev)
 				continue;
 
-			rtnh = nla_reserve_nohdr(skb, sizeof(*rtnh));
+			rtnh = nla_reserve_yeshdr(skb, sizeof(*rtnh));
 			if (!rtnh)
 				goto nla_put_failure;
 
@@ -2172,7 +2172,7 @@ static int mpls_dump_routes(struct sk_buff *skb, struct netlink_callback *cb)
 			return err;
 
 		/* for MPLS, there is only 1 table with fixed type and flags.
-		 * If either are set in the filter then return nothing.
+		 * If either are set in the filter then return yesthing.
 		 */
 		if ((filter.table_id && filter.table_id != RT_TABLE_MAIN) ||
 		    (filter.rt_type && filter.rt_type != RTN_UNICAST) ||
@@ -2267,7 +2267,7 @@ static void rtmsg_lfib(int event, u32 label, struct mpls_route *rt,
 		kfree_skb(skb);
 		goto errout;
 	}
-	rtnl_notify(skb, net, portid, RTNLGRP_MPLS_ROUTE, nlh, GFP_KERNEL);
+	rtnl_yestify(skb, net, portid, RTNLGRP_MPLS_ROUTE, nlh, GFP_KERNEL);
 
 	return;
 errout:
@@ -2508,7 +2508,7 @@ static int resize_platform_label_table(struct net *net, size_t limit)
 	if (size) {
 		labels = kvzalloc(size, GFP_KERNEL);
 		if (!labels)
-			goto nolabels;
+			goto yeslabels;
 	}
 
 	/* In case the predefined labels need to be populated */
@@ -2516,7 +2516,7 @@ static int resize_platform_label_table(struct net *net, size_t limit)
 		struct net_device *lo = net->loopback_dev;
 		rt0 = mpls_rt_alloc(1, lo->addr_len, 0);
 		if (IS_ERR(rt0))
-			goto nort0;
+			goto yesrt0;
 		RCU_INIT_POINTER(rt0->rt_nh->nh_dev, lo);
 		rt0->rt_protocol = RTPROT_KERNEL;
 		rt0->rt_payload_type = MPT_IPV4;
@@ -2530,7 +2530,7 @@ static int resize_platform_label_table(struct net *net, size_t limit)
 		struct net_device *lo = net->loopback_dev;
 		rt2 = mpls_rt_alloc(1, lo->addr_len, 0);
 		if (IS_ERR(rt2))
-			goto nort2;
+			goto yesrt2;
 		RCU_INIT_POINTER(rt2->rt_nh->nh_dev, lo);
 		rt2->rt_protocol = RTPROT_KERNEL;
 		rt2->rt_payload_type = MPT_IPV6;
@@ -2585,11 +2585,11 @@ static int resize_platform_label_table(struct net *net, size_t limit)
 	}
 	return 0;
 
-nort2:
+yesrt2:
 	mpls_rt_free(rt0);
-nort0:
+yesrt0:
 	kvfree(labels);
-nolabels:
+yeslabels:
 	return -ENOMEM;
 }
 
@@ -2694,7 +2694,7 @@ static void mpls_net_exit(struct net *net)
 	 * unregister_netdevice_many and netdev_run_todo has completed
 	 * for each network device that was in this network namespace.
 	 *
-	 * As such no additional rcu synchronization is necessary when
+	 * As such yes additional rcu synchronization is necessary when
 	 * freeing the platform_label table.
 	 */
 	rtnl_lock();
@@ -2703,7 +2703,7 @@ static void mpls_net_exit(struct net *net)
 	for (index = 0; index < platform_labels; index++) {
 		struct mpls_route *rt = rtnl_dereference(platform_label[index]);
 		RCU_INIT_POINTER(platform_label[index], NULL);
-		mpls_notify_route(net, index, rt, NULL, NULL);
+		mpls_yestify_route(net, index, rt, NULL, NULL);
 		mpls_rt_free(rt);
 	}
 	rtnl_unlock();
@@ -2732,7 +2732,7 @@ static int __init mpls_init(void)
 	if (err)
 		goto out;
 
-	err = register_netdevice_notifier(&mpls_dev_notifier);
+	err = register_netdevice_yestifier(&mpls_dev_yestifier);
 	if (err)
 		goto out_unregister_pernet;
 
@@ -2768,7 +2768,7 @@ static void __exit mpls_exit(void)
 	rtnl_unregister_all(PF_MPLS);
 	rtnl_af_unregister(&mpls_af_ops);
 	dev_remove_pack(&mpls_packet_type);
-	unregister_netdevice_notifier(&mpls_dev_notifier);
+	unregister_netdevice_yestifier(&mpls_dev_yestifier);
 	unregister_pernet_subsys(&mpls_net_ops);
 	ipgre_tunnel_encap_del_mpls_ops();
 }

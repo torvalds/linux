@@ -61,12 +61,12 @@ init_internal_rtc(void)
 
 static int __init get_freq(char *name, unsigned long *val)
 {
-	struct device_node *cpu;
+	struct device_yesde *cpu;
 	const unsigned int *fp;
 	int found = 0;
 
-	/* The cpu node should have timebase and clock frequency properties */
-	cpu = of_get_cpu_node(0, NULL);
+	/* The cpu yesde should have timebase and clock frequency properties */
+	cpu = of_get_cpu_yesde(0, NULL);
 
 	if (cpu) {
 		fp = of_get_property(cpu, name, NULL);
@@ -75,7 +75,7 @@ static int __init get_freq(char *name, unsigned long *val)
 			*val = *fp;
 		}
 
-		of_node_put(cpu);
+		of_yesde_put(cpu);
 	}
 
 	return found;
@@ -87,7 +87,7 @@ static int __init get_freq(char *name, unsigned long *val)
  */
 void __init mpc8xx_calibrate_decr(void)
 {
-	struct device_node *cpu;
+	struct device_yesde *cpu;
 	cark8xx_t __iomem *clk_r1;
 	car8xx_t __iomem *clk_r2;
 	sitk8xx_t __iomem *sys_tmr1;
@@ -111,7 +111,7 @@ void __init mpc8xx_calibrate_decr(void)
 	ppc_proc_freq = 50000000;
 	if (!get_freq("clock-frequency", &ppc_proc_freq))
 		printk(KERN_ERR "WARNING: Estimating processor frequency "
-		                "(not found)\n");
+		                "(yest found)\n");
 
 	ppc_tb_freq = ppc_proc_freq / 16;
 	printk("Decrementer Frequency = 0x%lx\n", ppc_tb_freq);
@@ -145,11 +145,11 @@ void __init mpc8xx_calibrate_decr(void)
 	/* Enabling the decrementer also enables the timebase interrupts
 	 * (or from the other point of view, to get decrementer interrupts
 	 * we have to enable the timebase).  The decrementer interrupt
-	 * is wired into the vector table, nothing to do here for that.
+	 * is wired into the vector table, yesthing to do here for that.
 	 */
-	cpu = of_get_cpu_node(0, NULL);
+	cpu = of_get_cpu_yesde(0, NULL);
 	virq= irq_of_parse_and_map(cpu, 0);
-	of_node_put(cpu);
+	of_yesde_put(cpu);
 	irq = virq_to_hw(virq);
 
 	sys_tmr2 = immr_map(im_sit);
@@ -158,7 +158,7 @@ void __init mpc8xx_calibrate_decr(void)
 	immr_unmap(sys_tmr2);
 
 	if (setup_irq(virq, &tbint_irqaction))
-		panic("Could not allocate timer IRQ!");
+		panic("Could yest allocate timer IRQ!");
 }
 
 /* The RTC on the MPC8xx is an internal register.
@@ -197,7 +197,7 @@ void mpc8xx_get_rtc_time(struct rtc_time *tm)
 	return;
 }
 
-void __noreturn mpc8xx_restart(char *cmd)
+void __yesreturn mpc8xx_restart(char *cmd)
 {
 	car8xx_t __iomem *clk_r = immr_map(im_clkrst);
 

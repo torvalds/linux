@@ -82,9 +82,9 @@ The code in vchiq_bcm2835_arm.c should fit in the generic platform file.
 
 12) Get rid of all the struct typedefs
 
-Most structs are typedefd, it's not encouraged in the kernel.
+Most structs are typedefd, it's yest encouraged in the kernel.
 
-13) Get rid of all non essential global structures and create a proper per
+13) Get rid of all yesn essential global structures and create a proper per
 device structure
 
 The first thing one generally sees in a probe function is a memory allocation

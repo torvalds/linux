@@ -5,7 +5,7 @@ In-kernel memory-mapped I/O tracing
 
 Home page and links to optional user space tools:
 
-	http://nouveau.freedesktop.org/wiki/MmioTrace
+	http://yesuveau.freedesktop.org/wiki/MmioTrace
 
 MMIO tracing was originally developed by Intel around 2003 for their Fault
 Injection Test Harness. In Dec 2006 - Jan 2007, using the code from Intel,
@@ -24,11 +24,11 @@ Preparation
 -----------
 
 Mmiotrace feature is compiled in by the CONFIG_MMIOTRACE option. Tracing is
-disabled by default, so it is safe to have this set to yes. SMP systems are
+disabled by default, so it is safe to have this set to no. SMP systems are
 supported, but tracing is unreliable and may miss events if more than one CPU
 is on-line, therefore mmiotrace takes all but one CPU off-line during run-time
 activation. You can re-enable CPUs by hand, but you have been warned, there
-is no way to automatically detect if you are losing events due to CPUs racing.
+is yes way to automatically detect if you are losing events due to CPUs racing.
 
 
 Usage Quick Reference
@@ -40,7 +40,7 @@ Usage Quick Reference
 	$ cat /sys/kernel/debug/tracing/trace_pipe > mydump.txt &
 	Start X or whatever.
 	$ echo "X is up" > /sys/kernel/debug/tracing/trace_marker
-	$ echo nop > /sys/kernel/debug/tracing/current_tracer
+	$ echo yesp > /sys/kernel/debug/tracing/current_tracer
 	Check for lost events.
 
 
@@ -48,11 +48,11 @@ Usage
 -----
 
 Make sure debugfs is mounted to /sys/kernel/debug.
-If not (requires root privileges)::
+If yest (requires root privileges)::
 
 	$ mount -t debugfs debugfs /sys/kernel/debug
 
-Check that the driver you are about to trace is not loaded.
+Check that the driver you are about to trace is yest loaded.
 
 Activate mmiotrace (requires root privileges)::
 
@@ -75,12 +75,12 @@ do.
 
 Shut down mmiotrace (requires root privileges)::
 
-	$ echo nop > /sys/kernel/debug/tracing/current_tracer
+	$ echo yesp > /sys/kernel/debug/tracing/current_tracer
 
-The 'cat' process exits. If it does not, kill it by issuing 'fg' command and
+The 'cat' process exits. If it does yest, kill it by issuing 'fg' command and
 pressing ctrl+c.
 
-Check that mmiotrace did not lose events due to a buffer filling up. Either::
+Check that mmiotrace did yest lose events due to a buffer filling up. Either::
 
 	$ grep -i lost mydump.txt
 
@@ -121,20 +121,20 @@ Access to hardware IO-memory is gained by mapping addresses from PCI bus by
 calling one of the ioremap_*() functions. Mmiotrace is hooked into the
 __ioremap() function and gets called whenever a mapping is created. Mapping is
 an event that is recorded into the trace log. Note that ISA range mappings
-are not caught, since the mapping always exists and is returned directly.
+are yest caught, since the mapping always exists and is returned directly.
 
 MMIO accesses are recorded via page faults. Just before __ioremap() returns,
-the mapped pages are marked as not present. Any access to the pages causes a
+the mapped pages are marked as yest present. Any access to the pages causes a
 fault. The page fault handler calls mmiotrace to handle the fault. Mmiotrace
 marks the page present, sets TF flag to achieve single stepping and exits the
 fault handler. The instruction that faulted is executed and debug trap is
-entered. Here mmiotrace again marks the page as not present. The instruction
+entered. Here mmiotrace again marks the page as yest present. The instruction
 is decoded to get the type of operation (read/write), data width and the value
 read or written. These are stored to the trace log.
 
 Setting the page present in the page fault handler has a race condition on SMP
 machines. During the single stepping other CPUs may run freely on that page
-and events can be missed without a notice. Re-enabling other CPUs during
+and events can be missed without a yestice. Re-enabling other CPUs during
 tracing is discouraged.
 
 
@@ -163,8 +163,8 @@ Timestamp is in seconds with decimals. Physical is a PCI bus address, virtual
 is a kernel virtual address. Width is the data width in bytes and value is the
 data value. Map id is an arbitrary id number identifying the mapping that was
 used in an operation. PC is the program counter and PID is process id. PC is
-zero if it is not recorded. PID is always zero as tracing MMIO accesses
-originating in user space memory is not yet supported.
+zero if it is yest recorded. PID is always zero as tracing MMIO accesses
+originating in user space memory is yest yet supported.
 
 For instance, the following awk filter will pass all 32-bit writes that target
 physical addresses in the range [0xfb73ce40, 0xfb800000]

@@ -2,7 +2,7 @@
 /*
  * Device tree for LEGO MINDSTORMS EV3
  *
- * Copyright (C) 2017 David Lechner <david@lechnology.com>
+ * Copyright (C) 2017 David Lechner <david@lechyeslogy.com>
  */
 
 /dts-v1/;
@@ -195,12 +195,12 @@
 
 		/*
 		 * The I2C bootloader looks for this magic value to either
-		 * boot normally or boot into a firmware update mode.
+		 * boot yesrmally or boot into a firmware update mode.
 		 */
 		reboot-mode {
 			compatible = "syscon-reboot-mode";
 			offset = <0x1ffc>;
-			mode-normal = <0x00000000>;
+			mode-yesrmal = <0x00000000>;
 			mode-loader = <0x5555aaaa>;
 		};
 	};
@@ -337,7 +337,7 @@
 	pinctrl-0 = <&spi0_pins>, <&spi0_cs0_pin>, <&spi0_cs3_pin>;
 
 	flash@0 {
-		compatible = "n25q128a13", "jedec,spi-nor";
+		compatible = "n25q128a13", "jedec,spi-yesr";
 		reg = <0>;
 		spi-max-frequency = <50000000>;
 		ti,spi-wdelay = <8>;
@@ -427,7 +427,7 @@
 
 	/*
 	 * There is a PIC microcontroller for interfacing with an Apple MFi
-	 * chip. This interferes with normal Bluetooth operation, so we need
+	 * chip. This interferes with yesrmal Bluetooth operation, so we need
 	 * to make sure it is turned off. Note: The publicly available
 	 * schematics from LEGO don't show that these pins are connected to
 	 * anything, but they are present in the source code from LEGO.

@@ -80,7 +80,7 @@ static int socfpga_clk_prepare(struct clk_hw *hwclk)
 			regmap_write(socfpgaclk->sys_mgr_base_addr,
 				     SYSMGR_SDMMCGRP_CTRL_OFFSET, hs_timing);
 		else
-			pr_err("%s: cannot set clk_phase because sys_mgr_base_addr is not available!\n",
+			pr_err("%s: canyest set clk_phase because sys_mgr_base_addr is yest available!\n",
 					__func__);
 	}
 	return 0;
@@ -91,7 +91,7 @@ static struct clk_ops gateclk_ops = {
 	.recalc_rate = socfpga_gate_clk_recalc_rate,
 };
 
-static void __init __socfpga_gate_init(struct device_node *node,
+static void __init __socfpga_gate_init(struct device_yesde *yesde,
 	const struct clk_ops *ops)
 {
 	u32 clk_gate[2];
@@ -100,7 +100,7 @@ static void __init __socfpga_gate_init(struct device_node *node,
 	u32 fixed_div;
 	struct clk *clk;
 	struct socfpga_gate_clk *socfpga_clk;
-	const char *clk_name = node->name;
+	const char *clk_name = yesde->name;
 	const char *parent_name[SOCFPGA_MAX_PARENTS];
 	struct clk_init_data init;
 	int rc;
@@ -109,7 +109,7 @@ static void __init __socfpga_gate_init(struct device_node *node,
 	if (WARN_ON(!socfpga_clk))
 		return;
 
-	rc = of_property_read_u32_array(node, "clk-gate", clk_gate, 2);
+	rc = of_property_read_u32_array(yesde, "clk-gate", clk_gate, 2);
 	if (rc)
 		clk_gate[0] = 0;
 
@@ -121,13 +121,13 @@ static void __init __socfpga_gate_init(struct device_node *node,
 		gateclk_ops.disable = clk_gate_ops.disable;
 	}
 
-	rc = of_property_read_u32(node, "fixed-divider", &fixed_div);
+	rc = of_property_read_u32(yesde, "fixed-divider", &fixed_div);
 	if (rc)
 		socfpga_clk->fixed_div = 0;
 	else
 		socfpga_clk->fixed_div = fixed_div;
 
-	rc = of_property_read_u32_array(node, "div-reg", div_reg, 3);
+	rc = of_property_read_u32_array(yesde, "div-reg", div_reg, 3);
 	if (!rc) {
 		socfpga_clk->div_reg = clk_mgr_a10_base_addr + div_reg[0];
 		socfpga_clk->shift = div_reg[1];
@@ -136,7 +136,7 @@ static void __init __socfpga_gate_init(struct device_node *node,
 		socfpga_clk->div_reg = NULL;
 	}
 
-	rc = of_property_read_u32_array(node, "clk-phase", clk_phase, 2);
+	rc = of_property_read_u32_array(yesde, "clk-phase", clk_phase, 2);
 	if (!rc) {
 		socfpga_clk->clk_phase[0] = clk_phase[0];
 		socfpga_clk->clk_phase[1] = clk_phase[1];
@@ -150,13 +150,13 @@ static void __init __socfpga_gate_init(struct device_node *node,
 		}
 	}
 
-	of_property_read_string(node, "clock-output-names", &clk_name);
+	of_property_read_string(yesde, "clock-output-names", &clk_name);
 
 	init.name = clk_name;
 	init.ops = ops;
 	init.flags = 0;
 
-	init.num_parents = of_clk_parent_fill(node, parent_name, SOCFPGA_MAX_PARENTS);
+	init.num_parents = of_clk_parent_fill(yesde, parent_name, SOCFPGA_MAX_PARENTS);
 	init.parent_names = parent_name;
 	socfpga_clk->hw.hw.init = &init;
 
@@ -165,12 +165,12 @@ static void __init __socfpga_gate_init(struct device_node *node,
 		kfree(socfpga_clk);
 		return;
 	}
-	rc = of_clk_add_provider(node, of_clk_src_simple_get, clk);
+	rc = of_clk_add_provider(yesde, of_clk_src_simple_get, clk);
 	if (WARN_ON(rc))
 		return;
 }
 
-void __init socfpga_a10_gate_init(struct device_node *node)
+void __init socfpga_a10_gate_init(struct device_yesde *yesde)
 {
-	__socfpga_gate_init(node, &gateclk_ops);
+	__socfpga_gate_init(yesde, &gateclk_ops);
 }

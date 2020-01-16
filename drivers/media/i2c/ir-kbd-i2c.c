@@ -3,9 +3,9 @@
  *
  * keyboard input driver for i2c IR remote controls
  *
- * Copyright (c) 2000-2003 Gerd Knorr <kraxel@bytesex.org>
+ * Copyright (c) 2000-2003 Gerd Kyesrr <kraxel@bytesex.org>
  * modified for PixelView (BT878P+W/FM) by
- *      Michal Kochanowicz <mkochano@pld.org.pl>
+ *      Michal Kochayeswicz <mkochayes@pld.org.pl>
  *      Christoph Bartelmus <lirc@bartelmus.de>
  * modified for KNC ONE TV Station/Anubis Typhoon TView Tuner by
  *      Ulrich Mueller <ulrich.mueller42@web.de>
@@ -23,8 +23,8 @@
  *  - drivers/char/pctv_zilogir.[ch] from Hauppauge Broadway product
  *	Copyright 2011 Hauppauge Computer works
  *  - drivers/staging/media/lirc/lirc_zilog.c
- *	Copyright (c) 2000 Gerd Knorr <kraxel@goldbach.in-berlin.de>
- *	Michal Kochanowicz <mkochano@pld.org.pl>
+ *	Copyright (c) 2000 Gerd Kyesrr <kraxel@goldbach.in-berlin.de>
+ *	Michal Kochayeswicz <mkochayes@pld.org.pl>
  *	Christoph Bartelmus <lirc@bartelmus.de>
  *	Ulrich Mueller <ulrich.mueller42@web.de>
  *	Stefan Jahn <stefan@lkcc.org>
@@ -42,7 +42,7 @@
 #include <linux/string.h>
 #include <linux/timer.h>
 #include <linux/delay.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/slab.h>
 #include <linux/i2c.h>
 #include <linux/workqueue.h>
@@ -82,7 +82,7 @@ static int get_key_haup_common(struct IR_i2c *ir, enum rc_proto *protocol,
 		 * 1 = 0-63, 0 = 64 - 127
 		 */
 		if (!start)
-			/* no key pressed */
+			/* yes key pressed */
 			return 0;
 
 		/* filter out invalid key presses */
@@ -194,7 +194,7 @@ static int get_key_fusionhdtv(struct IR_i2c *ir, enum rc_proto *protocol,
 	if (buf[0] != 0 || buf[1] != 0 || buf[2] != 0 || buf[3] != 0)
 		dev_dbg(&ir->rc->dev, "%s: %*ph\n", __func__, 4, buf);
 
-	/* no key pressed or signal from other ir remote */
+	/* yes key pressed or signal from other ir remote */
 	if(buf[0] != 0x1 ||  buf[1] != 0xfe)
 		return 0;
 
@@ -220,7 +220,7 @@ static int get_key_knc1(struct IR_i2c *ir, enum rc_proto *protocol,
 	}
 
 	/* it seems that 0xFE indicates that a button is still hold
-	   down, while 0xff indicates that no button is hold
+	   down, while 0xff indicates that yes button is hold
 	   down. 0xfe sequences are sometimes interrupted by 0xFF */
 
 	dev_dbg(&ir->rc->dev, "key %02x\n", b);
@@ -356,16 +356,16 @@ static void ir_close(struct rc_dev *dev)
 
 /*
  * As you can see here, very few different lengths of pulse and space
- * can be encoded. This means that the hardware does not work well with
+ * can be encoded. This means that the hardware does yest work well with
  * recorded IR. It's best to work with generated IR, like from ir-ctl or
  * the in-kernel encoders.
  */
 struct code_block {
 	u8	length;
-	u16	pulse[7];	/* not aligned */
+	u16	pulse[7];	/* yest aligned */
 	u8	carrier_pulse;
 	u8	carrier_space;
-	u16	space[8];	/* not aligned */
+	u16	space[8];	/* yest aligned */
 	u8	codes[61];
 	u8	csum[2];
 } __packed;
@@ -446,7 +446,7 @@ static int zilog_init(struct IR_i2c *ir)
 
 /*
  * If the last slot for pulse is the same as the current slot for pulse,
- * then use slot no 7.
+ * then use slot yes 7.
  */
 static void copy_codes(u8 *dst, u8 *src, unsigned int count)
 {
@@ -467,7 +467,7 @@ static void copy_codes(u8 *dst, u8 *src, unsigned int count)
  * When looking for repeats, we don't care about the trailing space. This
  * is set to the shortest possible anyway.
  */
-static int cmp_no_trail(u8 *a, u8 *b, unsigned int count)
+static int cmp_yes_trail(u8 *a, u8 *b, unsigned int count)
 {
 	while (--count) {
 		if (*a++ != *b++)
@@ -508,12 +508,12 @@ static int zilog_ir_format(struct rc_dev *rcdev, unsigned int *txbuf,
 
 	for (i = 0; i < count; i++) {
 		if (c >= ARRAY_SIZE(codes) - 1) {
-			dev_warn(&rcdev->dev, "IR too long, cannot transmit\n");
+			dev_warn(&rcdev->dev, "IR too long, canyest transmit\n");
 			return -EINVAL;
 		}
 
 		/*
-		 * Lengths more than 142220us cannot be encoded; also
+		 * Lengths more than 142220us canyest be encoded; also
 		 * this checks for multiply overflow
 		 */
 		if (txbuf[i] > 142220)
@@ -525,7 +525,7 @@ static int zilog_ir_format(struct rc_dev *rcdev, unsigned int *txbuf,
 			s = find_slot(code_block->space,
 				      ARRAY_SIZE(code_block->space), l);
 			if (s == -1) {
-				dev_warn(&rcdev->dev, "Too many different lengths spaces, cannot transmit");
+				dev_warn(&rcdev->dev, "Too many different lengths spaces, canyest transmit");
 				return -EINVAL;
 			}
 
@@ -535,7 +535,7 @@ static int zilog_ir_format(struct rc_dev *rcdev, unsigned int *txbuf,
 			p = find_slot(code_block->pulse,
 				      ARRAY_SIZE(code_block->pulse), l);
 			if (p == -1) {
-				dev_warn(&rcdev->dev, "Too many different lengths pulses, cannot transmit");
+				dev_warn(&rcdev->dev, "Too many different lengths pulses, canyest transmit");
 				return -EINVAL;
 			}
 		}
@@ -563,18 +563,18 @@ static int zilog_ir_format(struct rc_dev *rcdev, unsigned int *txbuf,
 
 	for (rep = c / 3; rep >= 1; rep--) {
 		if (!memcmp(&codes[c - rep * 3], &codes[c - rep * 2], rep) &&
-		    !cmp_no_trail(&codes[c - rep], &codes[c - rep * 2], rep)) {
+		    !cmp_yes_trail(&codes[c - rep], &codes[c - rep * 2], rep)) {
 			repeating = true;
 			break;
 		}
 	}
 
 	if (repeating) {
-		/* first copy any leading non-repeating */
+		/* first copy any leading yesn-repeating */
 		int leading = c - rep * 3;
 
 		if (leading >= ARRAY_SIZE(code_block->codes) - 3 - rep) {
-			dev_warn(&rcdev->dev, "IR too long, cannot transmit\n");
+			dev_warn(&rcdev->dev, "IR too long, canyest transmit\n");
 			return -EINVAL;
 		}
 
@@ -587,11 +587,11 @@ static int zilog_ir_format(struct rc_dev *rcdev, unsigned int *txbuf,
 		code_block->codes[c++] = 0xc0;
 	} else {
 		if (c >= ARRAY_SIZE(code_block->codes) - 3) {
-			dev_warn(&rcdev->dev, "IR too long, cannot transmit\n");
+			dev_warn(&rcdev->dev, "IR too long, canyest transmit\n");
 			return -EINVAL;
 		}
 
-		dev_dbg(&rcdev->dev, "found no trailing repeat\n");
+		dev_dbg(&rcdev->dev, "found yes trailing repeat\n");
 		code_block->codes[0] = 0x82;
 		copy_codes(code_block->codes + 1, codes, c);
 		c++;
@@ -733,7 +733,7 @@ static int ir_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	int err;
 
 	if ((id->driver_data & FLAG_HDPVR) && !enable_hdpvr) {
-		dev_err(&client->dev, "IR for HDPVR is known to cause problems during recording, use enable_hdpvr modparam to enable\n");
+		dev_err(&client->dev, "IR for HDPVR is kyeswn to cause problems during recording, use enable_hdpvr modparam to enable\n");
 		return -ENODEV;
 	}
 
@@ -950,6 +950,6 @@ module_i2c_driver(ir_kbd_driver);
 
 /* ----------------------------------------------------------------------- */
 
-MODULE_AUTHOR("Gerd Knorr, Michal Kochanowicz, Christoph Bartelmus, Ulrich Mueller");
+MODULE_AUTHOR("Gerd Kyesrr, Michal Kochayeswicz, Christoph Bartelmus, Ulrich Mueller");
 MODULE_DESCRIPTION("input driver for i2c IR remote controls");
 MODULE_LICENSE("GPL");

@@ -2,7 +2,7 @@
  * This software may be used and distributed according to the terms of
  * the GNU General Public License (GPL), incorporated herein by reference.
  * Drivers based on or derived from this code fall under the GPL and must
- * retain the authorship, copyright and license notice.  This file is not
+ * retain the authorship, copyright and license yestice.  This file is yest
  * a complete program and may only be used when the entire operating
  * system is licensed under the GPL.
  * See the file COPYING in this distribution for more information.
@@ -12,7 +12,7 @@
  * Copyright(c) 2002-2010 Exar Corp.
  ******************************************************************************/
 #include <linux/etherdevice.h>
-#include <linux/io-64-nonatomic-lo-hi.h>
+#include <linux/io-64-yesnatomic-lo-hi.h>
 #include <linux/prefetch.h>
 
 #include "vxge-traffic.h"
@@ -261,7 +261,7 @@ void vxge_hw_vpath_dynamic_tti_rtimer_set(struct __vxge_hw_fifo *fifo)
 			VXGE_HW_TIM_CFG3_INT_NUM_RTIMER_EVENT_SF(5);
 
 	writeq(val64, &fifo->vp_reg->tim_cfg3_int_num[VXGE_HW_VPATH_INTR_TX]);
-	/* tti_cfg3_saved is not updated again because it is
+	/* tti_cfg3_saved is yest updated again because it is
 	 * initialized at one place only - init time.
 	 */
 }
@@ -277,7 +277,7 @@ void vxge_hw_vpath_dynamic_rti_rtimer_set(struct __vxge_hw_ring *ring)
 			VXGE_HW_TIM_CFG3_INT_NUM_RTIMER_EVENT_SF(4);
 
 	writeq(val64, &ring->vp_reg->tim_cfg3_int_num[VXGE_HW_VPATH_INTR_RX]);
-	/* rti_cfg3_saved is not updated again because it is
+	/* rti_cfg3_saved is yest updated again because it is
 	 * initialized at one place only - init time.
 	 */
 }
@@ -532,7 +532,7 @@ __vxge_hw_device_handle_error(struct __vxge_hw_device *hldev, u32 vp_id,
 		goto out;
 	}
 
-	/* notify driver */
+	/* yestify driver */
 	if (hldev->uld_callbacks->crit_err)
 		hldev->uld_callbacks->crit_err(hldev,
 			type, vp_id);
@@ -552,14 +552,14 @@ static enum vxge_hw_status
 __vxge_hw_device_handle_link_down_ind(struct __vxge_hw_device *hldev)
 {
 	/*
-	 * If the previous link state is not down, return.
+	 * If the previous link state is yest down, return.
 	 */
 	if (hldev->link_state == VXGE_HW_LINK_DOWN)
 		goto exit;
 
 	hldev->link_state = VXGE_HW_LINK_DOWN;
 
-	/* notify driver */
+	/* yestify driver */
 	if (hldev->uld_callbacks->link_down)
 		hldev->uld_callbacks->link_down(hldev);
 exit:
@@ -577,14 +577,14 @@ static enum vxge_hw_status
 __vxge_hw_device_handle_link_up_ind(struct __vxge_hw_device *hldev)
 {
 	/*
-	 * If the previous link state is not down, return.
+	 * If the previous link state is yest down, return.
 	 */
 	if (hldev->link_state == VXGE_HW_LINK_UP)
 		goto exit;
 
 	hldev->link_state = VXGE_HW_LINK_UP;
 
-	/* notify driver */
+	/* yestify driver */
 	if (hldev->uld_callbacks->link_up)
 		hldev->uld_callbacks->link_up(hldev);
 exit:
@@ -594,7 +594,7 @@ exit:
 /*
  * __vxge_hw_vpath_alarm_process - Process Alarms.
  * @vpath: Virtual Path.
- * @skip_alarms: Do not clear the alarms
+ * @skip_alarms: Do yest clear the alarms
  *
  * Process vpath alarms.
  *
@@ -635,7 +635,7 @@ __vxge_hw_vpath_alarm_process(struct __vxge_hw_virtualpath *vpath,
 		VXGE_HW_VPATH_GENERAL_INT_STATUS_PCI_INT |
 		VXGE_HW_VPATH_GENERAL_INT_STATUS_WRDMA_INT |
 		VXGE_HW_VPATH_GENERAL_INT_STATUS_XMAC_INT)) {
-		sw_stats->error_stats.unknown_alarms++;
+		sw_stats->error_stats.unkyeswn_alarms++;
 
 		alarm_event = VXGE_HW_SET_LEVEL(VXGE_HW_EVENT_UNKNOWN,
 			alarm_event);
@@ -872,7 +872,7 @@ out2:
 /**
  * vxge_hw_device_begin_irq - Begin IRQ processing.
  * @hldev: HW device handle.
- * @skip_alarms: Do not clear the alarms
+ * @skip_alarms: Do yest clear the alarms
  * @reason: "Reason" for the interrupt, the value of Titan's
  *	general_int_status register.
  *
@@ -880,10 +880,10 @@ out2:
  * interrupt was raised	by the device. Next, it	masks the device interrupts.
  *
  * Note:
- * vxge_hw_device_begin_irq() does not flush MMIO writes through the
+ * vxge_hw_device_begin_irq() does yest flush MMIO writes through the
  * bridge. Therefore, two back-to-back interrupts are potentially possible.
  *
- * Returns: 0, if the interrupt	is not "ours" (note that in this case the
+ * Returns: 0, if the interrupt	is yest "ours" (yeste that in this case the
  * device remain enabled).
  * Otherwise, vxge_hw_device_begin_irq() returns 64bit general adapter
  * status.
@@ -900,7 +900,7 @@ enum vxge_hw_status vxge_hw_device_begin_irq(struct __vxge_hw_device *hldev,
 	val64 = readq(&hldev->common_reg->titan_general_int_status);
 
 	if (unlikely(!val64)) {
-		/* not Titan interrupt	*/
+		/* yest Titan interrupt	*/
 		*reason	= 0;
 		ret = VXGE_HW_ERR_WRONG_IRQ;
 		goto exit;
@@ -934,7 +934,7 @@ enum vxge_hw_status vxge_hw_device_begin_irq(struct __vxge_hw_device *hldev,
 		return VXGE_HW_OK;
 	}
 
-	hldev->stats.sw_dev_info_stats.not_traffic_intr_cnt++;
+	hldev->stats.sw_dev_info_stats.yest_traffic_intr_cnt++;
 
 	if (unlikely(val64 &
 			VXGE_HW_TITAN_GENERAL_INT_STATUS_VPATH_ALARM_INT)) {
@@ -965,11 +965,11 @@ exit:
 }
 
 /**
- * vxge_hw_device_clear_tx_rx - Acknowledge (that is, clear) the
+ * vxge_hw_device_clear_tx_rx - Ackyeswledge (that is, clear) the
  * condition that has caused the Tx and RX interrupt.
  * @hldev: HW device.
  *
- * Acknowledge (that is, clear) the condition that has caused
+ * Ackyeswledge (that is, clear) the condition that has caused
  * the Tx and Rx interrupt.
  * See also: vxge_hw_device_begin_irq(),
  * vxge_hw_device_mask_tx_rx(), vxge_hw_device_unmask_tx_rx().
@@ -1015,8 +1015,8 @@ _alloc_after_swap:
 	/* switch between empty	and full arrays	*/
 
 	/* the idea behind such	a design is that by having free	and reserved
-	 * arrays separated we basically separated irq and non-irq parts.
-	 * i.e.	no additional lock need	to be done when	we free	a resource */
+	 * arrays separated we basically separated irq and yesn-irq parts.
+	 * i.e.	yes additional lock need	to be done when	we free	a resource */
 
 	if (channel->length - channel->free_ptr > 0) {
 		swap(channel->reserve_arr, channel->free_arr);
@@ -1107,7 +1107,7 @@ void vxge_hw_channel_dtr_free(struct __vxge_hw_channel *channel, void *dtrh)
  * vxge_hw_channel_dtr_count
  * @channel: Channel handle. Obtained via vxge_hw_channel_open().
  *
- * Retrieve number of DTRs available. This function can not be called
+ * Retrieve number of DTRs available. This function can yest be called
  * from data path. ring_initial_replenishi() is the only user.
  */
 int vxge_hw_channel_dtr_count(struct __vxge_hw_channel *channel)
@@ -1127,7 +1127,7 @@ int vxge_hw_channel_dtr_count(struct __vxge_hw_channel *channel)
  * via vxge_hw_ring_rxd_post().
  *
  * Returns: VXGE_HW_OK - success.
- * VXGE_HW_INF_OUT_OF_DESCRIPTORS - Currently no descriptors available.
+ * VXGE_HW_INF_OUT_OF_DESCRIPTORS - Currently yes descriptors available.
  *
  */
 enum vxge_hw_status vxge_hw_ring_rxd_reserve(struct __vxge_hw_ring *ring,
@@ -1264,7 +1264,7 @@ void vxge_hw_ring_rxd_post_post_wmb(struct __vxge_hw_ring *ring, void *rxdh)
  *	 Receive Descriptor Format. Returned by HW.
  *
  * Retrieve the	_next_ completed descriptor.
- * HW uses ring callback (*vxge_hw_ring_callback_f) to notifiy
+ * HW uses ring callback (*vxge_hw_ring_callback_f) to yestifiy
  * driver of new completed descriptors. After that
  * the driver can use vxge_hw_ring_rxd_next_completed to retrieve the rest
  * completions (the very first completion is passed by HW via
@@ -1279,7 +1279,7 @@ void vxge_hw_ring_rxd_post_post_wmb(struct __vxge_hw_ring *ring, void *rxdh)
  * of the descriptor.
  * For instance, parity	error detected during the data transfer.
  * In this case	Titan will complete the descriptor and indicate
- * for the host	that the received data is not to be used.
+ * for the host	that the received data is yest to be used.
  * For details please refer to Titan User Guide.
  *
  * Returns: VXGE_HW_OK - success.
@@ -1311,7 +1311,7 @@ enum vxge_hw_status vxge_hw_ring_rxd_next_completed(
 	own = control_0 & VXGE_HW_RING_RXD_LIST_OWN_ADAPTER;
 	*t_code	= (u8)VXGE_HW_RING_RXD_T_CODE_GET(control_0);
 
-	/* check whether it is not the end */
+	/* check whether it is yest the end */
 	if (!own || *t_code == VXGE_HW_RING_T_CODE_FRM_DROP) {
 
 		vxge_assert((rxdp)->host_control !=
@@ -1359,9 +1359,9 @@ enum vxge_hw_status vxge_hw_ring_handle_tcode(
 {
 	enum vxge_hw_status status = VXGE_HW_OK;
 
-	/* If the t_code is not supported and if the
+	/* If the t_code is yest supported and if the
 	 * t_code is other than 0x5 (unparseable packet
-	 * such as unknown UPV6 header), Drop it !!!
+	 * such as unkyeswn UPV6 header), Drop it !!!
 	 */
 
 	if (t_code ==  VXGE_HW_RING_T_CODE_OK ||
@@ -1381,31 +1381,31 @@ exit:
 }
 
 /**
- * __vxge_hw_non_offload_db_post - Post non offload doorbell
+ * __vxge_hw_yesn_offload_db_post - Post yesn offload doorbell
  *
  * @fifo: fifohandle
  * @txdl_ptr: The starting location of the TxDL in host memory
  * @num_txds: The highest TxD in this TxDL (0 to 255 means 1 to 256)
- * @no_snoop: No snoop flags
+ * @yes_syesop: No syesop flags
  *
- * This function posts a non-offload doorbell to doorbell FIFO
+ * This function posts a yesn-offload doorbell to doorbell FIFO
  *
  */
-static void __vxge_hw_non_offload_db_post(struct __vxge_hw_fifo *fifo,
-	u64 txdl_ptr, u32 num_txds, u32 no_snoop)
+static void __vxge_hw_yesn_offload_db_post(struct __vxge_hw_fifo *fifo,
+	u64 txdl_ptr, u32 num_txds, u32 yes_syesop)
 {
 	writeq(VXGE_HW_NODBW_TYPE(VXGE_HW_NODBW_TYPE_NODBW) |
 		VXGE_HW_NODBW_LAST_TXD_NUMBER(num_txds) |
-		VXGE_HW_NODBW_GET_NO_SNOOP(no_snoop),
-		&fifo->nofl_db->control_0);
+		VXGE_HW_NODBW_GET_NO_SNOOP(yes_syesop),
+		&fifo->yesfl_db->control_0);
 
-	writeq(txdl_ptr, &fifo->nofl_db->txdl_ptr);
+	writeq(txdl_ptr, &fifo->yesfl_db->txdl_ptr);
 }
 
 /**
  * vxge_hw_fifo_free_txdl_count_get - returns the number of txdls available in
  * the fifo
- * @fifoh: Handle to the fifo object used for non offload send
+ * @fifoh: Handle to the fifo object used for yesn offload send
  */
 u32 vxge_hw_fifo_free_txdl_count_get(struct __vxge_hw_fifo *fifoh)
 {
@@ -1414,7 +1414,7 @@ u32 vxge_hw_fifo_free_txdl_count_get(struct __vxge_hw_fifo *fifoh)
 
 /**
  * vxge_hw_fifo_txdl_reserve - Reserve fifo descriptor.
- * @fifoh: Handle to the fifo object used for non offload send
+ * @fifoh: Handle to the fifo object used for yesn offload send
  * @txdlh: Reserved descriptor. On success HW fills this "out" parameter
  *        with a valid handle.
  * @txdl_priv: Buffer to return the pointer to per txdl space
@@ -1429,7 +1429,7 @@ u32 vxge_hw_fifo_free_txdl_count_get(struct __vxge_hw_fifo *fifoh)
  * carries up to configured number (fifo.max_frags) of contiguous buffers.
  *
  * Returns: VXGE_HW_OK - success;
- * VXGE_HW_INF_OUT_OF_DESCRIPTORS - Currently no descriptors available
+ * VXGE_HW_INF_OUT_OF_DESCRIPTORS - Currently yes descriptors available
  *
  */
 enum vxge_hw_status vxge_hw_fifo_txdl_reserve(
@@ -1473,7 +1473,7 @@ enum vxge_hw_status vxge_hw_fifo_txdl_reserve(
 /**
  * vxge_hw_fifo_txdl_buffer_set - Set transmit buffer pointer in the
  * descriptor.
- * @fifo: Handle to the fifo object used for non offload send
+ * @fifo: Handle to the fifo object used for yesn offload send
  * @txdlh: Descriptor handle.
  * @frag_idx: Index of the data buffer in the caller's scatter-gather list
  *            (of buffers).
@@ -1523,7 +1523,7 @@ void vxge_hw_fifo_txdl_buffer_set(struct __vxge_hw_fifo *fifo,
 
 /**
  * vxge_hw_fifo_txdl_post - Post descriptor on the fifo channel.
- * @fifo: Handle to the fifo object used for non offload send
+ * @fifo: Handle to the fifo object used for yesn offload send
  * @txdlh: Descriptor obtained via vxge_hw_fifo_txdl_reserve()
  * @frags: Number of contiguous buffers that are part of a single
  *         transmit operation.
@@ -1549,10 +1549,10 @@ void vxge_hw_fifo_txdl_post(struct __vxge_hw_fifo *fifo, void *txdlh)
 
 	vxge_hw_channel_dtr_post(&fifo->channel, txdlh);
 
-	__vxge_hw_non_offload_db_post(fifo,
+	__vxge_hw_yesn_offload_db_post(fifo,
 		(u64)txdl_priv->dma_addr,
 		txdl_priv->frags - 1,
-		fifo->no_snoop_bits);
+		fifo->yes_syesop_bits);
 
 	fifo->stats->total_posts++;
 	fifo->stats->common_stats.usage_cnt++;
@@ -1564,14 +1564,14 @@ void vxge_hw_fifo_txdl_post(struct __vxge_hw_fifo *fifo, void *txdlh)
 
 /**
  * vxge_hw_fifo_txdl_next_completed - Retrieve next completed descriptor.
- * @fifo: Handle to the fifo object used for non offload send
+ * @fifo: Handle to the fifo object used for yesn offload send
  * @txdlh: Descriptor handle. Returned by HW.
  * @t_code: Transfer code, as per Titan User Guide,
  *          Transmit Descriptor Format.
  *          Returned by HW.
  *
  * Retrieve the _next_ completed descriptor.
- * HW uses channel callback (*vxge_hw_channel_callback_f) to notifiy
+ * HW uses channel callback (*vxge_hw_channel_callback_f) to yestifiy
  * driver of new completed descriptors. After that
  * the driver can use vxge_hw_fifo_txdl_next_completed to retrieve the rest
  * completions (the very first completion is passed by HW via
@@ -1585,7 +1585,7 @@ void vxge_hw_fifo_txdl_post(struct __vxge_hw_fifo *fifo, void *txdlh)
  * Non-zero @t_code means failure to process the descriptor.
  * The failure could happen, for instance, when the link is
  * down, in which case Titan completes the descriptor because it
- * is not able to send the data out.
+ * is yest able to send the data out.
  *
  * For details please refer to Titan User Guide.
  *
@@ -1628,7 +1628,7 @@ enum vxge_hw_status vxge_hw_fifo_txdl_next_completed(
 		goto exit;
 	}
 
-	/* no more completions */
+	/* yes more completions */
 	*txdlh = NULL;
 	status = VXGE_HW_INF_NO_MORE_COMPLETED_DESCRIPTORS;
 exit:
@@ -1637,7 +1637,7 @@ exit:
 
 /**
  * vxge_hw_fifo_handle_tcode - Handle transfer code.
- * @fifo: Handle to the fifo object used for non offload send
+ * @fifo: Handle to the fifo object used for yesn offload send
  * @txdlh: Descriptor handle.
  * @t_code: One of the enumerated (and documented in the Titan user guide)
  *          "transfer codes".
@@ -1667,7 +1667,7 @@ exit:
 
 /**
  * vxge_hw_fifo_txdl_free - Free descriptor.
- * @fifo: Handle to the fifo object used for non offload send
+ * @fifo: Handle to the fifo object used for yesn offload send
  * @txdlh: Descriptor handle.
  *
  * Free the reserved descriptor. This operation is "symmetrical" to
@@ -2147,7 +2147,7 @@ exit:
 /*
  * vxge_hw_vpath_alarm_process - Process Alarms.
  * @vpath: Virtual Path.
- * @skip_alarms: Do not clear the alarms
+ * @skip_alarms: Do yest clear the alarms
  *
  * Process vpath alarms.
  *
@@ -2173,7 +2173,7 @@ exit:
  *                            alrms
  * @vp: Virtual Path handle.
  * @tim_msix_id: MSIX vectors associated with VXGE_HW_MAX_INTR_PER_VP number of
- *             interrupts(Can be repeated). If fifo or ring are not enabled
+ *             interrupts(Can be repeated). If fifo or ring are yest enabled
  *             the MSIX vector for that should be set to 0
  * @alarm_msix_id: MSIX vector for alarm.
  *
@@ -2415,7 +2415,7 @@ enum vxge_hw_status vxge_hw_vpath_poll_rx(struct __vxge_hw_ring *ring)
 /**
  * vxge_hw_vpath_poll_tx - Poll Tx for completed descriptors and process
  * the same.
- * @fifo: Handle to the fifo object used for non offload send
+ * @fifo: Handle to the fifo object used for yesn offload send
  *
  * The function polls the Tx for the completed descriptors and calls
  * the driver via supplied completion callback.

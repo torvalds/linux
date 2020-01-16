@@ -774,12 +774,12 @@ static void venc_uninit_output(struct venc_device *venc)
 
 static int venc_probe_of(struct venc_device *venc)
 {
-	struct device_node *node = venc->pdev->dev.of_node;
-	struct device_node *ep;
+	struct device_yesde *yesde = venc->pdev->dev.of_yesde;
+	struct device_yesde *ep;
 	u32 channels;
 	int r;
 
-	ep = of_graph_get_endpoint_by_regs(node, 0, 0);
+	ep = of_graph_get_endpoint_by_regs(yesde, 0, 0);
 	if (!ep)
 		return 0;
 
@@ -806,12 +806,12 @@ static int venc_probe_of(struct venc_device *venc)
 		goto err;
 	}
 
-	of_node_put(ep);
+	of_yesde_put(ep);
 
 	return 0;
 
 err:
-	of_node_put(ep);
+	of_yesde_put(ep);
 	return r;
 }
 

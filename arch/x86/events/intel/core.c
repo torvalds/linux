@@ -234,7 +234,7 @@ static struct extra_reg intel_skl_extra_regs[] __read_mostly = {
 	INTEL_UEVENT_EXTRA_REG(0x01bb, MSR_OFFCORE_RSP_1, 0x3fffff8fffull, RSP_1),
 	INTEL_UEVENT_PEBS_LDLAT_EXTRA_REG(0x01cd),
 	/*
-	 * Note the low 8 bits eventsel code is not a continuous field, containing
+	 * Note the low 8 bits eventsel code is yest a continuous field, containing
 	 * some #GPing bits. These are masked out.
 	 */
 	INTEL_UEVENT_EXTRA_REG(0x01c6, MSR_PEBS_FRONTEND, 0x7fff17, FE),
@@ -302,7 +302,7 @@ EVENT_ATTR_STR(topdown-slots-issued, td_slots_issued,
 EVENT_ATTR_STR(topdown-slots-retired, td_slots_retired,
 	"event=0xc2,umask=0x2");		/* uops_retired.retire_slots */
 EVENT_ATTR_STR(topdown-fetch-bubbles, td_fetch_bubbles,
-	"event=0x9c,umask=0x1");		/* idq_uops_not_delivered_core */
+	"event=0x9c,umask=0x1");		/* idq_uops_yest_delivered_core */
 EVENT_ATTR_STR_HT(topdown-recovery-bubbles, td_recovery_bubbles,
 	"event=0xd,umask=0x3,cmask=1",		/* int_misc.recovery_cycles */
 	"event=0xd,umask=0x3,cmask=1,any=1");	/* int_misc.recovery_cycles_any */
@@ -375,11 +375,11 @@ static u64 intel_pmu_event_map(int hw_event)
 
 /*
  * Notes on the events:
- * - data reads do not include code reads (comparable to earlier tables)
+ * - data reads do yest include code reads (comparable to earlier tables)
  * - data counts include speculative execution (except L1 write, dtlb, bpu)
- * - remote node access includes remote memory, remote cache, remote mmio.
- * - prefetches are not included in the counts.
- * - icache miss does not include decoded icache
+ * - remote yesde access includes remote memory, remote cache, remote mmio.
+ * - prefetches are yest included in the counts.
+ * - icache miss does yest include decoded icache
  */
 
 #define SKL_DEMAND_DATA_RD		BIT_ULL(0)
@@ -759,10 +759,10 @@ static __initconst const u64 snb_hw_cache_event_ids
 
 /*
  * Notes on the events:
- * - data reads do not include code reads (comparable to earlier tables)
+ * - data reads do yest include code reads (comparable to earlier tables)
  * - data counts include speculative execution (except L1 write, dtlb, bpu)
- * - remote node access includes remote memory, remote cache, remote mmio.
- * - prefetches are not included in the counts because they are not
+ * - remote yesde access includes remote memory, remote cache, remote mmio.
+ * - prefetches are yest included in the counts because they are yest
  *   reliably counted.
  */
 
@@ -994,7 +994,7 @@ static __initconst const u64 westmere_hw_cache_event_ids
 		[ C(RESULT_MISS)   ] = 0x01b7,
 	},
 	/*
-	 * Use RFO, not WRITEBACK, because a write miss would typically occur
+	 * Use RFO, yest WRITEBACK, because a write miss would typically occur
 	 * on RFO.
 	 */
 	[ C(OP_WRITE) ] = {
@@ -1177,7 +1177,7 @@ static __initconst const u64 nehalem_hw_cache_event_ids
 		[ C(RESULT_MISS)   ] = 0x01b7,
 	},
 	/*
-	 * Use RFO, not WRITEBACK, because a write miss would typically occur
+	 * Use RFO, yest WRITEBACK, because a write miss would typically occur
 	 * on RFO.
 	 */
 	[ C(OP_WRITE) ] = {
@@ -1435,7 +1435,7 @@ static __initconst const u64 atom_hw_cache_event_ids
 
 EVENT_ATTR_STR(topdown-total-slots, td_total_slots_slm, "event=0x3c");
 EVENT_ATTR_STR(topdown-total-slots.scale, td_total_slots_scale_slm, "2");
-/* no_alloc_cycles.not_delivered */
+/* yes_alloc_cycles.yest_delivered */
 EVENT_ATTR_STR(topdown-fetch-bubbles, td_fetch_bubbles_slm,
 	       "event=0xca,umask=0x50");
 EVENT_ATTR_STR(topdown-fetch-bubbles.scale, td_fetch_bubbles_scale_slm, "2");
@@ -1943,7 +1943,7 @@ static __initconst const u64 knl_hw_cache_extra_regs
  * registers, so the PMU state remains unchanged.
  *
  * intel_bts events don't coexist with intel PMU's BTS events because of
- * x86_add_exclusive(x86_lbr_exclusive_lbr); there's no need to keep them
+ * x86_add_exclusive(x86_lbr_exclusive_lbr); there's yes need to keep them
  * disabled around intel PMU's event batching etc, only inside the PMI handler.
  */
 static void __intel_pmu_disable_all(void)
@@ -1997,7 +1997,7 @@ static void intel_pmu_enable_all(int added)
  *
  * The official story:
  *   These chips need to be 'reset' when adding counters by programming the
- *   magic three (non-counting) events 0x4300B5, 0x4300D2, and 0x4300B1 either
+ *   magic three (yesn-counting) events 0x4300B5, 0x4300D2, and 0x4300B1 either
  *   in sequence on the same PMC or on different PMCs.
  *
  * In practise it appears some of these events do in fact count, and
@@ -2032,7 +2032,7 @@ static void intel_pmu_nhm_workaround(void)
 	 * B) Call x86_perf_event_update to save PMCx before configuring
 	 *    PERFEVTSELx with magic number;
 	 * C) With step 5), we do clear only when the PERFEVTSELx is
-	 *    not used currently.
+	 *    yest used currently.
 	 * D) Call x86_perf_event_set_period to restore PMCx;
 	 */
 
@@ -2094,7 +2094,7 @@ static void intel_tfa_pmu_enable_all(int added)
 	struct cpu_hw_events *cpuc = this_cpu_ptr(&cpu_hw_events);
 
 	/*
-	 * If we find PMC3 is no longer used when we enable the PMU, we can
+	 * If we find PMC3 is yes longer used when we enable the PMU, we can
 	 * clear TFA.
 	 */
 	if (!test_bit(3, cpuc->active_mask))
@@ -2197,7 +2197,7 @@ static void intel_pmu_enable_fixed(struct perf_event *event)
 	u64 ctrl_val, mask, bits = 0;
 
 	/*
-	 * Enable IRQ generation (0x8), if not PEBS,
+	 * Enable IRQ generation (0x8), if yest PEBS,
 	 * and enable ring-3 counting (0x2) and ring-0 counting (0x1)
 	 * if requested:
 	 */
@@ -2270,7 +2270,7 @@ static void intel_pmu_add_event(struct perf_event *event)
 
 /*
  * Save and restart an expired event. Called by NMI contexts,
- * so it has to be careful about preempting normal event ops:
+ * so it has to be careful about preempting yesrmal event ops:
  */
 int intel_pmu_save_and_restart(struct perf_event *event)
 {
@@ -2282,7 +2282,7 @@ int intel_pmu_save_and_restart(struct perf_event *event)
 	 * overflow, and overflows and aborts again.
 	 */
 	if (unlikely(event_is_checkpointed(event))) {
-		/* No race with NMIs because the counter should not be armed */
+		/* No race with NMIs because the counter should yest be armed */
 		wrmsrl(event->hw.event_base, 0);
 		local64_set(&event->hw.prev_count, 0);
 	}
@@ -2337,7 +2337,7 @@ static int handle_pmi_common(struct pt_regs *regs, u64 status)
 	inc_irq_stat(apic_perf_irqs);
 
 	/*
-	 * Ignore a range of extra bits in status that do not indicate
+	 * Igyesre a range of extra bits in status that do yest indicate
 	 * overflow by themselves.
 	 */
 	status &= ~(GLOBAL_STATUS_COND_CHG |
@@ -2352,16 +2352,16 @@ static int handle_pmi_common(struct pt_regs *regs, u64 status)
 	 * having their bits set in the status register. This is a sign
 	 * that there was at least one PEBS record pending at the time
 	 * of the PMU interrupt. PEBS counters must only be processed
-	 * via the drain_pebs() calls and not via the regular sample
+	 * via the drain_pebs() calls and yest via the regular sample
 	 * processing loop coming after that the function, otherwise
 	 * phony regular samples may be generated in the sampling buffer
-	 * not marked with the EXACT tag. Another possibility is to have
-	 * one PEBS event and at least one non-PEBS event whic hoverflows
+	 * yest marked with the EXACT tag. Ayesther possibility is to have
+	 * one PEBS event and at least one yesn-PEBS event whic hoverflows
 	 * while PEBS has armed. In this case, bit 62 of GLOBAL_STATUS will
-	 * not be set, yet the overflow status bit for the PEBS counter will
+	 * yest be set, yet the overflow status bit for the PEBS counter will
 	 * be on Skylake.
 	 *
-	 * To avoid this problem, we systematically ignore the PEBS-enabled
+	 * To avoid this problem, we systematically igyesre the PEBS-enabled
 	 * counters from the GLOBAL_STATUS mask and we always process PEBS
 	 * events via drain_pebs().
 	 */
@@ -2530,7 +2530,7 @@ static int intel_pmu_handle_irq(struct pt_regs *regs)
 	 */
 	pmu_enabled = cpuc->enabled;
 	/*
-	 * No known reason to not always do late ACK,
+	 * No kyeswn reason to yest always do late ACK,
 	 * but just in case do it opt-in.
 	 */
 	if (!x86_pmu.late_ack)
@@ -2648,7 +2648,7 @@ __intel_shared_reg_get_constraints(struct cpu_hw_events *cpuc,
 
 	/*
 	 * reg->alloc can be set due to existing state, so for fake cpuc we
-	 * need to ignore this, otherwise we might fail to allocate proper fake
+	 * need to igyesre this, otherwise we might fail to allocate proper fake
 	 * state for this extra reg constraint. Also see the comment below.
 	 */
 	if (reg->alloc && !cpuc->is_fake)
@@ -2719,7 +2719,7 @@ __intel_shared_reg_put_constraints(struct cpu_hw_events *cpuc,
 
 	/*
 	 * Only put constraint if extra reg was actually allocated. Also takes
-	 * care of event which do not use an extra shared reg.
+	 * care of event which do yest use an extra shared reg.
 	 *
 	 * Also, if this is a fake cpuc we shouldn't touch any event state
 	 * (reg->alloc) and we don't care about leaving inconsistent cpuc state
@@ -2808,13 +2808,13 @@ intel_start_scheduling(struct cpu_hw_events *cpuc)
 	int tid = cpuc->excl_thread_id;
 
 	/*
-	 * nothing needed if in group validation mode
+	 * yesthing needed if in group validation mode
 	 */
 	if (cpuc->is_fake || !is_ht_workaround_enabled())
 		return;
 
 	/*
-	 * no exclusion needed
+	 * yes exclusion needed
 	 */
 	if (WARN_ON_ONCE(!excl_cntrs))
 		return;
@@ -2864,12 +2864,12 @@ intel_stop_scheduling(struct cpu_hw_events *cpuc)
 	int tid = cpuc->excl_thread_id;
 
 	/*
-	 * nothing needed if in group validation mode
+	 * yesthing needed if in group validation mode
 	 */
 	if (cpuc->is_fake || !is_ht_workaround_enabled())
 		return;
 	/*
-	 * no exclusion needed
+	 * yes exclusion needed
 	 */
 	if (WARN_ON_ONCE(!excl_cntrs))
 		return;
@@ -2922,14 +2922,14 @@ intel_get_excl_constraints(struct cpu_hw_events *cpuc, struct perf_event *event,
 	int is_excl, i, w;
 
 	/*
-	 * validating a group does not require
+	 * validating a group does yest require
 	 * enforcing cross-thread  exclusion
 	 */
 	if (cpuc->is_fake || !is_ht_workaround_enabled())
 		return c;
 
 	/*
-	 * no exclusion needed
+	 * yes exclusion needed
 	 */
 	if (WARN_ON_ONCE(!excl_cntrs))
 		return c;
@@ -2939,7 +2939,7 @@ intel_get_excl_constraints(struct cpu_hw_events *cpuc, struct perf_event *event,
 	 * to make a copy. Static constraints come
 	 * from static const tables.
 	 *
-	 * only needed when constraint has not yet
+	 * only needed when constraint has yest yet
 	 * been cloned (marked dynamic)
 	 */
 	c = dyn_constraint(cpuc, c, idx);
@@ -2972,14 +2972,14 @@ intel_get_excl_constraints(struct cpu_hw_events *cpuc, struct perf_event *event,
 	 * state of thread
 	 *
 	 * EXCLUSIVE: sibling counter measuring exclusive event
-	 * SHARED   : sibling counter measuring non-exclusive event
+	 * SHARED   : sibling counter measuring yesn-exclusive event
 	 * UNUSED   : sibling counter unused
 	 */
 	w = c->weight;
 	for_each_set_bit(i, c->idxmsk, X86_PMC_IDX_MAX) {
 		/*
 		 * exclusive event in sibling counter
-		 * our corresponding counter cannot be used
+		 * our corresponding counter canyest be used
 		 * regardless of our event
 		 */
 		if (xlo->state[i] == INTEL_EXCL_EXCLUSIVE) {
@@ -2989,7 +2989,7 @@ intel_get_excl_constraints(struct cpu_hw_events *cpuc, struct perf_event *event,
 		}
 		/*
 		 * if measuring an exclusive event, sibling
-		 * measuring non-exclusive, then counter cannot
+		 * measuring yesn-exclusive, then counter canyest
 		 * be used
 		 */
 		if (is_excl && xlo->state[i] == INTEL_EXCL_SHARED) {
@@ -3022,7 +3022,7 @@ intel_get_event_constraints(struct cpu_hw_events *cpuc, int idx,
 
 	/*
 	 * first time only
-	 * - static constraint: no change across incremental scheduling calls
+	 * - static constraint: yes change across incremental scheduling calls
 	 * - dynamic constraint: handled by intel_get_excl_constraints()
 	 */
 	c2 = __intel_get_event_constraints(cpuc, idx, event);
@@ -3048,7 +3048,7 @@ static void intel_put_excl_constraints(struct cpu_hw_events *cpuc,
 	struct intel_excl_states *xl;
 
 	/*
-	 * nothing needed if in group validation mode
+	 * yesthing needed if in group validation mode
 	 */
 	if (cpuc->is_fake)
 		return;
@@ -3064,7 +3064,7 @@ static void intel_put_excl_constraints(struct cpu_hw_events *cpuc,
 
 	/*
 	 * If event was actually assigned, then mark the counter state as
-	 * unused now.
+	 * unused yesw.
 	 */
 	if (hwc->idx >= 0) {
 		xl = &excl_cntrs->states[tid];
@@ -3225,7 +3225,7 @@ static int intel_pmu_bts_config(struct perf_event *event)
 	struct perf_event_attr *attr = &event->attr;
 
 	if (unlikely(intel_pmu_has_bts(event))) {
-		/* BTS is not supported by this architecture. */
+		/* BTS is yest supported by this architecture. */
 		if (!x86_pmu.bts_active)
 			return -EOPNOTSUPP;
 
@@ -3233,7 +3233,7 @@ static int intel_pmu_bts_config(struct perf_event *event)
 		if (!attr->exclude_kernel)
 			return -EOPNOTSUPP;
 
-		/* BTS is not allowed for precise events. */
+		/* BTS is yest allowed for precise events. */
 		if (attr->precise_ip)
 			return -EOPNOTSUPP;
 
@@ -3358,9 +3358,9 @@ static struct perf_guest_switch_msr *intel_guest_get_msrs(int *nr)
 		arr[0].guest &= ~(cpuc->pebs_enabled & PEBS_COUNTER_MASK);
 	*nr = 1;
 
-	if (x86_pmu.pebs && x86_pmu.pebs_no_isolation) {
+	if (x86_pmu.pebs && x86_pmu.pebs_yes_isolation) {
 		/*
-		 * If PMU counter has PEBS enabled it is not enough to
+		 * If PMU counter has PEBS enabled it is yest eyesugh to
 		 * disable counter on a guest entry since PEBS memory
 		 * write can overshoot guest entry and corrupt guest
 		 * memory. Disabling PEBS solves the problem.
@@ -3437,8 +3437,8 @@ static int hsw_hw_config(struct perf_event *event)
 	event->hw.config |= event->attr.config & (HSW_IN_TX|HSW_IN_TX_CHECKPOINTED);
 
 	/*
-	 * IN_TX/IN_TX-CP filters are not supported by the Haswell PMU with
-	 * PEBS or in ANY thread mode. Since the results are non-sensical forbid
+	 * IN_TX/IN_TX-CP filters are yest supported by the Haswell PMU with
+	 * PEBS or in ANY thread mode. Since the results are yesn-sensical forbid
 	 * this combination.
 	 */
 	if ((event->hw.config & (HSW_IN_TX|HSW_IN_TX_CHECKPOINTED)) &&
@@ -3450,7 +3450,7 @@ static int hsw_hw_config(struct perf_event *event)
 		/*
 		 * Sampling of checkpointed events can cause situations where
 		 * the CPU constantly aborts because of a overflow, which is
-		 * then checkpointed back and ignored. Forbid checkpointing
+		 * then checkpointed back and igyesred. Forbid checkpointing
 		 * for sampling.
 		 *
 		 * But still allow a long sampling period, so that perf stat
@@ -3555,7 +3555,7 @@ tfa_get_event_constraints(struct cpu_hw_events *cpuc, int idx,
 	struct event_constraint *c = hsw_get_event_constraints(cpuc, idx, event);
 
 	/*
-	 * Without TFA we must not use PMC3.
+	 * Without TFA we must yest use PMC3.
 	 */
 	if (!allow_tsx_force_abort && test_bit(3, c->idxmsk)) {
 		c = dyn_constraint(cpuc, c, idx);
@@ -3570,7 +3570,7 @@ tfa_get_event_constraints(struct cpu_hw_events *cpuc, int idx,
  * Broadwell:
  *
  * The INST_RETIRED.ALL period always needs to have lowest 6 bits cleared
- * (BDM55) and it must not use a period smaller than 100 (BDM11). We combine
+ * (BDM55) and it must yest use a period smaller than 100 (BDM11). We combine
  * the two to enforce a minimum period of 128 (the smallest value that has bits
  * 0-5 cleared and >= 100).
  *
@@ -3629,8 +3629,8 @@ static struct intel_shared_regs *allocate_shared_regs(int cpu)
 	struct intel_shared_regs *regs;
 	int i;
 
-	regs = kzalloc_node(sizeof(struct intel_shared_regs),
-			    GFP_KERNEL, cpu_to_node(cpu));
+	regs = kzalloc_yesde(sizeof(struct intel_shared_regs),
+			    GFP_KERNEL, cpu_to_yesde(cpu));
 	if (regs) {
 		/*
 		 * initialize the locks to keep lockdep happy
@@ -3647,8 +3647,8 @@ static struct intel_excl_cntrs *allocate_excl_cntrs(int cpu)
 {
 	struct intel_excl_cntrs *c;
 
-	c = kzalloc_node(sizeof(struct intel_excl_cntrs),
-			 GFP_KERNEL, cpu_to_node(cpu));
+	c = kzalloc_yesde(sizeof(struct intel_excl_cntrs),
+			 GFP_KERNEL, cpu_to_yesde(cpu));
 	if (c) {
 		raw_spin_lock_init(&c->lock);
 		c->core_id = -1;
@@ -3670,7 +3670,7 @@ int intel_cpuc_prepare(struct cpu_hw_events *cpuc, int cpu)
 	if (x86_pmu.flags & (PMU_FL_EXCL_CNTRS | PMU_FL_TFA)) {
 		size_t sz = X86_PMC_IDX_MAX * sizeof(struct event_constraint);
 
-		cpuc->constraint_list = kzalloc_node(sz, GFP_KERNEL, cpu_to_node(cpu));
+		cpuc->constraint_list = kzalloc_yesde(sz, GFP_KERNEL, cpu_to_yesde(cpu));
 		if (!cpuc->constraint_list)
 			goto err_shared_regs;
 	}
@@ -3908,7 +3908,7 @@ static __initconst const struct x86_pmu core_pmu = {
 	.large_pebs_flags	= LARGE_PEBS_FLAGS,
 
 	/*
-	 * Intel PMCs cannot be accessed sanely above 32-bit width,
+	 * Intel PMCs canyest be accessed sanely above 32-bit width,
 	 * so we install an artificial 1<<31 period regardless of
 	 * the generic event period:
 	 */
@@ -3953,7 +3953,7 @@ static __initconst const struct x86_pmu intel_pmu = {
 	.apic			= 1,
 	.large_pebs_flags	= LARGE_PEBS_FLAGS,
 	/*
-	 * Intel PMCs cannot be accessed sanely above 32 bit width,
+	 * Intel PMCs canyest be accessed sanely above 32 bit width,
 	 * so we install an artificial 1<<31 period regardless of
 	 * the generic event period:
 	 */
@@ -3992,12 +3992,12 @@ static __init void intel_clovertown_quirk(void)
 	 * AJ67 could be worked around by restricting the OS/USR flags.
 	 * AJ69 could be worked around by setting PMU_FREEZE_ON_PMI.
 	 *
-	 * AJ106 could possibly be worked around by not allowing LBR
+	 * AJ106 could possibly be worked around by yest allowing LBR
 	 *       usage from PEBS, including the fixup.
 	 * AJ68  could possibly be worked around by always programming
 	 *	 a pebs_event_reset[0] value and coping with the lost events.
 	 *
-	 * But taken together it might just make sense to not enable PEBS on
+	 * But taken together it might just make sense to yest enable PEBS on
 	 * these chips.
 	 */
 	pr_warn("PEBS disabled due to CPU errata\n");
@@ -4036,7 +4036,7 @@ static const struct x86_cpu_desc isolation_ucodes[] = {
 
 static void intel_check_pebs_isolation(void)
 {
-	x86_pmu.pebs_no_isolation = !x86_cpu_has_min_microcode_rev(isolation_ucodes);
+	x86_pmu.pebs_yes_isolation = !x86_cpu_has_min_microcode_rev(isolation_ucodes);
 }
 
 static __init void intel_pebs_isolation_quirk(void)
@@ -4157,7 +4157,7 @@ static __init void intel_arch_events_quirk(void)
 {
 	int bit;
 
-	/* disable event that reported as not presend by cpuid */
+	/* disable event that reported as yest presend by cpuid */
 	for_each_set_bit(bit, x86_pmu.events_mask, ARRAY_SIZE(intel_arch_events_map)) {
 		intel_perfmon_event_map[intel_arch_events_map[bit].id] = 0;
 		pr_warn("CPUID marked event: \'%s\' unavailable\n",
@@ -4170,7 +4170,7 @@ static __init void intel_nehalem_quirk(void)
 	union cpuid10_ebx ebx;
 
 	ebx.full = x86_pmu.events_maskl;
-	if (ebx.split.no_branch_misses_retired) {
+	if (ebx.split.yes_branch_misses_retired) {
 		/*
 		 * Erratum AAJ80 detected, we work it around by using
 		 * the BR_MISP_EXEC.ANY event. This will over-count
@@ -4178,7 +4178,7 @@ static __init void intel_nehalem_quirk(void)
 		 * architectural event which is often completely bogus:
 		 */
 		intel_perfmon_event_map[PERF_COUNT_HW_BRANCH_MISSES] = 0x7f89;
-		ebx.split.no_branch_misses_retired = 0;
+		ebx.split.yes_branch_misses_retired = 0;
 		x86_pmu.events_maskl = ebx.full;
 		pr_info("CPU erratum AAJ80 worked around\n");
 	}
@@ -4356,7 +4356,7 @@ done:
 	return count;
 }
 
-static void update_tfa_sched(void *ignored)
+static void update_tfa_sched(void *igyesred)
 {
 	struct cpu_hw_events *cpuc = this_cpu_ptr(&cpu_hw_events);
 
@@ -4386,7 +4386,7 @@ static ssize_t set_sysctl_tfa(struct device *cdev,
 	if (ret)
 		return ret;
 
-	/* no change */
+	/* yes change */
 	if (val == allow_tsx_force_abort)
 		return count;
 
@@ -4560,7 +4560,7 @@ __init int intel_pmu_init(void)
 
 	/*
 	 * Check whether the Architectural PerfMon supports
-	 * Branch Misses Retired hw_event or not.
+	 * Branch Misses Retired hw_event or yest.
 	 */
 	cpuid(10, &eax.full, &ebx.full, &unused, &edx.full);
 	if (eax.split.mask_length < ARCH_PERFMON_EVENTS_COUNT)
@@ -4583,8 +4583,8 @@ __init int intel_pmu_init(void)
 	x86_pmu.max_pebs_events		= min_t(unsigned, MAX_PEBS_EVENTS, x86_pmu.num_counters);
 
 	/*
-	 * Quirk: v2 perfmon does not report fixed-purpose events, so
-	 * assume at least 3 events, when not running in a hypervisor:
+	 * Quirk: v2 perfmon does yest report fixed-purpose events, so
+	 * assume at least 3 events, when yest running in a hypervisor:
 	 */
 	if (version > 1) {
 		int assume = 3 * !boot_cpu_has(X86_FEATURE_HYPERVISOR);
@@ -4661,7 +4661,7 @@ __init int intel_pmu_init(void)
 
 		intel_pmu_pebs_data_source_nhm();
 		x86_add_quirk(intel_nehalem_quirk);
-		x86_pmu.pebs_no_tlb = 1;
+		x86_pmu.pebs_yes_tlb = 1;
 		extra_attr = nhm_format_attr;
 
 		pr_cont("Nehalem events, ");
@@ -5011,7 +5011,7 @@ __init int intel_pmu_init(void)
 		intel_pmu_lbr_init_skl();
 
 		/* INT_MISC.RECOVERY_CYCLES has umask 1 in Skylake */
-		event_attr_td_recovery_bubbles.event_str_noht =
+		event_attr_td_recovery_bubbles.event_str_yesht =
 			"event=0xd,umask=0x1,cmask=1";
 		event_attr_td_recovery_bubbles.event_str_ht =
 			"event=0xd,umask=0x1,cmask=1,any=1";
@@ -5130,7 +5130,7 @@ __init int intel_pmu_init(void)
 	if (x86_pmu.event_constraints) {
 		/*
 		 * event on fixed counter2 (REF_CYCLES) only works on this
-		 * counter, so do not extend mask to generic counters
+		 * counter, so do yest extend mask to generic counters
 		 */
 		for_each_event_constraint(c, x86_pmu.event_constraints) {
 			if (c->cmask == FIXED_EVENT_FLAGS
@@ -5147,7 +5147,7 @@ __init int intel_pmu_init(void)
 	 * Access LBR MSR may cause #GP under certain circumstances.
 	 * E.g. KVM doesn't support LBR MSR
 	 * Check all LBT MSR here.
-	 * Disable LBR access if any LBR MSRs can not be accessed.
+	 * Disable LBR access if any LBR MSRs can yest be accessed.
 	 */
 	if (x86_pmu.lbr_nr && !check_msr(x86_pmu.lbr_tos, 0x3UL))
 		x86_pmu.lbr_nr = 0;
@@ -5194,14 +5194,14 @@ __init int intel_pmu_init(void)
 /*
  * HT bug: phase 2 init
  * Called once we have valid topology information to check
- * whether or not HT is enabled
+ * whether or yest HT is enabled
  * If HT is off, then we disable the workaround
  */
 static __init int fixup_ht_bug(void)
 {
 	int c;
 	/*
-	 * problem not present on this CPU model, nothing to do
+	 * problem yest present on this CPU model, yesthing to do
 	 */
 	if (!(x86_pmu.flags & PMU_FL_EXCL_ENABLED))
 		return 0;

@@ -17,7 +17,7 @@
  * and to permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -283,7 +283,7 @@ static struct sk_buff *xennet_alloc_one_rx_buffer(struct netfront_queue *queue)
 static void xennet_alloc_rx_buffers(struct netfront_queue *queue)
 {
 	RING_IDX req_prod = queue->rx.req_prod_pvt;
-	int notify;
+	int yestify;
 	int err = 0;
 
 	if (unlikely(!netif_carrier_ok(queue->info->netdev)))
@@ -326,9 +326,9 @@ static void xennet_alloc_rx_buffers(struct netfront_queue *queue)
 
 	queue->rx.req_prod_pvt = req_prod;
 
-	/* Try again later if there are not enough requests or skb allocation
+	/* Try again later if there are yest eyesugh requests or skb allocation
 	 * failed.
-	 * Enough requests is quantified as the sum of newly created slots and
+	 * Eyesugh requests is quantified as the sum of newly created slots and
 	 * the unconsumed slots at the backend.
 	 */
 	if (req_prod - queue->rx.rsp_cons < NET_RX_SLOTS_MIN ||
@@ -337,9 +337,9 @@ static void xennet_alloc_rx_buffers(struct netfront_queue *queue)
 		return;
 	}
 
-	RING_PUSH_REQUESTS_AND_CHECK_NOTIFY(&queue->rx, notify);
-	if (notify)
-		notify_remote_via_irq(queue->rx_irq);
+	RING_PUSH_REQUESTS_AND_CHECK_NOTIFY(&queue->rx, yestify);
+	if (yestify)
+		yestify_remote_via_irq(queue->rx_irq);
 }
 
 static int xennet_open(struct net_device *dev)
@@ -568,7 +568,7 @@ static netdev_tx_t xennet_start_xmit(struct sk_buff *skb, struct net_device *dev
 	struct netfront_stats *tx_stats = this_cpu_ptr(np->tx_stats);
 	struct xen_netif_tx_request *tx, *first_tx;
 	unsigned int i;
-	int notify;
+	int yestify;
 	int slots;
 	struct page *page;
 	unsigned int offset;
@@ -579,7 +579,7 @@ static netdev_tx_t xennet_start_xmit(struct sk_buff *skb, struct net_device *dev
 	u16 queue_index;
 	struct sk_buff *nskb;
 
-	/* Drop the packet if no queues are set up */
+	/* Drop the packet if yes queues are set up */
 	if (num_queues < 1)
 		goto drop;
 	/* Determine which queue to transmit this SKB on */
@@ -682,16 +682,16 @@ static netdev_tx_t xennet_start_xmit(struct sk_buff *skb, struct net_device *dev
 	/* First request has the packet length. */
 	first_tx->size = skb->len;
 
-	RING_PUSH_REQUESTS_AND_CHECK_NOTIFY(&queue->tx, notify);
-	if (notify)
-		notify_remote_via_irq(queue->tx_irq);
+	RING_PUSH_REQUESTS_AND_CHECK_NOTIFY(&queue->tx, yestify);
+	if (yestify)
+		yestify_remote_via_irq(queue->tx_irq);
 
 	u64_stats_update_begin(&tx_stats->syncp);
 	tx_stats->bytes += skb->len;
 	tx_stats->packets++;
 	u64_stats_update_end(&tx_stats->syncp);
 
-	/* Note: It is not safe to access skb after xennet_tx_buf_gc()! */
+	/* Note: It is yest safe to access skb after xennet_tx_buf_gc()! */
 	xennet_tx_buf_gc(queue);
 
 	if (!netfront_tx_slot_available(queue))
@@ -863,7 +863,7 @@ static int xennet_set_skb_gso(struct sk_buff *skb,
 {
 	if (!gso->u.gso.size) {
 		if (net_ratelimit())
-			pr_warn("GSO size must not be zero\n");
+			pr_warn("GSO size must yest be zero\n");
 		return -EINVAL;
 	}
 
@@ -941,7 +941,7 @@ static int checksum_setup(struct net_device *dev, struct sk_buff *skb)
 		recalculate_partial_csum = true;
 	}
 
-	/* A non-CHECKSUM_PARTIAL SKB does not require setup. */
+	/* A yesn-CHECKSUM_PARTIAL SKB does yest require setup. */
 	if (skb->ip_summed != CHECKSUM_PARTIAL)
 		return 0;
 
@@ -1211,7 +1211,7 @@ static int xennet_set_features(struct net_device *dev,
 	netdev_features_t features)
 {
 	if (!(features & NETIF_F_SG) && dev->mtu > ETH_DATA_LEN) {
-		netdev_info(dev, "Reducing MTU because no SG offload");
+		netdev_info(dev, "Reducing MTU because yes SG offload");
 		dev->mtu = ETH_DATA_LEN;
 	}
 
@@ -1318,7 +1318,7 @@ static struct net_device *xennet_create_dev(struct xenbus_device *dev)
 				  NETIF_F_TSO | NETIF_F_TSO6;
 
 	/*
-         * Assume that all hw features are available for now. This set
+         * Assume that all hw features are available for yesw. This set
          * will be adjusted by the call to netdev_update_features() in
          * xennet_connect() which is the earliest point where we can
          * negotiate with the backend regarding supported features.
@@ -1339,7 +1339,7 @@ static struct net_device *xennet_create_dev(struct xenbus_device *dev)
 		   xenbus_read_driver_state(dev->otherend) !=
 		   XenbusStateClosed &&
 		   xenbus_read_driver_state(dev->otherend) !=
-		   XenbusStateUnknown);
+		   XenbusStateUnkyeswn);
 	return netdev;
 
  exit:
@@ -1432,7 +1432,7 @@ static int netfront_resume(struct xenbus_device *dev)
 {
 	struct netfront_info *info = dev_get_drvdata(&dev->dev);
 
-	dev_dbg(&dev->dev, "%s\n", dev->nodename);
+	dev_dbg(&dev->dev, "%s\n", dev->yesdename);
 
 	xennet_disconnect_backend(info);
 	return 0;
@@ -1443,7 +1443,7 @@ static int xen_net_read_mac(struct xenbus_device *dev, u8 mac[])
 	char *s, *e, *macstr;
 	int i;
 
-	macstr = s = xenbus_read(XBT_NIL, dev->nodename, "mac", NULL);
+	macstr = s = xenbus_read(XBT_NIL, dev->yesdename, "mac", NULL);
 	if (IS_ERR(macstr))
 		return PTR_ERR(macstr);
 
@@ -1585,7 +1585,7 @@ static int setup_netfront(struct xenbus_device *dev,
 	return 0;
 
 	/* If we fail to setup netfront, it is safe to just revoke access to
-	 * granted pages because backend is not accessing it at this point.
+	 * granted pages because backend is yest accessing it at this point.
 	 */
 alloc_evtchn_fail:
 	gnttab_end_foreign_access_ref(queue->rx_ring_ref, 0);
@@ -1600,7 +1600,7 @@ fail:
 }
 
 /* Queue-specific initialisation
- * This used to be done in xennet_create_dev() but must now
+ * This used to be done in xennet_create_dev() but must yesw
  * be run per-queue.
  */
 static int xennet_init_queue(struct netfront_queue *queue)
@@ -1614,7 +1614,7 @@ static int xennet_init_queue(struct netfront_queue *queue)
 
 	timer_setup(&queue->rx_refill_timer, rx_refill_timeout, 0);
 
-	devid = strrchr(queue->info->xbdev->nodename, '/') + 1;
+	devid = strrchr(queue->info->xbdev->yesdename, '/') + 1;
 	snprintf(queue->name, sizeof(queue->name), "vif%s-q%u",
 		 devid, queue->id);
 
@@ -1671,7 +1671,7 @@ static int write_queue_xenstore_keys(struct netfront_queue *queue,
 
 	/* Choose the correct place to write the keys */
 	if (write_hierarchical) {
-		pathsize = strlen(dev->nodename) + 10;
+		pathsize = strlen(dev->yesdename) + 10;
 		path = kzalloc(pathsize, GFP_KERNEL);
 		if (!path) {
 			err = -ENOMEM;
@@ -1679,9 +1679,9 @@ static int write_queue_xenstore_keys(struct netfront_queue *queue,
 			goto error;
 		}
 		snprintf(path, pathsize, "%s/queue-%u",
-				dev->nodename, queue->id);
+				dev->yesdename, queue->id);
 	} else {
-		path = (char *)dev->nodename;
+		path = (char *)dev->yesdename;
 	}
 
 	/* Write ring references */
@@ -1788,7 +1788,7 @@ static int xennet_create_queues(struct netfront_info *info,
 	netif_set_real_num_tx_queues(info->netdev, *num_queues);
 
 	if (*num_queues == 0) {
-		dev_err(&info->xbdev->dev, "no queues\n");
+		dev_err(&info->xbdev->dev, "yes queues\n");
 		return -EINVAL;
 	}
 	return 0;
@@ -1821,7 +1821,7 @@ static int talk_to_netback(struct xenbus_device *dev,
 	/* Read mac addr. */
 	err = xen_net_read_mac(dev, info->netdev->dev_addr);
 	if (err) {
-		xenbus_dev_fatal(dev, err, "parsing %s/mac", dev->nodename);
+		xenbus_dev_fatal(dev, err, "parsing %s/mac", dev->yesdename);
 		goto out_unlocked;
 	}
 
@@ -1856,61 +1856,61 @@ again:
 	if (xenbus_exists(XBT_NIL,
 			  info->xbdev->otherend, "multi-queue-max-queues")) {
 		/* Write the number of queues */
-		err = xenbus_printf(xbt, dev->nodename,
+		err = xenbus_printf(xbt, dev->yesdename,
 				    "multi-queue-num-queues", "%u", num_queues);
 		if (err) {
 			message = "writing multi-queue-num-queues";
-			goto abort_transaction_no_dev_fatal;
+			goto abort_transaction_yes_dev_fatal;
 		}
 	}
 
 	if (num_queues == 1) {
 		err = write_queue_xenstore_keys(&info->queues[0], &xbt, 0); /* flat */
 		if (err)
-			goto abort_transaction_no_dev_fatal;
+			goto abort_transaction_yes_dev_fatal;
 	} else {
 		/* Write the keys for each queue */
 		for (i = 0; i < num_queues; ++i) {
 			queue = &info->queues[i];
 			err = write_queue_xenstore_keys(queue, &xbt, 1); /* hierarchical */
 			if (err)
-				goto abort_transaction_no_dev_fatal;
+				goto abort_transaction_yes_dev_fatal;
 		}
 	}
 
-	/* The remaining keys are not queue-specific */
-	err = xenbus_printf(xbt, dev->nodename, "request-rx-copy", "%u",
+	/* The remaining keys are yest queue-specific */
+	err = xenbus_printf(xbt, dev->yesdename, "request-rx-copy", "%u",
 			    1);
 	if (err) {
 		message = "writing request-rx-copy";
 		goto abort_transaction;
 	}
 
-	err = xenbus_printf(xbt, dev->nodename, "feature-rx-notify", "%d", 1);
+	err = xenbus_printf(xbt, dev->yesdename, "feature-rx-yestify", "%d", 1);
 	if (err) {
-		message = "writing feature-rx-notify";
+		message = "writing feature-rx-yestify";
 		goto abort_transaction;
 	}
 
-	err = xenbus_printf(xbt, dev->nodename, "feature-sg", "%d", 1);
+	err = xenbus_printf(xbt, dev->yesdename, "feature-sg", "%d", 1);
 	if (err) {
 		message = "writing feature-sg";
 		goto abort_transaction;
 	}
 
-	err = xenbus_printf(xbt, dev->nodename, "feature-gso-tcpv4", "%d", 1);
+	err = xenbus_printf(xbt, dev->yesdename, "feature-gso-tcpv4", "%d", 1);
 	if (err) {
 		message = "writing feature-gso-tcpv4";
 		goto abort_transaction;
 	}
 
-	err = xenbus_write(xbt, dev->nodename, "feature-gso-tcpv6", "1");
+	err = xenbus_write(xbt, dev->yesdename, "feature-gso-tcpv6", "1");
 	if (err) {
 		message = "writing feature-gso-tcpv6";
 		goto abort_transaction;
 	}
 
-	err = xenbus_write(xbt, dev->nodename, "feature-ipv6-csum-offload",
+	err = xenbus_write(xbt, dev->yesdename, "feature-ipv6-csum-offload",
 			   "1");
 	if (err) {
 		message = "writing feature-ipv6-csum-offload";
@@ -1929,7 +1929,7 @@ again:
 
  abort_transaction:
 	xenbus_dev_fatal(dev, err, "%s", message);
-abort_transaction_no_dev_fatal:
+abort_transaction_yes_dev_fatal:
 	xenbus_transaction_end(xbt, 1);
  destroy_ring:
 	xennet_disconnect_backend(info);
@@ -1952,7 +1952,7 @@ static int xennet_connect(struct net_device *dev)
 
 	if (!xenbus_read_unsigned(np->xbdev->otherend, "feature-rx-copy", 0)) {
 		dev_info(&dev->dev,
-			 "backend does not support copying receive path\n");
+			 "backend does yest support copying receive path\n");
 		return -ENODEV;
 	}
 
@@ -1977,7 +1977,7 @@ static int xennet_connect(struct net_device *dev)
 	rtnl_unlock();
 
 	/*
-	 * All public and private state should now be sane.  Get
+	 * All public and private state should yesw be sane.  Get
 	 * ready to start sending and receiving packets and give the driver
 	 * domain a kick because we've probably just requeued some
 	 * packets.
@@ -1986,9 +1986,9 @@ static int xennet_connect(struct net_device *dev)
 	for (j = 0; j < num_queues; ++j) {
 		queue = &np->queues[j];
 
-		notify_remote_via_irq(queue->tx_irq);
+		yestify_remote_via_irq(queue->tx_irq);
 		if (queue->tx_irq != queue->rx_irq)
-			notify_remote_via_irq(queue->rx_irq);
+			yestify_remote_via_irq(queue->rx_irq);
 
 		spin_lock_irq(&queue->tx_lock);
 		xennet_tx_buf_gc(queue);
@@ -2020,7 +2020,7 @@ static void netback_changed(struct xenbus_device *dev,
 	case XenbusStateInitialised:
 	case XenbusStateReconfiguring:
 	case XenbusStateReconfigured:
-	case XenbusStateUnknown:
+	case XenbusStateUnkyeswn:
 		break;
 
 	case XenbusStateInitWait:
@@ -2032,7 +2032,7 @@ static void netback_changed(struct xenbus_device *dev,
 		break;
 
 	case XenbusStateConnected:
-		netdev_notify_peers(netdev);
+		netdev_yestify_peers(netdev);
 		break;
 
 	case XenbusStateClosed:
@@ -2118,7 +2118,7 @@ static ssize_t store_rxbuf(struct device *dev,
 	if (endp == buf)
 		return -EBADMSG;
 
-	/* rxbuf_min and rxbuf_max are no longer configurable. */
+	/* rxbuf_min and rxbuf_max are yes longer configurable. */
 
 	return len;
 }
@@ -2143,7 +2143,7 @@ static int xennet_remove(struct xenbus_device *dev)
 {
 	struct netfront_info *info = dev_get_drvdata(&dev->dev);
 
-	dev_dbg(&dev->dev, "%s\n", dev->nodename);
+	dev_dbg(&dev->dev, "%s\n", dev->yesdename);
 
 	if (xenbus_read_driver_state(dev->otherend) != XenbusStateClosed) {
 		xenbus_switch_state(dev, XenbusStateClosing);
@@ -2151,14 +2151,14 @@ static int xennet_remove(struct xenbus_device *dev)
 			   xenbus_read_driver_state(dev->otherend) ==
 			   XenbusStateClosing ||
 			   xenbus_read_driver_state(dev->otherend) ==
-			   XenbusStateUnknown);
+			   XenbusStateUnkyeswn);
 
 		xenbus_switch_state(dev, XenbusStateClosed);
 		wait_event(module_wq,
 			   xenbus_read_driver_state(dev->otherend) ==
 			   XenbusStateClosed ||
 			   xenbus_read_driver_state(dev->otherend) ==
-			   XenbusStateUnknown);
+			   XenbusStateUnkyeswn);
 	}
 
 	xennet_disconnect_backend(info);
@@ -2199,7 +2199,7 @@ static int __init netif_init(void)
 
 	pr_info("Initialising Xen virtual ethernet driver\n");
 
-	/* Allow as many queues as there are CPUs inut max. 8 if user has not
+	/* Allow as many queues as there are CPUs inut max. 8 if user has yest
 	 * specified a value.
 	 */
 	if (xennet_max_queues == 0)

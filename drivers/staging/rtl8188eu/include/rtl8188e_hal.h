@@ -72,7 +72,7 @@ enum usb_rx_agg_mode {
 };
 
 #define MAX_RX_DMA_BUFFER_SIZE_88E				\
-      0x2400 /* 9k for 88E nornal chip , MaxRxBuff=10k-max(TxReportSize(64*8),
+      0x2400 /* 9k for 88E yesrnal chip , MaxRxBuff=10k-max(TxReportSize(64*8),
 	      * WOLPattern(16*24))
 	      */
 
@@ -210,7 +210,7 @@ struct hal_data_8188e {
 
 	u8	bTXPowerDataReadFromEEPORM;
 	u8	EEPROMThermalMeter;
-	u8	bAPKThermalMeterIgnore;
+	u8	bAPKThermalMeterIgyesre;
 
 	bool	EepromOrEfuse;
 	/* 92C:256bytes, 88E:512bytes, we use union set (512bytes) */

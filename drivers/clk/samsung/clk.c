@@ -54,7 +54,7 @@ struct samsung_clk_reg_dump *samsung_clk_alloc_reg_dump(
 }
 
 /* setup the essentials required to support clock lookup using ccf */
-struct samsung_clk_provider *__init samsung_clk_init(struct device_node *np,
+struct samsung_clk_provider *__init samsung_clk_init(struct device_yesde *np,
 			void __iomem *base, unsigned long nr_clks)
 {
 	struct samsung_clk_provider *ctx;
@@ -62,7 +62,7 @@ struct samsung_clk_provider *__init samsung_clk_init(struct device_node *np,
 
 	ctx = kzalloc(struct_size(ctx, clk_data.hws, nr_clks), GFP_KERNEL);
 	if (!ctx)
-		panic("could not allocate clock provider context.\n");
+		panic("could yest allocate clock provider context.\n");
 
 	for (i = 0; i < nr_clks; ++i)
 		ctx->clk_data.hws[i] = ERR_PTR(-ENOENT);
@@ -74,13 +74,13 @@ struct samsung_clk_provider *__init samsung_clk_init(struct device_node *np,
 	return ctx;
 }
 
-void __init samsung_clk_of_add_provider(struct device_node *np,
+void __init samsung_clk_of_add_provider(struct device_yesde *np,
 				struct samsung_clk_provider *ctx)
 {
 	if (np) {
 		if (of_clk_add_hw_provider(np, of_clk_hw_onecell_get,
 					&ctx->clk_data))
-			panic("could not register clk provider\n");
+			panic("could yest register clk provider\n");
 	}
 }
 
@@ -143,7 +143,7 @@ void __init samsung_clk_register_fixed_rate(struct samsung_clk_provider *ctx,
 
 		/*
 		 * Unconditionally add a clock lookup for the fixed rate clocks.
-		 * There are not many of these on any of Samsung platforms.
+		 * There are yest many of these on any of Samsung platforms.
 		 */
 		ret = clk_hw_register_clkdev(clk_hw, list->name, NULL);
 		if (ret)
@@ -257,10 +257,10 @@ void __init samsung_clk_of_register_fixed_ext(struct samsung_clk_provider *ctx,
 			const struct of_device_id *clk_matches)
 {
 	const struct of_device_id *match;
-	struct device_node *clk_np;
+	struct device_yesde *clk_np;
 	u32 freq;
 
-	for_each_matching_node_and_match(clk_np, clk_matches, &match) {
+	for_each_matching_yesde_and_match(clk_np, clk_matches, &match) {
 		if (of_property_read_u32(clk_np, "clock-frequency", &freq))
 			continue;
 		fixed_rate_clk[(unsigned long)match->data].fixed_rate = freq;
@@ -275,7 +275,7 @@ unsigned long _get_rate(const char *clk_name)
 
 	clk = __clk_lookup(clk_name);
 	if (!clk) {
-		pr_err("%s: could not find clock %s\n", __func__, clk_name);
+		pr_err("%s: could yest find clock %s\n", __func__, clk_name);
 		return 0;
 	}
 
@@ -287,7 +287,7 @@ static int samsung_clk_suspend(void)
 {
 	struct samsung_clock_reg_cache *reg_cache;
 
-	list_for_each_entry(reg_cache, &clock_reg_cache_list, node) {
+	list_for_each_entry(reg_cache, &clock_reg_cache_list, yesde) {
 		samsung_clk_save(reg_cache->reg_base, reg_cache->rdump,
 				reg_cache->rd_num);
 		samsung_clk_restore(reg_cache->reg_base, reg_cache->rsuspend,
@@ -300,7 +300,7 @@ static void samsung_clk_resume(void)
 {
 	struct samsung_clock_reg_cache *reg_cache;
 
-	list_for_each_entry(reg_cache, &clock_reg_cache_list, node)
+	list_for_each_entry(reg_cache, &clock_reg_cache_list, yesde)
 		samsung_clk_restore(reg_cache->reg_base, reg_cache->rdump,
 				reg_cache->rd_num);
 }
@@ -321,11 +321,11 @@ void samsung_clk_extended_sleep_init(void __iomem *reg_base,
 	reg_cache = kzalloc(sizeof(struct samsung_clock_reg_cache),
 			GFP_KERNEL);
 	if (!reg_cache)
-		panic("could not allocate register reg_cache.\n");
+		panic("could yest allocate register reg_cache.\n");
 	reg_cache->rdump = samsung_clk_alloc_reg_dump(rdump, nr_rdump);
 
 	if (!reg_cache->rdump)
-		panic("could not allocate register dump storage.\n");
+		panic("could yest allocate register dump storage.\n");
 
 	if (list_empty(&clock_reg_cache_list))
 		register_syscore_ops(&samsung_clk_syscore_ops);
@@ -334,7 +334,7 @@ void samsung_clk_extended_sleep_init(void __iomem *reg_base,
 	reg_cache->rd_num = nr_rdump;
 	reg_cache->rsuspend = rsuspend;
 	reg_cache->rsuspend_num = nr_rsuspend;
-	list_add_tail(&reg_cache->node, &clock_reg_cache_list);
+	list_add_tail(&reg_cache->yesde, &clock_reg_cache_list);
 }
 #endif
 
@@ -343,7 +343,7 @@ void samsung_clk_extended_sleep_init(void __iomem *reg_base,
  * for each CMU. It also add CMU register list to register cache.
  */
 struct samsung_clk_provider * __init samsung_cmu_register_one(
-			struct device_node *np,
+			struct device_yesde *np,
 			const struct samsung_cmu_info *cmu)
 {
 	void __iomem *reg_base;

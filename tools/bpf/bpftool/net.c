@@ -2,7 +2,7 @@
 // Copyright (C) 2018 Facebook
 
 #define _GNU_SOURCE
-#include <errno.h>
+#include <erryes.h>
 #include <fcntl.h>
 #include <stdlib.h>
 #include <string.h>
@@ -141,7 +141,7 @@ static int dump_class_qdisc_nlmsg(void *cookie, void *msg, struct nlattr **tb)
 		 "%s",
 		 tb[TCA_KIND]
 			 ? libbpf_nla_getattr_str(tb[TCA_KIND])
-			 : "unknown");
+			 : "unkyeswn");
 	tcinfo->used_len++;
 
 	return 0;
@@ -227,7 +227,7 @@ static int query_flow_dissector(struct bpf_attach_info *attach_info)
 	fd = open("/proc/self/ns/net", O_RDONLY);
 	if (fd < 0) {
 		p_err("can't open /proc/self/ns/net: %s",
-		      strerror(errno));
+		      strerror(erryes));
 		return -1;
 	}
 	prog_cnt = ARRAY_SIZE(prog_ids);
@@ -235,14 +235,14 @@ static int query_flow_dissector(struct bpf_attach_info *attach_info)
 			     &attach_flags, prog_ids, &prog_cnt);
 	close(fd);
 	if (err) {
-		if (errno == EINVAL) {
+		if (erryes == EINVAL) {
 			/* Older kernel's don't support querying
 			 * flow dissector programs.
 			 */
-			errno = 0;
+			erryes = 0;
 			return 0;
 		}
-		p_err("can't query prog: %s", strerror(errno));
+		p_err("can't query prog: %s", strerror(erryes));
 		return -1;
 	}
 
@@ -465,7 +465,7 @@ static int do_help(int argc, char **argv)
 		"       " HELP_SPEC_PROGRAM "\n"
 		"       ATTACH_TYPE := { xdp | xdpgeneric | xdpdrv | xdpoffload }\n"
 		"\n"
-		"Note: Only xdp and tc attachments are supported now.\n"
+		"Note: Only xdp and tc attachments are supported yesw.\n"
 		"      For progs attached to cgroups, use \"bpftool cgroup\"\n"
 		"      to dump program attachments. For program types\n"
 		"      sk_{filter,skb,msg,reuseport} and lwt/seg6, please\n"

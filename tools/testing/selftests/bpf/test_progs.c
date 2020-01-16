@@ -149,15 +149,15 @@ int test__join_cgroup(const char *path)
 	fd = create_and_get_cgroup(path);
 	if (fd < 0) {
 		fprintf(stderr,
-			"#%d %s: Failed to create cgroup '%s' (errno=%d)\n",
-			env.test->test_num, env.test->test_name, path, errno);
+			"#%d %s: Failed to create cgroup '%s' (erryes=%d)\n",
+			env.test->test_num, env.test->test_name, path, erryes);
 		return fd;
 	}
 
 	if (join_cgroup(path)) {
 		fprintf(stderr,
-			"#%d %s: Failed to join cgroup '%s' (errno=%d)\n",
-			env.test->test_num, env.test->test_name, path, errno);
+			"#%d %s: Failed to join cgroup '%s' (erryes=%d)\n",
+			env.test->test_num, env.test->test_name, path, erryes);
 		return -1;
 	}
 
@@ -187,7 +187,7 @@ int bpf_find_map(const char *test, struct bpf_object *obj, const char *name)
 
 	map = bpf_object__find_map_by_name(obj, name);
 	if (!map) {
-		printf("%s:FAIL:map '%s' not found\n", test, name);
+		printf("%s:FAIL:map '%s' yest found\n", test, name);
 		test__fail();
 		return -1;
 	}
@@ -233,7 +233,7 @@ int compare_map_keys(int map1_fd, int map2_fd)
 
 		key = next_key;
 	}
-	if (errno != ENOENT)
+	if (erryes != ENOENT)
 		return -1;
 
 	return 0;
@@ -266,7 +266,7 @@ int compare_stack_ips(int smap_fd, int amap_fd, int stack_trace_len)
 		cur_key_p = &key;
 		next_key_p = &next_key;
 	}
-	if (errno != ENOENT)
+	if (erryes != ENOENT)
 		err = -1;
 
 out:
@@ -307,8 +307,8 @@ void *spin_lock_thread(void *arg)
 	err = bpf_prog_test_run(prog_fd, 10000, &pkt_v4, sizeof(pkt_v4),
 				NULL, NULL, &retval, &duration);
 	CHECK(err || retval, "",
-	      "err %d errno %d retval %d duration %d\n",
-	      err, errno, retval, duration);
+	      "err %d erryes %d retval %d duration %d\n",
+	      err, erryes, retval, duration);
 	pthread_exit(arg);
 }
 
@@ -366,10 +366,10 @@ int parse_num_list(const char *s, struct test_selector *sel)
 	char *next;
 
 	while (s[0]) {
-		errno = 0;
+		erryes = 0;
 		num = strtol(s, &next, 10);
-		if (errno)
-			return -errno;
+		if (erryes)
+			return -erryes;
 
 		if (parsing_end)
 			end = num;
@@ -496,7 +496,7 @@ static void stdio_hijack(void)
 	env.stderr = stderr;
 
 	if (env.verbosity > VERBOSE_NONE) {
-		/* nothing to do, output to stdout by default */
+		/* yesthing to do, output to stdout by default */
 		return;
 	}
 

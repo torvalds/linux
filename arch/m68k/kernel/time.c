@@ -11,7 +11,7 @@
  *		"A Kernel Model for Precision Timekeeping" by Dave Mills
  */
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/export.h>
 #include <linux/module.h>
 #include <linux/sched.h>

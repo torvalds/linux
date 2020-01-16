@@ -180,7 +180,7 @@ static void hix5hd2_rw_over(struct hix5hd2_i2c_priv *priv)
 	if (priv->state == HIX5I2C_STAT_SND_STOP)
 		dev_dbg(priv->dev, "%s: rw and send stop over\n", __func__);
 	else
-		dev_dbg(priv->dev, "%s: have not data to send\n", __func__);
+		dev_dbg(priv->dev, "%s: have yest data to send\n", __func__);
 
 	priv->state = HIX5I2C_STAT_RW_SUCCESS;
 	priv->err = 0;
@@ -242,7 +242,7 @@ static int hix5hd2_rw_preprocess(struct hix5hd2_i2c_priv *priv)
 	return 0;
 }
 
-static irqreturn_t hix5hd2_i2c_irq(int irqno, void *dev_id)
+static irqreturn_t hix5hd2_i2c_irq(int irqyes, void *dev_id)
 {
 	struct hix5hd2_i2c_priv *priv = dev_id;
 	u32 int_status;
@@ -388,7 +388,7 @@ static const struct i2c_algorithm hix5hd2_i2c_algorithm = {
 
 static int hix5hd2_i2c_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	struct hix5hd2_i2c_priv *priv;
 	struct resource *mem;
 	unsigned int freq;
@@ -418,13 +418,13 @@ static int hix5hd2_i2c_probe(struct platform_device *pdev)
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq <= 0) {
-		dev_err(&pdev->dev, "cannot find HS-I2C IRQ\n");
+		dev_err(&pdev->dev, "canyest find HS-I2C IRQ\n");
 		return irq;
 	}
 
 	priv->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(priv->clk)) {
-		dev_err(&pdev->dev, "cannot get clock\n");
+		dev_err(&pdev->dev, "canyest get clock\n");
 		return PTR_ERR(priv->clk);
 	}
 	clk_prepare_enable(priv->clk);
@@ -434,7 +434,7 @@ static int hix5hd2_i2c_probe(struct platform_device *pdev)
 	priv->adap.owner = THIS_MODULE;
 	priv->adap.algo = &hix5hd2_i2c_algorithm;
 	priv->adap.retries = 3;
-	priv->adap.dev.of_node = np;
+	priv->adap.dev.of_yesde = np;
 	priv->adap.algo_data = priv;
 	priv->adap.dev.parent = &pdev->dev;
 	i2c_set_adapdata(&priv->adap, priv);
@@ -447,7 +447,7 @@ static int hix5hd2_i2c_probe(struct platform_device *pdev)
 	ret = devm_request_irq(&pdev->dev, irq, hix5hd2_i2c_irq,
 			       IRQF_NO_SUSPEND, dev_name(&pdev->dev), priv);
 	if (ret != 0) {
-		dev_err(&pdev->dev, "cannot request HS-I2C IRQ %d\n", irq);
+		dev_err(&pdev->dev, "canyest request HS-I2C IRQ %d\n", irq);
 		goto err_clk;
 	}
 

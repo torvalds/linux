@@ -4,7 +4,7 @@
  *
  * Armada-8K PCIe Glue Layer Source Code
  *
- * Copyright (C) 2016 Marvell Technology Group Ltd.
+ * Copyright (C) 2016 Marvell Techyeslogy Group Ltd.
  *
  * Author: Yehuda Yitshak <yehuday@marvell.com>
  * Author: Shadi Ammouri <shadi@marvell.com>
@@ -112,12 +112,12 @@ static int armada8k_pcie_setup_phys(struct armada8k_pcie *pcie)
 {
 	struct dw_pcie *pci = pcie->pci;
 	struct device *dev = pci->dev;
-	struct device_node *node = dev->of_node;
+	struct device_yesde *yesde = dev->of_yesde;
 	int ret = 0;
 	int i;
 
 	for (i = 0; i < ARMADA8K_PCIE_MAX_LANES; i++) {
-		pcie->phy[i] = devm_of_phy_get_by_index(dev, node, i);
+		pcie->phy[i] = devm_of_phy_get_by_index(dev, yesde, i);
 		if (IS_ERR(pcie->phy[i])) {
 			if (PTR_ERR(pcie->phy[i]) != -ENODEV)
 				return PTR_ERR(pcie->phy[i]);
@@ -129,7 +129,7 @@ static int armada8k_pcie_setup_phys(struct armada8k_pcie *pcie)
 		pcie->phy_count++;
 	}
 
-	/* Old bindings miss the PHY handle, so just warn if there is no PHY */
+	/* Old bindings miss the PHY handle, so just warn if there is yes PHY */
 	if (!pcie->phy_count)
 		dev_warn(dev, "No available PHY\n");
 
@@ -202,7 +202,7 @@ static void armada8k_pcie_establish_link(struct armada8k_pcie *pcie)
 
 	/* Wait until the link becomes active again */
 	if (dw_pcie_wait_for_link(pci))
-		dev_err(pci->dev, "Link not up after reconfiguration\n");
+		dev_err(pci->dev, "Link yest up after reconfiguration\n");
 }
 
 static int armada8k_pcie_host_init(struct pcie_port *pp)

@@ -5,7 +5,7 @@
  *	http://armlinux.simtec.co.uk/
  *	Ben Dooks <ben@simtec.co.uk>
  *
- * AMBA PL093 SSMC (synchronous static memory controller)
+ * AMBA PL093 SSMC (synchroyesus static memory controller)
  *  See DDI0236.pdf (r0p4) for more details
 */
 
@@ -33,7 +33,7 @@
  *	WSTOEN <= WSTRD
  *	WSTWEN <= WSTWR
  *
- * WSTOEN is not used with nWAIT
+ * WSTOEN is yest used with nWAIT
  */
 
 /* SMBCR bit definitions */

@@ -37,9 +37,9 @@ void ucall_init(struct kvm_vm *vm, void *arg)
 
 	/*
 	 * Find an address within the allowed physical and virtual address
-	 * spaces, that does _not_ have a KVM memory region associated with
+	 * spaces, that does _yest_ have a KVM memory region associated with
 	 * it. Identity mapping an address like this allows the guest to
-	 * access it, but as KVM doesn't know what to do with it, it
+	 * access it, but as KVM doesn't kyesw what to do with it, it
 	 * will assume it's something userspace handles and exit with
 	 * KVM_EXIT_MMIO. Well, at least that's how it works for AArch64.
 	 * Here we start with a guess that the addresses around 5/8th

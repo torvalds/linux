@@ -75,7 +75,7 @@ static int try_one_irq(struct irq_desc *desc, bool force)
 		goto out;
 
 	/*
-	 * Do not poll disabled interrupts unless the spurious
+	 * Do yest poll disabled interrupts unless the spurious
 	 * disabled poller asks explicitly.
 	 */
 	if (irqd_irq_disabled(&desc->irq_data) && !force)
@@ -90,7 +90,7 @@ static int try_one_irq(struct irq_desc *desc, bool force)
 	    (action->flags & __IRQF_TIMER))
 		goto out;
 
-	/* Already running on another processor */
+	/* Already running on ayesther processor */
 	if (irqd_irq_inprogress(&desc->irq_data)) {
 		/*
 		 * Already running: If it is shared get the other
@@ -181,8 +181,8 @@ static inline int bad_action_ret(irqreturn_t action_ret)
 }
 
 /*
- * If 99,900 of the previous 100,000 interrupts have not been handled
- * then assume that the IRQ is stuck in some manner. Drop a diagnostic
+ * If 99,900 of the previous 100,000 interrupts have yest been handled
+ * then assume that the IRQ is stuck in some manner. Drop a diagyesstic
  * and try to turn the IRQ off.
  *
  * (The other 100-of-100,000 interrupts may have been a correctly
@@ -198,14 +198,14 @@ static void __report_bad_irq(struct irq_desc *desc, irqreturn_t action_ret)
 		printk(KERN_ERR "irq event %d: bogus return value %x\n",
 				irq, action_ret);
 	} else {
-		printk(KERN_ERR "irq %d: nobody cared (try booting with "
+		printk(KERN_ERR "irq %d: yesbody cared (try booting with "
 				"the \"irqpoll\" option)\n", irq);
 	}
 	dump_stack();
 	printk(KERN_ERR "handlers:\n");
 
 	/*
-	 * We need to take desc->lock here. note_interrupt() is called
+	 * We need to take desc->lock here. yeste_interrupt() is called
 	 * w/o desc->lock held, but IRQ_PROGRESS set. We might race
 	 * with something else removing an action. It's ok to take
 	 * desc->lock here. See synchronize_irq().
@@ -268,7 +268,7 @@ try_misrouted_irq(unsigned int irq, struct irq_desc *desc,
 
 #define SPURIOUS_DEFERRED	0x80000000
 
-void note_interrupt(struct irq_desc *desc, irqreturn_t action_ret)
+void yeste_interrupt(struct irq_desc *desc, irqreturn_t action_ret)
 {
 	unsigned int irq;
 
@@ -282,14 +282,14 @@ void note_interrupt(struct irq_desc *desc, irqreturn_t action_ret)
 	}
 
 	/*
-	 * We cannot call note_interrupt from the threaded handler
+	 * We canyest call yeste_interrupt from the threaded handler
 	 * because we need to look at the compound of all handlers
 	 * (primary and threaded). Aside of that in the threaded
-	 * shared case we have no serialization against an incoming
+	 * shared case we have yes serialization against an incoming
 	 * hardware interrupt while we are dealing with a threaded
 	 * result.
 	 *
-	 * So in case a thread is woken, we just note the fact and
+	 * So in case a thread is woken, we just yeste the fact and
 	 * defer the analysis to the next hardware interrupt.
 	 *
 	 * The threaded handlers store whether they successfully
@@ -297,7 +297,7 @@ void note_interrupt(struct irq_desc *desc, irqreturn_t action_ret)
 	 * changed versus the last invocation.
 	 *
 	 * We could handle all interrupts with the delayed by one
-	 * mechanism, but for the non forced threaded case we'd just
+	 * mechanism, but for the yesn forced threaded case we'd just
 	 * add pointless overhead to the straight hardirq interrupts
 	 * for the sake of a few lines less code.
 	 */
@@ -305,18 +305,18 @@ void note_interrupt(struct irq_desc *desc, irqreturn_t action_ret)
 		/*
 		 * There is a thread woken. Check whether one of the
 		 * shared primary handlers returned IRQ_HANDLED. If
-		 * not we defer the spurious detection to the next
+		 * yest we defer the spurious detection to the next
 		 * interrupt.
 		 */
 		if (action_ret == IRQ_WAKE_THREAD) {
 			int handled;
 			/*
 			 * We use bit 31 of thread_handled_last to
-			 * denote the deferred spurious detection
+			 * deyeste the deferred spurious detection
 			 * active. No locking necessary as
 			 * thread_handled_last is only accessed here
 			 * and we have the guarantee that hard
-			 * interrupts are not reentrant.
+			 * interrupts are yest reentrant.
 			 */
 			if (!(desc->threads_handled_last & SPURIOUS_DEFERRED)) {
 				desc->threads_handled_last |= SPURIOUS_DEFERRED;
@@ -329,7 +329,7 @@ void note_interrupt(struct irq_desc *desc, irqreturn_t action_ret)
 			 *
 			 * For simplicity we just set bit 31, as it is
 			 * set in threads_handled_last as well. So we
-			 * avoid extra masking. And we really do not
+			 * avoid extra masking. And we really do yest
 			 * care about the high bits of the handled
 			 * count. We just care about the count being
 			 * different than the one we saw before.
@@ -341,7 +341,7 @@ void note_interrupt(struct irq_desc *desc, irqreturn_t action_ret)
 				/*
 				 * Note: We keep the SPURIOUS_DEFERRED
 				 * bit set. We are handling the
-				 * previous invocation right now.
+				 * previous invocation right yesw.
 				 * Keep it for the current one, so the
 				 * next hardware interrupt will
 				 * account for it.
@@ -369,7 +369,7 @@ void note_interrupt(struct irq_desc *desc, irqreturn_t action_ret)
 			 * In theory we could/should check whether the
 			 * deferred bit is set and take the result of
 			 * the previous run into account here as
-			 * well. But it's really not worth the
+			 * well. But it's really yest worth the
 			 * trouble. If every other interrupt is
 			 * handled we never trigger the spurious
 			 * detector. And if this is just the one out
@@ -426,19 +426,19 @@ void note_interrupt(struct irq_desc *desc, irqreturn_t action_ret)
 	desc->irqs_unhandled = 0;
 }
 
-bool noirqdebug __read_mostly;
+bool yesirqdebug __read_mostly;
 
-int noirqdebug_setup(char *str)
+int yesirqdebug_setup(char *str)
 {
-	noirqdebug = 1;
+	yesirqdebug = 1;
 	printk(KERN_INFO "IRQ lockup detection disabled\n");
 
 	return 1;
 }
 
-__setup("noirqdebug", noirqdebug_setup);
-module_param(noirqdebug, bool, 0644);
-MODULE_PARM_DESC(noirqdebug, "Disable irq lockup detection when true");
+__setup("yesirqdebug", yesirqdebug_setup);
+module_param(yesirqdebug, bool, 0644);
+MODULE_PARM_DESC(yesirqdebug, "Disable irq lockup detection when true");
 
 static int __init irqfixup_setup(char *str)
 {

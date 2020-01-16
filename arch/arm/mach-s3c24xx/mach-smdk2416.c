@@ -2,7 +2,7 @@
 //
 // Copyright (c) 2009 Yauhen Kharuzhy <jekhor@gmail.com>,
 //	as part of OpenInkpot project
-// Copyright (c) 2009 Promwad Innovation Company
+// Copyright (c) 2009 Promwad Inyesvation Company
 //	Yauhen Kharuzhy <yauhen.kharuzhy@promwad.com>
 
 #include <linux/kernel.h>

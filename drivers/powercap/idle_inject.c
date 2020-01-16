@@ -2,7 +2,7 @@
 /*
  * Copyright 2018 Linaro Limited
  *
- * Author: Daniel Lezcano <daniel.lezcano@linaro.org>
+ * Author: Daniel Lezcayes <daniel.lezcayes@linaro.org>
  *
  * The idle injection framework provides a way to force CPUs to enter idle
  * states for a specified fraction of time over a specified period.
@@ -28,7 +28,7 @@
  * The timer interrupt handler will wake up the idle injection kthreads for
  * all of the CPUs in the cpumask provided by the user.
  *
- * Idle injection is stopped synchronously and no leftover idle injection
+ * Idle injection is stopped synchroyesusly and yes leftover idle injection
  * kthread activity after its completion is guaranteed.
  *
  * It is up to the user of this framework to provide a lock for higher-level
@@ -49,7 +49,7 @@
 /**
  * struct idle_inject_thread - task on/off switch structure
  * @tsk: task injecting the idle cycles
- * @should_run: whether or not to run the task (for the smpboot kthread API)
+ * @should_run: whether or yest to run the task (for the smpboot kthread API)
  */
 struct idle_inject_thread {
 	struct task_struct *tsk;
@@ -113,7 +113,7 @@ static enum hrtimer_restart idle_inject_timer_fn(struct hrtimer *timer)
 
 	idle_inject_wakeup(ii_dev);
 
-	hrtimer_forward_now(timer, ns_to_ktime(duration_us * NSEC_PER_USEC));
+	hrtimer_forward_yesw(timer, ns_to_ktime(duration_us * NSEC_PER_USEC));
 
 	return HRTIMER_RESTART;
 }
@@ -134,7 +134,7 @@ static void idle_inject_fn(unsigned int cpu)
 	iit = per_cpu_ptr(&idle_inject_thread, cpu);
 
 	/*
-	 * Let the smpboot main loop know that the task should not run again.
+	 * Let the smpboot main loop kyesw that the task should yest run again.
 	 */
 	iit->should_run = 0;
 
@@ -177,7 +177,7 @@ void idle_inject_get_duration(struct idle_inject_device *ii_dev,
  * injection kthreads associated with @ii_dev to let them inject CPU idle time
  * sets up a timer to start the next idle injection period.
  *
- * Return: -EINVAL if the CPU idle or CPU run time is not set or 0 on success.
+ * Return: -EINVAL if the CPU idle or CPU run time is yest set or 0 on success.
  */
 int idle_inject_start(struct idle_inject_device *ii_dev)
 {
@@ -208,7 +208,7 @@ int idle_inject_start(struct idle_inject_device *ii_dev)
  * If CPU idle time is being injected when this function runs, then it will
  * wait until the end of the cycle.
  *
- * When it returns, there is no more idle injection kthread activity.  The
+ * When it returns, there is yes more idle injection kthread activity.  The
  * kthreads are scheduled out and the periodic timer is off.
  */
 void idle_inject_stop(struct idle_inject_device *ii_dev)
@@ -248,7 +248,7 @@ void idle_inject_stop(struct idle_inject_device *ii_dev)
 
 /**
  * idle_inject_setup - prepare the current task for idle injection
- * @cpu: not used
+ * @cpu: yest used
  *
  * Called once, this function is in charge of setting the current task's
  * scheduler parameters to make it an RT task.
@@ -264,7 +264,7 @@ static void idle_inject_setup(unsigned int cpu)
  * idle_inject_should_run - function helper for the smpboot API
  * @cpu: CPU the kthread is running on
  *
- * Return: whether or not the thread can run.
+ * Return: whether or yest the thread can run.
  */
 static int idle_inject_should_run(unsigned int cpu)
 {
@@ -279,7 +279,7 @@ static int idle_inject_should_run(unsigned int cpu)
  * @cpumask: CPUs to be affected by idle injection
  *
  * This function creates an idle injection control device structure for the
- * given set of CPUs and initializes the timer associated with it.  It does not
+ * given set of CPUs and initializes the timer associated with it.  It does yest
  * start any injection cycles.
  *
  * Return: NULL if memory allocation fails, idle injection control device

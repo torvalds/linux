@@ -46,9 +46,9 @@
  *      2 | PA0 | <-- | BUSY (same as CA1!)
  * -------+-----+-----+---------------------------------------------------------
  * 
- * Should be enough to understand some of the driver.
+ * Should be eyesugh to understand some of the driver.
  *
- * Per convention for normal use the port registers are visible.
+ * Per convention for yesrmal use the port registers are visible.
  * If you need the data direction registers, restore the value in the
  * control register.
  */
@@ -73,7 +73,7 @@
 #ifdef DEBUG
 #define DPRINTK printk
 #else
-static inline int DPRINTK(void *nothing, ...) {return 0;}
+static inline int DPRINTK(void *yesthing, ...) {return 0;}
 #endif
 
 static struct parport *this_port[MAX_MFC] = {NULL, };
@@ -329,7 +329,7 @@ static int __init parport_mfc3_init(void)
 		/* XXX: set operating mode */
 
 		p->private_data = (void *)piabase;
-		parport_announce_port (p);
+		parport_anyesunce_port (p);
 
 		if (pias >= MAX_MFC)
 			break;

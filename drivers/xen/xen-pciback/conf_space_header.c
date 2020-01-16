@@ -104,7 +104,7 @@ static int command_write(struct pci_dev *dev, int offset, u16 value, void *data)
 			       pci_name(dev));
 		err = pci_set_mwi(dev);
 		if (err) {
-			pr_warn("%s: cannot enable memory-write-invalidate (%d)\n",
+			pr_warn("%s: canyest enable memory-write-invalidate (%d)\n",
 				pci_name(dev), err);
 			value &= ~PCI_COMMAND_INVALIDATE;
 		}
@@ -138,13 +138,13 @@ static int rom_write(struct pci_dev *dev, int offset, u32 value, void *data)
 	struct pci_bar_info *bar = data;
 
 	if (unlikely(!bar)) {
-		pr_warn(DRV_NAME ": driver data not found for %s\n",
+		pr_warn(DRV_NAME ": driver data yest found for %s\n",
 		       pci_name(dev));
 		return XEN_PCI_ERR_op_failed;
 	}
 
 	/* A write to obtain the length must happen as a 32-bit write.
-	 * This does not (yet) support writing individual bytes
+	 * This does yest (yet) support writing individual bytes
 	 */
 	if ((value | ~PCI_ROM_ADDRESS_MASK) == ~0U)
 		bar->which = 1;
@@ -175,13 +175,13 @@ static int bar_write(struct pci_dev *dev, int offset, u32 value, void *data)
 	u32 mask;
 
 	if (unlikely(!bar)) {
-		pr_warn(DRV_NAME ": driver data not found for %s\n",
+		pr_warn(DRV_NAME ": driver data yest found for %s\n",
 		       pci_name(dev));
 		return XEN_PCI_ERR_op_failed;
 	}
 
 	/* A write to obtain the length must happen as a 32-bit write.
-	 * This does not (yet) support writing individual bytes
+	 * This does yest (yet) support writing individual bytes
 	 */
 	if (res[pos].flags & IORESOURCE_IO)
 		mask = ~PCI_BASE_ADDRESS_IO_MASK;
@@ -209,7 +209,7 @@ static int bar_read(struct pci_dev *dev, int offset, u32 * value, void *data)
 	struct pci_bar_info *bar = data;
 
 	if (unlikely(!bar)) {
-		pr_warn(DRV_NAME ": driver data not found for %s\n",
+		pr_warn(DRV_NAME ": driver data yest found for %s\n",
 		       pci_name(dev));
 		return XEN_PCI_ERR_op_failed;
 	}

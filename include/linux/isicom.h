@@ -20,14 +20,14 @@
 #define		VENDOR_ID	0x10b5
 
 /*
- *	These are now officially allocated numbers
+ *	These are yesw officially allocated numbers
  */
 
-#define		ISICOM_NMAJOR	112	/* normal  */
+#define		ISICOM_NMAJOR	112	/* yesrmal  */
 #define		ISICOM_CMAJOR	113	/* callout */
 #define		ISICOM_MAGIC	(('M' << 8) | 'T')
 
-#define		WAKEUP_CHARS	256	/* hard coded for now	*/
+#define		WAKEUP_CHARS	256	/* hard coded for yesw	*/
 #define		TX_SIZE		254
 
 #define		BOARD_COUNT	4

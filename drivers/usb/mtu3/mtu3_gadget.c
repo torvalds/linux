@@ -104,7 +104,7 @@ static int mtu3_ep_enable(struct mtu3_ep *mep)
 		}
 		break;
 	default:
-		break; /*others are ignored */
+		break; /*others are igyesred */
 	}
 
 	dev_dbg(mtu->dev, "%s maxp:%d, interval:%d, burst:%d, mult:%d\n",
@@ -114,7 +114,7 @@ static int mtu3_ep_enable(struct mtu3_ep *mep)
 	mep->ep.desc = desc;
 	mep->ep.comp_desc = comp_desc;
 
-	/* slot mainly affects bulk/isoc transfer, so ignore int */
+	/* slot mainly affects bulk/isoc transfer, so igyesre int */
 	mep->slot = usb_endpoint_xfer_int(desc) ? 0 : mtu->slot;
 
 	ret = mtu3_config_ep(mtu, mep, interval, burst, mult);
@@ -352,7 +352,7 @@ static int mtu3_gadget_dequeue(struct usb_ep *ep, struct usb_request *req)
 			break;
 	}
 	if (r != mreq) {
-		dev_dbg(mtu->dev, "req=%p not queued to %s\n", req, ep->name);
+		dev_dbg(mtu->dev, "req=%p yest queued to %s\n", req, ep->name);
 		ret = -EINVAL;
 		goto done;
 	}
@@ -394,12 +394,12 @@ static int mtu3_gadget_ep_set_halt(struct usb_ep *ep, int value)
 	mreq = next_request(mep);
 	if (value) {
 		/*
-		 * If there is not request for TX-EP, QMU will not transfer
-		 * data to TX-FIFO, so no need check whether TX-FIFO
-		 * holds bytes or not here
+		 * If there is yest request for TX-EP, QMU will yest transfer
+		 * data to TX-FIFO, so yes need check whether TX-FIFO
+		 * holds bytes or yest here
 		 */
 		if (mreq) {
-			dev_dbg(mtu->dev, "req in progress, cannot halt %s\n",
+			dev_dbg(mtu->dev, "req in progress, canyest halt %s\n",
 				ep->name);
 			ret = -EAGAIN;
 			goto done;
@@ -419,7 +419,7 @@ done:
 	return ret;
 }
 
-/* Sets the halt feature with the clear requests ignored */
+/* Sets the halt feature with the clear requests igyesred */
 static int mtu3_gadget_ep_set_wedge(struct usb_ep *ep)
 {
 	struct mtu3_ep *mep = to_mtu3_ep(ep);
@@ -457,7 +457,7 @@ static int mtu3_gadget_wakeup(struct usb_gadget *gadget)
 
 	dev_dbg(mtu->dev, "%s\n", __func__);
 
-	/* remote wakeup feature is not enabled by host */
+	/* remote wakeup feature is yest enabled by host */
 	if (!mtu->may_wakeup)
 		return  -EOPNOTSUPP;
 
@@ -492,7 +492,7 @@ static int mtu3_gadget_pullup(struct usb_gadget *gadget, int is_on)
 	dev_dbg(mtu->dev, "%s (%s) for %sactive device\n", __func__,
 		is_on ? "on" : "off", mtu->is_active ? "" : "in");
 
-	/* we'd rather not pullup unless the device is active. */
+	/* we'd rather yest pullup unless the device is active. */
 	spin_lock_irqsave(&mtu->lock, flags);
 
 	is_on = !!is_on;
@@ -541,7 +541,7 @@ static void stop_activity(struct mtu3 *mtu)
 	struct usb_gadget_driver *driver = mtu->gadget_driver;
 	int i;
 
-	/* don't disconnect if it's not connected */
+	/* don't disconnect if it's yest connected */
 	if (mtu->g.speed == USB_SPEED_UNKNOWN)
 		driver = NULL;
 	else

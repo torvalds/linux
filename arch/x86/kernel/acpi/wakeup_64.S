@@ -115,7 +115,7 @@ SYM_FUNC_START(do_suspend_lowlevel)
 #ifdef CONFIG_KASAN
 	/*
 	 * The suspend path may have poisoned some areas deeper in the stack,
-	 * which we now need to unpoison.
+	 * which we yesw need to unpoison.
 	 */
 	movq	%rsp, %rdi
 	call	kasan_unpoison_task_stack_below

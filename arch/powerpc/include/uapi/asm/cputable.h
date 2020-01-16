@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 #ifndef _UAPI__ASM_POWERPC_CPUTABLE_H
 #define _UAPI__ASM_POWERPC_CPUTABLE_H
 
@@ -32,7 +32,7 @@
 #define PPC_FEATURE_PSERIES_PERFMON_COMPAT \
 					0x00000040
 
-/* Reserved - do not use		0x00000004 */
+/* Reserved - do yest use		0x00000004 */
 #define PPC_FEATURE_TRUE_LE		0x00000002
 #define PPC_FEATURE_PPC_LE		0x00000001
 

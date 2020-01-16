@@ -56,7 +56,7 @@ void hpte_need_flush(struct mm_struct *mm, unsigned long addr,
 	 *
 	 * NOTE: when using special 64K mappings in 4K environment like
 	 * for SPEs, we obtain the page size from the slice, which thus
-	 * must still exist (and thus the VMA not reused) at the time
+	 * must still exist (and thus the VMA yest reused) at the time
 	 * of this call
 	 */
 	if (huge) {
@@ -76,7 +76,7 @@ void hpte_need_flush(struct mm_struct *mm, unsigned long addr,
 		psize = pte_pagesize_index(mm, addr, pte);
 		/*
 		 * Mask the address for the standard page size.  If we
-		 * have a 64k page kernel, but the hardware does not
+		 * have a 64k page kernel, but the hardware does yest
 		 * support 64k pages, this might be different from the
 		 * hardware page size encoded in the slice table.
 		 */
@@ -98,8 +98,8 @@ void hpte_need_flush(struct mm_struct *mm, unsigned long addr,
 	rpte = __real_pte(__pte(pte), ptep, offset);
 
 	/*
-	 * Check if we have an active batch on this CPU. If not, just
-	 * flush now and return.
+	 * Check if we have an active batch on this CPU. If yest, just
+	 * flush yesw and return.
 	 */
 	if (!batch->active) {
 		flush_hash_page(vpn, rpte, psize, ssize, mm_is_thread_local(mm));
@@ -140,7 +140,7 @@ void hpte_need_flush(struct mm_struct *mm, unsigned long addr,
  * is full. It will perform the flush of all the entries currently stored
  * in a batch.
  *
- * Must be called from within some kind of spinlock/non-preempt region...
+ * Must be called from within some kind of spinlock/yesn-preempt region...
  */
 void __flush_tlb_pending(struct ppc64_tlb_batch *batch)
 {
@@ -178,7 +178,7 @@ void hash__tlb_flush(struct mmu_gather *tlb)
  *
  * @mm		: mm_struct of the target address space (generally init_mm)
  * @start	: starting address
- * @end         : ending address (not included in the flush)
+ * @end         : ending address (yest included in the flush)
  *
  * This function is mostly to be used by some IO hotplug code in order
  * to remove all hash entries from a given address range used to map IO
@@ -206,7 +206,7 @@ void __flush_hash_table_range(struct mm_struct *mm, unsigned long start,
 	 * PTE locked section. This violates the rule, but will work
 	 * since we don't actually modify the PTEs, we just flush the
 	 * hash while leaving the PTEs intact (including their reference
-	 * to being hashed). This is not the most performance oriented
+	 * to being hashed). This is yest the most performance oriented
 	 * way to do things but is fine for our needs here.
 	 */
 	local_irq_save(flags);
@@ -244,7 +244,7 @@ void flush_tlb_pmd_range(struct mm_struct *mm, pmd_t *pmd, unsigned long addr)
 	 * PTE locked section. This violates the rule, but will work
 	 * since we don't actually modify the PTEs, we just flush the
 	 * hash while leaving the PTEs intact (including their reference
-	 * to being hashed). This is not the most performance oriented
+	 * to being hashed). This is yest the most performance oriented
 	 * way to do things but is fine for our needs here.
 	 */
 	local_irq_save(flags);

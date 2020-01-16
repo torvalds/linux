@@ -203,13 +203,13 @@ static int spmi_pmic_clkdiv_probe(struct platform_device *pdev)
 	struct clk *cxo;
 	struct regmap *regmap;
 	struct device *dev = &pdev->dev;
-	struct device_node *of_node = dev->of_node;
+	struct device_yesde *of_yesde = dev->of_yesde;
 	const char *parent_name;
 	int nclks, i, ret, cxo_hz;
 	char name[20];
 	u32 start;
 
-	ret = of_property_read_u32(of_node, "reg", &start);
+	ret = of_property_read_u32(of_yesde, "reg", &start);
 	if (ret < 0) {
 		dev_err(dev, "reg property reading failed\n");
 		return ret;
@@ -221,7 +221,7 @@ static int spmi_pmic_clkdiv_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	ret = of_property_read_u32(of_node, "qcom,num-clkdivs", &nclks);
+	ret = of_property_read_u32(of_yesde, "qcom,num-clkdivs", &nclks);
 	if (ret < 0) {
 		dev_err(dev, "qcom,num-clkdivs property reading failed, ret=%d\n",
 			ret);
@@ -246,7 +246,7 @@ static int spmi_pmic_clkdiv_probe(struct platform_device *pdev)
 	cxo_hz = clk_get_rate(cxo);
 	clk_put(cxo);
 
-	parent_name = of_clk_get_parent_name(of_node, 0);
+	parent_name = of_clk_get_parent_name(of_yesde, 0);
 	if (!parent_name) {
 		dev_err(dev, "missing parent clock\n");
 		return -ENODEV;

@@ -19,12 +19,12 @@
 
 #include "xenbus.h"
 
-static int xenbus_backend_open(struct inode *inode, struct file *filp)
+static int xenbus_backend_open(struct iyesde *iyesde, struct file *filp)
 {
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
 
-	return nonseekable_open(inode, filp);
+	return yesnseekable_open(iyesde, filp);
 }
 
 static long xenbus_alloc(domid_t domid)
@@ -34,10 +34,10 @@ static long xenbus_alloc(domid_t domid)
 
 	xs_suspend();
 
-	/* If xenstored_ready is nonzero, that means we have already talked to
+	/* If xenstored_ready is yesnzero, that means we have already talked to
 	 * xenstore and set up watches. These watches will be restored by
 	 * xs_resume, but that requires communication over the port established
-	 * below that is not visible to anyone until the ioctl returns.
+	 * below that is yest visible to anyone until the ioctl returns.
 	 *
 	 * This can be resolved by splitting the ioctl into two parts
 	 * (postponing the resume until xenstored is active) but this is
@@ -114,7 +114,7 @@ static const struct file_operations xenbus_backend_fops = {
 };
 
 static struct miscdevice xenbus_backend_dev = {
-	.minor = MISC_DYNAMIC_MINOR,
+	.miyesr = MISC_DYNAMIC_MINOR,
 	.name = "xen/xenbus_backend",
 	.fops = &xenbus_backend_fops,
 };
@@ -128,7 +128,7 @@ static int __init xenbus_backend_init(void)
 
 	err = misc_register(&xenbus_backend_dev);
 	if (err)
-		pr_err("Could not register xenbus backend device\n");
+		pr_err("Could yest register xenbus backend device\n");
 	return err;
 }
 device_initcall(xenbus_backend_init);

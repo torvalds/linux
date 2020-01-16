@@ -2,7 +2,7 @@
 /*
  *  (C) 2010,2011       Thomas Renninger <trenn@suse.de>, Novell Inc.
  *
- * Miscellaneous helpers which do not fit or are worth
+ * Miscellaneous helpers which do yest fit or are worth
  * to put into separate headers
  */
 
@@ -19,10 +19,10 @@
 #ifdef NLS
 
 #define _(String) gettext(String)
-#ifndef gettext_noop
-#define gettext_noop(String) String
+#ifndef gettext_yesop
+#define gettext_yesop(String) String
 #endif
-#define N_(String) gettext_noop(String)
+#define N_(String) gettext_yesop(String)
 
 #else /* !NLS */
 
@@ -41,7 +41,7 @@ extern struct bitmask *cpus_chosen;
  * define DEBUG via global Makefile variable
  * Debug output is sent to stderr, do:
  * cpupower monitor 2>/tmp/debug
- * to split debug output away from normal output
+ * to split debug output away from yesrmal output
 */
 #ifdef DEBUG
 extern int be_verbose;
@@ -89,7 +89,7 @@ struct cpupower_cpu_info {
  * Extract CPU vendor, family, model, stepping info from /proc/cpuinfo
  *
  * Returns 0 on success or a negative error code
- * Only used on x86, below global's struct values are zero/unknown on
+ * Only used on x86, below global's struct values are zero/unkyeswn on
  * other archs
  */
 extern int get_cpu_info(struct cpupower_cpu_info *cpu_info);
@@ -124,7 +124,7 @@ extern struct pci_dev *pci_slot_func_init(struct pci_access **pacc,
 /* AMD HW pstate decoding **************************/
 
 extern int decode_pstates(unsigned int cpu, unsigned int cpu_family,
-			  int boost_states, unsigned long *pstates, int *no);
+			  int boost_states, unsigned long *pstates, int *yes);
 
 /* AMD HW pstate decoding **************************/
 
@@ -143,7 +143,7 @@ unsigned int cpuid_edx(unsigned int op);
 #else
 static inline int decode_pstates(unsigned int cpu, unsigned int cpu_family,
 				 int boost_states, unsigned long *pstates,
-				 int *no)
+				 int *yes)
 { return -1; };
 
 static inline int read_msr(int cpu, unsigned int idx, unsigned long long *val)

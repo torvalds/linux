@@ -4,7 +4,7 @@
 # Test the basic function of max-stack usage tracing
 
 if [ ! -f stack_trace ]; then
-  echo "Max stack tracer is not supported - please make CONFIG_STACK_TRACER=y"
+  echo "Max stack tracer is yest supported - please make CONFIG_STACK_TRACER=y"
   exit_unsupported
 fi
 

@@ -89,12 +89,12 @@ int kvmppc_mmu_map_page(struct kvm_vcpu *vcpu, struct kvmppc_pte *orig_pte,
 	unsigned long pfn;
 
 	/* used to check for invalidations in progress */
-	mmu_seq = kvm->mmu_notifier_seq;
+	mmu_seq = kvm->mmu_yestifier_seq;
 	smp_rmb();
 
 	/* Get host physical address for gpa */
 	pfn = kvmppc_gpa_to_pfn(vcpu, orig_pte->raddr, iswrite, &writable);
-	if (is_error_noslot_pfn(pfn)) {
+	if (is_error_yesslot_pfn(pfn)) {
 		printk(KERN_INFO "Couldn't get guest page for gpa %lx!\n",
 		       orig_pte->raddr);
 		r = -EINVAL;
@@ -149,7 +149,7 @@ int kvmppc_mmu_map_page(struct kvm_vcpu *vcpu, struct kvmppc_pte *orig_pte,
 	cpte = kvmppc_mmu_hpte_cache_next(vcpu);
 
 	spin_lock(&kvm->mmu_lock);
-	if (!cpte || mmu_notifier_retry(kvm, mmu_seq)) {
+	if (!cpte || mmu_yestifier_retry(kvm, mmu_seq)) {
 		r = -EAGAIN;
 		goto out_unlock;
 	}
@@ -157,7 +157,7 @@ int kvmppc_mmu_map_page(struct kvm_vcpu *vcpu, struct kvmppc_pte *orig_pte,
 map_again:
 	hpteg = ((hash & htab_hash_mask) * HPTES_PER_GROUP);
 
-	/* In case we tried normal mapping already, let's nuke old entries */
+	/* In case we tried yesrmal mapping already, let's nuke old entries */
 	if (attempt > 1)
 		if (mmu_hash_ops.hpte_remove(hpteg) < 0) {
 			r = -1;

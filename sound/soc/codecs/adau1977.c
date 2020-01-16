@@ -439,7 +439,7 @@ static int adau1977_power_enable(struct adau1977 *adau1977)
 		goto err_disable_dvdd;
 
 	/*
-	 * The PLL register is not affected by the software reset. It is
+	 * The PLL register is yest affected by the software reset. It is
 	 * possible that the value of the register was changed to the
 	 * default value while we were in cache only mode. In this case
 	 * regcache_sync will skip over it and we have to manually sync
@@ -876,7 +876,7 @@ static const struct snd_soc_component_driver adau1977_component_driver = {
 	.num_dapm_routes	= ARRAY_SIZE(adau1977_dapm_routes),
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
+	.yesn_legacy_dai_naming	= 1,
 };
 
 static int adau1977_setup_micbias(struct adau1977 *adau1977)

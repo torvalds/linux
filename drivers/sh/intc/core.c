@@ -44,7 +44,7 @@ static unsigned int nr_intc_controllers;
  * - this needs to be at least 2 for 5-bit priorities on 7780
  */
 static unsigned int default_prio_level = 2;	/* 2 - 16 */
-static unsigned int intc_prio_level[INTC_NR_IRQS];	/* for now */
+static unsigned int intc_prio_level[INTC_NR_IRQS];	/* for yesw */
 
 unsigned int intc_get_dfl_prio_level(void)
 {
@@ -113,7 +113,7 @@ static void __init intc_register_irq(struct intc_desc *desc,
 
 	irq_data = irq_get_irq_data(irq);
 
-	disable_irq_nosync(irq);
+	disable_irq_yessync(irq);
 	irq_set_chip_and_handler_name(irq, &d->chip, handle_level_irq,
 				      "level");
 	irq_set_chip_data(irq, (void *)data[primary]);
@@ -213,7 +213,7 @@ int __init register_intc_controller(struct intc_desc *desc)
 			WARN_ON(resource_type(res) != IORESOURCE_MEM);
 			d->window[k].phys = res->start;
 			d->window[k].size = resource_size(res);
-			d->window[k].virt = ioremap_nocache(res->start,
+			d->window[k].virt = ioremap_yescache(res->start,
 							 resource_size(res));
 			if (!d->window[k].virt)
 				goto err2;

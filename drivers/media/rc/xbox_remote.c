@@ -9,7 +9,7 @@
  *          and used information from lirc_xbox.c
  *
  *          Copyright (c) 2011, 2012 Anssi Hannula <anssi.hannula@iki.fi>
- *          Copyright (c) 2004 Torrey Hoffman <thoffman@arnor.net>
+ *          Copyright (c) 2004 Torrey Hoffman <thoffman@aryesr.net>
  *          Copyright (c) 2002 Vladimir Dergachev
  *          Copyright (c) 2003-2004 Paul Miller <pmiller9@users.sourceforge.net>
  */
@@ -194,7 +194,7 @@ static int xbox_remote_probe(struct usb_interface *interface,
 	struct rc_dev *rc_dev;
 	int err = -ENOMEM;
 
-	// why is there also a device with no endpoints?
+	// why is there also a device with yes endpoints?
 	if (iface_host->desc.bNumEndpoints == 0)
 		return -ENODEV;
 

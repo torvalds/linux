@@ -204,7 +204,7 @@ static int mid_read_temp(struct thermal_zone_device *tzd, int *temp)
 
 /**
  * configure_adc - enables/disables the ADC for conversion
- * @val: zero: disables the ADC non-zero:enables the ADC
+ * @val: zero: disables the ADC yesn-zero:enables the ADC
  *
  * Enable/Disable the ADC depending on the argument
  *
@@ -285,7 +285,7 @@ static int reset_stopbit(uint16_t addr)
 /**
  * find_free_channel - finds an empty channel for conversion
  *
- * If the ADC is not enabled then start using 0th channel
+ * If the ADC is yest enabled then start using 0th channel
  * itself. Otherwise find an empty channel by looking for a
  * channel in which the stopbit is set to 1. returns the index
  * of the first free channel if succeeds or an error code.
@@ -421,7 +421,7 @@ static int mid_thermal_resume(struct device *dev)
 static int mid_thermal_suspend(struct device *dev)
 {
 	/*
-	 * This just stops the ADC and does not disable it.
+	 * This just stops the ADC and does yest disable it.
 	 * temporary workaround until we have a generic ADC driver.
 	 * If 0 is passed, it disables the ADC.
 	 */

@@ -36,7 +36,7 @@ struct xfs_defer_pending {
 
 void xfs_defer_add(struct xfs_trans *tp, enum xfs_defer_ops_type type,
 		struct list_head *h);
-int xfs_defer_finish_noroll(struct xfs_trans **tp);
+int xfs_defer_finish_yesroll(struct xfs_trans **tp);
 int xfs_defer_finish(struct xfs_trans **tp);
 void xfs_defer_cancel(struct xfs_trans *);
 void xfs_defer_move(struct xfs_trans *dtp, struct xfs_trans *stp);

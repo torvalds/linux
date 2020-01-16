@@ -34,7 +34,7 @@ static struct iw_statistics *hostap_get_wireless_stats(struct net_device *dev)
 		local->comm_tallies.rx_discards_wep_undecryptable;
 	wstats->discard.misc =
 		local->comm_tallies.rx_fcs_errors +
-		local->comm_tallies.rx_discards_no_buffer +
+		local->comm_tallies.rx_discards_yes_buffer +
 		local->comm_tallies.tx_discards_wrong_sa;
 
 	wstats->discard.retries =
@@ -46,7 +46,7 @@ static struct iw_statistics *hostap_get_wireless_stats(struct net_device *dev)
 	    local->iw_mode != IW_MODE_REPEAT) {
 		int update = 1;
 #ifdef in_atomic
-		/* RID reading might sleep and it must not be called in
+		/* RID reading might sleep and it must yest be called in
 		 * interrupt context or while atomic. However, this
 		 * function seems to be called while atomic (at least in Linux
 		 * 2.5.59). Update signal quality values only if in suitable
@@ -62,11 +62,11 @@ static struct iw_statistics *hostap_get_wireless_stats(struct net_device *dev)
 
 		wstats->qual.qual = local->comms_qual;
 		wstats->qual.level = local->avg_signal;
-		wstats->qual.noise = local->avg_noise;
+		wstats->qual.yesise = local->avg_yesise;
 	} else {
 		wstats->qual.qual = 0;
 		wstats->qual.level = 0;
-		wstats->qual.noise = 0;
+		wstats->qual.yesise = 0;
 		wstats->qual.updated = IW_QUAL_ALL_INVALID;
 	}
 
@@ -175,7 +175,7 @@ static int prism2_ioctl_siwencode(struct net_device *dev,
 			kfree(new_crypt);
 			new_crypt = NULL;
 
-			printk(KERN_WARNING "%s: could not initialize WEP: "
+			printk(KERN_WARNING "%s: could yest initialize WEP: "
 			       "load module hostap_crypt_wep.o\n",
 			       dev->name);
 			return -EOPNOTSUPP;
@@ -210,7 +210,7 @@ static int prism2_ioctl_siwencode(struct net_device *dev,
 		return -EINVAL;
 	}
 
-	/* Do not reset port0 if card is in Managed mode since resetting will
+	/* Do yest reset port0 if card is in Managed mode since resetting will
 	 * generate new IEEE 802.11 authentication which may end up in looping
 	 * with IEEE 802.1X. Prism2 documentation seem to require port reset
 	 * after WEP configuration. However, keys are apparently changed at
@@ -439,7 +439,7 @@ static int prism2_ioctl_giwrate(struct net_device *dev,
 		rrq->value = 11000000;
 		break;
 	default:
-		/* should not happen */
+		/* should yest happen */
 		rrq->value = 11000000;
 		ret = -EINVAL;
 		break;
@@ -902,7 +902,7 @@ static int prism2_ioctl_siwessid(struct net_device *dev,
 	if (local->iw_mode == IW_MODE_MASTER && ssid[0] == '\0') {
 		/* Setting SSID to empty string seems to kill the card in
 		 * Host AP mode */
-		printk(KERN_DEBUG "%s: Host AP mode does not support "
+		printk(KERN_DEBUG "%s: Host AP mode does yest support "
 		       "'Any' essid\n", dev->name);
 		return -EINVAL;
 	}
@@ -1013,20 +1013,20 @@ static int prism2_ioctl_giwrange(struct net_device *dev,
 	range->num_frequency = val;
 
 	if (local->sta_fw_ver >= PRISM2_FW_VER(1,3,1)) {
-		range->max_qual.qual = 70; /* what is correct max? This was not
+		range->max_qual.qual = 70; /* what is correct max? This was yest
 					    * documented exactly. At least
 					    * 69 has been observed. */
 		range->max_qual.level = 0; /* dB */
-		range->max_qual.noise = 0; /* dB */
+		range->max_qual.yesise = 0; /* dB */
 
 		/* What would be suitable values for "average/typical" qual? */
 		range->avg_qual.qual = 20;
 		range->avg_qual.level = -60;
-		range->avg_qual.noise = -95;
+		range->avg_qual.yesise = -95;
 	} else {
 		range->max_qual.qual = 92; /* 0 .. 92 */
 		range->max_qual.level = 154; /* 27 .. 154 */
-		range->max_qual.noise = 154; /* 27 .. 154 */
+		range->max_qual.yesise = 154; /* 27 .. 154 */
 	}
 	range->sensitivity = 3;
 
@@ -1155,7 +1155,7 @@ static int prism2_ioctl_siwmode(struct net_device *dev,
 		return 0;
 
 	if (*mode == IW_MODE_MASTER && local->essid[0] == '\0') {
-		printk(KERN_WARNING "%s: empty SSID not allowed in Master "
+		printk(KERN_WARNING "%s: empty SSID yest allowed in Master "
 		       "mode\n", dev->name);
 		return -EINVAL;
 	}
@@ -1168,7 +1168,7 @@ static int prism2_ioctl_siwmode(struct net_device *dev,
 		/* There seems to be a firmware bug in at least STA f/w v1.5.6
 		 * that leaves beacon frames to use IBSS type when moving from
 		 * IBSS to Host AP mode. Doing double Port0 reset seems to be
-		 * enough to workaround this. */
+		 * eyesugh to workaround this. */
 		double_reset = 1;
 	}
 
@@ -1197,8 +1197,8 @@ static int prism2_ioctl_siwmode(struct net_device *dev,
 
 	if (local->iw_mode != IW_MODE_INFRA && local->iw_mode != IW_MODE_ADHOC)
 	{
-		/* netif_carrier is used only in client modes for now, so make
-		 * sure carrier is on when moving to non-client modes. */
+		/* netif_carrier is used only in client modes for yesw, so make
+		 * sure carrier is on when moving to yesn-client modes. */
 		netif_carrier_on(local->dev);
 		netif_carrier_on(local->ddev);
 	}
@@ -1361,8 +1361,8 @@ static int prism2_ioctl_siwretry(struct net_device *dev,
 	if (rrq->disabled)
 		return -EINVAL;
 
-	/* setting retry limits is not supported with the current station
-	 * firmware code; simulate this with alternative retry count for now */
+	/* setting retry limits is yest supported with the current station
+	 * firmware code; simulate this with alternative retry count for yesw */
 	if (rrq->flags == IW_RETRY_LIMIT) {
 		if (rrq->value < 0) {
 			/* disable manual retry count setting and use firmware
@@ -1456,10 +1456,10 @@ static int prism2_ioctl_giwretry(struct net_device *dev,
 }
 
 
-/* Note! This TX power controlling is experimental and should not be used in
- * production use. It just sets raw power register and does not use any kind of
- * feedback information from the measured TX power (CR58). This is now
- * commented out to make sure that it is not used by accident. TX power
+/* Note! This TX power controlling is experimental and should yest be used in
+ * production use. It just sets raw power register and does yest use any kind of
+ * feedback information from the measured TX power (CR58). This is yesw
+ * commented out to make sure that it is yest used by accident. TX power
  * configuration will be enabled again after proper algorithm using feedback
  * has been implemented. */
 
@@ -1468,7 +1468,7 @@ static int prism2_ioctl_giwretry(struct net_device *dev,
  * This version assumes following mapping:
  * CR31 is 7-bit value with -64 to +63 range.
  * -64 is mapped into +20dBm and +63 into -43dBm.
- * This is certainly not an exact mapping for every card, but at least
+ * This is certainly yest an exact mapping for every card, but at least
  * increasing dBm value should correspond to increasing TX power.
  */
 
@@ -1567,7 +1567,7 @@ static int prism2_ioctl_siwtxpow(struct net_device *dev,
 	printk(KERN_DEBUG "Setting TX power to %d %s\n", rrq->value, tmp);
 
 	if (rrq->flags != IW_TXPOW_DBM) {
-		printk("SIOCSIWTXPOW with mW is not supported; use dBm\n");
+		printk("SIOCSIWTXPOW with mW is yest supported; use dBm\n");
 		return -EOPNOTSUPP;
 	}
 
@@ -1606,7 +1606,7 @@ static int prism2_ioctl_giwtxpow(struct net_device *dev,
 				     NULL, &resp0) == 0) {
 			rrq->value = prism2_txpower_hfa386x_to_dBm(resp0);
 		} else {
-			/* Could not get real txpower; guess 15 dBm */
+			/* Could yest get real txpower; guess 15 dBm */
 			rrq->value = 15;
 		}
 	} else if (local->txpower_type == PRISM2_TXPOWER_OFF) {
@@ -1616,7 +1616,7 @@ static int prism2_ioctl_giwtxpow(struct net_device *dev,
 		rrq->value = local->txpower;
 		rrq->fixed = 1;
 	} else {
-		printk("SIOCGIWTXPOW - unknown txpower_type=%d\n",
+		printk("SIOCGIWTXPOW - unkyeswn txpower_type=%d\n",
 		       local->txpower_type);
 	}
 	return 0;
@@ -1629,7 +1629,7 @@ static int prism2_ioctl_giwtxpow(struct net_device *dev,
 #ifndef PRISM2_NO_STATION_MODES
 
 /* HostScan request works with and without host_roaming mode. In addition, it
- * does not break current association. However, it requires newer station
+ * does yest break current association. However, it requires newer station
  * firmware version (>= 1.3.1) than scan request. */
 static int prism2_request_hostscan(struct net_device *dev,
 				   u8 *ssid, u8 ssid_len)
@@ -1677,7 +1677,7 @@ static int prism2_request_scan(struct net_device *dev)
 	scan_req.txrate = cpu_to_le16(HFA384X_RATES_1MBPS);
 
 	/* FIX:
-	 * It seems to be enough to set roaming mode for a short moment to
+	 * It seems to be eyesugh to set roaming mode for a short moment to
 	 * host-based and then setup scanrequest data and return the mode to
 	 * firmware-based.
 	 *
@@ -1855,11 +1855,11 @@ static char * __prism2_translate_scan(local_info_t *local,
 		iwe.cmd = IWEVQUAL;
 		if (local->last_scan_type == PRISM2_HOSTSCAN) {
 			iwe.u.qual.level = le16_to_cpu(scan->sl);
-			iwe.u.qual.noise = le16_to_cpu(scan->anl);
+			iwe.u.qual.yesise = le16_to_cpu(scan->anl);
 		} else {
 			iwe.u.qual.level =
 				HFA384X_LEVEL_TO_dBm(le16_to_cpu(scan->sl));
-			iwe.u.qual.noise =
+			iwe.u.qual.yesise =
 				HFA384X_LEVEL_TO_dBm(le16_to_cpu(scan->anl));
 		}
 		iwe.u.qual.updated = IW_QUAL_LEVEL_UPDATED
@@ -1973,7 +1973,7 @@ static inline int prism2_translate_scan(local_info_t *local,
 		int found = 0;
 		scan = &local->last_scan_results[entry];
 
-		/* Report every SSID if the AP is using multiple SSIDs. If no
+		/* Report every SSID if the AP is using multiple SSIDs. If yes
 		 * BSS record is found (e.g., when WPA mode is disabled),
 		 * report the AP once. */
 		list_for_each(ptr, &local->bss_list) {
@@ -2042,7 +2042,7 @@ static inline int prism2_ioctl_giwscan_sta(struct net_device *dev,
 	 * than that - Jean II */
 	if (local->scan_timestamp &&
 	    time_before(jiffies, local->scan_timestamp + 3 * HZ)) {
-		/* Important note : we don't want to block the caller
+		/* Important yeste : we don't want to block the caller
 		 * until results are ready for various reasons.
 		 * First, managing wait queues is complex and racy
 		 * (there may be multiple simultaneous callers).
@@ -2654,7 +2654,7 @@ static int prism2_ioctl_priv_prism2_param(struct net_device *dev,
 		break;
 
 	default:
-		printk(KERN_DEBUG "%s: prism2_param: unknown param %d\n",
+		printk(KERN_DEBUG "%s: prism2_param: unkyeswn param %d\n",
 		       dev->name, param);
 		ret = -EOPNOTSUPP;
 		break;
@@ -2841,7 +2841,7 @@ static int prism2_ioctl_priv_get_prism2_param(struct net_device *dev,
 		break;
 
 	default:
-		printk(KERN_DEBUG "%s: get_prism2_param: unknown param %d\n",
+		printk(KERN_DEBUG "%s: get_prism2_param: unkyeswn param %d\n",
 		       dev->name, *param);
 		ret = -EOPNOTSUPP;
 		break;
@@ -2909,13 +2909,13 @@ static int prism2_ioctl_priv_monitor(struct net_device *dev, int *i)
 	/* Backward compatibility code - this can be removed at some point */
 
 	if (*i == 0) {
-		/* Disable monitor mode - old mode was not saved, so go to
+		/* Disable monitor mode - old mode was yest saved, so go to
 		 * Master mode */
 		mode = IW_MODE_MASTER;
 		ret = prism2_ioctl_siwmode(dev, NULL, &mode, NULL);
 	} else if (*i == 1) {
-		/* netlink socket mode is not supported anymore since it did
-		 * not separate different devices from each other and was not
+		/* netlink socket mode is yest supported anymore since it did
+		 * yest separate different devices from each other and was yest
 		 * best method for delivering large amount of packets to
 		 * user space */
 		ret = -EOPNOTSUPP;
@@ -2978,7 +2978,7 @@ static int prism2_ioctl_priv_reset(struct net_device *dev, int *i)
 		break;
 
 	default:
-		printk(KERN_DEBUG "Unknown reset request %d\n", *i);
+		printk(KERN_DEBUG "Unkyeswn reset request %d\n", *i);
 		return -EOPNOTSUPP;
 	}
 
@@ -3102,7 +3102,7 @@ static int prism2_ioctl_siwauth(struct net_device *dev,
 	case IW_AUTH_CIPHER_GROUP:
 	case IW_AUTH_KEY_MGMT:
 		/*
-		 * Host AP driver does not use these parameters and allows
+		 * Host AP driver does yest use these parameters and allows
 		 * wpa_supplicant to control them internally.
 		 */
 		break;
@@ -3168,7 +3168,7 @@ static int prism2_ioctl_giwauth(struct net_device *dev,
 	case IW_AUTH_CIPHER_GROUP:
 	case IW_AUTH_KEY_MGMT:
 		/*
-		 * Host AP driver does not use these parameters and allows
+		 * Host AP driver does yest use these parameters and allows
 		 * wpa_supplicant to control them internally.
 		 */
 		return -EOPNOTSUPP;
@@ -3230,7 +3230,7 @@ static int prism2_ioctl_siwencodeext(struct net_device *dev,
 			if (local->iw_mode == IW_MODE_INFRA) {
 				/*
 				 * TODO: add STA entry for the current AP so
-				 * that unicast key can be used. For now, this
+				 * that unicast key can be used. For yesw, this
 				 * is emulated by using default key idx 0.
 				 */
 				i = 0;
@@ -3273,7 +3273,7 @@ static int prism2_ioctl_siwencodeext(struct net_device *dev,
 		ops = lib80211_get_crypto_ops(alg);
 	}
 	if (ops == NULL) {
-		printk(KERN_DEBUG "%s: unknown crypto alg '%s'\n",
+		printk(KERN_DEBUG "%s: unkyeswn crypto alg '%s'\n",
 		       local->dev->name, alg);
 		ret = -EOPNOTSUPP;
 		goto done;
@@ -3312,8 +3312,8 @@ static int prism2_ioctl_siwencodeext(struct net_device *dev,
 	}
 
 	/*
-	 * TODO: if ext_flags does not have IW_ENCODE_EXT_RX_SEQ_VALID, the
-	 * existing seq# should not be changed.
+	 * TODO: if ext_flags does yest have IW_ENCODE_EXT_RX_SEQ_VALID, the
+	 * existing seq# should yest be changed.
 	 * TODO: if ext_flags has IW_ENCODE_EXT_TX_SEQ_VALID, next TX seq#
 	 * should be changed to something else than zero.
 	 */
@@ -3352,7 +3352,7 @@ static int prism2_ioctl_siwencodeext(struct net_device *dev,
 	local->open_wep = erq->flags & IW_ENCODE_OPEN;
 
 	/*
-	 * Do not reset port0 if card is in Managed mode since resetting will
+	 * Do yest reset port0 if card is in Managed mode since resetting will
 	 * generate new IEEE 802.11 authentication which may end up in looping
 	 * with IEEE 802.1X. Prism2 documentation seem to require port reset
 	 * after WEP configuration. However, keys are apparently changed at
@@ -3473,7 +3473,7 @@ static int prism2_ioctl_set_encryption(local_info_t *local,
 		}
 	}
 
-	if (strcmp(param->u.crypt.alg, "none") == 0) {
+	if (strcmp(param->u.crypt.alg, "yesne") == 0) {
 		if (crypt)
 			lib80211_crypt_delayed_deinit(&local->crypt_info, crypt);
 		goto done;
@@ -3491,7 +3491,7 @@ static int prism2_ioctl_set_encryption(local_info_t *local,
 		ops = lib80211_get_crypto_ops(param->u.crypt.alg);
 	}
 	if (ops == NULL) {
-		printk(KERN_DEBUG "%s: unknown crypto alg '%s'\n",
+		printk(KERN_DEBUG "%s: unkyeswn crypto alg '%s'\n",
 		       local->dev->name, param->u.crypt.alg);
 		param->u.crypt.err = HOSTAP_CRYPT_ERR_UNKNOWN_ALG;
 		ret = -EINVAL;
@@ -3555,7 +3555,7 @@ static int prism2_ioctl_set_encryption(local_info_t *local,
 	if (sta_ptr)
 		hostap_handle_sta_release(sta_ptr);
 
-	/* Do not reset port0 if card is in Managed mode since resetting will
+	/* Do yest reset port0 if card is in Managed mode since resetting will
 	 * generate new IEEE 802.11 authentication which may end up in looping
 	 * with IEEE 802.1X. Prism2 documentation seem to require port reset
 	 * after WEP configuration. However, keys are apparently changed at
@@ -3604,7 +3604,7 @@ static int prism2_ioctl_get_encryption(local_info_t *local,
 	}
 
 	if (*crypt == NULL || (*crypt)->ops == NULL) {
-		memcpy(param->u.crypt.alg, "none", 5);
+		memcpy(param->u.crypt.alg, "yesne", 5);
 		param->u.crypt.key_len = 0;
 		param->u.crypt.idx = 0xff;
 	} else {
@@ -3886,11 +3886,11 @@ static const iw_handler prism2_handler[] =
 	(iw_handler) prism2_ioctl_giwmode,		/* SIOCGIWMODE */
 	(iw_handler) prism2_ioctl_siwsens,		/* SIOCSIWSENS */
 	(iw_handler) prism2_ioctl_giwsens,		/* SIOCGIWSENS */
-	(iw_handler) NULL /* not used */,		/* SIOCSIWRANGE */
+	(iw_handler) NULL /* yest used */,		/* SIOCSIWRANGE */
 	(iw_handler) prism2_ioctl_giwrange,		/* SIOCGIWRANGE */
-	(iw_handler) NULL /* not used */,		/* SIOCSIWPRIV */
+	(iw_handler) NULL /* yest used */,		/* SIOCSIWPRIV */
 	(iw_handler) NULL /* kernel code */,		/* SIOCGIWPRIV */
-	(iw_handler) NULL /* not used */,		/* SIOCSIWSTATS */
+	(iw_handler) NULL /* yest used */,		/* SIOCSIWSTATS */
 	(iw_handler) NULL /* kernel code */,		/* SIOCGIWSTATS */
 	iw_handler_set_spy,				/* SIOCSIWSPY */
 	iw_handler_get_spy,				/* SIOCGIWSPY */
@@ -3965,7 +3965,7 @@ int hostap_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 	local = iface->local;
 
 	switch (cmd) {
-		/* Private ioctls (iwpriv) that have not yet been converted
+		/* Private ioctls (iwpriv) that have yest yet been converted
 		 * into new wireless extensions API */
 
 	case PRISM2_IOCTL_INQUIRE:
@@ -4023,7 +4023,7 @@ int hostap_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 #endif /* PRISM2_NO_KERNEL_IEEE80211_MGMT */
 
 
-		/* Private ioctls that are not used with iwpriv;
+		/* Private ioctls that are yest used with iwpriv;
 		 * in SIOCDEVPRIVATE range */
 
 #ifdef PRISM2_DOWNLOAD_SUPPORT

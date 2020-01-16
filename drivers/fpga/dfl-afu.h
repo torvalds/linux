@@ -8,7 +8,7 @@
  *     Wu Hao <hao.wu@intel.com>
  *     Xiao Guangrong <guangrong.xiao@linux.intel.com>
  *     Joseph Grecco <joe.grecco@intel.com>
- *     Enno Luebbers <enno.luebbers@intel.com>
+ *     Enyes Luebbers <enyes.luebbers@intel.com>
  *     Tim Whisonant <tim.whisonant@intel.com>
  *     Ananda Ravuri <ananda.ravuri@intel.com>
  *     Henry Mitchel <henry.mitchel@intel.com>
@@ -29,7 +29,7 @@
  * @size: region size.
  * @offset: region offset from start of the device fd.
  * @phys: region's physical address.
- * @node: node to add to afu feature dev's region list.
+ * @yesde: yesde to add to afu feature dev's region list.
  */
 struct dfl_afu_mmio_region {
 	u32 index;
@@ -37,7 +37,7 @@ struct dfl_afu_mmio_region {
 	u64 size;
 	u64 offset;
 	u64 phys;
-	struct list_head node;
+	struct list_head yesde;
 };
 
 /**
@@ -47,7 +47,7 @@ struct dfl_afu_mmio_region {
  * @length: region length.
  * @iova: region IO virtual address.
  * @pages: ptr to pages of this region.
- * @node: rb tree node.
+ * @yesde: rb tree yesde.
  * @in_use: flag to indicate if this region is in_use.
  */
 struct dfl_afu_dma_region {
@@ -55,7 +55,7 @@ struct dfl_afu_dma_region {
 	u64 length;
 	u64 iova;
 	struct page **pages;
-	struct rb_node node;
+	struct rb_yesde yesde;
 	bool in_use;
 };
 

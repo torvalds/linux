@@ -28,7 +28,7 @@
 #include <linux/memremap.h>
 #include <linux/percpu.h>
 #include <linux/cpu.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/backing-dev.h>
 #include <linux/memcontrol.h>
 #include <linux/gfp.h>
@@ -54,7 +54,7 @@ static DEFINE_PER_CPU(struct pagevec, activate_page_pvecs);
 #endif
 
 /*
- * This path almost never happens for VM activity - pages are normally
+ * This path almost never happens for VM activity - pages are yesrmally
  * freed via pagevecs.  But it gets used by networking.
  */
 static void __page_cache_release(struct page *page)
@@ -86,9 +86,9 @@ static void __put_compound_page(struct page *page)
 	compound_page_dtor *dtor;
 
 	/*
-	 * __page_cache_release() is supposed to be called for thp, not for
+	 * __page_cache_release() is supposed to be called for thp, yest for
 	 * hugetlb. This is because hugetlb page does never have PageLRU set
-	 * (it's never listed to any LRU lists) and no memcg routines should
+	 * (it's never listed to any LRU lists) and yes memcg routines should
 	 * be called for hugetlb (it has a separate hugetlb_cgroup.)
 	 */
 	if (!PageHuge(page))
@@ -104,7 +104,7 @@ void __put_page(struct page *page)
 
 		/*
 		 * The page belongs to the device that created pgmap. Do
-		 * not return it to page allocator.
+		 * yest return it to page allocator.
 		 */
 		return;
 	}
@@ -139,13 +139,13 @@ EXPORT_SYMBOL(put_pages_list);
  * get_kernel_pages() - pin kernel pages in memory
  * @kiov:	An array of struct kvec structures
  * @nr_segs:	number of segments to pin
- * @write:	pinning for read/write, currently ignored
+ * @write:	pinning for read/write, currently igyesred
  * @pages:	array that receives pointers to the pages pinned.
  *		Should be at least nr_segs long.
  *
  * Returns number of pages pinned. This may be fewer than the number
- * requested. If nr_pages is 0 or negative, returns 0. If no pages
- * were pinned, returns -errno. Each page returned must be released
+ * requested. If nr_pages is 0 or negative, returns 0. If yes pages
+ * were pinned, returns -erryes. Each page returned must be released
  * with a put_page() call when it is finished with.
  */
 int get_kernel_pages(const struct kvec *kiov, int nr_segs, int write,
@@ -168,12 +168,12 @@ EXPORT_SYMBOL_GPL(get_kernel_pages);
 /*
  * get_kernel_page() - pin a kernel page in memory
  * @start:	starting kernel address
- * @write:	pinning for read/write, currently ignored
+ * @write:	pinning for read/write, currently igyesred
  * @pages:	array that receives pointer to the page pinned.
  *		Must be at least nr_segs long.
  *
- * Returns 1 if page is pinned. If the page was not pinned, returns
- * -errno. The page returned must be released with a put_page() call
+ * Returns 1 if page is pinned. If the page was yest pinned, returns
+ * -erryes. The page returned must be released with a put_page() call
  * when it is finished with.
  */
 int get_kernel_page(unsigned long start, int write, struct page **pages)
@@ -367,7 +367,7 @@ static void __lru_cache_activate_page(struct page *page)
  * inactive,referenced		->	active,unreferenced
  * active,unreferenced		->	active,referenced
  *
- * When a newly allocated page is not yet visible, so safe for non-atomic ops,
+ * When a newly allocated page is yest yet visible, so safe for yesn-atomic ops,
  * __SetPageReferenced(page) may be substituted for mark_page_accessed(page).
  */
 void mark_page_accessed(struct page *page)
@@ -380,7 +380,7 @@ void mark_page_accessed(struct page *page)
 		/*
 		 * Unevictable pages are on the "LRU_UNEVICTABLE" list. But,
 		 * this list is never rotated or maintained, so marking an
-		 * evictable page accessed has no effect.
+		 * evictable page accessed has yes effect.
 		 */
 	} else if (!PageActive(page)) {
 		/*
@@ -413,10 +413,10 @@ static void __lru_cache_add(struct page *page)
 }
 
 /**
- * lru_cache_add_anon - add a page to the page lists
+ * lru_cache_add_ayesn - add a page to the page lists
  * @page: the page to add
  */
-void lru_cache_add_anon(struct page *page)
+void lru_cache_add_ayesn(struct page *page)
 {
 	if (PageActive(page))
 		ClearPageActive(page);
@@ -436,7 +436,7 @@ EXPORT_SYMBOL(lru_cache_add_file);
  * @page: the page to be added to the LRU.
  *
  * Queue the page for addition to the LRU via pagevec. The decision on whether
- * to add the page to the [in]active [file|anon] list is deferred until the
+ * to add the page to the [in]active [file|ayesn] list is deferred until the
  * pagevec is drained. This gives a chance for the caller of lru_cache_add()
  * have the page added to the active list using mark_page_accessed().
  */
@@ -453,7 +453,7 @@ void lru_cache_add(struct page *page)
  * @vma:   vma in which page is mapped for determining reclaimability
  *
  * Place @page on the active or unevictable LRU list, depending on its
- * evictability.  Note that if the page is not evictable, it goes
+ * evictability.  Note that if the page is yest evictable, it goes
  * directly back onto it's zone's unevictable list, it does NOT use a
  * per cpu pagevec.
  */
@@ -467,7 +467,7 @@ void lru_cache_add_active_or_unevictable(struct page *page,
 	else if (!TestSetPageMlocked(page)) {
 		/*
 		 * We use the irq-unsafe __mod_zone_page_stat because this
-		 * counter is not modified from interrupt context, and the pte
+		 * counter is yest modified from interrupt context, and the pte
 		 * lock is held(spinlock), which implies preemption disabled.
 		 */
 		__mod_zone_page_state(page_zone(page), NR_MLOCK,
@@ -478,7 +478,7 @@ void lru_cache_add_active_or_unevictable(struct page *page,
 }
 
 /*
- * If the page can not be invalidated, it is moved to the
+ * If the page can yest be invalidated, it is moved to the
  * inactive list to speed up its reclaim.  It is moved to the
  * head of the list, rather than the tail, to give the flusher
  * threads some time to write it out, as this is much more
@@ -487,12 +487,12 @@ void lru_cache_add_active_or_unevictable(struct page *page,
  * If the page isn't page_mapped and dirty/writeback, the page
  * could reclaim asap using PG_reclaim.
  *
- * 1. active, mapped page -> none
+ * 1. active, mapped page -> yesne
  * 2. active, dirty/writeback page -> inactive, head, PG_reclaim
- * 3. inactive, mapped page -> none
+ * 3. inactive, mapped page -> yesne
  * 4. inactive, dirty/writeback page -> inactive, head, PG_reclaim
  * 5. inactive, clean -> inactive, tail
- * 6. Others -> none
+ * 6. Others -> yesne
  *
  * In 4, why it moves inactive's head, the VM expects the page would
  * be write it out by flusher threads as this is much more effective
@@ -526,7 +526,7 @@ static void lru_deactivate_file_fn(struct page *page, struct lruvec *lruvec,
 		/*
 		 * PG_reclaim could be raced with end_page_writeback
 		 * It can make readahead confusing.  But race window
-		 * is _really_ small and  it's non-critical problem.
+		 * is _really_ small and  it's yesn-critical problem.
 		 */
 		add_page_to_lru_list(page, lruvec, lru);
 		SetPageReclaim(page);
@@ -564,7 +564,7 @@ static void lru_deactivate_fn(struct page *page, struct lruvec *lruvec,
 static void lru_lazyfree_fn(struct page *page, struct lruvec *lruvec,
 			    void *arg)
 {
-	if (PageLRU(page) && PageAnon(page) && PageSwapBacked(page) &&
+	if (PageLRU(page) && PageAyesn(page) && PageSwapBacked(page) &&
 	    !PageSwapCache(page) && !PageUnevictable(page)) {
 		bool active = PageActive(page);
 
@@ -573,8 +573,8 @@ static void lru_lazyfree_fn(struct page *page, struct lruvec *lruvec,
 		ClearPageActive(page);
 		ClearPageReferenced(page);
 		/*
-		 * lazyfree pages are clean anonymous pages. They have
-		 * SwapBacked flag cleared to distinguish normal anonymous
+		 * lazyfree pages are clean ayesnymous pages. They have
+		 * SwapBacked flag cleared to distinguish yesrmal ayesnymous
 		 * pages
 		 */
 		ClearPageSwapBacked(page);
@@ -654,7 +654,7 @@ void deactivate_file_page(struct page *page)
  * @page: page to deactivate
  *
  * deactivate_page() moves @page to the inactive list if @page was on the active
- * list and was not an unevictable page.  This is done to accelerate the reclaim
+ * list and was yest an unevictable page.  This is done to accelerate the reclaim
  * of @page.
  */
 void deactivate_page(struct page *page)
@@ -670,7 +670,7 @@ void deactivate_page(struct page *page)
 }
 
 /**
- * mark_page_lazyfree - make an anon page lazyfree
+ * mark_page_lazyfree - make an ayesn page lazyfree
  * @page: page to deactivate
  *
  * mark_page_lazyfree() moves @page to the inactive file list.
@@ -678,7 +678,7 @@ void deactivate_page(struct page *page)
  */
 void mark_page_lazyfree(struct page *page)
 {
-	if (PageLRU(page) && PageAnon(page) && PageSwapBacked(page) &&
+	if (PageLRU(page) && PageAyesn(page) && PageSwapBacked(page) &&
 	    !PageSwapCache(page) && !PageUnevictable(page)) {
 		struct pagevec *pvec = &get_cpu_var(lru_lazyfree_pvecs);
 
@@ -719,7 +719,7 @@ void lru_add_drain_all(void)
 	int cpu, seq;
 
 	/*
-	 * Make sure nobody triggers this path before mm_percpu_wq is fully
+	 * Make sure yesbody triggers this path before mm_percpu_wq is fully
 	 * initialized.
 	 */
 	if (WARN_ON(!mm_percpu_wq))
@@ -789,7 +789,7 @@ void release_pages(struct page **pages, int nr)
 		struct page *page = pages[i];
 
 		/*
-		 * Make sure the IRQ-safe lock-holding time does not get
+		 * Make sure the IRQ-safe lock-holding time does yest get
 		 * excessive with a continuous string of pages from the
 		 * same pgdat. The lock is held only if pgdat != NULL.
 		 */
@@ -809,7 +809,7 @@ void release_pages(struct page **pages, int nr)
 			}
 			/*
 			 * ZONE_DEVICE pages that return 'false' from
-			 * put_devmap_managed_page() do not require special
+			 * put_devmap_managed_page() do yest require special
 			 * processing, and instead, expect a call to
 			 * put_page_testzero().
 			 */
@@ -864,7 +864,7 @@ EXPORT_SYMBOL(release_pages);
 
 /*
  * The pages which we're about to release may be in the deferred lru-addition
- * queues.  That would prevent them from really being freed right now.  That's
+ * queues.  That would prevent them from really being freed right yesw.  That's
  * OK from a correctness point of view but is inefficient - those pages may be
  * cache-warm and we want to give them back to the page allocator ASAP.
  *
@@ -906,7 +906,7 @@ void lru_add_page_tail(struct page *page, struct page *page_tail,
 		list_add_tail(&page_tail->lru, list);
 	} else {
 		/*
-		 * Head page has not yet been counted, as an hpage,
+		 * Head page has yest yet been counted, as an hpage,
 		 * so we must account for each subpage individually.
 		 *
 		 * Put page_tail on the list at the correct position
@@ -948,7 +948,7 @@ static void __pagevec_lru_add_fn(struct page *page, struct lruvec *lruvec,
 	 * PageMlocked()			PageLRU()
 	 *
 	 *
-	 * if '#1' does not observe setting of PG_lru by '#0' and fails
+	 * if '#1' does yest observe setting of PG_lru by '#0' and fails
 	 * isolation, the explicit barrier will make sure that page_evictable
 	 * check will put the page in correct LRU. Without smp_mb(), SetPageLRU
 	 * can be reordered after PageMlocked check and can make '#1' to fail
@@ -1001,7 +1001,7 @@ EXPORT_SYMBOL(__pagevec_lru_add);
  *
  * The search returns a group of mapping-contiguous entries with
  * ascending indexes.  There may be holes in the indices due to
- * not-present entries.
+ * yest-present entries.
  *
  * pagevec_lookup_entries() returns the number of entries which were
  * found.
@@ -1050,7 +1050,7 @@ void pagevec_remove_exceptionals(struct pagevec *pvec)
  * reference against the pages in @pvec.
  *
  * The search returns a group of mapping-contiguous pages with ascending
- * indexes.  There may be holes in the indices due to not-present pages. We
+ * indexes.  There may be holes in the indices due to yest-present pages. We
  * also update @start to index the next page for the traversal.
  *
  * pagevec_lookup_range() returns the number of pages which were found. If this
@@ -1098,7 +1098,7 @@ void __init swap_setup(void)
 	else
 		page_cluster = 3;
 	/*
-	 * Right now other parts of the system means that we
+	 * Right yesw other parts of the system means that we
 	 * _really_ don't want to cluster much more
 	 */
 }

@@ -96,7 +96,7 @@ u8 rtw_do_join(struct adapter *padapter)
 				/*  can't associate ; reset under-linking */
 				_clr_fwstate_(pmlmepriv, _FW_UNDER_LINKING);
 
-				/* when set_ssid/set_bssid for rtw_do_join(), but there are no desired bss in scanning queue */
+				/* when set_ssid/set_bssid for rtw_do_join(), but there are yes desired bss in scanning queue */
 				/* we try to issue sitesurvey firstly */
 				if (!pmlmepriv->LinkDetectInfo.bBusyTraffic ||
 				    pmlmepriv->to_roaming > 0) {
@@ -148,7 +148,7 @@ u8 rtw_set_802_11_bssid(struct adapter *padapter, u8 *bssid)
 			if (!check_fwstate(pmlmepriv, WIFI_STATION_STATE))
 				goto release_mlme_lock;/* it means driver is in WIFI_ADHOC_MASTER_STATE, we needn't create bss again. */
 		} else {
-			RT_TRACE(_module_rtl871x_ioctl_set_c_, _drv_info_, ("Set BSSID not the same bssid\n"));
+			RT_TRACE(_module_rtl871x_ioctl_set_c_, _drv_info_, ("Set BSSID yest the same bssid\n"));
 			RT_TRACE(_module_rtl871x_ioctl_set_c_, _drv_info_, ("set_bssid =%pM\n", (bssid)));
 			RT_TRACE(_module_rtl871x_ioctl_set_c_, _drv_info_, ("cur_bssid =%pM\n", (pmlmepriv->cur_network.network.MacAddress)));
 
@@ -256,7 +256,7 @@ u8 rtw_set_802_11_ssid(struct adapter *padapter, struct ndis_802_11_ssid *ssid)
 				rtw_lps_ctrl_wk_cmd(padapter, LPS_CTRL_JOINBSS, 1);
 			}
 		} else {
-			RT_TRACE(_module_rtl871x_ioctl_set_c_, _drv_info_, ("Set SSID not the same ssid\n"));
+			RT_TRACE(_module_rtl871x_ioctl_set_c_, _drv_info_, ("Set SSID yest the same ssid\n"));
 			RT_TRACE(_module_rtl871x_ioctl_set_c_, _drv_info_, ("set_ssid =[%s] len = 0x%x\n", ssid->ssid, (unsigned int)ssid->ssid_length));
 			RT_TRACE(_module_rtl871x_ioctl_set_c_, _drv_info_, ("assoc_ssid =[%s] len = 0x%x\n", pmlmepriv->assoc_ssid.ssid, (unsigned int)pmlmepriv->assoc_ssid.ssid_length));
 
@@ -312,7 +312,7 @@ u8 rtw_set_802_11_infrastructure_mode(struct adapter *padapter,
 	struct wlan_network *cur_network = &pmlmepriv->cur_network;
 	enum ndis_802_11_network_infra *pold_state = &cur_network->network.InfrastructureMode;
 
-	RT_TRACE(_module_rtl871x_ioctl_set_c_, _drv_notice_,
+	RT_TRACE(_module_rtl871x_ioctl_set_c_, _drv_yestice_,
 		 ("+rtw_set_802_11_infrastructure_mode: old =%d new =%d fw_state = 0x%08x\n",
 		  *pold_state, networktype, get_fwstate(pmlmepriv)));
 
@@ -342,7 +342,7 @@ u8 rtw_set_802_11_infrastructure_mode(struct adapter *padapter,
 		if (*pold_state == Ndis802_11Infrastructure ||
 		    *pold_state == Ndis802_11IBSS) {
 			if (check_fwstate(pmlmepriv, _FW_LINKED))
-				rtw_indicate_disconnect(padapter); /* will clr Linked_state; before this function, we must have checked whether  issue dis-assoc_cmd or not */
+				rtw_indicate_disconnect(padapter); /* will clr Linked_state; before this function, we must have checked whether  issue dis-assoc_cmd or yest */
 	       }
 
 		*pold_state = networktype;
@@ -362,7 +362,7 @@ u8 rtw_set_802_11_infrastructure_mode(struct adapter *padapter,
 			start_ap_mode(padapter);
 #endif
 			break;
-		case Ndis802_11AutoUnknown:
+		case Ndis802_11AutoUnkyeswn:
 		case Ndis802_11InfrastructureMax:
 			break;
 		}
@@ -412,7 +412,7 @@ u8 rtw_set_802_11_bssid_list_scan(struct adapter *padapter, struct ndis_802_11_s
 
 	if (check_fwstate(pmlmepriv, _FW_UNDER_SURVEY | _FW_UNDER_LINKING) ||
 	    pmlmepriv->LinkDetectInfo.bBusyTraffic) {
-		/*  Scan or linking is in progress, do nothing. */
+		/*  Scan or linking is in progress, do yesthing. */
 		RT_TRACE(_module_rtl871x_ioctl_set_c_, _drv_err_, ("%s fail since fw_state = %x\n", __func__, get_fwstate(pmlmepriv)));
 		res = true;
 
@@ -596,7 +596,7 @@ int rtw_set_country(struct adapter *adapter, const char *country_code)
 	}
 
 	if (i == ARRAY_SIZE(channel_table))
-		DBG_88E("%s unknown country_code:%s\n", __func__, country_code);
+		DBG_88E("%s unkyeswn country_code:%s\n", __func__, country_code);
 
 	return rtw_set_chplan_cmd(adapter, channel_plan, 1);
 }

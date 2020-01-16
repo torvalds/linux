@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -19,7 +19,7 @@
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  *
- * based on nouveau_prime.c
+ * based on yesuveau_prime.c
  *
  * Authors: Alex Deucher
  */
@@ -110,13 +110,13 @@ int amdgpu_gem_prime_mmap(struct drm_gem_object *obj,
 	}
 	vma->vm_pgoff += amdgpu_bo_mmap_offset(bo) >> PAGE_SHIFT;
 
-	/* prime mmap does not need to check access, so allow here */
-	ret = drm_vma_node_allow(&obj->vma_node, vma->vm_file->private_data);
+	/* prime mmap does yest need to check access, so allow here */
+	ret = drm_vma_yesde_allow(&obj->vma_yesde, vma->vm_file->private_data);
 	if (ret)
 		return ret;
 
 	ret = ttm_bo_mmap(vma->vm_file, vma, &adev->mman.bdev);
-	drm_vma_node_revoke(&obj->vma_node, vma->vm_file->private_data);
+	drm_vma_yesde_revoke(&obj->vma_yesde, vma->vm_file->private_data);
 
 	return ret;
 }
@@ -128,7 +128,7 @@ __dma_resv_make_exclusive(struct dma_resv *obj)
 	unsigned int count;
 	int r;
 
-	if (!dma_resv_get_list(obj)) /* no shared fences to convert */
+	if (!dma_resv_get_list(obj)) /* yes shared fences to convert */
 		return 0;
 
 	r = dma_resv_get_fences_rcu(obj, NULL, &count, &fences);
@@ -228,7 +228,7 @@ static void amdgpu_dma_buf_detach(struct dma_buf *dmabuf,
  * @dir: DMA direction
  *
  * Makes sure that the shared DMA buffer can be accessed by the target device.
- * For now, simply pins it to the GTT domain, where it should be accessible by
+ * For yesw, simply pins it to the GTT domain, where it should be accessible by
  * all DMA devices.
  *
  * Returns:
@@ -270,8 +270,8 @@ error_free:
  * @sgt: sg_table to unmap
  * @dir: DMA direction
  *
- * This is called when a shared DMA buffer no longer needs to be accessible by
- * another device. For now, simply unpins the buffer from GTT.
+ * This is called when a shared DMA buffer yes longer needs to be accessible by
+ * ayesther device. For yesw, simply unpins the buffer from GTT.
  */
 static void amdgpu_dma_buf_unmap(struct dma_buf_attachment *attach,
 				 struct sg_table *sgt,
@@ -361,7 +361,7 @@ struct dma_buf *amdgpu_gem_prime_export(struct drm_gem_object *gobj,
 
 	buf = drm_gem_prime_export(gobj, flags);
 	if (!IS_ERR(buf)) {
-		buf->file->f_mapping = gobj->dev->anon_inode->i_mapping;
+		buf->file->f_mapping = gobj->dev->ayesn_iyesde->i_mapping;
 		buf->ops = &amdgpu_dmabuf_ops;
 	}
 

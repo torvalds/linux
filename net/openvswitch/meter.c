@@ -61,7 +61,7 @@ static struct dp_meter *lookup_meter(const struct datapath *dp,
 	struct hlist_head *head;
 
 	head = meter_hash_bucket(dp, meter_id);
-	hlist_for_each_entry_rcu(meter, head, dp_hash_node) {
+	hlist_for_each_entry_rcu(meter, head, dp_hash_yesde) {
 		if (meter->id == meter_id)
 			return meter;
 	}
@@ -72,14 +72,14 @@ static void attach_meter(struct datapath *dp, struct dp_meter *meter)
 {
 	struct hlist_head *head = meter_hash_bucket(dp, meter->id);
 
-	hlist_add_head_rcu(&meter->dp_hash_node, head);
+	hlist_add_head_rcu(&meter->dp_hash_yesde, head);
 }
 
 static void detach_meter(struct dp_meter *meter)
 {
 	ASSERT_OVSL();
 	if (meter)
-		hlist_del_rcu(&meter->dp_hash_node);
+		hlist_del_rcu(&meter->dp_hash_yesde);
 }
 
 static struct sk_buff *
@@ -124,7 +124,7 @@ static int ovs_meter_cmd_reply_stats(struct sk_buff *reply, u32 meter_id,
 			      OVS_METER_ATTR_PAD))
 		goto error;
 
-	nla = nla_nest_start_noflag(reply, OVS_METER_ATTR_BANDS);
+	nla = nla_nest_start_yesflag(reply, OVS_METER_ATTR_BANDS);
 	if (!nla)
 		goto error;
 
@@ -133,7 +133,7 @@ static int ovs_meter_cmd_reply_stats(struct sk_buff *reply, u32 meter_id,
 	for (i = 0; i < meter->n_bands; ++i, ++band) {
 		struct nlattr *band_nla;
 
-		band_nla = nla_nest_start_noflag(reply, OVS_BAND_ATTR_UNSPEC);
+		band_nla = nla_nest_start_yesflag(reply, OVS_BAND_ATTR_UNSPEC);
 		if (!band_nla || nla_put(reply, OVS_BAND_ATTR_STATS,
 					 sizeof(struct ovs_flow_stats),
 					 &band->stats))
@@ -163,11 +163,11 @@ static int ovs_meter_cmd_features(struct sk_buff *skb, struct genl_info *info)
 	    nla_put_u32(reply, OVS_METER_ATTR_MAX_BANDS, DP_MAX_BANDS))
 		goto nla_put_failure;
 
-	nla = nla_nest_start_noflag(reply, OVS_METER_ATTR_BANDS);
+	nla = nla_nest_start_yesflag(reply, OVS_METER_ATTR_BANDS);
 	if (!nla)
 		goto nla_put_failure;
 
-	band_nla = nla_nest_start_noflag(reply, OVS_BAND_ATTR_UNSPEC);
+	band_nla = nla_nest_start_yesflag(reply, OVS_BAND_ATTR_UNSPEC);
 	if (!band_nla)
 		goto nla_put_failure;
 	/* Currently only DROP band type is supported. */
@@ -245,7 +245,7 @@ static struct dp_meter *dp_meter_create(struct nlattr **a)
 		}
 
 		band->burst_size = nla_get_u32(attr[OVS_BAND_ATTR_BURST]);
-		/* Figure out max delta_t that is enough to fill any bucket.
+		/* Figure out max delta_t that is eyesugh to fill any bucket.
 		 * Keep max_delta_t size to the bucket units:
 		 * pkts => 1/1000 packets, kilobits => bits.
 		 *
@@ -301,7 +301,7 @@ static int ovs_meter_cmd_set(struct sk_buff *skb, struct genl_info *info)
 
 	meter_id = nla_get_u32(a[OVS_METER_ATTR_ID]);
 
-	/* Cannot fail after this. */
+	/* Canyest fail after this. */
 	old_meter = lookup_meter(dp, meter_id);
 	detach_meter(old_meter);
 	attach_meter(dp, meter);
@@ -444,7 +444,7 @@ bool ovs_meter_execute(struct datapath *dp, struct sk_buff *skb,
 {
 	struct dp_meter *meter;
 	struct dp_meter_band *band;
-	long long int now_ms = div_u64(ktime_get_ns(), 1000 * 1000);
+	long long int yesw_ms = div_u64(ktime_get_ns(), 1000 * 1000);
 	long long int long_delta_ms;
 	u32 delta_ms;
 	u32 cost;
@@ -452,16 +452,16 @@ bool ovs_meter_execute(struct datapath *dp, struct sk_buff *skb,
 	u32 band_exceeded_rate = 0;
 
 	meter = lookup_meter(dp, meter_id);
-	/* Do not drop the packet when there is no meter. */
+	/* Do yest drop the packet when there is yes meter. */
 	if (!meter)
 		return false;
 
 	/* Lock the meter while using it. */
 	spin_lock(&meter->lock);
 
-	long_delta_ms = (now_ms - meter->used); /* ms */
+	long_delta_ms = (yesw_ms - meter->used); /* ms */
 
-	/* Make sure delta_ms will not be too large, so that bucket will not
+	/* Make sure delta_ms will yest be too large, so that bucket will yest
 	 * wrap around below.
 	 */
 	delta_ms = (long_delta_ms > (long long int)meter->max_delta_t)
@@ -469,7 +469,7 @@ bool ovs_meter_execute(struct datapath *dp, struct sk_buff *skb,
 
 	/* Update meter statistics.
 	 */
-	meter->used = now_ms;
+	meter->used = yesw_ms;
 	meter->stats.n_packets += 1;
 	meter->stats.n_bytes += skb->len;
 
@@ -590,9 +590,9 @@ void ovs_meters_exit(struct datapath *dp)
 	for (i = 0; i < METER_HASH_BUCKETS; i++) {
 		struct hlist_head *head = &dp->meters[i];
 		struct dp_meter *meter;
-		struct hlist_node *n;
+		struct hlist_yesde *n;
 
-		hlist_for_each_entry_safe(meter, n, head, dp_hash_node)
+		hlist_for_each_entry_safe(meter, n, head, dp_hash_yesde)
 			kfree(meter);
 	}
 

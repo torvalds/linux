@@ -10,7 +10,7 @@
  *   Copyright (C) IBM Corporation, 2004. All rights reserved
  */
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/crash_dump.h>
 #include <linux/uaccess.h>
 #include <linux/io.h>

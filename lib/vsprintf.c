@@ -125,7 +125,7 @@ long long simple_strtoll(const char *cp, char **endp, unsigned int base)
 }
 EXPORT_SYMBOL(simple_strtoll);
 
-static noinline_for_stack
+static yesinline_for_stack
 int skip_atoi(const char **s)
 {
 	int i = 0;
@@ -181,9 +181,9 @@ static const u16 decpair[100] = {
  * This will print a single '0' even if r == 0, since we would
  * immediately jump to out_r where two 0s would be written but only
  * one of them accounted for in buf. This is needed by ip4_string
- * below. All other callers pass a non-zero value of r.
+ * below. All other callers pass a yesn-zero value of r.
 */
-static noinline_for_stack
+static yesinline_for_stack
 char *put_dec_trunc8(char *buf, unsigned r)
 {
 	unsigned q;
@@ -225,7 +225,7 @@ out_r:
 }
 
 #if BITS_PER_LONG == 64 && BITS_PER_LONG_LONG == 64
-static noinline_for_stack
+static yesinline_for_stack
 char *put_dec_full8(char *buf, unsigned r)
 {
 	unsigned q;
@@ -251,7 +251,7 @@ char *put_dec_full8(char *buf, unsigned r)
 	return buf;
 }
 
-static noinline_for_stack
+static yesinline_for_stack
 char *put_dec(char *buf, unsigned long long n)
 {
 	if (n >= 100*1000*1000)
@@ -285,7 +285,7 @@ put_dec_full4(char *buf, unsigned r)
  * helper will ever be asked to convert is 1,125,520,955.
  * (second call in the put_dec code, assuming n is all-ones).
  */
-static noinline_for_stack
+static yesinline_for_stack
 unsigned put_dec_helper4(char *buf, unsigned x)
 {
         uint32_t q = (x * (uint64_t)0x346DC5D7) >> 43;
@@ -297,7 +297,7 @@ unsigned put_dec_helper4(char *buf, unsigned x)
 /* Based on code by Douglas W. Jones found at
  * <http://www.cs.uiowa.edu/~jones/bcd/decimal.html#sixtyfour>
  * (with permission from the author).
- * Performs no 64-bit division and hence should be fast on 32-bit machines.
+ * Performs yes 64-bit division and hence should be fast on 32-bit machines.
  */
 static
 char *put_dec(char *buf, unsigned long long n)
@@ -339,7 +339,7 @@ char *put_dec(char *buf, unsigned long long n)
  * Convert passed number to decimal string.
  * Returns the length of string.  On buffer overflow, returns 0.
  *
- * If speed is not important, use snprintf(). It's easy to read the code.
+ * If speed is yest important, use snprintf(). It's easy to read the code.
  */
 int num_to_str(char *buf, int size, unsigned long long num, unsigned int width)
 {
@@ -347,7 +347,7 @@ int num_to_str(char *buf, int size, unsigned long long num, unsigned int width)
 	char tmp[sizeof(num) * 3] __aligned(2);
 	int idx, len;
 
-	/* put_dec() may work incorrectly for num = 0 (generate "", not "0") */
+	/* put_dec() may work incorrectly for num = 0 (generate "", yest "0") */
 	if (num <= 9) {
 		tmp[0] = '0' + num;
 		len = 1;
@@ -414,7 +414,7 @@ static_assert(sizeof(struct printf_spec) == 8);
 #define FIELD_WIDTH_MAX ((1 << 23) - 1)
 #define PRECISION_MAX ((1 << 15) - 1)
 
-static noinline_for_stack
+static yesinline_for_stack
 char *number(char *buf, char *end, unsigned long long num,
 	     struct printf_spec spec)
 {
@@ -472,7 +472,7 @@ char *number(char *buf, char *end, unsigned long long num,
 		i = put_dec(tmp, num) - tmp;
 	}
 
-	/* printing 100 using %2d gives "100", not "00" */
+	/* printing 100 using %2d gives "100", yest "00" */
 	if (i > precision)
 		precision = i;
 	/* leading space padding */
@@ -535,7 +535,7 @@ char *number(char *buf, char *end, unsigned long long num,
 	return buf;
 }
 
-static noinline_for_stack
+static yesinline_for_stack
 char *special_hex_number(char *buf, char *end, unsigned long long num, int size)
 {
 	struct printf_spec spec;
@@ -552,7 +552,7 @@ char *special_hex_number(char *buf, char *end, unsigned long long num, int size)
 static void move_right(char *buf, char *end, unsigned len, unsigned spaces)
 {
 	size_t size;
-	if (buf >= end)	/* nowhere to put anything */
+	if (buf >= end)	/* yeswhere to put anything */
 		return;
 	size = end - buf;
 	if (size <= spaces) {
@@ -575,7 +575,7 @@ static void move_right(char *buf, char *end, unsigned len, unsigned spaces)
  * @spec: for field width and flags
  * Returns: new buffer position after padding.
  */
-static noinline_for_stack
+static yesinline_for_stack
 char *widen_string(char *buf, int n, char *end, struct printf_spec spec)
 {
 	unsigned spaces;
@@ -596,8 +596,8 @@ char *widen_string(char *buf, int n, char *end, struct printf_spec spec)
 	return buf;
 }
 
-/* Handle string from a well known address. */
-static char *string_nocheck(char *buf, char *end, const char *s,
+/* Handle string from a well kyeswn address. */
+static char *string_yescheck(char *buf, char *end, const char *s,
 			    struct printf_spec spec)
 {
 	int len = 0;
@@ -622,10 +622,10 @@ static char *err_ptr(char *buf, char *end, void *ptr,
 	const char *sym = errname(err);
 
 	if (sym)
-		return string_nocheck(buf, end, sym, spec);
+		return string_yescheck(buf, end, sym, spec);
 
 	/*
-	 * Somebody passed ERR_PTR(-1234) or some other non-existing
+	 * Somebody passed ERR_PTR(-1234) or some other yesn-existing
 	 * Efoo - or perhaps CONFIG_SYMBOLIC_ERRNAME=n. Fall back to
 	 * printing it as its decimal representation.
 	 */
@@ -646,11 +646,11 @@ static char *error_string(char *buf, char *end, const char *s,
 	if (spec.precision == -1)
 		spec.precision = 2 * sizeof(void *);
 
-	return string_nocheck(buf, end, s, spec);
+	return string_yescheck(buf, end, s, spec);
 }
 
 /*
- * Do not call any complex external code here. Nested printk()/vsprintf()
+ * Do yest call any complex external code here. Nested printk()/vsprintf()
  * might cause infinite loops. Failures might break printk() and would
  * be hard to debug.
  */
@@ -679,14 +679,14 @@ static int check_pointer(char **buf, char *end, const void *ptr,
 	return 0;
 }
 
-static noinline_for_stack
+static yesinline_for_stack
 char *string(char *buf, char *end, const char *s,
 	     struct printf_spec spec)
 {
 	if (check_pointer(&buf, end, s, spec))
 		return buf;
 
-	return string_nocheck(buf, end, s, spec);
+	return string_yescheck(buf, end, s, spec);
 }
 
 static char *pointer_string(char *buf, char *end,
@@ -714,14 +714,14 @@ static int __init debug_boot_weak_hash_enable(char *str)
 }
 early_param("debug_boot_weak_hash", debug_boot_weak_hash_enable);
 
-static DEFINE_STATIC_KEY_TRUE(not_filled_random_ptr_key);
+static DEFINE_STATIC_KEY_TRUE(yest_filled_random_ptr_key);
 static siphash_key_t ptr_key __read_mostly;
 
 static void enable_ptr_key_workfn(struct work_struct *work)
 {
 	get_random_bytes(&ptr_key, sizeof(ptr_key));
 	/* Needs to run from preemptible context */
-	static_branch_disable(&not_filled_random_ptr_key);
+	static_branch_disable(&yest_filled_random_ptr_key);
 }
 
 static DECLARE_WORK(enable_ptr_key_work, enable_ptr_key_workfn);
@@ -743,7 +743,7 @@ static int __init initialize_ptr_random(void)
 
 	/* Use hw RNG if available. */
 	if (get_random_bytes_arch(&ptr_key, key_size) == key_size) {
-		static_branch_disable(&not_filled_random_ptr_key);
+		static_branch_disable(&yest_filled_random_ptr_key);
 		return 0;
 	}
 
@@ -765,7 +765,7 @@ static inline int __ptr_to_hashval(const void *ptr, unsigned long *hashval_out)
 {
 	unsigned long hashval;
 
-	if (static_branch_unlikely(&not_filled_random_ptr_key))
+	if (static_branch_unlikely(&yest_filled_random_ptr_key))
 		return -EAGAIN;
 
 #ifdef CONFIG_64BIT
@@ -794,7 +794,7 @@ static char *ptr_to_id(char *buf, char *end, const void *ptr,
 	unsigned long hashval;
 	int ret;
 
-	/* When debugging early boot use non-cryptographically secure hash. */
+	/* When debugging early boot use yesn-cryptographically secure hash. */
 	if (unlikely(debug_boot_weak_hash)) {
 		hashval = hash_long((unsigned long)ptr, 32);
 		return pointer_string(buf, end, (const void *)hashval, spec);
@@ -812,19 +812,19 @@ static char *ptr_to_id(char *buf, char *end, const void *ptr,
 
 int kptr_restrict __read_mostly;
 
-static noinline_for_stack
+static yesinline_for_stack
 char *restricted_pointer(char *buf, char *end, const void *ptr,
 			 struct printf_spec spec)
 {
 	switch (kptr_restrict) {
 	case 0:
-		/* Handle as %p, hash and do _not_ leak addresses. */
+		/* Handle as %p, hash and do _yest_ leak addresses. */
 		return ptr_to_id(buf, end, ptr, spec);
 	case 1: {
 		const struct cred *cred;
 
 		/*
-		 * kptr_restrict==1 cannot be used in IRQ context
+		 * kptr_restrict==1 canyest be used in IRQ context
 		 * because its test for CAP_SYSLOG would be meaningless.
 		 */
 		if (in_irq() || in_serving_softirq() || in_nmi()) {
@@ -843,7 +843,7 @@ char *restricted_pointer(char *buf, char *end, const void *ptr,
 		 * %pK and then elevates privileges before reading it.
 		 */
 		cred = current_cred();
-		if (!has_capability_noaudit(current, CAP_SYSLOG) ||
+		if (!has_capability_yesaudit(current, CAP_SYSLOG) ||
 		    !uid_eq(cred->euid, cred->uid) ||
 		    !gid_eq(cred->egid, cred->gid))
 			ptr = NULL;
@@ -859,7 +859,7 @@ char *restricted_pointer(char *buf, char *end, const void *ptr,
 	return pointer_string(buf, end, ptr, spec);
 }
 
-static noinline_for_stack
+static yesinline_for_stack
 char *dentry_name(char *buf, char *end, const struct dentry *d, struct printf_spec spec,
 		  const char *fmt)
 {
@@ -908,7 +908,7 @@ char *dentry_name(char *buf, char *end, const struct dentry *d, struct printf_sp
 	return widen_string(buf, n, end, spec);
 }
 
-static noinline_for_stack
+static yesinline_for_stack
 char *file_dentry_name(char *buf, char *end, const struct file *f,
 			struct printf_spec spec, const char *fmt)
 {
@@ -918,7 +918,7 @@ char *file_dentry_name(char *buf, char *end, const struct file *f,
 	return dentry_name(buf, end, f->f_path.dentry, spec, fmt);
 }
 #ifdef CONFIG_BLOCK
-static noinline_for_stack
+static yesinline_for_stack
 char *bdev_name(char *buf, char *end, struct block_device *bdev,
 		struct printf_spec spec, const char *fmt)
 {
@@ -929,19 +929,19 @@ char *bdev_name(char *buf, char *end, struct block_device *bdev,
 
 	hd = bdev->bd_disk;
 	buf = string(buf, end, hd->disk_name, spec);
-	if (bdev->bd_part->partno) {
+	if (bdev->bd_part->partyes) {
 		if (isdigit(hd->disk_name[strlen(hd->disk_name)-1])) {
 			if (buf < end)
 				*buf = 'p';
 			buf++;
 		}
-		buf = number(buf, end, bdev->bd_part->partno, spec);
+		buf = number(buf, end, bdev->bd_part->partyes, spec);
 	}
 	return buf;
 }
 #endif
 
-static noinline_for_stack
+static yesinline_for_stack
 char *symbol_string(char *buf, char *end, void *ptr,
 		    struct printf_spec spec, const char *fmt)
 {
@@ -960,9 +960,9 @@ char *symbol_string(char *buf, char *end, void *ptr,
 	else if (*fmt != 's')
 		sprint_symbol(sym, value);
 	else
-		sprint_symbol_no_offset(sym, value);
+		sprint_symbol_yes_offset(sym, value);
 
-	return string_nocheck(buf, end, sym, spec);
+	return string_yescheck(buf, end, sym, spec);
 #else
 	return special_hex_number(buf, end, value, sizeof(void *));
 #endif
@@ -998,7 +998,7 @@ static const struct printf_spec default_dec04_spec = {
 	.flags = ZEROPAD,
 };
 
-static noinline_for_stack
+static yesinline_for_stack
 char *resource_string(char *buf, char *end, struct resource *res,
 		      struct printf_spec spec, const char *fmt)
 {
@@ -1051,27 +1051,27 @@ char *resource_string(char *buf, char *end, struct resource *res,
 
 	*p++ = '[';
 	if (res->flags & IORESOURCE_IO) {
-		p = string_nocheck(p, pend, "io  ", str_spec);
+		p = string_yescheck(p, pend, "io  ", str_spec);
 		specp = &io_spec;
 	} else if (res->flags & IORESOURCE_MEM) {
-		p = string_nocheck(p, pend, "mem ", str_spec);
+		p = string_yescheck(p, pend, "mem ", str_spec);
 		specp = &mem_spec;
 	} else if (res->flags & IORESOURCE_IRQ) {
-		p = string_nocheck(p, pend, "irq ", str_spec);
+		p = string_yescheck(p, pend, "irq ", str_spec);
 		specp = &default_dec_spec;
 	} else if (res->flags & IORESOURCE_DMA) {
-		p = string_nocheck(p, pend, "dma ", str_spec);
+		p = string_yescheck(p, pend, "dma ", str_spec);
 		specp = &default_dec_spec;
 	} else if (res->flags & IORESOURCE_BUS) {
-		p = string_nocheck(p, pend, "bus ", str_spec);
+		p = string_yescheck(p, pend, "bus ", str_spec);
 		specp = &bus_spec;
 	} else {
-		p = string_nocheck(p, pend, "??? ", str_spec);
+		p = string_yescheck(p, pend, "??? ", str_spec);
 		specp = &mem_spec;
 		decode = 0;
 	}
 	if (decode && res->flags & IORESOURCE_UNSET) {
-		p = string_nocheck(p, pend, "size ", str_spec);
+		p = string_yescheck(p, pend, "size ", str_spec);
 		p = number(p, pend, resource_size(res), *specp);
 	} else {
 		p = number(p, pend, res->start, *specp);
@@ -1082,24 +1082,24 @@ char *resource_string(char *buf, char *end, struct resource *res,
 	}
 	if (decode) {
 		if (res->flags & IORESOURCE_MEM_64)
-			p = string_nocheck(p, pend, " 64bit", str_spec);
+			p = string_yescheck(p, pend, " 64bit", str_spec);
 		if (res->flags & IORESOURCE_PREFETCH)
-			p = string_nocheck(p, pend, " pref", str_spec);
+			p = string_yescheck(p, pend, " pref", str_spec);
 		if (res->flags & IORESOURCE_WINDOW)
-			p = string_nocheck(p, pend, " window", str_spec);
+			p = string_yescheck(p, pend, " window", str_spec);
 		if (res->flags & IORESOURCE_DISABLED)
-			p = string_nocheck(p, pend, " disabled", str_spec);
+			p = string_yescheck(p, pend, " disabled", str_spec);
 	} else {
-		p = string_nocheck(p, pend, " flags ", str_spec);
+		p = string_yescheck(p, pend, " flags ", str_spec);
 		p = number(p, pend, res->flags, default_flag_spec);
 	}
 	*p++ = ']';
 	*p = '\0';
 
-	return string_nocheck(buf, end, sym, spec);
+	return string_yescheck(buf, end, sym, spec);
 }
 
-static noinline_for_stack
+static yesinline_for_stack
 char *hex_string(char *buf, char *end, u8 *addr, struct printf_spec spec,
 		 const char *fmt)
 {
@@ -1108,7 +1108,7 @@ char *hex_string(char *buf, char *end, u8 *addr, struct printf_spec spec,
 	char separator;
 
 	if (spec.field_width == 0)
-		/* nothing to print */
+		/* yesthing to print */
 		return buf;
 
 	if (check_pointer(&buf, end, addr, spec))
@@ -1150,7 +1150,7 @@ char *hex_string(char *buf, char *end, u8 *addr, struct printf_spec spec,
 	return buf;
 }
 
-static noinline_for_stack
+static yesinline_for_stack
 char *bitmap_string(char *buf, char *end, unsigned long *bitmap,
 		    struct printf_spec spec, const char *fmt)
 {
@@ -1194,7 +1194,7 @@ char *bitmap_string(char *buf, char *end, unsigned long *bitmap,
 	return buf;
 }
 
-static noinline_for_stack
+static yesinline_for_stack
 char *bitmap_list_string(char *buf, char *end, unsigned long *bitmap,
 			 struct printf_spec spec, const char *fmt)
 {
@@ -1234,7 +1234,7 @@ char *bitmap_list_string(char *buf, char *end, unsigned long *bitmap,
 	return buf;
 }
 
-static noinline_for_stack
+static yesinline_for_stack
 char *mac_address_string(char *buf, char *end, u8 *addr,
 			 struct printf_spec spec, const char *fmt)
 {
@@ -1272,10 +1272,10 @@ char *mac_address_string(char *buf, char *end, u8 *addr,
 	}
 	*p = '\0';
 
-	return string_nocheck(buf, end, mac_addr, spec);
+	return string_yescheck(buf, end, mac_addr, spec);
 }
 
-static noinline_for_stack
+static yesinline_for_stack
 char *ip4_string(char *p, const u8 *addr, const char *fmt)
 {
 	int i;
@@ -1325,7 +1325,7 @@ char *ip4_string(char *p, const u8 *addr, const char *fmt)
 	return p;
 }
 
-static noinline_for_stack
+static yesinline_for_stack
 char *ip6_compressed_string(char *p, const char *addr)
 {
 	int i, j, range;
@@ -1408,7 +1408,7 @@ char *ip6_compressed_string(char *p, const char *addr)
 	return p;
 }
 
-static noinline_for_stack
+static yesinline_for_stack
 char *ip6_string(char *p, const char *addr, const char *fmt)
 {
 	int i;
@@ -1424,7 +1424,7 @@ char *ip6_string(char *p, const char *addr, const char *fmt)
 	return p;
 }
 
-static noinline_for_stack
+static yesinline_for_stack
 char *ip6_addr_string(char *buf, char *end, const u8 *addr,
 		      struct printf_spec spec, const char *fmt)
 {
@@ -1435,10 +1435,10 @@ char *ip6_addr_string(char *buf, char *end, const u8 *addr,
 	else
 		ip6_string(ip6_addr, addr, fmt);
 
-	return string_nocheck(buf, end, ip6_addr, spec);
+	return string_yescheck(buf, end, ip6_addr, spec);
 }
 
-static noinline_for_stack
+static yesinline_for_stack
 char *ip4_addr_string(char *buf, char *end, const u8 *addr,
 		      struct printf_spec spec, const char *fmt)
 {
@@ -1446,10 +1446,10 @@ char *ip4_addr_string(char *buf, char *end, const u8 *addr,
 
 	ip4_string(ip4_addr, addr, fmt);
 
-	return string_nocheck(buf, end, ip4_addr, spec);
+	return string_yescheck(buf, end, ip4_addr, spec);
 }
 
-static noinline_for_stack
+static yesinline_for_stack
 char *ip6_addr_string_sa(char *buf, char *end, const struct sockaddr_in6 *sa,
 			 struct printf_spec spec, const char *fmt)
 {
@@ -1508,10 +1508,10 @@ char *ip6_addr_string_sa(char *buf, char *end, const struct sockaddr_in6 *sa,
 	}
 	*p = '\0';
 
-	return string_nocheck(buf, end, ip6_addr, spec);
+	return string_yescheck(buf, end, ip6_addr, spec);
 }
 
-static noinline_for_stack
+static yesinline_for_stack
 char *ip4_addr_string_sa(char *buf, char *end, const struct sockaddr_in *sa,
 			 struct printf_spec spec, const char *fmt)
 {
@@ -1543,10 +1543,10 @@ char *ip4_addr_string_sa(char *buf, char *end, const struct sockaddr_in *sa,
 	}
 	*p = '\0';
 
-	return string_nocheck(buf, end, ip4_addr, spec);
+	return string_yescheck(buf, end, ip4_addr, spec);
 }
 
-static noinline_for_stack
+static yesinline_for_stack
 char *ip_addr_string(char *buf, char *end, const void *ptr,
 		     struct printf_spec spec, const char *fmt)
 {
@@ -1581,7 +1581,7 @@ char *ip_addr_string(char *buf, char *end, const void *ptr,
 	return error_string(buf, end, err_fmt_msg, spec);
 }
 
-static noinline_for_stack
+static yesinline_for_stack
 char *escaped_string(char *buf, char *end, u8 *addr, struct printf_spec spec,
 		     const char *fmt)
 {
@@ -1591,7 +1591,7 @@ char *escaped_string(char *buf, char *end, u8 *addr, struct printf_spec spec,
 	int len;
 
 	if (spec.field_width == 0)
-		return buf;				/* nothing to print */
+		return buf;				/* yesthing to print */
 
 	if (check_pointer(&buf, end, addr, spec))
 		return buf;
@@ -1633,7 +1633,7 @@ char *escaped_string(char *buf, char *end, u8 *addr, struct printf_spec spec,
 	/*
 	 * string_escape_mem() writes as many characters as it can to
 	 * the given buffer, and returns the total size of the output
-	 * had the buffer been big enough.
+	 * had the buffer been big eyesugh.
 	 */
 	buf += string_escape_mem(addr, len, buf, buf < end ? end - buf : 0, flags, NULL);
 
@@ -1655,7 +1655,7 @@ static char *va_format(char *buf, char *end, struct va_format *va_fmt,
 	return buf;
 }
 
-static noinline_for_stack
+static yesinline_for_stack
 char *uuid_string(char *buf, char *end, const u8 *addr,
 		  struct printf_spec spec, const char *fmt)
 {
@@ -1696,10 +1696,10 @@ char *uuid_string(char *buf, char *end, const u8 *addr,
 
 	*p = 0;
 
-	return string_nocheck(buf, end, uuid, spec);
+	return string_yescheck(buf, end, uuid, spec);
 }
 
-static noinline_for_stack
+static yesinline_for_stack
 char *netdev_bits(char *buf, char *end, const void *addr,
 		  struct printf_spec spec,  const char *fmt)
 {
@@ -1721,7 +1721,7 @@ char *netdev_bits(char *buf, char *end, const void *addr,
 	return special_hex_number(buf, end, num, size);
 }
 
-static noinline_for_stack
+static yesinline_for_stack
 char *address_val(char *buf, char *end, const void *addr,
 		  struct printf_spec spec, const char *fmt)
 {
@@ -1746,7 +1746,7 @@ char *address_val(char *buf, char *end, const void *addr,
 	return special_hex_number(buf, end, num, size);
 }
 
-static noinline_for_stack
+static yesinline_for_stack
 char *date_str(char *buf, char *end, const struct rtc_time *tm, bool r)
 {
 	int year = tm->tm_year + (r ? 0 : 1900);
@@ -1765,7 +1765,7 @@ char *date_str(char *buf, char *end, const struct rtc_time *tm, bool r)
 	return number(buf, end, tm->tm_mday, default_dec02_spec);
 }
 
-static noinline_for_stack
+static yesinline_for_stack
 char *time_str(char *buf, char *end, const struct rtc_time *tm, bool r)
 {
 	buf = number(buf, end, tm->tm_hour, default_dec02_spec);
@@ -1781,7 +1781,7 @@ char *time_str(char *buf, char *end, const struct rtc_time *tm, bool r)
 	return number(buf, end, tm->tm_sec, default_dec02_spec);
 }
 
-static noinline_for_stack
+static yesinline_for_stack
 char *rtc_str(char *buf, char *end, const struct rtc_time *tm,
 	      struct printf_spec spec, const char *fmt)
 {
@@ -1819,7 +1819,7 @@ char *rtc_str(char *buf, char *end, const struct rtc_time *tm,
 	return buf;
 }
 
-static noinline_for_stack
+static yesinline_for_stack
 char *time_and_date(char *buf, char *end, void *ptr, struct printf_spec spec,
 		    const char *fmt)
 {
@@ -1831,7 +1831,7 @@ char *time_and_date(char *buf, char *end, void *ptr, struct printf_spec spec,
 	}
 }
 
-static noinline_for_stack
+static yesinline_for_stack
 char *clock(char *buf, char *end, struct clk *clk, struct printf_spec spec,
 	    const char *fmt)
 {
@@ -1879,7 +1879,7 @@ char *format_flags(char *buf, char *end, unsigned long flags,
 	return buf;
 }
 
-static noinline_for_stack
+static yesinline_for_stack
 char *flags_string(char *buf, char *end, void *flags_ptr,
 		   struct printf_spec spec, const char *fmt)
 {
@@ -1911,30 +1911,30 @@ char *flags_string(char *buf, char *end, void *flags_ptr,
 	return format_flags(buf, end, flags, names);
 }
 
-static noinline_for_stack
-char *fwnode_full_name_string(struct fwnode_handle *fwnode, char *buf,
+static yesinline_for_stack
+char *fwyesde_full_name_string(struct fwyesde_handle *fwyesde, char *buf,
 			      char *end)
 {
 	int depth;
 
-	/* Loop starting from the root node to the current node. */
-	for (depth = fwnode_count_parents(fwnode); depth >= 0; depth--) {
-		struct fwnode_handle *__fwnode =
-			fwnode_get_nth_parent(fwnode, depth);
+	/* Loop starting from the root yesde to the current yesde. */
+	for (depth = fwyesde_count_parents(fwyesde); depth >= 0; depth--) {
+		struct fwyesde_handle *__fwyesde =
+			fwyesde_get_nth_parent(fwyesde, depth);
 
-		buf = string(buf, end, fwnode_get_name_prefix(__fwnode),
+		buf = string(buf, end, fwyesde_get_name_prefix(__fwyesde),
 			     default_str_spec);
-		buf = string(buf, end, fwnode_get_name(__fwnode),
+		buf = string(buf, end, fwyesde_get_name(__fwyesde),
 			     default_str_spec);
 
-		fwnode_handle_put(__fwnode);
+		fwyesde_handle_put(__fwyesde);
 	}
 
 	return buf;
 }
 
-static noinline_for_stack
-char *device_node_string(char *buf, char *end, struct device_node *dn,
+static yesinline_for_stack
+char *device_yesde_string(char *buf, char *end, struct device_yesde *dn,
 			 struct printf_spec spec, const char *fmt)
 {
 	char tbuf[sizeof("xxxx") + 1];
@@ -1977,11 +1977,11 @@ char *device_node_string(char *buf, char *end, struct device_node *dn,
 
 		switch (*fmt) {
 		case 'f':	/* full_name */
-			buf = fwnode_full_name_string(of_fwnode_handle(dn), buf,
+			buf = fwyesde_full_name_string(of_fwyesde_handle(dn), buf,
 						      end);
 			break;
 		case 'n':	/* name */
-			p = fwnode_get_name(of_fwnode_handle(dn));
+			p = fwyesde_get_name(of_fwyesde_handle(dn));
 			precision = str_spec.precision;
 			str_spec.precision = strchrnul(p, '@') - p;
 			buf = string(buf, end, p, str_spec);
@@ -1991,18 +1991,18 @@ char *device_node_string(char *buf, char *end, struct device_node *dn,
 			buf = number(buf, end, (unsigned int)dn->phandle, num_spec);
 			break;
 		case 'P':	/* path-spec */
-			p = fwnode_get_name(of_fwnode_handle(dn));
+			p = fwyesde_get_name(of_fwyesde_handle(dn));
 			if (!p[1])
 				p = "/";
 			buf = string(buf, end, p, str_spec);
 			break;
 		case 'F':	/* flags */
-			tbuf[0] = of_node_check_flag(dn, OF_DYNAMIC) ? 'D' : '-';
-			tbuf[1] = of_node_check_flag(dn, OF_DETACHED) ? 'd' : '-';
-			tbuf[2] = of_node_check_flag(dn, OF_POPULATED) ? 'P' : '-';
-			tbuf[3] = of_node_check_flag(dn, OF_POPULATED_BUS) ? 'B' : '-';
+			tbuf[0] = of_yesde_check_flag(dn, OF_DYNAMIC) ? 'D' : '-';
+			tbuf[1] = of_yesde_check_flag(dn, OF_DETACHED) ? 'd' : '-';
+			tbuf[2] = of_yesde_check_flag(dn, OF_POPULATED) ? 'P' : '-';
+			tbuf[3] = of_yesde_check_flag(dn, OF_POPULATED_BUS) ? 'B' : '-';
 			tbuf[4] = 0;
-			buf = string_nocheck(buf, end, tbuf, str_spec);
+			buf = string_yescheck(buf, end, tbuf, str_spec);
 			break;
 		case 'c':	/* major compatible string */
 			ret = of_property_read_string(dn, "compatible", &p);
@@ -2013,10 +2013,10 @@ char *device_node_string(char *buf, char *end, struct device_node *dn,
 			has_mult = false;
 			of_property_for_each_string(dn, "compatible", prop, p) {
 				if (has_mult)
-					buf = string_nocheck(buf, end, ",", str_spec);
-				buf = string_nocheck(buf, end, "\"", str_spec);
+					buf = string_yescheck(buf, end, ",", str_spec);
+				buf = string_yescheck(buf, end, "\"", str_spec);
 				buf = string(buf, end, p, str_spec);
-				buf = string_nocheck(buf, end, "\"", str_spec);
+				buf = string_yescheck(buf, end, "\"", str_spec);
 
 				has_mult = true;
 			}
@@ -2029,8 +2029,8 @@ char *device_node_string(char *buf, char *end, struct device_node *dn,
 	return widen_string(buf, buf - buf_start, end, spec);
 }
 
-static noinline_for_stack
-char *fwnode_string(char *buf, char *end, struct fwnode_handle *fwnode,
+static yesinline_for_stack
+char *fwyesde_string(char *buf, char *end, struct fwyesde_handle *fwyesde,
 		    struct printf_spec spec, const char *fmt)
 {
 	struct printf_spec str_spec = spec;
@@ -2041,18 +2041,18 @@ char *fwnode_string(char *buf, char *end, struct fwnode_handle *fwnode,
 	if (*fmt != 'w')
 		return error_string(buf, end, "(%pf?)", spec);
 
-	if (check_pointer(&buf, end, fwnode, spec))
+	if (check_pointer(&buf, end, fwyesde, spec))
 		return buf;
 
 	fmt++;
 
 	switch (*fmt) {
 	case 'P':	/* name */
-		buf = string(buf, end, fwnode_get_name(fwnode), str_spec);
+		buf = string(buf, end, fwyesde_get_name(fwyesde), str_spec);
 		break;
 	case 'f':	/* full_name */
 	default:
-		buf = fwnode_full_name_string(fwnode, buf, end);
+		buf = fwyesde_full_name_string(fwyesde, buf, end);
 		break;
 	}
 
@@ -2067,7 +2067,7 @@ char *fwnode_string(char *buf, char *end, struct fwnode_handle *fwnode,
  * Please update scripts/checkpatch.pl when adding/removing conversion
  * characters.  (Search for "check for vsprintf extension").
  *
- * Right now we handle:
+ * Right yesw we handle:
  *
  * - 'S' For symbolic direct pointers (or function descriptors) with offset
  * - 's' For symbolic direct pointers (or function descriptors) without offset
@@ -2082,10 +2082,10 @@ char *fwnode_string(char *buf, char *end, struct fwnode_handle *fwnode,
  *       format string '%32b[l]' or through '%*b[l]', [l] selects
  *       range-list format instead of hex format
  * - 'M' For a 6-byte MAC address, it prints the address in the
- *       usual colon-separated hex notation
+ *       usual colon-separated hex yestation
  * - 'm' For a 6-byte MAC address, it prints the hex address without colons
  * - 'MF' For a 6-byte MAC FDDI address, it prints the address
- *       with a dash-separated hex notation
+ *       with a dash-separated hex yestation
  * - '[mM]R' For a 6-byte MAC address, Reverse order (Bluetooth)
  * - 'I' [46] for IPv4/IPv6 addresses printed in the usual way
  *       IPv4 uses dot-separated decimal without leading 0's (1.2.3.4)
@@ -2102,7 +2102,7 @@ char *fwnode_string(char *buf, char *end, struct fwnode_handle *fwnode,
  * - '[Ii][4S][hnbl]' IPv4 addresses in host, network, big or little endian order
  * - 'I[6S]c' for IPv6 addresses printed as specified by
  *       http://tools.ietf.org/html/rfc5952
- * - 'E[achnops]' For an escaped buffer, where rules are defined by combination
+ * - 'E[achyesps]' For an escaped buffer, where rules are defined by combination
  *                of the following flags (see string_escape_mem() for the
  *                details):
  *                  a - ESCAPE_ANY
@@ -2127,7 +2127,7 @@ char *fwnode_string(char *buf, char *end, struct fwnode_handle *fwnode,
  * - 'V' For a struct va_format which contains a format string * and va_list *,
  *       call vsnprintf(->format, *->va_list).
  *       Implements a "recursive vsnprintf".
- *       Do not use this feature without some mechanism to verify the
+ *       Do yest use this feature without some mechanism to verify the
  *       correctness of the format string and va_list arguments.
  * - 'K' For a kernel pointer that should be hidden from unprivileged users
  * - 'NF' For a netdev_features_t
@@ -2135,7 +2135,7 @@ char *fwnode_string(char *buf, char *end, struct fwnode_handle *fwnode,
  *            a certain separator (' ' by default):
  *              C colon
  *              D dash
- *              N no separator
+ *              N yes separator
  *            The maximum supported length is 64 bytes of the input. Consider
  *            to use print_hex_dump() for the larger input.
  * - 'a[pd]' For address types [p] phys_addr_t, [d] dma_addr_t and derivatives
@@ -2156,17 +2156,17 @@ char *fwnode_string(char *buf, char *end, struct fwnode_handle *fwnode,
  *       v vma flags (VM_*) given as pointer to unsigned long
  * - 'OF[fnpPcCF]'  For a device tree object
  *                  Without any optional arguments prints the full_name
- *                  f device node full_name
- *                  n device node name
- *                  p device node phandle
- *                  P device node path spec (name + @unit)
- *                  F device node flags
+ *                  f device yesde full_name
+ *                  n device yesde name
+ *                  p device yesde phandle
+ *                  P device yesde path spec (name + @unit)
+ *                  F device yesde flags
  *                  c major compatible string
  *                  C full compatible string
- * - 'fw[fP]'	For a firmware node (struct fwnode_handle) pointer
- *		Without an option prints the full name of the node
+ * - 'fw[fP]'	For a firmware yesde (struct fwyesde_handle) pointer
+ *		Without an option prints the full name of the yesde
  *		f full name
- *		P node name, including a possible unit address
+ *		P yesde name, including a possible unit address
  * - 'x' For printing the address. Equivalent to "%lx".
  *
  * ** When making changes please also update:
@@ -2175,7 +2175,7 @@ char *fwnode_string(char *buf, char *end, struct fwnode_handle *fwnode,
  * Note: The default behaviour (unadorned %p) is to hash the address,
  * rendering it useful as a unique identifier.
  */
-static noinline_for_stack
+static yesinline_for_stack
 char *pointer(const char *fmt, char *buf, char *end, void *ptr,
 	      struct printf_spec spec)
 {
@@ -2241,19 +2241,19 @@ char *pointer(const char *fmt, char *buf, char *end, void *ptr,
 	case 'G':
 		return flags_string(buf, end, ptr, spec, fmt);
 	case 'O':
-		return device_node_string(buf, end, ptr, spec, fmt + 1);
+		return device_yesde_string(buf, end, ptr, spec, fmt + 1);
 	case 'f':
-		return fwnode_string(buf, end, ptr, spec, fmt + 1);
+		return fwyesde_string(buf, end, ptr, spec, fmt + 1);
 	case 'x':
 		return pointer_string(buf, end, ptr, spec);
 	case 'e':
-		/* %pe with a non-ERR_PTR gets treated as plain %p */
+		/* %pe with a yesn-ERR_PTR gets treated as plain %p */
 		if (!IS_ERR(ptr))
 			break;
 		return err_ptr(buf, end, ptr, spec);
 	}
 
-	/* default is to _not_ leak addresses, hash before printing */
+	/* default is to _yest_ leak addresses, hash before printing */
 	return ptr_to_id(buf, end, ptr, spec);
 }
 
@@ -2278,7 +2278,7 @@ char *pointer(const char *fmt, char *buf, char *end, void *ptr,
  * @precision: precision of a number
  * @qualifier: qualifier of a number (long, size_t, ...)
  */
-static noinline_for_stack
+static yesinline_for_stack
 int format_decode(const char *fmt, struct printf_spec *spec)
 {
 	const char *start = fmt;
@@ -2311,7 +2311,7 @@ int format_decode(const char *fmt, struct printf_spec *spec)
 			break;
 	}
 
-	/* Return the current non-format string */
+	/* Return the current yesn-format string */
 	if (fmt != start || !*fmt)
 		return fmt - start;
 
@@ -2495,11 +2495,11 @@ set_precision(struct printf_spec *spec, int prec)
  * be generated for the given input, excluding the trailing
  * '\0', as per ISO C99. If you want to have the exact
  * number of characters written into @buf as return value
- * (not including the trailing '\0'), use vscnprintf(). If the
+ * (yest including the trailing '\0'), use vscnprintf(). If the
  * return is greater than or equal to @size, the resulting
  * string is truncated.
  *
- * If you're not already dealing with a va_list consider using snprintf().
+ * If you're yest already dealing with a va_list consider using snprintf().
  */
 int vsnprintf(char *buf, size_t size, const char *fmt, va_list args)
 {
@@ -2508,7 +2508,7 @@ int vsnprintf(char *buf, size_t size, const char *fmt, va_list args)
 	struct printf_spec spec = {0};
 
 	/* Reject out-of-range values early.  Large positive sizes are
-	   used for unknown buffer sizes. */
+	   used for unkyeswn buffer sizes. */
 	if (WARN_ON_ONCE(size > INT_MAX))
 		return 0;
 
@@ -2590,7 +2590,7 @@ int vsnprintf(char *buf, size_t size, const char *fmt, va_list args)
 		case FORMAT_TYPE_INVALID:
 			/*
 			 * Presumably the arguments passed gcc's type
-			 * checking, but there is no safe or sane way
+			 * checking, but there is yes safe or sane way
 			 * for us to continue parsing the format and
 			 * fetching from the va_list; the remaining
 			 * specifiers and arguments would be out of
@@ -2663,10 +2663,10 @@ EXPORT_SYMBOL(vsnprintf);
  * @args: Arguments for the format string
  *
  * The return value is the number of characters which have been written into
- * the @buf not including the trailing '\0'. If @size is == 0 the function
+ * the @buf yest including the trailing '\0'. If @size is == 0 the function
  * returns 0.
  *
- * If you're not already dealing with a va_list consider using scnprintf().
+ * If you're yest already dealing with a va_list consider using scnprintf().
  *
  * See the vsnprintf() documentation for format string extensions over C99.
  */
@@ -2718,7 +2718,7 @@ EXPORT_SYMBOL(snprintf);
  * @fmt: The format string to use
  * @...: Arguments for the format string
  *
- * The return value is the number of characters written into @buf not including
+ * The return value is the number of characters written into @buf yest including
  * the trailing '\0'. If @size is == 0 the function returns 0.
  */
 
@@ -2745,7 +2745,7 @@ EXPORT_SYMBOL(scnprintf);
  * into @buf. Use vsnprintf() or vscnprintf() in order to avoid
  * buffer overflows.
  *
- * If you're not already dealing with a va_list consider using sprintf().
+ * If you're yest already dealing with a va_list consider using sprintf().
  *
  * See the vsnprintf() documentation for format string extensions over C99.
  */
@@ -2790,11 +2790,11 @@ EXPORT_SYMBOL(sprintf);
 /**
  * vbin_printf - Parse a format string and place args' binary value in a buffer
  * @bin_buf: The buffer to place args' binary value
- * @size: The size of the buffer(by words(32bits), not characters)
+ * @size: The size of the buffer(by words(32bits), yest characters)
  * @fmt: The format string to use
  * @args: Arguments for the format string
  *
- * The format follows C99 vsnprintf, except %n is ignored, and its argument
+ * The format follows C99 vsnprintf, except %n is igyesred, and its argument
  * is skipped.
  *
  * The return value is the number of words(32bits) which would be generated for
@@ -2878,7 +2878,7 @@ int vbin_printf(u32 *bin_buf, size_t size, const char *fmt, va_list args)
 		}
 
 		case FORMAT_TYPE_PTR:
-			/* Dereferenced pointers must be done now */
+			/* Dereferenced pointers must be done yesw */
 			switch (*fmt) {
 			/* Dereference of functions is still OK */
 			case 'S':
@@ -2959,7 +2959,7 @@ EXPORT_SYMBOL_GPL(vbin_printf);
  * be generated for the given input, excluding the trailing
  * '\0', as per ISO C99. If you want to have the exact
  * number of characters written into @buf as return value
- * (not including the trailing '\0'), use vscnprintf(). If the
+ * (yest including the trailing '\0'), use vscnprintf(). If the
  * return is greater than or equal to @size, the resulting
  * string is truncated.
  */
@@ -3157,7 +3157,7 @@ EXPORT_SYMBOL_GPL(bstr_printf);
 /**
  * bprintf - Parse a format string and place args' binary value in a buffer
  * @bin_buf: The buffer to place args' binary value
- * @size: The size of the buffer(by words(32bits), not characters)
+ * @size: The size of the buffer(by words(32bits), yest characters)
  * @fmt: The format string to use
  * @...: Arguments for the format string
  *
@@ -3203,14 +3203,14 @@ int vsscanf(const char *buf, const char *fmt, va_list args)
 	while (*fmt) {
 		/* skip any white space in format */
 		/* white space in format matchs any amount of
-		 * white space, including none, in the input.
+		 * white space, including yesne, in the input.
 		 */
 		if (isspace(*fmt)) {
 			fmt = skip_spaces(++fmt);
 			str = skip_spaces(str);
 		}
 
-		/* anything that is not a conversion must match exactly */
+		/* anything that is yest a conversion must match exactly */
 		if (*fmt != '%' && *fmt) {
 			if (*fmt++ != *str++)
 				break;
@@ -3228,7 +3228,7 @@ int vsscanf(const char *buf, const char *fmt, va_list args)
 			if (!*str)
 				break;
 			while (!isspace(*fmt) && *fmt != '%' && *fmt) {
-				/* '%*[' not yet supported, invalid format */
+				/* '%*[' yest yet supported, invalid format */
 				if (*fmt == '[')
 					return num;
 				fmt++;
@@ -3298,7 +3298,7 @@ int vsscanf(const char *buf, const char *fmt, va_list args)
 			/* first, skip leading white space in buffer */
 			str = skip_spaces(str);
 
-			/* now copy until next white space */
+			/* yesw copy until next white space */
 			while (*str && !isspace(*str) && field_width--)
 				*s++ = *str++;
 			*s = '\0';
@@ -3310,9 +3310,9 @@ int vsscanf(const char *buf, const char *fmt, va_list args)
 		 * deviates from its glibc counterpart in the following ways:
 		 * (1) It does NOT support ranges i.e. '-' is NOT a special
 		 *     character
-		 * (2) It cannot match the closing bracket ']' itself
+		 * (2) It canyest match the closing bracket ']' itself
 		 * (3) A field width is required
-		 * (4) '%*[' (discard matching input) is currently not supported
+		 * (4) '%*[' (discard matching input) is currently yest supported
 		 *
 		 * Example usage:
 		 * ret = sscanf("00:0a:95","%2[^:]:%2[^:]:%2[^:]",
@@ -3337,7 +3337,7 @@ int vsscanf(const char *buf, const char *fmt, va_list args)
 			for ( ; *fmt && *fmt != ']'; ++fmt, ++len)
 				set_bit((u8)*fmt, set);
 
-			/* no ']' or no character set found */
+			/* yes ']' or yes character set found */
 			if (!*fmt || !len)
 				return num;
 			++fmt;
@@ -3348,7 +3348,7 @@ int vsscanf(const char *buf, const char *fmt, va_list args)
 				clear_bit(0, set);
 			}
 
-			/* match must be non-empty */
+			/* match must be yesn-empty */
 			if (!test_bit((u8)*str, set))
 				return num;
 

@@ -30,8 +30,8 @@
 	__low = __n;							\
 	__asm__(							\
 	"	.set	push					\n"	\
-	"	.set	noat					\n"	\
-	"	.set	noreorder				\n"	\
+	"	.set	yesat					\n"	\
+	"	.set	yesreorder				\n"	\
 	"	move	%2, $0					\n"	\
 	"	move	%3, $0					\n"	\
 	"	b	1f					\n"	\

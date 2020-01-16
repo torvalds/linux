@@ -123,7 +123,7 @@ int  xdp_prognum0(struct xdp_md *ctx)
 		if (eth + 1 > data_end)
 			return XDP_ABORTED;
 
-		/* Avoid compiler removing this: Drop non 802.3 Ethertypes */
+		/* Avoid compiler removing this: Drop yesn 802.3 Ethertypes */
 		if (ntohs(eth->h_proto) < ETH_P_802_3_MIN)
 			return XDP_ABORTED;
 

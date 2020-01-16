@@ -7,7 +7,7 @@
  *
  * Written by Paul Walmsley
  * Added OMAP4 specific support by Abhijit Pagare <abhijitpagare@ti.com>
- * State counting code by Tero Kristo <tero.kristo@nokia.com>
+ * State counting code by Tero Kristo <tero.kristo@yeskia.com>
  */
 #undef DEBUG
 
@@ -15,7 +15,7 @@
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/list.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/string.h>
 #include <linux/spinlock.h>
 #include <trace/events/power.h>
@@ -68,7 +68,7 @@ static struct powerdomain *_pwrdm_lookup(const char *name)
 
 	pwrdm = NULL;
 
-	list_for_each_entry(temp_pwrdm, &pwrdm_list, node) {
+	list_for_each_entry(temp_pwrdm, &pwrdm_list, yesde) {
 		if (!strcmp(name, temp_pwrdm->name)) {
 			pwrdm = temp_pwrdm;
 			break;
@@ -110,16 +110,16 @@ static int _pwrdm_register(struct powerdomain *pwrdm)
 
 	voltdm = voltdm_lookup(pwrdm->voltdm.name);
 	if (!voltdm) {
-		pr_err("powerdomain: %s: voltagedomain %s does not exist\n",
+		pr_err("powerdomain: %s: voltagedomain %s does yest exist\n",
 		       pwrdm->name, pwrdm->voltdm.name);
 		return -EINVAL;
 	}
 	pwrdm->voltdm.ptr = voltdm;
-	INIT_LIST_HEAD(&pwrdm->voltdm_node);
+	INIT_LIST_HEAD(&pwrdm->voltdm_yesde);
 skip_voltdm:
 	spin_lock_init(&pwrdm->_lock);
 
-	list_add(&pwrdm->node, &pwrdm_list);
+	list_add(&pwrdm->yesde, &pwrdm_list);
 
 	/* Initialize the powerdomain's state counter */
 	for (i = 0; i < PWRDM_MAX_PWRSTS; i++)
@@ -179,7 +179,7 @@ static int _pwrdm_state_switch(struct powerdomain *pwrdm, int flag)
 		if (prev == PWRDM_POWER_RET)
 			_update_logic_membank_counters(pwrdm);
 		/*
-		 * If the power domain did not hit the desired state,
+		 * If the power domain did yest hit the desired state,
 		 * generate a trace event with both the desired and hit states
 		 */
 		next = pwrdm_read_next_pwrst(pwrdm);
@@ -244,7 +244,7 @@ static u8 _pwrdm_save_clkdm_state_and_activate(struct powerdomain *pwrdm,
 		    arch_pwrdm->pwrdm_set_lowpwrstchange) {
 			sleep_switch = LOWPOWERSTATE_SWITCH;
 		} else {
-			clkdm_deny_idle_nolock(pwrdm->pwrdm_clkdms[0]);
+			clkdm_deny_idle_yeslock(pwrdm->pwrdm_clkdms[0]);
 			sleep_switch = FORCEWAKEUP_SWITCH;
 		}
 	} else {
@@ -272,13 +272,13 @@ static void _pwrdm_restore_clkdm_state(struct powerdomain *pwrdm,
 {
 	switch (sleep_switch) {
 	case FORCEWAKEUP_SWITCH:
-		clkdm_allow_idle_nolock(pwrdm->pwrdm_clkdms[0]);
+		clkdm_allow_idle_yeslock(pwrdm->pwrdm_clkdms[0]);
 		break;
 	case LOWPOWERSTATE_SWITCH:
 		if (pwrdm->flags & PWRDM_HAS_LOWPOWERSTATECHANGE &&
 		    arch_pwrdm->pwrdm_set_lowpwrstchange)
 			arch_pwrdm->pwrdm_set_lowpwrstchange(pwrdm);
-		pwrdm_state_switch_nolock(pwrdm);
+		pwrdm_state_switch_yeslock(pwrdm);
 		break;
 	}
 }
@@ -334,7 +334,7 @@ int pwrdm_register_pwrdms(struct powerdomain **ps)
 	return 0;
 }
 
-static int cpu_notifier(struct notifier_block *nb, unsigned long cmd, void *v)
+static int cpu_yestifier(struct yestifier_block *nb, unsigned long cmd, void *v)
 {
 	switch (cmd) {
 	case CPU_CLUSTER_PM_ENTER:
@@ -357,25 +357,25 @@ static int cpu_notifier(struct notifier_block *nb, unsigned long cmd, void *v)
  * powerdomain code.  Currently, this programs the next power state
  * for each powerdomain to ON.  This prevents powerdomains from
  * unexpectedly losing context or entering high wakeup latency modes
- * with non-power-management-enabled kernels.  Must be called after
+ * with yesn-power-management-enabled kernels.  Must be called after
  * pwrdm_register_pwrdms().  Returns -EACCES if called before
  * pwrdm_register_pwrdms(), or 0 upon success.
  */
 int pwrdm_complete_init(void)
 {
 	struct powerdomain *temp_p;
-	static struct notifier_block nb;
+	static struct yestifier_block nb;
 
 	if (list_empty(&pwrdm_list))
 		return -EACCES;
 
-	list_for_each_entry(temp_p, &pwrdm_list, node)
+	list_for_each_entry(temp_p, &pwrdm_list, yesde)
 		pwrdm_set_next_pwrst(temp_p, PWRDM_POWER_ON);
 
 	/* Only AM43XX can lose pwrdm context during rtc-ddr suspend */
 	if (soc_is_am43xx()) {
-		nb.notifier_call = cpu_notifier;
-		cpu_pm_register_notifier(&nb);
+		nb.yestifier_call = cpu_yestifier;
+		cpu_pm_register_yestifier(&nb);
 	}
 
 	return 0;
@@ -443,7 +443,7 @@ int pwrdm_for_each(int (*fn)(struct powerdomain *pwrdm, void *user),
 	if (!fn)
 		return -EINVAL;
 
-	list_for_each_entry(temp_pwrdm, &pwrdm_list, node) {
+	list_for_each_entry(temp_pwrdm, &pwrdm_list, yesde) {
 		ret = (*fn)(temp_pwrdm, user);
 		if (ret)
 			break;
@@ -459,7 +459,7 @@ int pwrdm_for_each(int (*fn)(struct powerdomain *pwrdm, void *user),
  *
  * Associate the clockdomain @clkdm with a powerdomain @pwrdm.  This
  * enables the use of pwrdm_for_each_clkdm().  Returns -EINVAL if
- * presented with invalid pointers; -ENOMEM if memory could not be allocated;
+ * presented with invalid pointers; -ENOMEM if memory could yest be allocated;
  * or 0 upon success.
  */
 int pwrdm_add_clkdm(struct powerdomain *pwrdm, struct clockdomain *clkdm)
@@ -521,8 +521,8 @@ int pwrdm_get_mem_bank_count(struct powerdomain *pwrdm)
  * @pwrst: one of the PWRDM_POWER_* macros
  *
  * Set the powerdomain @pwrdm's next power state to @pwrst.  The powerdomain
- * may not enter this state immediately if the preconditions for this state
- * have not been satisfied.  Returns -EINVAL if the powerdomain pointer is
+ * may yest enter this state immediately if the preconditions for this state
+ * have yest been satisfied.  Returns -EINVAL if the powerdomain pointer is
  * null or if the power state is invalid for the powerdomin, or returns 0
  * upon success.
  */
@@ -626,7 +626,7 @@ int pwrdm_read_prev_pwrst(struct powerdomain *pwrdm)
  * powerdomain @pwrdm will enter when the powerdomain enters retention.
  * This will be either RETENTION or OFF, if supported.  Returns
  * -EINVAL if the powerdomain pointer is null or the target power
- * state is not not supported, or returns 0 upon success.
+ * state is yest yest supported, or returns 0 upon success.
  */
 int pwrdm_set_logic_retst(struct powerdomain *pwrdm, u8 pwrst)
 {
@@ -657,9 +657,9 @@ int pwrdm_set_logic_retst(struct powerdomain *pwrdm, u8 pwrst)
  * powerdomain @pwrdm will enter when the powerdomain enters the ON
  * state.  @bank will be a number from 0 to 3, and represents different
  * types of memory, depending on the powerdomain.  Returns -EINVAL if
- * the powerdomain pointer is null or the target power state is not
- * not supported for this memory bank, -EEXIST if the target memory
- * bank does not exist or is not controllable, or returns 0 upon
+ * the powerdomain pointer is null or the target power state is yest
+ * yest supported for this memory bank, -EEXIST if the target memory
+ * bank does yest exist or is yest controllable, or returns 0 upon
  * success.
  */
 int pwrdm_set_mem_onst(struct powerdomain *pwrdm, u8 bank, u8 pwrst)
@@ -695,9 +695,9 @@ int pwrdm_set_mem_onst(struct powerdomain *pwrdm, u8 bank, u8 pwrst)
  * RETENTION state.  Bank will be a number from 0 to 3, and represents
  * different types of memory, depending on the powerdomain.  @pwrst
  * will be either RETENTION or OFF, if supported.  Returns -EINVAL if
- * the powerdomain pointer is null or the target power state is not
- * not supported for this memory bank, -EEXIST if the target memory
- * bank does not exist or is not controllable, or returns 0 upon
+ * the powerdomain pointer is null or the target power state is yest
+ * yest supported for this memory bank, -EEXIST if the target memory
+ * bank does yest exist or is yest controllable, or returns 0 upon
  * success.
  */
 int pwrdm_set_mem_retst(struct powerdomain *pwrdm, u8 bank, u8 pwrst)
@@ -793,7 +793,7 @@ int pwrdm_read_logic_retst(struct powerdomain *pwrdm)
  *
  * Return the powerdomain @pwrdm's current memory power state for bank
  * @bank.  Returns -EINVAL if the powerdomain pointer is null, -EEXIST if
- * the target memory bank does not exist or is not controllable, or
+ * the target memory bank does yest exist or is yest controllable, or
  * returns the current memory power state upon success.
  */
 int pwrdm_read_mem_pwrst(struct powerdomain *pwrdm, u8 bank)
@@ -822,7 +822,7 @@ int pwrdm_read_mem_pwrst(struct powerdomain *pwrdm, u8 bank)
  *
  * Return the powerdomain @pwrdm's previous memory power state for
  * bank @bank.  Returns -EINVAL if the powerdomain pointer is null,
- * -EEXIST if the target memory bank does not exist or is not
+ * -EEXIST if the target memory bank does yest exist or is yest
  * controllable, or returns the previous memory power state upon
  * success.
  */
@@ -852,7 +852,7 @@ int pwrdm_read_prev_mem_pwrst(struct powerdomain *pwrdm, u8 bank)
  *
  * Return the powerdomain pwrdm's next memory power state for bank
  * x.  Returns -EINVAL if the powerdomain pointer is null, -EEXIST if
- * the target memory bank does not exist or is not controllable, or
+ * the target memory bank does yest exist or is yest controllable, or
  * returns the next memory power state upon success.
  */
 int pwrdm_read_mem_retst(struct powerdomain *pwrdm, u8 bank)
@@ -889,7 +889,7 @@ int pwrdm_clear_all_prev_pwrst(struct powerdomain *pwrdm)
 
 	/*
 	 * XXX should get the powerdomain's current state here;
-	 * warn & fail if it is not ON.
+	 * warn & fail if it is yest ON.
 	 */
 
 	pr_debug("powerdomain: %s: clearing previous power state reg\n",
@@ -909,7 +909,7 @@ int pwrdm_clear_all_prev_pwrst(struct powerdomain *pwrdm)
  * for some devices in the powerdomain @pwrdm.  Warning: this only
  * affects a subset of devices in a powerdomain; check the TRM
  * closely.  Returns -EINVAL if the powerdomain pointer is null or if
- * the powerdomain does not support automatic save-and-restore, or
+ * the powerdomain does yest support automatic save-and-restore, or
  * returns 0 upon success.
  */
 int pwrdm_enable_hdwr_sar(struct powerdomain *pwrdm)
@@ -938,7 +938,7 @@ int pwrdm_enable_hdwr_sar(struct powerdomain *pwrdm)
  * for some devices in the powerdomain @pwrdm.  Warning: this only
  * affects a subset of devices in a powerdomain; check the TRM
  * closely.  Returns -EINVAL if the powerdomain pointer is null or if
- * the powerdomain does not support automatic save-and-restore, or
+ * the powerdomain does yest support automatic save-and-restore, or
  * returns 0 upon success.
  */
 int pwrdm_disable_hdwr_sar(struct powerdomain *pwrdm)
@@ -964,14 +964,14 @@ int pwrdm_disable_hdwr_sar(struct powerdomain *pwrdm)
  * @pwrdm: struct powerdomain *
  *
  * Returns 1 if powerdomain @pwrdm supports hardware save-and-restore
- * for some devices, or 0 if it does not.
+ * for some devices, or 0 if it does yest.
  */
 bool pwrdm_has_hdwr_sar(struct powerdomain *pwrdm)
 {
 	return (pwrdm && pwrdm->flags & PWRDM_HAS_HDWR_SAR) ? 1 : 0;
 }
 
-int pwrdm_state_switch_nolock(struct powerdomain *pwrdm)
+int pwrdm_state_switch_yeslock(struct powerdomain *pwrdm)
 {
 	int ret;
 
@@ -990,7 +990,7 @@ int __deprecated pwrdm_state_switch(struct powerdomain *pwrdm)
 	int ret;
 
 	pwrdm_lock(pwrdm);
-	ret = pwrdm_state_switch_nolock(pwrdm);
+	ret = pwrdm_state_switch_yeslock(pwrdm);
 	pwrdm_unlock(pwrdm);
 
 	return ret;
@@ -1030,11 +1030,11 @@ int pwrdm_post_transition(struct powerdomain *pwrdm)
  * closest valid power domain state that the hardware can achieve.
  * PRCM definitions for PWRSTCTRL allows us to program whatever
  * configuration we'd like, and PRCM will actually attempt such
- * a transition, however if the powerdomain does not actually support it,
+ * a transition, however if the powerdomain does yest actually support it,
  * we endup with a hung system. The valid power domain states are already
  * available in our powerdomain data files. So this function tries to do
  * the following:
- * a) find if we have an exact match to the request - no issues.
+ * a) find if we have an exact match to the request - yes issues.
  * b) else find if a deeper power state is possible.
  * c) failing which, it tries to find closest higher power state for the
  * request.
@@ -1049,7 +1049,7 @@ u8 pwrdm_get_valid_lp_state(struct powerdomain *pwrdm,
 	u8 new_pwrst;
 	bool found;
 
-	/* If it is already supported, nothing to search */
+	/* If it is already supported, yesthing to search */
 	if (pwrdm_states & BIT(req_state))
 		return req_state;
 
@@ -1075,7 +1075,7 @@ u8 pwrdm_get_valid_lp_state(struct powerdomain *pwrdm,
 		goto done;
 
 up_search:
-	/* OK, no deeper ones, can we get a higher match? */
+	/* OK, yes deeper ones, can we get a higher match? */
 	new_pwrst = req_state + 1;
 	while (!(pwrdm_states & BIT(new_pwrst))) {
 		if (new_pwrst > PWRDM_POWER_ON) {
@@ -1100,9 +1100,9 @@ done:
  * Change the current hardware power state of the powerdomain
  * represented by @pwrdm to the power state represented by @pwrst.
  * Returns -EINVAL if @pwrdm is null or invalid or if the
- * powerdomain's current power state could not be read, or returns 0
- * upon success or if @pwrdm does not support @pwrst or any
- * lower-power state.  XXX Should not return 0 if the @pwrdm does not
+ * powerdomain's current power state could yest be read, or returns 0
+ * upon success or if @pwrdm does yest support @pwrst or any
+ * lower-power state.  XXX Should yest return 0 if the @pwrdm does yest
  * support @pwrst or any lower-power state: this should be an error.
  */
 int omap_set_pwrdm_state(struct powerdomain *pwrdm, u8 pwrst)
@@ -1172,7 +1172,7 @@ int pwrdm_get_context_loss_count(struct powerdomain *pwrdm)
 		count += pwrdm->ret_mem_off_counter[i];
 
 	/*
-	 * Context loss count has to be a non-negative value. Clear the sign
+	 * Context loss count has to be a yesn-negative value. Clear the sign
 	 * bit to get a value range from 0 to INT_MAX.
 	 */
 	count &= INT_MAX;
@@ -1189,8 +1189,8 @@ int pwrdm_get_context_loss_count(struct powerdomain *pwrdm)
  *
  * Given a struct powerdomain * @pwrdm, returns 1 if the powerdomain
  * can lose either memory or logic context or if @pwrdm is invalid, or
- * returns 0 otherwise.  This function is not concerned with how the
- * powerdomain registers are programmed (i.e., to go off or not); it's
+ * returns 0 otherwise.  This function is yest concerned with how the
+ * powerdomain registers are programmed (i.e., to go off or yest); it's
  * concerned with whether it's ever possible for this powerdomain to
  * go off while some other part of the chip is active.  This function
  * assumes that every powerdomain can go to either ON or INACTIVE.

@@ -36,7 +36,7 @@
  *		  MCK01 rate.
  *
  *	Copyright (c) 2003 Takashi Iwai <tiwai@suse.de>
- *      Copyright (c) 2003 Dimitromanolakis Apostolos <apostol@cs.utoronto.ca>
+ *      Copyright (c) 2003 Dimitromayeslakis Apostolos <apostol@cs.utoronto.ca>
  *      Copyright (c) 2004 Kouichi ONO <co2b@ceres.dti.ne.jp>
  */      
 
@@ -89,7 +89,7 @@ static int stac9460_dac_mute(struct snd_ice1712 *ice, int idx,
 	return change;
 }
 
-#define stac9460_dac_mute_info		snd_ctl_boolean_mono_info
+#define stac9460_dac_mute_info		snd_ctl_boolean_moyes_info
 
 static int stac9460_dac_mute_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
@@ -308,7 +308,7 @@ static void stac9460_set_rate_val(struct snd_ice1712 *ice, unsigned int rate)
 	unsigned char changed[7];
 	struct prodigy192_spec *spec = ice->spec;
 
-	if (rate == 0)  /* no hint - S/PDIF input is master, simply return */
+	if (rate == 0)  /* yes hint - S/PDIF input is master, simply return */
 		return;
 	else if (rate <= 48000)
 		new = 0x08;	/* 256x, base rate mode */
@@ -616,7 +616,7 @@ static int prodigy192_ak4114_init(struct snd_ice1712 *ice)
 				 ice, &spec->ak4114);
 	if (err < 0)
 		return err;
-	/* AK4114 in Prodigy192 cannot detect external rate correctly.
+	/* AK4114 in Prodigy192 canyest detect external rate correctly.
 	 * No reason to stop capture stream due to incorrect checks */
 	spec->ak4114->check_flags = AK4114_CHECK_NO_RATE;
 	return 0;
@@ -664,7 +664,7 @@ static int prodigy192_add_controls(struct snd_ice1712 *ice)
 				return err;
 		}
 		err = snd_ak4114_build(spec->ak4114,
-				NULL, /* ak4114 in MIO/DI/O handles no IEC958 output */
+				NULL, /* ak4114 in MIO/DI/O handles yes IEC958 output */
 				ice->pcm->streams[SNDRV_PCM_STREAM_CAPTURE].substream);
 		if (err < 0)
 			return err;
@@ -737,12 +737,12 @@ static int prodigy192_init(struct snd_ice1712 *ice)
 	if (prodigy192_miodio_exists(ice)) {
 		err = prodigy192_ak4114_init(ice);
 		/* from this moment if err = 0 then
-		 * spec->ak4114 should not be null
+		 * spec->ak4114 should yest be null
 		 */
 		dev_dbg(ice->card->dev,
 			"AK4114 initialized with status %d\n", err);
 	} else
-		dev_dbg(ice->card->dev, "AK4114 not found\n");
+		dev_dbg(ice->card->dev, "AK4114 yest found\n");
 
 	return err;
 }

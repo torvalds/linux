@@ -13,7 +13,7 @@ static inline struct ip_esp_hdr *ip_esp_hdr(const struct sk_buff *skb)
 
 struct esp_info {
 	struct	ip_esp_hdr *esph;
-	__be64	seqno;
+	__be64	seqyes;
 	int	tfclen;
 	int	tailen;
 	int	plen;

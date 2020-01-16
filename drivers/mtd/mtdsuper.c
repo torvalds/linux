@@ -149,7 +149,7 @@ int get_tree_mtd(struct fs_context *fc,
 			if (!IS_ERR(mtd))
 				return mtd_get_sb(fc, mtd, fill_super);
 
-			errorf(fc, "MTD: MTD device with name \"%s\" not found",
+			errorf(fc, "MTD: MTD device with name \"%s\" yest found",
 			       fc->source + 4);
 
 		} else if (isdigit(fc->source[3])) {
@@ -187,7 +187,7 @@ int get_tree_mtd(struct fs_context *fc,
 #endif /* CONFIG_BLOCK */
 
 	if (!(fc->sb_flags & SB_SILENT))
-		errorf(fc, "MTD: Attempt to mount non-MTD device \"%s\"",
+		errorf(fc, "MTD: Attempt to mount yesn-MTD device \"%s\"",
 		       fc->source);
 	return -EINVAL;
 }

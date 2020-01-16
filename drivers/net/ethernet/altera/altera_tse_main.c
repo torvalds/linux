@@ -46,7 +46,7 @@ static atomic_t instance_count = ATOMIC_INIT(~0);
 /* Module parameters */
 static int debug = -1;
 module_param(debug, int, 0644);
-MODULE_PARM_DESC(debug, "Message Level (-1: default, 0: no output, 16: all)");
+MODULE_PARM_DESC(debug, "Message Level (-1: default, 0: yes output, 16: all)");
 
 static const u32 default_msg_level = (NETIF_MSG_DRV | NETIF_MSG_PROBE |
 					NETIF_MSG_LINK | NETIF_MSG_IFUP |
@@ -142,21 +142,21 @@ static int altera_tse_mdio_create(struct net_device *dev, unsigned int id)
 {
 	struct altera_tse_private *priv = netdev_priv(dev);
 	int ret;
-	struct device_node *mdio_node = NULL;
+	struct device_yesde *mdio_yesde = NULL;
 	struct mii_bus *mdio = NULL;
-	struct device_node *child_node = NULL;
+	struct device_yesde *child_yesde = NULL;
 
-	for_each_child_of_node(priv->device->of_node, child_node) {
-		if (of_device_is_compatible(child_node, "altr,tse-mdio")) {
-			mdio_node = child_node;
+	for_each_child_of_yesde(priv->device->of_yesde, child_yesde) {
+		if (of_device_is_compatible(child_yesde, "altr,tse-mdio")) {
+			mdio_yesde = child_yesde;
 			break;
 		}
 	}
 
-	if (mdio_node) {
-		netdev_dbg(dev, "FOUND MDIO subnode\n");
+	if (mdio_yesde) {
+		netdev_dbg(dev, "FOUND MDIO subyesde\n");
 	} else {
-		netdev_dbg(dev, "NO MDIO subnode\n");
+		netdev_dbg(dev, "NO MDIO subyesde\n");
 		return 0;
 	}
 
@@ -174,9 +174,9 @@ static int altera_tse_mdio_create(struct net_device *dev, unsigned int id)
 	mdio->priv = dev;
 	mdio->parent = priv->device;
 
-	ret = of_mdiobus_register(mdio, mdio_node);
+	ret = of_mdiobus_register(mdio, mdio_yesde);
 	if (ret != 0) {
-		netdev_err(dev, "Cannot register MDIO bus %s\n",
+		netdev_err(dev, "Canyest register MDIO bus %s\n",
 			   mdio->id);
 		goto out_free_mdio;
 	}
@@ -424,7 +424,7 @@ static int tse_rx(struct altera_tse_private *priv, int limit)
 		tse_rx_vlan(priv->dev, skb);
 
 		skb->protocol = eth_type_trans(skb, priv->dev);
-		skb_checksum_none_assert(skb);
+		skb_checksum_yesne_assert(skb);
 
 		napi_gro_receive(&priv->napi, skb);
 
@@ -549,7 +549,7 @@ static irqreturn_t altera_isr(int irq, void *dev_id)
 
 /* Transmit a packet (called by the kernel). Dispatches
  * either the SGDMA method for transmitting or the
- * MSGDMA method, assumes no scatter/gather support,
+ * MSGDMA method, assumes yes scatter/gather support,
  * implying an assumption that there's only one
  * physically contiguous fragment starting at
  * skb->data, for length of skb_headlen(skb).
@@ -561,7 +561,7 @@ static int tse_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	unsigned int entry;
 	struct tse_buffer *buffer = NULL;
 	int nfrags = skb_shinfo(skb)->nr_frags;
-	unsigned int nopaged_len = skb_headlen(skb);
+	unsigned int yespaged_len = skb_headlen(skb);
 	enum netdev_tx ret = NETDEV_TX_OK;
 	dma_addr_t dma_addr;
 
@@ -583,7 +583,7 @@ static int tse_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	entry = priv->tx_prod % txsize;
 	buffer = &priv->tx_ring[entry];
 
-	dma_addr = dma_map_single(priv->device, skb->data, nopaged_len,
+	dma_addr = dma_map_single(priv->device, skb->data, yespaged_len,
 				  DMA_TO_DEVICE);
 	if (dma_mapping_error(priv->device, dma_addr)) {
 		netdev_err(priv->dev, "%s: DMA mapping error\n", __func__);
@@ -593,7 +593,7 @@ static int tse_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	buffer->skb = skb;
 	buffer->dma_addr = dma_addr;
-	buffer->len = nopaged_len;
+	buffer->len = yespaged_len;
 
 	priv->dmaops->tx_buffer(priv, buffer);
 
@@ -665,7 +665,7 @@ static void altera_tse_adjust_link(struct net_device *dev)
 				break;
 			default:
 				if (netif_msg_link(priv))
-					netdev_warn(dev, "Speed (%d) is not 10/100/1000!\n",
+					netdev_warn(dev, "Speed (%d) is yest 10/100/1000!\n",
 						    phydev->speed);
 				break;
 			}
@@ -704,7 +704,7 @@ static struct phy_device *connect_local_phy(struct net_device *dev)
 		phydev = phy_connect(dev, phy_id_fmt, &altera_tse_adjust_link,
 				     priv->phy_iface);
 		if (IS_ERR(phydev)) {
-			netdev_err(dev, "Could not attach to PHY\n");
+			netdev_err(dev, "Could yest attach to PHY\n");
 			phydev = NULL;
 		}
 
@@ -719,7 +719,7 @@ static struct phy_device *connect_local_phy(struct net_device *dev)
 		ret = phy_connect_direct(dev, phydev, &altera_tse_adjust_link,
 				priv->phy_iface);
 		if (ret != 0) {
-			netdev_err(dev, "Could not attach to PHY\n");
+			netdev_err(dev, "Could yest attach to PHY\n");
 			phydev = NULL;
 		}
 	}
@@ -729,20 +729,20 @@ static struct phy_device *connect_local_phy(struct net_device *dev)
 static int altera_tse_phy_get_addr_mdio_create(struct net_device *dev)
 {
 	struct altera_tse_private *priv = netdev_priv(dev);
-	struct device_node *np = priv->device->of_node;
+	struct device_yesde *np = priv->device->of_yesde;
 	int ret;
 
 	ret = of_get_phy_mode(np, &priv->phy_iface);
 
-	/* Avoid get phy addr and create mdio if no phy is present */
+	/* Avoid get phy addr and create mdio if yes phy is present */
 	if (ret)
 		return 0;
 
 	/* try to get PHY address from device tree, use PHY autodetection if
-	 * no valid address is given
+	 * yes valid address is given
 	 */
 
-	if (of_property_read_u32(priv->device->of_node, "phy-addr",
+	if (of_property_read_u32(priv->device->of_yesde, "phy-addr",
 			 &priv->phy_addr)) {
 		priv->phy_addr = POLL_PHY;
 	}
@@ -770,11 +770,11 @@ static int init_phy(struct net_device *dev)
 {
 	struct altera_tse_private *priv = netdev_priv(dev);
 	struct phy_device *phydev;
-	struct device_node *phynode;
+	struct device_yesde *phyyesde;
 	bool fixed_link = false;
 	int rc = 0;
 
-	/* Avoid init phy in case of no phy present */
+	/* Avoid init phy in case of yes phy present */
 	if (!priv->phy_iface)
 		return 0;
 
@@ -782,58 +782,58 @@ static int init_phy(struct net_device *dev)
 	priv->oldspeed = 0;
 	priv->oldduplex = -1;
 
-	phynode = of_parse_phandle(priv->device->of_node, "phy-handle", 0);
+	phyyesde = of_parse_phandle(priv->device->of_yesde, "phy-handle", 0);
 
-	if (!phynode) {
+	if (!phyyesde) {
 		/* check if a fixed-link is defined in device-tree */
-		if (of_phy_is_fixed_link(priv->device->of_node)) {
-			rc = of_phy_register_fixed_link(priv->device->of_node);
+		if (of_phy_is_fixed_link(priv->device->of_yesde)) {
+			rc = of_phy_register_fixed_link(priv->device->of_yesde);
 			if (rc < 0) {
-				netdev_err(dev, "cannot register fixed PHY\n");
+				netdev_err(dev, "canyest register fixed PHY\n");
 				return rc;
 			}
 
-			/* In the case of a fixed PHY, the DT node associated
-			 * to the PHY is the Ethernet MAC DT node.
+			/* In the case of a fixed PHY, the DT yesde associated
+			 * to the PHY is the Ethernet MAC DT yesde.
 			 */
-			phynode = of_node_get(priv->device->of_node);
+			phyyesde = of_yesde_get(priv->device->of_yesde);
 			fixed_link = true;
 
 			netdev_dbg(dev, "fixed-link detected\n");
-			phydev = of_phy_connect(dev, phynode,
+			phydev = of_phy_connect(dev, phyyesde,
 						&altera_tse_adjust_link,
 						0, priv->phy_iface);
 		} else {
-			netdev_dbg(dev, "no phy-handle found\n");
+			netdev_dbg(dev, "yes phy-handle found\n");
 			if (!priv->mdio) {
-				netdev_err(dev, "No phy-handle nor local mdio specified\n");
+				netdev_err(dev, "No phy-handle yesr local mdio specified\n");
 				return -ENODEV;
 			}
 			phydev = connect_local_phy(dev);
 		}
 	} else {
 		netdev_dbg(dev, "phy-handle found\n");
-		phydev = of_phy_connect(dev, phynode,
+		phydev = of_phy_connect(dev, phyyesde,
 			&altera_tse_adjust_link, 0, priv->phy_iface);
 	}
-	of_node_put(phynode);
+	of_yesde_put(phyyesde);
 
 	if (!phydev) {
-		netdev_err(dev, "Could not find the PHY\n");
+		netdev_err(dev, "Could yest find the PHY\n");
 		if (fixed_link)
-			of_phy_deregister_fixed_link(priv->device->of_node);
+			of_phy_deregister_fixed_link(priv->device->of_yesde);
 		return -ENODEV;
 	}
 
-	/* Stop Advertising 1000BASE Capability if interface is not GMII
+	/* Stop Advertising 1000BASE Capability if interface is yest GMII
 	 */
 	if ((priv->phy_iface == PHY_INTERFACE_MODE_MII) ||
 	    (priv->phy_iface == PHY_INTERFACE_MODE_RMII))
 		phy_set_max_speed(phydev, SPEED_100);
 
 	/* Broken HW is sometimes missing the pull-up resistor on the
-	 * MDIO line, which results in reads to non-existent devices returning
-	 * 0 rather than 0xffff. Catch this here and treat 0 as a non-existent
+	 * MDIO line, which results in reads to yesn-existent devices returning
+	 * 0 rather than 0xffff. Catch this here and treat 0 as a yesn-existent
 	 * device as well. If a fixed-link is used the phy_id is always 0.
 	 * Note: phydev->phy_id is the result of reading the UID PHY registers.
 	 */
@@ -1092,7 +1092,7 @@ static int init_sgmii_pcs(struct net_device *dev)
 	unsigned int tmp_reg = 0;
 
 	if (priv->phy_iface != PHY_INTERFACE_MODE_SGMII)
-		return 0; /* Nothing to do, not in SGMII mode */
+		return 0; /* Nothing to do, yest in SGMII mode */
 
 	/* The TSE SGMII PCS block looks a little like a PHY, it is
 	 * mapped into the zeroth MDIO space of the MAC and it has
@@ -1155,7 +1155,7 @@ static int tse_open(struct net_device *dev)
 	/* Reset and configure TSE MAC and probe associated PHY */
 	ret = priv->dmaops->init_dma(priv);
 	if (ret != 0) {
-		netdev_err(dev, "Cannot initialize DMA\n");
+		netdev_err(dev, "Canyest initialize DMA\n");
 		goto phy_error;
 	}
 
@@ -1167,11 +1167,11 @@ static int tse_open(struct net_device *dev)
 		netdev_warn(dev, "TSE revision %x\n", priv->revision);
 
 	spin_lock(&priv->mac_cfg_lock);
-	/* no-op if MAC not operating in SGMII mode*/
+	/* yes-op if MAC yest operating in SGMII mode*/
 	ret = init_sgmii_pcs(dev);
 	if (ret) {
 		netdev_err(dev,
-			   "Cannot init the SGMII PCS (error: %d)\n", ret);
+			   "Canyest init the SGMII PCS (error: %d)\n", ret);
 		spin_unlock(&priv->mac_cfg_lock);
 		goto phy_error;
 	}
@@ -1179,15 +1179,15 @@ static int tse_open(struct net_device *dev)
 	ret = reset_mac(priv);
 	/* Note that reset_mac will fail if the clocks are gated by the PHY
 	 * due to the PHY being put into isolation or power down mode.
-	 * This is not an error if reset fails due to no clock.
+	 * This is yest an error if reset fails due to yes clock.
 	 */
 	if (ret)
-		netdev_dbg(dev, "Cannot reset MAC core (error: %d)\n", ret);
+		netdev_dbg(dev, "Canyest reset MAC core (error: %d)\n", ret);
 
 	ret = init_mac(priv);
 	spin_unlock(&priv->mac_cfg_lock);
 	if (ret) {
-		netdev_err(dev, "Cannot init MAC core (error: %d)\n", ret);
+		netdev_err(dev, "Canyest init MAC core (error: %d)\n", ret);
 		goto alloc_skbuf_error;
 	}
 
@@ -1288,10 +1288,10 @@ static int tse_shutdown(struct net_device *dev)
 	ret = reset_mac(priv);
 	/* Note that reset_mac will fail if the clocks are gated by the PHY
 	 * due to the PHY being put into isolation or power down mode.
-	 * This is not an error if reset fails due to no clock.
+	 * This is yest an error if reset fails due to yes clock.
 	 */
 	if (ret)
-		netdev_dbg(dev, "Cannot reset MAC core (error: %d)\n", ret);
+		netdev_dbg(dev, "Canyest reset MAC core (error: %d)\n", ret);
 	priv->dmaops->reset_dma(priv);
 	free_skbufs(dev);
 
@@ -1321,7 +1321,7 @@ static int request_and_map(struct platform_device *pdev, const char *name,
 
 	*res = platform_get_resource_byname(pdev, IORESOURCE_MEM, name);
 	if (*res == NULL) {
-		dev_err(device, "resource %s not defined\n", name);
+		dev_err(device, "resource %s yest defined\n", name);
 		return -ENODEV;
 	}
 
@@ -1332,10 +1332,10 @@ static int request_and_map(struct platform_device *pdev, const char *name,
 		return -EBUSY;
 	}
 
-	*ptr = devm_ioremap_nocache(device, region->start,
+	*ptr = devm_ioremap_yescache(device, region->start,
 				    resource_size(region));
 	if (*ptr == NULL) {
-		dev_err(device, "ioremap_nocache of %s failed!", name);
+		dev_err(device, "ioremap_yescache of %s failed!", name);
 		return -ENOMEM;
 	}
 
@@ -1357,7 +1357,7 @@ static int altera_tse_probe(struct platform_device *pdev)
 
 	ndev = alloc_etherdev(sizeof(struct altera_tse_private));
 	if (!ndev) {
-		dev_err(&pdev->dev, "Could not allocate network device\n");
+		dev_err(&pdev->dev, "Could yest allocate network device\n");
 		return -ENODEV;
 	}
 
@@ -1465,7 +1465,7 @@ static int altera_tse_probe(struct platform_device *pdev)
 	/* Rx IRQ */
 	priv->rx_irq = platform_get_irq_byname(pdev, "rx_irq");
 	if (priv->rx_irq == -ENXIO) {
-		dev_err(&pdev->dev, "cannot obtain Rx IRQ\n");
+		dev_err(&pdev->dev, "canyest obtain Rx IRQ\n");
 		ret = -ENXIO;
 		goto err_free_netdev;
 	}
@@ -1473,39 +1473,39 @@ static int altera_tse_probe(struct platform_device *pdev)
 	/* Tx IRQ */
 	priv->tx_irq = platform_get_irq_byname(pdev, "tx_irq");
 	if (priv->tx_irq == -ENXIO) {
-		dev_err(&pdev->dev, "cannot obtain Tx IRQ\n");
+		dev_err(&pdev->dev, "canyest obtain Tx IRQ\n");
 		ret = -ENXIO;
 		goto err_free_netdev;
 	}
 
 	/* get FIFO depths from device tree */
-	if (of_property_read_u32(pdev->dev.of_node, "rx-fifo-depth",
+	if (of_property_read_u32(pdev->dev.of_yesde, "rx-fifo-depth",
 				 &priv->rx_fifo_depth)) {
-		dev_err(&pdev->dev, "cannot obtain rx-fifo-depth\n");
+		dev_err(&pdev->dev, "canyest obtain rx-fifo-depth\n");
 		ret = -ENXIO;
 		goto err_free_netdev;
 	}
 
-	if (of_property_read_u32(pdev->dev.of_node, "tx-fifo-depth",
+	if (of_property_read_u32(pdev->dev.of_yesde, "tx-fifo-depth",
 				 &priv->tx_fifo_depth)) {
-		dev_err(&pdev->dev, "cannot obtain tx-fifo-depth\n");
+		dev_err(&pdev->dev, "canyest obtain tx-fifo-depth\n");
 		ret = -ENXIO;
 		goto err_free_netdev;
 	}
 
 	/* get hash filter settings for this instance */
 	priv->hash_filter =
-		of_property_read_bool(pdev->dev.of_node,
+		of_property_read_bool(pdev->dev.of_yesde,
 				      "altr,has-hash-multicast-filter");
 
-	/* Set hash filter to not set for now until the
+	/* Set hash filter to yest set for yesw until the
 	 * multicast filter receive issue is debugged
 	 */
 	priv->hash_filter = 0;
 
 	/* get supplemental address settings for this instance */
 	priv->added_unicast =
-		of_property_read_bool(pdev->dev.of_node,
+		of_property_read_bool(pdev->dev.of_yesde,
 				      "altr,has-supplementary-unicast");
 
 	priv->dev->min_mtu = ETH_ZLEN + ETH_FCS_LEN;
@@ -1516,7 +1516,7 @@ static int altera_tse_probe(struct platform_device *pdev)
 	 * "max-frame-size" parameter is actually max mtu. Definition
 	 * in the ePAPR v1.1 spec and usage differ, so go with usage.
 	 */
-	of_property_read_u32(pdev->dev.of_node, "max-frame-size",
+	of_property_read_u32(pdev->dev.of_yesde, "max-frame-size",
 			     &priv->dev->max_mtu);
 
 	/* The DMA buffer size already accounts for an alignment bias
@@ -1525,7 +1525,7 @@ static int altera_tse_probe(struct platform_device *pdev)
 	priv->rx_dma_buf_sz = ALTERA_RXDMABUFFER_SIZE;
 
 	/* get default MAC address from device tree */
-	macaddr = of_get_mac_address(pdev->dev.of_node);
+	macaddr = of_get_mac_address(pdev->dev.of_yesde);
 	if (!IS_ERR(macaddr))
 		ether_addr_copy(ndev->dev_addr, macaddr);
 	else
@@ -1549,13 +1549,13 @@ static int altera_tse_probe(struct platform_device *pdev)
 		altera_tse_netdev_ops.ndo_set_rx_mode =
 			tse_set_rx_mode_hashfilter;
 
-	/* Scatter/gather IO is not supported,
+	/* Scatter/gather IO is yest supported,
 	 * so it is turned off
 	 */
 	ndev->hw_features &= ~NETIF_F_SG;
 	ndev->features |= ndev->hw_features | NETIF_F_HIGHDMA;
 
-	/* VLAN offloading of tagging, stripping and filtering is not
+	/* VLAN offloading of tagging, stripping and filtering is yest
 	 * supported by hardware, but driver will accommodate the
 	 * extra 4-byte VLAN tag for processing by upper layers
 	 */
@@ -1588,7 +1588,7 @@ static int altera_tse_probe(struct platform_device *pdev)
 
 	ret = init_phy(ndev);
 	if (ret != 0) {
-		netdev_err(ndev, "Cannot attach to PHY (error: %d)\n", ret);
+		netdev_err(ndev, "Canyest attach to PHY (error: %d)\n", ret);
 		goto err_init_phy;
 	}
 	return 0;
@@ -1613,8 +1613,8 @@ static int altera_tse_remove(struct platform_device *pdev)
 	if (ndev->phydev) {
 		phy_disconnect(ndev->phydev);
 
-		if (of_phy_is_fixed_link(priv->device->of_node))
-			of_phy_deregister_fixed_link(priv->device->of_node);
+		if (of_phy_is_fixed_link(priv->device->of_yesde))
+			of_phy_deregister_fixed_link(priv->device->of_yesde);
 	}
 
 	platform_set_drvdata(pdev, NULL);

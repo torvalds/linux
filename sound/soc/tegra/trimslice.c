@@ -53,7 +53,7 @@ static int trimslice_asoc_hw_params(struct snd_pcm_substream *substream,
 	err = snd_soc_dai_set_sysclk(codec_dai, 0, mclk,
 					SND_SOC_CLOCK_IN);
 	if (err < 0) {
-		dev_err(card->dev, "codec_dai clock not set\n");
+		dev_err(card->dev, "codec_dai clock yest set\n");
 		return err;
 	}
 
@@ -107,7 +107,7 @@ static struct snd_soc_card snd_soc_trimslice = {
 
 static int tegra_snd_trimslice_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	struct snd_soc_card *card = &snd_soc_trimslice;
 	struct tegra_trimslice *trimslice;
 	int ret;
@@ -120,26 +120,26 @@ static int tegra_snd_trimslice_probe(struct platform_device *pdev)
 	card->dev = &pdev->dev;
 	snd_soc_card_set_drvdata(card, trimslice);
 
-	trimslice_tlv320aic23_dai.codecs->of_node = of_parse_phandle(np,
+	trimslice_tlv320aic23_dai.codecs->of_yesde = of_parse_phandle(np,
 			"nvidia,audio-codec", 0);
-	if (!trimslice_tlv320aic23_dai.codecs->of_node) {
+	if (!trimslice_tlv320aic23_dai.codecs->of_yesde) {
 		dev_err(&pdev->dev,
 			"Property 'nvidia,audio-codec' missing or invalid\n");
 		ret = -EINVAL;
 		goto err;
 	}
 
-	trimslice_tlv320aic23_dai.cpus->of_node = of_parse_phandle(np,
+	trimslice_tlv320aic23_dai.cpus->of_yesde = of_parse_phandle(np,
 			"nvidia,i2s-controller", 0);
-	if (!trimslice_tlv320aic23_dai.cpus->of_node) {
+	if (!trimslice_tlv320aic23_dai.cpus->of_yesde) {
 		dev_err(&pdev->dev,
 			"Property 'nvidia,i2s-controller' missing or invalid\n");
 		ret = -EINVAL;
 		goto err;
 	}
 
-	trimslice_tlv320aic23_dai.platforms->of_node =
-			trimslice_tlv320aic23_dai.cpus->of_node;
+	trimslice_tlv320aic23_dai.platforms->of_yesde =
+			trimslice_tlv320aic23_dai.cpus->of_yesde;
 
 	ret = tegra_asoc_utils_init(&trimslice->util_data, &pdev->dev);
 	if (ret)

@@ -9,7 +9,7 @@
 // Confidence: High
 // Copyright: (C) 2014 Himangi Saraogi.
 // Comments:
-// Options: --no-includes --include-headers
+// Options: --yes-includes --include-headers
 
 virtual patch
 virtual context
@@ -58,6 +58,6 @@ coccilib.org.print_todo(p[0], "WARNING use BUG_ON")
 p << r.p;
 @@
 
-msg="WARNING: Use BUG_ON instead of if condition followed by BUG.\nPlease make sure the condition has no side effects (see conditional BUG_ON definition in include/asm-generic/bug.h)"
+msg="WARNING: Use BUG_ON instead of if condition followed by BUG.\nPlease make sure the condition has yes side effects (see conditional BUG_ON definition in include/asm-generic/bug.h)"
 coccilib.report.print_report(p[0], msg)
 

@@ -28,12 +28,12 @@ void lkdtm_STACKLEAK_ERASING(void)
 
 	/*
 	 * One 'long int' at the bottom of the thread stack is reserved
-	 * and not poisoned.
+	 * and yest poisoned.
 	 */
 	if (left > 1) {
 		left--;
 	} else {
-		pr_err("FAIL: not enough stack space for the test\n");
+		pr_err("FAIL: yest eyesugh stack space for the test\n");
 		return;
 	}
 
@@ -52,7 +52,7 @@ void lkdtm_STACKLEAK_ERASING(void)
 	}
 
 	if (found <= check_depth) {
-		pr_err("FAIL: thread stack is not erased (checked %lu bytes)\n",
+		pr_err("FAIL: thread stack is yest erased (checked %lu bytes)\n",
 						i * sizeof(unsigned long));
 		return;
 	}

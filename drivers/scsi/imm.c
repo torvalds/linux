@@ -4,7 +4,7 @@
  * 
  * (The IMM is the embedded controller in the ZIP Plus drive.)
  * 
- * My unofficial company acronym list is 21 pages long:
+ * My uyesfficial company acronym list is 21 pages long:
  *      FLA:    Four letter acronym with built in facility for
  *              future expansion to five letters.
  */
@@ -44,7 +44,7 @@ typedef struct {
 	unsigned dp:1;		/* Data phase present           */
 	unsigned rd:1;		/* Read data in data phase      */
 	unsigned wanted:1;	/* Parport sharing busy flag    */
-	unsigned int dev_no;	/* Device number		*/
+	unsigned int dev_yes;	/* Device number		*/
 	wait_queue_head_t *waiting;
 	struct Scsi_Host *host;
 	struct list_head list;
@@ -119,7 +119,7 @@ static inline void imm_pb_release(imm_struct *dev)
 
 /* This is to give the imm driver a way to modify the timings (and other
  * parameters) by writing to the /proc/scsi/imm/0 file.
- * Very simple method really... (Too simple, no error checking :( )
+ * Very simple method really... (Too simple, yes error checking :( )
  * Reason: Kernel hackers HATE having to unload and reload modules for
  * testing...
  * Also gives a method to use a script to obtain optimum timings (TODO)
@@ -226,7 +226,7 @@ static int imm_negotiate(imm_struct * tmp)
 	 * of IEEE 1284.
 	 *
 	 * Return 0 if data available
-	 *        1 if no data available
+	 *        1 if yes data available
 	 */
 
 	unsigned short base = tmp->base;
@@ -257,7 +257,7 @@ static int imm_negotiate(imm_struct * tmp)
 
 	if (a) {
 		printk
-		    ("IMM: IEEE1284 negotiate indicates no data available.\n");
+		    ("IMM: IEEE1284 negotiate indicates yes data available.\n");
 		imm_fail(tmp, DID_ERROR);
 	}
 	return a;
@@ -544,7 +544,7 @@ static int imm_select(imm_struct *dev, int target)
 	unsigned short ppb = dev->base;
 
 	/*
-	 * Firstly we want to make sure there is nothing
+	 * Firstly we want to make sure there is yesthing
 	 * holding onto the SCSI bus.
 	 */
 	w_ctr(ppb, 0xc);
@@ -594,7 +594,7 @@ static int imm_init(imm_struct *dev)
 	imm_reset_pulse(dev->base);
 	mdelay(1);	/* Delay to allow devices to settle */
 	imm_disconnect(dev);
-	mdelay(1);	/* Another delay to allow devices to settle */
+	mdelay(1);	/* Ayesther delay to allow devices to settle */
 	return device_check(dev);
 }
 
@@ -616,7 +616,7 @@ static inline int imm_send_command(struct scsi_cmnd *cmd)
  * numbers of sectors.
  * 
  * The driver appears to remain stable if we speed up the parallel port
- * i/o in this function, but not elsewhere.
+ * i/o in this function, but yest elsewhere.
  */
 static int imm_completion(struct scsi_cmnd *cmd)
 {
@@ -638,13 +638,13 @@ static int imm_completion(struct scsi_cmnd *cmd)
 
 	/*
 	 * We only get here if the drive is ready to comunicate,
-	 * hence no need for a full imm_wait.
+	 * hence yes need for a full imm_wait.
 	 */
 	w_ctr(ppb, 0x0c);
 	r = (r_str(ppb) & 0xb8);
 
 	/*
-	 * while (device is not ready to send status byte)
+	 * while (device is yest ready to send status byte)
 	 *     loop;
 	 */
 	while (r != (unsigned char) 0xb8) {
@@ -704,7 +704,7 @@ static int imm_completion(struct scsi_cmnd *cmd)
 		w_ctr(ppb, 0x0c);
 		r = (r_str(ppb) & 0xb8);
 
-		/* If not, drop back down to the scheduler and wait a timer tick */
+		/* If yest, drop back down to the scheduler and wait a timer tick */
 		if (!(r & 0x80))
 			return 0;
 	}
@@ -733,13 +733,13 @@ static void imm_interrupt(struct work_struct *work)
 	case DID_OK:
 		break;
 	case DID_NO_CONNECT:
-		printk("imm: no device at SCSI ID %i\n", cmd->device->id);
+		printk("imm: yes device at SCSI ID %i\n", cmd->device->id);
 		break;
 	case DID_BUS_BUSY:
 		printk("imm: BUS BUSY - EPP timeout detected\n");
 		break;
 	case DID_TIME_OUT:
-		printk("imm: unknown timeout\n");
+		printk("imm: unkyeswn timeout\n");
 		break;
 	case DID_ABORT:
 		printk("imm: told to abort\n");
@@ -803,7 +803,7 @@ static int imm_engine(imm_struct *dev, struct scsi_cmnd *cmd)
 		cmd->SCp.phase++;
 		/* fall through */
 
-	case 2:		/* Phase 2 - We are now talking to the scsi bus */
+	case 2:		/* Phase 2 - We are yesw talking to the scsi bus */
 		if (!imm_select(dev, scmd_id(cmd))) {
 			imm_fail(dev, DID_NO_CONNECT);
 			return 0;
@@ -960,17 +960,17 @@ static int imm_abort(struct scsi_cmnd *cmd)
 {
 	imm_struct *dev = imm_dev(cmd->device->host);
 	/*
-	 * There is no method for aborting commands since Iomega
+	 * There is yes method for aborting commands since Iomega
 	 * have tied the SCSI_MESSAGE line high in the interface
 	 */
 
 	switch (cmd->SCp.phase) {
-	case 0:		/* Do not have access to parport */
-	case 1:		/* Have not connected to interface */
+	case 0:		/* Do yest have access to parport */
+	case 1:		/* Have yest connected to interface */
 		dev->cur_cmd = NULL;	/* Forget the problem */
 		return SUCCESS;
 		break;
-	default:		/* SCSI command sent, can not abort */
+	default:		/* SCSI command sent, can yest abort */
 		return FAILED;
 		break;
 	}
@@ -1091,7 +1091,7 @@ static int device_check(imm_struct *dev)
 }
 
 /*
- * imm cannot deal with highmem, so this causes all IO pages for this host
+ * imm canyest deal with highmem, so this causes all IO pages for this host
  * to reside in low memory (hence mapped)
  */
 static int imm_adjust_queue(struct scsi_device *device)
@@ -1124,7 +1124,7 @@ static LIST_HEAD(imm_hosts);
 
 /*
  * Finds the first available device number that can be alloted to the
- * new imm device and returns the address of the previous node so that
+ * new imm device and returns the address of the previous yesde so that
  * we can add to the tail and have a list in the ascending order.
  */
 
@@ -1137,7 +1137,7 @@ static inline imm_struct *find_parent(void)
 		return NULL;
 
 	list_for_each_entry(dev, &imm_hosts, list) {
-		if (dev->dev_no != cnt)
+		if (dev->dev_yes != cnt)
 			return par;
 		cnt++;
 		par = dev;
@@ -1170,13 +1170,13 @@ static int __imm_attach(struct parport *pb)
 
 	temp = find_parent();
 	if (temp)
-		dev->dev_no = temp->dev_no + 1;
+		dev->dev_yes = temp->dev_yes + 1;
 
 	memset(&imm_cb, 0, sizeof(imm_cb));
 	imm_cb.private = dev;
 	imm_cb.wakeup = imm_wakeup;
 
-	dev->dev = parport_register_dev_model(pb, "imm", &imm_cb, dev->dev_no);
+	dev->dev = parport_register_dev_model(pb, "imm", &imm_cb, dev->dev_yes);
 	if (!dev->dev)
 		goto out;
 
@@ -1222,7 +1222,7 @@ static int __imm_attach(struct parport *pb)
 	if (err)
 		goto out1;
 
-	/* now the glue ... */
+	/* yesw the glue ... */
 	if (dev->mode == IMM_NIBBLE || dev->mode == IMM_PS2)
 		ports = 3;
 	else

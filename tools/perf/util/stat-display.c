@@ -17,8 +17,8 @@
 #include "cgroup.h"
 #include <api/fs/fs.h>
 
-#define CNTR_NOT_SUPPORTED	"<not supported>"
-#define CNTR_NOT_COUNTED	"<not counted>"
+#define CNTR_NOT_SUPPORTED	"<yest supported>"
+#define CNTR_NOT_COUNTED	"<yest counted>"
 
 static void print_running(struct perf_stat_config *config,
 			  u64 run, u64 ena)
@@ -34,7 +34,7 @@ static void print_running(struct perf_stat_config *config,
 	}
 }
 
-static void print_noise_pct(struct perf_stat_config *config,
+static void print_yesise_pct(struct perf_stat_config *config,
 			    double total, double avg)
 {
 	double pct = rel_stddev_stats(total, avg);
@@ -45,7 +45,7 @@ static void print_noise_pct(struct perf_stat_config *config,
 		fprintf(config->output, "  ( +-%6.2f%% )", pct);
 }
 
-static void print_noise(struct perf_stat_config *config,
+static void print_yesise(struct perf_stat_config *config,
 			struct evsel *evsel, double avg)
 {
 	struct perf_stat_evsel *ps;
@@ -54,7 +54,7 @@ static void print_noise(struct perf_stat_config *config,
 		return;
 
 	ps = evsel->stats;
-	print_noise_pct(config, stddev_stats(&ps->res_stats[0]), avg);
+	print_yesise_pct(config, stddev_stats(&ps->res_stats[0]), avg);
 }
 
 static void print_cgroup(struct perf_stat_config *config, struct evsel *evsel)
@@ -399,7 +399,7 @@ static bool is_mixed_hw_group(struct evsel *counter)
 
 static void printout(struct perf_stat_config *config, int id, int nr,
 		     struct evsel *counter, double uval,
-		     char *prefix, u64 run, u64 ena, double noise,
+		     char *prefix, u64 run, u64 ena, double yesise,
 		     struct runtime_stat *st)
 {
 	struct perf_stat_output_ctx out;
@@ -469,7 +469,7 @@ static void printout(struct perf_stat_config *config, int id, int nr,
 
 		if (!config->csv_output)
 			pm(config, &os, NULL, NULL, "", 0);
-		print_noise(config, counter, noise);
+		print_yesise(config, counter, yesise);
 		print_running(config, run, ena);
 		if (config->csv_output)
 			pm(config, &os, NULL, NULL, "", 0);
@@ -485,7 +485,7 @@ static void printout(struct perf_stat_config *config, int id, int nr,
 	out.force_header = false;
 
 	if (config->csv_output && !config->metric_only) {
-		print_noise(config, counter, noise);
+		print_yesise(config, counter, yesise);
 		print_running(config, run, ena);
 	}
 
@@ -493,7 +493,7 @@ static void printout(struct perf_stat_config *config, int id, int nr,
 				first_shadow_cpu(config, counter, id),
 				&out, &config->metric_events, st);
 	if (!config->csv_output && !config->metric_only) {
-		print_noise(config, counter, noise);
+		print_yesise(config, counter, yesise);
 		print_running(config, run, ena);
 	}
 }
@@ -558,8 +558,8 @@ static void collect_all_aliases(struct perf_stat_config *config, struct evsel *c
 	struct evlist *evlist = counter->evlist;
 	struct evsel *alias;
 
-	alias = list_prepare_entry(counter, &(evlist->core.entries), core.node);
-	list_for_each_entry_continue (alias, &evlist->core.entries, core.node) {
+	alias = list_prepare_entry(counter, &(evlist->core.entries), core.yesde);
+	list_for_each_entry_continue (alias, &evlist->core.entries, core.yesde) {
 		if (strcmp(perf_evsel__name(alias), perf_evsel__name(counter)) ||
 		    alias->scale != counter->scale ||
 		    alias->cgrp != counter->cgrp ||
@@ -580,7 +580,7 @@ static bool collect_data(struct perf_stat_config *config, struct evsel *counter,
 	if (counter->merged_stat)
 		return false;
 	cb(config, counter, data, true);
-	if (config->no_merge)
+	if (config->yes_merge)
 		uniquify_event_name(counter);
 	else if (counter->auto_merge_stats)
 		collect_all_aliases(config, counter, cb, data);
@@ -761,7 +761,7 @@ static void print_aggr_thread(struct perf_stat_config *config,
 
 	buf = sort_aggr_thread(counter, nthreads, ncpus, &sorted_threads, _target);
 	if (!buf) {
-		perror("cannot sort aggr thread");
+		perror("canyest sort aggr thread");
 		return;
 	}
 
@@ -838,7 +838,7 @@ static void counter_cb(struct perf_stat_config *config __maybe_unused,
 
 /*
  * Print out the results of a single counter:
- * does not use aggregated count in system-wide
+ * does yest use aggregated count in system-wide
  */
 static void print_counter(struct perf_stat_config *config,
 			  struct evsel *counter, char *prefix)
@@ -868,7 +868,7 @@ static void print_counter(struct perf_stat_config *config,
 	}
 }
 
-static void print_no_aggr_metric(struct perf_stat_config *config,
+static void print_yes_aggr_metric(struct perf_stat_config *config,
 				 struct evlist *evlist,
 				 char *prefix)
 {
@@ -921,7 +921,7 @@ static const char *aggr_header_csv[] = {
 
 static void print_metric_headers(struct perf_stat_config *config,
 				 struct evlist *evlist,
-				 const char *prefix, bool no_indent)
+				 const char *prefix, bool yes_indent)
 {
 	struct perf_stat_output_ctx out;
 	struct evsel *counter;
@@ -932,7 +932,7 @@ static void print_metric_headers(struct perf_stat_config *config,
 	if (prefix)
 		fprintf(config->output, "%s", prefix);
 
-	if (!config->csv_output && !no_indent)
+	if (!config->csv_output && !yes_indent)
 		fprintf(config->output, "%*s",
 			aggr_header_lens[config->aggr_mode], "");
 	if (config->csv_output) {
@@ -975,7 +975,7 @@ static void print_interval(struct perf_stat_config *config,
 	if ((num_print_interval == 0 && !config->csv_output) || config->interval_clear) {
 		switch (config->aggr_mode) {
 		case AGGR_NODE:
-			fprintf(output, "#           time node   cpus");
+			fprintf(output, "#           time yesde   cpus");
 			if (!metric_only)
 				fprintf(output, "             counts %*s events\n", unit_width, "unit");
 			break;
@@ -1127,7 +1127,7 @@ static void print_footer(struct perf_stat_config *config)
 		fprintf(output, " %17.*f +- %.*f seconds time elapsed",
 			precision, avg, precision, sd);
 
-		print_noise_pct(config, sd, avg);
+		print_yesise_pct(config, sd, avg);
 	}
 	fprintf(output, "\n\n");
 
@@ -1219,7 +1219,7 @@ perf_evlist__print_counters(struct evlist *evlist,
 		break;
 	case AGGR_NONE:
 		if (metric_only)
-			print_no_aggr_metric(config, evlist, prefix);
+			print_yes_aggr_metric(config, evlist, prefix);
 		else {
 			evlist__for_each_entry(evlist, counter) {
 				if (counter->percore)

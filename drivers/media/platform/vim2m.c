@@ -52,7 +52,7 @@ MODULE_PARM_DESC(default_transtime, "default transaction time in ms");
 #define MAX_W 640
 #define MAX_H 480
 
-/* Pixel alignment for non-bayer formats */
+/* Pixel alignment for yesn-bayer formats */
 #define WIDTH_ALIGN 2
 #define HEIGHT_ALIGN 1
 
@@ -574,7 +574,7 @@ static int job_ready(void *priv)
 
 	if (v4l2_m2m_num_src_bufs_ready(ctx->fh.m2m_ctx) < ctx->translen
 	    || v4l2_m2m_num_dst_bufs_ready(ctx->fh.m2m_ctx) < ctx->translen) {
-		dprintk(ctx->dev, 1, "Not enough buffers available\n");
+		dprintk(ctx->dev, 1, "Not eyesugh buffers available\n");
 		return 0;
 	}
 
@@ -693,7 +693,7 @@ static int enum_fmt(struct v4l2_fmtdesc *f, u32 type)
 		return 0;
 	}
 
-	/* Format not found */
+	/* Format yest found */
 	return -EINVAL;
 }
 
@@ -1046,7 +1046,7 @@ static int vim2m_buf_prepare(struct vb2_buffer *vb)
 		return -EINVAL;
 	if (vb2_plane_size(vb, 0) < q_data->sizeimage) {
 		dprintk(ctx->dev, 1,
-			"%s data will not fit into plane (%lu < %lu)\n",
+			"%s data will yest fit into plane (%lu < %lu)\n",
 			__func__, vb2_plane_size(vb, 0),
 			(long)q_data->sizeimage);
 		return -EINVAL;
@@ -1295,7 +1295,7 @@ static const struct video_device vim2m_videodev = {
 	.vfl_dir	= VFL_DIR_M2M,
 	.fops		= &vim2m_fops,
 	.ioctl_ops	= &vim2m_ioctl_ops,
-	.minor		= -1,
+	.miyesr		= -1,
 	.release	= vim2m_device_release,
 	.device_caps	= V4L2_CAP_VIDEO_M2M | V4L2_CAP_STREAMING,
 };

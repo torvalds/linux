@@ -9,7 +9,7 @@
 
 /*
  * These procedures are used for tracking memory leaks in the subsystem, and
- * they get compiled out when the ACPI_DBG_TRACK_ALLOCATIONS is not set.
+ * they get compiled out when the ACPI_DBG_TRACK_ALLOCATIONS is yest set.
  *
  * Each memory allocation is tracked via a doubly linked list. Each
  * element contains the caller's component, module name, function name, and
@@ -109,7 +109,7 @@ void *acpi_ut_allocate_and_track(acpi_size size,
 		/* Report allocation error */
 
 		ACPI_WARNING((module, line,
-			      "Could not allocate size %u", (u32)size));
+			      "Could yest allocate size %u", (u32)size));
 
 		return (NULL);
 	}
@@ -173,7 +173,7 @@ void *acpi_ut_allocate_zeroed_and_track(acpi_size size,
 		/* Report allocation error */
 
 		ACPI_ERROR((module, line,
-			    "Could not allocate size %u", (u32)size));
+			    "Could yest allocate size %u", (u32)size));
 		return (NULL);
 	}
 
@@ -238,7 +238,7 @@ acpi_ut_free_and_track(void *allocation,
 	status =
 	    acpi_ut_remove_allocation(debug_block, component, module, line);
 	if (ACPI_FAILURE(status)) {
-		ACPI_EXCEPTION((AE_INFO, status, "Could not free memory"));
+		ACPI_EXCEPTION((AE_INFO, status, "Could yest free memory"));
 	}
 
 	acpi_os_free(debug_block);
@@ -256,11 +256,11 @@ acpi_ut_free_and_track(void *allocation,
  * RETURN:      Three cases:
  *              1) List is empty, NULL is returned.
  *              2) Element was found. Returns Allocation parameter.
- *              3) Element was not found. Returns position where it should be
+ *              3) Element was yest found. Returns position where it should be
  *                  inserted into the list.
  *
  * DESCRIPTION: Searches for an element in the global allocation tracking list.
- *              If the element is not found, returns the location within the
+ *              If the element is yest found, returns the location within the
  *              list where the element should be inserted.
  *
  *              Note: The list is ordered by larger-to-smaller addresses.
@@ -350,7 +350,7 @@ acpi_ut_track_allocation(struct acpi_debug_mem_block *allocation,
 	}
 
 	/*
-	 * Search the global list for this address to make sure it is not
+	 * Search the global list for this address to make sure it is yest
 	 * already present. This will catch several kinds of problems.
 	 */
 	element = acpi_ut_find_allocation(allocation);
@@ -436,7 +436,7 @@ acpi_ut_remove_allocation(struct acpi_debug_mem_block *allocation,
 		/* No allocations! */
 
 		ACPI_ERROR((module, line,
-			    "Empty allocation list, nothing to free!"));
+			    "Empty allocation list, yesthing to free!"));
 
 		return (AE_OK);
 	}
@@ -512,14 +512,14 @@ void acpi_ut_dump_allocation_info(void)
 
 	ACPI_DEBUG_PRINT (TRACE_ALLOCATIONS | TRACE_TABLES,
 		("%30s: %4d (%3d Kb)\n", "Current Nodes",
-		acpi_gbl_current_node_count,
-		ROUND_UP_TO_1K (acpi_gbl_current_node_size)));
+		acpi_gbl_current_yesde_count,
+		ROUND_UP_TO_1K (acpi_gbl_current_yesde_size)));
 
 	ACPI_DEBUG_PRINT (TRACE_ALLOCATIONS | TRACE_TABLES,
 		("%30s: %4d (%3d Kb)\n", "Max Nodes",
-		acpi_gbl_max_concurrent_node_count,
-		ROUND_UP_TO_1K ((acpi_gbl_max_concurrent_node_count *
-			sizeof (struct acpi_namespace_node)))));
+		acpi_gbl_max_concurrent_yesde_count,
+		ROUND_UP_TO_1K ((acpi_gbl_max_concurrent_yesde_count *
+			sizeof (struct acpi_namespace_yesde)))));
 */
 	return_VOID;
 }
@@ -577,7 +577,7 @@ void acpi_ut_dump_allocations(u32 component, const char *module)
 					       descriptor, element->size,
 					       element->module, element->line);
 			} else {
-				/* Ignore allocated objects that are in a cache */
+				/* Igyesre allocated objects that are in a cache */
 
 				if (ACPI_GET_DESCRIPTOR_TYPE(descriptor) !=
 				    ACPI_DESC_TYPE_CACHED) {
@@ -631,7 +631,7 @@ void acpi_ut_dump_allocations(u32 component, const char *module)
 
 						if (element->size ==
 						    sizeof(struct
-							   acpi_namespace_node))
+							   acpi_namespace_yesde))
 						{
 							descriptor_type =
 							    ACPI_DESC_TYPE_NAMED;
@@ -668,9 +668,9 @@ void acpi_ut_dump_allocations(u32 component, const char *module)
 					case ACPI_DESC_TYPE_NAMED:
 
 						acpi_os_printf("%4.4s\n",
-							       acpi_ut_get_node_name
+							       acpi_ut_get_yesde_name
 							       (&descriptor->
-								node));
+								yesde));
 						break;
 
 					default:

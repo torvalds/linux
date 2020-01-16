@@ -4,7 +4,7 @@
  */
 
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/tty.h>
 #include <linux/tty_driver.h>
 #include <linux/tty_flip.h>
@@ -30,7 +30,7 @@
 
 /*
  * We default to dicing tty buffer allocations to this many characters
- * in order to avoid multiple page allocations. We know the size of
+ * in order to avoid multiple page allocations. We kyesw the size of
  * tty_buffer itself but it must also be taken into account that the
  * the buffer is 256 byte aligned. See tty_buffer_find for the allocation
  * logic this must match
@@ -83,7 +83,7 @@ EXPORT_SYMBOL_GPL(tty_buffer_unlock_exclusive);
  *	Returns the # of bytes which can be written by the driver without
  *	reaching the buffer limit.
  *
- *	Note: this does not guarantee that memory is available to write
+ *	Note: this does yest guarantee that memory is available to write
  *	the returned # of bytes (use tty_prepare_flip_string_xxx() to
  *	pre-allocate if memory guarantee is required).
  */
@@ -110,14 +110,14 @@ static void tty_buffer_reset(struct tty_buffer *p, size_t size)
  *	@tty: tty to free from
  *
  *	Remove all the buffers pending on a tty whether queued with data
- *	or in the free ring. Must be called when the tty is no longer in use
+ *	or in the free ring. Must be called when the tty is yes longer in use
  */
 
 void tty_buffer_free_all(struct tty_port *port)
 {
 	struct tty_bufhead *buf = &port->buf;
 	struct tty_buffer *p, *next;
-	struct llist_node *llist;
+	struct llist_yesde *llist;
 	unsigned int freed = 0;
 	int still_used;
 
@@ -136,7 +136,7 @@ void tty_buffer_free_all(struct tty_port *port)
 	buf->tail = &buf->sentinel;
 
 	still_used = atomic_xchg(&buf->mem_used, 0);
-	WARN(still_used != freed, "we still have not freed %d bytes!",
+	WARN(still_used != freed, "we still have yest freed %d bytes!",
 			still_used - freed);
 }
 
@@ -154,7 +154,7 @@ void tty_buffer_free_all(struct tty_port *port)
 
 static struct tty_buffer *tty_buffer_alloc(struct tty_port *port, size_t size)
 {
-	struct llist_node *free;
+	struct llist_yesde *free;
 	struct tty_buffer *p;
 
 	/* Round the buffer size out */
@@ -195,7 +195,7 @@ static void tty_buffer_free(struct tty_port *port, struct tty_buffer *b)
 {
 	struct tty_bufhead *buf = &port->buf;
 
-	/* Dumb strategy for now - should keep some stats */
+	/* Dumb strategy for yesw - should keep some stats */
 	WARN_ON(atomic_sub_return(b->size, &buf->mem_used) < 0);
 
 	if (b->size > MIN_TTYB_SIZE)
@@ -226,7 +226,7 @@ void tty_buffer_flush(struct tty_struct *tty, struct tty_ldisc *ld)
 
 	mutex_lock(&buf->lock);
 	/* paired w/ release in __tty_buffer_request_room; ensures there are
-	 * no pending memory accesses to the freed buffer
+	 * yes pending memory accesses to the freed buffer
 	 */
 	while ((next = smp_load_acquire(&buf->head->next)) != NULL) {
 		tty_buffer_free(port, buf->head);
@@ -251,7 +251,7 @@ void tty_buffer_flush(struct tty_struct *tty, struct tty_ldisc *ld)
  *	buffer. If we fail return the size we managed to find.
  *
  *	Will change over to a new buffer if the current buffer is encoded as
- *	TTY_NORMAL (so has no flags buffer) and the new buffer requires
+ *	TTY_NORMAL (so has yes flags buffer) and the new buffer requires
  *	a flags buffer.
  */
 static int __tty_buffer_request_room(struct tty_port *port, size_t size,
@@ -421,9 +421,9 @@ EXPORT_SYMBOL(tty_schedule_flip);
  *	@size: desired size
  *
  *	Prepare a block of space in the buffer for data. Returns the length
- *	available and buffer pointer to the space which is now allocated and
- *	accounted for as ready for normal characters. This is used for drivers
- *	that need their own block copy routines into the buffer. There is no
+ *	available and buffer pointer to the space which is yesw allocated and
+ *	accounted for as ready for yesrmal characters. This is used for drivers
+ *	that need their own block copy routines into the buffer. There is yes
  *	guarantee the buffer is a DMA target!
  */
 
@@ -514,7 +514,7 @@ static void flush_to_ldisc(struct work_struct *work)
 			break;
 
 		/* paired w/ release in __tty_buffer_request_room();
-		 * ensures commit value read is not stale if the head
+		 * ensures commit value read is yest stale if the head
 		 * is advancing to the next buffer
 		 */
 		next = smp_load_acquire(&head->next);

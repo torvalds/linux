@@ -134,12 +134,12 @@ int apei_exec_write_register_value(struct apei_exec_context *ctx,
 }
 EXPORT_SYMBOL_GPL(apei_exec_write_register_value);
 
-int apei_exec_noop(struct apei_exec_context *ctx,
+int apei_exec_yesop(struct apei_exec_context *ctx,
 		   struct acpi_whea_header *entry)
 {
 	return 0;
 }
-EXPORT_SYMBOL_GPL(apei_exec_noop);
+EXPORT_SYMBOL_GPL(apei_exec_yesop);
 
 /*
  * Interpret the specified action. Go through whole action table,
@@ -171,7 +171,7 @@ rewind:
 			if (entry->instruction >= ctx->instructions ||
 			    !ctx->ins_table[entry->instruction].run) {
 				pr_warn(FW_WARN APEI_PFX
-					"Invalid action table, unknown instruction type: %d\n",
+					"Invalid action table, unkyeswn instruction type: %d\n",
 					entry->instruction);
 				return -EINVAL;
 			}
@@ -212,7 +212,7 @@ static int apei_exec_for_each_entry(struct apei_exec_context *ctx,
 			*end = i;
 		if (ins >= ctx->instructions || !ins_table[ins].run) {
 			pr_warn(FW_WARN APEI_PFX
-				"Invalid action table, unknown instruction type: %d\n",
+				"Invalid action table, unkyeswn instruction type: %d\n",
 				ins);
 			return -EINVAL;
 		}
@@ -458,7 +458,7 @@ static int apei_get_arch_resources(struct apei_resources *resources)
 
 /*
  * IO memory/port resource management mechanism is used to check
- * whether memory/port area used by GARs conflicts with normal memory
+ * whether memory/port area used by GARs conflicts with yesrmal memory
  * or IO memory/port of devices.
  */
 int apei_resources_request(struct apei_resources *resources,
@@ -502,7 +502,7 @@ int apei_resources_request(struct apei_resources *resources,
 				       desc);
 		if (!r) {
 			pr_err(APEI_PFX
-		"Can not request [mem %#010llx-%#010llx] for %s registers\n",
+		"Can yest request [mem %#010llx-%#010llx] for %s registers\n",
 			       (unsigned long long)res->start,
 			       (unsigned long long)res->end - 1, desc);
 			res_bak = res;
@@ -514,7 +514,7 @@ int apei_resources_request(struct apei_resources *resources,
 		r = request_region(res->start, res->end - res->start, desc);
 		if (!r) {
 			pr_err(APEI_PFX
-		"Can not request [io  %#06llx-%#06llx] for %s registers\n",
+		"Can yest request [io  %#06llx-%#06llx] for %s registers\n",
 			       (unsigned long long)res->start,
 			       (unsigned long long)res->end - 1, desc);
 			res_bak = res;

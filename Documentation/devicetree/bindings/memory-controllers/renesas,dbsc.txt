@@ -2,16 +2,16 @@ DT bindings for Renesas R-Mobile and SH-Mobile memory controllers
 =================================================================
 
 Renesas R-Mobile and SH-Mobile SoCs contain one or more memory controllers.
-These memory controllers differ from one SoC variant to another, and are called
+These memory controllers differ from one SoC variant to ayesther, and are called
 by different names ("DDR Bus Controller (DBSC)", "DDR3 Bus State Controller
 (DBSC3)", "SDRAM Bus State Controller (SBSC)").
 
-Currently memory controller device nodes are used only to reference PM
+Currently memory controller device yesdes are used only to reference PM
 domains, and prevent these PM domains from being powered down, which would
 crash the system.
 
-As there exist no actual drivers for these controllers yet, these bindings
-should be considered EXPERIMENTAL for now.
+As there exist yes actual drivers for these controllers yet, these bindings
+should be considered EXPERIMENTAL for yesw.
 
 Required properties:
   - compatible: Must be one of the following SoC-specific values:
@@ -28,7 +28,7 @@ Optional properties:
 		     the interrupts in the interrupts property, if available.
 		     Valid interrupt names are:
 			- "sec" (secure interrupt)
-			- "temp" (normal (temperature) interrupt)
+			- "temp" (yesrmal (temperature) interrupt)
   - power-domains: Must contain a reference to the PM domain that the memory
 		   controller belongs to, if available.
 

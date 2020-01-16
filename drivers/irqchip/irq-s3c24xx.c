@@ -81,7 +81,7 @@ static void s3c_irq_mask(struct irq_data *data)
 	struct s3c_irq_intc *parent_intc = intc->parent;
 	struct s3c_irq_data *parent_data;
 	unsigned long mask;
-	unsigned int irqno;
+	unsigned int irqyes;
 
 	mask = readl_relaxed(intc->reg_mask);
 	mask |= (1UL << irq_data->offset);
@@ -92,12 +92,12 @@ static void s3c_irq_mask(struct irq_data *data)
 
 		/* check to see if we need to mask the parent IRQ
 		 * The parent_irq is always in main_intc, so the hwirq
-		 * for find_mapping does not need an offset in any case.
+		 * for find_mapping does yest need an offset in any case.
 		 */
 		if ((mask & parent_data->sub_bits) == parent_data->sub_bits) {
-			irqno = irq_find_mapping(parent_intc->domain,
+			irqyes = irq_find_mapping(parent_intc->domain,
 					 irq_data->parent_irq);
-			s3c_irq_mask(irq_get_irq_data(irqno));
+			s3c_irq_mask(irq_get_irq_data(irqyes));
 		}
 	}
 }
@@ -108,16 +108,16 @@ static void s3c_irq_unmask(struct irq_data *data)
 	struct s3c_irq_intc *intc = irq_data->intc;
 	struct s3c_irq_intc *parent_intc = intc->parent;
 	unsigned long mask;
-	unsigned int irqno;
+	unsigned int irqyes;
 
 	mask = readl_relaxed(intc->reg_mask);
 	mask &= ~(1UL << irq_data->offset);
 	writel_relaxed(mask, intc->reg_mask);
 
 	if (parent_intc) {
-		irqno = irq_find_mapping(parent_intc->domain,
+		irqyes = irq_find_mapping(parent_intc->domain,
 					 irq_data->parent_irq);
-		s3c_irq_unmask(irq_get_irq_data(irqno));
+		s3c_irq_unmask(irq_get_irq_data(irqyes));
 	}
 }
 
@@ -298,11 +298,11 @@ static void s3c_irq_demux(struct irq_desc *desc)
 	unsigned int n, offset, irq;
 	unsigned long src, msk;
 
-	/* we're using individual domains for the non-dt case
+	/* we're using individual domains for the yesn-dt case
 	 * and one big domain for the dt case where the subintc
 	 * starts at hwirq number 32.
 	 */
-	offset = irq_domain_get_of_node(intc->domain) ? 32 : 0;
+	offset = irq_domain_get_of_yesde(intc->domain) ? 32 : 0;
 
 	chained_irq_enter(chip, desc);
 
@@ -332,16 +332,16 @@ static inline int s3c24xx_handle_intc(struct s3c_irq_intc *intc,
 	if (!pnd)
 		return false;
 
-	/* non-dt machines use individual domains */
-	if (!irq_domain_get_of_node(intc->domain))
+	/* yesn-dt machines use individual domains */
+	if (!irq_domain_get_of_yesde(intc->domain))
 		intc_offset = 0;
 
-	/* We have a problem that the INTOFFSET register does not always
+	/* We have a problem that the INTOFFSET register does yest always
 	 * show one interrupt. Occasionally we get two interrupts through
 	 * the prioritiser, and this causes the INTOFFSET register to show
 	 * what looks like the logical-or of the two interrupt numbers.
 	 *
-	 * Thanks to Klaus, Shannon, et al for helping to debug this problem
+	 * Thanks to Klaus, Shanyesn, et al for helping to debug this problem
 	 */
 	offset = readl_relaxed(intc->reg_intpnd + 4);
 
@@ -411,7 +411,7 @@ static int s3c24xx_irq_map(struct irq_domain *h, unsigned int virq,
 	struct s3c_irq_data *irq_data = &intc->irqs[hw];
 	struct s3c_irq_intc *parent_intc;
 	struct s3c_irq_data *parent_irq_data;
-	unsigned int irqno;
+	unsigned int irqyes;
 
 	/* attach controller pointer to irq_data */
 	irq_data->intc = intc;
@@ -469,14 +469,14 @@ static int s3c24xx_irq_map(struct irq_domain *h, unsigned int virq,
 		parent_irq_data->sub_bits |= (1UL << hw);
 
 		/* attach the demuxer to the parent irq */
-		irqno = irq_find_mapping(parent_intc->domain,
+		irqyes = irq_find_mapping(parent_intc->domain,
 					 irq_data->parent_irq);
-		if (!irqno) {
-			pr_err("irq-s3c24xx: could not find mapping for parent irq %lu\n",
+		if (!irqyes) {
+			pr_err("irq-s3c24xx: could yest find mapping for parent irq %lu\n",
 			       irq_data->parent_irq);
 			return -EINVAL;
 		}
-		irq_set_chained_handler(irqno, s3c_irq_demux);
+		irq_set_chained_handler(irqyes, s3c_irq_demux);
 	}
 
 	return 0;
@@ -513,7 +513,7 @@ static void s3c24xx_clear_intc(struct s3c_irq_intc *intc)
 	}
 }
 
-static struct s3c_irq_intc * __init s3c24xx_init_intc(struct device_node *np,
+static struct s3c_irq_intc * __init s3c24xx_init_intc(struct device_yesde *np,
 				       struct s3c_irq_data *irq_data,
 				       struct s3c_irq_intc *parent,
 				       unsigned long address)
@@ -535,7 +535,7 @@ static struct s3c_irq_intc * __init s3c24xx_init_intc(struct device_node *np,
 
 	/* select the correct data for the controller.
 	 * Need to hard code the irq num start and offset
-	 * to preserve the static mapping for now
+	 * to preserve the static mapping for yesw
 	 */
 	switch (address) {
 	case 0x4a000000:
@@ -576,13 +576,13 @@ static struct s3c_irq_intc * __init s3c24xx_init_intc(struct device_node *np,
 		goto err;
 	}
 
-	/* now that all the data is complete, init the irq-domain */
+	/* yesw that all the data is complete, init the irq-domain */
 	s3c24xx_clear_intc(intc);
 	intc->domain = irq_domain_add_legacy(np, irq_num, irq_start,
 					     0, &s3c24xx_irq_ops,
 					     intc);
 	if (!intc->domain) {
-		pr_err("irq: could not create irq-domain\n");
+		pr_err("irq: could yest create irq-domain\n");
 		ret = -EINVAL;
 		goto err;
 	}
@@ -682,7 +682,7 @@ void __init s3c2410_init_irq(void)
 	s3c_intc[0] = s3c24xx_init_intc(NULL, &init_s3c2410base[0], NULL,
 					0x4a000000);
 	if (IS_ERR(s3c_intc[0])) {
-		pr_err("irq: could not create main interrupt controller\n");
+		pr_err("irq: could yest create main interrupt controller\n");
 		return;
 	}
 
@@ -784,7 +784,7 @@ void __init s3c2412_init_irq(void)
 	s3c_intc[0] = s3c24xx_init_intc(NULL, &init_s3c2412base[0], NULL,
 					0x4a000000);
 	if (IS_ERR(s3c_intc[0])) {
-		pr_err("irq: could not create main interrupt controller\n");
+		pr_err("irq: could yest create main interrupt controller\n");
 		return;
 	}
 
@@ -883,7 +883,7 @@ void __init s3c2416_init_irq(void)
 	s3c_intc[0] = s3c24xx_init_intc(NULL, &init_s3c2416base[0], NULL,
 					0x4a000000);
 	if (IS_ERR(s3c_intc[0])) {
-		pr_err("irq: could not create main interrupt controller\n");
+		pr_err("irq: could yest create main interrupt controller\n");
 		return;
 	}
 
@@ -962,7 +962,7 @@ void __init s3c2440_init_irq(void)
 	s3c_intc[0] = s3c24xx_init_intc(NULL, &init_s3c2440base[0], NULL,
 					0x4a000000);
 	if (IS_ERR(s3c_intc[0])) {
-		pr_err("irq: could not create main interrupt controller\n");
+		pr_err("irq: could yest create main interrupt controller\n");
 		return;
 	}
 
@@ -1035,7 +1035,7 @@ void __init s3c2442_init_irq(void)
 	s3c_intc[0] = s3c24xx_init_intc(NULL, &init_s3c2442base[0], NULL,
 					0x4a000000);
 	if (IS_ERR(s3c_intc[0])) {
-		pr_err("irq: could not create main interrupt controller\n");
+		pr_err("irq: could yest create main interrupt controller\n");
 		return;
 	}
 
@@ -1125,7 +1125,7 @@ void __init s3c2443_init_irq(void)
 	s3c_intc[0] = s3c24xx_init_intc(NULL, &init_s3c2443base[0], NULL,
 					0x4a000000);
 	if (IS_ERR(s3c_intc[0])) {
-		pr_err("irq: could not create main interrupt controller\n");
+		pr_err("irq: could yest create main interrupt controller\n");
 		return;
 	}
 
@@ -1160,10 +1160,10 @@ static int s3c24xx_irq_map_of(struct irq_domain *h, unsigned int virq,
 	return 0;
 }
 
-/* Translate our of irq notation
+/* Translate our of irq yestation
  * format: <ctrl_num ctrl_irq parent_irq type>
  */
-static int s3c24xx_irq_xlate_of(struct irq_domain *d, struct device_node *n,
+static int s3c24xx_irq_xlate_of(struct irq_domain *d, struct device_yesde *n,
 			const u32 *intspec, unsigned int intsize,
 			irq_hw_number_t *out_hwirq, unsigned int *out_type)
 {
@@ -1171,7 +1171,7 @@ static int s3c24xx_irq_xlate_of(struct irq_domain *d, struct device_node *n,
 	struct s3c_irq_intc *parent_intc;
 	struct s3c_irq_data *irq_data;
 	struct s3c_irq_data *parent_irq_data;
-	int irqno;
+	int irqyes;
 
 	if (WARN_ON(intsize < 4))
 		return -EINVAL;
@@ -1193,14 +1193,14 @@ static int s3c24xx_irq_xlate_of(struct irq_domain *d, struct device_node *n,
 		parent_irq_data->sub_intc = intc;
 		parent_irq_data->sub_bits |= (1UL << intspec[2]);
 
-		/* parent_intc is always s3c_intc[0], so no offset */
-		irqno = irq_create_mapping(parent_intc->domain, intspec[1]);
-		if (irqno < 0) {
-			pr_err("irq: could not map parent interrupt\n");
-			return irqno;
+		/* parent_intc is always s3c_intc[0], so yes offset */
+		irqyes = irq_create_mapping(parent_intc->domain, intspec[1]);
+		if (irqyes < 0) {
+			pr_err("irq: could yest map parent interrupt\n");
+			return irqyes;
 		}
 
-		irq_set_chained_handler(irqno, s3c_irq_demux);
+		irq_set_chained_handler(irqyes, s3c_irq_demux);
 	}
 
 	return 0;
@@ -1219,8 +1219,8 @@ struct s3c24xx_irq_of_ctrl {
 	struct irq_domain_ops	*ops;
 };
 
-static int __init s3c_init_intc_of(struct device_node *np,
-			struct device_node *interrupt_parent,
+static int __init s3c_init_intc_of(struct device_yesde *np,
+			struct device_yesde *interrupt_parent,
 			struct s3c24xx_irq_of_ctrl *s3c_ctrl, int num_ctrl)
 {
 	struct s3c_irq_intc *intc;
@@ -1231,14 +1231,14 @@ static int __init s3c_init_intc_of(struct device_node *np,
 
 	reg_base = of_iomap(np, 0);
 	if (!reg_base) {
-		pr_err("irq-s3c24xx: could not map irq registers\n");
+		pr_err("irq-s3c24xx: could yest map irq registers\n");
 		return -EINVAL;
 	}
 
 	domain = irq_domain_add_linear(np, num_ctrl * 32,
 						     &s3c24xx_irq_ops_of, NULL);
 	if (!domain) {
-		pr_err("irq: could not create irq-domain\n");
+		pr_err("irq: could yest create irq-domain\n");
 		return -EINVAL;
 	}
 
@@ -1298,8 +1298,8 @@ static struct s3c24xx_irq_of_ctrl s3c2410_ctrl[] = {
 	}
 };
 
-int __init s3c2410_init_intc_of(struct device_node *np,
-			struct device_node *interrupt_parent)
+int __init s3c2410_init_intc_of(struct device_yesde *np,
+			struct device_yesde *interrupt_parent)
 {
 	return s3c_init_intc_of(np, interrupt_parent,
 				s3c2410_ctrl, ARRAY_SIZE(s3c2410_ctrl));
@@ -1320,8 +1320,8 @@ static struct s3c24xx_irq_of_ctrl s3c2416_ctrl[] = {
 	}
 };
 
-int __init s3c2416_init_intc_of(struct device_node *np,
-			struct device_node *interrupt_parent)
+int __init s3c2416_init_intc_of(struct device_yesde *np,
+			struct device_yesde *interrupt_parent)
 {
 	return s3c_init_intc_of(np, interrupt_parent,
 				s3c2416_ctrl, ARRAY_SIZE(s3c2416_ctrl));

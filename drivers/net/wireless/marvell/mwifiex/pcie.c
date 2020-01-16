@@ -41,7 +41,7 @@ static const struct of_device_id mwifiex_pcie_of_match_table[] = {
 
 static int mwifiex_pcie_probe_of(struct device *dev)
 {
-	if (!of_match_node(mwifiex_pcie_of_match_table, dev->of_node)) {
+	if (!of_match_yesde(mwifiex_pcie_of_match_table, dev->of_yesde)) {
 		dev_err(dev, "required compatible string missing\n");
 		return -EINVAL;
 	}
@@ -144,7 +144,7 @@ static bool mwifiex_pcie_ok_to_access_hw(struct mwifiex_adapter *adapter)
  * registered functions must have drivers with suspend and resume
  * methods. Failing that the kernel simply removes the whole card.
  *
- * If already not suspended, this function allocates and sends a host
+ * If already yest suspended, this function allocates and sends a host
  * sleep activate request to the firmware and turns off the traffic.
  */
 static int mwifiex_pcie_suspend(struct device *dev)
@@ -158,7 +158,7 @@ static int mwifiex_pcie_suspend(struct device *dev)
 
 	adapter = card->adapter;
 	if (!adapter) {
-		dev_err(dev, "adapter is not valid\n");
+		dev_err(dev, "adapter is yest valid\n");
 		return 0;
 	}
 
@@ -187,7 +187,7 @@ static int mwifiex_pcie_suspend(struct device *dev)
  * registered functions must have drivers with suspend and resume
  * methods. Failing that the kernel simply removes the whole card.
  *
- * If already not resumed, this function turns on the traffic and
+ * If already yest resumed, this function turns on the traffic and
  * sends a host sleep cancel request to the firmware.
  */
 static int mwifiex_pcie_resume(struct device *dev)
@@ -197,7 +197,7 @@ static int mwifiex_pcie_resume(struct device *dev)
 
 
 	if (!card->adapter) {
-		dev_err(dev, "adapter structure is not valid\n");
+		dev_err(dev, "adapter structure is yest valid\n");
 		return 0;
 	}
 
@@ -254,8 +254,8 @@ static int mwifiex_pcie_probe(struct pci_dev *pdev,
 		INIT_WORK(&card->work, mwifiex_pcie_work);
 	}
 
-	/* device tree node parsing and platform specific configuration*/
-	if (pdev->dev.of_node) {
+	/* device tree yesde parsing and platform specific configuration*/
+	if (pdev->dev.of_yesde) {
 		ret = mwifiex_pcie_probe_of(&pdev->dev);
 		if (ret)
 			return ret;
@@ -364,7 +364,7 @@ static void mwifiex_pcie_reset_prepare(struct pci_dev *pdev)
 	struct mwifiex_adapter *adapter = card->adapter;
 
 	if (!adapter) {
-		dev_err(&pdev->dev, "%s: adapter structure is not valid\n",
+		dev_err(&pdev->dev, "%s: adapter structure is yest valid\n",
 			__func__);
 		return;
 	}
@@ -391,7 +391,7 @@ static void mwifiex_pcie_reset_done(struct pci_dev *pdev)
 	int ret;
 
 	if (!adapter) {
-		dev_err(&pdev->dev, "%s: adapter structure is not valid\n",
+		dev_err(&pdev->dev, "%s: adapter structure is yest valid\n",
 			__func__);
 		return;
 	}
@@ -548,7 +548,7 @@ static int mwifiex_pcie_disable_host_int(struct mwifiex_adapter *adapter)
 	return 0;
 }
 
-static void mwifiex_pcie_disable_host_int_noerr(struct mwifiex_adapter *adapter)
+static void mwifiex_pcie_disable_host_int_yeserr(struct mwifiex_adapter *adapter)
 {
 	WARN_ON(mwifiex_pcie_disable_host_int(adapter));
 }
@@ -1237,9 +1237,9 @@ static int mwifiex_pcie_send_data_complete(struct mwifiex_adapter *adapter)
 /* This function sends data buffer to device. First 4 bytes of payload
  * are filled with payload length and payload type. Then this payload
  * is mapped to PCI device memory. Tx ring pointers are advanced accordingly.
- * Download ready interrupt to FW is deffered if Tx ring is not full and
+ * Download ready interrupt to FW is deffered if Tx ring is yest full and
  * additional payload can be accomodated.
- * Caller must ensure tx_param parameter to this function is not NULL.
+ * Caller must ensure tx_param parameter to this function is yest NULL.
  */
 static int
 mwifiex_pcie_send_data(struct mwifiex_adapter *adapter, struct sk_buff *skb,
@@ -1267,7 +1267,7 @@ mwifiex_pcie_send_data(struct mwifiex_adapter *adapter, struct sk_buff *skb,
 	mwifiex_dbg(adapter, DATA,
 		    "info: SEND DATA: <Rd: %#x, Wr: %#x>\n",
 		card->txbd_rdptr, card->txbd_wrptr);
-	if (mwifiex_pcie_txbd_not_full(card)) {
+	if (mwifiex_pcie_txbd_yest_full(card)) {
 		u8 *payload;
 
 		adapter->data_sent = true;
@@ -1324,7 +1324,7 @@ mwifiex_pcie_send_data(struct mwifiex_adapter *adapter, struct sk_buff *skb,
 			ret = -1;
 			goto done_unmap;
 		}
-		if ((mwifiex_pcie_txbd_not_full(card)) &&
+		if ((mwifiex_pcie_txbd_yest_full(card)) &&
 		    tx_param->next_pkt_len) {
 			/* have more packets and TxBD still can hold more */
 			mwifiex_dbg(adapter, DATA,
@@ -1773,7 +1773,7 @@ static int mwifiex_pcie_process_cmd_complete(struct mwifiex_adapter *adapter)
 							   skb->len);
 		} else {
 			mwifiex_dbg(adapter, ERROR,
-				    "There is no command but got cmdrsp\n");
+				    "There is yes command but got cmdrsp\n");
 		}
 		memcpy(adapter->upld_buf, skb->data,
 		       min_t(u32, MWIFIEX_SIZE_OF_CMD_BUFFER, skb->len));
@@ -1785,7 +1785,7 @@ static int mwifiex_pcie_process_cmd_complete(struct mwifiex_adapter *adapter)
 		skb_pull(skb, adapter->intf_hdr_len);
 		adapter->curr_cmd->resp_skb = skb;
 		adapter->cmd_resp_received = true;
-		/* Take the pointer and set it to CMD node and will
+		/* Take the pointer and set it to CMD yesde and will
 		   return in the response complete callback */
 		card->cmdrsp_buf = NULL;
 
@@ -1845,7 +1845,7 @@ static int mwifiex_pcie_process_event_ready(struct mwifiex_adapter *adapter)
 	if (adapter->event_received) {
 		mwifiex_dbg(adapter, EVENT,
 			    "info: Event being processed,\t"
-			    "do not process this interrupt just yet\n");
+			    "do yest process this interrupt just yet\n");
 		return 0;
 	}
 
@@ -1905,7 +1905,7 @@ static int mwifiex_pcie_process_event_ready(struct mwifiex_adapter *adapter)
 		adapter->event_received = true;
 		adapter->event_skb = skb_cmd;
 
-		/* Do not update the event read pointer here, wait till the
+		/* Do yest update the event read pointer here, wait till the
 		   buffer is released. This is just to make things simpler,
 		   we need to find a better method of managing these buffers.
 		*/
@@ -2046,7 +2046,7 @@ static int mwifiex_extract_wifi_fw(struct mwifiex_adapter *adapter,
 
 			if (!cmd7_before) {
 				mwifiex_dbg(adapter, ERROR,
-					    "no cmd7 before cmd1!\n");
+					    "yes cmd7 before cmd1!\n");
 				ret = -1;
 				goto done;
 			}
@@ -2084,7 +2084,7 @@ static int mwifiex_extract_wifi_fw(struct mwifiex_adapter *adapter,
 			cmd7_before = true;
 			break;
 		default:
-			mwifiex_dbg(adapter, ERROR, "unknown dnld_cmd %d\n",
+			mwifiex_dbg(adapter, ERROR, "unkyeswn dnld_cmd %d\n",
 				    dnld_cmd);
 			ret = -1;
 			goto done;
@@ -2341,7 +2341,7 @@ mwifiex_check_winner_status(struct mwifiex_adapter *adapter)
 		adapter->winner = 1;
 	} else {
 		mwifiex_dbg(adapter, ERROR,
-			    "PCI-E is not the winner <%#x>", winner);
+			    "PCI-E is yest the winner <%#x>", winner);
 	}
 
 	return ret;
@@ -2757,7 +2757,7 @@ static void mwifiex_pcie_fw_dump(struct mwifiex_adapter *adapter)
 					continue;
 				}
 				mwifiex_dbg(adapter, ERROR,
-					    "pre-allocated buf not enough\n");
+					    "pre-allocated buf yest eyesugh\n");
 				tmp_ptr =
 					vzalloc(memory_size + MWIFIEX_SIZE_4K);
 				if (!tmp_ptr)
@@ -2803,7 +2803,7 @@ static void mwifiex_pcie_card_reset_work(struct mwifiex_adapter *adapter)
 	struct pcie_service_card *card = adapter->card;
 
 	/* We can't afford to wait here; remove() might be waiting on us. If we
-	 * can't grab the device lock, maybe we'll get another chance later.
+	 * can't grab the device lock, maybe we'll get ayesther chance later.
 	 */
 	pci_try_reset_function(card->dev);
 }
@@ -2960,7 +2960,7 @@ static int mwifiex_init_pcie(struct mwifiex_adapter *adapter)
 		goto err_iomap2;
 	}
 
-	pr_notice("PCI memory map Virt0: %pK PCI memory map Virt2: %pK\n",
+	pr_yestice("PCI memory map Virt0: %pK PCI memory map Virt2: %pK\n",
 		  card->pci_mmap, card->pci_mmap1);
 
 	ret = mwifiex_pcie_alloc_buffers(adapter);
@@ -3003,7 +3003,7 @@ static void mwifiex_cleanup_pcie(struct mwifiex_adapter *adapter)
 			    "Clearing driver ready signature\n");
 		if (mwifiex_write_reg(adapter, reg->drv_rdy, 0x00000000))
 			mwifiex_dbg(adapter, ERROR,
-				    "Failed to write driver not-ready signature\n");
+				    "Failed to write driver yest-ready signature\n");
 	}
 
 	pci_disable_device(pdev);
@@ -3209,7 +3209,7 @@ static void mwifiex_pcie_down_dev(struct mwifiex_adapter *adapter)
 	struct pci_dev *pdev = card->dev;
 
 	if (mwifiex_write_reg(adapter, reg->drv_rdy, 0x00000000))
-		mwifiex_dbg(adapter, ERROR, "Failed to write driver not-ready signature\n");
+		mwifiex_dbg(adapter, ERROR, "Failed to write driver yest-ready signature\n");
 
 	pci_clear_master(pdev);
 
@@ -3227,7 +3227,7 @@ static struct mwifiex_if_ops pcie_ops = {
 	.register_dev =			mwifiex_register_dev,
 	.unregister_dev =		mwifiex_unregister_dev,
 	.enable_int =			mwifiex_pcie_enable_host_int,
-	.disable_int =			mwifiex_pcie_disable_host_int_noerr,
+	.disable_int =			mwifiex_pcie_disable_host_int_yeserr,
 	.process_int_status =		mwifiex_process_int_status,
 	.host_to_card =			mwifiex_pcie_host_to_card,
 	.wakeup =			mwifiex_pm_wakeup_card,

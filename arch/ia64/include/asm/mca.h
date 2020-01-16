@@ -34,10 +34,10 @@ typedef union cmcv_reg_u {
 	struct	{
 		u64	cmcr_vector		: 8;
 		u64	cmcr_reserved1		: 4;
-		u64	cmcr_ignored1		: 1;
+		u64	cmcr_igyesred1		: 1;
 		u64	cmcr_reserved2		: 3;
 		u64	cmcr_mask		: 1;
-		u64	cmcr_ignored2		: 47;
+		u64	cmcr_igyesred2		: 47;
 	} cmcv_reg_s;
 
 } cmcv_reg_t;
@@ -90,8 +90,8 @@ struct ia64_sal_os_state {
 	 */
 	unsigned long		prev_IA64_KR_CURRENT;	/* previous value of IA64_KR(CURRENT) */
 	unsigned long		prev_IA64_KR_CURRENT_STACK;
-	struct task_struct	*prev_task;		/* previous task, NULL if it is not useful */
-	/* Some interrupt registers are not saved in minstate, pt_regs or
+	struct task_struct	*prev_task;		/* previous task, NULL if it is yest useful */
+	/* Some interrupt registers are yest saved in minstate, pt_regs or
 	 * switch_stack.  Because MCA/INIT can occur when interrupts are
 	 * disabled, we need to save the additional interrupt registers over
 	 * MCA/INIT and resume.
@@ -131,7 +131,7 @@ enum {
 	IA64_MCA_NEW_CONTEXT	=	-1	/* SAL to return to new context */
 };
 
-/* Per-CPU MCA state that is too big for normal per-CPU variables.  */
+/* Per-CPU MCA state that is too big for yesrmal per-CPU variables.  */
 
 struct ia64_mca_cpu {
 	u64 mca_stack[KERNEL_STACK_SIZE/8];
@@ -163,7 +163,7 @@ extern void ia64_set_psr_mc(void);
 extern void ia64_mca_printk(const char * fmt, ...)
 	 __attribute__ ((format (printf, 1, 2)));
 
-struct ia64_mca_notify_die {
+struct ia64_mca_yestify_die {
 	struct ia64_sal_os_state *sos;
 	int *monarch_cpu;
 	int *data;

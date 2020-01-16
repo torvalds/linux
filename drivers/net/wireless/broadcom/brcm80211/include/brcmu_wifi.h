@@ -33,7 +33,7 @@
 #define BAND_5G_INDEX		1	/* wlc->bandstate[x] index */
 
 /*
- * max # supported channels. The max channel no is 216, this is that + 1
+ * max # supported channels. The max channel yes is 216, this is that + 1
  * rounded up to a multiple of NBBY (8). DO NOT MAKE it > 255: channels are
  * u8's all over
 */
@@ -214,8 +214,8 @@ static inline bool ac_bitmap_tst(u8 bitmap, int prec)
 #define MFP_REQUIRED		0x0400
 
 /* WPA authentication mode bitvec */
-#define WPA_AUTH_DISABLED	0x0000	/* Legacy (i.e., non-WPA) */
-#define WPA_AUTH_NONE		0x0001	/* none (IBSS) */
+#define WPA_AUTH_DISABLED	0x0000	/* Legacy (i.e., yesn-WPA) */
+#define WPA_AUTH_NONE		0x0001	/* yesne (IBSS) */
 #define WPA_AUTH_UNSPECIFIED	0x0002	/* over 802.1x */
 #define WPA_AUTH_PSK		0x0004	/* Pre-shared key */
 #define WPA_AUTH_RESERVED1	0x0008

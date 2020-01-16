@@ -33,7 +33,7 @@ static void flush_context(struct asid_info *info)
 		asid = atomic64_xchg_relaxed(&active_asid(info, i), 0);
 		/*
 		 * If this CPU has already been through a
-		 * rollover, but hasn't run another task in
+		 * rollover, but hasn't run ayesther task in
 		 * the meantime, we must preserve its reserved
 		 * ASID, as this is the only trace we have of
 		 * the process it is still running.
@@ -102,7 +102,7 @@ static u64 new_context(struct asid_info *info, atomic64_t *pasid,
 	}
 
 	/*
-	 * Allocate a free ASID. If we can't find one, take a note of the
+	 * Allocate a free ASID. If we can't find one, take a yeste of the
 	 * currently active ASIDs and mark the TLBs as requiring flushes.  We
 	 * always count from ASID #2 (index 1), as we use ASID #0 when setting
 	 * a reserved TTBR0 for the init_mm and we allocate ASIDs in even/odd

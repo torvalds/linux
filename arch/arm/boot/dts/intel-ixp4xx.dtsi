@@ -31,7 +31,7 @@
 			reg-shift = <2>;
 			interrupts = <15 IRQ_TYPE_LEVEL_HIGH>;
 			clock-frequency = <14745600>;
-			no-loopback-test;
+			yes-loopback-test;
 		};
 
 		gpio0: gpio@c8004000 {
@@ -45,7 +45,7 @@
 
 		intcon: interrupt-controller@c8003000 {
 			/*
-			 * Note: no compatible string. The subvariant of the
+			 * Note: yes compatible string. The subvariant of the
 			 * chip needs to define what version it is. The
 			 * location of the interrupt controller is fixed in
 			 * memory across all variants.

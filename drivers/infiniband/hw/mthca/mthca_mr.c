@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2004 Topspin Communications.  All rights reserved.
- * Copyright (c) 2005 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2005 Mellayesx Techyeslogies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -13,11 +13,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -32,7 +32,7 @@
  */
 
 #include <linux/slab.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 
 #include "mthca_dev.h"
 #include "mthca_cmd.h"
@@ -76,7 +76,7 @@ struct mthca_mpt_entry {
 #define SINAI_FMR_KEY_INC 0x1000000
 
 /*
- * Buddy allocator for MTT segments (currently not very efficient
+ * Buddy allocator for MTT segments (currently yest very efficient
  * since it doesn't keep a free list and just searches linearly
  * through the bitmaps)
  */
@@ -509,7 +509,7 @@ err_out_mpt_free:
 	return err;
 }
 
-int mthca_mr_alloc_notrans(struct mthca_dev *dev, u32 pd,
+int mthca_mr_alloc_yestrans(struct mthca_dev *dev, u32 pd,
 			   u32 access, struct mthca_mr *mr)
 {
 	mr->mtt = NULL;
@@ -700,7 +700,7 @@ static inline int mthca_check_fmr(struct mthca_fmr *fmr, u64 *page_list,
 	if (iova & page_mask)
 		return -EINVAL;
 
-	/* Trust the user not to pass misaligned data in page_list */
+	/* Trust the user yest to pass misaligned data in page_list */
 	if (0)
 		for (i = 0; i < list_len; ++i) {
 			if (page_list[i] & ~page_mask)

@@ -163,8 +163,8 @@ struct exception_table_entry {
 
 /*
  * The "__put_user/kernel_asm()" macros tell gcc they read from memory
- * instead of writing. This is because they do not write to any memory
- * gcc knows about, so there are no aliasing issues. These macros must
+ * instead of writing. This is because they do yest write to any memory
+ * gcc kyesws about, so there are yes aliasing issues. These macros must
  * also be aware that fixups are executed in the context of the fault,
  * and any registers used there must be listed as clobbers.
  * r8 is already listed as err.

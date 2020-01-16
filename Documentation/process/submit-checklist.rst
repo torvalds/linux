@@ -18,9 +18,9 @@ and elsewhere regarding submitting Linux kernel patches.
 2) Builds cleanly:
 
   a) with applicable or modified ``CONFIG`` options ``=y``, ``=m``, and
-     ``=n``.  No ``gcc`` warnings/errors, no linker warnings/errors.
+     ``=n``.  No ``gcc`` warnings/errors, yes linker warnings/errors.
 
-  b) Passes ``allnoconfig``, ``allmodconfig``
+  b) Passes ``allyesconfig``, ``allmodconfig``
 
   c) Builds successfully when using ``O=builddir``
 
@@ -37,7 +37,7 @@ and elsewhere regarding submitting Linux kernel patches.
    You should be able to justify all violations that remain in
    your patch.
 
-6) Any new or modified ``CONFIG`` options do not muck up the config menu and
+6) Any new or modified ``CONFIG`` options do yest muck up the config menu and
    default to off unless they meet the exception criteria documented in
    ``Documentation/kbuild/kconfig-language.rst`` Menu attributes: default value.
 
@@ -52,9 +52,9 @@ and elsewhere regarding submitting Linux kernel patches.
 10) Use ``make checkstack`` and ``make namespacecheck`` and fix any problems
     that they find.
 
-    .. note::
+    .. yeste::
 
-       ``checkstack`` does not point out problems explicitly,
+       ``checkstack`` does yest point out problems explicitly,
        but any one function that uses more than 512 bytes on the stack is a
        candidate for change.
 
@@ -95,7 +95,7 @@ and elsewhere regarding submitting Linux kernel patches.
     injection might be appropriate.
 
 23) Newly-added code has been compiled with ``gcc -W`` (use
-    ``make EXTRA_CFLAGS=-W``).  This will generate lots of noise, but is good
+    ``make EXTRA_CFLAGS=-W``).  This will generate lots of yesise, but is good
     for finding bugs like "warning: comparison between signed and unsigned".
 
 24) Tested after it has been merged into the -mm patchset to make sure
@@ -112,7 +112,7 @@ and elsewhere regarding submitting Linux kernel patches.
 27) If your modified source code depends on or uses any of the kernel
     APIs or features that are related to the following ``Kconfig`` symbols,
     then test multiple builds with the related ``Kconfig`` symbols disabled
-    and/or ``=m`` (if that option is available) [not all of these at the
+    and/or ``=m`` (if that option is available) [yest all of these at the
     same time, just various/random combinations of them]:
 
     ``CONFIG_SMP``, ``CONFIG_SYSFS``, ``CONFIG_PROC_FS``, ``CONFIG_INPUT``, ``CONFIG_PCI``, ``CONFIG_BLOCK``, ``CONFIG_PM``, ``CONFIG_MAGIC_SYSRQ``,

@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-// Copyright (C) 2005-2017 Andes Technology Corporation
+// Copyright (C) 2005-2017 Andes Techyeslogy Corporation
 
 #ifndef __NDS32_PROCFNS_H__
 #define __NDS32_PROCFNS_H__

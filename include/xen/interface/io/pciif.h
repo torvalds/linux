@@ -8,7 +8,7 @@
  * sell copies of the Software, and to permit persons to whom the Software is
  * furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -49,16 +49,16 @@
 
 /* xen_pci_op error numbers */
 #define	XEN_PCI_ERR_success		(0)
-#define	XEN_PCI_ERR_dev_not_found	(-1)
+#define	XEN_PCI_ERR_dev_yest_found	(-1)
 #define	XEN_PCI_ERR_invalid_offset	(-2)
 #define	XEN_PCI_ERR_access_denied	(-3)
-#define	XEN_PCI_ERR_not_implemented	(-4)
+#define	XEN_PCI_ERR_yest_implemented	(-4)
 /* XEN_PCI_ERR_op_failed - backend failed to complete the operation */
 #define XEN_PCI_ERR_op_failed		(-5)
 
 /*
  * it should be PAGE_SIZE-sizeof(struct xen_pci_op))/sizeof(struct msix_entry))
- * Should not exceed 128
+ * Should yest exceed 128
  */
 #define SH_INFO_MAX_VEC			128
 
@@ -70,7 +70,7 @@ struct xen_pci_op {
 	/* IN: what action to perform: XEN_PCI_OP_* */
 	uint32_t cmd;
 
-	/* OUT: will contain an error number (if any) from errno.h */
+	/* OUT: will contain an error number (if any) from erryes.h */
 	int32_t err;
 
 	/* IN: which device to touch */

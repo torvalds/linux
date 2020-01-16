@@ -51,7 +51,7 @@
 	BPF_EXIT_INSN(),
 	},
 	.result = REJECT,
-	.errstr = "BPF_XADD stores into R2 pkt is not allowed",
+	.errstr = "BPF_XADD stores into R2 pkt is yest allowed",
 	.prog_type = BPF_PROG_TYPE_XDP,
 	.flags = F_NEEDS_EFFICIENT_UNALIGNED_ACCESS,
 },

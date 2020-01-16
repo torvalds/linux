@@ -38,7 +38,7 @@ struct ssm2602_priv {
  * ssm2602 register cache
  * We can't read the ssm2602 register space when we are
  * using 2 wire for device control, so we cache them instead.
- * There is no point in caching the reset register
+ * There is yes point in caching the reset register
  */
 static const struct reg_default ssm2602_reg[SSM2602_CACHEREGNUM] = {
 	{ .reg = 0x00, .def = 0x0097 },
@@ -623,7 +623,7 @@ static const struct snd_soc_component_driver soc_component_dev_ssm2602 = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
+	.yesn_legacy_dai_naming	= 1,
 };
 
 static bool ssm2602_register_volatile(struct device *dev, unsigned int reg)

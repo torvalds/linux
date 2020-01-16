@@ -207,7 +207,7 @@ static int ide_task_ioctl(ide_drive_t *drive, unsigned long arg)
 	cmd.valid.out.tf = IDE_VALID_OUT_TF | IDE_VALID_DEVICE;
 	cmd.valid.in.tf  = IDE_VALID_IN_TF  | IDE_VALID_DEVICE;
 
-	err = ide_no_data_taskfile(drive, &cmd);
+	err = ide_yes_data_taskfile(drive, &cmd);
 
 	args[0] = cmd.tf.command;
 	memcpy(&args[1], &cmd.tf.feature, 6);

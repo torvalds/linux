@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Driver for Feature Integration Technology Inc. (aka Fintek) LPC CIR
+ * Driver for Feature Integration Techyeslogy Inc. (aka Fintek) LPC CIR
  *
  * Copyright (C) 2011 Jarod Wilson <jarod@redhat.com>
  *
@@ -125,8 +125,8 @@ static void cir_dump_regs(struct fintek_dev *fintek)
 static int fintek_hw_detect(struct fintek_dev *fintek)
 {
 	unsigned long flags;
-	u8 chip_major, chip_minor;
-	u8 vendor_major, vendor_minor;
+	u8 chip_major, chip_miyesr;
+	u8 vendor_major, vendor_miyesr;
 	u8 portsel, ir_class;
 	u16 vendor, chip;
 
@@ -159,15 +159,15 @@ static int fintek_hw_detect(struct fintek_dev *fintek)
 	}
 
 	chip_major = fintek_cr_read(fintek, GCR_CHIP_ID_HI);
-	chip_minor = fintek_cr_read(fintek, GCR_CHIP_ID_LO);
-	chip  = chip_major << 8 | chip_minor;
+	chip_miyesr = fintek_cr_read(fintek, GCR_CHIP_ID_LO);
+	chip  = chip_major << 8 | chip_miyesr;
 
 	vendor_major = fintek_cr_read(fintek, GCR_VENDOR_ID_HI);
-	vendor_minor = fintek_cr_read(fintek, GCR_VENDOR_ID_LO);
-	vendor = vendor_major << 8 | vendor_minor;
+	vendor_miyesr = fintek_cr_read(fintek, GCR_VENDOR_ID_LO);
+	vendor = vendor_major << 8 | vendor_miyesr;
 
 	if (vendor != VENDOR_ID_FINTEK)
-		fit_pr(KERN_WARNING, "Unknown vendor ID: 0x%04x", vendor);
+		fit_pr(KERN_WARNING, "Unkyeswn vendor ID: 0x%04x", vendor);
 	else
 		fit_dbg("Read Fintek vendor ID from chip");
 
@@ -175,7 +175,7 @@ static int fintek_hw_detect(struct fintek_dev *fintek)
 
 	spin_lock_irqsave(&fintek->fintek_lock, flags);
 	fintek->chip_major  = chip_major;
-	fintek->chip_minor  = chip_minor;
+	fintek->chip_miyesr  = chip_miyesr;
 	fintek->chip_vendor = vendor;
 
 	/*
@@ -484,12 +484,12 @@ static int fintek_probe(struct pnp_dev *pdev, const struct pnp_device_id *dev_id
 	ret = -ENODEV;
 	/* validate pnp resources */
 	if (!pnp_port_valid(pdev, 0)) {
-		dev_err(&pdev->dev, "IR PNP Port not valid!\n");
+		dev_err(&pdev->dev, "IR PNP Port yest valid!\n");
 		goto exit_free_dev_rdev;
 	}
 
 	if (!pnp_irq_valid(pdev, 0)) {
-		dev_err(&pdev->dev, "IR PNP IRQ not valid!\n");
+		dev_err(&pdev->dev, "IR PNP IRQ yest valid!\n");
 		goto exit_free_dev_rdev;
 	}
 
@@ -527,7 +527,7 @@ static int fintek_probe(struct pnp_dev *pdev, const struct pnp_device_id *dev_id
 	rdev->input_id.bustype = BUS_HOST;
 	rdev->input_id.vendor = VENDOR_ID_FINTEK;
 	rdev->input_id.product = fintek->chip_major;
-	rdev->input_id.version = fintek->chip_minor;
+	rdev->input_id.version = fintek->chip_miyesr;
 	rdev->dev.parent = &pdev->dev;
 	rdev->driver_name = FINTEK_DRIVER_NAME;
 	rdev->map_name = RC_MAP_RC6_MCE;
@@ -538,7 +538,7 @@ static int fintek_probe(struct pnp_dev *pdev, const struct pnp_device_id *dev_id
 	fintek->rdev = rdev;
 
 	ret = -EBUSY;
-	/* now claim resources */
+	/* yesw claim resources */
 	if (!request_region(fintek->cir_addr,
 			    fintek->cir_port_len, FINTEK_DRIVER_NAME))
 		goto exit_free_dev_rdev;

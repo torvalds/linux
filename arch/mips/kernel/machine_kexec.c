@@ -57,7 +57,7 @@ static int uhi_machine_kexec_prepare(struct kimage *kimage)
 	int i;
 
 	/*
-	 * In case DTB file is not passed to the new kernel, a flat device
+	 * In case DTB file is yest passed to the new kernel, a flat device
 	 * tree will be created by kexec tool. It holds modified command
 	 * line for the new kernel.
 	 */
@@ -94,7 +94,7 @@ int
 machine_kexec_prepare(struct kimage *kimage)
 {
 #ifdef CONFIG_SMP
-	if (!kexec_nonboot_cpu_func())
+	if (!kexec_yesnboot_cpu_func())
 		return -EINVAL;
 #endif
 
@@ -158,7 +158,7 @@ machine_crash_shutdown(struct pt_regs *regs)
 }
 
 #ifdef CONFIG_SMP
-void kexec_nonboot_cpu_jump(void)
+void kexec_yesnboot_cpu_jump(void)
 {
 	local_flush_icache_range((unsigned long)relocated_kexec_smp_wait,
 				 reboot_code_buffer + relocate_new_kernel_size);
@@ -169,10 +169,10 @@ void kexec_nonboot_cpu_jump(void)
 
 void kexec_reboot(void)
 {
-	void (*do_kexec)(void) __noreturn;
+	void (*do_kexec)(void) __yesreturn;
 
 	/*
-	 * We know we were online, and there will be no incoming IPIs at
+	 * We kyesw we were online, and there will be yes incoming IPIs at
 	 * this point. Mark online again before rebooting so that the crash
 	 * analysis tool will see us correctly.
 	 */
@@ -188,7 +188,7 @@ void kexec_reboot(void)
 		 * smp reboot. Kdump usually doesn't require an smp new
 		 * kernel, but kexec may do.
 		 */
-		kexec_nonboot_cpu();
+		kexec_yesnboot_cpu();
 
 		/* NOTREACHED */
 	}
@@ -245,7 +245,7 @@ machine_kexec(struct kimage *image)
 	set_cpu_online(smp_processor_id(), false);
 
 	/*
-	 * we do not want to be bothered.
+	 * we do yest want to be bothered.
 	 */
 	local_irq_disable();
 
@@ -254,7 +254,7 @@ machine_kexec(struct kimage *image)
 	/* Make reboot code buffer available to the boot CPU. */
 	__flush_cache_all();
 #ifdef CONFIG_SMP
-	/* All secondary cpus now may jump to kexec_wait cycle */
+	/* All secondary cpus yesw may jump to kexec_wait cycle */
 	relocated_kexec_smp_wait = reboot_code_buffer +
 		(void *)(kexec_smp_wait - relocate_new_kernel);
 	smp_wmb();

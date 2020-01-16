@@ -1,5 +1,5 @@
 /*
- * linux/drivers/video/arcfb.c -- FB driver for Arc monochrome LCD board
+ * linux/drivers/video/arcfb.c -- FB driver for Arc moyeschrome LCD board
  *
  * Copyright (C) 2005, Jaya Kumar <jayalk@intworks.biz>
  *
@@ -18,13 +18,13 @@
  * up to a parallel port connector. The driver requires the IO addresses for
  * data and control GPIO at load time. It is unable to probe for the
  * existence of the LCD so it must be told at load time whether it should
- * be enabled or not.
+ * be enabled or yest.
  *
  * Todo:
  * - testing with 4x4
  * - testing with interrupt hw
  *
- * General notes:
+ * General yestes:
  * - User must set tuhold. It's in microseconds. According to the 108 spec,
  *   the hold time is supposed to be at least 1 microsecond.
  * - User must set num_cols=x num_rows=y, eg: x=2 means 128
@@ -35,7 +35,7 @@
 
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/string.h>
 #include <linux/mm.h>
 #include <linux/vmalloc.h>
@@ -95,7 +95,7 @@ static const struct fb_var_screeninfo arcfb_var = {
 	.xres_virtual	= 128,
 	.yres_virtual	= 64,
 	.bits_per_pixel	= 1,
-	.nonstd		= 1,
+	.yesnstd		= 1,
 };
 
 static unsigned long num_cols;
@@ -105,7 +105,7 @@ static unsigned long cio_addr;
 static unsigned long c2io_addr;
 static unsigned long splashval;
 static unsigned long tuhold;
-static unsigned int nosplash;
+static unsigned int yessplash;
 static unsigned int arcfb_enable;
 static unsigned int irq;
 
@@ -224,7 +224,7 @@ static irqreturn_t arcfb_interrupt(int vec, void *dev_instance)
 
 	ctl2status = ks108_readb_ctl2(par);
 
-	if (!(ctl2status & KS_INTACK)) /* not arc generated interrupt */
+	if (!(ctl2status & KS_INTACK)) /* yest arc generated interrupt */
 		return IRQ_NONE;
 
 	ks108_writeb_mainctl(par, KS_CLRINT);
@@ -316,7 +316,7 @@ static void arcfb_lcd_update_vert(struct arcfb_par *par, unsigned int top,
 /*
  * here we handle horizontal blocks for the update. update_vert will
  * handle spaning multiple pages. we break out each horizontal
- * block in to individual blocks no taller than 64 pixels.
+ * block in to individual blocks yes taller than 64 pixels.
  */
 static void arcfb_lcd_update_horiz(struct arcfb_par *par, unsigned int left,
 			unsigned int right, unsigned int top, unsigned int h)
@@ -406,7 +406,7 @@ static int arcfb_ioctl(struct fb_info *info,
 		case FBIO_WAITEVENT:
 		{
 			DEFINE_WAIT(wait);
-			/* illegal to wait on arc if no irq will occur */
+			/* illegal to wait on arc if yes irq will occur */
 			if (!par->irq)
 				return -EINVAL;
 
@@ -534,7 +534,7 @@ static int arcfb_probe(struct platform_device *dev)
 	par->info = info;
 
 	if (!dio_addr || !cio_addr || !c2io_addr) {
-		printk(KERN_WARNING "no IO addresses supplied\n");
+		printk(KERN_WARNING "yes IO addresses supplied\n");
 		goto err1;
 	}
 	par->dio_addr = dio_addr;
@@ -571,7 +571,7 @@ static int arcfb_probe(struct platform_device *dev)
 	}
 
 	/* if we were told to splash the screen, we just clear it */
-	if (!nosplash) {
+	if (!yessplash) {
 		for (i = 0; i < num_cols * num_rows; i++) {
 			fb_info(info, "splashing lcd %d\n", i);
 			ks108_set_start_line(par, i, 0);
@@ -643,8 +643,8 @@ module_param(num_cols, ulong, 0);
 MODULE_PARM_DESC(num_cols, "Num horiz panels, eg: 2 = 128 bit wide");
 module_param(num_rows, ulong, 0);
 MODULE_PARM_DESC(num_rows, "Num vert panels, eg: 1 = 64 bit high");
-module_param(nosplash, uint, 0);
-MODULE_PARM_DESC(nosplash, "Disable doing the splash screen");
+module_param(yessplash, uint, 0);
+MODULE_PARM_DESC(yessplash, "Disable doing the splash screen");
 module_param(arcfb_enable, uint, 0);
 MODULE_PARM_DESC(arcfb_enable, "Enable communication with Arc board");
 module_param_hw(dio_addr, ulong, ioport, 0);
@@ -663,7 +663,7 @@ MODULE_PARM_DESC(irq, "IRQ for the Arc board");
 module_init(arcfb_init);
 module_exit(arcfb_exit);
 
-MODULE_DESCRIPTION("fbdev driver for Arc monochrome LCD board");
+MODULE_DESCRIPTION("fbdev driver for Arc moyeschrome LCD board");
 MODULE_AUTHOR("Jaya Kumar");
 MODULE_LICENSE("GPL");
 

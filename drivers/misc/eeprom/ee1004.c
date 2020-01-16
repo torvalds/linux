@@ -27,7 +27,7 @@
  *
  * We assume it is safe to read up to 32 bytes at once from these EEPROMs.
  * We use SMBus access even if I2C is available, these EEPROMs are small
- * enough, and reading from them infrequent enough, that we favor simplicity
+ * eyesugh, and reading from them infrequent eyesugh, that we favor simplicity
  * over performance.
  */
 
@@ -117,15 +117,15 @@ static ssize_t ee1004_read(struct file *filp, struct kobject *kobj,
 
 		/* Select page */
 		if (page != ee1004_current_page) {
-			/* Data is ignored */
+			/* Data is igyesred */
 			status = i2c_smbus_write_byte(ee1004_set_page[page],
 						      0x00);
 			if (status == -ENXIO) {
 				/*
 				 * Don't give up just yet. Some memory
-				 * modules will select the page but not
+				 * modules will select the page but yest
 				 * ack the command. Check which page is
-				 * selected now.
+				 * selected yesw.
 				 */
 				if (ee1004_get_current_page() == page)
 					status = 0;
@@ -231,7 +231,7 @@ static int ee1004_probe(struct i2c_client *client,
 		 "%u byte EE1004-compliant SPD EEPROM, read-only\n",
 		 EE1004_EEPROM_SIZE);
 	if (slow)
-		dev_notice(&client->dev,
+		dev_yestice(&client->dev,
 			   "Falling back to %s reads, performance will suffer\n",
 			   slow);
 

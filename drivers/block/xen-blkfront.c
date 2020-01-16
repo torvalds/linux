@@ -23,7 +23,7 @@
  * and to permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -63,7 +63,7 @@
 
 /*
  * The minimal size of segment supported by the block framework is PAGE_SIZE.
- * When Linux is using a different page size than Xen, it may not be possible
+ * When Linux is using a different page size than Xen, it may yest be possible
  * to put all the data in a single segment.
  * This can happen when the backend doesn't support indirect descriptor and
  * therefore the maximum amount of data that a request can carry is
@@ -84,7 +84,7 @@ enum blkif_state {
 struct grant {
 	grant_ref_t gref;
 	struct page *page;
-	struct list_head node;
+	struct list_head yesde;
 };
 
 enum blk_req_status {
@@ -156,7 +156,7 @@ MODULE_PARM_DESC(max_ring_page_order, "Maximum order of pages to be used for the
 
 /*
  * ring-ref%u i=(-1UL) would take 11 characters + 'ring-ref' is 8, so 19
- * characters are enough. Define to 20 to keep consistent with backend.
+ * characters are eyesugh. Define to 20 to keep consistent with backend.
  */
 #define RINGREF_NAME_LEN (20)
 /*
@@ -222,9 +222,9 @@ struct blkfront_info
 	struct list_head info_list;
 };
 
-static unsigned int nr_minors;
-static unsigned long *minors;
-static DEFINE_SPINLOCK(minor_lock);
+static unsigned int nr_miyesrs;
+static unsigned long *miyesrs;
+static DEFINE_SPINLOCK(miyesr_lock);
 
 #define GRANT_INVALID_REF	0
 
@@ -307,7 +307,7 @@ static int fill_grant_buffer(struct blkfront_ring_info *rinfo, int num)
 		}
 
 		gnt_list_entry->gref = GRANT_INVALID_REF;
-		list_add(&gnt_list_entry->node, &rinfo->grants);
+		list_add(&gnt_list_entry->yesde, &rinfo->grants);
 		i++;
 	}
 
@@ -315,8 +315,8 @@ static int fill_grant_buffer(struct blkfront_ring_info *rinfo, int num)
 
 out_of_memory:
 	list_for_each_entry_safe(gnt_list_entry, n,
-	                         &rinfo->grants, node) {
-		list_del(&gnt_list_entry->node);
+	                         &rinfo->grants, yesde) {
+		list_del(&gnt_list_entry->yesde);
 		if (info->feature_persistent)
 			__free_page(gnt_list_entry->page);
 		kfree(gnt_list_entry);
@@ -332,8 +332,8 @@ static struct grant *get_free_grant(struct blkfront_ring_info *rinfo)
 
 	BUG_ON(list_empty(&rinfo->grants));
 	gnt_list_entry = list_first_entry(&rinfo->grants, struct grant,
-					  node);
-	list_del(&gnt_list_entry->node);
+					  yesde);
+	list_del(&gnt_list_entry->yesde);
 
 	if (gnt_list_entry->gref != GRANT_INVALID_REF)
 		rinfo->persistent_gnts_c--;
@@ -412,19 +412,19 @@ static const char *op_name(int op)
 		[BLKIF_OP_DISCARD] = "discard" };
 
 	if (op < 0 || op >= ARRAY_SIZE(names))
-		return "unknown";
+		return "unkyeswn";
 
 	if (!names[op])
 		return "reserved";
 
 	return names[op];
 }
-static int xlbd_reserve_minors(unsigned int minor, unsigned int nr)
+static int xlbd_reserve_miyesrs(unsigned int miyesr, unsigned int nr)
 {
-	unsigned int end = minor + nr;
+	unsigned int end = miyesr + nr;
 	int rc;
 
-	if (end > nr_minors) {
+	if (end > nr_miyesrs) {
 		unsigned long *bitmap, *old;
 
 		bitmap = kcalloc(BITS_TO_LONGS(end), sizeof(*bitmap),
@@ -432,38 +432,38 @@ static int xlbd_reserve_minors(unsigned int minor, unsigned int nr)
 		if (bitmap == NULL)
 			return -ENOMEM;
 
-		spin_lock(&minor_lock);
-		if (end > nr_minors) {
-			old = minors;
-			memcpy(bitmap, minors,
-			       BITS_TO_LONGS(nr_minors) * sizeof(*bitmap));
-			minors = bitmap;
-			nr_minors = BITS_TO_LONGS(end) * BITS_PER_LONG;
+		spin_lock(&miyesr_lock);
+		if (end > nr_miyesrs) {
+			old = miyesrs;
+			memcpy(bitmap, miyesrs,
+			       BITS_TO_LONGS(nr_miyesrs) * sizeof(*bitmap));
+			miyesrs = bitmap;
+			nr_miyesrs = BITS_TO_LONGS(end) * BITS_PER_LONG;
 		} else
 			old = bitmap;
-		spin_unlock(&minor_lock);
+		spin_unlock(&miyesr_lock);
 		kfree(old);
 	}
 
-	spin_lock(&minor_lock);
-	if (find_next_bit(minors, end, minor) >= end) {
-		bitmap_set(minors, minor, nr);
+	spin_lock(&miyesr_lock);
+	if (find_next_bit(miyesrs, end, miyesr) >= end) {
+		bitmap_set(miyesrs, miyesr, nr);
 		rc = 0;
 	} else
 		rc = -EBUSY;
-	spin_unlock(&minor_lock);
+	spin_unlock(&miyesr_lock);
 
 	return rc;
 }
 
-static void xlbd_release_minors(unsigned int minor, unsigned int nr)
+static void xlbd_release_miyesrs(unsigned int miyesr, unsigned int nr)
 {
-	unsigned int end = minor + nr;
+	unsigned int end = miyesr + nr;
 
-	BUG_ON(end > nr_minors);
-	spin_lock(&minor_lock);
-	bitmap_clear(minors,  minor, nr);
-	spin_unlock(&minor_lock);
+	BUG_ON(end > nr_miyesrs);
+	spin_lock(&miyesr_lock);
+	bitmap_clear(miyesrs,  miyesr, nr);
+	spin_unlock(&miyesr_lock);
 }
 
 static void blkif_restart_queue_callback(void *arg)
@@ -513,7 +513,7 @@ static int blkif_ioctl(struct block_device *bdev, fmode_t mode,
 	}
 
 	default:
-		/*printk(KERN_ALERT "ioctl %08x not supported by Xen blkdev\n",
+		/*printk(KERN_ALERT "ioctl %08x yest supported by Xen blkdev\n",
 		  command);*/
 		return -EINVAL; /* same return as native Linux */
 	}
@@ -634,7 +634,7 @@ static void blkif_setup_rw_req_grant(unsigned long gfn, unsigned int offset,
 
 		shared_data = kmap_atomic(gnt_list_entry->page);
 		/*
-		 * this does not wipe data stored outside the
+		 * this does yest wipe data stored outside the
 		 * range sg->offset..sg->offset+sg->length.
 		 * Therefore, blkback *could* see data from
 		 * previous requests. This is OK as long as
@@ -705,7 +705,7 @@ static int blkif_queue_rw_req(struct request *req, struct blkfront_ring_info *ri
 	/*
 	 * Used to store if we are able to queue the request by just using
 	 * existing persistent grants, or if we have to get new grants,
-	 * as there are not sufficiently many free.
+	 * as there are yest sufficiently many free.
 	 */
 	bool new_persistent_gnts = false;
 	struct scatterlist *sg;
@@ -719,7 +719,7 @@ static int blkif_queue_rw_req(struct request *req, struct blkfront_ring_info *ri
 		 */
 		max_grefs += INDIRECT_GREFS(max_grefs);
 
-	/* Check if we have enough persistent grants to allocate a requests */
+	/* Check if we have eyesugh persistent grants to allocate a requests */
 	if (rinfo->persistent_gnts_c < max_grefs) {
 		new_persistent_gnts = true;
 
@@ -769,7 +769,7 @@ static int blkif_queue_rw_req(struct request *req, struct blkfront_ring_info *ri
 			BLKIF_OP_WRITE : BLKIF_OP_READ;
 		if (req_op(req) == REQ_OP_FLUSH || req->cmd_flags & REQ_FUA) {
 			/*
-			 * Ideally we can do an unordered flush-to-disk.
+			 * Ideally we can do an uyesrdered flush-to-disk.
 			 * In case the backend onlysupports barriers, use that.
 			 * A barrier request a superset of FUA, so we can
 			 * implement it the same way.  (It's also a FLUSH+FUA,
@@ -860,12 +860,12 @@ static int blkif_queue_request(struct request *req, struct blkfront_ring_info *r
 
 static inline void flush_requests(struct blkfront_ring_info *rinfo)
 {
-	int notify;
+	int yestify;
 
-	RING_PUSH_REQUESTS_AND_CHECK_NOTIFY(&rinfo->ring, notify);
+	RING_PUSH_REQUESTS_AND_CHECK_NOTIFY(&rinfo->ring, yestify);
 
-	if (notify)
-		notify_remote_via_irq(rinfo->irq);
+	if (yestify)
+		yestify_remote_via_irq(rinfo->irq);
 }
 
 static inline bool blkif_request_flush_invalid(struct request *req,
@@ -968,7 +968,7 @@ static int xlvbd_init_blk_queue(struct gendisk *gd, u16 sector_size,
 	info->tag_set.nr_hw_queues = info->nr_rings;
 	if (HAS_EXTRA_REQ && info->max_indirect_segments == 0) {
 		/*
-		 * When indirect descriptior is not supported, the I/O request
+		 * When indirect descriptior is yest supported, the I/O request
 		 * will be split between multiple request in the ring.
 		 * To avoid problems when sending the request, divide by
 		 * 2 the depth of the queue.
@@ -976,7 +976,7 @@ static int xlvbd_init_blk_queue(struct gendisk *gd, u16 sector_size,
 		info->tag_set.queue_depth =  BLK_RING_SIZE(info) / 2;
 	} else
 		info->tag_set.queue_depth = BLK_RING_SIZE(info);
-	info->tag_set.numa_node = NUMA_NO_NODE;
+	info->tag_set.numa_yesde = NUMA_NO_NODE;
 	info->tag_set.flags = BLK_MQ_F_SHOULD_MERGE;
 	info->tag_set.cmd_size = sizeof(struct blkif_req);
 	info->tag_set.driver_data = info;
@@ -1020,25 +1020,25 @@ static void xlvbd_flush(struct blkfront_info *info)
 		info->max_indirect_segments ? "enabled;" : "disabled;");
 }
 
-static int xen_translate_vdev(int vdevice, int *minor, unsigned int *offset)
+static int xen_translate_vdev(int vdevice, int *miyesr, unsigned int *offset)
 {
 	int major;
 	major = BLKIF_MAJOR(vdevice);
-	*minor = BLKIF_MINOR(vdevice);
+	*miyesr = BLKIF_MINOR(vdevice);
 	switch (major) {
 		case XEN_IDE0_MAJOR:
-			*offset = (*minor / 64) + EMULATED_HD_DISK_NAME_OFFSET;
-			*minor = ((*minor / 64) * PARTS_PER_DISK) +
+			*offset = (*miyesr / 64) + EMULATED_HD_DISK_NAME_OFFSET;
+			*miyesr = ((*miyesr / 64) * PARTS_PER_DISK) +
 				EMULATED_HD_DISK_MINOR_OFFSET;
 			break;
 		case XEN_IDE1_MAJOR:
-			*offset = (*minor / 64) + 2 + EMULATED_HD_DISK_NAME_OFFSET;
-			*minor = (((*minor / 64) + 2) * PARTS_PER_DISK) +
+			*offset = (*miyesr / 64) + 2 + EMULATED_HD_DISK_NAME_OFFSET;
+			*miyesr = (((*miyesr / 64) + 2) * PARTS_PER_DISK) +
 				EMULATED_HD_DISK_MINOR_OFFSET;
 			break;
 		case XEN_SCSI_DISK0_MAJOR:
-			*offset = (*minor / PARTS_PER_DISK) + EMULATED_SD_DISK_NAME_OFFSET;
-			*minor = *minor + EMULATED_SD_DISK_MINOR_OFFSET;
+			*offset = (*miyesr / PARTS_PER_DISK) + EMULATED_SD_DISK_NAME_OFFSET;
+			*miyesr = *miyesr + EMULATED_SD_DISK_MINOR_OFFSET;
 			break;
 		case XEN_SCSI_DISK1_MAJOR:
 		case XEN_SCSI_DISK2_MAJOR:
@@ -1047,10 +1047,10 @@ static int xen_translate_vdev(int vdevice, int *minor, unsigned int *offset)
 		case XEN_SCSI_DISK5_MAJOR:
 		case XEN_SCSI_DISK6_MAJOR:
 		case XEN_SCSI_DISK7_MAJOR:
-			*offset = (*minor / PARTS_PER_DISK) + 
+			*offset = (*miyesr / PARTS_PER_DISK) + 
 				((major - XEN_SCSI_DISK1_MAJOR + 1) * 16) +
 				EMULATED_SD_DISK_NAME_OFFSET;
-			*minor = *minor +
+			*miyesr = *miyesr +
 				((major - XEN_SCSI_DISK1_MAJOR + 1) * 16 * PARTS_PER_DISK) +
 				EMULATED_SD_DISK_MINOR_OFFSET;
 			break;
@@ -1062,15 +1062,15 @@ static int xen_translate_vdev(int vdevice, int *minor, unsigned int *offset)
 		case XEN_SCSI_DISK13_MAJOR:
 		case XEN_SCSI_DISK14_MAJOR:
 		case XEN_SCSI_DISK15_MAJOR:
-			*offset = (*minor / PARTS_PER_DISK) + 
+			*offset = (*miyesr / PARTS_PER_DISK) + 
 				((major - XEN_SCSI_DISK8_MAJOR + 8) * 16) +
 				EMULATED_SD_DISK_NAME_OFFSET;
-			*minor = *minor +
+			*miyesr = *miyesr +
 				((major - XEN_SCSI_DISK8_MAJOR + 8) * 16 * PARTS_PER_DISK) +
 				EMULATED_SD_DISK_MINOR_OFFSET;
 			break;
 		case XENVBD_MAJOR:
-			*offset = *minor / PARTS_PER_DISK;
+			*offset = *miyesr / PARTS_PER_DISK;
 			break;
 		default:
 			printk(KERN_WARNING "blkfront: your disk configuration is "
@@ -1094,10 +1094,10 @@ static int xlvbd_alloc_gendisk(blkif_sector_t capacity,
 			       unsigned int physical_sector_size)
 {
 	struct gendisk *gd;
-	int nr_minors = 1;
+	int nr_miyesrs = 1;
 	int err;
 	unsigned int offset;
-	int minor;
+	int miyesr;
 	int nr_parts;
 	char *ptr;
 
@@ -1106,53 +1106,53 @@ static int xlvbd_alloc_gendisk(blkif_sector_t capacity,
 
 	if ((info->vdevice>>EXT_SHIFT) > 1) {
 		/* this is above the extended range; something is wrong */
-		printk(KERN_WARNING "blkfront: vdevice 0x%x is above the extended range; ignoring\n", info->vdevice);
+		printk(KERN_WARNING "blkfront: vdevice 0x%x is above the extended range; igyesring\n", info->vdevice);
 		return -ENODEV;
 	}
 
 	if (!VDEV_IS_EXTENDED(info->vdevice)) {
-		err = xen_translate_vdev(info->vdevice, &minor, &offset);
+		err = xen_translate_vdev(info->vdevice, &miyesr, &offset);
 		if (err)
 			return err;
 		nr_parts = PARTS_PER_DISK;
 	} else {
-		minor = BLKIF_MINOR_EXT(info->vdevice);
+		miyesr = BLKIF_MINOR_EXT(info->vdevice);
 		nr_parts = PARTS_PER_EXT_DISK;
-		offset = minor / nr_parts;
+		offset = miyesr / nr_parts;
 		if (xen_hvm_domain() && offset < EMULATED_HD_DISK_NAME_OFFSET + 4)
 			printk(KERN_WARNING "blkfront: vdevice 0x%x might conflict with "
 					"emulated IDE disks,\n\t choose an xvd device name"
 					"from xvde on\n", info->vdevice);
 	}
-	if (minor >> MINORBITS) {
-		pr_warn("blkfront: %#x's minor (%#x) out of range; ignoring\n",
-			info->vdevice, minor);
+	if (miyesr >> MINORBITS) {
+		pr_warn("blkfront: %#x's miyesr (%#x) out of range; igyesring\n",
+			info->vdevice, miyesr);
 		return -ENODEV;
 	}
 
-	if ((minor % nr_parts) == 0)
-		nr_minors = nr_parts;
+	if ((miyesr % nr_parts) == 0)
+		nr_miyesrs = nr_parts;
 
-	err = xlbd_reserve_minors(minor, nr_minors);
+	err = xlbd_reserve_miyesrs(miyesr, nr_miyesrs);
 	if (err)
 		goto out;
 	err = -ENODEV;
 
-	gd = alloc_disk(nr_minors);
+	gd = alloc_disk(nr_miyesrs);
 	if (gd == NULL)
 		goto release;
 
 	strcpy(gd->disk_name, DEV_NAME);
 	ptr = encode_disk_name(gd->disk_name + sizeof(DEV_NAME) - 1, offset);
 	BUG_ON(ptr >= gd->disk_name + DISK_NAME_LEN);
-	if (nr_minors > 1)
+	if (nr_miyesrs > 1)
 		*ptr = 0;
 	else
 		snprintf(ptr, gd->disk_name + DISK_NAME_LEN - ptr,
-			 "%d", minor & (nr_parts - 1));
+			 "%d", miyesr & (nr_parts - 1));
 
 	gd->major = XENVBD_MAJOR;
-	gd->first_minor = minor;
+	gd->first_miyesr = miyesr;
 	gd->fops = &xlvbd_block_fops;
 	gd->private_data = info;
 	set_capacity(gd, capacity);
@@ -1176,14 +1176,14 @@ static int xlvbd_alloc_gendisk(blkif_sector_t capacity,
 	return 0;
 
  release:
-	xlbd_release_minors(minor, nr_minors);
+	xlbd_release_miyesrs(miyesr, nr_miyesrs);
  out:
 	return err;
 }
 
 static void xlvbd_release_gendisk(struct blkfront_info *info)
 {
-	unsigned int minor, nr_minors, i;
+	unsigned int miyesr, nr_miyesrs, i;
 
 	if (info->rq == NULL)
 		return;
@@ -1197,15 +1197,15 @@ static void xlvbd_release_gendisk(struct blkfront_info *info)
 		/* No more gnttab callback work. */
 		gnttab_cancel_free_callback(&rinfo->callback);
 
-		/* Flush gnttab callback work. Must be done with no locks held. */
+		/* Flush gnttab callback work. Must be done with yes locks held. */
 		flush_work(&rinfo->work);
 	}
 
 	del_gendisk(info->gd);
 
-	minor = info->gd->first_minor;
-	nr_minors = info->gd->minors;
-	xlbd_release_minors(minor, nr_minors);
+	miyesr = info->gd->first_miyesr;
+	nr_miyesrs = info->gd->miyesrs;
+	xlbd_release_miyesrs(miyesr, nr_miyesrs);
 
 	blk_cleanup_queue(info->rq);
 	blk_mq_free_tag_set(&info->tag_set);
@@ -1247,7 +1247,7 @@ static void blkif_free_ring(struct blkfront_ring_info *rinfo)
 
 	/*
 	 * Remove indirect pages, this only happens when using indirect
-	 * descriptors but not persistent grants
+	 * descriptors but yest persistent grants
 	 */
 	if (!list_empty(&rinfo->indirect_pages)) {
 		struct page *indirect_page, *n;
@@ -1262,8 +1262,8 @@ static void blkif_free_ring(struct blkfront_ring_info *rinfo)
 	/* Remove all persistent grants. */
 	if (!list_empty(&rinfo->grants)) {
 		list_for_each_entry_safe(persistent_gnt, n,
-					 &rinfo->grants, node) {
-			list_del(&persistent_gnt->node);
+					 &rinfo->grants, yesde) {
+			list_del(&persistent_gnt->yesde);
 			if (persistent_gnt->gref != GRANT_INVALID_REF) {
 				gnttab_end_foreign_access(persistent_gnt->gref,
 							  0, 0UL);
@@ -1297,7 +1297,7 @@ static void blkif_free_ring(struct blkfront_ring_info *rinfo)
 
 		if (rinfo->shadow[i].req.operation != BLKIF_OP_INDIRECT)
 			/*
-			 * If this is not an indirect operation don't try to
+			 * If this is yest an indirect operation don't try to
 			 * free indirect segments
 			 */
 			goto free_shadow;
@@ -1321,7 +1321,7 @@ free_shadow:
 	/* No more gnttab callback work. */
 	gnttab_cancel_free_callback(&rinfo->callback);
 
-	/* Flush gnttab callback work. Must be done with no locks held. */
+	/* Flush gnttab callback work. Must be done with yes locks held. */
 	flush_work(&rinfo->work);
 
 	/* Free resources associated with old device channel. */
@@ -1438,7 +1438,7 @@ static bool blkif_completion(unsigned long *id,
 		/* Keep the status of the current response in shadow. */
 		s->status = blkif_rsp_to_req_status(bret->status);
 
-		/* Wait the second response if not yet here. */
+		/* Wait the second response if yest yet here. */
 		if (s2->status == REQ_WAITING)
 			return false;
 
@@ -1452,7 +1452,7 @@ static bool blkif_completion(unsigned long *id,
 		num_grant += s2->req.u.rw.nr_segments;
 
 		/*
-		 * The two responses may not come in order. Only the
+		 * The two responses may yest come in order. Only the
 		 * first request will store the scatter-gather list.
 		 */
 		if (s2->num_sg != 0) {
@@ -1463,7 +1463,7 @@ static bool blkif_completion(unsigned long *id,
 
 		/*
 		 * We don't need anymore the second request, so recycling
-		 * it now.
+		 * it yesw.
 		 */
 		if (add_id_to_freelist(rinfo, s->associated_id))
 			WARN(1, "%s: can't recycle the second part (id = %ld) of the request\n",
@@ -1499,29 +1499,29 @@ static bool blkif_completion(unsigned long *id,
 			 * reused first.
 			 */
 			if (!info->feature_persistent)
-				pr_alert_ratelimited("backed has not unmapped grant: %u\n",
+				pr_alert_ratelimited("backed has yest unmapped grant: %u\n",
 						     s->grants_used[i]->gref);
-			list_add(&s->grants_used[i]->node, &rinfo->grants);
+			list_add(&s->grants_used[i]->yesde, &rinfo->grants);
 			rinfo->persistent_gnts_c++;
 		} else {
 			/*
-			 * If the grant is not mapped by the backend we end the
+			 * If the grant is yest mapped by the backend we end the
 			 * foreign access and add it to the tail of the list,
-			 * so it will not be picked again unless we run out of
+			 * so it will yest be picked again unless we run out of
 			 * persistent grants.
 			 */
 			gnttab_end_foreign_access(s->grants_used[i]->gref, 0, 0UL);
 			s->grants_used[i]->gref = GRANT_INVALID_REF;
-			list_add_tail(&s->grants_used[i]->node, &rinfo->grants);
+			list_add_tail(&s->grants_used[i]->yesde, &rinfo->grants);
 		}
 	}
 	if (s->req.operation == BLKIF_OP_INDIRECT) {
 		for (i = 0; i < INDIRECT_GREFS(num_grant); i++) {
 			if (gnttab_query_foreign_access(s->indirect_grants[i]->gref)) {
 				if (!info->feature_persistent)
-					pr_alert_ratelimited("backed has not unmapped grant: %u\n",
+					pr_alert_ratelimited("backed has yest unmapped grant: %u\n",
 							     s->indirect_grants[i]->gref);
-				list_add(&s->indirect_grants[i]->node, &rinfo->grants);
+				list_add(&s->indirect_grants[i]->yesde, &rinfo->grants);
 				rinfo->persistent_gnts_c++;
 			} else {
 				struct page *indirect_page;
@@ -1536,7 +1536,7 @@ static bool blkif_completion(unsigned long *id,
 					list_add(&indirect_page->lru, &rinfo->indirect_pages);
 				}
 				s->indirect_grants[i]->gref = GRANT_INVALID_REF;
-				list_add_tail(&s->indirect_grants[i]->node, &rinfo->grants);
+				list_add_tail(&s->indirect_grants[i]->yesde, &rinfo->grants);
 			}
 		}
 	}
@@ -1716,10 +1716,10 @@ fail:
 }
 
 /*
- * Write out per-ring/queue nodes including ring-ref and event-channel, and each
+ * Write out per-ring/queue yesdes including ring-ref and event-channel, and each
  * ring buffer may have multi pages depending on ->nr_ring_pages.
  */
-static int write_per_ring_nodes(struct xenbus_transaction xbt,
+static int write_per_ring_yesdes(struct xenbus_transaction xbt,
 				struct blkfront_ring_info *rinfo, const char *dir)
 {
 	int err;
@@ -1808,7 +1808,7 @@ again:
 	}
 
 	if (info->nr_ring_pages > 1) {
-		err = xenbus_printf(xbt, dev->nodename, "ring-page-order", "%u",
+		err = xenbus_printf(xbt, dev->yesdename, "ring-page-order", "%u",
 				    ring_page_order);
 		if (err) {
 			message = "writing ring-page-order";
@@ -1818,21 +1818,21 @@ again:
 
 	/* We already got the number of queues/rings in _probe */
 	if (info->nr_rings == 1) {
-		err = write_per_ring_nodes(xbt, &info->rinfo[0], dev->nodename);
+		err = write_per_ring_yesdes(xbt, &info->rinfo[0], dev->yesdename);
 		if (err)
 			goto destroy_blkring;
 	} else {
 		char *path;
 		size_t pathsize;
 
-		err = xenbus_printf(xbt, dev->nodename, "multi-queue-num-queues", "%u",
+		err = xenbus_printf(xbt, dev->yesdename, "multi-queue-num-queues", "%u",
 				    info->nr_rings);
 		if (err) {
 			message = "writing multi-queue-num-queues";
 			goto abort_transaction;
 		}
 
-		pathsize = strlen(dev->nodename) + QUEUE_NAME_LEN;
+		pathsize = strlen(dev->yesdename) + QUEUE_NAME_LEN;
 		path = kmalloc(pathsize, GFP_KERNEL);
 		if (!path) {
 			err = -ENOMEM;
@@ -1842,8 +1842,8 @@ again:
 
 		for (i = 0; i < info->nr_rings; i++) {
 			memset(path, 0, pathsize);
-			snprintf(path, pathsize, "%s/queue-%u", dev->nodename, i);
-			err = write_per_ring_nodes(xbt, &info->rinfo[i], path);
+			snprintf(path, pathsize, "%s/queue-%u", dev->yesdename, i);
+			err = write_per_ring_yesdes(xbt, &info->rinfo[i], path);
 			if (err) {
 				kfree(path);
 				goto destroy_blkring;
@@ -1851,13 +1851,13 @@ again:
 		}
 		kfree(path);
 	}
-	err = xenbus_printf(xbt, dev->nodename, "protocol", "%s",
+	err = xenbus_printf(xbt, dev->yesdename, "protocol", "%s",
 			    XEN_IO_PROTO_ABI_NATIVE);
 	if (err) {
 		message = "writing protocol";
 		goto abort_transaction;
 	}
-	err = xenbus_printf(xbt, dev->nodename,
+	err = xenbus_printf(xbt, dev->yesdename,
 			    "feature-persistent", "%u", 1);
 	if (err)
 		dev_warn(&dev->dev,
@@ -1947,12 +1947,12 @@ static int blkfront_probe(struct xenbus_device *dev,
 	int err, vdevice;
 	struct blkfront_info *info;
 
-	/* FIXME: Use dynamic device id if this is not set. */
-	err = xenbus_scanf(XBT_NIL, dev->nodename,
+	/* FIXME: Use dynamic device id if this is yest set. */
+	err = xenbus_scanf(XBT_NIL, dev->yesdename,
 			   "virtual-device", "%i", &vdevice);
 	if (err != 1) {
 		/* go looking in the extended area instead */
-		err = xenbus_scanf(XBT_NIL, dev->nodename, "virtual-device-ext",
+		err = xenbus_scanf(XBT_NIL, dev->yesdename, "virtual-device-ext",
 				   "%i", &vdevice);
 		if (err != 1) {
 			xenbus_dev_fatal(dev, err, "reading virtual-device");
@@ -1963,7 +1963,7 @@ static int blkfront_probe(struct xenbus_device *dev,
 	if (xen_hvm_domain()) {
 		char *type;
 		int len;
-		/* no unplug has been done: do not hook devices != xen vbds */
+		/* yes unplug has been done: do yest hook devices != xen vbds */
 		if (xen_has_pv_and_legacy_disk_devices()) {
 			int major;
 
@@ -1974,13 +1974,13 @@ static int blkfront_probe(struct xenbus_device *dev,
 
 			if (major != XENVBD_MAJOR) {
 				printk(KERN_INFO
-						"%s: HVM does not support vbd %d as xen block device\n",
+						"%s: HVM does yest support vbd %d as xen block device\n",
 						__func__, vdevice);
 				return -ENODEV;
 			}
 		}
-		/* do not create a PV cdrom device if we are an HVM guest */
-		type = xenbus_read(XBT_NIL, dev->nodename, "device-type", &len);
+		/* do yest create a PV cdrom device if we are an HVM guest */
+		type = xenbus_read(XBT_NIL, dev->yesdename, "device-type", &len);
 		if (IS_ERR(type))
 			return -ENODEV;
 		if (strncmp(type, "cdrom", 5) == 0) {
@@ -2002,7 +2002,7 @@ static int blkfront_probe(struct xenbus_device *dev,
 	info->connected = BLKIF_STATE_DISCONNECTED;
 
 	/* Front end dir is a number, which is used as the id. */
-	info->handle = simple_strtoul(strrchr(dev->nodename, '/')+1, NULL, 0);
+	info->handle = simple_strtoul(strrchr(dev->yesdename, '/')+1, NULL, 0);
 	dev_set_drvdata(&dev->dev, info);
 
 	mutex_lock(&blkfront_mutex);
@@ -2075,7 +2075,7 @@ static int blkfront_resume(struct xenbus_device *dev)
 	int err = 0;
 	unsigned int i, j;
 
-	dev_dbg(&dev->dev, "blkfront_resume: %s\n", dev->nodename);
+	dev_dbg(&dev->dev, "blkfront_resume: %s\n", dev->yesdename);
 
 	bio_list_init(&info->bio_list);
 	INIT_LIST_HEAD(&info->requests);
@@ -2215,7 +2215,7 @@ static int blkfront_setup_indirect(struct blkfront_ring_info *rinfo)
 
 	if (!info->feature_persistent && info->max_indirect_segments) {
 		/*
-		 * We are using indirect descriptors but not persistent
+		 * We are using indirect descriptors but yest persistent
 		 * grants, we need to allocate a set of pages that can be
 		 * used for mapping indirect grefs
 		 */
@@ -2284,9 +2284,9 @@ static void blkfront_gather_backend_features(struct blkfront_info *info)
 	info->feature_fua = 0;
 
 	/*
-	 * If there's no "feature-barrier" defined, then it means
+	 * If there's yes "feature-barrier" defined, then it means
 	 * we're dealing with a very old backend which writes
-	 * synchronously; nothing to do.
+	 * synchroyesusly; yesthing to do.
 	 *
 	 * If there are barriers, then we use flush.
 	 */
@@ -2361,8 +2361,8 @@ static void blkfront_connect(struct blkfront_info *info)
 	case BLKIF_STATE_SUSPENDED:
 		/*
 		 * If we are recovering from suspension, we need to wait
-		 * for the backend to announce it's features before
-		 * reconnecting, at least we need to know if the backend
+		 * for the backend to anyesunce it's features before
+		 * reconnecting, at least we need to kyesw if the backend
 		 * supports indirect descriptors, and how many.
 		 */
 		blkif_recover(info);
@@ -2388,7 +2388,7 @@ static void blkfront_connect(struct blkfront_info *info)
 	}
 
 	/*
-	 * physcial-sector-size is a newer field, so old backends may not
+	 * physcial-sector-size is a newer field, so old backends may yest
 	 * provide this. Assume physical sector size to be the same as
 	 * sector_size in that case.
 	 */
@@ -2451,7 +2451,7 @@ static void blkback_changed(struct xenbus_device *dev,
 	case XenbusStateInitialised:
 	case XenbusStateReconfiguring:
 	case XenbusStateReconfigured:
-	case XenbusStateUnknown:
+	case XenbusStateUnkyeswn:
 		break;
 
 	case XenbusStateConnected:
@@ -2492,7 +2492,7 @@ static int blkfront_remove(struct xenbus_device *xbdev)
 	struct block_device *bdev = NULL;
 	struct gendisk *disk;
 
-	dev_dbg(&xbdev->dev, "%s removed", xbdev->nodename);
+	dev_dbg(&xbdev->dev, "%s removed", xbdev->yesdename);
 
 	if (!info)
 		return 0;
@@ -2526,7 +2526,7 @@ static int blkfront_remove(struct xenbus_device *xbdev)
 
 	dev_warn(disk_to_dev(disk),
 		 "%s was hot-unplugged, %d stale handles\n",
-		 xbdev->nodename, bdev->bd_openers);
+		 xbdev->yesdename, bdev->bd_openers);
 
 	if (info && !bdev->bd_openers) {
 		xlvbd_release_gendisk(info);
@@ -2666,16 +2666,16 @@ static void purge_persistent_grants(struct blkfront_info *info)
 		}
 
 		list_for_each_entry_safe(gnt_list_entry, tmp, &rinfo->grants,
-					 node) {
+					 yesde) {
 			if (gnt_list_entry->gref == GRANT_INVALID_REF ||
 			    gnttab_query_foreign_access(gnt_list_entry->gref))
 				continue;
 
-			list_del(&gnt_list_entry->node);
+			list_del(&gnt_list_entry->yesde);
 			gnttab_end_foreign_access(gnt_list_entry->gref, 0, 0UL);
 			rinfo->persistent_gnts_c--;
 			gnt_list_entry->gref = GRANT_INVALID_REF;
-			list_add_tail(&gnt_list_entry->node, &rinfo->grants);
+			list_add_tail(&gnt_list_entry->yesde, &rinfo->grants);
 		}
 
 		spin_unlock_irqrestore(&rinfo->ring_lock, flags);
@@ -2755,7 +2755,7 @@ static void __exit xlblk_exit(void)
 
 	xenbus_unregister_driver(&blkfront_driver);
 	unregister_blkdev(XENVBD_MAJOR, DEV_NAME);
-	kfree(minors);
+	kfree(miyesrs);
 }
 module_exit(xlblk_exit);
 

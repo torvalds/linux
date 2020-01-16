@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -305,7 +305,7 @@ struct hns_roce_bitmap {
 /* Every bit repesent to a partner free/used status in bitmap */
 /*
  * Initial, bits of other bitmap are all 0 except that a bit of max_order is 1
- * Bit = 1 represent to idle and available; bit = 0: not available
+ * Bit = 1 represent to idle and available; bit = 0: yest available
  */
 struct hns_roce_buddy {
 	/* Members point to every order level bitmap */
@@ -594,7 +594,7 @@ struct hns_roce_cmdq {
 	struct semaphore	poll_sem;
 	/*
 	 * Event mode: cmd register mutex protection,
-	 * ensure to not exceed max_cmds and user use limit region
+	 * ensure to yest exceed max_cmds and user use limit region
 	 */
 	struct semaphore	event_sem;
 	int			max_cmds;
@@ -607,10 +607,10 @@ struct hns_roce_cmdq {
 	 */
 	u16			token_mask;
 	/*
-	 * Process whether use event mode, init default non-zero
+	 * Process whether use event mode, init default yesn-zero
 	 * After the event queue of cmd event ready,
 	 * can switch into event mode
-	 * close device, switch into poll mode(non event mode)
+	 * close device, switch into poll mode(yesn event mode)
 	 */
 	u8			use_events;
 };
@@ -687,7 +687,7 @@ struct hns_roce_qp {
 struct hns_roce_ib_iboe {
 	spinlock_t		lock;
 	struct net_device      *netdevs[HNS_ROCE_MAX_PORTS];
-	struct notifier_block	nb;
+	struct yestifier_block	nb;
 	u8			phy_port[HNS_ROCE_MAX_PORTS];
 };
 
@@ -749,7 +749,7 @@ struct hns_roce_eq {
 	int				log_page_size;
 	int				cons_index;
 	struct hns_roce_buf_list	*buf_list;
-	int				over_ignore;
+	int				over_igyesre;
 	int				coalesce;
 	int				arm_st;
 	u64				eqe_ba;
@@ -893,7 +893,7 @@ struct hns_roce_caps {
 	u32		sl_num;
 	u32		tsq_buf_pg_sz;
 	u32		tpq_buf_pg_sz;
-	u32		chunk_sz;	/* chunk size in non multihop mode */
+	u32		chunk_sz;	/* chunk size in yesn multihop mode */
 	u64		flags;
 };
 
@@ -956,7 +956,7 @@ struct hns_roce_hw {
 			 const struct ib_send_wr **bad_wr);
 	int (*post_recv)(struct ib_qp *qp, const struct ib_recv_wr *recv_wr,
 			 const struct ib_recv_wr **bad_recv_wr);
-	int (*req_notify_cq)(struct ib_cq *ibcq, enum ib_cq_notify_flags flags);
+	int (*req_yestify_cq)(struct ib_cq *ibcq, enum ib_cq_yestify_flags flags);
 	int (*poll_cq)(struct ib_cq *ibcq, int num_entries, struct ib_wc *wc);
 	int (*dereg_mr)(struct hns_roce_dev *hr_dev, struct hns_roce_mr *mr,
 			struct ib_udata *udata);

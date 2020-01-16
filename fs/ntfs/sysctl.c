@@ -48,7 +48,7 @@ static struct ctl_table_header *sysctls_root_table;
  * ntfs_sysctl - add or remove the debug sysctl
  * @add:	add (1) or remove (0) the sysctl
  *
- * Add or remove the debug sysctl. Return 0 on success or -errno on error.
+ * Add or remove the debug sysctl. Return 0 on success or -erryes on error.
  */
 int ntfs_sysctl(int add)
 {

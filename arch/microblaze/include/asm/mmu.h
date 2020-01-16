@@ -1,7 +1,7 @@
 /*
  * Copyright (C) 2008-2009 Michal Simek <monstr@monstr.eu>
  * Copyright (C) 2008-2009 PetaLogix
- * Copyright (C) 2006 Atmark Techno, Inc.
+ * Copyright (C) 2006 Atmark Techyes, Inc.
  *
  * This file is subject to the terms and conditions of the GNU General Public
  * License. See the file "COPYING" in the main directory of this archive
@@ -39,7 +39,7 @@ typedef struct _PTE {
 } PTE;
 
 /* Values for PP (assumes Ks=0, Kp=1) */
-#  define PP_RWXX	0 /* Supervisor read/write, User none */
+#  define PP_RWXX	0 /* Supervisor read/write, User yesne */
 #  define PP_RWRX	1 /* Supervisor read/write, User read */
 #  define PP_RWRW	2 /* Supervisor read/write, User read/write */
 #  define PP_RXRX	3 /* Supervisor read,       User read */
@@ -47,8 +47,8 @@ typedef struct _PTE {
 /* Segment Register */
 typedef struct _SEGREG {
 	unsigned long    t:1;	/* Normal or I/O  type */
-	unsigned long   ks:1;	/* Supervisor 'key' (normally 0) */
-	unsigned long   kp:1;	/* User 'key' (normally 1) */
+	unsigned long   ks:1;	/* Supervisor 'key' (yesrmally 0) */
+	unsigned long   kp:1;	/* User 'key' (yesrmally 1) */
 	unsigned long    n:1;	/* No-execute */
 	unsigned long     :4;	/* Unused */
 	unsigned long vsid:24;	/* Virtual Segment Identifier */
@@ -70,7 +70,7 @@ extern u32 tlb_skip;
  * TLB which is maintained totally under software control. In addition, the
  * instruction side has a hardware-managed, 2,4, or 8-entry, fully-associative
  * TLB which serves as a first level to the shared TLB. These two TLBs are
- * known as the UTLB and ITLB, respectively.
+ * kyeswn as the UTLB and ITLB, respectively.
  */
 
 #  define MICROBLAZE_TLB_SIZE 64

@@ -205,12 +205,12 @@ struct iscsi_scsi_rsp {
 #define ISCSI_FLAG_CMD_OVERFLOW		0x04
 #define ISCSI_FLAG_CMD_UNDERFLOW	0x02
 
-/* iSCSI Status values. Valid if Rsp Selector bit is not set */
+/* iSCSI Status values. Valid if Rsp Selector bit is yest set */
 #define ISCSI_STATUS_CMD_COMPLETED	0
 #define ISCSI_STATUS_TARGET_FAILURE	1
 #define ISCSI_STATUS_SUBSYS_FAILURE	2
 
-/* Asynchronous Event Header */
+/* Asynchroyesus Event Header */
 struct iscsi_async {
 	uint8_t opcode;
 	uint8_t flags;
@@ -239,7 +239,7 @@ struct iscsi_async {
 #define ISCSI_ASYNC_MSG_VENDOR_SPECIFIC			255
 
 /* NOP-Out Message */
-struct iscsi_nopout {
+struct iscsi_yespout {
 	uint8_t opcode;
 	uint8_t flags;
 	__be16	rsvd2;
@@ -254,7 +254,7 @@ struct iscsi_nopout {
 };
 
 /* NOP-In Message */
-struct iscsi_nopin {
+struct iscsi_yespin {
 	uint8_t opcode;
 	uint8_t flags;
 	__be16	rsvd2;

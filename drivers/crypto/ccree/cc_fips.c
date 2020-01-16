@@ -3,7 +3,7 @@
 
 #include <linux/kernel.h>
 #include <linux/fips.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 
 #include "cc_driver.h"
 #include "cc_fips.h"
@@ -12,7 +12,7 @@ static void fips_dsr(unsigned long devarg);
 
 struct cc_fips_handle {
 	struct tasklet_struct tasklet;
-	struct notifier_block nb;
+	struct yestifier_block nb;
 	struct cc_drvdata *drvdata;
 };
 
@@ -29,7 +29,7 @@ static bool cc_get_tee_fips_status(struct cc_drvdata *drvdata)
 		/* Yes. Is it OK? */
 		return (reg & CC_FIPS_SYNC_MODULE_OK);
 
-	/* No. It's either not in use or will be reported later */
+	/* No. It's either yest in use or will be reported later */
 	return true;
 }
 
@@ -50,7 +50,7 @@ void cc_set_ree_fips_status(struct cc_drvdata *drvdata, bool status)
 }
 
 /* Push REE side FIPS test failure to TEE side */
-static int cc_ree_fips_failure(struct notifier_block *nb, unsigned long unused1,
+static int cc_ree_fips_failure(struct yestifier_block *nb, unsigned long unused1,
 			       void *unused2)
 {
 	struct cc_fips_handle *fips_h =
@@ -71,7 +71,7 @@ void cc_fips_fini(struct cc_drvdata *drvdata)
 	if (drvdata->hw_rev < CC_HW_REV_712 || !fips_h)
 		return;
 
-	atomic_notifier_chain_unregister(&fips_fail_notif_chain, &fips_h->nb);
+	atomic_yestifier_chain_unregister(&fips_fail_yestif_chain, &fips_h->nb);
 
 	/* Kill tasklet */
 	tasklet_kill(&fips_h->tasklet);
@@ -120,7 +120,7 @@ static void fips_dsr(unsigned long devarg)
 		cc_tee_handle_fips_error(drvdata);
 	}
 
-	/* after verifing that there is nothing to do,
+	/* after verifing that there is yesthing to do,
 	 * unmask AXI completion interrupt.
 	 */
 	val = (CC_REG(HOST_IMR) & ~irq);
@@ -145,8 +145,8 @@ int cc_fips_init(struct cc_drvdata *p_drvdata)
 	dev_dbg(dev, "Initializing fips tasklet\n");
 	tasklet_init(&fips_h->tasklet, fips_dsr, (unsigned long)p_drvdata);
 	fips_h->drvdata = p_drvdata;
-	fips_h->nb.notifier_call = cc_ree_fips_failure;
-	atomic_notifier_chain_register(&fips_fail_notif_chain, &fips_h->nb);
+	fips_h->nb.yestifier_call = cc_ree_fips_failure;
+	atomic_yestifier_chain_register(&fips_fail_yestif_chain, &fips_h->nb);
 
 	cc_tee_handle_fips_error(p_drvdata);
 

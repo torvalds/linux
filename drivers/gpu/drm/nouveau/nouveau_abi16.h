@@ -5,44 +5,44 @@
 #define ABI16_IOCTL_ARGS                                                       \
 	struct drm_device *dev, void *data, struct drm_file *file_priv
 
-int nouveau_abi16_ioctl_getparam(ABI16_IOCTL_ARGS);
-int nouveau_abi16_ioctl_channel_alloc(ABI16_IOCTL_ARGS);
-int nouveau_abi16_ioctl_channel_free(ABI16_IOCTL_ARGS);
-int nouveau_abi16_ioctl_grobj_alloc(ABI16_IOCTL_ARGS);
-int nouveau_abi16_ioctl_notifierobj_alloc(ABI16_IOCTL_ARGS);
-int nouveau_abi16_ioctl_gpuobj_free(ABI16_IOCTL_ARGS);
+int yesuveau_abi16_ioctl_getparam(ABI16_IOCTL_ARGS);
+int yesuveau_abi16_ioctl_channel_alloc(ABI16_IOCTL_ARGS);
+int yesuveau_abi16_ioctl_channel_free(ABI16_IOCTL_ARGS);
+int yesuveau_abi16_ioctl_grobj_alloc(ABI16_IOCTL_ARGS);
+int yesuveau_abi16_ioctl_yestifierobj_alloc(ABI16_IOCTL_ARGS);
+int yesuveau_abi16_ioctl_gpuobj_free(ABI16_IOCTL_ARGS);
 
-struct nouveau_abi16_ntfy {
+struct yesuveau_abi16_ntfy {
 	struct nvif_object object;
 	struct list_head head;
-	struct nvkm_mm_node *node;
+	struct nvkm_mm_yesde *yesde;
 };
 
-struct nouveau_abi16_chan {
+struct yesuveau_abi16_chan {
 	struct list_head head;
-	struct nouveau_channel *chan;
-	struct list_head notifiers;
-	struct nouveau_bo *ntfy;
-	struct nouveau_vma *ntfy_vma;
+	struct yesuveau_channel *chan;
+	struct list_head yestifiers;
+	struct yesuveau_bo *ntfy;
+	struct yesuveau_vma *ntfy_vma;
 	struct nvkm_mm  heap;
 };
 
-struct nouveau_abi16 {
+struct yesuveau_abi16 {
 	struct nvif_device device;
 	struct list_head channels;
 	u64 handles;
 };
 
-struct nouveau_abi16 *nouveau_abi16_get(struct drm_file *);
-int  nouveau_abi16_put(struct nouveau_abi16 *, int);
-void nouveau_abi16_fini(struct nouveau_abi16 *);
-s32  nouveau_abi16_swclass(struct nouveau_drm *);
-int  nouveau_abi16_usif(struct drm_file *, void *data, u32 size);
+struct yesuveau_abi16 *yesuveau_abi16_get(struct drm_file *);
+int  yesuveau_abi16_put(struct yesuveau_abi16 *, int);
+void yesuveau_abi16_fini(struct yesuveau_abi16 *);
+s32  yesuveau_abi16_swclass(struct yesuveau_drm *);
+int  yesuveau_abi16_usif(struct drm_file *, void *data, u32 size);
 
 #define NOUVEAU_GEM_DOMAIN_VRAM      (1 << 1)
 #define NOUVEAU_GEM_DOMAIN_GART      (1 << 2)
 
-struct drm_nouveau_channel_alloc {
+struct drm_yesuveau_channel_alloc {
 	uint32_t     fb_ctxdma_handle;
 	uint32_t     tt_ctxdma_handle;
 
@@ -50,7 +50,7 @@ struct drm_nouveau_channel_alloc {
 	uint32_t     pushbuf_domains;
 
 	/* Notifier memory */
-	uint32_t     notifier_handle;
+	uint32_t     yestifier_handle;
 
 	/* DRM-enforced subchannel assignments */
 	struct {
@@ -60,24 +60,24 @@ struct drm_nouveau_channel_alloc {
 	uint32_t nr_subchan;
 };
 
-struct drm_nouveau_channel_free {
+struct drm_yesuveau_channel_free {
 	int channel;
 };
 
-struct drm_nouveau_grobj_alloc {
+struct drm_yesuveau_grobj_alloc {
 	int      channel;
 	uint32_t handle;
 	int      class;
 };
 
-struct drm_nouveau_notifierobj_alloc {
+struct drm_yesuveau_yestifierobj_alloc {
 	uint32_t channel;
 	uint32_t handle;
 	uint32_t size;
 	uint32_t offset;
 };
 
-struct drm_nouveau_gpuobj_free {
+struct drm_yesuveau_gpuobj_free {
 	int      channel;
 	uint32_t handle;
 };
@@ -93,22 +93,22 @@ struct drm_nouveau_gpuobj_free {
 #define NOUVEAU_GETPARAM_PTIMER_TIME     14
 #define NOUVEAU_GETPARAM_HAS_BO_USAGE    15
 #define NOUVEAU_GETPARAM_HAS_PAGEFLIP    16
-struct drm_nouveau_getparam {
+struct drm_yesuveau_getparam {
 	uint64_t param;
 	uint64_t value;
 };
 
-struct drm_nouveau_setparam {
+struct drm_yesuveau_setparam {
 	uint64_t param;
 	uint64_t value;
 };
 
-#define DRM_IOCTL_NOUVEAU_GETPARAM           DRM_IOWR(DRM_COMMAND_BASE + DRM_NOUVEAU_GETPARAM, struct drm_nouveau_getparam)
-#define DRM_IOCTL_NOUVEAU_SETPARAM           DRM_IOWR(DRM_COMMAND_BASE + DRM_NOUVEAU_SETPARAM, struct drm_nouveau_setparam)
-#define DRM_IOCTL_NOUVEAU_CHANNEL_ALLOC      DRM_IOWR(DRM_COMMAND_BASE + DRM_NOUVEAU_CHANNEL_ALLOC, struct drm_nouveau_channel_alloc)
-#define DRM_IOCTL_NOUVEAU_CHANNEL_FREE       DRM_IOW (DRM_COMMAND_BASE + DRM_NOUVEAU_CHANNEL_FREE, struct drm_nouveau_channel_free)
-#define DRM_IOCTL_NOUVEAU_GROBJ_ALLOC        DRM_IOW (DRM_COMMAND_BASE + DRM_NOUVEAU_GROBJ_ALLOC, struct drm_nouveau_grobj_alloc)
-#define DRM_IOCTL_NOUVEAU_NOTIFIEROBJ_ALLOC  DRM_IOWR(DRM_COMMAND_BASE + DRM_NOUVEAU_NOTIFIEROBJ_ALLOC, struct drm_nouveau_notifierobj_alloc)
-#define DRM_IOCTL_NOUVEAU_GPUOBJ_FREE        DRM_IOW (DRM_COMMAND_BASE + DRM_NOUVEAU_GPUOBJ_FREE, struct drm_nouveau_gpuobj_free)
+#define DRM_IOCTL_NOUVEAU_GETPARAM           DRM_IOWR(DRM_COMMAND_BASE + DRM_NOUVEAU_GETPARAM, struct drm_yesuveau_getparam)
+#define DRM_IOCTL_NOUVEAU_SETPARAM           DRM_IOWR(DRM_COMMAND_BASE + DRM_NOUVEAU_SETPARAM, struct drm_yesuveau_setparam)
+#define DRM_IOCTL_NOUVEAU_CHANNEL_ALLOC      DRM_IOWR(DRM_COMMAND_BASE + DRM_NOUVEAU_CHANNEL_ALLOC, struct drm_yesuveau_channel_alloc)
+#define DRM_IOCTL_NOUVEAU_CHANNEL_FREE       DRM_IOW (DRM_COMMAND_BASE + DRM_NOUVEAU_CHANNEL_FREE, struct drm_yesuveau_channel_free)
+#define DRM_IOCTL_NOUVEAU_GROBJ_ALLOC        DRM_IOW (DRM_COMMAND_BASE + DRM_NOUVEAU_GROBJ_ALLOC, struct drm_yesuveau_grobj_alloc)
+#define DRM_IOCTL_NOUVEAU_NOTIFIEROBJ_ALLOC  DRM_IOWR(DRM_COMMAND_BASE + DRM_NOUVEAU_NOTIFIEROBJ_ALLOC, struct drm_yesuveau_yestifierobj_alloc)
+#define DRM_IOCTL_NOUVEAU_GPUOBJ_FREE        DRM_IOW (DRM_COMMAND_BASE + DRM_NOUVEAU_GPUOBJ_FREE, struct drm_yesuveau_gpuobj_free)
 
 #endif

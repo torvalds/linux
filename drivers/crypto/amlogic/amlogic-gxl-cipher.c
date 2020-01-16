@@ -155,7 +155,7 @@ static int meson_cipher(struct skcipher_request *areq)
 				  DMA_TO_DEVICE);
 	err = dma_mapping_error(mc->dev, phykeyiv);
 	if (err) {
-		dev_err(mc->dev, "Cannot DMA MAP KEY IV\n");
+		dev_err(mc->dev, "Canyest DMA MAP KEY IV\n");
 		goto theend;
 	}
 
@@ -325,7 +325,7 @@ int meson_cipher_init(struct crypto_tfm *tfm)
 
 	op->fallback_tfm = crypto_alloc_sync_skcipher(name, 0, CRYPTO_ALG_NEED_FALLBACK);
 	if (IS_ERR(op->fallback_tfm)) {
-		dev_err(op->mc->dev, "ERROR: Cannot allocate fallback for %s %ld\n",
+		dev_err(op->mc->dev, "ERROR: Canyest allocate fallback for %s %ld\n",
 			name, PTR_ERR(op->fallback_tfm));
 		return PTR_ERR(op->fallback_tfm);
 	}

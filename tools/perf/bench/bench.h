@@ -5,7 +5,7 @@
 /*
  * The madvise transparent hugepage constants were added in glibc
  * 2.13. For compatibility with older versions of glibc, define these
- * tokens if they are not already defined.
+ * tokens if they are yest already defined.
  *
  * PA-RISC uses different madvise values from other architectures and
  * needs to be special-cased.

@@ -11,18 +11,18 @@
  * buttons are ENTER and ESCAPE, and so on. This is implemented as additional
  * HID interfaces.
  *
- * This is known as the "lizard mode", because apparently lizards like to use
+ * This is kyeswn as the "lizard mode", because apparently lizards like to use
  * the computer from the coach, without a proper mouse and keyboard.
  *
  * This driver will disable the lizard mode when the input device is opened
- * and re-enable it when the input device is closed, so as not to break user
+ * and re-enable it when the input device is closed, so as yest to break user
  * mode behaviour. The lizard_mode parameter can be used to change that.
  *
- * There are a few user space applications (notably Steam Client) that use
+ * There are a few user space applications (yestably Steam Client) that use
  * the hidraw interface directly to create input devices (XTest, uinput...).
  * In order to avoid breaking them this driver creates a layered hidraw device,
  * so it can detect when the client is running and then:
- *  - it will not send any command to the controller.
+ *  - it will yest send any command to the controller.
  *  - this input device will be removed, to avoid double input of the same
  *    user action.
  * When the client is closed, this input device will be created again.
@@ -119,7 +119,7 @@ struct steam_device {
 	unsigned long quirks;
 	struct work_struct work_connect;
 	bool connected;
-	char serial_no[STEAM_SERIAL_LEN + 1];
+	char serial_yes[STEAM_SERIAL_LEN + 1];
 	struct power_supply_desc battery_desc;
 	struct power_supply __rcu *battery;
 	u8 battery_charge;
@@ -143,7 +143,7 @@ static int steam_recv_report(struct steam_device *steam,
 
 	/*
 	 * The report ID is always 0, so strip the first byte from the output.
-	 * hid_report_len() is not counting the report ID, so +1 to the length
+	 * hid_report_len() is yest counting the report ID, so +1 to the length
 	 * or else we get a EOVERFLOW. We are safe from a buffer overflow
 	 * because hid_alloc_report_buf() allocates +7 bytes.
 	 */
@@ -246,7 +246,7 @@ static int steam_get_serial(struct steam_device *steam)
 	if (reply[0] != 0xae || reply[1] != 0x15 || reply[2] != 0x01)
 		return -EIO;
 	reply[3 + STEAM_SERIAL_LEN] = 0;
-	strlcpy(steam->serial_no, reply + 3, sizeof(steam->serial_no));
+	strlcpy(steam->serial_yes, reply + 3, sizeof(steam->serial_yes));
 	return 0;
 }
 
@@ -356,7 +356,7 @@ static int steam_battery_register(struct steam_device *steam)
 	steam->battery_desc.get_property = steam_battery_get_property;
 	steam->battery_desc.name = devm_kasprintf(&steam->hdev->dev,
 			GFP_KERNEL, "steam-controller-%s-battery",
-			steam->serial_no);
+			steam->serial_yes);
 	if (!steam->battery_desc.name)
 		return -ENOMEM;
 
@@ -407,7 +407,7 @@ static int steam_input_register(struct steam_device *steam)
 		"Wireless Steam Controller" :
 		"Steam Controller";
 	input->phys = hdev->phys;
-	input->uniq = steam->serial_no;
+	input->uniq = steam->serial_yes;
 	input->id.bustype = hdev->bus;
 	input->id.vendor = hdev->vendor;
 	input->id.product = hdev->product;
@@ -504,24 +504,24 @@ static int steam_register(struct steam_device *steam)
 	/*
 	 * This function can be called several times in a row with the
 	 * wireless adaptor, without steam_unregister() between them, because
-	 * another client send a get_connection_status command, for example.
+	 * ayesther client send a get_connection_status command, for example.
 	 * The battery and serial number are set just once per device.
 	 */
-	if (!steam->serial_no[0]) {
+	if (!steam->serial_yes[0]) {
 		/*
-		 * Unlikely, but getting the serial could fail, and it is not so
+		 * Unlikely, but getting the serial could fail, and it is yest so
 		 * important, so make up a serial number and go on.
 		 */
 		mutex_lock(&steam->mutex);
 		if (steam_get_serial(steam) < 0)
-			strlcpy(steam->serial_no, "XXXXXXXXXX",
-					sizeof(steam->serial_no));
+			strlcpy(steam->serial_yes, "XXXXXXXXXX",
+					sizeof(steam->serial_yes));
 		mutex_unlock(&steam->mutex);
 
 		hid_info(steam->hdev, "Steam Controller '%s' connected",
-				steam->serial_no);
+				steam->serial_yes);
 
-		/* ignore battery errors, we can live without it */
+		/* igyesre battery errors, we can live without it */
 		if (steam->quirks & STEAM_QUIRK_WIRELESS)
 			steam_battery_register(steam);
 
@@ -548,13 +548,13 @@ static void steam_unregister(struct steam_device *steam)
 {
 	steam_battery_unregister(steam);
 	steam_input_unregister(steam);
-	if (steam->serial_no[0]) {
+	if (steam->serial_yes[0]) {
 		hid_info(steam->hdev, "Steam Controller '%s' disconnected",
-				steam->serial_no);
+				steam->serial_yes);
 		mutex_lock(&steam_devices_lock);
 		list_del(&steam->list);
 		mutex_unlock(&steam_devices_lock);
-		steam->serial_no[0] = 0;
+		steam->serial_yes[0] = 0;
 	}
 }
 
@@ -594,7 +594,7 @@ static bool steam_is_valve_interface(struct hid_device *hdev)
 	 * The wireless device creates 5 interfaces:
 	 *  0: emulated keyboard.
 	 *  1-4: slots where up to 4 real game pads will be connected to.
-	 * We know which one is the real gamepad interface because they are the
+	 * We kyesw which one is the real gamepad interface because they are the
 	 * only ones with a feature report.
 	 */
 	rep_enum = &hdev->report_enum[HID_FEATURE_REPORT];
@@ -721,7 +721,7 @@ static int steam_probe(struct hid_device *hdev,
 	if (hdev->group == HID_GROUP_STEAM)
 		return hid_hw_start(hdev, HID_CONNECT_HIDRAW);
 	/*
-	 * The non-valve interfaces (mouse and keyboard emulation) are
+	 * The yesn-valve interfaces (mouse and keyboard emulation) are
 	 * connected without changes.
 	 */
 	if (!steam_is_valve_interface(hdev))
@@ -747,7 +747,7 @@ static int steam_probe(struct hid_device *hdev,
 	steam->client_hdev->driver_data = steam;
 
 	/*
-	 * With the real steam controller interface, do not connect hidraw.
+	 * With the real steam controller interface, do yest connect hidraw.
 	 * Instead, create the client_hid and connect that.
 	 */
 	ret = hid_hw_start(hdev, HID_CONNECT_DEFAULT & ~HID_CONNECT_HIDRAW);
@@ -848,8 +848,8 @@ static inline s16 steam_le16(u8 *data)
 
 /*
  * The size for this message payload is 60.
- * The known values are:
- *  (* values are not sent through wireless)
+ * The kyeswn values are:
+ *  (* values are yest sent through wireless)
  *  (* accelerator/gyro is disabled by default)
  *  Offset| Type  | Mapped to |Meaning
  * -------+-------+-----------+--------------------------
@@ -907,7 +907,7 @@ static inline s16 steam_le16(u8 *data)
  * 10.2  | BTN_THUMBR | right-pad clicked
  * 10.3  | BTN_THUMB  | left-pad touched (but see explanation below)
  * 10.4  | BTN_THUMB2 | right-pad touched
- * 10.5  | --         | unknown
+ * 10.5  | --         | unkyeswn
  * 10.6  | BTN_THUMBL | joystick clicked
  * 10.7  | --         | lpad_and_joy
  */
@@ -983,7 +983,7 @@ static void steam_do_input_event(struct steam_device *steam,
 
 /*
  * The size for this message payload is 11.
- * The known values are:
+ * The kyeswn values are:
  *  Offset| Type  | Meaning
  * -------+-------+---------------------------
  *  4-7   | u32   | sequence number
@@ -1033,10 +1033,10 @@ static int steam_raw_event(struct hid_device *hdev,
 	 * -------+--------------------------------------------
 	 *  0-1   | always 0x01, 0x00, maybe protocol version?
 	 *  2     | type of message
-	 *  3     | length of the real payload (not checked)
+	 *  3     | length of the real payload (yest checked)
 	 *  4-n   | payload data, depends on the type
 	 *
-	 * There are these known types of message:
+	 * There are these kyeswn types of message:
 	 *  0x01: input data (60 bytes)
 	 *  0x03: wireless connect/disconnect (1 byte)
 	 *  0x04: battery status (11 bytes)
@@ -1117,7 +1117,7 @@ static const struct kernel_param_ops steam_lizard_mode_ops = {
 
 module_param_cb(lizard_mode, &steam_lizard_mode_ops, &lizard_mode, 0644);
 MODULE_PARM_DESC(lizard_mode,
-	"Enable mouse and keyboard emulation (lizard mode) when the gamepad is not in use");
+	"Enable mouse and keyboard emulation (lizard mode) when the gamepad is yest in use");
 
 static const struct hid_device_id steam_controllers[] = {
 	{ /* Wired Steam Controller */

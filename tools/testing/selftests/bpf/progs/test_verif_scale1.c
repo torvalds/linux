@@ -2,10 +2,10 @@
 // Copyright (c) 2019 Facebook
 #include <linux/bpf.h>
 #include "bpf_helpers.h"
-#define ATTR __attribute__((noinline))
+#define ATTR __attribute__((yesinline))
 #include "test_jhash.h"
 
-SEC("scale90_noinline")
+SEC("scale90_yesinline")
 int balancer_ingress(struct __sk_buff *ctx)
 {
 	void *data_end = (void *)(long)ctx->data_end;

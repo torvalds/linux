@@ -432,7 +432,7 @@ mgt_set_request(islpci_private *priv, enum oid_num_t n, int extra, void *data)
 	/* If we are going to write to the cache, we don't want anyone to read
 	 * it -> acquire write lock.
 	 * Else we could acquire a read lock to be sure we don't bother the
-	 * commit process (which takes a write lock). But I'm not sure if it's
+	 * commit process (which takes a write lock). But I'm yest sure if it's
 	 * needed.
 	 */
 	if (cache)
@@ -652,7 +652,7 @@ static enum oid_num_t commit_part2[] = {
 	DOT11_OID_DEFKEYID,
 	DOT11_OID_DOT1XENABLE,
 	OID_INL_DOT11D_CONFORMANCE,
-	/* Do not initialize this - fw < 1.0.4.3 rejects it
+	/* Do yest initialize this - fw < 1.0.4.3 rejects it
 	OID_INL_OUTPUTPOWER,
 	*/
 };
@@ -712,7 +712,7 @@ mgt_commit(islpci_private *priv)
  * FREQUENCY,EXTENDEDRATES.
  *
  * The way to do this is to set ESSID. Note though that they may get
- * unlatch before though by setting another OID. */
+ * unlatch before though by setting ayesther OID. */
 #if 0
 void
 mgt_unlatch_all(islpci_private *priv)
@@ -770,7 +770,7 @@ mgt_oidtonum(u32 oid)
 		if (isl_oid[i].oid == oid)
 			return i;
 
-	printk(KERN_DEBUG "looking for an unknown oid 0x%x", oid);
+	printk(KERN_DEBUG "looking for an unkyeswn oid 0x%x", oid);
 
 	return OID_NUM_LAST;
 }
@@ -852,7 +852,7 @@ mgt_response_to_str(enum oid_num_t n, union oid_res_t *r, char *str)
 	case OID_TYPE_SSID:{
 			struct obj_ssid *ssid = r->ptr;
 			return snprintf(str, PRIV_STR_SIZE,
-					"length=%u\noctets=%.*s\n",
+					"length=%u\yesctets=%.*s\n",
 					ssid->length, ssid->length,
 					ssid->octets);
 		}

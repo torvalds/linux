@@ -76,8 +76,8 @@
 
 #define VALID_DOUBLE_EXCEPTION_ADDRESS	64
 
-#define XTENSA_INT_LEVEL(intno) _XTENSA_INT_LEVEL(intno)
-#define _XTENSA_INT_LEVEL(intno) XCHAL_INT##intno##_LEVEL
+#define XTENSA_INT_LEVEL(intyes) _XTENSA_INT_LEVEL(intyes)
+#define _XTENSA_INT_LEVEL(intyes) XCHAL_INT##intyes##_LEVEL
 
 #define XTENSA_INTLEVEL_MASK(level) _XTENSA_INTLEVEL_MASK(level)
 #define _XTENSA_INTLEVEL_MASK(level) (XCHAL_INTLEVEL##level##_MASK)

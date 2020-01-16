@@ -342,7 +342,7 @@ static long vc5_pfd_round_rate(struct clk_hw *hw, unsigned long rate,
 {
 	unsigned long idiv;
 
-	/* PLL cannot operate with input clock above 50 MHz. */
+	/* PLL canyest operate with input clock above 50 MHz. */
 	if (rate > 50000000)
 		return -EINVAL;
 
@@ -485,7 +485,7 @@ static unsigned long vc5_fod_recalc_rate(struct clk_hw *hw,
 	div_frc = (od_frc[0] << 22) | (od_frc[1] << 14) |
 		  (od_frc[2] << 6) | (od_frc[3] >> 2);
 
-	/* Avoid division by zero if the output is not configured. */
+	/* Avoid division by zero if the output is yest configured. */
 	if (div_int == 0 && div_frc == 0)
 		return 0;
 
@@ -505,8 +505,8 @@ static long vc5_fod_round_rate(struct clk_hw *hw, unsigned long rate,
 	/* Determine integer part, which is 12 bit wide */
 	div_int = f_in / rate;
 	/*
-	 * WARNING: The clock chip does not output signal if the integer part
-	 *          of the divider is 0xfff and fractional part is non-zero.
+	 * WARNING: The clock chip does yest output signal if the integer part
+	 *          of the divider is 0xfff and fractional part is yesn-zero.
 	 *          Clamp the divider at 0xffe to keep the code simple.
 	 */
 	if (div_int > 0xffe) {
@@ -543,10 +543,10 @@ static int vc5_fod_set_rate(struct clk_hw *hw, unsigned long rate,
 			  data, 14);
 
 	/*
-	 * Toggle magic bit in undocumented register for unknown reason.
+	 * Toggle magic bit in undocumented register for unkyeswn reason.
 	 * This is what the IDT timing commander tool does and the chip
 	 * datasheet somewhat implies this is needed, but the register
-	 * and the bit is not documented.
+	 * and the bit is yest documented.
 	 */
 	regmap_update_bits(vc5->regmap, VC5_GLOBAL_REGISTER,
 			   VC5_GLOBAL_REGISTER_GLOBAL_RESET, 0);
@@ -744,7 +744,7 @@ static int vc5_probe(struct i2c_client *client,
 	}
 
 	if (!init.num_parents) {
-		dev_err(&client->dev, "no input clock specified!\n");
+		dev_err(&client->dev, "yes input clock specified!\n");
 		return -EINVAL;
 	}
 
@@ -873,7 +873,7 @@ static int vc5_probe(struct i2c_client *client,
 		}
 	}
 
-	ret = of_clk_add_hw_provider(client->dev.of_node, vc5_of_clk_get, vc5);
+	ret = of_clk_add_hw_provider(client->dev.of_yesde, vc5_of_clk_get, vc5);
 	if (ret) {
 		dev_err(&client->dev, "unable to add clk provider\n");
 		goto err_clk;
@@ -891,7 +891,7 @@ static int vc5_remove(struct i2c_client *client)
 {
 	struct vc5_driver_data *vc5 = i2c_get_clientdata(client);
 
-	of_clk_del_provider(client->dev.of_node);
+	of_clk_del_provider(client->dev.of_yesde);
 
 	if (vc5->chip_info->flags & VC5_HAS_INTERNAL_XTAL)
 		clk_unregister_fixed_rate(vc5->pin_xin);

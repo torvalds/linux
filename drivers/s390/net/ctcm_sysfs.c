@@ -41,7 +41,7 @@ static ssize_t ctcm_buffer_write(struct device *dev,
 
 	ndev = priv->channel[CTCM_READ]->netdev;
 	if (!(priv && priv->channel[CTCM_READ] && ndev)) {
-		CTCM_DBF_TEXT(SETUP, CTC_DBF_ERROR, "bfnondev");
+		CTCM_DBF_TEXT(SETUP, CTC_DBF_ERROR, "bfyesndev");
 		return -ENODEV;
 	}
 
@@ -166,11 +166,11 @@ static ssize_t ctcm_proto_store(struct device *dev,
 }
 
 static const char *ctcm_type[] = {
-	"not a channel",
+	"yest a channel",
 	"CTC/A",
 	"FICON channel",
 	"ESCON channel",
-	"unknown channel type",
+	"unkyeswn channel type",
 	"unsupported channel type",
 };
 

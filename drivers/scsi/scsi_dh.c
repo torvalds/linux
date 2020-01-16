@@ -175,7 +175,7 @@ void scsi_dh_add_device(struct scsi_device *sdev)
 	if (drv)
 		devinfo = __scsi_dh_lookup(drv);
 	/*
-	 * device_handler is optional, so ignore errors
+	 * device_handler is optional, so igyesre errors
 	 * from scsi_dh_handler_attach()
 	 */
 	if (devinfo)
@@ -218,7 +218,7 @@ EXPORT_SYMBOL_GPL(scsi_register_device_handler);
  *      module.
  * @scsi_dh - device handler to be unregistered.
  *
- * Returns 0 on success, -ENODEV if handler not registered.
+ * Returns 0 on success, -ENODEV if handler yest registered.
  */
 int scsi_unregister_device_handler(struct scsi_device_handler *scsi_dh)
 {
@@ -243,7 +243,7 @@ EXPORT_SYMBOL_GPL(scsi_unregister_device_handler);
  * @fn   - Function to be called upon completion of the activation.
  *         Function fn is called with data (below) and the error code.
  *         Function fn may be called from the same calling context. So,
- *         do not hold the lock in the caller which may be needed in fn.
+ *         do yest hold the lock in the caller which may be needed in fn.
  * @data - data passed to the function fn upon completion.
  *
  */
@@ -290,7 +290,7 @@ EXPORT_SYMBOL_GPL(scsi_dh_activate);
  * @q - Request queue that is associated with the scsi_device for
  *      which the parameters to be set.
  * @params - parameters in the following format
- *      "no_of_params\0param1\0param2\0param3\0...\0"
+ *      "yes_of_params\0param1\0param2\0param3\0...\0"
  *      for example, string for 2 parameters with value 10 and 21
  *      is specified as "2\010\021\0".
  */
@@ -352,7 +352,7 @@ EXPORT_SYMBOL_GPL(scsi_dh_attach);
  *      that may have a device handler attached
  * @gfp - the GFP mask used in the kmalloc() call when allocating memory
  *
- * Returns name of attached handler, NULL if no handler is attached.
+ * Returns name of attached handler, NULL if yes handler is attached.
  * Caller must take care to free the returned string.
  */
 const char *scsi_dh_attached_handler_name(struct request_queue *q, gfp_t gfp)

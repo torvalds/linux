@@ -58,7 +58,7 @@ static int stm32_rng_read(struct hwrng *rng, void *data, size_t max, bool wait)
 					"%s: timeout %x!\n", __func__, sr);
 		}
 
-		/* If error detected or data not ready... */
+		/* If error detected or data yest ready... */
 		if (sr != RNG_SR_DRDY) {
 			if (WARN_ONCE(sr & (RNG_SR_SEIS | RNG_SR_CEIS),
 					"bad RNG status - %x\n", sr))
@@ -113,7 +113,7 @@ static void stm32_rng_cleanup(struct hwrng *rng)
 static int stm32_rng_probe(struct platform_device *ofdev)
 {
 	struct device *dev = &ofdev->dev;
-	struct device_node *np = ofdev->dev.of_node;
+	struct device_yesde *np = ofdev->dev.of_yesde;
 	struct stm32_rng_private *priv;
 	struct resource res;
 	int err;

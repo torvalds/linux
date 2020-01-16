@@ -13,7 +13,7 @@
 /*
  * This should be used immediately before a retpoline alternative. It tells
  * objtool where the retpolines are so that it can make sense of the control
- * flow by just reading the original instruction(s) and ignoring the
+ * flow by just reading the original instruction(s) and igyesring the
  * alternatives.
  */
 #define ANNOTATE_NOSPEC_ALTERNATIVE \
@@ -33,7 +33,7 @@
  *
  * We define a CPP macro such that it can be used from both .S files and
  * inline assembly. It's possible to do a .macro and then include that
- * from C via asm(".include <asm/nospec-branch.h>") but let's not go there.
+ * from C via asm(".include <asm/yesspec-branch.h>") but let's yest go there.
  */
 
 #define RSB_CLEAR_LOOPS		32	/* To forcibly overwrite all entries */
@@ -71,15 +71,15 @@
  * builds.
  */
 .macro ANNOTATE_RETPOLINE_SAFE
-	.Lannotate_\@:
+	.Lanyestate_\@:
 	.pushsection .discard.retpoline_safe
-	_ASM_PTR .Lannotate_\@
+	_ASM_PTR .Lanyestate_\@
 	.popsection
 .endm
 
 /*
  * These are the bare retpoline primitives for indirect jmp and call.
- * Do not use these directly; they only exist to make the ALTERNATIVE
+ * Do yest use these directly; they only exist to make the ALTERNATIVE
  * invocation below less ugly.
  */
 .macro RETPOLINE_JMP reg:req
@@ -239,7 +239,7 @@ extern char __indirect_thunk_start[];
 extern char __indirect_thunk_end[];
 
 /*
- * On VMEXIT we must ensure that no RSB predictions learned in the guest
+ * On VMEXIT we must ensure that yes RSB predictions learned in the guest
  * can be followed in the host, by overwriting the RSB completely. Both
  * retpoline and IBRS mitigations for Spectre v2 need this; only on future
  * CPUs with IBRS_ALL *might* it be avoided.
@@ -327,7 +327,7 @@ static inline void mds_clear_cpu_buffers(void)
 	/*
 	 * Has to be the memory-operand variant because only that
 	 * guarantees the CPU buffer flush functionality according to
-	 * documentation. The register-operand variant does not.
+	 * documentation. The register-operand variant does yest.
 	 * Works with any segment selector, but a valid writable
 	 * data segment is the fastest variant.
 	 *

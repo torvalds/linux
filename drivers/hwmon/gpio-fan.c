@@ -4,7 +4,7 @@
  *
  * Copyright (C) 2010 LaCie
  *
- * Author: Simon Guinot <sguinot@lacie.com>
+ * Author: Simon Guiyest <sguiyest@lacie.com>
  */
 
 #include <linux/module.h>
@@ -49,12 +49,12 @@ struct gpio_fan_data {
  * Alarm GPIO.
  */
 
-static void fan_alarm_notify(struct work_struct *ws)
+static void fan_alarm_yestify(struct work_struct *ws)
 {
 	struct gpio_fan_data *fan_data =
 		container_of(ws, struct gpio_fan_data, alarm_work);
 
-	sysfs_notify(&fan_data->hwmon_dev->kobj, NULL, "fan1_alarm");
+	sysfs_yestify(&fan_data->hwmon_dev->kobj, NULL, "fan1_alarm");
 	kobject_uevent(&fan_data->hwmon_dev->kobj, KOBJ_CHANGE);
 }
 
@@ -85,13 +85,13 @@ static int fan_alarm_init(struct gpio_fan_data *fan_data)
 
 	/*
 	 * If the alarm GPIO don't support interrupts, just leave
-	 * without initializing the fail notification support.
+	 * without initializing the fail yestification support.
 	 */
 	alarm_irq = gpiod_to_irq(fan_data->alarm_gpio);
 	if (alarm_irq <= 0)
 		return 0;
 
-	INIT_WORK(&fan_data->alarm_work, fan_alarm_notify);
+	INIT_WORK(&fan_data->alarm_work, fan_alarm_yestify);
 	irq_set_irq_type(alarm_irq, IRQ_TYPE_EDGE_BOTH);
 	return devm_request_irq(dev, alarm_irq, fan_alarm_irq_handler,
 				IRQF_SHARED, "GPIO fan alarm", fan_data);
@@ -343,7 +343,7 @@ static int fan_ctrl_init(struct gpio_fan_data *fan_data)
 		 * The GPIO descriptors were retrieved with GPIOD_ASIS so here
 		 * we set the GPIO into output mode, carefully preserving the
 		 * current value by setting it to whatever it is already set
-		 * (no surprise changes in default fan speed).
+		 * (yes surprise changes in default fan speed).
 		 */
 		err = gpiod_direction_output(gpios[i],
 					gpiod_get_value_cansleep(gpios[i]));
@@ -402,13 +402,13 @@ static const struct thermal_cooling_device_ops gpio_fan_cool_ops = {
 };
 
 /*
- * Translate OpenFirmware node properties into platform_data
+ * Translate OpenFirmware yesde properties into platform_data
  */
 static int gpio_fan_get_of_data(struct gpio_fan_data *fan_data)
 {
 	struct gpio_fan_speed *speed;
 	struct device *dev = fan_data->dev;
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 	struct gpio_desc **gpios;
 	unsigned i;
 	u32 u;
@@ -495,7 +495,7 @@ static int gpio_fan_probe(struct platform_device *pdev)
 	int err;
 	struct gpio_fan_data *fan_data;
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 
 	fan_data = devm_kzalloc(dev, sizeof(struct gpio_fan_data),
 				GFP_KERNEL);
@@ -595,7 +595,7 @@ static struct platform_driver gpio_fan_driver = {
 
 module_platform_driver(gpio_fan_driver);
 
-MODULE_AUTHOR("Simon Guinot <sguinot@lacie.com>");
+MODULE_AUTHOR("Simon Guiyest <sguiyest@lacie.com>");
 MODULE_DESCRIPTION("GPIO FAN driver");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("platform:gpio-fan");

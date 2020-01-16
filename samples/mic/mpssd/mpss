@@ -118,7 +118,7 @@ stop()
 	# Display the status of the cards
 	micctrl -s
 
-	# Kill MPSSD now
+	# Kill MPSSD yesw
 	echo -n $"Killing MPSSD"
 	killall -9 mpssd 2>/dev/null
 	RETVAL=$?

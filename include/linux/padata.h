@@ -12,7 +12,7 @@
 #include <linux/workqueue.h>
 #include <linux/spinlock.h>
 #include <linux/list.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/kobject.h>
 
 #define PADATA_CPU_SERIAL   0x01
@@ -127,12 +127,12 @@ struct parallel_data {
 /**
  * struct padata_instance - The overall control structure.
  *
- * @cpu_notifier: cpu hotplug notifier.
+ * @cpu_yestifier: cpu hotplug yestifier.
  * @parallel_wq: The workqueue used for parallel work.
  * @serial_wq: The workqueue used for serial work.
  * @pd: The internal control structure.
  * @cpumask: User supplied cpumasks for parallel and serial works.
- * @cpumask_change_notifier: Notifiers chain for user-defined notify
+ * @cpumask_change_yestifier: Notifiers chain for user-defined yestify
  *            callbacks that will be called when either @pcpu or @cbcpu
  *            or both cpumasks change.
  * @kobj: padata instance kernel object.
@@ -140,12 +140,12 @@ struct parallel_data {
  * @flags: padata flags.
  */
 struct padata_instance {
-	struct hlist_node		 node;
+	struct hlist_yesde		 yesde;
 	struct workqueue_struct		*parallel_wq;
 	struct workqueue_struct		*serial_wq;
 	struct parallel_data		*pd;
 	struct padata_cpumask		cpumask;
-	struct blocking_notifier_head	 cpumask_change_notifier;
+	struct blocking_yestifier_head	 cpumask_change_yestifier;
 	struct kobject                   kobj;
 	struct mutex			 lock;
 	u8				 flags;
@@ -163,8 +163,8 @@ extern int padata_set_cpumask(struct padata_instance *pinst, int cpumask_type,
 			      cpumask_var_t cpumask);
 extern int padata_start(struct padata_instance *pinst);
 extern void padata_stop(struct padata_instance *pinst);
-extern int padata_register_cpumask_notifier(struct padata_instance *pinst,
-					    struct notifier_block *nblock);
-extern int padata_unregister_cpumask_notifier(struct padata_instance *pinst,
-					      struct notifier_block *nblock);
+extern int padata_register_cpumask_yestifier(struct padata_instance *pinst,
+					    struct yestifier_block *nblock);
+extern int padata_unregister_cpumask_yestifier(struct padata_instance *pinst,
+					      struct yestifier_block *nblock);
 #endif

@@ -60,7 +60,7 @@ MODULE_DEVICE_TABLE(of, pcf857x_of_table);
 /*
  * The pcf857x, pca857x, and pca967x chips only expose one read and one
  * write register.  Writing a "one" bit (to match the reset state) lets
- * that pin be used as an input; it's not an open-drain model, but acts
+ * that pin be used as an input; it's yest an open-drain model, but acts
  * a bit like one.  This is described as "quasi-bidirectional"; read the
  * chip documentation for details.
  *
@@ -191,7 +191,7 @@ static irqreturn_t pcf857x_irq(int irq, void *data)
 /*
  * NOP functions
  */
-static void noop(struct irq_data *data) { }
+static void yesop(struct irq_data *data) { }
 
 static int pcf857x_irq_set_wake(struct irq_data *data, unsigned int on)
 {
@@ -234,7 +234,7 @@ static int pcf857x_probe(struct i2c_client *client,
 			 const struct i2c_device_id *id)
 {
 	struct pcf857x_platform_data	*pdata = dev_get_platdata(&client->dev);
-	struct device_node		*np = client->dev.of_node;
+	struct device_yesde		*np = client->dev.of_yesde;
 	struct pcf857x			*gpio;
 	unsigned int			n_latch = 0;
 	int				status;
@@ -244,7 +244,7 @@ static int pcf857x_probe(struct i2c_client *client,
 	else if (pdata)
 		n_latch = pdata->n_latch;
 	else
-		dev_dbg(&client->dev, "no platform data\n");
+		dev_dbg(&client->dev, "yes platform data\n");
 
 	/* Allocate, initialize, and register this gpio_chip. */
 	gpio = devm_kzalloc(&client->dev, sizeof(*gpio), GFP_KERNEL);
@@ -264,7 +264,7 @@ static int pcf857x_probe(struct i2c_client *client,
 	gpio->chip.ngpio		= id->driver_data;
 
 	/* NOTE:  the OnSemi jlc1562b is also largely compatible with
-	 * these parts, notably for output.  It has a low-resolution
+	 * these parts, yestably for output.  It has a low-resolution
 	 * DAC instead of pin change IRQs; and its inputs can be the
 	 * result of comparators.
 	 */
@@ -282,7 +282,7 @@ static int pcf857x_probe(struct i2c_client *client,
 				I2C_FUNC_SMBUS_BYTE))
 			status = -EIO;
 
-		/* fail if there's no chip present */
+		/* fail if there's yes chip present */
 		else
 			status = i2c_smbus_read_byte(client);
 
@@ -299,7 +299,7 @@ static int pcf857x_probe(struct i2c_client *client,
 		if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C))
 			status = -EIO;
 
-		/* fail if there's no chip present */
+		/* fail if there's yes chip present */
 		else
 			status = i2c_read_le16(client);
 
@@ -317,14 +317,14 @@ static int pcf857x_probe(struct i2c_client *client,
 	i2c_set_clientdata(client, gpio);
 
 	/* NOTE:  these chips have strange "quasi-bidirectional" I/O pins.
-	 * We can't actually know whether a pin is configured (a) as output
+	 * We can't actually kyesw whether a pin is configured (a) as output
 	 * and driving the signal low, or (b) as input and reporting a low
-	 * value ... without knowing the last value written since the chip
+	 * value ... without kyeswing the last value written since the chip
 	 * came out of reset (if any).  We can't read the latched output.
 	 *
 	 * In short, the only reliable solution for setting up pin direction
 	 * is to do it explicitly.  The setup() method can do that, but it
-	 * may cause transient glitching since it can't know the last value
+	 * may cause transient glitching since it can't kyesw the last value
 	 * written (some pins may need to be driven low).
 	 *
 	 * Using n_latch avoids that trouble.  When left initialized to zero,
@@ -343,9 +343,9 @@ static int pcf857x_probe(struct i2c_client *client,
 		gpio->irqchip.name = "pcf857x",
 		gpio->irqchip.irq_enable = pcf857x_irq_enable,
 		gpio->irqchip.irq_disable = pcf857x_irq_disable,
-		gpio->irqchip.irq_ack = noop,
-		gpio->irqchip.irq_mask = noop,
-		gpio->irqchip.irq_unmask = noop,
+		gpio->irqchip.irq_ack = yesop,
+		gpio->irqchip.irq_mask = yesop,
+		gpio->irqchip.irq_unmask = yesop,
 		gpio->irqchip.irq_set_wake = pcf857x_irq_set_wake,
 		gpio->irqchip.irq_bus_lock = pcf857x_irq_bus_lock,
 		gpio->irqchip.irq_bus_sync_unlock = pcf857x_irq_bus_sync_unlock,
@@ -354,7 +354,7 @@ static int pcf857x_probe(struct i2c_client *client,
 						     0, handle_level_irq,
 						     IRQ_TYPE_NONE);
 		if (status) {
-			dev_err(&client->dev, "cannot add irqchip\n");
+			dev_err(&client->dev, "canyest add irqchip\n");
 			goto fail;
 		}
 

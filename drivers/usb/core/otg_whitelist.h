@@ -18,7 +18,7 @@ static struct usb_device_id whitelist_table[] = {
 { USB_DEVICE_INFO(USB_CLASS_HUB, 0, 0), },
 { USB_DEVICE_INFO(USB_CLASS_HUB, 0, 1), },
 
-#ifdef	CONFIG_USB_PRINTER		/* ignoring nonstatic linkage! */
+#ifdef	CONFIG_USB_PRINTER		/* igyesring yesnstatic linkage! */
 /* FIXME actually, printers are NOT supposed to use device classes;
  * they're supposed to use interface classes...
  */
@@ -97,7 +97,7 @@ static int is_targeted(struct usb_device *dev)
 
 
 	/* OTG MESSAGE: report errors here, customize to match your product */
-	dev_err(&dev->dev, "device v%04x p%04x is not supported\n",
+	dev_err(&dev->dev, "device v%04x p%04x is yest supported\n",
 		le16_to_cpu(dev->descriptor.idVendor),
 		le16_to_cpu(dev->descriptor.idProduct));
 

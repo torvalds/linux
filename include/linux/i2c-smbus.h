@@ -20,7 +20,7 @@
  * @irq: IRQ number, if the smbus_alert driver should take care of interrupt
  *		handling
  *
- * If irq is not specified, the smbus_alert driver doesn't take care of
+ * If irq is yest specified, the smbus_alert driver doesn't take care of
  * interrupt handling. In that case it is up to the I2C bus driver to either
  * handle the interrupts or to poll for alerts.
  *

@@ -78,7 +78,7 @@ unsigned long uprobe_get_swbp_addr(struct pt_regs *regs)
  * sets thread.trap_nr != UINT_MAX.
  *
  * arch_uprobe_pre_xol/arch_uprobe_post_xol save/restore thread.trap_nr,
- * arch_uprobe_xol_was_trapped() simply checks that ->trap_nr is not equal to
+ * arch_uprobe_xol_was_trapped() simply checks that ->trap_nr is yest equal to
  * UPROBE_TRAP_NR == UINT_MAX set by arch_uprobe_pre_xol().
  */
 bool arch_uprobe_xol_was_trapped(struct task_struct *t)
@@ -118,7 +118,7 @@ int arch_uprobe_post_xol(struct arch_uprobe *auprobe, struct pt_regs *regs)
 }
 
 /* callback routine for handling exceptions. */
-int arch_uprobe_exception_notify(struct notifier_block *self,
+int arch_uprobe_exception_yestify(struct yestifier_block *self,
 				unsigned long val, void *data)
 {
 	struct die_args *args = data;
@@ -134,11 +134,11 @@ int arch_uprobe_exception_notify(struct notifier_block *self,
 
 	switch (val) {
 	case DIE_BPT:
-		if (uprobe_pre_sstep_notifier(regs))
+		if (uprobe_pre_sstep_yestifier(regs))
 			return NOTIFY_STOP;
 		break;
 	case DIE_SSTEP:
-		if (uprobe_post_sstep_notifier(regs))
+		if (uprobe_post_sstep_yestifier(regs))
 			return NOTIFY_STOP;
 	default:
 		break;

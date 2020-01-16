@@ -6,7 +6,7 @@
  *  Copyright  2003  mjander
  *  mjander@users.sourceforge.net
  *
- * A3D. You may think i'm crazy, but this may work someday. Who knows...
+ * A3D. You may think i'm crazy, but this may work someday. Who kyesws...
  ****************************************************************************/
 
 /*
@@ -615,17 +615,17 @@ static void vortex_Vort3D_connect(vortex_t * v, int en)
 #if 1
 	/* Alloc Xtalk mixin resources */
 	v->mixxtlk[0] =
-	    vortex_adb_checkinout(v, v->fixed_res, en, VORTEX_RESOURCE_MIXIN);
+	    vortex_adb_checkiyesut(v, v->fixed_res, en, VORTEX_RESOURCE_MIXIN);
 	if (v->mixxtlk[0] < 0) {
 		dev_warn(v->card->dev,
-			 "vortex_Vort3D: ERROR: not enough free mixer resources.\n");
+			 "vortex_Vort3D: ERROR: yest eyesugh free mixer resources.\n");
 		return;
 	}
 	v->mixxtlk[1] =
-	    vortex_adb_checkinout(v, v->fixed_res, en, VORTEX_RESOURCE_MIXIN);
+	    vortex_adb_checkiyesut(v, v->fixed_res, en, VORTEX_RESOURCE_MIXIN);
 	if (v->mixxtlk[1] < 0) {
 		dev_warn(v->card->dev,
-			 "vortex_Vort3D: ERROR: not enough free mixer resources.\n");
+			 "vortex_Vort3D: ERROR: yest eyesugh free mixer resources.\n");
 		return;
 	}
 #endif
@@ -669,7 +669,7 @@ static void vortex_Vort3D_InitializeSource(a3dsrc_t *a, int en, vortex_t *v)
 {
 	if (a->vortex == NULL) {
 		dev_warn(v->card->dev,
-			 "Vort3D_InitializeSource: A3D source not initialized\n");
+			 "Vort3D_InitializeSource: A3D source yest initialized\n");
 		return;
 	}
 	if (en) {

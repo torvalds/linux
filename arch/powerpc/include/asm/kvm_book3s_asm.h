@@ -29,34 +29,34 @@
 
 #include <asm/kvm_asm.h>
 
-.macro DO_KVM intno
-	.if (\intno == BOOK3S_INTERRUPT_SYSTEM_RESET) || \
-	    (\intno == BOOK3S_INTERRUPT_MACHINE_CHECK) || \
-	    (\intno == BOOK3S_INTERRUPT_DATA_STORAGE) || \
-	    (\intno == BOOK3S_INTERRUPT_INST_STORAGE) || \
-	    (\intno == BOOK3S_INTERRUPT_DATA_SEGMENT) || \
-	    (\intno == BOOK3S_INTERRUPT_INST_SEGMENT) || \
-	    (\intno == BOOK3S_INTERRUPT_EXTERNAL) || \
-	    (\intno == BOOK3S_INTERRUPT_EXTERNAL_HV) || \
-	    (\intno == BOOK3S_INTERRUPT_ALIGNMENT) || \
-	    (\intno == BOOK3S_INTERRUPT_PROGRAM) || \
-	    (\intno == BOOK3S_INTERRUPT_FP_UNAVAIL) || \
-	    (\intno == BOOK3S_INTERRUPT_DECREMENTER) || \
-	    (\intno == BOOK3S_INTERRUPT_SYSCALL) || \
-	    (\intno == BOOK3S_INTERRUPT_TRACE) || \
-	    (\intno == BOOK3S_INTERRUPT_PERFMON) || \
-	    (\intno == BOOK3S_INTERRUPT_ALTIVEC) || \
-	    (\intno == BOOK3S_INTERRUPT_VSX)
+.macro DO_KVM intyes
+	.if (\intyes == BOOK3S_INTERRUPT_SYSTEM_RESET) || \
+	    (\intyes == BOOK3S_INTERRUPT_MACHINE_CHECK) || \
+	    (\intyes == BOOK3S_INTERRUPT_DATA_STORAGE) || \
+	    (\intyes == BOOK3S_INTERRUPT_INST_STORAGE) || \
+	    (\intyes == BOOK3S_INTERRUPT_DATA_SEGMENT) || \
+	    (\intyes == BOOK3S_INTERRUPT_INST_SEGMENT) || \
+	    (\intyes == BOOK3S_INTERRUPT_EXTERNAL) || \
+	    (\intyes == BOOK3S_INTERRUPT_EXTERNAL_HV) || \
+	    (\intyes == BOOK3S_INTERRUPT_ALIGNMENT) || \
+	    (\intyes == BOOK3S_INTERRUPT_PROGRAM) || \
+	    (\intyes == BOOK3S_INTERRUPT_FP_UNAVAIL) || \
+	    (\intyes == BOOK3S_INTERRUPT_DECREMENTER) || \
+	    (\intyes == BOOK3S_INTERRUPT_SYSCALL) || \
+	    (\intyes == BOOK3S_INTERRUPT_TRACE) || \
+	    (\intyes == BOOK3S_INTERRUPT_PERFMON) || \
+	    (\intyes == BOOK3S_INTERRUPT_ALTIVEC) || \
+	    (\intyes == BOOK3S_INTERRUPT_VSX)
 
-	b	kvmppc_trampoline_\intno
-kvmppc_resume_\intno:
+	b	kvmppc_trampoline_\intyes
+kvmppc_resume_\intyes:
 
 	.endif
 .endm
 
 #else
 
-.macro DO_KVM intno
+.macro DO_KVM intyes
 .endm
 
 #endif /* CONFIG_KVM_BOOK3S_HANDLER */

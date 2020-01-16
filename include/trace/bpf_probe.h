@@ -57,7 +57,7 @@
 
 #undef DECLARE_EVENT_CLASS
 #define DECLARE_EVENT_CLASS(call, proto, args, tstruct, assign, print)	\
-static notrace void							\
+static yestrace void							\
 __bpf_trace_##call(void *__data, proto)					\
 {									\
 	struct bpf_prog *prog = __data;					\
@@ -90,8 +90,8 @@ __bpf_trace_tp_map_##call = {						\
 #define DEFINE_EVENT_WRITABLE(template, call, proto, args, size)	\
 static inline void bpf_test_buffer_##call(void)				\
 {									\
-	/* BUILD_BUG_ON() is ignored if the code is completely eliminated, but \
-	 * BUILD_BUG_ON_ZERO() uses a different mechanism that is not	\
+	/* BUILD_BUG_ON() is igyesred if the code is completely eliminated, but \
+	 * BUILD_BUG_ON_ZERO() uses a different mechanism that is yest	\
 	 * dead-code-eliminated.					\
 	 */								\
 	FIRST(proto);							\

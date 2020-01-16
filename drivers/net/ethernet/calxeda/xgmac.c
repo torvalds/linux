@@ -184,7 +184,7 @@
 
 /* DMA Normal interrupt */
 #define DMA_INTR_ENA_NIE	0x00010000	/* Normal Summary */
-#define DMA_INTR_ENA_AIE	0x00008000	/* Abnormal Summary */
+#define DMA_INTR_ENA_AIE	0x00008000	/* Abyesrmal Summary */
 #define DMA_INTR_ENA_ERE	0x00004000	/* Early Receive */
 #define DMA_INTR_ENA_FBE	0x00002000	/* Fatal Bus Error */
 #define DMA_INTR_ENA_ETE	0x00000400	/* Early Transmit */
@@ -222,7 +222,7 @@
 #define DMA_STATUS_RS_MASK	0x000e0000	/* Receive Process State */
 #define DMA_STATUS_RS_SHIFT	17
 #define DMA_STATUS_NIS		0x00010000	/* Normal Interrupt Summary */
-#define DMA_STATUS_AIS		0x00008000	/* Abnormal Interrupt Summary */
+#define DMA_STATUS_AIS		0x00008000	/* Abyesrmal Interrupt Summary */
 #define DMA_STATUS_ERI		0x00004000	/* Early Receive Interrupt */
 #define DMA_STATUS_FBI		0x00002000	/* Fatal Bus Error Interrupt */
 #define DMA_STATUS_ETI		0x00000400	/* Early Transmit Interrupt */
@@ -969,7 +969,7 @@ static int xgmac_hw_init(struct net_device *dev)
 	/* Mask power mgt interrupt */
 	writel(XGMAC_INT_STAT_PMTIM, ioaddr + XGMAC_INT_STAT);
 
-	/* XGMAC requires AXI bus init. This is a 'magic number' for now */
+	/* XGMAC requires AXI bus init. This is a 'magic number' for yesw */
 	writel(0x0077000E, ioaddr + XGMAC_DMA_AXI_BUS);
 
 	ctrl |= XGMAC_CONTROL_DDIC | XGMAC_CONTROL_JE | XGMAC_CONTROL_ACS |
@@ -996,7 +996,7 @@ static int xgmac_hw_init(struct net_device *dev)
  *  Description:
  *  This function is the open entry point of the driver.
  *  Return value:
- *  0 on success and an appropriate (-)ve integer as defined in errno.h
+ *  0 on success and an appropriate (-)ve integer as defined in erryes.h
  *  file on failure.
  */
 static int xgmac_open(struct net_device *dev)
@@ -1005,7 +1005,7 @@ static int xgmac_open(struct net_device *dev)
 	struct xgmac_priv *priv = netdev_priv(dev);
 	void __iomem *ioaddr = priv->base;
 
-	/* Check that the MAC address is valid.  If its not, refuse
+	/* Check that the MAC address is valid.  If its yest, refuse
 	 * to bring the device up. The user must specify an
 	 * address using the following linux command:
 	 *      ifconfig eth0 hw ether xx:xx:xx:xx:xx:xx  */
@@ -1345,7 +1345,7 @@ out:
  *  to drive packet transmission. Ethernet has an MTU of 1500 octets
  *  (ETH_DATA_LEN). This value can be changed with ifconfig.
  *  Return value:
- *  0 on success and an appropriate (-)ve integer as defined in errno.h
+ *  0 on success and an appropriate (-)ve integer as defined in erryes.h
  *  file on failure.
  */
 static int xgmac_change_mtu(struct net_device *dev, int new_mtu)
@@ -1426,7 +1426,7 @@ static irqreturn_t xgmac_interrupt(int irq, void *dev_id)
 }
 
 #ifdef CONFIG_NET_POLL_CONTROLLER
-/* Polling receive - used by NETCONSOLE and other diagnostic tools
+/* Polling receive - used by NETCONSOLE and other diagyesstic tools
  * to allow network I/O with interrupts disabled. */
 static void xgmac_poll_controller(struct net_device *dev)
 {
@@ -1747,7 +1747,7 @@ static int xgmac_probe(struct platform_device *pdev)
 	ret = request_irq(ndev->irq, xgmac_interrupt, 0,
 			  dev_name(&pdev->dev), ndev);
 	if (ret < 0) {
-		netdev_err(ndev, "Could not request irq %d - ret %d)\n",
+		netdev_err(ndev, "Could yest request irq %d - ret %d)\n",
 			ndev->irq, ret);
 		goto err_irq;
 	}
@@ -1762,7 +1762,7 @@ static int xgmac_probe(struct platform_device *pdev)
 	ret = request_irq(priv->pmt_irq, xgmac_pmt_interrupt, 0,
 			  dev_name(&pdev->dev), ndev);
 	if (ret < 0) {
-		netdev_err(ndev, "Could not request irq %d - ret %d)\n",
+		netdev_err(ndev, "Could yest request irq %d - ret %d)\n",
 			priv->pmt_irq, ret);
 		goto err_pmt_irq;
 	}
@@ -1785,7 +1785,7 @@ static int xgmac_probe(struct platform_device *pdev)
 	/* Get the MAC address */
 	xgmac_get_mac_addr(priv->base, ndev->dev_addr, 0);
 	if (!is_valid_ether_addr(ndev->dev_addr))
-		netdev_warn(ndev, "MAC address %pM not valid",
+		netdev_warn(ndev, "MAC address %pM yest valid",
 			 ndev->dev_addr);
 
 	netif_napi_add(ndev, &priv->napi, xgmac_poll, 64);

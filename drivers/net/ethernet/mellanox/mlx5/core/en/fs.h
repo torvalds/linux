@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB */
-/* Copyright (c) 2018 Mellanox Technologies. */
+/* Copyright (c) 2018 Mellayesx Techyeslogies. */
 
 #ifndef __MLX5E_FLOW_STEER_H__
 #define __MLX5E_FLOW_STEER_H__
@@ -20,7 +20,7 @@ struct mlx5e_tc_table {
 	struct mutex hairpin_tbl_lock; /* protects hairpin_tbl */
 	DECLARE_HASHTABLE(hairpin_tbl, 8);
 
-	struct notifier_block     netdevice_nb;
+	struct yestifier_block     netdevice_nb;
 };
 
 struct mlx5e_flow_table {

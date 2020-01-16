@@ -662,13 +662,13 @@ static int cdce706_probe(struct i2c_client *client,
 	ret = cdce706_register_clkouts(cdce);
 	if (ret < 0)
 		return ret;
-	return of_clk_add_hw_provider(client->dev.of_node, of_clk_cdce_get,
+	return of_clk_add_hw_provider(client->dev.of_yesde, of_clk_cdce_get,
 				      cdce);
 }
 
 static int cdce706_remove(struct i2c_client *client)
 {
-	of_clk_del_provider(client->dev.of_node);
+	of_clk_del_provider(client->dev.of_yesde);
 	return 0;
 }
 

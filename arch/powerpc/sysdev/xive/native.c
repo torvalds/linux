@@ -23,7 +23,7 @@
 #include <asm/io.h>
 #include <asm/smp.h>
 #include <asm/irq.h>
-#include <asm/errno.h>
+#include <asm/erryes.h>
 #include <asm/xive.h>
 #include <asm/xive-regs.h>
 #include <asm/opal.h>
@@ -231,7 +231,7 @@ static void xive_native_cleanup_queue(unsigned int cpu, struct xive_cpu *xc, u8 
 	unsigned int alloc_order;
 
 	/*
-	 * We use the variant with no iounmap as this is called on exec
+	 * We use the variant with yes iounmap as this is called on exec
 	 * from an IPI and iounmap isn't safe
 	 */
 	__xive_native_disable_queue(get_hard_smp_processor_id(cpu), q, prio);
@@ -240,9 +240,9 @@ static void xive_native_cleanup_queue(unsigned int cpu, struct xive_cpu *xc, u8 
 	q->qpage = NULL;
 }
 
-static bool xive_native_match(struct device_node *node)
+static bool xive_native_match(struct device_yesde *yesde)
 {
-	return of_device_is_compatible(node, "ibm,opal-xive-vc");
+	return of_device_is_compatible(yesde, "ibm,opal-xive-vc");
 }
 
 static s64 opal_xive_allocate_irq(u32 chip_id)
@@ -251,7 +251,7 @@ static s64 opal_xive_allocate_irq(u32 chip_id)
 
 	/*
 	 * Old versions of skiboot can incorrectly return 0xffffffff to
-	 * indicate no space, fix it up here.
+	 * indicate yes space, fix it up here.
 	 */
 	return irq == 0xffffffff ? OPAL_RESOURCE : irq;
 }
@@ -342,7 +342,7 @@ static void xive_native_update_pending(struct xive_cpu *xc)
 	u8 he, cppr;
 	u16 ack;
 
-	/* Perform the acknowledge hypervisor to register cycle */
+	/* Perform the ackyeswledge hypervisor to register cycle */
 	ack = be16_to_cpu(__raw_readw(xive_tima + TM_SPC_ACK_HV_REG));
 
 	/* Synchronize subsequent queue accesses */
@@ -385,7 +385,7 @@ static void xive_native_update_pending(struct xive_cpu *xc)
 static void xive_native_eoi(u32 hw_irq)
 {
 	/*
-	 * Not normally used except if specific interrupts need
+	 * Not yesrmally used except if specific interrupts need
 	 * a workaround on EOI.
 	 */
 	opal_int_eoi(hw_irq);
@@ -484,7 +484,7 @@ static const struct xive_ops xive_native_ops = {
 	.name			= "native",
 };
 
-static bool xive_parse_provisioning(struct device_node *np)
+static bool xive_parse_provisioning(struct device_yesde *np)
 {
 	int rc;
 
@@ -526,12 +526,12 @@ static bool xive_parse_provisioning(struct device_node *np)
 
 static void xive_native_setup_pools(void)
 {
-	/* Allocate a pool big enough */
+	/* Allocate a pool big eyesugh */
 	pr_debug("XIVE: Allocating VP block for pool size %u\n", nr_cpu_ids);
 
 	xive_pool_vps = xive_native_alloc_vp_block(nr_cpu_ids);
 	if (WARN_ON(xive_pool_vps == XIVE_INVALID_VP))
-		pr_err("XIVE: Failed to allocate pool VP, KVM might not function\n");
+		pr_err("XIVE: Failed to allocate pool VP, KVM might yest function\n");
 
 	pr_debug("XIVE: Pool VPs allocated at 0x%x for %u max CPUs\n",
 		 xive_pool_vps, nr_cpu_ids);
@@ -548,7 +548,7 @@ EXPORT_SYMBOL_GPL(xive_tima_os);
 
 bool __init xive_native_init(void)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 	struct resource r;
 	void __iomem *tima;
 	struct property *prop;
@@ -561,9 +561,9 @@ bool __init xive_native_init(void)
 		return false;
 
 	pr_devel("xive_native_init()\n");
-	np = of_find_compatible_node(NULL, NULL, "ibm,opal-xive-pe");
+	np = of_find_compatible_yesde(NULL, NULL, "ibm,opal-xive-pe");
 	if (!np) {
-		pr_devel("not found !\n");
+		pr_devel("yest found !\n");
 		return false;
 	}
 	pr_devel("Found %pOF\n", np);
@@ -638,7 +638,7 @@ static bool xive_native_provision_pages(void)
 		u32 chip = xive_provision_chips[i];
 
 		/*
-		 * XXX TODO: Try to make the allocation local to the node where
+		 * XXX TODO: Try to make the allocation local to the yesde where
 		 * the chip resides.
 		 */
 		p = kmem_cache_alloc(xive_provision_cache, GFP_KERNEL);

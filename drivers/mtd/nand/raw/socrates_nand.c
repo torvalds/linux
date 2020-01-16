@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- *  Copyright © 2008 Ilya Yanok, Emcraft Systems
+ *  Copyright © 2008 Ilya Yayesk, Emcraft Systems
  */
 
 #include <linux/slab.h>
@@ -131,7 +131,7 @@ static int socrates_nand_probe(struct platform_device *ofdev)
 	if (!host)
 		return -ENOMEM;
 
-	host->io_base = of_iomap(ofdev->dev.of_node, 0);
+	host->io_base = of_iomap(ofdev->dev.of_yesde, 0);
 	if (host->io_base == NULL) {
 		dev_err(&ofdev->dev, "ioremap failed\n");
 		return -EIO;
@@ -143,7 +143,7 @@ static int socrates_nand_probe(struct platform_device *ofdev)
 
 	/* link the private data structures */
 	nand_set_controller_data(nand_chip, host);
-	nand_set_flash_node(nand_chip, ofdev->dev.of_node);
+	nand_set_flash_yesde(nand_chip, ofdev->dev.of_yesde);
 	mtd->name = "socrates_nand";
 	mtd->dev.parent = &ofdev->dev;
 
@@ -156,7 +156,7 @@ static int socrates_nand_probe(struct platform_device *ofdev)
 	nand_chip->ecc.mode = NAND_ECC_SOFT;	/* enable ECC */
 	nand_chip->ecc.algo = NAND_ECC_HAMMING;
 
-	/* TODO: I have no idea what real delay is. */
+	/* TODO: I have yes idea what real delay is. */
 	nand_chip->legacy.chip_delay = 20;	/* 20us command delay time */
 
 	dev_set_drvdata(&ofdev->dev, host);
@@ -212,5 +212,5 @@ static struct platform_driver socrates_nand_driver = {
 module_platform_driver(socrates_nand_driver);
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Ilya Yanok");
+MODULE_AUTHOR("Ilya Yayesk");
 MODULE_DESCRIPTION("NAND driver for Socrates board");

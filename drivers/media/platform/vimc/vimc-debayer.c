@@ -215,7 +215,7 @@ static void vimc_deb_adjust_sink_fmt(struct v4l2_mbus_framefmt *fmt)
 {
 	const struct vimc_deb_pix_map *vpix;
 
-	/* Don't accept a code that is not on the debayer table */
+	/* Don't accept a code that is yest on the debayer table */
 	vpix = vimc_deb_pix_map_by_code(fmt->code);
 	if (!vpix)
 		fmt->code = sink_fmt_default.code;
@@ -239,7 +239,7 @@ static int vimc_deb_set_fmt(struct v4l2_subdev *sd,
 	struct v4l2_mbus_framefmt *sink_fmt;
 
 	if (fmt->which == V4L2_SUBDEV_FORMAT_ACTIVE) {
-		/* Do not change the format while stream is on */
+		/* Do yest change the format while stream is on */
 		if (vdeb->src_frame)
 			return -EBUSY;
 
@@ -249,7 +249,7 @@ static int vimc_deb_set_fmt(struct v4l2_subdev *sd,
 	}
 
 	/*
-	 * Do not change the format of the source pad,
+	 * Do yest change the format of the source pad,
 	 * it is propagated from the sink
 	 */
 	if (VIMC_IS_SRC(fmt->pad)) {
@@ -462,7 +462,7 @@ static void *vimc_deb_process_frame(struct vimc_ent_device *ved,
 	unsigned int rgb[3];
 	unsigned int i, j;
 
-	/* If the stream in this node is not active, just return */
+	/* If the stream in this yesde is yest active, just return */
 	if (!vdeb->src_frame)
 		return ERR_PTR(-EINVAL);
 
@@ -576,7 +576,7 @@ struct vimc_ent_device *vimc_deb_add(struct vimc_device *vimc,
 	vdeb->sink_fmt = sink_fmt_default;
 	/*
 	 * TODO: Add support for more output formats, we only support
-	 * RGB888 for now
+	 * RGB888 for yesw
 	 * NOTE: the src format is always the same as the sink, except
 	 * for the code
 	 */

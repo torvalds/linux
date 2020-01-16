@@ -122,12 +122,12 @@ static int phy_write(struct phy *phy, u32 value, unsigned int reg)
 /*
  * Find a ratio close to the desired one using continued fraction
  * approximation ending either at exact match or maximum allowed
- * nominator, denominator.
+ * yesminator, deyesminator.
  */
-static void get_best_ratio(u32 *pnum, u32 *pdenom, u32 max_n, u32 max_d)
+static void get_best_ratio(u32 *pnum, u32 *pdeyesm, u32 max_n, u32 max_d)
 {
 	u32 a = *pnum;
-	u32 b = *pdenom;
+	u32 b = *pdeyesm;
 	u32 c;
 	u32 n[] = {0, 1};
 	u32 d[] = {1, 0};
@@ -148,7 +148,7 @@ static void get_best_ratio(u32 *pnum, u32 *pdenom, u32 max_n, u32 max_d)
 		b = c;
 	}
 	*pnum = n[i];
-	*pdenom = d[i];
+	*pdeyesm = d[i];
 }
 
 static int mixel_dphy_config_from_opts(struct phy *phy,
@@ -157,7 +157,7 @@ static int mixel_dphy_config_from_opts(struct phy *phy,
 {
 	struct mixel_dphy_priv *priv = dev_get_drvdata(phy->dev.parent);
 	unsigned long ref_clk = clk_get_rate(priv->phy_ref_clk);
-	u32 lp_t, numerator, denominator;
+	u32 lp_t, numerator, deyesminator;
 	unsigned long long tmp;
 	u32 n;
 	int i;
@@ -167,28 +167,28 @@ static int mixel_dphy_config_from_opts(struct phy *phy,
 		return -EINVAL;
 
 	numerator = dphy_opts->hs_clk_rate;
-	denominator = ref_clk;
-	get_best_ratio(&numerator, &denominator, 255, 256);
-	if (!numerator || !denominator) {
+	deyesminator = ref_clk;
+	get_best_ratio(&numerator, &deyesminator, 255, 256);
+	if (!numerator || !deyesminator) {
 		dev_err(&phy->dev, "Invalid %d/%d for %ld/%ld\n",
-			numerator, denominator,
+			numerator, deyesminator,
 			dphy_opts->hs_clk_rate, ref_clk);
 		return -EINVAL;
 	}
 
-	while ((numerator < 16) && (denominator <= 128)) {
+	while ((numerator < 16) && (deyesminator <= 128)) {
 		numerator <<= 1;
-		denominator <<= 1;
+		deyesminator <<= 1;
 	}
 	/*
 	 * CM ranges between 16 and 255
 	 * CN ranges between 1 and 32
 	 * CO is power of 2: 1, 2, 4, 8
 	 */
-	i = __ffs(denominator);
+	i = __ffs(deyesminator);
 	if (i > 3)
 		i = 3;
-	cfg->cn = denominator >> i;
+	cfg->cn = deyesminator >> i;
 	cfg->co = 1 << i;
 	cfg->cm = numerator;
 
@@ -199,12 +199,12 @@ static int mixel_dphy_config_from_opts(struct phy *phy,
 			cfg->cm, cfg->cn, cfg->co);
 		dev_err(&phy->dev, "for hs_clk/ref_clk=%ld/%ld ~ %d/%d\n",
 			dphy_opts->hs_clk_rate, ref_clk,
-			numerator, denominator);
+			numerator, deyesminator);
 		return -EINVAL;
 	}
 
 	dev_dbg(&phy->dev, "hs_clk/ref_clk=%ld/%ld ~ %d/%d\n",
-		dphy_opts->hs_clk_rate, ref_clk, numerator, denominator);
+		dphy_opts->hs_clk_rate, ref_clk, numerator, deyesminator);
 
 	/* LP clock period */
 	tmp = 1000000000000LL;
@@ -388,7 +388,7 @@ static int mixel_dphy_power_on(struct phy *phy)
 				       locked, PLL_LOCK_SLEEP,
 				       PLL_LOCK_TIMEOUT);
 	if (ret < 0) {
-		dev_err(&phy->dev, "Could not get DPHY lock (%d)!\n", ret);
+		dev_err(&phy->dev, "Could yest get DPHY lock (%d)!\n", ret);
 		goto clock_disable;
 	}
 	phy_write(phy, PWR_ON, DPHY_PD_DPHY);
@@ -431,7 +431,7 @@ MODULE_DEVICE_TABLE(of, mixel_dphy_of_match);
 static int mixel_dphy_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 	struct phy_provider *phy_provider;
 	struct mixel_dphy_priv *priv;
 	struct resource *res;

@@ -11,7 +11,7 @@
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright yestice and this permission yestice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
  *
@@ -83,7 +83,7 @@ static int vmw_ldu_commit_list(struct vmw_private *dev_priv)
 	struct drm_crtc *crtc = NULL;
 	int i = 0;
 
-	/* If there is no display topology the host just assumes
+	/* If there is yes display topology the host just assumes
 	 * that the guest will set the same layout as the host.
 	 */
 	if (!(dev_priv->capabilities & SVGA_CAP_DISPLAY_TOPOLOGY)) {
@@ -145,7 +145,7 @@ static int vmw_ldu_del_active(struct vmw_private *vmw_priv,
 	if (list_empty(&ldu->active))
 		return 0;
 
-	/* Must init otherwise list_empty(&ldu->active) will not work. */
+	/* Must init otherwise list_empty(&ldu->active) will yest work. */
 	list_del_init(&ldu->active);
 	if (--(ld->num_active) == 0) {
 		BUG_ON(!ld->fb);
@@ -194,13 +194,13 @@ static int vmw_ldu_add_active(struct vmw_private *vmw_priv,
 }
 
 /**
- * vmw_ldu_crtc_mode_set_nofb - Enable svga
+ * vmw_ldu_crtc_mode_set_yesfb - Enable svga
  *
  * @crtc: CRTC associated with the new screen
  *
  * For LDU, just enable the svga
  */
-static void vmw_ldu_crtc_mode_set_nofb(struct drm_crtc *crtc)
+static void vmw_ldu_crtc_mode_set_yesfb(struct drm_crtc *crtc)
 {
 }
 
@@ -341,7 +341,7 @@ drm_plane_helper_funcs vmw_ldu_primary_plane_helper_funcs = {
 };
 
 static const struct drm_crtc_helper_funcs vmw_ldu_crtc_helper_funcs = {
-	.mode_set_nofb = vmw_ldu_crtc_mode_set_nofb,
+	.mode_set_yesfb = vmw_ldu_crtc_mode_set_yesfb,
 	.atomic_check = vmw_du_crtc_atomic_check,
 	.atomic_begin = vmw_du_crtc_atomic_begin,
 	.atomic_flush = vmw_du_crtc_atomic_flush,

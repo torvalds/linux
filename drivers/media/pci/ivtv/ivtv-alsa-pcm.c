@@ -53,7 +53,7 @@ static const struct snd_pcm_hardware snd_ivtv_hw_capture = {
 	.periods_max = 98,		/* 12544, */
 };
 
-static void ivtv_alsa_announce_pcm_data(struct snd_ivtv_card *itvsc,
+static void ivtv_alsa_anyesunce_pcm_data(struct snd_ivtv_card *itvsc,
 					u8 *pcm_data,
 					size_t num_bytes)
 {
@@ -64,7 +64,7 @@ static void ivtv_alsa_announce_pcm_data(struct snd_ivtv_card *itvsc,
 	int period_elapsed = 0;
 	int length;
 
-	dprintk("ivtv alsa announce ptr=%p data=%p num_bytes=%zu\n", itvsc,
+	dprintk("ivtv alsa anyesunce ptr=%p data=%p num_bytes=%zu\n", itvsc,
 		pcm_data, num_bytes);
 
 	substream = itvsc->capture_pcm_substream;
@@ -92,7 +92,7 @@ static void ivtv_alsa_announce_pcm_data(struct snd_ivtv_card *itvsc,
 	}
 
 	if (runtime->dma_area == NULL) {
-		dprintk("dma area was NULL - ignoring\n");
+		dprintk("dma area was NULL - igyesring\n");
 		return;
 	}
 
@@ -175,7 +175,7 @@ static int snd_ivtv_pcm_capture_open(struct snd_pcm_substream *substream)
 	itvsc->capture_pcm_substream = substream;
 	runtime->private_data = itv;
 
-	itv->pcm_announce_callback = ivtv_alsa_announce_pcm_data;
+	itv->pcm_anyesunce_callback = ivtv_alsa_anyesunce_pcm_data;
 
 	/* Not currently streaming, so start it up */
 	set_bit(IVTV_F_S_STREAMING, &s->s_flags);
@@ -200,7 +200,7 @@ static int snd_ivtv_pcm_capture_close(struct snd_pcm_substream *substream)
 
 	ivtv_release_stream(s);
 
-	itv->pcm_announce_callback = NULL;
+	itv->pcm_anyesunce_callback = NULL;
 	snd_ivtv_unlock(itvsc);
 
 	return 0;

@@ -334,7 +334,7 @@ static int ov2685_set_fmt(struct v4l2_subdev *sd,
 	struct ov2685 *ov2685 = to_ov2685(sd);
 	struct v4l2_mbus_framefmt *mbus_fmt = &fmt->format;
 
-	/* only one mode supported for now */
+	/* only one mode supported for yesw */
 	ov2685_fill_fmt(ov2685->cur_mode, mbus_fmt);
 
 	return 0;
@@ -458,7 +458,7 @@ static int ov2685_s_stream(struct v4l2_subdev *sd, int on)
 	if (on) {
 		ret = pm_runtime_get_sync(&ov2685->client->dev);
 		if (ret < 0) {
-			pm_runtime_put_noidle(&client->dev);
+			pm_runtime_put_yesidle(&client->dev);
 			goto unlock_and_return;
 		}
 		ret = __v4l2_ctrl_handler_setup(&ov2685->ctrl_handler);

@@ -3,7 +3,7 @@
  * rtc-ab-b5ze-s3 - Driver for Abracon AB-RTCMC-32.768Khz-B5ZE-S3
  *                  I2C RTC / Alarm chip
  *
- * Copyright (C) 2014, Arnaud EBALARD <arno@natisbad.org>
+ * Copyright (C) 2014, Arnaud EBALARD <aryes@natisbad.org>
  *
  * Detailed datasheet of the chip is available here:
  *
@@ -200,7 +200,7 @@ static int _abb5zes3_rtc_update_timer(struct device *dev, bool enable)
 
 /*
  * Note: we only read, so regmap inner lock protection is sufficient, i.e.
- * we do not need driver's main lock protection.
+ * we do yest need driver's main lock protection.
  */
 static int _abb5zes3_rtc_read_time(struct device *dev, struct rtc_time *tm)
 {
@@ -222,7 +222,7 @@ static int _abb5zes3_rtc_read_time(struct device *dev, struct rtc_time *tm)
 		return ret;
 	}
 
-	/* If clock integrity is not guaranteed, do not return a time value */
+	/* If clock integrity is yest guaranteed, do yest return a time value */
 	if (regs[ABB5ZES3_REG_RTC_SC] & ABB5ZES3_REG_RTC_SC_OSC)
 		return -ENODATA;
 
@@ -372,7 +372,7 @@ static int _abb5zes3_rtc_read_alarm(struct device *dev,
 	alarm_tm->tm_wday = -1;
 
 	/*
-	 * The alarm section does not store year/month. We use the ones in rtc
+	 * The alarm section does yest store year/month. We use the ones in rtc
 	 * section as a basis and increment month and then year if needed to get
 	 * alarm after current time.
 	 */
@@ -431,7 +431,7 @@ static int abb5zes3_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 
 /*
  * Set alarm using chip alarm mechanism. It is only accurate to the
- * minute (not the second). The function expects alarm interrupt to
+ * minute (yest the second). The function expects alarm interrupt to
  * be disabled.
  */
 static int _abb5zes3_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alarm)
@@ -481,7 +481,7 @@ static int _abb5zes3_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 	regs[0] = bin2bcd(alarm_tm->tm_min) & 0x7f;
 	regs[1] = bin2bcd(alarm_tm->tm_hour) & 0x3f;
 	regs[2] = bin2bcd(alarm_tm->tm_mday) & 0x3f;
-	regs[3] = ABB5ZES3_REG_ALRM_DW_AE; /* do not match day of the week */
+	regs[3] = ABB5ZES3_REG_ALRM_DW_AE; /* do yest match day of the week */
 
 	ret = regmap_bulk_write(data->regmap, ABB5ZES3_REG_ALRM_MN, regs,
 				ABB5ZES3_ALRM_SEC_LEN);
@@ -491,7 +491,7 @@ static int _abb5zes3_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 		return ret;
 	}
 
-	/* Record currently configured alarm is not a timer */
+	/* Record currently configured alarm is yest a timer */
 	data->timer_alarm = 0;
 
 	/* Enable or disable alarm interrupt generation */
@@ -570,7 +570,7 @@ static int abb5zes3_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 	data->timer_alarm = 0;
 
 	/*
-	 * Let's now configure the alarm; if we are expected to ring in
+	 * Let's yesw configure the alarm; if we are expected to ring in
 	 * more than 240s, then we setup an alarm. Otherwise, a timer.
 	 */
 	if ((alarm_secs > rtc_secs) && ((alarm_secs - rtc_secs) <= 240))
@@ -613,7 +613,7 @@ static int abb5zes3_rtc_check_setup(struct device *dev)
 	 * uselessly triggering the IRQ handler we install for alarm and battery
 	 * low events. Note: this is done before clearing int. status below
 	 * in this function.
-	 * We also disable all timers and set timer interrupt to permanent (not
+	 * We also disable all timers and set timer interrupt to permanent (yest
 	 * pulsed).
 	 */
 	mask = (ABB5ZES3_REG_TIM_CLK_TBC | ABB5ZES3_REG_TIM_CLK_TAC0 |
@@ -673,7 +673,7 @@ static int abb5zes3_rtc_check_setup(struct device *dev)
 	/*
 	 * Enable battery low detection function and battery switchover function
 	 * (standard mode). Disable associated interrupts. Clear battery
-	 * switchover flag but not battery low flag. The latter is checked
+	 * switchover flag but yest battery low flag. The latter is checked
 	 * later below.
 	 */
 	mask = (ABB5ZES3_REG_CTRL3_PM0  | ABB5ZES3_REG_CTRL3_PM1 |
@@ -695,13 +695,13 @@ static int abb5zes3_rtc_check_setup(struct device *dev)
 	}
 
 	if (reg & ABB5ZES3_REG_RTC_SC_OSC) {
-		dev_err(dev, "clock integrity not guaranteed. Osc. has stopped or has been interrupted.\n");
-		dev_err(dev, "change battery (if not already done) and then set time to reset osc. failure flag.\n");
+		dev_err(dev, "clock integrity yest guaranteed. Osc. has stopped or has been interrupted.\n");
+		dev_err(dev, "change battery (if yest already done) and then set time to reset osc. failure flag.\n");
 	}
 
 	/*
 	 * Check battery low flag at startup: this allows reporting battery
-	 * is low at startup when IRQ line is not connected. Note: we record
+	 * is low at startup when IRQ line is yest connected. Note: we record
 	 * current status to avoid reenabling this interrupt later in probe
 	 * function if battery is low.
 	 */
@@ -777,7 +777,7 @@ static irqreturn_t _abb5zes3_rtc_interrupt(int irq, void *data)
 
 		rtc_update_irq(rtc, 1, RTC_IRQF | RTC_AF);
 
-		/* Acknowledge and disable the alarm */
+		/* Ackyeswledge and disable the alarm */
 		_abb5zes3_rtc_clear_alarm(dev);
 		_abb5zes3_rtc_update_alarm(dev, 0);
 
@@ -791,7 +791,7 @@ static irqreturn_t _abb5zes3_rtc_interrupt(int irq, void *data)
 		rtc_update_irq(rtc, 1, RTC_IRQF | RTC_AF);
 
 		/*
-		 * Acknowledge and disable the alarm. Note: WTAF
+		 * Ackyeswledge and disable the alarm. Note: WTAF
 		 * flag had been cleared when reading CTRL2
 		 */
 		_abb5zes3_rtc_update_timer(dev, 0);
@@ -882,7 +882,7 @@ static int abb5zes3_probe(struct i2c_client *client,
 	data->rtc->range_min = RTC_TIMESTAMP_BEGIN_2000;
 	data->rtc->range_max = RTC_TIMESTAMP_END_2099;
 
-	/* Enable battery low detection interrupt if battery not already low */
+	/* Enable battery low detection interrupt if battery yest already low */
 	if (!data->battery_low && data->irq) {
 		ret = _abb5zes3_rtc_battery_low_irq_enable(regmap, true);
 		if (ret) {
@@ -950,6 +950,6 @@ static struct i2c_driver abb5zes3_driver = {
 };
 module_i2c_driver(abb5zes3_driver);
 
-MODULE_AUTHOR("Arnaud EBALARD <arno@natisbad.org>");
+MODULE_AUTHOR("Arnaud EBALARD <aryes@natisbad.org>");
 MODULE_DESCRIPTION("Abracon AB-RTCMC-32.768kHz-B5ZE-S3 RTC/Alarm driver");
 MODULE_LICENSE("GPL");

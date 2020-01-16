@@ -4,7 +4,7 @@
  */
 
 #include <linux/clk-provider.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/io.h>
 #include <linux/slab.h>
 

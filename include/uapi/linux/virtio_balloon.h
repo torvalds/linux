@@ -7,11 +7,11 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
+ *    yestice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the name of IBM nor the names of its contributors
+ * 3. Neither the name of IBM yesr the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS ``AS IS'' AND
@@ -56,7 +56,7 @@ struct virtio_balloon_config {
 #define VIRTIO_BALLOON_S_SWAP_IN  0   /* Amount of memory swapped in */
 #define VIRTIO_BALLOON_S_SWAP_OUT 1   /* Amount of memory swapped out */
 #define VIRTIO_BALLOON_S_MAJFLT   2   /* Number of major faults */
-#define VIRTIO_BALLOON_S_MINFLT   3   /* Number of minor faults */
+#define VIRTIO_BALLOON_S_MINFLT   3   /* Number of miyesr faults */
 #define VIRTIO_BALLOON_S_MEMFREE  4   /* Total amount of free memory */
 #define VIRTIO_BALLOON_S_MEMTOT   5   /* Total amount of memory */
 #define VIRTIO_BALLOON_S_AVAIL    6   /* Available memory as in /proc */
@@ -69,7 +69,7 @@ struct virtio_balloon_config {
 	VIRTIO_BALLOON_S_NAMES_prefix "swap-in", \
 	VIRTIO_BALLOON_S_NAMES_prefix "swap-out", \
 	VIRTIO_BALLOON_S_NAMES_prefix "major-faults", \
-	VIRTIO_BALLOON_S_NAMES_prefix "minor-faults", \
+	VIRTIO_BALLOON_S_NAMES_prefix "miyesr-faults", \
 	VIRTIO_BALLOON_S_NAMES_prefix "free-memory", \
 	VIRTIO_BALLOON_S_NAMES_prefix "total-memory", \
 	VIRTIO_BALLOON_S_NAMES_prefix "available-memory", \

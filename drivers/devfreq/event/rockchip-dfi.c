@@ -179,7 +179,7 @@ static int rockchip_dfi_probe(struct platform_device *pdev)
 	struct rockchip_dfi *data;
 	struct resource *res;
 	struct devfreq_event_desc *desc;
-	struct device_node *np = pdev->dev.of_node, *node;
+	struct device_yesde *np = pdev->dev.of_yesde, *yesde;
 
 	data = devm_kzalloc(dev, sizeof(struct rockchip_dfi), GFP_KERNEL);
 	if (!data)
@@ -192,14 +192,14 @@ static int rockchip_dfi_probe(struct platform_device *pdev)
 
 	data->clk = devm_clk_get(dev, "pclk_ddr_mon");
 	if (IS_ERR(data->clk)) {
-		dev_err(dev, "Cannot get the clk dmc_clk\n");
+		dev_err(dev, "Canyest get the clk dmc_clk\n");
 		return PTR_ERR(data->clk);
 	}
 
 	/* try to find the optional reference to the pmu syscon */
-	node = of_parse_phandle(np, "rockchip,pmu", 0);
-	if (node) {
-		data->regmap_pmu = syscon_node_to_regmap(node);
+	yesde = of_parse_phandle(np, "rockchip,pmu", 0);
+	if (yesde) {
+		data->regmap_pmu = syscon_yesde_to_regmap(yesde);
 		if (IS_ERR(data->regmap_pmu))
 			return PTR_ERR(data->regmap_pmu);
 	}

@@ -80,7 +80,7 @@ static int oxnas_reset_probe(struct platform_device *pdev)
 
 	parent = pdev->dev.parent;
 	if (!parent) {
-		dev_err(&pdev->dev, "no parent\n");
+		dev_err(&pdev->dev, "yes parent\n");
 		return -ENODEV;
 	}
 
@@ -88,7 +88,7 @@ static int oxnas_reset_probe(struct platform_device *pdev)
 	if (!data)
 		return -ENOMEM;
 
-	data->regmap = syscon_node_to_regmap(parent->of_node);
+	data->regmap = syscon_yesde_to_regmap(parent->of_yesde);
 	if (IS_ERR(data->regmap)) {
 		dev_err(&pdev->dev, "failed to get parent regmap\n");
 		return PTR_ERR(data->regmap);
@@ -99,7 +99,7 @@ static int oxnas_reset_probe(struct platform_device *pdev)
 	data->rcdev.owner = THIS_MODULE;
 	data->rcdev.nr_resets = 32;
 	data->rcdev.ops = &oxnas_reset_ops;
-	data->rcdev.of_node = pdev->dev.of_node;
+	data->rcdev.of_yesde = pdev->dev.of_yesde;
 
 	return devm_reset_controller_register(&pdev->dev, &data->rcdev);
 }

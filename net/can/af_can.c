@@ -9,21 +9,21 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
+ *    yestice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the name of Volkswagen nor the names of its contributors
+ * 3. Neither the name of Volkswagen yesr the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
- * Alternatively, provided that this notice is retained in full, this
+ * Alternatively, provided that this yestice is retained in full, this
  * software may be distributed under the terms of the GNU General
  * Public License ("GPL") version 2, in which case the provisions of the
  * GPL apply INSTEAD OF those given above.
  *
  * The provided data structures and external interfaces from this code
- * are not restricted to be used by modules with a GPL compatible license.
+ * are yest restricted to be used by modules with a GPL compatible license.
  *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
  * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
@@ -185,16 +185,16 @@ static int can_create(struct net *net, struct socket *sock, int protocol,
  * @skb: pointer to socket buffer with CAN frame in data section
  * @loop: loopback for listeners on local CAN sockets (recommended default!)
  *
- * Due to the loopback this routine must not be called from hardirq context.
+ * Due to the loopback this routine must yest be called from hardirq context.
  *
  * Return:
  *  0 on success
  *  -ENETDOWN when the selected interface is down
- *  -ENOBUFS on full driver queue (see net_xmit_errno())
+ *  -ENOBUFS on full driver queue (see net_xmit_erryes())
  *  -ENOMEM when local loopback failed at calling skb_clone()
- *  -EPERM when trying to send on a non-CAN interface
+ *  -EPERM when trying to send on a yesn-CAN interface
  *  -EMSGSIZE CAN frame size is bigger than CAN interface MTU
- *  -EINVAL when the skb->data does not contain a valid CAN frame
+ *  -EINVAL when the skb->data does yest contain a valid CAN frame
  */
 int can_send(struct sk_buff *skb, int loop)
 {
@@ -255,7 +255,7 @@ int can_send(struct sk_buff *skb, int loop)
 		 */
 
 		if (!(skb->dev->flags & IFF_ECHO)) {
-			/* If the interface is not capable to do loopback
+			/* If the interface is yest capable to do loopback
 			 * itself, we do it here.
 			 */
 			newskb = skb_clone(skb, GFP_ATOMIC);
@@ -269,14 +269,14 @@ int can_send(struct sk_buff *skb, int loop)
 			newskb->pkt_type = PACKET_BROADCAST;
 		}
 	} else {
-		/* indication for the CAN driver: no loopback required */
+		/* indication for the CAN driver: yes loopback required */
 		skb->pkt_type = PACKET_HOST;
 	}
 
 	/* send to netdevice */
 	err = dev_queue_xmit(skb);
 	if (err > 0)
-		err = net_xmit_errno(err);
+		err = net_xmit_erryes(err);
 
 	if (err) {
 		kfree_skb(newskb);
@@ -388,11 +388,11 @@ static struct hlist_head *can_rcv_list_find(canid_t *can_id, canid_t *mask,
 	if (inv)
 		return &dev_rcv_lists->rx[RX_INV];
 
-	/* mask == 0 => no condition testing at receive time */
+	/* mask == 0 => yes condition testing at receive time */
 	if (!(*mask))
 		return &dev_rcv_lists->rx[RX_ALL];
 
-	/* extra filterlists for the subscription of a single non-RTR can_id */
+	/* extra filterlists for the subscription of a single yesn-RTR can_id */
 	if (((*mask & CAN_EFF_RTR_FLAGS) == CAN_EFF_RTR_FLAGS) &&
 	    !(*can_id & CAN_RTR_FLAG)) {
 		if (*can_id & CAN_EFF_FLAG) {
@@ -428,7 +428,7 @@ static struct hlist_head *can_rcv_list_find(canid_t *can_id, canid_t *mask,
  *  filter for error message frames (CAN_ERR_FLAG bit set in mask).
  *
  *  The provided pointer to the sk_buff is guaranteed to be valid as long as
- *  the callback function is running. The callback function must *not* free
+ *  the callback function is running. The callback function must *yest* free
  *  the given sk_buff while processing it's task. When the given sk_buff is
  *  needed after the end of the callback function it must be cloned inside
  *  the callback function with skb_clone().
@@ -436,7 +436,7 @@ static struct hlist_head *can_rcv_list_find(canid_t *can_id, canid_t *mask,
  * Return:
  *  0 on success
  *  -ENOMEM on missing cache mem to create subscription entry
- *  -ENODEV unknown device
+ *  -ENODEV unkyeswn device
  */
 int can_rx_register(struct net *net, struct net_device *dev, canid_t can_id,
 		    canid_t mask, void (*func)(struct sk_buff *, void *),
@@ -528,7 +528,7 @@ void can_rx_unregister(struct net *net, struct net_device *dev, canid_t can_id,
 	rcv_list = can_rcv_list_find(&can_id, &mask, dev_rcv_lists);
 
 	/* Search the receiver list for the item to delete.  This should
-	 * exist, since no receiver may be unregistered that hasn't
+	 * exist, since yes receiver may be unregistered that hasn't
 	 * been registered before.
 	 */
 	hlist_for_each_entry_rcu(rcv, rcv_list, list) {
@@ -538,10 +538,10 @@ void can_rx_unregister(struct net *net, struct net_device *dev, canid_t can_id,
 	}
 
 	/* Check for bugs in CAN protocol implementations using af_can.c:
-	 * 'rcv' will be NULL if no matching list item was found for removal.
+	 * 'rcv' will be NULL if yes matching list item was found for removal.
 	 */
 	if (!rcv) {
-		WARN(1, "BUG: receive list entry not found for dev %s, id %03X, mask %03X\n",
+		WARN(1, "BUG: receive list entry yest found for dev %s, id %03X, mask %03X\n",
 		     DNAME(dev), can_id, mask);
 		goto out;
 	}
@@ -613,7 +613,7 @@ static int can_rcv_filter(struct can_dev_rcv_lists *dev_rcv_lists, struct sk_buf
 		}
 	}
 
-	/* check filterlists for single non-RTR can_ids */
+	/* check filterlists for single yesn-RTR can_ids */
 	if (can_id & CAN_RTR_FLAG)
 		return matches;
 
@@ -646,7 +646,7 @@ static void can_receive(struct sk_buff *skb, struct net_device *dev)
 	pkg_stats->rx_frames++;
 	pkg_stats->rx_frames_delta++;
 
-	/* create non-zero unique skb identifier together with *skb */
+	/* create yesn-zero unique skb identifier together with *skb */
 	while (!(can_skb_prv(skb)->skbcnt))
 		can_skb_prv(skb)->skbcnt = atomic_inc_return(&skbcounter);
 
@@ -677,7 +677,7 @@ static int can_rcv(struct sk_buff *skb, struct net_device *dev,
 
 	if (unlikely(dev->type != ARPHRD_CAN || skb->len != CAN_MTU ||
 		     cfd->len > CAN_MAX_DLEN)) {
-		pr_warn_once("PF_CAN: dropped non conform CAN skbuf: dev type %d, len %d, datalen %d\n",
+		pr_warn_once("PF_CAN: dropped yesn conform CAN skbuf: dev type %d, len %d, datalen %d\n",
 			     dev->type, skb->len, cfd->len);
 		kfree_skb(skb);
 		return NET_RX_DROP;
@@ -694,7 +694,7 @@ static int canfd_rcv(struct sk_buff *skb, struct net_device *dev,
 
 	if (unlikely(dev->type != ARPHRD_CAN || skb->len != CANFD_MTU ||
 		     cfd->len > CANFD_MAX_DLEN)) {
-		pr_warn_once("PF_CAN: dropped non conform CAN FD skbuf: dev type %d, len %d, datalen %d\n",
+		pr_warn_once("PF_CAN: dropped yesn conform CAN FD skbuf: dev type %d, len %d, datalen %d\n",
 			     dev->type, skb->len, cfd->len);
 		kfree_skb(skb);
 		return NET_RX_DROP;
@@ -767,11 +767,11 @@ void can_proto_unregister(const struct can_proto *cp)
 }
 EXPORT_SYMBOL(can_proto_unregister);
 
-/* af_can notifier to create/remove CAN netdevice specific structs */
-static int can_notifier(struct notifier_block *nb, unsigned long msg,
+/* af_can yestifier to create/remove CAN netdevice specific structs */
+static int can_yestifier(struct yestifier_block *nb, unsigned long msg,
 			void *ptr)
 {
-	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
+	struct net_device *dev = netdev_yestifier_info_to_dev(ptr);
 
 	if (dev->type != ARPHRD_CAN)
 		return NOTIFY_DONE;
@@ -853,9 +853,9 @@ static const struct net_proto_family can_family_ops = {
 	.owner  = THIS_MODULE,
 };
 
-/* notifier block for netdevice event */
-static struct notifier_block can_netdev_notifier __read_mostly = {
-	.notifier_call = can_notifier,
+/* yestifier block for netdevice event */
+static struct yestifier_block can_netdev_yestifier __read_mostly = {
+	.yestifier_call = can_yestifier,
 };
 
 static struct pernet_operations can_pernet_ops __read_mostly = {
@@ -888,16 +888,16 @@ static __init int can_init(void)
 	err = sock_register(&can_family_ops);
 	if (err)
 		goto out_sock;
-	err = register_netdevice_notifier(&can_netdev_notifier);
+	err = register_netdevice_yestifier(&can_netdev_yestifier);
 	if (err)
-		goto out_notifier;
+		goto out_yestifier;
 
 	dev_add_pack(&can_packet);
 	dev_add_pack(&canfd_packet);
 
 	return 0;
 
-out_notifier:
+out_yestifier:
 	sock_unregister(PF_CAN);
 out_sock:
 	unregister_pernet_subsys(&can_pernet_ops);
@@ -912,7 +912,7 @@ static __exit void can_exit(void)
 	/* protocol unregister */
 	dev_remove_pack(&canfd_packet);
 	dev_remove_pack(&can_packet);
-	unregister_netdevice_notifier(&can_netdev_notifier);
+	unregister_netdevice_yestifier(&can_netdev_yestifier);
 	sock_unregister(PF_CAN);
 
 	unregister_pernet_subsys(&can_pernet_ops);

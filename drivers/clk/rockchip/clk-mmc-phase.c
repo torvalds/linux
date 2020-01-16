@@ -17,7 +17,7 @@ struct rockchip_mmc_clock {
 	int		id;
 	int		shift;
 	int		cached_phase;
-	struct notifier_block clk_rate_change_nb;
+	struct yestifier_block clk_rate_change_nb;
 };
 
 #define to_mmc_clock(_hw) container_of(_hw, struct rockchip_mmc_clock, hw)
@@ -103,7 +103,7 @@ static int rockchip_mmc_set_phase(struct clk_hw *hw, int degrees)
 
 	/*
 	 * Due to the inexact nature of the "fine" delay, we might
-	 * actually go non-monotonic.  We don't go _too_ monotonic
+	 * actually go yesn-moyestonic.  We don't go _too_ moyestonic
 	 * though, so we should be OK.  Here are options of how we may
 	 * work:
 	 *
@@ -155,11 +155,11 @@ static const struct clk_ops rockchip_mmc_clk_ops = {
 
 #define to_rockchip_mmc_clock(x) \
 	container_of(x, struct rockchip_mmc_clock, clk_rate_change_nb)
-static int rockchip_mmc_clk_rate_notify(struct notifier_block *nb,
+static int rockchip_mmc_clk_rate_yestify(struct yestifier_block *nb,
 					unsigned long event, void *data)
 {
 	struct rockchip_mmc_clock *mmc_clock = to_rockchip_mmc_clock(nb);
-	struct clk_notifier_data *ndata = data;
+	struct clk_yestifier_data *ndata = data;
 
 	/*
 	 * rockchip_mmc_clk is mostly used by mmc controllers to sample
@@ -217,14 +217,14 @@ struct clk *rockchip_clk_register_mmc(const char *name,
 		goto err_register;
 	}
 
-	mmc_clock->clk_rate_change_nb.notifier_call =
-				&rockchip_mmc_clk_rate_notify;
-	ret = clk_notifier_register(clk, &mmc_clock->clk_rate_change_nb);
+	mmc_clock->clk_rate_change_nb.yestifier_call =
+				&rockchip_mmc_clk_rate_yestify;
+	ret = clk_yestifier_register(clk, &mmc_clock->clk_rate_change_nb);
 	if (ret)
-		goto err_notifier;
+		goto err_yestifier;
 
 	return clk;
-err_notifier:
+err_yestifier:
 	clk_unregister(clk);
 err_register:
 	kfree(mmc_clock);

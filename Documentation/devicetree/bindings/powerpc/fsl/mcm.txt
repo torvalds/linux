@@ -5,7 +5,7 @@ Copyright (C) 2009 Freescale Semiconductor Inc.
 
 Local Access Window (LAW) Node
 
-The LAW node represents the region of CCSR space where local access
+The LAW yesde represents the region of CCSR space where local access
 windows are configured.  For MCM based devices this is the first 4k
 of CCSR space that includes CCSRBAR, ALTCBAR, ALTCAR, BPTR, and some
 number of local access windows as specified by fsl,num-laws.
@@ -34,7 +34,7 @@ PROPERTIES
 
 MPX Coherency Module Node
 
-The MPX LAW node represents the region of CCSR space where MCM config
+The MPX LAW yesde represents the region of CCSR space where MCM config
 and error reporting registers exist, this is the second 4k (0x1000)
 of CCSR space.
 

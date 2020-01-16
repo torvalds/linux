@@ -93,7 +93,7 @@ static ssize_t wusb_chid_show(struct device *dev,
  * Store a new CHID.
  *
  * - Write an all zeros CHID and it will stop the controller
- * - Write a non-zero CHID and it will start it.
+ * - Write a yesn-zero CHID and it will start it.
  *
  * See wusbhc_chid_set() for more info.
  */
@@ -237,7 +237,7 @@ static const struct attribute_group wusbhc_attr_group = {
  * NOTEs:
  *
  *  - assumes *wusbhc has been zeroed and wusbhc->usb_hcd has been
- *    initialized but not added.
+ *    initialized but yest added.
  *
  *  - fill out ports_max, mmcies_max and mmcie_{add,rm} before calling.
  *
@@ -303,7 +303,7 @@ int wusbhc_b_create(struct wusbhc *wusbhc)
 
 	result = sysfs_create_group(wusbhc_kobj(wusbhc), &wusbhc_attr_group);
 	if (result < 0) {
-		dev_err(dev, "Cannot register WUSBHC attributes: %d\n",
+		dev_err(dev, "Canyest register WUSBHC attributes: %d\n",
 			result);
 		goto error_create_attr_group;
 	}
@@ -416,7 +416,7 @@ void wusbhc_giveback_urb(struct wusbhc *wusbhc, struct urb *urb, int status)
 
 		/* wusbhc_devconnect_acked() can't be called from
 		   atomic context so defer it to a work queue. */
-		if (!list_empty(&wusb_dev->cack_node))
+		if (!list_empty(&wusb_dev->cack_yesde))
 			queue_work(wusbd, &wusb_dev->devconnect_acked_work);
 		else
 			wusb_dev_put(wusb_dev);
@@ -440,8 +440,8 @@ void wusbhc_reset_all(struct wusbhc *wusbhc)
 }
 EXPORT_SYMBOL_GPL(wusbhc_reset_all);
 
-static struct notifier_block wusb_usb_notifier = {
-	.notifier_call = wusb_usb_ncb,
+static struct yestifier_block wusb_usb_yestifier = {
+	.yestifier_call = wusb_usb_ncb,
 	.priority = INT_MAX	/* Need to be called first of all */
 };
 
@@ -451,14 +451,14 @@ static int __init wusbcore_init(void)
 	result = wusb_crypto_init();
 	if (result < 0)
 		goto error_crypto_init;
-	/* WQ is singlethread because we need to serialize notifications */
+	/* WQ is singlethread because we need to serialize yestifications */
 	wusbd = create_singlethread_workqueue("wusbd");
 	if (wusbd == NULL) {
 		result = -ENOMEM;
-		printk(KERN_ERR "WUSB-core: Cannot create wusbd workqueue\n");
+		printk(KERN_ERR "WUSB-core: Canyest create wusbd workqueue\n");
 		goto error_wusbd_create;
 	}
-	usb_register_notify(&wusb_usb_notifier);
+	usb_register_yestify(&wusb_usb_yestifier);
 	bitmap_zero(wusb_cluster_id_table, CLUSTER_IDS);
 	set_bit(0, wusb_cluster_id_table);	/* reserve Cluster ID 0xff */
 	return 0;
@@ -475,11 +475,11 @@ static void __exit wusbcore_exit(void)
 {
 	clear_bit(0, wusb_cluster_id_table);
 	if (!bitmap_empty(wusb_cluster_id_table, CLUSTER_IDS)) {
-		printk(KERN_ERR "BUG: WUSB Cluster IDs not released on exit: %*pb\n",
+		printk(KERN_ERR "BUG: WUSB Cluster IDs yest released on exit: %*pb\n",
 		       CLUSTER_IDS, wusb_cluster_id_table);
 		WARN_ON(1);
 	}
-	usb_unregister_notify(&wusb_usb_notifier);
+	usb_unregister_yestify(&wusb_usb_yestifier);
 	destroy_workqueue(wusbd);
 	wusb_crypto_exit();
 }

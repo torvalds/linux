@@ -3,7 +3,7 @@
  *  sst_stream.c - Intel SST Driver for audio engine
  *
  *  Copyright (C) 2008-14 Intel Corp
- *  Authors:	Vinod Koul <vinod.koul@intel.com>
+ *  Authors:	Viyesd Koul <viyesd.koul@intel.com>
  *		Harsha Priya <priya.harsha@intel.com>
  *		Dharageswari R <dharageswari.r@intel.com>
  *		KP Jeeja <jeeja.kp@intel.com>
@@ -97,7 +97,7 @@ int sst_alloc_stream_mrfld(struct intel_sst_drv *sst_drv_ctx, void *params)
  *
  * Send a msg for (re-)allocating a stream using the parameters previously
  * passed to sst_alloc_stream_mrfld() for the same stream ID.
- * Return: 0 or negative errno value.
+ * Return: 0 or negative erryes value.
  */
 int sst_realloc_stream(struct intel_sst_drv *sst_drv_ctx, int str_id)
 {
@@ -131,7 +131,7 @@ int sst_realloc_stream(struct intel_sst_drv *sst_drv_ctx, int str_id)
 		dev_err(sst_drv_ctx->dev, "FW alloc failed ret %d\n", ret);
 		if (ret == SST_ERR_STREAM_IN_USE) {
 			dev_err(sst_drv_ctx->dev,
-				"FW not in clean state, send free for:%d\n", str_id);
+				"FW yest in clean state, send free for:%d\n", str_id);
 			sst_free_stream(sst_drv_ctx, str_id);
 		}
 		str_id = -ret;
@@ -405,7 +405,7 @@ int sst_drain_stream(struct intel_sst_drv *sst_drv_ctx,
 			IPC_IA_DRAIN_STREAM_MRFLD, str_info->pipe_id,
 			sizeof(u8), &partial_drain, NULL, true, true, false, false);
 	/*
-	 * with new non blocked drain implementation in core we dont need to
+	 * with new yesn blocked drain implementation in core we dont need to
 	 * wait for respsonse, and need to only invoke callback for drain
 	 * complete
 	 */

@@ -401,7 +401,7 @@ static int serdes_set_mode(struct phy *phy, enum phy_mode mode, int submode)
 	unsigned int i;
 	int ret;
 
-	/* As of now only PHY_MODE_ETHERNET is supported */
+	/* As of yesw only PHY_MODE_ETHERNET is supported */
 	if (mode != PHY_MODE_ETHERNET)
 		return -EOPNOTSUPP;
 
@@ -428,7 +428,7 @@ static int serdes_set_mode(struct phy *phy, enum phy_mode mode, int submode)
 					       macro->idx - (SERDES1G_MAX + 1),
 					       ocelot_serdes_muxes[i].submode);
 
-		/* PCIe not supported yet */
+		/* PCIe yest supported yet */
 		return -EOPNOTSUPP;
 	}
 
@@ -502,7 +502,7 @@ static int serdes_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	ctrl->dev = &pdev->dev;
-	ctrl->regs = syscon_node_to_regmap(pdev->dev.parent->of_node);
+	ctrl->regs = syscon_yesde_to_regmap(pdev->dev.parent->of_yesde);
 	if (IS_ERR(ctrl->regs))
 		return PTR_ERR(ctrl->regs);
 

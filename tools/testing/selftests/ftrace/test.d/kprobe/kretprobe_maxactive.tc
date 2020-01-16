@@ -5,7 +5,7 @@
 [ -f kprobe_events ] || exit_unsupported # this is configurable
 grep -q 'r\[maxactive\]' README || exit_unsupported # this is older version
 
-# Test if we successfully reject unknown messages
+# Test if we successfully reject unkyeswn messages
 if echo 'a:myprobeaccept inet_csk_accept' > kprobe_events; then false; else true; fi
 
 # Test if we successfully reject too big maxactive

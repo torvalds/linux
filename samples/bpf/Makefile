@@ -194,7 +194,7 @@ TPROGS_CFLAGS += --sysroot=$(SYSROOT)
 TPROGS_LDFLAGS := -L$(SYSROOT)/usr/lib
 endif
 
-TPROGCFLAGS_bpf_load.o += -Wno-unused-variable
+TPROGCFLAGS_bpf_load.o += -Wyes-unused-variable
 
 TPROGS_LDLIBS			+= $(LIBBPF) -lelf
 TPROGLDLIBS_tracex4		+= -lrt
@@ -212,7 +212,7 @@ BTF_PAHOLE ?= pahole
 
 # Detect that we're cross compiling and use the cross compiler
 ifdef CROSS_COMPILE
-CLANG_ARCH_ARGS = --target=$(notdir $(CROSS_COMPILE:%-=%))
+CLANG_ARCH_ARGS = --target=$(yestdir $(CROSS_COMPILE:%-=%))
 endif
 
 # Don't evaluate probes and warnings if we need to run make recursively
@@ -273,14 +273,14 @@ FORCE:
 verify_cmds: $(CLANG) $(LLC)
 	@for TOOL in $^ ; do \
 		if ! (which -- "$${TOOL}" > /dev/null 2>&1); then \
-			echo "*** ERROR: Cannot find LLVM tool $${TOOL}" ;\
+			echo "*** ERROR: Canyest find LLVM tool $${TOOL}" ;\
 			exit 1; \
 		else true; fi; \
 	done
 
 verify_target_bpf: verify_cmds
 	@if ! (${LLC} -march=bpf -mattr=help > /dev/null 2>&1); then \
-		echo "*** ERROR: LLVM (${LLC}) does not support 'bpf' target" ;\
+		echo "*** ERROR: LLVM (${LLC}) does yest support 'bpf' target" ;\
 		echo "   NOTICE: LLVM version >= 3.7.1 required" ;\
 		exit 2; \
 	else true; fi
@@ -296,18 +296,18 @@ $(obj)/hbm_edt_kern.o: $(src)/hbm.h $(src)/hbm_kern.h
 -include $(BPF_SAMPLES_PATH)/Makefile.target
 
 # asm/sysreg.h - inline assembly used by it is incompatible with llvm.
-# But, there is no easy way to fix it, so just exclude it since it is
+# But, there is yes easy way to fix it, so just exclude it since it is
 # useless for BPF samples.
 $(obj)/%.o: $(src)/%.c
 	@echo "  CLANG-bpf " $@
 	$(Q)$(CLANG) $(NOSTDINC_FLAGS) $(LINUXINCLUDE) $(BPF_EXTRA_CFLAGS) \
 		-I$(obj) -I$(srctree)/tools/testing/selftests/bpf/ \
 		-I$(srctree)/tools/lib/bpf/ \
-		-D__KERNEL__ -D__BPF_TRACING__ -Wno-unused-value -Wno-pointer-sign \
-		-D__TARGET_ARCH_$(SRCARCH) -Wno-compare-distinct-pointer-types \
-		-Wno-gnu-variable-sized-type-not-at-end \
-		-Wno-address-of-packed-member -Wno-tautological-compare \
-		-Wno-unknown-warning-option $(CLANG_ARCH_ARGS) \
+		-D__KERNEL__ -D__BPF_TRACING__ -Wyes-unused-value -Wyes-pointer-sign \
+		-D__TARGET_ARCH_$(SRCARCH) -Wyes-compare-distinct-pointer-types \
+		-Wyes-gnu-variable-sized-type-yest-at-end \
+		-Wyes-address-of-packed-member -Wyes-tautological-compare \
+		-Wyes-unkyeswn-warning-option $(CLANG_ARCH_ARGS) \
 		-I$(srctree)/samples/bpf/ -include asm_goto_workaround.h \
 		-O2 -emit-llvm -c $< -o -| $(LLC) -march=bpf $(LLC_FLAGS) -filetype=obj -o $@
 ifeq ($(DWARF2BTF),y)

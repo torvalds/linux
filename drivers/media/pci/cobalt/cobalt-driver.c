@@ -23,7 +23,7 @@
 #include "cobalt-alsa.h"
 #include "cobalt-omnitek.h"
 
-/* add your revision and whatnot here */
+/* add your revision and whatyest here */
 static const struct pci_device_id cobalt_pci_tbl[] = {
 	{PCI_VENDOR_ID_CISCO, PCI_DEVICE_ID_COBALT,
 	 PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
@@ -38,10 +38,10 @@ int cobalt_debug;
 module_param_named(debug, cobalt_debug, int, 0644);
 MODULE_PARM_DESC(debug, "Debug level. Default: 0\n");
 
-int cobalt_ignore_err;
-module_param_named(ignore_err, cobalt_ignore_err, int, 0644);
-MODULE_PARM_DESC(ignore_err,
-	"If set then ignore missing i2c adapters/receivers. Default: 0\n");
+int cobalt_igyesre_err;
+module_param_named(igyesre_err, cobalt_igyesre_err, int, 0644);
+MODULE_PARM_DESC(igyesre_err,
+	"If set then igyesre missing i2c adapters/receivers. Default: 0\n");
 
 MODULE_AUTHOR("Hans Verkuil <hans.verkuil@cisco.com> & Morten Hestnes");
 MODULE_DESCRIPTION("cobalt driver");
@@ -132,8 +132,8 @@ static unsigned cobalt_get_sd_nr(struct v4l2_subdev *sd)
 	return 0;
 }
 
-static void cobalt_notify(struct v4l2_subdev *sd,
-			  unsigned int notification, void *arg)
+static void cobalt_yestify(struct v4l2_subdev *sd,
+			  unsigned int yestification, void *arg)
 {
 	struct cobalt *cobalt = to_cobalt(sd->v4l2_dev);
 	unsigned sd_nr = cobalt_get_sd_nr(sd);
@@ -143,7 +143,7 @@ static void cobalt_notify(struct v4l2_subdev *sd,
 	if (s->is_output)
 		return;
 
-	switch (notification) {
+	switch (yestification) {
 	case ADV76XX_HOTPLUG:
 		cobalt_s_bit_sysctrl(cobalt,
 			COBALT_SYS_CTRL_HPD_TO_CONNECTOR_BIT(sd_nr), hotplug);
@@ -179,7 +179,7 @@ static const char *get_link_speed(u16 stat)
 	case 2:	return "5 Gbit/s";
 	case 3:	return "10 Gbit/s";
 	}
-	return "Unknown speed";
+	return "Unkyeswn speed";
 }
 
 void cobalt_pcie_status_show(struct cobalt *cobalt)
@@ -315,7 +315,7 @@ static int cobalt_setup_pci(struct cobalt *cobalt, struct pci_dev *pci_dev,
 		cobalt_info("PCI Express interface from Omnitek\n");
 		break;
 	default:
-		cobalt_info("PCI Express interface provider is unknown!\n");
+		cobalt_info("PCI Express interface provider is unkyeswn!\n");
 		break;
 	}
 
@@ -326,7 +326,7 @@ static int cobalt_setup_pci(struct cobalt *cobalt, struct pci_dev *pci_dev,
 			cobalt_warn("The current slot only supports %d lanes, for best performance 8 are needed\n",
 					pcie_bus_link_get_lanes(cobalt));
 		if (pcie_link_get_lanes(cobalt) != pcie_bus_link_get_lanes(cobalt)) {
-			cobalt_err("The card is most likely not seated correctly in the PCIe slot\n");
+			cobalt_err("The card is most likely yest seated correctly in the PCIe slot\n");
 			ret = -EIO;
 			goto err_disable;
 		}
@@ -335,7 +335,7 @@ static int cobalt_setup_pci(struct cobalt *cobalt, struct pci_dev *pci_dev,
 	if (pci_set_dma_mask(pci_dev, DMA_BIT_MASK(64))) {
 		ret = pci_set_dma_mask(pci_dev, DMA_BIT_MASK(32));
 		if (ret) {
-			cobalt_err("no suitable DMA available\n");
+			cobalt_err("yes suitable DMA available\n");
 			goto err_disable;
 		}
 	}
@@ -368,7 +368,7 @@ static int cobalt_setup_pci(struct cobalt *cobalt, struct pci_dev *pci_dev,
 	cobalt_set_interrupt(cobalt, false);
 
 	if (pci_alloc_irq_vectors(pci_dev, 1, 1, PCI_IRQ_MSI) < 1) {
-		cobalt_err("Could not enable MSI\n");
+		cobalt_err("Could yest enable MSI\n");
 		ret = -EIO;
 		goto err_release;
 	}
@@ -512,7 +512,7 @@ static int cobalt_subdevs_init(struct cobalt *cobalt)
 		s[i].sd = v4l2_i2c_new_subdev_board(&cobalt->v4l2_dev,
 			s[i].i2c_adap, &adv7604_info, NULL);
 		if (!s[i].sd) {
-			if (cobalt_ignore_err)
+			if (cobalt_igyesre_err)
 				continue;
 			return -ENODEV;
 		}
@@ -677,13 +677,13 @@ static int cobalt_probe(struct pci_dev *pci_dev,
 	}
 	snprintf(cobalt->v4l2_dev.name, sizeof(cobalt->v4l2_dev.name),
 		 "cobalt-%d", cobalt->instance);
-	cobalt->v4l2_dev.notify = cobalt_notify;
+	cobalt->v4l2_dev.yestify = cobalt_yestify;
 	cobalt_info("Initializing card %d\n", cobalt->instance);
 
 	cobalt->irq_work_queues =
 		create_singlethread_workqueue(cobalt->v4l2_dev.name);
 	if (cobalt->irq_work_queues == NULL) {
-		cobalt_err("Could not create workqueue\n");
+		cobalt_err("Could yest create workqueue\n");
 		retval = -ENOMEM;
 		goto err;
 	}
@@ -718,9 +718,9 @@ static int cobalt_probe(struct pci_dev *pci_dev,
 			goto err_i2c;
 	}
 
-	retval = cobalt_nodes_register(cobalt);
+	retval = cobalt_yesdes_register(cobalt);
 	if (retval) {
-		cobalt_err("Error %d registering device nodes\n", retval);
+		cobalt_err("Error %d registering device yesdes\n", retval);
 		goto err_i2c;
 	}
 	cobalt_set_interrupt(cobalt, true);
@@ -760,7 +760,7 @@ static void cobalt_remove(struct pci_dev *pci_dev)
 	cobalt_flash_remove(cobalt);
 	cobalt_set_interrupt(cobalt, false);
 	flush_workqueue(cobalt->irq_work_queues);
-	cobalt_nodes_unregister(cobalt);
+	cobalt_yesdes_unregister(cobalt);
 	for (i = 0; i < COBALT_NUM_ADAPTERS; i++) {
 		struct v4l2_subdev *sd = cobalt->streams[i].sd;
 		struct i2c_client *client;

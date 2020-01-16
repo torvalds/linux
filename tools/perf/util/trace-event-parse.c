@@ -5,7 +5,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <errno.h>
+#include <erryes.h>
 
 #include "debug.h"
 #include "trace-event.h"
@@ -199,9 +199,9 @@ unsigned long long eval_flag(const char *flag)
 	int i;
 
 	/*
-	 * Some flags in the format files do not get converted.
-	 * If the flag is not numeric, see if it is something that
-	 * we already know about.
+	 * Some flags in the format files do yest get converted.
+	 * If the flag is yest numeric, see if it is something that
+	 * we already kyesw about.
 	 */
 	if (isdigit(flag[0]))
 		return strtoull(flag, NULL, 0);

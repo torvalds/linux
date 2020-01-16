@@ -276,7 +276,7 @@ enum m_can_reg {
 #define TXEFS_EFFL_SHIFT	0
 #define TXEFS_EFFL_MASK		(0x3f << TXEFS_EFFL_SHIFT)
 
-/* Tx Event FIFO Acknowledge (TXEFA) */
+/* Tx Event FIFO Ackyeswledge (TXEFA) */
 #define TXEFA_EFAI_SHIFT	0
 #define TXEFA_EFAI_MASK		(0x1f << TXEFA_EFAI_SHIFT)
 
@@ -350,7 +350,7 @@ static void m_can_fifo_write(struct m_can_classdev *cdev,
 	cdev->ops->write_fifo(cdev, addr_offset, val);
 }
 
-static inline void m_can_fifo_write_no_off(struct m_can_classdev *cdev,
+static inline void m_can_fifo_write_yes_off(struct m_can_classdev *cdev,
 					   u32 fpi, u32 val)
 {
 	cdev->ops->write_fifo(cdev, fpi, val);
@@ -484,7 +484,7 @@ static void m_can_read_fifo(struct net_device *dev, u32 rxfs)
 						M_CAN_FIFO_DATA(i / 4));
 	}
 
-	/* acknowledge rx fifo 0 */
+	/* ackyeswledge rx fifo 0 */
 	m_can_write(cdev, M_CAN_RXF0A, fgi);
 
 	stats->rx_packets++;
@@ -501,7 +501,7 @@ static int m_can_do_rx_poll(struct net_device *dev, int quota)
 
 	rxfs = m_can_read(cdev, M_CAN_RXF0S);
 	if (!(rxfs & RXFS_FFL_MASK)) {
-		netdev_dbg(dev, "no messages in fifo0\n");
+		netdev_dbg(dev, "yes messages in fifo0\n");
 		return 0;
 	}
 
@@ -624,7 +624,7 @@ static int m_can_clk_start(struct m_can_classdev *cdev)
 
 	err = pm_runtime_get_sync(cdev->dev);
 	if (err < 0) {
-		pm_runtime_put_noidle(cdev->dev);
+		pm_runtime_put_yesidle(cdev->dev);
 		return err;
 	}
 
@@ -853,7 +853,7 @@ static int m_can_rx_handler(struct net_device *dev, int quota)
 	/* Errata workaround for issue "Needless activation of MRAF irq"
 	 * During frame reception while the MCAN is in Error Passive state
 	 * and the Receive Error Counter has the value MCAN_ECR.REC = 127,
-	 * it may happen that MCAN_IR.MRAF is set although there was no
+	 * it may happen that MCAN_IR.MRAF is set although there was yes
 	 * Message RAM access failure.
 	 * If MCAN_IR.MRAF is enabled, an interrupt to the Host CPU is generated
 	 * The Message RAM Access Failure interrupt routine needs to check
@@ -1118,7 +1118,7 @@ static int m_can_set_bittiming(struct net_device *dev)
 /* Configure M_CAN chip:
  * - set rx buffer/fifo element size
  * - configure rx fifo
- * - accept non-matching frame into fifo 0
+ * - accept yesn-matching frame into fifo 0
  * - configure tx buffer
  *		- >= v3.1.x: TX FIFO is used
  * - configure mode
@@ -1747,7 +1747,7 @@ void m_can_init_ram(struct m_can_classdev *cdev)
 		cdev->mcfg[MRAM_TXB].num * TXB_ELEMENT_SIZE;
 
 	for (i = start; i < end; i += 4)
-		m_can_fifo_write_no_off(cdev, i, 0x0);
+		m_can_fifo_write_yes_off(cdev, i, 0x0);
 }
 EXPORT_SYMBOL_GPL(m_can_init_ram);
 
@@ -1759,7 +1759,7 @@ int m_can_class_get_clocks(struct m_can_classdev *m_can_dev)
 	m_can_dev->cclk = devm_clk_get(m_can_dev->dev, "cclk");
 
 	if (IS_ERR(m_can_dev->cclk)) {
-		dev_err(m_can_dev->dev, "no clock found\n");
+		dev_err(m_can_dev->dev, "yes clock found\n");
 		ret = -ENODEV;
 	}
 
@@ -1775,12 +1775,12 @@ struct m_can_classdev *m_can_class_allocate_dev(struct device *dev)
 	u32 tx_fifo_size;
 	int ret;
 
-	ret = fwnode_property_read_u32_array(dev_fwnode(dev),
+	ret = fwyesde_property_read_u32_array(dev_fwyesde(dev),
 					     "bosch,mram-cfg",
 					     mram_config_vals,
 					     sizeof(mram_config_vals) / 4);
 	if (ret) {
-		dev_err(dev, "Could not get Message RAM configuration.");
+		dev_err(dev, "Could yest get Message RAM configuration.");
 		goto out;
 	}
 

@@ -2,12 +2,12 @@
 /*
  *  linux/arch/arm/kernel/devtree.c
  *
- *  Copyright (C) 2009 Canonical Ltd. <jeremy.kerr@canonical.com>
+ *  Copyright (C) 2009 Cayesnical Ltd. <jeremy.kerr@cayesnical.com>
  */
 
 #include <linux/init.h>
 #include <linux/export.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/types.h>
 #include <linux/memblock.h>
 #include <linux/of.h>
@@ -32,12 +32,12 @@ static const struct of_cpu_method __cpu_method_of_table_sentinel
 	__used __section(__cpu_method_of_table_end);
 
 
-static int __init set_smp_ops_by_method(struct device_node *node)
+static int __init set_smp_ops_by_method(struct device_yesde *yesde)
 {
 	const char *method;
 	struct of_cpu_method *m = __cpu_method_of_table;
 
-	if (of_property_read_string(node, "enable-method", &method))
+	if (of_property_read_string(yesde, "enable-method", &method))
 		return 0;
 
 	for (; m->method; m++)
@@ -49,7 +49,7 @@ static int __init set_smp_ops_by_method(struct device_node *node)
 	return 0;
 }
 #else
-static inline int set_smp_ops_by_method(struct device_node *node)
+static inline int set_smp_ops_by_method(struct device_yesde *yesde)
 {
 	return 1;
 }
@@ -57,11 +57,11 @@ static inline int set_smp_ops_by_method(struct device_node *node)
 
 
 /*
- * arm_dt_init_cpu_maps - Function retrieves cpu nodes from the device tree
+ * arm_dt_init_cpu_maps - Function retrieves cpu yesdes from the device tree
  * and builds the cpu logical map array containing MPIDR values related to
  * logical cpus
  *
- * Updates the cpu possible mask with the number of parsed cpu nodes
+ * Updates the cpu possible mask with the number of parsed cpu yesdes
  */
 void __init arm_dt_init_cpu_maps(void)
 {
@@ -71,33 +71,33 @@ void __init arm_dt_init_cpu_maps(void)
 	 * contain a list of MPIDR[23:0] values where MPIDR[31:24] must
 	 * read as 0.
 	 */
-	struct device_node *cpu, *cpus;
+	struct device_yesde *cpu, *cpus;
 	int found_method = 0;
 	u32 i, j, cpuidx = 1;
 	u32 mpidr = is_smp() ? read_cpuid_mpidr() & MPIDR_HWID_BITMASK : 0;
 
 	u32 tmp_map[NR_CPUS] = { [0 ... NR_CPUS-1] = MPIDR_INVALID };
 	bool bootcpu_valid = false;
-	cpus = of_find_node_by_path("/cpus");
+	cpus = of_find_yesde_by_path("/cpus");
 
 	if (!cpus)
 		return;
 
-	for_each_of_cpu_node(cpu) {
+	for_each_of_cpu_yesde(cpu) {
 		const __be32 *cell;
 		int prop_bytes;
 		u32 hwid;
 
 		pr_debug(" * %pOF...\n", cpu);
 		/*
-		 * A device tree containing CPU nodes with missing "reg"
+		 * A device tree containing CPU yesdes with missing "reg"
 		 * properties is considered invalid to build the
 		 * cpu_logical_map.
 		 */
 		cell = of_get_property(cpu, "reg", &prop_bytes);
 		if (!cell || prop_bytes < sizeof(*cell)) {
 			pr_debug(" * %pOF missing reg property\n", cpu);
-			of_node_put(cpu);
+			of_yesde_put(cpu);
 			return;
 		}
 
@@ -111,7 +111,7 @@ void __init arm_dt_init_cpu_maps(void)
 		} while (!hwid && prop_bytes > 0);
 
 		if (prop_bytes || (hwid & ~MPIDR_HWID_BITMASK)) {
-			of_node_put(cpu);
+			of_yesde_put(cpu);
 			return;
 		}
 
@@ -125,7 +125,7 @@ void __init arm_dt_init_cpu_maps(void)
 		for (j = 0; j < cpuidx; j++)
 			if (WARN(tmp_map[j] == hwid,
 				 "Duplicate /cpu reg properties in the DT\n")) {
-				of_node_put(cpu);
+				of_yesde_put(cpu);
 				return;
 			}
 
@@ -133,7 +133,7 @@ void __init arm_dt_init_cpu_maps(void)
 		 * Build a stashed array of MPIDR values. Numbering scheme
 		 * requires that if detected the boot CPU must be assigned
 		 * logical id 0. Other CPUs get sequential indexes starting
-		 * from 1. If a CPU node with a reg property matching the
+		 * from 1. If a CPU yesde with a reg property matching the
 		 * boot CPU MPIDR is detected, this is recorded so that the
 		 * logical map built from DT is validated and can be used
 		 * to override the map created in smp_setup_processor_id().
@@ -145,11 +145,11 @@ void __init arm_dt_init_cpu_maps(void)
 			i = cpuidx++;
 		}
 
-		if (WARN(cpuidx > nr_cpu_ids, "DT /cpu %u nodes greater than "
+		if (WARN(cpuidx > nr_cpu_ids, "DT /cpu %u yesdes greater than "
 					       "max cores %u, capping them\n",
 					       cpuidx, nr_cpu_ids)) {
 			cpuidx = nr_cpu_ids;
-			of_node_put(cpu);
+			of_yesde_put(cpu);
 			break;
 		}
 
@@ -160,8 +160,8 @@ void __init arm_dt_init_cpu_maps(void)
 	}
 
 	/*
-	 * Fallback to an enable-method in the cpus node if nothing found in
-	 * a cpu node.
+	 * Fallback to an enable-method in the cpus yesde if yesthing found in
+	 * a cpu yesde.
 	 */
 	if (!found_method)
 		set_smp_ops_by_method(cpus);
@@ -172,7 +172,7 @@ void __init arm_dt_init_cpu_maps(void)
 	}
 
 	/*
-	 * Since the boot CPU node contains proper data, and all nodes have
+	 * Since the boot CPU yesde contains proper data, and all yesdes have
 	 * a reg property, the DT CPU list can be considered valid and the
 	 * logical map created in smp_setup_processor_id() can be overridden
 	 */
@@ -243,14 +243,14 @@ const struct machine_desc * __init setup_machine_fdt(unsigned int dt_phys)
 		}
 		early_print("]\n\n");
 
-		dump_machine_table(); /* does not return */
+		dump_machine_table(); /* does yest return */
 	}
 
 	/* We really don't want to do this, but sometimes firmware provides buggy data */
 	if (mdesc->dt_fixup)
 		mdesc->dt_fixup();
 
-	early_init_dt_scan_nodes();
+	early_init_dt_scan_yesdes();
 
 	/* Change machine number to match the mdesc we're using */
 	__machine_arch_type = mdesc->nr;

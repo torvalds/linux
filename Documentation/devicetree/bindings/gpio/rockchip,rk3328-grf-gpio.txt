@@ -10,7 +10,7 @@ future, the HDMI pins support can also be added.
 
 Required properties:
 - compatible: Should contain "rockchip,rk3328-grf-gpio".
-- gpio-controller: Marks the device node as a gpio controller.
+- gpio-controller: Marks the device yesde as a gpio controller.
 - #gpio-cells: Should be 2. The first cell is the pin number and
   the second cell is used to specify the gpio polarity:
     0 = Active high,
@@ -28,5 +28,5 @@ Example:
 		};
 	};
 
-Note: The grf_gpio node should be declared as the child of the GRF (General
-Register File) node. The GPIO_MUTE pin is referred to as <&grf_gpio 0>.
+Note: The grf_gpio yesde should be declared as the child of the GRF (General
+Register File) yesde. The GPIO_MUTE pin is referred to as <&grf_gpio 0>.

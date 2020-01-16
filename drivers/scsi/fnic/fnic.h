@@ -226,7 +226,7 @@ struct fnic {
 	unsigned long stats_reset_time; /* time of stats reset */
 	struct vnic_nic_cfg *nic_cfg;
 	char name[IFNAMSIZ];
-	struct timer_list notify_timer; /* used for MSI interrupts */
+	struct timer_list yestify_timer; /* used for MSI interrupts */
 
 	unsigned int fnic_max_tag_id;
 	unsigned int err_intr_offset;

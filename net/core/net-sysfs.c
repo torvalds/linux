@@ -232,7 +232,7 @@ static ssize_t duplex_show(struct device *dev,
 				duplex = "full";
 				break;
 			default:
-				duplex = "unknown";
+				duplex = "unkyeswn";
 				break;
 			}
 			ret = sprintf(buf, "%s\n", duplex);
@@ -256,8 +256,8 @@ static ssize_t dormant_show(struct device *dev,
 static DEVICE_ATTR_RO(dormant);
 
 static const char *const operstates[] = {
-	"unknown",
-	"notpresent", /* currently unused */
+	"unkyeswn",
+	"yestpresent", /* currently unused */
 	"down",
 	"lowerlayerdown",
 	"testing", /* currently unused */
@@ -278,7 +278,7 @@ static ssize_t operstate_show(struct device *dev,
 	read_unlock(&dev_base_lock);
 
 	if (operstate >= ARRAY_SIZE(operstates))
-		return -EINVAL; /* should not happen */
+		return -EINVAL; /* should yest happen */
 
 	return sprintf(buf, "%s\n", operstates[operstate]);
 }
@@ -381,7 +381,7 @@ static ssize_t ifalias_store(struct device *dev, struct device_attribute *attr,
 	if (!ns_capable(net->user_ns, CAP_NET_ADMIN))
 		return -EPERM;
 
-	/* ignore trailing newline */
+	/* igyesre trailing newline */
 	if (len >  0 && buf[len - 1] == '\n')
 		--count;
 
@@ -597,7 +597,7 @@ NETSTAT_ENTRY(tx_heartbeat_errors);
 NETSTAT_ENTRY(tx_window_errors);
 NETSTAT_ENTRY(rx_compressed);
 NETSTAT_ENTRY(tx_compressed);
-NETSTAT_ENTRY(rx_nohandler);
+NETSTAT_ENTRY(rx_yeshandler);
 
 static struct attribute *netstat_attrs[] __ro_after_init = {
 	&dev_attr_rx_packets.attr,
@@ -623,7 +623,7 @@ static struct attribute *netstat_attrs[] __ro_after_init = {
 	&dev_attr_tx_window_errors.attr,
 	&dev_attr_rx_compressed.attr,
 	&dev_attr_tx_compressed.attr,
-	&dev_attr_rx_nohandler.attr,
+	&dev_attr_rx_yeshandler.attr,
 	NULL
 };
 
@@ -1247,7 +1247,7 @@ static ssize_t xps_cpus_show(struct netdev_queue *queue,
 	index = get_netdev_queue_index(queue);
 
 	if (dev->num_tc) {
-		/* Do not allow XPS on subordinate device directly */
+		/* Do yest allow XPS on subordinate device directly */
 		num_tc = dev->num_tc;
 		if (num_tc < 0)
 			return -EINVAL;
@@ -1346,7 +1346,7 @@ static ssize_t xps_rxqs_show(struct netdev_queue *queue, char *buf)
 	rcu_read_lock();
 	dev_maps = rcu_dereference(dev->xps_rxqs_map);
 	if (!dev_maps)
-		goto out_no_maps;
+		goto out_yes_maps;
 
 	for (j = -1; j = netif_attrmask_next(j, NULL, dev->num_rx_queues),
 	     j < dev->num_rx_queues;) {
@@ -1364,7 +1364,7 @@ static ssize_t xps_rxqs_show(struct netdev_queue *queue, char *buf)
 			}
 		}
 	}
-out_no_maps:
+out_yes_maps:
 	rcu_read_unlock();
 
 	len = bitmap_print_to_pagebuf(false, buf, mask, dev->num_rx_queues);
@@ -1637,7 +1637,7 @@ static void netdev_release(struct device *d)
 
 	BUG_ON(dev->reg_state != NETREG_RELEASED);
 
-	/* no need to wait for rcu grace period:
+	/* yes need to wait for rcu grace period:
 	 * device is dead and about to be freed.
 	 */
 	kfree(rcu_access_pointer(dev->ifalias));
@@ -1670,36 +1670,36 @@ static struct class net_class __ro_after_init = {
 };
 
 #ifdef CONFIG_OF_NET
-static int of_dev_node_match(struct device *dev, const void *data)
+static int of_dev_yesde_match(struct device *dev, const void *data)
 {
 	int ret = 0;
 
 	if (dev->parent)
-		ret = dev->parent->of_node == data;
+		ret = dev->parent->of_yesde == data;
 
-	return ret == 0 ? dev->of_node == data : ret;
+	return ret == 0 ? dev->of_yesde == data : ret;
 }
 
 /*
- * of_find_net_device_by_node - lookup the net device for the device node
- * @np: OF device node
+ * of_find_net_device_by_yesde - lookup the net device for the device yesde
+ * @np: OF device yesde
  *
- * Looks up the net_device structure corresponding with the device node.
+ * Looks up the net_device structure corresponding with the device yesde.
  * If successful, returns a pointer to the net_device with the embedded
  * struct device refcount incremented by one, or NULL on failure. The
  * refcount must be dropped when done with the net_device.
  */
-struct net_device *of_find_net_device_by_node(struct device_node *np)
+struct net_device *of_find_net_device_by_yesde(struct device_yesde *np)
 {
 	struct device *dev;
 
-	dev = class_find_device(&net_class, NULL, np, of_dev_node_match);
+	dev = class_find_device(&net_class, NULL, np, of_dev_yesde_match);
 	if (!dev)
 		return NULL;
 
 	return to_net_dev(dev);
 }
-EXPORT_SYMBOL(of_find_net_device_by_node);
+EXPORT_SYMBOL(of_find_net_device_by_yesde);
 #endif
 
 /* Delete sysfs entries but hold kobject reference until after all
@@ -1716,7 +1716,7 @@ void netdev_unregister_kobject(struct net_device *ndev)
 
 	remove_queue_kobjects(ndev);
 
-	pm_runtime_set_memalloc_noio(dev, false);
+	pm_runtime_set_memalloc_yesio(dev, false);
 
 	device_del(dev);
 }
@@ -1762,7 +1762,7 @@ int netdev_register_kobject(struct net_device *ndev)
 		return error;
 	}
 
-	pm_runtime_set_memalloc_noio(dev, true);
+	pm_runtime_set_memalloc_yesio(dev, true);
 
 	return error;
 }

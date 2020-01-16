@@ -37,7 +37,7 @@ void kprobe_ftrace_handler(unsigned long ip, unsigned long parent_ip,
 		if (!p->pre_handler || !p->pre_handler(p, regs)) {
 			/*
 			 * Emulate singlestep (and also recover regs->ip)
-			 * as if there is a 5byte nop
+			 * as if there is a 5byte yesp
 			 */
 			regs->ip = (unsigned long)p->addr + MCOUNT_INSN_SIZE;
 			if (unlikely(p->post_handler)) {

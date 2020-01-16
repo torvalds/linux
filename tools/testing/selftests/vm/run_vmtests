@@ -49,12 +49,12 @@ if [ -n "$freepgs" ] && [ -n "$hpgsize_KB" ]; then
 		tries=$((tries - 1))
 	done
 	if [ $freepgs -lt $needpgs ]; then
-		printf "Not enough huge pages available (%d < %d)\n" \
+		printf "Not eyesugh huge pages available (%d < %d)\n" \
 		       $freepgs $needpgs
 		exit 1
 	fi
 else
-	echo "no hugetlbfs support in kernel?"
+	echo "yes hugetlbfs support in kernel?"
 	exit 1
 fi
 
@@ -67,7 +67,7 @@ VADDR64=0
 echo "$ARCH64STR" | grep $ARCH && VADDR64=1
 
 mkdir $mnt
-mount -t hugetlbfs none $mnt
+mount -t hugetlbfs yesne $mnt
 
 echo "---------------------"
 echo "running hugepage-mmap"
@@ -115,7 +115,7 @@ echo "      hugetlb regression testing."
 echo "-------------------"
 echo "running userfaultfd"
 echo "-------------------"
-./userfaultfd anon 128 32
+./userfaultfd ayesn 128 32
 if [ $? -ne 0 ]; then
 	echo "[FAIL]"
 	exitcode=1
@@ -167,7 +167,7 @@ fi
 echo "----------------------"
 echo "running on-fault-limit"
 echo "----------------------"
-sudo -u nobody ./on-fault-limit
+sudo -u yesbody ./on-fault-limit
 if [ $? -ne 0 ]; then
 	echo "[FAIL]"
 	exitcode=1

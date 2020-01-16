@@ -1,10 +1,10 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
- * Synopsys DesignWare Multimedia Card Interface driver
+ * Syyespsys DesignWare Multimedia Card Interface driver
  *  (Based on NXP driver for lpc 31xx)
  *
  * Copyright (C) 2009 NXP Semiconductors
- * Copyright (C) 2009, 2010 Imagination Technologies Ltd.
+ * Copyright (C) 2009, 2010 Imagination Techyeslogies Ltd.
  */
 
 #ifndef _DW_MMC_H_
@@ -64,15 +64,15 @@ struct dw_mci_dma_slave {
  * @mrq: The request currently being processed on @slot,
  *	or NULL if the controller is idle.
  * @cmd: The command currently being sent to the card, or NULL.
- * @data: The data currently being transferred, or NULL if no data
+ * @data: The data currently being transferred, or NULL if yes data
  *	transfer is in progress.
  * @stop_abort: The command currently prepared for stoping transfer.
  * @prev_blksz: The former transfer blksz record.
  * @timing: Record of current ios timing.
  * @use_dma: Which DMA channel is in use for the current transfer, zero
- *	denotes PIO mode.
+ *	deyestes PIO mode.
  * @using_dma: Whether DMA is in use for the current transfer.
- * @dma_64bit_address: Whether DMA supports 64-bit address mode or not.
+ * @dma_64bit_address: Whether DMA supports 64-bit address mode or yest.
  * @sg_dma: Bus address of DMA buffer.
  * @sg_cpu: Virtual address of DMA buffer.
  * @dma_ops: Pointer to platform-specific DMA callbacks.
@@ -98,7 +98,7 @@ struct dw_mci_dma_slave {
  *	rate and timeout calculations.
  * @current_speed: Configured rate of the controller.
  * @fifoth_val: The value of FIFOTH register.
- * @verid: Denote Version ID.
+ * @verid: Deyeste Version ID.
  * @dev: Device associated with the MMC controller.
  * @pdata: Platform data associated with the MMC controller.
  * @drv_data: Driver specific data for identified variant of the controller
@@ -136,7 +136,7 @@ struct dw_mci_dma_slave {
  *
  * @irq_lock is an irq-safe spinlock protecting the INTMASK register
  * to allow the interrupt handler to modify it directly.  Held for only long
- * enough to read-modify-write INTMASK and no other locks are grabbed when
+ * eyesugh to read-modify-write INTMASK and yes other locks are grabbed when
  * holding this one.
  *
  * @pending_events and @completed_events are accessed using atomic bit
@@ -254,7 +254,7 @@ struct dw_mci_board {
 	u32 pm_caps;	/* PM capabilities */
 	/*
 	 * Override fifo depth. If 0, autodetect it from the FIFOTH register,
-	 * but note that this may not be reliable after a bootloader has used
+	 * but yeste that this may yest be reliable after a bootloader has used
 	 * it.
 	 */
 	unsigned int fifo_depth;
@@ -446,7 +446,7 @@ struct dw_mci_board {
 #define SDMMC_CTRL_ALL_RESET_FLAGS \
 	(SDMMC_CTRL_RESET | SDMMC_CTRL_FIFO_RESET | SDMMC_CTRL_DMA_RESET)
 
-/* FIFO register access macros. These should not change the data endian-ness
+/* FIFO register access macros. These should yest change the data endian-ness
  * as they are written to memory to be dealt with by the upper layers
  */
 #define mci_fifo_readw(__reg)	__raw_readw(__reg)
@@ -479,7 +479,7 @@ struct dw_mci_board {
 /*
  * Dummy readq implementation for architectures that don't define it.
  *
- * We would assume that none of these architectures would configure
+ * We would assume that yesne of these architectures would configure
  * the IP block with a 64bit FIFO width, so this code will never be
  * executed on those machines. Defining these macros here keeps the
  * rest of the code free from ifdefs.
@@ -508,7 +508,7 @@ extern int dw_mci_runtime_resume(struct device *device);
  * @ctype: Card type for this slot.
  * @mrq: mmc_request currently being processed or waiting to be
  *	processed, or NULL when the slot is idle.
- * @queue_node: List node for placing this node in the @queue list of
+ * @queue_yesde: List yesde for placing this yesde in the @queue list of
  *	&struct dw_mci.
  * @clock: Clock rate configured by set_ios(). Protected by host->lock.
  * @__clk_old: The last clock value that was requested from core.
@@ -524,7 +524,7 @@ struct dw_mci_slot {
 	u32			ctype;
 
 	struct mmc_request	*mrq;
-	struct list_head	queue_node;
+	struct list_head	queue_yesde;
 
 	unsigned int		clock;
 	unsigned int		__clk_old;

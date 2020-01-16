@@ -2,7 +2,7 @@
 /*
  * PIC32 Integrated Serial Driver.
  *
- * Copyright (C) 2015 Microchip Technology, Inc.
+ * Copyright (C) 2015 Microchip Techyeslogy, Inc.
  *
  * Authors:
  *   Sorin-Andrei Pistirica <andrei.pistirica@microchip.com>

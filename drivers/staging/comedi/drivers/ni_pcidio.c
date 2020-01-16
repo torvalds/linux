@@ -19,7 +19,7 @@
  * The DIO32HS board appears as one subdevice, with 32 channels. Each
  * channel is individually I/O configurable. The channel order is 0=A0,
  * 1=A1, 2=A2, ... 8=B0, 16=C0, 24=D0. The driver only supports simple
- * digital I/O; no handshaking is supported.
+ * digital I/O; yes handshaking is supported.
  *
  * DMA mostly works for the PCI-DIO32HS, but only in timed input mode.
  *
@@ -32,7 +32,7 @@
  *
  * The PCI-6534 requires a firmware upload after power-up to work, the
  * firmware data and instructions for loading it with comedi_config
- * it are contained in the comedi_nonfree_firmware tarball available from
+ * it are contained in the comedi_yesnfree_firmware tarball available from
  * http://www.comedi.org
  */
 
@@ -160,7 +160,7 @@
 #define DMA_LINE_CONTROL_GROUP1		76
 #define DMA_LINE_CONTROL_GROUP2		108
 
-/* channel zero is none */
+/* channel zero is yesne */
 static inline unsigned int primary_DMAChannel_bits(unsigned int channel)
 {
 	return channel & 0x3;
@@ -244,7 +244,7 @@ enum FPGA_Control_Bits {
 	FPGA_Enable_Bit = 0x8000,
 };
 
-#define TIMER_BASE 50		/* nanoseconds */
+#define TIMER_BASE 50		/* nayesseconds */
 
 #ifdef USE_DMA
 #define INT_EN (COUNT_EXPIRED | WAITED | PRIMARY_TC | SECONDARY_TC)
@@ -384,7 +384,7 @@ static irqreturn_t nidio_interrupt(int irq, void *d)
 
 	/* interrupcions parasites */
 	if (!dev->attached) {
-		/* assume it's from another card */
+		/* assume it's from ayesther card */
 		return IRQ_NONE;
 	}
 
@@ -502,7 +502,7 @@ static int ni_pcidio_insn_bits(struct comedi_device *dev,
 	return insn->n;
 }
 
-static int ni_pcidio_ns_to_timer(int *nanosec, unsigned int flags)
+static int ni_pcidio_ns_to_timer(int *nayessec, unsigned int flags)
 {
 	int divider, base;
 
@@ -511,17 +511,17 @@ static int ni_pcidio_ns_to_timer(int *nanosec, unsigned int flags)
 	switch (flags & CMDF_ROUND_MASK) {
 	case CMDF_ROUND_NEAREST:
 	default:
-		divider = DIV_ROUND_CLOSEST(*nanosec, base);
+		divider = DIV_ROUND_CLOSEST(*nayessec, base);
 		break;
 	case CMDF_ROUND_DOWN:
-		divider = (*nanosec) / base;
+		divider = (*nayessec) / base;
 		break;
 	case CMDF_ROUND_UP:
-		divider = DIV_ROUND_UP(*nanosec, base);
+		divider = DIV_ROUND_UP(*nayessec, base);
 		break;
 	}
 
-	*nanosec = base * divider;
+	*nayessec = base * divider;
 	return divider;
 }
 
@@ -558,12 +558,12 @@ static int ni_pcidio_cmdtest(struct comedi_device *dev,
 
 	err |= comedi_check_trigger_arg_is(&cmd->start_arg, 0);
 
-#define MAX_SPEED	(TIMER_BASE)	/* in nanoseconds */
+#define MAX_SPEED	(TIMER_BASE)	/* in nayesseconds */
 
 	if (cmd->scan_begin_src == TRIG_TIMER) {
 		err |= comedi_check_trigger_arg_min(&cmd->scan_begin_arg,
 						    MAX_SPEED);
-		/* no minimum speed */
+		/* yes minimum speed */
 	} else {
 		/* TRIG_EXT */
 		/* should be level/edge, hi/lo specification here */

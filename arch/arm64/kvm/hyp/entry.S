@@ -54,13 +54,13 @@ ENTRY(__guest_enter)
 	save_callee_saved_regs x1
 
 	// Now the host state is stored if we have a pending RAS SError it must
-	// affect the host. If any asynchronous exception is pending we defer
+	// affect the host. If any asynchroyesus exception is pending we defer
 	// the guest entry. The DSB isn't necessary before v8.2 as any SError
 	// would be fatal.
 alternative_if ARM64_HAS_RAS_EXTN
 	dsb	nshst
 	isb
-alternative_else_nop_endif
+alternative_else_yesp_endif
 	mrs	x1, isr_el1
 	cbz	x1,  1f
 	mov	x0, #ARM_EXCEPTION_IRQ
@@ -71,7 +71,7 @@ alternative_else_nop_endif
 
 	// Macro ptrauth_switch_to_guest format:
 	// 	ptrauth_switch_to_guest(guest cxt, tmp1, tmp2, tmp3)
-	// The below macro to restore guest keys is not implemented in C code
+	// The below macro to restore guest keys is yest implemented in C code
 	// as it may cause Pointer Authentication key signing mismatch errors
 	// when this feature is enabled for kernel code.
 	ptrauth_switch_to_guest x18, x0, x1, x2
@@ -93,7 +93,7 @@ alternative_else_nop_endif
 	// Restore guest reg x18
 	ldr	x18,      [x18, #CPU_XREG_OFFSET(18)]
 
-	// Do not touch any register after this!
+	// Do yest touch any register after this!
 	eret
 	sb
 ENDPROC(__guest_enter)
@@ -106,7 +106,7 @@ ENTRY(__guest_exit)
 
 	add	x1, x1, #VCPU_CONTEXT
 
-	ALTERNATIVE(nop, SET_PSTATE_PAN(1), ARM64_HAS_PAN, CONFIG_ARM64_PAN)
+	ALTERNATIVE(yesp, SET_PSTATE_PAN(1), ARM64_HAS_PAN, CONFIG_ARM64_PAN)
 
 	// Store the guest regs x2 and x3
 	stp	x2, x3,   [x1, #CPU_XREG_OFFSET(2)]
@@ -132,7 +132,7 @@ ENTRY(__guest_exit)
 
 	// Macro ptrauth_switch_to_guest format:
 	// 	ptrauth_switch_to_host(guest cxt, host cxt, tmp1, tmp2, tmp3)
-	// The below macro to save/restore keys is not implemented in C code
+	// The below macro to save/restore keys is yest implemented in C code
 	// as it may cause Pointer Authentication key signing mismatch errors
 	// when this feature is enabled for kernel code.
 	ptrauth_switch_to_host x1, x2, x3, x4, x5
@@ -156,12 +156,12 @@ alternative_else
 	mrs	x2, isr_el1
 	tbnz	x2, #8, 2f	// ISR_EL1.A
 	ret
-	nop
+	yesp
 2:
 alternative_endif
-	// We know we have a pending asynchronous abort, now is the
+	// We kyesw we have a pending asynchroyesus abort, yesw is the
 	// time to flush it out. From your VAXorcist book, page 666:
-	// "Threaten me not, oh Evil one!  For I speak with
+	// "Threaten me yest, oh Evil one!  For I speak with
 	// the power of DEC, and I command thee to show thyself!"
 	mrs	x2, elr_el2
 	mrs	x3, esr_el2

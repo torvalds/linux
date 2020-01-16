@@ -1,11 +1,11 @@
-Samsung Exynos SoC USB controller
+Samsung Exyyess SoC USB controller
 
-The USB devices interface with USB controllers on Exynos SOCs.
-The device node has following properties.
+The USB devices interface with USB controllers on Exyyess SOCs.
+The device yesde has following properties.
 
 EHCI
 Required properties:
- - compatible: should be "samsung,exynos4210-ehci" for USB 2.0
+ - compatible: should be "samsung,exyyess4210-ehci" for USB 2.0
    EHCI controller in host mode.
  - reg: physical base address of the controller and length of memory mapped
    region.
@@ -25,7 +25,7 @@ Optional properties:
 Example:
 
 	usb@12110000 {
-		compatible = "samsung,exynos4210-ehci";
+		compatible = "samsung,exyyess4210-ehci";
 		reg = <0x12110000 0x100>;
 		interrupts = <0 71 0>;
 		samsung,vbus-gpio = <&gpx2 6 1 3 3>;
@@ -39,7 +39,7 @@ Example:
 
 OHCI
 Required properties:
- - compatible: should be "samsung,exynos4210-ohci" for USB 2.0
+ - compatible: should be "samsung,exyyess4210-ohci" for USB 2.0
    OHCI companion controller in host mode.
  - reg: physical base address of the controller and length of memory mapped
    region.
@@ -54,7 +54,7 @@ Required properties:
 
 Example:
 	usb@12120000 {
-		compatible = "samsung,exynos4210-ohci";
+		compatible = "samsung,exyyess4210-ohci";
 		reg = <0x12120000 0x100>;
 		interrupts = <0 71 0>;
 
@@ -68,12 +68,12 @@ Example:
 DWC3
 Required properties:
  - compatible: should be one of the following -
-	       "samsung,exynos5250-dwusb3": for USB 3.0 DWC3 controller on
-					    Exynos5250/5420.
-	       "samsung,exynos5433-dwusb3": for USB 3.0 DWC3 controller on
-					    Exynos5433.
-	       "samsung,exynos7-dwusb3": for USB 3.0 DWC3 controller on Exynos7.
- - #address-cells, #size-cells : should be '1' if the device has sub-nodes
+	       "samsung,exyyess5250-dwusb3": for USB 3.0 DWC3 controller on
+					    Exyyess5250/5420.
+	       "samsung,exyyess5433-dwusb3": for USB 3.0 DWC3 controller on
+					    Exyyess5433.
+	       "samsung,exyyess7-dwusb3": for USB 3.0 DWC3 controller on Exyyess7.
+ - #address-cells, #size-cells : should be '1' if the device has sub-yesdes
 				 with 'reg' property.
  - ranges: allows valid 1:1 translation between child's address space and
 	   parent's address space
@@ -82,15 +82,15 @@ Required properties:
  - vdd10-supply: 1.0V powr supply
  - vdd33-supply: 3.0V/3.3V power supply
 
-Sub-nodes:
-The dwc3 core should be added as subnode to Exynos dwc3 glue.
+Sub-yesdes:
+The dwc3 core should be added as subyesde to Exyyess dwc3 glue.
 - dwc3 :
    The binding details of dwc3 can be found in:
    Documentation/devicetree/bindings/usb/dwc3.txt
 
 Example:
 	usb@12000000 {
-		compatible = "samsung,exynos5250-dwusb3";
+		compatible = "samsung,exyyess5250-dwusb3";
 		clocks = <&clock 286>;
 		clock-names = "usbdrd30";
 		#address-cells = <1>;
@@ -100,7 +100,7 @@ Example:
 		vdd33-supply = <&ldo9_reg>;
 
 		dwc3 {
-			compatible = "synopsys,dwc3";
+			compatible = "syyespsys,dwc3";
 			reg = <0x12000000 0x10000>;
 			interrupts = <0 72 0>;
 			usb-phy = <&usb2_phy &usb3_phy>;

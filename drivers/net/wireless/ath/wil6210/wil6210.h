@@ -18,7 +18,7 @@
 #include "wil_platform.h"
 #include "fw.h"
 
-extern bool no_fw_recovery;
+extern bool yes_fw_recovery;
 extern unsigned int mtu_max;
 extern unsigned short rx_ring_overflow_thrsh;
 extern int agg_wsize;
@@ -493,7 +493,7 @@ struct pending_wmi_event {
 };
 
 enum { /* for wil_ctx.mapped_as */
-	wil_mapped_as_none = 0,
+	wil_mapped_as_yesne = 0,
 	wil_mapped_as_single = 1,
 	wil_mapped_as_page = 2,
 };
@@ -570,7 +570,7 @@ struct wil_net_stats {
 	u32 tx_latency_max_us;
 	u64 tx_latency_total_us;
 	unsigned long	rx_dropped;
-	unsigned long	rx_non_data_frame;
+	unsigned long	rx_yesn_data_frame;
 	unsigned long	rx_short_frame;
 	unsigned long	rx_large_frame;
 	unsigned long	rx_replay;
@@ -632,7 +632,7 @@ struct wil_ring_tx_data {
 	bool dot1x_open;
 	int enabled;
 	cycles_t idle, last_idle, begin;
-	u8 agg_wsize; /* agreed aggregation window, 0 - no agg */
+	u8 agg_wsize; /* agreed aggregation window, 0 - yes agg */
 	u16 agg_timeout;
 	u8 agg_amsdu;
 	bool addba_in_progress; /* if set, agg_xxx is for request in progress */
@@ -731,7 +731,7 @@ enum wil_rekey_state {
  *
  * Peer identified by its CID (connection ID)
  * NIC performs beam forming for each peer;
- * if no beam forming done, frame exchange is not
+ * if yes beam forming done, frame exchange is yest
  * possible.
  */
 struct wil_sta_info {
@@ -754,7 +754,7 @@ struct wil_sta_info {
 	unsigned long tid_rx_stop_requested[BITS_TO_LONGS(WIL_STA_TID_NUM)];
 	struct wil_tid_crypto_rx tid_crypto_rx[WIL_STA_TID_NUM];
 	struct wil_tid_crypto_rx group_crypto_rx;
-	u8 aid; /* 1-254; 0 if unknown/not reported */
+	u8 aid; /* 1-254; 0 if unkyeswn/yest reported */
 };
 
 enum {
@@ -764,7 +764,7 @@ enum {
 };
 
 enum {
-	hw_capa_no_flash,
+	hw_capa_yes_flash,
 	hw_capa_last
 };
 
@@ -848,7 +848,7 @@ struct wil6210_vif {
 	u16 channel; /* relevant in AP mode */
 	u8 wmi_edmg_channel; /* relevant in AP mode */
 	u8 hidden_ssid; /* relevant in AP mode */
-	u32 ap_isolate; /* no intra-BSS communication */
+	u32 ap_isolate; /* yes intra-BSS communication */
 	bool pbss;
 	int bi;
 	u8 *proberesp, *proberesp_ies, *assocresp_ies;
@@ -1034,7 +1034,7 @@ struct wil6210_priv {
 
 	int fw_calib_result;
 
-	struct notifier_block pm_notify;
+	struct yestifier_block pm_yestify;
 
 	bool suspend_resp_rcvd;
 	bool suspend_resp_comp;
@@ -1215,7 +1215,7 @@ int wil_priv_init(struct wil6210_priv *wil);
 void wil_priv_deinit(struct wil6210_priv *wil);
 int wil_ps_update(struct wil6210_priv *wil,
 		  enum wmi_ps_profile_type ps_profile);
-int wil_reset(struct wil6210_priv *wil, bool no_fw);
+int wil_reset(struct wil6210_priv *wil, bool yes_fw);
 void wil_fw_error_recovery(struct wil6210_priv *wil);
 void wil_set_recovery_state(struct wil6210_priv *wil, int state);
 bool wil_is_recovery_blocked(struct wil6210_priv *wil);

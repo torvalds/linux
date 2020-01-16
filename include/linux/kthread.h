@@ -6,24 +6,24 @@
 #include <linux/sched.h>
 
 __printf(4, 5)
-struct task_struct *kthread_create_on_node(int (*threadfn)(void *data),
+struct task_struct *kthread_create_on_yesde(int (*threadfn)(void *data),
 					   void *data,
-					   int node,
+					   int yesde,
 					   const char namefmt[], ...);
 
 /**
- * kthread_create - create a kthread on the current node
+ * kthread_create - create a kthread on the current yesde
  * @threadfn: the function to run in the thread
  * @data: data pointer for @threadfn()
  * @namefmt: printf-style format string for the thread name
  * @arg...: arguments for @namefmt.
  *
- * This macro will create a kthread on the current node, leaving it in
- * the stopped state.  This is just a helper for kthread_create_on_node();
+ * This macro will create a kthread on the current yesde, leaving it in
+ * the stopped state.  This is just a helper for kthread_create_on_yesde();
  * see the documentation there for more details.
  */
 #define kthread_create(threadfn, data, namefmt, arg...) \
-	kthread_create_on_node(threadfn, data, NUMA_NO_NODE, namefmt, ##arg)
+	kthread_create_on_yesde(threadfn, data, NUMA_NO_NODE, namefmt, ##arg)
 
 
 struct task_struct *kthread_create_on_cpu(int (*threadfn)(void *data),
@@ -65,7 +65,7 @@ void kthread_parkme(void);
 
 int kthreadd(void *unused);
 extern struct task_struct *kthreadd_task;
-extern int tsk_fork_get_node(struct task_struct *tsk);
+extern int tsk_fork_get_yesde(struct task_struct *tsk);
 
 /*
  * Simple work processor based on kthread.
@@ -93,7 +93,7 @@ struct kthread_worker {
 };
 
 struct kthread_work {
-	struct list_head	node;
+	struct list_head	yesde;
 	kthread_work_func_t	func;
 	struct kthread_worker	*worker;
 	/* Number of canceling calls that are running at the moment. */
@@ -112,7 +112,7 @@ struct kthread_delayed_work {
 	}
 
 #define KTHREAD_WORK_INIT(work, fn)	{				\
-	.node = LIST_HEAD_INIT((work).node),				\
+	.yesde = LIST_HEAD_INIT((work).yesde),				\
 	.func = (fn),							\
 	}
 
@@ -157,7 +157,7 @@ extern void __kthread_init_worker(struct kthread_worker *worker,
 #define kthread_init_work(work, fn)					\
 	do {								\
 		memset((work), 0, sizeof(struct kthread_work));		\
-		INIT_LIST_HEAD(&(work)->node);				\
+		INIT_LIST_HEAD(&(work)->yesde);				\
 		(work)->func = (fn);					\
 	} while (0)
 

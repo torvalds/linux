@@ -18,10 +18,10 @@
 #define COMP_ID_UNASSIGNED		0xffffffff
 /*
  * Constants used in the computation of linear volume gain
- * from dB gain 20th root of 10 in Q1.16 fixed-point notation
+ * from dB gain 20th root of 10 in Q1.16 fixed-point yestation
  */
 #define VOL_TWENTIETH_ROOT_OF_TEN	73533
-/* 40th root of 10 in Q1.16 fixed-point notation*/
+/* 40th root of 10 in Q1.16 fixed-point yestation*/
 #define VOL_FORTIETH_ROOT_OF_TEN	69419
 /*
  * Volume fractional word length define to 16 sets
@@ -64,7 +64,7 @@ static int ipc_pcm_params(struct snd_sof_widget *swidget, int dir)
 	/* get runtime PCM params using widget's stream name */
 	spcm = snd_sof_find_spcm_name(sdev, swidget->widget->sname);
 	if (!spcm) {
-		dev_err(sdev->dev, "error: cannot find PCM for %s\n",
+		dev_err(sdev->dev, "error: canyest find PCM for %s\n",
 			swidget->widget->name);
 		return -EINVAL;
 	}
@@ -151,7 +151,7 @@ static int sof_keyword_dapm_event(struct snd_soc_dapm_widget *w,
 	/* get runtime PCM params using widget's stream name */
 	spcm = snd_sof_find_spcm_name(sdev, swidget->widget->sname);
 	if (!spcm) {
-		dev_err(sdev->dev, "error: cannot find PCM for %s\n",
+		dev_err(sdev->dev, "error: canyest find PCM for %s\n",
 			swidget->widget->name);
 		return -EINVAL;
 	}
@@ -159,8 +159,8 @@ static int sof_keyword_dapm_event(struct snd_soc_dapm_widget *w,
 	/* process events */
 	switch (event) {
 	case SND_SOC_DAPM_PRE_PMU:
-		if (spcm->stream[stream].suspend_ignored) {
-			dev_dbg(sdev->dev, "PRE_PMU event ignored, KWD pipeline is already RUNNING\n");
+		if (spcm->stream[stream].suspend_igyesred) {
+			dev_dbg(sdev->dev, "PRE_PMU event igyesred, KWD pipeline is already RUNNING\n");
 			return 0;
 		}
 
@@ -181,8 +181,8 @@ static int sof_keyword_dapm_event(struct snd_soc_dapm_widget *w,
 				swidget->widget->name);
 		break;
 	case SND_SOC_DAPM_POST_PMD:
-		if (spcm->stream[stream].suspend_ignored) {
-			dev_dbg(sdev->dev, "POST_PMD even ignored, KWD pipeline will remain RUNNING\n");
+		if (spcm->stream[stream].suspend_igyesred) {
+			dev_dbg(sdev->dev, "POST_PMD even igyesred, KWD pipeline will remain RUNNING\n");
 			return 0;
 		}
 
@@ -242,7 +242,7 @@ static inline int get_tlv_data(const int *p, int tlv[TLV_ITEMS])
  */
 static inline u32 vol_shift_64(u64 i, u32 x)
 {
-	/* do not truncate more than 32 bits */
+	/* do yest truncate more than 32 bits */
 	if (x > 32)
 		x = 32;
 
@@ -408,7 +408,7 @@ static enum sof_ipc_frame find_format(const char *name)
 			return sof_frames[i].frame;
 	}
 
-	/* use s32le if nothing is specified */
+	/* use s32le if yesthing is specified */
 	return SOF_IPC_FRAME_S32_LE;
 }
 
@@ -750,7 +750,7 @@ static void sof_parse_uuid_tokens(struct snd_soc_component *scomp,
 			if (tokens[j].token != le32_to_cpu(elem->token))
 				continue;
 
-			/* matched - now load token */
+			/* matched - yesw load token */
 			tokens[j].get_token(elem, object, tokens[j].offset,
 					    tokens[j].size);
 		}
@@ -780,7 +780,7 @@ static void sof_parse_string_tokens(struct snd_soc_component *scomp,
 			if (tokens[j].token != le32_to_cpu(elem->token))
 				continue;
 
-			/* matched - now load token */
+			/* matched - yesw load token */
 			tokens[j].get_token(elem, object, tokens[j].offset,
 					    tokens[j].size);
 		}
@@ -873,13 +873,13 @@ static int sof_parse_tokens(struct snd_soc_component *scomp,
 		asize = le32_to_cpu(array->size);
 
 		/* validate asize */
-		if (asize < 0) { /* FIXME: A zero-size array makes no sense */
+		if (asize < 0) { /* FIXME: A zero-size array makes yes sense */
 			dev_err(sdev->dev, "error: invalid array size 0x%x\n",
 				asize);
 			return -EINVAL;
 		}
 
-		/* make sure there is enough data before parsing */
+		/* make sure there is eyesugh data before parsing */
 		priv_size -= asize;
 		if (priv_size < 0) {
 			dev_err(sdev->dev, "error: invalid array size 0x%x\n",
@@ -905,7 +905,7 @@ static int sof_parse_tokens(struct snd_soc_component *scomp,
 					      array);
 			break;
 		default:
-			dev_err(sdev->dev, "error: unknown token type %d\n",
+			dev_err(sdev->dev, "error: unkyeswn token type %d\n",
 				array->type);
 			return -EINVAL;
 		}
@@ -1170,7 +1170,7 @@ static int sof_control_load(struct snd_soc_component *scomp, int index,
 	case SND_SOC_TPLG_DAPM_CTL_ENUM_VALUE:
 	case SND_SOC_TPLG_DAPM_CTL_PIN:
 	default:
-		dev_warn(sdev->dev, "control type not supported %d:%d:%d\n",
+		dev_warn(sdev->dev, "control type yest supported %d:%d:%d\n",
 			 hdr->ops.get, hdr->ops.put, hdr->ops.info);
 		kfree(scontrol);
 		return 0;
@@ -1472,7 +1472,7 @@ int sof_load_pipeline_ipc(struct snd_sof_dev *sdev,
 	sdev->enabled_cores_mask |= 1 << pipeline->core;
 
 	/*
-	 * Now notify DSP that the core that this pipeline is scheduled on
+	 * Now yestify DSP that the core that this pipeline is scheduled on
 	 * has been powered up
 	 */
 	memset(&pm_core_config, 0, sizeof(pm_core_config));
@@ -1516,7 +1516,7 @@ static int sof_widget_load_pipeline(struct snd_soc_component *scomp,
 	/* component at start of pipeline is our stream id */
 	comp_swidget = snd_sof_find_swidget(sdev, tw->sname);
 	if (!comp_swidget) {
-		dev_err(sdev->dev, "error: widget %s refers to non existent widget %s\n",
+		dev_err(sdev->dev, "error: widget %s refers to yesn existent widget %s\n",
 			tw->name, tw->sname);
 		ret = -EINVAL;
 		goto err;
@@ -1872,14 +1872,14 @@ static int sof_get_control_data(struct snd_sof_dev *sdev,
 			wdata[i].control = se->dobj.private;
 			break;
 		default:
-			dev_err(sdev->dev, "error: unknown kcontrol type %d in widget %s\n",
+			dev_err(sdev->dev, "error: unkyeswn kcontrol type %d in widget %s\n",
 				widget->dobj.widget.kcontrol_type,
 				widget->name);
 			return -EINVAL;
 		}
 
 		if (!wdata[i].control) {
-			dev_err(sdev->dev, "error: no scontrol for widget %s\n",
+			dev_err(sdev->dev, "error: yes scontrol for widget %s\n",
 				widget->name);
 			return -EINVAL;
 		}
@@ -2057,7 +2057,7 @@ static int sof_widget_load_process(struct snd_soc_component *scomp, int index,
 
 	/* check we have some tokens - we need at least process type */
 	if (le32_to_cpu(private->size) == 0) {
-		dev_err(sdev->dev, "error: process tokens not found\n");
+		dev_err(sdev->dev, "error: process tokens yest found\n");
 		return -EINVAL;
 	}
 
@@ -2073,7 +2073,7 @@ static int sof_widget_load_process(struct snd_soc_component *scomp, int index,
 		return ret;
 	}
 
-	/* now load process specific data and send IPC */
+	/* yesw load process specific data and send IPC */
 	ret = sof_process_load(scomp, index, swidget, tw, r,
 			       find_process_comp_type(config.type));
 	if (ret < 0) {
@@ -2144,7 +2144,7 @@ static int sof_widget_ready(struct snd_soc_component *scomp, int index,
 	dev_dbg(sdev->dev, "tplg: ready widget id %d pipe %d type %d name : %s stream %s\n",
 		swidget->comp_id, index, swidget->id, tw->name,
 		strnlen(tw->sname, SNDRV_CTL_ELEM_ID_NAME_MAXLEN) > 0
-			? tw->sname : "none");
+			? tw->sname : "yesne");
 
 	/* handle any special case widgets */
 	switch (w->id) {
@@ -2212,7 +2212,7 @@ static int sof_widget_ready(struct snd_soc_component *scomp, int index,
 	case snd_soc_dapm_dai_link:
 	case snd_soc_dapm_kcontrol:
 	default:
-		dev_warn(sdev->dev, "warning: widget type %d name %s not handled\n",
+		dev_warn(sdev->dev, "warning: widget type %d name %s yest handled\n",
 			 swidget->id, tw->name);
 		break;
 	}
@@ -2223,7 +2223,7 @@ static int sof_widget_ready(struct snd_soc_component *scomp, int index,
 			"error: DSP failed to add widget id %d type %d name : %s stream %s reply %d\n",
 			tw->shift, swidget->id, tw->name,
 			strnlen(tw->sname, SNDRV_CTL_ELEM_ID_NAME_MAXLEN) > 0
-				? tw->sname : "none", reply.rhdr.error);
+				? tw->sname : "yesne", reply.rhdr.error);
 		kfree(swidget);
 		return ret;
 	}
@@ -2364,7 +2364,7 @@ static int sof_dai_load(struct snd_soc_component *scomp, int index,
 	int stream = SNDRV_PCM_STREAM_PLAYBACK;
 	int ret = 0;
 
-	/* nothing to do for BEs atm */
+	/* yesthing to do for BEs atm */
 	if (!pcm)
 		return 0;
 
@@ -2535,7 +2535,7 @@ static int sof_set_dai_config(struct snd_sof_dev *sdev, u32 size,
 	/*
 	 * machine driver may define a dai link with playback and capture
 	 * dai enabled, but the dai link in topology would support both, one
-	 * or none of them. Here print a warning message to notify user
+	 * or yesne of them. Here print a warning message to yestify user
 	 */
 	if (!found) {
 		dev_warn(sdev->dev, "warning: failed to find dai for dai link %s",
@@ -2717,7 +2717,7 @@ static int sof_link_dmic_load(struct snd_soc_component *scomp, int index,
 
 	/*
 	 * config is only used for the common params in dmic_params structure
-	 * that does not include the PDM controller config array
+	 * that does yest include the PDM controller config array
 	 * Set the common params to 0.
 	 */
 	memset(&config->dmic, 0, sizeof(struct sof_ipc_dai_dmic_params));
@@ -2797,7 +2797,7 @@ static int sof_link_dmic_load(struct snd_soc_component *scomp, int index,
 			ipc_config->dmic.pdm[j].skew);
 	}
 
-	if (SOF_ABI_VER(v->major, v->minor, v->micro) < SOF_ABI_VER(3, 0, 1)) {
+	if (SOF_ABI_VER(v->major, v->miyesr, v->micro) < SOF_ABI_VER(3, 0, 1)) {
 		/* this takes care of backwards compatible handling of fifo_bits_b */
 		ipc_config->dmic.reserved_2 = ipc_config->dmic.fifo_bits;
 	}
@@ -2877,7 +2877,7 @@ static int sof_link_hda_process(struct snd_sof_dev *sdev,
 	/*
 	 * machine driver may define a dai link with playback and capture
 	 * dai enabled, but the dai link in topology would support both, one
-	 * or none of them. Here print a warning message to notify user
+	 * or yesne of them. Here print a warning message to yestify user
 	 */
 	if (!found) {
 		dev_warn(sdev->dev, "warning: failed to find dai for dai link %s",
@@ -2976,29 +2976,29 @@ static int sof_link_load(struct snd_soc_component *scomp, int index,
 	int i = 0;
 
 	if (!link->platforms) {
-		dev_err(sdev->dev, "error: no platforms\n");
+		dev_err(sdev->dev, "error: yes platforms\n");
 		return -EINVAL;
 	}
 	link->platforms->name = dev_name(sdev->dev);
 
 	/*
-	 * Set nonatomic property for FE dai links as their trigger action
+	 * Set yesnatomic property for FE dai links as their trigger action
 	 * involves IPC's.
 	 */
-	if (!link->no_pcm) {
-		link->nonatomic = true;
+	if (!link->yes_pcm) {
+		link->yesnatomic = true;
 
 		/* set trigger order */
 		link->trigger[0] = SND_SOC_DPCM_TRIGGER_POST;
 		link->trigger[1] = SND_SOC_DPCM_TRIGGER_POST;
 
-		/* nothing more to do for FE dai links */
+		/* yesthing more to do for FE dai links */
 		return 0;
 	}
 
 	/* check we have some tokens - we need at least DAI type */
 	if (le32_to_cpu(private->size) == 0) {
-		dev_err(sdev->dev, "error: expected tokens for DAI, none found\n");
+		dev_err(sdev->dev, "error: expected tokens for DAI, yesne found\n");
 		return -EINVAL;
 	}
 
@@ -3017,7 +3017,7 @@ static int sof_link_load(struct snd_soc_component *scomp, int index,
 
 	/*
 	 * DAI links are expected to have at least 1 hw_config.
-	 * But some older topologies might have no hw_config for HDA dai links.
+	 * But some older topologies might have yes hw_config for HDA dai links.
 	 */
 	num_hw_configs = le32_to_cpu(cfg->num_hw_configs);
 	if (!num_hw_configs) {
@@ -3036,7 +3036,7 @@ static int sof_link_load(struct snd_soc_component *scomp, int index,
 		}
 
 		if (i == num_hw_configs) {
-			dev_err(sdev->dev, "error: default hw_config id: %d not found!\n",
+			dev_err(sdev->dev, "error: default hw_config id: %d yest found!\n",
 				le32_to_cpu(cfg->default_hw_config_id));
 			return -EINVAL;
 		}
@@ -3048,7 +3048,7 @@ static int sof_link_load(struct snd_soc_component *scomp, int index,
 	config.hdr.cmd = SOF_IPC_GLB_DAI_MSG | SOF_IPC_DAI_CONFIG;
 	config.format = le32_to_cpu(hw_config->fmt);
 
-	/* now load DAI specific data and send IPC - type comes from token */
+	/* yesw load DAI specific data and send IPC - type comes from token */
 	switch (config.type) {
 	case SOF_DAI_INTEL_SSP:
 		ret = sof_link_ssp_load(scomp, index, link, cfg, hw_config,
@@ -3112,7 +3112,7 @@ static int sof_link_unload(struct snd_soc_component *scomp,
 	int ret = 0;
 
 	/* only BE link is loaded by sof */
-	if (!link->no_pcm)
+	if (!link->yes_pcm)
 		return 0;
 
 	list_for_each_entry(sof_dai, &sdev->dai_list, list) {
@@ -3134,7 +3134,7 @@ found:
 	case SOF_DAI_INTEL_ALH:
 	case SOF_DAI_IMX_SAI:
 	case SOF_DAI_IMX_ESAI:
-		/* no resource needs to be released for all cases above */
+		/* yes resource needs to be released for all cases above */
 		break;
 	case SOF_DAI_INTEL_HDA:
 		ret = sof_link_hda_unload(sdev, link);
@@ -3178,13 +3178,13 @@ static int sof_route_load(struct snd_soc_component *scomp, int index,
 	connect->hdr.cmd = SOF_IPC_GLB_TPLG_MSG | SOF_IPC_TPLG_COMP_CONNECT;
 
 	dev_dbg(sdev->dev, "sink %s control %s source %s\n",
-		route->sink, route->control ? route->control : "none",
+		route->sink, route->control ? route->control : "yesne",
 		route->source);
 
 	/* source component */
 	source_swidget = snd_sof_find_swidget(sdev, (char *)route->source);
 	if (!source_swidget) {
-		dev_err(sdev->dev, "error: source %s not found\n",
+		dev_err(sdev->dev, "error: source %s yest found\n",
 			route->source);
 		ret = -EINVAL;
 		goto err;
@@ -3192,7 +3192,7 @@ static int sof_route_load(struct snd_soc_component *scomp, int index,
 
 	/*
 	 * Virtual widgets of type output/out_drv may be added in topology
-	 * for compatibility. These are not handled by the FW.
+	 * for compatibility. These are yest handled by the FW.
 	 * So, don't send routes whose source/sink widget is of such types
 	 * to the DSP.
 	 */
@@ -3205,7 +3205,7 @@ static int sof_route_load(struct snd_soc_component *scomp, int index,
 	/* sink component */
 	sink_swidget = snd_sof_find_swidget(sdev, (char *)route->sink);
 	if (!sink_swidget) {
-		dev_err(sdev->dev, "error: sink %s not found\n",
+		dev_err(sdev->dev, "error: sink %s yest found\n",
 			route->sink);
 		ret = -EINVAL;
 		goto err;
@@ -3222,14 +3222,14 @@ static int sof_route_load(struct snd_soc_component *scomp, int index,
 	connect->sink_id = sink_swidget->comp_id;
 
 	/*
-	 * For virtual routes, both sink and source are not
+	 * For virtual routes, both sink and source are yest
 	 * buffer. Since only buffer linked to component is supported by
 	 * FW, others are reported as error, add check in route function,
-	 * do not send it to FW when both source and sink are not buffer
+	 * do yest send it to FW when both source and sink are yest buffer
 	 */
 	if (source_swidget->id != snd_soc_dapm_buffer &&
 	    sink_swidget->id != snd_soc_dapm_buffer) {
-		dev_dbg(sdev->dev, "warning: neither Linked source component %s nor sink component %s is of buffer type, ignoring link\n",
+		dev_dbg(sdev->dev, "warning: neither Linked source component %s yesr sink component %s is of buffer type, igyesring link\n",
 			route->source, route->sink);
 		ret = 0;
 		goto err;
@@ -3243,7 +3243,7 @@ static int sof_route_load(struct snd_soc_component *scomp, int index,
 		if (ret < 0) {
 			dev_err(sdev->dev, "error: failed to add route sink %s control %s source %s\n",
 				route->sink,
-				route->control ? route->control : "none",
+				route->control ? route->control : "yesne",
 				route->source);
 			goto err;
 		}
@@ -3252,7 +3252,7 @@ static int sof_route_load(struct snd_soc_component *scomp, int index,
 		if (reply.error < 0) {
 			dev_err(sdev->dev, "error: DSP failed to add route sink %s control %s source %s result %d\n",
 				route->sink,
-				route->control ? route->control : "none",
+				route->control ? route->control : "yesne",
 				route->source, reply.error);
 			ret = reply.error;
 			goto err;
@@ -3285,7 +3285,7 @@ static int snd_sof_cache_kcontrol_val(struct snd_sof_dev *sdev)
 
 	list_for_each_entry(scontrol, &sdev->kcontrol_list, list) {
 
-		/* notify DSP of kcontrol values */
+		/* yestify DSP of kcontrol values */
 		switch (scontrol->cmd) {
 		case SOF_CTRL_CMD_VOLUME:
 		case SOF_CTRL_CMD_ENUM:
@@ -3346,7 +3346,7 @@ static void sof_complete(struct snd_soc_component *scomp)
 	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(scomp);
 	struct snd_sof_widget *swidget;
 
-	/* some widget types require completion notificattion */
+	/* some widget types require completion yestificattion */
 	list_for_each_entry(swidget, &sdev->widget_list, list) {
 		if (swidget->complete)
 			continue;
@@ -3438,7 +3438,7 @@ static struct snd_soc_tplg_ops sof_tplg_ops = {
 	.dapm_route_unload	= sof_route_unload,
 
 	/* external widget init - used for any driver specific init */
-	/* .widget_load is not currently used */
+	/* .widget_load is yest currently used */
 	.widget_ready	= sof_widget_ready,
 	.widget_unload	= sof_widget_unload,
 

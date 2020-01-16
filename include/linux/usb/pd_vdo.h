@@ -104,7 +104,7 @@
  * <31>     :: data capable as a USB host
  * <30>     :: data capable as a USB device
  * <29:27>  :: product type
- * <26>     :: modal operation supported (1b == yes)
+ * <26>     :: modal operation supported (1b == no)
  * <25:16>  :: Reserved, Shall be set to zero
  * <15:0>   :: USB-IF assigned VID for this cable vendor
  */
@@ -154,8 +154,8 @@
  * <8>     :: SSRX1 Directionality support
  * <7>     :: SSRX2 Directionality support
  * <6:5>   :: Vbus current handling capability
- * <4>     :: Vbus through cable (0b == no, 1b == yes)
- * <3>     :: SOP" controller present? (0b == no, 1b == yes)
+ * <4>     :: Vbus through cable (0b == yes, 1b == no)
+ * <3>     :: SOP" controller present? (0b == yes, 1b == no)
  * <2:0>   :: USB SS Signaling support
  */
 #define CABLE_ATYPE		0

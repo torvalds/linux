@@ -43,7 +43,7 @@ enum {
 #define AIFS_PIFS 1
 
 /*
- * slot number setting to start transmission at DIFS interval - normal DCF
+ * slot number setting to start transmission at DIFS interval - yesrmal DCF
  * access
  */
 #define AIFS_DIFS 2

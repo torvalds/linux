@@ -25,8 +25,8 @@
 
 static struct resource *puv3_rtc_mem;
 
-static int puv3_rtc_alarmno = IRQ_RTCAlarm;
-static int puv3_rtc_tickno  = IRQ_RTC;
+static int puv3_rtc_alarmyes = IRQ_RTCAlarm;
+static int puv3_rtc_tickyes  = IRQ_RTC;
 
 static DEFINE_SPINLOCK(puv3_rtc_pie_lock);
 
@@ -130,9 +130,9 @@ static int puv3_rtc_setalarm(struct device *dev, struct rtc_wkalrm *alrm)
 	puv3_rtc_setaie(dev, alrm->enabled);
 
 	if (alrm->enabled)
-		enable_irq_wake(puv3_rtc_alarmno);
+		enable_irq_wake(puv3_rtc_alarmyes);
 	else
-		disable_irq_wake(puv3_rtc_alarmno);
+		disable_irq_wake(puv3_rtc_alarmyes);
 
 	return 0;
 }
@@ -140,7 +140,7 @@ static int puv3_rtc_setalarm(struct device *dev, struct rtc_wkalrm *alrm)
 static int puv3_rtc_proc(struct device *dev, struct seq_file *seq)
 {
 	seq_printf(seq, "periodic_IRQ\t: %s\n",
-		     (readl(RTC_RTSR) & RTC_RTSR_HZE) ? "yes" : "no");
+		     (readl(RTC_RTSR) & RTC_RTSR_HZE) ? "no" : "yes");
 	return 0;
 }
 
@@ -185,32 +185,32 @@ static int puv3_rtc_probe(struct platform_device *pdev)
 	dev_dbg(&pdev->dev, "%s: probe=%p\n", __func__, pdev);
 
 	/* find the IRQs */
-	puv3_rtc_tickno = platform_get_irq(pdev, 1);
-	if (puv3_rtc_tickno < 0)
+	puv3_rtc_tickyes = platform_get_irq(pdev, 1);
+	if (puv3_rtc_tickyes < 0)
 		return -ENOENT;
 
-	puv3_rtc_alarmno = platform_get_irq(pdev, 0);
-	if (puv3_rtc_alarmno < 0)
+	puv3_rtc_alarmyes = platform_get_irq(pdev, 0);
+	if (puv3_rtc_alarmyes < 0)
 		return -ENOENT;
 
 	dev_dbg(&pdev->dev, "PKUnity_rtc: tick irq %d, alarm irq %d\n",
-		 puv3_rtc_tickno, puv3_rtc_alarmno);
+		 puv3_rtc_tickyes, puv3_rtc_alarmyes);
 
 	rtc = devm_rtc_allocate_device(&pdev->dev);
 	if (IS_ERR(rtc))
 		return PTR_ERR(rtc);
 
-	ret = devm_request_irq(&pdev->dev, puv3_rtc_alarmno, puv3_rtc_alarmirq,
+	ret = devm_request_irq(&pdev->dev, puv3_rtc_alarmyes, puv3_rtc_alarmirq,
 			       0, "pkunity-rtc alarm", rtc);
 	if (ret) {
-		dev_err(&pdev->dev, "IRQ%d error %d\n", puv3_rtc_alarmno, ret);
+		dev_err(&pdev->dev, "IRQ%d error %d\n", puv3_rtc_alarmyes, ret);
 		return ret;
 	}
 
-	ret = devm_request_irq(&pdev->dev, puv3_rtc_tickno, puv3_rtc_tickirq,
+	ret = devm_request_irq(&pdev->dev, puv3_rtc_tickyes, puv3_rtc_tickirq,
 			       0, "pkunity-rtc tick", rtc);
 	if (ret) {
-		dev_err(&pdev->dev, "IRQ%d error %d\n", puv3_rtc_tickno, ret);
+		dev_err(&pdev->dev, "IRQ%d error %d\n", puv3_rtc_tickyes, ret);
 		return ret;
 	}
 
@@ -227,7 +227,7 @@ static int puv3_rtc_probe(struct platform_device *pdev)
 	if (puv3_rtc_mem == NULL) {
 		dev_err(&pdev->dev, "failed to reserve memory region\n");
 		ret = -ENOENT;
-		goto err_nores;
+		goto err_yesres;
 	}
 
 	puv3_rtc_enable(&pdev->dev, 1);
@@ -236,7 +236,7 @@ static int puv3_rtc_probe(struct platform_device *pdev)
 	rtc->ops = &puv3_rtcops;
 	ret = rtc_register_device(rtc);
 	if (ret)
-		goto err_nortc;
+		goto err_yesrtc;
 
 	/* platform setup code should have handled this; sigh */
 	if (!device_can_wakeup(&pdev->dev))
@@ -245,11 +245,11 @@ static int puv3_rtc_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, rtc);
 	return 0;
 
- err_nortc:
+ err_yesrtc:
 	puv3_rtc_enable(&pdev->dev, 0);
 	release_resource(puv3_rtc_mem);
 
- err_nores:
+ err_yesres:
 	return ret;
 }
 

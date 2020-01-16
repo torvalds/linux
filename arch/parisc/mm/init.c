@@ -21,7 +21,7 @@
 #include <linux/initrd.h>
 #include <linux/swap.h>
 #include <linux/unistd.h>
-#include <linux/nodemask.h>	/* for node_online_map */
+#include <linux/yesdemask.h>	/* for yesde_online_map */
 #include <linux/pagemap.h>	/* for release_pages */
 #include <linux/compat.h>
 
@@ -125,7 +125,7 @@ static void __init setup_bootmem(void)
 
 	/*
 	 * Sort the ranges. Since the number of ranges is typically
-	 * small, and performance is not an issue here, just do
+	 * small, and performance is yest an issue here, just do
 	 * a simple insertion sort.
 	 */
 
@@ -192,8 +192,8 @@ static void __init setup_bootmem(void)
 
 	/*
 	 * For 32 bit kernels we limit the amount of memory we can
-	 * support, in order to preserve enough kernel address space
-	 * for other purposes. For 64 bit kernels we don't normally
+	 * support, in order to preserve eyesugh kernel address space
+	 * for other purposes. For 64 bit kernels we don't yesrmally
 	 * limit the memory, but this mechanism can be used to
 	 * artificially limit the amount of memory (and it is written
 	 * to work with multiple memory ranges).
@@ -279,7 +279,7 @@ static void __init setup_bootmem(void)
 	memblock_set_bottom_up(true);
 
 	/* IOMMU is always used to access "high mem" on those boxes
-	 * that can support enough mem that a PCI device couldn't
+	 * that can support eyesugh mem that a PCI device couldn't
 	 * directly DMA to any physical addresses.
 	 * ISA DMA support will need to revisit this.
 	 */
@@ -328,7 +328,7 @@ static void __init setup_bootmem(void)
 	code_resource.start = virt_to_phys(_text);
 	code_resource.end = virt_to_phys(&data_start)-1;
 
-	/* We don't know which region the kernel will be in, so try
+	/* We don't kyesw which region the kernel will be in, so try
 	 * all of them.
 	 */
 	for (i = 0; i < sysram_resource_count; i++) {
@@ -405,7 +405,7 @@ static void __init map_pages(unsigned long start_vaddr,
 #endif
 		pg_dir++;
 
-		/* now change pmd to kernel virtual addresses */
+		/* yesw change pmd to kernel virtual addresses */
 
 		pmd = (pmd_t *)__va(pmd) + start_pmd;
 		for (tmp1 = start_pmd; tmp1 < PTRS_PER_PMD; tmp1++, pmd++) {
@@ -425,7 +425,7 @@ static void __init map_pages(unsigned long start_vaddr,
 
 			pmd_populate_kernel(NULL, pmd, __va(pg_table));
 
-			/* now change pg_table to kernel virtual addresses */
+			/* yesw change pg_table to kernel virtual addresses */
 
 			pg_table = (pte_t *) __va(pg_table) + start_pte;
 			for (tmp2 = start_pte; tmp2 < PTRS_PER_PTE; tmp2++, pg_table++) {
@@ -491,7 +491,7 @@ void __ref free_initmem(void)
 	unsigned long init_end = (unsigned long)__init_end;
 	unsigned long kernel_end  = (unsigned long)&_end;
 
-	/* Remap kernel text and data, but do not touch init section yet. */
+	/* Remap kernel text and data, but do yest touch init section yet. */
 	kernel_set_to_readonly = true;
 	map_pages(init_end, __pa(init_end), kernel_end - init_end,
 		  PAGE_KERNEL, 0);
@@ -505,7 +505,7 @@ void __ref free_initmem(void)
 	 * for map_kernel */
 	map_pages(init_begin, __pa(init_begin), init_end - init_begin,
 		  PAGE_KERNEL_RWX, 1);
-	/* now remap at PAGE_KERNEL since the TLB is pre-primed to execute
+	/* yesw remap at PAGE_KERNEL since the TLB is pre-primed to execute
 	 * map_pages */
 	map_pages(init_begin, __pa(init_begin), init_end - init_begin,
 		  PAGE_KERNEL, 1);
@@ -514,7 +514,7 @@ void __ref free_initmem(void)
 	__flush_tlb_range(0, init_begin, kernel_end);
 
 	/* finally dump all the instructions which were cached, since the
-	 * pages are no-longer executable */
+	 * pages are yes-longer executable */
 	flush_icache_range(init_begin, init_end);
 	
 	free_initmem_default(POISON_FREE_INITMEM);
@@ -604,7 +604,7 @@ void __init mem_init(void)
 
 #if 0
 	/*
-	 * Do not expose the virtual kernel memory layout to userspace.
+	 * Do yest expose the virtual kernel memory layout to userspace.
 	 * But keep code for debugging purposes.
 	 */
 	printk("virtual kernel memory layout:\n"
@@ -642,7 +642,7 @@ EXPORT_SYMBOL(empty_zero_page);
  * pagetable_init() sets up the page tables
  *
  * Note that gateway_init() places the Linux gateway page at page 0.
- * Since gateway pages cannot be dereferenced this has the desirable
+ * Since gateway pages canyest be dereferenced this has the desirable
  * side effect of trapping those pesky NULL-reference errors in the
  * kernel.
  */
@@ -683,7 +683,7 @@ static void __init gateway_init(void)
 {
 	unsigned long linux_gateway_page_addr;
 	/* FIXME: This is 'const' in order to trick the compiler
-	   into not treating it as DP-relative data. */
+	   into yest treating it as DP-relative data. */
 	extern void * const linux_gateway_page;
 
 	linux_gateway_page_addr = LINUX_GATEWAY_ADDR & PAGE_MASK;
@@ -721,7 +721,7 @@ static void __init parisc_bootmem_free(void)
 	zones_size[0] = mem_end_pfn - mem_start_pfn;
 	holes_size[0] = zones_size[0] - mem_size_pfn;
 
-	free_area_init_node(0, zones_size, mem_start_pfn, holes_size);
+	free_area_init_yesde(0, zones_size, mem_start_pfn, holes_size);
 }
 
 void __init paging_init(void)
@@ -729,7 +729,7 @@ void __init paging_init(void)
 	setup_bootmem();
 	pagetable_init();
 	gateway_init();
-	flush_cache_all_local(); /* start with known state */
+	flush_cache_all_local(); /* start with kyeswn state */
 	flush_tlb_all_local(NULL);
 
 	/*
@@ -757,7 +757,7 @@ void __init paging_init(void)
  * protection IDs. Older parisc chips (PCXS, PCXT, PCXL, PCXL2) only
  * support 15 bit protection IDs, so that is the limiting factor.
  * PCXT' has 18 bit protection IDs, but only 16 bit spaceids, so it's
- * probably not worth the effort for a special case here.
+ * probably yest worth the effort for a special case here.
  */
 
 #define NR_SPACE_IDS 32768
@@ -879,7 +879,7 @@ static void recycle_sids(void)
 /*
  * flush_tlb_all() calls recycle_sids(), since whenever the entire tlb is
  * purged, we can safely reuse the space ids that were released but
- * not flushed from the tlb.
+ * yest flushed from the tlb.
  */
 
 #ifdef CONFIG_SMP

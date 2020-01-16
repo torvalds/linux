@@ -120,7 +120,7 @@ struct snd_card_sb16 {
 	struct resource *fm_res;	/* used to block FM i/o region for legacy cards */
 	struct snd_sb *chip;
 #ifdef CONFIG_PNP
-	int dev_no;
+	int dev_yes;
 	struct pnp_dev *dev;
 #ifdef SNDRV_SBAWE_EMU8000
 	struct pnp_dev *devwt;
@@ -352,7 +352,7 @@ static int snd_sb16_probe(struct snd_card *card, int dev)
 
 	acard->chip = chip;
 	if (chip->hardware != SB_HW_16) {
-		snd_printk(KERN_ERR PFX "SB 16 chip was not detected at 0x%lx\n", port[dev]);
+		snd_printk(KERN_ERR PFX "SB 16 chip was yest detected at 0x%lx\n", port[dev]);
 		return -ENODEV;
 	}
 	chip->mpu_port = mpu_port[dev];
@@ -397,7 +397,7 @@ static int snd_sb16_probe(struct snd_card *card, int dev)
 				    OPL3_HW_OPL3,
 				    acard->fm_res != NULL || fm_port[dev] == port[dev],
 				    &opl3) < 0) {
-			snd_printk(KERN_ERR PFX "no OPL device at 0x%lx-0x%lx\n",
+			snd_printk(KERN_ERR PFX "yes OPL device at 0x%lx-0x%lx\n",
 				   fm_port[dev], fm_port[dev] + 2);
 		} else {
 #ifdef SNDRV_SBAWE_EMU8000
@@ -421,7 +421,7 @@ static int snd_sb16_probe(struct snd_card *card, int dev)
 			chip->csp = xcsp->private_data;
 			chip->hardware = SB_HW_16CSP;
 		} else {
-			snd_printk(KERN_INFO PFX "warning - CSP chip not detected on soundcard #%i\n", dev + 1);
+			snd_printk(KERN_INFO PFX "warning - CSP chip yest detected on soundcard #%i\n", dev + 1);
 		}
 	}
 #endif
@@ -429,7 +429,7 @@ static int snd_sb16_probe(struct snd_card *card, int dev)
 	if (awe_port[dev] > 0) {
 		if ((err = snd_emu8000_new(card, 1, awe_port[dev],
 					   seq_ports[dev], NULL)) < 0) {
-			snd_printk(KERN_ERR PFX "fatal error - EMU-8000 synthesizer not detected at 0x%lx\n", awe_port[dev]);
+			snd_printk(KERN_ERR PFX "fatal error - EMU-8000 synthesizer yest detected at 0x%lx\n", awe_port[dev]);
 
 			return err;
 		}
@@ -483,12 +483,12 @@ static int snd_sb16_isa_probe1(int dev, struct device *pdev)
 		return err;
 
 	acard = card->private_data;
-	/* non-PnP FM port address is hardwired with base port address */
+	/* yesn-PnP FM port address is hardwired with base port address */
 	fm_port[dev] = port[dev];
 	/* block the 0x388 port to avoid PnP conflicts */
 	acard->fm_res = request_region(0x388, 4, "SoundBlaster FM");
 #ifdef SNDRV_SBAWE_EMU8000
-	/* non-PnP AWE port address is hardwired with base port address */
+	/* yesn-PnP AWE port address is hardwired with base port address */
 	awe_port[dev] = port[dev] + 0x400;
 #endif
 

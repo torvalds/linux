@@ -39,12 +39,12 @@
  * are met:
  *
  *  * Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  *  * Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
+ *    yestice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
- *  * Neither the name Intel Corporation nor the names of its
+ *  * Neither the name Intel Corporation yesr the names of its
  *    contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
@@ -279,7 +279,7 @@ static ssize_t iwl_dbgfs_set_nic_temperature_read(struct file *file,
 
 /*
  * Set NIC Temperature
- * Cause the driver to ignore the actual NIC temperature reported by the FW
+ * Cause the driver to igyesre the actual NIC temperature reported by the FW
  * Enable: any value between IWL_MVM_DEBUG_SET_TEMPERATURE_MIN -
  * IWL_MVM_DEBUG_SET_TEMPERATURE_MAX
  * Disable: IWL_MVM_DEBUG_SET_TEMPERATURE_DISABLE
@@ -295,7 +295,7 @@ static ssize_t iwl_dbgfs_set_nic_temperature_write(struct iwl_mvm *mvm,
 
 	if (kstrtoint(buf, 10, &temperature))
 		return -EINVAL;
-	/* not a legal temperature */
+	/* yest a legal temperature */
 	if ((temperature > IWL_MVM_DEBUG_SET_TEMPERATURE_MAX &&
 	     temperature != IWL_MVM_DEBUG_SET_TEMPERATURE_DISABLE) ||
 	    temperature < IWL_MVM_DEBUG_SET_TEMPERATURE_MIN)
@@ -553,7 +553,7 @@ static ssize_t iwl_dbgfs_disable_power_off_write(struct iwl_mvm *mvm, char *buf,
 }
 
 static
-int iwl_mvm_coex_dump_mbox(struct iwl_bt_coex_profile_notif *notif, char *buf,
+int iwl_mvm_coex_dump_mbox(struct iwl_bt_coex_profile_yestif *yestif, char *buf,
 			   int pos, int bufsz)
 {
 	pos += scnprintf(buf+pos, bufsz-pos, "MBOX dw0:\n");
@@ -612,11 +612,11 @@ int iwl_mvm_coex_dump_mbox(struct iwl_bt_coex_profile_notif *notif, char *buf,
 	return pos;
 }
 
-static ssize_t iwl_dbgfs_bt_notif_read(struct file *file, char __user *user_buf,
+static ssize_t iwl_dbgfs_bt_yestif_read(struct file *file, char __user *user_buf,
 				       size_t count, loff_t *ppos)
 {
 	struct iwl_mvm *mvm = file->private_data;
-	struct iwl_bt_coex_profile_notif *notif = &mvm->last_bt_notif;
+	struct iwl_bt_coex_profile_yestif *yestif = &mvm->last_bt_yestif;
 	char *buf;
 	int ret, pos = 0, bufsz = sizeof(char) * 1024;
 
@@ -626,21 +626,21 @@ static ssize_t iwl_dbgfs_bt_notif_read(struct file *file, char __user *user_buf,
 
 	mutex_lock(&mvm->mutex);
 
-	pos += iwl_mvm_coex_dump_mbox(notif, buf, pos, bufsz);
+	pos += iwl_mvm_coex_dump_mbox(yestif, buf, pos, bufsz);
 
 	pos += scnprintf(buf + pos, bufsz - pos, "bt_ci_compliance = %d\n",
-			 notif->bt_ci_compliance);
+			 yestif->bt_ci_compliance);
 	pos += scnprintf(buf + pos, bufsz - pos, "primary_ch_lut = %d\n",
-			 le32_to_cpu(notif->primary_ch_lut));
+			 le32_to_cpu(yestif->primary_ch_lut));
 	pos += scnprintf(buf + pos, bufsz - pos, "secondary_ch_lut = %d\n",
-			 le32_to_cpu(notif->secondary_ch_lut));
+			 le32_to_cpu(yestif->secondary_ch_lut));
 	pos += scnprintf(buf + pos,
 			 bufsz - pos, "bt_activity_grading = %d\n",
-			 le32_to_cpu(notif->bt_activity_grading));
+			 le32_to_cpu(yestif->bt_activity_grading));
 	pos += scnprintf(buf + pos, bufsz - pos, "bt_rrc = %d\n",
-			 notif->rrc_status & 0xF);
+			 yestif->rrc_status & 0xF);
 	pos += scnprintf(buf + pos, bufsz - pos, "bt_ttc = %d\n",
-			 notif->ttc_status & 0xF);
+			 yestif->ttc_status & 0xF);
 
 	pos += scnprintf(buf + pos, bufsz - pos, "sync_sco = %d\n",
 			 IWL_MVM_BT_COEX_SYNC2SCO);
@@ -869,14 +869,14 @@ static ssize_t iwl_dbgfs_fw_rx_stats_read(struct file *file,
 	pos += scnprintf(buf + pos, bufsz - pos, fmt_header,
 			 "Statistics_Rx - GENERAL");
 	if (!iwl_mvm_has_new_rx_stats_api(mvm)) {
-		struct mvm_statistics_rx_non_phy_v3 *general =
+		struct mvm_statistics_rx_yesn_phy_v3 *general =
 			&mvm->rx_stats_v3.general;
 
 		PRINT_STATS_LE32(general, bogus_cts);
 		PRINT_STATS_LE32(general, bogus_ack);
-		PRINT_STATS_LE32(general, non_bssid_frames);
+		PRINT_STATS_LE32(general, yesn_bssid_frames);
 		PRINT_STATS_LE32(general, filtered_frames);
-		PRINT_STATS_LE32(general, non_channel_beacons);
+		PRINT_STATS_LE32(general, yesn_channel_beacons);
 		PRINT_STATS_LE32(general, channel_beacons);
 		PRINT_STATS_LE32(general, num_missed_bcon);
 		PRINT_STATS_LE32(general, adc_rx_saturation_time);
@@ -897,12 +897,12 @@ static ssize_t iwl_dbgfs_fw_rx_stats_read(struct file *file,
 		PRINT_STATS_LE32(general, mac_id);
 		PRINT_STATS_LE32(general, directed_data_mpdu);
 	} else {
-		struct mvm_statistics_rx_non_phy *general =
+		struct mvm_statistics_rx_yesn_phy *general =
 			&mvm->rx_stats.general;
 
 		PRINT_STATS_LE32(general, bogus_cts);
 		PRINT_STATS_LE32(general, bogus_ack);
-		PRINT_STATS_LE32(general, non_channel_beacons);
+		PRINT_STATS_LE32(general, yesn_channel_beacons);
 		PRINT_STATS_LE32(general, channel_beacons);
 		PRINT_STATS_LE32(general, num_missed_bcon);
 		PRINT_STATS_LE32(general, adc_rx_saturation_time);
@@ -1167,7 +1167,7 @@ static ssize_t iwl_dbgfs_inject_packet_write(struct iwl_mvm *mvm,
 {
 	struct iwl_rx_cmd_buffer rxb = {
 		._rx_page_order = 0,
-		.truesize = 0, /* not used */
+		.truesize = 0, /* yest used */
 		._offset = 0,
 	};
 	struct iwl_rx_packet *pkt;
@@ -1619,7 +1619,7 @@ iwl_dbgfs_prph_reg_write(struct iwl_mvm *mvm, char *buf,
 	u32 value;
 
 	args = sscanf(buf, "%i %i", &mvm->dbgfs_prph_reg_addr, &value);
-	/* if we only want to set the reg address - nothing more to do */
+	/* if we only want to set the reg address - yesthing more to do */
 	if (args == 1)
 		goto out;
 
@@ -1655,7 +1655,7 @@ struct iwl_mvm_sniffer_apply {
 	u16 aid;
 };
 
-static bool iwl_mvm_sniffer_apply(struct iwl_notif_wait_data *notif_data,
+static bool iwl_mvm_sniffer_apply(struct iwl_yestif_wait_data *yestif_data,
 				  struct iwl_rx_packet *pkt, void *data)
 {
 	struct iwl_mvm_sniffer_apply *apply = data;
@@ -1671,7 +1671,7 @@ static ssize_t
 iwl_dbgfs_he_sniffer_params_write(struct iwl_mvm *mvm, char *buf,
 				  size_t count, loff_t *ppos)
 {
-	struct iwl_notification_wait wait;
+	struct iwl_yestification_wait wait;
 	struct iwl_he_monitor_cmd he_mon_cmd = {};
 	struct iwl_mvm_sniffer_apply apply = {
 		.mvm = mvm,
@@ -1700,15 +1700,15 @@ iwl_dbgfs_he_sniffer_params_write(struct iwl_mvm *mvm, char *buf,
 	mutex_lock(&mvm->mutex);
 
 	/*
-	 * Use the notification waiter to get our function triggered
+	 * Use the yestification waiter to get our function triggered
 	 * in sequence with other RX. This ensures that frames we get
 	 * on the RX queue _before_ the new configuration is applied
 	 * still have mvm->cur_aid pointing to the old AID, and that
 	 * frames on the RX queue _after_ the firmware processed the
-	 * new configuration (and sent the response, synchronously)
+	 * new configuration (and sent the response, synchroyesusly)
 	 * get mvm->cur_aid correctly set to the new AID.
 	 */
-	iwl_init_notification_wait(&mvm->notif_wait, &wait,
+	iwl_init_yestification_wait(&mvm->yestif_wait, &wait,
 				   wait_cmds, ARRAY_SIZE(wait_cmds),
 				   iwl_mvm_sniffer_apply, &apply);
 
@@ -1716,8 +1716,8 @@ iwl_dbgfs_he_sniffer_params_write(struct iwl_mvm *mvm, char *buf,
 						   DATA_PATH_GROUP, 0), 0,
 				   sizeof(he_mon_cmd), &he_mon_cmd);
 
-	/* no need to really wait, we already did anyway */
-	iwl_remove_notification(&mvm->notif_wait, &wait);
+	/* yes need to really wait, we already did anyway */
+	iwl_remove_yestification(&mvm->yestif_wait, &wait);
 
 	mutex_unlock(&mvm->mutex);
 
@@ -1742,7 +1742,7 @@ iwl_dbgfs_he_sniffer_params_read(struct file *file, char __user *user_buf,
 }
 
 static ssize_t
-iwl_dbgfs_uapsd_noagg_bssids_read(struct file *file, char __user *user_buf,
+iwl_dbgfs_uapsd_yesagg_bssids_read(struct file *file, char __user *user_buf,
 				  size_t count, loff_t *ppos)
 {
 	struct iwl_mvm *mvm = file->private_data;
@@ -1755,7 +1755,7 @@ iwl_dbgfs_uapsd_noagg_bssids_read(struct file *file, char __user *user_buf,
 
 	for (i = 0; i < IWL_MVM_UAPSD_NOAGG_LIST_LEN; i++)
 		pos += scnprintf(buf + pos, bufsz - pos, "%pM\n",
-				 mvm->uapsd_noagg_bssids[i].addr);
+				 mvm->uapsd_yesagg_bssids[i].addr);
 
 	mutex_unlock(&mvm->mutex);
 
@@ -1808,7 +1808,7 @@ MVM_DEBUGFS_READ_WRITE_FILE_OPS(set_nic_temperature, 64);
 MVM_DEBUGFS_READ_FILE_OPS(nic_temp);
 MVM_DEBUGFS_READ_FILE_OPS(stations);
 MVM_DEBUGFS_READ_FILE_OPS(rs_data);
-MVM_DEBUGFS_READ_FILE_OPS(bt_notif);
+MVM_DEBUGFS_READ_FILE_OPS(bt_yestif);
 MVM_DEBUGFS_READ_FILE_OPS(bt_cmd);
 MVM_DEBUGFS_READ_WRITE_FILE_OPS(disable_power_off, 64);
 MVM_DEBUGFS_READ_FILE_OPS(fw_rx_stats);
@@ -1827,7 +1827,7 @@ MVM_DEBUGFS_WRITE_FILE_OPS(inject_packet, 512);
 MVM_DEBUGFS_WRITE_FILE_OPS(inject_beacon_ie, 512);
 MVM_DEBUGFS_WRITE_FILE_OPS(inject_beacon_ie_restore, 512);
 
-MVM_DEBUGFS_READ_FILE_OPS(uapsd_noagg_bssids);
+MVM_DEBUGFS_READ_FILE_OPS(uapsd_yesagg_bssids);
 
 #ifdef CONFIG_IWLWIFI_BCAST_FILTERING
 MVM_DEBUGFS_READ_WRITE_FILE_OPS(bcast_filters, 256);
@@ -2007,7 +2007,7 @@ void iwl_mvm_dbgfs_register(struct iwl_mvm *mvm, struct dentry *dbgfs_dir)
 	MVM_DEBUGFS_ADD_FILE(stop_ctdp, dbgfs_dir, 0200);
 	MVM_DEBUGFS_ADD_FILE(force_ctkill, dbgfs_dir, 0200);
 	MVM_DEBUGFS_ADD_FILE(stations, dbgfs_dir, 0400);
-	MVM_DEBUGFS_ADD_FILE(bt_notif, dbgfs_dir, 0400);
+	MVM_DEBUGFS_ADD_FILE(bt_yestif, dbgfs_dir, 0400);
 	MVM_DEBUGFS_ADD_FILE(bt_cmd, dbgfs_dir, 0400);
 	MVM_DEBUGFS_ADD_FILE(disable_power_off, mvm->debugfs_dir, 0600);
 	MVM_DEBUGFS_ADD_FILE(fw_ver, mvm->debugfs_dir, 0400);
@@ -2034,12 +2034,12 @@ void iwl_mvm_dbgfs_register(struct iwl_mvm *mvm, struct dentry *dbgfs_dir)
 	if (fw_has_capa(&mvm->fw->ucode_capa, IWL_UCODE_TLV_CAPA_SET_LTR_GEN2))
 		MVM_DEBUGFS_ADD_FILE(ltr_config, mvm->debugfs_dir, 0200);
 
-	debugfs_create_bool("enable_scan_iteration_notif", 0600,
-			    mvm->debugfs_dir, &mvm->scan_iter_notif_enabled);
+	debugfs_create_bool("enable_scan_iteration_yestif", 0600,
+			    mvm->debugfs_dir, &mvm->scan_iter_yestif_enabled);
 	debugfs_create_bool("drop_bcn_ap_mode", 0600, mvm->debugfs_dir,
 			    &mvm->drop_bcn_ap_mode);
 
-	MVM_DEBUGFS_ADD_FILE(uapsd_noagg_bssids, mvm->debugfs_dir, S_IRUSR);
+	MVM_DEBUGFS_ADD_FILE(uapsd_yesagg_bssids, mvm->debugfs_dir, S_IRUSR);
 
 #ifdef CONFIG_IWLWIFI_BCAST_FILTERING
 	if (mvm->fw->ucode_capa.flags & IWL_UCODE_TLV_FLAGS_BCAST_FILTERING) {

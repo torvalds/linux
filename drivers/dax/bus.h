@@ -10,7 +10,7 @@ struct dax_device;
 struct dax_region;
 void dax_region_put(struct dax_region *dax_region);
 struct dax_region *alloc_dax_region(struct device *parent, int region_id,
-		struct resource *res, int target_node, unsigned int align,
+		struct resource *res, int target_yesde, unsigned int align,
 		unsigned long long flags);
 
 enum dev_dax_subsys {

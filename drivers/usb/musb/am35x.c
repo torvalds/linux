@@ -172,7 +172,7 @@ static void am35x_musb_try_idle(struct musb *musb, unsigned long timeout)
 	if (timeout == 0)
 		timeout = jiffies + msecs_to_jiffies(3);
 
-	/* Never idle if active, or when VBUS timeout is not set as host */
+	/* Never idle if active, or when VBUS timeout is yest set as host */
 	if (musb->is_active || (musb->a_wait_bcon == 0 &&
 				musb->xceiv->otg->state == OTG_STATE_A_WAIT_BCON)) {
 		dev_dbg(musb->controller, "%s active, deleting timer\n",
@@ -183,7 +183,7 @@ static void am35x_musb_try_idle(struct musb *musb, unsigned long timeout)
 	}
 
 	if (time_after(last_timer, timeout) && timer_pending(&musb->dev_timer)) {
-		dev_dbg(musb->controller, "Longer idle timer already pending, ignoring...\n");
+		dev_dbg(musb->controller, "Longer idle timer already pending, igyesring...\n");
 		return;
 	}
 	last_timer = timeout;
@@ -234,9 +234,9 @@ static irqreturn_t am35x_musb_interrupt(int irq, void *hci)
 	 * DRVVBUS IRQs are the only proxy we have (a very poor one!) for
 	 * AM35x's missing ID change IRQ.  We need an ID change IRQ to
 	 * switch appropriately between halves of the OTG state machine.
-	 * Managing DEVCTL.SESSION per Mentor docs requires that we know its
+	 * Managing DEVCTL.SESSION per Mentor docs requires that we kyesw its
 	 * value but DEVCTL.BDEVICE is invalid without DEVCTL.SESSION set.
-	 * Also, DRVVBUS pulses for SRP (but not at 5V) ...
+	 * Also, DRVVBUS pulses for SRP (but yest at 5V) ...
 	 */
 	if (usbintr & (AM35X_INTR_DRVVBUS << AM35X_INTR_USB_SHIFT)) {
 		int drvvbus = musb_readl(reg_base, USB_STAT_REG);
@@ -249,7 +249,7 @@ static irqreturn_t am35x_musb_interrupt(int irq, void *hci)
 			/*
 			 * The Mentor core doesn't debounce VBUS as needed
 			 * to cope with device connect current spikes. This
-			 * means it's not uncommon for bus-powered devices
+			 * means it's yest uncommon for bus-powered devices
 			 * to get VBUS errors during enumeration.
 			 *
 			 * This is a workaround, but newer RTL from Mentor
@@ -335,7 +335,7 @@ static int am35x_musb_init(struct musb *musb)
 
 	musb->mregs += USB_MENTOR_CORE_OFFSET;
 
-	/* Returns zero if e.g. not clocked */
+	/* Returns zero if e.g. yest clocked */
 	rev = musb_readl(reg_base, USB_REVISION_REG);
 	if (!rev)
 		return -ENODEV;

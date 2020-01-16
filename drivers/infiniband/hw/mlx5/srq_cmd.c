@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
 /*
- * Copyright (c) 2013-2018, Mellanox Technologies inc.  All rights reserved.
+ * Copyright (c) 2013-2018, Mellayesx Techyeslogies inc.  All rights reserved.
  */
 
 #include <linux/kernel.h>
@@ -655,7 +655,7 @@ int mlx5_cmd_arm_srq(struct mlx5_ib_dev *dev, struct mlx5_core_srq *srq,
 	}
 }
 
-static int srq_event_notifier(struct notifier_block *nb,
+static int srq_event_yestifier(struct yestifier_block *nb,
 			      unsigned long type, void *data)
 {
 	struct mlx5_srq_table *table;
@@ -695,8 +695,8 @@ int mlx5_init_srq_table(struct mlx5_ib_dev *dev)
 	memset(table, 0, sizeof(*table));
 	xa_init_flags(&table->array, XA_FLAGS_LOCK_IRQ);
 
-	table->nb.notifier_call = srq_event_notifier;
-	mlx5_notifier_register(dev->mdev, &table->nb);
+	table->nb.yestifier_call = srq_event_yestifier;
+	mlx5_yestifier_register(dev->mdev, &table->nb);
 
 	return 0;
 }
@@ -705,5 +705,5 @@ void mlx5_cleanup_srq_table(struct mlx5_ib_dev *dev)
 {
 	struct mlx5_srq_table *table = &dev->srq_table;
 
-	mlx5_notifier_unregister(dev->mdev, &table->nb);
+	mlx5_yestifier_unregister(dev->mdev, &table->nb);
 }

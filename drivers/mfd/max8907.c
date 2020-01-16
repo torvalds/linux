@@ -191,8 +191,8 @@ static int max8907_i2c_probe(struct i2c_client *i2c,
 
 	if (pdata)
 		pm_off = pdata->pm_off;
-	else if (i2c->dev.of_node)
-		pm_off = of_property_read_bool(i2c->dev.of_node,
+	else if (i2c->dev.of_yesde)
+		pm_off = of_property_read_bool(i2c->dev.of_yesde,
 					"maxim,system-power-controller");
 
 	max8907 = devm_kzalloc(&i2c->dev, sizeof(struct max8907), GFP_KERNEL);

@@ -8,7 +8,7 @@
  * Author: Berne Hebark <berne.herbark@stericsson.com> for ST-Ericsson.
  */
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/kernel.h>
 #include <linux/types.h>
 
@@ -16,7 +16,7 @@
 #include "cryp.h"
 
 /**
- * cryp_wait_until_done - wait until the device logic is not busy
+ * cryp_wait_until_done - wait until the device logic is yest busy
  */
 void cryp_wait_until_done(struct cryp_device_data *device_data)
 {
@@ -76,10 +76,10 @@ void cryp_activity(struct cryp_device_data *device_data,
 }
 
 /**
- * cryp_flush_inoutfifo - Resets both the input and the output FIFOs
+ * cryp_flush_iyesutfifo - Resets both the input and the output FIFOs
  * @device_data: Pointer to the device data struct for base address.
  */
-void cryp_flush_inoutfifo(struct cryp_device_data *device_data)
+void cryp_flush_iyesutfifo(struct cryp_device_data *device_data)
 {
 	/*
 	 * We always need to disable the hardware before trying to flush the
@@ -94,7 +94,7 @@ void cryp_flush_inoutfifo(struct cryp_device_data *device_data)
 	/*
 	 * CRYP_SR_INFIFO_READY_MASK is the expected value on the status
 	 * register when starting a new calculation, which means Input FIFO is
-	 * not full and input FIFO is empty.
+	 * yest full and input FIFO is empty.
 	 */
 	while (readl_relaxed(&device_data->base->sr) !=
 	       CRYP_SR_INFIFO_READY_MASK)

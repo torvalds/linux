@@ -61,7 +61,7 @@ struct aead_instance *aead_geniv_alloc(struct crypto_template *tmpl,
 
 	spawn = aead_instance_ctx(inst);
 
-	/* Ignore async algorithms if necessary. */
+	/* Igyesre async algorithms if necessary. */
 	mask |= crypto_requires_sync(algt->type, algt->mask);
 
 	crypto_set_aead_spawn(spawn, aead_crypto_instance(inst));

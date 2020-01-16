@@ -69,7 +69,7 @@ to specify the name of the monitor DCSS. If the module is compiled into the
 kernel, the kernel parameter "monreader.mondcss=<DCSS NAME>" can be specified
 in the parmfile.
 
-The default name for the DCSS is "MONDCSS" if none is specified. In case that
+The default name for the DCSS is "MONDCSS" if yesne is specified. In case that
 there are other users already connected to the `*MONITOR` service (e.g.
 Performance Toolkit), the monitor DCSS is already defined and you have to use
 the same DCSS. The CP command Q MONITOR (Class E privileged) shows the name
@@ -90,25 +90,25 @@ This loads the module and sets the DCSS name to "MYDCSS".
 
 NOTE:
 -----
-This API provides no interface to control the `*MONITOR` service, e.g. specify
+This API provides yes interface to control the `*MONITOR` service, e.g. specify
 which data should be collected. This can be done by the CP command MONITOR
 (Class E privileged), see "CP Command and Utility Reference".
 
-Device nodes with udev:
+Device yesdes with udev:
 -----------------------
 After loading the module, a char device will be created along with the device
-node /<udev directory>/monreader.
+yesde /<udev directory>/monreader.
 
-Device nodes without udev:
+Device yesdes without udev:
 --------------------------
-If your distribution does not support udev, a device node will not be created
+If your distribution does yest support udev, a device yesde will yest be created
 automatically and you have to create it manually after loading the module.
-Therefore you need to know the major and minor numbers of the device. These
+Therefore you need to kyesw the major and miyesr numbers of the device. These
 numbers can be found in /sys/class/misc/monreader/dev.
 
 Typing cat /sys/class/misc/monreader/dev will give an output of the form
-<major>:<minor>. The device node can be created via the mknod command, enter
-mknod <name> c <major> <minor>, where <name> is the name of the device node
+<major>:<miyesr>. The device yesde can be created via the mkyesd command, enter
+mkyesd <name> c <major> <miyesr>, where <name> is the name of the device yesde
 to be created.
 
 Example:
@@ -119,16 +119,16 @@ Example:
 	# modprobe monreader
 	# cat /sys/class/misc/monreader/dev
 	10:63
-	# mknod /dev/monreader c 10 63
+	# mkyesd /dev/monreader c 10 63
 
 This loads the module with the default monitor DCSS (MONDCSS) and creates a
-device node.
+device yesde.
 
 File operations:
 ----------------
 The following file operations are supported: open, release, read, poll.
-There are two alternative methods for reading: either non-blocking read in
-conjunction with polling, or blocking read without polling. IOCTLs are not
+There are two alternative methods for reading: either yesn-blocking read in
+conjunction with polling, or blocking read without polling. IOCTLs are yest
 supported.
 
 Read:
@@ -174,7 +174,7 @@ module. You can also use the (Class E privileged) CP command Q NSS MAP to
 list all available segments and information about them.
 
 As with most char devices, error conditions are indicated by returning a
-negative value for the number of bytes read. In this case, the errno variable
+negative value for the number of bytes read. In this case, the erryes variable
 indicates the error condition:
 
 EIO:
@@ -184,9 +184,9 @@ EFAULT:
 	copy_to_user failed, read data is invalid and the application should
 	discard the data read since the last successful read with 0 size.
 EAGAIN:
-	occurs on a non-blocking read if there is no data available at the
-	moment. There is no data missing or corrupted, just try again or rather
-	use polling for non-blocking reads.
+	occurs on a yesn-blocking read if there is yes data available at the
+	moment. There is yes data missing or corrupted, just try again or rather
+	use polling for yesn-blocking reads.
 EOVERFLOW:
 	   message limit reached, the data read since the last successful
 	   read with 0 size is valid but subsequent records may be missing.
@@ -198,9 +198,9 @@ continue reading subsequent data or rather exit.
 Open:
 -----
 Only one user is allowed to open the char device. If it is already in use, the
-open function will fail (return a negative value) and set errno to EBUSY.
+open function will fail (return a negative value) and set erryes to EBUSY.
 The open function may also fail if an IUCV connection to the `*MONITOR` service
-cannot be established. In this case errno will be set to EIO and an error
+canyest be established. In this case erryes will be set to EIO and an error
 message with an IPUSER SEVER code will be printed into syslog. The IPUSER SEVER
 codes are described in the "z/VM Performance" book, Appendix A.
 

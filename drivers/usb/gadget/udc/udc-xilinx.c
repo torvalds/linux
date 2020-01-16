@@ -135,7 +135,7 @@ struct xusb_req {
  * @buffer0ready: the busy state of first buffer
  * @buffer1ready: the busy state of second buffer
  * @is_in: endpoint direction (IN or OUT)
- * @is_iso: endpoint type(isochronous or non isochronous)
+ * @is_iso: endpoint type(isochroyesus or yesn isochroyesus)
  */
 struct xusb_ep {
 	struct usb_ep ep_usb;
@@ -164,7 +164,7 @@ struct xusb_ep {
  * @setup: usb_ctrlrequest structure for control requests
  * @req: pointer to dummy request for get status command
  * @dev: pointer to device structure in gadget
- * @usb_state: device in suspended state or not
+ * @usb_state: device in suspended state or yest
  * @remote_wkp: remote wakeup enabled by host
  * @setupseqtx: tx status
  * @setupseqrx: rx status
@@ -367,7 +367,7 @@ static int xudc_start_dma(struct xusb_ep *ep, dma_addr_t src,
  * @buffer: pointer to data to be sent.
  * @length: number of bytes to send.
  *
- * Return: 0 on success, -EAGAIN if no buffer is free and error
+ * Return: 0 on success, -EAGAIN if yes buffer is free and error
  *	   code on failure.
  *
  * This function sends data using DMA.
@@ -421,7 +421,7 @@ static int xudc_dma_send(struct xusb_ep *ep, struct xusb_req *req,
  * @buffer: pointer to storage buffer of received data.
  * @length: number of bytes to receive.
  *
- * Return: 0 on success, -EAGAIN if no buffer is free and error
+ * Return: 0 on success, -EAGAIN if yes buffer is free and error
  *	   code on failure.
  *
  * This function receives data using DMA.
@@ -470,7 +470,7 @@ static int xudc_dma_receive(struct xusb_ep *ep, struct xusb_req *req,
  * @bufferptr: pointer to buffer containing the data to be sent.
  * @bufferlen: The number of data bytes to be sent.
  *
- * Return: 0 on success, -EAGAIN if no buffer is free.
+ * Return: 0 on success, -EAGAIN if yes buffer is free.
  *
  * This function copies the transmit/receive data to/from the end point buffer
  * and enables the buffer for transmission/reception.
@@ -574,7 +574,7 @@ static void xudc_done(struct xusb_ep *ep, struct xusb_req *req, int status)
  * @ep: pointer to the usb device endpoint structure.
  * @req: pointer to the usb request structure.
  *
- * Return: 0 if request is completed and -EAGAIN if not completed.
+ * Return: 0 if request is completed and -EAGAIN if yest completed.
  *
  * Pulls OUT packet data from the endpoint buffer.
  */
@@ -664,7 +664,7 @@ top:
  * @ep: pointer to the usb device endpoint structure.
  * @req: pointer to the usb request structure.
  *
- * Return: 0 if request is completed and -EAGAIN if not completed.
+ * Return: 0 if request is completed and -EAGAIN if yest completed.
  *
  * Loads endpoint buffer for an IN packet.
  */
@@ -1160,7 +1160,7 @@ static int xudc_ep_dequeue(struct usb_ep *_ep, struct usb_request *_req)
  *
  * Return: error always.
  *
- * endpoint 0 enable should not be called by gadget layer.
+ * endpoint 0 enable should yest be called by gadget layer.
  */
 static int xudc_ep0_enable(struct usb_ep *ep,
 			   const struct usb_endpoint_descriptor *desc)
@@ -1174,7 +1174,7 @@ static int xudc_ep0_enable(struct usb_ep *ep,
  *
  * Return: error always.
  *
- * endpoint 0 disable should not be called by gadget layer.
+ * endpoint 0 disable should yest be called by gadget layer.
  */
 static int xudc_ep0_disable(struct usb_ep *ep)
 {
@@ -1235,7 +1235,7 @@ static int xudc_wakeup(struct usb_gadget *gadget)
 
 	spin_lock_irqsave(&udc->lock, flags);
 
-	/* Remote wake up not enabled by host */
+	/* Remote wake up yest enabled by host */
 	if (!udc->remote_wkp)
 		goto done;
 
@@ -1245,7 +1245,7 @@ static int xudc_wakeup(struct usb_gadget *gadget)
 	udc->write_fn(udc->addr, XUSB_CONTROL_OFFSET, crtlreg);
 	/*
 	 * wait for a while and reset remote wake up bit since this bit
-	 * is not cleared by HW after sending remote wakeup to host.
+	 * is yest cleared by HW after sending remote wakeup to host.
 	 */
 	mdelay(2);
 
@@ -1512,7 +1512,7 @@ static void xudc_startup_handler(struct xusb_udc *udc, u32 intrstatus)
 		bool condition = (udc->usb_state != USB_STATE_SUSPENDED);
 
 		dev_WARN_ONCE(udc->dev, condition,
-				"Resume IRQ while not suspended\n");
+				"Resume IRQ while yest suspended\n");
 
 		dev_dbg(udc->dev, "Resume\n");
 
@@ -1778,7 +1778,7 @@ static void xudc_handle_setup(struct xusb_udc *udc)
 		return;
 	case USB_REQ_CLEAR_FEATURE:
 	case USB_REQ_SET_FEATURE:
-		/* Requests with no data phase, status phase from udc */
+		/* Requests with yes data phase, status phase from udc */
 		if ((udc->setup.bRequestType & USB_TYPE_MASK)
 				!= USB_TYPE_STANDARD)
 			break;
@@ -1934,7 +1934,7 @@ static void xudc_ctrl_ep_handler(struct xusb_udc *udc, u32 intrstatus)
 }
 
 /**
- * xudc_nonctrl_ep_handler - Non control endpoint interrupt handler.
+ * xudc_yesnctrl_ep_handler - Non control endpoint interrupt handler.
  * @udc: pointer to the udc structure.
  * @epnum: End point number for which the interrupt is to be processed
  * @intrstatus:	mask value for interrupt sources of endpoints other
@@ -1942,7 +1942,7 @@ static void xudc_ctrl_ep_handler(struct xusb_udc *udc, u32 intrstatus)
  *
  * Processes the buffer completion interrupts.
  */
-static void xudc_nonctrl_ep_handler(struct xusb_udc *udc, u8 epnum,
+static void xudc_yesnctrl_ep_handler(struct xusb_udc *udc, u8 epnum,
 				    u32 intrstatus)
 {
 
@@ -2025,7 +2025,7 @@ static irqreturn_t xudc_irq(int irq, void *_udc)
 				  (XUSB_STATUS_EP1_BUFF2_COMP_MASK <<
 				  (index - 1))));
 			if (bufintr) {
-				xudc_nonctrl_ep_handler(udc, index,
+				xudc_yesnctrl_ep_handler(udc, index,
 							intrstatus);
 			}
 		}
@@ -2043,7 +2043,7 @@ static irqreturn_t xudc_irq(int irq, void *_udc)
  */
 static int xudc_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	struct resource *res;
 	struct xusb_udc *udc;
 	int irq;

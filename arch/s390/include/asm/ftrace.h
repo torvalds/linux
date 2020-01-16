@@ -46,7 +46,7 @@ struct ftrace_insn {
 	s32 disp;
 } __packed;
 
-static inline void ftrace_generate_nop_insn(struct ftrace_insn *insn)
+static inline void ftrace_generate_yesp_insn(struct ftrace_insn *insn)
 {
 #ifdef CONFIG_FUNCTION_TRACER
 #if defined(CC_USING_HOTPATCH) || defined(CC_USING_NOP_MCOUNT)
@@ -61,7 +61,7 @@ static inline void ftrace_generate_nop_insn(struct ftrace_insn *insn)
 #endif
 }
 
-static inline int is_ftrace_nop(struct ftrace_insn *insn)
+static inline int is_ftrace_yesp(struct ftrace_insn *insn)
 {
 #ifdef CONFIG_FUNCTION_TRACER
 #if defined(CC_USING_HOTPATCH) || defined(CC_USING_NOP_MCOUNT)
@@ -92,7 +92,7 @@ static inline void ftrace_generate_call_insn(struct ftrace_insn *insn,
  * Even though the system call numbers are identical for s390/s390x a
  * different system call table is used for compat tasks. This may lead
  * to e.g. incorrect or missing trace event sysfs files.
- * Therefore simply do not trace compat system calls at all.
+ * Therefore simply do yest trace compat system calls at all.
  * See kernel/trace/trace_syscalls.c.
  */
 #define ARCH_TRACE_IGNORE_COMPAT_SYSCALLS

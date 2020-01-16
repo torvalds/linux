@@ -363,7 +363,7 @@ static void Et_init2(struct gspca_dev *gspca_dev)
 					 * 0x17 -> 24/(23+1) = 1 Mhz
 					 */
 	reg_w_val(gspca_dev, ET_PXL_CLK, value);
-	/* now set by fifo the FormatLine setting */
+	/* yesw set by fifo the FormatLine setting */
 	reg_w(gspca_dev, 0x62, FormLine, 6);
 
 	/* set exposure times [ 0..0x78] 0->longvalue 0x78->shortvalue */
@@ -527,7 +527,7 @@ static void Et_init1(struct gspca_dev *gspca_dev)
 /*	i2c_w(gspca_dev, PAS106_REG5, &value, 1, 1); */
 	/* magnetude and sign bit for DAC */
 	i2c_w(gspca_dev, PAS106_REG7, I2c4, sizeof I2c4, 1);
-	/* now set by fifo the whole colors setting */
+	/* yesw set by fifo the whole colors setting */
 	reg_w(gspca_dev, ET_G_RED, GainRGBG, 6);
 	setcolors(gspca_dev, getcolors(gspca_dev));
 }
@@ -732,7 +732,7 @@ static int sd_init_controls(struct gspca_dev *gspca_dev)
 	v4l2_ctrl_new_std(hdl, &sd_ctrl_ops,
 			V4L2_CID_AUTOGAIN, 0, 1, 1, 1);
 	if (hdl->error) {
-		pr_err("Could not initialize controls\n");
+		pr_err("Could yest initialize controls\n");
 		return hdl->error;
 	}
 	return 0;

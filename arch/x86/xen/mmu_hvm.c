@@ -15,7 +15,7 @@
  *   whether to access a pfn of the crashed kernel.
  * - the kexec kernel has to check whether a pfn was ballooned by the
  *   previous kernel. If the pfn is ballooned, handle it properly.
- * Returns 0 if the pfn is not backed by a RAM page, the caller may
+ * Returns 0 if the pfn is yest backed by a RAM page, the caller may
  * handle the pfn special in this case.
  */
 static int xen_oldmem_pfn_is_ram(unsigned long pfn)
@@ -64,7 +64,7 @@ static int is_pagetable_dying_supported(void)
 	a.gpa = 0x00;
 	rc = HYPERVISOR_hvm_op(HVMOP_pagetable_dying, &a);
 	if (rc < 0) {
-		printk(KERN_DEBUG "HVMOP_pagetable_dying not supported\n");
+		printk(KERN_DEBUG "HVMOP_pagetable_dying yest supported\n");
 		return 0;
 	}
 	return 1;

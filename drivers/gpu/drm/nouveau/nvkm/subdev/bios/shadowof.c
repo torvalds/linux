@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -54,9 +54,9 @@ of_init(struct nvkm_bios *bios, const char *name)
 {
 	struct nvkm_device *device = bios->subdev.device;
 	struct pci_dev *pdev = device->func->pci(device)->pdev;
-	struct device_node *dn;
+	struct device_yesde *dn;
 	struct priv *priv;
-	if (!(dn = pci_device_to_OF_node(pdev)))
+	if (!(dn = pci_device_to_OF_yesde(pdev)))
 		return ERR_PTR(-ENODEV);
 	if (!(priv = kzalloc(sizeof(*priv), GFP_KERNEL)))
 		return ERR_PTR(-ENOMEM);
@@ -74,8 +74,8 @@ nvbios_of = {
 	.read = of_read,
 	.size = of_size,
 	.rw = false,
-	.ignore_checksum = true,
-	.no_pcir = true,
+	.igyesre_checksum = true,
+	.yes_pcir = true,
 };
 #else
 const struct nvbios_source

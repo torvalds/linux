@@ -10,7 +10,7 @@
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
  * License as published by the Free Software Foundation;
- * version 2.1 of the License (not later!)
+ * version 2.1 of the License (yest later!)
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -18,7 +18,7 @@
  * GNU Lesser General Public License for more details.
  *
  * You should have received a copy of the GNU Lesser General Public
- * License along with this program; if not,  see <http://www.gnu.org/licenses>
+ * License along with this program; if yest,  see <http://www.gnu.org/licenses>
  */
 
 #include <stdlib.h>
@@ -26,7 +26,7 @@
 #include <memory.h>
 #include <unistd.h>
 #include <asm/unistd.h>
-#include <errno.h>
+#include <erryes.h>
 #include <linux/bpf.h>
 #include "bpf.h"
 #include "libbpf.h"
@@ -50,7 +50,7 @@
 # elif defined(__arc__)
 #  define __NR_bpf 280
 # else
-#  error __NR_bpf not defined. libbpf does not support your arch.
+#  error __NR_bpf yest defined. libbpf does yest support your arch.
 # endif
 #endif
 
@@ -71,7 +71,7 @@ static inline int sys_bpf_prog_load(union bpf_attr *attr, unsigned int size)
 
 	do {
 		fd = sys_bpf(BPF_PROG_LOAD, attr, size);
-	} while (fd < 0 && errno == EAGAIN);
+	} while (fd < 0 && erryes == EAGAIN);
 
 	return fd;
 }
@@ -90,7 +90,7 @@ int bpf_create_map_xattr(const struct bpf_create_map_attr *create_attr)
 	if (create_attr->name)
 		memcpy(attr.map_name, create_attr->name,
 		       min(strlen(create_attr->name), BPF_OBJ_NAME_LEN - 1));
-	attr.numa_node = create_attr->numa_node;
+	attr.numa_yesde = create_attr->numa_yesde;
 	attr.btf_fd = create_attr->btf_fd;
 	attr.btf_key_type_id = create_attr->btf_key_type_id;
 	attr.btf_value_type_id = create_attr->btf_value_type_id;
@@ -100,9 +100,9 @@ int bpf_create_map_xattr(const struct bpf_create_map_attr *create_attr)
 	return sys_bpf(BPF_MAP_CREATE, &attr, sizeof(attr));
 }
 
-int bpf_create_map_node(enum bpf_map_type map_type, const char *name,
+int bpf_create_map_yesde(enum bpf_map_type map_type, const char *name,
 			int key_size, int value_size, int max_entries,
-			__u32 map_flags, int node)
+			__u32 map_flags, int yesde)
 {
 	struct bpf_create_map_attr map_attr = {};
 
@@ -112,8 +112,8 @@ int bpf_create_map_node(enum bpf_map_type map_type, const char *name,
 	map_attr.key_size = key_size;
 	map_attr.value_size = value_size;
 	map_attr.max_entries = max_entries;
-	if (node >= 0) {
-		map_attr.numa_node = node;
+	if (yesde >= 0) {
+		map_attr.numa_yesde = yesde;
 		map_attr.map_flags |= BPF_F_NUMA_NODE;
 	}
 
@@ -150,9 +150,9 @@ int bpf_create_map_name(enum bpf_map_type map_type, const char *name,
 	return bpf_create_map_xattr(&map_attr);
 }
 
-int bpf_create_map_in_map_node(enum bpf_map_type map_type, const char *name,
+int bpf_create_map_in_map_yesde(enum bpf_map_type map_type, const char *name,
 			       int key_size, int inner_map_fd, int max_entries,
-			       __u32 map_flags, int node)
+			       __u32 map_flags, int yesde)
 {
 	union bpf_attr attr;
 
@@ -168,9 +168,9 @@ int bpf_create_map_in_map_node(enum bpf_map_type map_type, const char *name,
 		memcpy(attr.map_name, name,
 		       min(strlen(name), BPF_OBJ_NAME_LEN - 1));
 
-	if (node >= 0) {
+	if (yesde >= 0) {
 		attr.map_flags |= BPF_F_NUMA_NODE;
-		attr.numa_node = node;
+		attr.numa_yesde = yesde;
 	}
 
 	return sys_bpf(BPF_MAP_CREATE, &attr, sizeof(attr));
@@ -180,7 +180,7 @@ int bpf_create_map_in_map(enum bpf_map_type map_type, const char *name,
 			  int key_size, int inner_map_fd, int max_entries,
 			  __u32 map_flags)
 {
-	return bpf_create_map_in_map_node(map_type, name, key_size,
+	return bpf_create_map_in_map_yesde(map_type, name, key_size,
 					  inner_map_fd, max_entries, map_flags,
 					  -1);
 }
@@ -197,7 +197,7 @@ alloc_zero_tailing_info(const void *orecord, __u32 cnt,
 	if (!info)
 		return NULL;
 
-	/* zero out bytes kernel does not understand */
+	/* zero out bytes kernel does yest understand */
 	nrecord = info;
 	for (i = 0; i < cnt; i++) {
 		memcpy(nrecord, orecord, expected_rec_size);
@@ -268,7 +268,7 @@ int bpf_load_program_xattr(const struct bpf_load_program_attr *load_attr,
 	 * to give user space a hint how to deal with loading failure.
 	 * Check to see whether we can make some changes and load again.
 	 */
-	while (errno == E2BIG && (!finfo || !linfo)) {
+	while (erryes == E2BIG && (!finfo || !linfo)) {
 		if (!finfo && attr.func_info_cnt &&
 		    attr.func_info_rec_size < load_attr->func_info_rec_size) {
 			/* try with corrected func info records */

@@ -64,28 +64,28 @@
 			interrupts = <19>;
 			flash@0 {
 				reg = < 0 >;
-				compatible = "jedec,spi-nor";
+				compatible = "jedec,spi-yesr";
 				spi-max-frequency = <50000000>;
 				status = "disabled";
 			};
 			flash@1 {
 				reg = < 1 >;
-				compatible = "jedec,spi-nor";
+				compatible = "jedec,spi-yesr";
 				status = "disabled";
 			};
 			flash@2 {
 				reg = < 2 >;
-				compatible = "jedec,spi-nor";
+				compatible = "jedec,spi-yesr";
 				status = "disabled";
 			};
 			flash@3 {
 				reg = < 3 >;
-				compatible = "jedec,spi-nor";
+				compatible = "jedec,spi-yesr";
 				status = "disabled";
 			};
 			flash@4 {
 				reg = < 4 >;
-				compatible = "jedec,spi-nor";
+				compatible = "jedec,spi-yesr";
 				status = "disabled";
 			};
 		};
@@ -100,7 +100,7 @@
 			status = "disabled";
 			flash@0 {
 				reg = < 0 >;
-				compatible = "jedec,spi-nor";
+				compatible = "jedec,spi-yesr";
 				spi-max-frequency = <50000000>;
 				status = "disabled";
 			};
@@ -276,7 +276,7 @@
 				interrupts = <9>;
 				clocks = <&syscon ASPEED_CLK_GATE_UART1CLK>;
 				resets = <&lpc_reset 4>;
-				no-loopback-test;
+				yes-loopback-test;
 				status = "disabled";
 			};
 
@@ -286,7 +286,7 @@
 				reg-shift = <2>;
 				interrupts = <10>;
 				clocks = <&syscon ASPEED_CLK_GATE_UART5CLK>;
-				no-loopback-test;
+				yes-loopback-test;
 				status = "disabled";
 			};
 
@@ -318,7 +318,7 @@
 				reg-shift = <2>;
 				interrupts = <8>;
 				clocks = <&syscon ASPEED_CLK_APB>;
-				no-loopback-test;
+				yes-loopback-test;
 				status = "disabled";
 			};
 
@@ -351,8 +351,8 @@
 						status = "disabled";
 					};
 
-					lpc_snoop: lpc-snoop@0 {
-						compatible = "aspeed,ast2400-lpc-snoop";
+					lpc_syesop: lpc-syesop@0 {
+						compatible = "aspeed,ast2400-lpc-syesop";
 						reg = <0x0 0x80>;
 						interrupts = <8>;
 						status = "disabled";
@@ -385,7 +385,7 @@
 				interrupts = <32>;
 				clocks = <&syscon ASPEED_CLK_GATE_UART2CLK>;
 				resets = <&lpc_reset 5>;
-				no-loopback-test;
+				yes-loopback-test;
 				status = "disabled";
 			};
 
@@ -396,7 +396,7 @@
 				interrupts = <33>;
 				clocks = <&syscon ASPEED_CLK_GATE_UART3CLK>;
 				resets = <&lpc_reset 6>;
-				no-loopback-test;
+				yes-loopback-test;
 				status = "disabled";
 			};
 
@@ -407,7 +407,7 @@
 				interrupts = <34>;
 				clocks = <&syscon ASPEED_CLK_GATE_UART4CLK>;
 				resets = <&lpc_reset 7>;
-				no-loopback-test;
+				yes-loopback-test;
 				status = "disabled";
 			};
 
@@ -443,7 +443,7 @@
 		interrupts = <0>;
 		interrupt-parent = <&i2c_ic>;
 		status = "disabled";
-		/* Does not need pinctrl properties */
+		/* Does yest need pinctrl properties */
 	};
 
 	i2c1: i2c-bus@80 {
@@ -459,7 +459,7 @@
 		interrupts = <1>;
 		interrupt-parent = <&i2c_ic>;
 		status = "disabled";
-		/* Does not need pinctrl properties */
+		/* Does yest need pinctrl properties */
 	};
 
 	i2c2: i2c-bus@c0 {

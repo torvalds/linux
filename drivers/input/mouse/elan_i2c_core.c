@@ -61,7 +61,7 @@
 struct elan_tp_data {
 	struct i2c_client	*client;
 	struct input_dev	*input;
-	struct input_dev	*tp_input; /* trackpoint input node */
+	struct input_dev	*tp_input; /* trackpoint input yesde */
 	struct regulator	*vcc;
 
 	const struct elan_transport_ops *ops;
@@ -127,7 +127,7 @@ static int elan_get_fwinfo(u16 ic_type, u16 *validpage_count,
 		*validpage_count = 1024;
 		break;
 	default:
-		/* unknown ic type clear value */
+		/* unkyeswn ic type clear value */
 		*validpage_count = 0;
 		*signature_address = 0;
 		return -ENXIO;
@@ -345,7 +345,7 @@ static int elan_query_device_info(struct elan_tp_data *data)
 				&data->fw_signature_address);
 	if (error)
 		dev_warn(&data->client->dev,
-			 "unexpected iap version %#04x (ic type: %#04x), firmware update will not work\n",
+			 "unexpected iap version %#04x (ic type: %#04x), firmware update will yest work\n",
 			 data->iap_version, data->ic_type);
 
 	return 0;
@@ -893,7 +893,7 @@ static void elan_report_contact(struct elan_tp_data *data,
 	struct input_dev *input = data->input;
 	unsigned int pos_x, pos_y;
 	unsigned int pressure, mk_x, mk_y;
-	unsigned int area_x, area_y, major, minor;
+	unsigned int area_x, area_y, major, miyesr;
 	unsigned int scaled_pressure;
 
 	if (contact_valid) {
@@ -921,7 +921,7 @@ static void elan_report_contact(struct elan_tp_data *data,
 		area_y = mk_y * (data->width_y - ETP_FWIDTH_REDUCE);
 
 		major = max(area_x, area_y);
-		minor = min(area_x, area_y);
+		miyesr = min(area_x, area_y);
 
 		scaled_pressure = pressure + data->pressure_adjustment;
 
@@ -935,7 +935,7 @@ static void elan_report_contact(struct elan_tp_data *data,
 		input_report_abs(input, ABS_MT_PRESSURE, scaled_pressure);
 		input_report_abs(input, ABS_TOOL_WIDTH, mk_x);
 		input_report_abs(input, ABS_MT_TOUCH_MAJOR, major);
-		input_report_abs(input, ABS_MT_TOUCH_MINOR, minor);
+		input_report_abs(input, ABS_MT_TOUCH_MINOR, miyesr);
 	} else {
 		input_mt_slot(input, contact_num);
 		input_mt_report_slot_state(input, MT_TOOL_FINGER, false);
@@ -976,7 +976,7 @@ static void elan_report_trackpoint(struct elan_tp_data *data, u8 *report)
 
 	if (!data->tp_input) {
 		dev_warn_once(&data->client->dev,
-			      "received a trackpoint report while no trackpoint device has been created. Please report upstream.\n");
+			      "received a trackpoint report while yes trackpoint device has been created. Please report upstream.\n");
 		return;
 	}
 
@@ -1157,7 +1157,7 @@ static int elan_probe(struct i2c_client *client,
 						I2C_FUNC_SMBUS_I2C_BLOCK)) {
 		transport_ops = &elan_smbus_ops;
 	} else {
-		dev_err(dev, "not a supported I2C/SMBus adapter\n");
+		dev_err(dev, "yest a supported I2C/SMBus adapter\n");
 		return -EIO;
 	}
 
@@ -1197,7 +1197,7 @@ static int elan_probe(struct i2c_client *client,
 	/* Make sure there is something at this address */
 	error = i2c_smbus_read_byte(client);
 	if (error < 0) {
-		dev_dbg(&client->dev, "nothing at this address: %d\n", error);
+		dev_dbg(&client->dev, "yesthing at this address: %d\n", error);
 		return -ENXIO;
 	}
 
@@ -1245,8 +1245,8 @@ static int elan_probe(struct i2c_client *client,
 	}
 
 	/*
-	 * Platform code (ACPI, DTS) should normally set up interrupt
-	 * for us, but in case it did not let's fall back to using falling
+	 * Platform code (ACPI, DTS) should yesrmally set up interrupt
+	 * for us, but in case it did yest let's fall back to using falling
 	 * edge to be compatible with older Chromebooks.
 	 */
 	irqflags = irq_get_trigger_type(client->irq);
@@ -1257,7 +1257,7 @@ static int elan_probe(struct i2c_client *client,
 					  irqflags | IRQF_ONESHOT,
 					  client->name, data);
 	if (error) {
-		dev_err(dev, "cannot register irq=%d\n", client->irq);
+		dev_err(dev, "canyest register irq=%d\n", client->irq);
 		return error;
 	}
 
@@ -1287,7 +1287,7 @@ static int elan_probe(struct i2c_client *client,
 	 * Systems using device tree should set up wakeup via DTS,
 	 * the rest will configure device as wakeup source by default.
 	 */
-	if (!dev->of_node)
+	if (!dev->of_yesde)
 		device_init_wakeup(dev, true);
 
 	return 0;

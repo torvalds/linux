@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0
 // Author: Kirill Smelkov (kirr@nexedi.com)
 //
-// Search for stream-like files that are using nonseekable_open and convert
-// them to stream_open. A stream-like file is a file that does not use ppos in
+// Search for stream-like files that are using yesnseekable_open and convert
+// them to stream_open. A stream-like file is a file that does yest use ppos in
 // its read and write. Rationale for the conversion is to avoid deadlock in
 // between read and write.
 
@@ -10,7 +10,7 @@ virtual report
 virtual patch
 virtual explain  // explain decisions in the patch (SPFLAGS="-D explain")
 
-// stream-like reader & writer - ones that do not depend on f_pos.
+// stream-like reader & writer - ones that do yest depend on f_pos.
 @ stream_reader @
 identifier readstream, ppos;
 identifier f, buf, len;
@@ -45,7 +45,7 @@ identifier wait =~ "^wait_.*";
 
 // stream_reader that can block inside.
 //
-// XXX wait_* can be called not directly from current function (e.g. func -> f -> g -> wait())
+// XXX wait_* can be called yest directly from current function (e.g. func -> f -> g -> wait())
 // XXX currently reader_blocks supports only direct and 1-level indirect cases.
 @ reader_blocks_direct @
 identifier stream_reader.readstream;
@@ -127,18 +127,18 @@ identifier llseek_f;
     .llseek = llseek_f,
   };
 
-@ has_no_llseek @
+@ has_yes_llseek @
 identifier fops0.fops;
 @@
   struct file_operations fops = {
-    .llseek = no_llseek,
+    .llseek = yes_llseek,
   };
 
-@ has_noop_llseek @
+@ has_yesop_llseek @
 identifier fops0.fops;
 @@
   struct file_operations fops = {
-    .llseek = noop_llseek,
+    .llseek = yesop_llseek,
   };
 
 @ has_mmap @
@@ -182,12 +182,12 @@ identifier splice_write_f;
   };
 
 
-// file_operations that is candidate for stream_open conversion - it does not
+// file_operations that is candidate for stream_open conversion - it does yest
 // use mmap and other methods that assume @offset access to file.
 //
-// XXX for simplicity require no .{read/write}_iter and no .splice_{read/write} for now.
-// XXX maybe_steam.fops cannot be used in other rules - it gives "bad rule maybe_stream or bad variable fops".
-@ maybe_stream depends on (!has_llseek || has_no_llseek || has_noop_llseek) && !has_mmap && !has_copy_file_range && !has_remap_file_range && !has_read_iter && !has_write_iter && !has_splice_read && !has_splice_write @
+// XXX for simplicity require yes .{read/write}_iter and yes .splice_{read/write} for yesw.
+// XXX maybe_steam.fops canyest be used in other rules - it gives "bad rule maybe_stream or bad variable fops".
+@ maybe_stream depends on (!has_llseek || has_yes_llseek || has_yesop_llseek) && !has_mmap && !has_copy_file_range && !has_remap_file_range && !has_read_iter && !has_write_iter && !has_splice_read && !has_splice_write @
 identifier fops0.fops;
 @@
   struct file_operations fops = {
@@ -196,13 +196,13 @@ identifier fops0.fops;
 
 // ---- conversions ----
 
-// XXX .open = nonseekable_open -> .open = stream_open
-// XXX .open = func -> openfunc -> nonseekable_open
+// XXX .open = yesnseekable_open -> .open = stream_open
+// XXX .open = func -> openfunc -> yesnseekable_open
 
 // read & write
 //
 // if both are used in the same file_operations together with an opener -
-// under that conditions we can use stream_open instead of nonseekable_open.
+// under that conditions we can use stream_open instead of yesnseekable_open.
 @ fops_rw depends on maybe_stream @
 identifier fops0.fops, openfunc;
 identifier stream_reader.readstream;
@@ -220,7 +220,7 @@ position p1;
 @@
   openfunc(...) {
     <...
-     nonseekable_open@p1
+     yesnseekable_open@p1
     ...>
   }
 
@@ -229,14 +229,14 @@ fops << fops0.fops;
 p << report_rw.p1;
 @@
 coccilib.report.print_report(p[0],
-  "ERROR: %s: .read() can deadlock .write(); change nonseekable_open -> stream_open to fix." % (fops,))
+  "ERROR: %s: .read() can deadlock .write(); change yesnseekable_open -> stream_open to fix." % (fops,))
 
 @ script:python depends on report && !reader_blocks @
 fops << fops0.fops;
 p << report_rw.p1;
 @@
 coccilib.report.print_report(p[0],
-  "WARNING: %s: .read() and .write() have stream semantic; safe to change nonseekable_open -> stream_open." % (fops,))
+  "WARNING: %s: .read() and .write() have stream semantic; safe to change yesnseekable_open -> stream_open." % (fops,))
 
 
 @ explain_rw_deadlocked depends on explain && reader_blocks @
@@ -244,19 +244,19 @@ identifier fops_rw.openfunc;
 @@
   openfunc(...) {
     <...
--    nonseekable_open
-+    nonseekable_open /* read & write (was deadlock) */
+-    yesnseekable_open
++    yesnseekable_open /* read & write (was deadlock) */
     ...>
   }
 
 
-@ explain_rw_nodeadlock depends on explain && !reader_blocks @
+@ explain_rw_yesdeadlock depends on explain && !reader_blocks @
 identifier fops_rw.openfunc;
 @@
   openfunc(...) {
     <...
--    nonseekable_open
-+    nonseekable_open /* read & write (no direct deadlock) */
+-    yesnseekable_open
++    yesnseekable_open /* read & write (yes direct deadlock) */
     ...>
   }
 
@@ -265,13 +265,13 @@ identifier fops_rw.openfunc;
 @@
   openfunc(...) {
     <...
--   nonseekable_open
+-   yesnseekable_open
 +   stream_open
     ...>
   }
 
 
-// read, but not write
+// read, but yest write
 @ fops_r depends on maybe_stream && !has_write @
 identifier fops0.fops, openfunc;
 identifier stream_reader.readstream;
@@ -287,7 +287,7 @@ position p1;
 @@
   openfunc(...) {
     <...
-    nonseekable_open@p1
+    yesnseekable_open@p1
     ...>
   }
 
@@ -296,15 +296,15 @@ fops << fops0.fops;
 p << report_r.p1;
 @@
 coccilib.report.print_report(p[0],
-  "WARNING: %s: .read() has stream semantic; safe to change nonseekable_open -> stream_open." % (fops,))
+  "WARNING: %s: .read() has stream semantic; safe to change yesnseekable_open -> stream_open." % (fops,))
 
 @ explain_r depends on explain @
 identifier fops_r.openfunc;
 @@
   openfunc(...) {
     <...
--   nonseekable_open
-+   nonseekable_open /* read only */
+-   yesnseekable_open
++   yesnseekable_open /* read only */
     ...>
   }
 
@@ -313,13 +313,13 @@ identifier fops_r.openfunc;
 @@
   openfunc(...) {
     <...
--   nonseekable_open
+-   yesnseekable_open
 +   stream_open
     ...>
   }
 
 
-// write, but not read
+// write, but yest read
 @ fops_w depends on maybe_stream && !has_read @
 identifier fops0.fops, openfunc;
 identifier stream_writer.writestream;
@@ -335,7 +335,7 @@ position p1;
 @@
   openfunc(...) {
     <...
-    nonseekable_open@p1
+    yesnseekable_open@p1
     ...>
   }
 
@@ -344,15 +344,15 @@ fops << fops0.fops;
 p << report_w.p1;
 @@
 coccilib.report.print_report(p[0],
-  "WARNING: %s: .write() has stream semantic; safe to change nonseekable_open -> stream_open." % (fops,))
+  "WARNING: %s: .write() has stream semantic; safe to change yesnseekable_open -> stream_open." % (fops,))
 
 @ explain_w depends on explain @
 identifier fops_w.openfunc;
 @@
   openfunc(...) {
     <...
--   nonseekable_open
-+   nonseekable_open /* write only */
+-   yesnseekable_open
++   yesnseekable_open /* write only */
     ...>
   }
 
@@ -361,10 +361,10 @@ identifier fops_w.openfunc;
 @@
   openfunc(...) {
     <...
--   nonseekable_open
+-   yesnseekable_open
 +   stream_open
     ...>
   }
 
 
-// no read, no write - don't change anything
+// yes read, yes write - don't change anything

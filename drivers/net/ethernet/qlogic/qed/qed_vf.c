@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and /or other materials
  *        provided with the distribution.
  *
@@ -107,15 +107,15 @@ static int qed_send_msg2pf(struct qed_hwfn *p_hwfn, u8 *done, u32 resp_size)
 			     PXP_CONCRETE_FID_PFID),
 		   upper_32_bits(p_hwfn->vf_iov_info->vf2pf_request_phys),
 		   lower_32_bits(p_hwfn->vf_iov_info->vf2pf_request_phys),
-		   &zone_data->non_trigger.vf_pf_msg_addr,
+		   &zone_data->yesn_trigger.vf_pf_msg_addr,
 		   *((u32 *)&trigger), &zone_data->trigger);
 
 	REG_WR(p_hwfn,
-	       (uintptr_t)&zone_data->non_trigger.vf_pf_msg_addr.lo,
+	       (uintptr_t)&zone_data->yesn_trigger.vf_pf_msg_addr.lo,
 	       lower_32_bits(p_hwfn->vf_iov_info->vf2pf_request_phys));
 
 	REG_WR(p_hwfn,
-	       (uintptr_t)&zone_data->non_trigger.vf_pf_msg_addr.hi,
+	       (uintptr_t)&zone_data->yesn_trigger.vf_pf_msg_addr.hi,
 	       upper_32_bits(p_hwfn->vf_iov_info->vf2pf_request_phys));
 
 	/* The message data must be written first, to prevent trigger before
@@ -282,13 +282,13 @@ static int qed_vf_pf_acquire(struct qed_hwfn *p_hwfn)
 
 	req->vfdev_info.os_type = VFPF_ACQUIRE_OS_LINUX;
 	req->vfdev_info.fw_major = FW_MAJOR_VERSION;
-	req->vfdev_info.fw_minor = FW_MINOR_VERSION;
+	req->vfdev_info.fw_miyesr = FW_MINOR_VERSION;
 	req->vfdev_info.fw_revision = FW_REVISION_VERSION;
 	req->vfdev_info.fw_engineering = FW_ENGINEERING_VERSION;
 	req->vfdev_info.eth_fp_hsi_major = ETH_HSI_VER_MAJOR;
-	req->vfdev_info.eth_fp_hsi_minor = ETH_HSI_VER_MINOR;
+	req->vfdev_info.eth_fp_hsi_miyesr = ETH_HSI_VER_MINOR;
 
-	/* Fill capability field with any non-deprecated config we support */
+	/* Fill capability field with any yesn-deprecated config we support */
 	req->vfdev_info.capabilities |= VFPF_ACQUIRE_CAP_100G;
 
 	/* If we've mapped the doorbell bar, try using queue qids */
@@ -355,7 +355,7 @@ static int qed_vf_pf_acquire(struct qed_hwfn *p_hwfn)
 				DP_NOTICE(p_hwfn,
 					  "PF uses an incompatible fastpath HSI %02x.%02x [VF requires %02x.%02x]. Please change to a VF driver using %02x.xx.\n",
 					  pfdev_info->major_fp_hsi,
-					  pfdev_info->minor_fp_hsi,
+					  pfdev_info->miyesr_fp_hsi,
 					  ETH_HSI_VER_MAJOR,
 					  ETH_HSI_VER_MINOR,
 					  pfdev_info->major_fp_hsi);
@@ -367,7 +367,7 @@ static int qed_vf_pf_acquire(struct qed_hwfn *p_hwfn)
 				if (req->vfdev_info.capabilities &
 				    VFPF_ACQUIRE_CAP_PRE_FP_HSI) {
 					DP_NOTICE(p_hwfn,
-						  "PF uses very old drivers. Please change to a VF driver using no later than 8.8.x.x.\n");
+						  "PF uses very old drivers. Please change to a VF driver using yes later than 8.8.x.x.\n");
 					rc = -EINVAL;
 					goto exit;
 				} else {
@@ -423,10 +423,10 @@ static int qed_vf_pf_acquire(struct qed_hwfn *p_hwfn)
 	}
 
 	if (!p_iov->b_pre_fp_hsi &&
-	    (resp->pfdev_info.minor_fp_hsi < ETH_HSI_VER_MINOR)) {
+	    (resp->pfdev_info.miyesr_fp_hsi < ETH_HSI_VER_MINOR)) {
 		DP_INFO(p_hwfn,
 			"PF is using older fastpath HSI; %02x.%02x is configured\n",
-			ETH_HSI_VER_MAJOR, resp->pfdev_info.minor_fp_hsi);
+			ETH_HSI_VER_MAJOR, resp->pfdev_info.miyesr_fp_hsi);
 	}
 
 exit:
@@ -483,7 +483,7 @@ int qed_vf_hw_prepare(struct qed_hwfn *p_hwfn)
 						  PXP_VF_BAR0_START_DQ;
 	} else if (p_hwfn == p_lead) {
 		/* For leading hw-function, value is always correct, but need
-		 * to handle scenario where legacy PF would not support 100g
+		 * to handle scenario where legacy PF would yest support 100g
 		 * mapped bars later.
 		 */
 		p_iov->b_doorbell_bar = true;
@@ -540,9 +540,9 @@ int qed_vf_hw_prepare(struct qed_hwfn *p_hwfn)
 	rc = qed_vf_pf_acquire(p_hwfn);
 
 	/* If VF is 100g using a mapped bar and PF is too old to support that,
-	 * acquisition would succeed - but the VF would have no way knowing
-	 * the size of the doorbell bar configured in HW and thus will not
-	 * know how to split it for 2nd hw-function.
+	 * acquisition would succeed - but the VF would have yes way kyeswing
+	 * the size of the doorbell bar configured in HW and thus will yest
+	 * kyesw how to split it for 2nd hw-function.
 	 * In this case we re-try without the indication of the mapped
 	 * doorbell.
 	 */
@@ -1495,10 +1495,10 @@ int qed_vf_read_bulletin(struct qed_hwfn *p_hwfn, u8 *p_change)
 	crc_size = sizeof(p_iov->bulletin.p_virt->crc);
 	*p_change = 0;
 
-	/* Need to guarantee PF is not in the middle of writing it */
+	/* Need to guarantee PF is yest in the middle of writing it */
 	memcpy(&shadow, p_iov->bulletin.p_virt, p_iov->bulletin.size);
 
-	/* If version did not update, no need to do anything */
+	/* If version did yest update, yes need to do anything */
 	if (shadow.version == p_iov->bulletin_shadow.version)
 		return 0;
 
@@ -1669,7 +1669,7 @@ qed_vf_bulletin_get_udp_ports(struct qed_hwfn *p_hwfn,
 }
 
 void qed_vf_get_fw_version(struct qed_hwfn *p_hwfn,
-			   u16 *fw_major, u16 *fw_minor,
+			   u16 *fw_major, u16 *fw_miyesr,
 			   u16 *fw_rev, u16 *fw_eng)
 {
 	struct pf_vf_pfdev_info *info;
@@ -1677,7 +1677,7 @@ void qed_vf_get_fw_version(struct qed_hwfn *p_hwfn,
 	info = &p_hwfn->vf_iov_info->acquire_resp.pfdev_info;
 
 	*fw_major = info->fw_major;
-	*fw_minor = info->fw_minor;
+	*fw_miyesr = info->fw_miyesr;
 	*fw_rev = info->fw_rev;
 	*fw_eng = info->fw_eng;
 }

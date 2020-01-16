@@ -9,7 +9,7 @@
  *   Xiao Guangrong <guangrong.xiao@linux.intel.com>
  *   Wu Hao <hao.wu@intel.com>
  *   Joseph Grecco <joe.grecco@intel.com>
- *   Enno Luebbers <enno.luebbers@intel.com>
+ *   Enyes Luebbers <enyes.luebbers@intel.com>
  *   Tim Whisonant <tim.whisonant@intel.com>
  *   Ananda Ravuri <ananda.ravuri@intel.com>
  *   Christopher Rauer <christopher.rauer@intel.com>
@@ -19,7 +19,7 @@
 #include <linux/bitfield.h>
 #include <linux/module.h>
 #include <linux/iopoll.h>
-#include <linux/io-64-nonatomic-lo-hi.h>
+#include <linux/io-64-yesnatomic-lo-hi.h>
 #include <linux/fpga/fpga-mgr.h>
 
 #include "dfl-fme-pr.h"
@@ -181,9 +181,9 @@ static int fme_mgr_write(struct fpga_manager *mgr,
 
 	/*
 	 * driver can push data to PR hardware using PR_DATA register once HW
-	 * has enough pr_credit (> 1), pr_credit reduces one for every 32bit
+	 * has eyesugh pr_credit (> 1), pr_credit reduces one for every 32bit
 	 * pr data write to PR_DATA register. If pr_credit <= 1, driver needs
-	 * to wait for enough pr_credit from hardware by polling.
+	 * to wait for eyesugh pr_credit from hardware by polling.
 	 */
 	pr_status = readq(fme_pr + FME_PR_STS);
 	pr_credit = FIELD_GET(FME_PR_STS_PR_CREDIT, pr_status);

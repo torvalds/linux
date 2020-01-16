@@ -61,9 +61,9 @@ static void blk_register_tracepoints(void);
 static void blk_unregister_tracepoints(void);
 
 /*
- * Send out a notify message.
+ * Send out a yestify message.
  */
-static void trace_note(struct blk_trace *bt, pid_t pid, int action,
+static void trace_yeste(struct blk_trace *bt, pid_t pid, int action,
 		       const void *data, size_t len, u64 cgid)
 {
 	struct blk_io_trace *t;
@@ -109,10 +109,10 @@ record_it:
 }
 
 /*
- * Send out a notify for this process, if we haven't done so since a trace
+ * Send out a yestify for this process, if we haven't done so since a trace
  * started
  */
-static void trace_note_tsk(struct task_struct *tsk)
+static void trace_yeste_tsk(struct task_struct *tsk)
 {
 	unsigned long flags;
 	struct blk_trace *bt;
@@ -120,29 +120,29 @@ static void trace_note_tsk(struct task_struct *tsk)
 	tsk->btrace_seq = blktrace_seq;
 	spin_lock_irqsave(&running_trace_lock, flags);
 	list_for_each_entry(bt, &running_trace_list, running_list) {
-		trace_note(bt, tsk->pid, BLK_TN_PROCESS, tsk->comm,
+		trace_yeste(bt, tsk->pid, BLK_TN_PROCESS, tsk->comm,
 			   sizeof(tsk->comm), 0);
 	}
 	spin_unlock_irqrestore(&running_trace_lock, flags);
 }
 
-static void trace_note_time(struct blk_trace *bt)
+static void trace_yeste_time(struct blk_trace *bt)
 {
-	struct timespec64 now;
+	struct timespec64 yesw;
 	unsigned long flags;
 	u32 words[2];
 
 	/* need to check user space to see if this breaks in y2038 or y2106 */
-	ktime_get_real_ts64(&now);
-	words[0] = (u32)now.tv_sec;
-	words[1] = now.tv_nsec;
+	ktime_get_real_ts64(&yesw);
+	words[0] = (u32)yesw.tv_sec;
+	words[1] = yesw.tv_nsec;
 
 	local_irq_save(flags);
-	trace_note(bt, 0, BLK_TN_TIMESTAMP, words, sizeof(words), 0);
+	trace_yeste(bt, 0, BLK_TN_TIMESTAMP, words, sizeof(words), 0);
 	local_irq_restore(flags);
 }
 
-void __trace_note_message(struct blk_trace *bt, struct blkcg *blkcg,
+void __trace_yeste_message(struct blk_trace *bt, struct blkcg *blkcg,
 	const char *fmt, ...)
 {
 	int n;
@@ -155,7 +155,7 @@ void __trace_note_message(struct blk_trace *bt, struct blkcg *blkcg,
 		return;
 
 	/*
-	 * If the BLK_TC_NOTIFY action mask isn't set, don't send any note
+	 * If the BLK_TC_NOTIFY action mask isn't set, don't send any yeste
 	 * message to the trace.
 	 */
 	if (!(bt->act_mask & BLK_TC_NOTIFY))
@@ -170,14 +170,14 @@ void __trace_note_message(struct blk_trace *bt, struct blkcg *blkcg,
 	if (!(blk_tracer_flags.val & TRACE_BLK_OPT_CGROUP))
 		blkcg = NULL;
 #ifdef CONFIG_BLK_CGROUP
-	trace_note(bt, 0, BLK_TN_MESSAGE, buf, n,
+	trace_yeste(bt, 0, BLK_TN_MESSAGE, buf, n,
 		   blkcg ? cgroup_id(blkcg->css.cgroup) : 1);
 #else
-	trace_note(bt, 0, BLK_TN_MESSAGE, buf, n, 0);
+	trace_yeste(bt, 0, BLK_TN_MESSAGE, buf, n, 0);
 #endif
 	local_irq_restore(flags);
 }
-EXPORT_SYMBOL_GPL(__trace_note_message);
+EXPORT_SYMBOL_GPL(__trace_yeste_message);
 
 static int act_log_check(struct blk_trace *bt, u32 what, sector_t sector,
 			 pid_t pid)
@@ -260,7 +260,7 @@ static void __blk_add_trace(struct blk_trace *bt, sector_t sector, int bytes,
 	}
 
 	if (unlikely(tsk->btrace_seq != blktrace_seq))
-		trace_note_tsk(tsk);
+		trace_yeste_tsk(tsk);
 
 	/*
 	 * A word about the locking here - we disable interrupts to reserve
@@ -277,7 +277,7 @@ static void __blk_add_trace(struct blk_trace *bt, sector_t sector, int bytes,
 		t->time = ktime_to_ns(ktime_get());
 record_it:
 		/*
-		 * These two are not needed in ftrace as they are in the
+		 * These two are yest needed in ftrace as they are in the
 		 * generic trace_entry, filled by tracing_generic_entry_update,
 		 * but for the trace_event->bin() synthesizer benefit we do it
 		 * here too.
@@ -397,7 +397,7 @@ static ssize_t blk_msg_write(struct file *filp, const char __user *buffer,
 		return PTR_ERR(msg);
 
 	bt = filp->private_data;
-	__trace_note_message(bt, NULL, "%s", msg);
+	__trace_yeste_message(bt, NULL, "%s", msg);
 	kfree(msg);
 
 	return count;
@@ -407,7 +407,7 @@ static const struct file_operations blk_msg_fops = {
 	.owner =	THIS_MODULE,
 	.open =		simple_open,
 	.write =	blk_msg_write,
-	.llseek =	noop_llseek,
+	.llseek =	yesop_llseek,
 };
 
 /*
@@ -502,7 +502,7 @@ static int do_blk_trace_setup(struct request_queue *q, char *name, dev_t dev,
 	if (!bt->sequence)
 		goto err;
 
-	bt->msg_data = __alloc_percpu(BLK_TN_MAX_MSG, __alignof__(char));
+	bt->msg_data = __alloc_percpu(BLK_TN_MAX_MSG, __aligyesf__(char));
 	if (!bt->msg_data)
 		goto err;
 
@@ -649,7 +649,7 @@ static int __blk_trace_startstop(struct request_queue *q, int start)
 			list_add(&bt->running_list, &running_trace_list);
 			spin_unlock_irq(&running_trace_lock);
 
-			trace_note_time(bt);
+			trace_yeste_time(bt);
 			ret = 0;
 		}
 	} else {
@@ -681,7 +681,7 @@ EXPORT_SYMBOL_GPL(blk_trace_startstop);
 /*
  * When reading or writing the blktrace sysfs files, the references to the
  * opened sysfs or device files should prevent the underlying block device
- * from being removed. So no further delete protection is really needed.
+ * from being removed. So yes further delete protection is really needed.
  */
 
 /**
@@ -810,21 +810,21 @@ static void blk_add_trace_rq(struct request *rq, int error,
 			rq->cmd_flags, what, error, 0, NULL, cgid);
 }
 
-static void blk_add_trace_rq_insert(void *ignore,
+static void blk_add_trace_rq_insert(void *igyesre,
 				    struct request_queue *q, struct request *rq)
 {
 	blk_add_trace_rq(rq, 0, blk_rq_bytes(rq), BLK_TA_INSERT,
 			 blk_trace_request_get_cgid(q, rq));
 }
 
-static void blk_add_trace_rq_issue(void *ignore,
+static void blk_add_trace_rq_issue(void *igyesre,
 				   struct request_queue *q, struct request *rq)
 {
 	blk_add_trace_rq(rq, 0, blk_rq_bytes(rq), BLK_TA_ISSUE,
 			 blk_trace_request_get_cgid(q, rq));
 }
 
-static void blk_add_trace_rq_requeue(void *ignore,
+static void blk_add_trace_rq_requeue(void *igyesre,
 				     struct request_queue *q,
 				     struct request *rq)
 {
@@ -832,7 +832,7 @@ static void blk_add_trace_rq_requeue(void *ignore,
 			 blk_trace_request_get_cgid(q, rq));
 }
 
-static void blk_add_trace_rq_complete(void *ignore, struct request *rq,
+static void blk_add_trace_rq_complete(void *igyesre, struct request *rq,
 			int error, unsigned int nr_bytes)
 {
 	blk_add_trace_rq(rq, error, nr_bytes, BLK_TA_COMPLETE,
@@ -863,20 +863,20 @@ static void blk_add_trace_bio(struct request_queue *q, struct bio *bio,
 			blk_trace_bio_get_cgid(q, bio));
 }
 
-static void blk_add_trace_bio_bounce(void *ignore,
+static void blk_add_trace_bio_bounce(void *igyesre,
 				     struct request_queue *q, struct bio *bio)
 {
 	blk_add_trace_bio(q, bio, BLK_TA_BOUNCE, 0);
 }
 
-static void blk_add_trace_bio_complete(void *ignore,
+static void blk_add_trace_bio_complete(void *igyesre,
 				       struct request_queue *q, struct bio *bio,
 				       int error)
 {
 	blk_add_trace_bio(q, bio, BLK_TA_COMPLETE, error);
 }
 
-static void blk_add_trace_bio_backmerge(void *ignore,
+static void blk_add_trace_bio_backmerge(void *igyesre,
 					struct request_queue *q,
 					struct request *rq,
 					struct bio *bio)
@@ -884,7 +884,7 @@ static void blk_add_trace_bio_backmerge(void *ignore,
 	blk_add_trace_bio(q, bio, BLK_TA_BACKMERGE, 0);
 }
 
-static void blk_add_trace_bio_frontmerge(void *ignore,
+static void blk_add_trace_bio_frontmerge(void *igyesre,
 					 struct request_queue *q,
 					 struct request *rq,
 					 struct bio *bio)
@@ -892,13 +892,13 @@ static void blk_add_trace_bio_frontmerge(void *ignore,
 	blk_add_trace_bio(q, bio, BLK_TA_FRONTMERGE, 0);
 }
 
-static void blk_add_trace_bio_queue(void *ignore,
+static void blk_add_trace_bio_queue(void *igyesre,
 				    struct request_queue *q, struct bio *bio)
 {
 	blk_add_trace_bio(q, bio, BLK_TA_QUEUE, 0);
 }
 
-static void blk_add_trace_getrq(void *ignore,
+static void blk_add_trace_getrq(void *igyesre,
 				struct request_queue *q,
 				struct bio *bio, int rw)
 {
@@ -914,7 +914,7 @@ static void blk_add_trace_getrq(void *ignore,
 }
 
 
-static void blk_add_trace_sleeprq(void *ignore,
+static void blk_add_trace_sleeprq(void *igyesre,
 				  struct request_queue *q,
 				  struct bio *bio, int rw)
 {
@@ -929,7 +929,7 @@ static void blk_add_trace_sleeprq(void *ignore,
 	}
 }
 
-static void blk_add_trace_plug(void *ignore, struct request_queue *q)
+static void blk_add_trace_plug(void *igyesre, struct request_queue *q)
 {
 	struct blk_trace *bt = q->blk_trace;
 
@@ -937,7 +937,7 @@ static void blk_add_trace_plug(void *ignore, struct request_queue *q)
 		__blk_add_trace(bt, 0, 0, 0, 0, BLK_TA_PLUG, 0, 0, NULL, 0);
 }
 
-static void blk_add_trace_unplug(void *ignore, struct request_queue *q,
+static void blk_add_trace_unplug(void *igyesre, struct request_queue *q,
 				    unsigned int depth, bool explicit)
 {
 	struct blk_trace *bt = q->blk_trace;
@@ -955,7 +955,7 @@ static void blk_add_trace_unplug(void *ignore, struct request_queue *q,
 	}
 }
 
-static void blk_add_trace_split(void *ignore,
+static void blk_add_trace_split(void *igyesre,
 				struct request_queue *q, struct bio *bio,
 				unsigned int pdu)
 {
@@ -973,7 +973,7 @@ static void blk_add_trace_split(void *ignore,
 
 /**
  * blk_add_trace_bio_remap - Add a trace for a bio-remap operation
- * @ignore:	trace callback data parameter (not used)
+ * @igyesre:	trace callback data parameter (yest used)
  * @q:		queue the io is for
  * @bio:	the source bio
  * @dev:	target device
@@ -984,7 +984,7 @@ static void blk_add_trace_split(void *ignore,
  *     it spans a stripe (or similar). Add a trace for that action.
  *
  **/
-static void blk_add_trace_bio_remap(void *ignore,
+static void blk_add_trace_bio_remap(void *igyesre,
 				    struct request_queue *q, struct bio *bio,
 				    dev_t dev, sector_t from)
 {
@@ -1005,7 +1005,7 @@ static void blk_add_trace_bio_remap(void *ignore,
 
 /**
  * blk_add_trace_rq_remap - Add a trace for a request-remap operation
- * @ignore:	trace callback data parameter (not used)
+ * @igyesre:	trace callback data parameter (yest used)
  * @q:		queue the io is for
  * @rq:		the source request
  * @dev:	target device
@@ -1016,7 +1016,7 @@ static void blk_add_trace_bio_remap(void *ignore,
  *     Add a trace for that action.
  *
  **/
-static void blk_add_trace_rq_remap(void *ignore,
+static void blk_add_trace_rq_remap(void *igyesre,
 				   struct request_queue *q,
 				   struct request *rq, dev_t dev,
 				   sector_t from)
@@ -1266,13 +1266,13 @@ static void blk_log_action(struct trace_iterator *iter, const char *act,
 			 * The cgid portion used to be "INO,GEN".  Userland
 			 * builds a FILEID_INO32_GEN fid out of them and
 			 * opens the cgroup using open_by_handle_at(2).
-			 * While 32bit ino setups are still the same, 64bit
-			 * ones now use the 64bit ino as the whole ID and
-			 * no longer use generation.
+			 * While 32bit iyes setups are still the same, 64bit
+			 * ones yesw use the 64bit iyes as the whole ID and
+			 * yes longer use generation.
 			 *
 			 * Regarldess of the content, always output
 			 * "LOW32,HIGH32" so that FILEID_INO32_GEN fid can
-			 * be mapped back to @id on both 64 and 32bit ino
+			 * be mapped back to @id on both 64 and 32bit iyes
 			 * setups.  See __kernfs_fh_to_dentry().
 			 */
 			trace_seq_printf(&iter->seq,
@@ -1488,7 +1488,7 @@ static enum print_line_t print_one_line(struct trace_iterator *iter,
 	}
 
 	if (unlikely(what == 0 || what >= ARRAY_SIZE(what2act)))
-		trace_seq_printf(s, "Unknown action %x\n", what);
+		trace_seq_printf(s, "Unkyeswn action %x\n", what);
 	else {
 		log_action(iter, what2act[what].act[long_act], has_cg);
 		what2act[what].print(s, iter->ent, has_cg);
@@ -1573,12 +1573,12 @@ static struct trace_event trace_blk_event = {
 static int __init init_blk_tracer(void)
 {
 	if (!register_trace_event(&trace_blk_event)) {
-		pr_warn("Warning: could not register block events\n");
+		pr_warn("Warning: could yest register block events\n");
 		return 1;
 	}
 
 	if (register_tracer(&blk_tracer) != 0) {
-		pr_warn("Warning: could not register the block tracer\n");
+		pr_warn("Warning: could yest register the block tracer\n");
 		unregister_trace_event(&trace_blk_event);
 		return 1;
 	}
@@ -1614,7 +1614,7 @@ static int blk_trace_setup_queue(struct request_queue *q,
 	if (!bt)
 		return -ENOMEM;
 
-	bt->msg_data = __alloc_percpu(BLK_TN_MAX_MSG, __alignof__(char));
+	bt->msg_data = __alloc_percpu(BLK_TN_MAX_MSG, __aligyesf__(char));
 	if (!bt->msg_data)
 		goto free_bt;
 
@@ -1684,7 +1684,7 @@ static const struct {
 	{ BLK_TC_COMPLETE,	"complete"	},
 	{ BLK_TC_FS,		"fs"		},
 	{ BLK_TC_PC,		"pc"		},
-	{ BLK_TC_NOTIFY,	"notify"	},
+	{ BLK_TC_NOTIFY,	"yestify"	},
 	{ BLK_TC_AHEAD,		"ahead"		},
 	{ BLK_TC_META,		"meta"		},
 	{ BLK_TC_DISCARD,	"discard"	},

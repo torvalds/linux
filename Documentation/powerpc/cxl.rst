@@ -50,7 +50,7 @@ Hardware overview
     memory.
 
     The AFU is the core part of the accelerator (eg. the compression,
-    crypto etc function). The kernel has no knowledge of the function
+    crypto etc function). The kernel has yes kyeswledge of the function
     of the AFU. Only userspace interacts directly with the AFU.
 
     The PSL provides the translation and interrupt services that the
@@ -121,8 +121,8 @@ Work Element Descriptor (WED)
 =============================
 
     The WED is a 64-bit parameter passed to the AFU when a context is
-    started. Its format is up to the AFU hence the kernel has no
-    knowledge of what it represents. Typically it will be the
+    started. Its format is up to the AFU hence the kernel has yes
+    kyeswledge of what it represents. Typically it will be the
     effective address of a work queue or status block where the AFU
     and userspace can share control and status information.
 
@@ -225,14 +225,14 @@ ioctl
                 Authority Mask Register (AMR), same as the powerpc
                 AMR. This field is only used by the kernel when the
                 corresponding CXL_START_WORK_AMR value is specified in
-                flags. If not specified the kernel will use a default
+                flags. If yest specified the kernel will use a default
                 value of 0.
 
             num_interrupts:
                 Number of userspace interrupts to request. This field
                 is only used by the kernel when the corresponding
                 CXL_START_WORK_NUM_IRQS value is specified in flags.
-                If not specified the minimum number required by the
+                If yest specified the minimum number required by the
                 AFU will be allocated. The min and max number can be
                 obtained from sysfs.
 
@@ -240,7 +240,7 @@ ioctl
                 For ABI padding and future extensions
 
     CXL_IOCTL_GET_PROCESS_ELEMENT:
-        Get the current context id, also known as the process element.
+        Get the current context id, also kyeswn as the process element.
         The value is returned from the kernel as a __u32.
 
 
@@ -270,7 +270,7 @@ mmap
 read
 ----
 
-    Reads events from the AFU. Blocks if no events are pending
+    Reads events from the AFU. Blocks if yes events are pending
     (unless O_NONBLOCK is supplied). Returns -EIO in the case of an
     unrecoverable error or if the card is removed.
 
@@ -413,7 +413,7 @@ ioctl
 
 CXL_IOCTL_DOWNLOAD_IMAGE / CXL_IOCTL_VALIDATE_IMAGE:
     Starts and controls flashing a new FPGA image. Partial
-    reconfiguration is not supported (yet), so the image must contain
+    reconfiguration is yest supported (yet), so the image must contain
     a copy of the PSL and AFU(s). Since an image can be quite large,
     the caller may have to iterate, splitting the image in smaller
     chunks.

@@ -6,15 +6,15 @@
  * An MCS like lock especially tailored for optimistic spinning for sleeping
  * lock implementations (mutex, rwsem, etc).
  */
-struct optimistic_spin_node {
-	struct optimistic_spin_node *next, *prev;
+struct optimistic_spin_yesde {
+	struct optimistic_spin_yesde *next, *prev;
 	int locked; /* 1 if lock acquired */
 	int cpu; /* encoded CPU # + 1 value */
 };
 
 struct optimistic_spin_queue {
 	/*
-	 * Stores an encoded value of the CPU # of the tail node in the queue.
+	 * Stores an encoded value of the CPU # of the tail yesde in the queue.
 	 * If the queue is empty, then it's set to OSQ_UNLOCKED_VAL.
 	 */
 	atomic_t tail;

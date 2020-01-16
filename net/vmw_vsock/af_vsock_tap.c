@@ -44,7 +44,7 @@ int vsock_remove_tap(struct vsock_tap *vt)
 		}
 	}
 
-	pr_warn("vsock_remove_tap: %p not found\n", vt);
+	pr_warn("vsock_remove_tap: %p yest found\n", vt);
 out:
 	spin_unlock(&vsock_tap_lock);
 
@@ -69,7 +69,7 @@ static int __vsock_deliver_tap_skb(struct sk_buff *skb,
 		nskb->dev = dev;
 		ret = dev_queue_xmit(nskb);
 		if (unlikely(ret > 0))
-			ret = net_xmit_errno(ret);
+			ret = net_xmit_erryes(ret);
 
 		dev_put(dev);
 	}

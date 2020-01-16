@@ -1,6 +1,6 @@
 Device tree bindings for GPMC connected NANDs
 
-GPMC connected NAND (found on OMAP boards) are represented as child nodes of
+GPMC connected NAND (found on OMAP boards) are represented as child yesdes of
 the GPMC controller with a name of "nand".
 
 All timing relevant properties as well as generic gpmc child properties are
@@ -21,7 +21,7 @@ Required properties:
 Optional properties:
 
  - nand-bus-width: 		Set this numeric value to 16 if the hardware
-				is wired that way. If not specified, a bus
+				is wired that way. If yest specified, a bus
 				width of 8 is assumed.
 
  - ti,nand-ecc-opt:		A string setting the ECC layout to use. One of:
@@ -42,10 +42,10 @@ Optional properties:
 		"prefetch-irq"		Prefetch enabled irq mode
 
  - elm_id:	<deprecated> use "ti,elm-id" instead
- - ti,elm-id:	Specifies phandle of the ELM devicetree node.
+ - ti,elm-id:	Specifies phandle of the ELM devicetree yesde.
 		ELM is an on-chip hardware engine on TI SoC which is used for
 		locating ECC errors for BCHx algorithms. SoC devices which have
-		ELM hardware engines should specify this device node in .dtsi
+		ELM hardware engines should specify this device yesde in .dtsi
 		Using ELM for ECC error correction frees some CPU cycles.
  - rb-gpios:	GPIO specifier for the ready/busy# pin.
 
@@ -109,7 +109,7 @@ increased system lifetime. However, selection of ECC scheme is dependent
 on various other factors also like;
 
 (1) support of built in hardware engines.
-	Some legacy OMAP SoC do not have ELM harware engine, so those SoC cannot
+	Some legacy OMAP SoC do yest have ELM harware engine, so those SoC canyest
 	support ecc-schemes with hardware error-correction (BCHx_HW). However
 	such SoC can use ecc-schemes with software library for error-correction
 	(BCHx_HW_DETECTION_SW). The error correction capability with software
@@ -119,7 +119,7 @@ on various other factors also like;
 (2) Device parameters like OOBSIZE.
 	Other factor which governs the selection of ecc-scheme is oob-size.
 	Higher ECC schemes require more OOB/Spare area to store ECC syndrome,
-	so the device should have enough free bytes available its OOB/Spare
+	so the device should have eyesugh free bytes available its OOB/Spare
 	area to accommodate ECC for entire page. In general following expression
 	helps in determining if given device can accommodate ECC syndrome:
 	"2 + (PAGESIZE / 512) * ECC_BYTES" >= OOBSIZE"
@@ -137,7 +137,7 @@ on various other factors also like;
 		trying to use BCH16 (ECC_BYTES=26) ecc-scheme.
 		Number of ECC bytes per page = (2 + (2048 / 512) * 26) = 106 B
 		which is greater than capacity of NAND device (OOBSIZE=64)
-		Hence, BCH16 cannot be supported on given device. But it can
+		Hence, BCH16 canyest be supported on given device. But it can
 		probably use lower ecc-schemes like BCH8.
 
 	Example(b): For a device with PAGESIZE = 2048 and OOBSIZE = 128 and

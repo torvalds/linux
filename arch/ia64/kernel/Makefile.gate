@@ -8,7 +8,7 @@ obj-y += gate-syms.o
 CPPFLAGS_gate.lds := -P -C -U$(ARCH)
 
 quiet_cmd_gate = GATE    $@
-      cmd_gate = $(CC) -nostdlib $(GATECFLAGS_$(@F)) -Wl,-T,$(filter-out FORCE,$^) -o $@
+      cmd_gate = $(CC) -yesstdlib $(GATECFLAGS_$(@F)) -Wl,-T,$(filter-out FORCE,$^) -o $@
 
 GATECFLAGS_gate.so = -shared -s -Wl,-soname=linux-gate.so.1 \
 		     -Wl,--hash-style=sysv
@@ -25,5 +25,5 @@ $(obj)/gate-syms.o: $(obj)/gate-dummy.o FORCE
 
 # gate-data.o contains the gate DSO image as data in section .data..gate.
 # We must build gate.so before we can assemble it.
-# Note: kbuild does not track this dependency due to usage of .incbin
+# Note: kbuild does yest track this dependency due to usage of .incbin
 $(obj)/gate-data.o: $(obj)/gate.so

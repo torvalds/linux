@@ -25,7 +25,7 @@ properties:
       Supported compatible strings are -
       "sifive,fu540-c000-spi" for the SiFive SPI v0 as integrated
       onto the SiFive FU540 chip, and "sifive,spi0" for the SiFive
-      SPI v0 IP block with no chip integration tweaks.
+      SPI v0 IP block with yes chip integration tweaks.
       Please refer to sifive-blocks-ip-versioning.txt for details
 
       SPI RTL that corresponds to the IP block version numbers can be found here -

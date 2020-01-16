@@ -62,7 +62,7 @@
 #define U2DOTGCR_UTMID	(1 << 4)	/* UTMI Interface Disable */
 #define U2DOTGCR_ULAF	(1 << 3)	/* ULPI Mode Alternate Function Select */
 #define U2DOTGCR_SMAF	(1 << 2)	/* Serial Mode Alternate Function Select */
-#define U2DOTGCR_RTSM	(1 << 1)	/* Return to Synchronous Mode (ULPI Mode) */
+#define U2DOTGCR_RTSM	(1 << 1)	/* Return to Synchroyesus Mode (ULPI Mode) */
 #define U2DOTGCR_ULE	(1 << 0)	/* ULPI Wrapper Enable */
 
 #define U2DOTGICR	(0x0024)	/* U2D OTG Interrupt Control Register */

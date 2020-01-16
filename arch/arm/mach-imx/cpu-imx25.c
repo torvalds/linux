@@ -19,9 +19,9 @@ static int mx25_read_cpu_rev(void)
 {
 	u32 rev;
 	void __iomem *iim_base;
-	struct device_node *np;
+	struct device_yesde *np;
 
-	np = of_find_compatible_node(NULL, NULL, "fsl,imx25-iim");
+	np = of_find_compatible_yesde(NULL, NULL, "fsl,imx25-iim");
 	iim_base = of_iomap(np, 0);
 	BUG_ON(!iim_base);
 	rev = readl(iim_base + MXC_IIMSREV);

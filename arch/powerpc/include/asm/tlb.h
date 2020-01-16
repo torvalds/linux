@@ -61,7 +61,7 @@ static inline void mm_reset_thread_local(struct mm_struct *mm)
 	WARN_ON(atomic_read(&mm->context.copros) > 0);
 	/*
 	 * It's possible for mm_access to take a reference on mm_users to
-	 * access the remote mm from another thread, but it's not allowed
+	 * access the remote mm from ayesther thread, but it's yest allowed
 	 * to set mm_cpumask, so mm_users may be > 1 here.
 	 */
 	WARN_ON(current->mm != mm);

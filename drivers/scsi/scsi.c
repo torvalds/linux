@@ -52,7 +52,7 @@
 #include <linux/spinlock.h>
 #include <linux/kmod.h>
 #include <linux/interrupt.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/cpu.h>
 #include <linux/mutex.h>
 #include <linux/async.h>
@@ -87,7 +87,7 @@ EXPORT_SYMBOL(scsi_logging_level);
 #endif
 
 /*
- * Domain for asynchronous system resume operations.  It is marked 'exclusive'
+ * Domain for asynchroyesus system resume operations.  It is marked 'exclusive'
  * to avoid being included in the async_synchronize_full() that is invoked by
  * dpm_resume().
  */
@@ -100,7 +100,7 @@ EXPORT_SYMBOL(scsi_sd_pm_domain);
  *
  * Returns:	Nothing.
  *
- * Notes:	The command must not belong to any lists.
+ * Notes:	The command must yest belong to any lists.
  */
 void scsi_put_command(struct scsi_cmnd *cmd)
 {
@@ -116,7 +116,7 @@ void scsi_log_send(struct scsi_cmnd *cmd)
 	/*
 	 * If ML QUEUE log level is greater than or equal to:
 	 *
-	 * 1: nothing (match completion)
+	 * 1: yesthing (match completion)
 	 *
 	 * 2: log opcode + command of all commands + cmd address
 	 *
@@ -143,7 +143,7 @@ void scsi_log_completion(struct scsi_cmnd *cmd, int disposition)
 	 * If ML COMPLETE log level is greater than or equal to:
 	 *
 	 * 1: log disposition, result, opcode + command, and conditionally
-	 * sense data for failures or non SUCCESS dispositions.
+	 * sense data for failures or yesn SUCCESS dispositions.
 	 *
 	 * 2: same as 1 but for all command completions.
 	 *
@@ -189,7 +189,7 @@ void scsi_finish_command(struct scsi_cmnd *cmd)
 	scsi_device_unbusy(sdev, cmd);
 
 	/*
-	 * Clear the flags that say that the device/target/host is no longer
+	 * Clear the flags that say that the device/target/host is yes longer
 	 * capable of accepting new commands.
 	 */
 	if (atomic_read(&shost->host_blocked))
@@ -201,7 +201,7 @@ void scsi_finish_command(struct scsi_cmnd *cmd)
 
 	/*
 	 * If we have valid sense information, then some kind of recovery
-	 * must have taken place.  Make a note of this.
+	 * must have taken place.  Make a yeste of this.
 	 */
 	if (SCSI_SENSE_VALID(cmd))
 		cmd->result |= (DRIVER_SENSE << 24);
@@ -217,9 +217,9 @@ void scsi_finish_command(struct scsi_cmnd *cmd)
 		if (drv->done)
 			good_bytes = drv->done(cmd);
 		/*
-		 * USB may not give sense identifying bad sector and
+		 * USB may yest give sense identifying bad sector and
 		 * simply return a residue instead, so subtract off the
-		 * residue if drv->done() error processing indicates no
+		 * residue if drv->done() error processing indicates yes
 		 * change to the completion length.
 		 */
 		if (good_bytes == old_good_bytes)
@@ -253,7 +253,7 @@ EXPORT_SYMBOL(scsi_change_queue_depth);
  * scsi_track_queue_full - track QUEUE_FULL events to adjust queue depth
  * @sdev: SCSI Device in question
  * @depth: Current number of outstanding SCSI commands on this device,
- *         not counting the one returned as QUEUE_FULL.
+ *         yest counting the one returned as QUEUE_FULL.
  *
  * Description:	This function will track successive QUEUE_FULL events on a
  * 		specific SCSI device to determine if and when there is a
@@ -323,7 +323,7 @@ static int scsi_vpd_inquiry(struct scsi_device *sdev, unsigned char *buffer,
 	cmd[5] = 0;		/* Control byte */
 
 	/*
-	 * I'm not convinced we need to try quite this hard to get VPD, but
+	 * I'm yest convinced we need to try quite this hard to get VPD, but
 	 * all the existing users tried this hard.
 	 */
 	result = scsi_execute_req(sdev, cmd, DMA_FROM_DEVICE, buffer,
@@ -349,8 +349,8 @@ static int scsi_vpd_inquiry(struct scsi_device *sdev, unsigned char *buffer,
  * of VPD is defined in the appropriate SCSI document (eg SPC, SBC).
  * If the device supports this VPD page, this routine returns a pointer
  * to a buffer containing the data from that page.  The caller is
- * responsible for calling kfree() on this pointer when it is no longer
- * needed.  If we cannot retrieve the VPD page this routine returns %NULL.
+ * responsible for calling kfree() on this pointer when it is yes longer
+ * needed.  If we canyest retrieve the VPD page this routine returns %NULL.
  */
 int scsi_get_vpd_page(struct scsi_device *sdev, u8 page, unsigned char *buf,
 		      int buf_len)
@@ -495,7 +495,7 @@ int scsi_report_opcode(struct scsi_device *sdev, unsigned char *buffer,
 	struct scsi_sense_hdr sshdr;
 	int result;
 
-	if (sdev->no_report_opcodes || sdev->scsi_level < SCSI_SPC_3)
+	if (sdev->yes_report_opcodes || sdev->scsi_level < SCSI_SPC_3)
 		return -EINVAL;
 
 	memset(cmd, 0, 16);
@@ -619,7 +619,7 @@ EXPORT_SYMBOL(starget_for_each_device);
  * @data:	parameter for callback @fn()
  * @fn:		callback function that is invoked for each device
  *
- * This traverses over each device of @starget.  It does _not_
+ * This traverses over each device of @starget.  It does _yest_
  * take a reference on the scsi_device, so the whole loop must be
  * protected by shost->host_lock.
  *
@@ -647,7 +647,7 @@ EXPORT_SYMBOL(__starget_for_each_device);
  * @lun:	SCSI Logical Unit Number
  *
  * Description: Looks up the scsi_device with the specified @lun for a given
- * @starget.  The returned scsi_device does not have an additional
+ * @starget.  The returned scsi_device does yest have an additional
  * reference.  You must hold the host's host_lock over this call and
  * any access to the returned scsi_device. A scsi_device in state
  * SDEV_DEL is skipped.
@@ -706,7 +706,7 @@ EXPORT_SYMBOL(scsi_device_lookup_by_target);
  * @lun:	SCSI Logical Unit Number
  *
  * Description: Looks up the scsi_device with the specified @channel, @id, @lun
- * for a given host. The returned scsi_device does not have an additional
+ * for a given host. The returned scsi_device does yest have an additional
  * reference.  You must hold the host's host_lock over this call and any access
  * to the returned scsi_device.
  *

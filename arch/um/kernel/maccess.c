@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) 2013 Richard Weinberger <richrd@nod.at>
+ * Copyright (C) 2013 Richard Weinberger <richrd@yesd.at>
  */
 
 #include <linux/uaccess.h>

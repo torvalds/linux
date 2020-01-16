@@ -91,7 +91,7 @@ static inline void
 jiffies_to_old_timeval32(unsigned long jiffies, struct old_timeval32 *value)
 {
 	/*
-	 * Convert jiffies to nanoseconds and separate with
+	 * Convert jiffies to nayesseconds and separate with
 	 * one divide.
 	 */
 	u64 nsec = (u64)jiffies * TICK_NSEC;

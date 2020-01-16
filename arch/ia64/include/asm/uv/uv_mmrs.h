@@ -462,16 +462,16 @@ union uvh_int_cmpd_u {
 #define UVH_NODE_ID_NI_PORT_SHFT 56
 #define UVH_NODE_ID_NI_PORT_MASK 0x0f00000000000000UL
 
-union uvh_node_id_u {
+union uvh_yesde_id_u {
     unsigned long	v;
-    struct uvh_node_id_s {
+    struct uvh_yesde_id_s {
 	unsigned long	force1        :  1;  /* RO */
 	unsigned long	manufacturer  : 11;  /* RO */
 	unsigned long	part_number   : 16;  /* RO */
 	unsigned long	revision      :  4;  /* RO */
-	unsigned long	node_id       : 15;  /* RW */
+	unsigned long	yesde_id       : 15;  /* RW */
 	unsigned long	rsvd_47       :  1;  /*    */
-	unsigned long	nodes_per_bit :  7;  /* RW */
+	unsigned long	yesdes_per_bit :  7;  /* RW */
 	unsigned long	rsvd_55       :  1;  /*    */
 	unsigned long	ni_port       :  4;  /* RO */
 	unsigned long	rsvd_60_63    :  4;  /*    */

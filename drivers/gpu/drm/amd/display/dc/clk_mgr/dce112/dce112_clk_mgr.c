@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -54,9 +54,9 @@ static const struct clk_mgr_mask disp_clk_mask = {
 };
 
 static const struct state_dependent_clocks dce112_max_clks_by_state[] = {
-/*ClocksStateInvalid - should not be used*/
+/*ClocksStateInvalid - should yest be used*/
 { .display_clk_khz = 0, .pixel_clk_khz = 0 },
-/*ClocksStateUltraLow - currently by HW design team not supposed to be used*/
+/*ClocksStateUltraLow - currently by HW design team yest supposed to be used*/
 { .display_clk_khz = 389189, .pixel_clk_khz = 346672 },
 /*ClocksStateLow*/
 { .display_clk_khz = 459000, .pixel_clk_khz = 400000 },

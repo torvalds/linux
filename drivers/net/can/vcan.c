@@ -7,21 +7,21 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
+ *    yestice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the name of Volkswagen nor the names of its contributors
+ * 3. Neither the name of Volkswagen yesr the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
- * Alternatively, provided that this notice is retained in full, this
+ * Alternatively, provided that this yestice is retained in full, this
  * software may be distributed under the terms of the GNU General
  * Public License ("GPL") version 2, in which case the provisions of the
  * GPL apply INSTEAD OF those given above.
  *
  * The provided data structures and external interfaces from this code
- * are not restricted to be used by modules with a GPL compatible license.
+ * are yest restricted to be used by modules with a GPL compatible license.
  *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
  * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
@@ -99,7 +99,7 @@ static netdev_tx_t vcan_tx(struct sk_buff *skb, struct net_device *dev)
 	loop = skb->pkt_type == PACKET_LOOPBACK;
 
 	if (!echo) {
-		/* no echo handling available inside this driver */
+		/* yes echo handling available inside this driver */
 		if (loop) {
 			/* only count the packets here, because the
 			 * CAN core already did the echo for us
@@ -121,7 +121,7 @@ static netdev_tx_t vcan_tx(struct sk_buff *skb, struct net_device *dev)
 		/* receive with packet counting */
 		vcan_rx(skb, dev);
 	} else {
-		/* no looped packets => no counting */
+		/* yes looped packets => yes counting */
 		consume_skb(skb);
 	}
 	return NETDEV_TX_OK;
@@ -129,7 +129,7 @@ static netdev_tx_t vcan_tx(struct sk_buff *skb, struct net_device *dev)
 
 static int vcan_change_mtu(struct net_device *dev, int new_mtu)
 {
-	/* Do not allow changing the MTU while running */
+	/* Do yest allow changing the MTU while running */
 	if (dev->flags & IFF_UP)
 		return -EBUSY;
 

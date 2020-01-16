@@ -7,7 +7,7 @@
 #include <asm/fixmap.h>
 #include <asm/addrspace.h>
 #include <abi/pgtable-bits.h>
-#include <asm-generic/pgtable-nopmd.h>
+#include <asm-generic/pgtable-yespmd.h>
 
 #define PGDIR_SHIFT		22
 #define PGDIR_SIZE		(1UL << PGDIR_SHIFT)
@@ -46,7 +46,7 @@
 #define pmd_page(pmd)	(pfn_to_page(pmd_phys(pmd) >> PAGE_SHIFT))
 #define pte_clear(mm, addr, ptep)	set_pte((ptep), \
 	(((unsigned int) addr & PAGE_OFFSET) ? __pte(_PAGE_GLOBAL) : __pte(0)))
-#define pte_none(pte)		(!(pte_val(pte) & ~_PAGE_GLOBAL))
+#define pte_yesne(pte)		(!(pte_val(pte) & ~_PAGE_GLOBAL))
 #define pte_present(pte)	(pte_val(pte) & _PAGE_PRESENT)
 #define pte_pfn(x)	((unsigned long)((x).pte_low >> PAGE_SHIFT))
 #define pfn_pte(pfn, prot) __pte(((unsigned long long)(pfn) << PAGE_SHIFT) \
@@ -150,7 +150,7 @@ static inline void set_pmd(pmd_t *p, pmd_t pmd)
 }
 
 
-static inline int pmd_none(pmd_t pmd)
+static inline int pmd_yesne(pmd_t pmd)
 {
 	return pmd_val(pmd) == __pa(invalid_pte_table);
 }
@@ -172,7 +172,7 @@ static inline void pmd_clear(pmd_t *p)
 
 /*
  * The following only work if pte_present() is true.
- * Undefined behaviour if not..
+ * Undefined behaviour if yest..
  */
 static inline int pte_read(pte_t pte)
 {
@@ -252,13 +252,13 @@ extern pgprot_t phys_mem_access_prot(struct file *file, unsigned long pfn,
 
 /*
  * Macro to make mark a page protection value as "uncacheable".  Note
- * that "protection" is really a misnomer here as the protection value
+ * that "protection" is really a misyesmer here as the protection value
  * contains the memory attribute bits, dirty bits, and various other
  * bits as well.
  */
-#define pgprot_noncached pgprot_noncached
+#define pgprot_yesncached pgprot_yesncached
 
-static inline pgprot_t pgprot_noncached(pgprot_t _prot)
+static inline pgprot_t pgprot_yesncached(pgprot_t _prot)
 {
 	unsigned long prot = pgprot_val(_prot);
 
@@ -307,7 +307,7 @@ extern void paging_init(void);
 void update_mmu_cache(struct vm_area_struct *vma, unsigned long address,
 		      pte_t *pte);
 
-/* Needs to be defined here and not in linux/mm.h, as it is arch dependent */
+/* Needs to be defined here and yest in linux/mm.h, as it is arch dependent */
 #define kern_addr_valid(addr)	(1)
 
 #define io_remap_pfn_range(vma, vaddr, pfn, size, prot) \

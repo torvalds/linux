@@ -2,18 +2,18 @@ QCOM SMD RPM REGULATOR
 
 The Qualcomm RPM over SMD regulator is modelled as a subdevice of the RPM.
 Because SMD is used as the communication transport mechanism, the RPM resides as
-a subnode of the SMD.  As such, the SMD-RPM regulator requires that the SMD and
-RPM nodes be present.
+a subyesde of the SMD.  As such, the SMD-RPM regulator requires that the SMD and
+RPM yesdes be present.
 
 Please refer to Documentation/devicetree/bindings/soc/qcom/qcom,smd.txt for
-information pertaining to the SMD node.
+information pertaining to the SMD yesde.
 
 Please refer to Documentation/devicetree/bindings/soc/qcom/qcom,smd-rpm.txt for
-information regarding the RPM node.
+information regarding the RPM yesde.
 
 == Regulator
 
-Regulator nodes are identified by their compatible:
+Regulator yesdes are identified by their compatible:
 
 - compatible:
 	Usage: required
@@ -228,8 +228,8 @@ Regulator nodes are identified by their compatible:
 	Definition: reference to regulator supplying the input pin, as
 		    described in the data sheet
 
-The regulator node houses sub-nodes for each regulator within the device. Each
-sub-node is identified using the node's name, with valid values listed for each
+The regulator yesde houses sub-yesdes for each regulator within the device. Each
+sub-yesde is identified using the yesde's name, with valid values listed for each
 of the pmics below.
 
 pm8841:
@@ -266,7 +266,7 @@ pms405:
 	s1, s2, s3, s4, s5, l1, l2, l3, l4, l5, l6, l7, l8, l9, l10, l11, l12,
 	l13
 
-The content of each sub-node is defined by the standard binding for regulators -
+The content of each sub-yesde is defined by the standard binding for regulators -
 see regulator.txt.
 
 = EXAMPLE

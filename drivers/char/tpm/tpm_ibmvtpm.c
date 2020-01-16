@@ -44,7 +44,7 @@ MODULE_DEVICE_TABLE(vio, tpm_ibmvtpm_device_table);
  */
 static int ibmvtpm_send_crq_word(struct vio_dev *vdev, u64 w1)
 {
-	return plpar_hcall_norets(H_SEND_CRQ, vdev->unit_address, w1, 0);
+	return plpar_hcall_yesrets(H_SEND_CRQ, vdev->unit_address, w1, 0);
 }
 
 /**
@@ -108,7 +108,7 @@ static int tpm_ibmvtpm_recv(struct tpm_chip *chip, u8 *buf, size_t count)
 	int sig;
 
 	if (!ibmvtpm->rtce_buf) {
-		dev_err(ibmvtpm->dev, "ibmvtpm device is not ready\n");
+		dev_err(ibmvtpm->dev, "ibmvtpm device is yest ready\n");
 		return 0;
 	}
 
@@ -141,7 +141,7 @@ static int tpm_ibmvtpm_recv(struct tpm_chip *chip, u8 *buf, size_t count)
  *
  * Return:
  *   0 on success,
- *   -errno on error
+ *   -erryes on error
  */
 static int tpm_ibmvtpm_send(struct tpm_chip *chip, u8 *buf, size_t count)
 {
@@ -149,7 +149,7 @@ static int tpm_ibmvtpm_send(struct tpm_chip *chip, u8 *buf, size_t count)
 	int rc, sig;
 
 	if (!ibmvtpm->rtce_buf) {
-		dev_err(ibmvtpm->dev, "ibmvtpm device is not ready\n");
+		dev_err(ibmvtpm->dev, "ibmvtpm device is yest ready\n");
 		return 0;
 	}
 
@@ -227,7 +227,7 @@ static int ibmvtpm_crq_get_rtce_size(struct ibmvtpm_dev *ibmvtpm)
 
 /**
  * ibmvtpm_crq_get_version - Send a CRQ request to get vtpm version
- *			   - Note that this is vtpm version and not tpm version
+ *			   - Note that this is vtpm version and yest tpm version
  *
  * @ibmvtpm:	vtpm device struct
  *
@@ -307,7 +307,7 @@ static int tpm_ibmvtpm_remove(struct vio_dev *vdev)
 	do {
 		if (rc)
 			msleep(100);
-		rc = plpar_hcall_norets(H_FREE_CRQ, vdev->unit_address);
+		rc = plpar_hcall_yesrets(H_FREE_CRQ, vdev->unit_address);
 	} while (rc == H_BUSY || H_IS_LONG_BUSY(rc));
 
 	dma_unmap_single(ibmvtpm->dev, ibmvtpm->crq_dma_handle,
@@ -341,7 +341,7 @@ static unsigned long tpm_ibmvtpm_get_desired_dma(struct vio_dev *vdev)
 
 	/*
 	 * ibmvtpm initializes at probe time, so the data we are
-	 * asking for may not be set yet. Estimate that 4K required
+	 * asking for may yest be set yet. Estimate that 4K required
 	 * for TCE-mapped buffer in addition to CRQ.
 	 */
 	if (chip)
@@ -389,14 +389,14 @@ static int ibmvtpm_reset_crq(struct ibmvtpm_dev *ibmvtpm)
 	do {
 		if (rc)
 			msleep(100);
-		rc = plpar_hcall_norets(H_FREE_CRQ,
+		rc = plpar_hcall_yesrets(H_FREE_CRQ,
 					ibmvtpm->vdev->unit_address);
 	} while (rc == H_BUSY || H_IS_LONG_BUSY(rc));
 
 	memset(ibmvtpm->crq_queue.crq_addr, 0, CRQ_RES_BUF_SIZE);
 	ibmvtpm->crq_queue.index = 0;
 
-	return plpar_hcall_norets(H_REG_CRQ, ibmvtpm->vdev->unit_address,
+	return plpar_hcall_yesrets(H_REG_CRQ, ibmvtpm->vdev->unit_address,
 				  ibmvtpm->crq_dma_handle, CRQ_RES_BUF_SIZE);
 }
 
@@ -416,7 +416,7 @@ static int tpm_ibmvtpm_resume(struct device *dev)
 	do {
 		if (rc)
 			msleep(100);
-		rc = plpar_hcall_norets(H_ENABLE_CRQ,
+		rc = plpar_hcall_yesrets(H_ENABLE_CRQ,
 					ibmvtpm->vdev->unit_address);
 	} while (rc == H_IN_PROGRESS || rc == H_BUSY || H_IS_LONG_BUSY(rc));
 
@@ -505,7 +505,7 @@ static void ibmvtpm_crq_process(struct ibmvtpm_crq *crq,
 				 "CRQ initialization completed\n");
 			return;
 		default:
-			dev_err(ibmvtpm->dev, "Unknown crq message type: %d\n", crq->msg);
+			dev_err(ibmvtpm->dev, "Unkyeswn crq message type: %d\n", crq->msg);
 			return;
 		}
 	case IBMVTPM_VALID_CMD:
@@ -627,7 +627,7 @@ static int tpm_ibmvtpm_probe(struct vio_dev *vio_dev,
 		goto cleanup;
 	}
 
-	rc = plpar_hcall_norets(H_REG_CRQ, vio_dev->unit_address,
+	rc = plpar_hcall_yesrets(H_REG_CRQ, vio_dev->unit_address,
 				ibmvtpm->crq_dma_handle, CRQ_RES_BUF_SIZE);
 	if (rc == H_RESOURCE)
 		rc = ibmvtpm_reset_crq(ibmvtpm);
@@ -673,7 +673,7 @@ static int tpm_ibmvtpm_probe(struct vio_dev *vio_dev,
 	return tpm_chip_register(chip);
 init_irq_cleanup:
 	do {
-		rc1 = plpar_hcall_norets(H_FREE_CRQ, vio_dev->unit_address);
+		rc1 = plpar_hcall_yesrets(H_FREE_CRQ, vio_dev->unit_address);
 	} while (rc1 == H_BUSY || H_IS_LONG_BUSY(rc1));
 reg_crq_cleanup:
 	dma_unmap_single(dev, ibmvtpm->crq_dma_handle, CRQ_RES_BUF_SIZE,

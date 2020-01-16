@@ -14,7 +14,7 @@
 
 struct crypto_aead *ieee80211_aes_gmac_key_setup(const u8 key[],
 						 size_t key_len);
-int ieee80211_aes_gmac(struct crypto_aead *tfm, const u8 *aad, u8 *nonce,
+int ieee80211_aes_gmac(struct crypto_aead *tfm, const u8 *aad, u8 *yesnce,
 		       const u8 *data, size_t data_len, u8 *mic);
 void ieee80211_aes_gmac_key_free(struct crypto_aead *tfm);
 

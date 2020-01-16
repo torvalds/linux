@@ -37,7 +37,7 @@ void acpi_ps_delete_parse_tree(union acpi_parse_object *subtree_root)
 
 	ACPI_DEBUG_PRINT((ACPI_DB_PARSE_TREES, " root %p\n", subtree_root));
 
-	/* Visit all nodes in the subtree */
+	/* Visit all yesdes in the subtree */
 
 	while (op) {
 		if (op != parent) {
@@ -72,7 +72,7 @@ void acpi_ps_delete_parse_tree(union acpi_parse_object *subtree_root)
 			next = acpi_ps_get_arg(op, 0);
 			if (next) {
 
-				/* Still going downward in tree (Op is not completed yet) */
+				/* Still going downward in tree (Op is yest completed yet) */
 
 				op = next;
 				level++;

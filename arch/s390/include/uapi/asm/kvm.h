@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 #ifndef __LINUX_KVM_S390_H
 #define __LINUX_KVM_S390_H
 /*
@@ -150,7 +150,7 @@ struct kvm_s390_vm_cpu_subfunc {
 	__u8 kmf[16];		/* with MSA4 */
 	__u8 kmo[16];		/* with MSA4 */
 	__u8 pcc[16];		/* with MSA4 */
-	__u8 ppno[16];		/* with MSA5 */
+	__u8 ppyes[16];		/* with MSA5 */
 	__u8 kma[16];		/* with MSA8 */
 	__u8 kdsa[16];		/* with MSA9 */
 	__u8 sortl[32];		/* with STFLE.150 */

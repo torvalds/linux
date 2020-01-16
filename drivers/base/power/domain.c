@@ -130,7 +130,7 @@ static const struct genpd_lock_ops genpd_spin_ops = {
 #define genpd_is_cpu_domain(genpd)	(genpd->flags & GENPD_FLAG_CPU_DOMAIN)
 #define genpd_is_rpm_always_on(genpd)	(genpd->flags & GENPD_FLAG_RPM_ALWAYS_ON)
 
-static inline bool irq_safe_dev_in_no_sleep_domain(struct device *dev,
+static inline bool irq_safe_dev_in_yes_sleep_domain(struct device *dev,
 		const struct generic_pm_domain *genpd)
 {
 	bool ret;
@@ -138,12 +138,12 @@ static inline bool irq_safe_dev_in_no_sleep_domain(struct device *dev,
 	ret = pm_runtime_is_irq_safe(dev) && !genpd_is_irq_safe(genpd);
 
 	/*
-	 * Warn once if an IRQ safe device is attached to a no sleep domain, as
+	 * Warn once if an IRQ safe device is attached to a yes sleep domain, as
 	 * to indicate a suboptimal configuration for PM. For an always on
 	 * domain this isn't case, thus don't warn.
 	 */
 	if (ret && !genpd_is_always_on(genpd))
-		dev_warn_once(dev, "PM domain %s will not be powered off\n",
+		dev_warn_once(dev, "PM domain %s will yest be powered off\n",
 				genpd->name);
 
 	return ret;
@@ -212,10 +212,10 @@ static void genpd_sd_counter_inc(struct generic_pm_domain *genpd)
 #ifdef CONFIG_DEBUG_FS
 static void genpd_update_accounting(struct generic_pm_domain *genpd)
 {
-	ktime_t delta, now;
+	ktime_t delta, yesw;
 
-	now = ktime_get();
-	delta = ktime_sub(now, genpd->accounting_time);
+	yesw = ktime_get();
+	delta = ktime_sub(yesw, genpd->accounting_time);
 
 	/*
 	 * If genpd->status is active, it means we are just
@@ -231,7 +231,7 @@ static void genpd_update_accounting(struct generic_pm_domain *genpd)
 		genpd->on_time = ktime_add(genpd->on_time, delta);
 	}
 
-	genpd->accounting_time = now;
+	genpd->accounting_time = yesw;
 }
 #else
 static inline void genpd_update_accounting(struct generic_pm_domain *genpd) {}
@@ -253,7 +253,7 @@ static int _genpd_reeval_performance_state(struct generic_pm_domain *genpd,
 		return state;
 
 	/* Traverse all devices within the domain */
-	list_for_each_entry(pdd, &genpd->dev_list, list_node) {
+	list_for_each_entry(pdd, &genpd->dev_list, list_yesde) {
 		pd_data = to_gpd_data(pdd);
 
 		if (pd_data->performance_state > state)
@@ -265,16 +265,16 @@ static int _genpd_reeval_performance_state(struct generic_pm_domain *genpd,
 	 * done without any additional locking as the link->performance_state
 	 * field is protected by the master genpd->lock, which is already taken.
 	 *
-	 * Also note that link->performance_state (subdomain's performance state
+	 * Also yeste that link->performance_state (subdomain's performance state
 	 * requirement to master domain) is different from
 	 * link->slave->performance_state (current performance state requirement
 	 * of the devices/sub-domains of the subdomain) and so can have a
 	 * different value.
 	 *
 	 * Note that we also take vote from powered-off sub-domains into account
-	 * as the same is done for devices right now.
+	 * as the same is done for devices right yesw.
 	 */
-	list_for_each_entry(link, &genpd->master_links, master_node) {
+	list_for_each_entry(link, &genpd->master_links, master_yesde) {
 		if (link->performance_state > state)
 			state = link->performance_state;
 	}
@@ -293,7 +293,7 @@ static int _genpd_set_performance_state(struct generic_pm_domain *genpd,
 		return 0;
 
 	/* Propagate to masters of genpd */
-	list_for_each_entry(link, &genpd->slave_links, slave_node) {
+	list_for_each_entry(link, &genpd->slave_links, slave_yesde) {
 		master = link->master;
 
 		if (!master->set_performance_state)
@@ -334,7 +334,7 @@ static int _genpd_set_performance_state(struct generic_pm_domain *genpd,
 err:
 	/* Encountered an error, lets rollback */
 	list_for_each_entry_continue_reverse(link, &genpd->slave_links,
-					     slave_node) {
+					     slave_yesde) {
 		master = link->master;
 
 		if (!master->set_performance_state)
@@ -484,8 +484,8 @@ static void genpd_queue_power_off_work(struct generic_pm_domain *genpd)
  * genpd_power_off - Remove power from a given PM domain.
  * @genpd: PM domain to power down.
  * @one_dev_on: If invoked from genpd's ->runtime_suspend|resume() callback, the
- * RPM status of the releated device is in an intermediate state, not yet turned
- * into RPM_SUSPENDED. This means genpd_power_off() must allow one device to not
+ * RPM status of the releated device is in an intermediate state, yest yet turned
+ * into RPM_SUSPENDED. This means genpd_power_off() must allow one device to yest
  * be RPM_SUSPENDED, while it tries to power off the PM domain.
  *
  * If all of the @genpd's devices have been suspended and all of its subdomains
@@ -496,10 +496,10 @@ static int genpd_power_off(struct generic_pm_domain *genpd, bool one_dev_on,
 {
 	struct pm_domain_data *pdd;
 	struct gpd_link *link;
-	unsigned int not_suspended = 0;
+	unsigned int yest_suspended = 0;
 
 	/*
-	 * Do not try to power off the domain in the following situations:
+	 * Do yest try to power off the domain in the following situations:
 	 * (1) The domain is already in the "power off" state.
 	 * (2) System suspend is in progress.
 	 */
@@ -516,7 +516,7 @@ static int genpd_power_off(struct generic_pm_domain *genpd, bool one_dev_on,
 			atomic_read(&genpd->sd_count) > 0)
 		return -EBUSY;
 
-	list_for_each_entry(pdd, &genpd->dev_list, list_node) {
+	list_for_each_entry(pdd, &genpd->dev_list, list_yesde) {
 		enum pm_qos_flags_status stat;
 
 		stat = dev_pm_qos_flags(pdd->dev, PM_QOS_FLAG_NO_POWER_OFF);
@@ -524,15 +524,15 @@ static int genpd_power_off(struct generic_pm_domain *genpd, bool one_dev_on,
 			return -EBUSY;
 
 		/*
-		 * Do not allow PM domain to be powered off, when an IRQ safe
-		 * device is part of a non-IRQ safe domain.
+		 * Do yest allow PM domain to be powered off, when an IRQ safe
+		 * device is part of a yesn-IRQ safe domain.
 		 */
 		if (!pm_runtime_suspended(pdd->dev) ||
-			irq_safe_dev_in_no_sleep_domain(pdd->dev, genpd))
-			not_suspended++;
+			irq_safe_dev_in_yes_sleep_domain(pdd->dev, genpd))
+			yest_suspended++;
 	}
 
-	if (not_suspended > 1 || (not_suspended == 1 && !one_dev_on))
+	if (yest_suspended > 1 || (yest_suspended == 1 && !one_dev_on))
 		return -EBUSY;
 
 	if (genpd->gov && genpd->gov->power_down_ok) {
@@ -566,7 +566,7 @@ static int genpd_power_off(struct generic_pm_domain *genpd, bool one_dev_on,
 	genpd->status = GPD_STATE_POWER_OFF;
 	genpd_update_accounting(genpd);
 
-	list_for_each_entry(link, &genpd->slave_links, slave_node) {
+	list_for_each_entry(link, &genpd->slave_links, slave_yesde) {
 		genpd_sd_counter_dec(link->master);
 		genpd_lock_nested(link->master, depth + 1);
 		genpd_power_off(link->master, false, depth + 1);
@@ -593,11 +593,11 @@ static int genpd_power_on(struct generic_pm_domain *genpd, unsigned int depth)
 		return 0;
 
 	/*
-	 * The list is guaranteed not to change while the loop below is being
+	 * The list is guaranteed yest to change while the loop below is being
 	 * executed, unless one of the masters' .power_on() callbacks fiddles
 	 * with it.
 	 */
-	list_for_each_entry(link, &genpd->slave_links, slave_node) {
+	list_for_each_entry(link, &genpd->slave_links, slave_yesde) {
 		struct generic_pm_domain *master = link->master;
 
 		genpd_sd_counter_inc(master);
@@ -624,7 +624,7 @@ static int genpd_power_on(struct generic_pm_domain *genpd, unsigned int depth)
  err:
 	list_for_each_entry_continue_reverse(link,
 					&genpd->slave_links,
-					slave_node) {
+					slave_yesde) {
 		genpd_sd_counter_dec(link->master);
 		genpd_lock_nested(link->master, depth + 1);
 		genpd_power_off(link->master, false, depth + 1);
@@ -641,7 +641,7 @@ static int genpd_dev_pm_start(struct device *dev)
 	return genpd_start_dev(genpd, dev);
 }
 
-static int genpd_dev_pm_qos_notifier(struct notifier_block *nb,
+static int genpd_dev_pm_qos_yestifier(struct yestifier_block *nb,
 				     unsigned long val, void *ptr)
 {
 	struct generic_pm_domain_data *gpd_data;
@@ -674,7 +674,7 @@ static int genpd_dev_pm_qos_notifier(struct notifier_block *nb,
 		}
 
 		dev = dev->parent;
-		if (!dev || dev->power.ignore_children)
+		if (!dev || dev->power.igyesre_children)
 			break;
 	}
 
@@ -807,7 +807,7 @@ static int genpd_runtime_suspend(struct device *dev)
 	 * If power.irq_safe is set, this routine may be run with
 	 * IRQs disabled, so suspend only if the PM domain also is irq_safe.
 	 */
-	if (irq_safe_dev_in_no_sleep_domain(dev, genpd))
+	if (irq_safe_dev_in_yes_sleep_domain(dev, genpd))
 		return 0;
 
 	genpd_lock(genpd);
@@ -842,10 +842,10 @@ static int genpd_runtime_resume(struct device *dev)
 		return -EINVAL;
 
 	/*
-	 * As we don't power off a non IRQ safe domain, which holds
+	 * As we don't power off a yesn IRQ safe domain, which holds
 	 * an IRQ safe device, we don't need to restore power to it.
 	 */
-	if (irq_safe_dev_in_no_sleep_domain(dev, genpd)) {
+	if (irq_safe_dev_in_yes_sleep_domain(dev, genpd)) {
 		timed = false;
 		goto out;
 	}
@@ -898,29 +898,29 @@ err_poweroff:
 	return ret;
 }
 
-static bool pd_ignore_unused;
-static int __init pd_ignore_unused_setup(char *__unused)
+static bool pd_igyesre_unused;
+static int __init pd_igyesre_unused_setup(char *__unused)
 {
-	pd_ignore_unused = true;
+	pd_igyesre_unused = true;
 	return 1;
 }
-__setup("pd_ignore_unused", pd_ignore_unused_setup);
+__setup("pd_igyesre_unused", pd_igyesre_unused_setup);
 
 /**
- * genpd_power_off_unused - Power off all PM domains with no devices in use.
+ * genpd_power_off_unused - Power off all PM domains with yes devices in use.
  */
 static int __init genpd_power_off_unused(void)
 {
 	struct generic_pm_domain *genpd;
 
-	if (pd_ignore_unused) {
+	if (pd_igyesre_unused) {
 		pr_warn("genpd: Not disabling unused power domains\n");
 		return 0;
 	}
 
 	mutex_lock(&gpd_list_lock);
 
-	list_for_each_entry(genpd, &gpd_list, gpd_list_node)
+	list_for_each_entry(genpd, &gpd_list, gpd_list_yesde)
 		genpd_queue_power_off_work(genpd);
 
 	mutex_unlock(&gpd_list_lock);
@@ -932,7 +932,7 @@ late_initcall(genpd_power_off_unused);
 #ifdef CONFIG_PM_SLEEP
 
 /**
- * genpd_sync_power_off - Synchronously power off a PM domain and its masters.
+ * genpd_sync_power_off - Synchroyesusly power off a PM domain and its masters.
  * @genpd: PM domain to power off, if possible.
  * @use_lock: use the lock.
  * @depth: nesting count for lockdep.
@@ -940,8 +940,8 @@ late_initcall(genpd_power_off_unused);
  * Check if the given PM domain can be powered off (during system suspend or
  * hibernation) and do that if so.  Also, in that case propagate to its masters.
  *
- * This function is only called in "noirq" and "syscore" stages of system power
- * transitions. The "noirq" callbacks may be executed asynchronously, thus in
+ * This function is only called in "yesirq" and "syscore" stages of system power
+ * transitions. The "yesirq" callbacks may be executed asynchroyesusly, thus in
  * these cases the lock must be held.
  */
 static void genpd_sync_power_off(struct generic_pm_domain *genpd, bool use_lock,
@@ -963,7 +963,7 @@ static void genpd_sync_power_off(struct generic_pm_domain *genpd, bool use_lock,
 
 	genpd->status = GPD_STATE_POWER_OFF;
 
-	list_for_each_entry(link, &genpd->slave_links, slave_node) {
+	list_for_each_entry(link, &genpd->slave_links, slave_yesde) {
 		genpd_sd_counter_dec(link->master);
 
 		if (use_lock)
@@ -977,13 +977,13 @@ static void genpd_sync_power_off(struct generic_pm_domain *genpd, bool use_lock,
 }
 
 /**
- * genpd_sync_power_on - Synchronously power on a PM domain and its masters.
+ * genpd_sync_power_on - Synchroyesusly power on a PM domain and its masters.
  * @genpd: PM domain to power on.
  * @use_lock: use the lock.
  * @depth: nesting count for lockdep.
  *
- * This function is only called in "noirq" and "syscore" stages of system power
- * transitions. The "noirq" callbacks may be executed asynchronously, thus in
+ * This function is only called in "yesirq" and "syscore" stages of system power
+ * transitions. The "yesirq" callbacks may be executed asynchroyesusly, thus in
  * these cases the lock must be held.
  */
 static void genpd_sync_power_on(struct generic_pm_domain *genpd, bool use_lock,
@@ -994,7 +994,7 @@ static void genpd_sync_power_on(struct generic_pm_domain *genpd, bool use_lock,
 	if (genpd_status_on(genpd))
 		return;
 
-	list_for_each_entry(link, &genpd->slave_links, slave_node) {
+	list_for_each_entry(link, &genpd->slave_links, slave_yesde) {
 		genpd_sd_counter_inc(link->master);
 
 		if (use_lock)
@@ -1019,7 +1019,7 @@ static void genpd_sync_power_on(struct generic_pm_domain *genpd, bool use_lock,
  * There are two cases in which a device that can wake up the system from sleep
  * states should be resumed by genpd_prepare(): (1) if the device is enabled
  * to wake up the system and it has to remain active for this purpose while the
- * system is in the sleep state and (2) if the device is not enabled to wake up
+ * system is in the sleep state and (2) if the device is yest enabled to wake up
  * the system from sleep states and it generally doesn't generate wakeup signals
  * by itself (those signals are generated on its behalf by other parts of the
  * system).  In the latter case it may be necessary to reconfigure the device's
@@ -1091,7 +1091,7 @@ static int genpd_prepare(struct device *dev)
  * genpd_finish_suspend - Completion of suspend or hibernation of device in an
  *   I/O pm domain.
  * @dev: Device to suspend.
- * @poweroff: Specifies if this is a poweroff_noirq or suspend_noirq callback.
+ * @poweroff: Specifies if this is a poweroff_yesirq or suspend_yesirq callback.
  *
  * Stop the device and remove power from the domain if all devices in it have
  * been stopped.
@@ -1106,9 +1106,9 @@ static int genpd_finish_suspend(struct device *dev, bool poweroff)
 		return -EINVAL;
 
 	if (poweroff)
-		ret = pm_generic_poweroff_noirq(dev);
+		ret = pm_generic_poweroff_yesirq(dev);
 	else
-		ret = pm_generic_suspend_noirq(dev);
+		ret = pm_generic_suspend_yesirq(dev);
 	if (ret)
 		return ret;
 
@@ -1120,9 +1120,9 @@ static int genpd_finish_suspend(struct device *dev, bool poweroff)
 		ret = genpd_stop_dev(genpd, dev);
 		if (ret) {
 			if (poweroff)
-				pm_generic_restore_noirq(dev);
+				pm_generic_restore_yesirq(dev);
 			else
-				pm_generic_resume_noirq(dev);
+				pm_generic_resume_yesirq(dev);
 			return ret;
 		}
 	}
@@ -1136,13 +1136,13 @@ static int genpd_finish_suspend(struct device *dev, bool poweroff)
 }
 
 /**
- * genpd_suspend_noirq - Completion of suspend of device in an I/O PM domain.
+ * genpd_suspend_yesirq - Completion of suspend of device in an I/O PM domain.
  * @dev: Device to suspend.
  *
  * Stop the device and remove power from the domain if all devices in it have
  * been stopped.
  */
-static int genpd_suspend_noirq(struct device *dev)
+static int genpd_suspend_yesirq(struct device *dev)
 {
 	dev_dbg(dev, "%s()\n", __func__);
 
@@ -1150,12 +1150,12 @@ static int genpd_suspend_noirq(struct device *dev)
 }
 
 /**
- * genpd_resume_noirq - Start of resume of device in an I/O PM domain.
+ * genpd_resume_yesirq - Start of resume of device in an I/O PM domain.
  * @dev: Device to resume.
  *
  * Restore power to the device's PM domain, if necessary, and start the device.
  */
-static int genpd_resume_noirq(struct device *dev)
+static int genpd_resume_yesirq(struct device *dev)
 {
 	struct generic_pm_domain *genpd;
 	int ret;
@@ -1167,7 +1167,7 @@ static int genpd_resume_noirq(struct device *dev)
 		return -EINVAL;
 
 	if (dev->power.wakeup_path && genpd_is_active_wakeup(genpd))
-		return pm_generic_resume_noirq(dev);
+		return pm_generic_resume_yesirq(dev);
 
 	genpd_lock(genpd);
 	genpd_sync_power_on(genpd, true, 0);
@@ -1181,11 +1181,11 @@ static int genpd_resume_noirq(struct device *dev)
 			return ret;
 	}
 
-	return pm_generic_resume_noirq(dev);
+	return pm_generic_resume_yesirq(dev);
 }
 
 /**
- * genpd_freeze_noirq - Completion of freezing a device in an I/O PM domain.
+ * genpd_freeze_yesirq - Completion of freezing a device in an I/O PM domain.
  * @dev: Device to freeze.
  *
  * Carry out a late freeze of a device under the assumption that its
@@ -1193,7 +1193,7 @@ static int genpd_resume_noirq(struct device *dev)
  * struct generic_pm_domain representing a power domain consisting of I/O
  * devices.
  */
-static int genpd_freeze_noirq(struct device *dev)
+static int genpd_freeze_yesirq(struct device *dev)
 {
 	const struct generic_pm_domain *genpd;
 	int ret = 0;
@@ -1204,7 +1204,7 @@ static int genpd_freeze_noirq(struct device *dev)
 	if (IS_ERR(genpd))
 		return -EINVAL;
 
-	ret = pm_generic_freeze_noirq(dev);
+	ret = pm_generic_freeze_yesirq(dev);
 	if (ret)
 		return ret;
 
@@ -1216,13 +1216,13 @@ static int genpd_freeze_noirq(struct device *dev)
 }
 
 /**
- * genpd_thaw_noirq - Early thaw of device in an I/O PM domain.
+ * genpd_thaw_yesirq - Early thaw of device in an I/O PM domain.
  * @dev: Device to thaw.
  *
  * Start the device, unless power has been removed from the domain already
  * before the system transition.
  */
-static int genpd_thaw_noirq(struct device *dev)
+static int genpd_thaw_yesirq(struct device *dev)
 {
 	const struct generic_pm_domain *genpd;
 	int ret = 0;
@@ -1240,18 +1240,18 @@ static int genpd_thaw_noirq(struct device *dev)
 			return ret;
 	}
 
-	return pm_generic_thaw_noirq(dev);
+	return pm_generic_thaw_yesirq(dev);
 }
 
 /**
- * genpd_poweroff_noirq - Completion of hibernation of device in an
+ * genpd_poweroff_yesirq - Completion of hibernation of device in an
  *   I/O PM domain.
  * @dev: Device to poweroff.
  *
  * Stop the device and remove power from the domain if all devices in it have
  * been stopped.
  */
-static int genpd_poweroff_noirq(struct device *dev)
+static int genpd_poweroff_yesirq(struct device *dev)
 {
 	dev_dbg(dev, "%s()\n", __func__);
 
@@ -1259,13 +1259,13 @@ static int genpd_poweroff_noirq(struct device *dev)
 }
 
 /**
- * genpd_restore_noirq - Start of restore of device in an I/O PM domain.
+ * genpd_restore_yesirq - Start of restore of device in an I/O PM domain.
  * @dev: Device to resume.
  *
  * Make sure the domain will be in the same power state as before the
  * hibernation the system is resuming from and start the device if necessary.
  */
-static int genpd_restore_noirq(struct device *dev)
+static int genpd_restore_yesirq(struct device *dev)
 {
 	struct generic_pm_domain *genpd;
 	int ret = 0;
@@ -1299,7 +1299,7 @@ static int genpd_restore_noirq(struct device *dev)
 			return ret;
 	}
 
-	return pm_generic_restore_noirq(dev);
+	return pm_generic_restore_yesirq(dev);
 }
 
 /**
@@ -1334,7 +1334,7 @@ static void genpd_complete(struct device *dev)
 
 /**
  * genpd_syscore_switch - Switch power during system core suspend or resume.
- * @dev: Device that normally is marked as "always on" to switch power for.
+ * @dev: Device that yesrmally is marked as "always on" to switch power for.
  *
  * This routine may only be called during the system core (syscore) suspend or
  * resume phase for devices whose "always on" flags are set.
@@ -1371,12 +1371,12 @@ EXPORT_SYMBOL_GPL(pm_genpd_syscore_poweron);
 #else /* !CONFIG_PM_SLEEP */
 
 #define genpd_prepare		NULL
-#define genpd_suspend_noirq	NULL
-#define genpd_resume_noirq	NULL
-#define genpd_freeze_noirq	NULL
-#define genpd_thaw_noirq	NULL
-#define genpd_poweroff_noirq	NULL
-#define genpd_restore_noirq	NULL
+#define genpd_suspend_yesirq	NULL
+#define genpd_resume_yesirq	NULL
+#define genpd_freeze_yesirq	NULL
+#define genpd_thaw_yesirq	NULL
+#define genpd_poweroff_yesirq	NULL
+#define genpd_restore_yesirq	NULL
 #define genpd_complete		NULL
 
 #endif /* CONFIG_PM_SLEEP */
@@ -1399,7 +1399,7 @@ static struct generic_pm_domain_data *genpd_alloc_dev_data(struct device *dev)
 	gpd_data->base.dev = dev;
 	gpd_data->td.constraint_changed = true;
 	gpd_data->td.effective_constraint_ns = PM_QOS_RESUME_LATENCY_NO_CONSTRAINT_NS;
-	gpd_data->nb.notifier_call = genpd_dev_pm_qos_notifier;
+	gpd_data->nb.yestifier_call = genpd_dev_pm_qos_yestifier;
 
 	spin_lock_irq(&dev->power.lock);
 
@@ -1443,7 +1443,7 @@ static void genpd_update_cpumask(struct generic_pm_domain *genpd,
 	if (!genpd_is_cpu_domain(genpd))
 		return;
 
-	list_for_each_entry(link, &genpd->slave_links, slave_node) {
+	list_for_each_entry(link, &genpd->slave_links, slave_yesde) {
 		struct generic_pm_domain *master = link->master;
 
 		genpd_lock_nested(master, depth + 1);
@@ -1513,14 +1513,14 @@ static int genpd_add_device(struct generic_pm_domain *genpd, struct device *dev,
 	genpd->device_count++;
 	genpd->max_off_time_changed = true;
 
-	list_add_tail(&gpd_data->base.list_node, &genpd->dev_list);
+	list_add_tail(&gpd_data->base.list_yesde, &genpd->dev_list);
 
 	genpd_unlock(genpd);
  out:
 	if (ret)
 		genpd_free_dev_data(dev, gpd_data);
 	else
-		dev_pm_qos_add_notifier(dev, &gpd_data->nb,
+		dev_pm_qos_add_yestifier(dev, &gpd_data->nb,
 					DEV_PM_QOS_RESUME_LATENCY);
 
 	return ret;
@@ -1554,7 +1554,7 @@ static int genpd_remove_device(struct generic_pm_domain *genpd,
 
 	pdd = dev->power.subsys_data->domain_data;
 	gpd_data = to_gpd_data(pdd);
-	dev_pm_qos_remove_notifier(dev, &gpd_data->nb,
+	dev_pm_qos_remove_yestifier(dev, &gpd_data->nb,
 				   DEV_PM_QOS_RESUME_LATENCY);
 
 	genpd_lock(genpd);
@@ -1570,7 +1570,7 @@ static int genpd_remove_device(struct generic_pm_domain *genpd,
 	genpd_clear_cpumask(genpd, gpd_data->cpu);
 	dev_pm_domain_set(dev, NULL);
 
-	list_del_init(&pdd->list_node);
+	list_del_init(&pdd->list_yesde);
 
 	genpd_unlock(genpd);
 
@@ -1583,7 +1583,7 @@ static int genpd_remove_device(struct generic_pm_domain *genpd,
 
  out:
 	genpd_unlock(genpd);
-	dev_pm_qos_add_notifier(dev, &gpd_data->nb, DEV_PM_QOS_RESUME_LATENCY);
+	dev_pm_qos_add_yestifier(dev, &gpd_data->nb, DEV_PM_QOS_RESUME_LATENCY);
 
 	return ret;
 }
@@ -1636,7 +1636,7 @@ static int genpd_add_subdomain(struct generic_pm_domain *genpd,
 		goto out;
 	}
 
-	list_for_each_entry(itr, &genpd->master_links, master_node) {
+	list_for_each_entry(itr, &genpd->master_links, master_yesde) {
 		if (itr->slave == subdomain && itr->master == genpd) {
 			ret = -EINVAL;
 			goto out;
@@ -1644,9 +1644,9 @@ static int genpd_add_subdomain(struct generic_pm_domain *genpd,
 	}
 
 	link->master = genpd;
-	list_add_tail(&link->master_node, &genpd->master_links);
+	list_add_tail(&link->master_yesde, &genpd->master_links);
 	link->slave = subdomain;
-	list_add_tail(&link->slave_node, &subdomain->slave_links);
+	list_add_tail(&link->slave_yesde, &subdomain->slave_links);
 	if (genpd_status_on(subdomain))
 		genpd_sd_counter_inc(genpd);
 
@@ -1700,12 +1700,12 @@ int pm_genpd_remove_subdomain(struct generic_pm_domain *genpd,
 		goto out;
 	}
 
-	list_for_each_entry_safe(link, l, &genpd->master_links, master_node) {
+	list_for_each_entry_safe(link, l, &genpd->master_links, master_yesde) {
 		if (link->slave != subdomain)
 			continue;
 
-		list_del(&link->master_node);
-		list_del(&link->slave_node);
+		list_del(&link->master_yesde);
+		list_del(&link->slave_yesde);
 		kfree(link);
 		if (genpd_status_on(subdomain))
 			genpd_sd_counter_dec(genpd);
@@ -1757,13 +1757,13 @@ static void genpd_lock_init(struct generic_pm_domain *genpd)
 /**
  * pm_genpd_init - Initialize a generic I/O PM domain object.
  * @genpd: PM domain object to initialize.
- * @gov: PM domain governor to associate with the domain (may be NULL).
+ * @gov: PM domain goveryesr to associate with the domain (may be NULL).
  * @is_off: Initial value of the domain's power_is_off field.
  *
  * Returns 0 on successful initialization, else a negative error code.
  */
 int pm_genpd_init(struct generic_pm_domain *genpd,
-		  struct dev_power_governor *gov, bool is_off)
+		  struct dev_power_goveryesr *gov, bool is_off)
 {
 	int ret;
 
@@ -1787,12 +1787,12 @@ int pm_genpd_init(struct generic_pm_domain *genpd,
 	genpd->domain.ops.runtime_suspend = genpd_runtime_suspend;
 	genpd->domain.ops.runtime_resume = genpd_runtime_resume;
 	genpd->domain.ops.prepare = genpd_prepare;
-	genpd->domain.ops.suspend_noirq = genpd_suspend_noirq;
-	genpd->domain.ops.resume_noirq = genpd_resume_noirq;
-	genpd->domain.ops.freeze_noirq = genpd_freeze_noirq;
-	genpd->domain.ops.thaw_noirq = genpd_thaw_noirq;
-	genpd->domain.ops.poweroff_noirq = genpd_poweroff_noirq;
-	genpd->domain.ops.restore_noirq = genpd_restore_noirq;
+	genpd->domain.ops.suspend_yesirq = genpd_suspend_yesirq;
+	genpd->domain.ops.resume_yesirq = genpd_resume_yesirq;
+	genpd->domain.ops.freeze_yesirq = genpd_freeze_yesirq;
+	genpd->domain.ops.thaw_yesirq = genpd_thaw_yesirq;
+	genpd->domain.ops.poweroff_yesirq = genpd_poweroff_yesirq;
+	genpd->domain.ops.restore_yesirq = genpd_restore_yesirq;
 	genpd->domain.ops.complete = genpd_complete;
 	genpd->domain.start = genpd_dev_pm_start;
 
@@ -1810,7 +1810,7 @@ int pm_genpd_init(struct generic_pm_domain *genpd,
 	    !zalloc_cpumask_var(&genpd->cpus, GFP_KERNEL))
 		return -ENOMEM;
 
-	/* Use only one "off" state if there were no states declared */
+	/* Use only one "off" state if there were yes states declared */
 	if (genpd->state_count == 0) {
 		ret = genpd_set_default_power_state(genpd);
 		if (ret) {
@@ -1819,14 +1819,14 @@ int pm_genpd_init(struct generic_pm_domain *genpd,
 			return ret;
 		}
 	} else if (!gov && genpd->state_count > 1) {
-		pr_warn("%s: no governor for states\n", genpd->name);
+		pr_warn("%s: yes goveryesr for states\n", genpd->name);
 	}
 
 	device_initialize(&genpd->dev);
 	dev_set_name(&genpd->dev, "%s", genpd->name);
 
 	mutex_lock(&gpd_list_lock);
-	list_add(&genpd->gpd_list_node, &gpd_list);
+	list_add(&genpd->gpd_list_yesde, &gpd_list);
 	mutex_unlock(&gpd_list_lock);
 
 	return 0;
@@ -1854,13 +1854,13 @@ static int genpd_remove(struct generic_pm_domain *genpd)
 		return -EBUSY;
 	}
 
-	list_for_each_entry_safe(link, l, &genpd->slave_links, slave_node) {
-		list_del(&link->master_node);
-		list_del(&link->slave_node);
+	list_for_each_entry_safe(link, l, &genpd->slave_links, slave_yesde) {
+		list_del(&link->master_yesde);
+		list_del(&link->slave_yesde);
 		kfree(link);
 	}
 
-	list_del(&genpd->gpd_list_node);
+	list_del(&genpd->gpd_list_yesde);
 	genpd_unlock(genpd);
 	cancel_work_sync(&genpd->power_off_work);
 	if (genpd_is_cpu_domain(genpd))
@@ -1883,7 +1883,7 @@ static int genpd_remove(struct generic_pm_domain *genpd)
  *  - Removes the PM domain from the list of registered PM domains.
  *
  * The PM domain will only be removed, if the associated provider has
- * been removed, it is not a parent to any other PM domain and has no
+ * been removed, it is yest a parent to any other PM domain and has yes
  * devices associated with it.
  */
 int pm_genpd_remove(struct generic_pm_domain *genpd)
@@ -1904,29 +1904,29 @@ EXPORT_SYMBOL_GPL(pm_genpd_remove);
  * Device Tree based PM domain providers.
  *
  * The code below implements generic device tree based PM domain providers that
- * bind device tree nodes with generic PM domains registered in the system.
+ * bind device tree yesdes with generic PM domains registered in the system.
  *
  * Any driver that registers generic PM domains and needs to support binding of
  * devices to these domains is supposed to register a PM domain provider, which
  * maps a PM domain specifier retrieved from the device tree to a PM domain.
  *
  * Two simple mapping functions have been provided for convenience:
- *  - genpd_xlate_simple() for 1:1 device tree node to PM domain mapping.
- *  - genpd_xlate_onecell() for mapping of multiple PM domains per node by
+ *  - genpd_xlate_simple() for 1:1 device tree yesde to PM domain mapping.
+ *  - genpd_xlate_onecell() for mapping of multiple PM domains per yesde by
  *    index.
  */
 
 /**
  * struct of_genpd_provider - PM domain provider registration structure
  * @link: Entry in global list of PM domain providers
- * @node: Pointer to device tree node of PM domain provider
+ * @yesde: Pointer to device tree yesde of PM domain provider
  * @xlate: Provider-specific xlate callback mapping a set of specifier cells
  *         into a PM domain.
  * @data: context pointer to be passed into @xlate callback
  */
 struct of_genpd_provider {
 	struct list_head link;
-	struct device_node *node;
+	struct device_yesde *yesde;
 	genpd_xlate_t xlate;
 	void *data;
 };
@@ -1937,12 +1937,12 @@ static LIST_HEAD(of_genpd_providers);
 static DEFINE_MUTEX(of_genpd_mutex);
 
 /**
- * genpd_xlate_simple() - Xlate function for direct node-domain mapping
+ * genpd_xlate_simple() - Xlate function for direct yesde-domain mapping
  * @genpdspec: OF phandle args to map into a PM domain
  * @data: xlate function private data - pointer to struct generic_pm_domain
  *
  * This is a generic xlate function that can be used to model PM domains that
- * have their own device tree nodes. The private data of xlate function needs
+ * have their own device tree yesdes. The private data of xlate function needs
  * to be a valid pointer to struct generic_pm_domain.
  */
 static struct generic_pm_domain *genpd_xlate_simple(
@@ -1958,7 +1958,7 @@ static struct generic_pm_domain *genpd_xlate_simple(
  * @data: xlate function private data - pointer to struct genpd_onecell_data
  *
  * This is a generic xlate function that can be used to model simple PM domain
- * controllers that have one device tree node and provide multiple PM domains.
+ * controllers that have one device tree yesde and provide multiple PM domains.
  * A single cell is used as an index into an array of PM domains specified in
  * the genpd_onecell_data struct when registering the provider.
  */
@@ -1984,12 +1984,12 @@ static struct generic_pm_domain *genpd_xlate_onecell(
 }
 
 /**
- * genpd_add_provider() - Register a PM domain provider for a node
- * @np: Device node pointer associated with the PM domain provider.
+ * genpd_add_provider() - Register a PM domain provider for a yesde
+ * @np: Device yesde pointer associated with the PM domain provider.
  * @xlate: Callback for decoding PM domain from phandle arguments.
  * @data: Context pointer for @xlate callback.
  */
-static int genpd_add_provider(struct device_node *np, genpd_xlate_t xlate,
+static int genpd_add_provider(struct device_yesde *np, genpd_xlate_t xlate,
 			      void *data)
 {
 	struct of_genpd_provider *cp;
@@ -1998,7 +1998,7 @@ static int genpd_add_provider(struct device_node *np, genpd_xlate_t xlate,
 	if (!cp)
 		return -ENOMEM;
 
-	cp->node = of_node_get(np);
+	cp->yesde = of_yesde_get(np);
 	cp->data = data;
 	cp->xlate = xlate;
 
@@ -2014,7 +2014,7 @@ static bool genpd_present(const struct generic_pm_domain *genpd)
 {
 	const struct generic_pm_domain *gpd;
 
-	list_for_each_entry(gpd, &gpd_list, gpd_list_node)
+	list_for_each_entry(gpd, &gpd_list, gpd_list_yesde)
 		if (gpd == genpd)
 			return true;
 	return false;
@@ -2022,10 +2022,10 @@ static bool genpd_present(const struct generic_pm_domain *genpd)
 
 /**
  * of_genpd_add_provider_simple() - Register a simple PM domain provider
- * @np: Device node pointer associated with the PM domain provider.
+ * @np: Device yesde pointer associated with the PM domain provider.
  * @genpd: Pointer to PM domain associated with the PM domain provider.
  */
-int of_genpd_add_provider_simple(struct device_node *np,
+int of_genpd_add_provider_simple(struct device_yesde *np,
 				 struct generic_pm_domain *genpd)
 {
 	int ret = -EINVAL;
@@ -2038,7 +2038,7 @@ int of_genpd_add_provider_simple(struct device_node *np,
 	if (!genpd_present(genpd))
 		goto unlock;
 
-	genpd->dev.of_node = np;
+	genpd->dev.of_yesde = np;
 
 	/* Parse genpd OPP table */
 	if (genpd->set_performance_state) {
@@ -2067,7 +2067,7 @@ int of_genpd_add_provider_simple(struct device_node *np,
 		goto unlock;
 	}
 
-	genpd->provider = &np->fwnode;
+	genpd->provider = &np->fwyesde;
 	genpd->has_provider = true;
 
 unlock:
@@ -2079,10 +2079,10 @@ EXPORT_SYMBOL_GPL(of_genpd_add_provider_simple);
 
 /**
  * of_genpd_add_provider_onecell() - Register a onecell PM domain provider
- * @np: Device node pointer associated with the PM domain provider.
+ * @np: Device yesde pointer associated with the PM domain provider.
  * @data: Pointer to the data associated with the PM domain provider.
  */
-int of_genpd_add_provider_onecell(struct device_node *np,
+int of_genpd_add_provider_onecell(struct device_yesde *np,
 				  struct genpd_onecell_data *data)
 {
 	struct generic_pm_domain *genpd;
@@ -2105,7 +2105,7 @@ int of_genpd_add_provider_onecell(struct device_node *np,
 		if (!genpd_present(genpd))
 			goto error;
 
-		genpd->dev.of_node = np;
+		genpd->dev.of_yesde = np;
 
 		/* Parse genpd OPP table */
 		if (genpd->set_performance_state) {
@@ -2124,7 +2124,7 @@ int of_genpd_add_provider_onecell(struct device_node *np,
 			WARN_ON(!genpd->opp_table);
 		}
 
-		genpd->provider = &np->fwnode;
+		genpd->provider = &np->fwyesde;
 		genpd->has_provider = true;
 	}
 
@@ -2160,9 +2160,9 @@ EXPORT_SYMBOL_GPL(of_genpd_add_provider_onecell);
 
 /**
  * of_genpd_del_provider() - Remove a previously registered PM domain provider
- * @np: Device node pointer associated with the PM domain provider
+ * @np: Device yesde pointer associated with the PM domain provider
  */
-void of_genpd_del_provider(struct device_node *np)
+void of_genpd_del_provider(struct device_yesde *np)
 {
 	struct of_genpd_provider *cp, *tmp;
 	struct generic_pm_domain *gpd;
@@ -2170,14 +2170,14 @@ void of_genpd_del_provider(struct device_node *np)
 	mutex_lock(&gpd_list_lock);
 	mutex_lock(&of_genpd_mutex);
 	list_for_each_entry_safe(cp, tmp, &of_genpd_providers, link) {
-		if (cp->node == np) {
+		if (cp->yesde == np) {
 			/*
 			 * For each PM domain associated with the
 			 * provider, set the 'has_provider' to false
 			 * so that the PM domain can be safely removed.
 			 */
-			list_for_each_entry(gpd, &gpd_list, gpd_list_node) {
-				if (gpd->provider == &np->fwnode) {
+			list_for_each_entry(gpd, &gpd_list, gpd_list_yesde) {
+				if (gpd->provider == &np->fwyesde) {
 					gpd->has_provider = false;
 
 					if (!gpd->set_performance_state)
@@ -2189,7 +2189,7 @@ void of_genpd_del_provider(struct device_node *np)
 			}
 
 			list_del(&cp->link);
-			of_node_put(cp->node);
+			of_yesde_put(cp->yesde);
 			kfree(cp);
 			break;
 		}
@@ -2203,7 +2203,7 @@ EXPORT_SYMBOL_GPL(of_genpd_del_provider);
  * genpd_get_from_provider() - Look-up PM domain
  * @genpdspec: OF phandle args to use for look-up
  *
- * Looks for a PM domain provider under the node specified by @genpdspec and if
+ * Looks for a PM domain provider under the yesde specified by @genpdspec and if
  * found, uses xlate function of the provider to map phandle args to a PM
  * domain.
  *
@@ -2223,7 +2223,7 @@ static struct generic_pm_domain *genpd_get_from_provider(
 
 	/* Check if we have such a provider in our array */
 	list_for_each_entry(provider, &of_genpd_providers, link) {
-		if (provider->node == genpdspec->np)
+		if (provider->yesde == genpdspec->np)
 			genpd = provider->xlate(genpdspec, provider->data);
 		if (!IS_ERR(genpd))
 			break;
@@ -2315,7 +2315,7 @@ EXPORT_SYMBOL_GPL(of_genpd_add_subdomain);
  * Returns a valid pointer to struct generic_pm_domain on success or
  * ERR_PTR() on failure.
  */
-struct generic_pm_domain *of_genpd_remove_last(struct device_node *np)
+struct generic_pm_domain *of_genpd_remove_last(struct device_yesde *np)
 {
 	struct generic_pm_domain *gpd, *tmp, *genpd = ERR_PTR(-ENOENT);
 	int ret;
@@ -2324,8 +2324,8 @@ struct generic_pm_domain *of_genpd_remove_last(struct device_node *np)
 		return ERR_PTR(-EINVAL);
 
 	mutex_lock(&gpd_list_lock);
-	list_for_each_entry_safe(gpd, tmp, &gpd_list, gpd_list_node) {
-		if (gpd->provider == &np->fwnode) {
+	list_for_each_entry_safe(gpd, tmp, &gpd_list, gpd_list_yesde) {
+		if (gpd->provider == &np->fwyesde) {
 			ret = genpd_remove(gpd);
 			genpd = ret ? ERR_PTR(ret) : gpd;
 			break;
@@ -2339,7 +2339,7 @@ EXPORT_SYMBOL_GPL(of_genpd_remove_last);
 
 static void genpd_release_dev(struct device *dev)
 {
-	of_node_put(dev->of_node);
+	of_yesde_put(dev->of_yesde);
 	kfree(dev);
 }
 
@@ -2350,7 +2350,7 @@ static struct bus_type genpd_bus_type = {
 /**
  * genpd_dev_pm_detach - Detach a device from its PM domain.
  * @dev: Device to detach.
- * @power_off: Currently not used
+ * @power_off: Currently yest used
  *
  * Try to locate a corresponding generic PM domain, which the device was
  * attached to previously. If such is found, the device is detached from it.
@@ -2408,14 +2408,14 @@ static int __genpd_dev_pm_attach(struct device *dev, struct device *base_dev,
 	struct generic_pm_domain *pd;
 	int ret;
 
-	ret = of_parse_phandle_with_args(dev->of_node, "power-domains",
+	ret = of_parse_phandle_with_args(dev->of_yesde, "power-domains",
 				"#power-domain-cells", index, &pd_args);
 	if (ret < 0)
 		return ret;
 
 	mutex_lock(&gpd_list_lock);
 	pd = genpd_get_from_provider(&pd_args);
-	of_node_put(pd_args.np);
+	of_yesde_put(pd_args.np);
 	if (IS_ERR(pd)) {
 		mutex_unlock(&gpd_list_lock);
 		dev_dbg(dev, "%s() failed to find PM domain: %ld\n",
@@ -2454,25 +2454,25 @@ static int __genpd_dev_pm_attach(struct device *dev, struct device *base_dev,
  * genpd_dev_pm_attach - Attach a device to its PM domain using DT.
  * @dev: Device to attach.
  *
- * Parse device's OF node to find a PM domain specifier. If such is found,
+ * Parse device's OF yesde to find a PM domain specifier. If such is found,
  * attaches the device to retrieved pm_domain ops.
  *
  * Returns 1 on successfully attached PM domain, 0 when the device don't need a
  * PM domain or when multiple power-domains exists for it, else a negative error
- * code. Note that if a power-domain exists for the device, but it cannot be
+ * code. Note that if a power-domain exists for the device, but it canyest be
  * found or turned on, then return -EPROBE_DEFER to ensure that the device is
- * not probed and to re-try again later.
+ * yest probed and to re-try again later.
  */
 int genpd_dev_pm_attach(struct device *dev)
 {
-	if (!dev->of_node)
+	if (!dev->of_yesde)
 		return 0;
 
 	/*
 	 * Devices with multiple PM domains must be attached separately, as we
 	 * can only attach one PM domain per device.
 	 */
-	if (of_count_phandle_with_args(dev->of_node, "power-domains",
+	if (of_count_phandle_with_args(dev->of_yesde, "power-domains",
 				       "#power-domain-cells") != 1)
 		return 0;
 
@@ -2485,16 +2485,16 @@ EXPORT_SYMBOL_GPL(genpd_dev_pm_attach);
  * @dev: The device used to lookup the PM domain.
  * @index: The index of the PM domain.
  *
- * Parse device's OF node to find a PM domain specifier at the provided @index.
+ * Parse device's OF yesde to find a PM domain specifier at the provided @index.
  * If such is found, creates a virtual device and attaches it to the retrieved
  * pm_domain ops. To deal with detaching of the virtual device, the ->detach()
  * callback in the struct dev_pm_domain are assigned to genpd_dev_pm_detach().
  *
  * Returns the created virtual device if successfully attached PM domain, NULL
  * when the device don't need a PM domain, else an ERR_PTR() in case of
- * failures. If a power-domain exists for the device, but cannot be found or
+ * failures. If a power-domain exists for the device, but canyest be found or
  * turned on, then ERR_PTR(-EPROBE_DEFER) is returned to ensure that the device
- * is not probed and to re-try again later.
+ * is yest probed and to re-try again later.
  */
 struct device *genpd_dev_pm_attach_by_id(struct device *dev,
 					 unsigned int index)
@@ -2503,11 +2503,11 @@ struct device *genpd_dev_pm_attach_by_id(struct device *dev,
 	int num_domains;
 	int ret;
 
-	if (!dev->of_node)
+	if (!dev->of_yesde)
 		return NULL;
 
 	/* Verify that the index is within a valid range. */
-	num_domains = of_count_phandle_with_args(dev->of_node, "power-domains",
+	num_domains = of_count_phandle_with_args(dev->of_yesde, "power-domains",
 						 "#power-domain-cells");
 	if (index >= num_domains)
 		return NULL;
@@ -2520,7 +2520,7 @@ struct device *genpd_dev_pm_attach_by_id(struct device *dev,
 	dev_set_name(virt_dev, "genpd:%u:%s", index, dev_name(dev));
 	virt_dev->bus = &genpd_bus_type;
 	virt_dev->release = genpd_release_dev;
-	virt_dev->of_node = of_node_get(dev->of_node);
+	virt_dev->of_yesde = of_yesde_get(dev->of_yesde);
 
 	ret = device_register(virt_dev);
 	if (ret) {
@@ -2547,7 +2547,7 @@ EXPORT_SYMBOL_GPL(genpd_dev_pm_attach_by_id);
  * @dev: The device used to lookup the PM domain.
  * @name: The name of the PM domain.
  *
- * Parse device's OF node to find a PM domain specifier using the
+ * Parse device's OF yesde to find a PM domain specifier using the
  * power-domain-names DT property. For further description see
  * genpd_dev_pm_attach_by_id().
  */
@@ -2555,10 +2555,10 @@ struct device *genpd_dev_pm_attach_by_name(struct device *dev, const char *name)
 {
 	int index;
 
-	if (!dev->of_node)
+	if (!dev->of_yesde)
 		return NULL;
 
-	index = of_property_match_string(dev->of_node, "power-domain-names",
+	index = of_property_match_string(dev->of_yesde, "power-domain-names",
 					 name);
 	if (index < 0)
 		return NULL;
@@ -2572,45 +2572,45 @@ static const struct of_device_id idle_state_match[] = {
 };
 
 static int genpd_parse_state(struct genpd_power_state *genpd_state,
-				    struct device_node *state_node)
+				    struct device_yesde *state_yesde)
 {
 	int err;
 	u32 residency;
 	u32 entry_latency, exit_latency;
 
-	err = of_property_read_u32(state_node, "entry-latency-us",
+	err = of_property_read_u32(state_yesde, "entry-latency-us",
 						&entry_latency);
 	if (err) {
 		pr_debug(" * %pOF missing entry-latency-us property\n",
-			 state_node);
+			 state_yesde);
 		return -EINVAL;
 	}
 
-	err = of_property_read_u32(state_node, "exit-latency-us",
+	err = of_property_read_u32(state_yesde, "exit-latency-us",
 						&exit_latency);
 	if (err) {
 		pr_debug(" * %pOF missing exit-latency-us property\n",
-			 state_node);
+			 state_yesde);
 		return -EINVAL;
 	}
 
-	err = of_property_read_u32(state_node, "min-residency-us", &residency);
+	err = of_property_read_u32(state_yesde, "min-residency-us", &residency);
 	if (!err)
 		genpd_state->residency_ns = 1000 * residency;
 
 	genpd_state->power_on_latency_ns = 1000 * exit_latency;
 	genpd_state->power_off_latency_ns = 1000 * entry_latency;
-	genpd_state->fwnode = &state_node->fwnode;
+	genpd_state->fwyesde = &state_yesde->fwyesde;
 
 	return 0;
 }
 
-static int genpd_iterate_idle_states(struct device_node *dn,
+static int genpd_iterate_idle_states(struct device_yesde *dn,
 				     struct genpd_power_state *states)
 {
 	int ret;
 	struct of_phandle_iterator it;
-	struct device_node *np;
+	struct device_yesde *np;
 	int i = 0;
 
 	ret = of_count_phandle_with_args(dn, "domain-idle-states", NULL);
@@ -2619,15 +2619,15 @@ static int genpd_iterate_idle_states(struct device_node *dn,
 
 	/* Loop over the phandles until all the requested entry is found */
 	of_for_each_phandle(&it, ret, dn, "domain-idle-states", NULL, 0) {
-		np = it.node;
-		if (!of_match_node(idle_state_match, np))
+		np = it.yesde;
+		if (!of_match_yesde(idle_state_match, np))
 			continue;
 		if (states) {
 			ret = genpd_parse_state(&states[i], np);
 			if (ret) {
-				pr_err("Parsing idle state node %pOF failed with err %d\n",
+				pr_err("Parsing idle state yesde %pOF failed with err %d\n",
 				       np, ret);
-				of_node_put(np);
+				of_yesde_put(np);
 				return ret;
 			}
 		}
@@ -2640,16 +2640,16 @@ static int genpd_iterate_idle_states(struct device_node *dn,
 /**
  * of_genpd_parse_idle_states: Return array of idle states for the genpd.
  *
- * @dn: The genpd device node
+ * @dn: The genpd device yesde
  * @states: The pointer to which the state array will be saved.
  * @n: The count of elements in the array returned from this function.
  *
- * Returns the device states parsed from the OF node. The memory for the states
+ * Returns the device states parsed from the OF yesde. The memory for the states
  * is allocated by this function and is the responsibility of the caller to
  * free the memory after use. If any or zero compatible domain idle states is
  * found it returns 0 and in case of errors, a negative error code is returned.
  */
-int of_genpd_parse_idle_states(struct device_node *dn,
+int of_genpd_parse_idle_states(struct device_yesde *dn,
 			struct genpd_power_state **states, int *n)
 {
 	struct genpd_power_state *st;
@@ -2683,7 +2683,7 @@ int of_genpd_parse_idle_states(struct device_node *dn,
 EXPORT_SYMBOL_GPL(of_genpd_parse_idle_states);
 
 /**
- * pm_genpd_opp_to_performance_state - Gets performance state of the genpd from its OPP node.
+ * pm_genpd_opp_to_performance_state - Gets performance state of the genpd from its OPP yesde.
  *
  * @genpd_dev: Genpd's device for which the performance-state needs to be found.
  * @opp: struct dev_pm_opp of the OPP for which we need to find performance
@@ -2792,13 +2792,13 @@ static int genpd_summary_one(struct seq_file *s,
 	 * master and slave, so we are safe.
 	 * Also genpd->name is immutable.
 	 */
-	list_for_each_entry(link, &genpd->master_links, master_node) {
+	list_for_each_entry(link, &genpd->master_links, master_yesde) {
 		seq_printf(s, "%s", link->slave->name);
-		if (!list_is_last(&link->master_node, &genpd->master_links))
+		if (!list_is_last(&link->master_yesde, &genpd->master_links))
 			seq_puts(s, ", ");
 	}
 
-	list_for_each_entry(pm_data, &genpd->dev_list, list_node) {
+	list_for_each_entry(pm_data, &genpd->dev_list, list_yesde) {
 		kobj_path = kobject_get_path(&pm_data->dev->kobj,
 				genpd_is_irq_safe(genpd) ?
 				GFP_ATOMIC : GFP_KERNEL);
@@ -2830,7 +2830,7 @@ static int summary_show(struct seq_file *s, void *data)
 	if (ret)
 		return -ERESTARTSYS;
 
-	list_for_each_entry(genpd, &gpd_list, gpd_list_node) {
+	list_for_each_entry(genpd, &gpd_list, gpd_list_yesde) {
 		ret = genpd_summary_one(s, genpd);
 		if (ret)
 			break;
@@ -2877,7 +2877,7 @@ static int sub_domains_show(struct seq_file *s, void *data)
 	if (ret)
 		return -ERESTARTSYS;
 
-	list_for_each_entry(link, &genpd->master_links, master_node)
+	list_for_each_entry(link, &genpd->master_links, master_yesde)
 		seq_printf(s, "%s\n", link->slave->name);
 
 	genpd_unlock(genpd);
@@ -2972,7 +2972,7 @@ static int devices_show(struct seq_file *s, void *data)
 	if (ret)
 		return -ERESTARTSYS;
 
-	list_for_each_entry(pm_data, &genpd->dev_list, list_node) {
+	list_for_each_entry(pm_data, &genpd->dev_list, list_yesde) {
 		kobj_path = kobject_get_path(&pm_data->dev->kobj,
 				genpd_is_irq_safe(genpd) ?
 				GFP_ATOMIC : GFP_KERNEL);
@@ -3019,7 +3019,7 @@ static int __init genpd_debug_init(void)
 	debugfs_create_file("pm_genpd_summary", S_IRUGO, genpd_debugfs_dir,
 			    NULL, &summary_fops);
 
-	list_for_each_entry(genpd, &gpd_list, gpd_list_node) {
+	list_for_each_entry(genpd, &gpd_list, gpd_list_yesde) {
 		d = debugfs_create_dir(genpd->name, genpd_debugfs_dir);
 
 		debugfs_create_file("current_state", 0444,

@@ -17,11 +17,11 @@ static int __dso_id__cmp(struct dso_id *a, struct dso_id *b)
 	if (a->min > b->min) return -1;
 	if (a->min < b->min) return 1;
 
-	if (a->ino > b->ino) return -1;
-	if (a->ino < b->ino) return 1;
+	if (a->iyes > b->iyes) return -1;
+	if (a->iyes < b->iyes) return 1;
 
-	if (a->ino_generation > b->ino_generation) return -1;
-	if (a->ino_generation < b->ino_generation) return 1;
+	if (a->iyes_generation > b->iyes_generation) return -1;
+	if (a->iyes_generation < b->iyes_generation) return 1;
 
 	return 0;
 }
@@ -29,7 +29,7 @@ static int __dso_id__cmp(struct dso_id *a, struct dso_id *b)
 static int dso_id__cmp(struct dso_id *a, struct dso_id *b)
 {
 	/*
-	 * The second is always dso->id, so zeroes if not set, assume passing
+	 * The second is always dso->id, so zeroes if yest set, assume passing
 	 * NULL for a means a zeroed id
 	 */
 	if (a == NULL)
@@ -49,7 +49,7 @@ bool __dsos__read_build_ids(struct list_head *head, bool with_hits)
 	struct dso *pos;
 	struct nscookie nsc;
 
-	list_for_each_entry(pos, head, node) {
+	list_for_each_entry(pos, head, yesde) {
 		if (with_hits && !pos->hit && !dso__is_vdso(pos))
 			continue;
 		if (pos->has_build_id) {
@@ -87,22 +87,22 @@ static int dso__cmp_short_name(struct dso *a, struct dso *b)
 
 /*
  * Find a matching entry and/or link current entry to RB tree.
- * Either one of the dso or name parameter must be non-NULL or the
- * function will not work.
+ * Either one of the dso or name parameter must be yesn-NULL or the
+ * function will yest work.
  */
 struct dso *__dsos__findnew_link_by_longname_id(struct rb_root *root, struct dso *dso,
 						const char *name, struct dso_id *id)
 {
-	struct rb_node **p = &root->rb_node;
-	struct rb_node  *parent = NULL;
+	struct rb_yesde **p = &root->rb_yesde;
+	struct rb_yesde  *parent = NULL;
 
 	if (!name)
 		name = dso->long_name;
 	/*
-	 * Find node with the matching name
+	 * Find yesde with the matching name
 	 */
 	while (*p) {
-		struct dso *this = rb_entry(*p, struct dso, rb_node);
+		struct dso *this = rb_entry(*p, struct dso, rb_yesde);
 		int rc = __dso__cmp_long_name(name, id, this);
 
 		parent = *p;
@@ -131,9 +131,9 @@ struct dso *__dsos__findnew_link_by_longname_id(struct rb_root *root, struct dso
 			p = &parent->rb_right;
 	}
 	if (dso) {
-		/* Add new node and rebalance tree */
-		rb_link_node(&dso->rb_node, parent, p);
-		rb_insert_color(&dso->rb_node, root);
+		/* Add new yesde and rebalance tree */
+		rb_link_yesde(&dso->rb_yesde, parent, p);
+		rb_insert_color(&dso->rb_yesde, root);
 		dso->root = root;
 	}
 	return NULL;
@@ -141,25 +141,25 @@ struct dso *__dsos__findnew_link_by_longname_id(struct rb_root *root, struct dso
 
 void __dsos__add(struct dsos *dsos, struct dso *dso)
 {
-	list_add_tail(&dso->node, &dsos->head);
+	list_add_tail(&dso->yesde, &dsos->head);
 	__dsos__findnew_link_by_longname_id(&dsos->root, dso, NULL, &dso->id);
 	/*
-	 * It is now in the linked list, grab a reference, then garbage collect
+	 * It is yesw in the linked list, grab a reference, then garbage collect
 	 * this when needing memory, by looking at LRU dso instances in the
-	 * list with atomic_read(&dso->refcnt) == 1, i.e. no references
+	 * list with atomic_read(&dso->refcnt) == 1, i.e. yes references
 	 * anywhere besides the one for the list, do, under a lock for the
 	 * list: remove it from the list, then a dso__put(), that probably will
 	 * be the last and will then call dso__delete(), end of life.
 	 *
 	 * That, or at the end of the 'struct machine' lifetime, when all
 	 * 'struct dso' instances will be removed from the list, in
-	 * dsos__exit(), if they have no other reference from some other data
+	 * dsos__exit(), if they have yes other reference from some other data
 	 * structure.
 	 *
 	 * E.g.: after processing a 'perf.data' file and storing references
 	 * to objects instantiated while processing events, we will have
 	 * references to the 'thread', 'map', 'dso' structs all from 'struct
-	 * hist_entry' instances, but we may not need anything not referenced,
+	 * hist_entry' instances, but we may yest need anything yest referenced,
 	 * so we might as well call machines__exit()/machines__delete() and
 	 * garbage collect it.
 	 */
@@ -183,7 +183,7 @@ static struct dso *__dsos__find_id(struct dsos *dsos, const char *name, struct d
 	struct dso *pos;
 
 	if (cmp_short) {
-		list_for_each_entry(pos, &dsos->head, node)
+		list_for_each_entry(pos, &dsos->head, yesde)
 			if (__dso__cmp_short_name(name, id, pos) == 0)
 				return pos;
 		return NULL;
@@ -267,7 +267,7 @@ size_t __dsos__fprintf_buildid(struct list_head *head, FILE *fp,
 	struct dso *pos;
 	size_t ret = 0;
 
-	list_for_each_entry(pos, head, node) {
+	list_for_each_entry(pos, head, yesde) {
 		if (skip && skip(pos, parm))
 			continue;
 		ret += dso__fprintf_buildid(pos, fp);
@@ -281,7 +281,7 @@ size_t __dsos__fprintf(struct list_head *head, FILE *fp)
 	struct dso *pos;
 	size_t ret = 0;
 
-	list_for_each_entry(pos, head, node) {
+	list_for_each_entry(pos, head, yesde) {
 		ret += dso__fprintf(pos, fp);
 	}
 

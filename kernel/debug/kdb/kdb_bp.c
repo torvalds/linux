@@ -126,7 +126,7 @@ static int _kdb_bp_install(struct pt_regs *regs, kdb_bp_t *bp)
 {
 	int ret;
 	/*
-	 * Install the breakpoint, if it is not already installed.
+	 * Install the breakpoint, if it is yest already installed.
 	 */
 
 	if (KDB_DEBUG(BP))
@@ -265,7 +265,7 @@ static void kdb_printbp(kdb_bp_t *bp, int i)
  * Outputs:
  *	None.
  * Returns:
- *	Zero for success, a kdb diagnostic if failure.
+ *	Zero for success, a kdb diagyesstic if failure.
  * Locking:
  *	None.
  * Remarks:
@@ -276,7 +276,7 @@ static void kdb_printbp(kdb_bp_t *bp, int i)
 
 static int kdb_bp(int argc, const char **argv)
 {
-	int i, bpno;
+	int i, bpyes;
 	kdb_bp_t *bp, *bp_check;
 	int diag;
 	char *symname = NULL;
@@ -288,11 +288,11 @@ static int kdb_bp(int argc, const char **argv)
 		/*
 		 * Display breakpoint table
 		 */
-		for (bpno = 0, bp = kdb_breakpoints; bpno < KDB_MAXBPT;
-		     bpno++, bp++) {
+		for (bpyes = 0, bp = kdb_breakpoints; bpyes < KDB_MAXBPT;
+		     bpyes++, bp++) {
 			if (bp->bp_free)
 				continue;
-			kdb_printbp(bp, bpno);
+			kdb_printbp(bp, bpyes);
 		}
 
 		return 0;
@@ -309,12 +309,12 @@ static int kdb_bp(int argc, const char **argv)
 	/*
 	 * Find an empty bp structure to allocate
 	 */
-	for (bpno = 0, bp = kdb_breakpoints; bpno < KDB_MAXBPT; bpno++, bp++) {
+	for (bpyes = 0, bp = kdb_breakpoints; bpyes < KDB_MAXBPT; bpyes++, bp++) {
 		if (bp->bp_free)
 			break;
 	}
 
-	if (bpno == KDB_MAXBPT)
+	if (bpyes == KDB_MAXBPT)
 		return KDB_TOOMANYBPT;
 
 	if (strcmp(argv[0], "bph") == 0) {
@@ -350,7 +350,7 @@ static int kdb_bp(int argc, const char **argv)
 	*bp = template;
 	bp->bp_free = 0;
 
-	kdb_printbp(bp, bpno);
+	kdb_printbp(bp, bpyes);
 
 	return 0;
 }
@@ -369,7 +369,7 @@ static int kdb_bp(int argc, const char **argv)
  * Outputs:
  *	None.
  * Returns:
- *	Zero for success, a kdb diagnostic for failure
+ *	Zero for success, a kdb diagyesstic for failure
  * Locking:
  *	None.
  * Remarks:

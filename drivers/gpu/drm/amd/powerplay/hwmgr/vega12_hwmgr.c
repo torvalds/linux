@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -86,7 +86,7 @@ static void vega12_set_default_registry_data(struct pp_hwmgr *hwmgr)
 	data->registry_data.skip_baco_hardware = 0;
 
 	data->registry_data.log_avfs_param = 0;
-	data->registry_data.sclk_throttle_low_notification = 1;
+	data->registry_data.sclk_throttle_low_yestification = 1;
 	data->registry_data.force_dpm_high = 0;
 	data->registry_data.stable_pstate_sclk_dpm_percentage = 75;
 
@@ -205,7 +205,7 @@ static int vega12_set_features_platform_caps(struct pp_hwmgr *hwmgr)
 	phm_cap_set(hwmgr->platform_descriptor.platformCaps,
 			PHM_PlatformCaps_DynamicUVDState);
 
-	if (data->registry_data.sclk_throttle_low_notification)
+	if (data->registry_data.sclk_throttle_low_yestification)
 		phm_cap_set(hwmgr->platform_descriptor.platformCaps,
 				PHM_PlatformCaps_SclkThrottleLowNotification);
 
@@ -1414,7 +1414,7 @@ static int vega12_read_sensor(struct pp_hwmgr *hwmgr, int idx,
 	return ret;
 }
 
-static int vega12_notify_smc_display_change(struct pp_hwmgr *hwmgr,
+static int vega12_yestify_smc_display_change(struct pp_hwmgr *hwmgr,
 		bool has_disp)
 {
 	struct vega12_hwmgr *data = (struct vega12_hwmgr *)(hwmgr->backend);
@@ -1468,7 +1468,7 @@ int vega12_display_clock_voltage_request(struct pp_hwmgr *hwmgr,
 	return result;
 }
 
-static int vega12_notify_smc_display_config_after_ps_adjustment(
+static int vega12_yestify_smc_display_config_after_ps_adjustment(
 		struct pp_hwmgr *hwmgr)
 {
 	struct vega12_hwmgr *data =
@@ -1479,9 +1479,9 @@ static int vega12_notify_smc_display_config_after_ps_adjustment(
 	if ((hwmgr->display_config->num_display > 1) &&
 	     !hwmgr->display_config->multi_monitor_in_sync &&
 	     !hwmgr->display_config->nb_pstate_switch_disable)
-		vega12_notify_smc_display_change(hwmgr, false);
+		vega12_yestify_smc_display_change(hwmgr, false);
 	else
-		vega12_notify_smc_display_change(hwmgr, true);
+		vega12_yestify_smc_display_change(hwmgr, true);
 
 	min_clocks.dcefClock = hwmgr->display_config->min_dcef_set_clk;
 	min_clocks.dcefClockInSR = hwmgr->display_config->min_dcef_deep_sleep_set_clk;
@@ -1972,7 +1972,7 @@ static int vega12_force_clock_level(struct pp_hwmgr *hwmgr,
 			"Failed to upload boot level to lowest!",
 			return ret);
 
-		//TODO: Setting DCEFCLK max dpm level is not supported
+		//TODO: Setting DCEFCLK max dpm level is yest supported
 
 		break;
 
@@ -2087,13 +2087,13 @@ static int vega12_set_ppfeature_status(struct pp_hwmgr *hwmgr, uint64_t new_ppfe
 static int vega12_print_clock_levels(struct pp_hwmgr *hwmgr,
 		enum pp_clock_type type, char *buf)
 {
-	int i, now, size = 0;
+	int i, yesw, size = 0;
 	struct pp_clock_levels_with_latency clocks;
 
 	switch (type) {
 	case PP_SCLK:
 		PP_ASSERT_WITH_CODE(
-				vega12_get_current_gfx_clk_freq(hwmgr, &now) == 0,
+				vega12_get_current_gfx_clk_freq(hwmgr, &yesw) == 0,
 				"Attempt to get current gfx clk Failed!",
 				return -1);
 
@@ -2104,12 +2104,12 @@ static int vega12_print_clock_levels(struct pp_hwmgr *hwmgr,
 		for (i = 0; i < clocks.num_levels; i++)
 			size += sprintf(buf + size, "%d: %uMhz %s\n",
 				i, clocks.data[i].clocks_in_khz / 1000,
-				(clocks.data[i].clocks_in_khz / 1000 == now / 100) ? "*" : "");
+				(clocks.data[i].clocks_in_khz / 1000 == yesw / 100) ? "*" : "");
 		break;
 
 	case PP_MCLK:
 		PP_ASSERT_WITH_CODE(
-				vega12_get_current_mclk_freq(hwmgr, &now) == 0,
+				vega12_get_current_mclk_freq(hwmgr, &yesw) == 0,
 				"Attempt to get current mclk freq Failed!",
 				return -1);
 
@@ -2120,7 +2120,7 @@ static int vega12_print_clock_levels(struct pp_hwmgr *hwmgr,
 		for (i = 0; i < clocks.num_levels; i++)
 			size += sprintf(buf + size, "%d: %uMhz %s\n",
 				i, clocks.data[i].clocks_in_khz / 1000,
-				(clocks.data[i].clocks_in_khz / 1000 == now / 100) ? "*" : "");
+				(clocks.data[i].clocks_in_khz / 1000 == yesw / 100) ? "*" : "");
 		break;
 
 	case PP_SOCCLK:
@@ -2129,7 +2129,7 @@ static int vega12_print_clock_levels(struct pp_hwmgr *hwmgr,
 					PPSMC_MSG_GetDpmClockFreq, (PPCLK_SOCCLK << 16)) == 0,
 				"Attempt to get Current SOCCLK Frequency Failed!",
 				return -EINVAL);
-		now = smum_get_argument(hwmgr);
+		yesw = smum_get_argument(hwmgr);
 
 		PP_ASSERT_WITH_CODE(
 				vega12_get_socclocks(hwmgr, &clocks) == 0,
@@ -2138,7 +2138,7 @@ static int vega12_print_clock_levels(struct pp_hwmgr *hwmgr,
 		for (i = 0; i < clocks.num_levels; i++)
 			size += sprintf(buf + size, "%d: %uMhz %s\n",
 				i, clocks.data[i].clocks_in_khz / 1000,
-				(clocks.data[i].clocks_in_khz / 1000 == now) ? "*" : "");
+				(clocks.data[i].clocks_in_khz / 1000 == yesw) ? "*" : "");
 		break;
 
 	case PP_DCEFCLK:
@@ -2147,7 +2147,7 @@ static int vega12_print_clock_levels(struct pp_hwmgr *hwmgr,
 					PPSMC_MSG_GetDpmClockFreq, (PPCLK_DCEFCLK << 16)) == 0,
 				"Attempt to get Current DCEFCLK Frequency Failed!",
 				return -EINVAL);
-		now = smum_get_argument(hwmgr);
+		yesw = smum_get_argument(hwmgr);
 
 		PP_ASSERT_WITH_CODE(
 				vega12_get_dcefclocks(hwmgr, &clocks) == 0,
@@ -2156,7 +2156,7 @@ static int vega12_print_clock_levels(struct pp_hwmgr *hwmgr,
 		for (i = 0; i < clocks.num_levels; i++)
 			size += sprintf(buf + size, "%d: %uMhz %s\n",
 				i, clocks.data[i].clocks_in_khz / 1000,
-				(clocks.data[i].clocks_in_khz / 1000 == now) ? "*" : "");
+				(clocks.data[i].clocks_in_khz / 1000 == yesw) ? "*" : "");
 		break;
 
 	case PP_PCIE:
@@ -2229,7 +2229,7 @@ static int vega12_apply_clocks_adjust_rules(struct pp_hwmgr *hwmgr)
 		}
 	}
 
-	/* honour DAL's UCLK Hardmin */
+	/* hoyesur DAL's UCLK Hardmin */
 	if (dpm_table->dpm_state.hard_min_level < (hwmgr->display_config->min_mem_set_clock / 100))
 		dpm_table->dpm_state.hard_min_level = hwmgr->display_config->min_mem_set_clock / 100;
 
@@ -2336,7 +2336,7 @@ static int vega12_set_uclk_to_highest_dpm_level(struct pp_hwmgr *hwmgr,
 
 	if (data->smu_features[GNLD_DPM_UCLK].enabled) {
 		PP_ASSERT_WITH_CODE(dpm_table->count > 0,
-				"[SetUclkToHightestDpmLevel] Dpm table has no entry!",
+				"[SetUclkToHightestDpmLevel] Dpm table has yes entry!",
 				return -EINVAL);
 		PP_ASSERT_WITH_CODE(dpm_table->count <= NUM_UCLK_DPM_LEVELS,
 				"[SetUclkToHightestDpmLevel] Dpm table has too many entries!",
@@ -2548,7 +2548,7 @@ static int vega12_set_mclk_od(struct pp_hwmgr *hwmgr, uint32_t value)
 }
 #endif
 
-static int vega12_notify_cac_buffer_info(struct pp_hwmgr *hwmgr,
+static int vega12_yestify_cac_buffer_info(struct pp_hwmgr *hwmgr,
 					uint32_t virtual_addr_low,
 					uint32_t virtual_addr_hi,
 					uint32_t mc_addr_low,
@@ -2672,8 +2672,8 @@ static const struct pp_hwmgr_func vega12_hwmgr_funcs = {
 	.patch_boot_state = vega12_patch_boot_state,
 	.get_sclk = vega12_dpm_get_sclk,
 	.get_mclk = vega12_dpm_get_mclk,
-	.notify_smc_display_config_after_ps_adjustment =
-			vega12_notify_smc_display_config_after_ps_adjustment,
+	.yestify_smc_display_config_after_ps_adjustment =
+			vega12_yestify_smc_display_config_after_ps_adjustment,
 	.force_dpm_level = vega12_dpm_force_dpm_level,
 	.stop_thermal_controller = vega12_thermal_stop_thermal_controller,
 	.get_fan_speed_info = vega12_fan_ctrl_get_fan_speed_info,
@@ -2708,7 +2708,7 @@ static const struct pp_hwmgr_func vega12_hwmgr_funcs = {
 	.get_mclk_od = vega12_get_mclk_od,
 	.set_mclk_od = vega12_set_mclk_od,
 #endif
-	.notify_cac_buffer_info = vega12_notify_cac_buffer_info,
+	.yestify_cac_buffer_info = vega12_yestify_cac_buffer_info,
 	.get_thermal_temperature_range = vega12_get_thermal_temperature_range,
 	.register_irq_handlers = smu9_register_irq_handlers,
 	.start_thermal_controller = vega12_start_thermal_controller,

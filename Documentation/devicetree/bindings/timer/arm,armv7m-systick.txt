@@ -1,6 +1,6 @@
 * ARMv7M System Timer
 
-ARMv7-M includes a system timer, known as SysTick. Current driver only
+ARMv7-M includes a system timer, kyeswn as SysTick. Current driver only
 implements the clocksource feature.
 
 Required properties:

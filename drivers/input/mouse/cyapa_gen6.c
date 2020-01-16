@@ -331,7 +331,7 @@ static int cyapa_gen6_change_power_state(struct cyapa *cyapa, u8 power_mode)
 	if (error || !VALID_CMD_RESP_HEADER(resp_data, 0x46))
 		return error < 0 ? error : -EINVAL;
 
-	/* New power state applied in device not match the set power state. */
+	/* New power state applied in device yest match the set power state. */
 	if (resp_data[5] != power_mode)
 		return -EAGAIN;
 
@@ -415,9 +415,9 @@ static int cyapa_gen6_deep_sleep(struct cyapa *cyapa, u8 state)
 
 	if (state == PIP_DEEP_SLEEP_STATE_ON)
 		/*
-		 * Send ping command to notify device prepare for wake up
+		 * Send ping command to yestify device prepare for wake up
 		 * when it's in deep sleep mode. At this time, device will
-		 * response nothing except an I2C NAK.
+		 * response yesthing except an I2C NAK.
 		 */
 		cyapa_i2c_pip_write(cyapa, ping, sizeof(ping));
 
@@ -473,7 +473,7 @@ static int cyapa_gen6_set_power_mode(struct cyapa *cyapa,
 	}
 
 	/*
-	 * When trackpad in power off mode, it cannot change to other power
+	 * When trackpad in power off mode, it canyest change to other power
 	 * state directly, must be wake up from sleep firstly, then
 	 * continue to do next power sate change.
 	 */
@@ -708,7 +708,7 @@ static int cyapa_gen6_operational_check(struct cyapa *cyapa)
 		/* Only support product ID starting with CYTRA */
 		if (memcmp(cyapa->product_id, product_id,
 				strlen(product_id)) != 0) {
-			dev_err(dev, "%s: unknown product ID (%s)\n",
+			dev_err(dev, "%s: unkyeswn product ID (%s)\n",
 				__func__, cyapa->product_id);
 			error = -EINVAL;
 		}

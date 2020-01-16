@@ -83,7 +83,7 @@ void zfcp_dbf_hba_fsf_res(char *tag, int level, struct zfcp_fsf_req *req)
 	rec->fsf_req_id = req->req_id;
 	rec->fsf_req_status = req->status;
 	rec->fsf_cmd = q_head->fsf_command;
-	rec->fsf_seq_no = q_pref->req_seq_no;
+	rec->fsf_seq_yes = q_pref->req_seq_yes;
 	rec->u.res.req_issued = req->issued;
 	rec->u.res.prot_status = q_pref->prot_status;
 	rec->u.res.fsf_status = q_head->fsf_status;
@@ -319,7 +319,7 @@ void zfcp_dbf_rec_trig(char *tag, struct zfcp_adapter *adapter,
  * @want: wanted erp_action
  * @need: required erp_action
  *
- * The adapter->erp_lock must not be held.
+ * The adapter->erp_lock must yest be held.
  */
 void zfcp_dbf_rec_trig_lock(char *tag, struct zfcp_adapter *adapter,
 			    struct zfcp_port *port, struct scsi_device *sdev,
@@ -384,7 +384,7 @@ void zfcp_dbf_rec_run(char *tag, struct zfcp_erp_action *erp)
 /**
  * zfcp_dbf_rec_run_wka - trace wka port event with info like running recovery
  * @tag: identifier for event
- * @wka_port: well known address port
+ * @wka_port: well kyeswn address port
  * @req_id: request ID to correlate with potential HBA trace record
  */
 void zfcp_dbf_rec_run_wka(char *tag, struct zfcp_fc_wka_port *wka_port,
@@ -446,7 +446,7 @@ void zfcp_dbf_san(char *tag, struct zfcp_dbf *dbf,
 		goto out; /* skip pay record if full content in rec->payload */
 
 	/* if (len > rec_len):
-	 * dump data up to cap_len ignoring small duplicate in rec->payload
+	 * dump data up to cap_len igyesring small duplicate in rec->payload
 	 */
 	spin_lock(&dbf->pay_lock);
 	memset(payload, 0, sizeof(*payload));
@@ -519,7 +519,7 @@ static u16 zfcp_dbf_san_res_cap_len_if_gpn_ft(char *tag,
 	      && reqh->ct_options == 0
 	      && reqh->_ct_resvd1 == 0
 	      && reqh->ct_cmd == cpu_to_be16(FC_NS_GPN_FT)
-	      /* reqh->ct_mr_size can vary so do not match but read below */
+	      /* reqh->ct_mr_size can vary so do yest match but read below */
 	      && reqh->_ct_resvd2 == 0
 	      && reqh->ct_reason == 0
 	      && reqh->ct_explan == 0
@@ -528,7 +528,7 @@ static u16 zfcp_dbf_san_res_cap_len_if_gpn_ft(char *tag,
 	      && reqn->fn_domain_id_scope == 0
 	      && reqn->fn_area_id_scope == 0
 	      && reqn->fn_fc4_type == FC_TYPE_FCP))
-		return len; /* not GPN_FT response so do not cap */
+		return len; /* yest GPN_FT response so do yest cap */
 
 	acc = sg_virt(resp_entry);
 
@@ -669,7 +669,7 @@ void zfcp_dbf_scsi_common(char *tag, int level, struct scsi_device *sdev,
 			zfcp_dbf_pl_write(
 				dbf, fcp_rsp,
 				/* at least one full PAY record
-				 * but not beyond hardware response field
+				 * but yest beyond hardware response field
 				 */
 				min_t(u16, max_t(u16, rec->pl_len,
 						 ZFCP_DBF_PAY_MAX_REC),
@@ -688,7 +688,7 @@ void zfcp_dbf_scsi_common(char *tag, int level, struct scsi_device *sdev,
  * @scsi_id: SCSI ID/target to indicate scope of task management function (TMF).
  * @ret: Return value of calling function.
  *
- * This SCSI trace variant does not depend on any of:
+ * This SCSI trace variant does yest depend on any of:
  * scsi_cmnd, zfcp_fsf_req, scsi_device.
  */
 void zfcp_dbf_scsi_eh(char *tag, struct zfcp_adapter *adapter,

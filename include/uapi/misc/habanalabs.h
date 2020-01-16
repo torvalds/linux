@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste
  *
  * Copyright 2016-2019 HabanaLabs, Ltd.
  * All Rights Reserved.
@@ -22,7 +22,7 @@
  *
  * The external queues (PCI DMA channels) MUST be before the internal queues
  * and each group (PCI DMA channels and internal) must be contiguous inside
- * itself but there can be a gap between the two groups (although not
+ * itself but there can be a gap between the two groups (although yest
  * recommended)
  */
 
@@ -185,7 +185,7 @@ struct hl_info_args {
 	__u32 op;
 
 	union {
-		/* Context ID - Currently not in use */
+		/* Context ID - Currently yest in use */
 		__u32 ctx_id;
 		/* Period value for utilization rate (100ms - 1000ms, in 100ms
 		 * resolution.
@@ -212,7 +212,7 @@ struct hl_cb_in {
 	 * will be allocated, regardless of this parameter's value, is PAGE_SIZE
 	 */
 	__u32 cb_size;
-	/* Context ID - Currently not in use */
+	/* Context ID - Currently yest in use */
 	__u32 ctx_id;
 	__u32 pad;
 };
@@ -263,7 +263,7 @@ struct hl_cs_in {
 	/* this holds address of array of hl_cs_chunk for execution phase */
 	__u64 chunks_execute;
 	/* this holds address of array of hl_cs_chunk for store phase -
-	 * Currently not in use
+	 * Currently yest in use
 	 */
 	__u64 chunks_store;
 	/* Number of chunks in restore phase array. Maximum number is
@@ -274,11 +274,11 @@ struct hl_cs_in {
 	 * HL_MAX_JOBS_PER_CS
 	 */
 	__u32 num_chunks_execute;
-	/* Number of chunks in restore phase array - Currently not in use */
+	/* Number of chunks in restore phase array - Currently yest in use */
 	__u32 num_chunks_store;
 	/* HL_CS_FLAGS_* */
 	__u32 cs_flags;
-	/* Context ID - Currently not in use */
+	/* Context ID - Currently yest in use */
 	__u32 ctx_id;
 };
 
@@ -303,7 +303,7 @@ struct hl_wait_cs_in {
 	__u64 seq;
 	/* Absolute timeout to wait in microseconds */
 	__u64 timeout_us;
-	/* Context ID - Currently not in use */
+	/* Context ID - Currently yest in use */
 	__u32 ctx_id;
 	__u32 pad;
 };
@@ -359,7 +359,7 @@ struct hl_mem_in {
 			 * Requested virtual address of mapped memory.
 			 * The driver will try to map the requested region to
 			 * this hint address, as long as the address is valid
-			 * and not already mapped. The user should check the
+			 * and yest already mapped. The user should check the
 			 * returned address of the IOCTL to make sure he got
 			 * the hint address. Passing 0 here means that the
 			 * driver will choose the address itself.
@@ -377,7 +377,7 @@ struct hl_mem_in {
 			 * Requested virtual address of mapped memory.
 			 * The driver will try to map the requested region to
 			 * this hint address, as long as the address is valid
-			 * and not already mapped. The user should check the
+			 * and yest already mapped. The user should check the
 			 * returned address of the IOCTL to make sure he got
 			 * the hint address. Passing 0 here means that the
 			 * driver will choose the address itself.
@@ -398,7 +398,7 @@ struct hl_mem_in {
 	__u32 op;
 	/* HL_MEM_* flags */
 	__u32 flags;
-	/* Context ID - Currently not in use */
+	/* Context ID - Currently yest in use */
 	__u32 ctx_id;
 	__u32 pad;
 };
@@ -529,7 +529,7 @@ struct hl_debug_args {
 	__u32 reg_idx;
 	/* Enable/disable */
 	__u32 enable;
-	/* Context ID - Currently not in use */
+	/* Context ID - Currently yest in use */
 	__u32 ctx_id;
 };
 
@@ -582,7 +582,7 @@ struct hl_debug_args {
  *
  * There are two types of queues - external and internal. External queues
  * are DMA queues which transfer data from/to the Host. All other queues are
- * internal. The driver will get completion notifications from the device only
+ * internal. The driver will get completion yestifications from the device only
  * on JOBS which are enqueued in the external queues.
  *
  * For jobs on external queues, the user needs to create command buffers
@@ -591,7 +591,7 @@ struct hl_debug_args {
  * on either the SRAM or DRAM, and give the device address of that buffer to
  * the CS ioctl.
  *
- * This IOCTL is asynchronous in regard to the actual execution of the CS. This
+ * This IOCTL is asynchroyesus in regard to the actual execution of the CS. This
  * means it returns immediately after ALL the JOBS were enqueued on their
  * relevant queues. Therefore, the user mustn't assume the CS has been completed
  * or has even started to execute.
@@ -681,7 +681,7 @@ struct hl_debug_args {
  * and essential data such as buffer address and size.
  *
  * Once the user has finished using the debug/profile engines, he should
- * set the device into non-debug mode, i.e. disable debug mode.
+ * set the device into yesn-debug mode, i.e. disable debug mode.
  *
  * The driver can decide to "kick out" the user if he abuses this interface.
  *

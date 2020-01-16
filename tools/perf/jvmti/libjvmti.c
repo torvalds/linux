@@ -26,7 +26,7 @@ static void print_error(jvmtiEnv *jvmti, const char *msg, jvmtiError ret)
 		warnx("%s failed with %s", msg, err_msg);
 		(*jvmti)->Deallocate(jvmti, (unsigned char *)err_msg);
 	} else {
-		warnx("%s failed with an unknown error %d", msg, ret);
+		warnx("%s failed with an unkyeswn error %d", msg, ret);
 	}
 }
 
@@ -50,7 +50,7 @@ do_get_line_numbers(jvmtiEnv *jvmti, void *pc, jmethodID m, jint bci,
 		if (loc_tab[i].start_location < bci) {
 			tab[lines].pc = (unsigned long)pc;
 			tab[lines].line_number = loc_tab[i].line_number;
-			tab[lines].discrim = 0; /* not yet used */
+			tab[lines].discrim = 0; /* yest yet used */
 			tab[lines].methodID = m;
 			lines++;
 		} else {
@@ -90,7 +90,7 @@ get_line_numbers(jvmtiEnv *jvmti, const void *compile_info, jvmti_line_info_t **
 				 */
 				ret = (*jvmti)->GetLineNumberTable(jvmti, c->methods[0], &nr, &lne);
 				if (ret == JVMTI_ERROR_NONE) {
-					/* free what was allocated for nothing */
+					/* free what was allocated for yesthing */
 					(*jvmti)->Deallocate(jvmti, (unsigned char *)lne);
 					nr_total += (int)nr;
 				} else {
@@ -104,7 +104,7 @@ get_line_numbers(jvmtiEnv *jvmti, const void *compile_info, jvmti_line_info_t **
 		return JVMTI_ERROR_NOT_FOUND;
 
 	/*
-	 * Phase 2 -- allocate big enough line table
+	 * Phase 2 -- allocate big eyesugh line table
 	 */
 	*tab = malloc(nr_total * sizeof(**tab));
 	if (!*tab)
@@ -154,7 +154,7 @@ copy_class_filename(const char * class_sign, const char * file_name, char * resu
 				result[i] = class_sign[i+1];
 		}
 		/*
-		* append file name, we use loops and not string ops to avoid modifying
+		* append file name, we use loops and yest string ops to avoid modifying
 		* class_sign which is used later for the symbol name
 		*/
 		for (j = 0; i < (max_length - 1) && file_name && j < strlen(file_name); j++, i++)
@@ -264,12 +264,12 @@ compiled_method_load_cb(jvmtiEnv *jvmti,
 	if (has_line_numbers && map && map_length) {
 		ret = get_line_numbers(jvmti, compile_info, &line_tab, &nr_lines);
 		if (ret != JVMTI_ERROR_NONE) {
-			warnx("jvmti: cannot get line table for method");
+			warnx("jvmti: canyest get line table for method");
 			nr_lines = 0;
 		} else if (nr_lines > 0) {
 			line_file_names = malloc(sizeof(char*) * nr_lines);
 			if (!line_file_names) {
-				warnx("jvmti: cannot allocate space for line table method names");
+				warnx("jvmti: canyest allocate space for line table method names");
 			} else {
 				memset(line_file_names, 0, sizeof(char*) * nr_lines);
 				ret = fill_source_filenames(jvmti, nr_lines, line_tab, line_file_names);
@@ -368,7 +368,7 @@ Agent_OnLoad(JavaVM *jvm, char *options, void *reserved __maybe_unused)
 	 */
 	ret = (*jvm)->GetEnv(jvm, (void *)&jvmti, JVMTI_VERSION_1);
 	if (ret != JNI_OK) {
-		warnx("jvmti: jvmti version 1 not supported");
+		warnx("jvmti: jvmti version 1 yest supported");
 		return -1;
 	}
 

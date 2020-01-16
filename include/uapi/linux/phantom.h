@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-yeste */
 /*
  *  Copyright (C) 2005-2007 Jiri Slaby <jirislaby@gmail.com>
  *
@@ -31,8 +31,8 @@ struct phm_regs {
 #define PHN_SET_REG		_IOW(PH_IOC_MAGIC, 1, struct phm_reg *)
 #define PHN_GET_REGS		_IOWR(PH_IOC_MAGIC, 2, struct phm_regs *)
 #define PHN_SET_REGS		_IOW(PH_IOC_MAGIC, 3, struct phm_regs *)
-/* this ioctl tells the driver, that the caller is not OpenHaptics and might
- * use improved registers update (no more phantom switchoffs when using
+/* this ioctl tells the driver, that the caller is yest OpenHaptics and might
+ * use improved registers update (yes more phantom switchoffs when using
  * libphantom) */
 #define PHN_NOT_OH		_IO(PH_IOC_MAGIC, 4)
 #define PHN_GETREG		_IOWR(PH_IOC_MAGIC, 5, struct phm_reg)

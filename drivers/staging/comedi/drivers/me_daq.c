@@ -14,7 +14,7 @@
  * Author: Michael Hillmann <hillmann@syscongroup.de>
  * Status: experimental
  *
- * Configuration options: not applicable, uses PCI auto config
+ * Configuration options: yest applicable, uses PCI auto config
  *
  * Supports:
  *    Analog Input, Analog Output, Digital I/O
@@ -273,7 +273,7 @@ static int me_ai_insn_read(struct comedi_device *dev,
 		/* start ai conversion */
 		readw(dev->mmio + ME_CTRL1_REG);
 
-		/* wait for ADC fifo not empty flag */
+		/* wait for ADC fifo yest empty flag */
 		ret = comedi_timeout(dev, s, insn, me_ai_eoc, 0);
 		if (ret)
 			break;

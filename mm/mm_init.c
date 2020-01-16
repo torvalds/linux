@@ -11,7 +11,7 @@
 #include <linux/kobject.h>
 #include <linux/export.h>
 #include <linux/memory.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/sched.h>
 #include "internal.h"
 
@@ -30,7 +30,7 @@ void __init mminit_verify_zonelist(void)
 	if (mminit_loglevel < MMINIT_VERIFY)
 		return;
 
-	for_each_online_node(nid) {
+	for_each_online_yesde(nid) {
 		pg_data_t *pgdat = NODE_DATA(nid);
 		struct zone *zone;
 		struct zoneref *z;
@@ -40,17 +40,17 @@ void __init mminit_verify_zonelist(void)
 		BUG_ON(MAX_ZONELISTS > 2);
 		for (i = 0; i < MAX_ZONELISTS * MAX_NR_ZONES; i++) {
 
-			/* Identify the zone and nodelist */
+			/* Identify the zone and yesdelist */
 			zoneid = i % MAX_NR_ZONES;
 			listid = i / MAX_NR_ZONES;
-			zonelist = &pgdat->node_zonelists[listid];
-			zone = &pgdat->node_zones[zoneid];
+			zonelist = &pgdat->yesde_zonelists[listid];
+			zone = &pgdat->yesde_zones[zoneid];
 			if (!populated_zone(zone))
 				continue;
 
 			/* Print information about the zonelist */
 			printk(KERN_DEBUG "mminit::zonelist %s %d:%s = ",
-				listid > 0 ? "thisnode" : "general", nid,
+				listid > 0 ? "thisyesde" : "general", nid,
 				zone->name);
 
 			/* Iterate the zonelist */
@@ -87,7 +87,7 @@ void __init mminit_verify_pageflags_layout(void)
 		(unsigned long)NODES_PGSHIFT,
 		(unsigned long)ZONES_PGSHIFT,
 		(unsigned long)LAST_CPUPID_PGSHIFT);
-	mminit_dprintk(MMINIT_TRACE, "pageflags_layout_nodezoneid",
+	mminit_dprintk(MMINIT_TRACE, "pageflags_layout_yesdezoneid",
 		"Node/Zone ID: %lu -> %lu\n",
 		(unsigned long)(ZONEID_PGOFF + ZONEID_SHIFT),
 		(unsigned long)ZONEID_PGOFF);
@@ -95,12 +95,12 @@ void __init mminit_verify_pageflags_layout(void)
 		"location: %d -> %d layout %d -> %d unused %d -> %d page-flags\n",
 		shift, width, width, NR_PAGEFLAGS, NR_PAGEFLAGS, 0);
 #ifdef NODE_NOT_IN_PAGE_FLAGS
-	mminit_dprintk(MMINIT_TRACE, "pageflags_layout_nodeflags",
-		"Node not in page flags");
+	mminit_dprintk(MMINIT_TRACE, "pageflags_layout_yesdeflags",
+		"Node yest in page flags");
 #endif
 #ifdef LAST_CPUPID_NOT_IN_PAGE_FLAGS
-	mminit_dprintk(MMINIT_TRACE, "pageflags_layout_nodeflags",
-		"Last cpupid not in page flags");
+	mminit_dprintk(MMINIT_TRACE, "pageflags_layout_yesdeflags",
+		"Last cpupid yest in page flags");
 #endif
 
 	if (SECTIONS_WIDTH) {
@@ -152,7 +152,7 @@ static void __meminit mm_compute_batch(void)
 	vm_committed_as_batch = max_t(s32, memsized_batch, batch);
 }
 
-static int __meminit mm_compute_batch_notifier(struct notifier_block *self,
+static int __meminit mm_compute_batch_yestifier(struct yestifier_block *self,
 					unsigned long action, void *arg)
 {
 	switch (action) {
@@ -165,15 +165,15 @@ static int __meminit mm_compute_batch_notifier(struct notifier_block *self,
 	return NOTIFY_OK;
 }
 
-static struct notifier_block compute_batch_nb __meminitdata = {
-	.notifier_call = mm_compute_batch_notifier,
+static struct yestifier_block compute_batch_nb __meminitdata = {
+	.yestifier_call = mm_compute_batch_yestifier,
 	.priority = IPC_CALLBACK_PRI, /* use lowest priority */
 };
 
 static int __init mm_compute_batch_init(void)
 {
 	mm_compute_batch();
-	register_hotmemory_notifier(&compute_batch_nb);
+	register_hotmemory_yestifier(&compute_batch_nb);
 
 	return 0;
 }

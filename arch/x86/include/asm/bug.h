@@ -77,7 +77,7 @@ do {								\
 #define __WARN_FLAGS(flags)					\
 do {								\
 	_BUG_FLAGS(ASM_UD2, BUGFLAG_WARNING|(flags));		\
-	annotate_reachable();					\
+	anyestate_reachable();					\
 } while (0)
 
 #include <asm-generic/bug.h>

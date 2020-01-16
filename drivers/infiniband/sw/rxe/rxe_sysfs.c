@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016 Mellanox Technologies Ltd. All rights reserved.
+ * Copyright (c) 2016 Mellayesx Techyeslogies Ltd. All rights reserved.
  * Copyright (c) 2015 System Fabric Works, Inc. All rights reserved.
  *
  * This software is available to you under a choice of one of two
@@ -13,11 +13,11 @@
  *     conditions are met:
  *
  *	- Redistributions of source code must retain the above
- *	  copyright notice, this list of conditions and the following
+ *	  copyright yestice, this list of conditions and the following
  *	  disclaimer.
  *
  *	- Redistributions in binary form must reproduce the above
- *	  copyright notice, this list of conditions and the following
+ *	  copyright yestice, this list of conditions and the following
  *	  disclaimer in the documentation and/or other materials
  *	  provided with the distribution.
  *
@@ -69,7 +69,7 @@ static int rxe_param_set_add(const char *val, const struct kernel_param *kp)
 
 	ndev = dev_get_by_name(&init_net, intf);
 	if (!ndev) {
-		pr_err("interface %s not found\n", intf);
+		pr_err("interface %s yest found\n", intf);
 		return -EINVAL;
 	}
 
@@ -112,7 +112,7 @@ static int rxe_param_set_remove(const char *val, const struct kernel_param *kp)
 
 	ib_dev = ib_device_get_by_name(intf, RDMA_DRIVER_RXE);
 	if (!ib_dev) {
-		pr_err("not configured on %s\n", intf);
+		pr_err("yest configured on %s\n", intf);
 		return -EINVAL;
 	}
 

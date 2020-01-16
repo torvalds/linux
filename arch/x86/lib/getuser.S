@@ -6,7 +6,7 @@
  * (C) Copyright 2005 Andi Kleen
  * (C) Copyright 2008 Glauber Costa
  *
- * These functions have a non-standard call interface
+ * These functions have a yesn-standard call interface
  * to make them more efficient, especially as they
  * return an error value in addition to the "real"
  * return value.
@@ -22,13 +22,13 @@
  *		%ecx contains the high half for 32-bit __get_user_8
  *
  *
- * These functions should not modify any other registers,
+ * These functions should yest modify any other registers,
  * as they get called from within inline assembly.
  */
 
 #include <linux/linkage.h>
 #include <asm/page_types.h>
-#include <asm/errno.h>
+#include <asm/erryes.h>
 #include <asm/asm-offsets.h>
 #include <asm/thread_info.h>
 #include <asm/asm.h>
@@ -40,7 +40,7 @@ SYM_FUNC_START(__get_user_1)
 	mov PER_CPU_VAR(current_task), %_ASM_DX
 	cmp TASK_addr_limit(%_ASM_DX),%_ASM_AX
 	jae bad_get_user
-	sbb %_ASM_DX, %_ASM_DX		/* array_index_mask_nospec() */
+	sbb %_ASM_DX, %_ASM_DX		/* array_index_mask_yesspec() */
 	and %_ASM_DX, %_ASM_AX
 	ASM_STAC
 1:	movzbl (%_ASM_AX),%edx
@@ -56,7 +56,7 @@ SYM_FUNC_START(__get_user_2)
 	mov PER_CPU_VAR(current_task), %_ASM_DX
 	cmp TASK_addr_limit(%_ASM_DX),%_ASM_AX
 	jae bad_get_user
-	sbb %_ASM_DX, %_ASM_DX		/* array_index_mask_nospec() */
+	sbb %_ASM_DX, %_ASM_DX		/* array_index_mask_yesspec() */
 	and %_ASM_DX, %_ASM_AX
 	ASM_STAC
 2:	movzwl -1(%_ASM_AX),%edx
@@ -72,7 +72,7 @@ SYM_FUNC_START(__get_user_4)
 	mov PER_CPU_VAR(current_task), %_ASM_DX
 	cmp TASK_addr_limit(%_ASM_DX),%_ASM_AX
 	jae bad_get_user
-	sbb %_ASM_DX, %_ASM_DX		/* array_index_mask_nospec() */
+	sbb %_ASM_DX, %_ASM_DX		/* array_index_mask_yesspec() */
 	and %_ASM_DX, %_ASM_AX
 	ASM_STAC
 3:	movl -3(%_ASM_AX),%edx
@@ -89,7 +89,7 @@ SYM_FUNC_START(__get_user_8)
 	mov PER_CPU_VAR(current_task), %_ASM_DX
 	cmp TASK_addr_limit(%_ASM_DX),%_ASM_AX
 	jae bad_get_user
-	sbb %_ASM_DX, %_ASM_DX		/* array_index_mask_nospec() */
+	sbb %_ASM_DX, %_ASM_DX		/* array_index_mask_yesspec() */
 	and %_ASM_DX, %_ASM_AX
 	ASM_STAC
 4:	movq -7(%_ASM_AX),%rdx
@@ -102,7 +102,7 @@ SYM_FUNC_START(__get_user_8)
 	mov PER_CPU_VAR(current_task), %_ASM_DX
 	cmp TASK_addr_limit(%_ASM_DX),%_ASM_AX
 	jae bad_get_user_8
-	sbb %_ASM_DX, %_ASM_DX		/* array_index_mask_nospec() */
+	sbb %_ASM_DX, %_ASM_DX		/* array_index_mask_yesspec() */
 	and %_ASM_DX, %_ASM_AX
 	ASM_STAC
 4:	movl -7(%_ASM_AX),%edx

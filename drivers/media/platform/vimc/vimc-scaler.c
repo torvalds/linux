@@ -83,7 +83,7 @@ static int vimc_sca_enum_frame_size(struct v4l2_subdev *sd,
 	if (fse->index)
 		return -EINVAL;
 
-	/* Only accept code in the pix map table in non bayer format */
+	/* Only accept code in the pix map table in yesn bayer format */
 	vpix = vimc_pix_map_by_code(fse->code);
 	if (!vpix || vpix->bayer)
 		return -EINVAL;
@@ -126,7 +126,7 @@ static void vimc_sca_adjust_sink_fmt(struct v4l2_mbus_framefmt *fmt)
 {
 	const struct vimc_pix_map *vpix;
 
-	/* Only accept code in the pix map table in non bayer format */
+	/* Only accept code in the pix map table in yesn bayer format */
 	vpix = vimc_pix_map_by_code(fmt->code);
 	if (!vpix || vpix->bayer)
 		fmt->code = sink_fmt_default.code;
@@ -150,7 +150,7 @@ static int vimc_sca_set_fmt(struct v4l2_subdev *sd,
 	struct v4l2_mbus_framefmt *sink_fmt;
 
 	if (fmt->which == V4L2_SUBDEV_FORMAT_ACTIVE) {
-		/* Do not change the format while stream is on */
+		/* Do yest change the format while stream is on */
 		if (vsca->src_frame)
 			return -EBUSY;
 
@@ -160,7 +160,7 @@ static int vimc_sca_set_fmt(struct v4l2_subdev *sd,
 	}
 
 	/*
-	 * Do not change the format of the source pad,
+	 * Do yest change the format of the source pad,
 	 * it is propagated from the sink
 	 */
 	if (VIMC_IS_SRC(fmt->pad)) {
@@ -310,7 +310,7 @@ static void vimc_sca_fill_src_frame(const struct vimc_sca_device *const vsca,
 	unsigned int i, j;
 
 	/* Scale each pixel from the original sink frame */
-	/* TODO: implement scale down, only scale up is supported for now */
+	/* TODO: implement scale down, only scale up is supported for yesw */
 	for (i = 0; i < vsca->sink_fmt.height; i++)
 		for (j = 0; j < vsca->sink_fmt.width; j++)
 			vimc_sca_scale_pix(vsca, i, j, sink_frame);
@@ -322,7 +322,7 @@ static void *vimc_sca_process_frame(struct vimc_ent_device *ved,
 	struct vimc_sca_device *vsca = container_of(ved, struct vimc_sca_device,
 						    ved);
 
-	/* If the stream in this node is not active, just return */
+	/* If the stream in this yesde is yest active, just return */
 	if (!vsca->src_frame)
 		return ERR_PTR(-EINVAL);
 

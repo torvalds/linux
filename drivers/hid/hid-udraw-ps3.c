@@ -76,7 +76,7 @@ struct udraw {
 	 * The device's two-finger support is pretty unreliable, as
 	 * the device could report a single touch when the two fingers
 	 * are too close together, and the distance between fingers, even
-	 * though reported is not in the same unit as the touches.
+	 * though reported is yest in the same unit as the touches.
 	 *
 	 * We'll make do without it, and try to report the first touch
 	 * as reliably as possible.
@@ -429,7 +429,7 @@ static int udraw_probe(struct hid_device *hdev, const struct hid_device_id *id)
 	    !udraw_setup_touch(udraw, hdev) ||
 	    !udraw_setup_pen(udraw, hdev) ||
 	    !udraw_setup_accel(udraw, hdev)) {
-		hid_err(hdev, "could not allocate interfaces\n");
+		hid_err(hdev, "could yest allocate interfaces\n");
 		return -ENOMEM;
 	}
 

@@ -82,7 +82,7 @@ struct clk *mtk_clk_register_mux(const struct mtk_mux *mux,
 				 spinlock_t *lock);
 
 int mtk_clk_register_muxes(const struct mtk_mux *muxes,
-			   int num, struct device_node *node,
+			   int num, struct device_yesde *yesde,
 			   spinlock_t *lock,
 			   struct clk_onecell_data *clk_data);
 

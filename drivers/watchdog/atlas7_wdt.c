@@ -23,13 +23,13 @@
 #define ATLAS7_WDT_EN		0x64
 
 static unsigned int timeout = ATLAS7_WDT_DEFAULT_TIMEOUT;
-static bool nowayout = WATCHDOG_NOWAYOUT;
+static bool yeswayout = WATCHDOG_NOWAYOUT;
 
 module_param(timeout, uint, 0);
-module_param(nowayout, bool, 0);
+module_param(yeswayout, bool, 0);
 
 MODULE_PARM_DESC(timeout, "Default watchdog timeout (in seconds)");
-MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started (default="
+MODULE_PARM_DESC(yeswayout, "Watchdog canyest be stopped once started (default="
 			__MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
 
 struct atlas7_wdog {
@@ -167,7 +167,7 @@ static int atlas7_wdt_probe(struct platform_device *pdev)
 	atlas7_wdd.max_timeout = UINT_MAX / wdt->tick_rate;
 
 	watchdog_init_timeout(&atlas7_wdd, 0, dev);
-	watchdog_set_nowayout(&atlas7_wdd, nowayout);
+	watchdog_set_yeswayout(&atlas7_wdd, yeswayout);
 
 	watchdog_set_drvdata(&atlas7_wdd, wdt);
 	platform_set_drvdata(pdev, &atlas7_wdd);
@@ -192,7 +192,7 @@ static int __maybe_unused atlas7_wdt_resume(struct device *dev)
 
 	/*
 	 * NOTE: Since timer controller registers settings are saved
-	 * and restored back by the timer-atlas7.c, so we need not
+	 * and restored back by the timer-atlas7.c, so we need yest
 	 * update WD settings except refreshing timeout.
 	 */
 	atlas7_wdt_ping(wdd);

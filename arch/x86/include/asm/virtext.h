@@ -32,8 +32,8 @@ static inline int cpu_has_vmx(void)
 
 /** Disable VMX on the current CPU
  *
- * vmxoff causes a undefined-opcode exception if vmxon was not run
- * on the CPU previously. Only call this function if you know VMX
+ * vmxoff causes a undefined-opcode exception if vmxon was yest run
+ * on the CPU previously. Only call this function if you kyesw VMX
  * is enabled.
  */
 static inline void cpu_vmxoff(void)
@@ -75,8 +75,8 @@ static inline void cpu_emergency_vmxoff(void)
 /** Check if the CPU has SVM support
  *
  * You can use the 'msg' arg to get a message describing the problem,
- * if the function returns zero. Simply pass NULL if you are not interested
- * on the messages; gcc should take care of not generating code for
+ * if the function returns zero. Simply pass NULL if you are yest interested
+ * on the messages; gcc should take care of yest generating code for
  * the messages on this case.
  */
 static inline int cpu_has_svm(const char **msg)
@@ -84,7 +84,7 @@ static inline int cpu_has_svm(const char **msg)
 	if (boot_cpu_data.x86_vendor != X86_VENDOR_AMD &&
 	    boot_cpu_data.x86_vendor != X86_VENDOR_HYGON) {
 		if (msg)
-			*msg = "not amd or hygon";
+			*msg = "yest amd or hygon";
 		return 0;
 	}
 
@@ -96,7 +96,7 @@ static inline int cpu_has_svm(const char **msg)
 
 	if (!boot_cpu_has(X86_FEATURE_SVM)) {
 		if (msg)
-			*msg = "svm not available";
+			*msg = "svm yest available";
 		return 0;
 	}
 	return 1;

@@ -22,14 +22,14 @@ static int phy_mode(enum dpmac_eth_if eth_if, phy_interface_t *if_mode)
 	return 0;
 }
 
-/* Caller must call of_node_put on the returned value */
-static struct device_node *dpaa2_mac_get_node(u16 dpmac_id)
+/* Caller must call of_yesde_put on the returned value */
+static struct device_yesde *dpaa2_mac_get_yesde(u16 dpmac_id)
 {
-	struct device_node *dpmacs, *dpmac = NULL;
+	struct device_yesde *dpmacs, *dpmac = NULL;
 	u32 id;
 	int err;
 
-	dpmacs = of_find_node_by_name(NULL, "dpmacs");
+	dpmacs = of_find_yesde_by_name(NULL, "dpmacs");
 	if (!dpmacs)
 		return NULL;
 
@@ -41,18 +41,18 @@ static struct device_node *dpaa2_mac_get_node(u16 dpmac_id)
 			break;
 	}
 
-	of_node_put(dpmacs);
+	of_yesde_put(dpmacs);
 
 	return dpmac;
 }
 
-static int dpaa2_mac_get_if_mode(struct device_node *node,
+static int dpaa2_mac_get_if_mode(struct device_yesde *yesde,
 				 struct dpmac_attr attr)
 {
 	phy_interface_t if_mode;
 	int err;
 
-	err = of_get_phy_mode(node, &if_mode);
+	err = of_get_phy_mode(yesde, &if_mode);
 	if (!err)
 		return if_mode;
 
@@ -220,7 +220,7 @@ int dpaa2_mac_connect(struct dpaa2_mac *mac)
 {
 	struct fsl_mc_device *dpmac_dev = mac->mc_dev;
 	struct net_device *net_dev = mac->net_dev;
-	struct device_node *dpmac_node;
+	struct device_yesde *dpmac_yesde;
 	struct phylink *phylink;
 	struct dpmac_attr attr;
 	int err;
@@ -238,59 +238,59 @@ int dpaa2_mac_connect(struct dpaa2_mac *mac)
 		goto err_close_dpmac;
 	}
 
-	dpmac_node = dpaa2_mac_get_node(attr.id);
-	if (!dpmac_node) {
-		netdev_err(net_dev, "No dpmac@%d node found.\n", attr.id);
+	dpmac_yesde = dpaa2_mac_get_yesde(attr.id);
+	if (!dpmac_yesde) {
+		netdev_err(net_dev, "No dpmac@%d yesde found.\n", attr.id);
 		err = -ENODEV;
 		goto err_close_dpmac;
 	}
 
-	err = dpaa2_mac_get_if_mode(dpmac_node, attr);
+	err = dpaa2_mac_get_if_mode(dpmac_yesde, attr);
 	if (err < 0) {
 		err = -EINVAL;
-		goto err_put_node;
+		goto err_put_yesde;
 	}
 	mac->if_mode = err;
 
-	/* The MAC does not have the capability to add RGMII delays so
-	 * error out if the interface mode requests them and there is no PHY
+	/* The MAC does yest have the capability to add RGMII delays so
+	 * error out if the interface mode requests them and there is yes PHY
 	 * to act upon them
 	 */
-	if (of_phy_is_fixed_link(dpmac_node) &&
+	if (of_phy_is_fixed_link(dpmac_yesde) &&
 	    (mac->if_mode == PHY_INTERFACE_MODE_RGMII_ID ||
 	     mac->if_mode == PHY_INTERFACE_MODE_RGMII_RXID ||
 	     mac->if_mode == PHY_INTERFACE_MODE_RGMII_TXID)) {
-		netdev_err(net_dev, "RGMII delay not supported\n");
+		netdev_err(net_dev, "RGMII delay yest supported\n");
 		err = -EINVAL;
-		goto err_put_node;
+		goto err_put_yesde;
 	}
 
 	mac->phylink_config.dev = &net_dev->dev;
 	mac->phylink_config.type = PHYLINK_NETDEV;
 
 	phylink = phylink_create(&mac->phylink_config,
-				 of_fwnode_handle(dpmac_node), mac->if_mode,
+				 of_fwyesde_handle(dpmac_yesde), mac->if_mode,
 				 &dpaa2_mac_phylink_ops);
 	if (IS_ERR(phylink)) {
 		err = PTR_ERR(phylink);
-		goto err_put_node;
+		goto err_put_yesde;
 	}
 	mac->phylink = phylink;
 
-	err = phylink_of_phy_connect(mac->phylink, dpmac_node, 0);
+	err = phylink_of_phy_connect(mac->phylink, dpmac_yesde, 0);
 	if (err) {
 		netdev_err(net_dev, "phylink_of_phy_connect() = %d\n", err);
 		goto err_phylink_destroy;
 	}
 
-	of_node_put(dpmac_node);
+	of_yesde_put(dpmac_yesde);
 
 	return 0;
 
 err_phylink_destroy:
 	phylink_destroy(mac->phylink);
-err_put_node:
-	of_node_put(dpmac_node);
+err_put_yesde:
+	of_yesde_put(dpmac_yesde);
 err_close_dpmac:
 	dpmac_close(mac->mc_io, 0, dpmac_dev->mc_handle);
 	return err;

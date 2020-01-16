@@ -253,7 +253,7 @@ static int imx_tve_connector_mode_valid(struct drm_connector *connector,
 	if (rate == mode->clock)
 		return MODE_OK;
 
-	dev_warn(tve->dev, "ignoring mode %dx%d\n",
+	dev_warn(tve->dev, "igyesring mode %dx%d\n",
 		 mode->hdisplay, mode->vdisplay);
 
 	return MODE_BAD;
@@ -474,7 +474,7 @@ static int imx_tve_register(struct drm_device *drm, struct imx_tve *tve)
 	encoder_type = tve->mode == TVE_MODE_VGA ?
 				DRM_MODE_ENCODER_DAC : DRM_MODE_ENCODER_TVDAC;
 
-	ret = imx_drm_encoder_parse_of(drm, &tve->encoder, tve->dev->of_node);
+	ret = imx_drm_encoder_parse_of(drm, &tve->encoder, tve->dev->of_yesde);
 	if (ret)
 		return ret;
 
@@ -517,7 +517,7 @@ static const char * const imx_tve_modes[] = {
 	[TVE_MODE_VGA] = "vga",
 };
 
-static const int of_get_tve_mode(struct device_node *np)
+static const int of_get_tve_mode(struct device_yesde *np)
 {
 	const char *bm;
 	int ret, i;
@@ -537,8 +537,8 @@ static int imx_tve_bind(struct device *dev, struct device *master, void *data)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct drm_device *drm = data;
-	struct device_node *np = dev->of_node;
-	struct device_node *ddc_node;
+	struct device_yesde *np = dev->of_yesde;
+	struct device_yesde *ddc_yesde;
 	struct imx_tve *tve;
 	struct resource *res;
 	void __iomem *base;
@@ -553,10 +553,10 @@ static int imx_tve_bind(struct device *dev, struct device *master, void *data)
 	tve->dev = dev;
 	spin_lock_init(&tve->lock);
 
-	ddc_node = of_parse_phandle(np, "ddc-i2c-bus", 0);
-	if (ddc_node) {
-		tve->ddc = of_find_i2c_adapter_by_node(ddc_node);
-		of_node_put(ddc_node);
+	ddc_yesde = of_parse_phandle(np, "ddc-i2c-bus", 0);
+	if (ddc_yesde) {
+		tve->ddc = of_find_i2c_adapter_by_yesde(ddc_yesde);
+		of_yesde_put(ddc_yesde);
 	}
 
 	tve->mode = of_get_tve_mode(np);
@@ -614,7 +614,7 @@ static int imx_tve_bind(struct device *dev, struct device *master, void *data)
 	tve->dac_reg = devm_regulator_get(dev, "dac");
 	if (!IS_ERR(tve->dac_reg)) {
 		if (regulator_get_voltage(tve->dac_reg) != IMX_TVE_DAC_VOLTAGE)
-			dev_warn(dev, "dac voltage is not %d uV\n", IMX_TVE_DAC_VOLTAGE);
+			dev_warn(dev, "dac voltage is yest %d uV\n", IMX_TVE_DAC_VOLTAGE);
 		ret = regulator_enable(tve->dac_reg);
 		if (ret)
 			return ret;
@@ -646,7 +646,7 @@ static int imx_tve_bind(struct device *dev, struct device *master, void *data)
 		return ret;
 	}
 	if (val != 0x00100000) {
-		dev_err(dev, "configuration register default value indicates this is not a TVEv2\n");
+		dev_err(dev, "configuration register default value indicates this is yest a TVEv2\n");
 		return -ENODEV;
 	}
 

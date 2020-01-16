@@ -9,7 +9,7 @@
 #include "xfs_log_format.h"
 #include "xfs_trans_resv.h"
 #include "xfs_mount.h"
-#include "xfs_inode.h"
+#include "xfs_iyesde.h"
 #include "xfs_attr.h"
 #include "xfs_trace.h"
 #include "xfs_error.h"
@@ -19,7 +19,7 @@
 
 /*
  * Locking scheme:
- *  - all ACL updates are protected by inode->i_mutex, which is taken before
+ *  - all ACL updates are protected by iyesde->i_mutex, which is taken before
  *    calling into this file.
  */
 
@@ -60,7 +60,7 @@ xfs_acl_from_disk(
 		 * The tag is 32 bits on disk and 16 bits in core.
 		 *
 		 * Because every access to it goes through the core
-		 * format first this is not a problem.
+		 * format first this is yest a problem.
 		 */
 		acl_e->e_tag = be32_to_cpu(ace->ae_tag);
 		acl_e->e_perm = be16_to_cpu(ace->ae_perm);
@@ -118,9 +118,9 @@ xfs_acl_to_disk(struct xfs_acl *aclp, const struct posix_acl *acl)
 }
 
 struct posix_acl *
-xfs_get_acl(struct inode *inode, int type)
+xfs_get_acl(struct iyesde *iyesde, int type)
 {
-	struct xfs_inode *ip = XFS_I(inode);
+	struct xfs_iyesde *ip = XFS_I(iyesde);
 	struct posix_acl *acl = NULL;
 	struct xfs_acl *xfs_acl = NULL;
 	unsigned char *ea_name;
@@ -141,7 +141,7 @@ xfs_get_acl(struct inode *inode, int type)
 	}
 
 	/*
-	 * If we have a cached ACLs value just return it, not need to
+	 * If we have a cached ACLs value just return it, yest need to
 	 * go out to the disk.
 	 */
 	len = XFS_ACL_MAX_SIZE(ip->i_mount);
@@ -163,9 +163,9 @@ xfs_get_acl(struct inode *inode, int type)
 }
 
 int
-__xfs_set_acl(struct inode *inode, struct posix_acl *acl, int type)
+__xfs_set_acl(struct iyesde *iyesde, struct posix_acl *acl, int type)
 {
-	struct xfs_inode *ip = XFS_I(inode);
+	struct xfs_iyesde *ip = XFS_I(iyesde);
 	unsigned char *ea_name;
 	int error;
 
@@ -174,7 +174,7 @@ __xfs_set_acl(struct inode *inode, struct posix_acl *acl, int type)
 		ea_name = SGI_ACL_FILE;
 		break;
 	case ACL_TYPE_DEFAULT:
-		if (!S_ISDIR(inode->i_mode))
+		if (!S_ISDIR(iyesde->i_mode))
 			return acl ? -EACCES : 0;
 		ea_name = SGI_ACL_DEFAULT;
 		break;
@@ -214,30 +214,30 @@ __xfs_set_acl(struct inode *inode, struct posix_acl *acl, int type)
 	}
 
 	if (!error)
-		set_cached_acl(inode, type, acl);
+		set_cached_acl(iyesde, type, acl);
 	return error;
 }
 
 static int
-xfs_set_mode(struct inode *inode, umode_t mode)
+xfs_set_mode(struct iyesde *iyesde, umode_t mode)
 {
 	int error = 0;
 
-	if (mode != inode->i_mode) {
+	if (mode != iyesde->i_mode) {
 		struct iattr iattr;
 
 		iattr.ia_valid = ATTR_MODE | ATTR_CTIME;
 		iattr.ia_mode = mode;
-		iattr.ia_ctime = current_time(inode);
+		iattr.ia_ctime = current_time(iyesde);
 
-		error = xfs_setattr_nonsize(XFS_I(inode), &iattr, XFS_ATTR_NOACL);
+		error = xfs_setattr_yesnsize(XFS_I(iyesde), &iattr, XFS_ATTR_NOACL);
 	}
 
 	return error;
 }
 
 int
-xfs_set_acl(struct inode *inode, struct posix_acl *acl, int type)
+xfs_set_acl(struct iyesde *iyesde, struct posix_acl *acl, int type)
 {
 	umode_t mode;
 	bool set_mode = false;
@@ -247,18 +247,18 @@ xfs_set_acl(struct inode *inode, struct posix_acl *acl, int type)
 		goto set_acl;
 
 	error = -E2BIG;
-	if (acl->a_count > XFS_ACL_MAX_ENTRIES(XFS_M(inode->i_sb)))
+	if (acl->a_count > XFS_ACL_MAX_ENTRIES(XFS_M(iyesde->i_sb)))
 		return error;
 
 	if (type == ACL_TYPE_ACCESS) {
-		error = posix_acl_update_mode(inode, &mode, &acl);
+		error = posix_acl_update_mode(iyesde, &mode, &acl);
 		if (error)
 			return error;
 		set_mode = true;
 	}
 
  set_acl:
-	error =  __xfs_set_acl(inode, acl, type);
+	error =  __xfs_set_acl(iyesde, acl, type);
 	if (error)
 		return error;
 
@@ -268,7 +268,7 @@ xfs_set_acl(struct inode *inode, struct posix_acl *acl, int type)
 	 * if the ACL update hasn't been applied.
 	 */
 	if (set_mode)
-		error = xfs_set_mode(inode, mode);
+		error = xfs_set_mode(iyesde, mode);
 
 	return error;
 }

@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -32,7 +32,7 @@
 #define TMDS_MAX_PIXEL_CLOCK 165000
 
 enum signal_type {
-	SIGNAL_TYPE_NONE		= 0L,		/* no signal */
+	SIGNAL_TYPE_NONE		= 0L,		/* yes signal */
 	SIGNAL_TYPE_DVI_SINGLE_LINK	= (1 << 0),
 	SIGNAL_TYPE_DVI_DUAL_LINK	= (1 << 1),
 	SIGNAL_TYPE_HDMI_TYPE_A		= (1 << 2),

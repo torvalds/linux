@@ -22,7 +22,7 @@
 #include <arpa/inet.h>
 #include <asm/types.h>
 #include <error.h>
-#include <errno.h>
+#include <erryes.h>
 #include <inttypes.h>
 #include <linux/errqueue.h>
 #include <linux/if_ether.h>
@@ -61,8 +61,8 @@ static int cfg_delay_snd;
 static int cfg_delay_ack;
 static bool cfg_show_payload;
 static bool cfg_do_pktinfo;
-static bool cfg_loop_nodata;
-static bool cfg_no_delay;
+static bool cfg_loop_yesdata;
+static bool cfg_yes_delay;
 static bool cfg_use_cmsg;
 static bool cfg_use_pf_packet;
 static bool cfg_do_listen;
@@ -139,7 +139,7 @@ static void __print_timestamp(const char *name, struct timespec *cur,
 static void print_timestamp_usr(void)
 {
 	if (clock_gettime(CLOCK_REALTIME, &ts_usr))
-		error(1, errno, "clock_gettime");
+		error(1, erryes, "clock_gettime");
 
 	__print_timestamp("  USR", &ts_usr, 0, 0);
 }
@@ -165,7 +165,7 @@ static void print_timestamp(struct scm_timestamping *tss, int tstype,
 		validate_timestamp(&tss->ts[0], cfg_delay_ack);
 		break;
 	default:
-		error(1, 0, "unknown timestamp type: %u",
+		error(1, 0, "unkyeswn timestamp type: %u",
 		tstype);
 	}
 	__print_timestamp(tsname, &tss->ts[0], tskey, payload_len);
@@ -194,8 +194,8 @@ static void print_pktinfo(int family, int ifindex, void *saddr, void *daddr)
 
 	fprintf(stderr, "         pktinfo: ifindex=%u src=%s dst=%s\n",
 		ifindex,
-		saddr ? inet_ntop(family, saddr, sa, sizeof(sa)) : "unknown",
-		daddr ? inet_ntop(family, daddr, da, sizeof(da)) : "unknown");
+		saddr ? inet_ntop(family, saddr, sa, sizeof(sa)) : "unkyeswn",
+		daddr ? inet_ntop(family, daddr, da, sizeof(da)) : "unkyeswn");
 }
 
 static void __poll(int fd)
@@ -207,7 +207,7 @@ static void __poll(int fd)
 	pollfd.fd = fd;
 	ret = poll(&pollfd, 1, cfg_poll_timeout);
 	if (ret != 1)
-		error(1, errno, "poll");
+		error(1, erryes, "poll");
 }
 
 static void __recv_errmsg_cmsg(struct msghdr *msg, int payload_len)
@@ -230,10 +230,10 @@ static void __recv_errmsg_cmsg(struct msghdr *msg, int payload_len)
 			   (cm->cmsg_level == SOL_PACKET &&
 			    cm->cmsg_type == PACKET_TX_TIMESTAMP)) {
 			serr = (void *) CMSG_DATA(cm);
-			if (serr->ee_errno != ENOMSG ||
+			if (serr->ee_erryes != ENOMSG ||
 			    serr->ee_origin != SO_EE_ORIGIN_TIMESTAMPING) {
-				fprintf(stderr, "unknown ip error %d %d\n",
-						serr->ee_errno,
+				fprintf(stderr, "unkyeswn ip error %d %d\n",
+						serr->ee_erryes,
 						serr->ee_origin);
 				serr = NULL;
 			}
@@ -248,7 +248,7 @@ static void __recv_errmsg_cmsg(struct msghdr *msg, int payload_len)
 			print_pktinfo(AF_INET6, info6->ipi6_ifindex,
 				      NULL, &info6->ipi6_addr);
 		} else
-			fprintf(stderr, "unknown cmsg %d,%d\n",
+			fprintf(stderr, "unkyeswn cmsg %d,%d\n",
 					cm->cmsg_level, cm->cmsg_type);
 
 		if (serr && tss) {
@@ -290,8 +290,8 @@ static int recv_errmsg(int fd)
 	msg.msg_controllen = sizeof(ctrl);
 
 	ret = recvmsg(fd, &msg, MSG_ERRQUEUE);
-	if (ret == -1 && errno != EAGAIN)
-		error(1, errno, "recvmsg");
+	if (ret == -1 && erryes != EAGAIN)
+		error(1, erryes, "recvmsg");
 
 	if (ret >= 0) {
 		__recv_errmsg_cmsg(&msg, ret);
@@ -364,7 +364,7 @@ static int fill_header_ipv6(void *p)
 	ip6h->saddr             = daddr6.sin6_addr;
 	ip6h->daddr		= daddr6.sin6_addr;
 
-	/* kernel does not write saddr in case of ipv6 */
+	/* kernel does yest write saddr in case of ipv6 */
 
 	return sizeof(*ip6h);
 }
@@ -403,7 +403,7 @@ static void do_test(int family, unsigned int report_opt)
 				total_len += sizeof(struct ipv6hdr);
 
 		/* special case, only rawv6_sendmsg:
-		 * pass proto in sin6_port if not connected
+		 * pass proto in sin6_port if yest connected
 		 * also see ANK comment in net/ipv4/raw.c
 		 */
 		daddr6.sin6_port = htons(cfg_ipproto);
@@ -416,7 +416,7 @@ static void do_test(int family, unsigned int report_opt)
 	fd = socket(cfg_use_pf_packet ? PF_PACKET : family,
 		    cfg_proto, cfg_ipproto);
 	if (fd < 0)
-		error(1, errno, "socket");
+		error(1, erryes, "socket");
 
 	/* reset expected key on each new socket */
 	saved_tskey = -1;
@@ -424,14 +424,14 @@ static void do_test(int family, unsigned int report_opt)
 	if (cfg_proto == SOCK_STREAM) {
 		if (setsockopt(fd, IPPROTO_TCP, TCP_NODELAY,
 			       (char*) &val, sizeof(val)))
-			error(1, 0, "setsockopt no nagle");
+			error(1, 0, "setsockopt yes nagle");
 
 		if (family == PF_INET) {
 			if (connect(fd, (void *) &daddr, sizeof(daddr)))
-				error(1, errno, "connect ipv4");
+				error(1, erryes, "connect ipv4");
 		} else {
 			if (connect(fd, (void *) &daddr6, sizeof(daddr6)))
-				error(1, errno, "connect ipv6");
+				error(1, erryes, "connect ipv6");
 		}
 	}
 
@@ -439,11 +439,11 @@ static void do_test(int family, unsigned int report_opt)
 		if (family == AF_INET6) {
 			if (setsockopt(fd, SOL_IPV6, IPV6_RECVPKTINFO,
 				       &val, sizeof(val)))
-				error(1, errno, "setsockopt pktinfo ipv6");
+				error(1, erryes, "setsockopt pktinfo ipv6");
 		} else {
 			if (setsockopt(fd, SOL_IP, IP_PKTINFO,
 				       &val, sizeof(val)))
-				error(1, errno, "setsockopt pktinfo ipv4");
+				error(1, erryes, "setsockopt pktinfo ipv4");
 		}
 	}
 
@@ -454,7 +454,7 @@ static void do_test(int family, unsigned int report_opt)
 	if (!cfg_use_cmsg)
 		sock_opt |= report_opt;
 
-	if (cfg_loop_nodata)
+	if (cfg_loop_yesdata)
 		sock_opt |= SOF_TIMESTAMPING_OPT_TSONLY;
 
 	if (setsockopt(fd, SOL_SOCKET, SO_TIMESTAMPING,
@@ -522,10 +522,10 @@ static void do_test(int family, unsigned int report_opt)
 
 		val = sendmsg(fd, &msg, 0);
 		if (val != total_len)
-			error(1, errno, "send");
+			error(1, erryes, "send");
 
 		/* wait for all errors to be queued, else ACKs arrive OOO */
-		if (!cfg_no_delay)
+		if (!cfg_yes_delay)
 			usleep(50 * 1000);
 
 		__poll(fd);
@@ -534,13 +534,13 @@ static void do_test(int family, unsigned int report_opt)
 	}
 
 	if (close(fd))
-		error(1, errno, "close");
+		error(1, erryes, "close");
 
 	free(buf);
 	usleep(100 * 1000);
 }
 
-static void __attribute__((noreturn)) usage(const char *filepath)
+static void __attribute__((yesreturn)) usage(const char *filepath)
 {
 	fprintf(stderr, "\nUsage: %s [options] hostname\n"
 			"\nwhere options are:\n"
@@ -549,12 +549,12 @@ static void __attribute__((noreturn)) usage(const char *filepath)
 			"  -h:   show this message\n"
 			"  -c N: number of packets for each test\n"
 			"  -C:   use cmsg to set tstamp recording options\n"
-			"  -D:   no delay between packets\n"
+			"  -D:   yes delay between packets\n"
 			"  -F:   poll() waits forever for an event\n"
 			"  -I:   request PKTINFO\n"
 			"  -l N: send N bytes at a time\n"
 			"  -L    listen on hostname and port\n"
-			"  -n:   set no-payload option\n"
+			"  -n:   set yes-payload option\n"
 			"  -p N: connect to port N\n"
 			"  -P:   use PF_PACKET\n"
 			"  -r:   use raw\n"
@@ -587,7 +587,7 @@ static void parse_opt(int argc, char **argv)
 			cfg_use_cmsg = true;
 			break;
 		case 'D':
-			cfg_no_delay = true;
+			cfg_yes_delay = true;
 			break;
 		case 'F':
 			cfg_poll_timeout = -1;
@@ -602,7 +602,7 @@ static void parse_opt(int argc, char **argv)
 			cfg_do_listen = true;
 			break;
 		case 'n':
-			cfg_loop_nodata = true;
+			cfg_loop_yesdata = true;
 			break;
 		case 'p':
 			dest_port = strtoul(optarg, NULL, 10);
@@ -644,15 +644,15 @@ static void parse_opt(int argc, char **argv)
 	}
 
 	if (!cfg_payload_len)
-		error(1, 0, "payload may not be nonzero");
+		error(1, 0, "payload may yest be yesnzero");
 	if (cfg_proto != SOCK_STREAM && cfg_payload_len > 1472)
 		error(1, 0, "udp packet might exceed expected MTU");
 	if (!do_ipv4 && !do_ipv6)
-		error(1, 0, "pass -4 or -6, not both");
+		error(1, 0, "pass -4 or -6, yest both");
 	if (proto_count > 1)
-		error(1, 0, "pass -P, -r, -R or -u, not multiple");
+		error(1, 0, "pass -P, -r, -R or -u, yest multiple");
 	if (cfg_do_pktinfo && cfg_use_pf_packet)
-		error(1, 0, "cannot ask for pktinfo over pf_packet");
+		error(1, 0, "canyest ask for pktinfo over pf_packet");
 
 	if (optind != argc - 1)
 		error(1, 0, "missing required hostname argument");
@@ -666,7 +666,7 @@ static void resolve_hostname(const char *hostname)
 
 retry:
 	if (getaddrinfo(hostname, NULL, &hints, &addrs))
-		error(1, errno, "getaddrinfo");
+		error(1, erryes, "getaddrinfo");
 
 	cur = addrs;
 	while (cur && !have_ipv4 && !have_ipv6) {
@@ -702,13 +702,13 @@ static void do_listen(int family, void *addr, int alen)
 
 	fd = socket(family, type, 0);
 	if (fd == -1)
-		error(1, errno, "socket rx");
+		error(1, erryes, "socket rx");
 
 	if (bind(fd, addr, alen))
-		error(1, errno, "bind rx");
+		error(1, erryes, "bind rx");
 
 	if (type == SOCK_STREAM && listen(fd, 10))
-		error(1, errno, "listen rx");
+		error(1, erryes, "listen rx");
 
 	/* leave fd open, will be closed on process exit.
 	 * this enables connect() to succeed and avoids icmp replies

@@ -5,7 +5,7 @@
     begin                : Thu Sep 7 2000
     copyright            : (C) 2001 by Adaptec
 
-    See Documentation/scsi/dpti.txt for history, notes, license info
+    See Documentation/scsi/dpti.txt for history, yestes, license info
     and credits
  ***************************************************************************/
 
@@ -87,8 +87,8 @@ static int adpt_device_reset(struct scsi_cmnd* cmd);
 #  define PDEBUG(fmt, args...)  printk(KERN_DEBUG "dpti: " fmt, ##args)
 #  define PDEBUGV(fmt, args...) printk(KERN_DEBUG "dpti: " fmt, ##args)
 #else
-# define PDEBUG(fmt, args...) /* not debugging: nothing */
-# define PDEBUGV(fmt, args...) /* not debugging: nothing */
+# define PDEBUG(fmt, args...) /* yest debugging: yesthing */
+# define PDEBUGV(fmt, args...) /* yest debugging: yesthing */
 #endif
 
 #define PERROR(fmt, args...) printk(KERN_ERR fmt, ##args)
@@ -206,9 +206,9 @@ typedef struct _adpt_hba {
 	u32 state;
 	spinlock_t state_lock;
 	int unit;
-	int host_no;		/* SCSI host number */
+	int host_yes;		/* SCSI host number */
 	u8 initialized;
-	u8 in_use;		/* is the management node open*/
+	u8 in_use;		/* is the management yesde open*/
 
 	char name[32];
 	char detail[55];
@@ -292,7 +292,7 @@ static s32 adpt_hba_reset(adpt_hba* pHba);
 static s32 adpt_i2o_reset_hba(adpt_hba* pHba);
 static s32 adpt_rescan(adpt_hba* pHba);
 static s32 adpt_i2o_reparse_lct(adpt_hba* pHba);
-static s32 adpt_send_nop(adpt_hba*pHba,u32 m);
+static s32 adpt_send_yesp(adpt_hba*pHba,u32 m);
 static void adpt_i2o_delete_hba(adpt_hba* pHba);
 static void adpt_inquiry(adpt_hba* pHba);
 static void adpt_fail_posted_scbs(adpt_hba* pHba);
@@ -302,9 +302,9 @@ static int adpt_i2o_online_hba(adpt_hba* pHba);
 static void adpt_i2o_post_wait_complete(u32, int);
 static int adpt_i2o_systab_send(adpt_hba* pHba);
 
-static int adpt_ioctl(struct inode *inode, struct file *file, uint cmd, ulong arg);
-static int adpt_open(struct inode *inode, struct file *file);
-static int adpt_close(struct inode *inode, struct file *file);
+static int adpt_ioctl(struct iyesde *iyesde, struct file *file, uint cmd, ulong arg);
+static int adpt_open(struct iyesde *iyesde, struct file *file);
+static int adpt_close(struct iyesde *iyesde, struct file *file);
 
 
 #ifdef UARTDELAY

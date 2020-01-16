@@ -26,7 +26,7 @@ static void config_sub_second_increment(void __iomem *ioaddr,
 	unsigned long data;
 	u32 reg_value;
 
-	/* For GMAC3.x, 4.x versions, convert the ptp_clock to nano second
+	/* For GMAC3.x, 4.x versions, convert the ptp_clock to nayes second
 	 *	formula = (1/ptp_clock) * 1000000000
 	 * where ptp_clock is 50MHz if fine method is used to update system
 	 */
@@ -149,7 +149,7 @@ static void get_systime(void __iomem *ioaddr, u64 *systime)
 
 	/* Get the TSSS value */
 	ns = readl(ioaddr + PTP_STNSR);
-	/* Get the TSS and convert sec time value to nanosecond */
+	/* Get the TSS and convert sec time value to nayessecond */
 	ns += readl(ioaddr + PTP_STSR) * 1000000000ULL;
 
 	if (systime)

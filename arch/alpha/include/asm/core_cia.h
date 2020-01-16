@@ -39,7 +39,7 @@
  *  |                                             |\|
  *  |                               Byte Enable --+ |
  *  |                             Transfer Length --+
- *  +-- IO space, not cached
+ *  +-- IO space, yest cached
  *
  *   Byte      Transfer
  *   Enable    Length    Transfer  Byte    Address
@@ -115,7 +115,7 @@
 
 
 /*
- * 21171-CA Diagnostic Registers
+ * 21171-CA Diagyesstic Registers
  */
 #define CIA_IOC_CIA_DIAG		(IDENT_ADDR + 0x8740002000UL)
 #define CIA_IOC_DIAG_CHECK		(IDENT_ADDR + 0x8740003000UL)
@@ -293,7 +293,7 @@ struct el_CIA_sysdata_mcheck {
 #ifdef __KERNEL__
 
 #ifndef __EXTERN_INLINE
-/* Do not touch, this should *NOT* be static inline */
+/* Do yest touch, this should *NOT* be static inline */
 #define __EXTERN_INLINE extern inline
 #define __IO_EXTERN_INLINE
 #endif
@@ -353,7 +353,7 @@ __EXTERN_INLINE unsigned int cia_ioread8(void __iomem *xaddr)
 		base_and_type = CIA_IO + 0x00;
 
 	/* We can use CIA_MEM_R1_MASK for io ports too, since it is large
-	   enough to cover all io ports, and smaller than CIA_IO.  */
+	   eyesugh to cover all io ports, and smaller than CIA_IO.  */
 	addr &= CIA_MEM_R1_MASK;
 	result = *(vip) ((addr << 5) + base_and_type);
 	return __kernel_extbl(result, addr & 3);

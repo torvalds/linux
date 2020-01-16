@@ -486,7 +486,7 @@ static u32 to_rgb(u16 red, u16 green, u16 blue)
 }
 
 static int
-pxa168fb_setcolreg(unsigned int regno, unsigned int red, unsigned int green,
+pxa168fb_setcolreg(unsigned int regyes, unsigned int red, unsigned int green,
 		 unsigned int blue, unsigned int trans, struct fb_info *info)
 {
 	struct pxa168fb_info *fbi = info->par;
@@ -496,17 +496,17 @@ pxa168fb_setcolreg(unsigned int regno, unsigned int red, unsigned int green,
 		red = green = blue = (19595 * red + 38470 * green +
 					7471 * blue) >> 16;
 
-	if (info->fix.visual == FB_VISUAL_TRUECOLOR && regno < 16) {
+	if (info->fix.visual == FB_VISUAL_TRUECOLOR && regyes < 16) {
 		val =  chan_to_field(red,   &info->var.red);
 		val |= chan_to_field(green, &info->var.green);
 		val |= chan_to_field(blue , &info->var.blue);
-		fbi->pseudo_palette[regno] = val;
+		fbi->pseudo_palette[regyes] = val;
 	}
 
-	if (info->fix.visual == FB_VISUAL_PSEUDOCOLOR && regno < 256) {
+	if (info->fix.visual == FB_VISUAL_PSEUDOCOLOR && regyes < 256) {
 		val = to_rgb(red, green, blue);
 		writel(val, fbi->reg_base + LCD_SPU_SRAM_WRDAT);
-		writel(0x8300 | regno, fbi->reg_base + LCD_SPU_SRAM_CTRL);
+		writel(0x8300 | regyes, fbi->reg_base + LCD_SPU_SRAM_CTRL);
 	}
 
 	return 0;
@@ -608,7 +608,7 @@ static int pxa168fb_probe(struct platform_device *pdev)
 
 	mi = dev_get_platdata(&pdev->dev);
 	if (mi == NULL) {
-		dev_err(&pdev->dev, "no platform data defined\n");
+		dev_err(&pdev->dev, "yes platform data defined\n");
 		return -EINVAL;
 	}
 
@@ -620,13 +620,13 @@ static int pxa168fb_probe(struct platform_device *pdev)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (res == NULL) {
-		dev_err(&pdev->dev, "no IO memory defined\n");
+		dev_err(&pdev->dev, "yes IO memory defined\n");
 		return -ENOENT;
 	}
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {
-		dev_err(&pdev->dev, "no IRQ defined\n");
+		dev_err(&pdev->dev, "yes IRQ defined\n");
 		return -ENOENT;
 	}
 
@@ -649,7 +649,7 @@ static int pxa168fb_probe(struct platform_device *pdev)
 	 */
 	info->flags = FBINFO_DEFAULT | FBINFO_PARTIAL_PAN_OK |
 		      FBINFO_HWACCEL_XPAN | FBINFO_HWACCEL_YPAN;
-	info->node = -1;
+	info->yesde = -1;
 	strlcpy(info->fix.id, mi->id, 16);
 	info->fix.type = FB_TYPE_PACKED_PIXELS;
 	info->fix.type_aux = 0;
@@ -665,7 +665,7 @@ static int pxa168fb_probe(struct platform_device *pdev)
 	/*
 	 * Map LCD controller registers.
 	 */
-	fbi->reg_base = devm_ioremap_nocache(&pdev->dev, res->start,
+	fbi->reg_base = devm_ioremap_yescache(&pdev->dev, res->start,
 					     resource_size(res));
 	if (fbi->reg_base == NULL) {
 		ret = -ENOMEM;

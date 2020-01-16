@@ -135,7 +135,7 @@ static void crypto_aegis128_aesni_process_crypt(
 static struct aegis_ctx *crypto_aegis128_aesni_ctx(struct crypto_aead *aead)
 {
 	u8 *ctx = crypto_aead_ctx(aead);
-	ctx = PTR_ALIGN(ctx, __alignof__(struct aegis_ctx));
+	ctx = PTR_ALIGN(ctx, __aligyesf__(struct aegis_ctx));
 	return (void *)ctx;
 }
 
@@ -254,7 +254,7 @@ static struct aead_alg crypto_aegis128_aesni_alg = {
 		.cra_flags = CRYPTO_ALG_INTERNAL,
 		.cra_blocksize = 1,
 		.cra_ctxsize = sizeof(struct aegis_ctx) +
-			       __alignof__(struct aegis_ctx),
+			       __aligyesf__(struct aegis_ctx),
 		.cra_alignmask = 0,
 		.cra_priority = 400,
 

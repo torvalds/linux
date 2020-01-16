@@ -8,7 +8,7 @@
  *
  *  Copyright (C) 1999-2002, Greg Ungerer (gerg@snapgear.com)
  *  Copyright (C) 1998  D. Jeff Dionne <jeff@lineo.ca>,
- *                      Kenneth Albanowski <kjahds@kjahds.com>,
+ *                      Kenneth Albayeswski <kjahds@kjahds.com>,
  *  Copyright (C) 2000  Lineo Inc. (www.lineo.com)
  *  Copyright (C) 2004  Microtronix Datacom Ltd.
  *
@@ -29,7 +29,7 @@
 #include <asm/asm-offsets.h>
 #include <asm/asm-macros.h>
 #include <asm/thread_info.h>
-#include <asm/errno.h>
+#include <asm/erryes.h>
 #include <asm/setup.h>
 #include <asm/entry.h>
 #include <asm/unistd.h>
@@ -129,8 +129,8 @@ trap_table:
 	.word	handle_breakpoint	/* 31 */
 
 .text
-.set noat
-.set nobreak
+.set yesat
+.set yesbreak
 
 ENTRY(inthandler)
 	SAVE_ALL
@@ -140,7 +140,7 @@ ENTRY(inthandler)
 	/* Clear EH bit before we get a new excpetion in the kernel
 	 * and after we have saved it to the exception frame. This is done
 	 * whether it's trap, tlb-miss or interrupt. If we don't do this
-	 * estatus is not updated the next exception.
+	 * estatus is yest updated the next exception.
 	 */
 	rdctl	r24, status
 	movi	r9, %lo(~STATUS_EH)
@@ -303,8 +303,8 @@ Lsignal_return:
 	beq	r1, r0, restore_all
 	mov	r4, sp			/* pt_regs */
 	SAVE_SWITCH_STACK
-	call	do_notify_resume
-	beq	r2, r0, no_work_pending
+	call	do_yestify_resume
+	beq	r2, r0, yes_work_pending
 	RESTORE_SWITCH_STACK
 	/* prepare restart syscall here without leaving kernel */
 	ldw	r2, PT_R2(sp)	/* reload syscall number in r2 */
@@ -316,7 +316,7 @@ Lsignal_return:
 	ldw 	r9, PT_R9(sp)
 	br	local_restart	/* restart syscall */
 
-no_work_pending:
+yes_work_pending:
 	RESTORE_SWITCH_STACK
 	br	ret_from_exception
 
@@ -333,7 +333,7 @@ external_interrupt:
 	rdctl	r12, ipending
 	rdctl	r9, ienable
 	and	r12, r12, r9
-	/* skip if no interrupt is pending */
+	/* skip if yes interrupt is pending */
 	beq	r12, r0, ret_from_interrupt
 
 	movi	r24, -1
@@ -509,7 +509,7 @@ ENTRY(ret_from_kernel_thread)
  * Each segment is 64-byte aligned and will be mapped to the <User space>.
  * New segments (if ever needed) must be added after the existing ones.
  * This mechanism should be used only for things that are really small and
- * justified, and not be abused freely.
+ * justified, and yest be abused freely.
  *
  */
 

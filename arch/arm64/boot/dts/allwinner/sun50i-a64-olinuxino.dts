@@ -3,7 +3,7 @@
  *
  * This file is dual-licensed: you can use it either under the terms
  * of the GPL or the X11 license, at your option. Note that this dual
- * licensing only applies to this file, and not this project as a
+ * licensing only applies to this file, and yest this project as a
  * whole.
  *
  *  a) This library is free software; you can redistribute it and/or
@@ -27,7 +27,7 @@
  *     Software is furnished to do so, subject to the following
  *     conditions:
  *
- *     The above copyright notice and this permission notice shall be
+ *     The above copyright yestice and this permission yestice shall be
  *     included in all copies or substantial portions of the Software.
  *
  *     THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -47,8 +47,8 @@
 #include <dt-bindings/gpio/gpio.h>
 
 / {
-	model = "Olimex A64-Olinuxino";
-	compatible = "olimex,a64-olinuxino", "allwinner,sun50i-a64";
+	model = "Olimex A64-Olinuxiyes";
+	compatible = "olimex,a64-olinuxiyes", "allwinner,sun50i-a64";
 
 	aliases {
 		ethernet0 = &emac;
@@ -144,7 +144,7 @@
 	vqmmc-supply = <&reg_dldo4>;
 	mmc-pwrseq = <&wifi_pwrseq>;
 	bus-width = <4>;
-	non-removable;
+	yesn-removable;
 	status = "okay";
 
 	rtl8723bs: wifi@1 {
@@ -223,7 +223,7 @@
 /* DCDC3 is polyphased with DCDC2 */
 
 /*
- * The board uses DDR3L DRAM chips. 1.36V is the closest to the nominal
+ * The board uses DDR3L DRAM chips. 1.36V is the closest to the yesminal
  * 1.35V that the PMIC can drive.
  */
 &reg_dcdc5 {
@@ -288,9 +288,9 @@
 };
 
 /*
- * The A64 chip cannot work without this regulator off, although
+ * The A64 chip canyest work without this regulator off, although
  * it seems to be only driving the AR100 core.
- * Maybe we don't still know well about CPUs domain.
+ * Maybe we don't still kyesw well about CPUs domain.
  */
 &reg_fldo2 {
 	regulator-always-on;

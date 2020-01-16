@@ -62,7 +62,7 @@ struct sclp_sd_data {
 };
 
 /**
- * struct sclp_sd_listener - Listener for asynchronous Store Data response
+ * struct sclp_sd_listener - Listener for asynchroyesus Store Data response
  * @list: For enqueueing this struct
  * @id: Event ID of response to listen for
  * @completion: Can be used to wait for response
@@ -124,7 +124,7 @@ static void sclp_sd_listener_remove(struct sclp_sd_listener *listener)
  * sclp_sd_listener_init() - Initialize a Store Data response listener
  * @id: Event ID to listen for
  *
- * Initialize a listener for asynchronous Store Data responses. This listener
+ * Initialize a listener for asynchroyesus Store Data responses. This listener
  * can afterwards be used to wait for a specific response and to retrieve
  * the associated response data.
  */
@@ -171,7 +171,7 @@ static struct sclp_register sclp_sd_register = {
 };
 
 /**
- * sclp_sd_sync() - Perform Store Data request synchronously
+ * sclp_sd_sync() - Perform Store Data request synchroyesusly
  * @page: Address of work page - must be below 2GB
  * @eq: Input EQ value
  * @di: Input DI value
@@ -183,7 +183,7 @@ static struct sclp_register sclp_sd_register = {
  * Perform Store Data request with specified parameters and wait for completion.
  *
  * Return %0 on success and store resulting DSIZE and ESIZE values in
- * @dsize_ptr and @esize_ptr (if provided). Return non-zero on error.
+ * @dsize_ptr and @esize_ptr (if provided). Return yesn-zero on error.
  */
 static int sclp_sd_sync(unsigned long page, u8 eq, u8 di, u64 sat, u64 sa,
 			u32 *dsize_ptr, u32 *esize_ptr)
@@ -220,7 +220,7 @@ static int sclp_sd_sync(unsigned long page, u8 eq, u8 di, u64 sat, u64 sa,
 
 	/* Evaluate response */
 	if (sccb->hdr.response_code == 0x73f0) {
-		pr_debug("event not supported\n");
+		pr_debug("event yest supported\n");
 		rc = -EIO;
 		goto out_remove;
 	}
@@ -371,7 +371,7 @@ static void sclp_sd_file_release(struct kobject *kobj)
  * @sd_file.
  *
  * On success, return %0 and generate a KOBJ_CHANGE event to indicate that the
- * data may have changed. Return non-zero otherwise.
+ * data may have changed. Return yesn-zero otherwise.
  */
 static int sclp_sd_file_update(struct sclp_sd_file *sd_file)
 {
@@ -401,7 +401,7 @@ static int sclp_sd_file_update(struct sclp_sd_file *sd_file)
 }
 
 /**
- * sclp_sd_file_update_async() - Wrapper for asynchronous update call
+ * sclp_sd_file_update_async() - Wrapper for asynchroyesus update call
  * @data: Object to update
  */
 static void sclp_sd_file_update_async(void *data, async_cookie_t cookie)

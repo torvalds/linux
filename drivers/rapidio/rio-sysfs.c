@@ -267,7 +267,7 @@ static umode_t rio_dev_is_attr_visible(struct kobject *kobj,
 	     attr == &dev_attr_lnext.attr ||
 	     attr == &dev_attr_hopcount.attr)) {
 		/*
-		 * Hide switch-specific attributes for a non-switch device.
+		 * Hide switch-specific attributes for a yesn-switch device.
 		 */
 		mode = 0;
 	}

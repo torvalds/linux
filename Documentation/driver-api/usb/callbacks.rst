@@ -19,7 +19,7 @@ The callbacks defined in the driver structure are:
 	interface on a device.
 
  - @disconnect:
-	Called when the interface is no longer accessible, usually
+	Called when the interface is yes longer accessible, usually
 	because its device has been (or is being) disconnected or the
 	driver module is being unloaded.
 
@@ -58,10 +58,10 @@ separately in :ref:`usb-power-management`.
 Calling conventions
 ===================
 
-All callbacks are mutually exclusive. There's no need for locking
+All callbacks are mutually exclusive. There's yes need for locking
 against other USB callbacks. All callbacks are called from a task
 context. You may sleep. However, it is important that all sleeps have a
-small fixed upper limit in time. In particular you must not call out to
+small fixed upper limit in time. In particular you must yest call out to
 user space and await results.
 
 Hotplugging callbacks
@@ -84,8 +84,8 @@ genuine error occurred during initialisation which prevented a driver
 from accepting a device that would else have been accepted.
 You are strongly encouraged to use usbcore's facility,
 usb_set_intfdata(), to associate a data structure with an interface, so
-that you know which internal state and identity you associate with a
-particular interface. The device will not be suspended and you may do IO
+that you kyesw which internal state and identity you associate with a
+particular interface. The device will yest be suspended and you may do IO
 to the interface you are called for and endpoint 0 of the device. Device
 initialisation that doesn't take too long is a good idea here.
 
@@ -97,9 +97,9 @@ The disconnect() callback
   void (*disconnect) (struct usb_interface *intf);
 
 This callback is a signal to break any connection with an interface.
-You are not allowed any IO to a device after returning from this
-callback. You also may not do any other operation that may interfere
-with another driver bound the interface, eg. a power management
+You are yest allowed any IO to a device after returning from this
+callback. You also may yest do any other operation that may interfere
+with ayesther driver bound the interface, eg. a power management
 operation.
 If you are called due to a physical disconnection, all your URBs will be
 killed by usbcore. Note that in this case disconnect will be called some
@@ -146,7 +146,7 @@ that isn't bound to your driver.
 
 Probe will never be called for an interface bound to a driver.
 Hence following a successful probe, disconnect will be called
-before there is another probe for the same interface.
+before there is ayesther probe for the same interface.
 
 Once your driver is bound to an interface, disconnect can be
 called at any time except in between pre_reset and post_reset.

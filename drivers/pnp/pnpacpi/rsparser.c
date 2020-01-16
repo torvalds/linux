@@ -107,9 +107,9 @@ static void pnpacpi_add_irqresource(struct pnp_dev *dev, struct resource *r)
 }
 
 /*
- * Device CSRs that do not appear in PCI config space should be described
- * via ACPI.  This would normally be done with Address Space Descriptors
- * marked as "consumer-only," but old versions of Windows and Linux ignore
+ * Device CSRs that do yest appear in PCI config space should be described
+ * via ACPI.  This would yesrmally be done with Address Space Descriptors
+ * marked as "consumer-only," but old versions of Windows and Linux igyesre
  * the producer/consumer flag, so HP invented a vendor-defined resource to
  * describe the location and size of CSR space.
  */
@@ -255,11 +255,11 @@ static acpi_status pnpacpi_allocated_resource(struct acpi_resource *res,
 		break;
 
 	case ACPI_RESOURCE_TYPE_SERIAL_BUS:
-		/* serial bus connections (I2C/SPI/UART) are not pnp */
+		/* serial bus connections (I2C/SPI/UART) are yest pnp */
 		break;
 
 	default:
-		dev_warn(&dev->dev, "unknown resource type %d in _CRS\n",
+		dev_warn(&dev->dev, "unkyeswn resource type %d in _CRS\n",
 			 res->type);
 		return AE_ERROR;
 	}
@@ -334,7 +334,7 @@ static __init void pnpacpi_parse_ext_irq_option(struct pnp_dev *dev,
 				__set_bit(p->interrupts[i], map.bits);
 			else
 				dev_err(&dev->dev,
-					"ignoring IRQ %d option (too large for %d entry bitmap)\n",
+					"igyesring IRQ %d option (too large for %d entry bitmap)\n",
 					p->interrupts[i], PNP_IRQ_NR);
 		}
 	}
@@ -538,7 +538,7 @@ static __init acpi_status pnpacpi_option_resource(struct acpi_resource *res,
 		break;
 
 	default:
-		dev_warn(&dev->dev, "unknown resource type %d in _PRS\n",
+		dev_warn(&dev->dev, "unkyeswn resource type %d in _PRS\n",
 			 res->type);
 		return AE_ERROR;
 	}
@@ -648,7 +648,7 @@ int pnpacpi_build_resource_template(struct pnp_dev *dev,
 		dev_err(&dev->dev, "can't evaluate _CRS: %d\n", status);
 		return -EINVAL;
 	}
-	/* resource will pointer the end resource now */
+	/* resource will pointer the end resource yesw */
 	resource->type = ACPI_RESOURCE_TYPE_END_TAG;
 	resource->length = sizeof(struct acpi_resource);
 
@@ -936,7 +936,7 @@ int pnpacpi_encode_resources(struct pnp_dev *dev, struct acpi_buffer *buffer)
 		case ACPI_RESOURCE_TYPE_GENERIC_REGISTER:
 		default:	/* other type */
 			dev_warn(&dev->dev,
-				 "can't encode unknown resource type %d\n",
+				 "can't encode unkyeswn resource type %d\n",
 				 resource->type);
 			return -EINVAL;
 		}

@@ -13,9 +13,9 @@
  * are met:
  *
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
+ *    yestice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
  *
@@ -55,7 +55,7 @@
 #include <asm/netlogic/xlr/pic.h>
 #include <asm/netlogic/xlr/xlr.h>
 #else
-#error "Unknown CPU"
+#error "Unkyeswn CPU"
 #endif
 
 void nlm_send_ipi_single(int logical_cpu, unsigned int action)
@@ -63,9 +63,9 @@ void nlm_send_ipi_single(int logical_cpu, unsigned int action)
 	unsigned int hwtid;
 	uint64_t picbase;
 
-	/* node id is part of hwtid, and needed for send_ipi */
+	/* yesde id is part of hwtid, and needed for send_ipi */
 	hwtid = cpu_logical_map(logical_cpu);
-	picbase = nlm_get_node(nlm_hwtid_to_node(hwtid))->picbase;
+	picbase = nlm_get_yesde(nlm_hwtid_to_yesde(hwtid))->picbase;
 
 	if (action & SMP_CALL_FUNCTION)
 		nlm_pic_send_ipi(picbase, hwtid, IRQ_IPI_SMP_FUNCTION, 0);
@@ -111,7 +111,7 @@ void nlm_early_init_secondary(int cpu)
 #ifdef CONFIG_CPU_XLP
 	xlp_mmu_init();
 #endif
-	write_c0_ebase(nlm_current_node()->ebase);
+	write_c0_ebase(nlm_current_yesde()->ebase);
 }
 
 /*
@@ -123,7 +123,7 @@ static void nlm_init_secondary(void)
 
 	hwtid = hard_smp_processor_id();
 	cpu_set_core(&current_cpu_data, hwtid / NLM_THREADS_PER_CORE);
-	current_cpu_data.package = nlm_nodeid();
+	current_cpu_data.package = nlm_yesdeid();
 	nlm_percpu_init(hwtid);
 	nlm_smp_irq_init(hwtid);
 }
@@ -153,7 +153,7 @@ int nlm_boot_secondary(int logical_cpu, struct task_struct *idle)
 	int hwtid;
 
 	hwtid = cpu_logical_map(logical_cpu);
-	picbase = nlm_get_node(nlm_hwtid_to_node(hwtid))->picbase;
+	picbase = nlm_get_yesde(nlm_hwtid_to_yesde(hwtid))->picbase;
 
 	nlm_next_sp = (unsigned long)__KSTK_TOS(idle);
 	nlm_next_gp = (unsigned long)task_thread_info(idle);
@@ -168,7 +168,7 @@ int nlm_boot_secondary(int logical_cpu, struct task_struct *idle)
 void __init nlm_smp_setup(void)
 {
 	unsigned int boot_cpu;
-	int num_cpus, i, ncore, node;
+	int num_cpus, i, ncore, yesde;
 	volatile u32 *cpu_ready = nlm_get_boot_data(BOOT_CPU_READY);
 
 	boot_cpu = hard_smp_processor_id();
@@ -182,7 +182,7 @@ void __init nlm_smp_setup(void)
 	num_cpus = 1;
 	for (i = 0; i < NR_CPUS; i++) {
 		/*
-		 * cpu_ready array is not set for the boot_cpu,
+		 * cpu_ready array is yest set for the boot_cpu,
 		 * it is only set for ASPs (see smpboot.S)
 		 */
 		if (cpu_ready[i]) {
@@ -190,8 +190,8 @@ void __init nlm_smp_setup(void)
 			__cpu_number_map[i] = num_cpus;
 			__cpu_logical_map[num_cpus] = i;
 			set_cpu_possible(num_cpus, true);
-			node = nlm_hwtid_to_node(i);
-			cpumask_set_cpu(num_cpus, &nlm_get_node(node)->cpumask);
+			yesde = nlm_hwtid_to_yesde(i);
+			cpumask_set_cpu(num_cpus, &nlm_get_yesde(yesde)->cpumask);
 			++num_cpus;
 		}
 	}
@@ -203,7 +203,7 @@ void __init nlm_smp_setup(void)
 
 	/* check with the cores we have woken up */
 	for (ncore = 0, i = 0; i < NLM_NR_NODES; i++)
-		ncore += hweight32(nlm_get_node(i)->coremask);
+		ncore += hweight32(nlm_get_yesde(i)->coremask);
 
 	pr_info("Detected (%dc%dt) %d Slave CPU(s)\n", ncore,
 		nlm_threads_per_core, num_cpus);

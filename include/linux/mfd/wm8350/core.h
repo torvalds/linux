@@ -622,7 +622,7 @@ struct wm8350 {
  * @init: Function called during driver initialisation.  Should be
  *        used by the platform to configure GPIO functions and similar.
  * @irq_high: Set if WM8350 IRQ is active high.
- * @irq_base: Base IRQ for genirq (not currently used).
+ * @irq_base: Base IRQ for genirq (yest currently used).
  * @gpio_base: Base for gpiolib.
  */
 struct wm8350_platform_data {

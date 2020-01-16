@@ -29,7 +29,7 @@ config CRYPTO_FIPS
 	help
 	  This option enables the fips boot option which is
 	  required if you want the system to operate in a FIPS 200
-	  certification.  You should say no unless you know what
+	  certification.  You should say yes unless you kyesw what
 	  this is.
 
 config CRYPTO_ALGAPI
@@ -142,7 +142,7 @@ config CRYPTO_MANAGER_DISABLE_TESTS
 	bool "Disable run-time self tests"
 	default y
 	help
-	  Disable run-time self tests that normally take place at
+	  Disable run-time self tests that yesrmally take place at
 	  algorithm registration.
 
 config CRYPTO_MANAGER_EXTRA_TESTS
@@ -153,7 +153,7 @@ config CRYPTO_MANAGER_EXTRA_TESTS
 	  including randomized fuzz tests.
 
 	  This is intended for developer use only, as these tests take much
-	  longer to run than the normal self tests.
+	  longer to run than the yesrmal self tests.
 
 endif	# if CRYPTO_MANAGER2
 
@@ -164,7 +164,7 @@ config CRYPTO_NULL
 	tristate "Null algorithms"
 	select CRYPTO_NULL2
 	help
-	  These are 'Null' algorithms, used by IPsec, which do nothing.
+	  These are 'Null' algorithms, used by IPsec, which do yesthing.
 
 config CRYPTO_NULL2
 	tristate
@@ -188,9 +188,9 @@ config CRYPTO_CRYPTD
 	select CRYPTO_HASH
 	select CRYPTO_MANAGER
 	help
-	  This is a generic software asynchronous crypto daemon that
-	  converts an arbitrary synchronous software crypto algorithm
-	  into an asynchronous algorithm that executes in a kernel thread.
+	  This is a generic software asynchroyesus crypto daemon that
+	  converts an arbitrary synchroyesus software crypto algorithm
+	  into an asynchroyesus algorithm that executes in a kernel thread.
 
 config CRYPTO_AUTHENC
 	tristate "Authenc support"
@@ -410,7 +410,7 @@ config CRYPTO_LRW
 	select CRYPTO_MANAGER
 	select CRYPTO_GF128MUL
 	help
-	  LRW: Liskov Rivest Wagner, a tweakable, non malleable, non movable
+	  LRW: Liskov Rivest Wagner, a tweakable, yesn malleable, yesn movable
 	  narrow block cipher mode for dm-crypt.  Use it with cipher
 	  specification string aes-lrw-benbi, the key must be 256, 320 or 384.
 	  The first 128, 192 or 256 bits in the key are used for AES and the
@@ -421,12 +421,12 @@ config CRYPTO_OFB
 	select CRYPTO_SKCIPHER
 	select CRYPTO_MANAGER
 	help
-	  OFB: the Output Feedback mode makes a block cipher into a synchronous
+	  OFB: the Output Feedback mode makes a block cipher into a synchroyesus
 	  stream cipher. It generates keystream blocks, which are then XORed
 	  with the plaintext blocks to get the ciphertext. Flipping a bit in the
 	  ciphertext produces a flipped bit in the plaintext at the same
 	  location. This property allows many error correcting codes to function
-	  normally even when applied before encryption.
+	  yesrmally even when applied before encryption.
 
 config CRYPTO_PCBC
 	tristate "PCBC support"
@@ -444,7 +444,7 @@ config CRYPTO_XTS
 	help
 	  XTS: IEEE1619/D16 narrow block cipher use with aes-xts-plain,
 	  key size 256, 384 or 512 bits. This implementation currently
-	  can't handle a sectorsize which is not a multiple of 16 bytes.
+	  can't handle a sectorsize which is yest a multiple of 16 bytes.
 
 config CRYPTO_KEYWRAP
 	tristate "Key wrapping support"
@@ -494,7 +494,7 @@ config CRYPTO_ADIANTUM
 	  Adiantum's security is provably reducible to that of its
 	  underlying stream and block ciphers, subject to a security
 	  bound.  Unlike XTS, Adiantum is a true wide-block encryption
-	  mode, so it actually provides an even stronger notion of
+	  mode, so it actually provides an even stronger yestion of
 	  security than XTS, subject to the security bound.
 
 	  If unsure, say N.
@@ -519,11 +519,11 @@ config CRYPTO_ESSIV
 	  template, and that the IV appears at the end of the authenticated
 	  associated data (AAD) region (which is how dm-crypt uses it.)
 
-	  Note that the use of ESSIV is not recommended for new deployments,
+	  Note that the use of ESSIV is yest recommended for new deployments,
 	  and so this only needs to be enabled when interoperability with
 	  existing encrypted volumes of filesystems is required, or when
 	  building for a particular system that requires it (e.g., when
-	  the SoC in question has accelerated CBC but not XTS, making CBC
+	  the SoC in question has accelerated CBC but yest XTS, making CBC
 	  combined with ESSIV the only feasible mode for h/w accelerated
 	  block encryption)
 
@@ -535,7 +535,7 @@ config CRYPTO_CMAC
 	select CRYPTO_MANAGER
 	help
 	  Cipher-based Message Authentication Code (CMAC) specified by
-	  The National Institute of Standards and Technology (NIST).
+	  The National Institute of Standards and Techyeslogy (NIST).
 
 	  https://tools.ietf.org/html/rfc4493
 	  http://csrc.nist.gov/publications/nistpubs/800-38B/SP_800-38B.pdf
@@ -576,9 +576,9 @@ config CRYPTO_CRC32C
 	select CRYPTO_HASH
 	select CRC32
 	help
-	  Castagnoli, et al Cyclic Redundancy-Check Algorithm.  Used
+	  Castagyesli, et al Cyclic Redundancy-Check Algorithm.  Used
 	  by iSCSI for header and data digests and by others.
-	  See Castagnoli93.  Module will be crc32c.
+	  See Castagyesli93.  Module will be crc32c.
 
 config CRYPTO_CRC32C_INTEL
 	tristate "CRC32c INTEL hardware acceleration"
@@ -598,7 +598,7 @@ config CRYPTO_CRC32C_VPMSUM
 	select CRYPTO_HASH
 	select CRC32
 	help
-	  CRC32c algorithm implemented using vector polynomial multiply-sum
+	  CRC32c algorithm implemented using vector polyyesmial multiply-sum
 	  (vpmsum) instructions, introduced in POWER8. Enable on POWER8
 	  and newer processors for improved performance.
 
@@ -647,7 +647,7 @@ config CRYPTO_XXHASH
 	select CRYPTO_HASH
 	select XXHASH
 	help
-	  xxHash non-cryptographic hash algorithm. Extremely fast, working at
+	  xxHash yesn-cryptographic hash algorithm. Extremely fast, working at
 	  speeds close to RAM limits.
 
 config CRYPTO_BLAKE2B
@@ -715,7 +715,7 @@ config CRYPTO_CRCT10DIF_VPMSUM
 	depends on PPC64 && ALTIVEC && CRC_T10DIF
 	select CRYPTO_HASH
 	help
-	  CRC10T10DIF algorithm implemented using vector polynomial
+	  CRC10T10DIF algorithm implemented using vector polyyesmial
 	  multiply-sum (vpmsum) instructions, introduced in POWER8. Enable on
 	  POWER8 and newer processors for improved performance.
 
@@ -733,7 +733,7 @@ config CRYPTO_GHASH
 	select CRYPTO_HASH
 	help
 	  GHASH is the hash function used in GCM (Galois/Counter Mode).
-	  It is not a general-purpose cryptographic hash function.
+	  It is yest a general-purpose cryptographic hash function.
 
 config CRYPTO_POLY1305
 	tristate "Poly1305 authenticator algorithm"
@@ -808,7 +808,7 @@ config CRYPTO_MICHAEL_MIC
 	help
 	  Michael MIC is used for message integrity protection in TKIP
 	  (IEEE 802.11i). This algorithm is required for TKIP, but it
-	  should not be used for other purposes because of the weakness
+	  should yest be used for other purposes because of the weakness
 	  of the algorithm.
 
 config CRYPTO_RMD128
@@ -833,9 +833,9 @@ config CRYPTO_RMD160
 	  RIPEMD-160 is a 160-bit cryptographic hash function. It is intended
 	  to be used as a secure replacement for the 128-bit hash functions
 	  MD4, MD5 and it's predecessor RIPEMD
-	  (not to be confused with RIPEMD-128).
+	  (yest to be confused with RIPEMD-128).
 
-	  It's speed is comparable to SHA1 and there are no known attacks
+	  It's speed is comparable to SHA1 and there are yes kyeswn attacks
 	  against RIPEMD-160.
 
 	  Developed by Hans Dobbertin, Antoon Bosselaers and Bart Preneel.
@@ -1015,7 +1015,7 @@ config CRYPTO_SHA3
 	  cryptographic sponge function family called Keccak.
 
 	  References:
-	  http://keccak.noekeon.org/
+	  http://keccak.yesekeon.org/
 
 config CRYPTO_SM3
 	tristate "SM3 digest algorithm"
@@ -1085,7 +1085,7 @@ config CRYPTO_AES
 
 	  Rijndael appears to be consistently a very good performer in
 	  both hardware and software across a wide range of computing
-	  environments regardless of its use in feedback or non-feedback
+	  environments regardless of its use in feedback or yesn-feedback
 	  modes. Its key setup time is excellent, and its key agility is
 	  good. Rijndael's very low memory requirements make it very well
 	  suited for restricted-space environments, in which it also
@@ -1132,7 +1132,7 @@ config CRYPTO_AES_NI_INTEL
 
 	  Rijndael appears to be consistently a very good performer in
 	  both hardware and software across a wide range of computing
-	  environments regardless of its use in feedback or non-feedback
+	  environments regardless of its use in feedback or yesn-feedback
 	  modes. Its key setup time is excellent, and its key agility is
 	  good. Rijndael's very low memory requirements make it very well
 	  suited for restricted-space environments, in which it also
@@ -1160,7 +1160,7 @@ config CRYPTO_AES_SPARC64
 
 	  Rijndael appears to be consistently a very good performer in
 	  both hardware and software across a wide range of computing
-	  environments regardless of its use in feedback or non-feedback
+	  environments regardless of its use in feedback or yesn-feedback
 	  modes. Its key setup time is excellent, and its key agility is
 	  good. Rijndael's very low memory requirements make it very well
 	  suited for restricted-space environments, in which it also
@@ -1185,7 +1185,7 @@ config CRYPTO_AES_PPC_SPE
 	  This module should only be used for low power (router) devices
 	  without hardware AES acceleration (e.g. caam crypto). It reduces the
 	  size of the AES tables from 16KB to 8KB + 256 bytes and mitigates
-	  timining attacks. Nevertheless it might be not as secure as other
+	  timining attacks. Nevertheless it might be yest as secure as other
 	  architecture specific assembler implementations that work on 1KB
 	  tables or 256 bytes S-boxes.
 
@@ -1212,7 +1212,7 @@ config CRYPTO_ARC4
 
 	  ARC4 is a stream cipher using keys ranging from 8 bits to 2048
 	  bits in length.  This algorithm is required for driver-based
-	  WEP, but it should not be for other purposes because of the
+	  WEP, but it should yest be for other purposes because of the
 	  weakness of the algorithm.
 
 config CRYPTO_BLOWFISH
@@ -1349,7 +1349,7 @@ config CRYPTO_CAST5
 	select CRYPTO_ALGAPI
 	select CRYPTO_CAST_COMMON
 	help
-	  The CAST5 encryption algorithm (synonymous with CAST-128) is
+	  The CAST5 encryption algorithm (syyesnymous with CAST-128) is
 	  described in RFC2144.
 
 config CRYPTO_CAST5_AVX_X86_64
@@ -1360,7 +1360,7 @@ config CRYPTO_CAST5_AVX_X86_64
 	select CRYPTO_CAST_COMMON
 	select CRYPTO_SIMD
 	help
-	  The CAST5 encryption algorithm (synonymous with CAST-128) is
+	  The CAST5 encryption algorithm (syyesnymous with CAST-128) is
 	  described in RFC2144.
 
 	  This module provides the Cast5 cipher algorithm that processes
@@ -1371,7 +1371,7 @@ config CRYPTO_CAST6
 	select CRYPTO_ALGAPI
 	select CRYPTO_CAST_COMMON
 	help
-	  The CAST6 encryption algorithm (synonymous with CAST-256) is
+	  The CAST6 encryption algorithm (syyesnymous with CAST-256) is
 	  described in RFC2612.
 
 config CRYPTO_CAST6_AVX_X86_64
@@ -1384,7 +1384,7 @@ config CRYPTO_CAST6_AVX_X86_64
 	select CRYPTO_SIMD
 	select CRYPTO_XTS
 	help
-	  The CAST6 encryption algorithm (synonymous with CAST-256) is
+	  The CAST6 encryption algorithm (syyesnymous with CAST-256) is
 	  described in RFC2612.
 
 	  This module provides the Cast6 cipher algorithm that processes
@@ -1465,7 +1465,7 @@ config CRYPTO_CHACHA20
 	  <http://cr.yp.to/chacha/chacha-20080128.pdf>
 
 	  XChaCha20 is the application of the XSalsa20 construction to ChaCha20
-	  rather than to Salsa20.  XChaCha20 extends ChaCha20's nonce length
+	  rather than to Salsa20.  XChaCha20 extends ChaCha20's yesnce length
 	  from 64 bits (or 96 bits using the RFC7539 convention) to 192 bits,
 	  while provably retaining ChaCha20's security.  See also:
 	  <https://cr.yp.to/snuffle/xsalsa-20081128.pdf>
@@ -1840,8 +1840,8 @@ config CRYPTO_JITTERENTROPY
 	tristate "Jitterentropy Non-Deterministic Random Number Generator"
 	select CRYPTO_RNG
 	help
-	  The Jitterentropy RNG is a noise that is intended
-	  to provide seed to another RNG. The RNG does not
+	  The Jitterentropy RNG is a yesise that is intended
+	  to provide seed to ayesther RNG. The RNG does yest
 	  perform any cryptographic whitening of the generated
 	  random numbers. This Jitterentropy RNG registers with
 	  the kernel crypto API and can be used by any caller.

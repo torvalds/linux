@@ -47,7 +47,7 @@ struct panel_desc {
 	unsigned int power_down_delay;
 };
 
-struct innolux_panel {
+struct inyeslux_panel {
 	struct drm_panel base;
 	struct mipi_dsi_device *link;
 	const struct panel_desc *desc;
@@ -60,95 +60,95 @@ struct innolux_panel {
 	bool enabled;
 };
 
-static inline struct innolux_panel *to_innolux_panel(struct drm_panel *panel)
+static inline struct inyeslux_panel *to_inyeslux_panel(struct drm_panel *panel)
 {
-	return container_of(panel, struct innolux_panel, base);
+	return container_of(panel, struct inyeslux_panel, base);
 }
 
-static int innolux_panel_disable(struct drm_panel *panel)
+static int inyeslux_panel_disable(struct drm_panel *panel)
 {
-	struct innolux_panel *innolux = to_innolux_panel(panel);
+	struct inyeslux_panel *inyeslux = to_inyeslux_panel(panel);
 
-	if (!innolux->enabled)
+	if (!inyeslux->enabled)
 		return 0;
 
-	backlight_disable(innolux->backlight);
+	backlight_disable(inyeslux->backlight);
 
-	innolux->enabled = false;
+	inyeslux->enabled = false;
 
 	return 0;
 }
 
-static int innolux_panel_unprepare(struct drm_panel *panel)
+static int inyeslux_panel_unprepare(struct drm_panel *panel)
 {
-	struct innolux_panel *innolux = to_innolux_panel(panel);
+	struct inyeslux_panel *inyeslux = to_inyeslux_panel(panel);
 	int err;
 
-	if (!innolux->prepared)
+	if (!inyeslux->prepared)
 		return 0;
 
-	err = mipi_dsi_dcs_set_display_off(innolux->link);
+	err = mipi_dsi_dcs_set_display_off(inyeslux->link);
 	if (err < 0)
 		DRM_DEV_ERROR(panel->dev, "failed to set display off: %d\n",
 			      err);
 
-	err = mipi_dsi_dcs_enter_sleep_mode(innolux->link);
+	err = mipi_dsi_dcs_enter_sleep_mode(inyeslux->link);
 	if (err < 0) {
 		DRM_DEV_ERROR(panel->dev, "failed to enter sleep mode: %d\n",
 			      err);
 		return err;
 	}
 
-	if (innolux->desc->sleep_mode_delay)
-		msleep(innolux->desc->sleep_mode_delay);
+	if (inyeslux->desc->sleep_mode_delay)
+		msleep(inyeslux->desc->sleep_mode_delay);
 
-	gpiod_set_value_cansleep(innolux->enable_gpio, 0);
+	gpiod_set_value_cansleep(inyeslux->enable_gpio, 0);
 
-	if (innolux->desc->power_down_delay)
-		msleep(innolux->desc->power_down_delay);
+	if (inyeslux->desc->power_down_delay)
+		msleep(inyeslux->desc->power_down_delay);
 
-	err = regulator_bulk_disable(innolux->desc->num_supplies,
-				     innolux->supplies);
+	err = regulator_bulk_disable(inyeslux->desc->num_supplies,
+				     inyeslux->supplies);
 	if (err < 0)
 		return err;
 
-	innolux->prepared = false;
+	inyeslux->prepared = false;
 
 	return 0;
 }
 
-static int innolux_panel_prepare(struct drm_panel *panel)
+static int inyeslux_panel_prepare(struct drm_panel *panel)
 {
-	struct innolux_panel *innolux = to_innolux_panel(panel);
+	struct inyeslux_panel *inyeslux = to_inyeslux_panel(panel);
 	int err;
 
-	if (innolux->prepared)
+	if (inyeslux->prepared)
 		return 0;
 
-	gpiod_set_value_cansleep(innolux->enable_gpio, 0);
+	gpiod_set_value_cansleep(inyeslux->enable_gpio, 0);
 
-	err = regulator_bulk_enable(innolux->desc->num_supplies,
-				    innolux->supplies);
+	err = regulator_bulk_enable(inyeslux->desc->num_supplies,
+				    inyeslux->supplies);
 	if (err < 0)
 		return err;
 
 	/* p079zca: t2 (20ms), p097pfg: t4 (15ms) */
 	usleep_range(20000, 21000);
 
-	gpiod_set_value_cansleep(innolux->enable_gpio, 1);
+	gpiod_set_value_cansleep(inyeslux->enable_gpio, 1);
 
 	/* p079zca: t4, p097pfg: t5 */
 	usleep_range(20000, 21000);
 
-	if (innolux->desc->init_cmds) {
+	if (inyeslux->desc->init_cmds) {
 		const struct panel_init_cmd *cmds =
-					innolux->desc->init_cmds;
+					inyeslux->desc->init_cmds;
 		unsigned int i;
 
 		for (i = 0; cmds[i].len != 0; i++) {
 			const struct panel_init_cmd *cmd = &cmds[i];
 
-			err = mipi_dsi_generic_write(innolux->link, cmd->data,
+			err = mipi_dsi_generic_write(inyeslux->link, cmd->data,
 						     cmd->len);
 			if (err < 0) {
 				dev_err(panel->dev,
@@ -161,16 +161,16 @@ static int innolux_panel_prepare(struct drm_panel *panel)
 			 * (or at least, some delay), the panel sometimes
 			 * didn't appear to pick up the command sequence.
 			 */
-			err = mipi_dsi_dcs_nop(innolux->link);
+			err = mipi_dsi_dcs_yesp(inyeslux->link);
 			if (err < 0) {
 				dev_err(panel->dev,
-					"failed to send DCS nop: %d\n", err);
+					"failed to send DCS yesp: %d\n", err);
 				goto poweroff;
 			}
 		}
 	}
 
-	err = mipi_dsi_dcs_exit_sleep_mode(innolux->link);
+	err = mipi_dsi_dcs_exit_sleep_mode(inyeslux->link);
 	if (err < 0) {
 		DRM_DEV_ERROR(panel->dev, "failed to exit sleep mode: %d\n",
 			      err);
@@ -180,7 +180,7 @@ static int innolux_panel_prepare(struct drm_panel *panel)
 	/* T6: 120ms - 1000ms*/
 	msleep(120);
 
-	err = mipi_dsi_dcs_set_display_on(innolux->link);
+	err = mipi_dsi_dcs_set_display_on(inyeslux->link);
 	if (err < 0) {
 		DRM_DEV_ERROR(panel->dev, "failed to set display on: %d\n",
 			      err);
@@ -190,42 +190,42 @@ static int innolux_panel_prepare(struct drm_panel *panel)
 	/* T7: 5ms */
 	usleep_range(5000, 6000);
 
-	innolux->prepared = true;
+	inyeslux->prepared = true;
 
 	return 0;
 
 poweroff:
-	gpiod_set_value_cansleep(innolux->enable_gpio, 0);
-	regulator_bulk_disable(innolux->desc->num_supplies, innolux->supplies);
+	gpiod_set_value_cansleep(inyeslux->enable_gpio, 0);
+	regulator_bulk_disable(inyeslux->desc->num_supplies, inyeslux->supplies);
 
 	return err;
 }
 
-static int innolux_panel_enable(struct drm_panel *panel)
+static int inyeslux_panel_enable(struct drm_panel *panel)
 {
-	struct innolux_panel *innolux = to_innolux_panel(panel);
+	struct inyeslux_panel *inyeslux = to_inyeslux_panel(panel);
 	int ret;
 
-	if (innolux->enabled)
+	if (inyeslux->enabled)
 		return 0;
 
-	ret = backlight_enable(innolux->backlight);
+	ret = backlight_enable(inyeslux->backlight);
 	if (ret) {
 		DRM_DEV_ERROR(panel->drm->dev,
 			      "Failed to enable backlight %d\n", ret);
 		return ret;
 	}
 
-	innolux->enabled = true;
+	inyeslux->enabled = true;
 
 	return 0;
 }
 
-static const char * const innolux_p079zca_supply_names[] = {
+static const char * const inyeslux_p079zca_supply_names[] = {
 	"power",
 };
 
-static const struct drm_display_mode innolux_p079zca_mode = {
+static const struct drm_display_mode inyeslux_p079zca_mode = {
 	.clock = 56900,
 	.hdisplay = 768,
 	.hsync_start = 768 + 40,
@@ -238,8 +238,8 @@ static const struct drm_display_mode innolux_p079zca_mode = {
 	.vrefresh = 60,
 };
 
-static const struct panel_desc innolux_p079zca_panel_desc = {
-	.mode = &innolux_p079zca_mode,
+static const struct panel_desc inyeslux_p079zca_panel_desc = {
+	.mode = &inyeslux_p079zca_mode,
 	.bpc = 8,
 	.size = {
 		.width = 120,
@@ -249,17 +249,17 @@ static const struct panel_desc innolux_p079zca_panel_desc = {
 		 MIPI_DSI_MODE_LPM,
 	.format = MIPI_DSI_FMT_RGB888,
 	.lanes = 4,
-	.supply_names = innolux_p079zca_supply_names,
-	.num_supplies = ARRAY_SIZE(innolux_p079zca_supply_names),
+	.supply_names = inyeslux_p079zca_supply_names,
+	.num_supplies = ARRAY_SIZE(inyeslux_p079zca_supply_names),
 	.power_down_delay = 80, /* T8: 80ms - 1000ms */
 };
 
-static const char * const innolux_p097pfg_supply_names[] = {
+static const char * const inyeslux_p097pfg_supply_names[] = {
 	"avdd",
 	"avee",
 };
 
-static const struct drm_display_mode innolux_p097pfg_mode = {
+static const struct drm_display_mode inyeslux_p097pfg_mode = {
 	.clock = 229000,
 	.hdisplay = 1536,
 	.hsync_start = 1536 + 100,
@@ -277,7 +277,7 @@ static const struct drm_display_mode innolux_p097pfg_mode = {
  * https://chromium-review.googlesource.com/c/chromiumos/third_party/coreboot/+/892065/
  * so the init sequence stems from a register dump of a working panel.
  */
-static const struct panel_init_cmd innolux_p097pfg_init_cmds[] = {
+static const struct panel_init_cmd inyeslux_p097pfg_init_cmds[] = {
 	/* page 0 */
 	_INIT_CMD(0xF0, 0x55, 0xAA, 0x52, 0x08, 0x00),
 	_INIT_CMD(0xB1, 0xE8, 0x11),
@@ -386,8 +386,8 @@ static const struct panel_init_cmd innolux_p097pfg_init_cmds[] = {
 	{},
 };
 
-static const struct panel_desc innolux_p097pfg_panel_desc = {
-	.mode = &innolux_p097pfg_mode,
+static const struct panel_desc inyeslux_p097pfg_panel_desc = {
+	.mode = &inyeslux_p097pfg_mode,
 	.bpc = 8,
 	.size = {
 		.width = 147,
@@ -396,17 +396,17 @@ static const struct panel_desc innolux_p097pfg_panel_desc = {
 	.flags = MIPI_DSI_MODE_VIDEO | MIPI_DSI_MODE_VIDEO_SYNC_PULSE |
 		 MIPI_DSI_MODE_LPM,
 	.format = MIPI_DSI_FMT_RGB888,
-	.init_cmds = innolux_p097pfg_init_cmds,
+	.init_cmds = inyeslux_p097pfg_init_cmds,
 	.lanes = 4,
-	.supply_names = innolux_p097pfg_supply_names,
-	.num_supplies = ARRAY_SIZE(innolux_p097pfg_supply_names),
+	.supply_names = inyeslux_p097pfg_supply_names,
+	.num_supplies = ARRAY_SIZE(inyeslux_p097pfg_supply_names),
 	.sleep_mode_delay = 100, /* T15 */
 };
 
-static int innolux_panel_get_modes(struct drm_panel *panel)
+static int inyeslux_panel_get_modes(struct drm_panel *panel)
 {
-	struct innolux_panel *innolux = to_innolux_panel(panel);
-	const struct drm_display_mode *m = innolux->desc->mode;
+	struct inyeslux_panel *inyeslux = to_inyeslux_panel(panel);
+	const struct drm_display_mode *m = inyeslux->desc->mode;
 	struct drm_display_mode *mode;
 
 	mode = drm_mode_duplicate(panel->drm, m);
@@ -421,91 +421,91 @@ static int innolux_panel_get_modes(struct drm_panel *panel)
 	drm_mode_probed_add(panel->connector, mode);
 
 	panel->connector->display_info.width_mm =
-			innolux->desc->size.width;
+			inyeslux->desc->size.width;
 	panel->connector->display_info.height_mm =
-			innolux->desc->size.height;
-	panel->connector->display_info.bpc = innolux->desc->bpc;
+			inyeslux->desc->size.height;
+	panel->connector->display_info.bpc = inyeslux->desc->bpc;
 
 	return 1;
 }
 
-static const struct drm_panel_funcs innolux_panel_funcs = {
-	.disable = innolux_panel_disable,
-	.unprepare = innolux_panel_unprepare,
-	.prepare = innolux_panel_prepare,
-	.enable = innolux_panel_enable,
-	.get_modes = innolux_panel_get_modes,
+static const struct drm_panel_funcs inyeslux_panel_funcs = {
+	.disable = inyeslux_panel_disable,
+	.unprepare = inyeslux_panel_unprepare,
+	.prepare = inyeslux_panel_prepare,
+	.enable = inyeslux_panel_enable,
+	.get_modes = inyeslux_panel_get_modes,
 };
 
-static const struct of_device_id innolux_of_match[] = {
-	{ .compatible = "innolux,p079zca",
-	  .data = &innolux_p079zca_panel_desc
+static const struct of_device_id inyeslux_of_match[] = {
+	{ .compatible = "inyeslux,p079zca",
+	  .data = &inyeslux_p079zca_panel_desc
 	},
-	{ .compatible = "innolux,p097pfg",
-	  .data = &innolux_p097pfg_panel_desc
+	{ .compatible = "inyeslux,p097pfg",
+	  .data = &inyeslux_p097pfg_panel_desc
 	},
 	{ }
 };
-MODULE_DEVICE_TABLE(of, innolux_of_match);
+MODULE_DEVICE_TABLE(of, inyeslux_of_match);
 
-static int innolux_panel_add(struct mipi_dsi_device *dsi,
+static int inyeslux_panel_add(struct mipi_dsi_device *dsi,
 			     const struct panel_desc *desc)
 {
-	struct innolux_panel *innolux;
+	struct inyeslux_panel *inyeslux;
 	struct device *dev = &dsi->dev;
 	int err, i;
 
-	innolux = devm_kzalloc(dev, sizeof(*innolux), GFP_KERNEL);
-	if (!innolux)
+	inyeslux = devm_kzalloc(dev, sizeof(*inyeslux), GFP_KERNEL);
+	if (!inyeslux)
 		return -ENOMEM;
 
-	innolux->desc = desc;
+	inyeslux->desc = desc;
 
-	innolux->supplies = devm_kcalloc(dev, desc->num_supplies,
-					 sizeof(*innolux->supplies),
+	inyeslux->supplies = devm_kcalloc(dev, desc->num_supplies,
+					 sizeof(*inyeslux->supplies),
 					 GFP_KERNEL);
-	if (!innolux->supplies)
+	if (!inyeslux->supplies)
 		return -ENOMEM;
 
 	for (i = 0; i < desc->num_supplies; i++)
-		innolux->supplies[i].supply = desc->supply_names[i];
+		inyeslux->supplies[i].supply = desc->supply_names[i];
 
 	err = devm_regulator_bulk_get(dev, desc->num_supplies,
-				      innolux->supplies);
+				      inyeslux->supplies);
 	if (err < 0)
 		return err;
 
-	innolux->enable_gpio = devm_gpiod_get_optional(dev, "enable",
+	inyeslux->enable_gpio = devm_gpiod_get_optional(dev, "enable",
 						       GPIOD_OUT_HIGH);
-	if (IS_ERR(innolux->enable_gpio)) {
-		err = PTR_ERR(innolux->enable_gpio);
+	if (IS_ERR(inyeslux->enable_gpio)) {
+		err = PTR_ERR(inyeslux->enable_gpio);
 		dev_dbg(dev, "failed to get enable gpio: %d\n", err);
-		innolux->enable_gpio = NULL;
+		inyeslux->enable_gpio = NULL;
 	}
 
-	innolux->backlight = devm_of_find_backlight(dev);
-	if (IS_ERR(innolux->backlight))
-		return PTR_ERR(innolux->backlight);
+	inyeslux->backlight = devm_of_find_backlight(dev);
+	if (IS_ERR(inyeslux->backlight))
+		return PTR_ERR(inyeslux->backlight);
 
-	drm_panel_init(&innolux->base, dev, &innolux_panel_funcs,
+	drm_panel_init(&inyeslux->base, dev, &inyeslux_panel_funcs,
 		       DRM_MODE_CONNECTOR_DSI);
 
-	err = drm_panel_add(&innolux->base);
+	err = drm_panel_add(&inyeslux->base);
 	if (err < 0)
 		return err;
 
-	mipi_dsi_set_drvdata(dsi, innolux);
-	innolux->link = dsi;
+	mipi_dsi_set_drvdata(dsi, inyeslux);
+	inyeslux->link = dsi;
 
 	return 0;
 }
 
-static void innolux_panel_del(struct innolux_panel *innolux)
+static void inyeslux_panel_del(struct inyeslux_panel *inyeslux)
 {
-	drm_panel_remove(&innolux->base);
+	drm_panel_remove(&inyeslux->base);
 }
 
-static int innolux_panel_probe(struct mipi_dsi_device *dsi)
+static int inyeslux_panel_probe(struct mipi_dsi_device *dsi)
 {
 	const struct panel_desc *desc;
 	int err;
@@ -515,24 +515,24 @@ static int innolux_panel_probe(struct mipi_dsi_device *dsi)
 	dsi->format = desc->format;
 	dsi->lanes = desc->lanes;
 
-	err = innolux_panel_add(dsi, desc);
+	err = inyeslux_panel_add(dsi, desc);
 	if (err < 0)
 		return err;
 
 	return mipi_dsi_attach(dsi);
 }
 
-static int innolux_panel_remove(struct mipi_dsi_device *dsi)
+static int inyeslux_panel_remove(struct mipi_dsi_device *dsi)
 {
-	struct innolux_panel *innolux = mipi_dsi_get_drvdata(dsi);
+	struct inyeslux_panel *inyeslux = mipi_dsi_get_drvdata(dsi);
 	int err;
 
-	err = innolux_panel_unprepare(&innolux->base);
+	err = inyeslux_panel_unprepare(&inyeslux->base);
 	if (err < 0)
 		DRM_DEV_ERROR(&dsi->dev, "failed to unprepare panel: %d\n",
 			      err);
 
-	err = innolux_panel_disable(&innolux->base);
+	err = inyeslux_panel_disable(&inyeslux->base);
 	if (err < 0)
 		DRM_DEV_ERROR(&dsi->dev, "failed to disable panel: %d\n", err);
 
@@ -541,31 +541,31 @@ static int innolux_panel_remove(struct mipi_dsi_device *dsi)
 		DRM_DEV_ERROR(&dsi->dev, "failed to detach from DSI host: %d\n",
 			      err);
 
-	innolux_panel_del(innolux);
+	inyeslux_panel_del(inyeslux);
 
 	return 0;
 }
 
-static void innolux_panel_shutdown(struct mipi_dsi_device *dsi)
+static void inyeslux_panel_shutdown(struct mipi_dsi_device *dsi)
 {
-	struct innolux_panel *innolux = mipi_dsi_get_drvdata(dsi);
+	struct inyeslux_panel *inyeslux = mipi_dsi_get_drvdata(dsi);
 
-	innolux_panel_unprepare(&innolux->base);
-	innolux_panel_disable(&innolux->base);
+	inyeslux_panel_unprepare(&inyeslux->base);
+	inyeslux_panel_disable(&inyeslux->base);
 }
 
-static struct mipi_dsi_driver innolux_panel_driver = {
+static struct mipi_dsi_driver inyeslux_panel_driver = {
 	.driver = {
-		.name = "panel-innolux-p079zca",
-		.of_match_table = innolux_of_match,
+		.name = "panel-inyeslux-p079zca",
+		.of_match_table = inyeslux_of_match,
 	},
-	.probe = innolux_panel_probe,
-	.remove = innolux_panel_remove,
-	.shutdown = innolux_panel_shutdown,
+	.probe = inyeslux_panel_probe,
+	.remove = inyeslux_panel_remove,
+	.shutdown = inyeslux_panel_shutdown,
 };
-module_mipi_dsi_driver(innolux_panel_driver);
+module_mipi_dsi_driver(inyeslux_panel_driver);
 
 MODULE_AUTHOR("Chris Zhong <zyw@rock-chips.com>");
 MODULE_AUTHOR("Lin Huang <hl@rock-chips.com>");
-MODULE_DESCRIPTION("Innolux P079ZCA panel driver");
+MODULE_DESCRIPTION("Inyeslux P079ZCA panel driver");
 MODULE_LICENSE("GPL v2");

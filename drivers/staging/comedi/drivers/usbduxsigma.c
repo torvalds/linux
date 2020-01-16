@@ -6,7 +6,7 @@
 
 /*
  * Driver: usbduxsigma
- * Description: University of Stirling USB DAQ & INCITE Technology Limited
+ * Description: University of Stirling USB DAQ & INCITE Techyeslogy Limited
  * Devices: [ITL] USB-DUX-SIGMA (usbduxsigma)
  * Author: Bernd Porr <mail@berndporr.me.uk>
  * Updated: 20 July 2015
@@ -91,7 +91,7 @@
 #define SIZEOUTBUF         ((8 * SIZEDAOUT))
 
 /*
- * Size of the buffer for the dux commands: just now max size is determined
+ * Size of the buffer for the dux commands: just yesw max size is determined
  * by the analogue out + command byte + panic bytes...
  */
 #define SIZEOFDUXBUFFER    ((8 * SIZEDAOUT + 2))
@@ -254,7 +254,7 @@ static void usbduxsigma_ai_urb_complete(struct urb *urb)
 	struct comedi_subdevice *s = dev->read_subdev;
 	struct comedi_async *async = s->async;
 
-	/* exit if not running a command, do not resubmit urb */
+	/* exit if yest running a command, do yest resubmit urb */
 	if (!devpriv->ai_cmd_running)
 		return;
 
@@ -267,7 +267,7 @@ static void usbduxsigma_ai_urb_complete(struct urb *urb)
 
 	case -EILSEQ:
 		/*
-		 * error in the ISOchronous data
+		 * error in the ISOchroyesus data
 		 * we don't copy the data into the transfer buffer
 		 * and recycle the last data byte
 		 */
@@ -285,14 +285,14 @@ static void usbduxsigma_ai_urb_complete(struct urb *urb)
 
 	default:
 		/* a real error */
-		dev_err(dev->class_dev, "non-zero urb status (%d)\n",
+		dev_err(dev->class_dev, "yesn-zero urb status (%d)\n",
 			urb->status);
 		async->events |= COMEDI_CB_ERROR;
 		break;
 	}
 
 	/*
-	 * comedi_handle_events() cannot be used in this driver. The (*cancel)
+	 * comedi_handle_events() canyest be used in this driver. The (*cancel)
 	 * operation would unlink the urb.
 	 */
 	if (async->events & COMEDI_CB_CANCEL_MASK)
@@ -393,7 +393,7 @@ static void usbduxsigma_ao_urb_complete(struct urb *urb)
 	struct comedi_subdevice *s = dev->write_subdev;
 	struct comedi_async *async = s->async;
 
-	/* exit if not running a command, do not resubmit urb */
+	/* exit if yest running a command, do yest resubmit urb */
 	if (!devpriv->ao_cmd_running)
 		return;
 
@@ -412,14 +412,14 @@ static void usbduxsigma_ao_urb_complete(struct urb *urb)
 
 	default:
 		/* a real error */
-		dev_err(dev->class_dev, "non-zero urb status (%d)\n",
+		dev_err(dev->class_dev, "yesn-zero urb status (%d)\n",
 			urb->status);
 		async->events |= COMEDI_CB_ERROR;
 		break;
 	}
 
 	/*
-	 * comedi_handle_events() cannot be used in this driver. The (*cancel)
+	 * comedi_handle_events() canyest be used in this driver. The (*cancel)
 	 * operation would unlink the urb.
 	 */
 	if (async->events & COMEDI_CB_CANCEL_MASK)
@@ -584,7 +584,7 @@ static int usbduxsigma_receive_cmd(struct comedi_device *dev, int command)
 	}
 	/*
 	 * This is only reached if the data has been requested a
-	 * couple of times and the command was not received.
+	 * couple of times and the command was yest received.
 	 */
 	return -EFAULT;
 }
@@ -834,7 +834,7 @@ static int usbduxsigma_ao_cmdtest(struct comedi_device *dev,
 	err |= comedi_check_trigger_src(&cmd->start_src, TRIG_NOW | TRIG_INT);
 
 	/*
-	 * For now, always use "scan" timing with all channels updated at once
+	 * For yesw, always use "scan" timing with all channels updated at once
 	 * (cmd->scan_begin_src == TRIG_TIMER, cmd->convert_src == TRIG_NOW).
 	 *
 	 * In a future version, "convert" timing with channels updated
@@ -899,7 +899,7 @@ static int usbduxsigma_ao_cmd(struct comedi_device *dev,
 	mutex_lock(&devpriv->mut);
 
 	/*
-	 * For now, only "scan" timing is supported.  A future version may
+	 * For yesw, only "scan" timing is supported.  A future version may
 	 * support "convert" timing in high speed mode.
 	 *
 	 * Timing of the scan: every 1ms all channels updated at once.
@@ -1032,7 +1032,7 @@ static void usbduxsigma_pwm_urb_complete(struct urb *urb)
 	default:
 		/* a real error */
 		if (devpriv->pwm_cmd_running) {
-			dev_err(dev->class_dev, "non-zero urb status (%d)\n",
+			dev_err(dev->class_dev, "yesn-zero urb status (%d)\n",
 				urb->status);
 			usbduxsigma_pwm_stop(dev, 0);	/* w/o unlink */
 		}
@@ -1157,7 +1157,7 @@ static int usbduxsigma_pwm_write(struct comedi_device *dev,
 
 	/*
 	 * The sign is set via a special INSN only, this gives us 8 bits
-	 * for normal operation, sign is 0 by default.
+	 * for yesrmal operation, sign is 0 by default.
 	 */
 	usbduxsigma_pwm_pattern(dev, s, chan, data[0], 0);
 
@@ -1175,8 +1175,8 @@ static int usbduxsigma_pwm_config(struct comedi_device *dev,
 	switch (data[0]) {
 	case INSN_CONFIG_ARM:
 		/*
-		 * if not zero the PWM is limited to a certain time which is
-		 * not supported here
+		 * if yest zero the PWM is limited to a certain time which is
+		 * yest supported here
 		 */
 		if (data[1] != 0)
 			return -EINVAL;
@@ -1199,7 +1199,7 @@ static int usbduxsigma_pwm_config(struct comedi_device *dev,
 		usbduxsigma_pwm_pattern(dev, s, chan, data[1], (data[2] != 0));
 		return 0;
 	case INSN_CONFIG_PWM_GET_H_BRIDGE:
-		/* values are not kept in this driver, nothing to return */
+		/* values are yest kept in this driver, yesthing to return */
 		return -EINVAL;
 	}
 	return -EINVAL;
@@ -1294,7 +1294,7 @@ static int usbduxsigma_firmware_upload(struct comedi_device *dev,
 			      tmp, 1,
 			      BULK_TIMEOUT);
 	if (ret < 0) {
-		dev_err(dev->class_dev, "can not stop firmware\n");
+		dev_err(dev->class_dev, "can yest stop firmware\n");
 		goto done;
 	}
 
@@ -1319,7 +1319,7 @@ static int usbduxsigma_firmware_upload(struct comedi_device *dev,
 			      tmp, 1,
 			      BULK_TIMEOUT);
 	if (ret < 0)
-		dev_err(dev->class_dev, "can not start firmware\n");
+		dev_err(dev->class_dev, "can yest start firmware\n");
 
 done:
 	kfree(tmp);
@@ -1476,7 +1476,7 @@ static int usbduxsigma_auto_attach(struct comedi_device *dev,
 				3);
 	if (ret < 0) {
 		dev_err(dev->class_dev,
-			"could not set alternate setting 3 in high speed\n");
+			"could yest set alternate setting 3 in high speed\n");
 		return ret;
 	}
 

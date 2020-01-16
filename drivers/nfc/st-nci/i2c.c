@@ -61,14 +61,14 @@ static void st_nci_i2c_disable(void *phy_id)
 {
 	struct st_nci_i2c_phy *phy = phy_id;
 
-	disable_irq_nosync(phy->i2c_dev->irq);
+	disable_irq_yessync(phy->i2c_dev->irq);
 	phy->irq_active = false;
 }
 
 /*
- * Writing a frame must not return the number of written bytes.
+ * Writing a frame must yest return the number of written bytes.
  * It must return either zero for success, or <0 for error.
- * In addition, it must not alter the skb
+ * In addition, it must yest alter the skb
  */
 static int st_nci_i2c_write(void *phy_id, struct sk_buff *skb)
 {
@@ -101,7 +101,7 @@ static int st_nci_i2c_write(void *phy_id, struct sk_buff *skb)
  * 0 : if received frame is complete
  * -EREMOTEIO : i2c read error (fatal)
  * -EBADMSG : frame was incorrect and discarded
- * -ENOMEM : cannot allocate skb, frame dropped
+ * -ENOMEM : canyest allocate skb, frame dropped
  */
 static int st_nci_i2c_read(struct st_nci_i2c_phy *phy,
 				 struct sk_buff **skb)

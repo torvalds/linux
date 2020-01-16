@@ -32,12 +32,12 @@ Required properties:
 		"renesas,sdhi-shmobile" - a generic sh-mobile SDHI controller
 		"renesas,rcar-gen1-sdhi" - a generic R-Car Gen1 SDHI controller
 		"renesas,rcar-gen2-sdhi" - a generic R-Car Gen2 and RZ/G1 SDHI
-					   (not SDHI/MMC) controller
+					   (yest SDHI/MMC) controller
 		"renesas,rcar-gen3-sdhi" - a generic R-Car Gen3 or RZ/G2
 					   SDHI controller
 
 
-		When compatible with the generic version, nodes must list
+		When compatible with the generic version, yesdes must list
 		the SoC-specific version corresponding to the platform
 		first followed by the generic version.
 
@@ -47,7 +47,7 @@ Required properties:
 	  separate second clock source to allow the main core clock to be turned
 	  off to save power.
 	  If 2 clocks are specified by the hardware, you must name them as
-	  "core" and "cd". If the controller only has 1 clock, naming is not
+	  "core" and "cd". If the controller only has 1 clock, naming is yest
 	  required.
 	  Devices which have more than 1 clock are listed below:
 	  2: R7S72100, R7S9210
@@ -57,7 +57,7 @@ Optional properties:
 - pinctrl-0: should contain default/high speed pin ctrl
 - pinctrl-1: should contain uhs mode pin ctrl
 
-Example: R8A7790 (R-Car H2) SDHI controller nodes
+Example: R8A7790 (R-Car H2) SDHI controller yesdes
 
 	sdhi0: sd@ee100000 {
 		compatible = "renesas,sdhi-r8a7790", "renesas,rcar-gen2-sdhi";

@@ -171,9 +171,9 @@ static int cy8ctmg110_probe(struct i2c_client *client,
 	struct input_dev *input_dev;
 	int err;
 
-	/* No pdata no way forward */
+	/* No pdata yes way forward */
 	if (pdata == NULL) {
-		dev_err(&client->dev, "no pdata\n");
+		dev_err(&client->dev, "yes pdata\n");
 		return -ENODEV;
 	}
 

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-1.0+ WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-1.0+ WITH Linux-syscall-yeste */
 /* r3964 linediscipline for linux
  *
  * -----------------------------------------------------------
@@ -81,7 +81,7 @@ enum {R3964_MSG_ACK=1, R3964_MSG_DATA };
 #define R3964_MAX_MSG_COUNT 32
 
 /* error codes for client messages */
-#define R3964_OK 0        /* no error. */
+#define R3964_OK 0        /* yes error. */
 #define R3964_TX_FAIL -1  /* transmission error, block NOT sent */
 #define R3964_OVERFLOW -2 /* msg queue overflow */
 

@@ -219,7 +219,7 @@ static int davinci_vcif_probe(struct platform_device *pdev)
 					      &davinci_vcif_component,
 					      &davinci_vcif_dai, 1);
 	if (ret != 0) {
-		dev_err(&pdev->dev, "could not register dai\n");
+		dev_err(&pdev->dev, "could yest register dai\n");
 		return ret;
 	}
 

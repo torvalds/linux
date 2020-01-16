@@ -168,7 +168,7 @@ static void freezer_attach(struct cgroup_taskset *tset)
 	 * revert it to FREEZING and let update_if_frozen() determine the
 	 * correct state later.
 	 *
-	 * Tasks in @tset are on @new_css but may not conform to its
+	 * Tasks in @tset are on @new_css but may yest conform to its
 	 * current state before executing the following - !frozen tasks may
 	 * be visible in a FROZEN cgroup and frozen tasks in a THAWED one.
 	 */
@@ -205,10 +205,10 @@ static void freezer_fork(struct task_struct *task)
 	struct freezer *freezer;
 
 	/*
-	 * The root cgroup is non-freezable, so we can skip locking the
+	 * The root cgroup is yesn-freezable, so we can skip locking the
 	 * freezer.  This is safe regardless of race with task migration.
 	 * If we didn't race or won, skipping is obviously the right thing
-	 * to do.  If we lost and root is the new cgroup, noop is still the
+	 * to do.  If we lost and root is the new cgroup, yesop is still the
 	 * right thing to do.
 	 */
 	if (task_css_is_root(task, freezer_cgrp_id))
@@ -230,7 +230,7 @@ static void freezer_fork(struct task_struct *task)
  * @css: css of interest
  *
  * Once FREEZING is initiated, transition to FROZEN is lazily updated by
- * calling this function.  If the current state is FREEZING but not FROZEN,
+ * calling this function.  If the current state is FREEZING but yest FROZEN,
  * this function checks whether all tasks of this cgroup and the descendant
  * cgroups finished freezing and, if so, sets FROZEN.
  *

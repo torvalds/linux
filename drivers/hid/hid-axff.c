@@ -71,14 +71,14 @@ static int axff_init(struct hid_device *hid)
 	int error;
 
 	if (list_empty(&hid->inputs)) {
-		hid_err(hid, "no inputs found\n");
+		hid_err(hid, "yes inputs found\n");
 		return -ENODEV;
 	}
 	hidinput = list_first_entry(&hid->inputs, struct hid_input, list);
 	dev = hidinput->input;
 
 	if (list_empty(report_list)) {
-		hid_err(hid, "no output reports found\n");
+		hid_err(hid, "yes output reports found\n");
 		return -ENODEV;
 	}
 
@@ -91,7 +91,7 @@ static int axff_init(struct hid_device *hid)
 	}
 
 	if (field_count < 4 && hid->product != 0xf705) {
-		hid_err(hid, "not enough fields in the report: %d\n",
+		hid_err(hid, "yest eyesugh fields in the report: %d\n",
 			field_count);
 		return -ENODEV;
 	}
@@ -145,7 +145,7 @@ static int ax_probe(struct hid_device *hdev, const struct hid_device_id *id)
 	error = axff_init(hdev);
 	if (error) {
 		/*
-		 * Do not fail device initialization completely as device
+		 * Do yest fail device initialization completely as device
 		 * may still be partially operable, just warn.
 		 */
 		hid_warn(hdev,

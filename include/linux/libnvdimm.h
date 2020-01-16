@@ -27,18 +27,18 @@ struct badrange {
 enum {
 	/* when a dimm supports both PMEM and BLK access a label is required */
 	NDD_ALIASING = 0,
-	/* unarmed memory devices may not persist writes */
+	/* unarmed memory devices may yest persist writes */
 	NDD_UNARMED = 1,
-	/* locked memory devices should not be accessed */
+	/* locked memory devices should yest be accessed */
 	NDD_LOCKED = 2,
-	/* memory under security wipes should not be accessed */
+	/* memory under security wipes should yest be accessed */
 	NDD_SECURITY_OVERWRITE = 3,
-	/*  tracking whether or not there is a pending device reference */
+	/*  tracking whether or yest there is a pending device reference */
 	NDD_WORK_PENDING = 4,
-	/* ignore / filter NSLABEL_FLAG_LOCAL for this DIMM, i.e. no aliasing */
+	/* igyesre / filter NSLABEL_FLAG_LOCAL for this DIMM, i.e. yes aliasing */
 	NDD_NOBLK = 5,
 
-	/* need to set a limit somewhere, but yes, this is likely overkill */
+	/* need to set a limit somewhere, but no, this is likely overkill */
 	ND_IOCTL_MAX_BUFLEN = SZ_4M,
 	ND_CMD_MAX_ELEM = 5,
 	ND_CMD_MAX_ENVELOPE = 256,
@@ -58,7 +58,7 @@ enum {
 	 */
 	ND_REGION_PERSIST_MEMCTRL = 2,
 
-	/* Platform provides asynchronous flush mechanism */
+	/* Platform provides asynchroyesus flush mechanism */
 	ND_REGION_ASYNC = 3,
 
 	/* mark newly adjusted resources as requiring a label update */
@@ -71,14 +71,14 @@ typedef int (*ndctl_fn)(struct nvdimm_bus_descriptor *nd_desc,
 		struct nvdimm *nvdimm, unsigned int cmd, void *buf,
 		unsigned int buf_len, int *cmd_rc);
 
-struct device_node;
+struct device_yesde;
 struct nvdimm_bus_descriptor {
 	const struct attribute_group **attr_groups;
 	unsigned long bus_dsm_mask;
 	unsigned long cmd_mask;
 	struct module *module;
 	char *provider_name;
-	struct device_node *of_node;
+	struct device_yesde *of_yesde;
 	ndctl_fn ndctl;
 	int (*flush_probe)(struct nvdimm_bus_descriptor *nd_desc);
 	int (*clear_to_send)(struct nvdimm_bus_descriptor *nd_desc,
@@ -119,10 +119,10 @@ struct nd_region_desc {
 	struct nd_interleave_set *nd_set;
 	void *provider_data;
 	int num_lanes;
-	int numa_node;
-	int target_node;
+	int numa_yesde;
+	int target_yesde;
 	unsigned long flags;
-	struct device_node *of_node;
+	struct device_yesde *of_yesde;
 	int (*flush)(struct nd_region *nd_region, struct bio *bio);
 };
 
@@ -155,7 +155,7 @@ static inline struct nd_blk_region_desc *to_blk_region_desc(
 
 /*
  * Note that separate bits for locked + unlocked are defined so that
- * 'flags == 0' corresponds to an error / not-supported state.
+ * 'flags == 0' corresponds to an error / yest-supported state.
  */
 enum nvdimm_security_bits {
 	NVDIMM_SECURITY_DISABLED,

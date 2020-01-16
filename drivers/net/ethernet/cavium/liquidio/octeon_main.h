@@ -30,7 +30,7 @@
 #elif BITS_PER_LONG == 64
 #define CVM_CAST64(v) ((long long)(long)(v))
 #else
-#error "Unknown system architecture"
+#error "Unkyeswn system architecture"
 #endif
 
 #define DRV_NAME "LiquidIO"
@@ -156,20 +156,20 @@ err_release_region:
 	    response of the request.
  *          0: the request will wait until its response gets back
  *	       from the firmware within LIO_SC_MAX_TMO_MS milli sec.
- *	       It the response does not return within
+ *	       It the response does yest return within
  *	       LIO_SC_MAX_TMO_MS milli sec, lio_process_ordered_list()
  *	       will move the request to zombie response list.
  *
  * return value:
  * 0: got the response from firmware for the sc request.
- * errno -EINTR: user abort the command.
- * errno -ETIME: user spefified timeout value has been expired.
- * errno -EBUSY: the response of the request does not return in
+ * erryes -EINTR: user abort the command.
+ * erryes -ETIME: user spefified timeout value has been expired.
+ * erryes -EBUSY: the response of the request does yest return in
  *               resonable time (LIO_SC_MAX_TMO_MS).
  *               the sc wll be move to zombie response list by
  *               lio_process_ordered_list()
  *
- * A request with non-zero return value, the sc->caller_is_done
+ * A request with yesn-zero return value, the sc->caller_is_done
  *  will be marked 1.
  * When getting a request with zero return value, the requestor
  *  should mark sc->caller_is_done with 1 after examing the
@@ -185,7 +185,7 @@ wait_for_sc_completion_timeout(struct octeon_device *oct_dev,
 			       struct octeon_soft_command *sc,
 			       unsigned long timeout)
 {
-	int errno = 0;
+	int erryes = 0;
 	long timeout_jiff;
 
 	if (timeout)
@@ -200,20 +200,20 @@ wait_for_sc_completion_timeout(struct octeon_device *oct_dev,
 		dev_err(&oct_dev->pci_dev->dev, "%s: sc is timeout\n",
 			__func__);
 		WRITE_ONCE(sc->caller_is_done, true);
-		errno = -ETIME;
+		erryes = -ETIME;
 	} else if (timeout_jiff == -ERESTARTSYS) {
 		dev_err(&oct_dev->pci_dev->dev, "%s: sc is interrupted\n",
 			__func__);
 		WRITE_ONCE(sc->caller_is_done, true);
-		errno = -EINTR;
+		erryes = -EINTR;
 	} else  if (sc->sc_status == OCTEON_REQUEST_TIMEOUT) {
 		dev_err(&oct_dev->pci_dev->dev, "%s: sc has fatal timeout\n",
 			__func__);
 		WRITE_ONCE(sc->caller_is_done, true);
-		errno = -EBUSY;
+		erryes = -EBUSY;
 	}
 
-	return errno;
+	return erryes;
 }
 
 #ifndef ROUNDUP4

@@ -45,7 +45,7 @@ void aq_ptp_hwtstamp_config_get(struct aq_ptp_s *aq_ptp,
 int aq_ptp_hwtstamp_config_set(struct aq_ptp_s *aq_ptp,
 			       struct hwtstamp_config *config);
 
-/* Return either ring is belong to PTP or not*/
+/* Return either ring is belong to PTP or yest*/
 bool aq_ptp_ring(struct aq_nic_s *aq_nic, struct aq_ring_s *ring);
 
 u16 aq_ptp_extract_ts(struct aq_nic_s *aq_nic, struct sk_buff *skb, u8 *p,

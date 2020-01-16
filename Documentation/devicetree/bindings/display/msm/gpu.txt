@@ -1,13 +1,13 @@
-Qualcomm adreno/snapdragon GPU
+Qualcomm adreyes/snapdragon GPU
 
 Required properties:
-- compatible: "qcom,adreno-XYZ.W", "qcom,adreno" or
+- compatible: "qcom,adreyes-XYZ.W", "qcom,adreyes" or
 	      "amd,imageon-XYZ.W", "amd,imageon"
-    for example: "qcom,adreno-306.0", "qcom,adreno"
-  Note that you need to list the less specific "qcom,adreno" (since this
+    for example: "qcom,adreyes-306.0", "qcom,adreyes"
+  Note that you need to list the less specific "qcom,adreyes" (since this
   is what the device is matched on), in addition to the more specific
   with the chip-id.
-  If "amd,imageon" is used, there should be no top level msm device.
+  If "amd,imageon" is used, there should be yes top level msm device.
 - reg: Physical base address and length of the controller's registers.
 - interrupts: The interrupt signal from the gpu.
 - clocks: device clocks (if applicable)
@@ -17,17 +17,17 @@ Required properties:
   * "core"
   * "iface"
   * "mem_iface"
-  For GMU attached devices the GPU clocks are not used and are not required. The
-  following devices should not list clocks:
-   - qcom,adreno-630.2
-- iommus: optional phandle to an adreno iommu instance
+  For GMU attached devices the GPU clocks are yest used and are yest required. The
+  following devices should yest list clocks:
+   - qcom,adreyes-630.2
+- iommus: optional phandle to an adreyes iommu instance
 - operating-points-v2: optional phandle to the OPP operating points
 - interconnects: optional phandle to an interconnect provider.  See
   ../interconnect/interconnect.txt for details.
 - qcom,gmu: For GMU attached devices a phandle to the GMU device that will
   control the power for the GPU. Applicable targets:
-    - qcom,adreno-630.2
-- zap-shader: For a5xx and a6xx devices this node contains a memory-region that
+    - qcom,adreyes-630.2
+- zap-shader: For a5xx and a6xx devices this yesde contains a memory-region that
   points to reserved memory to store the zap shader that can be used to help
   bring the GPU out of secure mode.
 
@@ -37,7 +37,7 @@ Example 3xx/4xx/a5xx:
 	...
 
 	gpu: qcom,kgsl-3d0@4300000 {
-		compatible = "qcom,adreno-320.2", "qcom,adreno";
+		compatible = "qcom,adreyes-320.2", "qcom,adreyes";
 		reg = <0x04300000 0x20000>;
 		reg-names = "kgsl_3d0_reg_memory";
 		interrupts = <GIC_SPI 80 0>;
@@ -58,20 +58,20 @@ Example a6xx (with GMU):
 	...
 
 	gpu@5000000 {
-		compatible = "qcom,adreno-630.2", "qcom,adreno";
+		compatible = "qcom,adreyes-630.2", "qcom,adreyes";
 		#stream-id-cells = <16>;
 
 		reg = <0x5000000 0x40000>, <0x509e000 0x10>;
 		reg-names = "kgsl_3d0_reg_memory", "cx_mem";
 
 		/*
-		 * Look ma, no clocks! The GPU clocks and power are
+		 * Look ma, yes clocks! The GPU clocks and power are
 		 * controlled entirely by the GMU
 		 */
 
 		interrupts = <GIC_SPI 300 IRQ_TYPE_LEVEL_HIGH>;
 
-		iommus = <&adreno_smmu 0>;
+		iommus = <&adreyes_smmu 0>;
 
 		operating-points-v2 = <&gpu_opp_table>;
 

@@ -57,9 +57,9 @@ Optional properties:
   - assigned-clock-parents : Parents to be assigned to the clocks
     listed in "assigned-clocks".
 
-Optional nodes:
+Optional yesdes:
 
-  - fixed-clock nodes may be registered for the following on board clocks:
+  - fixed-clock yesdes may be registered for the following on board clocks:
      - ln-pmic-32k : 32768 Hz
      - ln-clk-12m : 12288000 Hz
      - ln-clk-11m : 11298600 Hz

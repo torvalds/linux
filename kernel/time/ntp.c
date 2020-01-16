@@ -82,7 +82,7 @@ static long			time_adjust;
 /* constant (boot-param configurable) NTP tick adjustment (upscaled)	*/
 static s64			ntp_tick_adj;
 
-/* second value of the next pending leapsecond, or TIME64_MAX if no leap */
+/* second value of the next pending leapsecond, or TIME64_MAX if yes leap */
 static time64_t			ntp_next_leap_sec = TIME64_MAX;
 
 #ifdef CONFIG_NTP_PPS
@@ -151,7 +151,7 @@ static inline void pps_clear(void)
 	pps_freq = 0;
 }
 
-/* Decrease pps_valid to indicate that another second has passed since
+/* Decrease pps_valid to indicate that ayesther second has passed since
  * the last PPS signal. When it reaches 0, indicate that PPS signal is
  * missing.
  */
@@ -224,7 +224,7 @@ static inline int is_error_status(int status)
 
 static inline void pps_fill_timex(struct __kernel_timex *txc)
 {
-	/* PPS is not implemented, so these are zero */
+	/* PPS is yest implemented, so these are zero */
 	txc->ppsfreq	   = 0;
 	txc->jitter	   = 0;
 	txc->shift	   = 0;
@@ -239,7 +239,7 @@ static inline void pps_fill_timex(struct __kernel_timex *txc)
 
 
 /**
- * ntp_synced - Returns 1 if the NTP status is not UNSYNC
+ * ntp_synced - Returns 1 if the NTP status is yest UNSYNC
  *
  */
 static inline int ntp_synced(void)
@@ -375,7 +375,7 @@ u64 ntp_tick_length(void)
  * ntp_get_next_leap - Returns the next leapsecond in CLOCK_REALTIME ktime_t
  *
  * Provides the time of the next leapsecond against CLOCK_REALTIME in
- * a ktime_t format. Returns KTIME_MAX if no leapsecond is pending.
+ * a ktime_t format. Returns KTIME_MAX if yes leapsecond is pending.
  */
 ktime_t ntp_get_next_leap(void)
 {
@@ -497,7 +497,7 @@ out:
 static void sync_hw_clock(struct work_struct *work);
 static DECLARE_DELAYED_WORK(sync_work, sync_hw_clock);
 
-static void sched_sync_hw_clock(struct timespec64 now,
+static void sched_sync_hw_clock(struct timespec64 yesw,
 				unsigned long target_nsec, bool fail)
 
 {
@@ -532,15 +532,15 @@ static void sched_sync_hw_clock(struct timespec64 now,
 static void sync_rtc_clock(void)
 {
 	unsigned long target_nsec;
-	struct timespec64 adjust, now;
+	struct timespec64 adjust, yesw;
 	int rc;
 
 	if (!IS_ENABLED(CONFIG_RTC_SYSTOHC))
 		return;
 
-	ktime_get_real_ts64(&now);
+	ktime_get_real_ts64(&yesw);
 
-	adjust = now;
+	adjust = yesw;
 	if (persistent_clock_is_local)
 		adjust.tv_sec -= (sys_tz.tz_minuteswest * 60);
 
@@ -552,11 +552,11 @@ static void sync_rtc_clock(void)
 	if (rc == -ENODEV)
 		return;
 
-	sched_sync_hw_clock(now, target_nsec, rc);
+	sched_sync_hw_clock(yesw, target_nsec, rc);
 }
 
 #ifdef CONFIG_GENERIC_CMOS_UPDATE
-int __weak update_persistent_clock64(struct timespec64 now64)
+int __weak update_persistent_clock64(struct timespec64 yesw64)
 {
 	return -ENODEV;
 }
@@ -564,8 +564,8 @@ int __weak update_persistent_clock64(struct timespec64 now64)
 
 static bool sync_cmos_clock(void)
 {
-	static bool no_cmos;
-	struct timespec64 now;
+	static bool yes_cmos;
+	struct timespec64 yesw;
 	struct timespec64 adjust;
 	int rc = -EPROTO;
 	long target_nsec = NSEC_PER_SEC / 2;
@@ -573,7 +573,7 @@ static bool sync_cmos_clock(void)
 	if (!IS_ENABLED(CONFIG_GENERIC_CMOS_UPDATE))
 		return false;
 
-	if (no_cmos)
+	if (yes_cmos)
 		return false;
 
 	/*
@@ -581,25 +581,25 @@ static bool sync_cmos_clock(void)
 	 * semantics, which match the MC146818A/etc RTC. This RTC will store
 	 * 'adjust' and then in .5s it will advance once second.
 	 *
-	 * Architectures are strongly encouraged to use rtclib and not
+	 * Architectures are strongly encouraged to use rtclib and yest
 	 * implement this legacy API.
 	 */
-	ktime_get_real_ts64(&now);
-	if (rtc_tv_nsec_ok(-1 * target_nsec, &adjust, &now)) {
+	ktime_get_real_ts64(&yesw);
+	if (rtc_tv_nsec_ok(-1 * target_nsec, &adjust, &yesw)) {
 		if (persistent_clock_is_local)
 			adjust.tv_sec -= (sys_tz.tz_minuteswest * 60);
 		rc = update_persistent_clock64(adjust);
 		/*
-		 * The machine does not support update_persistent_clock64 even
+		 * The machine does yest support update_persistent_clock64 even
 		 * though it defines CONFIG_GENERIC_CMOS_UPDATE.
 		 */
 		if (rc == -ENODEV) {
-			no_cmos = true;
+			yes_cmos = true;
 			return false;
 		}
 	}
 
-	sched_sync_hw_clock(now, target_nsec, rc);
+	sched_sync_hw_clock(yesw, target_nsec, rc);
 	return true;
 }
 
@@ -622,7 +622,7 @@ static void sync_hw_clock(struct work_struct *work)
 	sync_rtc_clock();
 }
 
-void ntp_notify_cmos_timer(void)
+void ntp_yestify_cmos_timer(void)
 {
 	if (!ntp_synced())
 		return;
@@ -799,30 +799,30 @@ int __do_adjtimex(struct __kernel_timex *txc, const struct timespec64 *ts,
 
 #ifdef	CONFIG_NTP_PPS
 
-/* actually struct pps_normtime is good old struct timespec, but it is
+/* actually struct pps_yesrmtime is good old struct timespec, but it is
  * semantically different (and it is the reason why it was invented):
- * pps_normtime.nsec has a range of ( -NSEC_PER_SEC / 2, NSEC_PER_SEC / 2 ]
+ * pps_yesrmtime.nsec has a range of ( -NSEC_PER_SEC / 2, NSEC_PER_SEC / 2 ]
  * while timespec.tv_nsec has a range of [0, NSEC_PER_SEC) */
-struct pps_normtime {
+struct pps_yesrmtime {
 	s64		sec;	/* seconds */
-	long		nsec;	/* nanoseconds */
+	long		nsec;	/* nayesseconds */
 };
 
-/* normalize the timestamp so that nsec is in the
+/* yesrmalize the timestamp so that nsec is in the
    ( -NSEC_PER_SEC / 2, NSEC_PER_SEC / 2 ] interval */
-static inline struct pps_normtime pps_normalize_ts(struct timespec64 ts)
+static inline struct pps_yesrmtime pps_yesrmalize_ts(struct timespec64 ts)
 {
-	struct pps_normtime norm = {
+	struct pps_yesrmtime yesrm = {
 		.sec = ts.tv_sec,
 		.nsec = ts.tv_nsec
 	};
 
-	if (norm.nsec > (NSEC_PER_SEC >> 1)) {
-		norm.nsec -= NSEC_PER_SEC;
-		norm.sec++;
+	if (yesrm.nsec > (NSEC_PER_SEC >> 1)) {
+		yesrm.nsec -= NSEC_PER_SEC;
+		yesrm.sec++;
 	}
 
-	return norm;
+	return yesrm;
 }
 
 /* get current phase correction and jitter */
@@ -881,19 +881,19 @@ static inline void pps_inc_freq_interval(void)
  * too long, the data are discarded.
  * Returns the difference between old and new frequency values.
  */
-static long hardpps_update_freq(struct pps_normtime freq_norm)
+static long hardpps_update_freq(struct pps_yesrmtime freq_yesrm)
 {
 	long delta, delta_mod;
 	s64 ftemp;
 
 	/* check if the frequency interval was too long */
-	if (freq_norm.sec > (2 << pps_shift)) {
+	if (freq_yesrm.sec > (2 << pps_shift)) {
 		time_status |= STA_PPSERROR;
 		pps_errcnt++;
 		pps_dec_freq_interval();
 		printk_deferred(KERN_ERR
 			"hardpps: PPSERROR: interval too long - %lld s\n",
-			freq_norm.sec);
+			freq_yesrm.sec);
 		return 0;
 	}
 
@@ -901,8 +901,8 @@ static long hardpps_update_freq(struct pps_normtime freq_norm)
 	 * calculated. If the wander is less than the wander threshold
 	 * the interval is increased; otherwise it is decreased.
 	 */
-	ftemp = div_s64(((s64)(-freq_norm.nsec)) << NTP_SCALE_SHIFT,
-			freq_norm.sec);
+	ftemp = div_s64(((s64)(-freq_yesrm.nsec)) << NTP_SCALE_SHIFT,
+			freq_yesrm.sec);
 	delta = shift_right(ftemp - pps_freq, NTP_SCALE_SHIFT);
 	pps_freq = ftemp;
 	if (delta > PPS_MAXWANDER || delta < -PPS_MAXWANDER) {
@@ -946,7 +946,7 @@ static void hardpps_update_phase(long error)
 	pps_phase_filter_add(correction);
 	correction = pps_phase_filter_get(&jitter);
 
-	/* Nominal jitter is due to PPS signal noise. If it exceeds the
+	/* Nominal jitter is due to PPS signal yesise. If it exceeds the
 	 * threshold, the sample is discarded; otherwise, if so enabled,
 	 * the time offset is updated.
 	 */
@@ -976,14 +976,14 @@ static void hardpps_update_phase(long error)
  * is used to correct clock phase error and the latter is used to
  * correct the frequency.
  *
- * This code is based on David Mills's reference nanokernel
+ * This code is based on David Mills's reference nayeskernel
  * implementation. It was mostly rewritten but keeps the same idea.
  */
 void __hardpps(const struct timespec64 *phase_ts, const struct timespec64 *raw_ts)
 {
-	struct pps_normtime pts_norm, freq_norm;
+	struct pps_yesrmtime pts_yesrm, freq_yesrm;
 
-	pts_norm = pps_normalize_ts(*phase_ts);
+	pts_yesrm = pps_yesrmalize_ts(*phase_ts);
 
 	/* clear the error bits, they will be set again if needed */
 	time_status &= ~(STA_PPSJITTER | STA_PPSWANDER | STA_PPSERROR);
@@ -999,14 +999,14 @@ void __hardpps(const struct timespec64 *phase_ts, const struct timespec64 *raw_t
 		return;
 	}
 
-	/* ok, now we have a base for frequency calculation */
-	freq_norm = pps_normalize_ts(timespec64_sub(*raw_ts, pps_fbase));
+	/* ok, yesw we have a base for frequency calculation */
+	freq_yesrm = pps_yesrmalize_ts(timespec64_sub(*raw_ts, pps_fbase));
 
 	/* check that the signal is in the range
 	 * [1s - MAXFREQ us, 1s + MAXFREQ us], otherwise reject it */
-	if ((freq_norm.sec == 0) ||
-			(freq_norm.nsec > MAXFREQ * freq_norm.sec) ||
-			(freq_norm.nsec < -MAXFREQ * freq_norm.sec)) {
+	if ((freq_yesrm.sec == 0) ||
+			(freq_yesrm.nsec > MAXFREQ * freq_yesrm.sec) ||
+			(freq_yesrm.nsec < -MAXFREQ * freq_yesrm.sec)) {
 		time_status |= STA_PPSJITTER;
 		/* restart the frequency calibration interval */
 		pps_fbase = *raw_ts;
@@ -1017,14 +1017,14 @@ void __hardpps(const struct timespec64 *phase_ts, const struct timespec64 *raw_t
 	/* signal is ok */
 
 	/* check if the current frequency interval is finished */
-	if (freq_norm.sec >= (1 << pps_shift)) {
+	if (freq_yesrm.sec >= (1 << pps_shift)) {
 		pps_calcnt++;
 		/* restart the frequency calibration interval */
 		pps_fbase = *raw_ts;
-		hardpps_update_freq(freq_norm);
+		hardpps_update_freq(freq_yesrm);
 	}
 
-	hardpps_update_phase(pts_norm.nsec);
+	hardpps_update_phase(pts_yesrm.nsec);
 
 }
 #endif	/* CONFIG_NTP_PPS */

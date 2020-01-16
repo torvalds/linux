@@ -28,7 +28,7 @@ static int ftrace_modify_code(unsigned long pc, u32 old, u32 new,
 
 	/*
 	 * Note:
-	 * We are paranoid about modifying text, as if a bug were to happen, it
+	 * We are parayesid about modifying text, as if a bug were to happen, it
 	 * could cause us to read or write to someplace that could cause harm.
 	 * Carefully read and modify the code with aarch64_insn_*() which uses
 	 * probe_kernel_*(), and make sure what we read is what we expected it
@@ -41,7 +41,7 @@ static int ftrace_modify_code(unsigned long pc, u32 old, u32 new,
 		if (replaced != old)
 			return -EINVAL;
 	}
-	if (aarch64_insn_patch_text_nosync((void *)pc, new))
+	if (aarch64_insn_patch_text_yessync((void *)pc, new))
 		return -EPERM;
 
 	return 0;
@@ -110,14 +110,14 @@ int ftrace_make_call(struct dyn_ftrace *rec, unsigned long addr)
 
 		plt = get_ftrace_plt(mod, addr);
 		if (!plt) {
-			pr_err("ftrace: no module PLT for %ps\n", (void *)addr);
+			pr_err("ftrace: yes module PLT for %ps\n", (void *)addr);
 			return -EINVAL;
 		}
 
 		addr = (unsigned long)plt;
 	}
 
-	old = aarch64_insn_gen_nop();
+	old = aarch64_insn_gen_yesp();
 	new = aarch64_insn_gen_branch_imm(pc, addr, AARCH64_INSN_BRANCH_LINK);
 
 	return ftrace_modify_code(pc, old, new, true);
@@ -153,18 +153,18 @@ int ftrace_modify_call(struct dyn_ftrace *rec, unsigned long old_addr,
  * | NOP      | NOP        | BL <entry> |
  *
  * The LR value will be recovered by ftrace_regs_entry, and restored into LR
- * before returning to the regular function prologue. When a function is not
- * being traced, the MOV is not harmful given x9 is not live per the AAPCS.
+ * before returning to the regular function prologue. When a function is yest
+ * being traced, the MOV is yest harmful given x9 is yest live per the AAPCS.
  *
  * Note: ftrace_process_locs() has pre-adjusted rec->ip to be the address of
  * the BL.
  */
-int ftrace_init_nop(struct module *mod, struct dyn_ftrace *rec)
+int ftrace_init_yesp(struct module *mod, struct dyn_ftrace *rec)
 {
 	unsigned long pc = rec->ip - AARCH64_INSN_SIZE;
 	u32 old, new;
 
-	old = aarch64_insn_gen_nop();
+	old = aarch64_insn_gen_yesp();
 	new = aarch64_insn_gen_move_reg(AARCH64_INSN_REG_9,
 					AARCH64_INSN_REG_LR,
 					AARCH64_INSN_VARIANT_64BIT);
@@ -175,7 +175,7 @@ int ftrace_init_nop(struct module *mod, struct dyn_ftrace *rec)
 /*
  * Turn off the call to ftrace_caller() in instrumented function
  */
-int ftrace_make_nop(struct module *mod, struct dyn_ftrace *rec,
+int ftrace_make_yesp(struct module *mod, struct dyn_ftrace *rec,
 		    unsigned long addr)
 {
 	unsigned long pc = rec->ip;
@@ -206,7 +206,7 @@ int ftrace_make_nop(struct module *mod, struct dyn_ftrace *rec,
 		/*
 		 * The instruction we are about to patch may be a branch and
 		 * link instruction that was redirected via a PLT entry. In
-		 * this case, the normal validation will fail, but we can at
+		 * this case, the yesrmal validation will fail, but we can at
 		 * least check that we are dealing with a branch and link
 		 * instruction that points into the right module.
 		 */
@@ -224,7 +224,7 @@ int ftrace_make_nop(struct module *mod, struct dyn_ftrace *rec,
 						  AARCH64_INSN_BRANCH_LINK);
 	}
 
-	new = aarch64_insn_gen_nop();
+	new = aarch64_insn_gen_yesp();
 
 	return ftrace_modify_code(pc, old, new, validate);
 }
@@ -278,17 +278,17 @@ void prepare_ftrace_return(unsigned long self_addr, unsigned long *parent,
 static int ftrace_modify_graph_caller(bool enable)
 {
 	unsigned long pc = (unsigned long)&ftrace_graph_call;
-	u32 branch, nop;
+	u32 branch, yesp;
 
 	branch = aarch64_insn_gen_branch_imm(pc,
 					     (unsigned long)ftrace_graph_caller,
 					     AARCH64_INSN_BRANCH_NOLINK);
-	nop = aarch64_insn_gen_nop();
+	yesp = aarch64_insn_gen_yesp();
 
 	if (enable)
-		return ftrace_modify_code(pc, nop, branch, true);
+		return ftrace_modify_code(pc, yesp, branch, true);
 	else
-		return ftrace_modify_code(pc, branch, nop, true);
+		return ftrace_modify_code(pc, branch, yesp, true);
 }
 
 int ftrace_enable_ftrace_graph_caller(void)

@@ -21,7 +21,7 @@ fi
 
 # Burst greater than 1 are invalid for queue_xmit mode
 if [[ -n "$BURST" ]]; then
-    err 1 "Bursting not supported for this mode"
+    err 1 "Bursting yest supported for this mode"
 fi
 [ -z "$COUNT" ] && COUNT="10000000" # Zero means indefinitely
 if [ -n "$DEST_IP" ]; then

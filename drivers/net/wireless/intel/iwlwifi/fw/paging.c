@@ -39,12 +39,12 @@
  * are met:
  *
  *  * Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  *  * Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
+ *    yestice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
- *  * Neither the name Intel Corporation nor the names of its
+ *  * Neither the name Intel Corporation yesr the names of its
  *    contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
@@ -173,9 +173,9 @@ static int iwl_fill_paging_mem(struct iwl_fw_runtime *fwrt,
 	 * if CPU2 exist and it's in paging format, then the image looks like:
 	 * CPU1 sections (2 or more)
 	 * CPU1_CPU2_SEPARATOR_SECTION delimiter - separate between CPU1 to CPU2
-	 * CPU2 sections (not paged)
+	 * CPU2 sections (yest paged)
 	 * PAGING_SEPARATOR_SECTION delimiter - separate between CPU2
-	 * non paged to CPU2 paging sec
+	 * yesn paged to CPU2 paging sec
 	 * CPU2 paging CSS
 	 * CPU2 paging image (including instruction and data)
 	 */
@@ -246,7 +246,7 @@ static int iwl_fill_paging_mem(struct iwl_fw_runtime *fwrt,
 			}
 		} else if (block->fw_paging_size > remaining) {
 			IWL_ERR(fwrt,
-				"Paging: not enough data in other in block %d (%d)\n",
+				"Paging: yest eyesugh data in other in block %d (%d)\n",
 				idx, remaining);
 			ret = -EINVAL;
 			goto err;

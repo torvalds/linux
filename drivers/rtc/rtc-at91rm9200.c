@@ -122,7 +122,7 @@ static void at91_rtc_decodetime(unsigned int timereg, unsigned int calreg,
 	tm->tm_hour = bcd2bin((time & AT91_RTC_HOUR) >> 16);
 
 	/*
-	 * The Calendar Alarm register does not have a field for
+	 * The Calendar Alarm register does yest have a field for
 	 * the year - so these will return an invalid value.
 	 */
 	tm->tm_year  = bcd2bin(date & AT91_RTC_CENT) * 100;	/* century */
@@ -262,9 +262,9 @@ static int at91_rtc_proc(struct device *dev, struct seq_file *seq)
 	unsigned long imr = at91_rtc_read_imr();
 
 	seq_printf(seq, "update_IRQ\t: %s\n",
-			(imr & AT91_RTC_ACKUPD) ? "yes" : "no");
+			(imr & AT91_RTC_ACKUPD) ? "no" : "yes");
 	seq_printf(seq, "periodic_IRQ\t: %s\n",
-			(imr & AT91_RTC_SECEV) ? "yes" : "no");
+			(imr & AT91_RTC_SECEV) ? "no" : "yes");
 
 	return 0;
 }
@@ -356,7 +356,7 @@ static int __init at91_rtc_probe(struct platform_device *pdev)
 
 	regs = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!regs) {
-		dev_err(&pdev->dev, "no mmio resource defined\n");
+		dev_err(&pdev->dev, "yes mmio resource defined\n");
 		return -ENXIO;
 	}
 
@@ -382,7 +382,7 @@ static int __init at91_rtc_probe(struct platform_device *pdev)
 
 	ret = clk_prepare_enable(sclk);
 	if (ret) {
-		dev_err(&pdev->dev, "Could not enable slow clock\n");
+		dev_err(&pdev->dev, "Could yest enable slow clock\n");
 		return ret;
 	}
 

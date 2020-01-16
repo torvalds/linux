@@ -33,9 +33,9 @@ static void acpi_ut_free_gpe_lists(void);
  *
  * FUNCTION:    acpi_ut_free_gpe_lists
  *
- * PARAMETERS:  none
+ * PARAMETERS:  yesne
  *
- * RETURN:      none
+ * RETURN:      yesne
  *
  * DESCRIPTION: Free global GPE lists
  *
@@ -145,8 +145,8 @@ acpi_status acpi_ut_init_globals(void)
 
 	/* Global handlers */
 
-	acpi_gbl_global_notify[0].handler = NULL;
-	acpi_gbl_global_notify[1].handler = NULL;
+	acpi_gbl_global_yestify[0].handler = NULL;
+	acpi_gbl_global_yestify[1].handler = NULL;
 	acpi_gbl_exception_handler = NULL;
 	acpi_gbl_init_handler = NULL;
 	acpi_gbl_table_handler = NULL;
@@ -180,14 +180,14 @@ acpi_status acpi_ut_init_globals(void)
 
 	/* Namespace */
 
-	acpi_gbl_root_node = NULL;
-	acpi_gbl_root_node_struct.name.integer = ACPI_ROOT_NAME;
-	acpi_gbl_root_node_struct.descriptor_type = ACPI_DESC_TYPE_NAMED;
-	acpi_gbl_root_node_struct.type = ACPI_TYPE_DEVICE;
-	acpi_gbl_root_node_struct.parent = NULL;
-	acpi_gbl_root_node_struct.child = NULL;
-	acpi_gbl_root_node_struct.peer = NULL;
-	acpi_gbl_root_node_struct.object = NULL;
+	acpi_gbl_root_yesde = NULL;
+	acpi_gbl_root_yesde_struct.name.integer = ACPI_ROOT_NAME;
+	acpi_gbl_root_yesde_struct.descriptor_type = ACPI_DESC_TYPE_NAMED;
+	acpi_gbl_root_yesde_struct.type = ACPI_TYPE_DEVICE;
+	acpi_gbl_root_yesde_struct.parent = NULL;
+	acpi_gbl_root_yesde_struct.child = NULL;
+	acpi_gbl_root_yesde_struct.peer = NULL;
+	acpi_gbl_root_yesde_struct.object = NULL;
 
 #ifdef ACPI_DISASSEMBLER
 	acpi_gbl_external_list = NULL;
@@ -211,9 +211,9 @@ acpi_status acpi_ut_init_globals(void)
  *
  * FUNCTION:    acpi_ut_terminate
  *
- * PARAMETERS:  none
+ * PARAMETERS:  yesne
  *
- * RETURN:      none
+ * RETURN:      yesne
  *
  * DESCRIPTION: Free global memory
  *
@@ -236,7 +236,7 @@ static void acpi_ut_terminate(void)
  *
  * RETURN:      None
  *
- * DESCRIPTION: Shutdown the various components. Do not delete the mutex
+ * DESCRIPTION: Shutdown the various components. Do yest delete the mutex
  *              objects here, because the AML debugger may be still running.
  *
  ******************************************************************************/

@@ -1,12 +1,12 @@
 # SPDX-License-Identifier: GPL-2.0-only
 config DNOTIFY
-	bool "Dnotify support"
+	bool "Dyestify support"
 	select FSNOTIFY
 	default y
 	help
-	  Dnotify is a directory-based per-fd file change notification system
+	  Dyestify is a directory-based per-fd file change yestification system
 	  that uses signals to communicate events to user-space.  There exist
 	  superior alternatives, but some applications may still rely on
-	  dnotify.
+	  dyestify.
 
 	  If unsure, say Y.

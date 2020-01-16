@@ -165,7 +165,7 @@ static struct cpu_spec __initdata cpu_specs[] = {
 		.oprofile_type		= PPC_OPROFILE_POWER4,
 		.platform		= "ppc970",
 	},
-	{	/* PPC970MP DD1.0 - no DEEPNAP, use regular 970 init */
+	{	/* PPC970MP DD1.0 - yes DEEPNAP, use regular 970 init */
 		.pvr_mask		= 0xffffffff,
 		.pvr_value		= 0x00440100,
 		.cpu_name		= "PPC970MP",
@@ -868,7 +868,7 @@ static struct cpu_spec __initdata cpu_specs[] = {
 		.machine_check		= machine_check_generic,
 		.platform		= "ppc750",
 	},
-	{	/* 7400 rev 1.1 ? (no TAU) */
+	{	/* 7400 rev 1.1 ? (yes TAU) */
 		.pvr_mask		= 0xffffffff,
 		.pvr_value		= 0x000c1101,
 		.cpu_name		= "7400 (1.1)",
@@ -916,7 +916,7 @@ static struct cpu_spec __initdata cpu_specs[] = {
 		.machine_check		= machine_check_generic,
 		.platform		= "ppc7400",
 	},
-	{	/* 7450 2.0 - no doze/nap */
+	{	/* 7450 2.0 - yes doze/nap */
 		.pvr_mask		= 0xffffffff,
 		.pvr_value		= 0x80000200,
 		.cpu_name		= "7450",
@@ -1202,7 +1202,7 @@ static struct cpu_spec __initdata cpu_specs[] = {
 		.platform		= "ppc603",
 	},
 #endif
-	{	/* default match, we assume split I/D cache & TB (non-601)... */
+	{	/* default match, we assume split I/D cache & TB (yesn-601)... */
 		.pvr_mask		= 0x00000000,
 		.pvr_value		= 0x00000000,
 		.cpu_name		= "(generic PPC)",
@@ -2185,9 +2185,9 @@ static struct cpu_spec * __init setup_cpu_spec(unsigned long offset,
 		/*
 		 * If we have passed through this logic once before and
 		 * have pulled the default case because the real PVR was
-		 * not found inside cpu_specs[], then we are possibly
+		 * yest found inside cpu_specs[], then we are possibly
 		 * running in compatibility mode. In that case, let the
-		 * oprofiler know which set of compatibility counters to
+		 * oprofiler kyesw which set of compatibility counters to
 		 * pull from by making sure the oprofile_cpu_type string
 		 * is set to that of compatibility mode. If the
 		 * oprofile_cpu_type already has a value, then we are
@@ -2212,7 +2212,7 @@ static struct cpu_spec * __init setup_cpu_spec(unsigned long offset,
 
 #if defined(CONFIG_PPC64) || defined(CONFIG_BOOKE)
 	/* ppc64 and booke expect identify_cpu to also call setup_cpu for
-	 * that processor. I will consolidate that at a later time, for now,
+	 * that processor. I will consolidate that at a later time, for yesw,
 	 * just use #ifdef. We also don't need to PTRRELOC the function
 	 * pointer on ppc64 and booke as we are running at 0 in real mode
 	 * on ppc64 and reloc_offset is always 0 on booke.
@@ -2245,7 +2245,7 @@ struct cpu_spec * __init identify_cpu(unsigned long offset, unsigned int pvr)
 /*
  * Used by cpufeatures to get the name for CPUs with a PVR table.
  * If they don't hae a PVR table, cpufeatures gets the name from
- * cpu device-tree node.
+ * cpu device-tree yesde.
  */
 void __init identify_cpu_name(unsigned int pvr)
 {

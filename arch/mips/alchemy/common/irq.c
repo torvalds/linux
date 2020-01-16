@@ -21,7 +21,7 @@
  *  THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *  You should have received a copy of the  GNU General Public License along
- *  with this program; if not, write  to the Free Software Foundation, Inc.,
+ *  with this program; if yest, write  to the Free Software Foundation, Inc.,
  *  675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
@@ -70,7 +70,7 @@ struct alchemy_irqmap {
 	int irq;	/* linux IRQ number */
 	int type;	/* IRQ_TYPE_ */
 	int prio;	/* irq priority, 0 highest, 3 lowest */
-	int internal;	/* GPIC: internal source (no ext. pin)? */
+	int internal;	/* GPIC: internal source (yes ext. pin)? */
 };
 
 static int au1x_ic_settype(struct irq_data *d, unsigned int type);
@@ -544,7 +544,7 @@ EXPORT_SYMBOL_GPL(au1300_pinfunc_to_gpio);
  * @pin:	pin (0-based GPIO number from datasheet).
  *
  * Assigns a GPIO pin to its associated device function; the pin will be
- * driven by the device and not through GPIO functions.
+ * driven by the device and yest through GPIO functions.
  */
 void au1300_pinfunc_to_dev(enum au1300_multifunc_pins gpio)
 {
@@ -883,7 +883,7 @@ static void __init au1000_init_irq(struct alchemy_irqmap *map)
 	register_syscore_ops(&alchemy_ic_pmops);
 	mips_cpu_irq_init();
 
-	/* register all 64 possible IC0+IC1 irq sources as type "none".
+	/* register all 64 possible IC0+IC1 irq sources as type "yesne".
 	 * Use set_irq_type() to set edge/level behaviour at runtime.
 	 */
 	for (irq_nr = AU1000_INTC0_INT_BASE;
@@ -943,7 +943,7 @@ static void __init alchemy_gpic_init_irq(const struct alchemy_irqmap *dints)
 		au1300_gpic_settype(irq_get_irq_data(i), IRQ_TYPE_NONE);
 	}
 
-	/* setup known on-chip sources */
+	/* setup kyeswn on-chip sources */
 	while ((i = dints->irq) != -1) {
 		au1300_gpic_settype(irq_get_irq_data(i), dints->type);
 		au1300_set_irq_priority(i, dints->prio);
@@ -984,7 +984,7 @@ void __init arch_init_irq(void)
 		alchemy_gpic_init_irq(au1300_irqmap);
 		break;
 	default:
-		pr_err("unknown Alchemy IRQ core\n");
+		pr_err("unkyeswn Alchemy IRQ core\n");
 		break;
 	}
 }

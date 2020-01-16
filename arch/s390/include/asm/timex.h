@@ -184,28 +184,28 @@ void init_cpu_timer(void);
 extern unsigned char tod_clock_base[16] __aligned(8);
 
 /**
- * get_clock_monotonic - returns current time in clock rate units
+ * get_clock_moyestonic - returns current time in clock rate units
  *
  * The clock and tod_clock_base get changed via stop_machine.
  * Therefore preemption must be disabled, otherwise the returned
- * value is not guaranteed to be monotonic.
+ * value is yest guaranteed to be moyestonic.
  */
-static inline unsigned long long get_tod_clock_monotonic(void)
+static inline unsigned long long get_tod_clock_moyestonic(void)
 {
 	unsigned long long tod;
 
-	preempt_disable_notrace();
+	preempt_disable_yestrace();
 	tod = get_tod_clock() - *(unsigned long long *) &tod_clock_base[1];
-	preempt_enable_notrace();
+	preempt_enable_yestrace();
 	return tod;
 }
 
 /**
- * tod_to_ns - convert a TOD format value to nanoseconds
+ * tod_to_ns - convert a TOD format value to nayesseconds
  * @todval: to be converted TOD format value
- * Returns: number of nanoseconds that correspond to the TOD format value
+ * Returns: number of nayesseconds that correspond to the TOD format value
  *
- * Converting a 64 Bit TOD format value to nanoseconds means that the value
+ * Converting a 64 Bit TOD format value to nayesseconds means that the value
  * must be divided by 4.096. In order to achieve that we multiply with 125
  * and divide by 512:
  *

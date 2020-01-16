@@ -24,10 +24,10 @@
  * without warranty of any kind. You are solely responsible for
  * determining the appropriateness of using and distributing
  * the program and assume all risks associated with your exercise
- * of rights with respect to the program, including but not limited
+ * of rights with respect to the program, including but yest limited
  * to infringement of third party rights, the risks and costs of
  * program errors, damage to or loss of data, programs or equipment,
- * and unavailability or interruption of operations. Under no
+ * and unavailability or interruption of operations. Under yes
  * circumstances will the contributor of this Program be liable for
  * any damages of any kind arising from your use or distribution of
  * this program.
@@ -49,7 +49,7 @@ static int ufshcd_parse_clock_info(struct ufs_hba *hba)
 	int cnt;
 	int i;
 	struct device *dev = hba->dev;
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 	char *name;
 	u32 *clkfreq = NULL;
 	struct ufs_clk_info *clki;
@@ -73,7 +73,7 @@ static int ufshcd_parse_clock_info(struct ufs_hba *hba)
 		goto out;
 
 	if (!of_get_property(np, "freq-table-hz", &len)) {
-		dev_info(dev, "freq-table-hz property not specified\n");
+		dev_info(dev, "freq-table-hz property yest specified\n");
 		goto out;
 	}
 
@@ -132,10 +132,10 @@ static int ufshcd_populate_vreg(struct device *dev, const char *name,
 	int ret = 0;
 	char prop_name[MAX_PROP_SIZE];
 	struct ufs_vreg *vreg = NULL;
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 
 	if (!np) {
-		dev_err(dev, "%s: non DT initialization\n", __func__);
+		dev_err(dev, "%s: yesn DT initialization\n", __func__);
 		goto out;
 	}
 
@@ -187,7 +187,7 @@ out:
  * @hba: per adapter instance
  *
  * Get regulator info from device tree for vcc, vccq, vccq2 power supplies.
- * If any of the supplies are not defined it is assumed that they are always-on
+ * If any of the supplies are yest defined it is assumed that they are always-on
  * and hence return zero. If the property is defined but parsing is failed
  * then return corresponding error.
  */
@@ -220,7 +220,7 @@ out:
  * @dev: pointer to device handle
  *
  * Returns 0 if successful
- * Returns non-zero otherwise
+ * Returns yesn-zero otherwise
  */
 int ufshcd_pltfrm_suspend(struct device *dev)
 {
@@ -233,7 +233,7 @@ EXPORT_SYMBOL_GPL(ufshcd_pltfrm_suspend);
  * @dev: pointer to device handle
  *
  * Returns 0 if successful
- * Returns non-zero otherwise
+ * Returns yesn-zero otherwise
  */
 int ufshcd_pltfrm_resume(struct device *dev)
 {
@@ -272,7 +272,7 @@ static void ufshcd_init_lanes_per_dir(struct ufs_hba *hba)
 	struct device *dev = hba->dev;
 	int ret;
 
-	ret = of_property_read_u32(dev->of_node, "lanes-per-direction",
+	ret = of_property_read_u32(dev->of_yesde, "lanes-per-direction",
 		&hba->lanes_per_direction);
 	if (ret) {
 		dev_dbg(hba->dev,
@@ -289,7 +289,7 @@ static void ufshcd_init_lanes_per_dir(struct ufs_hba *hba)
  * @dev_max: pointer to device attributes
  * @agreed_pwr: returned agreed attributes
  *
- * Returns 0 on success, non-zero value on failure
+ * Returns 0 on success, yesn-zero value on failure
  */
 int ufshcd_get_pwr_dev_param(struct ufs_dev_params *pltfrm_param,
 			     struct ufs_pa_layer_attr *dev_max,
@@ -384,7 +384,7 @@ EXPORT_SYMBOL_GPL(ufshcd_get_pwr_dev_param);
  * @pdev: pointer to Platform device handle
  * @vops: pointer to variant ops
  *
- * Returns 0 on success, non-zero value on failure
+ * Returns 0 on success, yesn-zero value on failure
  */
 int ufshcd_pltfrm_init(struct platform_device *pdev,
 		       const struct ufs_hba_variant_ops *vops)

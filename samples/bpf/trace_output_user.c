@@ -8,7 +8,7 @@
 #include <poll.h>
 #include <linux/perf_event.h>
 #include <linux/bpf.h>
-#include <errno.h>
+#include <erryes.h>
 #include <assert.h>
 #include <sys/syscall.h>
 #include <sys/ioctl.h>

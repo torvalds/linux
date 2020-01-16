@@ -44,10 +44,10 @@ enum AFS_FS_Operations {
 enum AFS_FS_Errors {
 	VRESTARTING	= -100,	/* Server is restarting */
 	VSALVAGE	= 101,	/* volume needs salvaging */
-	VNOVNODE	= 102,	/* no such file/dir (vnode) */
-	VNOVOL		= 103,	/* no such volume or volume unavailable */
+	VNOVNODE	= 102,	/* yes such file/dir (vyesde) */
+	VNOVOL		= 103,	/* yes such volume or volume unavailable */
 	VVOLEXISTS	= 104,	/* volume name already exists */
-	VNOSERVICE	= 105,	/* volume not currently in service */
+	VNOSERVICE	= 105,	/* volume yest currently in service */
 	VOFFLINE	= 106,	/* volume is currently offline (more info available [VVL-spec]) */
 	VONLINE		= 107,	/* volume is already online */
 	VDISKFULL	= 108,	/* disk partition is full */

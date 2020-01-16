@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-#include <errno.h>
+#include <erryes.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -64,7 +64,7 @@ struct thread *thread__new(pid_t pid, pid_t tid)
 
 		list_add(&comm->list, &thread->comm_list);
 		refcount_set(&thread->refcnt, 1);
-		RB_CLEAR_NODE(&thread->rb_node);
+		RB_CLEAR_NODE(&thread->rb_yesde);
 		/* Thread holds first ref to nsdata. */
 		thread->nsinfo = nsinfo__new(pid);
 		srccode_state_init(&thread->srccode_state);
@@ -82,7 +82,7 @@ void thread__delete(struct thread *thread)
 	struct namespaces *namespaces, *tmp_namespaces;
 	struct comm *comm, *tmp_comm;
 
-	BUG_ON(!RB_EMPTY_NODE(&thread->rb_node));
+	BUG_ON(!RB_EMPTY_NODE(&thread->rb_yesde));
 
 	thread_stack__free(thread);
 
@@ -127,7 +127,7 @@ void thread__put(struct thread *thread)
 		 * Remove it from the dead threads list, as last reference is
 		 * gone, if it is in a dead threads list.
 		 *
-		 * We may not be there anymore if say, the machine where it was
+		 * We may yest be there anymore if say, the machine where it was
 		 * stored was already deleted, so we already removed it from
 		 * the dead threads and some other piece of code still keeps a
 		 * reference.
@@ -143,8 +143,8 @@ void thread__put(struct thread *thread)
 		 * if so, remove it before finally deleting the thread, to avoid
 		 * an use after free situation.
 		 */
-		if (!list_empty(&thread->node))
-			list_del_init(&thread->node);
+		if (!list_empty(&thread->yesde))
+			list_del_init(&thread->yesde);
 		thread__delete(thread);
 	}
 }
@@ -223,7 +223,7 @@ struct comm *thread__exec_comm(const struct thread *thread)
 	}
 
 	/*
-	 * 'last' with no start time might be the parent's comm of a synthesized
+	 * 'last' with yes start time might be the parent's comm of a synthesized
 	 * thread (created by processing a synthesized fork event). For a main
 	 * thread, that is very probably wrong. Prefer a later comm to avoid
 	 * that case.

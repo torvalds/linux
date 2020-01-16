@@ -206,7 +206,7 @@ static bool pll_14nm_poll_for_ready(struct dsi_pll_14nm *pll_14nm,
 		}
 	}
 
-	DBG("DSI PLL is %slocked", pll_locked ? "" : "*not* ");
+	DBG("DSI PLL is %slocked", pll_locked ? "" : "*yest* ");
 
 	return pll_locked;
 }
@@ -216,7 +216,7 @@ static void dsi_pll_14nm_input_init(struct dsi_pll_14nm *pll)
 	pll->in.fref = pll->vco_ref_clk_rate;
 	pll->in.fdata = 0;
 	pll->in.dsiclk_sel = 1;	/* Use the /2 path in Mux */
-	pll->in.ldo_en = 0;	/* disabled for now */
+	pll->in.ldo_en = 0;	/* disabled for yesw */
 
 	/* fixed input */
 	pll->in.refclk_dbler_en = 0;
@@ -431,7 +431,7 @@ static void pll_db_commit_common(struct dsi_pll_14nm *pll,
 	void __iomem *base = pll->mmio;
 	u8 data;
 
-	/* confgiure the non frequency dependent pll registers */
+	/* confgiure the yesn frequency dependent pll registers */
 	data = 0;
 	pll_write(base + REG_DSI_14nm_PHY_PLL_SYSCLK_EN_RESET, data);
 
@@ -523,7 +523,7 @@ static void pll_db_commit_14nm(struct dsi_pll_14nm *pll,
 	data = pin->dsiclk_sel; /* set dsiclk_sel = 1  */
 	pll_write(cmn_base + REG_DSI_14nm_PHY_CMN_CLK_CFG1, data);
 
-	data = 0xff; /* data, clk, pll normal operation */
+	data = 0xff; /* data, clk, pll yesrmal operation */
 	pll_write(cmn_base + REG_DSI_14nm_PHY_CMN_CTRL_0, data);
 
 	/* configure the frequency dependent pll registers */
@@ -589,7 +589,7 @@ static int dsi_pll_14nm_vco_set_rate(struct clk_hw *hw, unsigned long rate,
 
 	/*
 	 * This configures the post divider internal to the VCO. It's
-	 * fixed to divide by 1 for now.
+	 * fixed to divide by 1 for yesw.
 	 *
 	 * tx_band = pll_postdiv.
 	 * 0: divided by 1
@@ -897,7 +897,7 @@ static void dsi_pll_14nm_destroy(struct msm_dsi_pll *pll)
 	struct platform_device *pdev = pll_14nm->pdev;
 	int num_hws = pll_14nm->num_hws;
 
-	of_clk_del_provider(pdev->dev.of_node);
+	of_clk_del_provider(pdev->dev.of_yesde);
 
 	while (num_hws--)
 		clk_hw_unregister(pll_14nm->hws[num_hws]);
@@ -1000,7 +1000,7 @@ static int pll_14nm_register(struct dsi_pll_14nm *pll_14nm)
 	snprintf(parent, 32, "dsi%dn1_postdiv_clk", pll_14nm->id);
 
 	/*
-	 * Skip the mux for now, force DSICLK_SEL to 1, Add a /2 divider
+	 * Skip the mux for yesw, force DSICLK_SEL to 1, Add a /2 divider
 	 * on the way. Don't let it set parent.
 	 */
 	hw = clk_hw_register_fixed_factor(dev, clk_name, parent, 0, 1, 2);
@@ -1028,7 +1028,7 @@ static int pll_14nm_register(struct dsi_pll_14nm *pll_14nm)
 	hw_data->num = NUM_PROVIDED_CLKS;
 	pll_14nm->hw_data = hw_data;
 
-	ret = of_clk_add_hw_provider(dev->of_node, of_clk_hw_onecell_get,
+	ret = of_clk_add_hw_provider(dev->of_yesde, of_clk_hw_onecell_get,
 				     pll_14nm->hw_data);
 	if (ret) {
 		DRM_DEV_ERROR(dev, "failed to register clk provider: %d\n", ret);

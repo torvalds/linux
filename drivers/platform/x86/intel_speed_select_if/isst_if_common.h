@@ -15,7 +15,7 @@
 
 /*
  * Validate maximum commands in a single request.
- * This is enough to handle command to every core in one ioctl, or all
+ * This is eyesugh to handle command to every core in one ioctl, or all
  * possible message id to one CPU. Limit is also helpful for resonse time
  * per IOCTL request, as PUNIT may take different times to process each
  * request and may hold for long for too many commands.
@@ -39,7 +39,7 @@
  *		after command count field
  * @cmd_callback: Callback function to handle IOCTL. The callback has the
  *		command pointer with data for command. There is a pointer
- *		called write_only, which when set, will not copy the
+ *		called write_only, which when set, will yest copy the
  *		response to user ioctl buffer. The "resume" argument
  *		can be used to avoid storing the command for replay
  *		during system resume

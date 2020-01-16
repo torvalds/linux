@@ -534,7 +534,7 @@ static void mute_ac97_ctl(struct oxygen *chip, unsigned int control)
 		oxygen_write_ac97(chip, 0, priv_idx, value | 0x8000);
 		if (chip->model.ac97_switch)
 			chip->model.ac97_switch(chip, priv_idx, 0x8000);
-		snd_ctl_notify(chip->card, SNDRV_CTL_EVENT_MASK_VALUE,
+		snd_ctl_yestify(chip->card, SNDRV_CTL_EVENT_MASK_VALUE,
 			       &chip->controls[control]->id);
 	}
 }
@@ -729,7 +729,7 @@ static int ac97_fp_rec_volume_put(struct snd_kcontrol *ctl,
 #define AC97_SWITCH(xname, codec, index, bitnr, invert) { \
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER, \
 		.name = xname, \
-		.info = snd_ctl_boolean_mono_info, \
+		.info = snd_ctl_boolean_moyes_info, \
 		.get = ac97_switch_get, \
 		.put = ac97_switch_put, \
 		.private_value = ((codec) << 24) | ((invert) << 16) | \
@@ -763,7 +763,7 @@ static const struct snd_kcontrol_new controls[] = {
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 		.name = "Master Playback Switch",
-		.info = snd_ctl_boolean_mono_info,
+		.info = snd_ctl_boolean_moyes_info,
 		.get = dac_mute_get,
 		.put = dac_mute_put,
 	},
@@ -780,7 +780,7 @@ static const struct snd_kcontrol_new spdif_output_controls[] = {
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 		.name = SNDRV_CTL_NAME_IEC958("", PLAYBACK, SWITCH),
-		.info = snd_ctl_boolean_mono_info,
+		.info = snd_ctl_boolean_moyes_info,
 		.get = spdif_switch_get,
 		.put = spdif_switch_put,
 	},
@@ -832,7 +832,7 @@ static const struct snd_kcontrol_new spdif_input_controls[] = {
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 		.name = SNDRV_CTL_NAME_IEC958("Loopback ", NONE, SWITCH),
-		.info = snd_ctl_boolean_mono_info,
+		.info = snd_ctl_boolean_moyes_info,
 		.get = spdif_bit_switch_get,
 		.put = spdif_bit_switch_put,
 		.private_value = OXYGEN_SPDIF_LOOPBACK,
@@ -840,7 +840,7 @@ static const struct snd_kcontrol_new spdif_input_controls[] = {
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 		.name = SNDRV_CTL_NAME_IEC958("Validity Check ",CAPTURE,SWITCH),
-		.info = snd_ctl_boolean_mono_info,
+		.info = snd_ctl_boolean_moyes_info,
 		.get = spdif_bit_switch_get,
 		.put = spdif_bit_switch_put,
 		.private_value = OXYGEN_SPDIF_SPDVALID,
@@ -857,7 +857,7 @@ static const struct {
 			{
 				.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 				.name = "Analog Input Monitor Playback Switch",
-				.info = snd_ctl_boolean_mono_info,
+				.info = snd_ctl_boolean_moyes_info,
 				.get = monitor_get,
 				.put = monitor_put,
 				.private_value = OXYGEN_ADC_MONITOR_A,
@@ -882,7 +882,7 @@ static const struct {
 			{
 				.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 				.name = "Analog Input Monitor Playback Switch",
-				.info = snd_ctl_boolean_mono_info,
+				.info = snd_ctl_boolean_moyes_info,
 				.get = monitor_get,
 				.put = monitor_put,
 				.private_value = OXYGEN_ADC_MONITOR_B,
@@ -908,7 +908,7 @@ static const struct {
 				.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 				.name = "Analog Input Monitor Playback Switch",
 				.index = 1,
-				.info = snd_ctl_boolean_mono_info,
+				.info = snd_ctl_boolean_moyes_info,
 				.get = monitor_get,
 				.put = monitor_put,
 				.private_value = OXYGEN_ADC_MONITOR_B,
@@ -935,7 +935,7 @@ static const struct {
 				.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 				.name = "Analog Input Monitor Playback Switch",
 				.index = 2,
-				.info = snd_ctl_boolean_mono_info,
+				.info = snd_ctl_boolean_moyes_info,
 				.get = monitor_get,
 				.put = monitor_put,
 				.private_value = OXYGEN_ADC_MONITOR_C,
@@ -961,7 +961,7 @@ static const struct {
 			{
 				.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 				.name = "Digital Input Monitor Playback Switch",
-				.info = snd_ctl_boolean_mono_info,
+				.info = snd_ctl_boolean_moyes_info,
 				.get = monitor_get,
 				.put = monitor_put,
 				.private_value = OXYGEN_ADC_MONITOR_C,
@@ -1030,7 +1030,7 @@ static int add_controls(struct oxygen *chip,
 			const struct snd_kcontrol_new controls[],
 			unsigned int count)
 {
-	static const char *const known_ctl_names[CONTROL_COUNT] = {
+	static const char *const kyeswn_ctl_names[CONTROL_COUNT] = {
 		[CONTROL_SPDIF_PCM] =
 			SNDRV_CTL_NAME_IEC958("", PLAYBACK, PCM_STREAM),
 		[CONTROL_SPDIF_INPUT_BITS] =
@@ -1074,7 +1074,7 @@ static int add_controls(struct oxygen *chip,
 		err = snd_ctl_add(chip->card, ctl);
 		if (err < 0)
 			return err;
-		j = match_string(known_ctl_names, CONTROL_COUNT, ctl->id.name);
+		j = match_string(kyeswn_ctl_names, CONTROL_COUNT, ctl->id.name);
 		if (j >= 0) {
 			chip->controls[j] = ctl;
 			ctl->private_free = oxygen_any_ctl_free;

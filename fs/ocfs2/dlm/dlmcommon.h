@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /* -*- mode: c; c-basic-offset: 8; -*-
- * vim: noexpandtab sw=8 ts=8 sts=0:
+ * vim: yesexpandtab sw=8 ts=8 sts=0:
  *
  * dlmcommon.h
  *
@@ -42,7 +42,7 @@ enum dlm_mle_type {
 };
 
 struct dlm_master_list_entry {
-	struct hlist_node master_hash_node;
+	struct hlist_yesde master_hash_yesde;
 	struct list_head hb_events;
 	struct dlm_ctxt *dlm;
 	spinlock_t spinlock;
@@ -53,7 +53,7 @@ struct dlm_master_list_entry {
 	unsigned long maybe_map[BITS_TO_LONGS(O2NM_MAX_NODES)];
 	unsigned long vote_map[BITS_TO_LONGS(O2NM_MAX_NODES)];
 	unsigned long response_map[BITS_TO_LONGS(O2NM_MAX_NODES)];
-	unsigned long node_map[BITS_TO_LONGS(O2NM_MAX_NODES)];
+	unsigned long yesde_map[BITS_TO_LONGS(O2NM_MAX_NODES)];
 	u8 master;
 	u8 new_master;
 	enum dlm_mle_type type;
@@ -93,11 +93,11 @@ static inline int dlm_is_recovery_lock(const char *lock_name, int name_len)
 struct dlm_recovery_ctxt
 {
 	struct list_head resources;
-	struct list_head node_data;
+	struct list_head yesde_data;
 	u8  new_master;
-	u8  dead_node;
+	u8  dead_yesde;
 	u16 state;
-	unsigned long node_map[BITS_TO_LONGS(O2NM_MAX_NODES)];
+	unsigned long yesde_map[BITS_TO_LONGS(O2NM_MAX_NODES)];
 	wait_queue_head_t event;
 };
 
@@ -122,12 +122,12 @@ struct dlm_ctxt
 	spinlock_t ast_lock;
 	spinlock_t track_lock;
 	char *name;
-	u8 node_num;
+	u8 yesde_num;
 	u32 key;
-	u8  joining_node;
-	u8 migrate_done; /* set to 1 means node has migrated all lock resources */
+	u8  joining_yesde;
+	u8 migrate_done; /* set to 1 means yesde has migrated all lock resources */
 	wait_queue_head_t dlm_join_events;
-	unsigned long live_nodes_map[BITS_TO_LONGS(O2NM_MAX_NODES)];
+	unsigned long live_yesdes_map[BITS_TO_LONGS(O2NM_MAX_NODES)];
 	unsigned long domain_map[BITS_TO_LONGS(O2NM_MAX_NODES)];
 	unsigned long exit_domain_map[BITS_TO_LONGS(O2NM_MAX_NODES)];
 	unsigned long recovery_map[BITS_TO_LONGS(O2NM_MAX_NODES)];
@@ -166,7 +166,7 @@ struct dlm_ctxt
 	struct list_head	dlm_eviction_callbacks;
 
 	/* The filesystem specifies this at domain registration.  We
-	 * cache it here to know what to tell other nodes. */
+	 * cache it here to kyesw what to tell other yesdes. */
 	struct dlm_protocol_version fs_locking_proto;
 	/* This is the inter-dlm communication version */
 	struct dlm_protocol_version dlm_locking_proto;
@@ -185,7 +185,7 @@ static inline struct hlist_head *dlm_master_hash(struct dlm_ctxt *dlm,
 }
 
 /* these keventd work queue items are for less-frequently
- * called functions that cannot be directly called from the
+ * called functions that canyest be directly called from the
  * net message handlers for some reason, usually because
  * they need to send net messages of their own. */
 void dlm_dispatch_work(struct work_struct *work);
@@ -198,7 +198,7 @@ typedef void (dlm_workfunc_t)(struct dlm_work_item *, void *);
 struct dlm_request_all_locks_priv
 {
 	u8 reco_master;
-	u8 dead_node;
+	u8 dead_yesde;
 };
 
 struct dlm_mig_lockres_priv
@@ -213,13 +213,13 @@ struct dlm_assert_master_priv
 	struct dlm_lock_resource *lockres;
 	u8 request_from;
 	u32 flags;
-	unsigned ignore_higher:1;
+	unsigned igyesre_higher:1;
 };
 
 struct dlm_deref_lockres_priv
 {
 	struct dlm_lock_resource *deref_res;
-	u8 deref_node;
+	u8 deref_yesde;
 };
 
 struct dlm_work_item
@@ -249,12 +249,12 @@ static inline void dlm_init_work_item(struct dlm_ctxt *dlm,
 
 
 
-static inline void __dlm_set_joining_node(struct dlm_ctxt *dlm,
-					  u8 node)
+static inline void __dlm_set_joining_yesde(struct dlm_ctxt *dlm,
+					  u8 yesde)
 {
 	assert_spin_locked(&dlm->spinlock);
 
-	dlm->joining_node = node;
+	dlm->joining_yesde = yesde;
 	wake_up(&dlm->dlm_join_events);
 }
 
@@ -269,7 +269,7 @@ static inline void __dlm_set_joining_node(struct dlm_ctxt *dlm,
 #define DLM_LOCK_RES_SETREF_INPROG        0x00002000
 #define DLM_LOCK_RES_RECOVERY_WAITING     0x00004000
 
-/* max milliseconds to wait to sync up a network failure with a node death */
+/* max milliseconds to wait to sync up a network failure with a yesde death */
 #define DLM_NODE_DEATH_WAIT_MAX (5 * 1000)
 
 #define DLM_PURGE_INTERVAL_MS   (8 * 1000)
@@ -278,7 +278,7 @@ struct dlm_lock_resource
 {
 	/* WARNING: Please see the comment in dlm_init_lockres before
 	 * adding fields here. */
-	struct hlist_node hash_node;
+	struct hlist_yesde hash_yesde;
 	struct qstr lockname;
 	struct kref      refs;
 
@@ -313,7 +313,7 @@ struct dlm_lock_resource
 	atomic_t asts_reserved;
 	spinlock_t spinlock;
 	wait_queue_head_t wq;
-	u8  owner;              //node which owns the lock resource, or unknown
+	u8  owner;              //yesde which owns the lock resource, or unkyeswn
 	u16 state;
 	char lvb[DLM_LVB_LEN];
 	unsigned int inflight_locks;
@@ -334,7 +334,7 @@ struct dlm_migratable_lock
 	s8 type;
 	s8 convert_type;
 	s8 highest_blocked;
-	u8 node;
+	u8 yesde;
 };  // 16 bytes
 
 struct dlm_lock
@@ -386,7 +386,7 @@ static inline char *dlm_list_in_text(enum dlm_lockres_list idx)
 	else if (idx == DLM_BLOCKED_LIST)
 		return "blocked";
 	else
-		return "unknown";
+		return "unkyeswn";
 }
 
 static inline struct list_head *
@@ -407,10 +407,10 @@ dlm_list_idx_to_ptr(struct dlm_lock_resource *res, enum dlm_lockres_list idx)
 
 
 
-struct dlm_node_iter
+struct dlm_yesde_iter
 {
-	unsigned long node_map[BITS_TO_LONGS(O2NM_MAX_NODES)];
-	int curnode;
+	unsigned long yesde_map[BITS_TO_LONGS(O2NM_MAX_NODES)];
+	int curyesde;
 };
 
 
@@ -440,10 +440,10 @@ enum {
 	DLM_DEREF_LOCKRES_DONE		= 522,
 };
 
-struct dlm_reco_node_data
+struct dlm_reco_yesde_data
 {
 	int state;
-	u8 node_num;
+	u8 yesde_num;
 	struct list_head list;
 };
 
@@ -468,7 +468,7 @@ enum {
 
 struct dlm_master_request
 {
-	u8 node_idx;
+	u8 yesde_idx;
 	u8 namelen;
 	__be16 pad1;
 	__be32 flags;
@@ -484,7 +484,7 @@ struct dlm_master_request
 #define DLM_ASSERT_MASTER_FINISH_MIGRATION 0x00000004
 struct dlm_assert_master
 {
-	u8 node_idx;
+	u8 yesde_idx;
 	u8 namelen;
 	__be16 pad1;
 	__be32 flags;
@@ -508,7 +508,7 @@ struct dlm_master_requery
 {
 	u8 pad1;
 	u8 pad2;
-	u8 node_idx;
+	u8 yesde_idx;
 	u8 namelen;
 	__be32 pad3;
 	u8 name[O2NM_MAX_NAME_LEN];
@@ -521,7 +521,7 @@ struct dlm_master_requery
 /*
  * We would like to get one whole lockres into a single network
  * message whenever possible.  Generally speaking, there will be
- * at most one dlm_lock on a lockres for each node in the cluster,
+ * at most one dlm_lock on a lockres for each yesde in the cluster,
  * plus (infrequently) any additional locks coming in from userdlm.
  *
  * struct _dlm_lockres_page
@@ -558,7 +558,7 @@ struct dlm_migratable_lockres
 	u8 flags;
 	__be32 total_locks; // locks to be sent for this migration cookie
 	__be64 mig_cookie;  // cookie for this lockres migration
-			 // or zero if not needed
+			 // or zero if yest needed
 	// 16 bytes
 	u8 lockname[DLM_LOCKID_NAME_MAX];
 	// 48 bytes
@@ -582,7 +582,7 @@ struct dlm_create_lock
 
 	__be32 flags;
 	u8 pad1;
-	u8 node_idx;
+	u8 yesde_idx;
 	s8 requested_type;
 	u8 namelen;
 
@@ -595,7 +595,7 @@ struct dlm_convert_lock
 
 	__be32 flags;
 	u8 pad1;
-	u8 node_idx;
+	u8 yesde_idx;
 	s8 requested_type;
 	u8 namelen;
 
@@ -611,7 +611,7 @@ struct dlm_unlock_lock
 
 	__be32 flags;
 	__be16 pad1;
-	u8 node_idx;
+	u8 yesde_idx;
 	u8 namelen;
 
 	u8 name[O2NM_MAX_NAME_LEN];
@@ -625,7 +625,7 @@ struct dlm_proxy_ast
 	__be64 cookie;
 
 	__be32 flags;
-	u8 node_idx;
+	u8 yesde_idx;
 	u8 type;
 	u8 blocked_type;
 	u8 namelen;
@@ -645,11 +645,11 @@ enum dlm_query_join_response_code {
 };
 
 struct dlm_query_join_packet {
-	u8 code;	/* Response code.  dlm_minor and fs_minor
+	u8 code;	/* Response code.  dlm_miyesr and fs_miyesr
 			   are only valid if this is JOIN_OK */
-	u8 dlm_minor;	/* The minor version of the protocol the
+	u8 dlm_miyesr;	/* The miyesr version of the protocol the
 			   dlm is speaking. */
-	u8 fs_minor;	/* The minor version of the protocol the
+	u8 fs_miyesr;	/* The miyesr version of the protocol the
 			   filesystem is speaking. */
 	u8 reserved;
 };
@@ -661,29 +661,29 @@ union dlm_query_join_response {
 
 struct dlm_lock_request
 {
-	u8 node_idx;
-	u8 dead_node;
+	u8 yesde_idx;
+	u8 dead_yesde;
 	__be16 pad1;
 	__be32 pad2;
 };
 
 struct dlm_reco_data_done
 {
-	u8 node_idx;
-	u8 dead_node;
+	u8 yesde_idx;
+	u8 dead_yesde;
 	__be16 pad1;
 	__be32 pad2;
 
-	/* unused for now */
+	/* unused for yesw */
 	/* eventually we can use this to attempt
-	 * lvb recovery based on each node's info */
+	 * lvb recovery based on each yesde's info */
 	u8 reco_lvb[DLM_LVB_LEN];
 };
 
 struct dlm_begin_reco
 {
-	u8 node_idx;
-	u8 dead_node;
+	u8 yesde_idx;
+	u8 dead_yesde;
 	__be16 pad1;
 	__be32 pad2;
 };
@@ -694,18 +694,18 @@ struct dlm_begin_reco
 
 struct dlm_query_join_request
 {
-	u8 node_idx;
+	u8 yesde_idx;
 	u8 pad1[2];
 	u8 name_len;
 	struct dlm_protocol_version dlm_proto;
 	struct dlm_protocol_version fs_proto;
 	u8 domain[O2NM_MAX_NAME_LEN];
-	u8 node_map[BITS_TO_BYTES(O2NM_MAX_NODES)];
+	u8 yesde_map[BITS_TO_BYTES(O2NM_MAX_NODES)];
 };
 
 struct dlm_assert_joined
 {
-	u8 node_idx;
+	u8 yesde_idx;
 	u8 pad1[2];
 	u8 name_len;
 	u8 domain[O2NM_MAX_NAME_LEN];
@@ -713,14 +713,14 @@ struct dlm_assert_joined
 
 struct dlm_cancel_join
 {
-	u8 node_idx;
+	u8 yesde_idx;
 	u8 pad1[2];
 	u8 name_len;
 	u8 domain[O2NM_MAX_NAME_LEN];
 };
 
 struct dlm_query_region {
-	u8 qr_node;
+	u8 qr_yesde;
 	u8 qr_numregions;
 	u8 qr_namelen;
 	u8 pad1;
@@ -728,32 +728,32 @@ struct dlm_query_region {
 	u8 qr_regions[O2HB_MAX_REGION_NAME_LEN * O2NM_MAX_REGIONS];
 };
 
-struct dlm_node_info {
-	u8 ni_nodenum;
+struct dlm_yesde_info {
+	u8 ni_yesdenum;
 	u8 pad1;
 	__be16 ni_ipv4_port;
 	__be32 ni_ipv4_address;
 };
 
-struct dlm_query_nodeinfo {
-	u8 qn_nodenum;
-	u8 qn_numnodes;
+struct dlm_query_yesdeinfo {
+	u8 qn_yesdenum;
+	u8 qn_numyesdes;
 	u8 qn_namelen;
 	u8 pad1;
 	u8 qn_domain[O2NM_MAX_NAME_LEN];
-	struct dlm_node_info qn_nodes[O2NM_MAX_NODES];
+	struct dlm_yesde_info qn_yesdes[O2NM_MAX_NODES];
 };
 
 struct dlm_exit_domain
 {
-	u8 node_idx;
+	u8 yesde_idx;
 	u8 pad1[3];
 };
 
 struct dlm_finalize_reco
 {
-	u8 node_idx;
-	u8 dead_node;
+	u8 yesde_idx;
+	u8 dead_yesde;
 	u8 flags;
 	u8 pad1;
 	__be32 pad2;
@@ -763,7 +763,7 @@ struct dlm_deref_lockres
 {
 	u32 pad1;
 	u16 pad2;
-	u8 node_idx;
+	u8 yesde_idx;
 	u8 namelen;
 
 	u8 name[O2NM_MAX_NAME_LEN];
@@ -777,7 +777,7 @@ enum {
 struct dlm_deref_lockres_done {
 	u32 pad1;
 	u16 pad2;
-	u8 node_idx;
+	u8 yesde_idx;
 	u8 namelen;
 
 	u8 name[O2NM_MAX_NAME_LEN];
@@ -801,7 +801,7 @@ __dlm_lockres_state_to_status(struct dlm_lock_resource *res)
 	return status;
 }
 
-static inline u8 dlm_get_lock_cookie_node(u64 cookie)
+static inline u8 dlm_get_lock_cookie_yesde(u64 cookie)
 {
 	u8 ret;
 	cookie >>= 56;
@@ -816,7 +816,7 @@ static inline unsigned long long dlm_get_lock_cookie_seq(u64 cookie)
 	return ret;
 }
 
-struct dlm_lock * dlm_new_lock(int type, u8 node, u64 cookie,
+struct dlm_lock * dlm_new_lock(int type, u8 yesde, u64 cookie,
 			       struct dlm_lockstatus *lksb);
 void dlm_lock_get(struct dlm_lock *lock);
 void dlm_lock_put(struct dlm_lock *lock);
@@ -849,9 +849,9 @@ int dlm_launch_recovery_thread(struct dlm_ctxt *dlm);
 void dlm_complete_recovery_thread(struct dlm_ctxt *dlm);
 void dlm_wait_for_recovery(struct dlm_ctxt *dlm);
 void dlm_kick_recovery_thread(struct dlm_ctxt *dlm);
-int dlm_is_node_dead(struct dlm_ctxt *dlm, u8 node);
-void dlm_wait_for_node_death(struct dlm_ctxt *dlm, u8 node, int timeout);
-void dlm_wait_for_node_recovery(struct dlm_ctxt *dlm, u8 node, int timeout);
+int dlm_is_yesde_dead(struct dlm_ctxt *dlm, u8 yesde);
+void dlm_wait_for_yesde_death(struct dlm_ctxt *dlm, u8 yesde, int timeout);
+void dlm_wait_for_yesde_recovery(struct dlm_ctxt *dlm, u8 yesde, int timeout);
 
 void dlm_put(struct dlm_ctxt *dlm);
 struct dlm_ctxt *dlm_grab(struct dlm_ctxt *dlm);
@@ -882,7 +882,7 @@ struct dlm_lock_resource * dlm_lookup_lockres(struct dlm_ctxt *dlm,
 					      const char *name,
 					      unsigned int len);
 
-int dlm_is_host_down(int errno);
+int dlm_is_host_down(int erryes);
 
 struct dlm_lock_resource * dlm_get_lock_resource(struct dlm_ctxt *dlm,
 						 const char *lockid,
@@ -949,8 +949,8 @@ void dlm_kick_thread(struct dlm_ctxt *dlm, struct dlm_lock_resource *res);
 void __dlm_dirty_lockres(struct dlm_ctxt *dlm, struct dlm_lock_resource *res);
 
 
-void dlm_hb_node_down_cb(struct o2nm_node *node, int idx, void *data);
-void dlm_hb_node_up_cb(struct o2nm_node *node, int idx, void *data);
+void dlm_hb_yesde_down_cb(struct o2nm_yesde *yesde, int idx, void *data);
+void dlm_hb_yesde_up_cb(struct o2nm_yesde *yesde, int idx, void *data);
 
 int dlm_empty_lockres(struct dlm_ctxt *dlm, struct dlm_lock_resource *res);
 int dlm_finish_migration(struct dlm_ctxt *dlm,
@@ -984,14 +984,14 @@ int dlm_begin_reco_handler(struct o2net_msg *msg, u32 len, void *data,
 int dlm_finalize_reco_handler(struct o2net_msg *msg, u32 len, void *data,
 			      void **ret_data);
 int dlm_do_master_requery(struct dlm_ctxt *dlm, struct dlm_lock_resource *res,
-			  u8 nodenum, u8 *real_master);
+			  u8 yesdenum, u8 *real_master);
 
 void __dlm_do_purge_lockres(struct dlm_ctxt *dlm,
 		struct dlm_lock_resource *res);
 
 int dlm_dispatch_assert_master(struct dlm_ctxt *dlm,
 			       struct dlm_lock_resource *res,
-			       int ignore_higher,
+			       int igyesre_higher,
 			       u8 request_from,
 			       u32 flags);
 
@@ -1029,11 +1029,11 @@ void dlm_destroy_lock_cache(void);
 int dlm_init_mle_cache(void);
 void dlm_destroy_mle_cache(void);
 
-void dlm_hb_event_notify_attached(struct dlm_ctxt *dlm, int idx, int node_up);
+void dlm_hb_event_yestify_attached(struct dlm_ctxt *dlm, int idx, int yesde_up);
 int dlm_drop_lockres_ref(struct dlm_ctxt *dlm,
 			 struct dlm_lock_resource *res);
 void dlm_clean_master_list(struct dlm_ctxt *dlm,
-			   u8 dead_node);
+			   u8 dead_yesde);
 void dlm_force_free_mles(struct dlm_ctxt *dlm);
 int dlm_lock_basts_flushed(struct dlm_ctxt *dlm, struct dlm_lock *lock);
 int __dlm_lockres_has_locks(struct dlm_lock_resource *res);
@@ -1060,7 +1060,7 @@ static inline int dlm_lock_compatible(int existing, int request)
 	    existing == LKM_NLMODE)
 		return 1;
 
-	/* EX incompatible with all non-NO_LOCK */
+	/* EX incompatible with all yesn-NO_LOCK */
 	if (request == LKM_EXMODE)
 		return 0;
 
@@ -1101,22 +1101,22 @@ static inline enum dlm_status dlm_err_to_dlm_status(int err)
 }
 
 
-static inline void dlm_node_iter_init(unsigned long *map,
-				      struct dlm_node_iter *iter)
+static inline void dlm_yesde_iter_init(unsigned long *map,
+				      struct dlm_yesde_iter *iter)
 {
-	memcpy(iter->node_map, map, sizeof(iter->node_map));
-	iter->curnode = -1;
+	memcpy(iter->yesde_map, map, sizeof(iter->yesde_map));
+	iter->curyesde = -1;
 }
 
-static inline int dlm_node_iter_next(struct dlm_node_iter *iter)
+static inline int dlm_yesde_iter_next(struct dlm_yesde_iter *iter)
 {
 	int bit;
-	bit = find_next_bit(iter->node_map, O2NM_MAX_NODES, iter->curnode+1);
+	bit = find_next_bit(iter->yesde_map, O2NM_MAX_NODES, iter->curyesde+1);
 	if (bit >= O2NM_MAX_NODES) {
-		iter->curnode = O2NM_MAX_NODES;
+		iter->curyesde = O2NM_MAX_NODES;
 		return -ENOENT;
 	}
-	iter->curnode = bit;
+	iter->curyesde = bit;
 	return bit;
 }
 

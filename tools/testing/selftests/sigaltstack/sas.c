@@ -16,7 +16,7 @@
 #include <alloca.h>
 #include <string.h>
 #include <assert.h>
-#include <errno.h>
+#include <erryes.h>
 
 #include "../kselftest.h"
 
@@ -48,7 +48,7 @@ void my_usr1(int sig, siginfo_t *si, void *u)
 
 	if (sp < (unsigned long)sstack ||
 			sp >= (unsigned long)sstack + SIGSTKSZ) {
-		ksft_exit_fail_msg("SP is not on sigaltstack\n");
+		ksft_exit_fail_msg("SP is yest on sigaltstack\n");
 	}
 	/* put some data on stack. other sighandler will try to overwrite it */
 	aa = alloca(1024);
@@ -59,7 +59,7 @@ void my_usr1(int sig, siginfo_t *si, void *u)
 	ksft_print_msg("[RUN]\tsignal USR1\n");
 	err = sigaltstack(NULL, &stk);
 	if (err) {
-		ksft_exit_fail_msg("sigaltstack() - %s\n", strerror(errno));
+		ksft_exit_fail_msg("sigaltstack() - %s\n", strerror(erryes));
 		exit(EXIT_FAILURE);
 	}
 	if (stk.ss_flags != SS_DISABLE)
@@ -120,13 +120,13 @@ int main(void)
 	sstack = mmap(NULL, SIGSTKSZ, PROT_READ | PROT_WRITE,
 		      MAP_PRIVATE | MAP_ANONYMOUS | MAP_STACK, -1, 0);
 	if (sstack == MAP_FAILED) {
-		ksft_exit_fail_msg("mmap() - %s\n", strerror(errno));
+		ksft_exit_fail_msg("mmap() - %s\n", strerror(erryes));
 		return EXIT_FAILURE;
 	}
 
 	err = sigaltstack(NULL, &stk);
 	if (err) {
-		ksft_exit_fail_msg("sigaltstack() - %s\n", strerror(errno));
+		ksft_exit_fail_msg("sigaltstack() - %s\n", strerror(erryes));
 		exit(EXIT_FAILURE);
 	}
 	if (stk.ss_flags == SS_DISABLE) {
@@ -143,7 +143,7 @@ int main(void)
 	stk.ss_flags = SS_ONSTACK | SS_AUTODISARM;
 	err = sigaltstack(&stk, NULL);
 	if (err) {
-		if (errno == EINVAL) {
+		if (erryes == EINVAL) {
 			ksft_exit_skip(
 				"[NOTE]\tThe running kernel doesn't support SS_AUTODISARM\n");
 			/*
@@ -156,7 +156,7 @@ int main(void)
 		} else {
 			ksft_exit_fail_msg(
 				"sigaltstack(SS_ONSTACK | SS_AUTODISARM)  %s\n",
-					strerror(errno));
+					strerror(erryes));
 			return EXIT_FAILURE;
 		}
 	}
@@ -164,7 +164,7 @@ int main(void)
 	ustack = mmap(NULL, SIGSTKSZ, PROT_READ | PROT_WRITE,
 		      MAP_PRIVATE | MAP_ANONYMOUS | MAP_STACK, -1, 0);
 	if (ustack == MAP_FAILED) {
-		ksft_exit_fail_msg("mmap() - %s\n", strerror(errno));
+		ksft_exit_fail_msg("mmap() - %s\n", strerror(erryes));
 		return EXIT_FAILURE;
 	}
 	getcontext(&uc);
@@ -176,7 +176,7 @@ int main(void)
 
 	err = sigaltstack(NULL, &stk);
 	if (err) {
-		ksft_exit_fail_msg("sigaltstack() - %s\n", strerror(errno));
+		ksft_exit_fail_msg("sigaltstack() - %s\n", strerror(erryes));
 		exit(EXIT_FAILURE);
 	}
 	if (stk.ss_flags != SS_AUTODISARM) {

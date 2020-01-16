@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -40,7 +40,7 @@
 	hubp21->hubp_shift->field_name, hubp21->hubp_mask->field_name
 
 /*
- * In DCN2.1, the non-double buffered version of the following 4 DLG registers are used in RTL.
+ * In DCN2.1, the yesn-double buffered version of the following 4 DLG registers are used in RTL.
  * As a result, if S/W updates any of these registers during a mode change,
  * the current frame before the mode change will use the new value right away
  * and can lead to generating incorrect request deadlines and incorrect TTU/QoS behavior.
@@ -155,7 +155,7 @@ static void hubp21_setup(
 		struct _vcs_dpi_display_pipe_dest_params_st *pipe_dest)
 {
 	/* otg is locked when this func is called. Register are double buffered.
-	 * disable the requestors is not needed
+	 * disable the requestors is yest needed
 	 */
 
 	hubp2_vready_at_or_After_vsync(hubp, pipe_dest);

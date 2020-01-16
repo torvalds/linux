@@ -4,7 +4,7 @@
  *
  * Check MTD device read.
  *
- * Author: Adrian Hunter <ext-adrian.hunter@nokia.com>
+ * Author: Adrian Hunter <ext-adrian.hunter@yeskia.com>
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -128,12 +128,12 @@ static int __init mtd_readtest_init(void)
 	mtd = get_mtd_device(NULL, dev);
 	if (IS_ERR(mtd)) {
 		err = PTR_ERR(mtd);
-		pr_err("error: Cannot get MTD device\n");
+		pr_err("error: Canyest get MTD device\n");
 		return err;
 	}
 
 	if (mtd->writesize == 1) {
-		pr_info("not NAND flash, assume page size is 512 "
+		pr_info("yest NAND flash, assume page size is 512 "
 		       "bytes.\n");
 		pgsize = 512;
 	} else

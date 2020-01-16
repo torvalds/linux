@@ -25,7 +25,7 @@
 
 #define PKEY_ID_PKCS7 2
 
-static __attribute__((noreturn))
+static __attribute__((yesreturn))
 void format(void)
 {
 	fprintf(stderr,
@@ -106,7 +106,7 @@ int main(int argc, char **argv)
 	cert_dst = argv[2];
 
 	if (!cert_src[0]) {
-		/* Invoked with no input; create empty file */
+		/* Invoked with yes input; create empty file */
 		FILE *f = fopen(cert_dst, "wb");
 		ERR(!f, "%s", cert_dst);
 		fclose(f);

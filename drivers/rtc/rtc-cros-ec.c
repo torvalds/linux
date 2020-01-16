@@ -20,13 +20,13 @@
  *
  * @cros_ec: Pointer to EC device
  * @rtc: Pointer to RTC device
- * @notifier: Notifier info for responding to EC events
+ * @yestifier: Notifier info for responding to EC events
  * @saved_alarm: Alarm to restore when interrupts are reenabled
  */
 struct cros_ec_rtc {
 	struct cros_ec_device *cros_ec;
 	struct rtc_device *rtc;
-	struct notifier_block notifier;
+	struct yestifier_block yestifier;
 	u32 saved_alarm;
 };
 
@@ -128,7 +128,7 @@ static int cros_ec_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 
 	/*
 	 * The EC host command for getting the alarm is relative (i.e. 5
-	 * seconds from now) whereas rtc_wkalrm is absolute. Get the current
+	 * seconds from yesw) whereas rtc_wkalrm is absolute. Get the current
 	 * RTC time first so we can calculate the relative time.
 	 */
 	ret = cros_ec_rtc_get(cros_ec, EC_CMD_RTC_GET_VALUE, &current_time);
@@ -159,7 +159,7 @@ static int cros_ec_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 
 	/*
 	 * The EC host command for setting the alarm is relative
-	 * (i.e. 5 seconds from now) whereas rtc_wkalrm is absolute.
+	 * (i.e. 5 seconds from yesw) whereas rtc_wkalrm is absolute.
 	 * Get the current RTC time first so we can calculate the
 	 * relative time.
 	 */
@@ -258,16 +258,16 @@ static int cros_ec_rtc_alarm_irq_enable(struct device *dev,
 	return 0;
 }
 
-static int cros_ec_rtc_event(struct notifier_block *nb,
+static int cros_ec_rtc_event(struct yestifier_block *nb,
 			     unsigned long queued_during_suspend,
-			     void *_notify)
+			     void *_yestify)
 {
 	struct cros_ec_rtc *cros_ec_rtc;
 	struct rtc_device *rtc;
 	struct cros_ec_device *cros_ec;
 	u32 host_event;
 
-	cros_ec_rtc = container_of(nb, struct cros_ec_rtc, notifier);
+	cros_ec_rtc = container_of(nb, struct cros_ec_rtc, yestifier);
 	rtc = cros_ec_rtc->rtc;
 	cros_ec = cros_ec_rtc->cros_ec;
 
@@ -356,11 +356,11 @@ static int cros_ec_rtc_probe(struct platform_device *pdev)
 		return ret;
 
 	/* Get RTC events from the EC. */
-	cros_ec_rtc->notifier.notifier_call = cros_ec_rtc_event;
-	ret = blocking_notifier_chain_register(&cros_ec->event_notifier,
-					       &cros_ec_rtc->notifier);
+	cros_ec_rtc->yestifier.yestifier_call = cros_ec_rtc_event;
+	ret = blocking_yestifier_chain_register(&cros_ec->event_yestifier,
+					       &cros_ec_rtc->yestifier);
 	if (ret) {
-		dev_err(&pdev->dev, "failed to register notifier\n");
+		dev_err(&pdev->dev, "failed to register yestifier\n");
 		return ret;
 	}
 
@@ -373,11 +373,11 @@ static int cros_ec_rtc_remove(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	int ret;
 
-	ret = blocking_notifier_chain_unregister(
-				&cros_ec_rtc->cros_ec->event_notifier,
-				&cros_ec_rtc->notifier);
+	ret = blocking_yestifier_chain_unregister(
+				&cros_ec_rtc->cros_ec->event_yestifier,
+				&cros_ec_rtc->yestifier);
 	if (ret) {
-		dev_err(dev, "failed to unregister notifier\n");
+		dev_err(dev, "failed to unregister yestifier\n");
 		return ret;
 	}
 

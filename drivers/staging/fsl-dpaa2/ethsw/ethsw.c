@@ -517,7 +517,7 @@ static int port_stop(struct net_device *netdev)
 static netdev_tx_t port_dropframe(struct sk_buff *skb,
 				  struct net_device *netdev)
 {
-	/* we don't support I/O for now, drop the frame */
+	/* we don't support I/O for yesw, drop the frame */
 	dev_kfree_skb_any(skb);
 
 	return NETDEV_TX_OK;
@@ -1016,7 +1016,7 @@ static int ethsw_port_del_vlan(struct ethsw_port_priv *port_priv, u16 vid)
 		}
 		port_priv->vlans[vid] &= ~ETHSW_VLAN_MEMBER;
 
-		/* Delete VLAN from switch if it is no longer configured on
+		/* Delete VLAN from switch if it is yes longer configured on
 		 * any port
 		 */
 		for (i = 0; i < ethsw->sw_attr.num_ifs; i++)
@@ -1094,7 +1094,7 @@ static int swdev_port_obj_del(struct net_device *netdev,
 
 static int
 ethsw_switchdev_port_attr_set_event(struct net_device *netdev,
-		struct switchdev_notifier_port_attr_info *port_attr_info)
+		struct switchdev_yestifier_port_attr_info *port_attr_info)
 {
 	int err;
 
@@ -1102,7 +1102,7 @@ ethsw_switchdev_port_attr_set_event(struct net_device *netdev,
 				  port_attr_info->trans);
 
 	port_attr_info->handled = true;
-	return notifier_from_errno(err);
+	return yestifier_from_erryes(err);
 }
 
 /* For the moment, only flood setting needs to be updated */
@@ -1147,11 +1147,11 @@ static bool ethsw_port_dev_check(const struct net_device *netdev)
 	return netdev->netdev_ops == &ethsw_port_ops;
 }
 
-static int port_netdevice_event(struct notifier_block *unused,
+static int port_netdevice_event(struct yestifier_block *unused,
 				unsigned long event, void *ptr)
 {
-	struct net_device *netdev = netdev_notifier_info_to_dev(ptr);
-	struct netdev_notifier_changeupper_info *info = ptr;
+	struct net_device *netdev = netdev_yestifier_info_to_dev(ptr);
+	struct netdev_yestifier_changeupper_info *info = ptr;
 	struct net_device *upper_dev;
 	int err = 0;
 
@@ -1169,12 +1169,12 @@ static int port_netdevice_event(struct notifier_block *unused,
 		}
 	}
 
-	return notifier_from_errno(err);
+	return yestifier_from_erryes(err);
 }
 
 struct ethsw_switchdev_event_work {
 	struct work_struct work;
-	struct switchdev_notifier_fdb_info fdb_info;
+	struct switchdev_yestifier_fdb_info fdb_info;
 	struct net_device *dev;
 	unsigned long event;
 };
@@ -1184,7 +1184,7 @@ static void ethsw_switchdev_event_work(struct work_struct *work)
 	struct ethsw_switchdev_event_work *switchdev_work =
 		container_of(work, struct ethsw_switchdev_event_work, work);
 	struct net_device *dev = switchdev_work->dev;
-	struct switchdev_notifier_fdb_info *fdb_info;
+	struct switchdev_yestifier_fdb_info *fdb_info;
 	int err;
 
 	rtnl_lock();
@@ -1203,7 +1203,7 @@ static void ethsw_switchdev_event_work(struct work_struct *work)
 		if (err)
 			break;
 		fdb_info->offloaded = true;
-		call_switchdev_notifiers(SWITCHDEV_FDB_OFFLOADED, dev,
+		call_switchdev_yestifiers(SWITCHDEV_FDB_OFFLOADED, dev,
 					 &fdb_info->info, NULL);
 		break;
 	case SWITCHDEV_FDB_DEL_TO_DEVICE:
@@ -1223,13 +1223,13 @@ static void ethsw_switchdev_event_work(struct work_struct *work)
 }
 
 /* Called under rcu_read_lock() */
-static int port_switchdev_event(struct notifier_block *unused,
+static int port_switchdev_event(struct yestifier_block *unused,
 				unsigned long event, void *ptr)
 {
-	struct net_device *dev = switchdev_notifier_info_to_dev(ptr);
+	struct net_device *dev = switchdev_yestifier_info_to_dev(ptr);
 	struct ethsw_port_priv *port_priv = netdev_priv(dev);
 	struct ethsw_switchdev_event_work *switchdev_work;
-	struct switchdev_notifier_fdb_info *fdb_info = ptr;
+	struct switchdev_yestifier_fdb_info *fdb_info = ptr;
 	struct ethsw_core *ethsw = port_priv->ethsw_data;
 
 	if (!ethsw_port_dev_check(dev))
@@ -1277,7 +1277,7 @@ err_addr_alloc:
 
 static int
 ethsw_switchdev_port_obj_event(unsigned long event, struct net_device *netdev,
-			struct switchdev_notifier_port_obj_info *port_obj_info)
+			struct switchdev_yestifier_port_obj_info *port_obj_info)
 {
 	int err = -EOPNOTSUPP;
 
@@ -1292,13 +1292,13 @@ ethsw_switchdev_port_obj_event(unsigned long event, struct net_device *netdev,
 	}
 
 	port_obj_info->handled = true;
-	return notifier_from_errno(err);
+	return yestifier_from_erryes(err);
 }
 
-static int port_switchdev_blocking_event(struct notifier_block *unused,
+static int port_switchdev_blocking_event(struct yestifier_block *unused,
 					 unsigned long event, void *ptr)
 {
-	struct net_device *dev = switchdev_notifier_info_to_dev(ptr);
+	struct net_device *dev = switchdev_yestifier_info_to_dev(ptr);
 
 	if (!ethsw_port_dev_check(dev))
 		return NOTIFY_DONE;
@@ -1314,38 +1314,38 @@ static int port_switchdev_blocking_event(struct notifier_block *unused,
 	return NOTIFY_DONE;
 }
 
-static int ethsw_register_notifier(struct device *dev)
+static int ethsw_register_yestifier(struct device *dev)
 {
 	struct ethsw_core *ethsw = dev_get_drvdata(dev);
 	int err;
 
-	ethsw->port_nb.notifier_call = port_netdevice_event;
-	err = register_netdevice_notifier(&ethsw->port_nb);
+	ethsw->port_nb.yestifier_call = port_netdevice_event;
+	err = register_netdevice_yestifier(&ethsw->port_nb);
 	if (err) {
-		dev_err(dev, "Failed to register netdev notifier\n");
+		dev_err(dev, "Failed to register netdev yestifier\n");
 		return err;
 	}
 
-	ethsw->port_switchdev_nb.notifier_call = port_switchdev_event;
-	err = register_switchdev_notifier(&ethsw->port_switchdev_nb);
+	ethsw->port_switchdev_nb.yestifier_call = port_switchdev_event;
+	err = register_switchdev_yestifier(&ethsw->port_switchdev_nb);
 	if (err) {
-		dev_err(dev, "Failed to register switchdev notifier\n");
+		dev_err(dev, "Failed to register switchdev yestifier\n");
 		goto err_switchdev_nb;
 	}
 
-	ethsw->port_switchdevb_nb.notifier_call = port_switchdev_blocking_event;
-	err = register_switchdev_blocking_notifier(&ethsw->port_switchdevb_nb);
+	ethsw->port_switchdevb_nb.yestifier_call = port_switchdev_blocking_event;
+	err = register_switchdev_blocking_yestifier(&ethsw->port_switchdevb_nb);
 	if (err) {
-		dev_err(dev, "Failed to register switchdev blocking notifier\n");
+		dev_err(dev, "Failed to register switchdev blocking yestifier\n");
 		goto err_switchdev_blocking_nb;
 	}
 
 	return 0;
 
 err_switchdev_blocking_nb:
-	unregister_switchdev_notifier(&ethsw->port_switchdev_nb);
+	unregister_switchdev_yestifier(&ethsw->port_switchdev_nb);
 err_switchdev_nb:
-	unregister_netdevice_notifier(&ethsw->port_nb);
+	unregister_netdevice_yestifier(&ethsw->port_nb);
 	return err;
 }
 
@@ -1353,7 +1353,7 @@ static int ethsw_init(struct fsl_mc_device *sw_dev)
 {
 	struct device *dev = &sw_dev->dev;
 	struct ethsw_core *ethsw = dev_get_drvdata(dev);
-	u16 version_major, version_minor, i;
+	u16 version_major, version_miyesr, i;
 	struct dpsw_stp_cfg stp_cfg;
 	int err;
 
@@ -1374,7 +1374,7 @@ static int ethsw_init(struct fsl_mc_device *sw_dev)
 
 	err = dpsw_get_api_version(ethsw->mc_io, 0,
 				   &version_major,
-				   &version_minor);
+				   &version_miyesr);
 	if (err) {
 		dev_err(dev, "dpsw_get_api_version err %d\n", err);
 		goto err_close;
@@ -1383,10 +1383,10 @@ static int ethsw_init(struct fsl_mc_device *sw_dev)
 	/* Minimum supported DPSW version check */
 	if (version_major < DPSW_MIN_VER_MAJOR ||
 	    (version_major == DPSW_MIN_VER_MAJOR &&
-	     version_minor < DPSW_MIN_VER_MINOR)) {
-		dev_err(dev, "DPSW version %d:%d not supported. Use %d.%d or greater.\n",
+	     version_miyesr < DPSW_MIN_VER_MINOR)) {
+		dev_err(dev, "DPSW version %d:%d yest supported. Use %d.%d or greater.\n",
 			version_major,
-			version_minor,
+			version_miyesr,
 			DPSW_MIN_VER_MAJOR, DPSW_MIN_VER_MINOR);
 		err = -ENOTSUPP;
 		goto err_close;
@@ -1435,7 +1435,7 @@ static int ethsw_init(struct fsl_mc_device *sw_dev)
 		goto err_close;
 	}
 
-	err = ethsw_register_notifier(dev);
+	err = ethsw_register_yestifier(dev);
 	if (err)
 		goto err_destroy_ordered_workqueue;
 
@@ -1482,27 +1482,27 @@ static int ethsw_port_init(struct ethsw_port_priv *port_priv, u16 port)
 	return err;
 }
 
-static void ethsw_unregister_notifier(struct device *dev)
+static void ethsw_unregister_yestifier(struct device *dev)
 {
 	struct ethsw_core *ethsw = dev_get_drvdata(dev);
-	struct notifier_block *nb;
+	struct yestifier_block *nb;
 	int err;
 
 	nb = &ethsw->port_switchdevb_nb;
-	err = unregister_switchdev_blocking_notifier(nb);
+	err = unregister_switchdev_blocking_yestifier(nb);
 	if (err)
 		dev_err(dev,
-			"Failed to unregister switchdev blocking notifier (%d)\n", err);
+			"Failed to unregister switchdev blocking yestifier (%d)\n", err);
 
-	err = unregister_switchdev_notifier(&ethsw->port_switchdev_nb);
+	err = unregister_switchdev_yestifier(&ethsw->port_switchdev_nb);
 	if (err)
 		dev_err(dev,
-			"Failed to unregister switchdev notifier (%d)\n", err);
+			"Failed to unregister switchdev yestifier (%d)\n", err);
 
-	err = unregister_netdevice_notifier(&ethsw->port_nb);
+	err = unregister_netdevice_yestifier(&ethsw->port_nb);
 	if (err)
 		dev_err(dev,
-			"Failed to unregister netdev notifier (%d)\n", err);
+			"Failed to unregister netdev yestifier (%d)\n", err);
 }
 
 static void ethsw_takedown(struct fsl_mc_device *sw_dev)
@@ -1511,7 +1511,7 @@ static void ethsw_takedown(struct fsl_mc_device *sw_dev)
 	struct ethsw_core *ethsw = dev_get_drvdata(dev);
 	int err;
 
-	ethsw_unregister_notifier(dev);
+	ethsw_unregister_yestifier(dev);
 
 	err = dpsw_close(ethsw->mc_io, 0, ethsw->dpsw_handle);
 	if (err)

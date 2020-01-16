@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2005 Voltaire Inc.  All rights reserved.
  * Copyright (c) 2002-2005, Network Appliance, Inc. All rights reserved.
- * Copyright (c) 1999-2005, Mellanox Technologies, Inc. All rights reserved.
+ * Copyright (c) 1999-2005, Mellayesx Techyeslogies, Inc. All rights reserved.
  * Copyright (c) 2005-2006 Intel Corporation.  All rights reserved.
  *
  * This software is available to you under a choice of one of two
@@ -15,11 +15,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -54,7 +54,7 @@ struct rdma_id_private {
 	struct rdma_cm_id	id;
 
 	struct rdma_bind_list	*bind_list;
-	struct hlist_node	node;
+	struct hlist_yesde	yesde;
 	struct list_head	list; /* listen_any_list or cma_device.list */
 	struct list_head	listen_list; /* per device listens */
 	struct cma_device	*cma_dev;

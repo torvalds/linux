@@ -1,8 +1,8 @@
-/* SPDX-License-Identifier: LGPL-2.1+ WITH Linux-syscall-note */
+/* SPDX-License-Identifier: LGPL-2.1+ WITH Linux-syscall-yeste */
 /*
  * audio.h - DEPRECATED MPEG-TS audio decoder API
  *
- * NOTE: should not be used on future drivers
+ * NOTE: should yest be used on future drivers
  *
  * Copyright (C) 2000 Ralph  Metzler <ralph@convergence.de>
  *                  & Marcus Metzler <marcus@convergence.de>
@@ -19,7 +19,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU Lesser General Public License
- * along with this program; if not, write to the Free Software
+ * along with this program; if yest, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  *
  */

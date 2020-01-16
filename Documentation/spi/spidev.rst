@@ -16,15 +16,15 @@ full duplex transfers and device I/O configuration are also available.
 
 Some reasons you might want to use this programming interface include:
 
- * Prototyping in an environment that's not crash-prone; stray pointers
-   in userspace won't normally bring down any Linux system.
+ * Prototyping in an environment that's yest crash-prone; stray pointers
+   in userspace won't yesrmally bring down any Linux system.
 
  * Developing simple protocols used to talk to microcontrollers acting
    as SPI slaves, which you may need to change quite often.
 
 Of course there are drivers that can never be written in userspace, because
 they need to access kernel interfaces (such as IRQ handlers or other layers
-of the driver stack) that are not accessible to userspace.
+of the driver stack) that are yest accessible to userspace.
 
 
 DEVICE CREATION, DRIVER BINDING
@@ -39,31 +39,31 @@ them later.
 (Sysfs also supports userspace driven binding/unbinding of drivers to
 devices.  That mechanism might be supported here in the future.)
 
-When you do that, the sysfs node for the SPI device will include a child
-device node with a "dev" attribute that will be understood by udev or mdev.
+When you do that, the sysfs yesde for the SPI device will include a child
+device yesde with a "dev" attribute that will be understood by udev or mdev.
 (Larger systems will have "udev".  Smaller ones may configure "mdev" into
-busybox; it's less featureful, but often enough.)  For a SPI device with
+busybox; it's less featureful, but often eyesugh.)  For a SPI device with
 chipselect C on bus B, you should see:
 
     /dev/spidevB.C ...
 	character special device, major number 153 with
-	a dynamically chosen minor device number.  This is the node
+	a dynamically chosen miyesr device number.  This is the yesde
 	that userspace programs will open, created by "udev" or "mdev".
 
     /sys/devices/.../spiB.C ...
-	as usual, the SPI device node will
+	as usual, the SPI device yesde will
 	be a child of its SPI master controller.
 
     /sys/class/spidev/spidevB.C ...
 	created when the "spidev" driver
 	binds to that device.  (Directory or symlink, based on whether
-	or not you enabled the "deprecated sysfs files" Kconfig option.)
+	or yest you enabled the "deprecated sysfs files" Kconfig option.)
 
-Do not try to manage the /dev character device special file nodes by hand.
+Do yest try to manage the /dev character device special file yesdes by hand.
 That's error prone, and you'd need to pay careful attention to system
 security issues; udev/mdev should already be configured securely.
 
-If you unbind the "spidev" driver from that device, those two "spidev" nodes
+If you unbind the "spidev" driver from that device, those two "spidev" yesdes
 (in sysfs and in /dev) should automatically be removed (respectively by the
 kernel and by udev/mdev).  You can unbind by removing the "spidev" driver
 module, which will affect all devices using this driver.  You can also unbind
@@ -73,7 +73,7 @@ for its SPI controller (so its spi_master vanishes).
 Since this is a standard Linux device driver -- even though it just happens
 to expose a low level API to userspace -- it can be associated with any number
 of devices at a time.  Just provide one spi_board_info record for each such
-SPI device, and you'll get a /dev device node for each device.
+SPI device, and you'll get a /dev device yesde for each device.
 
 
 BASIC CHARACTER DEVICE API
@@ -101,7 +101,7 @@ settings for data transfer parameters:
     SPI_IOC_RD_MODE32, SPI_IOC_WR_MODE32 ...
 	pass a pointer to a uin32_t
 	which will return (RD) or assign (WR) the full SPI transfer mode,
-	not limited to the bits that fit in one byte.
+	yest limited to the bits that fit in one byte.
 
     SPI_IOC_RD_LSB_FIRST, SPI_IOC_WR_LSB_FIRST ...
 	pass a pointer to a byte
@@ -124,23 +124,23 @@ settings for data transfer parameters:
 
 NOTES:
 
-    - At this time there is no async I/O support; everything is purely
-      synchronous.
+    - At this time there is yes async I/O support; everything is purely
+      synchroyesus.
 
-    - There's currently no way to report the actual bit rate used to
+    - There's currently yes way to report the actual bit rate used to
       shift data to/from a given device.
 
     - From userspace, you can't currently change the chip select polarity;
       that could corrupt transfers to other devices sharing the SPI bus.
-      Each SPI device is deselected when it's not in active use, allowing
+      Each SPI device is deselected when it's yest in active use, allowing
       other drivers to talk to other devices.
 
     - There's a limit on the number of bytes each I/O request can transfer
       to the SPI device.  It defaults to one page, but that can be changed
       using a module parameter.
 
-    - Because SPI has no low-level transfer acknowledgement, you usually
-      won't see any I/O errors when talking to a non-existent device.
+    - Because SPI has yes low-level transfer ackyeswledgement, you usually
+      won't see any I/O errors when talking to a yesn-existent device.
 
 
 FULL DUPLEX CHARACTER DEVICE API
@@ -150,10 +150,10 @@ See the spidev_fdx.c sample program for one example showing the use of the
 full duplex programming interface.  (Although it doesn't perform a full duplex
 transfer.)  The model is the same as that used in the kernel spi_sync()
 request; the individual transfers offer the same capabilities as are
-available to kernel drivers (except that it's not asynchronous).
+available to kernel drivers (except that it's yest asynchroyesus).
 
 The example shows one half-duplex RPC-style request and response message.
-These requests commonly require that the chip not be deselected between
+These requests commonly require that the chip yest be deselected between
 the request and response.  Several such requests could be chained into
 a single kernel request, even allowing the chip to be deselected after
 each response.  (Other protocol options include changing the word size

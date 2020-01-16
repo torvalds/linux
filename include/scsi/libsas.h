@@ -56,7 +56,7 @@ enum phy_event {
 	PHYE_LOSS_OF_SIGNAL   = 0U,
 	PHYE_OOB_DONE,
 	PHYE_OOB_ERROR,
-	PHYE_SPINUP_HOLD,             /* hot plug SATA, no COMWAKE sent */
+	PHYE_SPINUP_HOLD,             /* hot plug SATA, yes COMWAKE sent */
 	PHYE_RESUME_TIMEOUT,
 	PHYE_SHUTDOWN,
 	PHY_NUM_EVENTS,
@@ -141,7 +141,7 @@ struct expander_device {
 
 struct sata_device {
 	unsigned int class;
-	u8     port_no;        /* port number, if this is a PM (Port) */
+	u8     port_yes;        /* port number, if this is a PM (Port) */
 
 	struct ata_port *ap;
 	struct ata_host *ata_host;
@@ -150,13 +150,13 @@ struct sata_device {
 };
 
 struct ssp_device {
-	struct list_head eh_list_node; /* pending a user requested eh action */
+	struct list_head eh_list_yesde; /* pending a user requested eh action */
 	struct scsi_lun reset_lun;
 };
 
 enum {
 	SAS_DEV_GONE,
-	SAS_DEV_FOUND, /* device notified to lldd */
+	SAS_DEV_FOUND, /* device yestified to lldd */
 	SAS_DEV_DESTROY,
 	SAS_DEV_EH_PENDING,
 	SAS_DEV_LU_RESET,
@@ -178,8 +178,8 @@ struct domain_device {
 	struct asd_sas_port *port;        /* shortcut to root of the tree */
 	struct sas_phy *phy;
 
-	struct list_head dev_list_node;
-	struct list_head disco_list_node; /* awaiting probe or destruct */
+	struct list_head dev_list_yesde;
+	struct list_head disco_list_yesde; /* awaiting probe or destruct */
 
 	enum sas_protocol    iproto;
 	enum sas_protocol    tproto;
@@ -203,7 +203,7 @@ struct domain_device {
 };
 
 struct sas_work {
-	struct list_head drain_node;
+	struct list_head drain_yesde;
 	struct work_struct work;
 };
 
@@ -216,7 +216,7 @@ static inline bool dev_is_expander(enum sas_device_type type)
 static inline void INIT_SAS_WORK(struct sas_work *sw, void (*fn)(struct work_struct *))
 {
 	INIT_WORK(&sw->work, fn);
-	INIT_LIST_HEAD(&sw->drain_node);
+	INIT_LIST_HEAD(&sw->drain_yesde);
 }
 
 struct sas_discovery_event {
@@ -234,7 +234,7 @@ static inline struct sas_discovery_event *to_sas_discovery_event(struct work_str
 struct sas_discovery {
 	struct sas_discovery_event disc_work[DISC_NUM_EVENTS];
 	unsigned long    pending;
-	u8     fanout_sas_addr[SAS_ADDR_SIZE];
+	u8     fayesut_sas_addr[SAS_ADDR_SIZE];
 	u8     eeds_a[SAS_ADDR_SIZE];
 	u8     eeds_b[SAS_ADDR_SIZE];
 	int    max_level;
@@ -275,7 +275,7 @@ struct asd_sas_port {
 
 	struct sas_port	*port;
 
-	void *lldd_port;	  /* not touched by the sas class code */
+	void *lldd_port;	  /* yest touched by the sas class code */
 };
 
 struct asd_sas_event {
@@ -343,7 +343,7 @@ struct asd_sas_phy {
 
 	struct sas_ha_struct *ha; /* may be set; the class sets it anyway */
 
-	void *lldd_phy;		  /* not touched by the sas_class_code */
+	void *lldd_phy;		  /* yest touched by the sas_class_code */
 };
 
 struct scsi_core {
@@ -391,11 +391,11 @@ struct sas_ha_struct {
 	int strict_wide_ports; /* both sas_addr and attached_sas_addr must match
 				* their siblings when forming wide ports */
 
-	/* LLDD calls these to notify the class of an event. */
-	int (*notify_port_event)(struct asd_sas_phy *, enum port_event);
-	int (*notify_phy_event)(struct asd_sas_phy *, enum phy_event);
+	/* LLDD calls these to yestify the class of an event. */
+	int (*yestify_port_event)(struct asd_sas_phy *, enum port_event);
+	int (*yestify_phy_event)(struct asd_sas_phy *, enum phy_event);
 
-	void *lldd_ha;		  /* not touched by sas class code */
+	void *lldd_ha;		  /* yest touched by sas class code */
 
 	struct list_head eh_done_q;  /* complete via scsi_eh_flush_done_q */
 	struct list_head eh_ata_q; /* scmds to promote from sas to ata eh */
@@ -428,7 +428,7 @@ cmd_to_domain_dev(struct scsi_cmnd *cmd)
 
 void sas_hash_addr(u8 *hashed, const u8 *sas_addr);
 
-/* Before calling a notify event, LLDD should use this function
+/* Before calling a yestify event, LLDD should use this function
  * when the link is severed (possibly from its tasklet).
  * The idea is that the Class only reads those, while the LLDD,
  * can R/W these (thus avoiding a race).
@@ -479,7 +479,7 @@ enum service_response {
 
 enum exec_status {
 	/* The SAM_STAT_.. codes fit in the lower 6 bits, alias some of
-	 * them here to silence 'case value not in enumerated type' warnings
+	 * them here to silence 'case value yest in enumerated type' warnings
 	 */
 	__SAM_STAT_CHECK_CONDITION = SAM_STAT_CHECK_CONDITION,
 
@@ -504,7 +504,7 @@ enum exec_status {
  *	- For an ATA task task_status_struct::stat is set to
  * SAS_PROTO_RESPONSE, and the task_status_struct::buf is set to the
  * contents of struct ata_task_resp.
- *	- For SSP tasks, if no data is present or status/TMF response
+ *	- For SSP tasks, if yes data is present or status/TMF response
  * is valid, task_status_struct::stat is set.  If data is present
  * (SENSE data), the LLDD copies up to SAS_STATUS_BUF_SIZE, sets
  * task_status_struct::buf_valid_size, and task_status_struct::stat is
@@ -540,7 +540,7 @@ struct task_status_struct {
  */
 struct sas_ata_task {
 	struct host_to_dev_fis fis;
-	u8     atapi_packet[16];  /* 0 if not ATAPI task */
+	u8     atapi_packet[16];  /* 0 if yest ATAPI task */
 
 	u8     retry_count;	  /* hardware retry, should be > 0 */
 
@@ -621,7 +621,7 @@ extern struct sas_task *sas_alloc_slow_task(gfp_t flags);
 extern void sas_free_task(struct sas_task *task);
 
 struct sas_domain_function_template {
-	/* The class calls these to notify the LLDD of an event. */
+	/* The class calls these to yestify the LLDD of an event. */
 	void (*lldd_port_formed)(struct asd_sas_phy *);
 	void (*lldd_port_deformed)(struct asd_sas_phy *);
 

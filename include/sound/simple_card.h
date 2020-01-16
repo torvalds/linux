@@ -3,7 +3,7 @@
  * ASoC simple sound card support
  *
  * Copyright (C) 2012 Renesas Solutions Corp.
- * Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
+ * Kuniyesri Morimoto <kuniyesri.morimoto.gx@renesas.com>
  */
 
 #ifndef __SIMPLE_CARD_H

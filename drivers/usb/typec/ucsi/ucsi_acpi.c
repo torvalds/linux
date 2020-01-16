@@ -93,7 +93,7 @@ static const struct ucsi_operations ucsi_acpi_ops = {
 	.async_write = ucsi_acpi_async_write
 };
 
-static void ucsi_acpi_notify(acpi_handle handle, u32 event, void *data)
+static void ucsi_acpi_yestify(acpi_handle handle, u32 event, void *data)
 {
 	struct ucsi_acpi *ua = data;
 	u32 cci;
@@ -127,7 +127,7 @@ static int ucsi_acpi_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	/* This will make sure we can use ioremap_nocache() */
+	/* This will make sure we can use ioremap_yescache() */
 	status = acpi_release_memory(ACPI_HANDLE(&pdev->dev), res, 1);
 	if (ACPI_FAILURE(status))
 		return -ENOMEM;
@@ -135,7 +135,7 @@ static int ucsi_acpi_probe(struct platform_device *pdev)
 	/*
 	 * NOTE: The memory region for the data structures is used also in an
 	 * operation region, which means ACPI has already reserved it. Therefore
-	 * it can not be requested here, and we can not use
+	 * it can yest be requested here, and we can yest use
 	 * devm_ioremap_resource().
 	 */
 	ua->base = devm_ioremap(&pdev->dev, res->start, resource_size(res));
@@ -155,20 +155,20 @@ static int ucsi_acpi_probe(struct platform_device *pdev)
 
 	ucsi_set_drvdata(ua->ucsi, ua);
 
-	status = acpi_install_notify_handler(ACPI_HANDLE(&pdev->dev),
+	status = acpi_install_yestify_handler(ACPI_HANDLE(&pdev->dev),
 					     ACPI_DEVICE_NOTIFY,
-					     ucsi_acpi_notify, ua);
+					     ucsi_acpi_yestify, ua);
 	if (ACPI_FAILURE(status)) {
-		dev_err(&pdev->dev, "failed to install notify handler\n");
+		dev_err(&pdev->dev, "failed to install yestify handler\n");
 		ucsi_destroy(ua->ucsi);
 		return -ENODEV;
 	}
 
 	ret = ucsi_register(ua->ucsi);
 	if (ret) {
-		acpi_remove_notify_handler(ACPI_HANDLE(&pdev->dev),
+		acpi_remove_yestify_handler(ACPI_HANDLE(&pdev->dev),
 					   ACPI_DEVICE_NOTIFY,
-					   ucsi_acpi_notify);
+					   ucsi_acpi_yestify);
 		ucsi_destroy(ua->ucsi);
 		return ret;
 	}
@@ -185,8 +185,8 @@ static int ucsi_acpi_remove(struct platform_device *pdev)
 	ucsi_unregister(ua->ucsi);
 	ucsi_destroy(ua->ucsi);
 
-	acpi_remove_notify_handler(ACPI_HANDLE(&pdev->dev), ACPI_DEVICE_NOTIFY,
-				   ucsi_acpi_notify);
+	acpi_remove_yestify_handler(ACPI_HANDLE(&pdev->dev), ACPI_DEVICE_NOTIFY,
+				   ucsi_acpi_yestify);
 
 	return 0;
 }

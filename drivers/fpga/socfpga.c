@@ -404,7 +404,7 @@ static int socfpga_fpga_ops_configure_init(struct fpga_manager *mgr,
 	int ret;
 
 	if (info->flags & FPGA_MGR_PARTIAL_RECONFIG) {
-		dev_err(&mgr->dev, "Partial reconfiguration not supported.\n");
+		dev_err(&mgr->dev, "Partial reconfiguration yest supported.\n");
 		return -EINVAL;
 	}
 	/* Steps 1 - 5: Reset the FPGA */
@@ -446,7 +446,7 @@ static int socfpga_fpga_ops_configure_write(struct fpga_manager *mgr,
 		count -= sizeof(u32);
 	}
 
-	/* Write out remaining non 32-bit chunks. */
+	/* Write out remaining yesn 32-bit chunks. */
 	switch (count) {
 	case 3:
 		socfpga_fpga_data_writel(priv, buffer_32[i++] & 0x00ffffff);

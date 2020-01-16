@@ -381,17 +381,17 @@ struct wm8995_priv {
 	int aifclk[2];
 	struct fll_config fll[2], fll_suspend[2];
 	struct regulator_bulk_data supplies[WM8995_NUM_SUPPLIES];
-	struct notifier_block disable_nb[WM8995_NUM_SUPPLIES];
+	struct yestifier_block disable_nb[WM8995_NUM_SUPPLIES];
 	struct snd_soc_component *component;
 };
 
 /*
- * We can't use the same notifier block for more than one supply and
- * there's no way I can see to get from a callback to the caller
+ * We can't use the same yestifier block for more than one supply and
+ * there's yes way I can see to get from a callback to the caller
  * except container_of().
  */
 #define WM8995_REGULATOR_EVENT(n) \
-static int wm8995_regulator_event_##n(struct notifier_block *nb, \
+static int wm8995_regulator_event_##n(struct yestifier_block *nb, \
 				      unsigned long event, void *data)    \
 { \
 	struct wm8995_priv *wm8995 = container_of(nb, struct wm8995_priv, \
@@ -1454,7 +1454,7 @@ static int wm8995_set_dai_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 		master = WM8995_AIF1_MSTR;
 		break;
 	default:
-		dev_err(dai->dev, "Unknown master/slave configuration\n");
+		dev_err(dai->dev, "Unkyeswn master/slave configuration\n");
 		return -EINVAL;
 	}
 
@@ -1475,14 +1475,14 @@ static int wm8995_set_dai_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 		aif |= (0x1 << WM8995_AIF1_FMT_SHIFT);
 		break;
 	default:
-		dev_err(dai->dev, "Unknown dai format\n");
+		dev_err(dai->dev, "Unkyeswn dai format\n");
 		return -EINVAL;
 	}
 
 	switch (fmt & SND_SOC_DAIFMT_FORMAT_MASK) {
 	case SND_SOC_DAIFMT_DSP_A:
 	case SND_SOC_DAIFMT_DSP_B:
-		/* frame inversion not valid for DSP modes */
+		/* frame inversion yest valid for DSP modes */
 		switch (fmt & SND_SOC_DAIFMT_INV_MASK) {
 		case SND_SOC_DAIFMT_NB_NF:
 			break;
@@ -1615,7 +1615,7 @@ static int wm8995_hw_params(struct snd_pcm_substream *substream,
 		if (srs[i] == params_rate(params))
 			break;
 	if (i == ARRAY_SIZE(srs)) {
-		dev_err(dai->dev, "Sample rate %d is not supported\n",
+		dev_err(dai->dev, "Sample rate %d is yest supported\n",
 			params_rate(params));
 		return -EINVAL;
 	}
@@ -1643,9 +1643,9 @@ static int wm8995_hw_params(struct snd_pcm_substream *substream,
 		dai->id + 1, fs_ratios[best]);
 
 	/*
-	 * We may not get quite the right frequency if using
+	 * We may yest get quite the right frequency if using
 	 * approximate clocks so look for the closest match that is
-	 * higher than the target (we need to ensure that there enough
+	 * higher than the target (we need to ensure that there eyesugh
 	 * BCLKs to clock out the samples).
 	 */
 	best = 0;
@@ -1783,7 +1783,7 @@ static int wm8995_get_fll_config(struct fll_div *fll,
 	if ((K % 10) >= 5)
 		K += 5;
 
-	/* Move down to proper range now rounding is done */
+	/* Move down to proper range yesw rounding is done */
 	fll->k = K / 10;
 
 	pr_debug("N=%x K=%x\n", fll->n, fll->k);
@@ -1825,7 +1825,7 @@ static int wm8995_set_fll(struct snd_soc_dai *dai, int id,
 
 	switch (src) {
 	case 0:
-		/* Allow no source specification when stopping */
+		/* Allow yes source specification when stopping */
 		if (freq_out)
 			return -EINVAL;
 		break;
@@ -1843,7 +1843,7 @@ static int wm8995_set_fll(struct snd_soc_dai *dai, int id,
 	    wm8995->fll[id].in == freq_in && wm8995->fll[id].out == freq_out)
 		return 0;
 
-	/* If we're stopping the FLL redo the old config - no
+	/* If we're stopping the FLL redo the old config - yes
 	 * registers will actually be written but we avoid GCC flow
 	 * analysis bugs spewing warnings.
 	 */
@@ -1943,7 +1943,7 @@ static int wm8995_set_dai_sysclk(struct snd_soc_dai *dai,
 		break;
 	case WM8995_SYSCLK_OPCLK:
 	default:
-		dev_err(dai->dev, "Unknown clock source %d\n", clk_id);
+		dev_err(dai->dev, "Unkyeswn clock source %d\n", clk_id);
 		return -EINVAL;
 	}
 
@@ -2012,23 +2012,23 @@ static int wm8995_probe(struct snd_soc_component *component)
 		return ret;
 	}
 
-	wm8995->disable_nb[0].notifier_call = wm8995_regulator_event_0;
-	wm8995->disable_nb[1].notifier_call = wm8995_regulator_event_1;
-	wm8995->disable_nb[2].notifier_call = wm8995_regulator_event_2;
-	wm8995->disable_nb[3].notifier_call = wm8995_regulator_event_3;
-	wm8995->disable_nb[4].notifier_call = wm8995_regulator_event_4;
-	wm8995->disable_nb[5].notifier_call = wm8995_regulator_event_5;
-	wm8995->disable_nb[6].notifier_call = wm8995_regulator_event_6;
-	wm8995->disable_nb[7].notifier_call = wm8995_regulator_event_7;
+	wm8995->disable_nb[0].yestifier_call = wm8995_regulator_event_0;
+	wm8995->disable_nb[1].yestifier_call = wm8995_regulator_event_1;
+	wm8995->disable_nb[2].yestifier_call = wm8995_regulator_event_2;
+	wm8995->disable_nb[3].yestifier_call = wm8995_regulator_event_3;
+	wm8995->disable_nb[4].yestifier_call = wm8995_regulator_event_4;
+	wm8995->disable_nb[5].yestifier_call = wm8995_regulator_event_5;
+	wm8995->disable_nb[6].yestifier_call = wm8995_regulator_event_6;
+	wm8995->disable_nb[7].yestifier_call = wm8995_regulator_event_7;
 
 	/* This should really be moved into the regulator core */
 	for (i = 0; i < ARRAY_SIZE(wm8995->supplies); i++) {
-		ret = devm_regulator_register_notifier(
+		ret = devm_regulator_register_yestifier(
 						wm8995->supplies[i].consumer,
 						&wm8995->disable_nb[i]);
 		if (ret) {
 			dev_err(component->dev,
-				"Failed to register regulator notifier: %d\n",
+				"Failed to register regulator yestifier: %d\n",
 				ret);
 		}
 	}
@@ -2180,7 +2180,7 @@ static const struct snd_soc_component_driver soc_component_dev_wm8995 = {
 	.num_dapm_routes	= ARRAY_SIZE(wm8995_intercon),
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
+	.yesn_legacy_dai_naming	= 1,
 };
 
 static const struct regmap_config wm8995_regmap = {

@@ -20,20 +20,20 @@ static int(*get_fallback_sprom)(struct bcma_bus *dev, struct ssb_sprom *out);
 
 /**
  * bcma_arch_register_fallback_sprom - Registers a method providing a
- * fallback SPROM if no SPROM is found.
+ * fallback SPROM if yes SPROM is found.
  *
  * @sprom_callback: The callback function.
  *
  * With this function the architecture implementation may register a
  * callback handler which fills the SPROM data structure. The fallback is
- * used for PCI based BCMA devices, where no valid SPROM can be found
+ * used for PCI based BCMA devices, where yes valid SPROM can be found
  * in the shadow registers and to provide the SPROM for SoCs where BCMA is
  * to controll the system bus.
  *
  * This function is useful for weird architectures that have a half-assed
  * BCMA device hardwired to their PCI bus.
  *
- * This function is available for architecture code, only. So it is not
+ * This function is available for architecture code, only. So it is yest
  * exported.
  */
 int bcma_arch_register_fallback_sprom(int (*sprom_callback)(struct bcma_bus *bus,
@@ -86,7 +86,7 @@ static void bcma_sprom_read(struct bcma_bus *bus, u16 offset, u16 *sprom,
 
 static inline u8 bcma_crc8(u8 crc, u8 data)
 {
-	/* Polynomial:   x^8 + x^7 + x^6 + x^4 + x^2 + 1   */
+	/* Polyyesmial:   x^8 + x^7 + x^6 + x^4 + x^2 + 1   */
 	static const u8 t[] = {
 		0x00, 0xF7, 0xB9, 0x4E, 0x25, 0xD2, 0x9C, 0x6B,
 		0x4A, 0xBD, 0xF3, 0x04, 0x6F, 0x98, 0xD6, 0x21,
@@ -593,7 +593,7 @@ int bcma_sprom_get(struct bcma_bus *bus)
 
 		/*
 		 * External SPROM takes precedence so check
-		 * on-chip OTP only when no external SPROM
+		 * on-chip OTP only when yes external SPROM
 		 * is present.
 		 */
 		sprom_onchip = bcma_sprom_onchip_available(bus);
@@ -603,7 +603,7 @@ int bcma_sprom_get(struct bcma_bus *bus)
 		}
 		if (!offset || !sprom_onchip) {
 			/*
-			 * Maybe there is no SPROM on the device?
+			 * Maybe there is yes SPROM on the device?
 			 * Now we ask the arch code if there is some sprom
 			 * available for this device in some other storage.
 			 */

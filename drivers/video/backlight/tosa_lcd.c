@@ -195,7 +195,7 @@ static int tosa_lcd_probe(struct spi_device *spi)
 	data->is_vga = true; /* default to VGA mode */
 
 	/*
-	 * bits_per_word cannot be configured in platform data
+	 * bits_per_word canyest be configured in platform data
 	 */
 	spi->bits_per_word = 8;
 

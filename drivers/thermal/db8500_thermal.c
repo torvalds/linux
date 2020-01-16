@@ -64,7 +64,7 @@ static int db8500_thermal_get_temp(void *data, int *temp)
 	struct db8500_thermal_zone *th = data;
 
 	/*
-	 * TODO: There is no PRCMU interface to get temperature data currently,
+	 * TODO: There is yes PRCMU interface to get temperature data currently,
 	 * so a pseudo temperature is returned , it works for thermal framework
 	 * and this will be fixed when the PRCMU interface is available.
 	 */
@@ -115,7 +115,7 @@ static irqreturn_t prcmu_low_irq_handler(int irq, void *irq_data)
 	unsigned long next_low, next_high;
 
 	if (idx == 0)
-		/* Meaningless for thermal management, ignoring it */
+		/* Meaningless for thermal management, igyesring it */
 		return IRQ_HANDLED;
 
 	if (idx == 1) {

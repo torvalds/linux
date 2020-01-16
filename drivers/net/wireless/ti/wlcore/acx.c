@@ -4,7 +4,7 @@
  *
  * Copyright (C) 2008-2009 Nokia Corporation
  *
- * Contact: Luciano Coelho <luciano.coelho@nokia.com>
+ * Contact: Luciayes Coelho <luciayes.coelho@yeskia.com>
  */
 
 #include "acx.h"
@@ -41,7 +41,7 @@ int wl1271_acx_wake_up_conditions(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 	ret = wl1271_cmd_configure(wl, ACX_WAKE_UP_CONDITIONS,
 				   wake_up, sizeof(*wake_up));
 	if (ret < 0) {
-		wl1271_warning("could not set wake up conditions: %d", ret);
+		wl1271_warning("could yest set wake up conditions: %d", ret);
 		goto out;
 	}
 
@@ -67,7 +67,7 @@ int wl1271_acx_sleep_auth(struct wl1271 *wl, u8 sleep_auth)
 
 	ret = wl1271_cmd_configure(wl, ACX_SLEEP_AUTH, auth, sizeof(*auth));
 	if (ret < 0) {
-		wl1271_error("could not configure sleep_auth to %d: %d",
+		wl1271_error("could yest configure sleep_auth to %d: %d",
 			     sleep_auth, ret);
 		goto out;
 	}
@@ -280,7 +280,7 @@ int wl1271_acx_rts_threshold(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 	int ret;
 
 	/*
-	 * If the RTS threshold is not configured or out of range, use the
+	 * If the RTS threshold is yest configured or out of range, use the
 	 * default value.
 	 */
 	if (rts_threshold > IEEE80211_MAX_RTS_THRESHOLD)
@@ -899,7 +899,7 @@ int wl1271_acx_frag_threshold(struct wl1271 *wl, u32 frag_threshold)
 	int ret = 0;
 
 	/*
-	 * If the fragmentation is not configured or out of range, use the
+	 * If the fragmentation is yest configured or out of range, use the
 	 * default value.
 	 */
 	if (frag_threshold > IEEE80211_MAX_FRAG_THRESHOLD)
@@ -1005,7 +1005,7 @@ int wl1271_acx_init_mem_config(struct wl1271 *wl)
 		return -ENOMEM;
 	}
 
-	/* we now ask for the firmware built memory map */
+	/* we yesw ask for the firmware built memory map */
 	ret = wl1271_acx_mem_map(wl, (void *)wl->target_mem_map,
 				 sizeof(struct wl1271_acx_mem_map));
 	if (ret < 0) {
@@ -1301,11 +1301,11 @@ int wl1271_acx_set_ht_capabilities(struct wl1271 *wl,
 	}
 
 	if (allow_ht_operation && ht_cap->ht_supported) {
-		/* no need to translate capabilities - use the spec values */
+		/* yes need to translate capabilities - use the spec values */
 		ht_capabilites = ht_cap->cap;
 
 		/*
-		 * this bit is not employed by the spec but only by FW to
+		 * this bit is yest employed by the spec but only by FW to
 		 * indicate peer HT support
 		 */
 		ht_capabilites |= WL12XX_HT_CAP_HT_OPERATION;
@@ -1434,7 +1434,7 @@ int wl12xx_acx_set_ba_receiver_session(struct wl1271 *wl, u8 tid_index,
 
 	/* sometimes we can't start the session */
 	if (ret == CMD_STATUS_NO_RX_BA_SESSION) {
-		wl1271_warning("no fw rx ba on tid %d", tid_index);
+		wl1271_warning("yes fw rx ba on tid %d", tid_index);
 		ret = -EBUSY;
 		goto out;
 	}
@@ -1497,7 +1497,7 @@ int wl1271_acx_ps_rx_streaming(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 
 	for (i = 0; i < 8; i++) {
 		/*
-		 * Skip non-changed queues, to avoid redundant acxs.
+		 * Skip yesn-changed queues, to avoid redundant acxs.
 		 * this check assumes conf.rx_streaming.queues can't
 		 * be changed while rx_streaming is enabled.
 		 */

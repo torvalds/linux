@@ -10,7 +10,7 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>
 
@@ -120,7 +120,7 @@ static int sharpsl_pcmcia_configure_socket(struct soc_pcmcia_socket *skt,
 	}
 
 	if ((state->Vpp!=state->Vcc) && (state->Vpp!=0)) {
-		printk(KERN_ERR "CF slot cannot support Vpp %u\n", state->Vpp);
+		printk(KERN_ERR "CF slot canyest support Vpp %u\n", state->Vpp);
 		return -1;
 	}
 

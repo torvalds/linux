@@ -40,7 +40,7 @@
 #define	JFS_GROUPCOMMIT	0x00000100	/* group (of 1) commit */
 #define	JFS_LAZYCOMMIT	0x00000200	/* lazy commit */
 #define	JFS_TMPFS	0x00000400	/* temporary file system -
-					 * do not log/commit:
+					 * do yest log/commit:
 					 * Never implemented
 					 */
 
@@ -48,7 +48,7 @@
 #define	JFS_INLINELOG	0x00000800	/* inline log within file system */
 #define JFS_INLINEMOVE	0x00001000	/* inline log being moved */
 
-/* Secondary aggregate inode table */
+/* Secondary aggregate iyesde table */
 #define JFS_BAD_SAIT	0x00010000	/* current secondary ait is bad */
 
 /* sparse regular file support */
@@ -96,28 +96,28 @@
 #define	PBSIZE		512	/* physical block size (in byte) */
 #define	L2PBSIZE	9	/* log2(PBSIZE) */
 
-#define DISIZE		512	/* on-disk inode size (in byte) */
+#define DISIZE		512	/* on-disk iyesde size (in byte) */
 #define L2DISIZE	9	/* log2(DISIZE) */
 
-#define IDATASIZE	256	/* inode inline data size */
-#define	IXATTRSIZE	128	/* inode inline extended attribute size */
+#define IDATASIZE	256	/* iyesde inline data size */
+#define	IXATTRSIZE	128	/* iyesde inline extended attribute size */
 
 #define XTPAGE_SIZE	4096
 #define log2_PAGESIZE	12
 
 #define IAG_SIZE	4096
 #define IAG_EXTENT_SIZE 4096
-#define	INOSPERIAG	4096	/* number of disk inodes per iag */
-#define	L2INOSPERIAG	12	/* l2 number of disk inodes per iag */
-#define INOSPEREXT	32	/* number of disk inode per extent */
-#define L2INOSPEREXT	5	/* l2 number of disk inode per extent */
-#define	IXSIZE		(DISIZE * INOSPEREXT)	/* inode extent size */
-#define	INOSPERPAGE	8	/* number of disk inodes per 4K page */
+#define	INOSPERIAG	4096	/* number of disk iyesdes per iag */
+#define	L2INOSPERIAG	12	/* l2 number of disk iyesdes per iag */
+#define INOSPEREXT	32	/* number of disk iyesde per extent */
+#define L2INOSPEREXT	5	/* l2 number of disk iyesde per extent */
+#define	IXSIZE		(DISIZE * INOSPEREXT)	/* iyesde extent size */
+#define	INOSPERPAGE	8	/* number of disk iyesdes per 4K page */
 #define	L2INOSPERPAGE	3	/* log2(INOSPERPAGE) */
 
 #define	IAGFREELIST_LWM	64
 
-#define INODE_EXTENT_SIZE	IXSIZE	/* inode extent size */
+#define INODE_EXTENT_SIZE	IXSIZE	/* iyesde extent size */
 #define NUM_INODE_PER_EXTENT	INOSPEREXT
 #define NUM_INODE_PER_IAG	INOSPERIAG
 
@@ -150,17 +150,17 @@
  *	 these macros should be removed and the byte offset macros used instead.
  */
 #define SUPER1_B	64	/* primary superblock */
-#define	AIMAP_B		(SUPER1_B + 8)	/* 1st extent of aggregate inode map */
+#define	AIMAP_B		(SUPER1_B + 8)	/* 1st extent of aggregate iyesde map */
 #define	AITBL_B		(AIMAP_B + 16)	/*
-					 * 1st extent of aggregate inode table
+					 * 1st extent of aggregate iyesde table
 					 */
 #define	SUPER2_B	(AITBL_B + 32)	/* 2ndary superblock pbn */
 #define	BMAP_B		(SUPER2_B + 8)	/* block allocation map */
 
 /*
  * SIZE_OF_SUPER defines the total amount of space reserved on disk for the
- * superblock.  This is not the same as the superblock structure, since all of
- * this space is not currently being used.
+ * superblock.  This is yest the same as the superblock structure, since all of
+ * this space is yest currently being used.
  */
 #define SIZE_OF_SUPER	PSIZE
 
@@ -171,7 +171,7 @@
 
 /*
  * SIZE_OF_MAP_PAGE defines the amount of disk space reserved for each page of
- * the inode allocation map (to hold iag)
+ * the iyesde allocation map (to hold iag)
  */
 #define SIZE_OF_MAP_PAGE	PSIZE
 
@@ -181,12 +181,12 @@
 #define SUPER1_OFF	0x8000	/* primary superblock */
 #define AIMAP_OFF	(SUPER1_OFF + SIZE_OF_SUPER)
 					/*
-					 * Control page of aggregate inode map
+					 * Control page of aggregate iyesde map
 					 * followed by 1st extent of map
 					 */
 #define AITBL_OFF	(AIMAP_OFF + (SIZE_OF_MAP_PAGE << 1))
 					/*
-					 * 1st extent of aggregate inode table
+					 * 1st extent of aggregate iyesde table
 					 */
 #define SUPER2_OFF	(AITBL_OFF + INODE_EXTENT_SIZE)
 					/*
@@ -214,37 +214,37 @@
 #define AGGR_RSVD_BYTES	SUPER1_OFF
 
 /*
- * The following macro defines the byte offset for the first inode extent in
- * the aggregate inode table.  This allows us to find the self inode to find the
+ * The following macro defines the byte offset for the first iyesde extent in
+ * the aggregate iyesde table.  This allows us to find the self iyesde to find the
  * rest of the table.  Currently this value is 44K.
  */
 #define AGGR_INODE_TABLE_START	AITBL_OFF
 
 /*
- *	fixed reserved inode number
+ *	fixed reserved iyesde number
  */
-/* aggregate inode */
-#define AGGR_RESERVED_I	0	/* aggregate inode (reserved) */
-#define	AGGREGATE_I	1	/* aggregate inode map inode */
-#define	BMAP_I		2	/* aggregate block allocation map inode */
-#define	LOG_I		3	/* aggregate inline log inode */
-#define BADBLOCK_I	4	/* aggregate bad block inode */
-#define	FILESYSTEM_I	16	/* 1st/only fileset inode in ait:
-				 * fileset inode map inode
+/* aggregate iyesde */
+#define AGGR_RESERVED_I	0	/* aggregate iyesde (reserved) */
+#define	AGGREGATE_I	1	/* aggregate iyesde map iyesde */
+#define	BMAP_I		2	/* aggregate block allocation map iyesde */
+#define	LOG_I		3	/* aggregate inline log iyesde */
+#define BADBLOCK_I	4	/* aggregate bad block iyesde */
+#define	FILESYSTEM_I	16	/* 1st/only fileset iyesde in ait:
+				 * fileset iyesde map iyesde
 				 */
 
-/* per fileset inode */
-#define FILESET_RSVD_I	0	/* fileset inode (reserved) */
-#define FILESET_EXT_I	1	/* fileset inode extension */
-#define	ROOT_I		2	/* fileset root inode */
-#define ACL_I		3	/* fileset ACL inode */
+/* per fileset iyesde */
+#define FILESET_RSVD_I	0	/* fileset iyesde (reserved) */
+#define FILESET_EXT_I	1	/* fileset iyesde extension */
+#define	ROOT_I		2	/* fileset root iyesde */
+#define ACL_I		3	/* fileset ACL iyesde */
 
-#define FILESET_OBJECT_I 4	/* the first fileset inode available for a file
+#define FILESET_OBJECT_I 4	/* the first fileset iyesde available for a file
 				 * or directory or link...
 				 */
-#define FIRST_FILESET_INO 16	/* the first aggregate inode which describes
-				 * an inode.  (To fsck this is also the first
-				 * inode in part 2 of the agg inode table.)
+#define FIRST_FILESET_INO 16	/* the first aggregate iyesde which describes
+				 * an iyesde.  (To fsck this is also the first
+				 * iyesde in part 2 of the agg iyesde table.)
 				 */
 
 /*
@@ -259,7 +259,7 @@
  */
 #define FM_CLEAN 0x00000000	/* file system is unmounted and clean */
 #define FM_MOUNT 0x00000001	/* file system is mounted cleanly */
-#define FM_DIRTY 0x00000002	/* file system was not unmounted and clean
+#define FM_DIRTY 0x00000002	/* file system was yest unmounted and clean
 				 * when mounted or
 				 * commit failure occurred while being mounted:
 				 * fsck() must be run to repair

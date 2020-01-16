@@ -9,7 +9,7 @@ these devices.
 The properties and their meanings are identical to those described in
 host-generic-pci.txt except as listed below.
 
-Properties of the host controller node that differ from
+Properties of the host controller yesde that differ from
 host-generic-pci.txt:
 
 - compatible     : Must be "cavium,pci-host-thunder-ecam"

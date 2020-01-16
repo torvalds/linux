@@ -3,7 +3,7 @@
  * linux/drivers/video/omap2/dss/dss.c
  *
  * Copyright (C) 2009 Nokia Corporation
- * Author: Tomi Valkeinen <tomi.valkeinen@nokia.com>
+ * Author: Tomi Valkeinen <tomi.valkeinen@yeskia.com>
  *
  * Some code and ideas taken from drivers/video/omap/ driver
  * by Imre Deak.
@@ -813,7 +813,7 @@ static const enum omap_display_type dra7xx_ports[] = {
 static const struct dss_features omap24xx_dss_feats = {
 	/*
 	 * fck div max is really 16, but the divider range has gaps. The range
-	 * from 1 to 6 has no gaps, so let's use that as a max.
+	 * from 1 to 6 has yes gaps, so let's use that as a max.
 	 */
 	.fck_div_max		=	6,
 	.dss_fck_multiplier	=	2,
@@ -914,8 +914,8 @@ static void dss_uninit_ports(struct platform_device *pdev);
 
 static int dss_init_ports(struct platform_device *pdev)
 {
-	struct device_node *parent = pdev->dev.of_node;
-	struct device_node *port;
+	struct device_yesde *parent = pdev->dev.of_yesde;
+	struct device_yesde *port;
 	int r, ret = 0;
 
 	if (parent == NULL)
@@ -962,8 +962,8 @@ static int dss_init_ports(struct platform_device *pdev)
 
 static void dss_uninit_ports(struct platform_device *pdev)
 {
-	struct device_node *parent = pdev->dev.of_node;
-	struct device_node *port;
+	struct device_yesde *parent = pdev->dev.of_yesde;
+	struct device_yesde *port;
 
 	if (parent == NULL)
 		return;
@@ -1004,7 +1004,7 @@ static void dss_uninit_ports(struct platform_device *pdev)
 
 static int dss_video_pll_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	struct regulator *pll_regulator;
 	int r;
 
@@ -1122,7 +1122,7 @@ static int dss_bind(struct device *dev)
 #ifdef CONFIG_FB_OMAP2_DSS_VENC
 	REG_FLD_MOD(DSS_CONTROL, 1, 4, 4);	/* venc dac demen */
 	REG_FLD_MOD(DSS_CONTROL, 1, 3, 3);	/* venc clock 4x enable */
-	REG_FLD_MOD(DSS_CONTROL, 0, 2, 2);	/* venc clock mode = normal */
+	REG_FLD_MOD(DSS_CONTROL, 0, 2, 2);	/* venc clock mode = yesrmal */
 #endif
 	dss.dsi_clk_source[0] = OMAP_DSS_CLK_SRC_FCK;
 	dss.dsi_clk_source[1] = OMAP_DSS_CLK_SRC_FCK;
@@ -1254,7 +1254,7 @@ static int dss_runtime_resume(struct device *dev)
 	/*
 	 * Set an arbitrarily high tput request to ensure OPP100.
 	 * What we should really do is to make a request to stay in OPP100,
-	 * without any tput requirements, but that is not currently possible
+	 * without any tput requirements, but that is yest currently possible
 	 * via the PM layer.
 	 */
 

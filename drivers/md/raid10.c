@@ -66,8 +66,8 @@
 
 static void allow_barrier(struct r10conf *conf);
 static void lower_barrier(struct r10conf *conf);
-static int _enough(struct r10conf *conf, int previous, int ignore);
-static int enough(struct r10conf *conf, int ignore);
+static int _eyesugh(struct r10conf *conf, int previous, int igyesre);
+static int eyesugh(struct r10conf *conf, int igyesre);
 static sector_t reshape_request(struct mddev *mddev, sector_t sector_nr,
 				int *skipped);
 static void reshape_request_write(struct mddev *mddev, struct r10bio *r10_bio);
@@ -378,7 +378,7 @@ static void raid10_end_read_request(struct bio *bio)
 		 * than fail the last device.  Here we redefine
 		 * "uptodate" to mean "Don't want to retry"
 		 */
-		if (!_enough(conf, test_bit(R10BIO_Previous, &r10_bio->state),
+		if (!_eyesugh(conf, test_bit(R10BIO_Previous, &r10_bio->state),
 			     rdev->raid_disk))
 			uptodate = 1;
 	}
@@ -468,7 +468,7 @@ static void raid10_end_write_request(struct bio *bio)
 			}
 
 			/*
-			 * When the device is faulty, it is not necessary to
+			 * When the device is faulty, it is yest necessary to
 			 * handle write error.
 			 * For failfast, this is the only remaining device,
 			 * We need to retry the write without FailFast.
@@ -495,8 +495,8 @@ static void raid10_end_write_request(struct bio *bio)
 		int bad_sectors;
 
 		/*
-		 * Do not set R10BIO_Uptodate if the current device is
-		 * rebuilding or Faulty. This is because we cannot use
+		 * Do yest set R10BIO_Uptodate if the current device is
+		 * rebuilding or Faulty. This is because we canyest use
 		 * such device for properly reading the data back (we could
 		 * potentially use it, if the current write would have felt
 		 * before rdev->recovery_offset, but for simplicity we don't
@@ -547,7 +547,7 @@ static void raid10_end_write_request(struct bio *bio)
  * so on.
  * If far_copies > 1, then after 1/far_copies of the array has been assigned
  * as described above, we start again with a device offset of near_copies.
- * So we effectively have another copy of the whole array further down all
+ * So we effectively have ayesther copy of the whole array further down all
  * the drives, but with blocks on different drives.
  * With this layout, and block is never stored twice on the one device.
  *
@@ -574,7 +574,7 @@ static void __raid10_find_phys(struct geom *geo, struct r10bio *r10bio)
 	last_far_set_size = geo->far_set_size;
 	last_far_set_size += (geo->raid_disks % geo->far_set_size);
 
-	/* now calculate first sector/dev */
+	/* yesw calculate first sector/dev */
 	chunk = r10bio->sector >> geo->chunk_shift;
 	sector = r10bio->sector & geo->chunk_mask;
 
@@ -685,13 +685,13 @@ static sector_t raid10_find_virt(struct r10conf *conf, sector_t sector, int dev)
  * This routine returns the disk from which the requested read should
  * be done. There is a per-array 'next expected sequential IO' sector
  * number - if this matches on the next IO then we use the last disk.
- * There is also a per-disk 'last know head position' sector that is
- * maintained from IRQ contexts, both the normal and the resync IO
- * completion handlers update this position correctly. If there is no
+ * There is also a per-disk 'last kyesw head position' sector that is
+ * maintained from IRQ contexts, both the yesrmal and the resync IO
+ * completion handlers update this position correctly. If there is yes
  * perfect sequential match then we pick the disk whose head is closest.
  *
  * If there are 2 mirrors in the same 2 devices, performance degrades
- * because position is mirror, not device based.
+ * because position is mirror, yest device based.
  *
  * The rdev for the device selected will have nr_pending incremented.
  */
@@ -712,7 +712,7 @@ static struct md_rdev *read_balance(struct r10conf *conf,
 	struct md_rdev *best_dist_rdev, *best_pending_rdev, *rdev = NULL;
 	int do_balance;
 	int best_dist_slot, best_pending_slot;
-	bool has_nonrot_disk = false;
+	bool has_yesnrot_disk = false;
 	unsigned int min_pending;
 	struct geom *geo = &conf->geo;
 
@@ -728,7 +728,7 @@ static struct md_rdev *read_balance(struct r10conf *conf,
 	clear_bit(R10BIO_FailFast, &r10_bio->state);
 	/*
 	 * Check if we can balance. We can balance on the whole
-	 * device if no resync is going on (recovery is ok), or below
+	 * device if yes resync is going on (recovery is ok), or below
 	 * the resync window. We take the first readable disk when
 	 * above the resync window.
 	 */
@@ -744,7 +744,7 @@ static struct md_rdev *read_balance(struct r10conf *conf,
 		int bad_sectors;
 		sector_t dev_sector;
 		unsigned int pending;
-		bool nonrot;
+		bool yesnrot;
 
 		if (r10_bio->devs[slot].bio == IO_BLOCKED)
 			continue;
@@ -767,9 +767,9 @@ static struct md_rdev *read_balance(struct r10conf *conf,
 				/* Already have a better slot */
 				continue;
 			if (first_bad <= dev_sector) {
-				/* Cannot read here.  If this is the
-				 * 'primary' device, then we must not read
-				 * beyond 'bad_sectors' from another device.
+				/* Canyest read here.  If this is the
+				 * 'primary' device, then we must yest read
+				 * beyond 'bad_sectors' from ayesther device.
 				 */
 				bad_sectors -= (dev_sector - first_bad);
 				if (!do_balance && sectors > bad_sectors)
@@ -795,10 +795,10 @@ static struct md_rdev *read_balance(struct r10conf *conf,
 		if (!do_balance)
 			break;
 
-		nonrot = blk_queue_nonrot(bdev_get_queue(rdev->bdev));
-		has_nonrot_disk |= nonrot;
+		yesnrot = blk_queue_yesnrot(bdev_get_queue(rdev->bdev));
+		has_yesnrot_disk |= yesnrot;
 		pending = atomic_read(&rdev->nr_pending);
-		if (min_pending > pending && nonrot) {
+		if (min_pending > pending && yesnrot) {
 			min_pending = pending;
 			best_pending_slot = slot;
 			best_pending_rdev = rdev;
@@ -828,7 +828,7 @@ static struct md_rdev *read_balance(struct r10conf *conf,
 		}
 	}
 	if (slot >= conf->copies) {
-		if (has_nonrot_disk) {
+		if (has_yesnrot_disk) {
 			slot = best_pending_slot;
 			rdev = best_pending_rdev;
 		} else {
@@ -914,7 +914,7 @@ static void flush_pending_writes(struct r10conf *conf)
 				bio_io_error(bio);
 			} else if (unlikely((bio_op(bio) ==  REQ_OP_DISCARD) &&
 					    !blk_queue_discard(bio->bi_disk->queue)))
-				/* Just ignore it */
+				/* Just igyesre it */
 				bio_endio(bio);
 			else
 				generic_make_request(bio);
@@ -931,19 +931,19 @@ static void flush_pending_writes(struct r10conf *conf)
  * To do this we raise a 'barrier'.
  * The 'barrier' is a counter that can be raised multiple times
  * to count how many activities are happening which preclude
- * normal IO.
- * We can only raise the barrier if there is no pending IO.
+ * yesrmal IO.
+ * We can only raise the barrier if there is yes pending IO.
  * i.e. if nr_pending == 0.
- * We choose only to raise the barrier if no-one is waiting for the
+ * We choose only to raise the barrier if yes-one is waiting for the
  * barrier to go down.  This means that as soon as an IO request
- * is ready, no other operations which require a barrier will start
+ * is ready, yes other operations which require a barrier will start
  * until the IO request has had a chance.
  *
  * So: regular IO calls 'wait_barrier'.  When that returns there
- *    is no backgroup IO happening,  It must arrange to call
+ *    is yes backgroup IO happening,  It must arrange to call
  *    allow_barrier when it has finished its IO.
  * backgroup IO calls must call raise_barrier.  Once that returns
- *    there is no normal IO happeing.  It must arrange to call
+ *    there is yes yesrmal IO happeing.  It must arrange to call
  *    lower_barrier when the particular background IO completes.
  */
 
@@ -952,7 +952,7 @@ static void raise_barrier(struct r10conf *conf, int force)
 	BUG_ON(force && !conf->barrier);
 	spin_lock_irq(&conf->resync_lock);
 
-	/* Wait until no block IO is waiting (unless 'force') */
+	/* Wait until yes block IO is waiting (unless 'force') */
 	wait_event_lock_irq(conf->wait_barrier, force || !conf->nr_waiting,
 			    conf->resync_lock);
 
@@ -1015,11 +1015,11 @@ static void allow_barrier(struct r10conf *conf)
 
 static void freeze_array(struct r10conf *conf, int extra)
 {
-	/* stop syncio and normal IO and wait for everything to
+	/* stop syncio and yesrmal IO and wait for everything to
 	 * go quiet.
 	 * We increment barrier and nr_waiting, and then
 	 * wait until nr_pending match nr_queued+extra
-	 * This is called in the context of one normal IO request
+	 * This is called in the context of one yesrmal IO request
 	 * that has failed. Thus any sync request that might be pending
 	 * will be blocked by nr_pending, and we need to wait for
 	 * pending IO requests to complete or be queued for re-try.
@@ -1099,7 +1099,7 @@ static void raid10_unplug(struct blk_plug_cb *cb, bool from_schedule)
 			bio_io_error(bio);
 		} else if (unlikely((bio_op(bio) ==  REQ_OP_DISCARD) &&
 				    !blk_queue_discard(bio->bi_disk->queue)))
-			/* Just ignore it */
+			/* Just igyesre it */
 			bio_endio(bio);
 		else
 			generic_make_request(bio);
@@ -1110,7 +1110,7 @@ static void raid10_unplug(struct blk_plug_cb *cb, bool from_schedule)
 
 /*
  * 1. Register the new request and wait if the reconstruction thread has put
- * up a bar for new requests. Continue immediately if no resync is active
+ * up a bar for new requests. Continue immediately if yes resync is active
  * currently.
  * 2. If IO spans the reshape position.  Need to wait for reshape to pass.
  */
@@ -1147,7 +1147,7 @@ static void raid10_read_request(struct mddev *mddev, struct bio *bio,
 
 	if (r10_bio->devs[slot].rdev) {
 		/*
-		 * This is an error retry, but we cannot
+		 * This is an error retry, but we canyest
 		 * safely dereference the rdev in the r10_bio,
 		 * we must use the one in conf.
 		 * If it has already been disconnected (unlikely)
@@ -1185,7 +1185,7 @@ static void raid10_read_request(struct mddev *mddev, struct bio *bio,
 		return;
 	}
 	if (err_rdev)
-		pr_err_ratelimited("md/raid10:%s: %s: redirecting sector %llu to another mirror\n",
+		pr_err_ratelimited("md/raid10:%s: %s: redirecting sector %llu to ayesther mirror\n",
 				   mdname(mddev),
 				   bdevname(rdev->bdev, b),
 				   (unsigned long long)r10_bio->sector);
@@ -1263,7 +1263,7 @@ static void raid10_write_one_disk(struct mddev *mddev, struct r10bio *r10_bio,
 	bio_set_op_attrs(mbio, op, do_sync | do_fua);
 	if (!replacement && test_bit(FailFast,
 				     &conf->mirrors[devnum].rdev->flags)
-			 && enough(conf, devnum))
+			 && eyesugh(conf, devnum))
 		mbio->bi_opf |= MD_FAILFAST;
 	mbio->bi_private = r10_bio;
 
@@ -1347,7 +1347,7 @@ static void raid10_write_request(struct mddev *mddev, struct bio *bio,
 	/* first select target devices under rcu_lock and
 	 * inc refcount on their rdev.  Record them by setting
 	 * bios[x] to bio
-	 * If there are known/acknowledged bad blocks on any device
+	 * If there are kyeswn/ackyeswledged bad blocks on any device
 	 * on which we have seen a write error, we want to avoid
 	 * writing to those blocks.  This potentially requires several
 	 * writes to write around the bad blocks.  Each set of writes
@@ -1400,7 +1400,7 @@ retry_write:
 					     &first_bad, &bad_sectors);
 			if (is_bad < 0) {
 				/* Mustn't write here until the bad block
-				 * is acknowledged
+				 * is ackyeswledged
 				 */
 				atomic_inc(&rdev->nr_pending);
 				set_bit(BlockedBadBlocks, &rdev->flags);
@@ -1408,7 +1408,7 @@ retry_write:
 				break;
 			}
 			if (is_bad && first_bad <= dev_sector) {
-				/* Cannot write here at all */
+				/* Canyest write here at all */
 				bad_sectors -= (dev_sector - first_bad);
 				if (bad_sectors < max_sectors)
 					/* Mustn't write more than bad_sectors
@@ -1418,9 +1418,9 @@ retry_write:
 				/* We don't set R10BIO_Degraded as that
 				 * only applies if the disk is missing,
 				 * so it might be re-added, and we want to
-				 * know to recover this chunk.
+				 * kyesw to recover this chunk.
 				 * In this case the device is here, and the
-				 * fact that this chunk is not in-sync is
+				 * fact that this chunk is yest in-sync is
 				 * recorded in the bad block log.
 				 */
 				continue;
@@ -1579,15 +1579,15 @@ static void raid10_status(struct seq_file *seq, struct mddev *mddev)
 	seq_printf(seq, "]");
 }
 
-/* check if there are enough drives for
+/* check if there are eyesugh drives for
  * every block to appear on atleast one.
- * Don't consider the device numbered 'ignore'
+ * Don't consider the device numbered 'igyesre'
  * as we might be about to remove it.
  */
-static int _enough(struct r10conf *conf, int previous, int ignore)
+static int _eyesugh(struct r10conf *conf, int previous, int igyesre)
 {
 	int first = 0;
-	int has_enough = 0;
+	int has_eyesugh = 0;
 	int disks, ncopies;
 	if (previous) {
 		disks = conf->prev.raid_disks;
@@ -1604,7 +1604,7 @@ static int _enough(struct r10conf *conf, int previous, int ignore)
 		int this = first;
 		while (n--) {
 			struct md_rdev *rdev;
-			if (this != ignore &&
+			if (this != igyesre &&
 			    (rdev = rcu_dereference(conf->mirrors[this].rdev)) &&
 			    test_bit(In_sync, &rdev->flags))
 				cnt++;
@@ -1614,21 +1614,21 @@ static int _enough(struct r10conf *conf, int previous, int ignore)
 			goto out;
 		first = (first + ncopies) % disks;
 	} while (first != 0);
-	has_enough = 1;
+	has_eyesugh = 1;
 out:
 	rcu_read_unlock();
-	return has_enough;
+	return has_eyesugh;
 }
 
-static int enough(struct r10conf *conf, int ignore)
+static int eyesugh(struct r10conf *conf, int igyesre)
 {
-	/* when calling 'enough', both 'prev' and 'geo' must
+	/* when calling 'eyesugh', both 'prev' and 'geo' must
 	 * be stable.
 	 * This is ensured if ->reconfig_mutex or ->device_lock
 	 * is held.
 	 */
-	return _enough(conf, 0, ignore) &&
-		_enough(conf, 1, ignore);
+	return _eyesugh(conf, 0, igyesre) &&
+		_eyesugh(conf, 1, igyesre);
 }
 
 static void raid10_error(struct mddev *mddev, struct md_rdev *rdev)
@@ -1638,14 +1638,14 @@ static void raid10_error(struct mddev *mddev, struct md_rdev *rdev)
 	unsigned long flags;
 
 	/*
-	 * If it is not operational, then we have already marked it as dead
+	 * If it is yest operational, then we have already marked it as dead
 	 * else if it is the last working disks with "fail_last_dev == false",
-	 * ignore the error, let the next level up know.
+	 * igyesre the error, let the next level up kyesw.
 	 * else mark the drive as failed
 	 */
 	spin_lock_irqsave(&conf->device_lock, flags);
 	if (test_bit(In_sync, &rdev->flags) && !mddev->fail_last_dev
-	    && !enough(conf, rdev->raid_disk)) {
+	    && !eyesugh(conf, rdev->raid_disk)) {
 		/*
 		 * Don't fail the drive, just return an IO error.
 		 */
@@ -1683,7 +1683,7 @@ static void print_conf(struct r10conf *conf)
 		 conf->geo.raid_disks);
 
 	/* This is only called with ->reconfix_mutex held, so
-	 * rcu protection of rdev is not needed */
+	 * rcu protection of rdev is yest needed */
 	for (i = 0; i < conf->geo.raid_disks; i++) {
 		char b[BDEVNAME_SIZE];
 		rdev = conf->mirrors[i].rdev;
@@ -1712,7 +1712,7 @@ static int raid10_spare_active(struct mddev *mddev)
 	unsigned long flags;
 
 	/*
-	 * Find all non-in_sync disks within the RAID10 configuration
+	 * Find all yesn-in_sync disks within the RAID10 configuration
 	 * and mark them in_sync
 	 */
 	for (i = 0; i < conf->geo.raid_disks; i++) {
@@ -1726,21 +1726,21 @@ static int raid10_spare_active(struct mddev *mddev)
 			    || !test_and_clear_bit(In_sync, &tmp->rdev->flags))
 				count++;
 			if (tmp->rdev) {
-				/* Replaced device not technically faulty,
+				/* Replaced device yest technically faulty,
 				 * but we need to be sure it gets removed
 				 * and never re-added.
 				 */
 				set_bit(Faulty, &tmp->rdev->flags);
-				sysfs_notify_dirent_safe(
+				sysfs_yestify_dirent_safe(
 					tmp->rdev->sysfs_state);
 			}
-			sysfs_notify_dirent_safe(tmp->replacement->sysfs_state);
+			sysfs_yestify_dirent_safe(tmp->replacement->sysfs_state);
 		} else if (tmp->rdev
 			   && tmp->rdev->recovery_offset == MaxSector
 			   && !test_bit(Faulty, &tmp->rdev->flags)
 			   && !test_and_set_bit(In_sync, &tmp->rdev->flags)) {
 			count++;
-			sysfs_notify_dirent_safe(tmp->rdev->sysfs_state);
+			sysfs_yestify_dirent_safe(tmp->rdev->sysfs_state);
 		}
 	}
 	spin_lock_irqsave(&conf->device_lock, flags);
@@ -1764,7 +1764,7 @@ static int raid10_add_disk(struct mddev *mddev, struct md_rdev *rdev)
 		 * very different from resync
 		 */
 		return -EBUSY;
-	if (rdev->saved_raid_disk < 0 && !_enough(conf, 1, -1))
+	if (rdev->saved_raid_disk < 0 && !_eyesugh(conf, 1, -1))
 		return -EINVAL;
 
 	if (md_integrity_add_rdev(rdev, mddev))
@@ -1840,14 +1840,14 @@ static int raid10_remove_disk(struct mddev *mddev, struct md_rdev *rdev)
 		err = -EBUSY;
 		goto abort;
 	}
-	/* Only remove non-faulty devices if recovery
-	 * is not possible.
+	/* Only remove yesn-faulty devices if recovery
+	 * is yest possible.
 	 */
 	if (!test_bit(Faulty, &rdev->flags) &&
 	    mddev->recovery_disabled != p->recovery_disabled &&
 	    (!p->replacement || p->replacement == rdev) &&
 	    number < conf->geo.raid_disks &&
-	    enough(conf, -1)) {
+	    eyesugh(conf, -1)) {
 		err = -EBUSY;
 		goto abort;
 	}
@@ -1887,7 +1887,7 @@ static void __end_sync_read(struct r10bio *r10_bio, struct bio *bio, int d)
 	if (!bio->bi_status)
 		set_bit(R10BIO_Uptodate, &r10_bio->state);
 	else
-		/* The write handler will notice the lack of
+		/* The write handler will yestice the lack of
 		 * R10BIO_Uptodate and record any errors etc
 		 */
 		atomic_add(r10_bio->sectors,
@@ -1997,7 +1997,7 @@ static void end_sync_write(struct bio *bio)
  * drive is authoritative.
  * However requests come for physical address, so we need to map.
  * For every physical address there are raid_disks/copies virtual addresses,
- * which is always are least one, but is not necessarly an integer.
+ * which is always are least one, but is yest necessarly an integer.
  * This means that a physical address can span multiple chunks, so we may
  * have to submit multiple io requests for a single sync request.
  */
@@ -2030,7 +2030,7 @@ static void sync_request_write(struct mddev *mddev, struct r10bio *r10_bio)
 	fpages = get_resync_pages(fbio)->pages;
 
 	vcnt = (r10_bio->sectors + (PAGE_SIZE >> 9) - 1) >> (PAGE_SHIFT - 9);
-	/* now find blocks with errors */
+	/* yesw find blocks with errors */
 	for (i=0 ; i < conf->copies ; i++) {
 		int  j, d;
 		struct md_rdev *rdev;
@@ -2047,7 +2047,7 @@ static void sync_request_write(struct mddev *mddev, struct r10bio *r10_bio)
 		d = r10_bio->devs[i].devnum;
 		rdev = conf->mirrors[d].rdev;
 		if (!r10_bio->devs[i].bio->bi_status) {
-			/* We know that the bi_io_vec layout is the same for
+			/* We kyesw that the bi_io_vec layout is the same for
 			 * both 'first' and 'i', so we just compare them.
 			 * All vec entries are PAGE_SIZE;
 			 */
@@ -2131,9 +2131,9 @@ done:
 /*
  * Now for the recovery code.
  * Recovery happens across physical sectors.
- * We recover all non-is_sync drives by finding the virtual address of
+ * We recover all yesn-is_sync drives by finding the virtual address of
  * each, and then choose a working drive that also has that virt address.
- * There is a separate r10_bio for each non-in_sync drive.
+ * There is a separate r10_bio for each yesn-in_sync drive.
  * Only the first two slots are in use. The first for reading,
  * The second for writing.
  *
@@ -2143,7 +2143,7 @@ static void fix_recovery_read_error(struct r10bio *r10_bio)
 	/* We got a read error during recovery.
 	 * We repeat the read in smaller page-sized sections.
 	 * If a read succeeds, write it to the new device or record
-	 * a bad block if we cannot.
+	 * a bad block if we canyest.
 	 * If a read fails, record a bad block on both old and
 	 * new devices.
 	 */
@@ -2190,8 +2190,8 @@ static void fix_recovery_read_error(struct r10bio *r10_bio)
 			}
 		}
 		if (!ok) {
-			/* We don't worry if we cannot set a bad block -
-			 * it really is bad so there is no loss in not
+			/* We don't worry if we canyest set a bad block -
+			 * it really is bad so there is yes loss in yest
 			 * recording it yet
 			 */
 			rdev_set_badblocks(rdev, addr, s, 0);
@@ -2203,7 +2203,7 @@ static void fix_recovery_read_error(struct r10bio *r10_bio)
 				ok = rdev_set_badblocks(rdev2, addr, s, 0);
 				if (!ok) {
 					/* just abort the recovery */
-					pr_notice("md/raid10:%s: recovery aborted due to read error\n",
+					pr_yestice("md/raid10:%s: recovery aborted due to read error\n",
 						  mdname(mddev));
 
 					conf->mirrors[dw].recovery_disabled
@@ -2335,13 +2335,13 @@ static void fix_read_error(struct r10conf *conf, struct mddev *mddev, struct r10
 	int max_read_errors = atomic_read(&mddev->max_corr_read_errors);
 	int d = r10_bio->devs[r10_bio->read_slot].devnum;
 
-	/* still own a reference to this rdev, so it cannot
+	/* still own a reference to this rdev, so it canyest
 	 * have been cleared recently.
 	 */
 	rdev = conf->mirrors[d].rdev;
 
 	if (test_bit(Faulty, &rdev->flags))
-		/* drive has already been failed, just ignore any
+		/* drive has already been failed, just igyesre any
 		   more fix_read_error() attempts */
 		return;
 
@@ -2351,10 +2351,10 @@ static void fix_read_error(struct r10conf *conf, struct mddev *mddev, struct r10
 		char b[BDEVNAME_SIZE];
 		bdevname(rdev->bdev, b);
 
-		pr_notice("md/raid10:%s: %s: Raid device exceeded read_error threshold [cur %d:max %d]\n",
+		pr_yestice("md/raid10:%s: %s: Raid device exceeded read_error threshold [cur %d:max %d]\n",
 			  mdname(mddev), b,
 			  atomic_read(&rdev->read_errors), max_read_errors);
-		pr_notice("md/raid10:%s: %s: Failing raid device\n",
+		pr_yestice("md/raid10:%s: %s: Failing raid device\n",
 			  mdname(mddev), b);
 		md_error(mddev, rdev);
 		r10_bio->devs[r10_bio->read_slot].bio = IO_BLOCKED;
@@ -2402,7 +2402,7 @@ static void fix_read_error(struct r10conf *conf, struct mddev *mddev, struct r10
 		rcu_read_unlock();
 
 		if (!success) {
-			/* Cannot read from anywhere, just mark the block
+			/* Canyest read from anywhere, just mark the block
 			 * as bad on the first device to discourage future
 			 * reads.
 			 */
@@ -2445,14 +2445,14 @@ static void fix_read_error(struct r10conf *conf, struct mddev *mddev, struct r10
 					     s, conf->tmppage, WRITE)
 			    == 0) {
 				/* Well, this device is dead */
-				pr_notice("md/raid10:%s: read correction write failed (%d sectors at %llu on %s)\n",
+				pr_yestice("md/raid10:%s: read correction write failed (%d sectors at %llu on %s)\n",
 					  mdname(mddev), s,
 					  (unsigned long long)(
 						  sect +
 						  choose_data_offset(r10_bio,
 								     rdev)),
 					  bdevname(rdev->bdev, b));
-				pr_notice("md/raid10:%s: %s: failing drive\n",
+				pr_yestice("md/raid10:%s: %s: failing drive\n",
 					  mdname(mddev),
 					  bdevname(rdev->bdev, b));
 			}
@@ -2482,13 +2482,13 @@ static void fix_read_error(struct r10conf *conf, struct mddev *mddev, struct r10
 						 READ)) {
 			case 0:
 				/* Well, this device is dead */
-				pr_notice("md/raid10:%s: unable to read back corrected sectors (%d sectors at %llu on %s)\n",
+				pr_yestice("md/raid10:%s: unable to read back corrected sectors (%d sectors at %llu on %s)\n",
 				       mdname(mddev), s,
 				       (unsigned long long)(
 					       sect +
 					       choose_data_offset(r10_bio, rdev)),
 				       bdevname(rdev->bdev, b));
-				pr_notice("md/raid10:%s: %s: failing drive\n",
+				pr_yestice("md/raid10:%s: %s: failing drive\n",
 				       mdname(mddev),
 				       bdevname(rdev->bdev, b));
 				break;
@@ -2585,7 +2585,7 @@ static void handle_read_error(struct mddev *mddev, struct r10bio *r10_bio)
 	 * We freeze all other IO, and try reading the block from
 	 * other devices.  When we find one, we re-write
 	 * and check it that fixes the read error.
-	 * This is all done synchronously while the array is
+	 * This is all done synchroyesusly while the array is
 	 * frozen.
 	 */
 	bio = r10_bio->devs[slot].bio;
@@ -2830,7 +2830,7 @@ static struct r10bio *raid10_alloc_init_r10buf(struct r10conf *conf)
 }
 
 /*
- * Set cluster_sync_high since we need other nodes to add the
+ * Set cluster_sync_high since we need other yesdes to add the
  * range [cluster_sync_low, cluster_sync_high] to suspend list.
  */
 static void raid10_set_cluster_sync_high(struct r10conf *conf)
@@ -2844,8 +2844,8 @@ static void raid10_set_cluster_sync_high(struct r10conf *conf)
 	 * raid_disks / near_copies. Otherwise, if near_copies is
 	 * close to raid_disks, then resync window could increases
 	 * linearly with the increase of raid_disks, which means
-	 * we will suspend a really large IO window while it is not
-	 * necessary. If raid_disks is not divisible by near_copies,
+	 * we will suspend a really large IO window while it is yest
+	 * necessary. If raid_disks is yest divisible by near_copies,
 	 * an extra chunk is needed to ensure the whole "stripe" is
 	 * covered.
 	 */
@@ -2869,11 +2869,11 @@ static void raid10_set_cluster_sync_high(struct r10conf *conf)
 /*
  * perform a "sync" on one "block"
  *
- * We need to make sure that no normal I/O request - particularly write
+ * We need to make sure that yes yesrmal I/O request - particularly write
  * requests - conflict with active sync requests.
  *
  * This is achieved by tracking pending requests and a 'barrier' concept
- * that can be installed to exclude normal IO requests.
+ * that can be installed to exclude yesrmal IO requests.
  *
  * Resync and recovery are handled very differently.
  * We differentiate by looking at MD_RECOVERY_SYNC in mddev->recovery.
@@ -2882,7 +2882,7 @@ static void raid10_set_cluster_sync_high(struct r10conf *conf)
  * and update if there are differences.  If only one copy is live,
  * skip it.
  * For recovery, we iterate over physical addresses, read a good
- * value for each non-in_sync drive, and over-write.
+ * value for each yesn-in_sync drive, and over-write.
  *
  * So, for recovery we may have several outstanding complex requests for a
  * given address, one for each out-of-sync device.  We model this by allocating
@@ -2944,7 +2944,7 @@ static sector_t raid10_sync_request(struct mddev *mddev, sector_t sector_nr,
 		/* If we aborted, we need to abort the
 		 * sync on the 'current' bitmap chucks (there can
 		 * be several when recovering multiple devices).
-		 * as we may have started syncing it but not finished.
+		 * as we may have started syncing it but yest finished.
 		 * We can find the current address in
 		 * mddev->curr_resync, but for recovery,
 		 * we need to convert that to several
@@ -2972,7 +2972,7 @@ static sector_t raid10_sync_request(struct mddev *mddev, sector_t sector_nr,
 			    && conf->have_replacement
 			    && test_bit(MD_RECOVERY_SYNC, &mddev->recovery)) {
 				/* Completed a full sync so the replacements
-				 * are now fully recovered.
+				 * are yesw fully recovered.
 				 */
 				rcu_read_lock();
 				for (i = 0; i < conf->geo.raid_disks; i++) {
@@ -2995,8 +2995,8 @@ static sector_t raid10_sync_request(struct mddev *mddev, sector_t sector_nr,
 		return reshape_request(mddev, sector_nr, skipped);
 
 	if (chunks_skipped >= conf->geo.raid_disks) {
-		/* if there has been nothing to do on any drive,
-		 * then there is nothing to do at all..
+		/* if there has been yesthing to do on any drive,
+		 * then there is yesthing to do at all..
 		 */
 		*skipped = 1;
 		return (max_sector - sector_nr) + sectors_skipped;
@@ -3013,7 +3013,7 @@ static sector_t raid10_sync_request(struct mddev *mddev, sector_t sector_nr,
 		max_sector = (sector_nr | chunk_mask) + 1;
 
 	/*
-	 * If there is non-resync activity waiting for a turn, then let it
+	 * If there is yesn-resync activity waiting for a turn, then let it
 	 * though before starting on this new sync request.
 	 */
 	if (conf->nr_waiting)
@@ -3073,7 +3073,7 @@ static sector_t raid10_sync_request(struct mddev *mddev, sector_t sector_nr,
 			rb2 = r10_bio;
 			sect = raid10_find_virt(conf, sector_nr, i);
 			if (sect >= mddev->resync_max_sectors) {
-				/* last stripe is not complete - don't
+				/* last stripe is yest complete - don't
 				 * try to recover this sector.
 				 */
 				rcu_read_unlock();
@@ -3174,7 +3174,7 @@ static sector_t raid10_sync_request(struct mddev *mddev, sector_t sector_nr,
 					rdev->data_offset;
 				bio_set_dev(bio, rdev->bdev);
 				atomic_inc(&rdev->nr_pending);
-				/* and we write to 'i' (if not in_sync) */
+				/* and we write to 'i' (if yest in_sync) */
 
 				for (k=0; k<conf->copies; k++)
 					if (r10_bio->devs[k].devnum == i)
@@ -3204,7 +3204,7 @@ static sector_t raid10_sync_request(struct mddev *mddev, sector_t sector_nr,
 				if (bio)
 					bio->bi_end_io = NULL;
 				/* Note: if need_replace, then bio
-				 * cannot be NULL as r10buf_pool_alloc will
+				 * canyest be NULL as r10buf_pool_alloc will
 				 * have allocated it.
 				 */
 				if (!need_replace)
@@ -3221,7 +3221,7 @@ static sector_t raid10_sync_request(struct mddev *mddev, sector_t sector_nr,
 			}
 			rcu_read_unlock();
 			if (j == conf->copies) {
-				/* Cannot recover, so abort the recovery or
+				/* Canyest recover, so abort the recovery or
 				 * record a bad block */
 				if (any_working) {
 					/* problem is that there are bad blocks
@@ -3297,7 +3297,7 @@ static sector_t raid10_sync_request(struct mddev *mddev, sector_t sector_nr,
 		int count = 0;
 
 		/*
-		 * Since curr_resync_completed could probably not update in
+		 * Since curr_resync_completed could probably yest update in
 		 * time, and we will set cluster_sync_low based on it.
 		 * Let's check against "sector_nr + 2 * RESYNC_SECTORS" for
 		 * safety reason, which ensures curr_resync_completed is
@@ -3429,7 +3429,7 @@ static sector_t raid10_sync_request(struct mddev *mddev, sector_t sector_nr,
 			struct resync_pages *rp = get_resync_pages(bio);
 			page = resync_fetch_page(rp, page_idx);
 			/*
-			 * won't fail because the vec table is big enough
+			 * won't fail because the vec table is big eyesugh
 			 * to hold all these pages
 			 */
 			bio_add_page(bio, page, len, 0);
@@ -3441,7 +3441,7 @@ static sector_t raid10_sync_request(struct mddev *mddev, sector_t sector_nr,
 
 	if (mddev_is_clustered(mddev) &&
 	    test_bit(MD_RECOVERY_SYNC, &mddev->recovery)) {
-		/* It is resync not recovery */
+		/* It is resync yest recovery */
 		if (conf->cluster_sync_high < sector_nr + nr_sectors) {
 			conf->cluster_sync_low = mddev->curr_resync_completed;
 			raid10_set_cluster_sync_high(conf);
@@ -3451,7 +3451,7 @@ static sector_t raid10_sync_request(struct mddev *mddev, sector_t sector_nr,
 						conf->cluster_sync_high);
 		}
 	} else if (mddev_is_clustered(mddev)) {
-		/* This is recovery not resync */
+		/* This is recovery yest resync */
 		sector_t sect_va1, sect_va2;
 		bool broadcast_msg = false;
 
@@ -3502,13 +3502,13 @@ static sector_t raid10_sync_request(struct mddev *mddev, sector_t sector_nr,
 
 	if (sectors_skipped)
 		/* pretend they weren't skipped, it makes
-		 * no important difference in this case
+		 * yes important difference in this case
 		 */
 		md_done_sync(mddev, sectors_skipped, 1);
 
 	return sectors_skipped + nr_sectors;
  giveup:
-	/* There is nowhere to write, so all non-sync
+	/* There is yeswhere to write, so all yesn-sync
 	 * drives must be failed or in resync, all drives
 	 * have a bad block, so try the next chunk...
 	 */
@@ -3552,7 +3552,7 @@ static void calc_sectors(struct r10conf *conf, sector_t size)
 	sector_div(size, conf->geo.far_copies);
 	size = size * conf->geo.raid_disks;
 	sector_div(size, conf->geo.near_copies);
-	/* 'size' is now the number of chunks in the array */
+	/* 'size' is yesw the number of chunks in the array */
 	/* calculate "used chunks per device" */
 	size = size * conf->copies;
 
@@ -3588,7 +3588,7 @@ static int setup_geo(struct geom *geo, struct mddev *mddev, enum geo_type new)
 		disks = mddev->raid_disks;
 		break;
 	default: /* avoid 'may be unused' warnings */
-	case geo_start: /* new when starting reshape - raid_disks not
+	case geo_start: /* new when starting reshape - raid_disks yest
 			 * updated yet. */
 		layout = mddev->new_layout;
 		chunk = mddev->new_chunk_sectors;
@@ -3608,14 +3608,14 @@ static int setup_geo(struct geom *geo, struct mddev *mddev, enum geo_type new)
 	geo->far_copies = fc;
 	geo->far_offset = fo;
 	switch (layout >> 17) {
-	case 0:	/* original layout.  simple but not always optimal */
+	case 0:	/* original layout.  simple but yest always optimal */
 		geo->far_set_size = disks;
 		break;
-	case 1: /* "improved" layout which was buggy.  Hopefully no-one is
+	case 1: /* "improved" layout which was buggy.  Hopefully yes-one is
 		 * actually using this, but leave code here just in case.*/
 		geo->far_set_size = disks/fc;
 		WARN(geo->far_set_size < fc,
-		     "This RAID10 layout does not provide data safety - please backup and create new array\n");
+		     "This RAID10 layout does yest provide data safety - please backup and create new array\n");
 		break;
 	case 2: /* "improved" layout fixed to match documentation */
 		geo->far_set_size = fc * nc;
@@ -3821,8 +3821,8 @@ static int raid10_run(struct mddev *mddev)
 						  mddev->queue);
 	}
 	/* need to check that every block has at least one working mirror */
-	if (!enough(conf, -1)) {
-		pr_err("md/raid10:%s: not enough operational mirrors.\n",
+	if (!eyesugh(conf, -1)) {
+		pr_err("md/raid10:%s: yest eyesugh operational mirrors.\n",
 		       mdname(mddev));
 		goto out_free_conf;
 	}
@@ -3871,13 +3871,13 @@ static int raid10_run(struct mddev *mddev)
 	}
 
 	if (mddev->recovery_cp != MaxSector)
-		pr_notice("md/raid10:%s: not clean -- starting background reconstruction\n",
+		pr_yestice("md/raid10:%s: yest clean -- starting background reconstruction\n",
 			  mdname(mddev));
 	pr_info("md/raid10:%s: active with %d out of %d devices\n",
 		mdname(mddev), conf->geo.raid_disks - mddev->degraded,
 		conf->geo.raid_disks);
 	/*
-	 * Ok, everything is just fine now
+	 * Ok, everything is just fine yesw
 	 */
 	mddev->dev_sectors = conf->dev_sectors;
 	size = raid10_size(mddev, 0, 0);
@@ -3910,8 +3910,8 @@ static int raid10_run(struct mddev *mddev)
 				conf->geo.far_copies);
 
 		if (max(before_length, after_length) > min_offset_diff) {
-			/* This cannot work */
-			pr_warn("md/raid10: offset difference not enough to continue reshape\n");
+			/* This canyest work */
+			pr_warn("md/raid10: offset difference yest eyesugh to continue reshape\n");
 			goto out_free_conf;
 		}
 		conf->offset_diff = min_offset_diff;
@@ -3964,7 +3964,7 @@ static void raid10_quiesce(struct mddev *mddev, int quiesce)
 
 static int raid10_resize(struct mddev *mddev, sector_t sectors)
 {
-	/* Resize of 'far' arrays is not supported.
+	/* Resize of 'far' arrays is yest supported.
 	 * For 'near' and 'offset' arrays we can set the
 	 * number of sectors used to be an appropriate multiple
 	 * of the chunk size.
@@ -4026,7 +4026,7 @@ static void *raid10_takeover_raid0(struct mddev *mddev, sector_t size, int devs)
 	mddev->new_chunk_sectors = mddev->chunk_sectors;
 	mddev->delta_disks = mddev->raid_disks;
 	mddev->raid_disks *= 2;
-	/* make sure it will be not marked as dirty */
+	/* make sure it will be yest marked as dirty */
 	mddev->recovery_cp = MaxSector;
 	mddev->dev_sectors = size;
 
@@ -4054,7 +4054,7 @@ static void *raid10_takeover(struct mddev *mddev)
 		/* for raid0 takeover only one zone is supported */
 		raid0_conf = mddev->private;
 		if (raid0_conf->nr_strip_zones > 1) {
-			pr_warn("md/raid10:%s: cannot takeover raid 0 with more than one zone.\n",
+			pr_warn("md/raid10:%s: canyest takeover raid 0 with more than one zone.\n",
 				mdname(mddev));
 			return ERR_PTR(-EINVAL);
 		}
@@ -4091,14 +4091,14 @@ static int raid10_check_reshape(struct mddev *mddev)
 		/* mustn't change number of copies */
 		return -EINVAL;
 	if (geo.far_copies > 1 && !geo.far_offset)
-		/* Cannot switch to 'far' mode */
+		/* Canyest switch to 'far' mode */
 		return -EINVAL;
 
 	if (mddev->array_sectors & geo.chunk_mask)
-			/* not factor of array size */
+			/* yest factor of array size */
 			return -EINVAL;
 
-	if (!enough(conf, -1))
+	if (!eyesugh(conf, -1))
 		return -EINVAL;
 
 	kfree(conf->mirrors_new);
@@ -4118,14 +4118,14 @@ static int raid10_check_reshape(struct mddev *mddev)
 /*
  * Need to check if array has failed when deciding whether to:
  *  - start an array
- *  - remove non-faulty devices
+ *  - remove yesn-faulty devices
  *  - add a spare
  *  - allow a reshape
- * This determination is simple when no reshape is happening.
+ * This determination is simple when yes reshape is happening.
  * However if there is a reshape, we need to carefully check
  * both the before and after sections.
  * This is because some failed devices may only affect one
- * of the two sections, and some non-in_sync devices may
+ * of the two sections, and some yesn-in_sync devices may
  * be insync in the section most affected by failed devices.
  */
 static int calc_degraded(struct r10conf *conf)
@@ -4142,8 +4142,8 @@ static int calc_degraded(struct r10conf *conf)
 			degraded++;
 		else if (!test_bit(In_sync, &rdev->flags))
 			/* When we can reduce the number of devices in
-			 * an array, this might not contribute to
-			 * 'degraded'.  It does now.
+			 * an array, this might yest contribute to
+			 * 'degraded'.  It does yesw.
 			 */
 			degraded++;
 	}
@@ -4176,12 +4176,12 @@ static int raid10_start_reshape(struct mddev *mddev)
 {
 	/* A 'reshape' has been requested. This commits
 	 * the various 'new' fields and sets MD_RECOVER_RESHAPE
-	 * This also checks if there are enough spares and adds them
+	 * This also checks if there are eyesugh spares and adds them
 	 * to the array.
-	 * We currently require enough spares to make the final
-	 * array non-degraded.  We also require that the difference
+	 * We currently require eyesugh spares to make the final
+	 * array yesn-degraded.  We also require that the difference
 	 * between old and new data_offset - on each device - is
-	 * enough that we never risk over-writing.
+	 * eyesugh that we never risk over-writing.
 	 */
 
 	unsigned long before_length, after_length;
@@ -4277,7 +4277,7 @@ static int raid10_start_reshape(struct mddev *mddev)
 		}
 
 		/*
-		 * some node is already performing reshape, and no need to
+		 * some yesde is already performing reshape, and yes need to
 		 * call md_bitmap_resize again since it should be called when
 		 * receiving BITMAP_RESIZE msg
 		 */
@@ -4396,8 +4396,8 @@ static sector_t reshape_request(struct mddev *mddev, sector_t sector_nr,
 	/* We simply copy at most one chunk (smallest of old and new)
 	 * at a time, possibly less if that exceeds RESYNC_PAGES,
 	 * or we hit a bad block or something.
-	 * This might mean we pause for normal IO in the middle of
-	 * a chunk, but that is not a problem as mddev->reshape_position
+	 * This might mean we pause for yesrmal IO in the middle of
+	 * a chunk, but that is yest a problem as mddev->reshape_position
 	 * can record any location.
 	 *
 	 * If we will want to write to a location that isn't
@@ -4405,10 +4405,10 @@ static sector_t reshape_request(struct mddev *mddev, sector_t sector_nr,
 	 * we need to flush all reshape requests and update the metadata.
 	 *
 	 * When reshaping forwards (e.g. to more devices), we interpret
-	 * 'safe' as the earliest block which might not have been copied
+	 * 'safe' as the earliest block which might yest have been copied
 	 * down yet.  We divide this by previous stripe size and multiply
 	 * by previous stripe length to get lowest device offset that we
-	 * cannot write to yet.
+	 * canyest write to yet.
 	 * We interpret 'sector_nr' as an address that we want to write to.
 	 * From this we use last_device_address() to find where we might
 	 * write to, and first_device_address on the  'safe' position.
@@ -4416,12 +4416,12 @@ static sector_t reshape_request(struct mddev *mddev, sector_t sector_nr,
 	 * we must update the metadata to increase the 'safe' position.
 	 *
 	 * When reshaping backwards, we round in the opposite direction
-	 * and perform the reverse test:  next write position must not be
+	 * and perform the reverse test:  next write position must yest be
 	 * less than current safe position.
 	 *
 	 * In all this the minimum difference in data offsets
 	 * (conf->offset_diff - always positive) allows a bit of slack,
-	 * so next can be after 'safe', but not by more than offset_diff
+	 * so next can be after 'safe', but yest by more than offset_diff
 	 *
 	 * We need to prepare all the bios here before we start any IO
 	 * to ensure the size we choose is acceptable to all devices.
@@ -4454,7 +4454,7 @@ static sector_t reshape_request(struct mddev *mddev, sector_t sector_nr,
 			sector_nr = conf->reshape_progress;
 		if (sector_nr) {
 			mddev->curr_resync_completed = sector_nr;
-			sysfs_notify(&mddev->kobj, NULL, "sync_completed");
+			sysfs_yestify(&mddev->kobj, NULL, "sync_completed");
 			*skipped = 1;
 			return sector_nr;
 		}
@@ -4548,7 +4548,7 @@ read_more:
 	BUG_ON(!test_bit(R10BIO_Previous, &r10_bio->state));
 
 	if (!rdev) {
-		/* Cannot read from here, so need to record bad blocks
+		/* Canyest read from here, so need to record bad blocks
 		 * on all the target devices.
 		 */
 		// FIXME
@@ -4573,7 +4573,7 @@ read_more:
 	r10_bio->read_slot = r10_bio->devs[r10_bio->read_slot].devnum;
 
 	/*
-	 * Broadcast RESYNC message to other nodes, so all nodes would not
+	 * Broadcast RESYNC message to other yesdes, so all yesdes would yest
 	 * write to the region to avoid conflict.
 	*/
 	if (mddev_is_clustered(mddev) && conf->cluster_sync_high <= sector_nr) {
@@ -4639,7 +4639,7 @@ read_more:
 			len = PAGE_SIZE;
 		for (bio = blist; bio ; bio = bio->bi_next) {
 			/*
-			 * won't fail because the vec table is big enough
+			 * won't fail because the vec table is big eyesugh
 			 * to hold all these pages
 			 */
 			bio_add_page(bio, page, len, 0);

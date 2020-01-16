@@ -34,7 +34,7 @@ static inline int snd_seq_output_ok(struct snd_seq_pool *pool)
  * The event like sysex uses variable length type.
  * The external data may be stored in three different formats.
  * 1) kernel space
- *    This is the normal case.
+ *    This is the yesrmal case.
  *      ext.data.len = length
  *      ext.data.ptr = buffer pointer
  * 2) user space
@@ -193,7 +193,7 @@ void snd_seq_cell_free(struct snd_seq_event_cell * cell)
 		}
 	}
 	if (waitqueue_active(&pool->output_sleep)) {
-		/* has enough space now? */
+		/* has eyesugh space yesw? */
 		if (snd_seq_output_ok(pool))
 			wake_up(&pool->output_sleep);
 	}
@@ -206,7 +206,7 @@ void snd_seq_cell_free(struct snd_seq_event_cell * cell)
  */
 static int snd_seq_cell_alloc(struct snd_seq_pool *pool,
 			      struct snd_seq_event_cell **cellp,
-			      int nonblock, struct file *file,
+			      int yesnblock, struct file *file,
 			      struct mutex *mutexp)
 {
 	struct snd_seq_event_cell *cell;
@@ -221,12 +221,12 @@ static int snd_seq_cell_alloc(struct snd_seq_pool *pool,
 
 	init_waitqueue_entry(&wait, current);
 	spin_lock_irqsave(&pool->lock, flags);
-	if (pool->ptr == NULL) {	/* not initialized */
-		pr_debug("ALSA: seq: pool is not initialized\n");
+	if (pool->ptr == NULL) {	/* yest initialized */
+		pr_debug("ALSA: seq: pool is yest initialized\n");
 		err = -EINVAL;
 		goto __error;
 	}
-	while (pool->free == NULL && ! nonblock && ! pool->closing) {
+	while (pool->free == NULL && ! yesnblock && ! pool->closing) {
 
 		set_current_state(TASK_INTERRUPTIBLE);
 		add_wait_queue(&pool->output_sleep, &wait);
@@ -277,7 +277,7 @@ __error:
  * cells.
  */
 int snd_seq_event_dup(struct snd_seq_pool *pool, struct snd_seq_event *event,
-		      struct snd_seq_event_cell **cellp, int nonblock,
+		      struct snd_seq_event_cell **cellp, int yesnblock,
 		      struct file *file, struct mutex *mutexp)
 {
 	int ncells, err;
@@ -295,7 +295,7 @@ int snd_seq_event_dup(struct snd_seq_pool *pool, struct snd_seq_event *event,
 	if (ncells >= pool->total_elements)
 		return -ENOMEM;
 
-	err = snd_seq_cell_alloc(pool, &cell, nonblock, file, mutexp);
+	err = snd_seq_cell_alloc(pool, &cell, yesnblock, file, mutexp);
 	if (err < 0)
 		return err;
 
@@ -321,7 +321,7 @@ int snd_seq_event_dup(struct snd_seq_pool *pool, struct snd_seq_event *event,
 			int size = sizeof(struct snd_seq_event);
 			if (len < size)
 				size = len;
-			err = snd_seq_cell_alloc(pool, &tmp, nonblock, file,
+			err = snd_seq_cell_alloc(pool, &tmp, yesnblock, file,
 						 mutexp);
 			if (err < 0)
 				goto __error;

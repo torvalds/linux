@@ -36,7 +36,7 @@ static inline void __clear_shadow_entry(struct address_space *mapping,
 {
 	XA_STATE(xas, &mapping->i_pages, index);
 
-	xas_set_update(&xas, workingset_update_node);
+	xas_set_update(&xas, workingset_update_yesde);
 	if (xas_load(&xas) != entry)
 		return;
 	xas_store(&xas, NULL);
@@ -106,12 +106,12 @@ static void truncate_exceptional_pvec_entries(struct address_space *mapping,
 
 /*
  * Invalidate exceptional entry if easily possible. This handles exceptional
- * entries for invalidate_inode_pages().
+ * entries for invalidate_iyesde_pages().
  */
 static int invalidate_exceptional_entry(struct address_space *mapping,
 					pgoff_t index, void *entry)
 {
-	/* Handled by shmem itself, or for DAX we do nothing. */
+	/* Handled by shmem itself, or for DAX we do yesthing. */
 	if (shmem_mapping(mapping) || dax_mapping(mapping))
 		return 1;
 	clear_shadow_entry(mapping, index, entry);
@@ -120,7 +120,7 @@ static int invalidate_exceptional_entry(struct address_space *mapping,
 
 /*
  * Invalidate exceptional entry if clean. This handles exceptional entries for
- * invalidate_inode_pages2() so for DAX it evicts only clean entries.
+ * invalidate_iyesde_pages2() so for DAX it evicts only clean entries.
  */
 static int invalidate_exceptional_entry2(struct address_space *mapping,
 					 pgoff_t index, void *entry)
@@ -143,8 +143,8 @@ static int invalidate_exceptional_entry2(struct address_space *mapping,
  * do_invalidatepage() is called when all or part of the page has become
  * invalidated by a truncate operation.
  *
- * do_invalidatepage() does not have to release all buffers, but it must
- * ensure that no dirty buffer is left outside @offset and that no I/O
+ * do_invalidatepage() does yest have to release all buffers, but it must
+ * ensure that yes dirty buffer is left outside @offset and that yes I/O
  * is underway against any of the blocks which are outside the truncation
  * point.  Because the caller is about to free (and possibly reuse) those
  * blocks on-disk.
@@ -164,14 +164,14 @@ void do_invalidatepage(struct page *page, unsigned int offset,
 }
 
 /*
- * If truncate cannot remove the fs-private metadata from the page, the page
+ * If truncate canyest remove the fs-private metadata from the page, the page
  * becomes orphaned.  It will be left on the LRU and may even be mapped into
  * user pagetables if we're racing with filemap_fault().
  *
- * We need to bale out if page->mapping is no longer equal to the original
+ * We need to bale out if page->mapping is yes longer equal to the original
  * mapping.  This happens a) when the VM reclaimed the page while we waited on
  * its lock, b) when a concurrent invalidate_mapping_pages got there first and
- * c) when tmpfs swizzles a page between a tmpfs inode and swapper_space.
+ * c) when tmpfs swizzles a page between a tmpfs iyesde and swapper_space.
  */
 static void
 truncate_cleanup_page(struct address_space *mapping, struct page *page)
@@ -195,11 +195,11 @@ truncate_cleanup_page(struct address_space *mapping, struct page *page)
 
 /*
  * This is for invalidate_mapping_pages().  That function can be called at
- * any time, and is not supposed to throw away dirty pages.  But pages can
+ * any time, and is yest supposed to throw away dirty pages.  But pages can
  * be marked dirty at any time too, so use remove_mapping which safely
  * discards clean, unused pages.
  *
- * Returns non-zero if the page was successfully invalidated.
+ * Returns yesn-zero if the page was successfully invalidated.
  */
 static int
 invalidate_complete_page(struct address_space *mapping, struct page *page)
@@ -217,7 +217,7 @@ invalidate_complete_page(struct address_space *mapping, struct page *page)
 	return ret;
 }
 
-int truncate_inode_page(struct address_space *mapping, struct page *page)
+int truncate_iyesde_page(struct address_space *mapping, struct page *page)
 {
 	VM_BUG_ON_PAGE(PageTail(page), page);
 
@@ -237,12 +237,12 @@ int generic_error_remove_page(struct address_space *mapping, struct page *page)
 	if (!mapping)
 		return -EINVAL;
 	/*
-	 * Only punch for normal data pages for now.
+	 * Only punch for yesrmal data pages for yesw.
 	 * Handling other types like directories would need more auditing.
 	 */
 	if (!S_ISREG(mapping->host->i_mode))
 		return -EIO;
-	return truncate_inode_page(mapping, page);
+	return truncate_iyesde_page(mapping, page);
 }
 EXPORT_SYMBOL(generic_error_remove_page);
 
@@ -252,7 +252,7 @@ EXPORT_SYMBOL(generic_error_remove_page);
  *
  * Returns 1 if the page is successfully invalidated, otherwise 0.
  */
-int invalidate_inode_page(struct page *page)
+int invalidate_iyesde_page(struct page *page)
 {
 	struct address_space *mapping = page_mapping(page);
 	if (!mapping)
@@ -265,17 +265,17 @@ int invalidate_inode_page(struct page *page)
 }
 
 /**
- * truncate_inode_pages_range - truncate range of pages specified by start & end byte offsets
+ * truncate_iyesde_pages_range - truncate range of pages specified by start & end byte offsets
  * @mapping: mapping to truncate
  * @lstart: offset from which to truncate
  * @lend: offset to which to truncate (inclusive)
  *
  * Truncate the page cache, removing the pages that are between
  * specified offsets (and zeroing out partial pages
- * if lstart or lend + 1 is not page aligned).
+ * if lstart or lend + 1 is yest page aligned).
  *
- * Truncate takes two passes - the first pass is nonblocking.  It will not
- * block on page locks and it will not block on writeback.  The second pass
+ * Truncate takes two passes - the first pass is yesnblocking.  It will yest
+ * block on page locks and it will yest block on writeback.  The second pass
  * will wait.  This is to prevent as much IO as possible in the affected region.
  * The first pass will remove most pages, so the search cost of the second pass
  * is low.
@@ -285,10 +285,10 @@ int invalidate_inode_page(struct page *page)
  * recently touched, and freeing happens in ascending file offset order.
  *
  * Note that since ->invalidatepage() accepts range to invalidate
- * truncate_inode_pages_range is able to handle cases where lend + 1 is not
+ * truncate_iyesde_pages_range is able to handle cases where lend + 1 is yest
  * page aligned properly.
  */
-void truncate_inode_pages_range(struct address_space *mapping,
+void truncate_iyesde_pages_range(struct address_space *mapping,
 				loff_t lstart, loff_t lend)
 {
 	pgoff_t		start;		/* inclusive */
@@ -340,7 +340,7 @@ void truncate_inode_pages_range(struct address_space *mapping,
 		for (i = 0; i < pagevec_count(&pvec); i++) {
 			struct page *page = pvec.pages[i];
 
-			/* We rely upon deletion not changing page->index */
+			/* We rely upon deletion yest changing page->index */
 			index = indices[i];
 			if (index >= end)
 				break;
@@ -404,8 +404,8 @@ void truncate_inode_pages_range(struct address_space *mapping,
 		}
 	}
 	/*
-	 * If the truncation happened within a single page no pages
-	 * will be released, just zeroed, so we can bail out now.
+	 * If the truncation happened within a single page yes pages
+	 * will be released, just zeroed, so we can bail out yesw.
 	 */
 	if (start >= end)
 		goto out;
@@ -432,7 +432,7 @@ void truncate_inode_pages_range(struct address_space *mapping,
 		for (i = 0; i < pagevec_count(&pvec); i++) {
 			struct page *page = pvec.pages[i];
 
-			/* We rely upon deletion not changing page->index */
+			/* We rely upon deletion yest changing page->index */
 			index = indices[i];
 			if (index >= end) {
 				/* Restart punch to make sure all gone */
@@ -446,7 +446,7 @@ void truncate_inode_pages_range(struct address_space *mapping,
 			lock_page(page);
 			WARN_ON(page_to_index(page) != index);
 			wait_on_page_writeback(page);
-			truncate_inode_page(mapping, page);
+			truncate_iyesde_page(mapping, page);
 			unlock_page(page);
 		}
 		truncate_exceptional_pvec_entries(mapping, &pvec, indices, end);
@@ -455,47 +455,47 @@ void truncate_inode_pages_range(struct address_space *mapping,
 	}
 
 out:
-	cleancache_invalidate_inode(mapping);
+	cleancache_invalidate_iyesde(mapping);
 }
-EXPORT_SYMBOL(truncate_inode_pages_range);
+EXPORT_SYMBOL(truncate_iyesde_pages_range);
 
 /**
- * truncate_inode_pages - truncate *all* the pages from an offset
+ * truncate_iyesde_pages - truncate *all* the pages from an offset
  * @mapping: mapping to truncate
  * @lstart: offset from which to truncate
  *
- * Called under (and serialised by) inode->i_mutex.
+ * Called under (and serialised by) iyesde->i_mutex.
  *
  * Note: When this function returns, there can be a page in the process of
  * deletion (inside __delete_from_page_cache()) in the specified range.  Thus
- * mapping->nrpages can be non-zero when this function returns even after
+ * mapping->nrpages can be yesn-zero when this function returns even after
  * truncation of the whole mapping.
  */
-void truncate_inode_pages(struct address_space *mapping, loff_t lstart)
+void truncate_iyesde_pages(struct address_space *mapping, loff_t lstart)
 {
-	truncate_inode_pages_range(mapping, lstart, (loff_t)-1);
+	truncate_iyesde_pages_range(mapping, lstart, (loff_t)-1);
 }
-EXPORT_SYMBOL(truncate_inode_pages);
+EXPORT_SYMBOL(truncate_iyesde_pages);
 
 /**
- * truncate_inode_pages_final - truncate *all* pages before inode dies
+ * truncate_iyesde_pages_final - truncate *all* pages before iyesde dies
  * @mapping: mapping to truncate
  *
- * Called under (and serialized by) inode->i_mutex.
+ * Called under (and serialized by) iyesde->i_mutex.
  *
- * Filesystems have to use this in the .evict_inode path to inform the
- * VM that this is the final truncate and the inode is going away.
+ * Filesystems have to use this in the .evict_iyesde path to inform the
+ * VM that this is the final truncate and the iyesde is going away.
  */
-void truncate_inode_pages_final(struct address_space *mapping)
+void truncate_iyesde_pages_final(struct address_space *mapping)
 {
 	unsigned long nrexceptional;
 	unsigned long nrpages;
 
 	/*
-	 * Page reclaim can not participate in regular inode lifetime
+	 * Page reclaim can yest participate in regular iyesde lifetime
 	 * management (can't call iput()) and thus can race with the
-	 * inode teardown.  Tell it when the address space is exiting,
-	 * so that it does not install eviction information after the
+	 * iyesde teardown.  Tell it when the address space is exiting,
+	 * so that it does yest install eviction information after the
 	 * final truncate has begun.
 	 */
 	mapping_set_exiting(mapping);
@@ -513,7 +513,7 @@ void truncate_inode_pages_final(struct address_space *mapping)
 		/*
 		 * As truncation uses a lockless tree lookup, cycle
 		 * the tree lock to make sure any ongoing tree
-		 * modification that does not see AS_EXITING is
+		 * modification that does yest see AS_EXITING is
 		 * completed before starting the final truncate.
 		 */
 		xa_lock_irq(&mapping->i_pages);
@@ -521,23 +521,23 @@ void truncate_inode_pages_final(struct address_space *mapping)
 	}
 
 	/*
-	 * Cleancache needs notification even if there are no pages or shadow
+	 * Cleancache needs yestification even if there are yes pages or shadow
 	 * entries.
 	 */
-	truncate_inode_pages(mapping, 0);
+	truncate_iyesde_pages(mapping, 0);
 }
-EXPORT_SYMBOL(truncate_inode_pages_final);
+EXPORT_SYMBOL(truncate_iyesde_pages_final);
 
 /**
- * invalidate_mapping_pages - Invalidate all the unlocked pages of one inode
+ * invalidate_mapping_pages - Invalidate all the unlocked pages of one iyesde
  * @mapping: the address_space which holds the pages to invalidate
  * @start: the offset 'from' which to invalidate
  * @end: the offset 'to' which to invalidate (inclusive)
  *
  * This function only removes the unlocked pages, if you want to
- * remove all the pages of one inode, you must call truncate_inode_pages.
+ * remove all the pages of one iyesde, you must call truncate_iyesde_pages.
  *
- * invalidate_mapping_pages() will not block on IO activity. It will not
+ * invalidate_mapping_pages() will yest block on IO activity. It will yest
  * invalidate pages which are dirty, locked, under writeback or mapped into
  * pagetables.
  *
@@ -560,7 +560,7 @@ unsigned long invalidate_mapping_pages(struct address_space *mapping,
 		for (i = 0; i < pagevec_count(&pvec); i++) {
 			struct page *page = pvec.pages[i];
 
-			/* We rely upon deletion not changing page->index */
+			/* We rely upon deletion yest changing page->index */
 			index = indices[i];
 			if (index > end)
 				break;
@@ -604,10 +604,10 @@ unsigned long invalidate_mapping_pages(struct address_space *mapping,
 				pagevec_release(&pvec);
 			}
 
-			ret = invalidate_inode_page(page);
+			ret = invalidate_iyesde_page(page);
 			unlock_page(page);
 			/*
-			 * Invalidation is a hint that the page is no longer
+			 * Invalidation is a hint that the page is yes longer
 			 * of interest and try to speed up its reclaim.
 			 */
 			if (!ret)
@@ -626,9 +626,9 @@ unsigned long invalidate_mapping_pages(struct address_space *mapping,
 EXPORT_SYMBOL(invalidate_mapping_pages);
 
 /*
- * This is like invalidate_complete_page(), except it ignores the page's
- * refcount.  We do this because invalidate_inode_pages2() needs stronger
- * invalidation guarantees, and cannot afford to leave pages behind because
+ * This is like invalidate_complete_page(), except it igyesres the page's
+ * refcount.  We do this because invalidate_iyesde_pages2() needs stronger
+ * invalidation guarantees, and canyest afford to leave pages behind because
  * shrink_page_list() has a temp ref on them, or because they're transiently
  * sitting in the lru_cache_add() pagevecs.
  */
@@ -671,7 +671,7 @@ static int do_launder_page(struct address_space *mapping, struct page *page)
 }
 
 /**
- * invalidate_inode_pages2_range - remove range of pages from an address_space
+ * invalidate_iyesde_pages2_range - remove range of pages from an address_space
  * @mapping: the address_space
  * @start: the page offset 'from' which to invalidate
  * @end: the page offset 'to' which to invalidate (inclusive)
@@ -679,9 +679,9 @@ static int do_launder_page(struct address_space *mapping, struct page *page)
  * Any pages which are found to be mapped into pagetables are unmapped prior to
  * invalidation.
  *
- * Return: -EBUSY if any pages could not be invalidated.
+ * Return: -EBUSY if any pages could yest be invalidated.
  */
-int invalidate_inode_pages2_range(struct address_space *mapping,
+int invalidate_iyesde_pages2_range(struct address_space *mapping,
 				  pgoff_t start, pgoff_t end)
 {
 	pgoff_t indices[PAGEVEC_SIZE];
@@ -703,7 +703,7 @@ int invalidate_inode_pages2_range(struct address_space *mapping,
 		for (i = 0; i < pagevec_count(&pvec); i++) {
 			struct page *page = pvec.pages[i];
 
-			/* We rely upon deletion not changing page->index */
+			/* We rely upon deletion yest changing page->index */
 			index = indices[i];
 			if (index > end)
 				break;
@@ -757,71 +757,71 @@ int invalidate_inode_pages2_range(struct address_space *mapping,
 	 * For DAX we invalidate page tables after invalidating page cache.  We
 	 * could invalidate page tables while invalidating each entry however
 	 * that would be expensive. And doing range unmapping before doesn't
-	 * work as we have no cheap way to find whether page cache entry didn't
+	 * work as we have yes cheap way to find whether page cache entry didn't
 	 * get remapped later.
 	 */
 	if (dax_mapping(mapping)) {
 		unmap_mapping_pages(mapping, start, end - start + 1, false);
 	}
 out:
-	cleancache_invalidate_inode(mapping);
+	cleancache_invalidate_iyesde(mapping);
 	return ret;
 }
-EXPORT_SYMBOL_GPL(invalidate_inode_pages2_range);
+EXPORT_SYMBOL_GPL(invalidate_iyesde_pages2_range);
 
 /**
- * invalidate_inode_pages2 - remove all pages from an address_space
+ * invalidate_iyesde_pages2 - remove all pages from an address_space
  * @mapping: the address_space
  *
  * Any pages which are found to be mapped into pagetables are unmapped prior to
  * invalidation.
  *
- * Return: -EBUSY if any pages could not be invalidated.
+ * Return: -EBUSY if any pages could yest be invalidated.
  */
-int invalidate_inode_pages2(struct address_space *mapping)
+int invalidate_iyesde_pages2(struct address_space *mapping)
 {
-	return invalidate_inode_pages2_range(mapping, 0, -1);
+	return invalidate_iyesde_pages2_range(mapping, 0, -1);
 }
-EXPORT_SYMBOL_GPL(invalidate_inode_pages2);
+EXPORT_SYMBOL_GPL(invalidate_iyesde_pages2);
 
 /**
  * truncate_pagecache - unmap and remove pagecache that has been truncated
- * @inode: inode
+ * @iyesde: iyesde
  * @newsize: new file size
  *
- * inode's new i_size must already be written before truncate_pagecache
+ * iyesde's new i_size must already be written before truncate_pagecache
  * is called.
  *
  * This function should typically be called before the filesystem
  * releases resources associated with the freed range (eg. deallocates
  * blocks). This way, pagecache will always stay logically coherent
- * with on-disk format, and the filesystem would not have to deal with
+ * with on-disk format, and the filesystem would yest have to deal with
  * situations such as writepage being called for a page that has already
  * had its underlying blocks deallocated.
  */
-void truncate_pagecache(struct inode *inode, loff_t newsize)
+void truncate_pagecache(struct iyesde *iyesde, loff_t newsize)
 {
-	struct address_space *mapping = inode->i_mapping;
+	struct address_space *mapping = iyesde->i_mapping;
 	loff_t holebegin = round_up(newsize, PAGE_SIZE);
 
 	/*
 	 * unmap_mapping_range is called twice, first simply for
-	 * efficiency so that truncate_inode_pages does fewer
+	 * efficiency so that truncate_iyesde_pages does fewer
 	 * single-page unmaps.  However after this first call, and
-	 * before truncate_inode_pages finishes, it is possible for
+	 * before truncate_iyesde_pages finishes, it is possible for
 	 * private pages to be COWed, which remain after
-	 * truncate_inode_pages finishes, hence the second
+	 * truncate_iyesde_pages finishes, hence the second
 	 * unmap_mapping_range call must be made for correctness.
 	 */
 	unmap_mapping_range(mapping, holebegin, 0, 1);
-	truncate_inode_pages(mapping, newsize);
+	truncate_iyesde_pages(mapping, newsize);
 	unmap_mapping_range(mapping, holebegin, 0, 1);
 }
 EXPORT_SYMBOL(truncate_pagecache);
 
 /**
- * truncate_setsize - update inode and pagecache for a new file size
- * @inode: inode
+ * truncate_setsize - update iyesde and pagecache for a new file size
+ * @iyesde: iyesde
  * @newsize: new file size
  *
  * truncate_setsize updates i_size and performs pagecache truncation (if
@@ -832,24 +832,24 @@ EXPORT_SYMBOL(truncate_pagecache);
  * i_mutex but e.g. xfs uses a different lock) and before all filesystem
  * specific block truncation has been performed.
  */
-void truncate_setsize(struct inode *inode, loff_t newsize)
+void truncate_setsize(struct iyesde *iyesde, loff_t newsize)
 {
-	loff_t oldsize = inode->i_size;
+	loff_t oldsize = iyesde->i_size;
 
-	i_size_write(inode, newsize);
+	i_size_write(iyesde, newsize);
 	if (newsize > oldsize)
-		pagecache_isize_extended(inode, oldsize, newsize);
-	truncate_pagecache(inode, newsize);
+		pagecache_isize_extended(iyesde, oldsize, newsize);
+	truncate_pagecache(iyesde, newsize);
 }
 EXPORT_SYMBOL(truncate_setsize);
 
 /**
  * pagecache_isize_extended - update pagecache after extension of i_size
- * @inode:	inode for which i_size was extended
- * @from:	original inode size
- * @to:		new inode size
+ * @iyesde:	iyesde for which i_size was extended
+ * @from:	original iyesde size
+ * @to:		new iyesde size
  *
- * Handle extension of inode size either caused by extending truncate or by
+ * Handle extension of iyesde size either caused by extending truncate or by
  * write starting after current i_size. We mark the page straddling current
  * i_size RO so that page_mkwrite() is called on the nearest write access to
  * the page.  This way filesystem can be sure that page_mkwrite() is called on
@@ -858,29 +858,29 @@ EXPORT_SYMBOL(truncate_setsize);
  *
  * The function must be called after i_size is updated so that page fault
  * coming after we unlock the page will already see the new i_size.
- * The function must be called while we still hold i_mutex - this not only
- * makes sure i_size is stable but also that userspace cannot observe new
- * i_size value before we are prepared to store mmap writes at new inode size.
+ * The function must be called while we still hold i_mutex - this yest only
+ * makes sure i_size is stable but also that userspace canyest observe new
+ * i_size value before we are prepared to store mmap writes at new iyesde size.
  */
-void pagecache_isize_extended(struct inode *inode, loff_t from, loff_t to)
+void pagecache_isize_extended(struct iyesde *iyesde, loff_t from, loff_t to)
 {
-	int bsize = i_blocksize(inode);
+	int bsize = i_blocksize(iyesde);
 	loff_t rounded_from;
 	struct page *page;
 	pgoff_t index;
 
-	WARN_ON(to > inode->i_size);
+	WARN_ON(to > iyesde->i_size);
 
 	if (from >= to || bsize == PAGE_SIZE)
 		return;
-	/* Page straddling @from will not have any hole block created? */
+	/* Page straddling @from will yest have any hole block created? */
 	rounded_from = round_up(from, bsize);
 	if (to <= rounded_from || !(rounded_from & (PAGE_SIZE - 1)))
 		return;
 
 	index = from >> PAGE_SHIFT;
-	page = find_lock_page(inode->i_mapping, index);
-	/* Page not cached? Nothing to do */
+	page = find_lock_page(iyesde->i_mapping, index);
+	/* Page yest cached? Nothing to do */
 	if (!page)
 		return;
 	/*
@@ -896,20 +896,20 @@ EXPORT_SYMBOL(pagecache_isize_extended);
 
 /**
  * truncate_pagecache_range - unmap and remove pagecache that is hole-punched
- * @inode: inode
+ * @iyesde: iyesde
  * @lstart: offset of beginning of hole
  * @lend: offset of last byte of hole
  *
  * This function should typically be called before the filesystem
  * releases resources associated with the freed range (eg. deallocates
  * blocks). This way, pagecache will always stay logically coherent
- * with on-disk format, and the filesystem would not have to deal with
+ * with on-disk format, and the filesystem would yest have to deal with
  * situations such as writepage being called for a page that has already
  * had its underlying blocks deallocated.
  */
-void truncate_pagecache_range(struct inode *inode, loff_t lstart, loff_t lend)
+void truncate_pagecache_range(struct iyesde *iyesde, loff_t lstart, loff_t lend)
 {
-	struct address_space *mapping = inode->i_mapping;
+	struct address_space *mapping = iyesde->i_mapping;
 	loff_t unmap_start = round_up(lstart, PAGE_SIZE);
 	loff_t unmap_end = round_down(1 + lend, PAGE_SIZE) - 1;
 	/*
@@ -923,11 +923,11 @@ void truncate_pagecache_range(struct inode *inode, loff_t lstart, loff_t lend)
 	/*
 	 * Unlike in truncate_pagecache, unmap_mapping_range is called only
 	 * once (before truncating pagecache), and without "even_cows" flag:
-	 * hole-punching should not remove private COWed pages from the hole.
+	 * hole-punching should yest remove private COWed pages from the hole.
 	 */
 	if ((u64)unmap_end > (u64)unmap_start)
 		unmap_mapping_range(mapping, unmap_start,
 				    1 + unmap_end - unmap_start, 0);
-	truncate_inode_pages_range(mapping, lstart, lend);
+	truncate_iyesde_pages_range(mapping, lstart, lend);
 }
 EXPORT_SYMBOL(truncate_pagecache_range);

@@ -31,7 +31,7 @@
 /*
  * Each block ramdisk device has a radix_tree brd_pages of pages that stores
  * the pages containing the block device's contents. A brd page's ->index is
- * its offset in PAGE_SIZE units. This is similar to, but in no way connected
+ * its offset in PAGE_SIZE units. This is similar to, but in yes way connected
  * with, the kernel's pagecache or buffer cache (which sit above our block
  * device).
  */
@@ -60,11 +60,11 @@ static struct page *brd_lookup_page(struct brd_device *brd, sector_t sector)
 
 	/*
 	 * The page lifetime is protected by the fact that we have opened the
-	 * device node -- brd pages will never be deleted under us, so we
+	 * device yesde -- brd pages will never be deleted under us, so we
 	 * don't need any further locking or refcounting.
 	 *
-	 * This is strictly true for the radix-tree nodes as well (ie. we
-	 * don't actually need the rcu_read_lock()), however that is not a
+	 * This is strictly true for the radix-tree yesdes as well (ie. we
+	 * don't actually need the rcu_read_lock()), however that is yest a
 	 * documented feature of the radix-tree API so it is better to be
 	 * safe here (we don't have total exclusion from radix tree updates
 	 * here, only deletes).
@@ -81,7 +81,7 @@ static struct page *brd_lookup_page(struct brd_device *brd, sector_t sector)
 
 /*
  * Look up and return a brd's page for a given sector.
- * If one does not exist, allocate an empty page, and insert that. Then
+ * If one does yest exist, allocate an empty page, and insert that. Then
  * return it.
  */
 static struct page *brd_insert_page(struct brd_device *brd, sector_t sector)
@@ -126,7 +126,7 @@ static struct page *brd_insert_page(struct brd_device *brd, sector_t sector)
 
 /*
  * Free all backing store pages and radix tree. This must only be called when
- * there are no other users of the device.
+ * there are yes other users of the device.
  */
 #define FREE_BATCH 16
 static void brd_free_pages(struct brd_device *brd)
@@ -187,7 +187,7 @@ static int copy_to_brd_setup(struct brd_device *brd, sector_t sector, size_t n)
 }
 
 /*
- * Copy n bytes from src to the brd starting at sector. Does not sleep.
+ * Copy n bytes from src to the brd starting at sector. Does yest sleep.
  */
 static void copy_to_brd(struct brd_device *brd, const void *src,
 			sector_t sector, size_t n)
@@ -219,7 +219,7 @@ static void copy_to_brd(struct brd_device *brd, const void *src,
 }
 
 /*
- * Copy n bytes to dst from the brd starting at sector. Does not sleep.
+ * Copy n bytes to dst from the brd starting at sector. Does yest sleep.
  */
 static void copy_from_brd(void *dst, struct brd_device *brd,
 			sector_t sector, size_t n)
@@ -334,7 +334,7 @@ static const struct block_device_operations brd_fops = {
 };
 
 /*
- * And now the modules code and kernel interface.
+ * And yesw the modules code and kernel interface.
  */
 static int rd_nr = CONFIG_BLK_DEV_RAM_COUNT;
 module_param(rd_nr, int, 0444);
@@ -346,14 +346,14 @@ MODULE_PARM_DESC(rd_size, "Size of each RAM disk in kbytes.");
 
 static int max_part = 1;
 module_param(max_part, int, 0444);
-MODULE_PARM_DESC(max_part, "Num Minors to reserve between devices");
+MODULE_PARM_DESC(max_part, "Num Miyesrs to reserve between devices");
 
 MODULE_LICENSE("GPL");
 MODULE_ALIAS_BLOCKDEV_MAJOR(RAMDISK_MAJOR);
 MODULE_ALIAS("rd");
 
 #ifndef MODULE
-/* Legacy boot options - nonmodular */
+/* Legacy boot options - yesnmodular */
 static int __init ramdisk_size(char *str)
 {
 	rd_size = simple_strtol(str, NULL, 0);
@@ -398,7 +398,7 @@ static struct brd_device *brd_alloc(int i)
 	if (!disk)
 		goto out_free_queue;
 	disk->major		= RAMDISK_MAJOR;
-	disk->first_minor	= i * max_part;
+	disk->first_miyesr	= i * max_part;
 	disk->fops		= &brd_fops;
 	disk->private_data	= brd;
 	disk->flags		= GENHD_FL_EXT_DEVT;
@@ -406,7 +406,7 @@ static struct brd_device *brd_alloc(int i)
 	set_capacity(disk, rd_size * 2);
 	brd->brd_queue->backing_dev_info->capabilities |= BDI_CAP_SYNCHRONOUS_IO;
 
-	/* Tell the block layer that this is not a rotational device */
+	/* Tell the block layer that this is yest a rotational device */
 	blk_queue_flag_set(QUEUE_FLAG_NONROT, brd->brd_queue);
 	blk_queue_flag_clear(QUEUE_FLAG_ADD_RANDOM, brd->brd_queue);
 
@@ -479,17 +479,17 @@ static int __init brd_init(void)
 	int i;
 
 	/*
-	 * brd module now has a feature to instantiate underlying device
-	 * structure on-demand, provided that there is an access dev node.
+	 * brd module yesw has a feature to instantiate underlying device
+	 * structure on-demand, provided that there is an access dev yesde.
 	 *
 	 * (1) if rd_nr is specified, create that many upfront. else
 	 *     it defaults to CONFIG_BLK_DEV_RAM_COUNT
-	 * (2) User can further extend brd devices by create dev node themselves
+	 * (2) User can further extend brd devices by create dev yesde themselves
 	 *     and have kernel automatically instantiate actual device
 	 *     on-demand. Example:
-	 *		mknod /path/devnod_name b 1 X	# 1 is the rd major
-	 *		fdisk -l /path/devnod_name
-	 *	If (X / max_part) was not already created it will be created
+	 *		mkyesd /path/devyesd_name b 1 X	# 1 is the rd major
+	 *		fdisk -l /path/devyesd_name
+	 *	If (X / max_part) was yest already created it will be created
 	 *	dynamically.
 	 */
 
@@ -506,7 +506,7 @@ static int __init brd_init(void)
 		list_add_tail(&brd->brd_list, &brd_devices);
 	}
 
-	/* point of no return */
+	/* point of yes return */
 
 	list_for_each_entry(brd, &brd_devices, brd_list) {
 		/*

@@ -2,18 +2,18 @@
  * Non-physical true random number generator based on timing jitter --
  * Linux Kernel Crypto API specific code
  *
- * Copyright Stephan Mueller <smueller@chronox.de>, 2015
+ * Copyright Stephan Mueller <smueller@chroyesx.de>, 2015
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, and the entire permission notice in its entirety,
+ *    yestice, and the entire permission yestice in its entirety,
  *    including the disclaimer of warranties.
  * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
+ *    yestice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. The name of the author may not be used to endorse or promote
+ * 3. The name of the author may yest be used to endorse or promote
  *    products derived from this software without specific prior
  *    written permission.
  *
@@ -80,9 +80,9 @@ void jent_memcpy(void *dest, const void *src, unsigned int n)
  * the execution time of a given code path and its variations. Hence, the time
  * stamp must have a sufficiently high resolution.
  *
- * Note, if the function returns zero because a given architecture does not
+ * Note, if the function returns zero because a given architecture does yest
  * implement a high-resolution time stamp, the RNG code's runtime test
- * will detect it and will not produce output.
+ * will detect it and will yest produce output.
  */
 void jent_get_nstime(__u64 *out)
 {
@@ -91,7 +91,7 @@ void jent_get_nstime(__u64 *out)
 	tmp = random_get_entropy();
 
 	/*
-	 * If random_get_entropy does not return a value, i.e. it is not
+	 * If random_get_entropy does yest return a value, i.e. it is yest
 	 * implemented for a given architecture, use a clock source.
 	 * hoping that there are timers we can work with.
 	 */
@@ -176,7 +176,7 @@ static int __init jent_mod_init(void)
 
 	ret = jent_entropy_init();
 	if (ret) {
-		pr_info("jitterentropy: Initialization failed with host not compliant with requirements: %d\n", ret);
+		pr_info("jitterentropy: Initialization failed with host yest compliant with requirements: %d\n", ret);
 		return -EFAULT;
 	}
 	return crypto_register_rng(&jent_alg);
@@ -191,6 +191,6 @@ module_init(jent_mod_init);
 module_exit(jent_mod_exit);
 
 MODULE_LICENSE("Dual BSD/GPL");
-MODULE_AUTHOR("Stephan Mueller <smueller@chronox.de>");
+MODULE_AUTHOR("Stephan Mueller <smueller@chroyesx.de>");
 MODULE_DESCRIPTION("Non-physical True Random Number Generator based on CPU Jitter");
 MODULE_ALIAS_CRYPTO("jitterentropy_rng");

@@ -10,7 +10,7 @@
 
 #include <linux/pnp.h>
 #include <linux/string.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/list.h>
 #include <linux/types.h>
 #include <linux/stat.h>
@@ -83,7 +83,7 @@ static void pnp_print_irq(pnp_info_buffer_t * buffer, char *space,
 				pnp_printf(buffer, "%i", i);
 		}
 	if (bitmap_empty(irq->map.bits, PNP_IRQ_NR))
-		pnp_printf(buffer, "<none>");
+		pnp_printf(buffer, "<yesne>");
 	if (irq->flags & IORESOURCE_IRQ_HIGHEDGE)
 		pnp_printf(buffer, " High-Edge");
 	if (irq->flags & IORESOURCE_IRQ_LOWEDGE)
@@ -114,7 +114,7 @@ static void pnp_print_dma(pnp_info_buffer_t * buffer, char *space,
 			pnp_printf(buffer, "%i", i);
 		}
 	if (!dma->map)
-		pnp_printf(buffer, "<none>");
+		pnp_printf(buffer, "<yesne>");
 	switch (dma->flags & IORESOURCE_DMA_TYPE_MASK) {
 	case IORESOURCE_DMA_8BIT:
 		s = "8-bit";

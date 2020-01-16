@@ -199,7 +199,7 @@ static int bmp280_read_calib(struct bmp280_data *data,
 
 	/*
 	 * Read humidity calibration values.
-	 * Due to some odd register addressing we cannot just
+	 * Due to some odd register addressing we canyest just
 	 * do a big bulk read. Instead, we have to read each Hx
 	 * value separately and sometimes do some bit shifting...
 	 * Humidity data is only available on BME280.
@@ -965,7 +965,7 @@ static int bmp085_fetch_eoc_irq(struct device *dev,
 
 	irq_trig = irqd_get_trigger_type(irq_get_irq_data(irq));
 	if (irq_trig != IRQF_TRIGGER_RISING) {
-		dev_err(dev, "non-rising trigger given for EOC interrupt, "
+		dev_err(dev, "yesn-rising trigger given for EOC interrupt, "
 			"trying to enforce it\n");
 		irq_trig = IRQF_TRIGGER_RISING;
 	}
@@ -991,7 +991,7 @@ static void bmp280_pm_disable(void *data)
 	struct device *dev = data;
 
 	pm_runtime_get_sync(dev);
-	pm_runtime_put_noidle(dev);
+	pm_runtime_put_yesidle(dev);
 	pm_runtime_disable(dev);
 }
 
@@ -1107,8 +1107,8 @@ int bmp280_common_probe(struct device *dev,
 
 	/*
 	 * Some chips have calibration parameters "programmed into the devices'
-	 * non-volatile memory during production". Let's read them out at probe
-	 * time once. They will not change.
+	 * yesn-volatile memory during production". Let's read them out at probe
+	 * time once. They will yest change.
 	 */
 	if (chip_id  == BMP180_CHIP_ID) {
 		ret = bmp180_read_calib(data, &data->calib.bmp180);
@@ -1138,7 +1138,7 @@ int bmp280_common_probe(struct device *dev,
 	}
 
 	/* Enable runtime PM */
-	pm_runtime_get_noresume(dev);
+	pm_runtime_get_yesresume(dev);
 	pm_runtime_set_active(dev);
 	pm_runtime_enable(dev);
 	/*

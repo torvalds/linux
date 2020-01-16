@@ -121,13 +121,13 @@ struct wiimote_state {
 	__u8 exttype;
 	__u8 mp;
 
-	/* synchronous cmd requests */
+	/* synchroyesus cmd requests */
 	struct mutex sync;
 	struct completion ready;
 	int cmd;
 	__u32 opt;
 
-	/* results of synchronous requests */
+	/* results of synchroyesus requests */
 	__u8 cmd_battery;
 	__u8 cmd_err;
 	__u8 *cmd_read_buf;
@@ -308,8 +308,8 @@ static inline void wiimote_cmd_complete(struct wiimote_data *wdata)
 /* requires the state.lock spinlock to be held */
 static inline void wiimote_cmd_abort(struct wiimote_data *wdata)
 {
-	/* Abort synchronous request by waking up the sleeping caller. But
-	 * reset the state.cmd field to an invalid value so no further event
+	/* Abort synchroyesus request by waking up the sleeping caller. But
+	 * reset the state.cmd field to an invalid value so yes further event
 	 * handlers will work with it. */
 	wdata->state.cmd = WIIPROTO_REQ_MAX;
 	complete(&wdata->state.ready);
@@ -320,7 +320,7 @@ static inline int wiimote_cmd_acquire(struct wiimote_data *wdata)
 	return mutex_lock_interruptible(&wdata->state.sync) ? -ERESTARTSYS : 0;
 }
 
-static inline void wiimote_cmd_acquire_noint(struct wiimote_data *wdata)
+static inline void wiimote_cmd_acquire_yesint(struct wiimote_data *wdata)
 {
 	mutex_lock(&wdata->state.sync);
 }
@@ -358,11 +358,11 @@ static inline int wiimote_cmd_wait(struct wiimote_data *wdata)
 		return 0;
 }
 
-static inline int wiimote_cmd_wait_noint(struct wiimote_data *wdata)
+static inline int wiimote_cmd_wait_yesint(struct wiimote_data *wdata)
 {
 	unsigned long ret;
 
-	/* no locking needed; see wiimote_cmd_wait() */
+	/* yes locking needed; see wiimote_cmd_wait() */
 	ret = wait_for_completion_timeout(&wdata->state.ready, HZ);
 	if (!ret)
 		return -EIO;

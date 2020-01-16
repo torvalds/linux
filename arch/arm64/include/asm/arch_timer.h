@@ -64,22 +64,22 @@ DECLARE_PER_CPU(const struct arch_timer_erratum_workaround *,
 		timer_unstable_counter_workaround);
 
 /* inline sysreg accessors that make erratum_handler() work */
-static inline notrace u32 arch_timer_read_cntp_tval_el0(void)
+static inline yestrace u32 arch_timer_read_cntp_tval_el0(void)
 {
 	return read_sysreg(cntp_tval_el0);
 }
 
-static inline notrace u32 arch_timer_read_cntv_tval_el0(void)
+static inline yestrace u32 arch_timer_read_cntv_tval_el0(void)
 {
 	return read_sysreg(cntv_tval_el0);
 }
 
-static inline notrace u64 arch_timer_read_cntpct_el0(void)
+static inline yestrace u64 arch_timer_read_cntpct_el0(void)
 {
 	return read_sysreg(cntpct_el0);
 }
 
-static inline notrace u64 arch_timer_read_cntvct_el0(void)
+static inline yestrace u64 arch_timer_read_cntvct_el0(void)
 {
 	return read_sysreg(cntvct_el0);
 }
@@ -88,9 +88,9 @@ static inline notrace u64 arch_timer_read_cntvct_el0(void)
 	({								\
 		u64 _val;						\
 									\
-		preempt_disable_notrace();				\
+		preempt_disable_yestrace();				\
 		_val = erratum_handler(read_ ## reg)();			\
-		preempt_enable_notrace();				\
+		preempt_enable_yestrace();				\
 									\
 		_val;							\
 	})

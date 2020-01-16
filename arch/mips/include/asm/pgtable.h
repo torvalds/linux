@@ -43,7 +43,7 @@ struct vm_area_struct;
 			__WRITEABLE | _PAGE_GLOBAL | _CACHE_UNCACHED)
 
 /*
- * If _PAGE_NO_EXEC is not defined, we can't do page protection for
+ * If _PAGE_NO_EXEC is yest defined, we can't do page protection for
  * execute, and consider it to be the same as read. Also, write
  * permissions imply read permissions. This is the closest we can get
  * by reasonable means..
@@ -136,13 +136,13 @@ static inline void set_pte_at(struct mm_struct *mm, unsigned long addr,
 #if defined(CONFIG_PHYS_ADDR_T_64BIT) && defined(CONFIG_CPU_MIPS32)
 
 #ifdef CONFIG_XPA
-# define pte_none(pte)		(!(((pte).pte_high) & ~_PAGE_GLOBAL))
+# define pte_yesne(pte)		(!(((pte).pte_high) & ~_PAGE_GLOBAL))
 #else
-# define pte_none(pte)		(!(((pte).pte_low | (pte).pte_high) & ~_PAGE_GLOBAL))
+# define pte_yesne(pte)		(!(((pte).pte_low | (pte).pte_high) & ~_PAGE_GLOBAL))
 #endif
 
 #define pte_present(pte)	((pte).pte_low & _PAGE_PRESENT)
-#define pte_no_exec(pte)	((pte).pte_low & _PAGE_NO_EXEC)
+#define pte_yes_exec(pte)	((pte).pte_low & _PAGE_NO_EXEC)
 
 static inline void set_pte(pte_t *ptep, pte_t pte)
 {
@@ -157,10 +157,10 @@ static inline void set_pte(pte_t *ptep, pte_t pte)
 #endif
 		pte_t *buddy = ptep_buddy(ptep);
 		/*
-		 * Make sure the buddy is global too (if it's !none,
+		 * Make sure the buddy is global too (if it's !yesne,
 		 * it better already be global)
 		 */
-		if (pte_none(*buddy)) {
+		if (pte_yesne(*buddy)) {
 			if (!IS_ENABLED(CONFIG_XPA))
 				buddy->pte_low |= _PAGE_GLOBAL;
 			buddy->pte_high |= _PAGE_GLOBAL;
@@ -187,9 +187,9 @@ static inline void pte_clear(struct mm_struct *mm, unsigned long addr, pte_t *pt
 }
 #else
 
-#define pte_none(pte)		(!(pte_val(pte) & ~_PAGE_GLOBAL))
+#define pte_yesne(pte)		(!(pte_val(pte) & ~_PAGE_GLOBAL))
 #define pte_present(pte)	(pte_val(pte) & _PAGE_PRESENT)
-#define pte_no_exec(pte)	(pte_val(pte) & _PAGE_NO_EXEC)
+#define pte_yes_exec(pte)	(pte_val(pte) & _PAGE_NO_EXEC)
 
 /*
  * Certain architectures need to do special things when pte's
@@ -203,7 +203,7 @@ static inline void set_pte(pte_t *ptep, pte_t pteval)
 	if (pte_val(pteval) & _PAGE_GLOBAL) {
 		pte_t *buddy = ptep_buddy(ptep);
 		/*
-		 * Make sure the buddy is global too (if it's !none,
+		 * Make sure the buddy is global too (if it's !yesne,
 		 * it better already be global)
 		 */
 # if defined(CONFIG_PHYS_ADDR_T_64BIT) && !defined(CONFIG_CPU_MIPS32)
@@ -264,14 +264,14 @@ cache_sync_done:
 #define PTE_T_LOG2	(__builtin_ffs(sizeof(pte_t)) - 1)
 
 /*
- * We used to declare this array with size but gcc 3.3 and older are not able
+ * We used to declare this array with size but gcc 3.3 and older are yest able
  * to find that this expression is a constant, so the size is dropped.
  */
 extern pgd_t swapper_pg_dir[];
 
 /*
  * The following only work if pte_present() is true.
- * Undefined behaviour if not..
+ * Undefined behaviour if yest..
  */
 #if defined(CONFIG_PHYS_ADDR_T_64BIT) && defined(CONFIG_CPU_MIPS32)
 static inline int pte_write(pte_t pte)	{ return pte.pte_low & _PAGE_WRITE; }
@@ -411,13 +411,13 @@ static inline pte_t pte_mkhuge(pte_t pte)
 
 /*
  * Macro to make mark a page protection value as "uncacheable".	 Note
- * that "protection" is really a misnomer here as the protection value
+ * that "protection" is really a misyesmer here as the protection value
  * contains the memory attribute bits, dirty bits, and various other
  * bits as well.
  */
-#define pgprot_noncached pgprot_noncached
+#define pgprot_yesncached pgprot_yesncached
 
-static inline pgprot_t pgprot_noncached(pgprot_t _prot)
+static inline pgprot_t pgprot_yesncached(pgprot_t _prot)
 {
 	unsigned long prot = pgprot_val(_prot);
 
@@ -615,7 +615,7 @@ static inline pmd_t pmd_modify(pmd_t pmd, pgprot_t newprot)
 	return pmd;
 }
 
-static inline pmd_t pmd_mknotpresent(pmd_t pmd)
+static inline pmd_t pmd_mkyestpresent(pmd_t pmd)
 {
 	pmd_val(pmd) &= ~(_PAGE_PRESENT | _PAGE_VALID | _PAGE_DIRTY);
 

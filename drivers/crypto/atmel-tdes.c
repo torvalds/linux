@@ -22,7 +22,7 @@
 
 #include <linux/device.h>
 #include <linux/init.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/scatterlist.h>
@@ -335,7 +335,7 @@ static int atmel_tdes_crypt_pdc_stop(struct atmel_tdes_dev *dd)
 				dd->buf_out, dd->buflen, dd->dma_size, 1);
 		if (count != dd->dma_size) {
 			err = -EINVAL;
-			pr_err("not all data converted: %zu\n", count);
+			pr_err("yest all data converted: %zu\n", count);
 		}
 	}
 
@@ -659,7 +659,7 @@ static int atmel_tdes_handle_queue(struct atmel_tdes_dev *dd,
 	if (!err)
 		err = atmel_tdes_crypt_start(dd);
 	if (err) {
-		/* des_task will not finish it, so do it here */
+		/* des_task will yest finish it, so do it here */
 		atmel_tdes_finish_req(dd, err);
 		tasklet_schedule(&dd->queue_task);
 	}
@@ -686,7 +686,7 @@ static int atmel_tdes_crypt_dma_stop(struct atmel_tdes_dev *dd)
 				dd->buf_out, dd->buflen, dd->dma_size, 1);
 			if (count != dd->dma_size) {
 				err = -EINVAL;
-				pr_err("not all data converted: %zu\n", count);
+				pr_err("yest all data converted: %zu\n", count);
 			}
 		}
 	}
@@ -701,25 +701,25 @@ static int atmel_tdes_crypt(struct skcipher_request *req, unsigned long mode)
 
 	if (mode & TDES_FLAGS_CFB8) {
 		if (!IS_ALIGNED(req->cryptlen, CFB8_BLOCK_SIZE)) {
-			pr_err("request size is not exact amount of CFB8 blocks\n");
+			pr_err("request size is yest exact amount of CFB8 blocks\n");
 			return -EINVAL;
 		}
 		ctx->block_size = CFB8_BLOCK_SIZE;
 	} else if (mode & TDES_FLAGS_CFB16) {
 		if (!IS_ALIGNED(req->cryptlen, CFB16_BLOCK_SIZE)) {
-			pr_err("request size is not exact amount of CFB16 blocks\n");
+			pr_err("request size is yest exact amount of CFB16 blocks\n");
 			return -EINVAL;
 		}
 		ctx->block_size = CFB16_BLOCK_SIZE;
 	} else if (mode & TDES_FLAGS_CFB32) {
 		if (!IS_ALIGNED(req->cryptlen, CFB32_BLOCK_SIZE)) {
-			pr_err("request size is not exact amount of CFB32 blocks\n");
+			pr_err("request size is yest exact amount of CFB32 blocks\n");
 			return -EINVAL;
 		}
 		ctx->block_size = CFB32_BLOCK_SIZE;
 	} else {
 		if (!IS_ALIGNED(req->cryptlen, DES_BLOCK_SIZE)) {
-			pr_err("request size is not exact amount of DES blocks\n");
+			pr_err("request size is yest exact amount of DES blocks\n");
 			return -EINVAL;
 		}
 		ctx->block_size = DES_BLOCK_SIZE;
@@ -797,7 +797,7 @@ static int atmel_tdes_dma_init(struct atmel_tdes_dev *dd,
 err_dma_out:
 	dma_release_channel(dd->dma_lch_in.chan);
 err_dma_in:
-	dev_warn(dd->dev, "no DMA channel available\n");
+	dev_warn(dd->dev, "yes DMA channel available\n");
 	return -ENODEV;
 }
 
@@ -1153,7 +1153,7 @@ static irqreturn_t atmel_tdes_irq(int irq, void *dev_id)
 		if (TDES_FLAGS_BUSY & tdes_dd->flags)
 			tasklet_schedule(&tdes_dd->done_task);
 		else
-			dev_warn(tdes_dd->dev, "TDES interrupt when no active requests.\n");
+			dev_warn(tdes_dd->dev, "TDES interrupt when yes active requests.\n");
 		return IRQ_HANDLED;
 	}
 
@@ -1217,11 +1217,11 @@ MODULE_DEVICE_TABLE(of, atmel_tdes_dt_ids);
 
 static struct crypto_platform_data *atmel_tdes_of_init(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	struct crypto_platform_data *pdata;
 
 	if (!np) {
-		dev_err(&pdev->dev, "device node not found\n");
+		dev_err(&pdev->dev, "device yesde yest found\n");
 		return ERR_PTR(-EINVAL);
 	}
 
@@ -1275,7 +1275,7 @@ static int atmel_tdes_probe(struct platform_device *pdev)
 	/* Get the base address */
 	tdes_res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!tdes_res) {
-		dev_err(dev, "no MEM resource info\n");
+		dev_err(dev, "yes MEM resource info\n");
 		err = -ENODEV;
 		goto res_err;
 	}
@@ -1323,7 +1323,7 @@ static int atmel_tdes_probe(struct platform_device *pdev)
 		if (!pdata) {
 			pdata = atmel_tdes_of_init(pdev);
 			if (IS_ERR(pdata)) {
-				dev_err(&pdev->dev, "platform data not available\n");
+				dev_err(&pdev->dev, "platform data yest available\n");
 				err = PTR_ERR(pdata);
 				goto err_pdata;
 			}

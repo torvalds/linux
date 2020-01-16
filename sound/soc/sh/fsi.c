@@ -3,10 +3,10 @@
 // Fifo-attached Serial Interface (FSI) support for SH7724
 //
 // Copyright (C) 2009 Renesas Solutions Corp.
-// Kuninori Morimoto <morimoto.kuninori@renesas.com>
+// Kuniyesri Morimoto <morimoto.kuniyesri@renesas.com>
 //
 // Based on ssi.c
-// Copyright (c) 2007 Manuel Lauss <mano@roarinelk.homelinux.net>
+// Copyright (c) 2007 Manuel Lauss <mayes@roarinelk.homelinux.net>
 
 #include <linux/delay.h>
 #include <linux/dma-mapping.h>
@@ -531,8 +531,8 @@ static void fsi_stream_init(struct fsi_priv *fsi,
 	io->period_pos		= 0;
 	io->sample_width	= samples_to_bytes(runtime, 1);
 	io->bus_option		= 0;
-	io->oerr_num	= -1; /* ignore 1st err */
-	io->uerr_num	= -1; /* ignore 1st err */
+	io->oerr_num	= -1; /* igyesre 1st err */
+	io->uerr_num	= -1; /* igyesre 1st err */
 	fsi_stream_handler_call(io, init, fsi, io);
 	spin_unlock_irqrestore(&master->lock, flags);
 }
@@ -1066,7 +1066,7 @@ static void fsi_pio_push16(struct fsi_priv *fsi, u8 *_buf, int samples)
 		for (i = 0; i < samples / 2; i++)
 			fsi_reg_write(fsi, DODT, buf[i]);
 	} else {
-		/* normal mode */
+		/* yesrmal mode */
 		u16 *buf = (u16 *)_buf;
 
 		for (i = 0; i < samples; i++)
@@ -1319,11 +1319,11 @@ static int fsi_dma_transfer(struct fsi_priv *fsi, struct fsi_stream *io)
 	/*
 	 * FIXME
 	 *
-	 * In DMAEngine case, codec and FSI cannot be started simultaneously
+	 * In DMAEngine case, codec and FSI canyest be started simultaneously
 	 * since FSI is using the scheduler work queue.
 	 * Therefore, in capture case, probably FSI FIFO will have got
 	 * overflow error in this point.
-	 * in that case, DMA cannot start transfer until error was cleared.
+	 * in that case, DMA canyest start transfer until error was cleared.
 	 */
 	if (!is_play) {
 		if (ERR_OVER & fsi_reg_read(fsi, DIFF_ST)) {
@@ -1826,7 +1826,7 @@ static const struct snd_soc_component_driver fsi_soc_component = {
  *		platform function
  */
 static void fsi_of_parse(char *name,
-			 struct device_node *np,
+			 struct device_yesde *np,
 			 struct sh_fsi_port_info *info,
 			 struct device *dev)
 {
@@ -1915,7 +1915,7 @@ MODULE_DEVICE_TABLE(platform, fsi_id_table);
 static int fsi_probe(struct platform_device *pdev)
 {
 	struct fsi_master *master;
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	struct sh_fsi_platform_info info;
 	const struct fsi_core *core;
 	struct fsi_priv *fsi;
@@ -1940,14 +1940,14 @@ static int fsi_probe(struct platform_device *pdev)
 	}
 
 	if (!core) {
-		dev_err(&pdev->dev, "unknown fsi device\n");
+		dev_err(&pdev->dev, "unkyeswn fsi device\n");
 		return -ENODEV;
 	}
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	irq = platform_get_irq(pdev, 0);
 	if (!res || (int)irq <= 0) {
-		dev_err(&pdev->dev, "Not enough FSI platform resources.\n");
+		dev_err(&pdev->dev, "Not eyesugh FSI platform resources.\n");
 		return -ENODEV;
 	}
 
@@ -1955,7 +1955,7 @@ static int fsi_probe(struct platform_device *pdev)
 	if (!master)
 		return -ENOMEM;
 
-	master->base = devm_ioremap_nocache(&pdev->dev,
+	master->base = devm_ioremap_yescache(&pdev->dev,
 					    res->start, resource_size(res));
 	if (!master->base) {
 		dev_err(&pdev->dev, "Unable to ioremap FSI registers.\n");
@@ -2005,7 +2005,7 @@ static int fsi_probe(struct platform_device *pdev)
 	ret = devm_snd_soc_register_component(&pdev->dev, &fsi_soc_component,
 				    fsi_soc_dai, ARRAY_SIZE(fsi_soc_dai));
 	if (ret < 0) {
-		dev_err(&pdev->dev, "cannot snd component register\n");
+		dev_err(&pdev->dev, "canyest snd component register\n");
 		goto exit_fsib;
 	}
 
@@ -2106,5 +2106,5 @@ module_platform_driver(fsi_driver);
 
 MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("SuperH onchip FSI audio driver");
-MODULE_AUTHOR("Kuninori Morimoto <morimoto.kuninori@renesas.com>");
+MODULE_AUTHOR("Kuniyesri Morimoto <morimoto.kuniyesri@renesas.com>");
 MODULE_ALIAS("platform:fsi-pcm-audio");

@@ -137,10 +137,10 @@ static void vsc73xx_config_init(struct phy_device *phydev)
 static int vsc738x_config_init(struct phy_device *phydev)
 {
 	u16 rev;
-	/* This magic sequence appear in the application note
+	/* This magic sequence appear in the application yeste
 	 * "VSC7385/7388 PHY Configuration".
 	 *
-	 * Maybe one day we will get to know what it all means.
+	 * Maybe one day we will get to kyesw what it all means.
 	 */
 	phy_write(phydev, 0x1f, 0x2a30);
 	phy_modify(phydev, 0x08, 0x0200, 0x0200);
@@ -203,9 +203,9 @@ static int vsc738x_config_init(struct phy_device *phydev)
 static int vsc739x_config_init(struct phy_device *phydev)
 {
 	/* This magic sequence appears in the VSC7395 SparX-G5e application
-	 * note "VSC7395/VSC7398 PHY Configuration"
+	 * yeste "VSC7395/VSC7398 PHY Configuration"
 	 *
-	 * Maybe one day we will get to know what it all means.
+	 * Maybe one day we will get to kyesw what it all means.
 	 */
 	phy_write(phydev, 0x1f, 0x2a30);
 	phy_modify(phydev, 0x08, 0x0200, 0x0200);
@@ -234,7 +234,7 @@ static int vsc739x_config_init(struct phy_device *phydev)
 
 static int vsc73xx_config_aneg(struct phy_device *phydev)
 {
-	/* The VSC73xx switches does not like to be instructed to
+	/* The VSC73xx switches does yest like to be instructed to
 	 * do autonegotiation in any way, it prefers that you just go
 	 * with the power-on/reset defaults. Writing some registers will
 	 * just make autonegotiation permanently fail.
@@ -243,7 +243,7 @@ static int vsc73xx_config_aneg(struct phy_device *phydev)
 }
 
 /* This adds a skew for both TX and RX clocks, so the skew should only be
- * applied to "rgmii-id" interfaces. It may not work as expected
+ * applied to "rgmii-id" interfaces. It may yest work as expected
  * on "rgmii-txid", "rgmii-rxid" or "rgmii" interfaces. */
 static int vsc8601_add_skew(struct phy_device *phydev)
 {
@@ -275,7 +275,7 @@ static int vsc824x_ack_interrupt(struct phy_device *phydev)
 	int err = 0;
 
 	/* Don't bother to ACK the interrupts if interrupts
-	 * are disabled.  The 824x cannot clear the interrupts
+	 * are disabled.  The 824x canyest clear the interrupts
 	 * if they are disabled.
 	 */
 	if (phydev->interrupts == PHY_INTERRUPT_ENABLED)
@@ -297,7 +297,7 @@ static int vsc82xx_config_intr(struct phy_device *phydev)
 				MII_VSC8244_IMASK_MASK :
 				MII_VSC8221_IMASK_MASK);
 	else {
-		/* The Vitesse PHY cannot clear the interrupt
+		/* The Vitesse PHY canyest clear the interrupt
 		 * once it has disabled them, so we clear them first
 		 */
 		err = phy_read(phydev, MII_VSC8244_ISTAT);
@@ -358,7 +358,7 @@ static int vsc82x4_config_autocross_enable(struct phy_device *phydev)
  * @phydev: target phy_device struct
  *
  * Description: If auto-negotiation is enabled, we configure the
- *   advertising, and then restart auto-negotiation.  If it is not
+ *   advertising, and then restart auto-negotiation.  If it is yest
  *   enabled, then we write the BMCR and also start the auto
  *   MDI/MDI-X feature
  */

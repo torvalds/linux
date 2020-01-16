@@ -23,7 +23,7 @@
  * Addresses to scan.
  */
 
-static const unsigned short normal_i2c[] = {0x18, 0x19, 0x1a, 0x2c, 0x2d, 0x2e,
+static const unsigned short yesrmal_i2c[] = {0x18, 0x19, 0x1a, 0x2c, 0x2d, 0x2e,
 	0x4c, 0x4d, 0x4e, I2C_CLIENT_END};
 
 /*
@@ -250,7 +250,7 @@ static struct amc6821_data *amc6821_update_device(struct device *dev)
 			break;
 		case 1: /*
 			 * semi-open loop: software sets rpm, chip controls
-			 * pwm1, currently not implemented
+			 * pwm1, currently yest implemented
 			 */
 			data->pwm1_auto_channels_temp = 0;
 			data->pwm1_enable = 0;
@@ -323,7 +323,7 @@ static ssize_t temp_alarm_show(struct device *dev,
 		flag = data->stat2 & AMC6821_STAT2_RTC;
 		break;
 	default:
-		dev_dbg(dev, "Unknown attr->index (%d).\n", ix);
+		dev_dbg(dev, "Unkyeswn attr->index (%d).\n", ix);
 		return -EINVAL;
 	}
 	if (flag)
@@ -444,7 +444,7 @@ static ssize_t temp_auto_point_temp_show(struct device *dev,
 		return sprintf(buf, "%d\n",
 			data->temp2_auto_point_temp[ix] * 1000);
 	default:
-		dev_dbg(dev, "Unknown attr->nr (%d).\n", nr);
+		dev_dbg(dev, "Unkyeswn attr->nr (%d).\n", nr);
 		return -EINVAL;
 	}
 }
@@ -506,7 +506,7 @@ static ssize_t temp_auto_point_temp_store(struct device *dev,
 		reg = AMC6821_REG_RTEMP_FAN_CTRL;
 		break;
 	default:
-		dev_dbg(dev, "Unknown attr->nr (%d).\n", nr);
+		dev_dbg(dev, "Unkyeswn attr->nr (%d).\n", nr);
 		return -EINVAL;
 	}
 
@@ -538,7 +538,7 @@ static ssize_t temp_auto_point_temp_store(struct device *dev,
 		ptemp[2] = clamp_val(val / 1000, ptemp[1]+1, 255);
 		break;
 	default:
-		dev_dbg(dev, "Unknown attr->index (%d).\n", ix);
+		dev_dbg(dev, "Unkyeswn attr->index (%d).\n", ix);
 		count = -EINVAL;
 		goto EXIT;
 	}
@@ -796,7 +796,7 @@ static int amc6821_detect(
 	}
 
 	/*
-	 * Bit 7 of the address register is ignored, so we can check the
+	 * Bit 7 of the address register is igyesred, so we can check the
 	 * ID registers again
 	 */
 	dev_id = i2c_smbus_read_byte_data(client, 0x80 | AMC6821_REG_DEV_ID);
@@ -943,7 +943,7 @@ static struct i2c_driver amc6821_driver = {
 	.probe = amc6821_probe,
 	.id_table = amc6821_id,
 	.detect = amc6821_detect,
-	.address_list = normal_i2c,
+	.address_list = yesrmal_i2c,
 };
 
 module_i2c_driver(amc6821_driver);

@@ -1045,7 +1045,7 @@ static int ltc2947_setup(struct ltc2947_data *st)
 		/* 19.89E-6 * 10E9 */
 		st->lsb_energy = 19890;
 	}
-	ret = of_property_read_u32_array(st->dev->of_node,
+	ret = of_property_read_u32_array(st->dev->of_yesde,
 					 "adi,accumulator-ctl-pol", accum,
 					  ARRAY_SIZE(accum));
 	if (!ret) {
@@ -1056,7 +1056,7 @@ static int ltc2947_setup(struct ltc2947_data *st)
 		if (ret)
 			return ret;
 	}
-	ret = of_property_read_u32(st->dev->of_node,
+	ret = of_property_read_u32(st->dev->of_yesde,
 				   "adi,accumulation-deadband-microamp",
 				   &deadband);
 	if (!ret) {
@@ -1067,7 +1067,7 @@ static int ltc2947_setup(struct ltc2947_data *st)
 			return ret;
 	}
 	/* check gpio cfg */
-	ret = of_property_read_u32(st->dev->of_node, "adi,gpio-out-pol", &pol);
+	ret = of_property_read_u32(st->dev->of_yesde, "adi,gpio-out-pol", &pol);
 	if (!ret) {
 		/* setup GPIO as output */
 		u32 gpio_ctl = LTC2947_GPIO_EN(1) | LTC2947_GPIO_FAN_EN(1) |
@@ -1078,7 +1078,7 @@ static int ltc2947_setup(struct ltc2947_data *st)
 		if (ret)
 			return ret;
 	}
-	ret = of_property_read_u32_array(st->dev->of_node, "adi,gpio-in-accum",
+	ret = of_property_read_u32_array(st->dev->of_yesde, "adi,gpio-in-accum",
 					 accum, ARRAY_SIZE(accum));
 	if (!ret) {
 		/*
@@ -1090,7 +1090,7 @@ static int ltc2947_setup(struct ltc2947_data *st)
 
 		if (st->gpio_out) {
 			dev_err(st->dev,
-				"Cannot have input gpio config if already configured as output");
+				"Canyest have input gpio config if already configured as output");
 			return -EINVAL;
 		}
 
@@ -1143,7 +1143,7 @@ static int __maybe_unused ltc2947_resume(struct device *dev)
 		return ret;
 	/*
 	 * Wait for the device. It takes 100ms to wake up so, 10ms extra
-	 * should be enough.
+	 * should be eyesugh.
 	 */
 	msleep(110);
 	ret = regmap_read(st->map, LTC2947_REG_CTRL, &ctrl);
@@ -1178,6 +1178,6 @@ const struct of_device_id ltc2947_of_match[] = {
 EXPORT_SYMBOL_GPL(ltc2947_of_match);
 MODULE_DEVICE_TABLE(of, ltc2947_of_match);
 
-MODULE_AUTHOR("Nuno Sa <nuno.sa@analog.com>");
+MODULE_AUTHOR("Nuyes Sa <nuyes.sa@analog.com>");
 MODULE_DESCRIPTION("LTC2947 power and energy monitor core driver");
 MODULE_LICENSE("GPL");

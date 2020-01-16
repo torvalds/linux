@@ -17,16 +17,16 @@
 #define AD5592R_GPIO_READBACK_EN	BIT(10)
 #define AD5592R_LDAC_READBACK_EN	BIT(6)
 
-static int ad5592r_spi_wnop_r16(struct ad5592r_state *st, __be16 *buf)
+static int ad5592r_spi_wyesp_r16(struct ad5592r_state *st, __be16 *buf)
 {
 	struct spi_device *spi = container_of(st->dev, struct spi_device, dev);
 	struct spi_transfer t = {
-			.tx_buf	= &st->spi_msg_nop,
+			.tx_buf	= &st->spi_msg_yesp,
 			.rx_buf	= buf,
 			.len = 2
 		};
 
-	st->spi_msg_nop = 0; /* NOP */
+	st->spi_msg_yesp = 0; /* NOP */
 
 	return spi_sync_transfer(spi, &t, 1);
 }
@@ -55,11 +55,11 @@ static int ad5592r_read_adc(struct ad5592r_state *st, unsigned chan, u16 *value)
 	 * Invalid data:
 	 * See Figure 40. Single-Channel ADC Conversion Sequence
 	 */
-	ret = ad5592r_spi_wnop_r16(st, &st->spi_msg);
+	ret = ad5592r_spi_wyesp_r16(st, &st->spi_msg);
 	if (ret)
 		return ret;
 
-	ret = ad5592r_spi_wnop_r16(st, &st->spi_msg);
+	ret = ad5592r_spi_wyesp_r16(st, &st->spi_msg);
 	if (ret)
 		return ret;
 
@@ -89,7 +89,7 @@ static int ad5592r_reg_read(struct ad5592r_state *st, u8 reg, u16 *value)
 	if (ret)
 		return ret;
 
-	ret = ad5592r_spi_wnop_r16(st, &st->spi_msg);
+	ret = ad5592r_spi_wyesp_r16(st, &st->spi_msg);
 	if (ret)
 		return ret;
 
@@ -107,7 +107,7 @@ static int ad5593r_gpio_read(struct ad5592r_state *st, u8 *value)
 	if (ret)
 		return ret;
 
-	ret = ad5592r_spi_wnop_r16(st, &st->spi_msg);
+	ret = ad5592r_spi_wyesp_r16(st, &st->spi_msg);
 	if (ret)
 		return ret;
 

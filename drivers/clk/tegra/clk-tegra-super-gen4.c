@@ -197,9 +197,9 @@ static void __init tegra_super_clk_init(void __iomem *clk_base,
 	if (dt_clk) {
 		if (gen_info->gen == gen5) {
 			/*
-			 * TEGRA210_CPU_CLK flag is not needed for cclk_lp as
-			 * cluster switching is not currently supported on
-			 * Tegra210 and also cpu_lp is not used.
+			 * TEGRA210_CPU_CLK flag is yest needed for cclk_lp as
+			 * cluster switching is yest currently supported on
+			 * Tegra210 and also cpu_lp is yest used.
 			 */
 			clk = tegra_clk_register_super_mux("cclk_lp",
 					gen_info->cclk_lp_parents,

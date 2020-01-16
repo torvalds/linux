@@ -31,7 +31,7 @@
  * and use it later. Actually, we use the configuration *after* the one that
  * produced the lock, which seems odd, but it works.
  *
- * If we do not see a PLL lock on any standard VCO config, we fall back on an
+ * If we do yest see a PLL lock on any standard VCO config, we fall back on an
  * autocal configuration, which has a fixed (as opposed to per-channel) VCO
  * config and different synth values from the standard set (divide ratio
  * is still shared with the standard set). */
@@ -302,7 +302,7 @@ static int uw2453_init_hw(struct zd_rf *rf)
 
 	static const struct zd_ioreq16 ioreqs[] = {
 		{ ZD_CR10,  0x89 }, { ZD_CR15,  0x20 },
-		{ ZD_CR17,  0x28 }, /* 6112 no change */
+		{ ZD_CR17,  0x28 }, /* 6112 yes change */
 		{ ZD_CR23,  0x38 }, { ZD_CR24,  0x20 }, { ZD_CR26,  0x93 },
 		{ ZD_CR27,  0x15 }, { ZD_CR28,  0x3e }, { ZD_CR29,  0x00 },
 		{ ZD_CR33,  0x28 }, { ZD_CR34,  0x30 },
@@ -407,7 +407,7 @@ static int uw2453_init_hw(struct zd_rf *rf)
 	if (found_config == -1) {
 		/* autocal */
 		dev_dbg_f(zd_chip_dev(chip),
-			"PLL did not lock, using autocal\n");
+			"PLL did yest lock, using autocal\n");
 
 		r = uw2453_synth_set_channel(chip, 1, true);
 		if (r)

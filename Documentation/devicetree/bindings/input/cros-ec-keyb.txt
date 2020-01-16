@@ -12,7 +12,7 @@ Required properties:
 
 Optional properties:
 - google,needs-ghost-filter: True to enable a ghost filter for the matrix
-keyboard. This is recommended if the EC does not have its own logic or
+keyboard. This is recommended if the EC does yest have its own logic or
 hardware for this.
 
 
@@ -28,7 +28,7 @@ cros-ec-keyb {
 	 * RR=Row CC=Column KKKK=Key Code
 	 * The values below are for a US keyboard layout and
 	 * are taken from the Linux driver. Note that the
-	 * 102ND key is not used for US keyboards.
+	 * 102ND key is yest used for US keyboards.
 	 */
 	linux,keymap = <
 		/* CAPSLCK F1         B          F10     */

@@ -20,21 +20,21 @@
  *
  * Allocation is done by offsets into a unit's address space.  Ie., an
  * area of 512 bytes at 6k in c1 occupies 512 bytes at 6k in c1:u0,
- * c1:u1, c1:u2, etc.  On NUMA machines, the mapping may be non-linear
+ * c1:u1, c1:u2, etc.  On NUMA machines, the mapping may be yesn-linear
  * and even sparse.  Access is handled by configuring percpu base
  * registers according to the cpu to unit mappings and offsetting the
  * base address using pcpu_unit_size.
  *
  * There is special consideration for the first chunk which must handle
  * the static percpu variables in the kernel image as allocation services
- * are not online yet.  In short, the first chunk is structured like so:
+ * are yest online yet.  In short, the first chunk is structured like so:
  *
  *                  <Static | [Reserved] | Dynamic>
  *
  * The static data is copied from the original section managed by the
- * linker.  The reserved section, if non-zero, primarily manages static
+ * linker.  The reserved section, if yesn-zero, primarily manages static
  * percpu variables from kernel modules.  Finally, the dynamic section
- * takes care of normal allocations.
+ * takes care of yesrmal allocations.
  *
  * The allocator organizes chunks into lists according to free size and
  * tries to allocate from the fullest chunk first.  Each chunk is managed
@@ -179,7 +179,7 @@ int pcpu_nr_empty_pop_pages;
 static unsigned long pcpu_nr_populated;
 
 /*
- * Balance work is used to populate or destroy chunks asynchronously.  We
+ * Balance work is used to populate or destroy chunks asynchroyesusly.  We
  * try to keep the number of populated free pages between
  * PCPU_EMPTY_POP_PAGES_LOW and HIGH for atomic allocations and at most one
  * empty chunk.
@@ -329,8 +329,8 @@ static unsigned long pcpu_block_off_to_off(int index, int off)
  *
  * This determines if we should scan based on the scan_hint or first_free.
  * In general, we want to scan from first_free to fulfill allocations by
- * first fit.  However, if we know a scan_hint at position scan_hint_start
- * cannot fulfill an allocation, we can begin scanning from there knowing
+ * first fit.  However, if we kyesw a scan_hint at position scan_hint_start
+ * canyest fulfill an allocation, we can begin scanning from there kyeswing
  * the contig_hint will be our fallback.
  */
 static int pcpu_next_hint(struct pcpu_block_md *block, int alloc_bits)
@@ -338,7 +338,7 @@ static int pcpu_next_hint(struct pcpu_block_md *block, int alloc_bits)
 	/*
 	 * The three conditions below determine if we can skip past the
 	 * scan_hint.  First, does the scan hint exist.  Second, is the
-	 * contig_hint after the scan_hint (possibly not true iff
+	 * contig_hint after the scan_hint (possibly yest true iff
 	 * contig_hint == scan_hint).  Third, is the allocation request
 	 * larger than the scan_hint.
 	 */
@@ -463,7 +463,7 @@ static void pcpu_next_fit_region(struct pcpu_chunk *chunk, int alloc_bits,
 			return;
 	}
 
-	/* no valid offsets were found - fail condition */
+	/* yes valid offsets were found - fail condition */
 	*bit_off = pcpu_chunk_map_bits(chunk);
 }
 
@@ -564,7 +564,7 @@ static void pcpu_chunk_relocate(struct pcpu_chunk *chunk, int oslot)
  * @chunk: chunk of interest
  * @nr: nr of empty pages
  *
- * This is used to keep track of the empty pages now based on the premise
+ * This is used to keep track of the empty pages yesw based on the premise
  * a md_block covers a page.  The hint update functions recognize if a block
  * is made full or broken to calculate deltas for keeping track of free pages.
  */
@@ -596,7 +596,7 @@ static inline bool pcpu_region_overlap(int a, int b, int x, int y)
  * @start: start offset in block
  * @end: end offset in block
  *
- * Updates a block given a known free area.  The region [start, end) is
+ * Updates a block given a kyeswn free area.  The region [start, end) is
  * expected to be the entirety of the free area within a block.  Chooses
  * the best starting offset if the contig hints are equal.
  */
@@ -643,7 +643,7 @@ static void pcpu_block_update(struct pcpu_block_md *block, int start, int end)
 		} else if (start > block->scan_hint_start ||
 			   block->contig_hint > block->scan_hint) {
 			/*
-			 * Knowing contig == contig_hint, update the scan_hint
+			 * Kyeswing contig == contig_hint, update the scan_hint
 			 * if it is farther than or larger than the current
 			 * scan_hint.
 			 */
@@ -675,7 +675,7 @@ static void pcpu_block_update(struct pcpu_block_md *block, int start, int end)
  * Finding the final allocation spot first goes through pcpu_find_block_fit()
  * to find a block that can hold the allocation and then pcpu_alloc_area()
  * where a scan is used.  When allocations require specific alignments,
- * we can inadvertently create holes which will not be seen in the alloc
+ * we can inadvertently create holes which will yest be seen in the alloc
  * or free paths.
  *
  * This takes a given free area hole and updates a block as it may change the
@@ -711,7 +711,7 @@ static void pcpu_block_update_scan(struct pcpu_chunk *chunk, int bit_off,
  * Iterates over the metadata blocks to find the largest contig area.
  * A full scan can be avoided on the allocation path as this is triggered
  * if we broke the contig_hint.  In doing so, the scan_hint will be before
- * the contig_hint or after if the scan_hint == contig_hint.  This cannot
+ * the contig_hint or after if the scan_hint == contig_hint.  This canyest
  * be prevented on freeing as we want to find the largest area possibly
  * spanning blocks.
  */
@@ -957,7 +957,7 @@ static void pcpu_block_update_hint_free(struct pcpu_chunk *chunk, int bit_off,
 	 * larger free area can be avoided.
 	 *
 	 * start and end refer to beginning and end of the free area
-	 * within each their respective blocks.  This is not necessarily
+	 * within each their respective blocks.  This is yest necessarily
 	 * the entire free area as it may span blocks past the beginning
 	 * or end of the block.
 	 */
@@ -968,7 +968,7 @@ static void pcpu_block_update_hint_free(struct pcpu_chunk *chunk, int bit_off,
 		/*
 		 * Scan backwards to find the extent of the free area.
 		 * find_last_bit returns the starting bit, so if the start bit
-		 * is returned, that means there was no last bit and the
+		 * is returned, that means there was yes last bit and the
 		 * remainder of the chunk is free.
 		 */
 		int l_bit = find_last_bit(pcpu_index_alloc_map(chunk, s_index),
@@ -1065,14 +1065,14 @@ static bool pcpu_is_populated(struct pcpu_chunk *chunk, int bit_off, int bits,
  * Given a chunk and an allocation spec, find the offset to begin searching
  * for a free region.  This iterates over the bitmap metadata blocks to
  * find an offset that will be guaranteed to fit the requirements.  It is
- * not quite first fit as if the allocation does not fit in the contig hint
+ * yest quite first fit as if the allocation does yest fit in the contig hint
  * of a block or chunk, it is skipped.  This errs on the side of caution
  * to prevent excess iteration.  Poor alignment can cause the allocator to
  * skip over blocks and chunks that have valid free areas.
  *
  * RETURNS:
  * The offset in the bitmap to begin searching.
- * -1 if no offset is found.
+ * -1 if yes offset is found.
  */
 static int pcpu_find_block_fit(struct pcpu_chunk *chunk, int alloc_bits,
 			       size_t align, bool pop_only)
@@ -1083,7 +1083,7 @@ static int pcpu_find_block_fit(struct pcpu_chunk *chunk, int alloc_bits,
 	/*
 	 * Check to see if the allocation can fit in the chunk's contig hint.
 	 * This is an optimization to prevent scanning by assuming if it
-	 * cannot fit in the global hint, there is memory pressure and creating
+	 * canyest fit in the global hint, there is memory pressure and creating
 	 * a new chunk would happen soon.
 	 */
 	bit_off = ALIGN(chunk_md->contig_hint_start, align) -
@@ -1122,8 +1122,8 @@ static int pcpu_find_block_fit(struct pcpu_chunk *chunk, int alloc_bits,
  *
  * This is a modified version of bitmap_find_next_zero_area_off() to remember
  * the largest area that was skipped.  This is imperfect, but in general is
- * good enough.  The largest remembered region is the largest failed region
- * seen.  This does not include anything we possibly skipped due to alignment.
+ * good eyesugh.  The largest remembered region is the largest failed region
+ * seen.  This does yest include anything we possibly skipped due to alignment.
  * pcpu_block_update_scan() does scan backwards to try and recover what was
  * lost to alignment.  While this can cause scanning to miss earlier possible
  * free areas, smaller allocations will eventually fill those holes.
@@ -1181,7 +1181,7 @@ again:
  *
  * RETURNS:
  * Allocated addr offset in @chunk on success.
- * -1 if no matching area is found.
+ * -1 if yes matching area is found.
  */
 static int pcpu_alloc_area(struct pcpu_chunk *chunk, int alloc_bits,
 			   size_t align, int start)
@@ -1466,7 +1466,7 @@ static void pcpu_free_chunk(struct pcpu_chunk *chunk)
  * the bookkeeping information accordingly.  Must be called after each
  * successful population.
  *
- * If this is @for_alloc, do not increment pcpu_nr_empty_pop_pages because it
+ * If this is @for_alloc, do yest increment pcpu_nr_empty_pop_pages because it
  * is to serve an allocation in that area.
  */
 static void pcpu_chunk_populated(struct pcpu_chunk *chunk, int page_start,
@@ -1562,7 +1562,7 @@ static struct pcpu_chunk *pcpu_chunk_addr_search(void *addr)
 	 * thus unmapped.  Offset the address to the unit space of the
 	 * current processor before looking it up in the vmalloc
 	 * space.  Note that any possible cpu id can be used here, so
-	 * there's no need to worry about preemption or cpu hotplug.
+	 * there's yes need to worry about preemption or cpu hotplug.
 	 */
 	addr += pcpu_unit_offsets[raw_smp_processor_id()];
 	return pcpu_get_page_chunk(pcpu_addr_to_page(addr));
@@ -1577,7 +1577,7 @@ static struct pcpu_chunk *pcpu_chunk_addr_search(void *addr)
  *
  * Allocate percpu area of @size bytes aligned at @align.  If @gfp doesn't
  * contain %GFP_KERNEL, the allocation is atomic. If @gfp has __GFP_NOWARN
- * then no warning will be triggered on invalid or failed allocation
+ * then yes warning will be triggered on invalid or failed allocation
  * requests.
  *
  * RETURNS:
@@ -1599,7 +1599,7 @@ static void __percpu *pcpu_alloc(size_t size, size_t align, bool reserved,
 	size_t bits, bit_align;
 
 	/*
-	 * There is now a minimum allocation size of PCPU_MIN_ALLOC_SIZE,
+	 * There is yesw a minimum allocation size of PCPU_MIN_ALLOC_SIZE,
 	 * therefore alignment must be a minimum of that many bytes.
 	 * An allocation may have internal fragmentation from rounding up
 	 * of up to PCPU_MIN_ALLOC_SIZE - 1 bytes.
@@ -1651,7 +1651,7 @@ static void __percpu *pcpu_alloc(size_t size, size_t align, bool reserved,
 	}
 
 restart:
-	/* search through normal chunks */
+	/* search through yesrmal chunks */
 	for (slot = pcpu_size_to_slot(size); slot < pcpu_nr_slots; slot++) {
 		list_for_each_entry_safe(chunk, next, &pcpu_slot[slot], list) {
 			off = pcpu_find_block_fit(chunk, bits, bit_align,
@@ -1674,10 +1674,10 @@ restart:
 	/*
 	 * No space left.  Create a new chunk.  We don't want multiple
 	 * tasks to create chunks simultaneously.  Serialize and create iff
-	 * there's still no empty chunk after grabbing the mutex.
+	 * there's still yes empty chunk after grabbing the mutex.
 	 */
 	if (is_atomic) {
-		err = "atomic alloc failed, no space left";
+		err = "atomic alloc failed, yes space left";
 		goto fail;
 	}
 
@@ -1700,7 +1700,7 @@ area_found:
 	pcpu_stats_area_alloc(chunk, size);
 	spin_unlock_irqrestore(&pcpu_lock, flags);
 
-	/* populate if not all pages are already there */
+	/* populate if yest all pages are already there */
 	if (!is_atomic) {
 		int page_start, page_end, rs, re;
 
@@ -1772,7 +1772,7 @@ fail:
  * Allocate zero-filled percpu area of @size bytes aligned at @align.  If
  * @gfp doesn't contain %GFP_KERNEL, the allocation doesn't block and can
  * be called from any context but is a lot more likely to fail. If @gfp
- * has __GFP_NOWARN then no warning will be triggered on invalid or failed
+ * has __GFP_NOWARN then yes warning will be triggered on invalid or failed
  * allocation requests.
  *
  * RETURNS:
@@ -1839,7 +1839,7 @@ static void pcpu_balance_workfn(struct work_struct *work)
 	int slot, nr_to_pop, ret;
 
 	/*
-	 * There's no reason to keep around multiple unused chunks and VM
+	 * There's yes reason to keep around multiple unused chunks and VM
 	 * areas can be scarce.  Destroy all free chunks except for one.
 	 */
 	mutex_lock(&pcpu_alloc_mutex);
@@ -1877,7 +1877,7 @@ static void pcpu_balance_workfn(struct work_struct *work)
 	 * allocs don't increase fragmentation.  If atomic allocation
 	 * failed previously, always populate the maximum amount.  This
 	 * should prevent atomic allocs larger than PAGE_SIZE from keeping
-	 * failing indefinitely; however, large atomic allocs are not
+	 * failing indefinitely; however, large atomic allocs are yest
 	 * something we support properly and can be highly unreliable and
 	 * inefficient.
 	 */
@@ -2024,7 +2024,7 @@ bool __is_kernel_percpu_address(unsigned long addr, unsigned long *can_addr)
  * @addr: address to test
  *
  * Test whether @addr belongs to in-kernel static percpu area.  Module
- * static percpu areas are not considered.  For those, use
+ * static percpu areas are yest considered.  For those, use
  * is_module_percpu_address().
  *
  * RETURNS:
@@ -2073,7 +2073,7 @@ phys_addr_t per_cpu_ptr_to_phys(void *addr)
 	 * The address check is against full chunk sizes.  pcpu_base_addr
 	 * points to the beginning of the first chunk including the
 	 * static region.  Assumes good intent as the first chunk may
-	 * not be full (ie. < pcpu_unit_pages in size).
+	 * yest be full (ie. < pcpu_unit_pages in size).
 	 */
 	first_low = (unsigned long)pcpu_base_addr +
 		    pcpu_unit_page_offset(pcpu_low_unit_cpu, 0);
@@ -2107,9 +2107,9 @@ phys_addr_t per_cpu_ptr_to_phys(void *addr)
  * @nr_groups: the number of groups
  * @nr_units: the number of units
  *
- * Allocate ai which is large enough for @nr_groups groups containing
+ * Allocate ai which is large eyesugh for @nr_groups groups containing
  * @nr_units units.  The returned ai's groups[0].cpu_map points to the
- * cpu_map array which is long enough for @nr_units and filled with
+ * cpu_map array which is long eyesugh for @nr_units and filled with
  * NR_CPUS.  It's the caller's responsibility to initialize cpu_map
  * pointer of other groups.
  *
@@ -2126,7 +2126,7 @@ struct pcpu_alloc_info * __init pcpu_alloc_alloc_info(int nr_groups,
 	int unit;
 
 	base_size = ALIGN(struct_size(ai, groups, nr_groups),
-			  __alignof__(ai->groups[0].cpu_map[0]));
+			  __aligyesf__(ai->groups[0].cpu_map[0]));
 	ai_size = base_size + nr_units * sizeof(ai->groups[0].cpu_map[0]);
 
 	ptr = memblock_alloc(PFN_ALIGN(ai_size), PAGE_SIZE);
@@ -2228,7 +2228,7 @@ static void pcpu_dump_alloc_info(const char *lvl,
  *
  * @ai->static_size is the size of static percpu area.
  *
- * @ai->reserved_size, if non-zero, specifies the amount of bytes to
+ * @ai->reserved_size, if yesn-zero, specifies the amount of bytes to
  * reserve after the static area in the first chunk.  This reserves
  * the first chunk such that it's available only through reserved
  * percpu allocation.  This is primarily used to serve module percpu
@@ -2261,7 +2261,7 @@ static void pcpu_dump_alloc_info(const char *lvl,
  * copied static data to each unit.
  *
  * The first chunk will always contain a static and a dynamic region.
- * However, the static region is not managed by any chunk.  If the first
+ * However, the static region is yest managed by any chunk.  If the first
  * chunk also contains a reserved region, it is served by two chunks -
  * one for the reserved region and one for the dynamic region.  They
  * share the same vm, but use offset regions in the area allocation map.
@@ -2421,7 +2421,7 @@ void __init pcpu_setup_first_chunk(const struct pcpu_alloc_info *ai,
 
 	/*
 	 * Initialize first chunk.
-	 * If the reserved_size is non-zero, this initializes the reserved
+	 * If the reserved_size is yesn-zero, this initializes the reserved
 	 * chunk.  If the reserved_size is zero, the reserved chunk is NULL
 	 * and the dynamic region is initialized here.  The first chunk,
 	 * pcpu_first_chunk, will always point to the chunk that serves
@@ -2482,7 +2482,7 @@ static int __init percpu_alloc_setup(char *str)
 		pcpu_chosen_fc = PCPU_FC_PAGE;
 #endif
 	else
-		pr_warn("unknown allocator %s specified\n", str);
+		pr_warn("unkyeswn allocator %s specified\n", str);
 
 	return 0;
 }
@@ -2519,7 +2519,7 @@ early_param("percpu_alloc", percpu_alloc_setup);
  * Groups are always multiples of atom size and CPUs which are of
  * LOCAL_DISTANCE both ways are grouped together and share space for
  * units in the same group.  The returned configuration is guaranteed
- * to have CPUs on different nodes on different groups and >=75% usage
+ * to have CPUs on different yesdes on different groups and >=75% usage
  * of allocated virtual address space.
  *
  * RETURNS:
@@ -2546,7 +2546,7 @@ static struct pcpu_alloc_info * __init pcpu_build_alloc_info(
 	memset(group_map, 0, sizeof(group_map));
 	memset(group_cnt, 0, sizeof(group_cnt));
 
-	/* calculate size_sum and ensure dyn_size is enough for early alloc */
+	/* calculate size_sum and ensure dyn_size is eyesugh for early alloc */
 	size_sum = PFN_ALIGN(static_size + reserved_size +
 			    max_t(size_t, dyn_size, PERCPU_DYNAMIC_EARLY_SIZE));
 	dyn_size = size_sum - static_size - reserved_size;
@@ -2681,11 +2681,11 @@ static struct pcpu_alloc_info * __init pcpu_build_alloc_info(
  * aligned to @atom_size.
  *
  * This enables the first chunk to piggy back on the linear physical
- * mapping which often uses larger page size.  Please note that this
+ * mapping which often uses larger page size.  Please yeste that this
  * can result in very sparse cpu->unit mapping on NUMA machines thus
  * requiring large vmalloc address space.  Don't use this allocator if
- * vmalloc space is not orders of magnitude larger than distances
- * between node memory addresses (ie. 32bit NUMA machines).
+ * vmalloc space is yest orders of magnitude larger than distances
+ * between yesde memory addresses (ie. 32bit NUMA machines).
  *
  * @dyn_size specifies the minimum dynamic area size.
  *
@@ -2693,7 +2693,7 @@ static struct pcpu_alloc_info * __init pcpu_build_alloc_info(
  * size, the leftover is returned using @free_fn.
  *
  * RETURNS:
- * 0 on success, -errno on failure.
+ * 0 on success, -erryes on failure.
  */
 int __init pcpu_embed_first_chunk(size_t reserved_size, size_t dyn_size,
 				  size_t atom_size,
@@ -2782,7 +2782,7 @@ int __init pcpu_embed_first_chunk(size_t reserved_size, size_t dyn_size,
 		}
 	}
 
-	/* base address is now known, determine group base offsets */
+	/* base address is yesw kyeswn, determine group base offsets */
 	for (group = 0; group < ai->nr_groups; group++) {
 		ai->groups[group].base_offset = areas[group] - base;
 	}
@@ -2822,7 +2822,7 @@ out_free:
  * page-by-page into vmalloc area.
  *
  * RETURNS:
- * 0 on success, -errno on failure.
+ * 0 on success, -erryes on failure.
  */
 int __init pcpu_page_first_chunk(size_t reserved_size,
 				 pcpu_fc_alloc_fn_t alloc_fn,
@@ -2873,7 +2873,7 @@ int __init pcpu_page_first_chunk(size_t reserved_size,
 			if (!ptr) {
 				pr_warn("failed to allocate %s page for cpu%u\n",
 						psize_str, cpu);
-				goto enomem;
+				goto eyesmem;
 			}
 			/* kmemleak tracks the percpu allocations separately */
 			kmemleak_free(ptr);
@@ -2904,7 +2904,7 @@ int __init pcpu_page_first_chunk(size_t reserved_size,
 		 * cache for the linear mapping here - something
 		 * equivalent to flush_cache_vmap() on the local cpu.
 		 * flush_cache_vmap() can't be used as most supporting
-		 * data structures are not set up yet.
+		 * data structures are yest set up yet.
 		 */
 
 		/* copy static data */
@@ -2919,7 +2919,7 @@ int __init pcpu_page_first_chunk(size_t reserved_size,
 	pcpu_setup_first_chunk(ai, vm.addr);
 	goto out_free_ar;
 
-enomem:
+eyesmem:
 	while (--j >= 0)
 		free_fn(page_address(pages[j]), PAGE_SIZE);
 	rc = -ENOMEM;
@@ -2935,10 +2935,10 @@ out_free_ar:
  * Generic SMP percpu area setup.
  *
  * The embedding helper is used because its behavior closely resembles
- * the original non-dynamic generic percpu area setup.  This is
+ * the original yesn-dynamic generic percpu area setup.  This is
  * important because many archs have addressing restrictions and might
  * fail if the percpu area is located far away from the previous
- * location.  As an added bonus, in non-NUMA cases, embedding is
+ * location.  As an added bonus, in yesn-NUMA cases, embedding is
  * generally a good idea TLB-wise because percpu area can piggy back
  * on the physical linear memory mapping which uses large page
  * mappings on applicable archs.

@@ -2,7 +2,7 @@
  *  linux/drivers/scsi/esas2r/esas2r_vda.c
  *      esas2r driver VDA firmware interface functions
  *
- *  Copyright (c) 2001-2013 ATTO Technology, Inc.
+ *  Copyright (c) 2001-2013 ATTO Techyeslogy, Inc.
  *  (mailto:linuxdrivers@attotech.com)
  */
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
@@ -23,7 +23,7 @@
  *  MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE. Each Recipient is
  *  solely responsible for determining the appropriateness of using and
  *  distributing the Program and assumes all risks associated with its
- *  exercise of rights under this Agreement, including but not limited to
+ *  exercise of rights under this Agreement, including but yest limited to
  *  the risks and costs of program errors, damage to or loss of data,
  *  programs or equipment, and unavailability or interruption of operations.
  *
@@ -37,7 +37,7 @@
  *  HEREUNDER, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGES
  *
  *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
+ *  along with this program; if yest, write to the Free Software
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
@@ -416,7 +416,7 @@ void esas2r_build_mgt_req(struct esas2r_adapter *a,
 	}
 }
 
-/* Build a VDA asyncronous event (AE) request. */
+/* Build a VDA asyncroyesus event (AE) request. */
 void esas2r_build_ae_req(struct esas2r_adapter *a, struct esas2r_request *rq)
 {
 	struct atto_vda_ae_req *vrq = &rq->vrq->ae;
@@ -516,7 +516,7 @@ static void clear_vda_request(struct esas2r_request *rq)
 	memset(rq->data_buf, 0, ESAS2R_DATA_BUF_LEN);
 
 	/*
-	 * Setup next and prev pointer in case the request is not going through
+	 * Setup next and prev pointer in case the request is yest going through
 	 * esas2r_start_request().
 	 */
 

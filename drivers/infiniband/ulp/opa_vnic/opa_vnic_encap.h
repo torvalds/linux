@@ -24,12 +24,12 @@
  * are met:
  *
  *  - Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  *  - Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
+ *    yestice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
- *  - Neither the name of Intel Corporation nor the names of its
+ *  - Neither the name of Intel Corporation yesr the names of its
  *    contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
@@ -83,7 +83,7 @@
 
 #define OPA_VNIC_EMA_DATA    (OPA_MGMT_MAD_SIZE - IB_MGMT_VENDOR_HDR)
 
-/* Defines for vendor specific notice(trap) attributes */
+/* Defines for vendor specific yestice(trap) attributes */
 #define OPA_INTEL_EMA_NOTICE_TYPE_INFO 0x04
 
 /* INTEL OUI */
@@ -120,8 +120,8 @@
  * @vesw_id: 12-bit virtual ethernet switch id
  * @def_port_mask: bitmask of default ports
  * @pkey: partition key
- * @u_mcast_dlid: unknown multicast dlid
- * @u_ucast_dlid: array of unknown unicast dlids
+ * @u_mcast_dlid: unkyeswn multicast dlid
+ * @u_ucast_dlid: array of unkyeswn unicast dlids
  * @rc: routing control
  * @eth_mtu: Ethernet MTU
  */
@@ -161,10 +161,10 @@ struct opa_vesw_info {
  * @pcp_to_vl_uc: vl by pcp index for unicast ethernet packets
  * @pcp_to_sc_mc: sc by pcp index for multicast ethernet packets
  * @pcp_to_vl_mc: vl by pcp index for multicast ethernet packets
- * @non_vlan_sc_uc: sc for non-vlan unicast ethernet packets
- * @non_vlan_vl_uc: vl for non-vlan unicast ethernet packets
- * @non_vlan_sc_mc: sc for non-vlan multicast ethernet packets
- * @non_vlan_vl_mc: vl for non-vlan multicast ethernet packets
+ * @yesn_vlan_sc_uc: sc for yesn-vlan unicast ethernet packets
+ * @yesn_vlan_vl_uc: vl for yesn-vlan unicast ethernet packets
+ * @yesn_vlan_sc_mc: sc for yesn-vlan multicast ethernet packets
+ * @yesn_vlan_vl_mc: vl for yesn-vlan multicast ethernet packets
  * @uc_macs_gen_count: generation count for unicast macs list
  * @mc_macs_gen_count: generation count for multicast macs list
  */
@@ -190,10 +190,10 @@ struct opa_per_veswport_info {
 	u8      pcp_to_sc_mc[OPA_VNIC_MAX_NUM_PCP];
 	u8      pcp_to_vl_mc[OPA_VNIC_MAX_NUM_PCP];
 
-	u8      non_vlan_sc_uc;
-	u8      non_vlan_vl_uc;
-	u8      non_vlan_sc_mc;
-	u8      non_vlan_vl_mc;
+	u8      yesn_vlan_sc_uc;
+	u8      yesn_vlan_vl_uc;
+	u8      yesn_vlan_sc_mc;
+	u8      yesn_vlan_vl_mc;
 
 	u8      rsvd2[48];
 
@@ -274,7 +274,7 @@ struct opa_veswport_mactable {
  * @rx_bytes: receive bytes
  * @tx_unicast: unicast packets transmitted
  * @tx_mcastbcast: multicast/broadcast packets transmitted
- * @tx_untagged: non-vlan packets transmitted
+ * @tx_untagged: yesn-vlan packets transmitted
  * @tx_vlan: vlan packets transmitted
  * @tx_64_size: transmit packet length is 64 bytes
  * @tx_65_127: transmit packet length is >=65 and < 127 bytes
@@ -285,7 +285,7 @@ struct opa_veswport_mactable {
  * @tx_1519_max: transmit packet length >= 1519 bytes
  * @rx_unicast: unicast packets received
  * @rx_mcastbcast: multicast/broadcast packets received
- * @rx_untagged: non-vlan packets received
+ * @rx_untagged: yesn-vlan packets received
  * @rx_vlan: vlan packets received
  * @rx_64_size: received packet length is 64 bytes
  * @rx_65_127: received packet length is >=65 and < 127 bytes
@@ -350,12 +350,12 @@ struct opa_veswport_summary_counters {
  * @tx_smac_filt: smac filter errors
  * @tx_dlid_zero: transmit packets with invalid dlid
  * @tx_logic: other transmit errors
- * @tx_drop_state: packet tansmission in non-forward port state
+ * @tx_drop_state: packet tansmission in yesn-forward port state
  * @rx_bad_veswid: received packet with invalid vesw id
  * @rx_runt: received ethernet packet with length < 64 bytes
  * @rx_oversize: received ethernet packet with length > MTU size
  * @rx_eth_down: received packets when interface is down
- * @rx_drop_state: received packets in non-forwarding port state
+ * @rx_drop_state: received packets in yesn-forwarding port state
  * @rx_logic: other receive errors
  *
  * All the above are counters of corresponding erorr conditions.
@@ -459,8 +459,8 @@ struct opa_vnic_vema_mad {
 };
 
 /**
- * struct opa_vnic_notice_attr - Generic Notice MAD
- * @gen_type: Generic/Specific bit and type of notice
+ * struct opa_vnic_yestice_attr - Generic Notice MAD
+ * @gen_type: Generic/Specific bit and type of yestice
  * @oui_1: Vendor ID byte 1
  * @oui_2: Vendor ID byte 2
  * @oui_3: Vendor ID byte 3
@@ -470,7 +470,7 @@ struct opa_vnic_vema_mad {
  * @issuer_gid: Issuer GID (only if Report method)
  * @raw_data: Trap message body
  */
-struct opa_vnic_notice_attr {
+struct opa_vnic_yestice_attr {
 	u8     gen_type;
 	u8     oui_1;
 	u8     oui_2;
@@ -488,14 +488,14 @@ struct opa_vnic_notice_attr {
  * @mad_hdr: Generic MAD header
  * @rmpp_hdr: RMPP header for vendor specific MADs
  * @oui: Unique org identifier
- * @notice: Notice structure
+ * @yestice: Notice structure
  */
 struct opa_vnic_vema_mad_trap {
 	struct ib_mad_hdr            mad_hdr;
 	struct ib_rmpp_hdr           rmpp_hdr;
 	u8                           reserved;
 	u8                           oui[3];
-	struct opa_vnic_notice_attr  notice;
+	struct opa_vnic_yestice_attr  yestice;
 };
 
 #endif /* _OPA_VNIC_ENCAP_H */

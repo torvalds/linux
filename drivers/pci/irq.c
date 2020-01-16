@@ -12,7 +12,7 @@
 #include <linux/export.h>
 #include <linux/pci.h>
 
-static void pci_note_irq_problem(struct pci_dev *pdev, const char *reason)
+static void pci_yeste_irq_problem(struct pci_dev *pdev, const char *reason)
 {
 	struct pci_dev *parent = to_pci_dev(pdev->dev.parent);
 
@@ -32,7 +32,7 @@ static void pci_note_irq_problem(struct pci_dev *pdev, const char *reason)
  * driver).
  *
  * Returns:
- * a suggestion for fixing it (although the driver is not required to
+ * a suggestion for fixing it (although the driver is yest required to
  * act on this).
  */
 enum pci_lost_interrupt_reason pci_lost_interrupt(struct pci_dev *pdev)
@@ -41,22 +41,22 @@ enum pci_lost_interrupt_reason pci_lost_interrupt(struct pci_dev *pdev)
 		enum pci_lost_interrupt_reason ret;
 
 		if (pdev->msix_enabled) {
-			pci_note_irq_problem(pdev, "MSIX routing failure");
+			pci_yeste_irq_problem(pdev, "MSIX routing failure");
 			ret = PCI_LOST_IRQ_DISABLE_MSIX;
 		} else {
-			pci_note_irq_problem(pdev, "MSI routing failure");
+			pci_yeste_irq_problem(pdev, "MSI routing failure");
 			ret = PCI_LOST_IRQ_DISABLE_MSI;
 		}
 		return ret;
 	}
 #ifdef CONFIG_ACPI
-	if (!(acpi_disabled || acpi_noirq)) {
-		pci_note_irq_problem(pdev, "Potential ACPI misrouting please reboot with acpi=noirq");
-		/* currently no way to fix acpi on the fly */
+	if (!(acpi_disabled || acpi_yesirq)) {
+		pci_yeste_irq_problem(pdev, "Potential ACPI misrouting please reboot with acpi=yesirq");
+		/* currently yes way to fix acpi on the fly */
 		return PCI_LOST_IRQ_DISABLE_ACPI;
 	}
 #endif
-	pci_note_irq_problem(pdev, "unknown cause (not MSI or ACPI)");
+	pci_yeste_irq_problem(pdev, "unkyeswn cause (yest MSI or ACPI)");
 	return PCI_LOST_IRQ_NO_INFORMATION;
 }
 EXPORT_SYMBOL(pci_lost_interrupt);
@@ -70,7 +70,7 @@ EXPORT_SYMBOL(pci_lost_interrupt);
  *		If NULL and thread_fn != NULL the default primary handler is
  *		installed.
  * @thread_fn:	Function called from the IRQ handler thread
- *		If NULL, no IRQ thread is created
+ *		If NULL, yes IRQ thread is created
  * @dev_id:	Cookie passed back to the handler function
  * @fmt:	Printf-like format string naming the handler
  *
@@ -78,7 +78,7 @@ EXPORT_SYMBOL(pci_lost_interrupt);
  * IRQ handling. From the point this call is made @handler and @thread_fn may
  * be invoked.  All interrupts requested using this function might be shared.
  *
- * @dev_id must not be NULL and must be globally unique.
+ * @dev_id must yest be NULL and must be globally unique.
  */
 int pci_request_irq(struct pci_dev *dev, unsigned int nr, irq_handler_t handler,
 		irq_handler_t thread_fn, void *dev_id, const char *fmt, ...)
@@ -110,12 +110,12 @@ EXPORT_SYMBOL(pci_request_irq);
  * @dev_id:	Device identity to free
  *
  * Remove an interrupt handler. The handler is removed and if the interrupt
- * line is no longer in use by any driver it is disabled.  The caller must
+ * line is yes longer in use by any driver it is disabled.  The caller must
  * ensure the interrupt is disabled on the device before calling this function.
- * The function does not return until any executing interrupts for this IRQ
+ * The function does yest return until any executing interrupts for this IRQ
  * have completed.
  *
- * This function must not be called from interrupt context.
+ * This function must yest be called from interrupt context.
  */
 void pci_free_irq(struct pci_dev *dev, unsigned int nr, void *dev_id)
 {

@@ -394,7 +394,7 @@ static inline void em_x270_init_nand(void) {}
 #endif
 
 #if defined(CONFIG_MTD_PHYSMAP) || defined(CONFIG_MTD_PHYSMAP_MODULE)
-static struct mtd_partition em_x270_nor_parts[] = {
+static struct mtd_partition em_x270_yesr_parts[] = {
 	{
 		.name =		"Bootloader",
 		.offset =	0x00000000,
@@ -416,15 +416,15 @@ static struct mtd_partition em_x270_nor_parts[] = {
 	}
 };
 
-static struct physmap_flash_data em_x270_nor_data[] = {
+static struct physmap_flash_data em_x270_yesr_data[] = {
 	[0] = {
 		.width = 2,
-		.parts = em_x270_nor_parts,
-		.nr_parts = ARRAY_SIZE(em_x270_nor_parts),
+		.parts = em_x270_yesr_parts,
+		.nr_parts = ARRAY_SIZE(em_x270_yesr_parts),
 	},
 };
 
-static struct resource em_x270_nor_flash_resource = {
+static struct resource em_x270_yesr_flash_resource = {
 	.start	= PXA_CS0_PHYS,
 	.end	= PXA_CS0_PHYS + SZ_1M - 1,
 	.flags	= IORESOURCE_MEM,
@@ -434,18 +434,18 @@ static struct platform_device em_x270_physmap_flash = {
 	.name		= "physmap-flash",
 	.id		= 0,
 	.num_resources	= 1,
-	.resource	= &em_x270_nor_flash_resource,
+	.resource	= &em_x270_yesr_flash_resource,
 	.dev		= {
-		.platform_data	= &em_x270_nor_data,
+		.platform_data	= &em_x270_yesr_data,
 	},
 };
 
-static void __init em_x270_init_nor(void)
+static void __init em_x270_init_yesr(void)
 {
 	platform_device_register(&em_x270_physmap_flash);
 }
 #else
-static inline void em_x270_init_nor(void) {}
+static inline void em_x270_init_yesr(void) {}
 #endif
 
 /* PXA27x OHCI controller setup */
@@ -1091,7 +1091,7 @@ struct led_info em_x270_led_info = {
 
 struct power_supply_info em_x270_psy_info = {
 	.name = "battery",
-	.technology = POWER_SUPPLY_TECHNOLOGY_LIPO,
+	.techyeslogy = POWER_SUPPLY_TECHNOLOGY_LIPO,
 	.voltage_max_design = 4200000,
 	.voltage_min_design = 3000000,
 	.use_for_apm = 1,
@@ -1248,7 +1248,7 @@ static void __init em_x270_init(void)
 	em_x270_init_dm9000();
 	em_x270_init_rtc();
 	em_x270_init_nand();
-	em_x270_init_nor();
+	em_x270_init_yesr();
 	em_x270_init_lcd();
 	em_x270_init_mmc();
 	em_x270_init_ohci();

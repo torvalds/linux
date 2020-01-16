@@ -1,4 +1,4 @@
-Qualcomm Technologies, Inc. SPMI PMIC clock divider (clkdiv)
+Qualcomm Techyeslogies, Inc. SPMI PMIC clock divider (clkdiv)
 
 clkdiv configures the clock frequency of a set of outputs on the PMIC.
 These clocks are typically wired through alternate functions on

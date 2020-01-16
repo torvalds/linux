@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-// Copyright (c) 2019 Nuvoton Technology corporation.
+// Copyright (c) 2019 Nuvoton Techyeslogy corporation.
 
 #include <linux/init.h>
 #include <linux/kernel.h>
@@ -590,36 +590,36 @@ static int npcm_fiu_dirmap_create(struct spi_mem_dirmap_desc *desc)
 	struct regmap *gcr_regmap;
 
 	if (!fiu->res_mem) {
-		dev_warn(fiu->dev, "Reserved memory not defined, direct read disabled\n");
-		desc->nodirmap = true;
+		dev_warn(fiu->dev, "Reserved memory yest defined, direct read disabled\n");
+		desc->yesdirmap = true;
 		return 0;
 	}
 
 	if (!fiu->spix_mode &&
 	    desc->info.op_tmpl.data.dir == SPI_MEM_DATA_OUT) {
-		desc->nodirmap = true;
+		desc->yesdirmap = true;
 		return 0;
 	}
 
 	if (!chip->flash_region_mapped_ptr) {
 		chip->flash_region_mapped_ptr =
-			devm_ioremap_nocache(fiu->dev, (fiu->res_mem->start +
+			devm_ioremap_yescache(fiu->dev, (fiu->res_mem->start +
 							(fiu->info->max_map_size *
 						    desc->mem->spi->chip_select)),
 					     (u32)desc->info.length);
 		if (!chip->flash_region_mapped_ptr) {
 			dev_warn(fiu->dev, "Error mapping memory region, direct read disabled\n");
-			desc->nodirmap = true;
+			desc->yesdirmap = true;
 			return 0;
 		}
 	}
 
-	if (of_device_is_compatible(fiu->dev->of_node, "nuvoton,npcm750-fiu")) {
+	if (of_device_is_compatible(fiu->dev->of_yesde, "nuvoton,npcm750-fiu")) {
 		gcr_regmap =
 			syscon_regmap_lookup_by_compatible("nuvoton,npcm750-gcr");
 		if (IS_ERR(gcr_regmap)) {
 			dev_warn(fiu->dev, "Didn't find nuvoton,npcm750-gcr, direct read disabled\n");
-			desc->nodirmap = true;
+			desc->yesdirmap = true;
 			return 0;
 		}
 		regmap_update_bits(gcr_regmap, NPCM7XX_INTCR3_OFFSET,
@@ -693,7 +693,7 @@ static int npcm_fiu_probe(struct platform_device *pdev)
 	}
 
 	fiu_data_match = match->data;
-	id = of_alias_get_id(dev->of_node, "fiu");
+	id = of_alias_get_id(dev->of_yesde, "fiu");
 	if (id < 0 || id >= fiu_data_match->fiu_max) {
 		dev_err(dev, "Invalid platform device id: %d\n", id);
 		return -EINVAL;
@@ -722,7 +722,7 @@ static int npcm_fiu_probe(struct platform_device *pdev)
 	if (IS_ERR(fiu->clk))
 		return PTR_ERR(fiu->clk);
 
-	fiu->spix_mode = of_property_read_bool(dev->of_node,
+	fiu->spix_mode = of_property_read_bool(dev->of_yesde,
 					       "nuvoton,spix-mode");
 
 	platform_set_drvdata(pdev, fiu);
@@ -734,7 +734,7 @@ static int npcm_fiu_probe(struct platform_device *pdev)
 	ctrl->bus_num = -1;
 	ctrl->mem_ops = &npcm_fiu_mem_ops;
 	ctrl->num_chipselect = fiu->info->max_cs;
-	ctrl->dev.of_node = dev->of_node;
+	ctrl->dev.of_yesde = dev->of_yesde;
 
 	ret = devm_spi_register_master(dev, ctrl);
 	if (ret)

@@ -24,7 +24,7 @@ NOTE: one or both of the following two properties must be set
 - brcm,has-eohci: Boolean indicating the phy has an EHCI/OHCI phy.
 - dr_mode: String, PHY Device mode.
   Possible values are: "host", "peripheral ", "drd" or "typec-pd"
-  If this property is not defined, the phy will default to "host" mode.
+  If this property is yest defined, the phy will default to "host" mode.
 
 Example:
 

@@ -47,7 +47,7 @@ static int kpss_xcc_driver_probe(struct platform_device *pdev)
 		return PTR_ERR(base);
 
 	if (id->data) {
-		if (of_property_read_string_index(pdev->dev.of_node,
+		if (of_property_read_string_index(pdev->dev.of_yesde,
 						  "clock-output-names",
 						  0, &name))
 			return -ENODEV;

@@ -6,9 +6,9 @@ Required properties:
 - #address-cells: must be 1
 - #size-cells: must be 0
 
-Each PCIe PHY should be represented by a child node
+Each PCIe PHY should be represented by a child yesde
 
-Required properties For the child node:
+Required properties For the child yesde:
 - reg: the PHY ID
 0 - PCIe RC 0
 1 - PCIe RC 1

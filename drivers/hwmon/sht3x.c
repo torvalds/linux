@@ -24,11 +24,11 @@
 
 /* commands (high precision mode) */
 static const unsigned char sht3x_cmd_measure_blocking_hpm[]    = { 0x2c, 0x06 };
-static const unsigned char sht3x_cmd_measure_nonblocking_hpm[] = { 0x24, 0x00 };
+static const unsigned char sht3x_cmd_measure_yesnblocking_hpm[] = { 0x24, 0x00 };
 
 /* commands (low power mode) */
 static const unsigned char sht3x_cmd_measure_blocking_lpm[]    = { 0x2c, 0x10 };
-static const unsigned char sht3x_cmd_measure_nonblocking_lpm[] = { 0x24, 0x16 };
+static const unsigned char sht3x_cmd_measure_yesnblocking_lpm[] = { 0x24, 0x16 };
 
 /* commands for periodic mode */
 static const unsigned char sht3x_cmd_measure_periodic_mode[]   = { 0xe0, 0x00 };
@@ -42,7 +42,7 @@ static const unsigned char sht3x_cmd_heater_off[]              = { 0x30, 0x66 };
 static const unsigned char sht3x_cmd_read_status_reg[]         = { 0xf3, 0x2d };
 static const unsigned char sht3x_cmd_clear_status_reg[]        = { 0x30, 0x41 };
 
-/* delays for non-blocking i2c commands, both in us */
+/* delays for yesn-blocking i2c commands, both in us */
 #define SHT3X_NONBLOCKING_WAIT_TIME_HPM  15000
 #define SHT3X_NONBLOCKING_WAIT_TIME_LPM   4000
 
@@ -435,7 +435,7 @@ static void sht3x_select_command(struct sht3x_data *data)
 	/*
 	 * In blocking mode (clock stretching mode) the I2C bus
 	 * is blocked for other traffic, thus the call to i2c_master_recv()
-	 * will wait until the data is ready. For non blocking mode, we
+	 * will wait until the data is ready. For yesn blocking mode, we
 	 * have to wait ourselves.
 	 */
 	if (data->mode > 0) {
@@ -448,10 +448,10 @@ static void sht3x_select_command(struct sht3x_data *data)
 		data->wait_time = 0;
 	} else {
 		if (data->setup.high_precision) {
-			data->command = sht3x_cmd_measure_nonblocking_hpm;
+			data->command = sht3x_cmd_measure_yesnblocking_hpm;
 			data->wait_time = SHT3X_NONBLOCKING_WAIT_TIME_HPM;
 		} else {
-			data->command = sht3x_cmd_measure_nonblocking_lpm;
+			data->command = sht3x_cmd_measure_yesnblocking_lpm;
 			data->wait_time = SHT3X_NONBLOCKING_WAIT_TIME_LPM;
 		}
 	}
@@ -573,7 +573,7 @@ static ssize_t update_interval_store(struct device *dev,
 	mode = get_mode_from_update_interval(update_interval);
 
 	mutex_lock(&data->data_lock);
-	/* mode did not change */
+	/* mode did yest change */
 	if (mode == data->mode) {
 		mutex_unlock(&data->data_lock);
 		return count;
@@ -674,7 +674,7 @@ static int sht3x_probe(struct i2c_client *client,
 
 	/*
 	 * we require full i2c support since the sht3x uses multi-byte read and
-	 * writes as well as multi-byte commands which are not supported by
+	 * writes as well as multi-byte commands which are yest supported by
 	 * the smbus protocol
 	 */
 	if (!i2c_check_functionality(adap, I2C_FUNC_I2C))

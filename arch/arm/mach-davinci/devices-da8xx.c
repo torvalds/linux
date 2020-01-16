@@ -126,14 +126,14 @@ struct platform_device da8xx_serial_device[] = {
 };
 
 static s8 da8xx_queue_priority_mapping[][2] = {
-	/* {event queue no, Priority} */
+	/* {event queue yes, Priority} */
 	{0, 3},
 	{1, 7},
 	{-1, -1}
 };
 
 static s8 da850_queue_priority_mapping[][2] = {
-	/* {event queue no, Priority} */
+	/* {event queue yes, Priority} */
 	{0, 3},
 	{-1, -1}
 };
@@ -889,7 +889,7 @@ void __init da8xx_rproc_reserve_cma(void)
 
 	if (!rproc_base || !rproc_size) {
 		pr_err("%s: 'rproc_mem=nn@address' badly specified\n"
-		       "    'nn' and 'address' must both be non-zero\n",
+		       "    'nn' and 'address' must both be yesn-zero\n",
 		       __func__);
 
 		return;
@@ -918,7 +918,7 @@ int __init da8xx_register_rproc(void)
 	int ret;
 
 	if (!rproc_mem_inited) {
-		pr_warn("%s: memory not reserved for DSP, not registering DSP device\n",
+		pr_warn("%s: memory yest reserved for DSP, yest registering DSP device\n",
 			__func__);
 		return -ENOMEM;
 	}
@@ -1147,7 +1147,7 @@ static const struct regmap_config da8xx_cfgchip_config __initconst = {
 /**
  * da8xx_get_cfgchip - Lazy gets CFGCHIP as regmap
  *
- * This is for use on non-DT boards only. For DT boards, use
+ * This is for use on yesn-DT boards only. For DT boards, use
  * syscon_regmap_lookup_by_compatible("ti,da830-cfgchip")
  *
  * Returns: Pointer to the CFGCHIP regmap or negative error code.

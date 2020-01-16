@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -127,7 +127,7 @@ static inline int REGISTER_FLD_WAIT(struct drm_device *dev, u32 reg,
 #define MIPI_CMD_ADD_REG(pipe)			(0xb110 + REG_OFFSET(pipe))
 #define MIPI_CMD_LEN_REG(pipe)			(0xb114 + REG_OFFSET(pipe))
 
-/* non-uniform reg offset */
+/* yesn-uniform reg offset */
 #define MIPI_PORT_CONTROL(pipe)		(CHECK_PIPE(pipe) ? MIPI_C : MIPI)
 
 #define DSI_DEVICE_READY				(0x1)

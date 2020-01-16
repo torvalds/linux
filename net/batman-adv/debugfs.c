@@ -10,7 +10,7 @@
 #include <asm/current.h>
 #include <linux/dcache.h>
 #include <linux/debugfs.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/export.h>
 #include <linux/fs.h>
 #include <linux/netdevice.h>
@@ -50,25 +50,25 @@ void batadv_debugfs_deprecated(struct file *file, const char *alt)
 			    current->comm, task_pid_nr(current), name, alt);
 }
 
-static int batadv_algorithms_open(struct inode *inode, struct file *file)
+static int batadv_algorithms_open(struct iyesde *iyesde, struct file *file)
 {
 	batadv_debugfs_deprecated(file,
 				  "Use genl command BATADV_CMD_GET_ROUTING_ALGOS instead\n");
 	return single_open(file, batadv_algo_seq_print_text, NULL);
 }
 
-static int neighbors_open(struct inode *inode, struct file *file)
+static int neighbors_open(struct iyesde *iyesde, struct file *file)
 {
-	struct net_device *net_dev = (struct net_device *)inode->i_private;
+	struct net_device *net_dev = (struct net_device *)iyesde->i_private;
 
 	batadv_debugfs_deprecated(file,
 				  "Use genl command BATADV_CMD_GET_NEIGHBORS instead\n");
 	return single_open(file, batadv_hardif_neigh_seq_print_text, net_dev);
 }
 
-static int batadv_originators_open(struct inode *inode, struct file *file)
+static int batadv_originators_open(struct iyesde *iyesde, struct file *file)
 {
-	struct net_device *net_dev = (struct net_device *)inode->i_private;
+	struct net_device *net_dev = (struct net_device *)iyesde->i_private;
 
 	batadv_debugfs_deprecated(file,
 				  "Use genl command BATADV_CMD_GET_ORIGINATORS instead\n");
@@ -78,33 +78,33 @@ static int batadv_originators_open(struct inode *inode, struct file *file)
 /**
  * batadv_originators_hardif_open() - handles debugfs output for the originator
  *  table of an hard interface
- * @inode: inode pointer to debugfs file
+ * @iyesde: iyesde pointer to debugfs file
  * @file: pointer to the seq_file
  *
  * Return: 0 on success or negative error number in case of failure
  */
-static int batadv_originators_hardif_open(struct inode *inode,
+static int batadv_originators_hardif_open(struct iyesde *iyesde,
 					  struct file *file)
 {
-	struct net_device *net_dev = (struct net_device *)inode->i_private;
+	struct net_device *net_dev = (struct net_device *)iyesde->i_private;
 
 	batadv_debugfs_deprecated(file,
 				  "Use genl command BATADV_CMD_GET_HARDIFS instead\n");
 	return single_open(file, batadv_orig_hardif_seq_print_text, net_dev);
 }
 
-static int batadv_gateways_open(struct inode *inode, struct file *file)
+static int batadv_gateways_open(struct iyesde *iyesde, struct file *file)
 {
-	struct net_device *net_dev = (struct net_device *)inode->i_private;
+	struct net_device *net_dev = (struct net_device *)iyesde->i_private;
 
 	batadv_debugfs_deprecated(file,
 				  "Use genl command BATADV_CMD_GET_GATEWAYS instead\n");
 	return single_open(file, batadv_gw_client_seq_print_text, net_dev);
 }
 
-static int batadv_transtable_global_open(struct inode *inode, struct file *file)
+static int batadv_transtable_global_open(struct iyesde *iyesde, struct file *file)
 {
-	struct net_device *net_dev = (struct net_device *)inode->i_private;
+	struct net_device *net_dev = (struct net_device *)iyesde->i_private;
 
 	batadv_debugfs_deprecated(file,
 				  "Use genl command BATADV_CMD_GET_TRANSTABLE_GLOBAL instead\n");
@@ -112,9 +112,9 @@ static int batadv_transtable_global_open(struct inode *inode, struct file *file)
 }
 
 #ifdef CONFIG_BATMAN_ADV_BLA
-static int batadv_bla_claim_table_open(struct inode *inode, struct file *file)
+static int batadv_bla_claim_table_open(struct iyesde *iyesde, struct file *file)
 {
-	struct net_device *net_dev = (struct net_device *)inode->i_private;
+	struct net_device *net_dev = (struct net_device *)iyesde->i_private;
 
 	batadv_debugfs_deprecated(file,
 				  "Use genl command BATADV_CMD_GET_BLA_CLAIM instead\n");
@@ -122,10 +122,10 @@ static int batadv_bla_claim_table_open(struct inode *inode, struct file *file)
 			   net_dev);
 }
 
-static int batadv_bla_backbone_table_open(struct inode *inode,
+static int batadv_bla_backbone_table_open(struct iyesde *iyesde,
 					  struct file *file)
 {
-	struct net_device *net_dev = (struct net_device *)inode->i_private;
+	struct net_device *net_dev = (struct net_device *)iyesde->i_private;
 
 	batadv_debugfs_deprecated(file,
 				  "Use genl command BATADV_CMD_GET_BLA_BACKBONE instead\n");
@@ -138,14 +138,14 @@ static int batadv_bla_backbone_table_open(struct inode *inode,
 #ifdef CONFIG_BATMAN_ADV_DAT
 /**
  * batadv_dat_cache_open() - Prepare file handler for reads from dat_cache
- * @inode: inode which was opened
+ * @iyesde: iyesde which was opened
  * @file: file handle to be initialized
  *
  * Return: 0 on success or negative error number in case of failure
  */
-static int batadv_dat_cache_open(struct inode *inode, struct file *file)
+static int batadv_dat_cache_open(struct iyesde *iyesde, struct file *file)
 {
-	struct net_device *net_dev = (struct net_device *)inode->i_private;
+	struct net_device *net_dev = (struct net_device *)iyesde->i_private;
 
 	batadv_debugfs_deprecated(file,
 				  "Use genl command BATADV_CMD_GET_DAT_CACHE instead\n");
@@ -153,9 +153,9 @@ static int batadv_dat_cache_open(struct inode *inode, struct file *file)
 }
 #endif
 
-static int batadv_transtable_local_open(struct inode *inode, struct file *file)
+static int batadv_transtable_local_open(struct iyesde *iyesde, struct file *file)
 {
-	struct net_device *net_dev = (struct net_device *)inode->i_private;
+	struct net_device *net_dev = (struct net_device *)iyesde->i_private;
 
 	batadv_debugfs_deprecated(file,
 				  "Use genl command BATADV_CMD_GET_TRANSTABLE_LOCAL instead\n");
@@ -168,26 +168,26 @@ struct batadv_debuginfo {
 };
 
 #ifdef CONFIG_BATMAN_ADV_NC
-static int batadv_nc_nodes_open(struct inode *inode, struct file *file)
+static int batadv_nc_yesdes_open(struct iyesde *iyesde, struct file *file)
 {
-	struct net_device *net_dev = (struct net_device *)inode->i_private;
+	struct net_device *net_dev = (struct net_device *)iyesde->i_private;
 
 	batadv_debugfs_deprecated(file, "");
-	return single_open(file, batadv_nc_nodes_seq_print_text, net_dev);
+	return single_open(file, batadv_nc_yesdes_seq_print_text, net_dev);
 }
 #endif
 
 #ifdef CONFIG_BATMAN_ADV_MCAST
 /**
  * batadv_mcast_flags_open() - prepare file handler for reads from mcast_flags
- * @inode: inode which was opened
+ * @iyesde: iyesde which was opened
  * @file: file handle to be initialized
  *
  * Return: 0 on success or negative error number in case of failure
  */
-static int batadv_mcast_flags_open(struct inode *inode, struct file *file)
+static int batadv_mcast_flags_open(struct iyesde *iyesde, struct file *file)
 {
-	struct net_device *net_dev = (struct net_device *)inode->i_private;
+	struct net_device *net_dev = (struct net_device *)iyesde->i_private;
 
 	batadv_debugfs_deprecated(file,
 				  "Use genl command BATADV_CMD_GET_MCAST_FLAGS instead\n");
@@ -235,7 +235,7 @@ static BATADV_DEBUGINFO(dat_cache, 0444, batadv_dat_cache_open);
 #endif
 static BATADV_DEBUGINFO(transtable_local, 0444, batadv_transtable_local_open);
 #ifdef CONFIG_BATMAN_ADV_NC
-static BATADV_DEBUGINFO(nc_nodes, 0444, batadv_nc_nodes_open);
+static BATADV_DEBUGINFO(nc_yesdes, 0444, batadv_nc_yesdes_open);
 #endif
 #ifdef CONFIG_BATMAN_ADV_MCAST
 static BATADV_DEBUGINFO(mcast_flags, 0444, batadv_mcast_flags_open);
@@ -255,7 +255,7 @@ static struct batadv_debuginfo *batadv_mesh_debuginfos[] = {
 #endif
 	&batadv_debuginfo_transtable_local,
 #ifdef CONFIG_BATMAN_ADV_NC
-	&batadv_debuginfo_nc_nodes,
+	&batadv_debuginfo_nc_yesdes,
 #endif
 #ifdef CONFIG_BATMAN_ADV_MCAST
 	&batadv_debuginfo_mcast_flags,

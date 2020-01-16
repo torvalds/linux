@@ -83,7 +83,7 @@ static void relaswap(void *_x, void *_y, int size)
 }
 
 /* Get the potential trampolines size required of the init and
-   non-init sections */
+   yesn-init sections */
 static unsigned long get_plt_size(const Elf32_Ehdr *hdr,
 				  const Elf32_Shdr *sechdrs,
 				  const char *secstrings,
@@ -95,8 +95,8 @@ static unsigned long get_plt_size(const Elf32_Ehdr *hdr,
 	/* Everything marked ALLOC (this includes the exported
            symbols) */
 	for (i = 1; i < hdr->e_shnum; i++) {
-		/* If it's called *.init*, and we're not init, we're
-                   not interested */
+		/* If it's called *.init*, and we're yest init, we're
+                   yest interested */
 		if ((strstr(secstrings + sechdrs[i].sh_name, ".init") != NULL)
 		    != is_init)
 			continue;
@@ -284,7 +284,7 @@ int apply_relocate_add(Elf32_Shdr *sechdrs,
 			break;
 
 		default:
-			pr_err("%s: unknown ADD relocation: %u\n",
+			pr_err("%s: unkyeswn ADD relocation: %u\n",
 			       module->name,
 			       ELF32_R_TYPE(rela[i].r_info));
 			return -ENOEXEC;

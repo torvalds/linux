@@ -248,7 +248,7 @@ hdac_ext_link_stream_assign(struct hdac_bus *bus,
 	struct hdac_stream *stream = NULL;
 
 	if (!bus->ppcap) {
-		dev_err(bus->dev, "stream type not supported\n");
+		dev_err(bus->dev, "stream type yest supported\n");
 		return NULL;
 	}
 
@@ -259,7 +259,7 @@ hdac_ext_link_stream_assign(struct hdac_bus *bus,
 		if (stream->direction != substream->stream)
 			continue;
 
-		/* check if decoupled stream and not in use is available */
+		/* check if decoupled stream and yest in use is available */
 		if (hstream->decoupled && !hstream->link_locked) {
 			res = hstream;
 			break;
@@ -288,7 +288,7 @@ hdac_ext_host_stream_assign(struct hdac_bus *bus,
 	struct hdac_stream *stream = NULL;
 
 	if (!bus->ppcap) {
-		dev_err(bus->dev, "stream type not supported\n");
+		dev_err(bus->dev, "stream type yest supported\n");
 		return NULL;
 	}
 
@@ -330,7 +330,7 @@ hdac_ext_host_stream_assign(struct hdac_bus *bus,
  * host: Looks for an unused decoupled host stream
  * link: Looks for an unused decoupled link stream
  *
- * If no stream is free, returns NULL. The function tries to keep using
+ * If yes stream is free, returns NULL. The function tries to keep using
  * the same stream object when it's used beforehand.  when a stream is
  * decoupled, it becomes a host stream and link stream.
  */

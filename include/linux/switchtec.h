@@ -73,7 +73,7 @@ struct sw_event_regs {
 	u32 reserved8[5];
 	u32 fw_nmi_hdr;
 	u32 reserved9[5];
-	u32 fw_non_fatal_hdr;
+	u32 fw_yesn_fatal_hdr;
 	u32 reserved10[5];
 	u32 fw_fatal_hdr;
 	u32 reserved11[5];
@@ -385,7 +385,7 @@ struct switchtec_dev {
 	atomic_t event_cnt;
 
 	struct work_struct link_event_work;
-	void (*link_notifier)(struct switchtec_dev *stdev);
+	void (*link_yestifier)(struct switchtec_dev *stdev);
 	u8 link_event_count[SWITCHTEC_MAX_PFF_CSR];
 
 	struct switchtec_ntb *sndev;

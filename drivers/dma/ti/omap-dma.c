@@ -443,7 +443,7 @@ static void omap_dma_drain_chan(struct omap_chan *c)
 
 	if (val & (CCR_RD_ACTIVE | CCR_WR_ACTIVE))
 		dev_err(c->vc.chan.device->dev,
-			"DMA drain did not complete on lch %d\n",
+			"DMA drain did yest complete on lch %d\n",
 			c->dma_ch);
 }
 
@@ -537,7 +537,7 @@ static void omap_dma_start_desc(struct omap_chan *c)
 		return;
 	}
 
-	list_del(&vd->node);
+	list_del(&vd->yesde);
 
 	c->desc = d = to_omap_dma_desc(&vd->tx);
 	c->sgidx = 0;
@@ -771,7 +771,7 @@ static dma_addr_t omap_dma_get_src_pos(struct omap_chan *c)
 
 		/*
 		 * CDAC == 0 indicates that the DMA transfer on the channel has
-		 * not been started (no data has been transferred so far).
+		 * yest been started (yes data has been transferred so far).
 		 * Return the programmed source start address in this case.
 		 */
 		if (cdac == 0)
@@ -796,7 +796,7 @@ static dma_addr_t omap_dma_get_dst_pos(struct omap_chan *c)
 
 		/*
 		 * CDAC == 0 indicates that the DMA transfer on the channel
-		 * has not been started (no data has been transferred so
+		 * has yest been started (yes data has been transferred so
 		 * far).  Return the programmed destination start address in
 		 * this case.
 		 */
@@ -856,7 +856,7 @@ out:
 	} else if (d && d->polled && c->running) {
 		uint32_t ccr = omap_dma_chan_read(c, CCR);
 		/*
-		 * The channel is no longer active, set the return value
+		 * The channel is yes longer active, set the return value
 		 * accordingly and mark it as completed
 		 */
 		if (!(ccr & CCR_ENABLE)) {
@@ -923,7 +923,7 @@ static struct dma_async_tx_descriptor *omap_dma_prep_slave_sg(
 	case DMA_SLAVE_BUSWIDTH_4_BYTES:
 		es = CSDP_DATA_TYPE_32;
 		break;
-	default: /* not reached */
+	default: /* yest reached */
 		return NULL;
 	}
 
@@ -1100,7 +1100,7 @@ static struct dma_async_tx_descriptor *omap_dma_prep_dma_cyclic(
 	case DMA_SLAVE_BUSWIDTH_4_BYTES:
 		es = CSDP_DATA_TYPE_32;
 		break;
-	default: /* not reached */
+	default: /* yest reached */
 		return NULL;
 	}
 
@@ -1221,7 +1221,7 @@ static struct dma_async_tx_descriptor *omap_dma_prep_dma_interleaved(
 	uint8_t data_type;
 	size_t src_icg, dst_icg;
 
-	/* Slave mode is not supported */
+	/* Slave mode is yest supported */
 	if (is_slave_direction(xt->dir))
 		return NULL;
 
@@ -1257,7 +1257,7 @@ static struct dma_async_tx_descriptor *omap_dma_prep_dma_interleaved(
 		d->fi = 0;
 	} else {
 		dev_err(chan->device->dev,
-			"%s: SRC constant addressing is not supported\n",
+			"%s: SRC constant addressing is yest supported\n",
 			__func__);
 		kfree(d);
 		return NULL;
@@ -1272,7 +1272,7 @@ static struct dma_async_tx_descriptor *omap_dma_prep_dma_interleaved(
 		sg->fi = 0;
 	} else {
 		dev_err(chan->device->dev,
-			"%s: DST constant addressing is not supported\n",
+			"%s: DST constant addressing is yest supported\n",
 			__func__);
 		kfree(d);
 		return NULL;
@@ -1320,7 +1320,7 @@ static int omap_dma_terminate_all(struct dma_chan *chan)
 	spin_lock_irqsave(&c->vc.lock, flags);
 
 	/*
-	 * Stop DMA activity: we assume the callback will not be called
+	 * Stop DMA activity: we assume the callback will yest be called
 	 * after omap_dma_stop() returns (even if it does, it will see
 	 * c->desc is NULL and exit.)
 	 */
@@ -1366,7 +1366,7 @@ static int omap_dma_pause(struct dma_chan *chan)
 		can_pause = true;
 
 	/*
-	 * We do not allow DMA_MEM_TO_DEV transfers to be paused.
+	 * We do yest allow DMA_MEM_TO_DEV transfers to be paused.
 	 * From the AM572x TRM, 16.1.4.18 Disabling a Channel During Transfer:
 	 * "When a channel is disabled during a transfer, the channel undergoes
 	 * an abort, unless it is hardware-source-synchronized …".
@@ -1378,7 +1378,7 @@ static int omap_dma_pause(struct dma_chan *chan)
 	 * From 16.1.4.20.4.6.2 Abort: "If an abort trigger occurs, the channel
 	 * aborts immediately after completion of current read/write
 	 * transactions and then the FIFO is cleaned up." The term "cleaned up"
-	 * is not defined. TI recommends to check that RD_ACTIVE and WR_ACTIVE
+	 * is yest defined. TI recommends to check that RD_ACTIVE and WR_ACTIVE
 	 * are both clear _before_ disabling the channel, otherwise data loss
 	 * will occur.
 	 * The problem is that if the channel is active, then device activity
@@ -1386,7 +1386,7 @@ static int omap_dma_pause(struct dma_chan *chan)
 	 * clear and the write to DMA_CCR to clear the enable bit hitting the
 	 * hardware. If the DMA hardware can't drain the data in its FIFO to the
 	 * destination, then data loss "might" occur (say if we write to an UART
-	 * and the UART is not accepting any further data).
+	 * and the UART is yest accepting any further data).
 	 */
 	else if (c->desc->dir == DMA_DEV_TO_MEM)
 		can_pause = true;
@@ -1445,9 +1445,9 @@ static void omap_dma_free(struct omap_dmadev *od)
 {
 	while (!list_empty(&od->ddev.channels)) {
 		struct omap_chan *c = list_first_entry(&od->ddev.channels,
-			struct omap_chan, vc.chan.device_node);
+			struct omap_chan, vc.chan.device_yesde);
 
-		list_del(&c->vc.chan.device_node);
+		list_del(&c->vc.chan.device_yesde);
 		tasklet_kill(&c->vc.task);
 		kfree(c);
 	}
@@ -1512,7 +1512,7 @@ static int omap_dma_probe(struct platform_device *pdev)
 
 	/* Number of DMA requests */
 	od->dma_requests = OMAP_SDMA_REQUESTS;
-	if (pdev->dev.of_node && of_property_read_u32(pdev->dev.of_node,
+	if (pdev->dev.of_yesde && of_property_read_u32(pdev->dev.of_yesde,
 						      "dma-requests",
 						      &od->dma_requests)) {
 		dev_info(&pdev->dev,
@@ -1521,11 +1521,11 @@ static int omap_dma_probe(struct platform_device *pdev)
 	}
 
 	/* Number of available logical channels */
-	if (!pdev->dev.of_node) {
+	if (!pdev->dev.of_yesde) {
 		lch_count = od->plat->dma_attr->lch_count;
 		if (unlikely(!lch_count))
 			lch_count = OMAP_SDMA_CHANNELS;
-	} else if (of_property_read_u32(pdev->dev.of_node, "dma-channels",
+	} else if (of_property_read_u32(pdev->dev.of_yesde, "dma-channels",
 					&lch_count)) {
 		dev_info(&pdev->dev,
 			 "Missing dma-channels property, using %u.\n",
@@ -1592,11 +1592,11 @@ static int omap_dma_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, od);
 
-	if (pdev->dev.of_node) {
+	if (pdev->dev.of_yesde) {
 		omap_dma_info.dma_cap = od->ddev.cap_mask;
 
 		/* Device-tree DMA controller registration */
-		rc = of_dma_controller_register(pdev->dev.of_node,
+		rc = of_dma_controller_register(pdev->dev.of_yesde,
 				of_dma_simple_xlate, &omap_dma_info);
 		if (rc) {
 			pr_warn("OMAP-DMA: failed to register DMA controller\n");
@@ -1616,8 +1616,8 @@ static int omap_dma_remove(struct platform_device *pdev)
 	struct omap_dmadev *od = platform_get_drvdata(pdev);
 	int irq;
 
-	if (pdev->dev.of_node)
-		of_dma_controller_free(pdev->dev.of_node);
+	if (pdev->dev.of_yesde)
+		of_dma_controller_free(pdev->dev.of_yesde);
 
 	irq = platform_get_irq(pdev, 1);
 	devm_free_irq(&pdev->dev, irq, od);

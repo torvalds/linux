@@ -32,10 +32,10 @@ MODULE_LICENSE("GPL v2");
 
 struct sja1000_of_data {
 	size_t  priv_sz;
-	int     (*init)(struct sja1000_priv *priv, struct device_node *of);
+	int     (*init)(struct sja1000_priv *priv, struct device_yesde *of);
 };
 
-struct technologic_priv {
+struct techyeslogic_priv {
 	spinlock_t      io_lock;
 };
 
@@ -69,9 +69,9 @@ static void sp_write_reg32(const struct sja1000_priv *priv, int reg, u8 val)
 	iowrite8(val, priv->reg_base + reg * 4);
 }
 
-static u8 sp_technologic_read_reg16(const struct sja1000_priv *priv, int reg)
+static u8 sp_techyeslogic_read_reg16(const struct sja1000_priv *priv, int reg)
 {
-	struct technologic_priv *tp = priv->priv;
+	struct techyeslogic_priv *tp = priv->priv;
 	unsigned long flags;
 	u8 val;
 
@@ -83,10 +83,10 @@ static u8 sp_technologic_read_reg16(const struct sja1000_priv *priv, int reg)
 	return val;
 }
 
-static void sp_technologic_write_reg16(const struct sja1000_priv *priv,
+static void sp_techyeslogic_write_reg16(const struct sja1000_priv *priv,
 				       int reg, u8 val)
 {
-	struct technologic_priv *tp = priv->priv;
+	struct techyeslogic_priv *tp = priv->priv;
 	unsigned long flags;
 
 	spin_lock_irqsave(&tp->io_lock, flags);
@@ -95,12 +95,12 @@ static void sp_technologic_write_reg16(const struct sja1000_priv *priv,
 	spin_unlock_irqrestore(&tp->io_lock, flags);
 }
 
-static int sp_technologic_init(struct sja1000_priv *priv, struct device_node *of)
+static int sp_techyeslogic_init(struct sja1000_priv *priv, struct device_yesde *of)
 {
-	struct technologic_priv *tp = priv->priv;
+	struct techyeslogic_priv *tp = priv->priv;
 
-	priv->read_reg = sp_technologic_read_reg16;
-	priv->write_reg = sp_technologic_write_reg16;
+	priv->read_reg = sp_techyeslogic_read_reg16;
+	priv->write_reg = sp_techyeslogic_write_reg16;
 	spin_lock_init(&tp->io_lock);
 
 	return 0;
@@ -132,7 +132,7 @@ static void sp_populate(struct sja1000_priv *priv,
 	}
 }
 
-static void sp_populate_of(struct sja1000_priv *priv, struct device_node *of)
+static void sp_populate_of(struct sja1000_priv *priv, struct device_yesde *of)
 {
 	int err;
 	u32 prop;
@@ -186,18 +186,18 @@ static void sp_populate_of(struct sja1000_priv *priv, struct device_node *of)
 		priv->cdr |= CDR_CLK_OFF; /* default */
 	}
 
-	if (!of_property_read_bool(of, "nxp,no-comparator-bypass"))
+	if (!of_property_read_bool(of, "nxp,yes-comparator-bypass"))
 		priv->cdr |= CDR_CBP; /* default */
 }
 
-static struct sja1000_of_data technologic_data = {
-	.priv_sz = sizeof(struct technologic_priv),
-	.init = sp_technologic_init,
+static struct sja1000_of_data techyeslogic_data = {
+	.priv_sz = sizeof(struct techyeslogic_priv),
+	.init = sp_techyeslogic_init,
 };
 
 static const struct of_device_id sp_of_table[] = {
 	{ .compatible = "nxp,sja1000", .data = NULL, },
-	{ .compatible = "technologic,sja1000", .data = &technologic_data, },
+	{ .compatible = "techyeslogic,sja1000", .data = &techyeslogic_data, },
 	{ /* sentinel */ },
 };
 MODULE_DEVICE_TABLE(of, sp_of_table);
@@ -210,7 +210,7 @@ static int sp_probe(struct platform_device *pdev)
 	struct sja1000_priv *priv;
 	struct resource *res_mem, *res_irq = NULL;
 	struct sja1000_platform_data *pdata;
-	struct device_node *of = pdev->dev.of_node;
+	struct device_yesde *of = pdev->dev.of_yesde;
 	const struct of_device_id *of_id;
 	const struct sja1000_of_data *of_data = NULL;
 	size_t priv_sz = 0;
@@ -229,7 +229,7 @@ static int sp_probe(struct platform_device *pdev)
 				     resource_size(res_mem), DRV_NAME))
 		return -EBUSY;
 
-	addr = devm_ioremap_nocache(&pdev->dev, res_mem->start,
+	addr = devm_ioremap_yescache(&pdev->dev, res_mem->start,
 				    resource_size(res_mem));
 	if (!addr)
 		return -ENOMEM;

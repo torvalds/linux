@@ -103,7 +103,7 @@ int drm_dp_link_add_rate(struct drm_dp_link *link, unsigned long rate)
  *
  * Returns:
  * 0 on success or one of the following negative error codes on failure:
- * - EINVAL if the specified rate is not among the supported rates
+ * - EINVAL if the specified rate is yest among the supported rates
  *
  * See also:
  * drm_dp_link_add_rate()
@@ -130,8 +130,8 @@ int drm_dp_link_remove_rate(struct drm_dp_link *link, unsigned long rate)
 }
 
 /**
- * drm_dp_link_update_rates() - normalize the supported link rates array
- * @link: the link for which to normalize the supported link rates
+ * drm_dp_link_update_rates() - yesrmalize the supported link rates array
+ * @link: the link for which to yesrmalize the supported link rates
  *
  * Users should call this function after they've manually modified the array
  * of supported link rates. This function removes any stale entries, compacts
@@ -379,7 +379,7 @@ int drm_dp_link_configure(struct drm_dp_aux *aux, struct drm_dp_link *link)
  *
  * According to the eDP specification, a source should select a configuration
  * with the lowest number of lanes and the lowest possible link rate that can
- * match the bitrate requirements of a video mode. However it must ensure not
+ * match the bitrate requirements of a video mode. However it must ensure yest
  * to exceed the capabilities of the sink.
  *
  * Returns: 0 on success or a negative error code on failure.
@@ -841,7 +841,7 @@ out:
  * is expected that drivers will call drm_dp_link_probe() to obtain the link
  * capabilities before performing link training.
  *
- * If the sink supports fast link training (no AUX CH handshake) and valid
+ * If the sink supports fast link training (yes AUX CH handshake) and valid
  * training settings are available, this function will try to perform fast
  * link training and fall back to full link training on failure.
  *
@@ -862,10 +862,10 @@ int drm_dp_link_train(struct drm_dp_link *link)
 			else
 				return 0;
 		} else {
-			DRM_DEBUG_KMS("training parameters not available\n");
+			DRM_DEBUG_KMS("training parameters yest available\n");
 		}
 	} else {
-		DRM_DEBUG_KMS("fast link training not supported\n");
+		DRM_DEBUG_KMS("fast link training yest supported\n");
 	}
 
 	err = drm_dp_link_train_full(link);

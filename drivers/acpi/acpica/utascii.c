@@ -15,7 +15,7 @@
  * FUNCTION:    acpi_ut_valid_nameseg
  *
  * PARAMETERS:  name            - The name or table signature to be examined.
- *                                Four characters, does not have to be a
+ *                                Four characters, does yest have to be a
  *                                NULL terminated string.
  *
  * RETURN:      TRUE if signature is has 4 valid ACPI characters
@@ -85,7 +85,7 @@ u8 acpi_ut_valid_name_char(char character, u32 position)
  * RETURN:      None
  *
  * DESCRIPTION: Ensure that the requested number of characters are printable
- *              Ascii characters. Sets non-printable and null chars to <space>.
+ *              Ascii characters. Sets yesn-printable and null chars to <space>.
  *
  ******************************************************************************/
 

@@ -13,7 +13,7 @@
 
 /*
  * Shared crypto SIMD helpers.  These functions dynamically create and register
- * an skcipher or AEAD algorithm that wraps another, internal algorithm.  The
+ * an skcipher or AEAD algorithm that wraps ayesther, internal algorithm.  The
  * wrapper ensures that the internal algorithm is only executed in a context
  * where SIMD instructions are usable, i.e. where may_use_simd() returns true.
  * If SIMD is already usable, the wrapper directly calls the internal algorithm.
@@ -22,9 +22,9 @@
  * This is an alternative to the internal algorithm implementing a fallback for
  * the !may_use_simd() case itself.
  *
- * Note that the wrapper algorithm is asynchronous, i.e. it has the
+ * Note that the wrapper algorithm is asynchroyesus, i.e. it has the
  * CRYPTO_ALG_ASYNC flag set.  Therefore it won't be found by users who
- * explicitly allocate a synchronous algorithm.
+ * explicitly allocate a synchroyesus algorithm.
  */
 
 #include <crypto/cryptd.h>

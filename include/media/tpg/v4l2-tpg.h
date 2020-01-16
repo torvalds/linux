@@ -9,7 +9,7 @@
 #define _V4L2_TPG_H_
 
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/random.h>
 #include <linux/slab.h>
 #include <linux/vmalloc.h>

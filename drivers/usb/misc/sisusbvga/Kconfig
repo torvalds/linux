@@ -8,7 +8,7 @@ config USB_SISUSBVGA
 	  Say Y here if you intend to attach a USB2VGA dongle based on a
 	  Net2280 and a SiS315 chip.
 
-	  Note that this device requires a USB 2.0 host controller. It will not
+	  Note that this device requires a USB 2.0 host controller. It will yest
 	  work with USB 1.x controllers.
 
 	  To compile this driver as a module, choose M here; the module will be
@@ -25,7 +25,7 @@ config USB_SISUSBVGA_CON
 
 	  Note that this console supports VGA/EGA text mode only.
 
-	  By default, the console part of the driver will not kick in when
+	  By default, the console part of the driver will yest kick in when
 	  the driver is initialized. If you want the driver to take over
 	  one or more of the consoles, you need to specify the number of
 	  the first and last consoles (starting at 1) as driver parameters.

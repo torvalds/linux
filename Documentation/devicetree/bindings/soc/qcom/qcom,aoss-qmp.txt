@@ -2,9 +2,9 @@ Qualcomm Always-On Subsystem side channel binding
 
 This binding describes the hardware component responsible for side channel
 requests to the always-on subsystem (AOSS), used for certain power management
-requests that is not handled by the standard RPMh interface. Each client in the
+requests that is yest handled by the standard RPMh interface. Each client in the
 SoC has it's own block of message RAM and IRQ for communication with the AOSS.
-The protocol used to communicate in the message RAM is known as Qualcomm
+The protocol used to communicate in the message RAM is kyeswn as Qualcomm
 Messaging Protocol (QMP)
 
 The AOSS side channel exposes control over a set of resources, used to control
@@ -53,7 +53,7 @@ power-domains.
 
 = SUBNODES
 The AOSS side channel also provides the controls for three cooling devices,
-these are expressed as subnodes of the QMP node. The name of the node is used
+these are expressed as subyesdes of the QMP yesde. The name of the yesde is used
 to identify the resource and must therefor be "cx", "mx" or "ebi".
 
 - #cooling-cells:

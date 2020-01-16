@@ -73,18 +73,18 @@ struct parport_pc_pci {
 	struct { /* BAR (base address registers) numbers in the config
                     space header */
 		int lo;
-		int hi; /* -1 if not there, >6 for offset-method (max
+		int hi; /* -1 if yest there, >6 for offset-method (max
                            BAR is 6) */
 	} addr[4];
 
 	/* If set, this is called immediately after pci_enable_device.
-	 * If it returns non-zero, no probing will take place and the
-	 * ports will not be used. */
+	 * If it returns yesn-zero, yes probing will take place and the
+	 * ports will yest be used. */
 	int (*preinit_hook) (struct pci_dev *pdev, struct parport_pc_pci *card,
 				int autoirq, int autodma);
 
 	/* If set, this is called after probing for ports.  If 'failed'
-	 * is non-zero we couldn't use any of the ports. */
+	 * is yesn-zero we couldn't use any of the ports. */
 	void (*postinit_hook) (struct pci_dev *pdev,
 				struct parport_pc_pci *card, int failed);
 };
@@ -188,7 +188,7 @@ static struct pci_device_id parport_serial_pci_tbl[] = {
 	  0xA000, 0x3020, 0, 0, netmos_9900_2p },
 	{ PCI_VENDOR_ID_NETMOS, PCI_DEVICE_ID_NETMOS_9912,
 	  0xA000, 0x2000, 0, 0, netmos_99xx_1p },
-	/* PCI_VENDOR_ID_AVLAB/Intek21 has another bunch of cards ...*/
+	/* PCI_VENDOR_ID_AVLAB/Intek21 has ayesther bunch of cards ...*/
 	{ PCI_VENDOR_ID_AFAVLAB, 0x2110,
 	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, avlab_1s1p },
 	{ PCI_VENDOR_ID_AFAVLAB, 0x2111,
@@ -285,7 +285,7 @@ MODULE_DEVICE_TABLE(pci,parport_serial_pci_tbl);
  * This table describes the serial "geometry" of these boards.  Any
  * quirks for these can be found in drivers/serial/8250_pci.c
  *
- * Cards not tested are marked n/t
+ * Cards yest tested are marked n/t
  * If you have one of these cards and it works for you, please tell me..
  */
 static struct pciserial_board pci_parport_serial_boards[] = {

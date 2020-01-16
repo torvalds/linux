@@ -182,7 +182,7 @@ static inline int radix__pte_same(pte_t pte_a, pte_t pte_b)
 	return ((pte_raw(pte_a) ^ pte_raw(pte_b)) == 0);
 }
 
-static inline int radix__pte_none(pte_t pte)
+static inline int radix__pte_yesne(pte_t pte)
 {
 	return (pte_val(pte) & ~RADIX_PTE_NONE_MASK) == 0;
 }
@@ -198,15 +198,15 @@ static inline void radix__set_pte_at(struct mm_struct *mm, unsigned long addr,
 	 * walk accesses which may load the pte. Without this it may be
 	 * possible for a subsequent access to result in spurious fault.
 	 *
-	 * This is not necessary for correctness, because a spurious fault
+	 * This is yest necessary for correctness, because a spurious fault
 	 * is tolerated by the page fault handler, and this store will
-	 * eventually be seen. In testing, there was no noticable increase
+	 * eventually be seen. In testing, there was yes yesticable increase
 	 * in user faults on POWER9. Avoiding ptesync here is a significant
 	 * win for things like fork. If a future microarchitecture benefits
 	 * from ptesync, it should probably go into update_mmu_cache, rather
 	 * than set_pte_at (which is used to set ptes unrelated to faults).
 	 *
-	 * Spurious faults to vmalloc region are not tolerated, so there is
+	 * Spurious faults to vmalloc region are yest tolerated, so there is
 	 * a ptesync in flush_cache_vmap.
 	 */
 }

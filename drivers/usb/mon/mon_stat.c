@@ -4,7 +4,7 @@
  *
  * This is the 's' or 'stat' reader which debugs usbmon itself.
  * Note that this code blows through locks, so make sure that
- * /dbg/usbmon/0s is well protected from non-root users.
+ * /dbg/usbmon/0s is well protected from yesn-root users.
  *
  */
 
@@ -24,7 +24,7 @@ struct snap {
 	char str[STAT_BUF_SIZE];
 };
 
-static int mon_stat_open(struct inode *inode, struct file *file)
+static int mon_stat_open(struct iyesde *iyesde, struct file *file)
 {
 	struct mon_bus *mbus;
 	struct snap *sp;
@@ -33,7 +33,7 @@ static int mon_stat_open(struct inode *inode, struct file *file)
 	if (sp == NULL)
 		return -ENOMEM;
 
-	mbus = inode->i_private;
+	mbus = iyesde->i_private;
 
 	sp->slen = snprintf(sp->str, STAT_BUF_SIZE,
 	    "nreaders %d events %u text_lost %u\n",
@@ -51,7 +51,7 @@ static ssize_t mon_stat_read(struct file *file, char __user *buf,
 	return simple_read_from_buffer(buf, nbytes, ppos, sp->str, sp->slen);
 }
 
-static int mon_stat_release(struct inode *inode, struct file *file)
+static int mon_stat_release(struct iyesde *iyesde, struct file *file)
 {
 	struct snap *sp = file->private_data;
 	file->private_data = NULL;
@@ -62,7 +62,7 @@ static int mon_stat_release(struct inode *inode, struct file *file)
 const struct file_operations mon_fops_stat = {
 	.owner =	THIS_MODULE,
 	.open =		mon_stat_open,
-	.llseek =	no_llseek,
+	.llseek =	yes_llseek,
 	.read =		mon_stat_read,
 	/* .write =	mon_stat_write, */
 	/* .poll =		mon_stat_poll, */

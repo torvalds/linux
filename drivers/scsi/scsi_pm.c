@@ -56,7 +56,7 @@ static int scsi_dev_type_suspend(struct device *dev,
 	const struct dev_pm_ops *pm = dev->driver ? dev->driver->pm : NULL;
 	int err;
 
-	/* flush pending in-flight resume operations, suspend is synchronous */
+	/* flush pending in-flight resume operations, suspend is synchroyesus */
 	async_synchronize_full_domain(&scsi_sd_pm_domain);
 
 	err = scsi_device_quiesce(to_scsi_device(dev));
@@ -159,9 +159,9 @@ static int scsi_bus_resume_common(struct device *dev,
 
 		/*
 		 * If a user has disabled async probing a likely reason
-		 * is due to a storage enclosure that does not inject
+		 * is due to a storage enclosure that does yest inject
 		 * staggered spin-ups.  For safety, make resume
-		 * synchronous as well in that case.
+		 * synchroyesus as well in that case.
 		 */
 		if (strncmp(scsi_scan_type, "async", 5) != 0)
 			async_synchronize_full_domain(&scsi_sd_pm_domain);

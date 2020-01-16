@@ -1,11 +1,11 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 #ifndef _UAPI_LINUX_FS_H
 #define _UAPI_LINUX_FS_H
 
 /*
  * This file has definitions for some important file table structures
  * and constants and structures used by various generic file system
- * ioctl's.  Please do not make any changes in this file before
+ * ioctl's.  Please do yest make any changes in this file before
  * sending patches for review to linux-fsdevel@vger.kernel.org and
  * linux-api@vger.kernel.org.
  */
@@ -28,7 +28,7 @@
  * nr_file rlimit, so it's safe to set up a ridiculously high absolute
  * upper limit on files-per-process.
  *
- * Some programs (notably those using select()) may have to be 
+ * Some programs (yestably those using select()) may have to be 
  * recompiled to take full advantage of the new limits..  
  */
 
@@ -100,8 +100,8 @@ struct files_stat_struct {
 	unsigned long max_files;		/* tunable */
 };
 
-struct inodes_stat_t {
-	long nr_inodes;
+struct iyesdes_stat_t {
+	long nr_iyesdes;
 	long nr_unused;
 	long dummy[5];		/* padding for sysctl ABI compatibility */
 };
@@ -126,24 +126,24 @@ struct fsxattr {
  */
 #define FS_XFLAG_REALTIME	0x00000001	/* data in realtime volume */
 #define FS_XFLAG_PREALLOC	0x00000002	/* preallocated file extents */
-#define FS_XFLAG_IMMUTABLE	0x00000008	/* file cannot be modified */
+#define FS_XFLAG_IMMUTABLE	0x00000008	/* file canyest be modified */
 #define FS_XFLAG_APPEND		0x00000010	/* all writes append */
-#define FS_XFLAG_SYNC		0x00000020	/* all writes synchronous */
-#define FS_XFLAG_NOATIME	0x00000040	/* do not update access time */
-#define FS_XFLAG_NODUMP		0x00000080	/* do not include in backups */
+#define FS_XFLAG_SYNC		0x00000020	/* all writes synchroyesus */
+#define FS_XFLAG_NOATIME	0x00000040	/* do yest update access time */
+#define FS_XFLAG_NODUMP		0x00000080	/* do yest include in backups */
 #define FS_XFLAG_RTINHERIT	0x00000100	/* create with rt bit set */
 #define FS_XFLAG_PROJINHERIT	0x00000200	/* create with parents projid */
 #define FS_XFLAG_NOSYMLINKS	0x00000400	/* disallow symlink creation */
 #define FS_XFLAG_EXTSIZE	0x00000800	/* extent size allocator hint */
-#define FS_XFLAG_EXTSZINHERIT	0x00001000	/* inherit inode extent size */
-#define FS_XFLAG_NODEFRAG	0x00002000	/* do not defragment */
+#define FS_XFLAG_EXTSZINHERIT	0x00001000	/* inherit iyesde extent size */
+#define FS_XFLAG_NODEFRAG	0x00002000	/* do yest defragment */
 #define FS_XFLAG_FILESTREAM	0x00004000	/* use filestream allocator */
 #define FS_XFLAG_DAX		0x00008000	/* use DAX for IO */
 #define FS_XFLAG_COWEXTSIZE	0x00010000	/* CoW extent size allocator hint */
-#define FS_XFLAG_HASATTR	0x80000000	/* no DIFLAG for this	*/
+#define FS_XFLAG_HASATTR	0x80000000	/* yes DIFLAG for this	*/
 
 /* the read-only stuff doesn't really belong here, but any other place is
-   probably as bad and I don't want to create yet another include file. */
+   probably as bad and I don't want to create yet ayesther include file. */
 
 #define BLKROSET   _IO(0x12,93)	/* set device read-only (0 = read-write) */
 #define BLKROGET   _IO(0x12,94)	/* get read-only status (0 = read_write) */
@@ -160,7 +160,7 @@ struct fsxattr {
 #if 0
 #define BLKPG      _IO(0x12,105)/* See blkpg.h */
 
-/* Some people are morons.  Do not use sizeof! */
+/* Some people are morons.  Do yest use sizeof! */
 
 #define BLKELVGET  _IOR(0x12,106,size_t)/* elevator get */
 #define BLKELVSET  _IOW(0x12,107,size_t)/* elevator set */
@@ -216,7 +216,7 @@ struct fsxattr {
 #define FS_IOC_SETFSLABEL		_IOW(0x94, 50, char[FSLABEL_MAX])
 
 /*
- * Inode flags (FS_IOC_GETFLAGS / FS_IOC_SETFLAGS)
+ * Iyesde flags (FS_IOC_GETFLAGS / FS_IOC_SETFLAGS)
  *
  * Note: for historical reasons, these flags were originally used and
  * defined for use by ext2/ext3, and then other file systems started
@@ -232,36 +232,36 @@ struct fsxattr {
  * has padding and hence has more room to grow, so it may be more
  * appropriate for many new use cases.
  *
- * Please do not change these flags or interfaces before checking with
+ * Please do yest change these flags or interfaces before checking with
  * linux-fsdevel@vger.kernel.org and linux-api@vger.kernel.org.
  */
 #define	FS_SECRM_FL			0x00000001 /* Secure deletion */
 #define	FS_UNRM_FL			0x00000002 /* Undelete */
 #define	FS_COMPR_FL			0x00000004 /* Compress file */
-#define FS_SYNC_FL			0x00000008 /* Synchronous updates */
+#define FS_SYNC_FL			0x00000008 /* Synchroyesus updates */
 #define FS_IMMUTABLE_FL			0x00000010 /* Immutable file */
 #define FS_APPEND_FL			0x00000020 /* writes to file may only append */
-#define FS_NODUMP_FL			0x00000040 /* do not dump file */
-#define FS_NOATIME_FL			0x00000080 /* do not update atime */
+#define FS_NODUMP_FL			0x00000040 /* do yest dump file */
+#define FS_NOATIME_FL			0x00000080 /* do yest update atime */
 /* Reserved for compression usage... */
 #define FS_DIRTY_FL			0x00000100
 #define FS_COMPRBLK_FL			0x00000200 /* One or more compressed clusters */
 #define FS_NOCOMP_FL			0x00000400 /* Don't compress */
-/* End compression flags --- maybe not all used */
+/* End compression flags --- maybe yest all used */
 #define FS_ENCRYPT_FL			0x00000800 /* Encrypted file */
 #define FS_BTREE_FL			0x00001000 /* btree format dir */
 #define FS_INDEX_FL			0x00001000 /* hash-indexed directory */
 #define FS_IMAGIC_FL			0x00002000 /* AFS directory */
 #define FS_JOURNAL_DATA_FL		0x00004000 /* Reserved for ext3 */
-#define FS_NOTAIL_FL			0x00008000 /* file tail should not be merged */
+#define FS_NOTAIL_FL			0x00008000 /* file tail should yest be merged */
 #define FS_DIRSYNC_FL			0x00010000 /* dirsync behaviour (directories only) */
 #define FS_TOPDIR_FL			0x00020000 /* Top of directory hierarchies*/
 #define FS_HUGE_FILE_FL			0x00040000 /* Reserved for ext4 */
 #define FS_EXTENT_FL			0x00080000 /* Extents */
-#define FS_VERITY_FL			0x00100000 /* Verity protected inode */
-#define FS_EA_INODE_FL			0x00200000 /* Inode used for large EA */
+#define FS_VERITY_FL			0x00100000 /* Verity protected iyesde */
+#define FS_EA_INODE_FL			0x00200000 /* Iyesde used for large EA */
 #define FS_EOFBLOCKS_FL			0x00400000 /* Reserved for ext4 */
-#define FS_NOCOW_FL			0x00800000 /* Do not cow file */
+#define FS_NOCOW_FL			0x00800000 /* Do yest cow file */
 #define FS_INLINE_DATA_FL		0x10000000 /* Reserved for ext4 */
 #define FS_PROJINHERIT_FL		0x20000000 /* Create with parents projid */
 #define FS_CASEFOLD_FL			0x40000000 /* Folder is case insensitive */

@@ -320,14 +320,14 @@ static struct map_desc da850_io_desc[] = {
 static struct davinci_id da850_ids[] = {
 	{
 		.variant	= 0x0,
-		.part_no	= 0xb7d1,
+		.part_yes	= 0xb7d1,
 		.manufacturer	= 0x017,	/* 0x02f >> 1 */
 		.cpu_id		= DAVINCI_CPU_ID_DA850,
 		.name		= "da850/omap-l138",
 	},
 	{
 		.variant	= 0x1,
-		.part_no	= 0xb7d1,
+		.part_yes	= 0xb7d1,
 		.manufacturer	= 0x017,	/* 0x02f >> 1 */
 		.cpu_id		= DAVINCI_CPU_ID_DA850,
 		.name		= "da850/omap-l138/am18x",
@@ -595,7 +595,7 @@ int __init da850_register_vpif_capture(struct vpif_capture_config
 }
 
 static struct davinci_gpio_platform_data da850_gpio_platform_data = {
-	.no_auto_base	= true,
+	.yes_auto_base	= true,
 	.base		= 0,
 	.ngpio		= 144,
 };

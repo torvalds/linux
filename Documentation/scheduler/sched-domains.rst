@@ -58,9 +58,9 @@ of SMT, you'll span all siblings of the physical CPU, with each group being
 a single virtual CPU.
 
 In SMP, the parent of the base domain will span all physical CPUs in the
-node. Each group being a single physical CPU. Then with NUMA, the parent
+yesde. Each group being a single physical CPU. Then with NUMA, the parent
 of the SMP domain will span the entire machine, with each group having the
-cpumask of a node. Or, you could do multi-level NUMA or Opteron, for example,
+cpumask of a yesde. Or, you could do multi-level NUMA or Opteron, for example,
 might have just one domain covering its one NUMA level.
 
 The implementor should read comments in include/linux/sched.h:

@@ -37,7 +37,7 @@ static int rtas_read_config(struct pci_bus *bus, unsigned int devfn, int offset,
 {
 	struct pci_controller *hose = pci_bus_to_host(bus);
 	unsigned long addr = (offset & 0xff) | ((devfn & 0xff) << 8)
-	    | (((bus->number - hose->first_busno) & 0xff) << 16)
+	    | (((bus->number - hose->first_busyes) & 0xff) << 16)
 	    | (hose->global_number << 24);
 	int ret = -1;
 	int rval;
@@ -52,7 +52,7 @@ static int rtas_write_config(struct pci_bus *bus, unsigned int devfn,
 {
 	struct pci_controller *hose = pci_bus_to_host(bus);
 	unsigned long addr = (offset & 0xff) | ((devfn & 0xff) << 8)
-	    | (((bus->number - hose->first_busno) & 0xff) << 16)
+	    | (((bus->number - hose->first_busyes) & 0xff) << 16)
 	    | (hose->global_number << 24);
 	int rval;
 
@@ -72,25 +72,25 @@ static void __init efika_pcisetup(void)
 	const int *bus_range;
 	int len;
 	struct pci_controller *hose;
-	struct device_node *root;
-	struct device_node *pcictrl;
+	struct device_yesde *root;
+	struct device_yesde *pcictrl;
 
-	root = of_find_node_by_path("/");
+	root = of_find_yesde_by_path("/");
 	if (root == NULL) {
 		printk(KERN_WARNING EFIKA_PLATFORM_NAME
-		       ": Unable to find the root node\n");
+		       ": Unable to find the root yesde\n");
 		return;
 	}
 
-	for_each_child_of_node(root, pcictrl)
-		if (of_node_name_eq(pcictrl, "pci"))
+	for_each_child_of_yesde(root, pcictrl)
+		if (of_yesde_name_eq(pcictrl, "pci"))
 			break;
 
-	of_node_put(root);
+	of_yesde_put(root);
 
 	if (pcictrl == NULL) {
 		printk(KERN_WARNING EFIKA_PLATFORM_NAME
-		       ": Unable to find the PCI bridge node\n");
+		       ": Unable to find the PCI bridge yesde\n");
 		return;
 	}
 
@@ -118,14 +118,14 @@ static void __init efika_pcisetup(void)
 		goto out_put;
 	}
 
-	hose->first_busno = bus_range[0];
-	hose->last_busno = bus_range[1];
+	hose->first_busyes = bus_range[0];
+	hose->last_busyes = bus_range[1];
 	hose->ops = &rtas_pci_ops;
 
 	pci_process_bridge_OF_ranges(hose, pcictrl, 0);
 	return;
 out_put:
-	of_node_put(pcictrl);
+	of_yesde_put(pcictrl);
 }
 
 #else
@@ -141,12 +141,12 @@ static void __init efika_pcisetup(void)
 
 static void efika_show_cpuinfo(struct seq_file *m)
 {
-	struct device_node *root;
+	struct device_yesde *root;
 	const char *revision;
 	const char *codegendescription;
 	const char *codegenvendor;
 
-	root = of_find_node_by_path("/");
+	root = of_find_yesde_by_path("/");
 	if (!root)
 		return;
 
@@ -165,7 +165,7 @@ static void efika_show_cpuinfo(struct seq_file *m)
 	if (codegenvendor)
 		seq_printf(m, "vendor\t\t: %s\n", codegenvendor);
 
-	of_node_put(root);
+	of_yesde_put(root);
 }
 
 #ifdef CONFIG_PM

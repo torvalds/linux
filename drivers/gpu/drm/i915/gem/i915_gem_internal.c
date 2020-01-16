@@ -58,7 +58,7 @@ static int i915_gem_object_get_pages_internal(struct drm_i915_gem_object *obj)
 
 	gfp = GFP_KERNEL | __GFP_HIGHMEM | __GFP_RECLAIMABLE;
 	if (IS_I965GM(i915) || IS_I965G(i915)) {
-		/* 965gm cannot relocate objects above 4GiB. */
+		/* 965gm canyest relocate objects above 4GiB. */
 		gfp &= ~__GFP_HIGHMEM;
 		gfp |= __GFP_DMA32;
 	}
@@ -151,14 +151,14 @@ static const struct drm_i915_gem_object_ops i915_gem_object_internal_ops = {
  * @size: the size in bytes of backing storage to allocate for the object
  *
  * Creates a new object that wraps some internal memory for private use.
- * This object is not backed by swappable storage, and as such its contents
+ * This object is yest backed by swappable storage, and as such its contents
  * are volatile and only valid whilst pinned. If the object is reaped by the
- * shrinker, its pages and data will be discarded. Equally, it is not a full
- * GEM object and so not valid for access from userspace. This makes it useful
+ * shrinker, its pages and data will be discarded. Equally, it is yest a full
+ * GEM object and so yest valid for access from userspace. This makes it useful
  * for hardware interfaces like ringbuffers (which are pinned from the time
  * the request is written to the time the hardware stops accessing it), but
- * not for contexts (which need to be preserved when not active for later
- * reuse). Note that it is not cleared upon allocation.
+ * yest for contexts (which need to be preserved when yest active for later
+ * reuse). Note that it is yest cleared upon allocation.
  */
 struct drm_i915_gem_object *
 i915_gem_object_create_internal(struct drm_i915_private *i915,

@@ -45,7 +45,7 @@ static void flush_tsb_kernel_range_scan(unsigned long start, unsigned long end)
 }
 
 /* TSB flushes need only occur on the processor initiating the address
- * space modification, not on each cpu the address space has run on.
+ * space modification, yest on each cpu the address space has run on.
  * Only the TLB flush needs that treatment.
  */
 
@@ -271,7 +271,7 @@ static void setup_tsb_params(struct mm_struct *mm, unsigned long tsb_idx, unsign
 	tte |= pte_sz_bits(page_sz);
 
 	if (tlb_type == cheetah_plus || tlb_type == hypervisor) {
-		/* Physical mapping, no locked TLB entry for TSB.  */
+		/* Physical mapping, yes locked TLB entry for TSB.  */
 		tsb_reg |= tsb_paddr;
 
 		mm->context.tsb_block[tsb_idx].tsb_reg_val = tsb_reg;
@@ -347,7 +347,7 @@ void __init pgtable_cache_init(void)
 					  0,
 					  _clear_page);
 	if (!pgtable_cache) {
-		prom_printf("pgtable_cache_init(): Could not create!\n");
+		prom_printf("pgtable_cache_init(): Could yest create!\n");
 		prom_halt();
 	}
 
@@ -359,7 +359,7 @@ void __init pgtable_cache_init(void)
 						  size, size,
 						  0, NULL);
 		if (!tsb_caches[i]) {
-			prom_printf("Could not create %s cache\n", name);
+			prom_printf("Could yest create %s cache\n", name);
 			prom_halt();
 		}
 	}
@@ -382,12 +382,12 @@ static unsigned long tsb_size_to_rss_limit(unsigned long new_size)
  *
  * When we reach the maximum TSB size supported, we stick ~0UL into
  * tsb_rss_limit for that TSB so the grow checks in do_sparc64_fault()
- * will not trigger any longer.
+ * will yest trigger any longer.
  *
  * The TSB can be anywhere from 8K to 1MB in size, in increasing powers
  * of two.  The TSB must be aligned to it's size, so f.e. a 512K TSB
  * must be 512K aligned.  It also must be physically contiguous, so we
- * cannot use vmalloc().
+ * canyest use vmalloc().
  *
  * The idea here is to grow the TSB when the RSS of the process approaches
  * the number of entries that the current TSB can hold at once.  Currently,
@@ -421,12 +421,12 @@ retry_tsb_alloc:
 	if (new_size > (PAGE_SIZE * 2))
 		gfp_flags |= __GFP_NOWARN | __GFP_NORETRY;
 
-	new_tsb = kmem_cache_alloc_node(tsb_caches[new_cache_index],
-					gfp_flags, numa_node_id());
+	new_tsb = kmem_cache_alloc_yesde(tsb_caches[new_cache_index],
+					gfp_flags, numa_yesde_id());
 	if (unlikely(!new_tsb)) {
 		/* Not being able to fork due to a high-order TSB
 		 * allocation failure is very bad behavior.  Just back
-		 * down to a 0-order allocation and force no TSB
+		 * down to a 0-order allocation and force yes TSB
 		 * growing for this address space.
 		 */
 		if (mm->context.tsb_block[tsb_index].tsb == NULL &&
@@ -456,10 +456,10 @@ retry_tsb_alloc:
 	 * new TSB, this synchronizes us with processors in
 	 * flush_tsb_user() and switch_mm() for this address space.
 	 *
-	 * But even with that lock held, processors run asynchronously
+	 * But even with that lock held, processors run asynchroyesusly
 	 * accessing the old TSB via TLB miss handling.  This is OK
 	 * because those actions are just propagating state from the
-	 * Linux page tables into the TSB, page table mappings are not
+	 * Linux page tables into the TSB, page table mappings are yest
 	 * being changed.  If a real fault occurs, the processor will
 	 * synchronize with us when it hits flush_tsb_user(), this is
 	 * also true for the case where vmscan is modifying the page

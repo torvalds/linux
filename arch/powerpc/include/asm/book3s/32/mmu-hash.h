@@ -54,7 +54,7 @@ struct ppc_bat {
  */
 
 /* Values for PP (assumes Ks=0, Kp=1) */
-#define PP_RWXX	0	/* Supervisor read/write, User none */
+#define PP_RWXX	0	/* Supervisor read/write, User yesne */
 #define PP_RWRX 1	/* Supervisor read/write, User read */
 #define PP_RWRW 2	/* Supervisor read/write, User read/write */
 #define PP_RXRX 3	/* Supervisor read,       User read */
@@ -103,7 +103,7 @@ extern s32 patch__flush_hash_B;
 
 #endif /* !__ASSEMBLY__ */
 
-/* We happily ignore the smaller BATs on 601, we don't actually use
+/* We happily igyesre the smaller BATs on 601, we don't actually use
  * those definitions on hash32 at the moment anyway
  */
 #define mmu_virtual_psize	MMU_PAGE_4K

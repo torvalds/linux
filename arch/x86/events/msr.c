@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <linux/perf_event.h>
 #include <linux/sysfs.h>
-#include <linux/nospec.h>
+#include <linux/yesspec.h>
 #include <asm/intel-family.h>
 #include "probe.h"
 
@@ -138,7 +138,7 @@ static struct attribute_group group_therm = {
 };
 
 static struct perf_msr msr[] = {
-	[PERF_MSR_TSC]		= { .no_check = true,								},
+	[PERF_MSR_TSC]		= { .yes_check = true,								},
 	[PERF_MSR_APERF]	= { MSR_IA32_APERF,		&group_aperf,		test_aperfmperf,	},
 	[PERF_MSR_MPERF]	= { MSR_IA32_MPERF,		&group_mperf,		test_aperfmperf,	},
 	[PERF_MSR_PPERF]	= { MSR_PPERF,			&group_pperf,		test_intel,		},
@@ -193,13 +193,13 @@ static int msr_event_init(struct perf_event *event)
 		return -ENOENT;
 
 	/* unsupported modes and filters */
-	if (event->attr.sample_period) /* no sampling */
+	if (event->attr.sample_period) /* yes sampling */
 		return -EINVAL;
 
 	if (cfg >= PERF_MSR_EVENT_MAX)
 		return -EINVAL;
 
-	cfg = array_index_nospec((unsigned long)cfg, PERF_MSR_EVENT_MAX);
+	cfg = array_index_yesspec((unsigned long)cfg, PERF_MSR_EVENT_MAX);
 
 	if (!(msr_mask & (1 << cfg)))
 		return -EINVAL;
@@ -213,37 +213,37 @@ static int msr_event_init(struct perf_event *event)
 
 static inline u64 msr_read_counter(struct perf_event *event)
 {
-	u64 now;
+	u64 yesw;
 
 	if (event->hw.event_base)
-		rdmsrl(event->hw.event_base, now);
+		rdmsrl(event->hw.event_base, yesw);
 	else
-		now = rdtsc_ordered();
+		yesw = rdtsc_ordered();
 
-	return now;
+	return yesw;
 }
 
 static void msr_event_update(struct perf_event *event)
 {
-	u64 prev, now;
+	u64 prev, yesw;
 	s64 delta;
 
 	/* Careful, an NMI might modify the previous event value: */
 again:
 	prev = local64_read(&event->hw.prev_count);
-	now = msr_read_counter(event);
+	yesw = msr_read_counter(event);
 
-	if (local64_cmpxchg(&event->hw.prev_count, prev, now) != prev)
+	if (local64_cmpxchg(&event->hw.prev_count, prev, yesw) != prev)
 		goto again;
 
-	delta = now - prev;
+	delta = yesw - prev;
 	if (unlikely(event->hw.event_base == MSR_SMI_COUNT)) {
 		delta = sign_extend64(delta, 31);
 		local64_add(delta, &event->count);
 	} else if (unlikely(event->hw.event_base == MSR_IA32_THERM_STATUS)) {
 		/* If valid, extract digital readout, otherwise set to -1: */
-		now = now & (1ULL << 31) ? (now >> 16) & 0x3f :  -1;
-		local64_set(&event->count, now);
+		yesw = yesw & (1ULL << 31) ? (yesw >> 16) & 0x3f :  -1;
+		local64_set(&event->count, yesw);
 	} else {
 		local64_add(delta, &event->count);
 	}
@@ -251,9 +251,9 @@ again:
 
 static void msr_event_start(struct perf_event *event, int flags)
 {
-	u64 now = msr_read_counter(event);
+	u64 yesw = msr_read_counter(event);
 
-	local64_set(&event->hw.prev_count, now);
+	local64_set(&event->hw.prev_count, yesw);
 }
 
 static void msr_event_stop(struct perf_event *event, int flags)
@@ -290,7 +290,7 @@ static struct pmu pmu_msr = {
 static int __init msr_init(void)
 {
 	if (!boot_cpu_has(X86_FEATURE_TSC)) {
-		pr_cont("no MSR PMU driver.\n");
+		pr_cont("yes MSR PMU driver.\n");
 		return 0;
 	}
 

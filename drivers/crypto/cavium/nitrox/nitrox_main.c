@@ -472,9 +472,9 @@ static int nitrox_probe(struct pci_dev *pdev,
 	ndev->hw.revision_id = pdev->revision;
 	/* command timeout in jiffies */
 	ndev->timeout = msecs_to_jiffies(CMD_TIMEOUT);
-	ndev->node = dev_to_node(&pdev->dev);
-	if (ndev->node == NUMA_NO_NODE)
-		ndev->node = 0;
+	ndev->yesde = dev_to_yesde(&pdev->dev);
+	if (ndev->yesde == NUMA_NO_NODE)
+		ndev->yesde = 0;
 
 	ndev->bar_addr = ioremap(pci_resource_start(pdev, 0),
 				 pci_resource_len(pdev, 0));
@@ -540,7 +540,7 @@ static void nitrox_remove(struct pci_dev *pdev)
 		return;
 
 	if (!refcount_dec_and_test(&ndev->refcnt)) {
-		dev_err(DEV(ndev), "Device refcnt not zero (%d)\n",
+		dev_err(DEV(ndev), "Device refcnt yest zero (%d)\n",
 			refcount_read(&ndev->refcnt));
 		return;
 	}

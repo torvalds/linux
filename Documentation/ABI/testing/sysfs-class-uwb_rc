@@ -13,7 +13,7 @@ What:           /sys/class/uwb_rc/beacon_timeout_ms
 Date:           July 2008
 KernelVersion:  2.6.27
 Description:
-                If no beacons are received from a device for at least
+                If yes beacons are received from a device for at least
                 this time, the device will be considered to have gone
                 and it will be removed.  The default is 3 superframes
                 (~197 ms) as required by the specification.
@@ -41,7 +41,7 @@ Description:
                 radio controller's supported band groups.
 
                 Reading returns the currently active channel, or -1 if
-                the radio controller is not beaconing.
+                the radio controller is yest beaconing.
 
 What:           /sys/class/uwb_rc/uwbN/ASIE
 Date:           August 2014
@@ -80,7 +80,7 @@ Description:
                 The EUI-48, in colon-separated hex octets, for this
                 radio controller.  A write will change the radio
                 controller's EUI-48 but only do so while the device is
-                not beaconing or scanning.
+                yest beaconing or scanning.
 
 What:           /sys/class/uwb_rc/uwbN/wusbhc
 Date:           July 2008

@@ -29,8 +29,8 @@
  *
  * Currently, the only customer of this code is the EEH subsystem;
  * thus, this code has been somewhat tailored to suit EEH better.
- * In particular, the cache does *not* hold the addresses of devices
- * for which EEH is not enabled.
+ * In particular, the cache does *yest* hold the addresses of devices
+ * for which EEH is yest enabled.
  *
  * (Implementation Note: The RB tree seems to be better/faster
  * than any hash algo I could think of for this problem, even
@@ -38,7 +38,7 @@
  */
 
 struct pci_io_addr_range {
-	struct rb_node rb_node;
+	struct rb_yesde rb_yesde;
 	resource_size_t addr_lo;
 	resource_size_t addr_hi;
 	struct eeh_dev *edev;
@@ -53,11 +53,11 @@ static struct pci_io_addr_cache {
 
 static inline struct eeh_dev *__eeh_addr_cache_get_device(unsigned long addr)
 {
-	struct rb_node *n = pci_io_addr_cache_root.rb_root.rb_node;
+	struct rb_yesde *n = pci_io_addr_cache_root.rb_root.rb_yesde;
 
 	while (n) {
 		struct pci_io_addr_range *piar;
-		piar = rb_entry(n, struct pci_io_addr_range, rb_node);
+		piar = rb_entry(n, struct pci_io_addr_range, rb_yesde);
 
 		if (addr < piar->addr_lo)
 			n = n->rb_left;
@@ -76,7 +76,7 @@ static inline struct eeh_dev *__eeh_addr_cache_get_device(unsigned long addr)
  *
  * Given an mmio phys address, or a port number, find a pci device
  * that implements this address.  I/O port numbers are assumed to be offset
- * from zero (that is, they do *not* have pci_io_addr added in).
+ * from zero (that is, they do *yest* have pci_io_addr added in).
  * It is safe to call this function within an interrupt.
  */
 struct eeh_dev *eeh_addr_cache_get_dev(unsigned long addr)
@@ -92,18 +92,18 @@ struct eeh_dev *eeh_addr_cache_get_dev(unsigned long addr)
 
 #ifdef DEBUG
 /*
- * Handy-dandy debug print routine, does nothing more
+ * Handy-dandy debug print routine, does yesthing more
  * than print out the contents of our addr cache.
  */
 static void eeh_addr_cache_print(struct pci_io_addr_cache *cache)
 {
-	struct rb_node *n;
+	struct rb_yesde *n;
 	int cnt = 0;
 
 	n = rb_first(&cache->rb_root);
 	while (n) {
 		struct pci_io_addr_range *piar;
-		piar = rb_entry(n, struct pci_io_addr_range, rb_node);
+		piar = rb_entry(n, struct pci_io_addr_range, rb_yesde);
 		pr_info("PCI: %s addr range %d [%pap-%pap]: %s\n",
 		       (piar->flags & IORESOURCE_IO) ? "i/o" : "mem", cnt,
 		       &piar->addr_lo, &piar->addr_hi, pci_name(piar->pcidev));
@@ -118,14 +118,14 @@ static struct pci_io_addr_range *
 eeh_addr_cache_insert(struct pci_dev *dev, resource_size_t alo,
 		      resource_size_t ahi, unsigned long flags)
 {
-	struct rb_node **p = &pci_io_addr_cache_root.rb_root.rb_node;
-	struct rb_node *parent = NULL;
+	struct rb_yesde **p = &pci_io_addr_cache_root.rb_root.rb_yesde;
+	struct rb_yesde *parent = NULL;
 	struct pci_io_addr_range *piar;
 
 	/* Walk tree, find a place to insert into tree */
 	while (*p) {
 		parent = *p;
-		piar = rb_entry(parent, struct pci_io_addr_range, rb_node);
+		piar = rb_entry(parent, struct pci_io_addr_range, rb_yesde);
 		if (ahi < piar->addr_lo) {
 			p = &parent->rb_left;
 		} else if (alo > piar->addr_hi) {
@@ -151,8 +151,8 @@ eeh_addr_cache_insert(struct pci_dev *dev, resource_size_t alo,
 	eeh_edev_dbg(piar->edev, "PIAR: insert range=[%pap:%pap]\n",
 		 &alo, &ahi);
 
-	rb_link_node(&piar->rb_node, parent, p);
-	rb_insert_color(&piar->rb_node, &pci_io_addr_cache_root.rb_root);
+	rb_link_yesde(&piar->rb_yesde, parent, p);
+	rb_insert_color(&piar->rb_yesde, &pci_io_addr_cache_root.rb_root);
 
 	return piar;
 }
@@ -165,26 +165,26 @@ static void __eeh_addr_cache_insert_dev(struct pci_dev *dev)
 
 	pdn = pci_get_pdn_by_devfn(dev->bus, dev->devfn);
 	if (!pdn) {
-		pr_warn("PCI: no pci dn found for dev=%s\n",
+		pr_warn("PCI: yes pci dn found for dev=%s\n",
 			pci_name(dev));
 		return;
 	}
 
 	edev = pdn_to_eeh_dev(pdn);
 	if (!edev) {
-		pr_warn("PCI: no EEH dev found for %s\n",
+		pr_warn("PCI: yes EEH dev found for %s\n",
 			pci_name(dev));
 		return;
 	}
 
-	/* Skip any devices for which EEH is not enabled. */
+	/* Skip any devices for which EEH is yest enabled. */
 	if (!edev->pe) {
 		dev_dbg(&dev->dev, "EEH: Skip building address cache\n");
 		return;
 	}
 
 	/*
-	 * Walk resources on this device, poke the first 7 (6 normal BAR and 1
+	 * Walk resources on this device, poke the first 7 (6 yesrmal BAR and 1
 	 * ROM BAR) into the tree.
 	 */
 	for (i = 0; i <= PCI_ROM_RESOURCE; i++) {
@@ -192,7 +192,7 @@ static void __eeh_addr_cache_insert_dev(struct pci_dev *dev)
 		resource_size_t end = pci_resource_end(dev,i);
 		unsigned long flags = pci_resource_flags(dev,i);
 
-		/* We are interested only bus addresses, not dma or other stuff */
+		/* We are interested only bus addresses, yest dma or other stuff */
 		if (0 == (flags & (IORESOURCE_IO | IORESOURCE_MEM)))
 			continue;
 		if (start == 0 || ~start == 0 || end == 0 || ~end == 0)
@@ -220,13 +220,13 @@ void eeh_addr_cache_insert_dev(struct pci_dev *dev)
 
 static inline void __eeh_addr_cache_rmv_dev(struct pci_dev *dev)
 {
-	struct rb_node *n;
+	struct rb_yesde *n;
 
 restart:
 	n = rb_first(&pci_io_addr_cache_root.rb_root);
 	while (n) {
 		struct pci_io_addr_range *piar;
-		piar = rb_entry(n, struct pci_io_addr_range, rb_node);
+		piar = rb_entry(n, struct pci_io_addr_range, rb_yesde);
 
 		if (piar->pcidev == dev) {
 			eeh_edev_dbg(piar->edev, "PIAR: remove range=[%pap:%pap]\n",
@@ -271,11 +271,11 @@ void eeh_addr_cache_init(void)
 static int eeh_addr_cache_show(struct seq_file *s, void *v)
 {
 	struct pci_io_addr_range *piar;
-	struct rb_node *n;
+	struct rb_yesde *n;
 
 	spin_lock(&pci_io_addr_cache_root.piar_lock);
 	for (n = rb_first(&pci_io_addr_cache_root.rb_root); n; n = rb_next(n)) {
-		piar = rb_entry(n, struct pci_io_addr_range, rb_node);
+		piar = rb_entry(n, struct pci_io_addr_range, rb_yesde);
 
 		seq_printf(s, "%s addr range [%pap-%pap]: %s\n",
 		       (piar->flags & IORESOURCE_IO) ? "i/o" : "mem",

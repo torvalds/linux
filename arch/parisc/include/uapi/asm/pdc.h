@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 #ifndef _UAPI_PARISC_PDC_H
 #define _UAPI_PARISC_PDC_H
 
@@ -11,15 +11,15 @@
 #define PDC_REQ_ERR_1		  2	/* See above			 */
 #define PDC_REQ_ERR_0		  1	/* Call would generate a requestor error */
 #define PDC_OK			  0	/* Call completed successfully	*/
-#define PDC_BAD_PROC		 -1	/* Called non-existent procedure*/
-#define PDC_BAD_OPTION		 -2	/* Called with non-existent option */
-#define PDC_ERROR		 -3	/* Call could not complete without an error */
-#define PDC_NE_MOD		 -5	/* Module not found		*/
-#define PDC_NE_CELL_MOD		 -7	/* Cell module not found	*/
-#define PDC_NE_BOOTDEV		 -9	/* Cannot locate a console device or boot device */
+#define PDC_BAD_PROC		 -1	/* Called yesn-existent procedure*/
+#define PDC_BAD_OPTION		 -2	/* Called with yesn-existent option */
+#define PDC_ERROR		 -3	/* Call could yest complete without an error */
+#define PDC_NE_MOD		 -5	/* Module yest found		*/
+#define PDC_NE_CELL_MOD		 -7	/* Cell module yest found	*/
+#define PDC_NE_BOOTDEV		 -9	/* Canyest locate a console device or boot device */
 #define PDC_INVALID_ARG		-10	/* Called with an invalid argument */
-#define PDC_BUS_POW_WARN	-12	/* Call could not complete in allowed power budget */
-#define PDC_NOT_NARROW		-17	/* Narrow mode not supported	*/
+#define PDC_BUS_POW_WARN	-12	/* Call could yest complete in allowed power budget */
+#define PDC_NOT_NARROW		-17	/* Narrow mode yest supported	*/
 
 /*
  *	PDC entry points...
@@ -50,7 +50,7 @@
 #define PDC_MODEL_DISPEC	5	/* disable specific option	*/
 #define PDC_MODEL_CPU_ID	6	/* returns cpu-id (only newer machines!) */
 #define PDC_MODEL_CAPABILITIES	7	/* returns OS32/OS64-flags	*/
-/* Values for PDC_MODEL_CAPABILITIES non-equivalent virtual aliasing support */
+/* Values for PDC_MODEL_CAPABILITIES yesn-equivalent virtual aliasing support */
 #define  PDC_MODEL_OS64			(1 << 0)
 #define  PDC_MODEL_OS32			(1 << 1)
 #define  PDC_MODEL_IOPDIR_FDC		(1 << 2)
@@ -90,7 +90,7 @@
 /*				7	  obsolete - HVERSION dependent */
 #define PDC_IODC_RI_TEST	8	/* Module input/output		*/
 #define PDC_IODC_RI_TLB		9	/* Module input/output		*/
-#define PDC_IODC_NINIT		2	/* non-destructive init		*/
+#define PDC_IODC_NINIT		2	/* yesn-destructive init		*/
 #define PDC_IODC_DINIT		3	/* destructive init		*/
 #define PDC_IODC_MEMERR		4	/* check for memory errors	*/
 #define PDC_IODC_INDEX_DATA	0	/* get first 16 bytes from mod IODC */
@@ -110,7 +110,7 @@
 #define PDC_STABLE_VERIFY_CONTENTS 3
 #define PDC_STABLE_INITIALIZE	4
 
-#define PDC_NVOLATILE	11		/* often not implemented	*/
+#define PDC_NVOLATILE	11		/* often yest implemented	*/
 #define PDC_NVOLATILE_READ	0
 #define PDC_NVOLATILE_WRITE	1
 #define PDC_NVOLATILE_RETURN_SIZE 2
@@ -199,7 +199,7 @@
 #define PDC_EEPROM_WRITE_BYTE	3
 #define PDC_EEPROM_EEPROM_PASSWORD -1000
 
-#define PDC_NVM		130		/* NVM (non-volatile memory) access */
+#define PDC_NVM		130		/* NVM (yesn-volatile memory) access */
 #define PDC_NVM_READ_WORD	0
 #define PDC_NVM_WRITE_WORD	1
 #define PDC_NVM_READ_BYTE	2
@@ -551,7 +551,7 @@ struct pdc_iodc {     /* PDC_IODC */
 	unsigned int    pad[15];
 } __attribute__((aligned(8))) ;
 
-/* no BLTBs in pa2.0 processors */
+/* yes BLTBs in pa2.0 processors */
 struct pdc_btlb_info_range {
 	unsigned char res00;
 	unsigned char num_i;
@@ -612,7 +612,7 @@ struct pdc_initiator { /* PDC_INITIATOR */
 struct hardware_path {
 	char  flags;	/* see bit definitions below */
 	char  bc[6];	/* Bus Converter routing info to a specific */
-			/* I/O adaptor (< 0 means none, > 63 resvd) */
+			/* I/O adaptor (< 0 means yesne, > 63 resvd) */
 	char  mod;	/* fixed field of specified module */
 };
 
@@ -661,7 +661,7 @@ struct pdc_hpmc_pim_11 { /* PDC_PIM */
 /*
  * architected results from PDC_PIM/transfer hpmc on a PA2.0 machine
  *
- * Note that PDC_PIM doesn't care whether or not wide mode was enabled
+ * Note that PDC_PIM doesn't care whether or yest wide mode was enabled
  * so the results are different on  PA1.1 vs. PA2.0 when in narrow mode.
  *
  * Note also that there are unarchitected results available, which

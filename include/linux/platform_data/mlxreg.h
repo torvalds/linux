@@ -1,16 +1,16 @@
 /*
- * Copyright (c) 2017 Mellanox Technologies. All rights reserved.
- * Copyright (c) 2017 Vadim Pasternak <vadimp@mellanox.com>
+ * Copyright (c) 2017 Mellayesx Techyeslogies. All rights reserved.
+ * Copyright (c) 2017 Vadim Pasternak <vadimp@mellayesx.com>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
  *
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
+ *    yestice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the names of the copyright holders nor the names of its
+ * 3. Neither the names of the copyright holders yesr the names of its
  *    contributors may be used to endorse or promote products derived from
  *    this software without specific prior written permission.
  *
@@ -76,7 +76,7 @@ struct mlxreg_hotplug_device {
  * @bit: attribute effective bit;
  * @capability: attribute capability register;
  * @mode: access mode;
- * @np - pointer to node platform associated with attribute;
+ * @np - pointer to yesde platform associated with attribute;
  * @hpdev - hotplug device data;
  * @health_cntr: dynamic device health indication counter;
  * @attached: true if device has been attached after good health indication;
@@ -88,7 +88,7 @@ struct mlxreg_core_data {
 	u32 bit;
 	u32 capability;
 	umode_t	mode;
-	struct device_node *np;
+	struct device_yesde *np;
 	struct mlxreg_hotplug_device hpdev;
 	u8 health_cntr;
 	bool attached;

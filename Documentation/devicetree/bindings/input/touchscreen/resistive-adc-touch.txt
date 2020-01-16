@@ -16,7 +16,7 @@ are "x" and "y".
 Optional properties:
  - iio-channels: The third channel named "pressure" is optional and can be
 used if the ADC device also measures pressure besides position.
-If this channel is missing, pressure will be ignored and the touchscreen
+If this channel is missing, pressure will be igyesred and the touchscreen
 will only report position.
  - iio-channel-names: optional channel named "pressure".
 

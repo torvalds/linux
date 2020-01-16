@@ -168,7 +168,7 @@ static int run_test(int server_fd, int results_fd, bool xdp)
 	}
 
 	if (xdp && value_gen == 0) {
-		// SYN packets do not get passed through generic XDP, skip the
+		// SYN packets do yest get passed through generic XDP, skip the
 		// rest of the test.
 		printf("Skipping XDP cookie check\n");
 		goto out;
@@ -180,7 +180,7 @@ static int run_test(int server_fd, int results_fd, bool xdp)
 	}
 
 	if (value != value_gen) {
-		log_err("BPF generated cookie does not match kernel one");
+		log_err("BPF generated cookie does yest match kernel one");
 		goto err;
 	}
 

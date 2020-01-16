@@ -28,45 +28,45 @@ ACPI_MODULE_NAME("excreate")
  ******************************************************************************/
 acpi_status acpi_ex_create_alias(struct acpi_walk_state *walk_state)
 {
-	struct acpi_namespace_node *target_node;
-	struct acpi_namespace_node *alias_node;
+	struct acpi_namespace_yesde *target_yesde;
+	struct acpi_namespace_yesde *alias_yesde;
 	acpi_status status = AE_OK;
 
 	ACPI_FUNCTION_TRACE(ex_create_alias);
 
-	/* Get the source/alias operands (both namespace nodes) */
+	/* Get the source/alias operands (both namespace yesdes) */
 
-	alias_node = (struct acpi_namespace_node *)walk_state->operands[0];
-	target_node = (struct acpi_namespace_node *)walk_state->operands[1];
+	alias_yesde = (struct acpi_namespace_yesde *)walk_state->operands[0];
+	target_yesde = (struct acpi_namespace_yesde *)walk_state->operands[1];
 
-	if ((target_node->type == ACPI_TYPE_LOCAL_ALIAS) ||
-	    (target_node->type == ACPI_TYPE_LOCAL_METHOD_ALIAS)) {
+	if ((target_yesde->type == ACPI_TYPE_LOCAL_ALIAS) ||
+	    (target_yesde->type == ACPI_TYPE_LOCAL_METHOD_ALIAS)) {
 		/*
 		 * Dereference an existing alias so that we don't create a chain
 		 * of aliases. With this code, we guarantee that an alias is
 		 * always exactly one level of indirection away from the
 		 * actual aliased name.
 		 */
-		target_node =
-		    ACPI_CAST_PTR(struct acpi_namespace_node,
-				  target_node->object);
+		target_yesde =
+		    ACPI_CAST_PTR(struct acpi_namespace_yesde,
+				  target_yesde->object);
 	}
 
-	/* Ensure that the target node is valid */
+	/* Ensure that the target yesde is valid */
 
-	if (!target_node) {
+	if (!target_yesde) {
 		return_ACPI_STATUS(AE_NULL_OBJECT);
 	}
 
-	/* Construct the alias object (a namespace node) */
+	/* Construct the alias object (a namespace yesde) */
 
-	switch (target_node->type) {
+	switch (target_yesde->type) {
 	case ACPI_TYPE_METHOD:
 		/*
 		 * Control method aliases need to be differentiated with
 		 * a special type
 		 */
-		alias_node->type = ACPI_TYPE_LOCAL_METHOD_ALIAS;
+		alias_yesde->type = ACPI_TYPE_LOCAL_METHOD_ALIAS;
 		break;
 
 	default:
@@ -74,18 +74,18 @@ acpi_status acpi_ex_create_alias(struct acpi_walk_state *walk_state)
 		 * All other object types.
 		 *
 		 * The new alias has the type ALIAS and points to the original
-		 * NS node, not the object itself.
+		 * NS yesde, yest the object itself.
 		 */
-		alias_node->type = ACPI_TYPE_LOCAL_ALIAS;
-		alias_node->object =
-		    ACPI_CAST_PTR(union acpi_operand_object, target_node);
+		alias_yesde->type = ACPI_TYPE_LOCAL_ALIAS;
+		alias_yesde->object =
+		    ACPI_CAST_PTR(union acpi_operand_object, target_yesde);
 		break;
 	}
 
 	/* Since both operands are Nodes, we don't need to delete them */
 
-	alias_node->object =
-	    ACPI_CAST_PTR(union acpi_operand_object, target_node);
+	alias_yesde->object =
+	    ACPI_CAST_PTR(union acpi_operand_object, target_yesde);
 	return_ACPI_STATUS(status);
 }
 
@@ -126,7 +126,7 @@ acpi_status acpi_ex_create_event(struct acpi_walk_state *walk_state)
 
 	/* Attach object to the Node */
 
-	status = acpi_ns_attach_object((struct acpi_namespace_node *)
+	status = acpi_ns_attach_object((struct acpi_namespace_yesde *)
 				       walk_state->operands[0], obj_desc,
 				       ACPI_TYPE_EVENT);
 
@@ -175,14 +175,14 @@ acpi_status acpi_ex_create_mutex(struct acpi_walk_state *walk_state)
 		goto cleanup;
 	}
 
-	/* Init object and attach to NS node */
+	/* Init object and attach to NS yesde */
 
 	obj_desc->mutex.sync_level = (u8)walk_state->operands[1]->integer.value;
-	obj_desc->mutex.node =
-	    (struct acpi_namespace_node *)walk_state->operands[0];
+	obj_desc->mutex.yesde =
+	    (struct acpi_namespace_yesde *)walk_state->operands[0];
 
 	status =
-	    acpi_ns_attach_object(obj_desc->mutex.node, obj_desc,
+	    acpi_ns_attach_object(obj_desc->mutex.yesde, obj_desc,
 				  ACPI_TYPE_MUTEX);
 
 cleanup:
@@ -216,20 +216,20 @@ acpi_ex_create_region(u8 * aml_start,
 {
 	acpi_status status;
 	union acpi_operand_object *obj_desc;
-	struct acpi_namespace_node *node;
+	struct acpi_namespace_yesde *yesde;
 	union acpi_operand_object *region_obj2;
 
 	ACPI_FUNCTION_TRACE(ex_create_region);
 
 	/* Get the Namespace Node */
 
-	node = walk_state->op->common.node;
+	yesde = walk_state->op->common.yesde;
 
 	/*
-	 * If the region object is already attached to this node,
+	 * If the region object is already attached to this yesde,
 	 * just return
 	 */
-	if (acpi_ns_get_attached_object(node)) {
+	if (acpi_ns_get_attached_object(yesde)) {
 		return_ACPI_STATUS(AE_OK);
 	}
 
@@ -244,7 +244,7 @@ acpi_ex_create_region(u8 * aml_start,
 		 * actually used at runtime, abort the executing method.
 		 */
 		ACPI_ERROR((AE_INFO,
-			    "Invalid/unknown Address Space ID: 0x%2.2X",
+			    "Invalid/unkyeswn Address Space ID: 0x%2.2X",
 			    space_id));
 	}
 
@@ -268,10 +268,10 @@ acpi_ex_create_region(u8 * aml_start,
 	region_obj2->extra.aml_length = aml_length;
 	region_obj2->extra.method_REG = NULL;
 	if (walk_state->scope_info) {
-		region_obj2->extra.scope_node =
-		    walk_state->scope_info->scope.node;
+		region_obj2->extra.scope_yesde =
+		    walk_state->scope_info->scope.yesde;
 	} else {
-		region_obj2->extra.scope_node = node;
+		region_obj2->extra.scope_yesde = yesde;
 	}
 
 	/* Init the region from the operands */
@@ -279,7 +279,7 @@ acpi_ex_create_region(u8 * aml_start,
 	obj_desc->region.space_id = space_id;
 	obj_desc->region.address = 0;
 	obj_desc->region.length = 0;
-	obj_desc->region.node = node;
+	obj_desc->region.yesde = yesde;
 	obj_desc->region.handler = NULL;
 	obj_desc->common.flags &=
 	    ~(AOPOBJ_SETUP_COMPLETE | AOPOBJ_REG_CONNECTED |
@@ -287,7 +287,7 @@ acpi_ex_create_region(u8 * aml_start,
 
 	/* Install the new region object in the parent Node */
 
-	status = acpi_ns_attach_object(node, obj_desc, ACPI_TYPE_REGION);
+	status = acpi_ns_attach_object(yesde, obj_desc, ACPI_TYPE_REGION);
 
 cleanup:
 
@@ -335,7 +335,7 @@ acpi_status acpi_ex_create_processor(struct acpi_walk_state *walk_state)
 
 	/* Install the processor object in the parent Node */
 
-	status = acpi_ns_attach_object((struct acpi_namespace_node *)operand[0],
+	status = acpi_ns_attach_object((struct acpi_namespace_yesde *)operand[0],
 				       obj_desc, ACPI_TYPE_PROCESSOR);
 
 	/* Remove local reference to the object */
@@ -381,7 +381,7 @@ acpi_status acpi_ex_create_power_resource(struct acpi_walk_state *walk_state)
 
 	/* Install the  power resource object in the parent Node */
 
-	status = acpi_ns_attach_object((struct acpi_namespace_node *)operand[0],
+	status = acpi_ns_attach_object((struct acpi_namespace_yesde *)operand[0],
 				       obj_desc, ACPI_TYPE_POWER);
 
 	/* Remove local reference to the object */
@@ -427,7 +427,7 @@ acpi_ex_create_method(u8 * aml_start,
 
 	obj_desc->method.aml_start = aml_start;
 	obj_desc->method.aml_length = aml_length;
-	obj_desc->method.node = operand[0];
+	obj_desc->method.yesde = operand[0];
 
 	/*
 	 * Disassemble the method flags. Split off the arg_count, Serialized
@@ -454,7 +454,7 @@ acpi_ex_create_method(u8 * aml_start,
 
 	/* Attach the new object to the method Node */
 
-	status = acpi_ns_attach_object((struct acpi_namespace_node *)operand[0],
+	status = acpi_ns_attach_object((struct acpi_namespace_yesde *)operand[0],
 				       obj_desc, ACPI_TYPE_METHOD);
 
 	/* Remove local reference to the object */

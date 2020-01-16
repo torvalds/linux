@@ -10,7 +10,7 @@ SATA and several other IO controllers.
 
 Boards with Northstar Plus SoCs shall have the following properties:
 
-Required root node property:
+Required root yesde property:
 
 BCM58522
 compatible = "brcm,bcm58522", "brcm,nsp";

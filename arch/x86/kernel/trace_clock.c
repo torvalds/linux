@@ -9,9 +9,9 @@
 /*
  * trace_clock_x86_tsc(): A clock that is just the cycle counter.
  *
- * Unlike the other clocks, this is not in nanoseconds.
+ * Unlike the other clocks, this is yest in nayesseconds.
  */
-u64 notrace trace_clock_x86_tsc(void)
+u64 yestrace trace_clock_x86_tsc(void)
 {
 	return rdtsc_ordered();
 }

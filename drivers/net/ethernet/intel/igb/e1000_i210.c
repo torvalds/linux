@@ -51,7 +51,7 @@ static s32 igb_get_hw_semaphore_i210(struct e1000_hw *hw)
 			}
 		}
 
-		/* If we do not have the semaphore here, we have to give up. */
+		/* If we do yest have the semaphore here, we have to give up. */
 		if (i == timeout) {
 			hw_dbg("Driver can't access device - SMBI bit is set.\n");
 			return -E1000_ERR_NVM;
@@ -190,7 +190,7 @@ static s32 igb_read_nvm_srrd_i210(struct e1000_hw *hw, u16 offset, u16 words,
 	s32 status = 0;
 	u16 i, count;
 
-	/* We cannot hold synchronization semaphores for too long,
+	/* We canyest hold synchronization semaphores for too long,
 	 * because of forceful takeover procedure. However it is more efficient
 	 * to read in bursts than synchronizing access for each word.
 	 */
@@ -221,7 +221,7 @@ static s32 igb_read_nvm_srrd_i210(struct e1000_hw *hw, u16 offset, u16 words,
  *
  *  Writes data to Shadow Ram at offset using EEWR register.
  *
- *  If igb_update_nvm_checksum is not called after this function , the
+ *  If igb_update_nvm_checksum is yest called after this function , the
  *  Shadow Ram will most likely contain an invalid checksum.
  **/
 static s32 igb_write_nvm_srwr(struct e1000_hw *hw, u16 offset, u16 words,
@@ -233,7 +233,7 @@ static s32 igb_write_nvm_srwr(struct e1000_hw *hw, u16 offset, u16 words,
 	s32 ret_val = 0;
 
 	/* A check for invalid values:  offset too large, too many words,
-	 * too many words for the offset, and not enough words.
+	 * too many words for the offset, and yest eyesugh words.
 	 */
 	if ((offset >= nvm->word_size) || (words > (nvm->word_size - offset)) ||
 	    (words == 0)) {
@@ -277,8 +277,8 @@ out:
  *
  *  Writes data to Shadow RAM at offset using EEWR register.
  *
- *  If e1000_update_nvm_checksum is not called after this function , the
- *  data will not be committed to FLASH and also Shadow RAM will most likely
+ *  If e1000_update_nvm_checksum is yest called after this function , the
+ *  data will yest be committed to FLASH and also Shadow RAM will most likely
  *  contain an invalid checksum.
  *
  *  If error code is returned, data and Shadow RAM may be inconsistent - buffer
@@ -290,7 +290,7 @@ static s32 igb_write_nvm_srwr_i210(struct e1000_hw *hw, u16 offset, u16 words,
 	s32 status = 0;
 	u16 i, count;
 
-	/* We cannot hold synchronization semaphores for too long,
+	/* We canyest hold synchronization semaphores for too long,
 	 * because of forceful takeover procedure. However it is more efficient
 	 * to write in bursts than synchronizing access for each word.
 	 */
@@ -318,7 +318,7 @@ static s32 igb_write_nvm_srwr_i210(struct e1000_hw *hw, u16 offset, u16 words,
  *  @address: the word address (aka eeprom offset) to read
  *  @data: pointer to the data read
  *
- *  Reads 16-bit words from the OTP. Return error when the word is not
+ *  Reads 16-bit words from the OTP. Return error when the word is yest
  *  stored in OTP.
  **/
 static s32 igb_read_invm_word_i210(struct e1000_hw *hw, u8 address, u16 *data)
@@ -350,7 +350,7 @@ static s32 igb_read_invm_word_i210(struct e1000_hw *hw, u8 address, u16 *data)
 		}
 	}
 	if (status)
-		hw_dbg("Requested word 0x%02x not found in OTP\n", address);
+		hw_dbg("Requested word 0x%02x yest found in OTP\n", address);
 	return status;
 }
 
@@ -376,7 +376,7 @@ static s32 igb_read_invm_i210(struct e1000_hw *hw, u16 offset,
 		ret_val |= igb_read_invm_word_i210(hw, (u8)offset+2,
 						     &data[2]);
 		if (ret_val)
-			hw_dbg("MAC Addr not found in iNVM\n");
+			hw_dbg("MAC Addr yest found in iNVM\n");
 		break;
 	case NVM_INIT_CTRL_2:
 		ret_val = igb_read_invm_word_i210(hw, (u8)offset, data);
@@ -426,7 +426,7 @@ static s32 igb_read_invm_i210(struct e1000_hw *hw, u16 offset,
 		*data = hw->vendor_id;
 		break;
 	default:
-		hw_dbg("NVM word 0x%02x is not mapped.\n", offset);
+		hw_dbg("NVM word 0x%02x is yest mapped.\n", offset);
 		*data = NVM_RESERVED_WORD;
 		break;
 	}
@@ -501,7 +501,7 @@ s32 igb_read_invm_version(struct e1000_hw *hw,
 	if (!status) {
 		invm_ver->invm_major = (version & E1000_INVM_MAJOR_MASK)
 					>> E1000_INVM_MAJOR_SHIFT;
-		invm_ver->invm_minor = version & E1000_INVM_MINOR_MASK;
+		invm_ver->invm_miyesr = version & E1000_INVM_MINOR_MASK;
 	}
 	/* Read Image Type */
 	for (i = 1; i < invm_blocks; i++) {
@@ -576,7 +576,7 @@ static s32 igb_update_nvm_checksum_i210(struct e1000_hw *hw)
 	u16 i, nvm_data;
 
 	/* Read the first word from the EEPROM. If this times out or fails, do
-	 * not continue or we could be in for a very long wait while every
+	 * yest continue or we could be in for a very long wait while every
 	 * EEPROM read fails
 	 */
 	ret_val = igb_read_nvm_eerd(hw, 0, 1, &nvm_data);
@@ -586,8 +586,8 @@ static s32 igb_update_nvm_checksum_i210(struct e1000_hw *hw)
 	}
 
 	if (!(hw->nvm.ops.acquire(hw))) {
-		/* Do not use hw->nvm.ops.write, hw->nvm.ops.read
-		 * because we do not want to take the synchronization
+		/* Do yest use hw->nvm.ops.write, hw->nvm.ops.read
+		 * because we do yest want to take the synchronization
 		 * semaphores twice here.
 		 */
 
@@ -693,7 +693,7 @@ out:
  *  @data: pointer to the NVM (EEPROM)
  *
  *  Read the EEPROM for the current default LED configuration.  If the
- *  LED configuration is not valid, set to a valid LED configuration.
+ *  LED configuration is yest valid, set to a valid LED configuration.
  **/
 s32 igb_valid_led_default_i210(struct e1000_hw *hw, u16 *data)
 {
@@ -891,7 +891,7 @@ s32 igb_pll_workaround_i210(struct e1000_hw *hw)
  *  completion status.  NOTE: silicon which is EEPROM-less will fail trying
  *  to read the config done bit, so an error is *ONLY* logged and returns
  *  0.  If we were to return with error, EEPROM-less silicon
- *  would not be able to be reset or change link.
+ *  would yest be able to be reset or change link.
  **/
 s32 igb_get_cfg_done_i210(struct e1000_hw *hw)
 {
@@ -905,7 +905,7 @@ s32 igb_get_cfg_done_i210(struct e1000_hw *hw)
 		timeout--;
 	}
 	if (!timeout)
-		hw_dbg("MNG configuration cycle has not completed.\n");
+		hw_dbg("MNG configuration cycle has yest completed.\n");
 
 	return 0;
 }

@@ -7,7 +7,7 @@
  * returning from the function.  The pattern is called stack canary
  * and gcc expects it to be defined by a global variable called
  * "__stack_chk_guard" on ARM.  This unfortunately means that on SMP
- * we cannot have a different canary value per task.
+ * we canyest have a different canary value per task.
  */
 
 #ifndef __ASM_STACKPROTECTOR_H

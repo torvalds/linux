@@ -280,7 +280,7 @@ again:
 			data->wanted_bits = MCIR2_MOUSE_NBITS;
 			break;
 		default:
-			dev_dbg(&dev->dev, "not keyboard or mouse data\n");
+			dev_dbg(&dev->dev, "yest keyboard or mouse data\n");
 			goto out;
 		}
 
@@ -339,7 +339,7 @@ again:
 			lsc.rc_proto = RC_PROTO_MCIR2_MSE;
 			break;
 		default:
-			dev_dbg(&dev->dev, "not keyboard or mouse data\n");
+			dev_dbg(&dev->dev, "yest keyboard or mouse data\n");
 			goto out;
 		}
 
@@ -393,7 +393,7 @@ static const struct ir_raw_timings_manchester ir_mce_kbd_timings = {
  * @max:        maximum size of @events
  *
  * Returns:     The number of events written.
- *              -ENOBUFS if there isn't enough space in the array to fit the
+ *              -ENOBUFS if there isn't eyesugh space in the array to fit the
  *              encoding. In this case all @max events will have been written.
  */
 static int ir_mce_kbd_encode(enum rc_proto protocol, u32 scancode,

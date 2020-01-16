@@ -170,9 +170,9 @@ void sctp_packet_free(struct sctp_packet *packet)
 
 /* This routine tries to append the chunk to the offered packet. If adding
  * the chunk causes the packet to exceed the path MTU and COOKIE_ECHO chunk
- * is not present in the packet, it transmits the input packet.
+ * is yest present in the packet, it transmits the input packet.
  * Data can be bundled with a packet containing a COOKIE_ECHO chunk as long
- * as it can fit in the packet, but any more data that does not fit in this
+ * as it can fit in the packet, but any more data that does yest fit in this
  * packet can be sent only after receiving the COOKIE_ACK.
  */
 enum sctp_xmit sctp_packet_transmit_chunk(struct sctp_packet *packet,
@@ -229,7 +229,7 @@ static enum sctp_xmit sctp_packet_bundle_auth(struct sctp_packet *pkt,
 	if (chunk->chunk_hdr->type == SCTP_CID_AUTH || pkt->has_auth)
 		return retval;
 
-	/* if the peer did not request this chunk to be authenticated,
+	/* if the peer did yest request this chunk to be authenticated,
 	 * don't do it
 	 */
 	if (!chunk->auth)
@@ -320,7 +320,7 @@ static enum sctp_xmit __sctp_packet_append_chunk(struct sctp_packet *packet,
 		packet->has_sack = 1;
 		/* Disallow AUTH bundling after DATA */
 		packet->has_auth = 1;
-		/* Let it be knows that packet has DATA in it */
+		/* Let it be kyesws that packet has DATA in it */
 		packet->has_data = 1;
 		/* timestamp the chunk for rtx purposes */
 		chunk->sent_at = jiffies;
@@ -489,7 +489,7 @@ merge:
 		if (auth) {
 			sctp_auth_calculate_hmac(tp->asoc, nskb, auth,
 						 packet->auth->shkey, gfp);
-			/* free auth if no more chunks, or add it back */
+			/* free auth if yes more chunks, or add it back */
 			if (list_empty(&packet->chunk_list))
 				sctp_chunk_free(packet->auth);
 			else
@@ -529,7 +529,7 @@ merge:
 	} else {
 chksum:
 		head->ip_summed = CHECKSUM_PARTIAL;
-		head->csum_not_inet = 1;
+		head->csum_yest_inet = 1;
 		head->csum_start = skb_transport_header(head) - head->head;
 		head->csum_offset = offsetof(struct sctphdr, checksum);
 	}
@@ -540,7 +540,7 @@ chksum:
 /* All packets are sent to the network through this function from
  * sctp_outq_tail().
  *
- * The return value is always 0 for now.
+ * The return value is always 0 for yesw.
  */
 int sctp_packet_transmit(struct sctp_packet *packet, gfp_t gfp)
 {
@@ -584,7 +584,7 @@ int sctp_packet_transmit(struct sctp_packet *packet, gfp_t gfp)
 	sh->vtag = htonl(packet->vtag);
 	sh->checksum = 0;
 
-	/* drop packet if no dst */
+	/* drop packet if yes dst */
 	dst = dst_clone(tp->dst);
 	if (!dst) {
 		IP_INC_STATS(sock_net(sk), IPSTATS_MIB_OUTNOROUTES);
@@ -620,7 +620,7 @@ int sctp_packet_transmit(struct sctp_packet *packet, gfp_t gfp)
 		if (asoc->peer.last_sent_to != tp)
 			asoc->peer.last_sent_to = tp;
 	}
-	head->ignore_df = packet->ipfragok;
+	head->igyesre_df = packet->ipfragok;
 	if (tp->dst_pending_confirm)
 		skb_set_dst_pending_confirm(head, 1);
 	/* neighbour should be confirmed on successful transmission or
@@ -657,7 +657,7 @@ static enum sctp_xmit sctp_packet_can_append_data(struct sctp_packet *packet,
 	 *
 	 * A) At any given time, the data sender MUST NOT transmit new data to
 	 * any destination transport address if its peer's rwnd indicates
-	 * that the peer has no buffer space (i.e. rwnd is 0, see Section
+	 * that the peer has yes buffer space (i.e. rwnd is 0, see Section
 	 * 6.2.1).  However, regardless of the value of rwnd (including if it
 	 * is 0), the data sender can always have one DATA chunk in flight to
 	 * the receiver if allowed by cwnd (see rule B below).  This rule
@@ -688,7 +688,7 @@ static enum sctp_xmit sctp_packet_can_append_data(struct sctp_packet *packet,
 	 *
 	 * 3) ...
 	 *    When a Fast Retransmit is being performed the sender SHOULD
-	 *    ignore the value of cwnd and SHOULD NOT delay retransmission.
+	 *    igyesre the value of cwnd and SHOULD NOT delay retransmission.
 	 */
 	if (chunk->fast_retransmit != SCTP_NEED_FRTX &&
 	    flight_size >= transport->cwnd)
@@ -697,10 +697,10 @@ static enum sctp_xmit sctp_packet_can_append_data(struct sctp_packet *packet,
 	/* Nagle's algorithm to solve small-packet problem:
 	 * Inhibit the sending of new chunks when new outgoing data arrives
 	 * if any previously transmitted data on the connection remains
-	 * unacknowledged.
+	 * unackyeswledged.
 	 */
 
-	if ((sctp_sk(asoc->base.sk)->nodelay || inflight == 0) &&
+	if ((sctp_sk(asoc->base.sk)->yesdelay || inflight == 0) &&
 	    !asoc->force_delay)
 		/* Nothing unacked */
 		return SCTP_XMIT_OK;
@@ -717,7 +717,7 @@ static enum sctp_xmit sctp_packet_can_append_data(struct sctp_packet *packet,
 	 */
 	if (chunk->skb->len + q->out_qlen > transport->pathmtu -
 	    packet->overhead - sctp_datachk_len(&chunk->asoc->stream) - 4)
-		/* Enough data queued to fill a packet */
+		/* Eyesugh data queued to fill a packet */
 		return SCTP_XMIT_OK;
 
 	/* Don't delay large message writes that may have been fragmented */
@@ -788,7 +788,7 @@ static enum sctp_xmit sctp_packet_will_fit(struct sctp_packet *packet,
 		 */
 		if (sctp_packet_empty(packet) ||
 		    (!packet->has_data && chunk->auth)) {
-			/* We no longer do re-fragmentation.
+			/* We yes longer do re-fragmentation.
 			 * Just fragment at the IP layer, if we
 			 * actually hit this condition
 			 */
@@ -797,7 +797,7 @@ static enum sctp_xmit sctp_packet_will_fit(struct sctp_packet *packet,
 		}
 
 		/* Similarly, if this chunk was built before a PMTU
-		 * reduction, we have to fragment it at IP level now. So
+		 * reduction, we have to fragment it at IP level yesw. So
 		 * if the packet already contains something, we need to
 		 * flush.
 		 */
@@ -809,7 +809,7 @@ static enum sctp_xmit sctp_packet_will_fit(struct sctp_packet *packet,
 
 		/* It is also okay to fragment if the chunk we are
 		 * adding is a control chunk, but only if current packet
-		 * is not a GSO one otherwise it causes fragmentation of
+		 * is yest a GSO one otherwise it causes fragmentation of
 		 * a large frame. So in this case we allow the
 		 * fragmentation by forcing it to be in a new packet.
 		 */
@@ -822,14 +822,14 @@ static enum sctp_xmit sctp_packet_will_fit(struct sctp_packet *packet,
 
 		if (!packet->transport->burst_limited &&
 		    psize + chunk_len > (packet->transport->cwnd >> 1))
-			/* Do not allow a single GSO packet to use more
+			/* Do yest allow a single GSO packet to use more
 			 * than half of cwnd.
 			 */
 			retval = SCTP_XMIT_PMTU_FULL;
 
 		if (packet->transport->burst_limited &&
 		    psize + chunk_len > (packet->transport->burst_limited >> 1))
-			/* Do not allow a single GSO packet to use more
+			/* Do yest allow a single GSO packet to use more
 			 * than half of original cwnd.
 			 */
 			retval = SCTP_XMIT_PMTU_FULL;

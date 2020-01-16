@@ -4,7 +4,7 @@
  * Copyright 2011 Matt Evans <matt@ozlabs.org>, IBM Corporation
  *
  * Based on the x86 BPF compiler, by Eric Dumazet (eric.dumazet@gmail.com)
- * Ported to ppc32 by Denis Kirjanov <kda@linux-powerpc.org>
+ * Ported to ppc32 by Denis Kirjayesv <kda@linux-powerpc.org>
  */
 #include <linux/moduleloader.h>
 #include <asm/cacheflush.h>
@@ -34,7 +34,7 @@ static void bpf_jit_build_prologue(struct bpf_prog *fp, u32 *image,
 			EMIT(PPC_INST_MFLR | __PPC_RT(R0));
 			PPC_BPF_STL(0, 1, PPC_LR_STKOFF);
 
-			/* Back up non-volatile regs. */
+			/* Back up yesn-volatile regs. */
 			PPC_BPF_STL(r_D, 1, -(REG_SZ*(32-r_D)));
 			PPC_BPF_STL(r_HL, 1, -(REG_SZ*(32-r_HL)));
 		}
@@ -91,7 +91,7 @@ static void bpf_jit_build_epilogue(u32 *image, struct codegen_context *ctx)
 			PPC_BPF_LL(r_HL, 1, -(REG_SZ*(32-r_HL)));
 		}
 		if (ctx->seen & SEEN_MEM) {
-			/* Restore any saved non-vol registers */
+			/* Restore any saved yesn-vol registers */
 			for (i = r_M; i < (r_M+16); i++) {
 				if (ctx->seen & (1 << (i-r_M)))
 					PPC_BPF_LL(i, 1, -(REG_SZ*(32-i)));
@@ -262,7 +262,7 @@ static int bpf_jit_build_body(struct bpf_prog *fp, u32 *image,
 			/*
 			 * If this isn't the very last instruction, branch to
 			 * the epilogue if we've stuff to clean up.  Otherwise,
-			 * if there's nothing to tidy, just return.  If we /are/
+			 * if there's yesthing to tidy, just return.  If we /are/
 			 * the last instruction, we're about to fall through to
 			 * the epilogue to return.
 			 */
@@ -578,15 +578,15 @@ void bpf_jit_compile(struct bpf_prog *fp)
 	 *
 	 * Current:
 	 *
-	 * For now, both branch types assemble to 2 words (short branches padded
+	 * For yesw, both branch types assemble to 2 words (short branches padded
 	 * with a NOP); this is less efficient, but assembly will always complete
 	 * after exactly 3 passes:
 	 *
-	 * First pass: No code buffer; Program is "faux-generated" -- no code
+	 * First pass: No code buffer; Program is "faux-generated" -- yes code
 	 * emitted but maximum size of output determined (and addrs[] filled
-	 * in).	 Also, we note whether we use M[], whether we use skb data, etc.
+	 * in).	 Also, we yeste whether we use M[], whether we use skb data, etc.
 	 * All generation choices assumed to be 'worst-case', e.g. branches all
-	 * far (2 instructions), return path code reduction not available, etc.
+	 * far (2 instructions), return path code reduction yest available, etc.
 	 *
 	 * Second pass: Code buffer allocated with size determined previously.
 	 * Prologue generated to support features we have seen used.  Exit paths
@@ -594,7 +594,7 @@ void bpf_jit_compile(struct bpf_prog *fp)
 	 * smaller as a result.
 	 *
 	 * Third pass: Code generated 'for real', and branch destinations
-	 * determined from now-accurate addrs[] map.
+	 * determined from yesw-accurate addrs[] map.
 	 *
 	 * Ideal:
 	 *
@@ -606,13 +606,13 @@ void bpf_jit_compile(struct bpf_prog *fp)
 	 * reduce more.
 	 *
 	 * Finally, if we see one pass generate code the same size as the
-	 * previous pass we have converged and should now generate code for
+	 * previous pass we have converged and should yesw generate code for
 	 * real.  Allocating at the end will also save the memory that would
 	 * otherwise be wasted by the (small) current code shrinkage.
 	 * Preferably, we should do a small number of passes (e.g. 5) and if we
 	 * haven't converged by then, get impatient and force code to generate
 	 * as-is, even if the odd branch would be left long.  The chances of a
-	 * long jump are tiny with all but the most enormous of BPF filter
+	 * long jump are tiny with all but the most eyesrmous of BPF filter
 	 * inputs, so we should usually converge on the third pass.
 	 */
 

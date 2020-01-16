@@ -20,7 +20,7 @@
 
 #define SOCFPGA_NR_BANKS	8
 
-static int a10_reset_init(struct device_node *np)
+static int a10_reset_init(struct device_yesde *np)
 {
 	struct reset_simple_data *data;
 	struct resource res;
@@ -57,7 +57,7 @@ static int a10_reset_init(struct device_node *np)
 	data->rcdev.owner = THIS_MODULE;
 	data->rcdev.nr_resets = SOCFPGA_NR_BANKS * 32;
 	data->rcdev.ops = &reset_simple_ops;
-	data->rcdev.of_node = np;
+	data->rcdev.of_yesde = np;
 	data->status_active_low = true;
 
 	return reset_controller_register(&data->rcdev);
@@ -81,8 +81,8 @@ static const struct of_device_id socfpga_early_reset_dt_ids[] __initconst = {
 
 void __init socfpga_reset_init(void)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 
-	for_each_matching_node(np, socfpga_early_reset_dt_ids)
+	for_each_matching_yesde(np, socfpga_early_reset_dt_ids)
 		a10_reset_init(np);
 }

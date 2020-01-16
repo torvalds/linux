@@ -193,7 +193,7 @@ struct fcoe_cqe {
 #define FCOE_CQE_TASK_ID_SHIFT   0
 	/*
 	 * The CQE type: 0x0 Indicating on a pending work request completion.
-	 * 0x1 - Indicating on an unsolicited event notification. use enum
+	 * 0x1 - Indicating on an unsolicited event yestification. use enum
 	 * fcoe_cqe_type  (use enum fcoe_cqe_type)
 	 */
 #define FCOE_CQE_CQE_TYPE_MASK   0xF
@@ -300,7 +300,7 @@ struct fcoe_respqe {
 /* PARAM that is located in the FCP_RSP FC header */
 #define FCOE_RESPQE_PARAM_MASK            0xFFFFFF
 #define FCOE_RESPQE_PARAM_SHIFT           0
-/* Indication whther its Target-auto-rsp mode or not */
+/* Indication whther its Target-auto-rsp mode or yest */
 #define FCOE_RESPQE_TARGET_AUTO_RSP_MASK  0xFF
 #define FCOE_RESPQE_TARGET_AUTO_RSP_SHIFT 24
 };

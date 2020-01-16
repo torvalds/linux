@@ -37,12 +37,12 @@
  * are met:
  *
  *  * Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  *  * Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
+ *    yestice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
- *  * Neither the name Intel Corporation nor the names of its
+ *  * Neither the name Intel Corporation yesr the names of its
  *    contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
@@ -97,7 +97,7 @@ iwl_parse_nvm_data(struct iwl_trans *trans, const struct iwl_cfg *cfg,
  * MCC_UPDATE_CMD command. It returns a newly allocation regulatory domain,
  * to be fed into the regulatory core. In case the geo_info is set handle
  * accordingly. An ERR_PTR is returned on error.
- * If not given to the regulatory core, the user is responsible for freeing
+ * If yest given to the regulatory core, the user is responsible for freeing
  * the regdomain returned here with kfree.
  */
 struct ieee80211_regdomain *

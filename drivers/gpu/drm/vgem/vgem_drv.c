@@ -9,7 +9,7 @@
  * license, and/or sell copies of the Software, and to permit persons to whom
  * them Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -26,7 +26,7 @@
  */
 
 /**
- * This is vgem, a (non-hardware-backed) GEM service.  This is used by Mesa's
+ * This is vgem, a (yesn-hardware-backed) GEM service.  This is used by Mesa's
  * software renderer and the X server for efficient buffer sharing.
  */
 
@@ -95,7 +95,7 @@ static vm_fault_t vgem_gem_fault(struct vm_fault *vmf)
 		struct page *page;
 
 		page = shmem_read_mapping_page(
-					file_inode(obj->base.filp)->i_mapping,
+					file_iyesde(obj->base.filp)->i_mapping,
 					page_offset);
 		if (!IS_ERR(page)) {
 			vmf->page = page;
@@ -245,7 +245,7 @@ static int vgem_gem_dumb_map(struct drm_file *file, struct drm_device *dev,
 	if (ret)
 		goto unref;
 
-	*offset = drm_vma_node_offset_addr(&obj->vma_node);
+	*offset = drm_vma_yesde_offset_addr(&obj->vma_yesde);
 unref:
 	drm_gem_object_put_unlocked(obj);
 
@@ -267,7 +267,7 @@ static int vgem_mmap(struct file *filp, struct vm_area_struct *vma)
 		return ret;
 
 	/* Keep the WC mmaping set by drm_gem_mmap() but our pages
-	 * are ordinary and not special.
+	 * are ordinary and yest special.
 	 */
 	vma->vm_flags = flags | VM_DONTEXPAND | VM_DONTDUMP;
 	return 0;
@@ -462,7 +462,7 @@ static struct drm_driver vgem_driver = {
 	.desc	= DRIVER_DESC,
 	.date	= DRIVER_DATE,
 	.major	= DRIVER_MAJOR,
-	.minor	= DRIVER_MINOR,
+	.miyesr	= DRIVER_MINOR,
 };
 
 static int __init vgem_init(void)

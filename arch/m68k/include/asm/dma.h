@@ -102,7 +102,7 @@ extern unsigned int dma_device_address[MAX_M68K_DMA_CHANNELS];
 
 /*
  * Aliases to help speed quick ports; these may be suboptimal, however. They
- * do not include the SINGLE mode modifiers since the MCF5272 does not have a
+ * do yest include the SINGLE mode modifiers since the MCF5272 does yest have a
  * mode where the device is in control of its addressing.
  */
 
@@ -155,7 +155,7 @@ static __inline__ void disable_dma(unsigned int dmanr)
 /*
  * Clear the 'DMA Pointer Flip Flop'.
  * Write 0 for LSB/MSB, 1 for MSB/LSB access.
- * Use this once to initialize the FF to a known state.
+ * Use this once to initialize the FF to a kyeswn state.
  * After that, keep track of it. :-)
  * --- In order to do that, the DMA routines below should ---
  * --- only be used while interrupts are disabled! ---
@@ -298,9 +298,9 @@ static __inline__ int get_dma_residue(unsigned int dmanr)
  * interrupt register (IRQ#85, for reference), all of the registers are 32-bit.
  *
  * The big difference, however, is the lack of device-requested DMA.  All modes
- * are dual address transfer, and there is no 'device' setup or direction bit.
+ * are dual address transfer, and there is yes 'device' setup or direction bit.
  * You can DMA between a device and memory, between memory and memory, or even between
- * two devices directly, with any combination of incrementing and non-incrementing
+ * two devices directly, with any combination of incrementing and yesn-incrementing
  * addresses you choose.  This puts a crimp in distinguishing between the 'device
  * address' set up by set_dma_device_addr.
  *
@@ -346,7 +346,7 @@ static __inline__ void disable_dma(unsigned int dmanr)
 /*
  * Clear the 'DMA Pointer Flip Flop'.
  * Write 0 for LSB/MSB, 1 for MSB/LSB access.
- * Use this once to initialize the FF to a known state.
+ * Use this once to initialize the FF to a kyeswn state.
  * After that, keep track of it. :-)
  * --- In order to do that, the DMA routines below should ---
  * --- only be used while interrupts are disabled! ---

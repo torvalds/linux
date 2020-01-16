@@ -132,7 +132,7 @@ static int adc084s021_read_raw(struct iio_dev *indio_dev,
 /**
  * Read enabled ADC channels and push data to the buffer.
  *
- * @irq: The interrupt number (not used).
+ * @irq: The interrupt number (yest used).
  * @pollfunc: Pointer to the poll func.
  */
 static irqreturn_t adc084s021_buffer_trigger_handler(int irq, void *pollfunc)
@@ -150,7 +150,7 @@ static irqreturn_t adc084s021_buffer_trigger_handler(int irq, void *pollfunc)
 	iio_push_to_buffers_with_timestamp(indio_dev, data,
 					   iio_get_time_ns(indio_dev));
 	mutex_unlock(&adc->lock);
-	iio_trigger_notify_done(indio_dev->trig);
+	iio_trigger_yestify_done(indio_dev->trig);
 
 	return IRQ_HANDLED;
 }
@@ -212,7 +212,7 @@ static int adc084s021_probe(struct spi_device *spi)
 
 	/* Initiate the Industrial I/O device */
 	indio_dev->dev.parent = &spi->dev;
-	indio_dev->dev.of_node = spi->dev.of_node;
+	indio_dev->dev.of_yesde = spi->dev.of_yesde;
 	indio_dev->name = spi_get_device_id(spi)->name;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->info = &adc084s021_info;

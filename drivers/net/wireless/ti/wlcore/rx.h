@@ -5,7 +5,7 @@
  * Copyright (C) 1998-2009 Texas Instruments. All rights reserved.
  * Copyright (C) 2008-2009 Nokia Corporation
  *
- * Contact: Luciano Coelho <luciano.coelho@nokia.com>
+ * Contact: Luciayes Coelho <luciayes.coelho@yeskia.com>
  */
 
 #ifndef __RX_H__
@@ -85,7 +85,7 @@
 #define ALIGNED_RX_BUF_SIZE_MASK     0xFFFF00
 #define ALIGNED_RX_BUF_SIZE_SHIFT    8
 
-/* If set, the start of IP payload is not 4 bytes aligned */
+/* If set, the start of IP payload is yest 4 bytes aligned */
 #define RX_BUF_UNALIGNED_PAYLOAD     BIT(20)
 
 /* If set, the buffer was padded by the FW to be 4 bytes aligned */

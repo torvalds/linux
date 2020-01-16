@@ -129,9 +129,9 @@ void iscsit_free_connection_recovery_entries(struct iscsi_session *sess)
 
 		spin_lock(&cr->conn_recovery_cmd_lock);
 		list_for_each_entry_safe(cmd, cmd_tmp,
-				&cr->conn_recovery_cmd_list, i_conn_node) {
+				&cr->conn_recovery_cmd_list, i_conn_yesde) {
 
-			list_del_init(&cmd->i_conn_node);
+			list_del_init(&cmd->i_conn_yesde);
 			cmd->conn = NULL;
 			spin_unlock(&cr->conn_recovery_cmd_lock);
 			iscsit_free_cmd(cmd, true);
@@ -151,9 +151,9 @@ void iscsit_free_connection_recovery_entries(struct iscsi_session *sess)
 
 		spin_lock(&cr->conn_recovery_cmd_lock);
 		list_for_each_entry_safe(cmd, cmd_tmp,
-				&cr->conn_recovery_cmd_list, i_conn_node) {
+				&cr->conn_recovery_cmd_list, i_conn_yesde) {
 
-			list_del_init(&cmd->i_conn_node);
+			list_del_init(&cmd->i_conn_yesde);
 			cmd->conn = NULL;
 			spin_unlock(&cr->conn_recovery_cmd_lock);
 			iscsit_free_cmd(cmd, true);
@@ -209,7 +209,7 @@ int iscsit_remove_cmd_from_connection_recovery(
 	}
 	cr = cmd->cr;
 
-	list_del_init(&cmd->i_conn_node);
+	list_del_init(&cmd->i_conn_yesde);
 	return --cr->cmd_count;
 }
 
@@ -223,7 +223,7 @@ void iscsit_discard_cr_cmds_by_expstatsn(
 
 	spin_lock(&cr->conn_recovery_cmd_lock);
 	list_for_each_entry_safe(cmd, cmd_tmp,
-			&cr->conn_recovery_cmd_list, i_conn_node) {
+			&cr->conn_recovery_cmd_list, i_conn_yesde) {
 
 		if (((cmd->deferred_i_state != ISTATE_SENT_STATUS) &&
 		     (cmd->deferred_i_state != ISTATE_REMOVE)) ||
@@ -232,7 +232,7 @@ void iscsit_discard_cr_cmds_by_expstatsn(
 		}
 
 		dropped_count++;
-		pr_debug("Dropping Acknowledged ITT: 0x%08x, StatSN:"
+		pr_debug("Dropping Ackyeswledged ITT: 0x%08x, StatSN:"
 			" 0x%08x, CID: %hu.\n", cmd->init_task_tag,
 				cmd->stat_sn, cr->cid);
 
@@ -244,7 +244,7 @@ void iscsit_discard_cr_cmds_by_expstatsn(
 	}
 	spin_unlock(&cr->conn_recovery_cmd_lock);
 
-	pr_debug("Dropped %u total acknowledged commands on"
+	pr_debug("Dropped %u total ackyeswledged commands on"
 		" CID: %hu less than old ExpStatSN: 0x%08x\n",
 			dropped_count, cr->cid, exp_statsn);
 
@@ -263,7 +263,7 @@ void iscsit_discard_cr_cmds_by_expstatsn(
 	}
 }
 
-int iscsit_discard_unacknowledged_ooo_cmdsns_for_conn(struct iscsi_conn *conn)
+int iscsit_discard_unackyeswledged_ooo_cmdsns_for_conn(struct iscsi_conn *conn)
 {
 	u32 dropped_count = 0;
 	struct iscsi_cmd *cmd, *cmd_tmp;
@@ -278,7 +278,7 @@ int iscsit_discard_unacknowledged_ooo_cmdsns_for_conn(struct iscsi_conn *conn)
 			continue;
 
 		dropped_count++;
-		pr_debug("Dropping unacknowledged CmdSN:"
+		pr_debug("Dropping unackyeswledged CmdSN:"
 		" 0x%08x during connection recovery on CID: %hu\n",
 			ooo_cmdsn->cmdsn, conn->cid);
 		iscsit_remove_ooo_cmdsn(sess, ooo_cmdsn);
@@ -286,11 +286,11 @@ int iscsit_discard_unacknowledged_ooo_cmdsns_for_conn(struct iscsi_conn *conn)
 	mutex_unlock(&sess->cmdsn_mutex);
 
 	spin_lock_bh(&conn->cmd_lock);
-	list_for_each_entry_safe(cmd, cmd_tmp, &conn->conn_cmd_list, i_conn_node) {
+	list_for_each_entry_safe(cmd, cmd_tmp, &conn->conn_cmd_list, i_conn_yesde) {
 		if (!(cmd->cmd_flags & ICF_OOO_CMDSN))
 			continue;
 
-		list_del_init(&cmd->i_conn_node);
+		list_del_init(&cmd->i_conn_yesde);
 
 		spin_unlock_bh(&conn->cmd_lock);
 		iscsit_free_cmd(cmd, true);
@@ -298,7 +298,7 @@ int iscsit_discard_unacknowledged_ooo_cmdsns_for_conn(struct iscsi_conn *conn)
 	}
 	spin_unlock_bh(&conn->cmd_lock);
 
-	pr_debug("Dropped %u total unacknowledged commands on CID:"
+	pr_debug("Dropped %u total unackyeswledged commands on CID:"
 		" %hu for ExpCmdSN: 0x%08x.\n", dropped_count, conn->cid,
 				sess->exp_cmd_sn);
 	return 0;
@@ -328,14 +328,14 @@ int iscsit_prepare_cmds_for_reallegiance(struct iscsi_conn *conn)
 	/*
 	 * Only perform connection recovery on ISCSI_OP_SCSI_CMD or
 	 * ISCSI_OP_NOOP_OUT opcodes.  For all other opcodes call
-	 * list_del_init(&cmd->i_conn_node); to release the command to the
+	 * list_del_init(&cmd->i_conn_yesde); to release the command to the
 	 * session pool and remove it from the connection's list.
 	 *
 	 * Also stop the DataOUT timer, which will be restarted after
 	 * sending the TMR response.
 	 */
 	spin_lock_bh(&conn->cmd_lock);
-	list_for_each_entry_safe(cmd, cmd_tmp, &conn->conn_cmd_list, i_conn_node) {
+	list_for_each_entry_safe(cmd, cmd_tmp, &conn->conn_cmd_list, i_conn_yesde) {
 
 		if ((cmd->iscsi_opcode != ISCSI_OP_SCSI_CMD) &&
 		    (cmd->iscsi_opcode != ISCSI_OP_NOOP_OUT)) {
@@ -344,7 +344,7 @@ int iscsit_prepare_cmds_for_reallegiance(struct iscsi_conn *conn)
 				" CID: %hu\n", cmd->iscsi_opcode,
 				cmd->init_task_tag, cmd->cmd_sn, conn->cid);
 
-			list_del_init(&cmd->i_conn_node);
+			list_del_init(&cmd->i_conn_yesde);
 			spin_unlock_bh(&conn->cmd_lock);
 			iscsit_free_cmd(cmd, true);
 			spin_lock_bh(&conn->cmd_lock);
@@ -354,7 +354,7 @@ int iscsit_prepare_cmds_for_reallegiance(struct iscsi_conn *conn)
 		/*
 		 * Special case where commands greater than or equal to
 		 * the session's ExpCmdSN are attached to the connection
-		 * list but not to the out of order CmdSN list.  The one
+		 * list but yest to the out of order CmdSN list.  The one
 		 * obvious case is when a command with immediate data
 		 * attached must only check the CmdSN against ExpCmdSN
 		 * after the data is received.  The special case below
@@ -364,7 +364,7 @@ int iscsit_prepare_cmds_for_reallegiance(struct iscsi_conn *conn)
 		 */
 		if (!(cmd->cmd_flags & ICF_OOO_CMDSN) && !cmd->immediate_cmd &&
 		     iscsi_sna_gte(cmd->cmd_sn, conn->sess->exp_cmd_sn)) {
-			list_del_init(&cmd->i_conn_node);
+			list_del_init(&cmd->i_conn_yesde);
 			spin_unlock_bh(&conn->cmd_lock);
 			iscsit_free_cmd(cmd, true);
 			spin_lock_bh(&conn->cmd_lock);
@@ -386,7 +386,7 @@ int iscsit_prepare_cmds_for_reallegiance(struct iscsi_conn *conn)
 
 		cmd->sess = conn->sess;
 
-		list_del_init(&cmd->i_conn_node);
+		list_del_init(&cmd->i_conn_yesde);
 		spin_unlock_bh(&conn->cmd_lock);
 
 		iscsit_free_all_datain_reqs(cmd);
@@ -396,7 +396,7 @@ int iscsit_prepare_cmds_for_reallegiance(struct iscsi_conn *conn)
 		 * Add the struct iscsi_cmd to the connection recovery cmd list
 		 */
 		spin_lock(&cr->conn_recovery_cmd_lock);
-		list_add_tail(&cmd->i_conn_node, &cr->conn_recovery_cmd_list);
+		list_add_tail(&cmd->i_conn_yesde, &cr->conn_recovery_cmd_list);
 		spin_unlock(&cr->conn_recovery_cmd_lock);
 
 		spin_lock_bh(&conn->cmd_lock);

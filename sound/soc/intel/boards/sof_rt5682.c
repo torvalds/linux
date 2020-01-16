@@ -68,7 +68,7 @@ static const struct dmi_system_id sof_rt5682_quirk_table[] = {
 		.callback = sof_rt5682_quirk_cb,
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Circuitco"),
-			DMI_MATCH(DMI_PRODUCT_NAME, "Minnowboard Max"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Minyeswboard Max"),
 		},
 		.driver_data = (void *)(SOF_RT5682_SSP_CODEC(2)),
 	},
@@ -150,12 +150,12 @@ static int sof_rt5682_codec_init(struct snd_soc_pcm_runtime *rtd)
 	if (sof_rt5682_quirk & SOF_RT5682_MCLK_BYTCHT_EN) {
 		/*
 		 * The firmware might enable the clock at
-		 * boot (this information may or may not
+		 * boot (this information may or may yest
 		 * be reflected in the enable clock register).
 		 * To change the rate we must disable the clock
 		 * first to cover these cases. Due to common
-		 * clock framework restrictions that do not allow
-		 * to disable a clock that has not been enabled,
+		 * clock framework restrictions that do yest allow
+		 * to disable a clock that has yest been enabled,
 		 * we need to enable the clock first.
 		 */
 		ret = clk_prepare_enable(ctx->mclk);
@@ -211,7 +211,7 @@ static int sof_rt5682_hw_params(struct snd_pcm_substream *substream,
 			ret = clk_prepare_enable(ctx->mclk);
 			if (ret < 0) {
 				dev_err(rtd->dev,
-					"could not configure MCLK state");
+					"could yest configure MCLK state");
 				return ret;
 			}
 		}
@@ -272,7 +272,7 @@ static int sof_card_late_probe(struct snd_soc_card *card)
 	int err = 0;
 	int i = 0;
 
-	/* HDMI is not supported by SOF on Baytrail/CherryTrail */
+	/* HDMI is yest supported by SOF on Baytrail/CherryTrail */
 	if (is_legacy_cpu)
 		return 0;
 
@@ -324,7 +324,7 @@ static const struct snd_soc_dapm_widget dmic_widgets[] = {
 };
 
 static const struct snd_soc_dapm_route sof_map[] = {
-	/* HP jack connectors - unknown if we have jack detection */
+	/* HP jack connectors - unkyeswn if we have jack detection */
 	{ "Headphone Jack", NULL, "HPOL" },
 	{ "Headphone Jack", NULL, "HPOR" },
 
@@ -443,10 +443,10 @@ static struct snd_soc_dai_link *sof_card_dai_links_create(struct device *dev,
 	links[id].num_platforms = ARRAY_SIZE(platform_component);
 	links[id].init = sof_rt5682_codec_init;
 	links[id].ops = &sof_rt5682_ops;
-	links[id].nonatomic = true;
+	links[id].yesnatomic = true;
 	links[id].dpcm_playback = 1;
 	links[id].dpcm_capture = 1;
-	links[id].no_pcm = 1;
+	links[id].yes_pcm = 1;
 	links[id].cpus = &cpus[id];
 	links[id].num_cpus = 1;
 	if (is_legacy_cpu) {
@@ -460,12 +460,12 @@ static struct snd_soc_dai_link *sof_card_dai_links_create(struct device *dev,
 		 * Currently, On SKL+ platforms MCLK will be turned off in sof
 		 * runtime suspended, and it will go into runtime suspended
 		 * right after playback is stop. However, rt5682 will output
-		 * static noise if sysclk turns off during playback. Set
-		 * ignore_pmdown_time to power down rt5682 immediately and
-		 * avoid the noise.
+		 * static yesise if sysclk turns off during playback. Set
+		 * igyesre_pmdown_time to power down rt5682 immediately and
+		 * avoid the yesise.
 		 * It can be removed once we can control MCLK by driver.
 		 */
-		links[id].ignore_pmdown_time = 1;
+		links[id].igyesre_pmdown_time = 1;
 		links[id].cpus->dai_name = devm_kasprintf(dev, GFP_KERNEL,
 							  "SSP%d Pin",
 							  ssp_codec);
@@ -497,9 +497,9 @@ static struct snd_soc_dai_link *sof_card_dai_links_create(struct device *dev,
 		links[id].num_codecs = ARRAY_SIZE(dmic_component);
 		links[id].platforms = platform_component;
 		links[id].num_platforms = ARRAY_SIZE(platform_component);
-		links[id].ignore_suspend = 1;
+		links[id].igyesre_suspend = 1;
 		links[id].dpcm_capture = 1;
-		links[id].no_pcm = 1;
+		links[id].yes_pcm = 1;
 		id++;
 	}
 
@@ -539,7 +539,7 @@ static struct snd_soc_dai_link *sof_card_dai_links_create(struct device *dev,
 		links[id].num_platforms = ARRAY_SIZE(platform_component);
 		links[id].init = sof_hdmi_init;
 		links[id].dpcm_playback = 1;
-		links[id].no_pcm = 1;
+		links[id].yes_pcm = 1;
 		id++;
 	}
 
@@ -556,9 +556,9 @@ static struct snd_soc_dai_link *sof_card_dai_links_create(struct device *dev,
 		links[id].platforms = platform_component;
 		links[id].num_platforms = ARRAY_SIZE(platform_component);
 		links[id].init = speaker_codec_init,
-		links[id].nonatomic = true;
+		links[id].yesnatomic = true;
 		links[id].dpcm_playback = 1;
-		links[id].no_pcm = 1;
+		links[id].yes_pcm = 1;
 		links[id].cpus = &cpus[id];
 		links[id].num_cpus = 1;
 		if (is_legacy_cpu) {
@@ -624,7 +624,7 @@ static int sof_audio_probe(struct platform_device *pdev)
 		ret = clk_prepare_enable(ctx->mclk);
 		if (ret < 0) {
 			dev_err(&pdev->dev,
-				"could not configure MCLK state");
+				"could yest configure MCLK state");
 			return ret;
 		}
 	}

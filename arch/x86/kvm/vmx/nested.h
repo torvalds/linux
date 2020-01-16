@@ -7,10 +7,10 @@
 #include "vmx.h"
 
 /*
- * Status returned by nested_vmx_enter_non_root_mode():
+ * Status returned by nested_vmx_enter_yesn_root_mode():
  */
 enum nvmx_vmentry_status {
-	NVMX_VMENTRY_SUCCESS,		/* Entered VMX non-root mode */
+	NVMX_VMENTRY_SUCCESS,		/* Entered VMX yesn-root mode */
 	NVMX_VMENTRY_VMFAIL,		/* Consistency check VMFail */
 	NVMX_VMENTRY_VMEXIT,		/* Consistency check VMExit */
 	NVMX_VMENTRY_KVM_INTERNAL_ERROR,/* KVM internal error */
@@ -23,7 +23,7 @@ void nested_vmx_hardware_unsetup(void);
 __init int nested_vmx_hardware_setup(int (*exit_handlers[])(struct kvm_vcpu *));
 void nested_vmx_set_vmcs_shadowing_bitmap(void);
 void nested_vmx_free_vcpu(struct kvm_vcpu *vcpu);
-enum nvmx_vmentry_status nested_vmx_enter_non_root_mode(struct kvm_vcpu *vcpu,
+enum nvmx_vmentry_status nested_vmx_enter_yesn_root_mode(struct kvm_vcpu *vcpu,
 						     bool from_vmentry);
 bool nested_vmx_exit_reflected(struct kvm_vcpu *vcpu, u32 exit_reason);
 void nested_vmx_vmexit(struct kvm_vcpu *vcpu, u32 exit_reason,
@@ -51,7 +51,7 @@ static inline int vmx_has_valid_vmcs12(struct kvm_vcpu *vcpu)
 
 	/*
 	 * In case we do two consecutive get/set_nested_state()s while L2 was
-	 * running hv_evmcs may end up not being mapped (we map it from
+	 * running hv_evmcs may end up yest being mapped (we map it from
 	 * nested_vmx_run()/vmx_vcpu_run()). Check is_guest_mode() as we always
 	 * have vmcs12 if it is true.
 	 */

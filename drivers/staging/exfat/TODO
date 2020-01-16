@@ -1,14 +1,14 @@
 A laundry list of things that need looking at, most of which will
 require more work than the average checkpatch cleanup...
 
-Note that some of these entries may not be bugs - they're things
+Note that some of these entries may yest be bugs - they're things
 that need to be looked at, and *possibly* fixed.
 
 Clean up the ffsCamelCase function names.
 
-Fix (thing)->flags to not use magic numbers - multiple offenders
+Fix (thing)->flags to yest use magic numbers - multiple offenders
 
-Sort out all the s32/u32/u8 nonsense - most of these should be plain int.
+Sort out all the s32/u32/u8 yesnsense - most of these should be plain int.
 
 exfat_core.c - ffsReadFile - the goto err_out seem to leak a brelse().
 same for ffsWriteFile.
@@ -20,16 +20,16 @@ metadata flushes at appropriate times.
 
 ffsTruncateFile -  if (old_size <= new_size) {
 That doesn't look right. How did it ever work? Are they relying on lazy
-block allocation when actual writes happen? If nothing else, it never
-does the 'fid->size = new_size' and do the inode update....
+block allocation when actual writes happen? If yesthing else, it never
+does the 'fid->size = new_size' and do the iyesde update....
 
-ffsSetAttr() is just dangling in the breeze, not wired up at all...
+ffsSetAttr() is just dangling in the breeze, yest wired up at all...
 
 Convert global mutexes to a per-superblock mutex.
 
-Right now, we load exactly one UTF-8 table. Check to see
+Right yesw, we load exactly one UTF-8 table. Check to see
 if that plays nice with different codepage and iocharset values
-for simultanous mounts of different devices
+for simultayesus mounts of different devices
 
 exfat_rmdir() checks for -EBUSY but ffsRemoveDir() doesn't return it.
 In fact, there's a complete lack of -EBUSY testing anywhere.

@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -27,7 +27,7 @@
 #include <linux/sched/task.h>
 #include <linux/slab.h>
 #include <linux/amd-iommu.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/compat.h>
 #include <linux/mman.h>
 #include <linux/file.h>
@@ -116,7 +116,7 @@ void kfd_procfs_init(void)
 	ret = kobject_init_and_add(procfs.kobj, &procfs_type,
 				   &kfd_device->kobj, "proc");
 	if (ret) {
-		pr_warn("Could not create procfs proc folder");
+		pr_warn("Could yest create procfs proc folder");
 		/* If we fail to create the procfs, clean up */
 		kfd_procfs_shutdown();
 	}
@@ -171,7 +171,7 @@ static void kfd_process_free_gpuvm(struct kgd_mem *mem,
  *	This function should be only called right after the process
  *	is created and when kfd_processes_mutex is still being held
  *	to avoid concurrency. Because of that exclusiveness, we do
- *	not need to take p->mutex.
+ *	yest need to take p->mutex.
  */
 static int kfd_process_alloc_gpuvm(struct kfd_process_device *pdd,
 				   uint64_t gpu_va, uint32_t size,
@@ -199,8 +199,8 @@ static int kfd_process_alloc_gpuvm(struct kfd_process_device *pdd,
 
 	/* Create an obj handle so kfd_process_device_remove_obj_handle
 	 * will take care of the bo removal when the process finishes.
-	 * We do not need to take p->mutex, because the process is just
-	 * created and the ioctls have not had the chance to run.
+	 * We do yest need to take p->mutex, because the process is just
+	 * created and the ioctls have yest had the chance to run.
 	 */
 	handle = kfd_process_device_create_obj_handle(pdd, mem);
 
@@ -442,7 +442,7 @@ static void kfd_process_destroy_pdds(struct kfd_process *p)
 }
 
 /* No process locking is needed in this function, because the process
- * is not findable any more. We must assume that no other thread is
+ * is yest findable any more. We must assume that yes other thread is
  * using it any more, otherwise we couldn't safely free the process
  * structure in the end.
  */
@@ -486,22 +486,22 @@ static void kfd_process_ref_release(struct kref *ref)
 	queue_work(kfd_process_wq, &p->release_work);
 }
 
-static void kfd_process_free_notifier(struct mmu_notifier *mn)
+static void kfd_process_free_yestifier(struct mmu_yestifier *mn)
 {
-	kfd_unref_process(container_of(mn, struct kfd_process, mmu_notifier));
+	kfd_unref_process(container_of(mn, struct kfd_process, mmu_yestifier));
 }
 
-static void kfd_process_notifier_release(struct mmu_notifier *mn,
+static void kfd_process_yestifier_release(struct mmu_yestifier *mn,
 					struct mm_struct *mm)
 {
 	struct kfd_process *p;
 	struct kfd_process_device *pdd = NULL;
 
 	/*
-	 * The kfd_process structure can not be free because the
-	 * mmu_notifier srcu is read locked
+	 * The kfd_process structure can yest be free because the
+	 * mmu_yestifier srcu is read locked
 	 */
-	p = container_of(mn, struct kfd_process, mmu_notifier);
+	p = container_of(mn, struct kfd_process, mmu_yestifier);
 	if (WARN_ON(p->mm != mm))
 		return;
 
@@ -535,17 +535,17 @@ static void kfd_process_notifier_release(struct mmu_notifier *mn,
 	kfd_process_dequeue_from_all_devices(p);
 	pqm_uninit(&p->pqm);
 
-	/* Indicate to other users that MM is no longer valid */
+	/* Indicate to other users that MM is yes longer valid */
 	p->mm = NULL;
 
 	mutex_unlock(&p->mutex);
 
-	mmu_notifier_put(&p->mmu_notifier);
+	mmu_yestifier_put(&p->mmu_yestifier);
 }
 
-static const struct mmu_notifier_ops kfd_process_mmu_notifier_ops = {
-	.release = kfd_process_notifier_release,
-	.free_notifier = kfd_process_free_notifier,
+static const struct mmu_yestifier_ops kfd_process_mmu_yestifier_ops = {
+	.release = kfd_process_yestifier_release,
+	.free_yestifier = kfd_process_free_yestifier,
 };
 
 static int kfd_process_init_cwsr_apu(struct kfd_process *p, struct file *filep)
@@ -656,10 +656,10 @@ static struct kfd_process *create_process(const struct task_struct *thread)
 		goto err_init_apertures;
 
 	/* Must be last, have to use release destruction after this */
-	process->mmu_notifier.ops = &kfd_process_mmu_notifier_ops;
-	err = mmu_notifier_register(&process->mmu_notifier, process->mm);
+	process->mmu_yestifier.ops = &kfd_process_mmu_yestifier_ops;
+	err = mmu_yestifier_register(&process->mmu_yestifier, process->mm);
 	if (err)
-		goto err_register_notifier;
+		goto err_register_yestifier;
 
 	get_task_struct(process->lead_thread);
 	hash_add_rcu(kfd_processes_table, &process->kfd_processes,
@@ -667,7 +667,7 @@ static struct kfd_process *create_process(const struct task_struct *thread)
 
 	return process;
 
-err_register_notifier:
+err_register_yestifier:
 	kfd_process_free_outstanding_kfd_bos(process);
 	kfd_process_destroy_pdds(process);
 err_init_apertures:
@@ -687,8 +687,8 @@ static int init_doorbell_bitmap(struct qcm_process_device *qpd,
 			struct kfd_dev *dev)
 {
 	unsigned int i;
-	int range_start = dev->shared_resources.non_cp_doorbells_start;
-	int range_end = dev->shared_resources.non_cp_doorbells_end;
+	int range_start = dev->shared_resources.yesn_cp_doorbells_start;
+	int range_end = dev->shared_resources.yesn_cp_doorbells_end;
 
 	if (!KFD_IS_SOC15(dev->device_info->asic_family))
 		return 0;
@@ -772,7 +772,7 @@ struct kfd_process_device *kfd_create_process_device_data(struct kfd_dev *dev,
  *
  * If @drm_file is NULL, a new VM is created.
  *
- * Returns 0 on success, -errno on failure.
+ * Returns 0 on success, -erryes on failure.
  */
 int kfd_process_device_init_vm(struct kfd_process_device *pdd,
 			       struct file *drm_file)
@@ -1013,7 +1013,7 @@ static void evict_process_worker(struct work_struct *work)
 	 * lifetime of this thread, kfd_process p will be valid
 	 */
 	p = container_of(dwork, struct kfd_process, eviction_work);
-	WARN_ONCE(p->last_eviction_seqno != p->ef->seqno,
+	WARN_ONCE(p->last_eviction_seqyes != p->ef->seqyes,
 		  "Eviction fence mismatch\n");
 
 	/* Narrow window of overlap between restore and evict work
@@ -1054,7 +1054,7 @@ static void restore_process_worker(struct work_struct *work)
 
 	/* Setting last_restore_timestamp before successful restoration.
 	 * Otherwise this would have to be set by KGD (restore_process_bos)
-	 * before KFD BOs are unreserved. If not, the process can be evicted
+	 * before KFD BOs are unreserved. If yest, the process can be evicted
 	 * again before the timestamp is set.
 	 * If restore fails, the timestamp will be set again in the next
 	 * attempt. This would mean that the minimum GPU quanta would be

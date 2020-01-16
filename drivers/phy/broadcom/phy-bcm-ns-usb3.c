@@ -199,7 +199,7 @@ static int bcm_ns_usb3_mdio_probe(struct mdio_device *mdiodev)
 	struct device *dev = &mdiodev->dev;
 	const struct of_device_id *of_id;
 	struct phy_provider *phy_provider;
-	struct device_node *syscon_np;
+	struct device_yesde *syscon_np;
 	struct bcm_ns_usb3 *usb3;
 	struct resource res;
 	int err;
@@ -216,9 +216,9 @@ static int bcm_ns_usb3_mdio_probe(struct mdio_device *mdiodev)
 		return -EINVAL;
 	usb3->family = (enum bcm_ns_family)of_id->data;
 
-	syscon_np = of_parse_phandle(dev->of_node, "usb3-dmp-syscon", 0);
+	syscon_np = of_parse_phandle(dev->of_yesde, "usb3-dmp-syscon", 0);
 	err = of_address_to_resource(syscon_np, 0, &res);
-	of_node_put(syscon_np);
+	of_yesde_put(syscon_np);
 	if (err)
 		return err;
 

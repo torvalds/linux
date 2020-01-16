@@ -11,7 +11,7 @@
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright yestice and this permission yestice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
  *
@@ -44,7 +44,7 @@
  * struct vmw_cmdbuf_context - Command buffer context queues
  *
  * @submitted: List of command buffers that have been submitted to the
- * manager but not yet submitted to hardware.
+ * manager but yest yet submitted to hardware.
  * @hw_submitted: List of command buffers submitted to hardware.
  * @preempted: List of preempted command buffers.
  * @num_hw_submitted: Number of buffers currently being processed by hardware
@@ -65,7 +65,7 @@ struct vmw_cmdbuf_context {
  * @space_mutex: Mutex to protect against starvation when we allocate
  * main pool buffer space.
  * @error_mutex: Mutex to serialize the work queue error handling.
- * Note this is not needed if the same workqueue handler
+ * Note this is yest needed if the same workqueue handler
  * can't race with itself...
  * @work: A struct work_struct implementeing command buffer error handling.
  * Immutable.
@@ -142,7 +142,7 @@ struct vmw_cmdbuf_man {
  * @cb_header: Device command buffer header, allocated from a DMA pool.
  * @cb_context: The device command buffer context.
  * @list: List head for attaching to the manager lists.
- * @node: The range manager node.
+ * @yesde: The range manager yesde.
  * @handle. The DMA address of @cb_header. Handed to the device on command
  * buffer submission.
  * @cmd: Pointer to the command buffer space of this buffer.
@@ -155,7 +155,7 @@ struct vmw_cmdbuf_header {
 	SVGACBHeader *cb_header;
 	SVGACBContext cb_context;
 	struct list_head list;
-	struct drm_mm_node node;
+	struct drm_mm_yesde yesde;
 	dma_addr_t handle;
 	u8 *cmd;
 	size_t size;
@@ -179,12 +179,12 @@ struct vmw_cmdbuf_dheader {
  * struct vmw_cmdbuf_alloc_info - Command buffer space allocation metadata
  *
  * @page_size: Size of requested command buffer space in pages.
- * @node: Pointer to the range manager node.
+ * @yesde: Pointer to the range manager yesde.
  * @done: True if this allocation has succeeded.
  */
 struct vmw_cmdbuf_alloc_info {
 	size_t page_size;
-	struct drm_mm_node *node;
+	struct drm_mm_yesde *yesde;
 	bool done;
 };
 
@@ -228,7 +228,7 @@ static void vmw_cmdbuf_cur_unlock(struct vmw_cmdbuf_man *man)
 /**
  * vmw_cmdbuf_header_inline_free - Free a struct vmw_cmdbuf_header that has
  * been used for the device context with inline command buffers.
- * Need not be called locked.
+ * Need yest be called locked.
  *
  * @header: Pointer to the header to free.
  */
@@ -264,7 +264,7 @@ static void __vmw_cmdbuf_header_free(struct vmw_cmdbuf_header *header)
 		return;
 	}
 
-	drm_mm_remove_node(&header->node);
+	drm_mm_remove_yesde(&header->yesde);
 	wake_up_all(&man->alloc_queue);
 	if (header->cb_header)
 		dma_pool_free(man->headers, header->cb_header,
@@ -333,7 +333,7 @@ static void vmw_cmdbuf_ctx_init(struct vmw_cmdbuf_context *ctx)
  * @man: The command buffer manager.
  * @ctx: The command buffer context.
  *
- * Submits command buffers to hardware until there are no more command
+ * Submits command buffers to hardware until there are yes more command
  * buffers to submit or the hardware can't handle more command buffers.
  */
 static void vmw_cmdbuf_ctx_submit(struct vmw_cmdbuf_man *man,
@@ -376,7 +376,7 @@ static void vmw_cmdbuf_ctx_submit(struct vmw_cmdbuf_man *man,
  */
 static void vmw_cmdbuf_ctx_process(struct vmw_cmdbuf_man *man,
 				   struct vmw_cmdbuf_context *ctx,
-				   int *notempty)
+				   int *yestempty)
 {
 	struct vmw_cmdbuf_header *entry, *next;
 
@@ -418,7 +418,7 @@ static void vmw_cmdbuf_ctx_process(struct vmw_cmdbuf_man *man,
 
 	vmw_cmdbuf_ctx_submit(man, ctx);
 	if (!list_empty(&ctx->submitted))
-		(*notempty)++;
+		(*yestempty)++;
 }
 
 /**
@@ -428,26 +428,26 @@ static void vmw_cmdbuf_ctx_process(struct vmw_cmdbuf_man *man,
  * @man: The command buffer manager.
  *
  * Calls vmw_cmdbuf_ctx_process() on all contexts. If any context has
- * command buffers left that are not submitted to hardware, Make sure
+ * command buffers left that are yest submitted to hardware, Make sure
  * IRQ handling is turned on. Otherwise, make sure it's turned off.
  */
 static void vmw_cmdbuf_man_process(struct vmw_cmdbuf_man *man)
 {
-	int notempty;
+	int yestempty;
 	struct vmw_cmdbuf_context *ctx;
 	int i;
 
 retry:
-	notempty = 0;
+	yestempty = 0;
 	for_each_cmdbuf_ctx(man, i, ctx)
-		vmw_cmdbuf_ctx_process(man, ctx, &notempty);
+		vmw_cmdbuf_ctx_process(man, ctx, &yestempty);
 
-	if (man->irq_on && !notempty) {
+	if (man->irq_on && !yestempty) {
 		vmw_generic_waiter_remove(man->dev_priv,
 					  SVGA_IRQFLAG_COMMAND_BUFFER,
 					  &man->dev_priv->cmdbuf_waiters);
 		man->irq_on = false;
-	} else if (!man->irq_on && notempty) {
+	} else if (!man->irq_on && yestempty) {
 		vmw_generic_waiter_add(man->dev_priv,
 				       SVGA_IRQFLAG_COMMAND_BUFFER,
 				       &man->dev_priv->cmdbuf_waiters);
@@ -537,7 +537,7 @@ static void vmw_cmdbuf_work_func(struct work_struct *work)
 		global_block = true;
 
 		if (!vmw_cmd_describe(header, &error_cmd_size, &cmd_name)) {
-			VMW_DEBUG_USER("Unknown command causing device error.\n");
+			VMW_DEBUG_USER("Unkyeswn command causing device error.\n");
 			VMW_DEBUG_USER("Command buffer offset is %lu\n",
 				       (unsigned long) cb_hdr->errorOffset);
 			__vmw_cmdbuf_header_free(entry);
@@ -753,7 +753,7 @@ int vmw_cmdbuf_idle(struct vmw_cmdbuf_man *man, bool interruptible,
  * vmw_cmdbuf_try_alloc - Try to allocate buffer space from the main pool.
  *
  * @man: The command buffer manager.
- * @info: Allocation info. Will hold the size on entry and allocated mm node
+ * @info: Allocation info. Will hold the size on entry and allocated mm yesde
  * on successful return.
  *
  * Try to allocate buffer space from the main pool. Returns true if succeeded.
@@ -767,12 +767,12 @@ static bool vmw_cmdbuf_try_alloc(struct vmw_cmdbuf_man *man,
 	if (info->done)
 		return true;
 
-	memset(info->node, 0, sizeof(*info->node));
+	memset(info->yesde, 0, sizeof(*info->yesde));
 	spin_lock(&man->lock);
-	ret = drm_mm_insert_node(&man->mm, info->node, info->page_size);
+	ret = drm_mm_insert_yesde(&man->mm, info->yesde, info->page_size);
 	if (ret) {
 		vmw_cmdbuf_man_process(man);
-		ret = drm_mm_insert_node(&man->mm, info->node, info->page_size);
+		ret = drm_mm_insert_yesde(&man->mm, info->yesde, info->page_size);
 	}
 
 	spin_unlock(&man->lock);
@@ -785,23 +785,23 @@ static bool vmw_cmdbuf_try_alloc(struct vmw_cmdbuf_man *man,
  * vmw_cmdbuf_alloc_space - Allocate buffer space from the main pool.
  *
  * @man: The command buffer manager.
- * @node: Pointer to pre-allocated range-manager node.
+ * @yesde: Pointer to pre-allocated range-manager yesde.
  * @size: The size of the allocation.
  * @interruptible: Whether to sleep interruptible while waiting for space.
  *
  * This function allocates buffer space from the main pool, and if there is
- * no space available ATM, it turns on IRQ handling and sleeps waiting for it to
+ * yes space available ATM, it turns on IRQ handling and sleeps waiting for it to
  * become available.
  */
 static int vmw_cmdbuf_alloc_space(struct vmw_cmdbuf_man *man,
-				  struct drm_mm_node *node,
+				  struct drm_mm_yesde *yesde,
 				  size_t size,
 				  bool interruptible)
 {
 	struct vmw_cmdbuf_alloc_info info;
 
 	info.page_size = PAGE_ALIGN(size) >> PAGE_SHIFT;
-	info.node = node;
+	info.yesde = yesde;
 	info.done = false;
 
 	/*
@@ -869,7 +869,7 @@ static int vmw_cmdbuf_space_pool(struct vmw_cmdbuf_man *man,
 	if (!man->has_pool)
 		return -ENOMEM;
 
-	ret = vmw_cmdbuf_alloc_space(man, &header->node,  size, interruptible);
+	ret = vmw_cmdbuf_alloc_space(man, &header->yesde,  size, interruptible);
 
 	if (ret)
 		return ret;
@@ -878,12 +878,12 @@ static int vmw_cmdbuf_space_pool(struct vmw_cmdbuf_man *man,
 					    &header->handle);
 	if (!header->cb_header) {
 		ret = -ENOMEM;
-		goto out_no_cb_header;
+		goto out_yes_cb_header;
 	}
 
-	header->size = header->node.size << PAGE_SHIFT;
+	header->size = header->yesde.size << PAGE_SHIFT;
 	cb_hdr = header->cb_header;
-	offset = header->node.start << PAGE_SHIFT;
+	offset = header->yesde.start << PAGE_SHIFT;
 	header->cmd = man->map + offset;
 	if (man->using_mob) {
 		cb_hdr->flags = SVGA_CB_FLAG_MOB;
@@ -895,9 +895,9 @@ static int vmw_cmdbuf_space_pool(struct vmw_cmdbuf_man *man,
 
 	return 0;
 
-out_no_cb_header:
+out_yes_cb_header:
 	spin_lock(&man->lock);
-	drm_mm_remove_node(&header->node);
+	drm_mm_remove_yesde(&header->yesde);
 	spin_unlock(&man->lock);
 
 	return ret;
@@ -1126,7 +1126,7 @@ void vmw_cmdbuf_commit(struct vmw_cmdbuf_man *man, size_t size,
  * @command: Pointer to the command to send.
  * @size: Size of the command.
  *
- * Synchronously sends a device context command.
+ * Synchroyesusly sends a device context command.
  */
 static int vmw_cmdbuf_send_device_command(struct vmw_cmdbuf_man *man,
 					  const void *command,
@@ -1162,7 +1162,7 @@ static int vmw_cmdbuf_send_device_command(struct vmw_cmdbuf_man *man,
  *
  * @man: The command buffer manager.
  *
- * Synchronously sends a preempt command.
+ * Synchroyesusly sends a preempt command.
  */
 static int vmw_cmdbuf_preempt(struct vmw_cmdbuf_man *man, u32 context)
 {
@@ -1173,7 +1173,7 @@ static int vmw_cmdbuf_preempt(struct vmw_cmdbuf_man *man, u32 context)
 
 	cmd.id = SVGA_DC_CMD_PREEMPT;
 	cmd.body.context = SVGA_CB_CONTEXT_0 + context;
-	cmd.body.ignoreIDZero = 0;
+	cmd.body.igyesreIDZero = 0;
 
 	return vmw_cmdbuf_send_device_command(man, &cmd, sizeof(cmd));
 }
@@ -1186,7 +1186,7 @@ static int vmw_cmdbuf_preempt(struct vmw_cmdbuf_man *man, u32 context)
  * @man: The command buffer manager.
  * @enable: Whether to enable or disable the context.
  *
- * Synchronously sends a device start / stop context command.
+ * Synchroyesusly sends a device start / stop context command.
  */
 static int vmw_cmdbuf_startstop(struct vmw_cmdbuf_man *man, u32 context,
 				bool enable)
@@ -1254,7 +1254,7 @@ int vmw_cmdbuf_set_pool_size(struct vmw_cmdbuf_man *man,
 		ret = ttm_bo_kmap(man->cmd_space, 0, size >> PAGE_SHIFT,
 				  &man->map_obj);
 		if (ret)
-			goto out_no_map;
+			goto out_yes_map;
 
 		man->map = ttm_kmap_obj_virtual(&man->map_obj, &dummy);
 	}
@@ -1265,7 +1265,7 @@ int vmw_cmdbuf_set_pool_size(struct vmw_cmdbuf_man *man,
 	man->has_pool = true;
 
 	/*
-	 * For now, set the default size to VMW_CMDBUF_INLINE_SIZE to
+	 * For yesw, set the default size to VMW_CMDBUF_INLINE_SIZE to
 	 * prevent deadlocks from happening when vmw_cmdbuf_space_pool()
 	 * needs to wait for space and we block on further command
 	 * submissions to be able to free up space.
@@ -1276,7 +1276,7 @@ int vmw_cmdbuf_set_pool_size(struct vmw_cmdbuf_man *man,
 
 	return 0;
 
-out_no_map:
+out_yes_map:
 	if (man->using_mob) {
 		ttm_bo_put(man->cmd_space);
 		man->cmd_space = NULL;
@@ -1317,7 +1317,7 @@ struct vmw_cmdbuf_man *vmw_cmdbuf_man_create(struct vmw_private *dev_priv)
 				       64, PAGE_SIZE);
 	if (!man->headers) {
 		ret = -ENOMEM;
-		goto out_no_pool;
+		goto out_yes_pool;
 	}
 
 	man->dheaders = dma_pool_create("vmwgfx inline cmdbuf",
@@ -1326,7 +1326,7 @@ struct vmw_cmdbuf_man *vmw_cmdbuf_man_create(struct vmw_private *dev_priv)
 					64, PAGE_SIZE);
 	if (!man->dheaders) {
 		ret = -ENOMEM;
-		goto out_no_dpool;
+		goto out_yes_dpool;
 	}
 
 	for_each_cmdbuf_ctx(man, i, ctx)
@@ -1354,9 +1354,9 @@ struct vmw_cmdbuf_man *vmw_cmdbuf_man_create(struct vmw_private *dev_priv)
 
 	return man;
 
-out_no_dpool:
+out_yes_dpool:
 	dma_pool_destroy(man->headers);
-out_no_pool:
+out_yes_pool:
 	kfree(man);
 
 	return ERR_PTR(ret);

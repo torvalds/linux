@@ -9,7 +9,7 @@
  * 
  *  Changelog:
  *    Support interrupts per period.
- *    Removed noise from Center/LFE channel when in Analog mode.
+ *    Removed yesise from Center/LFE channel when in Analog mode.
  *    Rename and remove mixer controls.
  *  0.0.6
  *    Use separate card based DMA buffer for periods table list.
@@ -21,7 +21,7 @@
  *    Fix AC3 output.
  *    Enable S32_LE format support.
  *  0.0.10
- *    Enable playback 48000 and 96000 rates. (Rates other that these do not work, even with "plug:front".)
+ *    Enable playback 48000 and 96000 rates. (Rates other that these do yest work, even with "plug:front".)
  *  0.0.11
  *    Add Model name recognition.
  *  0.0.12
@@ -76,7 +76,7 @@ static struct snd_ca0106_category_str snd_ca0106_con_category[] = {
 	{ IEC958_AES1_CON_SAMPLER, "sampler" },
 	{ IEC958_AES1_CON_PCM_CODER, "PCM coder" },
 	{ IEC958_AES1_CON_IEC908_CD, "CD" },
-	{ IEC958_AES1_CON_NON_IEC908_CD, "non-IEC908 CD" },
+	{ IEC958_AES1_CON_NON_IEC908_CD, "yesn-IEC908 CD" },
 	{ IEC958_AES1_CON_GENERAL, "general" },
 };
 
@@ -97,7 +97,7 @@ static void snd_ca0106_proc_dump_iec958( struct snd_info_buffer *buffer, u32 val
 		if (!(status[0] & IEC958_AES0_NONAUDIO)) {
 			snd_iprintf(buffer, "audio\n");
 		} else {
-			snd_iprintf(buffer, "non-audio\n");
+			snd_iprintf(buffer, "yesn-audio\n");
 		}
 		snd_iprintf(buffer, "Rate: ");
 		switch (status[3] & IEC958_AES3_CON_FS) {
@@ -111,7 +111,7 @@ static void snd_ca0106_proc_dump_iec958( struct snd_info_buffer *buffer, u32 val
 			snd_iprintf(buffer, "32000 Hz\n");
 			break;
 		default:
-			snd_iprintf(buffer, "unknown\n");
+			snd_iprintf(buffer, "unkyeswn\n");
 			break;
 		}
 		snd_iprintf(buffer, "Copyright: ");
@@ -122,7 +122,7 @@ static void snd_ca0106_proc_dump_iec958( struct snd_info_buffer *buffer, u32 val
 		}
 		snd_iprintf(buffer, "Emphasis: ");
 		if ((status[0] & IEC958_AES0_CON_EMPHASIS) != IEC958_AES0_CON_EMPHASIS_5015) {
-			snd_iprintf(buffer, "none\n");
+			snd_iprintf(buffer, "yesne\n");
 		} else {
 			snd_iprintf(buffer, "50/15us\n");
 		}
@@ -134,7 +134,7 @@ static void snd_ca0106_proc_dump_iec958( struct snd_info_buffer *buffer, u32 val
 			}
 		}
 		if (i >= ARRAY_SIZE(snd_ca0106_con_category)) {
-			snd_iprintf(buffer, "unknown 0x%x\n", status[1] & IEC958_AES1_CON_CATEGORY);
+			snd_iprintf(buffer, "unkyeswn 0x%x\n", status[1] & IEC958_AES1_CON_CATEGORY);
 		}
 		snd_iprintf(buffer, "Original: ");
 		if (status[1] & IEC958_AES1_CON_ORIGINAL) {
@@ -154,7 +154,7 @@ static void snd_ca0106_proc_dump_iec958( struct snd_info_buffer *buffer, u32 val
 			snd_iprintf(buffer, "variable pitch\n");
 			break;
 		default:
-			snd_iprintf(buffer, "unknown\n");
+			snd_iprintf(buffer, "unkyeswn\n");
 			break;
 		}
 	} else {
@@ -163,7 +163,7 @@ static void snd_ca0106_proc_dump_iec958( struct snd_info_buffer *buffer, u32 val
 		if (!(status[0] & IEC958_AES0_NONAUDIO)) {
 			snd_iprintf(buffer, "audio\n");
 		} else {
-			snd_iprintf(buffer, "non-audio\n");
+			snd_iprintf(buffer, "yesn-audio\n");
 		}
 		snd_iprintf(buffer, "Rate: ");
 		switch (status[0] & IEC958_AES0_PRO_FS) {
@@ -177,35 +177,35 @@ static void snd_ca0106_proc_dump_iec958( struct snd_info_buffer *buffer, u32 val
 			snd_iprintf(buffer, "32000 Hz\n");
 			break;
 		default:
-			snd_iprintf(buffer, "unknown\n");
+			snd_iprintf(buffer, "unkyeswn\n");
 			break;
 		}
 		snd_iprintf(buffer, "Rate Locked: ");
 		if (status[0] & IEC958_AES0_PRO_FREQ_UNLOCKED)
-			snd_iprintf(buffer, "no\n");
-		else
 			snd_iprintf(buffer, "yes\n");
+		else
+			snd_iprintf(buffer, "no\n");
 		snd_iprintf(buffer, "Emphasis: ");
 		switch (status[0] & IEC958_AES0_PRO_EMPHASIS) {
 		case IEC958_AES0_PRO_EMPHASIS_CCITT:
 			snd_iprintf(buffer, "CCITT J.17\n");
 			break;
 		case IEC958_AES0_PRO_EMPHASIS_NONE:
-			snd_iprintf(buffer, "none\n");
+			snd_iprintf(buffer, "yesne\n");
 			break;
 		case IEC958_AES0_PRO_EMPHASIS_5015:
 			snd_iprintf(buffer, "50/15us\n");
 			break;
 		case IEC958_AES0_PRO_EMPHASIS_NOTID:
 		default:
-			snd_iprintf(buffer, "unknown\n");
+			snd_iprintf(buffer, "unkyeswn\n");
 			break;
 		}
 		snd_iprintf(buffer, "Stereophonic: ");
 		if ((status[1] & IEC958_AES1_PRO_MODE) == IEC958_AES1_PRO_MODE_STEREOPHONIC) {
 			snd_iprintf(buffer, "stereo\n");
 		} else {
-			snd_iprintf(buffer, "not indicated\n");
+			snd_iprintf(buffer, "yest indicated\n");
 		}
 		snd_iprintf(buffer, "Userbits: ");
 		switch (status[1] & IEC958_AES1_PRO_USERBITS) {
@@ -216,7 +216,7 @@ static void snd_ca0106_proc_dump_iec958( struct snd_info_buffer *buffer, u32 val
 			snd_iprintf(buffer, "user-defined\n");
 			break;
 		default:
-			snd_iprintf(buffer, "unknown\n");
+			snd_iprintf(buffer, "unkyeswn\n");
 			break;
 		}
 		snd_iprintf(buffer, "Sample Bits: ");
@@ -231,7 +231,7 @@ static void snd_ca0106_proc_dump_iec958( struct snd_info_buffer *buffer, u32 val
 			snd_iprintf(buffer, "user defined\n");
 			break;
 		default:
-			snd_iprintf(buffer, "unknown\n");
+			snd_iprintf(buffer, "unkyeswn\n");
 			break;
 		}
 		snd_iprintf(buffer, "Word Length: ");
@@ -249,7 +249,7 @@ static void snd_ca0106_proc_dump_iec958( struct snd_info_buffer *buffer, u32 val
 			snd_iprintf(buffer, "20 bit or 16 bit\n");
 			break;
 		default:
-			snd_iprintf(buffer, "unknown\n");
+			snd_iprintf(buffer, "unkyeswn\n");
 			break;
 		}
 	}

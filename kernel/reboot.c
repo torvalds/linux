@@ -19,7 +19,7 @@
 #include <linux/uaccess.h>
 
 /*
- * this indicates whether you can reboot with ctrl-alt-del: the default is yes
+ * this indicates whether you can reboot with ctrl-alt-del: the default is no
  */
 
 int C_A_D = 1;
@@ -35,7 +35,7 @@ enum reboot_mode reboot_mode DEFAULT_REBOOT_MODE;
 enum reboot_mode panic_reboot_mode = REBOOT_UNDEFINED;
 
 /*
- * This variable is used privately to keep track of whether or not
+ * This variable is used privately to keep track of whether or yest
  * reboot_type is still set to its default value (i.e., reboot= hasn't
  * been set on the command line).  This is needed so that we can
  * suppress DMI scanning for reboot quirks.  Without it, it's
@@ -57,7 +57,7 @@ EXPORT_SYMBOL_GPL(pm_power_off_prepare);
  *	emergency_restart - reboot the system
  *
  *	Without shutting down any hardware or taking any locks
- *	reboot the system.  This is called when we know we are in
+ *	reboot the system.  This is called when we kyesw we are in
  *	trouble so this is our best effort to reboot.  This is
  *	safe to call in interrupt context.
  */
@@ -70,59 +70,59 @@ EXPORT_SYMBOL_GPL(emergency_restart);
 
 void kernel_restart_prepare(char *cmd)
 {
-	blocking_notifier_call_chain(&reboot_notifier_list, SYS_RESTART, cmd);
+	blocking_yestifier_call_chain(&reboot_yestifier_list, SYS_RESTART, cmd);
 	system_state = SYSTEM_RESTART;
 	usermodehelper_disable();
 	device_shutdown();
 }
 
 /**
- *	register_reboot_notifier - Register function to be called at reboot time
- *	@nb: Info about notifier function to be called
+ *	register_reboot_yestifier - Register function to be called at reboot time
+ *	@nb: Info about yestifier function to be called
  *
  *	Registers a function with the list of functions
  *	to be called at reboot time.
  *
- *	Currently always returns zero, as blocking_notifier_chain_register()
+ *	Currently always returns zero, as blocking_yestifier_chain_register()
  *	always returns zero.
  */
-int register_reboot_notifier(struct notifier_block *nb)
+int register_reboot_yestifier(struct yestifier_block *nb)
 {
-	return blocking_notifier_chain_register(&reboot_notifier_list, nb);
+	return blocking_yestifier_chain_register(&reboot_yestifier_list, nb);
 }
-EXPORT_SYMBOL(register_reboot_notifier);
+EXPORT_SYMBOL(register_reboot_yestifier);
 
 /**
- *	unregister_reboot_notifier - Unregister previously registered reboot notifier
+ *	unregister_reboot_yestifier - Unregister previously registered reboot yestifier
  *	@nb: Hook to be unregistered
  *
  *	Unregisters a previously registered reboot
- *	notifier function.
+ *	yestifier function.
  *
  *	Returns zero on success, or %-ENOENT on failure.
  */
-int unregister_reboot_notifier(struct notifier_block *nb)
+int unregister_reboot_yestifier(struct yestifier_block *nb)
 {
-	return blocking_notifier_chain_unregister(&reboot_notifier_list, nb);
+	return blocking_yestifier_chain_unregister(&reboot_yestifier_list, nb);
 }
-EXPORT_SYMBOL(unregister_reboot_notifier);
+EXPORT_SYMBOL(unregister_reboot_yestifier);
 
-static void devm_unregister_reboot_notifier(struct device *dev, void *res)
+static void devm_unregister_reboot_yestifier(struct device *dev, void *res)
 {
-	WARN_ON(unregister_reboot_notifier(*(struct notifier_block **)res));
+	WARN_ON(unregister_reboot_yestifier(*(struct yestifier_block **)res));
 }
 
-int devm_register_reboot_notifier(struct device *dev, struct notifier_block *nb)
+int devm_register_reboot_yestifier(struct device *dev, struct yestifier_block *nb)
 {
-	struct notifier_block **rcnb;
+	struct yestifier_block **rcnb;
 	int ret;
 
-	rcnb = devres_alloc(devm_unregister_reboot_notifier,
+	rcnb = devres_alloc(devm_unregister_reboot_yestifier,
 			    sizeof(*rcnb), GFP_KERNEL);
 	if (!rcnb)
 		return -ENOMEM;
 
-	ret = register_reboot_notifier(nb);
+	ret = register_reboot_yestifier(nb);
 	if (!ret) {
 		*rcnb = nb;
 		devres_add(dev, rcnb);
@@ -132,7 +132,7 @@ int devm_register_reboot_notifier(struct device *dev, struct notifier_block *nb)
 
 	return ret;
 }
-EXPORT_SYMBOL(devm_register_reboot_notifier);
+EXPORT_SYMBOL(devm_register_reboot_yestifier);
 
 /*
  *	Notifier list for kernel code which wants to be called
@@ -148,7 +148,7 @@ static ATOMIC_NOTIFIER_HEAD(restart_handler_list);
  *			following guidelines for setting priorities.
  *			0:	Restart handler of last resort,
  *				with limited restart capabilities
- *			128:	Default restart handler; use if no other
+ *			128:	Default restart handler; use if yes other
  *				restart handler is expected to be available,
  *				and/or if restart functionality is
  *				sufficient to restart the entire system
@@ -166,21 +166,21 @@ static ATOMIC_NOTIFIER_HEAD(restart_handler_list);
  *	If more than one function is registered, the restart handler priority
  *	selects which function will be called first.
  *
- *	Restart handlers are expected to be registered from non-architecture
+ *	Restart handlers are expected to be registered from yesn-architecture
  *	code, typically from drivers. A typical use case would be a system
  *	where restart functionality is provided through a watchdog. Multiple
  *	restart handlers may exist; for example, one restart handler might
- *	restart the entire system, while another only restarts the CPU.
+ *	restart the entire system, while ayesther only restarts the CPU.
  *	In such cases, the restart handler which only restarts part of the
  *	hardware is expected to register with low priority to ensure that
- *	it only runs if no other means to restart the system is available.
+ *	it only runs if yes other means to restart the system is available.
  *
- *	Currently always returns zero, as atomic_notifier_chain_register()
+ *	Currently always returns zero, as atomic_yestifier_chain_register()
  *	always returns zero.
  */
-int register_restart_handler(struct notifier_block *nb)
+int register_restart_handler(struct yestifier_block *nb)
 {
-	return atomic_notifier_chain_register(&restart_handler_list, nb);
+	return atomic_yestifier_chain_register(&restart_handler_list, nb);
 }
 EXPORT_SYMBOL(register_restart_handler);
 
@@ -193,9 +193,9 @@ EXPORT_SYMBOL(register_restart_handler);
  *
  *	Returns zero on success, or %-ENOENT on failure.
  */
-int unregister_restart_handler(struct notifier_block *nb)
+int unregister_restart_handler(struct yestifier_block *nb)
 {
-	return atomic_notifier_chain_unregister(&restart_handler_list, nb);
+	return atomic_yestifier_chain_unregister(&restart_handler_list, nb);
 }
 EXPORT_SYMBOL(unregister_restart_handler);
 
@@ -208,11 +208,11 @@ EXPORT_SYMBOL(unregister_restart_handler);
  *	sequence.
  *
  *	Restarts the system immediately if a restart handler function has been
- *	registered. Otherwise does nothing.
+ *	registered. Otherwise does yesthing.
  */
 void do_kernel_restart(char *cmd)
 {
-	atomic_notifier_call_chain(&restart_handler_list, reboot_mode, cmd);
+	atomic_yestifier_call_chain(&restart_handler_list, reboot_mode, cmd);
 }
 
 void migrate_to_reboot_cpu(void)
@@ -239,7 +239,7 @@ void migrate_to_reboot_cpu(void)
  *		or %NULL
  *
  *	Shutdown everything and perform a clean reboot.
- *	This is not safe to call in interrupt context.
+ *	This is yest safe to call in interrupt context.
  */
 void kernel_restart(char *cmd)
 {
@@ -257,7 +257,7 @@ EXPORT_SYMBOL_GPL(kernel_restart);
 
 static void kernel_shutdown_prepare(enum system_states state)
 {
-	blocking_notifier_call_chain(&reboot_notifier_list,
+	blocking_yestifier_call_chain(&reboot_yestifier_list,
 		(state == SYSTEM_HALT) ? SYS_HALT : SYS_POWER_OFF, NULL);
 	system_state = state;
 	usermodehelper_disable();
@@ -336,7 +336,7 @@ SYSCALL_DEFINE4(reboot, int, magic1, int, magic2, unsigned int, cmd,
 		return ret;
 
 	/* Instead of trying to make the power_off code look like
-	 * halt when pm_power_off is not set do it the easy way.
+	 * halt when pm_power_off is yest set do it the easy way.
 	 */
 	if ((cmd == LINUX_REBOOT_CMD_POWER_OFF) && !pm_power_off)
 		cmd = LINUX_REBOOT_CMD_HALT;
@@ -358,7 +358,7 @@ SYSCALL_DEFINE4(reboot, int, magic1, int, magic2, unsigned int, cmd,
 	case LINUX_REBOOT_CMD_HALT:
 		kernel_halt();
 		do_exit(0);
-		panic("cannot halt");
+		panic("canyest halt");
 
 	case LINUX_REBOOT_CMD_POWER_OFF:
 		kernel_power_off();
@@ -404,7 +404,7 @@ static void deferred_cad(struct work_struct *dummy)
 /*
  * This function gets called by ctrl-alt-del - ie the keyboard interrupt.
  * As it's called within an interrupt, it may NOT sync: the only choice
- * is whether to reboot at once, or just ignore the ctrl-alt-del.
+ * is whether to reboot at once, or just igyesre the ctrl-alt-del.
  */
 void ctrl_alt_del(void)
 {
@@ -465,7 +465,7 @@ static int __orderly_poweroff(bool force)
 
 		/*
 		 * I guess this should try to kick off some daemon to sync and
-		 * poweroff asap.  Or not even bother syncing if we're doing an
+		 * poweroff asap.  Or yest even bother syncing if we're doing an
 		 * emergency shutdown?
 		 */
 		emergency_sync();
@@ -493,7 +493,7 @@ static DECLARE_WORK(poweroff_work, poweroff_work_func);
  */
 void orderly_poweroff(bool force)
 {
-	if (force) /* do not override the pending "true" */
+	if (force) /* do yest override the pending "true" */
 		poweroff_force = true;
 	schedule_work(&poweroff_work);
 }

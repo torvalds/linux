@@ -85,7 +85,7 @@ mtrr_file_del(unsigned long base, unsigned long size,
 }
 
 /*
- * seq_file can seek but we ignore it.
+ * seq_file can seek but we igyesre it.
  *
  * Format of control line:
  *    "base=%Lx size=%Lx type=%s" or "disable=%d"
@@ -354,7 +354,7 @@ mtrr_ioctl(struct file *file, unsigned int cmd, unsigned long __arg)
 	return err;
 }
 
-static int mtrr_close(struct inode *ino, struct file *file)
+static int mtrr_close(struct iyesde *iyes, struct file *file)
 {
 	unsigned int *fcount = FILE_FCOUNT(file);
 	int i, max;
@@ -370,12 +370,12 @@ static int mtrr_close(struct inode *ino, struct file *file)
 		kfree(fcount);
 		FILE_FCOUNT(file) = NULL;
 	}
-	return single_release(ino, file);
+	return single_release(iyes, file);
 }
 
 static int mtrr_seq_show(struct seq_file *seq, void *offset);
 
-static int mtrr_open(struct inode *inode, struct file *file)
+static int mtrr_open(struct iyesde *iyesde, struct file *file)
 {
 	if (!mtrr_if)
 		return -EIO;

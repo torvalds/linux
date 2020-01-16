@@ -7,15 +7,15 @@
  */
 
 /*
- * The MMCIF driver is now processing MMC requests asynchronously, according
+ * The MMCIF driver is yesw processing MMC requests asynchroyesusly, according
  * to the Linux MMC API requirement.
  *
  * The MMCIF driver processes MMC requests in up to 3 stages: command, optional
- * data, and optional stop. To achieve asynchronous processing each of these
+ * data, and optional stop. To achieve asynchroyesus processing each of these
  * stages is split into two halves: a top and a bottom half. The top half
  * initialises the hardware, installs a timeout handler to handle completion
  * timeouts, and returns. In case of the command stage this immediately returns
- * control to the caller, leaving all further processing to run asynchronously.
+ * control to the caller, leaving all further processing to run asynchroyesusly.
  * All further request processing is performed by the bottom halves.
  *
  * The bottom half further consists of a "hard" IRQ handler, an IRQ handler
@@ -65,18 +65,18 @@
 #define CMD_SET_RTYP_17B	((1 << 23) | (0 << 22)) /* R2 */
 #define CMD_SET_RBSY		(1 << 21) /* R1b */
 #define CMD_SET_CCSEN		(1 << 20)
-#define CMD_SET_WDAT		(1 << 19) /* 1: on data, 0: no data */
+#define CMD_SET_WDAT		(1 << 19) /* 1: on data, 0: yes data */
 #define CMD_SET_DWEN		(1 << 18) /* 1: write, 0: read */
 #define CMD_SET_CMLTE		(1 << 17) /* 1: multi block trans, 0: single */
 #define CMD_SET_CMD12EN		(1 << 16) /* 1: CMD12 auto issue */
 #define CMD_SET_RIDXC_INDEX	((0 << 15) | (0 << 14)) /* index check */
 #define CMD_SET_RIDXC_BITS	((0 << 15) | (1 << 14)) /* check bits check */
-#define CMD_SET_RIDXC_NO	((1 << 15) | (0 << 14)) /* no check */
+#define CMD_SET_RIDXC_NO	((1 << 15) | (0 << 14)) /* yes check */
 #define CMD_SET_CRC7C		((0 << 13) | (0 << 12)) /* CRC7 check*/
 #define CMD_SET_CRC7C_BITS	((0 << 13) | (1 << 12)) /* check bits check*/
 #define CMD_SET_CRC7C_INTERNAL	((1 << 13) | (0 << 12)) /* internal CRC7 check*/
 #define CMD_SET_CRC16C		(1 << 10) /* 0: CRC16 check*/
-#define CMD_SET_CRCSTE		(1 << 8) /* 1: not receive CRC status */
+#define CMD_SET_CRCSTE		(1 << 8) /* 1: yest receive CRC status */
 #define CMD_SET_TBIT		(1 << 7) /* 1: tran mission bit "Low" */
 #define CMD_SET_OPDM		(1 << 6) /* 1: open/drain */
 #define CMD_SET_CCSH		(1 << 5)
@@ -423,7 +423,7 @@ static void sh_mmcif_request_dma(struct sh_mmcif_host *host)
 	struct device *dev = sh_mmcif_host_to_dev(host);
 	host->dma_active = false;
 
-	/* We can only either use DMA for both Tx and Rx or not use it at all */
+	/* We can only either use DMA for both Tx and Rx or yest use it at all */
 	if (IS_ENABLED(CONFIG_SUPERH) && dev->platform_data) {
 		struct sh_mmcif_plat_data *pdata = dev->platform_data;
 
@@ -1195,7 +1195,7 @@ static irqreturn_t sh_mmcif_irqt(int irq, void *dev_id)
 
 	/*
 	 * All handlers return true, if processing continues, and false, if the
-	 * request has to be completed - successfully or not
+	 * request has to be completed - successfully or yest
 	 */
 	switch (wait_work) {
 	case MMCIF_WAIT_FOR_REQUEST:
@@ -1378,7 +1378,7 @@ static void sh_mmcif_init_ocr(struct sh_mmcif_host *host)
 	if (!mmc->ocr_avail)
 		mmc->ocr_avail = pd->ocr;
 	else if (pd->ocr)
-		dev_warn(mmc_dev(mmc), "Platform OCR mask is ignored\n");
+		dev_warn(mmc_dev(mmc), "Platform OCR mask is igyesred\n");
 }
 
 static int sh_mmcif_probe(struct platform_device *pdev)
@@ -1441,7 +1441,7 @@ static int sh_mmcif_probe(struct platform_device *pdev)
 	host->clk = devm_clk_get(dev, NULL);
 	if (IS_ERR(host->clk)) {
 		ret = PTR_ERR(host->clk);
-		dev_err(dev, "cannot get clock: %d\n", ret);
+		dev_err(dev, "canyest get clock: %d\n", ret);
 		goto err_host;
 	}
 

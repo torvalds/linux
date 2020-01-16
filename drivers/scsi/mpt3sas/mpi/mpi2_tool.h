@@ -4,7 +4,7 @@
  *
  *
  *          Name:  mpi2_tool.h
- *         Title:  MPI diagnostic tool structures and definitions
+ *         Title:  MPI diagyesstic tool structures and definitions
  * Creation Date:  March 26, 2007
  *
  *   mpi2_tool.h Version:  02.00.16
@@ -15,21 +15,21 @@
  * Date      Version   Description
  * --------  --------  ------------------------------------------------------
  * 04-30-07  02.00.00  Corresponds to Fusion-MPT MPI Specification Rev A.
- * 12-18-07  02.00.01  Added Diagnostic Buffer Post and Diagnostic Release
+ * 12-18-07  02.00.01  Added Diagyesstic Buffer Post and Diagyesstic Release
  *                     structures and defines.
  * 02-29-08  02.00.02  Modified various names to make them 32-character unique.
- * 05-06-09  02.00.03  Added ISTWI Read Write Tool and Diagnostic CLI Tool.
- * 07-30-09  02.00.04  Added ExtendedType field to DiagnosticBufferPost request
+ * 05-06-09  02.00.03  Added ISTWI Read Write Tool and Diagyesstic CLI Tool.
+ * 07-30-09  02.00.04  Added ExtendedType field to DiagyessticBufferPost request
  *                     and reply messages.
  *                     Added MPI2_DIAG_BUF_TYPE_EXTENDED.
  *                     Incremented MPI2_DIAG_BUF_TYPE_COUNT.
- * 05-12-10  02.00.05  Added Diagnostic Data Upload tool.
- * 08-11-10  02.00.06  Added defines that were missing for Diagnostic Buffer
+ * 05-12-10  02.00.05  Added Diagyesstic Data Upload tool.
+ * 08-11-10  02.00.06  Added defines that were missing for Diagyesstic Buffer
  *                     Post Request.
  * 05-25-11  02.00.07  Added Flags field and related defines to
  *                     MPI2_TOOLBOX_ISTWI_READ_WRITE_REQUEST.
  * 11-18-11  02.00.08  Incorporating additions for MPI v2.5.
- * 07-10-12  02.00.09  Add MPI v2.5 Toolbox Diagnostic CLI Tool Request
+ * 07-10-12  02.00.09  Add MPI v2.5 Toolbox Diagyesstic CLI Tool Request
  *                     message.
  * 07-26-12  02.00.10  Modified MPI2_TOOLBOX_DIAGNOSTIC_CLI_REQUEST so that
  *                     it uses MPI Chain SGE as well as MPI Simple SGE.
@@ -146,7 +146,7 @@ typedef struct _MPI2_TOOLBOX_MEM_MOVE_REQUEST {
 	Mpi2ToolboxMemMoveRequest_t, *pMpi2ToolboxMemMoveRequest_t;
 
 /****************************************************************************
-* Toolbox Diagnostic Data Upload request
+* Toolbox Diagyesstic Data Upload request
 ****************************************************************************/
 
 typedef struct _MPI2_TOOLBOX_DIAG_DATA_UPLOAD_REQUEST {
@@ -288,12 +288,12 @@ typedef struct _MPI2_TOOLBOX_BEACON_REQUEST {
 #define MPI2_TOOLBOX_FLAGS_BEACONMODE_ON        (0x01)
 
 /****************************************************************************
-* Toolbox Diagnostic CLI Tool
+* Toolbox Diagyesstic CLI Tool
 ****************************************************************************/
 
 #define MPI2_TOOLBOX_DIAG_CLI_CMD_LENGTH    (0x5C)
 
-/*MPI v2.0 Toolbox Diagnostic CLI Tool request message */
+/*MPI v2.0 Toolbox Diagyesstic CLI Tool request message */
 typedef struct _MPI2_TOOLBOX_DIAGNOSTIC_CLI_REQUEST {
 	U8 Tool;		/*0x00 */
 	U8 Reserved1;		/*0x01 */
@@ -309,16 +309,16 @@ typedef struct _MPI2_TOOLBOX_DIAGNOSTIC_CLI_REQUEST {
 	U8 Reserved5;		/*0x0D */
 	U16 Reserved6;		/*0x0E */
 	U32 DataLength;		/*0x10 */
-	U8 DiagnosticCliCommand[MPI2_TOOLBOX_DIAG_CLI_CMD_LENGTH];/*0x14 */
+	U8 DiagyessticCliCommand[MPI2_TOOLBOX_DIAG_CLI_CMD_LENGTH];/*0x14 */
 	MPI2_MPI_SGE_IO_UNION SGL;	/*0x70 */
 } MPI2_TOOLBOX_DIAGNOSTIC_CLI_REQUEST,
 	*PTR_MPI2_TOOLBOX_DIAGNOSTIC_CLI_REQUEST,
-	Mpi2ToolboxDiagnosticCliRequest_t,
-	*pMpi2ToolboxDiagnosticCliRequest_t;
+	Mpi2ToolboxDiagyessticCliRequest_t,
+	*pMpi2ToolboxDiagyessticCliRequest_t;
 
 /*use MPI2_SGLFLAGS_ defines from mpi2.h for the SGLFlags field */
 
-/*MPI v2.5 Toolbox Diagnostic CLI Tool request message */
+/*MPI v2.5 Toolbox Diagyesstic CLI Tool request message */
 typedef struct _MPI25_TOOLBOX_DIAGNOSTIC_CLI_REQUEST {
 	U8 Tool;		/*0x00 */
 	U8 Reserved1;		/*0x01 */
@@ -332,14 +332,14 @@ typedef struct _MPI25_TOOLBOX_DIAGNOSTIC_CLI_REQUEST {
 	U16 Reserved4;		/*0x0A */
 	U32 Reserved5;		/*0x0C */
 	U32 DataLength;		/*0x10 */
-	U8 DiagnosticCliCommand[MPI2_TOOLBOX_DIAG_CLI_CMD_LENGTH];/*0x14 */
+	U8 DiagyessticCliCommand[MPI2_TOOLBOX_DIAG_CLI_CMD_LENGTH];/*0x14 */
 	MPI25_SGE_IO_UNION      SGL;                        /* 0x70 */
 } MPI25_TOOLBOX_DIAGNOSTIC_CLI_REQUEST,
 	*PTR_MPI25_TOOLBOX_DIAGNOSTIC_CLI_REQUEST,
-	Mpi25ToolboxDiagnosticCliRequest_t,
-	*pMpi25ToolboxDiagnosticCliRequest_t;
+	Mpi25ToolboxDiagyessticCliRequest_t,
+	*pMpi25ToolboxDiagyessticCliRequest_t;
 
-/*Toolbox Diagnostic CLI Tool reply message */
+/*Toolbox Diagyesstic CLI Tool reply message */
 typedef struct _MPI2_TOOLBOX_DIAGNOSTIC_CLI_REPLY {
 	U8 Tool;		/*0x00 */
 	U8 Reserved1;		/*0x01 */
@@ -357,8 +357,8 @@ typedef struct _MPI2_TOOLBOX_DIAGNOSTIC_CLI_REPLY {
 	U32 ReturnedDataLength;	/*0x14 */
 } MPI2_TOOLBOX_DIAGNOSTIC_CLI_REPLY,
 	*PTR_MPI2_TOOLBOX_DIAG_CLI_REPLY,
-	Mpi2ToolboxDiagnosticCliReply_t,
-	*pMpi2ToolboxDiagnosticCliReply_t;
+	Mpi2ToolboxDiagyessticCliReply_t,
+	*pMpi2ToolboxDiagyessticCliReply_t;
 
 
 /****************************************************************************
@@ -459,12 +459,12 @@ typedef struct _MPI26_TOOLBOX_LANE_MARGIN_REPLY {
 
 /*****************************************************************************
 *
-*      Diagnostic Buffer Messages
+*      Diagyesstic Buffer Messages
 *
 *****************************************************************************/
 
 /****************************************************************************
-* Diagnostic Buffer Post request
+* Diagyesstic Buffer Post request
 ****************************************************************************/
 
 typedef struct _MPI2_DIAG_BUFFER_POST_REQUEST {
@@ -502,7 +502,7 @@ typedef struct _MPI2_DIAG_BUFFER_POST_REQUEST {
 #define MPI2_DIAG_BUF_FLAG_IMMEDIATE_RELEASE        (0x00000001)
 
 /****************************************************************************
-* Diagnostic Buffer Post reply
+* Diagyesstic Buffer Post reply
 ****************************************************************************/
 
 typedef struct _MPI2_DIAG_BUFFER_POST_REPLY {
@@ -524,7 +524,7 @@ typedef struct _MPI2_DIAG_BUFFER_POST_REPLY {
 	Mpi2DiagBufferPostReply_t, *pMpi2DiagBufferPostReply_t;
 
 /****************************************************************************
-* Diagnostic Release request
+* Diagyesstic Release request
 ****************************************************************************/
 
 typedef struct _MPI2_DIAG_RELEASE_REQUEST {
@@ -542,7 +542,7 @@ typedef struct _MPI2_DIAG_RELEASE_REQUEST {
 	Mpi2DiagReleaseRequest_t, *pMpi2DiagReleaseRequest_t;
 
 /****************************************************************************
-* Diagnostic Buffer Post reply
+* Diagyesstic Buffer Post reply
 ****************************************************************************/
 
 typedef struct _MPI2_DIAG_RELEASE_REPLY {

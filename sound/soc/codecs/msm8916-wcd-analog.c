@@ -298,8 +298,8 @@ struct pm8916_wcd_analog_priv {
 	struct snd_soc_component *component;
 	struct regulator_bulk_data supplies[ARRAY_SIZE(supply_names)];
 	struct snd_soc_jack *jack;
-	bool hphl_jack_type_normally_open;
-	bool gnd_jack_type_normally_open;
+	bool hphl_jack_type_yesrmally_open;
+	bool gnd_jack_type_yesrmally_open;
 	/* Voltage threshold when internal current source of 100uA is used */
 	u32 vref_btn_cs[MBHC_MAX_BUTTONS];
 	/* Voltage threshold when microphone bias is ON */
@@ -512,10 +512,10 @@ static void pm8916_wcd_setup_mbhc(struct pm8916_wcd_analog_priv *wcd)
 		      CDC_A_MBHC_DET_CTL_MIC_CLAMP_CTL_AUTO |
 		      CDC_A_MBHC_DET_CTL_MBHC_BIAS_EN);
 
-	if (wcd->hphl_jack_type_normally_open)
+	if (wcd->hphl_jack_type_yesrmally_open)
 		plug_type |= CDC_A_HPHL_PLUG_TYPE_NO;
 
-	if (wcd->gnd_jack_type_normally_open)
+	if (wcd->gnd_jack_type_yesrmally_open)
 		plug_type |= CDC_A_GND_PLUG_TYPE_NO;
 
 	snd_soc_component_write(component, CDC_A_MBHC_DET_CTL_2,
@@ -591,7 +591,7 @@ static int pm8916_wcd_analog_enable_adc(struct snd_soc_dapm_widget *w,
 					    MICB_1_CTL_CFILT_REF_SEL_HPF_REF);
 		/*
 		 * Add delay of 10 ms to give sufficient time for the voltage
-		 * to shoot up and settle so that the txfe init does not
+		 * to shoot up and settle so that the txfe init does yest
 		 * happen when the input voltage is changing too much.
 		 */
 		usleep_range(10000, 10010);
@@ -1141,7 +1141,7 @@ static const struct snd_soc_component_driver pm8916_wcd_analog = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
+	.yesn_legacy_dai_naming	= 1,
 };
 
 static int pm8916_wcd_analog_parse_dt(struct device *dev,
@@ -1149,40 +1149,40 @@ static int pm8916_wcd_analog_parse_dt(struct device *dev,
 {
 	int rval;
 
-	if (of_property_read_bool(dev->of_node, "qcom,micbias1-ext-cap"))
+	if (of_property_read_bool(dev->of_yesde, "qcom,micbias1-ext-cap"))
 		priv->micbias1_cap_mode = MICB_1_EN_EXT_BYP_CAP;
 	else
 		priv->micbias1_cap_mode = MICB_1_EN_NO_EXT_BYP_CAP;
 
-	if (of_property_read_bool(dev->of_node, "qcom,micbias2-ext-cap"))
+	if (of_property_read_bool(dev->of_yesde, "qcom,micbias2-ext-cap"))
 		priv->micbias2_cap_mode = MICB_1_EN_EXT_BYP_CAP;
 	else
 		priv->micbias2_cap_mode = MICB_1_EN_NO_EXT_BYP_CAP;
 
-	of_property_read_u32(dev->of_node, "qcom,micbias-lvl",
+	of_property_read_u32(dev->of_yesde, "qcom,micbias-lvl",
 			     &priv->micbias_mv);
 
-	if (of_property_read_bool(dev->of_node,
-				  "qcom,hphl-jack-type-normally-open"))
-		priv->hphl_jack_type_normally_open = true;
+	if (of_property_read_bool(dev->of_yesde,
+				  "qcom,hphl-jack-type-yesrmally-open"))
+		priv->hphl_jack_type_yesrmally_open = true;
 	else
-		priv->hphl_jack_type_normally_open = false;
+		priv->hphl_jack_type_yesrmally_open = false;
 
-	if (of_property_read_bool(dev->of_node,
-				  "qcom,gnd-jack-type-normally-open"))
-		priv->gnd_jack_type_normally_open = true;
+	if (of_property_read_bool(dev->of_yesde,
+				  "qcom,gnd-jack-type-yesrmally-open"))
+		priv->gnd_jack_type_yesrmally_open = true;
 	else
-		priv->gnd_jack_type_normally_open = false;
+		priv->gnd_jack_type_yesrmally_open = false;
 
 	priv->mbhc_btn_enabled = true;
-	rval = of_property_read_u32_array(dev->of_node,
+	rval = of_property_read_u32_array(dev->of_yesde,
 					  "qcom,mbhc-vthreshold-low",
 					  &priv->vref_btn_cs[0],
 					  MBHC_MAX_BUTTONS);
 	if (rval < 0) {
 		priv->mbhc_btn_enabled = false;
 	} else {
-		rval = of_property_read_u32_array(dev->of_node,
+		rval = of_property_read_u32_array(dev->of_yesde,
 						  "qcom,mbhc-vthreshold-high",
 						  &priv->vref_btn_micb[0],
 						  MBHC_MAX_BUTTONS);
@@ -1244,7 +1244,7 @@ static int pm8916_wcd_analog_spmi_probe(struct platform_device *pdev)
 			       IRQF_ONESHOT,
 			       "mbhc switch irq", priv);
 	if (ret)
-		dev_err(dev, "cannot request mbhc switch irq\n");
+		dev_err(dev, "canyest request mbhc switch irq\n");
 
 	if (priv->mbhc_btn_enabled) {
 		irq = platform_get_irq_byname(pdev, "mbhc_but_press_det");
@@ -1257,7 +1257,7 @@ static int pm8916_wcd_analog_spmi_probe(struct platform_device *pdev)
 				       IRQF_TRIGGER_FALLING | IRQF_ONESHOT,
 				       "mbhc btn press irq", priv);
 		if (ret)
-			dev_err(dev, "cannot request mbhc button press irq\n");
+			dev_err(dev, "canyest request mbhc button press irq\n");
 
 		irq = platform_get_irq_byname(pdev, "mbhc_but_rel_det");
 		if (irq < 0)
@@ -1269,7 +1269,7 @@ static int pm8916_wcd_analog_spmi_probe(struct platform_device *pdev)
 				       IRQF_TRIGGER_FALLING | IRQF_ONESHOT,
 				       "mbhc btn release irq", priv);
 		if (ret)
-			dev_err(dev, "cannot request mbhc button release irq\n");
+			dev_err(dev, "canyest request mbhc button release irq\n");
 
 	}
 

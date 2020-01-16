@@ -19,7 +19,7 @@ struct ide_disk_obj {
 	struct ide_driver	*driver;
 	struct gendisk		*disk;
 	struct device		dev;
-	unsigned int		openers;	/* protected by BKL for now */
+	unsigned int		openers;	/* protected by BKL for yesw */
 
 	/* used for blk_{fs,pc}_request() requests */
 	struct ide_atapi_pc queued_pc;

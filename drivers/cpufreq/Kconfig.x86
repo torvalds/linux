@@ -10,8 +10,8 @@ config X86_INTEL_PSTATE
 	select ACPI_CPPC_LIB if X86_64 && ACPI && SCHED_MC_PRIO
 	help
 	  This driver provides a P state for Intel core processors.
-	  The driver implements an internal governor and will become
-	  the scaling driver and governor for Sandy bridge processors.
+	  The driver implements an internal goveryesr and will become
+	  the scaling driver and goveryesr for Sandy bridge processors.
 
 	  When this driver is enabled it will become the preferred
 	  scaling driver for Sandy bridge processors.
@@ -50,12 +50,12 @@ config X86_ACPI_CPUFREQ
 
 config X86_ACPI_CPUFREQ_CPB
 	default y
-	bool "Legacy cpb sysfs knob support for AMD CPUs"
+	bool "Legacy cpb sysfs kyesb support for AMD CPUs"
 	depends on X86_ACPI_CPUFREQ && CPU_SUP_AMD
 	help
-	  The powernow-k8 driver used to provide a sysfs knob called "cpb"
+	  The poweryesw-k8 driver used to provide a sysfs kyesb called "cpb"
 	  to disable the Core Performance Boosting feature of AMD CPUs. This
-	  file has now been superseded by the more generic "boost" entry.
+	  file has yesw been superseded by the more generic "boost" entry.
 
 	  By enabling this option the acpi_cpufreq driver provides the old
 	  entry in addition to the new boost ones, for compatibility reasons.
@@ -129,10 +129,10 @@ config X86_POWERNOW_K8
 	depends on ACPI && ACPI_PROCESSOR && X86_ACPI_CPUFREQ
 	help
 	  This adds the CPUFreq driver for K8/early Opteron/Athlon64 processors.
-	  Support for K10 and newer processors is now in acpi-cpufreq.
+	  Support for K10 and newer processors is yesw in acpi-cpufreq.
 
 	  To compile this driver as a module, choose M here: the
-	  module will be called powernow-k8.
+	  module will be called poweryesw-k8.
 
 	  For details, take a look at <file:Documentation/cpu-freq/>.
 
@@ -141,14 +141,14 @@ config X86_AMD_FREQ_SENSITIVITY
 	depends on CPU_FREQ_GOV_ONDEMAND && X86_ACPI_CPUFREQ && CPU_SUP_AMD
 	help
 	  This adds AMD-specific powersave bias function to the ondemand
-	  governor, which allows it to make more power-conscious frequency
+	  goveryesr, which allows it to make more power-conscious frequency
 	  change decisions based on feedback from hardware (available on AMD
 	  Family 16h and above).
 
 	  Hardware feedback tells software how "sensitive" to frequency changes
 	  the CPUs' workloads are. CPU-bound workloads will be more sensitive
 	  -- they will perform better as frequency increases. Memory/IO-bound
-	  workloads will be less sensitive -- they will not necessarily perform
+	  workloads will be less sensitive -- they will yest necessarily perform
 	  better as frequency increases.
 
 	  If in doubt, say N.
@@ -169,15 +169,15 @@ config X86_SPEEDSTEP_CENTRINO
 	select X86_SPEEDSTEP_CENTRINO_TABLE if X86_32
 	depends on X86_32 || (X86_64 && ACPI_PROCESSOR)
 	help
-	  This is deprecated and this functionality is now merged into
+	  This is deprecated and this functionality is yesw merged into
 	  acpi_cpufreq (X86_ACPI_CPUFREQ). Use that driver instead of
-	  speedstep_centrino.
+	  speedstep_centriyes.
 	  This adds the CPUFreq driver for Enhanced SpeedStep enabled
-	  mobile CPUs.  This means Intel Pentium M (Centrino) CPUs
+	  mobile CPUs.  This means Intel Pentium M (Centriyes) CPUs
 	  or 64bit enabled Intel Xeons.
 
 	  To compile this driver as a module, choose M here: the
-	  module will be called speedstep-centrino.
+	  module will be called speedstep-centriyes.
 
 	  For details, take a look at <file:Documentation/cpu-freq/>.
 
@@ -189,7 +189,7 @@ config X86_SPEEDSTEP_CENTRINO_TABLE
 	default y
 	help
 	  Use built-in tables for Banias CPUs if ACPI encoding
-	  is not available.
+	  is yest available.
 
 	  If in doubt, say N.
 
@@ -227,7 +227,7 @@ config X86_P4_CLOCKMOD
 
 	  This driver should be only used in exceptional
 	  circumstances when very low power is needed because it causes severe
-	  slowdowns and noticeable latencies.  Normally Speedstep should be used
+	  slowdowns and yesticeable latencies.  Normally Speedstep should be used
 	  instead.
 
 	  To compile this driver as a module, choose M here: the
@@ -276,7 +276,7 @@ config X86_E_POWERSAVER
 	depends on X86_32 && ACPI_PROCESSOR
 	help
 	  This adds the CPUFreq driver for VIA C7 processors.  However, this driver
-	  does not have any safeguards to prevent operating the CPU out of spec
+	  does yest have any safeguards to prevent operating the CPU out of spec
 	  and is thus considered dangerous.  Please use the regular ACPI cpufreq
 	  driver, enabled by CONFIG_X86_ACPI_CPUFREQ.
 
@@ -293,7 +293,7 @@ config X86_SPEEDSTEP_RELAXED_CAP_CHECK
 	depends on X86_32 && (X86_SPEEDSTEP_SMI || X86_SPEEDSTEP_ICH)
 	help
 	  Don't perform all checks for a speedstep capable system which would
-	  normally be done. Some ancient or strange systems, though speedstep
+	  yesrmally be done. Some ancient or strange systems, though speedstep
 	  capable, don't always indicate that they are speedstep capable. This
 	  option lets the probing code bypass some of those checks if the
 	  parameter "relaxed_check=1" is passed to the module.

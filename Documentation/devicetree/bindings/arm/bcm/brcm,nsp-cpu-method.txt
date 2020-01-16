@@ -5,15 +5,15 @@ CPU in the following Broadcom SoCs:
   BCM58522, BCM58525, BCM58535, BCM58622, BCM58623, BCM58625, BCM88312
 
 The enable method is specified by defining the following required
-properties in the corresponding secondary "cpu" device tree node:
+properties in the corresponding secondary "cpu" device tree yesde:
   - enable-method = "brcm,bcm-nsp-smp";
   - secondary-boot-reg = <...>;
 
 The secondary-boot-reg property is a u32 value that specifies the
 physical address of the register which should hold the common
-entry point for a secondary CPU. This entry is cpu node specific
+entry point for a secondary CPU. This entry is cpu yesde specific
 and should be added per cpu. E.g., in case of NSP (BCM58625) which
-is a dual core CPU SoC, this entry should be added to cpu1 node.
+is a dual core CPU SoC, this entry should be added to cpu1 yesde.
 
 
 Example:

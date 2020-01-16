@@ -30,7 +30,7 @@ static struct workqueue_struct *ata_sff_wq;
 const struct ata_port_operations ata_sff_port_ops = {
 	.inherits		= &ata_base_port_ops,
 
-	.qc_prep		= ata_noop_qc_prep,
+	.qc_prep		= ata_yesop_qc_prep,
 	.qc_issue		= ata_sff_qc_issue,
 	.qc_fill_rtf		= ata_sff_qc_fill_rtf,
 
@@ -124,8 +124,8 @@ static u8 ata_sff_irq_status(struct ata_port *ap)
  *	@ap: Port to wait for.
  *
  *	CAUTION:
- *	If we have an mmio device with no ctl and no altstatus
- *	method this will fail. No such devices are known to exist.
+ *	If we have an mmio device with yes ctl and yes altstatus
+ *	method this will fail. No such devices are kyeswn to exist.
  *
  *	LOCKING:
  *	Inherited from caller.
@@ -144,8 +144,8 @@ static void ata_sff_sync(struct ata_port *ap)
  *	@ap: Port to pause for.
  *
  *	CAUTION:
- *	If we have an mmio device with no ctl and no altstatus
- *	method this will fail. No such devices are known to exist.
+ *	If we have an mmio device with yes ctl and yes altstatus
+ *	method this will fail. No such devices are kyeswn to exist.
  *
  *	LOCKING:
  *	Inherited from caller.
@@ -174,7 +174,7 @@ void ata_sff_dma_pause(struct ata_port *ap)
 		ata_sff_altstatus(ap);
 		return;
 	}
-	/* There are no DMA controllers without ctl. BUG here to ensure
+	/* There are yes DMA controllers without ctl. BUG here to ensure
 	   we never violate the HDMA1:0 transition timing and risk
 	   corruption. */
 	BUG();
@@ -194,7 +194,7 @@ EXPORT_SYMBOL_GPL(ata_sff_dma_pause);
  *	Kernel thread context (may sleep).
  *
  *	RETURNS:
- *	0 on success, -errno otherwise.
+ *	0 on success, -erryes otherwise.
  */
 int ata_sff_busy_sleep(struct ata_port *ap,
 		       unsigned long tmout_pat, unsigned long tmout)
@@ -256,7 +256,7 @@ static int ata_sff_check_ready(struct ata_link *link)
  *	Kernel thread context (may sleep).
  *
  *	RETURNS:
- *	0 on success, -errno otherwise.
+ *	0 on success, -erryes otherwise.
  */
 int ata_sff_wait_ready(struct ata_link *link, unsigned long deadline)
 {
@@ -317,8 +317,8 @@ EXPORT_SYMBOL_GPL(ata_sff_dev_select);
  *	ata_dev_select - Select device 0/1 on ATA bus
  *	@ap: ATA channel to manipulate
  *	@device: ATA device (numbered from zero) to select
- *	@wait: non-zero to wait for Status register BSY bit to clear
- *	@can_sleep: non-zero if context allows sleeping
+ *	@wait: yesn-zero to wait for Status register BSY bit to clear
+ *	@can_sleep: yesn-zero if context allows sleeping
  *
  *	Use the method defined in the ATA specification to
  *	make either device 0, or device 1, active on the
@@ -451,7 +451,7 @@ EXPORT_SYMBOL_GPL(ata_sff_tf_load);
  *
  *	Reads ATA taskfile registers for currently-selected device
  *	into @tf. Assumes the device has a fully SFF compliant task file
- *	layout and behaviour. If you device does not (eg has a different
+ *	layout and behaviour. If you device does yest (eg has a different
  *	status method) then you will need to provide a replacement tf_read
  *
  *	LOCKING:
@@ -823,8 +823,8 @@ next_sg:
 
 	/*
 	 * There used to be a  WARN_ON_ONCE(qc->cursg && count != consumed);
-	 * Unfortunately __atapi_pio_bytes doesn't know enough to do the WARN
-	 * check correctly as it doesn't know if it is the last request being
+	 * Unfortunately __atapi_pio_bytes doesn't kyesw eyesugh to do the WARN
+	 * check correctly as it doesn't kyesw if it is the last request being
 	 * made. Somebody should implement a proper sanity check.
 	 */
 	if (bytes)
@@ -851,9 +851,9 @@ static void atapi_pio_bytes(struct ata_queued_cmd *qc)
 
 	/* Abuse qc->result_tf for temp storage of intermediate TF
 	 * here to save some kernel stack usage.
-	 * For normal completion, qc->result_tf is not relevant. For
+	 * For yesrmal completion, qc->result_tf is yest relevant. For
 	 * error, qc->result_tf is later overwritten by ata_qc_complete().
-	 * So, the correctness of qc->result_tf is not affected.
+	 * So, the correctness of qc->result_tf is yest affected.
 	 */
 	ap->ops->sff_tf_read(ap, &qc->result_tf);
 	ireason = qc->result_tf.nsect;
@@ -925,7 +925,7 @@ static inline int ata_hsm_ok_in_wq(struct ata_port *ap,
  *
  *	LOCKING:
  *	If @in_wq is zero, spin_lock_irqsave(host lock).
- *	Otherwise, none on entry and grabs host lock.
+ *	Otherwise, yesne on entry and grabs host lock.
  */
 static void ata_hsm_qc_complete(struct ata_queued_cmd *qc, int in_wq)
 {
@@ -980,9 +980,9 @@ int ata_sff_hsm_move(struct ata_port *ap, struct ata_queued_cmd *qc,
 
 	WARN_ON_ONCE((qc->flags & ATA_QCFLAG_ACTIVE) == 0);
 
-	/* Make sure ata_sff_qc_issue() does not throw things
+	/* Make sure ata_sff_qc_issue() does yest throw things
 	 * like DMA polling into the workqueue. Notice that
-	 * in_wq is not equivalent to (qc->tf.flags & ATA_TFLAG_POLLING).
+	 * in_wq is yest equivalent to (qc->tf.flags & ATA_TFLAG_POLLING).
 	 */
 	WARN_ON_ONCE(in_wq != ata_hsm_ok_in_wq(ap, qc));
 
@@ -1017,16 +1017,16 @@ fsm_start:
 			goto fsm_start;
 		}
 
-		/* Device should not ask for data transfer (DRQ=1)
+		/* Device should yest ask for data transfer (DRQ=1)
 		 * when it finds something wrong.
-		 * We ignore DRQ here and stop the HSM by
+		 * We igyesre DRQ here and stop the HSM by
 		 * changing hsm_task_state to HSM_ST_ERR and
 		 * let the EH abort the command or reset the device.
 		 */
 		if (unlikely(status & (ATA_ERR | ATA_DF))) {
 			/* Some ATAPI tape drives forget to clear the ERR bit
 			 * when doing the next command (mostly request sense).
-			 * We ignore ERR here to workaround and proceed sending
+			 * We igyesre ERR here to workaround and proceed sending
 			 * the CDB.
 			 */
 			if (!(qc->dev->horkage & ATA_HORKAGE_STUCK_ERR)) {
@@ -1071,9 +1071,9 @@ fsm_start:
 				goto fsm_start;
 			}
 
-			/* Device should not ask for data transfer (DRQ=1)
+			/* Device should yest ask for data transfer (DRQ=1)
 			 * when it finds something wrong.
-			 * We ignore DRQ here and stop the HSM by
+			 * We igyesre DRQ here and stop the HSM by
 			 * changing hsm_task_state to HSM_ST_ERR and
 			 * let the EH abort the command or reset the device.
 			 */
@@ -1100,7 +1100,7 @@ fsm_start:
 					/* device stops HSM for abort/error */
 					qc->err_mask |= AC_ERR_DEV;
 
-					/* If diagnostic failed and this is
+					/* If diagyesstic failed and this is
 					 * IDENTIFY, it's likely a phantom
 					 * device.  Mark hint.
 					 */
@@ -1188,9 +1188,9 @@ fsm_start:
 			goto fsm_start;
 		}
 
-		/* no more data to transfer */
+		/* yes more data to transfer */
 		DPRINTK("ata%u: dev %u command complete, drv_stat 0x%x\n",
-			ap->print_id, qc->dev->devno, status);
+			ap->print_id, qc->dev->devyes, status);
 
 		WARN_ON_ONCE(qc->err_mask & (AC_ERR_DEV | AC_ERR_HSM));
 
@@ -1294,8 +1294,8 @@ fsm_start:
 	/*
 	 * This is purely heuristic.  This is a fast path.
 	 * Sometimes when we enter, BSY will be cleared in
-	 * a chk-status or two.  If not, the drive is probably seeking
-	 * or something.  Snooze for a couple msecs, then
+	 * a chk-status or two.  If yest, the drive is probably seeking
+	 * or something.  Syesoze for a couple msecs, then
 	 * chk-status again.  If still busy, queue delayed work.
 	 */
 	status = ata_sff_busy_wait(ap, ATA_BUSY, 5);
@@ -1312,14 +1312,14 @@ fsm_start:
 	}
 
 	/*
-	 * hsm_move() may trigger another command to be processed.
+	 * hsm_move() may trigger ayesther command to be processed.
 	 * clean the link beforehand.
 	 */
 	ap->sff_pio_task_link = NULL;
 	/* move the HSM */
 	poll_next = ata_sff_hsm_move(ap, qc, status, 1);
 
-	/* another command or interrupt handler
+	/* ayesther command or interrupt handler
 	 * may be running at this point.
 	 */
 	if (poll_next)
@@ -1353,7 +1353,7 @@ unsigned int ata_sff_qc_issue(struct ata_queued_cmd *qc)
 		qc->tf.flags |= ATA_TFLAG_POLLING;
 
 	/* select the device */
-	ata_dev_select(ap, qc->dev->devno, 1, 0);
+	ata_dev_select(ap, qc->dev->devyes, 1, 0);
 
 	/* start the command */
 	switch (qc->tf.protocol) {
@@ -1407,7 +1407,7 @@ unsigned int ata_sff_qc_issue(struct ata_queued_cmd *qc)
 
 		ap->hsm_task_state = HSM_ST_FIRST;
 
-		/* send cdb by polling if no cdb interrupt */
+		/* send cdb by polling if yes cdb interrupt */
 		if ((!(qc->dev->flags & ATA_DFLAG_CDB_INTR)) ||
 		    (qc->tf.flags & ATA_TFLAG_POLLING))
 			ata_sff_queue_pio_task(link, 0);
@@ -1454,7 +1454,7 @@ static unsigned int ata_sff_idle_irq(struct ata_port *ap)
 		return 1;
 	}
 #endif
-	return 0;	/* irq not handled */
+	return 0;	/* irq yest handled */
 }
 
 static unsigned int __ata_sff_port_intr(struct ata_port *ap,
@@ -1473,7 +1473,7 @@ static unsigned int __ata_sff_port_intr(struct ata_port *ap,
 		 * at this state when ready to receive CDB.
 		 */
 
-		/* Check the ATA_DFLAG_CDB_INTR flag is enough here.
+		/* Check the ATA_DFLAG_CDB_INTR flag is eyesugh here.
 		 * The flag was turned on only for atapi devices.  No
 		 * need to check ata_is_atapi(qc->tf.protocol) again.
 		 */
@@ -1517,7 +1517,7 @@ static unsigned int __ata_sff_port_intr(struct ata_port *ap,
  *	spin_lock_irqsave(host lock)
  *
  *	RETURNS:
- *	One if interrupt was handled, zero if not (shared irq).
+ *	One if interrupt was handled, zero if yest (shared irq).
  */
 unsigned int ata_sff_port_intr(struct ata_port *ap, struct ata_queued_cmd *qc)
 {
@@ -1554,8 +1554,8 @@ retry:
 	}
 
 	/*
-	 * If no port was expecting IRQ but the controller is actually
-	 * asserting IRQ line, nobody cared will ensue.  Check IRQ
+	 * If yes port was expecting IRQ but the controller is actually
+	 * asserting IRQ line, yesbody cared will ensue.  Check IRQ
 	 * pending status if available and clear spurious IRQ.
 	 */
 	if (!handled && !retried) {
@@ -1603,7 +1603,7 @@ retry:
  *	@dev_instance: pointer to our ata_host information structure
  *
  *	Default interrupt handler for PCI IDE devices.  Calls
- *	ata_sff_port_intr() for each port that is not disabled.
+ *	ata_sff_port_intr() for each port that is yest disabled.
  *
  *	LOCKING:
  *	Obtains host lock during operation.
@@ -1637,7 +1637,7 @@ void ata_sff_lost_interrupt(struct ata_port *ap)
 
 	/* Only one outstanding command per SFF channel */
 	qc = ata_qc_from_tag(ap, ap->link.active_tag);
-	/* We cannot lose an interrupt on a non-existent or polled command */
+	/* We canyest lose an interrupt on a yesn-existent or polled command */
 	if (!qc || qc->tf.flags & ATA_TFLAG_POLLING)
 		return;
 	/* See if the controller thinks it is still busy - if so the command
@@ -1646,11 +1646,11 @@ void ata_sff_lost_interrupt(struct ata_port *ap)
 	if (status & ATA_BUSY)
 		return;
 
-	/* There was a command running, we are no longer busy and we have
-	   no interrupt. */
+	/* There was a command running, we are yes longer busy and we have
+	   yes interrupt. */
 	ata_port_warn(ap, "lost interrupt (Status 0x%x)\n",
 								status);
-	/* Run the host interrupt logic as if the interrupt had not been
+	/* Run the host interrupt logic as if the interrupt had yest been
 	   lost */
 	ata_sff_port_intr(ap, qc);
 }
@@ -1716,7 +1716,7 @@ EXPORT_SYMBOL_GPL(ata_sff_thaw);
  *	Kernel thread context (may sleep)
  *
  *	RETURNS:
- *	0 on success, -errno otherwise.
+ *	0 on success, -erryes otherwise.
  */
 int ata_sff_prereset(struct ata_link *link, unsigned long deadline)
 {
@@ -1727,16 +1727,16 @@ int ata_sff_prereset(struct ata_link *link, unsigned long deadline)
 	if (rc)
 		return rc;
 
-	/* if we're about to do hardreset, nothing more to do */
+	/* if we're about to do hardreset, yesthing more to do */
 	if (ehc->i.action & ATA_EH_HARDRESET)
 		return 0;
 
-	/* wait for !BSY if we don't know that no device is attached */
+	/* wait for !BSY if we don't kyesw that yes device is attached */
 	if (!ata_link_offline(link)) {
 		rc = ata_sff_wait_ready(link, deadline);
 		if (rc && rc != -ENODEV) {
 			ata_link_warn(link,
-				      "device not ready (errno=%d), forcing hardreset\n",
+				      "device yest ready (erryes=%d), forcing hardreset\n",
 				      rc);
 			ehc->i.action |= ATA_EH_HARDRESET;
 		}
@@ -1785,7 +1785,7 @@ static unsigned int ata_devchk(struct ata_port *ap, unsigned int device)
 	if ((nsect == 0x55) && (lbal == 0xaa))
 		return 1;	/* we found a device */
 
-	return 0;		/* nothing found */
+	return 0;		/* yesthing found */
 }
 
 /**
@@ -1797,7 +1797,7 @@ static unsigned int ata_devchk(struct ata_port *ap, unsigned int device)
  *	After an event -- SRST, E.D.D., or SATA COMRESET -- occurs,
  *	an ATA/ATAPI-defined set of values is placed in the ATA
  *	shadow registers, indicating the results of device detection
- *	and diagnostics.
+ *	and diagyesstics.
  *
  *	Select the ATA device, and read the values from the ATA shadow
  *	registers.  Then parse according to the Error register value,
@@ -1817,7 +1817,7 @@ unsigned int ata_sff_dev_classify(struct ata_device *dev, int present,
 	unsigned int class;
 	u8 err;
 
-	ap->ops->sff_dev_select(ap, dev->devno);
+	ap->ops->sff_dev_select(ap, dev->devyes);
 
 	memset(&tf, 0, sizeof(tf));
 
@@ -1828,12 +1828,12 @@ unsigned int ata_sff_dev_classify(struct ata_device *dev, int present,
 
 	/* see if device passed diags: continue and warn later */
 	if (err == 0)
-		/* diagnostic fail : do nothing _YET_ */
+		/* diagyesstic fail : do yesthing _YET_ */
 		dev->horkage |= ATA_HORKAGE_DIAGNOSTIC;
 	else if (err == 1)
-		/* do nothing */ ;
-	else if ((dev->devno == 0) && (err == 0x81))
-		/* do nothing */ ;
+		/* do yesthing */ ;
+	else if ((dev->devyes == 0) && (err == 0x81))
+		/* do yesthing */ ;
 	else
 		return ATA_DEV_NONE;
 
@@ -1841,10 +1841,10 @@ unsigned int ata_sff_dev_classify(struct ata_device *dev, int present,
 	class = ata_dev_classify(&tf);
 
 	if (class == ATA_DEV_UNKNOWN) {
-		/* If the device failed diagnostic, it's likely to
+		/* If the device failed diagyesstic, it's likely to
 		 * have reported incorrect device signature too.
 		 * Assume ATA device if the device seems present but
-		 * device signature is invalid with diagnostic
+		 * device signature is invalid with diagyesstic
 		 * failure.
 		 */
 		if (present && (dev->horkage & ATA_HORKAGE_DIAGNOSTIC))
@@ -1874,7 +1874,7 @@ EXPORT_SYMBOL_GPL(ata_sff_dev_classify);
  *
  *	RETURNS:
  *	0 on success, -ENODEV if some or all of devices in @devmask
- *	don't seem to exist.  -errno on other errors.
+ *	don't seem to exist.  -erryes on other errors.
  */
 int ata_sff_wait_after_reset(struct ata_link *link, unsigned int devmask,
 			     unsigned long deadline)
@@ -1969,7 +1969,7 @@ static int ata_bus_softreset(struct ata_port *ap, unsigned int devmask,
  *	Kernel thread context (may sleep)
  *
  *	RETURNS:
- *	0 on success, -errno otherwise.
+ *	0 on success, -erryes otherwise.
  */
 int ata_sff_softreset(struct ata_link *link, unsigned int *classes,
 		      unsigned long deadline)
@@ -1996,7 +1996,7 @@ int ata_sff_softreset(struct ata_link *link, unsigned int *classes,
 	rc = ata_bus_softreset(ap, devmask, deadline);
 	/* if link is occupied, -ENODEV too is an error */
 	if (rc && (rc != -ENODEV || sata_scr_valid(link))) {
-		ata_link_err(link, "SRST failed (errno=%d)\n", rc);
+		ata_link_err(link, "SRST failed (erryes=%d)\n", rc);
 		return rc;
 	}
 
@@ -2025,7 +2025,7 @@ EXPORT_SYMBOL_GPL(ata_sff_softreset);
  *	Kernel thread context (may sleep)
  *
  *	RETURNS:
- *	0 on success, -errno otherwise.
+ *	0 on success, -erryes otherwise.
  */
 int sata_sff_hardreset(struct ata_link *link, unsigned int *class,
 		       unsigned long deadline)
@@ -2069,9 +2069,9 @@ void ata_sff_postreset(struct ata_link *link, unsigned int *classes)
 	if (classes[1] != ATA_DEV_NONE)
 		ap->ops->sff_dev_select(ap, 0);
 
-	/* bail out if no device is present */
+	/* bail out if yes device is present */
 	if (classes[0] == ATA_DEV_NONE && classes[1] == ATA_DEV_NONE) {
-		DPRINTK("EXIT, no device\n");
+		DPRINTK("EXIT, yes device\n");
 		return;
 	}
 
@@ -2152,7 +2152,7 @@ void ata_sff_error_handler(struct ata_port *ap)
 
 	spin_unlock_irqrestore(ap->lock, flags);
 
-	/* ignore built-in hardresets if SCR access is not available */
+	/* igyesre built-in hardresets if SCR access is yest available */
 	if ((hardreset == sata_std_hardreset ||
 	     hardreset == sata_sff_hardreset) && !sata_scr_valid(&ap->link))
 		hardreset = NULL;
@@ -2171,7 +2171,7 @@ EXPORT_SYMBOL_GPL(ata_sff_error_handler);
  *	device_addr, status_addr, and command_addr to standard offsets
  *	relative to cmd_addr.
  *
- *	Does not set ctl_addr, altstatus_addr, bmdma_addr, or scr_addr.
+ *	Does yest set ctl_addr, altstatus_addr, bmdma_addr, or scr_addr.
  */
 void ata_sff_std_ports(struct ata_ioports *ioaddr)
 {
@@ -2220,7 +2220,7 @@ static int ata_resources_present(struct pci_dev *pdev, int port)
  *	Inherited from calling layer (may sleep).
  *
  *	RETURNS:
- *	0 if at least one port is initialized, -ENODEV if no port is
+ *	0 if at least one port is initialized, -ENODEV if yes port is
  *	available.
  */
 int ata_pci_sff_init_host(struct ata_host *host)
@@ -2252,7 +2252,7 @@ int ata_pci_sff_init_host(struct ata_host *host)
 					dev_driver_string(gdev));
 		if (rc) {
 			dev_warn(gdev,
-				 "failed to request/iomap BARs for port %d (errno=%d)\n",
+				 "failed to request/iomap BARs for port %d (erryes=%d)\n",
 				 i, rc);
 			if (rc == -EBUSY)
 				pcim_pin_device(pdev);
@@ -2275,7 +2275,7 @@ int ata_pci_sff_init_host(struct ata_host *host)
 	}
 
 	if (!mask) {
-		dev_err(gdev, "no available native port\n");
+		dev_err(gdev, "yes available native port\n");
 		return -ENODEV;
 	}
 
@@ -2286,7 +2286,7 @@ EXPORT_SYMBOL_GPL(ata_pci_sff_init_host);
 /**
  *	ata_pci_sff_prepare_host - helper to prepare PCI PIO-only SFF ATA host
  *	@pdev: target PCI device
- *	@ppi: array of port_info, must be enough for two ports
+ *	@ppi: array of port_info, must be eyesugh for two ports
  *	@r_host: out argument for the initialized ATA host
  *
  *	Helper to allocate PIO-only SFF ATA host for @pdev, acquire
@@ -2296,7 +2296,7 @@ EXPORT_SYMBOL_GPL(ata_pci_sff_init_host);
  *	Inherited from calling layer (may sleep).
  *
  *	RETURNS:
- *	0 on success, -errno otherwise.
+ *	0 on success, -erryes otherwise.
  */
 int ata_pci_sff_prepare_host(struct pci_dev *pdev,
 			     const struct ata_port_info * const *ppi,
@@ -2343,7 +2343,7 @@ EXPORT_SYMBOL_GPL(ata_pci_sff_prepare_host);
  *	Inherited from calling layer (may sleep).
  *
  *	RETURNS:
- *	0 on success, -errno otherwise.
+ *	0 on success, -erryes otherwise.
  */
 int ata_pci_sff_activate_host(struct ata_host *host,
 			      irq_handler_t irq_handler,
@@ -2365,8 +2365,8 @@ int ata_pci_sff_activate_host(struct ata_host *host,
 		 * ATA spec says we should use legacy mode when one
 		 * port is in legacy mode, but disabled ports on some
 		 * PCI hosts appear as fixed legacy ports, e.g SB600/700
-		 * on which the secondary port is not wired, so
-		 * ignore ports that are marked as 'dummy' during
+		 * on which the secondary port is yest wired, so
+		 * igyesre ports that are marked as 'dummy' during
 		 * this check
 		 */
 		pci_read_config_byte(pdev, PCI_CLASS_PROG, &tmp8);
@@ -2456,7 +2456,7 @@ static int ata_pci_init_one(struct pci_dev *pdev,
 
 	pi = ata_sff_find_valid_pi(ppi);
 	if (!pi) {
-		dev_err(&pdev->dev, "no valid port_info specified\n");
+		dev_err(&pdev->dev, "yes valid port_info specified\n");
 		return -EINVAL;
 	}
 
@@ -2499,7 +2499,7 @@ out:
 /**
  *	ata_pci_sff_init_one - Initialize/register PIO-only PCI IDE controller
  *	@pdev: Controller to be initialized
- *	@ppi: array of port_info, must be enough for two ports
+ *	@ppi: array of port_info, must be eyesugh for two ports
  *	@sht: scsi_host_template to use when registering the host
  *	@host_priv: host private_data
  *	@hflag: host flags
@@ -2516,7 +2516,7 @@ out:
  *	Inherited from PCI layer (may sleep).
  *
  *	RETURNS:
- *	Zero on success, negative on errno-based value on error.
+ *	Zero on success, negative on erryes-based value on error.
  */
 int ata_pci_sff_init_one(struct pci_dev *pdev,
 		 const struct ata_port_info * const *ppi,
@@ -2734,7 +2734,7 @@ unsigned int ata_bmdma_qc_issue(struct ata_queued_cmd *qc)
 		return ata_sff_qc_issue(qc);
 
 	/* select the device */
-	ata_dev_select(ap, qc->dev->devno, 1, 0);
+	ata_dev_select(ap, qc->dev->devyes, 1, 0);
 
 	/* start the command */
 	switch (qc->tf.protocol) {
@@ -2754,7 +2754,7 @@ unsigned int ata_bmdma_qc_issue(struct ata_queued_cmd *qc)
 		ap->ops->bmdma_setup(qc);	    /* set up bmdma */
 		ap->hsm_task_state = HSM_ST_FIRST;
 
-		/* send cdb by polling if no cdb interrupt */
+		/* send cdb by polling if yes cdb interrupt */
 		if (!(qc->dev->flags & ATA_DFLAG_CDB_INTR))
 			ata_sff_queue_pio_task(link, 0);
 		break;
@@ -2779,7 +2779,7 @@ EXPORT_SYMBOL_GPL(ata_bmdma_qc_issue);
  *	spin_lock_irqsave(host lock)
  *
  *	RETURNS:
- *	One if interrupt was handled, zero if not (shared irq).
+ *	One if interrupt was handled, zero if yest (shared irq).
  */
 unsigned int ata_bmdma_port_intr(struct ata_port *ap, struct ata_queued_cmd *qc)
 {
@@ -2793,7 +2793,7 @@ unsigned int ata_bmdma_port_intr(struct ata_port *ap, struct ata_queued_cmd *qc)
 		host_stat = ap->ops->bmdma_status(ap);
 		VPRINTK("ata%u: host_stat 0x%X\n", ap->print_id, host_stat);
 
-		/* if it's not our irq... */
+		/* if it's yest our irq... */
 		if (!(host_stat & ATA_DMA_INTR))
 			return ata_sff_idle_irq(ap);
 
@@ -2823,7 +2823,7 @@ EXPORT_SYMBOL_GPL(ata_bmdma_port_intr);
  *	@dev_instance: pointer to our ata_host information structure
  *
  *	Default interrupt handler for PCI IDE devices.  Calls
- *	ata_bmdma_port_intr() for each port that is not disabled.
+ *	ata_bmdma_port_intr() for each port that is yest disabled.
  *
  *	LOCKING:
  *	Obtains host lock during operation.
@@ -2989,10 +2989,10 @@ void ata_bmdma_start(struct ata_queued_cmd *qc)
 	 * us when we are to resume control.  So, in effect,
 	 * we don't care when the mmio write flushes.
 	 * Further, a read of the DMA status register _immediately_
-	 * following the write may not be what certain flaky hardware
-	 * is expected, so I think it is best to not add a readb()
+	 * following the write may yest be what certain flaky hardware
+	 * is expected, so I think it is best to yest add a readb()
 	 * without first all the MMIO ATA cards/mobos.
-	 * Or maybe I'm just being paranoid.
+	 * Or maybe I'm just being parayesid.
 	 *
 	 * FIXME: The posting of this write means I/O starts are
 	 * unnecessarily delayed for MMIO
@@ -3097,7 +3097,7 @@ EXPORT_SYMBOL_GPL(ata_bmdma_port_start32);
  *	@pdev: PCI device
  *
  *	Some PCI ATA devices report simplex mode but in fact can be told to
- *	enter non simplex mode. This implements the necessary logic to
+ *	enter yesn simplex mode. This implements the necessary logic to
  *	perform the task on such devices. Calling it on other devices will
  *	have -undefined- behaviour.
  */
@@ -3118,7 +3118,7 @@ int ata_pci_bmdma_clear_simplex(struct pci_dev *pdev)
 }
 EXPORT_SYMBOL_GPL(ata_pci_bmdma_clear_simplex);
 
-static void ata_bmdma_nodma(struct ata_host *host, const char *reason)
+static void ata_bmdma_yesdma(struct ata_host *host, const char *reason)
 {
 	int i;
 
@@ -3147,24 +3147,24 @@ void ata_pci_bmdma_init(struct ata_host *host)
 
 	/* No BAR4 allocation: No DMA */
 	if (pci_resource_start(pdev, 4) == 0) {
-		ata_bmdma_nodma(host, "BAR4 is zero");
+		ata_bmdma_yesdma(host, "BAR4 is zero");
 		return;
 	}
 
 	/*
 	 * Some controllers require BMDMA region to be initialized
-	 * even if DMA is not in use to clear IRQ status via
+	 * even if DMA is yest in use to clear IRQ status via
 	 * ->sff_irq_clear method.  Try to initialize bmdma_addr
 	 * regardless of dma masks.
 	 */
 	rc = dma_set_mask_and_coherent(&pdev->dev, ATA_DMA_MASK);
 	if (rc)
-		ata_bmdma_nodma(host, "failed to set dma mask");
+		ata_bmdma_yesdma(host, "failed to set dma mask");
 
 	/* request and iomap DMA region */
 	rc = pcim_iomap_regions(pdev, 1 << 4, dev_driver_string(gdev));
 	if (rc) {
-		ata_bmdma_nodma(host, "failed to request/iomap BAR4");
+		ata_bmdma_yesdma(host, "failed to request/iomap BAR4");
 		return;
 	}
 	host->iomap = pcim_iomap_table(pdev);
@@ -3190,7 +3190,7 @@ EXPORT_SYMBOL_GPL(ata_pci_bmdma_init);
 /**
  *	ata_pci_bmdma_prepare_host - helper to prepare PCI BMDMA ATA host
  *	@pdev: target PCI device
- *	@ppi: array of port_info, must be enough for two ports
+ *	@ppi: array of port_info, must be eyesugh for two ports
  *	@r_host: out argument for the initialized ATA host
  *
  *	Helper to allocate BMDMA ATA host for @pdev, acquire all PCI
@@ -3200,7 +3200,7 @@ EXPORT_SYMBOL_GPL(ata_pci_bmdma_init);
  *	Inherited from calling layer (may sleep).
  *
  *	RETURNS:
- *	0 on success, -errno otherwise.
+ *	0 on success, -erryes otherwise.
  */
 int ata_pci_bmdma_prepare_host(struct pci_dev *pdev,
 			       const struct ata_port_info * const * ppi,
@@ -3220,7 +3220,7 @@ EXPORT_SYMBOL_GPL(ata_pci_bmdma_prepare_host);
 /**
  *	ata_pci_bmdma_init_one - Initialize/register BMDMA PCI IDE controller
  *	@pdev: Controller to be initialized
- *	@ppi: array of port_info, must be enough for two ports
+ *	@ppi: array of port_info, must be eyesugh for two ports
  *	@sht: scsi_host_template to use when registering the host
  *	@host_priv: host private_data
  *	@hflags: host flags
@@ -3232,7 +3232,7 @@ EXPORT_SYMBOL_GPL(ata_pci_bmdma_prepare_host);
  *	Inherited from PCI layer (may sleep).
  *
  *	RETURNS:
- *	Zero on success, negative on errno-based value on error.
+ *	Zero on success, negative on erryes-based value on error.
  */
 int ata_pci_bmdma_init_one(struct pci_dev *pdev,
 			   const struct ata_port_info * const * ppi,

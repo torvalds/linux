@@ -318,7 +318,7 @@ __ixgbe_alloc_rx_buffers_zc(struct ixgbe_ring *rx_ring, u16 cleaned_count,
 	u16 i = rx_ring->next_to_use;
 	bool ok = true;
 
-	/* nothing to do */
+	/* yesthing to do */
 	if (!cleaned_count)
 		return true;
 
@@ -367,7 +367,7 @@ __ixgbe_alloc_rx_buffers_zc(struct ixgbe_ring *rx_ring, u16 cleaned_count,
 		rx_ring->next_to_alloc = i;
 
 		/* Force memory writes to complete before letting h/w
-		 * know there are new descriptors to fetch.  (Only
+		 * kyesw there are new descriptors to fetch.  (Only
 		 * applicable for weak-ordered memory model archs,
 		 * such as IA-64).
 		 */
@@ -457,7 +457,7 @@ int ixgbe_clean_rx_irq_zc(struct ixgbe_q_vector *q_vector,
 			break;
 
 		/* This memory barrier is needed to keep us from reading
-		 * any other fields out of the rx_desc until we know the
+		 * any other fields out of the rx_desc until we kyesw the
 		 * descriptor has been written back
 		 */
 		dma_rmb();
@@ -533,7 +533,7 @@ int ixgbe_clean_rx_irq_zc(struct ixgbe_q_vector *q_vector,
 		struct ixgbe_ring *ring = adapter->xdp_ring[smp_processor_id()];
 
 		/* Force memory writes to complete before letting h/w
-		 * know there are new descriptors to fetch.
+		 * kyesw there are new descriptors to fetch.
 		 */
 		wmb();
 		writel(ring->next_to_use, ring->tail);

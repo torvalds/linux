@@ -23,7 +23,7 @@
 #define LEON_MMUTLB_ENT_MAX	64
 
 /*
- * diagnostic access from mmutlb.vhd:
+ * diagyesstic access from mmutlb.vhd:
  * 0: pte address
  * 4: pte
  * 8: additional flags
@@ -96,8 +96,8 @@ static inline unsigned long sparc_leon3_get_dcachecfg(void)
 	return retval;
 }
 
-/* enable snooping */
-static inline void sparc_leon3_enable_snooping(void)
+/* enable syesoping */
+static inline void sparc_leon3_enable_syesoping(void)
 {
 	__asm__ __volatile__ ("lda [%%g0] 2, %%l1\n\t"
 			  "set 0x800000, %%l2\n\t"
@@ -105,7 +105,7 @@ static inline void sparc_leon3_enable_snooping(void)
 			  "sta %%l2, [%%g0] 2\n\t" : : : "l1", "l2");
 };
 
-static inline int sparc_leon3_snooping_enabled(void)
+static inline int sparc_leon3_syesoping_enabled(void)
 {
 	u32 cctrl;
 	__asm__ __volatile__("lda [%%g0] 2, %0\n\t" : "=r"(cctrl));
@@ -185,7 +185,7 @@ static inline int sparc_leon3_cpuid(void)
 #define LEON_PTE_SH    15
 #define LEON_PTE_M     0x3f
 #else
-#error cannot determine LEON_PAGE_SIZE_LEON
+#error canyest determine LEON_PAGE_SIZE_LEON
 #endif
 
 #define LEON3_XCCR_SETS_MASK  0x07000000UL
@@ -216,7 +216,7 @@ struct leon3_cacheregs {
 #include <linux/irq.h>
 #include <linux/interrupt.h>
 
-struct device_node;
+struct device_yesde;
 struct task_struct;
 unsigned int leon_build_device_irq(unsigned int real_irq,
 				   irq_flow_handler_t flow_handler,
@@ -225,7 +225,7 @@ void leon_update_virq_handling(unsigned int virq,
 			       irq_flow_handler_t flow_handler,
 			       const char *name, int do_ack);
 void leon_init_timers(void);
-void leon_node_init(struct device_node *dp, struct device_node ***nextp);
+void leon_yesde_init(struct device_yesde *dp, struct device_yesde ***nextp);
 void init_leon(void);
 void poke_leonsparc(void);
 void leon3_getCacheRegs(struct leon3_cacheregs *regs);

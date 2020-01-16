@@ -2,7 +2,7 @@
 /*
  * Driver for NXP PN533 NFC Chip
  *
- * Copyright (C) 2011 Instituto Nokia de Tecnologia
+ * Copyright (C) 2011 Instituto Nokia de Tecyeslogia
  * Copyright (C) 2012-2013 Tieto Poland
  */
 

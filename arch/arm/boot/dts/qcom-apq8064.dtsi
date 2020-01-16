@@ -22,12 +22,12 @@
 
 		smem_region: smem@80000000 {
 			reg = <0x80000000 0x200000>;
-			no-map;
+			yes-map;
 		};
 
 		wcnss_mem: wcnss@8f000000 {
 			reg = <0x8f000000 0x700000>;
-			no-map;
+			yes-map;
 		};
 	};
 
@@ -248,7 +248,7 @@
 		dsps@3 {
 			interrupts = <0 138 IRQ_TYPE_EDGE_RISING>;
 
-			qcom,ipc = <&sps_sic_non_secure 0x4080 0>;
+			qcom,ipc = <&sps_sic_yesn_secure 0x4080 0>;
 			qcom,smd-edge = <3>;
 
 			status = "disabled";
@@ -273,7 +273,7 @@
 		qcom,ipc-1 = <&l2cc 8 4>;
 		qcom,ipc-2 = <&l2cc 8 14>;
 		qcom,ipc-3 = <&l2cc 8 23>;
-		qcom,ipc-4 = <&sps_sic_non_secure 0x4094 0>;
+		qcom,ipc-4 = <&sps_sic_yesn_secure 0x4094 0>;
 
 		apps_smsm: apps@0 {
 			reg = <0>;
@@ -428,7 +428,7 @@
 			regulator;
 		};
 
-		sps_sic_non_secure: sps-sic-non-secure@12100000 {
+		sps_sic_yesn_secure: sps-sic-yesn-secure@12100000 {
 			compatible	= "syscon";
 			reg		= <0x12100000 0x10000>;
 		};
@@ -1096,7 +1096,7 @@
 				clock-names	= "mclk", "apb_pclk";
 				bus-width	= <8>;
 				max-frequency	= <96000000>;
-				non-removable;
+				yesn-removable;
 				cap-sd-highspeed;
 				cap-mmc-highspeed;
 				dmas = <&sdcc1bam 2>, <&sdcc1bam 1>;
@@ -1116,7 +1116,7 @@
 				cap-sd-highspeed;
 				cap-mmc-highspeed;
 				max-frequency	= <192000000>;
-				no-1-8-v;
+				yes-1-8-v;
 				dmas = <&sdcc3bam 2>, <&sdcc3bam 1>;
 				dma-names = "tx", "rx";
 			};
@@ -1146,8 +1146,8 @@
 			reg = <0x1a400000 0x100>;
 		};
 
-		gpu: adreno-3xx@4300000 {
-			compatible = "qcom,adreno-3xx";
+		gpu: adreyes-3xx@4300000 {
+			compatible = "qcom,adreyes-3xx";
 			reg = <0x04300000 0x20000>;
 			reg-names = "kgsl_3d0_reg_memory";
 			interrupts = <GIC_SPI 80 IRQ_TYPE_LEVEL_HIGH>;
@@ -1649,9 +1649,9 @@
 				/*
 				 * Not described input ports:
 				 * 2 - connected to STM component
-				 * 3 - not-connected
-				 * 6 - not-connected
-				 * 7 - not-connected
+				 * 3 - yest-connected
+				 * 6 - yest-connected
+				 * 7 - yest-connected
 				 */
 				port@0 {
 					reg = <0>;

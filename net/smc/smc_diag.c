@@ -69,7 +69,7 @@ static int smc_diag_msg_attrs_fill(struct sock *sk, struct sk_buff *skb,
 		return 1;
 
 	r->diag_uid = from_kuid_munged(user_ns, sock_i_uid(sk));
-	r->diag_inode = sock_i_ino(sk);
+	r->diag_iyesde = sock_i_iyes(sk);
 	return 0;
 }
 
@@ -103,7 +103,7 @@ static int __smc_diag_dump(struct sock *sk, struct sk_buff *skb,
 		goto errout;
 
 	fallback.reason = smc->fallback_rsn;
-	fallback.peer_diagnosis = smc->peer_diagnosis;
+	fallback.peer_diagyessis = smc->peer_diagyessis;
 	if (nla_put(skb, SMC_DIAG_FALLBACK, sizeof(fallback), &fallback) < 0)
 		goto errout;
 

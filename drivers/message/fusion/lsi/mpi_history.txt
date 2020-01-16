@@ -190,7 +190,7 @@ mpi_ioc.h
  *  10-11-06  01.05.12  Added MPI_IOCFACTS_EXCEPT_METADATA_UNSUPPORTED.
  *                      Added MaxInitiators field to PortFacts reply.
  *                      Added SAS Device Status Change ReasonCode for
- *                      asynchronous notification.
+ *                      asynchroyesus yestification.
  *                      Added MPI_EVENT_SAS_EXPANDER_STATUS_CHANGE and event
  *                      data structure.
  *                      Added new ImageType values for FWDownload and FWUpload
@@ -244,7 +244,7 @@ mpi_cnfg.h
  *  12-04-00  01.01.03  Config page changes to match MPI rev 1.00.01.
  *  12-05-00  01.01.04  Modified config page actions.
  *  01-09-01  01.01.05  Added defines for page address formats.
- *                      Data size for Manufacturing pages 2 and 3 no longer
+ *                      Data size for Manufacturing pages 2 and 3 yes longer
  *                      defined here.
  *                      Io Unit Page 2 size is fixed at 4 adapters and some
  *                      flags were changed.
@@ -262,7 +262,7 @@ mpi_cnfg.h
  *                      Added definitions and structures for IOC Page 2 and
  *                      RAID Volume Page 2.
  *  03-27-01  01.01.10  Added CONFIG_PAGE_FC_PORT_8 and CONFIG_PAGE_FC_PORT_9.
- *                      CONFIG_PAGE_FC_PORT_3 now supports persistent by DID.
+ *                      CONFIG_PAGE_FC_PORT_3 yesw supports persistent by DID.
  *                      Added VendorId and ProductRevLevel fields to
  *                      RAIDVOL2_IM_PHYS_ID struct.
  *                      Modified values for MPI_FCPORTPAGE0_FLAGS_ATTACH_
@@ -484,7 +484,7 @@ mpi_cnfg.h
  *                      CapabilitiesFlags field of IOC Page 6.
  *                      Added defines for metadata size bits in VolumeSettings
  *                      field of RAID Volume Page 0.
- *                      Added SATA Link Reset settings, Enable SATA Asynchronous
+ *                      Added SATA Link Reset settings, Enable SATA Asynchroyesus
  *                      Notification bit, and HideNonZeroAttachedPhyIdentifiers
  *                      bit to AdditionalControlFlags field of SAS IO Unit
  *                      Page 1.
@@ -492,7 +492,7 @@ mpi_cnfg.h
  *                      Device Limit Exceeded bits in Status field of SAS IO
  *                      Unit Page 2.
  *                      Added more AccessStatus values for SAS Device Page 0.
- *                      Added bit for SATA Asynchronous Notification Support in
+ *                      Added bit for SATA Asynchroyesus Notification Support in
  *                      Flags field of SAS Device Page 0.
  *  02-28-07  01.05.14  Added ExtFlags field to Manufacturing Page 4.
  *                      Added Disable SMART Polling for CapabilitiesFlags of
@@ -699,8 +699,8 @@ mpi_tool.h
  *  01-16-04  01.02.03  Added defines and structures for new tools
  *.                     MPI_TOOLBOX_ISTWI_READ_WRITE_TOOL and
  *                      MPI_TOOLBOX_FC_MANAGEMENT_TOOL.
- *  04-29-04  01.02.04  Added message structures for Diagnostic Buffer Post and
- *                      Diagnostic Release requests and replies.
+ *  04-29-04  01.02.04  Added message structures for Diagyesstic Buffer Post and
+ *                      Diagyesstic Release requests and replies.
  *  05-11-04  01.03.01  Original release for MPI v1.3.
  *  08-19-04  01.05.01  Original release for MPI v1.5.
  *  10-06-04  01.05.02  Added define for MPI_DIAG_BUF_TYPE_COUNT.

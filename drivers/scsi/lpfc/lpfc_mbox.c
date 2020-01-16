@@ -195,7 +195,7 @@ lpfc_dump_wakeup_param(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
  * @phba: pointer to lpfc hba data structure.
  * @pmb: pointer to the driver internal queue element for mailbox command.
  *
- * The read NVRAM mailbox command returns the HBA's non-volatile parameters
+ * The read NVRAM mailbox command returns the HBA's yesn-volatile parameters
  * that are used as defaults when the Fibre Channel link is brought on-line.
  *
  * This routine prepares the mailbox command for reading information stored
@@ -217,13 +217,13 @@ lpfc_read_nv(struct lpfc_hba * phba, LPFC_MBOXQ_t * pmb)
  * lpfc_config_async - Prepare a mailbox command for enabling HBA async event
  * @phba: pointer to lpfc hba data structure.
  * @pmb: pointer to the driver internal queue element for mailbox command.
- * @ring: ring number for the asynchronous event to be configured.
+ * @ring: ring number for the asynchroyesus event to be configured.
  *
- * The asynchronous event enable mailbox command is used to enable the
- * asynchronous event posting via the ASYNC_STATUS_CN IOCB response and
+ * The asynchroyesus event enable mailbox command is used to enable the
+ * asynchroyesus event posting via the ASYNC_STATUS_CN IOCB response and
  * specifies the default ring to which events are posted.
  *
- * This routine prepares the mailbox command for enabling HBA asynchronous
+ * This routine prepares the mailbox command for enabling HBA asynchroyesus
  * event support on a IOCB ring.
  **/
 void
@@ -246,8 +246,8 @@ lpfc_config_async(struct lpfc_hba * phba, LPFC_MBOXQ_t * pmb,
  * @pmb: pointer to the driver internal queue element for mailbox command.
  *
  * The heart beat mailbox command is used to detect an unresponsive HBA, which
- * is defined as any device where no error attention is sent and both mailbox
- * and rings are not processed.
+ * is defined as any device where yes error attention is sent and both mailbox
+ * and rings are yest processed.
  *
  * This routine prepares the mailbox command for issuing a heart beat in the
  * form of mailbox command to the HBA. The timely completion of the heart
@@ -302,7 +302,7 @@ lpfc_read_topology(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb,
 	mb->un.varReadTop.lilpBde64.addrLow = putPaddrLow(mp->phys);
 
 	/* Save address for later completion and set the owner to host so that
-	 * the FW knows this mailbox is available for processing.
+	 * the FW kyesws this mailbox is available for processing.
 	 */
 	pmb->ctx_buf = (uint8_t *)mp;
 	mb->mbxOwner = OWN_HOST;
@@ -347,7 +347,7 @@ lpfc_clear_la(struct lpfc_hba * phba, LPFC_MBOXQ_t * pmb)
  * mailbox command to override default value and to configure link-oriented
  * parameters such as DID address and various timers. Typically, this
  * command would be used after an F_Port login to set the returned DID address
- * and the fabric timeout values. This command is not valid before a configure
+ * and the fabric timeout values. This command is yest valid before a configure
  * port command has configured the HBA port.
  *
  * This routine prepares the mailbox command for configuring link on a HBA.
@@ -420,7 +420,7 @@ lpfc_config_msi(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 
 	if (phba->sli_rev < 3) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-				"0476 HBA not supporting SLI-3 or later "
+				"0476 HBA yest supporting SLI-3 or later "
 				"SLI Revision: 0x%x\n", phba->sli_rev);
 		return -EINVAL;
 	}
@@ -458,7 +458,7 @@ lpfc_config_msi(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 	mb->un.varCfgMSI.autoClearHA[0] = attentionConditions[0];
 	mb->un.varCfgMSI.autoClearHA[1] = attentionConditions[1];
 
-	/* For now, HBA autoclear does not work reliably, disable it */
+	/* For yesw, HBA autoclear does yest work reliably, disable it */
 	mb->un.varCfgMSI.autoClearHA[0] = 0;
 	mb->un.varCfgMSI.autoClearHA[1] = 0;
 
@@ -521,7 +521,7 @@ lpfc_init_link(struct lpfc_hba * phba,
 		phba->cfg_topology = FLAGS_TOPOLOGY_MODE_PT_PT;
 	}
 
-	/* Enable asynchronous ABTS responses from firmware */
+	/* Enable asynchroyesus ABTS responses from firmware */
 	mb->un.varInitLnk.link_flags |= FLAGS_IMED_ABORT;
 
 	/* NEW_FEATURE
@@ -618,9 +618,9 @@ lpfc_read_sparam(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb, int vpi)
 	if (!mp || !mp->virt) {
 		kfree(mp);
 		mb->mbxCommand = MBX_READ_SPARM64;
-		/* READ_SPARAM: no buffers */
+		/* READ_SPARAM: yes buffers */
 		lpfc_printf_log(phba, KERN_WARNING, LOG_MBOX,
-			        "0301 READ_SPARAM: no buffers\n");
+			        "0301 READ_SPARAM: yes buffers\n");
 		return (1);
 	}
 	INIT_LIST_HEAD(&mp->list);
@@ -645,7 +645,7 @@ lpfc_read_sparam(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb, int vpi)
  * @pmb: pointer to the driver internal queue element for mailbox command.
  *
  * The unregister DID mailbox command is used to unregister an N_Port/F_Port
- * login for an unknown RPI by specifying the DID of a remote port. This
+ * login for an unkyeswn RPI by specifying the DID of a remote port. This
  * command frees an RPI context in the HBA port. This has the effect of
  * performing an implicit N_Port/F_Port logout.
  *
@@ -771,9 +771,9 @@ lpfc_reg_rpi(struct lpfc_hba *phba, uint16_t vpi, uint32_t did,
 	if (!mp || !mp->virt) {
 		kfree(mp);
 		mb->mbxCommand = MBX_REG_LOGIN64;
-		/* REG_LOGIN: no buffers */
+		/* REG_LOGIN: yes buffers */
 		lpfc_printf_log(phba, KERN_WARNING, LOG_MBOX,
-				"0302 REG_LOGIN: no buffers, VPI:%d DID:x%x, "
+				"0302 REG_LOGIN: yes buffers, VPI:%d DID:x%x, "
 				"rpi x%x\n", vpi, did, rpi);
 		return 1;
 	}
@@ -809,7 +809,7 @@ lpfc_reg_rpi(struct lpfc_hba *phba, uint16_t vpi, uint32_t did,
  * login.
  *
  * For SLI4 ports, the rpi passed to this function must be the physical
- * rpi value, not the logical index.
+ * rpi value, yest the logical index.
  **/
 void
 lpfc_unreg_login(struct lpfc_hba *phba, uint16_t vpi, uint32_t rpi,
@@ -876,7 +876,7 @@ lpfc_sli4_unreg_all_rpis(struct lpfc_vport *vport)
  * The registration vport identifier mailbox command is used to activate a
  * virtual N_Port after it has acquired an N_Port_ID. The HBA validates the
  * N_Port_ID against the information in the selected virtual N_Port context
- * block and marks it active to allow normal processing of IOCB commands and
+ * block and marks it active to allow yesrmal processing of IOCB commands and
  * received unsolicited exchanges.
  *
  * This routine prepares the mailbox command for registering a virtual N_Port.
@@ -1074,7 +1074,7 @@ lpfc_build_hbq_profile2(struct config_hbq_var *hbqmb,
 {
 	hbqmb->profiles.profile2.seqlenbcnt = hbq_desc->seqlenbcnt;
 	hbqmb->profiles.profile2.maxlen     = hbq_desc->maxlen;
-	hbqmb->profiles.profile2.seqlenoff  = hbq_desc->seqlenoff;
+	hbqmb->profiles.profile2.seqleyesff  = hbq_desc->seqleyesff;
 }
 
 /**
@@ -1094,7 +1094,7 @@ lpfc_build_hbq_profile3(struct config_hbq_var *hbqmb,
 	hbqmb->profiles.profile3.seqlenbcnt = hbq_desc->seqlenbcnt;
 	hbqmb->profiles.profile3.maxlen     = hbq_desc->maxlen;
 	hbqmb->profiles.profile3.cmdcodeoff = hbq_desc->cmdcodeoff;
-	hbqmb->profiles.profile3.seqlenoff  = hbq_desc->seqlenoff;
+	hbqmb->profiles.profile3.seqleyesff  = hbq_desc->seqleyesff;
 	memcpy(&hbqmb->profiles.profile3.cmdmatch, hbq_desc->cmdmatch,
 	       sizeof(hbqmb->profiles.profile3.cmdmatch));
 }
@@ -1117,7 +1117,7 @@ lpfc_build_hbq_profile5(struct config_hbq_var *hbqmb,
 	hbqmb->profiles.profile5.seqlenbcnt = hbq_desc->seqlenbcnt;
 	hbqmb->profiles.profile5.maxlen     = hbq_desc->maxlen;
 	hbqmb->profiles.profile5.cmdcodeoff = hbq_desc->cmdcodeoff;
-	hbqmb->profiles.profile5.seqlenoff  = hbq_desc->seqlenoff;
+	hbqmb->profiles.profile5.seqleyesff  = hbq_desc->seqleyesff;
 	memcpy(&hbqmb->profiles.profile5.cmdmatch, hbq_desc->cmdmatch,
 	       sizeof(hbqmb->profiles.profile5.cmdmatch));
 }
@@ -1158,7 +1158,7 @@ lpfc_config_hbq(struct lpfc_hba *phba, uint32_t id,
 	hbqmb->ringMask   = hbq_desc->ring_mask;      /* Binds HBQ to a ring
 						       * e.g. Ring0=b0001,
 						       * ring2=b0100 */
-	hbqmb->headerLen  = hbq_desc->headerLen;      /* 0 if not profile 4
+	hbqmb->headerLen  = hbq_desc->headerLen;      /* 0 if yest profile 4
 						       * or 5 */
 	hbqmb->logEntry   = hbq_desc->logEntry;       /* Set to 1 if this
 						       * HBQ will be used
@@ -1181,7 +1181,7 @@ lpfc_config_hbq(struct lpfc_hba *phba, uint32_t id,
 	else if (hbq_desc->profile == 5)
 		lpfc_build_hbq_profile5(hbqmb, hbq_desc);
 
-	/* Return if no rctl / type masks for this HBQ */
+	/* Return if yes rctl / type masks for this HBQ */
 	if (!hbq_desc->mask_count)
 		return;
 
@@ -1205,7 +1205,7 @@ lpfc_config_hbq(struct lpfc_hba *phba, uint32_t id,
  * The configure ring mailbox command is used to configure an IOCB ring. This
  * configuration binds from one to six of HBA RC_CTL/TYPE mask entries to the
  * ring. This is used to map incoming sequences to a particular ring whose
- * RC_CTL/TYPE mask entry matches that of the sequence. The driver should not
+ * RC_CTL/TYPE mask entry matches that of the sequence. The driver should yest
  * attempt to configure a ring whose number is greater than the number
  * specified in the Port Control Block (PCB). It is an error to issue the
  * configure ring command more than once with the same ring number. The HBA
@@ -1261,9 +1261,9 @@ lpfc_config_ring(struct lpfc_hba * phba, int ring, LPFC_MBOXQ_t * pmb)
  *
  * The configure port mailbox command is used to identify the Port Control
  * Block (PCB) in the driver memory. After this command is issued, the
- * driver must not access the mailbox in the HBA without first resetting
+ * driver must yest access the mailbox in the HBA without first resetting
  * the HBA. The HBA may copy the PCB information to internal storage for
- * subsequent use; the driver can not change the PCB information unless it
+ * subsequent use; the driver can yest change the PCB information unless it
  * resets the HBA.
  *
  * This routine prepares the mailbox command for configuring port.
@@ -1314,7 +1314,7 @@ lpfc_config_port(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 		phba->sli_rev = LPFC_SLI_REV2;
 	mb->un.varCfgPort.sli_mode = phba->sli_rev;
 
-	/* If this is an SLI3 port, configure async status notification. */
+	/* If this is an SLI3 port, configure async status yestification. */
 	if (phba->sli_rev == LPFC_SLI_REV3)
 		mb->un.varCfgPort.casabt = 1;
 
@@ -1342,7 +1342,7 @@ lpfc_config_port(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 	 * the SLIM BAR (BAR0).
 	 *
 	 * Caution: be sure to use the PCI config space value of BAR0/BAR1
-	 * (the hardware's view of the base address), not the OS's
+	 * (the hardware's view of the base address), yest the OS's
 	 * value of pci_resource_start() as the OS value may be a cookie
 	 * for ioremap/iomap.
 	 */
@@ -1355,12 +1355,12 @@ lpfc_config_port(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 	 * Set up HGP - Port Memory
 	 *
 	 * The port expects the host get/put pointers to reside in memory
-	 * following the "non-diagnostic" mode mailbox (32 words, 0x80 bytes)
+	 * following the "yesn-diagyesstic" mode mailbox (32 words, 0x80 bytes)
 	 * area of SLIM.  In SLI-2 mode, there's an additional 16 reserved
-	 * words (0x40 bytes).  This area is not reserved if HBQs are
+	 * words (0x40 bytes).  This area is yest reserved if HBQs are
 	 * configured in SLI-3.
 	 *
-	 * CR0Put    - SLI2(no HBQs) = 0xc0, With HBQs = 0x80
+	 * CR0Put    - SLI2(yes HBQs) = 0xc0, With HBQs = 0x80
 	 * RR0Get                      0xc4              0x84
 	 * CR1Put                      0xc8              0x88
 	 * RR1Get                      0xcc              0x8c
@@ -1578,7 +1578,7 @@ lpfc_mbox_cmd_check(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 	    mboxq->mbox_cmpl != lpfc_sli_wake_mbox_wait) {
 		if (!mboxq->vport) {
 			lpfc_printf_log(phba, KERN_ERR, LOG_MBOX | LOG_VPORT,
-					"1814 Mbox x%x failed, no vport\n",
+					"1814 Mbox x%x failed, yes vport\n",
 					mboxq->u.mb.mbxCommand);
 			dump_stack();
 			return -ENODEV;
@@ -1600,11 +1600,11 @@ lpfc_mbox_cmd_check(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 int
 lpfc_mbox_dev_check(struct lpfc_hba *phba)
 {
-	/* If the PCI channel is in offline state, do not issue mbox */
+	/* If the PCI channel is in offline state, do yest issue mbox */
 	if (unlikely(pci_channel_offline(phba->pcidev)))
 		return -ENODEV;
 
-	/* If the HBA is in error state, do not issue mbox */
+	/* If the HBA is in error state, do yest issue mbox */
 	if (phba->link_state == LPFC_HBA_ERROR)
 		return -ENODEV;
 
@@ -1675,13 +1675,13 @@ lpfc_mbox_tmo_val(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 }
 
 /**
- * lpfc_sli4_mbx_sge_set - Set a sge entry in non-embedded mailbox command
+ * lpfc_sli4_mbx_sge_set - Set a sge entry in yesn-embedded mailbox command
  * @mbox: pointer to lpfc mbox command.
  * @sgentry: sge entry index.
  * @phyaddr: physical address for the sge
  * @length: Length of the sge.
  *
- * This routine sets up an entry in the non-embedded mailbox command at the sge
+ * This routine sets up an entry in the yesn-embedded mailbox command at the sge
  * index location.
  **/
 void
@@ -1698,11 +1698,11 @@ lpfc_sli4_mbx_sge_set(struct lpfcMboxq *mbox, uint32_t sgentry,
 }
 
 /**
- * lpfc_sli4_mbx_sge_get - Get a sge entry from non-embedded mailbox command
+ * lpfc_sli4_mbx_sge_get - Get a sge entry from yesn-embedded mailbox command
  * @mbox: pointer to lpfc mbox command.
  * @sgentry: sge entry index.
  *
- * This routine gets an entry from the non-embedded mailbox command at the sge
+ * This routine gets an entry from the yesn-embedded mailbox command at the sge
  * index location.
  **/
 void
@@ -1741,14 +1741,14 @@ lpfc_sli4_mbox_cmd_free(struct lpfc_hba *phba, struct lpfcMboxq *mbox)
 		return;
 	}
 
-	/* For non-embedded mbox command, we need to free the pages first */
+	/* For yesn-embedded mbox command, we need to free the pages first */
 	sgecount = bf_get(lpfc_mbox_hdr_sge_cnt, &sli4_cfg->header.cfg_mhdr);
-	/* There is nothing we can do if there is no sge address array */
+	/* There is yesthing we can do if there is yes sge address array */
 	if (unlikely(!mbox->sge_array)) {
 		mempool_free(mbox, phba->mbox_mem_pool);
 		return;
 	}
-	/* Each non-embedded DMA memory was allocated in the length of a page */
+	/* Each yesn-embedded DMA memory was allocated in the length of a page */
 	for (sgentry = 0; sgentry < sgecount; sgentry++) {
 		lpfc_sli4_mbx_sge_get(mbox, sgentry, &sge);
 		phyaddr = getPaddr(sge.pa_hi, sge.pa_lo);
@@ -1773,7 +1773,7 @@ lpfc_sli4_mbox_cmd_free(struct lpfc_hba *phba, struct lpfcMboxq *mbox)
  * for sending IOCTL command.
  *
  * Return: the actual length of the mbox command allocated (mostly useful
- *         for none embedded mailbox command).
+ *         for yesne embedded mailbox command).
  **/
 int
 lpfc_sli4_config(struct lpfc_hba *phba, struct lpfcMboxq *mbox,
@@ -1809,7 +1809,7 @@ lpfc_sli4_config(struct lpfc_hba *phba, struct lpfcMboxq *mbox,
 		return length;
 	}
 
-	/* Setup for the non-embedded mbox command */
+	/* Setup for the yesn-embedded mbox command */
 	pcount = (SLI4_PAGE_ALIGN(length))/SLI4_PAGE_SIZE;
 	pcount = (pcount > LPFC_SLI4_MBX_SGE_MAX_PAGES) ?
 				LPFC_SLI4_MBX_SGE_MAX_PAGES : pcount;
@@ -1818,13 +1818,13 @@ lpfc_sli4_config(struct lpfc_hba *phba, struct lpfcMboxq *mbox,
 				  GFP_KERNEL);
 	if (!mbox->sge_array) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_MBOX,
-				"2527 Failed to allocate non-embedded SGE "
+				"2527 Failed to allocate yesn-embedded SGE "
 				"array.\n");
 		return 0;
 	}
 	for (pagen = 0, alloc_len = 0; pagen < pcount; pagen++) {
 		/* The DMA memory is always allocated in the length of a
-		 * page even though the last SGE might not fill up to a
+		 * page even though the last SGE might yest fill up to a
 		 * page, this is used as a priori size of SLI4_PAGE_SIZE for
 		 * the later DMA memory free.
 		 */
@@ -1893,7 +1893,7 @@ lpfc_sli4_mbox_rsrc_extent(struct lpfc_hba *phba, struct lpfcMboxq *mbox,
 
 	/* Set up SLI4 ioctl command header fields */
 	if (emb == LPFC_SLI4_MBX_NEMBED) {
-		/* Get the first SGE entry from the non-embedded DMA memory */
+		/* Get the first SGE entry from the yesn-embedded DMA memory */
 		virtaddr = mbox->sge_array->addr[0];
 		if (virtaddr == NULL)
 			return 1;
@@ -1950,8 +1950,8 @@ lpfc_sli4_mbox_rsrc_extent(struct lpfc_hba *phba, struct lpfcMboxq *mbox,
  * @mbox: pointer to lpfc mbox command queue entry.
  *
  * This routine gets the subsystem from a SLI4 specific SLI_CONFIG mailbox
- * command. If the mailbox command is not MBX_SLI4_CONFIG (0x9B) or if the
- * sub-header is not present, subsystem LPFC_MBOX_SUBSYSTEM_NA (0x0) shall
+ * command. If the mailbox command is yest MBX_SLI4_CONFIG (0x9B) or if the
+ * sub-header is yest present, subsystem LPFC_MBOX_SUBSYSTEM_NA (0x0) shall
  * be returned.
  **/
 uint8_t
@@ -1970,7 +1970,7 @@ lpfc_sli_config_mbox_subsys_get(struct lpfc_hba *phba, LPFC_MBOXQ_t *mbox)
 		return bf_get(lpfc_mbox_hdr_subsystem, &cfg_shdr->request);
 	}
 
-	/* For non-embedded mbox command, get opcode from first dma page */
+	/* For yesn-embedded mbox command, get opcode from first dma page */
 	if (unlikely(!mbox->sge_array))
 		return LPFC_MBOX_SUBSYSTEM_NA;
 	cfg_shdr = (union lpfc_sli4_cfg_shdr *)mbox->sge_array->addr[0];
@@ -1983,8 +1983,8 @@ lpfc_sli_config_mbox_subsys_get(struct lpfc_hba *phba, LPFC_MBOXQ_t *mbox)
  * @mbox: pointer to lpfc mbox command queue entry.
  *
  * This routine gets the opcode from a SLI4 specific SLI_CONFIG mailbox
- * command. If the mailbox command is not MBX_SLI4_CONFIG (0x9B) or if
- * the sub-header is not present, opcode LPFC_MBOX_OPCODE_NA (0x0) be
+ * command. If the mailbox command is yest MBX_SLI4_CONFIG (0x9B) or if
+ * the sub-header is yest present, opcode LPFC_MBOX_OPCODE_NA (0x0) be
  * returned.
  **/
 uint8_t
@@ -2003,7 +2003,7 @@ lpfc_sli_config_mbox_opcode_get(struct lpfc_hba *phba, LPFC_MBOXQ_t *mbox)
 		return bf_get(lpfc_mbox_hdr_opcode, &cfg_shdr->request);
 	}
 
-	/* For non-embedded mbox command, get opcode from first dma page */
+	/* For yesn-embedded mbox command, get opcode from first dma page */
 	if (unlikely(!mbox->sge_array))
 		return LPFC_MBOX_OPCODE_NA;
 	cfg_shdr = (union lpfc_sli4_cfg_shdr *)mbox->sge_array->addr[0];
@@ -2015,7 +2015,7 @@ lpfc_sli_config_mbox_opcode_get(struct lpfc_hba *phba, LPFC_MBOXQ_t *mbox)
  * @phba: pointer to lpfc hba data structure.
  * @fcf_index: index to fcf table.
  *
- * This routine routine allocates and constructs non-embedded mailbox command
+ * This routine routine allocates and constructs yesn-embedded mailbox command
  * for reading a FCF table entry referred by @fcf_index.
  *
  * Return: pointer to the mailbox command constructed if successful, otherwise
@@ -2051,7 +2051,7 @@ lpfc_sli4_mbx_read_fcf_rec(struct lpfc_hba *phba,
 		return -ENOMEM;
 	}
 
-	/* Get the first SGE entry from the non-embedded DMA memory. This
+	/* Get the first SGE entry from the yesn-embedded DMA memory. This
 	 * routine only uses a single SGE.
 	 */
 	lpfc_sli4_mbx_sge_get(mboxq, 0, &sge);
@@ -2095,7 +2095,7 @@ lpfc_request_features(struct lpfc_hba *phba, struct lpfcMboxq *mboxq)
 
 	if (phba->nvmet_support) {
 		bf_set(lpfc_mbx_rq_ftr_rq_mrqp, &mboxq->u.mqe.un.req_ftrs, 1);
-		/* iaab/iaar NOT set for now */
+		/* iaab/iaar NOT set for yesw */
 		bf_set(lpfc_mbx_rq_ftr_rq_iaab, &mboxq->u.mqe.un.req_ftrs, 0);
 		bf_set(lpfc_mbx_rq_ftr_rq_iaar, &mboxq->u.mqe.un.req_ftrs, 0);
 	}
@@ -2384,7 +2384,7 @@ lpfc_mbx_cmpl_rdp_page_a0(struct lpfc_hba *phba, LPFC_MBOXQ_t *mbox)
 		&mbox->u.mqe.un.mem_dump_type3, DMP_LMSD);
 	bf_set(lpfc_mbx_memory_dump_type3_link,
 		&mbox->u.mqe.un.mem_dump_type3, phba->sli4_hba.physical_port);
-	bf_set(lpfc_mbx_memory_dump_type3_page_no,
+	bf_set(lpfc_mbx_memory_dump_type3_page_yes,
 		&mbox->u.mqe.un.mem_dump_type3, DMP_PAGE_A2);
 	bf_set(lpfc_mbx_memory_dump_type3_length,
 		&mbox->u.mqe.un.mem_dump_type3, DMP_SFF_PAGE_A2_SIZE);
@@ -2408,7 +2408,7 @@ error:
 
 
 /*
- * lpfc_sli4_dump_sfp_pagea0 - Dump sli4 read SFP Diagnostic.
+ * lpfc_sli4_dump_sfp_pagea0 - Dump sli4 read SFP Diagyesstic.
  * @phba: pointer to the hba structure containing.
  * @mbox: pointer to lpfc mbox command to initialize.
  *
@@ -2443,7 +2443,7 @@ lpfc_sli4_dump_page_a0(struct lpfc_hba *phba, struct lpfcMboxq *mbox)
 		&mbox->u.mqe.un.mem_dump_type3, DMP_LMSD);
 	bf_set(lpfc_mbx_memory_dump_type3_link,
 		&mbox->u.mqe.un.mem_dump_type3, phba->sli4_hba.physical_port);
-	bf_set(lpfc_mbx_memory_dump_type3_page_no,
+	bf_set(lpfc_mbx_memory_dump_type3_page_yes,
 		&mbox->u.mqe.un.mem_dump_type3, DMP_PAGE_A0);
 	bf_set(lpfc_mbx_memory_dump_type3_length,
 		&mbox->u.mqe.un.mem_dump_type3, DMP_SFF_PAGE_A0_SIZE);
@@ -2603,13 +2603,13 @@ lpfc_unreg_fcfi(struct lpfcMboxq *mbox, uint16_t fcfi)
 /**
  * lpfc_resume_rpi - Initialize the RESUME_RPI mailbox command
  * @mbox: pointer to lpfc mbox command to initialize.
- * @ndlp: The nodelist structure that describes the RPI to resume.
+ * @ndlp: The yesdelist structure that describes the RPI to resume.
  *
  * The RESUME_RPI mailbox command is used to restart I/O to an RPI after a
  * link event.
  **/
 void
-lpfc_resume_rpi(struct lpfcMboxq *mbox, struct lpfc_nodelist *ndlp)
+lpfc_resume_rpi(struct lpfcMboxq *mbox, struct lpfc_yesdelist *ndlp)
 {
 	struct lpfc_hba *phba = ndlp->phba;
 	struct lpfc_mbx_resume_rpi *resume_rpi;

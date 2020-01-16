@@ -14,11 +14,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -65,6 +65,6 @@ int t4_setup_debugfs(struct adapter *adap);
 void add_debugfs_files(struct adapter *adap,
 		       struct t4_debugfs_entry *files,
 		       unsigned int nfiles);
-int mem_open(struct inode *inode, struct file *file);
+int mem_open(struct iyesde *iyesde, struct file *file);
 
 #endif

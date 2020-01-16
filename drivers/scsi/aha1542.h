@@ -8,7 +8,7 @@
 /* READ */
 #define STATUS(base) base
 #define STST	BIT(7)		/* Self Test in Progress */
-#define DIAGF	BIT(6)		/* Internal Diagnostic Failure */
+#define DIAGF	BIT(6)		/* Internal Diagyesstic Failure */
 #define INIT	BIT(5)		/* Mailbox Initialization Required */
 #define IDLE	BIT(4)		/* SCSI Host Adapter Idle */
 #define CDF	BIT(3)		/* Command/Data Out Port Full */

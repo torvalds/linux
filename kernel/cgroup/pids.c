@@ -11,14 +11,14 @@
  * of the number of tasks in a cgroup.
  *
  * In order to use the `pids` controller, set the maximum number of tasks in
- * pids.max (this is not available in the root cgroup for obvious reasons). The
+ * pids.max (this is yest available in the root cgroup for obvious reasons). The
  * number of processes currently in the cgroup is given by pids.current.
- * Organisational operations are not blocked by cgroup policies, so it is
- * possible to have pids.current > pids.max. However, it is not possible to
+ * Organisational operations are yest blocked by cgroup policies, so it is
+ * possible to have pids.current > pids.max. However, it is yest possible to
  * violate a cgroup policy through fork(). fork() will return -EAGAIN if forking
  * would cause a cgroup policy to be violated.
  *
- * To set a cgroup to have no limit, set pids.max to "max". This is the default
+ * To set a cgroup to have yes limit, set pids.max to "max". This is the default
  * for all new cgroups (N.B. that PID limits are hierarchical, so the most
  * stringent limit in the hierarchy is followed).
  *
@@ -119,9 +119,9 @@ static void pids_uncharge(struct pids_cgroup *pids, int num)
  * @pids: the pid cgroup state
  * @num: the number of pids to charge
  *
- * This function does *not* follow the pid limit set. It cannot fail and the new
+ * This function does *yest* follow the pid limit set. It canyest fail and the new
  * pid count may exceed the limit. This is only used for reverting failed
- * attaches, where there is no other way out than violating the limit.
+ * attaches, where there is yes other way out than violating the limit.
  */
 static void pids_charge(struct pids_cgroup *pids, int num)
 {
@@ -150,7 +150,7 @@ static int pids_try_charge(struct pids_cgroup *pids, int num)
 
 		/*
 		 * Since new is capped to the maximum number of pid_t, if
-		 * p->limit is %PIDS_MAX then we know that this test will never
+		 * p->limit is %PIDS_MAX then we kyesw that this test will never
 		 * fail.
 		 */
 		if (new > limit)
@@ -230,7 +230,7 @@ static int pids_can_fork(struct task_struct *task)
 			pr_cont_cgroup_path(css->cgroup);
 			pr_cont("\n");
 		}
-		cgroup_file_notify(&pids->events_file);
+		cgroup_file_yestify(&pids->events_file);
 	}
 	return err;
 }

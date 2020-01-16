@@ -101,7 +101,7 @@ SunXi family
 
       - Allwinner H2+ (sun8i)
 
-        * No document available now, but is known to be working properly with
+        * No document available yesw, but is kyeswn to be working properly with
           H3 drivers and memory map.
 
       - Allwinner H3 (sun8i)

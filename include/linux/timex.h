@@ -4,12 +4,12 @@
  *                                                                           *
  * Permission to use, copy, modify, and distribute this software and its     *
  * documentation for any purpose and without fee is hereby granted, provided *
- * that the above copyright notice appears in all copies and that both the   *
- * copyright notice and this permission notice appear in supporting          *
- * documentation, and that the name University of Delaware not be used in    *
+ * that the above copyright yestice appears in all copies and that both the   *
+ * copyright yestice and this permission yestice appear in supporting          *
+ * documentation, and that the name University of Delaware yest be used in    *
  * advertising or publicity pertaining to distribution of the software       *
  * without specific, written prior permission.  The University of Delaware   *
- * makes no representations about the suitability this software for any      *
+ * makes yes representations about the suitability this software for any      *
  * purpose.  It is provided "as is" without express or implied warranty.     *
  *                                                                           *
  *****************************************************************************/
@@ -88,7 +88,7 @@
  * NTP convergence time. A higher value makes it stiffer, increasing
  * convergence time, but making the clock more stable.
  *
- * In David Mills' nanokernel reference implementation SHIFT_PLL is 4.
+ * In David Mills' nayeskernel reference implementation SHIFT_PLL is 4.
  * However this seems to increase convergence time much too long.
  *
  * https://lists.ntp.org/pipermail/hackers/2008-January/003487.html
@@ -105,7 +105,7 @@
  *
  * SHIFT_FLL is used as a dampening factor to define how much we
  * adjust the frequency correction for a given offset in FLL mode.
- * In David Mills' nanokernel reference implementation SHIFT_FLL is 2.
+ * In David Mills' nayeskernel reference implementation SHIFT_FLL is 2.
  *
  * MAXTC establishes the maximum time constant of the PLL.
  */
@@ -157,7 +157,7 @@ extern int do_clock_adjtime(const clockid_t which_clock, struct __kernel_timex *
 extern void hardpps(const struct timespec64 *, const struct timespec64 *);
 
 int read_current_timer(unsigned long *timer_val);
-void ntp_notify_cmos_timer(void);
+void ntp_yestify_cmos_timer(void);
 
 /* The clock frequency of the i8253/i8254 PIT */
 #define PIT_TICK_RATE 1193182ul

@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -55,7 +55,7 @@ void rds_tcp_state_change(struct sock *sk)
 	rdsdebug("sock %p state_change to %d\n", tc->t_sock, sk->sk_state);
 
 	switch (sk->sk_state) {
-	/* ignore connecting sockets as they make progress */
+	/* igyesre connecting sockets as they make progress */
 	case TCP_SYN_SENT:
 	case TCP_SYN_RECV:
 		break;

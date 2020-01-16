@@ -12,7 +12,7 @@
 #include <linux/kernel.h>
 
 /* Message flags for using the mailbox() interface */
-#define WILCO_EC_FLAG_NO_RESPONSE	BIT(0) /* EC does not respond */
+#define WILCO_EC_FLAG_NO_RESPONSE	BIT(0) /* EC does yest respond */
 
 /* Normal commands have a maximum 32 bytes of data */
 #define EC_MAILBOX_DATA_SIZE		32
@@ -138,7 +138,7 @@ int wilco_keyboard_leds_init(struct wilco_ec_device *ec);
 /*
  * A Property is typically a data item that is stored to NVRAM
  * by the EC. Each of these data items has an index associated
- * with it, known as the Property ID (PID). Properties may have
+ * with it, kyeswn as the Property ID (PID). Properties may have
  * variable lengths, up to a max of WILCO_EC_PROPERTY_MAX_SIZE
  * bytes. Properties can be simple integers, or they may be more
  * complex binary data.

@@ -43,7 +43,7 @@ static void ht_irqdispatch(void)
 	struct cpumask affinity;
 
 	irq = LOONGSON_HT1_INT_VECTOR(0);
-	LOONGSON_HT1_INT_VECTOR(0) = irq; /* Acknowledge the IRQs */
+	LOONGSON_HT1_INT_VECTOR(0) = irq; /* Ackyeswledge the IRQs */
 
 	for (i = 0; i < ARRAY_SIZE(ht_irq); i++) {
 		if (!(irq & (0x1 << ht_irq[i])))

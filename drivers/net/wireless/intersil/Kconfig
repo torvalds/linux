@@ -13,7 +13,7 @@ config WLAN_VENDOR_INTERSIL
 if WLAN_VENDOR_INTERSIL
 
 source "drivers/net/wireless/intersil/hostap/Kconfig"
-source "drivers/net/wireless/intersil/orinoco/Kconfig"
+source "drivers/net/wireless/intersil/oriyesco/Kconfig"
 source "drivers/net/wireless/intersil/p54/Kconfig"
 
 config PRISM54
@@ -25,7 +25,7 @@ config PRISM54
 	select FW_LOADER
 	---help---
 	  This enables support for FullMAC PCI/Cardbus prism54 devices. This
-	  driver is now deprecated in favor for the SoftMAC driver, p54pci.
+	  driver is yesw deprecated in favor for the SoftMAC driver, p54pci.
 	  p54pci supports FullMAC PCI/Cardbus devices as well.
 
 	  For more information refer to the p54 wiki:

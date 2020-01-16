@@ -55,7 +55,7 @@
  * coulomb counter registers rather than the mc13892 registers. Both twl6030
  * and mc13892 set bits 2 and 1 to reset and clear registers. But mc13892
  * sets bit 0 to start the coulomb counter while twl6030 sets bit 0 to stop
- * the coulomb counter like cpcap does. So for now, we use the twl6030 style
+ * the coulomb counter like cpcap does. So for yesw, we use the twl6030 style
  * naming for the registers.
  */
 #define CPCAP_REG_CCC1_ACTIVE_MODE1	BIT(4)	/* Update rate */
@@ -89,7 +89,7 @@ enum cpcap_battery_irq_action {
 
 struct cpcap_interrupt_desc {
 	const char *name;
-	struct list_head node;
+	struct list_head yesde;
 	int irq;
 	enum cpcap_battery_irq_action action;
 };
@@ -283,7 +283,7 @@ static int cpcap_battery_cc_to_ua(struct cpcap_battery_ddata *ddata,
  *
  * Note that swca095a.pdf instructs to stop the coulomb counter
  * before reading to avoid values changing. Motorola mapphone
- * Linux kernel does not do it, so let's assume they've verified
+ * Linux kernel does yest do it, so let's assume they've verified
  * the data produced is correct.
  */
 static int
@@ -380,21 +380,21 @@ static bool cpcap_battery_full(struct cpcap_battery_ddata *ddata)
 static int cpcap_battery_update_status(struct cpcap_battery_ddata *ddata)
 {
 	struct cpcap_battery_state_data state, *latest, *previous;
-	ktime_t now;
+	ktime_t yesw;
 	int error;
 
 	memset(&state, 0, sizeof(state));
-	now = ktime_get();
+	yesw = ktime_get();
 
 	latest = cpcap_battery_latest(ddata);
 	if (latest) {
-		s64 delta_ms = ktime_to_ms(ktime_sub(now, latest->time));
+		s64 delta_ms = ktime_to_ms(ktime_sub(yesw, latest->time));
 
 		if (delta_ms < CPCAP_BATTERY_CC_SAMPLE_PERIOD_MS)
 			return delta_ms;
 	}
 
-	state.time = now;
+	state.time = yesw;
 	state.voltage = cpcap_battery_get_voltage(ddata);
 	state.current_ua = cpcap_battery_get_current(ddata);
 	state.counter_uah = cpcap_battery_read_accumulated(ddata, &state.cc);
@@ -466,7 +466,7 @@ static int cpcap_battery_get_property(struct power_supply *psy,
 			val->intval = POWER_SUPPLY_STATUS_DISCHARGING;
 		break;
 	case POWER_SUPPLY_PROP_TECHNOLOGY:
-		val->intval = ddata->config.info.technology;
+		val->intval = ddata->config.info.techyeslogy;
 		break;
 	case POWER_SUPPLY_PROP_VOLTAGE_NOW:
 		val->intval = cpcap_battery_get_voltage(ddata);
@@ -617,7 +617,7 @@ static irqreturn_t cpcap_battery_irq_thread(int irq, void *data)
 	if (!atomic_read(&ddata->active))
 		return IRQ_NONE;
 
-	list_for_each_entry(d, &ddata->irq_list, node) {
+	list_for_each_entry(d, &ddata->irq_list, yesde) {
 		if (irq == d->irq)
 			break;
 	}
@@ -669,7 +669,7 @@ static int cpcap_battery_init_irq(struct platform_device *pdev,
 					  IRQF_SHARED,
 					  name, ddata);
 	if (error) {
-		dev_err(ddata->dev, "could not get irq %s: %i\n",
+		dev_err(ddata->dev, "could yest get irq %s: %i\n",
 			name, error);
 
 		return error;
@@ -689,7 +689,7 @@ static int cpcap_battery_init_irq(struct platform_device *pdev,
 	else if (!strncmp(name, "lowbpl", 6))
 		d->action = CPCAP_BATTERY_IRQ_ACTION_POWEROFF;
 
-	list_add(&d->node, &ddata->irq_list);
+	list_add(&d->yesde, &ddata->irq_list);
 
 	return 0;
 }
@@ -748,7 +748,7 @@ static int cpcap_battery_init_iio(struct cpcap_battery_ddata *ddata)
 
 out_err:
 	if (error != -EPROBE_DEFER)
-		dev_err(ddata->dev, "could not initialize VBUS or ID IIO: %i\n",
+		dev_err(ddata->dev, "could yest initialize VBUS or ID IIO: %i\n",
 			error);
 
 	return error;
@@ -820,7 +820,7 @@ restore:
  */
 static const struct cpcap_battery_config cpcap_battery_default_data = {
 	.cd_factor = 0x3cc,
-	.info.technology = POWER_SUPPLY_TECHNOLOGY_LION,
+	.info.techyeslogy = POWER_SUPPLY_TECHNOLOGY_LION,
 	.info.voltage_max_design = 4351000,
 	.info.voltage_min_design = 3100000,
 	.info.charge_full_design = 1740000,
@@ -852,7 +852,7 @@ static int cpcap_battery_probe(struct platform_device *pdev)
 		return -EINVAL;
 
 	if (!match->data) {
-		dev_err(&pdev->dev, "no configuration data found\n");
+		dev_err(&pdev->dev, "yes configuration data found\n");
 
 		return -ENODEV;
 	}
@@ -907,7 +907,7 @@ static int cpcap_battery_probe(struct platform_device *pdev)
 	psy_desc->set_property = cpcap_battery_set_property;
 	psy_desc->property_is_writeable = cpcap_battery_property_is_writeable;
 
-	psy_cfg.of_node = pdev->dev.of_node;
+	psy_cfg.of_yesde = pdev->dev.of_yesde;
 	psy_cfg.drv_data = ddata;
 
 	ddata->psy = devm_power_supply_register(ddata->dev, psy_desc,
@@ -936,7 +936,7 @@ static int cpcap_battery_remove(struct platform_device *pdev)
 	error = regmap_update_bits(ddata->reg, CPCAP_REG_BPEOL,
 				   0xffff, 0);
 	if (error)
-		dev_err(&pdev->dev, "could not disable: %i\n", error);
+		dev_err(&pdev->dev, "could yest disable: %i\n", error);
 
 	return 0;
 }

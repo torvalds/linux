@@ -18,7 +18,7 @@
  *	  - Fixed bug in probe
  *  5.0.0	Jun 06 2001
  *	  - Driver was completely redesigned by Denis I.Timofeev,
- *	  - now PCI/Dual, ISA/Dual (with single interrupt line) models are
+ *	  - yesw PCI/Dual, ISA/Dual (with single interrupt line) models are
  *	  - supported
  *  3.3.0	Thu Feb 24 21:30:28 NOVT 2000 
  *        - PCI cards support
@@ -31,10 +31,10 @@
  *  3.0.0	Initial Revision, Yaroslav Polyakov (24 Feb 1999)
  *        - added pre-calculation for CRC, fixed bug with "len-2" frames, 
  *        - removed outbound fragmentation (MTU=1000), written CRC-calculation 
- *        - on asm, added work with hard_headers and now we have our own cache 
+ *        - on asm, added work with hard_headers and yesw we have our own cache 
  *        - for them, optionally supported word-interchange on some chipsets,
  * 
- *	Known problem: this driver wasn't tested on multiprocessor machine.
+ *	Kyeswn problem: this driver wasn't tested on multiprocessor machine.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -46,7 +46,7 @@
 #include <linux/ioport.h>
 #include <linux/interrupt.h>
 #include <linux/string.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/pci.h>
@@ -83,10 +83,10 @@ struct net_local {
 	unsigned int	inppos, outpos;		/* positions in rx/tx buffers */
 
 	/* transmitting frame number - from frames qty to 1 */
-	unsigned int	tx_frameno;
+	unsigned int	tx_frameyes;
 
 	/* expected number of next receiving frame */
-	unsigned int	wait_frameno;
+	unsigned int	wait_frameyes;
 
 	/* count of failed attempts to frame send - 32 attempts do before
 	   error - while receiver tunes on opposite side of wire */
@@ -187,8 +187,8 @@ static unsigned int  netcard_portlist[ ] __initdata = {
 #define NET_LOCAL_LOCK(dev) (((struct net_local *)netdev_priv(dev))->lock)
 
 /*
- * Look for SBNI card which addr stored in dev->base_addr, if nonzero.
- * Otherwise, look through PCI bus. If none PCI-card was found, scan ISA.
+ * Look for SBNI card which addr stored in dev->base_addr, if yesnzero.
+ * Otherwise, look through PCI bus. If yesne PCI-card was found, scan ISA.
  */
 
 static inline int __init
@@ -266,7 +266,7 @@ static int __init sbni_init(struct net_device *dev)
 	else if( scandone  ||  io[ 0 ] != -1 )
 		return  -ENODEV;
 
-	/* if io[ num ] contains non-zero address, then that is on ISA bus */
+	/* if io[ num ] contains yesn-zero address, then that is on ISA bus */
 	if( dev->base_addr )
 		return  sbni_isa_probe( dev );
 
@@ -334,7 +334,7 @@ sbni_pci_probe( struct net_device  *dev )
 		}
 		if( sbni_probe1( dev, pci_ioaddr, pci_irq_line ) ) {
 			SET_NETDEV_DEV(dev, &pdev->dev);
-			/* not the best thing to do, but this is all messed up 
+			/* yest the best thing to do, but this is all messed up 
 			   for hotplug systems anyway... */
 			pci_dev_put( pdev );
 			return  0;
@@ -388,7 +388,7 @@ sbni_probe1( struct net_device  *dev,  unsigned long  ioaddr,  int  irq )
 	memset( nl, 0, sizeof(struct net_local) );
 	spin_lock_init( &nl->lock );
 
-	/* store MAC address (generate if that isn't known) */
+	/* store MAC address (generate if that isn't kyeswn) */
 	*(__be16 *)dev->dev_addr = htons( 0x00ff );
 	*(__be32 *)(dev->dev_addr + 2) = htonl( 0x01000000 |
 		((mac[num] ?
@@ -409,13 +409,13 @@ sbni_probe1( struct net_device  *dev,  unsigned long  ioaddr,  int  irq )
 	if( inb( ioaddr + CSR0 ) & 0x01 )
 		nl->state |= FL_SLOW_MODE;
 
-	pr_notice("%s: ioaddr %#lx, irq %d, MAC: 00:ff:01:%02x:%02x:%02x\n",
+	pr_yestice("%s: ioaddr %#lx, irq %d, MAC: 00:ff:01:%02x:%02x:%02x\n",
 		  dev->name, dev->base_addr, dev->irq,
 		  ((u8 *)dev->dev_addr)[3],
 		  ((u8 *)dev->dev_addr)[4],
 		  ((u8 *)dev->dev_addr)[5]);
 
-	pr_notice("%s: speed %d",
+	pr_yestice("%s: speed %d",
 		  dev->name,
 		  ((nl->state & FL_SLOW_MODE) ? 500000 : 2000000)
 		  / (1 << nl->csr1.rate));
@@ -487,7 +487,7 @@ sbni_start_xmit( struct sk_buff  *skb,  struct net_device  *dev )
 /* interrupt handler */
 
 /*
- * 	SBNI12D-10, -11/ISA boards within "common interrupt" mode could not
+ * 	SBNI12D-10, -11/ISA boards within "common interrupt" mode could yest
  * be looked as two independent single-channel devices. Every channel seems
  * as Ethernet interface but interrupt handler must be common. Really, first
  * channel ("master") driver only registers the handler. In its struct net_local
@@ -564,8 +564,8 @@ handle_channel( struct net_device  *dev )
 		if( !(csr0 & TR_RDY)  ||  (csr0 & RC_RDY) )
 			netdev_err(dev, "internal error!\n");
 
-		/* if state & FL_NEED_RESEND != 0 then tx_frameno != 0 */
-		if( req_ans  ||  nl->tx_frameno != 0 )
+		/* if state & FL_NEED_RESEND != 0 then tx_frameyes != 0 */
+		if( req_ans  ||  nl->tx_frameyes != 0 )
 			send_frame( dev );
 		else
 			/* send marker without any data */
@@ -582,8 +582,8 @@ handle_channel( struct net_device  *dev )
 
 
 /*
- * Routine returns 1 if it needs to acknowledge received frame.
- * Empty frame received without errors won't be acknowledged.
+ * Routine returns 1 if it needs to ackyeswledge received frame.
+ * Empty frame received without errors won't be ackyeswledged.
  */
 
 static int
@@ -594,12 +594,12 @@ recv_frame( struct net_device  *dev )
 
 	u32  crc = CRC32_INITIAL;
 
-	unsigned  framelen = 0, frameno, ack;
+	unsigned  framelen = 0, frameyes, ack;
 	unsigned  is_first, frame_ok = 0;
 
-	if( check_fhdr( ioaddr, &framelen, &frameno, &ack, &is_first, &crc ) ) {
+	if( check_fhdr( ioaddr, &framelen, &frameyes, &ack, &is_first, &crc ) ) {
 		frame_ok = framelen > 4
-			?  upload_data( dev, framelen, frameno, is_first, crc )
+			?  upload_data( dev, framelen, frameyes, is_first, crc )
 			:  skip_tail( ioaddr, framelen, crc );
 		if( frame_ok )
 			interpret_ack( dev, ack );
@@ -629,13 +629,13 @@ send_frame( struct net_device  *dev )
 
 	if( nl->state & FL_NEED_RESEND ) {
 
-		/* if frame was sended but not ACK'ed - resend it */
+		/* if frame was sended but yest ACK'ed - resend it */
 		if( nl->trans_errors ) {
 			--nl->trans_errors;
 			if( nl->framelen != 0 )
 				nl->in_stats.resend_tx_number++;
 		} else {
-			/* cannot xmit with many attempts */
+			/* canyest xmit with many attempts */
 #ifdef CONFIG_SBNI_MULTILINE
 			if( (nl->state & FL_SLAVE)  ||  nl->link )
 #endif
@@ -665,7 +665,7 @@ send_frame( struct net_device  *dev )
 do_send:
 	outb( inb( dev->base_addr + CSR0 ) & ~TR_REQ, dev->base_addr + CSR0 );
 
-	if( nl->tx_frameno )
+	if( nl->tx_frameyes )
 		/* next frame exists - we request card to send it */
 		outb( inb( dev->base_addr + CSR0 ) | TR_REQ,
 		      dev->base_addr + CSR0 );
@@ -696,7 +696,7 @@ download_data( struct net_device  *dev,  u32  *crc_p )
 
 
 static int
-upload_data( struct net_device  *dev,  unsigned  framelen,  unsigned  frameno,
+upload_data( struct net_device  *dev,  unsigned  framelen,  unsigned  frameyes,
 	     unsigned  is_first,  u32  crc )
 {
 	struct net_local  *nl = netdev_priv(dev);
@@ -704,10 +704,10 @@ upload_data( struct net_device  *dev,  unsigned  framelen,  unsigned  frameno,
 	int  frame_ok;
 
 	if( is_first )
-		nl->wait_frameno = frameno,
+		nl->wait_frameyes = frameyes,
 		nl->inppos = 0;
 
-	if( nl->wait_frameno == frameno ) {
+	if( nl->wait_frameyes == frameyes ) {
 
 		if( nl->inppos + framelen  <=  ETHER_MAX_LEN )
 			frame_ok = append_frame_to_pkt( dev, framelen, crc );
@@ -718,7 +718,7 @@ upload_data( struct net_device  *dev,  unsigned  framelen,  unsigned  frameno,
 		 */
 		else if( (frame_ok = skip_tail( dev->base_addr, framelen, crc ))
 			 != 0 )
-			nl->wait_frameno = 0,
+			nl->wait_frameyes = 0,
 			nl->inppos = 0,
 #ifdef CONFIG_SBNI_MULTILINE
 			nl->master->stats.rx_errors++,
@@ -727,7 +727,7 @@ upload_data( struct net_device  *dev,  unsigned  framelen,  unsigned  frameno,
 		        dev->stats.rx_errors++,
 			dev->stats.rx_missed_errors++;
 #endif
-			/* now skip all frames until is_first != 0 */
+			/* yesw skip all frames until is_first != 0 */
 	} else
 		frame_ok = skip_tail( dev->base_addr, framelen, crc );
 
@@ -736,7 +736,7 @@ upload_data( struct net_device  *dev,  unsigned  framelen,  unsigned  frameno,
 		 * Frame has been broken, but we had already stored
 		 * is_first... Drop entire packet.
 		 */
-		nl->wait_frameno = 0,
+		nl->wait_frameyes = 0,
 #ifdef CONFIG_SBNI_MULTILINE
 		nl->master->stats.rx_errors++,
 		nl->master->stats.rx_crc_errors++;
@@ -782,7 +782,7 @@ interpret_ack( struct net_device  *dev,  unsigned  ack )
 		if( nl->state & FL_WAIT_ACK ) {
 			nl->outpos += nl->framelen;
 
-			if( --nl->tx_frameno )
+			if( --nl->tx_frameyes )
 				nl->framelen = min_t(unsigned int,
 						   nl->maxframe,
 						   nl->tx_buf_p->len - nl->outpos);
@@ -824,7 +824,7 @@ append_frame_to_pkt( struct net_device  *dev,  unsigned  framelen,  u32  crc )
 		return  0;
 
 	nl->inppos += framelen - 4;
-	if( --nl->wait_frameno == 0 )		/* last frame received */
+	if( --nl->wait_frameyes == 0 )		/* last frame received */
 		indicate_pkt( dev );
 
 	return  1;
@@ -855,7 +855,7 @@ prepare_to_send( struct sk_buff  *skb,  struct net_device  *dev )
 		len = SBNI_MIN_LEN;
 
 	nl->tx_buf_p	= skb;
-	nl->tx_frameno	= DIV_ROUND_UP(len, nl->maxframe);
+	nl->tx_frameyes	= DIV_ROUND_UP(len, nl->maxframe);
 	nl->framelen	= len < nl->maxframe  ?  len  :  nl->maxframe;
 
 	outb( inb( dev->base_addr + CSR0 ) | TR_REQ,  dev->base_addr + CSR0 );
@@ -883,7 +883,7 @@ drop_xmit_queue( struct net_device  *dev )
 		dev->stats.tx_carrier_errors++;
 #endif
 
-	nl->tx_frameno	= 0;
+	nl->tx_frameyes	= 0;
 	nl->framelen	= 0;
 	nl->outpos	= 0;
 	nl->state &= ~(FL_WAIT_ACK | FL_NEED_RESEND);
@@ -903,11 +903,11 @@ send_frame_header( struct net_device  *dev,  u32  *crc_p )
 	struct net_local  *nl  = netdev_priv(dev);
 
 	u32  crc = *crc_p;
-	u32  len_field = nl->framelen + 6;	/* CRC + frameno + reserved */
+	u32  len_field = nl->framelen + 6;	/* CRC + frameyes + reserved */
 	u8   value;
 
 	if( nl->state & FL_NEED_RESEND )
-		len_field |= FRAME_RETRY;	/* non-first attempt... */
+		len_field |= FRAME_RETRY;	/* yesn-first attempt... */
 
 	if( nl->outpos == 0 )
 		len_field |= FRAME_FIRST;
@@ -922,8 +922,8 @@ send_frame_header( struct net_device  *dev,  u32  *crc_p )
 	outb( value, dev->base_addr + DAT );
 	crc = CRC32( value, crc );
 
-	outb( nl->tx_frameno, dev->base_addr + DAT );
-	crc = CRC32( nl->tx_frameno, crc );
+	outb( nl->tx_frameyes, dev->base_addr + DAT );
+	crc = CRC32( nl->tx_frameyes, crc );
 	outb( 0, dev->base_addr + DAT );
 	crc = CRC32( 0, crc );
 	*crc_p = crc;
@@ -931,7 +931,7 @@ send_frame_header( struct net_device  *dev,  u32  *crc_p )
 
 
 /*
- * if frame tail not needed (incorrect number or received twice),
+ * if frame tail yest needed (incorrect number or received twice),
  * it won't store, but CRC will be calculated
  */
 
@@ -951,7 +951,7 @@ skip_tail( unsigned int  ioaddr,  unsigned int  tail_len,  u32 crc )
  */
 
 static int
-check_fhdr( u32  ioaddr,  u32  *framelen,  u32  *frameno,  u32  *ack,
+check_fhdr( u32  ioaddr,  u32  *framelen,  u32  *frameyes,  u32  *ack,
 	    u32  *is_first,  u32  *crc_p )
 {
 	u32  crc = *crc_p;
@@ -975,7 +975,7 @@ check_fhdr( u32  ioaddr,  u32  *framelen,  u32  *frameno,  u32  *ack,
 		return  0;
 
 	value = inb( ioaddr + DAT );
-	*frameno = (u32)value;
+	*frameyes = (u32)value;
 	crc = CRC32( value, crc );
 
 	crc = CRC32( inb( ioaddr + DAT ), crc );	/* reserved byte */
@@ -1044,7 +1044,7 @@ sbni_watchdog(struct timer_list *t)
 
 		if( nl->timer_ticks ) {
 			if( csr0 & (RC_RDY | BU_EMP) )
-				/* receiving not active */
+				/* receiving yest active */
 				nl->timer_ticks--;
 		} else {
 			nl->in_stats.timeout_number++;
@@ -1088,8 +1088,8 @@ card_start( struct net_device  *dev )
 	nl->state |= FL_PREV_OK;
 
 	nl->inppos = nl->outpos = 0;
-	nl->wait_frameno = 0;
-	nl->tx_frameno	 = 0;
+	nl->wait_frameyes = 0;
+	nl->tx_frameyes	 = 0;
 	nl->framelen	 = 0;
 
 	outb( *(u_char *)&nl->csr1 | PR_RES, dev->base_addr + CSR1 );
@@ -1105,7 +1105,7 @@ change_level( struct net_device  *dev )
 {
 	struct net_local  *nl = netdev_priv(dev);
 
-	if( nl->delta_rxl == 0 )	/* do not auto-negotiate RxL */
+	if( nl->delta_rxl == 0 )	/* do yest auto-negotiate RxL */
 		return;
 
 	if( nl->cur_rxl_index == 0 )
@@ -1168,7 +1168,7 @@ sbni_open( struct net_device  *dev )
 
 				((struct net_local *) (netdev_priv(*p)))
 					->second = dev;
-				netdev_notice(dev, "using shared irq with %s\n",
+				netdev_yestice(dev, "using shared irq with %s\n",
 					      (*p)->name);
 				nl->state |= FL_SECONDARY;
 				goto  handler_attached;
@@ -1207,7 +1207,7 @@ sbni_close( struct net_device  *dev )
 	struct net_local  *nl = netdev_priv(dev);
 
 	if( nl->second  &&  nl->second->flags & IFF_UP ) {
-		netdev_notice(dev, "Secondary channel (%s) is active!\n",
+		netdev_yestice(dev, "Secondary channel (%s) is active!\n",
 			      nl->second->name);
 		return  -EBUSY;
 	}
@@ -1350,7 +1350,7 @@ sbni_ioctl( struct net_device  *dev,  struct ifreq  *ifr,  int  cmd )
 			return -EFAULT;
 		slave_dev = dev_get_by_name(&init_net, slave_name );
 		if( !slave_dev  ||  !(slave_dev->flags & IFF_UP) ) {
-			netdev_err(dev, "trying to enslave non-active device %s\n",
+			netdev_err(dev, "trying to enslave yesn-active device %s\n",
 				   slave_name);
 			if (slave_dev)
 				dev_put(slave_dev);
@@ -1406,7 +1406,7 @@ enslave( struct net_device  *dev,  struct net_device  *slave_dev )
 
 	spin_unlock( &snl->lock );
 	spin_unlock( &nl->lock );
-	netdev_notice(dev, "slave device (%s) attached\n", slave_dev->name);
+	netdev_yestice(dev, "slave device (%s) attached\n", slave_dev->name);
 	return  0;
 }
 

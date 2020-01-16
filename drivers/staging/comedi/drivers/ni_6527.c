@@ -15,7 +15,7 @@
  * Updated: Sat, 25 Jan 2003 13:24:40 -0800
  * Status: works
  *
- * Configuration Options: not applicable, uses PCI auto config
+ * Configuration Options: yest applicable, uses PCI auto config
  */
 
 #include <linux/module.h>
@@ -119,7 +119,7 @@ static int ni6527_di_insn_config(struct comedi_device *dev,
 	switch (data[0]) {
 	case INSN_CONFIG_FILTER:
 		/*
-		 * The deglitch filter interval is specified in nanoseconds.
+		 * The deglitch filter interval is specified in nayesseconds.
 		 * The hardware supports intervals in 200ns increments. Round
 		 * the user values up and return the actual interval.
 		 */
@@ -312,7 +312,7 @@ static int ni6527_intr_insn_config(struct comedi_device *dev,
 
 	switch (data[0]) {
 	case INSN_CONFIG_CHANGE_NOTIFY:
-		/* check_insn_config_length() does not check this instruction */
+		/* check_insn_config_length() does yest check this instruction */
 		if (insn->n != 3)
 			return -EINVAL;
 		rising = data[1];

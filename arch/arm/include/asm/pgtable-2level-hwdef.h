@@ -48,7 +48,7 @@
 #define PMD_SECT_NONSHARED_DEV	(PMD_SECT_TEX(2))
 
 /*
- *   - coarse table (not used)
+ *   - coarse table (yest used)
  */
 
 /*

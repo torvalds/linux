@@ -28,7 +28,7 @@ void end_cpu_work(void);
 void flush_cpu_work(void);
 
 /* CPU buffer is composed of such entries (which are
- * also used for context switch notes)
+ * also used for context switch yestes)
  */
 struct op_sample {
 	unsigned long eip;
@@ -69,7 +69,7 @@ static inline void op_cpu_buffer_reset(int cpu)
 
 /*
  * op_cpu_buffer_add_data() and op_cpu_buffer_write_commit() may be
- * called only if op_cpu_buffer_write_reserve() did not return NULL or
+ * called only if op_cpu_buffer_write_reserve() did yest return NULL or
  * entry->event != NULL, otherwise entry->size or entry->event will be
  * used uninitialized.
  */

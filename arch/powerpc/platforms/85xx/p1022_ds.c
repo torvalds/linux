@@ -40,7 +40,7 @@
 /*
  * Board-specific initialization of the DIU.  This code should probably be
  * executed when the DIU is opened, rather than in arch code, but the DIU
- * driver does not have a mechanism for this (yet).
+ * driver does yest have a mechanism for this (yet).
  *
  * This is especially problematic on the P1022DS because the local bus (eLBC)
  * and the DIU video signals share the same pins, which means that enabling the
@@ -162,9 +162,9 @@ static phys_addr_t lbc_br_to_phys(const void *ecm, unsigned int count, u32 br)
  */
 static void p1022ds_set_monitor_port(enum fsl_diu_monitor_port port)
 {
-	struct device_node *guts_node;
-	struct device_node *lbc_node = NULL;
-	struct device_node *law_node = NULL;
+	struct device_yesde *guts_yesde;
+	struct device_yesde *lbc_yesde = NULL;
+	struct device_yesde *law_yesde = NULL;
 	struct ccsr_guts __iomem *guts;
 	struct fsl_lbc_regs *lbc = NULL;
 	void *ecm = NULL;
@@ -177,45 +177,45 @@ static void p1022ds_set_monitor_port(enum fsl_diu_monitor_port port)
 	u8 b;
 
 	/* Map the global utilities registers. */
-	guts_node = of_find_compatible_node(NULL, NULL, "fsl,p1022-guts");
-	if (!guts_node) {
-		pr_err("p1022ds: missing global utilities device node\n");
+	guts_yesde = of_find_compatible_yesde(NULL, NULL, "fsl,p1022-guts");
+	if (!guts_yesde) {
+		pr_err("p1022ds: missing global utilities device yesde\n");
 		return;
 	}
 
-	guts = of_iomap(guts_node, 0);
+	guts = of_iomap(guts_yesde, 0);
 	if (!guts) {
-		pr_err("p1022ds: could not map global utilities device\n");
+		pr_err("p1022ds: could yest map global utilities device\n");
 		goto exit;
 	}
 
-	lbc_node = of_find_compatible_node(NULL, NULL, "fsl,p1022-elbc");
-	if (!lbc_node) {
-		pr_err("p1022ds: missing localbus node\n");
+	lbc_yesde = of_find_compatible_yesde(NULL, NULL, "fsl,p1022-elbc");
+	if (!lbc_yesde) {
+		pr_err("p1022ds: missing localbus yesde\n");
 		goto exit;
 	}
 
-	lbc = of_iomap(lbc_node, 0);
+	lbc = of_iomap(lbc_yesde, 0);
 	if (!lbc) {
-		pr_err("p1022ds: could not map localbus node\n");
+		pr_err("p1022ds: could yest map localbus yesde\n");
 		goto exit;
 	}
 
-	law_node = of_find_compatible_node(NULL, NULL, "fsl,ecm-law");
-	if (!law_node) {
-		pr_err("p1022ds: missing local access window node\n");
+	law_yesde = of_find_compatible_yesde(NULL, NULL, "fsl,ecm-law");
+	if (!law_yesde) {
+		pr_err("p1022ds: missing local access window yesde\n");
 		goto exit;
 	}
 
-	ecm = of_iomap(law_node, 0);
+	ecm = of_iomap(law_yesde, 0);
 	if (!ecm) {
-		pr_err("p1022ds: could not map local access window node\n");
+		pr_err("p1022ds: could yest map local access window yesde\n");
 		goto exit;
 	}
 
-	iprop = of_get_property(law_node, "fsl,num-laws", NULL);
+	iprop = of_get_property(law_yesde, "fsl,num-laws", NULL);
 	if (!iprop) {
-		pr_err("p1022ds: LAW node is missing fsl,num-laws property\n");
+		pr_err("p1022ds: LAW yesde is missing fsl,num-laws property\n");
 		goto exit;
 	}
 	num_laws = be32_to_cpup(iprop);
@@ -225,7 +225,7 @@ static void p1022ds_set_monitor_port(enum fsl_diu_monitor_port port)
 	 * otherwise writes to these addresses won't actually appear on the
 	 * local bus, and so the PIXIS won't see them.
 	 *
-	 * In FCM mode, writes go to the NAND controller, which does not pass
+	 * In FCM mode, writes go to the NAND controller, which does yest pass
 	 * them to the localbus directly.  So we force BR0 and BR1 into GPCM
 	 * mode, since we don't care about what's behind the localbus any
 	 * more.
@@ -237,7 +237,7 @@ static void p1022ds_set_monitor_port(enum fsl_diu_monitor_port port)
 
 	/* Make sure CS0 and CS1 are programmed */
 	if (!(br0 & BR_V) || !(br1 & BR_V)) {
-		pr_err("p1022ds: CS0 and/or CS1 is not programmed\n");
+		pr_err("p1022ds: CS0 and/or CS1 is yest programmed\n");
 		goto exit;
 	}
 
@@ -261,26 +261,26 @@ static void p1022ds_set_monitor_port(enum fsl_diu_monitor_port port)
 
 	cs0_addr = lbc_br_to_phys(ecm, num_laws, br0);
 	if (!cs0_addr) {
-		pr_err("p1022ds: could not determine physical address for CS0"
+		pr_err("p1022ds: could yest determine physical address for CS0"
 		       " (BR0=%08x)\n", br0);
 		goto exit;
 	}
 	cs1_addr = lbc_br_to_phys(ecm, num_laws, br1);
 	if (!cs1_addr) {
-		pr_err("p1022ds: could not determine physical address for CS1"
+		pr_err("p1022ds: could yest determine physical address for CS1"
 		       " (BR1=%08x)\n", br1);
 		goto exit;
 	}
 
 	lbc_lcs0_ba = ioremap(cs0_addr, 1);
 	if (!lbc_lcs0_ba) {
-		pr_err("p1022ds: could not ioremap CS0 address %llx\n",
+		pr_err("p1022ds: could yest ioremap CS0 address %llx\n",
 		       (unsigned long long)cs0_addr);
 		goto exit;
 	}
 	lbc_lcs1_ba = ioremap(cs1_addr, 1);
 	if (!lbc_lcs1_ba) {
-		pr_err("p1022ds: could not ioremap CS1 address %llx\n",
+		pr_err("p1022ds: could yest ioremap CS1 address %llx\n",
 		       (unsigned long long)cs1_addr);
 		goto exit;
 	}
@@ -288,20 +288,20 @@ static void p1022ds_set_monitor_port(enum fsl_diu_monitor_port port)
 	/* Make sure we're in indirect mode first. */
 	if ((in_be32(&guts->pmuxcr) & PMUXCR_ELBCDIU_MASK) !=
 	    PMUXCR_ELBCDIU_DIU) {
-		struct device_node *pixis_node;
+		struct device_yesde *pixis_yesde;
 		void __iomem *pixis;
 
-		pixis_node =
-			of_find_compatible_node(NULL, NULL, "fsl,p1022ds-fpga");
-		if (!pixis_node) {
-			pr_err("p1022ds: missing pixis node\n");
+		pixis_yesde =
+			of_find_compatible_yesde(NULL, NULL, "fsl,p1022ds-fpga");
+		if (!pixis_yesde) {
+			pr_err("p1022ds: missing pixis yesde\n");
 			goto exit;
 		}
 
-		pixis = of_iomap(pixis_node, 0);
-		of_node_put(pixis_node);
+		pixis = of_iomap(pixis_yesde, 0);
+		of_yesde_put(pixis_yesde);
 		if (!pixis) {
-			pr_err("p1022ds: could not map pixis registers\n");
+			pr_err("p1022ds: could yest map pixis registers\n");
 			goto exit;
 		}
 
@@ -359,9 +359,9 @@ exit:
 	if (guts)
 		iounmap(guts);
 
-	of_node_put(law_node);
-	of_node_put(lbc_node);
-	of_node_put(guts_node);
+	of_yesde_put(law_yesde);
+	of_yesde_put(lbc_yesde);
+	of_yesde_put(guts_yesde);
 }
 
 /**
@@ -371,23 +371,23 @@ exit:
  */
 void p1022ds_set_pixel_clock(unsigned int pixclock)
 {
-	struct device_node *guts_np = NULL;
+	struct device_yesde *guts_np = NULL;
 	struct ccsr_guts __iomem *guts;
 	unsigned long freq;
 	u64 temp;
 	u32 pxclk;
 
 	/* Map the global utilities registers. */
-	guts_np = of_find_compatible_node(NULL, NULL, "fsl,p1022-guts");
+	guts_np = of_find_compatible_yesde(NULL, NULL, "fsl,p1022-guts");
 	if (!guts_np) {
-		pr_err("p1022ds: missing global utilities device node\n");
+		pr_err("p1022ds: missing global utilities device yesde\n");
 		return;
 	}
 
 	guts = of_iomap(guts_np, 0);
-	of_node_put(guts_np);
+	of_yesde_put(guts_np);
 	if (!guts) {
-		pr_err("p1022ds: could not map global utilities device\n");
+		pr_err("p1022ds: could yest map global utilities device\n");
 		return;
 	}
 
@@ -404,7 +404,7 @@ void p1022ds_set_pixel_clock(unsigned int pixclock)
 	pxclk = DIV_ROUND_CLOSEST(fsl_get_sys_freq(), freq);
 	pxclk = clamp_t(u32, pxclk, 2, 255);
 
-	/* Disable the pixel clock, and set it to non-inverted and no delay */
+	/* Disable the pixel clock, and set it to yesn-inverted and yes delay */
 	clrbits32(&guts->clkdvdr,
 		  CLKDVDR_PXCKEN | CLKDVDR_PXCKDLY | CLKDVDR_PXCLK_MASK);
 
@@ -425,7 +425,7 @@ p1022ds_valid_monitor_port(enum fsl_diu_monitor_port port)
 	case FSL_DIU_PORT_LVDS:
 		return port;
 	default:
-		return FSL_DIU_PORT_DVI; /* Dual-link LVDS is not supported */
+		return FSL_DIU_PORT_DVI; /* Dual-link LVDS is yest supported */
 	}
 }
 
@@ -449,9 +449,9 @@ static bool fslfb;
  * Search for a "video=fslfb" command-line parameter, and set 'fslfb' to
  * true if we find it.
  *
- * We need to use early_param() instead of __setup() because the normal
+ * We need to use early_param() instead of __setup() because the yesrmal
  * __setup() gets called to late.  However, early_param() gets called very
- * early, before the device tree is unflattened, so all we can do now is set a
+ * early, before the device tree is unflattened, so all we can do yesw is set a
  * global variable.  Later on, p1022_ds_setup_arch() will use that variable
  * to determine if we need to update the device tree.
  */
@@ -479,22 +479,22 @@ static void __init p1022_ds_setup_arch(void)
 	diu_ops.valid_monitor_port	= p1022ds_valid_monitor_port;
 
 	/*
-	 * Disable the NOR and NAND flash nodes if there is video=fslfb...
+	 * Disable the NOR and NAND flash yesdes if there is video=fslfb...
 	 * command-line parameter.  When the DIU is active, the localbus is
-	 * unavailable, so we have to disable these nodes before the MTD
+	 * unavailable, so we have to disable these yesdes before the MTD
 	 * driver loads.
 	 */
 	if (fslfb) {
-		struct device_node *np =
-			of_find_compatible_node(NULL, NULL, "fsl,p1022-elbc");
+		struct device_yesde *np =
+			of_find_compatible_yesde(NULL, NULL, "fsl,p1022-elbc");
 
 		if (np) {
-			struct device_node *np2;
+			struct device_yesde *np2;
 
-			of_node_get(np);
-			np2 = of_find_compatible_node(np, NULL, "cfi-flash");
+			of_yesde_get(np);
+			np2 = of_find_compatible_yesde(np, NULL, "cfi-flash");
 			if (np2) {
-				static struct property nor_status = {
+				static struct property yesr_status = {
 					.name = "status",
 					.value = "disabled",
 					.length = sizeof("disabled"),
@@ -508,14 +508,14 @@ static void __init p1022_ds_setup_arch(void)
 				 * allocate one static local variable for each
 				 * call to this function.
 				 */
-				pr_info("p1022ds: disabling %pOF node",
+				pr_info("p1022ds: disabling %pOF yesde",
 					np2);
-				of_update_property(np2, &nor_status);
-				of_node_put(np2);
+				of_update_property(np2, &yesr_status);
+				of_yesde_put(np2);
 			}
 
-			of_node_get(np);
-			np2 = of_find_compatible_node(np, NULL,
+			of_yesde_get(np);
+			np2 = of_find_compatible_yesde(np, NULL,
 						      "fsl,elbc-fcm-nand");
 			if (np2) {
 				static struct property nand_status = {
@@ -524,13 +524,13 @@ static void __init p1022_ds_setup_arch(void)
 					.length = sizeof("disabled"),
 				};
 
-				pr_info("p1022ds: disabling %pOF node",
+				pr_info("p1022ds: disabling %pOF yesde",
 					np2);
 				of_update_property(np2, &nand_status);
-				of_node_put(np2);
+				of_yesde_put(np2);
 			}
 
-			of_node_put(np);
+			of_yesde_put(np);
 		}
 
 	}

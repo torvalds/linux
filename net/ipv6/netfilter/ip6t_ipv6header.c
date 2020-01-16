@@ -52,7 +52,7 @@ ipv6header_mt6(const struct sk_buff *skb, struct xt_action_param *par)
 			temp |= MASK_NONE;
 			break;
 		}
-		/* Is there enough space for the next ext header? */
+		/* Is there eyesugh space for the next ext header? */
 		if (len < (int)sizeof(struct ipv6_opt_hdr))
 			return false;
 		/* ESP -> evaluate */

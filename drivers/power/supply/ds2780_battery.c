@@ -331,8 +331,8 @@ static int ds2780_get_status(struct ds2780_device_info *dev_info, int *status)
 	return 0;
 }
 
-static int ds2780_get_charge_now(struct ds2780_device_info *dev_info,
-	int *charge_now)
+static int ds2780_get_charge_yesw(struct ds2780_device_info *dev_info,
+	int *charge_yesw)
 {
 	int ret;
 	u16 charge_raw;
@@ -349,7 +349,7 @@ static int ds2780_get_charge_now(struct ds2780_device_info *dev_info,
 	if (ret < 0)
 		return ret;
 
-	*charge_now = charge_raw * 1600;
+	*charge_yesw = charge_raw * 1600;
 	return 0;
 }
 
@@ -417,7 +417,7 @@ static int ds2780_battery_get_property(struct power_supply *psy,
 		break;
 
 	case POWER_SUPPLY_PROP_CHARGE_NOW:
-		ret = ds2780_get_charge_now(dev_info, &val->intval);
+		ret = ds2780_get_charge_yesw(dev_info, &val->intval);
 		break;
 
 	default:

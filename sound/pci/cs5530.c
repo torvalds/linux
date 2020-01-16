@@ -13,7 +13,7 @@
  * always play/capture in 16/44100, we can let alsa-lib convert the samples and
  * that way we can hack up some full duplex audio. 
  * 
- * XpressAudio(tm) is used on the Cyrix MediaGX (now NatSemi Geode) systems.
+ * XpressAudio(tm) is used on the Cyrix MediaGX (yesw NatSemi Geode) systems.
  * The older version (VSA1) provides fairly good soundblaster emulation
  * although there are a couple of bugs: large DMA buffers break record,
  * and the MPU event handling seems suspect. VSA2 allows the native driver
@@ -153,7 +153,7 @@ static int snd_cs5530_create(struct snd_card *card,
 	if (map & (1<<2))
 		dev_info(card->dev, "XpressAudio at 0x%lx\n", sb_base);
 	else {
-		dev_err(card->dev, "Could not find XpressAudio!\n");
+		dev_err(card->dev, "Could yest find XpressAudio!\n");
 		snd_cs5530_free(chip);
 		return -ENODEV;
 	}
@@ -199,7 +199,7 @@ static int snd_cs5530_create(struct snd_card *card,
 	else if (irq & 8)
 		irq = 10;
 	else {
-		dev_err(card->dev, "SoundBlaster IRQ not set\n");
+		dev_err(card->dev, "SoundBlaster IRQ yest set\n");
 		snd_cs5530_free(chip);
 		return -ENODEV;
 	}
@@ -209,21 +209,21 @@ static int snd_cs5530_create(struct snd_card *card,
 	err = snd_sbdsp_create(card, sb_base, irq, snd_sb16dsp_interrupt, dma8,
 						dma16, SB_HW_CS5530, &chip->sb);
 	if (err < 0) {
-		dev_err(card->dev, "Could not create SoundBlaster\n");
+		dev_err(card->dev, "Could yest create SoundBlaster\n");
 		snd_cs5530_free(chip);
 		return err;
 	}
 
 	err = snd_sb16dsp_pcm(chip->sb, 0);
 	if (err < 0) {
-		dev_err(card->dev, "Could not create PCM\n");
+		dev_err(card->dev, "Could yest create PCM\n");
 		snd_cs5530_free(chip);
 		return err;
 	}
 
 	err = snd_sbmixer_new(chip->sb);
 	if (err < 0) {
-		dev_err(card->dev, "Could not create Mixer\n");
+		dev_err(card->dev, "Could yest create Mixer\n");
 		snd_cs5530_free(chip);
 		return err;
 	}

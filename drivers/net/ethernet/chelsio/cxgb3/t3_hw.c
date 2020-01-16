@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -47,7 +47,7 @@ static void t3_port_intr_clear(struct adapter *adapter, int idx);
  *	@valp: where to store the value of the register at completion time
  *
  *	Wait until an operation is completed by checking a bit in a register
- *	up to @attempts times.  If @valp is not NULL the value of the register
+ *	up to @attempts times.  If @valp is yest NULL the value of the register
  *	at the time it indicated completion is stored there.  Returns 0 if the
  *	operation completes and -EAGAIN otherwise.
  */
@@ -712,7 +712,7 @@ static int get_vpd_params(struct adapter *adapter, struct vpd_params *p)
 	struct t3_vpd vpd;
 
 	/*
-	 * Card information is normally at VPD_BASE but some early cards had
+	 * Card information is yesrmally at VPD_BASE but some early cards had
 	 * it at 0.
 	 */
 	ret = t3_seeprom_read(adapter, VPD_BASE, (__le32 *)&vpd);
@@ -790,7 +790,7 @@ enum {
  *	sf1_read - read data from the serial flash
  *	@adapter: the adapter
  *	@byte_cnt: number of bytes to read
- *	@cont: whether another operation will be chained
+ *	@cont: whether ayesther operation will be chained
  *	@valp: where to store the read data
  *
  *	Reads up to 4 bytes of data from the serial flash.  The location of
@@ -817,7 +817,7 @@ static int sf1_read(struct adapter *adapter, unsigned int byte_cnt, int cont,
  *	sf1_write - write data to the serial flash
  *	@adapter: the adapter
  *	@byte_cnt: number of bytes to write
- *	@cont: whether another operation will be chained
+ *	@cont: whether ayesther operation will be chained
  *	@val: value to write
  *
  *	Writes up to 4 bytes of data to the serial flash.  The location of
@@ -981,7 +981,7 @@ int t3_check_tpsram_version(struct adapter *adapter)
 {
 	int ret;
 	u32 vers;
-	unsigned int major, minor;
+	unsigned int major, miyesr;
 
 	if (adapter->params.rev == T3_REV_A)
 		return 0;
@@ -992,13 +992,13 @@ int t3_check_tpsram_version(struct adapter *adapter)
 		return ret;
 
 	major = G_TP_VERSION_MAJOR(vers);
-	minor = G_TP_VERSION_MINOR(vers);
+	miyesr = G_TP_VERSION_MINOR(vers);
 
-	if (major == TP_VERSION_MAJOR && minor == TP_VERSION_MINOR)
+	if (major == TP_VERSION_MAJOR && miyesr == TP_VERSION_MINOR)
 		return 0;
 	else {
 		CH_ERR(adapter, "found wrong TP version (%u.%u), "
-		       "driver compiled for version %d.%d\n", major, minor,
+		       "driver compiled for version %d.%d\n", major, miyesr,
 		       TP_VERSION_MAJOR, TP_VERSION_MINOR);
 	}
 	return -EINVAL;
@@ -1061,7 +1061,7 @@ int t3_check_fw_version(struct adapter *adapter)
 {
 	int ret;
 	u32 vers;
-	unsigned int type, major, minor;
+	unsigned int type, major, miyesr;
 
 	ret = t3_get_fw_version(adapter, &vers);
 	if (ret)
@@ -1069,18 +1069,18 @@ int t3_check_fw_version(struct adapter *adapter)
 
 	type = G_FW_VERSION_TYPE(vers);
 	major = G_FW_VERSION_MAJOR(vers);
-	minor = G_FW_VERSION_MINOR(vers);
+	miyesr = G_FW_VERSION_MINOR(vers);
 
 	if (type == FW_VERSION_T3 && major == FW_VERSION_MAJOR &&
-	    minor == FW_VERSION_MINOR)
+	    miyesr == FW_VERSION_MINOR)
 		return 0;
-	else if (major != FW_VERSION_MAJOR || minor < FW_VERSION_MINOR)
-		CH_WARN(adapter, "found old FW minor version(%u.%u), "
-		        "driver compiled for version %u.%u\n", major, minor,
+	else if (major != FW_VERSION_MAJOR || miyesr < FW_VERSION_MINOR)
+		CH_WARN(adapter, "found old FW miyesr version(%u.%u), "
+		        "driver compiled for version %u.%u\n", major, miyesr,
 			FW_VERSION_MAJOR, FW_VERSION_MINOR);
 	else {
 		CH_WARN(adapter, "found newer FW version(%u.%u), "
-		        "driver compiled for version %u.%u\n", major, minor,
+		        "driver compiled for version %u.%u\n", major, miyesr,
 			FW_VERSION_MAJOR, FW_VERSION_MINOR);
 		return 0;
 	}
@@ -1271,7 +1271,7 @@ void t3_link_changed(struct adapter *adapter, int port_id)
 
 	if (link_ok == lc->link_ok && speed == lc->speed &&
 	    duplex == lc->duplex && fc == lc->fc)
-		return;                            /* nothing changed */
+		return;                            /* yesthing changed */
 
 	if (link_ok != lc->link_ok && adapter->params.rev > 0 &&
 	    uses_xaui(adapter)) {
@@ -1356,7 +1356,7 @@ void t3_link_fault(struct adapter *adapter, int port_id)
  *	Set up a port's MAC and PHY according to a desired link configuration.
  *	- If the PHY can auto-negotiate first decide what to advertise, then
  *	  enable/disable auto-negotiation as desired, and reset.
- *	- If the PHY does not auto-negotiate just reset it.
+ *	- If the PHY does yest auto-negotiate just reset it.
  *	- If auto-negotiation is off set the MAC to the proper speed/duplex/FC,
  *	  otherwise do it later based on the outcome of auto-negotiation.
  */
@@ -1759,7 +1759,7 @@ static void cplsw_intr_handler(struct adapter *adapter)
 		{F_TP_FRAMING_ERROR, "CPL switch TP framing error", -1, 1},
 		{F_SGE_FRAMING_ERROR, "CPL switch SGE framing error", -1, 1},
 		{F_CIM_FRAMING_ERROR, "CPL switch CIM framing error", -1, 1},
-		{F_ZERO_SWITCH_ERROR, "CPL switch no-switch error", -1, 1},
+		{F_ZERO_SWITCH_ERROR, "CPL switch yes-switch error", -1, 1},
 		{0}
 	};
 
@@ -1845,7 +1845,7 @@ static int mac_intr_handler(struct adapter *adap, unsigned int idx)
 {
 	struct cmac *mac = &adap2pinfo(adap, idx)->mac;
 	/*
-	 * We mask out interrupt causes for which we're not taking interrupts.
+	 * We mask out interrupt causes for which we're yest taking interrupts.
 	 * This allows us to use polling logic to monitor some of the other
 	 * conditions when taking interrupts would impose too much load on the
 	 * system.
@@ -1917,7 +1917,7 @@ int t3_phy_intr_handler(struct adapter *adapter)
 }
 
 /*
- * T3 slow path (non-data) interrupt handler.
+ * T3 slow path (yesn-data) interrupt handler.
  */
 int t3_slow_intr_handler(struct adapter *adapter)
 {
@@ -2310,10 +2310,10 @@ int t3_sge_init_flcntxt(struct adapter *adapter, unsigned int id,
  *	t3_sge_init_rspcntxt - initialize an SGE response queue context
  *	@adapter: the adapter to configure
  *	@id: the context id
- *	@irq_vec_idx: MSI-X interrupt vector index, 0 if no MSI-X, -1 if no IRQ
+ *	@irq_vec_idx: MSI-X interrupt vector index, 0 if yes MSI-X, -1 if yes IRQ
  *	@base_addr: base address of queue
  *	@size: number of queue entries
- *	@fl_thres: threshold for selecting the normal or jumbo free list
+ *	@fl_thres: threshold for selecting the yesrmal or jumbo free list
  *	@gen: initial generation value for the context
  *	@cidx: consumer pointer
  *
@@ -2351,7 +2351,7 @@ int t3_sge_init_rspcntxt(struct adapter *adapter, unsigned int id,
  *	@id: the context id
  *	@base_addr: base address of queue
  *	@size: number of queue entries
- *	@rspq: response queue for async notifications
+ *	@rspq: response queue for async yestifications
  *	@ovfl_mode: CQ overflow mode
  *	@credits: completion queue credits
  *	@credit_thres: the credit threshold
@@ -3178,7 +3178,7 @@ struct mc7_timing_params {
 
 /*
  * Write a value to a register and check that the write completed.  These
- * writes normally complete in a cycle or two, so one read should suffice.
+ * writes yesrmally complete in a cycle or two, so one read should suffice.
  * The very first read exists to flush the posted write to the device.
  */
 static int wrreg_wait(struct adapter *adapter, unsigned int addr, u32 val)
@@ -3296,7 +3296,7 @@ static int mc7_init(struct mc7 *mc7, unsigned int mc7_clock, int mem_type)
 		goto out_fail;
 	}
 
-	/* Enable normal memory accesses. */
+	/* Enable yesrmal memory accesses. */
 	t3_set_reg_field(adapter, mc7->offset + A_MC7_CFG, 0, F_RDY);
 	return 0;
 
@@ -3669,7 +3669,7 @@ int t3_prep_adapter(struct adapter *adapter, const struct adapter_info *ai,
 	 * we had PHYs which didn't support interrupts (we would check
 	 * their link status once a second).  Now we check other conditions
 	 * in that routine which could potentially impose a very high
-	 * interrupt load on the system.  As such, we now always scan the
+	 * interrupt load on the system.  As such, we yesw always scan the
 	 * adapter state once a second ...
 	 */
 	adapter->params.linkpoll_period = 10;

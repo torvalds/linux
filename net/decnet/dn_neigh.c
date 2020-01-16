@@ -16,11 +16,11 @@
  *     Steve Whitehouse     : Added default router detection
  *     Steve Whitehouse     : Hop counts in outgoing messages
  *     Steve Whitehouse     : Fixed src/dst in outgoing messages so
- *                            forwarding now stands a good chance of
+ *                            forwarding yesw stands a good chance of
  *                            working.
- *     Steve Whitehouse     : Fixed neighbour states (for now anyway).
+ *     Steve Whitehouse     : Fixed neighbour states (for yesw anyway).
  *     Steve Whitehouse     : Made error_report functions dummies. This
- *                            is not the right place to return skbs.
+ *                            is yest the right place to return skbs.
  *     Steve Whitehouse     : Convert to seq_file
  *
  */
@@ -154,9 +154,9 @@ static int dn_neigh_construct(struct neighbour *neigh)
 	 * ethernet headers and which the DECnet specs won't admit is part
 	 * of the DECnet routing headers either.
 	 *
-	 * If we over estimate here its no big deal, the NSP negotiations
+	 * If we over estimate here its yes big deal, the NSP negotiations
 	 * will prevent us from sending packets which are too large for the
-	 * remote node to handle. In any case this figure is normally updated
+	 * remote yesde to handle. In any case this figure is yesrmally updated
 	 * by a hello message in most cases.
 	 */
 	dn->blksize = dev->mtu - 2;
@@ -220,7 +220,7 @@ static int dn_long_output(struct neighbour *neigh, struct sock *sk,
 	if (skb_headroom(skb) < headroom) {
 		struct sk_buff *skb2 = skb_realloc_headroom(skb, headroom);
 		if (skb2 == NULL) {
-			net_crit_ratelimited("dn_long_output: no memory\n");
+			net_crit_ratelimited("dn_long_output: yes memory\n");
 			kfree_skb(skb);
 			return -ENOBUFS;
 		}
@@ -268,7 +268,7 @@ static int dn_short_output(struct neighbour *neigh, struct sock *sk,
 	if (skb_headroom(skb) < headroom) {
 		struct sk_buff *skb2 = skb_realloc_headroom(skb, headroom);
 		if (skb2 == NULL) {
-			net_crit_ratelimited("dn_short_output: no memory\n");
+			net_crit_ratelimited("dn_short_output: yes memory\n");
 			kfree_skb(skb);
 			return -ENOBUFS;
 		}
@@ -282,8 +282,8 @@ static int dn_short_output(struct neighbour *neigh, struct sock *sk,
 	sp = (struct dn_short_packet *)(data+2);
 
 	sp->msgflg     = DN_RT_PKT_SHORT|(cb->rt_flags&(DN_RT_F_RQR|DN_RT_F_RTS));
-	sp->dstnode    = cb->dst;
-	sp->srcnode    = cb->src;
+	sp->dstyesde    = cb->dst;
+	sp->srcyesde    = cb->src;
 	sp->forward    = cb->hops & 0x3f;
 
 	skb_reset_network_header(skb);
@@ -294,7 +294,7 @@ static int dn_short_output(struct neighbour *neigh, struct sock *sk,
 }
 
 /*
- * For talking to DECnet phase III nodes
+ * For talking to DECnet phase III yesdes
  * Phase 3 output is the same as short output, execpt that
  * it clears the area bits before transmission.
  */
@@ -310,7 +310,7 @@ static int dn_phase3_output(struct neighbour *neigh, struct sock *sk,
 	if (skb_headroom(skb) < headroom) {
 		struct sk_buff *skb2 = skb_realloc_headroom(skb, headroom);
 		if (skb2 == NULL) {
-			net_crit_ratelimited("dn_phase3_output: no memory\n");
+			net_crit_ratelimited("dn_phase3_output: yes memory\n");
 			kfree_skb(skb);
 			return -ENOBUFS;
 		}
@@ -324,8 +324,8 @@ static int dn_phase3_output(struct neighbour *neigh, struct sock *sk,
 	sp = (struct dn_short_packet *)(data + 2);
 
 	sp->msgflg   = DN_RT_PKT_SHORT|(cb->rt_flags&(DN_RT_F_RQR|DN_RT_F_RTS));
-	sp->dstnode  = cb->dst & cpu_to_le16(0x03ff);
-	sp->srcnode  = cb->src & cpu_to_le16(0x03ff);
+	sp->dstyesde  = cb->dst & cpu_to_le16(0x03ff);
+	sp->srcyesde  = cb->src & cpu_to_le16(0x03ff);
 	sp->forward  = cb->hops & 0x3f;
 
 	skb_reset_network_header(skb);
@@ -381,7 +381,7 @@ void dn_neigh_pointopoint_hello(struct sk_buff *skb)
  */
 int dn_neigh_router_hello(struct net *net, struct sock *sk, struct sk_buff *skb)
 {
-	struct rtnode_hello_message *msg = (struct rtnode_hello_message *)skb->data;
+	struct rtyesde_hello_message *msg = (struct rtyesde_hello_message *)skb->data;
 
 	struct neighbour *neigh;
 	struct dn_neigh *dn;
@@ -439,11 +439,11 @@ int dn_neigh_router_hello(struct net *net, struct sock *sk, struct sk_buff *skb)
 }
 
 /*
- * Endnode hello message received
+ * Endyesde hello message received
  */
-int dn_neigh_endnode_hello(struct net *net, struct sock *sk, struct sk_buff *skb)
+int dn_neigh_endyesde_hello(struct net *net, struct sock *sk, struct sk_buff *skb)
 {
-	struct endnode_hello_message *msg = (struct endnode_hello_message *)skb->data;
+	struct endyesde_hello_message *msg = (struct endyesde_hello_message *)skb->data;
 	struct neighbour *neigh;
 	struct dn_neigh *dn;
 	__le16 src;

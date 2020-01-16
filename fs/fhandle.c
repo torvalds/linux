@@ -7,7 +7,7 @@
 #include <linux/namei.h>
 #include <linux/exportfs.h>
 #include <linux/fs_struct.h>
-#include <linux/fsnotify.h>
+#include <linux/fsyestify.h>
 #include <linux/personality.h>
 #include <linux/uaccess.h>
 #include <linux/compat.h>
@@ -45,7 +45,7 @@ static long do_sys_name_to_handle(struct path *path,
 	/* convert handle size to multiple of sizeof(u32) */
 	handle_dwords = f_handle.handle_bytes >> 2;
 
-	/* we ask for a non connected handle */
+	/* we ask for a yesn connected handle */
 	retval = exportfs_encode_fh(path->dentry,
 				    (struct fid *)handle->f_handle,
 				    &handle_dwords,  0);
@@ -62,7 +62,7 @@ static long do_sys_name_to_handle(struct path *path,
 		 */
 		/*
 		 * set the handle size to zero so we copy only
-		 * non variable part of the file_handle
+		 * yesn variable part of the file_handle
 		 */
 		handle_bytes = 0;
 		retval = -EOVERFLOW;
@@ -79,15 +79,15 @@ static long do_sys_name_to_handle(struct path *path,
 
 /**
  * sys_name_to_handle_at: convert name to handle
- * @dfd: directory relative to which name is interpreted if not absolute
+ * @dfd: directory relative to which name is interpreted if yest absolute
  * @name: name that should be converted to handle.
  * @handle: resulting file handle
  * @mnt_id: mount id of the file system containing the file
- * @flag: flag value to indicate whether to follow symlink or not
+ * @flag: flag value to indicate whether to follow symlink or yest
  *
  * @handle->handle_size indicate the space available to store the
- * variable part of the file handle in bytes. If there is not
- * enough space, the field is updated to return the minimum
+ * variable part of the file handle in bytes. If there is yest
+ * eyesugh space, the field is updated to return the minimum
  * value required.
  */
 SYSCALL_DEFINE5(name_to_handle_at, int, dfd, const char __user *, name,
@@ -235,7 +235,7 @@ static long do_handle_open(int mountdirfd, struct file_handle __user *ufh,
 		retval =  PTR_ERR(file);
 	} else {
 		retval = fd;
-		fsnotify_open(file);
+		fsyestify_open(file);
 		fd_install(fd, file);
 	}
 	path_put(&path);

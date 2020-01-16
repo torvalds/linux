@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- *  linux/fs/affs/inode.c
+ *  linux/fs/affs/iyesde.c
  *
  *  (c) 1996  Hans-Joachim Widmaier - Rewritten
  *
@@ -94,65 +94,65 @@ void affs_mark_sb_dirty(struct super_block *sb)
 	spin_unlock(&sbi->work_lock);
 }
 
-static struct kmem_cache * affs_inode_cachep;
+static struct kmem_cache * affs_iyesde_cachep;
 
-static struct inode *affs_alloc_inode(struct super_block *sb)
+static struct iyesde *affs_alloc_iyesde(struct super_block *sb)
 {
-	struct affs_inode_info *i;
+	struct affs_iyesde_info *i;
 
-	i = kmem_cache_alloc(affs_inode_cachep, GFP_KERNEL);
+	i = kmem_cache_alloc(affs_iyesde_cachep, GFP_KERNEL);
 	if (!i)
 		return NULL;
 
-	inode_set_iversion(&i->vfs_inode, 1);
+	iyesde_set_iversion(&i->vfs_iyesde, 1);
 	i->i_lc = NULL;
 	i->i_ext_bh = NULL;
 	i->i_pa_cnt = 0;
 
-	return &i->vfs_inode;
+	return &i->vfs_iyesde;
 }
 
-static void affs_free_inode(struct inode *inode)
+static void affs_free_iyesde(struct iyesde *iyesde)
 {
-	kmem_cache_free(affs_inode_cachep, AFFS_I(inode));
+	kmem_cache_free(affs_iyesde_cachep, AFFS_I(iyesde));
 }
 
 static void init_once(void *foo)
 {
-	struct affs_inode_info *ei = (struct affs_inode_info *) foo;
+	struct affs_iyesde_info *ei = (struct affs_iyesde_info *) foo;
 
 	mutex_init(&ei->i_link_lock);
 	mutex_init(&ei->i_ext_lock);
-	inode_init_once(&ei->vfs_inode);
+	iyesde_init_once(&ei->vfs_iyesde);
 }
 
-static int __init init_inodecache(void)
+static int __init init_iyesdecache(void)
 {
-	affs_inode_cachep = kmem_cache_create("affs_inode_cache",
-					     sizeof(struct affs_inode_info),
+	affs_iyesde_cachep = kmem_cache_create("affs_iyesde_cache",
+					     sizeof(struct affs_iyesde_info),
 					     0, (SLAB_RECLAIM_ACCOUNT|
 						SLAB_MEM_SPREAD|SLAB_ACCOUNT),
 					     init_once);
-	if (affs_inode_cachep == NULL)
+	if (affs_iyesde_cachep == NULL)
 		return -ENOMEM;
 	return 0;
 }
 
-static void destroy_inodecache(void)
+static void destroy_iyesdecache(void)
 {
 	/*
-	 * Make sure all delayed rcu free inodes are flushed before we
+	 * Make sure all delayed rcu free iyesdes are flushed before we
 	 * destroy cache.
 	 */
 	rcu_barrier();
-	kmem_cache_destroy(affs_inode_cachep);
+	kmem_cache_destroy(affs_iyesde_cachep);
 }
 
 static const struct super_operations affs_sops = {
-	.alloc_inode	= affs_alloc_inode,
-	.free_inode	= affs_free_inode,
-	.write_inode	= affs_write_inode,
-	.evict_inode	= affs_evict_inode,
+	.alloc_iyesde	= affs_alloc_iyesde,
+	.free_iyesde	= affs_free_iyesde,
+	.write_iyesde	= affs_write_iyesde,
+	.evict_iyesde	= affs_evict_iyesde,
 	.put_super	= affs_put_super,
 	.sync_fs	= affs_sync_fs,
 	.statfs		= affs_statfs,
@@ -161,16 +161,16 @@ static const struct super_operations affs_sops = {
 };
 
 enum {
-	Opt_bs, Opt_mode, Opt_mufs, Opt_notruncate, Opt_prefix, Opt_protect,
+	Opt_bs, Opt_mode, Opt_mufs, Opt_yestruncate, Opt_prefix, Opt_protect,
 	Opt_reserved, Opt_root, Opt_setgid, Opt_setuid,
-	Opt_verbose, Opt_volume, Opt_ignore, Opt_err,
+	Opt_verbose, Opt_volume, Opt_igyesre, Opt_err,
 };
 
 static const match_table_t tokens = {
 	{Opt_bs, "bs=%u"},
 	{Opt_mode, "mode=%o"},
 	{Opt_mufs, "mufs"},
-	{Opt_notruncate, "nofilenametruncate"},
+	{Opt_yestruncate, "yesfilenametruncate"},
 	{Opt_prefix, "prefix=%s"},
 	{Opt_protect, "protect"},
 	{Opt_reserved, "reserved=%u"},
@@ -179,10 +179,10 @@ static const match_table_t tokens = {
 	{Opt_setuid, "setuid=%u"},
 	{Opt_verbose, "verbose"},
 	{Opt_volume, "volume=%s"},
-	{Opt_ignore, "grpquota"},
-	{Opt_ignore, "noquota"},
-	{Opt_ignore, "quota"},
-	{Opt_ignore, "usrquota"},
+	{Opt_igyesre, "grpquota"},
+	{Opt_igyesre, "yesquota"},
+	{Opt_igyesre, "quota"},
+	{Opt_igyesre, "usrquota"},
 	{Opt_err, NULL},
 };
 
@@ -232,7 +232,7 @@ parse_options(char *options, kuid_t *uid, kgid_t *gid, int *mode, int *reserved,
 		case Opt_mufs:
 			affs_set_opt(*mount_opts, SF_MUFS);
 			break;
-		case Opt_notruncate:
+		case Opt_yestruncate:
 			affs_set_opt(*mount_opts, SF_NO_TRUNCATE);
 			break;
 		case Opt_prefix:
@@ -280,8 +280,8 @@ parse_options(char *options, kuid_t *uid, kgid_t *gid, int *mode, int *reserved,
 			kfree(vol);
 			break;
 		}
-		case Opt_ignore:
-		 	/* Silently ignore the quota options */
+		case Opt_igyesre:
+		 	/* Silently igyesre the quota options */
 			break;
 		default:
 			pr_warn("Unrecognized mount option \"%s\" or missing value\n",
@@ -304,7 +304,7 @@ static int affs_show_options(struct seq_file *m, struct dentry *root)
 	if (affs_test_opt(sbi->s_flags, SF_MUFS))
 		seq_puts(m, ",mufs");
 	if (affs_test_opt(sbi->s_flags, SF_NO_TRUNCATE))
-		seq_puts(m, ",nofilenametruncate");
+		seq_puts(m, ",yesfilenametruncate");
 	if (affs_test_opt(sbi->s_flags, SF_PREFIX))
 		seq_printf(m, ",prefix=%s", sbi->s_prefix);
 	if (affs_test_opt(sbi->s_flags, SF_IMMUTABLE))
@@ -335,7 +335,7 @@ static int affs_fill_super(struct super_block *sb, void *data, int silent)
 	struct affs_sb_info	*sbi;
 	struct buffer_head	*root_bh = NULL;
 	struct buffer_head	*boot_bh;
-	struct inode		*root_inode = NULL;
+	struct iyesde		*root_iyesde = NULL;
 	s32			 root_block;
 	int			 size, blocksize;
 	u32			 chksum;
@@ -349,7 +349,7 @@ static int affs_fill_super(struct super_block *sb, void *data, int silent)
 	u8			 sig[4];
 	int			 ret;
 
-	pr_debug("read_super(%s)\n", data ? (const char *)data : "no options");
+	pr_debug("read_super(%s)\n", data ? (const char *)data : "yes options");
 
 	sb->s_magic             = AFFS_SUPER_MAGIC;
 	sb->s_op                = &affs_sops;
@@ -389,7 +389,7 @@ static int affs_fill_super(struct super_block *sb, void *data, int silent)
 	 * blocks, we will have to change it.
 	 */
 
-	size = i_size_read(sb->s_bdev->bd_inode) >> 9;
+	size = i_size_read(sb->s_bdev->bd_iyesde) >> 9;
 	pr_debug("initial blocksize=%d, #blocks=%d\n", 512, size);
 
 	affs_set_blocksize(sb, PAGE_SIZE);
@@ -410,13 +410,13 @@ static int affs_fill_super(struct super_block *sb, void *data, int silent)
 		affs_set_blocksize(sb, blocksize);
 		sbi->s_partition_size = size;
 
-		/* The root block location that was calculated above is not
+		/* The root block location that was calculated above is yest
 		 * correct if the partition size is an odd number of 512-
 		 * byte blocks, which will be rounded down to a number of
 		 * 1024-byte blocks, and if there were an even number of
 		 * reserved blocks. Ideally, all partition checkers should
 		 * report the real number of blocks of the real blocksize,
-		 * but since this just cannot be done, we have to try to
+		 * but since this just canyest be done, we have to try to
 		 * find the root block anyways. In the above case, it is one
 		 * block behind the calculated one. So we check this one, too.
 		 */
@@ -453,20 +453,20 @@ got_root:
 	/* Find out which kind of FS we have */
 	boot_bh = sb_bread(sb, 0);
 	if (!boot_bh) {
-		pr_err("Cannot read boot block\n");
+		pr_err("Canyest read boot block\n");
 		return -EINVAL;
 	}
 	memcpy(sig, boot_bh->b_data, 4);
 	brelse(boot_bh);
 	chksum = be32_to_cpu(*(__be32 *)sig);
 
-	/* Dircache filesystems are compatible with non-dircache ones
+	/* Dircache filesystems are compatible with yesn-dircache ones
 	 * when reading. As long as they aren't supported, writing is
-	 * not recommended.
+	 * yest recommended.
 	 */
 	if ((chksum == FS_DCFFS || chksum == MUFS_DCFFS || chksum == FS_DCOFS
 	     || chksum == MUFS_DCOFS) && !sb_rdonly(sb)) {
-		pr_notice("Dircache FS - mounting %s read only\n", sb->s_id);
+		pr_yestice("Dircache FS - mounting %s read only\n", sb->s_id);
 		sb->s_flags |= SB_RDONLY;
 	}
 	switch (chksum) {
@@ -502,14 +502,14 @@ got_root:
 		sb->s_flags |= SB_NOEXEC;
 		break;
 	default:
-		pr_err("Unknown filesystem on device %s: %08X\n",
+		pr_err("Unkyeswn filesystem on device %s: %08X\n",
 		       sb->s_id, chksum);
 		return -EINVAL;
 	}
 
 	if (affs_test_opt(mount_flags, SF_VERBOSE)) {
 		u8 len = AFFS_ROOT_TAIL(sb, root_bh)->disk_name[0];
-		pr_notice("Mounting volume \"%.*s\": Type=%.3s\\%c, Blocksize=%d\n",
+		pr_yestice("Mounting volume \"%.*s\": Type=%.3s\\%c, Blocksize=%d\n",
 			len > 31 ? 31 : len,
 			AFFS_ROOT_TAIL(sb, root_bh)->disk_name + 1,
 			sig, sig[3] + '0', blocksize);
@@ -527,20 +527,20 @@ got_root:
 		return ret;
 	sb->s_flags = tmp_flags;
 
-	/* set up enough so that it can read an inode */
+	/* set up eyesugh so that it can read an iyesde */
 
-	root_inode = affs_iget(sb, root_block);
-	if (IS_ERR(root_inode))
-		return PTR_ERR(root_inode);
+	root_iyesde = affs_iget(sb, root_block);
+	if (IS_ERR(root_iyesde))
+		return PTR_ERR(root_iyesde);
 
 	if (affs_test_opt(AFFS_SB(sb)->s_flags, SF_INTL))
 		sb->s_d_op = &affs_intl_dentry_operations;
 	else
 		sb->s_d_op = &affs_dentry_operations;
 
-	sb->s_root = d_make_root(root_inode);
+	sb->s_root = d_make_root(root_iyesde);
 	if (!sb->s_root) {
-		pr_err("AFFS: Get root inode failed\n");
+		pr_err("AFFS: Get root iyesde failed\n");
 		return -ENOMEM;
 	}
 
@@ -656,7 +656,7 @@ MODULE_ALIAS_FS("affs");
 
 static int __init init_affs_fs(void)
 {
-	int err = init_inodecache();
+	int err = init_iyesdecache();
 	if (err)
 		goto out1;
 	err = register_filesystem(&affs_fs_type);
@@ -664,7 +664,7 @@ static int __init init_affs_fs(void)
 		goto out;
 	return 0;
 out:
-	destroy_inodecache();
+	destroy_iyesdecache();
 out1:
 	return err;
 }
@@ -672,7 +672,7 @@ out1:
 static void __exit exit_affs_fs(void)
 {
 	unregister_filesystem(&affs_fs_type);
-	destroy_inodecache();
+	destroy_iyesdecache();
 }
 
 MODULE_DESCRIPTION("Amiga filesystem support for Linux");

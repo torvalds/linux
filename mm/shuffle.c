@@ -92,13 +92,13 @@ static struct page * __meminit shuffle_valid_page(unsigned long pfn, int order)
 
 /*
  * Fisher-Yates shuffle the freelist which prescribes iterating through an
- * array, pfns in this case, and randomly swapping each entry with another in
+ * array, pfns in this case, and randomly swapping each entry with ayesther in
  * the span, end_pfn - start_pfn.
  *
- * To keep the implementation simple it does not attempt to correct for sources
+ * To keep the implementation simple it does yest attempt to correct for sources
  * of bias in the distribution, like modulo bias or pseudo-random number
  * generator bias. I.e. the expectation is that this shuffling raises the bar
- * for attacks that exploit the predictability of page allocations, but need not
+ * for attacks that exploit the predictability of page allocations, but need yest
  * be a perfect shuffle.
  */
 #define SHUFFLE_RETRY 10
@@ -149,7 +149,7 @@ void __meminit __shuffle_zone(struct zone *z)
 		/*
 		 * Each migratetype corresponds to its own list, make sure the
 		 * types match otherwise we're moving pages to lists where they
-		 * do not belong.
+		 * do yest belong.
 		 */
 		migratetype = get_pageblock_migratetype(page_i);
 		if (get_pageblock_migratetype(page_j) != migratetype) {
@@ -173,13 +173,13 @@ void __meminit __shuffle_zone(struct zone *z)
 
 /**
  * shuffle_free_memory - reduce the predictability of the page allocator
- * @pgdat: node page data
+ * @pgdat: yesde page data
  */
 void __meminit __shuffle_free_memory(pg_data_t *pgdat)
 {
 	struct zone *z;
 
-	for (z = pgdat->node_zones; z < pgdat->node_zones + MAX_NR_ZONES; z++)
+	for (z = pgdat->yesde_zones; z < pgdat->yesde_zones + MAX_NR_ZONES; z++)
 		shuffle_zone(z);
 }
 

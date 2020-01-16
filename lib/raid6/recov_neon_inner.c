@@ -8,7 +8,7 @@
 
 #ifdef CONFIG_ARM
 /*
- * AArch32 does not provide this intrinsic natively because it does not
+ * AArch32 does yest provide this intrinsic natively because it does yest
  * implement the underlying instruction. AArch32 only provides a 64-bit
  * wide vtbl.8 instruction, so use that instead.
  */

@@ -36,13 +36,13 @@
  * I/O completion handler for multipage BIOs.
  *
  * The mpage code never puts partial pages into a BIO (except for end-of-file).
- * If a page does not map to a contiguous run of blocks then it simply falls
+ * If a page does yest map to a contiguous run of blocks then it simply falls
  * back to block_read_full_page().
  *
  * Why is this?  If a page's completion depends on a number of different BIOs
  * which can complete in any order (or at the same time) then determining the
  * status of that page is hard.  See end_buffer_async_read() for the details.
- * There is no point in duplicating all that complexity.
+ * There is yes point in duplicating all that complexity.
  */
 static void mpage_end_io(struct bio *bio)
 {
@@ -52,7 +52,7 @@ static void mpage_end_io(struct bio *bio)
 	bio_for_each_segment_all(bv, bio, iter_all) {
 		struct page *page = bv->bv_page;
 		page_endio(page, bio_op(bio),
-			   blk_status_to_errno(bio->bi_status));
+			   blk_status_to_erryes(bio->bi_status));
 	}
 
 	bio_put(bio);
@@ -103,7 +103,7 @@ mpage_alloc(struct block_device *bdev,
 static void 
 map_buffer_to_page(struct page *page, struct buffer_head *bh, int page_block) 
 {
-	struct inode *inode = page->mapping->host;
+	struct iyesde *iyesde = page->mapping->host;
 	struct buffer_head *page_bh, *head;
 	int block = 0;
 
@@ -112,12 +112,12 @@ map_buffer_to_page(struct page *page, struct buffer_head *bh, int page_block)
 		 * don't make any buffers if there is only one buffer on
 		 * the page and the page just needs to be set up to date
 		 */
-		if (inode->i_blkbits == PAGE_SHIFT &&
+		if (iyesde->i_blkbits == PAGE_SHIFT &&
 		    buffer_uptodate(bh)) {
 			SetPageUptodate(page);    
 			return;
 		}
-		create_empty_buffers(page, i_blocksize(inode), 0);
+		create_empty_buffers(page, i_blocksize(iyesde), 0);
 	}
 	head = page_buffers(page);
 	page_bh = head;
@@ -147,7 +147,7 @@ struct mpage_readpage_args {
 /*
  * This is the worker routine which does all the work of mapping the disk
  * blocks and constructs largest possible bios, submits them for IO if the
- * blocks are not contiguous on the disk.
+ * blocks are yest contiguous on the disk.
  *
  * We pass a buffer_head back and forth and use its buffer_mapped() flag to
  * represent the validity of its disk mapping and to decide when to do the next
@@ -156,8 +156,8 @@ struct mpage_readpage_args {
 static struct bio *do_mpage_readpage(struct mpage_readpage_args *args)
 {
 	struct page *page = args->page;
-	struct inode *inode = page->mapping->host;
-	const unsigned blkbits = inode->i_blkbits;
+	struct iyesde *iyesde = page->mapping->host;
+	const unsigned blkbits = iyesde->i_blkbits;
 	const unsigned blocks_per_page = PAGE_SIZE >> blkbits;
 	const unsigned blocksize = 1 << blkbits;
 	struct buffer_head *map_bh = &args->map_bh;
@@ -188,7 +188,7 @@ static struct bio *do_mpage_readpage(struct mpage_readpage_args *args)
 
 	block_in_file = (sector_t)page->index << (PAGE_SHIFT - blkbits);
 	last_block = block_in_file + args->nr_pages * blocks_per_page;
-	last_block_in_file = (i_size_read(inode) + blocksize - 1) >> blkbits;
+	last_block_in_file = (i_size_read(iyesde) + blocksize - 1) >> blkbits;
 	if (last_block > last_block_in_file)
 		last_block = last_block_in_file;
 	page_block = 0;
@@ -228,7 +228,7 @@ static struct bio *do_mpage_readpage(struct mpage_readpage_args *args)
 
 		if (block_in_file < last_block) {
 			map_bh->b_size = (last_block-block_in_file) << blkbits;
-			if (args->get_block(inode, block_in_file, map_bh, 0))
+			if (args->get_block(iyesde, block_in_file, map_bh, 0))
 				goto confused;
 			args->first_logical_block = block_in_file;
 		}
@@ -254,7 +254,7 @@ static struct bio *do_mpage_readpage(struct mpage_readpage_args *args)
 		}
 	
 		if (first_hole != blocks_per_page)
-			goto confused;		/* hole -> non-hole */
+			goto confused;		/* hole -> yesn-hole */
 
 		/* Contiguous blocks? */
 		if (page_block && blocks[page_block-1] != map_bh->b_blocknr-1)
@@ -353,8 +353,8 @@ confused:
  * If anything unusual happens, such as:
  *
  * - encountering a page which has buffers
- * - encountering a page which has a non-hole after a hole
- * - encountering a page with non-contiguous blocks
+ * - encountering a page which has a yesn-hole after a hole
+ * - encountering a page with yesn-contiguous blocks
  *
  * then this code just gives up and calls the buffer_head-based read function.
  * It does handle a page which has holes at the end - that is a common case:
@@ -431,19 +431,19 @@ int mpage_readpage(struct page *page, get_block_t get_block)
 EXPORT_SYMBOL(mpage_readpage);
 
 /*
- * Writing is not so simple.
+ * Writing is yest so simple.
  *
  * If the page has buffers then they will be used for obtaining the disk
  * mapping.  We only support pages which are fully mapped-and-dirty, with a
  * special case for pages which are unmapped at the end: end-of-file.
  *
- * If the page has no buffers (preferred) then the page is mapped here.
+ * If the page has yes buffers (preferred) then the page is mapped here.
  *
  * If all blocks are found to be contiguous then the page can go into the
  * BIO.  Otherwise fall back to the mapping's writepage().
  * 
  * FIXME: This code wants an estimate of how many pages are still to be
- * written, so it can intelligently allocate a suitably-sized BIO.  For now,
+ * written, so it can intelligently allocate a suitably-sized BIO.  For yesw,
  * just allocate full-size (16-page) BIOs.
  */
 
@@ -455,8 +455,8 @@ struct mpage_data {
 };
 
 /*
- * We have our BIO, so we can now mark the buffers clean.  Make
- * sure to only clean buffers which we know we'll be writing.
+ * We have our BIO, so we can yesw mark the buffers clean.  Make
+ * sure to only clean buffers which we kyesw we'll be writing.
  */
 static void clean_buffers(struct page *page, unsigned first_unmapped)
 {
@@ -475,7 +475,7 @@ static void clean_buffers(struct page *page, unsigned first_unmapped)
 	} while (bh != head);
 
 	/*
-	 * we cannot drop the bh if the page is not uptodate or a concurrent
+	 * we canyest drop the bh if the page is yest uptodate or a concurrent
 	 * readpage would fail to serialize with the bh and it would read from
 	 * disk before we reach the platter.
 	 */
@@ -499,8 +499,8 @@ static int __mpage_writepage(struct page *page, struct writeback_control *wbc,
 	struct mpage_data *mpd = data;
 	struct bio *bio = mpd->bio;
 	struct address_space *mapping = page->mapping;
-	struct inode *inode = page->mapping->host;
-	const unsigned blkbits = inode->i_blkbits;
+	struct iyesde *iyesde = page->mapping->host;
+	const unsigned blkbits = iyesde->i_blkbits;
 	unsigned long end_index;
 	const unsigned blocks_per_page = PAGE_SIZE >> blkbits;
 	sector_t last_block;
@@ -514,7 +514,7 @@ static int __mpage_writepage(struct page *page, struct writeback_control *wbc,
 	struct block_device *boundary_bdev = NULL;
 	int length;
 	struct buffer_head map_bh;
-	loff_t i_size = i_size_read(inode);
+	loff_t i_size = i_size_read(iyesde);
 	int ret = 0;
 	int op_flags = wbc_to_write_flags(wbc);
 
@@ -539,7 +539,7 @@ static int __mpage_writepage(struct page *page, struct writeback_control *wbc,
 			}
 
 			if (first_unmapped != blocks_per_page)
-				goto confused;	/* hole -> non-hole */
+				goto confused;	/* hole -> yesn-hole */
 
 			if (!buffer_dirty(bh) || !buffer_uptodate(bh))
 				goto confused;
@@ -569,7 +569,7 @@ static int __mpage_writepage(struct page *page, struct writeback_control *wbc,
 	}
 
 	/*
-	 * The page has no buffers: map it to disk
+	 * The page has yes buffers: map it to disk
 	 */
 	BUG_ON(!PageUptodate(page));
 	block_in_file = (sector_t)page->index << (PAGE_SHIFT - blkbits);
@@ -579,7 +579,7 @@ static int __mpage_writepage(struct page *page, struct writeback_control *wbc,
 
 		map_bh.b_state = 0;
 		map_bh.b_size = 1 << blkbits;
-		if (mpd->get_block(inode, block_in_file, &map_bh, 1))
+		if (mpd->get_block(iyesde, block_in_file, &map_bh, 1))
 			goto confused;
 		if (buffer_new(&map_bh))
 			clean_bdev_bh_alias(&map_bh);
@@ -609,8 +609,8 @@ page_is_mapped:
 		 * The page straddles i_size.  It must be zeroed out on each
 		 * and every writepage invocation because it may be mmapped.
 		 * "A file is mapped in multiples of the page size.  For a file
-		 * that is not a multiple of the page size, the remaining memory
-		 * is zeroed when mapped, and writes to that region are not
+		 * that is yest a multiple of the page size, the remaining memory
+		 * is zeroed when mapped, and writes to that region are yest
 		 * written out to the file."
 		 */
 		unsigned offset = i_size & (PAGE_SIZE - 1);
@@ -639,13 +639,13 @@ alloc_new:
 			goto confused;
 
 		wbc_init_bio(wbc, bio);
-		bio->bi_write_hint = inode->i_write_hint;
+		bio->bi_write_hint = iyesde->i_write_hint;
 	}
 
 	/*
 	 * Must try to add the page before marking the buffer clean or
 	 * the confused fail path above (OOM) will be very confused when
-	 * it finds all bh marked clean (i.e. it will not write anything)
+	 * it finds all bh marked clean (i.e. it will yest write anything)
 	 */
 	wbc_account_cgroup_owner(wbc, page, PAGE_SIZE);
 	length = first_unmapped << blkbits;
@@ -681,7 +681,7 @@ confused:
 		goto out;
 	}
 	/*
-	 * The caller has a ref on the inode, so *mapping is stable
+	 * The caller has a ref on the iyesde, so *mapping is stable
 	 */
 	mapping_set_error(mapping, ret);
 out:

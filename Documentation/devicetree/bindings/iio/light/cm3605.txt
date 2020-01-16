@@ -5,7 +5,7 @@ The CM3605 is an entirely analog part which however require quite a bit of
 software logic to interface a host operating system.
 
 This ALS and proximity sensor was one of the very first deployed in mobile
-handsets, notably it is used in the very first Nexus One Android phone from
+handsets, yestably it is used in the very first Nexus One Android phone from
 2010.
 
 Required properties:
@@ -25,7 +25,7 @@ Optional properties:
 - capella,aset-resistance-ohms: the sensitivity calibration resistance,
   in Ohms. Valid values are: 50000, 100000, 300000 and 600000,
   as these are the resistance values that we are supplied with
-  calibration curves for. If not supplied, 100 kOhm will be assumed
+  calibration curves for. If yest supplied, 100 kOhm will be assumed
   but it is strongly recommended to supply this.
 
 Example:

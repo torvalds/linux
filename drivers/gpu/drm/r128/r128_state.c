@@ -12,7 +12,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -813,7 +813,7 @@ static int r128_cce_dispatch_blit(struct drm_device *dev,
 	}
 
 	/* Flush the pixel cache, and mark the contents as Read Invalid.
-	 * This ensures no pixel data gets mixed up with the texture
+	 * This ensures yes pixel data gets mixed up with the texture
 	 * data from the host data blit, otherwise part of the texture
 	 * image may be corrupted.
 	 */
@@ -1414,7 +1414,7 @@ static int r128_cce_indices(struct drm_device *dev, void *data, struct drm_file 
 		return -EINVAL;
 	}
 	if (elts->start < buf->used) {
-		DRM_ERROR("no header 0x%x - 0x%x\n", elts->start, buf->used);
+		DRM_ERROR("yes header 0x%x - 0x%x\n", elts->start, buf->used);
 		return -EINVAL;
 	}
 

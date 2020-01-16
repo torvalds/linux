@@ -8,10 +8,10 @@ Required properties:
 - interrupts: Contain the ADC interrupt with flags for falling edge.
 
 Optional properties:
-- clocks: phandle of ADC reference clock, in case the clock is not
+- clocks: phandle of ADC reference clock, in case the clock is yest
 		  added the ADC will use the default ADC sample rate.
 - vref-supply: The regulator supply ADC reference voltage, in case the
-			   vref-supply is not added the ADC will use internal voltage
+			   vref-supply is yest added the ADC will use internal voltage
 			   reference.
 
 Example:

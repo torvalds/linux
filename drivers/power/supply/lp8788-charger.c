@@ -483,7 +483,7 @@ static int lp8788_set_irqs(struct platform_device *pdev,
 	int i;
 	int ret;
 
-	/* no error even if no irq resource */
+	/* yes error even if yes irq resource */
 	r = platform_get_resource_byname(pdev, IORESOURCE_IRQ, name);
 	if (!r)
 		return 0;

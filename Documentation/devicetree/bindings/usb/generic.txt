@@ -23,7 +23,7 @@ Optional properties:
 			is enabled, if ADP is required, otg-rev should be
 			0x0200 or above.
  - companion: phandle of a companion
- - hnp-disable: tells OTG controllers we want to disable OTG HNP, normally HNP
+ - hnp-disable: tells OTG controllers we want to disable OTG HNP, yesrmally HNP
 			is the basic function of real OTG except you want it
 			to be a srp-capable only B device.
  - srp-disable: tells OTG controllers we want to disable OTG SRP, SRP is
@@ -38,7 +38,7 @@ Optional properties:
 This is an attribute to a USB controller such as:
 
 dwc3@4a030000 {
-	compatible = "synopsys,dwc3";
+	compatible = "syyespsys,dwc3";
 	reg = <0x4a030000 0xcfff>;
 	interrupts = <0 92 4>
 	usb-phy = <&usb2_phy>, <&usb3,phy>;

@@ -69,7 +69,7 @@ static struct class mtd_class = {
 static DEFINE_IDR(mtd_idr);
 
 /* These are exported solely for the purpose of mtd_blkdevs.c. You
-   should not use them for _anything_ else */
+   should yest use them for _anything_ else */
 DEFINE_MUTEX(mtd_table_mutex);
 EXPORT_SYMBOL_GPL(mtd_table_mutex);
 
@@ -79,7 +79,7 @@ struct mtd_info *__mtd_next_device(int i)
 }
 EXPORT_SYMBOL_GPL(__mtd_next_device);
 
-static LIST_HEAD(mtd_notifiers);
+static LIST_HEAD(mtd_yestifiers);
 
 
 #define MTD_DEVT(index) MKDEV(MTD_CHAR_MAJOR, (index)*2)
@@ -92,7 +92,7 @@ static void mtd_release(struct device *dev)
 	struct mtd_info *mtd = dev_get_drvdata(dev);
 	dev_t index = MTD_DEVT(mtd->index);
 
-	/* remove /dev/mtdXro node */
+	/* remove /dev/mtdXro yesde */
 	device_destroy(&mtd_class, index + 1);
 }
 
@@ -113,7 +113,7 @@ static ssize_t mtd_type_show(struct device *dev,
 		type = "rom";
 		break;
 	case MTD_NORFLASH:
-		type = "nor";
+		type = "yesr";
 		break;
 	case MTD_NANDFLASH:
 		type = "nand";
@@ -128,7 +128,7 @@ static ssize_t mtd_type_show(struct device *dev,
 		type = "mlc-nand";
 		break;
 	default:
-		type = "unknown";
+		type = "unkyeswn";
 	}
 
 	return snprintf(buf, PAGE_SIZE, "%s\n", type);
@@ -344,9 +344,9 @@ static int mtd_partid_show(struct seq_file *s, void *p)
 	return 0;
 }
 
-static int mtd_partid_debugfs_open(struct inode *inode, struct file *file)
+static int mtd_partid_debugfs_open(struct iyesde *iyesde, struct file *file)
 {
-	return single_open(file, mtd_partid_show, inode->i_private);
+	return single_open(file, mtd_partid_show, iyesde->i_private);
 }
 
 static const struct file_operations mtd_partid_debug_fops = {
@@ -365,9 +365,9 @@ static int mtd_partname_show(struct seq_file *s, void *p)
 	return 0;
 }
 
-static int mtd_partname_debugfs_open(struct inode *inode, struct file *file)
+static int mtd_partname_debugfs_open(struct iyesde *iyesde, struct file *file)
 {
-	return single_open(file, mtd_partname_show, inode->i_private);
+	return single_open(file, mtd_partname_show, iyesde->i_private);
 }
 
 static const struct file_operations mtd_partname_debug_fops = {
@@ -416,12 +416,12 @@ unsigned mtd_mmap_capabilities(struct mtd_info *mtd)
 EXPORT_SYMBOL_GPL(mtd_mmap_capabilities);
 #endif
 
-static int mtd_reboot_notifier(struct notifier_block *n, unsigned long state,
+static int mtd_reboot_yestifier(struct yestifier_block *n, unsigned long state,
 			       void *cmd)
 {
 	struct mtd_info *mtd;
 
-	mtd = container_of(n, struct mtd_info, reboot_notifier);
+	mtd = container_of(n, struct mtd_info, reboot_yestifier);
 	mtd->_reboot(mtd);
 
 	return NOTIFY_DONE;
@@ -437,7 +437,7 @@ static int mtd_reboot_notifier(struct notifier_block *n, unsigned long state,
  * This is mainly useful when dealing with MLC/TLC NANDs where pages can be
  * paired together, and where programming a page may influence the page it is
  * paired with.
- * The notion of page is replaced by the term wunit (write-unit) to stay
+ * The yestion of page is replaced by the term wunit (write-unit) to stay
  * consistent with the ->writesize field.
  *
  * The @wunit argument can be extracted from an absolute offset using
@@ -559,12 +559,12 @@ static int mtd_nvmem_add(struct mtd_info *mtd)
 	config.stride = 1;
 	config.read_only = true;
 	config.root_only = true;
-	config.no_of_node = true;
+	config.yes_of_yesde = true;
 	config.priv = mtd;
 
 	mtd->nvmem = nvmem_register(&config);
 	if (IS_ERR(mtd->nvmem)) {
-		/* Just ignore if there is no NVMEM support in the kernel */
+		/* Just igyesre if there is yes NVMEM support in the kernel */
 		if (PTR_ERR(mtd->nvmem) == -EOPNOTSUPP) {
 			mtd->nvmem = NULL;
 		} else {
@@ -581,13 +581,13 @@ static int mtd_nvmem_add(struct mtd_info *mtd)
  *	@mtd: pointer to new MTD device info structure
  *
  *	Add a device to the list of MTD devices present in the system, and
- *	notify each currently active MTD 'user' of its arrival. Returns
- *	zero on success or non-zero on failure.
+ *	yestify each currently active MTD 'user' of its arrival. Returns
+ *	zero on success or yesn-zero on failure.
  */
 
 int add_mtd_device(struct mtd_info *mtd)
 {
-	struct mtd_notifier *not;
+	struct mtd_yestifier *yest;
 	int i, error;
 
 	/*
@@ -602,7 +602,7 @@ int add_mtd_device(struct mtd_info *mtd)
 
 	/*
 	 * MTD drivers should implement ->_{write,read}() or
-	 * ->_{write,read}_oob(), but not both.
+	 * ->_{write,read}_oob(), but yest both.
 	 */
 	if (WARN_ON((mtd->_write && mtd->_write_oob) ||
 		    (mtd->_read && mtd->_read_oob)))
@@ -623,7 +623,7 @@ int add_mtd_device(struct mtd_info *mtd)
 	mtd->index = i;
 	mtd->usecount = 0;
 
-	/* default value if not set by driver */
+	/* default value if yest set by driver */
 	if (mtd->bitflip_threshold == 0)
 		mtd->bitflip_threshold = mtd->ecc_strength;
 
@@ -640,14 +640,14 @@ int add_mtd_device(struct mtd_info *mtd)
 	mtd->erasesize_mask = (1 << mtd->erasesize_shift) - 1;
 	mtd->writesize_mask = (1 << mtd->writesize_shift) - 1;
 
-	/* Some chips always power up locked. Unlock them now */
+	/* Some chips always power up locked. Unlock them yesw */
 	if ((mtd->flags & MTD_WRITEABLE) && (mtd->flags & MTD_POWERUP_LOCK)) {
 		error = mtd_unlock(mtd, 0, mtd->size);
 		if (error && error != -EOPNOTSUPP)
 			printk(KERN_WARNING
-			       "%s: unlock failed, writes may not work\n",
+			       "%s: unlock failed, writes may yest work\n",
 			       mtd->name);
-		/* Ignore unlock failures? */
+		/* Igyesre unlock failures? */
 		error = 0;
 	}
 
@@ -659,7 +659,7 @@ int add_mtd_device(struct mtd_info *mtd)
 	mtd->dev.devt = MTD_DEVT(i);
 	dev_set_name(&mtd->dev, "mtd%d", i);
 	dev_set_drvdata(&mtd->dev, mtd);
-	of_node_get(mtd_get_of_node(mtd));
+	of_yesde_get(mtd_get_of_yesde(mtd));
 	error = device_register(&mtd->dev);
 	if (error)
 		goto fail_added;
@@ -676,14 +676,14 @@ int add_mtd_device(struct mtd_info *mtd)
 
 	pr_debug("mtd: Giving out device %d to %s\n", i, mtd->name);
 	/* No need to get a refcount on the module containing
-	   the notifier, since we hold the mtd_table_mutex */
-	list_for_each_entry(not, &mtd_notifiers, list)
-		not->add(mtd);
+	   the yestifier, since we hold the mtd_table_mutex */
+	list_for_each_entry(yest, &mtd_yestifiers, list)
+		yest->add(mtd);
 
 	mutex_unlock(&mtd_table_mutex);
-	/* We _know_ we aren't being removed, because
-	   our caller is still holding us here. So none
-	   of this try_ nonsense, and no bitching about it
+	/* We _kyesw_ we aren't being removed, because
+	   our caller is still holding us here. So yesne
+	   of this try_ yesnsense, and yes bitching about it
 	   either. :) */
 	__module_get(THIS_MODULE);
 	return 0;
@@ -691,7 +691,7 @@ int add_mtd_device(struct mtd_info *mtd)
 fail_nvmem_add:
 	device_unregister(&mtd->dev);
 fail_added:
-	of_node_put(mtd_get_of_node(mtd));
+	of_yesde_put(mtd_get_of_yesde(mtd));
 	idr_remove(&mtd_idr, i);
 fail_locked:
 	mutex_unlock(&mtd_table_mutex);
@@ -703,15 +703,15 @@ fail_locked:
  *	@mtd: pointer to MTD device info structure
  *
  *	Remove a device from the list of MTD devices present in the system,
- *	and notify each currently active MTD 'user' of its departure.
+ *	and yestify each currently active MTD 'user' of its departure.
  *	Returns zero on success or 1 on failure, which currently will happen
- *	if the requested device does not appear to be present in the list.
+ *	if the requested device does yest appear to be present in the list.
  */
 
 int del_mtd_device(struct mtd_info *mtd)
 {
 	int ret;
-	struct mtd_notifier *not;
+	struct mtd_yestifier *yest;
 
 	mutex_lock(&mtd_table_mutex);
 
@@ -723,9 +723,9 @@ int del_mtd_device(struct mtd_info *mtd)
 	}
 
 	/* No need to get a refcount on the module containing
-		the notifier, since we hold the mtd_table_mutex */
-	list_for_each_entry(not, &mtd_notifiers, list)
-		not->remove(mtd);
+		the yestifier, since we hold the mtd_table_mutex */
+	list_for_each_entry(yest, &mtd_yestifiers, list)
+		yest->remove(mtd);
 
 	if (mtd->usecount) {
 		printk(KERN_NOTICE "Removing MTD device #%d (%s) with use count %d\n",
@@ -739,7 +739,7 @@ int del_mtd_device(struct mtd_info *mtd)
 		device_unregister(&mtd->dev);
 
 		idr_remove(&mtd_idr, mtd->index);
-		of_node_put(mtd_get_of_node(mtd));
+		of_yesde_put(mtd_get_of_yesde(mtd));
 
 		module_put(THIS_MODULE);
 		ret = 0;
@@ -751,7 +751,7 @@ out_error:
 }
 
 /*
- * Set a few defaults based on the parent devices, if not provided by the
+ * Set a few defaults based on the parent devices, if yest provided by the
  * driver
  */
 static void mtd_set_dev_defaults(struct mtd_info *mtd)
@@ -778,7 +778,7 @@ static void mtd_set_dev_defaults(struct mtd_info *mtd)
  * @parts: fallback partition information to register, if parsing fails;
  *         only valid if %nr_parts > %0
  * @nr_parts: the number of partitions in parts, if zero then the full
- *            MTD device is registered if no partition info is found
+ *            MTD device is registered if yes partition info is found
  *
  * This function aggregates MTD partitions parsing (done by
  * 'parse_mtd_partitions()') and MTD device and partitions registering. It
@@ -788,10 +788,10 @@ static void mtd_set_dev_defaults(struct mtd_info *mtd)
  *   registered first.
  * * Then It tries to probe partitions on MTD device @mtd using parsers
  *   specified in @types (if @types is %NULL, then the default list of parsers
- *   is used, see 'parse_mtd_partitions()' for more information). If none are
+ *   is used, see 'parse_mtd_partitions()' for more information). If yesne are
  *   found this functions tries to fallback to information specified in
  *   @parts/@nr_parts.
- * * If no partitions were found this function just registers the MTD device
+ * * If yes partitions were found this function just registers the MTD device
  *   @mtd and exits.
  *
  * Returns zero in case of success and a negative error code in case of failure.
@@ -827,17 +827,17 @@ int mtd_device_parse_register(struct mtd_info *mtd, const char * const *types,
 
 	/*
 	 * FIXME: some drivers unfortunately call this function more than once.
-	 * So we have to check if we've already assigned the reboot notifier.
+	 * So we have to check if we've already assigned the reboot yestifier.
 	 *
 	 * Generally, we can make multiple calls work for most cases, but it
 	 * does cause problems with parse_mtd_partitions() above (e.g.,
 	 * cmdlineparts will register partitions more than once).
 	 */
-	WARN_ONCE(mtd->_reboot && mtd->reboot_notifier.notifier_call,
+	WARN_ONCE(mtd->_reboot && mtd->reboot_yestifier.yestifier_call,
 		  "MTD already registered\n");
-	if (mtd->_reboot && !mtd->reboot_notifier.notifier_call) {
-		mtd->reboot_notifier.notifier_call = mtd_reboot_notifier;
-		register_reboot_notifier(&mtd->reboot_notifier);
+	if (mtd->_reboot && !mtd->reboot_yestifier.yestifier_call) {
+		mtd->reboot_yestifier.yestifier_call = mtd_reboot_yestifier;
+		register_reboot_yestifier(&mtd->reboot_yestifier);
 	}
 
 out:
@@ -859,7 +859,7 @@ int mtd_device_unregister(struct mtd_info *master)
 	int err;
 
 	if (master->_reboot)
-		unregister_reboot_notifier(&master->reboot_notifier);
+		unregister_reboot_yestifier(&master->reboot_yestifier);
 
 	err = del_mtd_partitions(master);
 	if (err)
@@ -874,19 +874,19 @@ EXPORT_SYMBOL_GPL(mtd_device_unregister);
 
 /**
  *	register_mtd_user - register a 'user' of MTD devices.
- *	@new: pointer to notifier info structure
+ *	@new: pointer to yestifier info structure
  *
  *	Registers a pair of callbacks function to be called upon addition
  *	or removal of MTD devices. Causes the 'add' callback to be immediately
  *	invoked for each MTD device currently present in the system.
  */
-void register_mtd_user (struct mtd_notifier *new)
+void register_mtd_user (struct mtd_yestifier *new)
 {
 	struct mtd_info *mtd;
 
 	mutex_lock(&mtd_table_mutex);
 
-	list_add(&new->list, &mtd_notifiers);
+	list_add(&new->list, &mtd_yestifiers);
 
 	__module_get(THIS_MODULE);
 
@@ -899,14 +899,14 @@ EXPORT_SYMBOL_GPL(register_mtd_user);
 
 /**
  *	unregister_mtd_user - unregister a 'user' of MTD devices.
- *	@old: pointer to notifier info structure
+ *	@old: pointer to yestifier info structure
  *
  *	Removes a callback function pair from the list of 'users' to be
- *	notified upon addition or removal of MTD devices. Causes the
+ *	yestified upon addition or removal of MTD devices. Causes the
  *	'remove' callback to be immediately invoked for each MTD device
  *	currently present in the system.
  */
-int unregister_mtd_user (struct mtd_notifier *old)
+int unregister_mtd_user (struct mtd_yestifier *old)
 {
 	struct mtd_info *mtd;
 
@@ -925,14 +925,14 @@ EXPORT_SYMBOL_GPL(unregister_mtd_user);
 
 /**
  *	get_mtd_device - obtain a validated handle for an MTD device
- *	@mtd: last known address of the required MTD device
+ *	@mtd: last kyeswn address of the required MTD device
  *	@num: internal device number of the required MTD device
  *
  *	Given a number and NULL address, return the num'th entry in the device
  *	table, if any.	Given an address and num == -1, search the device table
  *	for a device with that address and return if it's still present. Given
  *	both, return the num'th driver only if its address matches. Return
- *	error code if not.
+ *	error code if yest.
  */
 struct mtd_info *get_mtd_device(struct mtd_info *mtd, int num)
 {
@@ -1049,9 +1049,9 @@ void __put_mtd_device(struct mtd_info *mtd)
 EXPORT_SYMBOL_GPL(__put_mtd_device);
 
 /*
- * Erase is an synchronous operation. Device drivers are epected to return a
+ * Erase is an synchroyesus operation. Device drivers are epected to return a
  * negative error code if the operation failed and update instr->fail_addr
- * to point the portion that was not properly erased.
+ * to point the portion that was yest properly erased.
  */
 int mtd_erase(struct mtd_info *mtd, struct erase_info *instr)
 {
@@ -1107,7 +1107,7 @@ int mtd_unpoint(struct mtd_info *mtd, loff_t from, size_t len)
 EXPORT_SYMBOL_GPL(mtd_unpoint);
 
 /*
- * Allow NOMMU mmap() to directly map the device (if not NULL)
+ * Allow NOMMU mmap() to directly map the device (if yest NULL)
  * - return the address to which the offset maps
  * - return -ENOSYS to indicate refusal to do the mapping
  */
@@ -1164,9 +1164,9 @@ EXPORT_SYMBOL_GPL(mtd_write);
 /*
  * In blackbox flight recorder like scenarios we want to make successful writes
  * in interrupt context. panic_write() is only intended to be called when its
- * known the kernel is about to panic and we need the write to succeed. Since
- * the kernel is not going to be running for much longer, this function can
- * break locks and delay to ensure the write succeeds (but not sleep).
+ * kyeswn the kernel is about to panic and we need the write to succeed. Since
+ * the kernel is yest going to be running for much longer, this function can
+ * break locks and delay to ensure the write succeeds (but yest sleep).
  */
 int mtd_panic_write(struct mtd_info *mtd, loff_t to, size_t len, size_t *retlen,
 		    const u_char *buf)
@@ -1243,7 +1243,7 @@ int mtd_read_oob(struct mtd_info *mtd, loff_t from, struct mtd_oob_ops *ops)
 
 	/*
 	 * In cases where ops->datbuf != NULL, mtd->_read_oob() has semantics
-	 * similar to mtd->_read(), returning a non-negative integer
+	 * similar to mtd->_read(), returning a yesn-negative integer
 	 * representing max bitflips. In other cases, mtd->_read_oob() may
 	 * return -EUCLEAN. In all cases, perform similar logic to mtd_read().
 	 */
@@ -1356,7 +1356,7 @@ EXPORT_SYMBOL_GPL(mtd_ooblayout_free);
  *	  mtd_ooblayout_ecc depending on the region type you're searching for
  *
  * This function returns the section id and oobregion information of a
- * specific byte. For example, say you want to know where the 4th ECC byte is
+ * specific byte. For example, say you want to kyesw where the 4th ECC byte is
  * stored, you'll use:
  *
  * mtd_ooblayout_find_region(mtd, 3, &section, &oobregion, mtd_ooblayout_ecc);
@@ -1709,7 +1709,7 @@ int mtd_write_user_prot_reg(struct mtd_info *mtd, loff_t to, size_t len,
 		return ret;
 
 	/*
-	 * If no data could be written at all, we are out of memory and
+	 * If yes data could be written at all, we are out of memory and
 	 * must return -ENOSPC.
 	 */
 	return (*retlen) ? 0 : -ENOSPC;
@@ -1859,7 +1859,7 @@ EXPORT_SYMBOL_GPL(mtd_writev);
  * This routine attempts to allocate a contiguous kernel buffer up to
  * the specified size, backing off the size of the request exponentially
  * until the request succeeds or until the allocation size falls below
- * the system page size. This attempts to make sure it does not adversely
+ * the system page size. This attempts to make sure it does yest adversely
  * impact system performance, so when allocating more than one page, we
  * ask the memory allocator to avoid re-trying, swapping, writing back
  * or performing I/O.

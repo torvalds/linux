@@ -63,7 +63,7 @@ static int mpc52xx_fec_mdio_write(struct mii_bus *bus, int phy_id, int reg,
 static int mpc52xx_fec_mdio_probe(struct platform_device *of)
 {
 	struct device *dev = &of->dev;
-	struct device_node *np = of->dev.of_node;
+	struct device_yesde *np = of->dev.of_yesde;
 	struct mii_bus *bus;
 	struct mpc52xx_fec_mdio_priv *priv;
 	struct resource res;
@@ -100,7 +100,7 @@ static int mpc52xx_fec_mdio_probe(struct platform_device *of)
 
 	/* set MII speed */
 	out_be32(&priv->regs->mii_speed,
-		((mpc5xxx_get_bus_frequency(of->dev.of_node) >> 20) / 5) << 1);
+		((mpc5xxx_get_bus_frequency(of->dev.of_yesde) >> 20) / 5) << 1);
 
 	err = of_mdiobus_register(bus, np);
 	if (err)

@@ -257,7 +257,7 @@ bool rtl92e_set_rf_state(struct net_device *dev,
 	return bActionAllowed;
 }
 
-static short _rtl92e_check_nic_enough_desc(struct net_device *dev, int prio)
+static short _rtl92e_check_nic_eyesugh_desc(struct net_device *dev, int prio)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 	struct rtl8192_tx_ring *ring = &priv->tx_ring[prio];
@@ -841,7 +841,7 @@ static void _rtl92e_init_priv_handler(struct net_device *dev)
 	priv->rtllib->set_chan			= _rtl92e_set_chan;
 	priv->rtllib->link_change		= priv->ops->link_change;
 	priv->rtllib->softmac_data_hard_start_xmit = _rtl92e_hard_data_xmit;
-	priv->rtllib->check_nic_enough_desc	= _rtl92e_check_nic_enough_desc;
+	priv->rtllib->check_nic_eyesugh_desc	= _rtl92e_check_nic_eyesugh_desc;
 	priv->rtllib->handle_assoc_response	= _rtl92e_handle_assoc_response;
 	priv->rtllib->handle_beacon		= _rtl92e_handle_beacon;
 	priv->rtllib->SetWirelessMode		= rtl92e_set_wireless_mode;
@@ -1026,7 +1026,7 @@ static short _rtl92e_get_channel_map(struct net_device *dev)
 
 	if ((priv->rf_chip != RF_8225) && (priv->rf_chip != RF_8256) &&
 						(priv->rf_chip != RF_6052)) {
-		netdev_err(dev, "%s: unknown rf chip, can't set channel map\n",
+		netdev_err(dev, "%s: unkyeswn rf chip, can't set channel map\n",
 			   __func__);
 		return -1;
 	}
@@ -1099,7 +1099,7 @@ static short _rtl92e_is_tx_queue_empty(struct net_device *dev)
 		if ((i == TXCMD_QUEUE) || (i == HCCA_QUEUE))
 			continue;
 		if (skb_queue_len(&(&priv->tx_ring[i])->queue) > 0) {
-			netdev_info(dev, "===>tx queue is not empty:%d, %d\n",
+			netdev_info(dev, "===>tx queue is yest empty:%d, %d\n",
 			       i, skb_queue_len(&(&priv->tx_ring[i])->queue));
 			return 0;
 		}
@@ -1155,7 +1155,7 @@ static enum reset_type _rtl92e_tx_check_stuck(struct net_device *dev)
 	if (bCheckFwTxCnt) {
 		if (priv->ops->TxCheckStuckHandler(dev)) {
 			RT_TRACE(COMP_RESET,
-				 "TxCheckStuck(): Fw indicates no Tx condition!\n");
+				 "TxCheckStuck(): Fw indicates yes Tx condition!\n");
 			return RESET_TYPE_SILENT;
 		}
 	}
@@ -1239,7 +1239,7 @@ RESET_START:
 			rtl92e_leisure_ps_leave(dev);
 
 		if (priv->up) {
-			netdev_info(dev, "%s():the driver is not up.\n",
+			netdev_info(dev, "%s():the driver is yest up.\n",
 				    __func__);
 			mutex_unlock(&priv->wx_mutex);
 			return;
@@ -1320,7 +1320,7 @@ RESET_START:
 				       ieee->current_network.channel);
 			ieee->link_change(ieee->dev);
 
-			notify_wx_assoc_event(ieee);
+			yestify_wx_assoc_event(ieee);
 
 			rtllib_start_send_beacons(ieee);
 
@@ -1437,7 +1437,7 @@ static void _rtl92e_watchdog_wq_cb(void *data)
 			rtl92e_leisure_ps_leave(dev);
 
 	} else {
-		RT_TRACE(COMP_LPS, "====>no link LPS leave\n");
+		RT_TRACE(COMP_LPS, "====>yes link LPS leave\n");
 		rtl92e_leisure_ps_leave(dev);
 	}
 
@@ -1466,7 +1466,7 @@ static void _rtl92e_watchdog_wq_cb(void *data)
 				netdev_info(dev, "%s(): RF is off\n", __func__);
 
 			netdev_info(dev,
-				    "===>%s(): AP is power off, chan:%d, connect another one\n",
+				    "===>%s(): AP is power off, chan:%d, connect ayesther one\n",
 				    __func__, priv->chan);
 
 			ieee->state = RTLLIB_ASSOCIATING;
@@ -1480,7 +1480,7 @@ static void _rtl92e_watchdog_wq_cb(void *data)
 				ieee->LedControlHandler(ieee->dev,
 							LED_CTL_START_TO_LINK);
 
-			notify_wx_assoc_event(ieee);
+			yestify_wx_assoc_event(ieee);
 
 			if (!(ieee->rtllib_ap_sec_type(ieee) &
 			     (SEC_ALG_CCMP | SEC_ALG_TKIP)))
@@ -1788,7 +1788,7 @@ static short _rtl92e_alloc_rx_ring(struct net_device *dev)
 					      &priv->rx_ring_dma[rx_queue_idx]);
 		if (!priv->rx_ring[rx_queue_idx] ||
 		    (unsigned long)priv->rx_ring[rx_queue_idx] & 0xFF) {
-			netdev_warn(dev, "Cannot allocate RX ring\n");
+			netdev_warn(dev, "Canyest allocate RX ring\n");
 			return -ENOMEM;
 		}
 
@@ -1834,7 +1834,7 @@ static int _rtl92e_alloc_tx_ring(struct net_device *dev, unsigned int prio,
 
 	ring = pci_zalloc_consistent(priv->pdev, sizeof(*ring) * entries, &dma);
 	if (!ring || (unsigned long)ring & 0xFF) {
-		netdev_warn(dev, "Cannot allocate TX ring (prio = %d)\n", prio);
+		netdev_warn(dev, "Canyest allocate TX ring (prio = %d)\n", prio);
 		return -ENOMEM;
 	}
 
@@ -1997,7 +1997,7 @@ void rtl92e_copy_mpdu_stats(struct rtllib_rx_stats *psrc_stats,
 
 
 
-static void _rtl92e_rx_normal(struct net_device *dev)
+static void _rtl92e_rx_yesrmal(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 	struct rtllib_hdr_1addr *rtllib_hdr = NULL;
@@ -2009,7 +2009,7 @@ static void _rtl92e_rx_normal(struct net_device *dev)
 
 	struct rtllib_rx_stats stats = {
 		.signal = 0,
-		.noise = (u8)-98,
+		.yesise = (u8)-98,
 		.rate = 0,
 		.freq = RTLLIB_24GHZ_BAND,
 	};
@@ -2113,7 +2113,7 @@ static void _rtl92e_tx_resume(struct net_device *dev)
 	for (queue_index = BK_QUEUE;
 	     queue_index < MAX_QUEUE_SIZE; queue_index++) {
 		while ((!skb_queue_empty(&ieee->skb_waitQ[queue_index])) &&
-		(priv->rtllib->check_nic_enough_desc(dev, queue_index) > 0)) {
+		(priv->rtllib->check_nic_eyesugh_desc(dev, queue_index) > 0)) {
 			skb = skb_dequeue(&ieee->skb_waitQ[queue_index]);
 			ieee->softmac_data_hard_start_xmit(skb, dev, 0);
 		}
@@ -2127,7 +2127,7 @@ static void _rtl92e_irq_tx_tasklet(struct r8192_priv *priv)
 
 static void _rtl92e_irq_rx_tasklet(struct r8192_priv *priv)
 {
-	_rtl92e_rx_normal(priv->rtllib->dev);
+	_rtl92e_rx_yesrmal(priv->rtllib->dev);
 
 	rtl92e_writel(priv->rtllib->dev, INTA_MASK,
 		      rtl92e_readl(priv->rtllib->dev, INTA_MASK) | IMR_RDU);
@@ -2290,7 +2290,7 @@ static irqreturn_t _rtl92e_irq(int irq, void *netdev)
 
 	if (inta & IMR_TBDOK) {
 		RT_TRACE(COMP_INTR, "beacon ok interrupt!\n");
-		priv->stats.txbeaconokint++;
+		priv->stats.txbeacoyeskint++;
 	}
 
 	if (inta & IMR_TBDER) {
@@ -2451,7 +2451,7 @@ static int _rtl92e_pci_probe(struct pci_dev *pdev,
 	pmem_flags = pci_resource_flags(pdev, 1);
 
 	if (!(pmem_flags & IORESOURCE_MEM)) {
-		netdev_err(dev, "region #1 not a MMIO resource, aborting");
+		netdev_err(dev, "region #1 yest a MMIO resource, aborting");
 		goto err_rel_rtllib;
 	}
 
@@ -2463,7 +2463,7 @@ static int _rtl92e_pci_probe(struct pci_dev *pdev,
 	}
 
 
-	ioaddr = (unsigned long)ioremap_nocache(pmem_start, pmem_len);
+	ioaddr = (unsigned long)ioremap_yescache(pmem_start, pmem_len);
 	if (ioaddr == (unsigned long)NULL) {
 		netdev_err(dev, "ioremap failed!");
 		goto err_rel_mem;

@@ -7,7 +7,7 @@
  * Author(s): Philipp Rudo <prudo@linux.vnet.ibm.com>
  */
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/kernel.h>
 #include <linux/kexec.h>
 #include <asm/ipl.h>
@@ -118,8 +118,8 @@ static int s390_elf_probe(const char *buf, unsigned long len)
 
 	/* Only check the ELF magic number here and do proper validity check
 	 * in the loader. Any check here that fails would send the erroneous
-	 * ELF file to the image loader that does not care what it gets.
-	 * (Most likely) causing behavior not intended by the user.
+	 * ELF file to the image loader that does yest care what it gets.
+	 * (Most likely) causing behavior yest intended by the user.
 	 */
 	if (memcmp(ehdr->e_ident, ELFMAG, SELFMAG) != 0)
 		return -ENOEXEC;

@@ -30,13 +30,13 @@
 
 		mfc_left: region@43000000 {
 			compatible = "shared-dma-pool";
-			no-map;
+			yes-map;
 			reg = <0x43000000 0x2000000>;
 		};
 
 		mfc_right: region@51000000 {
 			compatible = "shared-dma-pool";
-			no-map;
+			yes-map;
 			reg = <0x51000000 0x2000000>;
 		};
 	};
@@ -456,7 +456,7 @@
 	cap-mmc-highspeed;
 
 	mmc-pwrseq = <&wifi_pwrseq>;
-	non-removable;
+	yesn-removable;
 	status = "okay";
 
 	wlan@1 {

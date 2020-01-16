@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-note) OR BSD-3-Clause) */
+/* SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-yeste) OR BSD-3-Clause) */
 /*
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
@@ -34,7 +34,7 @@
 #define SOF_TKN_BUF_CAPS			101
 
 /* DAI */
-/* Token retired with ABI 3.2, do not use for new capabilities
+/* Token retired with ABI 3.2, do yest use for new capabilities
  * #define	SOF_TKN_DAI_DMAC_CONFIG			153
  */
 #define SOF_TKN_DAI_TYPE			154
@@ -64,7 +64,7 @@
 #define SOF_TKN_COMP_PERIOD_SINK_COUNT		400
 #define SOF_TKN_COMP_PERIOD_SOURCE_COUNT	401
 #define SOF_TKN_COMP_FORMAT			402
-/* Token retired with ABI 3.2, do not use for new capabilities
+/* Token retired with ABI 3.2, do yest use for new capabilities
  * #define SOF_TKN_COMP_PRELOAD_COUNT		403
  */
 

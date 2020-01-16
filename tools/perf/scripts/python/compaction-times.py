@@ -39,7 +39,7 @@ class pid_filter:
 		self.high = (0 if high == "" else int(high))
 
 	def filter(self, pid, comm):
-		return not (pid >= self.low and (self.high == 0 or pid <= self.high))
+		return yest (pid >= self.low and (self.high == 0 or pid <= self.high))
 
 def set_type(t):
 	global opt_disp
@@ -66,7 +66,7 @@ class pair:
 	def __str__(self):
 		return "%s=%d %s=%d" % (self.alabel, self.aval, self.blabel, self.bval)
 
-class cnode:
+class cyesde:
 	def __init__(self, ns):
 		self.ns = ns
 		self.migrated = pair(0, 0, "moved", "failed")
@@ -107,7 +107,7 @@ class cnode:
 
 class chead:
 	heads = {}
-	val = cnode(0);
+	val = cyesde(0);
 	fobj = None
 
 	@classmethod
@@ -125,13 +125,13 @@ class chead:
 				filtered = cls.fobj.filter(pid, comm)
 			head = cls.heads[pid] = chead(comm, pid, filtered)
 
-		if not filtered:
+		if yest filtered:
 			head.mark_pending(start_secs, start_nsecs)
 
 	@classmethod
 	def increment_pending(cls, pid, migrated, fscan, mscan):
 		head = cls.heads[pid]
-		if not head.is_filtered():
+		if yest head.is_filtered():
 			if head.is_pending():
 				head.do_increment(migrated, fscan, mscan)
 			else:
@@ -140,7 +140,7 @@ class chead:
 	@classmethod
 	def complete_pending(cls, pid, secs, nsecs):
 		head = cls.heads[pid]
-		if not head.is_filtered():
+		if yest head.is_filtered():
 			if head.is_pending():
 				head.make_complete(secs, nsecs)
 			else:
@@ -159,7 +159,7 @@ class chead:
 	def __init__(self, comm, pid, filtered):
 		self.comm = comm
 		self.pid = pid
-		self.val = cnode(0)
+		self.val = cyesde(0)
 		self.pending = None
 		self.filtered = filtered
 		self.list = []
@@ -170,7 +170,7 @@ class chead:
 		return self
 
 	def mark_pending(self, secs, nsecs):
-		self.pending = cnode(ns(secs, nsecs))
+		self.pending = cyesde(ns(secs, nsecs))
 
 	def do_increment(self, migrated, fscan, mscan):
 		self.pending.increment(migrated, fscan, mscan)
@@ -187,7 +187,7 @@ class chead:
 		self.pending = None
 
 	def enumerate(self):
-		if opt_proc == popt.DISP_PROC_VERBOSE and not self.is_filtered():
+		if opt_proc == popt.DISP_PROC_VERBOSE and yest self.is_filtered():
 			for i, pelem in enumerate(self.list):
 				sys.stdout.write("%d[%s].%d: %s\n" % (self.pid, self.comm, i+1, pelem))
 
@@ -198,7 +198,7 @@ class chead:
 		return self.filtered
 
 	def display(self):
-		if not self.is_filtered():
+		if yest self.is_filtered():
 			sys.stdout.write("%d[%s]: %s\n" % (self.pid, self.comm, self.val))
 
 
@@ -255,7 +255,7 @@ def pr_help():
 	sys.stdout.write("-m	display stats for migration\n")
 	sys.stdout.write("-fs	display stats for free scanner\n")
 	sys.stdout.write("-ms	display stats for migration scanner\n")
-	sys.stdout.write("-u	display results in microseconds (default nanoseconds)\n")
+	sys.stdout.write("-u	display results in microseconds (default nayesseconds)\n")
 
 
 comm_re = None

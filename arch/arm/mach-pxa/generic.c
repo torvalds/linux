@@ -41,7 +41,7 @@ void clear_reset_status(unsigned int mask)
 }
 
 /*
- * For non device-tree builds, keep legacy timer init
+ * For yesn device-tree builds, keep legacy timer init
  */
 void __init pxa_timer_init(void)
 {
@@ -51,13 +51,13 @@ void __init pxa_timer_init(void)
 		pxa27x_clocks_init();
 	if (cpu_is_pxa3xx())
 		pxa3xx_clocks_init();
-	pxa_timer_nodt_init(IRQ_OST0, io_p2v(0x40a00000));
+	pxa_timer_yesdt_init(IRQ_OST0, io_p2v(0x40a00000));
 }
 
 /*
  * Get the clock frequency as reflected by CCCR and the turbo flag.
  * We assume these values have been applied via a fcs.
- * If info is not 0 we also display the current settings.
+ * If info is yest 0 we also display the current settings.
  */
 unsigned int get_clk_frequency_khz(int info)
 {

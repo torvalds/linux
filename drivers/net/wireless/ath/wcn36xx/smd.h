@@ -3,7 +3,7 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright yestice and this permission yestice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
@@ -115,7 +115,7 @@ int wcn36xx_smd_remove_bsskey(struct wcn36xx *wcn,
 			      u8 keyidx);
 int wcn36xx_smd_enter_bmps(struct wcn36xx *wcn, struct ieee80211_vif *vif);
 int wcn36xx_smd_exit_bmps(struct wcn36xx *wcn, struct ieee80211_vif *vif);
-int wcn36xx_smd_set_power_params(struct wcn36xx *wcn, bool ignore_dtim);
+int wcn36xx_smd_set_power_params(struct wcn36xx *wcn, bool igyesre_dtim);
 int wcn36xx_smd_keep_alive_req(struct wcn36xx *wcn,
 			       struct ieee80211_vif *vif,
 			       int packet_type);

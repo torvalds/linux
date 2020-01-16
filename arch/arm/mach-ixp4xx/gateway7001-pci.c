@@ -7,7 +7,7 @@
  * Copyright (C) 2007 Imre Kaloz <kaloz@openwrt.org>
  *
  * based on coyote-pci.c:
- *	Copyright (C) 2002 Jungo Software Technologies.
+ *	Copyright (C) 2002 Jungo Software Techyeslogies.
  *	Copyright (C) 2003 MontaVista Softwrae, Inc.
  *
  * Maintainer: Imre Kaloz <kaloz@openwrt.org>

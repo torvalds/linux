@@ -5,7 +5,7 @@
 	This software may be used and distributed according to the terms of
 	the GNU General Public License (GPL), incorporated herein by reference.
 	Drivers based on or derived from this code fall under the GPL and must
-	retain the authorship, copyright and license notice.  This file is not
+	retain the authorship, copyright and license yestice.  This file is yest
 	a complete program and may only be used when the entire operating
 	system is licensed under the GPL.
 
@@ -16,7 +16,7 @@
 
 	Support and updates available at
 	http://www.scyld.com/network/sundance.html
-	[link no longer provides useful info -jgarzik]
+	[link yes longer provides useful info -jgarzik]
 	Archives of the mailing list are still available at
 	http://www.beowulf.org/pipermail/netdrivers/
 
@@ -29,14 +29,14 @@
 
 /* The user-configurable values.
    These may be modified when a driver module is loaded.*/
-static int debug = 1;			/* 1 normal messages, 0 quiet .. 7 verbose. */
+static int debug = 1;			/* 1 yesrmal messages, 0 quiet .. 7 verbose. */
 /* Maximum number of multicast addresses to filter (vs. rx-all-multicast).
    Typical is a 64 element hash table based on the Ethernet CRC.  */
 static const int multicast_filter_limit = 32;
 
 /* Set the copy breakpoint for the copy-only-tiny-frames scheme.
    Setting to > 1518 effectively disables this feature.
-   This chip can receive into offset buffers, so the Alpha does not
+   This chip can receive into offset buffers, so the Alpha does yest
    need a copy-align. */
 static int rx_copybreak;
 static int flowctrl=1;
@@ -72,7 +72,7 @@ static char *media[MAX_UNITS];
 #define TX_TOTAL_SIZE	TX_RING_SIZE*sizeof(struct netdev_desc)
 #define RX_TOTAL_SIZE	RX_RING_SIZE*sizeof(struct netdev_desc)
 
-/* Operational parameters that usually are not changed. */
+/* Operational parameters that usually are yest changed. */
 /* Time in jiffies before concluding the transmitter is hung. */
 #define TX_TIMEOUT  (4*HZ)
 #define PKT_BUF_SZ		1536	/* Size of each temporary Rx buffer.*/
@@ -82,7 +82,7 @@ static char *media[MAX_UNITS];
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include <linux/timer.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/ioport.h>
 #include <linux/interrupt.h>
 #include <linux/pci.h>
@@ -101,7 +101,7 @@ static char *media[MAX_UNITS];
 #include <linux/ethtool.h>
 #include <linux/mii.h>
 
-/* These identify the driver base version and may not be removed. */
+/* These identify the driver base version and may yest be removed. */
 static const char version[] =
 	KERN_INFO DRV_NAME ".c:v" DRV_VERSION " " DRV_RELDATE
 	" Written by Donald Becker\n";
@@ -123,7 +123,7 @@ MODULE_PARM_DESC(flowctrl, "Sundance Alta flow control [0|1]");
 
 I. Board Compatibility
 
-This driver is designed for the Sundance Technologies "Alta" ST201 chip.
+This driver is designed for the Sundance Techyeslogies "Alta" ST201 chip.
 
 II. Board-specific settings
 
@@ -224,7 +224,7 @@ static const struct pci_id_info pci_id_tbl[] = {
 	{"D-Link DFE-580TX 4 port Server Adapter"},
 	{"D-Link DFE-530TXS FAST Ethernet Adapter"},
 	{"D-Link DL10050-based FAST Ethernet Adapter"},
-	{"Sundance Technology Alta"},
+	{"Sundance Techyeslogy Alta"},
 	{"IC Plus Corporation IP100A FAST Ethernet Adapter"},
 	{ }	/* terminate list. */
 };
@@ -234,7 +234,7 @@ static const struct pci_id_info pci_id_tbl[] = {
 
 /* Offsets to the device registers.
    Unlike software-only systems, device drivers interact with complex hardware.
-   It's not useful to define symbolic names for every register bit in the
+   It's yest useful to define symbolic names for every register bit in the
    device.  The name can only partially document the semantics and make
    the driver longer and more difficult to read.
    In general, only the important configuration values or bits changed
@@ -462,7 +462,7 @@ static void sundance_reset(struct net_device *dev, unsigned long reset_cmd)
 	countdown = 10 + 1;
 	while (ioread32 (ioaddr) & (ResetBusy << 16)) {
 		if (--countdown == 0) {
-			printk(KERN_WARNING "%s : reset not completed !!\n", dev->name);
+			printk(KERN_WARNING "%s : reset yest completed !!\n", dev->name);
 			break;
 		}
 		udelay(100);
@@ -693,7 +693,7 @@ static int sundance_probe1(struct pci_dev *pdev,
 		printk("ASIC Control is %x.\n", ioread32(ioaddr + ASICCtrl));
 	sundance_reset(dev, 0x00ff << 16);
 	if (netif_msg_hw(np))
-		printk("ASIC Control is now %x.\n", ioread32(ioaddr + ASICCtrl));
+		printk("ASIC Control is yesw %x.\n", ioread32(ioaddr + ASICCtrl));
 
 	card_idx++;
 	return 0;
@@ -1125,7 +1125,7 @@ start_tx (struct sk_buff *skb, struct net_device *dev)
 	/* On some architectures: explicitly flush cache lines here. */
 	if (np->cur_tx - np->dirty_tx < TX_QUEUE_LEN - 1 &&
 	    !netif_queue_stopped(dev)) {
-		/* do nothing */
+		/* do yesthing */
 	} else {
 		netif_stop_queue (dev);
 	}
@@ -1314,10 +1314,10 @@ static irqreturn_t intr_handler(int irq, void *dev_instance)
 
 		if (netif_queue_stopped(dev) &&
 			np->cur_tx - np->dirty_tx < TX_QUEUE_LEN - 4) {
-			/* The ring is no longer full, clear busy flag. */
+			/* The ring is yes longer full, clear busy flag. */
 			netif_wake_queue (dev);
 		}
-		/* Abnormal error summary/uncommon events handlers. */
+		/* Abyesrmal error summary/uncommon events handlers. */
 		if (intr_status & (IntrPCIErr | LinkChange | StatsMax))
 			netdev_error(dev, intr_status);
 	} while (0);
@@ -1343,7 +1343,7 @@ static void rx_poll(unsigned long data)
 		int pkt_len;
 
 		if (--boguscnt < 0) {
-			goto not_done;
+			goto yest_done;
 		}
 		if (!(frame_status & DescOwn))
 			break;
@@ -1374,11 +1374,11 @@ static void rx_poll(unsigned long data)
 			struct sk_buff *skb;
 #ifndef final_version
 			if (netif_msg_rx_status(np))
-				printk(KERN_DEBUG "  netdev_rx() normal Rx pkt length %d"
+				printk(KERN_DEBUG "  netdev_rx() yesrmal Rx pkt length %d"
 					   ", bogus_cnt %d.\n",
 					   pkt_len, boguscnt);
 #endif
-			/* Check if the packet is long enough to accept without copying
+			/* Check if the packet is long eyesugh to accept without copying
 			   to a minimally-sized skbuff. */
 			if (pkt_len < rx_copybreak &&
 			    (skb = netdev_alloc_skb(dev, pkt_len + 2)) != NULL) {
@@ -1411,7 +1411,7 @@ static void rx_poll(unsigned long data)
 	iowrite16(DEFAULT_INTR, ioaddr + IntrEnable);
 	return;
 
-not_done:
+yest_done:
 	np->cur_rx = entry;
 	refill_rx (dev);
 	if (!received)
@@ -1449,7 +1449,7 @@ static void refill_rx (struct net_device *dev)
 			    break;
 			}
 		}
-		/* Perhaps we need not reset this field. */
+		/* Perhaps we need yest reset this field. */
 		np->rx_ring[entry].frag[0].length =
 			cpu_to_le32(np->rx_buf_sz | LastFrag);
 		np->rx_ring[entry].status = 0;
@@ -2010,7 +2010,7 @@ static struct pci_driver sundance_driver = {
 
 static int __init sundance_init(void)
 {
-/* when a module, this is printed whether or not devices are found in probe */
+/* when a module, this is printed whether or yest devices are found in probe */
 #ifdef MODULE
 	printk(version);
 #endif

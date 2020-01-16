@@ -108,7 +108,7 @@ static int cmp_ex_search(const void *key, const void *elt)
 /*
  * Search one exception table for an entry corresponding to the
  * given instruction address, and return the address of the entry,
- * or NULL if none is found.
+ * or NULL if yesne is found.
  * We use a binary search, and thus we assume that the table is
  * already sorted.
  */

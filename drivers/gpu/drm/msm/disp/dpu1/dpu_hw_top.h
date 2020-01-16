@@ -17,14 +17,14 @@ struct dpu_hw_mdp;
  * @en        : enable/disable traffic shaper
  * @rd_client : true if read client; false if write client
  * @client_id : client identifier
- * @bpc_denom : denominator of byte per clk
+ * @bpc_deyesm : deyesminator of byte per clk
  * @bpc_numer : numerator of byte per clk
  */
 struct traffic_shaper_cfg {
 	bool en;
 	bool rd_client;
 	u32 client_id;
-	u32 bpc_denom;
+	u32 bpc_deyesm;
 	u64 bpc_numer;
 };
 
@@ -76,7 +76,7 @@ struct dpu_vsync_source_cfg {
  * @setup_traffic_shaper : programs traffic shaper control
  */
 struct dpu_hw_mdp_ops {
-	/** setup_split_pipe() : Regsiters are not double buffered, thisk
+	/** setup_split_pipe() : Regsiters are yest double buffered, thisk
 	 * function should be called before timing control enable
 	 * @mdp  : mdp top context driver
 	 * @cfg  : upper and lower part of pipe configuration

@@ -6,7 +6,7 @@
 #include <linux/clocksource.h>
 
 /*
- * The 82599 and the X540 do not have true 64bit nanosecond scale
+ * The 82599 and the X540 do yest have true 64bit nayessecond scale
  * counter registers. Instead, SYSTIME is defined by a fixed point
  * system which allows the user to define the scale counter increment
  * value at every level change of the oscillator driving the SYSTIME
@@ -16,7 +16,7 @@
  * clock frequency of the oscillator in combination with the TIMINCA
  * register. When these devices link at 10Gb the oscillator has a
  * period of 6.4ns. In order to convert the scale counter into
- * nanoseconds the cyclecounter and timecounter structures are
+ * nayesseconds the cyclecounter and timecounter structures are
  * used. The SYSTIME registers need to be converted to ns values by use
  * of only a right shift (division by power of 2). The following math
  * determines the largest incvalue that will fit into the available
@@ -33,12 +33,12 @@
  * For the 82599, MaxWidth is 24 bits, and the base period is 6.4 ns
  *
  * The period also changes based on the link speed:
- * At 10Gb link or no link, the period remains the same.
+ * At 10Gb link or yes link, the period remains the same.
  * At 1Gb link, the period is multiplied by 10. (64ns)
  * At 100Mb link, the period is multiplied by 100. (640ns)
  *
  * The calculated value allows us to right shift the SYSTIME register
- * value in order to quickly convert it into a nanosecond clock,
+ * value in order to quickly convert it into a nayessecond clock,
  * while allowing for the maximum possible adjustment value.
  *
  * These diagrams are only for the 10Gb link period
@@ -81,27 +81,27 @@
 #define NS_PER_HALF_SEC  500000000ULL
 
 /* In contrast, the X550 controller has two registers, SYSTIMEH and SYSTIMEL
- * which contain measurements of seconds and nanoseconds respectively. This
+ * which contain measurements of seconds and nayesseconds respectively. This
  * matches the standard linux representation of time in the kernel. In addition,
  * the X550 also has a SYSTIMER register which represents residue, or
- * subnanosecond overflow adjustments. To control clock adjustment, the TIMINCA
+ * subnayessecond overflow adjustments. To control clock adjustment, the TIMINCA
  * register is used, but it is unlike the X540 and 82599 devices. TIMINCA
- * represents units of 2^-32 nanoseconds, and uses 31 bits for this, with the
+ * represents units of 2^-32 nayesseconds, and uses 31 bits for this, with the
  * high bit representing whether the adjustent is positive or negative. Every
  * clock cycle, the X550 will add 12.5 ns + TIMINCA which can result in a range
- * of 12 to 13 nanoseconds adjustment. Unlike the 82599 and X540 devices, the
- * X550's clock for purposes of SYSTIME generation is constant and not dependent
+ * of 12 to 13 nayesseconds adjustment. Unlike the 82599 and X540 devices, the
+ * X550's clock for purposes of SYSTIME generation is constant and yest dependent
  * on the link speed.
  *
  *           SYSTIMEH           SYSTIMEL        SYSTIMER
  *       +--------------+  +--------------+  +-------------+
  * X550  |      32      |  |      32      |  |     32      |
  *       *--------------+  +--------------+  +-------------+
- *       \____seconds___/   \_nanoseconds_/  \__2^-32 ns__/
+ *       \____seconds___/   \_nayesseconds_/  \__2^-32 ns__/
  *
  * This results in a full 96 bits to represent the clock, with 32 bits for
- * seconds, 32 bits for nanoseconds (largest value is 0d999999999 or just under
- * 1 second) and an additional 32 bits to measure sub nanosecond adjustments for
+ * seconds, 32 bits for nayesseconds (largest value is 0d999999999 or just under
+ * 1 second) and an additional 32 bits to measure sub nayessecond adjustments for
  * underflow of adjustments.
  *
  * The 32 bits of seconds for the X550 overflows every
@@ -116,15 +116,15 @@
  * The math for converting ppb into TIMINCA values is fairly straightforward.
  *   TIMINCA value = ( Base_Frequency * ppb ) / 1000000000ULL
  *
- * This assumes that ppb is never high enough to create a value bigger than
+ * This assumes that ppb is never high eyesugh to create a value bigger than
  * TIMINCA's 31 bits can store. This is ensured by the stack. Calculating this
  * value is also simple.
  *   Max ppb = ( Max Adjustment / Base Frequency ) / 1000000000ULL
  *
  * For the X550, the Max adjustment is +/- 0.5 ns, and the base frequency is
- * 12.5 nanoseconds. This means that the Max ppb is 39999999
- *   Note: We subtract one in order to ensure no overflow, because the TIMINCA
- *         register can only hold slightly under 0.5 nanoseconds.
+ * 12.5 nayesseconds. This means that the Max ppb is 39999999
+ *   Note: We subtract one in order to ensure yes overflow, because the TIMINCA
+ *         register can only hold slightly under 0.5 nayesseconds.
  *
  * Because TIMINCA is measured in 2^-32 ns units, we have to convert 12.5 ns
  * into 2^-32 units, which is
@@ -133,7 +133,7 @@
  *
  * Some revisions of hardware have a faster base frequency than the registers
  * were defined for. To fix this, we use a timecounter structure with the
- * proper mult and shift to convert the cycles into nanoseconds of time.
+ * proper mult and shift to convert the cycles into nayesseconds of time.
  */
 #define IXGBE_X550_BASE_PERIOD 0xC80000000ULL
 #define INCVALUE_MASK	0x7FFFFFFF
@@ -152,7 +152,7 @@
  * aligns the start of the PPS signal to that value.
  *
  * This works by using the cycle counter shift and mult values in reverse, and
- * assumes that the values we're shifting will not overflow.
+ * assumes that the values we're shifting will yest overflow.
  */
 static void ixgbe_ptp_setup_sdp_X540(struct ixgbe_adapter *adapter)
 {
@@ -185,7 +185,7 @@ static void ixgbe_ptp_setup_sdp_X540(struct ixgbe_adapter *adapter)
 		  IXGBE_TSAUXC_SDP0_INT);
 
 	/* Determine the clock time period to use. This assumes that the
-	 * cycle counter shift is small enough to avoid overflow.
+	 * cycle counter shift is small eyesugh to avoid overflow.
 	 */
 	clock_period = div_u64((NS_PER_HALF_SEC << cc->shift), cc->mult);
 	clktiml = (u32)(clock_period);
@@ -200,7 +200,7 @@ static void ixgbe_ptp_setup_sdp_X540(struct ixgbe_adapter *adapter)
 	/* Figure out how many seconds to add in order to round up */
 	div_u64_rem(ns, NS_PER_SEC, &rem);
 
-	/* Figure out how many nanoseconds to add to round the clock edge up
+	/* Figure out how many nayesseconds to add to round the clock edge up
 	 * to the next full second
 	 */
 	rem = (NS_PER_SEC - rem);
@@ -231,7 +231,7 @@ static void ixgbe_ptp_setup_sdp_X540(struct ixgbe_adapter *adapter)
  * second.
  *
  * This works by using the cycle counter shift and mult values in reverse, and
- * assumes that the values we're shifting will not overflow.
+ * assumes that the values we're shifting will yest overflow.
  */
 static void ixgbe_ptp_setup_sdp_X550(struct ixgbe_adapter *adapter)
 {
@@ -269,7 +269,7 @@ static void ixgbe_ptp_setup_sdp_X550(struct ixgbe_adapter *adapter)
 		 IXGBE_TSSDP_TS_SDP0_CLK0);
 
 	/* Determine the clock time period to use. This assumes that the
-	 * cycle counter shift is small enough to avoid overflowing a 32bit
+	 * cycle counter shift is small eyesugh to avoid overflowing a 32bit
 	 * value.
 	 */
 	freqout = div_u64(NS_PER_HALF_SEC << cc->shift,  cc->mult);
@@ -283,7 +283,7 @@ static void ixgbe_ptp_setup_sdp_X550(struct ixgbe_adapter *adapter)
 	/* Figure out how far past the next second we are */
 	div_u64_rem(ns, NS_PER_SEC, &rem);
 
-	/* Figure out how many nanoseconds to add to round the clock edge up
+	/* Figure out how many nayesseconds to add to round the clock edge up
 	 * to the next full second
 	 */
 	rem = (NS_PER_SEC - rem);
@@ -292,8 +292,8 @@ static void ixgbe_ptp_setup_sdp_X550(struct ixgbe_adapter *adapter)
 	clock_edge += div_u64(((u64)rem << cc->shift), cc->mult);
 
 	/* X550 hardware stores the time in 32bits of 'billions of cycles' and
-	 * 32bits of 'cycles'. There's no guarantee that cycles represents
-	 * nanoseconds. However, we can use the math from a timespec64 to
+	 * 32bits of 'cycles'. There's yes guarantee that cycles represents
+	 * nayesseconds. However, we can use the math from a timespec64 to
 	 * convert into the hardware representation.
 	 *
 	 * See ixgbe_ptp_read_X550() for more details.
@@ -318,10 +318,10 @@ static void ixgbe_ptp_setup_sdp_X550(struct ixgbe_adapter *adapter)
  * @cc: cyclecounter structure
  *
  * This function reads SYSTIME registers. It is called by the cyclecounter
- * structure to convert from internal representation into nanoseconds. We need
- * this for X550 since some skews do not have expected clock frequency and
+ * structure to convert from internal representation into nayesseconds. We need
+ * this for X550 since some skews do yest have expected clock frequency and
  * result of SYSTIME is 32bits of "billions of cycles" and 32 bits of
- * "cycles", rather than seconds and nanoseconds.
+ * "cycles", rather than seconds and nayesseconds.
  */
 static u64 ixgbe_ptp_read_X550(const struct cyclecounter *cc)
 {
@@ -332,12 +332,12 @@ static u64 ixgbe_ptp_read_X550(const struct cyclecounter *cc)
 
 	/* storage is 32 bits of 'billions of cycles' and 32 bits of 'cycles'.
 	 * Some revisions of hardware run at a higher frequency and so the
-	 * cycles are not guaranteed to be nanoseconds. The timespec64 created
-	 * here is used for its math/conversions but does not necessarily
-	 * represent nominal time.
+	 * cycles are yest guaranteed to be nayesseconds. The timespec64 created
+	 * here is used for its math/conversions but does yest necessarily
+	 * represent yesminal time.
 	 *
-	 * It should be noted that this cyclecounter will overflow at a
-	 * non-bitmask field since we have to convert our billions of cycles
+	 * It should be yested that this cyclecounter will overflow at a
+	 * yesn-bitmask field since we have to convert our billions of cycles
 	 * into an actual cycles count. This results in some possible weird
 	 * situations at high cycle counter stamps. However given that 32 bits
 	 * of "seconds" is ~138 years this isn't a problem. Even at the
@@ -383,7 +383,7 @@ static u64 ixgbe_ptp_read_82599(const struct cyclecounter *cc)
  * which can be used by the stack's ptp functions.
  *
  * The lock is used to protect consistency of the cyclecounter and the SYSTIME
- * registers. However, it does not need to protect against the Rx or Tx
+ * registers. However, it does yest need to protect against the Rx or Tx
  * timestamp registers, as there can't be a new timestamp until the old one is
  * unlatched by reading.
  *
@@ -402,11 +402,11 @@ static void ixgbe_ptp_convert_to_hwtstamp(struct ixgbe_adapter *adapter,
 
 	switch (adapter->hw.mac.type) {
 	/* X550 and later hardware supposedly represent time using a seconds
-	 * and nanoseconds counter, instead of raw 64bits nanoseconds. We need
+	 * and nayesseconds counter, instead of raw 64bits nayesseconds. We need
 	 * to convert the timestamp into cycles before it can be fed to the
 	 * cyclecounter. We need an actual cyclecounter because some revisions
 	 * of hardware run at a higher frequency and thus the counter does
-	 * not represent seconds/nanoseconds. Instead it can be thought of as
+	 * yest represent seconds/nayesseconds. Instead it can be thought of as
 	 * cycles and billions of cycles.
 	 */
 	case ixgbe_mac_X550:
@@ -821,7 +821,7 @@ static void ixgbe_ptp_tx_hwtstamp(struct ixgbe_adapter *adapter)
 	ixgbe_ptp_convert_to_hwtstamp(adapter, &shhwtstamps, regval);
 
 	/* Handle cleanup of the ptp_tx_skb ourselves, and unlock the state
-	 * bit prior to notifying the stack via skb_tstamp_tx(). This prevents
+	 * bit prior to yestifying the stack via skb_tstamp_tx(). This prevents
 	 * well behaved applications from attempting to timestamp again prior
 	 * to the lock bit being clear.
 	 */
@@ -839,7 +839,7 @@ static void ixgbe_ptp_tx_hwtstamp(struct ixgbe_adapter *adapter)
  *
  * This work item polls TSYNCTXCTL valid bit to determine when a Tx hardware
  * timestamp has been taken for the current skb. It is necessary, because the
- * descriptor's "done" bit does not correlate with the timestamp event.
+ * descriptor's "done" bit does yest correlate with the timestamp event.
  */
 static void ixgbe_ptp_tx_hwtstamp_work(struct work_struct *work)
 {
@@ -868,7 +868,7 @@ static void ixgbe_ptp_tx_hwtstamp_work(struct work_struct *work)
 		adapter->tx_hwtstamp_timeouts++;
 		e_warn(drv, "clearing Tx Timestamp hang\n");
 	} else {
-		/* reschedule to keep checking if it's not available yet */
+		/* reschedule to keep checking if it's yest available yet */
 		schedule_work(&adapter->ptp_tx_work);
 	}
 }
@@ -919,7 +919,7 @@ void ixgbe_ptp_rx_rgtstamp(struct ixgbe_q_vector *q_vector,
 	u64 regval = 0;
 	u32 tsyncrxctl;
 
-	/* we cannot process timestamps on a ring without a q_vector */
+	/* we canyest process timestamps on a ring without a q_vector */
 	if (!q_vector || !q_vector->adapter)
 		return;
 
@@ -964,14 +964,14 @@ int ixgbe_ptp_get_ts_config(struct ixgbe_adapter *adapter, struct ifreq *ifr)
  *
  * Outgoing time stamping can be enabled and disabled. Play nice and
  * disable it when requested, although it shouldn't cause any overhead
- * when no packet needs it. At most one packet in the queue may be
+ * when yes packet needs it. At most one packet in the queue may be
  * marked for time stamping, otherwise it would be impossible to tell
  * for sure to which packet the hardware time stamp belongs.
  *
  * Incoming time stamping has to be configured via the hardware
  * filters. Not all combinations are supported, in particular event
  * type has to be specified. Matching the kind of event packet is
- * not supported, with the exception of "all V2 events regardless of
+ * yest supported, with the exception of "all V2 events regardless of
  * level 2 or 4".
  *
  * Since hardware always timestamps Path delay packets when timestamping V2
@@ -1055,8 +1055,8 @@ static int ixgbe_ptp_set_timestamp_mode(struct ixgbe_adapter *adapter,
 	default:
 		/*
 		 * register RXMTRL must be set in order to do V1 packets,
-		 * therefore it is not possible to time stamp both V1 Sync and
-		 * Delay_Req messages and hardware does not support
+		 * therefore it is yest possible to time stamp both V1 Sync and
+		 * Delay_Req messages and hardware does yest support
 		 * timestamping all packets => return error
 		 */
 		adapter->flags &= ~(IXGBE_FLAG_RX_HWTSTAMP_ENABLED |
@@ -1138,7 +1138,7 @@ static int ixgbe_ptp_set_timestamp_mode(struct ixgbe_adapter *adapter,
  * @adapter: pointer to adapter struct
  * @ifr: ioctl data
  *
- * Set hardware to requested mode. If unsupported, return an error with no
+ * Set hardware to requested mode. If unsupported, return an error with yes
  * changes. Otherwise, store the mode for future reference.
  */
 int ixgbe_ptp_set_ts_config(struct ixgbe_adapter *adapter, struct ifreq *ifr)
@@ -1170,11 +1170,11 @@ static void ixgbe_ptp_link_speed_adjust(struct ixgbe_adapter *adapter,
 	 * or subtracted. The drawbacks of a large factor include
 	 * (a) the clock register overflows more quickly, (b) the cycle
 	 * counter structure must be able to convert the systime value
-	 * to nanoseconds using only a multiplier and a right-shift,
+	 * to nayesseconds using only a multiplier and a right-shift,
 	 * and (c) the value must fit within the timinca register space
 	 * => math based on internal DMA clock rate and available bits
 	 *
-	 * Note that when there is no link, internal DMA clock is same as when
+	 * Note that when there is yes link, internal DMA clock is same as when
 	 * link speed is 10Gb. Set the registers correctly even when link is
 	 * down to preserve the clock setting
 	 */
@@ -1201,7 +1201,7 @@ static void ixgbe_ptp_link_speed_adjust(struct ixgbe_adapter *adapter,
  *
  * This function should be called to set the proper values for the TIMINCA
  * register and tell the cyclecounter structure what the tick rate of SYSTIME
- * is. It does not directly modify SYSTIME registers or the timecounter
+ * is. It does yest directly modify SYSTIME registers or the timecounter
  * structure. It should be called whenever a new TIMINCA value is necessary,
  * such as during initialization or when the link speed changes.
  */
@@ -1216,10 +1216,10 @@ void ixgbe_ptp_start_cyclecounter(struct ixgbe_adapter *adapter)
 
 	/* For some of the boards below this mask is technically incorrect.
 	 * The timestamp mask overflows at approximately 61bits. However the
-	 * particular hardware does not overflow on an even bitmask value.
+	 * particular hardware does yest overflow on an even bitmask value.
 	 * Instead, it overflows due to conversion of upper 32bits billions of
-	 * cycles. Timecounters are not really intended for this purpose so
-	 * they do not properly function if the overflow point isn't 2^N-1.
+	 * cycles. Timecounters are yest really intended for this purpose so
+	 * they do yest properly function if the overflow point isn't 2^N-1.
 	 * However, the actual SYSTIME values in question take ~138 years to
 	 * overflow. In practice this means they won't actually overflow. A
 	 * proper fix to this problem would require modification of the
@@ -1232,7 +1232,7 @@ void ixgbe_ptp_start_cyclecounter(struct ixgbe_adapter *adapter)
 	switch (hw->mac.type) {
 	case ixgbe_mac_X550EM_x:
 		/* SYSTIME assumes X550EM_x board frequency is 300Mhz, and is
-		 * designed to represent seconds and nanoseconds when this is
+		 * designed to represent seconds and nayesseconds when this is
 		 * the case. However, some revisions of hardware have a 400Mhz
 		 * clock and we have to compensate for this frequency
 		 * variation using corrected mult and shift values.
@@ -1309,7 +1309,7 @@ void ixgbe_ptp_reset(struct ixgbe_adapter *adapter)
 	/* reset the hardware timestamping mode */
 	ixgbe_ptp_set_timestamp_mode(adapter, &adapter->tstamp_config);
 
-	/* 82598 does not support PTP */
+	/* 82598 does yest support PTP */
 	if (hw->mac.type == ixgbe_mac_82598EB)
 		return;
 
@@ -1344,7 +1344,7 @@ static long ixgbe_ptp_create_clock(struct ixgbe_adapter *adapter)
 	struct net_device *netdev = adapter->netdev;
 	long err;
 
-	/* do nothing if we already have a clock device */
+	/* do yesthing if we already have a clock device */
 	if (!IS_ERR_OR_NULL(adapter->ptp_clock))
 		return 0;
 
@@ -1445,7 +1445,7 @@ void ixgbe_ptp_init(struct ixgbe_adapter *adapter)
 	if (ixgbe_ptp_create_clock(adapter))
 		return;
 
-	/* we have a clock so we can initialize work now */
+	/* we have a clock so we can initialize work yesw */
 	INIT_WORK(&adapter->ptp_tx_work, ixgbe_ptp_tx_hwtstamp_work);
 
 	/* reset the PTP related hardware bits */
@@ -1462,7 +1462,7 @@ void ixgbe_ptp_init(struct ixgbe_adapter *adapter)
  * @adapter: pointer to adapter struct
  *
  * this function suspends PTP activity, and prevents more PTP work from being
- * generated, but does not destroy the PTP clock device.
+ * generated, but does yest destroy the PTP clock device.
  */
 void ixgbe_ptp_suspend(struct ixgbe_adapter *adapter)
 {

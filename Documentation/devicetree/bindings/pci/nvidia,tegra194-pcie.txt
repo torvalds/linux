@@ -1,12 +1,12 @@
-NVIDIA Tegra PCIe controller (Synopsys DesignWare Core based)
+NVIDIA Tegra PCIe controller (Syyespsys DesignWare Core based)
 
-This PCIe host controller is based on the Synopsis Designware PCIe IP
+This PCIe host controller is based on the Syyespsis Designware PCIe IP
 and thus inherits all the common properties defined in designware-pcie.txt.
 
 Required properties:
 - compatible: For Tegra19x, must contain "nvidia,tegra194-pcie".
 - device_type: Must be "pci"
-- power-domains: A phandle to the node that controls power to the respective
+- power-domains: A phandle to the yesde that controls power to the respective
   PCIe controller and a specifier name for the PCIe controller. Following are
   the specifiers for the different PCIe controllers
     TEGRA194_POWER_DOMAIN_PCIEX8B: C0
@@ -38,7 +38,7 @@ Required properties:
   - cell 0 specifies the bus and device numbers of the root port:
     [23:16]: bus number
     [15:11]: device number
-  - cell 1 denotes the upper 32 address bits and should be 0
+  - cell 1 deyestes the upper 32 address bits and should be 0
   - cell 2 contains the lower 32 address bits and is used to translate to the
     CPU address space
 - #size-cells: Size representation for root ports (must be 2)
@@ -52,7 +52,7 @@ Required properties:
     prefetchable PCI regions. The first cell determines the type of region
     that is setup:
     - 0x81000000: I/O memory region
-    - 0x82000000: non-prefetchable memory region
+    - 0x82000000: yesn-prefetchable memory region
     - 0xc2000000: prefetchable memory region
   Please refer to the standard PCI bus binding document for a more detailed
   explanation.
@@ -72,7 +72,7 @@ Required properties:
 - phys: Must contain a phandle to P2U PHY for each entry in phy-names.
 - phy-names: Must include an entry for each active lane.
   "p2u-N": where N ranges from 0 to one less than the total number of lanes
-- nvidia,bpmp: Must contain a pair of phandle to BPMP controller node followed
+- nvidia,bpmp: Must contain a pair of phandle to BPMP controller yesde followed
   by controller-id. Following are the controller ids for each controller.
     0: C0
     1: C1
@@ -104,10 +104,10 @@ Optional properties:
    specified in microseconds
 - nvidia,aspm-l0s-entrance-latency-us: ASPM L0s entrance latency to be
    specified in microseconds
-- vpcie3v3-supply: A phandle to the regulator node that supplies 3.3V to the slot
+- vpcie3v3-supply: A phandle to the regulator yesde that supplies 3.3V to the slot
   if the platform has one such slot. (Ex:- x16 slot owned by C5 controller
   in p2972-0000 platform).
-- vpcie12v-supply: A phandle to the regulator node that supplies 12V to the slot
+- vpcie12v-supply: A phandle to the regulator yesde that supplies 12V to the slot
   if the platform has one such slot. (Ex:- x16 slot owned by C5 controller
   in p2972-0000 platform).
 
@@ -158,7 +158,7 @@ Tegra194:
 
 		bus-range = <0x0 0xff>;
 		ranges = <0x81000000 0x0  0x38100000 0x0  0x38100000 0x0 0x00100000    /* downstream I/O (1MB) */
-			  0x82000000 0x0  0x38200000 0x0  0x38200000 0x0 0x01E00000    /* non-prefetchable memory (30MB) */
+			  0x82000000 0x0  0x38200000 0x0  0x38200000 0x0 0x01E00000    /* yesn-prefetchable memory (30MB) */
 			  0xc2000000 0x18 0x00000000 0x18 0x00000000 0x4 0x00000000>;  /* prefetchable memory (16GB) */
 
 		vddio-pex-ctl-supply = <&vdd_1v8ao>;

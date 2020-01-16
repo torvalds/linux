@@ -126,7 +126,7 @@ static struct pinctrl_ops owl_pinctrl_ops = {
 	.get_group_name = owl_get_group_name,
 	.get_group_pins = owl_get_group_pins,
 	.pin_dbg_show = owl_pin_dbg_show,
-	.dt_node_to_map = pinconf_generic_dt_node_to_map_all,
+	.dt_yesde_to_map = pinconf_generic_dt_yesde_to_map_all,
 	.dt_free_map = pinctrl_utils_free_map,
 };
 
@@ -735,7 +735,7 @@ static void owl_gpio_irq_mask(struct irq_data *data)
 
 	owl_gpio_update_reg(gpio_base + port->intc_msk, gpio, false);
 
-	/* disable port interrupt if no interrupt pending bit is active */
+	/* disable port interrupt if yes interrupt pending bit is active */
 	val = readl_relaxed(gpio_base + port->intc_msk);
 	if (val == 0)
 		owl_gpio_update_reg(gpio_base + port->intc_ctl,
@@ -839,7 +839,7 @@ static void owl_gpio_irq_handler(struct irq_desc *desc)
 		port = &pctrl->soc->ports[i];
 		base = pctrl->base + port->offset;
 
-		/* skip ports that are not associated with this irq */
+		/* skip ports that are yest associated with this irq */
 		if (parent != pctrl->irq[i])
 			goto skip;
 
@@ -872,9 +872,9 @@ static int owl_gpio_init(struct owl_pinctrl *pctrl)
 	chip->label = dev_name(pctrl->dev);
 	chip->parent = pctrl->dev;
 	chip->owner = THIS_MODULE;
-	chip->of_node = pctrl->dev->of_node;
+	chip->of_yesde = pctrl->dev->of_yesde;
 
-	pctrl->irq_chip.name = chip->of_node->name;
+	pctrl->irq_chip.name = chip->of_yesde->name;
 	pctrl->irq_chip.irq_ack = owl_gpio_irq_ack;
 	pctrl->irq_chip.irq_mask = owl_gpio_irq_mask;
 	pctrl->irq_chip.irq_unmask = owl_gpio_irq_unmask;
@@ -929,7 +929,7 @@ int owl_pinctrl_probe(struct platform_device *pdev,
 	/* enable GPIO/MFP clock */
 	pctrl->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(pctrl->clk)) {
-		dev_err(&pdev->dev, "no clock defined\n");
+		dev_err(&pdev->dev, "yes clock defined\n");
 		return PTR_ERR(pctrl->clk);
 	}
 
@@ -958,7 +958,7 @@ int owl_pinctrl_probe(struct platform_device *pdev,
 	pctrl->pctrldev = devm_pinctrl_register(&pdev->dev,
 					&owl_pinctrl_desc, pctrl);
 	if (IS_ERR(pctrl->pctrldev)) {
-		dev_err(&pdev->dev, "could not register Actions OWL pinmux driver\n");
+		dev_err(&pdev->dev, "could yest register Actions OWL pinmux driver\n");
 		ret = PTR_ERR(pctrl->pctrldev);
 		goto err_exit;
 	}

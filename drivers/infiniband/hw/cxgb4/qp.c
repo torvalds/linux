@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -152,7 +152,7 @@ static int destroy_qp(struct c4iw_rdev *rdev, struct t4_wq *wq,
 {
 	/*
 	 * uP clears EQ contexts when the connection exits rdma mode,
-	 * so no need to post a RESET WR for these EQs.
+	 * so yes need to post a RESET WR for these EQs.
 	 */
 	dealloc_sq(rdev, &wq->sq);
 	kfree(wq->sq.sw_sq);
@@ -170,7 +170,7 @@ static int destroy_qp(struct c4iw_rdev *rdev, struct t4_wq *wq,
 }
 
 /*
- * Determine the BAR2 virtual address and qid. If pbar2_pa is not NULL,
+ * Determine the BAR2 virtual address and qid. If pbar2_pa is yest NULL,
  * then this is a user mapping so compute the page-aligned physical address
  * for mapping.
  */
@@ -293,7 +293,7 @@ static int create_qp(struct c4iw_rdev *rdev, struct t4_wq *wq,
 	 * User mode must have bar2 access.
 	 */
 	if (user && (!wq->sq.bar2_pa || (need_rq && !wq->rq.bar2_pa))) {
-		pr_warn("%s: sqid %u or rqid %u not in BAR2 range\n",
+		pr_warn("%s: sqid %u or rqid %u yest in BAR2 range\n",
 			pci_name(rdev->lldi.pdev), wq->sq.qid, wq->rq.qid);
 		goto free_dma;
 	}
@@ -330,7 +330,7 @@ static int create_qp(struct c4iw_rdev *rdev, struct t4_wq *wq,
 		rdev->hw_queue.t4_eq_status_entries;
 
 	res->u.sqrq.fetchszm_to_iqid = cpu_to_be32(
-		FW_RI_RES_WR_HOSTFCMODE_V(0) |	/* no host cidx updates */
+		FW_RI_RES_WR_HOSTFCMODE_V(0) |	/* yes host cidx updates */
 		FW_RI_RES_WR_CPRIO_V(0) |	/* don't keep in chip cache */
 		FW_RI_RES_WR_PCIECHN_V(0) |	/* set by uP at ri_init time */
 		(t4_sq_onchip(&wq->sq) ? FW_RI_RES_WR_ONCHIP_F : 0) |
@@ -358,7 +358,7 @@ static int create_qp(struct c4iw_rdev *rdev, struct t4_wq *wq,
 		eqsize = wq->rq.size * T4_RQ_NUM_SLOTS +
 			rdev->hw_queue.t4_eq_status_entries;
 		res->u.sqrq.fetchszm_to_iqid =
-			/* no host cidx updates */
+			/* yes host cidx updates */
 			cpu_to_be32(FW_RI_RES_WR_HOSTFCMODE_V(0) |
 			/* don't keep in chip cache */
 			FW_RI_RES_WR_CPRIO_V(0) |
@@ -625,7 +625,7 @@ static void build_rdma_write_cmpl(struct t4_sq *sq,
 	 * directly in the dma queue, and wrapping is only handled
 	 * by the code buildling sgls.  IE the "fixed part" of the wr
 	 * structs must all fit in 64B.  The WQE build code should probably be
-	 * redesigned to avoid this restriction, but for now just add
+	 * redesigned to avoid this restriction, but for yesw just add
 	 * the BUILD_BUG_ON() to catch if this WQE struct gets too big.
 	 */
 	BUILD_BUG_ON(offsetof(struct fw_ri_rdma_write_cmpl_wr, u) > 64);
@@ -802,7 +802,7 @@ static void build_tpte_memreg(struct fw_ri_fr_nsmr_tpte_wr *fr,
 		FW_RI_TPTE_PERM_V(c4iw_ib_to_tpt_access(wr->access)) |
 		FW_RI_TPTE_ADDRTYPE_V(FW_RI_VA_BASED_TO) |
 		FW_RI_TPTE_PS_V(ilog2(wr->mr->page_size) - 12));
-	fr->tpte.nosnoop_pbladdr = cpu_to_be32(FW_RI_TPTE_PBLADDR_V(
+	fr->tpte.yessyesop_pbladdr = cpu_to_be32(FW_RI_TPTE_PBLADDR_V(
 		PBL_OFF(&mhp->rhp->rdev, mhp->attr.pbl_addr)>>3));
 	fr->tpte.dca_mwbcnt_pstag = cpu_to_be32(0);
 	fr->tpte.len_hi = cpu_to_be32(0);
@@ -1114,7 +1114,7 @@ int c4iw_post_send(struct ib_qp *ibqp, const struct ib_send_wr *wr,
 	 * exactly a WRITE->SEND_WITH_INV or a WRITE->SEND and the sgl depths
 	 * and lengths meet the requirements of the fw_ri_write_cmpl_wr work
 	 * request, then build and post the write_cmpl WR. If any of the tests
-	 * below are not true, then we continue on with the tradtional WRITE
+	 * below are yest true, then we continue on with the tradtional WRITE
 	 * and SEND WRs.
 	 */
 	if (qhp->rhp->rdev.lldi.write_cmpl_support &&
@@ -2048,8 +2048,8 @@ out:
 
 	/*
 	 * If disconnect is 1, then we need to initiate a disconnect
-	 * on the EP.  This can be a normal close (RTS->CLOSING) or
-	 * an abnormal close (RTS/CLOSING->ERROR).
+	 * on the EP.  This can be a yesrmal close (RTS->CLOSING) or
+	 * an abyesrmal close (RTS/CLOSING->ERROR).
 	 */
 	if (disconnect) {
 		c4iw_ep_disconnect(ep, abort, internal ? GFP_ATOMIC :
@@ -2374,7 +2374,7 @@ int c4iw_ib_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 
 	pr_debug("ib_qp %p\n", ibqp);
 
-	/* iwarp does not support the RTR state */
+	/* iwarp does yest support the RTR state */
 	if ((attr_mask & IB_QP_STATE) && (attr->qp_state == IB_QPS_RTR))
 		attr_mask &= ~IB_QP_STATE;
 
@@ -2446,7 +2446,7 @@ int c4iw_modify_srq(struct ib_srq *ib_srq, struct ib_srq_attr *attr,
 		goto out;
 	}
 
-	/* no support for this yet */
+	/* yes support for this yet */
 	if (srq_attr_mask & IB_SRQ_MAX_WR) {
 		ret = -EINVAL;
 		goto out;
@@ -2566,7 +2566,7 @@ static int alloc_srq_queue(struct c4iw_srq *srq, struct c4iw_dev_ucontext *uctx,
 	 */
 
 	if (user && !wq->bar2_va) {
-		pr_warn(MOD "%s: srqid %u not in BAR2 range.\n",
+		pr_warn(MOD "%s: srqid %u yest in BAR2 range.\n",
 			pci_name(rdev->lldi.pdev), wq->qid);
 		ret = -EINVAL;
 		goto err_free_queue;
@@ -2598,7 +2598,7 @@ static int alloc_srq_queue(struct c4iw_srq *srq, struct c4iw_dev_ucontext *uctx,
 		rdev->hw_queue.t4_eq_status_entries;
 	res->u.srq.eqid = cpu_to_be32(wq->qid);
 	res->u.srq.fetchszm_to_iqid =
-						/* no host cidx updates */
+						/* yes host cidx updates */
 		cpu_to_be32(FW_RI_RES_WR_HOSTFCMODE_V(0) |
 		FW_RI_RES_WR_CPRIO_V(0) |       /* don't keep in chip cache */
 		FW_RI_RES_WR_PCIECHN_V(0) |     /* set by uP at ri_init time */

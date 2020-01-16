@@ -263,7 +263,7 @@ static const struct pinctrl_ops pmic_gpio_pinctrl_ops = {
 	.get_groups_count	= pmic_gpio_get_groups_count,
 	.get_group_name		= pmic_gpio_get_group_name,
 	.get_group_pins		= pmic_gpio_get_group_pins,
-	.dt_node_to_map		= pinconf_generic_dt_node_to_map_group,
+	.dt_yesde_to_map		= pinconf_generic_dt_yesde_to_map_group,
 	.dt_free_map		= pinctrl_utils_free_map,
 };
 
@@ -297,7 +297,7 @@ static int pmic_gpio_set_mux(struct pinctrl_dev *pctldev, unsigned function,
 	int ret;
 
 	if (function > PMIC_GPIO_FUNC_INDEX_DTEST4) {
-		pr_err("function: %d is not defined\n", function);
+		pr_err("function: %d is yest defined\n", function);
 		return -EINVAL;
 	}
 
@@ -624,13 +624,13 @@ static void pmic_gpio_config_dbg_show(struct pinctrl_dev *pctldev,
 
 	static const char *const biases[] = {
 		"pull-up 30uA", "pull-up 1.5uA", "pull-up 31.5uA",
-		"pull-up 1.5uA + 30uA boost", "pull-down 10uA", "no pull"
+		"pull-up 1.5uA + 30uA boost", "pull-down 10uA", "yes pull"
 	};
 	static const char *const buffer_types[] = {
 		"push-pull", "open-drain", "open-source"
 	};
 	static const char *const strengths[] = {
-		"no", "high", "medium", "low"
+		"yes", "high", "medium", "low"
 	};
 
 	pad = pctldev->desc->pins[pin].drv_data;
@@ -651,7 +651,7 @@ static void pmic_gpio_config_dbg_show(struct pinctrl_dev *pctldev,
 			pad->out_value = ret;
 		}
 		/*
-		 * For the non-LV/MV subtypes only 2 special functions are
+		 * For the yesn-LV/MV subtypes only 2 special functions are
 		 * available, offsetting the dtest function values by 2.
 		 */
 		function = pad->function;
@@ -814,7 +814,7 @@ static int pmic_gpio_populate(struct pmic_gpio_state *state,
 		pad->lv_mv_type = true;
 		break;
 	default:
-		dev_err(state->dev, "unknown GPIO type 0x%x\n", subtype);
+		dev_err(state->dev, "unkyeswn GPIO type 0x%x\n", subtype);
 		return -ENODEV;
 	}
 
@@ -864,7 +864,7 @@ static int pmic_gpio_populate(struct pmic_gpio_state *state,
 		pad->analog_pass = true;
 		break;
 	default:
-		dev_err(state->dev, "unknown GPIO direction\n");
+		dev_err(state->dev, "unkyeswn GPIO direction\n");
 		return -ENODEV;
 	}
 
@@ -967,7 +967,7 @@ static int pmic_gpio_child_to_parent_hwirq(struct gpio_chip *chip,
 static int pmic_gpio_probe(struct platform_device *pdev)
 {
 	struct irq_domain *parent_domain;
-	struct device_node *parent_node;
+	struct device_yesde *parent_yesde;
 	struct device *dev = &pdev->dev;
 	struct pinctrl_pin_desc *pindesc;
 	struct pinctrl_desc *pctrldesc;
@@ -977,7 +977,7 @@ static int pmic_gpio_probe(struct platform_device *pdev)
 	int ret, npins, i;
 	u32 reg;
 
-	ret = of_property_read_u32(dev->of_node, "reg", &reg);
+	ret = of_property_read_u32(dev->of_yesde, "reg", &reg);
 	if (ret < 0) {
 		dev_err(dev, "missing base address");
 		return ret;
@@ -1044,12 +1044,12 @@ static int pmic_gpio_probe(struct platform_device *pdev)
 	if (IS_ERR(state->ctrl))
 		return PTR_ERR(state->ctrl);
 
-	parent_node = of_irq_find_parent(state->dev->of_node);
-	if (!parent_node)
+	parent_yesde = of_irq_find_parent(state->dev->of_yesde);
+	if (!parent_yesde)
 		return -ENXIO;
 
-	parent_domain = irq_find_host(parent_node);
-	of_node_put(parent_node);
+	parent_domain = irq_find_host(parent_yesde);
+	of_yesde_put(parent_yesde);
 	if (!parent_domain)
 		return -ENXIO;
 
@@ -1057,7 +1057,7 @@ static int pmic_gpio_probe(struct platform_device *pdev)
 	girq->chip = &pmic_gpio_irq_chip;
 	girq->default_type = IRQ_TYPE_NONE;
 	girq->handler = handle_level_irq;
-	girq->fwnode = of_node_to_fwnode(state->dev->of_node);
+	girq->fwyesde = of_yesde_to_fwyesde(state->dev->of_yesde);
 	girq->parent_domain = parent_domain;
 	girq->child_to_parent_hwirq = pmic_gpio_child_to_parent_hwirq;
 	girq->populate_parent_fwspec = gpiochip_populate_parent_fwspec_fourcell;
@@ -1072,7 +1072,7 @@ static int pmic_gpio_probe(struct platform_device *pdev)
 
 	/*
 	 * For DeviceTree-supported systems, the gpio core checks the
-	 * pinctrl's device node for the "gpio-ranges" property.
+	 * pinctrl's device yesde for the "gpio-ranges" property.
 	 * If it is present, it takes care of adding the pin ranges
 	 * for the driver. In this case the driver can skip ahead.
 	 *
@@ -1080,7 +1080,7 @@ static int pmic_gpio_probe(struct platform_device *pdev)
 	 * files which don't set the "gpio-ranges" property or systems that
 	 * utilize ACPI the driver has to call gpiochip_add_pin_range().
 	 */
-	if (!of_property_read_bool(dev->of_node, "gpio-ranges")) {
+	if (!of_property_read_bool(dev->of_yesde, "gpio-ranges")) {
 		ret = gpiochip_add_pin_range(&state->chip, dev_name(dev), 0, 0,
 					     npins);
 		if (ret) {
@@ -1142,7 +1142,7 @@ static struct platform_driver pmic_gpio_driver = {
 
 module_platform_driver(pmic_gpio_driver);
 
-MODULE_AUTHOR("Ivan T. Ivanov <iivanov@mm-sol.com>");
+MODULE_AUTHOR("Ivan T. Ivayesv <iivayesv@mm-sol.com>");
 MODULE_DESCRIPTION("Qualcomm SPMI PMIC GPIO pin control driver");
 MODULE_ALIAS("platform:qcom-spmi-gpio");
 MODULE_LICENSE("GPL v2");

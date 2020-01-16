@@ -22,7 +22,7 @@ struct max8998_battery_data {
 
 static enum power_supply_property max8998_battery_props[] = {
 	POWER_SUPPLY_PROP_PRESENT, /* the presence of battery */
-	POWER_SUPPLY_PROP_ONLINE, /* charger is active or not */
+	POWER_SUPPLY_PROP_ONLINE, /* charger is active or yest */
 };
 
 /* Note that the charger control is done by a current regulator "CHARGER" */
@@ -101,7 +101,7 @@ static int max8998_battery_probe(struct platform_device *pdev)
 				(pdata->eoc / 5 - 2) << 5, 0x7 << 5);
 	} else if (pdata->eoc == 0) {
 		dev_dbg(max8998->dev,
-			"EOC value not set: leave it unchanged.\n");
+			"EOC value yest set: leave it unchanged.\n");
 	} else {
 		dev_err(max8998->dev, "Invalid EOC value\n");
 		return -EINVAL;
@@ -123,7 +123,7 @@ static int max8998_battery_probe(struct platform_device *pdev)
 		break;
 	case 0:
 		dev_dbg(max8998->dev,
-			"Restart Level not set: leave it unchanged.\n");
+			"Restart Level yest set: leave it unchanged.\n");
 		break;
 	default:
 		dev_err(max8998->dev, "Invalid Restart Level\n");
@@ -146,7 +146,7 @@ static int max8998_battery_probe(struct platform_device *pdev)
 		break;
 	case 0:
 		dev_dbg(max8998->dev,
-			"Full Timeout not set: leave it unchanged.\n");
+			"Full Timeout yest set: leave it unchanged.\n");
 		break;
 	default:
 		dev_err(max8998->dev, "Invalid Full Timeout value\n");

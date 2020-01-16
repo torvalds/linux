@@ -7,7 +7,7 @@
  */
 
 #ifdef __NO_PA_HDRS
-    PA header file -- do not include this header file for non-PA builds.
+    PA header file -- do yest include this header file for yesn-PA builds.
 #endif
 
 /*
@@ -92,7 +92,7 @@
     inexact = guard | sticky;					\
     odd = Dbit2p2(srcB)
 
-#define Dbl_to_sgl_denormalized(srcA,srcB,exp,dest,inexact,guard,sticky,odd,tiny) \
+#define Dbl_to_sgl_deyesrmalized(srcA,srcB,exp,dest,inexact,guard,sticky,odd,tiny) \
     Deposit_dexponent(srcA,1);						\
     tiny = TRUE;							\
     if (exp >= -2) {							\

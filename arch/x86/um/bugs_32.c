@@ -53,7 +53,7 @@ void arch_examine_signal(int sig, struct uml_pt_regs *regs)
 		return;
 
 	if (copy_from_user_proc(tmp, (void *) UPT_IP(regs), 2)) {
-		printk(UM_KERN_ERR "SIGILL in init, could not read "
+		printk(UM_KERN_ERR "SIGILL in init, could yest read "
 		       "instructions!\n");
 		return;
 	}

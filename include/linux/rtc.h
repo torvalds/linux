@@ -59,7 +59,7 @@ extern struct class *rtc_class;
 /*
  * For these RTC methods the device parameter is the physical device
  * on whatever bus holds the hardware (I2C, Platform, SPI, etc), which
- * was passed to rtc_device_register().  Its driver_data normally holds
+ * was passed to rtc_device_register().  Its driver_data yesrmally holds
  * device state, including the rtc_device pointer for the RTC.
  *
  * Most of these methods are called with rtc_device.ops_lock held,
@@ -67,7 +67,7 @@ extern struct class *rtc_class;
  *
  * The (current) exceptions are mostly filesystem hooks:
  *   - the proc() hook for procfs
- *   - non-ioctl() chardev hooks:  open(), release()
+ *   - yesn-ioctl() chardev hooks:  open(), release()
  *
  * REVISIT those periodic irq calls *do* have ops_lock when they're
  * issued through ioctl() ...
@@ -87,7 +87,7 @@ struct rtc_class_ops {
 struct rtc_device;
 
 struct rtc_timer {
-	struct timerqueue_node node;
+	struct timerqueue_yesde yesde;
 	ktime_t period;
 	void (*func)(struct rtc_device *rtc);
 	struct rtc_device *rtc;
@@ -180,7 +180,7 @@ int __rtc_register_device(struct module *owner, struct rtc_device *rtc);
 
 extern int rtc_read_time(struct rtc_device *rtc, struct rtc_time *tm);
 extern int rtc_set_time(struct rtc_device *rtc, struct rtc_time *tm);
-extern int rtc_set_ntp_time(struct timespec64 now, unsigned long *target_nsec);
+extern int rtc_set_ntp_time(struct timespec64 yesw, unsigned long *target_nsec);
 int __rtc_read_alarm(struct rtc_device *rtc, struct rtc_wkalrm *alarm);
 extern int rtc_read_alarm(struct rtc_device *rtc,
 			struct rtc_wkalrm *alrm);
@@ -226,19 +226,19 @@ static inline bool is_leap_year(unsigned int year)
  *
  * This also computes 'to_set' which is the time we are trying to set, and has
  * a zero in tv_nsecs, such that:
- *    to_set - set_delay_nsec == now +/- FUZZ
+ *    to_set - set_delay_nsec == yesw +/- FUZZ
  *
  */
 static inline bool rtc_tv_nsec_ok(s64 set_offset_nsec,
 				  struct timespec64 *to_set,
-				  const struct timespec64 *now)
+				  const struct timespec64 *yesw)
 {
 	/* Allowed error in tv_nsec, arbitarily set to 5 jiffies in ns. */
 	const unsigned long TIME_SET_NSEC_FUZZ = TICK_NSEC * 5;
 	struct timespec64 delay = {.tv_sec = 0,
 				   .tv_nsec = set_offset_nsec};
 
-	*to_set = timespec64_add(*now, delay);
+	*to_set = timespec64_add(*yesw, delay);
 
 	if (to_set->tv_nsec < TIME_SET_NSEC_FUZZ) {
 		to_set->tv_nsec = 0;

@@ -3,7 +3,7 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright yestice and this permission yestice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
@@ -39,8 +39,8 @@ static int rsi_sdio_stats_read(struct seq_file *seq, void *data)
 		   dev->rx_info.buf_full_counter);
 	seq_printf(seq, "sdio_buf_semi_full_count %d\n",
 		   dev->rx_info.buf_semi_full_counter);
-	seq_printf(seq, "sdio_unknown_intr_count: %d\n",
-		   dev->rx_info.total_sdio_unknown_intr);
+	seq_printf(seq, "sdio_unkyeswn_intr_count: %d\n",
+		   dev->rx_info.total_sdio_unkyeswn_intr);
 	/* RX Path Stats */
 	seq_printf(seq, "BUFFER FULL STATUS  : %d\n",
 		   dev->rx_info.buffer_full);
@@ -61,15 +61,15 @@ static int rsi_sdio_stats_read(struct seq_file *seq, void *data)
 /**
  * rsi_sdio_stats_open() - This function calls single open function of seq_file
  *			   to open file and read contents from it.
- * @inode: Pointer to the inode structure.
+ * @iyesde: Pointer to the iyesde structure.
  * @file: Pointer to the file structure.
  *
  * Return: Pointer to the opened file status: 0 on success, ENOMEM on failure.
  */
-static int rsi_sdio_stats_open(struct inode *inode,
+static int rsi_sdio_stats_open(struct iyesde *iyesde,
 			       struct file *file)
 {
-	return single_open(file, rsi_sdio_stats_read, inode->i_private);
+	return single_open(file, rsi_sdio_stats_read, iyesde->i_private);
 }
 
 /**
@@ -85,7 +85,7 @@ static int rsi_version_read(struct seq_file *seq, void *data)
 
 	seq_printf(seq, "LMAC   : %d.%d.%d.%d\n",
 		   common->lmac_ver.major,
-		   common->lmac_ver.minor,
+		   common->lmac_ver.miyesr,
 		   common->lmac_ver.release_num,
 		   common->lmac_ver.patch_num);
 
@@ -95,15 +95,15 @@ static int rsi_version_read(struct seq_file *seq, void *data)
 /**
  * rsi_version_open() - This function calls single open function of seq_file to
  *			open file and read contents from it.
- * @inode: Pointer to the inode structure.
+ * @iyesde: Pointer to the iyesde structure.
  * @file: Pointer to the file structure.
  *
  * Return: Pointer to the opened file status: 0 on success, ENOMEM on failure.
  */
-static int rsi_version_open(struct inode *inode,
+static int rsi_version_open(struct iyesde *iyesde,
 				 struct file *file)
 {
-	return single_open(file, rsi_version_read, inode->i_private);
+	return single_open(file, rsi_version_read, iyesde->i_private);
 }
 
 /**
@@ -180,15 +180,15 @@ static int rsi_stats_read(struct seq_file *seq, void *data)
 /**
  * rsi_stats_open() - This function calls single open function of seq_file to
  *		      open file and read contents from it.
- * @inode: Pointer to the inode structure.
+ * @iyesde: Pointer to the iyesde structure.
  * @file: Pointer to the file structure.
  *
  * Return: Pointer to the opened file status: 0 on success, ENOMEM on failure.
  */
-static int rsi_stats_open(struct inode *inode,
+static int rsi_stats_open(struct iyesde *iyesde,
 			  struct file *file)
 {
-	return single_open(file, rsi_stats_read, inode->i_private);
+	return single_open(file, rsi_stats_read, iyesde->i_private);
 }
 
 /**
@@ -209,15 +209,15 @@ static int rsi_debug_zone_read(struct seq_file *seq, void *data)
 /**
  * rsi_debug_read() - This function calls single open function of seq_file to
  *		      open file and read contents from it.
- * @inode: Pointer to the inode structure.
+ * @iyesde: Pointer to the iyesde structure.
  * @file: Pointer to the file structure.
  *
  * Return: Pointer to the opened file status: 0 on success, ENOMEM on failure.
  */
-static int rsi_debug_read(struct inode *inode,
+static int rsi_debug_read(struct iyesde *iyesde,
 			  struct file *file)
 {
-	return single_open(file, rsi_debug_zone_read, inode->i_private);
+	return single_open(file, rsi_debug_zone_read, iyesde->i_private);
 }
 
 /**

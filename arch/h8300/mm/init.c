@@ -3,12 +3,12 @@
  *  linux/arch/h8300/mm/init.c
  *
  *  Copyright (C) 1998  D. Jeff Dionne <jeff@lineo.ca>,
- *                      Kenneth Albanowski <kjahds@kjahds.com>,
+ *                      Kenneth Albayeswski <kjahds@kjahds.com>,
  *  Copyright (C) 2000  Lineo, Inc.  (www.lineo.com)
  *
  *  Based on:
  *
- *  linux/arch/m68knommu/mm/init.c
+ *  linux/arch/m68kyesmmu/mm/init.c
  *  linux/arch/m68k/mm/init.c
  *
  *  Copyright (C) 1995  Hamish Macdonald
@@ -20,7 +20,7 @@
 #include <linux/signal.h>
 #include <linux/sched.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/string.h>
 #include <linux/types.h>
 #include <linux/ptrace.h>

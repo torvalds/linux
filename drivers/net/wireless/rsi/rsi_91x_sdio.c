@@ -3,7 +3,7 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright yestice and this permission yestice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
@@ -179,7 +179,7 @@ static void rsi_reset_card(struct sdio_func *pfunction)
 				 SDIO_CCCR_ABORT,
 				 (1 << 3));
 
-	/* Card will not send any response as it is getting reset immediately
+	/* Card will yest send any response as it is getting reset immediately
 	 * Hence expect a timeout status from host controller
 	 */
 	if (ret != -ETIMEDOUT)
@@ -253,7 +253,7 @@ static void rsi_reset_card(struct sdio_func *pfunction)
 	}
 
 	if ((i == 100) || (err)) {
-		rsi_dbg(ERR_ZONE, "%s: card in not ready : %d %d\n",
+		rsi_dbg(ERR_ZONE, "%s: card in yest ready : %d %d\n",
 			__func__, i, err);
 		return;
 	}
@@ -541,7 +541,7 @@ int rsi_sdio_write_register_multiple(struct rsi_hw *adapter,
 		return 0;
 	} else if (dev->write_fail == 1) {
 		/**
-		 * Assuming it is a CRC failure, we want to allow another
+		 * Assuming it is a CRC failure, we want to allow ayesther
 		 *  card write
 		 */
 		rsi_dbg(ERR_ZONE, "%s: Continue card writes\n", __func__);
@@ -771,19 +771,19 @@ static int rsi_sdio_host_intf_write_pkt(struct rsi_hw *adapter,
 		(struct rsi_91x_sdiodev *)adapter->rsi_dev;
 	u32 block_size = dev->tx_blk_size;
 	u32 num_blocks, address, length;
-	u32 queueno;
+	u32 queueyes;
 	int status;
 
-	queueno = ((pkt[1] >> 4) & 0xf);
-	if (queueno == RSI_BT_MGMT_Q || queueno == RSI_BT_DATA_Q)
-		queueno = RSI_BT_Q;
+	queueyes = ((pkt[1] >> 4) & 0xf);
+	if (queueyes == RSI_BT_MGMT_Q || queueyes == RSI_BT_DATA_Q)
+		queueyes = RSI_BT_Q;
 
 	num_blocks = len / block_size;
 
 	if (len % block_size)
 		num_blocks++;
 
-	address = (num_blocks * block_size | (queueno << 12));
+	address = (num_blocks * block_size | (queueyes << 12));
 	length  = num_blocks * block_size;
 
 	status = rsi_sdio_write_register_multiple(adapter,
@@ -1350,7 +1350,7 @@ static int rsi_sdio_enable_interrupts(struct sdio_func *pfunc)
 	if ((common->wow_flags & RSI_WOW_ENABLED) &&
 	    (common->wow_flags & RSI_WOW_NO_CONNECTION))
 		rsi_dbg(ERR_ZONE,
-			"##### Device can not wake up through WLAN\n");
+			"##### Device can yest wake up through WLAN\n");
 
 	ret = rsi_cmd52readbyte(pfunc->card, RSI_INT_ENABLE_REGISTER, &data);
 	if (ret < 0) {
@@ -1373,7 +1373,7 @@ static int rsi_suspend(struct device *dev)
 	struct rsi_common *common;
 
 	if (!adapter) {
-		rsi_dbg(ERR_ZONE, "Device is not ready\n");
+		rsi_dbg(ERR_ZONE, "Device is yest ready\n");
 		return -ENODEV;
 	}
 	common = adapter->priv;
@@ -1411,7 +1411,7 @@ static int rsi_freeze(struct device *dev)
 	rsi_dbg(INFO_ZONE, "SDIO Bus freeze ===>\n");
 
 	if (!adapter) {
-		rsi_dbg(ERR_ZONE, "Device is not ready\n");
+		rsi_dbg(ERR_ZONE, "Device is yest ready\n");
 		return -ENODEV;
 	}
 	common = adapter->priv;
@@ -1420,7 +1420,7 @@ static int rsi_freeze(struct device *dev)
 	if ((common->wow_flags & RSI_WOW_ENABLED) &&
 	    (common->wow_flags & RSI_WOW_NO_CONNECTION))
 		rsi_dbg(ERR_ZONE,
-			"##### Device can not wake up through WLAN\n");
+			"##### Device can yest wake up through WLAN\n");
 
 	if (IS_ENABLED(CONFIG_RSI_COEX) && common->coex_mode > 1 &&
 	    common->bt_adapter) {
@@ -1431,7 +1431,7 @@ static int rsi_freeze(struct device *dev)
 	ret = rsi_sdio_disable_interrupts(pfunction);
 
 	if (sdev->write_fail)
-		rsi_dbg(INFO_ZONE, "###### Device is not ready #######\n");
+		rsi_dbg(INFO_ZONE, "###### Device is yest ready #######\n");
 
 	ret = rsi_set_sdio_pm_caps(adapter);
 	if (ret)
@@ -1484,7 +1484,7 @@ static void rsi_shutdown(struct device *dev)
 	rsi_sdio_disable_interrupts(sdev->pfunction);
 
 	if (sdev->write_fail)
-		rsi_dbg(INFO_ZONE, "###### Device is not ready #######\n");
+		rsi_dbg(INFO_ZONE, "###### Device is yest ready #######\n");
 
 	if (rsi_set_sdio_pm_caps(adapter))
 		rsi_dbg(INFO_ZONE, "Setting power management caps failed\n");

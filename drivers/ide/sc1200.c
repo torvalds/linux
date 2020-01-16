@@ -40,7 +40,7 @@ static unsigned short sc1200_get_pci_clock (void)
 	unsigned char chip_id, silicon_revision;
 	unsigned int pci_clock;
 	/*
-	 * Check the silicon revision, as not all versions of the chip
+	 * Check the silicon revision, as yest all versions of the chip
 	 * have the register with the fast PCI bus timings.
 	 */
 	chip_id = inb (0x903c);
@@ -74,7 +74,7 @@ static const unsigned int sc1200_pio_timings[4][5] =
 	 {0xfff4fff4, 0xf35353d3, 0x814102f1, 0x42314231, 0x11311131}};	// format1, 66Mhz
 
 /*
- * After chip reset, the PIO timings are set to 0x00009172, which is not valid.
+ * After chip reset, the PIO timings are set to 0x00009172, which is yest valid.
  */
 //#define SC1200_BAD_PIO(timings) (((timings)&~0x80000000)==0x00009172)
 
@@ -93,11 +93,11 @@ static void sc1200_tunepio(ide_drive_t *drive, u8 pio)
 }
 
 /*
- *	The SC1200 specifies that two drives sharing a cable cannot mix
+ *	The SC1200 specifies that two drives sharing a cable canyest mix
  *	UDMA/MDMA.  It has to be one or the other, for the pair, though
  *	different timings can still be chosen for each drive.  We could
  *	set the appropriate timing bits on the fly, but that might be
- *	a bit confusing.  So, for now we statically handle this requirement
+ *	a bit confusing.  So, for yesw we statically handle this requirement
  *	by looking at our mate drive to see what it is capable of, before
  *	choosing a mode for our own drive.
  */

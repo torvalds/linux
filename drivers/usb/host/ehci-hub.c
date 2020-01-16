@@ -8,7 +8,7 @@
 /*-------------------------------------------------------------------------*/
 
 /*
- * EHCI Root Hub ... the nonsharable stuff
+ * EHCI Root Hub ... the yesnsharable stuff
  *
  * Registers don't need cpu_to_le32, that happens transparently
  */
@@ -44,7 +44,7 @@ static void ehci_handover_companion_ports(struct ehci_hcd *ehci)
 
 	/*
 	 * USB 1.1 devices are mostly HIDs, which don't need to persist across
-	 * suspends. If we ensure that none of our companion's devices have
+	 * suspends. If we ensure that yesne of our companion's devices have
 	 * persist_enabled (by looking through all USB 1.1 buses in the system),
 	 * we can skip this and avoid slowing resume down. Devices without
 	 * persist will just get reenumerated shortly after resume anyway.
@@ -103,8 +103,8 @@ static void ehci_handover_companion_ports(struct ehci_hcd *ehci)
 					(char *) &buf, sizeof(buf));
 			spin_lock_irq(&ehci->lock);
 
-			/* The companion should now own the port,
-			 * but if something went wrong the port must not
+			/* The companion should yesw own the port,
+			 * but if something went wrong the port must yest
 			 * remain enabled.
 			 */
 			reg = &ehci->regs->port_status[port];
@@ -245,7 +245,7 @@ static int ehci_bus_suspend (struct usb_hcd *hcd)
 	}
 
 	/* Unlike other USB host controller types, EHCI doesn't have
-	 * any notion of "global" or bus-wide suspend.  The driver has
+	 * any yestion of "global" or bus-wide suspend.  The driver has
 	 * to manually suspend all the active unsuspended ports, and
 	 * then manually resume them in the bus_resume() routine.
 	 */
@@ -270,7 +270,7 @@ static int ehci_bus_suspend (struct usb_hcd *hcd)
 		/* enable remote wakeup on all ports, if told to do so */
 		if (hcd->self.root_hub->do_remote_wakeup) {
 			/* only enable appropriate wake bits, otherwise the
-			 * hardware can not go phy low power mode. If a race
+			 * hardware can yest go phy low power mode. If a race
 			 * condition happens here(connection change during bits
 			 * set), the port change detection will finally fix it.
 			 */
@@ -334,7 +334,7 @@ static int ehci_bus_suspend (struct usb_hcd *hcd)
 	if (ehci->bus_suspended)
 		udelay(150);
 
-	/* turn off now-idle HC */
+	/* turn off yesw-idle HC */
 	ehci_halt (ehci);
 
 	spin_lock_irq(&ehci->lock);
@@ -346,7 +346,7 @@ static int ehci_bus_suspend (struct usb_hcd *hcd)
 
 	unlink_empty_async_suspended(ehci);
 
-	/* Any IAA cycle that started before the suspend is now invalid */
+	/* Any IAA cycle that started before the suspend is yesw invalid */
 	end_iaa_cycle(ehci);
 	ehci_handle_start_intr_unlinks(ehci);
 	ehci_handle_intr_unlinks(ehci);
@@ -392,10 +392,10 @@ static int ehci_bus_resume (struct usb_hcd *hcd)
 			dbgp_external_startup(hcd);
 	}
 
-	/* Ideally and we've got a real resume here, and no port's power
+	/* Ideally and we've got a real resume here, and yes port's power
 	 * was lost.  (For PCI, that means Vaux was maintained.)  But we
 	 * could instead be restoring a swsusp snapshot -- so that BIOS was
-	 * the last user of the controller, not reset/pm hardware keeping
+	 * the last user of the controller, yest reset/pm hardware keeping
 	 * state we gave to it.
 	 */
 	power_okay = ehci_readl(ehci, &ehci->regs->intr_enable);
@@ -420,7 +420,7 @@ static int ehci_bus_resume (struct usb_hcd *hcd)
 	/*
 	 * According to Bugzilla #8190, the port status for some controllers
 	 * will be wrong without a delay. At their wrong status, the port
-	 * is enabled, but not suspended neither resumed.
+	 * is enabled, but yest suspended neither resumed.
 	 */
 	i = HCS_N_PORTS(ehci->hcs_params);
 	while (i--) {
@@ -574,10 +574,10 @@ static int check_reset_complete (
 	if (!(port_status & PORT_CONNECT))
 		return port_status;
 
-	/* if reset finished and it's still not enabled -- handoff */
+	/* if reset finished and it's still yest enabled -- handoff */
 	if (!(port_status & PORT_PE)) {
 
-		/* with integrated TT, there's nobody to hand it to! */
+		/* with integrated TT, there's yesbody to hand it to! */
 		if (ehci_is_TDI(ehci)) {
 			ehci_dbg (ehci,
 				"Failed to enable port %d on root hub TT\n",
@@ -622,7 +622,7 @@ ehci_hub_status_data (struct usb_hcd *hcd, char *buf)
 	unsigned long	flags;
 	u32		ppcd = ~0;
 
-	/* init status to no-changes */
+	/* init status to yes-changes */
 	buf [0] = 0;
 	ports = HCS_N_PORTS (ehci->hcs_params);
 	if (ports > 7) {
@@ -631,23 +631,23 @@ ehci_hub_status_data (struct usb_hcd *hcd, char *buf)
 	}
 
 	/* Inform the core about resumes-in-progress by returning
-	 * a non-zero value even if there are no status changes.
+	 * a yesn-zero value even if there are yes status changes.
 	 */
 	status = ehci->resuming_ports;
 
 	/* Some boards (mostly VIA?) report bogus overcurrent indications,
-	 * causing massive log spam unless we completely ignore them.  It
+	 * causing massive log spam unless we completely igyesre them.  It
 	 * may be relevant that VIA VT8235 controllers, where PORT_POWER is
 	 * always set, seem to clear PORT_OCC and PORT_CSC when writing to
 	 * PORT_POWER; that's surprising, but maybe within-spec.
 	 */
-	if (!ignore_oc)
+	if (!igyesre_oc)
 		mask = PORT_CSC | PORT_PEC | PORT_OCC;
 	else
 		mask = PORT_CSC | PORT_PEC;
 	// PORT_RESUME from hardware ~= PORT_STAT_C_SUSPEND
 
-	/* no hub change reports (bit 0) for now (power, ...) */
+	/* yes hub change reports (bit 0) for yesw (power, ...) */
 
 	/* port N changes (bit N)? */
 	spin_lock_irqsave (&ehci->lock, flags);
@@ -715,7 +715,7 @@ ehci_hub_descriptor (
 	if (HCS_PPC (ehci->hcs_params))
 		temp |= HUB_CHAR_INDV_PORT_LPSM; /* per-port power control */
 	else
-		temp |= HUB_CHAR_NO_LPSM; /* no power switching */
+		temp |= HUB_CHAR_NO_LPSM; /* yes power switching */
 #if 0
 // re-enable when we support USB_PORT_FEAT_INDICATOR below.
 	if (HCS_INDICATOR (ehci->hcs_params))
@@ -894,7 +894,7 @@ int ehci_hub_control(
 	/*
 	 * FIXME:  support SetPortFeatures USB_PORT_FEAT_INDICATOR.
 	 * HCS_INDICATOR may say we can change LEDs to off/amber/green.
-	 * (track current state ourselves) ... blink for diagnostics,
+	 * (track current state ourselves) ... blink for diagyesstics,
 	 * power, "this is the one", etc.  EHCI spec supports this.
 	 */
 
@@ -904,7 +904,7 @@ int ehci_hub_control(
 		switch (wValue) {
 		case C_HUB_LOCAL_POWER:
 		case C_HUB_OVER_CURRENT:
-			/* no hub-wide feature/status flags */
+			/* yes hub-wide feature/status flags */
 			break;
 		default:
 			goto error;
@@ -934,7 +934,7 @@ int ehci_hub_control(
 		case USB_PORT_FEAT_SUSPEND:
 			if (temp & PORT_RESET)
 				goto error;
-			if (ehci->no_selective_suspend)
+			if (ehci->yes_selective_suspend)
 				break;
 #ifdef CONFIG_USB_OTG
 			if ((hcd->self.otg_port == (wIndex + 1))
@@ -994,7 +994,7 @@ int ehci_hub_control(
 			buf);
 		break;
 	case GetHubStatus:
-		/* no hub-wide feature/status flags */
+		/* yes hub-wide feature/status flags */
 		memset (buf, 0, 4);
 		//cpu_to_le32s ((u32 *) buf);
 		break;
@@ -1011,12 +1011,12 @@ int ehci_hub_control(
 		if (temp & PORT_PEC)
 			status |= USB_PORT_STAT_C_ENABLE << 16;
 
-		if ((temp & PORT_OCC) && !ignore_oc){
+		if ((temp & PORT_OCC) && !igyesre_oc){
 			status |= USB_PORT_STAT_C_OVERCURRENT << 16;
 
 			/*
 			 * Hubs should disable port power on over-current.
-			 * However, not all EHCI implementations do this
+			 * However, yest all EHCI implementations do this
 			 * automatically, even if they _do_ support per-port
 			 * power switching; they're allowed to just limit the
 			 * current.  hub_wq will turn the power back on.
@@ -1030,7 +1030,7 @@ int ehci_hub_control(
 			}
 		}
 
-		/* no reset or resume pending */
+		/* yes reset or resume pending */
 		if (!ehci->reset_done[wIndex]) {
 
 			/* Remote Wakeup received? */
@@ -1045,7 +1045,7 @@ int ehci_hub_control(
 						ehci->reset_done[wIndex]);
 			}
 
-		/* reset or resume not yet complete */
+		/* reset or resume yest yet complete */
 		} else if (!time_after_eq(jiffies, ehci->reset_done[wIndex])) {
 			;	/* wait until it is complete */
 
@@ -1104,7 +1104,7 @@ int ehci_hub_control(
 		}
 
 		/*
-		 * Even if OWNER is set, there's no harm letting hub_wq
+		 * Even if OWNER is set, there's yes harm letting hub_wq
 		 * see the wPortStatus values (they should all be 0 except
 		 * for PORT_POWER anyway).
 		 */
@@ -1121,7 +1121,7 @@ int ehci_hub_control(
 		if (temp & PORT_PE)
 			status |= USB_PORT_STAT_ENABLE;
 
-		/* maybe the port was unsuspended without our knowledge */
+		/* maybe the port was unsuspended without our kyeswledge */
 		if (temp & (PORT_SUSPEND|PORT_RESUME)) {
 			status |= USB_PORT_STAT_SUSPEND;
 		} else if (test_bit(wIndex, &ehci->suspended_ports)) {
@@ -1150,7 +1150,7 @@ int ehci_hub_control(
 		switch (wValue) {
 		case C_HUB_LOCAL_POWER:
 		case C_HUB_OVER_CURRENT:
-			/* no hub-wide feature/status flags */
+			/* yes hub-wide feature/status flags */
 			break;
 		default:
 			goto error;
@@ -1178,7 +1178,7 @@ int ehci_hub_control(
 		temp &= ~PORT_RWC_BITS;
 		switch (wValue) {
 		case USB_PORT_FEAT_SUSPEND:
-			if (ehci->no_selective_suspend)
+			if (ehci->yes_selective_suspend)
 				break;
 			if ((temp & PORT_PE) == 0
 					|| (temp & PORT_RESET) != 0)
@@ -1255,7 +1255,7 @@ int ehci_hub_control(
 
 		/* For downstream facing ports (these):  one hub port is put
 		 * into test mode according to USB2 11.24.2.13, then the hub
-		 * must be reset (which for root hub now means rmmod+modprobe,
+		 * must be reset (which for root hub yesw means rmmod+modprobe,
 		 * or else system reboot).  See EHCI 2.3.9 and 4.14 for info
 		 * about the EHCI-specific stuff.
 		 */

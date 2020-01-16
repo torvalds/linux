@@ -77,13 +77,13 @@ static struct regmap_irq_chip tps65912_irq_chip = {
 	.init_ack_masked = true,
 };
 
-static const struct regmap_range tps65912_yes_ranges[] = {
+static const struct regmap_range tps65912_no_ranges[] = {
 	regmap_reg_range(TPS65912_INT_STS, TPS65912_GPIO5),
 };
 
 static const struct regmap_access_table tps65912_volatile_table = {
-	.yes_ranges = tps65912_yes_ranges,
-	.n_yes_ranges = ARRAY_SIZE(tps65912_yes_ranges),
+	.no_ranges = tps65912_no_ranges,
+	.n_no_ranges = ARRAY_SIZE(tps65912_no_ranges),
 };
 
 const struct regmap_config tps65912_regmap_config = {

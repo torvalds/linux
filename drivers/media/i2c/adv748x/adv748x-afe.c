@@ -70,7 +70,7 @@ static int adv748x_afe_status(struct adv748x_afe *afe, u32 *signal,
 	if (!std)
 		return 0;
 
-	/* Standard not valid if there is no signal */
+	/* Standard yest valid if there is yes signal */
 	if (!(info & ADV748X_SDP_RO_10_IN_LOCK)) {
 		*std = V4L2_STD_UNKNOWN;
 		return 0;
@@ -119,7 +119,7 @@ static void adv748x_afe_fill_format(struct adv748x_afe *afe,
 	fmt->field = V4L2_FIELD_ALTERNATE;
 
 	fmt->width = 720;
-	fmt->height = afe->curr_norm & V4L2_STD_525_60 ? 480 : 576;
+	fmt->height = afe->curr_yesrm & V4L2_STD_525_60 ? 480 : 576;
 
 	/* Field height */
 	fmt->height /= 2;
@@ -166,12 +166,12 @@ static int adv748x_afe_g_pixelaspect(struct v4l2_subdev *sd,
 {
 	struct adv748x_afe *afe = adv748x_sd_to_afe(sd);
 
-	if (afe->curr_norm & V4L2_STD_525_60) {
+	if (afe->curr_yesrm & V4L2_STD_525_60) {
 		aspect->numerator = 11;
-		aspect->denominator = 10;
+		aspect->deyesminator = 10;
 	} else {
 		aspect->numerator = 54;
-		aspect->denominator = 59;
+		aspect->deyesminator = 59;
 	}
 
 	return 0;
@@ -181,11 +181,11 @@ static int adv748x_afe_g_pixelaspect(struct v4l2_subdev *sd,
  * v4l2_subdev_video_ops
  */
 
-static int adv748x_afe_g_std(struct v4l2_subdev *sd, v4l2_std_id *norm)
+static int adv748x_afe_g_std(struct v4l2_subdev *sd, v4l2_std_id *yesrm)
 {
 	struct adv748x_afe *afe = adv748x_sd_to_afe(sd);
 
-	*norm = afe->curr_norm;
+	*yesrm = afe->curr_yesrm;
 
 	return 0;
 }
@@ -202,7 +202,7 @@ static int adv748x_afe_s_std(struct v4l2_subdev *sd, v4l2_std_id std)
 	mutex_lock(&state->mutex);
 
 	adv748x_afe_set_video_standard(state, afe_std);
-	afe->curr_norm = std;
+	afe->curr_yesrm = std;
 
 	mutex_unlock(&state->mutex);
 
@@ -232,7 +232,7 @@ static int adv748x_afe_querystd(struct v4l2_subdev *sd, v4l2_std_id *std)
 	/* Read detected standard */
 	ret = adv748x_afe_status(afe, NULL, std);
 
-	afe_std = adv748x_afe_std(afe->curr_norm);
+	afe_std = adv748x_afe_std(afe->curr_yesrm);
 	if (afe_std < 0)
 		goto unlock;
 
@@ -245,9 +245,9 @@ unlock:
 	return ret;
 }
 
-static int adv748x_afe_g_tvnorms(struct v4l2_subdev *sd, v4l2_std_id *norm)
+static int adv748x_afe_g_tvyesrms(struct v4l2_subdev *sd, v4l2_std_id *yesrm)
 {
-	*norm = V4L2_STD_ALL;
+	*yesrm = V4L2_STD_ALL;
 
 	return 0;
 }
@@ -304,7 +304,7 @@ static const struct v4l2_subdev_video_ops adv748x_afe_video_ops = {
 	.g_std = adv748x_afe_g_std,
 	.s_std = adv748x_afe_s_std,
 	.querystd = adv748x_afe_querystd,
-	.g_tvnorms = adv748x_afe_g_tvnorms,
+	.g_tvyesrms = adv748x_afe_g_tvyesrms,
 	.g_input_status = adv748x_afe_g_input_status,
 	.s_stream = adv748x_afe_s_stream,
 	.g_pixelaspect = adv748x_afe_g_pixelaspect,
@@ -349,7 +349,7 @@ static int adv748x_afe_get_format(struct v4l2_subdev *sd,
 	struct adv748x_afe *afe = adv748x_sd_to_afe(sd);
 	struct v4l2_mbus_framefmt *mbusformat;
 
-	/* It makes no sense to get the format of the analog sink pads */
+	/* It makes yes sense to get the format of the analog sink pads */
 	if (sdformat->pad != ADV748X_AFE_SOURCE)
 		return -EINVAL;
 
@@ -370,7 +370,7 @@ static int adv748x_afe_set_format(struct v4l2_subdev *sd,
 {
 	struct v4l2_mbus_framefmt *mbusformat;
 
-	/* It makes no sense to get the format of the analog sink pads */
+	/* It makes yes sense to get the format of the analog sink pads */
 	if (sdformat->pad != ADV748X_AFE_SOURCE)
 		return -EINVAL;
 
@@ -506,7 +506,7 @@ int adv748x_afe_init(struct adv748x_afe *afe)
 
 	afe->input = 0;
 	afe->streaming = false;
-	afe->curr_norm = V4L2_STD_NTSC_M;
+	afe->curr_yesrm = V4L2_STD_NTSC_M;
 
 	adv748x_subdev_init(&afe->sd, state, &adv748x_afe_ops,
 			    MEDIA_ENT_F_ATV_DECODER, "afe");

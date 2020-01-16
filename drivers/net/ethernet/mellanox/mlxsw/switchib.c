@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0
-/* Copyright (c) 2016-2018 Mellanox Technologies. All rights reserved */
+/* Copyright (c) 2016-2018 Mellayesx Techyeslogies. All rights reserved */
 
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -65,7 +65,7 @@ MLXSW_ITEM32(tx_v1, hdr, proto, 0x00, 21, 3);
 MLXSW_ITEM32(tx_v1, hdr, swid, 0x00, 12, 3);
 
 /* tx_v1_hdr_control_tclass
- * Indicates if the packet should use the control TClass and not one
+ * Indicates if the packet should use the control TClass and yest one
  * of the data TClasses.
  */
 MLXSW_ITEM32(tx_v1, hdr, control_tclass, 0x00, 6, 1);
@@ -383,7 +383,7 @@ static void mlxsw_sib_pude_event_func(const struct mlxsw_reg_info *reg,
 	local_port = mlxsw_reg_pude_local_port_get(pude_pl);
 	mlxsw_sib_port = mlxsw_sib->ports[local_port];
 	if (!mlxsw_sib_port) {
-		dev_warn(mlxsw_sib->bus_info->dev, "Port %d: Link event received for non-existent port\n",
+		dev_warn(mlxsw_sib->bus_info->dev, "Port %d: Link event received for yesn-existent port\n",
 			 local_port);
 		return;
 	}
@@ -588,8 +588,8 @@ module_init(mlxsw_sib_module_init);
 module_exit(mlxsw_sib_module_exit);
 
 MODULE_LICENSE("Dual BSD/GPL");
-MODULE_AUTHOR("Elad Raz <eladr@@mellanox.com>");
-MODULE_DESCRIPTION("Mellanox SwitchIB and SwitchIB-2 driver");
+MODULE_AUTHOR("Elad Raz <eladr@@mellayesx.com>");
+MODULE_DESCRIPTION("Mellayesx SwitchIB and SwitchIB-2 driver");
 MODULE_ALIAS("mlxsw_switchib2");
 MODULE_DEVICE_TABLE(pci, mlxsw_sib_pci_id_table);
 MODULE_DEVICE_TABLE(pci, mlxsw_sib2_pci_id_table);

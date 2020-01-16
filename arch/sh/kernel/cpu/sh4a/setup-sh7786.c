@@ -3,7 +3,7 @@
  * SH7786 Setup
  *
  * Copyright (C) 2009 - 2011  Renesas Solutions Corp.
- * Kuninori Morimoto <morimoto.kuninori@renesas.com>
+ * Kuniyesri Morimoto <morimoto.kuniyesri@renesas.com>
  * Paul Mundt <paul.mundt@renesas.com>
  *
  * Based on SH7785 Setup

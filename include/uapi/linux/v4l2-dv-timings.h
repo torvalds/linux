@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 /*
  * V4L2 DV timings header.
  *
@@ -19,7 +19,7 @@
 
 #if __GNUC__ < 4 || (__GNUC__ == 4 && (__GNUC_MINOR__ < 6))
 /* Sadly gcc versions older than 4.6 have a bug in how they initialize
-   anonymous unions where they require additional curly brackets.
+   ayesnymous unions where they require additional curly brackets.
    This violates the C1x standard. This workaround adds the curly brackets
    if needed. */
 #define V4L2_INIT_BT_TIMINGS(_width, args...) \
@@ -39,7 +39,7 @@
 		V4L2_DV_FL_HAS_CEA861_VIC, { 0, 0 }, 1) \
 }
 
-/* Note: these are the nominal timings, for HDMI links this format is typically
+/* Note: these are the yesminal timings, for HDMI links this format is typically
  * double-clocked to meet the minimum pixelclock requirements.  */
 #define V4L2_DV_BT_CEA_720X480I59_94 { \
 	.type = V4L2_DV_BT_656_1120, \
@@ -60,7 +60,7 @@
 		V4L2_DV_FL_HAS_CEA861_VIC, { 4, 3 }, 2) \
 }
 
-/* Note: these are the nominal timings, for HDMI links this format is typically
+/* Note: these are the yesminal timings, for HDMI links this format is typically
  * double-clocked to meet the minimum pixelclock requirements.  */
 #define V4L2_DV_BT_CEA_720X576I50 { \
 	.type = V4L2_DV_BT_656_1120, \

@@ -9,11 +9,11 @@
  * modification, are permitted provided that the following conditions are met:
  *
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
+ *    yestice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the names of the copyright holders nor the names of its
+ * 3. Neither the names of the copyright holders yesr the names of its
  *    contributors may be used to endorse or promote products derived from
  *    this software without specific prior written permission.
  *
@@ -45,21 +45,21 @@
 
 static inline u32 tipc_own_addr(struct net *net)
 {
-	return tipc_net(net)->node_addr;
+	return tipc_net(net)->yesde_addr;
 }
 
 static inline u8 *tipc_own_id(struct net *net)
 {
 	struct tipc_net *tn = tipc_net(net);
 
-	if (!strlen(tn->node_id_string))
+	if (!strlen(tn->yesde_id_string))
 		return NULL;
-	return tn->node_id;
+	return tn->yesde_id;
 }
 
 static inline char *tipc_own_id_string(struct net *net)
 {
-	return tipc_net(net)->node_id_string;
+	return tipc_net(net)->yesde_id_string;
 }
 
 static inline u32 tipc_cluster_mask(u32 addr)
@@ -67,25 +67,25 @@ static inline u32 tipc_cluster_mask(u32 addr)
 	return addr & TIPC_ZONE_CLUSTER_MASK;
 }
 
-static inline int tipc_node2scope(u32 node)
+static inline int tipc_yesde2scope(u32 yesde)
 {
-	return node ? TIPC_NODE_SCOPE : TIPC_CLUSTER_SCOPE;
+	return yesde ? TIPC_NODE_SCOPE : TIPC_CLUSTER_SCOPE;
 }
 
-static inline int tipc_scope2node(struct net *net, int sc)
+static inline int tipc_scope2yesde(struct net *net, int sc)
 {
 	return sc != TIPC_NODE_SCOPE ? 0 : tipc_own_addr(net);
 }
 
-static inline int in_own_node(struct net *net, u32 addr)
+static inline int in_own_yesde(struct net *net, u32 addr)
 {
 	return addr == tipc_own_addr(net) || !addr;
 }
 
 bool tipc_in_scope(bool legacy_format, u32 domain, u32 addr);
-void tipc_set_node_id(struct net *net, u8 *id);
-void tipc_set_node_addr(struct net *net, u32 addr);
-char *tipc_nodeid2string(char *str, u8 *id);
-u32 tipc_node_id2hash(u8 *id128);
+void tipc_set_yesde_id(struct net *net, u8 *id);
+void tipc_set_yesde_addr(struct net *net, u32 addr);
+char *tipc_yesdeid2string(char *str, u8 *id);
+u32 tipc_yesde_id2hash(u8 *id128);
 
 #endif

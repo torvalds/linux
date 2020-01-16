@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -86,7 +86,7 @@ struct qxl_bo {
 	int                             type;
 
 	/* Constant after initialization */
-	unsigned int is_primary:1; /* is this now a primary surface */
+	unsigned int is_primary:1; /* is this yesw a primary surface */
 	unsigned int is_dumb:1;
 	struct qxl_bo *shadow;
 	unsigned int hw_surf_alloc:1;
@@ -234,7 +234,7 @@ struct qxl_device {
 
 	spinlock_t	release_lock;
 	struct idr	release_idr;
-	uint32_t	release_seqno;
+	uint32_t	release_seqyes;
 	spinlock_t release_idr_lock;
 	struct mutex	async_io_mutex;
 	unsigned int last_sent_io_cmd;
@@ -296,8 +296,8 @@ int qxl_vram_evict(struct qxl_device *qdev);
 struct qxl_ring *qxl_ring_create(struct qxl_ring_header *header,
 				 int element_size,
 				 int n_elements,
-				 int prod_notify,
-				 bool set_prod_notify,
+				 int prod_yestify,
+				 bool set_prod_yestify,
 				 wait_queue_head_t *push_event);
 void qxl_ring_free(struct qxl_ring *ring);
 void qxl_ring_init_hdr(struct qxl_ring *ring);
@@ -381,7 +381,7 @@ void qxl_io_create_primary(struct qxl_device *qdev,
 			   struct qxl_bo *bo);
 void qxl_io_destroy_primary(struct qxl_device *qdev);
 void qxl_io_memslot_add(struct qxl_device *qdev, uint8_t id);
-void qxl_io_notify_oom(struct qxl_device *qdev);
+void qxl_io_yestify_oom(struct qxl_device *qdev);
 
 int qxl_io_update_area(struct qxl_device *qdev, struct qxl_bo *surf,
 		       const struct qxl_rect *area);
@@ -398,7 +398,7 @@ void qxl_release_unmap(struct qxl_device *qdev,
 		       struct qxl_release *release,
 		       union qxl_release_info *info);
 int qxl_release_list_add(struct qxl_release *release, struct qxl_bo *bo);
-int qxl_release_reserve_list(struct qxl_release *release, bool no_intr);
+int qxl_release_reserve_list(struct qxl_release *release, bool yes_intr);
 void qxl_release_backoff_reserve_list(struct qxl_release *release);
 void qxl_release_fence_buffer_objects(struct qxl_release *release);
 
@@ -442,7 +442,7 @@ int qxl_garbage_collect(struct qxl_device *qdev);
 
 /* debugfs */
 
-int qxl_debugfs_init(struct drm_minor *minor);
+int qxl_debugfs_init(struct drm_miyesr *miyesr);
 int qxl_ttm_debugfs_init(struct qxl_device *qdev);
 
 /* qxl_prime.c */

@@ -40,7 +40,7 @@ static int pdiag_put_mclist(const struct packet_sock *po, struct sk_buff *nlskb)
 	struct nlattr *mca;
 	struct packet_mclist *ml;
 
-	mca = nla_nest_start_noflag(nlskb, PACKET_DIAG_MCLIST);
+	mca = nla_nest_start_yesflag(nlskb, PACKET_DIAG_MCLIST);
 	if (!mca)
 		return -EMSGSIZE;
 
@@ -48,7 +48,7 @@ static int pdiag_put_mclist(const struct packet_sock *po, struct sk_buff *nlskb)
 	for (ml = po->mclist; ml; ml = ml->next) {
 		struct packet_diag_mclist *dml;
 
-		dml = nla_reserve_nohdr(nlskb, sizeof(*dml));
+		dml = nla_reserve_yeshdr(nlskb, sizeof(*dml));
 		if (!dml) {
 			rtnl_unlock();
 			nla_nest_cancel(nlskb, mca);
@@ -110,18 +110,18 @@ static int pdiag_put_rings_cfg(struct packet_sock *po, struct sk_buff *skb)
 	return ret;
 }
 
-static int pdiag_put_fanout(struct packet_sock *po, struct sk_buff *nlskb)
+static int pdiag_put_fayesut(struct packet_sock *po, struct sk_buff *nlskb)
 {
 	int ret = 0;
 
-	mutex_lock(&fanout_mutex);
-	if (po->fanout) {
+	mutex_lock(&fayesut_mutex);
+	if (po->fayesut) {
 		u32 val;
 
-		val = (u32)po->fanout->id | ((u32)po->fanout->type << 16);
+		val = (u32)po->fayesut->id | ((u32)po->fayesut->type << 16);
 		ret = nla_put_u32(nlskb, PACKET_DIAG_FANOUT, val);
 	}
-	mutex_unlock(&fanout_mutex);
+	mutex_unlock(&fayesut_mutex);
 
 	return ret;
 }
@@ -130,7 +130,7 @@ static int sk_diag_fill(struct sock *sk, struct sk_buff *skb,
 			struct packet_diag_req *req,
 			bool may_report_filterinfo,
 			struct user_namespace *user_ns,
-			u32 portid, u32 seq, u32 flags, int sk_ino)
+			u32 portid, u32 seq, u32 flags, int sk_iyes)
 {
 	struct nlmsghdr *nlh;
 	struct packet_diag_msg *rp;
@@ -144,7 +144,7 @@ static int sk_diag_fill(struct sock *sk, struct sk_buff *skb,
 	rp->pdiag_family = AF_PACKET;
 	rp->pdiag_type = sk->sk_type;
 	rp->pdiag_num = ntohs(po->num);
-	rp->pdiag_ino = sk_ino;
+	rp->pdiag_iyes = sk_iyes;
 	sock_diag_save_cookie(sk, rp->pdiag_cookie);
 
 	if ((req->pdiag_show & PACKET_SHOW_INFO) &&
@@ -165,7 +165,7 @@ static int sk_diag_fill(struct sock *sk, struct sk_buff *skb,
 		goto out_nlmsg_trim;
 
 	if ((req->pdiag_show & PACKET_SHOW_FANOUT) &&
-			pdiag_put_fanout(po, skb))
+			pdiag_put_fayesut(po, skb))
 		goto out_nlmsg_trim;
 
 	if ((req->pdiag_show & PACKET_SHOW_MEMINFO) &&
@@ -209,7 +209,7 @@ static int packet_diag_dump(struct sk_buff *skb, struct netlink_callback *cb)
 				 sk_user_ns(NETLINK_CB(cb->skb).sk),
 				 NETLINK_CB(cb->skb).portid,
 				 cb->nlh->nlmsg_seq, NLM_F_MULTI,
-				 sock_i_ino(sk)) < 0)
+				 sock_i_iyes(sk)) < 0)
 			goto done;
 next:
 		num++;

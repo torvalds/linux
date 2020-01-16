@@ -508,9 +508,9 @@ static void repaper_get_temperature(struct repaper_epd *epd)
 	epd->factored_stage_time = epd->stage_time * factor10x / 10;
 }
 
-static void repaper_gray8_to_mono_reversed(u8 *buf, u32 width, u32 height)
+static void repaper_gray8_to_moyes_reversed(u8 *buf, u32 width, u32 height)
 {
-	u8 *gray8 = buf, *mono = buf;
+	u8 *gray8 = buf, *moyes = buf;
 	int y, xb, i;
 
 	for (y = 0; y < height; y++)
@@ -524,7 +524,7 @@ static void repaper_gray8_to_mono_reversed(u8 *buf, u32 width, u32 height)
 				if (gray8[y * width + x] >> 7)
 					byte |= BIT(7);
 			}
-			*mono++ = byte;
+			*moyes++ = byte;
 		}
 }
 
@@ -576,7 +576,7 @@ static int repaper_fb_dirty(struct drm_framebuffer *fb)
 			goto out_free;
 	}
 
-	repaper_gray8_to_mono_reversed(buf, fb->width, fb->height);
+	repaper_gray8_to_moyes_reversed(buf, fb->width, fb->height);
 
 	if (epd->partial) {
 		repaper_frame_data_repeat(epd, buf, epd->current_frame,
@@ -676,7 +676,7 @@ static void repaper_pipe_enable(struct drm_simple_display_pipe *pipe,
 
 	gpiod_set_value_cansleep(epd->panel_on, 1);
 	/*
-	 * This delay comes from the repaper.org userspace driver, it's not
+	 * This delay comes from the repaper.org userspace driver, it's yest
 	 * mentioned in the datasheet.
 	 */
 	usleep_range(10000, 15000);
@@ -798,7 +798,7 @@ static void repaper_pipe_disable(struct drm_simple_display_pipe *pipe)
 	unsigned int line;
 
 	/*
-	 * This callback is not protected by drm_dev_enter/exit since we want to
+	 * This callback is yest protected by drm_dev_enter/exit since we want to
 	 * turn off the display on regular driver unload. It's highly unlikely
 	 * that the underlying SPI controller is gone should this be called after
 	 * unplug.
@@ -832,7 +832,7 @@ static void repaper_pipe_disable(struct drm_simple_display_pipe *pipe)
 		msleep(200);
 	}
 
-	/* not described in datasheet */
+	/* yest described in datasheet */
 	repaper_write_val(spi, 0x0b, 0x00);
 	/* Latch reset turn on */
 	repaper_write_val(spi, 0x03, 0x01);
@@ -970,7 +970,7 @@ static struct drm_driver repaper_driver = {
 	.desc			= "Pervasive Displays RePaper e-ink panels",
 	.date			= "20170405",
 	.major			= 1,
-	.minor			= 0,
+	.miyesr			= 0,
 };
 
 static const struct of_device_id repaper_of_match[] = {

@@ -92,13 +92,13 @@ static int stm32_sai_sync_conf_provider(struct stm32_sai_data *sai, int synco)
 		return ret;
 
 	dev_dbg(&sai->pdev->dev, "Set %pOFn%s as synchro provider\n",
-		sai->pdev->dev.of_node,
+		sai->pdev->dev.of_yesde,
 		synco == STM_SAI_SYNC_OUT_A ? "A" : "B");
 
 	prev_synco = FIELD_GET(SAI_GCR_SYNCOUT_MASK, readl_relaxed(sai->base));
 	if (prev_synco != STM_SAI_SYNC_OUT_NONE && synco != prev_synco) {
 		dev_err(&sai->pdev->dev, "%pOFn%s already set as sync provider\n",
-			sai->pdev->dev.of_node,
+			sai->pdev->dev.of_yesde,
 			prev_synco == STM_SAI_SYNC_OUT_A ? "A" : "B");
 		stm32_sai_pclk_disable(&sai->pdev->dev);
 		return -EINVAL;
@@ -112,24 +112,24 @@ static int stm32_sai_sync_conf_provider(struct stm32_sai_data *sai, int synco)
 }
 
 static int stm32_sai_set_sync(struct stm32_sai_data *sai_client,
-			      struct device_node *np_provider,
+			      struct device_yesde *np_provider,
 			      int synco, int synci)
 {
-	struct platform_device *pdev = of_find_device_by_node(np_provider);
+	struct platform_device *pdev = of_find_device_by_yesde(np_provider);
 	struct stm32_sai_data *sai_provider;
 	int ret;
 
 	if (!pdev) {
 		dev_err(&sai_client->pdev->dev,
-			"Device not found for node %pOFn\n", np_provider);
-		of_node_put(np_provider);
+			"Device yest found for yesde %pOFn\n", np_provider);
+		of_yesde_put(np_provider);
 		return -ENODEV;
 	}
 
 	sai_provider = platform_get_drvdata(pdev);
 	if (!sai_provider) {
 		dev_err(&sai_client->pdev->dev,
-			"SAI sync provider data not found\n");
+			"SAI sync provider data yest found\n");
 		ret = -EINVAL;
 		goto error;
 	}
@@ -144,7 +144,7 @@ static int stm32_sai_set_sync(struct stm32_sai_data *sai_client,
 
 error:
 	put_device(&pdev->dev);
-	of_node_put(np_provider);
+	of_yesde_put(np_provider);
 	return ret;
 }
 
@@ -238,7 +238,7 @@ static int stm32_sai_probe(struct platform_device *pdev)
 #ifdef CONFIG_PM_SLEEP
 /*
  * When pins are shared by two sai sub instances, pins have to be defined
- * in sai parent node. In this case, pins state is not managed by alsa fw.
+ * in sai parent yesde. In this case, pins state is yest managed by alsa fw.
  * These pins are managed in suspend/resume callbacks.
  */
 static int stm32_sai_suspend(struct device *dev)

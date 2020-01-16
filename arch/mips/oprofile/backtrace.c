@@ -162,7 +162,7 @@ static inline void do_kernel_backtrace(unsigned long low_addr,
 }
 #endif
 
-void notrace op_mips_backtrace(struct pt_regs *const regs, unsigned int depth)
+void yestrace op_mips_backtrace(struct pt_regs *const regs, unsigned int depth)
 {
 	struct stackframe frame = { .sp = regs->regs[29],
 				    .pc = regs->cp0_epc,

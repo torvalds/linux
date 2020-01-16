@@ -14,7 +14,7 @@
  * @index: index of the requested event, in the range 0 .. nr_events
  *
  * This returns pointer to the element of the events array with the given index
- * If @tep is NULL, or @index is not in the range 0 .. nr_events, NULL is returned.
+ * If @tep is NULL, or @index is yest in the range 0 .. nr_events, NULL is returned.
  */
 struct tep_event *tep_get_event(struct tep_handle *tep, int index)
 {
@@ -265,7 +265,7 @@ bool tep_is_file_bigendian(struct tep_handle *tep)
 /**
  * tep_set_file_bigendian - set if the file is in big endian order
  * @tep: a handle to the tep_handle
- * @endian: non zero, if the file is in big endian order
+ * @endian: yesn zero, if the file is in big endian order
  *
  * This sets if the file is in big endian order
  */
@@ -292,7 +292,7 @@ bool tep_is_local_bigendian(struct tep_handle *tep)
 /**
  * tep_set_local_bigendian - set the stored local machine endian order
  * @tep: a handle to the tep_handle
- * @endian: non zero, if the local host has big endian order
+ * @endian: yesn zero, if the local host has big endian order
  *
  * This sets the endian order for the local machine.
  */
@@ -307,7 +307,7 @@ void tep_set_local_bigendian(struct tep_handle *tep, enum tep_endian endian)
  * @tep: a handle to the tep_handle
  *
  * This returns true, if an old kernel is used to generate the tracing events or
- * false if a new kernel is used. Old kernels did not have header page info.
+ * false if a new kernel is used. Old kernels did yest have header page info.
  * If @tep is NULL, false is returned.
  */
 bool tep_is_old_format(struct tep_handle *tep)

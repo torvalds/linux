@@ -21,7 +21,7 @@ struct drm_i915_private;
  * the term "client" to avoid confusion with hardware contexts. This
  * GEM object is held for the entire lifetime of our interaction with
  * the GuC, being allocated before the GuC is loaded with its firmware.
- * Because there's no way to update the address used by the GuC after
+ * Because there's yes way to update the address used by the GuC after
  * initialisation, the shared object must stay pinned into the GGTT as
  * long as the GuC is in use. We also keep the first page (only) mapped
  * into kernel address space, as it includes shared data that must be
@@ -52,8 +52,8 @@ struct intel_guc_client {
 	/* Protects GuC client's WQ access */
 	spinlock_t wq_lock;
 
-	/* For testing purposes, use nop WQ items instead of real ones */
-	I915_SELFTEST_DECLARE(bool use_nop_wqi);
+	/* For testing purposes, use yesp WQ items instead of real ones */
+	I915_SELFTEST_DECLARE(bool use_yesp_wqi);
 };
 
 void intel_guc_submission_init_early(struct intel_guc *guc);

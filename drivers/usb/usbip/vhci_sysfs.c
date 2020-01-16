@@ -11,7 +11,7 @@
 #include <linux/slab.h>
 
 /* Hardening for Spectre-v1 */
-#include <linux/nospec.h>
+#include <linux/yesspec.h>
 
 #include "usbip_common.h"
 #include "vhci.h"
@@ -29,7 +29,7 @@
  * Output includes socket fd instead of socket pointer address to avoid
  * leaking kernel memory address in:
  *	/sys/devices/platform/vhci_hcd.0/status and in debug output.
- * The socket pointer address is not used at the moment and it was made
+ * The socket pointer address is yest used at the moment and it was made
  * visible as a convenient way to find IP address from socket pointer
  * address by looking up /proc/net/{tcp,tcp6}. As this opens a security
  * hole, the change is made to use sockfd instead.
@@ -104,7 +104,7 @@ static ssize_t status_show_vhci(int pdev_nr, char *out)
 	return out - s;
 }
 
-static ssize_t status_show_not_ready(int pdev_nr, char *out)
+static ssize_t status_show_yest_ready(int pdev_nr, char *out)
 {
 	char *s = out;
 	int i = 0;
@@ -155,7 +155,7 @@ static ssize_t status_show(struct device *dev,
 
 	pdev_nr = status_name_to_id(attr->attr.name);
 	if (pdev_nr < 0)
-		out += status_show_not_ready(pdev_nr, out);
+		out += status_show_yest_ready(pdev_nr, out);
 	else
 		out += status_show_vhci(pdev_nr, out);
 
@@ -190,7 +190,7 @@ static int vhci_port_disconnect(struct vhci_hcd *vhci_hcd, __u32 rhport)
 	spin_lock(&vdev->ud.lock);
 
 	if (vdev->ud.status == VDEV_ST_NULL) {
-		pr_err("not connected %d\n", vdev->ud.status);
+		pr_err("yest connected %d\n", vdev->ud.status);
 
 		/* unlock */
 		spin_unlock(&vdev->ud.lock);
@@ -214,13 +214,13 @@ static int valid_port(__u32 *pdev_nr, __u32 *rhport)
 		pr_err("pdev %u\n", *pdev_nr);
 		return 0;
 	}
-	*pdev_nr = array_index_nospec(*pdev_nr, vhci_num_controllers);
+	*pdev_nr = array_index_yesspec(*pdev_nr, vhci_num_controllers);
 
 	if (*rhport >= VHCI_HC_PORTS) {
 		pr_err("rhport %u\n", *rhport);
 		return 0;
 	}
-	*rhport = array_index_nospec(*rhport, VHCI_HC_PORTS);
+	*rhport = array_index_yesspec(*rhport, VHCI_HC_PORTS);
 
 	return 1;
 }
@@ -244,7 +244,7 @@ static ssize_t detach_store(struct device *dev, struct device_attribute *attr,
 
 	hcd = platform_get_drvdata(vhcis[pdev_nr].pdev);
 	if (hcd == NULL) {
-		dev_err(dev, "port is not ready %u\n", port);
+		dev_err(dev, "port is yest ready %u\n", port);
 		return -EAGAIN;
 	}
 
@@ -298,7 +298,7 @@ static int valid_args(__u32 *pdev_nr, __u32 *rhport,
  * @speed. @devid is embedded into a request to specify the remote device in a
  * server host.
  *
- * write() returns 0 on success, else negative errno.
+ * write() returns 0 on success, else negative erryes.
  */
 static ssize_t attach_store(struct device *dev, struct device_attribute *attr,
 			    const char *buf, size_t count)
@@ -335,7 +335,7 @@ static ssize_t attach_store(struct device *dev, struct device_attribute *attr,
 
 	hcd = platform_get_drvdata(vhcis[pdev_nr].pdev);
 	if (hcd == NULL) {
-		dev_err(dev, "port %d is not ready\n", port);
+		dev_err(dev, "port %d is yest ready\n", port);
 		return -EAGAIN;
 	}
 
@@ -352,7 +352,7 @@ static ssize_t attach_store(struct device *dev, struct device_attribute *attr,
 	if (!socket)
 		return -EINVAL;
 
-	/* now need lock until setting vdev status as used */
+	/* yesw need lock until setting vdev status as used */
 
 	/* begin a lock */
 	spin_lock_irqsave(&vhci->lock, flags);
@@ -368,7 +368,7 @@ static ssize_t attach_store(struct device *dev, struct device_attribute *attr,
 		dev_err(dev, "port %d already used\n", rhport);
 		/*
 		 * Will be retried from userspace
-		 * if there's another free port.
+		 * if there's ayesther free port.
 		 */
 		return -EBUSY;
 	}

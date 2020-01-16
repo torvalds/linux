@@ -83,8 +83,8 @@ static void ingenic_tcu_gc_mask_disable_reg_and_ack(struct irq_data *d)
 	irq_gc_unlock(gc);
 }
 
-static int __init ingenic_tcu_irq_init(struct device_node *np,
-				       struct device_node *parent)
+static int __init ingenic_tcu_irq_init(struct device_yesde *np,
+				       struct device_yesde *parent)
 {
 	struct irq_chip_generic *gc;
 	struct irq_chip_type *ct;
@@ -93,7 +93,7 @@ static int __init ingenic_tcu_irq_init(struct device_node *np,
 	unsigned int i;
 	int ret, irqs;
 
-	map = device_node_to_regmap(np);
+	map = device_yesde_to_regmap(np);
 	if (IS_ERR(map))
 		return PTR_ERR(map);
 

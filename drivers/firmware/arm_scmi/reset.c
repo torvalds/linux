@@ -13,7 +13,7 @@ enum scmi_reset_protocol_cmd {
 	RESET_NOTIFY = 0x5,
 };
 
-enum scmi_reset_protocol_notify {
+enum scmi_reset_protocol_yestify {
 	RESET_ISSUED = 0x0,
 };
 
@@ -42,7 +42,7 @@ struct scmi_msg_reset_domain_reset {
 
 struct reset_dom_info {
 	bool async_reset;
-	bool reset_notify;
+	bool reset_yestify;
 	u32 latency_us;
 	char name[SCMI_MAX_STR_SIZE];
 };
@@ -96,7 +96,7 @@ scmi_reset_domain_attributes_get(const struct scmi_handle *handle, u32 domain,
 		u32 attributes = le32_to_cpu(attr->attributes);
 
 		dom_info->async_reset = SUPPORTS_ASYNC_RESET(attributes);
-		dom_info->reset_notify = SUPPORTS_NOTIFY_RESET(attributes);
+		dom_info->reset_yestify = SUPPORTS_NOTIFY_RESET(attributes);
 		dom_info->latency_us = le32_to_cpu(attr->latency);
 		if (dom_info->latency_us == U32_MAX)
 			dom_info->latency_us = 0;

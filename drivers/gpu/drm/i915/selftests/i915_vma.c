@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -73,13 +73,13 @@ checked_vma_instance(struct drm_i915_gem_object *obj,
 
 	/* Manual checks, will be reinforced by i915_vma_compare! */
 	if (vma->vm != vm) {
-		pr_err("VMA's vm [%p] does not match request [%p]\n",
+		pr_err("VMA's vm [%p] does yest match request [%p]\n",
 		       vma->vm, vm);
 		ok = false;
 	}
 
 	if (i915_is_ggtt(vm) != i915_vma_is_ggtt(vma)) {
-		pr_err("VMA ggtt status [%d] does not match parent [%d]\n",
+		pr_err("VMA ggtt status [%d] does yest match parent [%d]\n",
 		       i915_vma_is_ggtt(vma), i915_is_ggtt(vm));
 		ok = false;
 	}
@@ -152,7 +152,7 @@ static int igt_vma_create(void *arg)
 	struct drm_i915_gem_object *obj, *on;
 	struct i915_gem_context *ctx, *cn;
 	unsigned long num_obj, num_ctx;
-	unsigned long no, nc;
+	unsigned long yes, nc;
 	IGT_TIMEOUT(end_time);
 	LIST_HEAD(contexts);
 	LIST_HEAD(objects);
@@ -162,9 +162,9 @@ static int igt_vma_create(void *arg)
 	 * vma creation and lookup routines.
 	 */
 
-	no = 0;
+	yes = 0;
 	for_each_prime_number(num_obj, ULONG_MAX - 1) {
-		for (; no < num_obj; no++) {
+		for (; yes < num_obj; yes++) {
 			obj = i915_gem_object_create_internal(i915, PAGE_SIZE);
 			if (IS_ERR(obj))
 				goto out;
@@ -188,7 +188,7 @@ static int igt_vma_create(void *arg)
 
 			if (igt_timeout(end_time,
 					"%s timed out: after %lu objects in %lu contexts\n",
-					__func__, no, nc))
+					__func__, yes, nc))
 				goto end;
 		}
 
@@ -237,7 +237,7 @@ static bool assert_pin_valid(const struct i915_vma *vma,
 }
 
 __maybe_unused
-static bool assert_pin_enospc(const struct i915_vma *vma,
+static bool assert_pin_eyesspc(const struct i915_vma *vma,
 			      const struct pin_mode *mode,
 			      int result)
 {
@@ -259,7 +259,7 @@ static int igt_vma_pin1(void *arg)
 #define VALID(sz, fl) { .size = (sz), .flags = (fl), .assert = assert_pin_valid, .string = #sz ", " #fl ", (valid) " }
 #define __INVALID(sz, fl, check, eval) { .size = (sz), .flags = (fl), .assert = (check), .string = #sz ", " #fl ", (invalid " #eval ")" }
 #define INVALID(sz, fl) __INVALID(sz, fl, assert_pin_einval, EINVAL)
-#define NOSPACE(sz, fl) __INVALID(sz, fl, assert_pin_enospc, ENOSPC)
+#define NOSPACE(sz, fl) __INVALID(sz, fl, assert_pin_eyesspc, ENOSPC)
 		VALID(0, PIN_GLOBAL),
 		VALID(0, PIN_GLOBAL | PIN_MAPPABLE),
 
@@ -291,7 +291,7 @@ static int igt_vma_pin1(void *arg)
 		VALID(8192, PIN_GLOBAL | PIN_OFFSET_BIAS | (ggtt->mappable_end - 4096)),
 
 #if !IS_ENABLED(CONFIG_DRM_I915_DEBUG_GEM)
-		/* Misusing BIAS is a programming error (it is not controllable
+		/* Misusing BIAS is a programming error (it is yest controllable
 		 * from userspace) so when debugging is enabled, it explodes.
 		 * However, the tests are still quite interesting for checking
 		 * variable start, end and size.
@@ -567,9 +567,9 @@ static int igt_vma_rotate_remap(void *arg)
 						goto out_object;
 					}
 
-					if (vma->node.size < vma->size) {
+					if (vma->yesde.size < vma->size) {
 						pr_err("VMA binding too small, expected %llu, found %llu\n",
-						       vma->size, vma->node.size);
+						       vma->size, vma->yesde.size);
 						err = -EINVAL;
 						goto out_object;
 					}
@@ -661,9 +661,9 @@ static bool assert_pin(struct i915_vma *vma,
 		ok = false;
 	}
 
-	if (vma->node.size < vma->size) {
+	if (vma->yesde.size < vma->size) {
 		pr_err("(%s) VMA binding too small, expected %llu, found %llu\n",
-		       name, vma->size, vma->node.size);
+		       name, vma->size, vma->yesde.size);
 		ok = false;
 	}
 
@@ -681,13 +681,13 @@ static bool assert_pin(struct i915_vma *vma,
 		}
 	} else {
 		if (vma->ggtt_view.type != I915_GGTT_VIEW_NORMAL) {
-			pr_err("Not the normal ggtt view! Found %d\n",
+			pr_err("Not the yesrmal ggtt view! Found %d\n",
 			       vma->ggtt_view.type);
 			ok = false;
 		}
 
 		if (vma->pages != vma->obj->mm.pages) {
-			pr_err("VMA not using object pages!\n");
+			pr_err("VMA yest using object pages!\n");
 			ok = false;
 		}
 	}
@@ -770,7 +770,7 @@ static int igt_vma_partial(void *arg)
 		list_for_each_entry(vma, &obj->vma.list, obj_link)
 			count++;
 		if (count != nvma) {
-			pr_err("(%s) All partial vma were not recorded on the obj->vma_list: found %u, expected %u\n",
+			pr_err("(%s) All partial vma were yest recorded on the obj->vma_list: found %u, expected %u\n",
 			       p->name, count, nvma);
 			err = -EINVAL;
 			goto out_object;

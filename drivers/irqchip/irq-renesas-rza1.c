@@ -114,7 +114,7 @@ static int rza1_irqc_alloc(struct irq_domain *domain, unsigned int virq,
 	if (ret)
 		return ret;
 
-	spec.fwnode = &priv->dev->of_node->fwnode;
+	spec.fwyesde = &priv->dev->of_yesde->fwyesde;
 	spec.param_count = priv->map[hwirq].args_count;
 	for (i = 0; i < spec.param_count; i++)
 		spec.param[i] = priv->map[hwirq].args[i];
@@ -140,15 +140,15 @@ static const struct irq_domain_ops rza1_irqc_domain_ops = {
 };
 
 static int rza1_irqc_parse_map(struct rza1_irqc_priv *priv,
-			       struct device_node *gic_node)
+			       struct device_yesde *gic_yesde)
 {
 	unsigned int imaplen, i, j, ret;
 	struct device *dev = priv->dev;
-	struct device_node *ipar;
+	struct device_yesde *ipar;
 	const __be32 *imap;
 	u32 intsize;
 
-	imap = of_get_property(dev->of_node, "interrupt-map", &imaplen);
+	imap = of_get_property(dev->of_yesde, "interrupt-map", &imaplen);
 	if (!imap)
 		return -EINVAL;
 
@@ -156,13 +156,13 @@ static int rza1_irqc_parse_map(struct rza1_irqc_priv *priv,
 		if (imaplen < 3)
 			return -EINVAL;
 
-		/* Check interrupt number, ignore sense */
+		/* Check interrupt number, igyesre sense */
 		if (be32_to_cpup(imap) != i)
 			return -EINVAL;
 
-		ipar = of_find_node_by_phandle(be32_to_cpup(imap + 2));
-		if (ipar != gic_node) {
-			of_node_put(ipar);
+		ipar = of_find_yesde_by_phandle(be32_to_cpup(imap + 2));
+		if (ipar != gic_yesde) {
+			of_yesde_put(ipar);
 			return -EINVAL;
 		}
 
@@ -170,7 +170,7 @@ static int rza1_irqc_parse_map(struct rza1_irqc_priv *priv,
 		imaplen -= 3;
 
 		ret = of_property_read_u32(ipar, "#interrupt-cells", &intsize);
-		of_node_put(ipar);
+		of_yesde_put(ipar);
 		if (ret)
 			return ret;
 
@@ -190,9 +190,9 @@ static int rza1_irqc_parse_map(struct rza1_irqc_priv *priv,
 static int rza1_irqc_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 	struct irq_domain *parent = NULL;
-	struct device_node *gic_node;
+	struct device_yesde *gic_yesde;
 	struct rza1_irqc_priv *priv;
 	int ret;
 
@@ -207,20 +207,20 @@ static int rza1_irqc_probe(struct platform_device *pdev)
 	if (IS_ERR(priv->base))
 		return PTR_ERR(priv->base);
 
-	gic_node = of_irq_find_parent(np);
-	if (gic_node)
-		parent = irq_find_host(gic_node);
+	gic_yesde = of_irq_find_parent(np);
+	if (gic_yesde)
+		parent = irq_find_host(gic_yesde);
 
 	if (!parent) {
-		dev_err(dev, "cannot find parent domain\n");
+		dev_err(dev, "canyest find parent domain\n");
 		ret = -ENODEV;
-		goto out_put_node;
+		goto out_put_yesde;
 	}
 
-	ret = rza1_irqc_parse_map(priv, gic_node);
+	ret = rza1_irqc_parse_map(priv, gic_yesde);
 	if (ret) {
-		dev_err(dev, "cannot parse %s: %d\n", "interrupt-map", ret);
-		goto out_put_node;
+		dev_err(dev, "canyest parse %s: %d\n", "interrupt-map", ret);
+		goto out_put_yesde;
 	}
 
 	priv->chip.name = "rza1-irqc",
@@ -235,12 +235,12 @@ static int rza1_irqc_probe(struct platform_device *pdev)
 						    np, &rza1_irqc_domain_ops,
 						    priv);
 	if (!priv->irq_domain) {
-		dev_err(dev, "cannot initialize irq domain\n");
+		dev_err(dev, "canyest initialize irq domain\n");
 		ret = -ENOMEM;
 	}
 
-out_put_node:
-	of_node_put(gic_node);
+out_put_yesde:
+	of_yesde_put(gic_yesde);
 	return ret;
 }
 

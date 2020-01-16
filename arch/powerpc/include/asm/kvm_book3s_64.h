@@ -60,7 +60,7 @@ struct kvm_nested_guest {
 
 /* Structure for a nested guest rmap entry */
 struct rmap_nested {
-	struct llist_node list;
+	struct llist_yesde list;
 	u64 rmap;
 };
 
@@ -68,7 +68,7 @@ struct rmap_nested {
  * for_each_nest_rmap_safe - iterate over the list of nested rmap entries
  *			     safe against removal of the list entry or NULL list
  * @pos:	a (struct rmap_nested *) to use as a loop cursor
- * @node:	pointer to the first entry
+ * @yesde:	pointer to the first entry
  *		NOTE: this can be NULL
  * @rmapp:	an (unsigned long *) in which to return the rmap entries on each
  *		iteration
@@ -77,12 +77,12 @@ struct rmap_nested {
  * The nested_rmap is a llist of (struct rmap_nested) entries pointed to by the
  * rmap entry in the memslot. The list is always terminated by a "single entry"
  * stored in the list element of the final entry of the llist. If there is ONLY
- * a single entry then this is itself in the rmap entry of the memslot, not a
+ * a single entry then this is itself in the rmap entry of the memslot, yest a
  * llist head pointer.
  *
  * Note that the iterator below assumes that a nested rmap entry is always
- * non-zero.  This is true for our usage because the LPID field is always
- * non-zero (zero is reserved for the host).
+ * yesn-zero.  This is true for our usage because the LPID field is always
+ * yesn-zero (zero is reserved for the host).
  *
  * This should be used to iterate over the list of rmap_nested entries with
  * processing done on the u64 rmap value given by each iteration. This is safe
@@ -90,22 +90,22 @@ struct rmap_nested {
  *
  * e.g.
  * struct rmap_nested *cursor;
- * struct llist_node *first;
+ * struct llist_yesde *first;
  * unsigned long rmap;
  * for_each_nest_rmap_safe(cursor, first, &rmap) {
  *	do_something(rmap);
  *	free(cursor);
  * }
  */
-#define for_each_nest_rmap_safe(pos, node, rmapp)			       \
-	for ((pos) = llist_entry((node), typeof(*(pos)), list);		       \
-	     (node) &&							       \
-	     (*(rmapp) = ((RMAP_NESTED_IS_SINGLE_ENTRY & ((u64) (node))) ?     \
-			  ((u64) (node)) : ((pos)->rmap))) &&		       \
-	     (((node) = ((RMAP_NESTED_IS_SINGLE_ENTRY & ((u64) (node))) ?      \
-			 ((struct llist_node *) ((pos) = NULL)) :	       \
+#define for_each_nest_rmap_safe(pos, yesde, rmapp)			       \
+	for ((pos) = llist_entry((yesde), typeof(*(pos)), list);		       \
+	     (yesde) &&							       \
+	     (*(rmapp) = ((RMAP_NESTED_IS_SINGLE_ENTRY & ((u64) (yesde))) ?     \
+			  ((u64) (yesde)) : ((pos)->rmap))) &&		       \
+	     (((yesde) = ((RMAP_NESTED_IS_SINGLE_ENTRY & ((u64) (yesde))) ?      \
+			 ((struct llist_yesde *) ((pos) = NULL)) :	       \
 			 (pos)->list.next)), true);			       \
-	     (pos) = llist_entry((node), typeof(*(pos)), list))
+	     (pos) = llist_entry((yesde), typeof(*(pos)), list))
 
 struct kvm_nested_guest *kvmhv_get_nested(struct kvm *kvm, int l1_lpid,
 					  bool create);
@@ -157,7 +157,7 @@ static inline bool kvmhv_vcpu_is_radix(struct kvm_vcpu *vcpu)
 
 /*
  * We use a lock bit in HPTE dword 0 to synchronize updates and
- * accesses to each HPTE, and another bit to indicate non-present
+ * accesses to each HPTE, and ayesther bit to indicate yesn-present
  * HPTEs.
  */
 #define HPTE_V_HVLOCK	0x40UL
@@ -214,7 +214,7 @@ static inline void __unlock_hpte(__be64 *hpte, unsigned long hpte_v)
 }
 
 /*
- * These functions encode knowledge of the POWER7/8/9 hardware
+ * These functions encode kyeswledge of the POWER7/8/9 hardware
  * interpretations of the HPTE LP (large page size) field.
  */
 static inline int kvmppc_hpte_page_shifts(unsigned long h, unsigned long l)
@@ -310,10 +310,10 @@ static inline unsigned long compute_tlbie_rb(unsigned long v, unsigned long r,
 	}
 
 	/*
-	 * Ignore the top 14 bits of va
+	 * Igyesre the top 14 bits of va
 	 * v have top two bits covering segment size, hence move
 	 * by 16 bits, Also clear the lower HPTE_V_AVPN_SHIFT (7) bits.
-	 * AVA field in v also have the lower 23 bits ignored.
+	 * AVA field in v also have the lower 23 bits igyesred.
 	 * For base page size 4K we need 14 .. 65 bits (so need to
 	 * collect extra 11 bits)
 	 * For others we need 14..14+i
@@ -354,7 +354,7 @@ static inline unsigned long compute_tlbie_rb(unsigned long v, unsigned long r,
 		 */
 		rb |= (va_low << b_pgshift) & 0x7ff000;
 		/*
-		 * Now clear not needed LP bits based on actual psize
+		 * Now clear yest needed LP bits based on actual psize
 		 */
 		rb &= ~((1ul << a_pgshift) - 1);
 		/*
@@ -433,7 +433,7 @@ static inline pte_t kvmppc_read_update_linux_pte(pte_t *ptep, int writing)
 			cpu_relax();
 			continue;
 		}
-		/* If pte is not present return None */
+		/* If pte is yest present return None */
 		if (unlikely(!(pte_val(old_pte) & _PAGE_PRESENT)))
 			return __pte(0);
 
@@ -520,7 +520,7 @@ static inline int is_vrma_hpte(unsigned long hpte_v)
  * Note modification of an HPTE; set the HPTE modified bit
  * if anyone is interested.
  */
-static inline void note_hpte_modification(struct kvm *kvm,
+static inline void yeste_hpte_modification(struct kvm *kvm,
 					  struct revmap_entry *rev)
 {
 	if (atomic_read(&kvm->arch.hpte_mod_interest))

@@ -45,7 +45,7 @@ static int gen6_verify_ring_freq(struct intel_llc *llc)
 
 		found = (val >> 0) & 0xff;
 		if (found != ia_freq) {
-			pr_err("Min freq table(%d/[%d, %d]):%dMHz did not match expected CPU freq, found %d, expected %d\n",
+			pr_err("Min freq table(%d/[%d, %d]):%dMHz did yest match expected CPU freq, found %d, expected %d\n",
 			       gpu_freq, consts.min_gpu_freq, consts.max_gpu_freq,
 			       intel_gpu_freq(rps, gpu_freq * (INTEL_GEN(i915) >= 9 ? GEN9_FREQ_SCALER : 1)),
 			       found, ia_freq);
@@ -55,7 +55,7 @@ static int gen6_verify_ring_freq(struct intel_llc *llc)
 
 		found = (val >> 8) & 0xff;
 		if (found != ring_freq) {
-			pr_err("Min freq table(%d/[%d, %d]):%dMHz did not match expected ring freq, found %d, expected %d\n",
+			pr_err("Min freq table(%d/[%d, %d]):%dMHz did yest match expected ring freq, found %d, expected %d\n",
 			       gpu_freq, consts.min_gpu_freq, consts.max_gpu_freq,
 			       intel_gpu_freq(rps, gpu_freq * (INTEL_GEN(i915) >= 9 ? GEN9_FREQ_SCALER : 1)),
 			       found, ring_freq);

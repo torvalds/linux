@@ -21,14 +21,14 @@
 #define GET_SYSTEM_STATUS 0x00
 
 struct nvec_power {
-	struct notifier_block notifier;
+	struct yestifier_block yestifier;
 	struct delayed_work poller;
 	struct nvec_chip *nvec;
 	int on;
 	int bat_present;
 	int bat_status;
-	int bat_voltage_now;
-	int bat_current_now;
+	int bat_voltage_yesw;
+	int bat_current_yesw;
 	int bat_current_avg;
 	int time_remain;
 	int charge_full_design;
@@ -81,11 +81,11 @@ struct bat_response {
 static struct power_supply *nvec_bat_psy;
 static struct power_supply *nvec_psy;
 
-static int nvec_power_notifier(struct notifier_block *nb,
+static int nvec_power_yestifier(struct yestifier_block *nb,
 			       unsigned long event_type, void *data)
 {
 	struct nvec_power *power =
-	    container_of(nb, struct nvec_power, notifier);
+	    container_of(nb, struct nvec_power, yestifier);
 	struct bat_response *res = data;
 
 	if (event_type != NVEC_SYS)
@@ -117,11 +117,11 @@ static void get_bat_mfg_data(struct nvec_power *power)
 	}
 }
 
-static int nvec_power_bat_notifier(struct notifier_block *nb,
+static int nvec_power_bat_yestifier(struct yestifier_block *nb,
 				   unsigned long event_type, void *data)
 {
 	struct nvec_power *power =
-	    container_of(nb, struct nvec_power, notifier);
+	    container_of(nb, struct nvec_power, yestifier);
 	struct bat_response *res = data;
 	int status_changed = 0;
 
@@ -166,13 +166,13 @@ static int nvec_power_bat_notifier(struct notifier_block *nb,
 			power_supply_changed(nvec_bat_psy);
 		break;
 	case VOLTAGE:
-		power->bat_voltage_now = res->plu * 1000;
+		power->bat_voltage_yesw = res->plu * 1000;
 		break;
 	case TIME_REMAINING:
 		power->time_remain = res->plu * 3600;
 		break;
 	case CURRENT:
-		power->bat_current_now = res->pls * 1000;
+		power->bat_current_yesw = res->pls * 1000;
 		break;
 	case AVERAGE_CURRENT:
 		power->bat_current_avg = res->pls * 1000;
@@ -252,10 +252,10 @@ static int nvec_battery_get_property(struct power_supply *psy,
 		val->intval = power->bat_present;
 		break;
 	case POWER_SUPPLY_PROP_VOLTAGE_NOW:
-		val->intval = power->bat_voltage_now;
+		val->intval = power->bat_voltage_yesw;
 		break;
 	case POWER_SUPPLY_PROP_CURRENT_NOW:
-		val->intval = power->bat_current_now;
+		val->intval = power->bat_current_yesw;
 		break;
 	case POWER_SUPPLY_PROP_CURRENT_AVG:
 		val->intval = power->bat_current_avg;
@@ -391,7 +391,7 @@ static int nvec_power_probe(struct platform_device *pdev)
 		psy_cfg.supplied_to = nvec_power_supplied_to;
 		psy_cfg.num_supplicants = ARRAY_SIZE(nvec_power_supplied_to);
 
-		power->notifier.notifier_call = nvec_power_notifier;
+		power->yestifier.yestifier_call = nvec_power_yestifier;
 
 		INIT_DELAYED_WORK(&power->poller, nvec_power_poll);
 		schedule_delayed_work(&power->poller, msecs_to_jiffies(5000));
@@ -400,13 +400,13 @@ static int nvec_power_probe(struct platform_device *pdev)
 		psy = &nvec_bat_psy;
 		psy_desc = &nvec_bat_psy_desc;
 
-		power->notifier.notifier_call = nvec_power_bat_notifier;
+		power->yestifier.yestifier_call = nvec_power_bat_yestifier;
 		break;
 	default:
 		return -ENODEV;
 	}
 
-	nvec_register_notifier(nvec, &power->notifier, NVEC_SYS);
+	nvec_register_yestifier(nvec, &power->yestifier, NVEC_SYS);
 
 	if (pdev->id == BAT)
 		get_bat_mfg_data(power);
@@ -421,7 +421,7 @@ static int nvec_power_remove(struct platform_device *pdev)
 	struct nvec_power *power = platform_get_drvdata(pdev);
 
 	cancel_delayed_work_sync(&power->poller);
-	nvec_unregister_notifier(power->nvec, &power->notifier);
+	nvec_unregister_yestifier(power->nvec, &power->yestifier);
 	switch (pdev->id) {
 	case AC:
 		power_supply_unregister(nvec_psy);

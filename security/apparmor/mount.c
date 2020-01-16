@@ -5,7 +5,7 @@
  * This file contains AppArmor mediation of files
  *
  * Copyright (C) 1998-2008 Novell/SUSE
- * Copyright 2009-2017 Canonical Ltd.
+ * Copyright 2009-2017 Cayesnical Ltd.
  */
 
 #include <linux/fs.h>
@@ -31,11 +31,11 @@ static void audit_mnt_flags(struct audit_buffer *ab, unsigned long flags)
 	else
 		audit_log_format(ab, "rw");
 	if (flags & MS_NOSUID)
-		audit_log_format(ab, ", nosuid");
+		audit_log_format(ab, ", yessuid");
 	if (flags & MS_NODEV)
-		audit_log_format(ab, ", nodev");
+		audit_log_format(ab, ", yesdev");
 	if (flags & MS_NOEXEC)
-		audit_log_format(ab, ", noexec");
+		audit_log_format(ab, ", yesexec");
 	if (flags & MS_SYNCHRONOUS)
 		audit_log_format(ab, ", sync");
 	if (flags & MS_REMOUNT)
@@ -45,9 +45,9 @@ static void audit_mnt_flags(struct audit_buffer *ab, unsigned long flags)
 	if (flags & MS_DIRSYNC)
 		audit_log_format(ab, ", dirsync");
 	if (flags & MS_NOATIME)
-		audit_log_format(ab, ", noatime");
+		audit_log_format(ab, ", yesatime");
 	if (flags & MS_NODIRATIME)
-		audit_log_format(ab, ", nodiratime");
+		audit_log_format(ab, ", yesdiratime");
 	if (flags & MS_BIND)
 		audit_log_format(ab, flags & MS_REC ? ", rbind" : ", bind");
 	if (flags & MS_MOVE)
@@ -75,7 +75,7 @@ static void audit_mnt_flags(struct audit_buffer *ab, unsigned long flags)
 	if (flags & MS_STRICTATIME)
 		audit_log_format(ab, ", strictatime");
 	if (flags & MS_NOUSER)
-		audit_log_format(ab, ", nouser");
+		audit_log_format(ab, ", yesuser");
 }
 
 /**
@@ -142,7 +142,7 @@ static int audit_mount(struct aa_profile *profile, const char *op,
 		if (unlikely(AUDIT_MODE(profile) == AUDIT_ALL))
 			mask = 0xffff;
 
-		/* mask off perms that are not being force audited */
+		/* mask off perms that are yest being force audited */
 		request &= mask;
 
 		if (likely(!request))
@@ -155,7 +155,7 @@ static int audit_mount(struct aa_profile *profile, const char *op,
 		if (request & perms->kill)
 			audit_type = AUDIT_APPARMOR_KILL;
 
-		/* quiet known rejects, assumes quiet and kill do not overlap */
+		/* quiet kyeswn rejects, assumes quiet and kill do yest overlap */
 		if ((request & perms->quiet) &&
 		    AUDIT_MODE(profile) != AUDIT_NOQUIET &&
 		    AUDIT_MODE(profile) != AUDIT_ALL)
@@ -270,7 +270,7 @@ static int do_match_mnt(struct aa_dfa *dfa, unsigned int start,
 	if (perms->allow & AA_MAY_MOUNT)
 		return 0;
 
-	/* only match data if not binary and the DFA flags data is expected */
+	/* only match data if yest binary and the DFA flags data is expected */
 	if (data && !binary && (perms->allow & AA_MNT_CONT_MATCH)) {
 		state = aa_dfa_null_transition(dfa, state);
 		if (!state)
@@ -295,7 +295,7 @@ static int path_flags(struct aa_profile *profile, const struct path *path)
 	AA_BUG(!path);
 
 	return profile->path_flags |
-		(S_ISDIR(path->dentry->d_inode->i_mode) ? PATH_IS_DIR : 0);
+		(S_ISDIR(path->dentry->d_iyesde->i_mode) ? PATH_IS_DIR : 0);
 }
 
 /**
@@ -633,7 +633,7 @@ int aa_umount(struct aa_label *label, struct vfsmount *mnt, int flags)
 
 /* helper fn for transition on pivotroot
  *
- * Returns: label for transition or ERR_PTR. Does not return NULL
+ * Returns: label for transition or ERR_PTR. Does yest return NULL
  */
 static struct aa_label *build_pivotroot(struct aa_profile *profile,
 					const struct path *new_path,

@@ -82,13 +82,13 @@ struct max11801_data {
 
 static u8 read_register(struct i2c_client *client, int addr)
 {
-	/* XXX: The chip ignores LSB of register address */
+	/* XXX: The chip igyesres LSB of register address */
 	return i2c_smbus_read_byte_data(client, addr << 1);
 }
 
 static int max11801_write_reg(struct i2c_client *client, int addr, int data)
 {
-	/* XXX: The chip ignores LSB of register address */
+	/* XXX: The chip igyesres LSB of register address */
 	return i2c_smbus_write_byte_data(client, addr << 1, data);
 }
 

@@ -299,7 +299,7 @@ static int fsl_emb_start(struct op_counter_config *ctr)
 		if (ctr[i].enabled) {
 			ctr_write(i, reset_value[i]);
 			/* Set each enabled counter to only
-			 * count when the Mark bit is *not* set */
+			 * count when the Mark bit is *yest* set */
 			set_pmc_marked(i, 1, 0);
 			pmc_start_ctr(i, 1);
 		} else {
@@ -363,7 +363,7 @@ static void fsl_emb_handle_interrupt(struct pt_regs *regs,
 	/* The freeze bit was set by the interrupt. */
 	/* Clear the freeze bit, and reenable the interrupt.  The
 	 * counters won't actually start until the rfi clears the PMM
-	 * bit.  The PMM bit should not be set until after the interrupt
+	 * bit.  The PMM bit should yest be set until after the interrupt
 	 * is cleared to avoid it getting lost in some hypervisor
 	 * environments.
 	 */

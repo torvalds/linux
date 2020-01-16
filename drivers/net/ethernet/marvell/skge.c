@@ -4,7 +4,7 @@
  * Ethernet adapters. Based on earlier sk98lin, e100 and
  * FreeBSD if_sk drivers.
  *
- * This driver intentionally does not support all the features
+ * This driver intentionally does yest support all the features
  * of the original driver such as link fail-over and link management because
  * those should be done at higher levels.
  *
@@ -68,7 +68,7 @@ static const u32 default_msg = (NETIF_MSG_DRV | NETIF_MSG_PROBE |
 
 static int debug = -1;	/* defaults above */
 module_param(debug, int, 0);
-MODULE_PARM_DESC(debug, "Debug level (0=none,...,16=all)");
+MODULE_PARM_DESC(debug, "Debug level (0=yesne,...,16=all)");
 
 static const struct pci_device_id skge_id_table[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_3COM, 0x1700) },	  /* 3Com 3C940 */
@@ -196,14 +196,14 @@ static void skge_wol_init(struct skge_port *skge)
 	gm_phy_write(hw, port, PHY_MARV_AUNE_ADV,
 		     (PHY_AN_100FULL | PHY_AN_100HALF |
 		      PHY_AN_10FULL | PHY_AN_10HALF | PHY_AN_CSMA));
-	/* no 1000 HD/FD */
+	/* yes 1000 HD/FD */
 	gm_phy_write(hw, port, PHY_MARV_1000T_CTRL, 0);
 	gm_phy_write(hw, port, PHY_MARV_CTRL,
 		     PHY_CT_RESET | PHY_CT_SPS_LSB | PHY_CT_ANE |
 		     PHY_CT_RE_CFG | PHY_CT_DUP_MD);
 
 
-	/* Set GMAC to no flow control and auto update for speed/duplex */
+	/* Set GMAC to yes flow control and auto update for speed/duplex */
 	gma_write16(hw, port, GM_GP_CTRL,
 		    GM_GPCR_FC_TX_DIS|GM_GPCR_TX_ENA|GM_GPCR_RX_ENA|
 		    GM_GPCR_DUP_FULL|GM_GPCR_FC_RX_DIS|GM_GPCR_AU_FCT_DIS);
@@ -454,7 +454,7 @@ static void skge_get_ethtool_stats(struct net_device *dev,
 }
 
 /* Use hardware MIB variables for critical path statistics and
- * transmit feedback not reported at interrupt.
+ * transmit feedback yest reported at interrupt.
  * Other errors are accounted for in interrupt handler.
  */
 static struct net_device_stats *skge_get_stats(struct net_device *dev)
@@ -961,8 +961,8 @@ static int skge_rx_setup(struct skge_port *skge, struct skge_element *e,
 }
 
 /* Resume receiving using existing skb,
- * Note: DMA address is not changed by chip.
- * 	 MTU not changed while receiver active.
+ * Note: DMA address is yest changed by chip.
+ * 	 MTU yest changed while receiver active.
  */
 static inline void skge_rx_reuse(struct skge_element *e, unsigned int size)
 {
@@ -1033,7 +1033,7 @@ static const char *skge_pause(enum pause_status status)
 {
 	switch (status) {
 	case FLOW_STAT_NONE:
-		return "none";
+		return "yesne";
 	case FLOW_STAT_REM_SEND:
 		return "rx only";
 	case FLOW_STAT_LOC_SEND:
@@ -1229,7 +1229,7 @@ static void bcom_check_link(struct skge_hw *hw, int port)
 
 		lpa = xm_phy_read(hw, port, PHY_XMAC_AUNE_LP);
 		if (lpa & PHY_B_AN_RF) {
-			netdev_notice(dev, "remote fault\n");
+			netdev_yestice(dev, "remote fault\n");
 			return;
 		}
 
@@ -1244,7 +1244,7 @@ static void bcom_check_link(struct skge_hw *hw, int port)
 			skge->duplex = DUPLEX_HALF;
 			break;
 		default:
-			netdev_notice(dev, "duplex mismatch\n");
+			netdev_yestice(dev, "duplex mismatch\n");
 			return;
 		}
 
@@ -1269,7 +1269,7 @@ static void bcom_check_link(struct skge_hw *hw, int port)
 		genesis_link_up(skge);
 }
 
-/* Broadcom 5400 only supports giagabit! SysKonnect did not put an additional
+/* Broadcom 5400 only supports giagabit! SysKonnect did yest put an additional
  * Phy on for 100 or 10Mbit operation
  */
 static void bcom_phy_init(struct skge_port *skge)
@@ -1402,7 +1402,7 @@ static void xm_phy_init(struct skge_port *skge)
 			ctrl |= PHY_CT_DUP_MD;
 		/*
 		 * Do NOT enable Auto-negotiation here. This would hold
-		 * the link down because no IDLEs are transmitted
+		 * the link down because yes IDLEs are transmitted
 		 */
 	}
 
@@ -1436,7 +1436,7 @@ static int xm_check_link(struct net_device *dev)
 
 		lpa = xm_phy_read(hw, port, PHY_XMAC_AUNE_LP);
 		if (lpa & PHY_B_AN_RF) {
-			netdev_notice(dev, "remote fault\n");
+			netdev_yestice(dev, "remote fault\n");
 			return 0;
 		}
 
@@ -1451,7 +1451,7 @@ static int xm_check_link(struct net_device *dev)
 			skge->duplex = DUPLEX_HALF;
 			break;
 		default:
-			netdev_notice(dev, "duplex mismatch\n");
+			netdev_yestice(dev, "duplex mismatch\n");
 			return 0;
 		}
 
@@ -1599,7 +1599,7 @@ static void genesis_mac_init(struct skge_hw *hw, int port)
 	if (skge->duplex == DUPLEX_HALF) {
 		/*
 		 * If in manual half duplex mode the other side might be in
-		 * full duplex mode, so ignore if a carrier extension is not seen
+		 * full duplex mode, so igyesre if a carrier extension is yest seen
 		 * on frames received
 		 */
 		r |= XM_RX_DIS_CEXT;
@@ -1674,7 +1674,7 @@ static void genesis_mac_init(struct skge_hw *hw, int port)
 		/* Enable frame flushing if jumbo frames used */
 		skge_write16(hw, SK_REG(port, RX_MFF_CTRL1), MFF_ENA_FLUSH);
 	} else {
-		/* enable timeout timers if normal frames */
+		/* enable timeout timers if yesrmal frames */
 		skge_write16(hw, B3_PA_CTRL,
 			     (port == 0) ? PA_ENA_TO_TX1 : PA_ENA_TO_TX2);
 	}
@@ -1787,7 +1787,7 @@ static void genesis_link_up(struct skge_port *skge)
 
 	/*
 	 * enabling pause frame reception is required for 1000BT
-	 * because the XMAC is not reset if the link is going down
+	 * because the XMAC is yest reset if the link is going down
 	 */
 	if (skge->flow_status == FLOW_STAT_NONE ||
 	    skge->flow_status == FLOW_STAT_LOC_SEND)
@@ -1820,7 +1820,7 @@ static void genesis_link_up(struct skge_port *skge)
 	} else {
 		/*
 		 * disable pause frame generation is required for 1000BT
-		 * because the XMAC is not reset if the link is going down
+		 * because the XMAC is yest reset if the link is going down
 		 */
 		/* Disable Pause Mode in Mode Register */
 		mode &= ~XM_PAUSE_MODE;
@@ -2146,7 +2146,7 @@ static void yukon_mac_init(struct skge_hw *hw, int port)
 	/* transmit control */
 	gma_write16(hw, port, GM_TX_CTRL, TX_COL_THR(TX_COL_DEF));
 
-	/* receive control reg: unicast + multicast + no FCS  */
+	/* receive control reg: unicast + multicast + yes FCS  */
 	gma_write16(hw, port, GM_RX_CTRL,
 			 GM_RXCR_UCF_ENA | GM_RXCR_CRC_DIS | GM_RXCR_MCF_ENA);
 
@@ -2192,7 +2192,7 @@ static void yukon_mac_init(struct skge_hw *hw, int port)
 	skge_write8(hw, SK_REG(port, RX_GMF_CTRL_T), GMF_RST_CLR);
 	skge_write16(hw, SK_REG(port, RX_GMF_CTRL_T), reg);
 	/*
-	 * because Pause Packet Truncation in GMAC is not working
+	 * because Pause Packet Truncation in GMAC is yest working
 	 * we have to increase the Flush Threshold to 64 bytes
 	 * in order to flush pause packets in Rx FIFO on Yukon-1
 	 */
@@ -2776,7 +2776,7 @@ static netdev_tx_t skge_xmit_frame(struct sk_buff *skb,
 	} else
 		control = BMU_CHECK;
 
-	if (!skb_shinfo(skb)->nr_frags) /* single buffer i.e. no fragments */
+	if (!skb_shinfo(skb)->nr_frags) /* single buffer i.e. yes fragments */
 		control |= BMU_EOF | BMU_IRQ_EOF;
 	else {
 		struct skge_tx_desc *tf = td;
@@ -2985,7 +2985,7 @@ static void yukon_set_multicast(struct net_device *dev)
 		reg &= ~(GM_RXCR_UCF_ENA | GM_RXCR_MCF_ENA);
 	else if (dev->flags & IFF_ALLMULTI)	/* all multicast */
 		memset(filter, 0xff, sizeof(filter));
-	else if (netdev_mc_empty(dev) && !rx_pause)/* no multicast */
+	else if (netdev_mc_empty(dev) && !rx_pause)/* yes multicast */
 		reg &= ~GM_RXCR_MCF_ENA;
 	else {
 		reg |= GM_RXCR_MCF_ENA;
@@ -3142,7 +3142,7 @@ resubmit:
 	return NULL;
 }
 
-/* Free all buffers in Tx ring which are no longer owned by device */
+/* Free all buffers in Tx ring which are yes longer owned by device */
 static void skge_tx_done(struct net_device *dev)
 {
 	struct skge_port *skge = netdev_priv(dev);
@@ -3238,7 +3238,7 @@ static int skge_poll(struct napi_struct *napi, int budget)
 }
 
 /* Parity errors seem to happen when Genesis is connected to a switch
- * with no other ports present. Heartbeat error??
+ * with yes other ports present. Heartbeat error??
  */
 static void skge_mac_parity(struct skge_hw *hw, int port)
 {
@@ -3327,10 +3327,10 @@ static void skge_error_irq(struct skge_hw *hw)
 		pci_write_config_word(pdev, PCI_STATUS, pci_status);
 		skge_write8(hw, B2_TST_CTRL1, TST_CFG_WRITE_OFF);
 
-		/* if error still set then just ignore it */
+		/* if error still set then just igyesre it */
 		hwstatus = skge_read32(hw, B0_HWE_ISRC);
 		if (hwstatus & IS_IRQ_STAT) {
-			dev_warn(&hw->pdev->dev, "unable to clear error (so ignoring them)\n");
+			dev_warn(&hw->pdev->dev, "unable to clear error (so igyesring them)\n");
 			hw->intr_mask &= ~IS_HW_ERR;
 		}
 	}
@@ -3562,7 +3562,7 @@ static int skge_reset(struct skge_hw *hw)
 		}
 		break;
 #else
-		dev_err(&hw->pdev->dev, "Genesis chip detected but not configured\n");
+		dev_err(&hw->pdev->dev, "Genesis chip detected but yest configured\n");
 		return -EOPNOTSUPP;
 #endif
 
@@ -3726,10 +3726,10 @@ DEFINE_SHOW_ATTRIBUTE(skge_debug);
  * Use network device events to create/remove/rename
  * debugfs file entries
  */
-static int skge_device_event(struct notifier_block *unused,
+static int skge_device_event(struct yestifier_block *unused,
 			     unsigned long event, void *ptr)
 {
-	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
+	struct net_device *dev = netdev_yestifier_info_to_dev(ptr);
 	struct skge_port *skge;
 
 	if (dev->netdev_ops->ndo_open != &skge_up || !skge_debug)
@@ -3759,8 +3759,8 @@ done:
 	return NOTIFY_DONE;
 }
 
-static struct notifier_block skge_notifier = {
-	.notifier_call = skge_device_event,
+static struct yestifier_block skge_yestifier = {
+	.yestifier_call = skge_device_event,
 };
 
 
@@ -3768,13 +3768,13 @@ static __init void skge_debug_init(void)
 {
 	skge_debug = debugfs_create_dir("skge", NULL);
 
-	register_netdevice_notifier(&skge_notifier);
+	register_netdevice_yestifier(&skge_yestifier);
 }
 
 static __exit void skge_debug_cleanup(void)
 {
 	if (skge_debug) {
-		unregister_netdevice_notifier(&skge_notifier);
+		unregister_netdevice_yestifier(&skge_yestifier);
 		debugfs_remove(skge_debug);
 		skge_debug = NULL;
 	}
@@ -3882,13 +3882,13 @@ static int skge_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	err = pci_enable_device(pdev);
 	if (err) {
-		dev_err(&pdev->dev, "cannot enable PCI device\n");
+		dev_err(&pdev->dev, "canyest enable PCI device\n");
 		goto err_out;
 	}
 
 	err = pci_request_regions(pdev, DRV_NAME);
 	if (err) {
-		dev_err(&pdev->dev, "cannot obtain PCI resources\n");
+		dev_err(&pdev->dev, "canyest obtain PCI resources\n");
 		goto err_out_disable_pdev;
 	}
 
@@ -3903,7 +3903,7 @@ static int skge_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	}
 
 	if (err) {
-		dev_err(&pdev->dev, "no usable DMA configuration\n");
+		dev_err(&pdev->dev, "yes usable DMA configuration\n");
 		goto err_out_free_regions;
 	}
 
@@ -3932,9 +3932,9 @@ static int skge_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	spin_lock_init(&hw->phy_lock);
 	tasklet_init(&hw->phy_task, skge_extirq, (unsigned long) hw);
 
-	hw->regs = ioremap_nocache(pci_resource_start(pdev, 0), 0x4000);
+	hw->regs = ioremap_yescache(pci_resource_start(pdev, 0), 0x4000);
 	if (!hw->regs) {
-		dev_err(&pdev->dev, "cannot map device registers\n");
+		dev_err(&pdev->dev, "canyest map device registers\n");
 		goto err_out_free_hw;
 	}
 
@@ -3959,7 +3959,7 @@ static int skge_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	err = register_netdev(dev);
 	if (err) {
-		dev_err(&pdev->dev, "cannot register net device\n");
+		dev_err(&pdev->dev, "canyest register net device\n");
 		goto err_out_free_netdev;
 	}
 
@@ -3974,14 +3974,14 @@ static int skge_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 		err = register_netdev(dev1);
 		if (err) {
-			dev_err(&pdev->dev, "cannot register second net device\n");
+			dev_err(&pdev->dev, "canyest register second net device\n");
 			goto err_out_free_dev1;
 		}
 
 		err = request_irq(pdev->irq, skge_intr, IRQF_SHARED,
 				  hw->irq_name, hw);
 		if (err) {
-			dev_err(&pdev->dev, "cannot assign irq %d\n",
+			dev_err(&pdev->dev, "canyest assign irq %d\n",
 				pdev->irq);
 			goto err_out_unregister_dev1;
 		}
@@ -4098,7 +4098,7 @@ static int skge_resume(struct device *dev)
 			err = skge_up(dev);
 
 			if (err) {
-				netdev_err(dev, "could not up: %d\n", err);
+				netdev_err(dev, "could yest up: %d\n", err);
 				dev_close(dev);
 				goto out;
 			}
@@ -4149,7 +4149,7 @@ static const struct dmi_system_id skge_32bit_dma_boards[] = {
 	{
 		.ident = "Gigabyte nForce boards",
 		.matches = {
-			DMI_MATCH(DMI_BOARD_VENDOR, "Gigabyte Technology Co"),
+			DMI_MATCH(DMI_BOARD_VENDOR, "Gigabyte Techyeslogy Co"),
 			DMI_MATCH(DMI_BOARD_NAME, "nForce"),
 		},
 	},

@@ -1,6 +1,6 @@
 Tegra SOC USB PHY
 
-The device node for Tegra SOC USB PHY:
+The device yesde for Tegra SOC USB PHY:
 
 Required properties :
  - compatible : For Tegra20, must contain "nvidia,tegra20-usb-phy".
@@ -63,7 +63,7 @@ Optional properties:
   - nvidia,is-wired : boolean. Indicates whether we can do certain kind of power
     optimizations for the devices that are always connected. e.g. modem.
   - dr_mode : dual role mode. Indicates the working mode for the PHY. Can be
-    "host", "peripheral", or "otg". Defaults to "host" if not defined.
+    "host", "peripheral", or "otg". Defaults to "host" if yest defined.
       host means this is a host controller
       peripheral means it is device controller
       otg means it can operate as either ("on the go")

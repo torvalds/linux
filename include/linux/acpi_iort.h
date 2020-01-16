@@ -8,24 +8,24 @@
 #define __ACPI_IORT_H__
 
 #include <linux/acpi.h>
-#include <linux/fwnode.h>
+#include <linux/fwyesde.h>
 #include <linux/irqdomain.h>
 
 #define IORT_IRQ_MASK(irq)		(irq & 0xffffffffULL)
 #define IORT_IRQ_TRIGGER_MASK(irq)	((irq >> 32) & 0xffffffffULL)
 
 /*
- * PMCG model identifiers for use in smmu pmu driver. Please note
- * that this is purely for the use of software and has nothing to
+ * PMCG model identifiers for use in smmu pmu driver. Please yeste
+ * that this is purely for the use of software and has yesthing to
  * do with hardware or with IORT specification.
  */
 #define IORT_SMMU_V3_PMCG_GENERIC        0x00000000 /* Generic SMMUv3 PMCG */
 #define IORT_SMMU_V3_PMCG_HISI_HIP08     0x00000001 /* HiSilicon HIP08 PMCG */
 
 int iort_register_domain_token(int trans_id, phys_addr_t base,
-			       struct fwnode_handle *fw_node);
+			       struct fwyesde_handle *fw_yesde);
 void iort_deregister_domain_token(int trans_id);
-struct fwnode_handle *iort_find_domain_token(int trans_id);
+struct fwyesde_handle *iort_find_domain_token(int trans_id);
 #ifdef CONFIG_ACPI_IORT
 void acpi_iort_init(void);
 u32 iort_msi_map_rid(struct device *dev, u32 req_id);

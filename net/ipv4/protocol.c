@@ -15,7 +15,7 @@
  *		Alan Cox	: Added new fields for init and ready for
  *				  proper fragmentation (_NO_ 4K limits!)
  *		Richard Colella	: Hang on hash collision
- *		Vince Laviano	: Modified inet_del_protocol() to correctly
+ *		Vince Laviayes	: Modified inet_del_protocol() to correctly
  *				  maintain copy bit.
  */
 #include <linux/cache.h>
@@ -32,7 +32,7 @@ EXPORT_SYMBOL(inet_offloads);
 int inet_add_protocol(const struct net_protocol *prot, unsigned char protocol)
 {
 	if (!prot->netns_ok) {
-		pr_err("Protocol %u is not namespace aware, cannot register.\n",
+		pr_err("Protocol %u is yest namespace aware, canyest register.\n",
 			protocol);
 		return -EINVAL;
 	}

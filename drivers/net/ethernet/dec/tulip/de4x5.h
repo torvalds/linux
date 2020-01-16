@@ -26,7 +26,7 @@
 #define DE4X5_BROM   iobase+(0x048 << lp->bus)  /* Boot ROM Register */
 #define DE4X5_SROM   iobase+(0x048 << lp->bus)  /* Serial ROM Register */
 #define DE4X5_MII    iobase+(0x048 << lp->bus)  /* MII Interface Register */
-#define DE4X5_DDR    iobase+(0x050 << lp->bus)  /* Data Diagnostic Register */
+#define DE4X5_DDR    iobase+(0x050 << lp->bus)  /* Data Diagyesstic Register */
 #define DE4X5_FDR    iobase+(0x058 << lp->bus)  /* Full Duplex Register */
 #define DE4X5_GPT    iobase+(0x058 << lp->bus)  /* General Purpose Timer Reg.*/
 #define DE4X5_GEP    iobase+(0x060 << lp->bus)  /* General Purpose Register */
@@ -201,7 +201,7 @@
 ** PCI Configuration Power Management Area Register (PCI_CFPM)
 */
 #define SLEEP       0x80             /* Power Saving Sleep Mode */
-#define SNOOZE      0x40             /* Power Saving Snooze Mode */
+#define SNOOZE      0x40             /* Power Saving Syesoze Mode */
 #define WAKEUP      0x00             /* Power Saving Wakeup */
 
 #define PCI_CFDA_DSU 0x41            /* 8 bit Configuration Space Address */
@@ -213,7 +213,7 @@
 #define BMR_RML    0x00200000       /* [Memory] Read Multiple */
 #define BMR_DBO    0x00100000       /* Descriptor Byte Ordering (Endian) */
 #define BMR_TAP    0x000e0000       /* Transmit Automatic Polling */
-#define BMR_DAS    0x00010000       /* Diagnostic Address Space */
+#define BMR_DAS    0x00010000       /* Diagyesstic Address Space */
 #define BMR_CAL    0x0000c000       /* Cache Alignment */
 #define BMR_PBL    0x00003f00       /* Programmable Burst Length */
 #define BMR_BLE    0x00000080       /* Big/Little Endian */
@@ -280,7 +280,7 @@
 #define STS_TS     0x00700000       /* Transmit Process State */
 #define STS_RS     0x000e0000       /* Receive Process State */
 #define STS_NIS    0x00010000       /* Normal Interrupt Summary */
-#define STS_AIS    0x00008000       /* Abnormal Interrupt Summary */
+#define STS_AIS    0x00008000       /* Abyesrmal Interrupt Summary */
 #define STS_ER     0x00004000       /* Early Receive */
 #define STS_FBE    0x00002000       /* Fatal Bus Error */
 #define STS_SE     0x00002000       /* System Error */
@@ -372,7 +372,7 @@
 */
 #define IMR_GPM    0x04000000       /* General Purpose Port Mask */
 #define IMR_NIM    0x00010000       /* Normal Interrupt Summary Mask */
-#define IMR_AIM    0x00008000       /* Abnormal Interrupt Summary Mask */
+#define IMR_AIM    0x00008000       /* Abyesrmal Interrupt Summary Mask */
 #define IMR_ERM    0x00004000       /* Early Receive Mask */
 #define IMR_FBM    0x00002000       /* Fatal Bus Error Mask */
 #define IMR_SEM    0x00002000       /* System Error Mask */
@@ -494,28 +494,28 @@
 /*
 ** MII Management Auto Negotiation Advertisement Register
 */
-#define MII_ANA_TAF  0x03e0        /* Technology Ability Field */
-#define MII_ANA_T4AM 0x0200        /* T4 Technology Ability Mask */
-#define MII_ANA_TXAM 0x0180        /* TX Technology Ability Mask */
-#define MII_ANA_FDAM 0x0140        /* Full Duplex Technology Ability Mask */
-#define MII_ANA_HDAM 0x02a0        /* Half Duplex Technology Ability Mask */
-#define MII_ANA_100M 0x0380        /* 100Mb Technology Ability Mask */
-#define MII_ANA_10M  0x0060        /* 10Mb Technology Ability Mask */
+#define MII_ANA_TAF  0x03e0        /* Techyeslogy Ability Field */
+#define MII_ANA_T4AM 0x0200        /* T4 Techyeslogy Ability Mask */
+#define MII_ANA_TXAM 0x0180        /* TX Techyeslogy Ability Mask */
+#define MII_ANA_FDAM 0x0140        /* Full Duplex Techyeslogy Ability Mask */
+#define MII_ANA_HDAM 0x02a0        /* Half Duplex Techyeslogy Ability Mask */
+#define MII_ANA_100M 0x0380        /* 100Mb Techyeslogy Ability Mask */
+#define MII_ANA_10M  0x0060        /* 10Mb Techyeslogy Ability Mask */
 #define MII_ANA_CSMA 0x0001        /* CSMA-CD Capable */
 
 /*
 ** MII Management Auto Negotiation Remote End Register
 */
 #define MII_ANLPA_NP   0x8000      /* Next Page (Enable) */
-#define MII_ANLPA_ACK  0x4000      /* Remote Acknowledge */
+#define MII_ANLPA_ACK  0x4000      /* Remote Ackyeswledge */
 #define MII_ANLPA_RF   0x2000      /* Remote Fault */
-#define MII_ANLPA_TAF  0x03e0      /* Technology Ability Field */
-#define MII_ANLPA_T4AM 0x0200      /* T4 Technology Ability Mask */
-#define MII_ANLPA_TXAM 0x0180      /* TX Technology Ability Mask */
-#define MII_ANLPA_FDAM 0x0140      /* Full Duplex Technology Ability Mask */
-#define MII_ANLPA_HDAM 0x02a0      /* Half Duplex Technology Ability Mask */
-#define MII_ANLPA_100M 0x0380      /* 100Mb Technology Ability Mask */
-#define MII_ANLPA_10M  0x0060      /* 10Mb Technology Ability Mask */
+#define MII_ANLPA_TAF  0x03e0      /* Techyeslogy Ability Field */
+#define MII_ANLPA_T4AM 0x0200      /* T4 Techyeslogy Ability Mask */
+#define MII_ANLPA_TXAM 0x0180      /* TX Techyeslogy Ability Mask */
+#define MII_ANLPA_FDAM 0x0140      /* Full Duplex Techyeslogy Ability Mask */
+#define MII_ANLPA_HDAM 0x02a0      /* Half Duplex Techyeslogy Ability Mask */
+#define MII_ANLPA_100M 0x0380      /* 100Mb Techyeslogy Ability Mask */
+#define MII_ANLPA_10M  0x0060      /* 10Mb Techyeslogy Ability Mask */
 #define MII_ANLPA_CSMA 0x0001      /* CSMA-CD Capable */
 
 /*
@@ -660,8 +660,8 @@
 #define ANS_NDIS   0x00000000      /* Nway disable                           */
 #define ANS_TDIS   0x00001000      /* Transmit Disable                       */
 #define ANS_ADET   0x00002000      /* Ability Detect                         */
-#define ANS_ACK    0x00003000      /* Acknowledge                            */
-#define ANS_CACK   0x00004000      /* Complete Acknowledge                   */
+#define ANS_ACK    0x00003000      /* Ackyeswledge                            */
+#define ANS_CACK   0x00004000      /* Complete Ackyeswledge                   */
 #define ANS_NWOK   0x00005000      /* Nway OK - FLP Link Good                */
 #define ANS_LCHK   0x00006000      /* Link Check                             */
 
@@ -671,18 +671,18 @@
 /*
 ** SIA Connectivity Register (DE4X5_SICR)
 */
-#define SICR_SDM   0xffff0000       /* SIA Diagnostics Mode */
+#define SICR_SDM   0xffff0000       /* SIA Diagyesstics Mode */
 #define SICR_OE57  0x00008000       /* Output Enable 5 6 7 */
 #define SICR_OE24  0x00004000       /* Output Enable 2 4 */
 #define SICR_OE13  0x00002000       /* Output Enable 1 3 */
 #define SICR_IE    0x00001000       /* Input Enable */
 #define SICR_EXT   0x00000000       /* SIA MUX Select External SIA Mode */
-#define SICR_D_SIA 0x00000400       /* SIA MUX Select Diagnostics - SIA Sigs */
-#define SICR_DPLL  0x00000800       /* SIA MUX Select Diagnostics - DPLL Sigs*/
-#define SICR_APLL  0x00000a00       /* SIA MUX Select Diagnostics - DPLL Sigs*/
-#define SICR_D_RxM 0x00000c00       /* SIA MUX Select Diagnostics - RxM Sigs */
-#define SICR_M_RxM 0x00000d00       /* SIA MUX Select Diagnostics - RxM Sigs */
-#define SICR_LNKT  0x00000e00       /* SIA MUX Select Diagnostics - Link Test*/
+#define SICR_D_SIA 0x00000400       /* SIA MUX Select Diagyesstics - SIA Sigs */
+#define SICR_DPLL  0x00000800       /* SIA MUX Select Diagyesstics - DPLL Sigs*/
+#define SICR_APLL  0x00000a00       /* SIA MUX Select Diagyesstics - DPLL Sigs*/
+#define SICR_D_RxM 0x00000c00       /* SIA MUX Select Diagyesstics - RxM Sigs */
+#define SICR_M_RxM 0x00000d00       /* SIA MUX Select Diagyesstics - RxM Sigs */
+#define SICR_LNKT  0x00000e00       /* SIA MUX Select Diagyesstics - Link Test*/
 #define SICR_SEL   0x00000f00       /* SIA MUX Select AUI or TP with LEDs */
 #define SICR_ASE   0x00000080       /* APLL Start Enable*/
 #define SICR_SIM   0x00000040       /* Serial Interface Input Multiplexer */
@@ -812,7 +812,7 @@
 ** Media / mode state machine definitions
 ** User selectable:
 */
-#define TP              0x0040     /* 10Base-T (now equiv to _10Mb)        */
+#define TP              0x0040     /* 10Base-T (yesw equiv to _10Mb)        */
 #define TP_NW           0x0002     /* 10Base-T with Nway                   */
 #define BNC             0x0004     /* Thinwire                             */
 #define AUI             0x0008     /* Thickwire                            */
@@ -908,7 +908,7 @@
 /*
 ** IEEE OUIs for various PHY vendor/chip combos - Reg 2 values only. Since
 ** the vendors seem split 50-50 on how to calculate the OUI register values
-** anyway, just reading Reg2 seems reasonable for now [see de4x5_get_oui()].
+** anyway, just reading Reg2 seems reasonable for yesw [see de4x5_get_oui()].
 */
 #define NATIONAL_TX 0x2000
 #define BROADCOM_T4 0x03e0
@@ -1002,7 +1002,7 @@ struct de4x5_ioctl {
 */
 #define DE4X5_GET_HWADDR	0x01 /* Get the hardware address */
 #define DE4X5_SET_HWADDR	0x02 /* Set the hardware address */
-/* 0x03 and 0x04 were used before and are obsoleted now. Don't use them. */
+/* 0x03 and 0x04 were used before and are obsoleted yesw. Don't use them. */
 #define DE4X5_SAY_BOO	        0x05 /* Say "Boo!" to the kernel log file */
 #define DE4X5_GET_MCA   	0x06 /* Get a multicast address */
 #define DE4X5_SET_MCA   	0x07 /* Set a multicast address */

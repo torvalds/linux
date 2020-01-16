@@ -88,24 +88,24 @@ static void teedev_close_context(struct tee_context *ctx)
 	teedev_ctx_put(ctx);
 }
 
-static int tee_open(struct inode *inode, struct file *filp)
+static int tee_open(struct iyesde *iyesde, struct file *filp)
 {
 	struct tee_context *ctx;
 
-	ctx = teedev_open(container_of(inode->i_cdev, struct tee_device, cdev));
+	ctx = teedev_open(container_of(iyesde->i_cdev, struct tee_device, cdev));
 	if (IS_ERR(ctx))
 		return PTR_ERR(ctx);
 
 	/*
 	 * Default user-space behaviour is to wait for tee-supplicant
-	 * if not present for any requests in this context.
+	 * if yest present for any requests in this context.
 	 */
-	ctx->supp_nowait = false;
+	ctx->supp_yeswait = false;
 	filp->private_data = ctx;
 	return 0;
 }
 
-static int tee_release(struct inode *inode, struct file *filp)
+static int tee_release(struct iyesde *iyesde, struct file *filp)
 {
 	teedev_close_context(filp->private_data);
 	return 0;
@@ -137,7 +137,7 @@ static int tee_ioctl_shm_alloc(struct tee_context *ctx,
 	if (copy_from_user(&data, udata, sizeof(data)))
 		return -EFAULT;
 
-	/* Currently no input flags are supported */
+	/* Currently yes input flags are supported */
 	if (data.flags)
 		return -EINVAL;
 
@@ -174,7 +174,7 @@ tee_ioctl_shm_register(struct tee_context *ctx,
 	if (copy_from_user(&data, udata, sizeof(data)))
 		return -EFAULT;
 
-	/* Currently no input flags are supported */
+	/* Currently yes input flags are supported */
 	if (data.flags)
 		return -EINVAL;
 
@@ -244,8 +244,8 @@ static int params_from_user(struct tee_context *ctx, struct tee_param *params,
 				return PTR_ERR(shm);
 
 			/*
-			 * Ensure offset + size does not overflow offset
-			 * and does not overflow the size of the referred
+			 * Ensure offset + size does yest overflow offset
+			 * and does yest overflow the size of the referred
 			 * shared memory object.
 			 */
 			if ((ip.a + ip.b) < ip.a ||
@@ -259,7 +259,7 @@ static int params_from_user(struct tee_context *ctx, struct tee_param *params,
 			params[n].u.memref.shm = shm;
 			break;
 		default:
-			/* Unknown attribute */
+			/* Unkyeswn attribute */
 			return -EINVAL;
 		}
 	}
@@ -694,7 +694,7 @@ static void tee_release_device(struct device *dev)
  * tee_device_alloc() - Allocate a new struct tee_device instance
  * @teedesc:	Descriptor for this driver
  * @dev:	Parent device for this device
- * @pool:	Shared memory pool, NULL if not used
+ * @pool:	Shared memory pool, NULL if yest used
  * @driver_data: Private driver data for this device
  *
  * Allocates a new struct tee_device instance. The device is
@@ -766,7 +766,7 @@ struct tee_device *tee_device_alloc(const struct tee_desc *teedesc,
 
 	/* 1 as tee_device_unregister() does one final tee_device_put() */
 	teedev->num_users = 1;
-	init_completion(&teedev->c_no_users);
+	init_completion(&teedev->c_yes_users);
 	mutex_init(&teedev->mutex);
 	idr_init(&teedev->idr);
 
@@ -777,7 +777,7 @@ struct tee_device *tee_device_alloc(const struct tee_desc *teedesc,
 err_devt:
 	unregister_chrdev_region(teedev->dev.devt, 1);
 err:
-	pr_err("could not register %s driver\n",
+	pr_err("could yest register %s driver\n",
 	       teedesc->flags & TEE_DESC_PRIVILEGED ? "privileged" : "client");
 	if (teedev && teedev->id < TEE_NUM_DEVICES) {
 		spin_lock(&driver_lock);
@@ -830,7 +830,7 @@ int tee_device_register(struct tee_device *teedev)
 	rc = cdev_add(&teedev->cdev, teedev->dev.devt, 1);
 	if (rc) {
 		dev_err(&teedev->dev,
-			"unable to cdev_add() %s, major %d, minor %d, err=%d\n",
+			"unable to cdev_add() %s, major %d, miyesr %d, err=%d\n",
 			teedev->name, MAJOR(teedev->dev.devt),
 			MINOR(teedev->dev.devt), rc);
 		return rc;
@@ -839,7 +839,7 @@ int tee_device_register(struct tee_device *teedev)
 	rc = device_add(&teedev->dev);
 	if (rc) {
 		dev_err(&teedev->dev,
-			"unable to device_add() %s, major %d, minor %d, err=%d\n",
+			"unable to device_add() %s, major %d, miyesr %d, err=%d\n",
 			teedev->name, MAJOR(teedev->dev.devt),
 			MINOR(teedev->dev.devt), rc);
 		goto err_device_add;
@@ -871,7 +871,7 @@ void tee_device_put(struct tee_device *teedev)
 		teedev->num_users--;
 		if (!teedev->num_users) {
 			teedev->desc = NULL;
-			complete(&teedev->c_no_users);
+			complete(&teedev->c_yes_users);
 		}
 	}
 	mutex_unlock(&teedev->mutex);
@@ -894,7 +894,7 @@ bool tee_device_get(struct tee_device *teedev)
  * @teedev:	Device to unregister
  *
  * This function should be called to remove the @teedev even if
- * tee_device_register() hasn't been called yet. Does nothing if
+ * tee_device_register() hasn't been called yet. Does yesthing if
  * @teedev is NULL.
  */
 void tee_device_unregister(struct tee_device *teedev)
@@ -909,11 +909,11 @@ void tee_device_unregister(struct tee_device *teedev)
 	}
 
 	tee_device_put(teedev);
-	wait_for_completion(&teedev->c_no_users);
+	wait_for_completion(&teedev->c_yes_users);
 
 	/*
-	 * No need to take a mutex any longer now since teedev->desc was
-	 * set to NULL before teedev->c_no_users was completed.
+	 * No need to take a mutex any longer yesw since teedev->desc was
+	 * set to NULL before teedev->c_yes_users was completed.
 	 */
 
 	teedev->pool = NULL;
@@ -978,14 +978,14 @@ tee_client_open_context(struct tee_context *start,
 
 	put_device(put_dev);
 	/*
-	 * Default behaviour for in kernel client is to not wait for
-	 * tee-supplicant if not present for any requests in this context.
+	 * Default behaviour for in kernel client is to yest wait for
+	 * tee-supplicant if yest present for any requests in this context.
 	 * Also this flag could be configured again before call to
 	 * tee_client_open_session() if any in kernel client requires
 	 * different behaviour.
 	 */
 	if (!IS_ERR(ctx))
-		ctx->supp_nowait = true;
+		ctx->supp_yeswait = true;
 
 	return ctx;
 }

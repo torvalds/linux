@@ -49,7 +49,7 @@ static struct dm_dirty_log_type *_get_dirty_log_type(const char *name)
  * get_type
  * @type_name
  *
- * Attempt to retrieve the dm_dirty_log_type by name.  If not already
+ * Attempt to retrieve the dm_dirty_log_type by name.  If yest already
  * available, attempt to load the appropriate module.
  *
  * Log modules are named "dm-log-" followed by the 'type_name'.
@@ -90,7 +90,7 @@ static struct dm_dirty_log_type *get_type(const char *type_name)
 	}
 
 	if (!log_type)
-		DMWARN("Module for logging type \"%s\" not found.", type_name);
+		DMWARN("Module for logging type \"%s\" yest found.", type_name);
 
 	kfree(type_name_dup);
 
@@ -201,7 +201,7 @@ struct log_header_disk {
 	__le32 magic;
 
 	/*
-	 * Simple, incrementing version. no backward
+	 * Simple, incrementing version. yes backward
 	 * compatibility.
 	 */
 	__le32 version;
@@ -233,7 +233,7 @@ struct log_c {
 	/* Resync flag */
 	enum sync {
 		DEFAULTSYNC,	/* Synchronize if necessary */
-		NOSYNC,		/* Devices known to be already in sync */
+		NOSYNC,		/* Devices kyeswn to be already in sync */
 		FORCESYNC,	/* Force a sync to happen */
 	} sync;
 
@@ -357,7 +357,7 @@ static int _check_region_size(struct dm_target *ti, uint32_t region_size)
 /*----------------------------------------------------------------
  * core log constructor/destructor
  *
- * argv contains region_size followed optionally by [no]sync
+ * argv contains region_size followed optionally by [yes]sync
  *--------------------------------------------------------------*/
 #define BYTE_SHIFT 3
 static int create_log_context(struct dm_dirty_log *log, struct dm_target *ti,
@@ -381,7 +381,7 @@ static int create_log_context(struct dm_dirty_log *log, struct dm_target *ti,
 	if (argc > 1) {
 		if (!strcmp(argv[1], "sync"))
 			sync = FORCESYNC;
-		else if (!strcmp(argv[1], "nosync"))
+		else if (!strcmp(argv[1], "yessync"))
 			sync = NOSYNC;
 		else {
 			DMWARN("unrecognised sync argument to "
@@ -447,7 +447,7 @@ static int create_log_context(struct dm_dirty_log *log, struct dm_target *ti,
 				bdev_logical_block_size(lc->header_location.
 							    bdev));
 
-		if (buf_size > i_size_read(dev->bdev->bd_inode)) {
+		if (buf_size > i_size_read(dev->bdev->bd_iyesde)) {
 			DMWARN("log device %s too small: need %llu bytes",
 				dev->name, (unsigned long long)buf_size);
 			kfree(lc);
@@ -457,7 +457,7 @@ static int create_log_context(struct dm_dirty_log *log, struct dm_target *ti,
 		lc->header_location.count = buf_size >> SECTOR_SHIFT;
 
 		lc->io_req.mem.type = DM_IO_VMA;
-		lc->io_req.notify.fn = NULL;
+		lc->io_req.yestify.fn = NULL;
 		lc->io_req.client = dm_io_client_create();
 		if (IS_ERR(lc->io_req.client)) {
 			r = PTR_ERR(lc->io_req.client);
@@ -537,7 +537,7 @@ static void core_dtr(struct dm_dirty_log *log)
 /*----------------------------------------------------------------
  * disk log constructor/destructor
  *
- * argv contains log_device region_size followed optionally by [no]sync
+ * argv contains log_device region_size followed optionally by [yes]sync
  *--------------------------------------------------------------*/
 static int disk_ctr(struct dm_dirty_log *log, struct dm_target *ti,
 		    unsigned int argc, char **argv)
@@ -596,7 +596,7 @@ static int disk_resume(struct dm_dirty_log *log)
 		       lc->log_dev->name);
 		fail_log_device(lc);
 		/*
-		 * If the log device cannot be read, we must assume
+		 * If the log device canyest be read, we must assume
 		 * all regions are out-of-sync.  If we simply return
 		 * here, the state will be uninitialized and could
 		 * lead us to return 'in-sync' status for regions
@@ -673,7 +673,7 @@ static int core_in_sync(struct dm_dirty_log *log, region_t region, int block)
 
 static int core_flush(struct dm_dirty_log *log)
 {
-	/* no op */
+	/* yes op */
 	return 0;
 }
 
@@ -776,7 +776,7 @@ static region_t core_get_sync_count(struct dm_dirty_log *log)
 
 #define	DMEMIT_SYNC \
 	if (lc->sync != DEFAULTSYNC) \
-		DMEMIT("%ssync ", lc->sync == NOSYNC ? "no" : "")
+		DMEMIT("%ssync ", lc->sync == NOSYNC ? "yes" : "")
 
 static int core_status(struct dm_dirty_log *log, status_type_t status,
 		       char *result, unsigned int maxlen)

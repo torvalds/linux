@@ -45,7 +45,7 @@ void arch_ftrace_update_code(int command)
 #define ADDR_MASK 0x03ffffff	/*  op_code|addr : 31...26|25 ....0 */
 #define JUMP_RANGE_MASK ((1UL << 28) - 1)
 
-#define INSN_NOP 0x00000000	/* nop */
+#define INSN_NOP 0x00000000	/* yesp */
 #define INSN_JAL(addr)	\
 	((unsigned int)(JAL | (((addr) >> 2) & ADDR_MASK)))
 
@@ -149,15 +149,15 @@ static int ftrace_modify_code_2r(unsigned long ip, unsigned int new_code1,
  * 1. For kernel:
  *
  * move at, ra
- * jal _mcount		--> nop
- *  sub sp, sp, 8	--> nop  (CONFIG_32BIT)
+ * jal _mcount		--> yesp
+ *  sub sp, sp, 8	--> yesp  (CONFIG_32BIT)
  *
  * 2. For modules:
  *
  * 2.1 For KBUILD_MCOUNT_RA_ADDRESS and CONFIG_32BIT
  *
  * lui v1, hi_16bit_of_mcount	     --> b 1f (0x10000005)
- * addiu v1, v1, low_16bit_of_mcount --> nop  (CONFIG_32BIT)
+ * addiu v1, v1, low_16bit_of_mcount --> yesp  (CONFIG_32BIT)
  * move at, ra
  * move $12, ra_address
  * jalr v1
@@ -166,23 +166,23 @@ static int ftrace_modify_code_2r(unsigned long ip, unsigned int new_code1,
  * 2.2 For the Other situations
  *
  * lui v1, hi_16bit_of_mcount	     --> b 1f (0x10000004)
- * addiu v1, v1, low_16bit_of_mcount --> nop  (CONFIG_32BIT)
+ * addiu v1, v1, low_16bit_of_mcount --> yesp  (CONFIG_32BIT)
  * move at, ra
  * jalr v1
- *  nop | move $12, ra_address | sub sp, sp, 8
+ *  yesp | move $12, ra_address | sub sp, sp, 8
  *				    1: offset = 4 instructions
  */
 
 #define INSN_B_1F (0x10000000 | MCOUNT_OFFSET_INSNS)
 
-int ftrace_make_nop(struct module *mod,
+int ftrace_make_yesp(struct module *mod,
 		    struct dyn_ftrace *rec, unsigned long addr)
 {
 	unsigned int new;
 	unsigned long ip = rec->ip;
 
 	/*
-	 * If ip is in kernel space, no long call, otherwise, long call is
+	 * If ip is in kernel space, yes long call, otherwise, long call is
 	 * needed.
 	 */
 	new = core_kernel_text(ip) ? INSN_NOP : INSN_B_1F;
@@ -193,7 +193,7 @@ int ftrace_make_nop(struct module *mod,
 	 * On 32 bit MIPS platforms, gcc adds a stack adjust
 	 * instruction in the delay slot after the branch to
 	 * mcount and expects mcount to restore the sp on return.
-	 * This is based on a legacy API and does nothing but
+	 * This is based on a legacy API and does yesthing but
 	 * waste instructions so it's being removed at runtime.
 	 */
 	return ftrace_modify_code_2(ip, new, INSN_NOP);
@@ -279,7 +279,7 @@ unsigned long ftrace_get_parent_ra_addr(unsigned long self_ra, unsigned long
 	ip = self_ra - (core_kernel_text(self_ra) ? 16 : 24);
 
 	/*
-	 * search the text until finding the non-store instruction or "s{d,w}
+	 * search the text until finding the yesn-store instruction or "s{d,w}
 	 * ra, offset(sp)" instruction
 	 */
 	do {
@@ -289,8 +289,8 @@ unsigned long ftrace_get_parent_ra_addr(unsigned long self_ra, unsigned long
 		if (unlikely(faulted))
 			return 0;
 		/*
-		 * If we hit the non-store instruction before finding where the
-		 * ra is stored, then this is a leaf function and it does not
+		 * If we hit the yesn-store instruction before finding where the
+		 * ra is stored, then this is a leaf function and it does yest
 		 * store the ra on the stack
 		 */
 		if ((code & S_R_SP) != S_R_SP)
@@ -336,15 +336,15 @@ void prepare_ftrace_return(unsigned long *parent_ra_addr, unsigned long self_ra,
 	 * "parent_ra_addr" is the stack address where the return address of
 	 * the caller of _mcount is saved.
 	 *
-	 * If gcc < 4.5, a leaf function does not save the return address
+	 * If gcc < 4.5, a leaf function does yest save the return address
 	 * in the stack address, so we "emulate" one in _mcount's stack space,
 	 * and hijack it directly.
-	 * For a non-leaf function, it does save the return address to its own
-	 * stack space, so we can not hijack it directly, but need to find the
+	 * For a yesn-leaf function, it does save the return address to its own
+	 * stack space, so we can yest hijack it directly, but need to find the
 	 * real stack address, which is done by ftrace_get_parent_addr().
 	 *
 	 * If gcc >= 4.5, with the new -mmcount-ra-address option, for a
-	 * non-leaf function, the location of the return address will be saved
+	 * yesn-leaf function, the location of the return address will be saved
 	 * to $12 for us.
 	 * For a leaf function, it just puts a zero into $12, so we handle
 	 * it in ftrace_graph_caller() of mcount.S.
@@ -358,7 +358,7 @@ void prepare_ftrace_return(unsigned long *parent_ra_addr, unsigned long self_ra,
 	parent_ra_addr = (unsigned long *)ftrace_get_parent_ra_addr(self_ra,
 			old_parent_ra, (unsigned long)parent_ra_addr, fp);
 	/*
-	 * If fails when getting the stack address of the non-leaf function's
+	 * If fails when getting the stack address of the yesn-leaf function's
 	 * ra, stop function graph tracer and return
 	 */
 	if (parent_ra_addr == NULL)

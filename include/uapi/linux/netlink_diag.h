@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 #ifndef __NETLINK_DIAG_H__
 #define __NETLINK_DIAG_H__
 
@@ -8,7 +8,7 @@ struct netlink_diag_req {
 	__u8	sdiag_family;
 	__u8	sdiag_protocol;
 	__u16	pad;
-	__u32	ndiag_ino;
+	__u32	ndiag_iyes;
 	__u32	ndiag_show;
 	__u32	ndiag_cookie[2];
 };
@@ -22,7 +22,7 @@ struct netlink_diag_msg {
 	__u32	ndiag_portid;
 	__u32	ndiag_dst_portid;
 	__u32	ndiag_dst_group;
-	__u32	ndiag_ino;
+	__u32	ndiag_iyes;
 	__u32	ndiag_cookie[2];
 };
 

@@ -12,7 +12,7 @@
  *	6.4.1 VFP and Base Standard Compatibility
  *
  *	Code compiled for the VFP calling standard is compatible with
- *	the base standard (and vice-versa) if no floating-point or
+ *	the base standard (and vice-versa) if yes floating-point or
  *	containerized vector arguments or results are used.
  *
  * And ELF for the ARM Architecture (ARM IHI 0044E) (Table 4-2) says:
@@ -21,11 +21,11 @@
  *	base procedure-call standard is implied.
  *
  * The VDSO is built with -msoft-float, as with the rest of the ARM
- * kernel, and uses no floating point arguments or results.  The build
- * process will produce a shared object that may or may not have the
+ * kernel, and uses yes floating point arguments or results.  The build
+ * process will produce a shared object that may or may yest have the
  * EF_ARM_ABI_FLOAT_SOFT flag set (it seems to depend on the binutils
  * version; binutils starting with 2.24 appears to set it).  The
- * EF_ARM_ABI_FLOAT_HARD flag should definitely not be set, and this
+ * EF_ARM_ABI_FLOAT_HARD flag should definitely yest be set, and this
  * program will error out if it is.
  *
  * If the soft-float flag is set, this program clears it.  That's all
@@ -33,7 +33,7 @@
  */
 
 #include <elf.h>
-#include <errno.h>
+#include <erryes.h>
 #include <fcntl.h>
 #include <stdarg.h>
 #include <stdbool.h>
@@ -137,14 +137,14 @@ int main(int argc, char **argv)
 
 	infd = open(infile, O_RDONLY);
 	if (infd < 0)
-		fail("Cannot open %s: %s\n", infile, strerror(errno));
+		fail("Canyest open %s: %s\n", infile, strerror(erryes));
 
 	if (fstat(infd, &stat) != 0)
-		fail("Failed stat for %s: %s\n", infile, strerror(errno));
+		fail("Failed stat for %s: %s\n", infile, strerror(erryes));
 
 	inbuf = mmap(NULL, stat.st_size, PROT_READ, MAP_PRIVATE, infd, 0);
 	if (inbuf == MAP_FAILED)
-		fail("Failed to map %s: %s\n", infile, strerror(errno));
+		fail("Failed to map %s: %s\n", infile, strerror(erryes));
 
 	close(infd);
 
@@ -178,15 +178,15 @@ int main(int argc, char **argv)
 
 	outfd = open(outfile, O_RDWR | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR);
 	if (outfd < 0)
-		fail("Cannot open %s: %s\n", outfile, strerror(errno));
+		fail("Canyest open %s: %s\n", outfile, strerror(erryes));
 
 	if (ftruncate(outfd, stat.st_size) != 0)
-		fail("Cannot truncate %s: %s\n", outfile, strerror(errno));
+		fail("Canyest truncate %s: %s\n", outfile, strerror(erryes));
 
 	outbuf = mmap(NULL, stat.st_size, PROT_READ | PROT_WRITE, MAP_SHARED,
 		      outfd, 0);
 	if (outbuf == MAP_FAILED)
-		fail("Failed to map %s: %s\n", outfile, strerror(errno));
+		fail("Failed to map %s: %s\n", outfile, strerror(erryes));
 
 	close(outfd);
 
@@ -201,7 +201,7 @@ int main(int argc, char **argv)
 	}
 
 	if (msync(outbuf, stat.st_size, MS_SYNC) != 0)
-		fail("Failed to sync %s: %s\n", outfile, strerror(errno));
+		fail("Failed to sync %s: %s\n", outfile, strerror(erryes));
 
 	return EXIT_SUCCESS;
 }

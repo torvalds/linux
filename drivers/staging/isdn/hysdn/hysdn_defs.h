@@ -80,7 +80,7 @@
 #define LOG_POF_WRITE   0x00000040	/* log detailed pof write operation */
 #define LOG_POF_CARD    0x00000080	/* log pof related card functions */
 #define LOG_CNF_LINE    0x00000100	/* all conf lines are put to procfs */
-#define LOG_CNF_DATA    0x00000200	/* non comment conf lines are shown with channel */
+#define LOG_CNF_DATA    0x00000200	/* yesn comment conf lines are shown with channel */
 #define LOG_CNF_MISC    0x00000400	/* additional conf line debug outputs */
 #define LOG_SCHED_ASYN  0x00001000	/* debug schedulers async tx routines */
 #define LOG_PROC_OPEN   0x00100000	/* open and close from procfs are logged */
@@ -126,7 +126,7 @@
 /*******************************/
 /* defines for error_log_state */
 /*******************************/
-#define ERRLOG_STATE_OFF   0	/* error log is switched off, nothing to do */
+#define ERRLOG_STATE_OFF   0	/* error log is switched off, yesthing to do */
 #define ERRLOG_STATE_ON    1	/* error log is switched on, wait for data */
 #define ERRLOG_STATE_START 2	/* start error logging */
 #define ERRLOG_STATE_STOP  3	/* stop error logging */
@@ -166,7 +166,7 @@ typedef struct HYSDN_CARD {
 	/* interrupt handler + interrupt synchronisation */
 	struct work_struct irq_queue;	/* interrupt task queue */
 	unsigned char volatile irq_enabled;/* interrupt enabled if != 0 */
-	unsigned char volatile hw_lock;/* hardware is currently locked -> no access */
+	unsigned char volatile hw_lock;/* hardware is currently locked -> yes access */
 
 	/* boot process */
 	void *boot;		/* pointer to boot private data */
@@ -176,7 +176,7 @@ typedef struct HYSDN_CARD {
 	int (*testram) (struct HYSDN_CARD *);
 
 	/* scheduler for data transfer (only async parts) */
-	unsigned char async_data[256];/* async data to be sent (normally for config) */
+	unsigned char async_data[256];/* async data to be sent (yesrmally for config) */
 	unsigned short volatile async_len;/* length of data to sent */
 	unsigned short volatile async_channel;/* channel number for async transfer */
 	int volatile async_busy;	/* flag != 0 sending in progress */
@@ -261,7 +261,7 @@ extern unsigned int hynet_enable;
 extern int hysdn_net_create(hysdn_card *);	/* create a new net device */
 extern int hysdn_net_release(hysdn_card *);	/* delete the device */
 extern char *hysdn_net_getname(hysdn_card *);	/* get name of net interface */
-extern void hysdn_tx_netack(hysdn_card *);	/* acknowledge a packet tx */
+extern void hysdn_tx_netack(hysdn_card *);	/* ackyeswledge a packet tx */
 extern struct sk_buff *hysdn_tx_netget(hysdn_card *);	/* get next network packet */
 extern void hysdn_rx_netpkt(hysdn_card *, unsigned char *,
 			    unsigned short);	/* rxed packet from network */

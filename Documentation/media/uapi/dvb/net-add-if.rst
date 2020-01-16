@@ -1,11 +1,11 @@
 .. Permission is granted to copy, distribute and/or modify this
 .. document under the terms of the GNU Free Documentation License,
 .. Version 1.1 or any later version published by the Free Software
-.. Foundation, with no Invariant Sections, no Front-Cover Texts
-.. and no Back-Cover Texts. A copy of the license is included at
+.. Foundation, with yes Invariant Sections, yes Front-Cover Texts
+.. and yes Back-Cover Texts. A copy of the license is included at
 .. Documentation/media/uapi/fdl-appendix.rst.
 ..
-.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
+.. TODO: replace it to GFDL-1.1-or-later WITH yes-invariant-sections
 
 .. _NET_ADD_IF:
 
@@ -19,7 +19,7 @@ Name
 NET_ADD_IF - Creates a new network interface for a given Packet ID.
 
 
-Synopsis
+Syyespsis
 ========
 
 .. c:function:: int ioctl( int fd, NET_ADD_IF, struct dvb_net_if *net_if )
@@ -53,7 +53,7 @@ Return Value
 
 On success 0 is returned, and :c:type:`ca_slot_info` is filled.
 
-On error -1 is returned, and the ``errno`` variable is set
+On error -1 is returned, and the ``erryes`` variable is set
 appropriately.
 
 The generic error codes are described at the

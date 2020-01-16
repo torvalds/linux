@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 #ifndef _UAPI_PR_H
 #define _UAPI_PR_H
 
@@ -39,7 +39,7 @@ struct pr_clear {
 	__u32	__pad;
 };
 
-#define PR_FL_IGNORE_KEY	(1 << 0)	/* ignore existing key */
+#define PR_FL_IGNORE_KEY	(1 << 0)	/* igyesre existing key */
 
 #define IOC_PR_REGISTER		_IOW('p', 200, struct pr_registration)
 #define IOC_PR_RESERVE		_IOW('p', 201, struct pr_reservation)

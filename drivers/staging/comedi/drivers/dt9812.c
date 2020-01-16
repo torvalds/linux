@@ -16,7 +16,7 @@
  * Status: in development
  * Updated: Sun Nov 20 20:18:34 EST 2005
  *
- * This driver works, but bulk transfers not implemented. Might be a
+ * This driver works, but bulk transfers yest implemented. Might be a
  * starting point for someone else. I found out too late that USB has
  * too high latencies (>1 ms) for my needs.
  */
@@ -31,7 +31,7 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/uaccess.h>
 
 #include "../comedi_usb.h"
@@ -736,7 +736,7 @@ static int dt9812_reset_device(struct comedi_device *dev)
 	}
 	serial = le32_to_cpu(tmp32);
 
-	/* let the user know what node this device is now attached to */
+	/* let the user kyesw what yesde this device is yesw attached to */
 	dev_info(dev->class_dev, "USB DT9812 (%4.4x.%4.4x.%4.4x) #0x%8.8x\n",
 		 vendor, product, devpriv->device, serial);
 

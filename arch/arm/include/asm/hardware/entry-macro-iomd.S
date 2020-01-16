@@ -38,7 +38,7 @@
 		.endm
 
 /*
- * Interrupt table (incorporates priority).  Please note that we
+ * Interrupt table (incorporates priority).  Please yeste that we
  * rely on the order of these tables (see above code).
  */
 		.align	5

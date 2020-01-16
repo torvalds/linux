@@ -75,7 +75,7 @@ static bool inv_mpu_i2c_aux_bus(struct device *dev)
 	switch (st->chip_type) {
 	case INV_ICM20608:
 	case INV_ICM20602:
-		/* no i2c auxiliary bus on the chip */
+		/* yes i2c auxiliary bus on the chip */
 		return false;
 	case INV_MPU9250:
 	case INV_MPU9255:
@@ -90,26 +90,26 @@ static bool inv_mpu_i2c_aux_bus(struct device *dev)
 
 /*
  * MPU9xxx magnetometer support requires to disable i2c auxiliary bus support.
- * To ensure backward compatibility with existing setups, do not disable
+ * To ensure backward compatibility with existing setups, do yest disable
  * i2c auxiliary bus if it used.
- * Check for i2c-gate node in devicetree and set magnetometer disabled.
- * Only MPU6500 is supported by ACPI, no need to check.
+ * Check for i2c-gate yesde in devicetree and set magnetometer disabled.
+ * Only MPU6500 is supported by ACPI, yes need to check.
  */
 static int inv_mpu_magn_disable(struct iio_dev *indio_dev)
 {
 	struct inv_mpu6050_state *st = iio_priv(indio_dev);
 	struct device *dev = indio_dev->dev.parent;
-	struct device_node *mux_node;
+	struct device_yesde *mux_yesde;
 
 	switch (st->chip_type) {
 	case INV_MPU9250:
 	case INV_MPU9255:
-		mux_node = of_get_child_by_name(dev->of_node, "i2c-gate");
-		if (mux_node != NULL) {
+		mux_yesde = of_get_child_by_name(dev->of_yesde, "i2c-gate");
+		if (mux_yesde != NULL) {
 			st->magn_disabled = true;
 			dev_warn(dev, "disable internal use of magnetometer\n");
 		}
-		of_node_put(mux_node);
+		of_yesde_put(mux_yesde);
 		break;
 	default:
 		break;
@@ -138,7 +138,7 @@ static int inv_mpu_probe(struct i2c_client *client,
 				     I2C_FUNC_SMBUS_I2C_BLOCK))
 		return -EOPNOTSUPP;
 
-	if (client->dev.of_node) {
+	if (client->dev.of_yesde) {
 		chip_type = (enum inv_devices)
 			of_device_get_match_data(&client->dev);
 		name = client->name;

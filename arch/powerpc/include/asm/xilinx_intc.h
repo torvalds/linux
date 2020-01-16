@@ -2,7 +2,7 @@
 /*
  * Xilinx intc external definitions
  *
- * Copyright 2007 Secret Lab Technologies Ltd.
+ * Copyright 2007 Secret Lab Techyeslogies Ltd.
  */
 #ifndef _ASM_POWERPC_XILINX_INTC_H
 #define _ASM_POWERPC_XILINX_INTC_H

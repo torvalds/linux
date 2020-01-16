@@ -46,8 +46,8 @@ Example::
 
 Reminder: sizeof() returns type size_t.
 
-The kernel's printf does not support %n. Floating point formats (%e, %f,
-%g, %a) are also not recognized, for obvious reasons. Use of any
+The kernel's printf does yest support %n. Floating point formats (%e, %f,
+%g, %a) are also yest recognized, for obvious reasons. Use of any
 unsupported specifier or length qualifier results in a WARN and early
 return from vsnprintf().
 
@@ -77,7 +77,7 @@ Pointers printed without a specifier extension (i.e unadorned %p) are
 hashed to prevent leaking information about the kernel memory layout. This
 has the added benefit of providing a unique identifier. On 64-bit machines
 the first 32 bits are zeroed. The kernel will print ``(ptrval)`` until it
-gathers enough entropy. If you *really* want the address see %px below.
+gathers eyesugh entropy. If you *really* want the address see %px below.
 
 Error Pointers
 --------------
@@ -87,8 +87,8 @@ Error Pointers
 	%pe	-ENOSPC
 
 For printing error pointers (i.e. a pointer for which IS_ERR() is true)
-as a symbolic error name. Error values for which no symbolic name is
-known are printed in decimal, while a non-ERR_PTR passed as the
+as a symbolic error name. Error values for which yes symbolic name is
+kyeswn are printed in decimal, while a yesn-ERR_PTR passed as the
 argument to %pe gets treated as ordinary %p.
 
 Symbols/Function Pointers
@@ -110,7 +110,7 @@ offsets. If KALLSYMS are disabled then the symbol address is printed instead.
 The ``B`` specifier results in the symbol name with offsets and should be
 used when printing stack backtraces. The specifier takes into
 consideration the effect of compiler optimisations which may occur
-when tail-calls are used and marked with the noreturn GCC attribute.
+when tail-calls are used and marked with the yesreturn GCC attribute.
 
 Kernel Pointers
 ---------------
@@ -131,7 +131,7 @@ Unmodified Addresses
 	%px	01234567 or 0123456789abcdef
 
 For printing pointers when you *really* want to print the address. Please
-consider whether or not you are leaking sensitive information about the
+consider whether or yest you are leaking sensitive information about the
 kernel memory layout before printing pointers with %px. %px is functionally
 equivalent to %lx (or %lu). %px is preferred because it is more uniquely
 grep'able. If in the future we need to modify the way the kernel handles
@@ -196,7 +196,7 @@ Raw buffer as an escaped string
 
 ::
 
-	%*pE[achnops]
+	%*pE[achyesps]
 
 For printing raw buffer as an escaped string. For the following buffer::
 
@@ -253,7 +253,7 @@ MAC/FDDI addresses
 	%pm	000102030405
 	%pmR	050403020100
 
-For printing 6-byte MAC/FDDI addresses in hex notation. The ``M`` and ``m``
+For printing 6-byte MAC/FDDI addresses in hex yestation. The ``M`` and ``m``
 specifiers result in a printed address with (M) or without (m) byte
 separators. The default byte separator is the colon (:).
 
@@ -282,7 +282,7 @@ zeros.
 
 The additional ``h``, ``n``, ``b``, and ``l`` specifiers are used to specify
 host, network, big or little endian order addresses respectively. Where
-no specifier is provided the default network/big endian order is used.
+yes specifier is provided the default network/big endian order is used.
 
 Passed by reference.
 
@@ -331,7 +331,7 @@ case of additional specifiers ``p``, ``f`` or ``s`` as suggested by
 https://tools.ietf.org/html/draft-ietf-6man-text-addr-representation-07
 
 In case of IPv4 addresses, the additional ``h``, ``n``, ``b``, and ``l``
-specifiers can be used as well and are ignored in case of an IPv6
+specifiers can be used as well and are igyesred in case of an IPv6
 address.
 
 Passed by reference.
@@ -354,11 +354,11 @@ UUID/GUID addresses
 
 For printing 16-byte UUID/GUIDs addresses. The additional ``l``, ``L``,
 ``b`` and ``B`` specifiers are used to specify a little endian order in
-lower (l) or upper case (L) hex notation - and big endian order in lower (b)
-or upper case (B) hex notation.
+lower (l) or upper case (L) hex yestation - and big endian order in lower (b)
+or upper case (B) hex yestation.
 
-Where no additional specifiers are used the default big endian
-order with lower case hex notation will be printed.
+Where yes additional specifiers are used the default big endian
+order with lower case hex yestation will be printed.
 
 Passed by reference.
 
@@ -403,12 +403,12 @@ and va_list as follows::
 
 Implements a "recursive vsnprintf".
 
-Do not use this feature without some mechanism to verify the
+Do yest use this feature without some mechanism to verify the
 correctness of the format string and va_list arguments.
 
 Passed by reference.
 
-Device tree nodes
+Device tree yesdes
 -----------------
 
 ::
@@ -416,14 +416,14 @@ Device tree nodes
 	%pOF[fnpPcCF]
 
 
-For printing device tree node structures. Default behaviour is
+For printing device tree yesde structures. Default behaviour is
 equivalent to %pOFf.
 
-	- f - device node full_name
-	- n - device node name
-	- p - device node phandle
-	- P - device node path spec (name + @unit)
-	- F - device node flags
+	- f - device yesde full_name
+	- n - device yesde name
+	- p - device yesde phandle
+	- P - device yesde path spec (name + @unit)
+	- F - device yesde flags
 	- c - major compatible string
 	- C - full compatible string
 
@@ -436,7 +436,7 @@ Examples::
 	%pOFfp	/foo/bar@0:10			- Node full name + phandle
 	%pOFfcF	/foo/bar@0:foo,device:--P-	- Node full name +
 	                                          major compatible string +
-						  node flags
+						  yesde flags
 							D - dynamic
 							d - detached
 							P - Populated
@@ -444,23 +444,23 @@ Examples::
 
 Passed by reference.
 
-Fwnode handles
+Fwyesde handles
 --------------
 
 ::
 
 	%pfw[fP]
 
-For printing information on fwnode handles. The default is to print the full
-node name, including the path. The modifiers are functionally equivalent to
+For printing information on fwyesde handles. The default is to print the full
+yesde name, including the path. The modifiers are functionally equivalent to
 %pOF above.
 
-	- f - full name of the node, including the path
-	- P - the name of the node including an address (if there is one)
+	- f - full name of the yesde, including the path
+	- P - the name of the yesde including an address (if there is one)
 
 Examples (ACPI)::
 
-	%pfwf	\_SB.PCI0.CIO2.port@1.endpoint@0	- Full node name
+	%pfwf	\_SB.PCI0.CIO2.port@1.endpoint@0	- Full yesde name
 	%pfwP	endpoint@0				- Node name
 
 Examples (OF)::
@@ -499,7 +499,7 @@ For printing struct clk structures. %pC and %pCn print the name of the clock
 
 Passed by reference.
 
-bitmap and its derivatives such as cpumask and nodemask
+bitmap and its derivatives such as cpumask and yesdemask
 -------------------------------------------------------
 
 ::
@@ -507,7 +507,7 @@ bitmap and its derivatives such as cpumask and nodemask
 	%*pb	0779
 	%*pbl	0,3-6,8-10
 
-For printing bitmap and its derivatives such as cpumask and nodemask,
+For printing bitmap and its derivatives such as cpumask and yesdemask,
 %*pb outputs the bitmap with field width as the number of bits and %*pbl
 output the bitmap as range list with field width as the number of bits.
 
@@ -528,7 +528,7 @@ character. Currently supported are [p]age flags, [v]ma_flags (both
 expect ``unsigned long *``) and [g]fp_flags (expects ``gfp_t *``). The flag
 names and print order depends on the particular	type.
 
-Note that this format should not be used directly in the
+Note that this format should yest be used directly in the
 :c:func:`TP_printk()` part of a tracepoint. Instead, use the show_*_flags()
 functions from <trace/events/mmflags.h>.
 

@@ -26,7 +26,7 @@
 #include <linux/kernel.h>
 #include <linux/export.h>
 #include <linux/bug.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/slab.h>
 
 #include <asm/byteorder.h>
@@ -91,7 +91,7 @@ char *strcpy(char *dest, const char *src)
 	char *tmp = dest;
 
 	while ((*dest++ = *src++) != '\0')
-		/* nothing */;
+		/* yesthing */;
 	return tmp;
 }
 EXPORT_SYMBOL(strcpy);
@@ -104,7 +104,7 @@ EXPORT_SYMBOL(strcpy);
  * @src: Where to copy the string from
  * @count: The maximum number of bytes to copy
  *
- * The result is not %NUL-terminated if the source exceeds
+ * The result is yest %NUL-terminated if the source exceeds
  * @count bytes.
  *
  * In the case where the length of @src is less than  that  of
@@ -135,7 +135,7 @@ EXPORT_SYMBOL(strncpy);
  *
  * Compatible with ``*BSD``: the result is always a valid
  * NUL-terminated string that fits in the buffer (unless,
- * of course, the buffer size is zero). It does not pad
+ * of course, the buffer size is zero). It does yest pad
  * out the result like strncpy() does.
  */
 size_t strlcpy(char *dest, const char *src, size_t size)
@@ -174,7 +174,7 @@ EXPORT_SYMBOL(strlcpy);
  * zeroed.  If zeroing is desired please use strscpy_pad().
  *
  * Returns:
- * * The number of characters copied (not including the trailing %NUL)
+ * * The number of characters copied (yest including the trailing %NUL)
  * * -E2BIG if count is 0 or @src was truncated.
  */
 ssize_t strscpy(char *dest, const char *src, size_t count)
@@ -189,7 +189,7 @@ ssize_t strscpy(char *dest, const char *src, size_t count)
 #ifdef CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS
 	/*
 	 * If src is unaligned, don't cross a page boundary,
-	 * since we don't know if the next page is mapped.
+	 * since we don't kyesw if the next page is mapped.
 	 */
 	if ((long)src & (sizeof(long) - 1)) {
 		size_t limit = PAGE_SIZE - ((long)src & (PAGE_SIZE - 1));
@@ -255,7 +255,7 @@ EXPORT_SYMBOL(strscpy);
  * 'strscpy' functions please see the function docstring for strscpy().
  *
  * Returns:
- * * The number of characters copied (not including the trailing %NUL)
+ * * The number of characters copied (yest including the trailing %NUL)
  * * -E2BIG if count is 0 or @src was truncated.
  */
 ssize_t strscpy_pad(char *dest, const char *src, size_t count)
@@ -274,7 +274,7 @@ EXPORT_SYMBOL(strscpy_pad);
 
 #ifndef __HAVE_ARCH_STRCAT
 /**
- * strcat - Append one %NUL-terminated string to another
+ * strcat - Append one %NUL-terminated string to ayesther
  * @dest: The string to be appended to
  * @src: The string to append to it
  */
@@ -294,7 +294,7 @@ EXPORT_SYMBOL(strcat);
 
 #ifndef __HAVE_ARCH_STRNCAT
 /**
- * strncat - Append a length-limited, C-string to another
+ * strncat - Append a length-limited, C-string to ayesther
  * @dest: The string to be appended to
  * @src: The string to append to it
  * @count: The maximum numbers of bytes to copy
@@ -323,7 +323,7 @@ EXPORT_SYMBOL(strncat);
 
 #ifndef __HAVE_ARCH_STRLCAT
 /**
- * strlcat - Append a length-limited, C-string to another
+ * strlcat - Append a length-limited, C-string to ayesther
  * @dest: The string to be appended to
  * @src: The string to append to it
  * @count: The size of the destination buffer.
@@ -352,7 +352,7 @@ EXPORT_SYMBOL(strlcat);
 /**
  * strcmp - Compare two strings
  * @cs: One string
- * @ct: Another string
+ * @ct: Ayesther string
  */
 #undef strcmp
 int strcmp(const char *cs, const char *ct)
@@ -376,7 +376,7 @@ EXPORT_SYMBOL(strcmp);
 /**
  * strncmp - Compare two length-limited strings
  * @cs: One string
- * @ct: Another string
+ * @ct: Ayesther string
  * @count: The maximum number of bytes to compare
  */
 int strncmp(const char *cs, const char *ct, size_t count)
@@ -422,7 +422,7 @@ EXPORT_SYMBOL(strchr);
  * @s: The string to be searched
  * @c: The character to search for
  *
- * Returns pointer to first occurrence of 'c' in s. If c is not found, then
+ * Returns pointer to first occurrence of 'c' in s. If c is yest found, then
  * return a pointer to the null byte at the end of s.
  */
 char *strchrnul(const char *s, int c)
@@ -479,7 +479,7 @@ EXPORT_SYMBOL(strnchr);
  * skip_spaces - Removes leading whitespace from @str.
  * @str: The string to be stripped.
  *
- * Returns a pointer to the first non-whitespace character in @str.
+ * Returns a pointer to the first yesn-whitespace character in @str.
  */
 char *skip_spaces(const char *str)
 {
@@ -494,7 +494,7 @@ EXPORT_SYMBOL(skip_spaces);
  * @s: The string to be stripped.
  *
  * Note that the first trailing whitespace is replaced with a %NUL-terminator
- * in the given string @s. Returns a pointer to the first non-whitespace
+ * in the given string @s. Returns a pointer to the first yesn-whitespace
  * character in @s.
  */
 char *strim(char *s)
@@ -525,7 +525,7 @@ size_t strlen(const char *s)
 	const char *sc;
 
 	for (sc = s; *sc != '\0'; ++sc)
-		/* nothing */;
+		/* yesthing */;
 	return sc - s;
 }
 EXPORT_SYMBOL(strlen);
@@ -542,7 +542,7 @@ size_t strnlen(const char *s, size_t count)
 	const char *sc;
 
 	for (sc = s; count-- && *sc != '\0'; ++sc)
-		/* nothing */;
+		/* yesthing */;
 	return sc - s;
 }
 EXPORT_SYMBOL(strnlen);
@@ -577,7 +577,7 @@ EXPORT_SYMBOL(strspn);
 
 #ifndef __HAVE_ARCH_STRCSPN
 /**
- * strcspn - Calculate the length of the initial substring of @s which does not contain letters in @reject
+ * strcspn - Calculate the length of the initial substring of @s which does yest contain letters in @reject
  * @s: The string to be searched
  * @reject: The string to avoid
  */
@@ -652,7 +652,7 @@ EXPORT_SYMBOL(strsep);
 /**
  * sysfs_streq - return true if strings are equal, modulo trailing newline
  * @s1: one string
- * @s2: another string
+ * @s2: ayesther string
  *
  * This routine returns true iff two strings are equal, treating both
  * NUL and newline-then-NUL as equivalent string terminations.  It's
@@ -735,7 +735,7 @@ EXPORT_SYMBOL(__sysfs_match_string);
  * @c: The byte to fill the area with
  * @count: The size of the area.
  *
- * Do not use memset() to access IO space, use memset_io() instead.
+ * Do yest use memset() to access IO space, use memset_io() instead.
  */
 void *memset(void *s, int c, size_t count)
 {
@@ -757,7 +757,7 @@ EXPORT_SYMBOL(memset);
  *
  * Differs from memset() in that it fills with a uint16_t instead
  * of a byte.  Remember that @count is the number of uint16_ts to
- * store, not the number of bytes.
+ * store, yest the number of bytes.
  */
 void *memset16(uint16_t *s, uint16_t v, size_t count)
 {
@@ -779,7 +779,7 @@ EXPORT_SYMBOL(memset16);
  *
  * Differs from memset() in that it fills with a uint32_t instead
  * of a byte.  Remember that @count is the number of uint32_ts to
- * store, not the number of bytes.
+ * store, yest the number of bytes.
  */
 void *memset32(uint32_t *s, uint32_t v, size_t count)
 {
@@ -801,7 +801,7 @@ EXPORT_SYMBOL(memset32);
  *
  * Differs from memset() in that it fills with a uint64_t instead
  * of a byte.  Remember that @count is the number of uint64_ts to
- * store, not the number of bytes.
+ * store, yest the number of bytes.
  */
 void *memset64(uint64_t *s, uint64_t v, size_t count)
 {
@@ -816,12 +816,12 @@ EXPORT_SYMBOL(memset64);
 
 #ifndef __HAVE_ARCH_MEMCPY
 /**
- * memcpy - Copy one area of memory to another
+ * memcpy - Copy one area of memory to ayesther
  * @dest: Where to copy to
  * @src: Where to copy from
  * @count: The size of the area.
  *
- * You should not use this function to access IO space, use memcpy_toio()
+ * You should yest use this function to access IO space, use memcpy_toio()
  * or memcpy_fromio() instead.
  */
 void *memcpy(void *dest, const void *src, size_t count)
@@ -838,7 +838,7 @@ EXPORT_SYMBOL(memcpy);
 
 #ifndef __HAVE_ARCH_MEMMOVE
 /**
- * memmove - Copy one area of memory to another
+ * memmove - Copy one area of memory to ayesther
  * @dest: Where to copy to
  * @src: Where to copy from
  * @count: The size of the area.
@@ -872,7 +872,7 @@ EXPORT_SYMBOL(memmove);
 /**
  * memcmp - Compare two areas of memory
  * @cs: One area of memory
- * @ct: Another area of memory
+ * @ct: Ayesther area of memory
  * @count: The size of the area.
  */
 #undef memcmp
@@ -896,10 +896,10 @@ EXPORT_SYMBOL(memcmp);
  * @b: pointer to second buffer.
  * @len: size of buffers.
  *
- * The sign or magnitude of a non-zero return value has no particular
+ * The sign or magnitude of a yesn-zero return value has yes particular
  * meaning, and architectures may implement their own more efficient bcmp(). So
  * while this particular implementation is a simple (tail) call to memcmp, do
- * not rely on anything but whether the return value is zero or non-zero.
+ * yest rely on anything but whether the return value is zero or yesn-zero.
  */
 #undef bcmp
 int bcmp(const void *a, const void *b, size_t len)
@@ -917,7 +917,7 @@ EXPORT_SYMBOL(bcmp);
  * @size: The size of the area.
  *
  * returns the address of the first occurrence of @c, or 1 byte past
- * the area if @c is not found
+ * the area if @c is yest found
  */
 void *memscan(void *addr, int c, size_t size)
 {
@@ -992,7 +992,7 @@ EXPORT_SYMBOL(strnstr);
  * @n: The size of the area.
  *
  * returns the address of the first occurrence of @c, or %NULL
- * if @c is not found
+ * if @c is yest found
  */
 void *memchr(const void *s, int c, size_t n)
 {

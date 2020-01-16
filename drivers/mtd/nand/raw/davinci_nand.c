@@ -35,7 +35,7 @@
  * more error-prone MLC NAND chips.
  *
  * This driver assumes EM_WAIT connects all the NAND devices' RDY/nBUSY
- * outputs in a "wire-AND" configuration, with no per-chip signals.
+ * outputs in a "wire-AND" configuration, with yes per-chip signals.
  */
 struct davinci_nand_info {
 	struct nand_chip	chip;
@@ -191,7 +191,7 @@ static int nand_davinci_correct_1bit(struct nand_chip *chip, u_char *dat,
 			}
 		} else if (!(diff & (diff - 1))) {
 			/* Single bit ECC error in the ECC itself,
-			 * nothing to fix */
+			 * yesthing to fix */
 			return 1;
 		} else {
 			/* Uncorrectable error */
@@ -261,7 +261,7 @@ static int nand_davinci_calculate_4bit(struct nand_chip *chip,
 	/* After a read, terminate ECC calculation by a dummy read
 	 * of some 4-bit ECC register.  ECC covers everything that
 	 * was read; correct() just uses the hardware state, so
-	 * ecc_code is not needed.
+	 * ecc_code is yest needed.
 	 */
 	if (info->is_readmode) {
 		davinci_nand_readl(info, NAND_4BIT_ECC1_OFFSET);
@@ -300,7 +300,7 @@ static int nand_davinci_correct_4bit(struct nand_chip *chip, u_char *data,
 	unsigned num_errors, corrected;
 	unsigned long timeo;
 
-	/* Unpack ten bytes into eight 10 bit values.  We know we're
+	/* Unpack ten bytes into eight 10 bit values.  We kyesw we're
 	 * little-endian, and use type punning for less shifting/masking.
 	 */
 	if (WARN_ON(0x01 & (uintptr_t)ecc_code))
@@ -321,7 +321,7 @@ static int nand_davinci_correct_4bit(struct nand_chip *chip, u_char *data,
 		davinci_nand_writel(info, NAND_4BIT_ECC_LOAD_OFFSET, ecc10[i]);
 
 	/* Allow time for syndrome calculation ... then read it.
-	 * A syndrome of all zeroes 0 means no detected errors.
+	 * A syndrome of all zeroes 0 means yes detected errors.
 	 */
 	davinci_nand_readl(info, NANDFSR_OFFSET);
 	nand_davinci_readecc_4bit(info, syndrome);
@@ -361,7 +361,7 @@ static int nand_davinci_correct_4bit(struct nand_chip *chip, u_char *data,
 		u32	fsr = davinci_nand_readl(info, NANDFSR_OFFSET);
 
 		switch ((fsr >> 8) & 0x0f) {
-		case 0:		/* no error, should not happen */
+		case 0:		/* yes error, should yest happen */
 			davinci_nand_readl(info, NAND_ERR_ERRVAL1_OFFSET);
 			return 0;
 		case 1:		/* five or more errors detected */
@@ -414,10 +414,10 @@ correct:
 
 /*
  * NOTE:  NAND boot requires ALE == EM_A[1], CLE == EM_A[2], so that's
- * how these chips are normally wired.  This translates to both 8 and 16
+ * how these chips are yesrmally wired.  This translates to both 8 and 16
  * bit busses using ALE == BIT(3) in byte addresses, and CLE == BIT(4).
  *
- * For now we assume that configuration, or any other one which ignores
+ * For yesw we assume that configuration, or any other one which igyesres
  * the two LSBs for NAND access ... so we can issue 32-bit reads/writes
  * and have that transparently morphed into multiple NAND operations.
  */
@@ -458,7 +458,7 @@ static int nand_davinci_dev_ready(struct nand_chip *chip)
 
 /* An ECC layout for using 4-bit ECC with small-page flash, storing
  * ten ECC bytes plus the manufacturer's bad block marker byte, and
- * and not overlapping the default BBT markers.
+ * and yest overlapping the default BBT markers.
  */
 static int hwecc4_ooblayout_small_ecc(struct mtd_info *mtd, int section,
 				      struct mtd_oob_region *oobregion)
@@ -513,7 +513,7 @@ MODULE_DEVICE_TABLE(of, davinci_nand_of_match);
 static struct davinci_nand_pdata
 	*nand_davinci_get_pdata(struct platform_device *pdev)
 {
-	if (!dev_get_platdata(&pdev->dev) && pdev->dev.of_node) {
+	if (!dev_get_platdata(&pdev->dev) && pdev->dev.of_yesde) {
 		struct davinci_nand_pdata *pdata;
 		const char *mode;
 		u32 prop;
@@ -524,39 +524,39 @@ static struct davinci_nand_pdata
 		pdev->dev.platform_data = pdata;
 		if (!pdata)
 			return ERR_PTR(-ENOMEM);
-		if (!of_property_read_u32(pdev->dev.of_node,
+		if (!of_property_read_u32(pdev->dev.of_yesde,
 			"ti,davinci-chipselect", &prop))
 			pdata->core_chipsel = prop;
 		else
 			return ERR_PTR(-EINVAL);
 
-		if (!of_property_read_u32(pdev->dev.of_node,
+		if (!of_property_read_u32(pdev->dev.of_yesde,
 			"ti,davinci-mask-ale", &prop))
 			pdata->mask_ale = prop;
-		if (!of_property_read_u32(pdev->dev.of_node,
+		if (!of_property_read_u32(pdev->dev.of_yesde,
 			"ti,davinci-mask-cle", &prop))
 			pdata->mask_cle = prop;
-		if (!of_property_read_u32(pdev->dev.of_node,
+		if (!of_property_read_u32(pdev->dev.of_yesde,
 			"ti,davinci-mask-chipsel", &prop))
 			pdata->mask_chipsel = prop;
-		if (!of_property_read_string(pdev->dev.of_node,
+		if (!of_property_read_string(pdev->dev.of_yesde,
 			"ti,davinci-ecc-mode", &mode)) {
-			if (!strncmp("none", mode, 4))
+			if (!strncmp("yesne", mode, 4))
 				pdata->ecc_mode = NAND_ECC_NONE;
 			if (!strncmp("soft", mode, 4))
 				pdata->ecc_mode = NAND_ECC_SOFT;
 			if (!strncmp("hw", mode, 2))
 				pdata->ecc_mode = NAND_ECC_HW;
 		}
-		if (!of_property_read_u32(pdev->dev.of_node,
+		if (!of_property_read_u32(pdev->dev.of_yesde,
 			"ti,davinci-ecc-bits", &prop))
 			pdata->ecc_bits = prop;
 
-		if (!of_property_read_u32(pdev->dev.of_node,
+		if (!of_property_read_u32(pdev->dev.of_yesde,
 			"ti,davinci-nand-buswidth", &prop) && prop == 16)
 			pdata->options |= NAND_BUSWIDTH_16;
 
-		if (of_property_read_bool(pdev->dev.of_node,
+		if (of_property_read_bool(pdev->dev.of_yesde,
 			"ti,davinci-nand-use-bbt"))
 			pdata->bbt_options = NAND_BBT_USE_FLASH;
 
@@ -564,14 +564,14 @@ static struct davinci_nand_pdata
 		 * Since kernel v4.8, this driver has been fixed to enable
 		 * use of 4-bit hardware ECC with subpages and verified on
 		 * TI's keystone EVMs (K2L, K2HK and K2E).
-		 * However, in the interest of not breaking systems using
-		 * existing UBI partitions, sub-page writes are not being
+		 * However, in the interest of yest breaking systems using
+		 * existing UBI partitions, sub-page writes are yest being
 		 * (re)enabled. If you want to use subpage writes on Keystone
-		 * platforms (i.e. do not have any existing UBI partitions),
+		 * platforms (i.e. do yest have any existing UBI partitions),
 		 * then use "ti,davinci-nand" as the compatible in your
 		 * device-tree file.
 		 */
-		if (of_device_is_compatible(pdev->dev.of_node,
+		if (of_device_is_compatible(pdev->dev.of_yesde,
 					    "ti,keystone-nand")) {
 			pdata->options |= NAND_NO_SUBPAGE_WRITE;
 		}
@@ -615,7 +615,7 @@ static int davinci_nand_attach_chip(struct nand_chip *chip)
 		if (pdata->ecc_bits == 4) {
 			/*
 			 * No sanity checks:  CPUs must support this,
-			 * and the chips may not use NAND_BUSWIDTH_16.
+			 * and the chips may yest use NAND_BUSWIDTH_16.
 			 */
 
 			/* No sharing 4-bit hardware between chipselects yet */
@@ -653,8 +653,8 @@ static int davinci_nand_attach_chip(struct nand_chip *chip)
 	/*
 	 * Update ECC layout if needed ... for 1-bit HW ECC, the default
 	 * is OK, but it allocates 6 bytes when only 3 are needed (for
-	 * each 512 bytes).  For the 4-bit HW ECC, that default is not
-	 * usable:  10 bytes are needed, not 6.
+	 * each 512 bytes).  For the 4-bit HW ECC, that default is yest
+	 * usable:  10 bytes are needed, yest 6.
 	 */
 	if (pdata->ecc_bits == 4) {
 		int chunks = mtd->writesize / 512;
@@ -729,8 +729,8 @@ static int nand_davinci_probe(struct platform_device *pdev)
 	/*
 	 * This registers range is used to setup NAND settings. In case with
 	 * TI AEMIF driver, the same memory address range is requested already
-	 * by AEMIF, so we cannot request it twice, just ioremap.
-	 * The AEMIF and NAND drivers not use the same registers in this range.
+	 * by AEMIF, so we canyest request it twice, just ioremap.
+	 * The AEMIF and NAND drivers yest use the same registers in this range.
 	 */
 	base = devm_ioremap(&pdev->dev, res2->start, resource_size(res2));
 	if (!base) {
@@ -744,7 +744,7 @@ static int nand_davinci_probe(struct platform_device *pdev)
 
 	mtd			= nand_to_mtd(&info->chip);
 	mtd->dev.parent		= &pdev->dev;
-	nand_set_flash_node(&info->chip, pdev->dev.of_node);
+	nand_set_flash_yesde(&info->chip, pdev->dev.of_yesde);
 
 	info->chip.legacy.IO_ADDR_R	= vaddr;
 	info->chip.legacy.IO_ADDR_W	= vaddr;
@@ -791,7 +791,7 @@ static int nand_davinci_probe(struct platform_device *pdev)
 	info->chip.legacy.dummy_controller.ops = &davinci_nand_controller_ops;
 	ret = nand_scan(&info->chip, pdata->mask_chipsel ? 2 : 1);
 	if (ret < 0) {
-		dev_dbg(&pdev->dev, "no NAND chip(s) found\n");
+		dev_dbg(&pdev->dev, "yes NAND chip(s) found\n");
 		return ret;
 	}
 

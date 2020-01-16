@@ -93,7 +93,7 @@ static bool rtl_fw_data_ok(struct rtl_fw *rtl_fw)
 	for (index = 0; index < pa->size; index++) {
 		u32 action = le32_to_cpu(pa->code[index]);
 		u32 val = action & 0x0000ffff;
-		u32 regno = (action & 0x0fff0000) >> 16;
+		u32 regyes = (action & 0x0fff0000) >> 16;
 
 		switch (action >> 28) {
 		case PHY_READ:
@@ -111,7 +111,7 @@ static bool rtl_fw_data_ok(struct rtl_fw *rtl_fw)
 			break;
 
 		case PHY_BJMPN:
-			if (regno > index)
+			if (regyes > index)
 				goto out;
 			break;
 		case PHY_READCOUNT_EQ_SKIP:
@@ -121,7 +121,7 @@ static bool rtl_fw_data_ok(struct rtl_fw *rtl_fw)
 		case PHY_COMP_EQ_SKIPN:
 		case PHY_COMP_NEQ_SKIPN:
 		case PHY_SKIPN:
-			if (index + 1 + regno >= pa->size)
+			if (index + 1 + regyes >= pa->size)
 				goto out;
 			break;
 
@@ -148,7 +148,7 @@ void rtl_fw_write_firmware(struct rtl8169_private *tp, struct rtl_fw *rtl_fw)
 	for (index = 0; index < pa->size; index++) {
 		u32 action = le32_to_cpu(pa->code[index]);
 		u32 data = action & 0x0000ffff;
-		u32 regno = (action & 0x0fff0000) >> 16;
+		u32 regyes = (action & 0x0fff0000) >> 16;
 		enum rtl_fw_opcode opcode = action >> 28;
 
 		if (!action)
@@ -156,7 +156,7 @@ void rtl_fw_write_firmware(struct rtl8169_private *tp, struct rtl_fw *rtl_fw)
 
 		switch (opcode) {
 		case PHY_READ:
-			predata = fw_read(tp, regno);
+			predata = fw_read(tp, regyes);
 			count++;
 			break;
 		case PHY_DATA_OR:
@@ -166,7 +166,7 @@ void rtl_fw_write_firmware(struct rtl8169_private *tp, struct rtl_fw *rtl_fw)
 			predata &= data;
 			break;
 		case PHY_BJMPN:
-			index -= (regno + 1);
+			index -= (regyes + 1);
 			break;
 		case PHY_MDIO_CHG:
 			if (data) {
@@ -182,7 +182,7 @@ void rtl_fw_write_firmware(struct rtl8169_private *tp, struct rtl_fw *rtl_fw)
 			count = 0;
 			break;
 		case PHY_WRITE:
-			fw_write(tp, regno, data);
+			fw_write(tp, regyes, data);
 			break;
 		case PHY_READCOUNT_EQ_SKIP:
 			if (count == data)
@@ -190,17 +190,17 @@ void rtl_fw_write_firmware(struct rtl8169_private *tp, struct rtl_fw *rtl_fw)
 			break;
 		case PHY_COMP_EQ_SKIPN:
 			if (predata == data)
-				index += regno;
+				index += regyes;
 			break;
 		case PHY_COMP_NEQ_SKIPN:
 			if (predata != data)
-				index += regno;
+				index += regyes;
 			break;
 		case PHY_WRITE_PREVIOUS:
-			fw_write(tp, regno, predata);
+			fw_write(tp, regyes, predata);
 			break;
 		case PHY_SKIPN:
-			index += regno;
+			index += regyes;
 			break;
 		case PHY_DELAY_MS:
 			msleep(data);

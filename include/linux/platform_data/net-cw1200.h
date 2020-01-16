@@ -29,7 +29,7 @@ struct cw1200_platform_data_sdio {
 
 	/* All others are optional */
 	bool have_5ghz;
-	bool no_nptb;       /* SDIO hardware does not support non-power-of-2-blocksizes */
+	bool yes_nptb;       /* SDIO hardware does yest support yesn-power-of-2-blocksizes */
 	int reset;          /* GPIO to RSTn signal (0 disables) */
 	int powerup;        /* GPIO to POWERUP signal (0 disables) */
 	int irq;            /* IRQ line or 0 to use SDIO IRQ */

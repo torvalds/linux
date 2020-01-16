@@ -336,7 +336,7 @@ static int bcm_enet_receive_queue(struct net_device *dev, int budget)
 			priv->rx_curr_desc = 0;
 		priv->rx_desc_count--;
 
-		/* if the packet does not have start of packet _and_
+		/* if the packet does yest have start of packet _and_
 		 * end of packet flag set, then just recycle it */
 		if ((len_stat & (DMADESC_ESOP_MASK >> priv->dma_desc_shift)) !=
 			(DMADESC_ESOP_MASK >> priv->dma_desc_shift)) {
@@ -434,7 +434,7 @@ static int bcm_enet_tx_reclaim(struct net_device *dev, int force)
 			break;
 		}
 
-		/* ensure other field of the descriptor were not read
+		/* ensure other field of the descriptor were yest read
 		 * before we checked ownership */
 		rmb();
 
@@ -489,11 +489,11 @@ static int bcm_enet_poll(struct napi_struct *napi, int budget)
 	spin_unlock(&priv->rx_lock);
 
 	if (rx_work_done >= budget) {
-		/* rx queue is not yet empty/clean */
+		/* rx queue is yest yet empty/clean */
 		return rx_work_done;
 	}
 
-	/* no more packet in rx/tx queue, remove device from poll
+	/* yes more packet in rx/tx queue, remove device from poll
 	 * queue */
 	napi_complete_done(napi, rx_work_done);
 
@@ -568,11 +568,11 @@ bcm_enet_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	/* lock against tx reclaim */
 	spin_lock(&priv->tx_lock);
 
-	/* make sure  the tx hw queue  is not full,  should not happen
+	/* make sure  the tx hw queue  is yest full,  should yest happen
 	 * since we stop queue before it's the case */
 	if (unlikely(!priv->tx_desc_count)) {
 		netif_stop_queue(dev);
-		dev_err(&priv->pdev->dev, "xmit called with no tx desc "
+		dev_err(&priv->pdev->dev, "xmit called with yes tx desc "
 			"available?\n");
 		ret = NETDEV_TX_BUSY;
 		goto out_unlock;
@@ -627,7 +627,7 @@ bcm_enet_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	enet_dmac_writel(priv, priv->dma_chan_en_mask,
 				 ENETDMAC_CHANCFG, priv->tx_chan);
 
-	/* stop queue if no more desc available */
+	/* stop queue if yes more desc available */
 	if (!priv->tx_desc_count)
 		netif_stop_queue(dev);
 
@@ -690,7 +690,7 @@ static void bcm_enet_set_multicast_list(struct net_device *dev)
 	else
 		val &= ~ENET_RXCFG_ALLMCAST_MASK;
 
-	/* no need to set perfect match registers if we catch all
+	/* yes need to set perfect match registers if we catch all
 	 * multicast */
 	if (val & ENET_RXCFG_ALLMCAST_MASK) {
 		enet_writel(priv, val, ENET_RXCFG_REG);
@@ -827,7 +827,7 @@ static void bcm_enet_adjust_phy_link(struct net_device *dev)
 }
 
 /*
- * link changed callback (if phylib is not used)
+ * link changed callback (if phylib is yest used)
  */
 static void bcm_enet_adjust_link(struct net_device *dev)
 {
@@ -873,7 +873,7 @@ static int bcm_enet_open(struct net_device *dev)
 				     PHY_INTERFACE_MODE_MII);
 
 		if (IS_ERR(phydev)) {
-			dev_err(kdev, "could not attach to PHY\n");
+			dev_err(kdev, "could yest attach to PHY\n");
 			return PTR_ERR(phydev);
 		}
 
@@ -976,7 +976,7 @@ static int bcm_enet_open(struct net_device *dev)
 				ENETDMAC_BUFALLOC, priv->rx_chan);
 
 	if (bcm_enet_refill_rx(dev)) {
-		dev_err(kdev, "cannot allocate rx skb queue\n");
+		dev_err(kdev, "canyest allocate rx skb queue\n");
 		ret = -ENOMEM;
 		goto out;
 	}
@@ -1176,7 +1176,7 @@ static int bcm_enet_stop(struct net_device *dev)
 	enet_dmac_writel(priv, 0, ENETDMAC_IRMASK, priv->rx_chan);
 	enet_dmac_writel(priv, 0, ENETDMAC_IRMASK, priv->tx_chan);
 
-	/* make sure no mib update is scheduled */
+	/* make sure yes mib update is scheduled */
 	cancel_work_sync(&priv->mib_update_task);
 
 	/* disable dma & mac */
@@ -1545,13 +1545,13 @@ static int bcm_enet_set_pauseparam(struct net_device *dev,
 
 	if (priv->has_phy) {
 		if (ecmd->autoneg && (ecmd->rx_pause != ecmd->tx_pause)) {
-			/* asymetric pause mode not supported,
+			/* asymetric pause mode yest supported,
 			 * actually possible but integrated PHY has RO
 			 * asym_pause bit */
 			return -EINVAL;
 		}
 	} else {
-		/* no pause autoneg on direct mii connection */
+		/* yes pause autoneg on direct mii connection */
 		if (ecmd->autoneg)
 			return -EINVAL;
 	}
@@ -1616,7 +1616,7 @@ static int bcm_enet_change_mtu(struct net_device *dev, int new_mtu)
 
 	/*
 	 * setup maximum size before we get overflow mark in
-	 * descriptor, note that this will not prevent reception of
+	 * descriptor, yeste that this will yest prevent reception of
 	 * big frames, they will be split into multiple buffers
 	 * anyway
 	 */
@@ -1799,7 +1799,7 @@ static int bcm_enet_probe(struct platform_device *pdev)
 
 		/* only probe bus where we think the PHY is, because
 		 * the mdio read operation return 0 instead of 0xffff
-		 * if a slave is not present on hw */
+		 * if a slave is yest present on hw */
 		bus->phy_mask = ~(1 << priv->phy_id);
 
 		if (priv->has_phy_interrupt)
@@ -2108,7 +2108,7 @@ static int bcm_enetsw_open(struct net_device *dev)
 	size = priv->rx_ring_size * sizeof(struct bcm_enet_desc);
 	p = dma_alloc_coherent(kdev, size, &priv->rx_desc_dma, GFP_KERNEL);
 	if (!p) {
-		dev_err(kdev, "cannot allocate rx ring %u\n", size);
+		dev_err(kdev, "canyest allocate rx ring %u\n", size);
 		ret = -ENOMEM;
 		goto out_freeirq_tx;
 	}
@@ -2120,7 +2120,7 @@ static int bcm_enetsw_open(struct net_device *dev)
 	size = priv->tx_ring_size * sizeof(struct bcm_enet_desc);
 	p = dma_alloc_coherent(kdev, size, &priv->tx_desc_dma, GFP_KERNEL);
 	if (!p) {
-		dev_err(kdev, "cannot allocate tx ring\n");
+		dev_err(kdev, "canyest allocate tx ring\n");
 		ret = -ENOMEM;
 		goto out_free_rx_ring;
 	}
@@ -2131,7 +2131,7 @@ static int bcm_enetsw_open(struct net_device *dev)
 	priv->tx_skb = kcalloc(priv->tx_ring_size, sizeof(struct sk_buff *),
 			       GFP_KERNEL);
 	if (!priv->tx_skb) {
-		dev_err(kdev, "cannot allocate rx skb queue\n");
+		dev_err(kdev, "canyest allocate rx skb queue\n");
 		ret = -ENOMEM;
 		goto out_free_tx_ring;
 	}
@@ -2145,7 +2145,7 @@ static int bcm_enetsw_open(struct net_device *dev)
 	priv->rx_skb = kcalloc(priv->rx_ring_size, sizeof(struct sk_buff *),
 			       GFP_KERNEL);
 	if (!priv->rx_skb) {
-		dev_err(kdev, "cannot allocate rx skb queue\n");
+		dev_err(kdev, "canyest allocate rx skb queue\n");
 		ret = -ENOMEM;
 		goto out_free_tx_skb;
 	}
@@ -2193,7 +2193,7 @@ static int bcm_enetsw_open(struct net_device *dev)
 			ENETDMA_BUFALLOC_REG(priv->rx_chan));
 
 	if (bcm_enet_refill_rx(dev)) {
-		dev_err(kdev, "cannot allocate rx skb queue\n");
+		dev_err(kdev, "canyest allocate rx skb queue\n");
 		ret = -ENOMEM;
 		goto out;
 	}
@@ -2381,7 +2381,7 @@ static int bcm_enetsw_stop(struct net_device *dev)
 }
 
 /* try to sort out phy external status by walking the used_port field
- * in the bcm_enet_priv structure. in case the phy address is not
+ * in the bcm_enet_priv structure. in case the phy address is yest
  * assigned to any physical port on the switch, assume it is external
  * (and yell at the user).
  */
@@ -2396,7 +2396,7 @@ static int bcm_enetsw_phy_is_external(struct bcm_enet_priv *priv, int phy_id)
 			return bcm_enet_port_is_rgmii(i);
 	}
 
-	printk_once(KERN_WARNING  "bcm63xx_enet: could not find a used port with phy_id %i, assuming phy is external\n",
+	printk_once(KERN_WARNING  "bcm63xx_enet: could yest find a used port with phy_id %i, assuming phy is external\n",
 		    phy_id);
 	return 1;
 }

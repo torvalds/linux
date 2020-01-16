@@ -8,7 +8,7 @@
 #include <linux/list.h>
 #include <linux/ioport.h>
 
-struct device_node;
+struct device_yesde;
 
 #ifdef CONFIG_PCI
 extern struct list_head hose_list;
@@ -26,21 +26,21 @@ static inline int pcibios_vaddr_is_ioport(void __iomem *address)
 struct pci_controller {
 	struct pci_bus *bus;
 	char is_dynamic;
-	struct device_node *dn;
-	struct list_head list_node;
+	struct device_yesde *dn;
+	struct list_head list_yesde;
 	struct device *parent;
 
-	int first_busno;
-	int last_busno;
+	int first_busyes;
+	int last_busyes;
 
-	int self_busno;
+	int self_busyes;
 
 	void __iomem *io_base_virt;
 	resource_size_t io_base_phys;
 
 	resource_size_t pci_io_size;
 
-	/* Some machines (PReP) have a non 1:1 mapping of
+	/* Some machines (PReP) have a yesn 1:1 mapping of
 	 * the PCI memory space in the CPU bus space
 	 */
 	resource_size_t pci_mem_offset;
@@ -127,14 +127,14 @@ extern void setup_indirect_pci(struct pci_controller *hose,
 
 /* Get the PCI host controller for an OF device */
 extern struct pci_controller *pci_find_hose_for_OF_device(
-			struct device_node *node);
+			struct device_yesde *yesde);
 
-/* Fill up host controller resources from the OF node */
+/* Fill up host controller resources from the OF yesde */
 extern void pci_process_bridge_OF_ranges(struct pci_controller *hose,
-			struct device_node *dev, int primary);
+			struct device_yesde *dev, int primary);
 
 /* Allocate & free a PCI host bridge structure */
-extern struct pci_controller *pcibios_alloc_controller(struct device_node *dev);
+extern struct pci_controller *pcibios_alloc_controller(struct device_yesde *dev);
 extern void pcibios_free_controller(struct pci_controller *phb);
 
 #endif	/* __KERNEL__ */

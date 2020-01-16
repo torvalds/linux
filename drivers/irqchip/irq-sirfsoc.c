@@ -64,8 +64,8 @@ static void __exception_irq_entry sirfsoc_handle_irq(struct pt_regs *regs)
 	handle_domain_irq(sirfsoc_irqdomain, irqstat & 0xff, regs);
 }
 
-static int __init sirfsoc_irq_init(struct device_node *np,
-	struct device_node *parent)
+static int __init sirfsoc_irq_init(struct device_yesde *np,
+	struct device_yesde *parent)
 {
 	void __iomem *base = of_iomap(np, 0);
 	if (!base)

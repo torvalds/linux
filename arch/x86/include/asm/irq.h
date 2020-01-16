@@ -11,7 +11,7 @@
 #include <asm/apicdef.h>
 #include <asm/irq_vectors.h>
 
-static inline int irq_canonicalize(int irq)
+static inline int irq_cayesnicalize(int irq)
 {
 	return ((irq == 2) ? 9 : irq);
 }

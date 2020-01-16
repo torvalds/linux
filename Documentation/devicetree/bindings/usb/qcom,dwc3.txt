@@ -7,7 +7,7 @@ Required properties:
 			"qcom,msm8998-dwc3" for msm8998 SOC.
 			"qcom,sdm845-dwc3" for sdm845 SOC.
 - reg:			Offset and length of register set for QSCRATCH wrapper
-- power-domains:	specifies a phandle to PM domain provider node
+- power-domains:	specifies a phandle to PM domain provider yesde
 - clocks:		A list of phandle + clock-specifier pairs for the
 				clocks listed in clock-names
 - clock-names:		Should contain the following:
@@ -21,7 +21,7 @@ Required properties:
 Optional clocks:
   "iface"		System bus AXI clock.
 			Not present on "qcom,msm8996-dwc3" compatible.
-  "cfg_noc"		System Config NOC clock.
+  "cfg_yesc"		System Config NOC clock.
 			Not present on "qcom,msm8996-dwc3" compatible.
 - assigned-clocks:	Should be:
 				MOCK_UTMI_CLK
@@ -47,15 +47,15 @@ Optional properties:
 				Used when dwc3 operates without SSPHY and only
 				HS/FS/LS modes are supported.
 
-Required child node:
-A child node must exist to represent the core DWC3 IP block. The name of
-the node is not important. The content of the node is defined in dwc3.txt.
+Required child yesde:
+A child yesde must exist to represent the core DWC3 IP block. The name of
+the yesde is yest important. The content of the yesde is defined in dwc3.txt.
 
 Phy documentation is provided in the following places:
 Documentation/devicetree/bindings/phy/qcom-qmp-phy.txt   - USB3 QMP PHY
 Documentation/devicetree/bindings/phy/qcom-qusb2-phy.txt - USB2 QUSB2 PHY
 
-Example device nodes:
+Example device yesdes:
 
 		hs_phy: phy@100f8800 {
 			compatible = "qcom,qusb2-v2-phy";

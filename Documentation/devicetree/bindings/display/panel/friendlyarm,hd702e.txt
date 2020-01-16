@@ -11,7 +11,7 @@ Required properties:
 Optional properties:
 - backlight: phandle of the backlight device attached to the panel
 
-Optional nodes:
+Optional yesdes:
 - Video port for LCD panel input.
 
 This binding is compatible with the simple-panel binding, which is specified

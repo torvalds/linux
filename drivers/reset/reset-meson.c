@@ -130,7 +130,7 @@ static int meson_reset_probe(struct platform_device *pdev)
 	data->rcdev.owner = THIS_MODULE;
 	data->rcdev.nr_resets = data->param->reg_count * BITS_PER_REG;
 	data->rcdev.ops = &meson_reset_ops;
-	data->rcdev.of_node = pdev->dev.of_node;
+	data->rcdev.of_yesde = pdev->dev.of_yesde;
 
 	return devm_reset_controller_register(&pdev->dev, &data->rcdev);
 }

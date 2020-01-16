@@ -130,27 +130,27 @@ TRACE_EVENT(rpcgss_accept_upcall,
 	TP_PROTO(
 		__be32 xid,
 		u32 major_status,
-		u32 minor_status
+		u32 miyesr_status
 	),
 
-	TP_ARGS(xid, major_status, minor_status),
+	TP_ARGS(xid, major_status, miyesr_status),
 
 	TP_STRUCT__entry(
 		__field(u32, xid)
-		__field(u32, minor_status)
+		__field(u32, miyesr_status)
 		__field(unsigned long, major_status)
 	),
 
 	TP_fast_assign(
 		__entry->xid = be32_to_cpu(xid);
-		__entry->minor_status = minor_status;
+		__entry->miyesr_status = miyesr_status;
 		__entry->major_status = major_status;
 	),
 
-	TP_printk("xid=0x%08x major_status=%s (0x%08lx) minor_status=%u",
+	TP_printk("xid=0x%08x major_status=%s (0x%08lx) miyesr_status=%u",
 		__entry->xid, __entry->major_status == 0 ? "GSS_S_COMPLETE" :
 				show_gss_status(__entry->major_status),
-		__entry->major_status, __entry->minor_status
+		__entry->major_status, __entry->miyesr_status
 	)
 );
 
@@ -179,7 +179,7 @@ TRACE_EVENT(rpcgss_unwrap_failed,
 	TP_printk("task:%u@%u", __entry->task_id, __entry->client_id)
 );
 
-TRACE_EVENT(rpcgss_bad_seqno,
+TRACE_EVENT(rpcgss_bad_seqyes,
 	TP_PROTO(
 		const struct rpc_task *task,
 		u32 expected,
@@ -202,12 +202,12 @@ TRACE_EVENT(rpcgss_bad_seqno,
 		__entry->received = received;
 	),
 
-	TP_printk("task:%u@%u expected seqno %u, received seqno %u",
+	TP_printk("task:%u@%u expected seqyes %u, received seqyes %u",
 		__entry->task_id, __entry->client_id,
 		__entry->expected, __entry->received)
 );
 
-TRACE_EVENT(rpcgss_seqno,
+TRACE_EVENT(rpcgss_seqyes,
 	TP_PROTO(
 		const struct rpc_task *task
 	),
@@ -218,7 +218,7 @@ TRACE_EVENT(rpcgss_seqno,
 		__field(unsigned int, task_id)
 		__field(unsigned int, client_id)
 		__field(u32, xid)
-		__field(u32, seqno)
+		__field(u32, seqyes)
 	),
 
 	TP_fast_assign(
@@ -227,12 +227,12 @@ TRACE_EVENT(rpcgss_seqno,
 		__entry->task_id = task->tk_pid;
 		__entry->client_id = task->tk_client->cl_clid;
 		__entry->xid = be32_to_cpu(rqst->rq_xid);
-		__entry->seqno = rqst->rq_seqno;
+		__entry->seqyes = rqst->rq_seqyes;
 	),
 
-	TP_printk("task:%u@%u xid=0x%08x seqno=%u",
+	TP_printk("task:%u@%u xid=0x%08x seqyes=%u",
 		__entry->task_id, __entry->client_id,
-		__entry->xid, __entry->seqno)
+		__entry->xid, __entry->seqyes)
 );
 
 TRACE_EVENT(rpcgss_need_reencode,
@@ -249,7 +249,7 @@ TRACE_EVENT(rpcgss_need_reencode,
 		__field(unsigned int, client_id)
 		__field(u32, xid)
 		__field(u32, seq_xmit)
-		__field(u32, seqno)
+		__field(u32, seqyes)
 		__field(bool, ret)
 	),
 
@@ -258,13 +258,13 @@ TRACE_EVENT(rpcgss_need_reencode,
 		__entry->client_id = task->tk_client->cl_clid;
 		__entry->xid = be32_to_cpu(task->tk_rqstp->rq_xid);
 		__entry->seq_xmit = seq_xmit;
-		__entry->seqno = task->tk_rqstp->rq_seqno;
+		__entry->seqyes = task->tk_rqstp->rq_seqyes;
 		__entry->ret = ret;
 	),
 
-	TP_printk("task:%u@%u xid=0x%08x rq_seqno=%u seq_xmit=%u reencode %sneeded",
+	TP_printk("task:%u@%u xid=0x%08x rq_seqyes=%u seq_xmit=%u reencode %sneeded",
 		__entry->task_id, __entry->client_id,
-		__entry->xid, __entry->seqno, __entry->seq_xmit,
+		__entry->xid, __entry->seqyes, __entry->seq_xmit,
 		__entry->ret ? "" : "un")
 );
 
@@ -315,17 +315,17 @@ TRACE_EVENT(rpcgss_upcall_result,
 TRACE_EVENT(rpcgss_context,
 	TP_PROTO(
 		unsigned long expiry,
-		unsigned long now,
+		unsigned long yesw,
 		unsigned int timeout,
 		unsigned int len,
 		const u8 *data
 	),
 
-	TP_ARGS(expiry, now, timeout, len, data),
+	TP_ARGS(expiry, yesw, timeout, len, data),
 
 	TP_STRUCT__entry(
 		__field(unsigned long, expiry)
-		__field(unsigned long, now)
+		__field(unsigned long, yesw)
 		__field(unsigned int, timeout)
 		__field(int, len)
 		__string(acceptor, data)
@@ -333,14 +333,14 @@ TRACE_EVENT(rpcgss_context,
 
 	TP_fast_assign(
 		__entry->expiry = expiry;
-		__entry->now = now;
+		__entry->yesw = yesw;
 		__entry->timeout = timeout;
 		__entry->len = len;
 		strncpy(__get_str(acceptor), data, len);
 	),
 
-	TP_printk("gc_expiry=%lu now=%lu timeout=%u acceptor=%.*s",
-		__entry->expiry, __entry->now, __entry->timeout,
+	TP_printk("gc_expiry=%lu yesw=%lu timeout=%u acceptor=%.*s",
+		__entry->expiry, __entry->yesw, __entry->timeout,
 		__entry->len, __get_str(acceptor))
 );
 
@@ -398,7 +398,7 @@ TRACE_EVENT(rpcgss_oid_to_mech,
 		__assign_str(oid, oid);
 	),
 
-	TP_printk("mech for oid %s was not found", __get_str(oid))
+	TP_printk("mech for oid %s was yest found", __get_str(oid))
 );
 
 #endif	/* _TRACE_RPCGSS_H */

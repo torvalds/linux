@@ -39,7 +39,7 @@ xfs_cui_item_free(
 
 /*
  * Freeing the CUI requires that we remove it from the AIL if it has already
- * been placed there. However, the CUI may not yet have been placed in the AIL
+ * been placed there. However, the CUI may yest yet have been placed in the AIL
  * when called by xfs_cui_release() from CUD processing due to the ordering of
  * committed vs unpin operations in bulk insert operations. Hence the reference
  * count to ensure only the last caller frees the CUI.
@@ -99,7 +99,7 @@ xfs_cui_item_format(
  * either case, the CUI transaction has been successfully committed to make it
  * this far. Therefore, we expect whoever committed the CUI to either construct
  * and commit the CUD or drop the CUD's reference in the event of error. Simply
- * drop the log's CUI reference now that the log is done with it.
+ * drop the log's CUI reference yesw that the log is done with it.
  */
 STATIC void
 xfs_cui_item_unpin(
@@ -502,7 +502,7 @@ xfs_cui_recover(
 	}
 
 	/*
-	 * Under normal operation, refcount updates are deferred, so we
+	 * Under yesrmal operation, refcount updates are deferred, so we
 	 * wouldn't be adding them directly to a transaction.  All
 	 * refcount updates manage reservation usage internally and
 	 * dynamically by deferring work that won't fit in the
@@ -510,7 +510,7 @@ xfs_cui_recover(
 	 * gets attached to the same defer_ops that scheduled the
 	 * refcount update.  However, we're in log recovery here, so we
 	 * we use the passed in defer_ops and to finish up any work that
-	 * doesn't fit.  We need to reserve enough blocks to handle a
+	 * doesn't fit.  We need to reserve eyesugh blocks to handle a
 	 * full btree split on either end of the refcount range.
 	 */
 	error = xfs_trans_alloc(mp, &M_RES(mp)->tr_itruncate,

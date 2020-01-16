@@ -6,4 +6,4 @@ gtk-y += setup.o
 gtk-y += util.o
 gtk-y += helpline.o
 gtk-y += progress.o
-gtk-y += annotate.o
+gtk-y += anyestate.o

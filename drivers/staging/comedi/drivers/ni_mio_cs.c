@@ -15,7 +15,7 @@
  *   DAQCard-AI-16E-4, DAQCard-6062E, DAQCard-6024E, DAQCard-6036E
  * Updated: Thu Oct 23 19:43:17 CDT 2003
  *
- * See the notes in the ni_atmio.o driver.
+ * See the yestes in the ni_atmio.o driver.
  */
 
 /*
@@ -103,7 +103,7 @@ static const struct ni_board_struct ni_boards[] = {
 #if 0
 	{
 		.name		= "DAQCard-6715",
-		.device_id	= 0x0000,	/* unknown */
+		.device_id	= 0x0000,	/* unkyeswn */
 		.n_aochan	= 8,
 		.ao_maxdata	= 0x0fff,
 		.ao_671x	= 8192,

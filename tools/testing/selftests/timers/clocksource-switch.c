@@ -5,7 +5,7 @@
  *
  *  NOTE: This is a meta-test which quickly changes the clocksourc and
  *  then uses other tests to detect problems. Thus this test requires
- *  that the inconsistency-check and nanosleep tests be present in the
+ *  that the inconsistency-check and nayessleep tests be present in the
  *  same directory it is run from.
  *
  *  To build:
@@ -112,7 +112,7 @@ int run_tests(int secs)
 	ret = system(buf);
 	if (ret)
 		return ret;
-	ret = system("./nanosleep");
+	ret = system("./nayessleep");
 	return ret;
 }
 
@@ -134,7 +134,7 @@ int main(int argv, char **argc)
 		return -1;
 	}
 
-	/* Check everything is sane before we start switching asyncrhonously */
+	/* Check everything is sane before we start switching asyncrhoyesusly */
 	for (i = 0; i < count; i++) {
 		printf("Validating clocksource %s\n", clocksource_list[i]);
 		if (change_clocksource(clocksource_list[i])) {
@@ -148,7 +148,7 @@ int main(int argv, char **argc)
 	}
 
 
-	printf("Running Asynchronous Switching Tests...\n");
+	printf("Running Asynchroyesus Switching Tests...\n");
 	pid = fork();
 	if (!pid)
 		return run_tests(60);

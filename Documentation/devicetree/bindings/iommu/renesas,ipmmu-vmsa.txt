@@ -33,7 +33,7 @@ Required Properties:
 
   - reg: Base address and size of the IPMMU registers.
   - interrupts: Specifiers for the MMU fault interrupts. For instances that
-    support secure mode two interrupts must be specified, for non-secure and
+    support secure mode two interrupts must be specified, for yesn-secure and
     secure mode, in that order. For instances that don't support secure mode a
     single interrupt must be specified. Not required for cache IPMMUs.
 
@@ -49,7 +49,7 @@ Optional properties:
 
 
 Each bus master connected to an IPMMU must reference the IPMMU in its device
-node with the following property:
+yesde with the following property:
 
   - iommus: A reference to the IPMMU in two cells. The first cell is a phandle
     to the IPMMU and the second cell the number of the micro-TLB that the

@@ -11,15 +11,15 @@
 #include <linux/wait.h>
 #include <linux/memcontrol.h>
 
-#include <linux/fsnotify_backend.h>
-#include "fsnotify.h"
+#include <linux/fsyestify_backend.h>
+#include "fsyestify.h"
 
 #include <linux/atomic.h>
 
 /*
  * Final freeing of a group
  */
-static void fsnotify_final_destroy_group(struct fsnotify_group *group)
+static void fsyestify_final_destroy_group(struct fsyestify_group *group)
 {
 	if (group->ops->free_group_priv)
 		group->ops->free_group_priv(group);
@@ -31,71 +31,71 @@ static void fsnotify_final_destroy_group(struct fsnotify_group *group)
 
 /*
  * Stop queueing new events for this group. Once this function returns
- * fsnotify_add_event() will not add any new events to the group's queue.
+ * fsyestify_add_event() will yest add any new events to the group's queue.
  */
-void fsnotify_group_stop_queueing(struct fsnotify_group *group)
+void fsyestify_group_stop_queueing(struct fsyestify_group *group)
 {
-	spin_lock(&group->notification_lock);
+	spin_lock(&group->yestification_lock);
 	group->shutdown = true;
-	spin_unlock(&group->notification_lock);
+	spin_unlock(&group->yestification_lock);
 }
 
 /*
  * Trying to get rid of a group. Remove all marks, flush all events and release
  * the group reference.
- * Note that another thread calling fsnotify_clear_marks_by_group() may still
+ * Note that ayesther thread calling fsyestify_clear_marks_by_group() may still
  * hold a ref to the group.
  */
-void fsnotify_destroy_group(struct fsnotify_group *group)
+void fsyestify_destroy_group(struct fsyestify_group *group)
 {
 	/*
-	 * Stop queueing new events. The code below is careful enough to not
-	 * require this but fanotify needs to stop queuing events even before
-	 * fsnotify_destroy_group() is called and this makes the other callers
-	 * of fsnotify_destroy_group() to see the same behavior.
+	 * Stop queueing new events. The code below is careful eyesugh to yest
+	 * require this but fayestify needs to stop queuing events even before
+	 * fsyestify_destroy_group() is called and this makes the other callers
+	 * of fsyestify_destroy_group() to see the same behavior.
 	 */
-	fsnotify_group_stop_queueing(group);
+	fsyestify_group_stop_queueing(group);
 
 	/* Clear all marks for this group and queue them for destruction */
-	fsnotify_clear_marks_by_group(group, FSNOTIFY_OBJ_ALL_TYPES_MASK);
+	fsyestify_clear_marks_by_group(group, FSNOTIFY_OBJ_ALL_TYPES_MASK);
 
 	/*
 	 * Some marks can still be pinned when waiting for response from
-	 * userspace. Wait for those now. fsnotify_prepare_user_wait() will
-	 * not succeed now so this wait is race-free.
+	 * userspace. Wait for those yesw. fsyestify_prepare_user_wait() will
+	 * yest succeed yesw so this wait is race-free.
 	 */
-	wait_event(group->notification_waitq, !atomic_read(&group->user_waits));
+	wait_event(group->yestification_waitq, !atomic_read(&group->user_waits));
 
 	/*
 	 * Wait until all marks get really destroyed. We could actually destroy
 	 * them ourselves instead of waiting for worker to do it, however that
 	 * would be racy as worker can already be processing some marks before
-	 * we even entered fsnotify_destroy_group().
+	 * we even entered fsyestify_destroy_group().
 	 */
-	fsnotify_wait_marks_destroyed();
+	fsyestify_wait_marks_destroyed();
 
 	/*
-	 * Since we have waited for fsnotify_mark_srcu in
-	 * fsnotify_mark_destroy_list() there can be no outstanding event
-	 * notification against this group. So clearing the notification queue
-	 * of all events is reliable now.
+	 * Since we have waited for fsyestify_mark_srcu in
+	 * fsyestify_mark_destroy_list() there can be yes outstanding event
+	 * yestification against this group. So clearing the yestification queue
+	 * of all events is reliable yesw.
 	 */
-	fsnotify_flush_notify(group);
+	fsyestify_flush_yestify(group);
 
 	/*
-	 * Destroy overflow event (we cannot use fsnotify_destroy_event() as
-	 * that deliberately ignores overflow events.
+	 * Destroy overflow event (we canyest use fsyestify_destroy_event() as
+	 * that deliberately igyesres overflow events.
 	 */
 	if (group->overflow_event)
 		group->ops->free_event(group->overflow_event);
 
-	fsnotify_put_group(group);
+	fsyestify_put_group(group);
 }
 
 /*
  * Get reference to a group.
  */
-void fsnotify_get_group(struct fsnotify_group *group)
+void fsyestify_get_group(struct fsyestify_group *group)
 {
 	refcount_inc(&group->refcnt);
 }
@@ -103,32 +103,32 @@ void fsnotify_get_group(struct fsnotify_group *group)
 /*
  * Drop a reference to a group.  Free it if it's through.
  */
-void fsnotify_put_group(struct fsnotify_group *group)
+void fsyestify_put_group(struct fsyestify_group *group)
 {
 	if (refcount_dec_and_test(&group->refcnt))
-		fsnotify_final_destroy_group(group);
+		fsyestify_final_destroy_group(group);
 }
-EXPORT_SYMBOL_GPL(fsnotify_put_group);
+EXPORT_SYMBOL_GPL(fsyestify_put_group);
 
 /*
- * Create a new fsnotify_group and hold a reference for the group returned.
+ * Create a new fsyestify_group and hold a reference for the group returned.
  */
-struct fsnotify_group *fsnotify_alloc_group(const struct fsnotify_ops *ops)
+struct fsyestify_group *fsyestify_alloc_group(const struct fsyestify_ops *ops)
 {
-	struct fsnotify_group *group;
+	struct fsyestify_group *group;
 
-	group = kzalloc(sizeof(struct fsnotify_group), GFP_KERNEL);
+	group = kzalloc(sizeof(struct fsyestify_group), GFP_KERNEL);
 	if (!group)
 		return ERR_PTR(-ENOMEM);
 
-	/* set to 0 when there a no external references to this group */
+	/* set to 0 when there a yes external references to this group */
 	refcount_set(&group->refcnt, 1);
 	atomic_set(&group->num_marks, 0);
 	atomic_set(&group->user_waits, 0);
 
-	spin_lock_init(&group->notification_lock);
-	INIT_LIST_HEAD(&group->notification_list);
-	init_waitqueue_head(&group->notification_waitq);
+	spin_lock_init(&group->yestification_lock);
+	INIT_LIST_HEAD(&group->yestification_list);
+	init_waitqueue_head(&group->yestification_waitq);
 	group->max_events = UINT_MAX;
 
 	mutex_init(&group->mark_mutex);
@@ -138,11 +138,11 @@ struct fsnotify_group *fsnotify_alloc_group(const struct fsnotify_ops *ops)
 
 	return group;
 }
-EXPORT_SYMBOL_GPL(fsnotify_alloc_group);
+EXPORT_SYMBOL_GPL(fsyestify_alloc_group);
 
-int fsnotify_fasync(int fd, struct file *file, int on)
+int fsyestify_fasync(int fd, struct file *file, int on)
 {
-	struct fsnotify_group *group = file->private_data;
+	struct fsyestify_group *group = file->private_data;
 
 	return fasync_helper(fd, file, on, &group->fsn_fa) >= 0 ? 0 : -EIO;
 }

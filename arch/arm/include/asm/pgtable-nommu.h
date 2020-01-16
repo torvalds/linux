@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- *  arch/arm/include/asm/pgtable-nommu.h
+ *  arch/arm/include/asm/pgtable-yesmmu.h
  *
  *  Copyright (C) 1995-2002 Russell King
  *  Copyright (C) 2004  Hyok S. Choi
@@ -18,7 +18,7 @@
  * Trivial page table functions.
  */
 #define pgd_present(pgd)	(1)
-#define pgd_none(pgd)		(0)
+#define pgd_yesne(pgd)		(0)
 #define pgd_bad(pgd)		(0)
 #define pgd_clear(pgdp)
 #define kern_addr_valid(addr)	(1)
@@ -60,7 +60,7 @@ typedef pte_t *pte_addr_t;
 /*
  * Mark the prot value as uncacheable and unbufferable.
  */
-#define pgprot_noncached(prot)	(prot)
+#define pgprot_yesncached(prot)	(prot)
 #define pgprot_writecombine(prot) (prot)
 #define pgprot_device(prot)	(prot)
 
@@ -72,7 +72,7 @@ extern unsigned int kobjsize(const void *objp);
 
 /*
  * All 32bit addresses are effectively valid for vmalloc...
- * Sort of meaningless for non-VM targets.
+ * Sort of meaningless for yesn-VM targets.
  */
 #define	VMALLOC_START	0UL
 #define	VMALLOC_END	0xffffffffUL

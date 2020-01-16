@@ -50,7 +50,7 @@ enum {
 	 * Controller IDs
 	 */
 	sil_3112		= 0,
-	sil_3112_no_sata_irq	= 1,
+	sil_3112_yes_sata_irq	= 1,
 	sil_3512		= 2,
 	sil_3114		= 3,
 
@@ -117,8 +117,8 @@ static const struct pci_device_id sil_pci_tbl[] = {
 	{ PCI_VDEVICE(CMD, 0x3512), sil_3512 },
 	{ PCI_VDEVICE(CMD, 0x3114), sil_3114 },
 	{ PCI_VDEVICE(ATI, 0x436e), sil_3112 },
-	{ PCI_VDEVICE(ATI, 0x4379), sil_3112_no_sata_irq },
-	{ PCI_VDEVICE(ATI, 0x437a), sil_3112_no_sata_irq },
+	{ PCI_VDEVICE(ATI, 0x4379), sil_3112_yes_sata_irq },
+	{ PCI_VDEVICE(ATI, 0x437a), sil_3112_yes_sata_irq },
 
 	{ }	/* terminate list */
 };
@@ -188,7 +188,7 @@ static const struct ata_port_info sil_port_info[] = {
 		.udma_mask	= ATA_UDMA5,
 		.port_ops	= &sil_ops,
 	},
-	/* sil_3112_no_sata_irq */
+	/* sil_3112_yes_sata_irq */
 	{
 		.flags		= SIL_DFL_PORT_FLAGS | SIL_FLAG_MOD15WRITE |
 				  SIL_FLAG_NO_SATA_IRQ,
@@ -252,7 +252,7 @@ static void sil_bmdma_stop(struct ata_queued_cmd *qc)
 {
 	struct ata_port *ap = qc->ap;
 	void __iomem *mmio_base = ap->host->iomap[SIL_MMIO_BAR];
-	void __iomem *bmdma2 = mmio_base + sil_port[ap->port_no].bmdma2;
+	void __iomem *bmdma2 = mmio_base + sil_port[ap->port_yes].bmdma2;
 
 	/* clear start/stop bit - can safely always write 0 */
 	iowrite8(0, bmdma2);
@@ -278,7 +278,7 @@ static void sil_bmdma_start(struct ata_queued_cmd *qc)
 	unsigned int rw = (qc->tf.flags & ATA_TFLAG_WRITE);
 	struct ata_port *ap = qc->ap;
 	void __iomem *mmio_base = ap->host->iomap[SIL_MMIO_BAR];
-	void __iomem *bmdma2 = mmio_base + sil_port[ap->port_no].bmdma2;
+	void __iomem *bmdma2 = mmio_base + sil_port[ap->port_yes].bmdma2;
 	u8 dmactl = ATA_DMA_START;
 
 	/* set transfer direction, start host DMA transaction
@@ -347,7 +347,7 @@ static int sil_set_mode(struct ata_link *link, struct ata_device **r_failed)
 {
 	struct ata_port *ap = link->ap;
 	void __iomem *mmio_base = ap->host->iomap[SIL_MMIO_BAR];
-	void __iomem *addr = mmio_base + sil_port[ap->port_no].xfer_mode;
+	void __iomem *addr = mmio_base + sil_port[ap->port_yes].xfer_mode;
 	struct ata_device *dev;
 	u32 tmp, dev_mode[2] = { };
 	int rc;
@@ -358,11 +358,11 @@ static int sil_set_mode(struct ata_link *link, struct ata_device **r_failed)
 
 	ata_for_each_dev(dev, link, ALL) {
 		if (!ata_dev_enabled(dev))
-			dev_mode[dev->devno] = 0;	/* PIO0/1/2 */
+			dev_mode[dev->devyes] = 0;	/* PIO0/1/2 */
 		else if (dev->flags & ATA_DFLAG_PIO)
-			dev_mode[dev->devno] = 1;	/* PIO3/4 */
+			dev_mode[dev->devyes] = 1;	/* PIO3/4 */
 		else
-			dev_mode[dev->devno] = 3;	/* UDMA */
+			dev_mode[dev->devyes] = 3;	/* UDMA */
 		/* value 2 indicates MDMA */
 	}
 
@@ -388,7 +388,7 @@ static inline void __iomem *sil_scr_addr(struct ata_port *ap,
 	case SCR_CONTROL:
 		return offset;
 	default:
-		/* do nothing */
+		/* do yesthing */
 		break;
 	}
 
@@ -458,7 +458,7 @@ static void sil_host_intr(struct ata_port *ap, u32 bmdma2)
 		 * at this state when ready to receive CDB.
 		 */
 
-		/* Check the ATA_DFLAG_CDB_INTR flag is enough here.
+		/* Check the ATA_DFLAG_CDB_INTR flag is eyesugh here.
 		 * The flag was turned on only for atapi devices.  No
 		 * need to check ata_is_atapi(qc->tf.protocol) again.
 		 */
@@ -515,9 +515,9 @@ static irqreturn_t sil_interrupt(int irq, void *dev_instance)
 
 	for (i = 0; i < host->n_ports; i++) {
 		struct ata_port *ap = host->ports[i];
-		u32 bmdma2 = readl(mmio_base + sil_port[ap->port_no].bmdma2);
+		u32 bmdma2 = readl(mmio_base + sil_port[ap->port_yes].bmdma2);
 
-		/* turn off SATA_IRQ if not supported */
+		/* turn off SATA_IRQ if yest supported */
 		if (ap->flags & SIL_FLAG_NO_SATA_IRQ)
 			bmdma2 &= ~SIL_DMA_SATA_IRQ;
 
@@ -540,17 +540,17 @@ static void sil_freeze(struct ata_port *ap)
 	u32 tmp;
 
 	/* global IRQ mask doesn't block SATA IRQ, turn off explicitly */
-	writel(0, mmio_base + sil_port[ap->port_no].sien);
+	writel(0, mmio_base + sil_port[ap->port_yes].sien);
 
 	/* plug IRQ */
 	tmp = readl(mmio_base + SIL_SYSCFG);
-	tmp |= SIL_MASK_IDE0_INT << ap->port_no;
+	tmp |= SIL_MASK_IDE0_INT << ap->port_yes;
 	writel(tmp, mmio_base + SIL_SYSCFG);
 	readl(mmio_base + SIL_SYSCFG);	/* flush */
 
 	/* Ensure DMA_ENABLE is off.
 	 *
-	 * This is because the controller will not give us access to the
+	 * This is because the controller will yest give us access to the
 	 * taskfile registers while a DMA is in progress
 	 */
 	iowrite8(ioread8(ap->ioaddr.bmdma_addr) & ~SIL_DMA_ENABLE,
@@ -573,11 +573,11 @@ static void sil_thaw(struct ata_port *ap)
 
 	/* turn on SATA IRQ if supported */
 	if (!(ap->flags & SIL_FLAG_NO_SATA_IRQ))
-		writel(SIL_SIEN_N, mmio_base + sil_port[ap->port_no].sien);
+		writel(SIL_SIEN_N, mmio_base + sil_port[ap->port_yes].sien);
 
 	/* turn on IRQ */
 	tmp = readl(mmio_base + SIL_SYSCFG);
-	tmp &= ~(SIL_MASK_IDE0_INT << ap->port_no);
+	tmp &= ~(SIL_MASK_IDE0_INT << ap->port_yes);
 	writel(tmp, mmio_base + SIL_SYSCFG);
 }
 
@@ -586,14 +586,14 @@ static void sil_thaw(struct ata_port *ap)
  *	@dev: Device to be examined
  *
  *	After the IDENTIFY [PACKET] DEVICE step is complete, and a
- *	device is known to be present, this function is called.
+ *	device is kyeswn to be present, this function is called.
  *	We apply two errata fixups which are specific to Silicon Image,
  *	a Seagate and a Maxtor fixup.
  *
  *	For certain Seagate devices, we must limit the maximum sectors
  *	to under 8K.
  *
- *	For certain Maxtor devices, we must not program the drive
+ *	For certain Maxtor devices, we must yest program the drive
  *	beyond udma5.
  *
  *	Both fixups are unfairly pessimistic.  As soon as I get more
@@ -666,7 +666,7 @@ static void sil_init_controller(struct ata_host *host)
 			       mmio_base + sil_port[i].fifo_cfg);
 	} else
 		dev_warn(&pdev->dev,
-			 "cache line size not set.  Driver may not function\n");
+			 "cache line size yest set.  Driver may yest function\n");
 
 	/* Apply R_ERR on DMA activate FIS errata workaround */
 	if (host->ports[0]->flags & SIL_FLAG_RERR_ON_DMA_ACT) {

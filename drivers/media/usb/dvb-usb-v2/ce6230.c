@@ -35,7 +35,7 @@ static int ce6230_ctrl_msg(struct dvb_usb_device *d, struct usb_req *req)
 		requesttype = (USB_TYPE_VENDOR | USB_DIR_OUT);
 		break;
 	default:
-		dev_err(&d->udev->dev, "%s: unknown command=%02x\n",
+		dev_err(&d->udev->dev, "%s: unkyeswn command=%02x\n",
 				KBUILD_MODNAME, req->cmd);
 		ret = -EINVAL;
 		goto error;
@@ -108,7 +108,7 @@ static int ce6230_i2c_master_xfer(struct i2c_adapter *adap,
 				req.data = &msg[i+1].buf[0];
 				ret = ce6230_ctrl_msg(d, &req);
 			} else {
-				dev_err(&d->udev->dev, "%s: I2C read not " \
+				dev_err(&d->udev->dev, "%s: I2C read yest " \
 						"implemented\n",
 						KBUILD_MODNAME);
 				ret = -EOPNOTSUPP;
@@ -156,7 +156,7 @@ static struct zl10353_config ce6230_zl10353_config = {
 	.demod_address = 0x1e,
 	.adc_clock = 450000,
 	.if2 = 45700,
-	.no_tuner = 1,
+	.yes_tuner = 1,
 	.parallel_ts = 1,
 	.clock_ctl_1 = 0x34,
 	.pll_0 = 0x0e,
@@ -205,15 +205,15 @@ static int ce6230_mxl5003s_tuner_attach(struct dvb_usb_adapter *adap)
 	return ret;
 }
 
-static int ce6230_power_ctrl(struct dvb_usb_device *d, int onoff)
+static int ce6230_power_ctrl(struct dvb_usb_device *d, int oyesff)
 {
 	int ret;
 
-	dev_dbg(&d->udev->dev, "%s: onoff=%d\n", __func__, onoff);
+	dev_dbg(&d->udev->dev, "%s: oyesff=%d\n", __func__, oyesff);
 
 	/* InterfaceNumber 1 / AlternateSetting 0     idle
 	   InterfaceNumber 1 / AlternateSetting 1     streaming */
-	ret = usb_set_interface(d->udev, 1, onoff);
+	ret = usb_set_interface(d->udev, 1, oyesff);
 	if (ret)
 		dev_err(&d->udev->dev, "%s: usb_set_interface() failed=%d\n",
 				KBUILD_MODNAME, ret);
@@ -267,7 +267,7 @@ static struct usb_driver ce6230_usb_driver = {
 	.suspend = dvb_usbv2_suspend,
 	.resume = dvb_usbv2_resume,
 	.reset_resume = dvb_usbv2_reset_resume,
-	.no_dynamic_id = 1,
+	.yes_dynamic_id = 1,
 	.soft_unbind = 1,
 };
 

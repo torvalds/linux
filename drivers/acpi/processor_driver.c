@@ -53,7 +53,7 @@ static struct device_driver acpi_processor_driver = {
 	.remove = acpi_processor_stop,
 };
 
-static void acpi_processor_notify(acpi_handle handle, u32 event, void *data)
+static void acpi_processor_yestify(acpi_handle handle, u32 event, void *data)
 {
 	struct acpi_device *device = data;
 	struct acpi_processor *pr;
@@ -224,7 +224,7 @@ static int __acpi_processor_start(struct acpi_device *device)
 
 	result = acpi_cppc_processor_probe(pr);
 	if (result && !IS_ENABLED(CONFIG_ACPI_CPU_FREQ_PSS))
-		dev_dbg(&device->dev, "CPPC data invalid or not present\n");
+		dev_dbg(&device->dev, "CPPC data invalid or yest present\n");
 
 	if (!cpuidle_get_driver() || cpuidle_get_driver() == &acpi_idle_driver)
 		acpi_processor_power_init(pr);
@@ -233,8 +233,8 @@ static int __acpi_processor_start(struct acpi_device *device)
 	if (result)
 		goto err_power_exit;
 
-	status = acpi_install_notify_handler(device->handle, ACPI_DEVICE_NOTIFY,
-					     acpi_processor_notify, device);
+	status = acpi_install_yestify_handler(device->handle, ACPI_DEVICE_NOTIFY,
+					     acpi_processor_yestify, device);
 	if (ACPI_SUCCESS(status))
 		return 0;
 
@@ -269,8 +269,8 @@ static int acpi_processor_stop(struct device *dev)
 	if (!device)
 		return 0;
 
-	acpi_remove_notify_handler(device->handle, ACPI_DEVICE_NOTIFY,
-				   acpi_processor_notify);
+	acpi_remove_yestify_handler(device->handle, ACPI_DEVICE_NOTIFY,
+				   acpi_processor_yestify);
 
 	pr = acpi_driver_data(device);
 	if (!pr)
@@ -286,7 +286,7 @@ static int acpi_processor_stop(struct device *dev)
 
 bool acpi_processor_cpufreq_init;
 
-static int acpi_processor_notifier(struct notifier_block *nb,
+static int acpi_processor_yestifier(struct yestifier_block *nb,
 				   unsigned long event, void *data)
 {
 	struct cpufreq_policy *policy = data;
@@ -302,13 +302,13 @@ static int acpi_processor_notifier(struct notifier_block *nb,
 	return 0;
 }
 
-static struct notifier_block acpi_processor_notifier_block = {
-	.notifier_call = acpi_processor_notifier,
+static struct yestifier_block acpi_processor_yestifier_block = {
+	.yestifier_call = acpi_processor_yestifier,
 };
 
 /*
- * We keep the driver loaded even when ACPI is not running.
- * This is needed for the powernow-k8 driver, that works even without
+ * We keep the driver loaded even when ACPI is yest running.
+ * This is needed for the poweryesw-k8 driver, that works even without
  * ACPI, but needs symbols from this driver
  */
 static enum cpuhp_state hp_online;
@@ -323,19 +323,19 @@ static int __init acpi_processor_driver_init(void)
 	if (result < 0)
 		return result;
 
-	result = cpuhp_setup_state_nocalls(CPUHP_AP_ONLINE_DYN,
+	result = cpuhp_setup_state_yescalls(CPUHP_AP_ONLINE_DYN,
 					   "acpi/cpu-drv:online",
 					   acpi_soft_cpu_online, NULL);
 	if (result < 0)
 		goto err;
 	hp_online = result;
-	cpuhp_setup_state_nocalls(CPUHP_ACPI_CPUDRV_DEAD, "acpi/cpu-drv:dead",
+	cpuhp_setup_state_yescalls(CPUHP_ACPI_CPUDRV_DEAD, "acpi/cpu-drv:dead",
 				  NULL, acpi_soft_cpu_dead);
 
-	if (!cpufreq_register_notifier(&acpi_processor_notifier_block,
+	if (!cpufreq_register_yestifier(&acpi_processor_yestifier_block,
 				       CPUFREQ_POLICY_NOTIFIER)) {
 		acpi_processor_cpufreq_init = true;
-		acpi_processor_ignore_ppc_init();
+		acpi_processor_igyesre_ppc_init();
 	}
 
 	acpi_processor_throttling_init();
@@ -351,13 +351,13 @@ static void __exit acpi_processor_driver_exit(void)
 		return;
 
 	if (acpi_processor_cpufreq_init) {
-		cpufreq_unregister_notifier(&acpi_processor_notifier_block,
+		cpufreq_unregister_yestifier(&acpi_processor_yestifier_block,
 					    CPUFREQ_POLICY_NOTIFIER);
 		acpi_processor_cpufreq_init = false;
 	}
 
-	cpuhp_remove_state_nocalls(hp_online);
-	cpuhp_remove_state_nocalls(CPUHP_ACPI_CPUDRV_DEAD);
+	cpuhp_remove_state_yescalls(hp_online);
+	cpuhp_remove_state_yescalls(CPUHP_ACPI_CPUDRV_DEAD);
 	driver_unregister(&acpi_processor_driver);
 }
 

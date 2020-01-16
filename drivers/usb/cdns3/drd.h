@@ -119,12 +119,12 @@ struct cdns3_otg_common_regs {
 #define OTGSTS_DEV_ACTIVE		BIT(3)
 /* Host mode is active. */
 #define OTGSTS_HOST_ACTIVE		BIT(4)
-/* OTG Controller not ready. */
+/* OTG Controller yest ready. */
 #define OTGSTS_OTG_NRDY_MASK		BIT(11)
 #define OTGSTS_OTG_NRDY(p)		((p) & OTGSTS_OTG_NRDY_MASK)
 /*
  * Value of the strap pins.
- * 000 - no default configuration
+ * 000 - yes default configuration
  * 010 - Controller initiall configured as Host
  * 100 - Controller initially configured as Device
  */

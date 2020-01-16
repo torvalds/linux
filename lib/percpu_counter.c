@@ -76,7 +76,7 @@ EXPORT_SYMBOL(percpu_counter_set);
  * This function is both preempt and irq safe. The former is due to explicit
  * preemption disable. The latter is guaranteed by the fact that the slow path
  * is explicitly protected by an irq-safe spinlock whereas the fast patch uses
- * this_cpu_add which is irq-safe by definition. Hence there is no need muck
+ * this_cpu_add which is irq-safe by definition. Hence there is yes need muck
  * with irq state before calling this one
  */
 void percpu_counter_add_batch(struct percpu_counter *fbc, s64 amount, s32 batch)
@@ -229,7 +229,7 @@ static int __init percpu_counter_startup(void)
 	ret = cpuhp_setup_state(CPUHP_AP_ONLINE_DYN, "lib/percpu_cnt:online",
 				compute_batch_value, NULL);
 	WARN_ON(ret < 0);
-	ret = cpuhp_setup_state_nocalls(CPUHP_PERCPU_CNT_DEAD,
+	ret = cpuhp_setup_state_yescalls(CPUHP_PERCPU_CNT_DEAD,
 					"lib/percpu_cnt:dead", NULL,
 					percpu_counter_cpu_dead);
 	WARN_ON(ret < 0);

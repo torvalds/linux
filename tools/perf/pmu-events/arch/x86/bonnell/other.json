@@ -21,7 +21,7 @@
         "UMask": "0x0",
         "EventName": "EIST_TRANS",
         "SampleAfterValue": "200000",
-        "BriefDescription": "Number of Enhanced Intel SpeedStep(R) Technology (EIST) transitions"
+        "BriefDescription": "Number of Enhanced Intel SpeedStep(R) Techyeslogy (EIST) transitions"
     },
     {
         "EventCode": "0x3B",
@@ -301,7 +301,7 @@
         "UMask": "0xb",
         "EventName": "EXT_SNOOP.THIS_AGENT.ANY",
         "SampleAfterValue": "200000",
-        "BriefDescription": "External snoops."
+        "BriefDescription": "External syesops."
     },
     {
         "EventCode": "0x77",
@@ -309,7 +309,7 @@
         "UMask": "0x1",
         "EventName": "EXT_SNOOP.THIS_AGENT.CLEAN",
         "SampleAfterValue": "200000",
-        "BriefDescription": "External snoops."
+        "BriefDescription": "External syesops."
     },
     {
         "EventCode": "0x77",
@@ -317,7 +317,7 @@
         "UMask": "0x2",
         "EventName": "EXT_SNOOP.THIS_AGENT.HIT",
         "SampleAfterValue": "200000",
-        "BriefDescription": "External snoops."
+        "BriefDescription": "External syesops."
     },
     {
         "EventCode": "0x77",
@@ -325,7 +325,7 @@
         "UMask": "0x8",
         "EventName": "EXT_SNOOP.THIS_AGENT.HITM",
         "SampleAfterValue": "200000",
-        "BriefDescription": "External snoops."
+        "BriefDescription": "External syesops."
     },
     {
         "EventCode": "0x77",
@@ -333,7 +333,7 @@
         "UMask": "0x2b",
         "EventName": "EXT_SNOOP.ALL_AGENTS.ANY",
         "SampleAfterValue": "200000",
-        "BriefDescription": "External snoops."
+        "BriefDescription": "External syesops."
     },
     {
         "EventCode": "0x77",
@@ -341,7 +341,7 @@
         "UMask": "0x21",
         "EventName": "EXT_SNOOP.ALL_AGENTS.CLEAN",
         "SampleAfterValue": "200000",
-        "BriefDescription": "External snoops."
+        "BriefDescription": "External syesops."
     },
     {
         "EventCode": "0x77",
@@ -349,7 +349,7 @@
         "UMask": "0x22",
         "EventName": "EXT_SNOOP.ALL_AGENTS.HIT",
         "SampleAfterValue": "200000",
-        "BriefDescription": "External snoops."
+        "BriefDescription": "External syesops."
     },
     {
         "EventCode": "0x77",
@@ -357,7 +357,7 @@
         "UMask": "0x28",
         "EventName": "EXT_SNOOP.ALL_AGENTS.HITM",
         "SampleAfterValue": "200000",
-        "BriefDescription": "External snoops."
+        "BriefDescription": "External syesops."
     },
     {
         "EventCode": "0x7A",
@@ -405,7 +405,7 @@
         "UMask": "0xe0",
         "EventName": "SNOOP_STALL_DRV.ALL_AGENTS",
         "SampleAfterValue": "200000",
-        "BriefDescription": "Bus stalled for snoops."
+        "BriefDescription": "Bus stalled for syesops."
     },
     {
         "EventCode": "0x7E",
@@ -413,7 +413,7 @@
         "UMask": "0x40",
         "EventName": "SNOOP_STALL_DRV.SELF",
         "SampleAfterValue": "200000",
-        "BriefDescription": "Bus stalled for snoops."
+        "BriefDescription": "Bus stalled for syesops."
     },
     {
         "EventCode": "0x7F",

@@ -53,7 +53,7 @@ static void jazz_esp_reset_dma(struct esp *esp)
 
 static void jazz_esp_dma_drain(struct esp *esp)
 {
-	/* nothing to do */
+	/* yesthing to do */
 }
 
 static void jazz_esp_dma_invalidate(struct esp *esp)

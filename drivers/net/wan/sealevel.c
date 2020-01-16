@@ -55,12 +55,12 @@ static inline struct slvl_device* dev_to_chan(struct net_device *dev)
 
 /*
  *	Frame receive. Simple for our card as we do HDLC and there
- *	is no funny garbage involved
+ *	is yes funny garbage involved
  */
 
 static void sealevel_input(struct z8530_channel *c, struct sk_buff *skb)
 {
-	/* Drop the CRC - it's not a good idea to try and negotiate it ;) */
+	/* Drop the CRC - it's yest a good idea to try and negotiate it ;) */
 	skb_trim(skb, skb->len - 2);
 	skb->protocol = hdlc_type_trans(skb, c->netdevice);
 	skb_reset_mac_header(skb);
@@ -247,8 +247,8 @@ static __init struct slvl_board *slvl_init(int iobase, int irq,
 	dev->chanB.ctrlio = iobase + 3;
 	dev->chanB.dataio = iobase + 2;
 
-	dev->chanA.irqs = &z8530_nop;
-	dev->chanB.irqs = &z8530_nop;
+	dev->chanA.irqs = &z8530_yesp;
+	dev->chanB.irqs = &z8530_yesp;
 
 	/*
 	 *	Assert DTR enable DMA
@@ -283,11 +283,11 @@ static __init struct slvl_board *slvl_init(int iobase, int irq,
 	disable_irq(irq);
 
 	/*
-	 *	Begin normal initialise
+	 *	Begin yesrmal initialise
 	 */
 
 	if (z8530_init(dev) != 0) {
-		pr_err("Z8530 series device not found\n");
+		pr_err("Z8530 series device yest found\n");
 		enable_irq(irq);
 		goto free_hw;
 	}

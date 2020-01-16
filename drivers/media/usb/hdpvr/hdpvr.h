@@ -207,7 +207,7 @@ enum {
 	/* :0 s 38 01 1300 0003 0001 1 = 03
 	 * GOP MODE (2 bit)
 	 *    low bit 0/1: advanced/simple GOP
-	 *   high bit 0/1: IDR(4/32/128) / no IDR (4/32/0)
+	 *   high bit 0/1: IDR(4/32/128) / yes IDR (4/32/0)
 	 */
 
 	/* :0 s 38 01 1700 0003 0001 1 = 00

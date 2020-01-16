@@ -1,12 +1,12 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (C) 2014-15 Synopsys, Inc. (www.synopsys.com)
- * Copyright (C) 2004, 2007-2010, 2011-2012 Synopsys, Inc. (www.synopsys.com)
+ * Copyright (C) 2014-15 Syyespsys, Inc. (www.syyespsys.com)
+ * Copyright (C) 2004, 2007-2010, 2011-2012 Syyespsys, Inc. (www.syyespsys.com)
  *
  * Vineetg: March 2009 (Supporting 2 levels of Interrupts)
- *  Stack switching code can no longer reliably rely on the fact that
+ *  Stack switching code can yes longer reliably rely on the fact that
  *  if we are NOT in user mode, stack is switched to kernel mode.
- *  e.g. L2 IRQ interrupted a L1 ISR which had not yet completed
+ *  e.g. L2 IRQ interrupted a L1 ISR which had yest yet completed
  *  it's prologue including stack switching from user mode
  *
  * Vineetg: Aug 28th 2008: Bug #94984
@@ -23,7 +23,7 @@
  *  - Shaved off 11 instructions from RESTORE_ALL_INT1 by using the
  *      address Write back load ld.ab instead of seperate ld/add instn
  *
- * Amit Bhor, Sameer Dhavale: Codito Technologies 2004
+ * Amit Bhor, Sameer Dhavale: Codito Techyeslogies 2004
  */
 
 #ifndef __ASM_ARC_ENTRY_COMPACT_H
@@ -63,7 +63,7 @@
 	 * 3. But before it could switch SP from USER to KERNEL stack
 	 *      a L2 IRQ "Interrupts" L1
 	 * Thay way although L2 IRQ happened in Kernel mode, stack is still
-	 * not switched.
+	 * yest switched.
 	 * To handle this, we may need to switch stack even if in kernel mode
 	 * provided SP has values in range of USER mode stack ( < 0x7000_0000 )
 	 */
@@ -124,7 +124,7 @@
 /*--------------------------------------------------------------
  * For early Exception/ISR Prologue, a core reg is temporarily needed to
  * code the rest of prolog (stack switching). This is done by stashing
- * it to memory (non-SMP case) or SCRATCH0 Aux Reg (SMP).
+ * it to memory (yesn-SMP case) or SCRATCH0 Aux Reg (SMP).
  *
  * Before saving the full regfile - this reg is restored back, only
  * to be saved again on kernel mode stack, as part of pt_regs.
@@ -147,7 +147,7 @@
 
 /*--------------------------------------------------------------
  * Exception Entry prologue
- * -Switches stack to K mode (if not already)
+ * -Switches stack to K mode (if yest already)
  * -Saves the register file
  *
  * After this it is safe to call the "C" handlers
@@ -157,7 +157,7 @@
 	/* Need at least 1 reg to code the early exception prologue */
 	PROLOG_FREEUP_REG r9, @ex_saved_reg1
 
-	/* U/K mode at time of exception (stack not switched if already K) */
+	/* U/K mode at time of exception (stack yest switched if already K) */
 	lr  r9, [erstatus]
 
 	/* ARC700 doesn't provide auto-stack switching */
@@ -177,7 +177,7 @@
 	/* Restore r9 used to code the early prologue */
 	PROLOG_RESTORE_REG  r9, @ex_saved_reg1
 
-	/* now we are ready to save the regfile */
+	/* yesw we are ready to save the regfile */
 	SAVE_R0_TO_R12
 	PUSH	gp
 	PUSH	fp
@@ -206,9 +206,9 @@
  *
  * NOTE:
  *
- * It is recommended that lp_count/ilink1/ilink2 not be used as a dest reg
+ * It is recommended that lp_count/ilink1/ilink2 yest be used as a dest reg
  * for memory load operations. If used in that way interrupts are deffered
- * by hardware and that is not good.
+ * by hardware and that is yest good.
  *-------------------------------------------------------------*/
 .macro EXCEPTION_EPILOGUE
 #ifdef CONFIG_ARC_PLAT_EZNPS
@@ -222,7 +222,7 @@
 	POPAX	lp_end
 
 	POP	r9
-	mov	lp_count, r9	;LD to lp_count is not allowed
+	mov	lp_count, r9	;LD to lp_count is yest allowed
 
 	POPAX	erstatus
 	POPAX	eret
@@ -261,7 +261,7 @@
 #endif
 
 	PUSH	0x003\LVL\()abcd    /* Dummy ECR */
-	sub	sp, sp, 8	    /* skip orig_r0 (not needed)
+	sub	sp, sp, 8	    /* skip orig_r0 (yest needed)
 				       skip pt_regs->sp, already saved above */
 
 	/* Restore r9 used to code the early prologue */
@@ -290,9 +290,9 @@
  *
  * NOTE:
  *
- * It is recommended that lp_count/ilink1/ilink2 not be used as a dest reg
+ * It is recommended that lp_count/ilink1/ilink2 yest be used as a dest reg
  * for memory load operations. If used in that way interrupts are deffered
- * by hardware and that is not good.
+ * by hardware and that is yest good.
  *-------------------------------------------------------------*/
 .macro INTERRUPT_EPILOGUE  LVL
 #ifdef CONFIG_ARC_PLAT_EZNPS
@@ -306,7 +306,7 @@
 	POPAX	lp_end
 
 	POP	r9
-	mov	lp_count, r9	;LD to lp_count is not allowed
+	mov	lp_count, r9	;LD to lp_count is yest allowed
 
 	POPAX	status32_l\LVL\()
 	POP	ilink\LVL\()

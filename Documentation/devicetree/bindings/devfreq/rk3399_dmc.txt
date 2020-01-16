@@ -10,8 +10,8 @@ Required properties:
 			 "pclk_ddr_mon";
 - operating-points-v2:	 Refer to Documentation/devicetree/bindings/opp/opp.txt
 			 for details.
-- center-supply:	 DMC supply node.
-- status:		 Marks the node enabled/disabled.
+- center-supply:	 DMC supply yesde.
+- status:		 Marks the yesde enabled/disabled.
 
 Optional properties:
 - interrupts:		 The CPU interrupt number. The interrupt specifier

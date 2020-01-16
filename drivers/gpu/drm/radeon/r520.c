@@ -10,7 +10,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -221,7 +221,7 @@ int r520_resume(struct radeon_device *rdev)
 {
 	int r;
 
-	/* Make sur GART are not working */
+	/* Make sur GART are yest working */
 	if (rdev->flags & RADEON_IS_PCIE)
 		rv370_pcie_gart_disable(rdev);
 	/* Resume clock before doing reset */
@@ -278,12 +278,12 @@ int r520_init(struct radeon_device *rdev)
 			RREG32(R_000E40_RBBM_STATUS),
 			RREG32(R_0007C0_CP_STAT));
 	}
-	/* check if cards are posted or not */
+	/* check if cards are posted or yest */
 	if (radeon_boot_test_post_card(rdev) == false)
 		return -EINVAL;
 
 	if (!radeon_card_posted(rdev) && rdev->bios) {
-		DRM_INFO("GPU not posted. posting now...\n");
+		DRM_INFO("GPU yest posted. posting yesw...\n");
 		atom_asic_init(rdev->mode_info.atom_context);
 	}
 	/* Initialize clocks */

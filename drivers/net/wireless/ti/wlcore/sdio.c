@@ -4,7 +4,7 @@
  *
  * Copyright (C) 2009-2010 Nokia Corporation
  *
- * Contact: Luciano Coelho <luciano.coelho@nokia.com>
+ * Contact: Luciayes Coelho <luciayes.coelho@yeskia.com>
  */
 
 #include <linux/irq.h>
@@ -134,7 +134,7 @@ static int wl12xx_sdio_power_on(struct wl12xx_sdio_glue *glue)
 
 	ret = pm_runtime_get_sync(&card->dev);
 	if (ret < 0) {
-		pm_runtime_put_noidle(&card->dev);
+		pm_runtime_put_yesidle(&card->dev);
 		dev_err(glue->dev, "%s: failed to get_sync(%d)\n",
 			__func__, ret);
 
@@ -163,7 +163,7 @@ static int wl12xx_sdio_power_off(struct wl12xx_sdio_glue *glue)
 	sdio_disable_func(func);
 	sdio_release_host(func);
 
-	/* Let runtime PM know the card is powered off */
+	/* Let runtime PM kyesw the card is powered off */
 	pm_runtime_put(&card->dev);
 	return 0;
 }
@@ -221,10 +221,10 @@ static const struct of_device_id wlcore_sdio_of_match_table[] = {
 static int wlcore_probe_of(struct device *dev, int *irq, int *wakeirq,
 			   struct wlcore_platdev_data *pdev_data)
 {
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 	const struct of_device_id *of_id;
 
-	of_id = of_match_node(wlcore_sdio_of_match_table, np);
+	of_id = of_match_yesde(wlcore_sdio_of_match_table, np);
 	if (!of_id)
 		return -ENODEV;
 
@@ -300,8 +300,8 @@ static int wl1271_probe(struct sdio_func *func,
 
 	sdio_set_drvdata(func, glue);
 
-	/* Tell PM core that we don't need the card to be powered now */
-	pm_runtime_put_noidle(&func->dev);
+	/* Tell PM core that we don't need the card to be powered yesw */
+	pm_runtime_put_yesidle(&func->dev);
 
 	/*
 	 * Due to a hardware bug, we can't differentiate wl18xx from
@@ -372,7 +372,7 @@ static void wl1271_remove(struct sdio_func *func)
 	struct wl12xx_sdio_glue *glue = sdio_get_drvdata(func);
 
 	/* Undo decrement done above in wl1271_probe */
-	pm_runtime_get_noresume(&func->dev);
+	pm_runtime_get_yesresume(&func->dev);
 
 	platform_device_unregister(glue->core);
 }
@@ -381,7 +381,7 @@ static void wl1271_remove(struct sdio_func *func)
 static int wl1271_suspend(struct device *dev)
 {
 	/* Tell MMC/SDIO core it's OK to power down the card
-	 * (if it isn't already), but not to remove it completely */
+	 * (if it isn't already), but yest to remove it completely */
 	struct sdio_func *func = dev_to_sdio_func(dev);
 	struct wl12xx_sdio_glue *glue = sdio_get_drvdata(func);
 	struct wl1271 *wl = platform_get_drvdata(glue->core);
@@ -389,7 +389,7 @@ static int wl1271_suspend(struct device *dev)
 	int ret = 0;
 
 	if (!wl) {
-		dev_err(dev, "no wilink module was probed\n");
+		dev_err(dev, "yes wilink module was probed\n");
 		goto out;
 	}
 
@@ -460,5 +460,5 @@ module_param(dump, bool, 0600);
 MODULE_PARM_DESC(dump, "Enable sdio read/write dumps.");
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Luciano Coelho <coelho@ti.com>");
-MODULE_AUTHOR("Juuso Oikarinen <juuso.oikarinen@nokia.com>");
+MODULE_AUTHOR("Luciayes Coelho <coelho@ti.com>");
+MODULE_AUTHOR("Juuso Oikarinen <juuso.oikarinen@yeskia.com>");

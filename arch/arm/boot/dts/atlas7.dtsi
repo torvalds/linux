@@ -60,7 +60,7 @@
 		interrupts = <0 29 4>, <0 82 4>;
 	};
 
-	noc {
+	yesc {
 		compatible = "simple-bus";
 		#address-cells = <1>;
 		#size-cells = <1>;
@@ -339,10 +339,10 @@
 				};
 			};
 
-			gn_gnss_uart_nopause_pmx: gn_gnss_uart_nopause@0 {
-				gn_gnss_uart_nopause {
-					groups = "gn_gnss_uart_nopause_grp";
-					function = "gn_gnss_uart_nopause";
+			gn_gnss_uart_yespause_pmx: gn_gnss_uart_yespause@0 {
+				gn_gnss_uart_yespause {
+					groups = "gn_gnss_uart_yespause_grp";
+					function = "gn_gnss_uart_yespause";
 				};
 			};
 
@@ -661,10 +661,10 @@
 				};
 			};
 
-			nd_df_nowp_pmx: nd_df_nowp@0 {
-				nd_df_nowp {
-					groups = "nd_df_nowp_grp";
-					function = "nd_df_nowp";
+			nd_df_yeswp_pmx: nd_df_yeswp@0 {
+				nd_df_yeswp {
+					groups = "nd_df_yeswp_grp";
+					function = "nd_df_yeswp";
 				};
 			};
 
@@ -952,10 +952,10 @@
 				};
 			};
 
-			sd2_no_cdb_pmx0: sd2_no_cdb@0 {
-				sd2_no_cdb_0 {
-					groups = "sd2_no_cdb_grp0";
-					function = "sd2_no_cdb_m0";
+			sd2_yes_cdb_pmx0: sd2_yes_cdb@0 {
+				sd2_yes_cdb_0 {
+					groups = "sd2_yes_cdb_grp0";
+					function = "sd2_yes_cdb_m0";
 				};
 			};
 
@@ -1022,10 +1022,10 @@
 				};
 			};
 
-			uart0_nopause_pmx: uart0_nopause@0 {
-				uart0_nopause {
-					groups = "uart0_nopause_grp";
-					function = "uart0_nopause";
+			uart0_yespause_pmx: uart0_yespause@0 {
+				uart0_yespause {
+					groups = "uart0_yespause_grp";
+					function = "uart0_yespause";
 				};
 			};
 
@@ -1071,17 +1071,17 @@
 				};
 			};
 
-			uart3_nopause_pmx0: uart3_nopause@0 {
-				uart3_nopause_0 {
-					groups = "uart3_nopause_grp0";
-					function = "uart3_nopause_m0";
+			uart3_yespause_pmx0: uart3_yespause@0 {
+				uart3_yespause_0 {
+					groups = "uart3_yespause_grp0";
+					function = "uart3_yespause_m0";
 				};
 			};
 
-			uart3_nopause_pmx1: uart3_nopause@1 {
-				uart3_nopause_1 {
-					groups = "uart3_nopause_grp1";
-					function = "uart3_nopause_m1";
+			uart3_yespause_pmx1: uart3_yespause@1 {
+				uart3_yespause_1 {
+					groups = "uart3_yespause_grp1";
+					function = "uart3_yespause_m1";
 				};
 			};
 
@@ -1106,10 +1106,10 @@
 				};
 			};
 
-			uart4_nopause_pmx: uart4_nopause@0 {
-				uart4_nopause {
-					groups = "uart4_nopause_grp";
-					function = "uart4_nopause";
+			uart4_yespause_pmx: uart4_yespause@0 {
+				uart4_yespause {
+					groups = "uart4_yespause_grp";
+					function = "uart4_yespause";
 				};
 			};
 
@@ -1164,7 +1164,7 @@
 		};
 
 		pmipc {
-			compatible = "arteris, flexnoc", "simple-bus";
+			compatible = "arteris, flexyesc", "simple-bus";
 			#address-cells = <1>;
 			#size-cells = <1>;
 			ranges = <0x13240000 0x13240000 0x00010000>;
@@ -1175,40 +1175,40 @@
 		};
 
 		dramfw {
-			compatible = "arteris, flexnoc", "simple-bus";
+			compatible = "arteris, flexyesc", "simple-bus";
 			#address-cells = <1>;
 			#size-cells = <1>;
 			ranges = <0x10830000 0x10830000 0x18000>;
 			dramfw@10820000 {
-				compatible = "sirf,nocfw-dramfw";
+				compatible = "sirf,yescfw-dramfw";
 				reg = <0x10830000 0x18000>;
 			};
 		};
 
 		spramfw {
-			compatible = "arteris, flexnoc", "simple-bus";
+			compatible = "arteris, flexyesc", "simple-bus";
 			#address-cells = <1>;
 			#size-cells = <1>;
 			ranges = <0x10250000 0x10250000 0x3000>;
 			spramfw@10820000 {
-				compatible = "sirf,nocfw-spramfw";
+				compatible = "sirf,yescfw-spramfw";
 				reg = <0x10250000 0x3000>;
 			};
 		};
 
 		cpum {
-			compatible = "arteris, flexnoc", "simple-bus";
+			compatible = "arteris, flexyesc", "simple-bus";
 			#address-cells = <1>;
 			#size-cells = <1>;
 			ranges = <0x10200000 0x10200000 0x3000>;
 			cpum@10200000 {
-				compatible = "sirf,nocfw-cpum";
+				compatible = "sirf,yescfw-cpum";
 				reg = <0x10200000 0x3000>;
 			};
 		};
 
 		cgum {
-			compatible = "arteris, flexnoc", "simple-bus";
+			compatible = "arteris, flexyesc", "simple-bus";
 			#address-cells = <1>;
 			#size-cells = <1>;
 			ranges = <0x18641000 0x18641000 0x3000>,
@@ -1216,7 +1216,7 @@
 					<0x18630000 0x18630000 0x10000>;
 
 			cgum@18641000 {
-				compatible = "sirf,nocfw-cgum";
+				compatible = "sirf,yescfw-cgum";
 				reg = <0x18641000 0x3000>;
 			};
 
@@ -1238,7 +1238,7 @@
 		};
 
 		gnssm {
-			compatible = "arteris, flexnoc", "simple-bus";
+			compatible = "arteris, flexyesc", "simple-bus";
 			#address-cells = <1>;
 			#size-cells = <1>;
 			ranges = <0x18000000 0x18000000 0x0000ffff>,
@@ -1264,7 +1264,7 @@
 			};
 
 			gnssmfw@0x18100000 {
-				compatible = "sirf,nocfw-gnssm";
+				compatible = "sirf,yescfw-gnssm";
 				reg = <0x18100000 0x3000>;
 			};
 
@@ -1365,7 +1365,7 @@
 
 
 		gpum {
-			compatible = "arteris, flexnoc", "simple-bus";
+			compatible = "arteris, flexyesc", "simple-bus";
 			#address-cells = <1>;
 			#size-cells = <1>;
 			ranges = <0x13000000 0x13000000 0x3000>,
@@ -1373,7 +1373,7 @@
 				<0x13010800 0x13010800 0x100>,
 				<0x13011000 0x13011000 0x100>;
 			gpum@0x13000000 {
-				compatible = "sirf,nocfw-gpum";
+				compatible = "sirf,yescfw-gpum";
 				reg = <0x13000000 0x3000>;
 			};
 			dmacsdrr: dma-controller@13010800 {
@@ -1407,7 +1407,7 @@
 		};
 
 		mediam {
-			compatible = "arteris, flexnoc", "simple-bus";
+			compatible = "arteris, flexyesc", "simple-bus";
 			#address-cells = <1>;
 			#size-cells = <1>;
 			ranges = <0x15000000 0x15000000 0x00600000>,
@@ -1431,7 +1431,7 @@
 			};
 
 			mediam@170A0000 {
-				compatible = "sirf,nocfw-mediam";
+				compatible = "sirf,yescfw-mediam";
 				reg = <0x170A0000 0x3000>;
 			};
 
@@ -1471,7 +1471,7 @@
 				clocks = <&car 109>, <&car 111>;
 				clock-names = "core", "iface";
 				wp-inverted;
-				non-removable;
+				yesn-removable;
 				status = "disabled";
 				bus-width = <8>;
 			};
@@ -1483,7 +1483,7 @@
 				interrupts = <0 38 0>;
 				clocks = <&car 109>, <&car 111>;
 				clock-names = "core", "iface";
-				non-removable;
+				yesn-removable;
 				status = "disabled";
 				bus-width = <8>;
 			};
@@ -1549,7 +1549,7 @@
 		};
 
 		vdifm {
-			compatible = "arteris, flexnoc", "simple-bus";
+			compatible = "arteris, flexyesc", "simple-bus";
 			#address-cells = <1>;
 			#size-cells = <1>;
 			ranges = <0x13290000 0x13290000 0x3000>,
@@ -1557,7 +1557,7 @@
 				<0x14200000 0x14200000 0x600000>;
 
 			vdifm@13290000 {
-				compatible = "sirf,nocfw-vdifm";
+				compatible = "sirf,yescfw-vdifm";
 				reg = <0x13290000 0x3000>;
 			};
 
@@ -1652,7 +1652,7 @@
 		};
 
 		audiom {
-			compatible = "arteris, flexnoc", "simple-bus";
+			compatible = "arteris, flexyesc", "simple-bus";
 			#address-cells = <1>;
 			#size-cells = <1>;
 			ranges = <0x10d50000 0x10d50000 0x0000ffff>,
@@ -1739,7 +1739,7 @@
 			};
 
 			audiom@10ED0000 {
-				compatible = "sirf,nocfw-audiom";
+				compatible = "sirf,yescfw-audiom";
 				reg = <0x10ED0000 0x3000>;
 				interrupts = <0 102 0>;
 			};
@@ -1767,13 +1767,13 @@
 		};
 
 		ddrm {
-			compatible = "arteris, flexnoc", "simple-bus";
+			compatible = "arteris, flexyesc", "simple-bus";
 			#address-cells = <1>;
 			#size-cells = <1>;
 			ranges = <0x10820000 0x10820000 0x3000>,
 					<0x10800000 0x10800000 0x2000>;
 			ddrm@10820000 {
-				compatible = "sirf,nocfw-ddrm";
+				compatible = "sirf,yescfw-ddrm";
 				reg = <0x10820000 0x3000>;
 				interrupts = <0 105 0>;
 			};
@@ -1786,7 +1786,7 @@
 		};
 
 		btm {
-			compatible = "arteris, flexnoc", "simple-bus";
+			compatible = "arteris, flexyesc", "simple-bus";
 			#address-cells = <1>;
 			#size-cells = <1>;
 			ranges = <0x11002000 0x11002000 0x0000ffff>,
@@ -1810,7 +1810,7 @@
 				reg = <0x11000000 0x1000>;
 				interrupts = <0 100 0>;
 				clocks = <&car 131>, <&car 133>, <&car 134>;
-				clock-names = "uart", "general", "noc";
+				clock-names = "uart", "general", "yesc";
 				fifosize = <128>;
 				dmas = <&dmac4 12>, <&dmac4 13>;
 				dma-names = "rx", "tx";
@@ -1826,19 +1826,19 @@
 				clocks = <&car 132>, <&car 129>, <&car 133>,
 					<&car 134>, <&car 135>;
 				clock-names = "usp3_io", "a7ca_btss", "a7ca_io",
-					"noc_btm_io", "thbtm_io";
+					"yesc_btm_io", "thbtm_io";
 				dmas = <&dmac4 0>, <&dmac4 1>;
 				dma-names = "rx", "tx";
 			};
 
 			btm@11010000 {
-				compatible = "sirf,nocfw-btm";
+				compatible = "sirf,yescfw-btm";
 				reg = <0x11010000 0x3000>;
 			};
 		};
 
 		rtcm {
-			compatible = "arteris, flexnoc", "simple-bus";
+			compatible = "arteris, flexyesc", "simple-bus";
 			#address-cells = <1>;
 			#size-cells = <1>;
 			ranges = <0x18810000 0x18810000 0x3000>,
@@ -1847,7 +1847,7 @@
 				<0x188B0000 0x188B0000 0x10000>,
 				<0x188D0000 0x188D0000 0x1000>;
 			rtcm@18810000 {
-				compatible = "sirf,nocfw-rtcm";
+				compatible = "sirf,yescfw-rtcm";
 				reg = <0x18810000 0x3000>;
 				interrupts = <0 109 0>;
 			};
@@ -1887,7 +1887,7 @@
 
 			qspi: flash@188B0000 {
 				cell-index = <0>;
-				compatible = "sirf,atlas7-qspi-nor";
+				compatible = "sirf,atlas7-qspi-yesr";
 				reg = <0x188B0000 0x10000>;
 				interrupts = <0 15 0>;
 				#address-cells = <1>;

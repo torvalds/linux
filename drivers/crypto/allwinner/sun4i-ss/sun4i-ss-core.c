@@ -249,20 +249,20 @@ static int sun4i_ss_pm_resume(struct device *dev)
 
 	err = clk_prepare_enable(ss->busclk);
 	if (err) {
-		dev_err(ss->dev, "Cannot prepare_enable busclk\n");
+		dev_err(ss->dev, "Canyest prepare_enable busclk\n");
 		goto err_enable;
 	}
 
 	err = clk_prepare_enable(ss->ssclk);
 	if (err) {
-		dev_err(ss->dev, "Cannot prepare_enable ssclk\n");
+		dev_err(ss->dev, "Canyest prepare_enable ssclk\n");
 		goto err_enable;
 	}
 
 	if (ss->reset) {
 		err = reset_control_deassert(ss->reset);
 		if (err) {
-			dev_err(ss->dev, "Cannot deassert reset control\n");
+			dev_err(ss->dev, "Canyest deassert reset control\n");
 			goto err_enable;
 		}
 	}
@@ -310,7 +310,7 @@ static int sun4i_ss_probe(struct platform_device *pdev)
 	const unsigned long cr_mod = 150 * 1000 * 1000;
 	struct sun4i_ss_ctx *ss;
 
-	if (!pdev->dev.of_node)
+	if (!pdev->dev.of_yesde)
 		return -ENODEV;
 
 	ss = devm_kzalloc(&pdev->dev, sizeof(*ss), GFP_KERNEL);
@@ -319,14 +319,14 @@ static int sun4i_ss_probe(struct platform_device *pdev)
 
 	ss->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(ss->base)) {
-		dev_err(&pdev->dev, "Cannot request MMIO\n");
+		dev_err(&pdev->dev, "Canyest request MMIO\n");
 		return PTR_ERR(ss->base);
 	}
 
 	ss->ssclk = devm_clk_get(&pdev->dev, "mod");
 	if (IS_ERR(ss->ssclk)) {
 		err = PTR_ERR(ss->ssclk);
-		dev_err(&pdev->dev, "Cannot get SS clock err=%d\n", err);
+		dev_err(&pdev->dev, "Canyest get SS clock err=%d\n", err);
 		return err;
 	}
 	dev_dbg(&pdev->dev, "clock ss acquired\n");
@@ -334,7 +334,7 @@ static int sun4i_ss_probe(struct platform_device *pdev)
 	ss->busclk = devm_clk_get(&pdev->dev, "ahb");
 	if (IS_ERR(ss->busclk)) {
 		err = PTR_ERR(ss->busclk);
-		dev_err(&pdev->dev, "Cannot get AHB SS clock err=%d\n", err);
+		dev_err(&pdev->dev, "Canyest get AHB SS clock err=%d\n", err);
 		return err;
 	}
 	dev_dbg(&pdev->dev, "clock ahb_ss acquired\n");
@@ -343,7 +343,7 @@ static int sun4i_ss_probe(struct platform_device *pdev)
 	if (IS_ERR(ss->reset)) {
 		if (PTR_ERR(ss->reset) == -EPROBE_DEFER)
 			return PTR_ERR(ss->reset);
-		dev_info(&pdev->dev, "no reset control found\n");
+		dev_info(&pdev->dev, "yes reset control found\n");
 		ss->reset = NULL;
 	}
 
@@ -353,13 +353,13 @@ static int sun4i_ss_probe(struct platform_device *pdev)
 	 */
 	err = clk_set_rate(ss->ssclk, cr_mod);
 	if (err) {
-		dev_err(&pdev->dev, "Cannot set clock rate to ssclk\n");
+		dev_err(&pdev->dev, "Canyest set clock rate to ssclk\n");
 		return err;
 	}
 
 	/*
 	 * The only impact on clocks below requirement are bad performance,
-	 * so do not print "errors"
+	 * so do yest print "errors"
 	 * warn on Overclocked clocks
 	 */
 	cr = clk_get_rate(ss->busclk);

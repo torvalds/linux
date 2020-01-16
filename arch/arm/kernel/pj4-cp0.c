@@ -13,17 +13,17 @@
 #include <linux/sched.h>
 #include <linux/init.h>
 #include <linux/io.h>
-#include <asm/thread_notify.h>
+#include <asm/thread_yestify.h>
 #include <asm/cputype.h>
 
-static int iwmmxt_do(struct notifier_block *self, unsigned long cmd, void *t)
+static int iwmmxt_do(struct yestifier_block *self, unsigned long cmd, void *t)
 {
 	struct thread_info *thread = t;
 
 	switch (cmd) {
 	case THREAD_NOTIFY_FLUSH:
 		/*
-		 * flush_thread() zeroes thread->fpstate, so no need
+		 * flush_thread() zeroes thread->fpstate, so yes need
 		 * to do anything here.
 		 *
 		 * FALLTHROUGH: Ensure we don't try to overwrite our newly
@@ -42,8 +42,8 @@ static int iwmmxt_do(struct notifier_block *self, unsigned long cmd, void *t)
 	return NOTIFY_DONE;
 }
 
-static struct notifier_block __maybe_unused iwmmxt_notifier_block = {
-	.notifier_call	= iwmmxt_do,
+static struct yestifier_block __maybe_unused iwmmxt_yestifier_block = {
+	.yestifier_call	= iwmmxt_do,
 };
 
 
@@ -125,7 +125,7 @@ static int __init pj4_cp0_init(void)
 
 	pr_info("PJ4 iWMMXt v%d coprocessor enabled.\n", vers);
 	elf_hwcap |= HWCAP_IWMMXT;
-	thread_register_notifier(&iwmmxt_notifier_block);
+	thread_register_yestifier(&iwmmxt_yestifier_block);
 #endif
 
 	return 0;

@@ -23,7 +23,7 @@ This emulates the "remapped sector" behavior of a drive with bad
 sectors.
 
 Normally, a drive that is encountering bad sectors will most likely
-encounter more bad sectors, at an unknown time or location.
+encounter more bad sectors, at an unkyeswn time or location.
 With dm-dust, the user can use the "addbadblock" and "removebadblock"
 messages to add arbitrary bad blocks at new locations, and the
 "enable" and "disable" messages to modulate the state of whether the
@@ -151,7 +151,7 @@ result in an "Invalid argument" error, as well as a helpful message::
 
         $ sudo dmsetup message dust1 0 removebadblock 87
         device-mapper: message ioctl on dust1  failed: Invalid argument
-        kernel: device-mapper: dust: block 87 not found in badblocklist
+        kernel: device-mapper: dust: block 87 yest found in badblocklist
 
 Counting the number of bad blocks in the bad block list
 -------------------------------------------------------
@@ -178,9 +178,9 @@ The following message will print if the block is in the list::
 
         device-mapper: dust: queryblock: block 72 found in badblocklist
 
-The following message will print if the block is not in the list::
+The following message will print if the block is yest in the list::
 
-        device-mapper: dust: queryblock: block 72 not found in badblocklist
+        device-mapper: dust: queryblock: block 72 yest found in badblocklist
 
 The "queryblock" message command will work in both the "enabled"
 and "disabled" modes, allowing the verification of whether a block
@@ -200,10 +200,10 @@ After clearing the bad block list, the following message will appear::
 
         kernel: device-mapper: dust: clearbadblocks: badblocks cleared
 
-If there were no bad blocks to clear, the following message will
+If there were yes bad blocks to clear, the following message will
 appear::
 
-        kernel: device-mapper: dust: clearbadblocks: no badblocks found
+        kernel: device-mapper: dust: clearbadblocks: yes badblocks found
 
 Message commands list
 ---------------------
@@ -259,9 +259,9 @@ To disable quiet mode, send the "quiet" message again::
         $ sudo dmsetup status dust1
         0 33552384 dust 252:17 fail_read_on_bad_block verbose
 
-(The presence of "verbose" indicates normal logging.)
+(The presence of "verbose" indicates yesrmal logging.)
 
-"Why not...?"
+"Why yest...?"
 -------------
 
 scsi_debug has a "medium error" mode that can fail reads on one
@@ -270,18 +270,18 @@ it uses RAM for the persistent storage, which drastically decreases
 the potential device size.
 
 dm-flakey fails all I/O from all block locations at a specified time
-frequency, and not a given point in time.
+frequency, and yest a given point in time.
 
 When a bad sector occurs on a hard disk drive, reads to that sector
 are failed by the device, usually resulting in an error code of EIO
 ("I/O error") or ENODATA ("No data available").  However, a write to
 the sector may succeed, and result in the sector becoming readable
-after the device controller no longer experiences errors reading the
+after the device controller yes longer experiences errors reading the
 sector (or after a reallocation of the sector).  However, there may
 be bad sectors that occur on the device in the future, in a different,
 unpredictable location.
 
 This target seeks to provide a device that can exhibit the behavior
-of a bad sector at a known sector location, at a known time, based
-on a large storage device (at least tens of gigabytes, not occupying
+of a bad sector at a kyeswn sector location, at a kyeswn time, based
+on a large storage device (at least tens of gigabytes, yest occupying
 system memory).

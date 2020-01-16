@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -34,7 +34,7 @@
  * Display Context Save and Restore (CSR) firmware support added from gen9
  * onwards to drive newly added DMC (Display microcontroller) in display
  * engine to save and restore the state of display engine when it enter into
- * low-power state and comes back to normal.
+ * low-power state and comes back to yesrmal.
  */
 
 #define GEN12_CSR_MAX_FW_SIZE		ICL_CSR_MAX_FW_SIZE
@@ -114,7 +114,7 @@ struct intel_css_header {
 	/* Not used */
 	u32 reserved1[12];
 
-	/* Major Minor */
+	/* Major Miyesr */
 	u32 version;
 
 	/* Not used */
@@ -166,13 +166,13 @@ struct intel_dmc_header_base {
 	/* Reserved */
 	u16 dmcc_ver;
 
-	/* Major, Minor */
+	/* Major, Miyesr */
 	u32 project;
 
 	/* Firmware program size (excluding header) in dwords */
 	u32 fw_size;
 
-	/* Major Minor version */
+	/* Major Miyesr version */
 	u32 fw_version;
 } __packed;
 
@@ -238,7 +238,7 @@ static const struct stepping_info icl_stepping_info[] = {
 	{'C', '0'}
 };
 
-static const struct stepping_info no_stepping_info = { '*', '*' };
+static const struct stepping_info yes_stepping_info = { '*', '*' };
 
 static const struct stepping_info *
 intel_get_stepping_info(struct drm_i915_private *dev_priv)
@@ -263,7 +263,7 @@ intel_get_stepping_info(struct drm_i915_private *dev_priv)
 	if (INTEL_REVID(dev_priv) < size)
 		return si + INTEL_REVID(dev_priv);
 
-	return &no_stepping_info;
+	return &yes_stepping_info;
 }
 
 static void gen9_set_dc_state_debugmask(struct drm_i915_private *dev_priv)
@@ -419,7 +419,7 @@ static u32 parse_csr_fw_dmc(struct intel_csr *csr,
 		header_len_bytes = dmc_header->header_len;
 		dmc_header_size = sizeof(*v1);
 	} else {
-		DRM_ERROR("Unknown DMC fw header version: %u\n",
+		DRM_ERROR("Unkyeswn DMC fw header version: %u\n",
 			  dmc_header->header_ver);
 		return 0;
 	}
@@ -495,14 +495,14 @@ parse_csr_fw_package(struct intel_csr *csr,
 	} else if (package_header->header_ver == 2) {
 		max_entries = PACKAGE_V2_MAX_FW_INFO_ENTRIES;
 	} else {
-		DRM_ERROR("DMC firmware has unknown header version %u\n",
+		DRM_ERROR("DMC firmware has unkyeswn header version %u\n",
 			  package_header->header_ver);
 		return 0;
 	}
 
 	/*
 	 * We should always have space for max_entries,
-	 * even if not all are used
+	 * even if yest all are used
 	 */
 	package_size += max_entries * sizeof(struct intel_fw_info);
 	if (rem_size < package_size)
@@ -523,7 +523,7 @@ parse_csr_fw_package(struct intel_csr *csr,
 	dmc_offset = find_dmc_fw_offset(fw_info, num_entries, si,
 					package_header->header_ver);
 	if (dmc_offset == CSR_DEFAULT_FW_OFFSET) {
-		DRM_ERROR("DMC firmware not supported for %c stepping\n",
+		DRM_ERROR("DMC firmware yest supported for %c stepping\n",
 			  si->stepping);
 		return 0;
 	}
@@ -641,11 +641,11 @@ static void csr_load_work_fn(struct work_struct *work)
 			 CSR_VERSION_MAJOR(csr->version),
 			 CSR_VERSION_MINOR(csr->version));
 	} else {
-		dev_notice(dev_priv->drm.dev,
+		dev_yestice(dev_priv->drm.dev,
 			   "Failed to load DMC firmware %s."
 			   " Disabling runtime power management.\n",
 			   csr->fw_path);
-		dev_notice(dev_priv->drm.dev, "DMC firmware homepage: %s",
+		dev_yestice(dev_priv->drm.dev, "DMC firmware homepage: %s",
 			   INTEL_UC_FIRMWARE_URL);
 	}
 
@@ -681,7 +681,7 @@ void intel_csr_ucode_init(struct drm_i915_private *dev_priv)
 	if (INTEL_GEN(dev_priv) >= 12) {
 		csr->fw_path = TGL_CSR_PATH;
 		csr->required_version = TGL_CSR_VERSION_REQUIRED;
-		/* Allow to load fw via parameter using the last known size */
+		/* Allow to load fw via parameter using the last kyeswn size */
 		csr->max_fw_size = GEN12_CSR_MAX_FW_SIZE;
 	} else if (IS_GEN(dev_priv, 11)) {
 		csr->fw_path = ICL_CSR_PATH;
@@ -722,7 +722,7 @@ void intel_csr_ucode_init(struct drm_i915_private *dev_priv)
 	}
 
 	if (csr->fw_path == NULL) {
-		DRM_DEBUG_KMS("No known CSR firmware for platform, disabling runtime PM\n");
+		DRM_DEBUG_KMS("No kyeswn CSR firmware for platform, disabling runtime PM\n");
 		return;
 	}
 

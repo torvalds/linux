@@ -110,7 +110,7 @@ static ssize_t b43_attr_interfmode_store(struct device *dev,
 	if (wldev->phy.ops->interf_mitigation) {
 		err = wldev->phy.ops->interf_mitigation(wldev, mode);
 		if (err) {
-			b43err(wldev->wl, "Interference Mitigation not "
+			b43err(wldev->wl, "Interference Mitigation yest "
 			       "supported by device\n");
 		}
 	} else

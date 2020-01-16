@@ -341,5 +341,5 @@ static inline int ns16550a_goto_highspeed(struct uart_8250_port *up)
 
 static inline int serial_index(struct uart_port *port)
 {
-	return port->minor - 64;
+	return port->miyesr - 64;
 }

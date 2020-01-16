@@ -82,10 +82,10 @@ void __init plat_mem_setup(void)
 	else if (__dtb_start != __dtb_end)
 		dtb = (void *)__dtb_start;
 	else
-		panic("no dtb found");
+		panic("yes dtb found");
 
 	/*
-	 * Load the devicetree. This causes the chosen node to be
+	 * Load the devicetree. This causes the chosen yesde to be
 	 * parsed resulting in our memory appearing
 	 */
 	__dt_setup_arch(dtb);

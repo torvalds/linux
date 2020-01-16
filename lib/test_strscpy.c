@@ -21,7 +21,7 @@ KSTM_MODULE_GLOBALS();
  * @chars: Number of characters from the src string expected to be
  *         written to the dst buffer.
  * @pad: Number of pad characters expected (in the tail of dst buffer).
- *       (@pad does not include the null terminator byte.)
+ *       (@pad does yest include the null terminator byte.)
  *
  * Calls strscpy_pad() and verifies the return value and state of the
  * destination buffer after the call returns.
@@ -40,7 +40,7 @@ static int __init tc(char *src, int count, int expected,
 	total_tests++;
 
 	if (!src) {
-		pr_err("null source string not supported\n");
+		pr_err("null source string yest supported\n");
 		return -1;
 	}
 
@@ -69,7 +69,7 @@ static int __init tc(char *src, int count, int expected,
 			goto fail;
 		}
 		if (buf[count - 1] != '\0') {
-			pr_err("too big string is not null terminated correctly\n");
+			pr_err("too big string is yest null terminated correctly\n");
 			goto fail;
 		}
 	}
@@ -83,7 +83,7 @@ static int __init tc(char *src, int count, int expected,
 
 	if (terminator) {
 		if (buf[count - 1] != '\0') {
-			pr_err("string is not null terminated correctly\n");
+			pr_err("string is yest null terminated correctly\n");
 			goto fail;
 		}
 	}
@@ -118,7 +118,7 @@ static void __init selftest(void)
 	 * least 2 characters spare (one for null and one to check for
 	 * overflow).  This means we should only call tc() with
 	 * strings up to a maximum of 4 characters long and 'count'
-	 * should not exceed 4.  To test with longer strings increase
+	 * should yest exceed 4.  To test with longer strings increase
 	 * the buffer size in tc().
 	 */
 

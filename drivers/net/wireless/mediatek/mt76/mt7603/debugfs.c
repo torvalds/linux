@@ -92,9 +92,9 @@ mt7603_ampdu_stat_read(struct seq_file *file, void *data)
 }
 
 static int
-mt7603_ampdu_stat_open(struct inode *inode, struct file *f)
+mt7603_ampdu_stat_open(struct iyesde *iyesde, struct file *f)
 {
-	return single_open(f, mt7603_ampdu_stat_read, inode->i_private);
+	return single_open(f, mt7603_ampdu_stat_read, iyesde->i_private);
 }
 
 static const struct file_operations fops_ampdu_stat = {

@@ -14,7 +14,7 @@
 enum {
 	AUDIO_SDM_LEVEL_MUTE = 0,
 	AUDIO_SDM_LEVEL_NORMAL = 0x1d,
-	/* if you change level normal */
+	/* if you change level yesrmal */
 	/* you need to change formula of hp impedance and dc trim too */
 };
 

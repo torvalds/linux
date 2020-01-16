@@ -334,7 +334,7 @@ static int pipe_buffer_setting(struct r8a66597 *r8a66597,
 		buf_bsize = 0;
 		break;
 	case R8A66597_BULK:
-		/* isochronous pipes may be used as bulk pipes */
+		/* isochroyesus pipes may be used as bulk pipes */
 		if (info->pipe >= R8A66597_BASE_PIPENUM_BULK)
 			bufnum = info->pipe - R8A66597_BASE_PIPENUM_BULK;
 		else
@@ -379,7 +379,7 @@ static void pipe_buffer_release(struct r8a66597 *r8a66597,
 	} else if (is_interrupt_pipe(info->pipe)) {
 		r8a66597->interrupt--;
 	} else if (is_isoc_pipe(info->pipe)) {
-		r8a66597->isochronous--;
+		r8a66597->isochroyesus--;
 		if (info->type == R8A66597_BULK)
 			r8a66597->bulk--;
 	} else {
@@ -464,14 +464,14 @@ static int alloc_pipe_config(struct r8a66597_ep *ep,
 	switch (usb_endpoint_type(desc)) {
 	case USB_ENDPOINT_XFER_BULK:
 		if (r8a66597->bulk >= R8A66597_MAX_NUM_BULK) {
-			if (r8a66597->isochronous >= R8A66597_MAX_NUM_ISOC) {
+			if (r8a66597->isochroyesus >= R8A66597_MAX_NUM_ISOC) {
 				dev_err(r8a66597_to_dev(r8a66597),
 					"bulk pipe is insufficient\n");
 				return -ENODEV;
 			} else {
 				info.pipe = R8A66597_BASE_PIPENUM_ISOC
-						+ r8a66597->isochronous;
-				counter = &r8a66597->isochronous;
+						+ r8a66597->isochroyesus;
+				counter = &r8a66597->isochroyesus;
 			}
 		} else {
 			info.pipe = R8A66597_BASE_PIPENUM_BULK + r8a66597->bulk;
@@ -491,14 +491,14 @@ static int alloc_pipe_config(struct r8a66597_ep *ep,
 		counter = &r8a66597->interrupt;
 		break;
 	case USB_ENDPOINT_XFER_ISOC:
-		if (r8a66597->isochronous >= R8A66597_MAX_NUM_ISOC) {
+		if (r8a66597->isochroyesus >= R8A66597_MAX_NUM_ISOC) {
 			dev_err(r8a66597_to_dev(r8a66597),
-				"isochronous pipe is insufficient\n");
+				"isochroyesus pipe is insufficient\n");
 			return -ENODEV;
 		}
-		info.pipe = R8A66597_BASE_PIPENUM_ISOC + r8a66597->isochronous;
+		info.pipe = R8A66597_BASE_PIPENUM_ISOC + r8a66597->isochroyesus;
 		info.type = R8A66597_ISO;
-		counter = &r8a66597->isochronous;
+		counter = &r8a66597->isochroyesus;
 		break;
 	default:
 		dev_err(r8a66597_to_dev(r8a66597), "unexpect xfer type\n");
@@ -522,7 +522,7 @@ static int alloc_pipe_config(struct r8a66597_ep *ep,
 	}
 
 	(*counter)++;
-	if ((counter == &r8a66597->isochronous) && info.type == R8A66597_BULK)
+	if ((counter == &r8a66597->isochroyesus) && info.type == R8A66597_BULK)
 		r8a66597->bulk++;
 
 	r8a66597_ep_setting(r8a66597, ep, desc, info.pipe, dma);
@@ -557,7 +557,7 @@ static void pipe_irq_disable(struct r8a66597 *r8a66597, u16 pipenum)
 	disable_irq_nrdy(r8a66597, pipenum);
 }
 
-/* if complete is true, gadget driver complete function is not call */
+/* if complete is true, gadget driver complete function is yest call */
 static void control_end(struct r8a66597 *r8a66597, unsigned ccpl)
 {
 	r8a66597->ep[0].internal_ccpl = ccpl;
@@ -1002,7 +1002,7 @@ static void irq_packet_write(struct r8a66597_ep *ep,
 		pipe_stop(r8a66597, pipenum);
 		pipe_irq_disable(r8a66597, pipenum);
 		dev_err(r8a66597_to_dev(r8a66597),
-			"write fifo not ready. pipnum=%d\n", pipenum);
+			"write fifo yest ready. pipnum=%d\n", pipenum);
 		return;
 	}
 
@@ -1052,7 +1052,7 @@ static void irq_packet_read(struct r8a66597_ep *ep,
 		req->req.status = -EPIPE;
 		pipe_stop(r8a66597, pipenum);
 		pipe_irq_disable(r8a66597, pipenum);
-		dev_err(r8a66597_to_dev(r8a66597), "read fifo not ready");
+		dev_err(r8a66597_to_dev(r8a66597), "read fifo yest ready");
 		return;
 	}
 
@@ -1328,7 +1328,7 @@ static void r8a66597_update_usb_speed(struct r8a66597 *r8a66597)
 		break;
 	default:
 		r8a66597->gadget.speed = USB_SPEED_UNKNOWN;
-		dev_err(r8a66597_to_dev(r8a66597), "USB speed unknown\n");
+		dev_err(r8a66597_to_dev(r8a66597), "USB speed unkyeswn\n");
 	}
 }
 
@@ -1411,7 +1411,7 @@ static void sudmac_finish(struct r8a66597 *r8a66597, struct r8a66597_ep *ep)
 		udelay(1);
 		if (unlikely(i++ >= 10000)) {	/* timeout = 10 msec */
 			dev_err(r8a66597_to_dev(r8a66597),
-				"%s: FRDY was not set (%d)\n",
+				"%s: FRDY was yest set (%d)\n",
 				__func__, pipenum);
 			return;
 		}
@@ -1820,7 +1820,7 @@ static int r8a66597_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static void nop_completion(struct usb_ep *ep, struct usb_request *r)
+static void yesp_completion(struct usb_ep *ep, struct usb_request *r)
 {
 }
 
@@ -1880,7 +1880,7 @@ static int r8a66597_probe(struct platform_device *pdev)
 		snprintf(clk_name, sizeof(clk_name), "usb%d", pdev->id);
 		r8a66597->clk = devm_clk_get(dev, clk_name);
 		if (IS_ERR(r8a66597->clk)) {
-			dev_err(dev, "cannot get clock \"%s\"\n", clk_name);
+			dev_err(dev, "canyest get clock \"%s\"\n", clk_name);
 			return PTR_ERR(r8a66597->clk);
 		}
 		clk_prepare_enable(r8a66597->clk);
@@ -1943,7 +1943,7 @@ static int r8a66597_probe(struct platform_device *pdev)
 		ret = -ENOMEM;
 		goto clean_up2;
 	}
-	r8a66597->ep0_req->complete = nop_completion;
+	r8a66597->ep0_req->complete = yesp_completion;
 
 	ret = usb_add_gadget_udc(dev, &r8a66597->gadget);
 	if (ret)

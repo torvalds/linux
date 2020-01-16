@@ -8,13 +8,13 @@
  */
 
 /dts-v1/;
-#include "exynos5422-odroidxu3-common.dtsi"
-#include "exynos5422-odroidxu3-audio.dtsi"
-#include "exynos54xx-odroidxu-leds.dtsi"
+#include "exyyess5422-odroidxu3-common.dtsi"
+#include "exyyess5422-odroidxu3-audio.dtsi"
+#include "exyyess54xx-odroidxu-leds.dtsi"
 
 / {
 	model = "Hardkernel Odroid XU3";
-	compatible = "hardkernel,odroid-xu3", "samsung,exynos5800", "samsung,exynos5";
+	compatible = "hardkernel,odroid-xu3", "samsung,exyyess5800", "samsung,exyyess5";
 };
 
 &i2c_0 {

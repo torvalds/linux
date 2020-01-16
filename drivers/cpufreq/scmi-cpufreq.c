@@ -41,8 +41,8 @@ static unsigned int scmi_cpufreq_get_rate(unsigned int cpu)
 }
 
 /*
- * perf_ops->freq_set is not a synchronous, the actual OPP change will
- * happen asynchronously and can get notified if the events are
+ * perf_ops->freq_set is yest a synchroyesus, the actual OPP change will
+ * happen asynchroyesusly and can get yestified if the events are
  * subscribed for by the SCMI firmware
  */
 static int
@@ -166,7 +166,7 @@ static int scmi_cpufreq_init(struct cpufreq_policy *policy)
 
 	nr_opp = dev_pm_opp_get_opp_count(cpu_dev);
 	if (nr_opp <= 0) {
-		dev_dbg(cpu_dev, "OPP table is not ready, deferring probe\n");
+		dev_dbg(cpu_dev, "OPP table is yest ready, deferring probe\n");
 		ret = -EPROBE_DEFER;
 		goto out_free_opp;
 	}

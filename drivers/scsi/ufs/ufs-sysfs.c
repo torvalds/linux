@@ -371,9 +371,9 @@ UFS_GEOMETRY_DESC_PARAM(sys_code_memory_max_alloc_units,
 	_SCM_MAX_NUM_UNITS, 4);
 UFS_GEOMETRY_DESC_PARAM(sys_code_memory_capacity_adjustment_factor,
 	_SCM_CAP_ADJ_FCTR, 2);
-UFS_GEOMETRY_DESC_PARAM(non_persist_memory_max_alloc_units,
+UFS_GEOMETRY_DESC_PARAM(yesn_persist_memory_max_alloc_units,
 	_NPM_MAX_NUM_UNITS, 4);
-UFS_GEOMETRY_DESC_PARAM(non_persist_memory_capacity_adjustment_factor,
+UFS_GEOMETRY_DESC_PARAM(yesn_persist_memory_capacity_adjustment_factor,
 	_NPM_CAP_ADJ_FCTR, 2);
 UFS_GEOMETRY_DESC_PARAM(enh1_memory_max_alloc_units,
 	_ENM1_MAX_NUM_UNITS, 4);
@@ -412,8 +412,8 @@ static struct attribute *ufs_sysfs_geometry_descriptor[] = {
 	&dev_attr_memory_types.attr,
 	&dev_attr_sys_code_memory_max_alloc_units.attr,
 	&dev_attr_sys_code_memory_capacity_adjustment_factor.attr,
-	&dev_attr_non_persist_memory_max_alloc_units.attr,
-	&dev_attr_non_persist_memory_capacity_adjustment_factor.attr,
+	&dev_attr_yesn_persist_memory_max_alloc_units.attr,
+	&dev_attr_yesn_persist_memory_capacity_adjustment_factor.attr,
 	&dev_attr_enh1_memory_max_alloc_units.attr,
 	&dev_attr_enh1_memory_capacity_adjustment_factor.attr,
 	&dev_attr_enh2_memory_max_alloc_units.attr,
@@ -803,7 +803,7 @@ const struct attribute_group ufs_sysfs_lun_attributes_group = {
 	.attrs = ufs_sysfs_lun_attributes,
 };
 
-void ufs_sysfs_add_nodes(struct device *dev)
+void ufs_sysfs_add_yesdes(struct device *dev)
 {
 	int ret;
 
@@ -814,7 +814,7 @@ void ufs_sysfs_add_nodes(struct device *dev)
 			__func__, ret);
 }
 
-void ufs_sysfs_remove_nodes(struct device *dev)
+void ufs_sysfs_remove_yesdes(struct device *dev)
 {
 	sysfs_remove_groups(&dev->kobj, ufs_sysfs_groups);
 }

@@ -50,7 +50,7 @@ static struct cs5535_mfgpt_timer *cs5535_event_clock;
 
 /*
  * The MFGPT timers on the CS5536 provide us with suitable timers to use
- * as clock event sources - not as good as a HPET or APIC, but certainly
+ * as clock event sources - yest as good as a HPET or APIC, but certainly
  * better than the PIT.  This isn't a general purpose MFGPT driver, but
  * a simplified one designed specifically to act as a clock event source.
  * For full details about the MFGPT, please consult the CS5536 data sheet.
@@ -145,14 +145,14 @@ static int __init cs5535_mfgpt_init(void)
 
 	timer = cs5535_mfgpt_alloc_timer(MFGPT_TIMER_ANY, MFGPT_DOMAIN_WORKING);
 	if (!timer) {
-		printk(KERN_ERR DRV_NAME ": Could not allocate MFGPT timer\n");
+		printk(KERN_ERR DRV_NAME ": Could yest allocate MFGPT timer\n");
 		return -ENODEV;
 	}
 	cs5535_event_clock = timer;
 
 	/* Set up the IRQ on the MFGPT side */
 	if (cs5535_mfgpt_setup_irq(timer, MFGPT_CMP2, &timer_irq)) {
-		printk(KERN_ERR DRV_NAME ": Could not set up IRQ %d\n",
+		printk(KERN_ERR DRV_NAME ": Could yest set up IRQ %d\n",
 				timer_irq);
 		goto err_timer;
 	}

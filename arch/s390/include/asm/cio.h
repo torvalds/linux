@@ -40,7 +40,7 @@ struct ccw1 {
  * @cmd_code: command code
  * @cda: data address
  * @flags: flags, like IDA addressing, etc.
- * @reserved: will be ignored
+ * @reserved: will be igyesred
  * @count: byte count
  *
  * The format-0 ccw structure.
@@ -225,7 +225,7 @@ struct esw_eadm {
  *
  * The irb that is handed to the device driver when an interrupt occurs. For
  * solicited interrupts, the common I/O layer already performs checks whether
- * a field is valid; a field not being valid is always passed as %0.
+ * a field is valid; a field yest being valid is always passed as %0.
  * If a unit check occurred, @ecw may contain sense data; this is retrieved
  * by the common I/O layer itself if the device doesn't support concurrent
  * sense (so that the device driver never needs to perform basic sense itself).
@@ -262,7 +262,7 @@ struct ciw {
 
 #define CIW_TYPE_RCD	0x0    	/* read configuration data */
 #define CIW_TYPE_SII	0x1    	/* set interface identifier */
-#define CIW_TYPE_RNI	0x2    	/* read node identifier */
+#define CIW_TYPE_RNI	0x2    	/* read yesde identifier */
 
 /*
  * Node Descriptor as defined in SA22-7204, "Common I/O-Device Commands"
@@ -272,7 +272,7 @@ struct ciw {
 #define ND_VALIDITY_OUTDATED	1
 #define ND_VALIDITY_INVALID	2
 
-struct node_descriptor {
+struct yesde_descriptor {
 	/* Flags. */
 	union {
 		struct {
@@ -309,15 +309,15 @@ struct node_descriptor {
 #define CIO_OPER       0x0004
 /* Sick revalidation of device. */
 #define CIO_REVALIDATE 0x0008
-/* Device did not respond in time. */
+/* Device did yest respond in time. */
 #define CIO_BOXED      0x0010
 
 /**
  * struct ccw_dev_id - unique identifier for ccw devices
  * @ssid: subchannel set id
- * @devno: device number
+ * @devyes: device number
  *
- * This structure is not directly based on any hardware structure. The
+ * This structure is yest directly based on any hardware structure. The
  * hardware identifies a device by its device number and its subchannel,
  * which is in turn identified by its id. In order to get a unique identifier
  * for ccw devices across subchannel sets, @struct ccw_dev_id has been
@@ -325,16 +325,16 @@ struct node_descriptor {
  */
 struct ccw_dev_id {
 	u8 ssid;
-	u16 devno;
+	u16 devyes;
 };
 
 /**
  * ccw_device_id_is_equal() - compare two ccw_dev_ids
  * @dev_id1: a ccw_dev_id
- * @dev_id2: another ccw_dev_id
+ * @dev_id2: ayesther ccw_dev_id
  * Returns:
  *  %1 if the two structures are equal field-by-field,
- *  %0 if not.
+ *  %0 if yest.
  * Context:
  *  any
  */
@@ -342,7 +342,7 @@ static inline int ccw_dev_id_is_equal(struct ccw_dev_id *dev_id1,
 				      struct ccw_dev_id *dev_id2)
 {
 	if ((dev_id1->ssid == dev_id2->ssid) &&
-	    (dev_id1->devno == dev_id2->devno))
+	    (dev_id1->devyes == dev_id2->devyes))
 		return 1;
 	return 0;
 }

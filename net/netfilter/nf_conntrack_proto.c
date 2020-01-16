@@ -9,7 +9,7 @@
 #include <linux/stddef.h>
 #include <linux/err.h>
 #include <linux/percpu.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/kernel.h>
 #include <linux/netdevice.h>
 
@@ -261,7 +261,7 @@ getorigdst(struct sock *sk, int optval, void __user *user, int *len)
 	}
 
 	if ((unsigned int)*len < sizeof(struct sockaddr_in)) {
-		pr_debug("SO_ORIGINAL_DST: len %d not %zu\n",
+		pr_debug("SO_ORIGINAL_DST: len %d yest %zu\n",
 			 *len, sizeof(struct sockaddr_in));
 		return -EINVAL;
 	}
@@ -377,7 +377,7 @@ static unsigned int ipv6_confirm(void *priv,
 	protoff = ipv6_skip_exthdr(skb, sizeof(struct ipv6hdr), &pnum,
 				   &frag_off);
 	if (protoff < 0 || (frag_off & htons(~0x7)) != 0) {
-		pr_debug("proto header not found\n");
+		pr_debug("proto header yest found\n");
 		return nf_conntrack_confirm(skb);
 	}
 

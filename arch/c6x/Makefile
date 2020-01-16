@@ -8,11 +8,11 @@
 
 KBUILD_DEFCONFIG := dsk6455_defconfig
 
-cflags-y += -mno-dsbt -msdata=none -D__linux__
+cflags-y += -myes-dsbt -msdata=yesne -D__linux__
 
 cflags-$(CONFIG_C6X_BIG_KERNEL) += -mlong-calls
 
-KBUILD_CFLAGS_MODULE   += -mlong-calls -mno-dsbt -msdata=none
+KBUILD_CFLAGS_MODULE   += -mlong-calls -myes-dsbt -msdata=yesne
 
 CHECKFLAGS      +=
 
@@ -42,7 +42,7 @@ export DTB
 
 core-y	+= $(boot)/dts/
 
-# With make 3.82 we cannot mix normal and wildcard targets
+# With make 3.82 we canyest mix yesrmal and wildcard targets
 
 vmlinux.bin: vmlinux
 	$(Q)$(MAKE) $(build)=$(boot) $(patsubst %,$(boot)/%,$@)

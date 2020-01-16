@@ -588,7 +588,7 @@ static void rts5261_set_l1off_cfg_sub_d0(struct rtsx_pcr *pcr, int active)
 	if (active) {
 		/* run, latency: 60us */
 		if (aspm_L1_1)
-			val = option->ltr_l1off_snooze_sspwrgate;
+			val = option->ltr_l1off_syesoze_sspwrgate;
 	} else {
 		/* l1off, latency: 300us */
 		if (aspm_L1_2)
@@ -780,9 +780,9 @@ void rts5261_init_params(struct rtsx_pcr *pcr)
 	option->ltr_active_latency = LTR_ACTIVE_LATENCY_DEF;
 	option->ltr_idle_latency = LTR_IDLE_LATENCY_DEF;
 	option->ltr_l1off_latency = LTR_L1OFF_LATENCY_DEF;
-	option->l1_snooze_delay = L1_SNOOZE_DELAY_DEF;
+	option->l1_syesoze_delay = L1_SNOOZE_DELAY_DEF;
 	option->ltr_l1off_sspwrgate = 0x7F;
-	option->ltr_l1off_snooze_sspwrgate = 0x78;
+	option->ltr_l1off_syesoze_sspwrgate = 0x78;
 	option->dev_aspm_mode = DEV_ASPM_DYNAMIC;
 
 	option->ocp_en = 1;

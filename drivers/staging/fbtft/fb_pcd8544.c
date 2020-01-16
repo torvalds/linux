@@ -2,7 +2,7 @@
 /*
  * FB driver for the PCD8544 LCD Controller
  *
- * The display is monochrome and the video memory is RGB565.
+ * The display is moyeschrome and the video memory is RGB565.
  * Any pixel value except 0 turns the pixel on.
  *
  * Copyright (C) 2013 Noralf Tronnes
@@ -74,7 +74,7 @@ static int init_display(struct fbtft_par *par)
 	/* H=0 Display control
 	 *
 	 * 3:1  1
-	 * 2:1  D  - DE: 10=normal mode
+	 * 2:1  D  - DE: 10=yesrmal mode
 	 * 1:0  0
 	 * 0:0  E
 	 */

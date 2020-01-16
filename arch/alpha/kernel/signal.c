@@ -11,7 +11,7 @@
 #include <linux/sched/task_stack.h>
 #include <linux/kernel.h>
 #include <linux/signal.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/wait.h>
 #include <linux/ptrace.h>
 #include <linux/unistd.h>
@@ -135,8 +135,8 @@ struct rt_sigframe
 	unsigned int retcode[3];
 };
 
-/* If this changes, userland unwinders that Know Things about our signal
-   frame will break.  Do not undertake lightly.  It also implies an ABI
+/* If this changes, userland unwinders that Kyesw Things about our signal
+   frame will break.  Do yest undertake lightly.  It also implies an ABI
    change wrt the size of siginfo_t, which may cause some pain.  */
 extern char compile_time_assert
         [offsetof(struct rt_sigframe, uc.uc_mcontext) == 176 ? 1 : -1];
@@ -152,7 +152,7 @@ restore_sigcontext(struct sigcontext __user *sc, struct pt_regs *regs)
 	struct switch_stack *sw = (struct switch_stack *)regs - 1;
 	long i, err = __get_user(regs->pc, &sc->sc_pc);
 
-	current->restart_block.fn = do_no_restart_syscall;
+	current->restart_block.fn = do_yes_restart_syscall;
 
 	sw->r26 = (unsigned long) ret_from_sys_call;
 
@@ -468,7 +468,7 @@ syscall_restart(unsigned long r0, unsigned long r19,
 
 /*
  * Note that 'init' is a special process: it doesn't get signals it doesn't
- * want to handle. Thus you cannot kill init even with a SIGKILL even by
+ * want to handle. Thus you canyest kill init even with a SIGKILL even by
  * mistake.
  *
  * Note that we go through the signals twice: once to check the signals that
@@ -532,7 +532,7 @@ do_work_pending(struct pt_regs *regs, unsigned long thread_flags,
 				r0 = 0;
 			} else {
 				clear_thread_flag(TIF_NOTIFY_RESUME);
-				tracehook_notify_resume(regs);
+				tracehook_yestify_resume(regs);
 			}
 		}
 		local_irq_disable();

@@ -65,7 +65,7 @@ properties:
       - description: |
           A channel (b) working the opposite direction of channel (a)
       - description: |
-          A channel (c) used by the local proc to notify the remote proc that it
+          A channel (c) used by the local proc to yestify the remote proc that it
           is about to be shut down.
           Unidirectional channel:
             - from local to remote, where ACK from the remote means that it is

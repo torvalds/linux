@@ -66,7 +66,7 @@ struct rk808_rtc {
  * NOTE: Other system software (e.g. firmware) that reads the same hardware must
  * implement this exact same conversion algorithm, with the same anchor date.
  */
-static time64_t nov2dec_transitions(struct rtc_time *tm)
+static time64_t yesv2dec_transitions(struct rtc_time *tm)
 {
 	return (tm->tm_year + 1900) - 2016 + (tm->tm_mon + 1 > 11 ? 1 : 0);
 }
@@ -75,17 +75,17 @@ static void rockchip_to_gregorian(struct rtc_time *tm)
 {
 	/* If it's Nov 31st, rtc_tm_to_time64() will count that like Dec 1st */
 	time64_t time = rtc_tm_to_time64(tm);
-	rtc_time64_to_tm(time + nov2dec_transitions(tm) * 86400, tm);
+	rtc_time64_to_tm(time + yesv2dec_transitions(tm) * 86400, tm);
 }
 
 static void gregorian_to_rockchip(struct rtc_time *tm)
 {
-	time64_t extra_days = nov2dec_transitions(tm);
+	time64_t extra_days = yesv2dec_transitions(tm);
 	time64_t time = rtc_tm_to_time64(tm);
 	rtc_time64_to_tm(time - extra_days * 86400, tm);
 
 	/* Compensate if we went back over Nov 31st (will work up to 2381) */
-	if (nov2dec_transitions(tm) < extra_days) {
+	if (yesv2dec_transitions(tm) < extra_days) {
 		if (tm->tm_mon + 1 == 11)
 			tm->tm_mday++;	/* This may result in 31! */
 		else
@@ -101,7 +101,7 @@ static int rk808_rtc_readtime(struct device *dev, struct rtc_time *tm)
 	u8 rtc_data[NUM_TIME_REGS];
 	int ret;
 
-	/* Force an update of the shadowed registers right now */
+	/* Force an update of the shadowed registers right yesw */
 	ret = regmap_update_bits(rk808->regmap, rk808_rtc->creg->ctrl_reg,
 				 BIT_RTC_CTRL_REG_RTC_GET_TIME,
 				 BIT_RTC_CTRL_REG_RTC_GET_TIME);
@@ -340,7 +340,7 @@ static const struct rtc_class_ops rk808_rtc_ops = {
 };
 
 #ifdef CONFIG_PM_SLEEP
-/* Turn off the alarm if it should not be a wake source. */
+/* Turn off the alarm if it should yest be a wake source. */
 static int rk808_rtc_suspend(struct device *dev)
 {
 	struct rk808_rtc *rk808_rtc = dev_get_drvdata(dev);

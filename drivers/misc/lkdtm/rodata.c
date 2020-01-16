@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
  * This includes functions that are meant to live entirely in .rodata
- * (via objcopy tricks), to validate the non-executability of .rodata.
+ * (via objcopy tricks), to validate the yesn-executability of .rodata.
  */
 #include "lkdtm.h"
 
-void notrace lkdtm_rodata_do_nothing(void)
+void yestrace lkdtm_rodata_do_yesthing(void)
 {
-	/* Does nothing. We just want an architecture agnostic "return". */
+	/* Does yesthing. We just want an architecture agyesstic "return". */
 }

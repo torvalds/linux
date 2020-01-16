@@ -137,9 +137,9 @@ static int caam_jr_remove(struct platform_device *pdev)
 	/* Unregister JR-based RNG & crypto algorithms */
 	unregister_algs();
 
-	/* Remove the node from Physical JobR list maintained by driver */
+	/* Remove the yesde from Physical JobR list maintained by driver */
 	spin_lock(&driver_data.jr_alloc_lock);
-	list_del(&jrpriv->list_node);
+	list_del(&jrpriv->list_yesde);
 	spin_unlock(&driver_data.jr_alloc_lock);
 
 	/* Release ring */
@@ -167,7 +167,7 @@ static irqreturn_t caam_jr_interrupt(int irq, void *st_dev)
 
 	/*
 	 * If JobR error, we got more development work to do
-	 * Flag a bug now, but we really need to shut down and
+	 * Flag a bug yesw, but we really need to shut down and
 	 * restart the queue (and fix code).
 	 */
 	if (irqstate & JRINT_JR_ERROR) {
@@ -248,7 +248,7 @@ static void caam_jr_dequeue(unsigned long devarg)
 					   (JOBR_DEPTH - 1);
 
 		/*
-		 * if this job completed out-of-order, do not increment
+		 * if this job completed out-of-order, do yest increment
 		 * the tail.  Otherwise, increment tail by 1 plus the
 		 * number of subsequent jobs already completed out-of-order
 		 */
@@ -290,7 +290,7 @@ struct device *caam_jr_alloc(void)
 		return ERR_PTR(-ENODEV);
 	}
 
-	list_for_each_entry(jrpriv, &driver_data.jr_list, list_node) {
+	list_for_each_entry(jrpriv, &driver_data.jr_list, list_yesde) {
 		tfm_cnt = atomic_read(&jrpriv->tfm_count);
 		if (tfm_cnt < min_tfm_cnt) {
 			min_tfm_cnt = tfm_cnt;
@@ -325,7 +325,7 @@ EXPORT_SYMBOL(caam_jr_free);
 
 /**
  * caam_jr_enqueue() - Enqueue a job descriptor head. Returns 0 if OK,
- * -EBUSY if the queue is full, -EIO if it cannot map the caller's
+ * -EBUSY if the queue is full, -EIO if it canyest map the caller's
  * descriptor.
  * @dev:  device of the job ring to be used. This device should have
  *        been assigned prior by caam_jr_register().
@@ -400,7 +400,7 @@ int caam_jr_enqueue(struct device *dev, u32 *desc,
 
 	/*
 	 * Ensure that all job information has been written before
-	 * notifying CAAM that a new job was added to the input ring
+	 * yestifying CAAM that a new job was added to the input ring
 	 * using a memory barrier. The wr_reg32() uses api iowrite32()
 	 * to do the register write. iowrite32() issues a memory barrier
 	 * before the write operation.
@@ -497,7 +497,7 @@ static void caam_jr_irq_dispose_mapping(void *data)
 static int caam_jr_probe(struct platform_device *pdev)
 {
 	struct device *jrdev;
-	struct device_node *nprop;
+	struct device_yesde *nprop;
 	struct caam_job_ring __iomem *ctrl;
 	struct caam_drv_private_jr *jrpriv;
 	static int total_jobrs;
@@ -514,7 +514,7 @@ static int caam_jr_probe(struct platform_device *pdev)
 	/* save ring identity relative to detection */
 	jrpriv->ridx = total_jobrs++;
 
-	nprop = pdev->dev.of_node;
+	nprop = pdev->dev.of_yesde;
 	/* Get configuration properties from device tree */
 	/* First, get register page */
 	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -551,13 +551,13 @@ static int caam_jr_probe(struct platform_device *pdev)
 		return error;
 
 	/* Now do the platform independent part */
-	error = caam_jr_init(jrdev); /* now turn on hardware */
+	error = caam_jr_init(jrdev); /* yesw turn on hardware */
 	if (error)
 		return error;
 
 	jrpriv->dev = jrdev;
 	spin_lock(&driver_data.jr_alloc_lock);
-	list_add_tail(&jrpriv->list_node, &driver_data.jr_list);
+	list_add_tail(&jrpriv->list_yesde, &driver_data.jr_list);
 	spin_unlock(&driver_data.jr_alloc_lock);
 
 	atomic_set(&jrpriv->tfm_count, 0);

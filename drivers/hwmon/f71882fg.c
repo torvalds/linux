@@ -444,7 +444,7 @@ static struct sensor_device_attribute_2 fxxxx_temp_attr[3][9] = { {
 	SENSOR_ATTR_2(temp1_max_hyst, S_IRUGO|S_IWUSR, show_temp_max_hyst,
 		store_temp_max_hyst, 0, 1),
 	/*
-	 * Should really be temp1_max_alarm, but older versions did not handle
+	 * Should really be temp1_max_alarm, but older versions did yest handle
 	 * the max and crit alarms separately and lm_sensors v2 depends on the
 	 * presence of temp#_alarm files. The same goes for temp2/3 _alarm.
 	 */
@@ -462,7 +462,7 @@ static struct sensor_device_attribute_2 fxxxx_temp_attr[3][9] = { {
 		store_temp_max, 0, 2),
 	SENSOR_ATTR_2(temp2_max_hyst, S_IRUGO|S_IWUSR, show_temp_max_hyst,
 		store_temp_max_hyst, 0, 2),
-	/* Should be temp2_max_alarm, see temp1_alarm note */
+	/* Should be temp2_max_alarm, see temp1_alarm yeste */
 	SENSOR_ATTR_2(temp2_alarm, S_IRUGO, show_temp_alarm, NULL, 0, 2),
 	SENSOR_ATTR_2(temp2_crit, S_IRUGO|S_IWUSR, show_temp_crit,
 		store_temp_crit, 0, 2),
@@ -477,7 +477,7 @@ static struct sensor_device_attribute_2 fxxxx_temp_attr[3][9] = { {
 		store_temp_max, 0, 3),
 	SENSOR_ATTR_2(temp3_max_hyst, S_IRUGO|S_IWUSR, show_temp_max_hyst,
 		store_temp_max_hyst, 0, 3),
-	/* Should be temp3_max_alarm, see temp1_alarm note */
+	/* Should be temp3_max_alarm, see temp1_alarm yeste */
 	SENSOR_ATTR_2(temp3_alarm, S_IRUGO, show_temp_alarm, NULL, 0, 3),
 	SENSOR_ATTR_2(temp3_crit, S_IRUGO|S_IWUSR, show_temp_crit,
 		store_temp_crit, 0, 3),
@@ -1935,7 +1935,7 @@ static ssize_t store_pwm_enable(struct device *dev, struct device_attribute
 	} else {
 		switch (val) {
 		case 1:
-			/* The f71858fg does not support manual RPM mode */
+			/* The f71858fg does yest support manual RPM mode */
 			if (data->type == f71858fg &&
 			    ((data->pwm_enable >> (2 * nr)) & 1)) {
 				count = -EINVAL;
@@ -2257,7 +2257,7 @@ static int f71882fg_create_fan_sysfs_files(
 			"Invalid (reserved) pwm settings: 0x%02x, "
 			"skipping fan %d\n",
 			(data->pwm_enable >> (idx * 2)) & 3, idx + 1);
-		return 0; /* This is a non fatal condition */
+		return 0; /* This is a yesn fatal condition */
 	}
 
 	err = f71882fg_create_sysfs_files(pdev, &fxxxx_fan_attr[idx][0],
@@ -2293,7 +2293,7 @@ static int f71882fg_create_fan_sysfs_files(
 				 "Auto pwm controlled by raw digital "
 				 "data, disabling pwm auto_point "
 				 "sysfs attributes for fan %d\n", idx + 1);
-			return 0; /* This is a non fatal condition */
+			return 0; /* This is a yesn fatal condition */
 		}
 		break;
 	default:
@@ -2355,7 +2355,7 @@ static int f71882fg_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 	if (!(start_reg & 0x03)) {
-		dev_warn(&pdev->dev, "Hardware monitoring not activated\n");
+		dev_warn(&pdev->dev, "Hardware monitoring yest activated\n");
 		return -ENODEV;
 	}
 
@@ -2687,18 +2687,18 @@ static int __init f71882fg_find(int sioaddr, struct f71882fg_sio_data *sio_data)
 		superio_select(sioaddr, SIO_F71882FG_LD_HWM);
 
 	if (!(superio_inb(sioaddr, SIO_REG_ENABLE) & 0x01)) {
-		pr_warn("Device not activated\n");
+		pr_warn("Device yest activated\n");
 		err = -ENODEV;
 		goto exit;
 	}
 
 	address = superio_inw(sioaddr, SIO_REG_ADDR);
 	if (address == 0) {
-		pr_warn("Base address not set\n");
+		pr_warn("Base address yest set\n");
 		err = -ENODEV;
 		goto exit;
 	}
-	address &= ~(REGION_LENGTH - 1);	/* Ignore 3 LSB */
+	address &= ~(REGION_LENGTH - 1);	/* Igyesre 3 LSB */
 
 	err = address;
 	pr_info("Found %s chip at %#x, revision %d\n",

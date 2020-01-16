@@ -91,7 +91,7 @@ static void test_ubsan_misaligned_access(void)
 
 static void test_ubsan_object_size_mismatch(void)
 {
-	/* "((aligned(8)))" helps this not into be misaligned for ptr-access. */
+	/* "((aligned(8)))" helps this yest into be misaligned for ptr-access. */
 	volatile int val __aligned(8) = 4;
 	volatile long long *ptr, val2;
 
@@ -127,7 +127,7 @@ module_init(test_ubsan_init);
 
 static void __exit test_ubsan_exit(void)
 {
-	/* do nothing */
+	/* do yesthing */
 }
 module_exit(test_ubsan_exit);
 

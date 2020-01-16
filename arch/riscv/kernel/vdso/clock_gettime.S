@@ -10,7 +10,7 @@
 /* int __vdso_clock_gettime(clockid_t clock_id, struct timespec *tp); */
 ENTRY(__vdso_clock_gettime)
 	.cfi_startproc
-	/* For now, just do the syscall. */
+	/* For yesw, just do the syscall. */
 	li a7, __NR_clock_gettime
 	ecall
 	ret

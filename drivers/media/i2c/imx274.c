@@ -164,7 +164,7 @@ enum imx274_binning {
  * @min_SHR: Minimum SHR register value (see "Shutter Setting (CSI-2)" in the
  *           datasheet)
  * @max_fps: Maximum frames per second
- * @nocpiop: Number of clocks per internal offset period (see "Integration Time
+ * @yescpiop: Number of clocks per internal offset period (see "Integration Time
  *           in Each Readout Drive Mode (CSI-2)" in the datasheet)
  */
 struct imx274_mode {
@@ -173,7 +173,7 @@ struct imx274_mode {
 	int min_frame_len;
 	int min_SHR;
 	int max_fps;
-	int nocpiop;
+	int yescpiop;
 };
 
 /*
@@ -441,7 +441,7 @@ static const struct reg_8 imx274_tp_regs[] = {
 	{IMX274_TABLE_END, 0x00}
 };
 
-/* nocpiop happens to be the same number for the implemented modes */
+/* yescpiop happens to be the same number for the implemented modes */
 static const struct imx274_mode imx274_modes[] = {
 	{
 		/* mode 1, 4K */
@@ -450,7 +450,7 @@ static const struct imx274_mode imx274_modes[] = {
 		.min_frame_len = 4550,
 		.min_SHR = 12,
 		.max_fps = 60,
-		.nocpiop = 112,
+		.yescpiop = 112,
 	},
 	{
 		/* mode 3, 1080p */
@@ -459,7 +459,7 @@ static const struct imx274_mode imx274_modes[] = {
 		.min_frame_len = 2310,
 		.min_SHR = 8,
 		.max_fps = 120,
-		.nocpiop = 112,
+		.yescpiop = 112,
 	},
 	{
 		/* mode 5, 720p */
@@ -468,7 +468,7 @@ static const struct imx274_mode imx274_modes[] = {
 		.min_frame_len = 2310,
 		.min_SHR = 8,
 		.max_fps = 120,
-		.nocpiop = 112,
+		.yescpiop = 112,
 	},
 };
 
@@ -754,7 +754,7 @@ static int imx274_start_stream(struct stimx274 *priv)
  * @priv: Pointer to device structure
  * @rst: Input value for determining the sensor's end state after reset
  *
- * Set the senor in reset and then
+ * Set the seyesr in reset and then
  * if rst = 0, keep it in reset;
  * if rst = 1, bring it out of reset.
  *
@@ -866,7 +866,7 @@ static int imx274_binning_goodness(struct stimx274 *imx274,
  * @width:  Input-output parameter: set to the desired width before
  *          the call, contains the chosen value after returning successfully
  * @height: Input-output parameter for height (see @width)
- * @flags:  Selection flags from struct v4l2_subdev_selection, or 0 if not
+ * @flags:  Selection flags from struct v4l2_subdev_selection, or 0 if yest
  *          available (when called from set_fmt)
  */
 static int __imx274_change_compose(struct stimx274 *imx274,
@@ -1052,7 +1052,7 @@ static int imx274_set_selection_crop(struct stimx274 *imx274,
 
 	/*
 	 * h_step could be 12 or 24 depending on the binning. But we
-	 * won't know the binning until we choose the mode later in
+	 * won't kyesw the binning until we choose the mode later in
 	 * __imx274_change_compose(). Thus let's be safe and use the
 	 * most conservative value in all cases.
 	 */
@@ -1209,7 +1209,7 @@ static int imx274_g_frame_interval(struct v4l2_subdev *sd,
 	fi->interval = imx274->frame_interval;
 	dev_dbg(&imx274->client->dev, "%s frame rate = %d / %d\n",
 		__func__, imx274->frame_interval.numerator,
-		imx274->frame_interval.denominator);
+		imx274->frame_interval.deyesminator);
 
 	return 0;
 }
@@ -1241,7 +1241,7 @@ static int imx274_s_frame_interval(struct v4l2_subdev *sd,
 		 */
 		min = IMX274_MIN_EXPOSURE_TIME;
 		max = fi->interval.numerator * 1000000
-			/ fi->interval.denominator;
+			/ fi->interval.deyesminator;
 		def = max;
 		if (__v4l2_ctrl_modify_range(ctrl, min, max, 1, def)) {
 			dev_err(&imx274->client->dev,
@@ -1254,7 +1254,7 @@ static int imx274_s_frame_interval(struct v4l2_subdev *sd,
 
 		dev_dbg(&imx274->client->dev, "set frame interval to %uus\n",
 			fi->interval.numerator * 1000000
-			/ fi->interval.denominator);
+			/ fi->interval.deyesminator);
 	}
 
 unlock:
@@ -1275,7 +1275,7 @@ static int imx274_load_default(struct stimx274 *priv)
 
 	/* load default control values */
 	priv->frame_interval.numerator = 1;
-	priv->frame_interval.denominator = IMX274_DEF_FRAME_RATE;
+	priv->frame_interval.deyesminator = IMX274_DEF_FRAME_RATE;
 	priv->ctrls.exposure->val = 1000000 / IMX274_DEF_FRAME_RATE;
 	priv->ctrls.gain->val = IMX274_DEF_GAIN;
 	priv->ctrls.vflip->val = 0;
@@ -1340,7 +1340,7 @@ static int imx274_s_stream(struct v4l2_subdev *sd, int on)
 		 * update frame rate & expsoure. if the last mode is different,
 		 * HMAX could be changed. As the result, frame rate & exposure
 		 * are changed.
-		 * gain is not affected.
+		 * gain is yest affected.
 		 */
 		ret = imx274_set_frame_interval(imx274,
 						imx274->frame_interval);
@@ -1595,7 +1595,7 @@ static int imx274_set_exposure(struct stimx274 *priv, int val)
 	}
 
 	coarse_time = (IMX274_PIXCLK_CONST1 / IMX274_PIXCLK_CONST2 * val
-			- priv->mode->nocpiop) / hmax;
+			- priv->mode->yescpiop) / hmax;
 
 	/* step 2: convert exposure_time into SHR value */
 
@@ -1605,7 +1605,7 @@ static int imx274_set_exposure(struct stimx274 *priv, int val)
 		goto fail;
 
 	priv->ctrls.exposure->val =
-			(coarse_time * hmax + priv->mode->nocpiop)
+			(coarse_time * hmax + priv->mode->yescpiop)
 			/ (IMX274_PIXCLK_CONST1 / IMX274_PIXCLK_CONST2);
 
 	dev_dbg(&priv->client->dev,
@@ -1624,7 +1624,7 @@ fail:
  * @val: Value for vflip setting
  *
  * Set vertical flip based on input value.
- * val = 0: normal, no vertical flip
+ * val = 0: yesrmal, yes vertical flip
  * val = 1: vertical flip enabled
  * The caller should hold the mutex lock imx274->lock if necessary
  *
@@ -1728,23 +1728,23 @@ static int imx274_set_frame_interval(struct stimx274 *priv,
 
 	dev_dbg(&priv->client->dev, "%s: input frame interval = %d / %d",
 		__func__, frame_interval.numerator,
-		frame_interval.denominator);
+		frame_interval.deyesminator);
 
 	if (frame_interval.numerator == 0) {
 		err = -EINVAL;
 		goto fail;
 	}
 
-	req_frame_rate = (u32)(frame_interval.denominator
+	req_frame_rate = (u32)(frame_interval.deyesminator
 				/ frame_interval.numerator);
 
 	/* boundary check */
 	if (req_frame_rate > priv->mode->max_fps) {
 		frame_interval.numerator = 1;
-		frame_interval.denominator = priv->mode->max_fps;
+		frame_interval.deyesminator = priv->mode->max_fps;
 	} else if (req_frame_rate < IMX274_MIN_FRAME_RATE) {
 		frame_interval.numerator = 1;
-		frame_interval.denominator = IMX274_MIN_FRAME_RATE;
+		frame_interval.deyesminator = IMX274_MIN_FRAME_RATE;
 	}
 
 	/*
@@ -1766,14 +1766,14 @@ static int imx274_set_frame_interval(struct stimx274 *priv,
 	dev_dbg(&priv->client->dev,
 		"%s : register HMAX = %d\n", __func__, hmax);
 
-	if (hmax == 0 || frame_interval.denominator == 0) {
+	if (hmax == 0 || frame_interval.deyesminator == 0) {
 		err = -EINVAL;
 		goto fail;
 	}
 
 	frame_length = IMX274_PIXCLK_CONST1 / (svr + 1) / hmax
 					* frame_interval.numerator
-					/ frame_interval.denominator;
+					/ frame_interval.deyesminator;
 
 	err = imx274_set_frame_length(priv, frame_length);
 	if (err)
@@ -1844,7 +1844,7 @@ static int imx274_probe(struct i2c_client *client)
 	imx274->format.code = MEDIA_BUS_FMT_SRGGB10_1X10;
 	imx274->format.colorspace = V4L2_COLORSPACE_SRGB;
 	imx274->frame_interval.numerator = 1;
-	imx274->frame_interval.denominator = IMX274_DEF_FRAME_RATE;
+	imx274->frame_interval.deyesminator = IMX274_DEF_FRAME_RATE;
 
 	/* initialize regmap */
 	imx274->regmap = devm_regmap_init_i2c(client, &imx274_regmap_config);
@@ -1876,7 +1876,7 @@ static int imx274_probe(struct i2c_client *client)
 						     GPIOD_OUT_HIGH);
 	if (IS_ERR(imx274->reset_gpio)) {
 		if (PTR_ERR(imx274->reset_gpio) != -EPROBE_DEFER)
-			dev_err(&client->dev, "Reset GPIO not setup in DT");
+			dev_err(&client->dev, "Reset GPIO yest setup in DT");
 		ret = PTR_ERR(imx274->reset_gpio);
 		goto err_me;
 	}

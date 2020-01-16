@@ -55,7 +55,7 @@ static void hci_cc_inquiry_cancel(struct hci_dev *hdev, struct sk_buff *skb)
 	wake_up_bit(&hdev->flags, HCI_INQUIRY);
 
 	hci_dev_lock(hdev);
-	/* Set discovery state to stopped if we're not doing LE active
+	/* Set discovery state to stopped if we're yest doing LE active
 	 * scanning.
 	 */
 	if (!hci_dev_test_flag(hdev, HCI_LE_SCAN) ||
@@ -202,7 +202,7 @@ static void hci_cc_reset(struct hci_dev *hdev, struct sk_buff *skb)
 	if (status)
 		return;
 
-	/* Reset all non-persistent flags */
+	/* Reset all yesn-persistent flags */
 	hci_dev_clear_volatile_flags(hdev);
 
 	hci_discovery_set_state(hdev, DISCOVERY_STOPPED);
@@ -435,8 +435,8 @@ static void hci_cc_read_voice_setting(struct hci_dev *hdev, struct sk_buff *skb)
 
 	BT_DBG("%s voice setting 0x%4.4x", hdev->name, setting);
 
-	if (hdev->notify)
-		hdev->notify(hdev, HCI_NOTIFY_VOICE_SETTING);
+	if (hdev->yestify)
+		hdev->yestify(hdev, HCI_NOTIFY_VOICE_SETTING);
 }
 
 static void hci_cc_write_voice_setting(struct hci_dev *hdev,
@@ -464,8 +464,8 @@ static void hci_cc_write_voice_setting(struct hci_dev *hdev,
 
 	BT_DBG("%s voice setting 0x%4.4x", hdev->name, setting);
 
-	if (hdev->notify)
-		hdev->notify(hdev, HCI_NOTIFY_VOICE_SETTING);
+	if (hdev->yestify)
+		hdev->yestify(hdev, HCI_NOTIFY_VOICE_SETTING);
 }
 
 static void hci_cc_read_num_supported_iac(struct hci_dev *hdev,
@@ -1317,7 +1317,7 @@ static void le_set_scan_enable_complete(struct hci_dev *hdev, u8 enable)
 
 		/* The HCI_LE_SCAN_INTERRUPTED flag indicates that we
 		 * interrupted scanning due to a connect request. Mark
-		 * therefore discovery as stopped. If this was not
+		 * therefore discovery as stopped. If this was yest
 		 * because of a connect request advertising might have
 		 * been disabled because of active scanning, so
 		 * re-enable it again if necessary.
@@ -1683,7 +1683,7 @@ static void hci_cc_set_ext_adv_param(struct hci_dev *hdev, struct sk_buff *skb)
 		if (adv_instance)
 			adv_instance->tx_power = rp->tx_power;
 	}
-	/* Update adv data as tx power is known now */
+	/* Update adv data as tx power is kyeswn yesw */
 	hci_req_update_adv_data(hdev, hdev->cur_adv_instance);
 	hci_dev_unlock(hdev);
 }
@@ -1799,7 +1799,7 @@ static void hci_cs_create_conn(struct hci_dev *hdev, __u8 status)
 			conn = hci_conn_add(hdev, ACL_LINK, &cp->bdaddr,
 					    HCI_ROLE_MASTER);
 			if (!conn)
-				bt_dev_err(hdev, "no memory for new connection");
+				bt_dev_err(hdev, "yes memory for new connection");
 		}
 	}
 
@@ -1904,7 +1904,7 @@ static int hci_outgoing_auth_needed(struct hci_dev *hdev,
 	if (conn->pending_sec_level == BT_SECURITY_SDP)
 		return 0;
 
-	/* Only request authentication for SSP connections or non-SSP
+	/* Only request authentication for SSP connections or yesn-SSP
 	 * devices with sec_level MEDIUM or HIGH or if MITM protection
 	 * is requested.
 	 */
@@ -1959,7 +1959,7 @@ static void hci_check_pending_name(struct hci_dev *hdev, struct hci_conn *conn,
 	struct inquiry_entry *e;
 
 	/* Update the mgmt connected state if necessary. Be careful with
-	 * conn objects that exist but are not (yet) connected however.
+	 * conn objects that exist but are yest (yet) connected however.
 	 * Only those in BT_CONFIG or BT_CONNECTED states can be
 	 * considered connected.
 	 */
@@ -1978,9 +1978,9 @@ static void hci_check_pending_name(struct hci_dev *hdev, struct hci_conn *conn,
 		return;
 
 	e = hci_inquiry_cache_lookup_resolve(hdev, bdaddr, NAME_PENDING);
-	/* If the device was not found in a list of found devices names of which
-	 * are pending. there is no need to continue resolving a next name as it
-	 * will be done upon receiving another Remote Name Request Complete
+	/* If the device was yest found in a list of found devices names of which
+	 * are pending. there is yes need to continue resolving a next name as it
+	 * will be done upon receiving ayesther Remote Name Request Complete
 	 * Event */
 	if (!e)
 		return;
@@ -2221,7 +2221,7 @@ static void cs_le_create_conn(struct hci_dev *hdev, bdaddr_t *peer_addr,
 		return;
 
 	/* Store the initiator and responder address information which
-	 * is needed for SMP. These values will not change during the
+	 * is needed for SMP. These values will yest change during the
 	 * lifetime of the connection.
 	 */
 	conn->init_addr_type = own_address_type;
@@ -2399,7 +2399,7 @@ static void hci_inquiry_complete_evt(struct hci_dev *hdev, struct sk_buff *skb)
 		goto unlock;
 
 	if (list_empty(&discov->resolve)) {
-		/* When BR/EDR inquiry is active and no LE scanning is in
+		/* When BR/EDR inquiry is active and yes LE scanning is in
 		 * progress, then change discovery state to indicate completion.
 		 *
 		 * When running LE scanning and BR/EDR inquiry simultaneously
@@ -2417,7 +2417,7 @@ static void hci_inquiry_complete_evt(struct hci_dev *hdev, struct sk_buff *skb)
 		e->name_state = NAME_PENDING;
 		hci_discovery_set_state(hdev, DISCOVERY_RESOLVING);
 	} else {
-		/* When BR/EDR inquiry is active and no LE scanning is in
+		/* When BR/EDR inquiry is active and yes LE scanning is in
 		 * progress, then change discovery state to indicate completion.
 		 *
 		 * When running LE scanning and BR/EDR inquiry simultaneously
@@ -2616,7 +2616,7 @@ static void hci_conn_request_evt(struct hci_dev *hdev, struct sk_buff *skb)
 		conn = hci_conn_add(hdev, ev->link_type, &ev->bdaddr,
 				    HCI_ROLE_SLAVE);
 		if (!conn) {
-			bt_dev_err(hdev, "no memory for new connection");
+			bt_dev_err(hdev, "yes memory for new connection");
 			hci_dev_unlock(hdev);
 			return;
 		}
@@ -2778,7 +2778,7 @@ static void hci_auth_complete_evt(struct hci_dev *hdev, struct sk_buff *skb)
 
 		if (!hci_conn_ssp_enabled(conn) &&
 		    test_bit(HCI_CONN_REAUTH_PEND, &conn->flags)) {
-			bt_dev_info(hdev, "re-auth of legacy device is not possible.");
+			bt_dev_info(hdev, "re-auth of legacy device is yest possible.");
 		} else {
 			set_bit(HCI_CONN_AUTH, &conn->flags);
 			conn->sec_level = conn->pending_sec_level;
@@ -2980,8 +2980,8 @@ static void hci_encrypt_change_evt(struct hci_dev *hdev, struct sk_buff *skb)
 		goto unlock;
 	}
 
-	/* In Secure Connections Only mode, do not allow any connections
-	 * that are not encrypted with AES-CCM using a P-256 authenticated
+	/* In Secure Connections Only mode, do yest allow any connections
+	 * that are yest encrypted with AES-CCM using a P-256 authenticated
 	 * combination key.
 	 */
 	if (hci_dev_test_flag(hdev, HCI_SC_ONLY) &&
@@ -3003,7 +3003,7 @@ static void hci_encrypt_change_evt(struct hci_dev *hdev, struct sk_buff *skb)
 		 */
 		if (!(hdev->commands[20] & 0x10)) {
 			conn->enc_key_size = HCI_LINK_KEY_SIZE;
-			goto notify;
+			goto yestify;
 		}
 
 		hci_req_init(&req, hdev);
@@ -3014,7 +3014,7 @@ static void hci_encrypt_change_evt(struct hci_dev *hdev, struct sk_buff *skb)
 		if (hci_req_run_skb(&req, read_enc_key_size_complete)) {
 			bt_dev_err(hdev, "sending read key size failed");
 			conn->enc_key_size = HCI_LINK_KEY_SIZE;
-			goto notify;
+			goto yestify;
 		}
 
 		goto unlock;
@@ -3039,7 +3039,7 @@ static void hci_encrypt_change_evt(struct hci_dev *hdev, struct sk_buff *skb)
 			     sizeof(cp), &cp);
 	}
 
-notify:
+yestify:
 	if (conn->state == BT_CONFIG) {
 		if (!ev->status)
 			conn->state = BT_CONNECTED;
@@ -3579,9 +3579,9 @@ static void hci_cmd_status_evt(struct hci_dev *hdev, struct sk_buff *skb,
 		atomic_set(&hdev->cmd_cnt, 1);
 
 	/* Indicate request completion if the command failed. Also, if
-	 * we're not waiting for a special event and we get a success
+	 * we're yest waiting for a special event and we get a success
 	 * command status we should try to flag the request as completed
-	 * (since for this kind of commands there will not be a command
+	 * (since for this kind of commands there will yest be a command
 	 * complete event).
 	 */
 	if (ev->status ||
@@ -3688,7 +3688,7 @@ static void hci_num_comp_pkts_evt(struct hci_dev *hdev, struct sk_buff *skb)
 			break;
 
 		default:
-			bt_dev_err(hdev, "unknown type %d conn %p",
+			bt_dev_err(hdev, "unkyeswn type %d conn %p",
 				   conn->type, conn);
 			break;
 		}
@@ -3711,7 +3711,7 @@ static struct hci_conn *__hci_conn_lookup_handle(struct hci_dev *hdev,
 			return chan->conn;
 		break;
 	default:
-		bt_dev_err(hdev, "unknown dev_type %d", hdev->dev_type);
+		bt_dev_err(hdev, "unkyeswn dev_type %d", hdev->dev_type);
 		break;
 	}
 
@@ -3760,7 +3760,7 @@ static void hci_num_comp_blocks_evt(struct hci_dev *hdev, struct sk_buff *skb)
 			break;
 
 		default:
-			bt_dev_err(hdev, "unknown type %d conn %p",
+			bt_dev_err(hdev, "unkyeswn type %d conn %p",
 				   conn->type, conn);
 			break;
 		}
@@ -3883,9 +3883,9 @@ static void hci_link_key_request_evt(struct hci_dev *hdev, struct sk_buff *skb)
 
 	key = hci_find_link_key(hdev, &ev->bdaddr);
 	if (!key) {
-		BT_DBG("%s link key not found for %pMR", hdev->name,
+		BT_DBG("%s link key yest found for %pMR", hdev->name,
 		       &ev->bdaddr);
-		goto not_found;
+		goto yest_found;
 	}
 
 	BT_DBG("%s found key type %u for %pMR", hdev->name, key->type,
@@ -3898,16 +3898,16 @@ static void hci_link_key_request_evt(struct hci_dev *hdev, struct sk_buff *skb)
 		if ((key->type == HCI_LK_UNAUTH_COMBINATION_P192 ||
 		     key->type == HCI_LK_UNAUTH_COMBINATION_P256) &&
 		    conn->auth_type != 0xff && (conn->auth_type & 0x01)) {
-			BT_DBG("%s ignoring unauthenticated key", hdev->name);
-			goto not_found;
+			BT_DBG("%s igyesring unauthenticated key", hdev->name);
+			goto yest_found;
 		}
 
 		if (key->type == HCI_LK_COMBINATION && key->pin_len < 16 &&
 		    (conn->pending_sec_level == BT_SECURITY_HIGH ||
 		     conn->pending_sec_level == BT_SECURITY_FIPS)) {
-			BT_DBG("%s ignoring key unauthenticated for high security",
+			BT_DBG("%s igyesring key unauthenticated for high security",
 			       hdev->name);
-			goto not_found;
+			goto yest_found;
 		}
 
 		conn_set_key(conn, key->type, key->pin_len);
@@ -3922,14 +3922,14 @@ static void hci_link_key_request_evt(struct hci_dev *hdev, struct sk_buff *skb)
 
 	return;
 
-not_found:
+yest_found:
 	hci_send_cmd(hdev, HCI_OP_LINK_KEY_NEG_REPLY, 6, &ev->bdaddr);
 	hci_dev_unlock(hdev);
 }
 
-static void hci_link_key_notify_evt(struct hci_dev *hdev, struct sk_buff *skb)
+static void hci_link_key_yestify_evt(struct hci_dev *hdev, struct sk_buff *skb)
 {
-	struct hci_ev_link_key_notify *ev = (void *) skb->data;
+	struct hci_ev_link_key_yestify *ev = (void *) skb->data;
 	struct hci_conn *conn;
 	struct link_key *key;
 	bool persistent;
@@ -3967,8 +3967,8 @@ static void hci_link_key_notify_evt(struct hci_dev *hdev, struct sk_buff *skb)
 	mgmt_new_link_key(hdev, key, persistent);
 
 	/* Keep debug keys around only if the HCI_KEEP_DEBUG_KEYS flag
-	 * is set. If it's not set simply remove the key from the kernel
-	 * list (we've still notified user space about it but with
+	 * is set. If it's yest set simply remove the key from the kernel
+	 * list (we've still yestified user space about it but with
 	 * store_hint being 0).
 	 */
 	if (key->type == HCI_LK_DEBUG_COMBINATION &&
@@ -4142,7 +4142,7 @@ static void hci_remote_ext_features_evt(struct hci_dev *hdev,
 			 *
 			 * To make these devices work, the internal SSP
 			 * enabled flag needs to be cleared if the remote host
-			 * features do not indicate SSP support */
+			 * features do yest indicate SSP support */
 			clear_bit(HCI_CONN_SSP_ENABLED, &conn->flags);
 		}
 
@@ -4191,7 +4191,7 @@ static void hci_sync_conn_complete_evt(struct hci_dev *hdev,
 		 * and lookup of the connection object fails, then check
 		 * if an eSCO connection object exists.
 		 *
-		 * The core limits the synchronous connections to either
+		 * The core limits the synchroyesus connections to either
 		 * SCO or eSCO. The eSCO connection is preferred and tried
 		 * to be setup first and until successfully established,
 		 * the link type will be hinted as eSCO.
@@ -4276,7 +4276,7 @@ static void hci_extended_inquiry_result_evt(struct hci_dev *hdev,
 
 	for (; num_rsp; num_rsp--, info++) {
 		u32 flags;
-		bool name_known;
+		bool name_kyeswn;
 
 		bacpy(&data.bdaddr, &info->bdaddr);
 		data.pscan_rep_mode	= info->pscan_rep_mode;
@@ -4288,13 +4288,13 @@ static void hci_extended_inquiry_result_evt(struct hci_dev *hdev,
 		data.ssp_mode		= 0x01;
 
 		if (hci_dev_test_flag(hdev, HCI_MGMT))
-			name_known = eir_get_data(info->data,
+			name_kyeswn = eir_get_data(info->data,
 						  sizeof(info->data),
 						  EIR_NAME_COMPLETE, NULL);
 		else
-			name_known = true;
+			name_kyeswn = true;
 
-		flags = hci_inquiry_cache_update(hdev, &data, name_known);
+		flags = hci_inquiry_cache_update(hdev, &data, name_kyeswn);
 
 		eir_len = eir_get_length(info->data, sizeof(info->data));
 
@@ -4358,19 +4358,19 @@ unlock:
 
 static u8 hci_get_auth_req(struct hci_conn *conn)
 {
-	/* If remote requests no-bonding follow that lead */
+	/* If remote requests yes-bonding follow that lead */
 	if (conn->remote_auth == HCI_AT_NO_BONDING ||
 	    conn->remote_auth == HCI_AT_NO_BONDING_MITM)
 		return conn->remote_auth | (conn->auth_type & 0x01);
 
-	/* If both remote and local have enough IO capabilities, require
+	/* If both remote and local have eyesugh IO capabilities, require
 	 * MITM protection
 	 */
 	if (conn->remote_cap != HCI_IO_NO_INPUT_OUTPUT &&
 	    conn->io_capability != HCI_IO_NO_INPUT_OUTPUT)
 		return conn->remote_auth | 0x01;
 
-	/* No MITM protection possible so ignore remote requirement */
+	/* No MITM protection possible so igyesre remote requirement */
 	return (conn->remote_auth & ~0x01) | (conn->auth_type & 0x01);
 }
 
@@ -4388,14 +4388,14 @@ static u8 bredr_oob_data_present(struct hci_conn *conn)
 		 * return the present value stored with the OOB
 		 * data. The stored value contains the right present
 		 * information. However it can only be trusted when
-		 * not in Secure Connection Only mode.
+		 * yest in Secure Connection Only mode.
 		 */
 		if (!hci_dev_test_flag(hdev, HCI_SC_ONLY))
 			return data->present;
 
 		/* When Secure Connections Only mode is enabled, then
-		 * the P-256 values are required. If they are not
-		 * available, then do not declare that OOB data is
+		 * the P-256 values are required. If they are yest
+		 * available, then do yest declare that OOB data is
 		 * present.
 		 */
 		if (!memcmp(data->rand256, ZERO_KEY, 16) ||
@@ -4405,8 +4405,8 @@ static u8 bredr_oob_data_present(struct hci_conn *conn)
 		return 0x02;
 	}
 
-	/* When Secure Connections is not enabled or actually
-	 * not supported by the hardware, then check that if
+	/* When Secure Connections is yest enabled or actually
+	 * yest supported by the hardware, then check that if
 	 * P-192 data values are present.
 	 */
 	if (!memcmp(data->rand192, ZERO_KEY, 16) ||
@@ -4435,7 +4435,7 @@ static void hci_io_capa_request_evt(struct hci_dev *hdev, struct sk_buff *skb)
 		goto unlock;
 
 	/* Allow pairing if we're pairable, the initiators of the
-	 * pairing or if the remote is not requesting bonding.
+	 * pairing or if the remote is yest requesting bonding.
 	 */
 	if (hci_dev_test_flag(hdev, HCI_BONDABLE) ||
 	    test_bit(HCI_CONN_AUTH_INITIATOR, &conn->flags) ||
@@ -4444,14 +4444,14 @@ static void hci_io_capa_request_evt(struct hci_dev *hdev, struct sk_buff *skb)
 
 		bacpy(&cp.bdaddr, &ev->bdaddr);
 		/* Change the IO capability from KeyboardDisplay
-		 * to DisplayYesNo as it is not supported by BT spec. */
+		 * to DisplayYesNo as it is yest supported by BT spec. */
 		cp.capability = (conn->io_capability == 0x04) ?
 				HCI_IO_DISPLAY_YESNO : conn->io_capability;
 
-		/* If we are initiators, there is no remote information yet */
+		/* If we are initiators, there is yes remote information yet */
 		if (conn->remote_auth == 0xff) {
 			/* Request MITM protection if our IO caps allow it
-			 * except for the no-bonding case.
+			 * except for the yes-bonding case.
 			 */
 			if (conn->io_capability != HCI_IO_NO_INPUT_OUTPUT &&
 			    conn->auth_type != HCI_AT_NO_BONDING)
@@ -4460,7 +4460,7 @@ static void hci_io_capa_request_evt(struct hci_dev *hdev, struct sk_buff *skb)
 			conn->auth_type = hci_get_auth_req(conn);
 		}
 
-		/* If we're not bondable, force one of the non-bondable
+		/* If we're yest bondable, force one of the yesn-bondable
 		 * authentication requirement values.
 		 */
 		if (!hci_dev_test_flag(hdev, HCI_BONDABLE))
@@ -4539,11 +4539,11 @@ static void hci_user_confirm_request_evt(struct hci_dev *hdev,
 		goto unlock;
 	}
 
-	/* If no side requires MITM protection; auto-accept */
+	/* If yes side requires MITM protection; auto-accept */
 	if ((!loc_mitm || conn->remote_cap == HCI_IO_NO_INPUT_OUTPUT) &&
 	    (!rem_mitm || conn->io_capability == HCI_IO_NO_INPUT_OUTPUT)) {
 
-		/* If we're not the initiators request authorization to
+		/* If we're yest the initiators request authorization to
 		 * proceed from user space (mgmt_user_confirm with
 		 * confirm_hint set to 1). The exception is if neither
 		 * side had MITM or if the local IO capability is
@@ -4591,10 +4591,10 @@ static void hci_user_passkey_request_evt(struct hci_dev *hdev,
 		mgmt_user_passkey_request(hdev, &ev->bdaddr, ACL_LINK, 0);
 }
 
-static void hci_user_passkey_notify_evt(struct hci_dev *hdev,
+static void hci_user_passkey_yestify_evt(struct hci_dev *hdev,
 					struct sk_buff *skb)
 {
-	struct hci_ev_user_passkey_notify *ev = (void *) skb->data;
+	struct hci_ev_user_passkey_yestify *ev = (void *) skb->data;
 	struct hci_conn *conn;
 
 	BT_DBG("%s", hdev->name);
@@ -4603,18 +4603,18 @@ static void hci_user_passkey_notify_evt(struct hci_dev *hdev,
 	if (!conn)
 		return;
 
-	conn->passkey_notify = __le32_to_cpu(ev->passkey);
+	conn->passkey_yestify = __le32_to_cpu(ev->passkey);
 	conn->passkey_entered = 0;
 
 	if (hci_dev_test_flag(hdev, HCI_MGMT))
-		mgmt_user_passkey_notify(hdev, &conn->dst, conn->type,
-					 conn->dst_type, conn->passkey_notify,
+		mgmt_user_passkey_yestify(hdev, &conn->dst, conn->type,
+					 conn->dst_type, conn->passkey_yestify,
 					 conn->passkey_entered);
 }
 
-static void hci_keypress_notify_evt(struct hci_dev *hdev, struct sk_buff *skb)
+static void hci_keypress_yestify_evt(struct hci_dev *hdev, struct sk_buff *skb)
 {
-	struct hci_ev_keypress_notify *ev = (void *) skb->data;
+	struct hci_ev_keypress_yestify *ev = (void *) skb->data;
 	struct hci_conn *conn;
 
 	BT_DBG("%s", hdev->name);
@@ -4645,8 +4645,8 @@ static void hci_keypress_notify_evt(struct hci_dev *hdev, struct sk_buff *skb)
 	}
 
 	if (hci_dev_test_flag(hdev, HCI_MGMT))
-		mgmt_user_passkey_notify(hdev, &conn->dst, conn->type,
-					 conn->dst_type, conn->passkey_notify,
+		mgmt_user_passkey_yestify(hdev, &conn->dst, conn->type,
+					 conn->dst_type, conn->passkey_yestify,
 					 conn->passkey_entered);
 }
 
@@ -4664,7 +4664,7 @@ static void hci_simple_pair_complete_evt(struct hci_dev *hdev,
 	if (!conn)
 		goto unlock;
 
-	/* Reset the authentication requirement to unknown */
+	/* Reset the authentication requirement to unkyeswn */
 	conn->remote_auth = 0xff;
 
 	/* To avoid duplicate auth_failed events to user space we check
@@ -4919,7 +4919,7 @@ static void le_conn_complete_evt(struct hci_dev *hdev, u8 status,
 	if (!conn) {
 		conn = hci_conn_add(hdev, LE_LINK, bdaddr, role);
 		if (!conn) {
-			bt_dev_err(hdev, "no memory for new connection");
+			bt_dev_err(hdev, "yes memory for new connection");
 			goto unlock;
 		}
 
@@ -4928,7 +4928,7 @@ static void le_conn_complete_evt(struct hci_dev *hdev, u8 status,
 		/* If we didn't have a hci_conn object previously
 		 * but we're in master role this must be something
 		 * initiated using a white list. Since white list based
-		 * connections are not "first class citizens" we don't
+		 * connections are yest "first class citizens" we don't
 		 * have full tracking of them. Therefore, we go ahead
 		 * with a "best effort" approach of determining the
 		 * initiator address based on the HCI_PRIVACY flag.
@@ -4969,7 +4969,7 @@ static void le_conn_complete_evt(struct hci_dev *hdev, u8 status,
 
 		/* For incoming connections, set the default minimum
 		 * and maximum connection interval. They will be used
-		 * to check if the parameters are in range and if not
+		 * to check if the parameters are in range and if yest
 		 * trigger the connection update procedure.
 		 */
 		conn->le_conn_min_interval = hdev->le_conn_min_interval;
@@ -4983,7 +4983,7 @@ static void le_conn_complete_evt(struct hci_dev *hdev, u8 status,
 	 * connection procedure will store the resolvable random
 	 * address first. Now if it can be converted back into the
 	 * identity address, start using the identity address from
-	 * now on.
+	 * yesw on.
 	 */
 	irk = hci_get_irk(hdev, &conn->dst, conn->dst_type);
 	if (irk) {
@@ -5148,11 +5148,11 @@ static struct hci_conn *check_pending_le_conn(struct hci_dev *hdev,
 	struct hci_conn *conn;
 	struct hci_conn_params *params;
 
-	/* If the event is not connectable don't proceed further */
+	/* If the event is yest connectable don't proceed further */
 	if (adv_type != LE_ADV_IND && adv_type != LE_ADV_DIRECT_IND)
 		return NULL;
 
-	/* Ignore if the device is blocked */
+	/* Igyesre if the device is blocked */
 	if (hci_bdaddr_list_lookup(&hdev->blacklist, addr, addr_type))
 		return NULL;
 
@@ -5162,7 +5162,7 @@ static struct hci_conn *check_pending_le_conn(struct hci_dev *hdev,
 	if (hdev->conn_hash.le_num_slave > 0)
 		return NULL;
 
-	/* If we're not connectable only connect devices that we have in
+	/* If we're yest connectable only connect devices that we have in
 	 * our pend_le_conns list.
 	 */
 	params = hci_pend_le_action_lookup(&hdev->pend_le_conns, addr,
@@ -5198,7 +5198,7 @@ static struct hci_conn *check_pending_le_conn(struct hci_dev *hdev,
 			      direct_rpa);
 	if (!IS_ERR(conn)) {
 		/* If HCI_AUTO_CONN_EXPLICIT is set, conn is already owned
-		 * by higher layer that tried to connect, if no then
+		 * by higher layer that tried to connect, if yes then
 		 * store the pointer since we don't really have any
 		 * other owner of the object besides the params that
 		 * triggered it. This way we can abort the connection if
@@ -5247,7 +5247,7 @@ static void process_adv_report(struct hci_dev *hdev, u8 type, bdaddr_t *bdaddr,
 	case LE_ADV_SCAN_RSP:
 		break;
 	default:
-		bt_dev_err_ratelimited(hdev, "unknown advertising packet "
+		bt_dev_err_ratelimited(hdev, "unkyeswn advertising packet "
 				       "type: 0x%02x", type);
 		return;
 	}
@@ -5255,7 +5255,7 @@ static void process_adv_report(struct hci_dev *hdev, u8 type, bdaddr_t *bdaddr,
 	/* Find the end of the data in case the report contains padded zero
 	 * bytes at the end causing an invalid length value.
 	 *
-	 * When data is NULL, len is 0 so there is no need for extra ptr
+	 * When data is NULL, len is 0 so there is yes need for extra ptr
 	 * check as 'ptr < data + 0' is already false in such case.
 	 */
 	for (ptr = data; ptr < data + len && *ptr; ptr += *ptr + 1) {
@@ -5278,20 +5278,20 @@ static void process_adv_report(struct hci_dev *hdev, u8 type, bdaddr_t *bdaddr,
 	 */
 	if (direct_addr) {
 		/* Only resolvable random addresses are valid for these
-		 * kind of reports and others can be ignored.
+		 * kind of reports and others can be igyesred.
 		 */
 		if (!hci_bdaddr_is_rpa(direct_addr, direct_addr_type))
 			return;
 
-		/* If the controller is not using resolvable random
-		 * addresses, then this report can be ignored.
+		/* If the controller is yest using resolvable random
+		 * addresses, then this report can be igyesred.
 		 */
 		if (!hci_dev_test_flag(hdev, HCI_PRIVACY))
 			return;
 
-		/* If the local IRK of the controller does not match
+		/* If the local IRK of the controller does yest match
 		 * with the resolvable random address provided, then
-		 * this report can be ignored.
+		 * this report can be igyesred.
 		 */
 		if (!smp_irk_matches(hdev, hdev->irk, direct_addr))
 			return;
@@ -5340,20 +5340,20 @@ static void process_adv_report(struct hci_dev *hdev, u8 type, bdaddr_t *bdaddr,
 		return;
 	}
 
-	/* When receiving non-connectable or scannable undirected
+	/* When receiving yesn-connectable or scannable undirected
 	 * advertising reports, this means that the remote device is
-	 * not connectable and then clearly indicate this in the
+	 * yest connectable and then clearly indicate this in the
 	 * device found event.
 	 *
-	 * When receiving a scan response, then there is no way to
-	 * know if the remote device is connectable or not. However
+	 * When receiving a scan response, then there is yes way to
+	 * kyesw if the remote device is connectable or yest. However
 	 * since scan responses are merged with a previously seen
 	 * advertising report, the flags field from that report
 	 * will be used.
 	 *
 	 * In the really unlikely case that a controller get confused
 	 * and just sends a scan response event, then it is marked as
-	 * not connectable as well.
+	 * yest connectable as well.
 	 */
 	if (type == LE_ADV_NONCONN_IND || type == LE_ADV_SCAN_IND ||
 	    type == LE_ADV_SCAN_RSP)
@@ -5361,9 +5361,9 @@ static void process_adv_report(struct hci_dev *hdev, u8 type, bdaddr_t *bdaddr,
 	else
 		flags = 0;
 
-	/* If there's nothing pending either store the data from this
+	/* If there's yesthing pending either store the data from this
 	 * event or send an immediate device found event if the data
-	 * should not be stored for later.
+	 * should yest be stored for later.
 	 */
 	if (!has_pending_adv_report(hdev)) {
 		/* If the report will trigger a SCAN_REQ store it for
@@ -5406,7 +5406,7 @@ static void process_adv_report(struct hci_dev *hdev, u8 type, bdaddr_t *bdaddr,
 			return;
 		}
 
-		/* The advertising reports cannot be merged, so clear
+		/* The advertising reports canyest be merged, so clear
 		 * the pending report and send out a device found event.
 		 */
 		clear_pending_adv_report(hdev);
@@ -5468,7 +5468,7 @@ static u8 ext_evt_type_to_legacy(u16 evt_type)
 			return LE_ADV_SCAN_RSP;
 		}
 
-		BT_ERR_RATELIMITED("Unknown advertising packet type: 0x%02x",
+		BT_ERR_RATELIMITED("Unkyeswn advertising packet type: 0x%02x",
 				   evt_type);
 
 		return LE_ADV_INVALID;
@@ -5491,7 +5491,7 @@ static u8 ext_evt_type_to_legacy(u16 evt_type)
 	    evt_type & LE_EXT_ADV_DIRECT_IND)
 		return LE_ADV_NONCONN_IND;
 
-	BT_ERR_RATELIMITED("Unknown advertising packet type: 0x%02x",
+	BT_ERR_RATELIMITED("Unkyeswn advertising packet type: 0x%02x",
 				   evt_type);
 
 	return LE_ADV_INVALID;
@@ -5543,7 +5543,7 @@ static void hci_le_remote_feat_complete_evt(struct hci_dev *hdev,
 
 			/* If the local controller supports slave-initiated
 			 * features exchange, but the remote controller does
-			 * not, then it is possible that the error code 0x1a
+			 * yest, then it is possible that the error code 0x1a
 			 * for unsupported remote feature gets returned.
 			 *
 			 * In this specific case, allow the connection to
@@ -5579,20 +5579,20 @@ static void hci_le_ltk_request_evt(struct hci_dev *hdev, struct sk_buff *skb)
 
 	conn = hci_conn_hash_lookup_handle(hdev, __le16_to_cpu(ev->handle));
 	if (conn == NULL)
-		goto not_found;
+		goto yest_found;
 
 	ltk = hci_find_ltk(hdev, &conn->dst, conn->dst_type, conn->role);
 	if (!ltk)
-		goto not_found;
+		goto yest_found;
 
 	if (smp_ltk_is_sc(ltk)) {
 		/* With SC both EDiv and Rand are set to zero */
 		if (ev->ediv || ev->rand)
-			goto not_found;
+			goto yest_found;
 	} else {
-		/* For non-SC keys check that EDiv and Rand match */
+		/* For yesn-SC keys check that EDiv and Rand match */
 		if (ev->ediv != ltk->ediv || ev->rand != ltk->rand)
-			goto not_found;
+			goto yest_found;
 	}
 
 	memcpy(cp.ltk, ltk->val, ltk->enc_size);
@@ -5623,7 +5623,7 @@ static void hci_le_ltk_request_evt(struct hci_dev *hdev, struct sk_buff *skb)
 
 	return;
 
-not_found:
+yest_found:
 	neg.handle = ev->handle;
 	hci_send_cmd(hdev, HCI_OP_LE_LTK_NEG_REPLY, sizeof(neg), &neg);
 	hci_dev_unlock(hdev);
@@ -5795,14 +5795,14 @@ static bool hci_get_cmd_complete(struct hci_dev *hdev, u16 opcode,
 		return true;
 	}
 
-	/* Check if request ended in Command Status - no way to retreive
+	/* Check if request ended in Command Status - yes way to retreive
 	 * any extra parameters in this case.
 	 */
 	if (hdr->evt == HCI_EV_CMD_STATUS)
 		return false;
 
 	if (hdr->evt != HCI_EV_CMD_COMPLETE) {
-		bt_dev_err(hdev, "last event is not cmd complete (0x%2.2x)",
+		bt_dev_err(hdev, "last event is yest cmd complete (0x%2.2x)",
 			   hdr->evt);
 		return false;
 	}
@@ -5928,7 +5928,7 @@ void hci_event_packet(struct hci_dev *hdev, struct sk_buff *skb)
 		break;
 
 	case HCI_EV_LINK_KEY_NOTIFY:
-		hci_link_key_notify_evt(hdev, skb);
+		hci_link_key_yestify_evt(hdev, skb);
 		break;
 
 	case HCI_EV_CLOCK_OFFSET:
@@ -5980,11 +5980,11 @@ void hci_event_packet(struct hci_dev *hdev, struct sk_buff *skb)
 		break;
 
 	case HCI_EV_USER_PASSKEY_NOTIFY:
-		hci_user_passkey_notify_evt(hdev, skb);
+		hci_user_passkey_yestify_evt(hdev, skb);
 		break;
 
 	case HCI_EV_KEYPRESS_NOTIFY:
-		hci_keypress_notify_evt(hdev, skb);
+		hci_keypress_yestify_evt(hdev, skb);
 		break;
 
 	case HCI_EV_SIMPLE_PAIR_COMPLETE:

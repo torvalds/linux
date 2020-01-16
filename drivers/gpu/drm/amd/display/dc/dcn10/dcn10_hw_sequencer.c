@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -185,8 +185,8 @@ static void dcn10_log_hubp_states(struct dc *dc, void *log_ctx)
 	DTN_INFO("HUBP:  rc_hbe     dlg_vbe    min_d_y_n  rc_per_ht  rc_x_a_s "
 			"  dst_y_a_s  dst_y_pf   dst_y_vvb  dst_y_rvb  dst_y_vfl  dst_y_rfl  rf_pix_fq"
 			"  vratio_pf  vrat_pf_c  rc_pg_vbl  rc_pg_vbc  rc_mc_vbl  rc_mc_vbc  rc_pg_fll"
-			"  rc_pg_flc  rc_mc_fll  rc_mc_flc  pr_nom_l   pr_nom_c   rc_pg_nl   rc_pg_nc "
-			"  mr_nom_l   mr_nom_c   rc_mc_nl   rc_mc_nc   rc_ld_pl   rc_ld_pc   rc_ld_l  "
+			"  rc_pg_flc  rc_mc_fll  rc_mc_flc  pr_yesm_l   pr_yesm_c   rc_pg_nl   rc_pg_nc "
+			"  mr_yesm_l   mr_yesm_c   rc_mc_nl   rc_mc_nc   rc_ld_pl   rc_ld_pc   rc_ld_l  "
 			"  rc_ld_c    cha_cur0   ofst_cur1  cha_cur1   vr_af_vc0  ddrq_limt  x_rt_dlay"
 			"  x_rp_dlay  x_rr_sfl\n");
 	for (i = 0; i < pool->pipe_count; i++) {
@@ -205,11 +205,11 @@ static void dcn10_log_hubp_states(struct dc *dc, void *log_ctx)
 				dlg_regs->refcyc_per_pte_group_vblank_c, dlg_regs->refcyc_per_meta_chunk_vblank_l,
 				dlg_regs->refcyc_per_meta_chunk_vblank_c, dlg_regs->refcyc_per_pte_group_flip_l,
 				dlg_regs->refcyc_per_pte_group_flip_c, dlg_regs->refcyc_per_meta_chunk_flip_l,
-				dlg_regs->refcyc_per_meta_chunk_flip_c, dlg_regs->dst_y_per_pte_row_nom_l,
-				dlg_regs->dst_y_per_pte_row_nom_c, dlg_regs->refcyc_per_pte_group_nom_l,
-				dlg_regs->refcyc_per_pte_group_nom_c, dlg_regs->dst_y_per_meta_row_nom_l,
-				dlg_regs->dst_y_per_meta_row_nom_c, dlg_regs->refcyc_per_meta_chunk_nom_l,
-				dlg_regs->refcyc_per_meta_chunk_nom_c, dlg_regs->refcyc_per_line_delivery_pre_l,
+				dlg_regs->refcyc_per_meta_chunk_flip_c, dlg_regs->dst_y_per_pte_row_yesm_l,
+				dlg_regs->dst_y_per_pte_row_yesm_c, dlg_regs->refcyc_per_pte_group_yesm_l,
+				dlg_regs->refcyc_per_pte_group_yesm_c, dlg_regs->dst_y_per_meta_row_yesm_l,
+				dlg_regs->dst_y_per_meta_row_yesm_c, dlg_regs->refcyc_per_meta_chunk_yesm_l,
+				dlg_regs->refcyc_per_meta_chunk_yesm_c, dlg_regs->refcyc_per_line_delivery_pre_l,
 				dlg_regs->refcyc_per_line_delivery_pre_c, dlg_regs->refcyc_per_line_delivery_l,
 				dlg_regs->refcyc_per_line_delivery_c, dlg_regs->chunk_hdl_adjust_cur0, dlg_regs->dst_y_offset_cur1,
 				dlg_regs->chunk_hdl_adjust_cur1, dlg_regs->vready_after_vcount0, dlg_regs->dst_y_delta_drq_limit,
@@ -271,19 +271,19 @@ void dcn10_log_hw_state(struct dc *dc,
 					((s.igam_lut_mode == 1) ? "BypassFloat" :
 					((s.igam_lut_mode == 2) ? "RAM" :
 					((s.igam_lut_mode == 3) ? "RAM" :
-								 "Unknown"))),
+								 "Unkyeswn"))),
 				(s.dgam_lut_mode == 0) ? "Bypass" :
 					((s.dgam_lut_mode == 1) ? "sRGB" :
 					((s.dgam_lut_mode == 2) ? "Ycc" :
 					((s.dgam_lut_mode == 3) ? "RAM" :
 					((s.dgam_lut_mode == 4) ? "RAM" :
-								 "Unknown")))),
+								 "Unkyeswn")))),
 				(s.rgam_lut_mode == 0) ? "Bypass" :
 					((s.rgam_lut_mode == 1) ? "sRGB" :
 					((s.rgam_lut_mode == 2) ? "Ycc" :
 					((s.rgam_lut_mode == 3) ? "RAM" :
 					((s.rgam_lut_mode == 4) ? "RAM" :
-								 "Unknown")))),
+								 "Unkyeswn")))),
 				s.gamut_remap_mode,
 				s.gamut_remap_c11_c12,
 				s.gamut_remap_c13_c14,
@@ -775,7 +775,7 @@ static enum dc_status dcn10_enable_stream_timing(
 
 #if 0 /* move to after enable_crtc */
 	/* TODO: OPP FMT, ABM. etc. should be done here. */
-	/* or FPGA now. instance 0 only. TODO: move to opp.c */
+	/* or FPGA yesw. instance 0 only. TODO: move to opp.c */
 
 	inst_offset = reg_offsets[pipe_ctx->stream_res.tg->inst].fmt;
 
@@ -806,7 +806,7 @@ static enum dc_status dcn10_enable_stream_timing(
 		return DC_ERROR_UNEXPECTED;
 	}
 
-	/* TODO program crtc source select for non-virtual signal*/
+	/* TODO program crtc source select for yesn-virtual signal*/
 	/* TODO program FMT */
 	/* TODO setup link_enc */
 	/* TODO set stream attributes */
@@ -1028,7 +1028,7 @@ static void dcn10_plane_atomic_power_down(struct dc *dc,
 }
 
 /* disable HW used by plane.
- * note:  cannot disable until disconnect is complete
+ * yeste:  canyest disable until disconnect is complete
  */
 static void dcn10_plane_atomic_disable(struct dc *dc, struct pipe_ctx *pipe_ctx)
 {
@@ -1048,7 +1048,7 @@ static void dcn10_plane_atomic_disable(struct dc *dc, struct pipe_ctx *pipe_ctx)
 				false);
 
 	hubp->power_gated = true;
-	dc->optimized_required = false; /* We're powering off, no need to optimize */
+	dc->optimized_required = false; /* We're powering off, yes need to optimize */
 
 	dc->hwss.plane_atomic_power_down(dc,
 			pipe_ctx->plane_res.dpp,
@@ -1093,8 +1093,8 @@ static void dcn10_init_pipes(struct dc *dc, struct dc_state *context)
 		struct timing_generator *tg = dc->res_pool->timing_generators[i];
 		struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];
 
-		/* There is assumption that pipe_ctx is not mapping irregularly
-		 * to non-preferred front end. If pipe_ctx->stream is not NULL,
+		/* There is assumption that pipe_ctx is yest mapping irregularly
+		 * to yesn-preferred front end. If pipe_ctx->stream is yest NULL,
 		 * we will use the pipe, so don't disable
 		 */
 		if (pipe_ctx->stream != NULL && can_apply_seamless_boot)
@@ -1118,7 +1118,7 @@ static void dcn10_init_pipes(struct dc *dc, struct dc_state *context)
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
 		struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];
 
-		/* Cannot reset the MPC mux if seamless boot */
+		/* Canyest reset the MPC mux if seamless boot */
 		if (pipe_ctx->stream != NULL && can_apply_seamless_boot)
 			continue;
 
@@ -1132,8 +1132,8 @@ static void dcn10_init_pipes(struct dc *dc, struct dc_state *context)
 		struct dpp *dpp = dc->res_pool->dpps[i];
 		struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];
 
-		/* There is assumption that pipe_ctx is not mapping irregularly
-		 * to non-preferred front end. If pipe_ctx->stream is not NULL,
+		/* There is assumption that pipe_ctx is yest mapping irregularly
+		 * to yesn-preferred front end. If pipe_ctx->stream is yest NULL,
 		 * we will use the pipe, so don't disable
 		 */
 		if (can_apply_seamless_boot &&
@@ -1265,9 +1265,9 @@ static void dcn10_init_hw(struct dc *dc)
 #endif
 
 	/* If taking control over from VBIOS, we may want to optimize our first
-	 * mode set, so we need to skip powering down pipes until we know which
+	 * mode set, so we need to skip powering down pipes until we kyesw which
 	 * pipes we want to use.
-	 * Otherwise, if taking control is not possible, we need to power
+	 * Otherwise, if taking control is yest possible, we need to power
 	 * everything down.
 	 */
 	if (dcb->funcs->is_accelerated_mode(dcb) || dc->config.power_down_display_on_boot) {
@@ -1305,8 +1305,8 @@ static void dcn10_init_hw(struct dc *dc)
 
 	dc->hwss.enable_power_gating_plane(dc->hwseq, true);
 
-	if (dc->clk_mgr->funcs->notify_wm_ranges)
-		dc->clk_mgr->funcs->notify_wm_ranges(dc->clk_mgr);
+	if (dc->clk_mgr->funcs->yestify_wm_ranges)
+		dc->clk_mgr->funcs->yestify_wm_ranges(dc->clk_mgr);
 
 }
 
@@ -1450,7 +1450,7 @@ static void log_tf(struct dc_context *ctx,
 				struct dc_transfer_func *tf, uint32_t hw_points_num)
 {
 	// DC_LOG_GAMMA is default logging of all hw points
-	// DC_LOG_ALL_GAMMA logs all points, not only hw points
+	// DC_LOG_ALL_GAMMA logs all points, yest only hw points
 	// DC_LOG_ALL_TF_POINTS logs all channels of the tf
 	int i = 0;
 
@@ -1547,7 +1547,7 @@ static bool wait_for_reset_trigger_to_occur(
 	for (i = 0; i < frames_to_wait_on_triggered_reset; i++) {
 
 		if (!tg->funcs->is_counter_moving(tg)) {
-			DC_ERROR("TG counter is not moving!\n");
+			DC_ERROR("TG counter is yest moving!\n");
 			break;
 		}
 
@@ -1673,8 +1673,8 @@ static void dcn10_enable_per_frame_crtc_position_reset(
 			"vratio_prefetch: %d, \n"
 			"refcyc_per_pte_group_vblank_l: %d, \n"
 			"refcyc_per_meta_chunk_vblank_l: %d, \n"
-			"dst_y_per_pte_row_nom_l: %d, \n"
-			"refcyc_per_pte_group_nom_l: %d, \n",
+			"dst_y_per_pte_row_yesm_l: %d, \n"
+			"refcyc_per_pte_group_yesm_l: %d, \n",
 			pipe_ctx->pipe_idx,
 			pipe_ctx->dlg_regs.refcyc_h_blank_end,
 			pipe_ctx->dlg_regs.dlg_vblank_end,
@@ -1689,36 +1689,36 @@ static void dcn10_enable_per_frame_crtc_position_reset(
 			pipe_ctx->dlg_regs.vratio_prefetch,
 			pipe_ctx->dlg_regs.refcyc_per_pte_group_vblank_l,
 			pipe_ctx->dlg_regs.refcyc_per_meta_chunk_vblank_l,
-			pipe_ctx->dlg_regs.dst_y_per_pte_row_nom_l,
-			pipe_ctx->dlg_regs.refcyc_per_pte_group_nom_l
+			pipe_ctx->dlg_regs.dst_y_per_pte_row_yesm_l,
+			pipe_ctx->dlg_regs.refcyc_per_pte_group_yesm_l
 			);
 
 	DC_LOG_BANDWIDTH_CALCS(core_dc->ctx->logger,
-			"\ndst_y_per_meta_row_nom_l: %d, \n"
-			"refcyc_per_meta_chunk_nom_l: %d, \n"
+			"\ndst_y_per_meta_row_yesm_l: %d, \n"
+			"refcyc_per_meta_chunk_yesm_l: %d, \n"
 			"refcyc_per_line_delivery_pre_l: %d, \n"
 			"refcyc_per_line_delivery_l: %d, \n"
 			"vratio_prefetch_c: %d, \n"
 			"refcyc_per_pte_group_vblank_c: %d, \n"
 			"refcyc_per_meta_chunk_vblank_c: %d, \n"
-			"dst_y_per_pte_row_nom_c: %d, \n"
-			"refcyc_per_pte_group_nom_c: %d, \n"
-			"dst_y_per_meta_row_nom_c: %d, \n"
-			"refcyc_per_meta_chunk_nom_c: %d, \n"
+			"dst_y_per_pte_row_yesm_c: %d, \n"
+			"refcyc_per_pte_group_yesm_c: %d, \n"
+			"dst_y_per_meta_row_yesm_c: %d, \n"
+			"refcyc_per_meta_chunk_yesm_c: %d, \n"
 			"refcyc_per_line_delivery_pre_c: %d, \n"
 			"refcyc_per_line_delivery_c: %d \n"
 			"========================================================\n",
-			pipe_ctx->dlg_regs.dst_y_per_meta_row_nom_l,
-			pipe_ctx->dlg_regs.refcyc_per_meta_chunk_nom_l,
+			pipe_ctx->dlg_regs.dst_y_per_meta_row_yesm_l,
+			pipe_ctx->dlg_regs.refcyc_per_meta_chunk_yesm_l,
 			pipe_ctx->dlg_regs.refcyc_per_line_delivery_pre_l,
 			pipe_ctx->dlg_regs.refcyc_per_line_delivery_l,
 			pipe_ctx->dlg_regs.vratio_prefetch_c,
 			pipe_ctx->dlg_regs.refcyc_per_pte_group_vblank_c,
 			pipe_ctx->dlg_regs.refcyc_per_meta_chunk_vblank_c,
-			pipe_ctx->dlg_regs.dst_y_per_pte_row_nom_c,
-			pipe_ctx->dlg_regs.refcyc_per_pte_group_nom_c,
-			pipe_ctx->dlg_regs.dst_y_per_meta_row_nom_c,
-			pipe_ctx->dlg_regs.refcyc_per_meta_chunk_nom_c,
+			pipe_ctx->dlg_regs.dst_y_per_pte_row_yesm_c,
+			pipe_ctx->dlg_regs.refcyc_per_pte_group_yesm_c,
+			pipe_ctx->dlg_regs.dst_y_per_meta_row_yesm_c,
+			pipe_ctx->dlg_regs.refcyc_per_meta_chunk_yesm_c,
 			pipe_ctx->dlg_regs.refcyc_per_line_delivery_pre_c,
 			pipe_ctx->dlg_regs.refcyc_per_line_delivery_c
 			);
@@ -1927,7 +1927,7 @@ static bool dcn10_is_rear_mpo_fix_required(struct pipe_ctx *pipe_ctx, enum dc_co
 			while (top->top_pipe)
 				top = top->top_pipe; // Traverse to top pipe_ctx
 			if (top->plane_state && top->plane_state->layer_index == 0)
-				return true; // Front MPO plane not hidden
+				return true; // Front MPO plane yest hidden
 		}
 	}
 	return false;
@@ -2235,13 +2235,13 @@ static void dcn10_update_mpcc(struct dc *dc, struct pipe_ctx *pipe_ctx)
 	 * TODO: remove hack
 	 * Note: currently there is a bug in init_hw such that
 	 * on resume from hibernate, BIOS sets up MPCC0, and
-	 * we do mpcc_remove but the mpcc cannot go to idle
+	 * we do mpcc_remove but the mpcc canyest go to idle
 	 * after remove. This cause us to pick mpcc1 here,
-	 * which causes a pstate hang for yet unknown reason.
+	 * which causes a pstate hang for yet unkyeswn reason.
 	 */
 	mpcc_id = hubp->inst;
 
-	/* If there is no full update, don't need to touch MPC tree*/
+	/* If there is yes full update, don't need to touch MPC tree*/
 	if (!pipe_ctx->plane_state->update_flags.bits.full_update) {
 		mpc->funcs->update_blending(mpc, &blnd_cfg, mpcc_id);
 		return;
@@ -2296,7 +2296,7 @@ void update_dchubp_dpp(
 	unsigned int compat_level = 0;
 
 	/* depends on DML calculation, DPP clock value may change dynamically */
-	/* If request max dpp clk is lower than current dispclk, no need to
+	/* If request max dpp clk is lower than current dispclk, yes need to
 	 * divided by 2
 	 */
 	if (plane_state->update_flags.bits.full_update) {
@@ -2494,7 +2494,7 @@ void dcn10_program_pipe(
 	/* dcn10_translate_regamma_to_hw_format takes 750us to finish
 	 * only do gamma programming for full update.
 	 * TODO: This can be further optimized/cleaned up
-	 * Always call this for now since it does memcmp inside before
+	 * Always call this for yesw since it does memcmp inside before
 	 * doing heavy calculation and programming
 	 */
 	if (pipe_ctx->plane_state->update_flags.bits.full_update)
@@ -2606,8 +2606,8 @@ static void dcn10_apply_ctx_for_surface(
 		struct pipe_ctx *old_pipe_ctx =
 				&dc->current_state->res_ctx.pipe_ctx[i];
 		/*
-		 * Powergate reused pipes that are not powergated
-		 * fairly hacky right now, using opp_id as indicator
+		 * Powergate reused pipes that are yest powergated
+		 * fairly hacky right yesw, using opp_id as indicator
 		 * TODO: After move dc_post to dc_update, this will
 		 * be removed.
 		 */
@@ -2717,7 +2717,7 @@ static void dcn10_prepare_bandwidth(
 	dcn10_stereo_hw_frame_pack_wa(dc, context);
 
 	if (dc->debug.pplib_wm_report_mode == WM_REPORT_OVERRIDE)
-		dcn_bw_notify_pplib_of_wm_ranges(dc);
+		dcn_bw_yestify_pplib_of_wm_ranges(dc);
 
 	if (dc->debug.sanity_checks)
 		dcn10_verify_allow_pstate_change_high(dc);
@@ -2749,7 +2749,7 @@ static void dcn10_optimize_bandwidth(
 	dcn10_stereo_hw_frame_pack_wa(dc, context);
 
 	if (dc->debug.pplib_wm_report_mode == WM_REPORT_OVERRIDE)
-		dcn_bw_notify_pplib_of_wm_ranges(dc);
+		dcn_bw_yestify_pplib_of_wm_ranges(dc);
 
 	if (dc->debug.sanity_checks)
 		dcn10_verify_allow_pstate_change_high(dc);
@@ -2819,14 +2819,14 @@ static void dcn10_config_stereo_parameters(
 	enum view_3d_format view_format = stream->view_format;
 	enum dc_timing_3d_format timing_3d_format =\
 			stream->timing.timing_3d_format;
-	bool non_stereo_timing = false;
+	bool yesn_stereo_timing = false;
 
 	if (timing_3d_format == TIMING_3D_FORMAT_NONE ||
 		timing_3d_format == TIMING_3D_FORMAT_SIDE_BY_SIDE ||
 		timing_3d_format == TIMING_3D_FORMAT_TOP_AND_BOTTOM)
-		non_stereo_timing = true;
+		yesn_stereo_timing = true;
 
-	if (non_stereo_timing == false &&
+	if (yesn_stereo_timing == false &&
 		view_format == VIEW_3D_FORMAT_FRAME_SEQUENTIAL) {
 
 		flags->PROGRAM_STEREO         = 1;
@@ -3066,7 +3066,7 @@ static void dcn10_set_cursor_sdr_white_level(struct pipe_ctx *pipe_ctx)
 /**
 * apply_front_porch_workaround  TODO FPGA still need?
 *
-* This is a workaround for a bug that has existed since R5xx and has not been
+* This is a workaround for a bug that has existed since R5xx and has yest been
 * fixed keep Front porch at minimum 2 for Interlaced mode or 1 for progressive.
 */
 static void apply_front_porch_workaround(
@@ -3187,7 +3187,7 @@ static void cal_vline_position(
 				end_line);
 		break;
 	case START_V_SYNC:
-		// Suppose to do nothing because vsync is 0;
+		// Suppose to do yesthing because vsync is 0;
 		break;
 	default:
 		ASSERT(0);

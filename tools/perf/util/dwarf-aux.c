@@ -3,7 +3,7 @@
  * dwarf-aux.c : libdw auxiliary interfaces
  */
 
-#include <errno.h>
+#include <erryes.h>
 #include <inttypes.h>
 #include <stdbool.h>
 #include <stdlib.h>
@@ -48,7 +48,7 @@ const char *cu_find_realpath(Dwarf_Die *cu_die, const char *fname)
  * @cu_die: a CU DIE
  *
  * Get the path of compilation directory of given @cu_die.
- * Since this depends on DW_AT_comp_dir, older gcc will not
+ * Since this depends on DW_AT_comp_dir, older gcc will yest
  * embedded it. In that case, this returns NULL.
  */
 const char *cu_get_comp_dir(Dwarf_Die *cu_die)
@@ -109,12 +109,12 @@ static Dwarf_Line *cu_getsrc_die(Dwarf_Die *cu_die, Dwarf_Addr addr)
  * @cu_die: a CU DIE
  * @addr: An address
  * @fname: a pointer which returns the file name string
- * @lineno: a pointer which returns the line number
+ * @lineyes: a pointer which returns the line number
  *
  * Find a line number and file name for @addr in @cu_die.
  */
 int cu_find_lineinfo(Dwarf_Die *cu_die, unsigned long addr,
-		    const char **fname, int *lineno)
+		    const char **fname, int *lineyes)
 {
 	Dwarf_Line *line;
 	Dwarf_Die die_mem;
@@ -124,20 +124,20 @@ int cu_find_lineinfo(Dwarf_Die *cu_die, unsigned long addr,
 	    && die_entrypc(&die_mem, &faddr) == 0 &&
 	    faddr == addr) {
 		*fname = dwarf_decl_file(&die_mem);
-		dwarf_decl_line(&die_mem, lineno);
+		dwarf_decl_line(&die_mem, lineyes);
 		goto out;
 	}
 
 	line = cu_getsrc_die(cu_die, (Dwarf_Addr)addr);
-	if (line && dwarf_lineno(line, lineno) == 0) {
+	if (line && dwarf_lineyes(line, lineyes) == 0) {
 		*fname = dwarf_linesrc(line, NULL, NULL);
 		if (!*fname)
 			/* line number is useless without filename */
-			*lineno = 0;
+			*lineyes = 0;
 	}
 
 out:
-	return *lineno ?: -ENOENT;
+	return *lineyes ?: -ENOENT;
 }
 
 static int __die_find_inline_cb(Dwarf_Die *die_mem, void *data);
@@ -194,7 +194,7 @@ const char *die_get_linkage_name(Dwarf_Die *dw_die)
  * @dw_die: a DIE
  * @tname: a string of target name
  *
- * Compare the name of @dw_die and @tname. Return false if @dw_die has no name.
+ * Compare the name of @dw_die and @tname. Return false if @dw_die has yes name.
  */
 bool die_compare_name(Dwarf_Die *dw_die, const char *tname)
 {
@@ -228,13 +228,13 @@ bool die_match_name(Dwarf_Die *dw_die, const char *glob)
 }
 
 /**
- * die_get_call_lineno - Get callsite line number of inline-function instance
+ * die_get_call_lineyes - Get callsite line number of inline-function instance
  * @in_die: a DIE of an inlined function instance
  *
  * Get call-site line number of @in_die. This means from where the inline
  * function is called.
  */
-int die_get_call_lineno(Dwarf_Die *in_die)
+int die_get_call_lineyes(Dwarf_Die *in_die)
 {
 	Dwarf_Attribute attr;
 	Dwarf_Word ret;
@@ -329,7 +329,7 @@ static int die_get_attr_sdata(Dwarf_Die *tp_die, unsigned int attr_name,
 }
 
 /**
- * die_is_signed_type - Check whether a type DIE is signed or not
+ * die_is_signed_type - Check whether a type DIE is signed or yest
  * @tp_die: a DIE of a type
  *
  * Get the encoding of @tp_die and return true if the encoding
@@ -366,7 +366,7 @@ bool die_is_func_def(Dwarf_Die *dw_die)
  * @dw_die: a DIE
  * @addr: where to store entry PC
  *
- * Since dwarf_entrypc() does not return entry PC if the DIE has only address
+ * Since dwarf_entrypc() does yest return entry PC if the DIE has only address
  * range, we have to use this to retrieve the lowest address from the address
  * range attribute.
  */
@@ -388,7 +388,7 @@ int die_entrypc(Dwarf_Die *dw_die, Dwarf_Addr *addr)
  * @dw_die: a DIE
  *
  * Ensure that this DIE is an instance (which has an entry address).
- * This returns true if @dw_die is a function instance. If not, the @dw_die
+ * This returns true if @dw_die is a function instance. If yest, the @dw_die
  * must be a prototype. You can use die_walk_instances() to find actual
  * instances.
  **/
@@ -412,7 +412,7 @@ bool die_is_func_instance(Dwarf_Die *dw_die)
  * @offs: The offset of the member in the data structure
  *
  * Get the offset of @mb_die in the data structure including @mb_die, and
- * stores result offset to @offs. If any error occurs this returns errno.
+ * stores result offset to @offs. If any error occurs this returns erryes.
  */
 int die_get_data_member_location(Dwarf_Die *mb_die, Dwarf_Word *offs)
 {
@@ -441,7 +441,7 @@ int die_get_data_member_location(Dwarf_Die *mb_die, Dwarf_Word *offs)
 }
 
 /* Get the call file index number in CU DIE */
-static int die_get_call_fileno(Dwarf_Die *in_die)
+static int die_get_call_fileyes(Dwarf_Die *in_die)
 {
 	Dwarf_Sword idx;
 
@@ -452,7 +452,7 @@ static int die_get_call_fileno(Dwarf_Die *in_die)
 }
 
 /* Get the declared file index number in CU DIE */
-static int die_get_decl_fileno(Dwarf_Die *pdie)
+static int die_get_decl_fileyes(Dwarf_Die *pdie)
 {
 	Dwarf_Sword idx;
 
@@ -475,7 +475,7 @@ const char *die_get_call_file(Dwarf_Die *in_die)
 	Dwarf_Files *files;
 	int idx;
 
-	idx = die_get_call_fileno(in_die);
+	idx = die_get_call_fileyes(in_die);
 	if (idx < 0 || !dwarf_diecu(in_die, &cu_die, NULL, NULL) ||
 	    dwarf_getsrcfiles(&cu_die, &files, NULL) != 0)
 		return NULL;
@@ -546,13 +546,13 @@ static int __die_search_func_tail_cb(Dwarf_Die *fn_die, void *data)
 }
 
 /**
- * die_find_tailfunc - Search for a non-inlined function with tail call at
+ * die_find_tailfunc - Search for a yesn-inlined function with tail call at
  * given address
  * @cu_die: a CU DIE which including @addr
  * @addr: target address
  * @die_mem: a buffer for result DIE
  *
- * Search for a non-inlined function DIE with tail call at @addr. Stores the
+ * Search for a yesn-inlined function DIE with tail call at @addr. Stores the
  * DIE to @die_mem and returns it if found. Returns NULL if failed.
  */
 Dwarf_Die *die_find_tailfunc(Dwarf_Die *cu_die, Dwarf_Addr addr,
@@ -568,7 +568,7 @@ Dwarf_Die *die_find_tailfunc(Dwarf_Die *cu_die, Dwarf_Addr addr,
 		return die_mem;
 }
 
-/* die_find callback for non-inlined function search */
+/* die_find callback for yesn-inlined function search */
 static int __die_search_func_cb(Dwarf_Die *fn_die, void *data)
 {
 	struct __addr_die_search_param *ad = data;
@@ -586,12 +586,12 @@ static int __die_search_func_cb(Dwarf_Die *fn_die, void *data)
 }
 
 /**
- * die_find_realfunc - Search a non-inlined function at given address
+ * die_find_realfunc - Search a yesn-inlined function at given address
  * @cu_die: a CU DIE which including @addr
  * @addr: target address
  * @die_mem: a buffer for result DIE
  *
- * Search a non-inlined function DIE which includes @addr. Stores the
+ * Search a yesn-inlined function DIE which includes @addr. Stores the
  * DIE to @die_mem and returns it if found. Returns NULL if failed.
  */
 Dwarf_Die *die_find_realfunc(Dwarf_Die *cu_die, Dwarf_Addr addr,
@@ -693,12 +693,12 @@ static int __die_walk_instances_cb(Dwarf_Die *inst, void *data)
 	if (origin == NULL || origin->addr != iwp->addr)
 		return DIE_FIND_CB_CONTINUE;
 
-	/* Ignore redundant instances */
+	/* Igyesre redundant instances */
 	if (dwarf_tag(inst) == DW_TAG_inlined_subroutine) {
 		dwarf_decl_line(origin, &tmp);
-		if (die_get_call_lineno(inst) == tmp) {
-			tmp = die_get_decl_fileno(origin);
-			if (die_get_call_fileno(inst) == tmp)
+		if (die_get_call_lineyes(inst) == tmp) {
+			tmp = die_get_decl_fileyes(origin);
+			if (die_get_call_fileyes(inst) == tmp)
 				return DIE_FIND_CB_CONTINUE;
 		}
 	}
@@ -716,7 +716,7 @@ static int __die_walk_instances_cb(Dwarf_Die *inst, void *data)
  *
  * Walk on the instances of give @in_die. @in_die must be an inlined function
  * declartion. This returns the return value of @callback if it returns
- * non-zero value, or -ENOENT if there is no instance.
+ * yesn-zero value, or -ENOENT if there is yes instance.
  */
 int die_walk_instances(Dwarf_Die *or_die, int (*callback)(Dwarf_Die *, void *),
 		       void *data)
@@ -751,13 +751,13 @@ static int __die_walk_funclines_cb(Dwarf_Die *in_die, void *data)
 	struct __line_walk_param *lw = data;
 	Dwarf_Addr addr = 0;
 	const char *fname;
-	int lineno;
+	int lineyes;
 
 	if (dwarf_tag(in_die) == DW_TAG_inlined_subroutine) {
 		fname = die_get_call_file(in_die);
-		lineno = die_get_call_lineno(in_die);
-		if (fname && lineno > 0 && die_entrypc(in_die, &addr) == 0) {
-			lw->retval = lw->callback(fname, lineno, addr, lw->data);
+		lineyes = die_get_call_lineyes(in_die);
+		if (fname && lineyes > 0 && die_entrypc(in_die, &addr) == 0) {
+			lw->retval = lw->callback(fname, lineyes, addr, lw->data);
 			if (lw->retval != 0)
 				return DIE_FIND_CB_END;
 		}
@@ -767,8 +767,8 @@ static int __die_walk_funclines_cb(Dwarf_Die *in_die, void *data)
 
 	if (addr) {
 		fname = dwarf_decl_file(in_die);
-		if (fname && dwarf_decl_line(in_die, &lineno) == 0) {
-			lw->retval = lw->callback(fname, lineno, addr, lw->data);
+		if (fname && dwarf_decl_line(in_die, &lineyes) == 0) {
+			lw->retval = lw->callback(fname, lineyes, addr, lw->data);
 			if (lw->retval != 0)
 				return DIE_FIND_CB_END;
 		}
@@ -791,13 +791,13 @@ static int __die_walk_funclines(Dwarf_Die *sp_die, bool recursive,
 	Dwarf_Die die_mem;
 	Dwarf_Addr addr;
 	const char *fname;
-	int lineno;
+	int lineyes;
 
 	/* Handle function declaration line */
 	fname = dwarf_decl_file(sp_die);
-	if (fname && dwarf_decl_line(sp_die, &lineno) == 0 &&
+	if (fname && dwarf_decl_line(sp_die, &lineyes) == 0 &&
 	    die_entrypc(sp_die, &addr) == 0) {
-		lw.retval = callback(fname, lineno, addr, data);
+		lw.retval = callback(fname, lineyes, addr, data);
 		if (lw.retval != 0)
 			goto done;
 	}
@@ -811,7 +811,7 @@ static int __die_walk_culines_cb(Dwarf_Die *sp_die, void *data)
 	struct __line_walk_param *lw = data;
 
 	/*
-	 * Since inlined function can include another inlined function in
+	 * Since inlined function can include ayesther inlined function in
 	 * the same file, we need to walk in it recursively.
 	 */
 	lw->retval = __die_walk_funclines(sp_die, true, lw->callback, lw->data);
@@ -830,7 +830,7 @@ static int __die_walk_culines_cb(Dwarf_Die *sp_die, void *data)
  * Walk on all lines inside given @rt_die and call @callback on each line.
  * If the @rt_die is a function, walk only on the lines inside the function,
  * otherwise @rt_die must be a CU DIE.
- * Note that this walks not only dwarf line list, but also function entries
+ * Note that this walks yest only dwarf line list, but also function entries
  * and inline call-site.
  */
 int die_walk_lines(Dwarf_Die *rt_die, line_walk_callback_t callback, void *data)
@@ -839,7 +839,7 @@ int die_walk_lines(Dwarf_Die *rt_die, line_walk_callback_t callback, void *data)
 	Dwarf_Line *line;
 	Dwarf_Addr addr;
 	const char *fname, *decf = NULL, *inf = NULL;
-	int lineno, ret = 0;
+	int lineyes, ret = 0;
 	int decl = 0, inl;
 	Dwarf_Die die_mem, *cu_die;
 	size_t nlines, i;
@@ -868,7 +868,7 @@ int die_walk_lines(Dwarf_Die *rt_die, line_walk_callback_t callback, void *data)
 	for (i = 0; i < nlines; i++) {
 		line = dwarf_onesrcline(lines, i);
 		if (line == NULL ||
-		    dwarf_lineno(line, &lineno) != 0 ||
+		    dwarf_lineyes(line, &lineyes) != 0 ||
 		    dwarf_lineaddr(line, &addr) != 0) {
 			pr_debug2("Failed to get line info. "
 				  "Possible error in debuginfo.\n");
@@ -885,7 +885,7 @@ int die_walk_lines(Dwarf_Die *rt_die, line_walk_callback_t callback, void *data)
 			/*
 			 * Address filtering
 			 * The line is included in given function, and
-			 * no inline block includes it.
+			 * yes inline block includes it.
 			 */
 			if (!dwarf_haspc(rt_die, addr))
 				continue;
@@ -894,7 +894,7 @@ int die_walk_lines(Dwarf_Die *rt_die, line_walk_callback_t callback, void *data)
 				/* Call-site check */
 				inf = die_get_call_file(&die_mem);
 				if ((inf && !strcmp(inf, decf)) &&
-				    die_get_call_lineno(&die_mem) == lineno)
+				    die_get_call_lineyes(&die_mem) == lineyes)
 					goto found;
 
 				dwarf_decl_line(&die_mem, &inl);
@@ -907,7 +907,7 @@ found:
 		/* Get source line */
 		fname = dwarf_linesrc(line, NULL, NULL);
 
-		ret = callback(fname, lineno, addr, data);
+		ret = callback(fname, lineyes, addr, data);
 		if (ret != 0)
 			return ret;
 	}
@@ -1065,8 +1065,8 @@ int die_get_varname(Dwarf_Die *vr_die, struct strbuf *buf)
 
 	ret = die_get_typename(vr_die, buf);
 	if (ret < 0) {
-		pr_debug("Failed to get type, make it unknown.\n");
-		ret = strbuf_add(buf, " (unknown_type)", 14);
+		pr_debug("Failed to get type, make it unkyeswn.\n");
+		ret = strbuf_add(buf, " (unkyeswn_type)", 14);
 	}
 
 	return ret < 0 ? ret : strbuf_addf(buf, "\t%s", dwarf_diename(vr_die));
@@ -1152,7 +1152,7 @@ int die_get_var_range(Dwarf_Die *sp_die, Dwarf_Die *vr_die, struct strbuf *buf)
 	Dwarf_Addr start, end;
 	Dwarf_Addr entry;
 	Dwarf_Op *op;
-	size_t nops;
+	size_t yesps;
 	size_t offset = 0;
 	Dwarf_Attribute attr;
 	bool first = true;
@@ -1170,7 +1170,7 @@ int die_get_var_range(Dwarf_Die *sp_die, Dwarf_Die *vr_die, struct strbuf *buf)
 		return -EINVAL;
 
 	while ((offset = dwarf_getlocations(&attr, offset, &base,
-					&start, &end, &op, &nops)) > 0) {
+					&start, &end, &op, &yesps)) > 0) {
 		if (start == 0) {
 			/* Single Location Descriptions */
 			ret = die_get_var_innermost_scope(sp_die, vr_die, buf);
@@ -1288,7 +1288,7 @@ static bool die_search_idx(Dwarf_Lines *lines, unsigned long nr_lines,
  * @hignpc: high PC address of function
  * @postprologue_addr: Next address after function prologue (return value)
  *
- * Look for prologue-end marker. If there is no explicit marker, return
+ * Look for prologue-end marker. If there is yes explicit marker, return
  * address of next line record or next source line.
  */
 static bool die_get_postprologue_addr(unsigned long entrypc_idx,
@@ -1298,21 +1298,21 @@ static bool die_get_postprologue_addr(unsigned long entrypc_idx,
 				      Dwarf_Addr *postprologue_addr)
 {
 	unsigned long i;
-	int entrypc_lno, lno;
+	int entrypc_lyes, lyes;
 	Dwarf_Line *line;
 	Dwarf_Addr addr;
 	bool p_end;
 
-	/* entrypc_lno is actual source line number */
+	/* entrypc_lyes is actual source line number */
 	line = dwarf_onesrcline(lines, entrypc_idx);
-	if (dwarf_lineno(line, &entrypc_lno))
+	if (dwarf_lineyes(line, &entrypc_lyes))
 		return false;
 
 	for (i = entrypc_idx; i < nr_lines; i++) {
 		line = dwarf_onesrcline(lines, i);
 
 		if (dwarf_lineaddr(line, &addr) ||
-		    dwarf_lineno(line, &lno)    ||
+		    dwarf_lineyes(line, &lyes)    ||
 		    dwarf_lineprologueend(line, &p_end))
 			return false;
 
@@ -1325,7 +1325,7 @@ static bool die_get_postprologue_addr(unsigned long entrypc_idx,
 			break;
 
 		/* Actual next line in source */
-		if (lno != entrypc_lno)
+		if (lyes != entrypc_lyes)
 			break;
 
 		/*
@@ -1333,7 +1333,7 @@ static bool die_get_postprologue_addr(unsigned long entrypc_idx,
 		 * For Example,
 		 *     void foo() { printf("hello\n"); }
 		 * contains two line records. One points to declaration and
-		 * other points to printf() line. Variable 'lno' won't get
+		 * other points to printf() line. Variable 'lyes' won't get
 		 * incremented in this case but 'i' will.
 		 */
 		if (i != entrypc_idx)

@@ -9,7 +9,7 @@
  */
 /* Up to 16 ms to halt an HC */
 #define XHCI_MAX_HALT_USEC	(16*1000)
-/* HC not running - set to 1 when run/stop bit is cleared. */
+/* HC yest running - set to 1 when run/stop bit is cleared. */
 #define XHCI_STS_HALT		(1<<0)
 
 /* HCCPARAMS offset from PCI base address */
@@ -64,7 +64,7 @@
 #define XHCI_BLC               (1 << 20)
 
 /* command register values to disable interrupts and halt the HC */
-/* start/stop HC execution - do not write unless HC is halted*/
+/* start/stop HC execution - do yest write unless HC is halted*/
 #define XHCI_CMD_RUN		(1 << 0)
 /* Event Interrupt Enable - get irq when EINT bit is set in USBSTS register */
 #define XHCI_CMD_EIE		(1 << 2)

@@ -62,7 +62,7 @@ struct superblock_disk {
  * destination device.
  *
  * We maintain an on-disk bitmap which tracks the state of each of the
- * destination device's regions, i.e., whether they are hydrated or not.
+ * destination device's regions, i.e., whether they are hydrated or yest.
  *
  * To save constantly doing look ups on disk we keep an in core copy of the
  * on-disk bitmap, the region_map.
@@ -227,8 +227,8 @@ static struct dm_block_validator sb_validator = {
 };
 
 /*
- * Check if the superblock is formatted or not. We consider the superblock to
- * be formatted in case we find non-zero bytes in it.
+ * Check if the superblock is formatted or yest. We consider the superblock to
+ * be formatted in case we find yesn-zero bytes in it.
  */
 static int __superblock_all_zeroes(struct dm_block_manager *bm, bool *formatted)
 {
@@ -903,7 +903,7 @@ out:
 }
 
 /*
- * WARNING: This must not be called concurrently with either
+ * WARNING: This must yest be called concurrently with either
  * dm_clone_set_region_hydrated() or dm_clone_cond_set_range(), as it changes
  * cmd->region_map without taking the cmd->bitmap_lock spinlock. The only
  * exception is after setting the metadata to read-only mode, using
@@ -953,7 +953,7 @@ int dm_clone_metadata_abort(struct dm_clone_metadata *cmd)
 
 	r = __create_persistent_data_structures(cmd, false);
 	if (r) {
-		/* If something went wrong we can neither write nor read the metadata */
+		/* If something went wrong we can neither write yesr read the metadata */
 		cmd->fail_io = true;
 	}
 out:

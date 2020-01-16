@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016 Mellanox Technologies Ltd. All rights reserved.
+ * Copyright (c) 2016 Mellayesx Techyeslogies Ltd. All rights reserved.
  * Copyright (c) 2015 System Fabric Works, Inc. All rights reserved.
  *
  * This software is available to you under a choice of one of two
@@ -13,11 +13,11 @@
  *	   conditions are met:
  *
  *	- Redistributions of source code must retain the above
- *	  copyright notice, this list of conditions and the following
+ *	  copyright yestice, this list of conditions and the following
  *	  disclaimer.
  *
  *	- Redistributions in binary form must reproduce the above
- *	  copyright notice, this list of conditions and the following
+ *	  copyright yestice, this list of conditions and the following
  *	  disclaimer in the documentation and/or other materials
  *	  provided with the distribution.
  *
@@ -89,7 +89,7 @@ struct rxe_cq {
 	struct rxe_pool_entry	pelem;
 	struct rxe_queue	*queue;
 	spinlock_t		cq_lock;
-	u8			notify;
+	u8			yestify;
 	bool			is_dying;
 	int			is_user;
 	struct tasklet_struct	comp_task;
@@ -149,7 +149,7 @@ struct rxe_req_info {
 	int			need_rd_atomic;
 	int			wait_psn;
 	int			need_retry;
-	int			noack_pkts;
+	int			yesack_pkts;
 	struct rxe_task		task;
 };
 
@@ -274,7 +274,7 @@ struct rxe_qp {
 	int			need_req_skb;
 
 	/* Timer for retranmitting packet when ACKs have been lost. RC
-	 * only. The requester sets it when it is not already
+	 * only. The requester sets it when it is yest already
 	 * started. The responder resets it whenever an ack is
 	 * received.
 	 */

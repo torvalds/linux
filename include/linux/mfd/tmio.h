@@ -59,7 +59,7 @@
 
 /*
  * Some controllers have CMD12 automatically
- * issue/non-issue register
+ * issue/yesn-issue register
  */
 #define TMIO_MMC_HAVE_CMD12_CTRL	BIT(7)
 

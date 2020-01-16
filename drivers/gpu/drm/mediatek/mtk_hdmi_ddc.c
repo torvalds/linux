@@ -8,7 +8,7 @@
 #include <linux/i2c.h>
 #include <linux/time.h>
 #include <linux/delay.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/err.h>
 #include <linux/platform_device.h>
 #include <linux/clk.h>
@@ -297,7 +297,7 @@ static int mtk_hdmi_ddc_probe(struct platform_device *pdev)
 	ddc->adap.class = I2C_CLASS_DDC;
 	ddc->adap.algo = &mtk_hdmi_ddc_algorithm;
 	ddc->adap.retries = 3;
-	ddc->adap.dev.of_node = dev->of_node;
+	ddc->adap.dev.of_yesde = dev->of_yesde;
 	ddc->adap.algo_data = ddc;
 	ddc->adap.dev.parent = &pdev->dev;
 

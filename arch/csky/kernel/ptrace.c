@@ -3,7 +3,7 @@
 
 #include <linux/audit.h>
 #include <linux/elf.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
 #include <linux/ptrace.h>
@@ -33,7 +33,7 @@
 #define TRACE_MODE_MASK    ~(0x3 << 14)
 
 /*
- * Make sure the single step bit is not set.
+ * Make sure the single step bit is yest set.
  */
 static void singlestep_disable(struct task_struct *tsk)
 {
@@ -164,7 +164,7 @@ static int fpr_set(struct task_struct *target,
 
 static const struct user_regset csky_regsets[] = {
 	[REGSET_GPR] = {
-		.core_note_type = NT_PRSTATUS,
+		.core_yeste_type = NT_PRSTATUS,
 		.n = sizeof(struct pt_regs) / sizeof(u32),
 		.size = sizeof(u32),
 		.align = sizeof(u32),
@@ -172,7 +172,7 @@ static const struct user_regset csky_regsets[] = {
 		.set = &gpr_set,
 	},
 	[REGSET_FPR] = {
-		.core_note_type = NT_PRFPREG,
+		.core_yeste_type = NT_PRFPREG,
 		.n = sizeof(struct user_fp) / sizeof(u32),
 		.size = sizeof(u32),
 		.align = sizeof(u32),

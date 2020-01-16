@@ -3,7 +3,7 @@ config REISERFS_FS
 	tristate "Reiserfs support"
 	select CRC32
 	help
-	  Stores not just filenames but the files themselves in a balanced
+	  Stores yest just filenames but the files themselves in a balanced
 	  tree.  Uses journalling.
 
 	  Balanced trees are more efficient than traditional file system
@@ -26,7 +26,7 @@ config REISERFS_FS
 	  Sponsored by Threshold Networks, Emusic.com, and Bigstorage.com.
 
 	  If you like it, you can pay us to add new features to it that you
-	  need, buy a support contract, or pay us to port it to another OS.
+	  need, buy a support contract, or pay us to port it to ayesther OS.
 
 config REISERFS_CHECK
 	bool "Enable reiserfs debug mode"
@@ -57,7 +57,7 @@ config REISERFS_FS_XATTR
 	bool "ReiserFS extended attributes"
 	depends on REISERFS_FS
 	help
-	  Extended attributes are name:value pairs associated with inodes by
+	  Extended attributes are name:value pairs associated with iyesdes by
 	  the kernel or by users (see the attr(5) manual page for details).
 
 	  If unsure, say N.
@@ -70,7 +70,7 @@ config REISERFS_FS_POSIX_ACL
 	  Posix Access Control Lists (ACLs) support permissions for users and
 	  groups beyond the owner/group/world scheme.
 
-	  If you don't know what Access Control Lists are, say N
+	  If you don't kyesw what Access Control Lists are, say N
 
 config REISERFS_FS_SECURITY
 	bool "ReiserFS Security Labels"
@@ -81,5 +81,5 @@ config REISERFS_FS_SECURITY
 	  enables an extended attribute handler for file security
 	  labels in the ReiserFS filesystem.
 
-	  If you are not using a security module that requires using
+	  If you are yest using a security module that requires using
 	  extended attributes for file security labels, say N.

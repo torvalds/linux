@@ -20,7 +20,7 @@ struct s3d_info {
 	char __iomem		*fb_base;
 	unsigned long		fb_base_phys;
 
-	struct device_node	*of_node;
+	struct device_yesde	*of_yesde;
 
 	unsigned int		width;
 	unsigned int		height;
@@ -32,9 +32,9 @@ struct s3d_info {
 
 static int s3d_get_props(struct s3d_info *sp)
 {
-	sp->width = of_getintprop_default(sp->of_node, "width", 0);
-	sp->height = of_getintprop_default(sp->of_node, "height", 0);
-	sp->depth = of_getintprop_default(sp->of_node, "depth", 8);
+	sp->width = of_getintprop_default(sp->of_yesde, "width", 0);
+	sp->height = of_getintprop_default(sp->of_yesde, "height", 0);
+	sp->depth = of_getintprop_default(sp->of_yesde, "depth", 8);
 
 	if (!sp->width || !sp->height) {
 		printk(KERN_ERR "s3d: Critical properties missing for %s\n",
@@ -45,19 +45,19 @@ static int s3d_get_props(struct s3d_info *sp)
 	return 0;
 }
 
-static int s3d_setcolreg(unsigned regno,
+static int s3d_setcolreg(unsigned regyes,
 			 unsigned red, unsigned green, unsigned blue,
 			 unsigned transp, struct fb_info *info)
 {
 	u32 value;
 
-	if (regno < 16) {
+	if (regyes < 16) {
 		red >>= 8;
 		green >>= 8;
 		blue >>= 8;
 
 		value = (blue << 24) | (green << 16) | (red << 8);
-		((u32 *)info->pseudo_palette)[regno] = value;
+		((u32 *)info->pseudo_palette)[regyes] = value;
 	}
 
 	return 0;
@@ -109,7 +109,7 @@ static int s3d_set_fbinfo(struct s3d_info *sp)
 	var->transp.length = 0;
 
 	if (fb_alloc_cmap(&info->cmap, 256, 0)) {
-		printk(KERN_ERR "s3d: Cannot allocate color map.\n");
+		printk(KERN_ERR "s3d: Canyest allocate color map.\n");
 		return -ENOMEM;
 	}
 
@@ -125,7 +125,7 @@ static int s3d_pci_register(struct pci_dev *pdev,
 
 	err = pci_enable_device(pdev);
 	if (err < 0) {
-		printk(KERN_ERR "s3d: Cannot enable PCI device %s\n",
+		printk(KERN_ERR "s3d: Canyest enable PCI device %s\n",
 		       pci_name(pdev));
 		goto err_out;
 	}
@@ -139,9 +139,9 @@ static int s3d_pci_register(struct pci_dev *pdev,
 	sp = info->par;
 	sp->info = info;
 	sp->pdev = pdev;
-	sp->of_node = pci_device_to_OF_node(pdev);
-	if (!sp->of_node) {
-		printk(KERN_ERR "s3d: Cannot find OF node of %s\n",
+	sp->of_yesde = pci_device_to_OF_yesde(pdev);
+	if (!sp->of_yesde) {
+		printk(KERN_ERR "s3d: Canyest find OF yesde of %s\n",
 		       pci_name(pdev));
 		err = -ENODEV;
 		goto err_release_fb;
@@ -151,7 +151,7 @@ static int s3d_pci_register(struct pci_dev *pdev,
 
 	err = pci_request_region(pdev, 1, "s3d framebuffer");
 	if (err < 0) {
-		printk("s3d: Cannot request region 1 for %s\n",
+		printk("s3d: Canyest request region 1 for %s\n",
 		       pci_name(pdev));
 		goto err_release_fb;
 	}
@@ -161,7 +161,7 @@ static int s3d_pci_register(struct pci_dev *pdev,
 		goto err_release_pci;
 
 	/* XXX 'linebytes' is often wrong, it is equal to the width
-	 * XXX with depth of 32 on my XVR-2500 which is clearly not
+	 * XXX with depth of 32 on my XVR-2500 which is clearly yest
 	 * XXX right.  So we don't try to use it.
 	 */
 	switch (sp->depth) {
@@ -196,7 +196,7 @@ static int s3d_pci_register(struct pci_dev *pdev,
 
 	err = register_framebuffer(info);
 	if (err < 0) {
-		printk(KERN_ERR "s3d: Could not register framebuffer %s\n",
+		printk(KERN_ERR "s3d: Could yest register framebuffer %s\n",
 		       pci_name(pdev));
 		goto err_unmap_fb;
 	}

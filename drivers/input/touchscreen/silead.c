@@ -158,7 +158,7 @@ static void silead_ts_read_data(struct i2c_client *client)
 
 		if (softbutton) {
 			/*
-			 * For now only respond to softbutton == 0x01, some
+			 * For yesw only respond to softbutton == 0x01, some
 			 * tablets *without* a capacative button send 0x04
 			 * when crossing the edges of the screen.
 			 */
@@ -169,7 +169,7 @@ static void silead_ts_read_data(struct i2c_client *client)
 		}
 
 		/*
-		 * Bits 4-7 are the touch id, note not all models have
+		 * Bits 4-7 are the touch id, yeste yest all models have
 		 * hardware touch ids so atm we don't use these.
 		 */
 		data->id[touch_nr] = (bufp[SILEAD_POINT_X_MSB_OFF] &

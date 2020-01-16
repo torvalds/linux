@@ -545,7 +545,7 @@ static int rts5260_extra_init_hw(struct rtsx_pcr *pcr)
 
 	rts5260_init_from_cfg(pcr);
 
-	/* force no MDIO*/
+	/* force yes MDIO*/
 	rtsx_pci_write_register(pcr, RTS5260_AUTOLOAD_CFG4,
 				0xFF, RTS5260_MIMO_DISABLE);
 	/*Modify SDVCC Tune Default Parameters!*/
@@ -608,7 +608,7 @@ static void rts5260_set_l1off_cfg_sub_d0(struct rtsx_pcr *pcr, int active)
 	if (active) {
 		/* run, latency: 60us */
 		if (aspm_L1_1)
-			val = option->ltr_l1off_snooze_sspwrgate;
+			val = option->ltr_l1off_syesoze_sspwrgate;
 	} else {
 		/* l1off, latency: 300us */
 		if (aspm_L1_2)
@@ -684,9 +684,9 @@ void rts5260_init_params(struct rtsx_pcr *pcr)
 	option->ltr_idle_latency = LTR_IDLE_LATENCY_DEF;
 	option->ltr_l1off_latency = LTR_L1OFF_LATENCY_DEF;
 	option->dev_aspm_mode = DEV_ASPM_DYNAMIC;
-	option->l1_snooze_delay = L1_SNOOZE_DELAY_DEF;
+	option->l1_syesoze_delay = L1_SNOOZE_DELAY_DEF;
 	option->ltr_l1off_sspwrgate = LTR_L1OFF_SSPWRGATE_5250_DEF;
-	option->ltr_l1off_snooze_sspwrgate =
+	option->ltr_l1off_syesoze_sspwrgate =
 		LTR_L1OFF_SNOOZE_SSPWRGATE_5250_DEF;
 
 	option->ocp_en = 1;

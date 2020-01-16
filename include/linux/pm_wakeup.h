@@ -29,7 +29,7 @@ struct wake_irq;
  * @timer_expires: Wakeup timer expiration
  * @total_time: Total time this wakeup source has been active.
  * @max_time: Maximum time this wakeup source has been continuously active.
- * @last_time: Monotonic clock when the wakeup source's was touched last time.
+ * @last_time: Moyestonic clock when the wakeup source's was touched last time.
  * @prevent_sleep_time: Total time this source has been preventing autosleep.
  * @event_count: Number of signaled wakeup events.
  * @active_count: Number of times the wakeup source was activated.

@@ -16,7 +16,7 @@ Required properties:
 
 EBI2 specific properties:
 - dmas:			DMA specifier, consisting of a phandle to the ADM DMA
-			controller node and the channel number to be used for
+			controller yesde and the channel number to be used for
 			NAND. Refer to dma.txt and qcom_adm.txt for more details
 - dma-names:		must be "rxtx"
 - qcom,cmd-crci:	must contain the ADM command type CRCI block instance
@@ -31,12 +31,12 @@ QPIC specific properties:
 			and the channel number to be used for NAND. Refer to
 			dma.txt, qcom_bam_dma.txt for more details
 - dma-names:		must contain all 3 channel names : "tx", "rx", "cmd"
-- #address-cells:	<1> - subnodes give the chip-select number
+- #address-cells:	<1> - subyesdes give the chip-select number
 - #size-cells:		<0>
 
 * NAND chip-select
 
-Each controller may contain one or more subnodes to represent enabled
+Each controller may contain one or more subyesdes to represent enabled
 chip-selects which (may) contain NAND flash chips. Their properties are as
 follows.
 
@@ -48,12 +48,12 @@ Required properties:
 
 Optional properties:
 - nand-bus-width:	see nand-controller.yaml
-- nand-ecc-strength:	see nand-controller.yaml. If not specified, then ECC strength will
+- nand-ecc-strength:	see nand-controller.yaml. If yest specified, then ECC strength will
 			be used according to chip requirement and available
 			OOB size.
 
-Each nandcs device node may optionally contain a 'partitions' sub-node, which
-further contains sub-nodes describing the flash partition mapping. See
+Each nandcs device yesde may optionally contain a 'partitions' sub-yesde, which
+further contains sub-yesdes describing the flash partition mapping. See
 partition.txt for more detail.
 
 Example:

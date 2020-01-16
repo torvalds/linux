@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-/* Copyright (C) 2005-2018 Andes Technology Corporation */
+/* Copyright (C) 2005-2018 Andes Techyeslogy Corporation */
 
 #ifndef __ARCH_NDS32_FPUEMU_H
 #define __ARCH_NDS32_FPUEMU_H

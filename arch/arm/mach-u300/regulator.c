@@ -3,7 +3,7 @@
  * arch/arm/mach-u300/regulator.c
  *
  * Copyright (C) 2009 ST-Ericsson AB
- * Handle board-bound regulators and board power not related
+ * Handle board-bound regulators and board power yest related
  * to any devices.
  * Author: Linus Walleij <linus.walleij@stericsson.com>
  */
@@ -25,7 +25,7 @@
 
 /*
  * Regulators that power the board and chip and which are
- * not copuled to specific drivers are hogged in these
+ * yest copuled to specific drivers are hogged in these
  * instances.
  */
 static struct regulator *main_power_15;
@@ -45,7 +45,7 @@ void u300_pm_poweroff(void)
 		if (main_power_15)
 			regulator_disable(main_power_15);
 		else
-			pr_err("regulator not available to shut down system\n");
+			pr_err("regulator yest available to shut down system\n");
 		(void) sigprocmask(SIG_SETMASK, &old, NULL);
 	}
 	return;
@@ -56,8 +56,8 @@ void u300_pm_poweroff(void)
  */
 static int __init __u300_init_boardpower(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
-	struct device_node *syscon_np;
+	struct device_yesde *np = pdev->dev.of_yesde;
+	struct device_yesde *syscon_np;
 	struct regmap *regmap;
 	int err;
 
@@ -65,31 +65,31 @@ static int __init __u300_init_boardpower(struct platform_device *pdev)
 
 	syscon_np = of_parse_phandle(np, "syscon", 0);
 	if (!syscon_np) {
-		pr_crit("U300: no syscon node\n");
+		pr_crit("U300: yes syscon yesde\n");
 		return -ENODEV;
 	}
-	regmap = syscon_node_to_regmap(syscon_np);
+	regmap = syscon_yesde_to_regmap(syscon_np);
 	if (IS_ERR(regmap)) {
-		pr_crit("U300: could not locate syscon regmap\n");
+		pr_crit("U300: could yest locate syscon regmap\n");
 		return PTR_ERR(regmap);
 	}
 
 	main_power_15 = regulator_get(&pdev->dev, "vana15");
 
 	if (IS_ERR(main_power_15)) {
-		pr_err("could not get vana15");
+		pr_err("could yest get vana15");
 		return PTR_ERR(main_power_15);
 	}
 	err = regulator_enable(main_power_15);
 	if (err) {
-		pr_err("could not enable vana15\n");
+		pr_err("could yest enable vana15\n");
 		return err;
 	}
 
 	/*
 	 * On U300 a special system controller register pulls up the DC
 	 * until the vana15 (LDO D) regulator comes up. At this point, all
-	 * regulators are set and we do not need power control via
+	 * regulators are set and we do yest need power control via
 	 * DC ON anymore. This function will likely be moved whenever
 	 * the rest of the U300 power management is implemented.
 	 */

@@ -16,7 +16,7 @@
  *		Rewritten by Niibe Yutaka.
  *		parport-sharing awareness code by Philip Blundell.
  *		SMP locking by Niibe Yutaka.
- *		Support for parallel ports with no IRQ (poll mode),
+ *		Support for parallel ports with yes IRQ (poll mode),
  *		Modifications to use the parallel port API
  *		by Nimrod Zimerman.
  *
@@ -78,7 +78,7 @@ static const char version[] = "NET3 PLIP version 2.4-parport gniibe@mri.co.jp\n"
     D2->PAPOUT	4 - 12		12 - 4
     D3->ACK	5 - 10		10 - 5
     D4->BUSY	6 - 11		11 - 6
-  Do not connect the other pins.  They are
+  Do yest connect the other pins.  They are
     D5,D6,D7 are 7,8,9
     STROBE is 1, FEED is 14, INIT is 16
     extra grounds are 18,19,20,21,22,23,24
@@ -93,7 +93,7 @@ static const char version[] = "NET3 PLIP version 2.4-parport gniibe@mri.co.jp\n"
 #include <linux/slab.h>
 #include <linux/if_ether.h>
 #include <linux/in.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/delay.h>
 #include <linux/init.h>
 #include <linux/netdevice.h>
@@ -274,7 +274,7 @@ static const struct net_device_ops plip_netdev_ops = {
    Probe the hardware, and register/initialize the driver.
 
    PLIP is rather weird, because of the way it interacts with the parport
-   system.  It is _not_ initialised from Space.c.  Instead, plip_init()
+   system.  It is _yest_ initialised from Space.c.  Instead, plip_init()
    is called, and that function makes up a "struct net_device" for each port, and
    then calls us here.
 
@@ -323,7 +323,7 @@ plip_kick_bh(struct work_struct *work)
 }
 
 /* Forward declarations of internal routines */
-static int plip_none(struct net_device *, struct net_local *,
+static int plip_yesne(struct net_device *, struct net_local *,
 		     struct plip_local *, struct plip_local *);
 static int plip_receive_packet(struct net_device *, struct net_local *,
 			       struct plip_local *, struct plip_local *);
@@ -348,7 +348,7 @@ typedef int (*plip_func)(struct net_device *dev, struct net_local *nl,
 
 static const plip_func connection_state_table[] =
 {
-	plip_none,
+	plip_yesne,
 	plip_receive_packet,
 	plip_send_packet,
 	plip_connection_close,
@@ -400,7 +400,7 @@ plip_bh_timeout_error(struct net_device *dev, struct net_local *nl,
 	 * This is tricky. If we got here from the beginning of send (either
 	 * with ERROR or HS_TIMEOUT) we have IRQ enabled. Otherwise it's
 	 * already disabled. With the old variant of {enable,disable}_irq()
-	 * extra disable_irq() was a no-op. Now it became mortal - it's
+	 * extra disable_irq() was a yes-op. Now it became mortal - it's
 	 * unbalanced and thus we'll never re-enable IRQ (until rmmod plip,
 	 * that is). So we have to treat HS_TIMEOUT and ERROR from send
 	 * in a special way.
@@ -466,7 +466,7 @@ plip_bh_timeout_error(struct net_device *dev, struct net_local *nl,
 }
 
 static int
-plip_none(struct net_device *dev, struct net_local *nl,
+plip_yesne(struct net_device *dev, struct net_local *nl,
 	  struct plip_local *snd, struct plip_local *rcv)
 {
 	return OK;
@@ -524,14 +524,14 @@ plip_receive(unsigned short nibble_timeout, struct net_device *dev,
 
 /*
  *	Determine the packet's protocol ID. The rule here is that we
- *	assume 802.3 if the type field is short enough to be a length.
- *	This is normal practice and works for any 'now in use' protocol.
+ *	assume 802.3 if the type field is short eyesugh to be a length.
+ *	This is yesrmal practice and works for any 'yesw in use' protocol.
  *
- *	PLIP is ethernet ish but the daddr might not be valid if unicast.
- *	PLIP fortunately has no bus architecture (its Point-to-point).
+ *	PLIP is ethernet ish but the daddr might yest be valid if unicast.
+ *	PLIP fortunately has yes bus architecture (its Point-to-point).
  *
  *	We can't fix the daddr thing as that quirk (more bug) is embedded
- *	in far too many old systems not all even running Linux.
+ *	in far too many old systems yest all even running Linux.
  */
 
 static __be16 plip_type_trans(struct sk_buff *skb, struct net_device *dev)
@@ -587,7 +587,7 @@ plip_receive_packet(struct net_device *dev, struct net_local *nl,
 	switch (rcv->state) {
 	case PLIP_PK_TRIGGER:
 		DISABLE(dev->irq);
-		/* Don't need to synchronize irq, as we can safely ignore it */
+		/* Don't need to synchronize irq, as we can safely igyesre it */
 		disable_parport_interrupts (dev);
 		write_data (dev, 0x01); /* send ACK */
 		if (net_debug > 2)
@@ -947,7 +947,7 @@ plip_interrupt(void *dev_id)
 	case PLIP_CN_RECEIVE:
 		/* May occur because there is race condition
 		   around test and set of dev->interrupt.
-		   Ignore this interrupt. */
+		   Igyesre this interrupt. */
 		break;
 
 	case PLIP_CN_ERROR:
@@ -1088,11 +1088,11 @@ plip_open(struct net_device *dev)
 
 	/* Fill in the MAC-level header.
 	   We used to abuse dev->broadcast to store the point-to-point
-	   MAC address, but we no longer do it. Instead, we fetch the
-	   interface address whenever it is needed, which is cheap enough
+	   MAC address, but we yes longer do it. Instead, we fetch the
+	   interface address whenever it is needed, which is cheap eyesugh
 	   because we use the hh_cache. Actually, abusing dev->broadcast
 	   didn't work, because when using plip_open the point-to-point
-	   address isn't yet known.
+	   address isn't yet kyeswn.
 	   PLIP doesn't have a real MAC address, but we need it to be
 	   DOS compatible, and to properly support taps (otherwise,
 	   when the device address isn't identical to the address of a
@@ -1276,7 +1276,7 @@ static void plip_attach (struct parport *port)
 		dev->irq = port->irq;
 		dev->base_addr = port->base;
 		if (port->irq == -1) {
-			printk(KERN_INFO "plip: %s has no IRQ. Using IRQ-less mode,"
+			printk(KERN_INFO "plip: %s has yes IRQ. Using IRQ-less mode,"
 		                 "which is fairly inefficient!\n", port->name);
 		}
 
@@ -1311,7 +1311,7 @@ static void plip_attach (struct parport *port)
 				         dev->name, dev->base_addr, dev->irq);
 		else
 			printk(KERN_INFO "%s: Parallel port at %#3lx, "
-					 "not using IRQ.\n",
+					 "yest using IRQ.\n",
 					 dev->name, dev->base_addr);
 		dev_plip[unit++] = dev;
 	}
@@ -1324,7 +1324,7 @@ err_free_dev:
 }
 
 /* plip_detach() is called (by the parport code) when a port is
- * no longer available to use. */
+ * yes longer available to use. */
 static void plip_detach (struct parport *port)
 {
 	/* Nothing to do */
@@ -1385,7 +1385,7 @@ static int __init plip_setup(char *str)
 		if (parport_ptr < PLIP_MAX)
 			parport[parport_ptr++] = n;
 		else
-			printk(KERN_INFO "plip: too many ports, %s ignored.\n",
+			printk(KERN_INFO "plip: too many ports, %s igyesred.\n",
 			       str);
 	} else if (!strcmp(str, "timid")) {
 		timid = 1;
@@ -1394,7 +1394,7 @@ static int __init plip_setup(char *str)
 			/* disable driver on "plip=" or "plip=0" */
 			parport[0] = -2;
 		} else {
-			printk(KERN_WARNING "warning: 'plip=0x%x' ignored\n",
+			printk(KERN_WARNING "warning: 'plip=0x%x' igyesred\n",
 			       ints[1]);
 		}
 	}
@@ -1411,7 +1411,7 @@ static int __init plip_init (void)
 		return 0;
 
 	if (parport[0] != -1 && timid) {
-		printk(KERN_WARNING "plip: warning, ignoring `timid' since specific ports given.\n");
+		printk(KERN_WARNING "plip: warning, igyesring `timid' since specific ports given.\n");
 		timid = 0;
 	}
 

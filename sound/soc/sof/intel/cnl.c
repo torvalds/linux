@@ -12,7 +12,7 @@
 //
 
 /*
- * Hardware interface for audio DSP on Cannonlake.
+ * Hardware interface for audio DSP on Canyesnlake.
  */
 
 #include "../ops.h"
@@ -100,10 +100,10 @@ static irqreturn_t cnl_ipc_irq_thread(int irq, void *context)
 
 	if (!ipc_irq) {
 		/*
-		 * This interrupt is not shared so no need to return IRQ_NONE.
+		 * This interrupt is yest shared so yes need to return IRQ_NONE.
 		 */
 		dev_dbg_ratelimited(sdev->dev,
-				    "nothing to do in IPC IRQ thread\n");
+				    "yesthing to do in IPC IRQ thread\n");
 	}
 
 	/* re-enable IPC interrupt */
@@ -117,7 +117,7 @@ static void cnl_ipc_host_done(struct snd_sof_dev *sdev)
 {
 	/*
 	 * clear busy interrupt to tell dsp controller this
-	 * interrupt has been accepted, not trigger it again
+	 * interrupt has been accepted, yest trigger it again
 	 */
 	snd_sof_dsp_update_bits_forced(sdev, HDA_DSP_BAR,
 				       CNL_DSP_REG_HIPCTDR,
@@ -214,7 +214,7 @@ static void cnl_ipc_dump(struct snd_sof_dev *sdev)
 		hipcida, hipctdr, hipcctl);
 }
 
-/* cannonlake ops */
+/* canyesnlake ops */
 const struct snd_sof_dsp_ops sof_cnl_ops = {
 	/* probe and remove */
 	.probe		= hda_dsp_probe,
@@ -299,7 +299,7 @@ const struct snd_sof_dsp_ops sof_cnl_ops = {
 EXPORT_SYMBOL(sof_cnl_ops);
 
 const struct sof_intel_dsp_desc cnl_chip_info = {
-	/* Cannonlake */
+	/* Canyesnlake */
 	.cores_num = 4,
 	.init_core_mask = 1,
 	.cores_mask = HDA_DSP_CORE_MASK(0) |

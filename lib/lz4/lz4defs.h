@@ -11,9 +11,9 @@
  * modification, are permitted provided that the following conditions are
  * met:
  *	* Redistributions of source code must retain the above copyright
- *	  notice, this list of conditions and the following disclaimer.
+ *	  yestice, this list of conditions and the following disclaimer.
  *	* Redistributions in binary form must reproduce the above
- * copyright notice, this list of conditions and the following disclaimer
+ * copyright yestice, this list of conditions and the following disclaimer
  * in the documentation and/or other materials provided with the
  * distribution.
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
@@ -220,11 +220,11 @@ static FORCE_INLINE unsigned int LZ4_count(
 	return (unsigned int)(pIn - pStart);
 }
 
-typedef enum { noLimit = 0, limitedOutput = 1 } limitedOutput_directive;
+typedef enum { yesLimit = 0, limitedOutput = 1 } limitedOutput_directive;
 typedef enum { byPtr, byU32, byU16 } tableType_t;
 
-typedef enum { noDict = 0, withPrefix64k, usingExtDict } dict_directive;
-typedef enum { noDictIssue = 0, dictSmall } dictIssue_directive;
+typedef enum { yesDict = 0, withPrefix64k, usingExtDict } dict_directive;
+typedef enum { yesDictIssue = 0, dictSmall } dictIssue_directive;
 
 typedef enum { endOnOutputSize = 0, endOnInputSize = 1 } endCondition_directive;
 typedef enum { decode_full_block = 0, partial_decode = 1 } earlyEnd_directive;

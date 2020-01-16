@@ -69,10 +69,10 @@
 .macro ptrauth_switch_to_guest g_ctxt, reg1, reg2, reg3
 alternative_if ARM64_HAS_ADDRESS_AUTH_ARCH
 	b	1000f
-alternative_else_nop_endif
-alternative_if_not ARM64_HAS_ADDRESS_AUTH_IMP_DEF
+alternative_else_yesp_endif
+alternative_if_yest ARM64_HAS_ADDRESS_AUTH_IMP_DEF
 	b	1001f
-alternative_else_nop_endif
+alternative_else_yesp_endif
 1000:
 	ldr	\reg1, [\g_ctxt, #(VCPU_HCR_EL2 - VCPU_CONTEXT)]
 	and	\reg1, \reg1, #(HCR_API | HCR_APK)
@@ -85,10 +85,10 @@ alternative_else_nop_endif
 .macro ptrauth_switch_to_host g_ctxt, h_ctxt, reg1, reg2, reg3
 alternative_if ARM64_HAS_ADDRESS_AUTH_ARCH
 	b	2000f
-alternative_else_nop_endif
-alternative_if_not ARM64_HAS_ADDRESS_AUTH_IMP_DEF
+alternative_else_yesp_endif
+alternative_if_yest ARM64_HAS_ADDRESS_AUTH_IMP_DEF
 	b	2001f
-alternative_else_nop_endif
+alternative_else_yesp_endif
 2000:
 	ldr	\reg1, [\g_ctxt, #(VCPU_HCR_EL2 - VCPU_CONTEXT)]
 	and	\reg1, \reg1, #(HCR_API | HCR_APK)

@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -1472,42 +1472,42 @@ static void hns_roce_free_mr_free(struct hns_roce_dev *hr_dev)
  */
 static int hns_roce_v1_reset(struct hns_roce_dev *hr_dev, bool dereset)
 {
-	struct device_node *dsaf_node;
+	struct device_yesde *dsaf_yesde;
 	struct device *dev = &hr_dev->pdev->dev;
-	struct device_node *np = dev->of_node;
-	struct fwnode_handle *fwnode;
+	struct device_yesde *np = dev->of_yesde;
+	struct fwyesde_handle *fwyesde;
 	int ret;
 
 	/* check if this is DT/ACPI case */
-	if (dev_of_node(dev)) {
-		dsaf_node = of_parse_phandle(np, "dsaf-handle", 0);
-		if (!dsaf_node) {
-			dev_err(dev, "could not find dsaf-handle\n");
+	if (dev_of_yesde(dev)) {
+		dsaf_yesde = of_parse_phandle(np, "dsaf-handle", 0);
+		if (!dsaf_yesde) {
+			dev_err(dev, "could yest find dsaf-handle\n");
 			return -EINVAL;
 		}
-		fwnode = &dsaf_node->fwnode;
-	} else if (is_acpi_device_node(dev->fwnode)) {
-		struct fwnode_reference_args args;
+		fwyesde = &dsaf_yesde->fwyesde;
+	} else if (is_acpi_device_yesde(dev->fwyesde)) {
+		struct fwyesde_reference_args args;
 
-		ret = acpi_node_get_property_reference(dev->fwnode,
+		ret = acpi_yesde_get_property_reference(dev->fwyesde,
 						       "dsaf-handle", 0, &args);
 		if (ret) {
-			dev_err(dev, "could not find dsaf-handle\n");
+			dev_err(dev, "could yest find dsaf-handle\n");
 			return ret;
 		}
-		fwnode = args.fwnode;
+		fwyesde = args.fwyesde;
 	} else {
-		dev_err(dev, "cannot read data from DT or ACPI\n");
+		dev_err(dev, "canyest read data from DT or ACPI\n");
 		return -ENXIO;
 	}
 
-	ret = hns_dsaf_roce_reset(fwnode, false);
+	ret = hns_dsaf_roce_reset(fwyesde, false);
 	if (ret)
 		return ret;
 
 	if (dereset) {
 		msleep(SLEEP_TIME_INTERVAL);
-		ret = hns_dsaf_roce_reset(fwnode, true);
+		ret = hns_dsaf_roce_reset(fwyesde, true);
 	}
 
 	return ret;
@@ -1785,7 +1785,7 @@ static int hns_roce_v1_set_mac(struct hns_roce_dev *hr_dev, u8 phy_port,
 
 	/*
 	 * When mac changed, loopback may fail
-	 * because of smac not equal to dmac.
+	 * because of smac yest equal to dmac.
 	 * We Need to release and create reserved qp again.
 	 */
 	if (hr_dev->hw->dereg_mr) {
@@ -2037,7 +2037,7 @@ static void __hns_roce_v1_cq_clean(struct hns_roce_cq *hr_cq, u32 qpn,
 		if ((roce_get_field(cqe->cqe_byte_16, CQE_BYTE_16_LOCAL_QPN_M,
 				     CQE_BYTE_16_LOCAL_QPN_S) &
 				     HNS_ROCE_CQE_QPN_MASK) == qpn) {
-			/* In v1 engine, not support SRQ */
+			/* In v1 engine, yest support SRQ */
 			++nfreed;
 		} else if (nfreed) {
 			dest = get_cqe(hr_cq, (prod_index + nfreed) &
@@ -2155,14 +2155,14 @@ static int hns_roce_v1_modify_cq(struct ib_cq *cq, u16 cq_count, u16 cq_period)
 	return -EOPNOTSUPP;
 }
 
-static int hns_roce_v1_req_notify_cq(struct ib_cq *ibcq,
-				     enum ib_cq_notify_flags flags)
+static int hns_roce_v1_req_yestify_cq(struct ib_cq *ibcq,
+				     enum ib_cq_yestify_flags flags)
 {
 	struct hns_roce_cq *hr_cq = to_hr_cq(ibcq);
-	u32 notification_flag;
+	u32 yestification_flag;
 	__le32 doorbell[2] = {};
 
-	notification_flag = (flags & IB_CQ_SOLICITED_MASK) ==
+	yestification_flag = (flags & IB_CQ_SOLICITED_MASK) ==
 			    IB_CQ_SOLICITED ? CQ_DB_REQ_NOT : CQ_DB_REQ_NOT_SOL;
 	/*
 	 * flags = 0; Notification Flag = 1, next
@@ -2177,7 +2177,7 @@ static int hns_roce_v1_req_notify_cq(struct ib_cq *ibcq,
 		       ROCEE_DB_OTHERS_H_ROCEE_DB_OTH_CMD_MDF_S, 1);
 	roce_set_field(doorbell[1], ROCEE_DB_OTHERS_H_ROCEE_DB_OTH_INP_H_M,
 		       ROCEE_DB_OTHERS_H_ROCEE_DB_OTH_INP_H_S,
-		       hr_cq->cqn | notification_flag);
+		       hr_cq->cqn | yestification_flag);
 
 	hns_roce_write64_k(doorbell, hr_cq->cq_db_l);
 
@@ -2226,7 +2226,7 @@ static int hns_roce_v1_poll_one(struct hns_roce_cq *hr_cq,
 	if (!*cur_qp || (qpn & HNS_ROCE_CQE_QPN_MASK) != (*cur_qp)->qpn) {
 		hr_qp = __hns_roce_qp_lookup(hr_dev, qpn);
 		if (unlikely(!hr_qp)) {
-			dev_err(dev, "CQ %06lx with entry for unknown QPN %06x\n",
+			dev_err(dev, "CQ %06lx with entry for unkyeswn QPN %06x\n",
 				hr_cq->cqn, (qpn & HNS_ROCE_CQE_QPN_MASK));
 			return -EINVAL;
 		}
@@ -2444,7 +2444,7 @@ static int hns_roce_v1_clear_hem(struct hns_roce_dev *hr_dev,
 		bt_ba = priv->bt_table.cqc_buf.map >> 12;
 		break;
 	case HEM_TYPE_SRQC:
-		dev_dbg(dev, "HEM_TYPE_SRQC not support.\n");
+		dev_dbg(dev, "HEM_TYPE_SRQC yest support.\n");
 		return -EINVAL;
 	default:
 		return 0;
@@ -2463,7 +2463,7 @@ static int hns_roce_v1_clear_hem(struct hns_roce_dev *hr_dev,
 	while (1) {
 		if (readl(bt_cmd) >> BT_CMD_SYNC_SHIFT) {
 			if (!end) {
-				dev_err(dev, "Write bt_cmd err,hw_sync is not zero.\n");
+				dev_err(dev, "Write bt_cmd err,hw_sync is yest zero.\n");
 				spin_unlock_irqrestore(&hr_dev->bt_cmd_lock,
 					flags);
 				return -EBUSY;
@@ -2538,7 +2538,7 @@ static int hns_roce_v1_qp_modify(struct hns_roce_dev *hr_dev,
 	if (cur_state >= HNS_ROCE_QP_NUM_STATE ||
 	    new_state >= HNS_ROCE_QP_NUM_STATE ||
 	    !op[cur_state][new_state]) {
-		dev_err(dev, "[modify_qp]not support state %d to %d\n",
+		dev_err(dev, "[modify_qp]yest support state %d to %d\n",
 			cur_state, new_state);
 		return -EINVAL;
 	}
@@ -3251,7 +3251,7 @@ static int hns_roce_v1_m_qp(struct ib_qp *ibqp, const struct ib_qp_attr *attr,
 		   (cur_state == IB_QPS_RTS && new_state == IB_QPS_ERR) ||
 		   (cur_state == IB_QPS_ERR && new_state == IB_QPS_RESET) ||
 		   (cur_state == IB_QPS_ERR && new_state == IB_QPS_ERR))) {
-		dev_err(dev, "not support this status migration\n");
+		dev_err(dev, "yest support this status migration\n");
 		goto out;
 	}
 
@@ -3690,10 +3690,10 @@ static void hns_roce_v1_destroy_cq(struct ib_cq *ibcq, struct ib_udata *udata)
 	}
 }
 
-static void set_eq_cons_index_v1(struct hns_roce_eq *eq, int req_not)
+static void set_eq_cons_index_v1(struct hns_roce_eq *eq, int req_yest)
 {
 	roce_raw_write((eq->cons_index & HNS_ROCE_V1_CONS_IDX_M) |
-		      (req_not << eq->log_entries), eq->doorbell);
+		      (req_yest << eq->log_entries), eq->doorbell);
 }
 
 static void hns_roce_v1_wq_catas_err_handle(struct hns_roce_dev *hr_dev,
@@ -3901,13 +3901,13 @@ static int hns_roce_v1_aeq_int(struct hns_roce_dev *hr_dev,
 					    HNS_ROCE_AEQE_U32_4_EVENT_TYPE_S);
 		switch (event_type) {
 		case HNS_ROCE_EVENT_TYPE_PATH_MIG:
-			dev_warn(dev, "PATH MIG not supported\n");
+			dev_warn(dev, "PATH MIG yest supported\n");
 			break;
 		case HNS_ROCE_EVENT_TYPE_COMM_EST:
 			dev_warn(dev, "COMMUNICATION established\n");
 			break;
 		case HNS_ROCE_EVENT_TYPE_SQ_DRAINED:
-			dev_warn(dev, "SQ DRAINED not supported\n");
+			dev_warn(dev, "SQ DRAINED yest supported\n");
 			break;
 		case HNS_ROCE_EVENT_TYPE_PATH_MIG_FAILED:
 			dev_warn(dev, "PATH MIG failed\n");
@@ -3920,7 +3920,7 @@ static int hns_roce_v1_aeq_int(struct hns_roce_dev *hr_dev,
 		case HNS_ROCE_EVENT_TYPE_SRQ_LIMIT_REACH:
 		case HNS_ROCE_EVENT_TYPE_SRQ_CATAS_ERROR:
 		case HNS_ROCE_EVENT_TYPE_SRQ_LAST_WQE_REACH:
-			dev_warn(dev, "SRQ not support!\n");
+			dev_warn(dev, "SRQ yest support!\n");
 			break;
 		case HNS_ROCE_EVENT_TYPE_CQ_ACCESS_ERROR:
 		case HNS_ROCE_EVENT_TYPE_CQ_OVERFLOW:
@@ -4027,10 +4027,10 @@ static irqreturn_t hns_roce_v1_msix_interrupt_eq(int irq, void *eq_ptr)
 	int int_work = 0;
 
 	if (eq->type_flag == HNS_ROCE_CEQ)
-		/* CEQ irq routine, CEQ is pulse irq, not clear */
+		/* CEQ irq routine, CEQ is pulse irq, yest clear */
 		int_work = hns_roce_v1_ceq_int(hr_dev, eq);
 	else
-		/* AEQ irq routine, AEQ is pulse irq, not clear */
+		/* AEQ irq routine, AEQ is pulse irq, yest clear */
 		int_work = hns_roce_v1_aeq_int(hr_dev, eq);
 
 	return IRQ_RETVAL(int_work);
@@ -4051,7 +4051,7 @@ static irqreturn_t hns_roce_v1_msix_interrupt_abn(int irq, void *dev_id)
 	int i;
 
 	/*
-	 * Abnormal interrupt:
+	 * Abyesrmal interrupt:
 	 * AEQ overflow, ECC multi-bit err, CEQ overflow must clear
 	 * interrupt, mask irq, clear irq, cancel mask operation
 	 */
@@ -4445,7 +4445,7 @@ static const struct ib_device_ops hns_roce_v1_dev_ops = {
 	.post_recv = hns_roce_v1_post_recv,
 	.post_send = hns_roce_v1_post_send,
 	.query_qp = hns_roce_v1_query_qp,
-	.req_notify_cq = hns_roce_v1_req_notify_cq,
+	.req_yestify_cq = hns_roce_v1_req_yestify_cq,
 };
 
 static const struct hns_roce_hw hns_roce_hw_v1 = {
@@ -4467,7 +4467,7 @@ static const struct hns_roce_hw hns_roce_hw_v1 = {
 	.destroy_qp = hns_roce_v1_destroy_qp,
 	.post_send = hns_roce_v1_post_send,
 	.post_recv = hns_roce_v1_post_recv,
-	.req_notify_cq = hns_roce_v1_req_notify_cq,
+	.req_yestify_cq = hns_roce_v1_req_yestify_cq,
 	.poll_cq = hns_roce_v1_poll_cq,
 	.dereg_mr = hns_roce_v1_dereg_mr,
 	.destroy_cq = hns_roce_v1_destroy_cq,
@@ -4489,12 +4489,12 @@ static const struct acpi_device_id hns_roce_acpi_match[] = {
 MODULE_DEVICE_TABLE(acpi, hns_roce_acpi_match);
 
 static struct
-platform_device *hns_roce_find_pdev(struct fwnode_handle *fwnode)
+platform_device *hns_roce_find_pdev(struct fwyesde_handle *fwyesde)
 {
 	struct device *dev;
 
-	/* get the 'device' corresponding to the matching 'fwnode' */
-	dev = bus_find_device_by_fwnode(&platform_bus_type, fwnode);
+	/* get the 'device' corresponding to the matching 'fwyesde' */
+	dev = bus_find_device_by_fwyesde(&platform_bus_type, fwyesde);
 	/* get the platform device */
 	return dev ? to_platform_device(dev) : NULL;
 }
@@ -4504,19 +4504,19 @@ static int hns_roce_get_cfg(struct hns_roce_dev *hr_dev)
 	struct device *dev = &hr_dev->pdev->dev;
 	struct platform_device *pdev = NULL;
 	struct net_device *netdev = NULL;
-	struct device_node *net_node;
+	struct device_yesde *net_yesde;
 	int port_cnt = 0;
 	u8 phy_port;
 	int ret;
 	int i;
 
 	/* check if we are compatible with the underlying SoC */
-	if (dev_of_node(dev)) {
+	if (dev_of_yesde(dev)) {
 		const struct of_device_id *of_id;
 
-		of_id = of_match_node(hns_roce_of_match, dev->of_node);
+		of_id = of_match_yesde(hns_roce_of_match, dev->of_yesde);
 		if (!of_id) {
-			dev_err(dev, "device is not compatible!\n");
+			dev_err(dev, "device is yest compatible!\n");
 			return -ENXIO;
 		}
 		hr_dev->hw = (const struct hns_roce_hw *)of_id->data;
@@ -4524,12 +4524,12 @@ static int hns_roce_get_cfg(struct hns_roce_dev *hr_dev)
 			dev_err(dev, "couldn't get H/W specific DT data!\n");
 			return -ENXIO;
 		}
-	} else if (is_acpi_device_node(dev->fwnode)) {
+	} else if (is_acpi_device_yesde(dev->fwyesde)) {
 		const struct acpi_device_id *acpi_id;
 
 		acpi_id = acpi_match_device(hns_roce_acpi_match, dev);
 		if (!acpi_id) {
-			dev_err(dev, "device is not compatible!\n");
+			dev_err(dev, "device is yest compatible!\n");
 			return -ENXIO;
 		}
 		hr_dev->hw = (const struct hns_roce_hw *) acpi_id->driver_data;
@@ -4547,34 +4547,34 @@ static int hns_roce_get_cfg(struct hns_roce_dev *hr_dev)
 	if (IS_ERR(hr_dev->reg_base))
 		return PTR_ERR(hr_dev->reg_base);
 
-	/* read the node_guid of IB device from the DT or ACPI */
-	ret = device_property_read_u8_array(dev, "node-guid",
-					    (u8 *)&hr_dev->ib_dev.node_guid,
+	/* read the yesde_guid of IB device from the DT or ACPI */
+	ret = device_property_read_u8_array(dev, "yesde-guid",
+					    (u8 *)&hr_dev->ib_dev.yesde_guid,
 					    GUID_LEN);
 	if (ret) {
-		dev_err(dev, "couldn't get node_guid from DT or ACPI!\n");
+		dev_err(dev, "couldn't get yesde_guid from DT or ACPI!\n");
 		return ret;
 	}
 
 	/* get the RoCE associated ethernet ports or netdevices */
 	for (i = 0; i < HNS_ROCE_MAX_PORTS; i++) {
-		if (dev_of_node(dev)) {
-			net_node = of_parse_phandle(dev->of_node, "eth-handle",
+		if (dev_of_yesde(dev)) {
+			net_yesde = of_parse_phandle(dev->of_yesde, "eth-handle",
 						    i);
-			if (!net_node)
+			if (!net_yesde)
 				continue;
-			pdev = of_find_device_by_node(net_node);
-		} else if (is_acpi_device_node(dev->fwnode)) {
-			struct fwnode_reference_args args;
+			pdev = of_find_device_by_yesde(net_yesde);
+		} else if (is_acpi_device_yesde(dev->fwyesde)) {
+			struct fwyesde_reference_args args;
 
-			ret = acpi_node_get_property_reference(dev->fwnode,
+			ret = acpi_yesde_get_property_reference(dev->fwyesde,
 							       "eth-handle",
 							       i, &args);
 			if (ret)
 				continue;
-			pdev = hns_roce_find_pdev(args.fwnode);
+			pdev = hns_roce_find_pdev(args.fwyesde);
 		} else {
-			dev_err(dev, "cannot read data from DT or ACPI\n");
+			dev_err(dev, "canyest read data from DT or ACPI\n");
 			return -ENXIO;
 		}
 
@@ -4585,7 +4585,7 @@ static int hns_roce_get_cfg(struct hns_roce_dev *hr_dev)
 				hr_dev->iboe.netdevs[port_cnt] = netdev;
 				hr_dev->iboe.phy_port[port_cnt] = phy_port;
 			} else {
-				dev_err(dev, "no netdev found with pdev %s\n",
+				dev_err(dev, "yes netdev found with pdev %s\n",
 					pdev->name);
 				return -ENODEV;
 			}

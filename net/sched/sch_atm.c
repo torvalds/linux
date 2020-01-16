@@ -8,7 +8,7 @@
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/string.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/skbuff.h>
 #include <linux/atmdev.h>
 #include <linux/atmclip.h>
@@ -32,7 +32,7 @@
  * the atm_* in net/atm. This naming convention differs from what's used in the
  * rest of net/sched.
  *
- * Known bugs:
+ * Kyeswn bugs:
  *  - sometimes messes up the IP stack
  *  - any manipulations besides the few operations described in the README, are
  *    untested and likely to crash the system
@@ -94,7 +94,7 @@ static int atm_tc_graft(struct Qdisc *sch, unsigned long arg,
 	if (list_empty(&flow->list))
 		return -EINVAL;
 	if (!new)
-		new = &noop_qdisc;
+		new = &yesop_qdisc;
 	*old = flow->q;
 	flow->q = new;
 	if (*old)
@@ -164,7 +164,7 @@ static void atm_tc_put(struct Qdisc *sch, unsigned long cl)
 	if (flow != &p->link)
 		kfree(flow);
 	/*
-	 * If flow == &p->link, the qdisc no longer works at this point and
+	 * If flow == &p->link, the qdisc yes longer works at this point and
 	 * needs to be removed. (By the caller of atm_tc_put.)
 	 */
 }
@@ -179,8 +179,8 @@ static void sch_atm_pop(struct atm_vcc *vcc, struct sk_buff *skb)
 }
 
 static const u8 llc_oui_ip[] = {
-	0xaa,			/* DSAP: non-ISO */
-	0xaa,			/* SSAP: non-ISO */
+	0xaa,			/* DSAP: yesn-ISO */
+	0xaa,			/* SSAP: yesn-ISO */
 	0x03,			/* Ctrl: Unnumbered Information Command PDU */
 	0x00,			/* OUI: EtherType */
 	0x00, 0x00,
@@ -213,7 +213,7 @@ static int atm_tc_change(struct Qdisc *sch, u32 classid, u32 parent,
 	if (parent && parent != TC_H_ROOT && parent != sch->handle)
 		return -EINVAL;
 	/*
-	 * ATM classes cannot be changed. In order to change properties of the
+	 * ATM classes canyest be changed. In order to change properties of the
 	 * ATM connection, that socket needs to be modified directly (via the
 	 * native ATM API. In order to send a flow to a different VC, the old
 	 * class needs to be removed and a new one added. (This may be changed
@@ -295,7 +295,7 @@ static int atm_tc_change(struct Qdisc *sch, u32 classid, u32 parent,
 	flow->q = qdisc_create_dflt(sch->dev_queue, &pfifo_qdisc_ops, classid,
 				    extack);
 	if (!flow->q)
-		flow->q = &noop_qdisc;
+		flow->q = &yesop_qdisc;
 	pr_debug("atm_tc_change: qdisc %p\n", flow->q);
 	flow->sock = sock;
 	flow->vcc = ATM_SD(sock);	/* speedup */
@@ -411,7 +411,7 @@ done:
 	} else {
 		if (flow->vcc)
 			ATM_SKB(skb)->atm_options = flow->vcc->atm_options;
-		/*@@@ looks good ... but it's not supposed to work :-) */
+		/*@@@ looks good ... but it's yest supposed to work :-) */
 #ifdef CONFIG_NET_CLS_ACT
 		switch (result) {
 		case TC_ACT_QUEUED:
@@ -447,9 +447,9 @@ drop: __maybe_unused
 	 * it goes via ATM. The reason for this is that the outer qdisc
 	 * expects to be able to q->dequeue the packet later on if we return
 	 * success at this place. Also, sch->q.qdisc needs to reflect whether
-	 * there is a packet egligible for dequeuing or not. Note that the
+	 * there is a packet egligible for dequeuing or yest. Note that the
 	 * statistics of the outer qdisc are necessarily wrong because of all
-	 * this. There's currently no correct solution for this.
+	 * this. There's currently yes correct solution for this.
 	 */
 	if (flow == &p->link) {
 		sch->q.qlen++;
@@ -462,8 +462,8 @@ drop: __maybe_unused
 /*
  * Dequeue packets and send them over ATM. Note that we quite deliberately
  * avoid checking net_device's flow control here, simply because sch_atm
- * uses its own channels, which have nothing to do with any CLIP/LANE/or
- * non-ATM interfaces.
+ * uses its own channels, which have yesthing to do with any CLIP/LANE/or
+ * yesn-ATM interfaces.
  */
 
 static void sch_atm_dequeue(unsigned long data)
@@ -551,7 +551,7 @@ static int atm_tc_init(struct Qdisc *sch, struct nlattr *opt,
 	p->link.q = qdisc_create_dflt(sch->dev_queue,
 				      &pfifo_qdisc_ops, sch->handle, extack);
 	if (!p->link.q)
-		p->link.q = &noop_qdisc;
+		p->link.q = &yesop_qdisc;
 	pr_debug("atm_tc_init: link (%p) qdisc %p\n", &p->link, p->link.q);
 
 	err = tcf_block_get(&p->link.block, &p->link.filter_list, sch,
@@ -611,7 +611,7 @@ static int atm_tc_dump_class(struct Qdisc *sch, unsigned long cl,
 	tcm->tcm_handle = flow->common.classid;
 	tcm->tcm_info = flow->q->handle;
 
-	nest = nla_nest_start_noflag(skb, TCA_OPTIONS);
+	nest = nla_nest_start_yesflag(skb, TCA_OPTIONS);
 	if (nest == NULL)
 		goto nla_put_failure;
 

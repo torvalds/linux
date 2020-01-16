@@ -32,7 +32,7 @@
  * Fixed id_probe for EPP 1.9 chipsets (misdetected as EPP 1.7)
  *                                                      [1.42]
  *
- * Development solely for 2.1.x kernels from now on!
+ * Development solely for 2.1.x kernels from yesw on!
  *                                                      [2.00]
  *
  * Hack and slash at the init code (EPP device check routine)
@@ -44,7 +44,7 @@
  *                                                      [2.02]
  *
  * Cleaned up the mess left by someone else trying to fix the
- * asm section to keep egcc happy. The asm section no longer
+ * asm section to keep egcc happy. The asm section yes longer
  * exists, the nibble code is *almost* as fast as the asm code
  * providing it is compiled with egcc.
  *
@@ -87,7 +87,7 @@
 
 #include  <asm/io.h>
 #include  <scsi/scsi_host.h>
-/* batteries not included :-) */
+/* batteries yest included :-) */
 
 /*
  * modes in which the driver can operate 
@@ -112,7 +112,7 @@ static char *PPA_MODE_STRING[] =
 #else
     "EPP 32 bit",
 #endif
-    "Unknown"};
+    "Unkyeswn"};
 
 /* other options */
 #define PPA_BURST_SIZE	512	/* data burst size */

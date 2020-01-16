@@ -1,7 +1,7 @@
 .. SPDX-License-Identifier: GPL-2.0
 
 ==============================
-Memory Technology Device (MTD)
+Memory Techyeslogy Device (MTD)
 ==============================
 
 .. toctree::
@@ -9,4 +9,4 @@ Memory Technology Device (MTD)
 
    intel-spi
    nand_ecc
-   spi-nor
+   spi-yesr

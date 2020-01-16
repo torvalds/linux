@@ -52,7 +52,7 @@ struct bh1750_chip_info {
 	/*
 	 * For BH1710/BH1721 all possible integration time values won't fit
 	 * into one page so displaying is limited to every second one.
-	 * Note, that user can still write proper values which were not
+	 * Note, that user can still write proper values which were yest
 	 * listed.
 	 */
 	int inc;

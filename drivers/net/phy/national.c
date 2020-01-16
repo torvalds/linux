@@ -95,7 +95,7 @@ static void ns_giga_speed_fallback(struct phy_device *phydev, int mode)
 
 	phy_write(phydev, MII_BMCR, (bmcr | BMCR_PDOWN));
 
-	/* Enable 8 bit expended memory read/write (no auto increment) */
+	/* Enable 8 bit expended memory read/write (yes auto increment) */
 	phy_write(phydev, NS_EXP_MEM_CTL, 0);
 	phy_write(phydev, NS_EXP_MEM_ADD, 0x1C0);
 	phy_write(phydev, NS_EXP_MEM_DATA, 0x0008);

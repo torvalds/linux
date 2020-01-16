@@ -10,7 +10,7 @@
  *  Modified to build and operate in Linux kernel environment.
  *
  *  Kevin D. Kissell, kevink@mips.com and Carsten Langgaard, carstenl@mips.com
- *  Copyright (C) 2000 MIPS Technologies, Inc. All rights reserved.
+ *  Copyright (C) 2000 MIPS Techyeslogies, Inc. All rights reserved.
  */
 
 #include <linux/types.h>
@@ -53,7 +53,7 @@ union ieee754dp ieee754dp_dump(char *m, union ieee754dp x)
 		printk("e%d", DPBEXP(x) - DP_EBIAS);
 		break;
 	default:
-		printk("Illegal/Unknown IEEE754 value class");
+		printk("Illegal/Unkyeswn IEEE754 value class");
 	}
 	printk("\n");
 	return x;
@@ -92,7 +92,7 @@ union ieee754sp ieee754sp_dump(char *m, union ieee754sp x)
 		printk("e%d", SPBEXP(x) - SP_EBIAS);
 		break;
 	default:
-		printk("Illegal/Unknown IEEE754 value class");
+		printk("Illegal/Unkyeswn IEEE754 value class");
 	}
 	printk("\n");
 	return x;

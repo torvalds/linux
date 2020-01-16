@@ -14,7 +14,7 @@ Optional properties:
 
 From OS view the device is basically an i2c-mux used to communicate with up to
 four smart battery devices at address 0xb. The driver actually implements this
-behaviour. So standard i2c-mux nodes can be used to register up to four slave
+behaviour. So standard i2c-mux yesdes can be used to register up to four slave
 batteries. Channels will be numerated starting from 1 to 4.
 
 Example:

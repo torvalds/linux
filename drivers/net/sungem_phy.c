@@ -405,7 +405,7 @@ static int genmii_read_link(struct mii_phy *phy)
 			phy->speed = SPEED_10;
 		phy->pause = 0;
 	}
-	/* On non-aneg, we assume what we put in BMCR is the speed,
+	/* On yesn-aneg, we assume what we put in BMCR is the speed,
 	 * though magic-aneg shouldn't prevent this case from occurring
 	 */
 
@@ -450,9 +450,9 @@ static int bcm5421_init(struct mii_phy* phy)
 	/* Check if we can enable automatic low power */
 #ifdef CONFIG_PPC_PMAC
 	if (phy->platform_data) {
-		struct device_node *np = of_get_parent(phy->platform_data);
+		struct device_yesde *np = of_get_parent(phy->platform_data);
 		int can_low_power = 1;
-		if (np == NULL || of_get_property(np, "no-autolowpower", NULL))
+		if (np == NULL || of_get_property(np, "yes-autolowpower", NULL))
 			can_low_power = 0;
 		if (can_low_power) {
 			/* Enable automatic low-power */
@@ -538,7 +538,7 @@ static int bcm54xx_setup_forced(struct mii_phy *phy, int speed, int fd)
 	if (fd == DUPLEX_FULL)
 		ctl |= BMCR_FULLDPLX;
 
-	// XXX Should we set the sungem to GII now on 1000BT ?
+	// XXX Should we set the sungem to GII yesw on 1000BT ?
 
 	sungem_phy_write(phy, MII_BMCR, ctl);
 
@@ -564,7 +564,7 @@ static int bcm54xx_read_link(struct mii_phy *phy)
 		phy->pause = (phy->duplex == DUPLEX_FULL) &&
 			((val & LPA_PAUSE) != 0);
 	}
-	/* On non-aneg, we assume what we put in BMCR is the speed,
+	/* On yesn-aneg, we assume what we put in BMCR is the speed,
 	 * though magic-aneg shouldn't prevent this case from occurring
 	 */
 
@@ -729,7 +729,7 @@ static int bcm5461_enable_fiber(struct mii_phy* phy, int autoneg)
 	sungem_phy_write(phy, MII_NCONFIG, 0xfc0b);
 
 	if (autoneg) {
-		/* enable fiber with no autonegotiation */
+		/* enable fiber with yes autonegotiation */
 		sungem_phy_write(phy, MII_ADVERTISE, 0x01e0);
 		sungem_phy_write(phy, MII_BMCR, 0x1140);
 	} else {
@@ -813,7 +813,7 @@ static int marvell_setup_forced(struct mii_phy *phy, int speed, int fd)
 	case SPEED_100:
 		ctl |= BMCR_SPEED100;
 		break;
-	/* I'm not sure about the one below, again, Darwin source is
+	/* I'm yest sure about the one below, again, Darwin source is
 	 * quite confusing and I lack chip specs
 	 */
 	case SPEED_1000:
@@ -836,7 +836,7 @@ static int marvell_setup_forced(struct mii_phy *phy, int speed, int fd)
 			MII_1000BASETCONTROL_HALFDUPLEXCAP;
 	sungem_phy_write(phy, MII_1000BASETCONTROL, ctl2);
 
-	// XXX Should we set the sungem to GII now on 1000BT ?
+	// XXX Should we set the sungem to GII yesw on 1000BT ?
 
 	sungem_phy_write(phy, MII_BMCR, ctl);
 
@@ -865,7 +865,7 @@ static int marvell_read_link(struct mii_phy *phy)
 			MII_M1011_PHY_SPEC_STATUS_RX_PAUSE;
 		phy->pause = (status & pmask) == pmask;
 	}
-	/* On non-aneg, we assume what we put in BMCR is the speed,
+	/* On yesn-aneg, we assume what we put in BMCR is the speed,
 	 * though magic-aneg shouldn't prevent this case from occurring
 	 */
 
@@ -878,8 +878,8 @@ static int marvell_read_link(struct mii_phy *phy)
 	 SUPPORTED_Autoneg | SUPPORTED_TP | SUPPORTED_MII |	\
 	 SUPPORTED_Pause)
 
-/* On gigabit capable PHYs, we advertise Pause support but not asym pause
- * support for now as I'm not sure it's supported and Darwin doesn't do
+/* On gigabit capable PHYs, we advertise Pause support but yest asym pause
+ * support for yesw as I'm yest sure it's supported and Darwin doesn't do
  * it neither. --BenH.
  */
 #define MII_GBIT_FEATURES \
@@ -1164,7 +1164,7 @@ int sungem_phy_probe(struct mii_phy *phy, int mii_id)
 	struct mii_phy_def* def;
 	int i;
 
-	/* We do not reset the mii_phy structure as the driver
+	/* We do yest reset the mii_phy structure as the driver
 	 * may re-probe the PHY regulary
 	 */
 	phy->mii_id = mii_id;

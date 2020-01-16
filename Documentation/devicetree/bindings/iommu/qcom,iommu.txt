@@ -1,9 +1,9 @@
 * QCOM IOMMU v1 Implementation
 
-Qualcomm "B" family devices which are not compatible with arm-smmu have
+Qualcomm "B" family devices which are yest compatible with arm-smmu have
 a similar looking IOMMU but without access to the global register space,
 and optionally requiring additional configuration to route context irqs
-to non-secure vs secure interrupt line.
+to yesn-secure vs secure interrupt line.
 
 ** Required properties:
 
@@ -30,11 +30,11 @@ to non-secure vs secure interrupt line.
 
 - qcom,iommu-secure-id  : secure-id.
 
-- List of sub-nodes, one per translation context bank.  Each sub-node
+- List of sub-yesdes, one per translation context bank.  Each sub-yesde
   has the following required properties:
 
   - compatible     : Should be one of:
-        - "qcom,msm-iommu-v1-ns"  : non-secure context bank
+        - "qcom,msm-iommu-v1-ns"  : yesn-secure context bank
         - "qcom,msm-iommu-v1-sec" : secure context bank
   - reg            : Base address and size of context bank within the iommu
   - interrupts     : The context fault irq.
@@ -43,7 +43,7 @@ to non-secure vs secure interrupt line.
 
 - reg              : Base address and size of the SMMU local base, should
                      be only specified if the iommu requires configuration
-                     for routing of context bank irq's to secure vs non-
+                     for routing of context bank irq's to secure vs yesn-
                      secure lines.  (Ie. if the iommu contains secure
                      context banks)
 

@@ -151,7 +151,7 @@ struct peak_pciec_card {
 	struct peak_pciec_chan channel[PEAK_PCI_CHAN_MAX];
 };
 
-/* "normal" pci register write callback is overloaded for leds control */
+/* "yesrmal" pci register write callback is overloaded for leds control */
 static void peak_pci_write_reg(const struct sja1000_priv *priv,
 			       int port, u8 val);
 
@@ -276,7 +276,7 @@ static void peak_pciec_led_work(struct work_struct *work)
 
 	/* first check what is to do */
 	for (i = 0; i < card->chan_count; i++) {
-		/* default is: not configured */
+		/* default is: yest configured */
 		new_led &= ~PCA9553_LED_MASK(i);
 		new_led |= PCA9553_LED_ON(i);
 
@@ -286,7 +286,7 @@ static void peak_pciec_led_work(struct work_struct *work)
 
 		up_count++;
 
-		/* no activity (but configured) */
+		/* yes activity (but configured) */
 		new_led &= ~PCA9553_LED_MASK(i);
 		new_led |= PCA9553_LED_SLOW(i);
 
@@ -306,7 +306,7 @@ static void peak_pciec_led_work(struct work_struct *work)
 	/* check if LS0 settings changed, only update i2c if so */
 	peak_pciec_write_pca9553(card, 5, new_led);
 
-	/* restart timer (except if no more configured channels) */
+	/* restart timer (except if yes more configured channels) */
 	if (up_count)
 		schedule_delayed_work(&card->led_work, HZ);
 }
@@ -387,7 +387,7 @@ static void peak_pciec_leds_exit(struct peak_pciec_card *card)
 }
 
 /*
- * normal write sja1000 register method overloaded to catch when controller
+ * yesrmal write sja1000 register method overloaded to catch when controller
  * is started or stopped, to control leds
  */
 static void peak_pciec_write_reg(const struct sja1000_priv *priv,
@@ -509,7 +509,7 @@ static void peak_pciec_remove(struct peak_pciec_card *card)
 #else /* CONFIG_CAN_PEAK_PCIEC */
 
 /*
- * Placebo functions when PCAN-ExpressCard support is not selected
+ * Placebo functions when PCAN-ExpressCard support is yest selected
  */
 static inline int peak_pciec_probe(struct pci_dev *pdev, struct net_device *dev)
 {
@@ -626,7 +626,7 @@ static int peak_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		priv->can.clock.freq = PEAK_PCI_CAN_CLOCK;
 		priv->ocr = PEAK_PCI_OCR;
 		priv->cdr = PEAK_PCI_CDR;
-		/* Neither a slave nor a single device distributes the clock */
+		/* Neither a slave yesr a single device distributes the clock */
 		if (channels == 1 || i > 0)
 			priv->cdr |= CDR_CLK_OFF;
 
@@ -710,9 +710,9 @@ failure_disable_pci:
 	pci_disable_device(pdev);
 
 	/* pci_xxx_config_word() return positive PCIBIOS_xxx error codes while
-	 * the probe() function must return a negative errno in case of failure
+	 * the probe() function must return a negative erryes in case of failure
 	 * (err is unchanged if negative) */
-	return pcibios_err_to_errno(err);
+	return pcibios_err_to_erryes(err);
 }
 
 static void peak_pci_remove(struct pci_dev *pdev)

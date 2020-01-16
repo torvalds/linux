@@ -6,11 +6,11 @@
 
 static struct {
 	struct fault_attr attr;
-	bool ignore_gfp_reclaim;
+	bool igyesre_gfp_reclaim;
 	bool cache_filter;
 } failslab = {
 	.attr = FAULT_ATTR_INITIALIZER,
-	.ignore_gfp_reclaim = true,
+	.igyesre_gfp_reclaim = true,
 	.cache_filter = false,
 };
 
@@ -23,7 +23,7 @@ bool __should_failslab(struct kmem_cache *s, gfp_t gfpflags)
 	if (gfpflags & __GFP_NOFAIL)
 		return false;
 
-	if (failslab.ignore_gfp_reclaim &&
+	if (failslab.igyesre_gfp_reclaim &&
 			(gfpflags & __GFP_DIRECT_RECLAIM))
 		return false;
 
@@ -49,8 +49,8 @@ static int __init failslab_debugfs_init(void)
 	if (IS_ERR(dir))
 		return PTR_ERR(dir);
 
-	debugfs_create_bool("ignore-gfp-wait", mode, dir,
-			    &failslab.ignore_gfp_reclaim);
+	debugfs_create_bool("igyesre-gfp-wait", mode, dir,
+			    &failslab.igyesre_gfp_reclaim);
 	debugfs_create_bool("cache-filter", mode, dir,
 			    &failslab.cache_filter);
 

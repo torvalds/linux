@@ -78,7 +78,7 @@ struct ipaq_micro_rxdev {
  * @rx_len: length of receieved RX data
  * @rx_data: RX data to recieve
  * @ack: a completion that will be completed when RX is complete
- * @node: list node if message gets queued
+ * @yesde: list yesde if message gets queued
  */
 struct ipaq_micro_msg {
 	u8 id;
@@ -87,23 +87,23 @@ struct ipaq_micro_msg {
 	u8 rx_len;
 	u8 rx_data[RX_BUF_SIZE];
 	struct completion ack;
-	struct list_head node;
+	struct list_head yesde;
 };
 
 /**
  * struct ipaq_micro - iPAQ microcontroller state
  * @dev: corresponding platform device
  * @base: virtual memory base for underlying serial device
- * @sdlc: virtual memory base for Synchronous Data Link Controller
+ * @sdlc: virtual memory base for Synchroyesus Data Link Controller
  * @version: version string
  * @tx: TX state
  * @rx: RX state
  * @lock: lock for this state container
  * @msg: current message
  * @queue: message queue
- * @key: callback for asynchronous key events
+ * @key: callback for asynchroyesus key events
  * @key_data: data to pass along with key events
- * @ts: callback for asynchronous touchscreen events
+ * @ts: callback for asynchroyesus touchscreen events
  * @ts_data: data to pass along with key events
  */
 struct ipaq_micro {

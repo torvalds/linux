@@ -232,7 +232,7 @@ static int x1205_set_datetime(struct i2c_client *client, struct rtc_time *tm,
 		return -EIO;
 	}
 
-	/* If we wrote to the nonvolatile region, wait 10msec for write cycle*/
+	/* If we wrote to the yesnvolatile region, wait 10msec for write cycle*/
 	if (reg_base < X1205_CCR_BASE) {
 		unsigned char al0e[3] = { 0, X1205_REG_INT, 0 };
 
@@ -430,7 +430,7 @@ static int x1205_validate_client(struct i2c_client *client)
 		xfer = i2c_transfer(client->adapter, msgs, 2);
 		if (xfer != 2) {
 			dev_err(&client->dev,
-				"%s: could not read register %x\n",
+				"%s: could yest read register %x\n",
 				__func__, probe_zero_pattern[i]);
 
 			return -EIO;
@@ -468,7 +468,7 @@ static int x1205_validate_client(struct i2c_client *client)
 		xfer = i2c_transfer(client->adapter, msgs, 2);
 		if (xfer != 2) {
 			dev_err(&client->dev,
-				"%s: could not read register %x\n",
+				"%s: could yest read register %x\n",
 				__func__, probe_limits_pattern[i].reg);
 
 			return -EIO;

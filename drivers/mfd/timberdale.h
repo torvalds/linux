@@ -16,7 +16,7 @@
 /* This driver only support versions >= 3.8 and < 4.0  */
 #define TIMB_SUPPORTED_MAJOR	3
 
-/* This driver only support minor >= 8 */
+/* This driver only support miyesr >= 8 */
 #define TIMB_REQUIRED_MINOR	8
 
 /* Registers of the control area */

@@ -1,11 +1,11 @@
 .. Permission is granted to copy, distribute and/or modify this
 .. document under the terms of the GNU Free Documentation License,
 .. Version 1.1 or any later version published by the Free Software
-.. Foundation, with no Invariant Sections, no Front-Cover Texts
-.. and no Back-Cover Texts. A copy of the license is included at
+.. Foundation, with yes Invariant Sections, yes Front-Cover Texts
+.. and yes Back-Cover Texts. A copy of the license is included at
 .. Documentation/media/uapi/fdl-appendix.rst.
 ..
-.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
+.. TODO: replace it to GFDL-1.1-or-later WITH yes-invariant-sections
 
 .. _VIDIOC_DBG_G_CHIP_INFO:
 
@@ -19,7 +19,7 @@ Name
 VIDIOC_DBG_G_CHIP_INFO - Identify the chips on a TV card
 
 
-Synopsis
+Syyespsis
 ========
 
 .. c:function:: int ioctl( int fd, VIDIOC_DBG_G_CHIP_INFO, struct v4l2_dbg_chip_info *argp )
@@ -39,14 +39,14 @@ Arguments
 Description
 ===========
 
-.. note::
+.. yeste::
 
     This is an :ref:`experimental` interface and may
     change in the future.
 
 For driver debugging purposes this ioctl allows test applications to
 query the driver about the chips present on the TV card. Regular
-applications must not use it. When you found a chip specific bug, please
+applications must yest use it. When you found a chip specific bug, please
 contact the linux-media mailing list
 (`https://linuxtv.org/lists.php <https://linuxtv.org/lists.php>`__)
 so it can be fixed.
@@ -97,7 +97,7 @@ instructions.
       - ``type``
       - See :ref:`name-chip-match-types` for a list of possible types.
     * - union
-      - (anonymous)
+      - (ayesnymous)
     * -
       - __u32
       - ``addr``
@@ -149,7 +149,7 @@ instructions.
 
     * - ``V4L2_CHIP_MATCH_BRIDGE``
       - 0
-      - Match the nth chip on the card, zero for the bridge chip. Does not
+      - Match the nth chip on the card, zero for the bridge chip. Does yest
 	match sub-devices.
     * - ``V4L2_CHIP_MATCH_SUBDEV``
       - 4
@@ -159,9 +159,9 @@ instructions.
 Return Value
 ============
 
-On success 0 is returned, on error -1 and the ``errno`` variable is set
+On success 0 is returned, on error -1 and the ``erryes`` variable is set
 appropriately. The generic error codes are described at the
 :ref:`Generic Error Codes <gen-errors>` chapter.
 
 EINVAL
-    The ``match_type`` is invalid or no device could be matched.
+    The ``match_type`` is invalid or yes device could be matched.

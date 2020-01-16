@@ -23,7 +23,7 @@
 }
 
 static const struct mvpp2_cls_flow cls_flows[MVPP2_N_PRS_FLOWS] = {
-	/* TCP over IPv4 flows, Not fragmented, no vlan tag */
+	/* TCP over IPv4 flows, Not fragmented, yes vlan tag */
 	MVPP2_DEF_FLOW(MVPP22_FLOW_TCP4, MVPP2_FL_IP4_TCP_NF_UNTAG,
 		       MVPP22_CLS_HEK_IP4_5T,
 		       MVPP2_PRS_RI_VLAN_NONE | MVPP2_PRS_RI_L3_IP4 |
@@ -58,7 +58,7 @@ static const struct mvpp2_cls_flow cls_flows[MVPP2_N_PRS_FLOWS] = {
 		       MVPP2_PRS_RI_L3_IP4_OTHER | MVPP2_PRS_RI_L4_TCP,
 		       MVPP2_PRS_IP_MASK),
 
-	/* TCP over IPv4 flows, fragmented, no vlan tag */
+	/* TCP over IPv4 flows, fragmented, yes vlan tag */
 	MVPP2_DEF_FLOW(MVPP22_FLOW_TCP4, MVPP2_FL_IP4_TCP_FRAG_UNTAG,
 		       MVPP22_CLS_HEK_IP4_2T,
 		       MVPP2_PRS_RI_VLAN_NONE | MVPP2_PRS_RI_L3_IP4 |
@@ -93,7 +93,7 @@ static const struct mvpp2_cls_flow cls_flows[MVPP2_N_PRS_FLOWS] = {
 		       MVPP2_PRS_RI_L3_IP4_OTHER | MVPP2_PRS_RI_L4_TCP,
 		       MVPP2_PRS_IP_MASK),
 
-	/* UDP over IPv4 flows, Not fragmented, no vlan tag */
+	/* UDP over IPv4 flows, Not fragmented, yes vlan tag */
 	MVPP2_DEF_FLOW(MVPP22_FLOW_UDP4, MVPP2_FL_IP4_UDP_NF_UNTAG,
 		       MVPP22_CLS_HEK_IP4_5T,
 		       MVPP2_PRS_RI_VLAN_NONE | MVPP2_PRS_RI_L3_IP4 |
@@ -128,7 +128,7 @@ static const struct mvpp2_cls_flow cls_flows[MVPP2_N_PRS_FLOWS] = {
 		       MVPP2_PRS_RI_L3_IP4_OTHER | MVPP2_PRS_RI_L4_UDP,
 		       MVPP2_PRS_IP_MASK),
 
-	/* UDP over IPv4 flows, fragmented, no vlan tag */
+	/* UDP over IPv4 flows, fragmented, yes vlan tag */
 	MVPP2_DEF_FLOW(MVPP22_FLOW_UDP4, MVPP2_FL_IP4_UDP_FRAG_UNTAG,
 		       MVPP22_CLS_HEK_IP4_2T,
 		       MVPP2_PRS_RI_VLAN_NONE | MVPP2_PRS_RI_L3_IP4 |
@@ -163,7 +163,7 @@ static const struct mvpp2_cls_flow cls_flows[MVPP2_N_PRS_FLOWS] = {
 		       MVPP2_PRS_RI_L3_IP4_OTHER | MVPP2_PRS_RI_L4_UDP,
 		       MVPP2_PRS_IP_MASK),
 
-	/* TCP over IPv6 flows, not fragmented, no vlan tag */
+	/* TCP over IPv6 flows, yest fragmented, yes vlan tag */
 	MVPP2_DEF_FLOW(MVPP22_FLOW_TCP6, MVPP2_FL_IP6_TCP_NF_UNTAG,
 		       MVPP22_CLS_HEK_IP6_5T,
 		       MVPP2_PRS_RI_VLAN_NONE | MVPP2_PRS_RI_L3_IP6 |
@@ -176,7 +176,7 @@ static const struct mvpp2_cls_flow cls_flows[MVPP2_N_PRS_FLOWS] = {
 		       MVPP2_PRS_RI_L4_TCP,
 		       MVPP2_PRS_IP_MASK | MVPP2_PRS_RI_VLAN_MASK),
 
-	/* TCP over IPv6 flows, not fragmented, with vlan tag */
+	/* TCP over IPv6 flows, yest fragmented, with vlan tag */
 	MVPP2_DEF_FLOW(MVPP22_FLOW_TCP6, MVPP2_FL_IP6_TCP_NF_TAG,
 		       MVPP22_CLS_HEK_IP6_5T | MVPP22_CLS_HEK_TAGGED,
 		       MVPP2_PRS_RI_L3_IP6 | MVPP2_PRS_RI_L4_TCP,
@@ -187,7 +187,7 @@ static const struct mvpp2_cls_flow cls_flows[MVPP2_N_PRS_FLOWS] = {
 		       MVPP2_PRS_RI_L3_IP6_EXT | MVPP2_PRS_RI_L4_TCP,
 		       MVPP2_PRS_IP_MASK),
 
-	/* TCP over IPv6 flows, fragmented, no vlan tag */
+	/* TCP over IPv6 flows, fragmented, yes vlan tag */
 	MVPP2_DEF_FLOW(MVPP22_FLOW_TCP6, MVPP2_FL_IP6_TCP_FRAG_UNTAG,
 		       MVPP22_CLS_HEK_IP6_2T,
 		       MVPP2_PRS_RI_VLAN_NONE | MVPP2_PRS_RI_L3_IP6 |
@@ -213,7 +213,7 @@ static const struct mvpp2_cls_flow cls_flows[MVPP2_N_PRS_FLOWS] = {
 		       MVPP2_PRS_RI_L4_TCP,
 		       MVPP2_PRS_IP_MASK),
 
-	/* UDP over IPv6 flows, not fragmented, no vlan tag */
+	/* UDP over IPv6 flows, yest fragmented, yes vlan tag */
 	MVPP2_DEF_FLOW(MVPP22_FLOW_UDP6, MVPP2_FL_IP6_UDP_NF_UNTAG,
 		       MVPP22_CLS_HEK_IP6_5T,
 		       MVPP2_PRS_RI_VLAN_NONE | MVPP2_PRS_RI_L3_IP6 |
@@ -226,7 +226,7 @@ static const struct mvpp2_cls_flow cls_flows[MVPP2_N_PRS_FLOWS] = {
 		       MVPP2_PRS_RI_L4_UDP,
 		       MVPP2_PRS_IP_MASK | MVPP2_PRS_RI_VLAN_MASK),
 
-	/* UDP over IPv6 flows, not fragmented, with vlan tag */
+	/* UDP over IPv6 flows, yest fragmented, with vlan tag */
 	MVPP2_DEF_FLOW(MVPP22_FLOW_UDP6, MVPP2_FL_IP6_UDP_NF_TAG,
 		       MVPP22_CLS_HEK_IP6_5T | MVPP22_CLS_HEK_TAGGED,
 		       MVPP2_PRS_RI_L3_IP6 | MVPP2_PRS_RI_L4_UDP,
@@ -237,7 +237,7 @@ static const struct mvpp2_cls_flow cls_flows[MVPP2_N_PRS_FLOWS] = {
 		       MVPP2_PRS_RI_L3_IP6_EXT | MVPP2_PRS_RI_L4_UDP,
 		       MVPP2_PRS_IP_MASK),
 
-	/* UDP over IPv6 flows, fragmented, no vlan tag */
+	/* UDP over IPv6 flows, fragmented, yes vlan tag */
 	MVPP2_DEF_FLOW(MVPP22_FLOW_UDP6, MVPP2_FL_IP6_UDP_FRAG_UNTAG,
 		       MVPP22_CLS_HEK_IP6_2T,
 		       MVPP2_PRS_RI_VLAN_NONE | MVPP2_PRS_RI_L3_IP6 |
@@ -263,7 +263,7 @@ static const struct mvpp2_cls_flow cls_flows[MVPP2_N_PRS_FLOWS] = {
 		       MVPP2_PRS_RI_L4_UDP,
 		       MVPP2_PRS_IP_MASK),
 
-	/* IPv4 flows, no vlan tag */
+	/* IPv4 flows, yes vlan tag */
 	MVPP2_DEF_FLOW(MVPP22_FLOW_IP4, MVPP2_FL_IP4_UNTAG,
 		       MVPP22_CLS_HEK_IP4_2T,
 		       MVPP2_PRS_RI_VLAN_NONE | MVPP2_PRS_RI_L3_IP4,
@@ -291,7 +291,7 @@ static const struct mvpp2_cls_flow cls_flows[MVPP2_N_PRS_FLOWS] = {
 		       MVPP2_PRS_RI_L3_IP4_OTHER,
 		       MVPP2_PRS_RI_L3_PROTO_MASK),
 
-	/* IPv6 flows, no vlan tag */
+	/* IPv6 flows, yes vlan tag */
 	MVPP2_DEF_FLOW(MVPP22_FLOW_IP6, MVPP2_FL_IP6_UNTAG,
 		       MVPP22_CLS_HEK_IP6_2T,
 		       MVPP2_PRS_RI_VLAN_NONE | MVPP2_PRS_RI_L3_IP6,
@@ -311,7 +311,7 @@ static const struct mvpp2_cls_flow cls_flows[MVPP2_N_PRS_FLOWS] = {
 		       MVPP2_PRS_RI_L3_IP6,
 		       MVPP2_PRS_RI_L3_PROTO_MASK),
 
-	/* Non IP flow, no vlan tag */
+	/* Non IP flow, yes vlan tag */
 	MVPP2_DEF_FLOW(MVPP22_FLOW_ETHERNET, MVPP2_FL_NON_IP_UNTAG,
 		       0,
 		       MVPP2_PRS_RI_VLAN_NONE,
@@ -1116,7 +1116,7 @@ static int mvpp2_port_c2_tcam_rule_add(struct mvpp2_port *port,
 		/* We want to keep the default color derived from the Header
 		 * Parser drop entries, for VLAN and MAC filtering. This will
 		 * assign a default color of Green or Red, and we want matches
-		 * with a non-drop action to keep that color.
+		 * with a yesn-drop action to keep that color.
 		 */
 		c2.act = MVPP22_CLS_C2_ACT_COLOR(MVPP22_C2_COL_NO_UPD_LOCK);
 
@@ -1316,7 +1316,7 @@ static int mvpp2_cls_rfs_parse_rule(struct mvpp2_rfs_rule *rule)
 	if (act->queue.ctx && act->queue.index)
 		return -EOPNOTSUPP;
 
-	/* For now, only use the C2 engine which has a HEK size limited to 64
+	/* For yesw, only use the C2 engine which has a HEK size limited to 64
 	 * bits for TCAM matching.
 	 */
 	rule->engine = MVPP22_CLS_ENGINE_C2;

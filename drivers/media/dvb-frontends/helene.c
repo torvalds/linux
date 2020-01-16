@@ -523,7 +523,7 @@ static int helene_set_params_s(struct dvb_frontend *fe)
 	tv_system = helene_get_tv_system(fe);
 
 	if (tv_system == SONY_HELENE_TV_SYSTEM_UNKNOWN) {
-		dev_err(&priv->i2c->dev, "%s(): unknown DTV system\n",
+		dev_err(&priv->i2c->dev, "%s(): unkyeswn DTV system\n",
 				__func__);
 		return -EINVAL;
 	}
@@ -569,7 +569,7 @@ static int helene_set_params_s(struct dvb_frontend *fe)
 		data[2] = 0x05;
 		break;
 	default:
-		dev_err(&priv->i2c->dev, "%s(): unknown xtal %d\n",
+		dev_err(&priv->i2c->dev, "%s(): unkyeswn xtal %d\n",
 				__func__, priv->xtal);
 		return -EINVAL;
 	}
@@ -627,7 +627,7 @@ static int helene_set_params_s(struct dvb_frontend *fe)
 			data[11] = 36; /* 5 <= lpf_cutoff <= 36 is valid */
 		break;
 	default:
-		dev_err(&priv->i2c->dev, "%s(): unknown standard %d\n",
+		dev_err(&priv->i2c->dev, "%s(): unkyeswn standard %d\n",
 				__func__, tv_system);
 		return -EINVAL;
 	}
@@ -671,7 +671,7 @@ static int helene_set_params_t(struct dvb_frontend *fe)
 	tv_system = helene_get_tv_system(fe);
 
 	if (tv_system == SONY_HELENE_TV_SYSTEM_UNKNOWN) {
-		dev_dbg(&priv->i2c->dev, "%s(): unknown DTV system\n",
+		dev_dbg(&priv->i2c->dev, "%s(): unkyeswn DTV system\n",
 				__func__);
 		return -EINVAL;
 	}

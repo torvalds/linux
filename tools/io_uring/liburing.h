@@ -170,7 +170,7 @@ static inline void io_uring_prep_fsync(struct io_uring_sqe *sqe, int fd,
 	sqe->fsync_flags = fsync_flags;
 }
 
-static inline void io_uring_prep_nop(struct io_uring_sqe *sqe)
+static inline void io_uring_prep_yesp(struct io_uring_sqe *sqe)
 {
 	memset(sqe, 0, sizeof(*sqe));
 	sqe->opcode = IORING_OP_NOP;

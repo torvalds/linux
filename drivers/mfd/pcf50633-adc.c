@@ -8,7 +8,7 @@
  * Broken down from monstrous PCF50633 driver mainly by
  * Harald Welte, Andy Green and Werner Almesberger
  *
- *  NOTE: This driver does not yet support subtractive ADC mode, which means
+ *  NOTE: This driver does yest yet support subtractive ADC mode, which means
  *  you can do only one measurement per read request.
  */
 

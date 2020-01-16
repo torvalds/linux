@@ -1,11 +1,11 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * mtip32xx.h - Header file for the P320 SSD Block Driver
- *   Copyright (C) 2011 Micron Technology, Inc.
+ *   Copyright (C) 2011 Micron Techyeslogy, Inc.
  *
  * Portions of this code were derived from works subjected to the
  * following copyright:
- *    Copyright (C) 2009 Integrated Device Technology, Inc.
+ *    Copyright (C) 2009 Integrated Device Techyeslogy, Inc.
  */
 
 #ifndef __MTIP32XX_H__
@@ -86,7 +86,7 @@
 #define MTIP_DRV_NAME		"mtip32xx"
 #define MTIP_DRV_VERSION	"1.3.1"
 
-/* Maximum number of minor device numbers per device. */
+/* Maximum number of miyesr device numbers per device. */
 #define MTIP_MAX_MINORS		16
 
 /* Maximum number of supported command slots. */
@@ -447,11 +447,11 @@ struct driver_data {
 
 	struct task_struct *mtip_svc_handler; /* task_struct of svc thd */
 
-	struct dentry *dfs_node;
+	struct dentry *dfs_yesde;
 
 	bool sr;
 
-	int numa_node; /* NUMA support */
+	int numa_yesde; /* NUMA support */
 
 	char workq_name[32];
 

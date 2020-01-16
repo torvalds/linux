@@ -2,7 +2,7 @@
 /*
  * Microchip KSZ9477 register definitions
  *
- * Copyright (C) 2017-2018 Microchip Technology Inc.
+ * Copyright (C) 2017-2018 Microchip Techyeslogy Inc.
  */
 
 #ifndef __KSZ9477_REGS_H

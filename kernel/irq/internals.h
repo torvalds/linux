@@ -2,9 +2,9 @@
 /*
  * IRQ subsystem internal functions and variables:
  *
- * Do not ever include this file from anything else than
- * kernel/irq/. Do not even think about using any information outside
- * of this file for your non core code.
+ * Do yest ever include this file from anything else than
+ * kernel/irq/. Do yest even think about using any information outside
+ * of this file for your yesn core code.
  */
 #include <linux/irqdesc.h>
 #include <linux/kernel_stat.h>
@@ -17,9 +17,9 @@
 # define IRQ_BITMAP_BITS	NR_IRQS
 #endif
 
-#define istate core_internal_state__do_not_mess_with_it
+#define istate core_internal_state__do_yest_mess_with_it
 
-extern bool noirqdebug;
+extern bool yesirqdebug;
 
 extern struct irqaction chained_action;
 
@@ -38,13 +38,13 @@ enum {
 };
 
 /*
- * Bit masks for desc->core_internal_state__do_not_mess_with_it
+ * Bit masks for desc->core_internal_state__do_yest_mess_with_it
  *
  * IRQS_AUTODETECT		- autodetection in progress
  * IRQS_SPURIOUS_DISABLED	- was disabled due to spurious interrupt
  *				  detection
  * IRQS_POLL_INPROGRESS		- polling in progress
- * IRQS_ONESHOT			- irq is not unmasked in primary handler
+ * IRQS_ONESHOT			- irq is yest unmasked in primary handler
  * IRQS_REPLAY			- irq is replayed
  * IRQS_WAITING			- irq is waiting
  * IRQS_PENDING			- irq is pending and replayed later
@@ -101,7 +101,7 @@ extern int __irq_get_irqchip_state(struct irq_data *data,
 				   enum irqchip_irq_state which,
 				   bool *state);
 
-extern void init_kstat_irqs(struct irq_desc *desc, int node, int nr);
+extern void init_kstat_irqs(struct irq_desc *desc, int yesde, int nr);
 
 irqreturn_t __handle_irq_event_percpu(struct irq_desc *desc, unsigned int *flags);
 irqreturn_t handle_irq_event_percpu(struct irq_desc *desc);
@@ -261,9 +261,9 @@ static inline void kstat_incr_irqs_this_cpu(struct irq_desc *desc)
 	desc->tot_count++;
 }
 
-static inline int irq_desc_get_node(struct irq_desc *desc)
+static inline int irq_desc_get_yesde(struct irq_desc *desc)
 {
-	return irq_common_data_get_node(&desc->irq_common_data);
+	return irq_common_data_get_yesde(&desc->irq_common_data);
 }
 
 static inline int irq_desc_is_chained(struct irq_desc *desc)
@@ -318,14 +318,14 @@ static inline void irq_setup_timings(struct irq_desc *desc, struct irqaction *ac
 
 	/*
 	 * We don't need the measurement because the idle code already
-	 * knows the next expiry event.
+	 * kyesws the next expiry event.
 	 */
 	if (act->flags & __IRQF_TIMER)
 		return;
 
 	/*
 	 * In case the timing allocation fails, we just want to warn,
-	 * not fail, so letting the system boot anyway.
+	 * yest fail, so letting the system boot anyway.
 	 */
 	ret = irq_timings_alloc(irq);
 	if (ret) {
@@ -375,7 +375,7 @@ static __always_inline void irq_timings_push(u64 ts, int irq)
  * inside is embedded in the function and the static key branching
  * code can act at the higher level. Without the explicit
  * __always_inline we can end up with a function call and a small
- * overhead in the hotpath for nothing.
+ * overhead in the hotpath for yesthing.
  */
 static __always_inline void record_irq_time(struct irq_desc *desc)
 {

@@ -43,7 +43,7 @@ static irqreturn_t fsl_sai_isr(int irq, void *devid)
 	unsigned int ofs = sai->soc_data->reg_offset;
 	struct device *dev = &sai->pdev->dev;
 	u32 flags, xcsr, mask;
-	bool irq_none = true;
+	bool irq_yesne = true;
 
 	/*
 	 * Both IRQ status bits and IRQ mask bits are in the xCSR but
@@ -57,7 +57,7 @@ static irqreturn_t fsl_sai_isr(int irq, void *devid)
 	flags = xcsr & mask;
 
 	if (flags)
-		irq_none = false;
+		irq_yesne = false;
 	else
 		goto irq_rx;
 
@@ -91,7 +91,7 @@ irq_rx:
 	flags = xcsr & mask;
 
 	if (flags)
-		irq_none = false;
+		irq_yesne = false;
 	else
 		goto out;
 
@@ -120,7 +120,7 @@ irq_rx:
 		regmap_write(sai->regmap, FSL_SAI_RCSR(ofs), flags | xcsr);
 
 out:
-	if (irq_none)
+	if (irq_yesne)
 		return IRQ_NONE;
 	else
 		return IRQ_HANDLED;
@@ -189,14 +189,14 @@ static int fsl_sai_set_dai_sysclk(struct snd_soc_dai *cpu_dai,
 	ret = fsl_sai_set_dai_sysclk_tr(cpu_dai, clk_id, freq,
 					FSL_FMT_TRANSMITTER);
 	if (ret) {
-		dev_err(cpu_dai->dev, "Cannot set tx sysclk: %d\n", ret);
+		dev_err(cpu_dai->dev, "Canyest set tx sysclk: %d\n", ret);
 		return ret;
 	}
 
 	ret = fsl_sai_set_dai_sysclk_tr(cpu_dai, clk_id, freq,
 					FSL_FMT_RECEIVER);
 	if (ret)
-		dev_err(cpu_dai->dev, "Cannot set rx sysclk: %d\n", ret);
+		dev_err(cpu_dai->dev, "Canyest set rx sysclk: %d\n", ret);
 
 	return ret;
 }
@@ -272,7 +272,7 @@ static int fsl_sai_set_dai_fmt_tr(struct snd_soc_dai *cpu_dai,
 		val_cr4 ^= FSL_SAI_CR4_FSP;
 		break;
 	case SND_SOC_DAIFMT_NB_NF:
-		/* Nothing to do for both normal cases */
+		/* Nothing to do for both yesrmal cases */
 		break;
 	default:
 		return -EINVAL;
@@ -315,13 +315,13 @@ static int fsl_sai_set_dai_fmt(struct snd_soc_dai *cpu_dai, unsigned int fmt)
 
 	ret = fsl_sai_set_dai_fmt_tr(cpu_dai, fmt, FSL_FMT_TRANSMITTER);
 	if (ret) {
-		dev_err(cpu_dai->dev, "Cannot set tx format: %d\n", ret);
+		dev_err(cpu_dai->dev, "Canyest set tx format: %d\n", ret);
 		return ret;
 	}
 
 	ret = fsl_sai_set_dai_fmt_tr(cpu_dai, fmt, FSL_FMT_RECEIVER);
 	if (ret)
-		dev_err(cpu_dai->dev, "Cannot set rx format: %d\n", ret);
+		dev_err(cpu_dai->dev, "Canyest set rx format: %d\n", ret);
 
 	return ret;
 }
@@ -349,7 +349,7 @@ static int fsl_sai_set_bclk(struct snd_soc_dai *dai, bool tx, u32 freq)
 		ret = clk_rate - ratio * freq;
 
 		/*
-		 * Drop the source that can not be
+		 * Drop the source that can yest be
 		 * divided into the required rate.
 		 */
 		if (ret != 0 && clk_rate / ret < 1000)
@@ -381,24 +381,24 @@ static int fsl_sai_set_bclk(struct snd_soc_dai *dai, bool tx, u32 freq)
 	}
 
 	/*
-	 * 1) For Asynchronous mode, we must set RCR2 register for capture, and
+	 * 1) For Asynchroyesus mode, we must set RCR2 register for capture, and
 	 *    set TCR2 register for playback.
 	 * 2) For Tx sync with Rx clock, we must set RCR2 register for playback
 	 *    and capture.
 	 * 3) For Rx sync with Tx clock, we must set TCR2 register for playback
 	 *    and capture.
-	 * 4) For Tx and Rx are both Synchronous with another SAI, we just
-	 *    ignore it.
+	 * 4) For Tx and Rx are both Synchroyesus with ayesther SAI, we just
+	 *    igyesre it.
 	 */
-	if ((sai->synchronous[TX] && !sai->synchronous[RX]) ||
-	    (!tx && !sai->synchronous[RX])) {
+	if ((sai->synchroyesus[TX] && !sai->synchroyesus[RX]) ||
+	    (!tx && !sai->synchroyesus[RX])) {
 		regmap_update_bits(sai->regmap, FSL_SAI_RCR2(ofs),
 				   FSL_SAI_CR2_MSEL_MASK,
 				   FSL_SAI_CR2_MSEL(sai->mclk_id[tx]));
 		regmap_update_bits(sai->regmap, FSL_SAI_RCR2(ofs),
 				   FSL_SAI_CR2_DIV_MASK, savediv - 1);
-	} else if ((sai->synchronous[RX] && !sai->synchronous[TX]) ||
-		   (tx && !sai->synchronous[TX])) {
+	} else if ((sai->synchroyesus[RX] && !sai->synchroyesus[TX]) ||
+		   (tx && !sai->synchroyesus[TX])) {
 		regmap_update_bits(sai->regmap, FSL_SAI_TCR2(ofs),
 				   FSL_SAI_CR2_MSEL_MASK,
 				   FSL_SAI_CR2_MSEL(sai->mclk_id[tx]));
@@ -444,7 +444,7 @@ static int fsl_sai_hw_params(struct snd_pcm_substream *substream,
 		if (ret)
 			return ret;
 
-		/* Do not enable the clock if it is already enabled */
+		/* Do yest enable the clock if it is already enabled */
 		if (!(sai->mclk_streams & BIT(substream->stream))) {
 			ret = clk_prepare_enable(sai->mclk_clk[sai->mclk_id[tx]]);
 			if (ret)
@@ -475,7 +475,7 @@ static int fsl_sai_hw_params(struct snd_pcm_substream *substream,
 	 */
 
 	if (!sai->is_slave_mode) {
-		if (!sai->synchronous[TX] && sai->synchronous[RX] && !tx) {
+		if (!sai->synchroyesus[TX] && sai->synchroyesus[RX] && !tx) {
 			regmap_update_bits(sai->regmap, FSL_SAI_TCR4(ofs),
 				FSL_SAI_CR4_SYWD_MASK | FSL_SAI_CR4_FRSZ_MASK,
 				val_cr4);
@@ -484,7 +484,7 @@ static int fsl_sai_hw_params(struct snd_pcm_substream *substream,
 				FSL_SAI_CR5_FBT_MASK, val_cr5);
 			regmap_write(sai->regmap, FSL_SAI_TMR,
 				~0UL - ((1 << channels) - 1));
-		} else if (!sai->synchronous[RX] && sai->synchronous[TX] && tx) {
+		} else if (!sai->synchroyesus[RX] && sai->synchroyesus[TX] && tx) {
 			regmap_update_bits(sai->regmap, FSL_SAI_RCR4(ofs),
 				FSL_SAI_CR4_SYWD_MASK | FSL_SAI_CR4_FRSZ_MASK,
 				val_cr4);
@@ -533,14 +533,14 @@ static int fsl_sai_trigger(struct snd_pcm_substream *substream, int cmd,
 	u32 xcsr, count = 100;
 
 	/*
-	 * Asynchronous mode: Clear SYNC for both Tx and Rx.
+	 * Asynchroyesus mode: Clear SYNC for both Tx and Rx.
 	 * Rx sync with Tx clocks: Clear SYNC for Tx, set it for Rx.
 	 * Tx sync with Rx clocks: Clear SYNC for Rx, set it for Tx.
 	 */
 	regmap_update_bits(sai->regmap, FSL_SAI_TCR2(ofs), FSL_SAI_CR2_SYNC,
-			   sai->synchronous[TX] ? FSL_SAI_CR2_SYNC : 0);
+			   sai->synchroyesus[TX] ? FSL_SAI_CR2_SYNC : 0);
 	regmap_update_bits(sai->regmap, FSL_SAI_RCR2(ofs), FSL_SAI_CR2_SYNC,
-			   sai->synchronous[RX] ? FSL_SAI_CR2_SYNC : 0);
+			   sai->synchroyesus[RX] ? FSL_SAI_CR2_SYNC : 0);
 
 	/*
 	 * It is recommended that the transmitter is the last enabled
@@ -592,7 +592,7 @@ static int fsl_sai_trigger(struct snd_pcm_substream *substream, int cmd,
 
 			/*
 			 * For sai master mode, after several open/close sai,
-			 * there will be no frame clock, and can't recover
+			 * there will be yes frame clock, and can't recover
 			 * anymore. Add software reset to fix this issue.
 			 * This is a hardware bug, and will be fix in the
 			 * next sai version.
@@ -894,7 +894,7 @@ static struct regmap_config fsl_sai_regmap_config = {
 
 static int fsl_sai_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	struct fsl_sai *sai;
 	struct regmap *gpr;
 	struct resource *res;
@@ -965,27 +965,27 @@ static int fsl_sai_probe(struct platform_device *pdev)
 	}
 
 	/* Sync Tx with Rx as default by following old DT binding */
-	sai->synchronous[RX] = true;
-	sai->synchronous[TX] = false;
+	sai->synchroyesus[RX] = true;
+	sai->synchroyesus[TX] = false;
 	fsl_sai_dai.symmetric_rates = 1;
 	fsl_sai_dai.symmetric_channels = 1;
 	fsl_sai_dai.symmetric_samplebits = 1;
 
-	if (of_find_property(np, "fsl,sai-synchronous-rx", NULL) &&
-	    of_find_property(np, "fsl,sai-asynchronous", NULL)) {
-		/* error out if both synchronous and asynchronous are present */
-		dev_err(&pdev->dev, "invalid binding for synchronous mode\n");
+	if (of_find_property(np, "fsl,sai-synchroyesus-rx", NULL) &&
+	    of_find_property(np, "fsl,sai-asynchroyesus", NULL)) {
+		/* error out if both synchroyesus and asynchroyesus are present */
+		dev_err(&pdev->dev, "invalid binding for synchroyesus mode\n");
 		return -EINVAL;
 	}
 
-	if (of_find_property(np, "fsl,sai-synchronous-rx", NULL)) {
+	if (of_find_property(np, "fsl,sai-synchroyesus-rx", NULL)) {
 		/* Sync Rx with Tx */
-		sai->synchronous[RX] = false;
-		sai->synchronous[TX] = true;
-	} else if (of_find_property(np, "fsl,sai-asynchronous", NULL)) {
-		/* Discard all settings for asynchronous mode */
-		sai->synchronous[RX] = false;
-		sai->synchronous[TX] = false;
+		sai->synchroyesus[RX] = false;
+		sai->synchroyesus[TX] = true;
+	} else if (of_find_property(np, "fsl,sai-asynchroyesus", NULL)) {
+		/* Discard all settings for asynchroyesus mode */
+		sai->synchroyesus[RX] = false;
+		sai->synchroyesus[TX] = false;
 		fsl_sai_dai.symmetric_rates = 0;
 		fsl_sai_dai.symmetric_channels = 0;
 		fsl_sai_dai.symmetric_samplebits = 0;
@@ -995,7 +995,7 @@ static int fsl_sai_probe(struct platform_device *pdev)
 	    of_device_is_compatible(np, "fsl,imx6ul-sai")) {
 		gpr = syscon_regmap_lookup_by_compatible("fsl,imx6ul-iomuxc-gpr");
 		if (IS_ERR(gpr)) {
-			dev_err(&pdev->dev, "cannot find iomuxc registers\n");
+			dev_err(&pdev->dev, "canyest find iomuxc registers\n");
 			return PTR_ERR(gpr);
 		}
 

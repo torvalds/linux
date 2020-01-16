@@ -1,7 +1,7 @@
 #!/bin/bash
 # SPDX-License-Identifier: GPL-2.0
 
-# This test is for checking VXLAN underlay in a non-default VRF.
+# This test is for checking VXLAN underlay in a yesn-default VRF.
 #
 # It simulates two hypervisors running a VM each using four network namespaces:
 # two for the HVs, two for the VMs.
@@ -116,7 +116,7 @@ echo -n "Check VM connectivity through VXLAN (underlay in the default VRF)  "
 ip netns exec vm-1 ping -c 1 -W 1 10.0.0.2 &> /dev/null || (echo "[FAIL]"; false)
 echo "[ OK ]"
 
-# Move the underlay to a non-default VRF
+# Move the underlay to a yesn-default VRF
 ip -netns hv-1 link set veth0 vrf vrf-underlay
 ip -netns hv-1 link set veth0 down
 ip -netns hv-1 link set veth0 up

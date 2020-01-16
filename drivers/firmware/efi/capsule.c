@@ -43,8 +43,8 @@ static DEFINE_MUTEX(capsule_mutex);
  * will miss the updates to capsule_pending and efi_reset_type after
  * efi_capsule_update_locked() completes.
  *
- * A non-racy use is from platform reboot code because we use
- * system_state to ensure no capsules can be sent to the firmware once
+ * A yesn-racy use is from platform reboot code because we use
+ * system_state to ensure yes capsules can be sent to the firmware once
  * we're at SYSTEM_RESTART. See efi_capsule_update_locked().
  */
 bool efi_capsule_pending(int *reset_type)
@@ -61,9 +61,9 @@ bool efi_capsule_pending(int *reset_type)
 /*
  * Whitelist of EFI capsule flags that we support.
  *
- * We do not handle EFI_CAPSULE_INITIATE_RESET because that would
+ * We do yest handle EFI_CAPSULE_INITIATE_RESET because that would
  * require us to prepare the kernel for reboot. Refuse to load any
- * capsules with that flag and any other flags that we do not know how
+ * capsules with that flag and any other flags that we do yest kyesw how
  * to handle.
  */
 #define EFI_CAPSULE_SUPPORTED_FLAG_MASK			\
@@ -200,7 +200,7 @@ efi_capsule_update_locked(efi_capsule_header_t *capsule,
  *
  * If the capsule is successfully submitted to the firmware, any
  * subsequent calls to efi_capsule_pending() will return true. @pages
- * must not be released or modified if this function returns
+ * must yest be released or modified if this function returns
  * successfully.
  *
  * Callers must be prepared for this function to fail, which can
@@ -283,7 +283,7 @@ out:
 }
 EXPORT_SYMBOL_GPL(efi_capsule_update);
 
-static int capsule_reboot_notify(struct notifier_block *nb, unsigned long event, void *cmd)
+static int capsule_reboot_yestify(struct yestifier_block *nb, unsigned long event, void *cmd)
 {
 	mutex_lock(&capsule_mutex);
 	stop_capsules = true;
@@ -292,12 +292,12 @@ static int capsule_reboot_notify(struct notifier_block *nb, unsigned long event,
 	return NOTIFY_DONE;
 }
 
-static struct notifier_block capsule_reboot_nb = {
-	.notifier_call = capsule_reboot_notify,
+static struct yestifier_block capsule_reboot_nb = {
+	.yestifier_call = capsule_reboot_yestify,
 };
 
 static int __init capsule_reboot_register(void)
 {
-	return register_reboot_notifier(&capsule_reboot_nb);
+	return register_reboot_yestifier(&capsule_reboot_nb);
 }
 core_initcall(capsule_reboot_register);

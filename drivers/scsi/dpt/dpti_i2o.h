@@ -16,7 +16,7 @@
 
 #include <linux/i2o-dev.h>
 
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/atomic.h>
 
 
@@ -87,7 +87,7 @@ struct i2o_controller
 	int type;
 	int enabled;
 
-	struct notifier_block *event_notifer;	/* Events */
+	struct yestifier_block *event_yestifer;	/* Events */
 	atomic_t users;
 	struct i2o_device *devices;		/* I2O device chain */
 	struct i2o_controller *next;		/* Controller chain */

@@ -59,7 +59,7 @@
 #define DNS323C_GPIO_FAN_BIT1		18
 #define DNS323C_GPIO_FAN_BIT0		19
 
-/* Exposed to userspace, do not change */
+/* Exposed to userspace, do yest change */
 enum {
 	DNS323_REV_A1,	/* 0 */
 	DNS323_REV_B1,	/* 1 */
@@ -143,25 +143,25 @@ static struct mtd_partition dns323_partitions[] = {
 	},
 };
 
-static struct physmap_flash_data dns323_nor_flash_data = {
+static struct physmap_flash_data dns323_yesr_flash_data = {
 	.width		= 1,
 	.parts		= dns323_partitions,
 	.nr_parts	= ARRAY_SIZE(dns323_partitions)
 };
 
-static struct resource dns323_nor_flash_resource = {
+static struct resource dns323_yesr_flash_resource = {
 	.flags		= IORESOURCE_MEM,
 	.start		= DNS323_NOR_BOOT_BASE,
 	.end		= DNS323_NOR_BOOT_BASE + DNS323_NOR_BOOT_SIZE - 1,
 };
 
-static struct platform_device dns323_nor_flash = {
+static struct platform_device dns323_yesr_flash = {
 	.name		= "physmap-flash",
 	.id		= 0,
 	.dev		= {
-		.platform_data	= &dns323_nor_flash_data,
+		.platform_data	= &dns323_yesr_flash_data,
 	},
-	.resource	= &dns323_nor_flash_resource,
+	.resource	= &dns323_yesr_flash_resource,
 	.num_resources	= 1,
 };
 
@@ -434,7 +434,7 @@ static unsigned int dns323c_mpp_modes[] __initdata = {
 	0,
 };
 
-/* Rev C1 Fan speed notes:
+/* Rev C1 Fan speed yestes:
  *
  * The fan is controlled by 2 GPIOs on this board. The settings
  * of the bits is as follow:
@@ -567,7 +567,7 @@ static int __init dns323_identify_rev(void)
 
 	/* Note: the Marvell tools mask the ID with 0x3f0 before comparison
 	 * but I don't see that making a difference here, at least with
-	 * any known Marvell PHY ID
+	 * any kyeswn Marvell PHY ID
 	 */
 	switch(reg & 0xfff0) {
 	case 0x0cc0: /* MV88E1111 */
@@ -575,7 +575,7 @@ static int __init dns323_identify_rev(void)
 	case 0x0e10: /* MV88E1118 */
 		return DNS323_REV_C1;
 	default:
-		pr_warn("DNS-323: Unknown PHY ID 0x%04x, assuming rev B1\n",
+		pr_warn("DNS-323: Unkyeswn PHY ID 0x%04x, assuming rev B1\n",
 			reg & 0xffff);
 	}
 	return DNS323_REV_B1;
@@ -613,7 +613,7 @@ static void __init dns323_init(void)
 				    ORION_MBUS_DEVBUS_BOOT_ATTR,
 				    DNS323_NOR_BOOT_BASE,
 				    DNS323_NOR_BOOT_SIZE);
-	platform_device_register(&dns323_nor_flash);
+	platform_device_register(&dns323_yesr_flash);
 
 	/* Sort out LEDs, Buttons and i2c devices */
 	switch(system_rev) {
@@ -674,7 +674,7 @@ static void __init dns323_init(void)
 		orion5x_sata_init(&dns323_sata_data);
 
 		/* The DNS323 rev B1 has flag to indicate the system is up.
-		 * Without this flag set, power LED will flash and cannot be
+		 * Without this flag set, power LED will flash and canyest be
 		 * controlled via leds-gpio.
 		 */
 		if (gpio_request(DNS323_GPIO_SYSTEM_UP, "SYS_READY") == 0)
@@ -699,7 +699,7 @@ static void __init dns323_init(void)
 		/* Now, -this- should theorically be done by the sata_mv driver
 		 * once I figure out what's going on there. Maybe the behaviour
 		 * of the LEDs should be somewhat passed via the platform_data.
-		 * for now, just whack the register and make the LEDs happy
+		 * for yesw, just whack the register and make the LEDs happy
 		 *
 		 * Note: AFAIK, rev B1 needs the same treatement but I'll let
 		 * somebody else test it.

@@ -648,7 +648,7 @@ static void rtl8225z2_rf_init(struct ieee80211_hw *dev)
 	rtl8225_write_phy_ofdm(dev, 0x20, 0x1f); msleep(1);
 	rtl8225_write_phy_ofdm(dev, 0x21, 0x27); msleep(1);
 	rtl8225_write_phy_ofdm(dev, 0x22, 0x16); msleep(1);
-	rtl8225_write_phy_ofdm(dev, 0x23, 0x80); msleep(1); /* FIXME: not needed? */
+	rtl8225_write_phy_ofdm(dev, 0x23, 0x80); msleep(1); /* FIXME: yest needed? */
 	rtl8225_write_phy_ofdm(dev, 0x24, 0x46); msleep(1);
 	rtl8225_write_phy_ofdm(dev, 0x25, 0x20); msleep(1);
 	rtl8225_write_phy_ofdm(dev, 0x26, 0x90); msleep(1);

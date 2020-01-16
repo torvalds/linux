@@ -7,7 +7,7 @@
 
 #include <linux/string.h>
 #include <linux/net.h>		/* struct socket, struct proto_ops */
-#include <linux/errno.h>	/* error codes */
+#include <linux/erryes.h>	/* error codes */
 #include <linux/kernel.h>	/* printk */
 #include <linux/skbuff.h>
 #include <linux/wait.h>
@@ -19,7 +19,7 @@
 #include <linux/atmsvc.h>
 #include <linux/atmdev.h>
 #include <linux/bitops.h>
-#include <net/sock.h>		/* for sock_no_* */
+#include <net/sock.h>		/* for sock_yes_* */
 #include <linux/uaccess.h>
 #include <linux/export.h>
 
@@ -33,7 +33,7 @@ static int svc_create(struct net *net, struct socket *sock, int protocol,
 
 /*
  * Note: since all this is still nicely synchronized with the signaling demon,
- *       there's no need to protect sleep loops with clis. If signaling is
+ *       there's yes need to protect sleep loops with clis. If signaling is
  *       moved into the kernel, that would change.
  */
 
@@ -83,7 +83,7 @@ static int svc_release(struct socket *sock)
 		clear_bit(ATM_VF_READY, &vcc->flags);
 		/*
 		 * VCC pointer is used as a reference,
-		 * so we must not free it (thereby subjecting it to re-use)
+		 * so we must yest free it (thereby subjecting it to re-use)
 		 * before all pending connections are closed
 		 */
 		svc_disconnect(vcc);
@@ -248,7 +248,7 @@ static int svc_connect(struct socket *sock, struct sockaddr *sockaddr,
 			clear_bit(ATM_VF_REGIS, &vcc->flags);
 			clear_bit(ATM_VF_RELEASED, &vcc->flags);
 			clear_bit(ATM_VF_CLOSE, &vcc->flags);
-			    /* we're gone now but may connect later */
+			    /* we're gone yesw but may connect later */
 			error = -EINTR;
 			break;
 		}
@@ -388,7 +388,7 @@ static int svc_accept(struct socket *sock, struct socket *newsock, int flags,
 			error = error == -EAGAIN ? -EBUSY : error;
 			goto out;
 		}
-		/* wait should be short, so we ignore the non-blocking flag */
+		/* wait should be short, so we igyesre the yesn-blocking flag */
 		set_bit(ATM_VF_WAITING, &new_vcc->flags);
 		sigd_enq(new_vcc, as_accept, old_vcc, NULL, NULL);
 		for (;;) {
@@ -633,7 +633,7 @@ static const struct proto_ops svc_proto_ops = {
 	.release =	svc_release,
 	.bind =		svc_bind,
 	.connect =	svc_connect,
-	.socketpair =	sock_no_socketpair,
+	.socketpair =	sock_yes_socketpair,
 	.accept =	svc_accept,
 	.getname =	svc_getname,
 	.poll =		vcc_poll,
@@ -648,8 +648,8 @@ static const struct proto_ops svc_proto_ops = {
 	.getsockopt =	svc_getsockopt,
 	.sendmsg =	vcc_sendmsg,
 	.recvmsg =	vcc_recvmsg,
-	.mmap =		sock_no_mmap,
-	.sendpage =	sock_no_sendpage,
+	.mmap =		sock_yes_mmap,
+	.sendpage =	sock_yes_sendpage,
 };
 
 

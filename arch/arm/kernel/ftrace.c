@@ -47,7 +47,7 @@ void arch_ftrace_update_code(int command)
 	stop_machine(__ftrace_modify_code, &command, NULL);
 }
 
-static unsigned long ftrace_nop_replace(struct dyn_ftrace *rec)
+static unsigned long ftrace_yesp_replace(struct dyn_ftrace *rec)
 {
 	return NOP;
 }
@@ -133,7 +133,7 @@ int ftrace_make_call(struct dyn_ftrace *rec, unsigned long addr)
 	unsigned long new, old;
 	unsigned long ip = rec->ip;
 
-	old = ftrace_nop_replace(rec);
+	old = ftrace_yesp_replace(rec);
 
 	new = ftrace_call_replace(ip, adjust_address(rec, addr));
 
@@ -157,7 +157,7 @@ int ftrace_modify_call(struct dyn_ftrace *rec, unsigned long old_addr,
 
 #endif
 
-int ftrace_make_nop(struct module *mod,
+int ftrace_make_yesp(struct module *mod,
 		    struct dyn_ftrace *rec, unsigned long addr)
 {
 	unsigned long ip = rec->ip;
@@ -166,7 +166,7 @@ int ftrace_make_nop(struct module *mod,
 	int ret;
 
 	old = ftrace_call_replace(ip, adjust_address(rec, addr));
-	new = ftrace_nop_replace(rec);
+	new = ftrace_yesp_replace(rec);
 	ret = ftrace_modify_code(ip, old, new, true);
 
 	return ret;
@@ -208,9 +208,9 @@ static int __ftrace_modify_caller(unsigned long *callsite,
 	unsigned long caller_fn = (unsigned long) func;
 	unsigned long pc = (unsigned long) callsite;
 	unsigned long branch = arm_gen_branch(pc, caller_fn);
-	unsigned long nop = 0xe1a00000;	/* mov r0, r0 */
-	unsigned long old = enable ? nop : branch;
-	unsigned long new = enable ? branch : nop;
+	unsigned long yesp = 0xe1a00000;	/* mov r0, r0 */
+	unsigned long old = enable ? yesp : branch;
+	unsigned long new = enable ? branch : yesp;
 
 	return ftrace_modify_code(pc, old, new, true);
 }

@@ -6,7 +6,7 @@
  * Portions Copyright (C) 2007		Bartlomiej Zolnierkiewicz
  * Portions Copyright (C) 2005-2009	MontaVista Software, Inc.
  *
- * Thanks to HighPoint Technologies for their assistance, and hardware.
+ * Thanks to HighPoint Techyeslogies for their assistance, and hardware.
  * Special Thanks to Jon Burchmore in SanDiego for the deep pockets, his
  * donation of an ABit BP6 mainboard, processor, and memory acellerated
  * development and support.
@@ -14,7 +14,7 @@
  *
  * HighPoint has its own drivers (open source except for the RAID part)
  * available from http://www.highpoint-tech.com/USA_new/service_support.htm 
- * This may be useful to anyone wanting to work on this driver, however  do not
+ * This may be useful to anyone wanting to work on this driver, however  do yest
  * trust  them too much since the code tends to become less and less meaningful
  * as the time passes... :-/
  *
@@ -61,7 +61,7 @@
  *   actual one, the channels weren't serialized, the turnaround shouldn't
  *   be done on 66 MHz PCI bus
  * - disable UltraATA/100 for HPT370 by default as the 33 MHz clock being used
- *   does not allow for this speed anyway
+ *   does yest allow for this speed anyway
  * - avoid touching disabled channels (e.g. HPT371/N are single channel chips,
  *   their primary channel is kind of virtual, it isn't tied to any pins)
  * - fix/remove bad/unused timing tables and use one set of tables for the whole
@@ -90,7 +90,7 @@
  * - merge HPT36x/HPT37x speedproc handlers, fix PIO timing register mask and
  *   separate the UltraDMA and MWDMA masks there to avoid changing PIO timings
  *   when setting an UltraDMA mode
- * - fix hpt3xx_tune_drive() to set the PIO mode requested, not always select
+ * - fix hpt3xx_tune_drive() to set the PIO mode requested, yest always select
  *   the best possible one
  * - clean up DMA timeout handling for HPT370
  * - switch to using the enumeration type to differ between the numerous chip
@@ -107,7 +107,7 @@
  *   switch  to calculating  PCI clock frequency based on the chip's base DPLL
  *   frequency
  * - switch to using the  DPLL clock and enable UltraATA/133 mode by default on
- *   anything  newer than HPT370/A (except HPT374 that is not capable of this
+ *   anything  newer than HPT370/A (except HPT374 that is yest capable of this
  *   mode according to the manual)
  * - fold PCI clock detection and DPLL setup code into init_chipset_hpt366(),
  *   also fixing the interchanged 25/40 MHz PCI clock cases for HPT36x chips;
@@ -448,7 +448,7 @@ static const struct hpt_info hpt36x = {
 	.chip_name	= "HPT36x",
 	.chip_type	= HPT36x,
 	.udma_mask	= HPT366_ALLOW_ATA66_3 ? (HPT366_ALLOW_ATA66_4 ? ATA_UDMA4 : ATA_UDMA3) : ATA_UDMA2,
-	.dpll_clk	= 0,	/* no DPLL */
+	.dpll_clk	= 0,	/* yes DPLL */
 	.timings	= &hpt36x_timings
 };
 
@@ -546,7 +546,7 @@ static struct hpt_info *hpt3xx_get_info(struct device *dev)
 }
 
 /*
- * The Marvell bridge chips used on the HighPoint SATA cards do not seem
+ * The Marvell bridge chips used on the HighPoint SATA cards do yest seem
  * to support the UltraDMA modes 1, 2, and 3 as well as any MWDMA modes...
  */
 
@@ -683,7 +683,7 @@ static void hpt3xx_maskproc(ide_drive_t *drive, int mask)
 
 /*
  * This is specific to the HPT366 UDMA chipset
- * by HighPoint|Triones Technologies, Inc.
+ * by HighPoint|Triones Techyeslogies, Inc.
  */
 static void hpt366_dma_lost_irq(ide_drive_t *drive)
 {
@@ -860,7 +860,7 @@ static int hpt37x_calibrate_dpll(struct pci_dev *dev, u16 f_low, u16 f_high)
 		if (scr2 & 0x80)
 			break;
 	}
-	/* See if it stays ready (we'll just bail out if it's not yet) */
+	/* See if it stays ready (we'll just bail out if it's yest yet) */
 	for(i = 0; i < 0x1000; ++i) {
 		pci_read_config_byte(dev, 0x5b, &scr2);
 		/* DPLL destabilized? */
@@ -957,7 +957,7 @@ static int init_chipset_hpt366(struct pci_dev *dev)
 		 *
 		 * NOTE: This register is only accessible via I/O space;
 		 * HPT374 BIOS only saves it for the function 0, so we have to
-		 * always read it from there -- no need to check the result of
+		 * always read it from there -- yes need to check the result of
 		 * pci_get_slot() for the function 0 as the whole device has
 		 * been already "pinned" (via function 1) in init_setup_hpt374()
 		 */
@@ -974,12 +974,12 @@ static int init_chipset_hpt366(struct pci_dev *dev)
 		/*
 		 * In case the signature check fails, we'll have to
 		 * resort to reading the f_CNT register itself in hopes
-		 * that nobody has touched the DPLL yet...
+		 * that yesbody has touched the DPLL yet...
 		 */
 		if ((temp & 0xFFFFF000) != 0xABCDE000) {
 			int i;
 
-			printk(KERN_WARNING "%s %s: no clock data saved by "
+			printk(KERN_WARNING "%s %s: yes clock data saved by "
 				"BIOS\n", name, pci_name(dev));
 
 			/* Calculate the average value of f_CNT. */
@@ -1073,7 +1073,7 @@ static int init_chipset_hpt366(struct pci_dev *dev)
 		}
 
 		if (info->timings->clock_table[clock] == NULL) {
-			printk(KERN_ERR "%s %s: unknown bus timing!\n",
+			printk(KERN_ERR "%s %s: unkyeswn bus timing!\n",
 				name, pci_name(dev));
 			return -EIO;
 		}
@@ -1100,7 +1100,7 @@ static int init_chipset_hpt366(struct pci_dev *dev)
 				f_low += adjust >> 1;
 		}
 		if (adjust == 8) {
-			printk(KERN_ERR "%s %s: DPLL did not stabilize!\n",
+			printk(KERN_ERR "%s %s: DPLL did yest stabilize!\n",
 				name, pci_name(dev));
 			return -EIO;
 		}
@@ -1108,7 +1108,7 @@ static int init_chipset_hpt366(struct pci_dev *dev)
 		printk(KERN_INFO "%s %s: using %d MHz DPLL clock\n",
 			name, pci_name(dev), dpll_clk);
 	} else {
-		/* Mark the fact that we're not using the DPLL. */
+		/* Mark the fact that we're yest using the DPLL. */
 		dpll_clk = 0;
 
 		printk(KERN_INFO "%s %s: using %d MHz PCI clock\n",
@@ -1279,7 +1279,7 @@ static void hpt371_init(struct pci_dev *dev)
 	/*
 	 * HPT371 chips physically have only one channel, the secondary one,
 	 * but the primary channel registers do exist!  Go figure...
-	 * So,  we manually disable the non-existing channel here
+	 * So,  we manually disable the yesn-existing channel here
 	 * (if the BIOS hasn't done this already).
 	 */
 	pci_read_config_byte(dev, 0x50, &mcr1);

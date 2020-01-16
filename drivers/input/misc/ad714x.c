@@ -301,11 +301,11 @@ static void ad714x_slider_cal_abs_pos(struct ad714x_chip *ad714x, int idx)
 }
 
 /*
- * To minimise the Impact of the noise on the algorithm, ADI developed a
+ * To minimise the Impact of the yesise on the algorithm, ADI developed a
  * routine that filters the CDC results after they have been read by the
  * host processor.
  * The filter used is an Infinite Input Response(IIR) filter implemented
- * in firmware and attenuates the noise on the CDC results after they've
+ * in firmware and attenuates the yesise on the CDC results after they've
  * been read by the host processor.
  * Filtered_CDC_result = (Filtered_CDC_result * (10 - Coefficient) +
  *				Latest_CDC_result * Coefficient)/10
@@ -978,7 +978,7 @@ struct ad714x_chip *ad714x_probe(struct device *dev, u16 bus_type, int irq,
 
 
 	if (irq <= 0) {
-		dev_err(dev, "IRQ not configured!\n");
+		dev_err(dev, "IRQ yest configured!\n");
 		error = -EINVAL;
 		return ERR_PTR(error);
 	}
@@ -1120,7 +1120,7 @@ struct ad714x_chip *ad714x_probe(struct device *dev, u16 bus_type, int irq,
 		}
 	}
 
-	/* all buttons use one input node */
+	/* all buttons use one input yesde */
 	if (ad714x->hw->button_num > 0) {
 		struct ad714x_button_plat *bt_plat = ad714x->hw->button;
 
@@ -1186,13 +1186,13 @@ int ad714x_enable(struct ad714x_chip *ad714x)
 
 	mutex_lock(&ad714x->mutex);
 
-	/* resume to non-shutdown mode */
+	/* resume to yesn-shutdown mode */
 
 	ad714x->write(ad714x, AD714X_PWR_CTRL,
 			ad714x->hw->sys_cfg_reg[AD714X_PWR_CTRL]);
 
-	/* make sure the interrupt output line is not low level after resume,
-	 * otherwise we will get no chance to enter falling-edge irq again
+	/* make sure the interrupt output line is yest low level after resume,
+	 * otherwise we will get yes chance to enter falling-edge irq again
 	 */
 
 	ad714x->read(ad714x, STG_LOW_INT_STA_REG, &ad714x->l_state, 3);

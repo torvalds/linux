@@ -25,7 +25,7 @@
 #include <drm/drm_encoder.h>
 #include <drm/drm_print.h>
 
-#include "exynos_drm_drv.h"
+#include "exyyess_drm_drv.h"
 
 /* Sysreg registers for MIC */
 #define DSD_CFG_MUX	0x1004
@@ -92,7 +92,7 @@ static char *clk_names[] = { "pclk_mic0", "sclk_rgb_vclk_to_mic0" };
 #define NUM_CLKS		ARRAY_SIZE(clk_names)
 static DEFINE_MUTEX(mic_mutex);
 
-struct exynos_mic {
+struct exyyess_mic {
 	struct device *dev;
 	void __iomem *reg;
 	struct regmap *sysreg;
@@ -106,7 +106,7 @@ struct exynos_mic {
 	bool enabled;
 };
 
-static void mic_set_path(struct exynos_mic *mic, bool enable)
+static void mic_set_path(struct exyyess_mic *mic, bool enable)
 {
 	int ret;
 	unsigned int val;
@@ -134,7 +134,7 @@ static void mic_set_path(struct exynos_mic *mic, bool enable)
 			      "mic: Failed to read system register\n");
 }
 
-static int mic_sw_reset(struct exynos_mic *mic)
+static int mic_sw_reset(struct exyyess_mic *mic)
 {
 	unsigned int retry = 100;
 	int ret;
@@ -152,7 +152,7 @@ static int mic_sw_reset(struct exynos_mic *mic)
 	return -ETIMEDOUT;
 }
 
-static void mic_set_porch_timing(struct exynos_mic *mic)
+static void mic_set_porch_timing(struct exyyess_mic *mic)
 {
 	struct videomode vm = mic->vm;
 	u32 reg;
@@ -176,7 +176,7 @@ static void mic_set_porch_timing(struct exynos_mic *mic)
 	writel(reg, mic->reg + MIC_INPUT_TIMING_1);
 }
 
-static void mic_set_img_size(struct exynos_mic *mic)
+static void mic_set_img_size(struct exyyess_mic *mic)
 {
 	struct videomode *vm = &mic->vm;
 	u32 reg;
@@ -187,7 +187,7 @@ static void mic_set_img_size(struct exynos_mic *mic)
 	writel(reg, mic->reg + MIC_IMG_SIZE);
 }
 
-static void mic_set_output_timing(struct exynos_mic *mic)
+static void mic_set_output_timing(struct exyyess_mic *mic)
 {
 	struct videomode vm = mic->vm;
 	u32 reg, bs_size_2d;
@@ -209,7 +209,7 @@ static void mic_set_output_timing(struct exynos_mic *mic)
 	}
 }
 
-static void mic_set_reg_on(struct exynos_mic *mic, bool enable)
+static void mic_set_reg_on(struct exyyess_mic *mic, bool enable)
 {
 	u32 reg = readl(mic->reg + MIC_OP);
 
@@ -232,7 +232,7 @@ static void mic_disable(struct drm_bridge *bridge) { }
 
 static void mic_post_disable(struct drm_bridge *bridge)
 {
-	struct exynos_mic *mic = bridge->driver_private;
+	struct exyyess_mic *mic = bridge->driver_private;
 
 	mutex_lock(&mic_mutex);
 	if (!mic->enabled)
@@ -251,17 +251,17 @@ static void mic_mode_set(struct drm_bridge *bridge,
 			 const struct drm_display_mode *mode,
 			 const struct drm_display_mode *adjusted_mode)
 {
-	struct exynos_mic *mic = bridge->driver_private;
+	struct exyyess_mic *mic = bridge->driver_private;
 
 	mutex_lock(&mic_mutex);
 	drm_display_mode_to_videomode(mode, &mic->vm);
-	mic->i80_mode = to_exynos_crtc(bridge->encoder->crtc)->i80_mode;
+	mic->i80_mode = to_exyyess_crtc(bridge->encoder->crtc)->i80_mode;
 	mutex_unlock(&mic_mutex);
 }
 
 static void mic_pre_enable(struct drm_bridge *bridge)
 {
-	struct exynos_mic *mic = bridge->driver_private;
+	struct exyyess_mic *mic = bridge->driver_private;
 	int ret;
 
 	mutex_lock(&mic_mutex);
@@ -306,20 +306,20 @@ static const struct drm_bridge_funcs mic_bridge_funcs = {
 	.enable = mic_enable,
 };
 
-static int exynos_mic_bind(struct device *dev, struct device *master,
+static int exyyess_mic_bind(struct device *dev, struct device *master,
 			   void *data)
 {
-	struct exynos_mic *mic = dev_get_drvdata(dev);
+	struct exyyess_mic *mic = dev_get_drvdata(dev);
 
 	mic->bridge.driver_private = mic;
 
 	return 0;
 }
 
-static void exynos_mic_unbind(struct device *dev, struct device *master,
+static void exyyess_mic_unbind(struct device *dev, struct device *master,
 			      void *data)
 {
-	struct exynos_mic *mic = dev_get_drvdata(dev);
+	struct exyyess_mic *mic = dev_get_drvdata(dev);
 
 	mutex_lock(&mic_mutex);
 	if (!mic->enabled)
@@ -331,15 +331,15 @@ already_disabled:
 	mutex_unlock(&mic_mutex);
 }
 
-static const struct component_ops exynos_mic_component_ops = {
-	.bind	= exynos_mic_bind,
-	.unbind	= exynos_mic_unbind,
+static const struct component_ops exyyess_mic_component_ops = {
+	.bind	= exyyess_mic_bind,
+	.unbind	= exyyess_mic_unbind,
 };
 
 #ifdef CONFIG_PM
-static int exynos_mic_suspend(struct device *dev)
+static int exyyess_mic_suspend(struct device *dev)
 {
-	struct exynos_mic *mic = dev_get_drvdata(dev);
+	struct exyyess_mic *mic = dev_get_drvdata(dev);
 	int i;
 
 	for (i = NUM_CLKS - 1; i > -1; i--)
@@ -348,9 +348,9 @@ static int exynos_mic_suspend(struct device *dev)
 	return 0;
 }
 
-static int exynos_mic_resume(struct device *dev)
+static int exyyess_mic_resume(struct device *dev)
 {
-	struct exynos_mic *mic = dev_get_drvdata(dev);
+	struct exyyess_mic *mic = dev_get_drvdata(dev);
 	int ret, i;
 
 	for (i = 0; i < NUM_CLKS; i++) {
@@ -367,16 +367,16 @@ static int exynos_mic_resume(struct device *dev)
 }
 #endif
 
-static const struct dev_pm_ops exynos_mic_pm_ops = {
-	SET_RUNTIME_PM_OPS(exynos_mic_suspend, exynos_mic_resume, NULL)
+static const struct dev_pm_ops exyyess_mic_pm_ops = {
+	SET_RUNTIME_PM_OPS(exyyess_mic_suspend, exyyess_mic_resume, NULL)
 	SET_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,
 				pm_runtime_force_resume)
 };
 
-static int exynos_mic_probe(struct platform_device *pdev)
+static int exyyess_mic_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct exynos_mic *mic;
+	struct exyyess_mic *mic;
 	struct resource res;
 	int ret, i;
 
@@ -390,7 +390,7 @@ static int exynos_mic_probe(struct platform_device *pdev)
 
 	mic->dev = dev;
 
-	ret = of_address_to_resource(dev->of_node, 0, &res);
+	ret = of_address_to_resource(dev->of_yesde, 0, &res);
 	if (ret) {
 		DRM_DEV_ERROR(dev, "mic: Failed to get mem region for MIC\n");
 		goto err;
@@ -402,7 +402,7 @@ static int exynos_mic_probe(struct platform_device *pdev)
 		goto err;
 	}
 
-	mic->sysreg = syscon_regmap_lookup_by_phandle(dev->of_node,
+	mic->sysreg = syscon_regmap_lookup_by_phandle(dev->of_yesde,
 							"samsung,disp-syscon");
 	if (IS_ERR(mic->sysreg)) {
 		DRM_DEV_ERROR(dev, "mic: Failed to get system register.\n");
@@ -423,13 +423,13 @@ static int exynos_mic_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, mic);
 
 	mic->bridge.funcs = &mic_bridge_funcs;
-	mic->bridge.of_node = dev->of_node;
+	mic->bridge.of_yesde = dev->of_yesde;
 
 	drm_bridge_add(&mic->bridge);
 
 	pm_runtime_enable(dev);
 
-	ret = component_add(dev, &exynos_mic_component_ops);
+	ret = component_add(dev, &exyyess_mic_component_ops);
 	if (ret)
 		goto err_pm;
 
@@ -443,11 +443,11 @@ err:
 	return ret;
 }
 
-static int exynos_mic_remove(struct platform_device *pdev)
+static int exyyess_mic_remove(struct platform_device *pdev)
 {
-	struct exynos_mic *mic = platform_get_drvdata(pdev);
+	struct exyyess_mic *mic = platform_get_drvdata(pdev);
 
-	component_del(&pdev->dev, &exynos_mic_component_ops);
+	component_del(&pdev->dev, &exyyess_mic_component_ops);
 	pm_runtime_disable(&pdev->dev);
 
 	drm_bridge_remove(&mic->bridge);
@@ -455,19 +455,19 @@ static int exynos_mic_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static const struct of_device_id exynos_mic_of_match[] = {
-	{ .compatible = "samsung,exynos5433-mic" },
+static const struct of_device_id exyyess_mic_of_match[] = {
+	{ .compatible = "samsung,exyyess5433-mic" },
 	{ }
 };
-MODULE_DEVICE_TABLE(of, exynos_mic_of_match);
+MODULE_DEVICE_TABLE(of, exyyess_mic_of_match);
 
 struct platform_driver mic_driver = {
-	.probe		= exynos_mic_probe,
-	.remove		= exynos_mic_remove,
+	.probe		= exyyess_mic_probe,
+	.remove		= exyyess_mic_remove,
 	.driver		= {
-		.name	= "exynos-mic",
-		.pm	= &exynos_mic_pm_ops,
+		.name	= "exyyess-mic",
+		.pm	= &exyyess_mic_pm_ops,
 		.owner	= THIS_MODULE,
-		.of_match_table = exynos_mic_of_match,
+		.of_match_table = exyyess_mic_of_match,
 	},
 };

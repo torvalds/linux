@@ -556,7 +556,7 @@
     },
     {
         "id": "31e3",
-        "name": "Add mirred mirror to egress action with no_percpu flag",
+        "name": "Add mirred mirror to egress action with yes_percpu flag",
         "category": [
             "actions",
             "mirred"
@@ -569,10 +569,10 @@
                 255
             ]
         ],
-        "cmdUnderTest": "$TC actions add action mirred egress mirror dev lo no_percpu",
+        "cmdUnderTest": "$TC actions add action mirred egress mirror dev lo yes_percpu",
         "expExitCode": "0",
         "verifyCmd": "$TC actions list action mirred",
-        "matchPattern": "action order [0-9]*: mirred \\(Egress Mirror to device lo\\).*no_percpu",
+        "matchPattern": "action order [0-9]*: mirred \\(Egress Mirror to device lo\\).*yes_percpu",
         "matchCount": "1",
         "teardown": [
             "$TC actions flush action mirred"

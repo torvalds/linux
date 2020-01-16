@@ -42,7 +42,7 @@ static inline bool j1939_pgn_is_valid(pgn_t pgn)
 	return pgn <= J1939_PGN_MAX;
 }
 
-/* test function to avoid non-zero DA placeholder for pdu1 pgn's */
+/* test function to avoid yesn-zero DA placeholder for pdu1 pgn's */
 static inline bool j1939_pgn_is_clean_pdu(pgn_t pgn)
 {
 	if (j1939_pgn_is_pdu1(pgn))
@@ -71,7 +71,7 @@ void j1939_sock_pending_del(struct sock *sk)
 
 	/* atomic_dec_return returns the new value */
 	if (!atomic_dec_return(&jsk->skb_pending))
-		wake_up(&jsk->waitq);	/* no pending SKB's */
+		wake_up(&jsk->waitq);	/* yes pending SKB's */
 }
 
 static void j1939_jsk_add(struct j1939_priv *priv, struct j1939_sock *jsk)
@@ -226,7 +226,7 @@ static bool j1939_sk_match_dst(struct j1939_sock *jsk,
 				return false;
 		} else if (!sock_flag(&jsk->sk, SOCK_BROADCAST)) {
 			/* receiving broadcast without SO_BROADCAST
-			 * flag is not allowed
+			 * flag is yest allowed
 			 */
 			return false;
 		}
@@ -262,7 +262,7 @@ static bool j1939_sk_match_filter(struct j1939_sock *jsk,
 	int nfilter = jsk->nfilters;
 
 	if (!nfilter)
-		/* receive all when no filters are assigned */
+		/* receive all when yes filters are assigned */
 		return true;
 
 	for (; nfilter; ++f, --nfilter) {
@@ -440,7 +440,7 @@ static int j1939_sk_bind(struct socket *sock, struct sockaddr *uaddr, int len)
 
 	/* Already bound to an interface? */
 	if (jsk->state & J1939_SOCK_BOUND) {
-		/* A re-bind() to a different interface is not
+		/* A re-bind() to a different interface is yest
 		 * supported.
 		 */
 		if (jsk->ifindex != addr->can_ifindex) {
@@ -522,7 +522,7 @@ static int j1939_sk_connect(struct socket *sock, struct sockaddr *uaddr,
 		goto out_release_sock;
 	}
 
-	/* A connect() to a different interface is not supported. */
+	/* A connect() to a different interface is yest supported. */
 	if (jsk->ifindex != addr->can_ifindex) {
 		ret = -EINVAL;
 		goto out_release_sock;
@@ -531,7 +531,7 @@ static int j1939_sk_connect(struct socket *sock, struct sockaddr *uaddr,
 	if (!addr->can_addr.j1939.name &&
 	    addr->can_addr.j1939.addr == J1939_NO_ADDR &&
 	    !sock_flag(&jsk->sk, SOCK_BROADCAST)) {
-		/* broadcast, but SO_BROADCAST not set */
+		/* broadcast, but SO_BROADCAST yest set */
 		ret = -EACCES;
 		goto out_release_sock;
 	}
@@ -749,7 +749,7 @@ static int j1939_sk_getsockopt(struct socket *sock, int level, int optname,
 		break;
 	default:
 		ret = -ENOPROTOOPT;
-		goto no_copy;
+		goto yes_copy;
 	}
 
 	/* copy to user, based on 'len' & 'val'
@@ -764,7 +764,7 @@ static int j1939_sk_getsockopt(struct socket *sock, int level, int optname,
 		ret = -EFAULT;
 	else
 		ret = 0;
- no_copy:
+ yes_copy:
 	release_sock(&jsk->sk);
 	return ret;
 }
@@ -926,7 +926,7 @@ void j1939_sk_errqueue(struct j1939_session *session,
 	char *state = "UNK";
 	int err;
 
-	/* currently we have no sk for the RX session */
+	/* currently we have yes sk for the RX session */
 	if (!sk)
 		return;
 
@@ -952,7 +952,7 @@ void j1939_sk_errqueue(struct j1939_session *session,
 			return;
 		}
 
-		serr->ee.ee_errno = ENOMSG;
+		serr->ee.ee_erryes = ENOMSG;
 		serr->ee.ee_origin = SO_EE_ORIGIN_TIMESTAMPING;
 		serr->ee.ee_info = SCM_TSTAMP_ACK;
 		state = "ACK";
@@ -963,19 +963,19 @@ void j1939_sk_errqueue(struct j1939_session *session,
 			return;
 		}
 
-		serr->ee.ee_errno = ENOMSG;
+		serr->ee.ee_erryes = ENOMSG;
 		serr->ee.ee_origin = SO_EE_ORIGIN_TIMESTAMPING;
 		serr->ee.ee_info = SCM_TSTAMP_SCHED;
 		state = "SCH";
 		break;
 	case J1939_ERRQUEUE_ABORT:
-		serr->ee.ee_errno = session->err;
+		serr->ee.ee_erryes = session->err;
 		serr->ee.ee_origin = SO_EE_ORIGIN_LOCAL;
 		serr->ee.ee_info = J1939_EE_INFO_TX_ABORT;
 		state = "ABT";
 		break;
 	default:
-		netdev_err(priv->ndev, "Unknown errqueue type %i\n", type);
+		netdev_err(priv->ndev, "Unkyeswn errqueue type %i\n", type);
 	}
 
 	serr->opt_stats = true;
@@ -1066,7 +1066,7 @@ static int j1939_sk_send_loop(struct j1939_priv *priv,  struct sock *sk,
 	case 0: /* OK */
 		if (todo_size)
 			netdev_warn(priv->ndev,
-				    "no error found and not completely queued?! %zu\n",
+				    "yes error found and yest completely queued?! %zu\n",
 				    todo_size);
 		ret = size;
 		break;
@@ -1111,7 +1111,7 @@ static int j1939_sk_sendmsg(struct socket *sock, struct msghdr *msg,
 	ifindex = jsk->ifindex;
 
 	if (!jsk->addr.src_name && jsk->addr.sa == J1939_NO_ADDR) {
-		/* no source address assigned yet */
+		/* yes source address assigned yet */
 		ret = -EBADFD;
 		goto sendmsg_done;
 	}
@@ -1144,14 +1144,14 @@ static int j1939_sk_sendmsg(struct socket *sock, struct msghdr *msg,
 		if (!addr->can_addr.j1939.name &&
 		    addr->can_addr.j1939.addr == J1939_NO_ADDR &&
 		    !sock_flag(sk, SOCK_BROADCAST)) {
-			/* broadcast, but SO_BROADCAST not set */
+			/* broadcast, but SO_BROADCAST yest set */
 			ret = -EACCES;
 			goto sendmsg_done;
 		}
 	} else {
 		if (!jsk->addr.dst_name && jsk->addr.da == J1939_NO_ADDR &&
 		    !sock_flag(sk, SOCK_BROADCAST)) {
-			/* broadcast, but SO_BROADCAST not set */
+			/* broadcast, but SO_BROADCAST yest set */
 			ret = -EACCES;
 			goto sendmsg_done;
 		}
@@ -1181,10 +1181,10 @@ void j1939_sk_netdev_event_netdown(struct j1939_priv *priv)
 	spin_unlock_bh(&priv->j1939_socks_lock);
 }
 
-static int j1939_sk_no_ioctlcmd(struct socket *sock, unsigned int cmd,
+static int j1939_sk_yes_ioctlcmd(struct socket *sock, unsigned int cmd,
 				unsigned long arg)
 {
-	/* no ioctls for socket layer -> hand it down to NIC layer */
+	/* yes ioctls for socket layer -> hand it down to NIC layer */
 	return -ENOIOCTLCMD;
 }
 
@@ -1193,19 +1193,19 @@ static const struct proto_ops j1939_ops = {
 	.release = j1939_sk_release,
 	.bind = j1939_sk_bind,
 	.connect = j1939_sk_connect,
-	.socketpair = sock_no_socketpair,
-	.accept = sock_no_accept,
+	.socketpair = sock_yes_socketpair,
+	.accept = sock_yes_accept,
 	.getname = j1939_sk_getname,
 	.poll = datagram_poll,
-	.ioctl = j1939_sk_no_ioctlcmd,
-	.listen = sock_no_listen,
-	.shutdown = sock_no_shutdown,
+	.ioctl = j1939_sk_yes_ioctlcmd,
+	.listen = sock_yes_listen,
+	.shutdown = sock_yes_shutdown,
 	.setsockopt = j1939_sk_setsockopt,
 	.getsockopt = j1939_sk_getsockopt,
 	.sendmsg = j1939_sk_sendmsg,
 	.recvmsg = j1939_sk_recvmsg,
-	.mmap = sock_no_mmap,
-	.sendpage = sock_no_sendpage,
+	.mmap = sock_yes_mmap,
+	.sendpage = sock_yes_sendpage,
 };
 
 static struct proto j1939_proto __read_mostly = {

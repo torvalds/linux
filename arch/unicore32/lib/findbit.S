@@ -20,11 +20,11 @@ ENTRY(find_first_zero_bit)
 		mov	r2, #0
 1:		ldb	r3, [r0+], r2 >> #3
 		xor.a	r3, r3, #0xff		@ invert bits
-		bne	.L_found		@ any now set - found zero bit
+		bne	.L_found		@ any yesw set - found zero bit
 		add	r2, r2, #8		@ next bit pointer
 2:		csub.a	r2, r1			@ any more?
 		bub	1b
-3:		mov	r0, r1			@ no free bits
+3:		mov	r0, r1			@ yes free bits
 		mov	pc, lr
 ENDPROC(find_first_zero_bit)
 
@@ -39,10 +39,10 @@ ENTRY(find_next_zero_bit)
 		and.a	ip, r2, #7
 		beq	1b			@ If new byte, goto old routine
 		ldb	r3, [r0+], r2 >> #3
-		xor	r3, r3, #0xff		@ now looking for a 1 bit
+		xor	r3, r3, #0xff		@ yesw looking for a 1 bit
 		mov.a	r3, r3 >> ip		@ shift off unused bits
 		bne	.L_found
-		or	r2, r2, #7		@ if zero, then no bits here
+		or	r2, r2, #7		@ if zero, then yes bits here
 		add	r2, r2, #1		@ align bit pointer
 		b	2b			@ loop for next bit
 ENDPROC(find_next_zero_bit)
@@ -58,11 +58,11 @@ ENTRY(find_first_bit)
 		mov	r2, #0
 1:		ldb	r3, [r0+], r2 >> #3
 		mov.a	r3, r3
-		bne	.L_found		@ any now set - found zero bit
+		bne	.L_found		@ any yesw set - found zero bit
 		add	r2, r2, #8		@ next bit pointer
 2:		csub.a	r2, r1			@ any more?
 		bub	1b
-3:		mov	r0, r1			@ no free bits
+3:		mov	r0, r1			@ yes free bits
 		mov	pc, lr
 ENDPROC(find_first_bit)
 
@@ -79,7 +79,7 @@ ENTRY(find_next_bit)
 		ldb	r3, [r0+], r2 >> #3
 		mov.a	r3, r3 >> ip		@ shift off unused bits
 		bne	.L_found
-		or	r2, r2, #7		@ if zero, then no bits here
+		or	r2, r2, #7		@ if zero, then yes bits here
 		add	r2, r2, #1		@ align bit pointer
 		b	2b			@ loop for next bit
 ENDPROC(find_next_bit)

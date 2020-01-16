@@ -55,14 +55,14 @@
 
 /**
  * struct mrfld_family - Intel pin family description
- * @barno: MMIO BAR number where registers for this family reside
+ * @baryes: MMIO BAR number where registers for this family reside
  * @pin_base: Starting pin of pins in this family
  * @npins: Number of pins in this family
  * @protected: True if family is protected by access
  * @regs: family specific common registers
  */
 struct mrfld_family {
-	unsigned int barno;
+	unsigned int baryes;
 	unsigned int pin_base;
 	size_t npins;
 	bool protected;
@@ -71,14 +71,14 @@ struct mrfld_family {
 
 #define MRFLD_FAMILY(b, s, e)				\
 	{						\
-		.barno = (b),				\
+		.baryes = (b),				\
 		.pin_base = (s),			\
 		.npins = (e) - (s) + 1,			\
 	}
 
 #define MRFLD_FAMILY_PROTECTED(b, s, e)			\
 	{						\
-		.barno = (b),				\
+		.baryes = (b),				\
 		.pin_base = (s),			\
 		.npins = (e) - (s) + 1,			\
 		.protected = true,			\
@@ -433,7 +433,7 @@ struct mrfld_pinctrl {
 	size_t npins;
 };
 
-#define pin_to_bufno(f, p)		((p) - (f)->pin_base)
+#define pin_to_bufyes(f, p)		((p) - (f)->pin_base)
 
 static const struct mrfld_family *mrfld_get_family(struct mrfld_pinctrl *mp,
 						   unsigned int pin)
@@ -466,14 +466,14 @@ static bool mrfld_buf_available(struct mrfld_pinctrl *mp, unsigned int pin)
 static void __iomem *mrfld_get_bufcfg(struct mrfld_pinctrl *mp, unsigned int pin)
 {
 	const struct mrfld_family *family;
-	unsigned int bufno;
+	unsigned int bufyes;
 
 	family = mrfld_get_family(mp, pin);
 	if (!family)
 		return NULL;
 
-	bufno = pin_to_bufno(family, pin);
-	return family->regs + BUFCFG_OFFSET + bufno * 4;
+	bufyes = pin_to_bufyes(family, pin);
+	return family->regs + BUFCFG_OFFSET + bufyes * 4;
 }
 
 static int mrfld_read_bufcfg(struct mrfld_pinctrl *mp, unsigned int pin, u32 *value)
@@ -538,7 +538,7 @@ static void mrfld_pin_dbg_show(struct pinctrl_dev *pctldev, struct seq_file *s,
 
 	ret = mrfld_read_bufcfg(mp, pin, &value);
 	if (ret) {
-		seq_puts(s, "not available");
+		seq_puts(s, "yest available");
 		return;
 	}
 
@@ -915,7 +915,7 @@ static int mrfld_pinctrl_probe(struct platform_device *pdev)
 	for (i = 0; i < nfamilies; i++) {
 		struct mrfld_family *family = &families[i];
 
-		family->regs = regs + family->barno * MRFLD_FAMILY_LEN;
+		family->regs = regs + family->baryes * MRFLD_FAMILY_LEN;
 	}
 
 	mp->families = families;

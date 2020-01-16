@@ -4,7 +4,7 @@
  *
  *  Copyright (C) 2007  Yoichi Yuasa <yuasa@linux-mips.org>
  */
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/init.h>
 #include <linux/ioport.h>
 #include <linux/mc146818rtc.h>

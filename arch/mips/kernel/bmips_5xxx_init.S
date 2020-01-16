@@ -26,10 +26,10 @@
 
 
 #define cacheop(kva, size, linesize, op) 	\
-	.set noreorder			;	\
+	.set yesreorder			;	\
 	addu		t1, kva, size	;	\
 	subu		t2, linesize, 1	;	\
-	not		t2		;	\
+	yest		t2		;	\
 	and		t0, kva, t2	;	\
 	addiu		t1, t1, -1	;	\
 	and		t1, t2		;	\
@@ -117,7 +117,7 @@
  */
 
 LEAF(size_i_cache)
-	.set	noreorder
+	.set	yesreorder
 
 	mfc0	a0, CP0_CONFIG, 1
 	move	t0, a0
@@ -152,8 +152,8 @@ LEAF(size_i_cache)
 	srl	a0, a0, IL_SHIFT
 	and	a0, a0, IL_MASK
 
-	beqz	a0, no_i_cache
-	nop
+	beqz	a0, yes_i_cache
+	yesp
 
 	/* line size = 2 ^ (IL+1) */
 
@@ -161,7 +161,7 @@ LEAF(size_i_cache)
 	li	v1, 1
 	sll	v1, v1, a0
 
-	/* v0 now have sets per way, multiply it by line size now
+	/* v0 yesw have sets per way, multiply it by line size yesw
 	 * that will give the set size
 	 */
 
@@ -185,17 +185,17 @@ LEAF(size_i_cache)
 	 * set associativiy, to get the cache size
 	 */
 
-	multu	v0, a0	/*multu is interlocked, so no need to insert nops */
+	multu	v0, a0	/*multu is interlocked, so yes need to insert yesps */
 	mflo	v0
 	b	1f
-	nop
+	yesp
 
-no_i_cache:
+yes_i_cache:
 	move	v0, zero
 	move	v1, zero
 1:
 	jr	ra
-	nop
+	yesp
 	.set	reorder
 
 END(size_i_cache)
@@ -210,7 +210,7 @@ END(size_i_cache)
  */
 
 LEAF(size_d_cache)
-	.set	noreorder
+	.set	yesreorder
 
 	mfc0	a0, CP0_CONFIG, 1
 	move	t0, a0
@@ -244,8 +244,8 @@ LEAF(size_d_cache)
 	srl	a0, a0, DL_SHIFT
 	and	a0, a0, DL_MASK
 
-	beqz	a0, no_d_cache
-	nop
+	beqz	a0, yes_d_cache
+	yesp
 
 	/* line size = 2 ^ (IL+1) */
 
@@ -253,7 +253,7 @@ LEAF(size_d_cache)
 	li	v1, 1
 	sll	v1, v1, a0
 
-	/* v0 now have sets per way, multiply it by line size now
+	/* v0 yesw have sets per way, multiply it by line size yesw
 	 * that will give the set size
 	 */
 
@@ -276,18 +276,18 @@ LEAF(size_d_cache)
 	 * set associativiy, to get the cache size
 	 */
 
-	multu	v0, a0	/*multu is interlocked, so no need to insert nops */
+	multu	v0, a0	/*multu is interlocked, so yes need to insert yesps */
 	mflo	v0
 
 	b	1f
-	nop
+	yesp
 
-no_d_cache:
+yes_d_cache:
 	move	v0, zero
 	move	v1, zero
 1:
 	jr	ra
-	nop
+	yesp
 	.set	reorder
 
 END(size_d_cache)
@@ -304,13 +304,13 @@ END(size_d_cache)
  */
 	.global	enable_ID
 	.ent	enable_ID
-	.set	noreorder
+	.set	yesreorder
 enable_ID:
 	mfc0	t0, CP0_BRCM_CONFIG0
 	or	t0, t0, (ICE_MASK | DCE_MASK)
 	mtc0	t0, CP0_BRCM_CONFIG0
 	jr	ra
-	nop
+	yesp
 
 	.end	enable_ID
 	.set	reorder
@@ -326,7 +326,7 @@ enable_ID:
  */
 	.globl	l1_init
 	.ent	l1_init
-	.set	noreorder
+	.set	yesreorder
 l1_init:
 
 	/* save return address */
@@ -342,21 +342,21 @@ l1_init:
 	mtc0	zero, CP0_DCACHE_TAG_HI
 
 	/* Enable Caches before Clearing. If the caches are disabled
-	 * then the cache operations to clear the cache will be ignored
+	 * then the cache operations to clear the cache will be igyesred
 	 */
 
 	jal	enable_ID
-	nop
+	yesp
 
 	jal	size_i_cache	/* v0 = i-cache size, v1 = i-cache line size */
-	nop
+	yesp
 
 	/* run uncached in kseg 1 */
 	la	k0, 1f
 	lui	k1, 0x2000
 	or	k0, k1, k0
 	jr	k0
-	nop
+	yesp
 1:
 
 	/*
@@ -383,21 +383,21 @@ l1_init:
 	or	k0, k1, k0
 	xor	k0, k1, k0
 	jr	k0
-	nop
+	yesp
 1:
 	/*
 	 * Initialize data cache.
 	 */
 
 	jal	size_d_cache	/* v0 = d-cache size, v1 = d-cache line size */
-	nop
+	yesp
 
 
 	li	a0, KSEG0
 	cacheop(a0, v0, v1, Index_Store_Tag_D)
 
 	jr	t8
-	nop
+	yesp
 
 	.end 	l1_init
 	.set	reorder
@@ -405,7 +405,7 @@ l1_init:
 
 /*
  * Function: 	set_other_config
- * Arguments:	none
+ * Arguments:	yesne
  * Returns:	None
  * Description: initialize other remainder configuration to defaults.
  * Trashes:	t0, t1
@@ -414,7 +414,7 @@ l1_init:
  *
  */
 LEAF(set_other_config)
-	.set noreorder
+	.set yesreorder
 
 	/* enable Bus error for I-fetch */
 	mfc0	t0, CP0_CACHEERR, 0
@@ -435,13 +435,13 @@ LEAF(set_other_config)
 	mtc0	t0, CP0_CACHEERR, 2
 
 	jr	ra
-	nop
+	yesp
 	.set reorder
 END(set_other_config)
 
 /*
  * Function: 	set_branch_pred
- * Arguments:	none
+ * Arguments:	yesne
  * Returns:	None
  * Description:
  * Trashes:	t0, t1
@@ -451,7 +451,7 @@ END(set_other_config)
  */
 
 LEAF(set_branch_pred)
-	.set noreorder
+	.set yesreorder
 	mfc0	t0, CP0_BRCM_MODE
 	li	t1, ~(CP0_BRCM_MODE_BrPRED_MASK | CP0_BRCM_MODE_BrHIST_MASK )
 	and	t0, t0, t1
@@ -468,7 +468,7 @@ LEAF(set_branch_pred)
 
 	mtc0	t0, CP0_BRCM_MODE
 	jr	ra
-	nop
+	yesp
 	.set	reorder
 END(set_branch_pred)
 
@@ -482,7 +482,7 @@ END(set_branch_pred)
  *
  */
 LEAF(set_luc)
-	.set noreorder
+	.set yesreorder
 	mfc0	t0, CP0_BRCM_MODE
 	li	t1, ~(CP0_BRCM_MODE_Luc_MASK)
 	and	t0, t0, t1
@@ -492,7 +492,7 @@ LEAF(set_luc)
 
 	mtc0	t0, CP0_BRCM_MODE
 	jr	ra
-	nop
+	yesp
 	.set	reorder
 END(set_luc)
 
@@ -505,14 +505,14 @@ END(set_luc)
  *
  */
 LEAF(set_cwf_tse)
-	.set noreorder
+	.set yesreorder
 	mfc0	t0, CP0_BRCM_CONFIG0
 	li	t1, (CP0_BRCM_CONFIG0_CWF_MASK | CP0_BRCM_CONFIG0_TSE_MASK)
 	or	t0, t0, t1
 
 	mtc0	t0, CP0_BRCM_CONFIG0
 	jr	ra
-	nop
+	yesp
 	.set	reorder
 END(set_cwf_tse)
 
@@ -527,7 +527,7 @@ END(set_cwf_tse)
  *
  */
 LEAF(set_clock_ratio)
-	.set noreorder
+	.set yesreorder
 
 	mfc0	t0, CP0_BRCM_MODE
 	li	t1, ~(CP0_BRCM_MODE_SET_MASK | CP0_BRCM_MODE_ClkRATIO_MASK)
@@ -537,7 +537,7 @@ LEAF(set_clock_ratio)
 	or	t0, t0, a0
 	mtc0	t0, CP0_BRCM_MODE
 	jr	ra
-	nop
+	yesp
 	.set	reorder
 END(set_clock_ratio)
 /*
@@ -549,7 +549,7 @@ END(set_clock_ratio)
  *
  */
 LEAF(set_zephyr)
-	.set	noreorder
+	.set	yesreorder
 
 	/* enable read/write of CP0 #22 sel. 8 */
 	li	t0, 0x5a455048
@@ -567,7 +567,7 @@ LEAF(set_zephyr)
 
 
 	jr	ra
-	nop
+	yesp
 	.set reorder
 
 END(set_zephyr)
@@ -584,7 +584,7 @@ END(set_zephyr)
  *
  */
 LEAF(set_llmb)
-	.set noreorder
+	.set yesreorder
 
 	li	t2, 0x90000000 | BRCM_ZSC_ALL_REGS_SELECT | BRCM_ZSC_CONFIG_REG
 	sync
@@ -595,7 +595,7 @@ LEAF(set_llmb)
 	and	t0, t0, t1
 
 	beqz	a0, svlmb
-	nop
+	yesp
 
 enable_lmb:
 	li	t1, (BRCM_ZSC_CONFIG_LMB1En | BRCM_ZSC_CONFIG_LMB0En)
@@ -608,13 +608,13 @@ svlmb:
 	sync
 
 	jr	ra
-	nop
+	yesp
 	.set reorder
 
 END(set_llmb)
 /*
  * Function: 	core_init
- * Arguments:	none
+ * Arguments:	yesne
  * Returns:	None
  * Description: initialize core related configuration
  * Trashes:	v0,v1,a0,a1,t8
@@ -624,30 +624,30 @@ END(set_llmb)
  */
 	.globl	core_init
 	.ent	core_init
-	.set	noreorder
+	.set	yesreorder
 core_init:
 	move	t8, ra
 
 	/* set Zephyr bits. */
 	bal	set_zephyr
-	nop
+	yesp
 
 	/* set low latency memory bus */
 	li	a0, 1
 	bal	set_llmb
-	nop
+	yesp
 
 	/* set branch prediction (TP0 only) */
 	bal	set_branch_pred
-	nop
+	yesp
 
 	/* set link uncached */
 	bal	set_luc
-	nop
+	yesp
 
 	/* set CWF and TSE */
 	bal	set_cwf_tse
-	nop
+	yesp
 
 	/*
 	 *set clock ratio by setting 1 to 'set'
@@ -655,15 +655,15 @@ core_init:
 	 */
 	li	a0, 0
 	bal	set_clock_ratio
-	nop
+	yesp
 
 	/* set other configuration to defaults */
 	bal	set_other_config
-	nop
+	yesp
 
 	move	ra, t8
 	jr	ra
-	nop
+	yesp
 
 	.set reorder
 	.end	core_init
@@ -682,29 +682,29 @@ core_init:
 
 	.globl	clear_jump_target_buffer
 	.ent	clear_jump_target_buffer
-	.set	noreorder
+	.set	yesreorder
 clear_jump_target_buffer:
 
 	mfc0	t0, $22, 2
-	nop
-	nop
+	yesp
+	yesp
 
 	li	t1, ~JTB_CS_CNTL_MASK
 	and	t0, t0, t1
 	li	t2, RESET_CALL_RETURN_STACK_THIS_THREAD
 	or	t0, t0, t2
 	mtc0	t0, $22, 2
-	nop
-	nop
+	yesp
+	yesp
 
 	and	t0, t0, t1
 	li	t2, RESET_JUMP_TARGET_BUFFER_THIS_THREAD
 	or	t0, t0, t2
 	mtc0	t0, $22, 2
-	nop
-	nop
+	yesp
+	yesp
 	jr	ra
-	nop
+	yesp
 
 	.end	clear_jump_target_buffer
 	.set	reorder
@@ -718,7 +718,7 @@ clear_jump_target_buffer:
  */
 	.globl	bmips_5xxx_init
 	.ent	bmips_5xxx_init
-	.set	noreorder
+	.set	yesreorder
 bmips_5xxx_init:
 
 	/* save return address and A0 */
@@ -726,19 +726,19 @@ bmips_5xxx_init:
 	move	t5, a0
 
 	jal	l1_init
-	nop
+	yesp
 
 	jal	core_init
-	nop
+	yesp
 
 	jal	clear_jump_target_buffer
-	nop
+	yesp
 
 	mtc0	zero, CP0_CAUSE
 
 	move 	a0, t5
 	jr	t7
-	nop
+	yesp
 
 	.end 	bmips_5xxx_init
 	.set	reorder

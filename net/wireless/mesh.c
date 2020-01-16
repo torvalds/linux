@@ -33,7 +33,7 @@
 
 /*
  * A path will be refreshed if it is used PATH_REFRESH_TIME milliseconds
- * before timing out.  This way it will remain ACTIVE and no data frames
+ * before timing out.  This way it will remain ACTIVE and yes data frames
  * will be unnecessarily held in the pending queue.
  */
 #define MESH_PATH_REFRESH_TIME			1000
@@ -68,7 +68,7 @@ const struct mesh_config default_mesh_config = {
 	.path_refresh_time = MESH_PATH_REFRESH_TIME,
 	.min_discovery_timeout = MESH_MIN_DISCOVERY_TIMEOUT,
 	.dot11MeshHWMPRannInterval = MESH_RANN_INTERVAL,
-	.dot11MeshGateAnnouncementProtocol = false,
+	.dot11MeshGateAnyesuncementProtocol = false,
 	.dot11MeshForwarding = true,
 	.rssi_threshold = MESH_RSSI_THRESHOLD,
 	.ht_opmode = IEEE80211_HT_OP_MODE_PROTECTION_NONHT_MIXED,
@@ -123,7 +123,7 @@ int __cfg80211_join_mesh(struct cfg80211_registered_device *rdev,
 		return -EOPNOTSUPP;
 
 	if (!setup->chandef.chan) {
-		/* if no channel explicitly given, use preset channel */
+		/* if yes channel explicitly given, use preset channel */
 		setup->chandef = wdev->preset_chandef;
 	}
 
@@ -154,7 +154,7 @@ int __cfg80211_join_mesh(struct cfg80211_registered_device *rdev,
 				break;
 		}
 
-		/* no usable channel ... */
+		/* yes usable channel ... */
 		if (!setup->chandef.chan)
 			return -EINVAL;
 

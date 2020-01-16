@@ -78,7 +78,7 @@ MODULE_DEVICE_TABLE(of, weim_id_table);
 
 static int imx_weim_gpr_setup(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	struct property *prop;
 	const __be32 *p;
 	struct regmap *gpr;
@@ -127,7 +127,7 @@ err:
 
 /* Parse and set the timing for this device. */
 static int weim_timing_setup(struct device *dev,
-			     struct device_node *np, void __iomem *base,
+			     struct device_yesde *np, void __iomem *base,
 			     const struct imx_weim_devtype *devtype,
 			     struct cs_timing_state *ts)
 {
@@ -147,7 +147,7 @@ static int weim_timing_setup(struct device *dev,
 		return ret;
 
 	/*
-	 * the child node's "reg" property may contain multiple address ranges,
+	 * the child yesde's "reg" property may contain multiple address ranges,
 	 * extract the chip select for each.
 	 */
 	num_regs = of_property_count_elems_of_size(np, "reg", OF_REG_SIZE);
@@ -156,7 +156,7 @@ static int weim_timing_setup(struct device *dev,
 	if (!num_regs)
 		return -EINVAL;
 	for (reg_idx = 0; reg_idx < num_regs; reg_idx++) {
-		/* get the CS index from this child node's "reg" property. */
+		/* get the CS index from this child yesde's "reg" property. */
 		ret = of_property_read_u32_index(np, "reg",
 					reg_idx * OF_REG_SIZE, &cs_idx);
 		if (ret)
@@ -192,7 +192,7 @@ static int weim_parse_dt(struct platform_device *pdev, void __iomem *base)
 	const struct of_device_id *of_id = of_match_device(weim_id_table,
 							   &pdev->dev);
 	const struct imx_weim_devtype *devtype = of_id->data;
-	struct device_node *child;
+	struct device_yesde *child;
 	int ret, have_child = 0;
 	struct cs_timing_state ts = {};
 	u32 reg;
@@ -203,18 +203,18 @@ static int weim_parse_dt(struct platform_device *pdev, void __iomem *base)
 			return ret;
 	}
 
-	if (of_property_read_bool(pdev->dev.of_node, "fsl,burst-clk-enable")) {
+	if (of_property_read_bool(pdev->dev.of_yesde, "fsl,burst-clk-enable")) {
 		if (devtype->wcr_bcm) {
 			reg = readl(base + devtype->wcr_offset);
 			writel(reg | devtype->wcr_bcm,
 				base + devtype->wcr_offset);
 		} else {
-			dev_err(&pdev->dev, "burst clk mode not supported.\n");
+			dev_err(&pdev->dev, "burst clk mode yest supported.\n");
 			return -EINVAL;
 		}
 	}
 
-	for_each_available_child_of_node(pdev->dev.of_node, child) {
+	for_each_available_child_of_yesde(pdev->dev.of_yesde, child) {
 		ret = weim_timing_setup(&pdev->dev, child, base, devtype, &ts);
 		if (ret)
 			dev_warn(&pdev->dev, "%pOF set timing failed.\n",
@@ -224,11 +224,11 @@ static int weim_parse_dt(struct platform_device *pdev, void __iomem *base)
 	}
 
 	if (have_child)
-		ret = of_platform_default_populate(pdev->dev.of_node,
+		ret = of_platform_default_populate(pdev->dev.of_yesde,
 						   NULL, &pdev->dev);
 	if (ret)
 		dev_err(&pdev->dev, "%pOF fail to create devices.\n",
-			pdev->dev.of_node);
+			pdev->dev.of_yesde);
 	return ret;
 }
 
@@ -254,7 +254,7 @@ static int weim_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	/* parse the device node */
+	/* parse the device yesde */
 	ret = weim_parse_dt(pdev, base);
 	if (ret)
 		clk_disable_unprepare(clk);

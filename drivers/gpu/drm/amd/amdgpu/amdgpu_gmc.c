@@ -18,13 +18,13 @@
  * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
  * USE OR OTHER DEALINGS IN THE SOFTWARE.
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright yestice and this permission yestice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
  *
  */
 
-#include <linux/io-64-nonatomic-lo-hi.h>
+#include <linux/io-64-yesnatomic-lo-hi.h>
 
 #include "amdgpu.h"
 #include "amdgpu_ras.h"
@@ -102,7 +102,7 @@ int amdgpu_gmc_set_pte_pde(struct amdgpu_device *adev, void *cpu_pt_addr,
 	uint64_t value;
 
 	/*
-	 * The following is for PTE only. GART does not have PDEs.
+	 * The following is for PTE only. GART does yest have PDEs.
 	*/
 	value = addr & 0x0000FFFFFFFFF000ULL;
 	value |= flags;
@@ -116,7 +116,7 @@ int amdgpu_gmc_set_pte_pde(struct amdgpu_device *adev, void *cpu_pt_addr,
  * @tbo: TTM BO which needs the address, must be in GTT domain
  *
  * Tries to figure out how to access the BO through the AGP aperture. Returns
- * AMDGPU_BO_INVALID_OFFSET if that is not possible.
+ * AMDGPU_BO_INVALID_OFFSET if that is yest possible.
  */
 uint64_t amdgpu_gmc_agp_addr(struct ttm_buffer_object *bo)
 {
@@ -153,7 +153,7 @@ void amdgpu_gmc_vram_location(struct amdgpu_device *adev, struct amdgpu_gmc *mc,
 	if (limit && limit < mc->real_vram_size)
 		mc->real_vram_size = limit;
 
-	if (mc->xgmi.num_physical_nodes == 0) {
+	if (mc->xgmi.num_physical_yesdes == 0) {
 		mc->fb_start = mc->vram_start;
 		mc->fb_end = mc->vram_end;
 	}
@@ -262,7 +262,7 @@ void amdgpu_gmc_agp_location(struct amdgpu_device *adev, struct amdgpu_gmc *mc)
  * @timestamp: timestamp of the fault
  *
  * Returns:
- * True if the fault was filtered and should not be processed further.
+ * True if the fault was filtered and should yest be processed further.
  * False if the fault is a new one and needs to be handled.
  */
 bool amdgpu_gmc_filter_faults(struct amdgpu_device *adev, uint64_t addr,

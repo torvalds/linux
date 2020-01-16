@@ -12,7 +12,7 @@ static void printcpulist(int str_len, char *str, int mask_size,
 	int i, first, curr_index, index;
 
 	if (!CPU_COUNT_S(mask_size, cpu_mask)) {
-		snprintf(str, str_len, "none");
+		snprintf(str, str_len, "yesne");
 		return;
 	}
 

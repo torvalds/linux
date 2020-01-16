@@ -45,12 +45,12 @@ MODULE_PARM_DESC(ser_loop, "Run in simulated loopback mode.");
 
 static bool ser_use_stx = true;
 module_param(ser_use_stx, bool, 0444);
-MODULE_PARM_DESC(ser_use_stx, "STX enabled or not.");
+MODULE_PARM_DESC(ser_use_stx, "STX enabled or yest.");
 
 static bool ser_use_fcs = true;
 
 module_param(ser_use_fcs, bool, 0444);
-MODULE_PARM_DESC(ser_use_fcs, "FCS enabled or not.");
+MODULE_PARM_DESC(ser_use_fcs, "FCS enabled or yest.");
 
 static int ser_write_chunk = MAX_WRITE_CHUNK;
 module_param(ser_write_chunk, int, 0444);
@@ -64,7 +64,7 @@ static int caif_net_close(struct net_device *dev);
 
 struct ser_device {
 	struct caif_dev_common common;
-	struct list_head node;
+	struct list_head yesde;
 	struct net_device *dev;
 	struct sk_buff_head head;
 	struct tty_struct *tty;
@@ -170,13 +170,13 @@ static void ldisc_receive(struct tty_struct *tty, const u8 *data,
 
 	/*
 	 * NOTE: flags may contain information about break or overrun.
-	 * This is not yet handled.
+	 * This is yest yet handled.
 	 */
 
 
 	/*
 	 * Workaround for garbage at start of transmission,
-	 * only enable if STX handling is not enabled.
+	 * only enable if STX handling is yest enabled.
 	 */
 	if (!ser->common.use_stx && !ser->tx_started) {
 		dev_info(&ser->dev->dev,
@@ -307,7 +307,7 @@ static void ser_release(struct work_struct *work)
 
 	if (!list_empty(&list)) {
 		rtnl_lock();
-		list_for_each_entry_safe(ser, tmp, &list, node) {
+		list_for_each_entry_safe(ser, tmp, &list, yesde) {
 			dev_close(ser->dev);
 			unregister_netdevice(ser->dev);
 			debugfs_deinit(ser);
@@ -325,7 +325,7 @@ static int ldisc_open(struct tty_struct *tty)
 	char name[64];
 	int result;
 
-	/* No write no play */
+	/* No write yes play */
 	if (tty->ops->write == NULL)
 		return -EOPNOTSUPP;
 	if (!capable(CAP_SYS_ADMIN) && !capable(CAP_SYS_TTY_CONFIG))
@@ -358,7 +358,7 @@ static int ldisc_open(struct tty_struct *tty)
 	}
 
 	spin_lock(&ser_lock);
-	list_add(&ser->node, &ser_list);
+	list_add(&ser->yesde, &ser_list);
 	spin_unlock(&ser_lock);
 	rtnl_unlock();
 	netif_stop_queue(dev);
@@ -373,7 +373,7 @@ static void ldisc_close(struct tty_struct *tty)
 	tty_kref_put(ser->tty);
 
 	spin_lock(&ser_lock);
-	list_move(&ser->node, &ser_release_list);
+	list_move(&ser->yesde, &ser_release_list);
 	spin_unlock(&ser_lock);
 	schedule_work(&ser_release_work);
 }
@@ -395,7 +395,7 @@ static int register_ldisc(void)
 
 	result = tty_register_ldisc(N_CAIF, &caif_ldisc);
 	if (result < 0) {
-		pr_err("cannot register CAIF ldisc=%d err=%d\n", N_CAIF,
+		pr_err("canyest register CAIF ldisc=%d err=%d\n", N_CAIF,
 			result);
 		return result;
 	}

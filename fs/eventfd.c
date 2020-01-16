@@ -15,7 +15,7 @@
 #include <linux/slab.h>
 #include <linux/list.h>
 #include <linux/spinlock.h>
-#include <linux/anon_inodes.h>
+#include <linux/ayesn_iyesdes.h>
 #include <linux/syscalls.h>
 #include <linux/export.h>
 #include <linux/kref.h>
@@ -46,9 +46,9 @@ struct eventfd_ctx {
  * eventfd_signal - Adds @n to the eventfd counter.
  * @ctx: [in] Pointer to the eventfd context.
  * @n: [in] Value of the counter to be added to the eventfd internal counter.
- *          The value cannot be negative.
+ *          The value canyest be negative.
  *
- * This function is supposed to be called by the kernel in paths that do not
+ * This function is supposed to be called by the kernel in paths that do yest
  * allow sleeping. In this function we allow the counter to reach the ULLONG_MAX
  * value, and we signal this as overflow condition by returning a EPOLLERR
  * to poll(2).
@@ -99,7 +99,7 @@ void eventfd_ctx_put(struct eventfd_ctx *ctx)
 }
 EXPORT_SYMBOL_GPL(eventfd_ctx_put);
 
-static int eventfd_release(struct inode *inode, struct file *file)
+static int eventfd_release(struct iyesde *iyesde, struct file *file)
 {
 	struct eventfd_ctx *ctx = file->private_data;
 
@@ -118,11 +118,11 @@ static __poll_t eventfd_poll(struct file *file, poll_table *wait)
 
 	/*
 	 * All writes to ctx->count occur within ctx->wqh.lock.  This read
-	 * can be done outside ctx->wqh.lock because we know that poll_wait
+	 * can be done outside ctx->wqh.lock because we kyesw that poll_wait
 	 * takes that lock (through add_wait_queue) if our caller will sleep.
 	 *
 	 * The read _can_ therefore seep into add_wait_queue's critical
-	 * section, but cannot move above it!  add_wait_queue's spin_lock acts
+	 * section, but canyest move above it!  add_wait_queue's spin_lock acts
 	 * as an acquire barrier and ensures that the read be ordered properly
 	 * against the writes.  The following CAN happen and is safe:
 	 *
@@ -139,7 +139,7 @@ static __poll_t eventfd_poll(struct file *file, poll_table *wait)
 	 *                                        unlock ctx->qwh.lock
 	 *     eventfd_poll returns 0
 	 *
-	 * but the following, which would miss a wakeup, cannot happen:
+	 * but the following, which would miss a wakeup, canyest happen:
 	 *
 	 *     poll                               write
 	 *     -----------------                  ------------
@@ -147,7 +147,7 @@ static __poll_t eventfd_poll(struct file *file, poll_table *wait)
 	 *                                        lock ctx->qwh.lock
 	 *                                        ctx->count += n
 	 *                                        **waitqueue_active is false**
-	 *                                        **no wake_up_locked_poll!**
+	 *                                        **yes wake_up_locked_poll!**
 	 *                                        unlock ctx->qwh.lock
 	 *     lock ctx->wqh.lock (in poll_wait)
 	 *     __add_wait_queue
@@ -316,7 +316,7 @@ static const struct file_operations eventfd_fops = {
 	.poll		= eventfd_poll,
 	.read		= eventfd_read,
 	.write		= eventfd_write,
-	.llseek		= noop_llseek,
+	.llseek		= yesop_llseek,
 };
 
 /**
@@ -327,7 +327,7 @@ static const struct file_operations eventfd_fops = {
  * following error pointer:
  *
  * -EBADF    : Invalid @fd file descriptor.
- * -EINVAL   : The @fd file descriptor is not an eventfd file.
+ * -EINVAL   : The @fd file descriptor is yest an eventfd file.
  */
 struct file *eventfd_fget(int fd)
 {
@@ -373,7 +373,7 @@ EXPORT_SYMBOL_GPL(eventfd_ctx_fdget);
  * Returns a pointer to the internal eventfd context, otherwise the error
  * pointer:
  *
- * -EINVAL   : The @fd file descriptor is not an eventfd file.
+ * -EINVAL   : The @fd file descriptor is yest an eventfd file.
  */
 struct eventfd_ctx *eventfd_ctx_fileget(struct file *file)
 {
@@ -410,7 +410,7 @@ static int do_eventfd(unsigned int count, int flags)
 	ctx->flags = flags;
 	ctx->id = ida_simple_get(&eventfd_ida, 0, 0, GFP_KERNEL);
 
-	fd = anon_inode_getfd("[eventfd]", &eventfd_fops, ctx,
+	fd = ayesn_iyesde_getfd("[eventfd]", &eventfd_fops, ctx,
 			      O_RDWR | (flags & EFD_SHARED_FCNTL_FLAGS));
 	if (fd < 0)
 		eventfd_free_ctx(ctx);

@@ -21,7 +21,7 @@ static int pg_fault;
 static int iterations = ITERATIONS;
 
 static struct option options[] = {
-	{ "pgfault", no_argument, &pg_fault, 1 },
+	{ "pgfault", yes_argument, &pg_fault, 1 },
 	{ "iterations", required_argument, 0, 'i' },
 	{ 0, },
 };

@@ -173,8 +173,8 @@ acpi_ex_do_concatenate(union acpi_operand_object *operand0,
 	local_operand1 = temp_operand1;
 
 	/*
-	 * Both operands are now known to be the same object type
-	 * (Both are Integer, String, or Buffer), and we can now perform
+	 * Both operands are yesw kyeswn to be the same object type
+	 * (Both are Integer, String, or Buffer), and we can yesw perform
 	 * the concatenation.
 	 *
 	 * There are three cases to handle, as per the ACPI spec:
@@ -187,7 +187,7 @@ acpi_ex_do_concatenate(union acpi_operand_object *operand0,
 	case ACPI_TYPE_INTEGER:
 
 		/* Result of two Integers is a Buffer */
-		/* Need enough buffer space for two integers */
+		/* Need eyesugh buffer space for two integers */
 
 		return_desc = acpi_ut_create_buffer_object((acpi_size)
 							   ACPI_MUL_2
@@ -260,7 +260,7 @@ acpi_ex_do_concatenate(union acpi_operand_object *operand0,
 
 	default:
 
-		/* Invalid object type, should not happen here */
+		/* Invalid object type, should yest happen here */
 
 		ACPI_ERROR((AE_INFO, "Invalid object type: 0x%X",
 			    operand0->common.type));
@@ -352,7 +352,7 @@ acpi_ex_concat_template(union acpi_operand_object *operand0,
 
 	/*
 	 * Find the end_tag descriptor in each resource template.
-	 * Note1: returned pointers point TO the end_tag, not past it.
+	 * Note1: returned pointers point TO the end_tag, yest past it.
 	 * Note2: zero-length buffers are allowed; treated like one end_tag
 	 */
 
@@ -393,7 +393,7 @@ acpi_ex_concat_template(union acpi_operand_object *operand0,
 	memcpy(new_buf, operand0->buffer.pointer, length0);
 	memcpy(new_buf + length0, operand1->buffer.pointer, length1);
 
-	/* Insert end_tag and set the checksum to zero, means "ignore checksum" */
+	/* Insert end_tag and set the checksum to zero, means "igyesre checksum" */
 
 	new_buf[new_length - 1] = 0;
 	new_buf[new_length - 2] = ACPI_RESOURCE_NAME_END_TAG | 1;

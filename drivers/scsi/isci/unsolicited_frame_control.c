@@ -16,7 +16,7 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
+ * along with this program; if yest, write to the Free Software
  * Foundation, Inc., 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
  * The full GNU General Public License is included in this distribution
  * in the file called LICENSE.GPL.
@@ -31,12 +31,12 @@
  * are met:
  *
  *   * Redistributions of source code must retain the above copyright
- *     notice, this list of conditions and the following disclaimer.
+ *     yestice, this list of conditions and the following disclaimer.
  *   * Redistributions in binary form must reproduce the above copyright
- *     notice, this list of conditions and the following disclaimer in
+ *     yestice, this list of conditions and the following disclaimer in
  *     the documentation and/or other materials provided with the
  *     distribution.
- *   * Neither the name of Intel Corporation nor the names of its
+ *   * Neither the name of Intel Corporation yesr the names of its
  *     contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission.
  *
@@ -97,8 +97,8 @@ void sci_unsolicited_frame_control_construct(struct isci_host *ihost)
 
 	/*
 	 * UF buffer requirements are:
-	 * - The last entry in the UF queue is not NULL.
-	 * - There is a power of 2 number of entries (NULL or not-NULL)
+	 * - The last entry in the UF queue is yest NULL.
+	 * - There is a power of 2 number of entries (NULL or yest-NULL)
 	 *   programmed into the queue.
 	 * - Aligned on a 1KB boundary. */
 
@@ -186,14 +186,14 @@ bool sci_unsolicited_frame_control_release_frame(struct sci_unsolicited_frame_co
 	if (frame_get != frame_index) {
 		/*
 		 * Frames remain in use until we advance the get pointer
-		 * so there is nothing we can do here
+		 * so there is yesthing we can do here
 		 */
 		return false;
 	}
 
 	/*
 	 * The frame index is equal to the current get pointer so we
-	 * can now free up all of the frame entries that
+	 * can yesw free up all of the frame entries that
 	 */
 	while (uf_control->buffers.array[frame_get].state == UNSOLICITED_FRAME_RELEASED) {
 		uf_control->buffers.array[frame_get].state = UNSOLICITED_FRAME_EMPTY;

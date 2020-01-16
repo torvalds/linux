@@ -3,7 +3,7 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright yestice and this permission yestice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
@@ -33,7 +33,7 @@
 }
 
 /* Some 2 GHz radios are actually tunable on 2312-2732
- * on 5 MHz steps, we support the channels which we know
+ * on 5 MHz steps, we support the channels which we kyesw
  * we have calibration data for all cards though to make
  * this static */
 static const struct ieee80211_channel ath9k_2ghz_chantable[] = {
@@ -54,7 +54,7 @@ static const struct ieee80211_channel ath9k_2ghz_chantable[] = {
 };
 
 /* Some 5 GHz radios are actually tunable on XXXX-YYYY
- * on 5 MHz steps, we support the channels which we know
+ * on 5 MHz steps, we support the channels which we kyesw
  * we have calibration data for all cards though to make
  * this static */
 static const struct ieee80211_channel ath9k_5ghz_chantable[] = {

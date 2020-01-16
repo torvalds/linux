@@ -167,7 +167,7 @@ int mwifiex_ret_11n_addba_req(struct mwifiex_private *priv,
 	       >> BLOCKACKPARAM_TID_POS;
 
 	tid_down = mwifiex_wmm_downgrade_tid(priv, tid);
-	ra_list = mwifiex_wmm_get_ralist_node(priv, tid_down, add_ba_rsp->
+	ra_list = mwifiex_wmm_get_ralist_yesde(priv, tid_down, add_ba_rsp->
 		peer_mac_addr);
 	if (le16_to_cpu(add_ba_rsp->status_code) != BA_RESULT_SUCCESS) {
 		if (ra_list) {
@@ -197,7 +197,7 @@ int mwifiex_ret_11n_addba_req(struct mwifiex_private *priv,
 			ra_list->ba_status = BA_SETUP_COMPLETE;
 		}
 	} else {
-		mwifiex_dbg(priv->adapter, ERROR, "BA stream not created\n");
+		mwifiex_dbg(priv->adapter, ERROR, "BA stream yest created\n");
 	}
 
 	return 0;
@@ -513,10 +513,10 @@ void mwifiex_11n_delete_tx_ba_stream_tbl_entry(struct mwifiex_private *priv,
 void mwifiex_11n_delete_all_tx_ba_stream_tbl(struct mwifiex_private *priv)
 {
 	int i;
-	struct mwifiex_tx_ba_stream_tbl *del_tbl_ptr, *tmp_node;
+	struct mwifiex_tx_ba_stream_tbl *del_tbl_ptr, *tmp_yesde;
 
 	spin_lock_bh(&priv->tx_ba_stream_tbl_lock);
-	list_for_each_entry_safe(del_tbl_ptr, tmp_node,
+	list_for_each_entry_safe(del_tbl_ptr, tmp_yesde,
 				 &priv->tx_ba_stream_tbl_ptr, list)
 		mwifiex_11n_delete_tx_ba_stream_tbl_entry(priv, del_tbl_ptr);
 	spin_unlock_bh(&priv->tx_ba_stream_tbl_lock);
@@ -556,30 +556,30 @@ mwifiex_get_ba_tbl(struct mwifiex_private *priv, int tid, u8 *ra)
 void mwifiex_create_ba_tbl(struct mwifiex_private *priv, u8 *ra, int tid,
 			   enum mwifiex_ba_status ba_status)
 {
-	struct mwifiex_tx_ba_stream_tbl *new_node;
+	struct mwifiex_tx_ba_stream_tbl *new_yesde;
 	struct mwifiex_ra_list_tbl *ra_list;
 	int tid_down;
 
 	if (!mwifiex_get_ba_tbl(priv, tid, ra)) {
-		new_node = kzalloc(sizeof(struct mwifiex_tx_ba_stream_tbl),
+		new_yesde = kzalloc(sizeof(struct mwifiex_tx_ba_stream_tbl),
 				   GFP_ATOMIC);
-		if (!new_node)
+		if (!new_yesde)
 			return;
 
 		tid_down = mwifiex_wmm_downgrade_tid(priv, tid);
-		ra_list = mwifiex_wmm_get_ralist_node(priv, tid_down, ra);
+		ra_list = mwifiex_wmm_get_ralist_yesde(priv, tid_down, ra);
 		if (ra_list) {
 			ra_list->ba_status = ba_status;
 			ra_list->amsdu_in_ampdu = false;
 		}
-		INIT_LIST_HEAD(&new_node->list);
+		INIT_LIST_HEAD(&new_yesde->list);
 
-		new_node->tid = tid;
-		new_node->ba_status = ba_status;
-		memcpy(new_node->ra, ra, ETH_ALEN);
+		new_yesde->tid = tid;
+		new_yesde->ba_status = ba_status;
+		memcpy(new_yesde->ra, ra, ETH_ALEN);
 
 		spin_lock_bh(&priv->tx_ba_stream_tbl_lock);
-		list_add_tail(&new_node->list, &priv->tx_ba_stream_tbl_ptr);
+		list_add_tail(&new_yesde->list, &priv->tx_ba_stream_tbl_ptr);
 		spin_unlock_bh(&priv->tx_ba_stream_tbl_lock);
 	}
 }
@@ -603,14 +603,14 @@ int mwifiex_send_addba(struct mwifiex_private *priv, int tid, u8 *peer_mac)
 	    ISSUPP_TDLS_ENABLED(priv->adapter->fw_cap_info) &&
 	    priv->adapter->is_hw_11ac_capable &&
 	    memcmp(priv->cfg_bssid, peer_mac, ETH_ALEN)) {
-		struct mwifiex_sta_node *sta_ptr;
+		struct mwifiex_sta_yesde *sta_ptr;
 
 		spin_lock_bh(&priv->sta_list_spinlock);
 		sta_ptr = mwifiex_get_sta_entry(priv, peer_mac);
 		if (!sta_ptr) {
 			spin_unlock_bh(&priv->sta_list_spinlock);
 			mwifiex_dbg(priv->adapter, ERROR,
-				    "BA setup with unknown TDLS peer %pM!\n",
+				    "BA setup with unkyeswn TDLS peer %pM!\n",
 				    peer_mac);
 			return -1;
 		}

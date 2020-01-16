@@ -43,7 +43,7 @@
 #define CMD_TMF_STATUS		0x000D
 #define CMD_IOACCEL_DISABLED	0x000E
 #define CMD_CTLR_LOCKUP		0xffff
-/* Note: CMD_CTLR_LOCKUP is not a value defined by the CISS spec
+/* Note: CMD_CTLR_LOCKUP is yest a value defined by the CISS spec
  * it is a value defined by the driver that commands can be marked
  * with when a controller lockup has been detected by the driver
  */
@@ -96,7 +96,7 @@
 /* cdb type */
 #define TYPE_CMD		0x00
 #define TYPE_MSG		0x01
-#define TYPE_IOACCEL2_CMD	0x81 /* 0x81 is not used by hardware */
+#define TYPE_IOACCEL2_CMD	0x81 /* 0x81 is yest used by hardware */
 
 /* Message Types  */
 #define HPSA_TASK_MANAGEMENT    0x00
@@ -442,8 +442,8 @@ struct CommandList {
 	 * phys_disk is a pointer to the hpsa_scsi_dev_t to which the
 	 * i/o is destined.  We need to store that here because the command
 	 * may potentially encounter TASK SET FULL and need to be resubmitted
-	 * For "normal" i/o's not using the "ioaccel" paths, phys_disk is
-	 * not used.
+	 * For "yesrmal" i/o's yest using the "ioaccel" paths, phys_disk is
+	 * yest used.
 	 */
 	struct hpsa_scsi_dev_t *phys_disk;
 
@@ -670,10 +670,10 @@ struct CfgTable {
 	__le32		max_error_info_length;
 	__le32		io_accel_max_embedded_sg_count;
 	__le32		io_accel_request_size_offset;
-	__le32		event_notify;
+	__le32		event_yestify;
 #define		HPSA_EVENT_NOTIFY_ACCEL_IO_PATH_STATE_CHANGE (1 << 30)
 #define		HPSA_EVENT_NOTIFY_ACCEL_IO_PATH_CONFIG_CHANGE (1 << 31)
-	__le32		clear_event_notify;
+	__le32		clear_event_yestify;
 };
 
 #define NUM_BLOCKFETCH_ENTRIES 8
@@ -714,7 +714,7 @@ struct bmic_identify_physical_device {
 	u8    serial_number[40]; /* Drive Serial Number */
 	u8    firmware_revision[8]; /* drive firmware revision */
 	u8    scsi_inquiry_bits; /* inquiry byte 7 bits */
-	u8    compaq_drive_stamp; /* 0 means drive not stamped */
+	u8    compaq_drive_stamp; /* 0 means drive yest stamped */
 	u8    last_failure_reason;
 #define BMIC_LAST_FAILURE_TOO_SMALL_IN_LOAD_CONFIG		0x01
 #define BMIC_LAST_FAILURE_ERROR_ERASING_RIS			0x02
@@ -775,7 +775,7 @@ struct bmic_identify_physical_device {
 	u8     scsi_lun;          /* SCSI LUN for phys drive */
 	u8     yet_more_flags;
 	u8     even_more_flags;
-	__le32 spi_speed_rules;/* SPI Speed data:Ultra disable diagnose */
+	__le32 spi_speed_rules;/* SPI Speed data:Ultra disable diagyesse */
 	u8     phys_connector[2];         /* connector number on controller */
 	u8     phys_box_on_bus;  /* phys enclosure this drive resides */
 	u8     phys_bay_in_box;  /* phys drv bay this drive resides */

@@ -41,12 +41,12 @@
  * are met:
  *
  *  * Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  *  * Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
+ *    yestice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
- *  * Neither the name Intel Corporation nor the names of its
+ *  * Neither the name Intel Corporation yesr the names of its
  *    contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
@@ -71,7 +71,7 @@
 
 /* v1/v2 uCode file layout */
 struct iwl_ucode_header {
-	__le32 ver;	/* major/minor/API/serial */
+	__le32 ver;	/* major/miyesr/API/serial */
 	union {
 		struct {
 			__le32 inst_size;	/* bytes of runtime code */
@@ -164,7 +164,7 @@ enum iwl_ucode_tlv_type {
 
 struct iwl_ucode_tlv {
 	__le32 type;		/* see above */
-	__le32 length;		/* not including type/length fields */
+	__le32 length;		/* yest including type/length fields */
 	u8 data[0];
 };
 
@@ -176,15 +176,15 @@ struct iwl_tlv_ucode_header {
 	 * The TLV style ucode header is distinguished from
 	 * the v1/v2 style header by first four bytes being
 	 * zero, as such is an invalid combination of
-	 * major/minor/API/serial versions.
+	 * major/miyesr/API/serial versions.
 	 */
 	__le32 zero;
 	__le32 magic;
 	u8 human_readable[FW_VER_HUMAN_READABLE_SZ];
-	/* major/minor/API/serial or major in new format */
+	/* major/miyesr/API/serial or major in new format */
 	__le32 ver;
 	__le32 build;
-	__le64 ignore;
+	__le64 igyesre;
 	/*
 	 * The data contained herein has a TLV layout,
 	 * see above for the TLV header and types.
@@ -221,7 +221,7 @@ struct iwl_ucode_capa {
  *	offload profile config command.
  * @IWL_UCODE_TLV_FLAGS_D3_6_IPV6_ADDRS: D3 image supports up to six
  *	(rather than two) IPv6 addresses
- * @IWL_UCODE_TLV_FLAGS_NO_BASIC_SSID: not sending a probe with the SSID element
+ * @IWL_UCODE_TLV_FLAGS_NO_BASIC_SSID: yest sending a probe with the SSID element
  *	from the probe request template.
  * @IWL_UCODE_TLV_FLAGS_NEW_NSOFFL_SMALL: new NS offload (small version)
  * @IWL_UCODE_TLV_FLAGS_NEW_NSOFFL_LARGE: new NS offload (large version)
@@ -255,7 +255,7 @@ typedef unsigned int __bitwise iwl_ucode_tlv_api_t;
  * @IWL_UCODE_TLV_API_LQ_SS_PARAMS: Configure STBC/BFER via LQ CMD ss_params
  * @IWL_UCODE_TLV_API_NEW_VERSION: new versioning format
  * @IWL_UCODE_TLV_API_SCAN_TSF_REPORT: Scan start time reported in scan
- *	iteration complete notification, and the timestamp reported for RX
+ *	iteration complete yestification, and the timestamp reported for RX
  *	received during scan, are reported in TSF of the mac specified in the
  *	scan request.
  * @IWL_UCODE_TLV_API_TKIP_MIC_KEYS: This ucode supports version 2 of
@@ -273,7 +273,7 @@ typedef unsigned int __bitwise iwl_ucode_tlv_api_t;
  * @IWL_UCODE_TLV_API_REDUCE_TX_POWER: This ucode supports v5 of
  *	the REDUCE_TX_POWER_CMD.
  * @IWL_UCODE_TLV_API_SHORT_BEACON_NOTIF: This ucode supports the short
- *	version of the beacon notification.
+ *	version of the beacon yestification.
  * @IWL_UCODE_TLV_API_BEACON_FILTER_V4: This ucode supports v4 of
  *	BEACON_FILTER_CONFIG_API_S_VER_4.
  * @IWL_UCODE_TLV_API_REGULATORY_NVM_INFO: This ucode supports v4 of
@@ -330,7 +330,7 @@ enum iwl_ucode_tlv_api {
 
 	NUM_IWL_UCODE_TLV_API
 #ifdef __CHECKER__
-		/* sparse says it cannot increment the previous enum member */
+		/* sparse says it canyest increment the previous enum member */
 		= 128
 #endif
 };
@@ -368,8 +368,8 @@ typedef unsigned int __bitwise iwl_ucode_tlv_capa_t;
  *	IWL_UCODE_TLV_API_WIFI_MCC_UPDATE. When either is set, multi-source LAR
  *	is supported.
  * @IWL_UCODE_TLV_CAPA_BT_COEX_RRC: supports BT Coex RRC
- * @IWL_UCODE_TLV_CAPA_GSCAN_SUPPORT: supports gscan (no longer used)
- * @IWL_UCODE_TLV_CAPA_STA_PM_NOTIF: firmware will send STA PM notification
+ * @IWL_UCODE_TLV_CAPA_GSCAN_SUPPORT: supports gscan (yes longer used)
+ * @IWL_UCODE_TLV_CAPA_STA_PM_NOTIF: firmware will send STA PM yestification
  * @IWL_UCODE_TLV_CAPA_TLC_OFFLOAD: firmware implements rate scaling algorithm
  * @IWL_UCODE_TLV_CAPA_DYNAMIC_QUOTA: firmware implements quota related
  * @IWL_UCODE_TLV_CAPA_COEX_SCHEMA_2: firmware implements Coex Schema 2
@@ -381,7 +381,7 @@ typedef unsigned int __bitwise iwl_ucode_tlv_capa_t;
  * @IWL_UCODE_TLV_CAPA_SHORT_PM_TIMEOUTS: supports short PM timeouts
  * @IWL_UCODE_TLV_CAPA_BT_MPLUT_SUPPORT: supports bt-coex Multi-priority LUT
  * @IWL_UCODE_TLV_CAPA_CSA_AND_TBTT_OFFLOAD: the firmware supports CSA
- *	countdown offloading. Beacon notifications are not sent to the host.
+ *	countdown offloading. Beacon yestifications are yest sent to the host.
  *	The fw also offloads TBTT alignment.
  * @IWL_UCODE_TLV_CAPA_BEACON_ANT_SELECTION: firmware will decide on what
  *	antenna the beacon should be transmitted
@@ -480,27 +480,27 @@ enum iwl_ucode_tlv_capa {
 
 	NUM_IWL_UCODE_TLV_CAPA
 #ifdef __CHECKER__
-		/* sparse says it cannot increment the previous enum member */
+		/* sparse says it canyest increment the previous enum member */
 		= 128
 #endif
 };
 
-/* The default calibrate table size if not specified by firmware file */
+/* The default calibrate table size if yest specified by firmware file */
 #define IWL_DEFAULT_STANDARD_PHY_CALIBRATE_TBL_SIZE	18
 #define IWL_MAX_STANDARD_PHY_CALIBRATE_TBL_SIZE		19
 #define IWL_MAX_PHY_CALIBRATE_TBL_SIZE			253
 
-/* The default max probe length if not specified by the firmware file */
+/* The default max probe length if yest specified by the firmware file */
 #define IWL_DEFAULT_MAX_PROBE_LENGTH	200
 
 /*
- * For 16.0 uCode and above, there is no differentiation between sections,
+ * For 16.0 uCode and above, there is yes differentiation between sections,
  * just an offset to the HW address.
  */
 #define CPU1_CPU2_SEPARATOR_SECTION	0xFFFFCCCC
 #define PAGING_SEPARATOR_SECTION	0xAAAABBBB
 
-/* uCode version contains 4 values: Major/Minor/API/Serial */
+/* uCode version contains 4 values: Major/Miyesr/API/Serial */
 #define IWL_UCODE_MAJOR(ver)	(((ver) & 0xFF000000) >> 24)
 #define IWL_UCODE_MINOR(ver)	(((ver) & 0x00FF0000) >> 16)
 #define IWL_UCODE_API(ver)	(((ver) & 0x0000FF00) >> 8)
@@ -739,7 +739,7 @@ enum iwl_fw_dbg_trigger_vif_type {
  *	configuration should be applied when the triggers kicks in.
  * @occurrences: number of occurrences. 0 means the trigger will never fire.
  * @trig_dis_ms: the time, in milliseconds, after an occurrence of this
- *	trigger in which another occurrence should be ignored.
+ *	trigger in which ayesther occurrence should be igyesred.
  * @flags: &enum iwl_fw_dbg_trigger_flags
  */
 struct iwl_fw_dbg_trigger_tlv {
@@ -877,9 +877,9 @@ struct iwl_fw_dbg_trigger_txq_timer {
 /**
  * struct iwl_fw_dbg_trigger_time_event - configures a time event trigger
  * time_Events: a list of tuples <id, action_bitmap>. The driver will issue a
- *	trigger each time a time event notification that relates to time event
+ *	trigger each time a time event yestification that relates to time event
  *	id with one of the actions in the bitmap is received and
- *	BIT(notif->status) is set in status_bitmap.
+ *	BIT(yestif->status) is set in status_bitmap.
  *
  */
 struct iwl_fw_dbg_trigger_time_event {
@@ -969,13 +969,13 @@ struct iwl_fw_dbg_conf_tlv {
  * @cmd: command ID
  * @group: group ID
  * @cmd_ver: command version
- * @notif_ver: notification version
+ * @yestif_ver: yestification version
  */
 struct iwl_fw_cmd_version {
 	u8 cmd;
 	u8 group;
 	u8 cmd_ver;
-	u8 notif_ver;
+	u8 yestif_ver;
 } __packed;
 
 static inline size_t _iwl_tlv_array_len(const struct iwl_ucode_tlv *tlv,

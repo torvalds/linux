@@ -6,7 +6,7 @@
  *     Author: Alex Williamson <alex.williamson@redhat.com>
  */
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/file.h>
 #include <linux/kvm_host.h>
 #include <linux/list.h>
@@ -22,14 +22,14 @@
 #endif
 
 struct kvm_vfio_group {
-	struct list_head node;
+	struct list_head yesde;
 	struct vfio_group *vfio_group;
 };
 
 struct kvm_vfio {
 	struct list_head group_list;
 	struct mutex lock;
-	bool noncoherent;
+	bool yesncoherent;
 };
 
 static struct vfio_group *kvm_vfio_group_get_external_user(struct file *filep)
@@ -151,31 +151,31 @@ static void kvm_spapr_tce_release_vfio_group(struct kvm *kvm,
  * Groups can use the same or different IOMMU domains.  If the same then
  * adding a new group may change the coherency of groups we've previously
  * been told about.  We don't want to care about any of that so we retest
- * each group and bail as soon as we find one that's noncoherent.  This
- * means we only ever [un]register_noncoherent_dma once for the whole device.
+ * each group and bail as soon as we find one that's yesncoherent.  This
+ * means we only ever [un]register_yesncoherent_dma once for the whole device.
  */
 static void kvm_vfio_update_coherency(struct kvm_device *dev)
 {
 	struct kvm_vfio *kv = dev->private;
-	bool noncoherent = false;
+	bool yesncoherent = false;
 	struct kvm_vfio_group *kvg;
 
 	mutex_lock(&kv->lock);
 
-	list_for_each_entry(kvg, &kv->group_list, node) {
+	list_for_each_entry(kvg, &kv->group_list, yesde) {
 		if (!kvm_vfio_group_is_coherent(kvg->vfio_group)) {
-			noncoherent = true;
+			yesncoherent = true;
 			break;
 		}
 	}
 
-	if (noncoherent != kv->noncoherent) {
-		kv->noncoherent = noncoherent;
+	if (yesncoherent != kv->yesncoherent) {
+		kv->yesncoherent = yesncoherent;
 
-		if (kv->noncoherent)
-			kvm_arch_register_noncoherent_dma(dev->kvm);
+		if (kv->yesncoherent)
+			kvm_arch_register_yesncoherent_dma(dev->kvm);
 		else
-			kvm_arch_unregister_noncoherent_dma(dev->kvm);
+			kvm_arch_unregister_yesncoherent_dma(dev->kvm);
 	}
 
 	mutex_unlock(&kv->lock);
@@ -208,7 +208,7 @@ static int kvm_vfio_set_group(struct kvm_device *dev, long attr, u64 arg)
 
 		mutex_lock(&kv->lock);
 
-		list_for_each_entry(kvg, &kv->group_list, node) {
+		list_for_each_entry(kvg, &kv->group_list, yesde) {
 			if (kvg->vfio_group == vfio_group) {
 				mutex_unlock(&kv->lock);
 				kvm_vfio_group_put_external_user(vfio_group);
@@ -223,7 +223,7 @@ static int kvm_vfio_set_group(struct kvm_device *dev, long attr, u64 arg)
 			return -ENOMEM;
 		}
 
-		list_add_tail(&kvg->node, &kv->group_list);
+		list_add_tail(&kvg->yesde, &kv->group_list);
 		kvg->vfio_group = vfio_group;
 
 		kvm_arch_start_assignment(dev->kvm);
@@ -248,12 +248,12 @@ static int kvm_vfio_set_group(struct kvm_device *dev, long attr, u64 arg)
 
 		mutex_lock(&kv->lock);
 
-		list_for_each_entry(kvg, &kv->group_list, node) {
+		list_for_each_entry(kvg, &kv->group_list, yesde) {
 			if (!kvm_vfio_external_group_match_file(kvg->vfio_group,
 								f.file))
 				continue;
 
-			list_del(&kvg->node);
+			list_del(&kvg->yesde);
 			kvm_arch_end_assignment(dev->kvm);
 #ifdef CONFIG_SPAPR_TCE_IOMMU
 			kvm_spapr_tce_release_vfio_group(dev->kvm,
@@ -307,7 +307,7 @@ static int kvm_vfio_set_group(struct kvm_device *dev, long attr, u64 arg)
 
 		mutex_lock(&kv->lock);
 
-		list_for_each_entry(kvg, &kv->group_list, node) {
+		list_for_each_entry(kvg, &kv->group_list, yesde) {
 			if (kvg->vfio_group != vfio_group)
 				continue;
 
@@ -365,13 +365,13 @@ static void kvm_vfio_destroy(struct kvm_device *dev)
 	struct kvm_vfio *kv = dev->private;
 	struct kvm_vfio_group *kvg, *tmp;
 
-	list_for_each_entry_safe(kvg, tmp, &kv->group_list, node) {
+	list_for_each_entry_safe(kvg, tmp, &kv->group_list, yesde) {
 #ifdef CONFIG_SPAPR_TCE_IOMMU
 		kvm_spapr_tce_release_vfio_group(dev->kvm, kvg->vfio_group);
 #endif
 		kvm_vfio_group_set_kvm(kvg->vfio_group, NULL);
 		kvm_vfio_group_put_external_user(kvg->vfio_group);
-		list_del(&kvg->node);
+		list_del(&kvg->yesde);
 		kfree(kvg);
 		kvm_arch_end_assignment(dev->kvm);
 	}
@@ -398,7 +398,7 @@ static int kvm_vfio_create(struct kvm_device *dev, u32 type)
 	struct kvm_vfio *kv;
 
 	/* Only one VFIO "device" per VM */
-	list_for_each_entry(tmp, &dev->kvm->devices, vm_node)
+	list_for_each_entry(tmp, &dev->kvm->devices, vm_yesde)
 		if (tmp->ops == &kvm_vfio_ops)
 			return -EBUSY;
 

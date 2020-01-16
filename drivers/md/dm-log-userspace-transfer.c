@@ -72,7 +72,7 @@ static int dm_ulog_sendto_server(struct dm_ulog_request *tfr)
 }
 
 /*
- * Parameters for this function can be either msg or tfr, but not
+ * Parameters for this function can be either msg or tfr, but yest
  * both.  This function fills in the reply for a waiting request.
  * If just msg is given, then the reply is simply an ACK from userspace
  * that the request was received.
@@ -101,9 +101,9 @@ static int fill_pkg(struct cn_msg *msg, struct dm_ulog_request *tfr)
 		if (msg) {
 			pkg->error = -msg->ack;
 			/*
-			 * If we are trying again, we will need to know our
+			 * If we are trying again, we will need to kyesw our
 			 * storage capacity.  Otherwise, along with the
-			 * error code, we make explicit that we have no data.
+			 * error code, we make explicit that we have yes data.
 			 */
 			if (pkg->error != -EAGAIN)
 				*(pkg->data_size) = 0;
@@ -161,7 +161,7 @@ static void cn_ulog_callback(struct cn_msg *msg, struct netlink_skb_parms *nsp)
  * rdata_size is undefined on failure.
  *
  * Memory used to communicate with userspace is zero'ed
- * before populating to ensure that no unwanted bits leak
+ * before populating to ensure that yes unwanted bits leak
  * from kernel space to user-space.  All userspace log communications
  * between kernel and user space go through this function.
  *
@@ -180,7 +180,7 @@ int dm_consult_userspace(const char *uuid, uint64_t luid, int request_type,
 
 	/*
 	 * Given the space needed to hold the 'struct cn_msg' and
-	 * 'struct dm_ulog_request' - do we have enough payload
+	 * 'struct dm_ulog_request' - do we have eyesugh payload
 	 * space remaining?
 	 */
 	if (data_size > (DM_ULOG_PREALLOCED_SIZE - overhead_size)) {

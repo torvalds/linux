@@ -241,7 +241,7 @@ static inline void writeq(u64 value, volatile void __iomem *addr)
 
 /*
  * {read,write}{b,w,l,q}_relaxed() are like the regular version, but
- * are not guaranteed to provide ordering against spinlocks or memory
+ * are yest guaranteed to provide ordering against spinlocks or memory
  * accesses.
  */
 #ifndef readb_relaxed
@@ -924,13 +924,13 @@ static inline void *phys_to_virt(unsigned long address)
  *
  * Architectures with an MMU are expected to provide ioremap() and iounmap()
  * themselves or rely on GENERIC_IOREMAP.  For NOMMU architectures we provide
- * a default nop-op implementation that expect that the physical address used
+ * a default yesp-op implementation that expect that the physical address used
  * for MMIO are already marked as uncached, and can be used as kernel virtual
  * addresses.
  *
  * ioremap_wc() and ioremap_wt() can provide more relaxed caching attributes
  * for specific drivers if the architecture choses to implement them.  If they
- * are not implemented we fall back to plain ioremap.
+ * are yest implemented we fall back to plain ioremap.
  */
 #ifndef CONFIG_MMU
 #ifndef ioremap
@@ -960,8 +960,8 @@ static inline void __iomem *ioremap(phys_addr_t addr, size_t size)
 }
 #endif /* !CONFIG_MMU || CONFIG_GENERIC_IOREMAP */
 
-#ifndef ioremap_nocache
-#define ioremap_nocache ioremap
+#ifndef ioremap_yescache
+#define ioremap_yescache ioremap
 #endif
 
 #ifndef ioremap_wc
@@ -974,9 +974,9 @@ static inline void __iomem *ioremap(phys_addr_t addr, size_t size)
 
 /*
  * ioremap_uc is special in that we do require an explicit architecture
- * implementation.  In general you do not want to use this function in a
+ * implementation.  In general you do yest want to use this function in a
  * driver and use plain ioremap, which is uncached by default.  Similarly
- * architectures should not implement it unless they have a very good
+ * architectures should yest implement it unless they have a very good
  * reason.
  */
 #ifndef ioremap_uc

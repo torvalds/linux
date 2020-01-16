@@ -90,7 +90,7 @@ static void s3c2412_snd_txctrl(struct s3c_i2sv2_info *i2s, int on)
 		switch (mod & S3C2412_IISMOD_MODE_MASK) {
 		case S3C2412_IISMOD_MODE_TXONLY:
 		case S3C2412_IISMOD_MODE_TXRX:
-			/* do nothing, we are in the right mode */
+			/* do yesthing, we are in the right mode */
 			break;
 
 		case S3C2412_IISMOD_MODE_RXONLY:
@@ -107,7 +107,7 @@ static void s3c2412_snd_txctrl(struct s3c_i2sv2_info *i2s, int on)
 		writel(con, regs + S3C2412_IISCON);
 		writel(mod, regs + S3C2412_IISMOD);
 	} else {
-		/* Note, we do not have any indication that the FIFO problems
+		/* Note, we do yest have any indication that the FIFO problems
 		 * tha the S3C2410/2440 had apply here, so we should be able
 		 * to disable the DMA and TX without resetting the FIFOS.
 		 */
@@ -163,7 +163,7 @@ static void s3c2412_snd_rxctrl(struct s3c_i2sv2_info *i2s, int on)
 		switch (mod & S3C2412_IISMOD_MODE_MASK) {
 		case S3C2412_IISMOD_MODE_TXRX:
 		case S3C2412_IISMOD_MODE_RXONLY:
-			/* do nothing, we are in the right mode */
+			/* do yesthing, we are in the right mode */
 			break;
 
 		case S3C2412_IISMOD_MODE_TXONLY:
@@ -179,7 +179,7 @@ static void s3c2412_snd_rxctrl(struct s3c_i2sv2_info *i2s, int on)
 		writel(mod, regs + S3C2412_IISMOD);
 		writel(con, regs + S3C2412_IISCON);
 	} else {
-		/* See txctrl notes on FIFOs. */
+		/* See txctrl yestes on FIFOs. */
 
 		con &= ~S3C2412_IISCON_RXDMA_ACTIVE;
 		con |=  S3C2412_IISCON_RXDMA_PAUSE;
@@ -262,7 +262,7 @@ static int s3c2412_i2s_set_fmt(struct snd_soc_dai *cpu_dai,
 		iismod &= ~S3C2412_IISMOD_SLAVE;
 		break;
 	default:
-		pr_err("unknown master/slave format\n");
+		pr_err("unkyeswn master/slave format\n");
 		return -EINVAL;
 	}
 
@@ -282,7 +282,7 @@ static int s3c2412_i2s_set_fmt(struct snd_soc_dai *cpu_dai,
 		iismod |= S3C2412_IISMOD_SDF_IIS;
 		break;
 	default:
-		pr_err("Unknown data format\n");
+		pr_err("Unkyeswn data format\n");
 		return -EINVAL;
 	}
 

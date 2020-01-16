@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -149,7 +149,7 @@ static const u8 *mipi_exec_send_packet(struct intel_dsi *intel_dsi,
 
 	dsi_device = intel_dsi->dsi_hosts[port]->device;
 	if (!dsi_device) {
-		DRM_DEBUG_KMS("no dsi device for port %c\n", port_name(port));
+		DRM_DEBUG_KMS("yes dsi device for port %c\n", port_name(port));
 		goto out;
 	}
 
@@ -173,7 +173,7 @@ static const u8 *mipi_exec_send_packet(struct intel_dsi *intel_dsi,
 	case MIPI_DSI_GENERIC_READ_REQUEST_0_PARAM:
 	case MIPI_DSI_GENERIC_READ_REQUEST_1_PARAM:
 	case MIPI_DSI_GENERIC_READ_REQUEST_2_PARAM:
-		DRM_DEBUG_DRIVER("Generic Read not yet implemented or used\n");
+		DRM_DEBUG_DRIVER("Generic Read yest yet implemented or used\n");
 		break;
 	case MIPI_DSI_GENERIC_LONG_WRITE:
 		mipi_dsi_generic_write(dsi_device, data, len);
@@ -185,7 +185,7 @@ static const u8 *mipi_exec_send_packet(struct intel_dsi *intel_dsi,
 		mipi_dsi_dcs_write_buffer(dsi_device, data, 2);
 		break;
 	case MIPI_DSI_DCS_READ:
-		DRM_DEBUG_DRIVER("DCS Read not yet implemented or used\n");
+		DRM_DEBUG_DRIVER("DCS Read yest yet implemented or used\n");
 		break;
 	case MIPI_DSI_DCS_LONG_WRITE:
 		mipi_dsi_dcs_write_buffer(dsi_device, data, len);
@@ -222,7 +222,7 @@ static void vlv_exec_gpio(struct drm_i915_private *dev_priv,
 	u8 port;
 
 	if (gpio_index >= ARRAY_SIZE(vlv_gpio_table)) {
-		DRM_DEBUG_KMS("unknown gpio index %u\n", gpio_index);
+		DRM_DEBUG_KMS("unkyeswn gpio index %u\n", gpio_index);
 		return;
 	}
 
@@ -235,10 +235,10 @@ static void vlv_exec_gpio(struct drm_i915_private *dev_priv,
 		if (gpio_source == 0) {
 			port = IOSF_PORT_GPIO_NC;
 		} else if (gpio_source == 1) {
-			DRM_DEBUG_KMS("SC gpio not supported\n");
+			DRM_DEBUG_KMS("SC gpio yest supported\n");
 			return;
 		} else {
-			DRM_DEBUG_KMS("unknown gpio source %u\n", gpio_source);
+			DRM_DEBUG_KMS("unkyeswn gpio source %u\n", gpio_source);
 			return;
 		}
 	}
@@ -282,7 +282,7 @@ static void chv_exec_gpio(struct drm_i915_private *dev_priv,
 	} else {
 		/* XXX: The spec is unclear about CHV GPIO on seq v2 */
 		if (gpio_source != 0) {
-			DRM_DEBUG_KMS("unknown gpio source %u\n", gpio_source);
+			DRM_DEBUG_KMS("unkyeswn gpio source %u\n", gpio_source);
 			return;
 		}
 
@@ -408,7 +408,7 @@ static const u8 *mipi_exec_pmic(struct intel_dsi *intel_dsi, const u8 *data)
 	if (ret)
 		DRM_ERROR("%s failed, error: %d\n", __func__, ret);
 #else
-	DRM_ERROR("Your hardware requires CONFIG_PMIC_OPREGION and it is not set\n");
+	DRM_ERROR("Your hardware requires CONFIG_PMIC_OPREGION and it is yest set\n");
 #endif
 
 	return data + 15;
@@ -450,7 +450,7 @@ static const char *sequence_name(enum mipi_seq seq_id)
 	if (seq_id < ARRAY_SIZE(seq_name) && seq_name[seq_id])
 		return seq_name[seq_id];
 	else
-		return "(unknown)";
+		return "(unkyeswn)";
 }
 
 void intel_dsi_vbt_exec_sequence(struct intel_dsi *intel_dsi,
@@ -538,11 +538,11 @@ void intel_dsi_log_params(struct intel_dsi *intel_dsi)
 	DRM_DEBUG_KMS("DPHY param reg 0x%x\n", intel_dsi->dphy_reg);
 	DRM_DEBUG_KMS("Video mode format %s\n",
 		      intel_dsi->video_mode_format == VIDEO_MODE_NON_BURST_WITH_SYNC_PULSE ?
-		      "non-burst with sync pulse" :
+		      "yesn-burst with sync pulse" :
 		      intel_dsi->video_mode_format == VIDEO_MODE_NON_BURST_WITH_SYNC_EVENTS ?
-		      "non-burst with sync events" :
+		      "yesn-burst with sync events" :
 		      intel_dsi->video_mode_format == VIDEO_MODE_BURST ?
-		      "burst" : "<unknown>");
+		      "burst" : "<unkyeswn>");
 	DRM_DEBUG_KMS("Burst mode ratio %d\n", intel_dsi->burst_mode_ratio);
 	DRM_DEBUG_KMS("Reset timer %d\n", intel_dsi->rst_timer_val);
 	DRM_DEBUG_KMS("Eot %s\n", enableddisabled(intel_dsi->eotp_pkt));
@@ -618,7 +618,7 @@ bool intel_dsi_vbt_init(struct intel_dsi *intel_dsi, u16 panel_id)
 	}
 
 	/* Burst Mode Ratio
-	 * Target ddr frequency from VBT / non burst ddr freq
+	 * Target ddr frequency from VBT / yesn burst ddr freq
 	 * multiply by 100 to preserve remainder
 	 */
 	if (intel_dsi->video_mode_format == VIDEO_MODE_BURST) {
@@ -647,7 +647,7 @@ bool intel_dsi_vbt_init(struct intel_dsi *intel_dsi, u16 panel_id)
 
 			intel_dsi->pclk = DIV_ROUND_UP(intel_dsi->pclk * burst_mode_ratio, 100);
 		} else {
-			DRM_ERROR("Burst mode target is not set\n");
+			DRM_ERROR("Burst mode target is yest set\n");
 			return false;
 		}
 	} else

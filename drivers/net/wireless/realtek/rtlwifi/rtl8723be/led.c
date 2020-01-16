@@ -35,7 +35,7 @@ void rtl8723be_sw_led_on(struct ieee80211_hw *hw, struct rtl_led *pled)
 		rtl_write_byte(rtlpriv, REG_LEDCFG1, ledcfg & 0x10);
 		break;
 	default:
-		pr_err("switch case %#x not processed\n",
+		pr_err("switch case %#x yest processed\n",
 		       pled->ledpin);
 		break;
 	}
@@ -76,7 +76,7 @@ void rtl8723be_sw_led_off(struct ieee80211_hw *hw, struct rtl_led *pled)
 
 		break;
 	default:
-		pr_err("switch case %#x not processed\n",
+		pr_err("switch case %#x yest processed\n",
 		       pled->ledpin);
 		break;
 	}

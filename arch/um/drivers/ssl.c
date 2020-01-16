@@ -21,7 +21,7 @@ static const int ssl_version = 1;
 
 #define NR_PORTS 64
 
-static void ssl_announce(char *dev_name, int dev)
+static void ssl_anyesunce(char *dev_name, int dev)
 {
 	printk(KERN_INFO "Serial line %d assigned device '%s'\n", dev,
 	       dev_name);
@@ -29,7 +29,7 @@ static void ssl_announce(char *dev_name, int dev)
 
 /* Almost const, except that xterm_title may be changed in an initcall */
 static struct chan_opts opts = {
-	.announce 	= ssl_announce,
+	.anyesunce 	= ssl_anyesunce,
 	.xterm_title	= "Serial Line #%d",
 	.raw		= 1,
 };
@@ -44,7 +44,7 @@ static struct line_driver driver = {
 	.name 			= "UML serial line",
 	.device_name 		= "ttyS",
 	.major 			= TTY_MAJOR,
-	.minor_start 		= 64,
+	.miyesr_start 		= 64,
 	.type 		 	= TTY_DRIVER_TYPE_SERIAL,
 	.subtype 	 	= 0,
 	.read_irq 		= SSL_IRQ,

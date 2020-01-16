@@ -83,11 +83,11 @@ struct asic3_platform_data {
 #define ASIC3_GPIO_SLEEP_MASK    0x18    /* R/W 0:don't mask in sleep mode */
 #define ASIC3_GPIO_SLEEP_OUT     0x1c    /* R/W level 0:low in sleep mode */
 #define ASIC3_GPIO_BAT_FAULT_OUT 0x20    /* R/W level 0:low in batt_fault */
-#define ASIC3_GPIO_INT_STATUS    0x24    /* R/W 0:none, 1:detect */
+#define ASIC3_GPIO_INT_STATUS    0x24    /* R/W 0:yesne, 1:detect */
 #define ASIC3_GPIO_ALT_FUNCTION  0x28	 /* R/W 1:LED register control */
 #define ASIC3_GPIO_SLEEP_CONF    0x2c    /*
 					  * R/W bit 1: autosleep
-					  * 0: disable gposlpout in normal mode,
+					  * 0: disable gposlpout in yesrmal mode,
 					  * enable gposlpout in sleep mode.
 					  */
 #define ASIC3_GPIO_STATUS        0x30    /* R   Pin status */

@@ -17,7 +17,7 @@
 
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
-#include <media/v4l2-fwnode.h>
+#include <media/v4l2-fwyesde.h>
 #include <media/v4l2-subdev.h>
 
 #define CSI2RX_DEVICE_CFG_REG			0x000
@@ -77,7 +77,7 @@ struct csi2rx_priv {
 	bool				has_internal_dphy;
 
 	struct v4l2_subdev		subdev;
-	struct v4l2_async_notifier	notifier;
+	struct v4l2_async_yestifier	yestifier;
 	struct media_pad		pads[CSI2RX_PAD_MAX];
 
 	/* Remote source */
@@ -147,7 +147,7 @@ static int csi2rx_start(struct csi2rx_priv *csi2rx)
 	 * This should be enhanced, but v4l2 lacks the support for
 	 * changing that mapping dynamically.
 	 *
-	 * We also cannot enable and disable independent streams here,
+	 * We also canyest enable and disable independent streams here,
 	 * hence the reference counting.
 	 */
 	for (i = 0; i < csi2rx->max_streams; i++) {
@@ -212,7 +212,7 @@ static int csi2rx_s_stream(struct v4l2_subdev *subdev, int enable)
 
 	if (enable) {
 		/*
-		 * If we're not the first users, there's no need to
+		 * If we're yest the first users, there's yes need to
 		 * enable the whole controller.
 		 */
 		if (!csi2rx->count) {
@@ -245,15 +245,15 @@ static const struct v4l2_subdev_ops csi2rx_subdev_ops = {
 	.video		= &csi2rx_video_ops,
 };
 
-static int csi2rx_async_bound(struct v4l2_async_notifier *notifier,
+static int csi2rx_async_bound(struct v4l2_async_yestifier *yestifier,
 			      struct v4l2_subdev *s_subdev,
 			      struct v4l2_async_subdev *asd)
 {
-	struct v4l2_subdev *subdev = notifier->sd;
+	struct v4l2_subdev *subdev = yestifier->sd;
 	struct csi2rx_priv *csi2rx = v4l2_subdev_to_csi2rx(subdev);
 
-	csi2rx->source_pad = media_entity_get_fwnode_pad(&s_subdev->entity,
-							 s_subdev->fwnode,
+	csi2rx->source_pad = media_entity_get_fwyesde_pad(&s_subdev->entity,
+							 s_subdev->fwyesde,
 							 MEDIA_PAD_FL_SOURCE);
 	if (csi2rx->source_pad < 0) {
 		dev_err(csi2rx->dev, "Couldn't find output pad for subdev %s\n",
@@ -273,7 +273,7 @@ static int csi2rx_async_bound(struct v4l2_async_notifier *notifier,
 				     MEDIA_LNK_FL_IMMUTABLE);
 }
 
-static const struct v4l2_async_notifier_operations csi2rx_notifier_ops = {
+static const struct v4l2_async_yestifier_operations csi2rx_yestifier_ops = {
 	.bound		= csi2rx_async_bound,
 };
 
@@ -312,7 +312,7 @@ static int csi2rx_get_resources(struct csi2rx_priv *csi2rx,
 	 * will need to be removed.
 	 */
 	if (csi2rx->dphy) {
-		dev_err(&pdev->dev, "External D-PHY not supported yet\n");
+		dev_err(&pdev->dev, "External D-PHY yest supported yet\n");
 		return -EINVAL;
 	}
 
@@ -341,7 +341,7 @@ static int csi2rx_get_resources(struct csi2rx_priv *csi2rx,
 	 * will need to be removed.
 	 */
 	if (csi2rx->has_internal_dphy) {
-		dev_err(&pdev->dev, "Internal D-PHY not supported yet\n");
+		dev_err(&pdev->dev, "Internal D-PHY yest supported yet\n");
 		return -EINVAL;
 	}
 
@@ -361,27 +361,27 @@ static int csi2rx_get_resources(struct csi2rx_priv *csi2rx,
 
 static int csi2rx_parse_dt(struct csi2rx_priv *csi2rx)
 {
-	struct v4l2_fwnode_endpoint v4l2_ep = { .bus_type = 0 };
-	struct fwnode_handle *fwh;
-	struct device_node *ep;
+	struct v4l2_fwyesde_endpoint v4l2_ep = { .bus_type = 0 };
+	struct fwyesde_handle *fwh;
+	struct device_yesde *ep;
 	int ret;
 
-	ep = of_graph_get_endpoint_by_regs(csi2rx->dev->of_node, 0, 0);
+	ep = of_graph_get_endpoint_by_regs(csi2rx->dev->of_yesde, 0, 0);
 	if (!ep)
 		return -EINVAL;
 
-	fwh = of_fwnode_handle(ep);
-	ret = v4l2_fwnode_endpoint_parse(fwh, &v4l2_ep);
+	fwh = of_fwyesde_handle(ep);
+	ret = v4l2_fwyesde_endpoint_parse(fwh, &v4l2_ep);
 	if (ret) {
-		dev_err(csi2rx->dev, "Could not parse v4l2 endpoint\n");
-		of_node_put(ep);
+		dev_err(csi2rx->dev, "Could yest parse v4l2 endpoint\n");
+		of_yesde_put(ep);
 		return ret;
 	}
 
 	if (v4l2_ep.bus_type != V4L2_MBUS_CSI2_DPHY) {
 		dev_err(csi2rx->dev, "Unsupported media bus type: 0x%x\n",
 			v4l2_ep.bus_type);
-		of_node_put(ep);
+		of_yesde_put(ep);
 		return -EINVAL;
 	}
 
@@ -391,28 +391,28 @@ static int csi2rx_parse_dt(struct csi2rx_priv *csi2rx)
 	if (csi2rx->num_lanes > csi2rx->max_lanes) {
 		dev_err(csi2rx->dev, "Unsupported number of data-lanes: %d\n",
 			csi2rx->num_lanes);
-		of_node_put(ep);
+		of_yesde_put(ep);
 		return -EINVAL;
 	}
 
-	csi2rx->asd.match.fwnode = fwnode_graph_get_remote_port_parent(fwh);
+	csi2rx->asd.match.fwyesde = fwyesde_graph_get_remote_port_parent(fwh);
 	csi2rx->asd.match_type = V4L2_ASYNC_MATCH_FWNODE;
-	of_node_put(ep);
+	of_yesde_put(ep);
 
-	v4l2_async_notifier_init(&csi2rx->notifier);
+	v4l2_async_yestifier_init(&csi2rx->yestifier);
 
-	ret = v4l2_async_notifier_add_subdev(&csi2rx->notifier, &csi2rx->asd);
+	ret = v4l2_async_yestifier_add_subdev(&csi2rx->yestifier, &csi2rx->asd);
 	if (ret) {
-		fwnode_handle_put(csi2rx->asd.match.fwnode);
+		fwyesde_handle_put(csi2rx->asd.match.fwyesde);
 		return ret;
 	}
 
-	csi2rx->notifier.ops = &csi2rx_notifier_ops;
+	csi2rx->yestifier.ops = &csi2rx_yestifier_ops;
 
-	ret = v4l2_async_subdev_notifier_register(&csi2rx->subdev,
-						  &csi2rx->notifier);
+	ret = v4l2_async_subdev_yestifier_register(&csi2rx->subdev,
+						  &csi2rx->yestifier);
 	if (ret)
-		v4l2_async_notifier_cleanup(&csi2rx->notifier);
+		v4l2_async_yestifier_cleanup(&csi2rx->yestifier);
 
 	return ret;
 }
@@ -463,12 +463,12 @@ static int csi2rx_probe(struct platform_device *pdev)
 	dev_info(&pdev->dev,
 		 "Probed CSI2RX with %u/%u lanes, %u streams, %s D-PHY\n",
 		 csi2rx->num_lanes, csi2rx->max_lanes, csi2rx->max_streams,
-		 csi2rx->has_internal_dphy ? "internal" : "no");
+		 csi2rx->has_internal_dphy ? "internal" : "yes");
 
 	return 0;
 
 err_cleanup:
-	v4l2_async_notifier_cleanup(&csi2rx->notifier);
+	v4l2_async_yestifier_cleanup(&csi2rx->yestifier);
 err_free_priv:
 	kfree(csi2rx);
 	return ret;

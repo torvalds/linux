@@ -105,7 +105,7 @@ acpi_ds_load1_begin_op(struct acpi_walk_state *walk_state,
 		       union acpi_parse_object **out_op)
 {
 	union acpi_parse_object *op;
-	struct acpi_namespace_node *node;
+	struct acpi_namespace_yesde *yesde;
 	acpi_status status;
 	acpi_object_type object_type;
 	char *path;
@@ -127,7 +127,7 @@ acpi_ds_load1_begin_op(struct acpi_walk_state *walk_state,
 
 		/* Check if this object has already been installed in the namespace */
 
-		if (op->common.node) {
+		if (op->common.yesde) {
 			*out_op = op;
 			return_ACPI_STATUS(AE_OK);
 		}
@@ -153,12 +153,12 @@ acpi_ds_load1_begin_op(struct acpi_walk_state *walk_state,
 		status =
 		    acpi_ns_lookup(walk_state->scope_info, path, object_type,
 				   ACPI_IMODE_EXECUTE, ACPI_NS_SEARCH_PARENT,
-				   walk_state, &(node));
+				   walk_state, &(yesde));
 #ifdef ACPI_ASL_COMPILER
 		if (status == AE_NOT_FOUND) {
 			/*
 			 * Table disassembly:
-			 * Target of Scope() not found. Generate an External for it, and
+			 * Target of Scope() yest found. Generate an External for it, and
 			 * insert the name into the namespace.
 			 */
 			acpi_dm_add_op_to_external_list(op, path,
@@ -167,7 +167,7 @@ acpi_ds_load1_begin_op(struct acpi_walk_state *walk_state,
 			    acpi_ns_lookup(walk_state->scope_info, path,
 					   object_type, ACPI_IMODE_LOAD_PASS1,
 					   ACPI_NS_SEARCH_PARENT, walk_state,
-					   &node);
+					   &yesde);
 		}
 #endif
 		if (ACPI_FAILURE(status)) {
@@ -180,7 +180,7 @@ acpi_ds_load1_begin_op(struct acpi_walk_state *walk_state,
 		 * Check to make sure that the target is
 		 * one of the opcodes that actually opens a scope
 		 */
-		switch (node->type) {
+		switch (yesde->type) {
 		case ACPI_TYPE_ANY:
 		case ACPI_TYPE_LOCAL_SCOPE:	/* Scope  */
 		case ACPI_TYPE_DEVICE:
@@ -207,10 +207,10 @@ acpi_ds_load1_begin_op(struct acpi_walk_state *walk_state,
 			ACPI_DEBUG_PRINT((ACPI_DB_INFO,
 					  "Type override - [%4.4s] had invalid type (%s) "
 					  "for Scope operator, changed to type ANY\n",
-					  acpi_ut_get_node_name(node),
-					  acpi_ut_get_type_name(node->type)));
+					  acpi_ut_get_yesde_name(yesde),
+					  acpi_ut_get_type_name(yesde->type)));
 
-			node->type = ACPI_TYPE_ANY;
+			yesde->type = ACPI_TYPE_ANY;
 			walk_state->scope_info->common.value = ACPI_TYPE_ANY;
 			break;
 
@@ -219,7 +219,7 @@ acpi_ds_load1_begin_op(struct acpi_walk_state *walk_state,
 			 * Allow scope change to root during execution of module-level
 			 * code. Root is typed METHOD during this time.
 			 */
-			if ((node == acpi_gbl_root_node) &&
+			if ((yesde == acpi_gbl_root_yesde) &&
 			    (walk_state->
 			     parse_flags & ACPI_PARSE_MODULE_LEVEL)) {
 				break;
@@ -233,9 +233,9 @@ acpi_ds_load1_begin_op(struct acpi_walk_state *walk_state,
 
 			ACPI_ERROR((AE_INFO,
 				    "Invalid type (%s) for target of "
-				    "Scope operator [%4.4s] (Cannot override)",
-				    acpi_ut_get_type_name(node->type),
-				    acpi_ut_get_node_name(node)));
+				    "Scope operator [%4.4s] (Canyest override)",
+				    acpi_ut_get_type_name(yesde->type),
+				    acpi_ut_get_yesde_name(yesde)));
 
 			return_ACPI_STATUS(AE_AML_OPERAND_TYPE);
 		}
@@ -247,7 +247,7 @@ acpi_ds_load1_begin_op(struct acpi_walk_state *walk_state,
 		 * the namespace.
 		 *
 		 * Setup the search flags.
-		 * Since we are entering a name into the namespace, we do not want to
+		 * Since we are entering a name into the namespace, we do yest want to
 		 * enable the search-to-root upsearch.
 		 *
 		 * There are only two conditions where it is acceptable that the name
@@ -258,21 +258,21 @@ acpi_ds_load1_begin_op(struct acpi_walk_state *walk_state,
 		 *       buffer_field, or Package), the name of the object is already
 		 *       in the namespace.
 		 */
-		if (walk_state->deferred_node) {
+		if (walk_state->deferred_yesde) {
 
-			/* This name is already in the namespace, get the node */
+			/* This name is already in the namespace, get the yesde */
 
-			node = walk_state->deferred_node;
+			yesde = walk_state->deferred_yesde;
 			status = AE_OK;
 			break;
 		}
 
 		/*
-		 * If we are executing a method, do not create any namespace objects
+		 * If we are executing a method, do yest create any namespace objects
 		 * during the load phase, only during execution.
 		 */
-		if (walk_state->method_node) {
-			node = NULL;
+		if (walk_state->method_yesde) {
+			yesde = NULL;
 			status = AE_OK;
 			break;
 		}
@@ -289,7 +289,7 @@ acpi_ds_load1_begin_op(struct acpi_walk_state *walk_state,
 			} else {
 				flags |= ACPI_NS_ERROR_IF_FOUND;
 				ACPI_DEBUG_PRINT((ACPI_DB_DISPATCH,
-						  "[%s] Cannot already exist\n",
+						  "[%s] Canyest already exist\n",
 						  acpi_ut_get_type_name
 						  (object_type)));
 			}
@@ -308,26 +308,26 @@ acpi_ds_load1_begin_op(struct acpi_walk_state *walk_state,
 		status =
 		    acpi_ns_lookup(walk_state->scope_info, path, object_type,
 				   ACPI_IMODE_LOAD_PASS1, flags, walk_state,
-				   &node);
+				   &yesde);
 		if (ACPI_FAILURE(status)) {
 			if (status == AE_ALREADY_EXISTS) {
 
 				/* The name already exists in this scope */
 
-				if (node->flags & ANOBJ_IS_EXTERNAL) {
+				if (yesde->flags & ANOBJ_IS_EXTERNAL) {
 					/*
 					 * Allow one create on an object or segment that was
 					 * previously declared External
 					 */
-					node->flags &= ~ANOBJ_IS_EXTERNAL;
-					node->type = (u8) object_type;
+					yesde->flags &= ~ANOBJ_IS_EXTERNAL;
+					yesde->type = (u8) object_type;
 
-					/* Just retyped a node, probably will need to open a scope */
+					/* Just retyped a yesde, probably will need to open a scope */
 
 					if (acpi_ns_opens_scope(object_type)) {
 						status =
 						    acpi_ds_scope_stack_push
-						    (node, object_type,
+						    (yesde, object_type,
 						     walk_state);
 						if (ACPI_FAILURE(status)) {
 							return_ACPI_STATUS
@@ -366,13 +366,13 @@ acpi_ds_load1_begin_op(struct acpi_walk_state *walk_state,
 	op->named.path = path;
 #endif
 
-	if (node) {
+	if (yesde) {
 		/*
 		 * Put the Node in the "op" object that the parser uses, so we
 		 * can get it again quickly when this scope is closed
 		 */
-		op->common.node = node;
-		op->named.name = node->name.integer;
+		op->common.yesde = yesde;
+		op->named.name = yesde->name.integer;
 	}
 
 	acpi_ps_append_arg(acpi_ps_get_parent_scope(&walk_state->parser_state),
@@ -422,10 +422,10 @@ acpi_status acpi_ds_load1_end_op(struct acpi_walk_state *walk_state)
 
 	if (walk_state->op_info->flags & AML_FIELD) {
 		/*
-		 * If we are executing a method, do not create any namespace objects
+		 * If we are executing a method, do yest create any namespace objects
 		 * during the load phase, only during execution.
 		 */
-		if (!walk_state->method_node) {
+		if (!walk_state->method_yesde) {
 			if (walk_state->opcode == AML_FIELD_OP ||
 			    walk_state->opcode == AML_BANK_FIELD_OP ||
 			    walk_state->opcode == AML_INDEX_FIELD_OP) {
@@ -437,10 +437,10 @@ acpi_status acpi_ds_load1_end_op(struct acpi_walk_state *walk_state)
 	}
 
 	/*
-	 * If we are executing a method, do not create any namespace objects
+	 * If we are executing a method, do yest create any namespace objects
 	 * during the load phase, only during execution.
 	 */
-	if (!walk_state->method_node) {
+	if (!walk_state->method_yesde) {
 		if (op->common.aml_opcode == AML_REGION_OP) {
 			status =
 			    acpi_ex_create_region(op->named.data,
@@ -475,10 +475,10 @@ acpi_status acpi_ds_load1_end_op(struct acpi_walk_state *walk_state)
 							       aml_opcode))->
 			    object_type;
 
-			/* Set node type if we have a namespace node */
+			/* Set yesde type if we have a namespace yesde */
 
-			if (op->common.node) {
-				op->common.node->type = (u8) object_type;
+			if (op->common.yesde) {
+				op->common.yesde->type = (u8) object_type;
 			}
 		}
 	}
@@ -488,20 +488,20 @@ acpi_status acpi_ds_load1_end_op(struct acpi_walk_state *walk_state)
 	 * get the parameter count from the argument's next.
 	 */
 	if (acpi_gbl_disasm_flag &&
-	    op->common.node && op->common.aml_opcode == AML_EXTERNAL_OP) {
+	    op->common.yesde && op->common.aml_opcode == AML_EXTERNAL_OP) {
 		/*
-		 * Note, if this external is not a method
+		 * Note, if this external is yest a method
 		 * Op->Common.Value.Arg->Common.Next->Common.Value.Integer == 0
 		 * Therefore, param_count will be 0.
 		 */
 		param_count =
 		    (u8)op->common.value.arg->common.next->common.value.integer;
 		object_type = (u8)op->common.value.arg->common.value.integer;
-		op->common.node->flags |= ANOBJ_IS_EXTERNAL;
-		op->common.node->type = (u8)object_type;
+		op->common.yesde->flags |= ANOBJ_IS_EXTERNAL;
+		op->common.yesde->type = (u8)object_type;
 
 		acpi_dm_create_subobject_for_external((u8)object_type,
-						      &op->common.node,
+						      &op->common.yesde,
 						      param_count);
 
 		/*
@@ -516,26 +516,26 @@ acpi_status acpi_ds_load1_end_op(struct acpi_walk_state *walk_state)
 #endif
 
 	/*
-	 * If we are executing a method, do not create any namespace objects
+	 * If we are executing a method, do yest create any namespace objects
 	 * during the load phase, only during execution.
 	 */
-	if (!walk_state->method_node) {
+	if (!walk_state->method_yesde) {
 		if (op->common.aml_opcode == AML_METHOD_OP) {
 			/*
 			 * method_op pkg_length name_string method_flags term_list
 			 *
-			 * Note: We must create the method node/object pair as soon as we
+			 * Note: We must create the method yesde/object pair as soon as we
 			 * see the method declaration. This allows later pass1 parsing
-			 * of invocations of the method (need to know the number of
+			 * of invocations of the method (need to kyesw the number of
 			 * arguments.)
 			 */
 			ACPI_DEBUG_PRINT((ACPI_DB_DISPATCH,
 					  "LOADING-Method: State=%p Op=%p NamedObj=%p\n",
-					  walk_state, op, op->named.node));
+					  walk_state, op, op->named.yesde));
 
-			if (!acpi_ns_get_attached_object(op->named.node)) {
+			if (!acpi_ns_get_attached_object(op->named.yesde)) {
 				walk_state->operands[0] =
-				    ACPI_CAST_PTR(void, op->named.node);
+				    ACPI_CAST_PTR(void, op->named.yesde);
 				walk_state->num_operands = 1;
 
 				status =
@@ -563,7 +563,7 @@ acpi_status acpi_ds_load1_end_op(struct acpi_walk_state *walk_state)
 
 	/* Pop the scope stack (only if loading a table) */
 
-	if (!walk_state->method_node &&
+	if (!walk_state->method_yesde &&
 	    op->common.aml_opcode != AML_EXTERNAL_OP &&
 	    acpi_ns_opens_scope(object_type)) {
 		ACPI_DEBUG_PRINT((ACPI_DB_DISPATCH,

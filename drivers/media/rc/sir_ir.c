@@ -3,7 +3,7 @@
  * IR SIR driver, (C) 2000 Milan Pikula <www@fornax.sk>
  *
  * sir_ir - Device driver for use with SIR (serial infra red)
- * mode of IrDA on many notebooks.
+ * mode of IrDA on many yestebooks.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -98,13 +98,13 @@ static void add_read_queue(int flag, unsigned long val)
 
 	/*
 	 * statistically, pulses are ~TIME_CONST/2 too long. we could
-	 * maybe make this more exact, but this is good enough
+	 * maybe make this more exact, but this is good eyesugh
 	 */
 	if (flag) {
 		/* pulse */
 		if (val > TIME_CONST / 2)
 			val -= TIME_CONST / 2;
-		else /* should not ever happen */
+		else /* should yest ever happen */
 			val = 1;
 		ev.pulse = true;
 	} else {
@@ -188,7 +188,7 @@ static irqreturn_t sir_interrupt(int irq, void *dev_id)
 				dev_dbg(&sir_ir_dev->dev, "t %lu, d %d\n",
 					deltintr, (int)data);
 				/*
-				 * if nothing came in last X cycles,
+				 * if yesthing came in last X cycles,
 				 * it was gap
 				 */
 				if (deltintr > TIME_CONST * threshold) {
@@ -283,9 +283,9 @@ static int init_hardware(void)
 	scratch3 = sinp(UART_IER) & 0x0f;
 	soutp(UART_IER, scratch);
 	if (scratch2 != 0 || scratch3 != 0x0f) {
-		/* we fail, there's nothing here */
+		/* we fail, there's yesthing here */
 		spin_unlock_irqrestore(&hardware_lock, flags);
-		pr_err("port existence test failed, cannot continue\n");
+		pr_err("port existence test failed, canyest continue\n");
 		return -ENODEV;
 	}
 

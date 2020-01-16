@@ -29,7 +29,7 @@ static int multipath_map (struct mpconf *conf)
 
 	/*
 	 * Later we do read balancing on the read side
-	 * now we use the first available disk.
+	 * yesw we use the first available disk.
 	 */
 
 	rcu_read_lock();
@@ -44,7 +44,7 @@ static int multipath_map (struct mpconf *conf)
 	}
 	rcu_read_unlock();
 
-	pr_crit_ratelimited("multipath_map(): no more operational IO paths?\n");
+	pr_crit_ratelimited("multipath_map(): yes more operational IO paths?\n");
 	return (-1);
 }
 
@@ -183,7 +183,7 @@ static void multipath_error (struct mddev *mddev, struct md_rdev *rdev)
 
 	if (conf->raid_disks - mddev->degraded <= 1) {
 		/*
-		 * Uh oh, we can do nothing if this is our last path, but
+		 * Uh oh, we can do yesthing if this is our last path, but
 		 * first check if this is a queued request for a device
 		 * which has just failed.
 		 */
@@ -338,7 +338,7 @@ static void multipathd(struct md_thread *thread)
 			       (unsigned long long)bio->bi_iter.bi_sector);
 			multipath_end_bh_io(mp_bh, BLK_STS_IOERR);
 		} else {
-			pr_err("multipath: %s: redirecting sector %llu to another IO path\n",
+			pr_err("multipath: %s: redirecting sector %llu to ayesther IO path\n",
 			       bio_devname(bio, b),
 			       (unsigned long long)bio->bi_iter.bi_sector);
 			*bio = *(mp_bh->master_bio);
@@ -357,7 +357,7 @@ static void multipathd(struct md_thread *thread)
 static sector_t multipath_size(struct mddev *mddev, sector_t sectors, int raid_disks)
 {
 	WARN_ONCE(sectors || raid_disks,
-		  "%s does not support generic reshape\n", __func__);
+		  "%s does yest support generic reshape\n", __func__);
 
 	return mddev->dev_sectors;
 }
@@ -371,11 +371,11 @@ static int multipath_run (struct mddev *mddev)
 	int working_disks;
 	int ret;
 
-	if (md_check_no_bitmap(mddev))
+	if (md_check_yes_bitmap(mddev))
 		return -EINVAL;
 
 	if (mddev->level != LEVEL_MULTIPATH) {
-		pr_warn("multipath: %s: raid level not set to multipath IO (%d)\n",
+		pr_warn("multipath: %s: raid level yest set to multipath IO (%d)\n",
 			mdname(mddev), mddev->level);
 		goto out;
 	}
@@ -418,7 +418,7 @@ static int multipath_run (struct mddev *mddev)
 	INIT_LIST_HEAD(&conf->retry_list);
 
 	if (!working_disks) {
-		pr_warn("multipath: no operational IO paths for %s\n",
+		pr_warn("multipath: yes operational IO paths for %s\n",
 			mdname(mddev));
 		goto out_free_conf;
 	}
@@ -438,7 +438,7 @@ static int multipath_run (struct mddev *mddev)
 		mdname(mddev), conf->raid_disks - mddev->degraded,
 		mddev->raid_disks);
 	/*
-	 * Ok, everything is just fine now
+	 * Ok, everything is just fine yesw
 	 */
 	md_set_array_sectors(mddev, multipath_size(mddev, 0, 0));
 

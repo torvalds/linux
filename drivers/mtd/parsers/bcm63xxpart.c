@@ -48,7 +48,7 @@ static int bcm63xx_detect_cfe(struct mtd_info *master)
 	if (strncmp("cfe-v", buf, 5) == 0)
 		return 0;
 
-	/* very old CFE's do not have the cfe-v string, so check for magic */
+	/* very old CFE's do yest have the cfe-v string, so check for magic */
 	ret = mtd_read(master, BCM963XX_CFE_MAGIC_OFFSET, 8, &retlen,
 		       (void *)buf);
 	buf[retlen] = 0;
@@ -85,7 +85,7 @@ static const char * const bcm63xx_cfe_part_types[] = {
 	NULL,
 };
 
-static int bcm63xx_parse_cfe_nor_partitions(struct mtd_info *master,
+static int bcm63xx_parse_cfe_yesr_partitions(struct mtd_info *master,
 	const struct mtd_partition **pparts, struct bcm963xx_nvram *nvram)
 {
 	struct mtd_partition *parts;
@@ -150,7 +150,7 @@ static int bcm63xx_parse_cfe_partitions(struct mtd_info *master,
 		goto out;
 
 	if (!mtd_type_is_nand(master))
-		ret = bcm63xx_parse_cfe_nor_partitions(master, pparts, nvram);
+		ret = bcm63xx_parse_cfe_yesr_partitions(master, pparts, nvram);
 	else
 		ret = -EINVAL;
 
@@ -160,7 +160,7 @@ out:
 };
 
 static const struct of_device_id parse_bcm63xx_cfe_match_table[] = {
-	{ .compatible = "brcm,bcm963xx-cfe-nor-partitions" },
+	{ .compatible = "brcm,bcm963xx-cfe-yesr-partitions" },
 	{},
 };
 MODULE_DEVICE_TABLE(of, parse_bcm63xx_cfe_match_table);

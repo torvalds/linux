@@ -2,7 +2,7 @@
 /*
  * pwrseq_sd8787.c - power sequence support for Marvell SD8787 BT + Wifi chip
  *
- * Copyright (C) 2016 Matt Ranostay <matt@ranostay.consulting>
+ * Copyright (C) 2016 Matt Rayesstay <matt@rayesstay.consulting>
  *
  * Based on the original work pwrseq_simple.c
  *  Copyright (C) 2014 Linaro Ltd

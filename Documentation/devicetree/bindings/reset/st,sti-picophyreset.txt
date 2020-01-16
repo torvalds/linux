@@ -6,9 +6,9 @@ disable on-chip PicoPHY USB2 phy(s) using "softreset" control bits found in
 the STi family SoC system configuration registers.
 
 The actual action taken when softreset is asserted is hardware dependent.
-However, when asserted it may not be possible to access the hardware's
+However, when asserted it may yest be possible to access the hardware's
 registers and after an assert/deassert sequence the hardware's previous state
-may no longer be valid.
+may yes longer be valid.
 
 Please refer to Documentation/devicetree/bindings/reset/reset.txt
 for common reset controller binding usage.
@@ -27,8 +27,8 @@ Example:
 Specifying picophyreset control of devices
 =======================================
 
-Device nodes should specify the reset channel required in their "resets"
-property, containing a phandle to the picophyreset device node and an
+Device yesdes should specify the reset channel required in their "resets"
+property, containing a phandle to the picophyreset device yesde and an
 index specifying which channel to use, as described in
 Documentation/devicetree/bindings/reset/reset.txt.
 

@@ -1,11 +1,11 @@
 .. Permission is granted to copy, distribute and/or modify this
 .. document under the terms of the GNU Free Documentation License,
 .. Version 1.1 or any later version published by the Free Software
-.. Foundation, with no Invariant Sections, no Front-Cover Texts
-.. and no Back-Cover Texts. A copy of the license is included at
+.. Foundation, with yes Invariant Sections, yes Front-Cover Texts
+.. and yes Back-Cover Texts. A copy of the license is included at
 .. Documentation/media/uapi/fdl-appendix.rst.
 ..
-.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
+.. TODO: replace it to GFDL-1.1-or-later WITH yes-invariant-sections
 
 .. _image-source-controls:
 
@@ -28,7 +28,7 @@ Image Source Control IDs
     The IMAGE_SOURCE class descriptor.
 
 ``V4L2_CID_VBLANK (integer)``
-    Vertical blanking. The idle period after every frame during which no
+    Vertical blanking. The idle period after every frame during which yes
     image data is produced. The unit of vertical blanking is a line.
     Every line has length of the image width plus horizontal blanking at
     the pixel rate defined by ``V4L2_CID_PIXEL_RATE`` control in the
@@ -36,7 +36,7 @@ Image Source Control IDs
 
 ``V4L2_CID_HBLANK (integer)``
     Horizontal blanking. The idle period after every line of image data
-    during which no image data is produced. The unit of horizontal
+    during which yes image data is produced. The unit of horizontal
     blanking is pixels.
 
 ``V4L2_CID_ANALOGUE_GAIN (integer)``
@@ -57,11 +57,11 @@ Image Source Control IDs
     Test pattern green (next to blue) colour component.
 
 ``V4L2_CID_UNIT_CELL_SIZE (struct)``
-    This control returns the unit cell size in nanometers. The struct
+    This control returns the unit cell size in nayesmeters. The struct
     :c:type:`v4l2_area` provides the width and the height in separate
     fields to take into consideration asymmetric pixels.
-    This control does not take into consideration any possible hardware
+    This control does yest take into consideration any possible hardware
     binning.
     The unit cell consists of the whole area of the pixel, sensitive and
-    non-sensitive.
+    yesn-sensitive.
     This control is required for automatic calibration of sensors/cameras.

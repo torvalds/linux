@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2015, Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2013-2015, Mellayesx Techyeslogies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -114,12 +114,12 @@ static bool is_event_type_allowed(int rsc_type, int event_type)
 	case MLX5_EVENT_QUEUE_TYPE_DCT:
 		return BIT(event_type) & dct_allowed_event_types();
 	default:
-		WARN(1, "Event arrived for unknown resource type");
+		WARN(1, "Event arrived for unkyeswn resource type");
 		return false;
 	}
 }
 
-static int rsc_event_notifier(struct notifier_block *nb,
+static int rsc_event_yestifier(struct yestifier_block *nb,
 			      unsigned long type, void *data)
 {
 	struct mlx5_core_rsc_common *common;
@@ -162,12 +162,12 @@ static int rsc_event_notifier(struct notifier_block *nb,
 
 	common = mlx5_get_rsc(table, rsn);
 	if (!common) {
-		mlx5_core_dbg(dev, "Async event for unknown resource 0x%x\n", rsn);
+		mlx5_core_dbg(dev, "Async event for unkyeswn resource 0x%x\n", rsn);
 		return NOTIFY_OK;
 	}
 
 	if (!is_event_type_allowed((rsn >> MLX5_USER_INDEX_LEN), event_type)) {
-		mlx5_core_warn(dev, "event 0x%.2x is not allowed on resource 0x%.8x\n",
+		mlx5_core_warn(dev, "event 0x%.2x is yest allowed on resource 0x%.8x\n",
 			       event_type, rsn);
 		goto out;
 	}
@@ -496,7 +496,7 @@ static int modify_qp_mbox_alloc(struct mlx5_core_dev *dev, u16 opcode, int qpn,
 				  opt_param_mask, qpc, uid);
 		break;
 	default:
-		mlx5_core_err(dev, "Unknown transition for modify QP: OP(0x%x) QPN(0x%x)\n",
+		mlx5_core_err(dev, "Unkyeswn transition for modify QP: OP(0x%x) QPN(0x%x)\n",
 			      opcode, qpn);
 		return -EINVAL;
 	}
@@ -530,15 +530,15 @@ void mlx5_init_qp_table(struct mlx5_core_dev *dev)
 	INIT_RADIX_TREE(&table->tree, GFP_ATOMIC);
 	mlx5_qp_debugfs_init(dev);
 
-	table->nb.notifier_call = rsc_event_notifier;
-	mlx5_notifier_register(dev, &table->nb);
+	table->nb.yestifier_call = rsc_event_yestifier;
+	mlx5_yestifier_register(dev, &table->nb);
 }
 
 void mlx5_cleanup_qp_table(struct mlx5_core_dev *dev)
 {
 	struct mlx5_qp_table *table = &dev->priv.qp_table;
 
-	mlx5_notifier_unregister(dev, &table->nb);
+	mlx5_yestifier_unregister(dev, &table->nb);
 	mlx5_qp_debugfs_cleanup(dev);
 }
 

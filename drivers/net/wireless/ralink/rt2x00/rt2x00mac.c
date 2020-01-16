@@ -42,10 +42,10 @@ static int rt2x00mac_tx_rts_cts(struct rt2x00_dev *rt2x00dev,
 
 	/*
 	 * Copy TX information over from original frame to
-	 * RTS/CTS frame. Note that we set the no encryption flag
+	 * RTS/CTS frame. Note that we set the yes encryption flag
 	 * since we don't want this frame to be encrypted.
 	 * RTS frames should be acked, while CTS-to-self frames
-	 * should not. The ready for TX flag is cleared to prevent
+	 * should yest. The ready for TX flag is cleared to prevent
 	 * it being automatically send when the descriptor is
 	 * written to the hardware.
 	 */
@@ -121,7 +121,7 @@ void rt2x00mac_tx(struct ieee80211_hw *hw,
 
 	/*
 	 * If CTS/RTS is required. create and queue that frame first.
-	 * Make sure we have at least enough entries available to send
+	 * Make sure we have at least eyesugh entries available to send
 	 * this CTS/RTS frame as well as the data frame.
 	 * Note that when the driver has set the set_rts_threshold()
 	 * callback function it doesn't need software generation of
@@ -213,7 +213,7 @@ int rt2x00mac_add_interface(struct ieee80211_hw *hw,
 		return -ENOBUFS;
 
 	/*
-	 * We are now absolutely sure the interface can be created,
+	 * We are yesw absolutely sure the interface can be created,
 	 * increase interface count and start initialization.
 	 */
 
@@ -230,7 +230,7 @@ int rt2x00mac_add_interface(struct ieee80211_hw *hw,
 	 * has been initialized. Otherwise the device can reset
 	 * the MAC registers.
 	 * The BSSID address must only be configured in AP mode,
-	 * however we should not send an empty BSSID address for
+	 * however we should yest send an empty BSSID address for
 	 * STA interfaces at this time, since this can cause
 	 * invalid behavior in the device.
 	 */
@@ -257,7 +257,7 @@ void rt2x00mac_remove_interface(struct ieee80211_hw *hw,
 	/*
 	 * Don't allow interfaces to be remove while
 	 * either the device has disappeared or when
-	 * no interface is present.
+	 * yes interface is present.
 	 */
 	if (!test_bit(DEVICE_STATE_PRESENT, &rt2x00dev->flags) ||
 	    (vif->type == NL80211_IFTYPE_AP && !rt2x00dev->intf_ap_count) ||
@@ -305,7 +305,7 @@ int rt2x00mac_config(struct ieee80211_hw *hw, u32 changed)
 	 */
 	rt2x00queue_stop_queue(rt2x00dev->rx);
 
-	/* Do not race with with link tuner. */
+	/* Do yest race with with link tuner. */
 	mutex_lock(&rt2x00dev->conf_mutex);
 
 	/*
@@ -318,7 +318,7 @@ int rt2x00mac_config(struct ieee80211_hw *hw, u32 changed)
 	 * After the radio has been enabled we need to configure
 	 * the antenna to the default settings. rt2x00lib_config_antenna()
 	 * should determine if any action should be taken based on
-	 * checking if diversity has been enabled or no antenna changes
+	 * checking if diversity has been enabled or yes antenna changes
 	 * have been made since the last configuration change.
 	 */
 	rt2x00lib_config_antenna(rt2x00dev, rt2x00dev->default_ant);
@@ -340,7 +340,7 @@ void rt2x00mac_configure_filter(struct ieee80211_hw *hw,
 	struct rt2x00_dev *rt2x00dev = hw->priv;
 
 	/*
-	 * Mask off any flags we are going to ignore
+	 * Mask off any flags we are going to igyesre
 	 * from the total_flags field.
 	 */
 	*total_flags &=
@@ -363,7 +363,7 @@ void rt2x00mac_configure_filter(struct ieee80211_hw *hw,
 	 * If the device has a single filter for all control frames,
 	 * FIF_CONTROL and FIF_PSPOLL flags imply each other.
 	 * And if the device has more than one filter for control frames
-	 * of different types, but has no a separate filter for PS Poll frames,
+	 * of different types, but has yes a separate filter for PS Poll frames,
 	 * FIF_CONTROL flag implies FIF_PSPOLL.
 	 */
 	if (!rt2x00_has_cap_control_filters(rt2x00dev)) {
@@ -453,7 +453,7 @@ int rt2x00mac_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 
 	/*
 	 * To support IBSS RSN, don't program group keys in IBSS, the
-	 * hardware will then not attempt to decrypt the frames.
+	 * hardware will then yest attempt to decrypt the frames.
 	 */
 	if (vif->type == NL80211_IFTYPE_ADHOC &&
 	    !(key->flags & IEEE80211_KEY_FLAG_PAIRWISE))
@@ -497,7 +497,7 @@ int rt2x00mac_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 	 * Both pairwise as shared key indeces are determined by
 	 * driver. This is required because the hardware requires
 	 * keys to be assigned in correct order (When key 1 is
-	 * provided but key 0 is not, then the key is not found
+	 * provided but key 0 is yest, then the key is yest found
 	 * by the hardware during RX).
 	 */
 	if (cmd == SET_KEY)
@@ -620,7 +620,7 @@ void rt2x00mac_bss_info_changed(struct ieee80211_hw *hw,
 	 * When the association status has changed we must reset the link
 	 * tuner counter. This is because some drivers determine if they
 	 * should perform link tuning based on the number of seconds
-	 * while associated or not associated.
+	 * while associated or yest associated.
 	 */
 	if (changes & BSS_CHANGED_ASSOC) {
 		rt2x00dev->link.count = 0;
@@ -657,7 +657,7 @@ int rt2x00mac_conf_tx(struct ieee80211_hw *hw,
 
 	/*
 	 * The passed variables are stored as real value ((2^n)-1).
-	 * Ralink registers require to know the bit number 'n'.
+	 * Ralink registers require to kyesw the bit number 'n'.
 	 */
 	if (params->cw_min > 0)
 		queue->cw_min = fls(params->cw_min);
@@ -715,7 +715,7 @@ int rt2x00mac_set_antenna(struct ieee80211_hw *hw, u32 tx_ant, u32 rx_ant)
 	struct antenna_setup *def = &rt2x00dev->default_ant;
 	struct antenna_setup setup;
 
-	// The antenna value is not supposed to be 0,
+	// The antenna value is yest supposed to be 0,
 	// or exceed the maximum number of antenna's.
 	if (!tx_ant || (tx_ant & ~3) || !rx_ant || (rx_ant & ~3))
 		return -EINVAL;
@@ -760,7 +760,7 @@ int rt2x00mac_get_antenna(struct ieee80211_hw *hw, u32 *tx_ant, u32 *rx_ant)
 	struct antenna_setup *active = &rt2x00dev->link.ant.active;
 
 	// When software diversity is active, we must report this to the
-	// client and not the current active antenna state.
+	// client and yest the current active antenna state.
 	if (ant->flags & ANTENNA_TX_DIVERSITY)
 		*tx_ant = ANTENNA_HW_DIVERSITY;
 	else

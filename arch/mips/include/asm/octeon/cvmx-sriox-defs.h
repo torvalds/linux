@@ -17,7 +17,7 @@
  * details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this file; if not, write to the Free Software
+ * along with this file; if yest, write to the Free Software
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
  * or visit http://www.gnu.org/licenses/.
  *
@@ -898,7 +898,7 @@ union cvmx_sriox_ip_feature {
 #ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t ops:32;
 		uint64_t reserved_15_31:17;
-		uint64_t no_vmin:1;
+		uint64_t yes_vmin:1;
 		uint64_t a66:1;
 		uint64_t a50:1;
 		uint64_t reserved_11_11:1;
@@ -914,7 +914,7 @@ union cvmx_sriox_ip_feature {
 		uint64_t reserved_11_11:1;
 		uint64_t a50:1;
 		uint64_t a66:1;
-		uint64_t no_vmin:1;
+		uint64_t yes_vmin:1;
 		uint64_t reserved_15_31:17;
 		uint64_t ops:32;
 #endif

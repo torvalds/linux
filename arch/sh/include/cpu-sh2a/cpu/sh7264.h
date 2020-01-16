@@ -44,9 +44,9 @@ enum {
 	GPIO_PG7, GPIO_PG6, GPIO_PG5, GPIO_PG4,
 	GPIO_PG3, GPIO_PG2, GPIO_PG1, GPIO_PG0,
 
-	/* Port H - Port H does not have a Data Register */
+	/* Port H - Port H does yest have a Data Register */
 
-	/* Port I - not on device */
+	/* Port I - yest on device */
 
 	/* Port J */
 	GPIO_PJ11, GPIO_PJ10, GPIO_PJ9, GPIO_PJ8,
@@ -151,7 +151,7 @@ enum {
 	GPIO_FN_SPDIF_IN,
 	GPIO_FN_SPDIF_OUT,
 
-	/* NANDFMC */ /* NOTE Controller is not available in boot mode 0 */
+	/* NANDFMC */ /* NOTE Controller is yest available in boot mode 0 */
 	GPIO_FN_FCE,
 	GPIO_FN_FRB,
 

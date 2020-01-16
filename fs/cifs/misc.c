@@ -15,7 +15,7 @@
  *   the GNU Lesser General Public License for more details.
  *
  *   You should have received a copy of the GNU Lesser General Public License
- *   along with this library; if not, write to the Free Software
+ *   along with this library; if yest, write to the Free Software
  *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 
@@ -157,7 +157,7 @@ cifs_buf_get(void)
 {
 	struct smb_hdr *ret_buf = NULL;
 	/*
-	 * SMB2 header is bigger than CIFS one - no problems to clean some
+	 * SMB2 header is bigger than CIFS one - yes problems to clean some
 	 * more bytes for CIFS.
 	 */
 	size_t buf_size = sizeof(struct smb2_sync_hdr);
@@ -166,7 +166,7 @@ cifs_buf_get(void)
 	 * We could use negotiated size instead of max_msgsize -
 	 * but it may be more efficient to always alloc same size
 	 * albeit slightly larger than necessary and maxbuffersize
-	 * defaults to this and can not be bigger.
+	 * defaults to this and can yest be bigger.
 	 */
 	ret_buf = mempool_alloc(cifs_req_poolp, GFP_NOFS);
 
@@ -202,7 +202,7 @@ cifs_small_buf_get(void)
 /* We could use negotiated size instead of max_msgsize -
    but it may be more efficient to always alloc same size
    albeit slightly larger than necessary and maxbuffersize
-   defaults to this and can not be bigger */
+   defaults to this and can yest be bigger */
 	ret_buf = mempool_alloc(cifs_sm_req_poolp, GFP_NOFS);
 	/* No need to clear memory here, cleared in header assemble */
 	/*	memset(ret_buf, 0, sizeof(struct smb_hdr) + 27);*/
@@ -237,7 +237,7 @@ free_rsp_buf(int resp_buftype, void *rsp)
 		cifs_buf_release(rsp);
 }
 
-/* NB: MID can not be set if treeCon not passed in, in that
+/* NB: MID can yest be set if treeCon yest passed in, in that
    case it is responsbility of caller to set the mid */
 void
 header_assemble(struct smb_hdr *buffer, char smb_command /* command */ ,
@@ -250,7 +250,7 @@ header_assemble(struct smb_hdr *buffer, char smb_command /* command */ ,
 
 	buffer->smb_buf_length = cpu_to_be32(
 	    (2 * word_count) + sizeof(struct smb_hdr) -
-	    4 /*  RFC 1001 length field does not count */  +
+	    4 /*  RFC 1001 length field does yest count */  +
 	    2 /* for bcc field itself */) ;
 
 	buffer->Protocol[0] = 0xFF;
@@ -270,20 +270,20 @@ header_assemble(struct smb_hdr *buffer, char smb_command /* command */ ,
 			if (treeCon->ses->capabilities & CAP_STATUS32)
 				buffer->Flags2 |= SMBFLG2_ERR_STATUS;
 
-			/* Uid is not converted */
+			/* Uid is yest converted */
 			buffer->Uid = treeCon->ses->Suid;
 			buffer->Mid = get_next_mid(treeCon->ses->server);
 		}
 		if (treeCon->Flags & SMB_SHARE_IS_IN_DFS)
 			buffer->Flags2 |= SMBFLG2_DFS;
-		if (treeCon->nocase)
+		if (treeCon->yescase)
 			buffer->Flags  |= SMBFLG_CASELESS;
 		if ((treeCon->ses) && (treeCon->ses->server))
 			if (treeCon->ses->server->sign)
 				buffer->Flags2 |= SMBFLG2_SECURITY_SIGNATURE;
 	}
 
-/*  endian conversion of flags is now done just before sending */
+/*  endian conversion of flags is yesw done just before sending */
 	buffer->WordCount = (char) word_count;
 	return;
 }
@@ -306,7 +306,7 @@ check_smb_hdr(struct smb_hdr *smb)
 	if (smb->Command == SMB_COM_LOCKING_ANDX)
 		return 0;
 
-	cifs_dbg(VFS, "Server sent request, not response. mid=%u\n",
+	cifs_dbg(VFS, "Server sent request, yest response. mid=%u\n",
 		 get_mid(smb));
 	return 1;
 }
@@ -326,7 +326,7 @@ checkSMB(char *buf, unsigned int total_read, struct TCP_Server_Info *server)
 			    && (smb->Status.CifsError != 0)) {
 			/* it's an error return */
 			smb->WordCount = 0;
-			/* some error cases do not return wct and bcc */
+			/* some error cases do yest return wct and bcc */
 			return 0;
 		} else if ((total_read == sizeof(struct smb_hdr) + 1) &&
 				(smb->WordCount == 0)) {
@@ -351,13 +351,13 @@ checkSMB(char *buf, unsigned int total_read, struct TCP_Server_Info *server)
 		return -EIO;
 	}
 
-	/* otherwise, there is enough to get to the BCC */
+	/* otherwise, there is eyesugh to get to the BCC */
 	if (check_smb_hdr(smb))
 		return -EIO;
 	clc_len = smbCalcSize(smb, server);
 
 	if (4 + rfclen != total_read) {
-		cifs_dbg(VFS, "Length read does not match RFC1001 length %d\n",
+		cifs_dbg(VFS, "Length read does yest match RFC1001 length %d\n",
 			 rfclen);
 		return -EIO;
 	}
@@ -383,7 +383,7 @@ checkSMB(char *buf, unsigned int total_read, struct TCP_Server_Info *server)
 			 * data than the lengths in the SMB packet would
 			 * indicate on certain calls (byte range locks and
 			 * trans2 find first calls in particular). While the
-			 * client can handle such a frame by ignoring the
+			 * client can handle such a frame by igyesring the
 			 * trailing data, we choose limit the amount of extra
 			 * data to 512 bytes.
 			 */
@@ -403,37 +403,37 @@ is_valid_oplock_break(char *buffer, struct TCP_Server_Info *srv)
 	struct list_head *tmp, *tmp1, *tmp2;
 	struct cifs_ses *ses;
 	struct cifs_tcon *tcon;
-	struct cifsInodeInfo *pCifsInode;
+	struct cifsIyesdeInfo *pCifsIyesde;
 	struct cifsFileInfo *netfile;
 
-	cifs_dbg(FYI, "Checking for oplock break or dnotify response\n");
+	cifs_dbg(FYI, "Checking for oplock break or dyestify response\n");
 	if ((pSMB->hdr.Command == SMB_COM_NT_TRANSACT) &&
 	   (pSMB->hdr.Flags & SMBFLG_RESPONSE)) {
-		struct smb_com_transaction_change_notify_rsp *pSMBr =
-			(struct smb_com_transaction_change_notify_rsp *)buf;
-		struct file_notify_information *pnotify;
+		struct smb_com_transaction_change_yestify_rsp *pSMBr =
+			(struct smb_com_transaction_change_yestify_rsp *)buf;
+		struct file_yestify_information *pyestify;
 		__u32 data_offset = 0;
 		size_t len = srv->total_read - sizeof(pSMBr->hdr.smb_buf_length);
 
-		if (get_bcc(buf) > sizeof(struct file_notify_information)) {
+		if (get_bcc(buf) > sizeof(struct file_yestify_information)) {
 			data_offset = le32_to_cpu(pSMBr->DataOffset);
 
 			if (data_offset >
-			    len - sizeof(struct file_notify_information)) {
+			    len - sizeof(struct file_yestify_information)) {
 				cifs_dbg(FYI, "invalid data_offset %u\n",
 					 data_offset);
 				return true;
 			}
-			pnotify = (struct file_notify_information *)
+			pyestify = (struct file_yestify_information *)
 				((char *)&pSMBr->hdr.Protocol + data_offset);
-			cifs_dbg(FYI, "dnotify on %s Action: 0x%x\n",
-				 pnotify->FileName, pnotify->Action);
-			/*   cifs_dump_mem("Rcvd notify Data: ",buf,
+			cifs_dbg(FYI, "dyestify on %s Action: 0x%x\n",
+				 pyestify->FileName, pyestify->Action);
+			/*   cifs_dump_mem("Rcvd yestify Data: ",buf,
 				sizeof(struct smb_hdr)+60); */
 			return true;
 		}
 		if (pSMBr->hdr.Status.CifsError) {
-			cifs_dbg(FYI, "notify err 0x%x\n",
+			cifs_dbg(FYI, "yestify err 0x%x\n",
 				 pSMBr->hdr.Status.CifsError);
 			return true;
 		}
@@ -442,7 +442,7 @@ is_valid_oplock_break(char *buffer, struct TCP_Server_Info *srv)
 	if (pSMB->hdr.Command != SMB_COM_LOCKING_ANDX)
 		return false;
 	if (pSMB->hdr.Flags & SMBFLG_RESPONSE) {
-		/* no sense logging error on invalid handle on oplock
+		/* yes sense logging error on invalid handle on oplock
 		   break - harmless race between close request and oplock
 		   break response is expected from time to time writing out
 		   large dirty files cached on the client */
@@ -483,10 +483,10 @@ is_valid_oplock_break(char *buffer, struct TCP_Server_Info *srv)
 					continue;
 
 				cifs_dbg(FYI, "file id match, oplock break\n");
-				pCifsInode = CIFS_I(d_inode(netfile->dentry));
+				pCifsIyesde = CIFS_I(d_iyesde(netfile->dentry));
 
 				set_bit(CIFS_INODE_PENDING_OPLOCK_BREAK,
-					&pCifsInode->flags);
+					&pCifsIyesde->flags);
 
 				netfile->oplock_epoch = 0;
 				netfile->oplock_level = pSMB->OplockLevel;
@@ -504,7 +504,7 @@ is_valid_oplock_break(char *buffer, struct TCP_Server_Info *srv)
 		}
 	}
 	spin_unlock(&cifs_tcp_ses_lock);
-	cifs_dbg(FYI, "Can not process oplock break for non-existent connection\n");
+	cifs_dbg(FYI, "Can yest process oplock break for yesn-existent connection\n");
 	return true;
 }
 
@@ -519,7 +519,7 @@ dump_smb(void *buf, int smb_buf_length)
 }
 
 void
-cifs_autodisable_serverino(struct cifs_sb_info *cifs_sb)
+cifs_autodisable_serveriyes(struct cifs_sb_info *cifs_sb)
 {
 	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_SERVER_INUM) {
 		struct cifs_tcon *tcon = NULL;
@@ -528,72 +528,72 @@ cifs_autodisable_serverino(struct cifs_sb_info *cifs_sb)
 			tcon = cifs_sb_master_tcon(cifs_sb);
 
 		cifs_sb->mnt_cifs_flags &= ~CIFS_MOUNT_SERVER_INUM;
-		cifs_sb->mnt_cifs_serverino_autodisabled = true;
-		cifs_dbg(VFS, "Autodisabling the use of server inode numbers on %s.\n",
+		cifs_sb->mnt_cifs_serveriyes_autodisabled = true;
+		cifs_dbg(VFS, "Autodisabling the use of server iyesde numbers on %s.\n",
 			 tcon ? tcon->treeName : "new server");
 		cifs_dbg(VFS, "The server doesn't seem to support them properly or the files might be on different servers (DFS).\n");
-		cifs_dbg(VFS, "Hardlinks will not be recognized on this mount. Consider mounting with the \"noserverino\" option to silence this message.\n");
+		cifs_dbg(VFS, "Hardlinks will yest be recognized on this mount. Consider mounting with the \"yesserveriyes\" option to silence this message.\n");
 
 	}
 }
 
-void cifs_set_oplock_level(struct cifsInodeInfo *cinode, __u32 oplock)
+void cifs_set_oplock_level(struct cifsIyesdeInfo *ciyesde, __u32 oplock)
 {
 	oplock &= 0xF;
 
 	if (oplock == OPLOCK_EXCLUSIVE) {
-		cinode->oplock = CIFS_CACHE_WRITE_FLG | CIFS_CACHE_READ_FLG;
-		cifs_dbg(FYI, "Exclusive Oplock granted on inode %p\n",
-			 &cinode->vfs_inode);
+		ciyesde->oplock = CIFS_CACHE_WRITE_FLG | CIFS_CACHE_READ_FLG;
+		cifs_dbg(FYI, "Exclusive Oplock granted on iyesde %p\n",
+			 &ciyesde->vfs_iyesde);
 	} else if (oplock == OPLOCK_READ) {
-		cinode->oplock = CIFS_CACHE_READ_FLG;
-		cifs_dbg(FYI, "Level II Oplock granted on inode %p\n",
-			 &cinode->vfs_inode);
+		ciyesde->oplock = CIFS_CACHE_READ_FLG;
+		cifs_dbg(FYI, "Level II Oplock granted on iyesde %p\n",
+			 &ciyesde->vfs_iyesde);
 	} else
-		cinode->oplock = 0;
+		ciyesde->oplock = 0;
 }
 
 /*
  * We wait for oplock breaks to be processed before we attempt to perform
  * writes.
  */
-int cifs_get_writer(struct cifsInodeInfo *cinode)
+int cifs_get_writer(struct cifsIyesdeInfo *ciyesde)
 {
 	int rc;
 
 start:
-	rc = wait_on_bit(&cinode->flags, CIFS_INODE_PENDING_OPLOCK_BREAK,
+	rc = wait_on_bit(&ciyesde->flags, CIFS_INODE_PENDING_OPLOCK_BREAK,
 			 TASK_KILLABLE);
 	if (rc)
 		return rc;
 
-	spin_lock(&cinode->writers_lock);
-	if (!cinode->writers)
-		set_bit(CIFS_INODE_PENDING_WRITERS, &cinode->flags);
-	cinode->writers++;
+	spin_lock(&ciyesde->writers_lock);
+	if (!ciyesde->writers)
+		set_bit(CIFS_INODE_PENDING_WRITERS, &ciyesde->flags);
+	ciyesde->writers++;
 	/* Check to see if we have started servicing an oplock break */
-	if (test_bit(CIFS_INODE_PENDING_OPLOCK_BREAK, &cinode->flags)) {
-		cinode->writers--;
-		if (cinode->writers == 0) {
-			clear_bit(CIFS_INODE_PENDING_WRITERS, &cinode->flags);
-			wake_up_bit(&cinode->flags, CIFS_INODE_PENDING_WRITERS);
+	if (test_bit(CIFS_INODE_PENDING_OPLOCK_BREAK, &ciyesde->flags)) {
+		ciyesde->writers--;
+		if (ciyesde->writers == 0) {
+			clear_bit(CIFS_INODE_PENDING_WRITERS, &ciyesde->flags);
+			wake_up_bit(&ciyesde->flags, CIFS_INODE_PENDING_WRITERS);
 		}
-		spin_unlock(&cinode->writers_lock);
+		spin_unlock(&ciyesde->writers_lock);
 		goto start;
 	}
-	spin_unlock(&cinode->writers_lock);
+	spin_unlock(&ciyesde->writers_lock);
 	return 0;
 }
 
-void cifs_put_writer(struct cifsInodeInfo *cinode)
+void cifs_put_writer(struct cifsIyesdeInfo *ciyesde)
 {
-	spin_lock(&cinode->writers_lock);
-	cinode->writers--;
-	if (cinode->writers == 0) {
-		clear_bit(CIFS_INODE_PENDING_WRITERS, &cinode->flags);
-		wake_up_bit(&cinode->flags, CIFS_INODE_PENDING_WRITERS);
+	spin_lock(&ciyesde->writers_lock);
+	ciyesde->writers--;
+	if (ciyesde->writers == 0) {
+		clear_bit(CIFS_INODE_PENDING_WRITERS, &ciyesde->flags);
+		wake_up_bit(&ciyesde->flags, CIFS_INODE_PENDING_WRITERS);
 	}
-	spin_unlock(&cinode->writers_lock);
+	spin_unlock(&ciyesde->writers_lock);
 }
 
 /**
@@ -608,7 +608,7 @@ void cifs_put_writer(struct cifsInodeInfo *cinode)
 void cifs_queue_oplock_break(struct cifsFileInfo *cfile)
 {
 	/*
-	 * Bump the handle refcount now while we hold the
+	 * Bump the handle refcount yesw while we hold the
 	 * open_file_lock to enforce the validity of it for the oplock
 	 * break handler. The matching put is done at the end of the
 	 * handler.
@@ -618,10 +618,10 @@ void cifs_queue_oplock_break(struct cifsFileInfo *cfile)
 	queue_work(cifsoplockd_wq, &cfile->oplock_break);
 }
 
-void cifs_done_oplock_break(struct cifsInodeInfo *cinode)
+void cifs_done_oplock_break(struct cifsIyesdeInfo *ciyesde)
 {
-	clear_bit(CIFS_INODE_PENDING_OPLOCK_BREAK, &cinode->flags);
-	wake_up_bit(&cinode->flags, CIFS_INODE_PENDING_OPLOCK_BREAK);
+	clear_bit(CIFS_INODE_PENDING_OPLOCK_BREAK, &ciyesde->flags);
+	wake_up_bit(&ciyesde->flags, CIFS_INODE_PENDING_OPLOCK_BREAK);
 }
 
 bool
@@ -668,15 +668,15 @@ cifs_add_pending_open(struct cifs_fid *fid, struct tcon_link *tlink,
 }
 
 /* parses DFS refferal V3 structure
- * caller is responsible for freeing target_nodes
+ * caller is responsible for freeing target_yesdes
  * returns:
  * - on success - 0
- * - on failure - errno
+ * - on failure - erryes
  */
 int
 parse_dfs_referrals(struct get_dfs_referral_rsp *rsp, u32 rsp_size,
-		    unsigned int *num_of_nodes,
-		    struct dfs_info3_param **target_nodes,
+		    unsigned int *num_of_yesdes,
+		    struct dfs_info3_param **target_yesdes,
 		    const struct nls_table *nls_codepage, int remap,
 		    const char *searchName, bool is_unicode)
 {
@@ -684,18 +684,18 @@ parse_dfs_referrals(struct get_dfs_referral_rsp *rsp, u32 rsp_size,
 	char *data_end;
 	struct dfs_referral_level_3 *ref;
 
-	*num_of_nodes = le16_to_cpu(rsp->NumberOfReferrals);
+	*num_of_yesdes = le16_to_cpu(rsp->NumberOfReferrals);
 
-	if (*num_of_nodes < 1) {
+	if (*num_of_yesdes < 1) {
 		cifs_dbg(VFS, "num_referrals: must be at least > 0, but we get num_referrals = %d\n",
-			 *num_of_nodes);
+			 *num_of_yesdes);
 		rc = -EINVAL;
 		goto parse_DFS_referrals_exit;
 	}
 
 	ref = (struct dfs_referral_level_3 *) &(rsp->referrals);
 	if (ref->VersionNumber != cpu_to_le16(3)) {
-		cifs_dbg(VFS, "Referrals of V%d version are not supported, should be V3\n",
+		cifs_dbg(VFS, "Referrals of V%d version are yest supported, should be V3\n",
 			 le16_to_cpu(ref->VersionNumber));
 		rc = -EINVAL;
 		goto parse_DFS_referrals_exit;
@@ -705,22 +705,22 @@ parse_dfs_referrals(struct get_dfs_referral_rsp *rsp, u32 rsp_size,
 	data_end = (char *)rsp + rsp_size;
 
 	cifs_dbg(FYI, "num_referrals: %d dfs flags: 0x%x ...\n",
-		 *num_of_nodes, le32_to_cpu(rsp->DFSFlags));
+		 *num_of_yesdes, le32_to_cpu(rsp->DFSFlags));
 
-	*target_nodes = kcalloc(*num_of_nodes, sizeof(struct dfs_info3_param),
+	*target_yesdes = kcalloc(*num_of_yesdes, sizeof(struct dfs_info3_param),
 				GFP_KERNEL);
-	if (*target_nodes == NULL) {
+	if (*target_yesdes == NULL) {
 		rc = -ENOMEM;
 		goto parse_DFS_referrals_exit;
 	}
 
 	/* collect necessary data from referrals */
-	for (i = 0; i < *num_of_nodes; i++) {
+	for (i = 0; i < *num_of_yesdes; i++) {
 		char *temp;
 		int max_len;
-		struct dfs_info3_param *node = (*target_nodes)+i;
+		struct dfs_info3_param *yesde = (*target_yesdes)+i;
 
-		node->flags = le32_to_cpu(rsp->DFSFlags);
+		yesde->flags = le32_to_cpu(rsp->DFSFlags);
 		if (is_unicode) {
 			__le16 *tmp = kmalloc(strlen(searchName)*2 + 2,
 						GFP_KERNEL);
@@ -730,22 +730,22 @@ parse_dfs_referrals(struct get_dfs_referral_rsp *rsp, u32 rsp_size,
 			}
 			cifsConvertToUTF16((__le16 *) tmp, searchName,
 					   PATH_MAX, nls_codepage, remap);
-			node->path_consumed = cifs_utf16_bytes(tmp,
+			yesde->path_consumed = cifs_utf16_bytes(tmp,
 					le16_to_cpu(rsp->PathConsumed),
 					nls_codepage);
 			kfree(tmp);
 		} else
-			node->path_consumed = le16_to_cpu(rsp->PathConsumed);
+			yesde->path_consumed = le16_to_cpu(rsp->PathConsumed);
 
-		node->server_type = le16_to_cpu(ref->ServerType);
-		node->ref_flag = le16_to_cpu(ref->ReferralEntryFlags);
+		yesde->server_type = le16_to_cpu(ref->ServerType);
+		yesde->ref_flag = le16_to_cpu(ref->ReferralEntryFlags);
 
 		/* copy DfsPath */
 		temp = (char *)ref + le16_to_cpu(ref->DfsPathOffset);
 		max_len = data_end - temp;
-		node->path_name = cifs_strndup_from_utf16(temp, max_len,
+		yesde->path_name = cifs_strndup_from_utf16(temp, max_len,
 						is_unicode, nls_codepage);
-		if (!node->path_name) {
+		if (!yesde->path_name) {
 			rc = -ENOMEM;
 			goto parse_DFS_referrals_exit;
 		}
@@ -753,23 +753,23 @@ parse_dfs_referrals(struct get_dfs_referral_rsp *rsp, u32 rsp_size,
 		/* copy link target UNC */
 		temp = (char *)ref + le16_to_cpu(ref->NetworkAddressOffset);
 		max_len = data_end - temp;
-		node->node_name = cifs_strndup_from_utf16(temp, max_len,
+		yesde->yesde_name = cifs_strndup_from_utf16(temp, max_len,
 						is_unicode, nls_codepage);
-		if (!node->node_name) {
+		if (!yesde->yesde_name) {
 			rc = -ENOMEM;
 			goto parse_DFS_referrals_exit;
 		}
 
-		node->ttl = le32_to_cpu(ref->TimeToLive);
+		yesde->ttl = le32_to_cpu(ref->TimeToLive);
 
 		ref++;
 	}
 
 parse_DFS_referrals_exit:
 	if (rc) {
-		free_dfs_info_array(*target_nodes, *num_of_nodes);
-		*target_nodes = NULL;
-		*num_of_nodes = 0;
+		free_dfs_info_array(*target_yesdes, *num_of_yesdes);
+		*target_yesdes = NULL;
+		*num_of_yesdes = 0;
 	}
 	return rc;
 }
@@ -781,7 +781,7 @@ cifs_aio_ctx_alloc(void)
 
 	/*
 	 * Must use kzalloc to initialize ctx->bv to NULL and ctx->direct_io
-	 * to false so that we know when we have to unreference pages within
+	 * to false so that we kyesw when we have to unreference pages within
 	 * cifs_aio_ctx_release()
 	 */
 	ctx = kzalloc(sizeof(struct cifs_aio_ctx), GFP_KERNEL);
@@ -932,7 +932,7 @@ cifs_alloc_hash(const char *name,
 
 	*shash = crypto_alloc_shash(name, 0, 0);
 	if (IS_ERR(*shash)) {
-		cifs_dbg(VFS, "could not allocate crypto %s\n", name);
+		cifs_dbg(VFS, "could yest allocate crypto %s\n", name);
 		rc = PTR_ERR(*shash);
 		*shash = NULL;
 		*sdesc = NULL;
@@ -942,7 +942,7 @@ cifs_alloc_hash(const char *name,
 	size = sizeof(struct shash_desc) + crypto_shash_descsize(*shash);
 	*sdesc = kmalloc(size, GFP_KERNEL);
 	if (*sdesc == NULL) {
-		cifs_dbg(VFS, "no memory left to allocate crypto %s\n", name);
+		cifs_dbg(VFS, "yes memory left to allocate crypto %s\n", name);
 		crypto_free_shash(*shash);
 		*shash = NULL;
 		return -ENOMEM;

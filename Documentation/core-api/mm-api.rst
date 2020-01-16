@@ -50,7 +50,7 @@ The Slab Cache
    :export:
 
 .. kernel-doc:: mm/util.c
-   :functions: kfree_const kvmalloc_node kvfree
+   :functions: kfree_const kvmalloc_yesde kvfree
 
 Virtually Contiguous Mappings
 =============================

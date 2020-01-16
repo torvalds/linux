@@ -24,7 +24,7 @@
  *	CONFIG_SECURITY_NETWORK_XFRM=y
  *	CONFIG_SECURITY_SELINUX=m/y
  * ISSUES:
- *   1. Caching packets, so they are not dropped during negotiation
+ *   1. Caching packets, so they are yest dropped during negotiation
  *   2. Emulating a reasonable SO_PEERSEC across machines
  *   3. Testing addition of sk_policy's with security context via setsockopt
  */
@@ -155,7 +155,7 @@ int selinux_xfrm_policy_lookup(struct xfrm_sec_ctx *ctx, u32 fl_secid, u8 dir)
 	int rc;
 
 	/* All flows should be treated as polmatch'ing an otherwise applicable
-	 * "non-labeled" policy. This would prevent inadvertent "leaks". */
+	 * "yesn-labeled" policy. This would prevent inadvertent "leaks". */
 	if (!ctx)
 		return 0;
 
@@ -201,7 +201,7 @@ int selinux_xfrm_state_pol_flow_match(struct xfrm_state *x,
 		return 0;
 
 	/* We don't need a separate SA Vs. policy polmatch check since the SA
-	 * is now of the same label as the flow and a flow Vs. policy polmatch
+	 * is yesw of the same label as the flow and a flow Vs. policy polmatch
 	 * check had already happened in selinux_xfrm_policy_lookup() above. */
 	return (avc_has_perm(&selinux_state,
 			     fl->flowi_secid, state_sid,
@@ -397,8 +397,8 @@ int selinux_xfrm_state_delete(struct xfrm_state *x)
 /*
  * LSM hook that controls access to unlabelled packets.  If
  * a xfrm_state is authorizable (defined by macro) then it was
- * already authorized by the IPSec process.  If not, then
- * we need to check for unlabelled access since this may not have
+ * already authorized by the IPSec process.  If yest, then
+ * we need to check for unlabelled access since this may yest have
  * gone thru the IPSec process.
  */
 int selinux_xfrm_sock_rcv_skb(u32 sk_sid, struct sk_buff *skb,
@@ -420,9 +420,9 @@ int selinux_xfrm_sock_rcv_skb(u32 sk_sid, struct sk_buff *skb,
 		}
 	}
 
-	/* This check even when there's no association involved is intended,
+	/* This check even when there's yes association involved is intended,
 	 * according to Trent Jaeger, to make sure a process can't engage in
-	 * non-IPsec communication unless explicitly allowed by policy. */
+	 * yesn-IPsec communication unless explicitly allowed by policy. */
 	return avc_has_perm(&selinux_state,
 			    sk_sid, peer_sid,
 			    SECCLASS_ASSOCIATION, ASSOCIATION__RECVFROM, ad);
@@ -430,7 +430,7 @@ int selinux_xfrm_sock_rcv_skb(u32 sk_sid, struct sk_buff *skb,
 
 /*
  * POSTROUTE_LAST hook's XFRM processing:
- * If we have no security association, then we need to determine
+ * If we have yes security association, then we need to determine
  * whether the socket is allowed to send to an unlabelled destination.
  * If we do have a authorizable security association, then it has already been
  * checked in the selinux_xfrm_state_pol_flow_match hook above.
@@ -464,9 +464,9 @@ int selinux_xfrm_postroute_last(u32 sk_sid, struct sk_buff *skb,
 		}
 	}
 
-	/* This check even when there's no association involved is intended,
+	/* This check even when there's yes association involved is intended,
 	 * according to Trent Jaeger, to make sure a process can't engage in
-	 * non-IPsec communication unless explicitly allowed by policy. */
+	 * yesn-IPsec communication unless explicitly allowed by policy. */
 	return avc_has_perm(&selinux_state, sk_sid, SECINITSID_UNLABELED,
 			    SECCLASS_ASSOCIATION, ASSOCIATION__SENDTO, ad);
 }

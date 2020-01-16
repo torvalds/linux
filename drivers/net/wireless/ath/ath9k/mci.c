@@ -3,7 +3,7 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright yestice and this permission yestice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
@@ -200,7 +200,7 @@ skip_tuning:
 	if (btcoex->duty_cycle > ATH_MCI_MAX_DUTY_CYCLE)
 		btcoex->duty_cycle = ATH_MCI_MAX_DUTY_CYCLE;
 
-	btcoex->btcoex_no_stomp =  btcoex->btcoex_period *
+	btcoex->btcoex_yes_stomp =  btcoex->btcoex_period *
 		(100 - btcoex->duty_cycle) / 100;
 
 	ath9k_hw_btcoex_enable(sc->sc_ah);
@@ -228,7 +228,7 @@ static void ath_mci_cal_msg(struct ath_softc *sc, u8 opcode, u8 *rx_payload)
 					16, false, true);
 		break;
 	default:
-		ath_dbg(common, MCI, "Unknown GPM CAL message\n");
+		ath_dbg(common, MCI, "Unkyeswn GPM CAL message\n");
 		break;
 	}
 }
@@ -335,7 +335,7 @@ static u8 ath_mci_process_status(struct ath_softc *sc,
 	struct ath_mci_profile_info info;
 	int i = 0, old_num_mgmt = mci->num_mgmt;
 
-	/* Link status type are not handled */
+	/* Link status type are yest handled */
 	if (status->is_link)
 		return 0;
 
@@ -370,7 +370,7 @@ static void ath_mci_msg(struct ath_softc *sc, u8 opcode, u8 *rx_payload)
 	struct ath_mci_profile_info profile_info;
 	struct ath_mci_profile_status profile_status;
 	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
-	u8 major, minor, update_scheme = 0;
+	u8 major, miyesr, update_scheme = 0;
 	u32 seq_num;
 
 	if (ar9003_mci_state(ah, MCI_STATE_NEED_FLUSH_BT_INFO) &&
@@ -386,8 +386,8 @@ static void ath_mci_msg(struct ath_softc *sc, u8 opcode, u8 *rx_payload)
 		break;
 	case MCI_GPM_COEX_VERSION_RESPONSE:
 		major = *(rx_payload + MCI_GPM_COEX_B_MAJOR_VERSION);
-		minor = *(rx_payload + MCI_GPM_COEX_B_MINOR_VERSION);
-		ar9003_mci_set_bt_version(ah, major, minor);
+		miyesr = *(rx_payload + MCI_GPM_COEX_B_MINOR_VERSION);
+		ar9003_mci_set_bt_version(ah, major, miyesr);
 		break;
 	case MCI_GPM_COEX_STATUS_QUERY:
 		ar9003_mci_send_wlan_channels(ah);
@@ -424,7 +424,7 @@ static void ath_mci_msg(struct ath_softc *sc, u8 opcode, u8 *rx_payload)
 		update_scheme += ath_mci_process_status(sc, &profile_status);
 		break;
 	default:
-		ath_dbg(common, MCI, "Unknown GPM COEX message = 0x%02x\n", opcode);
+		ath_dbg(common, MCI, "Unkyeswn GPM COEX message = 0x%02x\n", opcode);
 		break;
 	}
 	if (update_scheme)

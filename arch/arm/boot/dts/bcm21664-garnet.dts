@@ -36,7 +36,7 @@
 	};
 
 	sdio2: sdio@3f190000 {
-		non-removable;
+		yesn-removable;
 		max-frequency = <48000000>;
 		status = "okay";
 	};

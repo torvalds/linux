@@ -16,7 +16,7 @@
 #include <linux/smp.h>
 #include <linux/kernel.h>
 #include <linux/signal.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/wait.h>
 #include <linux/ptrace.h>
 #include <linux/unistd.h>
@@ -42,7 +42,7 @@ static int restore_sigcontext(struct pt_regs *regs,
 	int err = 0;
 
 	/* Always make any pending restarted system calls return -EINTR */
-	current->restart_block.fn = do_no_restart_syscall;
+	current->restart_block.fn = do_yes_restart_syscall;
 
 	/*
 	 * Restore the regs from &sc->regs.
@@ -53,14 +53,14 @@ static int restore_sigcontext(struct pt_regs *regs,
 	err |= __copy_from_user(&regs->pc, &sc->regs.pc, sizeof(unsigned long));
 	err |= __copy_from_user(&regs->sr, &sc->regs.sr, sizeof(unsigned long));
 
-	/* make sure the SM-bit is cleared so user-mode cannot fool us */
+	/* make sure the SM-bit is cleared so user-mode canyest fool us */
 	regs->sr &= ~SPR_SR_SM;
 
 	regs->orig_gpr11 = -1;	/* Avoid syscall restart checks */
 
 	/* TODO: the other ports use regs->orig_XX to disable syscall checks
 	 * after this completes, but we don't use that mechanism. maybe we can
-	 * use it now ?
+	 * use it yesw ?
 	 */
 
 	return err;
@@ -74,7 +74,7 @@ asmlinkage long _sys_rt_sigreturn(struct pt_regs *regs)
 	/*
 	 * Since we stacked the signal on a dword boundary,
 	 * then frame should be dword aligned here.  If it's
-	 * not, then the user is trying to mess with us.
+	 * yest, then the user is trying to mess with us.
 	 */
 	if (((long)frame) & 3)
 		goto badframe;
@@ -108,7 +108,7 @@ static int setup_sigcontext(struct pt_regs *regs, struct sigcontext __user *sc)
 	int err = 0;
 
 	/* copy the regs */
-	/* There should be no need to save callee-saved registers here...
+	/* There should be yes need to save callee-saved registers here...
 	 * ...but we save them anyway.  Revisit this
 	 */
 	err |= __copy_to_user(sc->regs.gpr, regs, 32 * sizeof(unsigned long));
@@ -192,7 +192,7 @@ static int setup_rt_frame(struct ksignal *ksig, sigset_t *set,
 	/* Set up registers for signal handler */
 	regs->pc = (unsigned long)ksig->ka.sa.sa_handler; /* what we enter NOW */
 	regs->gpr[9] = (unsigned long)return_ip;     /* what we enter LATER */
-	regs->gpr[3] = (unsigned long)ksig->sig;           /* arg 1: signo */
+	regs->gpr[3] = (unsigned long)ksig->sig;           /* arg 1: sigyes */
 	regs->gpr[4] = (unsigned long)&frame->info;  /* arg 2: (siginfo_t*) */
 	regs->gpr[5] = (unsigned long)&frame->uc;    /* arg 3: ucontext */
 
@@ -214,11 +214,11 @@ handle_signal(struct ksignal *ksig, struct pt_regs *regs)
 
 /*
  * Note that 'init' is a special process: it doesn't get signals it doesn't
- * want to handle. Thus you cannot kill init even with a SIGKILL even by
+ * want to handle. Thus you canyest kill init even with a SIGKILL even by
  * mistake.
  *
- * Also note that the regs structure given here as an argument, is the latest
- * pushed pt_regs. It may or may not be the same as the first pushed registers
+ * Also yeste that the regs structure given here as an argument, is the latest
+ * pushed pt_regs. It may or may yest be the same as the first pushed registers
  * when the initial usermode->kernelmode transition took place. Therefore
  * we can use user_mode(regs) to see if we came directly from kernel or user
  * mode below.
@@ -274,7 +274,7 @@ int do_signal(struct pt_regs *regs, int syscall)
 		}
 		handle_signal(&ksig, regs);
 	} else {
-		/* no handler */
+		/* yes handler */
 		restore_saved_sigmask();
 		/*
 		 * Restore pt_regs PC as syscall restart will be handled by
@@ -312,7 +312,7 @@ do_work_pending(struct pt_regs *regs, unsigned int thread_flags, int syscall)
 				syscall = 0;
 			} else {
 				clear_thread_flag(TIF_NOTIFY_RESUME);
-				tracehook_notify_resume(regs);
+				tracehook_yestify_resume(regs);
 			}
 		}
 		local_irq_disable();

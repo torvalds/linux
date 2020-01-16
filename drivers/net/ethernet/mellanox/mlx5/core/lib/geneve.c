@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
-/* Copyright (c) 2019 Mellanox Technologies. */
+/* Copyright (c) 2019 Mellayesx Techyeslogies. */
 
 #include <linux/kernel.h>
 #include "mlx5_core.h"
@@ -76,11 +76,11 @@ int mlx5_geneve_tlv_option_add(struct mlx5_geneve *geneve, struct geneve_opt *op
 			geneve->refcount++;
 		} else {
 			/* TLV options obj allocated, but its params
-			 * do not match the new request.
+			 * do yest match the new request.
 			 * We support only one such object.
 			 */
 			mlx5_core_warn(geneve->mdev,
-				       "Won't create Geneve TLV opt object with class:type:len = 0x%x:0x%x:%d (another class:type already exists)\n",
+				       "Won't create Geneve TLV opt object with class:type:len = 0x%x:0x%x:%d (ayesther class:type already exists)\n",
 				       be16_to_cpu(opt->opt_class),
 				       opt->type,
 				       opt->length);

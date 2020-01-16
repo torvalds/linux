@@ -50,7 +50,7 @@
 
 #include <linux/module.h>
 #include <linux/printk.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/of.h>
@@ -123,7 +123,7 @@ static unsigned int net_debug = DEBUGGING;
 /* The number of low I/O ports used by the ethercard. */
 #define NETCARD_IO_EXTENT	16
 
-/* we allow the user to override various values normally set in the EEPROM */
+/* we allow the user to override various values yesrmally set in the EEPROM */
 #define FORCE_RJ45	0x0001    /* pick one of these three */
 #define FORCE_AUI	0x0002
 #define FORCE_BNC	0x0004
@@ -194,20 +194,20 @@ static int __init media_fn(char *str)
 __setup("cs89x0_media=", media_fn);
 #endif
 
-static void readwords(struct net_local *lp, int portno, void *buf, int length)
+static void readwords(struct net_local *lp, int portyes, void *buf, int length)
 {
 	u8 *buf8 = (u8 *)buf;
 
 	do {
 		u16 tmp16;
 
-		tmp16 = ioread16(lp->virt_addr + portno);
+		tmp16 = ioread16(lp->virt_addr + portyes);
 		*buf8++ = (u8)tmp16;
 		*buf8++ = (u8)(tmp16 >> 8);
 	} while (--length);
 }
 
-static void writewords(struct net_local *lp, int portno, void *buf, int length)
+static void writewords(struct net_local *lp, int portyes, void *buf, int length)
 {
 	u8 *buf8 = (u8 *)buf;
 
@@ -216,25 +216,25 @@ static void writewords(struct net_local *lp, int portno, void *buf, int length)
 
 		tmp16 = *buf8++;
 		tmp16 |= (*buf8++) << 8;
-		iowrite16(tmp16, lp->virt_addr + portno);
+		iowrite16(tmp16, lp->virt_addr + portyes);
 	} while (--length);
 }
 
 static u16
-readreg(struct net_device *dev, u16 regno)
+readreg(struct net_device *dev, u16 regyes)
 {
 	struct net_local *lp = netdev_priv(dev);
 
-	iowrite16(regno, lp->virt_addr + ADD_PORT);
+	iowrite16(regyes, lp->virt_addr + ADD_PORT);
 	return ioread16(lp->virt_addr + DATA_PORT);
 }
 
 static void
-writereg(struct net_device *dev, u16 regno, u16 value)
+writereg(struct net_device *dev, u16 regyes, u16 value)
 {
 	struct net_local *lp = netdev_priv(dev);
 
-	iowrite16(regno, lp->virt_addr + ADD_PORT);
+	iowrite16(regyes, lp->virt_addr + ADD_PORT);
 	iowrite16(value, lp->virt_addr + DATA_PORT);
 }
 
@@ -373,14 +373,14 @@ set_dma_cfg(struct net_device *dev)
 
 	if (lp->use_dma) {
 		if ((lp->isa_config & ANY_ISA_DMA) == 0) {
-			cs89_dbg(3, err, "set_dma_cfg(): no DMA\n");
+			cs89_dbg(3, err, "set_dma_cfg(): yes DMA\n");
 			return;
 		}
 		if (lp->isa_config & ISA_RxDMA) {
 			lp->curr_rx_cfg |= RX_DMA_ONLY;
 			cs89_dbg(3, info, "set_dma_cfg(): RX_DMA_ONLY\n");
 		} else {
-			lp->curr_rx_cfg |= AUTO_RX_DMA;	/* not that we support it... */
+			lp->curr_rx_cfg |= AUTO_RX_DMA;	/* yest that we support it... */
 			cs89_dbg(3, info, "set_dma_cfg(): AUTO_RX_DMA\n");
 		}
 	}
@@ -483,25 +483,25 @@ static void release_dma_buff(struct net_local *lp)
 #endif	/* ALLOW_DMA */
 
 static void
-control_dc_dc(struct net_device *dev, int on_not_off)
+control_dc_dc(struct net_device *dev, int on_yest_off)
 {
 	struct net_local *lp = netdev_priv(dev);
 	unsigned int selfcontrol;
-	unsigned long timenow = jiffies;
+	unsigned long timeyesw = jiffies;
 	/* control the DC to DC convertor in the SelfControl register.
-	 * Note: This is hooked up to a general purpose pin, might not
+	 * Note: This is hooked up to a general purpose pin, might yest
 	 * always be a DC to DC convertor.
 	 */
 
 	selfcontrol = HCB1_ENBL; /* Enable the HCB1 bit as an output */
-	if (((lp->adapter_cnf & A_CNF_DC_DC_POLARITY) != 0) ^ on_not_off)
+	if (((lp->adapter_cnf & A_CNF_DC_DC_POLARITY) != 0) ^ on_yest_off)
 		selfcontrol |= HCB1;
 	else
 		selfcontrol &= ~HCB1;
 	writereg(dev, PP_SelfCTL, selfcontrol);
 
 	/* Wait for the DC/DC converter to power up - 500ms */
-	while (time_before(jiffies, timenow + HZ))
+	while (time_before(jiffies, timeyesw + HZ))
 		;
 }
 
@@ -516,7 +516,7 @@ send_test_pkt(struct net_device *dev)
 		0, 0,		/* DSAP=0 & SSAP=0 fields */
 		0xf3, 0		/* Control (Test Req + P bit set) */
 	};
-	unsigned long timenow = jiffies;
+	unsigned long timeyesw = jiffies;
 
 	writereg(dev, PP_LineCTL, readreg(dev, PP_LineCTL) | SERIAL_TX_ON);
 
@@ -527,10 +527,10 @@ send_test_pkt(struct net_device *dev)
 	iowrite16(ETH_ZLEN, lp->virt_addr + TX_LEN_PORT);
 
 	/* Test to see if the chip has allocated memory for the packet */
-	while (time_before(jiffies, timenow + 5))
+	while (time_before(jiffies, timeyesw + 5))
 		if (readreg(dev, PP_BusST) & READY_FOR_TX_NOW)
 			break;
-	if (time_after_eq(jiffies, timenow + 5))
+	if (time_after_eq(jiffies, timeyesw + 5))
 		return 0;	/* this shouldn't happen */
 
 	/* Write the contents of the packet */
@@ -538,7 +538,7 @@ send_test_pkt(struct net_device *dev)
 
 	cs89_dbg(1, debug, "Sending test packet ");
 	/* wait a couple of jiffies for packet to be received */
-	for (timenow = jiffies; time_before(jiffies, timenow + 3);)
+	for (timeyesw = jiffies; time_before(jiffies, timeyesw + 3);)
 		;
 	if ((readreg(dev, PP_TxEvent) & TX_SEND_OK_BITS) == TX_OK) {
 		cs89_dbg(1, cont, "succeeded\n");
@@ -558,16 +558,16 @@ static int
 detect_tp(struct net_device *dev)
 {
 	struct net_local *lp = netdev_priv(dev);
-	unsigned long timenow = jiffies;
+	unsigned long timeyesw = jiffies;
 	int fdx;
 
 	cs89_dbg(1, debug, "%s: Attempting TP\n", dev->name);
 
-	/* If connected to another full duplex capable 10-Base-T card
+	/* If connected to ayesther full duplex capable 10-Base-T card
 	 * the link pulses seem to be lost when the auto detect bit in
 	 * the LineCTL is set.  To overcome this the auto detect bit will
 	 * be cleared whilst testing the 10-Base-T interface.  This would
-	 * not be necessary for the sparrow chip but is simpler to do it
+	 * yest be necessary for the sparrow chip but is simpler to do it
 	 * anyway.
 	 */
 	writereg(dev, PP_LineCTL, lp->linectl & ~AUI_ONLY);
@@ -576,7 +576,7 @@ detect_tp(struct net_device *dev)
 	/* Delay for the hardware to work out if the TP cable is present
 	 * - 150ms
 	 */
-	for (timenow = jiffies; time_before(jiffies, timenow + 15);)
+	for (timeyesw = jiffies; time_before(jiffies, timeyesw + 15);)
 		;
 	if ((readreg(dev, PP_LineST) & LINK_OK) == 0)
 		return DETECTED_NONE;
@@ -620,7 +620,7 @@ detect_tp(struct net_device *dev)
 		if ((lp->auto_neg_cnf & AUTO_NEG_BITS) == AUTO_NEG_ENABLE) {
 			pr_info("%s: negotiating duplex...\n", dev->name);
 			while (readreg(dev, PP_AutoNegST) & AUTO_NEG_BUSY) {
-				if (time_after(jiffies, timenow + 4000)) {
+				if (time_after(jiffies, timeyesw + 4000)) {
 					pr_err("**** Full / half duplex auto-negotiation timed out ****\n");
 					break;
 				}
@@ -818,7 +818,7 @@ static irqreturn_t net_interrupt(int irq, void *dev_id)
 
    This routine should set everything up anew at each open, even
    registers that "should" only need to be set once at boot, so that
-   there is non-reboot way to recover if something goes wrong.
+   there is yesn-reboot way to recover if something goes wrong.
 */
 
 /* AKPM: do we need to do any locking here? */
@@ -861,7 +861,7 @@ net_open(struct net_device *dev)
 	} else {
 #if !defined(CONFIG_CS89x0_PLATFORM)
 		if (((1 << dev->irq) & lp->irq_map) == 0) {
-			pr_err("%s: IRQ %d is not in our map of allowable IRQs, which is %x\n",
+			pr_err("%s: IRQ %d is yest in our map of allowable IRQs, which is %x\n",
 			       dev->name, dev->irq, lp->irq_map);
 			ret = -EAGAIN;
 			goto bad_out;
@@ -887,7 +887,7 @@ net_open(struct net_device *dev)
 		lp->dma_buff = (unsigned char *)__get_dma_pages(GFP_KERNEL,
 								get_order(lp->dmasize * 1024));
 		if (!lp->dma_buff) {
-			pr_err("%s: cannot get %dK memory for DMA\n",
+			pr_err("%s: canyest get %dK memory for DMA\n",
 			       dev->name, lp->dmasize);
 			goto release_irq;
 		}
@@ -898,12 +898,12 @@ net_open(struct net_device *dev)
 		if ((unsigned long)lp->dma_buff >= MAX_DMA_ADDRESS ||
 		    !dma_page_eq(lp->dma_buff,
 				 lp->dma_buff + lp->dmasize * 1024 - 1)) {
-			pr_err("%s: not usable as DMA buffer\n", dev->name);
+			pr_err("%s: yest usable as DMA buffer\n", dev->name);
 			goto release_irq;
 		}
 		memset(lp->dma_buff, 0, lp->dmasize * 1024);	/* Why? */
 		if (request_dma(dev->dma, dev->name)) {
-			pr_err("%s: cannot get dma channel %d\n",
+			pr_err("%s: canyest get dma channel %d\n",
 			       dev->name, dev->dma);
 			goto release_irq;
 		}
@@ -974,25 +974,25 @@ release_irq:
 	case A_CNF_MEDIA_10B_T:
 		result = detect_tp(dev);
 		if (result == DETECTED_NONE) {
-			pr_warn("%s: 10Base-T (RJ-45) has no cable\n",
+			pr_warn("%s: 10Base-T (RJ-45) has yes cable\n",
 				dev->name);
-			if (lp->auto_neg_cnf & IMM_BIT) /* check "ignore missing media" bit */
+			if (lp->auto_neg_cnf & IMM_BIT) /* check "igyesre missing media" bit */
 				result = DETECTED_RJ45H; /* Yes! I don't care if I see a link pulse */
 		}
 		break;
 	case A_CNF_MEDIA_AUI:
 		result = detect_aui(dev);
 		if (result == DETECTED_NONE) {
-			pr_warn("%s: 10Base-5 (AUI) has no cable\n", dev->name);
-			if (lp->auto_neg_cnf & IMM_BIT) /* check "ignore missing media" bit */
+			pr_warn("%s: 10Base-5 (AUI) has yes cable\n", dev->name);
+			if (lp->auto_neg_cnf & IMM_BIT) /* check "igyesre missing media" bit */
 				result = DETECTED_AUI; /* Yes! I don't care if I see a carrrier */
 		}
 		break;
 	case A_CNF_MEDIA_10B_2:
 		result = detect_bnc(dev);
 		if (result == DETECTED_NONE) {
-			pr_warn("%s: 10Base-2 (BNC) has no cable\n", dev->name);
-			if (lp->auto_neg_cnf & IMM_BIT) /* check "ignore missing media" bit */
+			pr_warn("%s: 10Base-2 (BNC) has yes cable\n", dev->name);
+			if (lp->auto_neg_cnf & IMM_BIT) /* check "igyesre missing media" bit */
 				result = DETECTED_BNC; /* Yes! I don't care if I can xmit a packet */
 		}
 		break;
@@ -1013,12 +1013,12 @@ release_irq:
 			if (result != DETECTED_NONE)
 				break;
 		}
-		pr_err("%s: no media detected\n", dev->name);
+		pr_err("%s: yes media detected\n", dev->name);
 		goto release_dma;
 	}
 	switch (result) {
 	case DETECTED_NONE:
-		pr_err("%s: no network cable attached to configured media\n",
+		pr_err("%s: yes network cable attached to configured media\n",
 		       dev->name);
 		goto release_dma;
 	case DETECTED_RJ45H:
@@ -1068,7 +1068,7 @@ release_irq:
 				  TX_COL_COUNT_OVRFLOW_ENBL |
 				  TX_UNDERRUN_ENBL));
 
-	/* now that we've got our act together, enable everything */
+	/* yesw that we've got our act together, enable everything */
 	writereg(dev, PP_BusCTL, (ENABLE_IRQ
 				  | (dev->mem_start ? MEMORY_ON : 0) /* turn memory on */
 #if ALLOW_DMA
@@ -1168,7 +1168,7 @@ static netdev_tx_t net_send_packet(struct sk_buff *skb, struct net_device *dev)
 		 */
 
 		spin_unlock_irqrestore(&lp->lock, flags);
-		cs89_dbg(0, err, "Tx buffer not free!\n");
+		cs89_dbg(0, err, "Tx buffer yest free!\n");
 		return NETDEV_TX_BUSY;
 	}
 	/* Write the contents of the packet */
@@ -1180,7 +1180,7 @@ static netdev_tx_t net_send_packet(struct sk_buff *skb, struct net_device *dev)
 	/* We DO NOT call netif_wake_queue() here.
 	 * We also DO NOT call netif_start_queue().
 	 *
-	 * Either of these would cause another bottom half run through
+	 * Either of these would cause ayesther bottom half run through
 	 * net_send_packet() before this packet has fully gone out.
 	 * That causes us to hit the "Gasp!" above and the send is rescheduled.
 	 * it runs like a dog.  We just return and wait for the Tx completion
@@ -1201,7 +1201,7 @@ static void set_multicast_list(struct net_device *dev)
 		lp->rx_mode = RX_ALL_ACCEPT;
 	else if ((dev->flags & IFF_ALLMULTI) || !netdev_mc_empty(dev))
 		/* The multicast-accept list is initialized to accept-all,
-		 * and we rely on higher-level filtering for now.
+		 * and we rely on higher-level filtering for yesw.
 		 */
 		lp->rx_mode = RX_MULTCAST_ACCEPT;
 	else
@@ -1243,7 +1243,7 @@ static int set_mac_address(struct net_device *dev, void *p)
 
 #ifdef CONFIG_NET_POLL_CONTROLLER
 /*
- * Polling receive - used by netconsole and other diagnostic tools
+ * Polling receive - used by netconsole and other diagyesstic tools
  * to allow network i/o with interrupts disabled.
  */
 static void net_poll_controller(struct net_device *dev)
@@ -1374,7 +1374,7 @@ cs89x0_probe1(struct net_device *dev, void __iomem *ioaddr, int modular)
 	reset_chip(dev);
 
 	/* Here we read the current configuration of the chip.
-	 * If there is no Extended EEPROM then the idea is to not disturb
+	 * If there is yes Extended EEPROM then the idea is to yest disturb
 	 * the chip configuration, it should have been correctly setup by
 	 * automatic EEPROM read on reset. So, if the chip says it read
 	 * the EEPROM the driver will always do *something* instead of
@@ -1393,7 +1393,7 @@ cs89x0_probe1(struct net_device *dev, void __iomem *ioaddr, int modular)
 
 		/* Load the Adapter Configuration.
 		 * Note:  Barring any more specific information from some
-		 * other source (ie EEPROM+Schematics), we would not know
+		 * other source (ie EEPROM+Schematics), we would yest kyesw
 		 * how to operate a 10Base2 interface on the AUI port.
 		 * However, since we  do read the status of HCB1 and use
 		 * settings that always result in calls to control_dc_dc(dev,0)
@@ -1444,10 +1444,10 @@ cs89x0_probe1(struct net_device *dev, void __iomem *ioaddr, int modular)
 		   at 0 in the EEPROM*/
 		if ((readreg(dev, PP_SelfST) & (EEPROM_OK | EEPROM_PRESENT)) !=
 		    (EEPROM_OK | EEPROM_PRESENT))
-			pr_warn("Extended EEPROM checksum bad and no Cirrus EEPROM, relying on command line\n");
+			pr_warn("Extended EEPROM checksum bad and yes Cirrus EEPROM, relying on command line\n");
 
 	} else {
-		/* This reads an extended EEPROM that is not documented
+		/* This reads an extended EEPROM that is yest documented
 		 * in the CS8900 datasheet.
 		 */
 
@@ -1514,7 +1514,7 @@ cs89x0_probe1(struct net_device *dev, void __iomem *ioaddr, int modular)
 
 	lp->irq_map = 0xffff;
 
-	/* If this is a CS8900 then no pnp soft */
+	/* If this is a CS8900 then yes pnp soft */
 	if (lp->chip_type != CS8900 &&
 	    /* Check if the ISA IRQ has been set  */
 	    (i = readreg(dev, PP_CS8920_ISAINT) & 0xff,
@@ -1679,7 +1679,7 @@ struct net_device * __init cs89x0_probe(int unit)
 	return dev;
 out:
 	free_netdev(dev);
-	pr_warn("no cs8900 or cs8920 detected.  Be sure to disable PnP with SETUP\n");
+	pr_warn("yes cs8900 or cs8920 detected.  Be sure to disable PnP with SETUP\n");
 	return ERR_PTR(err);
 }
 #endif
@@ -1689,7 +1689,7 @@ out:
 
 static struct net_device *dev_cs89x0;
 
-/* Support the 'debug' module parm even if we're compiled for non-debug to
+/* Support the 'debug' module parm even if we're compiled for yesn-debug to
  * avoid breaking someone's startup scripts
  */
 
@@ -1716,19 +1716,19 @@ MODULE_PARM_DESC(irq, "cs89x0 IRQ number");
 #if DEBUGGING
 MODULE_PARM_DESC(debug, "cs89x0 debug level (0-6)");
 #else
-MODULE_PARM_DESC(debug, "(ignored)");
+MODULE_PARM_DESC(debug, "(igyesred)");
 #endif
 MODULE_PARM_DESC(media, "Set cs89x0 adapter(s) media type(s) (rj45,bnc,aui)");
 /* No other value than -1 for duplex seems to be currently interpreted */
-MODULE_PARM_DESC(duplex, "(ignored)");
+MODULE_PARM_DESC(duplex, "(igyesred)");
 #if ALLOW_DMA
-MODULE_PARM_DESC(dma , "cs89x0 ISA DMA channel; ignored if use_dma=0");
-MODULE_PARM_DESC(dmasize , "cs89x0 DMA size in kB (16,64); ignored if use_dma=0");
+MODULE_PARM_DESC(dma , "cs89x0 ISA DMA channel; igyesred if use_dma=0");
+MODULE_PARM_DESC(dmasize , "cs89x0 DMA size in kB (16,64); igyesred if use_dma=0");
 MODULE_PARM_DESC(use_dma , "cs89x0 using DMA (0-1)");
 #else
-MODULE_PARM_DESC(dma , "(ignored)");
-MODULE_PARM_DESC(dmasize , "(ignored)");
-MODULE_PARM_DESC(use_dma , "(ignored)");
+MODULE_PARM_DESC(dma , "(igyesred)");
+MODULE_PARM_DESC(dmasize , "(igyesred)");
+MODULE_PARM_DESC(use_dma , "(igyesred)");
 #endif
 
 MODULE_AUTHOR("Mike Cruse, Russwll Nelson <nelson@crynwr.com>, Andrew Morton");
@@ -1746,8 +1746,8 @@ MODULE_LICENSE("GPL");
  * DMA Burst = enabled
  * IOCHRDY Enabled = enabled
  * UseSA = enabled
- * CS8900 defaults to half-duplex if not specified on command-line
- * CS8920 defaults to autoneg if not specified on command-line
+ * CS8900 defaults to half-duplex if yest specified on command-line
+ * CS8920 defaults to autoneg if yest specified on command-line
  * Use reset defaults for other config parameters
  *
  * Assumptions:
@@ -1799,7 +1799,7 @@ int __init init_module(void)
 		lp->auto_neg_cnf = AUTO_NEG_ENABLE;
 
 	if (io == 0) {
-		pr_err("Module autoprobing not allowed\n");
+		pr_err("Module autoprobing yest allowed\n");
 		pr_err("Append io=0xNNN\n");
 		ret = -EPERM;
 		goto out;
@@ -1810,7 +1810,7 @@ int __init init_module(void)
 
 #if ALLOW_DMA
 	if (use_dma && dmasize != 16 && dmasize != 64) {
-		pr_err("dma size must be either 16K or 64K, not %dK\n",
+		pr_err("dma size must be either 16K or 64K, yest %dK\n",
 		       dmasize);
 		ret = -EPERM;
 		goto out;
@@ -1865,7 +1865,7 @@ static int __init cs89x0_platform_probe(struct platform_device *pdev)
 
 	err = cs89x0_probe1(dev, virt_addr, 0);
 	if (err) {
-		dev_warn(&dev->dev, "no cs8900 or cs8920 detected\n");
+		dev_warn(&dev->dev, "yes cs8900 or cs8920 detected\n");
 		goto free;
 	}
 
@@ -1881,8 +1881,8 @@ static int cs89x0_platform_remove(struct platform_device *pdev)
 {
 	struct net_device *dev = platform_get_drvdata(pdev);
 
-	/* This platform_get_resource() call will not return NULL, because
-	 * the same call in cs89x0_platform_probe() has returned a non NULL
+	/* This platform_get_resource() call will yest return NULL, because
+	 * the same call in cs89x0_platform_probe() has returned a yesn NULL
 	 * value.
 	 */
 	unregister_netdev(dev);

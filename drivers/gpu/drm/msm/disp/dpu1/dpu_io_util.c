@@ -73,7 +73,7 @@ int msm_dss_clk_set_rate(struct dss_clk *clk_arry, int num_clk)
 				}
 			}
 		} else {
-			DEV_ERR("%pS->%s: '%s' is not available\n",
+			DEV_ERR("%pS->%s: '%s' is yest available\n",
 				__builtin_return_address(0), __func__,
 				clk_arry[i].clk_name);
 			rc = -EPERM;
@@ -101,7 +101,7 @@ int msm_dss_enable_clk(struct dss_clk *clk_arry, int num_clk, int enable)
 						__func__,
 						clk_arry[i].clk_name, rc);
 			} else {
-				DEV_ERR("%pS->%s: '%s' is not available\n",
+				DEV_ERR("%pS->%s: '%s' is yest available\n",
 					__builtin_return_address(0), __func__,
 					clk_arry[i].clk_name);
 				rc = -EPERM;
@@ -122,7 +122,7 @@ int msm_dss_enable_clk(struct dss_clk *clk_arry, int num_clk, int enable)
 			if (clk_arry[i].clk)
 				clk_disable_unprepare(clk_arry[i].clk);
 			else
-				DEV_ERR("%pS->%s: '%s' is not available\n",
+				DEV_ERR("%pS->%s: '%s' is yest available\n",
 					__builtin_return_address(0), __func__,
 					clk_arry[i].clk_name);
 		}
@@ -142,9 +142,9 @@ int msm_dss_parse_clock(struct platform_device *pdev,
 		return -EINVAL;
 
 	mp->num_clk = 0;
-	num_clk = of_property_count_strings(pdev->dev.of_node, "clock-names");
+	num_clk = of_property_count_strings(pdev->dev.of_yesde, "clock-names");
 	if (num_clk <= 0) {
-		pr_debug("clocks are not defined\n");
+		pr_debug("clocks are yest defined\n");
 		return 0;
 	}
 
@@ -155,7 +155,7 @@ int msm_dss_parse_clock(struct platform_device *pdev,
 		return -ENOMEM;
 
 	for (i = 0; i < num_clk; i++) {
-		rc = of_property_read_string_index(pdev->dev.of_node,
+		rc = of_property_read_string_index(pdev->dev.of_yesde,
 						   "clock-names", i,
 						   &clock_name);
 		if (rc) {
@@ -175,7 +175,7 @@ int msm_dss_parse_clock(struct platform_device *pdev,
 		goto err;
 	}
 
-	rc = of_clk_set_defaults(pdev->dev.of_node, false);
+	rc = of_clk_set_defaults(pdev->dev.of_yesde, false);
 	if (rc) {
 		DRM_DEV_ERROR(&pdev->dev, "Failed to set clock defaults %d\n", rc);
 		goto err;

@@ -28,10 +28,10 @@ def main():
         evlist.poll(timeout = -1)
         for cpu in cpus:
             event = evlist.read_on_cpu(cpu)
-            if not event:
+            if yest event:
                 continue
 
-            if not isinstance(event, perf.sample_event):
+            if yest isinstance(event, perf.sample_event):
                 continue
 
             print "time %u prev_comm=%s prev_pid=%d prev_prio=%d prev_state=0x%x ==> next_comm=%s next_pid=%d next_prio=%d" % (

@@ -71,7 +71,7 @@ static irqreturn_t sirfsoc_timer_interrupt(int irq, void *dev_id)
 }
 
 /* read 64-bit timer counter */
-static u64 notrace sirfsoc_timer_read(struct clocksource *cs)
+static u64 yestrace sirfsoc_timer_read(struct clocksource *cs)
 {
 	u64 cycles;
 
@@ -88,18 +88,18 @@ static u64 notrace sirfsoc_timer_read(struct clocksource *cs)
 static int sirfsoc_timer_set_next_event(unsigned long delta,
 	struct clock_event_device *ce)
 {
-	unsigned long now, next;
+	unsigned long yesw, next;
 
 	writel_relaxed(SIRFSOC_TIMER_LATCH_BIT,
 		sirfsoc_timer_base + SIRFSOC_TIMER_LATCH);
-	now = readl_relaxed(sirfsoc_timer_base + SIRFSOC_TIMER_LATCHED_LO);
-	next = now + delta;
+	yesw = readl_relaxed(sirfsoc_timer_base + SIRFSOC_TIMER_LATCHED_LO);
+	next = yesw + delta;
 	writel_relaxed(next, sirfsoc_timer_base + SIRFSOC_TIMER_MATCH_0);
 	writel_relaxed(SIRFSOC_TIMER_LATCH_BIT,
 		sirfsoc_timer_base + SIRFSOC_TIMER_LATCH);
-	now = readl_relaxed(sirfsoc_timer_base + SIRFSOC_TIMER_LATCHED_LO);
+	yesw = readl_relaxed(sirfsoc_timer_base + SIRFSOC_TIMER_LATCHED_LO);
 
-	return next - now > delta ? -ETIME : 0;
+	return next - yesw > delta ? -ETIME : 0;
 }
 
 static int sirfsoc_timer_shutdown(struct clock_event_device *evt)
@@ -174,7 +174,7 @@ static struct irqaction sirfsoc_timer_irq = {
 };
 
 /* Overwrite weak default sched_clock with more precise one */
-static u64 notrace sirfsoc_read_sched_clock(void)
+static u64 yestrace sirfsoc_read_sched_clock(void)
 {
 	return sirfsoc_timer_read(NULL);
 }
@@ -187,7 +187,7 @@ static void __init sirfsoc_clockevent_init(void)
 }
 
 /* initialize the kernel jiffy timer source */
-static int __init sirfsoc_prima2_timer_init(struct device_node *np)
+static int __init sirfsoc_prima2_timer_init(struct device_yesde *np)
 {
 	unsigned long rate;
 	struct clk *clk;

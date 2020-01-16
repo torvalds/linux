@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * (c) 2017 Stefano Stabellini <stefano@aporeto.com>
+ * (c) 2017 Stefayes Stabellini <stefayes@aporeto.com>
  */
 
 #include <linux/module.h>
@@ -262,11 +262,11 @@ int pvcalls_front_socket(struct socket *sock)
 	struct pvcalls_bedata *bedata;
 	struct sock_mapping *map = NULL;
 	struct xen_pvcalls_request *req;
-	int notify, req_id, ret;
+	int yestify, req_id, ret;
 
 	/*
 	 * PVCalls only supports domain AF_INET,
-	 * type SOCK_STREAM and protocol 0 sockets for now.
+	 * type SOCK_STREAM and protocol 0 sockets for yesw.
 	 *
 	 * Check socket type here, AF_INET and protocol checks are done
 	 * by the caller.
@@ -298,7 +298,7 @@ int pvcalls_front_socket(struct socket *sock)
 	}
 
 	/*
-	 * sock->sk->sk_send_head is not used for ip sockets: reuse the
+	 * sock->sk->sk_send_head is yest used for ip sockets: reuse the
 	 * field to store a pointer to the struct sock_mapping
 	 * corresponding to the socket. This way, we can easily get the
 	 * struct sock_mapping from the struct socket.
@@ -315,10 +315,10 @@ int pvcalls_front_socket(struct socket *sock)
 	req->u.socket.protocol = IPPROTO_IP;
 
 	bedata->ring.req_prod_pvt++;
-	RING_PUSH_REQUESTS_AND_CHECK_NOTIFY(&bedata->ring, notify);
+	RING_PUSH_REQUESTS_AND_CHECK_NOTIFY(&bedata->ring, yestify);
 	spin_unlock(&bedata->socket_lock);
-	if (notify)
-		notify_remote_via_irq(bedata->irq);
+	if (yestify)
+		yestify_remote_via_irq(bedata->irq);
 
 	wait_event(bedata->inflight_req,
 		   READ_ONCE(bedata->rsp[req_id].req_id) == req_id);
@@ -415,7 +415,7 @@ int pvcalls_front_connect(struct socket *sock, struct sockaddr *addr,
 	struct pvcalls_bedata *bedata;
 	struct sock_mapping *map = NULL;
 	struct xen_pvcalls_request *req;
-	int notify, req_id, ret, evtchn;
+	int yestify, req_id, ret, evtchn;
 
 	if (addr->sa_family != AF_INET || sock->type != SOCK_STREAM)
 		return -EOPNOTSUPP;
@@ -460,11 +460,11 @@ int pvcalls_front_connect(struct socket *sock, struct sockaddr *addr,
 	map->sock = sock;
 
 	bedata->ring.req_prod_pvt++;
-	RING_PUSH_REQUESTS_AND_CHECK_NOTIFY(&bedata->ring, notify);
+	RING_PUSH_REQUESTS_AND_CHECK_NOTIFY(&bedata->ring, yestify);
 	spin_unlock(&bedata->socket_lock);
 
-	if (notify)
-		notify_remote_via_irq(bedata->irq);
+	if (yestify)
+		yestify_remote_via_irq(bedata->irq);
 
 	wait_event(bedata->inflight_req,
 		   READ_ONCE(bedata->rsp[req_id].req_id) == req_id);
@@ -560,7 +560,7 @@ again:
 	if (sent > 0) {
 		len -= sent;
 		tot_sent += sent;
-		notify_remote_via_irq(map->active.irq);
+		yestify_remote_via_irq(map->active.irq);
 	}
 	if (sent >= 0 && len > 0 && count < PVCALLS_FRONT_MAX_SPIN)
 		goto again;
@@ -646,7 +646,7 @@ int pvcalls_front_recvmsg(struct socket *sock, struct msghdr *msg, size_t len,
 			  &msg->msg_iter, len, flags);
 
 	if (ret > 0)
-		notify_remote_via_irq(map->active.irq);
+		yestify_remote_via_irq(map->active.irq);
 	if (ret == 0)
 		ret = (flags & MSG_DONTWAIT) ? -EAGAIN : 0;
 	if (ret == -ENOTCONN)
@@ -662,7 +662,7 @@ int pvcalls_front_bind(struct socket *sock, struct sockaddr *addr, int addr_len)
 	struct pvcalls_bedata *bedata;
 	struct sock_mapping *map = NULL;
 	struct xen_pvcalls_request *req;
-	int notify, req_id, ret;
+	int yestify, req_id, ret;
 
 	if (addr->sa_family != AF_INET || sock->type != SOCK_STREAM)
 		return -EOPNOTSUPP;
@@ -692,10 +692,10 @@ int pvcalls_front_bind(struct socket *sock, struct sockaddr *addr, int addr_len)
 	map->active_socket = false;
 
 	bedata->ring.req_prod_pvt++;
-	RING_PUSH_REQUESTS_AND_CHECK_NOTIFY(&bedata->ring, notify);
+	RING_PUSH_REQUESTS_AND_CHECK_NOTIFY(&bedata->ring, yestify);
 	spin_unlock(&bedata->socket_lock);
-	if (notify)
-		notify_remote_via_irq(bedata->irq);
+	if (yestify)
+		yestify_remote_via_irq(bedata->irq);
 
 	wait_event(bedata->inflight_req,
 		   READ_ONCE(bedata->rsp[req_id].req_id) == req_id);
@@ -715,7 +715,7 @@ int pvcalls_front_listen(struct socket *sock, int backlog)
 	struct pvcalls_bedata *bedata;
 	struct sock_mapping *map;
 	struct xen_pvcalls_request *req;
-	int notify, req_id, ret;
+	int yestify, req_id, ret;
 
 	map = pvcalls_enter_sock(sock);
 	if (IS_ERR(map))
@@ -741,10 +741,10 @@ int pvcalls_front_listen(struct socket *sock, int backlog)
 	req->u.listen.backlog = backlog;
 
 	bedata->ring.req_prod_pvt++;
-	RING_PUSH_REQUESTS_AND_CHECK_NOTIFY(&bedata->ring, notify);
+	RING_PUSH_REQUESTS_AND_CHECK_NOTIFY(&bedata->ring, yestify);
 	spin_unlock(&bedata->socket_lock);
-	if (notify)
-		notify_remote_via_irq(bedata->irq);
+	if (yestify)
+		yestify_remote_via_irq(bedata->irq);
 
 	wait_event(bedata->inflight_req,
 		   READ_ONCE(bedata->rsp[req_id].req_id) == req_id);
@@ -765,7 +765,7 @@ int pvcalls_front_accept(struct socket *sock, struct socket *newsock, int flags)
 	struct sock_mapping *map;
 	struct sock_mapping *map2 = NULL;
 	struct xen_pvcalls_request *req;
-	int notify, req_id, ret, evtchn, nonblock;
+	int yestify, req_id, ret, evtchn, yesnblock;
 
 	map = pvcalls_enter_sock(sock);
 	if (IS_ERR(map))
@@ -777,7 +777,7 @@ int pvcalls_front_accept(struct socket *sock, struct socket *newsock, int flags)
 		return -EINVAL;
 	}
 
-	nonblock = flags & SOCK_NONBLOCK;
+	yesnblock = flags & SOCK_NONBLOCK;
 	/*
 	 * Backend only supports 1 inflight accept request, will return
 	 * errors for the others
@@ -790,7 +790,7 @@ int pvcalls_front_accept(struct socket *sock, struct socket *newsock, int flags)
 			map2 = map->passive.accept_map;
 			goto received;
 		}
-		if (nonblock) {
+		if (yesnblock) {
 			pvcalls_exit_sock(sock);
 			return -EAGAIN;
 		}
@@ -851,12 +851,12 @@ int pvcalls_front_accept(struct socket *sock, struct socket *newsock, int flags)
 	map->passive.accept_map = map2;
 
 	bedata->ring.req_prod_pvt++;
-	RING_PUSH_REQUESTS_AND_CHECK_NOTIFY(&bedata->ring, notify);
+	RING_PUSH_REQUESTS_AND_CHECK_NOTIFY(&bedata->ring, yestify);
 	spin_unlock(&bedata->socket_lock);
-	if (notify)
-		notify_remote_via_irq(bedata->irq);
+	if (yestify)
+		yestify_remote_via_irq(bedata->irq);
 	/* We could check if we have received a response before returning. */
-	if (nonblock) {
+	if (yesnblock) {
 		WRITE_ONCE(map->passive.inflight_req_id, req_id);
 		pvcalls_exit_sock(sock);
 		return -EAGAIN;
@@ -900,7 +900,7 @@ static __poll_t pvcalls_front_poll_passive(struct file *file,
 					       struct sock_mapping *map,
 					       poll_table *wait)
 {
-	int notify, req_id, ret;
+	int yestify, req_id, ret;
 	struct xen_pvcalls_request *req;
 
 	if (test_bit(PVCALLS_FLAG_ACCEPT_INFLIGHT,
@@ -943,10 +943,10 @@ static __poll_t pvcalls_front_poll_passive(struct file *file,
 	req->u.poll.id = (uintptr_t) map;
 
 	bedata->ring.req_prod_pvt++;
-	RING_PUSH_REQUESTS_AND_CHECK_NOTIFY(&bedata->ring, notify);
+	RING_PUSH_REQUESTS_AND_CHECK_NOTIFY(&bedata->ring, yestify);
 	spin_unlock(&bedata->socket_lock);
-	if (notify)
-		notify_remote_via_irq(bedata->irq);
+	if (yestify)
+		yestify_remote_via_irq(bedata->irq);
 
 	poll_wait(file, &bedata->inflight_req, wait);
 	return 0;
@@ -999,7 +999,7 @@ int pvcalls_front_release(struct socket *sock)
 {
 	struct pvcalls_bedata *bedata;
 	struct sock_mapping *map;
-	int req_id, notify, ret;
+	int req_id, yestify, ret;
 	struct xen_pvcalls_request *req;
 
 	if (sock->sk == NULL)
@@ -1029,10 +1029,10 @@ int pvcalls_front_release(struct socket *sock)
 	req->u.release.id = (uintptr_t)map;
 
 	bedata->ring.req_prod_pvt++;
-	RING_PUSH_REQUESTS_AND_CHECK_NOTIFY(&bedata->ring, notify);
+	RING_PUSH_REQUESTS_AND_CHECK_NOTIFY(&bedata->ring, yestify);
 	spin_unlock(&bedata->socket_lock);
-	if (notify)
-		notify_remote_via_irq(bedata->irq);
+	if (yestify)
+		yestify_remote_via_irq(bedata->irq);
 
 	wait_event(bedata->inflight_req,
 		   READ_ONCE(bedata->rsp[req_id].req_id) == req_id);
@@ -1047,8 +1047,8 @@ int pvcalls_front_release(struct socket *sock)
 
 		/*
 		 * We need to make sure that sendmsg/recvmsg on this socket have
-		 * not started before we've cleared sk_send_head here. The
-		 * easiest way to guarantee this is to see that no pvcalls
+		 * yest started before we've cleared sk_send_head here. The
+		 * easiest way to guarantee this is to see that yes pvcalls
 		 * (other than us) is in progress on this socket.
 		 */
 		while (atomic_read(&map->refcount) > 1)
@@ -1209,13 +1209,13 @@ static int pvcalls_front_probe(struct xenbus_device *dev,
 		xenbus_dev_fatal(dev, ret, "starting transaction");
 		goto error;
 	}
-	ret = xenbus_printf(xbt, dev->nodename, "version", "%u", 1);
+	ret = xenbus_printf(xbt, dev->yesdename, "version", "%u", 1);
 	if (ret)
 		goto error_xenbus;
-	ret = xenbus_printf(xbt, dev->nodename, "ring-ref", "%d", bedata->ref);
+	ret = xenbus_printf(xbt, dev->yesdename, "ring-ref", "%d", bedata->ref);
 	if (ret)
 		goto error_xenbus;
-	ret = xenbus_printf(xbt, dev->nodename, "port", "%u",
+	ret = xenbus_printf(xbt, dev->yesdename, "port", "%u",
 			    evtchn);
 	if (ret)
 		goto error_xenbus;
@@ -1246,7 +1246,7 @@ static void pvcalls_front_changed(struct xenbus_device *dev,
 	case XenbusStateReconfigured:
 	case XenbusStateInitialising:
 	case XenbusStateInitialised:
-	case XenbusStateUnknown:
+	case XenbusStateUnkyeswn:
 		break;
 
 	case XenbusStateInitWait:
@@ -1287,5 +1287,5 @@ static int __init pvcalls_frontend_init(void)
 module_init(pvcalls_frontend_init);
 
 MODULE_DESCRIPTION("Xen PV Calls frontend driver");
-MODULE_AUTHOR("Stefano Stabellini <sstabellini@kernel.org>");
+MODULE_AUTHOR("Stefayes Stabellini <sstabellini@kernel.org>");
 MODULE_LICENSE("GPL");

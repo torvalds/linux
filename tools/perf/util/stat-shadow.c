@@ -24,7 +24,7 @@ struct runtime_stat rt_stat;
 struct stats walltime_nsecs_stats;
 
 struct saved_value {
-	struct rb_node rb_node;
+	struct rb_yesde rb_yesde;
 	struct evsel *evsel;
 	enum stat_type type;
 	int ctx;
@@ -35,11 +35,11 @@ struct saved_value {
 	int metric_other;
 };
 
-static int saved_value_cmp(struct rb_node *rb_node, const void *entry)
+static int saved_value_cmp(struct rb_yesde *rb_yesde, const void *entry)
 {
-	struct saved_value *a = container_of(rb_node,
+	struct saved_value *a = container_of(rb_yesde,
 					     struct saved_value,
-					     rb_node);
+					     rb_yesde);
 	const struct saved_value *b = entry;
 
 	if (a->cpu != b->cpu)
@@ -75,7 +75,7 @@ static int saved_value_cmp(struct rb_node *rb_node, const void *entry)
 	return +1;
 }
 
-static struct rb_node *saved_value_new(struct rblist *rblist __maybe_unused,
+static struct rb_yesde *saved_value_new(struct rblist *rblist __maybe_unused,
 				     const void *entry)
 {
 	struct saved_value *nd = malloc(sizeof(struct saved_value));
@@ -83,16 +83,16 @@ static struct rb_node *saved_value_new(struct rblist *rblist __maybe_unused,
 	if (!nd)
 		return NULL;
 	memcpy(nd, entry, sizeof(struct saved_value));
-	return &nd->rb_node;
+	return &nd->rb_yesde;
 }
 
 static void saved_value_delete(struct rblist *rblist __maybe_unused,
-			       struct rb_node *rb_node)
+			       struct rb_yesde *rb_yesde)
 {
 	struct saved_value *v;
 
-	BUG_ON(!rb_node);
-	v = container_of(rb_node, struct saved_value, rb_node);
+	BUG_ON(!rb_yesde);
+	v = container_of(rb_yesde, struct saved_value, rb_yesde);
 	free(v);
 }
 
@@ -104,7 +104,7 @@ static struct saved_value *saved_value_lookup(struct evsel *evsel,
 					      struct runtime_stat *st)
 {
 	struct rblist *rblist;
-	struct rb_node *nd;
+	struct rb_yesde *nd;
 	struct saved_value dm = {
 		.cpu = cpu,
 		.evsel = evsel,
@@ -117,12 +117,12 @@ static struct saved_value *saved_value_lookup(struct evsel *evsel,
 
 	nd = rblist__find(rblist, &dm);
 	if (nd)
-		return container_of(nd, struct saved_value, rb_node);
+		return container_of(nd, struct saved_value, rb_yesde);
 	if (create) {
-		rblist__add_node(rblist, &dm);
+		rblist__add_yesde(rblist, &dm);
 		nd = rblist__find(rblist, &dm);
 		if (nd)
-			return container_of(nd, struct saved_value, rb_node);
+			return container_of(nd, struct saved_value, rb_yesde);
 	}
 	return NULL;
 }
@@ -132,9 +132,9 @@ void runtime_stat__init(struct runtime_stat *st)
 	struct rblist *rblist = &st->value_list;
 
 	rblist__init(rblist);
-	rblist->node_cmp = saved_value_cmp;
-	rblist->node_new = saved_value_new;
-	rblist->node_delete = saved_value_delete;
+	rblist->yesde_cmp = saved_value_cmp;
+	rblist->yesde_new = saved_value_new;
+	rblist->yesde_delete = saved_value_delete;
 }
 
 void runtime_stat__exit(struct runtime_stat *st)
@@ -169,14 +169,14 @@ static int evsel_context(struct evsel *evsel)
 static void reset_stat(struct runtime_stat *st)
 {
 	struct rblist *rblist;
-	struct rb_node *pos, *next;
+	struct rb_yesde *pos, *next;
 
 	rblist = &st->value_list;
 	next = rb_first_cached(&rblist->entries);
 	while (next) {
 		pos = next;
 		next = rb_next(pos);
-		memset(&container_of(pos, struct saved_value, rb_node)->stats,
+		memset(&container_of(pos, struct saved_value, rb_yesde)->stats,
 		       0,
 		       sizeof(struct stats));
 	}
@@ -361,16 +361,16 @@ void perf_stat__collect_metric_expr(struct evlist *evsel_list)
 				}
 			}
 			if (!found) {
-				/* Search ignoring groups */
+				/* Search igyesring groups */
 				oc = perf_stat__find_event(evsel_list, metric_names[i]);
 			}
 			if (!oc) {
-				/* Deduping one is good enough to handle duplicated PMUs. */
+				/* Deduping one is good eyesugh to handle duplicated PMUs. */
 				static char *printed;
 
 				/*
 				 * Adding events automatically would be difficult, because
-				 * it would risk creating groups that are not schedulable.
+				 * it would risk creating groups that are yest schedulable.
 				 * perf stat doesn't understand all the scheduling constraints
 				 * of events. So we ask the user instead to add the missing
 				 * events.
@@ -604,7 +604,7 @@ static void print_ll_cache_misses(struct perf_stat_config *config,
  * (for example branch mispredictions)
  * Frontend is instruction decoding.
  * Backend is execution, like computation and accessing data in memory
- * Retiring is good execution that is not directly bottlenecked
+ * Retiring is good execution that is yest directly bottlenecked
  *
  * The formulas are computed in slots.
  * A slot is an entry in the pipeline each for the pipeline width
@@ -624,11 +624,11 @@ static void print_ll_cache_misses(struct perf_stat_config *config,
  *
  * The scaling factor is communicated in the sysfs unit.
  *
- * In some cases the CPU may not be able to measure all the formulas due to
+ * In some cases the CPU may yest be able to measure all the formulas due to
  * missing events. In this case multiple formulas are combined, as possible.
  *
  * Full TopDown supports more levels to sub-divide each area: for example
- * BackendBound into computing bound and memory bound. For now we only
+ * BackendBound into computing bound and memory bound. For yesw we only
  * support Level 1 TopDown.
  */
 
@@ -764,8 +764,8 @@ static void generic_metric(struct perf_stat_config *config,
 		if (!n)
 			return;
 		/*
-		 * This display code with --no-merge adds [cpu] postfixes.
-		 * These are not supported by the parser. Remove everything
+		 * This display code with --yes-merge adds [cpu] postfixes.
+		 * These are yest supported by the parser. Remove everything
 		 * after the space.
 		 */
 		pn = strchr(n, ' ');
@@ -1011,7 +1011,7 @@ void perf_stat__print_shadow_stats(struct perf_stat_config *config,
 		const char *name = "backend bound";
 		static int have_recovery_bubbles = -1;
 
-		/* In case the CPU does not support topdown-recovery-bubbles */
+		/* In case the CPU does yest support topdown-recovery-bubbles */
 		if (have_recovery_bubbles < 0)
 			have_recovery_bubbles = pmu_have_event("cpu",
 					"topdown-recovery-bubbles");

@@ -16,7 +16,7 @@
 /*
  * Detection routine for the NCR53c710 based Amiga SCSI Controllers for Linux.
  *		Amiga MacroSystemUS WarpEngine SCSI controller.
- *		Amiga Technologies/DKB A4091 SCSI controller.
+ *		Amiga Techyeslogies/DKB A4091 SCSI controller.
  *
  * Written 1997 by Alan Hourihane <alanh@fairlite.demon.co.uk>
  * plus modifications of the 53c7xx.c driver to support the Amiga.
@@ -181,7 +181,7 @@ static u8 zorro_esp_read8(struct esp *esp, unsigned long reg)
 
 static int zorro_esp_irq_pending(struct esp *esp)
 {
-	/* check ESP status register; DMA has no status reg. */
+	/* check ESP status register; DMA has yes status reg. */
 	if (zorro_esp_read8(esp, ESP_STATUS) & ESP_STAT_INTR)
 		return 1;
 
@@ -206,9 +206,9 @@ static int fastlane_esp_irq_pending(struct esp *esp)
 	dma_status = readb(&dregs->cond_reg);
 
 	if (dma_status & FASTLANE_DMA_IACT)
-		return 0;	/* not our IRQ */
+		return 0;	/* yest our IRQ */
 
-	/* Return non-zero if ESP requested IRQ */
+	/* Return yesn-zero if ESP requested IRQ */
 	return (
 	   (dma_status & FASTLANE_DMA_CREQ) &&
 	   (!(dma_status & FASTLANE_DMA_MINT)) &&
@@ -230,17 +230,17 @@ static u32 fastlane_esp_dma_length_limit(struct esp *esp, u32 dma_addr,
 
 static void zorro_esp_reset_dma(struct esp *esp)
 {
-	/* nothing to do here */
+	/* yesthing to do here */
 }
 
 static void zorro_esp_dma_drain(struct esp *esp)
 {
-	/* nothing to do here */
+	/* yesthing to do here */
 }
 
 static void zorro_esp_dma_invalidate(struct esp *esp)
 {
-	/* nothing to do here */
+	/* yesthing to do here */
 }
 
 static void fastlane_esp_dma_invalidate(struct esp *esp)
@@ -768,7 +768,7 @@ static int zorro_esp_probe(struct zorro_dev *z,
 	}
 
 	if (!zorro_request_device(z, zdd->name)) {
-		pr_err("cannot reserve region 0x%lx, abort\n",
+		pr_err("canyest reserve region 0x%lx, abort\n",
 		       board);
 		err = -EBUSY;
 		goto fail_free_zep;
@@ -801,10 +801,10 @@ static int zorro_esp_probe(struct zorro_dev *z,
 	/* additional setup required for Fastlane */
 	if (zep->zorro3 && ent->driver_data == ZORRO_BLZ1230II) {
 		/* map full address space up to ESP base for DMA */
-		zep->board_base = ioremap_nocache(board,
+		zep->board_base = ioremap_yescache(board,
 						FASTLANE_ESP_ADDR-1);
 		if (!zep->board_base) {
-			pr_err("Cannot allocate board address space\n");
+			pr_err("Canyest allocate board address space\n");
 			err = -ENOMEM;
 			goto fail_free_host;
 		}
@@ -816,9 +816,9 @@ static int zorro_esp_probe(struct zorro_dev *z,
 	esp->ops = zdd->esp_ops;
 
 	if (ioaddr > 0xffffff)
-		esp->regs = ioremap_nocache(ioaddr, 0x20);
+		esp->regs = ioremap_yescache(ioaddr, 0x20);
 	else
-		/* ZorroII address space remapped nocache by early startup */
+		/* ZorroII address space remapped yescache by early startup */
 		esp->regs = ZTWO_VADDR(ioaddr);
 
 	if (!esp->regs) {
@@ -839,13 +839,13 @@ static int zorro_esp_probe(struct zorro_dev *z,
 
 	if (zep->zorro3) {
 		/*
-		 * Only Fastlane Z3 for now - add switch for correct struct
+		 * Only Fastlane Z3 for yesw - add switch for correct struct
 		 * dma_registers size if adding any more
 		 */
-		esp->dma_regs = ioremap_nocache(dmaaddr,
+		esp->dma_regs = ioremap_yescache(dmaaddr,
 				sizeof(struct fastlane_dma_registers));
 	} else
-		/* ZorroII address space remapped nocache by early startup */
+		/* ZorroII address space remapped yescache by early startup */
 		esp->dma_regs = ZTWO_VADDR(dmaaddr);
 
 	if (!esp->dma_regs) {

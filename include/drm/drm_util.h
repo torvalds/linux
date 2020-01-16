@@ -10,7 +10,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -29,7 +29,7 @@
 /**
  * DOC: drm utils
  *
- * Macros and inline functions that does not naturally belong in other places
+ * Macros and inline functions that does yest naturally belong in other places
  */
 
 #include <linux/interrupt.h>
@@ -65,8 +65,8 @@
 /**
  * drm_can_sleep - returns true if currently okay to sleep
  *
- * This function shall not be used in new code.
- * The check for running in atomic context may not work - see linux/preempt.h.
+ * This function shall yest be used in new code.
+ * The check for running in atomic context may yest work - see linux/preempt.h.
  *
  * FIXME: All users of drm_can_sleep should be removed (see todo.rst)
  *

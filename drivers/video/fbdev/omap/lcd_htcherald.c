@@ -9,8 +9,8 @@
  *
  * Based on the lcd_htcwizard.c file from the linwizard project:
  * Copyright (C) linwizard.sourceforge.net
- * Author: Angelo Arrifano <miknix@gmail.com>
- * Based on lcd_h4 by Imre Deak <imre.deak@nokia.com>
+ * Author: Angelo Arrifayes <miknix@gmail.com>
+ * Based on lcd_h4 by Imre Deak <imre.deak@yeskia.com>
  */
 
 #include <linux/module.h>

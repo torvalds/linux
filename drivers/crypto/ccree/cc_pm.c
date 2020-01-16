@@ -50,7 +50,7 @@ int cc_pm_resume(struct device *dev)
 	}
 	/* wait for Crytpcell reset completion */
 	if (!cc_wait_for_reset_completion(drvdata)) {
-		dev_err(dev, "Cryptocell reset not completed");
+		dev_err(dev, "Cryptocell reset yest completed");
 		return -EBUSY;
 	}
 
@@ -83,7 +83,7 @@ int cc_pm_get(struct device *dev)
 	if (cc_req_queue_suspended(drvdata))
 		rc = pm_runtime_get_sync(dev);
 	else
-		pm_runtime_get_noresume(dev);
+		pm_runtime_get_yesresume(dev);
 
 	return rc;
 }

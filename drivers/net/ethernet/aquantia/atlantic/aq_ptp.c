@@ -338,11 +338,11 @@ static int aq_ptp_settime(struct ptp_clock_info *ptp,
 	struct aq_nic_s *aq_nic = aq_ptp->aq_nic;
 	unsigned long flags;
 	u64 ns = timespec64_to_ns(ts);
-	u64 now;
+	u64 yesw;
 
 	spin_lock_irqsave(&aq_ptp->ptp_lock, flags);
-	aq_nic->aq_hw_ops->hw_get_ptp_ts(aq_nic->aq_hw, &now);
-	aq_nic->aq_hw_ops->hw_adj_sys_clock(aq_nic->aq_hw, (s64)ns - (s64)now);
+	aq_nic->aq_hw_ops->hw_get_ptp_ts(aq_nic->aq_hw, &yesw);
+	aq_nic->aq_hw_ops->hw_adj_sys_clock(aq_nic->aq_hw, (s64)ns - (s64)yesw);
 
 	spin_unlock_irqrestore(&aq_ptp->ptp_lock, flags);
 
@@ -394,7 +394,7 @@ static int aq_ptp_perout_pin_configure(struct ptp_clock_info *ptp,
 	if (pin_index >= ptp->n_per_out)
 		return -EINVAL;
 
-	/* we cannot support periods greater
+	/* we canyest support periods greater
 	 * than 4 seconds due to reg limit
 	 */
 	if (t->sec > 4 || t->sec < 0)
@@ -508,7 +508,7 @@ static int aq_ptp_verify(struct ptp_clock_info *ptp, unsigned int pin,
 	if (!ptp->pin_config || pin >= ptp->n_pins)
 		return -EINVAL;
 
-	/* enforce locked channels, no changing them */
+	/* enforce locked channels, yes changing them */
 	if (chan != ptp->pin_config[pin].chan)
 		return -EINVAL;
 
@@ -751,7 +751,7 @@ int aq_ptp_xmit(struct aq_nic_s *aq_nic, struct sk_buff *skb)
 	}
 
 	frags = skb_shinfo(skb)->nr_frags + 1;
-	/* Frags cannot be bigger 16KB
+	/* Frags canyest be bigger 16KB
 	 * because PTP usually works
 	 * without Jumbo even in a background
 	 */
@@ -1287,7 +1287,7 @@ struct ptp_clock *aq_ptp_get_ptp_clock(struct aq_ptp_s *aq_ptp)
 	return aq_ptp->ptp_clock;
 }
 
-/* PTP external GPIO nanoseconds count */
+/* PTP external GPIO nayesseconds count */
 static uint64_t aq_ptp_get_sync1588_ts(struct aq_nic_s *aq_nic)
 {
 	u64 ts = 0;

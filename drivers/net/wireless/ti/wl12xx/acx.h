@@ -101,7 +101,7 @@ struct wl12xx_acx_isr_statistics {
 	__le32 hw_pm_mode_changes;
 
 	/* (INT_STS_ND & INT_TRIG_ACKNOWLEDGE) */
-	__le32 host_acknowledges;
+	__le32 host_ackyeswledges;
 
 	/* (INT_STS_ND & INT_TRIG_PM_PCI) */
 	__le32 pci_pm;
@@ -122,8 +122,8 @@ struct wl12xx_acx_wep_statistics {
 
 	__le32 reserved;
 
-	/* number of times that WEP key not found on lookup */
-	__le32 key_not_found;
+	/* number of times that WEP key yest found on lookup */
+	__le32 key_yest_found;
 
 	/* number of times that WEP key decryption failed */
 	__le32 decrypt_fail;
@@ -169,7 +169,7 @@ struct wl12xx_acx_pwr_statistics {
 	__le16 enable_ps;
 
 	/*
-	 * the number of exits from power save, not including failed PS
+	 * the number of exits from power save, yest including failed PS
 	 * transitions
 	 */
 	__le16 disable_ps;

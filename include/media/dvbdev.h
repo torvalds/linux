@@ -94,7 +94,7 @@ struct dvb_frontend;
  * @mdev_lock:          Protect access to the mdev pointer.
  * @mdev:		pointer to struct media_device, used when the media
  *			controller is used.
- * @conn:		RF connector. Used only if the device has no separate
+ * @conn:		RF connector. Used only if the device has yes separate
  *			tuner.
  * @conn_pads:		pointer to struct media_pad associated with @conn;
  */
@@ -123,13 +123,13 @@ struct dvb_adapter {
 };
 
 /**
- * struct dvb_device - represents a DVB device node
+ * struct dvb_device - represents a DVB device yesde
  *
  * @list_head:	List head with all DVB devices
  * @fops:	pointer to struct file_operations
- * @adapter:	pointer to the adapter that holds this device node
+ * @adapter:	pointer to the adapter that holds this device yesde
  * @type:	type of the device, as defined by &enum dvb_device_type.
- * @minor:	devnode minor number. Major number is always DVB_MAJOR.
+ * @miyesr:	devyesde miyesr number. Major number is always DVB_MAJOR.
  * @id:		device ID number, inside the adapter
  * @readers:	Initialized by the caller. Each call to open() in Read Only mode
  *		decreases this counter by one.
@@ -141,17 +141,17 @@ struct dvb_adapter {
  *		the DVB API callers
  * @kernel_ioctl: callback function used to handle ioctl calls from userspace.
  * @name:	Name to be used for the device at the Media Controller
- * @entity:	pointer to struct media_entity associated with the device node
+ * @entity:	pointer to struct media_entity associated with the device yesde
  * @pads:	pointer to struct media_pad associated with @entity;
  * @priv:	private data
- * @intf_devnode: Pointer to media_intf_devnode. Used by the dvbdev core to
- *		store the MC device node interface
+ * @intf_devyesde: Pointer to media_intf_devyesde. Used by the dvbdev core to
+ *		store the MC device yesde interface
  * @tsout_num_entities: Number of Transport Stream output entities
- * @tsout_entity: array with MC entities associated to each TS output node
+ * @tsout_entity: array with MC entities associated to each TS output yesde
  * @tsout_pads: array with the source pads for each @tsout_entity
  *
  * This structure is used by the DVB core (frontend, CA, net, demux) in
- * order to create the device nodes. Usually, driver should not initialize
+ * order to create the device yesdes. Usually, driver should yest initialize
  * this struct diretly.
  */
 struct dvb_device {
@@ -159,11 +159,11 @@ struct dvb_device {
 	const struct file_operations *fops;
 	struct dvb_adapter *adapter;
 	enum dvb_device_type type;
-	int minor;
+	int miyesr;
 	u32 id;
 
-	/* in theory, 'users' can vanish now,
-	   but I don't want to change too much now... */
+	/* in theory, 'users' can vanish yesw,
+	   but I don't want to change too much yesw... */
 	int readers;
 	int writers;
 	int users;
@@ -177,7 +177,7 @@ struct dvb_device {
 	const char *name;
 
 	/* Allocated and filled inside dvbdev.c */
-	struct media_intf_devnode *intf_devnode;
+	struct media_intf_devyesde *intf_devyesde;
 
 	unsigned tsout_num_entities;
 	struct media_entity *entity, *tsout_entity;
@@ -231,7 +231,7 @@ int dvb_register_device(struct dvb_adapter *adap,
 /**
  * dvb_remove_device - Remove a registered DVB device
  *
- * This does not free memory.  To do that, call dvb_free_device().
+ * This does yest free memory.  To do that, call dvb_free_device().
  *
  * @dvbdev:	pointer to struct dvb_device
  */
@@ -312,24 +312,24 @@ int dvb_create_media_graph(struct dvb_adapter *adap,
 /**
  * dvb_generic_open - Digital TV open function, used by DVB devices
  *
- * @inode: pointer to &struct inode.
+ * @iyesde: pointer to &struct iyesde.
  * @file: pointer to &struct file.
  *
- * Checks if a DVB devnode is still valid, and if the permissions are
+ * Checks if a DVB devyesde is still valid, and if the permissions are
  * OK and increment negative use count.
  */
-int dvb_generic_open(struct inode *inode, struct file *file);
+int dvb_generic_open(struct iyesde *iyesde, struct file *file);
 
 /**
  * dvb_generic_close - Digital TV close function, used by DVB devices
  *
- * @inode: pointer to &struct inode.
+ * @iyesde: pointer to &struct iyesde.
  * @file: pointer to &struct file.
  *
- * Checks if a DVB devnode is still valid, and if the permissions are
+ * Checks if a DVB devyesde is still valid, and if the permissions are
  * OK and decrement negative use count.
  */
-int dvb_generic_release(struct inode *inode, struct file *file);
+int dvb_generic_release(struct iyesde *iyesde, struct file *file);
 
 /**
  * dvb_generic_ioctl - Digital TV close function, used by DVB devices
@@ -338,7 +338,7 @@ int dvb_generic_release(struct inode *inode, struct file *file);
  * @cmd: Ioctl name.
  * @arg: Ioctl argument.
  *
- * Checks if a DVB devnode and struct dvbdev.kernel_ioctl is still valid.
+ * Checks if a DVB devyesde and struct dvbdev.kernel_ioctl is still valid.
  * If so, calls dvb_usercopy().
  */
 long dvb_generic_ioctl(struct file *file,
@@ -376,7 +376,7 @@ struct i2c_client;
  *	pointer to &struct i2c_adapter that describes the I2C adapter where
  *	the module will be bound.
  * @addr:
- *	I2C address of the adapter, in 7-bit notation.
+ *	I2C address of the adapter, in 7-bit yestation.
  * @platform_data:
  *	Platform data to be passed to the I2C module probed.
  *
@@ -388,7 +388,7 @@ struct i2c_client;
  *	On success, return an &struct i2c_client, pointing the the bound
  *	I2C device. %NULL otherwise.
  *
- * .. note::
+ * .. yeste::
  *
  *    In the past, DVB modules (mainly, frontends) were bound via dvb_attach()
  *    macro, with does an ugly hack, using I2C low level functions. Such
@@ -428,7 +428,7 @@ void dvb_module_release(struct i2c_client *client);
  * As it increments symbol usage cont, at unregister, dvb_detach()
  * should be called.
  *
- * .. note::
+ * .. yeste::
  *
  *    In the past, DVB modules (mainly, frontends) were bound via dvb_attach()
  *    macro, with does an ugly hack, using I2C low level functions. Such

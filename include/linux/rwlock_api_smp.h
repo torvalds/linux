@@ -137,9 +137,9 @@ static inline int __raw_write_trylock(rwlock_t *lock)
 }
 
 /*
- * If lockdep is enabled then we use the non-preemption spin-ops
+ * If lockdep is enabled then we use the yesn-preemption spin-ops
  * even on CONFIG_PREEMPT, because lockdep assumes that interrupts are
- * not re-enabled during lock-acquire (which the preempt-spin-ops do):
+ * yest re-enabled during lock-acquire (which the preempt-spin-ops do):
  */
 #if !defined(CONFIG_GENERIC_LOCKBREAK) || defined(CONFIG_DEBUG_LOCK_ALLOC)
 

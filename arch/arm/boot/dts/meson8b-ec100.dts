@@ -140,7 +140,7 @@
 	vcck: regulator-vcck {
 		/*
 		 * Silergy SY8089AAC-GP 2A continuous, 3A peak, 1MHz
-		 * Synchronous Step Down Regulator.
+		 * Synchroyesus Step Down Regulator.
 		 */
 		compatible = "pwm-regulator";
 
@@ -173,7 +173,7 @@
 	vcc_3v3: regulator-vcc3v3 {
 		/*
 		 * Silergy SY8089AAC-GP 2A continuous, 3A peak, 1MHz
-		 * Synchronous Step Down Regulator. Also called
+		 * Synchroyesus Step Down Regulator. Also called
 		 * VDDIO_AO3.3V in the schematics.
 		 */
 		compatible = "regulator-fixed";
@@ -188,7 +188,7 @@
 	vcc_ddr3: regulator-vcc-ddr3 {
 		/*
 		 * Silergy SY8089AAC-GP 2A continuous, 3A peak, 1MHz
-		 * Synchronous Step Down Regulator. Also called
+		 * Synchroyesus Step Down Regulator. Also called
 		 * DDR3_1.5V in the schematics.
 		 */
 		compatible = "regulator-fixed";
@@ -205,7 +205,7 @@
 
 	vcc_rtc: regulator-vcc-rtc {
 		/*
-		 * Global Mixed-mode Technology Inc. G918T12U-GP
+		 * Global Mixed-mode Techyeslogy Inc. G918T12U-GP
 		 */
 		compatible = "regulator-fixed";
 
@@ -223,7 +223,7 @@
 	vddee: regulator-vddee {
 		/*
 		 * Silergy SY8089AAC-GP 2A continuous, 3A peak, 1MHz
-		 * Synchronous Step Down Regulator. Also called VDDAO
+		 * Synchroyesus Step Down Regulator. Also called VDDAO
 		 * in a part of the schematics.
 		 */
 		compatible = "pwm-regulator";
@@ -312,7 +312,7 @@
 		status = "okay";
 
 		bus-width = <4>;
-		no-sdio;
+		yes-sdio;
 		cap-mmc-highspeed;
 		cap-sd-highspeed;
 		disable-wp;

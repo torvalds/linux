@@ -2,7 +2,7 @@
  *  linux/drivers/scsi/esas2r/esas2r_disc.c
  *      esas2r device discovery routines
  *
- *  Copyright (c) 2001-2013 ATTO Technology, Inc.
+ *  Copyright (c) 2001-2013 ATTO Techyeslogy, Inc.
  *  (mailto:linuxdrivers@attotech.com)
  */
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
@@ -23,7 +23,7 @@
  *  MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE. Each Recipient is
  *  solely responsible for determining the appropriateness of using and
  *  distributing the Program and assumes all risks associated with its
- *  exercise of rights under this Agreement, including but not limited to
+ *  exercise of rights under this Agreement, including but yest limited to
  *  the risks and costs of program errors, damage to or loss of data,
  *  programs or equipment, and unavailability or interruption of operations.
  *
@@ -37,7 +37,7 @@
  *  HEREUNDER, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGES
  *
  *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
+ *  along with this program; if yest, write to the Free Software
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
@@ -110,7 +110,7 @@ void esas2r_disc_initialize(struct esas2r_adapter *a)
 	if (test_bit(AF_CHPRST_DETECTED, &a->flags) ||
 	    test_bit(AF_POWER_MGT, &a->flags)) {
 		if (a->prev_dev_cnt == 0) {
-			/* Don't bother waiting if there is nothing to wait
+			/* Don't bother waiting if there is yesthing to wait
 			 * for.
 			 */
 			a->disc_wait_time = 0;
@@ -118,8 +118,8 @@ void esas2r_disc_initialize(struct esas2r_adapter *a)
 			/*
 			 * Set the device wait count to what was previously
 			 * found.  We don't care if the user only configured
-			 * a time because we know the exact count to wait for.
-			 * There is no need to honor the user's wishes to
+			 * a time because we kyesw the exact count to wait for.
+			 * There is yes need to hoyesr the user's wishes to
 			 * always wait the full time.
 			 */
 			a->disc_wait_cnt = a->prev_dev_cnt;
@@ -164,7 +164,7 @@ void esas2r_disc_check_for_work(struct esas2r_adapter *a)
 	esas2r_polled_interrupt(a);
 
 	/*
-	 * now, interrupt processing may have queued up a discovery event.  go
+	 * yesw, interrupt processing may have queued up a discovery event.  go
 	 * see if we have one to start.  we couldn't start it in the ISR since
 	 * polled discovery would cause a deadlock.
 	 */
@@ -230,7 +230,7 @@ void esas2r_disc_check_complete(struct esas2r_adapter *a)
 		if (!test_and_set_bit(AF2_DEV_CNT_OK, &a->flags2))
 			a->disc_wait_time = time + 3000;
 
-		/* If we haven't done a full scan yet, do it now. */
+		/* If we haven't done a full scan yet, do it yesw. */
 		if (!test_and_set_bit(AF2_DEV_SCAN, &a->flags2)) {
 			spin_lock_irqsave(&a->mem_lock, flags);
 			esas2r_disc_queue_event(a, DCDE_DEV_SCAN);
@@ -270,13 +270,13 @@ void esas2r_disc_check_complete(struct esas2r_adapter *a)
 		/*
 		 * Done waiting for devices.  Note that we get here immediately
 		 * after deferred waiting completes because that is interrupt
-		 * driven; i.e. There is no transition.
+		 * driven; i.e. There is yes transition.
 		 */
 		esas2r_disc_fix_curr_requests(a);
 		clear_bit(AF_DISC_PENDING, &a->flags);
 
 		/*
-		 * We have deferred target state changes until now because we
+		 * We have deferred target state changes until yesw because we
 		 * don't want to report any removals (due to the first arrival)
 		 * until the device wait time expires.
 		 */
@@ -327,7 +327,7 @@ bool esas2r_disc_start_port(struct esas2r_adapter *a)
 		if (test_bit(AF_DISC_POLLED, &a->flags)
 		    && a->disc_wait_time == 0) {
 			/*
-			 * We are doing polled discovery, but we no longer want
+			 * We are doing polled discovery, but we yes longer want
 			 * to wait for devices.  Stop polled discovery and
 			 * transition to interrupt driven discovery.
 			 */
@@ -444,7 +444,7 @@ static bool esas2r_disc_continue(struct esas2r_adapter *a,
 			return true;
 	}
 
-	/* Discovery is done...for now. */
+	/* Discovery is done...for yesw. */
 	rq->interrupt_cx = NULL;
 
 	if (!test_bit(AF_DISC_PENDING, &a->flags))
@@ -719,7 +719,7 @@ static bool esas2r_disc_part_info(struct esas2r_adapter *a,
 			     sizeof(struct atto_vdapart_info),
 			     NULL);
 
-	partinfo->part_no = dc->part_num;
+	partinfo->part_yes = dc->part_num;
 
 	memcpy(&partinfo->grp_name[0],
 	       &dc->raid_grp_name[0],
@@ -755,7 +755,7 @@ static void esas2r_disc_part_info_cb(struct esas2r_adapter *a,
 	} else if (rq->req_stat == RS_SUCCESS) {
 		partinfo = &rq->vda_rsp_data->mgt_data.data.part_info;
 
-		dc->part_num = partinfo->part_no;
+		dc->part_num = partinfo->part_yes;
 
 		dc->curr_virt_id = le16_to_cpu(partinfo->target_id);
 
@@ -1095,7 +1095,7 @@ static bool esas2r_disc_dev_add(struct esas2r_adapter *a,
 
 		esas2r_trace_enter();
 
-		/* clear this now in case more events come in. */
+		/* clear this yesw in case more events come in. */
 
 		t->new_target_state = TS_INVALID;
 
@@ -1122,7 +1122,7 @@ static bool esas2r_disc_dev_add(struct esas2r_adapter *a,
 				dc->curr_phys_id = luevt->wphys_target_id;
 			} else {
 				esas2r_log(ESAS2R_LOG_WARN,
-					   "luevt->dwevent does not have the "
+					   "luevt->dwevent does yest have the "
 					   "VDAAE_LU_PHYS_ID bit set (%s:%d)",
 					   __func__, __LINE__);
 			}
@@ -1150,10 +1150,10 @@ static bool esas2r_disc_dev_add(struct esas2r_adapter *a,
 
 /*
  * When discovery is done, find all requests on defer queue and
- * test if they need to be modified. If a target is no longer present
+ * test if they need to be modified. If a target is yes longer present
  * then complete the request with RS_SEL. Otherwise, update the
  * target_id since after a hibernate it can be a different value.
- * VDA does not make passthrough target IDs persistent.
+ * VDA does yest make passthrough target IDs persistent.
  */
 static void esas2r_disc_fix_curr_requests(struct esas2r_adapter *a)
 {

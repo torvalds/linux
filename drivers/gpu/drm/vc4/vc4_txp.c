@@ -75,7 +75,7 @@
 # define TXP_ALPHA_ENABLE		BIT(20)
 
 /* 4 bits, each enables stores for a channel in each set of 4 bytes.
- * Set to 0xf for normal operation.
+ * Set to 0xf for yesrmal operation.
  */
 # define TXP_BYTE_ENABLE_SHIFT		16
 # define TXP_BYTE_ENABLE_MASK		GENMASK(19, 16)
@@ -106,7 +106,7 @@
 # define TXP_FORMAT_RGBA4444		3
 # define TXP_FORMAT_BGR565		6
 # define TXP_FORMAT_RGB565		7
-/* 888s are non-rotated, raster-only */
+/* 888s are yesn-rotated, raster-only */
 # define TXP_FORMAT_BGR888		8
 # define TXP_FORMAT_RGB888		9
 # define TXP_FORMAT_ABGR8888		12
@@ -175,7 +175,7 @@ static int vc4_txp_connector_get_modes(struct drm_connector *connector)
 {
 	struct drm_device *dev = connector->dev;
 
-	return drm_add_modes_noedid(connector, dev->mode_config.max_width,
+	return drm_add_modes_yesedid(connector, dev->mode_config.max_width,
 				    dev->mode_config.max_height);
 }
 

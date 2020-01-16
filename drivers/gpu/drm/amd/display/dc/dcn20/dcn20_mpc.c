@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -68,60 +68,60 @@ void mpc2_update_blending(
 	mpcc->blnd_cfg = *blnd_cfg;
 }
 
-void mpc2_set_denorm(
+void mpc2_set_deyesrm(
 		struct mpc *mpc,
 		int opp_id,
 		enum dc_color_depth output_depth)
 {
 	struct dcn20_mpc *mpc20 = TO_DCN20_MPC(mpc);
-	int denorm_mode = 0;
+	int deyesrm_mode = 0;
 
 	switch (output_depth) {
 	case COLOR_DEPTH_666:
-		denorm_mode = 1;
+		deyesrm_mode = 1;
 		break;
 	case COLOR_DEPTH_888:
-		denorm_mode = 2;
+		deyesrm_mode = 2;
 		break;
 	case COLOR_DEPTH_999:
-		denorm_mode = 3;
+		deyesrm_mode = 3;
 		break;
 	case COLOR_DEPTH_101010:
-		denorm_mode = 4;
+		deyesrm_mode = 4;
 		break;
 	case COLOR_DEPTH_111111:
-		denorm_mode = 5;
+		deyesrm_mode = 5;
 		break;
 	case COLOR_DEPTH_121212:
-		denorm_mode = 6;
+		deyesrm_mode = 6;
 		break;
 	case COLOR_DEPTH_141414:
 	case COLOR_DEPTH_161616:
 	default:
-		/* not valid used case! */
+		/* yest valid used case! */
 		break;
 	}
 
 	REG_UPDATE(DENORM_CONTROL[opp_id],
-			MPC_OUT_DENORM_MODE, denorm_mode);
+			MPC_OUT_DENORM_MODE, deyesrm_mode);
 }
 
-void mpc2_set_denorm_clamp(
+void mpc2_set_deyesrm_clamp(
 		struct mpc *mpc,
 		int opp_id,
-		struct mpc_denorm_clamp denorm_clamp)
+		struct mpc_deyesrm_clamp deyesrm_clamp)
 {
 	struct dcn20_mpc *mpc20 = TO_DCN20_MPC(mpc);
 
 	REG_UPDATE_2(DENORM_CONTROL[opp_id],
-			MPC_OUT_DENORM_CLAMP_MAX_R_CR, denorm_clamp.clamp_max_r_cr,
-			MPC_OUT_DENORM_CLAMP_MIN_R_CR, denorm_clamp.clamp_min_r_cr);
+			MPC_OUT_DENORM_CLAMP_MAX_R_CR, deyesrm_clamp.clamp_max_r_cr,
+			MPC_OUT_DENORM_CLAMP_MIN_R_CR, deyesrm_clamp.clamp_min_r_cr);
 	REG_UPDATE_2(DENORM_CLAMP_G_Y[opp_id],
-			MPC_OUT_DENORM_CLAMP_MAX_G_Y, denorm_clamp.clamp_max_g_y,
-			MPC_OUT_DENORM_CLAMP_MIN_G_Y, denorm_clamp.clamp_min_g_y);
+			MPC_OUT_DENORM_CLAMP_MAX_G_Y, deyesrm_clamp.clamp_max_g_y,
+			MPC_OUT_DENORM_CLAMP_MIN_G_Y, deyesrm_clamp.clamp_min_g_y);
 	REG_UPDATE_2(DENORM_CLAMP_B_CB[opp_id],
-			MPC_OUT_DENORM_CLAMP_MAX_B_CB, denorm_clamp.clamp_max_b_cb,
-			MPC_OUT_DENORM_CLAMP_MIN_B_CB, denorm_clamp.clamp_min_b_cb);
+			MPC_OUT_DENORM_CLAMP_MAX_B_CB, deyesrm_clamp.clamp_max_b_cb,
+			MPC_OUT_DENORM_CLAMP_MIN_B_CB, deyesrm_clamp.clamp_min_b_cb);
 }
 
 
@@ -504,8 +504,8 @@ const struct mpc_funcs dcn20_mpc_funcs = {
 	.wait_for_idle = mpc2_assert_idle_mpcc,
 	.assert_mpcc_idle_before_connect = mpc2_assert_mpcc_idle_before_connect,
 	.init_mpcc_list_from_hw = mpc1_init_mpcc_list_from_hw,
-	.set_denorm = mpc2_set_denorm,
-	.set_denorm_clamp = mpc2_set_denorm_clamp,
+	.set_deyesrm = mpc2_set_deyesrm,
+	.set_deyesrm_clamp = mpc2_set_deyesrm_clamp,
 	.set_output_csc = mpc2_set_output_csc,
 	.set_ocsc_default = mpc2_set_ocsc_default,
 	.set_output_gamma = mpc2_set_output_gamma,

@@ -55,7 +55,7 @@ int __init davinci_serial_init(struct platform_device *serial_dev)
 
 	/*
 	 * Make sure the serial ports are muxed on at this point.
-	 * You have to mux them off in device drivers later on if not needed.
+	 * You have to mux them off in device drivers later on if yest needed.
 	 */
 	for (i = 0; serial_dev[i].dev.platform_data != NULL; i++) {
 		dev = &serial_dev[i].dev;

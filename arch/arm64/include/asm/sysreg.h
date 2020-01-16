@@ -803,7 +803,7 @@
 })
 
 /*
- * The "Z" constraint normally means a zero immediate, but when combined with
+ * The "Z" constraint yesrmally means a zero immediate, but when combined with
  * the "%x0" template means XZR.
  */
 #define write_sysreg(v, r) do {					\

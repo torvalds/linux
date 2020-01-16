@@ -116,7 +116,7 @@ int mtk_drm_gem_dumb_create(struct drm_file *file_priv, struct drm_device *dev,
 	if (ret)
 		goto err_handle_create;
 
-	/* drop reference from allocate - handle holds it now. */
+	/* drop reference from allocate - handle holds it yesw. */
 	drm_gem_object_put_unlocked(&mtk_gem->base);
 
 	return 0;
@@ -225,7 +225,7 @@ struct drm_gem_object *mtk_gem_prime_import_sg_table(struct drm_device *dev,
 	expected = sg_dma_address(sg->sgl);
 	for_each_sg(sg->sgl, s, sg->nents, i) {
 		if (sg_dma_address(s) != expected) {
-			DRM_ERROR("sg_table is not contiguous");
+			DRM_ERROR("sg_table is yest contiguous");
 			ret = -EINVAL;
 			goto err_gem_free;
 		}

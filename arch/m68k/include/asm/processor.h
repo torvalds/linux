@@ -40,7 +40,7 @@ static inline void wrusp(unsigned long usp)
 
 /*
  * User space process size: 3.75GB. This is hardcoded into a few places,
- * so don't change it unless you know what you are doing.
+ * so don't change it unless you kyesw what you are doing.
  */
 #ifdef CONFIG_MMU
 #if defined(CONFIG_COLDFIRE)
@@ -83,7 +83,7 @@ struct thread_struct {
 	unsigned long  crp[2];		/* cpu root pointer */
 	unsigned long  esp0;		/* points to SR of stack frame */
 	unsigned long  faddr;		/* info about last fault */
-	int            signo, code;
+	int            sigyes, code;
 	unsigned long  fp[8*3];
 	unsigned long  fpcntl[3];	/* fp control regs */
 	unsigned char  fpstate[FPSTATESIZE];  /* floating point state */

@@ -11,7 +11,7 @@
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright yestice and this permission yestice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
  *
@@ -44,7 +44,7 @@ struct vmwgfx_gmrid_man {
 	uint32_t used_gmr_pages;
 };
 
-static int vmw_gmrid_man_get_node(struct ttm_mem_type_manager *man,
+static int vmw_gmrid_man_get_yesde(struct ttm_mem_type_manager *man,
 				  struct ttm_buffer_object *bo,
 				  const struct ttm_place *place,
 				  struct ttm_mem_reg *mem)
@@ -53,7 +53,7 @@ static int vmw_gmrid_man_get_node(struct ttm_mem_type_manager *man,
 		(struct vmwgfx_gmrid_man *)man->priv;
 	int id;
 
-	mem->mm_node = NULL;
+	mem->mm_yesde = NULL;
 
 	id = ida_alloc_max(&gman->gmr_ida, gman->max_gmr_ids - 1, GFP_KERNEL);
 	if (id < 0)
@@ -64,35 +64,35 @@ static int vmw_gmrid_man_get_node(struct ttm_mem_type_manager *man,
 	if (gman->max_gmr_pages > 0) {
 		gman->used_gmr_pages += bo->num_pages;
 		if (unlikely(gman->used_gmr_pages > gman->max_gmr_pages))
-			goto nospace;
+			goto yesspace;
 	}
 
-	mem->mm_node = gman;
+	mem->mm_yesde = gman;
 	mem->start = id;
 	mem->num_pages = bo->num_pages;
 
 	spin_unlock(&gman->lock);
 	return 0;
 
-nospace:
+yesspace:
 	gman->used_gmr_pages -= bo->num_pages;
 	spin_unlock(&gman->lock);
 	ida_free(&gman->gmr_ida, id);
 	return 0;
 }
 
-static void vmw_gmrid_man_put_node(struct ttm_mem_type_manager *man,
+static void vmw_gmrid_man_put_yesde(struct ttm_mem_type_manager *man,
 				   struct ttm_mem_reg *mem)
 {
 	struct vmwgfx_gmrid_man *gman =
 		(struct vmwgfx_gmrid_man *)man->priv;
 
-	if (mem->mm_node) {
+	if (mem->mm_yesde) {
 		ida_free(&gman->gmr_ida, mem->start);
 		spin_lock(&gman->lock);
 		gman->used_gmr_pages -= mem->num_pages;
 		spin_unlock(&gman->lock);
-		mem->mm_node = NULL;
+		mem->mm_yesde = NULL;
 	}
 }
 
@@ -148,7 +148,7 @@ static void vmw_gmrid_man_debug(struct ttm_mem_type_manager *man,
 const struct ttm_mem_type_manager_func vmw_gmrid_manager_func = {
 	.init = vmw_gmrid_man_init,
 	.takedown = vmw_gmrid_man_takedown,
-	.get_node = vmw_gmrid_man_get_node,
-	.put_node = vmw_gmrid_man_put_node,
+	.get_yesde = vmw_gmrid_man_get_yesde,
+	.put_yesde = vmw_gmrid_man_put_yesde,
 	.debug = vmw_gmrid_man_debug
 };

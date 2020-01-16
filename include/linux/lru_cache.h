@@ -4,7 +4,7 @@
 
    This file is part of DRBD by Philipp Reisner and Lars Ellenberg.
 
-   Copyright (C) 2003-2008, LINBIT Information Technologies GmbH.
+   Copyright (C) 2003-2008, LINBIT Information Techyeslogies GmbH.
    Copyright (C) 2003-2008, Philipp Reisner <philipp.reisner@linbit.com>.
    Copyright (C) 2003-2008, Lars Ellenberg <lars.ellenberg@linbit.com>.
 
@@ -36,16 +36,16 @@ This header file (and its .c file; kernel-doc of functions see there)
 
 What for?
 
-We replicate IO (more or less synchronously) to local and remote disk.
+We replicate IO (more or less synchroyesusly) to local and remote disk.
 
-For crash recovery after replication node failure,
+For crash recovery after replication yesde failure,
   we need to resync all regions that have been target of in-flight WRITE IO
-  (in use, or "hot", regions), as we don't know whether or not those WRITEs
+  (in use, or "hot", regions), as we don't kyesw whether or yest those WRITEs
   have made it to stable storage.
 
   To avoid a "full resync", we need to persistently track these regions.
 
-  This is known as "write intent log", and can be implemented as on-disk
+  This is kyeswn as "write intent log", and can be implemented as on-disk
   (coarse or fine grained) bitmap, or other meta data.
 
   To avoid the overhead of frequent extra writes to this meta data area,
@@ -78,8 +78,8 @@ write intent log information, three of which are mentioned here.
   one could dirty "chunks" (of some size) at a time of the (fine grained)
   on-disk bitmap, while keeping the in-memory "dirty" bitmap as clean as
   possible, flushing it to disk again when a previously "hot" (and on-disk
-  dirtied as full chunk) area "cools down" again (no IO in flight anymore,
-  and none expected in the near future either).
+  dirtied as full chunk) area "cools down" again (yes IO in flight anymore,
+  and yesne expected in the near future either).
 
 "Explicit (coarse) write intent bitmap"
   An other implementation could chose a (probably coarse) explicit bitmap,
@@ -91,8 +91,8 @@ write intent log information, three of which are mentioned here.
   become "hot", or have "cooled down" again.
 
   To be able to use a ring buffer for this journal of changes to the active
-  set, we not only record the actual changes to that set, but also record the
-  not changing members of the set in a round robin fashion. To do so, we use a
+  set, we yest only record the actual changes to that set, but also record the
+  yest changing members of the set in a round robin fashion. To do so, we use a
   fixed (but configurable) number of slots which we can identify by index, and
   associate region numbers (labels) with these indices.
   For each transaction recording a change to the active set, we record the
@@ -110,7 +110,7 @@ write intent log information, three of which are mentioned here.
   This is what we call the "activity log".
 
   Currently we need one activity log transaction per single label change, which
-  does not give much benefit over the "dirty chunks of bitmap" approach, other
+  does yest give much benefit over the "dirty chunks of bitmap" approach, other
   than potentially less seeks.
 
   We plan to change the transaction format to support multiple changes per
@@ -120,7 +120,7 @@ write intent log information, three of which are mentioned here.
 
 /* this defines an element in a tracked set
  * .colision is for hash table lookup.
- * When we process a new IO request, we know its sector, thus can deduce the
+ * When we process a new IO request, we kyesw its sector, thus can deduce the
  * region number (label) easily.  To do the label -> object lookup without a
  * full list walk, we use a simple hash table.
  *
@@ -138,18 +138,18 @@ write intent log information, three of which are mentioned here.
  * (total memory usage 2 pages), and up to 3833 elements on the act_log
  * lru_cache, totalling ~215 kB for 64bit architecture, ~53 pages.
  *
- * We usually do not actually free these objects again, but only "recycle"
+ * We usually do yest actually free these objects again, but only "recycle"
  * them, as the change "index: -old_label, +LC_FREE" would need a transaction
  * as well.  Which also means that using a kmem_cache to allocate the objects
  * from wastes some resources.
  * But it avoids high order page allocations in kmalloc.
  */
 struct lc_element {
-	struct hlist_node colision;
+	struct hlist_yesde colision;
 	struct list_head list;		 /* LRU list or free list */
 	unsigned refcnt;
 	/* back "pointer" into lc_cache->element[index],
-	 * for paranoia, and for "lc_element_to_index" */
+	 * for parayesia, and for "lc_element_to_index" */
 	unsigned lc_index;
 	/* if we want to track a larger set of objects,
 	 * it needs to become arch independend u64 */
@@ -186,7 +186,7 @@ struct lru_cache {
 #define LC_MAX_ACTIVE	(1<<24)
 
 	/* allow to accumulate a few (index:label) changes,
-	 * but no more than max_pending_changes */
+	 * but yes more than max_pending_changes */
 	unsigned int max_pending_changes;
 	/* number of elements currently on to_be_changed list */
 	unsigned int pending_changes;
@@ -214,16 +214,16 @@ enum {
 	 * user needs to guarantee exclusive access by proper locking! */
 	__LC_PARANOIA,
 
-	/* annotate that the set is "dirty", possibly accumulating further
+	/* anyestate that the set is "dirty", possibly accumulating further
 	 * changes, until a transaction is finally triggered */
 	__LC_DIRTY,
 
-	/* Locked, no further changes allowed.
+	/* Locked, yes further changes allowed.
 	 * Also used to serialize changing transactions. */
 	__LC_LOCKED,
 
-	/* if we need to change the set, but currently there is no free nor
-	 * unused element available, we are "starving", and must not give out
+	/* if we need to change the set, but currently there is yes free yesr
+	 * unused element available, we are "starving", and must yest give out
 	 * further references, to guarantee that eventually some refcnt will
 	 * drop to zero and we will be able to make progress again, changing
 	 * the set, writing the transaction.
@@ -276,8 +276,8 @@ static inline int lc_try_lock_for_transaction(struct lru_cache *lc)
  *
  * Note that the reference counts and order on the active and lru lists may
  * still change.  Only works on a "clean" set.  Returns true if we aquired the
- * lock, which means there are no pending changes, and any further attempt to
- * change the set will not succeed until the next lc_unlock().
+ * lock, which means there are yes pending changes, and any further attempt to
+ * change the set will yest succeed until the next lc_unlock().
  */
 extern int lc_try_lock(struct lru_cache *lc);
 

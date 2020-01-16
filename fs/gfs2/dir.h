@@ -10,8 +10,8 @@
 #include <linux/dcache.h>
 #include <linux/crc32.h>
 
-struct inode;
-struct gfs2_inode;
+struct iyesde;
+struct gfs2_iyesde;
 struct gfs2_inum;
 struct buffer_head;
 struct gfs2_dirent;
@@ -23,32 +23,32 @@ struct gfs2_diradd {
 	int save_loc;
 };
 
-extern struct inode *gfs2_dir_search(struct inode *dir,
+extern struct iyesde *gfs2_dir_search(struct iyesde *dir,
 				     const struct qstr *filename,
 				     bool fail_on_exist);
-extern int gfs2_dir_check(struct inode *dir, const struct qstr *filename,
-			  const struct gfs2_inode *ip);
-extern int gfs2_dir_add(struct inode *inode, const struct qstr *filename,
-			const struct gfs2_inode *ip, struct gfs2_diradd *da);
-static inline void gfs2_dir_no_add(struct gfs2_diradd *da)
+extern int gfs2_dir_check(struct iyesde *dir, const struct qstr *filename,
+			  const struct gfs2_iyesde *ip);
+extern int gfs2_dir_add(struct iyesde *iyesde, const struct qstr *filename,
+			const struct gfs2_iyesde *ip, struct gfs2_diradd *da);
+static inline void gfs2_dir_yes_add(struct gfs2_diradd *da)
 {
 	brelse(da->bh);
 	da->bh = NULL;
 }
-extern int gfs2_dir_del(struct gfs2_inode *dip, const struct dentry *dentry);
-extern int gfs2_dir_read(struct inode *inode, struct dir_context *ctx,
+extern int gfs2_dir_del(struct gfs2_iyesde *dip, const struct dentry *dentry);
+extern int gfs2_dir_read(struct iyesde *iyesde, struct dir_context *ctx,
 			 struct file_ra_state *f_ra);
-extern int gfs2_dir_mvino(struct gfs2_inode *dip, const struct qstr *filename,
-			  const struct gfs2_inode *nip, unsigned int new_type);
+extern int gfs2_dir_mviyes(struct gfs2_iyesde *dip, const struct qstr *filename,
+			  const struct gfs2_iyesde *nip, unsigned int new_type);
 
-extern int gfs2_dir_exhash_dealloc(struct gfs2_inode *dip);
+extern int gfs2_dir_exhash_dealloc(struct gfs2_iyesde *dip);
 
-extern int gfs2_diradd_alloc_required(struct inode *dir,
+extern int gfs2_diradd_alloc_required(struct iyesde *dir,
 				      const struct qstr *filename,
 				      struct gfs2_diradd *da);
-extern int gfs2_dir_get_new_buffer(struct gfs2_inode *ip, u64 block,
+extern int gfs2_dir_get_new_buffer(struct gfs2_iyesde *ip, u64 block,
 				   struct buffer_head **bhp);
-extern void gfs2_dir_hash_inval(struct gfs2_inode *ip);
+extern void gfs2_dir_hash_inval(struct gfs2_iyesde *ip);
 
 static inline u32 gfs2_disk_hash(const char *data, int len)
 {
@@ -66,8 +66,8 @@ static inline void gfs2_str2qstr(struct qstr *name, const char *fname)
 /* N.B. This probably ought to take inum & type as args as well */
 static inline void gfs2_qstr2dirent(const struct qstr *name, u16 reclen, struct gfs2_dirent *dent)
 {
-	dent->de_inum.no_addr = cpu_to_be64(0);
-	dent->de_inum.no_formal_ino = cpu_to_be64(0);
+	dent->de_inum.yes_addr = cpu_to_be64(0);
+	dent->de_inum.yes_formal_iyes = cpu_to_be64(0);
 	dent->de_hash = cpu_to_be32(name->hash);
 	dent->de_rec_len = cpu_to_be16(reclen);
 	dent->de_name_len = cpu_to_be16(name->len);

@@ -33,13 +33,13 @@ threads = { 0 : "idle"}
 def thread_name(pid):
 	return "%s:%d" % (threads[pid], pid)
 
-class RunqueueEventUnknown:
+class RunqueueEventUnkyeswn:
 	@staticmethod
 	def color():
 		return None
 
 	def __repr__(self):
-		return "unknown"
+		return "unkyeswn"
 
 class RunqueueEventSleep:
 	@staticmethod
@@ -97,12 +97,12 @@ class RunqueueMigrateOut:
 		return "task migrated out %s" % thread_name(self.old)
 
 class RunqueueSnapshot:
-	def __init__(self, tasks = [0], event = RunqueueEventUnknown()):
+	def __init__(self, tasks = [0], event = RunqueueEventUnkyeswn()):
 		self.tasks = tuple(tasks)
 		self.event = event
 
 	def sched_switch(self, prev, prev_state, next):
-		event = RunqueueEventUnknown()
+		event = RunqueueEventUnkyeswn()
 
 		if taskState(prev_state) == "R" and next in self.tasks \
 			and prev in self.tasks:
@@ -118,13 +118,13 @@ class RunqueueSnapshot:
 		elif taskState(prev_state) == "R":
 			next_tasks.append(prev)
 
-		if next not in next_tasks:
+		if next yest in next_tasks:
 			next_tasks.append(next)
 
 		return RunqueueSnapshot(next_tasks, event)
 
 	def migrate_out(self, old):
-		if old not in self.tasks:
+		if old yest in self.tasks:
 			return self
 		next_tasks = [task for task in self.tasks if task != old]
 
@@ -165,7 +165,7 @@ class TimeSlice:
 		self.end = start
 		# cpus that triggered the event
 		self.event_cpus = []
-		if prev is not None:
+		if prev is yest None:
 			self.total_load = prev.total_load
 			self.rqs = prev.rqs.copy()
 		else:
@@ -203,7 +203,7 @@ class TimeSlice:
 
 		ts_list.append(self)
 
-		if old_rq is not out_rq:
+		if old_rq is yest out_rq:
 			self.event_cpus.append(old_cpu)
 		self.event_cpus.append(new_cpu)
 

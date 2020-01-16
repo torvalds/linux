@@ -18,7 +18,7 @@
  */
 
 /*
- * The code that knows what GPIO pins do what should have declared four
+ * The code that kyesws what GPIO pins do what should have declared four
  * functions, ideally as inlines, before including this header:
  *
  *  void setsck(struct spi_device *, int is_on);
@@ -26,20 +26,20 @@
  *  int getmiso(struct spi_device *);
  *  void spidelay(unsigned);
  *
- * setsck()'s is_on parameter is a zero/nonzero boolean.
+ * setsck()'s is_on parameter is a zero/yesnzero boolean.
  *
- * setmosi()'s is_on parameter is a zero/nonzero boolean.
+ * setmosi()'s is_on parameter is a zero/yesnzero boolean.
  *
  * getmiso() is required to return 0 or 1 only. Any other value is invalid
  * and will result in improper operation.
  *
- * A non-inlined routine would call bitbang_txrx_*() routines.  The
+ * A yesn-inlined routine would call bitbang_txrx_*() routines.  The
  * main loop could easily compile down to a handful of instructions,
  * especially if the delay is a NOP (to run at peak speed).
  *
- * Since this is software, the timings may not be exactly what your board's
+ * Since this is software, the timings may yest be exactly what your board's
  * chips need ... there may be several reasons you'd need to tweak timings
- * in these routines, not just to make it faster or slower to match a
+ * in these routines, yest just to make it faster or slower to match a
  * particular CPU clock rate.
  */
 

@@ -3,7 +3,7 @@
  * Renesas USB driver
  *
  * Copyright (C) 2011 Renesas Solutions Corp.
- * Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
+ * Kuniyesri Morimoto <kuniyesri.morimoto.gx@renesas.com>
  */
 #include <linux/io.h>
 #include <linux/list.h>
@@ -54,7 +54,7 @@
  *	      +- [uep 2 (bulk)]-----------+
  *
  * @ :	uep requested free pipe, but all have been used.
- *	now it is waiting for free pipe
+ *	yesw it is waiting for free pipe
  */
 
 
@@ -184,7 +184,7 @@ static void usbhsh_ureq_free(struct usbhsh_hpriv *hpriv,
 static int usbhsh_is_running(struct usbhsh_hpriv *hpriv)
 {
 	/*
-	 * we can decide some device is attached or not
+	 * we can decide some device is attached or yest
 	 * by checking mod.irq_attch
 	 * see
 	 *	usbhsh_irq_attch()
@@ -274,7 +274,7 @@ static int usbhsh_pipe_attach(struct usbhsh_hpriv *hpriv,
 		if (!usbhs_pipe_type_is(pipe, usb_endpoint_type(desc)))
 			continue;
 
-		/* check pipe direction if normal pipe */
+		/* check pipe direction if yesrmal pipe */
 		if (!is_dcp) {
 			dir_in = !!usbhs_pipe_is_dir_in(pipe);
 			if (0 != (dir_in - dir_in_req))
@@ -330,7 +330,7 @@ static void usbhsh_pipe_detach(struct usbhsh_hpriv *hpriv,
 	unsigned long flags;
 
 	if (unlikely(!uep)) {
-		dev_err(dev, "no uep\n");
+		dev_err(dev, "yes uep\n");
 		return;
 	}
 
@@ -467,7 +467,7 @@ static struct usbhsh_device *usbhsh_device_get(struct usbhsh_hpriv *hpriv,
 	struct usb_device *usbv = usbhsh_urb_to_usbv(urb);
 	struct usbhsh_device *udev = usbhsh_usbv_to_udev(usbv);
 
-	/* usbhsh_device_attach() is still not called */
+	/* usbhsh_device_attach() is still yest called */
 	if (!udev)
 		return NULL;
 
@@ -532,7 +532,7 @@ static struct usbhsh_device *usbhsh_device_attach(struct usbhsh_hpriv *hpriv,
 	/********************  spin unlock ******************/
 
 	if (!udev) {
-		dev_err(dev, "no free usbhsh_device\n");
+		dev_err(dev, "yes free usbhsh_device\n");
 		return NULL;
 	}
 
@@ -562,7 +562,7 @@ static struct usbhsh_device *usbhsh_device_attach(struct usbhsh_hpriv *hpriv,
 	upphub	= 0;
 	hubport	= 0;
 	if (!usbhsh_connected_to_rhdev(hcd, udev)) {
-		/* if udev is not connected to rhdev, it means parent is Hub */
+		/* if udev is yest connected to rhdev, it means parent is Hub */
 		struct usbhsh_device *parent = usbhsh_device_parent(udev);
 
 		upphub	= usbhsh_device_number(hpriv, parent);
@@ -600,7 +600,7 @@ static void usbhsh_device_detach(struct usbhsh_hpriv *hpriv,
 	}
 
 	/*
-	 * There is nothing to do if it is device0.
+	 * There is yesthing to do if it is device0.
 	 * see
 	 *  usbhsh_device_attach()
 	 *  usbhsh_device_get()
@@ -669,7 +669,7 @@ static int usbhsh_queue_push(struct usb_hcd *hcd,
 	int len, sequence;
 
 	if (usb_pipeisoc(urb->pipe)) {
-		dev_err(dev, "pipe iso is not supported now\n");
+		dev_err(dev, "pipe iso is yest supported yesw\n");
 		return -EIO;
 	}
 
@@ -766,7 +766,7 @@ static void usbhsh_setup_stage_packet_push(struct usbhsh_hpriv *hpriv,
 	memcpy(&req, urb->setup_packet, sizeof(struct usb_ctrlrequest));
 
 	/*
-	 * renesas_usbhs can not use original usb address.
+	 * renesas_usbhs can yest use original usb address.
 	 * see HARDWARE LIMITATION.
 	 * modify usb address here to use attached device.
 	 * see usbhsh_device_attach()
@@ -921,7 +921,7 @@ static int usbhsh_dma_map_ctrl(struct device *dma_dev, struct usbhs_pkt *pkt,
 		struct usbhsh_request *ureq = usbhsh_pkt_to_ureq(pkt);
 		struct urb *urb = ureq->urb;
 
-		/* it can not use scatter/gather */
+		/* it can yest use scatter/gather */
 		if (urb->num_sgs)
 			return -EINVAL;
 
@@ -961,14 +961,14 @@ static int usbhsh_urb_enqueue(struct usb_hcd *hcd,
 
 	if (!usbhsh_is_running(hpriv)) {
 		ret = -EIO;
-		dev_err(dev, "host is not running\n");
-		goto usbhsh_urb_enqueue_error_not_linked;
+		dev_err(dev, "host is yest running\n");
+		goto usbhsh_urb_enqueue_error_yest_linked;
 	}
 
 	ret = usb_hcd_link_urb_to_ep(hcd, urb);
 	if (ret) {
 		dev_err(dev, "urb link failed\n");
-		goto usbhsh_urb_enqueue_error_not_linked;
+		goto usbhsh_urb_enqueue_error_yest_linked;
 	}
 
 	/*
@@ -980,7 +980,7 @@ static int usbhsh_urb_enqueue(struct usb_hcd *hcd,
 		if (!new_udev) {
 			ret = -EIO;
 			dev_err(dev, "device attach failed\n");
-			goto usbhsh_urb_enqueue_error_not_linked;
+			goto usbhsh_urb_enqueue_error_yest_linked;
 		}
 	}
 
@@ -1021,7 +1021,7 @@ usbhsh_urb_enqueue_error_free_endpoint:
 usbhsh_urb_enqueue_error_free_device:
 	if (new_udev)
 		usbhsh_device_detach(hpriv, new_udev);
-usbhsh_urb_enqueue_error_not_linked:
+usbhsh_urb_enqueue_error_yest_linked:
 
 	dev_dbg(dev, "%s error\n", __func__);
 
@@ -1064,7 +1064,7 @@ static void usbhsh_endpoint_disable(struct usb_hcd *hcd,
 	usbhsh_endpoint_detach(hpriv, ep);
 
 	/*
-	 * if there is no endpoint,
+	 * if there is yes endpoint,
 	 * free device
 	 */
 	if (!usbhsh_device_has_endpoint(udev))
@@ -1174,7 +1174,7 @@ got_usb_bus_speed:
 		dev_dbg(dev, "%s :: USB_PORT_FEAT_RESET (speed = %d)\n",
 			__func__, speed);
 
-		/* status change is not needed */
+		/* status change is yest needed */
 		return 0;
 
 	default:
@@ -1270,9 +1270,9 @@ static int usbhsh_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 	return ret;
 }
 
-static int usbhsh_bus_nop(struct usb_hcd *hcd)
+static int usbhsh_bus_yesp(struct usb_hcd *hcd)
 {
-	/* nothing to do */
+	/* yesthing to do */
 	return 0;
 }
 
@@ -1300,8 +1300,8 @@ static const struct hc_driver usbhsh_driver = {
 	 */
 	.hub_status_data =	usbhsh_hub_status_data,
 	.hub_control =		usbhsh_hub_control,
-	.bus_suspend =		usbhsh_bus_nop,
-	.bus_resume =		usbhsh_bus_nop,
+	.bus_suspend =		usbhsh_bus_yesp,
+	.bus_resume =		usbhsh_bus_yesp,
 };
 
 /*
@@ -1411,7 +1411,7 @@ static void usbhsh_pipe_init_for_host(struct usbhs_priv *priv)
 
 		/*
 		 * data "output" will be finished as soon as possible,
-		 * but there is no guaranty at data "input" case.
+		 * but there is yes guaranty at data "input" case.
 		 *
 		 * "input" needs "standby" pipe.
 		 * So, "input" direction pipe > "output" direction pipe
@@ -1534,7 +1534,7 @@ int usbhs_mod_host_probe(struct usbhs_priv *priv)
 	/*
 	 * CAUTION
 	 *
-	 * There is no guarantee that it is possible to access usb module here.
+	 * There is yes guarantee that it is possible to access usb module here.
 	 * Don't accesses to it.
 	 * The accesse will be enable after "usbhsh_start"
 	 */

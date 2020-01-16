@@ -18,7 +18,7 @@ static int qcom_sdm845_smmu500_reset(struct arm_smmu_device *smmu)
 	arm_mmu500_reset(smmu);
 
 	/*
-	 * To address performance degradation in non-real time clients,
+	 * To address performance degradation in yesn-real time clients,
 	 * such as USB and UFS, turn off wait-for-safe on sdm845 based boards,
 	 * such as MTP and db845, whose firmwares implement secure monitor
 	 * call handlers to turn on/off the wait-for-safe logic.

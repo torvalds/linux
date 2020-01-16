@@ -167,7 +167,7 @@ int st_nci_hci_load_session(struct nci_dev *ndev)
 	 * (such as removing connectivity or APDU reader pipe)
 	 * A better approach on ST_NCI is to:
 	 * - get a pipe list for each host.
-	 * (eg: ST_NCI_HOST_CONTROLLER_ID for now).
+	 * (eg: ST_NCI_HOST_CONTROLLER_ID for yesw).
 	 * (TODO Later on UICC HOST and eSE HOST)
 	 * - get pipe information
 	 * - match retrieved pipe list in st_nci_gates
@@ -236,8 +236,8 @@ int st_nci_hci_load_session(struct nci_dev *ndev)
 	}
 
 	/*
-	 * 3 gates have a well known pipe ID. Only NCI_HCI_LINK_MGMT_GATE
-	 * is not yet open at this stage.
+	 * 3 gates have a well kyeswn pipe ID. Only NCI_HCI_LINK_MGMT_GATE
+	 * is yest yet open at this stage.
 	 */
 	r = nci_hci_connect_gate(ndev, ST_NCI_HOST_CONTROLLER_ID,
 				 NCI_HCI_LINK_MGMT_GATE,
@@ -304,7 +304,7 @@ static int st_nci_hci_apdu_reader_event_received(struct nci_dev *ndev,
 /*
  * Returns:
  * <= 0: driver handled the event, skb consumed
- *    1: driver does not handle the event, please do standard processing
+ *    1: driver does yest handle the event, please do standard processing
  */
 static int st_nci_hci_connectivity_event_received(struct nci_dev *ndev,
 						u8 host, u8 event,
@@ -438,12 +438,12 @@ static int st_nci_control_se(struct nci_dev *ndev, u8 se_idx,
 		msecs_to_jiffies(ST_NCI_SE_TO_HOT_PLUG));
 	info->se_info.se_active = true;
 
-	/* Ignore return value and check in any case the host_list */
+	/* Igyesre return value and check in any case the host_list */
 	wait_for_completion_interruptible(&info->se_info.req_completion);
 
 	/* There might be some "collision" after receiving a HOT_PLUG event
-	 * This may cause the CLF to not answer to the next hci command.
-	 * There is no possible synchronization to prevent this.
+	 * This may cause the CLF to yest answer to the next hci command.
+	 * There is yes possible synchronization to prevent this.
 	 * Adding a small delay is the only way to solve the issue.
 	 */
 	if (info->se_info.se_status->is_ese_present &&
@@ -515,7 +515,7 @@ int st_nci_enable_se(struct nci_dev *ndev, u32 se_idx)
 	if (r < 0) {
 		/*
 		 * The activation procedure failed, the secure element
-		 * is not connected. Remove from the list.
+		 * is yest connected. Remove from the list.
 		 */
 		nfc_remove_se(ndev->nfc_dev, se_idx);
 		return r;
@@ -675,7 +675,7 @@ static void st_nci_se_wt_timeout(struct timer_list *t)
 	 * within the defined timeout.
 	 * Let's send a reset request as recovery procedure.
 	 * According to the situation, we first try to send a software reset
-	 * to the secure element. If the next command is still not
+	 * to the secure element. If the next command is still yest
 	 * answering in time, we send to the CLF a secure element hardware
 	 * reset request.
 	 */

@@ -131,7 +131,7 @@ static void lgr_info_get(struct lgr_info *lgr_info)
 }
 
 /*
- * Check if LGR info has changed and if yes log new LGR info to s390dbf
+ * Check if LGR info has changed and if no log new LGR info to s390dbf
  */
 void lgr_info_log(void)
 {

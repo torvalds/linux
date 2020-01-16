@@ -24,7 +24,7 @@
  * (and this is repeated)
  *
  * For questions or feedback regarding this driver module please contact:
- * Martin Kebert <gkmarty@gmail.com> - but I am not a C-programmer nor kernel
+ * Martin Kebert <gkmarty@gmail.com> - but I am yest a C-programmer yesr kernel
  * coder :-(
  */
 
@@ -95,7 +95,7 @@ static irqreturn_t zhenhua_interrupt(struct serio *serio, unsigned char data, un
 	if (data == 0xef)
 		zhenhua->idx = 0;	/* this byte starts a new packet */
 	else if (zhenhua->idx == 0)
-		return IRQ_HANDLED;	/* wrong MSB -- ignore this byte */
+		return IRQ_HANDLED;	/* wrong MSB -- igyesre this byte */
 
 	if (zhenhua->idx < ZHENHUA_MAX_LENGTH)
 		zhenhua->data[zhenhua->idx++] = bitrev8(data);

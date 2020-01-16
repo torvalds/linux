@@ -9,7 +9,7 @@
  * linux-wlan
  *
  *   The contents of this file are subject to the Mozilla Public
- *   License Version 1.1 (the "License"); you may not use this file
+ *   License Version 1.1 (the "License"); you may yest use this file
  *   except in compliance with the License. You may obtain a copy of
  *   the License at http://www.mozilla.org/MPL/
  *
@@ -22,10 +22,10 @@
  *   terms of the GNU Public License version 2 (the "GPL"), in which
  *   case the provisions of the GPL are applicable instead of the
  *   above.  If you wish to allow the use of your version of this file
- *   only under the terms of the GPL and not to allow others to use
+ *   only under the terms of the GPL and yest to allow others to use
  *   your version of this file under the MPL, indicate your decision
- *   by deleting the provisions above and replace them with the notice
- *   and other provisions required by the GPL.  If you do not delete
+ *   by deleting the provisions above and replace them with the yestice
+ *   and other provisions required by the GPL.  If you do yest delete
  *   the provisions above, a recipient may use your version of this
  *   file under either the MPL or the GPL.
  *
@@ -108,7 +108,7 @@ static inline u16 p80211rate_to_p2bit(u32 rate)
  *
  * This function corresponds to MLME-scan.request and part of
  * MLME-scan.confirm.  As far as I can tell in the standard, there
- * are no restrictions on when a scan.request may be issued.  We have
+ * are yes restrictions on when a scan.request may be issued.  We have
  * to handle in whatever state the driver/MAC happen to be.
  *
  * Arguments:
@@ -139,13 +139,13 @@ int prism2mgmt_scan(struct wlandevice *wlandev, void *msgp)
 
 	/* gatekeeper check */
 	if (HFA384x_FIRMWARE_VERSION(hw->ident_sta_fw.major,
-				     hw->ident_sta_fw.minor,
+				     hw->ident_sta_fw.miyesr,
 				     hw->ident_sta_fw.variant) <
 	    HFA384x_FIRMWARE_VERSION(1, 3, 2)) {
 		netdev_err(wlandev->netdev,
-			   "HostScan not supported with current firmware (<1.3.2).\n");
+			   "HostScan yest supported with current firmware (<1.3.2).\n");
 		result = 1;
-		msg->resultcode.data = P80211ENUM_resultcode_not_supported;
+		msg->resultcode.data = P80211ENUM_resultcode_yest_supported;
 		goto exit;
 	}
 
@@ -178,7 +178,7 @@ int prism2mgmt_scan(struct wlandevice *wlandev, void *msgp)
 
 	/* active or passive? */
 	if (HFA384x_FIRMWARE_VERSION(hw->ident_sta_fw.major,
-				     hw->ident_sta_fw.minor,
+				     hw->ident_sta_fw.miyesr,
 				     hw->ident_sta_fw.variant) >
 	    HFA384x_FIRMWARE_VERSION(1, 5, 0)) {
 		if (msg->scantype.data != P80211ENUM_scantype_active)
@@ -191,7 +191,7 @@ int prism2mgmt_scan(struct wlandevice *wlandev, void *msgp)
 					     word);
 		if (result) {
 			netdev_warn(wlandev->netdev,
-				    "Passive scan not supported with current firmware.  (<1.5.1)\n");
+				    "Passive scan yest supported with current firmware.  (<1.5.1)\n");
 		}
 	}
 
@@ -215,7 +215,7 @@ int prism2mgmt_scan(struct wlandevice *wlandev, void *msgp)
 	scanreq.ssid.len = cpu_to_le16(msg->ssid.data.len);
 	memcpy(scanreq.ssid.data, msg->ssid.data.data, msg->ssid.data.len);
 
-	/* Enable the MAC port if it's not already enabled  */
+	/* Enable the MAC port if it's yest already enabled  */
 	result = hfa384x_drvr_getconfig16(hw, HFA384x_RID_PORTSTATUS, &word);
 	if (result) {
 		netdev_err(wlandev->netdev,
@@ -415,11 +415,11 @@ int prism2mgmt_scan_results(struct wlandevice *wlandev, void *msgp)
 	}
 
 	item = &hw->scanresults->info.hscanresult.result[req->bssindex.data];
-	/* signal and noise */
+	/* signal and yesise */
 	req->signal.status = P80211ENUM_msgitem_status_data_ok;
-	req->noise.status = P80211ENUM_msgitem_status_data_ok;
+	req->yesise.status = P80211ENUM_msgitem_status_data_ok;
 	req->signal.data = le16_to_cpu(item->sl);
-	req->noise.data = le16_to_cpu(item->anl);
+	req->yesise.data = le16_to_cpu(item->anl);
 
 	/* BSSID */
 	req->bssid.status = P80211ENUM_msgitem_status_data_ok;
@@ -560,12 +560,12 @@ int prism2mgmt_start(struct wlandevice *wlandev, void *msgp)
 	/*** ADHOC IBSS ***/
 	/* see if current f/w is less than 8c3 */
 	if (HFA384x_FIRMWARE_VERSION(hw->ident_sta_fw.major,
-				     hw->ident_sta_fw.minor,
+				     hw->ident_sta_fw.miyesr,
 				     hw->ident_sta_fw.variant) <
 	    HFA384x_FIRMWARE_VERSION(0, 8, 3)) {
-		/* Ad-Hoc not quite supported on Prism2 */
+		/* Ad-Hoc yest quite supported on Prism2 */
 		msg->resultcode.status = P80211ENUM_msgitem_status_data_ok;
-		msg->resultcode.data = P80211ENUM_resultcode_not_supported;
+		msg->resultcode.data = P80211ENUM_resultcode_yest_supported;
 		goto done;
 	}
 
@@ -678,7 +678,7 @@ int prism2mgmt_start(struct wlandevice *wlandev, void *msgp)
 		goto failed;
 	}
 
-	/* Set the macmode so the frame setup code knows what to do */
+	/* Set the macmode so the frame setup code kyesws what to do */
 	if (msg->bsstype.data == P80211ENUM_bsstype_independent) {
 		wlandev->macmode = WLAN_MACMODE_IBSS_STA;
 		/* lets extend the data length a bit */
@@ -774,7 +774,7 @@ int prism2mgmt_readpda(struct wlandevice *wlandev, void *msgp)
  * one or more times between the 'enable' and 'disable' calls to
  * this function.
  *
- * Note: This function should not be called when a mac comm port
+ * Note: This function should yest be called when a mac comm port
  *       is active.
  *
  * Arguments:
@@ -892,7 +892,7 @@ int prism2mgmt_ramdl_write(struct wlandevice *wlandev, void *msgp)
  * one or more times between the 'enable' and 'disable' calls to
  * this function.
  *
- * Note: This function should not be called when a mac comm port
+ * Note: This function should yest be called when a mac comm port
  *       is active.
  *
  * Arguments:
@@ -1271,7 +1271,7 @@ int prism2mgmt_wlansniff(struct wlandevice *wlandev, void *msgp)
 			if ((msg->keepwepflags.status ==
 			     P80211ENUM_msgitem_status_data_ok) &&
 			    (msg->keepwepflags.data != P80211ENUM_truth_true)) {
-				/* Set the wepflags for no decryption */
+				/* Set the wepflags for yes decryption */
 				word = HFA384x_WEPFLAGS_DISABLE_TXCRYPT |
 				    HFA384x_WEPFLAGS_DISABLE_RXCRYPT;
 				result =

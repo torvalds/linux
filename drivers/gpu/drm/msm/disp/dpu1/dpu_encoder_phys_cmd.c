@@ -83,7 +83,7 @@ static void dpu_encoder_phys_cmd_pp_tx_done_irq(void *arg, int irq_idx)
 		return;
 
 	DPU_ATRACE_BEGIN("pp_done_irq");
-	/* notify all synchronous clients first, then asynchronous clients */
+	/* yestify all synchroyesus clients first, then asynchroyesus clients */
 	if (phys_enc->parent_ops->handle_frame_done)
 		phys_enc->parent_ops->handle_frame_done(phys_enc->parent,
 				phys_enc, event);
@@ -361,7 +361,7 @@ static void dpu_encoder_phys_cmd_tearcheck_config(
 
 	if (!phys_enc->hw_pp->ops.setup_tearcheck ||
 		!phys_enc->hw_pp->ops.enable_tearcheck) {
-		DPU_DEBUG_CMDENC(cmd_enc, "tearcheck not supported\n");
+		DPU_DEBUG_CMDENC(cmd_enc, "tearcheck yest supported\n");
 		return;
 	}
 
@@ -374,7 +374,7 @@ static void dpu_encoder_phys_cmd_tearcheck_config(
 	 * init == start == rdptr;
 	 *
 	 * vsync_count is ratio of MDP VSYNC clock frequency to LCD panel
-	 * frequency divided by the no. of rows (lines) in the LCDpanel.
+	 * frequency divided by the yes. of rows (lines) in the LCDpanel.
 	 */
 	vsync_hz = dpu_kms_get_clk_rate(dpu_kms, "vsync");
 	if (vsync_hz <= 0) {

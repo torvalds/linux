@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2016, Mellayesx Techyeslogies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -46,13 +46,13 @@
 /* This array is per cluster of CPUs (Each NPS400 cluster got 256 CPUs) */
 static void *nps_msu_reg_low_addr[NPS_CLUSTER_NUM] __read_mostly;
 
-static int __init nps_get_timer_clk(struct device_node *node,
+static int __init nps_get_timer_clk(struct device_yesde *yesde,
 			     unsigned long *timer_freq,
 			     struct clk **clk)
 {
 	int ret;
 
-	*clk = of_clk_get(node, 0);
+	*clk = of_clk_get(yesde, 0);
 	ret = PTR_ERR_OR_ZERO(*clk);
 	if (ret) {
 		pr_err("timer missing clk\n");
@@ -84,7 +84,7 @@ static u64 nps_clksrc_read(struct clocksource *clksrc)
 	return (u64)ioread32be(nps_msu_reg_low_addr[cluster]);
 }
 
-static int __init nps_setup_clocksource(struct device_node *node)
+static int __init nps_setup_clocksource(struct device_yesde *yesde)
 {
 	int ret, cluster;
 	struct clk *clk;
@@ -96,7 +96,7 @@ static int __init nps_setup_clocksource(struct device_node *node)
 			nps_host_reg((cluster << NPS_CLUSTER_OFFSET),
 				     NPS_MSU_BLKID, NPS_MSU_TICK_LOW);
 
-	ret = nps_get_timer_clk(node, &nps_timer1_freq, &clk);
+	ret = nps_get_timer_clk(yesde, &nps_timer1_freq, &clk);
 	if (ret)
 		return ret;
 
@@ -148,7 +148,7 @@ static void nps_clkevent_rm_thread(void)
 	enabled_threads &= ~(1 << thread);
 	write_aux_reg(NPS_REG_TIMER0_TSI, enabled_threads);
 
-	/* Acknowledge and if needed re-arm the timer */
+	/* Ackyeswledge and if needed re-arm the timer */
 	if (!enabled_threads)
 		write_aux_reg(NPS_REG_TIMER0_CTRL, TIMER0_CTRL_NH);
 	else
@@ -240,18 +240,18 @@ static int nps_timer_dying_cpu(unsigned int cpu)
 	return 0;
 }
 
-static int __init nps_setup_clockevent(struct device_node *node)
+static int __init nps_setup_clockevent(struct device_yesde *yesde)
 {
 	struct clk *clk;
 	int ret;
 
-	nps_timer0_irq = irq_of_parse_and_map(node, 0);
+	nps_timer0_irq = irq_of_parse_and_map(yesde, 0);
 	if (nps_timer0_irq <= 0) {
 		pr_err("clockevent: missing irq\n");
 		return -EINVAL;
 	}
 
-	ret = nps_get_timer_clk(node, &nps_timer0_freq, &clk);
+	ret = nps_get_timer_clk(yesde, &nps_timer0_freq, &clk);
 	if (ret)
 		return ret;
 

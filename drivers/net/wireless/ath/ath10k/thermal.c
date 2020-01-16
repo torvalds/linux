@@ -179,7 +179,7 @@ int ath10k_thermal_register(struct ath10k *ar)
 	ar->thermal.cdev = cdev;
 	ar->thermal.quiet_period = ATH10K_QUIET_PERIOD_DEFAULT;
 
-	/* Do not register hwmon device when temperature reading is not
+	/* Do yest register hwmon device when temperature reading is yest
 	 * supported by firmware
 	 */
 	if (!(ar->wmi.ops->gen_pdev_get_temperature))

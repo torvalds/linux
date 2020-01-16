@@ -35,9 +35,9 @@ struct raw_data {
 static struct class *raw_class;
 static int raw_major;
 static const struct file_operations raw_fops;
-static DEFINE_IDA(minors);
+static DEFINE_IDA(miyesrs);
 
-/* Number of minor devices this driver supports */
+/* Number of miyesr devices this driver supports */
 #define NUM_MINORS	256
 
 /* Maximum size of any one send data buffer we support */
@@ -65,7 +65,7 @@ static int receive_data(struct gb_raw *raw, u32 len, u8 *data)
 
 	mutex_lock(&raw->list_lock);
 	if ((raw->list_data + len) > MAX_DATA_SIZE) {
-		dev_err(dev, "Too much data in receive buffer, now dropping packets\n");
+		dev_err(dev, "Too much data in receive buffer, yesw dropping packets\n");
 		retval = -EINVAL;
 		goto exit;
 	}
@@ -95,7 +95,7 @@ static int gb_raw_request_handler(struct gb_operation *op)
 	u32 len;
 
 	if (op->type != GB_RAW_TYPE_SEND) {
-		dev_err(dev, "unknown request type 0x%02x\n", op->type);
+		dev_err(dev, "unkyeswn request type 0x%02x\n", op->type);
 		return -EINVAL;
 	}
 
@@ -152,7 +152,7 @@ static int gb_raw_probe(struct gb_bundle *bundle,
 	struct gb_connection *connection;
 	struct gb_raw *raw;
 	int retval;
-	int minor;
+	int miyesr;
 
 	if (bundle->num_cports != 1)
 		return -ENODEV;
@@ -178,13 +178,13 @@ static int gb_raw_probe(struct gb_bundle *bundle,
 	raw->connection = connection;
 	greybus_set_drvdata(bundle, raw);
 
-	minor = ida_simple_get(&minors, 0, 0, GFP_KERNEL);
-	if (minor < 0) {
-		retval = minor;
+	miyesr = ida_simple_get(&miyesrs, 0, 0, GFP_KERNEL);
+	if (miyesr < 0) {
+		retval = miyesr;
 		goto error_connection_destroy;
 	}
 
-	raw->dev = MKDEV(raw_major, minor);
+	raw->dev = MKDEV(raw_major, miyesr);
 	cdev_init(&raw->cdev, &raw_fops);
 
 	retval = gb_connection_enable(connection);
@@ -196,7 +196,7 @@ static int gb_raw_probe(struct gb_bundle *bundle,
 		goto error_connection_disable;
 
 	raw->device = device_create(raw_class, &connection->bundle->dev,
-				    raw->dev, raw, "gb!raw%d", minor);
+				    raw->dev, raw, "gb!raw%d", miyesr);
 	if (IS_ERR(raw->device)) {
 		retval = PTR_ERR(raw->device);
 		goto error_del_cdev;
@@ -211,7 +211,7 @@ error_connection_disable:
 	gb_connection_disable(connection);
 
 error_remove_ida:
-	ida_simple_remove(&minors, minor);
+	ida_simple_remove(&miyesrs, miyesr);
 
 error_connection_destroy:
 	gb_connection_destroy(connection);
@@ -228,11 +228,11 @@ static void gb_raw_disconnect(struct gb_bundle *bundle)
 	struct raw_data *raw_data;
 	struct raw_data *temp;
 
-	// FIXME - handle removing a connection when the char device node is open.
+	// FIXME - handle removing a connection when the char device yesde is open.
 	device_destroy(raw_class, raw->dev);
 	cdev_del(&raw->cdev);
 	gb_connection_disable(connection);
-	ida_simple_remove(&minors, MINOR(raw->dev));
+	ida_simple_remove(&miyesrs, MINOR(raw->dev));
 	gb_connection_destroy(connection);
 
 	mutex_lock(&raw->list_lock);
@@ -246,17 +246,17 @@ static void gb_raw_disconnect(struct gb_bundle *bundle)
 }
 
 /*
- * Character device node interfaces.
+ * Character device yesde interfaces.
  *
  * Note, we are using read/write to only allow a single read/write per message.
- * This means for read(), you have to provide a big enough buffer for the full
- * message to be copied into.  If the buffer isn't big enough, the read() will
+ * This means for read(), you have to provide a big eyesugh buffer for the full
+ * message to be copied into.  If the buffer isn't big eyesugh, the read() will
  * fail with -ENOSPC.
  */
 
-static int raw_open(struct inode *inode, struct file *file)
+static int raw_open(struct iyesde *iyesde, struct file *file)
 {
-	struct cdev *cdev = inode->i_cdev;
+	struct cdev *cdev = iyesde->i_cdev;
 	struct gb_raw *raw = container_of(cdev, struct gb_raw, cdev);
 
 	file->private_data = raw;
@@ -319,7 +319,7 @@ static const struct file_operations raw_fops = {
 	.write		= raw_write,
 	.read		= raw_read,
 	.open		= raw_open,
-	.llseek		= noop_llseek,
+	.llseek		= yesop_llseek,
 };
 
 static const struct greybus_bundle_id gb_raw_id_table[] = {
@@ -372,7 +372,7 @@ static void __exit raw_exit(void)
 	greybus_deregister(&gb_raw_driver);
 	unregister_chrdev_region(MKDEV(raw_major, 0), NUM_MINORS);
 	class_destroy(raw_class);
-	ida_destroy(&minors);
+	ida_destroy(&miyesrs);
 }
 module_exit(raw_exit);
 

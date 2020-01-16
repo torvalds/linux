@@ -1,9 +1,9 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 #ifndef _UAPI_LINUX_SOUND_H
 #define _UAPI_LINUX_SOUND_H
 
 /*
- * Minor numbers for the sound driver.
+ * Miyesr numbers for the sound driver.
  */
 
 #include <linux/fs.h>
@@ -19,7 +19,7 @@
 #define SND_DEV_UNUSED		6
 #define SND_DEV_AWFM		7	/* Reserved */
 #define SND_DEV_SEQ2		8	/* /dev/sequencer, level 2 interface */
-/* #define SND_DEV_SNDPROC	9 */	/* /dev/sndproc for programmable devices (not used) */
+/* #define SND_DEV_SNDPROC	9 */	/* /dev/sndproc for programmable devices (yest used) */
 /* #define SND_DEV_DMMIDI	9 */
 #define SND_DEV_SYNTH		9	/* Raw synth access /dev/synth (same as /dev/dmfm) */
 #define SND_DEV_DMFM		10	/* Raw synth access /dev/dmfm */

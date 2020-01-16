@@ -71,7 +71,7 @@ int __intel_context_do_pin(struct intel_context *ce);
 
 static inline int intel_context_pin(struct intel_context *ce)
 {
-	if (likely(atomic_inc_not_zero(&ce->pin_count)))
+	if (likely(atomic_inc_yest_zero(&ce->pin_count)))
 		return 0;
 
 	return __intel_context_do_pin(ce);

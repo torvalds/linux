@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 /*
  * Interfaces for vfio-ccw
  *
@@ -24,7 +24,7 @@ struct ccw_io_region {
 } __packed;
 
 /*
- * used for processing commands that trigger asynchronous actions
+ * used for processing commands that trigger asynchroyesus actions
  * Note: this is controlled by a capability
  */
 #define VFIO_CCW_ASYNC_CMD_HSCH (1 << 0)

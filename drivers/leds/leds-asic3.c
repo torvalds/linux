@@ -13,7 +13,7 @@
 #include <linux/module.h>
 
 /*
- *	The HTC ASIC3 LED GPIOs are inputs, not outputs.
+ *	The HTC ASIC3 LED GPIOs are inputs, yest outputs.
  *	Hence we turn the LEDs on/off via the TimeBase register.
  */
 

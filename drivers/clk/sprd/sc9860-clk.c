@@ -1786,17 +1786,17 @@ static SPRD_GATE_CLK(d_mtx_f_gate,	"d-mtx-f-gate",	"ahb-disp", 0x8,
 		     BIT(6), 0, 0);
 static SPRD_GATE_CLK(d_mtx_a_gate,	"d-mtx-a-gate",	"ahb-disp", 0x8,
 		     BIT(7), 0, 0);
-static SPRD_GATE_CLK(d_noc_f_gate,	"d-noc-f-gate",	"ahb-disp", 0x8,
+static SPRD_GATE_CLK(d_yesc_f_gate,	"d-yesc-f-gate",	"ahb-disp", 0x8,
 		     BIT(8), 0, 0);
-static SPRD_GATE_CLK(d_noc_a_gate,	"d-noc-a-gate",	"ahb-disp", 0x8,
+static SPRD_GATE_CLK(d_yesc_a_gate,	"d-yesc-a-gate",	"ahb-disp", 0x8,
 		     BIT(9), 0, 0);
 static SPRD_GATE_CLK(gsp_mtx_f_gate, "gsp-mtx-f-gate", "ahb-disp",  0x8,
 		     BIT(10), 0, 0);
 static SPRD_GATE_CLK(gsp_mtx_a_gate, "gsp-mtx-a-gate", "ahb-disp",  0x8,
 		     BIT(11), 0, 0);
-static SPRD_GATE_CLK(gsp_noc_f_gate, "gsp-noc-f-gate", "ahb-disp",  0x8,
+static SPRD_GATE_CLK(gsp_yesc_f_gate, "gsp-yesc-f-gate", "ahb-disp",  0x8,
 		     BIT(12), 0, 0);
-static SPRD_GATE_CLK(gsp_noc_a_gate, "gsp-noc-a-gate", "ahb-disp",  0x8,
+static SPRD_GATE_CLK(gsp_yesc_a_gate, "gsp-yesc-a-gate", "ahb-disp",  0x8,
 		     BIT(13), 0, 0);
 static SPRD_GATE_CLK(dispm0idle_gate, "dispm0idle-gate", "ahb-disp", 0x8,
 		     BIT(14), 0, 0);
@@ -1828,12 +1828,12 @@ static struct sprd_clk_common *sc9860_disp_gate[] = {
 	&gsp1_f_gate.common,
 	&d_mtx_f_gate.common,
 	&d_mtx_a_gate.common,
-	&d_noc_f_gate.common,
-	&d_noc_a_gate.common,
+	&d_yesc_f_gate.common,
+	&d_yesc_a_gate.common,
 	&gsp_mtx_f_gate.common,
 	&gsp_mtx_a_gate.common,
-	&gsp_noc_f_gate.common,
-	&gsp_noc_a_gate.common,
+	&gsp_yesc_f_gate.common,
+	&gsp_yesc_a_gate.common,
 	&dispm0idle_gate.common,
 	&gspm0idle_gate.common,
 };
@@ -1863,12 +1863,12 @@ static struct clk_hw_onecell_data sc9860_disp_gate_hws = {
 		[CLK_GSP1_F_GATE]	= &gsp1_f_gate.common.hw,
 		[CLK_D_MTX_F_GATE]	= &d_mtx_f_gate.common.hw,
 		[CLK_D_MTX_A_GATE]	= &d_mtx_a_gate.common.hw,
-		[CLK_D_NOC_F_GATE]	= &d_noc_f_gate.common.hw,
-		[CLK_D_NOC_A_GATE]	= &d_noc_a_gate.common.hw,
+		[CLK_D_NOC_F_GATE]	= &d_yesc_f_gate.common.hw,
+		[CLK_D_NOC_A_GATE]	= &d_yesc_a_gate.common.hw,
 		[CLK_GSP_MTX_F_GATE]	= &gsp_mtx_f_gate.common.hw,
 		[CLK_GSP_MTX_A_GATE]	= &gsp_mtx_a_gate.common.hw,
-		[CLK_GSP_NOC_F_GATE]	= &gsp_noc_f_gate.common.hw,
-		[CLK_GSP_NOC_A_GATE]	= &gsp_noc_a_gate.common.hw,
+		[CLK_GSP_NOC_F_GATE]	= &gsp_yesc_f_gate.common.hw,
+		[CLK_GSP_NOC_A_GATE]	= &gsp_yesc_a_gate.common.hw,
 		[CLK_DISPM0IDLE_GATE]	= &dispm0idle_gate.common.hw,
 		[CLK_GSPM0IDLE_GATE]	= &gspm0idle_gate.common.hw,
 	},
@@ -2025,9 +2025,9 @@ static int sc9860_clk_probe(struct platform_device *pdev)
 	const struct sprd_clk_desc *desc;
 	int ret;
 
-	match = of_match_node(sprd_sc9860_clk_ids, pdev->dev.of_node);
+	match = of_match_yesde(sprd_sc9860_clk_ids, pdev->dev.of_yesde);
 	if (!match) {
-		pr_err("%s: of_match_node() failed", __func__);
+		pr_err("%s: of_match_yesde() failed", __func__);
 		return -ENODEV;
 	}
 

@@ -19,8 +19,8 @@
    LTOFF22X
    LTOFF22X
    LTOFF_FPTR22
-   PCREL21B	(for br.call only; br.cond is not supported out of modules!)
-   PCREL60B	(for brl.cond only; brl.call is not supported for modules!)
+   PCREL21B	(for br.call only; br.cond is yest supported out of modules!)
+   PCREL60B	(for brl.cond only; brl.call is yest supported for modules!)
    PCREL64LSB
    SECREL32LSB
    SEGREL64LSB
@@ -75,7 +75,7 @@ enum reloc_target_format {
 	RF_64MSB = 6,
 	RF_64LSB = 7,
 
-	/* formats that cannot be directly decoded: */
+	/* formats that canyest be directly decoded: */
 	RF_INSN60,
 	RF_INSN21B,	/* imm21 form 1 */
 	RF_INSN21M,	/* imm21 form 2 */
@@ -219,12 +219,12 @@ struct plt_entry {
 static const struct plt_entry ia64_plt_template = {
 	{
 		{
-			0x04, 0x00, 0x00, 0x00, 0x01, 0x00, /* [MLX] nop.m 0 */
+			0x04, 0x00, 0x00, 0x00, 0x01, 0x00, /* [MLX] yesp.m 0 */
 			0x00, 0x00, 0x00, 0x00, 0x00, 0x20, /*	     movl gp=TARGET_GP */
 			0x00, 0x00, 0x00, 0x60
 		},
 		{
-			0x05, 0x00, 0x00, 0x00, 0x01, 0x00, /* [MLX] nop.m 0 */
+			0x05, 0x00, 0x00, 0x00, 0x01, 0x00, /* [MLX] yesp.m 0 */
 			0x00, 0x00, 0x00, 0x00, 0x00, 0x00, /*	     brl.many gp=TARGET_GP */
 			0x08, 0x00, 0x00, 0xc0
 		}
@@ -264,17 +264,17 @@ struct plt_entry {
 static const struct plt_entry ia64_plt_template = {
 	{
 		{
-			0x05, 0x00, 0x00, 0x00, 0x01, 0x00, /* [MLX] nop.m 0 */
+			0x05, 0x00, 0x00, 0x00, 0x01, 0x00, /* [MLX] yesp.m 0 */
 			0x00, 0x00, 0x00, 0x00, 0x00, 0x00, /*	     movl r16=TARGET_IP */
 			0x02, 0x00, 0x00, 0x60
 		},
 		{
-			0x04, 0x00, 0x00, 0x00, 0x01, 0x00, /* [MLX] nop.m 0 */
+			0x04, 0x00, 0x00, 0x00, 0x01, 0x00, /* [MLX] yesp.m 0 */
 			0x00, 0x00, 0x00, 0x00, 0x00, 0x20, /*	     movl gp=TARGET_GP */
 			0x00, 0x00, 0x00, 0x60
 		},
 		{
-			0x11, 0x00, 0x00, 0x00, 0x01, 0x00, /* [MIB] nop.m 0 */
+			0x11, 0x00, 0x00, 0x00, 0x01, 0x00, /* [MIB] yesp.m 0 */
 			0x60, 0x80, 0x04, 0x80, 0x03, 0x00, /*	     mov b6=r16 */
 			0x60, 0x00, 0x80, 0x00		    /*	     br.few b6 */
 		}
@@ -335,7 +335,7 @@ count_gots (const Elf64_Rela *rela, unsigned int num)
 {
 	unsigned int i, ret = 0;
 
-	/* Sure, this is order(n^2), but it's usually short, and not
+	/* Sure, this is order(n^2), but it's usually short, and yest
            time critical */
 	for (i = 0; i < num; i++) {
 		switch (ELF64_R_TYPE(rela[i].r_info)) {
@@ -362,7 +362,7 @@ count_plts (const Elf64_Rela *rela, unsigned int num)
 {
 	unsigned int i, ret = 0;
 
-	/* Sure, this is order(n^2), but it's usually short, and not
+	/* Sure, this is order(n^2), but it's usually short, and yest
            time critical */
 	for (i = 0; i < num; i++) {
 		switch (ELF64_R_TYPE(rela[i].r_info)) {
@@ -388,7 +388,7 @@ count_fdescs (const Elf64_Rela *rela, unsigned int num)
 {
 	unsigned int i, ret = 0;
 
-	/* Sure, this is order(n^2), but it's usually short, and not time critical.  */
+	/* Sure, this is order(n^2), but it's usually short, and yest time critical.  */
 	for (i = 0; i < num; i++) {
 		switch (ELF64_R_TYPE(rela[i].r_info)) {
 		      case R_IA64_FPTR64I:
@@ -406,7 +406,7 @@ count_fdescs (const Elf64_Rela *rela, unsigned int num)
 		      case R_IA64_IPLTLSB:
 			/*
 			 * Jumps to static functions sometimes go straight to their
-			 * offset.  Of course, that may not be possible if the jump is
+			 * offset.  Of course, that may yest be possible if the jump is
 			 * from init -> core or vice. versa, so we need to generate an
 			 * FDESC (and PLT etc) for that.
 			 */
@@ -519,7 +519,7 @@ get_ltoff (struct module *mod, uint64_t value, int *okp)
 		if (e->val == value)
 			goto found;
 
-	/* Not enough GOT entries? */
+	/* Not eyesugh GOT entries? */
 	BUG_ON(e >= (struct got_entry *) (mod->arch.got->sh_addr + mod->arch.got->sh_size));
 
 	e->val = value;
@@ -596,7 +596,7 @@ get_fdesc (struct module *mod, uint64_t value, int *okp)
 
 	if (!is_internal(mod, value))
 		/*
-		 * If it's not a module-local entry-point, "value" already points to a
+		 * If it's yest a module-local entry-point, "value" already points to a
 		 * function-descriptor.
 		 */
 		return value;
@@ -689,7 +689,7 @@ do_reloc (struct module *mod, uint8_t r_type, Elf64_Sym *sym, uint64_t addend,
 		if (r_type == R_IA64_PCREL21BI) {
 			if (!is_internal(mod, val)) {
 				printk(KERN_ERR "%s: %s reloc against "
-					"non-local symbol (%lx)\n", __func__,
+					"yesn-local symbol (%lx)\n", __func__,
 					reloc_name[r_type], (unsigned long)val);
 				return -ENOEXEC;
 			}
@@ -731,10 +731,10 @@ do_reloc (struct module *mod, uint8_t r_type, Elf64_Sym *sym, uint64_t addend,
 
 		      default:
 			if (reloc_name[r_type])
-				printk(KERN_ERR "%s: special reloc %s not supported",
+				printk(KERN_ERR "%s: special reloc %s yest supported",
 				       mod->name, reloc_name[r_type]);
 			else
-				printk(KERN_ERR "%s: unknown special reloc %x\n",
+				printk(KERN_ERR "%s: unkyeswn special reloc %x\n",
 				       mod->name, r_type);
 			return -ENOEXEC;
 		}
@@ -746,12 +746,12 @@ do_reloc (struct module *mod, uint8_t r_type, Elf64_Sym *sym, uint64_t addend,
 	      case RV_LTREL_DTPMOD:
 	      case RV_DTPREL:
 	      case RV_LTREL_DTPREL:
-		printk(KERN_ERR "%s: %s reloc not supported\n",
+		printk(KERN_ERR "%s: %s reloc yest supported\n",
 		       mod->name, reloc_name[r_type] ? reloc_name[r_type] : "?");
 		return -ENOEXEC;
 
 	      default:
-		printk(KERN_ERR "%s: unknown reloc %x\n", mod->name, r_type);
+		printk(KERN_ERR "%s: unkyeswn reloc %x\n", mod->name, r_type);
 		return -ENOEXEC;
 	}
 
@@ -773,12 +773,12 @@ do_reloc (struct module *mod, uint8_t r_type, Elf64_Sym *sym, uint64_t addend,
 	      case RF_INSN14:	/* must be within-module, i.e., resolved by "ld -r" */
 	      case RF_INSN21M:	/* must be within-module, i.e., resolved by "ld -r" */
 	      case RF_INSN21F:	/* must be within-module, i.e., resolved by "ld -r" */
-		printk(KERN_ERR "%s: format %u needed by %s reloc is not supported\n",
+		printk(KERN_ERR "%s: format %u needed by %s reloc is yest supported\n",
 		       mod->name, format, reloc_name[r_type] ? reloc_name[r_type] : "?");
 		return -ENOEXEC;
 
 	      default:
-		printk(KERN_ERR "%s: relocation %s resulted in unknown format %u\n",
+		printk(KERN_ERR "%s: relocation %s resulted in unkyeswn format %u\n",
 		       mod->name, reloc_name[r_type] ? reloc_name[r_type] : "?", format);
 		return -ENOEXEC;
 	}
@@ -839,7 +839,7 @@ apply_relocate_add (Elf64_Shdr *sechdrs, const char *strtab, unsigned int symind
 
 /*
  * Modules contain a single unwind table which covers both the core and the init text
- * sections but since the two are not contiguous, we need to split this table up such that
+ * sections but since the two are yest contiguous, we need to split this table up such that
  * we can register (and unregister) each "segment" separately.  Fortunately, this sounds
  * more complicated than it really is.
  */
@@ -886,7 +886,7 @@ register_unwind_table (struct module *mod)
 	       mod->name, mod->arch.gp, num_init, num_core);
 
 	/*
-	 * Fourth, register both tables (if not empty).
+	 * Fourth, register both tables (if yest empty).
 	 */
 	if (num_core > 0) {
 		mod->arch.core_unw_table = unw_add_unwind_table(mod->name, 0, mod->arch.gp,

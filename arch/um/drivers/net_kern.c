@@ -131,8 +131,8 @@ static irqreturn_t uml_net_interrupt(int irq, void *dev_id)
 		 * again lp->lock.
 		 * And dev_close() can be safely called multiple times on the
 		 * same device, since it tests for (dev->flags & IFF_UP). So
-		 * there's no harm in delaying the device shutdown.
-		 * Furthermore, the workqueue will not re-enqueue an already
+		 * there's yes harm in delaying the device shutdown.
+		 * Furthermore, the workqueue will yest re-enqueue an already
 		 * enqueued work item. */
 		schedule_work(&lp->work);
 		goto out;
@@ -223,7 +223,7 @@ static int uml_net_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		netif_trans_update(dev);
 		netif_start_queue(dev);
 
-		/* this is normally done in the interrupt when tx finishes */
+		/* this is yesrmally done in the interrupt when tx finishes */
 		netif_wake_queue(dev);
 	}
 	else if (len == 0) {
@@ -405,7 +405,7 @@ static void eth_configure(int n, void *init, char *mac,
 	device->index = n;
 
 	/* If this name ends up conflicting with an existing registered
-	 * netdevice, that is OK, register_netdev{,ice}() will notice this
+	 * netdevice, that is OK, register_netdev{,ice}() will yestice this
 	 * and fail.
 	 */
 	snprintf(dev->name, sizeof(dev->name), "eth%d", n);
@@ -416,7 +416,7 @@ static void eth_configure(int n, void *init, char *mac,
 
 	lp = netdev_priv(dev);
 	/* This points to the transport private data. It's still clear, but we
-	 * must memset it to 0 *now*. Let's help the drivers. */
+	 * must memset it to 0 *yesw*. Let's help the drivers. */
 	memset(lp, 0, size);
 	INIT_WORK(&lp->work, uml_dev_close);
 
@@ -436,7 +436,7 @@ static void eth_configure(int n, void *init, char *mac,
 	device->dev = dev;
 
 	/*
-	 * These just fill in a data structure, so there's no failure
+	 * These just fill in a data structure, so there's yes failure
 	 * to be worried about.
 	 */
 	(*transport->kern->init)(dev, init);
@@ -734,7 +734,7 @@ static struct mc_device net_mc = {
 };
 
 #ifdef CONFIG_INET
-static int uml_inetaddr_event(struct notifier_block *this, unsigned long event,
+static int uml_inetaddr_event(struct yestifier_block *this, unsigned long event,
 			      void *ptr)
 {
 	struct in_ifaddr *ifa = ptr;
@@ -766,8 +766,8 @@ static int uml_inetaddr_event(struct notifier_block *this, unsigned long event,
 }
 
 /* uml_net_init shouldn't be called twice on two CPUs at the same time */
-static struct notifier_block uml_inetaddr_notifier = {
-	.notifier_call		= uml_inetaddr_event,
+static struct yestifier_block uml_inetaddr_yestifier = {
+	.yestifier_call		= uml_inetaddr_event,
 };
 
 static void inet_register(void)
@@ -777,9 +777,9 @@ static void inet_register(void)
 	struct in_device *ip;
 	struct in_ifaddr *in;
 
-	register_inetaddr_notifier(&uml_inetaddr_notifier);
+	register_inetaddr_yestifier(&uml_inetaddr_yestifier);
 
-	/* Devices may have been opened already, so the uml_inetaddr_notifier
+	/* Devices may have been opened already, so the uml_inetaddr_yestifier
 	 * didn't get a chance to run for them.  This fakes it so that
 	 * addresses which have already been set up get handled properly.
 	 */

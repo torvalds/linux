@@ -2,8 +2,8 @@
 #ifndef _ASM_GENERIC_DIV64_H
 #define _ASM_GENERIC_DIV64_H
 /*
- * Copyright (C) 2003 Bernardo Innocenti <bernie@develer.com>
- * Based on former asm-ppc/div64.h and asm-m68knommu/div64.h
+ * Copyright (C) 2003 Bernardo Inyescenti <bernie@develer.com>
+ * Based on former asm-ppc/div64.h and asm-m68kyesmmu/div64.h
  *
  * Optimization for constant divisors on 32-bit machines:
  * Copyright (C) 2006-2015 Nicolas Pitre
@@ -148,13 +148,13 @@
 	/*								\
 	 * Now we have a combination of 2 conditions:			\
 	 *								\
-	 * 1) whether or not we need to apply a bias, and		\
+	 * 1) whether or yest we need to apply a bias, and		\
 	 *								\
-	 * 2) whether or not there might be an overflow in the cross	\
+	 * 2) whether or yest there might be an overflow in the cross	\
 	 *    product determined by (___m & ((1 << 63) | (1 << 31))).	\
 	 *								\
 	 * Select the best way to do (m_bias + m * n) / (1 << 64).	\
-	 * From now on there will be actual runtime code generated.	\
+	 * From yesw on there will be actual runtime code generated.	\
 	 */								\
 	___res = __arch_xprod_64(___m, ___n, ___bias);			\
 									\
@@ -246,7 +246,7 @@ extern uint32_t __div64_32(uint64_t *dividend, uint32_t divisor);
 
 #else /* BITS_PER_LONG == ?? */
 
-# error do_div() does not yet support the C64
+# error do_div() does yest yet support the C64
 
 #endif /* BITS_PER_LONG */
 

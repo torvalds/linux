@@ -11,8 +11,8 @@ Overview
 TSX Async Abort (TAA) is a side channel attack on internal buffers in some
 Intel processors similar to Microachitectural Data Sampling (MDS).  In this
 case certain loads may speculatively pass invalid data to dependent operations
-when an asynchronous abort condition is pending in a Transactional
-Synchronization Extensions (TSX) transaction.  This includes loads with no
+when an asynchroyesus abort condition is pending in a Transactional
+Synchronization Extensions (TSX) transaction.  This includes loads with yes
 fault or assist condition. Such loads may speculatively expose stale data from
 the same uarch data structures as in MDS, with same scope of exposure i.e.
 same-thread and cross-thread. This issue affects all current processors that
@@ -34,7 +34,7 @@ Kernel internal mitigation modes
 --------------------------------
 
  =============    ============================================================
- off              Mitigation is disabled. Either the CPU is not affected or
+ off              Mitigation is disabled. Either the CPU is yest affected or
                   tsx_async_abort=off is supplied on the kernel command line.
 
  tsx disabled     Mitigation is enabled. TSX feature is disabled by default at
@@ -43,15 +43,15 @@ Kernel internal mitigation modes
  verw             Mitigation is enabled. CPU is affected and MD_CLEAR is
                   advertised in CPUID.
 
- ucode needed     Mitigation is enabled. CPU is affected and MD_CLEAR is not
+ ucode needed     Mitigation is enabled. CPU is affected and MD_CLEAR is yest
                   advertised in CPUID. That is mainly for virtualization
                   scenarios where the host has the updated microcode but the
-                  hypervisor does not expose MD_CLEAR in CPUID. It's a best
+                  hypervisor does yest expose MD_CLEAR in CPUID. It's a best
                   effort approach without guarantee.
  =============    ============================================================
 
 If the CPU is affected and the "tsx_async_abort" kernel command line parameter is
-not provided then the kernel selects an appropriate mitigation depending on the
+yest provided then the kernel selects an appropriate mitigation depending on the
 status of RTM and MD_CLEAR CPUID bits.
 
 Below tables indicate the impact of tsx=on|off|auto cmdline options on state of

@@ -49,11 +49,11 @@
 #define knav_queue_get_id(q)	knav_queue_device_control(q, \
 				KNAV_QUEUE_GET_ID, (unsigned long)NULL)
 
-#define knav_queue_enable_notify(q) knav_queue_device_control(q,	\
+#define knav_queue_enable_yestify(q) knav_queue_device_control(q,	\
 					KNAV_QUEUE_ENABLE_NOTIFY,	\
 					(unsigned long)NULL)
 
-#define knav_queue_disable_notify(q) knav_queue_device_control(q,	\
+#define knav_queue_disable_yestify(q) knav_queue_device_control(q,	\
 					KNAV_QUEUE_DISABLE_NOTIFY,	\
 					(unsigned long)NULL)
 
@@ -103,7 +103,7 @@ static DEFINE_MUTEX(netcp_modules_lock);
 
 static int netcp_debug_level = -1;
 module_param(netcp_debug_level, int, 0);
-MODULE_PARM_DESC(netcp_debug_level, "Netcp debug level (NETIF_MSG bits) (0=none,...,16=all)");
+MODULE_PARM_DESC(netcp_debug_level, "Netcp debug level (NETIF_MSG bits) (0=yesne,...,16=all)");
 
 /* Helper functions - Get/Set */
 static void get_pkt_info(dma_addr_t *buff, u32 *buff_len, dma_addr_t *ndesc,
@@ -232,8 +232,8 @@ static int netcp_module_probe(struct netcp_device *netcp_device,
 			      struct netcp_module *module)
 {
 	struct device *dev = netcp_device->device;
-	struct device_node *devices, *interface, *node = dev->of_node;
-	struct device_node *child;
+	struct device_yesde *devices, *interface, *yesde = dev->of_yesde;
+	struct device_yesde *child;
 	struct netcp_inst_modpriv *inst_modpriv;
 	struct netcp_intf *netcp_intf;
 	struct netcp_module *tmp;
@@ -241,34 +241,34 @@ static int netcp_module_probe(struct netcp_device *netcp_device,
 	int ret;
 
 	/* Find this module in the sub-tree for this device */
-	devices = of_get_child_by_name(node, "netcp-devices");
+	devices = of_get_child_by_name(yesde, "netcp-devices");
 	if (!devices) {
-		dev_err(dev, "could not find netcp-devices node\n");
+		dev_err(dev, "could yest find netcp-devices yesde\n");
 		return NETCP_MOD_PROBE_SKIPPED;
 	}
 
-	for_each_available_child_of_node(devices, child) {
+	for_each_available_child_of_yesde(devices, child) {
 		const char *name;
-		char node_name[32];
+		char yesde_name[32];
 
 		if (of_property_read_string(child, "label", &name) < 0) {
-			snprintf(node_name, sizeof(node_name), "%pOFn", child);
-			name = node_name;
+			snprintf(yesde_name, sizeof(yesde_name), "%pOFn", child);
+			name = yesde_name;
 		}
 		if (!strcasecmp(module->name, name))
 			break;
 	}
 
-	of_node_put(devices);
-	/* If module not used for this device, skip it */
+	of_yesde_put(devices);
+	/* If module yest used for this device, skip it */
 	if (!child) {
-		dev_warn(dev, "module(%s) not used for device\n", module->name);
+		dev_warn(dev, "module(%s) yest used for device\n", module->name);
 		return NETCP_MOD_PROBE_SKIPPED;
 	}
 
 	inst_modpriv = devm_kzalloc(dev, sizeof(*inst_modpriv), GFP_KERNEL);
 	if (!inst_modpriv) {
-		of_node_put(child);
+		of_yesde_put(child);
 		return -ENOMEM;
 	}
 
@@ -278,7 +278,7 @@ static int netcp_module_probe(struct netcp_device *netcp_device,
 
 	ret = module->probe(netcp_device, dev, child,
 			    &inst_modpriv->module_priv);
-	of_node_put(child);
+	of_yesde_put(child);
 	if (ret) {
 		dev_err(dev, "Probe of module(%s) failed with %d\n",
 			module->name, ret);
@@ -306,7 +306,7 @@ static int netcp_module_probe(struct netcp_device *netcp_device,
 		if (!intf_modpriv)
 			return -ENOMEM;
 
-		interface = of_parse_phandle(netcp_intf->node_interface,
+		interface = of_parse_phandle(netcp_intf->yesde_interface,
 					     module->name, 0);
 
 		if (!interface) {
@@ -322,7 +322,7 @@ static int netcp_module_probe(struct netcp_device *netcp_device,
 		ret = module->attach(inst_modpriv->module_priv,
 				     netcp_intf->ndev, interface,
 				     &intf_modpriv->module_priv);
-		of_node_put(interface);
+		of_yesde_put(interface);
 		if (ret) {
 			dev_dbg(dev, "Attach of module %s declined with %d\n",
 				module->name, ret);
@@ -336,7 +336,7 @@ static int netcp_module_probe(struct netcp_device *netcp_device,
 	list_for_each_entry(netcp_intf,
 			    &netcp_device->interface_head,
 			    interface_list) {
-		/* If interface not registered then register now */
+		/* If interface yest registered then register yesw */
 		if (!netcp_intf->netdev_registered) {
 			ret = netcp_register_interface(netcp_intf);
 			if (ret)
@@ -353,12 +353,12 @@ int netcp_register_module(struct netcp_module *module)
 	int ret;
 
 	if (!module->name) {
-		WARN(1, "error registering netcp module: no name\n");
+		WARN(1, "error registering netcp module: yes name\n");
 		return -EINVAL;
 	}
 
 	if (!module->probe) {
-		WARN(1, "error registering netcp module: no probe\n");
+		WARN(1, "error registering netcp module: yes probe\n");
 		return -EINVAL;
 	}
 
@@ -594,7 +594,7 @@ static void netcp_free_rx_desc_chain(struct netcp_intf *netcp,
 		}
 		get_pkt_info(&dma_buf, &tmp, &dma_desc, ndesc);
 		/* warning!!!! We are retrieving the virtual ptr in the sw_data
-		 * field as a 32bit value. Will not work on 64bit machines
+		 * field as a 32bit value. Will yest work on 64bit machines
 		 */
 		buf_ptr = (void *)GET_SW_DATA0(ndesc);
 		buf_len = (int)GET_SW_DATA1(desc);
@@ -603,7 +603,7 @@ static void netcp_free_rx_desc_chain(struct netcp_intf *netcp,
 		knav_pool_desc_put(netcp->rx_pool, desc);
 	}
 	/* warning!!!! We are retrieving the virtual ptr in the sw_data
-	 * field as a 32bit value. Will not work on 64bit machines
+	 * field as a 32bit value. Will yest work on 64bit machines
 	 */
 	buf_ptr = (void *)GET_SW_DATA0(desc);
 	buf_len = (int)GET_SW_DATA1(desc);
@@ -662,7 +662,7 @@ static int netcp_process_one_rx_packet(struct netcp_intf *netcp)
 
 	get_pkt_info(&dma_buff, &buf_len, &dma_desc, desc);
 	/* warning!!!! We are retrieving the virtual ptr in the sw_data
-	 * field as a 32bit value. Will not work on 64bit machines
+	 * field as a 32bit value. Will yest work on 64bit machines
 	 */
 	org_buf_ptr = (void *)GET_SW_DATA0(desc);
 	org_buf_len = (int)GET_SW_DATA1(desc);
@@ -699,7 +699,7 @@ static int netcp_process_one_rx_packet(struct netcp_intf *netcp)
 
 		get_pkt_info(&dma_buff, &buf_len, &dma_desc, ndesc);
 		/* warning!!!! We are retrieving the virtual ptr in the sw_data
-		 * field as a 32bit value. Will not work on 64bit machines
+		 * field as a 32bit value. Will yest work on 64bit machines
 		 */
 		page = (struct page *)GET_SW_DATA0(ndesc);
 
@@ -803,7 +803,7 @@ static void netcp_free_rx_buf(struct netcp_intf *netcp, int fdq)
 
 		get_org_pkt_info(&dma, &buf_len, desc);
 		/* warning!!!! We are retrieving the virtual ptr in the sw_data
-		 * field as a 32bit value. Will not work on 64bit machines
+		 * field as a 32bit value. Will yest work on 64bit machines
 		 */
 		buf_ptr = (void *)GET_SW_DATA0(desc);
 
@@ -887,7 +887,7 @@ static int netcp_allocate_rx_buf(struct netcp_intf *netcp, int fdq)
 			goto fail;
 
 		/* warning!!!! We are saving the virtual ptr in the sw_data
-		 * field as a 32bit value. Will not work on 64bit machines
+		 * field as a 32bit value. Will yest work on 64bit machines
 		 */
 		sw_data[0] = (u32)bufptr;
 	} else {
@@ -900,7 +900,7 @@ static int netcp_allocate_rx_buf(struct netcp_intf *netcp, int fdq)
 		buf_len = PAGE_SIZE;
 		dma = dma_map_page(netcp->dev, page, 0, buf_len, DMA_TO_DEVICE);
 		/* warning!!!! We are saving the virtual ptr in the sw_data
-		 * field as a 32bit value. Will not work on 64bit machines
+		 * field as a 32bit value. Will yest work on 64bit machines
 		 */
 		sw_data[0] = (u32)page;
 		sw_data[1] = 0;
@@ -956,17 +956,17 @@ static int netcp_rx_poll(struct napi_struct *napi, int budget)
 	netcp_rxpool_refill(netcp);
 	if (packets < budget) {
 		napi_complete_done(&netcp->rx_napi, packets);
-		knav_queue_enable_notify(netcp->rx_queue);
+		knav_queue_enable_yestify(netcp->rx_queue);
 	}
 
 	return packets;
 }
 
-static void netcp_rx_notify(void *arg)
+static void netcp_rx_yestify(void *arg)
 {
 	struct netcp_intf *netcp = arg;
 
-	knav_queue_disable_notify(netcp->rx_queue);
+	knav_queue_disable_yestify(netcp->rx_queue);
 	napi_schedule(&netcp->rx_napi);
 }
 
@@ -1022,7 +1022,7 @@ static int netcp_process_tx_compl_packets(struct netcp_intf *netcp,
 		}
 
 		/* warning!!!! We are retrieving the virtual ptr in the sw_data
-		 * field as a 32bit value. Will not work on 64bit machines
+		 * field as a 32bit value. Will yest work on 64bit machines
 		 */
 		skb = (struct sk_buff *)GET_SW_DATA0(desc);
 		netcp_free_tx_desc_chain(netcp, desc, dma_sz);
@@ -1064,17 +1064,17 @@ static int netcp_tx_poll(struct napi_struct *napi, int budget)
 	packets = netcp_process_tx_compl_packets(netcp, budget);
 	if (packets < budget) {
 		napi_complete(&netcp->tx_napi);
-		knav_queue_enable_notify(netcp->tx_compl_q);
+		knav_queue_enable_yestify(netcp->tx_compl_q);
 	}
 
 	return packets;
 }
 
-static void netcp_tx_notify(void *arg)
+static void netcp_tx_yestify(void *arg)
 {
 	struct netcp_intf *netcp = arg;
 
-	knav_queue_disable_notify(netcp->tx_compl_q);
+	knav_queue_disable_yestify(netcp->tx_compl_q);
 	napi_schedule(&netcp->tx_napi);
 }
 
@@ -1103,7 +1103,7 @@ netcp_tx_map_skb(struct sk_buff *skb, struct netcp_intf *netcp)
 	}
 
 	set_pkt_info(dma_addr, pkt_len, 0, desc);
-	if (skb_is_nonlinear(skb)) {
+	if (skb_is_yesnlinear(skb)) {
 		prefetchw(skb_shinfo(skb));
 	} else {
 		desc->next_desc = 0;
@@ -1149,9 +1149,9 @@ netcp_tx_map_skb(struct sk_buff *skb, struct netcp_intf *netcp)
 		knav_pool_desc_map(netcp->tx_pool, pdesc, sizeof(*pdesc),
 				   &dma_addr, &dma_sz);
 
-	/* frag list based linkage is not supported for now. */
+	/* frag list based linkage is yest supported for yesw. */
 	if (skb_shinfo(skb)->frag_list) {
-		dev_err_ratelimited(netcp->ndev_dev, "NETIF_F_FRAGLIST not supported\n");
+		dev_err_ratelimited(netcp->ndev_dev, "NETIF_F_FRAGLIST yest supported\n");
 		goto free_descs;
 	}
 
@@ -1237,7 +1237,7 @@ static int netcp_tx_submit_skb(struct netcp_intf *netcp,
 
 	set_words(&tmp, 1, &desc->packet_info);
 	/* warning!!!! We are saving the virtual ptr in the sw_data
-	 * field as a 32bit value. Will not work on 64bit machines
+	 * field as a 32bit value. Will yest work on 64bit machines
 	 */
 	SET_SW_DATA0((u32)skb, desc);
 
@@ -1350,7 +1350,7 @@ int netcp_txpipe_open(struct netcp_tx_pipe *tx_pipe)
 	tx_pipe->dma_queue = knav_queue_open(name, tx_pipe->dma_queue_id,
 					     KNAV_QUEUE_SHARED);
 	if (IS_ERR(tx_pipe->dma_queue)) {
-		dev_err(dev, "Could not open DMA queue for channel \"%s\": %d\n",
+		dev_err(dev, "Could yest open DMA queue for channel \"%s\": %d\n",
 			name, ret);
 		ret = PTR_ERR(tx_pipe->dma_queue);
 		goto err;
@@ -1385,7 +1385,7 @@ static struct netcp_addr *netcp_addr_find(struct netcp_intf *netcp,
 {
 	struct netcp_addr *naddr;
 
-	list_for_each_entry(naddr, &netcp->addr_list, node) {
+	list_for_each_entry(naddr, &netcp->addr_list, yesde) {
 		if (naddr->type != type)
 			continue;
 		if (addr && memcmp(addr, naddr->addr, ETH_ALEN))
@@ -1413,14 +1413,14 @@ static struct netcp_addr *netcp_addr_add(struct netcp_intf *netcp,
 		ether_addr_copy(naddr->addr, addr);
 	else
 		eth_zero_addr(naddr->addr);
-	list_add_tail(&naddr->node, &netcp->addr_list);
+	list_add_tail(&naddr->yesde, &netcp->addr_list);
 
 	return naddr;
 }
 
 static void netcp_addr_del(struct netcp_intf *netcp, struct netcp_addr *naddr)
 {
-	list_del(&naddr->node);
+	list_del(&naddr->yesde);
 	devm_kfree(netcp->dev, naddr);
 }
 
@@ -1428,7 +1428,7 @@ static void netcp_addr_clear_mark(struct netcp_intf *netcp)
 {
 	struct netcp_addr *naddr;
 
-	list_for_each_entry(naddr, &netcp->addr_list, node)
+	list_for_each_entry(naddr, &netcp->addr_list, yesde)
 		naddr->flags = 0;
 }
 
@@ -1455,7 +1455,7 @@ static void netcp_addr_sweep_del(struct netcp_intf *netcp)
 	struct netcp_module *module;
 	int error;
 
-	list_for_each_entry_safe(naddr, tmp, &netcp->addr_list, node) {
+	list_for_each_entry_safe(naddr, tmp, &netcp->addr_list, yesde) {
 		if (naddr->flags & (ADDR_VALID | ADDR_NEW))
 			continue;
 		dev_dbg(netcp->ndev_dev, "deleting address %pM, type %x\n",
@@ -1479,7 +1479,7 @@ static void netcp_addr_sweep_add(struct netcp_intf *netcp)
 	struct netcp_module *module;
 	int error;
 
-	list_for_each_entry_safe(naddr, tmp, &netcp->addr_list, node) {
+	list_for_each_entry_safe(naddr, tmp, &netcp->addr_list, yesde) {
 		if (!(naddr->flags & ADDR_NEW))
 			continue;
 		dev_dbg(netcp->ndev_dev, "adding address %pM, type %x\n",
@@ -1583,7 +1583,7 @@ static void netcp_free_navigator_resources(struct netcp_intf *netcp)
 static int netcp_setup_navigator_resources(struct net_device *ndev)
 {
 	struct netcp_intf *netcp = netdev_priv(ndev);
-	struct knav_queue_notify_config notify_cfg;
+	struct knav_queue_yestify_config yestify_cfg;
 	struct knav_dma_cfg config;
 	u32 last_fdq = 0;
 	u8 name[16];
@@ -1618,16 +1618,16 @@ static int netcp_setup_navigator_resources(struct net_device *ndev)
 	}
 	netcp->tx_compl_qid = knav_queue_get_id(netcp->tx_compl_q);
 
-	/* Set notification for Tx completion */
-	notify_cfg.fn = netcp_tx_notify;
-	notify_cfg.fn_arg = netcp;
+	/* Set yestification for Tx completion */
+	yestify_cfg.fn = netcp_tx_yestify;
+	yestify_cfg.fn_arg = netcp;
 	ret = knav_queue_device_control(netcp->tx_compl_q,
 					KNAV_QUEUE_SET_NOTIFIER,
-					(unsigned long)&notify_cfg);
+					(unsigned long)&yestify_cfg);
 	if (ret)
 		goto fail;
 
-	knav_queue_disable_notify(netcp->tx_compl_q);
+	knav_queue_disable_yestify(netcp->tx_compl_q);
 
 	/* open Rx completion queue */
 	snprintf(name, sizeof(name), "rx-compl-%s", ndev->name);
@@ -1638,16 +1638,16 @@ static int netcp_setup_navigator_resources(struct net_device *ndev)
 	}
 	netcp->rx_queue_id = knav_queue_get_id(netcp->rx_queue);
 
-	/* Set notification for Rx completion */
-	notify_cfg.fn = netcp_rx_notify;
-	notify_cfg.fn_arg = netcp;
+	/* Set yestification for Rx completion */
+	yestify_cfg.fn = netcp_rx_yestify;
+	yestify_cfg.fn_arg = netcp;
 	ret = knav_queue_device_control(netcp->rx_queue,
 					KNAV_QUEUE_SET_NOTIFIER,
-					(unsigned long)&notify_cfg);
+					(unsigned long)&yestify_cfg);
 	if (ret)
 		goto fail;
 
-	knav_queue_disable_notify(netcp->rx_queue);
+	knav_queue_disable_yestify(netcp->rx_queue);
 
 	/* open Rx FDQs */
 	for (i = 0; i < KNAV_DMA_FDQ_PER_CHAN && netcp->rx_queue_depths[i];
@@ -1722,8 +1722,8 @@ static int netcp_ndo_open(struct net_device *ndev)
 
 	napi_enable(&netcp->rx_napi);
 	napi_enable(&netcp->tx_napi);
-	knav_queue_enable_notify(netcp->tx_compl_q);
-	knav_queue_enable_notify(netcp->rx_queue);
+	knav_queue_enable_yestify(netcp->tx_compl_q);
+	knav_queue_enable_yestify(netcp->rx_queue);
 	netcp_rxpool_refill(netcp);
 	netif_tx_wake_all_queues(ndev);
 	dev_dbg(netcp->ndev_dev, "netcp device %s opened\n", ndev->name);
@@ -1753,8 +1753,8 @@ static int netcp_ndo_stop(struct net_device *ndev)
 	netif_carrier_off(ndev);
 	netcp_addr_clear_mark(netcp);
 	netcp_addr_sweep_del(netcp);
-	knav_queue_disable_notify(netcp->rx_queue);
-	knav_queue_disable_notify(netcp->tx_compl_q);
+	knav_queue_disable_yestify(netcp->rx_queue);
+	knav_queue_disable_yestify(netcp->tx_compl_q);
 	napi_disable(&netcp->rx_napi);
 	napi_disable(&netcp->tx_napi);
 
@@ -1838,7 +1838,7 @@ static int netcp_rx_add_vid(struct net_device *ndev, __be16 proto, u16 vid)
 		if ((module->add_vid) && (vid != 0)) {
 			err = module->add_vid(intf_modpriv->module_priv, vid);
 			if (err != 0) {
-				dev_err(netcp->ndev_dev, "Could not add vlan id = %d\n",
+				dev_err(netcp->ndev_dev, "Could yest add vlan id = %d\n",
 					vid);
 				break;
 			}
@@ -1865,7 +1865,7 @@ static int netcp_rx_kill_vid(struct net_device *ndev, __be16 proto, u16 vid)
 		if (module->del_vid) {
 			err = module->del_vid(intf_modpriv->module_priv, vid);
 			if (err != 0) {
-				dev_err(netcp->ndev_dev, "Could not delete vlan id = %d\n",
+				dev_err(netcp->ndev_dev, "Could yest delete vlan id = %d\n",
 					vid);
 				break;
 			}
@@ -1956,10 +1956,10 @@ static const struct net_device_ops netcp_netdev_ops = {
 };
 
 static int netcp_create_interface(struct netcp_device *netcp_device,
-				  struct device_node *node_interface)
+				  struct device_yesde *yesde_interface)
 {
 	struct device *dev = netcp_device->device;
-	struct device_node *node = dev->of_node;
+	struct device_yesde *yesde = dev->of_yesde;
 	struct netcp_intf *netcp;
 	struct net_device *ndev;
 	resource_size_t size;
@@ -2001,12 +2001,12 @@ static int netcp_create_interface(struct netcp_device *netcp_device,
 	netcp->msg_enable = netif_msg_init(netcp_debug_level, NETCP_DEBUG);
 	netcp->tx_pause_threshold = MAX_SKB_FRAGS;
 	netcp->tx_resume_threshold = netcp->tx_pause_threshold;
-	netcp->node_interface = node_interface;
+	netcp->yesde_interface = yesde_interface;
 
-	ret = of_property_read_u32(node_interface, "efuse-mac", &efuse_mac);
+	ret = of_property_read_u32(yesde_interface, "efuse-mac", &efuse_mac);
 	if (efuse_mac) {
-		if (of_address_to_resource(node, NETCP_EFUSE_REG_INDEX, &res)) {
-			dev_err(dev, "could not find efuse-mac reg resource\n");
+		if (of_address_to_resource(yesde, NETCP_EFUSE_REG_INDEX, &res)) {
+			dev_err(dev, "could yest find efuse-mac reg resource\n");
 			ret = -ENODEV;
 			goto quit;
 		}
@@ -2014,14 +2014,14 @@ static int netcp_create_interface(struct netcp_device *netcp_device,
 
 		if (!devm_request_mem_region(dev, res.start, size,
 					     dev_name(dev))) {
-			dev_err(dev, "could not reserve resource\n");
+			dev_err(dev, "could yest reserve resource\n");
 			ret = -ENOMEM;
 			goto quit;
 		}
 
-		efuse = devm_ioremap_nocache(dev, res.start, size);
+		efuse = devm_ioremap_yescache(dev, res.start, size);
 		if (!efuse) {
-			dev_err(dev, "could not map resource\n");
+			dev_err(dev, "could yest map resource\n");
 			devm_release_mem_region(dev, res.start, size);
 			ret = -ENOMEM;
 			goto quit;
@@ -2036,14 +2036,14 @@ static int netcp_create_interface(struct netcp_device *netcp_device,
 		devm_iounmap(dev, efuse);
 		devm_release_mem_region(dev, res.start, size);
 	} else {
-		mac_addr = of_get_mac_address(node_interface);
+		mac_addr = of_get_mac_address(yesde_interface);
 		if (!IS_ERR(mac_addr))
 			ether_addr_copy(ndev->dev_addr, mac_addr);
 		else
 			eth_random_addr(ndev->dev_addr);
 	}
 
-	ret = of_property_read_string(node_interface, "rx-channel",
+	ret = of_property_read_string(yesde_interface, "rx-channel",
 				      &netcp->dma_chan_name);
 	if (ret < 0) {
 		dev_err(dev, "missing \"rx-channel\" parameter\n");
@@ -2051,14 +2051,14 @@ static int netcp_create_interface(struct netcp_device *netcp_device,
 		goto quit;
 	}
 
-	ret = of_property_read_u32(node_interface, "rx-queue",
+	ret = of_property_read_u32(yesde_interface, "rx-queue",
 				   &netcp->rx_queue_id);
 	if (ret < 0) {
 		dev_warn(dev, "missing \"rx-queue\" parameter\n");
 		netcp->rx_queue_id = KNAV_QUEUE_QPEND;
 	}
 
-	ret = of_property_read_u32_array(node_interface, "rx-queue-depth",
+	ret = of_property_read_u32_array(yesde_interface, "rx-queue-depth",
 					 netcp->rx_queue_depths,
 					 KNAV_DMA_FDQ_PER_CHAN);
 	if (ret < 0) {
@@ -2066,7 +2066,7 @@ static int netcp_create_interface(struct netcp_device *netcp_device,
 		netcp->rx_queue_depths[0] = 128;
 	}
 
-	ret = of_property_read_u32_array(node_interface, "rx-pool", temp, 2);
+	ret = of_property_read_u32_array(yesde_interface, "rx-pool", temp, 2);
 	if (ret < 0) {
 		dev_err(dev, "missing \"rx-pool\" parameter\n");
 		ret = -ENODEV;
@@ -2075,7 +2075,7 @@ static int netcp_create_interface(struct netcp_device *netcp_device,
 	netcp->rx_pool_size = temp[0];
 	netcp->rx_pool_region_id = temp[1];
 
-	ret = of_property_read_u32_array(node_interface, "tx-pool", temp, 2);
+	ret = of_property_read_u32_array(yesde_interface, "tx-pool", temp, 2);
 	if (ret < 0) {
 		dev_err(dev, "missing \"tx-pool\" parameter\n");
 		ret = -ENODEV;
@@ -2091,7 +2091,7 @@ static int netcp_create_interface(struct netcp_device *netcp_device,
 		goto quit;
 	}
 
-	ret = of_property_read_u32(node_interface, "tx-completion-queue",
+	ret = of_property_read_u32(yesde_interface, "tx-completion-queue",
 				   &netcp->tx_compl_qid);
 	if (ret < 0) {
 		dev_warn(dev, "missing \"tx-completion-queue\" parameter\n");
@@ -2136,21 +2136,21 @@ static void netcp_delete_interface(struct netcp_device *netcp_device,
 			module->release(intf_modpriv->module_priv);
 		list_del(&intf_modpriv->intf_list);
 	}
-	WARN(!list_empty(&netcp->module_head), "%s interface module list is not empty!\n",
+	WARN(!list_empty(&netcp->module_head), "%s interface module list is yest empty!\n",
 	     ndev->name);
 
 	list_del(&netcp->interface_list);
 
-	of_node_put(netcp->node_interface);
+	of_yesde_put(netcp->yesde_interface);
 	unregister_netdev(ndev);
 	free_netdev(ndev);
 }
 
 static int netcp_probe(struct platform_device *pdev)
 {
-	struct device_node *node = pdev->dev.of_node;
+	struct device_yesde *yesde = pdev->dev.of_yesde;
 	struct netcp_intf *netcp_intf, *netcp_tmp;
-	struct device_node *child, *interfaces;
+	struct device_yesde *child, *interfaces;
 	struct netcp_device *netcp_device;
 	struct device *dev = &pdev->dev;
 	struct netcp_module *module;
@@ -2160,8 +2160,8 @@ static int netcp_probe(struct platform_device *pdev)
 	    !knav_qmss_device_ready())
 		return -EPROBE_DEFER;
 
-	if (!node) {
-		dev_err(dev, "could not find device info\n");
+	if (!yesde) {
+		dev_err(dev, "could yest find device info\n");
 		return -ENODEV;
 	}
 
@@ -2185,23 +2185,23 @@ static int netcp_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, netcp_device);
 
 	/* create interfaces */
-	interfaces = of_get_child_by_name(node, "netcp-interfaces");
+	interfaces = of_get_child_by_name(yesde, "netcp-interfaces");
 	if (!interfaces) {
-		dev_err(dev, "could not find netcp-interfaces node\n");
+		dev_err(dev, "could yest find netcp-interfaces yesde\n");
 		ret = -ENODEV;
 		goto probe_quit;
 	}
 
-	for_each_available_child_of_node(interfaces, child) {
+	for_each_available_child_of_yesde(interfaces, child) {
 		ret = netcp_create_interface(netcp_device, child);
 		if (ret) {
-			dev_err(dev, "could not create interface(%pOFn)\n",
+			dev_err(dev, "could yest create interface(%pOFn)\n",
 				child);
 			goto probe_quit_interface;
 		}
 	}
 
-	of_node_put(interfaces);
+	of_yesde_put(interfaces);
 
 	/* Add the device instance to the list */
 	list_add_tail(&netcp_device->device_list, &netcp_devices);
@@ -2223,7 +2223,7 @@ probe_quit_interface:
 		netcp_delete_interface(netcp_device, netcp_intf->ndev);
 	}
 
-	of_node_put(interfaces);
+	of_yesde_put(interfaces);
 
 probe_quit:
 	pm_runtime_put_sync(&pdev->dev);
@@ -2247,7 +2247,7 @@ static int netcp_remove(struct platform_device *pdev)
 		list_del(&inst_modpriv->inst_list);
 	}
 
-	/* now that all modules are removed, clean up the interfaces */
+	/* yesw that all modules are removed, clean up the interfaces */
 	list_for_each_entry_safe(netcp_intf, netcp_tmp,
 				 &netcp_device->interface_head,
 				 interface_list) {
@@ -2255,7 +2255,7 @@ static int netcp_remove(struct platform_device *pdev)
 	}
 
 	WARN(!list_empty(&netcp_device->interface_head),
-	     "%s interface list not empty!\n", pdev->name);
+	     "%s interface list yest empty!\n", pdev->name);
 
 	pm_runtime_put_sync(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);

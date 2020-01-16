@@ -15,7 +15,7 @@
  *    Steve Whitehouse:  Updated to work with my new routing architecture.
  *    Steve Whitehouse:  Added changes from Eduardo Serrat's patches.
  *    Steve Whitehouse:  Now conninits have the "return" bit set.
- *    Steve Whitehouse:  Fixes to check alloc'd skbs are non NULL!
+ *    Steve Whitehouse:  Fixes to check alloc'd skbs are yesn NULL!
  *                       Moved output state machine into one function
  *    Steve Whitehouse:  New output state machine
  *         Paul Koning:  Connect Confirm message fix.
@@ -29,7 +29,7 @@
 
 *******************************************************************************/
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/types.h>
 #include <linux/socket.h>
 #include <linux/in.h>
@@ -240,7 +240,7 @@ void dn_nsp_output(struct sock *sk)
 		reduce_win = dn_nsp_clone_and_send(skb, GFP_ATOMIC);
 
 	/*
-	 * If we may not send any data, we don't.
+	 * If we may yest send any data, we don't.
 	 * If we are still trying to get some other data down the
 	 * channel, we don't try and send any data.
 	 */
@@ -405,7 +405,7 @@ int dn_nsp_check_xmit_queue(struct sock *sk, struct sk_buff *skb, struct sk_buff
 		ack = NULL;
 
 		/*
-		 * We don't expect to see acknowledgements for packets we
+		 * We don't expect to see ackyeswledgements for packets we
 		 * haven't sent yet.
 		 */
 		WARN_ON(xmit_count == 0);
@@ -425,7 +425,7 @@ int dn_nsp_check_xmit_queue(struct sock *sk, struct sk_buff *skb, struct sk_buff
 
 		/*
 		 * Packet has been sent more than once. If this is the last
-		 * packet to be acknowledged then we want to send the next
+		 * packet to be ackyeswledged then we want to send the next
 		 * packet in the send queue again (assumes the remote host does
 		 * go-back-N error control).
 		 */
@@ -556,7 +556,7 @@ static __inline__ void dn_nsp_do_disc(struct sock *sk, unsigned char msgflg,
 
 	/*
 	 * This doesn't go via the dn_nsp_send() function since we need
-	 * to be able to send disc packets out which have no socket
+	 * to be able to send disc packets out which have yes socket
 	 * associations.
 	 */
 	skb_dst_set(skb, dst_clone(dst));

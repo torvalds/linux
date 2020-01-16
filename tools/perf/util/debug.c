@@ -202,7 +202,7 @@ int perf_debug_option(const char *str)
 	}
 
 	if (!var->name) {
-		pr_err("Unknown debug variable name '%s'\n", s);
+		pr_err("Unkyeswn debug variable name '%s'\n", s);
 		free(s);
 		return -1;
 	}

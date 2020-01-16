@@ -24,7 +24,7 @@ struct rxkad_key {
 	u32	vice_id;
 	u32	start;			/* time at which ticket starts */
 	u32	expiry;			/* time at which ticket expires */
-	u32	kvno;			/* key version number */
+	u32	kvyes;			/* key version number */
 	u8	primary_flag;		/* T if key for primary cell for this user */
 	u16	ticket_len;		/* length of ticket[] */
 	u8	session_key[8];		/* DES session key */
@@ -62,7 +62,7 @@ struct rxk5_key {
 	u64			starttime;	/* time at which auth token starts */
 	u64			endtime;	/* time at which auth token expired */
 	u64			renew_till;	/* time to which auth token can be renewed */
-	s32			is_skey;	/* T if ticket is encrypted in another ticket's
+	s32			is_skey;	/* T if ticket is encrypted in ayesther ticket's
 						 * skey */
 	s32			flags;		/* mask of TKT_FLG_* bits (krb5/krb5.h) */
 	struct krb5_principal	client;		/* client principal name */
@@ -98,7 +98,7 @@ struct rxrpc_key_data_v1 {
 	u16		security_index;
 	u16		ticket_length;
 	u32		expiry;			/* time_t */
-	u32		kvno;
+	u32		kvyes;
 	u8		session_key[8];
 	u8		ticket[0];
 };

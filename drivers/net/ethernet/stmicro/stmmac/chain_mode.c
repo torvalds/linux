@@ -4,7 +4,7 @@
 
   Copyright(C) 2011  STMicroelectronics Ltd
 
-  It defines all the functions used to handle the normal/enhanced
+  It defines all the functions used to handle the yesrmal/enhanced
   descriptors in case of the DMA is configured to work in chained or
   in ring mode.
 
@@ -17,7 +17,7 @@
 static int jumbo_frm(void *p, struct sk_buff *skb, int csum)
 {
 	struct stmmac_tx_queue *tx_q = (struct stmmac_tx_queue *)p;
-	unsigned int nopaged_len = skb_headlen(skb);
+	unsigned int yespaged_len = skb_headlen(skb);
 	struct stmmac_priv *priv = tx_q->priv_data;
 	unsigned int entry = tx_q->cur_tx;
 	unsigned int bmax, des2;
@@ -31,7 +31,7 @@ static int jumbo_frm(void *p, struct sk_buff *skb, int csum)
 	else
 		bmax = BUF_SIZE_2KiB;
 
-	len = nopaged_len - bmax;
+	len = yespaged_len - bmax;
 
 	des2 = dma_map_single(priv->device, skb->data,
 			      bmax, DMA_TO_DEVICE);
@@ -40,7 +40,7 @@ static int jumbo_frm(void *p, struct sk_buff *skb, int csum)
 		return -1;
 	tx_q->tx_skbuff_dma[entry].buf = des2;
 	tx_q->tx_skbuff_dma[entry].len = bmax;
-	/* do not close the descriptor and do not set own bit */
+	/* do yest close the descriptor and do yest set own bit */
 	stmmac_prepare_tx_desc(priv, desc, 1, bmax, csum, STMMAC_CHAIN_MODE,
 			0, false, skb->len);
 
@@ -71,7 +71,7 @@ static int jumbo_frm(void *p, struct sk_buff *skb, int csum)
 				return -1;
 			tx_q->tx_skbuff_dma[entry].buf = des2;
 			tx_q->tx_skbuff_dma[entry].len = len;
-			/* last descriptor can be set now */
+			/* last descriptor can be set yesw */
 			stmmac_prepare_tx_desc(priv, desc, 0, len, csum,
 					STMMAC_CHAIN_MODE, 1, true, skb->len);
 			len = 0;

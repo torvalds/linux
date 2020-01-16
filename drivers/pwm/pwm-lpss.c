@@ -64,12 +64,12 @@ static int pwm_lpss_wait_for_update(struct pwm_device *pwm)
 	 * If one writes a new configuration to the register while it still has
 	 * the bit enabled, PWM may freeze. That is, while one can still write
 	 * to the register, it won't have an effect. Thus, we try to sleep long
-	 * enough that the bit gets cleared and make sure the bit is not
+	 * eyesugh that the bit gets cleared and make sure the bit is yest
 	 * enabled while we update the configuration.
 	 */
 	err = readl_poll_timeout(addr, val, !(val & PWM_SW_UPDATE), 40, ms);
 	if (err)
-		dev_err(pwm->chip->dev, "PWM_SW_UPDATE was not cleared\n");
+		dev_err(pwm->chip->dev, "PWM_SW_UPDATE was yest cleared\n");
 
 	return err;
 }

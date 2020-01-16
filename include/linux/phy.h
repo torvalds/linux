@@ -64,8 +64,8 @@ extern const int phy_gbit_features_array[2];
 extern const int phy_10gbit_features_array[1];
 
 /*
- * Set phydev->irq to PHY_POLL if interrupts are not supported,
- * or not desired for this PHY.  Set to PHY_IGNORE_INTERRUPT if
+ * Set phydev->irq to PHY_POLL if interrupts are yest supported,
+ * or yest desired for this PHY.  Set to PHY_IGNORE_INTERRUPT if
  * the attached driver handles the interrupt
  */
 #define PHY_POLL		-1
@@ -180,7 +180,7 @@ static inline const char *phy_modes(phy_interface_t interface)
 	case PHY_INTERFACE_MODE_USXGMII:
 		return "usxgmii";
 	default:
-		return "unknown";
+		return "unkyeswn";
 	}
 }
 
@@ -238,11 +238,11 @@ struct mii_bus {
 	/* list of all PHYs on bus */
 	struct mdio_device *mdio_map[PHY_MAX_ADDR];
 
-	/* PHY addresses to be ignored when probing */
+	/* PHY addresses to be igyesred when probing */
 	u32 phy_mask;
 
-	/* PHY addresses to ignore the TA/read failure */
-	u32 phy_ignore_ta_mask;
+	/* PHY addresses to igyesre the TA/read failure */
+	u32 phy_igyesre_ta_mask;
 
 	/*
 	 * An array of interrupts, each PHY's interrupt at the index
@@ -281,13 +281,13 @@ struct phy_device *mdiobus_scan(struct mii_bus *bus, int addr);
 
 /* PHY state machine states:
  *
- * DOWN: PHY device and driver are not ready for anything.  probe
+ * DOWN: PHY device and driver are yest ready for anything.  probe
  * should be called if and only if the PHY is in this state,
  * given that the PHY device exists.
  * - PHY driver probe function will set the state to READY
  *
  * READY: PHY is ready to send and receive packets, but the
- * controller is not.  By default, PHYs which do not implement
+ * controller is yest.  By default, PHYs which do yest implement
  * probe will be set to this state by phy_probe().
  * - start will set the state to UP
  *
@@ -295,7 +295,7 @@ struct phy_device *mdiobus_scan(struct mii_bus *bus, int addr);
  * Interrupts should be started here.
  * - timer moves to NOLINK or RUNNING
  *
- * NOLINK: PHY is up, but not currently plugged in.
+ * NOLINK: PHY is up, but yest currently plugged in.
  * - irq or timer will set RUNNING if link comes back
  * - phy_stop moves to HALTED
  *
@@ -304,7 +304,7 @@ struct phy_device *mdiobus_scan(struct mii_bus *bus, int addr);
  * - irq or timer will set NOLINK if link goes down
  * - phy_stop moves to HALTED
  *
- * HALTED: PHY is up, but no polling or interrupts are done. Or
+ * HALTED: PHY is up, but yes polling or interrupts are done. Or
  * PHY is in an error state.
  * - phy_start moves to UP
  */
@@ -342,7 +342,7 @@ struct phy_c45_device_ids {
  * loopback_enabled: Set true if this phy has been loopbacked successfully.
  * state: state of the PHY for management purposes
  * dev_flags: Device-specific flags used by the PHY driver.
- * irq: IRQ number of the PHY's interrupt (-1 if none)
+ * irq: IRQ number of the PHY's interrupt (-1 if yesne)
  * phy_timer: The timer for handling the state machine
  * sfp_bus_attached: flag indicating whether the SFP bus has been attached
  * sfp_bus: SFP bus attached to this PHY's fiber port
@@ -394,7 +394,7 @@ struct phy_device {
 	phy_interface_t interface;
 
 	/*
-	 * forced speed & duplex (no autoneg)
+	 * forced speed & duplex (yes autoneg)
 	 * partner speed & duplex & pause (autoneg)
 	 */
 	int speed;
@@ -423,7 +423,7 @@ struct phy_device {
 
 	/*
 	 * Interrupt number for this PHY
-	 * -1 means no interrupt
+	 * -1 means yes interrupt
 	 */
 	int irq;
 
@@ -465,12 +465,12 @@ struct phy_device {
  *   supports (like interrupts)
  *
  * All functions are optional. If config_aneg or read_status
- * are not implemented, the phy core uses the genphy versions.
- * Note that none of these functions should be called from
+ * are yest implemented, the phy core uses the genphy versions.
+ * Note that yesne of these functions should be called from
  * interrupt time. The goal is for the bus read/write functions
  * to be able to block when the bus transaction is happening,
  * and be freed up by an interrupt (The MPC85xx has this ability,
- * though it is not currently supported in the driver).
+ * though it is yest currently supported in the driver).
  */
 struct phy_driver {
 	struct mdio_driver_common mdiodrv;
@@ -581,15 +581,15 @@ struct phy_driver {
 	 * Called to inform a PHY device driver when the core is about to
 	 * change the link state. This callback is supposed to be used as
 	 * fixup hook for drivers that need to take action when the link
-	 * state changes. Drivers are by no means allowed to mess with the
+	 * state changes. Drivers are by yes means allowed to mess with the
 	 * PHY device structure in their implementations.
 	 */
-	void (*link_change_notify)(struct phy_device *dev);
+	void (*link_change_yestify)(struct phy_device *dev);
 
 	/*
 	 * Phy specific driver override for reading a MMD register.
 	 * This function is optional for PHY specific drivers.  When
-	 * not provided, the default MMD read function will be used
+	 * yest provided, the default MMD read function will be used
 	 * by phy_read_mmd(), which will use either a direct read for
 	 * Clause 45 PHYs or an indirect read for Clause 22 PHYs.
 	 *  devnum is the MMD device number within the PHY device,
@@ -600,7 +600,7 @@ struct phy_driver {
 	/*
 	 * Phy specific driver override for writing a MMD register.
 	 * This function is optional for PHY specific drivers.  When
-	 * not provided, the default MMD write function will be used
+	 * yest provided, the default MMD write function will be used
 	 * by phy_write_mmd(), which will use either a direct write for
 	 * Clause 45 PHYs, or an indirect write for Clause 22 PHYs.
 	 *  devnum is the MMD device number within the PHY device,
@@ -1110,15 +1110,15 @@ static inline int genphy_config_aneg(struct phy_device *phydev)
 	return __genphy_config_aneg(phydev, false);
 }
 
-static inline int genphy_no_soft_reset(struct phy_device *phydev)
+static inline int genphy_yes_soft_reset(struct phy_device *phydev)
 {
 	return 0;
 }
-static inline int genphy_no_ack_interrupt(struct phy_device *phydev)
+static inline int genphy_yes_ack_interrupt(struct phy_device *phydev)
 {
 	return 0;
 }
-static inline int genphy_no_config_intr(struct phy_device *phydev)
+static inline int genphy_yes_config_intr(struct phy_device *phydev)
 {
 	return 0;
 }
@@ -1289,7 +1289,7 @@ static inline int mdiobus_register_board_info(const struct mdio_board_info *i,
  * module_phy_driver() - Helper macro for registering PHY drivers
  * @__phy_drivers: array of PHY drivers to register
  *
- * Helper macro for PHY drivers which do not do anything special in module
+ * Helper macro for PHY drivers which do yest do anything special in module
  * init/exit. Each module may only use this macro once, and calling it
  * replaces module_init() and module_exit().
  */

@@ -31,7 +31,7 @@ void msm_gem_address_space_put(struct msm_gem_address_space *aspace)
 void msm_gem_purge_vma(struct msm_gem_address_space *aspace,
 		struct msm_gem_vma *vma)
 {
-	unsigned size = vma->node.size << PAGE_SHIFT;
+	unsigned size = vma->yesde.size << PAGE_SHIFT;
 
 	/* Print a message if we try to purge a vma in use */
 	if (WARN_ON(vma->inuse > 0))
@@ -93,7 +93,7 @@ void msm_gem_close_vma(struct msm_gem_address_space *aspace,
 
 	spin_lock(&aspace->lock);
 	if (vma->iova)
-		drm_mm_remove_node(&vma->node);
+		drm_mm_remove_yesde(&vma->yesde);
 	spin_unlock(&aspace->lock);
 
 	vma->iova = 0;
@@ -111,13 +111,13 @@ int msm_gem_init_vma(struct msm_gem_address_space *aspace,
 		return -EBUSY;
 
 	spin_lock(&aspace->lock);
-	ret = drm_mm_insert_node(&aspace->mm, &vma->node, npages);
+	ret = drm_mm_insert_yesde(&aspace->mm, &vma->yesde, npages);
 	spin_unlock(&aspace->lock);
 
 	if (ret)
 		return ret;
 
-	vma->iova = vma->node.start << PAGE_SHIFT;
+	vma->iova = vma->yesde.start << PAGE_SHIFT;
 	vma->mapped = false;
 
 	kref_get(&aspace->kref);

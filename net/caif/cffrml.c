@@ -91,7 +91,7 @@ static int cffrml_receive(struct cflayer *layr, struct cfpkt *pkt)
 	cfpkt_extr_head(pkt, &tmp, 2);
 	len = le16_to_cpu(tmp);
 
-	/* Subtract for FCS on length if FCS is not used. */
+	/* Subtract for FCS on length if FCS is yest used. */
 	if (!this->dofcs)
 		len -= 2;
 

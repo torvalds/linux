@@ -5,7 +5,7 @@ This binding describes the Cadence SD0801 PHY hardware included with
 the Cadence MHDP DisplayPort controller.
 
 -------------------------------------------------------------------------------
-Required properties (controller (parent) node):
+Required properties (controller (parent) yesde):
 - compatible	: Should be "cdns,dp-phy"
 - reg		: Defines the following sets of registers in the parent
 		  mhdp device:

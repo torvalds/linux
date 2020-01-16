@@ -12,7 +12,7 @@
  *   Copied dynapro.c and edited for Hampshire 4-byte protocol
  */
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/slab.h>
@@ -79,7 +79,7 @@ static irqreturn_t hampshire_interrupt(struct serio *serio,
 	if (HAMPSHIRE_RESPONSE_BEGIN_BYTE & phampshire->data[0])
 		hampshire_process_data(phampshire);
 	else
-		dev_dbg(&serio->dev, "unknown/unsynchronized data: %x\n",
+		dev_dbg(&serio->dev, "unkyeswn/unsynchronized data: %x\n",
 			phampshire->data[0]);
 
 	return IRQ_HANDLED;

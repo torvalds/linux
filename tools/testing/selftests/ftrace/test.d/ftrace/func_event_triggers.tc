@@ -12,7 +12,7 @@
 
 # The triggers are set within the set_ftrace_filter file
 if [ ! -f set_ftrace_filter ]; then
-    echo "set_ftrace_filter not found? Is dynamic ftrace not set?"
+    echo "set_ftrace_filter yest found? Is dynamic ftrace yest set?"
     exit_unsupported
 fi
 

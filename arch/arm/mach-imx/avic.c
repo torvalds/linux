@@ -26,14 +26,14 @@
 #define AVIC_INTTYPEH		0x18	/* int type reg high */
 #define AVIC_INTTYPEL		0x1C	/* int type reg low */
 #define AVIC_NIPRIORITY(x)	(0x20 + 4 * (7 - (x))) /* int priority */
-#define AVIC_NIVECSR		0x40	/* norm int vector/status */
+#define AVIC_NIVECSR		0x40	/* yesrm int vector/status */
 #define AVIC_FIVECSR		0x44	/* fast int vector/status */
 #define AVIC_INTSRCH		0x48	/* int source reg high */
 #define AVIC_INTSRCL		0x4C	/* int source reg low */
 #define AVIC_INTFRCH		0x50	/* int force reg high */
 #define AVIC_INTFRCL		0x54	/* int force reg low */
-#define AVIC_NIPNDH		0x58	/* norm int pending high */
-#define AVIC_NIPNDL		0x5C	/* norm int pending low */
+#define AVIC_NIPNDH		0x58	/* yesrm int pending high */
+#define AVIC_NIPNDL		0x5C	/* yesrm int pending low */
 #define AVIC_FIPNDH		0x60	/* fast int pending high */
 #define AVIC_FIPNDL		0x64	/* fast int pending low */
 
@@ -164,13 +164,13 @@ static void __exception_irq_entry avic_handle_irq(struct pt_regs *regs)
  */
 void __init mxc_init_irq(void __iomem *irqbase)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 	int irq_base;
 	int i;
 
 	avic_base = irqbase;
 
-	np = of_find_compatible_node(NULL, NULL, "fsl,imx25-ccm");
+	np = of_find_compatible_yesde(NULL, NULL, "fsl,imx25-ccm");
 	mx25_ccm_base = of_iomap(np, 0);
 
 	if (mx25_ccm_base) {
@@ -192,14 +192,14 @@ void __init mxc_init_irq(void __iomem *irqbase)
 	imx_writel(0, avic_base + AVIC_INTENABLEH);
 	imx_writel(0, avic_base + AVIC_INTENABLEL);
 
-	/* all IRQ no FIQ */
+	/* all IRQ yes FIQ */
 	imx_writel(0, avic_base + AVIC_INTTYPEH);
 	imx_writel(0, avic_base + AVIC_INTTYPEL);
 
-	irq_base = irq_alloc_descs(-1, 0, AVIC_NUM_IRQS, numa_node_id());
+	irq_base = irq_alloc_descs(-1, 0, AVIC_NUM_IRQS, numa_yesde_id());
 	WARN_ON(irq_base < 0);
 
-	np = of_find_compatible_node(NULL, NULL, "fsl,avic");
+	np = of_find_compatible_yesde(NULL, NULL, "fsl,avic");
 	domain = irq_domain_add_legacy(np, AVIC_NUM_IRQS, irq_base, 0,
 				       &irq_domain_simple_ops, NULL);
 	WARN_ON(!domain);

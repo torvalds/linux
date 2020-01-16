@@ -42,7 +42,7 @@ static int is_wireless_rndis(struct usb_interface_descriptor *desc)
 		desc->bInterfaceProtocol == 3);
 }
 
-static int is_novatel_rndis(struct usb_interface_descriptor *desc)
+static int is_yesvatel_rndis(struct usb_interface_descriptor *desc)
 {
 	return (desc->bInterfaceClass == USB_CLASS_MISC &&
 		desc->bInterfaceSubClass == 4 &&
@@ -54,7 +54,7 @@ static int is_novatel_rndis(struct usb_interface_descriptor *desc)
 #define is_rndis(desc)		0
 #define is_activesync(desc)	0
 #define is_wireless_rndis(desc)	0
-#define is_novatel_rndis(desc)	0
+#define is_yesvatel_rndis(desc)	0
 
 #endif
 
@@ -72,8 +72,8 @@ static void usbnet_cdc_update_filter(struct usbnet *dev)
 	u16 cdc_filter = USB_CDC_PACKET_TYPE_DIRECTED
 			| USB_CDC_PACKET_TYPE_BROADCAST;
 
-	/* filtering on the device is an optional feature and not worth
-	 * the hassle so we just roughly care about snooping and if any
+	/* filtering on the device is an optional feature and yest worth
+	 * the hassle so we just roughly care about syesoping and if any
 	 * multicast is requested, we take every multicast
 	 */
 	if (net->flags & IFF_PROMISC)
@@ -95,7 +95,7 @@ static void usbnet_cdc_update_filter(struct usbnet *dev)
 
 /* probes control interface, claims data interface, collects the bulk
  * endpoints, activates data interface (if needed), maybe sets MTU.
- * all pure cdc, except for certain firmware workarounds, and knowing
+ * all pure cdc, except for certain firmware workarounds, and kyeswing
  * that rndis uses one different rule.
  */
 int usbnet_generic_cdc_bind(struct usbnet *dev, struct usb_interface *intf)
@@ -141,13 +141,13 @@ int usbnet_generic_cdc_bind(struct usbnet *dev, struct usb_interface *intf)
 				"CDC descriptors on endpoint\n");
 	}
 
-	/* this assumes that if there's a non-RNDIS vendor variant
+	/* this assumes that if there's a yesn-RNDIS vendor variant
 	 * of cdc-acm, it'll fail RNDIS requests cleanly.
 	 */
 	rndis = (is_rndis(&intf->cur_altsetting->desc) ||
 		 is_activesync(&intf->cur_altsetting->desc) ||
 		 is_wireless_rndis(&intf->cur_altsetting->desc) ||
-		 is_novatel_rndis(&intf->cur_altsetting->desc));
+		 is_yesvatel_rndis(&intf->cur_altsetting->desc));
 
 	memset(info, 0, sizeof(*info));
 	info->control = intf;
@@ -206,7 +206,7 @@ int usbnet_generic_cdc_bind(struct usbnet *dev, struct usb_interface *intf)
 		goto bad_desc;
 	}
 skip:
-	/* Communcation class functions with bmCapabilities are not
+	/* Communcation class functions with bmCapabilities are yest
 	 * RNDIS.  But some Wireless class RNDIS functions use
 	 * bmCapabilities for their own purpose. The failsafe is
 	 * therefore applied only to Communication class RNDIS
@@ -217,14 +217,14 @@ skip:
 	    header.usb_cdc_acm_descriptor &&
 	    header.usb_cdc_acm_descriptor->bmCapabilities) {
 		dev_dbg(&intf->dev,
-			"ACM capabilities %02x, not really RNDIS?\n",
+			"ACM capabilities %02x, yest really RNDIS?\n",
 			header.usb_cdc_acm_descriptor->bmCapabilities);
 		goto bad_desc;
 	}
 
 	if (header.usb_cdc_ether_desc && info->ether->wMaxSegmentSize) {
 		dev->hard_mtu = le16_to_cpu(info->ether->wMaxSegmentSize);
-		/* because of Zaurus, we may be ignoring the host
+		/* because of Zaurus, we may be igyesring the host
 		 * side link address we were given.
 		 */
 	}
@@ -245,11 +245,11 @@ skip:
 
 
 	/* Microsoft ActiveSync based and some regular RNDIS devices lack the
-	 * CDC descriptors, so we'll hard-wire the interfaces and not check
+	 * CDC descriptors, so we'll hard-wire the interfaces and yest check
 	 * for descriptors.
 	 *
 	 * Some Android RNDIS devices have a CDC Union descriptor pointing
-	 * to non-existing interfaces.  Ignore that and attempt the same
+	 * to yesn-existing interfaces.  Igyesre that and attempt the same
 	 * hard-wired 0 and 1 interfaces.
 	 */
 	if (rndis && (!info->u || android_rndis_quirk)) {
@@ -288,7 +288,7 @@ skip:
 		return status;
 	}
 
-	/* status endpoint: optional for CDC Ethernet, not RNDIS (or ACM) */
+	/* status endpoint: optional for CDC Ethernet, yest RNDIS (or ACM) */
 	if (info->data != info->control)
 		dev->status = NULL;
 	if (info->control->cur_altsetting->desc.bNumEndpoints == 1) {
@@ -298,9 +298,9 @@ skip:
 		desc = &dev->status->desc;
 		if (!usb_endpoint_is_int_in(desc) ||
 		    (le16_to_cpu(desc->wMaxPacketSize)
-		     < sizeof(struct usb_cdc_notification)) ||
+		     < sizeof(struct usb_cdc_yestification)) ||
 		    !desc->bInterval) {
-			dev_dbg(&intf->dev, "bad notification endpoint\n");
+			dev_dbg(&intf->dev, "bad yestification endpoint\n");
 			dev->status = NULL;
 		}
 	}
@@ -332,7 +332,7 @@ int usbnet_ether_cdc_bind(struct usbnet *dev, struct usb_interface *intf)
 		goto bail_out;
 
 	/* Some devices don't initialise properly. In particular
-	 * the packet filter is not reset. There are devices that
+	 * the packet filter is yest reset. There are devices that
 	 * don't do reset all the way. So the packet filter should
 	 * be set to a sane initial value.
 	 */
@@ -348,7 +348,7 @@ void usbnet_cdc_unbind(struct usbnet *dev, struct usb_interface *intf)
 	struct cdc_state		*info = (void *) &dev->data;
 	struct usb_driver		*driver = driver_of(intf);
 
-	/* combined interface - nothing  to do */
+	/* combined interface - yesthing  to do */
 	if (info->data == info->control)
 		return;
 
@@ -390,7 +390,7 @@ static void dumpspeed(struct usbnet *dev, __le32 *speeds)
 
 void usbnet_cdc_status(struct usbnet *dev, struct urb *urb)
 {
-	struct usb_cdc_notification	*event;
+	struct usb_cdc_yestification	*event;
 
 	if (urb->actual_length < sizeof(*event))
 		return;
@@ -417,10 +417,10 @@ void usbnet_cdc_status(struct usbnet *dev, struct urb *urb)
 			dumpspeed(dev, (__le32 *) &event[1]);
 		break;
 	/* USB_CDC_NOTIFY_RESPONSE_AVAILABLE can happen too (e.g. RNDIS),
-	 * but there are no standard formats for the response data.
+	 * but there are yes standard formats for the response data.
 	 */
 	default:
-		netdev_err(dev->net, "CDC: unexpected notification %02x!\n",
+		netdev_err(dev->net, "CDC: unexpected yestification %02x!\n",
 			   event->bNotificationType);
 		break;
 	}
@@ -480,13 +480,13 @@ static int usbnet_cdc_zte_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
 
 /* Ensure correct link state
  *
- * Some devices (ZTE MF823/831/910) export two carrier on notifications when
+ * Some devices (ZTE MF823/831/910) export two carrier on yestifications when
  * connected. This causes the link state to be incorrect. Work around this by
  * always setting the state to off, then on.
  */
 static void usbnet_cdc_zte_status(struct usbnet *dev, struct urb *urb)
 {
-	struct usb_cdc_notification *event;
+	struct usb_cdc_yestification *event;
 
 	if (urb->actual_length < sizeof(*event))
 		return;
@@ -560,9 +560,9 @@ static const struct driver_info wwan_info = {
 static const struct usb_device_id	products[] = {
 /* BLACKLIST !!
  *
- * First blacklist any products that are egregiously nonconformant
- * with the CDC Ethernet specs.  Minor braindamage we cope with; when
- * they're not even trying, needing a separate driver is only the first
+ * First blacklist any products that are egregiously yesnconformant
+ * with the CDC Ethernet specs.  Miyesr braindamage we cope with; when
+ * they're yest even trying, needing a separate driver is only the first
  * of the differences to show up.
  */
 
@@ -586,8 +586,8 @@ static const struct usb_device_id	products[] = {
 
 /* PXA-25x based Sharp Zaurii.  Note that it seems some of these
  * (later models especially) may have shipped only with firmware
- * advertising false "CDC MDLM" compatibility ... but we're not
- * clear which models did that, so for now let's assume the worst.
+ * advertising false "CDC MDLM" compatibility ... but we're yest
+ * clear which models did that, so for yesw let's assume the worst.
  */
 {
 	.match_flags	=   USB_DEVICE_ID_MATCH_INT_INFO
@@ -773,21 +773,21 @@ static const struct usb_device_id	products[] = {
 	.driver_info = 0,
 },
 
-/* Lenovo Thinkpad USB 3.0 Ethernet Adapters (based on Realtek RTL8153) */
+/* Leyesvo Thinkpad USB 3.0 Ethernet Adapters (based on Realtek RTL8153) */
 {
 	USB_DEVICE_AND_INTERFACE_INFO(LENOVO_VENDOR_ID, 0x7205, USB_CLASS_COMM,
 			USB_CDC_SUBCLASS_ETHERNET, USB_CDC_PROTO_NONE),
 	.driver_info = 0,
 },
 
-/* Lenovo USB C to Ethernet Adapter (based on Realtek RTL8153) */
+/* Leyesvo USB C to Ethernet Adapter (based on Realtek RTL8153) */
 {
 	USB_DEVICE_AND_INTERFACE_INFO(LENOVO_VENDOR_ID, 0x720c, USB_CLASS_COMM,
 			USB_CDC_SUBCLASS_ETHERNET, USB_CDC_PROTO_NONE),
 	.driver_info = 0,
 },
 
-/* Lenovo USB-C Travel Hub (based on Realtek RTL8153) */
+/* Leyesvo USB-C Travel Hub (based on Realtek RTL8153) */
 {
 	USB_DEVICE_AND_INTERFACE_INFO(LENOVO_VENDOR_ID, 0x7214, USB_CLASS_COMM,
 			USB_CDC_SUBCLASS_ETHERNET, USB_CDC_PROTO_NONE),
@@ -871,8 +871,8 @@ static const struct usb_device_id	products[] = {
 
 /* WHITELIST!!!
  *
- * CDC Ether uses two interfaces, not necessarily consecutive.
- * We match the main interface, ignoring the optional device
+ * CDC Ether uses two interfaces, yest necessarily consecutive.
+ * We match the main interface, igyesring the optional device
  * class so we could handle devices that aren't exclusively
  * CDC ether.
  *

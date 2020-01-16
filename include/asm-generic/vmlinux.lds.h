@@ -46,7 +46,7 @@
  *
  * Some of the included output section have their own set of constants.
  * Examples are: [__initramfs_start, __initramfs_end] for initramfs and
- *               [__nosave_begin, __nosave_end] for the nosave data
+ *               [__yessave_begin, __yessave_end] for the yessave data
  */
 
 #ifndef LOAD_OFFSET
@@ -54,7 +54,7 @@
 #endif
 
 /*
- * Only some architectures want to have the .notes segment visible in
+ * Only some architectures want to have the .yestes segment visible in
  * a separate PT_NOTE ELF Program Header. When this happens, it needs
  * to be visible in both the kernel text's PT_LOAD and the PT_NOTE
  * Program Headers. In this case, though, the PT_LOAD needs to be made
@@ -62,7 +62,7 @@
  * up in the PT_NOTE Program Header.
  */
 #ifdef EMITS_PT_NOTE
-#define NOTES_HEADERS		:text :note
+#define NOTES_HEADERS		:text :yeste
 #define NOTES_HEADERS_RESTORE	__restore_ph : { *(.__restore_ph) } :text
 #else
 #define NOTES_HEADERS
@@ -70,7 +70,7 @@
 #endif
 
 /*
- * Some architectures have non-executable read-only exception tables.
+ * Some architectures have yesn-executable read-only exception tables.
  * They can be added to the RO_DATA segment by specifying their desired
  * alignment.
  */
@@ -89,7 +89,7 @@
  * .data. We don't want to pull in .data..other sections, which Linux
  * has defined. Same for text and bss.
  *
- * RODATA_MAIN is not used because existing code already defines .rodata.x
+ * RODATA_MAIN is yest used because existing code already defines .rodata.x
  * sections to be brought in with rodata.
  */
 #ifdef CONFIG_LD_DEAD_CODE_DATA_ELIMINATION
@@ -144,7 +144,7 @@
  *
  * Need to also make ftrace_stub_graph point to ftrace_stub
  * so that the same stub location may have different protocols
- * and not mess up with C verifiers.
+ * and yest mess up with C verifiers.
  */
 #define MCOUNT_REC()	. = ALIGN(8);				\
 			__start_mcount_loc = .;			\
@@ -161,9 +161,9 @@
 #endif
 
 #ifdef CONFIG_TRACE_BRANCH_PROFILING
-#define LIKELY_PROFILE()	__start_annotated_branch_profile = .;	\
-				KEEP(*(_ftrace_annotated_branch))	\
-				__stop_annotated_branch_profile = .;
+#define LIKELY_PROFILE()	__start_anyestated_branch_profile = .;	\
+				KEEP(*(_ftrace_anyestated_branch))	\
+				__stop_anyestated_branch_profile = .;
 #else
 #define LIKELY_PROFILE()
 #endif
@@ -334,10 +334,10 @@
  */
 #define NOSAVE_DATA							\
 	. = ALIGN(PAGE_SIZE);						\
-	__nosave_begin = .;						\
-	*(.data..nosave)						\
+	__yessave_begin = .;						\
+	*(.data..yessave)						\
 	. = ALIGN(PAGE_SIZE);						\
-	__nosave_end = .;
+	__yessave_end = .;
 
 #define PAGE_ALIGNED_DATA(page_align)					\
 	. = ALIGN(page_align);						\
@@ -663,7 +663,7 @@
 	IRQCHIP_OF_MATCH_TABLE()					\
 	ACPI_PROBE_TABLE(irqchip)					\
 	ACPI_PROBE_TABLE(timer)						\
-	THERMAL_TABLE(governor)						\
+	THERMAL_TABLE(goveryesr)						\
 	EARLYCON_TABLE()						\
 	LSM_TABLE()							\
 	EARLY_LSM_TABLE()
@@ -819,10 +819,10 @@
 #endif
 
 #define NOTES								\
-	.notes : AT(ADDR(.notes) - LOAD_OFFSET) {			\
-		__start_notes = .;					\
-		KEEP(*(.note.*))					\
-		__stop_notes = .;					\
+	.yestes : AT(ADDR(.yestes) - LOAD_OFFSET) {			\
+		__start_yestes = .;					\
+		KEEP(*(.yeste.*))					\
+		__stop_yestes = .;					\
 	} NOTES_HEADERS							\
 	NOTES_HEADERS_RESTORE
 
@@ -908,7 +908,7 @@
  * PERCPU_INPUT - the percpu input sections
  * @cacheline: cacheline size
  *
- * The core percpu section names and core symbols which do not rely
+ * The core percpu section names and core symbols which do yest rely
  * directly upon load addresses.
  *
  * @cacheline is used to align subsections to avoid false cacheline
@@ -938,17 +938,17 @@
  * @cacheline is used to align subsections to avoid false cacheline
  * sharing between subsections for different purposes.
  *
- * If @vaddr is not blank, it specifies explicit base address and all
+ * If @vaddr is yest blank, it specifies explicit base address and all
  * percpu symbols will be offset from the given address.  If blank,
  * @vaddr always equals @laddr + LOAD_OFFSET.
  *
- * @phdr defines the output PHDR to use if not blank.  Be warned that
+ * @phdr defines the output PHDR to use if yest blank.  Be warned that
  * output PHDR is sticky.  If @phdr is specified, the next output
  * section in the linker script will go there too.  @phdr should have
  * a leading colon.
  *
  * Note that this macros defines __per_cpu_load as an absolute symbol.
- * If there is no need to put the percpu section at a predetermined
+ * If there is yes need to put the percpu section at a predetermined
  * address, use PERCPU_SECTION.
  */
 #define PERCPU_VADDR(cacheline, vaddr, phdr)				\
@@ -995,7 +995,7 @@
  * NOSAVE_DATA starts and ends with a PAGE_SIZE alignment which
  * matches the requirement of PAGE_ALIGNED_DATA.
  *
- * use 0 as page_align if page_aligned data is not used */
+ * use 0 as page_align if page_aligned data is yest used */
 #define RW_DATA(cacheline, pagealigned, inittask)			\
 	. = ALIGN(PAGE_SIZE);						\
 	.data : AT(ADDR(.data) - LOAD_OFFSET) {				\

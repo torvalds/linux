@@ -29,9 +29,9 @@ idle_loop:
 .global epapr_ev_idle_start
 epapr_ev_idle_start:
 	li	r3, -1
-	nop
-	nop
-	nop
+	yesp
+	yesp
+	yesp
 
 	/*
 	 * Guard against spurious wakeups from a hypervisor --
@@ -45,8 +45,8 @@ epapr_ev_idle_start:
 .global epapr_hypercall_start
 epapr_hypercall_start:
 	li	r3, -1
-	nop
-	nop
-	nop
+	yesp
+	yesp
+	yesp
 	blr
 EXPORT_SYMBOL(epapr_hypercall_start)

@@ -266,7 +266,7 @@ static struct snd_soc_dai_link mt2701_cs42448_dai_links[] = {
 	/* BE */
 	[DAI_LINK_BE_I2S0] = {
 		.name = "mt2701-cs42448-I2S0",
-		.no_pcm = 1,
+		.yes_pcm = 1,
 		.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_CBS_CFS
 			 | SND_SOC_DAIFMT_GATED,
 		.ops = &mt2701_cs42448_be_ops,
@@ -276,7 +276,7 @@ static struct snd_soc_dai_link mt2701_cs42448_dai_links[] = {
 	},
 	[DAI_LINK_BE_I2S1] = {
 		.name = "mt2701-cs42448-I2S1",
-		.no_pcm = 1,
+		.yes_pcm = 1,
 		.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_CBS_CFS
 			 | SND_SOC_DAIFMT_GATED,
 		.ops = &mt2701_cs42448_be_ops,
@@ -286,7 +286,7 @@ static struct snd_soc_dai_link mt2701_cs42448_dai_links[] = {
 	},
 	[DAI_LINK_BE_I2S2] = {
 		.name = "mt2701-cs42448-I2S2",
-		.no_pcm = 1,
+		.yes_pcm = 1,
 		.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_CBS_CFS
 			 | SND_SOC_DAIFMT_GATED,
 		.ops = &mt2701_cs42448_be_ops,
@@ -296,7 +296,7 @@ static struct snd_soc_dai_link mt2701_cs42448_dai_links[] = {
 	},
 	[DAI_LINK_BE_I2S3] = {
 		.name = "mt2701-cs42448-I2S3",
-		.no_pcm = 1,
+		.yes_pcm = 1,
 		.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_CBS_CFS
 			 | SND_SOC_DAIFMT_GATED,
 		.ops = &mt2701_cs42448_be_ops,
@@ -306,7 +306,7 @@ static struct snd_soc_dai_link mt2701_cs42448_dai_links[] = {
 	},
 	[DAI_LINK_BE_MRG_BT] = {
 		.name = "mt2701-cs42448-MRG-BT",
-		.no_pcm = 1,
+		.yes_pcm = 1,
 		.dpcm_playback = 1,
 		.dpcm_capture = 1,
 		SND_SOC_DAILINK_REG(be_mrg_bt),
@@ -329,7 +329,7 @@ static int mt2701_cs42448_machine_probe(struct platform_device *pdev)
 	struct snd_soc_card *card = &mt2701_cs42448_soc_card;
 	int ret;
 	int i;
-	struct device_node *platform_node, *codec_node, *codec_node_bt_mrg;
+	struct device_yesde *platform_yesde, *codec_yesde, *codec_yesde_bt_mrg;
 	struct mt2701_cs42448_private *priv =
 		devm_kzalloc(&pdev->dev, sizeof(struct mt2701_cs42448_private),
 			     GFP_KERNEL);
@@ -339,23 +339,23 @@ static int mt2701_cs42448_machine_probe(struct platform_device *pdev)
 	if (!priv)
 		return -ENOMEM;
 
-	platform_node = of_parse_phandle(pdev->dev.of_node,
+	platform_yesde = of_parse_phandle(pdev->dev.of_yesde,
 					 "mediatek,platform", 0);
-	if (!platform_node) {
+	if (!platform_yesde) {
 		dev_err(&pdev->dev, "Property 'platform' missing or invalid\n");
 		return -EINVAL;
 	}
 	for_each_card_prelinks(card, i, dai_link) {
 		if (dai_link->platforms->name)
 			continue;
-		dai_link->platforms->of_node = platform_node;
+		dai_link->platforms->of_yesde = platform_yesde;
 	}
 
 	card->dev = dev;
 
-	codec_node = of_parse_phandle(pdev->dev.of_node,
+	codec_yesde = of_parse_phandle(pdev->dev.of_yesde,
 				      "mediatek,audio-codec", 0);
-	if (!codec_node) {
+	if (!codec_yesde) {
 		dev_err(&pdev->dev,
 			"Property 'audio-codec' missing or invalid\n");
 		return -EINVAL;
@@ -363,18 +363,18 @@ static int mt2701_cs42448_machine_probe(struct platform_device *pdev)
 	for_each_card_prelinks(card, i, dai_link) {
 		if (dai_link->codecs->name)
 			continue;
-		dai_link->codecs->of_node = codec_node;
+		dai_link->codecs->of_yesde = codec_yesde;
 	}
 
-	codec_node_bt_mrg = of_parse_phandle(pdev->dev.of_node,
+	codec_yesde_bt_mrg = of_parse_phandle(pdev->dev.of_yesde,
 					     "mediatek,audio-codec-bt-mrg", 0);
-	if (!codec_node_bt_mrg) {
+	if (!codec_yesde_bt_mrg) {
 		dev_err(&pdev->dev,
 			"Property 'audio-codec-bt-mrg' missing or invalid\n");
 		return -EINVAL;
 	}
-	mt2701_cs42448_dai_links[DAI_LINK_BE_MRG_BT].codecs->of_node
-							= codec_node_bt_mrg;
+	mt2701_cs42448_dai_links[DAI_LINK_BE_MRG_BT].codecs->of_yesde
+							= codec_yesde_bt_mrg;
 
 	ret = snd_soc_of_parse_audio_routing(card, "audio-routing");
 	if (ret) {
@@ -383,7 +383,7 @@ static int mt2701_cs42448_machine_probe(struct platform_device *pdev)
 	}
 
 	priv->i2s1_in_mux_gpio_sel_1 =
-		of_get_named_gpio(dev->of_node, "i2s1-in-sel-gpio1", 0);
+		of_get_named_gpio(dev->of_yesde, "i2s1-in-sel-gpio1", 0);
 	if (gpio_is_valid(priv->i2s1_in_mux_gpio_sel_1)) {
 		ret = devm_gpio_request(dev, priv->i2s1_in_mux_gpio_sel_1,
 					"i2s1_in_mux_gpio_sel_1");
@@ -394,7 +394,7 @@ static int mt2701_cs42448_machine_probe(struct platform_device *pdev)
 	}
 
 	priv->i2s1_in_mux_gpio_sel_2 =
-		of_get_named_gpio(dev->of_node, "i2s1-in-sel-gpio2", 0);
+		of_get_named_gpio(dev->of_yesde, "i2s1-in-sel-gpio2", 0);
 	if (gpio_is_valid(priv->i2s1_in_mux_gpio_sel_2)) {
 		ret = devm_gpio_request(dev, priv->i2s1_in_mux_gpio_sel_2,
 					"i2s1_in_mux_gpio_sel_2");

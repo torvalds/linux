@@ -53,7 +53,7 @@ Description:	Default output terminal descriptors
 		bAssocTerminal	- id of the input terminal to which this output
 				terminal is associated
 		wTerminalType	- terminal type
-		bTerminalID	- a non-zero id of this terminal
+		bTerminalID	- a yesn-zero id of this terminal
 
 What:		/config/usb-gadget/gadget/functions/uvc.name/control/terminal/camera
 Date:		Dec 2014
@@ -75,7 +75,7 @@ Description:	Default camera terminal descriptors
 		bAssocTerminal		- id of the output terminal to which
 					this terminal is connected
 		wTerminalType		- terminal type
-		bTerminalID		- a non-zero id of this terminal
+		bTerminalID		- a yesn-zero id of this terminal
 
 What:		/config/usb-gadget/gadget/functions/uvc.name/control/processing
 Date:		Dec 2014
@@ -94,7 +94,7 @@ Description:	Default processing unit descriptors
 		wMaxMultiplier	- maximum digital magnification x100
 		bSourceID	- id of the terminal to which this unit is
 				connected
-		bUnitID		- a non-zero id of this unit
+		bUnitID		- a yesn-zero id of this unit
 
 What:		/config/usb-gadget/gadget/functions/uvc.name/control/header
 Date:		Dec 2014

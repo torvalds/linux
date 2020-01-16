@@ -16,7 +16,7 @@
  *   Public License for more details.
  *
  *   You should have received a copy of the GNU General Public License along
- *   with this program; if not, one can be found http://www.gnu.org/licenses/.
+ *   with this program; if yest, one can be found http://www.gnu.org/licenses/.
  *
  *   The full GNU General Public License is included in this distribution in
  *   the file called "COPYING".
@@ -662,7 +662,7 @@
  * NTCTL register fields related constants
  * @IDT_NTCTL_IDPROTDIS:	ID Protection check disable (disable MTBL)
  * @IDT_NTCTL_CPEN:		Completion enable
- * @IDT_NTCTL_RNS:		Request no snoop processing (if MTBL disabled)
+ * @IDT_NTCTL_RNS:		Request yes syesop processing (if MTBL disabled)
  * @IDT_NTCTL_ATP:		Address type processing (if MTBL disabled)
  */
 #define IDT_NTCTL_IDPROTDIS		0x00000001U
@@ -748,9 +748,9 @@
  * @IDT_NTMTBLDATA_PART_MASK:	Partition field mask
  * @IDT_NTMTBLDATA_PART_FLD:	Partition field offset
  * @IDT_NTMTBLDATA_ATP_TRANS:	Enable AT field translation on request TLPs
- * @IDT_NTMTBLDATA_CNS_INV:	Enable No Snoop attribute inversion of
+ * @IDT_NTMTBLDATA_CNS_INV:	Enable No Syesop attribute inversion of
  *				Completion TLPs
- * @IDT_NTMTBLDATA_RNS_INV:	Enable No Snoop attribute inversion of
+ * @IDT_NTMTBLDATA_RNS_INV:	Enable No Syesop attribute inversion of
  *				Request TLPs
  */
 #define IDT_NTMTBLDATA_VALID		0x00000001U
@@ -986,7 +986,7 @@
  * @IDT_TRANS_ALIGN:	Alignment of translated base address
  * @IDT_DIR_SIZE_ALIGN:	Alignment of size setting for direct translated MWs.
  *			Even though the lower 10 bits are reserved, they are
- *			treated by IDT as one's so basically there is no any
+ *			treated by IDT as one's so basically there is yes any
  *			alignment of size limit for DIR address translation.
  */
 #define IDT_MAX_NR_PORTS	24
@@ -1119,7 +1119,7 @@ struct idt_ntb_peer {
  *
  * @hwmon_mtx:		Temperature sensor interface update mutex
  *
- * @dbgfs_info:		DebugFS info node
+ * @dbgfs_info:		DebugFS info yesde
  */
 struct idt_ntb_dev {
 	struct ntb_dev ntb;

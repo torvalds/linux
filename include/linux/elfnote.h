@@ -7,25 +7,25 @@
  * including name-value pairs of metadata into the kernel binary (or
  * modules?) for use by external programs.
  *
- * Each note has three parts: a name, a type and a desc.  The name is
- * intended to distinguish the note's originator, so it would be a
+ * Each yeste has three parts: a name, a type and a desc.  The name is
+ * intended to distinguish the yeste's originator, so it would be a
  * company, project, subsystem, etc; it must be in a suitable form for
  * use in a section name.  The type is an integer which is used to tag
  * the data, and is considered to be within the "name" namespace (so
  * "FooCo"'s type 42 is distinct from "BarProj"'s type 42).  The
- * "desc" field is the actual data.  There are no constraints on the
+ * "desc" field is the actual data.  There are yes constraints on the
  * desc field's contents, though typically they're fairly small.
  *
- * All notes from a given NAME are put into a section named
- * .note.NAME.  When the kernel image is finally linked, all the notes
- * are packed into a single .notes section, which is mapped into the
- * PT_NOTE segment.  Because notes for a given name are grouped into
+ * All yestes from a given NAME are put into a section named
+ * .yeste.NAME.  When the kernel image is finally linked, all the yestes
+ * are packed into a single .yestes section, which is mapped into the
+ * PT_NOTE segment.  Because yestes for a given name are grouped into
  * the same section, they'll all be adjacent the output file.
  *
  * This file defines macros for both C and assembler use.  Their
  * syntax is slightly different, but they're semantically similar.
  *
- * See the ELF specification for more detail about ELF notes.
+ * See the ELF specification for more detail about ELF yestes.
  */
 
 #ifdef __ASSEMBLER__
@@ -40,7 +40,7 @@
  *      ELFNOTE(XYZCo, 12, .long, 0xdeadbeef)
  */
 #define ELFNOTE_START(name, type, flags)	\
-.pushsection .note.name, flags,@note	;	\
+.pushsection .yeste.name, flags,@yeste	;	\
   .balign 4				;	\
   .long 2f - 1f		/* namesz */	;	\
   .long 4484f - 3f	/* descsz */	;	\
@@ -61,24 +61,24 @@
 #else	/* !__ASSEMBLER__ */
 #include <linux/elf.h>
 /*
- * Use an anonymous structure which matches the shape of
+ * Use an ayesnymous structure which matches the shape of
  * Elf{32,64}_Nhdr, but includes the name and desc data.  The size and
  * type of name and desc depend on the macro arguments.  "name" must
  * be a literal string, and "desc" must be passed by value.  You may
- * only define one note per line, since __LINE__ is used to generate
+ * only define one yeste per line, since __LINE__ is used to generate
  * unique symbols.
  */
 #define _ELFNOTE_PASTE(a,b)	a##b
 #define _ELFNOTE(size, name, unique, type, desc)			\
 	static const struct {						\
-		struct elf##size##_note _nhdr;				\
+		struct elf##size##_yeste _nhdr;				\
 		unsigned char _name[sizeof(name)]			\
 		__attribute__((aligned(sizeof(Elf##size##_Word))));	\
 		typeof(desc) _desc					\
 			     __attribute__((aligned(sizeof(Elf##size##_Word)))); \
-	} _ELFNOTE_PASTE(_note_, unique)				\
+	} _ELFNOTE_PASTE(_yeste_, unique)				\
 		__used							\
-		__attribute__((section(".note." name),			\
+		__attribute__((section(".yeste." name),			\
 			       aligned(sizeof(Elf##size##_Word)),	\
 			       unused)) = {				\
 		{							\

@@ -386,7 +386,7 @@ static int hdac_hda_codec_probe(struct snd_soc_component *component)
 
 	hlink = snd_hdac_ext_bus_get_link(hdev->bus, dev_name(&hdev->dev));
 	if (!hlink) {
-		dev_err(&hdev->dev, "hdac link not found\n");
+		dev_err(&hdev->dev, "hdac link yest found\n");
 		return -EIO;
 	}
 
@@ -405,7 +405,7 @@ static int hdac_hda_codec_probe(struct snd_soc_component *component)
 				       hdev->addr, hcodec);
 	if (ret < 0) {
 		dev_err(&hdev->dev, "failed to create hda codec %d\n", ret);
-		goto error_no_pm;
+		goto error_yes_pm;
 	}
 	/*
 	 * Overwrite type to HDA_DEV_ASOC since it is a ASoC driver
@@ -418,7 +418,7 @@ static int hdac_hda_codec_probe(struct snd_soc_component *component)
 	 * snd_hda_codec_device_new decrements the usage count so call get pm
 	 * else the device will be powered off
 	 */
-	pm_runtime_get_noresume(&hdev->dev);
+	pm_runtime_get_yesresume(&hdev->dev);
 
 	hcodec->bus->card = dapm->card->snd_card;
 
@@ -442,11 +442,11 @@ static int hdac_hda_codec_probe(struct snd_soc_component *component)
 			goto error;
 		}
 	} else {
-		dev_dbg(&hdev->dev, "no patch file found\n");
+		dev_dbg(&hdev->dev, "yes patch file found\n");
 	}
 
 	/* configure codec for 1:1 PCM:DAI mapping */
-	hcodec->mst_no_extra_pcms = 1;
+	hcodec->mst_yes_extra_pcms = 1;
 
 	ret = snd_hda_codec_parse_pcms(hcodec);
 	if (ret < 0) {
@@ -472,7 +472,7 @@ static int hdac_hda_codec_probe(struct snd_soc_component *component)
 
 	/*
 	 * hdac_device core already sets the state to active and calls
-	 * get_noresume. So enable runtime and set the device to suspend.
+	 * get_yesresume. So enable runtime and set the device to suspend.
 	 * pm_runtime_enable is also called during codec registeration
 	 */
 	pm_runtime_put(&hdev->dev);
@@ -482,7 +482,7 @@ static int hdac_hda_codec_probe(struct snd_soc_component *component)
 
 error:
 	pm_runtime_put(&hdev->dev);
-error_no_pm:
+error_yes_pm:
 	snd_hdac_ext_bus_link_put(hdev->bus, hlink);
 	return ret;
 }
@@ -496,7 +496,7 @@ static void hdac_hda_codec_remove(struct snd_soc_component *component)
 
 	hlink = snd_hdac_ext_bus_get_link(hdev->bus, dev_name(&hdev->dev));
 	if (!hlink) {
-		dev_err(&hdev->dev, "hdac link not found\n");
+		dev_err(&hdev->dev, "hdac link yest found\n");
 		return;
 	}
 
@@ -559,7 +559,7 @@ static int hdac_hda_dev_probe(struct hdac_device *hdev)
 	/* hold the ref while we probe */
 	hlink = snd_hdac_ext_bus_get_link(hdev->bus, dev_name(&hdev->dev));
 	if (!hlink) {
-		dev_err(&hdev->dev, "hdac link not found\n");
+		dev_err(&hdev->dev, "hdac link yest found\n");
 		return -EIO;
 	}
 	snd_hdac_ext_bus_link_get(hdev->bus, hlink);

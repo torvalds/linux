@@ -8,10 +8,10 @@ NAME = Kleptomaniac Octopus
 # *DOCUMENTATION*
 # To see a list of typical targets execute "make help"
 # More info can be located in ./README
-# Comments in this file are targeted only to the developer, do not
+# Comments in this file are targeted only to the developer, do yest
 # expect to learn how to build the kernel reading this file.
 
-# That's our default target when none is given on the command line
+# That's our default target when yesne is given on the command line
 PHONY := _all
 _all:
 
@@ -20,20 +20,20 @@ _all:
 #
 # Most importantly: sub-Makefiles should only ever modify files in
 # their own directory. If in some directory we have a dependency on
-# a file in another dir (which doesn't happen often, but it's often
+# a file in ayesther dir (which doesn't happen often, but it's often
 # unavoidable when linking the built-in.a targets which finally
 # turn into vmlinux), we will call a sub make in that other dir, and
 # after that we are sure that everything which is in that other dir
-# is now up to date.
+# is yesw up to date.
 #
 # The only cases where we need to modify files which have global
 # effects are thus separated out and done before the recursive
-# descending is started. They are now explicitly listed as the
+# descending is started. They are yesw explicitly listed as the
 # prepare rule.
 
 ifneq ($(sub_make_done),1)
 
-# Do not use make's built-in rules and variables
+# Do yest use make's built-in rules and variables
 # (this increases performance and avoids hard-to-debug behaviour)
 MAKEFLAGS += -rR
 
@@ -50,7 +50,7 @@ unexport GREP_OPTIONS
 # ---------------------------------------------------------------------------
 #
 # Normally, we echo the whole command before executing it. By making
-# that echo $($(quiet)$(cmd)), we now have the possibility to set
+# that echo $($(quiet)$(cmd)), we yesw have the possibility to set
 # $(quiet) to choose other forms of output instead, e.g.
 #
 #         quiet_cmd_cc_o_c = Compiling $(RELDIR)/$@
@@ -58,11 +58,11 @@ unexport GREP_OPTIONS
 #
 # If $(quiet) is empty, the whole command will be printed.
 # If it is set to "quiet_", only the short version will be printed.
-# If it is set to "silent_", nothing will be printed at all, since
+# If it is set to "silent_", yesthing will be printed at all, since
 # the variable $(silent_cmd_cc_o_c) doesn't exist.
 #
 # A simple variant is to prefix commands with $(Q) - that's useful
-# for commands that shall be hidden in non-verbose mode.
+# for commands that shall be hidden in yesn-verbose mode.
 #
 #	$(Q)ln $@ :<
 #
@@ -97,7 +97,7 @@ endif
 export quiet Q KBUILD_VERBOSE
 
 # Kbuild will save output files in the current working directory.
-# This does not need to match to the root of the kernel source tree.
+# This does yest need to match to the root of the kernel source tree.
 #
 # For example, you can do this:
 #
@@ -122,7 +122,7 @@ ifeq ("$(origin O)", "command line")
 endif
 
 ifneq ($(KBUILD_OUTPUT),)
-# Make's built-in functions such as $(abspath ...), $(realpath ...) cannot
+# Make's built-in functions such as $(abspath ...), $(realpath ...) canyest
 # expand a shell special character '~'. We use a somewhat tedious way here.
 abs_objtree := $(shell mkdir -p $(KBUILD_OUTPUT) && cd $(KBUILD_OUTPUT) && pwd)
 $(if $(abs_objtree),, \
@@ -136,7 +136,7 @@ endif # ifneq ($(KBUILD_OUTPUT),)
 
 ifeq ($(abs_objtree),$(CURDIR))
 # Suppress "Entering directory ..." unless we are changing the work directory.
-MAKEFLAGS += --no-print-directory
+MAKEFLAGS += --yes-print-directory
 else
 need-sub-make := 1
 endif
@@ -144,20 +144,20 @@ endif
 abs_srctree := $(realpath $(dir $(lastword $(MAKEFILE_LIST))))
 
 ifneq ($(words $(subst :, ,$(abs_srctree))), 1)
-$(error source directory cannot contain spaces or colons)
+$(error source directory canyest contain spaces or colons)
 endif
 
 ifneq ($(abs_srctree),$(abs_objtree))
 # Look for make include files relative to root of kernel src
 #
-# This does not become effective immediately because MAKEFLAGS is re-parsed
+# This does yest become effective immediately because MAKEFLAGS is re-parsed
 # once after the Makefile is read. We need to invoke sub-make.
 MAKEFLAGS += --include-dir=$(abs_srctree)
 need-sub-make := 1
 endif
 
 ifneq ($(filter 3.%,$(MAKE_VERSION)),)
-# 'MAKEFLAGS += -rR' does not immediately become effective for GNU Make 3.x
+# 'MAKEFLAGS += -rR' does yest immediately become effective for GNU Make 3.x
 # We need to invoke sub-make to avoid implicit rules in the top Makefile.
 need-sub-make := 1
 # Cancel implicit rules for this Makefile.
@@ -184,17 +184,17 @@ endif # sub_make_done
 # We process the rest of the Makefile if this is the final invocation of make
 ifeq ($(need-sub-make),)
 
-# Do not print "Entering directory ...",
+# Do yest print "Entering directory ...",
 # but we want to display it when entering to the output directory
 # so that IDEs/editors are able to understand relative filenames.
-MAKEFLAGS += --no-print-directory
+MAKEFLAGS += --yes-print-directory
 
 # Call a source code checker (by default, "sparse") as part of the
 # C compilation.
 #
 # Use 'make C=1' to enable checking of only re-compiled files.
 # Use 'make C=2' to enable checking of *all* source files, regardless
-# of whether they are re-compiled or not.
+# of whether they are re-compiled or yest.
 #
 # See the file "Documentation/dev-tools/sparse.rst" for more details,
 # including where to get the "sparse" utility.
@@ -239,23 +239,23 @@ VPATH		:= $(srctree)
 
 export building_out_of_srctree srctree objtree VPATH
 
-# To make sure we do not include .config for any of the *config targets
+# To make sure we do yest include .config for any of the *config targets
 # catch them early, and hand them over to scripts/kconfig/Makefile
 # It is allowed to specify more targets when calling make, including
 # mixing *config targets and build targets.
 # For example 'make oldconfig all'.
 # Detect when mixed targets is specified, and make a second invocation
-# of make so .config is not included in this case either (for *config).
+# of make so .config is yest included in this case either (for *config).
 
 version_h := include/generated/uapi/linux/version.h
 old_version_h := include/linux/version.h
 
 clean-targets := %clean mrproper cleandocs
-no-dot-config-targets := $(clean-targets) \
+yes-dot-config-targets := $(clean-targets) \
 			 cscope gtags TAGS tags help% %docs check% coccicheck \
 			 $(version_h) headers headers_% archheaders archscripts \
 			 %asm-generic kernelversion %src-pkg
-no-sync-config-targets := $(no-dot-config-targets) install %install \
+yes-sync-config-targets := $(yes-dot-config-targets) install %install \
 			   kernelrelease
 single-targets := %.a %.i %.ko %.lds %.ll %.lst %.mod %.o %.s %.symtypes %/
 
@@ -265,14 +265,14 @@ need-config	:= 1
 may-sync-config	:= 1
 single-build	:=
 
-ifneq ($(filter $(no-dot-config-targets), $(MAKECMDGOALS)),)
-	ifeq ($(filter-out $(no-dot-config-targets), $(MAKECMDGOALS)),)
+ifneq ($(filter $(yes-dot-config-targets), $(MAKECMDGOALS)),)
+	ifeq ($(filter-out $(yes-dot-config-targets), $(MAKECMDGOALS)),)
 		need-config :=
 	endif
 endif
 
-ifneq ($(filter $(no-sync-config-targets), $(MAKECMDGOALS)),)
-	ifeq ($(filter-out $(no-sync-config-targets), $(MAKECMDGOALS)),)
+ifneq ($(filter $(yes-sync-config-targets), $(MAKECMDGOALS)),)
+	ifeq ($(filter-out $(yes-sync-config-targets), $(MAKECMDGOALS)),)
 		may-sync-config :=
 	endif
 endif
@@ -290,7 +290,7 @@ ifeq ($(KBUILD_EXTMOD),)
         endif
 endif
 
-# We cannot build single targets and the others at the same time
+# We canyest build single targets and the others at the same time
 ifneq ($(filter $(single-targets), $(MAKECMDGOALS)),)
 	single-build := 1
 	ifneq ($(filter-out $(single-targets), $(MAKECMDGOALS)),)
@@ -346,7 +346,7 @@ include scripts/subarch.include
 # to the target architecture. (See arch/* for the possibilities).
 # ARCH can be set during invocation of make:
 # make ARCH=ia64
-# Another way is to have ARCH set in the environment.
+# Ayesther way is to have ARCH set in the environment.
 # The default ARCH is the host where make is executed.
 
 # CROSS_COMPILE specify the prefix used for all executables used
@@ -355,7 +355,7 @@ include scripts/subarch.include
 # CROSS_COMPILE can be set on the command line
 # make CROSS_COMPILE=ia64-linux-
 # Alternatively CROSS_COMPILE can be set in the environment.
-# Default value for CROSS_COMPILE is not to prefix executables
+# Default value for CROSS_COMPILE is yest to prefix executables
 # Note: Some architectures assign CROSS_COMPILE in their arch/*/Makefile
 ARCH		?= $(SUBARCH)
 
@@ -429,7 +429,7 @@ CHECK		= sparse
 BASH		= bash
 
 CHECKFLAGS     := -D__linux__ -Dlinux -D__STDC__ -Dunix -D__unix__ \
-		  -Wbitwise -Wno-return-void -Wno-unknown-attribute $(CF)
+		  -Wbitwise -Wyes-return-void -Wyes-unkyeswn-attribute $(CF)
 NOSTDINC_FLAGS :=
 CFLAGS_MODULE   =
 AFLAGS_MODULE   =
@@ -455,11 +455,11 @@ LINUXINCLUDE    := \
 		-I$(objtree)/include \
 		$(USERINCLUDE)
 
-KBUILD_AFLAGS   := -D__ASSEMBLY__ -fno-PIE
-KBUILD_CFLAGS   := -Wall -Wundef -Werror=strict-prototypes -Wno-trigraphs \
-		   -fno-strict-aliasing -fno-common -fshort-wchar -fno-PIE \
+KBUILD_AFLAGS   := -D__ASSEMBLY__ -fyes-PIE
+KBUILD_CFLAGS   := -Wall -Wundef -Werror=strict-prototypes -Wyes-trigraphs \
+		   -fyes-strict-aliasing -fyes-common -fshort-wchar -fyes-PIE \
 		   -Werror=implicit-function-declaration -Werror=implicit-int \
-		   -Wno-format-security \
+		   -Wyes-format-security \
 		   -std=gnu89
 KBUILD_CPPFLAGS := -D__KERNEL__
 KBUILD_AFLAGS_KERNEL :=
@@ -484,7 +484,7 @@ export KBUILD_AFLAGS AFLAGS_KERNEL AFLAGS_MODULE
 export KBUILD_AFLAGS_MODULE KBUILD_CFLAGS_MODULE KBUILD_LDFLAGS_MODULE
 export KBUILD_AFLAGS_KERNEL KBUILD_CFLAGS_KERNEL
 
-# Files to ignore in find ... statements
+# Files to igyesre in find ... statements
 
 export RCS_FIND_IGNORE := \( -name SCCS -o -name BitKeeper -o -name .svn -o    \
 			  -name CVS -o -name .pc -o -name .hg -o -name .git \) \
@@ -506,28 +506,28 @@ PHONY += outputmakefile
 # outputmakefile generates a Makefile in the output directory, if using a
 # separate output directory. This allows convenient use of make in the
 # output directory.
-# At the same time when output Makefile generated, generate .gitignore to
-# ignore whole output directory
+# At the same time when output Makefile generated, generate .gitigyesre to
+# igyesre whole output directory
 outputmakefile:
 ifdef building_out_of_srctree
 	$(Q)if [ -f $(srctree)/.config -o \
 		 -d $(srctree)/include/config -o \
 		 -d $(srctree)/arch/$(SRCARCH)/include/generated ]; then \
 		echo >&2 "***"; \
-		echo >&2 "*** The source tree is not clean, please run 'make$(if $(findstring command line, $(origin ARCH)), ARCH=$(ARCH)) mrproper'"; \
+		echo >&2 "*** The source tree is yest clean, please run 'make$(if $(findstring command line, $(origin ARCH)), ARCH=$(ARCH)) mrproper'"; \
 		echo >&2 "*** in $(abs_srctree)";\
 		echo >&2 "***"; \
 		false; \
 	fi
 	$(Q)ln -fsn $(srctree) source
 	$(Q)$(CONFIG_SHELL) $(srctree)/scripts/mkmakefile $(srctree)
-	$(Q)test -e .gitignore || \
-	{ echo "# this is build directory, ignore it"; echo "*"; } > .gitignore
+	$(Q)test -e .gitigyesre || \
+	{ echo "# this is build directory, igyesre it"; echo "*"; } > .gitigyesre
 endif
 
 ifneq ($(shell $(CC) --version 2>&1 | head -n 1 | grep clang),)
 ifneq ($(CROSS_COMPILE),)
-CLANG_FLAGS	+= --target=$(notdir $(CROSS_COMPILE:%-=%))
+CLANG_FLAGS	+= --target=$(yestdir $(CROSS_COMPILE:%-=%))
 GCC_TOOLCHAIN_DIR := $(dir $(shell which $(CROSS_COMPILE)elfedit))
 CLANG_FLAGS	+= --prefix=$(GCC_TOOLCHAIN_DIR)
 GCC_TOOLCHAIN	:= $(realpath $(GCC_TOOLCHAIN_DIR)/..)
@@ -536,9 +536,9 @@ ifneq ($(GCC_TOOLCHAIN),)
 CLANG_FLAGS	+= --gcc-toolchain=$(GCC_TOOLCHAIN)
 endif
 ifeq ($(shell $(AS) --version 2>&1 | head -n 1 | grep clang),)
-CLANG_FLAGS	+= -no-integrated-as
+CLANG_FLAGS	+= -yes-integrated-as
 endif
-CLANG_FLAGS	+= -Werror=unknown-warning-option
+CLANG_FLAGS	+= -Werror=unkyeswn-warning-option
 KBUILD_CFLAGS	+= $(CLANG_FLAGS)
 KBUILD_AFLAGS	+= $(CLANG_FLAGS)
 export CLANG_FLAGS
@@ -572,7 +572,7 @@ else #!config-build
 # Build targets only - this includes vmlinux, arch specific targets, clean
 # targets and others. In general all targets except *config targets.
 
-# If building an external module we do not care about the all: rule
+# If building an external module we do yest care about the all: rule
 # but instead _all depend on modules
 PHONY += all
 ifeq ($(KBUILD_EXTMOD),)
@@ -625,14 +625,14 @@ core-y		:= usr/
 virt-y		:= virt/
 endif # KBUILD_EXTMOD
 
-# The all: target is the default when no target is given on the
+# The all: target is the default when yes target is given on the
 # command line.
 # This allow a user to issue only 'make' to build a kernel including modules
 # Defaults to vmlinux, but the arch makefile usually adds further targets
 all: vmlinux
 
 CFLAGS_GCOV	:= -fprofile-arcs -ftest-coverage \
-	$(call cc-option,-fno-tree-loop-im) \
+	$(call cc-option,-fyes-tree-loop-im) \
 	$(call cc-disable-warning,maybe-uninitialized,)
 export CFLAGS_GCOV
 
@@ -661,7 +661,7 @@ include include/config/auto.conf.cmd
 
 $(KCONFIG_CONFIG):
 	@echo >&2 '***'
-	@echo >&2 '*** Configuration file "$@" not found!'
+	@echo >&2 '*** Configuration file "$@" yest found!'
 	@echo >&2 '***'
 	@echo >&2 '*** Please run some configurator (e.g. "make oldconfig" or'
 	@echo >&2 '*** "make menuconfig" or "make xconfig").'
@@ -678,7 +678,7 @@ $(KCONFIG_CONFIG):
 	$(Q)$(MAKE) -f $(srctree)/Makefile syncconfig
 else # !may-sync-config
 # External modules and some install targets need include/generated/autoconf.h
-# and include/config/auto.conf but do not care if they are up-to-date.
+# and include/config/auto.conf but do yest care if they are up-to-date.
 # Use auto.conf to trigger the test
 PHONY += include/config/auto.conf
 
@@ -694,7 +694,7 @@ include/config/auto.conf:
 endif # may-sync-config
 endif # need-config
 
-KBUILD_CFLAGS	+= $(call cc-option,-fno-delete-null-pointer-checks,)
+KBUILD_CFLAGS	+= $(call cc-option,-fyes-delete-null-pointer-checks,)
 KBUILD_CFLAGS	+= $(call cc-disable-warning,frame-address,)
 KBUILD_CFLAGS	+= $(call cc-disable-warning, format-truncation)
 KBUILD_CFLAGS	+= $(call cc-disable-warning, format-overflow)
@@ -709,10 +709,10 @@ KBUILD_CFLAGS += -Os
 endif
 
 ifdef CONFIG_CC_DISABLE_WARN_MAYBE_UNINITIALIZED
-KBUILD_CFLAGS   += -Wno-maybe-uninitialized
+KBUILD_CFLAGS   += -Wyes-maybe-uninitialized
 endif
 
-# Tell gcc to never replace conditional load with a non-conditional one
+# Tell gcc to never replace conditional load with a yesn-conditional one
 KBUILD_CFLAGS	+= $(call cc-option,--param=allow-store-data-races=0)
 
 include scripts/Makefile.kcov
@@ -723,16 +723,16 @@ ifdef CONFIG_READABLE_ASM
 # reorder blocks reorders the control in the function
 # ipa clone creates specialized cloned functions
 # partial inlining inlines only parts of functions
-KBUILD_CFLAGS += $(call cc-option,-fno-reorder-blocks,) \
-                 $(call cc-option,-fno-ipa-cp-clone,) \
-                 $(call cc-option,-fno-partial-inlining)
+KBUILD_CFLAGS += $(call cc-option,-fyes-reorder-blocks,) \
+                 $(call cc-option,-fyes-ipa-cp-clone,) \
+                 $(call cc-option,-fyes-partial-inlining)
 endif
 
 ifneq ($(CONFIG_FRAME_WARN),0)
 KBUILD_CFLAGS += $(call cc-option,-Wframe-larger-than=${CONFIG_FRAME_WARN})
 endif
 
-stackp-flags-$(CONFIG_CC_HAS_STACKPROTECTOR_NONE) := -fno-stack-protector
+stackp-flags-$(CONFIG_CC_HAS_STACKPROTECTOR_NONE) := -fyes-stack-protector
 stackp-flags-$(CONFIG_STACKPROTECTOR)             := -fstack-protector
 stackp-flags-$(CONFIG_STACKPROTECTOR_STRONG)      := -fstack-protector-strong
 
@@ -740,19 +740,19 @@ KBUILD_CFLAGS += $(stackp-flags-y)
 
 ifdef CONFIG_CC_IS_CLANG
 KBUILD_CPPFLAGS += -Qunused-arguments
-KBUILD_CFLAGS += -Wno-format-invalid-specifier
-KBUILD_CFLAGS += -Wno-gnu
+KBUILD_CFLAGS += -Wyes-format-invalid-specifier
+KBUILD_CFLAGS += -Wyes-gnu
 # Quiet clang warning: comparison of unsigned expression < 0 is always false
-KBUILD_CFLAGS += -Wno-tautological-compare
+KBUILD_CFLAGS += -Wyes-tautological-compare
 # CLANG uses a _MergedGlobals as optimization, but this breaks modpost, as the
-# source of a reference will be _MergedGlobals and not on of the whitelisted names.
+# source of a reference will be _MergedGlobals and yest on of the whitelisted names.
 # See modpost pattern 2
-KBUILD_CFLAGS += -mno-global-merge
+KBUILD_CFLAGS += -myes-global-merge
 else
 
-# These warnings generated too much noise in a regular build.
+# These warnings generated too much yesise in a regular build.
 # Use make W=1 to enable them (see scripts/Makefile.extrawarn)
-KBUILD_CFLAGS += -Wno-unused-but-set-variable
+KBUILD_CFLAGS += -Wyes-unused-but-set-variable
 
 # Warn about unmarked fall-throughs in switch statement.
 # Disabled for clang while comment to attribute conversion happens and
@@ -762,7 +762,7 @@ endif
 
 KBUILD_CFLAGS += $(call cc-disable-warning, unused-const-variable)
 ifdef CONFIG_FRAME_POINTER
-KBUILD_CFLAGS	+= -fno-omit-frame-pointer -fno-optimize-sibling-calls
+KBUILD_CFLAGS	+= -fyes-omit-frame-pointer -fyes-optimize-sibling-calls
 else
 # Some targets (ARM with Thumb2, for example), can't be built with frame
 # pointers.  For those, we don't have FUNCTION_TRACER automatically
@@ -779,7 +779,7 @@ ifdef CONFIG_INIT_STACK_ALL
 KBUILD_CFLAGS	+= -ftrivial-auto-var-init=pattern
 endif
 
-DEBUG_CFLAGS	:= $(call cc-option, -fno-var-tracking-assignments)
+DEBUG_CFLAGS	:= $(call cc-option, -fyes-var-tracking-assignments)
 
 ifdef CONFIG_DEBUG_INFO
 ifdef CONFIG_DEBUG_INFO_SPLIT
@@ -795,7 +795,7 @@ endif
 
 ifdef CONFIG_DEBUG_INFO_REDUCED
 DEBUG_CFLAGS	+= $(call cc-option, -femit-struct-debug-baseonly) \
-		   $(call cc-option,-fno-var-tracking)
+		   $(call cc-option,-fyes-var-tracking)
 endif
 
 KBUILD_CFLAGS += $(DEBUG_CFLAGS)
@@ -809,8 +809,8 @@ ifdef CONFIG_FTRACE_MCOUNT_RECORD
     export CC_USING_RECORD_MCOUNT := 1
   endif
   ifdef CONFIG_HAVE_NOP_MCOUNT
-    ifeq ($(call cc-option-yn, -mnop-mcount),y)
-      CC_FLAGS_FTRACE	+= -mnop-mcount
+    ifeq ($(call cc-option-yn, -myesp-mcount),y)
+      CC_FLAGS_FTRACE	+= -myesp-mcount
       CC_FLAGS_USING	+= -DCC_USING_NOP_MCOUNT
     endif
   endif
@@ -834,7 +834,7 @@ endif
 
 # We trigger additional mismatches with less inlining
 ifdef CONFIG_DEBUG_SECTION_MISMATCH
-KBUILD_CFLAGS += $(call cc-option, -fno-inline-functions-called-once)
+KBUILD_CFLAGS += $(call cc-option, -fyes-inline-functions-called-once)
 endif
 
 ifdef CONFIG_LD_DEAD_CODE_DATA_ELIMINATION
@@ -847,39 +847,39 @@ KBUILD_CFLAGS += $(call cc-option, -flive-patching=inline-clone)
 endif
 
 # arch Makefile may override CC so keep this after arch Makefile is included
-NOSTDINC_FLAGS += -nostdinc -isystem $(shell $(CC) -print-file-name=include)
+NOSTDINC_FLAGS += -yesstdinc -isystem $(shell $(CC) -print-file-name=include)
 
 # warn about C99 declaration after statement
 KBUILD_CFLAGS += -Wdeclaration-after-statement
 
-# Variable Length Arrays (VLAs) should not be used anywhere in the kernel
+# Variable Length Arrays (VLAs) should yest be used anywhere in the kernel
 KBUILD_CFLAGS += -Wvla
 
 # disable pointer signed / unsigned warnings in gcc 4.0
-KBUILD_CFLAGS += -Wno-pointer-sign
+KBUILD_CFLAGS += -Wyes-pointer-sign
 
 # disable stringop warnings in gcc 8+
 KBUILD_CFLAGS += $(call cc-disable-warning, stringop-truncation)
 
 # disable invalid "can't wrap" optimizations for signed / pointers
-KBUILD_CFLAGS	+= $(call cc-option,-fno-strict-overflow)
+KBUILD_CFLAGS	+= $(call cc-option,-fyes-strict-overflow)
 
 # clang sets -fmerge-all-constants by default as optimization, but this
-# is non-conforming behavior for C and in fact breaks the kernel, so we
+# is yesn-conforming behavior for C and in fact breaks the kernel, so we
 # need to disable it here generally.
-KBUILD_CFLAGS	+= $(call cc-option,-fno-merge-all-constants)
+KBUILD_CFLAGS	+= $(call cc-option,-fyes-merge-all-constants)
 
-# for gcc -fno-merge-all-constants disables everything, but it is fine
+# for gcc -fyes-merge-all-constants disables everything, but it is fine
 # to have actual conforming behavior enabled.
 KBUILD_CFLAGS	+= $(call cc-option,-fmerge-constants)
 
 # Make sure -fstack-check isn't enabled (like gentoo apparently did)
-KBUILD_CFLAGS  += $(call cc-option,-fno-stack-check,)
+KBUILD_CFLAGS  += $(call cc-option,-fyes-stack-check,)
 
 # conserve stack if available
 KBUILD_CFLAGS   += $(call cc-option,-fconserve-stack)
 
-# Prohibit date/time macros, which would make the build non-deterministic
+# Prohibit date/time macros, which would make the build yesn-deterministic
 KBUILD_CFLAGS   += $(call cc-option,-Werror=date-time)
 
 # enforce correct pointer usage
@@ -894,7 +894,7 @@ KBUILD_CFLAGS	+= $(call cc-option,-fmacro-prefix-map=$(srctree)/=)
 # ensure -fcf-protection is disabled when using retpoline as it is
 # incompatible with -mindirect-branch=thunk-extern
 ifdef CONFIG_RETPOLINE
-KBUILD_CFLAGS += $(call cc-option,-fcf-protection=none)
+KBUILD_CFLAGS += $(call cc-option,-fcf-protection=yesne)
 endif
 
 include scripts/Makefile.kasan
@@ -926,7 +926,7 @@ CHECKFLAGS += $(if $(CONFIG_CPU_BIG_ENDIAN),-mbig-endian,-mlittle-endian)
 # the checker needs the correct machine size
 CHECKFLAGS += $(if $(CONFIG_64BIT),-m64,-m32)
 
-# Default kernel image to build when no specific target is given.
+# Default kernel image to build when yes specific target is given.
 # KBUILD_IMAGE may be overruled on the command line or
 # set in the environment
 # Also any assignments in arch/$(ARCH)/Makefile take precedence over
@@ -947,7 +947,7 @@ export INSTALL_DTBS_PATH ?= $(INSTALL_PATH)/dtbs/$(KERNELRELEASE)
 
 #
 # INSTALL_MOD_PATH specifies a prefix to MODLIB for module directory
-# relocations required by build roots.  This is not defined in the
+# relocations required by build roots.  This is yest defined in the
 # makefile but the argument can be passed to make if needed.
 #
 
@@ -1080,7 +1080,7 @@ vmlinux: scripts/link-vmlinux.sh autoksyms_recursive $(vmlinux-deps) FORCE
 targets := vmlinux
 
 # The actual objects are generated when descending,
-# make sure no implicit rule kicks in
+# make sure yes implicit rule kicks in
 $(sort $(vmlinux-deps)): descend ;
 
 filechk_kernel.release = \
@@ -1091,7 +1091,7 @@ include/config/kernel.release: FORCE
 	$(call filechk,kernel.release)
 
 # Additional helpers built in scripts/
-# Carefully list dependencies so we do not try to build scripts twice
+# Carefully list dependencies so we do yest try to build scripts twice
 # in parallel
 PHONY += scripts
 scripts: scripts_basic scripts_dtc
@@ -1130,10 +1130,10 @@ PHONY += prepare-objtool
 prepare-objtool: $(objtool_target)
 ifeq ($(SKIP_STACK_VALIDATION),1)
 ifdef CONFIG_UNWINDER_ORC
-	@echo "error: Cannot generate ORC metadata for CONFIG_UNWINDER_ORC=y, please install libelf-dev, libelf-devel or elfutils-libelf-devel" >&2
+	@echo "error: Canyest generate ORC metadata for CONFIG_UNWINDER_ORC=y, please install libelf-dev, libelf-devel or elfutils-libelf-devel" >&2
 	@false
 else
-	@echo "warning: Cannot use CONFIG_STACK_VALIDATION=y, please install libelf-dev, libelf-devel or elfutils-libelf-devel" >&2
+	@echo "warning: Canyest use CONFIG_STACK_VALIDATION=y, please install libelf-dev, libelf-devel or elfutils-libelf-devel" >&2
 endif
 endif
 
@@ -1193,11 +1193,11 @@ hdr-inst := -f $(srctree)/scripts/Makefile.headersinst obj
 PHONY += headers
 headers: $(version_h) scripts_unifdef uapi-asm-generic archheaders archscripts
 	$(if $(wildcard $(srctree)/arch/$(SRCARCH)/include/uapi/asm/Kbuild),, \
-	  $(error Headers not exportable for the $(SRCARCH) architecture))
+	  $(error Headers yest exportable for the $(SRCARCH) architecture))
 	$(Q)$(MAKE) $(hdr-inst)=include/uapi
 	$(Q)$(MAKE) $(hdr-inst)=arch/$(SRCARCH)/include/uapi
 
-# Deprecated. It is no-op now.
+# Deprecated. It is yes-op yesw.
 PHONY += headers_check
 headers_check:
 	@:
@@ -1291,7 +1291,7 @@ modules.builtin: $(modbuiltin-dirs)
 	$(Q)$(AWK) '!x[$$0]++' $(addsuffix /$@, $(build-dirs)) > $@
 
 PHONY += $(modbuiltin-dirs)
-# tristate.conf is not included from this Makefile. Add it as a prerequisite
+# tristate.conf is yest included from this Makefile. Add it as a prerequisite
 # here to make it self-healing in case somebody accidentally removes it.
 $(modbuiltin-dirs): include/config/tristate.conf
 	$(Q)$(MAKE) $(modbuiltin)=$(patsubst _modbuiltin_%,%,$@)
@@ -1334,7 +1334,7 @@ endif
 
 else # CONFIG_MODULES
 
-# Modules not configured
+# Modules yest configured
 # ---------------------------------------------------------------------------
 
 PHONY += modules modules_install
@@ -1351,7 +1351,7 @@ endif # CONFIG_MODULES
 ###
 # Cleaning is done on three levels.
 # make clean     Delete most generated files
-#                Leave enough to build external modules
+#                Leave eyesugh to build external modules
 # make mrproper  Delete the current configuration, and all generated files
 # make distclean Remove editor backup files, patch leftover files and the like
 
@@ -1374,7 +1374,7 @@ MRPROPER_FILES += .config .config.old .version \
 DISTCLEAN_DIRS  +=
 DISTCLEAN_FILES += tags TAGS cscope* GPATH GTAGS GRTAGS GSYMS
 
-# clean - Delete most, but leave enough to build external modules
+# clean - Delete most, but leave eyesugh to build external modules
 #
 clean: rm-dirs  := $(CLEAN_DIRS)
 clean: rm-files := $(CLEAN_FILES)
@@ -1430,15 +1430,15 @@ distclean: mrproper
 # ---------------------------------------------------------------------------
 
 boards := $(wildcard $(srctree)/arch/$(SRCARCH)/configs/*_defconfig)
-boards := $(sort $(notdir $(boards)))
+boards := $(sort $(yestdir $(boards)))
 board-dirs := $(dir $(wildcard $(srctree)/arch/$(SRCARCH)/configs/*/*_defconfig))
-board-dirs := $(sort $(notdir $(board-dirs:/=)))
+board-dirs := $(sort $(yestdir $(board-dirs:/=)))
 
 PHONY += help
 help:
 	@echo  'Cleaning targets:'
 	@echo  '  clean		  - Remove most generated files but keep the config and'
-	@echo  '                    enough build support to build external modules'
+	@echo  '                    eyesugh build support to build external modules'
 	@echo  '  mrproper	  - Remove all generated files + config + various backup files'
 	@echo  '  distclean	  - mrproper + remove editor backup and patch files'
 	@echo  ''
@@ -1525,11 +1525,11 @@ help:
 	@echo  '  make C=1   [targets] Check re-compiled c source with $$CHECK'
 	@echo  '                       (sparse by default)'
 	@echo  '  make C=2   [targets] Force check of all c source with $$CHECK'
-	@echo  '  make RECORDMCOUNT_WARN=1 [targets] Warn about ignored mcount sections'
+	@echo  '  make RECORDMCOUNT_WARN=1 [targets] Warn about igyesred mcount sections'
 	@echo  '  make W=n   [targets] Enable extra build checks, n=1,2,3 where'
-	@echo  '		1: warnings which may be relevant and do not occur too often'
+	@echo  '		1: warnings which may be relevant and do yest occur too often'
 	@echo  '		2: warnings which occur quite often but may still be relevant'
-	@echo  '		3: more obscure warnings, can most likely be ignored'
+	@echo  '		3: more obscure warnings, can most likely be igyesred'
 	@echo  '		Multiple levels can be combined with W=12 or W=123'
 	@echo  ''
 	@echo  'Execute "make" or "make all" to build all targets marked with [*] '
@@ -1540,7 +1540,7 @@ help-board-dirs := $(addprefix help-,$(board-dirs))
 
 help-boards: $(help-board-dirs)
 
-boards-per-dir = $(sort $(notdir $(wildcard $(srctree)/arch/$(SRCARCH)/configs/$*/*_defconfig)))
+boards-per-dir = $(sort $(yestdir $(wildcard $(srctree)/arch/$(SRCARCH)/configs/$*/*_defconfig)))
 
 $(help-board-dirs): help-%:
 	@echo  'Architecture specific targets ($(SRCARCH) $*):'
@@ -1575,8 +1575,8 @@ else # KBUILD_EXTMOD
 ###
 # External module support.
 # When building external modules the kernel used as basis is considered
-# read-only, and no consistency checks are made and the make
-# system is not used on the basis kernel. If updates are required
+# read-only, and yes consistency checks are made and the make
+# system is yest used on the basis kernel. If updates are required
 # in the basis kernel ordinary make commands (without M=...) must
 # be used.
 #
@@ -1597,7 +1597,7 @@ $(objtree)/Module.symvers:
 	@test -e $(objtree)/Module.symvers || ( \
 	echo; \
 	echo "  WARNING: Symbol version dump $(objtree)/Module.symvers"; \
-	echo "           is missing; modules will have no dependencies and modversions."; \
+	echo "           is missing; modules will have yes dependencies and modversions."; \
 	echo )
 
 build-dirs := $(KBUILD_EXTMOD)
@@ -1623,7 +1623,7 @@ clean: rm-files := $(KBUILD_EXTMOD)/Module.symvers $(KBUILD_EXTMOD)/modules.nsde
 
 PHONY += /
 /:
-	@echo >&2 '"$(MAKE) /" is no longer supported. Please use "$(MAKE) ./" instead.'
+	@echo >&2 '"$(MAKE) /" is yes longer supported. Please use "$(MAKE) ./" instead.'
 
 PHONY += help
 help:
@@ -1654,11 +1654,11 @@ ifdef single-build
 
 # .ko is special because modpost is needed
 single-ko := $(sort $(filter %.ko, $(MAKECMDGOALS)))
-single-no-ko := $(sort $(patsubst %.ko,%.mod, $(MAKECMDGOALS)))
+single-yes-ko := $(sort $(patsubst %.ko,%.mod, $(MAKECMDGOALS)))
 
 $(single-ko): single_modpost
 	@:
-$(single-no-ko): descend
+$(single-yes-ko): descend
 	@:
 
 ifeq ($(KBUILD_EXTMOD),)
@@ -1668,13 +1668,13 @@ MODORDER := .modules.tmp
 endif
 
 PHONY += single_modpost
-single_modpost: $(single-no-ko)
+single_modpost: $(single-yes-ko)
 	$(Q){ $(foreach m, $(single-ko), echo $(extmod-prefix)$m;) } > $(MODORDER)
 	$(Q)$(MAKE) -f $(srctree)/scripts/Makefile.modpost
 
 KBUILD_MODULES := 1
 
-export KBUILD_SINGLE_TARGETS := $(addprefix $(extmod-prefix), $(single-no-ko))
+export KBUILD_SINGLE_TARGETS := $(addprefix $(extmod-prefix), $(single-yes-ko))
 
 # trim unrelated directories
 build-dirs := $(foreach d, $(build-dirs), \
@@ -1691,7 +1691,7 @@ PHONY += descend $(build-dirs)
 descend: $(build-dirs)
 $(build-dirs): prepare
 	$(Q)$(MAKE) $(build)=$@ \
-	single-build=$(if $(filter-out $@/, $(single-no-ko)),1) \
+	single-build=$(if $(filter-out $@/, $(single-yes-ko)),1) \
 	need-builtin=1 need-modorder=1
 
 clean-dirs := $(addprefix _clean_, $(clean-dirs))
@@ -1715,7 +1715,7 @@ clean: $(clean-dirs)
 		-o -name modules.builtin -o -name '.tmp_*.o.*' \
 		-o -name '*.c.[012]*.*' \
 		-o -name '*.ll' \
-		-o -name '*.gcno' \) -type f -print | xargs rm -f
+		-o -name '*.gcyes' \) -type f -print | xargs rm -f
 
 # Generate tags for editors
 # ---------------------------------------------------------------------------
@@ -1812,7 +1812,7 @@ quiet_cmd_depmod = DEPMOD  $(KERNELRELEASE)
 # read saved command lines for existing targets
 existing-targets := $(wildcard $(sort $(targets)))
 
--include $(foreach f,$(existing-targets),$(dir $(f)).$(notdir $(f)).cmd)
+-include $(foreach f,$(existing-targets),$(dir $(f)).$(yestdir $(f)).cmd)
 
 endif # config-targets
 endif # mixed-build

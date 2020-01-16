@@ -116,7 +116,7 @@ int __tcp_bpf_recvmsg(struct sock *sk, struct sk_psock *psock,
 EXPORT_SYMBOL_GPL(__tcp_bpf_recvmsg);
 
 int tcp_bpf_recvmsg(struct sock *sk, struct msghdr *msg, size_t len,
-		    int nonblock, int flags, int *addr_len)
+		    int yesnblock, int flags, int *addr_len)
 {
 	struct sk_psock *psock;
 	int copied, ret;
@@ -124,11 +124,11 @@ int tcp_bpf_recvmsg(struct sock *sk, struct msghdr *msg, size_t len,
 	if (unlikely(flags & MSG_ERRQUEUE))
 		return inet_recv_error(sk, msg, len, addr_len);
 	if (!skb_queue_empty(&sk->sk_receive_queue))
-		return tcp_recvmsg(sk, msg, len, nonblock, flags, addr_len);
+		return tcp_recvmsg(sk, msg, len, yesnblock, flags, addr_len);
 
 	psock = sk_psock_get(sk);
 	if (unlikely(!psock))
-		return tcp_recvmsg(sk, msg, len, nonblock, flags, addr_len);
+		return tcp_recvmsg(sk, msg, len, yesnblock, flags, addr_len);
 	lock_sock(sk);
 msg_bytes_ready:
 	copied = __tcp_bpf_recvmsg(sk, psock, msg, len, flags);
@@ -136,14 +136,14 @@ msg_bytes_ready:
 		int data, err = 0;
 		long timeo;
 
-		timeo = sock_rcvtimeo(sk, nonblock);
+		timeo = sock_rcvtimeo(sk, yesnblock);
 		data = tcp_bpf_wait_data(sk, psock, flags, timeo, &err);
 		if (data) {
 			if (skb_queue_empty(&sk->sk_receive_queue))
 				goto msg_bytes_ready;
 			release_sock(sk);
 			sk_psock_put(sk, psock);
-			return tcp_recvmsg(sk, msg, len, nonblock, flags, addr_len);
+			return tcp_recvmsg(sk, msg, len, yesnblock, flags, addr_len);
 		}
 		if (err) {
 			ret = err;
@@ -301,7 +301,7 @@ EXPORT_SYMBOL_GPL(tcp_bpf_sendmsg_redir);
 static int tcp_bpf_send_verdict(struct sock *sk, struct sk_psock *psock,
 				struct sk_msg *msg, int *copied, int flags)
 {
-	bool cork = false, enospc = sk_msg_full(msg);
+	bool cork = false, eyesspc = sk_msg_full(msg);
 	struct sock *sk_redir;
 	u32 tosend, delta = 0;
 	int ret;
@@ -322,7 +322,7 @@ more_data:
 	}
 
 	if (msg->cork_bytes &&
-	    msg->cork_bytes > msg->sg.size && !enospc) {
+	    msg->cork_bytes > msg->sg.size && !eyesspc) {
 		psock->cork_bytes = msg->cork_bytes - msg->sg.size;
 		if (!psock->cork) {
 			psock->cork = kzalloc(sizeof(*psock->cork),
@@ -359,7 +359,7 @@ more_data:
 		ret = tcp_bpf_sendmsg_redir(sk_redir, msg, tosend, flags);
 		lock_sock(sk);
 		if (unlikely(ret < 0)) {
-			int free = sk_msg_free_nocharge(sk, msg);
+			int free = sk_msg_free_yescharge(sk, msg);
 
 			if (!cork)
 				*copied -= free;
@@ -414,7 +414,7 @@ static int tcp_bpf_sendmsg(struct sock *sk, struct msghdr *msg, size_t size)
 	lock_sock(sk);
 	timeo = sock_sndtimeo(sk, msg->msg_flags & MSG_DONTWAIT);
 	while (msg_data_left(msg)) {
-		bool enospc = false;
+		bool eyesspc = false;
 		u32 copy, osize;
 
 		if (sk->sk_err) {
@@ -437,7 +437,7 @@ static int tcp_bpf_sendmsg(struct sock *sk, struct msghdr *msg, size_t size)
 		if (err) {
 			if (err != -ENOSPC)
 				goto wait_for_memory;
-			enospc = true;
+			eyesspc = true;
 			copy = msg_tx->sg.size - osize;
 		}
 
@@ -454,7 +454,7 @@ static int tcp_bpf_sendmsg(struct sock *sk, struct msghdr *msg, size_t size)
 				psock->cork_bytes = 0;
 			else
 				psock->cork_bytes -= size;
-			if (psock->cork_bytes && !enospc)
+			if (psock->cork_bytes && !eyesspc)
 				goto out_err;
 			/* All cork bytes are accounted, rerun the prog. */
 			psock->eval = __SK_NONE;
@@ -489,7 +489,7 @@ static int tcp_bpf_sendpage(struct sock *sk, struct page *page, int offset,
 	struct sk_msg tmp, *msg = NULL;
 	int err = 0, copied = 0;
 	struct sk_psock *psock;
-	bool enospc = false;
+	bool eyesspc = false;
 
 	psock = sk_psock_get(sk);
 	if (unlikely(!psock))
@@ -511,13 +511,13 @@ static int tcp_bpf_sendpage(struct sock *sk, struct page *page, int offset,
 	sk_mem_charge(sk, size);
 	copied = size;
 	if (sk_msg_full(msg))
-		enospc = true;
+		eyesspc = true;
 	if (psock->cork_bytes) {
 		if (size > psock->cork_bytes)
 			psock->cork_bytes = 0;
 		else
 			psock->cork_bytes -= size;
-		if (psock->cork_bytes && !enospc)
+		if (psock->cork_bytes && !eyesspc)
 			goto out_err;
 		/* All cork bytes are accounted, rerun the prog. */
 		psock->eval = __SK_NONE;
@@ -655,7 +655,7 @@ static void tcp_bpf_reinit_sk_prot(struct sock *sk, struct sk_psock *psock)
 static int tcp_bpf_assert_proto_ops(struct proto *ops)
 {
 	/* In order to avoid retpoline, we make assumptions when we call
-	 * into ops if e.g. a psock is not present. Make sure they are
+	 * into ops if e.g. a psock is yest present. Make sure they are
 	 * indeed valid assumptions.
 	 */
 	return ops->recvmsg  == tcp_recvmsg &&

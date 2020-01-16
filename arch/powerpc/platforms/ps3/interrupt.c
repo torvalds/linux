@@ -36,7 +36,7 @@
  * behalf of the guest.  These mappings are implemented as 256 bit guest
  * supplied bitmaps indexed by plug number.  The addresses of the bitmaps
  * are registered with the HV through lv1_configure_irq_state_bitmap().
- * The HV requires that the 512 bits of status + mask not cross a page
+ * The HV requires that the 512 bits of status + mask yest cross a page
  * boundary.  PS3_BMP_MINALIGN is used to define this minimal 64 byte
  * alignment.
  *
@@ -46,7 +46,7 @@
  * interrupt to have a system wide unique plug number, and limits the range
  * of the plug values to map into the first dword of the bitmaps.  This
  * gives a usable range of plug values of  {NUM_ISA_INTERRUPTS..63}.  Note
- * that there is no constraint on how many in this set an individual thread
+ * that there is yes constraint on how many in this set an individual thread
  * can acquire.
  *
  * The mask is declared as unsigned long so we can use set/clear_bit on it.
@@ -137,7 +137,7 @@ static void ps3_chip_eoi(struct irq_data *d)
 {
 	const struct ps3_private *pd = irq_data_get_irq_chip_data(d);
 
-	/* non-IPIs are EOIed here. */
+	/* yesn-IPIs are EOIed here. */
 
 	if (!test_bit(63 - d->irq, &pd->ipi_mask))
 		lv1_end_of_interrupt_ext(pd->ppe_id, pd->thread_id, d->irq);
@@ -280,7 +280,7 @@ EXPORT_SYMBOL_GPL(ps3_irq_plug_setup);
  * @virq: The assigned Linux virq.
  *
  * Disconnects the irq plug and tears down virq.
- * Do not call for system bus event interrupts setup with
+ * Do yest call for system bus event interrupts setup with
  * ps3_sb_event_receive_port_setup().
  */
 
@@ -458,7 +458,7 @@ EXPORT_SYMBOL(ps3_sb_event_receive_port_destroy);
  * @interrupt_id: The device interrupt id read from the system repository.
  * @virq: The assigned Linux virq.
  *
- * An io irq represents a non-virtualized device interrupt.  interrupt_id
+ * An io irq represents a yesn-virtualized device interrupt.  interrupt_id
  * coresponds to the interrupt number of the interrupt controller.
  */
 
@@ -666,7 +666,7 @@ static int ps3_host_map(struct irq_domain *h, unsigned int virq,
 	return 0;
 }
 
-static int ps3_host_match(struct irq_domain *h, struct device_node *np,
+static int ps3_host_match(struct irq_domain *h, struct device_yesde *np,
 			  enum irq_domain_bus_token bus_token)
 {
 	/* Match all */
@@ -713,7 +713,7 @@ static unsigned int ps3_get_irq(void)
 	plug &= 0x3f;
 
 	if (unlikely(!plug)) {
-		DBG("%s:%d: no plug found: thread_id %llu\n", __func__,
+		DBG("%s:%d: yes plug found: thread_id %llu\n", __func__,
 			__LINE__, pd->thread_id);
 		dump_bmp(&per_cpu(ps3_private, 0));
 		dump_bmp(&per_cpu(ps3_private, 1));
@@ -742,7 +742,7 @@ void __init ps3_init_IRQ(void)
 	unsigned cpu;
 	struct irq_domain *host;
 
-	host = irq_domain_add_nomap(NULL, PS3_PLUG_MAX + 1, &ps3_host_ops, NULL);
+	host = irq_domain_add_yesmap(NULL, PS3_PLUG_MAX + 1, &ps3_host_ops, NULL);
 	irq_set_default_host(host);
 
 	for_each_possible_cpu(cpu) {

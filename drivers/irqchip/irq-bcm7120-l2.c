@@ -105,7 +105,7 @@ static void bcm7120_l2_intc_resume(struct irq_chip_generic *gc)
 	irq_gc_unlock(gc);
 }
 
-static int bcm7120_l2_intc_init_one(struct device_node *dn,
+static int bcm7120_l2_intc_init_one(struct device_yesde *dn,
 					struct bcm7120_l2_intc_data *data,
 					int irq, u32 *valid_mask)
 {
@@ -146,7 +146,7 @@ static int bcm7120_l2_intc_init_one(struct device_node *dn,
 	return 0;
 }
 
-static int __init bcm7120_l2_intc_iomap_7120(struct device_node *dn,
+static int __init bcm7120_l2_intc_iomap_7120(struct device_yesde *dn,
 					     struct bcm7120_l2_intc_data *data)
 {
 	int ret;
@@ -180,7 +180,7 @@ static int __init bcm7120_l2_intc_iomap_7120(struct device_node *dn,
 	return 0;
 }
 
-static int __init bcm7120_l2_intc_iomap_3380(struct device_node *dn,
+static int __init bcm7120_l2_intc_iomap_3380(struct device_yesde *dn,
 					     struct bcm7120_l2_intc_data *data)
 {
 	unsigned int gc_idx;
@@ -211,9 +211,9 @@ static int __init bcm7120_l2_intc_iomap_3380(struct device_node *dn,
 	return 0;
 }
 
-static int __init bcm7120_l2_intc_probe(struct device_node *dn,
-				 struct device_node *parent,
-				 int (*iomap_regs_fn)(struct device_node *,
+static int __init bcm7120_l2_intc_probe(struct device_yesde *dn,
+				 struct device_yesde *parent,
+				 int (*iomap_regs_fn)(struct device_yesde *,
 					struct bcm7120_l2_intc_data *),
 				 const char *intc_name)
 {
@@ -294,7 +294,7 @@ static int __init bcm7120_l2_intc_probe(struct device_node *dn,
 
 		ct->chip.irq_mask = irq_gc_mask_clr_bit;
 		ct->chip.irq_unmask = irq_gc_mask_set_bit;
-		ct->chip.irq_ack = irq_gc_noop;
+		ct->chip.irq_ack = irq_gc_yesop;
 		gc->suspend = bcm7120_l2_intc_suspend;
 		gc->resume = bcm7120_l2_intc_resume;
 
@@ -333,15 +333,15 @@ out_unmap:
 	return ret;
 }
 
-static int __init bcm7120_l2_intc_probe_7120(struct device_node *dn,
-					     struct device_node *parent)
+static int __init bcm7120_l2_intc_probe_7120(struct device_yesde *dn,
+					     struct device_yesde *parent)
 {
 	return bcm7120_l2_intc_probe(dn, parent, bcm7120_l2_intc_iomap_7120,
 				     "BCM7120 L2");
 }
 
-static int __init bcm7120_l2_intc_probe_3380(struct device_node *dn,
-					     struct device_node *parent)
+static int __init bcm7120_l2_intc_probe_3380(struct device_yesde *dn,
+					     struct device_yesde *parent)
 {
 	return bcm7120_l2_intc_probe(dn, parent, bcm7120_l2_intc_iomap_3380,
 				     "BCM3380 L2");

@@ -7,11 +7,11 @@
  *
  * The source code in this file can be freely used, adapted,
  * and redistributed in source or binary form, so long as an
- * acknowledgment appears in derived source files.  The citation
+ * ackyeswledgment appears in derived source files.  The citation
  * should list that the code comes from the book "Linux Device
  * Drivers" by Alessandro Rubini and Jonathan Corbet, published
  * by O'Reilly & Associates.   No warranty is attached;
- * we cannot take responsibility for errors or fitness for use.
+ * we canyest take responsibility for errors or fitness for use.
  */
 
 /* version dependencies have been confined to a separate file */
@@ -19,7 +19,7 @@
 /* Tunable parameters */
 #define TX_RING_ENTRIES 64	/* 64-512?*/
 
-#define RX_RING_ENTRIES 16 /* Do not change */
+#define RX_RING_ENTRIES 16 /* Do yest change */
 /* Internal constants */
 #define TX_RING_BUFFER_SIZE	(TX_RING_ENTRIES*sizeof(tx_packet))
 #define RX_BUFFER_SIZE 1546 /* ethenet packet size */
@@ -30,7 +30,7 @@
 
 /* For more detailed explanations of what each field menas,
    see Nick's great comments to #defines below (or docs, if
-   you are lucky enough toget hold of them :)*/
+   you are lucky eyesugh toget hold of them :)*/
 
 /* tx status vector is written over tx command header upon
    dma completion. */
@@ -117,7 +117,7 @@ typedef struct rx_packet {
 #define SGI_MAC_RESET		BIT(0)	/* 0: MAC110 active in run mode, 1: Global reset signal to MAC110 core is active */
 #define METH_PHY_FDX		BIT(1) /* 0: Disable full duplex, 1: Enable full duplex */
 #define METH_PHY_LOOP	BIT(2) /* 0: Normal operation, follows 10/100mbit and M10T/MII select, 1: loops internal MII bus */
-				       /*    selects ignored */
+				       /*    selects igyesred */
 #define METH_100MBIT		BIT(3) /* 0: 10meg mode, 1: 100meg mode */
 #define METH_PHY_MII		BIT(4) /* 0: MII selected, 1: SIA selected */
 				       /*   Note: when loopback is set this bit becomes collision control.  Setting this bit will */
@@ -196,7 +196,7 @@ typedef struct rx_packet {
 						/* 1: A memory error occurred during DMA, DMA stopped, Fatal */
 #define METH_INT_TX_ABORT		BIT(4)	/* 0: No interrupt pending, 1: The TX aborted operation, DMA stopped, FATAL */
 #define METH_INT_RX_THRESHOLD	BIT(5)	/* 0: No interrupt pending, 1: Selected receive threshold condition Valid */
-#define METH_INT_RX_UNDERFLOW	BIT(6)	/* 0: No interrupt pending, 1: FIFO was empty, packet could not be queued */
+#define METH_INT_RX_UNDERFLOW	BIT(6)	/* 0: No interrupt pending, 1: FIFO was empty, packet could yest be queued */
 #define METH_INT_RX_OVERFLOW		BIT(7)	/* 0: No interrupt pending, 1: DMA FIFO Overflow, DMA stopped, FATAL */
 
 /*#define METH_INT_RX_RPTR_MASK 0x0001F00*/		/* Bits 8 through 12 alias of RX read-pointer */

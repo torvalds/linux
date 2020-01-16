@@ -60,7 +60,7 @@ static int digitv_i2c_xfer(struct i2c_adapter *adap,struct i2c_msg msg[],int num
 		return -EAGAIN;
 
 	if (num > 2)
-		warn("more than 2 i2c messages at a time is not handled yet. TODO.");
+		warn("more than 2 i2c messages at a time is yest handled yet. TODO.");
 
 	for (i = 0; i < num; i++) {
 		/* write/read request */

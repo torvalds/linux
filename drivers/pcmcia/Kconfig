@@ -24,7 +24,7 @@ config PCMCIA
 	default y
 	---help---
 	   This option enables support for 16-bit PCMCIA cards. Most older
-	   PC-cards are such 16-bit PCMCIA cards, so unless you know you're
+	   PC-cards are such 16-bit PCMCIA cards, so unless you kyesw you're
 	   only using 32-bit CardBus cards, say Y or M here.
 
 	   To use 16-bit PCMCIA cards, you will need supporting software in

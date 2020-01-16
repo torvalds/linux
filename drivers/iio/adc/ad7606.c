@@ -92,7 +92,7 @@ static int ad7606_read_samples(struct ad7606_state *st)
 	/*
 	 * The frstdata signal is set to high while and after reading the sample
 	 * of the first channel and low for all other channels. This can be used
-	 * to check that the incoming data is correctly aligned. During normal
+	 * to check that the incoming data is correctly aligned. During yesrmal
 	 * operation the data should never become unaligned, but some glitch or
 	 * electrostatic discharge might cause an extra read or clock cycle.
 	 * Monitoring the frstdata signal allows to recover from such failure
@@ -130,7 +130,7 @@ static irqreturn_t ad7606_trigger_handler(int irq, void *p)
 		iio_push_to_buffers_with_timestamp(indio_dev, st->data,
 						   iio_get_time_ns(indio_dev));
 
-	iio_trigger_notify_done(indio_dev->trig);
+	iio_trigger_yestify_done(indio_dev->trig);
 	/* The rising edge of the CONVST signal starts a new conversion. */
 	gpiod_set_value(st->gpio_convst, 1);
 
@@ -519,7 +519,7 @@ static const struct iio_buffer_setup_ops ad7606_buffer_ops = {
 	.predisable = &ad7606_buffer_predisable,
 };
 
-static const struct iio_info ad7606_info_no_os_or_range = {
+static const struct iio_info ad7606_info_yes_os_or_range = {
 	.read_raw = &ad7606_read_raw,
 	.validate_trigger = &ad7606_validate_trigger,
 };
@@ -624,7 +624,7 @@ int ad7606_probe(struct device *dev, int irq, void __iomem *base_address,
 		if (st->gpio_range)
 			indio_dev->info = &ad7606_info_range;
 		else
-			indio_dev->info = &ad7606_info_no_os_or_range;
+			indio_dev->info = &ad7606_info_yes_os_or_range;
 	}
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->name = name;
@@ -635,7 +635,7 @@ int ad7606_probe(struct device *dev, int irq, void __iomem *base_address,
 
 	ret = ad7606_reset(st);
 	if (ret)
-		dev_warn(st->dev, "failed to RESET: no RESET GPIO specified\n");
+		dev_warn(st->dev, "failed to RESET: yes RESET GPIO specified\n");
 
 	/* AD7616 requires al least 15ms to reconfigure after a reset */
 	if (st->chip_info->init_delay_ms) {

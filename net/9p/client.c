@@ -11,7 +11,7 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/module.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/fs.h>
 #include <linux/poll.h>
 #include <linux/idr.h>
@@ -45,7 +45,7 @@ enum {
 
 static const match_table_t tokens = {
 	{Opt_msize, "msize=%u"},
-	{Opt_legacy, "noextend"},
+	{Opt_legacy, "yesextend"},
 	{Opt_trans, "trans=%s"},
 	{Opt_version, "version=%s"},
 	{Opt_err, NULL},
@@ -71,7 +71,7 @@ int p9_show_client_options(struct seq_file *m, struct p9_client *clnt)
 
 	switch (clnt->proto_version) {
 	case p9_proto_legacy:
-		seq_puts(m, ",noextend");
+		seq_puts(m, ",yesextend");
 		break;
 	case p9_proto_2000u:
 		seq_puts(m, ",version=9p2000.u");
@@ -91,7 +91,7 @@ EXPORT_SYMBOL(p9_show_client_options);
  * Some error codes are taken directly from the server replies,
  * make sure they are valid.
  */
-static int safe_errno(int err)
+static int safe_erryes(int err)
 {
 	if ((err > 0) || (err < -MAX_ERRNO)) {
 		p9_debug(P9_DEBUG_ERROR, "Invalid error code %d\n", err);
@@ -116,7 +116,7 @@ static int get_protocol_version(char *s)
 		version = p9_proto_2000L;
 		p9_debug(P9_DEBUG_9P, "Protocol version: 9P2000.L\n");
 	} else
-		pr_info("Unknown protocol version %s\n", s);
+		pr_info("Unkyeswn protocol version %s\n", s);
 
 	return version;
 }
@@ -162,7 +162,7 @@ static int parse_opts(char *opts, struct p9_client *clnt)
 			r = match_int(&args[0], &option);
 			if (r < 0) {
 				p9_debug(P9_DEBUG_ERROR,
-					 "integer field, but no integer?\n");
+					 "integer field, but yes integer?\n");
 				ret = r;
 				continue;
 			}
@@ -186,7 +186,7 @@ static int parse_opts(char *opts, struct p9_client *clnt)
 			v9fs_put_trans(clnt->trans_mod);
 			clnt->trans_mod = v9fs_get_trans_by_name(s);
 			if (clnt->trans_mod == NULL) {
-				pr_info("Could not find request transport: %s\n",
+				pr_info("Could yest find request transport: %s\n",
 					s);
 				ret = -EINVAL;
 			}
@@ -241,7 +241,7 @@ static int p9_fcall_init(struct p9_client *c, struct p9_fcall *fc,
 void p9_fcall_fini(struct p9_fcall *fc)
 {
 	/* sdata can be NULL for interrupted requests in trans_rdma,
-	 * and kmem_cache_free does not do NULL-check for us
+	 * and kmem_cache_free does yest do NULL-check for us
 	 */
 	if (unlikely(!fc->sdata))
 		return;
@@ -300,12 +300,12 @@ p9_tag_alloc(struct p9_client *c, int8_t type, unsigned int max_size)
 		goto free;
 
 	/* Init ref to two because in the general case there is one ref
-	 * that is put asynchronously by a writer thread, one ref
+	 * that is put asynchroyesusly by a writer thread, one ref
 	 * temporarily given by p9_tag_lookup and put by p9_client_cb
 	 * in the recv thread, and one ref put by p9_tag_remove in the
-	 * main thread. The only exception is virtio that does not use
-	 * p9_tag_lookup but does not have a writer thread either
-	 * (the write happens synchronously in the request/zc_request
+	 * main thread. The only exception is virtio that does yest use
+	 * p9_tag_lookup but does yest have a writer thread either
+	 * (the write happens synchroyesusly in the request/zc_request
 	 * callback), so p9_client_cb eats the second ref there
 	 * as the pointer is duplicated directly by virtqueue_add_sgs()
 	 */
@@ -327,7 +327,7 @@ free_req:
  * @tag: Transaction ID.
  *
  * Context: Any context.
- * Return: A request, or %NULL if there is no request with that tag.
+ * Return: A request, or %NULL if there is yes request with that tag.
  */
 struct p9_req_t *p9_tag_lookup(struct p9_client *c, u16 tag)
 {
@@ -422,7 +422,7 @@ void p9_client_cb(struct p9_client *c, struct p9_req_t *req, int status)
 
 	/*
 	 * This barrier is needed to make sure any change made to req before
-	 * the status change is visible to another thread
+	 * the status change is visible to ayesther thread
 	 */
 	smp_wmb();
 	req->status = status;
@@ -530,7 +530,7 @@ static int p9_check_errors(struct p9_client *c, struct p9_req_t *req)
 			err = -ecode;
 
 		if (!err) {
-			err = p9_errstr2errno(ename, strlen(ename));
+			err = p9_errstr2erryes(ename, strlen(ename));
 
 			p9_debug(P9_DEBUG_9P, "<<< RERROR (%d) %s\n",
 				 -ecode, ename);
@@ -616,7 +616,7 @@ static int p9_check_zc_errors(struct p9_client *c, struct p9_req_t *req,
 			err = -ecode;
 
 		if (!err) {
-			err = p9_errstr2errno(ename, strlen(ename));
+			err = p9_errstr2erryes(ename, strlen(ename));
 
 			p9_debug(P9_DEBUG_9P, "<<< RERROR (%d) %s\n",
 				 -ecode, ename);
@@ -800,7 +800,7 @@ recalc_sigpending:
 		return req;
 reterr:
 	p9_tag_remove(c, req);
-	return ERR_PTR(safe_errno(err));
+	return ERR_PTR(safe_erryes(err));
 }
 
 /**
@@ -882,7 +882,7 @@ recalc_sigpending:
 		return req;
 reterr:
 	p9_tag_remove(c, req);
-	return ERR_PTR(safe_errno(err));
+	return ERR_PTR(safe_erryes(err));
 }
 
 static struct p9_fid *p9_fid_create(struct p9_client *clnt)
@@ -976,7 +976,7 @@ static int p9_client_version(struct p9_client *c)
 		c->proto_version = p9_proto_legacy;
 	else {
 		p9_debug(P9_DEBUG_ERROR,
-			 "server returned an unknown version: %s\n", version);
+			 "server returned an unkyeswn version: %s\n", version);
 		err = -EREMOTEIO;
 		goto error;
 	}
@@ -1012,7 +1012,7 @@ struct p9_client *p9_client_create(const char *dev_name, char *options)
 	clnt->trans = NULL;
 	clnt->fcall_cache = NULL;
 
-	client_id = utsname()->nodename;
+	client_id = utsname()->yesdename;
 	memcpy(clnt->name, client_id, strlen(client_id) + 1);
 
 	spin_lock_init(&clnt->lock);
@@ -1088,7 +1088,7 @@ void p9_client_destroy(struct p9_client *clnt)
 	v9fs_put_trans(clnt->trans_mod);
 
 	idr_for_each_entry(&clnt->fids, fid, id) {
-		pr_info("Found fid %d not clunked\n", fid->fid);
+		pr_info("Found fid %d yest clunked\n", fid->fid);
 		p9_fid_destroy(fid);
 	}
 
@@ -1482,7 +1482,7 @@ again:
 	p9_tag_remove(clnt, req);
 error:
 	/*
-	 * Fid is not valid even after a failed clunk
+	 * Fid is yest valid even after a failed clunk
 	 * If interrupted, retry once then give up and
 	 * leak fid until umount.
 	 */
@@ -1559,7 +1559,7 @@ p9_client_read(struct p9_fid *fid, u64 offset, struct iov_iter *to, int *err)
 
 	while (iov_iter_count(to)) {
 		int count = iov_iter_count(to);
-		int rsize, non_zc = 0;
+		int rsize, yesn_zc = 0;
 		char *dataptr;
 
 		rsize = fid->iounit;
@@ -1579,7 +1579,7 @@ p9_client_read(struct p9_fid *fid, u64 offset, struct iov_iter *to, int *err)
 					       0, 11, "dqd", fid->fid,
 					       offset, rsize);
 		} else {
-			non_zc = 1;
+			yesn_zc = 1;
 			req = p9_client_rpc(clnt, P9_TREAD, "dqd", fid->fid, offset,
 					    rsize);
 		}
@@ -1606,7 +1606,7 @@ p9_client_read(struct p9_fid *fid, u64 offset, struct iov_iter *to, int *err)
 			break;
 		}
 
-		if (non_zc) {
+		if (yesn_zc) {
 			int n = copy_to_iter(dataptr, count, to);
 			total += n;
 			offset += n;
@@ -1689,7 +1689,7 @@ struct p9_wstat *p9_client_stat(struct p9_fid *fid)
 	struct p9_client *clnt;
 	struct p9_wstat *ret = kmalloc(sizeof(struct p9_wstat), GFP_KERNEL);
 	struct p9_req_t *req;
-	u16 ignored;
+	u16 igyesred;
 
 	p9_debug(P9_DEBUG_9P, ">>> TSTAT fid %d\n", fid->fid);
 
@@ -1705,7 +1705,7 @@ struct p9_wstat *p9_client_stat(struct p9_fid *fid)
 		goto error;
 	}
 
-	err = p9pdu_readf(&req->rc, clnt->proto_version, "wS", &ignored, ret);
+	err = p9pdu_readf(&req->rc, clnt->proto_version, "wS", &igyesred, ret);
 	if (err) {
 		trace_9p_protocol_dump(clnt, &req->rc);
 		p9_tag_remove(clnt, req);
@@ -2066,7 +2066,7 @@ EXPORT_SYMBOL_GPL(p9_client_xattrcreate);
 
 int p9_client_readdir(struct p9_fid *fid, char *data, u32 count, u64 offset)
 {
-	int err, rsize, non_zc = 0;
+	int err, rsize, yesn_zc = 0;
 	struct p9_client *clnt;
 	struct p9_req_t *req;
 	char *dataptr;
@@ -2097,7 +2097,7 @@ int p9_client_readdir(struct p9_fid *fid, char *data, u32 count, u64 offset)
 		req = p9_client_zc_rpc(clnt, P9_TREADDIR, &to, NULL, rsize, 0,
 				       11, "dqd", fid->fid, offset, rsize);
 	} else {
-		non_zc = 1;
+		yesn_zc = 1;
 		req = p9_client_rpc(clnt, P9_TREADDIR, "dqd", fid->fid,
 				    offset, rsize);
 	}
@@ -2118,7 +2118,7 @@ int p9_client_readdir(struct p9_fid *fid, char *data, u32 count, u64 offset)
 
 	p9_debug(P9_DEBUG_9P, "<<< RREADDIR count %d\n", count);
 
-	if (non_zc)
+	if (yesn_zc)
 		memmove(data, dataptr, count);
 
 	p9_tag_remove(clnt, req);
@@ -2131,7 +2131,7 @@ error:
 }
 EXPORT_SYMBOL(p9_client_readdir);
 
-int p9_client_mknod_dotl(struct p9_fid *fid, const char *name, int mode,
+int p9_client_mkyesd_dotl(struct p9_fid *fid, const char *name, int mode,
 			dev_t rdev, kgid_t gid, struct p9_qid *qid)
 {
 	int err;
@@ -2141,7 +2141,7 @@ int p9_client_mknod_dotl(struct p9_fid *fid, const char *name, int mode,
 	err = 0;
 	clnt = fid->clnt;
 	p9_debug(P9_DEBUG_9P, ">>> TMKNOD fid %d name %s mode %d major %d "
-		"minor %d\n", fid->fid, name, mode, MAJOR(rdev), MINOR(rdev));
+		"miyesr %d\n", fid->fid, name, mode, MAJOR(rdev), MINOR(rdev));
 	req = p9_client_rpc(clnt, P9_TMKNOD, "dsdddg", fid->fid, name, mode,
 		MAJOR(rdev), MINOR(rdev), gid);
 	if (IS_ERR(req))
@@ -2160,7 +2160,7 @@ error:
 	return err;
 
 }
-EXPORT_SYMBOL(p9_client_mknod_dotl);
+EXPORT_SYMBOL(p9_client_mkyesd_dotl);
 
 int p9_client_mkdir_dotl(struct p9_fid *fid, const char *name, int mode,
 				kgid_t gid, struct p9_qid *qid)

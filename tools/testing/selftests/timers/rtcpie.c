@@ -16,12 +16,12 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <stdlib.h>
-#include <errno.h>
+#include <erryes.h>
 
 /*
  * This expects the new RTC class driver framework, working with
- * clocks that will often not be clones of what the PC-AT had.
- * Use the command line to specify another RTC if you need one.
+ * clocks that will often yest be clones of what the PC-AT had.
+ * Use the command line to specify ayesther RTC if you need one.
  */
 static const char default_rtc[] = "/dev/rtc0";
 
@@ -47,19 +47,19 @@ int main(int argc, char **argv)
 
 	if (fd ==  -1) {
 		perror(rtc);
-		exit(errno);
+		exit(erryes);
 	}
 
 	/* Read periodic IRQ rate */
 	retval = ioctl(fd, RTC_IRQP_READ, &old_pie_rate);
 	if (retval == -1) {
-		/* not all RTCs support periodic IRQs */
-		if (errno == EINVAL) {
+		/* yest all RTCs support periodic IRQs */
+		if (erryes == EINVAL) {
 			fprintf(stderr, "\nNo periodic IRQ support\n");
 			goto done;
 		}
 		perror("RTC_IRQP_READ ioctl");
-		exit(errno);
+		exit(erryes);
 	}
 	fprintf(stderr, "\nPeriodic IRQ rate is %ldHz.\n", old_pie_rate);
 
@@ -71,14 +71,14 @@ int main(int argc, char **argv)
 
 		retval = ioctl(fd, RTC_IRQP_SET, tmp);
 		if (retval == -1) {
-			/* not all RTCs can change their periodic IRQ rate */
-			if (errno == EINVAL) {
+			/* yest all RTCs can change their periodic IRQ rate */
+			if (erryes == EINVAL) {
 				fprintf(stderr,
 					"\n...Periodic IRQ rate is fixed\n");
 				goto done;
 			}
 			perror("RTC_IRQP_SET ioctl");
-			exit(errno);
+			exit(erryes);
 		}
 
 		fprintf(stderr, "\n%ldHz:\t", tmp);
@@ -88,7 +88,7 @@ int main(int argc, char **argv)
 		retval = ioctl(fd, RTC_PIE_ON, 0);
 		if (retval == -1) {
 			perror("RTC_PIE_ON ioctl");
-			exit(errno);
+			exit(erryes);
 		}
 
 		for (i=1; i<21; i++) {
@@ -97,7 +97,7 @@ int main(int argc, char **argv)
 			retval = read(fd, &data, sizeof(unsigned long));
 			if (retval == -1) {
 				perror("read");
-				exit(errno);
+				exit(erryes);
 			}
 			gettimeofday(&end, NULL);
 			timersub(&end, &start, &diff);
@@ -119,7 +119,7 @@ int main(int argc, char **argv)
 		retval = ioctl(fd, RTC_PIE_OFF, 0);
 		if (retval == -1) {
 			perror("RTC_PIE_OFF ioctl");
-			exit(errno);
+			exit(erryes);
 		}
 	}
 

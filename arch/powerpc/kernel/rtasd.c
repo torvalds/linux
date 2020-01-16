@@ -6,7 +6,7 @@
  */
 
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/sched.h>
 #include <linux/kernel.h>
 #include <linux/poll.h>
@@ -57,12 +57,12 @@ static int error_log_cnt;
 /*
  * Since we use 32 bit RTAS, the physical address of this must be below
  * 4G or else bad things happen. Allocate this in the kernel data and
- * make it big enough.
+ * make it big eyesugh.
  */
 static unsigned char logdata[RTAS_ERROR_LOG_MAX];
 
 static char *rtas_type[] = {
-	"Unknown", "Retry", "TCE Error", "Internal Device Failure",
+	"Unkyeswn", "Retry", "TCE Error", "Internal Device Failure",
 	"Timeout", "Data Parity", "Address Parity", "Cache Parity",
 	"Address Invalid", "ECC Uncorrected", "ECC Corrupted",
 };
@@ -184,7 +184,7 @@ static int log_rtas_len(char * buf)
 /*
  * First write to nvram, if fatal error, that is the only
  * place we log the info.  The error will be picked up
- * on the next reboot by rtasd.  If not fatal, run the
+ * on the next reboot by rtasd.  If yest fatal, run the
  * method for the type of error.  Currently, only RTAS
  * errors have methods implemented, but in the future
  * there might be a need to store data in nvram before a
@@ -229,7 +229,7 @@ void pSeries_log_error(char *buf, unsigned int err_type, int fatal)
 
 	/*
 	 * rtas errors can occur during boot, and we do want to capture
-	 * those somewhere, even if nvram isn't ready (why not?), and even
+	 * those somewhere, even if nvram isn't ready (why yest?), and even
 	 * if rtasd isn't ready. Put them into the boot log, at least.
 	 */
 	if ((err_type & ERR_TYPE_MASK) == ERR_TYPE_RTAS_LOG)
@@ -289,8 +289,8 @@ static void handle_rtas_event(const struct rtas_error_log *log)
 	if (rtas_error_type(log) != RTAS_TYPE_PRRN || !prrn_is_enabled())
 		return;
 
-	/* For PRRN Events the extended log length is used to denote
-	 * the scope for calling rtas update-nodes.
+	/* For PRRN Events the extended log length is used to deyeste
+	 * the scope for calling rtas update-yesdes.
 	 */
 	handle_prrn_event(rtas_error_extended_log_length(log));
 }
@@ -304,18 +304,18 @@ static void handle_rtas_event(const struct rtas_error_log *log)
 
 #endif
 
-static int rtas_log_open(struct inode * inode, struct file * file)
+static int rtas_log_open(struct iyesde * iyesde, struct file * file)
 {
 	return 0;
 }
 
-static int rtas_log_release(struct inode * inode, struct file * file)
+static int rtas_log_release(struct iyesde * iyesde, struct file * file)
 {
 	return 0;
 }
 
 /* This will check if all events are logged, if they are then, we
- * know that we can safely clear the events in NVRAM.
+ * kyesw that we can safely clear the events in NVRAM.
  * Next we'll sit and wait for something else to log.
  */
 static ssize_t rtas_log_read(struct file * file, char __user * buf,
@@ -340,7 +340,7 @@ static ssize_t rtas_log_read(struct file * file, char __user * buf,
 
 	spin_lock_irqsave(&rtasd_log_lock, s);
 
-	/* if it's 0, then we know we got the last one (the one in NVRAM) */
+	/* if it's 0, then we kyesw we got the last one (the one in NVRAM) */
 	while (rtas_log_size == 0) {
 		if (file->f_flags & O_NONBLOCK) {
 			spin_unlock_irqrestore(&rtasd_log_lock, s);
@@ -390,7 +390,7 @@ static const struct file_operations proc_rtas_log_operations = {
 	.poll =		rtas_log_poll,
 	.open =		rtas_log_open,
 	.release =	rtas_log_release,
-	.llseek =	noop_llseek,
+	.llseek =	yesop_llseek,
 };
 
 static int enable_surveillance(int timeout)
@@ -403,11 +403,11 @@ static int enable_surveillance(int timeout)
 		return 0;
 
 	if (error == -EINVAL) {
-		printk(KERN_DEBUG "rtasd: surveillance not supported\n");
+		printk(KERN_DEBUG "rtasd: surveillance yest supported\n");
 		return 0;
 	}
 
-	printk(KERN_ERR "rtasd: could not update surveillance\n");
+	printk(KERN_ERR "rtasd: could yest update surveillance\n");
 	return -1;
 }
 
@@ -486,7 +486,7 @@ static void retrieve_nvram_error_log(void)
 	memset(logdata, 0, rtas_error_log_max);
 	rc = nvram_read_error_log(logdata, rtas_error_log_max,
 	                          &err_type, &error_log_cnt);
-	/* We can use rtas_log_buf now */
+	/* We can use rtas_log_buf yesw */
 	logging_enabled = 1;
 	if (!rc) {
 		if (err_type != ERR_FLAG_ALREADY_LOGGED) {
@@ -534,13 +534,13 @@ static int __init rtas_event_scan_init(void)
 
 	rtas_event_scan_rate = rtas_token("rtas-event-scan-rate");
 	if (rtas_event_scan_rate == RTAS_UNKNOWN_SERVICE) {
-		printk(KERN_ERR "rtasd: no rtas-event-scan-rate on system\n");
+		printk(KERN_ERR "rtasd: yes rtas-event-scan-rate on system\n");
 		return -ENODEV;
 	}
 
 	if (!rtas_event_scan_rate) {
 		/* Broken firmware: take a rate of zero to mean don't scan */
-		printk(KERN_DEBUG "rtasd: scan rate is 0, not scanning\n");
+		printk(KERN_DEBUG "rtasd: scan rate is 0, yest scanning\n");
 		return 0;
 	}
 
@@ -551,7 +551,7 @@ static int __init rtas_event_scan_init(void)
 	rtas_log_buf = vmalloc(array_size(LOG_NUMBER,
 					  rtas_error_log_buffer_max));
 	if (!rtas_log_buf) {
-		printk(KERN_ERR "rtasd: no memory\n");
+		printk(KERN_ERR "rtasd: yes memory\n");
 		return -ENOMEM;
 	}
 

@@ -27,13 +27,13 @@ Description:	Remote processor state
 		"suspended" means that the remote processor is suspended and
 		must be woken to receive messages.
 
-		"running" is the normal state of an available remote processor
+		"running" is the yesrmal state of an available remote processor
 
 		"crashed" indicates that a problem/crash has been detected on
 		the remote processor.
 
 		"invalid" is returned if the remote processor is in an
-		unknown state.
+		unkyeswn state.
 
 		Writing this file controls the state of the remote processor.
 		The following states can be written:

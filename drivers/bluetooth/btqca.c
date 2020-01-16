@@ -56,7 +56,7 @@ int qca_read_soc_version(struct hci_dev *hdev, u32 *soc_version,
 
 	edl = (struct edl_event_hdr *)(skb->data);
 	if (!edl) {
-		bt_dev_err(hdev, "QCA TLV with no header");
+		bt_dev_err(hdev, "QCA TLV with yes header");
 		err = -EILSEQ;
 		goto out;
 	}
@@ -234,7 +234,7 @@ static void qca_tlv_check_data(struct qca_fw_config *config,
 		break;
 
 	default:
-		BT_ERR("Unknown TLV type %d", config->type);
+		BT_ERR("Unkyeswn TLV type %d", config->type);
 		break;
 	}
 }
@@ -286,7 +286,7 @@ static int qca_tlv_send_segment(struct hci_dev *hdev, int seg_size,
 
 	edl = (struct edl_event_hdr *)(skb->data);
 	if (!edl) {
-		bt_dev_err(hdev, "TLV with no header");
+		bt_dev_err(hdev, "TLV with yes header");
 		err = -EILSEQ;
 		goto out;
 	}
@@ -376,7 +376,7 @@ static int qca_download_firmware(struct hci_dev *hdev,
 		segment += segsize;
 	}
 
-	/* Latest qualcomm chipsets are not sending a command complete event
+	/* Latest qualcomm chipsets are yest sending a command complete event
 	 * for every fw packet sent. They only respond with a vendor specific
 	 * event for the last packet. This optimization in the chip will
 	 * decrease the BT in initialization time. Here we will inject a command

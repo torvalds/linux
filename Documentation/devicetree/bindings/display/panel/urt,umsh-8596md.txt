@@ -1,4 +1,4 @@
-United Radiant Technology UMSH-8596MD-xT 7.0" WVGA TFT LCD panel
+United Radiant Techyeslogy UMSH-8596MD-xT 7.0" WVGA TFT LCD panel
 
 Supported are LVDS versions (-11T, -19T) and parallel ones
 (-T, -1T, -7T, -20T).

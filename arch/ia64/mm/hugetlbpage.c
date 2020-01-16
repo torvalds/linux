@@ -94,7 +94,7 @@ struct page *follow_huge_addr(struct mm_struct *mm, unsigned long addr, int writ
 		return ERR_PTR(-EINVAL);
 
 	ptep = huge_pte_offset(mm, addr, HPAGE_SIZE);
-	if (!ptep || pte_none(*ptep))
+	if (!ptep || pte_yesne(*ptep))
 		return NULL;
 	page = pte_page(*ptep);
 	page += ((addr & ~HPAGE_MASK) >> PAGE_SHIFT);

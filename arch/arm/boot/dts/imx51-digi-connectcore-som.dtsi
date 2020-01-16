@@ -153,8 +153,8 @@
 	wakeup-source;
 	keep-power-in-suspend;
 	max-frequency = <50000000>;
-	no-1-8-v;
-	non-removable;
+	yes-1-8-v;
+	yesn-removable;
 	vmmc-supply = <&gpo4_reg>;
 	status = "okay";
 };
@@ -198,7 +198,7 @@
 &usbotg {
 	phy_type = "utmi_wide";
 	disable-over-current;
-	/* Device role is not known, keep status disabled */
+	/* Device role is yest kyeswn, keep status disabled */
 };
 
 &weim {

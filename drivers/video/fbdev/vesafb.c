@@ -5,13 +5,13 @@
  * switching to graphics mode happens at boot time (while
  * running in real mode, see arch/i386/boot/video.S).
  *
- * (c) 1998 Gerd Knorr <kraxel@goldbach.in-berlin.de>
+ * (c) 1998 Gerd Kyesrr <kraxel@goldbach.in-berlin.de>
  *
  */
 
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/string.h>
 #include <linux/mm.h>
 #include <linux/delay.h>
@@ -56,7 +56,7 @@ static int   mtrr       __read_mostly;		/* disable mtrr */
 static int   vram_remap;			/* Set amount of memory to be used */
 static int   vram_total;			/* Set total amount of memory */
 static int   pmi_setpal __read_mostly = 1;	/* pmi for palette changes ??? */
-static int   ypan       __read_mostly;		/* 0..nothing, 1..ypan, 2..ywrap */
+static int   ypan       __read_mostly;		/* 0..yesthing, 1..ypan, 2..ywrap */
 static void  (*pmi_start)(void) __read_mostly;
 static void  (*pmi_pal)  (void) __read_mostly;
 static int   depth      __read_mostly;
@@ -73,7 +73,7 @@ static int vesafb_pan_display(struct fb_var_screeninfo *var,
 
         __asm__ __volatile__(
                 "call *(%%edi)"
-                : /* no return value */
+                : /* yes return value */
                 : "a" (0x4f07),         /* EAX */
                   "b" (0),              /* EBX */
                   "c" (offset),         /* ECX */
@@ -83,7 +83,7 @@ static int vesafb_pan_display(struct fb_var_screeninfo *var,
 	return 0;
 }
 
-static int vesa_setpalette(int regno, unsigned red, unsigned green,
+static int vesa_setpalette(int regyes, unsigned red, unsigned green,
 			    unsigned blue)
 {
 	int shift = 16 - depth;
@@ -93,7 +93,7 @@ static int vesa_setpalette(int regno, unsigned red, unsigned green,
  * Try VGA registers first...
  */
 	if (vga_compat) {
-		outb_p(regno,       dac_reg);
+		outb_p(regyes,       dac_reg);
 		outb_p(red   >> shift, dac_val);
 		outb_p(green >> shift, dac_val);
 		outb_p(blue  >> shift, dac_val);
@@ -113,11 +113,11 @@ static int vesa_setpalette(int regno, unsigned red, unsigned green,
 		entry.pad   = 0;
 	        __asm__ __volatile__(
                 "call *(%%esi)"
-                : /* no return value */
+                : /* yes return value */
                 : "a" (0x4f09),         /* EAX */
                   "b" (0),              /* EBX */
                   "c" (1),              /* ECX */
-                  "d" (regno),          /* EDX */
+                  "d" (regyes),          /* EDX */
                   "D" (&entry),         /* EDI */
                   "S" (&pmi_pal));      /* ESI */
 		err = 0;
@@ -127,7 +127,7 @@ static int vesa_setpalette(int regno, unsigned red, unsigned green,
 	return err;
 }
 
-static int vesafb_setcolreg(unsigned regno, unsigned red, unsigned green,
+static int vesafb_setcolreg(unsigned regyes, unsigned red, unsigned green,
 			    unsigned blue, unsigned transp,
 			    struct fb_info *info)
 {
@@ -137,26 +137,26 @@ static int vesafb_setcolreg(unsigned regno, unsigned red, unsigned green,
 	 *  Set a single color register. The values supplied are
 	 *  already rounded down to the hardware's capabilities
 	 *  (according to the entries in the `var' structure). Return
-	 *  != 0 for invalid regno.
+	 *  != 0 for invalid regyes.
 	 */
 	
-	if (regno >= info->cmap.len)
+	if (regyes >= info->cmap.len)
 		return 1;
 
 	if (info->var.bits_per_pixel == 8)
-		err = vesa_setpalette(regno,red,green,blue);
-	else if (regno < 16) {
+		err = vesa_setpalette(regyes,red,green,blue);
+	else if (regyes < 16) {
 		switch (info->var.bits_per_pixel) {
 		case 16:
 			if (info->var.red.offset == 10) {
 				/* 1:5:5:5 */
-				((u32*) (info->pseudo_palette))[regno] =
+				((u32*) (info->pseudo_palette))[regyes] =
 					((red   & 0xf800) >>  1) |
 					((green & 0xf800) >>  6) |
 					((blue  & 0xf800) >> 11);
 			} else {
 				/* 0:5:6:5 */
-				((u32*) (info->pseudo_palette))[regno] =
+				((u32*) (info->pseudo_palette))[regyes] =
 					((red   & 0xf800)      ) |
 					((green & 0xfc00) >>  5) |
 					((blue  & 0xf800) >> 11);
@@ -167,7 +167,7 @@ static int vesafb_setcolreg(unsigned regno, unsigned red, unsigned green,
 			red   >>= 8;
 			green >>= 8;
 			blue  >>= 8;
-			((u32 *)(info->pseudo_palette))[regno] =
+			((u32 *)(info->pseudo_palette))[regyes] =
 				(red   << info->var.red.offset)   |
 				(green << info->var.green.offset) |
 				(blue  << info->var.blue.offset);
@@ -223,7 +223,7 @@ static int vesafb_setup(char *options)
 			pmi_setpal=1;
 		else if (! strncmp(this_opt, "mtrr:", 5))
 			mtrr = simple_strtoul(this_opt+5, NULL, 0);
-		else if (! strcmp(this_opt, "nomtrr"))
+		else if (! strcmp(this_opt, "yesmtrr"))
 			mtrr=0;
 		else if (! strncmp(this_opt, "vtotal:", 7))
 			vram_total = simple_strtoul(this_opt+7, NULL, 0);
@@ -243,7 +243,7 @@ static int vesafb_probe(struct platform_device *dev)
 	unsigned int size_total;
 	char *option = NULL;
 
-	/* ignore error return of fb_get_options */
+	/* igyesre error return of fb_get_options */
 	fb_get_options("vesafb", &option);
 	vesafb_setup(option);
 
@@ -276,7 +276,7 @@ static int vesafb_probe(struct platform_device *dev)
 		size_total = size_vmode;
 
 	/*   size_remap -- the amount of video memory we are going to
-	 *                 use for vesafb.  With modern cards it is no
+	 *                 use for vesafb.  With modern cards it is yes
 	 *                 option to simply use size_total as that
 	 *                 wastes plenty of kernel address space. */
 	size_remap  = size_vmode * 2;
@@ -294,10 +294,10 @@ static int vesafb_probe(struct platform_device *dev)
 
 	if (!request_mem_region(vesafb_fix.smem_start, size_total, "vesafb")) {
 		printk(KERN_WARNING
-		       "vesafb: cannot reserve video memory at 0x%lx\n",
+		       "vesafb: canyest reserve video memory at 0x%lx\n",
 			vesafb_fix.smem_start);
-		/* We cannot make this fatal. Sometimes this comes from magic
-		   spaces our resource handlers simply don't know about */
+		/* We canyest make this fatal. Sometimes this comes from magic
+		   spaces our resource handlers simply don't kyesw about */
 	}
 
 	info = framebuffer_alloc(sizeof(struct vesafb_par), &dev->dev);
@@ -327,7 +327,7 @@ static int vesafb_probe(struct platform_device *dev)
 	}
 
 	if (screen_info.vesapm_seg < 0xc000)
-		ypan = pmi_setpal = 0; /* not available or some DOS TSR ... */
+		ypan = pmi_setpal = 0; /* yest available or some DOS TSR ... */
 
 	if (ypan || pmi_setpal) {
 		unsigned short *pmi_base;
@@ -342,7 +342,7 @@ static int vesafb_probe(struct platform_device *dev)
 			printk("\n");
 			if (pmi_base[i] != 0xffff) {
 				/*
-				 * memory areas not supported (yet?)
+				 * memory areas yest supported (yet?)
 				 *
 				 * Rules are: we have to set up a descriptor for the requested
 				 * memory area and pass it in the ES register to the BIOS function.
@@ -409,7 +409,7 @@ static int vesafb_probe(struct platform_device *dev)
 	vesafb_fix.ypanstep  = ypan     ? 1 : 0;
 	vesafb_fix.ywrapstep = (ypan>1) ? 1 : 0;
 
-	/* request failure does not faze us, as vgacon probably has this
+	/* request failure does yest faze us, as vgacon probably has this
 	 * region already (FIXME) */
 	request_region(0x3c0, 32, "vesafb");
 
@@ -436,7 +436,7 @@ static int vesafb_probe(struct platform_device *dev)
 
 	if (!info->screen_base) {
 		printk(KERN_ERR
-		       "vesafb: abort, cannot ioremap video memory 0x%x @ 0x%lx\n",
+		       "vesafb: abort, canyest ioremap video memory 0x%x @ 0x%lx\n",
 			vesafb_fix.smem_len, vesafb_fix.smem_start);
 		err = -EIO;
 		goto err;

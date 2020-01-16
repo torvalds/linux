@@ -11,8 +11,8 @@
 #define AF_PHONET_H
 
 /*
- * The lower layers may not require more space, ever. Make sure it's
- * enough.
+ * The lower layers may yest require more space, ever. Make sure it's
+ * eyesugh.
  */
 #define MAX_PHONET_HEADER	(8 + MAX_HEADER)
 

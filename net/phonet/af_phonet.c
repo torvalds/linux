@@ -6,7 +6,7 @@
  *
  * Copyright (C) 2008 Nokia Corporation.
  *
- * Authors: Sakari Ailus <sakari.ailus@nokia.com>
+ * Authors: Sakari Ailus <sakari.ailus@yeskia.com>
  *          Rémi Denis-Courmont
  */
 
@@ -157,7 +157,7 @@ static int pn_send(struct sk_buff *skb, struct net_device *dev,
 		goto drop;
 	}
 
-	/* Broadcast sending is not implemented */
+	/* Broadcast sending is yest implemented */
 	if (pn_addr(dst) == PNADDR_BROADCAST) {
 		err = -EOPNOTSUPP;
 		goto drop;
@@ -192,7 +192,7 @@ static int pn_send(struct sk_buff *skb, struct net_device *dev,
 		}
 		err = dev_queue_xmit(skb);
 		if (unlikely(err > 0))
-			err = net_xmit_errno(err);
+			err = net_xmit_erryes(err);
 	}
 
 	return err;
@@ -219,7 +219,7 @@ static int pn_raw_send(const void *data, int len, struct net_device *dev,
 
 /*
  * Create a Phonet header for the skb and send it out. Returns
- * non-zero error code if failed. The skb is freed then.
+ * yesn-zero error code if failed. The skb is freed then.
  */
 int pn_skb_send(struct sock *sk, struct sk_buff *skb,
 		const struct sockaddr_pn *target)
@@ -281,7 +281,7 @@ drop:
 }
 EXPORT_SYMBOL(pn_skb_send);
 
-/* Do not send an error message in response to an error message */
+/* Do yest send an error message in response to an error message */
 static inline int can_respond(struct sk_buff *skb)
 {
 	const struct phonethdr *ph;
@@ -353,7 +353,7 @@ static int send_reset_indications(struct sk_buff *rskb)
 
 /*
  * Stuff received packets to associated sockets.
- * On error, returns non-zero and releases the skb.
+ * On error, returns yesn-zero and releases the skb.
  */
 static int phonet_rcv(struct sk_buff *skb, struct net_device *dev,
 			struct packet_type *pkttype,
@@ -430,7 +430,7 @@ static int phonet_rcv(struct sk_buff *skb, struct net_device *dev,
 					    dev->name);
 			goto out_dev;
 		}
-		/* Some drivers (e.g. TUN) do not allocate HW header space */
+		/* Some drivers (e.g. TUN) do yest allocate HW header space */
 		if (skb_cow_head(skb, out_dev->hard_header_len))
 			goto out_dev;
 

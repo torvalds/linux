@@ -7,7 +7,7 @@ Properties:
   second register bank can be defined if there is an associated reset register
   for internal PHYs
 - #address-cells: Must be <1>.
-- #size-cells: Must be <0>.  MDIO addresses have no size component.
+- #size-cells: Must be <0>.  MDIO addresses have yes size component.
 - interrupts: interrupt specifier (refer to the interrupt binding)
 
 Typically an MDIO bus might have several children.

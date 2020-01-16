@@ -230,7 +230,7 @@ static int spear13xx_pcie_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct dw_pcie *pci;
 	struct spear13xx_pcie *spear13xx_pcie;
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 	struct resource *dbi_base;
 	int ret;
 

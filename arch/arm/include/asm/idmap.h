@@ -6,7 +6,7 @@
 #include <asm/pgtable.h>
 
 /* Tag a function as requiring to be executed via an identity mapping. */
-#define __idmap __section(.idmap.text) noinline notrace
+#define __idmap __section(.idmap.text) yesinline yestrace
 
 extern pgd_t *idmap_pgd;
 

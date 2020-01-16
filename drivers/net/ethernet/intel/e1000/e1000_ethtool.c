@@ -41,7 +41,7 @@ static const struct e1000_stats e1000_gstrings_stats[] = {
 	{ "rx_over_errors", E1000_NETDEV_STAT(stats.rx_over_errors) },
 	{ "rx_crc_errors", E1000_STAT(stats.crcerrs) },
 	{ "rx_frame_errors", E1000_NETDEV_STAT(stats.rx_frame_errors) },
-	{ "rx_no_buffer_count", E1000_STAT(stats.rnbc) },
+	{ "rx_yes_buffer_count", E1000_STAT(stats.rnbc) },
 	{ "rx_missed_errors", E1000_STAT(stats.mpc) },
 	{ "tx_aborted_errors", E1000_STAT(stats.ecol) },
 	{ "tx_carrier_errors", E1000_STAT(stats.tncrs) },
@@ -181,7 +181,7 @@ static int e1000_set_link_ksettings(struct net_device *netdev,
 
 		if ((cmd->base.eth_tp_mdix_ctrl != ETH_TP_MDI_AUTO) &&
 		    (cmd->base.autoneg != AUTONEG_ENABLE)) {
-			e_err(drv, "forcing MDI/MDI-X state is not supported when link speed and/or duplex are forced\n");
+			e_err(drv, "forcing MDI/MDI-X state is yest supported when link speed and/or duplex are forced\n");
 			return -EINVAL;
 		}
 	}
@@ -232,7 +232,7 @@ static u32 e1000_get_link(struct net_device *netdev)
 {
 	struct e1000_adapter *adapter = netdev_priv(netdev);
 
-	/* If the link is not reported up to netdev, interrupts are disabled,
+	/* If the link is yest reported up to netdev, interrupts are disabled,
 	 * and so the physical link state may have changed since we last
 	 * looked. Set get_link_status to make sure that the true link
 	 * state is interrogated, rather than pulling a cached and possibly
@@ -370,7 +370,7 @@ static void e1000_get_regs(struct net_device *netdev, struct ethtool_regs *regs,
 		e1000_read_phy_reg(hw, IGP01E1000_PHY_AGC_D &
 				   IGP01E1000_PHY_PAGE_SELECT, &phy_data);
 		regs_buff[16] = (u32)phy_data; /* cable length */
-		regs_buff[17] = 0; /* extended 10bt distance (not needed) */
+		regs_buff[17] = 0; /* extended 10bt distance (yest needed) */
 		e1000_write_phy_reg(hw, IGP01E1000_PHY_PAGE_SELECT, 0x0);
 		e1000_read_phy_reg(hw, IGP01E1000_PHY_PORT_STATUS &
 				   IGP01E1000_PHY_PAGE_SELECT, &phy_data);
@@ -719,7 +719,7 @@ static int e1000_reg_test(struct e1000_adapter *adapter, u64 *data)
 	struct e1000_hw *hw = &adapter->hw;
 
 	/* The status register is Read Only, so a write should fail.
-	 * Some bits that get toggled are ignored.
+	 * Some bits that get toggled are igyesred.
 	 */
 
 	/* there are several bits on newer hardware that are r/w */
@@ -803,7 +803,7 @@ static int e1000_eeprom_test(struct e1000_adapter *adapter, u64 *data)
 		checksum += temp;
 	}
 
-	/* If Checksum is not Correct return error else test passed */
+	/* If Checksum is yest Correct return error else test passed */
 	if ((checksum != (u16)EEPROM_SUM) && !(*data))
 		*data = 2;
 
@@ -877,7 +877,7 @@ static int e1000_intr_test(struct e1000_adapter *adapter, u64 *data)
 		/* Enable the interrupt to be reported in
 		 * the cause register and then force the same
 		 * interrupt and see if one gets posted.  If
-		 * an interrupt was not posted to the bus, the
+		 * an interrupt was yest posted to the bus, the
 		 * test failed.
 		 */
 		adapter->test_icr = 0;
@@ -986,7 +986,7 @@ static int e1000_setup_desc_rings(struct e1000_adapter *adapter)
 				    GFP_KERNEL);
 	if (!txdr->buffer_info) {
 		ret_val = 1;
-		goto err_nomem;
+		goto err_yesmem;
 	}
 
 	txdr->size = txdr->count * sizeof(struct e1000_tx_desc);
@@ -995,7 +995,7 @@ static int e1000_setup_desc_rings(struct e1000_adapter *adapter)
 					GFP_KERNEL);
 	if (!txdr->desc) {
 		ret_val = 2;
-		goto err_nomem;
+		goto err_yesmem;
 	}
 	txdr->next_to_use = txdr->next_to_clean = 0;
 
@@ -1016,7 +1016,7 @@ static int e1000_setup_desc_rings(struct e1000_adapter *adapter)
 		skb = alloc_skb(size, GFP_KERNEL);
 		if (!skb) {
 			ret_val = 3;
-			goto err_nomem;
+			goto err_yesmem;
 		}
 		skb_put(skb, size);
 		txdr->buffer_info[i].skb = skb;
@@ -1026,7 +1026,7 @@ static int e1000_setup_desc_rings(struct e1000_adapter *adapter)
 				       DMA_TO_DEVICE);
 		if (dma_mapping_error(&pdev->dev, txdr->buffer_info[i].dma)) {
 			ret_val = 4;
-			goto err_nomem;
+			goto err_yesmem;
 		}
 		tx_desc->buffer_addr = cpu_to_le64(txdr->buffer_info[i].dma);
 		tx_desc->lower.data = cpu_to_le32(skb->len);
@@ -1045,7 +1045,7 @@ static int e1000_setup_desc_rings(struct e1000_adapter *adapter)
 				    GFP_KERNEL);
 	if (!rxdr->buffer_info) {
 		ret_val = 5;
-		goto err_nomem;
+		goto err_yesmem;
 	}
 
 	rxdr->size = rxdr->count * sizeof(struct e1000_rx_desc);
@@ -1053,7 +1053,7 @@ static int e1000_setup_desc_rings(struct e1000_adapter *adapter)
 					GFP_KERNEL);
 	if (!rxdr->desc) {
 		ret_val = 6;
-		goto err_nomem;
+		goto err_yesmem;
 	}
 	rxdr->next_to_use = rxdr->next_to_clean = 0;
 
@@ -1077,7 +1077,7 @@ static int e1000_setup_desc_rings(struct e1000_adapter *adapter)
 			      GFP_KERNEL);
 		if (!buf) {
 			ret_val = 7;
-			goto err_nomem;
+			goto err_yesmem;
 		}
 		rxdr->buffer_info[i].rxbuf.data = buf;
 
@@ -1087,14 +1087,14 @@ static int e1000_setup_desc_rings(struct e1000_adapter *adapter)
 				       E1000_RXBUFFER_2048, DMA_FROM_DEVICE);
 		if (dma_mapping_error(&pdev->dev, rxdr->buffer_info[i].dma)) {
 			ret_val = 8;
-			goto err_nomem;
+			goto err_yesmem;
 		}
 		rx_desc->buffer_addr = cpu_to_le64(rxdr->buffer_info[i].dma);
 	}
 
 	return 0;
 
-err_nomem:
+err_yesmem:
 	e1000_free_desc_rings(adapter);
 	return ret_val;
 }
@@ -1132,7 +1132,7 @@ static void e1000_phy_reset_clk_and_crs(struct e1000_adapter *adapter)
 	e1000_write_phy_reg(hw, M88E1000_PHY_SPEC_CTRL, phy_reg);
 }
 
-static int e1000_nonintegrated_phy_loopback(struct e1000_adapter *adapter)
+static int e1000_yesnintegrated_phy_loopback(struct e1000_adapter *adapter)
 {
 	struct e1000_hw *hw = &adapter->hw;
 	u32 ctrl_reg;
@@ -1245,7 +1245,7 @@ static int e1000_integrated_phy_loopback(struct e1000_adapter *adapter)
 	ew32(CTRL, ctrl_reg);
 
 	/* Disable the receiver on the PHY so when a cable is plugged in, the
-	 * PHY does not begin to autoneg when a cable is reconnected to the NIC.
+	 * PHY does yest begin to autoneg when a cable is reconnected to the NIC.
 	 */
 	if (hw->phy_type == e1000_phy_m88)
 		e1000_phy_disable_receiver(adapter);
@@ -1268,7 +1268,7 @@ static int e1000_set_phy_loopback(struct e1000_adapter *adapter)
 			 * Some PHY registers get corrupted at random, so
 			 * attempt this 10 times.
 			 */
-			while (e1000_nonintegrated_phy_loopback(adapter) &&
+			while (e1000_yesnintegrated_phy_loopback(adapter) &&
 			       count++ < 10);
 			if (count < 11)
 				return 0;
@@ -1428,7 +1428,7 @@ static int e1000_run_loopback_test(struct e1000_adapter *adapter)
 			if (unlikely(++l == rxdr->count))
 				l = 0;
 			/* time + 20 msecs (200 msecs on 2.4) is more than
-			 * enough time to complete the receives, if it's
+			 * eyesugh time to complete the receives, if it's
 			 * exceeded, break and error off
 			 */
 		} while (good_cnt < 64 && time_after(time + 20, jiffies));
@@ -1599,12 +1599,12 @@ static int e1000_wol_exclusion(struct e1000_adapter *adapter,
 		break;
 	case E1000_DEV_ID_82546EB_FIBER:
 	case E1000_DEV_ID_82546GB_FIBER:
-		/* Wake events not supported on port B */
+		/* Wake events yest supported on port B */
 		if (er32(STATUS) & E1000_STATUS_FUNC_1) {
 			wol->supported = 0;
 			break;
 		}
-		/* return success for non excluded adapter ports */
+		/* return success for yesn excluded adapter ports */
 		retval = 0;
 		break;
 	case E1000_DEV_ID_82546GB_QUAD_COPPER_KSP3:
@@ -1613,11 +1613,11 @@ static int e1000_wol_exclusion(struct e1000_adapter *adapter,
 			wol->supported = 0;
 			break;
 		}
-		/* return success for non excluded adapter ports */
+		/* return success for yesn excluded adapter ports */
 		retval = 0;
 		break;
 	default:
-		/* dual port cards only support WoL on port A from now on
+		/* dual port cards only support WoL on port A from yesw on
 		 * unless it was enabled in the eeprom for port B
 		 * so exclude FUNC_1 ports from having WoL enabled
 		 */
@@ -1642,7 +1642,7 @@ static void e1000_get_wol(struct net_device *netdev,
 	wol->supported = WAKE_UCAST | WAKE_MCAST | WAKE_BCAST | WAKE_MAGIC;
 	wol->wolopts = 0;
 
-	/* this function will set ->supported = 0 and return 1 if wol is not
+	/* this function will set ->supported = 0 and return 1 if wol is yest
 	 * supported by this hardware
 	 */
 	if (e1000_wol_exclusion(adapter, wol) ||
@@ -1652,11 +1652,11 @@ static void e1000_get_wol(struct net_device *netdev,
 	/* apply any specific unsupported masks here */
 	switch (hw->device_id) {
 	case E1000_DEV_ID_82546GB_QUAD_COPPER_KSP3:
-		/* KSP3 does not support UCAST wake-ups */
+		/* KSP3 does yest support UCAST wake-ups */
 		wol->supported &= ~WAKE_UCAST;
 
 		if (adapter->wol & E1000_WUFC_EX)
-			e_err(drv, "Interface does not support directed "
+			e_err(drv, "Interface does yest support directed "
 			      "(unicast) frame wake-up packets\n");
 		break;
 	default:
@@ -1688,7 +1688,7 @@ static int e1000_set_wol(struct net_device *netdev, struct ethtool_wolinfo *wol)
 	switch (hw->device_id) {
 	case E1000_DEV_ID_82546GB_QUAD_COPPER_KSP3:
 		if (wol->wolopts & WAKE_UCAST) {
-			e_err(drv, "Interface does not support directed "
+			e_err(drv, "Interface does yest support directed "
 			      "(unicast) frame wake-up packets\n");
 			return -EOPNOTSUPP;
 		}

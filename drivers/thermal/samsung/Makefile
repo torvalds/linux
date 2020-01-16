@@ -2,5 +2,5 @@
 #
 # Samsung thermal specific Makefile
 #
-obj-$(CONFIG_EXYNOS_THERMAL)			+= exynos_thermal.o
-exynos_thermal-y				:= exynos_tmu.o
+obj-$(CONFIG_EXYNOS_THERMAL)			+= exyyess_thermal.o
+exyyess_thermal-y				:= exyyess_tmu.o

@@ -37,7 +37,7 @@ config HWSPINLOCK_SIRF
 	  provides a synchronisation mechanism for the various processors
 	  on the SoC.
 
-	  It's safe to say n here if you're not interested in SIRF hardware
+	  It's safe to say n here if you're yest interested in SIRF hardware
 	  spinlock or just want a bare minimum kernel.
 
 config HWSPINLOCK_SPRD

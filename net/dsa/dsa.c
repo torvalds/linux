@@ -10,7 +10,7 @@
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/module.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/of.h>
 #include <linux/of_mdio.h>
 #include <linux/of_platform.h>
@@ -26,21 +26,21 @@
 static LIST_HEAD(dsa_tag_drivers_list);
 static DEFINE_MUTEX(dsa_tag_drivers_lock);
 
-static struct sk_buff *dsa_slave_notag_xmit(struct sk_buff *skb,
+static struct sk_buff *dsa_slave_yestag_xmit(struct sk_buff *skb,
 					    struct net_device *dev)
 {
 	/* Just return the original SKB */
 	return skb;
 }
 
-static const struct dsa_device_ops none_ops = {
-	.name	= "none",
+static const struct dsa_device_ops yesne_ops = {
+	.name	= "yesne",
 	.proto	= DSA_TAG_PROTO_NONE,
-	.xmit	= dsa_slave_notag_xmit,
+	.xmit	= dsa_slave_yestag_xmit,
 	.rcv	= NULL,
 };
 
-DSA_TAG_DRIVER(none_ops);
+DSA_TAG_DRIVER(yesne_ops);
 
 static void dsa_tag_driver_register(struct dsa_tag_driver *dsa_tag_driver,
 				    struct module *owner)
@@ -170,11 +170,11 @@ EXPORT_SYMBOL_GPL(dsa_dev_to_net_device);
 
 /* Determine if we should defer delivery of skb until we have a rx timestamp.
  *
- * Called from dsa_switch_rcv. For now, this will only work if tagging is
+ * Called from dsa_switch_rcv. For yesw, this will only work if tagging is
  * enabled on the switch. Normally the MAC driver would retrieve the hardware
  * timestamp when it reads the packet out of the hardware. However in a DSA
  * switch, the DSA driver owning the interface to which the packet is
- * delivered is never notified unless we do so here.
+ * delivered is never yestified unless we do so here.
  */
 static bool dsa_skb_defer_rx_timestamp(struct dsa_slave_priv *p,
 				       struct sk_buff *skb)
@@ -309,27 +309,27 @@ bool dsa_schedule_work(struct work_struct *work)
 	return queue_work(dsa_owq, work);
 }
 
-static ATOMIC_NOTIFIER_HEAD(dsa_notif_chain);
+static ATOMIC_NOTIFIER_HEAD(dsa_yestif_chain);
 
-int register_dsa_notifier(struct notifier_block *nb)
+int register_dsa_yestifier(struct yestifier_block *nb)
 {
-	return atomic_notifier_chain_register(&dsa_notif_chain, nb);
+	return atomic_yestifier_chain_register(&dsa_yestif_chain, nb);
 }
-EXPORT_SYMBOL_GPL(register_dsa_notifier);
+EXPORT_SYMBOL_GPL(register_dsa_yestifier);
 
-int unregister_dsa_notifier(struct notifier_block *nb)
+int unregister_dsa_yestifier(struct yestifier_block *nb)
 {
-	return atomic_notifier_chain_unregister(&dsa_notif_chain, nb);
+	return atomic_yestifier_chain_unregister(&dsa_yestif_chain, nb);
 }
-EXPORT_SYMBOL_GPL(unregister_dsa_notifier);
+EXPORT_SYMBOL_GPL(unregister_dsa_yestifier);
 
-int call_dsa_notifiers(unsigned long val, struct net_device *dev,
-		       struct dsa_notifier_info *info)
+int call_dsa_yestifiers(unsigned long val, struct net_device *dev,
+		       struct dsa_yestifier_info *info)
 {
 	info->dev = dev;
-	return atomic_notifier_call_chain(&dsa_notif_chain, val, info);
+	return atomic_yestifier_call_chain(&dsa_yestif_chain, val, info);
 }
-EXPORT_SYMBOL_GPL(call_dsa_notifiers);
+EXPORT_SYMBOL_GPL(call_dsa_yestifiers);
 
 int dsa_devlink_param_get(struct devlink *dl, u32 id,
 			  struct devlink_param_gset_ctx *ctx)
@@ -425,18 +425,18 @@ static int __init dsa_init_module(void)
 	if (!dsa_owq)
 		return -ENOMEM;
 
-	rc = dsa_slave_register_notifier();
+	rc = dsa_slave_register_yestifier();
 	if (rc)
-		goto register_notifier_fail;
+		goto register_yestifier_fail;
 
 	dev_add_pack(&dsa_pack_type);
 
-	dsa_tag_driver_register(&DSA_TAG_DRIVER_NAME(none_ops),
+	dsa_tag_driver_register(&DSA_TAG_DRIVER_NAME(yesne_ops),
 				THIS_MODULE);
 
 	return 0;
 
-register_notifier_fail:
+register_yestifier_fail:
 	destroy_workqueue(dsa_owq);
 
 	return rc;
@@ -445,9 +445,9 @@ module_init(dsa_init_module);
 
 static void __exit dsa_cleanup_module(void)
 {
-	dsa_tag_driver_unregister(&DSA_TAG_DRIVER_NAME(none_ops));
+	dsa_tag_driver_unregister(&DSA_TAG_DRIVER_NAME(yesne_ops));
 
-	dsa_slave_unregister_notifier();
+	dsa_slave_unregister_yestifier();
 	dev_remove_pack(&dsa_pack_type);
 	destroy_workqueue(dsa_owq);
 }

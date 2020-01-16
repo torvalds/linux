@@ -235,8 +235,8 @@
 &usdhc2 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_usdhc2>;
-	no-1-8-v;
-	broken-cd;	/* no carrier detect line (use polling) */
+	yes-1-8-v;
+	broken-cd;	/* yes carrier detect line (use polling) */
 	status = "okay";
 };
 

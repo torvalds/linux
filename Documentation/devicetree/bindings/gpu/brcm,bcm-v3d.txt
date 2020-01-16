@@ -10,7 +10,7 @@ Required properties:
 		  register areas are always required.  The "gca" register area
 		  is required if the GCA cache controller is present.  The
 		  "bridge" register area is required if an external reset
-		  controller is not present.
+		  controller is yest present.
 - interrupts:	The interrupt numbers.  The first interrupt is for the hub,
 		  while the following interrupts are separate interrupt lines
 		  for the cores (if they don't share the hub's interrupt).
@@ -18,7 +18,7 @@ Required properties:
 
 Optional properties:
 - clocks:	The core clock the unit runs on
-- resets:	The reset line for v3d, if not using a mapping of the bridge
+- resets:	The reset line for v3d, if yest using a mapping of the bridge
 		  See bindings/reset/reset.txt
 
 v3d {

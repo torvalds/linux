@@ -7,7 +7,7 @@
  */
 #include <linux/delay.h>
 #include <linux/io.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/mfd/syscon.h>
 #include <linux/of_address.h>
 #include <linux/of_device.h>
@@ -18,7 +18,7 @@
 struct ocelot_reset_context {
 	void __iomem *base;
 	struct regmap *cpu_ctrl;
-	struct notifier_block restart_handler;
+	struct yestifier_block restart_handler;
 };
 
 #define ICPU_CFG_CPU_SYSTEM_CTRL_RESET 0x20
@@ -33,14 +33,14 @@ struct ocelot_reset_context {
 #define IF_SI_OWNER_SIMC			2
 #define IF_SI_OWNER_OFFSET			4
 
-static int ocelot_restart_handle(struct notifier_block *this,
+static int ocelot_restart_handle(struct yestifier_block *this,
 				 unsigned long mode, void *cmd)
 {
 	struct ocelot_reset_context *ctx = container_of(this, struct
 							ocelot_reset_context,
 							restart_handler);
 
-	/* Make sure the core is not protected from reset */
+	/* Make sure the core is yest protected from reset */
 	regmap_update_bits(ctx->cpu_ctrl, ICPU_CFG_CPU_SYSTEM_CTRL_RESET,
 			   CORE_RST_PROTECT, 0);
 
@@ -76,11 +76,11 @@ static int ocelot_reset_probe(struct platform_device *pdev)
 	if (IS_ERR(ctx->cpu_ctrl))
 		return PTR_ERR(ctx->cpu_ctrl);
 
-	ctx->restart_handler.notifier_call = ocelot_restart_handle;
+	ctx->restart_handler.yestifier_call = ocelot_restart_handle;
 	ctx->restart_handler.priority = 192;
 	err = register_restart_handler(&ctx->restart_handler);
 	if (err)
-		dev_err(dev, "can't register restart notifier (err=%d)\n", err);
+		dev_err(dev, "can't register restart yestifier (err=%d)\n", err);
 
 	return err;
 }

@@ -7,15 +7,15 @@
 #ifdef CONFIG_NEED_MULTIPLE_NODES
 #include <linux/numa.h>
 
-extern struct pglist_data *node_data[];
-#define NODE_DATA(nid)		(node_data[nid])
+extern struct pglist_data *yesde_data[];
+#define NODE_DATA(nid)		(yesde_data[nid])
 
 static inline int pfn_to_nid(unsigned long pfn)
 {
 	int nid;
 
 	for (nid = 0; nid < MAX_NUMNODES; nid++)
-		if (pfn >= node_start_pfn(nid) && pfn <= node_end_pfn(nid))
+		if (pfn >= yesde_start_pfn(nid) && pfn <= yesde_end_pfn(nid))
 			break;
 
 	return nid;
@@ -27,10 +27,10 @@ static inline struct pglist_data *pfn_to_pgdat(unsigned long pfn)
 }
 
 /* arch/sh/mm/numa.c */
-void __init setup_bootmem_node(int nid, unsigned long start, unsigned long end);
+void __init setup_bootmem_yesde(int nid, unsigned long start, unsigned long end);
 #else
 static inline void
-setup_bootmem_node(int nid, unsigned long start, unsigned long end)
+setup_bootmem_yesde(int nid, unsigned long start, unsigned long end)
 {
 }
 #endif /* CONFIG_NEED_MULTIPLE_NODES */

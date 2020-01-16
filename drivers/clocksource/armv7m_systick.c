@@ -22,7 +22,7 @@
 
 #define SYSTICK_LOAD_RELOAD_MASK 0x00FFFFFF
 
-static int __init system_timer_of_register(struct device_node *np)
+static int __init system_timer_of_register(struct device_yesde *np)
 {
 	struct clk *clk = NULL;
 	void __iomem *base;

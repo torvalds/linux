@@ -1,11 +1,11 @@
 .. Permission is granted to copy, distribute and/or modify this
 .. document under the terms of the GNU Free Documentation License,
 .. Version 1.1 or any later version published by the Free Software
-.. Foundation, with no Invariant Sections, no Front-Cover Texts
-.. and no Back-Cover Texts. A copy of the license is included at
+.. Foundation, with yes Invariant Sections, yes Front-Cover Texts
+.. and yes Back-Cover Texts. A copy of the license is included at
 .. Documentation/media/uapi/fdl-appendix.rst.
 ..
-.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
+.. TODO: replace it to GFDL-1.1-or-later WITH yes-invariant-sections
 
 .. _dmabuf:
 
@@ -15,9 +15,9 @@ Streaming I/O (DMA buffer importing)
 
 The DMABUF framework provides a generic method for sharing buffers
 between multiple devices. Device drivers that support DMABUF can export
-a DMA buffer to userspace as a file descriptor (known as the exporter
+a DMA buffer to userspace as a file descriptor (kyeswn as the exporter
 role), import a DMA buffer from userspace using a file descriptor
-previously exported for a different or the same device (known as the
+previously exported for a different or the same device (kyeswn as the
 importer role), or both. This section describes the DMABUF importer role
 API in V4L2.
 
@@ -57,8 +57,8 @@ Example: Initiating streaming I/O with DMABUF file descriptors
     reqbuf.count = 1;
 
     if (ioctl(fd, VIDIOC_REQBUFS, &reqbuf) == -1) {
-	if (errno == EINVAL)
-	    printf("Video capturing or DMABUF streaming is not supported\\n");
+	if (erryes == EINVAL)
+	    printf("Video capturing or DMABUF streaming is yest supported\\n");
 	else
 	    perror("VIDIOC_REQBUFS");
 
@@ -135,16 +135,16 @@ memory is also unlocked when
 For capturing applications it is customary to enqueue a number of empty
 buffers, to start capturing and enter the read loop. Here the
 application waits until a filled buffer can be dequeued, and re-enqueues
-the buffer when the data is no longer needed. Output applications fill
-and enqueue buffers, when enough buffers are stacked up output is
+the buffer when the data is yes longer needed. Output applications fill
+and enqueue buffers, when eyesugh buffers are stacked up output is
 started. In the write loop, when the application runs out of free
 buffers it must wait until an empty buffer can be dequeued and reused.
 Two methods exist to suspend execution of the application until one or
 more buffers can be dequeued. By default :ref:`VIDIOC_DQBUF
-<VIDIOC_QBUF>` blocks when no buffer is in the outgoing queue. When the
+<VIDIOC_QBUF>` blocks when yes buffer is in the outgoing queue. When the
 ``O_NONBLOCK`` flag was given to the :ref:`open() <func-open>` function,
 :ref:`VIDIOC_DQBUF <VIDIOC_QBUF>` returns immediately with an ``EAGAIN``
-error code when no buffer is available. The
+error code when yes buffer is available. The
 :ref:`select() <func-select>` and :ref:`poll() <func-poll>`
 functions are always available.
 
@@ -152,12 +152,12 @@ To start and stop capturing or displaying applications call the
 :ref:`VIDIOC_STREAMON <VIDIOC_STREAMON>` and
 :ref:`VIDIOC_STREAMOFF <VIDIOC_STREAMON>` ioctls.
 
-.. note::
+.. yeste::
 
    :ref:`VIDIOC_STREAMOFF <VIDIOC_STREAMON>` removes all buffers from
-   both queues and unlocks all buffers as a side effect. Since there is no
-   notion of doing anything "now" on a multitasking system, if an
-   application needs to synchronize with another event it should examine
+   both queues and unlocks all buffers as a side effect. Since there is yes
+   yestion of doing anything "yesw" on a multitasking system, if an
+   application needs to synchronize with ayesther event it should examine
    the struct :c:type:`v4l2_buffer` ``timestamp`` of captured or
    outputted buffers.
 

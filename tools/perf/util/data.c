@@ -5,7 +5,7 @@
 #include <linux/zalloc.h>
 #include <sys/types.h>
 #include <sys/stat.h>
-#include <errno.h>
+#include <erryes.h>
 #include <fcntl.h>
 #include <unistd.h>
 #include <string.h>
@@ -78,7 +78,7 @@ int perf_data__open_dir(struct perf_data *data)
 
 	/*
 	 * Directory containing a single regular perf data file which is already
-	 * open, means there is nothing more to do here.
+	 * open, means there is yesthing more to do here.
 	 */
 	if (perf_data__is_single_file(data))
 		return 0;
@@ -198,14 +198,14 @@ static int check_backup(struct perf_data *data)
 		if (ret) {
 			pr_err("Can't remove old data: %s (%s)\n",
 			       ret == -2 ?
-			       "Unknown file found" : strerror(errno),
+			       "Unkyeswn file found" : strerror(erryes),
 			       oldname);
 			return -1;
 		}
 
 		if (rename(data->path, oldname)) {
 			pr_err("Can't move data: %s (%s to %s)\n",
-			       strerror(errno),
+			       strerror(erryes),
 			       data->path, oldname);
 			return -1;
 		}
@@ -232,7 +232,7 @@ static int open_file_read(struct perf_data *data)
 
 	fd = open(data->file.path, O_RDONLY);
 	if (fd < 0) {
-		int err = errno;
+		int err = erryes;
 
 		pr_err("failed to open %s: %s", data->file.path,
 			str_error_r(err, sbuf, sizeof(sbuf)));
@@ -246,13 +246,13 @@ static int open_file_read(struct perf_data *data)
 		goto out_close;
 
 	if (!data->force && st.st_uid && (st.st_uid != geteuid())) {
-		pr_err("File %s not owned by current user or root (use -f to override)\n",
+		pr_err("File %s yest owned by current user or root (use -f to override)\n",
 		       data->file.path);
 		goto out_close;
 	}
 
 	if (!st.st_size) {
-		pr_info("zero-sized data (%s), nothing to do!\n",
+		pr_info("zero-sized data (%s), yesthing to do!\n",
 			data->file.path);
 		goto out_close;
 	}
@@ -275,7 +275,7 @@ static int open_file_write(struct perf_data *data)
 
 	if (fd < 0)
 		pr_err("failed to open %s : %s\n", data->file.path,
-			str_error_r(errno, sbuf, sizeof(sbuf)));
+			str_error_r(erryes, sbuf, sizeof(sbuf)));
 
 	return fd;
 }
@@ -397,9 +397,9 @@ int perf_data__switch(struct perf_data *data,
 			goto out;
 
 		if (lseek(data->file.fd, pos, SEEK_SET) == (off_t)-1) {
-			ret = -errno;
+			ret = -erryes;
 			pr_debug("Failed to lseek to %zu: %s",
-				 pos, strerror(errno));
+				 pos, strerror(erryes));
 			goto out;
 		}
 	}

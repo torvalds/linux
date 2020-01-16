@@ -12,7 +12,7 @@
 #include "usbip_common.h"
 
 struct usbip_event {
-	struct list_head node;
+	struct list_head yesde;
 	struct usbip_device *ud;
 };
 
@@ -45,8 +45,8 @@ static struct usbip_device *get_event(void)
 
 	spin_lock_irqsave(&event_lock, flags);
 	if (!list_empty(&event_list)) {
-		ue = list_first_entry(&event_list, struct usbip_event, node);
-		list_del(&ue->node);
+		ue = list_first_entry(&event_list, struct usbip_event, yesde);
+		list_del(&ue->yesde);
 	}
 	spin_unlock_irqrestore(&event_lock, flags);
 
@@ -108,7 +108,7 @@ void usbip_stop_eh(struct usbip_device *ud)
 	unsigned long pending = ud->event & ~USBIP_EH_BYE;
 
 	if (!(ud->event & USBIP_EH_BYE))
-		usbip_dbg_eh("usbip_eh stopping but not removed\n");
+		usbip_dbg_eh("usbip_eh stopping but yest removed\n");
 
 	if (pending)
 		usbip_dbg_eh("usbip_eh waiting completion %lx\n", pending);
@@ -152,7 +152,7 @@ void usbip_event_add(struct usbip_device *ud, unsigned long event)
 
 	spin_lock_irqsave(&event_lock, flags);
 
-	list_for_each_entry_reverse(ue, &event_list, node) {
+	list_for_each_entry_reverse(ue, &event_list, yesde) {
 		if (ue->ud == ud)
 			goto out;
 	}
@@ -163,7 +163,7 @@ void usbip_event_add(struct usbip_device *ud, unsigned long event)
 
 	ue->ud = ud;
 
-	list_add_tail(&ue->node, &event_list);
+	list_add_tail(&ue->yesde, &event_list);
 	queue_work(usbip_queue, &usbip_work);
 
 out:

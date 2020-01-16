@@ -4,10 +4,10 @@
 #include <linux/compiler.h>
 #include <linux/export.h>
 
-#define START(node) ((node)->start)
-#define LAST(node)  ((node)->last)
+#define START(yesde) ((yesde)->start)
+#define LAST(yesde)  ((yesde)->last)
 
-INTERVAL_TREE_DEFINE(struct interval_tree_node, rb,
+INTERVAL_TREE_DEFINE(struct interval_tree_yesde, rb,
 		     unsigned long, __subtree_last,
 		     START, LAST,, interval_tree)
 

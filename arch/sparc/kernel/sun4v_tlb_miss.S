@@ -24,7 +24,7 @@
 #define	COMPUTE_TAG_TARGET(DEST, VADDR, CTX, ZERO_CTX_LABEL) \
 	srlx	VADDR, 22, DEST; \
 	brz,pn	CTX, ZERO_CTX_LABEL; \
-	 nop;
+	 yesp;
 
 	/* Create TSB pointer.  This is something like:
 	 *
@@ -145,7 +145,7 @@ sun4v_dtlb_prot:
 	bgu,pn	%xcc, winfix_trampoline
 	 mov	FAULT_CODE_DTLB | FAULT_CODE_WRITE, %g4
 	ba,pt	%xcc, sparc64_realfault_common
-	 nop
+	 yesp
 
 	/* Called from trap table:
 	 * %g4:	vaddr
@@ -182,7 +182,7 @@ sun4v_tsb_miss_common:
 	ldxa	[%g5] ASI_SCRATCHPAD, %g5
 	cmp	%g5, -1
 	be,pt	%xcc, 80f
-	 nop
+	 yesp
 	COMPUTE_TSB_PTR(%g5, %g4, REAL_HPAGE_SHIFT, %g2, %g7)
 
 	/* That clobbered %g2, reload it.  */
@@ -326,7 +326,7 @@ sun4v_mna:
 	rdpr	%tl, %g2
 	cmp	%g2, 1
 	ble,pt	%icc, 1f
-	 nop
+	 yesp
 
 	SET_GL(1)
 	ldxa	[%g0] ASI_SCRATCHPAD, %g2
@@ -337,7 +337,7 @@ sun4v_mna:
 	or	%g4, %g3, %g4
 	ba,pt	%xcc, winfix_mna
 	 rdpr	%tpc, %g3
-	/* not reached */
+	/* yest reached */
 
 1:	ldxa	[%g0] ASI_SCRATCHPAD, %g2
 	mov	HV_FAULT_TYPE_UNALIGNED, %g3
@@ -353,7 +353,7 @@ sun4v_mna:
 	call	sun4v_do_mna
 	 add	%sp, PTREGS_OFF, %o0
 	ba,a,pt	%xcc, rtrap
-	 nop
+	 yesp
 
 	/* Privileged Action.  */
 sun4v_privact:
@@ -433,5 +433,5 @@ sun4v_patch_tlb_handlers:
 	SUN4V_DO_PATCH(tl0_stdfmna, sun4v_stdfmna)
 	SUN4V_DO_PATCH(tl0_privact, sun4v_privact)
 	retl
-	 nop
+	 yesp
 	.size	sun4v_patch_tlb_handlers,.-sun4v_patch_tlb_handlers

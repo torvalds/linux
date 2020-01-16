@@ -229,7 +229,7 @@ static int rockchip_i2s_set_fmt(struct snd_soc_dai *cpu_dai,
 	case SND_SOC_DAIFMT_I2S:
 		val = I2S_TXCR_IBM_NORMAL;
 		break;
-	case SND_SOC_DAIFMT_DSP_A: /* PCM no delay mode */
+	case SND_SOC_DAIFMT_DSP_A: /* PCM yes delay mode */
 		val = I2S_TXCR_TFS_PCM;
 		break;
 	case SND_SOC_DAIFMT_DSP_B: /* PCM delay 1 mode */
@@ -252,7 +252,7 @@ static int rockchip_i2s_set_fmt(struct snd_soc_dai *cpu_dai,
 	case SND_SOC_DAIFMT_I2S:
 		val = I2S_RXCR_IBM_NORMAL;
 		break;
-	case SND_SOC_DAIFMT_DSP_A: /* PCM no delay mode */
+	case SND_SOC_DAIFMT_DSP_A: /* PCM yes delay mode */
 		val = I2S_RXCR_TFS_PCM;
 		break;
 	case SND_SOC_DAIFMT_DSP_B: /* PCM delay 1 mode */
@@ -576,7 +576,7 @@ static const struct of_device_id rockchip_i2s_match[] = {
 
 static int rockchip_i2s_probe(struct platform_device *pdev)
 {
-	struct device_node *node = pdev->dev.of_node;
+	struct device_yesde *yesde = pdev->dev.of_yesde;
 	const struct of_device_id *of_id;
 	struct rk_i2s_dev *i2s;
 	struct snd_soc_dai_driver *soc_dai;
@@ -591,7 +591,7 @@ static int rockchip_i2s_probe(struct platform_device *pdev)
 
 	i2s->dev = &pdev->dev;
 
-	i2s->grf = syscon_regmap_lookup_by_phandle(node, "rockchip,grf");
+	i2s->grf = syscon_regmap_lookup_by_phandle(yesde, "rockchip,grf");
 	if (!IS_ERR(i2s->grf)) {
 		of_id = of_match_device(rockchip_i2s_match, &pdev->dev);
 		if (!of_id || !of_id->data)
@@ -655,12 +655,12 @@ static int rockchip_i2s_probe(struct platform_device *pdev)
 		goto err_pm_disable;
 	}
 
-	if (!of_property_read_u32(node, "rockchip,playback-channels", &val)) {
+	if (!of_property_read_u32(yesde, "rockchip,playback-channels", &val)) {
 		if (val >= 2 && val <= 8)
 			soc_dai->playback.channels_max = val;
 	}
 
-	if (!of_property_read_u32(node, "rockchip,capture-channels", &val)) {
+	if (!of_property_read_u32(yesde, "rockchip,capture-channels", &val)) {
 		if (val >= 2 && val <= 8)
 			soc_dai->capture.channels_max = val;
 	}
@@ -670,13 +670,13 @@ static int rockchip_i2s_probe(struct platform_device *pdev)
 					      soc_dai, 1);
 
 	if (ret) {
-		dev_err(&pdev->dev, "Could not register DAI\n");
+		dev_err(&pdev->dev, "Could yest register DAI\n");
 		goto err_suspend;
 	}
 
 	ret = rockchip_pcm_platform_register(&pdev->dev);
 	if (ret) {
-		dev_err(&pdev->dev, "Could not register PCM\n");
+		dev_err(&pdev->dev, "Could yest register PCM\n");
 		goto err_suspend;
 	}
 

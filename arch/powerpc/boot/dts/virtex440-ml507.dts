@@ -70,7 +70,7 @@
 			xlnx,apu-udi-9 = <0>;
 			xlnx,dcr-autolock-enable = <1>;
 			xlnx,dcu-rd-ld-cache-plb-prio = <0>;
-			xlnx,dcu-rd-noncache-plb-prio = <0>;
+			xlnx,dcu-rd-yesncache-plb-prio = <0>;
 			xlnx,dcu-rd-touch-plb-prio = <0>;
 			xlnx,dcu-rd-urgent-plb-prio = <0>;
 			xlnx,dcu-wr-flush-plb-prio = <0>;

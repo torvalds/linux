@@ -5,7 +5,7 @@
  * Copyright (C) 1995,2001 Compaq Computer Corporation
  * Copyright (C) 2001 Greg Kroah-Hartman (greg@kroah.com)
  * Copyright (C) 2001 IBM Corp.
- * Copyright (C) 2002 Hiroshi Aono (h-aono@ap.jp.nec.com)
+ * Copyright (C) 2002 Hiroshi Aoyes (h-aoyes@ap.jp.nec.com)
  * Copyright (C) 2002,2003 Takayoshi Kochi (t-kochi@bq.jp.nec.com)
  * Copyright (C) 2002,2003 NEC Corporation
  * Copyright (C) 2003-2005 Matthew Wilcox (willy@infradead.org)
@@ -174,8 +174,8 @@ static int set_attention_status(struct hotplug_slot *hotplug_slot, u8 status)
  * @hotplug_slot: slot to get status
  * @value: pointer to store status
  *
- * Some platforms may not implement _STA method properly.
- * In that case, the value returned may not be reliable.
+ * Some platforms may yest implement _STA method properly.
+ * In that case, the value returned may yest be reliable.
  */
 static int get_power_status(struct hotplug_slot *hotplug_slot, u8 *value)
 {
@@ -194,7 +194,7 @@ static int get_power_status(struct hotplug_slot *hotplug_slot, u8 *value)
  * @hotplug_slot: slot to get status from
  * @value: returns with value of attention LED
  *
- * ACPI doesn't have known method to determine the state
+ * ACPI doesn't have kyeswn method to determine the state
  * of the attention status LED, so we use a callback that
  * was registered with us.  This allows hardware specific
  * ACPI implementations to determine its state.

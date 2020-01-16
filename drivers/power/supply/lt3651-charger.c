@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
- *  Driver for Analog Devices (Linear Technology) LT3651 charger IC.
+ *  Driver for Analog Devices (Linear Techyeslogy) LT3651 charger IC.
  *  Copyright (C) 2017, Topic Embedded Products
  */
 
@@ -126,12 +126,12 @@ static int lt3651_charger_probe(struct platform_device *pdev)
 	}
 
 	charger_desc = &lt3651_charger->charger_desc;
-	charger_desc->name = pdev->dev.of_node->name;
+	charger_desc->name = pdev->dev.of_yesde->name;
 	charger_desc->type = POWER_SUPPLY_TYPE_MAINS;
 	charger_desc->properties = lt3651_charger_properties;
 	charger_desc->num_properties = ARRAY_SIZE(lt3651_charger_properties);
 	charger_desc->get_property = lt3651_charger_get_property;
-	psy_cfg.of_node = pdev->dev.of_node;
+	psy_cfg.of_yesde = pdev->dev.of_yesde;
 	psy_cfg.drv_data = lt3651_charger;
 
 	lt3651_charger->charger = devm_power_supply_register(&pdev->dev,
@@ -144,7 +144,7 @@ static int lt3651_charger_probe(struct platform_device *pdev)
 	}
 
 	/*
-	 * Acquire IRQs for the GPIO pins if possible. If the system does not
+	 * Acquire IRQs for the GPIO pins if possible. If the system does yest
 	 * support IRQs on these pins, userspace will have to poll the sysfs
 	 * files manually.
 	 */

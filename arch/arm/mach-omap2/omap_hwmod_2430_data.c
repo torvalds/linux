@@ -77,8 +77,8 @@ static struct omap_hwmod omap2430_i2c1_hwmod = {
 		.omap2 = {
 			/*
 			 * NOTE: The CM_FCLKEN* and CM_ICLKEN* for
-			 * I2CHS IP's do not follow the usual pattern.
-			 * prcm_reg_id alone cannot be used to program
+			 * I2CHS IP's do yest follow the usual pattern.
+			 * prcm_reg_id alone canyest be used to program
 			 * the iclk and fclk. Needs to be handled using
 			 * additional flags when clk handling is moved
 			 * to hwmod framework.

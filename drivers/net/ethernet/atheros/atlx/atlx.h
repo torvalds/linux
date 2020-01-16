@@ -2,7 +2,7 @@
 /* atlx_hw.h -- common hardware definitions for Attansic network drivers
  *
  * Copyright(c) 2005 - 2006 Attansic Corporation. All rights reserved.
- * Copyright(c) 2006 - 2007 Chris Snook <csnook@redhat.com>
+ * Copyright(c) 2006 - 2007 Chris Syesok <csyesok@redhat.com>
  * Copyright(c) 2006 - 2008 Jay Cliburn <jcliburn@gmail.com>
  * Copyright(c) 2007 Atheros Corporation. All rights reserved.
  *
@@ -308,8 +308,8 @@
 #define MII_CR_SPEED_SELECT_LSB		0x2000	/* bits 6,13: 10=1000, 01=100,
 						 * 00=10
 						 */
-#define MII_CR_LOOPBACK			0x4000	/* 0 = normal, 1 = loopback */
-#define MII_CR_RESET			0x8000	/* 0 = normal, 1 = PHY reset */
+#define MII_CR_LOOPBACK			0x4000	/* 0 = yesrmal, 1 = loopback */
+#define MII_CR_RESET			0x8000	/* 0 = yesrmal, 1 = PHY reset */
 #define MII_CR_SPEED_MASK		0x2040
 #define MII_CR_SPEED_1000		0x0040
 #define MII_CR_SPEED_100		0x2000

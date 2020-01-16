@@ -9,7 +9,7 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/pci.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/ioport.h>
 #include <linux/proc_fs.h>
 #include <linux/slab.h>
@@ -177,7 +177,7 @@ static int pci_bus_alloc_from_region(struct pci_bus *bus, struct resource *res,
 		if ((res->flags ^ r->flags) & type_mask)
 			continue;
 
-		/* We cannot allocate a non-prefetching resource
+		/* We canyest allocate a yesn-prefetching resource
 		   from a pre-fetching area */
 		if ((r->flags & IORESOURCE_PREFETCH) &&
 		    !(res->flags & IORESOURCE_PREFETCH))
@@ -254,7 +254,7 @@ EXPORT_SYMBOL(pci_bus_alloc_resource);
 
 /*
  * The @idx resource of @dev should be a PCI-PCI bridge window.  If this
- * resource fits inside a window of an upstream bridge, do nothing.  If it
+ * resource fits inside a window of an upstream bridge, do yesthing.  If it
  * overlaps an upstream window but extends outside it, clip the resource so
  * it fits completely inside.
  */
@@ -279,10 +279,10 @@ bool pci_bus_clip_resource(struct pci_dev *dev, int idx)
 		end = min(r->end, res->end);
 
 		if (start > end)
-			continue;	/* no overlap */
+			continue;	/* yes overlap */
 
 		if (res->start == start && res->end == end)
-			return false;	/* no change */
+			return false;	/* yes change */
 
 		res->start = start;
 		res->end = end;
@@ -311,8 +311,8 @@ void pci_bus_add_device(struct pci_dev *dev)
 	int retval;
 
 	/*
-	 * Can not put in pci_device_add yet because resources
-	 * are not assigned yet for some devices.
+	 * Can yest put in pci_device_add yet because resources
+	 * are yest assigned yet for some devices.
 	 */
 	pcibios_bus_add_device(dev);
 	pci_fixup_device(pci_fixup_final, dev);

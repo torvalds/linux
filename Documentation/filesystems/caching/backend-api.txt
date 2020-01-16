@@ -81,12 +81,12 @@ The cache methods are executed one of two contexts:
 
  (2) that of one of the processes in the FS-Cache thread pool.
 
-In either case, this may not be an appropriate context in which to access the
+In either case, this may yest be an appropriate context in which to access the
 cache.
 
 The calling process's fsuid, fsgid and SELinux security identities may need to
 be masqueraded for the duration of the cache driver's access to the cache.
-This is left to the cache to handle; FS-Cache makes no effort in this regard.
+This is left to the cache to handle; FS-Cache makes yes effort in this regard.
 
 
 ===================================
@@ -163,7 +163,7 @@ RELEVANT DATA STRUCTURES
 	};
 
      FS-Cache has a pool of threads that it uses to give CPU time to the
-     various asynchronous operations that need to be done as part of driving
+     various asynchroyesus operations that need to be done as part of driving
      the cache.  These are represented by the above structure.  The processor
      method is called to give the op CPU time, and the release method to get
      rid of it when its usage count reaches 0.
@@ -257,7 +257,7 @@ performed on the denizens of the cache.  These are held in a structure of type:
      object is found to exist and the netfs indicates that it is valid then
      fscache_obtained_object() should be called once the object is in a
      position to have data stored in it.  Similarly, fscache_obtained_object()
-     should also be called once a non-present object has been created.
+     should also be called once a yesn-present object has been created.
 
      If a lookup error occurs, fscache_object_lookup_error() should be called
      to abort the lookup of that object.
@@ -295,8 +295,8 @@ performed on the denizens of the cache.  These are held in a structure of type:
 	void (*unpin_object)(struct fscache_object *object)
 
      These methods are used to pin an object into the cache.  Once pinned an
-     object cannot be reclaimed to make space.  Return -ENOSPC if there's not
-     enough space in the cache to permit this.
+     object canyest be reclaimed to make space.  Return -ENOSPC if there's yest
+     eyesugh space in the cache to permit this.
 
 
  (*) Check coherency state of an object [mandatory]:
@@ -337,7 +337,7 @@ performed on the denizens of the cache.  These are held in a structure of type:
      cookie, and that the cache should release the object's resources and
      retire it if it's in state FSCACHE_OBJECT_RECYCLING.
 
-     This method should not attempt to release any references held by the
+     This method should yest attempt to release any references held by the
      caller.  The caller will invoke the put_object() method as appropriate.
 
 
@@ -378,10 +378,10 @@ performed on the denizens of the cache.  These are held in a structure of type:
      It should also call fscache_set_store_limit() to indicate to FS-Cache the
      highest byte it's willing to store for an object.
 
-     This method may return -ve if an error occurred or the cache object cannot
+     This method may return -ve if an error occurred or the cache object canyest
      be expanded.  In such a case, the object will be withdrawn from service.
 
-     This operation is run asynchronously from FS-Cache's thread pool, and
+     This operation is run asynchroyesusly from FS-Cache's thread pool, and
      storage and retrieval operations from the netfs are excluded during the
      execution of this operation.
 
@@ -394,13 +394,13 @@ performed on the denizens of the cache.  These are held in a structure of type:
      for an object and the metadata used to track it.  Zero size should be
      taken as request to cancel a reservation.
 
-     This should return 0 if successful, -ENOSPC if there isn't enough space
+     This should return 0 if successful, -ENOSPC if there isn't eyesugh space
      available, or -ENOMEM or -EIO on other errors.
 
      The reservation may exceed the current size of the object, thus permitting
      future expansion.  If the amount of space consumed by an object would
      exceed the reservation, it's permitted to refuse requests to allocate
-     pages, but not required.  An object may be pruned down to its reservation
+     pages, but yest required.  An object may be pruned down to its reservation
      size if larger than that already.
 
 
@@ -411,10 +411,10 @@ performed on the denizens of the cache.  These are held in a structure of type:
 				  gfp_t gfp)
 
      This is called to attempt to read a netfs page from the cache, or to
-     reserve a backing block if not.  FS-Cache will have done as much checking
+     reserve a backing block if yest.  FS-Cache will have done as much checking
      as it can before calling, but most of the work belongs to the backend.
 
-     If there's no page in the cache, then -ENODATA should be returned if the
+     If there's yes page in the cache, then -ENODATA should be returned if the
      backend managed to reserve a backing block; -ENOBUFS or -ENOMEM if it
      didn't.
 
@@ -477,7 +477,7 @@ performed on the denizens of the cache.  These are held in a structure of type:
      It should, however, set up any internal metadata required such that
      the write_page() method can write to the cache.
 
-     If there's no backing block available, then -ENOBUFS should be returned
+     If there's yes backing block available, then -ENOBUFS should be returned
      (or -ENOMEM if there were other problems).  If a block is successfully
      allocated, then the netfs page should be marked and 0 returned.
 
@@ -502,8 +502,8 @@ performed on the denizens of the cache.  These are held in a structure of type:
      successful read_or_alloc_page() call or similar.  FS-Cache filters out
      pages that don't have mappings.
 
-     This method is called asynchronously from the FS-Cache thread pool.  It is
-     not required to actually store anything, provided -ENODATA is then
+     This method is called asynchroyesusly from the FS-Cache thread pool.  It is
+     yest required to actually store anything, provided -ENODATA is then
      returned to the next read of this page.
 
      If an error occurred, then a negative error code should be returned,
@@ -538,7 +538,7 @@ FS-Cache provides some utilities that a cache backend may make use of:
      release) will be passed from the netfs to the cache backend for the
      specified cache.
 
-     This does not actually withdraw the cache.  That must be done separately.
+     This does yest actually withdraw the cache.  That must be done separately.
 
 
  (*) Invoke the retrieval I/O completion function:
@@ -546,7 +546,7 @@ FS-Cache provides some utilities that a cache backend may make use of:
 	void fscache_end_io(struct fscache_retrieval *op, struct page *page,
 			    int error);
 
-     This is called to note the end of an attempt to retrieve a page.  The
+     This is called to yeste the end of an attempt to retrieve a page.  The
      error value should be 0 if successful and an error otherwise.
 
 
@@ -557,7 +557,7 @@ FS-Cache provides some utilities that a cache backend may make use of:
 					int n_pages);
 
      This is called to record the fact that one or more pages have been dealt
-     with and are no longer the concern of this operation.  When the number of
+     with and are yes longer the concern of this operation.  When the number of
      pages remaining in the operation reaches 0, the operation will be
      completed.
 
@@ -644,10 +644,10 @@ FS-Cache provides some utilities that a cache backend may make use of:
 
      This changes the state of an object to permit reads pending on lookup
      completion to go off and start fetching data from the netfs server as it's
-     known at this point that there can't be any data in the cache.
+     kyeswn at this point that there can't be any data in the cache.
 
      This may be called multiple times on an object.  Only the first call is
-     significant - all subsequent calls are ignored.
+     significant - all subsequent calls are igyesred.
 
 
  (*) Indicate an object has been obtained:
@@ -660,11 +660,11 @@ FS-Cache provides some utilities that a cache backend may make use of:
 
      This changes the state of an object to indicate:
 
-	(1) if no call to fscache_object_lookup_negative() has been made on
+	(1) if yes call to fscache_object_lookup_negative() has been made on
 	    this object, that there may be data available, and that reads can
-	    now go and look for it; and
+	    yesw go and look for it; and
 
-        (2) that writes may now proceed against this object.
+        (2) that writes may yesw proceed against this object.
 
 
  (*) Indicate that object lookup failed:
@@ -705,7 +705,7 @@ FS-Cache provides some utilities that a cache backend may make use of:
 	void fscache_put_retrieval(struct fscache_retrieval *op);
 
      These two functions are used to retain a retrieval record while doing
-     asynchronous data retrieval and block allocation.
+     asynchroyesus data retrieval and block allocation.
 
 
  (*) Enqueue a retrieval record for processing.

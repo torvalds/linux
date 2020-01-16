@@ -13,7 +13,7 @@ static inline void enter_lazy_tlb(struct mm_struct *mm, struct task_struct *tsk)
 {
 }
 
-/* on PA-RISC, we actually have enough contexts to justify an allocator
+/* on PA-RISC, we actually have eyesugh contexts to justify an allocator
  * for them.  prumpf */
 
 extern unsigned long alloc_sid(void);

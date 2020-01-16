@@ -39,7 +39,7 @@ Description:
 
 		raw_var:	A binary file that can be read to obtain
 				a structure that contains everything
-				there is to know about the variable.
+				there is to kyesw about the variable.
 				For structure definition see "struct
 				efi_variable" in the kernel sources.
 

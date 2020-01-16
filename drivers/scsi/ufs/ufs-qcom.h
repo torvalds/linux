@@ -141,12 +141,12 @@ enum {
 
 static inline void
 ufs_qcom_get_controller_revision(struct ufs_hba *hba,
-				 u8 *major, u16 *minor, u16 *step)
+				 u8 *major, u16 *miyesr, u16 *step)
 {
 	u32 ver = ufshcd_readl(hba, REG_UFS_HW_VERSION);
 
 	*major = (ver & UFS_HW_VER_MAJOR_MASK) >> UFS_HW_VER_MAJOR_SHFT;
-	*minor = (ver & UFS_HW_VER_MINOR_MASK) >> UFS_HW_VER_MINOR_SHFT;
+	*miyesr = (ver & UFS_HW_VER_MINOR_MASK) >> UFS_HW_VER_MINOR_SHFT;
 	*step = (ver & UFS_HW_VER_STEP_MASK) >> UFS_HW_VER_STEP_SHFT;
 };
 
@@ -184,16 +184,16 @@ struct ufs_qcom_bus_vote {
 	struct device_attribute max_bus_bw;
 };
 
-/* Host controller hardware version: major.minor.step */
+/* Host controller hardware version: major.miyesr.step */
 struct ufs_hw_version {
 	u16 step;
-	u16 minor;
+	u16 miyesr;
 	u8 major;
 };
 
 struct ufs_qcom_testbus {
 	u8 select_major;
-	u8 select_minor;
+	u8 select_miyesr;
 };
 
 struct gpio_desc;

@@ -347,7 +347,7 @@ static int iwl_hwrate_to_plcp_idx(u32 rate_n_flags)
 		idx = rate_n_flags & RATE_HT_MCS_RATE_CODE_MSK;
 		idx += IWL_RATE_MCS_0_INDEX;
 
-		/* skip 9M not supported in HT*/
+		/* skip 9M yest supported in HT*/
 		if (idx >= IWL_RATE_9M_INDEX)
 			idx += 1;
 		if ((idx >= IWL_FIRST_HT_RATE) && (idx <= IWL_LAST_HT_RATE))
@@ -357,7 +357,7 @@ static int iwl_hwrate_to_plcp_idx(u32 rate_n_flags)
 		idx = rate_n_flags & RATE_VHT_MCS_RATE_CODE_MSK;
 		idx += IWL_RATE_MCS_0_INDEX;
 
-		/* skip 9M not supported in VHT*/
+		/* skip 9M yest supported in VHT*/
 		if (idx >= IWL_RATE_9M_INDEX)
 			idx++;
 		if ((idx >= IWL_FIRST_VHT_RATE) && (idx <= IWL_LAST_VHT_RATE))
@@ -632,7 +632,7 @@ static void rs_tl_turn_on_agg(struct iwl_mvm *mvm, struct iwl_mvm_sta *mvmsta,
 
 	/*
 	 * In AP mode, tid can be equal to IWL_MAX_TID_COUNT
-	 * when the frame is not QoS
+	 * when the frame is yest QoS
 	 */
 	if (WARN_ON_ONCE(tid > IWL_MAX_TID_COUNT)) {
 		IWL_ERR(mvm, "tid exceeds max TID count: %d/%d\n",
@@ -733,7 +733,7 @@ static int _rs_collect_tx_data(struct iwl_mvm *mvm,
 
 	fail_count = window->counter - window->success_counter;
 
-	/* Calculate average throughput, if we have enough history. */
+	/* Calculate average throughput, if we have eyesugh history. */
 	if ((fail_count >= IWL_MVM_RS_RATE_MIN_FAILURE_TH) ||
 	    (window->success_counter >= IWL_MVM_RS_RATE_MIN_SUCCESS_TH))
 		window->average_tpt = (window->success_ratio * tpt + 64) / 128;
@@ -771,7 +771,7 @@ static void rs_update_tid_tpt_stats(struct iwl_mvm *mvm,
 	tid_data = &mvmsta->tid_data[tid];
 
 	/*
-	 * Measure if there're enough successful transmits per second.
+	 * Measure if there're eyesugh successful transmits per second.
 	 * These statistics are used only to decide if we can start a
 	 * BA session, so it should be updated only when A-MPDU is
 	 * off.
@@ -971,8 +971,8 @@ static int rs_rate_from_ucode_rate(const u32 ucode_rate,
 	return 0;
 }
 
-/* switch to another antenna/antennas and return 1 */
-/* if no other valid antenna found, return 0 */
+/* switch to ayesther antenna/antennas and return 1 */
+/* if yes other valid antenna found, return 0 */
 static int rs_toggle_antenna(u32 valid_ant, struct rs_rate *rate)
 {
 	u8 new_ant_type;
@@ -1357,7 +1357,7 @@ static void rs_set_expected_tpt_table(struct iwl_lq_sta *lq_sta,
  * active table returns the search table, which is located at the
  * index complementary to 1 according to the active table (active = 1,
  * search = 0 or active = 0, search = 1).
- * Since lq_info is an arary of size 2, make sure index cannot be out of bounds.
+ * Since lq_info is an arary of size 2, make sure index canyest be out of bounds.
  */
 static inline u8 rs_search_tbl(u8 active_tbl)
 {
@@ -1386,7 +1386,7 @@ static s32 rs_get_best_rate(struct iwl_mvm *mvm,
 	} else {
 		target_tpt = lq_sta->last_tpt;
 		IWL_DEBUG_RATE(mvm,
-			       "SR %d not that good. Find rate exceeding ACTUAL_TPT %d\n",
+			       "SR %d yest that good. Find rate exceeding ACTUAL_TPT %d\n",
 			       success_ratio, target_tpt);
 	}
 
@@ -1422,7 +1422,7 @@ static u32 rs_bw_from_sta_bw(struct ieee80211_sta *sta)
 	case IEEE80211_STA_RX_BW_160:
 		/*
 		 * Don't use 160 MHz if VHT extended NSS support
-		 * says we cannot use 2 streams, we don't want to
+		 * says we canyest use 2 streams, we don't want to
 		 * deal with this.
 		 * We only check MCS 0 - they will support that if
 		 * we got here at all and we don't care which MCS,
@@ -1448,7 +1448,7 @@ static u32 rs_bw_from_sta_bw(struct ieee80211_sta *sta)
  * begin search for a new mode, based on:
  * 1) # tx successes or failures while using this mode
  * 2) # times calling this function
- * 3) elapsed time in this mode (not used, for now)
+ * 3) elapsed time in this mode (yest used, for yesw)
  */
 static void rs_stay_in_table(struct iwl_lq_sta *lq_sta, bool force_search)
 {
@@ -1462,7 +1462,7 @@ static void rs_stay_in_table(struct iwl_lq_sta *lq_sta, bool force_search)
 
 	tbl = &(lq_sta->lq_info[active_tbl]);
 
-	/* If we've been disallowing search, see if we should now allow it */
+	/* If we've been disallowing search, see if we should yesw allow it */
 	if (lq_sta->rs_state == RS_STATE_STAY_IN_COLUMN) {
 		/* Elapsed time using current modulation mode */
 		if (lq_sta->flush_timer)
@@ -1500,7 +1500,7 @@ static void rs_stay_in_table(struct iwl_lq_sta *lq_sta, bool force_search)
 			/* mark the current column as visited */
 			lq_sta->visited_columns = BIT(tbl->column);
 		/*
-		 * Else if we've used this modulation mode enough repetitions
+		 * Else if we've used this modulation mode eyesugh repetitions
 		 * (regardless of elapsed time or success/failure), reset
 		 * history bitmaps and rate-specific stats for all rates in
 		 * active table.
@@ -1536,8 +1536,8 @@ static void rs_set_amsdu_len(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 	sta->max_amsdu_len = rs_fw_get_max_amsdu_len(sta);
 
 	/*
-	 * In case TLC offload is not active amsdu_enabled is either 0xFFFF
-	 * or 0, since there is no per-TID alg.
+	 * In case TLC offload is yest active amsdu_enabled is either 0xFFFF
+	 * or 0, since there is yes per-TID alg.
 	 */
 	if ((!is_vht(&tbl->rate) && !is_ht(&tbl->rate)) ||
 	    tbl->rate.index < IWL_RATE_MCS_5_INDEX ||
@@ -1668,7 +1668,7 @@ static enum rs_column rs_get_next_column(struct iwl_mvm *mvm,
 
 		if (j != MAX_COLUMN_CHECKS) {
 			IWL_DEBUG_RATE(mvm,
-				       "Skip column %d: not allowed (check %d failed)\n",
+				       "Skip column %d: yest allowed (check %d failed)\n",
 				       next_col_id, j);
 
 			continue;
@@ -1683,7 +1683,7 @@ static enum rs_column rs_get_next_column(struct iwl_mvm *mvm,
 		max_rate = rs_get_max_allowed_rate(lq_sta, next_col);
 		if (max_rate == IWL_RATE_INVALID) {
 			IWL_DEBUG_RATE(mvm,
-				       "Skip column %d: no rate is allowed in this column\n",
+				       "Skip column %d: yes rate is allowed in this column\n",
 				       next_col_id);
 			continue;
 		}
@@ -1766,7 +1766,7 @@ static int rs_switch_to_column(struct iwl_mvm *mvm,
 		if ((rate_idx == IWL_RATE_INVALID) ||
 		    !(BIT(rate_idx) & rate_mask)) {
 			IWL_DEBUG_RATE(mvm,
-				       "can not switch with index %d"
+				       "can yest switch with index %d"
 				       " rate mask %lx\n",
 				       rate_idx, rate_mask);
 
@@ -1943,7 +1943,7 @@ static enum tpc_action rs_get_tpc_action(struct iwl_mvm *mvm,
 {
 	/* stay until we have valid tpt */
 	if (current_tpt == IWL_INVALID_VALUE) {
-		IWL_DEBUG_RATE(mvm, "no current tpt. stay.\n");
+		IWL_DEBUG_RATE(mvm, "yes current tpt. stay.\n");
 		return TPC_ACTION_STAY;
 	}
 
@@ -1961,7 +1961,7 @@ static enum tpc_action rs_get_tpc_action(struct iwl_mvm *mvm,
 		    (strong_tpt == IWL_INVALID_VALUE ||
 		     current_tpt >= strong_tpt)) {
 			IWL_DEBUG_RATE(mvm,
-				       "no weak txp measurement. decrease txp\n");
+				       "yes weak txp measurement. decrease txp\n");
 			return TPC_ACTION_DECREASE;
 		}
 
@@ -1992,7 +1992,7 @@ static enum tpc_action rs_get_tpc_action(struct iwl_mvm *mvm,
 		}
 	}
 
-	IWL_DEBUG_RATE(mvm, "no need to increase or decrease txp - stay\n");
+	IWL_DEBUG_RATE(mvm, "yes need to increase or decrease txp - stay\n");
 	return TPC_ACTION_STAY;
 }
 
@@ -2033,7 +2033,7 @@ static bool rs_tpc_perform(struct iwl_mvm *mvm,
 
 	if (!rs_tpc_allowed(mvm, vif, rate, band)) {
 		IWL_DEBUG_RATE(mvm,
-			       "tpc is not allowed. remove txp restrictions\n");
+			       "tpc is yest allowed. remove txp restrictions\n");
 		lq_sta->lq.reduced_tpc = TPC_NO_REDUCTION;
 		return cur != TPC_NO_REDUCTION;
 	}
@@ -2079,7 +2079,7 @@ static bool rs_tpc_perform(struct iwl_mvm *mvm,
 		lq_sta->lq.reduced_tpc = TPC_NO_REDUCTION;
 		return true;
 	case TPC_ACTION_STAY:
-		/* do nothing */
+		/* do yesthing */
 		break;
 	}
 	return false;
@@ -2143,9 +2143,9 @@ static void rs_rate_scale_perform(struct iwl_mvm *mvm,
 	rate_mask = rs_get_supported_rates(lq_sta, rate);
 
 	if (!(BIT(index) & rate_mask)) {
-		IWL_ERR(mvm, "Current Rate is not valid\n");
+		IWL_ERR(mvm, "Current Rate is yest valid\n");
 		if (lq_sta->search_better_tbl) {
-			/* revert to active table if search table is not valid*/
+			/* revert to active table if search table is yest valid*/
 			rate->type = LQ_NONE;
 			lq_sta->search_better_tbl = 0;
 			tbl = &(lq_sta->lq_info[lq_sta->active_tbl]);
@@ -2164,10 +2164,10 @@ static void rs_rate_scale_perform(struct iwl_mvm *mvm,
 	window = &(tbl->win[index]);
 
 	/*
-	 * If there is not enough history to calculate actual average
+	 * If there is yest eyesugh history to calculate actual average
 	 * throughput, keep analyzing results of more tx frames, without
 	 * changing rate or mode (bypass most of the rest of this function).
-	 * Set up new rate table in uCode only if old rate is not supported
+	 * Set up new rate table in uCode only if old rate is yest supported
 	 * in current association (use new rate found above).
 	 */
 	fail_count = window->counter - window->success_counter;
@@ -2178,7 +2178,7 @@ static void rs_rate_scale_perform(struct iwl_mvm *mvm,
 			       rs_pretty_rate(rate),
 			       window->success_counter, window->counter);
 
-		/* Can't calculate this yet; not enough history */
+		/* Can't calculate this yet; yest eyesugh history */
 		window->average_tpt = IWL_INVALID_VALUE;
 
 		/* Should we stay with this modulation mode,
@@ -2191,7 +2191,7 @@ static void rs_rate_scale_perform(struct iwl_mvm *mvm,
 	/* If we are searching for better modulation mode, check success. */
 	if (lq_sta->search_better_tbl) {
 		/* If good success, continue using the "search" mode;
-		 * no need to send new link quality command, since we're
+		 * yes need to send new link quality command, since we're
 		 * continuing to use the setup that we've been trying. */
 		if (window->average_tpt > lq_sta->last_tpt) {
 			IWL_DEBUG_RATE(mvm,
@@ -2235,7 +2235,7 @@ static void rs_rate_scale_perform(struct iwl_mvm *mvm,
 		goto lq_update;
 	}
 
-	/* (Else) not in search of better modulation mode, try for better
+	/* (Else) yest in search of better modulation mode, try for better
 	 * starting rate, while staying in this mode. */
 	high_low = rs_get_adjacent_rate(mvm, index, rate_mask, rate->type);
 	low = high_low & 0xff;
@@ -2315,7 +2315,7 @@ lq_update:
 
 	/*
 	 * Search for new modulation mode if we're:
-	 * 1)  Not changing rates right now
+	 * 1)  Not changing rates right yesw
 	 * 2)  Not just finishing up a search
 	 * 3)  Allowing a new search
 	 */
@@ -2410,7 +2410,7 @@ static const struct rs_init_rate_info rs_optimal_rates_ht[] = {
 	{ S8_MIN, IWL_RATE_MCS_0_INDEX},
 };
 
-/* MCS index 9 is not valid for 20MHz VHT channel width,
+/* MCS index 9 is yest valid for 20MHz VHT channel width,
  * but is ok for 40, 80 and 160MHz channels.
  */
 static const struct rs_init_rate_info rs_optimal_rates_vht_20mhz[] = {
@@ -2442,7 +2442,7 @@ static const struct rs_init_rate_info rs_optimal_rates_vht[] = {
 
 /* Init the optimal rate based on STA caps
  * This combined with rssi is used to report the last tx rate
- * to userspace when we haven't transmitted enough frames.
+ * to userspace when we haven't transmitted eyesugh frames.
  */
 static void rs_init_optimal_rate(struct iwl_mvm *mvm,
 				 struct ieee80211_sta *sta,
@@ -2724,7 +2724,7 @@ static void rs_drv_get_rate(void *mvm_r, struct ieee80211_sta *sta,
 	u32 last_ucode_rate;
 
 	if (sta && !iwl_mvm_sta_from_mac80211(sta)->vif) {
-		/* if vif isn't initialized mvm doesn't know about
+		/* if vif isn't initialized mvm doesn't kyesw about
 		 * this station, so don't do anything with the it
 		 */
 		sta = NULL;
@@ -2838,7 +2838,7 @@ static void rs_ht_init(struct iwl_mvm *mvm,
 		       struct ieee80211_sta_ht_cap *ht_cap)
 {
 	/* active_siso_rate mask includes 9 MBits (bit 5),
-	 * and CCK (bits 0-3), supp_rates[] does not;
+	 * and CCK (bits 0-3), supp_rates[] does yest;
 	 * shift to convert format, force 9 MBits off.
 	 */
 	lq_sta->active_siso_rate = ht_cap->mcs.rx_mask[0] << 1;
@@ -2970,7 +2970,7 @@ static void rs_drv_rate_init(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 
 	lockdep_assert_held(&mvmsta->lq_sta.rs_drv.pers.lock);
 
-	/* clear all non-persistent lq data */
+	/* clear all yesn-persistent lq data */
 	memset(lq_sta, 0, offsetof(typeof(*lq_sta), pers));
 
 	sband = hw->wiphy->bands[band];
@@ -2988,7 +2988,7 @@ static void rs_drv_rate_init(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 	IWL_DEBUG_RATE(mvm,
 		       "LQ: *** rate scale station global init for station %d ***\n",
 		       mvmsta->sta_id);
-	/* TODO: what is a good starting rate for STA? About middle? Maybe not
+	/* TODO: what is a good starting rate for STA? About middle? Maybe yest
 	 * the lowest or the highest rate.. Could consider using RSSI from
 	 * previous packets? Need to have IEEE 802.1X auth succeed immediately
 	 * after assoc.. */
@@ -3055,7 +3055,7 @@ static void rs_drv_rate_update(void *mvm_r,
 	if (!iwl_mvm_sta_from_mac80211(sta)->vif)
 		return;
 
-	/* Stop any ongoing aggregations as rs starts off assuming no agg */
+	/* Stop any ongoing aggregations as rs starts off assuming yes agg */
 	for (tid = 0; tid < IWL_MAX_TID_COUNT; tid++)
 		ieee80211_stop_tx_ba_session(sta, tid);
 
@@ -3082,7 +3082,7 @@ static void __iwl_mvm_rs_tx_status(struct iwl_mvm *mvm,
 	struct iwl_lq_sta *lq_sta = &mvmsta->lq_sta.rs_drv;
 
 	if (!lq_sta->pers.drv) {
-		IWL_DEBUG_RATE(mvm, "Rate scaling not initialized yet.\n");
+		IWL_DEBUG_RATE(mvm, "Rate scaling yest initialized yet.\n");
 		return;
 	}
 
@@ -3141,9 +3141,9 @@ static void __iwl_mvm_rs_tx_status(struct iwl_mvm *mvm,
 	}
 	lq_sta->last_tx = jiffies;
 
-	/* Ignore this Tx frame response if its initial rate doesn't match
+	/* Igyesre this Tx frame response if its initial rate doesn't match
 	 * that of latest Link Quality command.  There may be stragglers
-	 * from a previous Link Quality command, but we're no longer interested
+	 * from a previous Link Quality command, but we're yes longer interested
 	 * in those; they're either from the "active" mode while we're trying
 	 * to check "search" mode, or a prior "search" mode after we've moved
 	 * to a new "search" mode (which might become the new "active" mode).
@@ -3158,7 +3158,7 @@ static void __iwl_mvm_rs_tx_status(struct iwl_mvm *mvm,
 	/* Here we actually compare this rate to the latest LQ command */
 	if (lq_color != LQ_FLAG_COLOR_GET(table->flags)) {
 		IWL_DEBUG_RATE(mvm,
-			       "tx resp color 0x%x does not match 0x%x\n",
+			       "tx resp color 0x%x does yest match 0x%x\n",
 			       lq_color, LQ_FLAG_COLOR_GET(table->flags));
 
 		/* Since rates mis-match, the last LQ command may have failed.
@@ -3173,7 +3173,7 @@ static void __iwl_mvm_rs_tx_status(struct iwl_mvm *mvm,
 				       lq_sta->rs_state);
 			iwl_mvm_send_lq_cmd(mvm, &lq_sta->lq);
 		}
-		/* Regardless, ignore this status info for outdated rate */
+		/* Regardless, igyesre this status info for outdated rate */
 		return;
 	}
 
@@ -3190,14 +3190,14 @@ static void __iwl_mvm_rs_tx_status(struct iwl_mvm *mvm,
 
 	if (WARN_ON_ONCE(!rs_rate_column_match(&lq_rate, &curr_tbl->rate))) {
 		IWL_DEBUG_RATE(mvm,
-			       "Neither active nor search matches tx rate\n");
+			       "Neither active yesr search matches tx rate\n");
 		tmp_tbl = &lq_sta->lq_info[lq_sta->active_tbl];
 		rs_dump_rate(mvm, &tmp_tbl->rate, "ACTIVE");
 		tmp_tbl = &lq_sta->lq_info[rs_search_tbl(lq_sta->active_tbl)];
 		rs_dump_rate(mvm, &tmp_tbl->rate, "SEARCH");
 		rs_dump_rate(mvm, &lq_rate, "ACTUAL");
 
-		/* no matching table found, let's by-pass the data collection
+		/* yes matching table found, let's by-pass the data collection
 		 * and continue to perform rate scale to find the rate table
 		 */
 		rs_stay_in_table(lq_sta, true);
@@ -3216,16 +3216,16 @@ static void __iwl_mvm_rs_tx_status(struct iwl_mvm *mvm,
 				    info->status.ampdu_ack_len,
 				    reduced_txp);
 
-		/* ampdu_ack_len = 0 marks no BA was received. For TLC, treat
+		/* ampdu_ack_len = 0 marks yes BA was received. For TLC, treat
 		 * it as a single frame loss as we don't want the success ratio
 		 * to dip too quickly because a BA wasn't received.
-		 * For TPC, there's no need for this optimisation since we want
+		 * For TPC, there's yes need for this optimisation since we want
 		 * to recover very quickly from a bad power reduction and,
 		 * therefore we'd like the success ratio to get an immediate hit
 		 * when failing to get a BA, so we'd switch back to a lower or
 		 * zero power reduction. When FW transmits agg with a rate
-		 * different from the initial rate, it will not use reduced txp
-		 * and will send BA notification twice (one empty with reduced
+		 * different from the initial rate, it will yest use reduced txp
+		 * and will send BA yestification twice (one empty with reduced
 		 * txp equal to the value from LQ and one with reduced txp 0).
 		 * We need to update counters for each txp level accordingly.
 		 */
@@ -3237,7 +3237,7 @@ static void __iwl_mvm_rs_tx_status(struct iwl_mvm *mvm,
 				    info->status.ampdu_len,
 				    info->status.ampdu_ack_len);
 
-		/* Update success/fail counts if not searching for new mode */
+		/* Update success/fail counts if yest searching for new mode */
 		if (lq_sta->rs_state == RS_STATE_STAY_IN_COLUMN) {
 			lq_sta->total_success += info->status.ampdu_ack_len;
 			lq_sta->total_failed += (info->status.ampdu_len -
@@ -3280,7 +3280,7 @@ static void __iwl_mvm_rs_tx_status(struct iwl_mvm *mvm,
 					    i < retries ? 0 : legacy_success);
 		}
 
-		/* Update success/fail counts if not searching for new mode */
+		/* Update success/fail counts if yest searching for new mode */
 		if (lq_sta->rs_state == RS_STATE_STAY_IN_COLUMN) {
 			lq_sta->total_success += legacy_success;
 			lq_sta->total_failed += retries + (1 - legacy_success);
@@ -3383,7 +3383,7 @@ static void rs_fill_rates_for_column(struct iwl_mvm *mvm,
 	*rs_table_index = index;
 }
 
-/* Building the rate table is non trivial. When we're in MIMO2/VHT/80Mhz/SGI
+/* Building the rate table is yesn trivial. When we're in MIMO2/VHT/80Mhz/SGI
  * column the rate table should look like this:
  *
  * rate[0] 0x400F019 VHT | ANT: AB BW: 80Mhz MCS: 9 NSS: 2 SGI
@@ -3554,7 +3554,7 @@ static void rs_set_lq_ss_params(struct iwl_mvm *mvm,
 
 #ifdef CONFIG_MAC80211_DEBUGFS
 	/* Check if forcing the decision is configured.
-	 * Note that SISO is forced by not allowing STBC or BFER
+	 * Note that SISO is forced by yest allowing STBC or BFER
 	 */
 	if (lq_sta->pers.ss_force == RS_SS_FORCE_STBC)
 		ss_params |= (LQ_SS_STBC_1SS_ALLOWED | LQ_SS_FORCE);
@@ -3593,7 +3593,7 @@ static void rs_set_lq_ss_params(struct iwl_mvm *mvm,
 	IWL_DEBUG_RATE(mvm, "Found existing sta %d with BFER activated\n",
 		       bfer_mvmsta->sta_id);
 
-	/* Disallow BFER on another STA if active and we're a higher priority */
+	/* Disallow BFER on ayesther STA if active and we're a higher priority */
 	if (rs_bfer_priority_cmp(mvmsta, bfer_mvmsta) > 0) {
 		struct iwl_lq_cmd *bfersta_lq_cmd =
 			&bfer_mvmsta->lq_sta.rs_drv.lq;
@@ -3719,7 +3719,7 @@ int rs_pretty_print_rate(char *buf, int bufsz, const u32 rate)
 		nss = ((rate & RATE_VHT_MCS_NSS_MSK)
 		       >> RATE_VHT_MCS_NSS_POS) + 1;
 	} else {
-		type = "Unknown"; /* shouldn't happen */
+		type = "Unkyeswn"; /* shouldn't happen */
 	}
 
 	switch (rate & RATE_MCS_CHAN_WIDTH_MSK) {
@@ -3753,14 +3753,14 @@ int rs_pretty_print_rate(char *buf, int bufsz, const u32 rate)
  * Program the device to use fixed rate for frame transmit
  * This is for debugging/testing only
  * once the device start use fixed rate, we need to reload the module
- * to being back the normal operation.
+ * to being back the yesrmal operation.
  */
 static void rs_program_fix_rate(struct iwl_mvm *mvm,
 				struct iwl_lq_sta *lq_sta)
 {
 	lq_sta->active_legacy_rate = 0x0FFF;	/* 1 - 54 MBits, includes CCK */
-	lq_sta->active_siso_rate   = 0x1FD0;	/* 6 - 60 MBits, no 9, no CCK */
-	lq_sta->active_mimo2_rate  = 0x1FD0;	/* 6 - 60 MBits, no 9, no CCK */
+	lq_sta->active_siso_rate   = 0x1FD0;	/* 6 - 60 MBits, yes 9, yes CCK */
+	lq_sta->active_mimo2_rate  = 0x1FD0;	/* 6 - 60 MBits, yes 9, yes CCK */
 
 	IWL_DEBUG_RATE(mvm, "sta_id %d rate 0x%X\n",
 		       lq_sta->lq.sta_id, lq_sta->pers.dbg_fixed_rate);
@@ -4048,7 +4048,7 @@ static ssize_t iwl_dbgfs_ss_force_read(struct file *file,
 	int bufsz = sizeof(buf);
 	int pos = 0;
 	static const char * const ss_force_name[] = {
-		[RS_SS_FORCE_NONE] = "none",
+		[RS_SS_FORCE_NONE] = "yesne",
 		[RS_SS_FORCE_STBC] = "stbc",
 		[RS_SS_FORCE_BFER] = "bfer",
 		[RS_SS_FORCE_SISO] = "siso",
@@ -4065,7 +4065,7 @@ static ssize_t iwl_dbgfs_ss_force_write(struct iwl_lq_sta *lq_sta, char *buf,
 	struct iwl_mvm *mvm = lq_sta->pers.drv;
 	int ret = 0;
 
-	if (!strncmp("none", buf, 4)) {
+	if (!strncmp("yesne", buf, 4)) {
 		lq_sta->pers.ss_force = RS_SS_FORCE_NONE;
 	} else if (!strncmp("siso", buf, 4)) {
 		lq_sta->pers.ss_force = RS_SS_FORCE_SISO;
@@ -4086,7 +4086,7 @@ static ssize_t iwl_dbgfs_ss_force_write(struct iwl_lq_sta *lq_sta, char *buf,
 			ret = -EINVAL;
 		}
 	} else {
-		IWL_ERR(mvm, "valid values none|siso|stbc|bfer\n");
+		IWL_ERR(mvm, "valid values yesne|siso|stbc|bfer\n");
 		ret = -EINVAL;
 	}
 	return ret ?: count;
@@ -4130,7 +4130,7 @@ static void rs_drv_add_sta_debugfs(void *mvm, void *priv_sta,
 /*
  * Initialization of rate scaling information is done by driver after
  * the station is added. Since mac80211 calls this function before a
- * station is added we ignore it.
+ * station is added we igyesre it.
  */
 static void rs_rate_init_ops(void *mvm_r,
 			     struct ieee80211_supported_band *sband,

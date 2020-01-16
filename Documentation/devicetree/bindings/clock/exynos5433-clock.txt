@@ -1,56 +1,56 @@
-* Samsung Exynos5433 CMU (Clock Management Units)
+* Samsung Exyyess5433 CMU (Clock Management Units)
 
-The Exynos5433 clock controller generates and supplies clock to various
-controllers within the Exynos5433 SoC.
+The Exyyess5433 clock controller generates and supplies clock to various
+controllers within the Exyyess5433 SoC.
 
 Required Properties:
 
 - compatible: should be one of the following.
-  - "samsung,exynos5433-cmu-top"   - clock controller compatible for CMU_TOP
+  - "samsung,exyyess5433-cmu-top"   - clock controller compatible for CMU_TOP
     which generates clocks for IMEM/FSYS/G3D/GSCL/HEVC/MSCL/G2D/MFC/PERIC/PERIS
     domains and bus clocks.
-  - "samsung,exynos5433-cmu-cpif"  - clock controller compatible for CMU_CPIF
+  - "samsung,exyyess5433-cmu-cpif"  - clock controller compatible for CMU_CPIF
     which generates clocks for LLI (Low Latency Interface) IP.
-  - "samsung,exynos5433-cmu-mif"   - clock controller compatible for CMU_MIF
+  - "samsung,exyyess5433-cmu-mif"   - clock controller compatible for CMU_MIF
     which generates clocks for DRAM Memory Controller domain.
-  - "samsung,exynos5433-cmu-peric" - clock controller compatible for CMU_PERIC
+  - "samsung,exyyess5433-cmu-peric" - clock controller compatible for CMU_PERIC
     which generates clocks for UART/I2C/SPI/I2S/PCM/SPDIF/PWM/SLIMBUS IPs.
-  - "samsung,exynos5433-cmu-peris" - clock controller compatible for CMU_PERIS
+  - "samsung,exyyess5433-cmu-peris" - clock controller compatible for CMU_PERIS
     which generates clocks for PMU/TMU/MCT/WDT/RTC/SECKEY/TZPC IPs.
-  - "samsung,exynos5433-cmu-fsys"  - clock controller compatible for CMU_FSYS
+  - "samsung,exyyess5433-cmu-fsys"  - clock controller compatible for CMU_FSYS
     which generates clocks for USB/UFS/SDMMC/TSI/PDMA IPs.
-  - "samsung,exynos5433-cmu-g2d"   - clock controller compatible for CMU_G2D
+  - "samsung,exyyess5433-cmu-g2d"   - clock controller compatible for CMU_G2D
     which generates clocks for G2D/MDMA IPs.
-  - "samsung,exynos5433-cmu-disp"  - clock controller compatible for CMU_DISP
+  - "samsung,exyyess5433-cmu-disp"  - clock controller compatible for CMU_DISP
     which generates clocks for Display (DECON/HDMI/DSIM/MIXER) IPs.
-  - "samsung,exynos5433-cmu-aud"   - clock controller compatible for CMU_AUD
+  - "samsung,exyyess5433-cmu-aud"   - clock controller compatible for CMU_AUD
     which generates clocks for Cortex-A5/BUS/AUDIO clocks.
-  - "samsung,exynos5433-cmu-bus0", "samsung,exynos5433-cmu-bus1"
-    and "samsung,exynos5433-cmu-bus2" - clock controller compatible for CMU_BUS
+  - "samsung,exyyess5433-cmu-bus0", "samsung,exyyess5433-cmu-bus1"
+    and "samsung,exyyess5433-cmu-bus2" - clock controller compatible for CMU_BUS
     which generates global data buses clock and global peripheral buses clock.
-  - "samsung,exynos5433-cmu-g3d"  - clock controller compatible for CMU_G3D
+  - "samsung,exyyess5433-cmu-g3d"  - clock controller compatible for CMU_G3D
     which generates clocks for 3D Graphics Engine IP.
-  - "samsung,exynos5433-cmu-gscl"  - clock controller compatible for CMU_GSCL
+  - "samsung,exyyess5433-cmu-gscl"  - clock controller compatible for CMU_GSCL
     which generates clocks for GSCALER IPs.
-  - "samsung,exynos5433-cmu-apollo"- clock controller compatible for CMU_APOLLO
+  - "samsung,exyyess5433-cmu-apollo"- clock controller compatible for CMU_APOLLO
     which generates clocks for Cortex-A53 Quad-core processor.
-  - "samsung,exynos5433-cmu-atlas" - clock controller compatible for CMU_ATLAS
+  - "samsung,exyyess5433-cmu-atlas" - clock controller compatible for CMU_ATLAS
     which generates clocks for Cortex-A57 Quad-core processor, CoreSight and
     L2 cache controller.
-  - "samsung,exynos5433-cmu-mscl" - clock controller compatible for CMU_MSCL
+  - "samsung,exyyess5433-cmu-mscl" - clock controller compatible for CMU_MSCL
     which generates clocks for M2M (Memory to Memory) scaler and JPEG IPs.
-  - "samsung,exynos5433-cmu-mfc"  - clock controller compatible for CMU_MFC
+  - "samsung,exyyess5433-cmu-mfc"  - clock controller compatible for CMU_MFC
     which generates clocks for MFC(Multi-Format Codec) IP.
-  - "samsung,exynos5433-cmu-hevc" - clock controller compatible for CMU_HEVC
+  - "samsung,exyyess5433-cmu-hevc" - clock controller compatible for CMU_HEVC
     which generates clocks for HEVC(High Efficiency Video Codec) decoder IP.
-  - "samsung,exynos5433-cmu-isp" - clock controller compatible for CMU_ISP
+  - "samsung,exyyess5433-cmu-isp" - clock controller compatible for CMU_ISP
     which generates clocks for FIMC-ISP/DRC/SCLC/DIS/3DNR IPs.
-  - "samsung,exynos5433-cmu-cam0" - clock controller compatible for CMU_CAM0
+  - "samsung,exyyess5433-cmu-cam0" - clock controller compatible for CMU_CAM0
     which generates clocks for MIPI_CSIS{0|1}/FIMC_LITE_{A|B|D}/FIMC_3AA{0|1}
     IPs.
-  - "samsung,exynos5433-cmu-cam1" - clock controller compatible for CMU_CAM1
+  - "samsung,exyyess5433-cmu-cam1" - clock controller compatible for CMU_CAM1
     which generates clocks for Cortex-A5/MIPI_CSIS2/FIMC-LITE_C/FIMC-FD IPs.
-  - "samsung,exynos5433-cmu-imem"   - clock controller compatible for CMU_IMEM
+  - "samsung,exyyess5433-cmu-imem"   - clock controller compatible for CMU_IMEM
     which generates clocks for SSS (Security SubSystem) and SlimSSS IPs.
 
 - reg: physical base address of the controller and length of memory mapped
@@ -177,18 +177,18 @@ Required Properties:
 		- aclk_imem_200
 
 Optional properties:
-  - power-domains: a phandle to respective power domain node as described by
+  - power-domains: a phandle to respective power domain yesde as described by
 	generic PM domain bindings (see power/power_domain.txt for more
 	information).
 
-Each clock is assigned an identifier and client nodes can use this identifier
+Each clock is assigned an identifier and client yesdes can use this identifier
 to specify the clock which they consume.
 
 All available clocks are defined as preprocessor macros in
-dt-bindings/clock/exynos5433.h header and can be used in device
+dt-bindings/clock/exyyess5433.h header and can be used in device
 tree sources.
 
-Example 1: Examples of 'oscclk' source clock node are listed below.
+Example 1: Examples of 'oscclk' source clock yesde are listed below.
 
 	xxti: xxti {
 		compatible = "fixed-clock";
@@ -196,10 +196,10 @@ Example 1: Examples of 'oscclk' source clock node are listed below.
 		#clock-cells = <0>;
 	};
 
-Example 2: Examples of clock controller nodes are listed below.
+Example 2: Examples of clock controller yesdes are listed below.
 
 	cmu_top: clock-controller@10030000 {
-		compatible = "samsung,exynos5433-cmu-top";
+		compatible = "samsung,exyyess5433-cmu-top";
 		reg = <0x10030000 0x0c04>;
 		#clock-cells = <1>;
 
@@ -214,7 +214,7 @@ Example 2: Examples of clock controller nodes are listed below.
 	};
 
 	cmu_cpif: clock-controller@10fc0000 {
-		compatible = "samsung,exynos5433-cmu-cpif";
+		compatible = "samsung,exyyess5433-cmu-cpif";
 		reg = <0x10fc0000 0x0c04>;
 		#clock-cells = <1>;
 
@@ -223,7 +223,7 @@ Example 2: Examples of clock controller nodes are listed below.
 	};
 
 	cmu_mif: clock-controller@105b0000 {
-		compatible = "samsung,exynos5433-cmu-mif";
+		compatible = "samsung,exyyess5433-cmu-mif";
 		reg = <0x105b0000 0x100c>;
 		#clock-cells = <1>;
 
@@ -234,19 +234,19 @@ Example 2: Examples of clock controller nodes are listed below.
 	};
 
 	cmu_peric: clock-controller@14c80000 {
-		compatible = "samsung,exynos5433-cmu-peric";
+		compatible = "samsung,exyyess5433-cmu-peric";
 		reg = <0x14c80000 0x0b08>;
 		#clock-cells = <1>;
 	};
 
 	cmu_peris: clock-controller@10040000 {
-		compatible = "samsung,exynos5433-cmu-peris";
+		compatible = "samsung,exyyess5433-cmu-peris";
 		reg = <0x10040000 0x0b20>;
 		#clock-cells = <1>;
 	};
 
 	cmu_fsys: clock-controller@156e0000 {
-		compatible = "samsung,exynos5433-cmu-fsys";
+		compatible = "samsung,exyyess5433-cmu-fsys";
 		reg = <0x156e0000 0x0b04>;
 		#clock-cells = <1>;
 
@@ -273,7 +273,7 @@ Example 2: Examples of clock controller nodes are listed below.
 	};
 
 	cmu_g2d: clock-controller@12460000 {
-		compatible = "samsung,exynos5433-cmu-g2d";
+		compatible = "samsung,exyyess5433-cmu-g2d";
 		reg = <0x12460000 0x0b08>;
 		#clock-cells = <1>;
 
@@ -287,7 +287,7 @@ Example 2: Examples of clock controller nodes are listed below.
 	};
 
 	cmu_disp: clock-controller@13b90000 {
-		compatible = "samsung,exynos5433-cmu-disp";
+		compatible = "samsung,exyyess5433-cmu-disp";
 		reg = <0x13b90000 0x0c04>;
 		#clock-cells = <1>;
 
@@ -313,7 +313,7 @@ Example 2: Examples of clock controller nodes are listed below.
 	};
 
 	cmu_aud: clock-controller@114c0000 {
-		compatible = "samsung,exynos5433-cmu-aud";
+		compatible = "samsung,exyyess5433-cmu-aud";
 		reg = <0x114c0000 0x0b04>;
 		#clock-cells = <1>;
 
@@ -323,7 +323,7 @@ Example 2: Examples of clock controller nodes are listed below.
 	};
 
 	cmu_bus0: clock-controller@13600000 {
-		compatible = "samsung,exynos5433-cmu-bus0";
+		compatible = "samsung,exyyess5433-cmu-bus0";
 		reg = <0x13600000 0x0b04>;
 		#clock-cells = <1>;
 
@@ -332,7 +332,7 @@ Example 2: Examples of clock controller nodes are listed below.
 	};
 
 	cmu_bus1: clock-controller@14800000 {
-		compatible = "samsung,exynos5433-cmu-bus1";
+		compatible = "samsung,exyyess5433-cmu-bus1";
 		reg = <0x14800000 0x0b04>;
 		#clock-cells = <1>;
 
@@ -341,7 +341,7 @@ Example 2: Examples of clock controller nodes are listed below.
 	};
 
 	cmu_bus2: clock-controller@13400000 {
-		compatible = "samsung,exynos5433-cmu-bus2";
+		compatible = "samsung,exyyess5433-cmu-bus2";
 		reg = <0x13400000 0x0b04>;
 		#clock-cells = <1>;
 
@@ -350,7 +350,7 @@ Example 2: Examples of clock controller nodes are listed below.
 	};
 
 	cmu_g3d: clock-controller@14aa0000 {
-		compatible = "samsung,exynos5433-cmu-g3d";
+		compatible = "samsung,exyyess5433-cmu-g3d";
 		reg = <0x14aa0000 0x1000>;
 		#clock-cells = <1>;
 
@@ -360,7 +360,7 @@ Example 2: Examples of clock controller nodes are listed below.
 	};
 
 	cmu_gscl: clock-controller@13cf0000 {
-		compatible = "samsung,exynos5433-cmu-gscl";
+		compatible = "samsung,exyyess5433-cmu-gscl";
 		reg = <0x13cf0000 0x0b10>;
 		#clock-cells = <1>;
 
@@ -374,7 +374,7 @@ Example 2: Examples of clock controller nodes are listed below.
 	};
 
 	cmu_apollo: clock-controller@11900000 {
-		compatible = "samsung,exynos5433-cmu-apollo";
+		compatible = "samsung,exyyess5433-cmu-apollo";
 		reg = <0x11900000 0x1088>;
 		#clock-cells = <1>;
 
@@ -383,7 +383,7 @@ Example 2: Examples of clock controller nodes are listed below.
 	};
 
 	cmu_atlas: clock-controller@11800000 {
-		compatible = "samsung,exynos5433-cmu-atlas";
+		compatible = "samsung,exyyess5433-cmu-atlas";
 		reg = <0x11800000 0x1088>;
 		#clock-cells = <1>;
 
@@ -392,7 +392,7 @@ Example 2: Examples of clock controller nodes are listed below.
 	};
 
 	cmu_mscl: clock-controller@105d0000 {
-		compatible = "samsung,exynos5433-cmu-mscl";
+		compatible = "samsung,exyyess5433-cmu-mscl";
 		reg = <0x105d0000 0x0b10>;
 		#clock-cells = <1>;
 
@@ -406,7 +406,7 @@ Example 2: Examples of clock controller nodes are listed below.
 	};
 
 	cmu_mfc: clock-controller@15280000 {
-		compatible = "samsung,exynos5433-cmu-mfc";
+		compatible = "samsung,exyyess5433-cmu-mfc";
 		reg = <0x15280000 0x0b08>;
 		#clock-cells = <1>;
 
@@ -416,7 +416,7 @@ Example 2: Examples of clock controller nodes are listed below.
 	};
 
 	cmu_hevc: clock-controller@14f80000 {
-		compatible = "samsung,exynos5433-cmu-hevc";
+		compatible = "samsung,exyyess5433-cmu-hevc";
 		reg = <0x14f80000 0x0b08>;
 		#clock-cells = <1>;
 
@@ -426,7 +426,7 @@ Example 2: Examples of clock controller nodes are listed below.
 	};
 
 	cmu_isp: clock-controller@146d0000 {
-		compatible = "samsung,exynos5433-cmu-isp";
+		compatible = "samsung,exyyess5433-cmu-isp";
 		reg = <0x146d0000 0x0b0c>;
 		#clock-cells = <1>;
 
@@ -440,7 +440,7 @@ Example 2: Examples of clock controller nodes are listed below.
 	};
 
 	cmu_cam0: clock-controller@120d0000 {
-		compatible = "samsung,exynos5433-cmu-cam0";
+		compatible = "samsung,exyyess5433-cmu-cam0";
 		reg = <0x120d0000 0x0b0c>;
 		#clock-cells = <1>;
 
@@ -456,7 +456,7 @@ Example 2: Examples of clock controller nodes are listed below.
 	};
 
 	cmu_cam1: clock-controller@145d0000 {
-		compatible = "samsung,exynos5433-cmu-cam1";
+		compatible = "samsung,exyyess5433-cmu-cam1";
 		reg = <0x145d0000 0x0b08>;
 		#clock-cells = <1>;
 
@@ -478,7 +478,7 @@ Example 2: Examples of clock controller nodes are listed below.
 	};
 
 	cmu_imem: clock-controller@11060000 {
-		compatible = "samsung,exynos5433-cmu-imem";
+		compatible = "samsung,exyyess5433-cmu-imem";
 		reg = <0x11060000 0x1000>;
 		#clock-cells = <1>;
 
@@ -492,11 +492,11 @@ Example 2: Examples of clock controller nodes are listed below.
 			<&cmu_top CLK_DIV_ACLK_IMEM_200>;
 	};
 
-Example 3: UART controller node that consumes the clock generated by the clock
+Example 3: UART controller yesde that consumes the clock generated by the clock
 	   controller.
 
 	serial_0: serial@14c10000 {
-		compatible = "samsung,exynos5433-uart";
+		compatible = "samsung,exyyess5433-uart";
 		reg = <0x14C10000 0x100>;
 		interrupts = <0 421 0>;
 		clocks = <&cmu_peric CLK_PCLK_UART0>,

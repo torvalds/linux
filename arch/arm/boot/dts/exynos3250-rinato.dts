@@ -1,24 +1,24 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Samsung's Exynos3250 based Rinato board device tree source
+ * Samsung's Exyyess3250 based Rinato board device tree source
  *
  * Copyright (c) 2014 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com
  *
  * Device tree source file for Samsung's Rinato board which is based on
- * Samsung Exynos3250 SoC.
+ * Samsung Exyyess3250 SoC.
  */
 
 /dts-v1/;
-#include "exynos3250.dtsi"
-#include "exynos4412-ppmu-common.dtsi"
+#include "exyyess3250.dtsi"
+#include "exyyess4412-ppmu-common.dtsi"
 #include <dt-bindings/input/input.h>
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/clock/samsung,s2mps11.h>
 
 / {
 	model = "Samsung Rinato board";
-	compatible = "samsung,rinato", "samsung,exynos3250", "samsung,exynos3";
+	compatible = "samsung,rinato", "samsung,exyyess3250", "samsung,exyyess3";
 
 	aliases {
 		i2c7 = &i2c_max77836;
@@ -203,7 +203,7 @@
 	cpu0-supply = <&buck2_reg>;
 };
 
-&exynos_usbphy {
+&exyyess_usbphy {
 	status = "okay";
 	vbus-supply = <&safeout_reg>;
 };
@@ -608,7 +608,7 @@
 	#address-cells = <1>;
 	#size-cells = <0>;
 	broken-cd;
-	non-removable;
+	yesn-removable;
 	cap-mmc-highspeed;
 	desc-num = <4>;
 	mmc-hs200-1_8v;

@@ -6,7 +6,7 @@
  * sell copies of the Software, and to permit persons to whom the Software is
  * furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -25,7 +25,7 @@
  * Prototype for this hypercall is:
  *  int physdev_op(int cmd, void *args)
  * @cmd	 == PHYSDEVOP_??? (physdev operation).
- * @args == Operation-specific extra arguments (NULL if none).
+ * @args == Operation-specific extra arguments (NULL if yesne).
  */
 
 /*
@@ -269,7 +269,7 @@ struct physdev_pci_device_add {
 #define PHYSDEVOP_pci_device_remove     26
 #define PHYSDEVOP_restore_msi_ext       27
 /*
- * Dom0 should use these two to announce MMIO resources assigned to
+ * Dom0 should use these two to anyesunce MMIO resources assigned to
  * MSI-X capable devices won't (prepare) or may (release) change.
  */
 #define PHYSDEVOP_prepare_msix          30

@@ -2,7 +2,7 @@ TODO: Remove in late 2019 unless there are users
 
 
 I tried to find any indication of whether the capi drivers are
-still in use, and have not found anything  from a long time ago.
+still in use, and have yest found anything  from a long time ago.
 
 With public ISDN networks almost completely shut down over the past 12
 months, there is very little you can actually do with this hardware. The
@@ -15,7 +15,7 @@ I may of course have missed something, so I would suggest moving
 these into drivers/staging/ just in case someone still uses one
 of the three remaining in-kernel drivers (avm, hysdn, gigaset).
 
-If nobody complains, we can remove them entirely in six months,
+If yesbody complains, we can remove them entirely in six months,
 or otherwise move the core code and any drivers that are still
 needed back into drivers/isdn.
 

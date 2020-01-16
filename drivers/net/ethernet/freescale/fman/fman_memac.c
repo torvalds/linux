@@ -4,11 +4,11 @@
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
  *     * Redistributions of source code must retain the above copyright
- *       notice, this list of conditions and the following disclaimer.
+ *       yestice, this list of conditions and the following disclaimer.
  *     * Redistributions in binary form must reproduce the above copyright
- *       notice, this list of conditions and the following disclaimer in the
+ *       yestice, this list of conditions and the following disclaimer in the
  *       documentation and/or other materials provided with the distribution.
- *     * Neither the name of Freescale Semiconductor nor the
+ *     * Neither the name of Freescale Semiconductor yesr the
  *       names of its contributors may be used to endorse or promote products
  *       derived from this software without specific prior written permission.
  *
@@ -83,7 +83,7 @@
 #define CMD_CFG_NO_LEN_CHK	0x00020000 /* 14 Payload length check disable */
 #define CMD_CFG_SW_RESET	0x00001000 /* 19 S/W Reset, self clearing bit */
 #define CMD_CFG_TX_PAD_EN	0x00000800 /* 20 Enable Tx padding of frames */
-#define CMD_CFG_PAUSE_IGNORE	0x00000100 /* 23 Ignore Pause frame quanta */
+#define CMD_CFG_PAUSE_IGNORE	0x00000100 /* 23 Igyesre Pause frame quanta */
 #define CMD_CFG_CRC_FWD		0x00000040 /* 25 Terminate/frwd CRC of frames */
 #define CMD_CFG_PAD_EN		0x00000020 /* 26 Frame padding removal */
 #define CMD_CFG_PROMIS_EN	0x00000010 /* 27 Promiscuous operation enable */
@@ -320,7 +320,7 @@ struct memac_regs {
 
 struct memac_cfg {
 	bool reset_on_init;
-	bool pause_ignore;
+	bool pause_igyesre;
 	bool promiscuous_mode_enable;
 	struct fixed_phy_status *fixed_link;
 	u16 max_frame_length;
@@ -417,7 +417,7 @@ static int init(struct memac_regs __iomem *regs, struct memac_cfg *cfg,
 	tmp = 0;
 	if (cfg->promiscuous_mode_enable)
 		tmp |= CMD_CFG_PROMIS_EN;
-	if (cfg->pause_ignore)
+	if (cfg->pause_igyesre)
 		tmp |= CMD_CFG_PAUSE_IGNORE;
 
 	/* Payload length check disable */
@@ -479,7 +479,7 @@ static void set_dflts(struct memac_cfg *cfg)
 {
 	cfg->reset_on_init = false;
 	cfg->promiscuous_mode_enable = false;
-	cfg->pause_ignore = false;
+	cfg->pause_igyesre = false;
 	cfg->tx_ipg_length = DEFAULT_TX_IPG_LENGTH;
 	cfg->max_frame_length = DEFAULT_FRAME_LENGTH;
 	cfg->pause_quanta = DEFAULT_PAUSE_QUANTA;
@@ -646,7 +646,7 @@ static void memac_err_exception(void *handle)
 	event = ioread32be(&regs->ievent);
 	imask = ioread32be(&regs->imask);
 
-	/* Imask include both error and notification/event bits.
+	/* Imask include both error and yestification/event bits.
 	 * Leaving only error bits enabled by imask.
 	 * The imask error bits are shifted by 16 bits offset from
 	 * their corresponding location in the ievent - hence the >> 16
@@ -672,7 +672,7 @@ static void memac_exception(void *handle)
 	event = ioread32be(&regs->ievent);
 	imask = ioread32be(&regs->imask);
 
-	/* Imask include both error and notification/event bits.
+	/* Imask include both error and yestification/event bits.
 	 * Leaving only error bits enabled by imask.
 	 * The imask error bits are shifted by 16 bits offset from
 	 * their corresponding location in the ievent - hence the >> 16
@@ -921,7 +921,7 @@ int memac_add_hash_mac_address(struct fman_mac *memac, enet_addr_t *eth_addr)
 	addr = ENET_ADDR_TO_UINT64(*eth_addr);
 
 	if (!(addr & GROUP_ADDRESS)) {
-		/* Unicast addresses not supported in hash */
+		/* Unicast addresses yest supported in hash */
 		pr_err("Unicast Address\n");
 		return -EINVAL;
 	}
@@ -932,9 +932,9 @@ int memac_add_hash_mac_address(struct fman_mac *memac, enet_addr_t *eth_addr)
 	if (!hash_entry)
 		return -ENOMEM;
 	hash_entry->addr = addr;
-	INIT_LIST_HEAD(&hash_entry->node);
+	INIT_LIST_HEAD(&hash_entry->yesde);
 
-	list_add_tail(&hash_entry->node,
+	list_add_tail(&hash_entry->yesde,
 		      &memac->multicast_addr_hash->lsts[hash]);
 	iowrite32be(hash | HASH_CTRL_MCAST_EN, &regs->hashtable_ctrl);
 
@@ -987,7 +987,7 @@ int memac_del_hash_mac_address(struct fman_mac *memac, enet_addr_t *eth_addr)
 	list_for_each(pos, &memac->multicast_addr_hash->lsts[hash]) {
 		hash_entry = ETH_HASH_ENTRY_OBJ(pos);
 		if (hash_entry->addr == addr) {
-			list_del_init(&hash_entry->node);
+			list_del_init(&hash_entry->yesde);
 			kfree(hash_entry);
 			break;
 		}
@@ -1044,7 +1044,7 @@ int memac_init(struct fman_mac *memac)
 
 	memac_drv_param = memac->memac_drv_param;
 
-	if (memac->fm_rev_info.major == 6 && memac->fm_rev_info.minor == 4)
+	if (memac->fm_rev_info.major == 6 && memac->fm_rev_info.miyesr == 4)
 		slow_10g_if = true;
 
 	/* First, reset the MAC if desired. */
@@ -1069,8 +1069,8 @@ int memac_init(struct fman_mac *memac)
 	 * Exists only in FMan 6.0 and 6.3.
 	 */
 	if ((memac->fm_rev_info.major == 6) &&
-	    ((memac->fm_rev_info.minor == 0) ||
-	    (memac->fm_rev_info.minor == 3))) {
+	    ((memac->fm_rev_info.miyesr == 0) ||
+	    (memac->fm_rev_info.miyesr == 3))) {
 		/* MAC strips CRC from received frames - this workaround
 		 * should decrease the likelihood of bug appearance
 		 */
@@ -1196,13 +1196,13 @@ struct fman_mac *memac_config(struct fman_mac_params *params)
 
 	if (memac->phy_if == PHY_INTERFACE_MODE_SGMII ||
 	    memac->phy_if == PHY_INTERFACE_MODE_QSGMII) {
-		if (!params->internal_phy_node) {
-			pr_err("PCS PHY node is not available\n");
+		if (!params->internal_phy_yesde) {
+			pr_err("PCS PHY yesde is yest available\n");
 			memac_free(memac);
 			return NULL;
 		}
 
-		memac->pcsphy = of_phy_find_device(params->internal_phy_node);
+		memac->pcsphy = of_phy_find_device(params->internal_phy_yesde);
 		if (!memac->pcsphy) {
 			pr_err("of_phy_find_device (PCS PHY) failed\n");
 			memac_free(memac);

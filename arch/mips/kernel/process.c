@@ -7,9 +7,9 @@
  * Copyright (C) 2005, 2006 by Ralf Baechle (ralf@linux-mips.org)
  * Copyright (C) 1999, 2000 Silicon Graphics, Inc.
  * Copyright (C) 2004 Thiemo Seufer
- * Copyright (C) 2013  Imagination Technologies Ltd.
+ * Copyright (C) 2013  Imagination Techyeslogies Ltd.
  */
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/sched.h>
 #include <linux/sched/debug.h>
 #include <linux/sched/task.h>
@@ -328,7 +328,7 @@ static inline int is_sp_move_ins(union mips_instruction *ip, int *frame_size)
 	 * addiu32 sp,sp,-imm
 	 * jradiussp - NOT SUPPORTED
 	 *
-	 * microMIPS is not more fun...
+	 * microMIPS is yest more fun...
 	 */
 	if (mm_insn_16bit(ip->word >> 16)) {
 		if (ip->mm16_r3_format.opcode == mm_pool16d_op &&
@@ -477,7 +477,7 @@ static int __init frame_info_init(void)
 
 	/*
 	 * Without schedule() frame info, result given by
-	 * thread_saved_pc() and get_wchan() are not reliable.
+	 * thread_saved_pc() and get_wchan() are yest reliable.
 	 */
 	if (schedule_mfi.pc_offset < 0)
 		printk("Can't analyze schedule() prologue at %p\n", schedule);
@@ -505,7 +505,7 @@ static unsigned long thread_saved_pc(struct task_struct *tsk)
 
 #ifdef CONFIG_KALLSYMS
 /* generic stack unwinding function */
-unsigned long notrace unwind_stack_by_address(unsigned long stack_page,
+unsigned long yestrace unwind_stack_by_address(unsigned long stack_page,
 					      unsigned long *sp,
 					      unsigned long pc,
 					      unsigned long *ra)
@@ -699,7 +699,7 @@ static void raise_backtrace(cpumask_t *mask)
 		/*
 		 * If we previously sent an IPI to the target CPU & it hasn't
 		 * cleared its bit in the busy cpumask then it didn't handle
-		 * our previous IPI & it's not safe for us to reuse the
+		 * our previous IPI & it's yest safe for us to reuse the
 		 * call_single_data_t.
 		 */
 		if (cpumask_test_and_set_cpu(cpu, &backtrace_csd_busy)) {
@@ -736,7 +736,7 @@ static long prepare_for_fp_mode_switch(void *unused)
 	/*
 	 * This is icky, but we use this to simply ensure that all CPUs have
 	 * context switched, regardless of whether they were previously running
-	 * kernel or user code. This ensures that no CPU that a mode-switching
+	 * kernel or user code. This ensures that yes CPU that a mode-switching
 	 * program may execute on keeps its FPU enabled (& in the old mode)
 	 * throughout the mode switch.
 	 */
@@ -745,12 +745,12 @@ static long prepare_for_fp_mode_switch(void *unused)
 
 int mips_set_process_fp_mode(struct task_struct *task, unsigned int value)
 {
-	const unsigned int known_bits = PR_FP_MODE_FR | PR_FP_MODE_FRE;
+	const unsigned int kyeswn_bits = PR_FP_MODE_FR | PR_FP_MODE_FRE;
 	struct task_struct *t;
 	struct cpumask process_cpus;
 	int cpu;
 
-	/* If nothing to change, return right away, successfully.  */
+	/* If yesthing to change, return right away, successfully.  */
 	if (value == mips_get_process_fp_mode(task))
 		return 0;
 
@@ -763,10 +763,10 @@ int mips_set_process_fp_mode(struct task_struct *task, unsigned int value)
 		return -EOPNOTSUPP;
 
 	/* Check the value is valid */
-	if (value & ~known_bits)
+	if (value & ~kyeswn_bits)
 		return -EOPNOTSUPP;
 
-	/* Setting FRE without FR is not supported.  */
+	/* Setting FRE without FR is yest supported.  */
 	if ((value & (PR_FP_MODE_FR | PR_FP_MODE_FRE)) == PR_FP_MODE_FRE)
 		return -EOPNOTSUPP;
 
@@ -777,7 +777,7 @@ int mips_set_process_fp_mode(struct task_struct *task, unsigned int value)
 	if ((value & PR_FP_MODE_FRE) && raw_cpu_has_fpu && !cpu_has_fre)
 		return -EOPNOTSUPP;
 
-	/* FR = 0 not supported in MIPS R6 */
+	/* FR = 0 yest supported in MIPS R6 */
 	if (!(value & PR_FP_MODE_FR) && raw_cpu_has_fpu && cpu_has_mips_r6)
 		return -EOPNOTSUPP;
 
@@ -800,7 +800,7 @@ int mips_set_process_fp_mode(struct task_struct *task, unsigned int value)
 
 	/*
 	 * We need to ensure that all threads in the process have switched mode
-	 * before returning, in order to allow userland to not worry about
+	 * before returning, in order to allow userland to yest worry about
 	 * races. We can do this by forcing all CPUs that any thread in the
 	 * process may be running on to schedule something else - in this case
 	 * prepare_for_fp_mode_switch().

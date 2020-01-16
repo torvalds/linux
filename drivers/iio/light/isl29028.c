@@ -341,7 +341,7 @@ static int isl29028_set_pm_runtime_busy(struct isl29028_chip *chip, bool on)
 	if (on) {
 		ret = pm_runtime_get_sync(dev);
 		if (ret < 0)
-			pm_runtime_put_noidle(dev);
+			pm_runtime_put_yesidle(dev);
 	} else {
 		pm_runtime_mark_last_busy(dev);
 		ret = pm_runtime_put_autosuspend(dev);
@@ -370,14 +370,14 @@ static int isl29028_write_raw(struct iio_dev *indio_dev,
 	case IIO_PROXIMITY:
 		if (mask != IIO_CHAN_INFO_SAMP_FREQ) {
 			dev_err(dev,
-				"%s(): proximity: Mask value 0x%08lx is not supported\n",
+				"%s(): proximity: Mask value 0x%08lx is yest supported\n",
 				__func__, mask);
 			break;
 		}
 
 		if (val < 1 || val > 100) {
 			dev_err(dev,
-				"%s(): proximity: Sampling frequency %d is not in the range [1:100]\n",
+				"%s(): proximity: Sampling frequency %d is yest in the range [1:100]\n",
 				__func__, val);
 			break;
 		}
@@ -387,14 +387,14 @@ static int isl29028_write_raw(struct iio_dev *indio_dev,
 	case IIO_LIGHT:
 		if (mask != IIO_CHAN_INFO_SCALE) {
 			dev_err(dev,
-				"%s(): light: Mask value 0x%08lx is not supported\n",
+				"%s(): light: Mask value 0x%08lx is yest supported\n",
 				__func__, mask);
 			break;
 		}
 
 		if (val != 125 && val != 2000) {
 			dev_err(dev,
-				"%s(): light: Lux scale %d is not in the set {125, 2000}\n",
+				"%s(): light: Lux scale %d is yest in the set {125, 2000}\n",
 				__func__, val);
 			break;
 		}
@@ -471,7 +471,7 @@ static int isl29028_read_raw(struct iio_dev *indio_dev,
 		ret = IIO_VAL_INT;
 		break;
 	default:
-		dev_err(dev, "%s(): mask value 0x%08lx is not supported\n",
+		dev_err(dev, "%s(): mask value 0x%08lx is yest supported\n",
 			__func__, mask);
 		break;
 	}
@@ -648,7 +648,7 @@ static int isl29028_remove(struct i2c_client *client)
 
 	pm_runtime_disable(&client->dev);
 	pm_runtime_set_suspended(&client->dev);
-	pm_runtime_put_noidle(&client->dev);
+	pm_runtime_put_yesidle(&client->dev);
 
 	return isl29028_clear_configure_reg(chip);
 }

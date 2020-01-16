@@ -10,7 +10,7 @@
  *          Varun Sethi <varun.sethi@freescale.com>
  */
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/err.h>
 #include <linux/kvm_host.h>
 #include <linux/gfp.h>
@@ -122,7 +122,7 @@ static void kvmppc_vcpu_sync_spe(struct kvm_vcpu *vcpu)
 
 /*
  * Load up guest vcpu FP state if it's needed.
- * It also set the MSR_FP in thread so that host know
+ * It also set the MSR_FP in thread so that host kyesw
  * we're holding FPU, and then host can help to save
  * guest vcpu FP state if other threads require to use FPU.
  * This simulates an FP unavailable fault.
@@ -212,7 +212,7 @@ static void kvmppc_vcpu_sync_debug(struct kvm_vcpu *vcpu)
 	if (vcpu->guest_debug) {
 #ifdef CONFIG_KVM_BOOKE_HV
 		/*
-		 * Since there is no shadow MSR, sync MSR_DE into the guest
+		 * Since there is yes shadow MSR, sync MSR_DE into the guest
 		 * visible MSR.
 		 */
 		vcpu->arch.shared->msr |= MSR_DE;
@@ -237,7 +237,7 @@ void kvmppc_set_msr(struct kvm_vcpu *vcpu, u32 new_msr)
 
 	vcpu->arch.shared->msr = new_msr;
 
-	kvmppc_mmu_msr_notify(vcpu, old_msr);
+	kvmppc_mmu_msr_yestify(vcpu, old_msr);
 	kvmppc_vcpu_sync_spe(vcpu);
 	kvmppc_vcpu_sync_fpu(vcpu);
 	kvmppc_vcpu_sync_debug(vcpu);
@@ -528,7 +528,7 @@ static int kvmppc_booke_irqprio_deliver(struct kvm_vcpu *vcpu,
 #ifdef CONFIG_KVM_BOOKE_HV
 	/*
 	 * If an interrupt is pending but masked, raise a guest doorbell
-	 * so that we are notified when the guest enables the relevant
+	 * so that we are yestified when the guest enables the relevant
 	 * MSR bit.
 	 */
 	if (vcpu->arch.pending_exceptions & BOOKE_IRQMASK_EE)
@@ -579,7 +579,7 @@ static void arm_next_watchdog(struct kvm_vcpu *vcpu)
 	unsigned long flags;
 
 	/*
-	 * If TSR_ENW and TSR_WIS are not set then no need to exit to
+	 * If TSR_ENW and TSR_WIS are yest set then yes need to exit to
 	 * userspace, so clear the KVM_REQ_WATCHDOG request.
 	 */
 	if ((vcpu->arch.tsr & (TSR_ENW | TSR_WIS)) != (TSR_ENW | TSR_WIS))
@@ -589,7 +589,7 @@ static void arm_next_watchdog(struct kvm_vcpu *vcpu)
 	nr_jiffies = watchdog_next_timeout(vcpu);
 	/*
 	 * If the number of jiffies of watchdog timer >= NEXT_TIMER_MAX_DELTA
-	 * then do not run the watchdog timer as this can break timer APIs.
+	 * then do yest run the watchdog timer as this can break timer APIs.
 	 */
 	if (nr_jiffies < NEXT_TIMER_MAX_DELTA)
 		mod_timer(&vcpu->arch.wdt_timer, jiffies + nr_jiffies);
@@ -745,7 +745,7 @@ int kvmppc_vcpu_run(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu)
 		ret = s;
 		goto out;
 	}
-	/* interrupts now hard-disabled */
+	/* interrupts yesw hard-disabled */
 
 #ifdef CONFIG_PPC_FPU
 	/* Save userspace FPU state in stack */
@@ -809,7 +809,7 @@ static int emulation_exit(struct kvm_run *run, struct kvm_vcpu *vcpu)
 	case EMULATE_DONE:
 		/* don't overwrite subtypes, just account kvm_stats */
 		kvmppc_account_exit_stat(vcpu, EMULATED_INST_EXITS);
-		/* Future optimization: only reload non-volatiles if
+		/* Future optimization: only reload yesn-volatiles if
 		 * they were actually modified by emulation. */
 		return RESUME_GUEST_NV;
 
@@ -842,7 +842,7 @@ static int kvmppc_handle_debug(struct kvm_run *run, struct kvm_vcpu *vcpu)
 	if (vcpu->guest_debug == 0) {
 		/*
 		 * Debug resources belong to Guest.
-		 * Imprecise debug event is not injected
+		 * Imprecise debug event is yest injected
 		 */
 		if (dbsr & DBSR_IDE) {
 			dbsr &= ~DBSR_IDE;
@@ -854,7 +854,7 @@ static int kvmppc_handle_debug(struct kvm_run *run, struct kvm_vcpu *vcpu)
 			    (vcpu->arch.dbg_reg.dbcr0 & DBCR0_IDM))
 			kvmppc_core_queue_debug(vcpu);
 
-		/* Inject a program interrupt if trap debug is not allowed */
+		/* Inject a program interrupt if trap debug is yest allowed */
 		if ((dbsr & DBSR_TIE) && !(vcpu->arch.shared->msr & MSR_DE))
 			kvmppc_core_queue_program(vcpu, ESR_PTR);
 
@@ -904,7 +904,7 @@ static void kvmppc_fill_pt_regs(struct pt_regs *regs)
 /*
  * For interrupts needed to be handled by host interrupt handlers,
  * corresponding host handler are called from here in similar way
- * (but not exact) as they are called from low level handler
+ * (but yest exact) as they are called from low level handler
  * (such as from arch/powerpc/kernel/head_fsl_booke.S).
  */
 static void kvmppc_restart_interrupt(struct kvm_vcpu *vcpu,
@@ -939,12 +939,12 @@ static void kvmppc_restart_interrupt(struct kvm_vcpu *vcpu,
 #ifdef CONFIG_BOOKE_WDT
 		WatchdogException(&regs);
 #else
-		unknown_exception(&regs);
+		unkyeswn_exception(&regs);
 #endif
 		break;
 	case BOOKE_INTERRUPT_CRITICAL:
 		kvmppc_fill_pt_regs(&regs);
-		unknown_exception(&regs);
+		unkyeswn_exception(&regs);
 		break;
 	case BOOKE_INTERRUPT_DEBUG:
 		/* Save DBSR before preemption is enabled */
@@ -1062,7 +1062,7 @@ int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
 
 		/*
 		 * We are here because there is a pending guest interrupt
-		 * which could not be delivered as MSR_CE or MSR_ME was not
+		 * which could yest be delivered as MSR_CE or MSR_ME was yest
 		 * set.  Once we break from here we will retry delivery.
 		 */
 		r = RESUME_GUEST;
@@ -1073,7 +1073,7 @@ int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
 
 		/*
 		 * We are here because there is a pending guest interrupt
-		 * which could not be delivered as MSR_EE was not set.  Once
+		 * which could yest be delivered as MSR_EE was yest set.  Once
 		 * we break from here we will retry delivery.
 		 */
 		r = RESUME_GUEST;
@@ -1106,7 +1106,7 @@ int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
 			 * be handled by the guest kernel.
 			 *
 			 * In GS mode, hypervisor privileged instructions trap
-			 * on BOOKE_INTERRUPT_HV_PRIV, not here, so these are
+			 * on BOOKE_INTERRUPT_HV_PRIV, yest here, so these are
 			 * actual program interrupts, handled by the guest.
 			 */
 			kvmppc_core_queue_program(vcpu, vcpu->arch.fault_esr);
@@ -1278,7 +1278,7 @@ int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
 			kvmppc_account_exit(vcpu, DTLB_VIRT_MISS_EXITS);
 			r = RESUME_GUEST;
 		} else {
-			/* Guest has mapped and accessed a page which is not
+			/* Guest has mapped and accessed a page which is yest
 			 * actually RAM. */
 			vcpu->arch.paddr_accessed = gpaddr;
 			vcpu->arch.vaddr_accessed = eaddr;
@@ -1324,7 +1324,7 @@ int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
 			 * invoking the guest. */
 			kvmppc_mmu_map(vcpu, eaddr, gpaddr, gtlb_index);
 		} else {
-			/* Guest mapped and leaped at non-RAM! */
+			/* Guest mapped and leaped at yesn-RAM! */
 			kvmppc_booke_queue_irqprio(vcpu, BOOKE_IRQPRIO_MACHINE_CHECK);
 		}
 
@@ -1355,7 +1355,7 @@ out:
 		if (s <= 0)
 			r = (s << 2) | RESUME_HOST | (r & RESUME_FLAG_NV);
 		else {
-			/* interrupts now hard-disabled */
+			/* interrupts yesw hard-disabled */
 			kvmppc_fix_ee_before_entry();
 			kvmppc_load_guest_fp(vcpu);
 			kvmppc_load_guest_altivec(vcpu);
@@ -1394,7 +1394,7 @@ int kvm_arch_vcpu_setup(struct kvm_vcpu *vcpu)
 	vcpu->arch.shared->msr = 0;
 #endif
 
-	/* Eye-catching numbers so we know if the guest takes an interrupt
+	/* Eye-catching numbers so we kyesw if the guest takes an interrupt
 	 * before it's programmed its own IVPR/IVORs. */
 	vcpu->arch.ivpr = 0x55550000;
 	for (i = 0; i < BOOKE_IRQPRIO_MAX; i++)

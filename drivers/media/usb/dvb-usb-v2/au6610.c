@@ -19,7 +19,7 @@ static int au6610_usb_msg(struct dvb_usb_device *d, u8 operation, u8 addr,
 	u8 *usb_buf;
 
 	/*
-	 * allocate enough for all known requests,
+	 * allocate eyesugh for all kyeswn requests,
 	 * read returns 5 and write 6 bytes
 	 */
 	usb_buf = kmalloc(6, GFP_KERNEL);
@@ -123,7 +123,7 @@ static struct i2c_algorithm au6610_i2c_algo = {
 /* Callbacks for DVB USB */
 static struct zl10353_config au6610_zl10353_config = {
 	.demod_address = 0x0f,
-	.no_tuner = 1,
+	.yes_tuner = 1,
 	.parallel_ts = 1,
 };
 
@@ -188,7 +188,7 @@ static struct usb_driver au6610_driver = {
 	.suspend = dvb_usbv2_suspend,
 	.resume = dvb_usbv2_resume,
 	.reset_resume = dvb_usbv2_reset_resume,
-	.no_dynamic_id = 1,
+	.yes_dynamic_id = 1,
 	.soft_unbind = 1,
 };
 

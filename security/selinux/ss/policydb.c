@@ -18,21 +18,21 @@
  *
  *      Added support for the policy capability bitmap
  *
- * Update: Mellanox Techonologies
+ * Update: Mellayesx Techoyeslogies
  *
  *	Added Infiniband support
  *
- * Copyright (C) 2016 Mellanox Techonologies
+ * Copyright (C) 2016 Mellayesx Techoyeslogies
  * Copyright (C) 2007 Hewlett-Packard Development Company, L.P.
  * Copyright (C) 2004-2005 Trusted Computer Solutions, Inc.
- * Copyright (C) 2003 - 2004 Tresys Technology, LLC
+ * Copyright (C) 2003 - 2004 Tresys Techyeslogy, LLC
  */
 
 #include <linux/kernel.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/string.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/audit.h>
 #include "security.h"
 
@@ -224,7 +224,7 @@ static void constraint_expr_destroy(struct constraint_expr *expr)
 static int cls_destroy(void *key, void *datum, void *p)
 {
 	struct class_datum *cladatum;
-	struct constraint_node *constraint, *ctemp;
+	struct constraint_yesde *constraint, *ctemp;
 	struct constraint_expr *e, *etmp;
 
 	kfree(key);
@@ -937,7 +937,7 @@ int policydb_context_isvalid(struct policydb *p, struct context *c)
 		 */
 		role = p->role_val_to_struct[c->role - 1];
 		if (!role || !ebitmap_get_bit(&role->types, c->type - 1))
-			/* role may not be associated with type */
+			/* role may yest be associated with type */
 			return 0;
 
 		/*
@@ -948,7 +948,7 @@ int policydb_context_isvalid(struct policydb *p, struct context *c)
 			return 0;
 
 		if (!ebitmap_get_bit(&usrdatum->roles, c->role - 1))
-			/* user may not be associated with role */
+			/* user may yest be associated with role */
 			return 0;
 	}
 
@@ -1187,10 +1187,10 @@ static int type_set_read(struct type_set *t, void *fp)
 
 
 static int read_cons_helper(struct policydb *p,
-				struct constraint_node **nodep,
+				struct constraint_yesde **yesdep,
 				int ncons, int allowxtarget, void *fp)
 {
-	struct constraint_node *c, *lc;
+	struct constraint_yesde *c, *lc;
 	struct constraint_expr *e, *le;
 	__le32 buf[3];
 	u32 nexpr;
@@ -1205,7 +1205,7 @@ static int read_cons_helper(struct policydb *p,
 		if (lc)
 			lc->next = c;
 		else
-			*nodep = c;
+			*yesdep = c;
 
 		rc = next_entry(buf, fp, (sizeof(u32) * 2));
 		if (rc)
@@ -1322,7 +1322,7 @@ static int class_read(struct policydb *p, struct hashtab *h, void *fp)
 		rc = -EINVAL;
 		cladatum->comdatum = hashtab_search(p->p_commons.table, cladatum->comkey);
 		if (!cladatum->comdatum) {
-			pr_err("SELinux:  unknown common %s\n",
+			pr_err("SELinux:  unkyeswn common %s\n",
 			       cladatum->comkey);
 			goto bad;
 		}
@@ -1650,7 +1650,7 @@ static int user_bounds_sanity_check(void *key, void *datum, void *datap)
 
 	upper = user = datum;
 	while (upper->bounds) {
-		struct ebitmap_node *node;
+		struct ebitmap_yesde *yesde;
 		unsigned long bit;
 
 		if (++depth == POLICYDB_BOUNDS_MAXDEPTH) {
@@ -1661,7 +1661,7 @@ static int user_bounds_sanity_check(void *key, void *datum, void *datap)
 		}
 
 		upper = p->user_val_to_struct[upper->bounds - 1];
-		ebitmap_for_each_positive_bit(&user->roles, node, bit) {
+		ebitmap_for_each_positive_bit(&user->roles, yesde, bit) {
 			if (ebitmap_get_bit(&upper->roles, bit))
 				continue;
 
@@ -1686,7 +1686,7 @@ static int role_bounds_sanity_check(void *key, void *datum, void *datap)
 
 	upper = role = datum;
 	while (upper->bounds) {
-		struct ebitmap_node *node;
+		struct ebitmap_yesde *yesde;
 		unsigned long bit;
 
 		if (++depth == POLICYDB_BOUNDS_MAXDEPTH) {
@@ -1697,7 +1697,7 @@ static int role_bounds_sanity_check(void *key, void *datum, void *datap)
 		}
 
 		upper = p->role_val_to_struct[upper->bounds - 1];
-		ebitmap_for_each_positive_bit(&role->types, node, bit) {
+		ebitmap_for_each_positive_bit(&role->types, yesde, bit) {
 			if (ebitmap_get_bit(&upper->types, bit))
 				continue;
 
@@ -1936,8 +1936,8 @@ static int filename_trans_read(struct policydb *p, void *fp)
 		rc = hashtab_insert(p->filename_trans, ft, otype);
 		if (rc) {
 			/*
-			 * Do not return -EEXIST to the caller, or the system
-			 * will not boot.
+			 * Do yest return -EEXIST to the caller, or the system
+			 * will yest boot.
 			 */
 			if (rc != -EEXIST)
 				goto out;
@@ -2078,7 +2078,7 @@ static int ocontext_read(struct policydb *p, struct policydb_compat_info *info,
 	__be64 prefixbuf[1];
 	__le32 buf[3];
 	struct ocontext *l, *c;
-	u32 nodebuf[8];
+	u32 yesdebuf[8];
 
 	for (i = 0; i < info->ocon_num; i++) {
 		rc = next_entry(buf, fp, sizeof(u32));
@@ -2139,11 +2139,11 @@ static int ocontext_read(struct policydb *p, struct policydb_compat_info *info,
 					goto out;
 				break;
 			case OCON_NODE:
-				rc = next_entry(nodebuf, fp, sizeof(u32) * 2);
+				rc = next_entry(yesdebuf, fp, sizeof(u32) * 2);
 				if (rc)
 					goto out;
-				c->u.node.addr = nodebuf[0]; /* network order */
-				c->u.node.mask = nodebuf[1]; /* network order */
+				c->u.yesde.addr = yesdebuf[0]; /* network order */
+				c->u.yesde.mask = yesdebuf[1]; /* network order */
 				rc = context_read_and_validate(&c->context[0], p, fp);
 				if (rc)
 					goto out;
@@ -2155,7 +2155,7 @@ static int ocontext_read(struct policydb *p, struct policydb_compat_info *info,
 
 				rc = -EINVAL;
 				c->v.behavior = le32_to_cpu(buf[0]);
-				/* Determined at runtime, not in policy DB. */
+				/* Determined at runtime, yest in policy DB. */
 				if (c->v.behavior == SECURITY_FS_USE_MNTPOINT)
 					goto out;
 				if (c->v.behavior > SECURITY_FS_USE_MAX)
@@ -2173,13 +2173,13 @@ static int ocontext_read(struct policydb *p, struct policydb_compat_info *info,
 			case OCON_NODE6: {
 				int k;
 
-				rc = next_entry(nodebuf, fp, sizeof(u32) * 8);
+				rc = next_entry(yesdebuf, fp, sizeof(u32) * 8);
 				if (rc)
 					goto out;
 				for (k = 0; k < 4; k++)
-					c->u.node6.addr[k] = nodebuf[k];
+					c->u.yesde6.addr[k] = yesdebuf[k];
 				for (k = 0; k < 4; k++)
-					c->u.node6.mask[k] = nodebuf[k+4];
+					c->u.yesde6.mask[k] = yesdebuf[k+4];
 				rc = context_read_and_validate(&c->context[0], p, fp);
 				if (rc)
 					goto out;
@@ -2279,7 +2279,7 @@ int policydb_read(struct policydb *p, void *fp)
 	rc = -EINVAL;
 	if (le32_to_cpu(buf[0]) != POLICYDB_MAGIC) {
 		pr_err("SELinux:  policydb magic number 0x%x does "
-		       "not match expected magic number 0x%x\n",
+		       "yest match expected magic number 0x%x\n",
 		       le32_to_cpu(buf[0]), POLICYDB_MAGIC);
 		goto bad;
 	}
@@ -2287,7 +2287,7 @@ int policydb_read(struct policydb *p, void *fp)
 	rc = -EINVAL;
 	len = le32_to_cpu(buf[1]);
 	if (len != strlen(POLICYDB_STRING)) {
-		pr_err("SELinux:  policydb string length %d does not "
+		pr_err("SELinux:  policydb string length %d does yest "
 		       "match expected length %zu\n",
 		       len, strlen(POLICYDB_STRING));
 		goto bad;
@@ -2311,7 +2311,7 @@ int policydb_read(struct policydb *p, void *fp)
 	rc = -EINVAL;
 	policydb_str[len] = '\0';
 	if (strcmp(policydb_str, POLICYDB_STRING)) {
-		pr_err("SELinux:  policydb string %s does not match "
+		pr_err("SELinux:  policydb string %s does yest match "
 		       "my string %s\n", policydb_str, POLICYDB_STRING);
 		kfree(policydb_str);
 		goto bad;
@@ -2329,7 +2329,7 @@ int policydb_read(struct policydb *p, void *fp)
 	p->policyvers = le32_to_cpu(buf[0]);
 	if (p->policyvers < POLICYDB_VERSION_MIN ||
 	    p->policyvers > POLICYDB_VERSION_MAX) {
-		pr_err("SELinux:  policydb version %d does not match "
+		pr_err("SELinux:  policydb version %d does yest match "
 		       "my version range %d-%d\n",
 		       le32_to_cpu(buf[0]), POLICYDB_VERSION_MIN, POLICYDB_VERSION_MAX);
 		goto bad;
@@ -2341,13 +2341,13 @@ int policydb_read(struct policydb *p, void *fp)
 		rc = -EINVAL;
 		if (p->policyvers < POLICYDB_VERSION_MLS) {
 			pr_err("SELinux: security policydb version %d "
-				"(MLS) not backwards compatible\n",
+				"(MLS) yest backwards compatible\n",
 				p->policyvers);
 			goto bad;
 		}
 	}
-	p->reject_unknown = !!(le32_to_cpu(buf[1]) & REJECT_UNKNOWN);
-	p->allow_unknown = !!(le32_to_cpu(buf[1]) & ALLOW_UNKNOWN);
+	p->reject_unkyeswn = !!(le32_to_cpu(buf[1]) & REJECT_UNKNOWN);
+	p->allow_unkyeswn = !!(le32_to_cpu(buf[1]) & ALLOW_UNKNOWN);
 
 	if (p->policyvers >= POLICYDB_VERSION_POLCAP) {
 		rc = ebitmap_read(&p->policycaps, fp);
@@ -2373,7 +2373,7 @@ int policydb_read(struct policydb *p, void *fp)
 	if (le32_to_cpu(buf[2]) != info->sym_num ||
 		le32_to_cpu(buf[3]) != info->ocon_num) {
 		pr_err("SELinux:  policydb table sizes (%d,%d) do "
-		       "not match mine (%d,%d)\n", le32_to_cpu(buf[2]),
+		       "yest match mine (%d,%d)\n", le32_to_cpu(buf[2]),
 			le32_to_cpu(buf[3]),
 		       info->sym_num, info->ocon_num);
 		goto bad;
@@ -2808,16 +2808,16 @@ static int type_set_write(struct type_set *t, void *fp)
 	return 0;
 }
 
-static int write_cons_helper(struct policydb *p, struct constraint_node *node,
+static int write_cons_helper(struct policydb *p, struct constraint_yesde *yesde,
 			     void *fp)
 {
-	struct constraint_node *c;
+	struct constraint_yesde *c;
 	struct constraint_expr *e;
 	__le32 buf[3];
 	u32 nel;
 	int rc;
 
-	for (c = node; c; c = c->next) {
+	for (c = yesde; c; c = c->next) {
 		nel = 0;
 		for (e = c->expr; e; e = e->next)
 			nel++;
@@ -2862,7 +2862,7 @@ static int class_write(void *vkey, void *datum, void *ptr)
 	struct policy_data *pd = ptr;
 	void *fp = pd->fp;
 	struct policydb *p = pd->p;
-	struct constraint_node *c;
+	struct constraint_yesde *c;
 	__le32 buf[6];
 	u32 ncons;
 	size_t len, len2;
@@ -3084,7 +3084,7 @@ static int ocontext_write(struct policydb *p, struct policydb_compat_info *info,
 	size_t nel, len;
 	__be64 prefixbuf[1];
 	__le32 buf[3];
-	u32 nodebuf[8];
+	u32 yesdebuf[8];
 	struct ocontext *c;
 	for (i = 0; i < info->ocon_num; i++) {
 		nel = 0;
@@ -3134,9 +3134,9 @@ static int ocontext_write(struct policydb *p, struct policydb_compat_info *info,
 					return rc;
 				break;
 			case OCON_NODE:
-				nodebuf[0] = c->u.node.addr; /* network order */
-				nodebuf[1] = c->u.node.mask; /* network order */
-				rc = put_entry(nodebuf, sizeof(u32), 2, fp);
+				yesdebuf[0] = c->u.yesde.addr; /* network order */
+				yesdebuf[1] = c->u.yesde.mask; /* network order */
+				rc = put_entry(yesdebuf, sizeof(u32), 2, fp);
 				if (rc)
 					return rc;
 				rc = context_write(p, &c->context[0], fp);
@@ -3159,10 +3159,10 @@ static int ocontext_write(struct policydb *p, struct policydb_compat_info *info,
 				break;
 			case OCON_NODE6:
 				for (j = 0; j < 4; j++)
-					nodebuf[j] = c->u.node6.addr[j]; /* network order */
+					yesdebuf[j] = c->u.yesde6.addr[j]; /* network order */
 				for (j = 0; j < 4; j++)
-					nodebuf[j + 4] = c->u.node6.mask[j]; /* network order */
-				rc = put_entry(nodebuf, sizeof(u32), 8, fp);
+					yesdebuf[j + 4] = c->u.yesde6.mask[j]; /* network order */
+				rc = put_entry(yesdebuf, sizeof(u32), 8, fp);
 				if (rc)
 					return rc;
 				rc = context_write(p, &c->context[0], fp);
@@ -3411,9 +3411,9 @@ int policydb_write(struct policydb *p, void *fp)
 	if (p->mls_enabled)
 		config |= POLICYDB_CONFIG_MLS;
 
-	if (p->reject_unknown)
+	if (p->reject_unkyeswn)
 		config |= REJECT_UNKNOWN;
-	if (p->allow_unknown)
+	if (p->allow_unkyeswn)
 		config |= ALLOW_UNKNOWN;
 
 	/* Write the magic number and string identifiers. */

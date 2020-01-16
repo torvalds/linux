@@ -100,7 +100,7 @@ static int setup_dtb(struct kimage *image,
 		if (ret)
 			goto out;
 	} else {
-		pr_notice("RNG is not initialised: omitting \"%s\" property\n",
+		pr_yestice("RNG is yest initialised: omitting \"%s\" property\n",
 				FDT_PROP_KASLR_SEED);
 	}
 
@@ -113,7 +113,7 @@ static int setup_dtb(struct kimage *image,
 		if (ret)
 			goto out;
 	} else {
-		pr_notice("RNG is not initialised: omitting \"%s\" property\n",
+		pr_yestice("RNG is yest initialised: omitting \"%s\" property\n",
 				FDT_PROP_RNG_SEED);
 	}
 
@@ -186,7 +186,7 @@ int load_other_segments(struct kimage *image,
 	int ret = 0;
 
 	kbuf.image = image;
-	/* not allocate anything below the kernel */
+	/* yest allocate anything below the kernel */
 	kbuf.buf_min = kernel_load_addr + kernel_size;
 
 	/* load initrd */
@@ -222,7 +222,7 @@ int load_other_segments(struct kimage *image,
 	kbuf.bufsz = dtb_len;
 	kbuf.mem = KEXEC_BUF_MEM_UNKNOWN;
 	kbuf.memsz = dtb_len;
-	/* not across 2MB boundary */
+	/* yest across 2MB boundary */
 	kbuf.buf_align = SZ_2M;
 	kbuf.buf_max = ULONG_MAX;
 	kbuf.top_down = true;

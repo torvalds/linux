@@ -15,9 +15,9 @@ TRACE_EVENT(kyber_latency,
 
 	TP_PROTO(struct request_queue *q, const char *domain, const char *type,
 		 unsigned int percentile, unsigned int numerator,
-		 unsigned int denominator, unsigned int samples),
+		 unsigned int deyesminator, unsigned int samples),
 
-	TP_ARGS(q, domain, type, percentile, numerator, denominator, samples),
+	TP_ARGS(q, domain, type, percentile, numerator, deyesminator, samples),
 
 	TP_STRUCT__entry(
 		__field(	dev_t,	dev				)
@@ -25,7 +25,7 @@ TRACE_EVENT(kyber_latency,
 		__array(	char,	type,	LATENCY_TYPE_LEN	)
 		__field(	u8,	percentile			)
 		__field(	u8,	numerator			)
-		__field(	u8,	denominator			)
+		__field(	u8,	deyesminator			)
 		__field(	unsigned int,	samples			)
 	),
 
@@ -35,14 +35,14 @@ TRACE_EVENT(kyber_latency,
 		strlcpy(__entry->type, type, sizeof(__entry->type));
 		__entry->percentile	= percentile;
 		__entry->numerator	= numerator;
-		__entry->denominator	= denominator;
+		__entry->deyesminator	= deyesminator;
 		__entry->samples	= samples;
 	),
 
 	TP_printk("%d,%d %s %s p%u %u/%u samples=%u",
 		  MAJOR(__entry->dev), MINOR(__entry->dev), __entry->domain,
 		  __entry->type, __entry->percentile, __entry->numerator,
-		  __entry->denominator, __entry->samples)
+		  __entry->deyesminator, __entry->samples)
 );
 
 TRACE_EVENT(kyber_adjust,

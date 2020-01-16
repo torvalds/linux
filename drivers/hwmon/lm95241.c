@@ -20,7 +20,7 @@
 
 #define DEVNAME "lm95241"
 
-static const unsigned short normal_i2c[] = {
+static const unsigned short yesrmal_i2c[] = {
 	0x19, 0x2a, 0x2b, I2C_CLIENT_END };
 
 /* LM95241 registers */
@@ -472,7 +472,7 @@ static struct i2c_driver lm95241_driver = {
 	.probe		= lm95241_probe,
 	.id_table	= lm95241_id,
 	.detect		= lm95241_detect,
-	.address_list	= normal_i2c,
+	.address_list	= yesrmal_i2c,
 };
 
 module_i2c_driver(lm95241_driver);

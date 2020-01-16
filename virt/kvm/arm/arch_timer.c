@@ -98,7 +98,7 @@ static irqreturn_t kvm_arch_timer_handler(int irq, void *dev_id)
 	 * We may see a timer interrupt after vcpu_put() has been called which
 	 * sets the CPU's vcpu pointer to NULL, because even though the timer
 	 * has been disabled in timer_save_state(), the hardware interrupt
-	 * signal may not have been retired from the interrupt controller yet.
+	 * signal may yest have been retired from the interrupt controller yet.
 	 */
 	if (!vcpu)
 		return IRQ_HANDLED;
@@ -122,16 +122,16 @@ static irqreturn_t kvm_arch_timer_handler(int irq, void *dev_id)
 
 static u64 kvm_timer_compute_delta(struct arch_timer_context *timer_ctx)
 {
-	u64 cval, now;
+	u64 cval, yesw;
 
 	cval = timer_ctx->cnt_cval;
-	now = kvm_phys_timer_read() - timer_ctx->cntvoff;
+	yesw = kvm_phys_timer_read() - timer_ctx->cntvoff;
 
-	if (now < cval) {
+	if (yesw < cval) {
 		u64 ns;
 
 		ns = cyclecounter_cyc2ns(timecounter->cc,
-					 cval - now,
+					 cval - yesw,
 					 timecounter->mask,
 					 &timecounter->frac);
 		return ns;
@@ -150,7 +150,7 @@ static bool kvm_timer_irq_can_fire(struct arch_timer_context *timer_ctx)
 
 /*
  * Returns the earliest expiration time in ns among guest timers.
- * Note that it will return 0 if none of timers can fire.
+ * Note that it will return 0 if yesne of timers can fire.
  */
 static u64 kvm_timer_earliest_exp(struct kvm_vcpu *vcpu)
 {
@@ -165,7 +165,7 @@ static u64 kvm_timer_earliest_exp(struct kvm_vcpu *vcpu)
 			min_delta = min(min_delta, kvm_timer_compute_delta(ctx));
 	}
 
-	/* If none of timers can fire, then return 0 */
+	/* If yesne of timers can fire, then return 0 */
 	if (min_delta == ULLONG_MAX)
 		return 0;
 
@@ -188,7 +188,7 @@ static enum hrtimer_restart kvm_bg_timer_expire(struct hrtimer *hrt)
 	 */
 	ns = kvm_timer_earliest_exp(vcpu);
 	if (unlikely(ns)) {
-		hrtimer_forward_now(hrt, ns_to_ktime(ns));
+		hrtimer_forward_yesw(hrt, ns_to_ktime(ns));
 		return HRTIMER_RESTART;
 	}
 
@@ -210,11 +210,11 @@ static enum hrtimer_restart kvm_hrtimer_expire(struct hrtimer *hrt)
 	/*
 	 * Check that the timer has really expired from the guest's
 	 * PoV (NTP on the host may have forced it to expire
-	 * early). If not ready, schedule for a later time.
+	 * early). If yest ready, schedule for a later time.
 	 */
 	ns = kvm_timer_compute_delta(ctx);
 	if (unlikely(ns)) {
-		hrtimer_forward_now(hrt, ns_to_ktime(ns));
+		hrtimer_forward_yesw(hrt, ns_to_ktime(ns));
 		return HRTIMER_RESTART;
 	}
 
@@ -225,7 +225,7 @@ static enum hrtimer_restart kvm_hrtimer_expire(struct hrtimer *hrt)
 static bool kvm_timer_should_fire(struct arch_timer_context *timer_ctx)
 {
 	enum kvm_arch_timers index;
-	u64 cval, now;
+	u64 cval, yesw;
 
 	if (!timer_ctx)
 		return false;
@@ -257,9 +257,9 @@ static bool kvm_timer_should_fire(struct arch_timer_context *timer_ctx)
 		return false;
 
 	cval = timer_ctx->cnt_cval;
-	now = kvm_phys_timer_read() - timer_ctx->cntvoff;
+	yesw = kvm_phys_timer_read() - timer_ctx->cntvoff;
 
-	return cval <= now;
+	return cval <= yesw;
 }
 
 bool kvm_timer_is_pending(struct kvm_vcpu *vcpu)
@@ -322,8 +322,8 @@ static void timer_emulate(struct arch_timer_context *ctx)
 	}
 
 	/*
-	 * If the timer can fire now, we don't need to have a soft timer
-	 * scheduled for the future.  If the timer cannot fire at all,
+	 * If the timer can fire yesw, we don't need to have a soft timer
+	 * scheduled for the future.  If the timer canyest fire at all,
 	 * then we also don't need a soft timer.
 	 */
 	if (!kvm_timer_irq_can_fire(ctx)) {
@@ -391,8 +391,8 @@ static void kvm_timer_blocking(struct kvm_vcpu *vcpu)
 	get_timer_map(vcpu, &map);
 
 	/*
-	 * If no timers are capable of raising interrupts (disabled or
-	 * masked), then there's no more work for us to do.
+	 * If yes timers are capable of raising interrupts (disabled or
+	 * masked), then there's yes more work for us to do.
 	 */
 	if (!kvm_timer_irq_can_fire(map.direct_vtimer) &&
 	    !kvm_timer_irq_can_fire(map.direct_ptimer) &&
@@ -457,7 +457,7 @@ static void set_cntvoff(u64 cntvoff)
 	/*
 	 * Since kvm_call_hyp doesn't fully support the ARM PCS especially on
 	 * 32-bit systems, but rather passes register by register shifted one
-	 * place (we put the function address in r0/x0), we cannot simply pass
+	 * place (we put the function address in r0/x0), we canyest simply pass
 	 * a 64-bit value as an argument, but have to split the value in two
 	 * 32-bit halves.
 	 */
@@ -492,7 +492,7 @@ static void kvm_timer_vcpu_load_gic(struct arch_timer_context *ctx)
 	set_timer_irq_phys_active(ctx, phys_active);
 }
 
-static void kvm_timer_vcpu_load_nogic(struct kvm_vcpu *vcpu)
+static void kvm_timer_vcpu_load_yesgic(struct kvm_vcpu *vcpu)
 {
 	struct arch_timer_context *vtimer = vcpu_vtimer(vcpu);
 
@@ -535,7 +535,7 @@ void kvm_timer_vcpu_load(struct kvm_vcpu *vcpu)
 		if (map.direct_ptimer)
 			kvm_timer_vcpu_load_gic(map.direct_ptimer);
 	} else {
-		kvm_timer_vcpu_load_nogic(vcpu);
+		kvm_timer_vcpu_load_yesgic(vcpu);
 	}
 
 	set_cntvoff(map.direct_vtimer->cntvoff);
@@ -550,7 +550,7 @@ void kvm_timer_vcpu_load(struct kvm_vcpu *vcpu)
 		timer_emulate(map.emul_ptimer);
 }
 
-bool kvm_timer_should_notify_user(struct kvm_vcpu *vcpu)
+bool kvm_timer_should_yestify_user(struct kvm_vcpu *vcpu)
 {
 	struct arch_timer_context *vtimer = vcpu_vtimer(vcpu);
 	struct arch_timer_context *ptimer = vcpu_ptimer(vcpu);
@@ -600,8 +600,8 @@ void kvm_timer_vcpu_put(struct kvm_vcpu *vcpu)
 	 * The kernel may decide to run userspace after calling vcpu_put, so
 	 * we reset cntvoff to 0 to ensure a consistent read between user
 	 * accesses to the virtual counter and kernel access to the physical
-	 * counter of non-VHE case. For VHE, the virtual counter uses a fixed
-	 * virtual offset of zero, so no need to zero CNTVOFF_EL2 register.
+	 * counter of yesn-VHE case. For VHE, the virtual counter uses a fixed
+	 * virtual offset of zero, so yes need to zero CNTVOFF_EL2 register.
 	 */
 	set_cntvoff(0);
 }
@@ -680,7 +680,7 @@ static void update_vtimer_cntvoff(struct kvm_vcpu *vcpu, u64 cntvoff)
 		vcpu_vtimer(tmp)->cntvoff = cntvoff;
 
 	/*
-	 * When called from the vcpu create path, the CPU being created is not
+	 * When called from the vcpu create path, the CPU being created is yest
 	 * included in the loop above, so we just set it here as well.
 	 */
 	vcpu_vtimer(vcpu)->cntvoff = cntvoff;
@@ -1044,9 +1044,9 @@ int kvm_timer_enable(struct kvm_vcpu *vcpu)
 	if (timer->enabled)
 		return 0;
 
-	/* Without a VGIC we do not map virtual IRQs to physical IRQs */
+	/* Without a VGIC we do yest map virtual IRQs to physical IRQs */
 	if (!irqchip_in_kernel(vcpu->kvm))
-		goto no_vgic;
+		goto yes_vgic;
 
 	if (!vgic_initialized(vcpu->kvm))
 		return -ENODEV;
@@ -1075,16 +1075,16 @@ int kvm_timer_enable(struct kvm_vcpu *vcpu)
 	if (ret)
 		return ret;
 
-no_vgic:
+yes_vgic:
 	timer->enabled = 1;
 	return 0;
 }
 
 /*
  * On VHE system, we only need to configure the EL2 timer trap register once,
- * not for every world switch.
+ * yest for every world switch.
  * The host kernel runs at EL2 with HCR_EL2.TGE == 1,
- * and this makes those bits have no effect for the host kernel execution.
+ * and this makes those bits have yes effect for the host kernel execution.
  */
 void kvm_timer_init_vhe(void)
 {

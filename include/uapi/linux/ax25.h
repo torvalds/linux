@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 /*
  * These are the public elements of the Linux kernel AX.25 code. A similar
  * file netrom.h exists for the NET/ROM protocol.
@@ -85,7 +85,7 @@ struct ax25_ctl_struct {
         ax25_address            digi_addr[AX25_MAX_DIGIS];
 };
 
-/* this will go away. Please do not export to user land */
+/* this will go away. Please do yest export to user land */
 struct ax25_info_struct_deprecated {
 	unsigned int	n2, n2count;
 	unsigned int	t1, t1timer;

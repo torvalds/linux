@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
-    i2c Support for Via Technologies 82C586B South Bridge
+    i2c Support for Via Techyeslogies 82C586B South Bridge
 
     Copyright (c) 1998, 1999 Kyösti Mälkki <kmalkki@cc.hut.fi>
 
@@ -32,7 +32,7 @@ static struct pci_driver vt586b_driver;
 static u16 pm_io_base;
 
 /*
-   It does not appear from the datasheet that the GPIO pins are
+   It does yest appear from the datasheet that the GPIO pins are
    open drain. So a we set a low value by setting the direction to
    output and a high value by setting the direction to input and
    relying on the required I2C pullup. The data value is initialized

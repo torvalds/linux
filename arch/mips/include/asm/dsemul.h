@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
- * Copyright (C) 2016 Imagination Technologies
+ * Copyright (C) 2016 Imagination Techyeslogies
  * Author: Paul Burton <paul.burton@mips.com>
  */
 
@@ -81,7 +81,7 @@ static inline bool dsemul_thread_cleanup(struct task_struct *tsk)
  * If the current thread, whose register context is represented by @regs,
  * is executing within a delay slot 'emulation' frame then exit that
  * frame. The PC will be rolled back to the branch if the instruction
- * that was being 'emulated' has not yet executed, or advanced to the
+ * that was being 'emulated' has yest yet executed, or advanced to the
  * continuation PC if it has.
  *
  * Return: True if a frame was exited, else false.
@@ -108,7 +108,7 @@ extern void dsemul_mm_cleanup(struct mm_struct *mm);
 #else
 static inline void dsemul_mm_cleanup(struct mm_struct *mm)
 {
-	/* no-op */
+	/* yes-op */
 }
 #endif
 

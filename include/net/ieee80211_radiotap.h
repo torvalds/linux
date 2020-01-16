@@ -4,7 +4,7 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright yestice and this permission yestice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
@@ -68,7 +68,7 @@ enum ieee80211_radiotap_presence {
 	IEEE80211_RADIOTAP_TX_FLAGS = 15,
 	IEEE80211_RADIOTAP_RTS_RETRIES = 16,
 	IEEE80211_RADIOTAP_DATA_RETRIES = 17,
-	/* 18 is XChannel, but it's not defined yet */
+	/* 18 is XChannel, but it's yest defined yet */
 	IEEE80211_RADIOTAP_MCS = 19,
 	IEEE80211_RADIOTAP_AMPDU_STATUS = 20,
 	IEEE80211_RADIOTAP_VHT = 21,
@@ -159,7 +159,7 @@ enum ieee80211_radiotap_ampdu_flags {
 };
 
 /* for IEEE80211_RADIOTAP_VHT */
-enum ieee80211_radiotap_vht_known {
+enum ieee80211_radiotap_vht_kyeswn {
 	IEEE80211_RADIOTAP_VHT_KNOWN_STBC = 0x0001,
 	IEEE80211_RADIOTAP_VHT_KNOWN_TXOP_PS_NA = 0x0002,
 	IEEE80211_RADIOTAP_VHT_KNOWN_GI = 0x0004,

@@ -59,7 +59,7 @@ EXPORT_SYMBOL(rtas_data_buf);
 unsigned long rtas_rmo_buf;
 
 /*
- * If non-NULL, this gets called when the kernel terminates.
+ * If yesn-NULL, this gets called when the kernel terminates.
  * This is done like this so rtas_flash can be a module.
  */
 void (*rtas_flash_term_hook)(int);
@@ -68,7 +68,7 @@ EXPORT_SYMBOL(rtas_flash_term_hook);
 /* RTAS use home made raw locking instead of spin_lock_irqsave
  * because those can be called from within really nasty contexts
  * such as having the timebase stopped which would lockup with
- * normal locks and spinlock debugging enabled
+ * yesrmal locks and spinlock debugging enabled
  */
 static unsigned long lock_rtas(void)
 {
@@ -195,7 +195,7 @@ void __init udbg_init_rtas_console(void)
 
 void rtas_progress(char *s, unsigned short hex)
 {
-	struct device_node *root;
+	struct device_yesde *root;
 	int width;
 	const __be32 *p;
 	char *os;
@@ -211,7 +211,7 @@ void rtas_progress(char *s, unsigned short hex)
 
 	if (display_width == 0) {
 		display_width = 0x10;
-		if ((root = of_find_node_by_path("/rtas"))) {
+		if ((root = of_find_yesde_by_path("/rtas"))) {
 			if ((p = of_get_property(root,
 					"ibm,display-line-length", NULL)))
 				display_width = be32_to_cpu(*p);
@@ -223,7 +223,7 @@ void rtas_progress(char *s, unsigned short hex)
 				display_lines = be32_to_cpu(*p);
 			row_width = of_get_property(root,
 					"ibm,display-truncation-length", NULL);
-			of_node_put(root);
+			of_yesde_put(root);
 		}
 		display_character = rtas_token("display-character");
 		set_indicator = rtas_token("set-indicator");
@@ -240,10 +240,10 @@ void rtas_progress(char *s, unsigned short hex)
 
 	/*
 	 * Last write ended with newline, but we didn't print it since
-	 * it would just clear the bottom line of output. Print it now
+	 * it would just clear the bottom line of output. Print it yesw
 	 * instead.
 	 *
-	 * If no newline is pending and form feed is supported, clear the
+	 * If yes newline is pending and form feed is supported, clear the
 	 * display with a form feed; otherwise, print a CR to start output
 	 * at the beginning of the line.
 	 */
@@ -280,14 +280,14 @@ void rtas_progress(char *s, unsigned short hex)
 				return;
 			}
  
-			/* RTAS wants CR-LF, not just LF */
+			/* RTAS wants CR-LF, yest just LF */
  
 			if (*os == '\n') {
 				rtas_call(display_character, 1, 1, NULL, '\r');
 				rtas_call(display_character, 1, 1, NULL, '\n');
 			} else {
 				/* CR might be used to re-draw a line, so we'll
-				 * leave it alone and not add LF.
+				 * leave it alone and yest add LF.
 				 */
 				rtas_call(display_character, 1, 1, NULL, *os);
 			}
@@ -662,7 +662,7 @@ int rtas_set_indicator(int indicator, int index, int new_value)
 EXPORT_SYMBOL(rtas_set_indicator);
 
 /*
- * Ignoring RTAS extended delay
+ * Igyesring RTAS extended delay
  */
 int rtas_set_indicator_fast(int indicator, int index, int new_value)
 {
@@ -683,7 +683,7 @@ int rtas_set_indicator_fast(int indicator, int index, int new_value)
 	return rc;
 }
 
-void __noreturn rtas_restart(char *cmd)
+void __yesreturn rtas_restart(char *cmd)
 {
 	if (rtas_flash_term_hook)
 		rtas_flash_term_hook(SYS_RESTART);
@@ -702,7 +702,7 @@ void rtas_power_off(void)
 	for (;;);
 }
 
-void __noreturn rtas_halt(void)
+void __yesreturn rtas_halt(void)
 {
 	if (rtas_flash_term_hook)
 		rtas_flash_term_hook(SYS_HALT);
@@ -770,7 +770,7 @@ static int __rtas_suspend_last_cpu(struct rtas_suspend_me_data *data, int wake_w
 		atomic_set(&data->done, 1);
 
 		for_each_online_cpu(cpu)
-			plpar_hcall_norets(H_PROD, get_hard_smp_processor_id(cpu));
+			plpar_hcall_yesrets(H_PROD, get_hard_smp_processor_id(cpu));
 	}
 
 	if (atomic_dec_return(&data->working) == 0)
@@ -798,7 +798,7 @@ static int __rtas_suspend_cpu(struct rtas_suspend_me_data *data, int wake_when_d
 	mtmsr(msr_save & ~(MSR_EE));
 
 	while (rc == H_SUCCESS && !atomic_read(&data->done) && !atomic_read(&data->error))
-		rc = plpar_hcall_norets(H_JOIN);
+		rc = plpar_hcall_yesrets(H_JOIN);
 
 	mtmsr(msr_save);
 
@@ -824,7 +824,7 @@ static int __rtas_suspend_cpu(struct rtas_suspend_me_data *data, int wake_when_d
 		 * Extra prods are harmless.
 		 */
 		for_each_online_cpu(cpu)
-			plpar_hcall_norets(H_PROD, get_hard_smp_processor_id(cpu));
+			plpar_hcall_yesrets(H_PROD, get_hard_smp_processor_id(cpu));
 	}
 out:
 	if (atomic_dec_return(&data->working) == 0)
@@ -973,10 +973,10 @@ int rtas_ibm_suspend_me(u64 handle)
 	lock_device_hotplug();
 
 	/* All present CPUs must be online */
-	cpumask_andnot(offline_mask, cpu_present_mask, cpu_online_mask);
+	cpumask_andyest(offline_mask, cpu_present_mask, cpu_online_mask);
 	cpuret = rtas_online_cpus_mask(offline_mask);
 	if (cpuret) {
-		pr_err("%s: Could not bring present CPUs online.\n", __func__);
+		pr_err("%s: Could yest bring present CPUs online.\n", __func__);
 		atomic_set(&data.error, cpuret);
 		goto out;
 	}
@@ -1003,10 +1003,10 @@ int rtas_ibm_suspend_me(u64 handle)
 out_hotplug_enable:
 	cpu_hotplug_enable();
 
-	/* Take down CPUs not online prior to suspend */
+	/* Take down CPUs yest online prior to suspend */
 	cpuret = rtas_offline_cpus_mask(offline_mask);
 	if (cpuret)
-		pr_warn("%s: Could not restore CPUs to offline state.\n",
+		pr_warn("%s: Could yest restore CPUs to offline state.\n",
 				__func__);
 
 out:
@@ -1026,7 +1026,7 @@ int rtas_ibm_suspend_me(u64 handle)
  * @log: RTAS error/event log
  * @section_id: two character section identifier
  *
- * Returns a pointer to the specified errorlog or NULL if not found.
+ * Returns a pointer to the specified errorlog or NULL if yest found.
  */
 struct pseries_errorlog *get_pseries_errorlog(struct rtas_error_log *log,
 					      uint16_t section_id)
@@ -1155,27 +1155,27 @@ void __init rtas_initialize(void)
 {
 	unsigned long rtas_region = RTAS_INSTANTIATE_MAX;
 	u32 base, size, entry;
-	int no_base, no_size, no_entry;
+	int yes_base, yes_size, yes_entry;
 
-	/* Get RTAS dev node and fill up our "rtas" structure with infos
+	/* Get RTAS dev yesde and fill up our "rtas" structure with infos
 	 * about it.
 	 */
-	rtas.dev = of_find_node_by_name(NULL, "rtas");
+	rtas.dev = of_find_yesde_by_name(NULL, "rtas");
 	if (!rtas.dev)
 		return;
 
-	no_base = of_property_read_u32(rtas.dev, "linux,rtas-base", &base);
-	no_size = of_property_read_u32(rtas.dev, "rtas-size", &size);
-	if (no_base || no_size) {
-		of_node_put(rtas.dev);
+	yes_base = of_property_read_u32(rtas.dev, "linux,rtas-base", &base);
+	yes_size = of_property_read_u32(rtas.dev, "rtas-size", &size);
+	if (yes_base || yes_size) {
+		of_yesde_put(rtas.dev);
 		rtas.dev = NULL;
 		return;
 	}
 
 	rtas.base = base;
 	rtas.size = size;
-	no_entry = of_property_read_u32(rtas.dev, "linux,rtas-entry", &entry);
-	rtas.entry = no_entry ? rtas.base : entry;
+	yes_entry = of_property_read_u32(rtas.dev, "linux,rtas-entry", &entry);
+	rtas.entry = yes_entry ? rtas.base : entry;
 
 	/* If RTAS was found, allocate the RMO buffer for it and look for
 	 * the stop-self token if any
@@ -1197,7 +1197,7 @@ void __init rtas_initialize(void)
 #endif
 }
 
-int __init early_init_dt_scan_rtas(unsigned long node,
+int __init early_init_dt_scan_rtas(unsigned long yesde,
 		const char *uname, int depth, void *data)
 {
 	const u32 *basep, *entryp, *sizep;
@@ -1205,9 +1205,9 @@ int __init early_init_dt_scan_rtas(unsigned long node,
 	if (depth != 1 || strcmp(uname, "rtas") != 0)
 		return 0;
 
-	basep  = of_get_flat_dt_prop(node, "linux,rtas-base", NULL);
-	entryp = of_get_flat_dt_prop(node, "linux,rtas-entry", NULL);
-	sizep  = of_get_flat_dt_prop(node, "rtas-size", NULL);
+	basep  = of_get_flat_dt_prop(yesde, "linux,rtas-base", NULL);
+	entryp = of_get_flat_dt_prop(yesde, "linux,rtas-entry", NULL);
+	sizep  = of_get_flat_dt_prop(yesde, "rtas-size", NULL);
 
 	if (basep && entryp && sizep) {
 		rtas.base = *basep;
@@ -1216,11 +1216,11 @@ int __init early_init_dt_scan_rtas(unsigned long node,
 	}
 
 #ifdef CONFIG_UDBG_RTAS_CONSOLE
-	basep = of_get_flat_dt_prop(node, "put-term-char", NULL);
+	basep = of_get_flat_dt_prop(yesde, "put-term-char", NULL);
 	if (basep)
 		rtas_putchar_token = *basep;
 
-	basep = of_get_flat_dt_prop(node, "get-term-char", NULL);
+	basep = of_get_flat_dt_prop(yesde, "get-term-char", NULL);
 	if (basep)
 		rtas_getchar_token = *basep;
 
@@ -1230,7 +1230,7 @@ int __init early_init_dt_scan_rtas(unsigned long node,
 
 #endif
 
-	/* break now */
+	/* break yesw */
 	return 1;
 }
 

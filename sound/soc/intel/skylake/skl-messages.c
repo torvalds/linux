@@ -335,7 +335,7 @@ int skl_free_dsp(struct skl_dev *skl)
  * In the case of "suspend_active" i.e, the Audio IP being active
  * during system suspend, immediately excecute any pending D0i3 work
  * before suspending. This is needed for the IP to work in low power
- * mode during system suspend. In the case of normal suspend, cancel
+ * mode during system suspend. In the case of yesrmal suspend, cancel
  * any pending D0i3 work.
  */
 int skl_suspend_late_dsp(struct skl_dev *skl)
@@ -362,7 +362,7 @@ int skl_suspend_dsp(struct skl_dev *skl)
 	struct hdac_bus *bus = skl_to_bus(skl);
 	int ret;
 
-	/* if ppcap is not supported return 0 */
+	/* if ppcap is yest supported return 0 */
 	if (!bus->ppcap)
 		return 0;
 
@@ -382,7 +382,7 @@ int skl_resume_dsp(struct skl_dev *skl)
 	struct hdac_bus *bus = skl_to_bus(skl);
 	int ret;
 
-	/* if ppcap is not supported return 0 */
+	/* if ppcap is yest supported return 0 */
 	if (!bus->ppcap)
 		return 0;
 
@@ -495,61 +495,61 @@ static void skl_copy_copier_caps(struct skl_module_cfg *mconfig,
  * Calculate the gatewat settings required for copier module, type of
  * gateway and index of gateway to use
  */
-static u32 skl_get_node_id(struct skl_dev *skl,
+static u32 skl_get_yesde_id(struct skl_dev *skl,
 			struct skl_module_cfg *mconfig)
 {
-	union skl_connector_node_id node_id = {0};
-	union skl_ssp_dma_node ssp_node  = {0};
+	union skl_connector_yesde_id yesde_id = {0};
+	union skl_ssp_dma_yesde ssp_yesde  = {0};
 	struct skl_pipe_params *params = mconfig->pipe->p_params;
 
 	switch (mconfig->dev_type) {
 	case SKL_DEVICE_BT:
-		node_id.node.dma_type =
+		yesde_id.yesde.dma_type =
 			(SKL_CONN_SOURCE == mconfig->hw_conn_type) ?
 			SKL_DMA_I2S_LINK_OUTPUT_CLASS :
 			SKL_DMA_I2S_LINK_INPUT_CLASS;
-		node_id.node.vindex = params->host_dma_id +
+		yesde_id.yesde.vindex = params->host_dma_id +
 					(mconfig->vbus_id << 3);
 		break;
 
 	case SKL_DEVICE_I2S:
-		node_id.node.dma_type =
+		yesde_id.yesde.dma_type =
 			(SKL_CONN_SOURCE == mconfig->hw_conn_type) ?
 			SKL_DMA_I2S_LINK_OUTPUT_CLASS :
 			SKL_DMA_I2S_LINK_INPUT_CLASS;
-		ssp_node.dma_node.time_slot_index = mconfig->time_slot;
-		ssp_node.dma_node.i2s_instance = mconfig->vbus_id;
-		node_id.node.vindex = ssp_node.val;
+		ssp_yesde.dma_yesde.time_slot_index = mconfig->time_slot;
+		ssp_yesde.dma_yesde.i2s_instance = mconfig->vbus_id;
+		yesde_id.yesde.vindex = ssp_yesde.val;
 		break;
 
 	case SKL_DEVICE_DMIC:
-		node_id.node.dma_type = SKL_DMA_DMIC_LINK_INPUT_CLASS;
-		node_id.node.vindex = mconfig->vbus_id +
+		yesde_id.yesde.dma_type = SKL_DMA_DMIC_LINK_INPUT_CLASS;
+		yesde_id.yesde.vindex = mconfig->vbus_id +
 					 (mconfig->time_slot);
 		break;
 
 	case SKL_DEVICE_HDALINK:
-		node_id.node.dma_type =
+		yesde_id.yesde.dma_type =
 			(SKL_CONN_SOURCE == mconfig->hw_conn_type) ?
 			SKL_DMA_HDA_LINK_OUTPUT_CLASS :
 			SKL_DMA_HDA_LINK_INPUT_CLASS;
-		node_id.node.vindex = params->link_dma_id;
+		yesde_id.yesde.vindex = params->link_dma_id;
 		break;
 
 	case SKL_DEVICE_HDAHOST:
-		node_id.node.dma_type =
+		yesde_id.yesde.dma_type =
 			(SKL_CONN_SOURCE == mconfig->hw_conn_type) ?
 			SKL_DMA_HDA_HOST_OUTPUT_CLASS :
 			SKL_DMA_HDA_HOST_INPUT_CLASS;
-		node_id.node.vindex = params->host_dma_id;
+		yesde_id.yesde.vindex = params->host_dma_id;
 		break;
 
 	default:
-		node_id.val = 0xFFFFFFFF;
+		yesde_id.val = 0xFFFFFFFF;
 		break;
 	}
 
-	return node_id.val;
+	return yesde_id.val;
 }
 
 static void skl_setup_cpr_gateway_cfg(struct skl_dev *skl,
@@ -560,9 +560,9 @@ static void skl_setup_cpr_gateway_cfg(struct skl_dev *skl,
 	struct skl_module_res *res;
 	int res_idx = mconfig->res_idx;
 
-	cpr_mconfig->gtw_cfg.node_id = skl_get_node_id(skl, mconfig);
+	cpr_mconfig->gtw_cfg.yesde_id = skl_get_yesde_id(skl, mconfig);
 
-	if (cpr_mconfig->gtw_cfg.node_id == SKL_NON_GATEWAY_CPR_NODE_ID) {
+	if (cpr_mconfig->gtw_cfg.yesde_id == SKL_NON_GATEWAY_CPR_NODE_ID) {
 		cpr_mconfig->cpr_feature_mask = 0;
 		return;
 	}
@@ -618,7 +618,7 @@ skip_buf_size_calc:
 #define DMA_I2S_BLOB_SIZE 21
 
 int skl_dsp_set_dma_control(struct skl_dev *skl, u32 *caps,
-				u32 caps_size, u32 node_id)
+				u32 caps_size, u32 yesde_id)
 {
 	struct skl_dma_control *dma_ctrl;
 	struct skl_ipc_large_config_msg msg = {0};
@@ -638,7 +638,7 @@ int skl_dsp_set_dma_control(struct skl_dev *skl, u32 *caps,
 	if (dma_ctrl == NULL)
 		return -ENOMEM;
 
-	dma_ctrl->node_id = node_id;
+	dma_ctrl->yesde_id = yesde_id;
 
 	/*
 	 * NHLT blob may contain additional configs along with i2s blob.
@@ -701,7 +701,7 @@ static void skl_set_src_format(struct skl_dev *skl,
 /*
  * DSP needs updown module to do channel conversion. updown module take base
  * module configuration and channel configuration
- * It also take coefficients and now we have defaults applied here
+ * It also take coefficients and yesw we have defaults applied here
  */
 static void skl_set_updown_mixer_format(struct skl_dev *skl,
 			struct skl_module_cfg *mconfig,
@@ -807,7 +807,7 @@ static u16 skl_get_module_param_size(struct skl_dev *skl,
 
 	default:
 		/*
-		 * return only base cfg when no specific module type is
+		 * return only base cfg when yes specific module type is
 		 * specified
 		 */
 		return sizeof(struct skl_base_cfg);
@@ -902,7 +902,7 @@ static int skl_alloc_queue(struct skl_module_pin *mpin,
 	/*
 	 * if pin in dynamic, find first free pin
 	 * otherwise find match module and instance id pin as topology will
-	 * ensure a unique pin is assigned to this so no need to
+	 * ensure a unique pin is assigned to this so yes need to
 	 * allocate/free
 	 */
 	for (i = 0; i < max; i++)  {
@@ -981,7 +981,7 @@ int skl_init_module(struct skl_dev *skl,
 		 mconfig->id.module_id, mconfig->id.pvt_id);
 
 	if (mconfig->pipe->state != SKL_PIPE_CREATED) {
-		dev_err(skl->dev, "Pipe not created state= %d pipe_id= %d\n",
+		dev_err(skl->dev, "Pipe yest created state= %d pipe_id= %d\n",
 				 mconfig->pipe->state, mconfig->pipe->ppl_id);
 		return -EIO;
 	}
@@ -1233,7 +1233,7 @@ int skl_delete_pipe(struct skl_dev *skl, struct skl_pipe *pipe)
 
 	dev_dbg(skl->dev, "%s: pipe = %d\n", __func__, pipe->ppl_id);
 
-	/* If pipe was not created in FW, do not try to delete it */
+	/* If pipe was yest created in FW, do yest try to delete it */
 	if (pipe->state < SKL_PIPE_CREATED)
 		return 0;
 
@@ -1279,7 +1279,7 @@ int skl_run_pipe(struct skl_dev *skl, struct skl_pipe *pipe)
 
 	dev_dbg(skl->dev, "%s: pipe = %d\n", __func__, pipe->ppl_id);
 
-	/* If pipe was not created in FW, do not try to pause or delete */
+	/* If pipe was yest created in FW, do yest try to pause or delete */
 	if (pipe->state < SKL_PIPE_CREATED)
 		return 0;
 
@@ -1313,7 +1313,7 @@ int skl_stop_pipe(struct skl_dev *skl, struct skl_pipe *pipe)
 
 	dev_dbg(skl->dev, "In %s pipe=%d\n", __func__, pipe->ppl_id);
 
-	/* If pipe was not created in FW, do not try to pause or delete */
+	/* If pipe was yest created in FW, do yest try to pause or delete */
 	if (pipe->state < SKL_PIPE_PAUSED)
 		return 0;
 
@@ -1336,7 +1336,7 @@ int skl_reset_pipe(struct skl_dev *skl, struct skl_pipe *pipe)
 {
 	int ret;
 
-	/* If pipe was not created in FW, do not try to pause or delete */
+	/* If pipe was yest created in FW, do yest try to pause or delete */
 	if (pipe->state < SKL_PIPE_PAUSED)
 		return 0;
 

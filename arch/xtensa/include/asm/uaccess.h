@@ -22,7 +22,7 @@
 
 /*
  * The fs value determines whether argument validity checking should
- * be performed or not.  If get_fs() == USER_DS, checking is
+ * be performed or yest.  If get_fs() == USER_DS, checking is
  * performed, with get_fs() == KERNEL_DS, checking is bypassed.
  *
  * For historical reasons (Data Segment Register?), these macros are
@@ -55,26 +55,26 @@
  * is too much of a performance impact. Thus we have a few rather ugly
  * macros here, and hide all the uglyness from the user.
  *
- * Careful to not
+ * Careful to yest
  * (a) re-use the arguments for side effects (sizeof is ok)
- * (b) require any knowledge of processes at this stage
+ * (b) require any kyeswledge of processes at this stage
  */
 #define put_user(x, ptr)	__put_user_check((x), (ptr), sizeof(*(ptr)))
 #define get_user(x, ptr) __get_user_check((x), (ptr), sizeof(*(ptr)))
 
 /*
  * The "__xxx" versions of the user access functions are versions that
- * do not verify the address space, that must have been done previously
+ * do yest verify the address space, that must have been done previously
  * with a separate "access_ok()" call (this is used when we do multiple
  * accesses to the same area of user memory).
  */
-#define __put_user(x, ptr) __put_user_nocheck((x), (ptr), sizeof(*(ptr)))
-#define __get_user(x, ptr) __get_user_nocheck((x), (ptr), sizeof(*(ptr)))
+#define __put_user(x, ptr) __put_user_yescheck((x), (ptr), sizeof(*(ptr)))
+#define __get_user(x, ptr) __get_user_yescheck((x), (ptr), sizeof(*(ptr)))
 
 
 extern long __put_user_bad(void);
 
-#define __put_user_nocheck(x, ptr, size)		\
+#define __put_user_yescheck(x, ptr, size)		\
 ({							\
 	long __pu_err;					\
 	__put_user_size((x), (ptr), (size), __pu_err);	\
@@ -117,8 +117,8 @@ do {									\
  * Kernel tries to access the variable.
  * Unaligned exception occurs.
  * Unaligned exception handler tries to make aligned accesses.
- * Double exception occurs for MMU-related cause (e.g., page not mapped).
- * do_page_fault() thinks the fault address belongs to the kernel, not the
+ * Double exception occurs for MMU-related cause (e.g., page yest mapped).
+ * do_page_fault() thinks the fault address belongs to the kernel, yest the
  * user, and panics.
  *
  * The kernel currently prohibits user unaligned accesses.  We use the
@@ -145,8 +145,8 @@ do {									\
 
 /*
  * We don't tell gcc that we are accessing memory, but this is OK
- * because we do not write to any memory gcc knows about, so there
- * are no aliasing issues.
+ * because we do yest write to any memory gcc kyesws about, so there
+ * are yes aliasing issues.
  *
  * WARNING: If you modify this macro at all, verify that the
  * __check_align_* macros still work.
@@ -170,7 +170,7 @@ __asm__ __volatile__(					\
 	:[err] "+r"(err_), [tmp] "=r"(cb), [mem] "=m"(*(addr_))		\
 	:[x] "r"(x_), [efault] "i"(-EFAULT))
 
-#define __get_user_nocheck(x, ptr, size)			\
+#define __get_user_yescheck(x, ptr, size)			\
 ({								\
 	long __gu_err;						\
 	__get_user_size((x), (ptr), (size), __gu_err);		\
@@ -263,9 +263,9 @@ raw_copy_to_user(void __user *to, const void *from, unsigned long n)
 #define INLINE_COPY_TO_USER
 
 /*
- * We need to return the number of bytes not cleared.  Our memset()
+ * We need to return the number of bytes yest cleared.  Our memset()
  * returns zero if a problem occurs while accessing user-space memory.
- * In that event, return no memory cleared.  Otherwise, zero for
+ * In that event, return yes memory cleared.  Otherwise, zero for
  * success.
  */
 

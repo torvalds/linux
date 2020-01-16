@@ -43,7 +43,7 @@
 
 #ifdef __ASSEMBLY__
 /*
- * This defines the normal kernel pt-regs layout.
+ * This defines the yesrmal kernel pt-regs layout.
  *
  * regs a3-a6 and d6-d7 are preserved by C code
  * the kernel doesn't mess with usp unless it needs to
@@ -53,7 +53,7 @@
 #ifdef CONFIG_COLDFIRE
 #ifdef CONFIG_COLDFIRE_SW_A7
 /*
- * This is made a little more tricky on older ColdFires. There is no
+ * This is made a little more tricky on older ColdFires. There is yes
  * separate supervisor and user stack pointers. Need to artificially
  * construct a usp in software... When doing this we need to disable
  * interrupts, otherwise bad things will happen.
@@ -64,7 +64,7 @@
 .macro SAVE_ALL_SYS
 	move	#0x2700,%sr		/* disable intrs */
 	btst	#5,%sp@(2)		/* from user? */
-	bnes	6f			/* no, skip */
+	bnes	6f			/* yes, skip */
 	movel	%sp,sw_usp		/* save user sp */
 	addql	#8,sw_usp		/* remove exception */
 	movel	sw_ksp,%sp		/* kernel sp */
@@ -89,7 +89,7 @@
 
 .macro SAVE_ALL_INT
 	SAVE_ALL_SYS
-	moveq	#-1,%d0			/* not system call entry */
+	moveq	#-1,%d0			/* yest system call entry */
 	movel	%d0,%sp@(PT_OFF_ORIG_D0)
 .endm
 
@@ -218,8 +218,8 @@
 
 /*
  * Register %a2 is reserved and set to current task on MMU enabled systems.
- * Non-MMU systems do not reserve %a2 in this way, and this definition is
- * not used for them.
+ * Non-MMU systems do yest reserve %a2 in this way, and this definition is
+ * yest used for them.
  */
 #ifdef CONFIG_MMU
 

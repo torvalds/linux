@@ -60,7 +60,7 @@ static const u32 xtensa_hw_ctl[] = {
 	[PERF_COUNT_HW_INSTRUCTIONS]		= XTENSA_PMU_MASK(2, 0xffff),
 	[PERF_COUNT_HW_CACHE_REFERENCES]	= XTENSA_PMU_MASK(10, 0x1),
 	[PERF_COUNT_HW_CACHE_MISSES]		= XTENSA_PMU_MASK(12, 0x1),
-	/* Taken and non-taken branches + taken loop ends */
+	/* Taken and yesn-taken branches + taken loop ends */
 	[PERF_COUNT_HW_BRANCH_INSTRUCTIONS]	= XTENSA_PMU_MASK(2, 0x490),
 	/* Instruction-related + other global stall cycles */
 	[PERF_COUNT_HW_STALLED_CYCLES_FRONTEND]	= XTENSA_PMU_MASK(4, 0x1ff),

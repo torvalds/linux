@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -146,7 +146,7 @@
 					DRM_COLOR_LUT_EQUAL_CHANNELS, \
 	}
 
-/* Keep in gen based order, and chronological order within a gen */
+/* Keep in gen based order, and chroyeslogical order within a gen */
 
 #define GEN_DEFAULT_PAGE_SIZES \
 	.page_sizes = I915_GTT_PAGE_SIZE_4K
@@ -166,7 +166,7 @@
 	.hws_needs_physical = 1, \
 	.unfenced_needs_alignment = 1, \
 	.engine_mask = BIT(RCS0), \
-	.has_snoop = true, \
+	.has_syesop = true, \
 	.has_coherent_ggtt = false, \
 	I9XX_PIPE_OFFSETS, \
 	I9XX_CURSOR_OFFSETS, \
@@ -184,7 +184,7 @@
 	.hws_needs_physical = 1, \
 	.unfenced_needs_alignment = 1, \
 	.engine_mask = BIT(RCS0), \
-	.has_snoop = true, \
+	.has_syesop = true, \
 	.has_coherent_ggtt = false, \
 	I845_PIPE_OFFSETS, \
 	I845_CURSOR_OFFSETS, \
@@ -219,7 +219,7 @@ static const struct intel_device_info intel_i865g_info = {
 	.display.has_gmch = 1, \
 	.gpu_reset_clobbers_display = true, \
 	.engine_mask = BIT(RCS0), \
-	.has_snoop = true, \
+	.has_syesop = true, \
 	.has_coherent_ggtt = true, \
 	I9XX_PIPE_OFFSETS, \
 	I9XX_CURSOR_OFFSETS, \
@@ -305,7 +305,7 @@ static const struct intel_device_info intel_pineview_m_info = {
 	.display.has_gmch = 1, \
 	.gpu_reset_clobbers_display = true, \
 	.engine_mask = BIT(RCS0), \
-	.has_snoop = true, \
+	.has_syesop = true, \
 	.has_coherent_ggtt = true, \
 	I9XX_PIPE_OFFSETS, \
 	I9XX_CURSOR_OFFSETS, \
@@ -318,7 +318,7 @@ static const struct intel_device_info intel_i965g_info = {
 	PLATFORM(INTEL_I965G),
 	.display.has_overlay = 1,
 	.hws_needs_physical = 1,
-	.has_snoop = false,
+	.has_syesop = false,
 };
 
 static const struct intel_device_info intel_i965gm_info = {
@@ -329,7 +329,7 @@ static const struct intel_device_info intel_i965gm_info = {
 	.display.has_overlay = 1,
 	.display.supports_tv = 1,
 	.hws_needs_physical = 1,
-	.has_snoop = false,
+	.has_syesop = false,
 };
 
 static const struct intel_device_info intel_g45_info = {
@@ -354,9 +354,9 @@ static const struct intel_device_info intel_gm45_info = {
 	.pipe_mask = BIT(PIPE_A) | BIT(PIPE_B), \
 	.display.has_hotplug = 1, \
 	.engine_mask = BIT(RCS0) | BIT(VCS0), \
-	.has_snoop = true, \
+	.has_syesop = true, \
 	.has_coherent_ggtt = true, \
-	/* ilk does support rc6, but we do not implement [power] contexts */ \
+	/* ilk does support rc6, but we do yest implement [power] contexts */ \
 	.has_rc6 = 0, \
 	I9XX_PIPE_OFFSETS, \
 	I9XX_CURSOR_OFFSETS, \
@@ -495,7 +495,7 @@ static const struct intel_device_info intel_valleyview_info = {
 	.display.has_hotplug = 1,
 	.ppgtt_type = INTEL_PPGTT_ALIASING,
 	.ppgtt_size = 31,
-	.has_snoop = true,
+	.has_syesop = true,
 	.has_coherent_ggtt = false,
 	.engine_mask = BIT(RCS0) | BIT(VCS0) | BIT(BCS0),
 	.display_mmio_offset = VLV_DISPLAY_BASE,
@@ -564,7 +564,7 @@ static const struct intel_device_info intel_broadwell_rsvd_info = {
 	BDW_PLATFORM,
 	.gt = 3,
 	/* According to the device ID those devices are GT3, they were
-	 * previously treated as not GT3, keep it like that.
+	 * previously treated as yest GT3, keep it like that.
 	 */
 };
 
@@ -591,7 +591,7 @@ static const struct intel_device_info intel_cherryview_info = {
 	.ppgtt_type = INTEL_PPGTT_ALIASING,
 	.ppgtt_size = 32,
 	.has_reset_engine = 1,
-	.has_snoop = true,
+	.has_syesop = true,
 	.has_coherent_ggtt = false,
 	.display_mmio_offset = VLV_DISPLAY_BASE,
 	CHV_PIPE_OFFSETS,
@@ -669,7 +669,7 @@ static const struct intel_device_info intel_skylake_gt4_info = {
 	.ppgtt_type = INTEL_PPGTT_FULL, \
 	.ppgtt_size = 48, \
 	.has_reset_engine = 1, \
-	.has_snoop = true, \
+	.has_syesop = true, \
 	.has_coherent_ggtt = false, \
 	.display.has_ipc = 1, \
 	HSW_PIPE_OFFSETS, \
@@ -741,7 +741,7 @@ static const struct intel_device_info intel_coffeelake_gt3_info = {
 	.has_coherent_ggtt = false, \
 	GLK_COLORS
 
-static const struct intel_device_info intel_cannonlake_info = {
+static const struct intel_device_info intel_canyesnlake_info = {
 	GEN10_FEATURES,
 	PLATFORM(INTEL_CANNONLAKE),
 	.gt = 2,
@@ -897,7 +897,7 @@ static const struct pci_device_id pciidlist[] = {
 	INTEL_WHL_U_GT3_IDS(&intel_coffeelake_gt3_info),
 	INTEL_CML_GT1_IDS(&intel_coffeelake_gt1_info),
 	INTEL_CML_GT2_IDS(&intel_coffeelake_gt2_info),
-	INTEL_CNL_IDS(&intel_cannonlake_info),
+	INTEL_CNL_IDS(&intel_canyesnlake_info),
 	INTEL_ICL_11_IDS(&intel_icelake_11_info),
 	INTEL_EHL_IDS(&intel_elkhartlake_info),
 	INTEL_TGL_12_IDS(&intel_tigerlake_12_info),
@@ -910,7 +910,7 @@ static void i915_pci_remove(struct pci_dev *pdev)
 	struct drm_i915_private *i915;
 
 	i915 = pci_get_drvdata(pdev);
-	if (!i915) /* driver load aborted, nothing to cleanup */
+	if (!i915) /* driver load aborted, yesthing to cleanup */
 		return;
 
 	i915_driver_remove(i915);
@@ -965,7 +965,7 @@ static int i915_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	if (intel_info->require_force_probe &&
 	    !force_probe(pdev->device, i915_modparams.force_probe)) {
-		DRM_INFO("Your graphics device %04x is not properly supported by the driver in this\n"
+		DRM_INFO("Your graphics device %04x is yest properly supported by the driver in this\n"
 			 "kernel version. To force driver probe anyway, use i915.force_probe=%04x\n"
 			 "module parameter or CONFIG_DRM_I915_FORCE_PROBE=%04x configuration option,\n"
 			 "or (recommended) check for kernel updates.\n",
@@ -1040,7 +1040,7 @@ static int __init i915_init(void)
 		use_kms = false;
 
 	if (!use_kms) {
-		/* Silently fail loading to not upset userspace. */
+		/* Silently fail loading to yest upset userspace. */
 		DRM_DEBUG_DRIVER("KMS disabled.\n");
 		return 0;
 	}

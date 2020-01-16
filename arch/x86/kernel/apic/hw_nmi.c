@@ -14,7 +14,7 @@
 
 #include <linux/cpumask.h>
 #include <linux/kdebug.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/kprobes.h>
 #include <linux/nmi.h>
 #include <linux/init.h>

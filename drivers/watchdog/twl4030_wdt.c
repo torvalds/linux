@@ -2,7 +2,7 @@
 /*
  * Copyright (C) Nokia Corporation
  *
- * Written by Timo Kokkonen <timo.t.kokkonen at nokia.com>
+ * Written by Timo Kokkonen <timo.t.kokkonen at yeskia.com>
  */
 
 #include <linux/module.h>
@@ -15,9 +15,9 @@
 
 #define TWL4030_WATCHDOG_CFG_REG_OFFS	0x3
 
-static bool nowayout = WATCHDOG_NOWAYOUT;
-module_param(nowayout, bool, 0);
-MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started "
+static bool yeswayout = WATCHDOG_NOWAYOUT;
+module_param(yeswayout, bool, 0);
+MODULE_PARM_DESC(yeswayout, "Watchdog canyest be stopped once started "
 	"(default=" __MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
 
 static int twl4030_wdt_write(unsigned char val)
@@ -72,7 +72,7 @@ static int twl4030_wdt_probe(struct platform_device *pdev)
 	wdt->max_timeout	= 30;
 	wdt->parent = dev;
 
-	watchdog_set_nowayout(wdt, nowayout);
+	watchdog_set_yeswayout(wdt, yeswayout);
 	platform_set_drvdata(pdev, wdt);
 
 	twl4030_wdt_stop(wdt);

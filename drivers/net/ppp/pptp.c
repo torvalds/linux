@@ -9,7 +9,7 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/netdevice.h>
 #include <linux/net.h>
 #include <linux/skbuff.h>
@@ -19,7 +19,7 @@
 #include <linux/ppp_defs.h>
 #include <linux/if_pppox.h>
 #include <linux/ppp-ioctl.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/file.h>
 #include <linux/in.h>
 #include <linux/ip.h>
@@ -269,7 +269,7 @@ static int pptp_rcv_core(struct sock *sk, struct sk_buff *skb)
 	header = (struct pptp_gre_header *)(skb->data);
 	headersize  = sizeof(*header);
 
-	/* test if acknowledgement present */
+	/* test if ackyeswledgement present */
 	if (GRE_IS_ACK(header->gre_hd.flags)) {
 		__u32 ack;
 
@@ -612,16 +612,16 @@ static const struct proto_ops pptp_ops = {
 	.release    = pptp_release,
 	.bind       = pptp_bind,
 	.connect    = pptp_connect,
-	.socketpair = sock_no_socketpair,
-	.accept     = sock_no_accept,
+	.socketpair = sock_yes_socketpair,
+	.accept     = sock_yes_accept,
 	.getname    = pptp_getname,
-	.listen     = sock_no_listen,
-	.shutdown   = sock_no_shutdown,
-	.setsockopt = sock_no_setsockopt,
-	.getsockopt = sock_no_getsockopt,
-	.sendmsg    = sock_no_sendmsg,
-	.recvmsg    = sock_no_recvmsg,
-	.mmap       = sock_no_mmap,
+	.listen     = sock_yes_listen,
+	.shutdown   = sock_yes_shutdown,
+	.setsockopt = sock_yes_setsockopt,
+	.getsockopt = sock_yes_getsockopt,
+	.sendmsg    = sock_yes_sendmsg,
+	.recvmsg    = sock_yes_recvmsg,
+	.mmap       = sock_yes_mmap,
 	.ioctl      = pppox_ioctl,
 #ifdef CONFIG_COMPAT
 	.compat_ioctl = pppox_compat_ioctl,

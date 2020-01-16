@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
- * btnode.c - NILFS B-tree node cache
+ * btyesde.c - NILFS B-tree yesde cache
  *
  * Copyright (C) 2005-2008 Nippon Telegraph and Telephone Corporation.
  *
@@ -18,21 +18,21 @@
 #include "mdt.h"
 #include "dat.h"
 #include "page.h"
-#include "btnode.h"
+#include "btyesde.h"
 
-void nilfs_btnode_cache_clear(struct address_space *btnc)
+void nilfs_btyesde_cache_clear(struct address_space *btnc)
 {
 	invalidate_mapping_pages(btnc, 0, -1);
-	truncate_inode_pages(btnc, 0);
+	truncate_iyesde_pages(btnc, 0);
 }
 
 struct buffer_head *
-nilfs_btnode_create_block(struct address_space *btnc, __u64 blocknr)
+nilfs_btyesde_create_block(struct address_space *btnc, __u64 blocknr)
 {
-	struct inode *inode = NILFS_BTNC_I(btnc);
+	struct iyesde *iyesde = NILFS_BTNC_I(btnc);
 	struct buffer_head *bh;
 
-	bh = nilfs_grab_buffer(inode, btnc, blocknr, BIT(BH_NILFS_Node));
+	bh = nilfs_grab_buffer(iyesde, btnc, blocknr, BIT(BH_NILFS_Node));
 	if (unlikely(!bh))
 		return NULL;
 
@@ -41,8 +41,8 @@ nilfs_btnode_create_block(struct address_space *btnc, __u64 blocknr)
 		brelse(bh);
 		BUG();
 	}
-	memset(bh->b_data, 0, i_blocksize(inode));
-	bh->b_bdev = inode->i_sb->s_bdev;
+	memset(bh->b_data, 0, i_blocksize(iyesde));
+	bh->b_bdev = iyesde->i_sb->s_bdev;
 	bh->b_blocknr = blocknr;
 	set_buffer_mapped(bh);
 	set_buffer_uptodate(bh);
@@ -52,16 +52,16 @@ nilfs_btnode_create_block(struct address_space *btnc, __u64 blocknr)
 	return bh;
 }
 
-int nilfs_btnode_submit_block(struct address_space *btnc, __u64 blocknr,
+int nilfs_btyesde_submit_block(struct address_space *btnc, __u64 blocknr,
 			      sector_t pblocknr, int mode, int mode_flags,
 			      struct buffer_head **pbh, sector_t *submit_ptr)
 {
 	struct buffer_head *bh;
-	struct inode *inode = NILFS_BTNC_I(btnc);
+	struct iyesde *iyesde = NILFS_BTNC_I(btnc);
 	struct page *page;
 	int err;
 
-	bh = nilfs_grab_buffer(inode, btnc, blocknr, BIT(BH_NILFS_Node));
+	bh = nilfs_grab_buffer(iyesde, btnc, blocknr, BIT(BH_NILFS_Node));
 	if (unlikely(!bh))
 		return -ENOMEM;
 
@@ -73,8 +73,8 @@ int nilfs_btnode_submit_block(struct address_space *btnc, __u64 blocknr,
 
 	if (pblocknr == 0) {
 		pblocknr = blocknr;
-		if (inode->i_ino != NILFS_DAT_INO) {
-			struct the_nilfs *nilfs = inode->i_sb->s_fs_info;
+		if (iyesde->i_iyes != NILFS_DAT_INO) {
+			struct the_nilfs *nilfs = iyesde->i_sb->s_fs_info;
 
 			/* blocknr is a virtual block number */
 			err = nilfs_dat_translate(nilfs->ns_dat, blocknr,
@@ -101,7 +101,7 @@ int nilfs_btnode_submit_block(struct address_space *btnc, __u64 blocknr,
 		goto found;
 	}
 	set_buffer_mapped(bh);
-	bh->b_bdev = inode->i_sb->s_bdev;
+	bh->b_bdev = iyesde->i_sb->s_bdev;
 	bh->b_blocknr = pblocknr; /* set block address for read */
 	bh->b_end_io = end_buffer_read_sync;
 	get_bh(bh);
@@ -119,13 +119,13 @@ out_locked:
 }
 
 /**
- * nilfs_btnode_delete - delete B-tree node buffer
+ * nilfs_btyesde_delete - delete B-tree yesde buffer
  * @bh: buffer to be deleted
  *
- * nilfs_btnode_delete() invalidates the specified buffer and delete the page
+ * nilfs_btyesde_delete() invalidates the specified buffer and delete the page
  * including the buffer if the page gets unbusy.
  */
-void nilfs_btnode_delete(struct buffer_head *bh)
+void nilfs_btyesde_delete(struct buffer_head *bh)
 {
 	struct address_space *mapping;
 	struct page *page = bh->b_page;
@@ -143,21 +143,21 @@ void nilfs_btnode_delete(struct buffer_head *bh)
 	put_page(page);
 
 	if (!still_dirty && mapping)
-		invalidate_inode_pages2_range(mapping, index, index);
+		invalidate_iyesde_pages2_range(mapping, index, index);
 }
 
 /**
- * nilfs_btnode_prepare_change_key
+ * nilfs_btyesde_prepare_change_key
  *  prepare to move contents of the block for old key to one of new key.
- *  the old buffer will not be removed, but might be reused for new buffer.
+ *  the old buffer will yest be removed, but might be reused for new buffer.
  *  it might return -ENOMEM because of memory allocation errors,
  *  and might return -EIO because of disk read errors.
  */
-int nilfs_btnode_prepare_change_key(struct address_space *btnc,
-				    struct nilfs_btnode_chkey_ctxt *ctxt)
+int nilfs_btyesde_prepare_change_key(struct address_space *btnc,
+				    struct nilfs_btyesde_chkey_ctxt *ctxt)
 {
 	struct buffer_head *obh, *nbh;
-	struct inode *inode = NILFS_BTNC_I(btnc);
+	struct iyesde *iyesde = NILFS_BTNC_I(btnc);
 	__u64 oldkey = ctxt->oldkey, newkey = ctxt->newkey;
 	int err;
 
@@ -167,7 +167,7 @@ int nilfs_btnode_prepare_change_key(struct address_space *btnc,
 	obh = ctxt->bh;
 	ctxt->newbh = NULL;
 
-	if (inode->i_blkbits == PAGE_SHIFT) {
+	if (iyesde->i_blkbits == PAGE_SHIFT) {
 		struct page *opage = obh->b_page;
 		lock_page(opage);
 retry:
@@ -182,8 +182,8 @@ retry:
 		err = __xa_insert(&btnc->i_pages, newkey, opage, GFP_NOFS);
 		xa_unlock_irq(&btnc->i_pages);
 		/*
-		 * Note: page->index will not change to newkey until
-		 * nilfs_btnode_commit_change_key() will be called.
+		 * Note: page->index will yest change to newkey until
+		 * nilfs_btyesde_commit_change_key() will be called.
 		 * To protect the page in intermediate state, the page lock
 		 * is held.
 		 */
@@ -192,14 +192,14 @@ retry:
 		else if (err != -EBUSY)
 			goto failed_unlock;
 
-		err = invalidate_inode_pages2_range(btnc, newkey, newkey);
+		err = invalidate_iyesde_pages2_range(btnc, newkey, newkey);
 		if (!err)
 			goto retry;
 		/* fallback to copy mode */
 		unlock_page(opage);
 	}
 
-	nbh = nilfs_btnode_create_block(btnc, newkey);
+	nbh = nilfs_btyesde_create_block(btnc, newkey);
 	if (!nbh)
 		return -ENOMEM;
 
@@ -213,11 +213,11 @@ retry:
 }
 
 /**
- * nilfs_btnode_commit_change_key
+ * nilfs_btyesde_commit_change_key
  *  commit the change_key operation prepared by prepare_change_key().
  */
-void nilfs_btnode_commit_change_key(struct address_space *btnc,
-				    struct nilfs_btnode_chkey_ctxt *ctxt)
+void nilfs_btyesde_commit_change_key(struct address_space *btnc,
+				    struct nilfs_btyesde_chkey_ctxt *ctxt)
 {
 	struct buffer_head *obh = ctxt->bh, *nbh = ctxt->newbh;
 	__u64 oldkey = ctxt->oldkey, newkey = ctxt->newkey;
@@ -248,16 +248,16 @@ void nilfs_btnode_commit_change_key(struct address_space *btnc,
 
 		nbh->b_blocknr = newkey;
 		ctxt->bh = nbh;
-		nilfs_btnode_delete(obh); /* will decrement bh->b_count */
+		nilfs_btyesde_delete(obh); /* will decrement bh->b_count */
 	}
 }
 
 /**
- * nilfs_btnode_abort_change_key
+ * nilfs_btyesde_abort_change_key
  *  abort the change_key operation prepared by prepare_change_key().
  */
-void nilfs_btnode_abort_change_key(struct address_space *btnc,
-				   struct nilfs_btnode_chkey_ctxt *ctxt)
+void nilfs_btyesde_abort_change_key(struct address_space *btnc,
+				   struct nilfs_btyesde_chkey_ctxt *ctxt)
 {
 	struct buffer_head *nbh = ctxt->newbh;
 	__u64 oldkey = ctxt->oldkey, newkey = ctxt->newkey;

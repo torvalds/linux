@@ -160,11 +160,11 @@ int mvebu_setup_boot_addr_wa(unsigned int crypto_eng_target,
 
 static int __init mvebu_v7_pmsu_init(void)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 	struct resource res;
 	int ret = 0;
 
-	np = of_find_matching_node(NULL, of_pmsu_table);
+	np = of_find_matching_yesde(NULL, of_pmsu_table);
 	if (!np)
 		return 0;
 
@@ -200,7 +200,7 @@ static int __init mvebu_v7_pmsu_init(void)
 	}
 
  out:
-	of_node_put(np);
+	of_yesde_put(np);
 	return ret;
 }
 
@@ -234,7 +234,7 @@ static int mvebu_v7_pmsu_idle_prepare(unsigned long flags)
 
 	/*
 	 * Adjust the PMSU configuration to wait for WFI signal, enable
-	 * IRQ and FIQ as wakeup events, set wait for snoop queue empty
+	 * IRQ and FIQ as wakeup events, set wait for syesop queue empty
 	 * indication and mask IRQ and FIQ from CPU
 	 */
 	reg = readl(pmsu_mp_base + PMSU_STATUS_AND_MASK(hw_cpu));
@@ -256,7 +256,7 @@ static int mvebu_v7_pmsu_idle_prepare(unsigned long flags)
 	writel(reg, pmsu_mp_base + PMSU_CONTROL_AND_CONFIG(hw_cpu));
 
 	if (flags & PMSU_PREPARE_SNOOP_DISABLE) {
-		/* Disable snoop disable by HW - SW is taking care of it */
+		/* Disable syesop disable by HW - SW is taking care of it */
 		reg = readl(pmsu_mp_base + PMSU_CPU_POWER_DOWN_CONTROL(hw_cpu));
 		reg |= PMSU_CPU_POWER_DOWN_DIS_SNP_Q_SKIP;
 		writel(reg, pmsu_mp_base + PMSU_CPU_POWER_DOWN_CONTROL(hw_cpu));
@@ -359,7 +359,7 @@ void mvebu_v7_pmsu_idle_exit(void)
 	writel(reg, pmsu_mp_base + PMSU_STATUS_AND_MASK(hw_cpu));
 }
 
-static int mvebu_v7_cpu_pm_notify(struct notifier_block *self,
+static int mvebu_v7_cpu_pm_yestify(struct yestifier_block *self,
 				    unsigned long action, void *hcpu)
 {
 	if (action == CPU_PM_ENTER) {
@@ -372,13 +372,13 @@ static int mvebu_v7_cpu_pm_notify(struct notifier_block *self,
 	return NOTIFY_OK;
 }
 
-static struct notifier_block mvebu_v7_cpu_pm_notifier = {
-	.notifier_call = mvebu_v7_cpu_pm_notify,
+static struct yestifier_block mvebu_v7_cpu_pm_yestifier = {
+	.yestifier_call = mvebu_v7_cpu_pm_yestify,
 };
 
 static struct platform_device mvebu_v7_cpuidle_device;
 
-static int broken_idle(struct device_node *np)
+static int broken_idle(struct device_yesde *np)
 {
 	if (of_property_read_bool(np, "broken-idle")) {
 		pr_warn("CPU idle is currently broken: disabling\n");
@@ -390,10 +390,10 @@ static int broken_idle(struct device_node *np)
 
 static __init int armada_370_cpuidle_init(void)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 	phys_addr_t redirect_reg;
 
-	np = of_find_compatible_node(NULL, NULL, "marvell,coherency-fabric");
+	np = of_find_compatible_yesde(NULL, NULL, "marvell,coherency-fabric");
 	if (!np)
 		return -ENODEV;
 
@@ -418,20 +418,20 @@ static __init int armada_370_cpuidle_init(void)
 	mvebu_v7_cpuidle_device.name = "cpuidle-armada-370";
 
 end:
-	of_node_put(np);
+	of_yesde_put(np);
 	return 0;
 }
 
 static __init int armada_38x_cpuidle_init(void)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 	void __iomem *mpsoc_base;
 	u32 reg;
 
 	pr_warn("CPU idle is currently broken on Armada 38x: disabling\n");
 	return 0;
 
-	np = of_find_compatible_node(NULL, NULL,
+	np = of_find_compatible_yesde(NULL, NULL,
 				     "marvell,armada-380-coherency-fabric");
 	if (!np)
 		return -ENODEV;
@@ -439,9 +439,9 @@ static __init int armada_38x_cpuidle_init(void)
 	if (broken_idle(np))
 		goto end;
 
-	of_node_put(np);
+	of_yesde_put(np);
 
-	np = of_find_compatible_node(NULL, NULL,
+	np = of_find_compatible_yesde(NULL, NULL,
 				     "marvell,armada-380-mpcore-soc-ctrl");
 	if (!np)
 		return -ENODEV;
@@ -467,15 +467,15 @@ static __init int armada_38x_cpuidle_init(void)
 	mvebu_v7_cpuidle_device.name = "cpuidle-armada-38x";
 
 end:
-	of_node_put(np);
+	of_yesde_put(np);
 	return 0;
 }
 
 static __init int armada_xp_cpuidle_init(void)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 
-	np = of_find_compatible_node(NULL, NULL, "marvell,coherency-fabric");
+	np = of_find_compatible_yesde(NULL, NULL, "marvell,coherency-fabric");
 	if (!np)
 		return -ENODEV;
 
@@ -487,19 +487,19 @@ static __init int armada_xp_cpuidle_init(void)
 	mvebu_v7_cpuidle_device.name = "cpuidle-armada-xp";
 
 end:
-	of_node_put(np);
+	of_yesde_put(np);
 	return 0;
 }
 
 static int __init mvebu_v7_cpu_pm_init(void)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 	int ret;
 
-	np = of_find_matching_node(NULL, of_pmsu_table);
+	np = of_find_matching_yesde(NULL, of_pmsu_table);
 	if (!np)
 		return 0;
-	of_node_put(np);
+	of_yesde_put(np);
 
 	/*
 	 * Currently the CPU idle support for Armada 38x is broken, as
@@ -526,7 +526,7 @@ static int __init mvebu_v7_cpu_pm_init(void)
 	mvebu_v7_pmsu_enable_l2_powerdown_onidle();
 	if (mvebu_v7_cpuidle_device.name)
 		platform_device_register(&mvebu_v7_cpuidle_device);
-	cpu_pm_register_notifier(&mvebu_v7_cpu_pm_notifier);
+	cpu_pm_register_yestifier(&mvebu_v7_cpu_pm_yestifier);
 
 	return 0;
 }

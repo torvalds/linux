@@ -53,13 +53,13 @@ int enetc_send_cmd(struct enetc_si *si, struct enetc_cbd *cbd)
 	i = (i + 1) % ring->bd_count;
 
 	ring->next_to_use = i;
-	/* let H/W know BD ring has been updated */
+	/* let H/W kyesw BD ring has been updated */
 	enetc_wr_reg(ring->pir, i);
 
 	do {
 		if (enetc_rd_reg(ring->cir) == i)
 			break;
-		udelay(10); /* cannot sleep, rtnl_lock() */
+		udelay(10); /* canyest sleep, rtnl_lock() */
 		timeout -= 10;
 	} while (timeout);
 

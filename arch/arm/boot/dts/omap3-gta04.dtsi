@@ -153,7 +153,7 @@
 	};
 
 	hsusb2_phy: hsusb2_phy {
-		compatible = "usb-nop-xceiv";
+		compatible = "usb-yesp-xceiv";
 		reset-gpios = <&gpio6 14 GPIO_ACTIVE_LOW>;
 		#phy-cells = <0>;
 	};
@@ -629,14 +629,14 @@
 	pinctrl-0 = <&mmc1_pins>;
 	vmmc-supply = <&vmmc1>;
 	bus-width = <4>;
-	ti,non-removable;
-	broken-cd;	/* hardware has no CD */
+	ti,yesn-removable;
+	broken-cd;	/* hardware has yes CD */
 };
 
 &mmc2 {
 	vmmc-supply = <&vaux4>;
 	bus-width = <4>;
-	ti,non-removable;
+	ti,yesn-removable;
 	cap-power-off-card;
 	mmc-pwrseq = <&wifi_pwrseq>;
 };
@@ -679,7 +679,7 @@
 		compatible = "wi2wi,w2sg0004";
 		pinctrl-names = "default";
 		pinctrl-0 = <&gps_pins>;
-		sirf,onoff-gpios = <&gpio5 17 GPIO_ACTIVE_HIGH>;
+		sirf,oyesff-gpios = <&gpio5 17 GPIO_ACTIVE_HIGH>;
 		lna-supply = <&vsim>;
 		vcc-supply = <&ldo_3v3>;
 	};
@@ -868,6 +868,6 @@
 				pclk-sample = <1>;/* Falling */
 			};
 		};
-		/* port@1 and port@2 are not used by GTA04 */
+		/* port@1 and port@2 are yest used by GTA04 */
 	};
 };

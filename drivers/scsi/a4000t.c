@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Detection routine for the NCR53c710 based Amiga SCSI Controllers for Linux.
- *		Amiga Technologies A4000T SCSI controller.
+ *		Amiga Techyeslogies A4000T SCSI controller.
  *
  * Written 1997 by Alan Hourihane <alanh@fairlite.demon.co.uk>
  * plus modifications of the 53c7xx.c driver to support the Amiga.

@@ -10,7 +10,7 @@ Required properties:
 - interrupts: interrupt for the device
 
 Optional properties:
-- dfx: phandle reference to the "DFX Server" node
+- dfx: phandle reference to the "DFX Server" yesde
 
 Example:
 

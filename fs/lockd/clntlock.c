@@ -63,18 +63,18 @@ struct nlm_host *nlmclnt_init(const struct nlmclnt_initdata *nlm_init)
 
 	host = nlmclnt_lookup_host(nlm_init->address, nlm_init->addrlen,
 				   nlm_init->protocol, nlm_version,
-				   nlm_init->hostname, nlm_init->noresvport,
+				   nlm_init->hostname, nlm_init->yesresvport,
 				   nlm_init->net, nlm_init->cred);
 	if (host == NULL)
-		goto out_nohost;
+		goto out_yeshost;
 	if (host->h_rpcclnt == NULL && nlm_bind_host(host) == NULL)
-		goto out_nobind;
+		goto out_yesbind;
 
 	host->h_nlmclnt_ops = nlm_init->nlmclnt_ops;
 	return host;
-out_nobind:
+out_yesbind:
 	nlmclnt_release_host(host);
-out_nohost:
+out_yeshost:
 	lockd_down(nlm_init->net);
 	return ERR_PTR(-ENOLCK);
 }
@@ -133,7 +133,7 @@ int nlmclnt_block(struct nlm_wait *block, struct nlm_rqst *req, long timeout)
 	long ret;
 
 	/* A borken server might ask us to block even if we didn't
-	 * request it. Just say no!
+	 * request it. Just say yes!
 	 */
 	if (block == NULL)
 		return -EAGAIN;
@@ -142,7 +142,7 @@ int nlmclnt_block(struct nlm_wait *block, struct nlm_rqst *req, long timeout)
 	 * to lose callbacks, however, so we're going to poll from
 	 * time to time just to make sure.
 	 *
-	 * For now, the retry frequency is pretty high; normally 
+	 * For yesw, the retry frequency is pretty high; yesrmally 
 	 * a 1 minute timeout would do. See the comment before
 	 * nlmclnt_lock for an explanation.
 	 */
@@ -170,7 +170,7 @@ __be32 nlmclnt_grant(const struct sockaddr *addr, const struct nlm_lock *lock)
 
 	/*
 	 * Look up blocked request based on arguments. 
-	 * Warning: must not use cookie to match it!
+	 * Warning: must yest use cookie to match it!
 	 */
 	spin_lock(&nlm_blocked_lock);
 	list_for_each_entry(block, &nlm_blocked, b_list) {
@@ -188,7 +188,7 @@ __be32 nlmclnt_grant(const struct sockaddr *addr, const struct nlm_lock *lock)
 			continue;
 		if (!rpc_cmp_addr(nlm_addr(block->b_host), addr))
 			continue;
-		if (nfs_compare_fh(NFS_FH(locks_inode(fl_blocked->fl_file)), fh) != 0)
+		if (nfs_compare_fh(NFS_FH(locks_iyesde(fl_blocked->fl_file)), fh) != 0)
 			continue;
 		/* Alright, we found a lock. Set the return status
 		 * and wake up the caller
@@ -242,7 +242,7 @@ reclaimer(void *ptr)
 	allow_signal(SIGKILL);
 
 	down_write(&host->h_rwsem);
-	lockd_up(net, NULL);	/* note: this cannot fail as lockd is already running */
+	lockd_up(net, NULL);	/* yeste: this canyest fail as lockd is already running */
 
 	dprintk("lockd: reclaiming locks for host %s\n", host->h_name);
 
@@ -263,7 +263,7 @@ restart:
 		/*
 		 * sending this thread a SIGKILL will result in any unreclaimed
 		 * locks being removed from the h_granted list. This means that
-		 * the kernel will not attempt to reclaim them again if a new
+		 * the kernel will yest attempt to reclaim them again if a new
 		 * reclaimer thread is spawned for this host.
 		 */
 		if (signalled())

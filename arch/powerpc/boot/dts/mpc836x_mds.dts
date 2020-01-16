@@ -361,7 +361,7 @@
 			interrupts = <32>;
 			interrupt-parent = <&qeic>;
 			local-mac-address = [ 00 00 00 00 00 00 ];
-			rx-clock-name = "none";
+			rx-clock-name = "yesne";
 			tx-clock-name = "clk9";
 			phy-handle = <&phy0>;
 			phy-connection-type = "rgmii-id";
@@ -376,7 +376,7 @@
 			interrupts = <33>;
 			interrupt-parent = <&qeic>;
 			local-mac-address = [ 00 00 00 00 00 00 ];
-			rx-clock-name = "none";
+			rx-clock-name = "yesne";
 			tx-clock-name = "clk4";
 			phy-handle = <&phy1>;
 			phy-connection-type = "rgmii-id";

@@ -22,12 +22,12 @@
  * are met:
  *
  *  - Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  *  - Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
+ *    yestice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
- *  - Neither the name of Intel Corporation nor the names of its
+ *  - Neither the name of Intel Corporation yesr the names of its
  *    contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
@@ -74,7 +74,7 @@
 #define OPA_SMA_TRAP_DATA_LINK_WIDTH            cpu_to_be16(2048)
 
 /*
- * Generic trap/notice other local changes flags (trap 144).
+ * Generic trap/yestice other local changes flags (trap 144).
  */
 #define	OPA_NOTICE_TRAP_LWDE_CHG        0x08 /* Link Width Downgrade Enable
 					      * changed
@@ -83,7 +83,7 @@
 #define OPA_NOTICE_TRAP_LWE_CHG         0x02 /* Link Width Enable changed */
 #define OPA_NOTICE_TRAP_NODE_DESC_CHG   0x01
 
-struct opa_mad_notice_attr {
+struct opa_mad_yestice_attr {
 	u8 generic_type;
 	u8 prod_type_msb;
 	__be16 prod_type_lsb;
@@ -238,7 +238,7 @@ struct ib_pma_portcounters_cong {
 
 /*
  * There should be an equivalent IB #define for the following, but
- * I cannot find it.
+ * I canyest find it.
  */
 #define OPA_CC_LOG_TYPE_HFI	2
 

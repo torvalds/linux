@@ -118,7 +118,7 @@ static void do_prt_fixups(struct acpi_prt_entry *entry,
 	for (i = 0; i < ARRAY_SIZE(prt_quirks); i++) {
 		quirk = &prt_quirks[i];
 
-		/* All current quirks involve link devices, not GSIs */
+		/* All current quirks involve link devices, yest GSIs */
 		if (dmi_check_system(quirk->system) &&
 		    entry->id.segment == quirk->segment &&
 		    entry->id.bus == quirk->bus &&
@@ -177,7 +177,7 @@ static int acpi_pci_irq_check_entry(acpi_handle handle, struct pci_dev *dev,
 	 * the link device) this interrupt is allocated from.
 	 * 
 	 * NOTE: Don't query the Link Device for IRQ information at this time
-	 *       because Link Device enumeration may not have occurred yet
+	 *       because Link Device enumeration may yest have occurred yet
 	 *       (e.g. exists somewhere 'below' this _PRT entry in the ACPI
 	 *       namespace).
 	 */
@@ -241,8 +241,8 @@ static int acpi_pci_irq_find_prt_entry(struct pci_dev *dev,
                           PCI Interrupt Routing Support
    -------------------------------------------------------------------------- */
 #ifdef CONFIG_X86_IO_APIC
-extern int noioapicquirk;
-extern int noioapicreroute;
+extern int yesioapicquirk;
+extern int yesioapicreroute;
 
 static int bridge_has_boot_interrupt_variant(struct pci_bus *bus)
 {
@@ -260,19 +260,19 @@ static int bridge_has_boot_interrupt_variant(struct pci_bus *bus)
 /*
  * Some chipsets (e.g. Intel 6700PXH) generate a legacy INTx when the IRQ
  * entry in the chipset's IO-APIC is masked (as, e.g. the RT kernel does
- * during interrupt handling). When this INTx generation cannot be disabled,
+ * during interrupt handling). When this INTx generation canyest be disabled,
  * we reroute these interrupts to their legacy equivalent to get rid of
  * spurious interrupts.
  */
 static int acpi_reroute_boot_interrupt(struct pci_dev *dev,
 				       struct acpi_prt_entry *entry)
 {
-	if (noioapicquirk || noioapicreroute) {
+	if (yesioapicquirk || yesioapicreroute) {
 		return 0;
 	} else {
 		switch (bridge_has_boot_interrupt_variant(dev->bus)) {
 		case 0:
-			/* no rerouting necessary */
+			/* yes rerouting necessary */
 			return 0;
 		case INTEL_IRQ_REROUTE_VARIANT:
 			/*
@@ -287,8 +287,8 @@ static int acpi_reroute_boot_interrupt(struct pci_dev *dev,
 			entry->index = (entry->index % 4) + 16;
 			return 1;
 		default:
-			dev_warn(&dev->dev, "Cannot reroute IRQ %d to legacy "
-				 "IRQ: unknown mapping\n", entry->index);
+			dev_warn(&dev->dev, "Canyest reroute IRQ %d to legacy "
+				 "IRQ: unkyeswn mapping\n", entry->index);
 			return -1;
 		}
 	}
@@ -359,7 +359,7 @@ static int acpi_isa_register_gsi(struct pci_dev *dev)
 	if (dev->irq > 0 && (dev->irq <= 0xF) &&
 	    acpi_isa_irq_available(dev->irq) &&
 	    (acpi_isa_irq_to_gsi(dev->irq, &dev_gsi) == 0)) {
-		dev_warn(&dev->dev, "PCI INT %c: no GSI - using ISA IRQ %d\n",
+		dev_warn(&dev->dev, "PCI INT %c: yes GSI - using ISA IRQ %d\n",
 			 pin_name(dev->pin), dev->irq);
 		acpi_register_gsi(&dev->dev, dev_gsi,
 				  ACPI_LEVEL_SENSITIVE,
@@ -379,12 +379,12 @@ static inline bool acpi_pci_irq_valid(struct pci_dev *dev, u8 pin)
 {
 #ifdef CONFIG_X86
 	/*
-	 * On x86 irq line 0xff means "unknown" or "no connection"
-	 * (PCI 3.0, Section 6.2.4, footnote on page 223).
+	 * On x86 irq line 0xff means "unkyeswn" or "yes connection"
+	 * (PCI 3.0, Section 6.2.4, footyeste on page 223).
 	 */
 	if (dev->irq == 0xff) {
 		dev->irq = IRQ_NOTCONNECTED;
-		dev_warn(&dev->dev, "PCI INT %c: not connected\n",
+		dev_warn(&dev->dev, "PCI INT %c: yest connected\n",
 			 pin_name(pin));
 		return false;
 	}
@@ -446,7 +446,7 @@ int acpi_pci_irq_enable(struct pci_dev *dev)
 
 	if (gsi < 0) {
 		/*
-		 * No IRQ known to the ACPI subsystem - maybe the BIOS /
+		 * No IRQ kyeswn to the ACPI subsystem - maybe the BIOS /
 		 * driver reported one, then use it. Exit in any case.
 		 */
 		if (!acpi_pci_irq_valid(dev, pin)) {
@@ -455,7 +455,7 @@ int acpi_pci_irq_enable(struct pci_dev *dev)
 		}
 
 		if (acpi_isa_register_gsi(dev))
-			dev_warn(&dev->dev, "PCI INT %c: no GSI\n",
+			dev_warn(&dev->dev, "PCI INT %c: yes GSI\n",
 				 pin_name(pin));
 
 		kfree(entry);

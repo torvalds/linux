@@ -140,7 +140,7 @@ enum bq2415x_chip {
 };
 
 static char *bq2415x_chip_name[] = {
-	"unknown",
+	"unkyeswn",
 	"bq24150",
 	"bq24150a",
 	"bq24151",
@@ -161,16 +161,16 @@ struct bq2415x_device {
 	struct power_supply *charger;
 	struct power_supply_desc charger_desc;
 	struct delayed_work work;
-	struct device_node *notify_node;
-	struct notifier_block nb;
+	struct device_yesde *yestify_yesde;
+	struct yestifier_block nb;
 	enum bq2415x_mode reported_mode;/* mode reported by hook function */
 	enum bq2415x_mode mode;		/* currently configured mode */
 	enum bq2415x_chip chip;
 	const char *timer_error;
 	char *model;
 	char *name;
-	int autotimer;	/* 1 - if driver automatically reset timer, 0 - not */
-	int automode;	/* 1 - enabled, 0 - disabled; -1 - not supported */
+	int autotimer;	/* 1 - if driver automatically reset timer, 0 - yest */
+	int automode;	/* 1 - enabled, 0 - disabled; -1 - yest supported */
 	int id;
 };
 
@@ -777,7 +777,7 @@ static int bq2415x_set_mode(struct bq2415x_device *bq, enum bq2415x_mode mode)
 	bq2415x_set_default_value(bq, battery_regulation_voltage);
 
 	bq->mode = mode;
-	sysfs_notify(&bq->charger->dev.kobj, NULL, "mode");
+	sysfs_yestify(&bq->charger->dev.kobj, NULL, "mode");
 
 	return 0;
 
@@ -803,7 +803,7 @@ static bool bq2415x_update_reported_mode(struct bq2415x_device *bq, int mA)
 	return true;
 }
 
-static int bq2415x_notifier_call(struct notifier_block *nb,
+static int bq2415x_yestifier_call(struct yestifier_block *nb,
 		unsigned long val, void *v)
 {
 	struct bq2415x_device *bq =
@@ -815,17 +815,17 @@ static int bq2415x_notifier_call(struct notifier_block *nb,
 	if (val != PSY_EVENT_PROP_CHANGED)
 		return NOTIFY_OK;
 
-	/* Ignore event if it was not send by notify_node/notify_device */
-	if (bq->notify_node) {
+	/* Igyesre event if it was yest send by yestify_yesde/yestify_device */
+	if (bq->yestify_yesde) {
 		if (!psy->dev.parent ||
-		    psy->dev.parent->of_node != bq->notify_node)
+		    psy->dev.parent->of_yesde != bq->yestify_yesde)
 			return NOTIFY_OK;
-	} else if (bq->init_data.notify_device) {
-		if (strcmp(psy->desc->name, bq->init_data.notify_device) != 0)
+	} else if (bq->init_data.yestify_device) {
+		if (strcmp(psy->desc->name, bq->init_data.yestify_device) != 0)
 			return NOTIFY_OK;
 	}
 
-	dev_dbg(bq->dev, "notifier call was called\n");
+	dev_dbg(bq->dev, "yestifier call was called\n");
 
 	ret = power_supply_get_property(psy, POWER_SUPPLY_PROP_CURRENT_MAX,
 			&prop);
@@ -835,7 +835,7 @@ static int bq2415x_notifier_call(struct notifier_block *nb,
 	if (!bq2415x_update_reported_mode(bq, prop.intval))
 		return NOTIFY_OK;
 
-	/* if automode is not enabled do not tell about reported_mode */
+	/* if automode is yest enabled do yest tell about reported_mode */
 	if (bq->automode < 1)
 		return NOTIFY_OK;
 
@@ -873,7 +873,7 @@ static void bq2415x_set_autotimer(struct bq2415x_device *bq, int state)
 static void bq2415x_timer_error(struct bq2415x_device *bq, const char *msg)
 {
 	bq->timer_error = msg;
-	sysfs_notify(&bq->charger->dev.kobj, NULL, "timer");
+	sysfs_yestify(&bq->charger->dev.kobj, NULL, "timer");
 	dev_err(bq->dev, "%s\n", msg);
 	if (bq->automode > 0)
 		bq->automode = 0;
@@ -891,7 +891,7 @@ static void bq2415x_timer_work(struct work_struct *work)
 	int boost;
 
 	if (bq->automode > 0 && (bq->reported_mode != bq->mode)) {
-		sysfs_notify(&bq->charger->dev.kobj, NULL, "reported_mode");
+		sysfs_yestify(&bq->charger->dev.kobj, NULL, "reported_mode");
 		bq2415x_set_mode(bq, bq->reported_mode);
 	}
 
@@ -906,13 +906,13 @@ static void bq2415x_timer_work(struct work_struct *work)
 
 	boost = bq2415x_exec_command(bq, BQ2415X_BOOST_MODE_STATUS);
 	if (boost < 0) {
-		bq2415x_timer_error(bq, "Unknown error");
+		bq2415x_timer_error(bq, "Unkyeswn error");
 		return;
 	}
 
 	error = bq2415x_exec_command(bq, BQ2415X_FAULT_STATUS);
 	if (error < 0) {
-		bq2415x_timer_error(bq, "Unknown error");
+		bq2415x_timer_error(bq, "Unkyeswn error");
 		return;
 	}
 
@@ -945,7 +945,7 @@ static void bq2415x_timer_work(struct work_struct *work)
 					"Thermal shutdown (too hot)");
 			return;
 		case 7: /* N/A */
-			bq2415x_timer_error(bq, "Unknown error");
+			bq2415x_timer_error(bq, "Unkyeswn error");
 			return;
 		}
 	} else {
@@ -1108,7 +1108,7 @@ static ssize_t bq2415x_sysfs_show_timer(struct device *dev,
 /*
  * set mode entry:
  *    auto - if automode is supported, enable it and set mode to reported
- *    none - disable charger and boost mode
+ *    yesne - disable charger and boost mode
  *    host - charging mode for host/hub chargers (current limit 500mA)
  *    dedicated - charging mode for dedicated chargers (unlimited current limit)
  *    boost - disable charger and enable boost mode
@@ -1132,7 +1132,7 @@ static ssize_t bq2415x_sysfs_set_mode(struct device *dev,
 		if (bq->automode > 0)
 			bq->automode = 0;
 		mode = BQ2415X_MODE_OFF;
-	} else if (strncmp(buf, "none", 4) == 0) {
+	} else if (strncmp(buf, "yesne", 4) == 0) {
 		if (bq->automode > 0)
 			bq->automode = 0;
 		mode = BQ2415X_MODE_NONE;
@@ -1165,7 +1165,7 @@ static ssize_t bq2415x_sysfs_set_mode(struct device *dev,
 	return count;
 }
 
-/* show mode entry (auto, none, host, dedicated or boost) */
+/* show mode entry (auto, yesne, host, dedicated or boost) */
 static ssize_t bq2415x_sysfs_show_mode(struct device *dev,
 				       struct device_attribute *attr,
 				       char *buf)
@@ -1182,7 +1182,7 @@ static ssize_t bq2415x_sysfs_show_mode(struct device *dev,
 		ret += sprintf(buf+ret, "off");
 		break;
 	case BQ2415X_MODE_NONE:
-		ret += sprintf(buf+ret, "none");
+		ret += sprintf(buf+ret, "yesne");
 		break;
 	case BQ2415X_MODE_HOST_CHARGER:
 		ret += sprintf(buf+ret, "host");
@@ -1202,7 +1202,7 @@ static ssize_t bq2415x_sysfs_show_mode(struct device *dev,
 	return ret;
 }
 
-/* show reported_mode entry (none, host, dedicated or boost) */
+/* show reported_mode entry (yesne, host, dedicated or boost) */
 static ssize_t bq2415x_sysfs_show_reported_mode(struct device *dev,
 						struct device_attribute *attr,
 						char *buf)
@@ -1217,7 +1217,7 @@ static ssize_t bq2415x_sysfs_show_reported_mode(struct device *dev,
 	case BQ2415X_MODE_OFF:
 		return sprintf(buf, "off\n");
 	case BQ2415X_MODE_NONE:
-		return sprintf(buf, "none\n");
+		return sprintf(buf, "yesne\n");
 	case BQ2415X_MODE_HOST_CHARGER:
 		return sprintf(buf, "host\n");
 	case BQ2415X_MODE_DEDICATED_CHARGER:
@@ -1477,7 +1477,7 @@ static int bq2415x_power_supply_init(struct bq2415x_device *bq)
 	char revstr[8];
 	struct power_supply_config psy_cfg = {
 		.drv_data = bq,
-		.of_node = bq->dev->of_node,
+		.of_yesde = bq->dev->of_yesde,
 		.attr_grp = bq2415x_sysfs_groups,
 	};
 
@@ -1496,7 +1496,7 @@ static int bq2415x_power_supply_init(struct bq2415x_device *bq)
 
 	ret = bq2415x_detect_revision(bq);
 	if (ret < 0)
-		strcpy(revstr, "unknown");
+		strcpy(revstr, "unkyeswn");
 	else
 		sprintf(revstr, "1.%d", ret);
 
@@ -1527,14 +1527,14 @@ static int bq2415x_probe(struct i2c_client *client,
 	int num;
 	char *name = NULL;
 	struct bq2415x_device *bq;
-	struct device_node *np = client->dev.of_node;
+	struct device_yesde *np = client->dev.of_yesde;
 	struct bq2415x_platform_data *pdata = client->dev.platform_data;
 	const struct acpi_device_id *acpi_id = NULL;
-	struct power_supply *notify_psy = NULL;
+	struct power_supply *yestify_psy = NULL;
 	union power_supply_propval prop;
 
 	if (!np && !pdata && !ACPI_HANDLE(&client->dev)) {
-		dev_err(&client->dev, "Neither devicetree, nor platform data, nor ACPI support\n");
+		dev_err(&client->dev, "Neither devicetree, yesr platform data, yesr ACPI support\n");
 		return -ENODEV;
 	}
 
@@ -1616,7 +1616,7 @@ static int bq2415x_probe(struct i2c_client *client,
 		if (ret)
 			goto error_2;
 		if (np)
-			bq->notify_node = of_parse_phandle(np,
+			bq->yestify_yesde = of_parse_phandle(np,
 						"ti,usb-charger-detection", 0);
 	} else {
 		memcpy(&bq->init_data, pdata, sizeof(bq->init_data));
@@ -1636,11 +1636,11 @@ static int bq2415x_probe(struct i2c_client *client,
 		goto error_3;
 	}
 
-	if (bq->notify_node || bq->init_data.notify_device) {
-		bq->nb.notifier_call = bq2415x_notifier_call;
-		ret = power_supply_reg_notifier(&bq->nb);
+	if (bq->yestify_yesde || bq->init_data.yestify_device) {
+		bq->nb.yestifier_call = bq2415x_yestifier_call;
+		ret = power_supply_reg_yestifier(&bq->nb);
 		if (ret) {
-			dev_err(bq->dev, "failed to reg notifier: %d\n", ret);
+			dev_err(bq->dev, "failed to reg yestifier: %d\n", ret);
 			goto error_3;
 		}
 
@@ -1648,25 +1648,25 @@ static int bq2415x_probe(struct i2c_client *client,
 		dev_info(bq->dev, "automode supported, waiting for events\n");
 	} else {
 		bq->automode = -1;
-		dev_info(bq->dev, "automode not supported\n");
+		dev_info(bq->dev, "automode yest supported\n");
 	}
 
 	/* Query for initial reported_mode and set it */
-	if (bq->nb.notifier_call) {
+	if (bq->nb.yestifier_call) {
 		if (np) {
-			notify_psy = power_supply_get_by_phandle(np,
+			yestify_psy = power_supply_get_by_phandle(np,
 						"ti,usb-charger-detection");
-			if (IS_ERR(notify_psy))
-				notify_psy = NULL;
-		} else if (bq->init_data.notify_device) {
-			notify_psy = power_supply_get_by_name(
-						bq->init_data.notify_device);
+			if (IS_ERR(yestify_psy))
+				yestify_psy = NULL;
+		} else if (bq->init_data.yestify_device) {
+			yestify_psy = power_supply_get_by_name(
+						bq->init_data.yestify_device);
 		}
 	}
-	if (notify_psy) {
-		ret = power_supply_get_property(notify_psy,
+	if (yestify_psy) {
+		ret = power_supply_get_property(yestify_psy,
 					POWER_SUPPLY_PROP_CURRENT_MAX, &prop);
-		power_supply_put(notify_psy);
+		power_supply_put(yestify_psy);
 
 		if (ret == 0) {
 			bq2415x_update_reported_mode(bq, prop.intval);
@@ -1684,7 +1684,7 @@ error_3:
 	bq2415x_power_supply_exit(bq);
 error_2:
 	if (bq)
-		of_node_put(bq->notify_node);
+		of_yesde_put(bq->yestify_yesde);
 	kfree(name);
 error_1:
 	mutex_lock(&bq2415x_id_mutex);
@@ -1700,10 +1700,10 @@ static int bq2415x_remove(struct i2c_client *client)
 {
 	struct bq2415x_device *bq = i2c_get_clientdata(client);
 
-	if (bq->nb.notifier_call)
-		power_supply_unreg_notifier(&bq->nb);
+	if (bq->nb.yestifier_call)
+		power_supply_unreg_yestifier(&bq->nb);
 
-	of_node_put(bq->notify_node);
+	of_yesde_put(bq->yestify_yesde);
 	bq2415x_power_supply_exit(bq);
 
 	bq2415x_reset_chip(bq);

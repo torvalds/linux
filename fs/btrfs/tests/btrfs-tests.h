@@ -30,15 +30,15 @@ extern const char *test_error[];
 struct btrfs_root;
 struct btrfs_trans_handle;
 
-int btrfs_test_extent_buffer_operations(u32 sectorsize, u32 nodesize);
-int btrfs_test_free_space_cache(u32 sectorsize, u32 nodesize);
-int btrfs_test_extent_io(u32 sectorsize, u32 nodesize);
-int btrfs_test_inodes(u32 sectorsize, u32 nodesize);
-int btrfs_test_qgroups(u32 sectorsize, u32 nodesize);
-int btrfs_test_free_space_tree(u32 sectorsize, u32 nodesize);
+int btrfs_test_extent_buffer_operations(u32 sectorsize, u32 yesdesize);
+int btrfs_test_free_space_cache(u32 sectorsize, u32 yesdesize);
+int btrfs_test_extent_io(u32 sectorsize, u32 yesdesize);
+int btrfs_test_iyesdes(u32 sectorsize, u32 yesdesize);
+int btrfs_test_qgroups(u32 sectorsize, u32 yesdesize);
+int btrfs_test_free_space_tree(u32 sectorsize, u32 yesdesize);
 int btrfs_test_extent_map(void);
-struct inode *btrfs_new_test_inode(void);
-struct btrfs_fs_info *btrfs_alloc_dummy_fs_info(u32 nodesize, u32 sectorsize);
+struct iyesde *btrfs_new_test_iyesde(void);
+struct btrfs_fs_info *btrfs_alloc_dummy_fs_info(u32 yesdesize, u32 sectorsize);
 void btrfs_free_dummy_fs_info(struct btrfs_fs_info *fs_info);
 void btrfs_free_dummy_root(struct btrfs_root *root);
 struct btrfs_block_group *

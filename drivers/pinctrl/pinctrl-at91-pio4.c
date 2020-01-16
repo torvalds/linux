@@ -25,7 +25,7 @@
 
 /*
  * Warning:
- * In order to not introduce confusion between Atmel PIO groups and pinctrl
+ * In order to yest introduce confusion between Atmel PIO groups and pinctrl
  * framework groups, Atmel PIO groups will be called banks, line is kept to
  * designed the pin id into this bank.
  */
@@ -107,7 +107,7 @@ struct atmel_pin {
  * @irqs: table containing the hw irq number of the bank. The index of the
  *     table is the bank id.
  * @dev: device entry for the Atmel PIO controller.
- * @node: node of the Atmel PIO controller.
+ * @yesde: yesde of the Atmel PIO controller.
  */
 struct atmel_pioctrl {
 	void __iomem		*reg_base;
@@ -128,7 +128,7 @@ struct atmel_pioctrl {
 		u32		cfgr[ATMEL_PIO_NPINS_PER_BANK];
 	} *pm_suspend_backup;
 	struct device		*dev;
-	struct device_node	*node;
+	struct device_yesde	*yesde;
 };
 
 static const char * const atmel_functions[] = {
@@ -279,7 +279,7 @@ static void atmel_gpio_irq_handler(struct irq_desc *desc)
 
 	if (bank < 0) {
 		dev_err(atmel_pioctrl->dev,
-			"no bank associated to irq %u\n", irq);
+			"yes bank associated to irq %u\n", irq);
 		return;
 	}
 
@@ -505,7 +505,7 @@ atmel_pctl_find_group_by_pin(struct pinctrl_dev *pctldev, unsigned pin)
 }
 
 static int atmel_pctl_xlate_pinfunc(struct pinctrl_dev *pctldev,
-				    struct device_node *np,
+				    struct device_yesde *np,
 				    u32 pinfunc, const char **grp_name,
 				    const char **func_name)
 {
@@ -528,8 +528,8 @@ static int atmel_pctl_xlate_pinfunc(struct pinctrl_dev *pctldev,
 
 	atmel_pioctrl->pins[pin_id]->mux = func_id;
 	atmel_pioctrl->pins[pin_id]->ioset = ATMEL_GET_PIN_IOSET(pinfunc);
-	/* Want the device name not the group one. */
-	if (np->parent == atmel_pioctrl->node)
+	/* Want the device name yest the group one. */
+	if (np->parent == atmel_pioctrl->yesde)
 		atmel_pioctrl->pins[pin_id]->device = np->name;
 	else
 		atmel_pioctrl->pins[pin_id]->device = np->parent->name;
@@ -537,8 +537,8 @@ static int atmel_pctl_xlate_pinfunc(struct pinctrl_dev *pctldev,
 	return 0;
 }
 
-static int atmel_pctl_dt_subnode_to_map(struct pinctrl_dev *pctldev,
-					struct device_node *np,
+static int atmel_pctl_dt_subyesde_to_map(struct pinctrl_dev *pctldev,
+					struct device_yesde *np,
 					struct pinctrl_map **map,
 					unsigned *reserved_maps,
 					unsigned *num_maps)
@@ -556,14 +556,14 @@ static int atmel_pctl_dt_subnode_to_map(struct pinctrl_dev *pctldev,
 	ret = pinconf_generic_parse_dt_config(np, pctldev, &configs,
 					      &num_configs);
 	if (ret < 0) {
-		dev_err(pctldev->dev, "%pOF: could not parse node property\n",
+		dev_err(pctldev->dev, "%pOF: could yest parse yesde property\n",
 			np);
 		return ret;
 	}
 
 	num_pins = pins->length / sizeof(u32);
 	if (!num_pins) {
-		dev_err(pctldev->dev, "no pins found in node %pOF\n", np);
+		dev_err(pctldev->dev, "yes pins found in yesde %pOF\n", np);
 		ret = -EINVAL;
 		goto exit;
 	}
@@ -611,12 +611,12 @@ exit:
 	return ret;
 }
 
-static int atmel_pctl_dt_node_to_map(struct pinctrl_dev *pctldev,
-				     struct device_node *np_config,
+static int atmel_pctl_dt_yesde_to_map(struct pinctrl_dev *pctldev,
+				     struct device_yesde *np_config,
 				     struct pinctrl_map **map,
 				     unsigned *num_maps)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 	unsigned reserved_maps;
 	int ret;
 
@@ -625,18 +625,18 @@ static int atmel_pctl_dt_node_to_map(struct pinctrl_dev *pctldev,
 	reserved_maps = 0;
 
 	/*
-	 * If all the pins of a device have the same configuration (or no one),
-	 * it is useless to add a subnode, so directly parse node referenced by
+	 * If all the pins of a device have the same configuration (or yes one),
+	 * it is useless to add a subyesde, so directly parse yesde referenced by
 	 * phandle.
 	 */
-	ret = atmel_pctl_dt_subnode_to_map(pctldev, np_config, map,
+	ret = atmel_pctl_dt_subyesde_to_map(pctldev, np_config, map,
 					   &reserved_maps, num_maps);
 	if (ret) {
-		for_each_child_of_node(np_config, np) {
-			ret = atmel_pctl_dt_subnode_to_map(pctldev, np, map,
+		for_each_child_of_yesde(np_config, np) {
+			ret = atmel_pctl_dt_subyesde_to_map(pctldev, np, map,
 						    &reserved_maps, num_maps);
 			if (ret < 0) {
-				of_node_put(np);
+				of_yesde_put(np);
 				break;
 			}
 		}
@@ -644,7 +644,7 @@ static int atmel_pctl_dt_node_to_map(struct pinctrl_dev *pctldev,
 
 	if (ret < 0) {
 		pinctrl_utils_free_map(pctldev, *map, *num_maps);
-		dev_err(pctldev->dev, "can't create maps for node %pOF\n",
+		dev_err(pctldev->dev, "can't create maps for yesde %pOF\n",
 			np_config);
 	}
 
@@ -655,7 +655,7 @@ static const struct pinctrl_ops atmel_pctlops = {
 	.get_groups_count	= atmel_pctl_get_groups_count,
 	.get_group_name		= atmel_pctl_get_group_name,
 	.get_group_pins		= atmel_pctl_get_group_pins,
-	.dt_node_to_map		= atmel_pctl_dt_node_to_map,
+	.dt_yesde_to_map		= atmel_pctl_dt_yesde_to_map,
 	.dt_free_map		= pinctrl_utils_free_map,
 };
 
@@ -850,7 +850,7 @@ static int atmel_conf_pin_config_group_set(struct pinctrl_dev *pctldev,
 				conf |= arg << ATMEL_PIO_DRVSTR_OFFSET;
 				break;
 			default:
-				dev_warn(pctldev->dev, "drive strength not updated (incorrect value)\n");
+				dev_warn(pctldev->dev, "drive strength yest updated (incorrect value)\n");
 			}
 			break;
 		default:
@@ -974,7 +974,7 @@ static const struct dev_pm_ops atmel_pctrl_pm_ops = {
 };
 
 /*
- * The number of banks can be different from a SoC to another one.
+ * The number of banks can be different from a SoC to ayesther one.
  * We can have up to 16 banks.
  */
 static const struct atmel_pioctrl_data atmel_sama5d2_pioctrl_data = {
@@ -1005,12 +1005,12 @@ static int atmel_pinctrl_probe(struct platform_device *pdev)
 	if (!atmel_pioctrl)
 		return -ENOMEM;
 	atmel_pioctrl->dev = dev;
-	atmel_pioctrl->node = dev->of_node;
+	atmel_pioctrl->yesde = dev->of_yesde;
 	platform_set_drvdata(pdev, atmel_pioctrl);
 
-	match = of_match_node(atmel_pctrl_of_match, dev->of_node);
+	match = of_match_yesde(atmel_pctrl_of_match, dev->of_yesde);
 	if (!match) {
-		dev_err(dev, "unknown compatible string\n");
+		dev_err(dev, "unkyeswn compatible string\n");
 		return -ENODEV;
 	}
 	atmel_pioctrl_data = match->data;
@@ -1082,7 +1082,7 @@ static int atmel_pinctrl_probe(struct platform_device *pdev)
 	}
 
 	atmel_pioctrl->gpio_chip = &atmel_gpio_chip;
-	atmel_pioctrl->gpio_chip->of_node = dev->of_node;
+	atmel_pioctrl->gpio_chip->of_yesde = dev->of_yesde;
 	atmel_pioctrl->gpio_chip->ngpio = atmel_pioctrl->npins;
 	atmel_pioctrl->gpio_chip->label = dev_name(dev);
 	atmel_pioctrl->gpio_chip->parent = dev;
@@ -1123,7 +1123,7 @@ static int atmel_pinctrl_probe(struct platform_device *pdev)
 		dev_dbg(dev, "bank %i: irq=%pr\n", i, res);
 	}
 
-	atmel_pioctrl->irq_domain = irq_domain_add_linear(dev->of_node,
+	atmel_pioctrl->irq_domain = irq_domain_add_linear(dev->of_yesde,
 			atmel_pioctrl->gpio_chip->ngpio,
 			&irq_domain_simple_ops, NULL);
 	if (!atmel_pioctrl->irq_domain) {

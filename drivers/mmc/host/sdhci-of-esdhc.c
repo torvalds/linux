@@ -79,7 +79,7 @@ struct sdhci_esdhc {
 	bool quirk_unreliable_pulse_detection;
 	bool quirk_tuning_erratum_type1;
 	bool quirk_tuning_erratum_type2;
-	bool quirk_ignore_data_inhibit;
+	bool quirk_igyesre_data_inhibit;
 	bool quirk_delay_before_data_reset;
 	bool in_sw_tuning;
 	unsigned int peripheral_clock;
@@ -110,7 +110,7 @@ static u32 esdhc_readl_fixup(struct sdhci_host *host,
 	u32 ret;
 
 	/*
-	 * The bit of ADMA flag in eSDHC is not compatible with standard
+	 * The bit of ADMA flag in eSDHC is yest compatible with standard
 	 * SDHC register, so set fake flag SDHCI_CAN_DO_ADMA2 when ADMA is
 	 * supported by eSDHC.
 	 * And for many FSL eSDHC controller, the reset value of field
@@ -125,7 +125,7 @@ static u32 esdhc_readl_fixup(struct sdhci_host *host,
 	}
 	/*
 	 * The DAT[3:0] line signal levels and the CMD line signal level are
-	 * not compatible with standard SDHC register. The line signal levels
+	 * yest compatible with standard SDHC register. The line signal levels
 	 * DAT[7:0] are at bits 31:24 and the command line signal level is at
 	 * bit 23. All other bits are the same as in the standard SDHC
 	 * register.
@@ -151,12 +151,12 @@ static u32 esdhc_readl_fixup(struct sdhci_host *host,
 	/*
 	 * Some controllers have unreliable Data Line Active
 	 * bit for commands with busy signal. This affects
-	 * Command Inhibit (data) bit. Just ignore it since
+	 * Command Inhibit (data) bit. Just igyesre it since
 	 * MMC core driver has already polled card status
 	 * with CMD13 after any command with busy siganl.
 	 */
 	if ((spec_reg == SDHCI_PRESENT_STATE) &&
-	(esdhc->quirk_ignore_data_inhibit == true)) {
+	(esdhc->quirk_igyesre_data_inhibit == true)) {
 		ret = value & ~SDHCI_DATA_INHIBIT;
 		return ret;
 	}
@@ -269,7 +269,7 @@ static u32 esdhc_writew_fixup(struct sdhci_host *host,
 	if (spec_reg == SDHCI_BLOCK_SIZE) {
 		/*
 		 * Two last DMA bits are reserved, and first one is used for
-		 * non-standard blksz of 4096 bytes that we don't support
+		 * yesn-standard blksz of 4096 bytes that we don't support
 		 * yet. So clear the DMA boundary bits.
 		 */
 		ret &= (~SDHCI_MAKE_BLKSZ(0x7, 0));
@@ -287,7 +287,7 @@ static u32 esdhc_writeb_fixup(struct sdhci_host *host,
 
 	/*
 	 * eSDHC doesn't have a standard power control register, so we do
-	 * nothing here to avoid incorrect operation.
+	 * yesthing here to avoid incorrect operation.
 	 */
 	if (spec_reg == SDHCI_POWER_CONTROL)
 		return old_value;
@@ -297,7 +297,7 @@ static u32 esdhc_writeb_fixup(struct sdhci_host *host,
 	 */
 	if (spec_reg == SDHCI_HOST_CONTROL) {
 		/*
-		 * If host control register is not standard, exit
+		 * If host control register is yest standard, exit
 		 * this function
 		 */
 		if (host->quirks2 & SDHCI_QUIRK2_BROKEN_HOST_CONTROL)
@@ -484,7 +484,7 @@ static void esdhc_le_writeb(struct sdhci_host *host, u8 val, int reg)
 }
 
 /*
- * For Abort or Suspend after Stop at Block Gap, ignore the ADMA
+ * For Abort or Suspend after Stop at Block Gap, igyesre the ADMA
  * error(IRQSTAT[ADMAE]) if both Transfer Complete(IRQSTAT[TC])
  * and Block Gap Event(IRQSTAT[BGE]) are also set.
  * For Continue, apply soft reset for data(SYSCTL[RSTD]);
@@ -496,7 +496,7 @@ static void esdhc_of_adma_workaround(struct sdhci_host *host, u32 intmask)
 	struct sdhci_esdhc *esdhc = sdhci_pltfm_priv(pltfm_host);
 	bool applicable;
 	dma_addr_t dmastart;
-	dma_addr_t dmanow;
+	dma_addr_t dmayesw;
 
 	applicable = (intmask & SDHCI_INT_DATA_END) &&
 		     (intmask & SDHCI_INT_BLK_GAP) &&
@@ -506,14 +506,14 @@ static void esdhc_of_adma_workaround(struct sdhci_host *host, u32 intmask)
 
 	host->data->error = 0;
 	dmastart = sg_dma_address(host->data->sg);
-	dmanow = dmastart + host->data->bytes_xfered;
+	dmayesw = dmastart + host->data->bytes_xfered;
 	/*
 	 * Force update to the next DMA block boundary.
 	 */
-	dmanow = (dmanow & ~(SDHCI_DEFAULT_BOUNDARY_SIZE - 1)) +
+	dmayesw = (dmayesw & ~(SDHCI_DEFAULT_BOUNDARY_SIZE - 1)) +
 		SDHCI_DEFAULT_BOUNDARY_SIZE;
-	host->data->bytes_xfered = dmanow - dmastart;
-	sdhci_writel(host, dmanow, SDHCI_DMA_ADDRESS);
+	host->data->bytes_xfered = dmayesw - dmastart;
+	sdhci_writel(host, dmayesw, SDHCI_DMA_ADDRESS);
 }
 
 static int esdhc_of_enable_dma(struct sdhci_host *host)
@@ -521,13 +521,13 @@ static int esdhc_of_enable_dma(struct sdhci_host *host)
 	u32 value;
 	struct device *dev = mmc_dev(host->mmc);
 
-	if (of_device_is_compatible(dev->of_node, "fsl,ls1043a-esdhc") ||
-	    of_device_is_compatible(dev->of_node, "fsl,ls1046a-esdhc"))
+	if (of_device_is_compatible(dev->of_yesde, "fsl,ls1043a-esdhc") ||
+	    of_device_is_compatible(dev->of_yesde, "fsl,ls1046a-esdhc"))
 		dma_set_mask_and_coherent(dev, DMA_BIT_MASK(40));
 
 	value = sdhci_readl(host, ESDHC_DMA_SYSCTL);
 
-	if (of_dma_is_coherent(dev->of_node))
+	if (of_dma_is_coherent(dev->of_yesde))
 		value |= ESDHC_DMA_SNOOP;
 	else
 		value &= ~ESDHC_DMA_SNOOP;
@@ -609,7 +609,7 @@ static void esdhc_flush_async_fifo(struct sdhci_host *host)
 		      ESDHC_FLUSH_ASYNC_FIFO))
 			break;
 		if (timedout) {
-			pr_err("%s: flushing asynchronous FIFO timeout.\n",
+			pr_err("%s: flushing asynchroyesus FIFO timeout.\n",
 				mmc_hostname(host->mmc));
 			break;
 		}
@@ -805,7 +805,7 @@ static int esdhc_signal_voltage_switch(struct mmc_host *mmc,
 				       struct mmc_ios *ios)
 {
 	struct sdhci_host *host = mmc_priv(mmc);
-	struct device_node *scfg_node;
+	struct device_yesde *scfg_yesde;
 	void __iomem *scfg_base = NULL;
 	u32 sdhciovselcr;
 	u32 val;
@@ -825,9 +825,9 @@ static int esdhc_signal_voltage_switch(struct mmc_host *mmc,
 		sdhci_writel(host, val, ESDHC_PROCTL);
 		return 0;
 	case MMC_SIGNAL_VOLTAGE_180:
-		scfg_node = of_find_matching_node(NULL, scfg_device_ids);
-		if (scfg_node)
-			scfg_base = of_iomap(scfg_node, 0);
+		scfg_yesde = of_find_matching_yesde(NULL, scfg_device_ids);
+		if (scfg_yesde)
+			scfg_base = of_iomap(scfg_yesde, 0);
 		if (scfg_base) {
 			sdhciovselcr = SDHCIOVSELCR_TGLEN |
 				       SDHCIOVSELCR_VSELVAL;
@@ -1070,7 +1070,7 @@ static u32 esdhc_irq(struct sdhci_host *host, u32 intmask)
 {
 	u32 command;
 
-	if (of_find_compatible_node(NULL, NULL,
+	if (of_find_compatible_yesde(NULL, NULL,
 				"fsl,p2020-esdhc")) {
 		command = SDHCI_GET_CMD(sdhci_readw(host,
 					SDHCI_COMMAND));
@@ -1193,7 +1193,7 @@ static void esdhc_init(struct platform_device *pdev, struct sdhci_host *host)
 	const struct of_device_id *match;
 	struct sdhci_pltfm_host *pltfm_host;
 	struct sdhci_esdhc *esdhc;
-	struct device_node *np;
+	struct device_yesde *np;
 	struct clk *clk;
 	u32 val;
 	u16 host_ver;
@@ -1220,10 +1220,10 @@ static void esdhc_init(struct platform_device *pdev, struct sdhci_host *host)
 	else
 		esdhc->quirk_unreliable_pulse_detection = false;
 
-	match = of_match_node(sdhci_esdhc_of_match, pdev->dev.of_node);
+	match = of_match_yesde(sdhci_esdhc_of_match, pdev->dev.of_yesde);
 	if (match)
 		esdhc->clk_fixup = match->data;
-	np = pdev->dev.of_node;
+	np = pdev->dev.of_yesde;
 
 	if (of_device_is_compatible(np, "fsl,p2020-esdhc"))
 		esdhc->quirk_delay_before_data_reset = true;
@@ -1264,12 +1264,12 @@ static int esdhc_hs400_prepare_ddr(struct mmc_host *mmc)
 static int sdhci_esdhc_probe(struct platform_device *pdev)
 {
 	struct sdhci_host *host;
-	struct device_node *np;
+	struct device_yesde *np;
 	struct sdhci_pltfm_host *pltfm_host;
 	struct sdhci_esdhc *esdhc;
 	int ret;
 
-	np = pdev->dev.of_node;
+	np = pdev->dev.of_yesde;
 
 	if (of_property_read_bool(np, "little-endian"))
 		host = sdhci_pltfm_init(pdev, &sdhci_esdhc_le_pdata,
@@ -1309,7 +1309,7 @@ static int sdhci_esdhc_probe(struct platform_device *pdev)
 	if (esdhc->vendor_ver > VENDOR_V_22)
 		host->quirks &= ~SDHCI_QUIRK_NO_BUSY_IRQ;
 
-	if (of_find_compatible_node(NULL, NULL, "fsl,p2020-esdhc")) {
+	if (of_find_compatible_yesde(NULL, NULL, "fsl,p2020-esdhc")) {
 		host->quirks |= SDHCI_QUIRK_RESET_AFTER_REQUEST;
 		host->quirks |= SDHCI_QUIRK_BROKEN_TIMEOUT_VAL;
 	}
@@ -1324,14 +1324,14 @@ static int sdhci_esdhc_probe(struct platform_device *pdev)
 	if (of_device_is_compatible(np, "fsl,ls1021a-esdhc"))
 		host->quirks |= SDHCI_QUIRK_BROKEN_TIMEOUT_VAL;
 
-	esdhc->quirk_ignore_data_inhibit = false;
+	esdhc->quirk_igyesre_data_inhibit = false;
 	if (of_device_is_compatible(np, "fsl,p2020-esdhc")) {
 		/*
-		 * Freescale messed up with P2020 as it has a non-standard
+		 * Freescale messed up with P2020 as it has a yesn-standard
 		 * host control register
 		 */
 		host->quirks2 |= SDHCI_QUIRK2_BROKEN_HOST_CONTROL;
-		esdhc->quirk_ignore_data_inhibit = true;
+		esdhc->quirk_igyesre_data_inhibit = true;
 	}
 
 	/* call to generic mmc_of_parse to support additional capabilities */

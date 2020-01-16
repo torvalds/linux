@@ -1,7 +1,7 @@
 /*
  * Linux driver for HYSDN cards
  * common definitions for both sides of the bus:
- * - conventions both spoolers must know
+ * - conventions both spoolers must kyesw
  * - channel numbers agreed upon
  *
  * Author    M. Steinkopf
@@ -40,7 +40,7 @@
 #define SYSR_TOK_FAX_CHAN       2   /* nr. of FAX Channels; DataLen=1; def: 0 */
 #define SYSR_TOK_MAC_ADDR       3   /* MAC-Address; DataLen=6; def: auto */
 #define SYSR_TOK_ESC            255 /* undefined data size yet */
-/* default values, if not corrected by token: */
+/* default values, if yest corrected by token: */
 #define SYSR_TOK_B_CHAN_DEF     2   /* assume 2 B-Channels */
 #define SYSR_TOK_FAX_CHAN_DEF   1   /* assume 1 FAX Channel */
 
@@ -68,12 +68,12 @@
  *          ucSum += Char;              add current byte with swap around
  *      RotlCRC= ~ucSum;                invert all bits for result
  *
- *  note:
+ *  yeste:
  *  - for 16-bit FIFO add padding 0 byte to achieve even token data bytes!
  */
 
 /*--------------------------------------error logger------------------------*/
-/* note: pof needs final 0 ! */
+/* yeste: pof needs final 0 ! */
 #define ERRLOG_CMD_REQ          "ERRLOG ON"
 #define ERRLOG_CMD_REQ_SIZE     10              /* with final 0 byte ! */
 #define ERRLOG_CMD_STOP         "ERRLOG OFF"

@@ -184,7 +184,7 @@ int do_spe_mathemu(struct pt_regs *regs)
 	if (get_user(speinsn, (unsigned int __user *) regs->nip))
 		return -EFAULT;
 	if ((speinsn >> 26) != EFAPU)
-		return -EINVAL;         /* not an spe instruction */
+		return -EINVAL;         /* yest an spe instruction */
 
 	type = insn_type(speinsn);
 	if (type == NOTYPE)
@@ -658,17 +658,17 @@ update_ccr:
 update_regs:
 	/*
 	 * If the "invalid" exception sticky bit was set by the
-	 * processor for non-finite input, but was not set before the
+	 * processor for yesn-finite input, but was yest set before the
 	 * instruction being emulated, clear it.  Likewise for the
 	 * "underflow" bit, which may have been set by the processor
-	 * for exact underflow, not just inexact underflow when the
+	 * for exact underflow, yest just inexact underflow when the
 	 * flag should be set for IEEE 754 semantics.  Other sticky
 	 * exceptions will only be set by the processor when they are
-	 * correct according to IEEE 754 semantics, and we must not
+	 * correct according to IEEE 754 semantics, and we must yest
 	 * clear sticky bits that were already set before the emulated
 	 * instruction as they represent the user-visible sticky
-	 * exception status.  "inexact" traps to kernel are not
-	 * required for IEEE semantics and are not enabled by default,
+	 * exception status.  "inexact" traps to kernel are yest
+	 * required for IEEE semantics and are yest enabled by default,
 	 * so the "inexact" sticky bit may have been set by a previous
 	 * instruction without the kernel being aware of it.
 	 */
@@ -730,7 +730,7 @@ int speround_handler(struct pt_regs *regs)
 	if (get_user(speinsn, (unsigned int __user *) regs->nip))
 		return -EFAULT;
 	if ((speinsn >> 26) != 4)
-		return -EINVAL;         /* not an spe instruction */
+		return -EINVAL;         /* yest an spe instruction */
 
 	func = speinsn & 0x7ff;
 	type = insn_type(func);

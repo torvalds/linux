@@ -9,11 +9,11 @@
  * modification, are permitted provided that the following conditions are met:
  *
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
+ *    yestice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the names of the copyright holders nor the names of its
+ * 3. Neither the names of the copyright holders yesr the names of its
  *    contributors may be used to endorse or promote products derived from
  *    this software without specific prior written permission.
  *
@@ -75,8 +75,8 @@ enum {
 };
 
 /* TIPC crypto statistics' header */
-static const char *hstats[MAX_STATS] = {"ok", "nok", "async", "async_ok",
-					"async_nok", "badmsgs", "nokeys",
+static const char *hstats[MAX_STATS] = {"ok", "yesk", "async", "async_ok",
+					"async_yesk", "badmsgs", "yeskeys",
 					"switches"};
 
 /* Max TFMs number per key */
@@ -132,7 +132,7 @@ struct tipc_tfm {
  * @mode: crypto mode is applied to the key
  * @hint[]: a hint for user key
  * @rcu: struct rcu_head
- * @seqno: the key seqno (cluster scope)
+ * @seqyes: the key seqyes (cluster scope)
  * @refcnt: the key reference counter
  */
 struct tipc_aead {
@@ -147,7 +147,7 @@ struct tipc_aead {
 	char hint[TIPC_AEAD_HINT_LEN + 1];
 	struct rcu_head rcu;
 
-	atomic64_t seqno ____cacheline_aligned;
+	atomic64_t seqyes ____cacheline_aligned;
 	refcount_t refcnt ____cacheline_aligned;
 
 } ____cacheline_aligned;
@@ -162,11 +162,11 @@ struct tipc_crypto_stats {
 /**
  * struct tipc_crypto - TIPC TX/RX crypto structure
  * @net: struct net
- * @node: TIPC node (RX)
+ * @yesde: TIPC yesde (RX)
  * @aead: array of pointers to AEAD keys for encryption/decryption
  * @peer_rx_active: replicated peer RX active key index
  * @key: the key states
- * @working: the crypto is working or not
+ * @working: the crypto is working or yest
  * @stats: the crypto statistics
  * @sndnxt: the per-peer sndnxt (TX)
  * @timer1: general timer 1 (jiffies)
@@ -175,7 +175,7 @@ struct tipc_crypto_stats {
  */
 struct tipc_crypto {
 	struct net *net;
-	struct tipc_node *node;
+	struct tipc_yesde *yesde;
 	struct tipc_aead __rcu *aead[KEY_MAX + 1]; /* key[0] is UNUSED */
 	atomic_t peer_rx_active;
 	struct tipc_key key;
@@ -220,7 +220,7 @@ static void *tipc_aead_mem_alloc(struct crypto_aead *tfm,
 static int tipc_aead_encrypt(struct tipc_aead *aead, struct sk_buff *skb,
 			     struct tipc_bearer *b,
 			     struct tipc_media_addr *dst,
-			     struct tipc_node *__dnode);
+			     struct tipc_yesde *__dyesde);
 static void tipc_aead_encrypt_done(struct crypto_async_request *base, int err);
 static int tipc_aead_decrypt(struct net *net, struct tipc_aead *aead,
 			     struct sk_buff *skb, struct tipc_bearer *b);
@@ -304,7 +304,7 @@ static struct tipc_aead *tipc_aead_get(struct tipc_aead __rcu *aead)
 
 	rcu_read_lock();
 	tmp = rcu_dereference(aead);
-	if (unlikely(!tmp || !refcount_inc_not_zero(&tmp->refcnt)))
+	if (unlikely(!tmp || !refcount_inc_yest_zero(&tmp->refcnt)))
 		tmp = NULL;
 	rcu_read_unlock();
 
@@ -508,7 +508,7 @@ static int tipc_aead_init(struct tipc_aead **aead, struct tipc_aead_key *ukey,
 	tmp->authsize = TIPC_AES_GCM_TAG_SIZE;
 	memcpy(&tmp->salt, ukey->key + keylen, TIPC_AES_GCM_SALT_SIZE);
 	atomic_set(&tmp->users, 0);
-	atomic64_set(&tmp->seqno, 0);
+	atomic64_set(&tmp->seqyes, 0);
 	refcount_set(&tmp->refcnt, 1);
 
 	*aead = tmp;
@@ -562,10 +562,10 @@ static int tipc_aead_clone(struct tipc_aead **dst, struct tipc_aead *src)
 	aead->salt = src->salt;
 	aead->authsize = src->authsize;
 	atomic_set(&aead->users, 0);
-	atomic64_set(&aead->seqno, 0);
+	atomic64_set(&aead->seqyes, 0);
 	refcount_set(&aead->refcnt, 1);
 
-	WARN_ON(!refcount_inc_not_zero(&src->refcnt));
+	WARN_ON(!refcount_inc_yest_zero(&src->refcnt));
 	aead->cloned = src;
 
 	*dst = aead;
@@ -604,7 +604,7 @@ static void *tipc_aead_mem_alloc(struct crypto_aead *tfm,
 	len += crypto_aead_alignmask(tfm) & ~(crypto_tfm_ctx_alignment() - 1);
 	len = ALIGN(len, crypto_tfm_ctx_alignment());
 	len += req_size;
-	len = ALIGN(len, __alignof__(struct scatterlist));
+	len = ALIGN(len, __aligyesf__(struct scatterlist));
 	len += nsg * sizeof(**sg);
 
 	mem = kmalloc(len, GFP_ATOMIC);
@@ -616,7 +616,7 @@ static void *tipc_aead_mem_alloc(struct crypto_aead *tfm,
 	*req = (struct aead_request *)PTR_ALIGN(*iv + iv_size,
 						crypto_tfm_ctx_alignment());
 	*sg = (struct scatterlist *)PTR_ALIGN((u8 *)*req + req_size,
-					      __alignof__(struct scatterlist));
+					      __aligyesf__(struct scatterlist));
 
 	return (void *)mem;
 }
@@ -627,7 +627,7 @@ static void *tipc_aead_mem_alloc(struct crypto_aead *tfm,
  * @skb: the input/output skb
  * @b: TIPC bearer where the message will be delivered after the encryption
  * @dst: the destination media address
- * @__dnode: TIPC dest node if "known"
+ * @__dyesde: TIPC dest yesde if "kyeswn"
  *
  * Return:
  * 0                   : if the encryption has completed
@@ -637,7 +637,7 @@ static void *tipc_aead_mem_alloc(struct crypto_aead *tfm,
 static int tipc_aead_encrypt(struct tipc_aead *aead, struct sk_buff *skb,
 			     struct tipc_bearer *b,
 			     struct tipc_media_addr *dst,
-			     struct tipc_node *__dnode)
+			     struct tipc_yesde *__dyesde)
 {
 	struct crypto_aead *tfm = tipc_aead_tfm_next(aead);
 	struct tipc_crypto_tx_ctx *tx_ctx;
@@ -655,15 +655,15 @@ static int tipc_aead_encrypt(struct tipc_aead *aead, struct sk_buff *skb,
 	tailen = len - skb->len + aead->authsize;
 
 	/* Expand skb tail for authentication tag:
-	 * As for simplicity, we'd have made sure skb having enough tailroom
-	 * for authentication tag @skb allocation. Even when skb is nonlinear
-	 * but there is no frag_list, it should be still fine!
+	 * As for simplicity, we'd have made sure skb having eyesugh tailroom
+	 * for authentication tag @skb allocation. Even when skb is yesnlinear
+	 * but there is yes frag_list, it should be still fine!
 	 * Otherwise, we must cow it to be a writable buffer with the tailroom.
 	 */
 #ifdef TIPC_CRYPTO_DEBUG
 	SKB_LINEAR_ASSERT(skb);
 	if (tailen > skb_tailroom(skb)) {
-		pr_warn("TX: skb tailroom is not enough: %d, requires: %d\n",
+		pr_warn("TX: skb tailroom is yest eyesugh: %d, requires: %d\n",
 			skb_tailroom(skb), tailen);
 	}
 #endif
@@ -672,11 +672,11 @@ static int tipc_aead_encrypt(struct tipc_aead *aead, struct sk_buff *skb,
 		nsg = 1;
 		trailer = skb;
 	} else {
-		/* TODO: We could avoid skb_cow_data() if skb has no frag_list
-		 * e.g. by skb_fill_page_desc() to add another page to the skb
-		 * with the wanted tailen... However, page skbs look not often,
-		 * so take it easy now!
-		 * Cloned skbs e.g. from link_xmit() seems no choice though :(
+		/* TODO: We could avoid skb_cow_data() if skb has yes frag_list
+		 * e.g. by skb_fill_page_desc() to add ayesther page to the skb
+		 * with the wanted tailen... However, page skbs look yest often,
+		 * so take it easy yesw!
+		 * Cloned skbs e.g. from link_xmit() seems yes choice though :(
 		 */
 		nsg = skb_cow_data(skb, tailen, &trailer);
 		if (unlikely(nsg < 0)) {
@@ -704,16 +704,16 @@ static int tipc_aead_encrypt(struct tipc_aead *aead, struct sk_buff *skb,
 	/* Prepare IV: [SALT (4 octets)][SEQNO (8 octets)]
 	 * In case we're in cluster-key mode, SALT is varied by xor-ing with
 	 * the source address (or w0 of id), otherwise with the dest address
-	 * if dest is known.
+	 * if dest is kyeswn.
 	 */
 	ehdr = (struct tipc_ehdr *)skb->data;
 	salt = aead->salt;
 	if (aead->mode == CLUSTER_KEY)
 		salt ^= ehdr->addr; /* __be32 */
-	else if (__dnode)
-		salt ^= tipc_node_get_addr(__dnode);
+	else if (__dyesde)
+		salt ^= tipc_yesde_get_addr(__dyesde);
 	memcpy(iv, &salt, 4);
-	memcpy(iv + 4, (u8 *)&ehdr->seqno, 8);
+	memcpy(iv + 4, (u8 *)&ehdr->seqyes, 8);
 
 	/* Prepare request */
 	ehsz = tipc_ehdr_size(ehdr);
@@ -809,7 +809,7 @@ static int tipc_aead_decrypt(struct net *net, struct tipc_aead *aead,
 
 	/* Cow skb data if needed */
 	if (likely(!skb_cloned(skb) &&
-		   (!skb_is_nonlinear(skb) || !skb_has_frag_list(skb)))) {
+		   (!skb_is_yesnlinear(skb) || !skb_has_frag_list(skb)))) {
 		nsg = 1 + skb_shinfo(skb)->nr_frags;
 	} else {
 		nsg = skb_cow_data(skb, 0, &unused);
@@ -842,7 +842,7 @@ static int tipc_aead_decrypt(struct net *net, struct tipc_aead *aead,
 	else if (ehdr->destined)
 		salt ^= tipc_own_addr(net);
 	memcpy(iv, &salt, 4);
-	memcpy(iv + 4, (u8 *)&ehdr->seqno, 8);
+	memcpy(iv + 4, (u8 *)&ehdr->seqyes, 8);
 
 	/* Prepare request */
 	ehsz = tipc_ehdr_size(ehdr);
@@ -947,7 +947,7 @@ bool tipc_ehdr_validate(struct sk_buff *skb)
  * @aead: TX AEAD key to be used for the message encryption
  * @tx_key: key id used for the message encryption
  * @skb: input/output message skb
- * @__rx: RX crypto handle if dest is "known"
+ * @__rx: RX crypto handle if dest is "kyeswn"
  *
  * Return: the header size if the building is successful, otherwise < 0
  */
@@ -958,7 +958,7 @@ static int tipc_ehdr_build(struct net *net, struct tipc_aead *aead,
 	struct tipc_msg *hdr = buf_msg(skb);
 	struct tipc_ehdr *ehdr;
 	u32 user = msg_user(hdr);
-	u64 seqno;
+	u64 seqyes;
 	int ehsz;
 
 	/* Make room for encryption header */
@@ -966,21 +966,21 @@ static int tipc_ehdr_build(struct net *net, struct tipc_aead *aead,
 	WARN_ON(skb_headroom(skb) < ehsz);
 	ehdr = (struct tipc_ehdr *)skb_push(skb, ehsz);
 
-	/* Obtain a seqno first:
-	 * Use the key seqno (= cluster wise) if dest is unknown or we're in
-	 * cluster key mode, otherwise it's better for a per-peer seqno!
+	/* Obtain a seqyes first:
+	 * Use the key seqyes (= cluster wise) if dest is unkyeswn or we're in
+	 * cluster key mode, otherwise it's better for a per-peer seqyes!
 	 */
 	if (!__rx || aead->mode == CLUSTER_KEY)
-		seqno = atomic64_inc_return(&aead->seqno);
+		seqyes = atomic64_inc_return(&aead->seqyes);
 	else
-		seqno = atomic64_inc_return(&__rx->sndnxt);
+		seqyes = atomic64_inc_return(&__rx->sndnxt);
 
-	/* Revoke the key if seqno is wrapped around */
-	if (unlikely(!seqno))
+	/* Revoke the key if seqyes is wrapped around */
+	if (unlikely(!seqyes))
 		return tipc_crypto_key_revoke(net, tx_key);
 
 	/* Word 1-2 */
-	ehdr->seqno = cpu_to_be64(seqno);
+	ehdr->seqyes = cpu_to_be64(seqyes);
 
 	/* Words 0, 3- */
 	ehdr->version = TIPC_EVERSION;
@@ -1025,8 +1025,8 @@ static inline void tipc_crypto_key_set_state(struct tipc_crypto *c,
 
 #ifdef TIPC_CRYPTO_DEBUG
 	pr_info("%s(%s): key changing %s ::%pS\n",
-		(c->node) ? "RX" : "TX",
-		(c->node) ? tipc_node_get_id_str(c->node) :
+		(c->yesde) ? "RX" : "TX",
+		(c->yesde) ? tipc_yesde_get_id_str(c->yesde) :
 			    tipc_own_id_string(c->net),
 		tipc_key_change_dump(old, c->key, buf),
 		__builtin_return_address(0));
@@ -1061,8 +1061,8 @@ int tipc_crypto_key_init(struct tipc_crypto *c, struct tipc_aead_key *ukey,
 	}
 
 	pr_info("%s(%s): key initiating, rc %d!\n",
-		(c->node) ? "RX" : "TX",
-		(c->node) ? tipc_node_get_id_str(c->node) :
+		(c->yesde) ? "RX" : "TX",
+		(c->yesde) ? tipc_yesde_get_id_str(c->yesde) :
 			    tipc_own_id_string(c->net),
 		rc);
 
@@ -1152,9 +1152,9 @@ void tipc_crypto_key_flush(struct tipc_crypto *c)
  * @rx: RX crypto handle
  * @new_pending: new pending slot if aligned (= TX key from peer)
  *
- * Peer has used an unknown key slot, this only happens when peer has left and
+ * Peer has used an unkyeswn key slot, this only happens when peer has left and
  * rejoned, or we are newcomer.
- * That means, there must be no active key but a pending key at unaligned slot.
+ * That means, there must be yes active key but a pending key at unaligned slot.
  * If so, we try to move the pending key to the new slot.
  * Note: A potential passive key can exist, it will be shifted correspondingly!
  *
@@ -1201,7 +1201,7 @@ static bool tipc_crypto_key_try_align(struct tipc_crypto *rx, u8 new_pending)
 		rcu_assign_pointer(rx->aead[new_passive], tmp2);
 	refcount_set(&tmp1->refcnt, 1);
 	aligned = true;
-	pr_info("RX(%s): key is aligned!\n", tipc_node_get_id_str(rx->node));
+	pr_info("RX(%s): key is aligned!\n", tipc_yesde_get_id_str(rx->yesde));
 
 exit:
 	spin_unlock(&rx->lock);
@@ -1215,7 +1215,7 @@ exit:
  * @skb: the message skb which will be decrypted later
  *
  * This function looks up the existing TX keys and pick one which is suitable
- * for the message decryption, that must be a cluster key and not used before
+ * for the message decryption, that must be a cluster key and yest used before
  * on the same message (i.e. recursive).
  *
  * Return: the TX AEAD key handle in case of success, otherwise NULL
@@ -1229,7 +1229,7 @@ static struct tipc_aead *tipc_crypto_key_pick_tx(struct tipc_crypto *tx,
 	struct tipc_key key = tx->key;
 	u8 k, i = 0;
 
-	/* Initialize data if not yet */
+	/* Initialize data if yest yet */
 	if (!skb_cb->tx_clone_deferred) {
 		skb_cb->tx_clone_deferred = 1;
 		memset(&skb_cb->tx_clone_ctx, 0, sizeof(skb_cb->tx_clone_ctx));
@@ -1260,7 +1260,7 @@ static struct tipc_aead *tipc_crypto_key_pick_tx(struct tipc_crypto *tx,
 		skb->next = skb_clone(skb, GFP_ATOMIC);
 		if (unlikely(!skb->next))
 			pr_warn("Failed to clone skb for next round if any\n");
-		WARN_ON(!refcount_inc_not_zero(&aead->refcnt));
+		WARN_ON(!refcount_inc_yest_zero(&aead->refcnt));
 		break;
 	} while (++i < 3);
 	spin_unlock(&tx->lock);
@@ -1274,8 +1274,8 @@ static struct tipc_aead *tipc_crypto_key_pick_tx(struct tipc_crypto *tx,
  * @new_rx_active: latest RX active key from peer
  * @hdr: TIPCv2 message
  *
- * This function updates the peer node related data as the peer RX active key
- * has changed, so the number of TX keys' users on this node are increased and
+ * This function updates the peer yesde related data as the peer RX active key
+ * has changed, so the number of TX keys' users on this yesde are increased and
  * decreased correspondingly.
  *
  * The "per-peer" sndnxt is also reset when the peer key has switched.
@@ -1287,7 +1287,7 @@ static void tipc_crypto_key_synch(struct tipc_crypto *rx, u8 new_rx_active,
 	struct tipc_crypto *tx = tipc_net(net)->crypto_tx;
 	u8 cur_rx_active;
 
-	/* TX might be even not ready yet */
+	/* TX might be even yest ready yet */
 	if (unlikely(!tx->key.active && !tx->key.pending))
 		return;
 
@@ -1295,9 +1295,9 @@ static void tipc_crypto_key_synch(struct tipc_crypto *rx, u8 new_rx_active,
 	if (likely(cur_rx_active == new_rx_active))
 		return;
 
-	/* Make sure this message destined for this node */
+	/* Make sure this message destined for this yesde */
 	if (unlikely(msg_short(hdr) ||
-		     msg_destnode(hdr) != tipc_own_addr(net)))
+		     msg_destyesde(hdr) != tipc_own_addr(net)))
 		return;
 
 	/* Peer RX active key has changed, try to update owns' & TX users */
@@ -1316,7 +1316,7 @@ static void tipc_crypto_key_synch(struct tipc_crypto *rx, u8 new_rx_active,
 #ifdef TIPC_CRYPTO_DEBUG
 		pr_info("TX(%s): key users changed %d-- %d++, peer RX(%s)\n",
 			tipc_own_id_string(net), cur_rx_active,
-			new_rx_active, tipc_node_get_id_str(rx->node));
+			new_rx_active, tipc_yesde_get_id_str(rx->yesde));
 #endif
 	}
 }
@@ -1340,7 +1340,7 @@ static int tipc_crypto_key_revoke(struct net *net, u8 tx_key)
 }
 
 int tipc_crypto_start(struct tipc_crypto **crypto, struct net *net,
-		      struct tipc_node *node)
+		      struct tipc_yesde *yesde)
 {
 	struct tipc_crypto *c;
 
@@ -1361,7 +1361,7 @@ int tipc_crypto_start(struct tipc_crypto **crypto, struct net *net,
 
 	c->working = 0;
 	c->net = net;
-	c->node = node;
+	c->yesde = yesde;
 	tipc_crypto_key_set_state(c, 0, 0, 0);
 	atomic_set(&c->peer_rx_active, 0);
 	atomic64_set(&c->sndnxt, 0);
@@ -1384,7 +1384,7 @@ void tipc_crypto_stop(struct tipc_crypto **crypto)
 
 	rcu_read_lock();
 	/* RX stopping? => decrease TX key users if any */
-	is_rx = !!((*crypto)->node);
+	is_rx = !!((*crypto)->yesde);
 	if (is_rx) {
 		rx = *crypto;
 		tx = tipc_net(rx->net)->crypto_tx;
@@ -1402,9 +1402,9 @@ void tipc_crypto_stop(struct tipc_crypto **crypto)
 		tipc_aead_put(rcu_dereference(c->aead[k]));
 	rcu_read_unlock();
 
-	pr_warn("%s(%s) has been purged, node left!\n",
+	pr_warn("%s(%s) has been purged, yesde left!\n",
 		(is_rx) ? "RX" : "TX",
-		(is_rx) ? tipc_node_get_id_str((*crypto)->node) :
+		(is_rx) ? tipc_yesde_get_id_str((*crypto)->yesde) :
 			  tipc_own_id_string((*crypto)->net));
 
 	/* Free this crypto statistics */
@@ -1461,7 +1461,7 @@ s1:
 	tipc_crypto_key_set_state(rx, new_passive, key.pending, new_pending);
 	this_cpu_inc(rx->stats->stat[STAT_SWITCHES]);
 	pr_info("RX(%s): key %d is activated!\n",
-		tipc_node_get_id_str(rx->node),	key.pending);
+		tipc_yesde_get_id_str(rx->yesde),	key.pending);
 	goto s5;
 
 s2:
@@ -1500,7 +1500,7 @@ s3:
 		tipc_aead_users_set(rx->aead[new_passive], 0);
 	tipc_crypto_key_set_state(rx, new_passive, 0, new_pending);
 	pr_info("RX(%s): key %d is deactivated!\n",
-		tipc_node_get_id_str(rx->node), key.active);
+		tipc_yesde_get_id_str(rx->yesde), key.active);
 	goto s5;
 
 s4:
@@ -1513,7 +1513,7 @@ s4:
 
 	tipc_crypto_key_set_state(rx, 0, key.active, key.pending);
 	tipc_crypto_key_detach(rx->aead[key.passive], &rx->lock);
-	pr_info("RX(%s): key %d is freed!\n", tipc_node_get_id_str(rx->node),
+	pr_info("RX(%s): key %d is freed!\n", tipc_yesde_get_id_str(rx->yesde),
 		key.passive);
 
 s5:
@@ -1534,7 +1534,7 @@ s5:
  * @skb: input/output message skb pointer
  * @b: bearer used for xmit later
  * @dst: destination media address
- * @__dnode: destination node for reference if any
+ * @__dyesde: destination yesde for reference if any
  *
  * First, build an encryption message header on the top of the message, then
  * encrypt the original TIPC message by using the active or pending TX key.
@@ -1543,18 +1543,18 @@ s5:
  * Otherwise, the skb is freed!
  *
  * Return:
- * 0                   : the encryption has succeeded (or no encryption)
+ * 0                   : the encryption has succeeded (or yes encryption)
  * -EINPROGRESS/-EBUSY : the encryption is ongoing, a callback will be made
- * -ENOKEK             : the encryption has failed due to no key
+ * -ENOKEK             : the encryption has failed due to yes key
  * -EKEYREVOKED        : the encryption has failed due to key revoked
- * -ENOMEM             : the encryption has failed due to no memory
+ * -ENOMEM             : the encryption has failed due to yes memory
  * < 0                 : the encryption has failed due to other reasons
  */
 int tipc_crypto_xmit(struct net *net, struct sk_buff **skb,
 		     struct tipc_bearer *b, struct tipc_media_addr *dst,
-		     struct tipc_node *__dnode)
+		     struct tipc_yesde *__dyesde)
 {
-	struct tipc_crypto *__rx = tipc_node_crypto_rx(__dnode);
+	struct tipc_crypto *__rx = tipc_yesde_crypto_rx(__dyesde);
 	struct tipc_crypto *tx = tipc_net(net)->crypto_tx;
 	struct tipc_crypto_stats __percpu *stats = tx->stats;
 	struct tipc_key key = tx->key;
@@ -1568,7 +1568,7 @@ int tipc_crypto_xmit(struct net *net, struct sk_buff **skb,
 		return 0;
 
 	/* Try with the pending key if available and:
-	 * 1) This is the only choice (i.e. no active key) or;
+	 * 1) This is the only choice (i.e. yes active key) or;
 	 * 2) Peer has switched to this key (unicast only) or;
 	 * 3) It is time to do a pending key probe;
 	 */
@@ -1586,7 +1586,7 @@ int tipc_crypto_xmit(struct net *net, struct sk_buff **skb,
 			probe = skb_clone(*skb, GFP_ATOMIC);
 			if (probe) {
 				TIPC_SKB_CB(probe)->probe = 1;
-				tipc_crypto_xmit(net, &probe, b, dst, __dnode);
+				tipc_crypto_xmit(net, &probe, b, dst, __dyesde);
 				if (probe)
 					b->media->send_msg(net, probe, b, dst);
 			}
@@ -1605,7 +1605,7 @@ encrypt:
 		goto exit;
 	rc = tipc_ehdr_build(net, aead, tx_key, *skb, __rx);
 	if (likely(rc > 0))
-		rc = tipc_aead_encrypt(aead, *skb, b, dst, __dnode);
+		rc = tipc_aead_encrypt(aead, *skb, b, dst, __dyesde);
 
 exit:
 	switch (rc) {
@@ -1643,15 +1643,15 @@ exit:
  * as the callback, the encryption header and auth tag will be trimed out
  * before forwarding to tipc_rcv() via the tipc_crypto_rcv_complete().
  * Otherwise, the skb will be freed!
- * Note: RX key(s) can be re-aligned, or in case of no key suitable, TX
+ * Note: RX key(s) can be re-aligned, or in case of yes key suitable, TX
  * cluster key(s) can be taken for decryption (- recursive).
  *
  * Return:
  * 0                   : the decryption has successfully completed
  * -EINPROGRESS/-EBUSY : the decryption is ongoing, a callback will be made
- * -ENOKEY             : the decryption has failed due to no key
+ * -ENOKEY             : the decryption has failed due to yes key
  * -EBADMSG            : the decryption has failed due to bad message
- * -ENOMEM             : the decryption has failed due to no memory
+ * -ENOMEM             : the decryption has failed due to yes memory
  * < 0                 : the decryption has failed due to other reasons
  */
 int tipc_crypto_rcv(struct net *net, struct tipc_crypto *rx,
@@ -1687,7 +1687,7 @@ int tipc_crypto_rcv(struct net *net, struct tipc_crypto *rx,
 			goto decrypt;
 	}
 
-	/* Unknown key, let's try to align RX key(s) */
+	/* Unkyeswn key, let's try to align RX key(s) */
 	if (tipc_crypto_key_try_align(rx, tx_key))
 		goto decrypt;
 
@@ -1722,7 +1722,7 @@ exit:
 			kfree_skb(*skb);
 			*skb = NULL;
 			if (rx)
-				tipc_node_put(rx->node);
+				tipc_yesde_put(rx->yesde);
 			this_cpu_inc(stats->stat[STAT_NOKEYS]);
 			return rc;
 		} else if (rc == -EBADMSG) {
@@ -1743,16 +1743,16 @@ static void tipc_crypto_rcv_complete(struct net *net, struct tipc_aead *aead,
 	struct tipc_crypto *rx = aead->crypto;
 	struct tipc_aead *tmp = NULL;
 	struct tipc_ehdr *ehdr;
-	struct tipc_node *n;
+	struct tipc_yesde *n;
 	u8 rx_key_active;
 	bool destined;
 
 	/* Is this completed by TX? */
-	if (unlikely(!rx->node)) {
+	if (unlikely(!rx->yesde)) {
 		rx = skb_cb->tx_clone_ctx.rx;
 #ifdef TIPC_CRYPTO_DEBUG
 		pr_info("TX->RX(%s): err %d, aead %p, skb->next %p, flags %x\n",
-			(rx) ? tipc_node_get_id_str(rx->node) : "-", err, aead,
+			(rx) ? tipc_yesde_get_id_str(rx->yesde) : "-", err, aead,
 			(*skb)->next, skb_cb->flags);
 		pr_info("skb_cb [recurs %d, last %p], tx->aead [%p %p %p]\n",
 			skb_cb->tx_clone_ctx.recurs, skb_cb->tx_clone_ctx.last,
@@ -1772,9 +1772,9 @@ static void tipc_crypto_rcv_complete(struct net *net, struct tipc_aead *aead,
 		ehdr = (struct tipc_ehdr *)(*skb)->data;
 		if (!rx) {
 			WARN_ON(ehdr->user != LINK_CONFIG);
-			n = tipc_node_create(net, 0, ehdr->id, 0xffffu, 0,
+			n = tipc_yesde_create(net, 0, ehdr->id, 0xffffu, 0,
 					     true);
-			rx = tipc_node_crypto_rx(n);
+			rx = tipc_yesde_crypto_rx(n);
 			if (unlikely(!rx))
 				goto free_skb;
 		}
@@ -1838,7 +1838,7 @@ free_skb:
 exit:
 	tipc_aead_put(aead);
 	if (rx)
-		tipc_node_put(rx->node);
+		tipc_yesde_put(rx->yesde);
 }
 
 static void tipc_crypto_do_cmd(struct net *net, int cmd)
@@ -1868,9 +1868,9 @@ print_stats:
 		tipc_crypto_key_dump(tx, buf));
 
 	rcu_read_lock();
-	for (p = tn->node_list.next; p != &tn->node_list; p = p->next) {
-		rx = tipc_node_crypto_rx_by_list(p);
-		pr_info("RX(%7.7s)\n%s", tipc_node_get_id_str(rx->node),
+	for (p = tn->yesde_list.next; p != &tn->yesde_list; p = p->next) {
+		rx = tipc_yesde_crypto_rx_by_list(p);
+		pr_info("RX(%7.7s)\n%s", tipc_yesde_get_id_str(rx->yesde),
 			tipc_crypto_key_dump(rx, buf));
 	}
 	rcu_read_unlock();
@@ -1895,10 +1895,10 @@ print_stats:
 	}
 
 	rcu_read_lock();
-	for (p = tn->node_list.next; p != &tn->node_list; p = p->next) {
-		rx = tipc_node_crypto_rx_by_list(p);
+	for (p = tn->yesde_list.next; p != &tn->yesde_list; p = p->next) {
+		rx = tipc_yesde_crypto_rx_by_list(p);
 		j = scnprintf(buf, 200, "RX(%7.7s) ",
-			      tipc_node_get_id_str(rx->node));
+			      tipc_yesde_get_id_str(rx->yesde));
 		for_each_possible_cpu(cpu) {
 			for (i = 0; i < MAX_STATS; i++) {
 				stat = per_cpu_ptr(rx->stats, cpu)->stat[i];
@@ -1945,7 +1945,7 @@ static char *tipc_crypto_key_dump(struct tipc_crypto *c, char *buf)
 		i += scnprintf(buf + i, 200 - i, "\n");
 	}
 
-	if (c->node)
+	if (c->yesde)
 		i += scnprintf(buf + i, 200 - i, "\tPeer RX active: %d\n",
 			       atomic_read(&c->peer_rx_active));
 

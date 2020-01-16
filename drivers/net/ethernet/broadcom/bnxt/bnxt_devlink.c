@@ -27,14 +27,14 @@ bnxt_dl_flash_update(struct devlink *dl, const char *filename,
 
 	if (!BNXT_PF(bp)) {
 		NL_SET_ERR_MSG_MOD(extack,
-				   "flash update not supported from a VF");
+				   "flash update yest supported from a VF");
 		return -EPERM;
 	}
 
 	return bnxt_flash_package_from_file(bp->dev, filename, 0);
 }
 
-static int bnxt_fw_reporter_diagnose(struct devlink_health_reporter *reporter,
+static int bnxt_fw_reporter_diagyesse(struct devlink_health_reporter *reporter,
 				     struct devlink_fmsg *fmsg,
 				     struct netlink_ext_ack *extack)
 {
@@ -55,7 +55,7 @@ static int bnxt_fw_reporter_diagnose(struct devlink_health_reporter *reporter,
 			return rc;
 	} else if (health_status > BNXT_FW_STATUS_HEALTHY) {
 		rc = devlink_fmsg_string_pair_put(fmsg, "Description",
-						  "Encountered fatal error and cannot recover");
+						  "Encountered fatal error and canyest recover");
 		if (rc)
 			return rc;
 	}
@@ -76,7 +76,7 @@ static int bnxt_fw_reporter_diagnose(struct devlink_health_reporter *reporter,
 
 static const struct devlink_health_reporter_ops bnxt_dl_fw_reporter_ops = {
 	.name = "fw",
-	.diagnose = bnxt_fw_reporter_diagnose,
+	.diagyesse = bnxt_fw_reporter_diagyesse,
 };
 
 static int bnxt_fw_reset_recover(struct devlink_health_reporter *reporter,
@@ -227,7 +227,7 @@ void bnxt_devlink_health_report(struct bnxt *bp, unsigned long event)
 			return;
 
 		devlink_health_report(fw_health->fw_reset_reporter,
-				      "FW non-fatal reset event received",
+				      "FW yesn-fatal reset event received",
 				      &fw_reporter_ctx);
 		return;
 
@@ -394,7 +394,7 @@ static int bnxt_hwrm_nvm_req(struct bnxt *bp, u32 param_id, void *msg,
 	}
 	dma_free_coherent(&bp->pdev->dev, sizeof(*data), data, data_dma_addr);
 	if (rc == -EACCES)
-		netdev_err(bp->dev, "PF does not have admin privileges to modify NVM config\n");
+		netdev_err(bp->dev, "PF does yest have admin privileges to modify NVM config\n");
 	return rc;
 }
 
@@ -481,7 +481,7 @@ int bnxt_dl_register(struct bnxt *bp)
 	int rc;
 
 	if (bp->hwrm_spec_code < 0x10600) {
-		netdev_warn(bp->dev, "Firmware does not support NVM params");
+		netdev_warn(bp->dev, "Firmware does yest support NVM params");
 		return -ENOTSUPP;
 	}
 

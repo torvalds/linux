@@ -11,9 +11,9 @@
 #include "xfs_log_format.h"
 #include "xfs_trans_resv.h"
 #include "xfs_mount.h"
-#include "xfs_inode.h"
+#include "xfs_iyesde.h"
 #include "xfs_trans.h"
-#include "xfs_inode_item.h"
+#include "xfs_iyesde_item.h"
 #include "xfs_btree.h"
 #include "xfs_bmap_btree.h"
 #include "xfs_bmap.h"
@@ -26,13 +26,13 @@
 
 kmem_zone_t *xfs_ifork_zone;
 
-STATIC int xfs_iformat_local(xfs_inode_t *, xfs_dinode_t *, int, int);
-STATIC int xfs_iformat_extents(xfs_inode_t *, xfs_dinode_t *, int);
-STATIC int xfs_iformat_btree(xfs_inode_t *, xfs_dinode_t *, int);
+STATIC int xfs_iformat_local(xfs_iyesde_t *, xfs_diyesde_t *, int, int);
+STATIC int xfs_iformat_extents(xfs_iyesde_t *, xfs_diyesde_t *, int);
+STATIC int xfs_iformat_btree(xfs_iyesde_t *, xfs_diyesde_t *, int);
 
 /*
- * Copy inode type and data and attr format specific information from the
- * on-disk inode to the in-core inode and fork structures.  For fifos, devices,
+ * Copy iyesde type and data and attr format specific information from the
+ * on-disk iyesde to the in-core iyesde and fork structures.  For fifos, devices,
  * and sockets this means set i_rdev to the proper value.  For files,
  * directories, and symlinks this means to bring in the in-line data or extent
  * pointers as well as the attribute fork.  For a fork in B-tree format, only
@@ -41,22 +41,22 @@ STATIC int xfs_iformat_btree(xfs_inode_t *, xfs_dinode_t *, int);
  */
 int
 xfs_iformat_fork(
-	struct xfs_inode	*ip,
-	struct xfs_dinode	*dip)
+	struct xfs_iyesde	*ip,
+	struct xfs_diyesde	*dip)
 {
-	struct inode		*inode = VFS_I(ip);
+	struct iyesde		*iyesde = VFS_I(ip);
 	struct xfs_attr_shortform *atp;
 	int			size;
 	int			error = 0;
 	xfs_fsize_t             di_size;
 
-	switch (inode->i_mode & S_IFMT) {
+	switch (iyesde->i_mode & S_IFMT) {
 	case S_IFIFO:
 	case S_IFCHR:
 	case S_IFBLK:
 	case S_IFSOCK:
 		ip->i_d.di_size = 0;
-		inode->i_rdev = xfs_to_linux_dev_t(xfs_dinode_get_rdev(dip));
+		iyesde->i_rdev = xfs_to_linux_dev_t(xfs_diyesde_get_rdev(dip));
 		break;
 
 	case S_IFREG:
@@ -75,21 +75,21 @@ xfs_iformat_fork(
 			error = xfs_iformat_btree(ip, dip, XFS_DATA_FORK);
 			break;
 		default:
-			xfs_inode_verifier_error(ip, -EFSCORRUPTED, __func__,
+			xfs_iyesde_verifier_error(ip, -EFSCORRUPTED, __func__,
 					dip, sizeof(*dip), __this_address);
 			return -EFSCORRUPTED;
 		}
 		break;
 
 	default:
-		xfs_inode_verifier_error(ip, -EFSCORRUPTED, __func__, dip,
+		xfs_iyesde_verifier_error(ip, -EFSCORRUPTED, __func__, dip,
 				sizeof(*dip), __this_address);
 		return -EFSCORRUPTED;
 	}
 	if (error)
 		return error;
 
-	if (xfs_is_reflink_inode(ip)) {
+	if (xfs_is_reflink_iyesde(ip)) {
 		ASSERT(ip->i_cowfp == NULL);
 		xfs_ifork_init_cow(ip);
 	}
@@ -114,7 +114,7 @@ xfs_iformat_fork(
 		error = xfs_iformat_btree(ip, dip, XFS_ATTR_FORK);
 		break;
 	default:
-		xfs_inode_verifier_error(ip, error, __func__, dip,
+		xfs_iyesde_verifier_error(ip, error, __func__, dip,
 				sizeof(*dip), __this_address);
 		error = -EFSCORRUPTED;
 		break;
@@ -132,7 +132,7 @@ xfs_iformat_fork(
 
 void
 xfs_init_local_fork(
-	struct xfs_inode	*ip,
+	struct xfs_iyesde	*ip,
 	int			whichfork,
 	const void		*data,
 	int64_t			size)
@@ -167,12 +167,12 @@ xfs_init_local_fork(
 }
 
 /*
- * The file is in-lined in the on-disk inode.
+ * The file is in-lined in the on-disk iyesde.
  */
 STATIC int
 xfs_iformat_local(
-	xfs_inode_t	*ip,
-	xfs_dinode_t	*dip,
+	xfs_iyesde_t	*ip,
+	xfs_diyesde_t	*dip,
 	int		whichfork,
 	int		size)
 {
@@ -183,10 +183,10 @@ xfs_iformat_local(
 	 */
 	if (unlikely(size > XFS_DFORK_SIZE(dip, ip->i_mount, whichfork))) {
 		xfs_warn(ip->i_mount,
-	"corrupt inode %Lu (bad size %d for local fork, size = %d).",
-			(unsigned long long) ip->i_ino, size,
+	"corrupt iyesde %Lu (bad size %d for local fork, size = %d).",
+			(unsigned long long) ip->i_iyes, size,
 			XFS_DFORK_SIZE(dip, ip->i_mount, whichfork));
-		xfs_inode_verifier_error(ip, -EFSCORRUPTED,
+		xfs_iyesde_verifier_error(ip, -EFSCORRUPTED,
 				"xfs_iformat_local", dip, sizeof(*dip),
 				__this_address);
 		return -EFSCORRUPTED;
@@ -198,12 +198,12 @@ xfs_iformat_local(
 
 /*
  * The file consists of a set of extents all of which fit into the on-disk
- * inode.
+ * iyesde.
  */
 STATIC int
 xfs_iformat_extents(
-	struct xfs_inode	*ip,
-	struct xfs_dinode	*dip,
+	struct xfs_iyesde	*ip,
+	struct xfs_diyesde	*dip,
 	int			whichfork)
 {
 	struct xfs_mount	*mp = ip->i_mount;
@@ -221,9 +221,9 @@ xfs_iformat_extents(
 	 * we just bail out rather than crash in kmem_alloc() or memcpy() below.
 	 */
 	if (unlikely(size < 0 || size > XFS_DFORK_SIZE(dip, mp, whichfork))) {
-		xfs_warn(ip->i_mount, "corrupt inode %Lu ((a)extents = %d).",
-			(unsigned long long) ip->i_ino, nex);
-		xfs_inode_verifier_error(ip, -EFSCORRUPTED,
+		xfs_warn(ip->i_mount, "corrupt iyesde %Lu ((a)extents = %d).",
+			(unsigned long long) ip->i_iyes, nex);
+		xfs_iyesde_verifier_error(ip, -EFSCORRUPTED,
 				"xfs_iformat_extents(1)", dip, sizeof(*dip),
 				__this_address);
 		return -EFSCORRUPTED;
@@ -242,7 +242,7 @@ xfs_iformat_extents(
 			xfs_bmbt_disk_get_all(dp, &new);
 			fa = xfs_bmap_validate_extent(ip, whichfork, &new);
 			if (fa) {
-				xfs_inode_verifier_error(ip, -EFSCORRUPTED,
+				xfs_iyesde_verifier_error(ip, -EFSCORRUPTED,
 						"xfs_iformat_extents(2)",
 						dp, sizeof(*dp), fa);
 				return -EFSCORRUPTED;
@@ -259,7 +259,7 @@ xfs_iformat_extents(
 
 /*
  * The file has too many extents to fit into
- * the inode, so they are in B-tree format.
+ * the iyesde, so they are in B-tree format.
  * Allocate a buffer for the root of the B-tree
  * and copy the root into it.  The i_extents
  * field will remain NULL until all of the
@@ -267,8 +267,8 @@ xfs_iformat_extents(
  */
 STATIC int
 xfs_iformat_btree(
-	xfs_inode_t		*ip,
-	xfs_dinode_t		*dip,
+	xfs_iyesde_t		*ip,
+	xfs_diyesde_t		*dip,
 	int			whichfork)
 {
 	struct xfs_mount	*mp = ip->i_mount;
@@ -299,9 +299,9 @@ xfs_iformat_btree(
 					XFS_DFORK_SIZE(dip, mp, whichfork) ||
 		     XFS_IFORK_NEXTENTS(ip, whichfork) > ip->i_d.di_nblocks) ||
 		     level == 0 || level > XFS_BTREE_MAXLEVELS) {
-		xfs_warn(mp, "corrupt inode %Lu (btree).",
-					(unsigned long long) ip->i_ino);
-		xfs_inode_verifier_error(ip, -EFSCORRUPTED,
+		xfs_warn(mp, "corrupt iyesde %Lu (btree).",
+					(unsigned long long) ip->i_iyes);
+		xfs_iyesde_verifier_error(ip, -EFSCORRUPTED,
 				"xfs_iformat_btree", dfp, size,
 				__this_address);
 		return -EFSCORRUPTED;
@@ -333,19 +333,19 @@ xfs_iformat_btree(
  * the caller.  When growing this will create holes to be filled in
  * by the caller.
  *
- * The caller must not request to add more records than would fit in
- * the on-disk inode root.  If the if_broot is currently NULL, then
+ * The caller must yest request to add more records than would fit in
+ * the on-disk iyesde root.  If the if_broot is currently NULL, then
  * if we are adding records, one will be allocated.  The caller must also
- * not request that the number of records go below zero, although
+ * yest request that the number of records go below zero, although
  * it can go to zero.
  *
- * ip -- the inode whose if_broot area is changing
+ * ip -- the iyesde whose if_broot area is changing
  * ext_diff -- the change in the number of records, positive or negative,
  *	 requested for the if_broot array.
  */
 void
 xfs_iroot_realloc(
-	xfs_inode_t		*ip,
+	xfs_iyesde_t		*ip,
 	int			rec_diff,
 	int			whichfork)
 {
@@ -369,7 +369,7 @@ xfs_iroot_realloc(
 	if (rec_diff > 0) {
 		/*
 		 * If there wasn't any memory allocated before, just
-		 * allocate it now and get out.
+		 * allocate it yesw and get out.
 		 */
 		if (ifp->if_broot_bytes == 0) {
 			new_size = XFS_BMAP_BROOT_SPACE_CALC(mp, rec_diff);
@@ -466,13 +466,13 @@ xfs_iroot_realloc(
  * use kmem_realloc() or kmem_alloc() to adjust the size of the buffer
  * to what is needed.
  *
- * ip -- the inode whose if_data area is changing
+ * ip -- the iyesde whose if_data area is changing
  * byte_diff -- the change in the number of bytes, positive or negative,
  *	 requested for the if_data array.
  */
 void
 xfs_idata_realloc(
-	struct xfs_inode	*ip,
+	struct xfs_iyesde	*ip,
 	int64_t			byte_diff,
 	int			whichfork)
 {
@@ -504,7 +504,7 @@ xfs_idata_realloc(
 
 void
 xfs_idestroy_fork(
-	xfs_inode_t	*ip,
+	xfs_iyesde_t	*ip,
 	int		whichfork)
 {
 	struct xfs_ifork	*ifp;
@@ -518,7 +518,7 @@ xfs_idestroy_fork(
 	/*
 	 * If the format is local, then we can't have an extents
 	 * array so just look for an inline data array.  If we're
-	 * not local then we may or may not have an extents list,
+	 * yest local then we may or may yest have an extents list,
 	 * so check and free it up if we do.
 	 */
 	if (XFS_IFORK_FORMAT(ip, whichfork) == XFS_DINODE_FMT_LOCAL) {
@@ -550,7 +550,7 @@ xfs_idestroy_fork(
  */
 int
 xfs_iextents_copy(
-	struct xfs_inode	*ip,
+	struct xfs_iyesde	*ip,
 	struct xfs_bmbt_rec	*dp,
 	int			whichfork)
 {
@@ -580,7 +580,7 @@ xfs_iextents_copy(
 
 /*
  * Each of the following cases stores data into the same region
- * of the on-disk inode, so only one of them can be valid at
+ * of the on-disk iyesde, so only one of them can be valid at
  * any given time. While it is possible to have conflicting formats
  * and log flags, e.g. having XFS_ILOG_?DATA set when the fork is
  * in EXTENTS format, this can only happen when the fork has
@@ -590,9 +590,9 @@ xfs_iextents_copy(
  */
 void
 xfs_iflush_fork(
-	xfs_inode_t		*ip,
-	xfs_dinode_t		*dip,
-	xfs_inode_log_item_t	*iip,
+	xfs_iyesde_t		*ip,
+	xfs_diyesde_t		*dip,
+	xfs_iyesde_log_item_t	*iip,
 	int			whichfork)
 {
 	char			*cp;
@@ -654,7 +654,7 @@ xfs_iflush_fork(
 	case XFS_DINODE_FMT_DEV:
 		if (iip->ili_fields & XFS_ILOG_DEV) {
 			ASSERT(whichfork == XFS_DATA_FORK);
-			xfs_dinode_put_rdev(dip,
+			xfs_diyesde_put_rdev(dip,
 					linux_to_xfs_dev_t(VFS_I(ip)->i_rdev));
 		}
 		break;
@@ -665,10 +665,10 @@ xfs_iflush_fork(
 	}
 }
 
-/* Convert bmap state flags to an inode fork. */
+/* Convert bmap state flags to an iyesde fork. */
 struct xfs_ifork *
 xfs_iext_state_to_fork(
-	struct xfs_inode	*ip,
+	struct xfs_iyesde	*ip,
 	int			state)
 {
 	if (state & BMAP_COWFORK)
@@ -679,11 +679,11 @@ xfs_iext_state_to_fork(
 }
 
 /*
- * Initialize an inode's copy-on-write fork.
+ * Initialize an iyesde's copy-on-write fork.
  */
 void
 xfs_ifork_init_cow(
-	struct xfs_inode	*ip)
+	struct xfs_iyesde	*ip)
 {
 	if (ip->i_cowfp)
 		return;
@@ -702,10 +702,10 @@ struct xfs_ifork_ops xfs_default_ifork_ops = {
 	.verify_symlink	= xfs_symlink_shortform_verify,
 };
 
-/* Verify the inline contents of the data fork of an inode. */
+/* Verify the inline contents of the data fork of an iyesde. */
 xfs_failaddr_t
 xfs_ifork_verify_data(
-	struct xfs_inode	*ip,
+	struct xfs_iyesde	*ip,
 	struct xfs_ifork_ops	*ops)
 {
 	/* Non-local data fork, we're done. */
@@ -723,10 +723,10 @@ xfs_ifork_verify_data(
 	}
 }
 
-/* Verify the inline contents of the attr fork of an inode. */
+/* Verify the inline contents of the attr fork of an iyesde. */
 xfs_failaddr_t
 xfs_ifork_verify_attr(
-	struct xfs_inode	*ip,
+	struct xfs_iyesde	*ip,
 	struct xfs_ifork_ops	*ops)
 {
 	/* There has to be an attr fork allocated if aformat is local. */

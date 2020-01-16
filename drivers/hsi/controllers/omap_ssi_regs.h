@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2010 Nokia Corporation. All rights reserved.
  *
- * Contact: Carlos Chinea <carlos.chinea@nokia.com>
+ * Contact: Carlos Chinea <carlos.chinea@yeskia.com>
  */
 
 #ifndef __OMAP_SSI_REGS_H__

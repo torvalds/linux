@@ -122,7 +122,7 @@ static int get_counterset_start(int setnr)
 		return 64;
 	case CPUMF_CTR_SET_EXT:			/* Extended counter set */
 		return 128;
-	case CPUMF_CTR_SET_MT_DIAG:		/* Diagnostic counter set */
+	case CPUMF_CTR_SET_MT_DIAG:		/* Diagyesstic counter set */
 		return 448;
 	default:
 		return -1;
@@ -133,7 +133,7 @@ static int get_counterset_start(int setnr)
  * PMU events table. Input is the counter set and counter number with in the
  * set. Construct the event number and use this as key. If they match return
  * the name of this counter.
- * If no match is found a NULL pointer is returned.
+ * If yes match is found a NULL pointer is returned.
  */
 static const char *get_counter_name(int set, int nr, struct pmu_events_map *map)
 {
@@ -186,14 +186,14 @@ static void s390_cpumcfdg_dump(struct perf_sample *sample)
 
 			color_fprintf(stdout, color,
 				      "\tCounter:%03d %s Value:%#018lx\n", i,
-				      ev_name ?: "<unknown>", be64_to_cpu(*p));
+				      ev_name ?: "<unkyeswn>", be64_to_cpu(*p));
 		}
 		offset += ctrset_size(&ce);
 	}
 }
 
 /* S390 specific trace event function. Check for PERF_RECORD_SAMPLE events
- * and if the event was triggered by a counter set diagnostic event display
+ * and if the event was triggered by a counter set diagyesstic event display
  * its raw data.
  * The function is only invoked when the dump flag -D is set.
  */

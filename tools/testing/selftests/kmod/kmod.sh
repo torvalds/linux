@@ -14,19 +14,19 @@
 # at http://copyleft-next.org/.
 
 # This is a stress test script for kmod, the kernel module loader. It uses
-# test_kmod which exposes a series of knobs for the API for us so we can
+# test_kmod which exposes a series of kyesbs for the API for us so we can
 # tweak each test in userspace rather than in kernelspace.
 #
 # The way kmod works is it uses the kernel's usermode helper API to eventually
 # call /sbin/modprobe. It has a limit of the number of concurrent calls
 # possible. The kernel interface to load modules is request_module(), however
 # mount uses get_fs_type(). Both behave slightly differently, but the
-# differences are important enough to test each call separately. For this
+# differences are important eyesugh to test each call separately. For this
 # reason test_kmod starts by providing tests for both calls.
 #
 # The test driver test_kmod assumes a series of defaults which you can
 # override by exporting to your environment prior running this script.
-# For instance this script assumes you do not have xfs loaded upon boot.
+# For instance this script assumes you do yest have xfs loaded upon boot.
 # If this is false, export DEFAULT_KMOD_FS="ext4" prior to running this
 # script if the filesystem module you don't have loaded upon bootup
 # is ext4 instead. Refer to allow_user_defaults() for a list of user
@@ -68,7 +68,7 @@ ksft_skip=4
 test_modprobe()
 {
        if [ ! -d $DIR ]; then
-               echo "$0: $DIR not present" >&2
+               echo "$0: $DIR yest present" >&2
                echo "You must have the following enabled in your kernel:" >&2
                cat $TEST_DIR/config >&2
                exit $ksft_skip
@@ -117,7 +117,7 @@ test_reqs()
 	fi
 
 	# kmod 19 has a bad bug where it returns 0 when modprobe
-	# gets called *even* if the module was not loaded due to
+	# gets called *even* if the module was yest loaded due to
 	# some bad heuristics. For details see:
 	#
 	# A work around is possible in-kernel but its rather
@@ -152,10 +152,10 @@ test_finish()
 	echo "Test completed"
 }
 
-errno_name_to_val()
+erryes_name_to_val()
 {
 	case "$1" in
-	# kmod calls modprobe and upon of a module not found
+	# kmod calls modprobe and upon of a module yest found
 	# modprobe returns just 1... However in the kernel we
 	# *sometimes* see 256...
 	MODULE_NOT_FOUND)
@@ -175,7 +175,7 @@ errno_name_to_val()
 	esac
 }
 
-errno_val_to_name()
+erryes_val_to_name()
 	case "$1" in
 	256)
 		echo MODULE_NOT_FOUND;;
@@ -298,10 +298,10 @@ config_trigger_want_fail()
 config_expect_result()
 {
 	RC=$(config_get_test_result)
-	RC_NAME=$(errno_val_to_name $RC)
+	RC_NAME=$(erryes_val_to_name $RC)
 
 	ERRNO_NAME=$2
-	ERRNO=$(errno_name_to_val $ERRNO_NAME)
+	ERRNO=$(erryes_name_to_val $ERRNO_NAME)
 
 	if [[ $ERRNO_NAME = "-ERR_ANY" ]]; then
 		if [[ $RC -ge 0 ]]; then
@@ -362,7 +362,7 @@ kmod_test_0001()
 
 kmod_test_0002_driver()
 {
-	NAME="nope-$DEFAULT_KMOD_DRIVER"
+	NAME="yespe-$DEFAULT_KMOD_DRIVER"
 
 	kmod_defaults_driver
 	config_set_driver $NAME
@@ -373,7 +373,7 @@ kmod_test_0002_driver()
 
 kmod_test_0002_fs()
 {
-	NAME="nope-$DEFAULT_KMOD_FS"
+	NAME="yespe-$DEFAULT_KMOD_FS"
 
 	kmod_defaults_fs
 	config_set_fs $NAME
@@ -452,7 +452,7 @@ list_tests()
 	echo "NUM_TESTS: Number of recommended times to run the test"
 	echo
 	echo "0001 x $(get_test_count 0001) - Simple test - 1 thread  for empty string"
-	echo "0002 x $(get_test_count 0002) - Simple test - 1 thread  for modules/filesystems that do not exist"
+	echo "0002 x $(get_test_count 0002) - Simple test - 1 thread  for modules/filesystems that do yest exist"
 	echo "0003 x $(get_test_count 0003) - Simple test - 1 thread  for get_fs_type() only"
 	echo "0004 x $(get_test_count 0004) - Simple test - 2 threads for get_fs_type() only"
 	echo "0005 x $(get_test_count 0005) - multithreaded tests with default setup - request_module() only"
@@ -568,7 +568,7 @@ function test_case()
 	i=0
 	while [ $i -lt $NUM_TESTS ]; do
 		test_num $1
-		watch_log $i ${TEST_NAME}_test_$1 noclear
+		watch_log $i ${TEST_NAME}_test_$1 yesclear
 		RUN_TEST=${TEST_NAME}_test_$1
 		$RUN_TEST
 		let i=$i+1

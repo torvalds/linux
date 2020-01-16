@@ -19,7 +19,7 @@
 #define MAX_THR_RATES 4
 
 /*
- * Coefficients for moving average with noise filter (period=16),
+ * Coefficients for moving average with yesise filter (period=16),
  * scaled by 10 bits
  *
  * a1 = exp(-pi * sqrt(2) / period)
@@ -179,7 +179,7 @@ void minstrel_calc_rate_stats(struct minstrel_priv *mp,
 int minstrel_get_tp_avg(struct minstrel_rate *mr, int prob_avg);
 
 /* debugfs */
-int minstrel_stats_open(struct inode *inode, struct file *file);
-int minstrel_stats_csv_open(struct inode *inode, struct file *file);
+int minstrel_stats_open(struct iyesde *iyesde, struct file *file);
+int minstrel_stats_csv_open(struct iyesde *iyesde, struct file *file);
 
 #endif

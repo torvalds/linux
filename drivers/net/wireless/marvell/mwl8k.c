@@ -122,7 +122,7 @@ struct rxd_ops {
 	void (*rxd_init)(void *rxd, dma_addr_t next_dma_addr);
 	void (*rxd_refill)(void *rxd, dma_addr_t addr, int len);
 	int (*rxd_process)(void *rxd, struct ieee80211_rx_status *status,
-			   __le16 *qos, s8 *noise);
+			   __le16 *qos, s8 *yesise);
 };
 
 struct mwl8k_device_info {
@@ -260,7 +260,7 @@ struct mwl8k_priv {
 
 	/*
 	 * This FJ worker has to be global as it is scheduled from the
-	 * RX handler.  At this point we don't know which interface it
+	 * RX handler.  At this point we don't kyesw which interface it
 	 * belongs to until the list of bssids waiting to complete join
 	 * is checked.
 	 */
@@ -272,8 +272,8 @@ struct mwl8k_priv {
 	/* Tasklet to perform RX.  */
 	struct tasklet_struct poll_rx_task;
 
-	/* Most recently reported noise in dBm */
-	s8 noise;
+	/* Most recently reported yesise in dBm */
+	s8 yesise;
 
 	/*
 	 * preserve the queue configurations so they can be restored if/when
@@ -314,7 +314,7 @@ struct mwl8k_vif {
 	int macid;
 
 	/* Non AMPDU sequence number assigned by driver.  */
-	u16 seqno;
+	u16 seqyes;
 
 	/* Saved WEP keys */
 	struct {
@@ -517,7 +517,7 @@ static void mwl8k_release_firmware(struct mwl8k_priv *priv)
 	mwl8k_release_fw(&priv->fw_helper);
 }
 
-/* states for asynchronous f/w loading */
+/* states for asynchroyesus f/w loading */
 static void mwl8k_fw_state_machine(const struct firmware *fw, void *context);
 enum {
 	FW_STATE_INIT = 0,
@@ -529,14 +529,14 @@ enum {
 /* Request fw image */
 static int mwl8k_request_fw(struct mwl8k_priv *priv,
 			    const char *fname, const struct firmware **fw,
-			    bool nowait)
+			    bool yeswait)
 {
 	/* release current image */
 	if (*fw != NULL)
 		mwl8k_release_fw(fw);
 
-	if (nowait)
-		return request_firmware_nowait(THIS_MODULE, 1, fname,
+	if (yeswait)
+		return request_firmware_yeswait(THIS_MODULE, 1, fname,
 					       &priv->pdev->dev, GFP_KERNEL,
 					       priv, mwl8k_fw_state_machine);
 	else
@@ -544,13 +544,13 @@ static int mwl8k_request_fw(struct mwl8k_priv *priv,
 }
 
 static int mwl8k_request_firmware(struct mwl8k_priv *priv, char *fw_image,
-				  bool nowait)
+				  bool yeswait)
 {
 	struct mwl8k_device_info *di = priv->device_info;
 	int rc;
 
 	if (di->helper_image != NULL) {
-		if (nowait)
+		if (yeswait)
 			rc = mwl8k_request_fw(priv, di->helper_image,
 					      &priv->fw_helper, true);
 		else
@@ -560,13 +560,13 @@ static int mwl8k_request_firmware(struct mwl8k_priv *priv, char *fw_image,
 			printk(KERN_ERR "%s: Error requesting helper fw %s\n",
 			       pci_name(priv->pdev), di->helper_image);
 
-		if (rc || nowait)
+		if (rc || yeswait)
 			return rc;
 	}
 
-	if (nowait) {
+	if (yeswait) {
 		/*
-		 * if we get here, no helper image is needed.  Skip the
+		 * if we get here, yes helper image is needed.  Skip the
 		 * FW_STATE_INIT state.
 		 */
 		priv->fw_state = FW_STATE_LOADING_PREF;
@@ -752,7 +752,7 @@ static int mwl8k_load_firmware(struct ieee80211_hw *hw)
 		const struct firmware *helper = priv->fw_helper;
 
 		if (helper == NULL) {
-			printk(KERN_ERR "%s: helper image needed but none "
+			printk(KERN_ERR "%s: helper image needed but yesne "
 			       "given\n", pci_name(priv->pdev));
 			return -EINVAL;
 		}
@@ -946,8 +946,8 @@ struct mwl8k_rxd_ap {
 	__le16 qos_control;
 	__le16 htsig2;
 	__le32 hw_rssi_info;
-	__le32 hw_noise_floor_info;
-	__u8 noise_floor;
+	__le32 hw_yesise_floor_info;
+	__u8 yesise_floor;
 	__u8 pad0[3];
 	__u8 rssi;
 	__u8 rx_status;
@@ -988,7 +988,7 @@ static void mwl8k_rxd_ap_refill(void *_rxd, dma_addr_t addr, int len)
 
 static int
 mwl8k_rxd_ap_process(void *_rxd, struct ieee80211_rx_status *status,
-		     __le16 *qos, s8 *noise)
+		     __le16 *qos, s8 *yesise)
 {
 	struct mwl8k_rxd_ap *rxd = _rxd;
 
@@ -999,7 +999,7 @@ mwl8k_rxd_ap_process(void *_rxd, struct ieee80211_rx_status *status,
 	memset(status, 0, sizeof(*status));
 
 	status->signal = -rxd->rssi;
-	*noise = -rxd->noise_floor;
+	*yesise = -rxd->yesise_floor;
 
 	if (rxd->rate & MWL8K_AP_RATE_INFO_MCS_FORMAT) {
 		status->encoding = RX_ENC_HT;
@@ -1051,7 +1051,7 @@ static struct rxd_ops rxd_ap_ops = {
 struct mwl8k_rxd_sta {
 	__le16 pkt_len;
 	__u8 link_quality;
-	__u8 noise_level;
+	__u8 yesise_level;
 	__le32 pkt_phys_addr;
 	__le32 next_rxd_phys_addr;
 	__le16 qos_control;
@@ -1099,7 +1099,7 @@ static void mwl8k_rxd_sta_refill(void *_rxd, dma_addr_t addr, int len)
 
 static int
 mwl8k_rxd_sta_process(void *_rxd, struct ieee80211_rx_status *status,
-		       __le16 *qos, s8 *noise)
+		       __le16 *qos, s8 *yesise)
 {
 	struct mwl8k_rxd_sta *rxd = _rxd;
 	u16 rate_info;
@@ -1113,7 +1113,7 @@ mwl8k_rxd_sta_process(void *_rxd, struct ieee80211_rx_status *status,
 	memset(status, 0, sizeof(*status));
 
 	status->signal = -rxd->rssi;
-	*noise = -rxd->noise_level;
+	*yesise = -rxd->yesise_level;
 	status->antenna = MWL8K_STA_RATE_INFO_ANTSELECT(rate_info);
 	status->rate_idx = MWL8K_STA_RATE_INFO_RATEID(rate_info);
 
@@ -1292,7 +1292,7 @@ static inline void mwl8k_save_beacon(struct ieee80211_hw *hw,
 	/*
 	 * Use GFP_ATOMIC as rxq_process is called from
 	 * the primary interrupt handler, memory allocation call
-	 * must not sleep.
+	 * must yest sleep.
 	 */
 	priv->beacon_skb = skb_copy(skb, GFP_ATOMIC);
 	if (priv->beacon_skb != NULL)
@@ -1337,7 +1337,7 @@ static int rxq_process(struct ieee80211_hw *hw, int index, int limit)
 		rxd = rxq->rxd + (rxq->head * priv->rxd_ops->rxd_size);
 
 		pkt_len = priv->rxd_ops->rxd_process(rxd, &status, &qos,
-							&priv->noise);
+							&priv->yesise);
 		if (pkt_len < 0)
 			break;
 
@@ -1367,7 +1367,7 @@ static int rxq_process(struct ieee80211_hw *hw, int index, int limit)
 		if (ieee80211_has_protected(wh->frame_control)) {
 
 			/* Check if hw crypto has been enabled for
-			 * this bss. If yes, set the status flags
+			 * this bss. If no, set the status flags
 			 * accordingly
 			 */
 			mwl8k_vif = mwl8k_find_vif_bss(&priv->vif_list,
@@ -1594,7 +1594,7 @@ static int mwl8k_tx_wait_empty(struct ieee80211_hw *hw)
 		if (timeout || !priv->pending_tx_pkts) {
 			WARN_ON(priv->pending_tx_pkts);
 			if (retry)
-				wiphy_notice(hw->wiphy, "tx rings drained\n");
+				wiphy_yestice(hw->wiphy, "tx rings drained\n");
 			break;
 		}
 
@@ -1605,7 +1605,7 @@ static int mwl8k_tx_wait_empty(struct ieee80211_hw *hw)
 		}
 
 		if (priv->pending_tx_pkts < oldcount) {
-			wiphy_notice(hw->wiphy,
+			wiphy_yestice(hw->wiphy,
 				     "waiting for tx rings to drain (%d -> %d pkts)\n",
 				     oldcount, priv->pending_tx_pkts);
 			retry = 1;
@@ -1727,8 +1727,8 @@ mwl8k_txq_reclaim(struct ieee80211_hw *hw, int index, int limit, int force)
 				BUG_ON(sta_info == NULL);
 				rate_info = le16_to_cpu(tx_desc->rate_info);
 				/* If rate is < 6.5 Mpbs for an ht station
-				 * do not form an ampdu. If the station is a
-				 * legacy station (format = 0), do not form an
+				 * do yest form an ampdu. If the station is a
+				 * legacy station (format = 0), do yest form an
 				 * ampdu
 				 */
 				if (RI_RATE_ID_MCS(rate_info) < 1 ||
@@ -1744,7 +1744,7 @@ mwl8k_txq_reclaim(struct ieee80211_hw *hw, int index, int limit, int force)
 		ieee80211_tx_info_clear_status(info);
 
 		/* Rate control is happening in the firmware.
-		 * Ensure no tx rate is being reported.
+		 * Ensure yes tx rate is being reported.
 		 */
 		info->status.rates[0].idx = -1;
 		info->status.rates[0].count = 1;
@@ -1937,8 +1937,8 @@ mwl8k_txq_xmit(struct ieee80211_hw *hw,
 
 	if (tx_info->flags & IEEE80211_TX_CTL_ASSIGN_SEQ) {
 		wh->seq_ctrl &= cpu_to_le16(IEEE80211_SCTL_FRAG);
-		wh->seq_ctrl |= cpu_to_le16(mwl8k_vif->seqno);
-		mwl8k_vif->seqno += 0x10;
+		wh->seq_ctrl |= cpu_to_le16(mwl8k_vif->seqyes);
+		mwl8k_vif->seqyes += 0x10;
 	}
 
 	/* Setup firmware control bit fields for each frame type.  */
@@ -1964,7 +1964,7 @@ mwl8k_txq_xmit(struct ieee80211_hw *hw,
 	 * the ampdu stream, mac80211 queues further packets for that
 	 * particular ra/tid pair.  However, packets piled up in the hardware
 	 * for that ra/tid pair will still go out. ADDBA request and the
-	 * related data packets going out from different queues asynchronously
+	 * related data packets going out from different queues asynchroyesusly
 	 * will cause a shift in the receiver window which might result in
 	 * ampdu packets getting dropped at the receiver after the stream has
 	 * been setup.
@@ -2001,7 +2001,7 @@ mwl8k_txq_xmit(struct ieee80211_hw *hw,
 				 * our ampdu_action routine has been called
 				 * with IEEE80211_AMPDU_TX_START to get the SSN
 				 * for the ADDBA request.  So this packet can
-				 * go out with no risk of sequence number
+				 * go out with yes risk of sequence number
 				 * mismatch.  No special handling is required.
 				 */
 			} else {
@@ -2017,7 +2017,7 @@ mwl8k_txq_xmit(struct ieee80211_hw *hw,
 				 * case, so this is really just a safety check.
 				 */
 				wiphy_warn(hw->wiphy,
-					   "Cannot send packet while ADDBA "
+					   "Canyest send packet while ADDBA "
 					   "dialog is underway.\n");
 				spin_unlock(&priv->stream_lock);
 				dev_kfree_skb(skb);
@@ -2063,7 +2063,7 @@ mwl8k_txq_xmit(struct ieee80211_hw *hw,
 	/* Mgmt frames that go out frequently are probe
 	 * responses. Other mgmt frames got out relatively
 	 * infrequently. Hence reserve 2 buffers so that
-	 * other mgmt frames do not get dropped due to an
+	 * other mgmt frames do yest get dropped due to an
 	 * already queued probe response in one of the
 	 * reserved buffers.
 	 */
@@ -2137,7 +2137,7 @@ mwl8k_txq_xmit(struct ieee80211_hw *hw,
  *   the command is issued.  (For simplicity, we'll just quiesce the
  *   transmit path for every command.)
  * - There are certain sequences of commands that need to be issued to
- *   the hardware sequentially, with no other intervening commands.
+ *   the hardware sequentially, with yes other intervening commands.
  *
  * This leads to an implementation of a "firmware lock" as a mutex that
  * can be taken recursively, and which is taken by both the low-level
@@ -2276,7 +2276,7 @@ static int mwl8k_post_cmd(struct ieee80211_hw *hw, struct mwl8k_cmd_pkt *cmd)
 				  mwl8k_cmd_name(cmd->code, buf, sizeof(buf)),
 				  le16_to_cpu(cmd->result));
 		else if (ms > 2000)
-			wiphy_notice(hw->wiphy, "Command %s took %d ms\n",
+			wiphy_yestice(hw->wiphy, "Command %s took %d ms\n",
 				     mwl8k_cmd_name(cmd->code,
 						    buf, sizeof(buf)),
 				     ms);
@@ -3125,7 +3125,7 @@ static void mwl8k_update_survey(struct mwl8k_priv *priv,
 	mwl8k_cmd_bbp_reg_access(priv->hw, 0, BBU_AVG_NOISE_VAL, &nf);
 
 	/* Make sure sign is negative else ACS  at hostapd fails */
-	survey->noise = nf * -1;
+	survey->yesise = nf * -1;
 
 	survey->filled = SURVEY_INFO_NOISE_DBM |
 			 SURVEY_INFO_TIME |
@@ -3221,7 +3221,7 @@ static void legacy_rate_mask_to_array(u8 *rates, u32 mask)
 	int j;
 
 	/*
-	 * Clear nonstandard rate 4.
+	 * Clear yesnstandard rate 4.
 	 */
 	mask &= 0x1fef;
 
@@ -3944,8 +3944,8 @@ struct mwl8k_create_ba_stream {
 	u8	queue_id;
 	u8	param_info;
 	__le32	ba_context;
-	u8	reset_seq_no_flag;
-	__le16	curr_seq_no;
+	u8	reset_seq_yes_flag;
+	__le16	curr_seq_yes;
 	u8	sta_src_mac_addr[6];
 } __packed;
 
@@ -4018,8 +4018,8 @@ mwl8k_create_ba(struct ieee80211_hw *hw, struct mwl8k_ampdu_stream *stream,
 
 	memcpy(cmd->create_params.peer_mac_addr, stream->sta->addr, ETH_ALEN);
 	cmd->create_params.tid = stream->tid;
-	cmd->create_params.curr_seq_no = cpu_to_le16(0);
-	cmd->create_params.reset_seq_no_flag = 1;
+	cmd->create_params.curr_seq_yes = cpu_to_le16(0);
+	cmd->create_params.reset_seq_yes_flag = 1;
 
 	cmd->create_params.param_info =
 		(stream->sta->ht_cap.ampdu_factor &
@@ -4489,7 +4489,7 @@ struct peer_capability_info {
 	__u8	ht_rates[16];
 	__u8	pad[16];
 
-	/* If set, interoperability mode, no proprietary extensions.  */
+	/* If set, interoperability mode, yes proprietary extensions.  */
 	__u8	interop;
 	__u8	pad2;
 	__u8	station_id;
@@ -4514,7 +4514,7 @@ struct mwl8k_cmd_update_stadb {
 #define MWL8K_STA_DB_MODIFY_ENTRY	1
 #define MWL8K_STA_DB_DEL_ENTRY		2
 
-/* Peer Entry flags - used to define the type of the peer node */
+/* Peer Entry flags - used to define the type of the peer yesde */
 #define MWL8K_PEER_TYPE_ACCESSPOINT	2
 
 static int mwl8k_cmd_update_stadb_add(struct ieee80211_hw *hw,
@@ -4856,7 +4856,7 @@ static int mwl8k_add_interface(struct ieee80211_hw *hw,
 	memset(mwl8k_vif, 0, sizeof(*mwl8k_vif));
 	mwl8k_vif->vif = vif;
 	mwl8k_vif->macid = macid;
-	mwl8k_vif->seqno = 0;
+	mwl8k_vif->seqyes = 0;
 	memcpy(mwl8k_vif->bssid, vif->addr, ETH_ALEN);
 	mwl8k_vif->is_hw_crypto_enabled = false;
 
@@ -5004,7 +5004,7 @@ mwl8k_bss_info_changed_sta(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		return;
 
 	/*
-	 * No need to capture a beacon if we're no longer associated.
+	 * No need to capture a beacon if we're yes longer associated.
 	 */
 	if ((changed & BSS_CHANGED_ASSOC) && !vif->bss_conf.assoc)
 		priv->capture_beacon = false;
@@ -5172,7 +5172,7 @@ static u64 mwl8k_prepare_multicast(struct ieee80211_hw *hw,
 	/*
 	 * Synthesize and return a command packet that programs the
 	 * hardware multicast address filter.  At this point we don't
-	 * know whether FIF_ALLMULTI is being requested, but if it is,
+	 * kyesw whether FIF_ALLMULTI is being requested, but if it is,
 	 * we'll end up throwing this packet away and creating a new
 	 * one in mwl8k_configure_filter().
 	 */
@@ -5196,7 +5196,7 @@ mwl8k_configure_filter_sniffer(struct ieee80211_hw *hw,
 	if (!list_empty(&priv->vif_list)) {
 		if (net_ratelimit())
 			wiphy_info(hw->wiphy,
-				   "not enabling sniffer mode because STA interface is active\n");
+				   "yest enabling sniffer mode because STA interface is active\n");
 		return 0;
 	}
 
@@ -5277,7 +5277,7 @@ static void mwl8k_configure_filter(struct ieee80211_hw *hw,
 			 *
 			 * If there is an active STA interface, use that
 			 * interface's BSSID, otherwise use a dummy one
-			 * (where the OUI part needs to be nonzero for
+			 * (where the OUI part needs to be yesnzero for
 			 * the BSSID to be accepted by POST_SCAN).
 			 */
 			mwl8k_vif = mwl8k_first_vif(priv);
@@ -5425,7 +5425,7 @@ static int mwl8k_get_survey(struct ieee80211_hw *hw, int idx,
 
 	survey->channel = conf->chandef.chan;
 	survey->filled = SURVEY_INFO_NOISE_DBM;
-	survey->noise = priv->noise;
+	survey->yesise = priv->yesise;
 
 	return 0;
 }
@@ -5459,7 +5459,7 @@ mwl8k_ampdu_action(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		break;
 	case IEEE80211_AMPDU_TX_START:
 		/* By the time we get here the hw queues may contain outgoing
-		 * packets for this RA/TID that are not part of this BA
+		 * packets for this RA/TID that are yest part of this BA
 		 * session.  The hw will assign sequence numbers to these
 		 * packets as they go out.  So if we query the hw for its next
 		 * sequence number and use that for the SSN here, it may end up
@@ -5479,7 +5479,7 @@ mwl8k_ampdu_action(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 			stream = mwl8k_add_stream(hw, sta, tid);
 		}
 		if (stream == NULL) {
-			wiphy_debug(hw->wiphy, "no free AMPDU streams\n");
+			wiphy_debug(hw->wiphy, "yes free AMPDU streams\n");
 			rc = -EBUSY;
 			break;
 		}
@@ -5801,7 +5801,7 @@ fail:
 
 #define MAX_RESTART_ATTEMPTS 1
 static int mwl8k_init_firmware(struct ieee80211_hw *hw, char *fw_image,
-			       bool nowait)
+			       bool yeswait)
 {
 	struct mwl8k_priv *priv = hw->priv;
 	int rc;
@@ -5812,25 +5812,25 @@ retry:
 	mwl8k_hw_reset(priv);
 
 	/* Ask userland hotplug daemon for the device firmware */
-	rc = mwl8k_request_firmware(priv, fw_image, nowait);
+	rc = mwl8k_request_firmware(priv, fw_image, yeswait);
 	if (rc) {
-		wiphy_err(hw->wiphy, "Firmware files not found\n");
+		wiphy_err(hw->wiphy, "Firmware files yest found\n");
 		return rc;
 	}
 
-	if (nowait)
+	if (yeswait)
 		return rc;
 
 	/* Load firmware into hardware */
 	rc = mwl8k_load_firmware(hw);
 	if (rc)
-		wiphy_err(hw->wiphy, "Cannot start firmware\n");
+		wiphy_err(hw->wiphy, "Canyest start firmware\n");
 
 	/* Reclaim memory once firmware is successfully loaded */
 	mwl8k_release_firmware(priv);
 
 	if (rc && count) {
-		/* FW did not start successfully;
+		/* FW did yest start successfully;
 		 * lets try one more time
 		 */
 		count--;
@@ -5870,7 +5870,7 @@ static int mwl8k_probe_hw(struct ieee80211_hw *hw)
 		priv->rxd_ops = priv->device_info->ap_rxd_ops;
 		if (priv->rxd_ops == NULL) {
 			wiphy_err(hw->wiphy,
-				  "Driver does not have AP firmware image support for this hardware\n");
+				  "Driver does yest have AP firmware image support for this hardware\n");
 			rc = -ENOENT;
 			goto err_stop_firmware;
 		}
@@ -5888,7 +5888,7 @@ static int mwl8k_probe_hw(struct ieee80211_hw *hw)
 		goto err_stop_firmware;
 	rxq_refill(hw, 0, INT_MAX);
 
-	/* For the sta firmware, we need to know the dma addresses of tx queues
+	/* For the sta firmware, we need to kyesw the dma addresses of tx queues
 	 * before sending MWL8K_CMD_GET_HW_SPEC.  So we must initialize them
 	 * prior to issuing this command.  But for the AP case, we learn the
 	 * total number of queues from the result CMD_GET_HW_SPEC, so for this
@@ -5919,7 +5919,7 @@ static int mwl8k_probe_hw(struct ieee80211_hw *hw)
 	/*
 	 * When hw restart is requested,
 	 * mac80211 will take care of clearing
-	 * the ampdu streams, so do not clear
+	 * the ampdu streams, so do yest clear
 	 * the ampdu state here
 	 */
 	if (!priv->hw_restart_in_progress)
@@ -5943,21 +5943,21 @@ static int mwl8k_probe_hw(struct ieee80211_hw *hw)
 		rc = mwl8k_cmd_get_hw_spec_sta(hw);
 	}
 	if (rc) {
-		wiphy_err(hw->wiphy, "Cannot initialise firmware\n");
+		wiphy_err(hw->wiphy, "Canyest initialise firmware\n");
 		goto err_free_irq;
 	}
 
 	/* Turn radio off */
 	rc = mwl8k_cmd_radio_disable(hw);
 	if (rc) {
-		wiphy_err(hw->wiphy, "Cannot disable\n");
+		wiphy_err(hw->wiphy, "Canyest disable\n");
 		goto err_free_irq;
 	}
 
 	/* Clear MAC address */
 	rc = mwl8k_cmd_set_mac_addr(hw, NULL, "\x00\x00\x00\x00\x00\x00");
 	if (rc) {
-		wiphy_err(hw->wiphy, "Cannot clear MAC address\n");
+		wiphy_err(hw->wiphy, "Canyest clear MAC address\n");
 		goto err_free_irq;
 	}
 
@@ -6076,7 +6076,7 @@ static int mwl8k_firmware_load_success(struct mwl8k_priv *priv)
 	rc = mwl8k_load_firmware(hw);
 	mwl8k_release_firmware(priv);
 	if (rc) {
-		wiphy_err(hw->wiphy, "Cannot start firmware\n");
+		wiphy_err(hw->wiphy, "Canyest start firmware\n");
 		return rc;
 	}
 
@@ -6096,7 +6096,7 @@ static int mwl8k_firmware_load_success(struct mwl8k_priv *priv)
 	ieee80211_hw_set(hw, HAS_RATE_CONTROL);
 
 	/*
-	 * Ask mac80211 to not to trigger PS mode
+	 * Ask mac80211 to yest to trigger PS mode
 	 * based on PM bit of incoming frames.
 	 */
 	if (priv->ap_fw)
@@ -6161,7 +6161,7 @@ static int mwl8k_firmware_load_success(struct mwl8k_priv *priv)
 
 	rc = ieee80211_register_hw(hw);
 	if (rc) {
-		wiphy_err(hw->wiphy, "Cannot register device\n");
+		wiphy_err(hw->wiphy, "Canyest register device\n");
 		goto err_unprobe_hw;
 	}
 
@@ -6196,14 +6196,14 @@ static int mwl8k_probe(struct pci_dev *pdev,
 
 	rc = pci_enable_device(pdev);
 	if (rc) {
-		printk(KERN_ERR "%s: Cannot enable new PCI device\n",
+		printk(KERN_ERR "%s: Canyest enable new PCI device\n",
 		       MWL8K_NAME);
 		return rc;
 	}
 
 	rc = pci_request_regions(pdev, MWL8K_NAME);
 	if (rc) {
-		printk(KERN_ERR "%s: Cannot obtain PCI resources\n",
+		printk(KERN_ERR "%s: Canyest obtain PCI resources\n",
 		       MWL8K_NAME);
 		goto err_disable_device;
 	}
@@ -6231,7 +6231,7 @@ static int mwl8k_probe(struct pci_dev *pdev,
 
 	priv->sram = pci_iomap(pdev, 0, 0x10000);
 	if (priv->sram == NULL) {
-		wiphy_err(hw->wiphy, "Cannot map device SRAM\n");
+		wiphy_err(hw->wiphy, "Canyest map device SRAM\n");
 		rc = -EIO;
 		goto err_iounmap;
 	}
@@ -6244,7 +6244,7 @@ static int mwl8k_probe(struct pci_dev *pdev,
 	if (priv->regs == NULL) {
 		priv->regs = pci_iomap(pdev, 2, 0x10000);
 		if (priv->regs == NULL) {
-			wiphy_err(hw->wiphy, "Cannot map device registers\n");
+			wiphy_err(hw->wiphy, "Canyest map device registers\n");
 			rc = -EIO;
 			goto err_iounmap;
 		}

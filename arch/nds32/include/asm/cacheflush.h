@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-// Copyright (C) 2005-2017 Andes Technology Corporation
+// Copyright (C) 2005-2017 Andes Techyeslogy Corporation
 
 #ifndef __NDS32_CACHEFLUSH_H__
 #define __NDS32_CACHEFLUSH_H__
@@ -33,7 +33,7 @@ void copy_from_user_page(struct vm_area_struct *vma, struct page *page,
 			 unsigned long vaddr, void *dst, void *src, int len);
 
 #define ARCH_HAS_FLUSH_ANON_PAGE
-void flush_anon_page(struct vm_area_struct *vma,
+void flush_ayesn_page(struct vm_area_struct *vma,
 		     struct page *page, unsigned long vaddr);
 
 #define ARCH_HAS_FLUSH_KERNEL_DCACHE_PAGE

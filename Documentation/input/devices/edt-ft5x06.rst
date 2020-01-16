@@ -2,9 +2,9 @@ EDT ft5x06 based Polytouch devices
 ----------------------------------
 
 The edt-ft5x06 driver is useful for the EDT "Polytouch" family of capacitive
-touch screens. Note that it is *not* suitable for other devices based on the
+touch screens. Note that it is *yest* suitable for other devices based on the
 focaltec ft5x06 devices, since they contain vendor-specific firmware. In
-particular this driver is not suitable for the Nook tablet.
+particular this driver is yest suitable for the Nook tablet.
 
 It has been tested with the following devices:
   * EP0350M06
@@ -47,8 +47,8 @@ raw_data:
     contains num_x * num_y big endian 16 bit values describing the raw
     values for each sensor field. Note that each read() call on this
     files triggers a new readout. It is recommended to provide a buffer
-    big enough to contain num_x * num_y * 2 bytes.
+    big eyesugh to contain num_x * num_y * 2 bytes.
 
-Note that reading raw_data gives a I/O error when the device is not in factory
+Note that reading raw_data gives a I/O error when the device is yest in factory
 mode. The same happens when reading/writing to the parameter files when the
-device is not in regular operation mode.
+device is yest in regular operation mode.

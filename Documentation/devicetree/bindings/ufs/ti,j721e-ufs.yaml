@@ -35,9 +35,9 @@ patternProperties:
   "^ufs@[0-9a-f]+$":
     type: object
     description: |
-      Cadence UFS controller node must be the child node. Refer
+      Cadence UFS controller yesde must be the child yesde. Refer
       Documentation/devicetree/bindings/ufs/cdns,ufshc.txt for binding
-      documentation of child node
+      documentation of child yesde
 
 examples:
   - |

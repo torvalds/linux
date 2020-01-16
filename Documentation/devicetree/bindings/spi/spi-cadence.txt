@@ -14,7 +14,7 @@ Optional properties:
 - num-cs		: Number of chip selects used.
 			  If a decoder is used, this will be the number of
 			  chip selects after the decoder.
-- is-decoded-cs		: Flag to indicate whether decoder is used or not.
+- is-decoded-cs		: Flag to indicate whether decoder is used or yest.
 
 Example:
 

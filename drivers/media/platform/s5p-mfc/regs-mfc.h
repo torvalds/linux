@@ -402,7 +402,7 @@
 /* Shared memory registers' offsets */
 
 /* An offset of the start position in the stream when
- * the start position is not aligned */
+ * the start position is yest aligned */
 #define S5P_FIMV_SHARED_CROP_INFO_H		0x0020
 #define S5P_FIMV_SHARED_CROP_LEFT_MASK		0xFFFF
 #define S5P_FIMV_SHARED_CROP_LEFT_SHIFT		0

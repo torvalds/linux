@@ -17,7 +17,7 @@
  * details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this file; if not, write to the Free Software
+ * along with this file; if yest, write to the Free Software
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
  * or visit http://www.gnu.org/licenses/.
  *
@@ -141,7 +141,7 @@ static int __cvmx_helper_sgmii_hardware_init_link(int interface, int index)
 	/*
 	 * Take PCS through a reset sequence.
 	 * PCS*_MR*_CONTROL_REG[PWR_DN] should be cleared to zero.
-	 * Write PCS*_MR*_CONTROL_REG[RESET]=1 (while not changing the
+	 * Write PCS*_MR*_CONTROL_REG[RESET]=1 (while yest changing the
 	 * value of the other PCS*_MR*_CONTROL_REG bits).  Read
 	 * PCS*_MR*_CONTROL_REG[RESET] until it changes value to
 	 * zero.
@@ -240,7 +240,7 @@ static int __cvmx_helper_sgmii_hardware_init_link_speed(int interface,
 	 * Use GMXENO to force the link down if the status we get says
 	 * it should be down.
 	 */
-	pcsx_miscx_ctl_reg.s.gmxeno = !link_info.s.link_up;
+	pcsx_miscx_ctl_reg.s.gmxeyes = !link_info.s.link_up;
 
 	/* Only change the duplex setting if the link is up */
 	if (link_info.s.link_up)
@@ -314,7 +314,7 @@ static int __cvmx_helper_sgmii_hardware_init(int interface, int num_ports)
 		int ipd_port = cvmx_helper_get_ipd_port(interface, index);
 		__cvmx_helper_sgmii_hardware_init_one_time(interface, index);
 		/* Linux kernel driver will call ....link_set with the
-		 * proper link state. In the simulator there is no
+		 * proper link state. In the simulator there is yes
 		 * link state polling and hence it is set from
 		 * here.
 		 */
@@ -346,7 +346,7 @@ int __cvmx_helper_sgmii_probe(int interface)
 	/*
 	 * Due to errata GMX-700 on CN56XXp1.x and CN52XXp1.x, the
 	 * interface needs to be enabled before IPD otherwise per port
-	 * backpressure may not work properly
+	 * backpressure may yest work properly
 	 */
 	mode.u64 = cvmx_read_csr(CVMX_GMXX_INF_MODE(interface));
 	mode.s.en = 1;
@@ -386,7 +386,7 @@ int __cvmx_helper_sgmii_enable(int interface)
 
 /**
  * Return the link state of an IPD/PKO port as returned by
- * auto negotiation. The result of this function may not match
+ * auto negotiation. The result of this function may yest match
  * Octeon's link config if auto negotiation has changed since
  * the last call to cvmx_helper_link_set().
  *
@@ -495,7 +495,7 @@ cvmx_helper_link_info_t __cvmx_helper_sgmii_link_get(int ipd_port)
 
 /**
  * Configure an IPD/PKO port for the specified link state. This
- * function does not influence auto negotiation at the PHY level.
+ * function does yest influence auto negotiation at the PHY level.
  * The passed link state must always match the link state returned
  * by cvmx_helper_link_get().
  *

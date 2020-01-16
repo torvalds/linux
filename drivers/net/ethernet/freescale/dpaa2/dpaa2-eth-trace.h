@@ -31,7 +31,7 @@ DECLARE_EVENT_CLASS(dpaa2_eth_fd,
 		    TP_ARGS(netdev, fd),
 
 		    /* A structure containing the relevant information we want
-		     * to record. Declare name and type for each normal element,
+		     * to record. Declare name and type for each yesrmal element,
 		     * name, type and size for arrays. Use __string for variable
 		     * length strings.
 		     */
@@ -107,7 +107,7 @@ TRACE_EVENT(dpaa2_eth_buf_seed,
 	    TP_ARGS(netdev, vaddr, size, dma_addr, map_size, bpid),
 
 	    /* A structure containing the relevant information we want
-	     * to record. Declare name and type for each normal element,
+	     * to record. Declare name and type for each yesrmal element,
 	     * name, type and size for arrays. Use __string for variable
 	     * length strings.
 	     */

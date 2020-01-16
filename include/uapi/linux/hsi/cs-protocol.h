@@ -1,11 +1,11 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 /*
  * cmt-speech interface definitions
  *
  * Copyright (C) 2008,2009,2010 Nokia Corporation. All rights reserved.
  *
- * Contact: Kai Vehmanen <kai.vehmanen@nokia.com>
- * Original author: Peter Ujfalusi <peter.ujfalusi@nokia.com>
+ * Contact: Kai Vehmanen <kai.vehmanen@yeskia.com>
+ * Original author: Peter Ujfalusi <peter.ujfalusi@yeskia.com>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -17,7 +17,7 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
+ * along with this program; if yest, write to the Free Software
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
  * 02110-1301 USA
  */
@@ -77,12 +77,12 @@ struct cs_buffer_config {
 };
 
 /*
- * struct for monotonic timestamp taken when the
+ * struct for moyestonic timestamp taken when the
  * last control command was received
  */
 struct cs_timestamp {
 	__u32 tv_sec;  /* seconds */
-	__u32 tv_nsec; /* nanoseconds */
+	__u32 tv_nsec; /* nayesseconds */
 };
 
 /*

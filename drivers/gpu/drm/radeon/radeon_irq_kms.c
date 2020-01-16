@@ -10,7 +10,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -203,7 +203,7 @@ void radeon_driver_irq_uninstall_kms(struct drm_device *dev)
  * Handles asic specific MSI checks to determine if
  * MSIs should be enabled on a particular chip (all asics).
  * Returns true if MSIs should be enabled, false if MSIs
- * should not be enabled.
+ * should yest be enabled.
  */
 static bool radeon_msi_ok(struct radeon_device *rdev)
 {
@@ -217,12 +217,12 @@ static bool radeon_msi_ok(struct radeon_device *rdev)
 
 	/*
 	 * Older chips have a HW limitation, they can only generate 40 bits
-	 * of address for "64-bit" MSIs which breaks on some platforms, notably
+	 * of address for "64-bit" MSIs which breaks on some platforms, yestably
 	 * IBM POWER servers, so we limit them
 	 */
 	if (rdev->family < CHIP_BONAIRE) {
 		dev_info(rdev->dev, "radeon: MSI limited to 32-bit\n");
-		rdev->pdev->no_64bit_msi = 1;
+		rdev->pdev->yes_64bit_msi = 1;
 	}
 
 	/* force MSI on */
@@ -559,7 +559,7 @@ void radeon_irq_kms_disable_hpd(struct radeon_device *rdev, unsigned hpd_mask)
  * @num: the number of the interrupt register to print to the kernel log
  *
  * Helper for updating the enable state of interrupt registers. Checks whether
- * or not the interrupt matches the enable state we want. If it doesn't, then
+ * or yest the interrupt matches the enable state we want. If it doesn't, then
  * we update it and print a debugging message to the kernel log indicating the
  * new state of the interrupt register.
  *

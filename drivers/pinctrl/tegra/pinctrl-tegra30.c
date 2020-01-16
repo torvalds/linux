@@ -270,7 +270,7 @@
 #define TEGRA_PIN_PEE6			_GPIO(246)
 #define TEGRA_PIN_PEE7			_GPIO(247)
 
-/* All non-GPIO pins follow */
+/* All yesn-GPIO pins follow */
 #define NUM_GPIOS			(TEGRA_PIN_PEE7 + 1)
 #define _PIN(offset)			(NUM_GPIOS + (offset))
 

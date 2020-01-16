@@ -8,7 +8,7 @@
  *  Copyright (C) 2006 by Russ Cox <rsc@swtch.com>
  *  Copyright (C) 2004-2005 by Latchesar Ionkov <lucho@ionkov.net>
  *  Copyright (C) 2004-2008 by Eric Van Hensbergen <ericvh@gmail.com>
- *  Copyright (C) 1997-2002 by Ron Minnich <rminnich@sarnoff.com>
+ *  Copyright (C) 1997-2002 by Ron Minnich <rminnich@saryesff.com>
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -18,7 +18,7 @@
 #include <linux/net.h>
 #include <linux/ipv6.h>
 #include <linux/kthread.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/kernel.h>
 #include <linux/un.h>
 #include <linux/uaccess.h>
@@ -133,7 +133,7 @@ struct p9_rdma_opts {
 enum {
 	/* Options that take integer arguments */
 	Opt_port, Opt_rq_depth, Opt_sq_depth, Opt_timeout,
-	/* Options that take no argument */
+	/* Options that take yes argument */
 	Opt_privport,
 	Opt_err,
 };
@@ -205,7 +205,7 @@ static int parse_opts(char *params, struct p9_rdma_opts *opts)
 			r = match_int(&args[0], &option);
 			if (r < 0) {
 				p9_debug(P9_DEBUG_ERROR,
-					 "integer field, but no integer?\n");
+					 "integer field, but yes integer?\n");
 				continue;
 			}
 		}
@@ -313,7 +313,7 @@ recv_done(struct ib_cq *cq, struct ib_wc *wc)
 	if (!req)
 		goto err_out;
 
-	/* Check that we have not yet received a reply for this request.
+	/* Check that we have yest yet received a reply for this request.
 	 */
 	if (unlikely(req->rc.sdata)) {
 		pr_err("Duplicate reply for request %d", tag);
@@ -421,11 +421,11 @@ static int rdma_request(struct p9_client *client, struct p9_req_t *req)
 
 	/* When an error occurs between posting the recv and the send,
 	 * there will be a receive context posted without a pending request.
-	 * Since there is no way to "un-post" it, we remember it and skip
+	 * Since there is yes way to "un-post" it, we remember it and skip
 	 * post_recv() for the next request.
 	 * So here,
 	 * see if we are this `next request' and need to absorb an excess rc.
-	 * If yes, then drop and free our own, and do not recv_post().
+	 * If no, then drop and free our own, and do yest recv_post().
 	 **/
 	if (unlikely(atomic_read(&rdma->excess_rc) > 0)) {
 		if ((atomic_sub_return(1, &rdma->excess_rc) >= 0)) {
@@ -450,7 +450,7 @@ static int rdma_request(struct p9_client *client, struct p9_req_t *req)
 	/*
 	 * Post a receive buffer for this request. We need to ensure
 	 * there is a reply buffer available for every outstanding
-	 * request. A flushed request can result in no reply for an
+	 * request. A flushed request can result in yes reply for an
 	 * outstanding request, so we must keep a count to avoid
 	 * overflowing the RQ.
 	 */
@@ -521,7 +521,7 @@ dont_need_post_recv:
 	p9_debug(P9_DEBUG_ERROR, "Error %d in rdma_request()\n", err);
 
 	/* Ach.
-	 *  We did recv_post(), but not send. We have one recv_post in excess.
+	 *  We did recv_post(), but yest send. We have one recv_post in excess.
 	 */
 	atomic_inc(&rdma->excess_rc);
 	return err;

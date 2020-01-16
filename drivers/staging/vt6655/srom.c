@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
- * Copyright (c) 1996, 2003 VIA Networking Technologies, Inc.
+ * Copyright (c) 1996, 2003 VIA Networking Techyeslogies, Inc.
  * All rights reserved.
  *
  * File: srom.c
@@ -54,7 +54,7 @@
  *      iobase          - I/O base address
  *      byContntOffset  - address of EEPROM
  *  Out:
- *      none
+ *      yesne
  *
  * Return Value: data read
  *
@@ -103,7 +103,7 @@ unsigned char SROMbyReadEmbedded(void __iomem *iobase,
  *  Out:
  *      pbyEepromRegs   - EEPROM content Buffer
  *
- * Return Value: none
+ * Return Value: yesne
  *
  */
 void SROMvReadAllContents(void __iomem *iobase, unsigned char *pbyEepromRegs)
@@ -127,7 +127,7 @@ void SROMvReadAllContents(void __iomem *iobase, unsigned char *pbyEepromRegs)
  *  Out:
  *      pbyEtherAddress - Ethernet Address buffer
  *
- * Return Value: none
+ * Return Value: yesne
  *
  */
 void SROMvReadEtherAddress(void __iomem *iobase,

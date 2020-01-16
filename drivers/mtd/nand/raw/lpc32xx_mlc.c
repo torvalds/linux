@@ -213,10 +213,10 @@ struct lpc32xx_nand_host {
  *
  * - readl() of 128 x 32 bits in a loop: ~20us
  * - DMA read of 512 bytes (32 bit, 4...128 words bursts): ~60us
- * - DMA read of 512 bytes (32 bit, no bursts): ~100us
+ * - DMA read of 512 bytes (32 bit, yes bursts): ~100us
  *
  * This applies to the transfer itself. In the DMA case: only the
- * wait_for_completion() (DMA setup _not_ included).
+ * wait_for_completion() (DMA setup _yest_ included).
  *
  * Note that the 512 bytes subpage transfer is done directly from/to a
  * FIFO/buffer inside the NAND controller. Most of the time (~400-800us for a
@@ -224,7 +224,7 @@ struct lpc32xx_nand_host {
  * controller transferring data between its internal buffer to/from the NAND
  * chip.)
  *
- * Therefore, using the PL080 DMA is disabled by default, for now.
+ * Therefore, using the PL080 DMA is disabled by default, for yesw.
  *
  */
 static int use_dma;
@@ -330,7 +330,7 @@ static int lpc32xx_waitfunc_nand(struct nand_chip *chip)
 
 	while (!(readb(MLC_ISR(host->io_base)) & MLCISR_NAND_READY)) {
 		/* Seems to be delayed sometimes by controller */
-		dev_dbg(&mtd->dev, "Warning: NAND not ready.\n");
+		dev_dbg(&mtd->dev, "Warning: NAND yest ready.\n");
 		cpu_relax();
 	}
 
@@ -350,7 +350,7 @@ static int lpc32xx_waitfunc_controller(struct nand_chip *chip)
 
 	while (!(readb(MLC_ISR(host->io_base)) &
 		 MLCISR_CONTROLLER_READY)) {
-		dev_dbg(&mtd->dev, "Warning: Controller not ready.\n");
+		dev_dbg(&mtd->dev, "Warning: Controller yest ready.\n");
 		cpu_relax();
 	}
 
@@ -575,7 +575,7 @@ static int lpc32xx_dma_setup(struct lpc32xx_nand_host *host)
 	dma_cap_mask_t mask;
 
 	if (!host->pdata || !host->pdata->dma_filter) {
-		dev_err(mtd->dev.parent, "no DMA platform data\n");
+		dev_err(mtd->dev.parent, "yes DMA platform data\n");
 		return -ENOENT;
 	}
 
@@ -590,7 +590,7 @@ static int lpc32xx_dma_setup(struct lpc32xx_nand_host *host)
 
 	/*
 	 * Set direction to a sensible value even if the dmaengine driver
-	 * should ignore it. With the default (DMA_MEM_TO_MEM), the amba-pl08x
+	 * should igyesre it. With the default (DMA_MEM_TO_MEM), the amba-pl08x
 	 * driver criticizes it as "alien transfer direction".
 	 */
 	host->dma_slave_config.direction = DMA_DEV_TO_MEM;
@@ -616,7 +616,7 @@ out1:
 static struct lpc32xx_nand_cfg_mlc *lpc32xx_parse_dt(struct device *dev)
 {
 	struct lpc32xx_nand_cfg_mlc *ncfg;
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 
 	ncfg = devm_kzalloc(dev, sizeof(*ncfg), GFP_KERNEL);
 	if (!ncfg)
@@ -633,7 +633,7 @@ static struct lpc32xx_nand_cfg_mlc *lpc32xx_parse_dt(struct device *dev)
 	if (!ncfg->tcea_delay || !ncfg->busy_delay || !ncfg->nand_ta ||
 	    !ncfg->rd_high || !ncfg->rd_low || !ncfg->wr_high ||
 	    !ncfg->wr_low) {
-		dev_err(dev, "chip parameters not specified correctly\n");
+		dev_err(dev, "chip parameters yest specified correctly\n");
 		return NULL;
 	}
 
@@ -695,7 +695,7 @@ static int lpc32xx_nand_probe(struct platform_device *pdev)
 
 	nand_chip = &host->nand_chip;
 	mtd = nand_to_mtd(nand_chip);
-	if (pdev->dev.of_node)
+	if (pdev->dev.of_yesde)
 		host->ncfg = lpc32xx_parse_dt(&pdev->dev);
 	if (!host->ncfg) {
 		dev_err(&pdev->dev,
@@ -706,7 +706,7 @@ static int lpc32xx_nand_probe(struct platform_device *pdev)
 		return -EPROBE_DEFER;
 	if (gpio_is_valid(host->ncfg->wp_gpio) &&
 			gpio_request(host->ncfg->wp_gpio, "NAND WP")) {
-		dev_err(&pdev->dev, "GPIO not available\n");
+		dev_err(&pdev->dev, "GPIO yest available\n");
 		return -EBUSY;
 	}
 	lpc32xx_wp_disable(host);
@@ -715,7 +715,7 @@ static int lpc32xx_nand_probe(struct platform_device *pdev)
 
 	/* link the private data structures */
 	nand_set_controller_data(nand_chip, host);
-	nand_set_flash_node(nand_chip, pdev->dev.of_node);
+	nand_set_flash_yesde(nand_chip, pdev->dev.of_yesde);
 	mtd->dev.parent = &pdev->dev;
 
 	/* Get NAND clock */

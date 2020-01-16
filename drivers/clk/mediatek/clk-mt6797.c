@@ -17,7 +17,7 @@
 /*
  * For some clocks, we don't care what their actual rates are. And these
  * clocks may change their rate on different products or different scenarios.
- * So we model these clocks' rate as 0, to denote it's not an actual rate.
+ * So we model these clocks' rate as 0, to deyeste it's yest an actual rate.
  */
 
 static DEFINE_SPINLOCK(mt6797_clk_lock);
@@ -384,7 +384,7 @@ static int mtk_topckgen_init(struct platform_device *pdev)
 {
 	struct clk_onecell_data *clk_data;
 	void __iomem *base;
-	struct device_node *node = pdev->dev.of_node;
+	struct device_yesde *yesde = pdev->dev.of_yesde;
 
 	base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(base))
@@ -398,7 +398,7 @@ static int mtk_topckgen_init(struct platform_device *pdev)
 	mtk_clk_register_composites(top_muxes, ARRAY_SIZE(top_muxes), base,
 				    &mt6797_clk_lock, clk_data);
 
-	return of_clk_add_provider(node, of_clk_src_onecell_get, clk_data);
+	return of_clk_add_provider(yesde, of_clk_src_onecell_get, clk_data);
 }
 
 static const struct mtk_gate_regs infra0_cg_regs = {
@@ -557,7 +557,7 @@ static const struct mtk_fixed_factor infra_fixed_divs[] = {
 
 static struct clk_onecell_data *infra_clk_data;
 
-static void mtk_infrasys_init_early(struct device_node *node)
+static void mtk_infrasys_init_early(struct device_yesde *yesde)
 {
 	int r, i;
 
@@ -571,9 +571,9 @@ static void mtk_infrasys_init_early(struct device_node *node)
 	mtk_clk_register_factors(infra_fixed_divs, ARRAY_SIZE(infra_fixed_divs),
 				 infra_clk_data);
 
-	r = of_clk_add_provider(node, of_clk_src_onecell_get, infra_clk_data);
+	r = of_clk_add_provider(yesde, of_clk_src_onecell_get, infra_clk_data);
 	if (r)
-		pr_err("%s(): could not register clock provider: %d\n",
+		pr_err("%s(): could yest register clock provider: %d\n",
 		       __func__, r);
 }
 
@@ -583,7 +583,7 @@ CLK_OF_DECLARE_DRIVER(mtk_infra, "mediatek,mt6797-infracfg",
 static int mtk_infrasys_init(struct platform_device *pdev)
 {
 	int r, i;
-	struct device_node *node = pdev->dev.of_node;
+	struct device_yesde *yesde = pdev->dev.of_yesde;
 
 	if (!infra_clk_data) {
 		infra_clk_data = mtk_alloc_clk_data(CLK_INFRA_NR);
@@ -594,12 +594,12 @@ static int mtk_infrasys_init(struct platform_device *pdev)
 		}
 	}
 
-	mtk_clk_register_gates(node, infra_clks, ARRAY_SIZE(infra_clks),
+	mtk_clk_register_gates(yesde, infra_clks, ARRAY_SIZE(infra_clks),
 			       infra_clk_data);
 	mtk_clk_register_factors(infra_fixed_divs, ARRAY_SIZE(infra_fixed_divs),
 				 infra_clk_data);
 
-	r = of_clk_add_provider(node, of_clk_src_onecell_get, infra_clk_data);
+	r = of_clk_add_provider(yesde, of_clk_src_onecell_get, infra_clk_data);
 	if (r)
 		return r;
 
@@ -663,15 +663,15 @@ static const struct mtk_pll_data plls[] = {
 static int mtk_apmixedsys_init(struct platform_device *pdev)
 {
 	struct clk_onecell_data *clk_data;
-	struct device_node *node = pdev->dev.of_node;
+	struct device_yesde *yesde = pdev->dev.of_yesde;
 
 	clk_data = mtk_alloc_clk_data(CLK_APMIXED_NR);
 	if (!clk_data)
 		return -ENOMEM;
 
-	mtk_clk_register_plls(node, plls, ARRAY_SIZE(plls), clk_data);
+	mtk_clk_register_plls(yesde, plls, ARRAY_SIZE(plls), clk_data);
 
-	return of_clk_add_provider(node, of_clk_src_onecell_get, clk_data);
+	return of_clk_add_provider(yesde, of_clk_src_onecell_get, clk_data);
 }
 
 static const struct of_device_id of_match_clk_mt6797[] = {
@@ -701,7 +701,7 @@ static int clk_mt6797_probe(struct platform_device *pdev)
 	r = clk_init(pdev);
 	if (r)
 		dev_err(&pdev->dev,
-			"could not register clock provider: %s: %d\n",
+			"could yest register clock provider: %s: %d\n",
 			pdev->name, r);
 
 	return r;

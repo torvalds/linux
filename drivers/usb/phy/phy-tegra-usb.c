@@ -5,7 +5,7 @@
  *
  * Author:
  *	Erik Gilling <konkers@google.com>
- *	Benoit Goby <benoit@android.com>
+ *	Beyesit Goby <beyesit@android.com>
  *	Venu Byravarasu <vbyravarasu@nvidia.com>
  */
 
@@ -388,7 +388,7 @@ static void utmi_phy_clk_disable(struct tegra_usb_phy *phy)
 
 	/*
 	 * The USB driver may have already initiated the phy clock
-	 * disable so wait to see if the clock turns off and if not
+	 * disable so wait to see if the clock turns off and if yest
 	 * then proceed with gating the clock.
 	 */
 	if (utmi_wait_register(base + USB_SUSP_CTRL, USB_PHY_CLK_VALID, 0) == 0)
@@ -419,7 +419,7 @@ static void utmi_phy_clk_enable(struct tegra_usb_phy *phy)
 
 	/*
 	 * The USB driver may have already initiated the phy clock
-	 * enable so wait to see if the clock turns on and if not
+	 * enable so wait to see if the clock turns on and if yest
 	 * then proceed with ungating the clock.
 	 */
 	if (utmi_wait_register(base + USB_SUSP_CTRL, USB_PHY_CLK_VALID,
@@ -689,14 +689,14 @@ static int ulpi_phy_power_on(struct tegra_usb_phy *phy)
 
 	ret = gpio_direction_output(phy->reset_gpio, 0);
 	if (ret < 0) {
-		dev_err(phy->u_phy.dev, "GPIO %d not set to 0: %d\n",
+		dev_err(phy->u_phy.dev, "GPIO %d yest set to 0: %d\n",
 			phy->reset_gpio, ret);
 		return ret;
 	}
 	msleep(5);
 	ret = gpio_direction_output(phy->reset_gpio, 1);
 	if (ret < 0) {
-		dev_err(phy->u_phy.dev, "GPIO %d not set to 1: %d\n",
+		dev_err(phy->u_phy.dev, "GPIO %d yest set to 1: %d\n",
 			phy->reset_gpio, ret);
 		return ret;
 	}
@@ -819,7 +819,7 @@ static int ulpi_open(struct tegra_usb_phy *phy)
 	err = gpio_direction_output(phy->reset_gpio, 0);
 	if (err < 0) {
 		dev_err(phy->u_phy.dev,
-			"GPIO %d direction not set to output: %d\n",
+			"GPIO %d direction yest set to output: %d\n",
 			phy->reset_gpio, err);
 		return err;
 	}
@@ -932,7 +932,7 @@ static int read_utmi_param(struct platform_device *pdev, const char *param,
 			   u8 *dest)
 {
 	u32 value;
-	int err = of_property_read_u32(pdev->dev.of_node, param, &value);
+	int err = of_property_read_u32(pdev->dev.of_yesde, param, &value);
 	*dest = (u8)value;
 	if (err < 0)
 		dev_err(&pdev->dev,
@@ -1018,7 +1018,7 @@ static int utmi_phy_probe(struct tegra_usb_phy *tegra_phy,
 	}
 
 	config->xcvr_setup_use_fuses = of_property_read_bool(
-		pdev->dev.of_node, "nvidia,xcvr-setup-use-fuses");
+		pdev->dev.of_yesde, "nvidia,xcvr-setup-use-fuses");
 
 	if (!config->xcvr_setup_use_fuses) {
 		err = read_utmi_param(pdev, "nvidia,xcvr-setup",
@@ -1056,7 +1056,7 @@ static int tegra_usb_phy_probe(struct platform_device *pdev)
 	const struct of_device_id *match;
 	struct resource *res;
 	struct tegra_usb_phy *tegra_phy = NULL;
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	enum usb_phy_interface phy_type;
 	int err;
 
@@ -1130,7 +1130,7 @@ static int tegra_usb_phy_probe(struct platform_device *pdev)
 		if (IS_ERR(tegra_phy->vbus))
 			return PTR_ERR(tegra_phy->vbus);
 	} else {
-		dev_notice(&pdev->dev, "no vbus regulator");
+		dev_yestice(&pdev->dev, "yes vbus regulator");
 		tegra_phy->vbus = ERR_PTR(-ENODEV);
 	}
 

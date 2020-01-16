@@ -32,7 +32,7 @@
 
 #define HNAE3_MOD_VERSION "1.0"
 
-#define HNAE3_MIN_VECTOR_NUM	2 /* first one for misc, another for IO */
+#define HNAE3_MIN_VECTOR_NUM	2 /* first one for misc, ayesther for IO */
 
 /* Device IDs */
 #define HNAE3_DEV_ID_GE				0xA220
@@ -139,7 +139,7 @@ enum hnae3_fec_mode {
 	HNAE3_FEC_USER_DEF,
 };
 
-enum hnae3_reset_notify_type {
+enum hnae3_reset_yestify_type {
 	HNAE3_UP_CLIENT,
 	HNAE3_DOWN_CLIENT,
 	HNAE3_INIT_CLIENT,
@@ -200,23 +200,23 @@ struct hnae3_vector_info {
 #define HNAE3_FW_VERSION_BYTE0_SHIFT	0
 #define HNAE3_FW_VERSION_BYTE0_MASK	GENMASK(7, 0)
 
-struct hnae3_ring_chain_node {
-	struct hnae3_ring_chain_node *next;
+struct hnae3_ring_chain_yesde {
+	struct hnae3_ring_chain_yesde *next;
 	u32 tqp_index;
 	u32 flag;
 	u32 int_gl_idx;
 };
 
-#define HNAE3_IS_TX_RING(node) \
-	(((node)->flag & (1 << HNAE3_RING_TYPE_B)) == HNAE3_RING_TYPE_TX)
+#define HNAE3_IS_TX_RING(yesde) \
+	(((yesde)->flag & (1 << HNAE3_RING_TYPE_B)) == HNAE3_RING_TYPE_TX)
 
 struct hnae3_client_ops {
 	int (*init_instance)(struct hnae3_handle *handle);
 	void (*uninit_instance)(struct hnae3_handle *handle, bool reset);
 	void (*link_status_change)(struct hnae3_handle *handle, bool state);
 	int (*setup_tc)(struct hnae3_handle *handle, u8 tc);
-	int (*reset_notify)(struct hnae3_handle *handle,
-			    enum hnae3_reset_notify_type type);
+	int (*reset_yestify)(struct hnae3_handle *handle,
+			    enum hnae3_reset_yestify_type type);
 	void (*process_hw_error)(struct hnae3_handle *handle,
 				 enum hnae3_hw_error_type);
 };
@@ -227,13 +227,13 @@ struct hnae3_client {
 	unsigned long state;
 	enum hnae3_client_type type;
 	const struct hnae3_client_ops *ops;
-	struct list_head node;
+	struct list_head yesde;
 };
 
 struct hnae3_ae_dev {
 	struct pci_dev *pdev;
 	const struct hnae3_ae_ops *ops;
-	struct list_head node;
+	struct list_head yesde;
 	u32 flag;
 	unsigned long hw_err_reset_req;
 	enum hnae3_reset_type reset_type;
@@ -260,7 +260,7 @@ struct hnae3_ae_dev {
  *   Inform the hclge that client has been stopped
  * get_status()
  *   Get the carrier state of the back channel of the handle, 1 for ok, 0 for
- *   non-ok
+ *   yesn-ok
  * get_ksettings_an_result()
  *   Get negotiation status,speed and duplex
  * get_media_type()
@@ -482,10 +482,10 @@ struct hnae3_ae_ops {
 	int (*put_vector)(struct hnae3_handle *handle, int vector_num);
 	int (*map_ring_to_vector)(struct hnae3_handle *handle,
 				  int vector_num,
-				  struct hnae3_ring_chain_node *vr_chain);
+				  struct hnae3_ring_chain_yesde *vr_chain);
 	int (*unmap_ring_from_vector)(struct hnae3_handle *handle,
 				      int vector_num,
-				      struct hnae3_ring_chain_node *vr_chain);
+				      struct hnae3_ring_chain_yesde *vr_chain);
 
 	int (*reset_queue)(struct hnae3_handle *handle, u16 queue_id);
 	u32 (*get_fw_version)(struct hnae3_handle *handle);
@@ -571,7 +571,7 @@ struct hnae3_dcb_ops {
 
 struct hnae3_ae_algo {
 	const struct hnae3_ae_ops *ops;
-	struct list_head node;
+	struct list_head yesde;
 	const struct pci_device_id *pdev_id_table;
 };
 
@@ -583,7 +583,7 @@ struct hnae3_tc_info {
 	u16	tqp_offset;	/* TQP offset from base TQP */
 	u16	tqp_count;	/* Total TQPs */
 	u8	tc;		/* TC index */
-	bool	enable;		/* If this TC is enable or not */
+	bool	enable;		/* If this TC is enable or yest */
 };
 
 #define HNAE3_MAX_TC		8
@@ -662,7 +662,7 @@ struct hnae3_handle {
 		struct hnae3_roce_private_info rinfo;
 	};
 
-	u32 numa_node_mask;	/* for multi-chip support */
+	u32 numa_yesde_mask;	/* for multi-chip support */
 
 	enum hnae3_port_base_vlan_state port_base_vlan_state;
 

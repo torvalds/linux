@@ -36,7 +36,7 @@
 #define MAX_DEVICE_COUNT 4
 
 #include <linux/module.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/signal.h>
 #include <linux/sched.h>
 #include <linux/timer.h>
@@ -145,7 +145,7 @@ typedef struct _mgslpc_info {
 	int			timeout;
 	int			x_char;		/* xon/xoff character */
 	unsigned char		read_status_mask;
-	unsigned char		ignore_status_mask;
+	unsigned char		igyesre_status_mask;
 
 	unsigned char *tx_buf;
 	int            tx_put;
@@ -205,7 +205,7 @@ typedef struct _mgslpc_info {
 
 	unsigned char serial_signals;	/* current serial signal states */
 
-	bool irq_occurred;		/* for diagnostics use */
+	bool irq_occurred;		/* for diagyesstics use */
 	char testing_irq;
 	unsigned int init_error;	/* startup error (DIAGS)	*/
 
@@ -240,7 +240,7 @@ typedef struct _mgslpc_info {
 #define CHB     0x40   /* channel B offset */
 
 /*
- *  FIXME: PPC has PVR defined in asm/reg.h.  For now we just undef it.
+ *  FIXME: PPC has PVR defined in asm/reg.h.  For yesw we just undef it.
  */
 #undef PVR
 
@@ -378,7 +378,7 @@ static void async_mode(MGSLPC_INFO *info);
 static void tx_timeout(struct timer_list *t);
 
 static int carrier_raised(struct tty_port *port);
-static void dtr_rts(struct tty_port *port, int onoff);
+static void dtr_rts(struct tty_port *port, int oyesff);
 
 #if SYNCLINK_GENERIC_HDLC
 #define dev_to_port(D) (dev_to_hdlc(D)->priv)
@@ -433,7 +433,7 @@ static MGSLPC_INFO *mgslpc_device_list = NULL;
 static int mgslpc_device_count = 0;
 
 /*
- * Set this param to non-zero to load eax with the
+ * Set this param to yesn-zero to load eax with the
  * .text section address and breakpoint on module load.
  * This is useful for use with gdb and add-symbol-file command.
  */
@@ -650,7 +650,7 @@ static int mgslpc_resume(struct pcmcia_device *link)
 }
 
 
-static inline bool mgslpc_paranoia_check(MGSLPC_INFO *info,
+static inline bool mgslpc_parayesia_check(MGSLPC_INFO *info,
 					char *name, const char *routine)
 {
 #ifdef MGSLPC_PARANOIA_CHECK
@@ -706,7 +706,7 @@ static void tx_pause(struct tty_struct *tty)
 	MGSLPC_INFO *info = (MGSLPC_INFO *)tty->driver_data;
 	unsigned long flags;
 
-	if (mgslpc_paranoia_check(info, tty->name, "tx_pause"))
+	if (mgslpc_parayesia_check(info, tty->name, "tx_pause"))
 		return;
 	if (debug_level >= DEBUG_LEVEL_INFO)
 		printk("tx_pause(%s)\n", info->device_name);
@@ -722,7 +722,7 @@ static void tx_release(struct tty_struct *tty)
 	MGSLPC_INFO *info = (MGSLPC_INFO *)tty->driver_data;
 	unsigned long flags;
 
-	if (mgslpc_paranoia_check(info, tty->name, "tx_release"))
+	if (mgslpc_parayesia_check(info, tty->name, "tx_release"))
 		return;
 	if (debug_level >= DEBUG_LEVEL_INFO)
 		printk("tx_release(%s)\n", info->device_name);
@@ -734,7 +734,7 @@ static void tx_release(struct tty_struct *tty)
 }
 
 /* Return next bottom half action to perform.
- * or 0 if nothing to do.
+ * or 0 if yesthing to do.
  */
 static int bh_action(MGSLPC_INFO *info)
 {
@@ -797,8 +797,8 @@ static void bh_handler(struct work_struct *work)
 			bh_status(info);
 			break;
 		default:
-			/* unknown work item ID */
-			printk("Unknown work item ID=%08X!\n", action);
+			/* unkyeswn work item ID */
+			printk("Unkyeswn work item ID=%08X!\n", action);
 			break;
 		}
 	}
@@ -826,7 +826,7 @@ static void bh_status(MGSLPC_INFO *info)
 	info->cts_chkcount = 0;
 }
 
-/* eom: non-zero = end of frame */
+/* eom: yesn-zero = end of frame */
 static void rx_ready_hdlc(MGSLPC_INFO *info, int eom)
 {
 	unsigned char data[2];
@@ -840,7 +840,7 @@ static void rx_ready_hdlc(MGSLPC_INFO *info, int eom)
 		return;
 
 	if (info->rx_frame_count >= info->rx_buf_count) {
-		/* no more free buffers */
+		/* yes more free buffers */
 		issue_command(info, CHA, CMD_RXRESET);
 		info->pending_bh |= BH_RECEIVE;
 		info->rx_overflow = true;
@@ -920,7 +920,7 @@ static void rx_ready_async(MGSLPC_INFO *info, int tcd)
 		icount->rx++;
 		flag = TTY_NORMAL;
 
-		// if no frameing/crc error then save data
+		// if yes frameing/crc error then save data
 		// BIT7:parity error
 		// BIT6:framing error
 
@@ -931,7 +931,7 @@ static void rx_ready_async(MGSLPC_INFO *info, int tcd)
 				icount->frame++;
 
 			/* discard char if tty control flags say so */
-			if (status & info->ignore_status_mask)
+			if (status & info->igyesre_status_mask)
 				continue;
 
 			status &= info->read_status_mask;
@@ -1103,7 +1103,7 @@ static void dcd_change(MGSLPC_INFO *info, struct tty_struct *tty)
 
 	if (tty_port_check_carrier(&info->port)) {
 		if (debug_level >= DEBUG_LEVEL_ISR)
-			printk("%s CD now %s...", info->device_name,
+			printk("%s CD yesw %s...", info->device_name,
 			       (info->serial_signals & SerialSignal_DCD) ? "on" : "off");
 		if (info->serial_signals & SerialSignal_DCD)
 			wake_up_interruptible(&info->port.open_wait);
@@ -1242,7 +1242,7 @@ static irqreturn_t mgslpc_isr(int dummy, void *dev_id)
 	}
 
 	/* Request bottom half processing if there's something
-	 * for it to do and the bh is not already running
+	 * for it to do and the bh is yest already running
 	 */
 
 	if (info->pending_bh && !info->bh_running && !info->bh_requested) {
@@ -1294,7 +1294,7 @@ static int startup(MGSLPC_INFO * info, struct tty_struct *tty)
 	/* Allocate and claim adapter resources */
 	retval = claim_resources(info);
 
-	/* perform existence check and diagnostics */
+	/* perform existence check and diagyesstics */
 	if (!retval)
 		retval = adapter_test(info);
 
@@ -1475,7 +1475,7 @@ static void mgslpc_change_params(MGSLPC_INFO *info, struct tty_struct *tty)
 	if (I_INPCK(tty))
 		info->read_status_mask |= BIT7 | BIT6;
 	if (I_IGNPAR(tty))
-		info->ignore_status_mask |= BIT7 | BIT6;
+		info->igyesre_status_mask |= BIT7 | BIT6;
 
 	mgslpc_program_hw(info, tty);
 }
@@ -1492,7 +1492,7 @@ static int mgslpc_put_char(struct tty_struct *tty, unsigned char ch)
 			__FILE__, __LINE__, ch, info->device_name);
 	}
 
-	if (mgslpc_paranoia_check(info, tty->name, "mgslpc_put_char"))
+	if (mgslpc_parayesia_check(info, tty->name, "mgslpc_put_char"))
 		return 0;
 
 	if (!info->tx_buf)
@@ -1524,7 +1524,7 @@ static void mgslpc_flush_chars(struct tty_struct *tty)
 		printk("%s(%d):mgslpc_flush_chars() entry on %s tx_count=%d\n",
 			__FILE__, __LINE__, info->device_name, info->tx_count);
 
-	if (mgslpc_paranoia_check(info, tty->name, "mgslpc_flush_chars"))
+	if (mgslpc_parayesia_check(info, tty->name, "mgslpc_flush_chars"))
 		return;
 
 	if (info->tx_count <= 0 || tty->stopped ||
@@ -1562,7 +1562,7 @@ static int mgslpc_write(struct tty_struct * tty,
 		printk("%s(%d):mgslpc_write(%s) count=%d\n",
 			__FILE__, __LINE__, info->device_name, count);
 
-	if (mgslpc_paranoia_check(info, tty->name, "mgslpc_write") ||
+	if (mgslpc_parayesia_check(info, tty->name, "mgslpc_write") ||
 		!info->tx_buf)
 		goto cleanup;
 
@@ -1616,7 +1616,7 @@ static int mgslpc_write_room(struct tty_struct *tty)
 	MGSLPC_INFO *info = (MGSLPC_INFO *)tty->driver_data;
 	int ret;
 
-	if (mgslpc_paranoia_check(info, tty->name, "mgslpc_write_room"))
+	if (mgslpc_parayesia_check(info, tty->name, "mgslpc_write_room"))
 		return 0;
 
 	if (info->params.mode == MGSL_MODE_HDLC) {
@@ -1648,7 +1648,7 @@ static int mgslpc_chars_in_buffer(struct tty_struct *tty)
 		printk("%s(%d):mgslpc_chars_in_buffer(%s)\n",
 			 __FILE__, __LINE__, info->device_name);
 
-	if (mgslpc_paranoia_check(info, tty->name, "mgslpc_chars_in_buffer"))
+	if (mgslpc_parayesia_check(info, tty->name, "mgslpc_chars_in_buffer"))
 		return 0;
 
 	if (info->params.mode == MGSL_MODE_HDLC)
@@ -1674,7 +1674,7 @@ static void mgslpc_flush_buffer(struct tty_struct *tty)
 		printk("%s(%d):mgslpc_flush_buffer(%s) entry\n",
 			 __FILE__, __LINE__, info->device_name);
 
-	if (mgslpc_paranoia_check(info, tty->name, "mgslpc_flush_buffer"))
+	if (mgslpc_parayesia_check(info, tty->name, "mgslpc_flush_buffer"))
 		return;
 
 	spin_lock_irqsave(&info->lock, flags);
@@ -1697,7 +1697,7 @@ static void mgslpc_send_xchar(struct tty_struct *tty, char ch)
 		printk("%s(%d):mgslpc_send_xchar(%s,%d)\n",
 			 __FILE__, __LINE__, info->device_name, ch);
 
-	if (mgslpc_paranoia_check(info, tty->name, "mgslpc_send_xchar"))
+	if (mgslpc_parayesia_check(info, tty->name, "mgslpc_send_xchar"))
 		return;
 
 	info->x_char = ch;
@@ -1720,7 +1720,7 @@ static void mgslpc_throttle(struct tty_struct * tty)
 		printk("%s(%d):mgslpc_throttle(%s) entry\n",
 			 __FILE__, __LINE__, info->device_name);
 
-	if (mgslpc_paranoia_check(info, tty->name, "mgslpc_throttle"))
+	if (mgslpc_parayesia_check(info, tty->name, "mgslpc_throttle"))
 		return;
 
 	if (I_IXOFF(tty))
@@ -1745,7 +1745,7 @@ static void mgslpc_unthrottle(struct tty_struct * tty)
 		printk("%s(%d):mgslpc_unthrottle(%s) entry\n",
 			 __FILE__, __LINE__, info->device_name);
 
-	if (mgslpc_paranoia_check(info, tty->name, "mgslpc_unthrottle"))
+	if (mgslpc_parayesia_check(info, tty->name, "mgslpc_unthrottle"))
 		return;
 
 	if (I_IXOFF(tty)) {
@@ -1913,7 +1913,7 @@ static int tx_abort(MGSLPC_INFO * info)
 	spin_lock_irqsave(&info->lock, flags);
 	if (info->tx_active && info->tx_count &&
 	    info->params.mode == MGSL_MODE_HDLC) {
-		/* clear data count so FIFO is not filled on next IRQ.
+		/* clear data count so FIFO is yest filled on next IRQ.
 		 * This results in underrun and abort transmission.
 		 */
 		info->tx_count = info->tx_put = info->tx_get = 0;
@@ -1955,7 +1955,7 @@ static int wait_events(MGSLPC_INFO * info, int __user *mask_ptr)
 	unsigned long flags;
 	int s;
 	int rc=0;
-	struct mgsl_icount cprev, cnow;
+	struct mgsl_icount cprev, cyesw;
 	int events;
 	int mask;
 	struct	_input_signal_events oldsigs, newsigs;
@@ -2006,12 +2006,12 @@ static int wait_events(MGSLPC_INFO * info, int __user *mask_ptr)
 
 		/* get current irq counts */
 		spin_lock_irqsave(&info->lock, flags);
-		cnow = info->icount;
+		cyesw = info->icount;
 		newsigs = info->input_signal_events;
 		set_current_state(TASK_INTERRUPTIBLE);
 		spin_unlock_irqrestore(&info->lock, flags);
 
-		/* if no change, wait aborted for some reason */
+		/* if yes change, wait aborted for some reason */
 		if (newsigs.dsr_up   == oldsigs.dsr_up   &&
 		    newsigs.dsr_down == oldsigs.dsr_down &&
 		    newsigs.dcd_up   == oldsigs.dcd_up   &&
@@ -2020,8 +2020,8 @@ static int wait_events(MGSLPC_INFO * info, int __user *mask_ptr)
 		    newsigs.cts_down == oldsigs.cts_down &&
 		    newsigs.ri_up    == oldsigs.ri_up    &&
 		    newsigs.ri_down  == oldsigs.ri_down  &&
-		    cnow.exithunt    == cprev.exithunt   &&
-		    cnow.rxidle      == cprev.rxidle) {
+		    cyesw.exithunt    == cprev.exithunt   &&
+		    cyesw.rxidle      == cprev.rxidle) {
 			rc = -EIO;
 			break;
 		}
@@ -2035,12 +2035,12 @@ static int wait_events(MGSLPC_INFO * info, int __user *mask_ptr)
 			  (newsigs.cts_down != oldsigs.cts_down ? MgslEvent_CtsInactive:0) +
 			  (newsigs.ri_up    != oldsigs.ri_up    ? MgslEvent_RiActive:0)    +
 			  (newsigs.ri_down  != oldsigs.ri_down  ? MgslEvent_RiInactive:0)  +
-			  (cnow.exithunt    != cprev.exithunt   ? MgslEvent_ExitHuntMode:0) +
-			  (cnow.rxidle      != cprev.rxidle     ? MgslEvent_IdleReceived:0) );
+			  (cyesw.exithunt    != cprev.exithunt   ? MgslEvent_ExitHuntMode:0) +
+			  (cyesw.rxidle      != cprev.rxidle     ? MgslEvent_IdleReceived:0) );
 		if (events)
 			break;
 
-		cprev = cnow;
+		cprev = cyesw;
 		oldsigs = newsigs;
 	}
 
@@ -2063,7 +2063,7 @@ static int modem_input_wait(MGSLPC_INFO *info,int arg)
 {
 	unsigned long flags;
 	int rc;
-	struct mgsl_icount cprev, cnow;
+	struct mgsl_icount cprev, cyesw;
 	DECLARE_WAITQUEUE(wait, current);
 
 	/* save current irq counts */
@@ -2082,27 +2082,27 @@ static int modem_input_wait(MGSLPC_INFO *info,int arg)
 
 		/* get new irq counts */
 		spin_lock_irqsave(&info->lock, flags);
-		cnow = info->icount;
+		cyesw = info->icount;
 		set_current_state(TASK_INTERRUPTIBLE);
 		spin_unlock_irqrestore(&info->lock, flags);
 
-		/* if no change, wait aborted for some reason */
-		if (cnow.rng == cprev.rng && cnow.dsr == cprev.dsr &&
-		    cnow.dcd == cprev.dcd && cnow.cts == cprev.cts) {
+		/* if yes change, wait aborted for some reason */
+		if (cyesw.rng == cprev.rng && cyesw.dsr == cprev.dsr &&
+		    cyesw.dcd == cprev.dcd && cyesw.cts == cprev.cts) {
 			rc = -EIO;
 			break;
 		}
 
 		/* check for change in caller specified modem input */
-		if ((arg & TIOCM_RNG && cnow.rng != cprev.rng) ||
-		    (arg & TIOCM_DSR && cnow.dsr != cprev.dsr) ||
-		    (arg & TIOCM_CD  && cnow.dcd != cprev.dcd) ||
-		    (arg & TIOCM_CTS && cnow.cts != cprev.cts)) {
+		if ((arg & TIOCM_RNG && cyesw.rng != cprev.rng) ||
+		    (arg & TIOCM_DSR && cyesw.dsr != cprev.dsr) ||
+		    (arg & TIOCM_CD  && cyesw.dcd != cprev.dcd) ||
+		    (arg & TIOCM_CTS && cyesw.cts != cprev.cts)) {
 			rc = 0;
 			break;
 		}
 
-		cprev = cnow;
+		cprev = cyesw;
 	}
 	remove_wait_queue(&info->status_event_wait_q, &wait);
 	set_current_state(TASK_RUNNING);
@@ -2176,7 +2176,7 @@ static int mgslpc_break(struct tty_struct *tty, int break_state)
 		printk("%s(%d):mgslpc_break(%s,%d)\n",
 			 __FILE__, __LINE__, info->device_name, break_state);
 
-	if (mgslpc_paranoia_check(info, tty->name, "mgslpc_break"))
+	if (mgslpc_parayesia_check(info, tty->name, "mgslpc_break"))
 		return -EINVAL;
 
 	spin_lock_irqsave(&info->lock, flags);
@@ -2192,24 +2192,24 @@ static int mgslpc_get_icount(struct tty_struct *tty,
 				struct serial_icounter_struct *icount)
 {
 	MGSLPC_INFO * info = (MGSLPC_INFO *)tty->driver_data;
-	struct mgsl_icount cnow;	/* kernel counter temps */
+	struct mgsl_icount cyesw;	/* kernel counter temps */
 	unsigned long flags;
 
 	spin_lock_irqsave(&info->lock, flags);
-	cnow = info->icount;
+	cyesw = info->icount;
 	spin_unlock_irqrestore(&info->lock, flags);
 
-	icount->cts = cnow.cts;
-	icount->dsr = cnow.dsr;
-	icount->rng = cnow.rng;
-	icount->dcd = cnow.dcd;
-	icount->rx = cnow.rx;
-	icount->tx = cnow.tx;
-	icount->frame = cnow.frame;
-	icount->overrun = cnow.overrun;
-	icount->parity = cnow.parity;
-	icount->brk = cnow.brk;
-	icount->buf_overrun = cnow.buf_overrun;
+	icount->cts = cyesw.cts;
+	icount->dsr = cyesw.dsr;
+	icount->rng = cyesw.rng;
+	icount->dcd = cyesw.dcd;
+	icount->rx = cyesw.rx;
+	icount->tx = cyesw.tx;
+	icount->frame = cyesw.frame;
+	icount->overrun = cyesw.overrun;
+	icount->parity = cyesw.parity;
+	icount->brk = cyesw.brk;
+	icount->buf_overrun = cyesw.buf_overrun;
 
 	return 0;
 }
@@ -2234,7 +2234,7 @@ static int mgslpc_ioctl(struct tty_struct *tty,
 		printk("%s(%d):mgslpc_ioctl %s cmd=%08X\n", __FILE__, __LINE__,
 			info->device_name, cmd);
 
-	if (mgslpc_paranoia_check(info, tty->name, "mgslpc_ioctl"))
+	if (mgslpc_parayesia_check(info, tty->name, "mgslpc_ioctl"))
 		return -ENODEV;
 
 	if (cmd != TIOCMIWAIT) {
@@ -2289,7 +2289,7 @@ static void mgslpc_set_termios(struct tty_struct *tty, struct ktermios *old_term
 		printk("%s(%d):mgslpc_set_termios %s\n", __FILE__, __LINE__,
 			tty->driver->name);
 
-	/* just return if nothing has changed */
+	/* just return if yesthing has changed */
 	if ((tty->termios.c_cflag == old_termios->c_cflag)
 	    && (RELEVANT_IFLAG(tty->termios.c_iflag)
 		== RELEVANT_IFLAG(old_termios->c_iflag)))
@@ -2327,7 +2327,7 @@ static void mgslpc_close(struct tty_struct *tty, struct file * filp)
 	MGSLPC_INFO * info = (MGSLPC_INFO *)tty->driver_data;
 	struct tty_port *port = &info->port;
 
-	if (mgslpc_paranoia_check(info, tty->name, "mgslpc_close"))
+	if (mgslpc_parayesia_check(info, tty->name, "mgslpc_close"))
 		return;
 
 	if (debug_level >= DEBUG_LEVEL_INFO)
@@ -2367,7 +2367,7 @@ static void mgslpc_wait_until_sent(struct tty_struct *tty, int timeout)
 		printk("%s(%d):mgslpc_wait_until_sent(%s) entry\n",
 			 __FILE__, __LINE__, info->device_name);
 
-	if (mgslpc_paranoia_check(info, tty->name, "mgslpc_wait_until_sent"))
+	if (mgslpc_parayesia_check(info, tty->name, "mgslpc_wait_until_sent"))
 		return;
 
 	if (!tty_port_initialized(&info->port))
@@ -2427,7 +2427,7 @@ static void mgslpc_hangup(struct tty_struct *tty)
 		printk("%s(%d):mgslpc_hangup(%s)\n",
 			 __FILE__, __LINE__, info->device_name);
 
-	if (mgslpc_paranoia_check(info, tty->name, "mgslpc_hangup"))
+	if (mgslpc_parayesia_check(info, tty->name, "mgslpc_hangup"))
 		return;
 
 	mgslpc_flush_buffer(tty);
@@ -2449,13 +2449,13 @@ static int carrier_raised(struct tty_port *port)
 	return 0;
 }
 
-static void dtr_rts(struct tty_port *port, int onoff)
+static void dtr_rts(struct tty_port *port, int oyesff)
 {
 	MGSLPC_INFO *info = container_of(port, MGSLPC_INFO, port);
 	unsigned long flags;
 
 	spin_lock_irqsave(&info->lock, flags);
-	if (onoff)
+	if (oyesff)
 		info->serial_signals |= SerialSignal_RTS | SerialSignal_DTR;
 	else
 		info->serial_signals &= ~(SerialSignal_RTS | SerialSignal_DTR);
@@ -2483,7 +2483,7 @@ static int mgslpc_open(struct tty_struct *tty, struct file * filp)
 	info = mgslpc_device_list;
 	while(info && info->line != line)
 		info = info->next_device;
-	if (mgslpc_paranoia_check(info, tty->name, "mgslpc_open"))
+	if (mgslpc_parayesia_check(info, tty->name, "mgslpc_open"))
 		return -ENODEV;
 
 	port = &info->port;
@@ -2825,7 +2825,7 @@ static int __init synclink_cs_init(void)
 	serial_driver->driver_name = "synclink_cs";
 	serial_driver->name = "ttySLP";
 	serial_driver->major = ttymajor;
-	serial_driver->minor_start = 64;
+	serial_driver->miyesr_start = 64;
 	serial_driver->type = TTY_DRIVER_TYPE_SERIAL;
 	serial_driver->subtype = SERIAL_TYPE_NORMAL;
 	serial_driver->init_termios = tty_std_termios;
@@ -2871,7 +2871,7 @@ static void mgslpc_set_rate(MGSLPC_INFO *info, unsigned char channel, unsigned i
 	unsigned int M, N;
 	unsigned char val;
 
-	/* note:standard BRG mode is broken in V3.2 chip
+	/* yeste:standard BRG mode is broken in V3.2 chip
 	 * so enhanced mode is always used
 	 */
 
@@ -2890,7 +2890,7 @@ static void mgslpc_set_rate(MGSLPC_INFO *info, unsigned char channel, unsigned i
 		 * BGR[9..8] contained in CCR2[7..6]
 		 * divisor = (N+1)*2^M
 		 *
-		 * Note: M *must* not be zero (causes asymetric duty cycle)
+		 * Note: M *must* yest be zero (causes asymetric duty cycle)
 		 */
 		write_reg(info, (unsigned char) (channel + BGR),
 				  (unsigned char) ((M << 6) + N));
@@ -2909,12 +2909,12 @@ static void enable_auxclk(MGSLPC_INFO *info)
 	/* MODE
 	 *
 	 * 07..06  MDS[1..0] 10 = transparent HDLC mode
-	 * 05      ADM Address Mode, 0 = no addr recognition
+	 * 05      ADM Address Mode, 0 = yes addr recognition
 	 * 04      TMD Timer Mode, 0 = external
 	 * 03      RAC Receiver Active, 0 = inactive
 	 * 02      RTS 0=RTS active during xmit, 1=RTS always active
 	 * 01      TRS Timer Resolution, 1=512
-	 * 00      TLP Test Loop, 0 = no loop
+	 * 00      TLP Test Loop, 0 = yes loop
 	 *
 	 * 1000 0010
 	 */
@@ -2940,8 +2940,8 @@ static void enable_auxclk(MGSLPC_INFO *info)
 	/* CCR1
 	 *
 	 * 07      SFLG Shared Flag, 0 = disable shared flags
-	 * 06      GALP Go Active On Loop, 0 = not used
-	 * 05      GLP Go On Loop, 0 = not used
+	 * 06      GALP Go Active On Loop, 0 = yest used
+	 * 05      GLP Go On Loop, 0 = yest used
 	 * 04      ODS Output Driver Select, 1=TxD is push-pull output
 	 * 03      ITF Interframe Time Fill, 0=mark, 1=flag
 	 * 02..00  CM[2..0] Clock Mode
@@ -2971,7 +2971,7 @@ static void enable_auxclk(MGSLPC_INFO *info)
 	 *
 	 * 07      MCK4 Master Clock Divide by 4, 1=enabled
 	 * 06      EBRG Enhanced Baud Rate Generator Mode, 1=enabled
-	 * 05      TST1 Test Pin, 0=normal operation
+	 * 05      TST1 Test Pin, 0=yesrmal operation
 	 * 04      ICD Ivert Carrier Detect, 1=enabled (active low)
 	 * 03..02  Reserved, must be 0
 	 * 01..00  RFT[1..0] RxFIFO Threshold 00=32 bytes
@@ -2980,7 +2980,7 @@ static void enable_auxclk(MGSLPC_INFO *info)
 	 */
 	write_reg(info, CHB + CCR4, 0x50);
 
-	/* if auxclk not enabled, set internal BRG so
+	/* if auxclk yest enabled, set internal BRG so
 	 * CTS transitions can be detected (requires TxC)
 	 */
 	if (info->params.mode == MGSL_MODE_HDLC && info->params.clock_speed)
@@ -3050,12 +3050,12 @@ static void hdlc_mode(MGSLPC_INFO *info)
 	/* MODE
 	 *
 	 * 07..06  MDS[1..0] 10 = transparent HDLC mode
-	 * 05      ADM Address Mode, 0 = no addr recognition
+	 * 05      ADM Address Mode, 0 = yes addr recognition
 	 * 04      TMD Timer Mode, 0 = external
 	 * 03      RAC Receiver Active, 0 = inactive
 	 * 02      RTS 0=RTS active during xmit, 1=RTS always active
 	 * 01      TRS Timer Resolution, 1=512
-	 * 00      TLP Test Loop, 0 = no loop
+	 * 00      TLP Test Loop, 0 = yes loop
 	 *
 	 * 1000 0010
 	 */
@@ -3099,8 +3099,8 @@ static void hdlc_mode(MGSLPC_INFO *info)
 	/* CCR1
 	 *
 	 * 07      SFLG Shared Flag, 0 = disable shared flags
-	 * 06      GALP Go Active On Loop, 0 = not used
-	 * 05      GLP Go On Loop, 0 = not used
+	 * 06      GALP Go Active On Loop, 0 = yest used
+	 * 05      GLP Go On Loop, 0 = yest used
 	 * 04      ODS Output Driver Select, 1=TxD is push-pull output
 	 * 03      ITF Interframe Time Fill, 0=mark, 1=flag
 	 * 02..00  CM[2..0] Clock Mode
@@ -3180,7 +3180,7 @@ static void hdlc_mode(MGSLPC_INFO *info)
 	 *
 	 * 07      MCK4 Master Clock Divide by 4, 1=enabled
 	 * 06      EBRG Enhanced Baud Rate Generator Mode, 1=enabled
-	 * 05      TST1 Test Pin, 0=normal operation
+	 * 05      TST1 Test Pin, 0=yesrmal operation
 	 * 04      ICD Ivert Carrier Detect, 1=enabled (active low)
 	 * 03..02  Reserved, must be 0
 	 * 01..00  RFT[1..0] RxFIFO Threshold 00=32 bytes
@@ -3204,9 +3204,9 @@ static void hdlc_mode(MGSLPC_INFO *info)
 	/* XBCH Transmit Byte Count High
 	 *
 	 * 07      DMA mode, 0 = interrupt driven
-	 * 06      NRM, 0=ABM (ignored)
+	 * 06      NRM, 0=ABM (igyesred)
 	 * 05      CAS Carrier Auto Start
-	 * 04      XC Transmit Continuously (ignored)
+	 * 04      XC Transmit Continuously (igyesred)
 	 * 03..00  XBC[10..8] Transmit byte count bits 10..8
 	 *
 	 * 0000 0000
@@ -3234,9 +3234,9 @@ static void hdlc_mode(MGSLPC_INFO *info)
 	read_reg16(info, CHA + ISR);	/* clear pending IRQs */
 
 	/* Master clock mode enabled above to allow reset commands
-	 * to complete even if no data clocks are present.
+	 * to complete even if yes data clocks are present.
 	 *
-	 * Disable master clock mode for normal communications because
+	 * Disable master clock mode for yesrmal communications because
 	 * V3.2 of the ESCC2 has a bug that prevents the transmit all sent
 	 * IRQ when in master clock mode.
 	 *
@@ -3331,7 +3331,7 @@ static void tx_stop(MGSLPC_INFO *info)
 	info->tx_active = false;
 }
 
-/* Reset the adapter to a known state and prepare it for further use.
+/* Reset the adapter to a kyeswn state and prepare it for further use.
  */
 static void reset_device(MGSLPC_INFO *info)
 {
@@ -3374,7 +3374,7 @@ static void reset_device(MGSLPC_INFO *info)
 	 *
 	 * 07      VIS 1=Masked interrupts visible
 	 * 06..05  Reserved, 0
-	 * 04..03  SLA Slave address, 00 ignored
+	 * 04..03  SLA Slave address, 00 igyesred
 	 * 02      CASM Cascading Mode, 1=daisy chain
 	 * 01..00  IC[1..0] Interrupt Config, 01=push-pull output, active low
 	 *
@@ -3401,7 +3401,7 @@ static void async_mode(MGSLPC_INFO *info)
 	 * 03      RAC Receiver Active, 0 = inactive
 	 * 02      RTS 0=Auto RTS, 1=manual RTS
 	 * 01      TRS Timer Resolution, 1=512
-	 * 00      TLP Test Loop, 0 = no loop
+	 * 00      TLP Test Loop, 0 = yes loop
 	 *
 	 * 0000 0110
 	 */
@@ -3464,7 +3464,7 @@ static void async_mode(MGSLPC_INFO *info)
 	 *
 	 * 07      MCK4 Master Clock Divide by 4, 1=enabled
 	 * 06      EBRG Enhanced Baud Rate Generator Mode, 1=enabled
-	 * 05      TST1 Test Pin, 0=normal operation
+	 * 05      TST1 Test Pin, 0=yesrmal operation
 	 * 04      ICD Ivert Carrier Detect, 1=enabled (active low)
 	 * 03..00  Reserved, must be 0
 	 *
@@ -3476,7 +3476,7 @@ static void async_mode(MGSLPC_INFO *info)
 	/* DAFO Data Format
 	 *
 	 * 07      Reserved, 0
-	 * 06      XBRK transmit break, 0=normal operation
+	 * 06      XBRK transmit break, 0=yesrmal operation
 	 * 05      Stop bits (0=1, 1=2)
 	 * 04..03  PAR[1..0] Parity (01=odd, 10=even)
 	 * 02      PAREN Parity Enable
@@ -3501,7 +3501,7 @@ static void async_mode(MGSLPC_INFO *info)
 	/* RFC Rx FIFO Control
 	 *
 	 * 07      Reserved, 0
-	 * 06      DPS, 1=parity bit not stored in data byte
+	 * 06      DPS, 1=parity bit yest stored in data byte
 	 * 05      DXS, 0=all data stored in FIFO (including XON/XOFF)
 	 * 04      RFDF Rx FIFO Data Format, 1=status byte stored in FIFO
 	 * 03..02  RFTH[1..0], rx threshold, 11=16 status + 16 data byte
@@ -3521,9 +3521,9 @@ static void async_mode(MGSLPC_INFO *info)
 	/* XBCH Transmit Byte Count High
 	 *
 	 * 07      DMA mode, 0 = interrupt driven
-	 * 06      NRM, 0=ABM (ignored)
+	 * 06      NRM, 0=ABM (igyesred)
 	 * 05      CAS Carrier Auto Start
-	 * 04      XC Transmit Continuously (ignored)
+	 * 04      XC Transmit Continuously (igyesred)
 	 * 03..00  XBC[10..8] Transmit byte count bits 10..8
 	 *
 	 * 0000 0000
@@ -3792,7 +3792,7 @@ static int adapter_test(MGSLPC_INFO *info)
 	}
 
 	if (debug_level >= DEBUG_LEVEL_INFO)
-		printk("%s(%d):device %s passed diagnostics\n",
+		printk("%s(%d):device %s passed diagyesstics\n",
 			__FILE__, __LINE__, info->device_name);
 	return 0;
 }

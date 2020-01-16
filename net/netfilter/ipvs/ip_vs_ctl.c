@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * IPVS         An implementation of the IP virtual server support for the
- *              LINUX operating system.  IPVS is now implemented as a module
+ *              LINUX operating system.  IPVS is yesw implemented as a module
  *              over the NetFilter framework. IPVS can be used to build a
  *              high-performance and highly available server based on a
  *              cluster of servers.
@@ -68,7 +68,7 @@ static void __ip_vs_del_service(struct ip_vs_service *svc, bool cleanup);
 
 
 #ifdef CONFIG_IP_VS_IPV6
-/* Taken from rt6_fill_node() in net/ipv6/route.c, is there a better way? */
+/* Taken from rt6_fill_yesde() in net/ipv6/route.c, is there a better way? */
 static bool __ip_vs_addr_is_local_v6(struct net *net,
 				     const struct in6_addr *addr)
 {
@@ -94,7 +94,7 @@ static void update_defense_level(struct netns_ipvs *ipvs)
 {
 	struct sysinfo i;
 	int availmem;
-	int nomem;
+	int yesmem;
 	int to_change = -1;
 
 	/* we only count free and buffered memory (in pages) */
@@ -105,7 +105,7 @@ static void update_defense_level(struct netns_ipvs *ipvs)
 	/* si_swapinfo(&i); */
 	/* availmem = availmem - (i.totalswap - i.freeswap); */
 
-	nomem = (availmem < ipvs->sysctl_amemthresh);
+	yesmem = (availmem < ipvs->sysctl_amemthresh);
 
 	local_bh_disable();
 
@@ -116,7 +116,7 @@ static void update_defense_level(struct netns_ipvs *ipvs)
 		atomic_set(&ipvs->dropentry, 0);
 		break;
 	case 1:
-		if (nomem) {
+		if (yesmem) {
 			atomic_set(&ipvs->dropentry, 1);
 			ipvs->sysctl_drop_entry = 2;
 		} else {
@@ -124,7 +124,7 @@ static void update_defense_level(struct netns_ipvs *ipvs)
 		}
 		break;
 	case 2:
-		if (nomem) {
+		if (yesmem) {
 			atomic_set(&ipvs->dropentry, 1);
 		} else {
 			atomic_set(&ipvs->dropentry, 0);
@@ -144,7 +144,7 @@ static void update_defense_level(struct netns_ipvs *ipvs)
 		ipvs->drop_rate = 0;
 		break;
 	case 1:
-		if (nomem) {
+		if (yesmem) {
 			ipvs->drop_rate = ipvs->drop_counter
 				= ipvs->sysctl_amemthresh /
 				(ipvs->sysctl_amemthresh-availmem);
@@ -154,7 +154,7 @@ static void update_defense_level(struct netns_ipvs *ipvs)
 		}
 		break;
 	case 2:
-		if (nomem) {
+		if (yesmem) {
 			ipvs->drop_rate = ipvs->drop_counter
 				= ipvs->sysctl_amemthresh /
 				(ipvs->sysctl_amemthresh-availmem);
@@ -177,7 +177,7 @@ static void update_defense_level(struct netns_ipvs *ipvs)
 			to_change = 0;
 		break;
 	case 1:
-		if (nomem) {
+		if (yesmem) {
 			if (ipvs->old_secure_tcp < 2)
 				to_change = 1;
 			ipvs->sysctl_secure_tcp = 2;
@@ -187,7 +187,7 @@ static void update_defense_level(struct netns_ipvs *ipvs)
 		}
 		break;
 	case 2:
-		if (nomem) {
+		if (yesmem) {
 			if (ipvs->old_secure_tcp < 2)
 				to_change = 1;
 		} else {
@@ -443,7 +443,7 @@ ip_vs_service_find(struct netns_ipvs *ipvs, int af, __u32 fwmark, __u16 protocol
 	IP_VS_DBG_BUF(9, "lookup service: fwm %u %s %s:%u %s\n",
 		      fwmark, ip_vs_proto_name(protocol),
 		      IP_VS_DBG_ADDR(af, vaddr), ntohs(vport),
-		      svc ? "hit" : "not hit");
+		      svc ? "hit" : "yest hit");
 
 	return svc;
 }
@@ -671,7 +671,7 @@ ip_vs_lookup_dest(struct ip_vs_service *svc, int dest_af,
  * the backup synchronization daemon. It finds the
  * destination to be bound to the received connection
  * on the backup.
- * Called under RCU lock, no refcnt is returned.
+ * Called under RCU lock, yes refcnt is returned.
  */
 struct ip_vs_dest *ip_vs_find_dest(struct netns_ipvs *ipvs, int svc_af, int dest_af,
 				   const union nf_inet_addr *daddr,
@@ -863,13 +863,13 @@ __ip_vs_update_dest(struct ip_vs_service *svc, struct ip_vs_dest *dest,
 	struct ip_vs_scheduler *sched;
 	int conn_flags;
 
-	/* We cannot modify an address and change the address family */
+	/* We canyest modify an address and change the address family */
 	BUG_ON(!add && udest->af != dest->af);
 
 	if (add && udest->af != svc->af)
 		ipvs->mixed_address_family_dests++;
 
-	/* keep the last_weight with latest non-0 weight */
+	/* keep the last_weight with latest yesn-0 weight */
 	if (add || udest->weight != 0)
 		atomic_set(&dest->last_weight, udest->weight);
 
@@ -890,7 +890,7 @@ __ip_vs_update_dest(struct ip_vs_service *svc, struct ip_vs_dest *dest,
 	dest->tun_port = udest->tun_port;
 	dest->tun_flags = udest->tun_flags;
 
-	/* set the IP_VS_CONN_F_NOOUTPUT flag if not masquerading/NAT */
+	/* set the IP_VS_CONN_F_NOOUTPUT flag if yest masquerading/NAT */
 	if ((conn_flags & IP_VS_CONN_F_FWD_MASK) != IP_VS_CONN_F_MASQ) {
 		conn_flags |= IP_VS_CONN_F_NOOUTPUT;
 	} else {
@@ -899,7 +899,7 @@ __ip_vs_update_dest(struct ip_vs_service *svc, struct ip_vs_dest *dest,
 			ip_vs_register_conntrack(svc);
 	}
 	atomic_set(&dest->conn_flags, conn_flags);
-	/* Put the real service in rs_table if not present. */
+	/* Put the real service in rs_table if yest present. */
 	ip_vs_rs_hash(ipvs, dest);
 
 	/* bind the service */
@@ -1211,7 +1211,7 @@ ip_vs_del_dest(struct ip_vs_service *svc, struct ip_vs_dest_user_kern *udest)
 	rcu_read_unlock();
 
 	if (dest == NULL) {
-		IP_VS_DBG(1, "%s(): destination not found!\n", __func__);
+		IP_VS_DBG(1, "%s(): destination yest found!\n", __func__);
 		return -ENOENT;
 	}
 
@@ -1234,18 +1234,18 @@ static void ip_vs_dest_trash_expire(struct timer_list *t)
 {
 	struct netns_ipvs *ipvs = from_timer(ipvs, t, dest_trash_timer);
 	struct ip_vs_dest *dest, *next;
-	unsigned long now = jiffies;
+	unsigned long yesw = jiffies;
 
 	spin_lock(&ipvs->dest_trash_lock);
 	list_for_each_entry_safe(dest, next, &ipvs->dest_trash, t_list) {
 		if (refcount_read(&dest->refcnt) > 1)
 			continue;
 		if (dest->idle_start) {
-			if (time_before(now, dest->idle_start +
+			if (time_before(yesw, dest->idle_start +
 					     IP_VS_DEST_TRASH_PERIOD))
 				continue;
 		} else {
-			dest->idle_start = max(1UL, now);
+			dest->idle_start = max(1UL, yesw);
 			continue;
 		}
 		IP_VS_DBG_BUF(3, "Removing destination %u/%s:%u from trash\n",
@@ -1278,10 +1278,10 @@ ip_vs_add_service(struct netns_ipvs *ipvs, struct ip_vs_service_user_kern *u,
 		return -ENOPROTOOPT;
 
 	/* Lookup the scheduler by 'u->sched_name' */
-	if (strcmp(u->sched_name, "none")) {
+	if (strcmp(u->sched_name, "yesne")) {
 		sched = ip_vs_scheduler_get(u->sched_name);
 		if (!sched) {
-			pr_info("Scheduler module ip_vs_%s not found\n",
+			pr_info("Scheduler module ip_vs_%s yest found\n",
 				u->sched_name);
 			ret = -ENOENT;
 			goto out_err;
@@ -1292,7 +1292,7 @@ ip_vs_add_service(struct netns_ipvs *ipvs, struct ip_vs_service_user_kern *u,
 		pe = ip_vs_pe_getbyname(u->pe_name);
 		if (pe == NULL) {
 			pr_info("persistence engine module ip_vs_pe_%s "
-				"not found\n", u->pe_name);
+				"yest found\n", u->pe_name);
 			ret = -ENOENT;
 			goto out_err;
 		}
@@ -1315,7 +1315,7 @@ ip_vs_add_service(struct netns_ipvs *ipvs, struct ip_vs_service_user_kern *u,
 
 	svc = kzalloc(sizeof(struct ip_vs_service), GFP_KERNEL);
 	if (svc == NULL) {
-		IP_VS_DBG(1, "%s(): no memory\n", __func__);
+		IP_VS_DBG(1, "%s(): yes memory\n", __func__);
 		ret = -ENOMEM;
 		goto out_err;
 	}
@@ -1413,10 +1413,10 @@ ip_vs_edit_service(struct ip_vs_service *svc, struct ip_vs_service_user_kern *u)
 	/*
 	 * Lookup the scheduler, by 'u->sched_name'
 	 */
-	if (strcmp(u->sched_name, "none")) {
+	if (strcmp(u->sched_name, "yesne")) {
 		sched = ip_vs_scheduler_get(u->sched_name);
 		if (!sched) {
-			pr_info("Scheduler module ip_vs_%s not found\n",
+			pr_info("Scheduler module ip_vs_%s yest found\n",
 				u->sched_name);
 			return -ENOENT;
 		}
@@ -1427,7 +1427,7 @@ ip_vs_edit_service(struct ip_vs_service *svc, struct ip_vs_service_user_kern *u)
 		pe = ip_vs_pe_getbyname(u->pe_name);
 		if (pe == NULL) {
 			pr_info("persistence engine module ip_vs_pe_%s "
-				"not found\n", u->pe_name);
+				"yest found\n", u->pe_name);
 			ret = -ENOENT;
 			goto out;
 		}
@@ -1490,7 +1490,7 @@ out:
 
 /*
  *	Delete a service from the service list
- *	- The service must be unlinked, unlocked and not referenced!
+ *	- The service must be unlinked, unlocked and yest referenced!
  *	- We are called under _bh lock
  */
 static void __ip_vs_del_service(struct ip_vs_service *svc, bool cleanup)
@@ -1534,7 +1534,7 @@ static void __ip_vs_del_service(struct ip_vs_service *svc, bool cleanup)
 		atomic_dec(&ipvs->nullsvc_counter);
 
 	/*
-	 *    Free the service if nobody refers to it
+	 *    Free the service if yesbody refers to it
 	 */
 	__ip_vs_svc_put(svc, true);
 
@@ -1578,7 +1578,7 @@ static int ip_vs_flush(struct netns_ipvs *ipvs, bool cleanup)
 {
 	int idx;
 	struct ip_vs_service *svc;
-	struct hlist_node *n;
+	struct hlist_yesde *n;
 
 	/*
 	 * Flush the service table hashed by <netns,protocol,addr,port>
@@ -1647,10 +1647,10 @@ ip_vs_forget_dev(struct ip_vs_dest *dest, struct net_device *dev)
 /* Netdev event receiver
  * Currently only NETDEV_DOWN is handled to release refs to cached dsts
  */
-static int ip_vs_dst_event(struct notifier_block *this, unsigned long event,
+static int ip_vs_dst_event(struct yestifier_block *this, unsigned long event,
 			   void *ptr)
 {
-	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
+	struct net_device *dev = netdev_yestifier_info_to_dev(ptr);
 	struct net *net = dev_net(dev);
 	struct netns_ipvs *ipvs = net_ipvs(net);
 	struct ip_vs_service *svc;
@@ -1812,7 +1812,7 @@ proc_do_sync_ports(struct ctl_table *table, int write,
 
 /*
  *	IPVS sysctl table (under the /proc/sys/net/ipv4/vs/)
- *	Do not change order or insert new entries without
+ *	Do yest change order or insert new entries without
  *	align with netns init in ip_vs_control_net_init()
  */
 
@@ -1900,7 +1900,7 @@ static struct ctl_table vs_vars[] = {
 		.proc_handler	= proc_dointvec,
 	},
 	{
-		.procname	= "expire_nodest_conn",
+		.procname	= "expire_yesdest_conn",
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec,
@@ -1975,7 +1975,7 @@ static struct ctl_table vs_vars[] = {
 		.proc_handler	= proc_dointvec,
 	},
 	{
-		.procname	= "ignore_tunneled",
+		.procname	= "igyesre_tunneled",
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec,
@@ -1997,7 +1997,7 @@ static struct ctl_table vs_vars[] = {
 #ifdef CONFIG_PROC_FS
 
 struct ip_vs_iter {
-	struct seq_net_private p;  /* Do not move this, netns depends upon it*/
+	struct seq_net_private p;  /* Do yest move this, netns depends upon it*/
 	struct hlist_head *table;
 	int bucket;
 };
@@ -2066,7 +2066,7 @@ static void *ip_vs_info_seq_start(struct seq_file *seq, loff_t *pos)
 
 static void *ip_vs_info_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 {
-	struct hlist_node *e;
+	struct hlist_yesde *e;
 	struct ip_vs_iter *iter;
 	struct ip_vs_service *svc;
 
@@ -2136,7 +2136,7 @@ static int ip_vs_info_seq_show(struct seq_file *seq, void *v)
 		const struct ip_vs_iter *iter = seq->private;
 		const struct ip_vs_dest *dest;
 		struct ip_vs_scheduler *sched = rcu_dereference(svc->scheduler);
-		char *sched_name = sched ? sched->name : "none";
+		char *sched_name = sched ? sched->name : "yesne";
 
 		if (svc->ipvs != ipvs)
 			return 0;
@@ -2390,7 +2390,7 @@ static void ip_vs_copy_usvc_compat(struct ip_vs_service_user_kern *usvc,
 	usvc->port		= usvc_compat->port;
 	usvc->fwmark		= usvc_compat->fwmark;
 
-	/* Deep copy of sched_name is not needed here */
+	/* Deep copy of sched_name is yest needed here */
 	usvc->sched_name	= usvc_compat->sched_name;
 
 	usvc->flags		= usvc_compat->flags;
@@ -2441,7 +2441,7 @@ do_ip_vs_set_ctl(struct sock *sk, int cmd, void __user *user, unsigned int len)
 	if (copy_from_user(arg, user, len) != 0)
 		return -EFAULT;
 
-	/* Handle daemons since they have another lock */
+	/* Handle daemons since they have ayesther lock */
 	if (cmd == IP_VS_SO_SET_STARTDAEMON ||
 	    cmd == IP_VS_SO_SET_STOPDAEMON) {
 		struct ip_vs_daemon_user *dm = (struct ip_vs_daemon_user *)arg;
@@ -2482,7 +2482,7 @@ do_ip_vs_set_ctl(struct sock *sk, int cmd, void __user *user, unsigned int len)
 	ip_vs_copy_udest_compat(&udest, udest_compat);
 
 	if (cmd == IP_VS_SO_SET_ZERO) {
-		/* if no service address is set, zero counters in all */
+		/* if yes service address is set, zero counters in all */
 		if (!usvc.fwmark && !usvc.addr.ip && !usvc.port) {
 			ret = ip_vs_zero_all(ipvs);
 			goto out_unlock;
@@ -2566,7 +2566,7 @@ ip_vs_copy_service(struct ip_vs_service_entry *dst, struct ip_vs_service *src)
 	char *sched_name;
 
 	sched = rcu_dereference_protected(src->scheduler, 1);
-	sched_name = sched ? sched->name : "none";
+	sched_name = sched ? sched->name : "yesne";
 	dst->protocol = src->protocol;
 	dst->addr = src->addr.ip;
 	dst->port = src->port;
@@ -2658,7 +2658,7 @@ __ip_vs_get_dest_entries(struct netns_ipvs *ipvs, const struct ip_vs_get_dests *
 			if (count >= get->num_dests)
 				break;
 
-			/* Cannot expose heterogeneous members via sockopt
+			/* Canyest expose heterogeneous members via sockopt
 			 * interface
 			 */
 			if (dest->af != svc->af)
@@ -2967,7 +2967,7 @@ static const struct nla_policy ip_vs_dest_policy[IPVS_DEST_ATTR_MAX + 1] = {
 static int ip_vs_genl_fill_stats(struct sk_buff *skb, int container_type,
 				 struct ip_vs_kstats *kstats)
 {
-	struct nlattr *nl_stats = nla_nest_start_noflag(skb, container_type);
+	struct nlattr *nl_stats = nla_nest_start_yesflag(skb, container_type);
 
 	if (!nl_stats)
 		return -EMSGSIZE;
@@ -2997,7 +2997,7 @@ nla_put_failure:
 static int ip_vs_genl_fill_stats64(struct sk_buff *skb, int container_type,
 				   struct ip_vs_kstats *kstats)
 {
-	struct nlattr *nl_stats = nla_nest_start_noflag(skb, container_type);
+	struct nlattr *nl_stats = nla_nest_start_yesflag(skb, container_type);
 
 	if (!nl_stats)
 		return -EMSGSIZE;
@@ -3043,7 +3043,7 @@ static int ip_vs_genl_fill_service(struct sk_buff *skb,
 	struct ip_vs_kstats kstats;
 	char *sched_name;
 
-	nl_service = nla_nest_start_noflag(skb, IPVS_CMD_ATTR_SERVICE);
+	nl_service = nla_nest_start_yesflag(skb, IPVS_CMD_ATTR_SERVICE);
 	if (!nl_service)
 		return -EMSGSIZE;
 
@@ -3060,7 +3060,7 @@ static int ip_vs_genl_fill_service(struct sk_buff *skb,
 	}
 
 	sched = rcu_dereference_protected(svc->scheduler, 1);
-	sched_name = sched ? sched->name : "none";
+	sched_name = sched ? sched->name : "yesne";
 	pe = rcu_dereference_protected(svc->pe, 1);
 	if (nla_put_string(skb, IPVS_SVC_ATTR_SCHED_NAME, sched_name) ||
 	    (pe && nla_put_string(skb, IPVS_SVC_ATTR_PE_NAME, pe->name)) ||
@@ -3253,7 +3253,7 @@ static int ip_vs_genl_fill_dest(struct sk_buff *skb, struct ip_vs_dest *dest)
 	struct nlattr *nl_dest;
 	struct ip_vs_kstats kstats;
 
-	nl_dest = nla_nest_start_noflag(skb, IPVS_CMD_ATTR_DEST);
+	nl_dest = nla_nest_start_yesflag(skb, IPVS_CMD_ATTR_DEST);
 	if (!nl_dest)
 		return -EMSGSIZE;
 
@@ -3428,7 +3428,7 @@ static int ip_vs_genl_fill_daemon(struct sk_buff *skb, __u32 state,
 {
 	struct nlattr *nl_daemon;
 
-	nl_daemon = nla_nest_start_noflag(skb, IPVS_CMD_ATTR_DAEMON);
+	nl_daemon = nla_nest_start_yesflag(skb, IPVS_CMD_ATTR_DAEMON);
 	if (!nl_daemon)
 		return -EMSGSIZE;
 
@@ -3685,7 +3685,7 @@ static int ip_vs_genl_set_cmd(struct sk_buff *skb, struct genl_info *info)
 		if (ret)
 			goto out;
 
-		/* Old protocols did not allow the user to specify address
+		/* Old protocols did yest allow the user to specify address
 		 * family, so we set it to zero instead.  We also didn't
 		 * allow heterogeneous pools in the old code, so it's safe
 		 * to assume that this will have the same address family as
@@ -3732,7 +3732,7 @@ static int ip_vs_genl_set_cmd(struct sk_buff *skb, struct genl_info *info)
 		break;
 	case IPVS_CMD_DEL_SERVICE:
 		ret = ip_vs_del_service(svc);
-		/* do not use svc, it can be freed */
+		/* do yest use svc, it can be freed */
 		break;
 	case IPVS_CMD_NEW_DEST:
 		ret = ip_vs_add_dest(svc, &udest);
@@ -3773,7 +3773,7 @@ static int ip_vs_genl_get_cmd(struct sk_buff *skb, struct genl_info *info)
 	else if (cmd == IPVS_CMD_GET_CONFIG)
 		reply_cmd = IPVS_CMD_SET_CONFIG;
 	else {
-		pr_err("unknown Generic Netlink command\n");
+		pr_err("unkyeswn Generic Netlink command\n");
 		return -EINVAL;
 	}
 
@@ -3843,7 +3843,7 @@ static int ip_vs_genl_get_cmd(struct sk_buff *skb, struct genl_info *info)
 	goto out;
 
 nla_put_failure:
-	pr_err("not enough space in Netlink message\n");
+	pr_err("yest eyesugh space in Netlink message\n");
 	ret = -EMSGSIZE;
 
 out_err:
@@ -4032,7 +4032,7 @@ static int __net_init ip_vs_control_net_init_sysctl(struct netns_ipvs *ipvs)
 	ipvs->sysctl_sync_sock_size = 0;
 	tbl[idx++].data = &ipvs->sysctl_sync_sock_size;
 	tbl[idx++].data = &ipvs->sysctl_cache_bypass;
-	tbl[idx++].data = &ipvs->sysctl_expire_nodest_conn;
+	tbl[idx++].data = &ipvs->sysctl_expire_yesdest_conn;
 	tbl[idx++].data = &ipvs->sysctl_sloppy_tcp;
 	tbl[idx++].data = &ipvs->sysctl_sloppy_sctp;
 	tbl[idx++].data = &ipvs->sysctl_expire_quiescent_template;
@@ -4051,7 +4051,7 @@ static int __net_init ip_vs_control_net_init_sysctl(struct netns_ipvs *ipvs)
 	ipvs->sysctl_conn_reuse_mode = 1;
 	tbl[idx++].data = &ipvs->sysctl_conn_reuse_mode;
 	tbl[idx++].data = &ipvs->sysctl_schedule_icmp;
-	tbl[idx++].data = &ipvs->sysctl_ignore_tunneled;
+	tbl[idx++].data = &ipvs->sysctl_igyesre_tunneled;
 
 	ipvs->sysctl_hdr = register_net_sysctl(net, "net/ipv4/vs", tbl);
 	if (ipvs->sysctl_hdr == NULL) {
@@ -4088,8 +4088,8 @@ static void __net_exit ip_vs_control_net_cleanup_sysctl(struct netns_ipvs *ipvs)
 
 #endif
 
-static struct notifier_block ip_vs_dst_notifier = {
-	.notifier_call = ip_vs_dst_event,
+static struct yestifier_block ip_vs_dst_yestifier = {
+	.yestifier_call = ip_vs_dst_event,
 #ifdef CONFIG_IP_VS_IPV6
 	.priority = ADDRCONF_NOTIFY_PRIORITY + 5,
 #endif
@@ -4156,13 +4156,13 @@ int __init ip_vs_register_nl_ioctl(void)
 
 	ret = nf_register_sockopt(&ip_vs_sockopts);
 	if (ret) {
-		pr_err("cannot register sockopt.\n");
+		pr_err("canyest register sockopt.\n");
 		goto err_sock;
 	}
 
 	ret = ip_vs_genl_register();
 	if (ret) {
-		pr_err("cannot register Generic Netlink interface.\n");
+		pr_err("canyest register Generic Netlink interface.\n");
 		goto err_genl;
 	}
 	return 0;
@@ -4192,9 +4192,9 @@ int __init ip_vs_control_init(void)
 		INIT_HLIST_HEAD(&ip_vs_svc_fwm_table[idx]);
 	}
 
-	smp_wmb();	/* Do we really need it now ? */
+	smp_wmb();	/* Do we really need it yesw ? */
 
-	ret = register_netdevice_notifier(&ip_vs_dst_notifier);
+	ret = register_netdevice_yestifier(&ip_vs_dst_yestifier);
 	if (ret < 0)
 		return ret;
 
@@ -4206,6 +4206,6 @@ int __init ip_vs_control_init(void)
 void ip_vs_control_cleanup(void)
 {
 	EnterFunction(2);
-	unregister_netdevice_notifier(&ip_vs_dst_notifier);
+	unregister_netdevice_yestifier(&ip_vs_dst_yestifier);
 	LeaveFunction(2);
 }

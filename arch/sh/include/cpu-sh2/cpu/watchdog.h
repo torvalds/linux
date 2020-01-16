@@ -8,11 +8,11 @@
 #define __ASM_CPU_SH2_WATCHDOG_H
 
 /*
- * More SH-2 brilliance .. its not good enough that we can't read
- * and write the same sizes to WTCNT, now we have to read and write
+ * More SH-2 brilliance .. its yest good eyesugh that we can't read
+ * and write the same sizes to WTCNT, yesw we have to read and write
  * with different sizes at different addresses for WTCNT _and_ RSTCSR.
  *
- * At least on the bright side no one has managed to screw over WTCSR
+ * At least on the bright side yes one has managed to screw over WTCSR
  * in this fashion .. yet.
  */
 /* Register definitions */

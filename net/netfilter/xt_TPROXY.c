@@ -57,12 +57,12 @@ tproxy_tg4(struct net *net, struct sk_buff *skb, __be32 laddr, __be16 lport,
 	if (!lport)
 		lport = hp->dest;
 
-	/* UDP has no TCP_TIME_WAIT state, so we never enter here */
+	/* UDP has yes TCP_TIME_WAIT state, so we never enter here */
 	if (sk && sk->sk_state == TCP_TIME_WAIT)
 		/* reopening a TIME_WAIT connection needs special handling */
 		sk = nf_tproxy_handle_time_wait4(net, skb, laddr, lport, sk);
 	else if (!sk)
-		/* no, there's no established connection, check if
+		/* yes, there's yes established connection, check if
 		 * there's a listener on the redirected addr/port */
 		sk = nf_tproxy_get_sock_v4(net, skb, iph->protocol,
 					   iph->saddr, laddr,
@@ -83,7 +83,7 @@ tproxy_tg4(struct net *net, struct sk_buff *skb, __be32 laddr, __be16 lport,
 		return NF_ACCEPT;
 	}
 
-	pr_debug("no socket, dropping: proto %hhu %pI4:%hu -> %pI4:%hu, mark: %x\n",
+	pr_debug("yes socket, dropping: proto %hhu %pI4:%hu -> %pI4:%hu, mark: %x\n",
 		 iph->protocol, &iph->saddr, ntohs(hp->source),
 		 &iph->daddr, ntohs(hp->dest), skb->mark);
 	return NF_DROP;
@@ -145,7 +145,7 @@ tproxy_tg6_v1(struct sk_buff *skb, const struct xt_action_param *par)
 	laddr = nf_tproxy_laddr6(skb, &tgi->laddr.in6, &iph->daddr);
 	lport = tgi->lport ? tgi->lport : hp->dest;
 
-	/* UDP has no TCP_TIME_WAIT state, so we never enter here */
+	/* UDP has yes TCP_TIME_WAIT state, so we never enter here */
 	if (sk && sk->sk_state == TCP_TIME_WAIT) {
 		const struct xt_tproxy_target_info_v1 *tgi = par->targinfo;
 		/* reopening a TIME_WAIT connection needs special handling */
@@ -156,7 +156,7 @@ tproxy_tg6_v1(struct sk_buff *skb, const struct xt_action_param *par)
 					      sk);
 	}
 	else if (!sk)
-		/* no there's no established connection, check if
+		/* yes there's yes established connection, check if
 		 * there's a listener on the redirected addr/port */
 		sk = nf_tproxy_get_sock_v6(xt_net(par), skb, thoff,
 					   tproto, &iph->saddr, laddr,
@@ -177,7 +177,7 @@ tproxy_tg6_v1(struct sk_buff *skb, const struct xt_action_param *par)
 		return NF_ACCEPT;
 	}
 
-	pr_debug("no socket, dropping: proto %hhu %pI6:%hu -> %pI6:%hu, mark: %x\n",
+	pr_debug("yes socket, dropping: proto %hhu %pI6:%hu -> %pI6:%hu, mark: %x\n",
 		 tproto, &iph->saddr, ntohs(hp->source),
 		 &iph->daddr, ntohs(hp->dest), skb->mark);
 

@@ -46,7 +46,7 @@ acpi_status acpi_ut_convert_octal_string(char *string, u64 *return_value_ptr)
 
 	while (*string) {
 
-		/* Character must be ASCII 0-7, otherwise terminate with no error */
+		/* Character must be ASCII 0-7, otherwise terminate with yes error */
 
 		if (!(ACPI_IS_OCTAL_DIGIT(*string))) {
 			break;
@@ -95,7 +95,7 @@ acpi_status acpi_ut_convert_decimal_string(char *string, u64 *return_value_ptr)
 
 	while (*string) {
 
-		/* Character must be ASCII 0-9, otherwise terminate with no error */
+		/* Character must be ASCII 0-9, otherwise terminate with yes error */
 
 		if (!isdigit(*string)) {
 			break;
@@ -144,7 +144,7 @@ acpi_status acpi_ut_convert_hex_string(char *string, u64 *return_value_ptr)
 
 	while (*string) {
 
-		/* Must be ASCII A-F, a-f, or 0-9, otherwise terminate with no error */
+		/* Must be ASCII A-F, a-f, or 0-9, otherwise terminate with yes error */
 
 		if (!isxdigit(*string)) {
 			break;
@@ -247,7 +247,7 @@ u8 acpi_ut_detect_hex_prefix(char **string)
  *
  * PARAMETERS:  string                  - Pointer to input ASCII string
  *
- * RETURN:      none
+ * RETURN:      yesne
  *
  * DESCRIPTION: Remove a hex "0x" prefix
  *
@@ -367,7 +367,7 @@ acpi_ut_strtoul_multiply64(u64 multiplicand, u32 base, u64 *out_product)
 	/*
 	 * Check for 64-bit overflow before the actual multiplication.
 	 *
-	 * Notes: 64-bit division is often not supported on 32-bit platforms
+	 * Notes: 64-bit division is often yest supported on 32-bit platforms
 	 * (it requires a library function), Therefore ACPICA has a local
 	 * 64-bit divide function. Also, Multiplier is currently only used
 	 * as the radix (8/10/16), to the 64/32 divide will always work.

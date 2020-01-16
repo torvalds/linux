@@ -85,10 +85,10 @@ extern struct kmem_cache *t10_alua_lba_map_mem_cache;
 extern sense_reason_t target_emulate_report_target_port_groups(struct se_cmd *);
 extern sense_reason_t target_emulate_set_target_port_groups(struct se_cmd *);
 extern sense_reason_t target_emulate_report_referrals(struct se_cmd *);
-extern int core_alua_check_nonop_delay(struct se_cmd *);
+extern int core_alua_check_yesyesp_delay(struct se_cmd *);
 extern int core_alua_do_port_transition(struct t10_alua_tg_pt_gp *,
 				struct se_device *, struct se_lun *,
-				struct se_node_acl *, int, int);
+				struct se_yesde_acl *, int, int);
 extern char *core_alua_dump_status(int);
 extern struct t10_alua_lba_map *core_alua_allocate_lba_map(
 				struct list_head *, u64, u64);
@@ -119,9 +119,9 @@ extern ssize_t core_alua_store_tg_pt_gp_info(struct se_lun *, const char *,
 extern ssize_t core_alua_show_access_type(struct t10_alua_tg_pt_gp *, char *);
 extern ssize_t core_alua_store_access_type(struct t10_alua_tg_pt_gp *,
 					const char *, size_t);
-extern ssize_t core_alua_show_nonop_delay_msecs(struct t10_alua_tg_pt_gp *,
+extern ssize_t core_alua_show_yesyesp_delay_msecs(struct t10_alua_tg_pt_gp *,
 						char *);
-extern ssize_t core_alua_store_nonop_delay_msecs(struct t10_alua_tg_pt_gp *,
+extern ssize_t core_alua_store_yesyesp_delay_msecs(struct t10_alua_tg_pt_gp *,
 					const char *, size_t);
 extern ssize_t core_alua_show_trans_delay_msecs(struct t10_alua_tg_pt_gp *,
 					char *);

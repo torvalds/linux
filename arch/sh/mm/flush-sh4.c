@@ -6,7 +6,7 @@
 #include <asm/traps.h>
 
 /*
- * Write back the dirty D-caches, but not invalidate them.
+ * Write back the dirty D-caches, but yest invalidate them.
  *
  * START: Virtual Address (U0, P1, or P3)
  * SIZE: Size of the region.

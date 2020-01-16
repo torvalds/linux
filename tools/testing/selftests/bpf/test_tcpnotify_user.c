@@ -7,7 +7,7 @@
 #include <unistd.h>
 #include <asm/types.h>
 #include <sys/syscall.h>
-#include <errno.h>
+#include <erryes.h>
 #include <string.h>
 #include <linux/bpf.h>
 #include <sys/socket.h>
@@ -23,7 +23,7 @@
 #include "bpf_util.h"
 #include "cgroup_helpers.h"
 
-#include "test_tcpnotify.h"
+#include "test_tcpyestify.h"
 #include "trace_helpers.h"
 
 #define SOCKET_BUFFER_SIZE (getpagesize() < 8192L ? getpagesize() : 8192L)
@@ -33,7 +33,7 @@ int rx_callbacks;
 
 static void dummyfn(void *ctx, int cpu, void *data, __u32 size)
 {
-	struct tcp_notifier *t = data;
+	struct tcp_yestifier *t = data;
 
 	if (t->type != 0xde || t->subtype != 0xad ||
 	    t->source != 0xbe || t->hash != 0xef)
@@ -41,7 +41,7 @@ static void dummyfn(void *ctx, int cpu, void *data, __u32 size)
 	rx_callbacks++;
 }
 
-void tcp_notifier_poller(struct perf_buffer *pb)
+void tcp_yestifier_poller(struct perf_buffer *pb)
 {
 	int err;
 
@@ -58,21 +58,21 @@ static void *poller_thread(void *arg)
 {
 	struct perf_buffer *pb = arg;
 
-	tcp_notifier_poller(pb);
+	tcp_yestifier_poller(pb);
 	return arg;
 }
 
-int verify_result(const struct tcpnotify_globals *result)
+int verify_result(const struct tcpyestify_globals *result)
 {
 	return (result->ncalls > 0 && result->ncalls == rx_callbacks ? 0 : 1);
 }
 
 int main(int argc, char **argv)
 {
-	const char *file = "test_tcpnotify_kern.o";
+	const char *file = "test_tcpyestify_kern.o";
 	struct bpf_map *perf_map, *global_map;
 	struct perf_buffer_opts pb_opts = {};
-	struct tcpnotify_globals g = {0};
+	struct tcpyestify_globals g = {0};
 	struct perf_buffer *pb = NULL;
 	const char *cg_path = "/foo";
 	int prog_fd, rv, cg_fd = -1;
@@ -104,19 +104,19 @@ int main(int argc, char **argv)
 	rv = bpf_prog_attach(prog_fd, cg_fd, BPF_CGROUP_SOCK_OPS, 0);
 	if (rv) {
 		printf("FAILED: bpf_prog_attach: %d (%s)\n",
-		       error, strerror(errno));
+		       error, strerror(erryes));
 		goto err;
 	}
 
 	perf_map = bpf_object__find_map_by_name(obj, "perf_event_map");
 	if (!perf_map) {
-		printf("FAIL:map '%s' not found\n", "perf_event_map");
+		printf("FAIL:map '%s' yest found\n", "perf_event_map");
 		goto err;
 	}
 
 	global_map = bpf_object__find_map_by_name(obj, "global_map");
 	if (!global_map) {
-		printf("FAIL:map '%s' not found\n", "global_map");
+		printf("FAIL:map '%s' yest found\n", "global_map");
 		return -1;
 	}
 

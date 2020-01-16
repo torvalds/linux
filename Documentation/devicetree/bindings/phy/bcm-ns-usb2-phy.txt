@@ -3,9 +3,9 @@ Driver for Broadcom Northstar USB 2.0 PHY
 Required properties:
 - compatible: brcm,ns-usb2-phy
 - reg: iomem address range of DMU (Device Management Unit)
-- reg-names: "dmu", the only needed & supported reg right now
+- reg-names: "dmu", the only needed & supported reg right yesw
 - clocks: USB PHY reference clock
-- clock-names: "phy-ref-clk", the only needed & supported clock right now
+- clock-names: "phy-ref-clk", the only needed & supported clock right yesw
 
 To initialize USB 2.0 PHY driver needs to setup PLL correctly. To do this it
 requires passing phandle to the USB PHY reference clock.

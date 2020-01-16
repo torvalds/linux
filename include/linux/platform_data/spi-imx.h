@@ -15,11 +15,11 @@
  *              Normally you want to use gpio based chip selects as the CSPI
  *              module tries to be intelligent about when to assert the
  *              chipselect:  The CSPI module deasserts the chipselect once it
- *              runs out of input data.  The other problem is that it is not
+ *              runs out of input data.  The other problem is that it is yest
  *              possible to mix between high active and low active chipselects
  *              on one single bus using the internal chipselects.
  *              Unfortunately, on some SoCs, Freescale decided to put some
- *              chipselects on dedicated pins which are not usable as gpios,
+ *              chipselects on dedicated pins which are yest usable as gpios,
  *              so we have to support the internal chipselects.
  *
  * @num_chipselect: If @chipselect is specified, ARRAY_SIZE(chipselect),

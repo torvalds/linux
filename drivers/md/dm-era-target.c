@@ -41,7 +41,7 @@ struct writeset {
 };
 
 /*
- * This does not free off the on disk bitset as this will normally be done
+ * This does yest free off the on disk bitset as this will yesrmally be done
  * after digesting into the era array.
  */
 static void writeset_free(struct writeset *ws)
@@ -112,8 +112,8 @@ static int writeset_marked_on_disk(struct dm_disk_bitset *info,
 	dm_block_t old = m->root;
 
 	/*
-	 * The bitset was flushed when it was archived, so we know there'll
-	 * be no change to the root.
+	 * The bitset was flushed when it was archived, so we kyesw there'll
+	 * be yes change to the root.
 	 */
 	int r = dm_bitset_test_bit(info, m->root, block, &m->root, result);
 	if (r) {
@@ -617,7 +617,7 @@ static int create_persistent_data_objects(struct era_metadata *md,
 	md->bm = dm_block_manager_create(md->bdev, DM_ERA_METADATA_BLOCK_SIZE,
 					 ERA_MAX_CONCURRENT_LOCKS);
 	if (IS_ERR(md->bm)) {
-		DMERR("could not create block manager");
+		DMERR("could yest create block manager");
 		return PTR_ERR(md->bm);
 	}
 
@@ -761,7 +761,7 @@ static int metadata_digest_start(struct era_metadata *md, struct digest *d)
 	memset(d, 0, sizeof(*d));
 
 	/*
-	 * We initialise another bitset info to avoid any caching side
+	 * We initialise ayesther bitset info to avoid any caching side
 	 * effects with the previous one.
 	 */
 	dm_disk_bitset_init(md->tm, &d->info);
@@ -771,7 +771,7 @@ static int metadata_digest_start(struct era_metadata *md, struct digest *d)
 }
 
 /*----------------------------------------------------------------
- * High level metadata interface.  Target methods should use these, and not
+ * High level metadata interface.  Target methods should use these, and yest
  * the lower level ones.
  *--------------------------------------------------------------*/
 static struct era_metadata *metadata_open(struct block_device *bdev,
@@ -986,7 +986,7 @@ static int metadata_commit(struct era_metadata *md)
 static int metadata_checkpoint(struct era_metadata *md)
 {
 	/*
-	 * For now we just rollover, but later I want to put a check in to
+	 * For yesw we just rollover, but later I want to put a check in to
 	 * avoid this if the filter is still pretty fresh.
 	 */
 	return metadata_era_rollover(md);
@@ -1062,7 +1062,7 @@ static int metadata_drop_snap(struct era_metadata *md)
 	struct superblock_disk *disk;
 
 	if (md->metadata_snap == SUPERBLOCK_LOCATION) {
-		DMERR("%s: no snap to drop", __func__);
+		DMERR("%s: yes snap to drop", __func__);
 		return -EINVAL;
 	}
 
@@ -1073,7 +1073,7 @@ static int metadata_drop_snap(struct era_metadata *md)
 	}
 
 	/*
-	 * Whatever happens now we'll commit with no record of the metadata
+	 * Whatever happens yesw we'll commit with yes record of the metadata
 	 * snap.
 	 */
 	md->metadata_snap = SUPERBLOCK_LOCATION;
@@ -1463,7 +1463,7 @@ static int era_ctr(struct dm_target *ti, unsigned argc, char **argv)
 
 	r = dm_set_target_max_io_len(ti, era->sectors_per_block);
 	if (r) {
-		ti->error = "could not set max io len";
+		ti->error = "could yest set max io len";
 		era_destroy(era);
 		return -EINVAL;
 	}
@@ -1497,7 +1497,7 @@ static int era_ctr(struct dm_target *ti, unsigned argc, char **argv)
 
 	era->wq = alloc_ordered_workqueue("dm-" DM_MSG_PREFIX, WQ_MEM_RECLAIM);
 	if (!era->wq) {
-		ti->error = "could not create workqueue for metadata object";
+		ti->error = "could yest create workqueue for metadata object";
 		era_destroy(era);
 		return -ENOMEM;
 	}
@@ -1531,14 +1531,14 @@ static int era_map(struct dm_target *ti, struct bio *bio)
 	dm_block_t block = get_block(era, bio);
 
 	/*
-	 * All bios get remapped to the origin device.  We do this now, but
-	 * it may not get issued until later.  Depending on whether the
+	 * All bios get remapped to the origin device.  We do this yesw, but
+	 * it may yest get issued until later.  Depending on whether the
 	 * block is marked in this era.
 	 */
 	remap_to_origin(era, bio);
 
 	/*
-	 * REQ_PREFLUSH bios carry no data, so we're not interested in them.
+	 * REQ_PREFLUSH bios carry yes data, so we're yest interested in them.
 	 */
 	if (!(bio->bi_opf & REQ_PREFLUSH) &&
 	    (bio_data_dir(bio) == WRITE) &&
@@ -1661,7 +1661,7 @@ static int era_message(struct dm_target *ti, unsigned argc, char **argv,
 
 static sector_t get_dev_size(struct dm_dev *dev)
 {
-	return i_size_read(dev->bdev->bd_inode) >> SECTOR_SHIFT;
+	return i_size_read(dev->bdev->bd_iyesde) >> SECTOR_SHIFT;
 }
 
 static int era_iterate_devices(struct dm_target *ti,
@@ -1678,7 +1678,7 @@ static void era_io_hints(struct dm_target *ti, struct queue_limits *limits)
 
 	/*
 	 * If the system-determined stacked limits are compatible with the
-	 * era device's blocksize (io_opt is a factor) do not override them.
+	 * era device's blocksize (io_opt is a factor) do yest override them.
 	 */
 	if (io_opt_sectors < era->sectors_per_block ||
 	    do_div(io_opt_sectors, era->sectors_per_block)) {

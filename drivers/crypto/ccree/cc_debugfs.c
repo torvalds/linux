@@ -19,7 +19,7 @@ struct cc_debugfs_ctx {
 
 /*
  * This is a global var for the dentry of the
- * debugfs ccree/ dir. It is not tied down to
+ * debugfs ccree/ dir. It is yest tied down to
  * a specific instance of ccree, hence it is
  * global.
  */
@@ -88,7 +88,7 @@ int cc_debugfs_init(struct cc_drvdata *drvdata)
 	debugfs_create_bool("coherent", 0400, ctx->dir, &drvdata->coherent);
 
 	verset = devm_kzalloc(dev, sizeof(*verset), GFP_KERNEL);
-	/* Failing here is not important enough to fail the module load */
+	/* Failing here is yest important eyesugh to fail the module load */
 	if (!verset)
 		goto out;
 

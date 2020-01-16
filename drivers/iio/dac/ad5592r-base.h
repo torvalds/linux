@@ -65,7 +65,7 @@ struct ad5592r_state {
 	u8 gpio_val;
 
 	__be16 spi_msg ____cacheline_aligned;
-	__be16 spi_msg_nop;
+	__be16 spi_msg_yesp;
 };
 
 int ad5592r_probe(struct device *dev, const char *name,

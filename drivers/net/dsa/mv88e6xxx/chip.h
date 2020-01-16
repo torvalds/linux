@@ -115,12 +115,12 @@ struct mv88e6xxx_info {
 
 	/* Mark certain ports as invalid. This is required for example for the
 	 * MV88E6220 (which is in general a MV88E6250 with 7 ports) but the
-	 * ports 2-4 are not routet to pins.
+	 * ports 2-4 are yest routet to pins.
 	 */
 	unsigned int invalid_port_mask;
 	/* Multi-chip Addressing Mode.
 	 * Some chips respond to only 2 registers of its own SMI device address
-	 * when it is non-zero, and use indirect access to internal registers.
+	 * when it is yesn-zero, and use indirect access to internal registers.
 	 */
 	bool multi_chip;
 	/* Dual-chip Addressing Mode
@@ -132,7 +132,7 @@ struct mv88e6xxx_info {
 	enum dsa_tag_protocol tag_protocol;
 
 	/* Mask for FromPort and ToPort value of PortVec used in ATU Move
-	 * operation. 0 means that the ATU Move operation is not supported.
+	 * operation. 0 means that the ATU Move operation is yest supported.
 	 */
 	u8 atu_move_port_mask;
 	const struct mv88e6xxx_ops *ops;
@@ -378,7 +378,7 @@ struct mv88e6xxx_ops {
 	int (*reset)(struct mv88e6xxx_chip *chip);
 
 	/* RGMII Receive/Transmit Timing Control
-	 * Add delay on PHY_INTERFACE_MODE_RGMII_*ID, no delay otherwise.
+	 * Add delay on PHY_INTERFACE_MODE_RGMII_*ID, yes delay otherwise.
 	 */
 	int (*port_set_rgmii_delay)(struct mv88e6xxx_chip *chip, int port,
 				    phy_interface_t mode);
@@ -389,7 +389,7 @@ struct mv88e6xxx_ops {
 
 	/* Port's MAC link state
 	 * Use LINK_FORCED_UP or LINK_FORCED_DOWN to force link up or down,
-	 * or LINK_UNFORCED for normal link detection.
+	 * or LINK_UNFORCED for yesrmal link detection.
 	 */
 	int (*port_set_link)(struct mv88e6xxx_chip *chip, int port, int link);
 
@@ -398,7 +398,7 @@ struct mv88e6xxx_ops {
 	/* Port's MAC duplex mode
 	 *
 	 * Use DUPLEX_HALF or DUPLEX_FULL to force half or full duplex,
-	 * or DUPLEX_UNFORCED for normal duplex detection.
+	 * or DUPLEX_UNFORCED for yesrmal duplex detection.
 	 */
 	int (*port_set_duplex)(struct mv88e6xxx_chip *chip, int port, int dup);
 
@@ -415,7 +415,7 @@ struct mv88e6xxx_ops {
 	/* Port's MAC speed (in Mbps)
 	 *
 	 * Depending on the chip, 10, 100, 200, 1000, 2500, 10000 are valid.
-	 * Use SPEED_UNFORCED for normal detection, SPEED_MAX for max value.
+	 * Use SPEED_UNFORCED for yesrmal detection, SPEED_MAX for max value.
 	 */
 	int (*port_set_speed)(struct mv88e6xxx_chip *chip, int port, int speed);
 

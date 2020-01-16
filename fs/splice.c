@@ -42,9 +42,9 @@
  * Attempt to steal a page from a pipe buffer. This should perhaps go into
  * a vm helper function, it's already simplified quite a bit by the
  * addition of remove_mapping(). If success is returned, the caller may
- * attempt to reuse this page for another destination.
+ * attempt to reuse this page for ayesther destination.
  */
-static int page_cache_pipe_buf_steal(struct pipe_inode_info *pipe,
+static int page_cache_pipe_buf_steal(struct pipe_iyesde_info *pipe,
 				     struct pipe_buffer *buf)
 {
 	struct page *page = buf->page;
@@ -57,7 +57,7 @@ static int page_cache_pipe_buf_steal(struct pipe_inode_info *pipe,
 		WARN_ON(!PageUptodate(page));
 
 		/*
-		 * At least for ext2 with nobh option, we need to wait on
+		 * At least for ext2 with yesbh option, we need to wait on
 		 * writeback completing on this page, since we'll remove it
 		 * from the pagecache.  Otherwise truncate wont wait on the
 		 * page, allowing the disk blocks to be reused by someone else
@@ -89,7 +89,7 @@ out_unlock:
 	return 1;
 }
 
-static void page_cache_pipe_buf_release(struct pipe_inode_info *pipe,
+static void page_cache_pipe_buf_release(struct pipe_iyesde_info *pipe,
 					struct pipe_buffer *buf)
 {
 	put_page(buf->page);
@@ -100,7 +100,7 @@ static void page_cache_pipe_buf_release(struct pipe_inode_info *pipe,
  * Check whether the contents of buf is OK to access. Since the content
  * is a page cache page, IO may be in flight.
  */
-static int page_cache_pipe_buf_confirm(struct pipe_inode_info *pipe,
+static int page_cache_pipe_buf_confirm(struct pipe_iyesde_info *pipe,
 				       struct pipe_buffer *buf)
 {
 	struct page *page = buf->page;
@@ -145,7 +145,7 @@ const struct pipe_buf_operations page_cache_pipe_buf_ops = {
 	.get = generic_pipe_buf_get,
 };
 
-static int user_page_pipe_buf_steal(struct pipe_inode_info *pipe,
+static int user_page_pipe_buf_steal(struct pipe_iyesde_info *pipe,
 				    struct pipe_buffer *buf)
 {
 	if (!(buf->flags & PIPE_BUF_FLAG_GIFT))
@@ -162,7 +162,7 @@ static const struct pipe_buf_operations user_page_pipe_buf_ops = {
 	.get = generic_pipe_buf_get,
 };
 
-static void wakeup_pipe_readers(struct pipe_inode_info *pipe)
+static void wakeup_pipe_readers(struct pipe_iyesde_info *pipe)
 {
 	smp_mb();
 	if (waitqueue_active(&pipe->wait))
@@ -181,7 +181,7 @@ static void wakeup_pipe_readers(struct pipe_inode_info *pipe)
  *    function will link that data to the pipe.
  *
  */
-ssize_t splice_to_pipe(struct pipe_inode_info *pipe,
+ssize_t splice_to_pipe(struct pipe_iyesde_info *pipe,
 		       struct splice_pipe_desc *spd)
 {
 	unsigned int spd_pages = spd->nr_pages;
@@ -229,7 +229,7 @@ out:
 }
 EXPORT_SYMBOL_GPL(splice_to_pipe);
 
-ssize_t add_to_pipe(struct pipe_inode_info *pipe, struct pipe_buffer *buf)
+ssize_t add_to_pipe(struct pipe_iyesde_info *pipe, struct pipe_buffer *buf)
 {
 	unsigned int head = pipe->head;
 	unsigned int tail = pipe->tail;
@@ -255,7 +255,7 @@ EXPORT_SYMBOL(add_to_pipe);
  * Check if we need to grow the arrays holding pages and partial page
  * descriptions.
  */
-int splice_grow_spd(const struct pipe_inode_info *pipe, struct splice_pipe_desc *spd)
+int splice_grow_spd(const struct pipe_iyesde_info *pipe, struct splice_pipe_desc *spd)
 {
 	unsigned int max_usage = READ_ONCE(pipe->max_usage);
 
@@ -298,7 +298,7 @@ void splice_shrink_spd(struct splice_pipe_desc *spd)
  *
  */
 ssize_t generic_file_splice_read(struct file *in, loff_t *ppos,
-				 struct pipe_inode_info *pipe, size_t len,
+				 struct pipe_iyesde_info *pipe, size_t len,
 				 unsigned int flags)
 {
 	struct iov_iter to;
@@ -337,20 +337,20 @@ const struct pipe_buf_operations default_pipe_buf_ops = {
 	.get = generic_pipe_buf_get,
 };
 
-int generic_pipe_buf_nosteal(struct pipe_inode_info *pipe,
+int generic_pipe_buf_yessteal(struct pipe_iyesde_info *pipe,
 			     struct pipe_buffer *buf)
 {
 	return 1;
 }
 
 /* Pipe buffer operations for a socket and similar. */
-const struct pipe_buf_operations nosteal_pipe_buf_ops = {
+const struct pipe_buf_operations yessteal_pipe_buf_ops = {
 	.confirm = generic_pipe_buf_confirm,
 	.release = generic_pipe_buf_release,
-	.steal = generic_pipe_buf_nosteal,
+	.steal = generic_pipe_buf_yessteal,
 	.get = generic_pipe_buf_get,
 };
-EXPORT_SYMBOL(nosteal_pipe_buf_ops);
+EXPORT_SYMBOL(yessteal_pipe_buf_ops);
 
 static ssize_t kernel_readv(struct file *file, const struct kvec *vec,
 			    unsigned long vlen, loff_t offset)
@@ -369,7 +369,7 @@ static ssize_t kernel_readv(struct file *file, const struct kvec *vec,
 }
 
 static ssize_t default_file_splice_read(struct file *in, loff_t *ppos,
-				 struct pipe_inode_info *pipe, size_t len,
+				 struct pipe_iyesde_info *pipe, size_t len,
 				 unsigned int flags)
 {
 	struct kvec *vec, __vec[PIPE_DEF_BUFFERS];
@@ -439,7 +439,7 @@ out:
  * Send 'sd->len' bytes to socket from 'sd->file' at position 'sd->pos'
  * using sendpage(). Return the number of bytes sent.
  */
-static int pipe_to_sendpage(struct pipe_inode_info *pipe,
+static int pipe_to_sendpage(struct pipe_iyesde_info *pipe,
 			    struct pipe_buffer *buf, struct splice_desc *sd)
 {
 	struct file *file = sd->u.file;
@@ -459,7 +459,7 @@ static int pipe_to_sendpage(struct pipe_inode_info *pipe,
 				    sd->len, &pos, more);
 }
 
-static void wakeup_pipe_writers(struct pipe_inode_info *pipe)
+static void wakeup_pipe_writers(struct pipe_iyesde_info *pipe)
 {
 	smp_mb();
 	if (waitqueue_active(&pipe->wait))
@@ -476,18 +476,18 @@ static void wakeup_pipe_writers(struct pipe_inode_info *pipe)
  * Description:
  *    This function loops over the pipe and calls @actor to do the
  *    actual moving of a single struct pipe_buffer to the desired
- *    destination.  It returns when there's no more buffers left in
+ *    destination.  It returns when there's yes more buffers left in
  *    the pipe or if the requested number of bytes (@sd->total_len)
  *    have been copied.  It returns a positive number (one) if the
  *    pipe needs to be filled with more data, zero if the required
- *    number of bytes have been copied and -errno on error.
+ *    number of bytes have been copied and -erryes on error.
  *
  *    This, together with splice_from_pipe_{begin,end,next}, may be
  *    used to implement the functionality of __splice_from_pipe() when
  *    locking is required around copying the pipe buffers to the
  *    destination.
  */
-static int splice_from_pipe_feed(struct pipe_inode_info *pipe, struct splice_desc *sd,
+static int splice_from_pipe_feed(struct pipe_iyesde_info *pipe, struct splice_desc *sd,
 			  splice_actor *actor)
 {
 	unsigned int head = pipe->head;
@@ -544,9 +544,9 @@ static int splice_from_pipe_feed(struct pipe_inode_info *pipe, struct splice_des
  * Description:
  *    This function will wait for some data and return a positive
  *    value (one) if pipe buffers are available.  It will return zero
- *    or -errno if no more data needs to be spliced.
+ *    or -erryes if yes more data needs to be spliced.
  */
-static int splice_from_pipe_next(struct pipe_inode_info *pipe, struct splice_desc *sd)
+static int splice_from_pipe_next(struct pipe_iyesde_info *pipe, struct splice_desc *sd)
 {
 	/*
 	 * Check for signal early to make process killable when there are
@@ -604,7 +604,7 @@ static void splice_from_pipe_begin(struct splice_desc *sd)
  *    be called after a loop containing splice_from_pipe_next() and
  *    splice_from_pipe_feed().
  */
-static void splice_from_pipe_end(struct pipe_inode_info *pipe, struct splice_desc *sd)
+static void splice_from_pipe_end(struct pipe_iyesde_info *pipe, struct splice_desc *sd)
 {
 	if (sd->need_wakeup)
 		wakeup_pipe_writers(pipe);
@@ -623,7 +623,7 @@ static void splice_from_pipe_end(struct pipe_inode_info *pipe, struct splice_des
  *    pipe_to_user.
  *
  */
-ssize_t __splice_from_pipe(struct pipe_inode_info *pipe, struct splice_desc *sd,
+ssize_t __splice_from_pipe(struct pipe_iyesde_info *pipe, struct splice_desc *sd,
 			   splice_actor *actor)
 {
 	int ret;
@@ -651,11 +651,11 @@ EXPORT_SYMBOL(__splice_from_pipe);
  * @actor:	handler that splices the data
  *
  * Description:
- *    See __splice_from_pipe. This function locks the pipe inode,
+ *    See __splice_from_pipe. This function locks the pipe iyesde,
  *    otherwise it's identical to __splice_from_pipe().
  *
  */
-ssize_t splice_from_pipe(struct pipe_inode_info *pipe, struct file *out,
+ssize_t splice_from_pipe(struct pipe_iyesde_info *pipe, struct file *out,
 			 loff_t *ppos, size_t len, unsigned int flags,
 			 splice_actor *actor)
 {
@@ -684,12 +684,12 @@ ssize_t splice_from_pipe(struct pipe_inode_info *pipe, struct file *out,
  *
  * Description:
  *    Will either move or copy pages (determined by @flags options) from
- *    the given pipe inode to the given file.
+ *    the given pipe iyesde to the given file.
  *    This one is ->write_iter-based.
  *
  */
 ssize_t
-iter_file_splice_write(struct pipe_inode_info *pipe, struct file *out,
+iter_file_splice_write(struct pipe_iyesde_info *pipe, struct file *out,
 			  loff_t *ppos, size_t len, unsigned int flags)
 {
 	struct splice_desc sd = {
@@ -798,7 +798,7 @@ done:
 
 EXPORT_SYMBOL(iter_file_splice_write);
 
-static int write_pipe_buf(struct pipe_inode_info *pipe, struct pipe_buffer *buf,
+static int write_pipe_buf(struct pipe_iyesde_info *pipe, struct pipe_buffer *buf,
 			  struct splice_desc *sd)
 {
 	int ret;
@@ -812,7 +812,7 @@ static int write_pipe_buf(struct pipe_inode_info *pipe, struct pipe_buffer *buf,
 	return ret;
 }
 
-static ssize_t default_file_splice_write(struct pipe_inode_info *pipe,
+static ssize_t default_file_splice_write(struct pipe_iyesde_info *pipe,
 					 struct file *out, loff_t *ppos,
 					 size_t len, unsigned int flags)
 {
@@ -838,7 +838,7 @@ static ssize_t default_file_splice_write(struct pipe_inode_info *pipe,
  *    is involved.
  *
  */
-ssize_t generic_splice_sendpage(struct pipe_inode_info *pipe, struct file *out,
+ssize_t generic_splice_sendpage(struct pipe_iyesde_info *pipe, struct file *out,
 				loff_t *ppos, size_t len, unsigned int flags)
 {
 	return splice_from_pipe(pipe, out, ppos, len, flags, pipe_to_sendpage);
@@ -849,10 +849,10 @@ EXPORT_SYMBOL(generic_splice_sendpage);
 /*
  * Attempt to initiate a splice from pipe to file.
  */
-static long do_splice_from(struct pipe_inode_info *pipe, struct file *out,
+static long do_splice_from(struct pipe_iyesde_info *pipe, struct file *out,
 			   loff_t *ppos, size_t len, unsigned int flags)
 {
-	ssize_t (*splice_write)(struct pipe_inode_info *, struct file *,
+	ssize_t (*splice_write)(struct pipe_iyesde_info *, struct file *,
 				loff_t *, size_t, unsigned int);
 
 	if (out->f_op->splice_write)
@@ -867,11 +867,11 @@ static long do_splice_from(struct pipe_inode_info *pipe, struct file *out,
  * Attempt to initiate a splice from a file to a pipe.
  */
 static long do_splice_to(struct file *in, loff_t *ppos,
-			 struct pipe_inode_info *pipe, size_t len,
+			 struct pipe_iyesde_info *pipe, size_t len,
 			 unsigned int flags)
 {
 	ssize_t (*splice_read)(struct file *, loff_t *,
-			       struct pipe_inode_info *, size_t, unsigned int);
+			       struct pipe_iyesde_info *, size_t, unsigned int);
 	int ret;
 
 	if (unlikely(!(in->f_mode & FMODE_READ)))
@@ -893,7 +893,7 @@ static long do_splice_to(struct file *in, loff_t *ppos,
 }
 
 /**
- * splice_direct_to_actor - splices data directly between two non-pipes
+ * splice_direct_to_actor - splices data directly between two yesn-pipes
  * @in:		file to splice from
  * @sd:		actor information on where to splice to
  * @actor:	handles the data splicing
@@ -908,7 +908,7 @@ static long do_splice_to(struct file *in, loff_t *ppos,
 ssize_t splice_direct_to_actor(struct file *in, struct splice_desc *sd,
 			       splice_direct_actor *actor)
 {
-	struct pipe_inode_info *pipe;
+	struct pipe_iyesde_info *pipe;
 	long ret, bytes;
 	umode_t i_mode;
 	size_t len;
@@ -919,12 +919,12 @@ ssize_t splice_direct_to_actor(struct file *in, struct splice_desc *sd,
 	 * randomly drop data for eg socket -> socket splicing. Use the
 	 * piped splicing for that!
 	 */
-	i_mode = file_inode(in)->i_mode;
+	i_mode = file_iyesde(in)->i_mode;
 	if (unlikely(!S_ISREG(i_mode) && !S_ISBLK(i_mode)))
 		return -EINVAL;
 
 	/*
-	 * neither in nor out is a pipe, setup an internal pipe attached to
+	 * neither in yesr out is a pipe, setup an internal pipe attached to
 	 * 'out' and transfer the wanted data from 'in' to 'out' through that
 	 */
 	pipe = current->splice_pipe;
@@ -977,7 +977,7 @@ ssize_t splice_direct_to_actor(struct file *in, struct splice_desc *sd,
 
 		/*
 		 * If more data is pending, set SPLICE_F_MORE
-		 * If this is the last data and SPLICE_F_MORE was not set
+		 * If this is the last data and SPLICE_F_MORE was yest set
 		 * initially, clears it.
 		 */
 		if (read_len < len)
@@ -985,8 +985,8 @@ ssize_t splice_direct_to_actor(struct file *in, struct splice_desc *sd,
 		else if (!more)
 			sd->flags &= ~SPLICE_F_MORE;
 		/*
-		 * NOTE: nonblocking mode only applies to the input. We
-		 * must not do the output in nonblocking mode as then we
+		 * NOTE: yesnblocking mode only applies to the input. We
+		 * must yest do the output in yesnblocking mode as then we
 		 * could get stuck data in the internal pipe:
 		 */
 		ret = actor(pipe, sd);
@@ -1029,7 +1029,7 @@ out_release:
 }
 EXPORT_SYMBOL(splice_direct_to_actor);
 
-static int direct_splice_actor(struct pipe_inode_info *pipe,
+static int direct_splice_actor(struct pipe_iyesde_info *pipe,
 			       struct splice_desc *sd)
 {
 	struct file *file = sd->u.file;
@@ -1085,7 +1085,7 @@ long do_splice_direct(struct file *in, loff_t *ppos, struct file *out,
 }
 EXPORT_SYMBOL(do_splice_direct);
 
-static int wait_for_space(struct pipe_inode_info *pipe, unsigned flags)
+static int wait_for_space(struct pipe_iyesde_info *pipe, unsigned flags)
 {
 	for (;;) {
 		if (unlikely(!pipe->readers)) {
@@ -1102,8 +1102,8 @@ static int wait_for_space(struct pipe_inode_info *pipe, unsigned flags)
 	}
 }
 
-static int splice_pipe_to_pipe(struct pipe_inode_info *ipipe,
-			       struct pipe_inode_info *opipe,
+static int splice_pipe_to_pipe(struct pipe_iyesde_info *ipipe,
+			       struct pipe_iyesde_info *opipe,
 			       size_t len, unsigned int flags);
 
 /*
@@ -1113,8 +1113,8 @@ static long do_splice(struct file *in, loff_t __user *off_in,
 		      struct file *out, loff_t __user *off_out,
 		      size_t len, unsigned int flags)
 {
-	struct pipe_inode_info *ipipe;
-	struct pipe_inode_info *opipe;
+	struct pipe_iyesde_info *ipipe;
+	struct pipe_iyesde_info *opipe;
 	loff_t offset;
 	long ret;
 
@@ -1219,7 +1219,7 @@ static long do_splice(struct file *in, loff_t __user *off_in,
 }
 
 static int iter_to_pipe(struct iov_iter *from,
-			struct pipe_inode_info *pipe,
+			struct pipe_iyesde_info *pipe,
 			unsigned flags)
 {
 	struct pipe_buffer buf = {
@@ -1264,7 +1264,7 @@ static int iter_to_pipe(struct iov_iter *from,
 	return total ? total : ret;
 }
 
-static int pipe_to_user(struct pipe_inode_info *pipe, struct pipe_buffer *buf,
+static int pipe_to_user(struct pipe_iyesde_info *pipe, struct pipe_buffer *buf,
 			struct splice_desc *sd)
 {
 	int n = copy_page_to_iter(buf->page, buf->offset, sd->len, sd->u.data);
@@ -1278,7 +1278,7 @@ static int pipe_to_user(struct pipe_inode_info *pipe, struct pipe_buffer *buf,
 static long vmsplice_to_user(struct file *file, struct iov_iter *iter,
 			     unsigned int flags)
 {
-	struct pipe_inode_info *pipe = get_pipe_info(file);
+	struct pipe_iyesde_info *pipe = get_pipe_info(file);
 	struct splice_desc sd = {
 		.total_len = iov_iter_count(iter),
 		.flags = flags,
@@ -1306,7 +1306,7 @@ static long vmsplice_to_user(struct file *file, struct iov_iter *iter,
 static long vmsplice_to_pipe(struct file *file, struct iov_iter *iter,
 			     unsigned int flags)
 {
-	struct pipe_inode_info *pipe;
+	struct pipe_iyesde_info *pipe;
 	long ret = 0;
 	unsigned buf_flag = 0;
 
@@ -1344,7 +1344,7 @@ static int vmsplice_type(struct fd f, int *type)
 
 /*
  * Note that vmsplice only really supports true splicing _from_ user memory
- * to a pipe, not the other way around. Splicing from user memory is a simple
+ * to a pipe, yest the other way around. Splicing from user memory is a simple
  * operation that can be supported without any funky alignment restrictions
  * or nasty vm tricks. We simply map in the user memory and fill them into
  * a pipe. The reverse isn't quite as easy, though. There are two possible
@@ -1352,10 +1352,10 @@ static int vmsplice_type(struct fd f, int *type)
  *
  *	- memcpy() the data internally, at which point we might as well just
  *	  do a regular read() on the buffer anyway.
- *	- Lots of nasty vm tricks, that are neither fast nor flexible (it
+ *	- Lots of nasty vm tricks, that are neither fast yesr flexible (it
  *	  has restriction limitations on both ends of the pipe).
  *
- * Currently we punt and implement it as a normal copy, see pipe_to_user().
+ * Currently we punt and implement it as a yesrmal copy, see pipe_to_user().
  *
  */
 static long do_vmsplice(struct file *f, struct iov_iter *iter, unsigned int flags)
@@ -1459,12 +1459,12 @@ SYSCALL_DEFINE6(splice, int, fd_in, loff_t __user *, off_in,
  * Make sure there's data to read. Wait for input if we can, otherwise
  * return an appropriate error.
  */
-static int ipipe_prep(struct pipe_inode_info *pipe, unsigned int flags)
+static int ipipe_prep(struct pipe_iyesde_info *pipe, unsigned int flags)
 {
 	int ret;
 
 	/*
-	 * Check the pipe occupancy without the inode lock first. This function
+	 * Check the pipe occupancy without the iyesde lock first. This function
 	 * is speculative anyways, so missing one is ok.
 	 */
 	if (!pipe_empty(pipe->head, pipe->tail))
@@ -1495,12 +1495,12 @@ static int ipipe_prep(struct pipe_inode_info *pipe, unsigned int flags)
  * Make sure there's writeable room. Wait for room if we can, otherwise
  * return an appropriate error.
  */
-static int opipe_prep(struct pipe_inode_info *pipe, unsigned int flags)
+static int opipe_prep(struct pipe_iyesde_info *pipe, unsigned int flags)
 {
 	int ret;
 
 	/*
-	 * Check pipe occupancy without the inode lock first. This function
+	 * Check pipe occupancy without the iyesde lock first. This function
 	 * is speculative anyways, so missing one is ok.
 	 */
 	if (pipe_full(pipe->head, pipe->tail, pipe->max_usage))
@@ -1533,8 +1533,8 @@ static int opipe_prep(struct pipe_inode_info *pipe, unsigned int flags)
 /*
  * Splice contents of ipipe to opipe.
  */
-static int splice_pipe_to_pipe(struct pipe_inode_info *ipipe,
-			       struct pipe_inode_info *opipe,
+static int splice_pipe_to_pipe(struct pipe_iyesde_info *ipipe,
+			       struct pipe_iyesde_info *opipe,
 			       size_t len, unsigned int flags)
 {
 	struct pipe_buffer *ibuf, *obuf;
@@ -1583,7 +1583,7 @@ retry:
 			break;
 
 		/*
-		 * Cannot make any progress, because either the input
+		 * Canyest make any progress, because either the input
 		 * pipe is empty or the output pipe is full.
 		 */
 		if (pipe_empty(i_head, i_tail) ||
@@ -1598,7 +1598,7 @@ retry:
 			}
 
 			/*
-			 * We raced with another reader/writer and haven't
+			 * We raced with ayesther reader/writer and haven't
 			 * managed to process any buffers.  A zero return
 			 * value means EOF, so retry instead.
 			 */
@@ -1671,8 +1671,8 @@ retry:
 /*
  * Link contents of ipipe to opipe.
  */
-static int link_pipe(struct pipe_inode_info *ipipe,
-		     struct pipe_inode_info *opipe,
+static int link_pipe(struct pipe_iyesde_info *ipipe,
+		     struct pipe_iyesde_info *opipe,
 		     size_t len, unsigned int flags)
 {
 	struct pipe_buffer *ibuf, *obuf;
@@ -1766,8 +1766,8 @@ static int link_pipe(struct pipe_inode_info *ipipe,
 static long do_tee(struct file *in, struct file *out, size_t len,
 		   unsigned int flags)
 {
-	struct pipe_inode_info *ipipe = get_pipe_info(in);
-	struct pipe_inode_info *opipe = get_pipe_info(out);
+	struct pipe_iyesde_info *ipipe = get_pipe_info(in);
+	struct pipe_iyesde_info *opipe = get_pipe_info(out);
 	int ret = -EINVAL;
 
 	/*

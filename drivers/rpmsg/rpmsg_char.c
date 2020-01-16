@@ -31,7 +31,7 @@ static struct class *rpmsg_class;
 
 static DEFINE_IDA(rpmsg_ctrl_ida);
 static DEFINE_IDA(rpmsg_ept_ida);
-static DEFINE_IDA(rpmsg_minor_ida);
+static DEFINE_IDA(rpmsg_miyesr_ida);
 
 #define dev_to_eptdev(dev) container_of(dev, struct rpmsg_eptdev, dev)
 #define cdev_to_eptdev(i_cdev) container_of(i_cdev, struct rpmsg_eptdev, cdev)
@@ -120,9 +120,9 @@ static int rpmsg_ept_cb(struct rpmsg_device *rpdev, void *buf, int len,
 	return 0;
 }
 
-static int rpmsg_eptdev_open(struct inode *inode, struct file *filp)
+static int rpmsg_eptdev_open(struct iyesde *iyesde, struct file *filp)
 {
-	struct rpmsg_eptdev *eptdev = cdev_to_eptdev(inode->i_cdev);
+	struct rpmsg_eptdev *eptdev = cdev_to_eptdev(iyesde->i_cdev);
 	struct rpmsg_endpoint *ept;
 	struct rpmsg_device *rpdev = eptdev->rpdev;
 	struct device *dev = &eptdev->dev;
@@ -142,12 +142,12 @@ static int rpmsg_eptdev_open(struct inode *inode, struct file *filp)
 	return 0;
 }
 
-static int rpmsg_eptdev_release(struct inode *inode, struct file *filp)
+static int rpmsg_eptdev_release(struct iyesde *iyesde, struct file *filp)
 {
-	struct rpmsg_eptdev *eptdev = cdev_to_eptdev(inode->i_cdev);
+	struct rpmsg_eptdev *eptdev = cdev_to_eptdev(iyesde->i_cdev);
 	struct device *dev = &eptdev->dev;
 
-	/* Close the endpoint, if it's not already destroyed by the parent */
+	/* Close the endpoint, if it's yest already destroyed by the parent */
 	mutex_lock(&eptdev->ept_lock);
 	if (eptdev->ept) {
 		rpmsg_destroy_ept(eptdev->ept);
@@ -331,7 +331,7 @@ static void rpmsg_eptdev_release_device(struct device *dev)
 	struct rpmsg_eptdev *eptdev = dev_to_eptdev(dev);
 
 	ida_simple_remove(&rpmsg_ept_ida, dev->id);
-	ida_simple_remove(&rpmsg_minor_ida, MINOR(eptdev->dev.devt));
+	ida_simple_remove(&rpmsg_miyesr_ida, MINOR(eptdev->dev.devt));
 	cdev_del(&eptdev->cdev);
 	kfree(eptdev);
 }
@@ -366,14 +366,14 @@ static int rpmsg_eptdev_create(struct rpmsg_ctrldev *ctrldev,
 	cdev_init(&eptdev->cdev, &rpmsg_eptdev_fops);
 	eptdev->cdev.owner = THIS_MODULE;
 
-	ret = ida_simple_get(&rpmsg_minor_ida, 0, RPMSG_DEV_MAX, GFP_KERNEL);
+	ret = ida_simple_get(&rpmsg_miyesr_ida, 0, RPMSG_DEV_MAX, GFP_KERNEL);
 	if (ret < 0)
 		goto free_eptdev;
 	dev->devt = MKDEV(MAJOR(rpmsg_major), ret);
 
 	ret = ida_simple_get(&rpmsg_ept_ida, 0, 0, GFP_KERNEL);
 	if (ret < 0)
-		goto free_minor_ida;
+		goto free_miyesr_ida;
 	dev->id = ret;
 	dev_set_name(dev, "rpmsg%d", ret);
 
@@ -381,7 +381,7 @@ static int rpmsg_eptdev_create(struct rpmsg_ctrldev *ctrldev,
 	if (ret)
 		goto free_ept_ida;
 
-	/* We can now rely on the release function for cleanup */
+	/* We can yesw rely on the release function for cleanup */
 	dev->release = rpmsg_eptdev_release_device;
 
 	ret = device_add(dev);
@@ -394,8 +394,8 @@ static int rpmsg_eptdev_create(struct rpmsg_ctrldev *ctrldev,
 
 free_ept_ida:
 	ida_simple_remove(&rpmsg_ept_ida, dev->id);
-free_minor_ida:
-	ida_simple_remove(&rpmsg_minor_ida, MINOR(dev->devt));
+free_miyesr_ida:
+	ida_simple_remove(&rpmsg_miyesr_ida, MINOR(dev->devt));
 free_eptdev:
 	put_device(dev);
 	kfree(eptdev);
@@ -403,9 +403,9 @@ free_eptdev:
 	return ret;
 }
 
-static int rpmsg_ctrldev_open(struct inode *inode, struct file *filp)
+static int rpmsg_ctrldev_open(struct iyesde *iyesde, struct file *filp)
 {
-	struct rpmsg_ctrldev *ctrldev = cdev_to_ctrldev(inode->i_cdev);
+	struct rpmsg_ctrldev *ctrldev = cdev_to_ctrldev(iyesde->i_cdev);
 
 	get_device(&ctrldev->dev);
 	filp->private_data = ctrldev;
@@ -413,9 +413,9 @@ static int rpmsg_ctrldev_open(struct inode *inode, struct file *filp)
 	return 0;
 }
 
-static int rpmsg_ctrldev_release(struct inode *inode, struct file *filp)
+static int rpmsg_ctrldev_release(struct iyesde *iyesde, struct file *filp)
 {
-	struct rpmsg_ctrldev *ctrldev = cdev_to_ctrldev(inode->i_cdev);
+	struct rpmsg_ctrldev *ctrldev = cdev_to_ctrldev(iyesde->i_cdev);
 
 	put_device(&ctrldev->dev);
 
@@ -457,7 +457,7 @@ static void rpmsg_ctrldev_release_device(struct device *dev)
 	struct rpmsg_ctrldev *ctrldev = dev_to_ctrldev(dev);
 
 	ida_simple_remove(&rpmsg_ctrl_ida, dev->id);
-	ida_simple_remove(&rpmsg_minor_ida, MINOR(dev->devt));
+	ida_simple_remove(&rpmsg_miyesr_ida, MINOR(dev->devt));
 	cdev_del(&ctrldev->cdev);
 	kfree(ctrldev);
 }
@@ -482,14 +482,14 @@ static int rpmsg_chrdev_probe(struct rpmsg_device *rpdev)
 	cdev_init(&ctrldev->cdev, &rpmsg_ctrldev_fops);
 	ctrldev->cdev.owner = THIS_MODULE;
 
-	ret = ida_simple_get(&rpmsg_minor_ida, 0, RPMSG_DEV_MAX, GFP_KERNEL);
+	ret = ida_simple_get(&rpmsg_miyesr_ida, 0, RPMSG_DEV_MAX, GFP_KERNEL);
 	if (ret < 0)
 		goto free_ctrldev;
 	dev->devt = MKDEV(MAJOR(rpmsg_major), ret);
 
 	ret = ida_simple_get(&rpmsg_ctrl_ida, 0, 0, GFP_KERNEL);
 	if (ret < 0)
-		goto free_minor_ida;
+		goto free_miyesr_ida;
 	dev->id = ret;
 	dev_set_name(&ctrldev->dev, "rpmsg_ctrl%d", ret);
 
@@ -497,7 +497,7 @@ static int rpmsg_chrdev_probe(struct rpmsg_device *rpdev)
 	if (ret)
 		goto free_ctrl_ida;
 
-	/* We can now rely on the release function for cleanup */
+	/* We can yesw rely on the release function for cleanup */
 	dev->release = rpmsg_ctrldev_release_device;
 
 	ret = device_add(dev);
@@ -512,8 +512,8 @@ static int rpmsg_chrdev_probe(struct rpmsg_device *rpdev)
 
 free_ctrl_ida:
 	ida_simple_remove(&rpmsg_ctrl_ida, dev->id);
-free_minor_ida:
-	ida_simple_remove(&rpmsg_minor_ida, MINOR(dev->devt));
+free_miyesr_ida:
+	ida_simple_remove(&rpmsg_miyesr_ida, MINOR(dev->devt));
 free_ctrldev:
 	put_device(dev);
 	kfree(ctrldev);

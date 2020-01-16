@@ -7,7 +7,7 @@
  * Copyright (C) 2000, 2001  Paolo Alberelli
  * Copyright (C) 2003  Paul Mundt
  *
- * Per-interrupt selective. IRLM=0 (Fixed priority) is not
+ * Per-interrupt selective. IRLM=0 (Fixed priority) is yest
  * supported being useless without a cascaded interrupt
  * controller.
  */
@@ -124,7 +124,7 @@ void __init plat_irq_setup(void)
 	unsigned long reg;
 	int i;
 
-	intc_virt = (unsigned long)ioremap_nocache(INTC_BASE, 1024);
+	intc_virt = (unsigned long)ioremap_yescache(INTC_BASE, 1024);
 	if (!intc_virt) {
 		panic("Unable to remap INTC\n");
 	}
@@ -148,7 +148,7 @@ void __init plat_irq_setup(void)
 		unsigned long data;
 
 		/* Set IRLM */
-		/* If all the priorities are set to 'no priority', then
+		/* If all the priorities are set to 'yes priority', then
 		 * assume we are using encoded mode.
 		 */
 		irlm = platform_int_priority[IRQ_IRL0] +
@@ -182,8 +182,8 @@ void __init plat_irq_setup(void)
 #endif
 
 	/*
-	 * And now let interrupts come in.
-	 * sti() is not enough, we need to
+	 * And yesw let interrupts come in.
+	 * sti() is yest eyesugh, we need to
 	 * lower priority, too.
 	 */
         __asm__ __volatile__("getcon    " __SR ", %0\n\t"

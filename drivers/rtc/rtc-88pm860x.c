@@ -80,23 +80,23 @@ static int pm860x_rtc_alarm_irq_enable(struct device *dev, unsigned int enabled)
  * Calculate the next alarm time given the requested alarm time mask
  * and the current time.
  */
-static void rtc_next_alarm_time(struct rtc_time *next, struct rtc_time *now,
+static void rtc_next_alarm_time(struct rtc_time *next, struct rtc_time *yesw,
 				struct rtc_time *alrm)
 {
 	unsigned long next_time;
-	unsigned long now_time;
+	unsigned long yesw_time;
 
-	next->tm_year = now->tm_year;
-	next->tm_mon = now->tm_mon;
-	next->tm_mday = now->tm_mday;
+	next->tm_year = yesw->tm_year;
+	next->tm_mon = yesw->tm_mon;
+	next->tm_mday = yesw->tm_mday;
 	next->tm_hour = alrm->tm_hour;
 	next->tm_min = alrm->tm_min;
 	next->tm_sec = alrm->tm_sec;
 
-	rtc_tm_to_time(now, &now_time);
+	rtc_tm_to_time(yesw, &yesw_time);
 	rtc_tm_to_time(next, &next_time);
 
-	if (next_time < now_time) {
+	if (next_time < yesw_time) {
 		/* Advance one day */
 		next_time += 60 * 60 * 24;
 		rtc_time_to_tm(next_time, next);
@@ -190,7 +190,7 @@ static int pm860x_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 static int pm860x_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 {
 	struct pm860x_rtc_info *info = dev_get_drvdata(dev);
-	struct rtc_time now_tm, alarm_tm;
+	struct rtc_time yesw_tm, alarm_tm;
 	unsigned long ticks, base, data;
 	unsigned char buf[8];
 	int mask;
@@ -211,8 +211,8 @@ static int pm860x_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 	dev_dbg(info->dev, "get base:0x%lx, RO count:0x%lx, ticks:0x%lx\n",
 		base, data, ticks);
 
-	rtc_time_to_tm(ticks, &now_tm);
-	rtc_next_alarm_time(&alarm_tm, &now_tm, &alrm->time);
+	rtc_time_to_tm(ticks, &yesw_tm);
+	rtc_next_alarm_time(&alarm_tm, &yesw_tm, &alrm->time);
 	/* get new ticks for alarm in 24 hours */
 	rtc_tm_to_time(&alarm_tm, &ticks);
 	data = ticks - base;
@@ -293,19 +293,19 @@ out:
 static int pm860x_rtc_dt_init(struct platform_device *pdev,
 			      struct pm860x_rtc_info *info)
 {
-	struct device_node *np = pdev->dev.parent->of_node;
+	struct device_yesde *np = pdev->dev.parent->of_yesde;
 	int ret;
 	if (!np)
 		return -ENODEV;
 	np = of_get_child_by_name(np, "rtc");
 	if (!np) {
-		dev_err(&pdev->dev, "failed to find rtc node\n");
+		dev_err(&pdev->dev, "failed to find rtc yesde\n");
 		return -ENODEV;
 	}
 	ret = of_property_read_u32(np, "marvell,88pm860x-vrtc", &info->vrtc);
 	if (ret)
 		info->vrtc = 0;
-	of_node_put(np);
+	of_yesde_put(np);
 	return 0;
 }
 #else

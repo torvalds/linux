@@ -55,16 +55,16 @@ struct erofs_sb_info {
 	/* the dedicated workstation for compression */
 	struct radix_tree_root workstn_tree;
 
-	/* threshold for decompression synchronously */
+	/* threshold for decompression synchroyesusly */
 	unsigned int max_sync_decompress_pages;
 
-	unsigned int shrinker_run_no;
+	unsigned int shrinker_run_yes;
 
 	/* current strategy of how to use managed cache */
 	unsigned char cache_strategy;
 
-	/* pseudo inode to manage cached pages */
-	struct inode *managed_cache;
+	/* pseudo iyesde to manage cached pages */
+	struct iyesde *managed_cache;
 #endif	/* CONFIG_EROFS_FS_ZIP */
 	u32 blocks;
 	u32 meta_blkaddr;
@@ -72,16 +72,16 @@ struct erofs_sb_info {
 	u32 xattr_blkaddr;
 #endif
 
-	/* inode slot unit size in bit shift */
+	/* iyesde slot unit size in bit shift */
 	unsigned char islotbits;
 
 	u32 build_time_nsec;
 	u64 build_time;
 
-	/* what we really care is nid, rather than ino.. */
+	/* what we really care is nid, rather than iyes.. */
 	erofs_nid_t root_nid;
 	/* used for statfs, f_files - f_favail */
-	u64 inos;
+	u64 iyess;
 
 	u8 uuid[16];                    /* 128-bit uuid for volume */
 	u8 volume_name[16];             /* volume name */
@@ -92,7 +92,7 @@ struct erofs_sb_info {
 };
 
 #define EROFS_SB(sb) ((struct erofs_sb_info *)(sb)->s_fs_info)
-#define EROFS_I_SB(inode) ((struct erofs_sb_info *)(inode)->i_sb->s_fs_info)
+#define EROFS_I_SB(iyesde) ((struct erofs_sb_info *)(iyesde)->i_sb->s_fs_info)
 
 /* Mount flags set via mount options or defaults */
 #define EROFS_MOUNT_XATTR_USER		0x00000010
@@ -136,7 +136,7 @@ static inline void erofs_workgroup_unfreeze(struct erofs_workgroup *grp,
 					    int orig_val)
 {
 	/*
-	 * other observers should notice all modifications
+	 * other observers should yestice all modifications
 	 * in the freezing period.
 	 */
 	smp_mb();
@@ -154,7 +154,7 @@ static inline bool erofs_workgroup_try_to_freeze(struct erofs_workgroup *grp,
 						 int val)
 {
 	preempt_disable();
-	/* no need to spin on UP platforms, let's just disable preemption. */
+	/* yes need to spin on UP platforms, let's just disable preemption. */
 	if (val != atomic_read(&grp->refcount)) {
 		preempt_enable();
 		return false;
@@ -185,7 +185,7 @@ static inline int erofs_wait_on_workgroup_freezed(struct erofs_workgroup *grp)
 #define EROFS_PCPUBUF_NR_PAGES          0
 #endif	/* !CONFIG_EROFS_FS_ZIP */
 
-/* we strictly follow PAGE_SIZE and no buffer head yet */
+/* we strictly follow PAGE_SIZE and yes buffer head yet */
 #define LOG_BLOCK_SIZE		PAGE_SHIFT
 
 #undef LOG_SECTORS_PER_BLOCK
@@ -197,7 +197,7 @@ static inline int erofs_wait_on_workgroup_freezed(struct erofs_workgroup *grp)
 #define EROFS_BLKSIZ		(1 << LOG_BLOCK_SIZE)
 
 #if (EROFS_BLKSIZ % 4096 || !EROFS_BLKSIZ)
-#error erofs cannot be used in this platform
+#error erofs canyest be used in this platform
 #endif
 
 #define ROOT_NID(sb)		((sb)->root_nid)
@@ -219,14 +219,14 @@ static inline erofs_off_t iloc(struct erofs_sb_info *sbi, erofs_nid_t nid)
 #define EROFS_I_BL_XATTR_BIT	(BITS_PER_LONG - 1)
 #define EROFS_I_BL_Z_BIT	(BITS_PER_LONG - 2)
 
-struct erofs_inode {
+struct erofs_iyesde {
 	erofs_nid_t nid;
 
 	/* atomic flags (including bitlocks) */
 	unsigned long flags;
 
 	unsigned char datalayout;
-	unsigned char inode_isize;
+	unsigned char iyesde_isize;
 	unsigned short xattr_isize;
 
 	unsigned int xattr_shared_count;
@@ -243,17 +243,17 @@ struct erofs_inode {
 		};
 #endif	/* CONFIG_EROFS_FS_ZIP */
 	};
-	/* the corresponding vfs inode */
-	struct inode vfs_inode;
+	/* the corresponding vfs iyesde */
+	struct iyesde vfs_iyesde;
 };
 
 #define EROFS_I(ptr)	\
-	container_of(ptr, struct erofs_inode, vfs_inode)
+	container_of(ptr, struct erofs_iyesde, vfs_iyesde)
 
-static inline unsigned long erofs_inode_datablocks(struct inode *inode)
+static inline unsigned long erofs_iyesde_datablocks(struct iyesde *iyesde)
 {
-	/* since i_size cannot be changed */
-	return DIV_ROUND_UP(inode->i_size, EROFS_BLKSIZ);
+	/* since i_size canyest be changed */
+	return DIV_ROUND_UP(iyesde->i_size, EROFS_BLKSIZ);
 }
 
 static inline unsigned int erofs_bitrange(unsigned int value, unsigned int bit,
@@ -264,13 +264,13 @@ static inline unsigned int erofs_bitrange(unsigned int value, unsigned int bit,
 }
 
 
-static inline unsigned int erofs_inode_version(unsigned int value)
+static inline unsigned int erofs_iyesde_version(unsigned int value)
 {
 	return erofs_bitrange(value, EROFS_I_VERSION_BIT,
 			      EROFS_I_VERSION_BITS);
 }
 
-static inline unsigned int erofs_inode_datalayout(unsigned int value)
+static inline unsigned int erofs_iyesde_datalayout(unsigned int value)
 {
 	return erofs_bitrange(value, EROFS_I_DATALAYOUT_BIT,
 			      EROFS_I_DATALAYOUT_BITS);
@@ -299,8 +299,8 @@ extern const struct address_space_operations z_erofs_aops;
  *
  * 2) Normal access mode:
  *
- * If the inode is not compressed, it has no difference with
- * the RAW access mode. However, if the inode is compressed,
+ * If the iyesde is yest compressed, it has yes difference with
+ * the RAW access mode. However, if the iyesde is compressed,
  * users should pass a valid (m_lblk, m_lofs) pair, and get
  * the needed m_pblk, m_pofs, m_len to get the compressed data
  * and the updated m_lblk, m_lofs which indicates the start
@@ -313,7 +313,7 @@ enum {
 
 /* Has a disk mapping */
 #define EROFS_MAP_MAPPED	(1 << BH_Mapped)
-/* Located in metadata (could be copied from bd_inode) */
+/* Located in metadata (could be copied from bd_iyesde) */
 #define EROFS_MAP_META		(1 << BH_Meta)
 /* The extent has been compressed */
 #define EROFS_MAP_ZIPPED	(1 << BH_Zipped)
@@ -334,13 +334,13 @@ struct erofs_map_blocks {
 
 /* zmap.c */
 #ifdef CONFIG_EROFS_FS_ZIP
-int z_erofs_fill_inode(struct inode *inode);
-int z_erofs_map_blocks_iter(struct inode *inode,
+int z_erofs_fill_iyesde(struct iyesde *iyesde);
+int z_erofs_map_blocks_iter(struct iyesde *iyesde,
 			    struct erofs_map_blocks *map,
 			    int flags);
 #else
-static inline int z_erofs_fill_inode(struct inode *inode) { return -EOPNOTSUPP; }
-static inline int z_erofs_map_blocks_iter(struct inode *inode,
+static inline int z_erofs_fill_iyesde(struct iyesde *iyesde) { return -EOPNOTSUPP; }
+static inline int z_erofs_map_blocks_iter(struct iyesde *iyesde,
 					  struct erofs_map_blocks *map,
 					  int flags)
 {
@@ -351,10 +351,10 @@ static inline int z_erofs_map_blocks_iter(struct inode *inode,
 /* data.c */
 struct page *erofs_get_meta_page(struct super_block *sb, erofs_blk_t blkaddr);
 
-int erofs_map_blocks(struct inode *, struct erofs_map_blocks *, int);
+int erofs_map_blocks(struct iyesde *, struct erofs_map_blocks *, int);
 
-/* inode.c */
-static inline unsigned long erofs_inode_hash(erofs_nid_t nid)
+/* iyesde.c */
+static inline unsigned long erofs_iyesde_hash(erofs_nid_t nid)
 {
 #if BITS_PER_LONG == 32
 	return (nid >> 32) ^ (nid & 0xffffffff);
@@ -363,18 +363,18 @@ static inline unsigned long erofs_inode_hash(erofs_nid_t nid)
 #endif
 }
 
-extern const struct inode_operations erofs_generic_iops;
-extern const struct inode_operations erofs_symlink_iops;
-extern const struct inode_operations erofs_fast_symlink_iops;
+extern const struct iyesde_operations erofs_generic_iops;
+extern const struct iyesde_operations erofs_symlink_iops;
+extern const struct iyesde_operations erofs_fast_symlink_iops;
 
-struct inode *erofs_iget(struct super_block *sb, erofs_nid_t nid, bool dir);
+struct iyesde *erofs_iget(struct super_block *sb, erofs_nid_t nid, bool dir);
 int erofs_getattr(const struct path *path, struct kstat *stat,
 		  u32 request_mask, unsigned int query_flags);
 
 /* namei.c */
-extern const struct inode_operations erofs_dir_iops;
+extern const struct iyesde_operations erofs_dir_iops;
 
-int erofs_namei(struct inode *dir, struct qstr *name,
+int erofs_namei(struct iyesde *dir, struct qstr *name,
 		erofs_nid_t *nid, unsigned int *d_type);
 
 /* dir.c */

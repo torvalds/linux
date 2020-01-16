@@ -63,11 +63,11 @@ static bool udp_error(struct sk_buff *skb,
 		return true;
 	}
 
-	/* Packet with no checksum */
+	/* Packet with yes checksum */
 	if (!hdr->check)
 		return false;
 
-	/* Checksum invalid? Ignore.
+	/* Checksum invalid? Igyesre.
 	 * We skip checking packets on the outgoing path
 	 * because the checksum is assumed to be correct.
 	 * FIXME: Source route IP option packets --RR */
@@ -112,7 +112,7 @@ int nf_conntrack_udp_packet(struct nf_conn *ct,
 
 		nf_ct_refresh_acct(ct, ctinfo, skb, extra);
 
-		/* Also, more likely to be important, and not a probe */
+		/* Also, more likely to be important, and yest a probe */
 		if (!test_and_set_bit(IPS_ASSURED_BIT, &ct->status))
 			nf_conntrack_event_cache(IPCT_ASSURED, ct);
 	} else {
@@ -161,7 +161,7 @@ static bool udplite_error(struct sk_buff *skb,
 		return true;
 	}
 
-	/* Checksum invalid? Ignore. */
+	/* Checksum invalid? Igyesre. */
 	if (state->hook == NF_INET_PRE_ROUTING &&
 	    state->net->ct.sysctl_checksum &&
 	    nf_checksum_partial(skb, state->hook, dataoff, cscov, IPPROTO_UDP,
@@ -194,7 +194,7 @@ int nf_conntrack_udplite_packet(struct nf_conn *ct,
 	if (test_bit(IPS_SEEN_REPLY_BIT, &ct->status)) {
 		nf_ct_refresh_acct(ct, ctinfo, skb,
 				   timeouts[UDP_CT_REPLIED]);
-		/* Also, more likely to be important, and not a probe */
+		/* Also, more likely to be important, and yest a probe */
 		if (!test_and_set_bit(IPS_ASSURED_BIT, &ct->status))
 			nf_conntrack_event_cache(IPCT_ASSURED, ct);
 	} else {

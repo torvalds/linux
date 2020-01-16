@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2015, Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2013-2015, Mellayesx Techyeslogies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -40,7 +40,7 @@
  * actually doesn't have writeq() but S/390 systems don't even have
  * PCI so we won't worry about it.
  *
- * Note that the write is not atomic on 32-bit systems! In contrast to 64-bit
+ * Note that the write is yest atomic on 32-bit systems! In contrast to 64-bit
  * ones, it requires proper locking. mlx5_write64 doesn't do any locking, so use
  * it at your own discretion, protected by some kind of lock on 32 bits.
  *

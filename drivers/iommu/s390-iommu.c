@@ -14,7 +14,7 @@
 
 /*
  * Physically contiguous memory regions can be mapped with 4 KiB alignment,
- * we allow all page sizes that are an order of 4KiB (no special large page
+ * we allow all page sizes that are an order of 4KiB (yes special large page
  * support so far).
  */
 #define S390_IOMMU_PGSIZES	(~0xFFFUL)
@@ -192,7 +192,7 @@ static void s390_iommu_remove_device(struct device *dev)
 	 * the attach_dev), removing the device via
 	 * "echo 1 > /sys/bus/pci/devices/.../remove" won't trigger detach_dev,
 	 * only remove_device will be called via the BUS_NOTIFY_REMOVED_DEVICE
-	 * notifier.
+	 * yestifier.
 	 *
 	 * So let's call detach_dev from here if it hasn't been called before.
 	 */

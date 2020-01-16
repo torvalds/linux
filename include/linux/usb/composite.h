@@ -15,7 +15,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
+ * along with this program; if yest, write to the Free Software
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
@@ -51,7 +51,7 @@
  */
 #define USB_GADGET_DELAYED_STATUS       0x7fff	/* Impossibly large value */
 
-/* big enough to hold our biggest descriptor */
+/* big eyesugh to hold our biggest descriptor */
 #define USB_COMP_EP0_BUFSIZ	4096
 
 /* OS feature descriptor length <= 4kB */
@@ -117,22 +117,22 @@ struct usb_os_desc_table {
 
 /**
  * struct usb_function - describes one function of a configuration
- * @name: For diagnostics, identifies the function.
+ * @name: For diagyesstics, identifies the function.
  * @strings: tables of strings, keyed by identifiers assigned during bind()
  *	and by language IDs provided in control requests
  * @fs_descriptors: Table of full (or low) speed descriptors, using interface and
  *	string identifiers assigned during @bind().  If this pointer is null,
- *	the function will not be available at full speed (or at low speed).
+ *	the function will yest be available at full speed (or at low speed).
  * @hs_descriptors: Table of high speed descriptors, using interface and
  *	string identifiers assigned during @bind().  If this pointer is null,
- *	the function will not be available at high speed.
+ *	the function will yest be available at high speed.
  * @ss_descriptors: Table of super speed descriptors, using interface and
  *	string identifiers assigned during @bind(). If this
- *	pointer is null after initiation, the function will not
+ *	pointer is null after initiation, the function will yest
  *	be available at super speed.
  * @ssp_descriptors: Table of super speed plus descriptors, using
  *	interface and string identifiers assigned during @bind(). If
- *	this pointer is null after initiation, the function will not
+ *	this pointer is null after initiation, the function will yest
  *	be available at super speed plus.
  * @config: assigned when @usb_add_function() is called; this is the
  *	configuration with which this function is associated.
@@ -151,7 +151,7 @@ struct usb_os_desc_table {
  *	initialize usb_ep.driver data at this time (when it is used).
  *	Note that setting an interface to its current altsetting resets
  *	interface state, and that all interfaces have a disabled state.
- * @get_alt: Returns the active altsetting.  If this is not provided,
+ * @get_alt: Returns the active altsetting.  If this is yest provided,
  *	then only altsetting zero is supported.
  * @disable: (REQUIRED) Indicates the function should be disabled.  Reasons
  *	include host resetting or reconfiguring the gadget, and disconnection.
@@ -256,7 +256,7 @@ int config_ep_by_speed(struct usb_gadget *g, struct usb_function *f,
 
 /**
  * struct usb_configuration - represents one gadget configuration
- * @label: For diagnostics, describes the configuration.
+ * @label: For diagyesstics, describes the configuration.
  * @strings: Tables of strings, keyed by identifiers assigned during @bind()
  *	and by language IDs provided in control requests.
  * @descriptors: Table of descriptors preceding all function descriptors.
@@ -289,8 +289,8 @@ int config_ep_by_speed(struct usb_gadget *g, struct usb_function *f,
  * @bind() method is then used to initialize all the functions and then
  * call @usb_add_function() for them.
  *
- * Those functions would normally be independent of each other, but that's
- * not mandatory.  CDC WMC devices are an example where functions often
+ * Those functions would yesrmally be independent of each other, but that's
+ * yest mandatory.  CDC WMC devices are an example where functions often
  * depend on other functions, with some functions subsidiary to others.
  * Such interdependency may be managed in any way, so long as all of the
  * descriptors complete by the time the composite driver returns from
@@ -348,7 +348,7 @@ enum {
 
 /**
  * struct usb_composite_driver - groups configurations into a gadget
- * @name: For diagnostics, identifies the driver.
+ * @name: For diagyesstics, identifies the driver.
  * @dev: Template descriptor for the device, including default device
  *	identifiers.
  * @strings: tables of strings, keyed by identifiers assigned during @bind
@@ -357,18 +357,18 @@ enum {
  *	USB_GADGET_FIRST_AVAIL_IDX
  * @max_speed: Highest speed the driver supports.
  * @needs_serial: set to 1 if the gadget needs userspace to provide
- * 	a serial number.  If one is not provided, warning will be printed.
+ * 	a serial number.  If one is yest provided, warning will be printed.
  * @bind: (REQUIRED) Used to allocate resources that are shared across the
  *	whole device, such as string IDs, and add its configurations using
- *	@usb_add_config(). This may fail by returning a negative errno
+ *	@usb_add_config(). This may fail by returning a negative erryes
  *	value; it should return zero on successful initialization.
  * @unbind: Reverses @bind; called as a side effect of unregistering
  *	this driver.
  * @disconnect: optional driver disconnect method
  * @suspend: Notifies when the host stops sending USB traffic,
- *	after function notifications
+ *	after function yestifications
  * @resume: Notifies configuration when the host restarts USB traffic,
- *	before function notifications
+ *	before function yestifications
  * @gadget_driver: Gadget driver controlling this driver
  *
  * Devices default to reporting self powered operation.  Devices which rely
@@ -376,9 +376,9 @@ enum {
  *
  * Before returning from @bind, various fields in the template descriptor
  * may be overridden.  These include the idVendor/idProduct/bcdDevice values
- * normally to bind the appropriate host side driver, and the three strings
- * (iManufacturer, iProduct, iSerialNumber) normally used to provide user
- * meaningful device identifiers.  (The strings will not be defined unless
+ * yesrmally to bind the appropriate host side driver, and the three strings
+ * (iManufacturer, iProduct, iSerialNumber) yesrmally used to provide user
+ * meaningful device identifiers.  (The strings will yest be defined unless
  * they are defined in @dev and @strings.)  The correct ep0 maxpacket size
  * is also reported, as defined by the underlying controller driver.
  */
@@ -408,7 +408,7 @@ extern void usb_composite_unregister(struct usb_composite_driver *driver);
  * composite driver
  * @__usb_composite_driver: usb_composite_driver struct
  *
- * Helper macro for USB gadget composite drivers which do not do anything
+ * Helper macro for USB gadget composite drivers which do yest do anything
  * special in module init/exit. This eliminates a lot of boilerplate. Each
  * module may only use this macro once, and calling it replaces module_init()
  * and module_exit()
@@ -443,18 +443,18 @@ static inline struct usb_composite_driver *to_cdriver(
  * @b_vendor_code: bMS_VendorCode part of the OS string
  * @use_os_string: false by default, interested gadgets set it
  * @os_desc_config: the configuration to be used with OS descriptors
- * @setup_pending: true when setup request is queued but not completed
- * @os_desc_pending: true when os_desc request is queued but not completed
+ * @setup_pending: true when setup request is queued but yest completed
+ * @os_desc_pending: true when os_desc request is queued but yest completed
  *
  * One of these devices is allocated and initialized before the
  * associated device driver's bind() is called.
  *
  * OPEN ISSUE:  it appears that some WUSB devices will need to be
- * built by combining a normal (wired) gadget with a wireless one.
+ * built by combining a yesrmal (wired) gadget with a wireless one.
  * This revision of the gadget framework should probably try to make
  * sure doing that won't hurt too much.
  *
- * One notion for how to handle Wireless USB devices involves:
+ * One yestion for how to handle Wireless USB devices involves:
  *
  * (a) a second gadget here, discovery mechanism TBD, but likely
  *     needing separate "register/unregister WUSB gadget" calls;
@@ -466,7 +466,7 @@ static inline struct usb_composite_driver *to_cdriver(
  * (d) configurations that are specific to wireless links;
  * (e) function drivers that understand wireless configs and will
  *     support wireless for (additional) function instances;
- * (f) a function to support association setup (like CBAF), not
+ * (f) a function to support association setup (like CBAF), yest
  *     necessarily requiring a wireless adapter;
  * (g) composite device setup that can create one or more wireless
  *     configs, including appropriate association setup support;
@@ -496,7 +496,7 @@ struct usb_composite_dev {
 	char				*def_manufacturer;
 
 	/* the gadget driver won't enable the data pullup
-	 * while the deactivation count is nonzero.
+	 * while the deactivation count is yesnzero.
 	 */
 	unsigned			deactivations;
 

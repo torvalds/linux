@@ -16,7 +16,7 @@ used by the apr service device.
 
 
 = ADM routing
-"routing" subnode of the ADM node represents adm routing specific configuration
+"routing" subyesde of the ADM yesde represents adm routing specific configuration
 
 - compatible:
 	Usage: required

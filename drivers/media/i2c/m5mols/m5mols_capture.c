@@ -22,7 +22,7 @@
 #include <media/v4l2-device.h>
 #include <media/v4l2-subdev.h>
 #include <media/i2c/m5mols.h>
-#include <media/drv-intf/exynos-fimc.h>
+#include <media/drv-intf/exyyess-fimc.h>
 
 #include "m5mols.h"
 #include "m5mols_reg.h"
@@ -31,10 +31,10 @@
  * m5mols_read_rational - I2C read of a rational number
  * @sd: sub-device, as pointed by struct v4l2_subdev
  * @addr_num: numerator register
- * @addr_den: denominator register
+ * @addr_den: deyesminator register
  * @val: place to store the division result
  *
- * Read numerator and denominator from registers @addr_num and @addr_den
+ * Read numerator and deyesminator from registers @addr_num and @addr_den
  * respectively and return the division result in @val.
  */
 static int m5mols_read_rational(struct v4l2_subdev *sd, u32 addr_num,
@@ -55,7 +55,7 @@ static int m5mols_read_rational(struct v4l2_subdev *sd, u32 addr_num,
  * m5mols_capture_info - Gather captured image information
  * @info: M-5MOLS driver data structure
  *
- * For now it gathers only EXIF information and file size.
+ * For yesw it gathers only EXIF information and file size.
  */
 static int m5mols_capture_info(struct m5mols_info *info)
 {
@@ -152,7 +152,7 @@ int m5mols_start_capture(struct m5mols_info *info)
 		v4l2_dbg(1, m5mols_debug, sd, "%s: size: %d, thumb.: %d B\n",
 			 __func__, size, info->cap.thumb);
 
-		v4l2_subdev_notify(sd, S5P_FIMC_TX_END_NOTIFY, &size);
+		v4l2_subdev_yestify(sd, S5P_FIMC_TX_END_NOTIFY, &size);
 	}
 
 	return ret;

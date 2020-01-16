@@ -24,7 +24,7 @@
 
 struct gpio_rcar_bank_info {
 	u32 iointsel;
-	u32 inoutsel;
+	u32 iyesutsel;
 	u32 outdt;
 	u32 posneg;
 	u32 edglevel;
@@ -295,7 +295,7 @@ static int gpio_rcar_get(struct gpio_chip *chip, unsigned offset)
 {
 	u32 bit = BIT(offset);
 
-	/* testing on r8a7790 shows that INDT does not show correct pin state
+	/* testing on r8a7790 shows that INDT does yest show correct pin state
 	 * when configured as output, so use OUTDT in case of output pins */
 	if (gpio_rcar_read(gpiochip_get_data(chip), INOUTSEL) & bit)
 		return !!(gpio_rcar_read(gpiochip_get_data(chip), OUTDT) & bit);
@@ -409,7 +409,7 @@ MODULE_DEVICE_TABLE(of, gpio_rcar_of_table);
 
 static int gpio_rcar_parse_dt(struct gpio_rcar_priv *p, unsigned int *npins)
 {
-	struct device_node *np = p->dev->of_node;
+	struct device_yesde *np = p->dev->of_yesde;
 	const struct gpio_rcar_info *info;
 	struct of_phandle_args args;
 	int ret;
@@ -448,7 +448,7 @@ static int gpio_rcar_probe(struct platform_device *pdev)
 	p->dev = dev;
 	spin_lock_init(&p->lock);
 
-	/* Get device configuration from DT node */
+	/* Get device configuration from DT yesde */
 	ret = gpio_rcar_parse_dt(p, &npins);
 	if (ret < 0)
 		return ret;
@@ -503,7 +503,7 @@ static int gpio_rcar_probe(struct platform_device *pdev)
 	ret = gpiochip_irqchip_add(gpio_chip, irq_chip, 0, handle_level_irq,
 				   IRQ_TYPE_NONE);
 	if (ret) {
-		dev_err(dev, "cannot add irqchip\n");
+		dev_err(dev, "canyest add irqchip\n");
 		goto err1;
 	}
 
@@ -542,7 +542,7 @@ static int gpio_rcar_suspend(struct device *dev)
 	struct gpio_rcar_priv *p = dev_get_drvdata(dev);
 
 	p->bank_info.iointsel = gpio_rcar_read(p, IOINTSEL);
-	p->bank_info.inoutsel = gpio_rcar_read(p, INOUTSEL);
+	p->bank_info.iyesutsel = gpio_rcar_read(p, INOUTSEL);
 	p->bank_info.outdt = gpio_rcar_read(p, OUTDT);
 	p->bank_info.intmsk = gpio_rcar_read(p, INTMSK);
 	p->bank_info.posneg = gpio_rcar_read(p, POSNEG);
@@ -569,7 +569,7 @@ static int gpio_rcar_resume(struct device *dev)
 		mask = BIT(offset);
 		/* I/O pin */
 		if (!(p->bank_info.iointsel & mask)) {
-			if (p->bank_info.inoutsel & mask)
+			if (p->bank_info.iyesutsel & mask)
 				gpio_rcar_direction_output(
 					&p->gpio_chip, offset,
 					!!(p->bank_info.outdt & mask));

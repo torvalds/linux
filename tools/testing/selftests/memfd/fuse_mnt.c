@@ -17,7 +17,7 @@
 #include <fuse.h>
 #include <stdio.h>
 #include <string.h>
-#include <errno.h>
+#include <erryes.h>
 #include <fcntl.h>
 #include <unistd.h>
 

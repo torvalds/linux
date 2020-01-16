@@ -24,7 +24,7 @@ struct omap_connector {
 	bool hdmi_mode;
 };
 
-static void omap_connector_hpd_notify(struct drm_connector *connector,
+static void omap_connector_hpd_yestify(struct drm_connector *connector,
 				      enum drm_connector_status status)
 {
 	struct omap_connector *omap_connector = to_omap_connector(connector);
@@ -60,7 +60,7 @@ static void omap_connector_hpd_cb(void *cb_data,
 	if (old_status == status)
 		return;
 
-	omap_connector_hpd_notify(connector, status);
+	omap_connector_hpd_yestify(connector, status);
 
 	drm_kms_helper_hotplug_event(dev);
 }
@@ -121,7 +121,7 @@ static enum drm_connector_status omap_connector_detect(
 		       ? connector_status_connected
 		       : connector_status_disconnected;
 
-		omap_connector_hpd_notify(connector, status);
+		omap_connector_hpd_yestify(connector, status);
 	} else {
 		switch (connector->connector_type) {
 		case DRM_MODE_CONNECTOR_DPI:
@@ -130,7 +130,7 @@ static enum drm_connector_status omap_connector_detect(
 			status = connector_status_connected;
 			break;
 		default:
-			status = connector_status_unknown;
+			status = connector_status_unkyeswn;
 			break;
 		}
 	}
@@ -174,16 +174,16 @@ static int omap_connector_get_modes_edid(struct drm_connector *connector,
 
 	status = omap_connector_detect(connector, false);
 	if (status != connector_status_connected)
-		goto no_edid;
+		goto yes_edid;
 
 	edid = kzalloc(MAX_EDID, GFP_KERNEL);
 	if (!edid)
-		goto no_edid;
+		goto yes_edid;
 
 	if (dssdev->ops->read_edid(dssdev, edid, MAX_EDID) <= 0 ||
 	    !drm_edid_is_valid(edid)) {
 		kfree(edid);
-		goto no_edid;
+		goto yes_edid;
 	}
 
 	drm_connector_update_edid_property(connector, edid);
@@ -194,7 +194,7 @@ static int omap_connector_get_modes_edid(struct drm_connector *connector,
 	kfree(edid);
 	return n;
 
-no_edid:
+yes_edid:
 	drm_connector_update_edid_property(connector, NULL);
 	return 0;
 }
@@ -207,7 +207,7 @@ static int omap_connector_get_modes(struct drm_connector *connector)
 	DBG("%s", connector->name);
 
 	/*
-	 * If display exposes EDID, then we parse that in the normal way to
+	 * If display exposes EDID, then we parse that in the yesrmal way to
 	 * build table of supported modes.
 	 */
 	dssdev = omap_connector_find_device(connector,
@@ -322,7 +322,7 @@ static int omap_connector_get_type(struct omap_dss_device *output)
 	case OMAP_DISPLAY_TYPE_SDI:
 		return DRM_MODE_CONNECTOR_LVDS;
 	default:
-		return DRM_MODE_CONNECTOR_Unknown;
+		return DRM_MODE_CONNECTOR_Unkyeswn;
 	}
 }
 

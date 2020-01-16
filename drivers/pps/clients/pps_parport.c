@@ -71,7 +71,7 @@ static void parport_irq(void *handle)
 
 	/* We have to disable interrupts here. The idea is to prevent
 	 * other interrupts on the same processor to introduce random
-	 * lags while polling the port. Reading from IO port is known
+	 * lags while polling the port. Reading from IO port is kyeswn
 	 * to take approximately 1us while other interrupt handlers can
 	 * take much more potentially.
 	 *
@@ -80,7 +80,7 @@ static void parport_irq(void *handle)
 	 * kept rather low. So it should never be an issue.
 	 */
 	local_irq_save(flags);
-	/* check the signal (no signal means the pulse is lost this time) */
+	/* check the signal (yes signal means the pulse is lost this time) */
 	if (!signal_is_set(port)) {
 		local_irq_restore(flags);
 		dev_err(dev->pps->dev, "lost the signal\n");
@@ -140,7 +140,7 @@ static void parport_attach(struct parport *port)
 
 	device = kzalloc(sizeof(struct pps_client_pp), GFP_KERNEL);
 	if (!device) {
-		pr_err("memory allocation failed, not attaching\n");
+		pr_err("memory allocation failed, yest attaching\n");
 		return;
 	}
 
@@ -195,7 +195,7 @@ static void parport_detach(struct parport *port)
 
 	/* FIXME: oooh, this is ugly! */
 	if (!pardev || strcmp(pardev->name, KBUILD_MODNAME))
-		/* not our port */
+		/* yest our port */
 		return;
 
 	device = pardev->private;
@@ -224,7 +224,7 @@ static int __init pps_parport_init(void)
 	pr_info(DRVDESC "\n");
 
 	if (clear_wait > CLEAR_WAIT_MAX) {
-		pr_err("clear_wait value should be not greater"
+		pr_err("clear_wait value should be yest greater"
 				" then %d\n", CLEAR_WAIT_MAX);
 		return -EINVAL;
 	}

@@ -9,11 +9,11 @@
 /dts-v1/;
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/interrupt-controller/irq.h>
-#include "exynos5250.dtsi"
+#include "exyyess5250.dtsi"
 
 / {
 	model = "SAMSUNG SMDK5250 board based on EXYNOS5250";
-	compatible = "samsung,smdk5250", "samsung,exynos5250", "samsung,exynos5";
+	compatible = "samsung,smdk5250", "samsung,exyyess5250", "samsung,exyyess5";
 
 	aliases {
 	};
@@ -327,7 +327,7 @@
 	samsung,i2c-slave-addr = <0x38>;
 
 	sata_phy_i2c: sata-phy@38 {
-		compatible = "samsung,exynos-sataphy-i2c";
+		compatible = "samsung,exyyess-sataphy-i2c";
 		reg = <0x38>;
 	};
 };
@@ -376,7 +376,7 @@
 
 &sata_phy {
 	status = "okay";
-	samsung,exynos-sataphy-i2c-phandle = <&sata_phy_i2c>;
+	samsung,exyyess-sataphy-i2c-phandle = <&sata_phy_i2c>;
 };
 
 &spi_1 {

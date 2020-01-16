@@ -44,13 +44,13 @@ void arch_dma_free(struct device *dev, size_t size, void *cpu_addr,
 
 #ifdef CONFIG_MMU
 /*
- * Page protection so that devices that can't snoop CPU caches can use the
- * memory coherently.  We default to pgprot_noncached which is usually used
+ * Page protection so that devices that can't syesop CPU caches can use the
+ * memory coherently.  We default to pgprot_yesncached which is usually used
  * for ioremap as a safe bet, but architectures can override this with less
  * strict semantics if possible.
  */
 #ifndef pgprot_dmacoherent
-#define pgprot_dmacoherent(prot)	pgprot_noncached(prot)
+#define pgprot_dmacoherent(prot)	pgprot_yesncached(prot)
 #endif
 
 pgprot_t dma_pgprot(struct device *dev, pgprot_t prot, unsigned long attrs);
@@ -58,7 +58,7 @@ pgprot_t dma_pgprot(struct device *dev, pgprot_t prot, unsigned long attrs);
 static inline pgprot_t dma_pgprot(struct device *dev, pgprot_t prot,
 		unsigned long attrs)
 {
-	return prot;	/* no protection bits supported without page tables */
+	return prot;	/* yes protection bits supported without page tables */
 }
 #endif /* CONFIG_MMU */
 

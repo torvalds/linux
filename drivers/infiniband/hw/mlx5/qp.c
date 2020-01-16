@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2015, Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2013-2015, Mellayesx Techyeslogies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -40,7 +40,7 @@
 #include "ib_rep.h"
 #include "cmd.h"
 
-/* not supported currently */
+/* yest supported currently */
 static int wq_signature;
 
 enum {
@@ -125,7 +125,7 @@ static int is_sqp(enum ib_qp_type qp_type)
  * @bytes_copied: number of bytes to copy (return value)
  *
  * Copies from start of WQE bcnt or less bytes.
- * Does not gurantee to copy the entire WQE.
+ * Does yest gurantee to copy the entire WQE.
  *
  * Return: zero on success, or an error code.
  */
@@ -200,7 +200,7 @@ int mlx5_ib_read_user_wqe_sq(struct mlx5_ib_qp *qp,
 	ds = be32_to_cpu(ctrl->qpn_ds) & MLX5_WQE_CTRL_DS_MASK;
 	wqe_length = ds * MLX5_WQE_DS_UNITS;
 
-	/* if we copied enough then we are done */
+	/* if we copied eyesugh then we are done */
 	if (bytes_copied >= wqe_length) {
 		*bc = bytes_copied;
 		return 0;
@@ -533,7 +533,7 @@ static int set_user_buf_size(struct mlx5_ib_dev *dev,
 	}
 
 	if (ucmd->sq_wqe_count && !is_power_of_2(ucmd->sq_wqe_count)) {
-		mlx5_ib_warn(dev, "sq_wqe_count %d is not a power of two\n",
+		mlx5_ib_warn(dev, "sq_wqe_count %d is yest a power of two\n",
 			     ucmd->sq_wqe_count);
 		return -EINVAL;
 	}
@@ -572,8 +572,8 @@ static int qp_has_rq(struct ib_qp_init_attr *attr)
 
 enum {
 	/* this is the first blue flame register in the array of bfregs assigned
-	 * to a processes. Since we do not use it for blue flame but rather
-	 * regular 64 bit doorbells, we do not need a lock for maintaiing
+	 * to a processes. Since we do yest use it for blue flame but rather
+	 * regular 64 bit doorbells, we do yest need a lock for maintaiing
 	 * "odd/even" order
 	 */
 	NUM_NON_BLUE_FLAME_BFREGS = 1,
@@ -1068,8 +1068,8 @@ static int create_kernel_qp(struct mlx5_ib_dev *dev,
 	qp->sq.offset = qp->rq.wqe_cnt << qp->rq.wqe_shift;
 	base->ubuffer.buf_size = err + (qp->rq.wqe_cnt << qp->rq.wqe_shift);
 
-	err = mlx5_frag_buf_alloc_node(dev->mdev, base->ubuffer.buf_size,
-				       &qp->buf, dev->mdev->priv.numa_node);
+	err = mlx5_frag_buf_alloc_yesde(dev->mdev, base->ubuffer.buf_size,
+				       &qp->buf, dev->mdev->priv.numa_yesde);
 	if (err) {
 		mlx5_ib_dbg(dev, "err %d\n", err);
 		return err;
@@ -1628,7 +1628,7 @@ static int create_rss_raw_qp_tir(struct mlx5_ib_dev *dev, struct mlx5_ib_qp *qp,
 	if (udata->inlen > sizeof(ucmd) &&
 	    !ib_is_udata_cleared(udata, sizeof(ucmd),
 				 udata->inlen - sizeof(ucmd))) {
-		mlx5_ib_dbg(dev, "inlen is not supported\n");
+		mlx5_ib_dbg(dev, "inlen is yest supported\n");
 		return -EOPNOTSUPP;
 	}
 
@@ -1740,7 +1740,7 @@ static int create_rss_raw_qp_tir(struct mlx5_ib_dev *dev, struct mlx5_ib_qp *qp,
 		goto err;
 	}
 
-	/* If none of IPV4 & IPV6 SRC/DST was set - this bit field is ignored */
+	/* If yesne of IPV4 & IPV6 SRC/DST was set - this bit field is igyesred */
 	if ((ucmd.rx_hash_fields_mask & MLX5_RX_HASH_SRC_IPV4) ||
 	    (ucmd.rx_hash_fields_mask & MLX5_RX_HASH_DST_IPV4))
 		MLX5_SET(rx_hash_field_select, hfso, l3_prot_type,
@@ -1762,7 +1762,7 @@ static int create_rss_raw_qp_tir(struct mlx5_ib_dev *dev, struct mlx5_ib_qp *qp,
 		goto err;
 	}
 
-	/* If none of TCP & UDP SRC/DST was set - this bit field is ignored */
+	/* If yesne of TCP & UDP SRC/DST was set - this bit field is igyesred */
 	if ((ucmd.rx_hash_fields_mask & MLX5_RX_HASH_SRC_PORT_TCP) ||
 	    (ucmd.rx_hash_fields_mask & MLX5_RX_HASH_DST_PORT_TCP))
 		MLX5_SET(rx_hash_field_select, hfso, l4_prot_type,
@@ -1895,8 +1895,8 @@ static void configure_requester_scat_cqe(struct mlx5_ib_dev *dev,
 
 static int atomic_size_to_mode(int size_mask)
 {
-	/* driver does not support atomic_size > 256B
-	 * and does not know how to translate bigger sizes
+	/* driver does yest support atomic_size > 256B
+	 * and does yest kyesw how to translate bigger sizes
 	 */
 	int supported_size_mask = size_mask & 0x1ff;
 	int log_max_size;
@@ -2144,7 +2144,7 @@ static int create_qp_common(struct mlx5_ib_dev *dev, struct ib_pd *pd,
 			}
 			if (init_attr->create_flags &
 			    MLX5_IB_QP_CREATE_SQPN_QP1) {
-				mlx5_ib_dbg(dev, "user-space is not allowed to create UD QPs spoofing as QP1\n");
+				mlx5_ib_dbg(dev, "user-space is yest allowed to create UD QPs spoofing as QP1\n");
 				return -EINVAL;
 			}
 			err = create_user_qp(dev, pd, qp, udata, init_attr, &in,
@@ -2213,7 +2213,7 @@ static int create_qp_common(struct mlx5_ib_dev *dev, struct ib_pd *pd,
 	if (qp->sq.wqe_cnt) {
 		MLX5_SET(qpc, qpc, log_sq_size, ilog2(qp->sq.wqe_cnt));
 	} else {
-		MLX5_SET(qpc, qpc, no_sq, 1);
+		MLX5_SET(qpc, qpc, yes_sq, 1);
 		if (init_attr->srq &&
 		    init_attr->srq->srq_type == IB_SRQT_TM)
 			MLX5_SET(qpc, qpc, offload_type,
@@ -2264,7 +2264,7 @@ static int create_qp_common(struct mlx5_ib_dev *dev, struct ib_pd *pd,
 
 	if (init_attr->create_flags & IB_QP_CREATE_PCI_WRITE_END_PADDING) {
 		if (!MLX5_CAP_GEN(dev->mdev, end_pad)) {
-			mlx5_ib_dbg(dev, "scatter end padding is not supported\n");
+			mlx5_ib_dbg(dev, "scatter end padding is yest supported\n");
 			err = -EOPNOTSUPP;
 			goto err;
 		} else if (init_attr->qp_type != IB_QPT_RAW_PACKET) {
@@ -2620,7 +2620,7 @@ static int set_mlx_qp_type(struct mlx5_ib_dev *dev,
 	}
 
 	if (!MLX5_CAP_GEN(dev->mdev, dct)) {
-		mlx5_ib_dbg(dev, "DC transport is not supported\n");
+		mlx5_ib_dbg(dev, "DC transport is yest supported\n");
 		return -EOPNOTSUPP;
 	}
 
@@ -2645,7 +2645,7 @@ struct ib_qp *mlx5_ib_create_qp(struct ib_pd *pd,
 
 		if (init_attr->qp_type == IB_QPT_RAW_PACKET) {
 			if (!ucontext) {
-				mlx5_ib_dbg(dev, "Raw Packet QP is not supported for kernel consumers\n");
+				mlx5_ib_dbg(dev, "Raw Packet QP is yest supported for kernel consumers\n");
 				return ERR_PTR(-EINVAL);
 			} else if (!ucontext->cqe_version) {
 				mlx5_ib_dbg(dev, "Raw Packet QP is only supported for CQE version > 0\n");
@@ -2656,7 +2656,7 @@ struct ib_qp *mlx5_ib_create_qp(struct ib_pd *pd,
 		/* being cautious here */
 		if (init_attr->qp_type != IB_QPT_XRC_TGT &&
 		    init_attr->qp_type != MLX5_IB_QPT_REG_UMR) {
-			pr_warn("%s: no PD for transport %s\n", __func__,
+			pr_warn("%s: yes PD for transport %s\n", __func__,
 				ib_qp_type_str(init_attr->qp_type));
 			return ERR_PTR(-EINVAL);
 		}
@@ -2687,7 +2687,7 @@ struct ib_qp *mlx5_ib_create_qp(struct ib_pd *pd,
 	case IB_QPT_XRC_TGT:
 	case IB_QPT_XRC_INI:
 		if (!MLX5_CAP_GEN(dev->mdev, xrc)) {
-			mlx5_ib_dbg(dev, "XRC not supported\n");
+			mlx5_ib_dbg(dev, "XRC yest supported\n");
 			return ERR_PTR(-ENOSYS);
 		}
 		init_attr->recv_cq = NULL;
@@ -3177,7 +3177,7 @@ static int modify_raw_packet_qp_rq(
 		} else
 			dev_info_once(
 				&dev->ib_dev.dev,
-				"RAW PACKET QP counters are not supported on current FW\n");
+				"RAW PACKET QP counters are yest supported on current FW\n");
 	}
 
 	err = mlx5_core_modify_rq(dev->mdev, rq->base.mqp.qpn, in, inlen);
@@ -3239,7 +3239,7 @@ static int modify_raw_packet_qp_sq(
 		}
 
 		MLX5_SET64(modify_sq_in, in, modify_bitmask, 1);
-		/* index 0 means no limit */
+		/* index 0 means yes limit */
 		MLX5_SET(sqc, sqc, packet_pacing_rate_limit_index, rl_index);
 	}
 
@@ -3758,7 +3758,7 @@ static inline bool is_valid_mask(int mask, int req, int opt)
 }
 
 /* check valid transition for driver QP types
- * for now the only QP type that this function supports is DCI
+ * for yesw the only QP type that this function supports is DCI
  */
 static bool modify_dci_qp_is_ok(enum ib_qp_state cur_state, enum ib_qp_state new_state,
 				enum ib_qp_attr_mask attr_mask)
@@ -4027,7 +4027,7 @@ static void _handle_post_send_edge(struct mlx5_ib_wq *sq, void **seg,
 	*seg = mlx5_frag_buf_get_wqe(&sq->fbc, idx);
 }
 
-/* handle_post_send_edge - Check if we get to SQ edge. If yes, update to the
+/* handle_post_send_edge - Check if we get to SQ edge. If no, update to the
  * next nearby edge and get new address translation for current WQE position.
  * @sq - SQ buffer.
  * @seg: Current WQE position (16B aligned).
@@ -4300,12 +4300,12 @@ static int set_reg_umr_segment(struct mlx5_ib_dev *dev,
 
 	memset(umr, 0, sizeof(*umr));
 
-	if (!umrwr->ignore_free_state) {
+	if (!umrwr->igyesre_free_state) {
 		if (wr->send_flags & MLX5_IB_SEND_UMR_FAIL_IF_FREE)
 			 /* fail if free */
 			umr->flags = MLX5_UMR_CHECK_FREE;
 		else
-			/* fail if not free */
+			/* fail if yest free */
 			umr->flags = MLX5_UMR_CHECK_NOT_FREE;
 	}
 
@@ -4813,7 +4813,7 @@ static int set_psv_wr(struct ib_sig_domain *domain,
 static int set_reg_wr(struct mlx5_ib_qp *qp,
 		      const struct ib_reg_wr *wr,
 		      void **seg, int *size, void **cur_edge,
-		      bool check_not_free)
+		      bool check_yest_free)
 {
 	struct mlx5_ib_mr *mr = to_mmr(wr->mr);
 	struct mlx5_ib_pd *pd = to_mpd(qp->ibqp.pd);
@@ -4839,7 +4839,7 @@ static int set_reg_wr(struct mlx5_ib_qp *qp,
 		return -EINVAL;
 	}
 
-	if (check_not_free)
+	if (check_yest_free)
 		flags |= MLX5_UMR_CHECK_NOT_FREE;
 	if (umr_inline)
 		flags |= MLX5_UMR_INLINE;
@@ -5064,7 +5064,7 @@ static int _mlx5_ib_post_send(struct ib_qp *ibqp, const struct ib_send_wr *wr,
 			case IB_WR_ATOMIC_CMP_AND_SWP:
 			case IB_WR_ATOMIC_FETCH_AND_ADD:
 			case IB_WR_MASKED_ATOMIC_CMP_AND_SWP:
-				mlx5_ib_warn(dev, "Atomic operations are not supported yet\n");
+				mlx5_ib_warn(dev, "Atomic operations are yest supported yet\n");
 				err = -ENOSYS;
 				*bad_wr = wr;
 				goto out;
@@ -5160,7 +5160,7 @@ static int _mlx5_ib_post_send(struct ib_qp *ibqp, const struct ib_send_wr *wr,
 					   MLX5_OPCODE_UMR);
 
 				/*
-				 * SET_PSV WQEs are not signaled and solicited
+				 * SET_PSV WQEs are yest signaled and solicited
 				 * on error
 				 */
 				sig_attrs = mr->ibmr.sig_attrs;
@@ -5233,7 +5233,7 @@ static int _mlx5_ib_post_send(struct ib_qp *ibqp, const struct ib_send_wr *wr,
 
 		case IB_QPT_SMI:
 			if (unlikely(!mdev->port_caps[qp->port - 1].has_smi)) {
-				mlx5_ib_warn(dev, "Send SMP MADs is not allowed\n");
+				mlx5_ib_warn(dev, "Send SMP MADs is yest allowed\n");
 				err = -EPERM;
 				*bad_wr = wr;
 				goto out;
@@ -5672,7 +5672,7 @@ static int query_qp_attr(struct mlx5_ib_dev *dev, struct mlx5_ib_qp *qp,
 	qp_attr->pkey_index = be16_to_cpu(context->pri_path.pkey_index);
 	qp_attr->port_num = context->pri_path.port;
 
-	/* qp_attr->en_sqd_async_notify is only applicable in modify qp */
+	/* qp_attr->en_sqd_async_yestify is only applicable in modify qp */
 	qp_attr->sq_draining = mlx5_state == MLX5_QP_STATE_SQ_DRAINING;
 
 	qp_attr->max_rd_atomic = 1 << ((be32_to_cpu(context->params1) >> 21) & 0x7);
@@ -5950,7 +5950,7 @@ static int  create_rq(struct mlx5_ib_rwq *rwq, struct ib_pd *pd,
 		 MLX5_WQ_TYPE_CYCLIC_STRIDING_RQ : MLX5_WQ_TYPE_CYCLIC);
 	if (init_attr->create_flags & IB_WQ_FLAGS_PCI_WRITE_END_PADDING) {
 		if (!MLX5_CAP_GEN(dev->mdev, end_pad)) {
-			mlx5_ib_dbg(dev, "Scatter end padding is not supported\n");
+			mlx5_ib_dbg(dev, "Scatter end padding is yest supported\n");
 			err = -EOPNOTSUPP;
 			goto out;
 		} else {
@@ -5984,7 +5984,7 @@ static int  create_rq(struct mlx5_ib_rwq *rwq, struct ib_pd *pd,
 	has_net_offloads = MLX5_CAP_GEN(dev->mdev, eth_net_offloads);
 	if (init_attr->create_flags & IB_WQ_FLAGS_CVLAN_STRIPPING) {
 		if (!(has_net_offloads && MLX5_CAP_ETH(dev->mdev, vlan_cap))) {
-			mlx5_ib_dbg(dev, "VLAN offloads are not supported\n");
+			mlx5_ib_dbg(dev, "VLAN offloads are yest supported\n");
 			err = -EOPNOTSUPP;
 			goto out;
 		}
@@ -5993,7 +5993,7 @@ static int  create_rq(struct mlx5_ib_rwq *rwq, struct ib_pd *pd,
 	}
 	if (init_attr->create_flags & IB_WQ_FLAGS_SCATTER_FCS) {
 		if (!(has_net_offloads && MLX5_CAP_ETH(dev->mdev, scatter_fcs))) {
-			mlx5_ib_dbg(dev, "Scatter FCS is not supported\n");
+			mlx5_ib_dbg(dev, "Scatter FCS is yest supported\n");
 			err = -EOPNOTSUPP;
 			goto out;
 		}
@@ -6002,7 +6002,7 @@ static int  create_rq(struct mlx5_ib_rwq *rwq, struct ib_pd *pd,
 	if (init_attr->create_flags & IB_WQ_FLAGS_DELAY_DROP) {
 		if (!(dev->ib_dev.attrs.raw_packet_caps &
 		      IB_RAW_PACKET_CAP_DELAY_DROP)) {
-			mlx5_ib_dbg(dev, "Delay drop is not supported\n");
+			mlx5_ib_dbg(dev, "Delay drop is yest supported\n");
 			err = -EOPNOTSUPP;
 			goto out;
 		}
@@ -6081,7 +6081,7 @@ static int prepare_user_rq(struct ib_pd *pd,
 	if (udata->inlen > sizeof(ucmd) &&
 	    !ib_is_udata_cleared(udata, sizeof(ucmd),
 				 udata->inlen - sizeof(ucmd))) {
-		mlx5_ib_dbg(dev, "inlen is not supported\n");
+		mlx5_ib_dbg(dev, "inlen is yest supported\n");
 		return -EOPNOTSUPP;
 	}
 
@@ -6095,7 +6095,7 @@ static int prepare_user_rq(struct ib_pd *pd,
 		return -EOPNOTSUPP;
 	} else if (ucmd.comp_mask & MLX5_IB_CREATE_WQ_STRIDING_RQ) {
 		if (!MLX5_CAP_GEN(dev->mdev, striding_rq)) {
-			mlx5_ib_dbg(dev, "Striding RQ is not supported\n");
+			mlx5_ib_dbg(dev, "Striding RQ is yest supported\n");
 			return -EOPNOTSUPP;
 		}
 		if ((ucmd.single_stride_log_num_of_bytes <
@@ -6353,7 +6353,7 @@ int mlx5_ib_modify_wq(struct ib_wq *wq, struct ib_wq_attr *wq_attr,
 		if (wq_attr->flags_mask & IB_WQ_FLAGS_CVLAN_STRIPPING) {
 			if (!(MLX5_CAP_GEN(dev->mdev, eth_net_offloads) &&
 			      MLX5_CAP_ETH(dev->mdev, vlan_cap))) {
-				mlx5_ib_dbg(dev, "VLAN offloads are not "
+				mlx5_ib_dbg(dev, "VLAN offloads are yest "
 					    "supported\n");
 				err = -EOPNOTSUPP;
 				goto out;
@@ -6365,7 +6365,7 @@ int mlx5_ib_modify_wq(struct ib_wq *wq, struct ib_wq_attr *wq_attr,
 		}
 
 		if (wq_attr->flags_mask & IB_WQ_FLAGS_PCI_WRITE_END_PADDING) {
-			mlx5_ib_dbg(dev, "Modifying scatter end padding is not supported\n");
+			mlx5_ib_dbg(dev, "Modifying scatter end padding is yest supported\n");
 			err = -EOPNOTSUPP;
 			goto out;
 		}
@@ -6382,7 +6382,7 @@ int mlx5_ib_modify_wq(struct ib_wq *wq, struct ib_wq_attr *wq_attr,
 		} else
 			dev_info_once(
 				&dev->ib_dev.dev,
-				"Receive WQ counters are not supported on current FW\n");
+				"Receive WQ counters are yest supported on current FW\n");
 	}
 
 	err = mlx5_core_modify_rq(dev->mdev, rwq->core_qp.qpn, in, inlen);
@@ -6428,8 +6428,8 @@ static void handle_drain_completion(struct ib_cq *cq,
 
 		spin_lock_irqsave(&dev->reset_flow_resource_lock, flags);
 		/* Make sure that the CQ handler won't run if wasn't run yet */
-		if (!mcq->mcq.reset_notify_added)
-			mcq->mcq.reset_notify_added = 1;
+		if (!mcq->mcq.reset_yestify_added)
+			mcq->mcq.reset_yestify_added = 1;
 		else
 			triggered = true;
 		spin_unlock_irqrestore(&dev->reset_flow_resource_lock, flags);

@@ -6,11 +6,11 @@ More information can be found in ../mfd/max77686.txt file.
 The MAX77686 PMIC has 9 high-efficiency Buck and 26 Low-DropOut (LDO)
 regulators that can be controlled over I2C.
 
-Following properties should be present in main device node of the MFD chip.
+Following properties should be present in main device yesde of the MFD chip.
 
-Optional node:
+Optional yesde:
 - voltage-regulators : The regulators of max77686 have to be instantiated
-  under subnode named "voltage-regulators" using the following format.
+  under subyesde named "voltage-regulators" using the following format.
 
 	regulator_name {
 		regulator-compatible = LDOn/BUCKn
@@ -18,7 +18,7 @@ Optional node:
 	};
 	refer Documentation/devicetree/bindings/regulator/regulator.txt
 
-  The regulator node's name should be initialized with a string
+  The regulator yesde's name should be initialized with a string
 to get matched with their hardware counterparts as follow:
 
 	-LDOn 	:	for LDOs, where n can lie in range 1 to 26.
@@ -33,9 +33,9 @@ to get matched with their hardware counterparts as follow:
 
   LDO20, LDO21, LDO22, BUCK8 and BUCK9 can be configured to GPIO enable
   control. To turn this feature on this property must be added to the regulator
-  sub-node:
+  sub-yesde:
 	- maxim,ena-gpios :	one GPIO specifier enable control (the gpio
-				flags are actually ignored and always
+				flags are actually igyesred and always
 				ACTIVE_HIGH is used)
 
 Example:

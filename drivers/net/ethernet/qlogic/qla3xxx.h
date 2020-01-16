@@ -923,7 +923,7 @@ struct eeprom_data {
 
 /*
  * Below are a number compiler switches for controlling driver behavior.
- * Some are not supported under certain conditions and are notated as such.
+ * Some are yest supported under certain conditions and are yestated as such.
  */
 
 #define QL3XXX_VENDOR_ID    0x1077

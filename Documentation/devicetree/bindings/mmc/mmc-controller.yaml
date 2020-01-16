@@ -15,38 +15,38 @@ description: |
   these definitions.
 
 properties:
-  $nodename:
+  $yesdename:
     pattern: "^mmc(@.*)?$"
 
   "#address-cells":
     const: 1
     description: |
-      The cell is the slot ID if a function subnode is used.
+      The cell is the slot ID if a function subyesde is used.
 
   "#size-cells":
     const: 0
 
   # Card Detection.
-  # If none of these properties are supplied, the host native card
+  # If yesne of these properties are supplied, the host native card
   # detect will be used. Only one of them should be provided.
 
   broken-cd:
     $ref: /schemas/types.yaml#/definitions/flag
     description:
-      There is no card detection available; polling must be used.
+      There is yes card detection available; polling must be used.
 
   cd-gpios:
     description:
       The card detection will be done using the GPIO provided.
 
-  non-removable:
+  yesn-removable:
     $ref: /schemas/types.yaml#/definitions/flag
     description:
       Non-removable slot (like eMMC); assume always present.
 
   # *NOTE* on CD and WP polarity. To use common for all SD/MMC host
   # controllers line polarity properties, we have to fix the meaning
-  # of the "normal" and "inverted" line levels. We choose to follow
+  # of the "yesrmal" and "inverted" line levels. We choose to follow
   # the SDHCI standard, which specifies both those lines as "active
   # low." Therefore, using the "cd-inverted" property means, that the
   # CD line is active high, i.e. it is high, when a card is
@@ -61,7 +61,7 @@ properties:
   # lines.  This means, the two properties are "superimposed," for
   # example leaving the GPIO_ACTIVE_LOW flag clear and specifying the
   # respective *-inverted property property results in a
-  # double-inversion and actually means the "normal" line polarity is
+  # double-inversion and actually means the "yesrmal" line polarity is
   # in effect.
   wp-inverted:
     $ref: /schemas/types.yaml#/definitions/flag
@@ -94,11 +94,11 @@ properties:
   disable-wp:
     $ref: /schemas/types.yaml#/definitions/flag
     description:
-      When set, no physical write-protect line is present. This
+      When set, yes physical write-protect line is present. This
       property should only be specified when the controller has a
       dedicated write-protect detection logic. If a GPIO is always
       used for the write-protect detection. If a GPIO is always used
-      for the write-protect detection logic, it is sufficient to not
+      for the write-protect detection logic, it is sufficient to yest
       specify the wp-gpios property in the absence of a write-protect
       line.
 
@@ -111,10 +111,10 @@ properties:
       Set delay time before detecting card after card insert
       interrupt.
 
-  no-1-8-v:
+  yes-1-8-v:
     $ref: /schemas/types.yaml#/definitions/flag
     description:
-      When specified, denotes that 1.8V card voltage is not supported
+      When specified, deyestes that 1.8V card voltage is yest supported
       on this system, even if the controller claims it.
 
   cap-sd-highspeed:
@@ -221,18 +221,18 @@ properties:
       Value the card Driver Stage Register (DSR) should be programmed
       with.
 
-  no-sdio:
+  yes-sdio:
     $ref: /schemas/types.yaml#/definitions/flag
     description:
       Controller is limited to send SDIO commands during
       initialization.
 
-  no-sd:
+  yes-sd:
     $ref: /schemas/types.yaml#/definitions/flag
     description:
       Controller is limited to send SD commands during initialization.
 
-  no-mmc:
+  yes-mmc:
     $ref: /schemas/types.yaml#/definitions/flag
     description:
       Controller is limited to send MMC commands during
@@ -244,7 +244,7 @@ properties:
       - minimum: 0
       - maximum: 4
     description:
-      For non-removable eMMC, enforce this driver type. The value is
+      For yesn-removable eMMC, enforce this driver type. The value is
       the driver type as specified in the eMMC specification (table
       206 in spec version 5.1)
 
@@ -254,10 +254,10 @@ properties:
       - default: 10
     description:
       It was invented for MMC pwrseq-simple which could be referred to
-      mmc-pwrseq-simple.txt. But now it\'s reused as a tunable delay
+      mmc-pwrseq-simple.txt. But yesw it\'s reused as a tunable delay
       waiting for I/O signalling and card power supply to be stable,
       regardless of whether pwrseq-simple is used. Default to 10ms if
-      no available.
+      yes available.
 
   supports-cqe:
     $ref: /schemas/types.yaml#/definitions/flag
@@ -269,7 +269,7 @@ properties:
     $ref: /schemas/types.yaml#/definitions/flag
     description:
       The presence of this property indicates that the MMC
-      controller\'s command queue engine (CQE) does not support direct
+      controller\'s command queue engine (CQE) does yest support direct
       commands (DCMDs).
 
   keep-power-in-suspend:
@@ -303,11 +303,11 @@ patternProperties:
     type: object
     description: |
       On embedded systems the cards connected to a host may need
-      additional properties. These can be specified in subnodes to the
-      host controller node. The subnodes are identified by the
+      additional properties. These can be specified in subyesdes to the
+      host controller yesde. The subyesdes are identified by the
       standard \'reg\' property. Which information exactly can be
       specified depends on the bindings for the SDIO function driver
-      for the subnode, as specified by the compatible string.
+      for the subyesde, as specified by the compatible string.
 
     properties:
       compatible:
@@ -321,14 +321,14 @@ patternProperties:
             maximum: 7
             description:
               Must contain the SDIO function number of the function this
-              subnode describes. A value of 0 denotes the memory SD
-              function, values from 1 to 7 denote the SDIO functions.
+              subyesde describes. A value of 0 deyestes the memory SD
+              function, values from 1 to 7 deyeste the SDIO functions.
 
       broken-hpi:
         $ref: /schemas/types.yaml#/definitions/flag
         description:
           Use this to indicate that the mmc-card has a broken hpi
-          implementation, and that hpi should not be used.
+          implementation, and that hpi should yest be used.
 
     required:
       - reg
@@ -348,7 +348,7 @@ patternProperties:
 
 dependencies:
   cd-debounce-delay-ms: [ cd-gpios ]
-  fixed-emmc-driver-type: [ non-removable ]
+  fixed-emmc-driver-type: [ yesn-removable ]
 
 examples:
   - |
@@ -375,7 +375,7 @@ examples:
         pinctrl-0 = <&mmc3_pins_a>;
         vmmc-supply = <&reg_vmmc3>;
         bus-width = <4>;
-        non-removable;
+        yesn-removable;
         mmc-pwrseq = <&sdhci0_pwrseq>;
 
         brcmf: bcrmf@1 {

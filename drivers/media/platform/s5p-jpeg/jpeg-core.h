@@ -80,7 +80,7 @@ enum sjpeg_version {
 	SJPEG_EXYNOS5433,
 };
 
-enum exynos4_jpeg_result {
+enum exyyess4_jpeg_result {
 	OK_ENC_OR_DEC,
 	ERR_PROT,
 	ERR_DEC_INVALID_FORMAT,
@@ -89,7 +89,7 @@ enum exynos4_jpeg_result {
 	ERR_UNKNOWN,
 };
 
-enum  exynos4_jpeg_img_quality_level {
+enum  exyyess4_jpeg_img_quality_level {
 	QUALITY_LEVEL_1 = 0,	/* high */
 	QUALITY_LEVEL_2,
 	QUALITY_LEVEL_3,
@@ -106,8 +106,8 @@ enum s5p_jpeg_ctx_state {
  * @lock:		the mutex protecting this structure
  * @slock:		spinlock protecting the device contexts
  * @v4l2_dev:		v4l2 device for mem2mem mode
- * @vfd_encoder:	video device node for encoder mem2mem mode
- * @vfd_decoder:	video device node for decoder mem2mem mode
+ * @vfd_encoder:	video device yesde for encoder mem2mem mode
+ * @vfd_decoder:	video device yesde for decoder mem2mem mode
  * @m2m_dev:		v4l2 mem2mem device data
  * @regs:		JPEG IP registers mapping
  * @irq:		JPEG IP irq
@@ -129,7 +129,7 @@ struct s5p_jpeg {
 
 	void __iomem		*regs;
 	unsigned int		irq;
-	enum exynos4_jpeg_result irq_ret;
+	enum exyyess4_jpeg_result irq_ret;
 	struct clk		*clocks[JPEG_MAX_CLOCKS];
 	struct device		*dev;
 	struct s5p_jpeg_variant *variant;
@@ -150,7 +150,7 @@ struct s5p_jpeg_variant {
 
 /**
  * struct jpeg_fmt - driver's internal color format data
- * @fourcc:	the fourcc code, 0 if not applicable
+ * @fourcc:	the fourcc code, 0 if yest applicable
  * @depth:	number of bits per pixel
  * @colplanes:	number of color planes (1 for packed formats)
  * @h_align:	horizontal alignment order (align to 2^h_align)

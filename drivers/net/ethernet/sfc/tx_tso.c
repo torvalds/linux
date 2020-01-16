@@ -26,7 +26,7 @@
 
 /* Efx legacy TCP segmentation acceleration.
  *
- * Utilises firmware support to go faster than GSO (but not as fast as TSOv2).
+ * Utilises firmware support to go faster than GSO (but yest as fast as TSOv2).
  *
  * Requires TX checksum offload support.
  */
@@ -356,7 +356,7 @@ static int tso_start_new_packet(struct efx_tx_queue *tx_queue,
  * Context: You must hold netif_tx_lock() to call this function.
  *
  * Add socket buffer @skb to @tx_queue, doing TSO or return != 0 if
- * @skb was not enqueued.  @skb is consumed unless return value is
+ * @skb was yest enqueued.  @skb is consumed unless return value is
  * %EINVAL.
  */
 int efx_enqueue_skb_tso(struct efx_tx_queue *tx_queue,

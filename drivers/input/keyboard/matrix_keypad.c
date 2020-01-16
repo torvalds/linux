@@ -101,10 +101,10 @@ static void disable_row_irqs(struct matrix_keypad *keypad)
 	int i;
 
 	if (pdata->clustered_irq > 0)
-		disable_irq_nosync(pdata->clustered_irq);
+		disable_irq_yessync(pdata->clustered_irq);
 	else {
 		for (i = 0; i < pdata->num_row_gpios; i++)
-			disable_irq_nosync(gpio_to_irq(pdata->row_gpios[i]));
+			disable_irq_yessync(gpio_to_irq(pdata->row_gpios[i]));
 	}
 }
 
@@ -177,8 +177,8 @@ static irqreturn_t matrix_keypad_interrupt(int irq, void *id)
 	spin_lock_irqsave(&keypad->lock, flags);
 
 	/*
-	 * See if another IRQ beaten us to it and scheduled the
-	 * scan already. In that case we should not try to
+	 * See if ayesther IRQ beaten us to it and scheduled the
+	 * scan already. In that case we should yest try to
 	 * disable IRQs again.
 	 */
 	if (unlikely(keypad->scan_pending || keypad->stopped))
@@ -221,7 +221,7 @@ static void matrix_keypad_stop(struct input_dev *dev)
 	flush_delayed_work(&keypad->work);
 	/*
 	 * matrix_keypad_scan() will leave IRQs enabled;
-	 * we should disable them now.
+	 * we should disable them yesw.
 	 */
 	disable_row_irqs(keypad);
 }
@@ -401,7 +401,7 @@ static struct matrix_keypad_platform_data *
 matrix_keypad_parse_dt(struct device *dev)
 {
 	struct matrix_keypad_platform_data *pdata;
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 	unsigned int *gpios;
 	int ret, i, nrow, ncol;
 
@@ -412,19 +412,19 @@ matrix_keypad_parse_dt(struct device *dev)
 
 	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
 	if (!pdata) {
-		dev_err(dev, "could not allocate memory for platform data\n");
+		dev_err(dev, "could yest allocate memory for platform data\n");
 		return ERR_PTR(-ENOMEM);
 	}
 
 	pdata->num_row_gpios = nrow = of_gpio_named_count(np, "row-gpios");
 	pdata->num_col_gpios = ncol = of_gpio_named_count(np, "col-gpios");
 	if (nrow <= 0 || ncol <= 0) {
-		dev_err(dev, "number of keypad rows/columns not specified\n");
+		dev_err(dev, "number of keypad rows/columns yest specified\n");
 		return ERR_PTR(-EINVAL);
 	}
 
-	if (of_get_property(np, "linux,no-autorepeat", NULL))
-		pdata->no_autorepeat = true;
+	if (of_get_property(np, "linux,yes-autorepeat", NULL))
+		pdata->yes_autorepeat = true;
 
 	pdata->wakeup = of_property_read_bool(np, "wakeup-source") ||
 			of_property_read_bool(np, "linux,wakeup"); /* legacy */
@@ -444,7 +444,7 @@ matrix_keypad_parse_dt(struct device *dev)
 			     sizeof(unsigned int),
 			     GFP_KERNEL);
 	if (!gpios) {
-		dev_err(dev, "could not allocate memory for gpios\n");
+		dev_err(dev, "could yest allocate memory for gpios\n");
 		return ERR_PTR(-ENOMEM);
 	}
 
@@ -471,7 +471,7 @@ matrix_keypad_parse_dt(struct device *dev)
 static inline struct matrix_keypad_platform_data *
 matrix_keypad_parse_dt(struct device *dev)
 {
-	dev_err(dev, "no platform data defined\n");
+	dev_err(dev, "yes platform data defined\n");
 
 	return ERR_PTR(-EINVAL);
 }
@@ -490,7 +490,7 @@ static int matrix_keypad_probe(struct platform_device *pdev)
 		if (IS_ERR(pdata))
 			return PTR_ERR(pdata);
 	} else if (!pdata->keymap_data) {
-		dev_err(&pdev->dev, "no keymap data defined\n");
+		dev_err(&pdev->dev, "yes keymap data defined\n");
 		return -EINVAL;
 	}
 
@@ -523,7 +523,7 @@ static int matrix_keypad_probe(struct platform_device *pdev)
 		goto err_free_mem;
 	}
 
-	if (!pdata->no_autorepeat)
+	if (!pdata->yes_autorepeat)
 		__set_bit(EV_REP, input_dev->evbit);
 	input_set_capability(input_dev, EV_MSC, MSC_SCAN);
 	input_set_drvdata(input_dev, keypad);

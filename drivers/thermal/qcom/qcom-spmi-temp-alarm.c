@@ -59,7 +59,7 @@
 /* Stage 2 Threshold Max: 140 C */
 #define STAGE2_THRESHOLD_MAX		140000
 
-/* Temperature in Milli Celsius reported during stage 0 if no ADC is present */
+/* Temperature in Milli Celsius reported during stage 0 if yes ADC is present */
 #define DEFAULT_TEMP			37000
 
 struct qpnp_tm_chip {
@@ -104,7 +104,7 @@ static int qpnp_tm_write(struct qpnp_tm_chip *chip, u16 addr, u8 data)
  * qpnp_tm_get_temp_stage() - return over-temperature stage
  * @chip:		Pointer to the qpnp_tm chip
  *
- * Return: stage (GEN1) or state (GEN2) on success, or errno on failure.
+ * Return: stage (GEN1) or state (GEN2) on success, or erryes on failure.
  */
 static int qpnp_tm_get_temp_stage(struct qpnp_tm_chip *chip)
 {
@@ -127,7 +127,7 @@ static int qpnp_tm_get_temp_stage(struct qpnp_tm_chip *chip)
  * This function updates the internal temp value based on the
  * current thermal stage and threshold as well as the previous stage
  */
-static int qpnp_tm_update_temp_no_adc(struct qpnp_tm_chip *chip)
+static int qpnp_tm_update_temp_yes_adc(struct qpnp_tm_chip *chip)
 {
 	unsigned int stage, stage_new, stage_old;
 	int ret;
@@ -179,7 +179,7 @@ static int qpnp_tm_get_temp(void *data, int *temp)
 
 	if (!chip->adc) {
 		mutex_lock(&chip->lock);
-		ret = qpnp_tm_update_temp_no_adc(chip);
+		ret = qpnp_tm_update_temp_yes_adc(chip);
 		mutex_unlock(&chip->lock);
 		if (ret < 0)
 			return ret;
@@ -349,12 +349,12 @@ out:
 static int qpnp_tm_probe(struct platform_device *pdev)
 {
 	struct qpnp_tm_chip *chip;
-	struct device_node *node;
+	struct device_yesde *yesde;
 	u8 type, subtype;
 	u32 res;
 	int ret, irq;
 
-	node = pdev->dev.of_node;
+	yesde = pdev->dev.of_yesde;
 
 	chip = devm_kzalloc(&pdev->dev, sizeof(*chip), GFP_KERNEL);
 	if (!chip)
@@ -369,7 +369,7 @@ static int qpnp_tm_probe(struct platform_device *pdev)
 	if (!chip->map)
 		return -ENXIO;
 
-	ret = of_property_read_u32(node, "reg", &res);
+	ret = of_property_read_u32(yesde, "reg", &res);
 	if (ret < 0)
 		return ret;
 
@@ -390,13 +390,13 @@ static int qpnp_tm_probe(struct platform_device *pdev)
 
 	ret = qpnp_tm_read(chip, QPNP_TM_REG_TYPE, &type);
 	if (ret < 0) {
-		dev_err(&pdev->dev, "could not read type\n");
+		dev_err(&pdev->dev, "could yest read type\n");
 		return ret;
 	}
 
 	ret = qpnp_tm_read(chip, QPNP_TM_REG_SUBTYPE, &subtype);
 	if (ret < 0) {
-		dev_err(&pdev->dev, "could not read subtype\n");
+		dev_err(&pdev->dev, "could yest read subtype\n");
 		return ret;
 	}
 
@@ -428,7 +428,7 @@ static int qpnp_tm_probe(struct platform_device *pdev)
 	}
 
 	ret = devm_request_threaded_irq(&pdev->dev, irq, NULL, qpnp_tm_isr,
-					IRQF_ONESHOT, node->name, chip);
+					IRQF_ONESHOT, yesde->name, chip);
 	if (ret < 0)
 		return ret;
 

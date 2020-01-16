@@ -13,7 +13,7 @@
  *		Neil Horman		:	Added missing device ioctls
  *		Michael Callahan	:	Made routing work
  *		Wesley Craig		:	Fix probing to listen to a
- *						passed node id.
+ *						passed yesde id.
  *		Alan Cox		:	Added send/recvmsg support
  *		Alan Cox		:	Moved at. to protinfo in
  *						socket.
@@ -74,13 +74,13 @@ DEFINE_RWLOCK(atalk_sockets_lock);
 
 static inline void __atalk_insert_socket(struct sock *sk)
 {
-	sk_add_node(sk, &atalk_sockets);
+	sk_add_yesde(sk, &atalk_sockets);
 }
 
 static inline void atalk_remove_socket(struct sock *sk)
 {
 	write_lock_bh(&atalk_sockets_lock);
-	sk_del_node_init(sk);
+	sk_del_yesde_init(sk);
 	write_unlock_bh(&atalk_sockets_lock);
 }
 
@@ -97,21 +97,21 @@ static struct sock *atalk_search_socket(struct sockaddr_at *to,
 			continue;
 
 		if (to->sat_addr.s_net == ATADDR_ANYNET &&
-		    to->sat_addr.s_node == ATADDR_BCAST)
+		    to->sat_addr.s_yesde == ATADDR_BCAST)
 			goto found;
 
 		if (to->sat_addr.s_net == at->src_net &&
-		    (to->sat_addr.s_node == at->src_node ||
-		     to->sat_addr.s_node == ATADDR_BCAST ||
-		     to->sat_addr.s_node == ATADDR_ANYNODE))
+		    (to->sat_addr.s_yesde == at->src_yesde ||
+		     to->sat_addr.s_yesde == ATADDR_BCAST ||
+		     to->sat_addr.s_yesde == ATADDR_ANYNODE))
 			goto found;
 
 		/* XXXX.0 -- we got a request for this router. make sure
-		 * that the node is appropriately set. */
-		if (to->sat_addr.s_node == ATADDR_ANYNODE &&
+		 * that the yesde is appropriately set. */
+		if (to->sat_addr.s_yesde == ATADDR_ANYNODE &&
 		    to->sat_addr.s_net != ATADDR_ANYNET &&
-		    atif->address.s_node == at->src_node) {
-			to->sat_addr.s_node = atif->address.s_node;
+		    atif->address.s_yesde == at->src_yesde) {
+			to->sat_addr.s_yesde = atif->address.s_yesde;
 			goto found;
 		}
 	}
@@ -123,11 +123,11 @@ found:
 
 /**
  * atalk_find_or_insert_socket - Try to find a socket matching ADDR
- * @sk: socket to insert in the list if it is not there already
+ * @sk: socket to insert in the list if it is yest there already
  * @sat: address to search for
  *
  * Try to find a socket matching ADDR in the socket list, if found then return
- * it. If not, insert SK into the socket list.
+ * it. If yest, insert SK into the socket list.
  *
  * This entire operation must execute atomically.
  */
@@ -142,7 +142,7 @@ static struct sock *atalk_find_or_insert_socket(struct sock *sk,
 		at = at_sk(s);
 
 		if (at->src_net == sat->sat_addr.s_net &&
-		    at->src_node == sat->sat_addr.s_node &&
+		    at->src_yesde == sat->sat_addr.s_yesde &&
 		    at->src_port == sat->sat_port)
 			goto found;
 	}
@@ -244,8 +244,8 @@ static int atif_probe_device(struct atalk_iface *atif)
 	int netrange = ntohs(atif->nets.nr_lastnet) -
 			ntohs(atif->nets.nr_firstnet) + 1;
 	int probe_net = ntohs(atif->address.s_net);
-	int probe_node = atif->address.s_node;
-	int netct, nodect;
+	int probe_yesde = atif->address.s_yesde;
+	int netct, yesdect;
 
 	/* Offset the network we start probing with */
 	if (probe_net == ATADDR_ANYNET) {
@@ -253,18 +253,18 @@ static int atif_probe_device(struct atalk_iface *atif)
 		if (netrange)
 			probe_net += jiffies % netrange;
 	}
-	if (probe_node == ATADDR_ANYNODE)
-		probe_node = jiffies & 0xFF;
+	if (probe_yesde == ATADDR_ANYNODE)
+		probe_yesde = jiffies & 0xFF;
 
 	/* Scan the networks */
 	atif->status |= ATIF_PROBE;
 	for (netct = 0; netct <= netrange; netct++) {
-		/* Sweep the available nodes from a given start */
+		/* Sweep the available yesdes from a given start */
 		atif->address.s_net = htons(probe_net);
-		for (nodect = 0; nodect < 256; nodect++) {
-			atif->address.s_node = (nodect + probe_node) & 0xFF;
-			if (atif->address.s_node > 0 &&
-			    atif->address.s_node < 254) {
+		for (yesdect = 0; yesdect < 256; yesdect++) {
+			atif->address.s_yesde = (yesdect + probe_yesde) & 0xFF;
+			if (atif->address.s_yesde > 0 &&
+			    atif->address.s_yesde < 254) {
 				/* Probe a proposed address */
 				aarp_probe_network(atif);
 
@@ -293,8 +293,8 @@ static int atif_proxy_probe_device(struct atalk_iface *atif,
 			ntohs(atif->nets.nr_firstnet) + 1;
 	/* we probe the interface's network */
 	int probe_net = ntohs(atif->address.s_net);
-	int probe_node = ATADDR_ANYNODE;	    /* we'll take anything */
-	int netct, nodect;
+	int probe_yesde = ATADDR_ANYNODE;	    /* we'll take anything */
+	int netct, yesdect;
 
 	/* Offset the network we start probing with */
 	if (probe_net == ATADDR_ANYNET) {
@@ -303,17 +303,17 @@ static int atif_proxy_probe_device(struct atalk_iface *atif,
 			probe_net += jiffies % netrange;
 	}
 
-	if (probe_node == ATADDR_ANYNODE)
-		probe_node = jiffies & 0xFF;
+	if (probe_yesde == ATADDR_ANYNODE)
+		probe_yesde = jiffies & 0xFF;
 
 	/* Scan the networks */
 	for (netct = 0; netct <= netrange; netct++) {
-		/* Sweep the available nodes from a given start */
+		/* Sweep the available yesdes from a given start */
 		proxy_addr->s_net = htons(probe_net);
-		for (nodect = 0; nodect < 256; nodect++) {
-			proxy_addr->s_node = (nodect + probe_node) & 0xFF;
-			if (proxy_addr->s_node > 0 &&
-			    proxy_addr->s_node < 254) {
+		for (yesdect = 0; yesdect < 256; yesdect++) {
+			proxy_addr->s_yesde = (yesdect + probe_yesde) & 0xFF;
+			if (proxy_addr->s_yesde > 0 &&
+			    proxy_addr->s_yesde < 254) {
 				/* Tell AARP to probe a proposed address */
 				int ret = aarp_proxy_probe_network(atif,
 								    proxy_addr);
@@ -345,7 +345,7 @@ static struct atalk_addr *atalk_find_primary(void)
 
 	/*
 	 * Return a point-to-point interface only if
-	 * there is no non-ptp interface available.
+	 * there is yes yesn-ptp interface available.
 	 */
 	read_lock_bh(&atalk_interfaces_lock);
 	for (iface = atalk_interfaces; iface; iface = iface->next) {
@@ -370,18 +370,18 @@ out:
 
 /*
  * Find a match for 'any network' - ie any of our interfaces with that
- * node number will do just nicely.
+ * yesde number will do just nicely.
  */
-static struct atalk_iface *atalk_find_anynet(int node, struct net_device *dev)
+static struct atalk_iface *atalk_find_anynet(int yesde, struct net_device *dev)
 {
 	struct atalk_iface *iface = dev->atalk_ptr;
 
 	if (!iface || iface->status & ATIF_PROBE)
 		goto out_err;
 
-	if (node != ATADDR_BCAST &&
-	    iface->address.s_node != node &&
-	    node != ATADDR_ANYNODE)
+	if (yesde != ATADDR_BCAST &&
+	    iface->address.s_yesde != yesde &&
+	    yesde != ATADDR_ANYNODE)
 		goto out_err;
 out:
 	return iface;
@@ -390,22 +390,22 @@ out_err:
 	goto out;
 }
 
-/* Find a match for a specific network:node pair */
-static struct atalk_iface *atalk_find_interface(__be16 net, int node)
+/* Find a match for a specific network:yesde pair */
+static struct atalk_iface *atalk_find_interface(__be16 net, int yesde)
 {
 	struct atalk_iface *iface;
 
 	read_lock_bh(&atalk_interfaces_lock);
 	for (iface = atalk_interfaces; iface; iface = iface->next) {
-		if ((node == ATADDR_BCAST ||
-		     node == ATADDR_ANYNODE ||
-		     iface->address.s_node == node) &&
+		if ((yesde == ATADDR_BCAST ||
+		     yesde == ATADDR_ANYNODE ||
+		     iface->address.s_yesde == yesde) &&
 		    iface->address.s_net == net &&
 		    !(iface->status & ATIF_PROBE))
 			break;
 
 		/* XXXX.0 -- net.0 returns the iface associated with net */
-		if (node == ATADDR_ANYNODE && net != ATADDR_ANYNET &&
+		if (yesde == ATADDR_ANYNODE && net != ATADDR_ANYNET &&
 		    ntohs(iface->nets.nr_firstnet) <= ntohs(net) &&
 		    ntohs(net) <= ntohs(iface->nets.nr_lastnet))
 			break;
@@ -417,7 +417,7 @@ static struct atalk_iface *atalk_find_interface(__be16 net, int node)
 
 /*
  * Find a route for an AppleTalk packet. This ought to get cached in
- * the socket (later on...). We know about host routes and the fact
+ * the socket (later on...). We kyesw about host routes and the fact
  * that a route must be direct to broadcast.
  */
 static struct atalk_route *atrtr_find(struct atalk_addr *target)
@@ -441,7 +441,7 @@ static struct atalk_route *atrtr_find(struct atalk_addr *target)
 				 * if this host route is for the target,
 				 * the we're done
 				 */
-				if (r->target.s_node == target->s_node)
+				if (r->target.s_yesde == target->s_yesde)
 					goto out;
 			} else
 				/*
@@ -453,7 +453,7 @@ static struct atalk_route *atrtr_find(struct atalk_addr *target)
 	}
 
 	/*
-	 * if we found a network route but not a direct host
+	 * if we found a network route but yest a direct host
 	 * route, then return it
 	 */
 	if (net_route)
@@ -484,7 +484,7 @@ static void atrtr_set_default(struct net_device *dev)
 	atrtr_default.dev	     = dev;
 	atrtr_default.flags	     = RTF_UP;
 	atrtr_default.gateway.s_net  = htons(0);
-	atrtr_default.gateway.s_node = 0;
+	atrtr_default.gateway.s_yesde = 0;
 }
 
 /*
@@ -519,7 +519,7 @@ static int atrtr_create(struct rtentry *r, struct net_device *devhint)
 		if (ta->sat_addr.s_net == rt->target.s_net) {
 			if (!(rt->flags & RTF_HOST))
 				break;
-			if (ta->sat_addr.s_node == rt->target.s_node)
+			if (ta->sat_addr.s_yesde == rt->target.s_yesde)
 				break;
 		}
 	}
@@ -537,7 +537,7 @@ static int atrtr_create(struct rtentry *r, struct net_device *devhint)
 				riface = iface;
 
 			if (ga->sat_addr.s_net == iface->address.s_net &&
-			    ga->sat_addr.s_node == iface->address.s_node)
+			    ga->sat_addr.s_yesde == iface->address.s_yesde)
 				riface = iface;
 		}
 		read_unlock_bh(&atalk_interfaces_lock);
@@ -585,7 +585,7 @@ static int atrtr_delete(struct atalk_addr *addr)
 	while ((tmp = *r) != NULL) {
 		if (tmp->target.s_net == addr->s_net &&
 		    (!(tmp->flags&RTF_GATEWAY) ||
-		     tmp->target.s_node == addr->s_node)) {
+		     tmp->target.s_yesde == addr->s_yesde)) {
 			*r = tmp->next;
 			dev_put(tmp->dev);
 			kfree(tmp);
@@ -635,10 +635,10 @@ static inline void atalk_dev_down(struct net_device *dev)
  * A device event has occurred. Watch for devices going down and
  * delete our use of them (iface and route).
  */
-static int ddp_device_event(struct notifier_block *this, unsigned long event,
+static int ddp_device_event(struct yestifier_block *this, unsigned long event,
 			    void *ptr)
 {
-	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
+	struct net_device *dev = netdev_yestifier_info_to_dev(ptr);
 
 	if (!net_eq(dev_net(dev), &init_net))
 		return NOTIFY_DONE;
@@ -693,11 +693,11 @@ static int atif_ioctl(int cmd, void __user *arg)
 		/*
 		 * if this is a point-to-point iface, and we already
 		 * have an iface for this AppleTalk address, then we
-		 * should not add a route
+		 * should yest add a route
 		 */
 		if ((dev->flags & IFF_POINTOPOINT) &&
 		    atalk_find_interface(sa->sat_addr.s_net,
-					 sa->sat_addr.s_node)) {
+					 sa->sat_addr.s_yesde)) {
 			printk(KERN_DEBUG "AppleTalk: point-to-point "
 			       "interface added with "
 			       "existing address\n");
@@ -710,8 +710,8 @@ static int atif_ioctl(int cmd, void __user *arg)
 		 */
 		if (dev->type == ARPHRD_ETHER && nr->nr_phase != 2)
 			return -EPROTONOSUPPORT;
-		if (sa->sat_addr.s_node == ATADDR_BCAST ||
-		    sa->sat_addr.s_node == 254)
+		if (sa->sat_addr.s_yesde == ATADDR_BCAST ||
+		    sa->sat_addr.s_yesde == 254)
 			return -EINVAL;
 		if (atif) {
 			/* Already setting address */
@@ -719,7 +719,7 @@ static int atif_ioctl(int cmd, void __user *arg)
 				return -EBUSY;
 
 			atif->address.s_net  = sa->sat_addr.s_net;
-			atif->address.s_node = sa->sat_addr.s_node;
+			atif->address.s_yesde = sa->sat_addr.s_yesde;
 			atrtr_device_down(dev);	/* Flush old routes */
 		} else {
 			atif = atif_add_device(dev, &sa->sat_addr);
@@ -730,7 +730,7 @@ static int atif_ioctl(int cmd, void __user *arg)
 
 		/*
 		 * Check if the chosen address is used. If so we
-		 * error and atalkd will try another.
+		 * error and atalkd will try ayesther.
 		 */
 
 		if (!(dev->flags & IFF_LOOPBACK) &&
@@ -744,11 +744,11 @@ static int atif_ioctl(int cmd, void __user *arg)
 		sa = (struct sockaddr_at *)&rtdef.rt_gateway;
 		sa->sat_family = AF_APPLETALK;
 		sa->sat_addr.s_net  = atif->address.s_net;
-		sa->sat_addr.s_node = atif->address.s_node;
+		sa->sat_addr.s_yesde = atif->address.s_yesde;
 		sa = (struct sockaddr_at *)&rtdef.rt_dst;
 		rtdef.rt_flags = RTF_UP;
 		sa->sat_family = AF_APPLETALK;
-		sa->sat_addr.s_node = ATADDR_ANYNODE;
+		sa->sat_addr.s_yesde = ATADDR_ANYNODE;
 		if (dev->flags & IFF_LOOPBACK ||
 		    dev->flags & IFF_POINTOPOINT)
 			rtdef.rt_flags |= RTF_HOST;
@@ -790,7 +790,7 @@ static int atif_ioctl(int cmd, void __user *arg)
 
 		sa->sat_family = AF_APPLETALK;
 		sa->sat_addr.s_net = atif->address.s_net;
-		sa->sat_addr.s_node = ATADDR_BCAST;
+		sa->sat_addr.s_yesde = ATADDR_BCAST;
 		break;
 
 	case SIOCATALKDIFADDR:
@@ -808,7 +808,7 @@ static int atif_ioctl(int cmd, void __user *arg)
 		if (sa->sat_family != AF_APPLETALK)
 			return -EINVAL;
 		/*
-		 * for now, we only support proxy AARP on ELAP;
+		 * for yesw, we only support proxy AARP on ELAP;
 		 * we should be able to do it for LocalTalk, too.
 		 */
 		if (dev->type != ARPHRD_ETHER)
@@ -817,7 +817,7 @@ static int atif_ioctl(int cmd, void __user *arg)
 		/*
 		 * atif points to the current interface on this network;
 		 * we aren't concerned about its current status (at
-		 * least for now), but it has all the settings about
+		 * least for yesw), but it has all the settings about
 		 * the network we're going to probe. Consequently, it
 		 * must exist.
 		 */
@@ -832,21 +832,21 @@ static int atif_ioctl(int cmd, void __user *arg)
 		if (dev->type == ARPHRD_ETHER && nr->nr_phase != 2)
 			return -EPROTONOSUPPORT;
 
-		if (sa->sat_addr.s_node == ATADDR_BCAST ||
-		    sa->sat_addr.s_node == 254)
+		if (sa->sat_addr.s_yesde == ATADDR_BCAST ||
+		    sa->sat_addr.s_yesde == 254)
 			return -EINVAL;
 
 		/*
 		 * Check if the chosen address is used. If so we
-		 * error and ATCP will try another.
+		 * error and ATCP will try ayesther.
 		 */
 		if (atif_proxy_probe_device(atif, &(sa->sat_addr)) < 0)
 			return -EADDRINUSE;
 
 		/*
-		 * We now have an address on the local network, and
+		 * We yesw have an address on the local network, and
 		 * the AARP code will defend it for us until we take it
-		 * down. We don't set up any routes right now, because
+		 * down. We don't set up any routes right yesw, because
 		 * ATCP will install them manually via SIOCADDRT.
 		 */
 		break;
@@ -913,7 +913,7 @@ static int atrtr_ioctl(unsigned int cmd, void __user *arg)
 static unsigned long atalk_sum_partial(const unsigned char *data,
 				       int len, unsigned long sum)
 {
-	/* This ought to be unwrapped neatly. I'll trust gcc for now */
+	/* This ought to be unwrapped neatly. I'll trust gcc for yesw */
 	while (len--) {
 		sum += *data++;
 		sum = rol16(sum, 1);
@@ -994,7 +994,7 @@ static __be16 atalk_checksum(const struct sk_buff *skb, int len)
 	/* skip header 4 bytes */
 	sum = atalk_sum_skb(skb, 4, len-4, 0);
 
-	/* Use 0xFFFF for 0. 0 itself means none */
+	/* Use 0xFFFF for 0. 0 itself means yesne */
 	return sum ? htons((unsigned short)sum) : htons(0xFFFF);
 }
 
@@ -1062,11 +1062,11 @@ static int atalk_release(struct socket *sock)
 }
 
 /**
- * atalk_pick_and_bind_port - Pick a source port when one is not given
+ * atalk_pick_and_bind_port - Pick a source port when one is yest given
  * @sk: socket to insert into the tables
  * @sat: address to search for
  *
- * Pick a source port when one is not given. If we can find a suitable free
+ * Pick a source port when one is yest given. If we can find a suitable free
  * one, we insert the socket into the tables using it.
  *
  * This whole operation must be atomic.
@@ -1086,7 +1086,7 @@ static int atalk_pick_and_bind_port(struct sock *sk, struct sockaddr_at *sat)
 			struct atalk_sock *at = at_sk(s);
 
 			if (at->src_net == sat->sat_addr.s_net &&
-			    at->src_node == sat->sat_addr.s_node &&
+			    at->src_yesde == sat->sat_addr.s_yesde &&
 			    at->src_port == sat->sat_port)
 				goto try_next_port;
 		}
@@ -1117,7 +1117,7 @@ static int atalk_autobind(struct sock *sk)
 		goto out;
 
 	at->src_net  = sat.sat_addr.s_net  = ap->s_net;
-	at->src_node = sat.sat_addr.s_node = ap->s_node;
+	at->src_yesde = sat.sat_addr.s_yesde = ap->s_yesde;
 
 	n = atalk_pick_and_bind_port(sk, &sat);
 	if (!n)
@@ -1150,15 +1150,15 @@ static int atalk_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 			goto out;
 
 		at->src_net  = addr->sat_addr.s_net = ap->s_net;
-		at->src_node = addr->sat_addr.s_node = ap->s_node;
+		at->src_yesde = addr->sat_addr.s_yesde = ap->s_yesde;
 	} else {
 		err = -EADDRNOTAVAIL;
 		if (!atalk_find_interface(addr->sat_addr.s_net,
-					  addr->sat_addr.s_node))
+					  addr->sat_addr.s_yesde))
 			goto out;
 
 		at->src_net  = addr->sat_addr.s_net;
-		at->src_node = addr->sat_addr.s_node;
+		at->src_yesde = addr->sat_addr.s_yesde;
 	}
 
 	if (addr->sat_port == ATADDR_ANYPORT) {
@@ -1201,10 +1201,10 @@ static int atalk_connect(struct socket *sock, struct sockaddr *uaddr,
 	if (addr->sat_family != AF_APPLETALK)
 		return -EAFNOSUPPORT;
 
-	if (addr->sat_addr.s_node == ATADDR_BCAST &&
+	if (addr->sat_addr.s_yesde == ATADDR_BCAST &&
 	    !sock_flag(sk, SOCK_BROADCAST)) {
 #if 1
-		pr_warn("atalk_connect: %s is broken and did not set SO_BROADCAST.\n",
+		pr_warn("atalk_connect: %s is broken and did yest set SO_BROADCAST.\n",
 			current->comm);
 #else
 		return -EACCES;
@@ -1223,7 +1223,7 @@ static int atalk_connect(struct socket *sock, struct sockaddr *uaddr,
 
 	at->dest_port = addr->sat_port;
 	at->dest_net  = addr->sat_addr.s_net;
-	at->dest_node = addr->sat_addr.s_node;
+	at->dest_yesde = addr->sat_addr.s_yesde;
 
 	sock->state  = SS_CONNECTED;
 	sk->sk_state = TCP_ESTABLISHED;
@@ -1259,11 +1259,11 @@ static int atalk_getname(struct socket *sock, struct sockaddr *uaddr,
 			goto out;
 
 		sat.sat_addr.s_net  = at->dest_net;
-		sat.sat_addr.s_node = at->dest_node;
+		sat.sat_addr.s_yesde = at->dest_yesde;
 		sat.sat_port	    = at->dest_port;
 	} else {
 		sat.sat_addr.s_net  = at->src_net;
-		sat.sat_addr.s_node = at->src_node;
+		sat.sat_addr.s_yesde = at->src_yesde;
 		sat.sat_port	    = at->src_port;
 	}
 
@@ -1333,7 +1333,7 @@ static int atalk_route_packet(struct sk_buff *skb, struct net_device *dev,
 	}
 
 	ta.s_net  = ddp->deh_dnet;
-	ta.s_node = ddp->deh_dnode;
+	ta.s_yesde = ddp->deh_dyesde;
 
 	/* Route the packet */
 	rt = atrtr_find(&ta);
@@ -1345,13 +1345,13 @@ static int atalk_route_packet(struct sk_buff *skb, struct net_device *dev,
 	/* FIXME: use skb->cb to be able to use shared skbs */
 
 	/*
-	 * Route goes through another gateway, so set the target to the
+	 * Route goes through ayesther gateway, so set the target to the
 	 * gateway instead.
 	 */
 
 	if (rt->flags & RTF_GATEWAY) {
 		ta.s_net  = rt->gateway.s_net;
-		ta.s_node = rt->gateway.s_node;
+		ta.s_yesde = rt->gateway.s_yesde;
 	}
 
 	/* Fix up skb->len field */
@@ -1366,7 +1366,7 @@ static int atalk_route_packet(struct sk_buff *skb, struct net_device *dev,
 	 * Send the buffer onwards
 	 *
 	 * Now we must always be careful. If it's come from LocalTalk to
-	 * EtherTalk it might not fit
+	 * EtherTalk it might yest fit
 	 *
 	 * Order matters here: If a packet has to be copied to make a new
 	 * headroom (rare hopefully) then it won't need unsharing.
@@ -1460,9 +1460,9 @@ static int atalk_rcv(struct sk_buff *skb, struct net_device *dev,
 
 	/* Check the packet is aimed at us */
 	if (!ddp->deh_dnet)	/* Net 0 is 'this network' */
-		atif = atalk_find_anynet(ddp->deh_dnode, dev);
+		atif = atalk_find_anynet(ddp->deh_dyesde, dev);
 	else
-		atif = atalk_find_interface(ddp->deh_dnet, ddp->deh_dnode);
+		atif = atalk_find_interface(ddp->deh_dnet, ddp->deh_dyesde);
 
 	if (!atif) {
 		/* Not ours, so we route the packet via the correct
@@ -1471,19 +1471,19 @@ static int atalk_rcv(struct sk_buff *skb, struct net_device *dev,
 		return atalk_route_packet(skb, dev, ddp, len_hops, origlen);
 	}
 
-	/* if IP over DDP is not selected this code will be optimized out */
+	/* if IP over DDP is yest selected this code will be optimized out */
 	if (is_ip_over_ddp(skb))
 		return handle_ip_over_ddp(skb);
 	/*
 	 * Which socket - atalk_search_socket() looks for a *full match*
-	 * of the <net, node, port> tuple.
+	 * of the <net, yesde, port> tuple.
 	 */
 	tosat.sat_addr.s_net  = ddp->deh_dnet;
-	tosat.sat_addr.s_node = ddp->deh_dnode;
+	tosat.sat_addr.s_yesde = ddp->deh_dyesde;
 	tosat.sat_port	      = ddp->deh_dport;
 
 	sock = atalk_search_socket(&tosat, atif);
-	if (!sock) /* But not one of our sockets */
+	if (!sock) /* But yest one of our sockets */
 		goto drop;
 
 	/* Queue packet (standard) */
@@ -1501,7 +1501,7 @@ out:
 
 /*
  * Receive a LocalTalk frame. We make some demands on the caller here.
- * Caller must provide enough headroom on the packet to pull the short
+ * Caller must provide eyesugh headroom on the packet to pull the short
  * header and append a long one.
  */
 static int ltalk_rcv(struct sk_buff *skb, struct net_device *dev,
@@ -1524,7 +1524,7 @@ static int ltalk_rcv(struct sk_buff *skb, struct net_device *dev,
 			return 0;
 
 		/*
-		 * The push leaves us with a ddephdr not an shdr, and
+		 * The push leaves us with a ddephdr yest an shdr, and
 		 * handily the port bytes in the right place preset.
 		 */
 		ddp = skb_push(skb, sizeof(*ddp) - 4);
@@ -1537,8 +1537,8 @@ static int ltalk_rcv(struct sk_buff *skb, struct net_device *dev,
 		 * we write the network numbers !
 		 */
 
-		ddp->deh_dnode = skb_mac_header(skb)[0];     /* From physical header */
-		ddp->deh_snode = skb_mac_header(skb)[1];     /* From physical header */
+		ddp->deh_dyesde = skb_mac_header(skb)[0];     /* From physical header */
+		ddp->deh_syesde = skb_mac_header(skb)[1];     /* From physical header */
 
 		ddp->deh_dnet  = ap->s_net;	/* Network number */
 		ddp->deh_snet  = ap->s_net;
@@ -1592,7 +1592,7 @@ static int atalk_sendmsg(struct socket *sock, struct msghdr *msg, size_t len)
 
 		err = -EPERM;
 		/* netatalk didn't implement this check */
-		if (usat->sat_addr.s_node == ATADDR_BCAST &&
+		if (usat->sat_addr.s_yesde == ATADDR_BCAST &&
 		    !sock_flag(sk, SOCK_BROADCAST)) {
 			goto out;
 		}
@@ -1603,7 +1603,7 @@ static int atalk_sendmsg(struct socket *sock, struct msghdr *msg, size_t len)
 		usat = &local_satalk;
 		usat->sat_family      = AF_APPLETALK;
 		usat->sat_port	      = at->dest_port;
-		usat->sat_addr.s_node = at->dest_node;
+		usat->sat_addr.s_yesde = at->dest_yesde;
 		usat->sat_addr.s_net  = at->dest_net;
 	}
 
@@ -1613,12 +1613,12 @@ static int atalk_sendmsg(struct socket *sock, struct msghdr *msg, size_t len)
 	/* For headers */
 	size = sizeof(struct ddpehdr) + len + ddp_dl->header_length;
 
-	if (usat->sat_addr.s_net || usat->sat_addr.s_node == ATADDR_ANYNODE) {
+	if (usat->sat_addr.s_net || usat->sat_addr.s_yesde == ATADDR_ANYNODE) {
 		rt = atrtr_find(&usat->sat_addr);
 	} else {
 		struct atalk_addr at_hint;
 
-		at_hint.s_node = 0;
+		at_hint.s_yesde = 0;
 		at_hint.s_net  = at->src_net;
 
 		rt = atrtr_find(&at_hint);
@@ -1649,8 +1649,8 @@ static int atalk_sendmsg(struct socket *sock, struct msghdr *msg, size_t len)
 	ddp->deh_len_hops  = htons(len + sizeof(*ddp));
 	ddp->deh_dnet  = usat->sat_addr.s_net;
 	ddp->deh_snet  = at->src_net;
-	ddp->deh_dnode = usat->sat_addr.s_node;
-	ddp->deh_snode = at->src_node;
+	ddp->deh_dyesde = usat->sat_addr.s_yesde;
+	ddp->deh_syesde = at->src_yesde;
 	ddp->deh_dport = usat->sat_port;
 	ddp->deh_sport = at->src_port;
 
@@ -1663,16 +1663,16 @@ static int atalk_sendmsg(struct socket *sock, struct msghdr *msg, size_t len)
 		goto out;
 	}
 
-	if (sk->sk_no_check_tx)
+	if (sk->sk_yes_check_tx)
 		ddp->deh_sum = 0;
 	else
 		ddp->deh_sum = atalk_checksum(skb, len + sizeof(*ddp));
 
 	/*
-	 * Loopback broadcast packets to non gateway targets (ie routes
+	 * Loopback broadcast packets to yesn gateway targets (ie routes
 	 * to group we are in)
 	 */
-	if (ddp->deh_dnode == ATADDR_BCAST &&
+	if (ddp->deh_dyesde == ATADDR_BCAST &&
 	    !(rt->flags & RTF_GATEWAY) && !(dev->flags & IFF_LOOPBACK)) {
 		struct sk_buff *skb2 = skb_copy(skb, GFP_KERNEL);
 
@@ -1690,10 +1690,10 @@ static int atalk_sendmsg(struct socket *sock, struct msghdr *msg, size_t len)
 		SOCK_DEBUG(sk, "SK %p: Loop back.\n", sk);
 		/* loop back */
 		skb_orphan(skb);
-		if (ddp->deh_dnode == ATADDR_BCAST) {
+		if (ddp->deh_dyesde == ATADDR_BCAST) {
 			struct atalk_addr at_lo;
 
-			at_lo.s_node = 0;
+			at_lo.s_yesde = 0;
 			at_lo.s_net  = 0;
 
 			rt = atrtr_find(&at_lo);
@@ -1761,7 +1761,7 @@ static int atalk_recvmsg(struct socket *sock, struct msghdr *msg, size_t size,
 		DECLARE_SOCKADDR(struct sockaddr_at *, sat, msg->msg_name);
 		sat->sat_family      = AF_APPLETALK;
 		sat->sat_port        = ddp->deh_sport;
-		sat->sat_addr.s_node = ddp->deh_snode;
+		sat->sat_addr.s_yesde = ddp->deh_syesde;
 		sat->sat_addr.s_net  = ddp->deh_snet;
 		msg->msg_namelen     = sizeof(*sat);
 	}
@@ -1836,7 +1836,7 @@ static int atalk_compat_ioctl(struct socket *sock, unsigned int cmd, unsigned lo
 {
 	/*
 	 * SIOCATALKDIFADDR is a SIOCPROTOPRIVATE ioctl number, so we
-	 * cannot handle it in common code. The data we access if ifreq
+	 * canyest handle it in common code. The data we access if ifreq
 	 * here is compatible, so we can simply call the native
 	 * handler.
 	 */
@@ -1860,8 +1860,8 @@ static const struct proto_ops atalk_dgram_ops = {
 	.release	= atalk_release,
 	.bind		= atalk_bind,
 	.connect	= atalk_connect,
-	.socketpair	= sock_no_socketpair,
-	.accept		= sock_no_accept,
+	.socketpair	= sock_yes_socketpair,
+	.accept		= sock_yes_accept,
 	.getname	= atalk_getname,
 	.poll		= datagram_poll,
 	.ioctl		= atalk_ioctl,
@@ -1869,18 +1869,18 @@ static const struct proto_ops atalk_dgram_ops = {
 #ifdef CONFIG_COMPAT
 	.compat_ioctl	= atalk_compat_ioctl,
 #endif
-	.listen		= sock_no_listen,
-	.shutdown	= sock_no_shutdown,
-	.setsockopt	= sock_no_setsockopt,
-	.getsockopt	= sock_no_getsockopt,
+	.listen		= sock_yes_listen,
+	.shutdown	= sock_yes_shutdown,
+	.setsockopt	= sock_yes_setsockopt,
+	.getsockopt	= sock_yes_getsockopt,
 	.sendmsg	= atalk_sendmsg,
 	.recvmsg	= atalk_recvmsg,
-	.mmap		= sock_no_mmap,
-	.sendpage	= sock_no_sendpage,
+	.mmap		= sock_yes_mmap,
+	.sendpage	= sock_yes_sendpage,
 };
 
-static struct notifier_block ddp_notifier = {
-	.notifier_call	= ddp_device_event,
+static struct yestifier_block ddp_yestifier = {
+	.yestifier_call	= ddp_device_event,
 };
 
 static struct packet_type ltalk_packet_type __read_mostly = {
@@ -1922,7 +1922,7 @@ static int __init atalk_init(void)
 	dev_add_pack(&ltalk_packet_type);
 	dev_add_pack(&ppptalk_packet_type);
 
-	rc = register_netdevice_notifier(&ddp_notifier);
+	rc = register_netdevice_yestifier(&ddp_yestifier);
 	if (rc)
 		goto out_snap;
 
@@ -1944,7 +1944,7 @@ out_proc:
 out_aarp:
 	aarp_cleanup_module();
 out_dev:
-	unregister_netdevice_notifier(&ddp_notifier);
+	unregister_netdevice_yestifier(&ddp_yestifier);
 out_snap:
 	dev_remove_pack(&ppptalk_packet_type);
 	dev_remove_pack(&ltalk_packet_type);
@@ -1973,7 +1973,7 @@ static void __exit atalk_exit(void)
 #endif /* CONFIG_SYSCTL */
 	atalk_proc_exit();
 	aarp_cleanup_module();	/* General aarp clean-up. */
-	unregister_netdevice_notifier(&ddp_notifier);
+	unregister_netdevice_yestifier(&ddp_yestifier);
 	dev_remove_pack(&ltalk_packet_type);
 	dev_remove_pack(&ppptalk_packet_type);
 	unregister_snap_client(ddp_dl);

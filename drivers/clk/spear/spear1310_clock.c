@@ -364,16 +364,16 @@ static const char *gmac_phy_input_parents[] = { "gmii_pad_clk", "pll2_clk",
 static const char *gmac_phy_parents[] = { "phy_input_mclk", "phy_syn_gclk", };
 static const char *clcd_synth_parents[] = { "vco1div4_clk", "pll2_clk", };
 static const char *clcd_pixel_parents[] = { "pll5_clk", "clcd_syn_clk", };
-static const char *i2s_src_parents[] = { "vco1div2_clk", "none", "pll3_clk",
+static const char *i2s_src_parents[] = { "vco1div2_clk", "yesne", "pll3_clk",
 	"i2s_src_pad_clk", };
 static const char *i2s_ref_parents[] = { "i2s_src_mclk", "i2s_prs1_clk", };
 static const char *gen_synth0_1_parents[] = { "vco1div4_clk", "vco3div2_clk",
 	"pll3_clk", };
 static const char *gen_synth2_3_parents[] = { "vco1div4_clk", "vco3div2_clk",
 	"pll2_clk", };
-static const char *rmii_phy_parents[] = { "ras_tx50_clk", "none",
+static const char *rmii_phy_parents[] = { "ras_tx50_clk", "yesne",
 	"ras_pll2_clk", "ras_syn0_clk", };
-static const char *smii_rgmii_phy_parents[] = { "none", "ras_tx125_clk",
+static const char *smii_rgmii_phy_parents[] = { "yesne", "ras_tx125_clk",
 	"ras_pll2_clk", "ras_syn0_clk", };
 static const char *uart_parents[] = { "ras_apb_clk", "gen_syn3_clk", };
 static const char *i2c_parents[] = { "ras_apb_clk", "gen_syn1_clk", };

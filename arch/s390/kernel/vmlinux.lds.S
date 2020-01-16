@@ -28,7 +28,7 @@ jiffies = jiffies_64;
 PHDRS {
 	text PT_LOAD FLAGS(5);	/* R_E */
 	data PT_LOAD FLAGS(7);	/* RWE */
-	note PT_NOTE FLAGS(0);	/* ___ */
+	yeste PT_NOTE FLAGS(0);	/* ___ */
 }
 
 SECTIONS
@@ -85,7 +85,7 @@ SECTIONS
 	}
 
 	/*
-	 * .exit.text is discarded at runtime, not link time,
+	 * .exit.text is discarded at runtime, yest link time,
 	 * to deal with references from __bug_table
 	*/
 	.exit.text : {
@@ -111,7 +111,7 @@ SECTIONS
 
 	/*
 	 * And here are the replacement instructions. The linker sticks
-	 * them as binary blobs. The .altinstructions has enough data to
+	 * them as binary blobs. The .altinstructions has eyesugh data to
 	 * get the address and the length of them to patch the kernel safely.
 	 * Note, that it is a part of __init region.
 	 */
@@ -122,15 +122,15 @@ SECTIONS
 	/*
 	 * Table with the patch locations to undo expolines
 	*/
-	.nospec_call_table : {
-		__nospec_call_start = . ;
+	.yesspec_call_table : {
+		__yesspec_call_start = . ;
 		*(.s390_indirect*)
-		__nospec_call_end = . ;
+		__yesspec_call_end = . ;
 	}
-	.nospec_return_table : {
-		__nospec_return_start = . ;
+	.yesspec_return_table : {
+		__yesspec_return_start = . ;
 		*(.s390_return*)
-		__nospec_return_end = . ;
+		__yesspec_return_end = . ;
 	}
 
 	BOOT_DATA

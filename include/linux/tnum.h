@@ -1,8 +1,8 @@
 /* tnum: tracked (or tristate) numbers
  *
- * A tnum tracks knowledge about the bits of a value.  Each bit can be either
- * known (0 or 1), or unknown (x).  Arithmetic operations on tnums will
- * propagate the unknown bits such that the tnum result represents all the
+ * A tnum tracks kyeswledge about the bits of a value.  Each bit can be either
+ * kyeswn (0 or 1), or unkyeswn (x).  Arithmetic operations on tnums will
+ * propagate the unkyeswn bits such that the tnum result represents all the
  * possible results for possible values of the operands.
  */
 
@@ -17,11 +17,11 @@ struct tnum {
 };
 
 /* Constructors */
-/* Represent a known constant as a tnum. */
+/* Represent a kyeswn constant as a tnum. */
 struct tnum tnum_const(u64 value);
-/* A completely unknown value */
-extern const struct tnum tnum_unknown;
-/* A value that's unknown except that @min <= value <= @max */
+/* A completely unkyeswn value */
+extern const struct tnum tnum_unkyeswn;
+/* A value that's unkyeswn except that @min <= value <= @max */
 struct tnum tnum_range(u64 min, u64 max);
 
 /* Arithmetic and logical ops */
@@ -50,7 +50,7 @@ struct tnum tnum_intersect(struct tnum a, struct tnum b);
 /* Return @a with all but the lowest @size bytes cleared */
 struct tnum tnum_cast(struct tnum a, u8 size);
 
-/* Returns true if @a is a known constant */
+/* Returns true if @a is a kyeswn constant */
 static inline bool tnum_is_const(struct tnum a)
 {
 	return !a.mask;
@@ -62,13 +62,13 @@ static inline bool tnum_equals_const(struct tnum a, u64 b)
 	return tnum_is_const(a) && a.value == b;
 }
 
-/* Returns true if @a is completely unknown */
-static inline bool tnum_is_unknown(struct tnum a)
+/* Returns true if @a is completely unkyeswn */
+static inline bool tnum_is_unkyeswn(struct tnum a)
 {
 	return !~a.mask;
 }
 
-/* Returns true if @a is known to be a multiple of @size.
+/* Returns true if @a is kyeswn to be a multiple of @size.
  * @size must be a power of two.
  */
 bool tnum_is_aligned(struct tnum a, u64 size);

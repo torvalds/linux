@@ -4,7 +4,7 @@
 
  *  Copyright (C) 2013 Maxim Levitsky <maximlevitsky@gmail.com>
  *
- * Minor portions of the driver are copied from mspro_block.c which is
+ * Miyesr portions of the driver are copied from mspro_block.c which is
  * Copyright (C) 2007 Alex Dubov <oakad@yahoo.com>
  *
  * Also ms structures were copied from old broken driver by same author

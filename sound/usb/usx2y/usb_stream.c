@@ -310,7 +310,7 @@ check_ok:
 	s->sync_packet -= inurb->number_of_packets;
 	if (unlikely(s->sync_packet < -2 || s->sync_packet > 0)) {
 		snd_printk(KERN_WARNING "invalid sync_packet = %i;"
-			   " p=%i nop=%i %i %x %x %x > %x\n",
+			   " p=%i yesp=%i %i %x %x %x > %x\n",
 			   s->sync_packet, p, inurb->number_of_packets,
 			   s->idle_outsize + lb + l,
 			   s->idle_outsize, lb,  l,
@@ -678,13 +678,13 @@ dotry:
 			inurb->iso_frame_desc[0].length;
 
 		if (u == 0) {
-			int now;
+			int yesw;
 			struct usb_device *dev = inurb->dev;
 			frame = usb_get_current_frame_number(dev);
 			do {
-				now = usb_get_current_frame_number(dev);
+				yesw = usb_get_current_frame_number(dev);
 				++iters;
-			} while (now > -1 && now == frame);
+			} while (yesw > -1 && yesw == frame);
 		}
 		err = usb_submit_urb(inurb, GFP_ATOMIC);
 		if (err < 0) {

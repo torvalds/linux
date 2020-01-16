@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -24,12 +24,12 @@
 #include <nvif/class.h>
 
 int
-nv50_curs_new(struct nouveau_drm *drm, int head, struct nv50_wndw **pwndw)
+nv50_curs_new(struct yesuveau_drm *drm, int head, struct nv50_wndw **pwndw)
 {
 	struct {
 		s32 oclass;
 		int version;
-		int (*new)(struct nouveau_drm *, int, s32, struct nv50_wndw **);
+		int (*new)(struct yesuveau_drm *, int, s32, struct nv50_wndw **);
 	} curses[] = {
 		{ TU102_DISP_CURSOR, 0, cursc37a_new },
 		{ GV100_DISP_CURSOR, 0, cursc37a_new },

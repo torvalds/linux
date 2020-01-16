@@ -191,7 +191,7 @@ static const struct pinctrl_ops pm8xxx_pinctrl_ops = {
 	.get_groups_count	= pm8xxx_get_groups_count,
 	.get_group_name		= pm8xxx_get_group_name,
 	.get_group_pins         = pm8xxx_get_group_pins,
-	.dt_node_to_map		= pinconf_generic_dt_node_to_map_group,
+	.dt_yesde_to_map		= pinconf_generic_dt_yesde_to_map_group,
 	.dt_free_map		= pinctrl_utils_free_map,
 };
 
@@ -550,13 +550,13 @@ static void pm8xxx_gpio_dbg_show_one(struct seq_file *s,
 	};
 	static const char * const biases[] = {
 		"pull-up 30uA", "pull-up 1.5uA", "pull-up 31.5uA",
-		"pull-up 1.5uA + 30uA boost", "pull-down 10uA", "no pull"
+		"pull-up 1.5uA + 30uA boost", "pull-down 10uA", "yes pull"
 	};
 	static const char * const buffer_types[] = {
 		"push-pull", "open-drain"
 	};
 	static const char * const strengths[] = {
-		"no", "high", "medium", "low"
+		"yes", "high", "medium", "low"
 	};
 
 	seq_printf(s, " gpio%-2d:", offset + PM8XXX_GPIO_PHYSICAL_OFFSET);
@@ -709,7 +709,7 @@ static int pm8xxx_gpio_probe(struct platform_device *pdev)
 {
 	struct pm8xxx_pin_data *pin_data;
 	struct irq_domain *parent_domain;
-	struct device_node *parent_node;
+	struct device_yesde *parent_yesde;
 	struct pinctrl_pin_desc *pins;
 	struct gpio_irq_chip *girq;
 	struct pm8xxx_gpio *pctrl;
@@ -773,17 +773,17 @@ static int pm8xxx_gpio_probe(struct platform_device *pdev)
 	pctrl->chip = pm8xxx_gpio_template;
 	pctrl->chip.base = -1;
 	pctrl->chip.parent = &pdev->dev;
-	pctrl->chip.of_node = pdev->dev.of_node;
+	pctrl->chip.of_yesde = pdev->dev.of_yesde;
 	pctrl->chip.of_gpio_n_cells = 2;
 	pctrl->chip.label = dev_name(pctrl->dev);
 	pctrl->chip.ngpio = pctrl->npins;
 
-	parent_node = of_irq_find_parent(pctrl->dev->of_node);
-	if (!parent_node)
+	parent_yesde = of_irq_find_parent(pctrl->dev->of_yesde);
+	if (!parent_yesde)
 		return -ENXIO;
 
-	parent_domain = irq_find_host(parent_node);
-	of_node_put(parent_node);
+	parent_domain = irq_find_host(parent_yesde);
+	of_yesde_put(parent_yesde);
 	if (!parent_domain)
 		return -ENXIO;
 
@@ -791,7 +791,7 @@ static int pm8xxx_gpio_probe(struct platform_device *pdev)
 	girq->chip = &pm8xxx_irq_chip;
 	girq->default_type = IRQ_TYPE_NONE;
 	girq->handler = handle_level_irq;
-	girq->fwnode = of_node_to_fwnode(pctrl->dev->of_node);
+	girq->fwyesde = of_yesde_to_fwyesde(pctrl->dev->of_yesde);
 	girq->parent_domain = parent_domain;
 	girq->child_to_parent_hwirq = pm8xxx_child_to_parent_hwirq;
 	girq->populate_parent_fwspec = gpiochip_populate_parent_fwspec_fourcell;
@@ -806,7 +806,7 @@ static int pm8xxx_gpio_probe(struct platform_device *pdev)
 
 	/*
 	 * For DeviceTree-supported systems, the gpio core checks the
-	 * pinctrl's device node for the "gpio-ranges" property.
+	 * pinctrl's device yesde for the "gpio-ranges" property.
 	 * If it is present, it takes care of adding the pin ranges
 	 * for the driver. In this case the driver can skip ahead.
 	 *
@@ -814,7 +814,7 @@ static int pm8xxx_gpio_probe(struct platform_device *pdev)
 	 * files which don't set the "gpio-ranges" property or systems that
 	 * utilize ACPI the driver has to call gpiochip_add_pin_range().
 	 */
-	if (!of_property_read_bool(pctrl->dev->of_node, "gpio-ranges")) {
+	if (!of_property_read_bool(pctrl->dev->of_yesde, "gpio-ranges")) {
 		ret = gpiochip_add_pin_range(&pctrl->chip, dev_name(pctrl->dev),
 					     0, 0, pctrl->chip.ngpio);
 		if (ret) {

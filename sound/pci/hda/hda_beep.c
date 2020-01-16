@@ -2,7 +2,7 @@
 /*
  * Digital Beep Input Interface for HD-audio codec
  *
- * Author: Matt Ranostay <matt.ranostay@konsulko.com>
+ * Author: Matt Rayesstay <matt.rayesstay@konsulko.com>
  * Copyright (c) 2008 Embedded Alley Solutions Inc
  */
 
@@ -50,7 +50,7 @@ static void snd_hda_generate_beep(struct work_struct *work)
 		generate_tone(beep, beep->tone);
 }
 
-/* (non-standard) Linear beep tone calculation for IDT/STAC codecs 
+/* (yesn-standard) Linear beep tone calculation for IDT/STAC codecs 
  *
  * The tone frequency of beep generator on IDT/STAC codecs is
  * defined from the 8bit tone parameter, in Hz,
@@ -186,7 +186,7 @@ static int beep_dev_free(struct snd_device *device)
  * @nid: beep NID
  *
  * Attach a beep object to the given widget.  If beep hint is turned off
- * explicitly or beep_mode of the codec is turned off, this doesn't nothing.
+ * explicitly or beep_mode of the codec is turned off, this doesn't yesthing.
  *
  * Currently, only one beep device is allowed to each codec.
  */

@@ -115,7 +115,7 @@ int powernv_get_random_long(unsigned long *v)
 EXPORT_SYMBOL_GPL(powernv_get_random_long);
 
 static __init void rng_init_per_cpu(struct powernv_rng *rng,
-				    struct device_node *dn)
+				    struct device_yesde *dn)
 {
 	int chip_id, cpu;
 
@@ -131,7 +131,7 @@ static __init void rng_init_per_cpu(struct powernv_rng *rng,
 	}
 }
 
-static __init int rng_create(struct device_node *dn)
+static __init int rng_create(struct device_yesde *dn)
 {
 	struct powernv_rng *rng;
 	struct resource res;
@@ -168,10 +168,10 @@ static __init int rng_create(struct device_node *dn)
 
 static __init int rng_init(void)
 {
-	struct device_node *dn;
+	struct device_yesde *dn;
 	int rc;
 
-	for_each_compatible_node(dn, NULL, "ibm,power-rng") {
+	for_each_compatible_yesde(dn, NULL, "ibm,power-rng") {
 		rc = rng_create(dn);
 		if (rc) {
 			pr_err("Failed creating rng for %pOF (%d).\n",

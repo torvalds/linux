@@ -10,7 +10,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -248,7 +248,7 @@ void rs690_line_buffer_adjust(struct radeon_device *rdev,
 	}
 	WREG32(R_006520_DC_LB_MEMORY_SPLIT, tmp);
 
-	/* Save number of lines the linebuffer leads before the scanout */
+	/* Save number of lines the linebuffer leads before the scayesut */
 	if (mode1)
 		rdev->mode_info.crtcs[0]->lb_vblank_lead_lines = DIV_ROUND_UP(lb_size, mode1->crtc_hdisplay);
 
@@ -754,7 +754,7 @@ int rs690_resume(struct radeon_device *rdev)
 {
 	int r;
 
-	/* Make sur GART are not working */
+	/* Make sur GART are yest working */
 	rs400_gart_disable(rdev);
 	/* Resume clock before doing reset */
 	rv515_clock_startup(rdev);
@@ -840,7 +840,7 @@ int rs690_init(struct radeon_device *rdev)
 			RREG32(R_000E40_RBBM_STATUS),
 			RREG32(R_0007C0_CP_STAT));
 	}
-	/* check if cards are posted or not */
+	/* check if cards are posted or yest */
 	if (radeon_boot_test_post_card(rdev) == false)
 		return -EINVAL;
 

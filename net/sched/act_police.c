@@ -10,7 +10,7 @@
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/skbuff.h>
 #include <linux/rtnetlink.h>
 #include <linux/init.h>
@@ -136,7 +136,7 @@ static int tcf_police_init(struct net *net, struct nlattr *nla,
 		tcfp_result = nla_get_u32(tb[TCA_POLICE_RESULT]);
 		if (TC_ACT_EXT_CMP(tcfp_result, TC_ACT_GOTO_CHAIN)) {
 			NL_SET_ERR_MSG(extack,
-				       "goto chain not allowed on fallback");
+				       "goto chain yest allowed on fallback");
 			err = -EINVAL;
 			goto failure;
 		}
@@ -220,7 +220,7 @@ static int tcf_police_act(struct sk_buff *skb, const struct tc_action *a,
 {
 	struct tcf_police *police = to_police(a);
 	struct tcf_police_params *p;
-	s64 now, toks, ptoks = 0;
+	s64 yesw, toks, ptoks = 0;
 	int ret;
 
 	tcf_lastuse_update(&police->tcf_tm);
@@ -243,9 +243,9 @@ static int tcf_police_act(struct sk_buff *skb, const struct tc_action *a,
 			goto end;
 		}
 
-		now = ktime_get_ns();
+		yesw = ktime_get_ns();
 		spin_lock_bh(&police->tcfp_lock);
-		toks = min_t(s64, now - police->tcfp_t_c, p->tcfp_burst);
+		toks = min_t(s64, yesw - police->tcfp_t_c, p->tcfp_burst);
 		if (p->peak_present) {
 			ptoks = toks + police->tcfp_ptoks;
 			if (ptoks > p->tcfp_mtu_ptoks)
@@ -258,7 +258,7 @@ static int tcf_police_act(struct sk_buff *skb, const struct tc_action *a,
 			toks = p->tcfp_burst;
 		toks -= (s64)psched_l2t_ns(&p->rate, qdisc_pkt_len(skb));
 		if ((toks|ptoks) >= 0) {
-			police->tcfp_t_c = now;
+			police->tcfp_t_c = yesw;
 			police->tcfp_toks = toks;
 			police->tcfp_ptoks = ptoks;
 			spin_unlock_bh(&police->tcfp_lock);

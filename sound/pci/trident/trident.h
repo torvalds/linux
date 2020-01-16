@@ -288,7 +288,7 @@ struct snd_trident_voice {
 	unsigned char FMS;		/* 4 bits */
 	unsigned char LFO;		/* 8 bits */
 
-	unsigned int negCSO;	/* nonzero - use negative CSO */
+	unsigned int negCSO;	/* yesnzero - use negative CSO */
 
 	struct snd_util_memblk *memblk;	/* memory block if TLB enabled */
 

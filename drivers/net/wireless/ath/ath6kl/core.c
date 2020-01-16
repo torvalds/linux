@@ -4,7 +4,7 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright yestice and this permission yestice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
@@ -127,7 +127,7 @@ int ath6kl_core_init(struct ath6kl *ar, enum ath6kl_htc_type htc_type)
 
 	/*
 	 * Backwards compatibility support for older ar6004 firmware images
-	 * which do not set these feature flags.
+	 * which do yest set these feature flags.
 	 */
 	if (ar->target_type == TARGET_TYPE_AR6004 &&
 	    ar->fw_api <= 4) {
@@ -141,7 +141,7 @@ int ath6kl_core_init(struct ath6kl *ar, enum ath6kl_htc_type htc_type)
 				  ar->fw_capabilities);
 	}
 
-	/* Indicate that WMI is enabled (although not ready yet) */
+	/* Indicate that WMI is enabled (although yest ready yet) */
 	set_bit(WMI_ENABLED, &ar->flag);
 	ar->wmi = ath6kl_wmi_init(ar);
 	if (!ar->wmi) {
@@ -276,7 +276,7 @@ struct ath6kl *ath6kl_core_create(struct device *dev)
 
 	ar->vif_max = 1;
 
-	ar->max_norm_iface = 1;
+	ar->max_yesrm_iface = 1;
 
 	spin_lock_init(&ar->lock);
 	spin_lock_init(&ar->mcastpsq_lock);

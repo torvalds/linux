@@ -121,7 +121,7 @@ static void skl_clock_power_gating(struct device *dev, bool enable)
 }
 
 /*
- * While performing reset, controller may not come back properly causing
+ * While performing reset, controller may yest come back properly causing
  * issues, so recommendation is to set CGCTL.MISCBDCGE to 0 then do reset
  * (init chip) and then again set CGCTL.MISCBDCGE to 1
  */
@@ -150,7 +150,7 @@ void skl_update_d0i3c(struct device *dev, bool enable)
 	int timeout = 50;
 
 	reg = snd_hdac_chip_readb(bus, VS_D0I3C);
-	/* Do not write to D0I3C until command in progress bit is cleared */
+	/* Do yest write to D0I3C until command in progress bit is cleared */
 	while ((reg & AZX_REG_VS_D0I3C_CIP) && --timeout) {
 		udelay(10);
 		reg = snd_hdac_chip_readb(bus, VS_D0I3C);
@@ -332,7 +332,7 @@ static int skl_suspend(struct device *dev)
 	int ret;
 
 	/*
-	 * Do not suspend if streams which are marked ignore suspend are
+	 * Do yest suspend if streams which are marked igyesre suspend are
 	 * running, we need to save the state for these and continue
 	 */
 	if (skl->supend_active) {
@@ -363,7 +363,7 @@ static int skl_resume(struct device *dev)
 	int ret;
 
 	/*
-	 * resume only when we are not in suspend active, otherwise need to
+	 * resume only when we are yest in suspend active, otherwise need to
 	 * restore the device
 	 */
 	if (skl->supend_active) {
@@ -759,7 +759,7 @@ static void skl_codec_create(struct hdac_bus *bus)
 					 "Codec #%d probe error; disabling it...\n", c);
 				bus->codec_mask &= ~(1 << c);
 				/*
-				 * More badly, accessing to a non-existing
+				 * More badly, accessing to a yesn-existing
 				 * codec often screws up the controller bus,
 				 * and disturbs the further communications.
 				 * Thus if an error occurs during probing,
@@ -816,7 +816,7 @@ static void skl_probe_work(struct work_struct *work)
 
 	/* codec detection */
 	if (!bus->codec_mask)
-		dev_info(bus->dev, "no hda codecs found!\n");
+		dev_info(bus->dev, "yes hda codecs found!\n");
 
 	/* create codec instances */
 	skl_codec_create(bus);
@@ -844,7 +844,7 @@ static void skl_probe_work(struct work_struct *work)
 		snd_hdac_display_power(bus, HDA_CODEC_IDX_CONTROLLER, false);
 
 	/* configure PM */
-	pm_runtime_put_noidle(bus->dev);
+	pm_runtime_put_yesidle(bus->dev);
 	pm_runtime_allow(bus->dev);
 	skl->init_done = 1;
 
@@ -929,7 +929,7 @@ static int skl_first_init(struct hdac_bus *bus)
 
 	/* check if PPCAP exists */
 	if (!bus->ppcap) {
-		dev_err(bus->dev, "bus ppcap not set, HDaudio or DSP not present?\n");
+		dev_err(bus->dev, "bus ppcap yest set, HDaudio or DSP yest present?\n");
 		return -ENODEV;
 	}
 
@@ -947,7 +947,7 @@ static int skl_first_init(struct hdac_bus *bus)
 	pb_streams = (gcap >> 12) & 0x0f;
 
 	if (!pb_streams && !cp_streams) {
-		dev_err(bus->dev, "no streams found in GCAP definitions?\n");
+		dev_err(bus->dev, "yes streams found in GCAP definitions?\n");
 		return -EIO;
 	}
 
@@ -1000,7 +1000,7 @@ static int skl_probe(struct pci_dev *pci,
 		dev_info(&pci->dev, "Module parameter forced binding with SKL driver, bypassed detection logic\n");
 		break;
 	default:
-		dev_err(&pci->dev, "invalid value for skl_pci_binding module parameter, ignored\n");
+		dev_err(&pci->dev, "invalid value for skl_pci_binding module parameter, igyesred\n");
 		break;
 	}
 
@@ -1025,11 +1025,11 @@ static int skl_probe(struct pci_dev *pci,
 
 	if (skl->nhlt == NULL) {
 #if !IS_ENABLED(CONFIG_SND_SOC_INTEL_SKYLAKE_HDAUDIO_CODEC)
-		dev_err(bus->dev, "no nhlt info found\n");
+		dev_err(bus->dev, "yes nhlt info found\n");
 		err = -ENODEV;
 		goto out_free;
 #else
-		dev_warn(bus->dev, "no nhlt info found, continuing to try to enable HDaudio codec\n");
+		dev_warn(bus->dev, "yes nhlt info found, continuing to try to enable HDaudio codec\n");
 #endif
 	} else {
 
@@ -1125,7 +1125,7 @@ static void skl_remove(struct pci_dev *pci)
 
 	cancel_work_sync(&skl->probe_work);
 
-	pm_runtime_get_noresume(&pci->dev);
+	pm_runtime_get_yesresume(&pci->dev);
 
 	/* codec removal, invoke bus_device_remove */
 	snd_hdac_ext_bus_device_remove(bus);

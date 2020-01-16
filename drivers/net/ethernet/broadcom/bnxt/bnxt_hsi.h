@@ -509,23 +509,23 @@ struct hwrm_ver_get_output {
 	u8	unused_0[2];
 	u8	always_1;
 	__le16	hwrm_intf_major;
-	__le16	hwrm_intf_minor;
+	__le16	hwrm_intf_miyesr;
 	__le16	hwrm_intf_build;
 	__le16	hwrm_intf_patch;
 	__le16	hwrm_fw_major;
-	__le16	hwrm_fw_minor;
+	__le16	hwrm_fw_miyesr;
 	__le16	hwrm_fw_build;
 	__le16	hwrm_fw_patch;
 	__le16	mgmt_fw_major;
-	__le16	mgmt_fw_minor;
+	__le16	mgmt_fw_miyesr;
 	__le16	mgmt_fw_build;
 	__le16	mgmt_fw_patch;
 	__le16	netctrl_fw_major;
-	__le16	netctrl_fw_minor;
+	__le16	netctrl_fw_miyesr;
 	__le16	netctrl_fw_build;
 	__le16	netctrl_fw_patch;
 	__le16	roce_fw_major;
-	__le16	roce_fw_minor;
+	__le16	roce_fw_miyesr;
 	__le16	roce_fw_build;
 	__le16	roce_fw_patch;
 	__le16	max_ext_req_len;
@@ -690,8 +690,8 @@ struct hwrm_async_event_cmpl_link_status_change {
 	#define ASYNC_EVENT_CMPL_LINK_STATUS_CHANGE_EVENT_DATA1_PF_ID_SFT       20
 };
 
-/* hwrm_async_event_cmpl_port_conn_not_allowed (size:128b/16B) */
-struct hwrm_async_event_cmpl_port_conn_not_allowed {
+/* hwrm_async_event_cmpl_port_conn_yest_allowed (size:128b/16B) */
+struct hwrm_async_event_cmpl_port_conn_yest_allowed {
 	__le16	type;
 	#define ASYNC_EVENT_CMPL_PORT_CONN_NOT_ALLOWED_TYPE_MASK            0x3fUL
 	#define ASYNC_EVENT_CMPL_PORT_CONN_NOT_ALLOWED_TYPE_SFT             0
@@ -743,8 +743,8 @@ struct hwrm_async_event_cmpl_link_speed_cfg_change {
 	#define ASYNC_EVENT_CMPL_LINK_SPEED_CFG_CHANGE_EVENT_DATA1_ILLEGAL_LINK_SPEED_CFG           0x20000UL
 };
 
-/* hwrm_async_event_cmpl_reset_notify (size:128b/16B) */
-struct hwrm_async_event_cmpl_reset_notify {
+/* hwrm_async_event_cmpl_reset_yestify (size:128b/16B) */
+struct hwrm_async_event_cmpl_reset_yestify {
 	__le16	type;
 	#define ASYNC_EVENT_CMPL_RESET_NOTIFY_TYPE_MASK            0x3fUL
 	#define ASYNC_EVENT_CMPL_RESET_NOTIFY_TYPE_SFT             0
@@ -2173,7 +2173,7 @@ struct hwrm_error_recovery_qcfg_output {
 	#define ERROR_RECOVERY_QCFG_RESP_FLAGS_CO_CPU     0x2UL
 	__le32	driver_polling_freq;
 	__le32	master_func_wait_period;
-	__le32	normal_func_wait_period;
+	__le32	yesrmal_func_wait_period;
 	__le32	master_func_wait_period_after_reset;
 	__le32	max_bailout_time_after_reset;
 	__le32	fw_health_status_reg;
@@ -7383,7 +7383,7 @@ struct hwrm_dbg_coredump_list_input {
 	__le64	resp_addr;
 	__le64	host_dest_addr;
 	__le32	host_buf_len;
-	__le16	seq_no;
+	__le16	seq_yes;
 	u8	flags;
 	#define DBG_COREDUMP_LIST_REQ_FLAGS_CRASHDUMP     0x1UL
 	u8	unused_0[1];
@@ -7455,7 +7455,7 @@ struct hwrm_dbg_coredump_retrieve_input {
 	u8	unused_2;
 	__le16	unused_3;
 	__le32	unused_4;
-	__le32	seq_no;
+	__le32	seq_yes;
 	__le32	unused_5;
 };
 

@@ -261,7 +261,7 @@ MODULE_DEVICE_TABLE(of, hi6220_mbox_of_match);
 
 static int hi6220_mbox_probe(struct platform_device *pdev)
 {
-	struct device_node *node = pdev->dev.of_node;
+	struct device_yesde *yesde = pdev->dev.of_yesde;
 	struct device *dev = &pdev->dev;
 	struct hi6220_mbox *mbox;
 	struct resource *res;
@@ -328,7 +328,7 @@ static int hi6220_mbox_probe(struct platform_device *pdev)
 	writel(~0x0, ACK_INT_CLR_REG(mbox->ipc));
 
 	/* use interrupt for tx's ack */
-	if (of_find_property(node, "hi6220,mbox-tx-noirq", NULL))
+	if (of_find_property(yesde, "hi6220,mbox-tx-yesirq", NULL))
 		mbox->tx_irq_mode = false;
 	else
 		mbox->tx_irq_mode = true;

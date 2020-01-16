@@ -26,7 +26,7 @@ struct fsverity_hash_alg fsverity_hash_algs[] = {
 
 /**
  * fsverity_get_hash_alg() - validate and prepare a hash algorithm
- * @inode: optional inode for logging purposes
+ * @iyesde: optional iyesde for logging purposes
  * @num: the hash algorithm number
  *
  * Get the struct fsverity_hash_alg for the given hash algorithm number, and
@@ -36,7 +36,7 @@ struct fsverity_hash_alg fsverity_hash_algs[] = {
  *
  * Return: pointer to the hash alg on success, else an ERR_PTR()
  */
-const struct fsverity_hash_alg *fsverity_get_hash_alg(const struct inode *inode,
+const struct fsverity_hash_alg *fsverity_get_hash_alg(const struct iyesde *iyesde,
 						      unsigned int num)
 {
 	struct fsverity_hash_alg *alg;
@@ -45,7 +45,7 @@ const struct fsverity_hash_alg *fsverity_get_hash_alg(const struct inode *inode,
 
 	if (num >= ARRAY_SIZE(fsverity_hash_algs) ||
 	    !fsverity_hash_algs[num].name) {
-		fsverity_warn(inode, "Unknown hash algorithm number: %u", num);
+		fsverity_warn(iyesde, "Unkyeswn hash algorithm number: %u", num);
 		return ERR_PTR(-EINVAL);
 	}
 	alg = &fsverity_hash_algs[num];
@@ -61,12 +61,12 @@ const struct fsverity_hash_alg *fsverity_get_hash_alg(const struct inode *inode,
 	tfm = crypto_alloc_ahash(alg->name, 0, 0);
 	if (IS_ERR(tfm)) {
 		if (PTR_ERR(tfm) == -ENOENT) {
-			fsverity_warn(inode,
+			fsverity_warn(iyesde,
 				      "Missing crypto API support for hash algorithm \"%s\"",
 				      alg->name);
 			return ERR_PTR(-ENOPKG);
 		}
-		fsverity_err(inode,
+		fsverity_err(iyesde,
 			     "Error allocating hash algorithm \"%s\": %ld",
 			     alg->name, PTR_ERR(tfm));
 		return ERR_CAST(tfm);
@@ -171,7 +171,7 @@ err_free:
 /**
  * fsverity_hash_page() - hash a single data or hash page
  * @params: the Merkle tree's parameters
- * @inode: inode for which the hashing is being done
+ * @iyesde: iyesde for which the hashing is being done
  * @req: preallocated hash request
  * @page: the page to hash
  * @out: output digest, size 'params->digest_size' bytes
@@ -179,10 +179,10 @@ err_free:
  * Hash a single data or hash block, assuming block_size == PAGE_SIZE.
  * The hash is salted if a salt is specified in the Merkle tree parameters.
  *
- * Return: 0 on success, -errno on failure
+ * Return: 0 on success, -erryes on failure
  */
 int fsverity_hash_page(const struct merkle_tree_params *params,
-		       const struct inode *inode,
+		       const struct iyesde *iyesde,
 		       struct ahash_request *req, struct page *page, u8 *out)
 {
 	struct scatterlist sg;
@@ -202,7 +202,7 @@ int fsverity_hash_page(const struct merkle_tree_params *params,
 	if (params->hashstate) {
 		err = crypto_ahash_import(req, params->hashstate);
 		if (err) {
-			fsverity_err(inode,
+			fsverity_err(iyesde,
 				     "Error %d importing hash state", err);
 			return err;
 		}
@@ -213,7 +213,7 @@ int fsverity_hash_page(const struct merkle_tree_params *params,
 
 	err = crypto_wait_req(err, &wait);
 	if (err)
-		fsverity_err(inode, "Error %d computing page hash", err);
+		fsverity_err(iyesde, "Error %d computing page hash", err);
 	return err;
 }
 
@@ -225,9 +225,9 @@ int fsverity_hash_page(const struct merkle_tree_params *params,
  * @out: output digest, size 'alg->digest_size' bytes
  *
  * Hash some data which is located in physically contiguous memory (i.e. memory
- * allocated by kmalloc(), not by vmalloc()).  No salt is used.
+ * allocated by kmalloc(), yest by vmalloc()).  No salt is used.
  *
- * Return: 0 on success, -errno on failure
+ * Return: 0 on success, -erryes on failure
  */
 int fsverity_hash_buffer(const struct fsverity_hash_alg *alg,
 			 const void *data, size_t size, u8 *out)

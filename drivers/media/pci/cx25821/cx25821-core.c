@@ -1174,7 +1174,7 @@ int cx25821_risc_databuffer_audio(struct pci_dev *pci,
 
 	/* estimate risc mem: worst case is one write per page border +
 	   one write per scan line + syncs + jump (all 2 dwords).  Here
-	   there is no padding and no sync.  First DMA region may be smaller
+	   there is yes padding and yes sync.  First DMA region may be smaller
 	   than PAGE_SIZE */
 	/* Jump and write need an extra dword */
 	instructions = 1 + (bpl * lines) / PAGE_SIZE + lines;
@@ -1303,7 +1303,7 @@ static int cx25821_initdev(struct pci_dev *pci_dev,
 	pci_set_master(pci_dev);
 	err = pci_set_dma_mask(pci_dev, 0xffffffff);
 	if (err) {
-		pr_err("%s/0: Oops: no 32bit PCI DMA ???\n", dev->name);
+		pr_err("%s/0: Oops: yes 32bit PCI DMA ???\n", dev->name);
 		err = -EIO;
 		goto fail_irq;
 	}

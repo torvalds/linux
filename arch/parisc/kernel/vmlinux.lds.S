@@ -164,13 +164,13 @@ SECTIONS
 	_end = . ;
 
 	STABS_DEBUG
-	.note 0 : { *(.note) }
+	.yeste 0 : { *(.yeste) }
 
 	/* Sections to be discarded */
 	DISCARDS
 	/DISCARD/ : {
 #ifdef CONFIG_64BIT
-		/* temporary hack until binutils is fixed to not emit these
+		/* temporary hack until binutils is fixed to yest emit these
 	 	 * for static binaries
 		 */
 		*(.interp)

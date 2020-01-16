@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -261,7 +261,7 @@ static int __qxl_bo_unpin(struct qxl_bo *bo)
 	int r, i;
 
 	if (!bo->pin_count) {
-		dev_warn(ddev->dev, "%p unpin not necessary\n", bo);
+		dev_warn(ddev->dev, "%p unpin yest necessary\n", bo);
 		return 0;
 	}
 	bo->pin_count--;
@@ -345,7 +345,7 @@ int qxl_bo_check_id(struct qxl_device *qdev, struct qxl_bo *bo)
 	int ret;
 
 	if (bo->type == QXL_GEM_DOMAIN_SURFACE && bo->surface_id == 0) {
-		/* allocate a surface id for this surface now */
+		/* allocate a surface id for this surface yesw */
 		ret = qxl_surface_id_alloc(qdev, bo);
 		if (ret)
 			return ret;

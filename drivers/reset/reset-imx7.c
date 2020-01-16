@@ -4,7 +4,7 @@
  *
  * i.MX7 System Reset Controller (SRC) driver
  *
- * Author: Andrey Smirnov <andrew.smirnov@gmail.com>
+ * Author: Andrey Smiryesv <andrew.smiryesv@gmail.com>
  */
 
 #include <linux/mfd/syscon.h>
@@ -265,7 +265,7 @@ static int imx7_reset_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	imx7src->signals = variant->signals;
-	imx7src->regmap = syscon_node_to_regmap(dev->of_node);
+	imx7src->regmap = syscon_yesde_to_regmap(dev->of_yesde);
 	if (IS_ERR(imx7src->regmap)) {
 		dev_err(dev, "Unable to get imx7-src regmap");
 		return PTR_ERR(imx7src->regmap);
@@ -275,7 +275,7 @@ static int imx7_reset_probe(struct platform_device *pdev)
 	imx7src->rcdev.owner     = THIS_MODULE;
 	imx7src->rcdev.nr_resets = variant->signals_num;
 	imx7src->rcdev.ops       = &variant->ops;
-	imx7src->rcdev.of_node   = dev->of_node;
+	imx7src->rcdev.of_yesde   = dev->of_yesde;
 
 	return devm_reset_controller_register(dev, &imx7src->rcdev);
 }

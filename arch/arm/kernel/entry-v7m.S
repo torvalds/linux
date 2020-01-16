@@ -8,13 +8,13 @@
  */
 #include <asm/memory.h>
 #include <asm/glue.h>
-#include <asm/thread_notify.h>
+#include <asm/thread_yestify.h>
 #include <asm/v7m.h>
 
 #include "entry-header.S"
 
 #ifdef CONFIG_TRACE_IRQFLAGS
-#error "CONFIG_TRACE_IRQFLAGS not supported on the current ARMv7M implementation"
+#error "CONFIG_TRACE_IRQFLAGS yest supported on the current ARMv7M implementation"
 #endif
 
 __invalid_entry:
@@ -60,13 +60,13 @@ __irq_entry:
 	get_thread_info tsk
 	ldr	r2, [tsk, #TI_FLAGS]
 	tst	r2, #_TIF_WORK_MASK
-	beq	2f			@ no work pending
+	beq	2f			@ yes work pending
 	mov	r0, #V7M_SCB_ICSR_PENDSVSET
 	str	r0, [r1, V7M_SCB_ICSR]	@ raise PendSV
 
 2:
 	@ registers r0-r3 and r12 are automatically restored on exception
-	@ return. r4-r7 were not clobbered in v7m_exception_entry so for
+	@ return. r4-r7 were yest clobbered in v7m_exception_entry so for
 	@ correctness they don't need to be restored. So only r8-r11 must be
 	@ restored here. The easiest way to do so is to restore r0-r7, too.
 	ldmia	sp!, {r0-r11}
@@ -91,7 +91,7 @@ ENDPROC(__pendsv_entry)
 /*
  * Register switch for ARMv7-M processors.
  * r0 = previous task_struct, r1 = previous thread_info, r2 = next thread_info
- * previous and next are guaranteed not to be the same.
+ * previous and next are guaranteed yest to be the same.
  */
 ENTRY(__switch_to)
 	.fnstart
@@ -102,9 +102,9 @@ ENTRY(__switch_to)
 	str	lr, [ip], #4
 	mov	r5, r0
 	add	r4, r2, #TI_CPU_SAVE
-	ldr	r0, =thread_notify_head
+	ldr	r0, =thread_yestify_head
 	mov	r1, #THREAD_NOTIFY_SWITCH
-	bl	atomic_notifier_call_chain
+	bl	atomic_yestifier_call_chain
 	mov	ip, r4
 	mov	r0, r5
 	ldmia	ip!, {r4 - r11}		@ Load all regs saved previously

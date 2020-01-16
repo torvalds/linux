@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) 2000, 2001, 2004 MIPS Technologies, Inc.
+ * Copyright (C) 2000, 2001, 2004 MIPS Techyeslogies, Inc.
  * Copyright (C) 2001 Ralf Baechle
  * Copyright (C) 2010 PMC-Sierra, Inc.
  *

@@ -76,7 +76,7 @@ static int gpio_extcon_probe(struct platform_device *pdev)
 	/*
 	 * FIXME: extcon_id represents the unique identifier of external
 	 * connectors such as EXTCON_USB, EXTCON_DISP_HDMI and so on. extcon_id
-	 * is necessary to register the extcon device. But, it's not yet
+	 * is necessary to register the extcon device. But, it's yest yet
 	 * developed to get the extcon id from device-tree or others.
 	 * On later, it have to be solved.
 	 */
@@ -91,7 +91,7 @@ static int gpio_extcon_probe(struct platform_device *pdev)
 		return irq;
 
 	/*
-	 * It is unlikely that this is an acknowledged interrupt that goes
+	 * It is unlikely that this is an ackyeswledged interrupt that goes
 	 * away after handling, what we are looking for are falling edges
 	 * if the signal is active low, and rising edges if the signal is
 	 * active high.

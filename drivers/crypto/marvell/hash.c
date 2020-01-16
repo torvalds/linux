@@ -3,7 +3,7 @@
  * Hash algorithms supported by the CESA: MD5, SHA1 and SHA256.
  *
  * Author: Boris Brezillon <boris.brezillon@free-electrons.com>
- * Author: Arnaud Ebalard <arno@natisbad.org>
+ * Author: Arnaud Ebalard <aryes@natisbad.org>
  *
  * This work is based on an initial version written by
  * Sebastian Andrzej Siewior < sebastian at breakpoint dot cc >
@@ -546,7 +546,7 @@ mv_cesa_ahash_dma_last_req(struct mv_cesa_tdma_chain *chain,
 
 	/*
 	 * The request is longer than the engine can handle, or we have
-	 * no data outstanding. Manually generate the padding, adding it
+	 * yes data outstanding. Manually generate the padding, adding it
 	 * as a "mid" fragment.
 	 */
 	ret = mv_cesa_ahash_dma_alloc_padding(ahashdreq, flags);
@@ -634,7 +634,7 @@ static int mv_cesa_ahash_dma_req_init(struct ahash_request *req)
 		/*
 		 * Add all the new data, inserting an operation block and
 		 * launch command between each full SRAM block-worth of
-		 * data. We intentionally do not add the final op block.
+		 * data. We intentionally do yest add the final op block.
 		 */
 		while (true) {
 			ret = mv_cesa_dma_add_op_transfers(&basereq->chain,
@@ -706,7 +706,7 @@ static int mv_cesa_ahash_dma_req_init(struct ahash_request *req)
 	if (set_state) {
 		/*
 		 * Put the CESA_TDMA_SET_STATE flag on the first tdma desc to
-		 * let the step logic know that the IVDIG registers should be
+		 * let the step logic kyesw that the IVDIG registers should be
 		 * explicitly set before launching a TDMA chain.
 		 */
 		basereq->chain.first->flags |= CESA_TDMA_SET_STATE;

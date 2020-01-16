@@ -119,7 +119,7 @@ int __init clk_pxa_cken_init(const struct desc_clk_cken *clks, int nb_clks)
 	return 0;
 }
 
-void __init clk_pxa_dt_common_init(struct device_node *np)
+void __init clk_pxa_dt_common_init(struct device_yesde *np)
 {
 	of_clk_add_provider(np, of_clk_src_onecell_get, &onecell_data);
 }
@@ -143,7 +143,7 @@ void pxa2xx_core_turbo_switch(bool on)
 	"1:	mcr	p14, 0, %1, c6, c0, 0\n"
 	"	b	3f\n"
 	"2:	b	1b\n"
-	"3:	nop\n"
+	"3:	yesp\n"
 		: "=&r" (unused) : "r" (clkcfg));
 
 	local_irq_restore(flags);
@@ -195,7 +195,7 @@ void pxa2xx_cpll_change(struct pxa2xx_freq *freq,
 	"	str	%4, [%1]		/* postset the MDREFR */\n"
 	"	b	3f\n"
 	"2:	b	1b\n"
-	"3:	nop\n"
+	"3:	yesp\n"
 	     : "=&r" (unused)
 	     : "r" (mdrefr), "r" (clkcfg), "r" (preset_mdrefr),
 	       "r" (postset_mdrefr)
@@ -233,7 +233,7 @@ int pxa2xx_determine_rate(struct clk_rate_request *req,
 	} else if (closest_above >= 0) {
 		rate = freqs[closest_above].cpll;
 	} else {
-		pr_debug("%s(rate=%lu) no match\n", __func__, req->rate);
+		pr_debug("%s(rate=%lu) yes match\n", __func__, req->rate);
 		return -EINVAL;
 	}
 

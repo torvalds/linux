@@ -20,7 +20,7 @@ struct user_i387_ia32_struct {
 struct user32_fxsr_struct {
 	unsigned short	cwd;
 	unsigned short	swd;
-	unsigned short	twd;	/* not compatible to 64bit twd */
+	unsigned short	twd;	/* yest compatible to 64bit twd */
 	unsigned short	fop;
 	int	fip;
 	int	fcs;

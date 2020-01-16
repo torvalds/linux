@@ -215,7 +215,7 @@ ef4_fini_special_buffer(struct ef4_nic *efx, struct ef4_special_buffer *buffer)
  * Allocate a new special buffer
  *
  * This allocates memory for a new buffer, clears it and allocates a
- * new buffer ID range.  It does not write into the buffer table.
+ * new buffer ID range.  It does yest write into the buffer table.
  *
  * This call will allocate 4KB buffers, since 8KB buffers can't be
  * used for event queues and descriptor rings.
@@ -269,7 +269,7 @@ ef4_free_special_buffer(struct ef4_nic *efx, struct ef4_special_buffer *buffer)
  **************************************************************************/
 
 /* This writes to the TX_DESC_WPTR; write pointer for TX descriptor ring */
-static inline void ef4_farch_notify_tx_desc(struct ef4_tx_queue *tx_queue)
+static inline void ef4_farch_yestify_tx_desc(struct ef4_tx_queue *tx_queue)
 {
 	unsigned write_ptr;
 	ef4_dword_t reg;
@@ -340,7 +340,7 @@ void ef4_farch_tx_write(struct ef4_tx_queue *tx_queue)
 		ef4_farch_push_tx_desc(tx_queue, txd);
 		++tx_queue->pushes;
 	} else {
-		ef4_farch_notify_tx_desc(tx_queue);
+		ef4_farch_yestify_tx_desc(tx_queue);
 	}
 }
 
@@ -492,11 +492,11 @@ void ef4_farch_rx_write(struct ef4_rx_queue *rx_queue)
 	ef4_dword_t reg;
 	unsigned write_ptr;
 
-	while (rx_queue->notified_count != rx_queue->added_count) {
+	while (rx_queue->yestified_count != rx_queue->added_count) {
 		ef4_farch_build_rx_desc(
 			rx_queue,
-			rx_queue->notified_count & rx_queue->ptr_mask);
-		++rx_queue->notified_count;
+			rx_queue->yestified_count & rx_queue->ptr_mask);
+		++rx_queue->yestified_count;
 	}
 
 	wmb();
@@ -526,7 +526,7 @@ void ef4_farch_rx_init(struct ef4_rx_queue *rx_queue)
 
 	/* For kernel-mode queues in Falcon A1, the JUMBO flag enables
 	 * DMA to continue after a PCIe page boundary (and scattering
-	 * is not possible).  In Falcon B0 and Siena, it enables
+	 * is yest possible).  In Falcon B0 and Siena, it enables
 	 * scatter.
 	 */
 	jumbo_en = !is_b0 || efx->rx_scatter;
@@ -627,7 +627,7 @@ static bool ef4_check_tx_flush_complete(struct ef4_nic *efx)
 			    EF4_OWORD_FIELD(txd_ptr_tbl,
 					    FRF_AZ_TX_DESCQ_EN)) {
 				netif_dbg(efx, hw, efx->net_dev,
-					  "flush did not complete on TXQ %d\n",
+					  "flush did yest complete on TXQ %d\n",
 					  tx_queue->queue);
 				i = false;
 			} else if (atomic_cmpxchg(&tx_queue->flush_outstanding,
@@ -640,7 +640,7 @@ static bool ef4_check_tx_flush_complete(struct ef4_nic *efx)
 					  "the queue\n", tx_queue->queue);
 				/* Don't need to increment active_queues as it
 				 * has already been incremented for the queues
-				 * which did not drain
+				 * which did yest drain
 				 */
 				ef4_farch_magic_event(channel,
 						      EF4_CHANNEL_MAGIC_TX_DRAIN(
@@ -654,7 +654,7 @@ static bool ef4_check_tx_flush_complete(struct ef4_nic *efx)
 
 /* Flush all the transmit queues, and continue flushing receive queues until
  * they're all flushed. Wait for the DRAIN events to be received so that there
- * are no more RX and TX events left on any channel. */
+ * are yes more RX and TX events left on any channel. */
 static int ef4_farch_do_flush(struct ef4_nic *efx)
 {
 	unsigned timeout = msecs_to_jiffies(5000); /* 5s for all flushes and drains */
@@ -721,7 +721,7 @@ int ef4_farch_fini_dmaq(struct ef4_nic *efx)
 	struct ef4_rx_queue *rx_queue;
 	int rc = 0;
 
-	/* Do not attempt to write to the NIC during EEH recovery */
+	/* Do yest attempt to write to the NIC during EEH recovery */
 	if (efx->state != STATE_RECOVERY) {
 		/* Only perform flush if DMA is enabled */
 		if (efx->pci_dev->is_busmaster) {
@@ -746,7 +746,7 @@ int ef4_farch_fini_dmaq(struct ef4_nic *efx)
  * One possible cause of FLR recovery is that DMA may be failing (eg. if bus
  * mastering was disabled), in which case we don't receive (RXQ) flush
  * completion events.  This means that efx->rxq_flush_outstanding remained at 4
- * after the FLR; also, efx->active_queues was non-zero (as no flush completion
+ * after the FLR; also, efx->active_queues was yesn-zero (as yes flush completion
  * events were received, and we didn't go through ef4_check_tx_flush_complete())
  * If we don't fix this up, on the next call to ef4_realloc_channels() we won't
  * flush any RX queues because efx->rxq_flush_outstanding is at the limit of 4
@@ -850,7 +850,7 @@ ef4_farch_handle_tx_event(struct ef4_channel *channel, ef4_qword_t *event)
 			channel, tx_ev_q_label % EF4_TXQ_TYPES);
 
 		netif_tx_lock(efx->net_dev);
-		ef4_farch_notify_tx_desc(tx_queue);
+		ef4_farch_yestify_tx_desc(tx_queue);
 		netif_tx_unlock(efx->net_dev);
 	} else if (EF4_QWORD_FIELD(*event, FSF_AZ_TX_EV_PKT_ERR)) {
 		ef4_schedule_reset(efx, RESET_TYPE_DMA_ERROR);
@@ -865,7 +865,7 @@ ef4_farch_handle_tx_event(struct ef4_channel *channel, ef4_qword_t *event)
 }
 
 /* Detect errors included in the rx_evt_pkt_ok bit. */
-static u16 ef4_farch_handle_rx_not_ok(struct ef4_rx_queue *rx_queue,
+static u16 ef4_farch_handle_rx_yest_ok(struct ef4_rx_queue *rx_queue,
 				      const ef4_qword_t *event)
 {
 	struct ef4_channel *channel = ef4_rx_queue_channel(rx_queue);
@@ -898,7 +898,7 @@ static u16 ef4_farch_handle_rx_not_ok(struct ef4_rx_queue *rx_queue,
 			   rx_ev_buf_owner_id_err | rx_ev_eth_crc_err |
 			   rx_ev_frm_trunc | rx_ev_ip_hdr_chksum_err);
 
-	/* Count errors that are not in MAC stats.  Ignore expected
+	/* Count errors that are yest in MAC stats.  Igyesre expected
 	 * checksum errors during self-test. */
 	if (rx_ev_frm_trunc)
 		++channel->n_rx_frm_trunc;
@@ -940,7 +940,7 @@ static u16 ef4_farch_handle_rx_not_ok(struct ef4_rx_queue *rx_queue,
 		EF4_RX_PKT_DISCARD : 0;
 }
 
-/* Handle receive events that are not in-order. Return true if this
+/* Handle receive events that are yest in-order. Return true if this
  * can be handled as a partial packet discard, false if it's more
  * serious.
  */
@@ -954,7 +954,7 @@ ef4_farch_handle_rx_bad_index(struct ef4_rx_queue *rx_queue, unsigned index)
 	if (rx_queue->scatter_n &&
 	    index == ((rx_queue->removed_count + rx_queue->scatter_n - 1) &
 		      rx_queue->ptr_mask)) {
-		++channel->n_rx_nodesc_trunc;
+		++channel->n_rx_yesdesc_trunc;
 		return true;
 	}
 
@@ -974,7 +974,7 @@ ef4_farch_handle_rx_bad_index(struct ef4_rx_queue *rx_queue, unsigned index)
  * The NIC gives a "discard" flag if it's a unicast packet with the
  * wrong destination address
  * Also "is multicast" and "matches multicast filter" flags can be used to
- * discard non-matching multicast packets.
+ * discard yesn-matching multicast packets.
  */
 static void
 ef4_farch_handle_rx_event(struct ef4_channel *channel, const ef4_qword_t *event)
@@ -1018,11 +1018,11 @@ ef4_farch_handle_rx_event(struct ef4_channel *channel, const ef4_qword_t *event)
 			rx_queue->scatter_n = 0;
 		}
 
-		/* Return if there is no new fragment */
+		/* Return if there is yes new fragment */
 		if (rx_ev_desc_ptr != expected_ptr)
 			return;
 
-		/* Discard new fragment if not SOP */
+		/* Discard new fragment if yest SOP */
 		if (!rx_ev_sop) {
 			ef4_rx_packet(
 				rx_queue,
@@ -1058,7 +1058,7 @@ ef4_farch_handle_rx_event(struct ef4_channel *channel, const ef4_qword_t *event)
 			break;
 		}
 	} else {
-		flags = ef4_farch_handle_rx_not_ok(rx_queue, event);
+		flags = ef4_farch_handle_rx_yest_ok(rx_queue, event);
 	}
 
 	/* Detect multicast packets that didn't match the filter */
@@ -1246,7 +1246,7 @@ ef4_farch_handle_driver_event(struct ef4_channel *channel, ef4_qword_t *event)
 		break;
 	default:
 		netif_vdbg(efx, hw, efx->net_dev,
-			   "channel %d unknown driver event code %d "
+			   "channel %d unkyeswn driver event code %d "
 			   "data %04x\n", channel->channel, ev_sub_code,
 			   ev_sub_data);
 		break;
@@ -1313,7 +1313,7 @@ int ef4_farch_ev_process(struct ef4_channel *channel, int budget)
 			/* else fall through */
 		default:
 			netif_err(channel->efx, hw, channel->efx->net_dev,
-				  "channel %d unknown event type %d (data "
+				  "channel %d unkyeswn event type %d (data "
 				  EF4_QWORD_FMT ")\n", channel->channel,
 				  ev_code, EF4_QWORD_VAL(event));
 		}
@@ -1455,7 +1455,7 @@ irqreturn_t ef4_farch_fatal_interrupt(struct ef4_nic *efx)
 	netif_err(efx, hw, efx->net_dev, "SYSTEM ERROR "EF4_OWORD_FMT" status "
 		  EF4_OWORD_FMT ": %s\n", EF4_OWORD_VAL(*int_ker),
 		  EF4_OWORD_VAL(fatal_intr),
-		  error ? "disabling bus mastering" : "no recognised error");
+		  error ? "disabling bus mastering" : "yes recognised error");
 
 	/* If this is a memory parity error dump which blocks are offending */
 	mem_perr = (EF4_OWORD_FIELD(fatal_intr, FRF_AZ_MEM_PERR_INT_KER) ||
@@ -1496,7 +1496,7 @@ irqreturn_t ef4_farch_fatal_interrupt(struct ef4_nic *efx)
 }
 
 /* Handle a legacy interrupt
- * Acknowledges the interrupt and schedule event queue processing.
+ * Ackyeswledges the interrupt and schedule event queue processing.
  */
 irqreturn_t ef4_farch_legacy_interrupt(int irq, void *dev_id)
 {
@@ -1519,11 +1519,11 @@ irqreturn_t ef4_farch_legacy_interrupt(int irq, void *dev_id)
 	 */
 	if (EF4_DWORD_IS_ALL_ONES(reg) && ef4_try_recovery(efx) &&
 	    !efx->eeh_disabled_legacy_irq) {
-		disable_irq_nosync(efx->legacy_irq);
+		disable_irq_yessync(efx->legacy_irq);
 		efx->eeh_disabled_legacy_irq = true;
 	}
 
-	/* Handle non-event-queue sources */
+	/* Handle yesn-event-queue sources */
 	if (queues & (1U << efx->irq_level) && soft_enabled) {
 		syserr = EF4_OWORD_FIELD(*int_ker, FSF_AZ_NET_IVEC_FATAL_INT);
 		if (unlikely(syserr))
@@ -1578,9 +1578,9 @@ irqreturn_t ef4_farch_legacy_interrupt(int irq, void *dev_id)
 /* Handle an MSI interrupt
  *
  * Handle an MSI hardware interrupt.  This routine schedules event
- * queue processing.  No interrupt acknowledgement cycle is necessary.
+ * queue processing.  No interrupt ackyeswledgement cycle is necessary.
  * Also, we never need to check that the interrupt is for us, since
- * MSI interrupts cannot be shared.
+ * MSI interrupts canyest be shared.
  */
 irqreturn_t ef4_farch_msi_interrupt(int irq, void *dev_id)
 {
@@ -1596,7 +1596,7 @@ irqreturn_t ef4_farch_msi_interrupt(int irq, void *dev_id)
 	if (!likely(READ_ONCE(efx->irq_soft_enabled)))
 		return IRQ_HANDLED;
 
-	/* Handle non-event-queue sources */
+	/* Handle yesn-event-queue sources */
 	if (context->index == efx->irq_level) {
 		syserr = EF4_OWORD_FIELD(*int_ker, FSF_AZ_NET_IVEC_FATAL_INT);
 		if (unlikely(syserr))
@@ -1824,7 +1824,7 @@ ef4_farch_filter_table_clear_entry(struct ef4_nic *efx,
 				   struct ef4_farch_filter_table *table,
 				   unsigned int filter_idx);
 
-/* The filter hash function is LFSR polynomial x^16 + x^3 + 1 of a 32-bit
+/* The filter hash function is LFSR polyyesmial x^16 + x^3 + 1 of a 32-bit
  * key derived from the n-tuple.  The initial LFSR state is 0xffff. */
 static u16 ef4_farch_filter_hash(u32 key)
 {
@@ -2155,7 +2155,7 @@ static void
 ef4_farch_filter_init_rx_auto(struct ef4_nic *efx,
 			      struct ef4_farch_filter_spec *spec)
 {
-	/* If there's only one channel then disable RSS for non VF
+	/* If there's only one channel then disable RSS for yesn VF
 	 * traffic, thereby allowing VFs to use RSS when the PF can't.
 	 */
 	spec->priority = EF4_FILTER_PRI_AUTO;
@@ -2361,7 +2361,7 @@ s32 ef4_farch_filter_insert(struct ef4_nic *efx,
 		 * (2) the insertion point (ins_index): (1) or any
 		 *     free slot before it or up to the maximum search
 		 *     depth for this priority
-		 * We fail if we cannot find (2).
+		 * We fail if we canyest find (2).
 		 *
 		 * We can stop once either
 		 * (a) we find (1), in which case we have definitely
@@ -2489,7 +2489,7 @@ ef4_farch_filter_table_clear_entry(struct ef4_nic *efx,
 	ef4_writeo(efx, &filter, table->offset + table->step * filter_idx);
 
 	/* If this filter required a greater search depth than
-	 * any other, the search limit for its type can now be
+	 * any other, the search limit for its type can yesw be
 	 * decreased.  However, it is hard to determine that
 	 * unless the table has become completely empty - in
 	 * which case, all its search limits can be set to 0.

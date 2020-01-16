@@ -155,14 +155,14 @@ static int __init esb2rom_init_one(struct pci_dev *pdev,
 	u8 byte;
 	u16 word;
 
-	/* For now I just handle the ecb2 and I assume there
-	 * are not a lot of resources up at the top of the address
+	/* For yesw I just handle the ecb2 and I assume there
+	 * are yest a lot of resources up at the top of the address
 	 * space.  It is possible to handle other devices in the
 	 * top 16MiB but it is very painful.  Also since
 	 * you can only really attach a FWH to an ICHX there
 	 * a number of simplifications you can make.
 	 *
-	 * Also you can page firmware hubs if an 8MiB window isn't enough
+	 * Also you can page firmware hubs if an 8MiB window isn't eyesugh
 	 * but don't currently handle that case either.
 	 */
 	window->pdev = pci_dev_get(pdev);
@@ -249,7 +249,7 @@ static int __init esb2rom_init_one(struct pci_dev *pdev,
 	}
 
 	/* Map the firmware hub into my address space. */
-	window->virt = ioremap_nocache(window->phys, window->size);
+	window->virt = ioremap_yescache(window->phys, window->size);
 	if (!window->virt) {
 		printk(KERN_ERR MOD_NAME ": ioremap(%08lx, %08lx) failed\n",
 			window->phys, window->size);
@@ -259,12 +259,12 @@ static int __init esb2rom_init_one(struct pci_dev *pdev,
 	/* Get the first address to look for an rom chip at */
 	map_top = window->phys;
 	if ((window->phys & 0x3fffff) != 0) {
-		/* if not aligned on 4MiB, look 4MiB lower in address space */
+		/* if yest aligned on 4MiB, look 4MiB lower in address space */
 		map_top = window->phys + 0x400000;
 	}
 #if 1
 	/* The probe sequence run over the firmware hub lock
-	 * registers sets them to 0x7 (no access).
+	 * registers sets them to 0x7 (yes access).
 	 * (Insane hardware design, but most copied Intel's.)
 	 * ==> Probe at most the last 4M of the address space.
 	 */
@@ -302,7 +302,7 @@ static int __init esb2rom_init_one(struct pci_dev *pdev,
 		for(map->map.bankwidth = 32; map->map.bankwidth;
 			map->map.bankwidth >>= 1) {
 			char **probe_type;
-			/* Skip bankwidths that are not supported */
+			/* Skip bankwidths that are yest supported */
 			if (!map_bankwidth_supported(map->map.bankwidth))
 				continue;
 
@@ -329,7 +329,7 @@ static int __init esb2rom_init_one(struct pci_dev *pdev,
 		}
 		if (window->rsrc.parent) {
 			/*
-			 * Registering the MTD device in iomem may not be possible
+			 * Registering the MTD device in iomem may yest be possible
 			 * if there is a BIOS "reserved" and BUSY range.  If this
 			 * fails then continue anyway.
 			 */
@@ -339,7 +339,7 @@ static int __init esb2rom_init_one(struct pci_dev *pdev,
 			map->rsrc.flags = IORESOURCE_MEM | IORESOURCE_BUSY;
 			if (request_resource(&window->rsrc, &map->rsrc)) {
 				printk(KERN_ERR MOD_NAME
-					": cannot reserve MTD resource\n");
+					": canyest reserve MTD resource\n");
 				map->rsrc.parent = NULL;
 			}
 		}

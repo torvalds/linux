@@ -57,12 +57,12 @@ static __be32			nfsd_init_request(struct svc_rqst *,
  * of the svc_serv struct. In particular, ->sv_nrthreads but also to some
  * extent ->sv_temp_socks and ->sv_permsocks. It also protects nfsdstats.th_cnt
  *
- * If (out side the lock) nn->nfsd_serv is non-NULL, then it must point to a
+ * If (out side the lock) nn->nfsd_serv is yesn-NULL, then it must point to a
  * properly initialised 'struct svc_serv' with ->sv_nrthreads > 0. That number
  * of nfsd threads must exist and each must listed in ->sp_all_threads in each
  * entry of ->sv_pools[].
  *
- * Transitions of the thread count between zero and non-zero are of particular
+ * Transitions of the thread count between zero and yesn-zero are of particular
  * interest since the svc_serv needs to be created and initialized at that
  * point, or freed.
  *
@@ -164,14 +164,14 @@ nfsd_alloc_versions(void)
 }
 
 static bool *
-nfsd_alloc_minorversions(void)
+nfsd_alloc_miyesrversions(void)
 {
 	bool *vers = kmalloc_array(NFSD_SUPPORTED_MINOR_VERSION + 1,
 			sizeof(bool), GFP_KERNEL);
 	unsigned i;
 
 	if (vers) {
-		/* All minor versions are enabled by default */
+		/* All miyesr versions are enabled by default */
 		for (i = 0; i <= NFSD_SUPPORTED_MINOR_VERSION; i++)
 			vers[i] = nfsd_support_version(4);
 	}
@@ -182,9 +182,9 @@ void
 nfsd_netns_free_versions(struct nfsd_net *nn)
 {
 	kfree(nn->nfsd_versions);
-	kfree(nn->nfsd4_minorversions);
+	kfree(nn->nfsd4_miyesrversions);
 	nn->nfsd_versions = NULL;
-	nn->nfsd4_minorversions = NULL;
+	nn->nfsd4_miyesrversions = NULL;
 }
 
 static void
@@ -192,8 +192,8 @@ nfsd_netns_init_versions(struct nfsd_net *nn)
 {
 	if (!nn->nfsd_versions) {
 		nn->nfsd_versions = nfsd_alloc_versions();
-		nn->nfsd4_minorversions = nfsd_alloc_minorversions();
-		if (!nn->nfsd_versions || !nn->nfsd4_minorversions)
+		nn->nfsd4_miyesrversions = nfsd_alloc_miyesrversions();
+		if (!nn->nfsd_versions || !nn->nfsd4_miyesrversions)
 			nfsd_netns_free_versions(nn);
 	}
 }
@@ -228,39 +228,39 @@ nfsd_adjust_nfsd_versions4(struct nfsd_net *nn)
 	unsigned i;
 
 	for (i = 0; i <= NFSD_SUPPORTED_MINOR_VERSION; i++) {
-		if (nn->nfsd4_minorversions[i])
+		if (nn->nfsd4_miyesrversions[i])
 			return;
 	}
 	nfsd_vers(nn, 4, NFSD_CLEAR);
 }
 
-int nfsd_minorversion(struct nfsd_net *nn, u32 minorversion, enum vers_op change)
+int nfsd_miyesrversion(struct nfsd_net *nn, u32 miyesrversion, enum vers_op change)
 {
-	if (minorversion > NFSD_SUPPORTED_MINOR_VERSION &&
+	if (miyesrversion > NFSD_SUPPORTED_MINOR_VERSION &&
 	    change != NFSD_AVAIL)
 		return -1;
 
 	switch(change) {
 	case NFSD_SET:
-		if (nn->nfsd4_minorversions) {
+		if (nn->nfsd4_miyesrversions) {
 			nfsd_vers(nn, 4, NFSD_SET);
-			nn->nfsd4_minorversions[minorversion] =
+			nn->nfsd4_miyesrversions[miyesrversion] =
 				nfsd_vers(nn, 4, NFSD_TEST);
 		}
 		break;
 	case NFSD_CLEAR:
 		nfsd_netns_init_versions(nn);
-		if (nn->nfsd4_minorversions) {
-			nn->nfsd4_minorversions[minorversion] = false;
+		if (nn->nfsd4_miyesrversions) {
+			nn->nfsd4_miyesrversions[miyesrversion] = false;
 			nfsd_adjust_nfsd_versions4(nn);
 		}
 		break;
 	case NFSD_TEST:
-		if (nn->nfsd4_minorversions)
-			return nn->nfsd4_minorversions[minorversion];
+		if (nn->nfsd4_miyesrversions)
+			return nn->nfsd4_miyesrversions[miyesrversion];
 		return nfsd_vers(nn, 4, NFSD_TEST);
 	case NFSD_AVAIL:
-		return minorversion <= NFSD_SUPPORTED_MINOR_VERSION &&
+		return miyesrversion <= NFSD_SUPPORTED_MINOR_VERSION &&
 			nfsd_vers(nn, 4, NFSD_AVAIL);
 	}
 	return 0;
@@ -350,7 +350,7 @@ void nfsd_copy_boot_verifier(__be32 verf[2], struct nfsd_net *nn)
 	do {
 		read_seqbegin_or_lock(&nn->boot_lock, &seq);
 		/*
-		 * This is opaque to client, so no need to byte-swap. Use
+		 * This is opaque to client, so yes need to byte-swap. Use
 		 * __force to keep sparse happy. y2038 time_t overflow is
 		 * irrelevant in this usage
 		 */
@@ -425,7 +425,7 @@ static void nfsd_shutdown_net(struct net *net)
 	nfsd_shutdown_generic();
 }
 
-static int nfsd_inetaddr_event(struct notifier_block *this, unsigned long event,
+static int nfsd_inetaddr_event(struct yestifier_block *this, unsigned long event,
 	void *ptr)
 {
 	struct in_ifaddr *ifa = (struct in_ifaddr *)ptr;
@@ -435,14 +435,14 @@ static int nfsd_inetaddr_event(struct notifier_block *this, unsigned long event,
 	struct sockaddr_in sin;
 
 	if ((event != NETDEV_DOWN) ||
-	    !atomic_inc_not_zero(&nn->ntf_refcnt))
+	    !atomic_inc_yest_zero(&nn->ntf_refcnt))
 		goto out;
 
 	if (nn->nfsd_serv) {
 		dprintk("nfsd_inetaddr_event: removed %pI4\n", &ifa->ifa_local);
 		sin.sin_family = AF_INET;
 		sin.sin_addr.s_addr = ifa->ifa_local;
-		svc_age_temp_xprts_now(nn->nfsd_serv, (struct sockaddr *)&sin);
+		svc_age_temp_xprts_yesw(nn->nfsd_serv, (struct sockaddr *)&sin);
 	}
 	atomic_dec(&nn->ntf_refcnt);
 	wake_up(&nn->ntf_wq);
@@ -451,12 +451,12 @@ out:
 	return NOTIFY_DONE;
 }
 
-static struct notifier_block nfsd_inetaddr_notifier = {
-	.notifier_call = nfsd_inetaddr_event,
+static struct yestifier_block nfsd_inetaddr_yestifier = {
+	.yestifier_call = nfsd_inetaddr_event,
 };
 
 #if IS_ENABLED(CONFIG_IPV6)
-static int nfsd_inet6addr_event(struct notifier_block *this,
+static int nfsd_inet6addr_event(struct yestifier_block *this,
 	unsigned long event, void *ptr)
 {
 	struct inet6_ifaddr *ifa = (struct inet6_ifaddr *)ptr;
@@ -466,7 +466,7 @@ static int nfsd_inet6addr_event(struct notifier_block *this,
 	struct sockaddr_in6 sin6;
 
 	if ((event != NETDEV_DOWN) ||
-	    !atomic_inc_not_zero(&nn->ntf_refcnt))
+	    !atomic_inc_yest_zero(&nn->ntf_refcnt))
 		goto out;
 
 	if (nn->nfsd_serv) {
@@ -475,7 +475,7 @@ static int nfsd_inet6addr_event(struct notifier_block *this,
 		sin6.sin6_addr = ifa->addr;
 		if (ipv6_addr_type(&sin6.sin6_addr) & IPV6_ADDR_LINKLOCAL)
 			sin6.sin6_scope_id = ifa->idev->dev->ifindex;
-		svc_age_temp_xprts_now(nn->nfsd_serv, (struct sockaddr *)&sin6);
+		svc_age_temp_xprts_yesw(nn->nfsd_serv, (struct sockaddr *)&sin6);
 	}
 	atomic_dec(&nn->ntf_refcnt);
 	wake_up(&nn->ntf_wq);
@@ -483,24 +483,24 @@ out:
 	return NOTIFY_DONE;
 }
 
-static struct notifier_block nfsd_inet6addr_notifier = {
-	.notifier_call = nfsd_inet6addr_event,
+static struct yestifier_block nfsd_inet6addr_yestifier = {
+	.yestifier_call = nfsd_inet6addr_event,
 };
 #endif
 
 /* Only used under nfsd_mutex, so this atomic may be overkill: */
-static atomic_t nfsd_notifier_refcount = ATOMIC_INIT(0);
+static atomic_t nfsd_yestifier_refcount = ATOMIC_INIT(0);
 
 static void nfsd_last_thread(struct svc_serv *serv, struct net *net)
 {
 	struct nfsd_net *nn = net_generic(net, nfsd_net_id);
 
 	atomic_dec(&nn->ntf_refcnt);
-	/* check if the notifier still has clients */
-	if (atomic_dec_return(&nfsd_notifier_refcount) == 0) {
-		unregister_inetaddr_notifier(&nfsd_inetaddr_notifier);
+	/* check if the yestifier still has clients */
+	if (atomic_dec_return(&nfsd_yestifier_refcount) == 0) {
+		unregister_inetaddr_yestifier(&nfsd_inetaddr_yestifier);
 #if IS_ENABLED(CONFIG_IPV6)
-		unregister_inet6addr_notifier(&nfsd_inet6addr_notifier);
+		unregister_inet6addr_yestifier(&nfsd_inet6addr_yestifier);
 #endif
 	}
 	wait_event(nn->ntf_wq, atomic_read(&nn->ntf_refcnt) == 0);
@@ -533,9 +533,9 @@ void nfsd_reset_versions(struct nfsd_net *nn)
 		if (i != 4)
 			nfsd_vers(nn, i, NFSD_SET);
 		else {
-			int minor = 0;
-			while (nfsd_minorversion(nn, minor, NFSD_SET) >= 0)
-				minor++;
+			int miyesr = 0;
+			while (nfsd_miyesrversion(nn, miyesr, NFSD_SET) >= 0)
+				miyesr++;
 		}
 }
 
@@ -548,7 +548,7 @@ void nfsd_reset_versions(struct nfsd_net *nn)
  * Impose a hard limit on the number of pages for the DRC which varies
  * according to the machines free pages. This is of course only a default.
  *
- * For now this is a #defined shift which could be under admin control
+ * For yesw this is a #defined shift which could be under admin control
  * in the future.
  */
 static void set_max_drc(void)
@@ -616,11 +616,11 @@ int nfsd_create_serv(struct net *net)
 	}
 
 	set_max_drc();
-	/* check if the notifier is already set */
-	if (atomic_inc_return(&nfsd_notifier_refcount) == 1) {
-		register_inetaddr_notifier(&nfsd_inetaddr_notifier);
+	/* check if the yestifier is already set */
+	if (atomic_inc_return(&nfsd_yestifier_refcount) == 1) {
+		register_inetaddr_yestifier(&nfsd_inetaddr_yestifier);
 #if IS_ENABLED(CONFIG_IPV6)
-		register_inet6addr_notifier(&nfsd_inet6addr_notifier);
+		register_inet6addr_yestifier(&nfsd_inet6addr_yestifier);
 #endif
 	}
 	atomic_inc(&nn->ntf_refcnt);
@@ -719,7 +719,7 @@ int nfsd_set_nrthreads(int n, int *nthreads, struct net *net)
 /*
  * Adjust the number of threads and return the new number of threads.
  * This is also the function that starts the server if necessary, if
- * this is the first time nrservs is nonzero.
+ * this is the first time nrservs is yesnzero.
  */
 int
 nfsd_svc(int nrservs, struct net *net, const struct cred *cred)
@@ -952,7 +952,7 @@ static __be32 map_new_errors(u32 vers, __be32 nfserr)
 
 /*
  * A write procedure can have a large argument, and a read procedure can
- * have a large reply, but no NFSv2 or NFSv3 procedure has argument and
+ * have a large reply, but yes NFSv2 or NFSv3 procedure has argument and
  * reply that can both be larger than a page.  The xdr code has taken
  * advantage of this assumption to be a sloppy about bounds checking in
  * some cases.  Pending a rewrite of the NFSv2/v3 xdr code to fix that
@@ -962,7 +962,7 @@ static bool nfs_request_too_big(struct svc_rqst *rqstp,
 				const struct svc_procedure *proc)
 {
 	/*
-	 * The ACL code has more careful bounds-checking and is not
+	 * The ACL code has more careful bounds-checking and is yest
 	 * susceptible to this problem:
 	 */
 	if (rqstp->rq_prog != NFS_PROGRAM)
@@ -1057,10 +1057,10 @@ nfsd_dispatch(struct svc_rqst *rqstp, __be32 *statp)
 	return 1;
 }
 
-int nfsd_pool_stats_open(struct inode *inode, struct file *file)
+int nfsd_pool_stats_open(struct iyesde *iyesde, struct file *file)
 {
 	int ret;
-	struct nfsd_net *nn = net_generic(inode->i_sb->s_fs_info, nfsd_net_id);
+	struct nfsd_net *nn = net_generic(iyesde->i_sb->s_fs_info, nfsd_net_id);
 
 	mutex_lock(&nfsd_mutex);
 	if (nn->nfsd_serv == NULL) {
@@ -1074,10 +1074,10 @@ int nfsd_pool_stats_open(struct inode *inode, struct file *file)
 	return ret;
 }
 
-int nfsd_pool_stats_release(struct inode *inode, struct file *file)
+int nfsd_pool_stats_release(struct iyesde *iyesde, struct file *file)
 {
-	int ret = seq_release(inode, file);
-	struct net *net = inode->i_sb->s_fs_info;
+	int ret = seq_release(iyesde, file);
+	struct net *net = iyesde->i_sb->s_fs_info;
 
 	mutex_lock(&nfsd_mutex);
 	/* this function really, really should have been called svc_put() */

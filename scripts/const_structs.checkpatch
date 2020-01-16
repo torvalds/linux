@@ -19,7 +19,7 @@ file_operations
 hv_ops
 ide_dma_ops
 ide_port_ops
-inode_operations
+iyesde_operations
 intel_dvo_dev_ops
 irq_domain_ops
 item_operations

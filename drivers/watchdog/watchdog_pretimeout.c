@@ -11,8 +11,8 @@
 
 #include "watchdog_pretimeout.h"
 
-/* Default watchdog pretimeout governor */
-static struct watchdog_governor *default_gov;
+/* Default watchdog pretimeout goveryesr */
+static struct watchdog_goveryesr *default_gov;
 
 /* The spinlock protects default_gov, wdd->gov and pretimeout_list */
 static DEFINE_SPINLOCK(pretimeout_lock);
@@ -25,44 +25,44 @@ struct watchdog_pretimeout {
 	struct list_head		entry;
 };
 
-/* The mutex protects governor list and serializes external interfaces */
-static DEFINE_MUTEX(governor_lock);
+/* The mutex protects goveryesr list and serializes external interfaces */
+static DEFINE_MUTEX(goveryesr_lock);
 
-/* List of the registered watchdog pretimeout governors */
-static LIST_HEAD(governor_list);
+/* List of the registered watchdog pretimeout goveryesrs */
+static LIST_HEAD(goveryesr_list);
 
-struct governor_priv {
-	struct watchdog_governor	*gov;
+struct goveryesr_priv {
+	struct watchdog_goveryesr	*gov;
 	struct list_head		entry;
 };
 
-static struct governor_priv *find_governor_by_name(const char *gov_name)
+static struct goveryesr_priv *find_goveryesr_by_name(const char *gov_name)
 {
-	struct governor_priv *priv;
+	struct goveryesr_priv *priv;
 
-	list_for_each_entry(priv, &governor_list, entry)
+	list_for_each_entry(priv, &goveryesr_list, entry)
 		if (sysfs_streq(gov_name, priv->gov->name))
 			return priv;
 
 	return NULL;
 }
 
-int watchdog_pretimeout_available_governors_get(char *buf)
+int watchdog_pretimeout_available_goveryesrs_get(char *buf)
 {
-	struct governor_priv *priv;
+	struct goveryesr_priv *priv;
 	int count = 0;
 
-	mutex_lock(&governor_lock);
+	mutex_lock(&goveryesr_lock);
 
-	list_for_each_entry(priv, &governor_list, entry)
+	list_for_each_entry(priv, &goveryesr_list, entry)
 		count += sprintf(buf + count, "%s\n", priv->gov->name);
 
-	mutex_unlock(&governor_lock);
+	mutex_unlock(&goveryesr_lock);
 
 	return count;
 }
 
-int watchdog_pretimeout_governor_get(struct watchdog_device *wdd, char *buf)
+int watchdog_pretimeout_goveryesr_get(struct watchdog_device *wdd, char *buf)
 {
 	int count = 0;
 
@@ -74,16 +74,16 @@ int watchdog_pretimeout_governor_get(struct watchdog_device *wdd, char *buf)
 	return count;
 }
 
-int watchdog_pretimeout_governor_set(struct watchdog_device *wdd,
+int watchdog_pretimeout_goveryesr_set(struct watchdog_device *wdd,
 				     const char *buf)
 {
-	struct governor_priv *priv;
+	struct goveryesr_priv *priv;
 
-	mutex_lock(&governor_lock);
+	mutex_lock(&goveryesr_lock);
 
-	priv = find_governor_by_name(buf);
+	priv = find_goveryesr_by_name(buf);
 	if (!priv) {
-		mutex_unlock(&governor_lock);
+		mutex_unlock(&goveryesr_lock);
 		return -EINVAL;
 	}
 
@@ -91,12 +91,12 @@ int watchdog_pretimeout_governor_set(struct watchdog_device *wdd,
 	wdd->gov = priv->gov;
 	spin_unlock_irq(&pretimeout_lock);
 
-	mutex_unlock(&governor_lock);
+	mutex_unlock(&goveryesr_lock);
 
 	return 0;
 }
 
-void watchdog_notify_pretimeout(struct watchdog_device *wdd)
+void watchdog_yestify_pretimeout(struct watchdog_device *wdd)
 {
 	unsigned long flags;
 
@@ -109,27 +109,27 @@ void watchdog_notify_pretimeout(struct watchdog_device *wdd)
 	wdd->gov->pretimeout(wdd);
 	spin_unlock_irqrestore(&pretimeout_lock, flags);
 }
-EXPORT_SYMBOL_GPL(watchdog_notify_pretimeout);
+EXPORT_SYMBOL_GPL(watchdog_yestify_pretimeout);
 
-int watchdog_register_governor(struct watchdog_governor *gov)
+int watchdog_register_goveryesr(struct watchdog_goveryesr *gov)
 {
 	struct watchdog_pretimeout *p;
-	struct governor_priv *priv;
+	struct goveryesr_priv *priv;
 
 	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
 
-	mutex_lock(&governor_lock);
+	mutex_lock(&goveryesr_lock);
 
-	if (find_governor_by_name(gov->name)) {
-		mutex_unlock(&governor_lock);
+	if (find_goveryesr_by_name(gov->name)) {
+		mutex_unlock(&goveryesr_lock);
 		kfree(priv);
 		return -EBUSY;
 	}
 
 	priv->gov = gov;
-	list_add(&priv->entry, &governor_list);
+	list_add(&priv->entry, &goveryesr_list);
 
 	if (!strncmp(gov->name, WATCHDOG_PRETIMEOUT_DEFAULT_GOV,
 		     WATCHDOG_GOV_NAME_MAXLEN)) {
@@ -142,20 +142,20 @@ int watchdog_register_governor(struct watchdog_governor *gov)
 		spin_unlock_irq(&pretimeout_lock);
 	}
 
-	mutex_unlock(&governor_lock);
+	mutex_unlock(&goveryesr_lock);
 
 	return 0;
 }
-EXPORT_SYMBOL(watchdog_register_governor);
+EXPORT_SYMBOL(watchdog_register_goveryesr);
 
-void watchdog_unregister_governor(struct watchdog_governor *gov)
+void watchdog_unregister_goveryesr(struct watchdog_goveryesr *gov)
 {
 	struct watchdog_pretimeout *p;
-	struct governor_priv *priv, *t;
+	struct goveryesr_priv *priv, *t;
 
-	mutex_lock(&governor_lock);
+	mutex_lock(&goveryesr_lock);
 
-	list_for_each_entry_safe(priv, t, &governor_list, entry) {
+	list_for_each_entry_safe(priv, t, &goveryesr_list, entry) {
 		if (priv->gov == gov) {
 			list_del(&priv->entry);
 			kfree(priv);
@@ -169,9 +169,9 @@ void watchdog_unregister_governor(struct watchdog_governor *gov)
 			p->wdd->gov = default_gov;
 	spin_unlock_irq(&pretimeout_lock);
 
-	mutex_unlock(&governor_lock);
+	mutex_unlock(&goveryesr_lock);
 }
-EXPORT_SYMBOL(watchdog_unregister_governor);
+EXPORT_SYMBOL(watchdog_unregister_goveryesr);
 
 int watchdog_register_pretimeout(struct watchdog_device *wdd)
 {

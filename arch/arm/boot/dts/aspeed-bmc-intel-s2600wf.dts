@@ -23,7 +23,7 @@
 		ranges;
 
 		vga_memory: framebuffer@7f000000 {
-			no-map;
+			yes-map;
 			reg = <0x7f000000 0x01000000>;
 		};
 	};
@@ -56,7 +56,7 @@
 	flash@0 {
 		status = "okay";
 		m25p,fast-read;
-		label = "pnor";
+		label = "pyesr";
 	};
 };
 
@@ -119,7 +119,7 @@
 };
 
 &pinctrl {
-	aspeed,external-nodes = <&gfx &lhc>;
+	aspeed,external-yesdes = <&gfx &lhc>;
 };
 
 &pwm_tacho {

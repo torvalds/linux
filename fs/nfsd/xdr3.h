@@ -53,12 +53,12 @@ struct nfsd3_createargs {
 	__be32 *		verf;
 };
 
-struct nfsd3_mknodargs {
+struct nfsd3_mkyesdargs {
 	struct svc_fh		fh;
 	char *			name;
 	unsigned int		len;
 	__u32			ftype;
-	__u32			major, minor;
+	__u32			major, miyesr;
 	struct iattr		attrs;
 };
 
@@ -214,7 +214,7 @@ struct nfsd3_pathconfres {
 	__be32			status;
 	__u32			p_link_max;
 	__u32			p_name_max;
-	__u32			p_no_trunc;
+	__u32			p_yes_trunc;
 	__u32			p_chown_restricted;
 	__u32			p_case_insensitive;
 	__u32			p_case_preserving;
@@ -279,7 +279,7 @@ int nfs3svc_decode_readargs(struct svc_rqst *, __be32 *);
 int nfs3svc_decode_writeargs(struct svc_rqst *, __be32 *);
 int nfs3svc_decode_createargs(struct svc_rqst *, __be32 *);
 int nfs3svc_decode_mkdirargs(struct svc_rqst *, __be32 *);
-int nfs3svc_decode_mknodargs(struct svc_rqst *, __be32 *);
+int nfs3svc_decode_mkyesdargs(struct svc_rqst *, __be32 *);
 int nfs3svc_decode_renameargs(struct svc_rqst *, __be32 *);
 int nfs3svc_decode_readlinkargs(struct svc_rqst *, __be32 *);
 int nfs3svc_decode_linkargs(struct svc_rqst *, __be32 *);
@@ -307,10 +307,10 @@ int nfs3svc_encode_commitres(struct svc_rqst *, __be32 *);
 void nfs3svc_release_fhandle(struct svc_rqst *);
 void nfs3svc_release_fhandle2(struct svc_rqst *);
 int nfs3svc_encode_entry(void *, const char *name,
-				int namlen, loff_t offset, u64 ino,
+				int namlen, loff_t offset, u64 iyes,
 				unsigned int);
 int nfs3svc_encode_entry_plus(void *, const char *name,
-				int namlen, loff_t offset, u64 ino,
+				int namlen, loff_t offset, u64 iyes,
 				unsigned int);
 /* Helper functions for NFSv3 ACL code */
 __be32 *nfs3svc_encode_post_op_attr(struct svc_rqst *rqstp, __be32 *p,

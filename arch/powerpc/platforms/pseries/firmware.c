@@ -138,7 +138,7 @@ static void __init fw_vec5_feature_init(const char *vec5, unsigned long len)
 /*
  * Called very early, MMU is off, device-tree isn't unflattened
  */
-static int __init probe_fw_features(unsigned long node, const char *uname, int
+static int __init probe_fw_features(unsigned long yesde, const char *uname, int
 				    depth, void *data)
 {
 	const char *prop;
@@ -150,7 +150,7 @@ static int __init probe_fw_features(unsigned long node, const char *uname, int
 		return 0;
 
 	if (!strcmp(uname, "rtas") || !strcmp(uname, "rtas@0")) {
-		prop = of_get_flat_dt_prop(node, "ibm,hypertas-functions",
+		prop = of_get_flat_dt_prop(yesde, "ibm,hypertas-functions",
 					   &len);
 		if (prop) {
 			powerpc_firmware_features |= FW_FEATURE_LPAR;
@@ -161,7 +161,7 @@ static int __init probe_fw_features(unsigned long node, const char *uname, int
 	}
 
 	if (!strcmp(uname, "chosen")) {
-		prop = of_get_flat_dt_prop(node, "ibm,architecture-vec-5",
+		prop = of_get_flat_dt_prop(yesde, "ibm,architecture-vec-5",
 					   &len);
 		if (prop)
 			fw_vec5_feature_init(prop, len);

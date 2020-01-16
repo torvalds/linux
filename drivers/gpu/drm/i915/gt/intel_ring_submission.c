@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -97,7 +97,7 @@ gen4_render_ring_flush(struct i915_request *rq, u32 mode)
 	 * I915_GEM_DOMAIN_SAMPLER is flushed on pre-965 if
 	 * MI_READ_FLUSH is set, and is always flushed on 965.
 	 *
-	 * I915_GEM_DOMAIN_COMMAND may not exist?
+	 * I915_GEM_DOMAIN_COMMAND may yest exist?
 	 *
 	 * I915_GEM_DOMAIN_INSTRUCTION, which exists on 965, is
 	 * invalidated when MI_EXE_FLUSH is set.
@@ -132,7 +132,7 @@ gen4_render_ring_flush(struct i915_request *rq, u32 mode)
 
 	/*
 	 * A random delay to let the CS invalidate take effect? Without this
-	 * delay, the GPU relocation path fails as the CS does not see
+	 * delay, the GPU relocation path fails as the CS does yest see
 	 * the updated contents. Just as important, if we apply the flushes
 	 * to the EMIT_FLUSH branch (i.e. immediately after the relocation
 	 * write and before the invalidate on the next batch), the relocations
@@ -167,22 +167,22 @@ gen4_render_ring_flush(struct i915_request *rq, u32 mode)
 }
 
 /*
- * Emits a PIPE_CONTROL with a non-zero post-sync operation, for
+ * Emits a PIPE_CONTROL with a yesn-zero post-sync operation, for
  * implementing two workarounds on gen6.  From section 1.4.7.1
  * "PIPE_CONTROL" of the Sandy Bridge PRM volume 2 part 1:
  *
  * [DevSNB-C+{W/A}] Before any depth stall flush (including those
- * produced by non-pipelined state commands), software needs to first
- * send a PIPE_CONTROL with no bits set except Post-Sync Operation !=
+ * produced by yesn-pipelined state commands), software needs to first
+ * send a PIPE_CONTROL with yes bits set except Post-Sync Operation !=
  * 0.
  *
  * [Dev-SNB{W/A}]: Before a PIPE_CONTROL with Write Cache Flush Enable
- * =1, a PIPE_CONTROL with any non-zero post-sync-op is required.
+ * =1, a PIPE_CONTROL with any yesn-zero post-sync-op is required.
  *
  * And the workaround for these two requires this workaround first:
  *
  * [Dev-SNB{W/A}]: Pipe-control with CS-stall bit set must be sent
- * BEFORE the pipe-control with a post-sync op and no write-cache
+ * BEFORE the pipe-control with a post-sync op and yes write-cache
  * flushes.
  *
  * And this last workaround is tricky because of the requirements on
@@ -199,12 +199,12 @@ gen4_render_ring_flush(struct i915_request *rq, u32 mode)
  *
  * The cache flushes require the workaround flush that triggered this
  * one, so we can't use it.  Depth stall would trigger the same.
- * Post-sync nonzero is what triggered this second workaround, so we
+ * Post-sync yesnzero is what triggered this second workaround, so we
  * can't use that one either.  Notify enable is IRQs, which aren't
  * really our business.  That leaves only stall at scoreboard.
  */
 static int
-gen6_emit_post_sync_nonzero_flush(struct i915_request *rq)
+gen6_emit_post_sync_yesnzero_flush(struct i915_request *rq)
 {
 	u32 scratch_addr =
 		intel_gt_scratch_offset(rq->engine->gt,
@@ -248,7 +248,7 @@ gen6_render_ring_flush(struct i915_request *rq, u32 mode)
 	int ret;
 
 	/* Force SNB workarounds for PIPE_CONTROL flushes */
-	ret = gen6_emit_post_sync_nonzero_flush(rq);
+	ret = gen6_emit_post_sync_yesnzero_flush(rq);
 	if (ret)
 		return ret;
 
@@ -260,7 +260,7 @@ gen6_render_ring_flush(struct i915_request *rq, u32 mode)
 		flags |= PIPE_CONTROL_RENDER_TARGET_CACHE_FLUSH;
 		flags |= PIPE_CONTROL_DEPTH_CACHE_FLUSH;
 		/*
-		 * Ensure that any following seqno writes only happen
+		 * Ensure that any following seqyes writes only happen
 		 * when the render cache is indeed flushed.
 		 */
 		flags |= PIPE_CONTROL_CS_STALL;
@@ -293,7 +293,7 @@ gen6_render_ring_flush(struct i915_request *rq, u32 mode)
 
 static u32 *gen6_rcs_emit_breadcrumb(struct i915_request *rq, u32 *cs)
 {
-	/* First we do the gen6_emit_post_sync_nonzero_flush w/a */
+	/* First we do the gen6_emit_post_sync_yesnzero_flush w/a */
 	*cs++ = GFX_OP_PIPE_CONTROL(4);
 	*cs++ = PIPE_CONTROL_CS_STALL | PIPE_CONTROL_STALL_AT_SCOREBOARD;
 	*cs++ = 0;
@@ -315,7 +315,7 @@ static u32 *gen6_rcs_emit_breadcrumb(struct i915_request *rq, u32 *cs)
 		 PIPE_CONTROL_CS_STALL);
 	*cs++ = i915_request_active_timeline(rq)->hwsp_offset |
 		PIPE_CONTROL_GLOBAL_GTT;
-	*cs++ = rq->fence.seqno;
+	*cs++ = rq->fence.seqyes;
 
 	*cs++ = MI_USER_INTERRUPT;
 	*cs++ = MI_NOOP;
@@ -353,7 +353,7 @@ gen7_render_ring_flush(struct i915_request *rq, u32 mode)
 	u32 *cs, flags = 0;
 
 	/*
-	 * Ensure that any following seqno writes only happen when the render
+	 * Ensure that any following seqyes writes only happen when the render
 	 * cache is indeed flushed.
 	 *
 	 * Workaround: 4th PIPE_CONTROL command (except the ones with only
@@ -418,7 +418,7 @@ static u32 *gen7_rcs_emit_breadcrumb(struct i915_request *rq, u32 *cs)
 		 PIPE_CONTROL_GLOBAL_GTT_IVB |
 		 PIPE_CONTROL_CS_STALL);
 	*cs++ = i915_request_active_timeline(rq)->hwsp_offset;
-	*cs++ = rq->fence.seqno;
+	*cs++ = rq->fence.seqyes;
 
 	*cs++ = MI_USER_INTERRUPT;
 	*cs++ = MI_NOOP;
@@ -436,7 +436,7 @@ static u32 *gen6_xcs_emit_breadcrumb(struct i915_request *rq, u32 *cs)
 
 	*cs++ = MI_FLUSH_DW | MI_FLUSH_DW_OP_STOREDW | MI_FLUSH_DW_STORE_INDEX;
 	*cs++ = I915_GEM_HWS_SEQNO_ADDR | MI_FLUSH_DW_USE_GTT;
-	*cs++ = rq->fence.seqno;
+	*cs++ = rq->fence.seqyes;
 
 	*cs++ = MI_USER_INTERRUPT;
 
@@ -456,12 +456,12 @@ static u32 *gen7_xcs_emit_breadcrumb(struct i915_request *rq, u32 *cs)
 
 	*cs++ = MI_FLUSH_DW | MI_FLUSH_DW_OP_STOREDW | MI_FLUSH_DW_STORE_INDEX;
 	*cs++ = I915_GEM_HWS_SEQNO_ADDR | MI_FLUSH_DW_USE_GTT;
-	*cs++ = rq->fence.seqno;
+	*cs++ = rq->fence.seqyes;
 
 	for (i = 0; i < GEN7_XCS_WA; i++) {
 		*cs++ = MI_STORE_DWORD_INDEX;
 		*cs++ = I915_GEM_HWS_SEQNO_ADDR;
-		*cs++ = rq->fence.seqno;
+		*cs++ = rq->fence.seqyes;
 	}
 
 	*cs++ = MI_FLUSH_DW;
@@ -526,7 +526,7 @@ static void set_hwsp(struct intel_engine_cs *engine, u32 offset)
 	i915_reg_t hwsp;
 
 	/*
-	 * The ring status page addresses are no longer next to the rest of
+	 * The ring status page addresses are yes longer next to the rest of
 	 * the ring registers as of gen7.
 	 */
 	if (IS_GEN(dev_priv, 7)) {
@@ -606,7 +606,7 @@ static bool stop_ring(struct intel_engine_cs *engine)
 				  engine->name);
 
 			/*
-			 * Sometimes we observe that the idle flag is not
+			 * Sometimes we observe that the idle flag is yest
 			 * set even though the ring is empty. So double
 			 * check before giving up.
 			 */
@@ -641,7 +641,7 @@ static int xcs_resume(struct intel_engine_cs *engine)
 	/* WaClearRingBufHeadRegAtInit:ctg,elk */
 	if (!stop_ring(engine)) {
 		/* G45 ring initialization often fails to reset head to zero */
-		DRM_DEBUG_DRIVER("%s head not reset to zero "
+		DRM_DEBUG_DRIVER("%s head yest reset to zero "
 				"ctl %08x head %08x tail %08x start %08x\n",
 				engine->name,
 				ENGINE_READ(engine, RING_CTL),
@@ -692,7 +692,7 @@ static int xcs_resume(struct intel_engine_cs *engine)
 
 	ENGINE_WRITE(engine, RING_CTL, RING_CTL_SIZE(ring->size) | RING_VALID);
 
-	/* If the head is still not zero, the ring is dead */
+	/* If the head is still yest zero, the ring is dead */
 	if (intel_wait_for_register(engine->uncore,
 				    RING_CTL(engine->mmio_base),
 				    RING_VALID, RING_VALID,
@@ -755,7 +755,7 @@ static void reset_prepare(struct intel_engine_cs *engine)
 	intel_uncore_write_fw(uncore,
 			      RING_HEAD(base),
 			      intel_uncore_read_fw(uncore, RING_TAIL(base)));
-	intel_uncore_posting_read_fw(uncore, RING_HEAD(base)); /* paranoia */
+	intel_uncore_posting_read_fw(uncore, RING_HEAD(base)); /* parayesia */
 
 	intel_uncore_write_fw(uncore, RING_HEAD(base), 0);
 	intel_uncore_write_fw(uncore, RING_TAIL(base), 0);
@@ -766,7 +766,7 @@ static void reset_prepare(struct intel_engine_cs *engine)
 
 	/* Check acts as a post */
 	if (intel_uncore_read_fw(uncore, RING_HEAD(base)))
-		GEM_TRACE("%s: ring head [%x] not parked\n",
+		GEM_TRACE("%s: ring head [%x] yest parked\n",
 			  engine->name,
 			  intel_uncore_read_fw(uncore, RING_HEAD(base)));
 }
@@ -789,7 +789,7 @@ static void reset_ring(struct intel_engine_cs *engine, bool stalled)
 	/*
 	 * The guilty request will get skipped on a hung engine.
 	 *
-	 * Users of client default contexts do not rely on logical
+	 * Users of client default contexts do yest rely on logical
 	 * state preserved between batches so it is safe to execute
 	 * queued requests following the hang. Non default contexts
 	 * rely on preserved state, so skipping a batch loses the
@@ -797,14 +797,14 @@ static void reset_ring(struct intel_engine_cs *engine, bool stalled)
 	 * Executing more queued batches on top of corrupted state is
 	 * risky. But we take the risk by trying to advance through
 	 * the queued requests in order to make the client behaviour
-	 * more predictable around resets, by not throwing away random
+	 * more predictable around resets, by yest throwing away random
 	 * amount of batches it has prepared for execution. Sophisticated
 	 * clients can use gem_reset_stats_ioctl and dma fence status
 	 * (exported via sync_file info ioctl on explicit fences) to observe
 	 * when it loses the context state and should rebuild accordingly.
 	 *
 	 * The context ban, and ultimately the client ban, mechanism are safety
-	 * valves if client submission ends up resulting in nothing more than
+	 * valves if client submission ends up resulting in yesthing more than
 	 * subsequent hangs.
 	 */
 
@@ -821,7 +821,7 @@ static void reset_ring(struct intel_engine_cs *engine, bool stalled)
 		 * state in case the next request requires it (e.g. the
 		 * aliasing ppgtt), but skip over the hung batch.
 		 *
-		 * If the request was innocent, we try to replay the request
+		 * If the request was inyescent, we try to replay the request
 		 * with the restored context.
 		 */
 		__i915_request_reset(rq, stalled);
@@ -847,7 +847,7 @@ static int rcs_resume(struct intel_engine_cs *engine)
 	/*
 	 * Disable CONSTANT_BUFFER before it is loaded from the context
 	 * image. For as it is loaded, it is executed and the stored
-	 * address may no longer be valid, leading to a GPU hang.
+	 * address may yes longer be valid, leading to a GPU hang.
 	 *
 	 * This imposes the requirement that userspace reload their
 	 * CONSTANT_BUFFER on every batch, fortunately a requirement
@@ -887,7 +887,7 @@ static int rcs_resume(struct intel_engine_cs *engine)
 		/* From the Sandybridge PRM, volume 1 part 3, page 24:
 		 * "If this bit is set, STCunit will have LRA as replacement
 		 *  policy. [...] This bit must be reset.  LRA replacement
-		 *  policy is not supported."
+		 *  policy is yest supported."
 		 */
 		I915_WRITE(CACHE_MODE_0,
 			   _MASKED_BIT_DISABLE(CM0_STC_EVICT_DISABLE_LRA_SNB));
@@ -914,7 +914,7 @@ static void cancel_requests(struct intel_engine_cs *engine)
 		i915_request_mark_complete(request);
 	}
 
-	/* Remaining _unready_ requests will be nop'ed when submitted */
+	/* Remaining _unready_ requests will be yesp'ed when submitted */
 
 	spin_unlock_irqrestore(&engine->active.lock, flags);
 }
@@ -922,7 +922,7 @@ static void cancel_requests(struct intel_engine_cs *engine)
 static void i9xx_submit_request(struct i915_request *request)
 {
 	i915_request_submit(request);
-	wmb(); /* paranoid flush writes out of the WCB before mmio */
+	wmb(); /* parayesid flush writes out of the WCB before mmio */
 
 	ENGINE_WRITE(request->engine, RING_TAIL,
 		     intel_ring_set_tail(request->ring, request->tail));
@@ -937,7 +937,7 @@ static u32 *i9xx_emit_breadcrumb(struct i915_request *rq, u32 *cs)
 
 	*cs++ = MI_STORE_DWORD_INDEX;
 	*cs++ = I915_GEM_HWS_SEQNO_ADDR;
-	*cs++ = rq->fence.seqno;
+	*cs++ = rq->fence.seqyes;
 
 	*cs++ = MI_USER_INTERRUPT;
 	*cs++ = MI_NOOP;
@@ -962,7 +962,7 @@ static u32 *gen5_emit_breadcrumb(struct i915_request *rq, u32 *cs)
 	for (i = 0; i < GEN5_WA_STORES; i++) {
 		*cs++ = MI_STORE_DWORD_INDEX;
 		*cs++ = I915_GEM_HWS_SEQNO_ADDR;
-		*cs++ = rq->fence.seqno;
+		*cs++ = rq->fence.seqyes;
 	}
 
 	*cs++ = MI_USER_INTERRUPT;
@@ -1127,7 +1127,7 @@ i830_emit_bb_start(struct i915_request *rq,
 		if (IS_ERR(cs))
 			return PTR_ERR(cs);
 
-		/* Blit the batch (which has now all relocs applied) to the
+		/* Blit the batch (which has yesw all relocs applied) to the
 		 * stable batch scratch bo area (so that the CS never
 		 * stumbles over its tlb invalidation bug) ...
 		 */
@@ -1249,12 +1249,12 @@ alloc_context_vma(struct intel_engine_cs *engine)
 	 *
 	 * On VLV we don't have L3 controls in the PTEs so we
 	 * shouldn't touch the cache level, especially as that
-	 * would make the object snooped which might have a
+	 * would make the object syesoped which might have a
 	 * negative performance impact.
 	 *
-	 * Snooping is required on non-llc platforms in execlist
+	 * Syesoping is required on yesn-llc platforms in execlist
 	 * mode, but since all GGTT accesses use PAT entry 0 we
-	 * get snooping anyway regardless of cache_level.
+	 * get syesoping anyway regardless of cache_level.
 	 *
 	 * This is only applicable for Ivy Bridge devices since
 	 * later platforms don't have L3 control bits in the PTE.
@@ -1450,8 +1450,8 @@ static inline int mi_set_context(struct i915_request *rq, u32 flags)
 		/*
 		 * This w/a is only listed for pre-production ilk a/b steppings,
 		 * but is also mentioned for programming the powerctx. To be
-		 * safe, just apply the workaround; we do not use SyncFlush so
-		 * this should never take effect and so be a no-op!
+		 * safe, just apply the workaround; we do yest use SyncFlush so
+		 * this should never take effect and so be a yes-op!
 		 */
 		*cs++ = MI_SUSPEND_FLUSH | MI_SUSPEND_FLUSH_EN;
 	}
@@ -1530,8 +1530,8 @@ static int remap_l3_slice(struct i915_request *rq, int slice)
 		return PTR_ERR(cs);
 
 	/*
-	 * Note: We do not worry about the concurrent register cacheline hang
-	 * here because no other code should access these registers other than
+	 * Note: We do yest worry about the concurrent register cacheline hang
+	 * here because yes other code should access these registers other than
 	 * at initialization time.
 	 */
 	*cs++ = MI_LOAD_REGISTER_IMM(GEN7_L3LOG_SIZE/4);
@@ -1643,7 +1643,7 @@ static int ring_request_alloc(struct i915_request *request)
 	GEM_BUG_ON(i915_request_timeline(request)->has_initial_breadcrumb);
 
 	/*
-	 * Flush enough space to reduce the likelihood of waiting after
+	 * Flush eyesugh space to reduce the likelihood of waiting after
 	 * we start building the request - in which case we will just
 	 * have to repeat work.
 	 */
@@ -1670,7 +1670,7 @@ static void gen6_bsd_submit_request(struct i915_request *request)
 
        /* Every tail move must follow the sequence below */
 
-	/* Disable notification that the ring is IDLE. The GT
+	/* Disable yestification that the ring is IDLE. The GT
 	 * will then assume that it is busy and bring it out of rc6.
 	 */
 	intel_uncore_write_fw(uncore, GEN6_BSD_SLEEP_PSMI_CONTROL,
@@ -1679,7 +1679,7 @@ static void gen6_bsd_submit_request(struct i915_request *request)
 	/* Clear the context id. Here be magic! */
 	intel_uncore_write64_fw(uncore, GEN6_BSD_RNCID, 0x0);
 
-	/* Wait for the ring not to be idle, i.e. for it to wake up. */
+	/* Wait for the ring yest to be idle, i.e. for it to wake up. */
 	if (__intel_wait_for_register_fw(uncore,
 					 GEN6_BSD_SLEEP_PSMI_CONTROL,
 					 GEN6_BSD_SLEEP_INDICATOR,

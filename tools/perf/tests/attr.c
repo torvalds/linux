@@ -20,7 +20,7 @@
  */
 
 #include <debug.h>
-#include <errno.h>
+#include <erryes.h>
 #include <inttypes.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -146,14 +146,14 @@ static int store_event(struct perf_event_attr *attr, pid_t pid, int cpu,
 void test_attr__open(struct perf_event_attr *attr, pid_t pid, int cpu,
 		     int fd, int group_fd, unsigned long flags)
 {
-	int errno_saved = errno;
+	int erryes_saved = erryes;
 
 	if ((fd != -1) && store_event(attr, pid, cpu, fd, group_fd, flags)) {
 		pr_err("test attr FAILED");
 		exit(128);
 	}
 
-	errno = errno_saved;
+	erryes = erryes_saved;
 }
 
 void test_attr__ready(void)

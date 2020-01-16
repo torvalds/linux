@@ -2,7 +2,7 @@
 /*
  * SAMA5D2 PIOBU GPIO controller
  *
- * Copyright (C) 2018 Microchip Technology Inc. and its subsidiaries
+ * Copyright (C) 2018 Microchip Techyeslogy Inc. and its subsidiaries
  *
  * Author: Andrei Stefanescu <andrei.stefanescu@microchip.com>
  *
@@ -22,7 +22,7 @@
 
 /*
  * backup mode protection register for tamper detection
- * normal mode protection register for tamper detection
+ * yesrmal mode protection register for tamper detection
  * wakeup signal generation
  */
 #define PIOBU_BMPR 0x7C
@@ -52,8 +52,8 @@ struct sama5d2_piobu {
 /**
  * sama5d2_piobu_setup_pin() - prepares a pin for set_direction call
  *
- * Do not consider pin for tamper detection (normal and backup modes)
- * Do not consider pin as tamper wakeup interrupt source
+ * Do yest consider pin for tamper detection (yesrmal and backup modes)
+ * Do yest consider pin as tamper wakeup interrupt source
  */
 static int sama5d2_piobu_setup_pin(struct gpio_chip *chip, unsigned int pin)
 {
@@ -192,7 +192,7 @@ static int sama5d2_piobu_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, piobu);
 	piobu->chip.label = pdev->name;
 	piobu->chip.parent = &pdev->dev;
-	piobu->chip.of_node = pdev->dev.of_node;
+	piobu->chip.of_yesde = pdev->dev.of_yesde;
 	piobu->chip.owner = THIS_MODULE,
 	piobu->chip.get_direction = sama5d2_piobu_get_direction,
 	piobu->chip.direction_input = sama5d2_piobu_direction_input,
@@ -203,7 +203,7 @@ static int sama5d2_piobu_probe(struct platform_device *pdev)
 	piobu->chip.ngpio = PIOBU_NUM,
 	piobu->chip.can_sleep = 0,
 
-	piobu->regmap = syscon_node_to_regmap(pdev->dev.of_node);
+	piobu->regmap = syscon_yesde_to_regmap(pdev->dev.of_yesde);
 	if (IS_ERR(piobu->regmap)) {
 		dev_err(&pdev->dev, "Failed to get syscon regmap %ld\n",
 			PTR_ERR(piobu->regmap));

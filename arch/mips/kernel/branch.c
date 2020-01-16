@@ -4,7 +4,7 @@
  * for more details.
  *
  * Copyright (C) 1996, 97, 2000, 2001 by Ralf Baechle
- * Copyright (C) 2001 MIPS Technologies, Inc.
+ * Copyright (C) 2001 MIPS Techyeslogies, Inc.
  */
 #include <linux/kernel.h>
 #include <linux/sched/signal.h>
@@ -22,7 +22,7 @@
 
 /*
  * Calculate and return exception PC in case of branch delay slot
- * for microMIPS and MIPS16e. It does not clear the ISA mode bit.
+ * for microMIPS and MIPS16e. It does yest clear the ISA mode bit.
  */
 int __isa_exception_epc(struct pt_regs *regs)
 {
@@ -253,8 +253,8 @@ int __mm_isBranchInstr(struct pt_regs *regs, struct mm_decoded_insn dec_insn,
 
 /*
  * Compute return address and emulate branch in microMIPS mode after an
- * exception only. It does not handle compact branches/jumps and cannot
- * be used in interrupt context. (Compact branches/jumps do not cause
+ * exception only. It does yest handle compact branches/jumps and canyest
+ * be used in interrupt context. (Compact branches/jumps do yest cause
  * exceptions.)
  */
 int __microMIPS_compute_return_epc(struct pt_regs *regs)
@@ -311,8 +311,8 @@ sigsegv:
 
 /*
  * Compute return address and emulate branch in MIPS16e mode after an
- * exception only. It does not handle compact branches/jumps and cannot
- * be used in interrupt context. (Compact branches/jumps do not cause
+ * exception only. It does yest handle compact branches/jumps and canyest
+ * be used in interrupt context. (Compact branches/jumps do yest cause
  * exceptions.)
  */
 int __MIPS16e_compute_return_epc(struct pt_regs *regs)
@@ -389,8 +389,8 @@ int __MIPS16e_compute_return_epc(struct pt_regs *regs)
 	}
 
 	/*
-	 * All other cases have no branch delay slot and are 16-bits.
-	 * Branches do not cause an exception.
+	 * All other cases have yes branch delay slot and are 16-bits.
+	 * Branches do yest cause an exception.
 	 */
 	regs->cp0_epc += 2;
 
@@ -408,13 +408,13 @@ int __MIPS16e_compute_return_epc(struct pt_regs *regs)
  *		evaluating the branch.
  *
  * MIPS R6 Compact branches and forbidden slots:
- *	Compact branches do not throw exceptions because they do
- *	not have delay slots. The forbidden slot instruction ($PC+4)
- *	is only executed if the branch was not taken. Otherwise the
+ *	Compact branches do yest throw exceptions because they do
+ *	yest have delay slots. The forbidden slot instruction ($PC+4)
+ *	is only executed if the branch was yest taken. Otherwise the
  *	forbidden slot is skipped entirely. This means that the
  *	only possible reason to be here because of a MIPS R6 compact
  *	branch instruction is that the forbidden slot has thrown one.
- *	In that case the branch was not taken, so the EPC can be safely
+ *	In that case the branch was yest taken, so the EPC can be safely
  *	set to EPC + 8.
  */
 int __compute_return_epc_for_insn(struct pt_regs *regs,
@@ -491,14 +491,14 @@ int __compute_return_epc_for_insn(struct pt_regs *regs,
 			if (!insn.i_format.rs) {
 				/*
 				 * NAL or BLTZAL with rs == 0
-				 * Doesn't matter if we are R6 or not. The
+				 * Doesn't matter if we are R6 or yest. The
 				 * result is the same
 				 */
 				regs->cp0_epc += 4 +
 					(insn.i_format.simmediate << 2);
 				break;
 			}
-			/* Now do the real thing for non-R6 BLTZAL{,L} */
+			/* Now do the real thing for yesn-R6 BLTZAL{,L} */
 			if ((long)regs->regs[insn.i_format.rs] < 0) {
 				epc = epc + 4 + (insn.i_format.simmediate << 2);
 				if (insn.i_format.rt == bltzall_op)
@@ -523,14 +523,14 @@ int __compute_return_epc_for_insn(struct pt_regs *regs,
 			if (!insn.i_format.rs) {
 				/*
 				 * BAL or BGEZAL with rs == 0
-				 * Doesn't matter if we are R6 or not. The
+				 * Doesn't matter if we are R6 or yest. The
 				 * result is the same
 				 */
 				regs->cp0_epc += 4 +
 					(insn.i_format.simmediate << 2);
 				break;
 			}
-			/* Now do the real thing for non-R6 BGEZAL{,L} */
+			/* Now do the real thing for yesn-R6 BGEZAL{,L} */
 			if ((long)regs->regs[insn.i_format.rs] >= 0) {
 				epc = epc + 4 + (insn.i_format.simmediate << 2);
 				if (insn.i_format.rt == bgezall_op)
@@ -605,7 +605,7 @@ int __compute_return_epc_for_insn(struct pt_regs *regs,
 		regs->cp0_epc = epc;
 		break;
 
-	case blezl_op: /* not really i_format */
+	case blezl_op: /* yest really i_format */
 		if (!insn.i_format.rt && NO_R6EMU)
 			goto sigill_r2r6;
 		/* fall through */
@@ -680,7 +680,7 @@ int __compute_return_epc_for_insn(struct pt_regs *regs,
 
 #ifdef CONFIG_MIPS_FP_SUPPORT
 	/*
-	 * And now the FPA/cp1 branch instructions.
+	 * And yesw the FPA/cp1 branch instructions.
 	 */
 	case cop1_op: {
 		unsigned int bit, fcr31, reg;
@@ -827,17 +827,17 @@ int __compute_return_epc_for_insn(struct pt_regs *regs,
 	return ret;
 
 sigill_dsp:
-	pr_debug("%s: DSP branch but not DSP ASE - sending SIGILL.\n",
+	pr_debug("%s: DSP branch but yest DSP ASE - sending SIGILL.\n",
 		 current->comm);
 	force_sig(SIGILL);
 	return -EFAULT;
 sigill_r2r6:
-	pr_debug("%s: R2 branch but r2-to-r6 emulator is not present - sending SIGILL.\n",
+	pr_debug("%s: R2 branch but r2-to-r6 emulator is yest present - sending SIGILL.\n",
 		 current->comm);
 	force_sig(SIGILL);
 	return -EFAULT;
 sigill_r6:
-	pr_debug("%s: R6 branch but no MIPSr6 ISA support - sending SIGILL.\n",
+	pr_debug("%s: R6 branch but yes MIPSr6 ISA support - sending SIGILL.\n",
 		 current->comm);
 	force_sig(SIGILL);
 	return -EFAULT;
@@ -884,7 +884,7 @@ int __insn_is_compact_branch(union mips_instruction insn)
 	case blez_op:
 	case bgtz_op:
 		/*
-		 * blez[l] and bgtz[l] opcodes with non-zero rt
+		 * blez[l] and bgtz[l] opcodes with yesn-zero rt
 		 * are MIPS R6 compact branches
 		 */
 		if (insn.i_format.rt)

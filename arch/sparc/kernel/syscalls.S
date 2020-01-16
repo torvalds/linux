@@ -13,7 +13,7 @@ sys64_execveat:
 	 flushw
 
 #ifdef CONFIG_COMPAT
-sunos_execv:
+suyess_execv:
 	mov	%g0, %o2
 sys32_execve:
 	set	compat_sys_execve, %g1
@@ -38,44 +38,44 @@ sys32_sigreturn:
 	add	%sp, PTREGS_OFF, %o0
 	call	do_sigreturn32
 	 add	%o7, 1f-.-4, %o7
-	nop
+	yesp
 #endif
 sys_rt_sigreturn:
 	add	%sp, PTREGS_OFF, %o0
 	call	do_rt_sigreturn
 	 add	%o7, 1f-.-4, %o7
-	nop
+	yesp
 #ifdef CONFIG_COMPAT
 sys32_rt_sigreturn:
 	add	%sp, PTREGS_OFF, %o0
 	call	do_rt_sigreturn32
 	 add	%o7, 1f-.-4, %o7
-	nop
+	yesp
 #endif
 	.align	32
 1:	ldx	[%g6 + TI_FLAGS], %l5
 	andcc	%l5, (_TIF_SYSCALL_TRACE|_TIF_SECCOMP|_TIF_SYSCALL_AUDIT|_TIF_SYSCALL_TRACEPOINT|_TIF_NOHZ), %g0
 	be,pt	%icc, rtrap
-	 nop
+	 yesp
 	call	syscall_trace_leave
 	 add	%sp, PTREGS_OFF, %o0
 	ba,pt	%xcc, rtrap
-	 nop
+	 yesp
 
 	/* This is how fork() was meant to be done, 8 instruction entry.
 	 *
 	 * I questioned the following code briefly, let me clear things
-	 * up so you must not reason on it like I did.
+	 * up so you must yest reason on it like I did.
 	 *
-	 * Know the fork_kpsr etc. we use in the sparc32 port?  We don't
+	 * Kyesw the fork_kpsr etc. we use in the sparc32 port?  We don't
 	 * need it here because the only piece of window state we copy to
 	 * the child is the CWP register.  Even if the parent sleeps,
 	 * we are safe because we stuck it into pt_regs of the parent
-	 * so it will not change.
+	 * so it will yest change.
 	 *
 	 * XXX This raises the question, whether we can do the same on
 	 * XXX sparc32 to get rid of fork_kpsr _and_ fork_kwim.  The
-	 * XXX answer is yes.  We stick fork_kpsr in UREG_G0 and
+	 * XXX answer is no.  We stick fork_kpsr in UREG_G0 and
 	 * XXX fork_kwim in UREG_G1 (global registers are considered
 	 * XXX volatile across a system call in the sparc ABI I think
 	 * XXX if it isn't we can use regs->y instead, anyone who depends
@@ -251,7 +251,7 @@ linux_sparc_syscall:
 	 mov	%i0, %l5				! IEU0
 2:	call	%l7					! CTI	Group brk forced
 	 mov	%i5, %o5				! IEU0
-	nop
+	yesp
 
 3:	stx	%o0, [%sp + PTREGS_OFF + PT_V9_I0]
 ret_sys_call:
@@ -283,7 +283,7 @@ ret_sys_call:
 	brnz,pn %l2, 2b
 	 ldx	[%sp + PTREGS_OFF + PT_V9_TNPC], %l1 ! pc = npc
 	/* System call failure, set Carry condition code.
-	 * Also, get abs(errno) to return to the process.
+	 * Also, get abs(erryes) to return to the process.
 	 */
 	sub	%g0, %o0, %o0
 	stx	%o0, [%sp + PTREGS_OFF + PT_V9_I0]

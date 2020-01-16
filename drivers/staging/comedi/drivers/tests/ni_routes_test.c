@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0+
-/* vim: set ts=8 sw=8 noet tw=80 nowrap: */
+/* vim: set ts=8 sw=8 yeset tw=80 yeswrap: */
 /*
  *  comedi/drivers/tests/ni_routes_test.c
  *  Unit tests for NI routes (ni_routes.c module).
@@ -47,7 +47,7 @@ static struct ni_private private = {
 
 static const int bad_dest = O(8), dest0 = O(0), desti = O(5);
 static const int ith_dest_index = 2;
-static const int no_val_dest = O(7), no_val_index = 4;
+static const int yes_val_dest = O(7), yes_val_index = 4;
 
 /* These have to be defs to be used in init code below */
 #define rgout0_src0	(O(100))
@@ -61,7 +61,7 @@ static const int no_val_dest = O(7), no_val_index = 4;
 #define brd3_src0	(O(140))
 #define brd3_src1	(O(141))
 
-/* I1 and I2 should not call O(...).  Mostly here to shut checkpatch.pl up */
+/* I1 and I2 should yest call O(...).  Mostly here to shut checkpatch.pl up */
 #define I1(x1)	\
 	(int[]){ \
 		x1, 0 \
@@ -90,7 +90,7 @@ static struct ni_device_routes DR = {
 		/* ith route_set */
 		{.dest = O(5), .src = O9(0, 1, 2, 3, 4,/**/ 6, 7, 8, 9)},
 		{.dest = O(6), .src = O9(0, 1, 2, 3, 4, 5,/**/ 7, 8, 9)},
-		/* next one will not have valid reg values */
+		/* next one will yest have valid reg values */
 		{.dest = O(7), .src = O9(0, 1, 2, 3, 4, 5, 6,/**/ 8, 9)},
 		{.dest = O(9), .src = O9(0, 1, 2, 3, 4, 5, 6, 7, 8/**/)},
 
@@ -273,7 +273,7 @@ void test_ni_sort_device_routes(void)
 {
 	/* We begin by sorting the device routes for use in later tests */
 	ni_sort_device_routes(&DR);
-	/* now we test that sorting. */
+	/* yesw we test that sorting. */
 	unittest(route_set_dests_in_order(&DR),
 		 "all route_sets of fake data in order of sig. destination\n");
 	unittest(route_set_sources_in_order(&DR),
@@ -283,14 +283,14 @@ void test_ni_sort_device_routes(void)
 void test_ni_find_route_set(void)
 {
 	unittest(!ni_find_route_set(bad_dest, &DR),
-		 "check for nonexistent route_set\n");
+		 "check for yesnexistent route_set\n");
 	unittest(ni_find_route_set(dest0, &DR) == &DR.routes[0],
 		 "find first route_set\n");
 	unittest(ni_find_route_set(desti, &DR) == &DR.routes[ith_dest_index],
 		 "find ith route_set\n");
-	unittest(ni_find_route_set(no_val_dest, &DR) ==
-		 &DR.routes[no_val_index],
-		 "find no_val route_set in spite of missing values\n");
+	unittest(ni_find_route_set(yes_val_dest, &DR) ==
+		 &DR.routes[yes_val_index],
+		 "find yes_val route_set in spite of missing values\n");
 	unittest(ni_find_route_set(DR.routes[DR.n_route_sets - 1].dest, &DR) ==
 		 &DR.routes[DR.n_route_sets - 1],
 		 "find last route_set\n");
@@ -376,23 +376,23 @@ void test_ni_lookup_route_register(void)
 
 	unittest(ni_lookup_route_register(rgout0_src0, TRIGGER_LINE(0), T) ==
 		 -EINVAL,
-		 "rgout0_src0: no direct lookup of indirect route\n");
+		 "rgout0_src0: yes direct lookup of indirect route\n");
 	unittest(ni_lookup_route_register(rgout0_src0, NI_RGOUT0, T) == 0,
 		 "rgout0_src0: lookup indirect route register\n");
 	unittest(ni_lookup_route_register(rgout0_src1, TRIGGER_LINE(2), T) ==
 		 -EINVAL,
-		 "rgout0_src1: no direct lookup of indirect route\n");
+		 "rgout0_src1: yes direct lookup of indirect route\n");
 	unittest(ni_lookup_route_register(rgout0_src1, NI_RGOUT0, T) == 1,
 		 "rgout0_src1: lookup indirect route register\n");
 
 	unittest(ni_lookup_route_register(brd0_src0, TRIGGER_LINE(4), T) ==
 		 -EINVAL,
-		 "brd0_src0: no direct lookup of indirect route\n");
+		 "brd0_src0: yes direct lookup of indirect route\n");
 	unittest(ni_lookup_route_register(brd0_src0, NI_RTSI_BRD(0), T) == 0,
 		 "brd0_src0: lookup indirect route register\n");
 	unittest(ni_lookup_route_register(brd0_src1, TRIGGER_LINE(4), T) ==
 		 -EINVAL,
-		 "brd0_src1: no direct lookup of indirect route\n");
+		 "brd0_src1: yes direct lookup of indirect route\n");
 	unittest(ni_lookup_route_register(brd0_src1, NI_RTSI_BRD(0), T) == 1,
 		 "brd0_src1: lookup indirect route register\n");
 }
@@ -426,7 +426,7 @@ void test_ni_is_cmd_dest(void)
 	unittest(ni_is_cmd_dest(NI_DO_SampleClock),
 		 "check that DO/SampleClock is cmd destination\n");
 	unittest(!ni_is_cmd_dest(NI_AO_SampleClockTimebase),
-		 "check that AO/SampleClockTimebase _not_ cmd destination\n");
+		 "check that AO/SampleClockTimebase _yest_ cmd destination\n");
 }
 
 void test_channel_is_pfi(void)
@@ -436,7 +436,7 @@ void test_channel_is_pfi(void)
 	unittest(channel_is_pfi(NI_PFI(10)), "check 10th pfi channel\n");
 	unittest(channel_is_pfi(NI_PFI(-1)), "check last pfi channel\n");
 	unittest(!channel_is_pfi(NI_PFI(-1) + 1),
-		 "check first non pfi channel\n");
+		 "check first yesn pfi channel\n");
 }
 
 void test_channel_is_rtsi(void)
@@ -449,7 +449,7 @@ void test_channel_is_rtsi(void)
 	unittest(channel_is_rtsi(TRIGGER_LINE(-1)),
 		 "check last rtsi channel\n");
 	unittest(!channel_is_rtsi(TRIGGER_LINE(-1) + 1),
-		 "check first non rtsi channel\n");
+		 "check first yesn rtsi channel\n");
 }
 
 void test_ni_count_valid_routes(void)

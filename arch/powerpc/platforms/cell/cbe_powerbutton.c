@@ -45,7 +45,7 @@ static int __init cbe_powerbutton_init(void)
 	dev = input_allocate_device();
 	if (!dev) {
 		ret = -ENOMEM;
-		printk(KERN_ERR "%s: Not enough memory.\n", __func__);
+		printk(KERN_ERR "%s: Not eyesugh memory.\n", __func__);
 		goto out;
 	}
 
@@ -56,7 +56,7 @@ static int __init cbe_powerbutton_init(void)
 	dev->id.bustype = BUS_HOST;
 
 	/* this makes the button look like an acpi power button
-	 * no clue whether anyone relies on that though */
+	 * yes clue whether anyone relies on that though */
 	dev->id.product = 0x02;
 	dev->phys = "LNXPWRBN/button/input0";
 

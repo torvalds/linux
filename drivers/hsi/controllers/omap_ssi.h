@@ -4,7 +4,7 @@
  * Copyright (C) 2010 Nokia Corporation. All rights reserved.
  * Copyright (C) 2013 Sebastian Reichel
  *
- * Contact: Carlos Chinea <carlos.chinea@nokia.com>
+ * Contact: Carlos Chinea <carlos.chinea@yeskia.com>
  */
 
 #ifndef __LINUX_HSI_OMAP_SSI_H__
@@ -25,7 +25,7 @@
 #define SSI_WAKE_EN 0
 
 /**
- * struct omap_ssm_ctx - OMAP synchronous serial module (TX/RX) context
+ * struct omap_ssm_ctx - OMAP synchroyesus serial module (TX/RX) context
  * @mode: Bit transmission mode
  * @channels: Number of channels
  * @framesize: Frame size in bits
@@ -63,14 +63,14 @@ struct omap_ssm_ctx {
  * @errqueue: Queue for failed messages
  * @errqueue_work: Delayed Work for failed messages
  * @irq: IRQ number
- * @wake_irq: IRQ number for incoming wake line (-1 if none)
- * @wake_gpio: GPIO number for incoming wake line (-1 if none)
+ * @wake_irq: IRQ number for incoming wake line (-1 if yesne)
+ * @wake_gpio: GPIO number for incoming wake line (-1 if yesne)
  * @flags: flags to keep track of states
  * @wk_refcount: Reference count for output wake line
  * @work: worker for starting TX
  * @sys_mpu_enable: Context for the interrupt enable register for irq 0
- * @sst: Context for the synchronous serial transmitter
- * @ssr: Context for the synchronous serial receiver
+ * @sst: Context for the synchroyesus serial transmitter
+ * @ssr: Context for the synchroyesus serial receiver
  */
 struct omap_ssi_port {
 	struct device		*dev;
@@ -125,9 +125,9 @@ struct gdd_trn {
  * @gdd_tasklet: bottom half for DMA transfers
  * @gdd_trn: Array of GDD transaction data for ongoing GDD transfers
  * @lock: lock to serialize access to GDD
- * @fck_nb: DVFS notfifier block
+ * @fck_nb: DVFS yestfifier block
  * @fck_rate: clock rate
- * @loss_count: To follow if we need to restore context or not
+ * @loss_count: To follow if we need to restore context or yest
  * @max_speed: Maximum TX speed (Kb/s) set by the clients.
  * @gdd_gcr: SSI GDD saved context
  * @get_loss: Pointer to omap_pm_get_dev_context_loss_count, if any
@@ -143,7 +143,7 @@ struct omap_ssi_controller {
 	struct tasklet_struct	gdd_tasklet;
 	struct gdd_trn		gdd_trn[SSI_MAX_GDD_LCH];
 	spinlock_t		lock;
-	struct notifier_block	fck_nb;
+	struct yestifier_block	fck_nb;
 	unsigned long		fck_rate;
 	u32			loss_count;
 	u32			max_speed;

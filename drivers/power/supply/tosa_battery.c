@@ -31,7 +31,7 @@ struct tosa_bat {
 	int gpio_full;
 	int gpio_charge_off;
 
-	int technology;
+	int techyeslogy;
 
 	int gpio_bat;
 	int adc_bat;
@@ -104,7 +104,7 @@ static int tosa_bat_get_property(struct power_supply *psy,
 		val->intval = bat->status;
 		break;
 	case POWER_SUPPLY_PROP_TECHNOLOGY:
-		val->intval = bat->technology;
+		val->intval = bat->techyeslogy;
 		break;
 	case POWER_SUPPLY_PROP_VOLTAGE_NOW:
 		val->intval = tosa_read_bat(bat);
@@ -161,7 +161,7 @@ static void tosa_bat_update(struct tosa_bat *bat)
 	old = bat->status;
 
 	if (bat->is_present && !bat->is_present(bat)) {
-		printk(KERN_NOTICE "%s not present\n", psy->desc->name);
+		printk(KERN_NOTICE "%s yest present\n", psy->desc->name);
 		bat->status = POWER_SUPPLY_STATUS_UNKNOWN;
 		bat->full_chrg = -1;
 	} else if (power_supply_am_i_supplied(psy)) {
@@ -254,7 +254,7 @@ static struct tosa_bat tosa_bat_main = {
 	.gpio_full = TOSA_GPIO_BAT0_CRG,
 	.gpio_charge_off = TOSA_GPIO_CHARGE_OFF,
 
-	.technology = POWER_SUPPLY_TECHNOLOGY_LIPO,
+	.techyeslogy = POWER_SUPPLY_TECHNOLOGY_LIPO,
 
 	.gpio_bat = TOSA_GPIO_BAT0_V_ON,
 	.adc_bat = WM97XX_AUX_ID3,
@@ -276,7 +276,7 @@ static struct tosa_bat tosa_bat_jacket = {
 	.gpio_full = TOSA_GPIO_BAT1_CRG,
 	.gpio_charge_off = TOSA_GPIO_CHARGE_OFF_JC,
 
-	.technology = POWER_SUPPLY_TECHNOLOGY_LIPO,
+	.techyeslogy = POWER_SUPPLY_TECHNOLOGY_LIPO,
 
 	.gpio_bat = TOSA_GPIO_BAT1_V_ON,
 	.adc_bat = WM97XX_AUX_ID3,
@@ -297,7 +297,7 @@ static struct tosa_bat tosa_bat_bu = {
 	.gpio_full = -1,
 	.gpio_charge_off = -1,
 
-	.technology = POWER_SUPPLY_TECHNOLOGY_LiMn,
+	.techyeslogy = POWER_SUPPLY_TECHNOLOGY_LiMn,
 
 	.gpio_bat = TOSA_GPIO_BU_CHRG_ON,
 	.adc_bat = WM97XX_AUX_ID4,
@@ -442,7 +442,7 @@ static int tosa_bat_remove(struct platform_device *dev)
 	/*
 	 * Now cancel the bat_work.  We won't get any more schedules,
 	 * since all sources (isr and external_power_changed) are
-	 * unregistered now.
+	 * unregistered yesw.
 	 */
 	cancel_work_sync(&bat_work);
 	gpio_free_array(tosa_bat_gpios, ARRAY_SIZE(tosa_bat_gpios));

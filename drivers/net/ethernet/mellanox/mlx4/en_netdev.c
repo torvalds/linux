@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2007 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2007 Mellayesx Techyeslogies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -174,7 +174,7 @@ struct mlx4_en_filter {
 	u8 activated;			/* Used to prevent expiry before filter
 					 * is attached
 					 */
-	struct hlist_node filter_chain;
+	struct hlist_yesde filter_chain;
 };
 
 static void mlx4_en_filter_rfs_expire(struct mlx4_en_priv *priv);
@@ -191,7 +191,7 @@ static enum mlx4_net_trans_rule_id mlx4_ip_proto_to_trans_rule_id(u8 ip_proto)
 	}
 };
 
-/* Must not acquire state_lock, as its corresponding work_sync
+/* Must yest acquire state_lock, as its corresponding work_sync
  * is done under it.
  */
 static void mlx4_en_filter_work(struct work_struct *work)
@@ -238,9 +238,9 @@ static void mlx4_en_filter_work(struct work_struct *work)
 	__be64 mac_mask = cpu_to_be64(MLX4_MAC_MASK << 16);
 
 	if (spec_tcp_udp.id >= MLX4_NET_TRANS_RULE_NUM) {
-		en_warn(priv, "RFS: ignoring unsupported ip protocol (%d)\n",
+		en_warn(priv, "RFS: igyesring unsupported ip protocol (%d)\n",
 			filter->ip_proto);
-		goto ignore;
+		goto igyesre;
 	}
 	list_add_tail(&spec_eth.list, &rule.list);
 	list_add_tail(&spec_ip.list, &rule.list);
@@ -262,7 +262,7 @@ static void mlx4_en_filter_work(struct work_struct *work)
 	if (rc)
 		en_err(priv, "Error attaching flow. err = %d\n", rc);
 
-ignore:
+igyesre:
 	mlx4_en_filter_rfs_expire(priv);
 
 	filter->activated = 1;
@@ -541,7 +541,7 @@ static int mlx4_en_tunnel_steer_add(struct mlx4_en_priv *priv, unsigned char *ad
 
 	if (priv->mdev->dev->caps.tunnel_offload_mode != MLX4_TUNNEL_OFFLOAD_MODE_VXLAN ||
 	    priv->mdev->dev->caps.dmfs_high_steer_mode == MLX4_STEERING_DMFS_A0_STATIC)
-		return 0; /* do nothing */
+		return 0; /* do yesthing */
 
 	err = mlx4_tunnel_steer_add(priv->mdev->dev, addr, priv->port, qpn,
 				    MLX4_DOMAIN_NIC, reg_id);
@@ -703,7 +703,7 @@ static int mlx4_en_replace_mac(struct mlx4_en_priv *priv, int qpn,
 		struct hlist_head *bucket;
 		unsigned int mac_hash;
 		struct mlx4_mac_entry *entry;
-		struct hlist_node *tmp;
+		struct hlist_yesde *tmp;
 		u64 prev_mac_u64 = mlx4_mac_to_u64(prev_mac);
 
 		bucket = &priv->mac_hash[prev_mac[MLX4_EN_MAC_HASH_IDX]];
@@ -838,7 +838,7 @@ static void update_mclist_flags(struct mlx4_en_priv *priv,
 	bool found;
 
 	/* Find all the entries that should be removed from dst,
-	 * These are the entries that are not found in src
+	 * These are the entries that are yest found in src
 	 */
 	list_for_each_entry(dst_tmp, dst, list) {
 		found = false;
@@ -852,7 +852,7 @@ static void update_mclist_flags(struct mlx4_en_priv *priv,
 			dst_tmp->action = MCLIST_REM;
 	}
 
-	/* Add entries that exist in src but not in dst
+	/* Add entries that exist in src but yest in dst
 	 * mark them as need to add
 	 */
 	list_for_each_entry(src_tmp, src, list) {
@@ -1133,7 +1133,7 @@ static void mlx4_en_do_uc_filter(struct mlx4_en_priv *priv,
 {
 	struct netdev_hw_addr *ha;
 	struct mlx4_mac_entry *entry;
-	struct hlist_node *tmp;
+	struct hlist_yesde *tmp;
 	bool found;
 	u64 mac;
 	int err = 0;
@@ -1142,7 +1142,7 @@ static void mlx4_en_do_uc_filter(struct mlx4_en_priv *priv,
 	int removed = 0;
 	u32 prev_flags;
 
-	/* Note that we do not need to protect our mac_hash traversal with rcu,
+	/* Note that we do yest need to protect our mac_hash traversal with rcu,
 	 * since all modification code is protected by mdev->state_lock
 	 */
 
@@ -1159,7 +1159,7 @@ static void mlx4_en_do_uc_filter(struct mlx4_en_priv *priv,
 				}
 			}
 
-			/* MAC address of the port is not in uc list */
+			/* MAC address of the port is yest in uc list */
 			if (ether_addr_equal_64bits(entry->mac,
 						    priv->current_mac))
 				found = true;
@@ -1180,7 +1180,7 @@ static void mlx4_en_do_uc_filter(struct mlx4_en_priv *priv,
 		}
 	}
 
-	/* if we didn't remove anything, there is no use in trying to add
+	/* if we didn't remove anything, there is yes use in trying to add
 	 * again once we are in a forced promisc mode state
 	 */
 	if ((priv->flags & MLX4_EN_FLAG_FORCE_PROMISC) && 0 == removed)
@@ -1257,11 +1257,11 @@ static void mlx4_en_do_set_rx_mode(struct work_struct *work)
 
 	mutex_lock(&mdev->state_lock);
 	if (!mdev->device_up) {
-		en_dbg(HW, priv, "Card is not up, ignoring rx mode change.\n");
+		en_dbg(HW, priv, "Card is yest up, igyesring rx mode change.\n");
 		goto out;
 	}
 	if (!priv->port_up) {
-		en_dbg(HW, priv, "Port is down, ignoring rx mode change.\n");
+		en_dbg(HW, priv, "Port is down, igyesring rx mode change.\n");
 		goto out;
 	}
 
@@ -1339,7 +1339,7 @@ static void mlx4_en_delete_rss_steer_rules(struct mlx4_en_priv *priv)
 	unsigned int i;
 	int qpn = priv->base_qpn;
 	struct hlist_head *bucket;
-	struct hlist_node *tmp;
+	struct hlist_yesde *tmp;
 	struct mlx4_mac_entry *entry;
 
 	for (i = 0; i < MLX4_EN_MAC_HASH_SIZE; ++i) {
@@ -1524,7 +1524,7 @@ static void mlx4_en_do_get_stats(struct work_struct *work)
 		if (priv->port_up) {
 			err = mlx4_en_DUMP_ETH_STATS(mdev, priv->port, 0);
 			if (err)
-				en_dbg(HW, priv, "Could not update stats\n");
+				en_dbg(HW, priv, "Could yest update stats\n");
 
 			mlx4_en_auto_moderation(priv);
 		}
@@ -1586,12 +1586,12 @@ static void mlx4_en_linkstate(struct work_struct *work)
 static int mlx4_en_init_affinity_hint(struct mlx4_en_priv *priv, int ring_idx)
 {
 	struct mlx4_en_rx_ring *ring = priv->rx_ring[ring_idx];
-	int numa_node = priv->mdev->dev->numa_node;
+	int numa_yesde = priv->mdev->dev->numa_yesde;
 
 	if (!zalloc_cpumask_var(&ring->affinity_mask, GFP_KERNEL))
 		return -ENOMEM;
 
-	cpumask_set_cpu(cpumask_local_spread(ring_idx, numa_node),
+	cpumask_set_cpu(cpumask_local_spread(ring_idx, numa_yesde),
 			ring->affinity_mask);
 	return 0;
 }
@@ -1898,7 +1898,7 @@ void mlx4_en_stop_port(struct net_device *dev, int detach)
 
 	spin_lock_bh(&priv->stats_lock);
 	mlx4_en_fold_software_stats(dev);
-	/* Set port as not active */
+	/* Set port as yest active */
 	priv->port_up = false;
 	spin_unlock_bh(&priv->stats_lock);
 
@@ -2058,7 +2058,7 @@ static void mlx4_en_clear_stats(struct net_device *dev)
 		priv->rx_ring[i]->bytes = 0;
 		priv->rx_ring[i]->packets = 0;
 		priv->rx_ring[i]->csum_ok = 0;
-		priv->rx_ring[i]->csum_none = 0;
+		priv->rx_ring[i]->csum_yesne = 0;
 		priv->rx_ring[i]->csum_complete = 0;
 	}
 }
@@ -2072,7 +2072,7 @@ static int mlx4_en_open(struct net_device *dev)
 	mutex_lock(&mdev->state_lock);
 
 	if (!mdev->device_up) {
-		en_err(priv, "Cannot open - device down/disabled\n");
+		en_err(priv, "Canyest open - device down/disabled\n");
 		err = -EBUSY;
 		goto out;
 	}
@@ -2140,33 +2140,33 @@ static int mlx4_en_alloc_resources(struct mlx4_en_priv *priv)
 {
 	struct mlx4_en_port_profile *prof = priv->prof;
 	int i, t;
-	int node;
+	int yesde;
 
 	/* Create tx Rings */
 	for (t = 0; t < MLX4_EN_NUM_TX_TYPES; t++) {
 		for (i = 0; i < priv->tx_ring_num[t]; i++) {
-			node = cpu_to_node(i % num_online_cpus());
+			yesde = cpu_to_yesde(i % num_online_cpus());
 			if (mlx4_en_create_cq(priv, &priv->tx_cq[t][i],
-					      prof->tx_ring_size, i, t, node))
+					      prof->tx_ring_size, i, t, yesde))
 				goto err;
 
 			if (mlx4_en_create_tx_ring(priv, &priv->tx_ring[t][i],
 						   prof->tx_ring_size,
-						   TXBB_SIZE, node, i))
+						   TXBB_SIZE, yesde, i))
 				goto err;
 		}
 	}
 
 	/* Create rx Rings */
 	for (i = 0; i < priv->rx_ring_num; i++) {
-		node = cpu_to_node(i % num_online_cpus());
+		yesde = cpu_to_yesde(i % num_online_cpus());
 		if (mlx4_en_create_cq(priv, &priv->rx_cq[i],
-				      prof->rx_ring_size, i, RX, node))
+				      prof->rx_ring_size, i, RX, yesde))
 			goto err;
 
 		if (mlx4_en_create_rx_ring(priv, &priv->rx_ring[i],
 					   prof->rx_ring_size, priv->stride,
-					   node, i))
+					   yesde, i))
 			goto err;
 
 	}
@@ -2336,7 +2336,7 @@ void mlx4_en_destroy_netdev(struct net_device *dev)
 	if (mdev->dev->caps.flags2 & MLX4_DEV_CAP_FLAG2_TS)
 		mlx4_en_remove_timestamp(mdev);
 
-	/* Detach the netdev so tasks would not attempt to access it */
+	/* Detach the netdev so tasks would yest attempt to access it */
 	mutex_lock(&mdev->state_lock);
 	mdev->pndev[priv->port] = NULL;
 	mdev->upper[priv->port] = NULL;
@@ -2485,7 +2485,7 @@ static netdev_features_t mlx4_en_fix_features(struct net_device *netdev,
 	struct mlx4_en_priv *en_priv = netdev_priv(netdev);
 	struct mlx4_en_dev *mdev = en_priv->mdev;
 
-	/* Since there is no support for separate RX C-TAG/S-TAG vlan accel
+	/* Since there is yes support for separate RX C-TAG/S-TAG vlan accel
 	 * enable/disable make sure S-TAG flag is always in same state as
 	 * C-TAG.
 	 */
@@ -2512,12 +2512,12 @@ static int mlx4_en_set_features(struct net_device *netdev,
 	}
 
 	if (DEV_FEATURE_CHANGED(netdev, features, NETIF_F_RXALL)) {
-		u8 ignore_fcs_value = (features & NETIF_F_RXALL) ? 1 : 0;
+		u8 igyesre_fcs_value = (features & NETIF_F_RXALL) ? 1 : 0;
 
 		en_info(priv, "Turn %s RX-ALL\n",
-			ignore_fcs_value ? "ON" : "OFF");
+			igyesre_fcs_value ? "ON" : "OFF");
 		ret = mlx4_SET_PORT_fcs_check(priv->mdev->dev,
-					      priv->port, ignore_fcs_value);
+					      priv->port, igyesre_fcs_value);
 		if (ret)
 			return ret;
 	}
@@ -2710,7 +2710,7 @@ static void mlx4_en_del_vxlan_port(struct  net_device *dev,
 
 	current_port = priv->vxlan_port;
 	if (current_port != port) {
-		en_dbg(DRV, priv, "vxlan port %d isn't configured, ignoring\n", ntohs(port));
+		en_dbg(DRV, priv, "vxlan port %d isn't configured, igyesring\n", ntohs(port));
 		return;
 	}
 
@@ -2751,7 +2751,7 @@ static int mlx4_en_set_tx_maxrate(struct net_device *dev, int queue_index, u32 m
 	if (!(priv->mdev->dev->caps.flags2 & MLX4_DEV_CAP_FLAG2_QP_RATE_LIMIT))
 		return -EOPNOTSUPP;
 
-	/* rate provided to us in Mbs, check if it fits into 12 bits, if not use Gbs */
+	/* rate provided to us in Mbs, check if it fits into 12 bits, if yest use Gbs */
 	if (maxrate >> 12) {
 		params.rate_unit = MLX4_QP_RATE_LIMIT_GBS;
 		params.rate_val  = maxrate / 1000;
@@ -2821,7 +2821,7 @@ static int mlx4_xdp_set(struct net_device *dev, struct bpf_prog *prog)
 		tx_changed = 1;
 		new_prof.tx_ring_num[TX] =
 			MAX_TX_RINGS - ALIGN(xdp_ring_num, priv->prof->num_up);
-		en_warn(priv, "Reducing the number of TX rings, to not exceed the max total rings number.\n");
+		en_warn(priv, "Reducing the number of TX rings, to yest exceed the max total rings number.\n");
 	}
 
 	err = mlx4_en_try_alloc_resources(priv, tmp, &new_prof, false);
@@ -3017,10 +3017,10 @@ static int mlx4_en_queue_bond_work(struct mlx4_en_priv *priv, int is_bonded,
 	return 0;
 }
 
-int mlx4_en_netdev_event(struct notifier_block *this,
+int mlx4_en_netdev_event(struct yestifier_block *this,
 			 unsigned long event, void *ptr)
 {
-	struct net_device *ndev = netdev_notifier_info_to_dev(ptr);
+	struct net_device *ndev = netdev_yestifier_info_to_dev(ptr);
 	u8 port = 0;
 	struct mlx4_en_dev *mdev;
 	struct mlx4_dev *dev;
@@ -3045,27 +3045,27 @@ int mlx4_en_netdev_event(struct notifier_block *this,
 			port = i;
 		mdev->upper[i] = mdev->pndev[i] ?
 			netdev_master_upper_dev_get(mdev->pndev[i]) : NULL;
-		/* condition not met: network device is a slave */
+		/* condition yest met: network device is a slave */
 		if (!mdev->upper[i])
 			do_bond = false;
 		if (num_eth_ports < 2)
 			continue;
-		/* condition not met: same master */
+		/* condition yest met: same master */
 		if (mdev->upper[i] != mdev->upper[i-1])
 			do_bond = false;
 	}
-	/* condition not met: 2 salves */
+	/* condition yest met: 2 salves */
 	do_bond = (num_eth_ports ==  2) ? do_bond : false;
 
-	/* handle only events that come with enough info */
+	/* handle only events that come with eyesugh info */
 	if ((do_bond && (event != NETDEV_BONDING_INFO)) || !port)
 		return NOTIFY_DONE;
 
 	priv = netdev_priv(ndev);
 	if (do_bond) {
-		struct netdev_notifier_bonding_info *notifier_info = ptr;
+		struct netdev_yestifier_bonding_info *yestifier_info = ptr;
 		struct netdev_bonding_info *bonding_info =
-			&notifier_info->bonding_info;
+			&yestifier_info->bonding_info;
 
 		/* required mode 1, 2 or 4 */
 		if ((bonding_info->master.bond_mode != BOND_MODE_ACTIVEBACKUP) &&

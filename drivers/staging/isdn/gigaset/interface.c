@@ -19,7 +19,7 @@ static int if_lock(struct cardstate *cs, int *arg)
 {
 	int cmd = *arg;
 
-	gig_dbg(DEBUG_IF, "%u: if_lock (%d)", cs->minor_index, cmd);
+	gig_dbg(DEBUG_IF, "%u: if_lock (%d)", cs->miyesr_index, cmd);
 
 	if (cmd > 1)
 		return -EINVAL;
@@ -60,7 +60,7 @@ static int if_version(struct cardstate *cs, unsigned arg[4])
 	static const unsigned compat[4] = GIG_COMPAT;
 	unsigned cmd = arg[0];
 
-	gig_dbg(DEBUG_IF, "%u: if_version (%d)", cs->minor_index, cmd);
+	gig_dbg(DEBUG_IF, "%u: if_version (%d)", cs->miyesr_index, cmd);
 
 	switch (cmd) {
 	case GIGVER_DRIVER:
@@ -91,7 +91,7 @@ static int if_version(struct cardstate *cs, unsigned arg[4])
 
 static int if_config(struct cardstate *cs, int *arg)
 {
-	gig_dbg(DEBUG_IF, "%u: if_config (%d)", cs->minor_index, *arg);
+	gig_dbg(DEBUG_IF, "%u: if_config (%d)", cs->miyesr_index, *arg);
 
 	if (*arg != 1)
 		return -EINVAL;
@@ -100,7 +100,7 @@ static int if_config(struct cardstate *cs, int *arg)
 		return -EBUSY;
 
 	if (!cs->connected) {
-		pr_err("%s: not connected\n", __func__);
+		pr_err("%s: yest connected\n", __func__);
 		return -ENODEV;
 	}
 
@@ -115,7 +115,7 @@ static int if_open(struct tty_struct *tty, struct file *filp)
 	struct cardstate *cs;
 
 	gig_dbg(DEBUG_IF, "%d+%d: %s()",
-		tty->driver->minor_start, tty->index, __func__);
+		tty->driver->miyesr_start, tty->index, __func__);
 
 	cs = gigaset_get_cs_by_tty(tty);
 	if (!cs || !try_module_get(cs->driver->owner))
@@ -143,18 +143,18 @@ static void if_close(struct tty_struct *tty, struct file *filp)
 	struct cardstate *cs = tty->driver_data;
 
 	if (!cs) { /* happens if we didn't find cs in open */
-		gig_dbg(DEBUG_IF, "%s: no cardstate", __func__);
+		gig_dbg(DEBUG_IF, "%s: yes cardstate", __func__);
 		return;
 	}
 
-	gig_dbg(DEBUG_IF, "%u: %s()", cs->minor_index, __func__);
+	gig_dbg(DEBUG_IF, "%u: %s()", cs->miyesr_index, __func__);
 
 	mutex_lock(&cs->mutex);
 
 	if (!cs->connected)
-		gig_dbg(DEBUG_IF, "not connected");	/* nothing to do */
+		gig_dbg(DEBUG_IF, "yest connected");	/* yesthing to do */
 	else if (!cs->port.count)
-		dev_warn(cs->dev, "%s: device not opened\n", __func__);
+		dev_warn(cs->dev, "%s: device yest opened\n", __func__);
 	else if (!--cs->port.count)
 		tty_port_tty_set(&cs->port, NULL);
 
@@ -172,13 +172,13 @@ static int if_ioctl(struct tty_struct *tty,
 	unsigned char buf[6];
 	unsigned version[4];
 
-	gig_dbg(DEBUG_IF, "%u: %s(0x%x)", cs->minor_index, __func__, cmd);
+	gig_dbg(DEBUG_IF, "%u: %s(0x%x)", cs->miyesr_index, __func__, cmd);
 
 	if (mutex_lock_interruptible(&cs->mutex))
 		return -ERESTARTSYS;
 
 	if (!cs->connected) {
-		gig_dbg(DEBUG_IF, "not connected");
+		gig_dbg(DEBUG_IF, "yest connected");
 		retval = -ENODEV;
 	} else {
 		retval = 0;
@@ -219,7 +219,7 @@ static int if_ioctl(struct tty_struct *tty,
 					? -EFAULT : 0;
 			break;
 		default:
-			gig_dbg(DEBUG_IF, "%s: arg not supported - 0x%04x",
+			gig_dbg(DEBUG_IF, "%s: arg yest supported - 0x%04x",
 				__func__, cmd);
 			retval = -ENOIOCTLCMD;
 		}
@@ -243,7 +243,7 @@ static int if_tiocmget(struct tty_struct *tty)
 	struct cardstate *cs = tty->driver_data;
 	int retval;
 
-	gig_dbg(DEBUG_IF, "%u: %s()", cs->minor_index, __func__);
+	gig_dbg(DEBUG_IF, "%u: %s()", cs->miyesr_index, __func__);
 
 	if (mutex_lock_interruptible(&cs->mutex))
 		return -ERESTARTSYS;
@@ -263,13 +263,13 @@ static int if_tiocmset(struct tty_struct *tty,
 	unsigned mc;
 
 	gig_dbg(DEBUG_IF, "%u: %s(0x%x, 0x%x)",
-		cs->minor_index, __func__, set, clear);
+		cs->miyesr_index, __func__, set, clear);
 
 	if (mutex_lock_interruptible(&cs->mutex))
 		return -ERESTARTSYS;
 
 	if (!cs->connected) {
-		gig_dbg(DEBUG_IF, "not connected");
+		gig_dbg(DEBUG_IF, "yest connected");
 		retval = -ENODEV;
 	} else {
 		mc = (cs->control_state | set) & ~clear & (TIOCM_RTS | TIOCM_DTR);
@@ -288,13 +288,13 @@ static int if_write(struct tty_struct *tty, const unsigned char *buf, int count)
 	struct cmdbuf_t *cb;
 	int retval;
 
-	gig_dbg(DEBUG_IF, "%u: %s()", cs->minor_index, __func__);
+	gig_dbg(DEBUG_IF, "%u: %s()", cs->miyesr_index, __func__);
 
 	if (mutex_lock_interruptible(&cs->mutex))
 		return -ERESTARTSYS;
 
 	if (!cs->connected) {
-		gig_dbg(DEBUG_IF, "not connected");
+		gig_dbg(DEBUG_IF, "yest connected");
 		retval = -ENODEV;
 		goto done;
 	}
@@ -304,7 +304,7 @@ static int if_write(struct tty_struct *tty, const unsigned char *buf, int count)
 		goto done;
 	}
 	if (count <= 0) {
-		/* nothing to do */
+		/* yesthing to do */
 		retval = 0;
 		goto done;
 	}
@@ -332,13 +332,13 @@ static int if_write_room(struct tty_struct *tty)
 	struct cardstate *cs = tty->driver_data;
 	int retval;
 
-	gig_dbg(DEBUG_IF, "%u: %s()", cs->minor_index, __func__);
+	gig_dbg(DEBUG_IF, "%u: %s()", cs->miyesr_index, __func__);
 
 	if (mutex_lock_interruptible(&cs->mutex))
 		return -ERESTARTSYS;
 
 	if (!cs->connected) {
-		gig_dbg(DEBUG_IF, "not connected");
+		gig_dbg(DEBUG_IF, "yest connected");
 		retval = -ENODEV;
 	} else if (cs->mstate != MS_LOCKED) {
 		dev_warn(cs->dev, "can't write to unlocked device\n");
@@ -356,12 +356,12 @@ static int if_chars_in_buffer(struct tty_struct *tty)
 	struct cardstate *cs = tty->driver_data;
 	int retval = 0;
 
-	gig_dbg(DEBUG_IF, "%u: %s()", cs->minor_index, __func__);
+	gig_dbg(DEBUG_IF, "%u: %s()", cs->miyesr_index, __func__);
 
 	mutex_lock(&cs->mutex);
 
 	if (!cs->connected)
-		gig_dbg(DEBUG_IF, "not connected");
+		gig_dbg(DEBUG_IF, "yest connected");
 	else if (cs->mstate != MS_LOCKED)
 		dev_warn(cs->dev, "can't write to unlocked device\n");
 	else
@@ -376,14 +376,14 @@ static void if_throttle(struct tty_struct *tty)
 {
 	struct cardstate *cs = tty->driver_data;
 
-	gig_dbg(DEBUG_IF, "%u: %s()", cs->minor_index, __func__);
+	gig_dbg(DEBUG_IF, "%u: %s()", cs->miyesr_index, __func__);
 
 	mutex_lock(&cs->mutex);
 
 	if (!cs->connected)
-		gig_dbg(DEBUG_IF, "not connected");	/* nothing to do */
+		gig_dbg(DEBUG_IF, "yest connected");	/* yesthing to do */
 	else
-		gig_dbg(DEBUG_IF, "%s: not implemented\n", __func__);
+		gig_dbg(DEBUG_IF, "%s: yest implemented\n", __func__);
 
 	mutex_unlock(&cs->mutex);
 }
@@ -392,14 +392,14 @@ static void if_unthrottle(struct tty_struct *tty)
 {
 	struct cardstate *cs = tty->driver_data;
 
-	gig_dbg(DEBUG_IF, "%u: %s()", cs->minor_index, __func__);
+	gig_dbg(DEBUG_IF, "%u: %s()", cs->miyesr_index, __func__);
 
 	mutex_lock(&cs->mutex);
 
 	if (!cs->connected)
-		gig_dbg(DEBUG_IF, "not connected");	/* nothing to do */
+		gig_dbg(DEBUG_IF, "yest connected");	/* yesthing to do */
 	else
-		gig_dbg(DEBUG_IF, "%s: not implemented\n", __func__);
+		gig_dbg(DEBUG_IF, "%s: yest implemented\n", __func__);
 
 	mutex_unlock(&cs->mutex);
 }
@@ -412,12 +412,12 @@ static void if_set_termios(struct tty_struct *tty, struct ktermios *old)
 	unsigned int old_cflag;
 	unsigned int control_state, new_state;
 
-	gig_dbg(DEBUG_IF, "%u: %s()", cs->minor_index, __func__);
+	gig_dbg(DEBUG_IF, "%u: %s()", cs->miyesr_index, __func__);
 
 	mutex_lock(&cs->mutex);
 
 	if (!cs->connected) {
-		gig_dbg(DEBUG_IF, "not connected");
+		gig_dbg(DEBUG_IF, "yest connected");
 		goto out;
 	}
 
@@ -425,14 +425,14 @@ static void if_set_termios(struct tty_struct *tty, struct ktermios *old)
 	cflag = tty->termios.c_cflag;
 	old_cflag = old ? old->c_cflag : cflag;
 	gig_dbg(DEBUG_IF, "%u: iflag %x cflag %x old %x",
-		cs->minor_index, iflag, cflag, old_cflag);
+		cs->miyesr_index, iflag, cflag, old_cflag);
 
 	/* get a local copy of the current port settings */
 	control_state = cs->control_state;
 
 	/*
 	 * Update baud rate.
-	 * Do not attempt to cache old rates and skip settings,
+	 * Do yest attempt to cache old rates and skip settings,
 	 * disconnects screw such tricks up completely.
 	 * Premature optimization is the root of all evil.
 	 */
@@ -444,7 +444,7 @@ static void if_set_termios(struct tty_struct *tty, struct ktermios *old)
 		if (!(old_cflag & CRTSCTS))
 			new_state |= TIOCM_RTS;
 		gig_dbg(DEBUG_IF, "%u: from B0 - set DTR%s",
-			cs->minor_index,
+			cs->miyesr_index,
 			(new_state & TIOCM_RTS) ? " only" : "/RTS");
 		cs->ops->set_modem_ctrl(cs, control_state, new_state);
 		control_state = new_state;
@@ -454,7 +454,7 @@ static void if_set_termios(struct tty_struct *tty, struct ktermios *old)
 
 	if ((cflag & CBAUD) == B0) {
 		/* Drop RTS and DTR */
-		gig_dbg(DEBUG_IF, "%u: to B0 - drop DTR/RTS", cs->minor_index);
+		gig_dbg(DEBUG_IF, "%u: to B0 - drop DTR/RTS", cs->miyesr_index);
 		new_state = control_state & ~(TIOCM_DTR | TIOCM_RTS);
 		cs->ops->set_modem_ctrl(cs, control_state, new_state);
 		control_state = new_state;
@@ -513,12 +513,12 @@ void gigaset_if_init(struct cardstate *cs)
 
 	mutex_lock(&cs->mutex);
 	cs->tty_dev = tty_port_register_device(&cs->port, drv->tty,
-			cs->minor_index, NULL);
+			cs->miyesr_index, NULL);
 
 	if (!IS_ERR(cs->tty_dev))
 		dev_set_drvdata(cs->tty_dev, cs);
 	else {
-		pr_warn("could not register device to the tty subsystem\n");
+		pr_warn("could yest register device to the tty subsystem\n");
 		cs->tty_dev = NULL;
 	}
 	mutex_unlock(&cs->mutex);
@@ -535,7 +535,7 @@ void gigaset_if_free(struct cardstate *cs)
 	tasklet_disable(&cs->if_wake_tasklet);
 	tasklet_kill(&cs->if_wake_tasklet);
 	cs->tty_dev = NULL;
-	tty_unregister_device(drv->tty, cs->minor_index);
+	tty_unregister_device(drv->tty, cs->miyesr_index);
 }
 
 /**
@@ -560,7 +560,7 @@ EXPORT_SYMBOL_GPL(gigaset_if_receive);
  * parameters:
  *	drv		Driver
  *	procname	Name of the driver (e.g. for /proc/tty/drivers)
- *	devname		Name of the device files (prefix without minor number)
+ *	devname		Name of the device files (prefix without miyesr number)
  */
 void gigaset_if_initdriver(struct gigaset_driver *drv, const char *procname,
 			   const char *devname)
@@ -570,9 +570,9 @@ void gigaset_if_initdriver(struct gigaset_driver *drv, const char *procname,
 
 	drv->have_tty = 0;
 
-	drv->tty = tty = alloc_tty_driver(drv->minors);
+	drv->tty = tty = alloc_tty_driver(drv->miyesrs);
 	if (tty == NULL)
-		goto enomem;
+		goto eyesmem;
 
 	tty->type =		TTY_DRIVER_TYPE_SERIAL;
 	tty->subtype =		SERIAL_TYPE_NORMAL;
@@ -580,7 +580,7 @@ void gigaset_if_initdriver(struct gigaset_driver *drv, const char *procname,
 
 	tty->driver_name =	procname;
 	tty->name =		devname;
-	tty->minor_start =	drv->minor;
+	tty->miyesr_start =	drv->miyesr;
 
 	tty->init_termios          = tty_std_termios;
 	tty->init_termios.c_cflag  = B9600 | CS8 | CREAD | HUPCL | CLOCAL;
@@ -595,7 +595,7 @@ void gigaset_if_initdriver(struct gigaset_driver *drv, const char *procname,
 	drv->have_tty = 1;
 	return;
 
-enomem:
+eyesmem:
 	pr_err("out of memory\n");
 error:
 	if (drv->tty)

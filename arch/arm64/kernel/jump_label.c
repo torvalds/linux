@@ -20,19 +20,19 @@ void arch_jump_label_transform(struct jump_entry *entry,
 						   jump_entry_target(entry),
 						   AARCH64_INSN_BRANCH_NOLINK);
 	} else {
-		insn = aarch64_insn_gen_nop();
+		insn = aarch64_insn_gen_yesp();
 	}
 
-	aarch64_insn_patch_text_nosync(addr, insn);
+	aarch64_insn_patch_text_yessync(addr, insn);
 }
 
 void arch_jump_label_transform_static(struct jump_entry *entry,
 				      enum jump_label_type type)
 {
 	/*
-	 * We use the architected A64 NOP in arch_static_branch, so there's no
+	 * We use the architected A64 NOP in arch_static_branch, so there's yes
 	 * need to patch an identical A64 NOP over the top of it here. The core
-	 * will call arch_jump_label_transform from a module notifier if the
+	 * will call arch_jump_label_transform from a module yestifier if the
 	 * NOP needs to be replaced by a branch.
 	 */
 }

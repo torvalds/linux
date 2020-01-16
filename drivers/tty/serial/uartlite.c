@@ -3,7 +3,7 @@
  * uartlite.c: Serial driver for Xilinx uartlite serial controller
  *
  * Copyright (C) 2006 Peter Korsgaard <jacmet@sunsite.dk>
- * Copyright (C) 2007 Secret Lab Technologies Ltd.
+ * Copyright (C) 2007 Secret Lab Techyeslogies Ltd.
  */
 
 #include <linux/platform_device.h>
@@ -147,7 +147,7 @@ static int ulite_receive(struct uart_port *port, int stat)
 
 
 	/* drop byte with parity error if IGNPAR specificed */
-	if (stat & port->ignore_status_mask & ULITE_STATUS_PARITY)
+	if (stat & port->igyesre_status_mask & ULITE_STATUS_PARITY)
 		stat &= ~ULITE_STATUS_RXVALID;
 
 	stat &= port->read_status_mask;
@@ -156,7 +156,7 @@ static int ulite_receive(struct uart_port *port, int stat)
 		flag = TTY_PARITY;
 
 
-	stat &= ~port->ignore_status_mask;
+	stat &= ~port->igyesre_status_mask;
 
 	if (stat & ULITE_STATUS_RXVALID)
 		tty_insert_flip_char(tport, ch, flag);
@@ -257,7 +257,7 @@ static void ulite_start_tx(struct uart_port *port)
 static void ulite_stop_rx(struct uart_port *port)
 {
 	/* don't forward any more data (like !CREAD) */
-	port->ignore_status_mask = ULITE_STATUS_RXVALID | ULITE_STATUS_PARITY
+	port->igyesre_status_mask = ULITE_STATUS_RXVALID | ULITE_STATUS_PARITY
 		| ULITE_STATUS_FRAME | ULITE_STATUS_OVERRUN;
 }
 
@@ -314,14 +314,14 @@ static void ulite_set_termios(struct uart_port *port, struct ktermios *termios,
 		port->read_status_mask |=
 			ULITE_STATUS_PARITY | ULITE_STATUS_FRAME;
 
-	port->ignore_status_mask = 0;
+	port->igyesre_status_mask = 0;
 	if (termios->c_iflag & IGNPAR)
-		port->ignore_status_mask |= ULITE_STATUS_PARITY
+		port->igyesre_status_mask |= ULITE_STATUS_PARITY
 			| ULITE_STATUS_FRAME | ULITE_STATUS_OVERRUN;
 
-	/* ignore all characters if CREAD is not set */
+	/* igyesre all characters if CREAD is yest set */
 	if ((termios->c_cflag & CREAD) == 0)
-		port->ignore_status_mask |=
+		port->igyesre_status_mask |=
 			ULITE_STATUS_RXVALID | ULITE_STATUS_PARITY
 			| ULITE_STATUS_FRAME | ULITE_STATUS_OVERRUN;
 
@@ -516,11 +516,11 @@ static int ulite_console_setup(struct console *co, char *options)
 
 	/* Has the device been initialized yet? */
 	if (!port->mapbase) {
-		pr_debug("console on ttyUL%i not present\n", co->index);
+		pr_debug("console on ttyUL%i yest present\n", co->index);
 		return -ENODEV;
 	}
 
-	/* not initialized yet? */
+	/* yest initialized yet? */
 	if (!port->membase) {
 		if (ulite_request_port(port))
 			return -ENODEV;
@@ -592,7 +592,7 @@ static struct uart_driver ulite_uart_driver = {
 	.driver_name	= "uartlite",
 	.dev_name	= ULITE_NAME,
 	.major		= ULITE_MAJOR,
-	.minor		= ULITE_MINOR,
+	.miyesr		= ULITE_MINOR,
 	.nr		= ULITE_NR_UARTS,
 #ifdef CONFIG_SERIAL_UARTLITE_CONSOLE
 	.cons		= &ulite_console,
@@ -631,7 +631,7 @@ static int ulite_assign(struct device *dev, int id, u32 base, int irq,
 	}
 
 	if ((ulite_ports[id].mapbase) && (ulite_ports[id].mapbase != base)) {
-		dev_err(dev, "cannot assign to %s%i; it is already in use\n",
+		dev_err(dev, "canyest assign to %s%i; it is already in use\n",
 			ULITE_NAME, id);
 		return -EBUSY;
 	}
@@ -676,7 +676,7 @@ static int ulite_assign(struct device *dev, int id, u32 base, int irq,
 	}
 
 #ifdef CONFIG_SERIAL_UARTLITE_CONSOLE
-	/* This is not port which is used for console that's why clean it up */
+	/* This is yest port which is used for console that's why clean it up */
 	if (ulite_uart_driver.cons->index == -1)
 		console_port = NULL;
 #endif
@@ -722,7 +722,7 @@ static int __maybe_unused ulite_suspend(struct device *dev)
  * ulite_resume - Resume the device.
  *
  * @dev: handle to the device structure.
- * Return: 0 on success, errno otherwise.
+ * Return: 0 on success, erryes otherwise.
  */
 static int __maybe_unused ulite_resume(struct device *dev)
 {
@@ -759,7 +759,7 @@ static int ulite_probe(struct platform_device *pdev)
 #ifdef CONFIG_OF
 	const __be32 *prop;
 
-	prop = of_get_property(pdev->dev.of_node, "port-number", NULL);
+	prop = of_get_property(pdev->dev.of_yesde, "port-number", NULL);
 	if (prop)
 		id = be32_to_cpup(prop);
 #endif

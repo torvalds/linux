@@ -23,7 +23,7 @@ static int gb_control_get_version(struct gb_control *control)
 	int ret;
 
 	request.major = GB_CONTROL_VERSION_MAJOR;
-	request.minor = GB_CONTROL_VERSION_MINOR;
+	request.miyesr = GB_CONTROL_VERSION_MINOR;
 
 	ret = gb_operation_sync(control->connection,
 				GB_CONTROL_TYPE_VERSION,
@@ -44,10 +44,10 @@ static int gb_control_get_version(struct gb_control *control)
 	}
 
 	control->protocol_major = response.major;
-	control->protocol_minor = response.minor;
+	control->protocol_miyesr = response.miyesr;
 
 	dev_dbg(&intf->dev, "%s - %u.%u\n", __func__, response.major,
-		response.minor);
+		response.miyesr);
 
 	return 0;
 }
@@ -74,10 +74,10 @@ static int gb_control_get_bundle_version(struct gb_control *control,
 	}
 
 	bundle->class_major = response.major;
-	bundle->class_minor = response.minor;
+	bundle->class_miyesr = response.miyesr;
 
 	dev_dbg(&intf->dev, "%s - %u: %u.%u\n", __func__, bundle->id,
-		response.major, response.minor);
+		response.major, response.miyesr);
 
 	return 0;
 }
@@ -494,7 +494,7 @@ int gb_control_enable(struct gb_control *control)
 	if (ret)
 		goto err_disable_connection;
 
-	if (control->protocol_major > 0 || control->protocol_minor > 1)
+	if (control->protocol_major > 0 || control->protocol_miyesr > 1)
 		control->has_bundle_version = true;
 
 	/* FIXME: use protocol version instead */

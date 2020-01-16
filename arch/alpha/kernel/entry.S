@@ -8,11 +8,11 @@
 #include <asm/asm-offsets.h>
 #include <asm/thread_info.h>
 #include <asm/pal.h>
-#include <asm/errno.h>
+#include <asm/erryes.h>
 #include <asm/unistd.h>
 
 	.text
-	.set noat
+	.set yesat
 	.cfi_sections	.debug_frame
 
 /* Stack offsets.  */
@@ -40,7 +40,7 @@
 .endm
 
 /*
- * This defines the normal kernel pt-regs layout.
+ * This defines the yesrmal kernel pt-regs layout.
  *
  * regs 9-15 preserved by C code
  * regs 16-18 saved by PAL-code
@@ -237,7 +237,7 @@ CFI_START_OSF_FRAME entMM
 	.cfi_restore	$14
 	.cfi_restore	$15
 	.cfi_adjust_cfa_offset	-56
-/* finish up the syscall as normal.  */
+/* finish up the syscall as yesrmal.  */
 	br	ret_from_sys_call
 CFI_END_OSF_FRAME entMM
 
@@ -382,7 +382,7 @@ entUnaUser:
 	lda	$sp, 256($sp)	/* pop entUna's stack frame */
 	.cfi_restore	$0
 	.cfi_adjust_cfa_offset	-256
-	SAVE_ALL		/* setup normal kernel stack */
+	SAVE_ALL		/* setup yesrmal kernel stack */
 	lda	$sp, -56($sp)
 	.cfi_adjust_cfa_offset	56
 	stq	$9, 0($sp)
@@ -439,7 +439,7 @@ CFI_END_OSF_FRAME entDbg
  *
  * So much for theory.  We don't take advantage of this yet.
  *
- * Note that a0-a2 are not saved by PALcode as with the other entry points.
+ * Note that a0-a2 are yest saved by PALcode as with the other entry points.
  */
 
 	.align	4
@@ -477,12 +477,12 @@ entSys:
 	ldgp	$gp, 0($26)
 	blt	$0, $syscall_error	/* the call failed */
 	stq	$0, 0($sp)
-	stq	$31, 72($sp)		/* a3=0 => no error */
+	stq	$31, 72($sp)		/* a3=0 => yes error */
 
 	.align	4
 	.globl	ret_from_sys_call
 ret_from_sys_call:
-	cmovne	$26, 0, $18		/* $18 = 0 => non-restartable */
+	cmovne	$26, 0, $18		/* $18 = 0 => yesn-restartable */
 	ldq	$0, SP_OFF($sp)
 	and	$0, 8, $0
 	beq	$0, ret_to_kernel
@@ -509,7 +509,7 @@ ret_to_kernel:
 $syscall_error:
 	/*
 	 * Some system calls (e.g., ptrace) can return arbitrary
-	 * values which might normally be mistaken as error numbers.
+	 * values which might yesrmally be mistaken as error numbers.
 	 * Those functions must zero $0 (v0) directly in the stack
 	 * frame to indicate that a negative return value wasn't an
 	 * error number..
@@ -519,7 +519,7 @@ $syscall_error:
 
 	ldq	$19, 72($sp)	/* .. and this a3 */
 	subq	$31, $0, $0	/* with error in v0 */
-	addq	$31, 1, $1	/* set a3 for errno return */
+	addq	$31, 1, $1	/* set a3 for erryes return */
 	stq	$0, 0($sp)
 	mov	$31, $26	/* tell "ret_from_sys_call" we can restart */
 	stq	$1, 72($sp)	/* a3 for return */
@@ -527,7 +527,7 @@ $syscall_error:
 
 $ret_success:
 	stq	$0, 0($sp)
-	stq	$31, 72($sp)	/* a3=0 => no error */
+	stq	$31, 72($sp)	/* a3=0 => yes error */
 	br	ret_from_sys_call
 
 /*
@@ -536,7 +536,7 @@ $ret_success:
  * Arguments:
  *       $8: current.
  *      $17: TI_FLAGS.
- *      $18: The old syscall number, or zero if this is not a return
+ *      $18: The old syscall number, or zero if this is yest a return
  *           from a syscall that errored and is possibly restartable.
  *      $19: The old a3 value
  */
@@ -545,19 +545,19 @@ $ret_success:
 	.type	work_pending, @function
 work_pending:
 	and	$17, _TIF_NOTIFY_RESUME | _TIF_SIGPENDING, $2
-	bne	$2, $work_notifysig
+	bne	$2, $work_yestifysig
 
 $work_resched:
 	/*
 	 * We can get here only if we returned from syscall without SIGPENDING
-	 * or got through work_notifysig already.  Either case means no syscall
+	 * or got through work_yestifysig already.  Either case means yes syscall
 	 * restarts for us, so let $18 and $19 burn.
 	 */
 	jsr	$26, schedule
 	mov	0, $18
 	br	ret_to_user
 
-$work_notifysig:
+$work_yestifysig:
 	mov	$sp, $16
 	DO_SWITCH_STACK
 	jsr	$26, do_work_pending
@@ -598,7 +598,7 @@ ret_from_straced:
 
 	/* check return.. */
 	blt	$0, $strace_error	/* the call failed */
-	stq	$31, 72($sp)		/* a3=0 => no error */
+	stq	$31, 72($sp)		/* a3=0 => yes error */
 $strace_success:
 	stq	$0, 0($sp)		/* save return value */
 
@@ -614,7 +614,7 @@ $strace_error:
 	ldq	$19, 72($sp)	/* .. and this a3 */
 
 	subq	$31, $0, $0	/* with error in v0 */
-	addq	$31, 1, $1	/* set a3 for errno return */
+	addq	$31, 1, $1	/* set a3 for erryes return */
 	stq	$0, 0($sp)
 	stq	$1, 72($sp)	/* a3 for return */
 
@@ -839,14 +839,14 @@ alpha_syscall_zero:
 	.prologue 0
 	/* Special because it needs to do something opposite to
 	   force_successful_syscall_return().  We use the saved
-	   syscall number for that, zero meaning "not an error".
+	   syscall number for that, zero meaning "yest an error".
 	   That works nicely, but for real syscall 0 we need to
 	   make sure that this logics doesn't get confused.
-	   Store a non-zero there - -ENOSYS we need in register
+	   Store a yesn-zero there - -ENOSYS we need in register
 	   for our return value will do just fine.
 	  */
 	lda	$0, -ENOSYS
-	unop
+	uyesp
 	stq	$0, 0($sp)
 	ret
 .end alpha_syscall_zero

@@ -60,7 +60,7 @@
 	devbus,keep-config;
 
 	/*
-	 * Currently the MTD code does not recognize the MX29LV400CBCT
+	 * Currently the MTD code does yest recognize the MX29LV400CBCT
 	 * as a bottom-type device. This could cause risks of
 	 * accidentally erasing critical flash sectors. We thus define
 	 * a single, write-protected partition covering the whole

@@ -111,9 +111,9 @@ static int s35390a_init(struct s35390a *s35390a)
 
 	/*
 	 * At least one of POC and BLD are set, so reinitialise chip. Keeping
-	 * this information in the hardware to know later that the time isn't
-	 * valid is unfortunately not possible because POC and BLD are cleared
-	 * on read. So the reset is best done now.
+	 * this information in the hardware to kyesw later that the time isn't
+	 * valid is unfortunately yest possible because POC and BLD are cleared
+	 * on read. So the reset is best done yesw.
 	 *
 	 * The 24H bit is kept over reset, so set it already here.
 	 */
@@ -155,7 +155,7 @@ static int s35390a_read_status(struct s35390a *s35390a, char *status1)
 
 	if (*status1 & S35390A_FLAG_POC) {
 		/*
-		 * Do not communicate for 0.5 seconds since the power-on
+		 * Do yest communicate for 0.5 seconds since the power-on
 		 * detection circuit is in operation.
 		 */
 		msleep(500);

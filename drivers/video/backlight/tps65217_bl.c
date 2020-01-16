@@ -184,12 +184,12 @@ static struct tps65217_bl_pdata *
 tps65217_bl_parse_dt(struct platform_device *pdev)
 {
 	struct tps65217 *tps = dev_get_drvdata(pdev->dev.parent);
-	struct device_node *node;
+	struct device_yesde *yesde;
 	struct tps65217_bl_pdata *pdata, *err;
 	u32 val;
 
-	node = of_get_child_by_name(tps->dev->of_node, "backlight");
-	if (!node)
+	yesde = of_get_child_by_name(tps->dev->of_yesde, "backlight");
+	if (!yesde)
 		return ERR_PTR(-ENODEV);
 
 	pdata = devm_kzalloc(&pdev->dev, sizeof(*pdata), GFP_KERNEL);
@@ -199,7 +199,7 @@ tps65217_bl_parse_dt(struct platform_device *pdev)
 	}
 
 	pdata->isel = TPS65217_BL_ISET1;
-	if (!of_property_read_u32(node, "isel", &val)) {
+	if (!of_property_read_u32(yesde, "isel", &val)) {
 		if (val < TPS65217_BL_ISET1 ||
 			val > TPS65217_BL_ISET2) {
 			dev_err(&pdev->dev,
@@ -212,7 +212,7 @@ tps65217_bl_parse_dt(struct platform_device *pdev)
 	}
 
 	pdata->fdim = TPS65217_BL_FDIM_200HZ;
-	if (!of_property_read_u32(node, "fdim", &val)) {
+	if (!of_property_read_u32(yesde, "fdim", &val)) {
 		switch (val) {
 		case 100:
 			pdata->fdim = TPS65217_BL_FDIM_100HZ;
@@ -238,7 +238,7 @@ tps65217_bl_parse_dt(struct platform_device *pdev)
 		}
 	}
 
-	if (!of_property_read_u32(node, "default-brightness", &val)) {
+	if (!of_property_read_u32(yesde, "default-brightness", &val)) {
 		if (val > 100) {
 			dev_err(&pdev->dev,
 				"invalid 'default-brightness' value in the device tree\n");
@@ -249,12 +249,12 @@ tps65217_bl_parse_dt(struct platform_device *pdev)
 		pdata->dft_brightness = val;
 	}
 
-	of_node_put(node);
+	of_yesde_put(yesde);
 
 	return pdata;
 
 err:
-	of_node_put(node);
+	of_yesde_put(yesde);
 
 	return err;
 }

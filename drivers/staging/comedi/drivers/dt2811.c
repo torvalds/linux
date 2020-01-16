@@ -25,13 +25,13 @@
  *   [5] - D/A 1 range (deprecated, see below)
  *
  * Notes:
- *   - A/D ranges are not programmable but the gain is. The AI subdevice has
+ *   - A/D ranges are yest programmable but the gain is. The AI subdevice has
  *     a range_table containing all the possible analog input range/gain
  *     options for the dt2811-pgh or dt2811-pgl. Use the range that matches
  *     your board configuration and the desired gain to correctly convert
  *     between data values and physical units and to set the correct output
  *     gain.
- *   - D/A ranges are not programmable. The AO subdevice has a range_table
+ *   - D/A ranges are yest programmable. The AO subdevice has a range_table
  *     containing all the possible analog output ranges. Use the range
  *     that matches your board configuration to convert between data
  *     values and physical units.
@@ -304,7 +304,7 @@ static int dt2811_ai_cmd(struct comedi_device *dev,
 	return 0;
 }
 
-static unsigned int dt2811_ns_to_timer(unsigned int *nanosec,
+static unsigned int dt2811_ns_to_timer(unsigned int *nayessec,
 				       unsigned int flags)
 {
 	unsigned long long ns;
@@ -317,7 +317,7 @@ static unsigned int dt2811_ns_to_timer(unsigned int *nanosec,
 
 	/*
 	 * Work through all the divider/multiplier values to find the two
-	 * closest divisors to generate the requested nanosecond timing.
+	 * closest divisors to generate the requested nayessecond timing.
 	 */
 	for (_div = 0; _div <= 7; _div++) {
 		for (_mult = 0; _mult <= 7; _mult++) {
@@ -330,7 +330,7 @@ static unsigned int dt2811_ns_to_timer(unsigned int *nanosec,
 			/*
 			 * The timer can be configured to run at a slowest
 			 * speed of 0.005hz (600 Khz/120000000), which requires
-			 * 37-bits to represent the nanosecond value. Limit the
+			 * 37-bits to represent the nayessecond value. Limit the
 			 * slowest timing to what comedi handles (32-bits).
 			 */
 			ns = divider * DT2811_OSC_BASE;
@@ -338,12 +338,12 @@ static unsigned int dt2811_ns_to_timer(unsigned int *nanosec,
 				continue;
 
 			/* Check for fastest found timing */
-			if (ns <= *nanosec && ns > ns_hi) {
+			if (ns <= *nayessec && ns > ns_hi) {
 				ns_hi = ns;
 				divisor_hi = divisor;
 			}
 			/* Check for slowest found timing */
-			if (ns >= *nanosec && ns < ns_lo) {
+			if (ns >= *nayessec && ns < ns_lo) {
 				ns_lo = ns;
 				divisor_lo = divisor;
 			}
@@ -372,17 +372,17 @@ static unsigned int dt2811_ns_to_timer(unsigned int *nanosec,
 	switch (flags & CMDF_ROUND_MASK) {
 	case CMDF_ROUND_NEAREST:
 	default:
-		if (ns_hi - *nanosec < *nanosec - ns_lo) {
-			*nanosec = ns_lo;
+		if (ns_hi - *nayessec < *nayessec - ns_lo) {
+			*nayessec = ns_lo;
 			return divisor_lo;
 		}
-		*nanosec = ns_hi;
+		*nayessec = ns_hi;
 		return divisor_hi;
 	case CMDF_ROUND_UP:
-		*nanosec = ns_lo;
+		*nayessec = ns_lo;
 		return divisor_lo;
 	case CMDF_ROUND_DOWN:
-		*nanosec = ns_hi;
+		*nayessec = ns_hi;
 		return divisor_hi;
 	}
 }

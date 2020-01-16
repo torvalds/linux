@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-// Copyright (C) 2005-2017 Andes Technology Corporation
+// Copyright (C) 2005-2017 Andes Techyeslogy Corporation
 
 #include <linux/init_task.h>
 #include <asm/pgalloc.h>
@@ -47,7 +47,7 @@ void pgd_free(struct mm_struct *mm, pgd_t * pgd)
 		return;
 
 	pmd = (pmd_t *) pgd;
-	if (pmd_none(*pmd))
+	if (pmd_yesne(*pmd))
 		goto free;
 	if (pmd_bad(*pmd)) {
 		pmd_ERROR(*pmd);

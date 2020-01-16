@@ -11,7 +11,7 @@
 #include <linux/atomic.h>
 #include <linux/compiler.h>
 #include <linux/device.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/gfp.h>
 #include <linux/if.h>
 #include <linux/if_vlan.h>
@@ -146,7 +146,7 @@ ssize_t batadv_store_##_name(struct kobject *kobj,			\
 	length = __batadv_store_bool_attr(buff, count, _post_func, attr,\
 					  &bat_priv->_name, net_dev);	\
 									\
-	batadv_netlink_notify_mesh(bat_priv);				\
+	batadv_netlink_yestify_mesh(bat_priv);				\
 									\
 	return length;							\
 }
@@ -187,7 +187,7 @@ ssize_t batadv_store_##_name(struct kobject *kobj,			\
 					  &bat_priv->_var, net_dev,	\
 					  NULL);			\
 									\
-	batadv_netlink_notify_mesh(bat_priv);				\
+	batadv_netlink_yestify_mesh(bat_priv);				\
 									\
 	return length;							\
 }
@@ -225,9 +225,9 @@ ssize_t batadv_store_vlan_##_name(struct kobject *kobj,			\
 									\
 	batadv_sysfs_deprecated(attr);					\
 	if (vlan->vid)							\
-		batadv_netlink_notify_vlan(bat_priv, vlan);		\
+		batadv_netlink_yestify_vlan(bat_priv, vlan);		\
 	else								\
-		batadv_netlink_notify_mesh(bat_priv);			\
+		batadv_netlink_yestify_mesh(bat_priv);			\
 									\
 	batadv_softif_vlan_put(vlan);					\
 	return res;							\
@@ -279,7 +279,7 @@ ssize_t batadv_store_##_name(struct kobject *kobj,			\
 									\
 	if (hard_iface->soft_iface) {					\
 		bat_priv = netdev_priv(hard_iface->soft_iface);		\
-		batadv_netlink_notify_hardif(bat_priv, hard_iface);	\
+		batadv_netlink_yestify_hardif(bat_priv, hard_iface);	\
 	}								\
 									\
 	batadv_hardif_put(hard_iface);				\
@@ -458,10 +458,10 @@ static ssize_t batadv_show_gw_mode(struct kobject *kobj, struct attribute *attr,
 
 	batadv_sysfs_deprecated(attr);
 
-	/* GW mode is not available if the routing algorithm in use does not
+	/* GW mode is yest available if the routing algorithm in use does yest
 	 * implement the GW API
 	 */
-	if (!bat_priv->algo_ops->gw.get_best_gw_node ||
+	if (!bat_priv->algo_ops->gw.get_best_gw_yesde ||
 	    !bat_priv->algo_ops->gw.is_eligible)
 		return -ENOENT;
 
@@ -497,7 +497,7 @@ static ssize_t batadv_store_gw_mode(struct kobject *kobj,
 	/* toggling GW mode is allowed only if the routing algorithm in use
 	 * provides the GW API
 	 */
-	if (!bat_priv->algo_ops->gw.get_best_gw_node ||
+	if (!bat_priv->algo_ops->gw.get_best_gw_yesde ||
 	    !bat_priv->algo_ops->gw.is_eligible)
 		return -EINVAL;
 
@@ -541,12 +541,12 @@ static ssize_t batadv_store_gw_mode(struct kobject *kobj,
 	batadv_info(net_dev, "Changing gw mode from: %s to: %s\n",
 		    curr_gw_mode_str, buff);
 
-	/* Invoking batadv_gw_reselect() is not enough to really de-select the
+	/* Invoking batadv_gw_reselect() is yest eyesugh to really de-select the
 	 * current GW. It will only instruct the gateway client code to perform
 	 * a re-election the next time that this is needed.
 	 *
 	 * When gw client mode is being switched off the current GW must be
-	 * de-selected explicitly otherwise no GW_ADD uevent is thrown on
+	 * de-selected explicitly otherwise yes GW_ADD uevent is thrown on
 	 * client mode re-activation. This is operation is performed in
 	 * batadv_gw_check_client_stop().
 	 */
@@ -558,7 +558,7 @@ static ssize_t batadv_store_gw_mode(struct kobject *kobj,
 	atomic_set(&bat_priv->gw.mode, (unsigned int)gw_mode_tmp);
 	batadv_gw_tvlv_container_update(bat_priv);
 
-	batadv_netlink_notify_mesh(bat_priv);
+	batadv_netlink_yestify_mesh(bat_priv);
 
 	return count;
 }
@@ -570,10 +570,10 @@ static ssize_t batadv_show_gw_sel_class(struct kobject *kobj,
 
 	batadv_sysfs_deprecated(attr);
 
-	/* GW selection class is not available if the routing algorithm in use
-	 * does not implement the GW API
+	/* GW selection class is yest available if the routing algorithm in use
+	 * does yest implement the GW API
 	 */
-	if (!bat_priv->algo_ops->gw.get_best_gw_node ||
+	if (!bat_priv->algo_ops->gw.get_best_gw_yesde ||
 	    !bat_priv->algo_ops->gw.is_eligible)
 		return -ENOENT;
 
@@ -595,7 +595,7 @@ static ssize_t batadv_store_gw_sel_class(struct kobject *kobj,
 	/* setting the GW selection class is allowed only if the routing
 	 * algorithm in use implements the GW API
 	 */
-	if (!bat_priv->algo_ops->gw.get_best_gw_node ||
+	if (!bat_priv->algo_ops->gw.get_best_gw_yesde ||
 	    !bat_priv->algo_ops->gw.is_eligible)
 		return -EINVAL;
 
@@ -611,7 +611,7 @@ static ssize_t batadv_store_gw_sel_class(struct kobject *kobj,
 					  &bat_priv->gw.sel_class,
 					  bat_priv->soft_iface, NULL);
 
-	batadv_netlink_notify_mesh(bat_priv);
+	batadv_netlink_yestify_mesh(bat_priv);
 
 	return length;
 }
@@ -646,7 +646,7 @@ static ssize_t batadv_store_gw_bwidth(struct kobject *kobj,
 
 	length = batadv_gw_bandwidth_set(net_dev, buff, count);
 
-	batadv_netlink_notify_mesh(bat_priv);
+	batadv_netlink_yestify_mesh(bat_priv);
 
 	return length;
 }
@@ -701,7 +701,7 @@ static ssize_t batadv_store_isolation_mark(struct kobject *kobj,
 		mask_ptr++;
 
 		/* the mask must be entered in hex base as it is going to be a
-		 * bitmask and not a prefix length
+		 * bitmask and yest a prefix length
 		 */
 		if (kstrtou32(mask_ptr, 16, &mask) < 0)
 			return -EINVAL;
@@ -712,14 +712,14 @@ static ssize_t batadv_store_isolation_mark(struct kobject *kobj,
 		return -EINVAL;
 
 	bat_priv->isolation_mark_mask = mask;
-	/* erase bits not covered by the mask */
+	/* erase bits yest covered by the mask */
 	bat_priv->isolation_mark = mark & bat_priv->isolation_mark_mask;
 
 	batadv_info(net_dev,
 		    "New skb mark for extended isolation: %#.8x/%#.8x\n",
 		    bat_priv->isolation_mark, bat_priv->isolation_mark_mask);
 
-	batadv_netlink_notify_mesh(bat_priv);
+	batadv_netlink_yestify_mesh(bat_priv);
 
 	return count;
 }
@@ -953,7 +953,7 @@ static ssize_t batadv_show_mesh_iface(struct kobject *kobj,
 		return 0;
 
 	if (hard_iface->if_status == BATADV_IF_NOT_IN_USE)
-		ifname =  "none";
+		ifname =  "yesne";
 	else
 		ifname = hard_iface->soft_iface->name;
 
@@ -969,7 +969,7 @@ static ssize_t batadv_show_mesh_iface(struct kobject *kobj,
  * @net_dev: netdevice to add/remove to/from batman-adv soft-interface
  * @ifname: name of soft-interface to modify
  *
- * Changes the parts of the hard+soft interface which can not be modified under
+ * Changes the parts of the hard+soft interface which can yest be modified under
  * sysfs lock (to prevent deadlock situations).
  *
  * Return: 0 on success, 0 < on failure
@@ -988,7 +988,7 @@ static int batadv_store_mesh_iface_finish(struct net_device *net_dev,
 	if (!hard_iface)
 		return 0;
 
-	if (strncmp(ifname, "none", 4) == 0)
+	if (strncmp(ifname, "yesne", 4) == 0)
 		status_tmp = BATADV_IF_NOT_IN_USE;
 	else
 		status_tmp = BATADV_IF_I_WANT_YOU;
@@ -1021,7 +1021,7 @@ out:
  * batadv_store_mesh_iface_work() - store new hardif mesh_iface state
  * @work: work queue item
  *
- * Changes the parts of the hard+soft interface which can not be modified under
+ * Changes the parts of the hard+soft interface which can yest be modified under
  * sysfs lock (to prevent deadlock situations).
  */
 static void batadv_store_mesh_iface_work(struct work_struct *work)
@@ -1106,7 +1106,7 @@ static ssize_t batadv_show_iface_status(struct kobject *kobj,
 		break;
 	case BATADV_IF_NOT_IN_USE:
 	default:
-		length = sprintf(buff, "not in use\n");
+		length = sprintf(buff, "yest in use\n");
 		break;
 	}
 
@@ -1166,7 +1166,7 @@ static ssize_t batadv_store_throughput_override(struct kobject *kobj,
 
 	if (hard_iface->soft_iface) {
 		bat_priv = netdev_priv(hard_iface->soft_iface);
-		batadv_netlink_notify_hardif(bat_priv, hard_iface);
+		batadv_netlink_yestify_hardif(bat_priv, hard_iface);
 	}
 
 out:

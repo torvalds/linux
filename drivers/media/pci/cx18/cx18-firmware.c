@@ -103,7 +103,7 @@ static int load_cpu_fw_direct(const char *fn, u8 __iomem *mem, struct cx18 *cx)
 	for (i = 0; i < fw->size; i += 4096) {
 		cx18_setup_page(cx, i);
 		for (j = i; j < fw->size && j < i + 4096; j += 4) {
-			/* no need for endianness conversion on the ppc */
+			/* yes need for endianness conversion on the ppc */
 			cx18_raw_writel(cx, *src, dst);
 			if (cx18_raw_readl(cx, dst) != *src) {
 				CX18_ERR("Mismatch at offset %x\n", i);
@@ -172,7 +172,7 @@ static int load_apu_fw_direct(const char *fn, u8 __iomem *dst, struct cx18 *cx,
 		for (i = 0; i < seghdr.size; i += 4096) {
 			cx18_setup_page(cx, seghdr.addr + i);
 			for (j = i; j < seghdr.size && j < i + 4096; j += 4) {
-				/* no need for endianness conversion on the ppc */
+				/* yes need for endianness conversion on the ppc */
 				cx18_raw_writel(cx, src[(offset + j) / 4],
 						dst + seghdr.addr + j);
 				if (cx18_raw_readl(cx, dst + seghdr.addr + j)
@@ -231,7 +231,7 @@ void cx18_init_power(struct cx18 *cx, int lowpwr)
 	 * [2] Abrahams, I. C., "The 'Frequency Interleaving' Principle in the
 	 * NTSC Standards", Proceedings of the I-R-E, January 1954, pp 81-83
 	 *
-	 * As Mike Bradley has rightly pointed out, it's not the exact crystal
+	 * As Mike Bradley has rightly pointed out, it's yest the exact crystal
 	 * frequency that matters, only that all parts of the driver and
 	 * firmware are using the same value (close to the ideal value).
 	 *
@@ -416,7 +416,7 @@ int cx18_firmware_init(struct cx18 *cx)
 
 	if (retries == 50 &&
 	    (cx18_read_reg(cx, CX18_PROC_SOFT_RESET) & 1) == 1) {
-		CX18_ERR("Could not start the CPU\n");
+		CX18_ERR("Could yest start the CPU\n");
 		return -EIO;
 	}
 
@@ -425,7 +425,7 @@ int cx18_firmware_init(struct cx18 *cx)
 	 * outgoing IRQ_CPU_TO_EPU_ACK to us.  If it ever does this, we get an
 	 * interrupt when it sends us an ack, but by the time we process it,
 	 * that flag in the SW2 status register has been cleared by the CPU
-	 * firmware.  We'll prevent that not so useful condition from happening
+	 * firmware.  We'll prevent that yest so useful condition from happening
 	 * by clearing the CPU's interrupt enables for Ack IRQ's we want to
 	 * process.
 	 */

@@ -12,7 +12,7 @@
  * Marc Gauthier<marc@tensilica.com> <marc@alumni.uwaterloo.ca>
  */
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/hw_breakpoint.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
@@ -194,7 +194,7 @@ enum xtensa_regset {
 
 static const struct user_regset xtensa_regsets[] = {
 	[REGSET_GPR] = {
-		.core_note_type = NT_PRSTATUS,
+		.core_yeste_type = NT_PRSTATUS,
 		.n = sizeof(struct user_pt_regs) / sizeof(u32),
 		.size = sizeof(u32),
 		.align = sizeof(u32),
@@ -202,7 +202,7 @@ static const struct user_regset xtensa_regsets[] = {
 		.set = gpr_set,
 	},
 	[REGSET_TIE] = {
-		.core_note_type = NT_PRFPREG,
+		.core_yeste_type = NT_PRFPREG,
 		.n = sizeof(elf_xtregs_t) / sizeof(u32),
 		.size = sizeof(u32),
 		.align = sizeof(u32),
@@ -266,7 +266,7 @@ static int ptrace_setxregs(struct task_struct *child, void __user *uregs)
 				     0, sizeof(elf_xtregs_t), uregs);
 }
 
-static int ptrace_peekusr(struct task_struct *child, long regno,
+static int ptrace_peekusr(struct task_struct *child, long regyes,
 			  long __user *ret)
 {
 	struct pt_regs *regs;
@@ -275,13 +275,13 @@ static int ptrace_peekusr(struct task_struct *child, long regno,
 	regs = task_pt_regs(child);
 	tmp = 0;  /* Default return value. */
 
-	switch(regno) {
+	switch(regyes) {
 	case REG_AR_BASE ... REG_AR_BASE + XCHAL_NUM_AREGS - 1:
-		tmp = regs->areg[regno - REG_AR_BASE];
+		tmp = regs->areg[regyes - REG_AR_BASE];
 		break;
 
 	case REG_A_BASE ... REG_A_BASE + 15:
-		tmp = regs->areg[regno - REG_A_BASE];
+		tmp = regs->areg[regyes - REG_A_BASE];
 		break;
 
 	case REG_PC:
@@ -289,7 +289,7 @@ static int ptrace_peekusr(struct task_struct *child, long regno,
 		break;
 
 	case REG_PS:
-		/* Note: PS.EXCM is not set while user task is running;
+		/* Note: PS.EXCM is yest set while user task is running;
 		 * its being set in regs is for exception handling
 		 * convenience.
 		 */
@@ -333,18 +333,18 @@ static int ptrace_peekusr(struct task_struct *child, long regno,
 	return put_user(tmp, ret);
 }
 
-static int ptrace_pokeusr(struct task_struct *child, long regno, long val)
+static int ptrace_pokeusr(struct task_struct *child, long regyes, long val)
 {
 	struct pt_regs *regs;
 	regs = task_pt_regs(child);
 
-	switch (regno) {
+	switch (regyes) {
 	case REG_AR_BASE ... REG_AR_BASE + XCHAL_NUM_AREGS - 1:
-		regs->areg[regno - REG_AR_BASE] = val;
+		regs->areg[regyes - REG_AR_BASE] = val;
 		break;
 
 	case REG_A_BASE ... REG_A_BASE + 15:
-		regs->areg[regno - REG_A_BASE] = val;
+		regs->areg[regyes - REG_A_BASE] = val;
 		break;
 
 	case REG_PC:
@@ -381,7 +381,7 @@ static void ptrace_hbptriggered(struct perf_event *bp,
 		i = (i << 1) | 1;
 	}
 
-	force_sig_ptrace_errno_trap(i, (void __user *)bkpt->address);
+	force_sig_ptrace_erryes_trap(i, (void __user *)bkpt->address);
 }
 
 static struct perf_event *ptrace_hbp_create(struct task_struct *tsk, int type)

@@ -119,47 +119,47 @@
 
 		tz_apps_mem: memory@85900000 {
 			reg = <0 0x85900000 0 0x500000>;
-			no-map;
+			yes-map;
 		};
 
 		xbl_mem: memory@85e00000 {
 			reg = <0 0x85e00000 0 0x100000>;
-			no-map;
+			yes-map;
 		};
 
 		smem_region: memory@85f00000 {
 			reg = <0 0x85f00000 0 0x200000>;
-			no-map;
+			yes-map;
 		};
 
 		tz_mem: memory@86100000 {
 			reg = <0 0x86100000 0 0x300000>;
-			no-map;
+			yes-map;
 		};
 
 		wlan_fw_mem: memory@86400000 {
 			reg = <0 0x86400000 0 0x1100000>;
-			no-map;
+			yes-map;
 		};
 
 		adsp_fw_mem: memory@87500000 {
 			reg = <0 0x87500000 0 0x1a00000>;
-			no-map;
+			yes-map;
 		};
 
 		cdsp_fw_mem: memory@88f00000 {
 			reg = <0 0x88f00000 0 0x600000>;
-			no-map;
+			yes-map;
 		};
 
 		wlan_msa_mem: memory@89500000 {
 			reg = <0 0x89500000 0 0x100000>;
-			no-map;
+			yes-map;
 		};
 
 		uefi_mem: memory@9f800000 {
 			reg = <0 0x9f800000 0 0x800000>;
-			no-map;
+			yes-map;
 		};
 	};
 
@@ -211,11 +211,11 @@
 						opp-level = <192>;
 					};
 
-					rpmpd_opp_nom: opp7 {
+					rpmpd_opp_yesm: opp7 {
 						opp-level = <256>;
 					};
 
-					rpmpd_opp_nom_plus: opp8 {
+					rpmpd_opp_yesm_plus: opp8 {
 						opp-level = <320>;
 					};
 
@@ -223,7 +223,7 @@
 						opp-level = <384>;
 					};
 
-					rpmpd_opp_turbo_no_cpr: opp10 {
+					rpmpd_opp_turbo_yes_cpr: opp10 {
 						opp-level = <416>;
 					};
 
@@ -310,18 +310,18 @@
 			#thermal-sensor-cells = <1>;
 		};
 
-		pcnoc: interconnect@500000 {
+		pcyesc: interconnect@500000 {
 			reg = <0x00500000 0x15080>;
-			compatible = "qcom,qcs404-pcnoc";
+			compatible = "qcom,qcs404-pcyesc";
 			#interconnect-cells = <1>;
 			clock-names = "bus", "bus_a";
 			clocks = <&rpmcc RPM_SMD_PNOC_CLK>,
 				<&rpmcc RPM_SMD_PNOC_A_CLK>;
 		};
 
-		snoc: interconnect@580000 {
+		syesc: interconnect@580000 {
 			reg = <0x00580000 0x23080>;
-			compatible = "qcom,qcs404-snoc";
+			compatible = "qcom,qcs404-syesc";
 			#interconnect-cells = <1>;
 			clock-names = "bus", "bus_a";
 			clocks = <&rpmcc RPM_SMD_SNOC_CLK>,
@@ -384,7 +384,7 @@
 			reg = <0x01000000 0x200000>,
 			      <0x01300000 0x200000>,
 			      <0x07b00000 0x200000>;
-			reg-names = "south", "north", "east";
+			reg-names = "south", "yesrth", "east";
 			interrupts = <GIC_SPI 208 IRQ_TYPE_LEVEL_HIGH>;
 			gpio-ranges = <&tlmm 0 0 120>;
 			gpio-controller;

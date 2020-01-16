@@ -10,7 +10,7 @@
 #include <linux/signal.h>
 #include <linux/sched.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/string.h>
 #include <linux/types.h>
 #include <linux/ptrace.h>
@@ -49,7 +49,7 @@ void __update_tlb(struct vm_area_struct *vma, unsigned long address, pte_t pte)
 	__raw_writel(pteval, MMU_PTEL);
 
 	/* Load the TLB */
-	asm volatile("ldtlb": /* no output */ : /* no input */ : "memory");
+	asm volatile("ldtlb": /* yes output */ : /* yes input */ : "memory");
 	local_irq_restore(flags);
 }
 
@@ -69,7 +69,7 @@ void local_flush_tlb_one(unsigned long asid, unsigned long page)
 
 	if ((current_cpu_data.flags & CPU_HAS_MMU_PAGE_ASSOC)) {
 		addr |= MMU_PAGE_ASSOC_BIT;
-		ways = 1;	/* we already know the way .. */
+		ways = 1;	/* we already kyesw the way .. */
 	}
 
 	for (i = 0; i < ways; i++)

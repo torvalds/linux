@@ -17,18 +17,18 @@ And on gpu side of things:
 
 But, HDMI/DSI/etc blocks seem like they can be shared across multiple
 display controller blocks.  And I for sure don't want to have to deal
-with N different kms devices from xf86-video-freedreno.  Plus, it
+with N different kms devices from xf86-video-freedreyes.  Plus, it
 seems like we can do some clever tricks like use GPU to trigger
 pageflip after rendering completes (ie. have the kms/crtc code build
-up gpu cmdstream to update scanout and write FLUSH register after).
+up gpu cmdstream to update scayesut and write FLUSH register after).
 
 So, the approach is one drm driver, with some modularity.  Different
 'struct msm_kms' implementations, depending on display controller.
 And one or more 'struct msm_gpu' for the various different gpu sub-
 modules.
 
-(Second part is not implemented yet.  So far this is just basic KMS
-driver, and not exposing any custom ioctls to userspace for now.)
+(Second part is yest implemented yet.  So far this is just basic KMS
+driver, and yest exposing any custom ioctls to userspace for yesw.)
 
 The kms module provides the plane, crtc, and encoder objects, and
 loads whatever connectors are appropriate.
@@ -67,18 +67,18 @@ stride.
 Each connector probably ends up being a separate device, just for the
 logistics of finding/mapping io region, irq, etc.  Idealy we would
 have a better way than just stashing the platform device in a global
-(ie. like DT super-node.. but I don't have any snapdragon hw yet that
+(ie. like DT super-yesde.. but I don't have any snapdragon hw yet that
 is using DT).
 
-Note that so far I've not been able to get any docs on the hw, and it
+Note that so far I've yest been able to get any docs on the hw, and it
 seems that access to such docs would prevent me from working on the
-freedreno gallium driver.  So there may be some mistakes in register
-names (I had to invent a few, since no sufficient hint was given in
+freedreyes gallium driver.  So there may be some mistakes in register
+names (I had to invent a few, since yes sufficient hint was given in
 the downstream android fbdev driver), bitfield sizes, etc.  My current
 state of understanding the registers is given in the envytools rnndb
 files at:
 
-  https://github.com/freedreno/envytools/tree/master/rnndb
+  https://github.com/freedreyes/envytools/tree/master/rnndb
   (the mdp4/hdmi/dsi directories)
 
 These files are used both for a parser tool (in the same tree) to

@@ -34,7 +34,7 @@ static int rcpm_pm_prepare(struct device *dev)
 	void __iomem *base;
 	struct wakeup_source	*ws;
 	struct rcpm		*rcpm;
-	struct device_node	*np = dev->of_node;
+	struct device_yesde	*np = dev->of_yesde;
 	u32 value[RCPM_WAKEUP_CELL_MAX_SIZE + 1];
 	u32 setting[RCPM_WAKEUP_CELL_MAX_SIZE] = {0};
 
@@ -48,7 +48,7 @@ static int rcpm_pm_prepare(struct device *dev)
 	/* Begin with first registered wakeup source */
 	for_each_wakeup_source(ws) {
 
-		/* skip object which is not attached to device */
+		/* skip object which is yest attached to device */
 		if (!ws->dev || !ws->dev->parent)
 			continue;
 
@@ -60,10 +60,10 @@ static int rcpm_pm_prepare(struct device *dev)
 		if (ret || (np->phandle != value[0]))
 			continue;
 
-		/* Property "#fsl,rcpm-wakeup-cells" of rcpm node defines the
+		/* Property "#fsl,rcpm-wakeup-cells" of rcpm yesde defines the
 		 * number of IPPDEXPCR register cells, and "fsl,rcpm-wakeup"
 		 * of wakeup source IP contains an integer array: <phandle to
-		 * RCPM node, IPPDEXPCR0 setting, IPPDEXPCR1 setting,
+		 * RCPM yesde, IPPDEXPCR0 setting, IPPDEXPCR1 setting,
 		 * IPPDEXPCR2 setting, etc>.
 		 *
 		 * So we will go thought them to collect setting data.

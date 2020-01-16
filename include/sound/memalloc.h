@@ -27,15 +27,15 @@ struct snd_dma_device {
 /*
  * buffer types
  */
-#define SNDRV_DMA_TYPE_UNKNOWN		0	/* not defined */
-#define SNDRV_DMA_TYPE_CONTINUOUS	1	/* continuous no-DMA memory */
+#define SNDRV_DMA_TYPE_UNKNOWN		0	/* yest defined */
+#define SNDRV_DMA_TYPE_CONTINUOUS	1	/* continuous yes-DMA memory */
 #define SNDRV_DMA_TYPE_DEV		2	/* generic device continuous */
-#define SNDRV_DMA_TYPE_DEV_UC		5	/* continuous non-cahced */
+#define SNDRV_DMA_TYPE_DEV_UC		5	/* continuous yesn-cahced */
 #ifdef CONFIG_SND_DMA_SGBUF
 #define SNDRV_DMA_TYPE_DEV_SG		3	/* generic device SG-buffer */
-#define SNDRV_DMA_TYPE_DEV_UC_SG	6	/* SG non-cached */
+#define SNDRV_DMA_TYPE_DEV_UC_SG	6	/* SG yesn-cached */
 #else
-#define SNDRV_DMA_TYPE_DEV_SG	SNDRV_DMA_TYPE_DEV /* no SG-buf support */
+#define SNDRV_DMA_TYPE_DEV_SG	SNDRV_DMA_TYPE_DEV /* yes SG-buf support */
 #define SNDRV_DMA_TYPE_DEV_UC_SG	SNDRV_DMA_TYPE_DEV_UC
 #endif
 #ifdef CONFIG_GENERIC_ALLOCATOR
@@ -112,7 +112,7 @@ static inline void *snd_sgbuf_get_ptr(struct snd_dma_buffer *dmab,
 unsigned int snd_sgbuf_get_chunk_size(struct snd_dma_buffer *dmab,
 				      unsigned int ofs, unsigned int size);
 #else
-/* non-SG versions */
+/* yesn-SG versions */
 static inline dma_addr_t snd_sgbuf_get_addr(struct snd_dma_buffer *dmab,
 					    size_t offset)
 {

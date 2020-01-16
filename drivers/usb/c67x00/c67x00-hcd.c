@@ -23,7 +23,7 @@ static __u8 c67x00_hub_des[] = {
 	USB_DT_HUB,		/*  __u8  bDescriptorType; Hub-descriptor */
 	0x02,			/*  __u8  bNbrPorts; */
 	0x00,			/* __u16  wHubCharacteristics; */
-	0x00,			/*   (per-port OC, no power switching) */
+	0x00,			/*   (per-port OC, yes power switching) */
 	0x32,			/*  __u8  bPwrOn2pwrGood; 2ms */
 	0x00,			/*  __u8  bHubContrCurrent; 0 mA */
 	0x00,			/*  __u8  DeviceRemovable; ** 7 Ports max ** */
@@ -57,7 +57,7 @@ static int c67x00_hub_status_data(struct usb_hcd *hcd, char *buf)
 		if (status & PORT_CONNECT_CHANGE(i))
 			*buf |= (1 << i);
 
-	/* bit 0 denotes hub change, b1..n port change */
+	/* bit 0 deyestes hub change, b1..n port change */
 	*buf <<= 1;
 
 	return !!*buf;
@@ -156,7 +156,7 @@ static int c67x00_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 
 		switch (wValue) {
 		case USB_PORT_FEAT_ENABLE:
-			/* Reset the port so that the c67x00 also notices the
+			/* Reset the port so that the c67x00 also yestices the
 			 * disconnect */
 			c67x00_hub_reset_host_port(sie, port);
 			len = 0;
@@ -217,7 +217,7 @@ static int c67x00_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 		break;
 
 	default:
-		dev_dbg(c67x00_hcd_dev(c67x00), "%s: unknown\n", __func__);
+		dev_dbg(c67x00_hcd_dev(c67x00), "%s: unkyeswn\n", __func__);
 		return -EPIPE;
 	}
 
@@ -244,7 +244,7 @@ static void c67x00_hcd_irq(struct c67x00_sie *sie, u16 int_status, u16 msg)
 			c67x00_sched_kick(c67x00);
 		else
 			dev_warn(c67x00_hcd_dev(c67x00),
-				 "Unknown SIE msg flag(s): 0x%04x\n", msg);
+				 "Unkyeswn SIE msg flag(s): 0x%04x\n", msg);
 	}
 
 	if (unlikely(hcd->state == HC_STATE_HALT))

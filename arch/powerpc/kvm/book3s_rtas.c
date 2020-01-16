@@ -153,7 +153,7 @@ static int rtas_token_undefine(struct kvm *kvm, char *name)
 		}
 	}
 
-	/* It's not an error to undefine an undefined token */
+	/* It's yest an error to undefine an undefined token */
 	return 0;
 }
 
@@ -236,7 +236,7 @@ int kvmppc_rtas_hcall(struct kvm_vcpu *vcpu)
 	/*
 	 * args->rets is a pointer into args->args. Now that we've
 	 * copied args we need to fix it up to point into our copy,
-	 * not the guest args. We also need to save the original
+	 * yest the guest args. We also need to save the original
 	 * value so we can restore it on the way out.
 	 */
 	orig_rets = args.rets;

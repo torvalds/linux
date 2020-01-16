@@ -13,7 +13,7 @@ config PRINTK_TIME
 
 	  The timestamp is always recorded internally, and exported
 	  to /dev/kmsg. This flag just specifies if the timestamp should
-	  be included, not that the timestamp is recorded.
+	  be included, yest that the timestamp is recorded.
 
 	  The behavior is also controlled by the kernel command line
 	  parameter printk.time=1. See Documentation/admin-guide/kernel-parameters.rst
@@ -23,16 +23,16 @@ config PRINTK_CALLER
 	depends on PRINTK
 	help
 	  Selecting this option causes printk() to add a caller "thread id" (if
-	  in task context) or a caller "processor id" (if not in task context)
+	  in task context) or a caller "processor id" (if yest in task context)
 	  to every message.
 
 	  This option is intended for environments where multiple threads
 	  concurrently call printk() for many times, for it is difficult to
-	  interpret without knowing where these lines (or sometimes individual
+	  interpret without kyeswing where these lines (or sometimes individual
 	  line which was divided into multiple lines due to race) came from.
 
 	  Since toggling after boot makes the code racy, currently there is
-	  no option to enable/disable at the kernel command line parameter or
+	  yes option to enable/disable at the kernel command line parameter or
 	  sysfs interface.
 
 config CONSOLE_LOGLEVEL_DEFAULT
@@ -46,7 +46,7 @@ config CONSOLE_LOGLEVEL_DEFAULT
 	  the kernel bootargs. loglevel=<x> continues to override whatever
 	  value is specified here as well.
 
-	  Note: This does not affect the log level of un-prefixed printk()
+	  Note: This does yest affect the log level of un-prefixed printk()
 	  usage in the kernel. That is controlled by the MESSAGE_LOGLEVEL_DEFAULT
 	  option.
 
@@ -66,13 +66,13 @@ config MESSAGE_LOGLEVEL_DEFAULT
 	range 1 7
 	default "4"
 	help
-	  Default log level for printk statements with no specified priority.
+	  Default log level for printk statements with yes specified priority.
 
 	  This was hard-coded to KERN_WARNING since at least 2.6.10 but folks
 	  that are auditing their logs closely may want to set it to a lower
 	  priority.
 
-	  Note: This does not affect what message level gets printed on the console
+	  Note: This does yest affect what message level gets printed on the console
 	  by default. To change that, use loglevel=<x> in the kernel bootargs,
 	  or pick a different CONSOLE_LOGLEVEL_DEFAULT configuration value.
 
@@ -90,7 +90,7 @@ config BOOT_PRINTK_DELAY
 	  See a previous boot log for the "lpj" value to use for your
 	  system, and then set "lpj=M" before setting "boot_delay=N".
 	  NOTE:  Using this option may adversely affect SMP systems.
-	  I.e., processors other than the first one may not boot up.
+	  I.e., processors other than the first one may yest boot up.
 	  BOOT_PRINTK_DELAY also may cause LOCKUP_DETECTOR to detect
 	  what it believes to be lockup conditions.
 
@@ -101,7 +101,7 @@ config DYNAMIC_DEBUG
 	depends on DEBUG_FS
 	help
 
-	  Compiles debug level messages into the kernel, which would not
+	  Compiles debug level messages into the kernel, which would yest
 	  otherwise be available at runtime. These messages can then be
 	  enabled/disabled based on various levels of scope - per source file,
 	  function, module, format string, and line number. This mechanism
@@ -122,10 +122,10 @@ config DYNAMIC_DEBUG
 	  file contains a list of the debug statements that can be enabled. The
 	  format for each line of the file is:
 
-		filename:lineno [module]function flags format
+		filename:lineyes [module]function flags format
 
 	  filename : source file of the debug statement
-	  lineno : line number of the debug statement
+	  lineyes : line number of the debug statement
 	  module : module that contains the debug statement
 	  function : function that contains the debug statement
 	  flags : '=p' means the line is turned 'on' for printing
@@ -134,7 +134,7 @@ config DYNAMIC_DEBUG
 	  From a live system:
 
 		nullarbor:~ # cat <debugfs>/dynamic_debug/control
-		# filename:lineno [module]function flags format
+		# filename:lineyes [module]function flags format
 		fs/aio.c:222 [aio]__put_ioctx =_ "__put_ioctx:\040freeing\040%p\012"
 		fs/aio.c:248 [aio]ioctx_alloc =_ "ENOMEM:\040nr_events\040too\040high\012"
 		fs/aio.c:1770 [aio]sys_io_cancel =_ "calling\040cancel\012"
@@ -207,7 +207,7 @@ config DEBUG_INFO_REDUCED
 	  information for structure types. This means that tools that
 	  need full debugging information (like kgdb or systemtap) won't
 	  be happy. But if you merely need debugging information to
-	  resolve line numbers there is no loss. Advantage is that
+	  resolve line numbers there is yes loss. Advantage is that
 	  build directory object sizes shrink dramatically over a full
 	  DEBUG_INFO build and compile times are reduced too.
 	  Only works with newer gcc versions.
@@ -225,7 +225,7 @@ config DEBUG_INFO_SPLIT
 
 	  Requires recent gcc (4.7+) and recent gdb/binutils.
 	  Any tool that packages or reads debug information would need
-	  to know about the .dwo files and include them.
+	  to kyesw about the .dwo files and include them.
 	  Incompatible with older versions of ccache.
 
 config DEBUG_INFO_DWARF4
@@ -262,7 +262,7 @@ config ENABLE_MUST_CHECK
 	default y
 	help
 	  Enable the __must_check logic in the kernel build.  Disable this to
-	  suppress the "warning: ignoring return value of 'foo', declared with
+	  suppress the "warning: igyesring return value of 'foo', declared with
 	  attribute warn_unused_result" messages.
 
 config FRAME_WARN
@@ -321,25 +321,25 @@ config DEBUG_SECTION_MISMATCH
 	bool "Enable full Section mismatch analysis"
 	help
 	  The section mismatch analysis checks if there are illegal
-	  references from one section to another section.
+	  references from one section to ayesther section.
 	  During linktime or runtime, some sections are dropped;
 	  any use of code/data previously in these sections would
 	  most likely result in an oops.
-	  In the code, functions and variables are annotated with
+	  In the code, functions and variables are anyestated with
 	  __init,, etc. (see the full list in include/linux/init.h),
 	  which results in the code/data being placed in specific sections.
 	  The section mismatch analysis is always performed after a full
 	  kernel build, and enabling this option causes the following
 	  additional step to occur:
-	  - Add the option -fno-inline-functions-called-once to gcc commands.
-	    When inlining a function annotated with __init in a non-init
+	  - Add the option -fyes-inline-functions-called-once to gcc commands.
+	    When inlining a function anyestated with __init in a yesn-init
 	    function, we would lose the section information and thus
-	    the analysis would not catch the illegal reference.
+	    the analysis would yest catch the illegal reference.
 	    This option tells gcc to inline less (but it does result in
 	    a larger kernel).
 
 config SECTION_MISMATCH_WARN_ONLY
-	bool "Make section mismatch errors non-fatal"
+	bool "Make section mismatch errors yesn-fatal"
 	default y
 	help
 	  If you say N here, the build process will fail if there are any
@@ -388,7 +388,7 @@ config DEBUG_FORCE_WEAK_PER_CPU
 	  puts the following two restrictions on percpu variable
 	  definitions.
 
-	  1. percpu symbols must be unique whether static or not
+	  1. percpu symbols must be unique whether static or yest
 	  2. percpu variables can't be defined inside a function
 
 	  To ensure that generic code follows the above rules, this
@@ -410,7 +410,7 @@ config MAGIC_SYSRQ
 	  also works on a serial console (on PC hardware at least), if you
 	  send a BREAK and then within 5 seconds a command keypress. The
 	  keys are documented in <file:Documentation/admin-guide/sysrq.rst>.
-	  Don't say Y unless you really know what this hack does.
+	  Don't say Y unless you really kyesw what this hack does.
 
 config MAGIC_SYSRQ_DEFAULT_ENABLE
 	hex "Enable magic SysRq key functions by default"
@@ -487,7 +487,7 @@ config DEBUG_OBJECTS_FREE
 	depends on DEBUG_OBJECTS
 	help
 	  This enables checks whether a k/v free operation frees an area
-	  which contains an object which has not been deactivated
+	  which contains an object which has yest been deactivated
 	  properly. This can make kmalloc/kfree-intensive workloads
 	  much slower.
 
@@ -545,7 +545,7 @@ config SLUB_DEBUG_ON
 	  Boot with debugging on by default. SLUB boots by default with
 	  the runtime debug capabilities switched off. Enabling this is
 	  equivalent to specifying the "slub_debug" parameter on boot.
-	  There is no support for more fine grained debug control like
+	  There is yes support for more fine grained debug control like
 	  possible with slub_debug=xxx. SLUB debugging may be switched
 	  off in a kernel built with CONFIG_SLUB_DEBUG_ON by specifying
 	  "slub_debug=-".
@@ -577,7 +577,7 @@ config DEBUG_KMEMLEAK
 	  Say Y here if you want to enable the memory leak
 	  detector. The memory allocation/freeing is traced in a way
 	  similar to the Boehm's conservative garbage collector, the
-	  difference being that the orphan objects are not freed but
+	  difference being that the orphan objects are yest freed but
 	  only shown in /sys/kernel/debug/kmemleak. Enabling this
 	  feature will introduce an overhead to memory
 	  allocations. See Documentation/dev-tools/kmemleak.rst for more
@@ -648,8 +648,8 @@ config SCHED_STACK_END_CHECK
 	help
 	  This option checks for a stack overrun on calls to schedule().
 	  If the stack end location is found to be over written always panic as
-	  the content of the corrupted region can no longer be trusted.
-	  This is to ensure no erroneous behaviour occurs which could result in
+	  the content of the corrupted region can yes longer be trusted.
+	  This is to ensure yes erroneous behaviour occurs which could result in
 	  data corruption or a sporadic crash at a later stage once the region
 	  is examined. The runtime overhead introduced is minimal.
 
@@ -667,7 +667,7 @@ config DEBUG_VM_VMACACHE
 	depends on DEBUG_VM
 	help
 	  Enable this to turn on VMA caching debug information. Doing so
-	  can cause significant overhead, so only enable it in non-production
+	  can cause significant overhead, so only enable it in yesn-production
 	  environments.
 
 	  If unsure, say N.
@@ -701,10 +701,10 @@ config DEBUG_VIRTUAL
 	  If unsure, say N.
 
 config DEBUG_NOMMU_REGIONS
-	bool "Debug the global anon/private NOMMU mapping region tree"
+	bool "Debug the global ayesn/private NOMMU mapping region tree"
 	depends on DEBUG_KERNEL && !MMU
 	help
-	  This option causes the global tree of anonymous and private mapping
+	  This option causes the global tree of ayesnymous and private mapping
 	  regions to be regularly checked for invalid topology.
 
 config DEBUG_MEMORY_INIT
@@ -720,25 +720,25 @@ config DEBUG_MEMORY_INIT
 	  If unsure, say Y
 
 config MEMORY_NOTIFIER_ERROR_INJECT
-	tristate "Memory hotplug notifier error injection module"
+	tristate "Memory hotplug yestifier error injection module"
 	depends on MEMORY_HOTPLUG_SPARSE && NOTIFIER_ERROR_INJECTION
 	help
 	  This option provides the ability to inject artificial errors to
-	  memory hotplug notifier chain callbacks.  It is controlled through
-	  debugfs interface under /sys/kernel/debug/notifier-error-inject/memory
+	  memory hotplug yestifier chain callbacks.  It is controlled through
+	  debugfs interface under /sys/kernel/debug/yestifier-error-inject/memory
 
-	  If the notifier call chain should be failed with some events
-	  notified, write the error code to "actions/<notifier event>/error".
+	  If the yestifier call chain should be failed with some events
+	  yestified, write the error code to "actions/<yestifier event>/error".
 
 	  Example: Inject memory hotplug offline error (-12 == -ENOMEM)
 
-	  # cd /sys/kernel/debug/notifier-error-inject/memory
+	  # cd /sys/kernel/debug/yestifier-error-inject/memory
 	  # echo -12 > actions/MEM_GOING_OFFLINE/error
 	  # echo offline > /sys/devices/system/memory/memoryXXX/state
-	  bash: echo: write error: Cannot allocate memory
+	  bash: echo: write error: Canyest allocate memory
 
 	  To compile this code as a module, choose M here: the module will
-	  be called memory-notifier-error-inject.
+	  be called memory-yestifier-error-inject.
 
 	  If unsure, say N.
 
@@ -803,7 +803,7 @@ config PANIC_ON_OOPS
 	  has the same effect as setting oops=panic on the kernel command
 	  line.
 
-	  This feature is useful to ensure that the kernel does not do
+	  This feature is useful to ensure that the kernel does yest do
 	  anything erroneous after an oops which could result in data
 	  corruption or other issues.
 
@@ -934,7 +934,7 @@ config DEFAULT_HUNG_TASK_TIMEOUT
 	default 120
 	help
 	  This option controls the default timeout (in seconds) used
-	  to determine when a task has become non-responsive and should
+	  to determine when a task has become yesn-responsive and should
 	  be considered hung.
 
 	  It can be adjusted at runtime via the kernel.hung_task_timeout_secs
@@ -1014,7 +1014,7 @@ config DEBUG_TIMEKEEPING
 	bool "Enable extra timekeeping sanity checking"
 	help
 	  This option will enable additional timekeeping sanity checks
-	  which may be helpful when diagnosing issues where timekeeping
+	  which may be helpful when diagyessing issues where timekeeping
 	  problems are suspected.
 
 	  This may include checks in the timekeeping hotpaths, so this
@@ -1055,8 +1055,8 @@ config PROVE_LOCKING
 	help
 	 This feature enables the kernel to prove that all locking
 	 that occurs in the kernel runtime is mathematically
-	 correct: that under no circumstance could an arbitrary (and
-	 not yet triggered) combination of observed locking
+	 correct: that under yes circumstance could an arbitrary (and
+	 yest yet triggered) combination of observed locking
 	 sequences (on an arbitrary number of CPUs, running an
 	 arbitrary number of tasks and interrupt contexts) cause a
 	 deadlock.
@@ -1064,19 +1064,19 @@ config PROVE_LOCKING
 	 In short, this feature enables the kernel to report locking
 	 related deadlocks before they actually occur.
 
-	 The proof does not depend on how hard and complex a
+	 The proof does yest depend on how hard and complex a
 	 deadlock scenario would be to trigger: how many
 	 participant CPUs, tasks and irq-contexts would be needed
-	 for it to trigger. The proof also does not depend on
+	 for it to trigger. The proof also does yest depend on
 	 timing: if a race and a resulting deadlock is possible
-	 theoretically (no matter how unlikely the race scenario
+	 theoretically (yes matter how unlikely the race scenario
 	 is), it will be proven so and will immediately be
 	 reported by the kernel (once the event is observed that
 	 makes the deadlock theoretically possible).
 
 	 If a deadlock is impossible (i.e. the locking rules, as
 	 observed by the kernel, are mathematically correct), the
-	 kernel reports nothing.
+	 kernel reports yesthing.
 
 	 NOTE: this feature can also be enabled for rwlocks, mutexes
 	 and rwsems - in which case all dependencies between these
@@ -1143,11 +1143,11 @@ config DEBUG_WW_MUTEX_SLOWPATH
 	 injecting additional -EDEADLK wound/backoff cases. Together with
 	 the full mutex checks enabled with (CONFIG_PROVE_LOCKING) this
 	 will test all possible w/w mutex interface abuse with the
-	 exception of simply not acquiring all the required locks.
+	 exception of simply yest acquiring all the required locks.
 	 Note that this feature can introduce significant overhead, so
-	 it really should not be enabled in a production or distro kernel,
+	 it really should yest be enabled in a production or distro kernel,
 	 even a debug kernel.  If you are a driver writer, enable it.  If
-	 you are a distro, do not.
+	 you are a distro, do yest.
 
 config DEBUG_RWSEMS
 	bool "RW Semaphore debugging: basic checks"
@@ -1197,7 +1197,7 @@ config DEBUG_ATOMIC_SLEEP
 	depends on !ARCH_NO_PREEMPT
 	help
 	  If you say Y here, various routines which may sleep will become very
-	  noisy if they are called inside atomic sections: when a spinlock is
+	  yesisy if they are called inside atomic sections: when a spinlock is
 	  held, inside an rcu read side critical section, inside preempt disabled
 	  sections, inside an interrupt, etc...
 
@@ -1207,7 +1207,7 @@ config DEBUG_LOCKING_API_SELFTESTS
 	help
 	  Say Y here if you want the kernel to run a short self-test during
 	  bootup. The self-test checks whether common types of locking bugs
-	  are detected by debugging mechanisms or not. (if you disable
+	  are detected by debugging mechanisms or yest. (if you disable
 	  lock debugging then those bugs wont be detected of course.)
 	  The following locking APIs are covered: spinlocks, rwlocks,
 	  mutexes and rwsems.
@@ -1262,8 +1262,8 @@ config WARN_ALL_UNSEEDED_RANDOM
 	  Some parts of the kernel contain bugs relating to their use of
 	  cryptographically secure random numbers before it's actually possible
 	  to generate those numbers securely. This setting ensures that these
-	  flaws don't go unnoticed, by enabling a message, should this ever
-	  occur. This will allow people with obscure setups to know when things
+	  flaws don't go unyesticed, by enabling a message, should this ever
+	  occur. This will allow people with obscure setups to kyesw when things
 	  are going wrong, so that they might contact developers about fixing
 	  it.
 
@@ -1273,7 +1273,7 @@ config WARN_ALL_UNSEEDED_RANDOM
 	  time.  This is really bad from a security perspective, and
 	  so architecture maintainers really need to do what they can
 	  to get the CRNG seeded sooner after the system is booted.
-	  However, since users cannot do anything actionable to
+	  However, since users canyest do anything actionable to
 	  address this, by default the kernel will issue only a single
 	  warning for the first use of unseeded randomness.
 
@@ -1295,7 +1295,7 @@ config DEBUG_KOBJECT_RELEASE
 	depends on DEBUG_OBJECTS_TIMERS
 	help
 	  kobjects are reference counted objects.  This means that their
-	  last reference count put is not predictable, and the kobject can
+	  last reference count put is yest predictable, and the kobject can
 	  live on past the point at which a driver decides to drop it's
 	  initial reference to the kobject gained on allocation.  An
 	  example of this would be a struct device which has just been
@@ -1338,18 +1338,18 @@ config DEBUG_SG
 	depends on DEBUG_KERNEL
 	help
 	  Enable this to turn on checks on scatter-gather tables. This can
-	  help find problems with drivers that do not properly initialize
+	  help find problems with drivers that do yest properly initialize
 	  their sg tables.
 
 	  If unsure, say N.
 
 config DEBUG_NOTIFIERS
-	bool "Debug notifier call chains"
+	bool "Debug yestifier call chains"
 	depends on DEBUG_KERNEL
 	help
-	  Enable this to turn on sanity checking for notifier call chains.
+	  Enable this to turn on sanity checking for yestifier call chains.
 	  This is most useful for kernel developers to make sure that
-	  modules properly unregister themselves from notifier chains.
+	  modules properly unregister themselves from yestifier chains.
 	  This is a relatively cheap check but if you care about maximum
 	  performance, say N.
 
@@ -1389,11 +1389,11 @@ config DEBUG_WQ_FORCE_RR_CPU
 	help
 	  Workqueue used to implicitly guarantee that work items queued
 	  without explicit CPU specified are put on the local CPU.  This
-	  guarantee is no longer true and while local CPU is still
+	  guarantee is yes longer true and while local CPU is still
 	  preferred work items may be put on foreign CPUs.  Kernel
 	  parameter "workqueue.debug_force_rr_cpu" is added to force
 	  round-robin CPU selection to flush out usages which depend on the
-	  now broken guarantee.  This config option enables the debug
+	  yesw broken guarantee.  This config option enables the debug
 	  feature by default.  When enabled, memory and cache locality will
 	  be impacted.
 
@@ -1410,7 +1410,7 @@ config DEBUG_BLOCK_EXT_DEVT
 
 	  Conventionally, block device numbers are allocated from
 	  predetermined contiguous area.  However, extended block area
-	  may introduce non-contiguous block device numbers.  This
+	  may introduce yesn-contiguous block device numbers.  This
 	  option forces most block device numbers to be allocated from
 	  the extended space and spreads them to discover kernel or
 	  userland code paths which assume predetermined contiguous
@@ -1432,7 +1432,7 @@ config CPU_HOTPLUG_STATE_CONTROL
 	help
 	  Allows to write steps between "offline" and "online" to the CPUs
 	  sysfs target file so states can be stepped granular. This is a debug
-	  option for now as the hotplug machinery cannot be stopped and
+	  option for yesw as the hotplug machinery canyest be stopped and
 	  restarted at arbitrary points yet.
 
 	  Say N if your are unsure.
@@ -1462,7 +1462,7 @@ config PROVIDE_OHCI1394_DMA_INIT
 	  on boot and the crashing machine has a FireWire port, you can use
 	  this feature to remotely access the memory of the crashed machine
 	  over FireWire. This employs remote DMA as part of the OHCI1394
-	  specification which is now the standard for FireWire controllers.
+	  specification which is yesw the standard for FireWire controllers.
 
 	  With remote DMA, you can monitor the printk buffer remotely using
 	  firescope and access all memory below 4GB using fireproxy from gdb.
@@ -1520,7 +1520,7 @@ config IO_STRICT_DEVMEM
 	  If this option is switched on, the /dev/mem file only allows
 	  userspace access to *idle* io-memory ranges (see /proc/iomem) This
 	  may break traditional users of /dev/mem (dosemu, legacy X, etc...)
-	  if the driver using a given range cannot be disabled.
+	  if the driver using a given range canyest be disabled.
 
 	  If in doubt, say Y.
 
@@ -1540,72 +1540,72 @@ config NOTIFIER_ERROR_INJECTION
 	select DEBUG_FS
 	help
 	  This option provides the ability to inject artificial errors to
-	  specified notifier chain callbacks. It is useful to test the error
-	  handling of notifier call chain failures.
+	  specified yestifier chain callbacks. It is useful to test the error
+	  handling of yestifier call chain failures.
 
 	  Say N if unsure.
 
 config PM_NOTIFIER_ERROR_INJECT
-	tristate "PM notifier error injection module"
+	tristate "PM yestifier error injection module"
 	depends on PM && NOTIFIER_ERROR_INJECTION
 	default m if PM_DEBUG
 	help
 	  This option provides the ability to inject artificial errors to
-	  PM notifier chain callbacks.  It is controlled through debugfs
-	  interface /sys/kernel/debug/notifier-error-inject/pm
+	  PM yestifier chain callbacks.  It is controlled through debugfs
+	  interface /sys/kernel/debug/yestifier-error-inject/pm
 
-	  If the notifier call chain should be failed with some events
-	  notified, write the error code to "actions/<notifier event>/error".
+	  If the yestifier call chain should be failed with some events
+	  yestified, write the error code to "actions/<yestifier event>/error".
 
 	  Example: Inject PM suspend error (-12 = -ENOMEM)
 
-	  # cd /sys/kernel/debug/notifier-error-inject/pm/
+	  # cd /sys/kernel/debug/yestifier-error-inject/pm/
 	  # echo -12 > actions/PM_SUSPEND_PREPARE/error
 	  # echo mem > /sys/power/state
-	  bash: echo: write error: Cannot allocate memory
+	  bash: echo: write error: Canyest allocate memory
 
 	  To compile this code as a module, choose M here: the module will
-	  be called pm-notifier-error-inject.
+	  be called pm-yestifier-error-inject.
 
 	  If unsure, say N.
 
 config OF_RECONFIG_NOTIFIER_ERROR_INJECT
-	tristate "OF reconfig notifier error injection module"
+	tristate "OF reconfig yestifier error injection module"
 	depends on OF_DYNAMIC && NOTIFIER_ERROR_INJECTION
 	help
 	  This option provides the ability to inject artificial errors to
-	  OF reconfig notifier chain callbacks.  It is controlled
+	  OF reconfig yestifier chain callbacks.  It is controlled
 	  through debugfs interface under
-	  /sys/kernel/debug/notifier-error-inject/OF-reconfig/
+	  /sys/kernel/debug/yestifier-error-inject/OF-reconfig/
 
-	  If the notifier call chain should be failed with some events
-	  notified, write the error code to "actions/<notifier event>/error".
+	  If the yestifier call chain should be failed with some events
+	  yestified, write the error code to "actions/<yestifier event>/error".
 
 	  To compile this code as a module, choose M here: the module will
-	  be called of-reconfig-notifier-error-inject.
+	  be called of-reconfig-yestifier-error-inject.
 
 	  If unsure, say N.
 
 config NETDEV_NOTIFIER_ERROR_INJECT
-	tristate "Netdev notifier error injection module"
+	tristate "Netdev yestifier error injection module"
 	depends on NET && NOTIFIER_ERROR_INJECTION
 	help
 	  This option provides the ability to inject artificial errors to
-	  netdevice notifier chain callbacks.  It is controlled through debugfs
-	  interface /sys/kernel/debug/notifier-error-inject/netdev
+	  netdevice yestifier chain callbacks.  It is controlled through debugfs
+	  interface /sys/kernel/debug/yestifier-error-inject/netdev
 
-	  If the notifier call chain should be failed with some events
-	  notified, write the error code to "actions/<notifier event>/error".
+	  If the yestifier call chain should be failed with some events
+	  yestified, write the error code to "actions/<yestifier event>/error".
 
 	  Example: Inject netdevice mtu change error (-22 = -EINVAL)
 
-	  # cd /sys/kernel/debug/notifier-error-inject/netdev
+	  # cd /sys/kernel/debug/yestifier-error-inject/netdev
 	  # echo -22 > actions/NETDEV_CHANGEMTU/error
 	  # ip link set eth0 mtu 1024
 	  RTNETLINK answers: Invalid argument
 
 	  To compile this code as a module, choose M here: the module will
-	  be called netdev-notifier-error-inject.
+	  be called netdev-yestifier-error-inject.
 
 	  If unsure, say N.
 
@@ -1713,7 +1713,7 @@ config KCOV
 	  KCOV exposes kernel code coverage information in a form suitable
 	  for coverage-guided fuzzing (randomized testing).
 
-	  If RANDOMIZE_BASE is enabled, PC values will not be stable across
+	  If RANDOMIZE_BASE is enabled, PC values will yest be stable across
 	  different machines and across reboots. If you need stable PC values,
 	  disable RANDOMIZE_BASE.
 
@@ -1794,7 +1794,7 @@ config BACKTRACE_SELF_TEST
 	depends on DEBUG_KERNEL
 	help
 	  This option provides a kernel module that can be used to test
-	  the kernel stack backtrace code. This option is not useful
+	  the kernel stack backtrace code. This option is yest useful
 	  for distributions or general kernels, but only for kernel
 	  developers working on architecture code.
 
@@ -1853,7 +1853,7 @@ config ASYNC_RAID6_TEST
 	---help---
 	  This is a one-shot self test that permutes through the
 	  recovery of all the possible two disk failure scenarios for a
-	  N-disk array.  Recovery is performed with the asynchronous
+	  N-disk array.  Recovery is performed with the asynchroyesus
 	  raid6 recovery routines, and will optionally use an offload
 	  engine if one is available.
 
@@ -1942,7 +1942,7 @@ config TEST_LKM
 	  on printk when loaded. It is designed to be used for basic
 	  evaluation of the module loading subsystem (for example when
 	  validating module verification). It lacks any extra dependencies,
-	  and will not normally be loaded by the system unless explicitly
+	  and will yest yesrmally be loaded by the system unless explicitly
 	  requested by name.
 
 	  If unsure, say N.
@@ -2020,7 +2020,7 @@ config TEST_SYSCTL
 	help
 	  This builds the "test_sysctl" module. This driver enables to test the
 	  proc sysctl interfaces available to drivers safely without affecting
-	  production knobs which might alter system functionality.
+	  production kyesbs which might alter system functionality.
 
 	  If unsure, say N.
 
@@ -2045,7 +2045,7 @@ config LIST_KUNIT_TEST
 
 	  KUnit tests run during boot and output the results to the debug log
 	  in TAP format (http://testanything.org/). Only useful for kernel devs
-	  running the KUnit test harness, and not intended for inclusion into a
+	  running the KUnit test harness, and yest intended for inclusion into a
 	  production build.
 
 	  For more information on KUnit and unit tests in general please refer
@@ -2100,7 +2100,7 @@ config TEST_DEBUG_VIRTUAL
 	depends on DEBUG_VIRTUAL
 	help
 	  Test the kernel's ability to detect incorrect calls to
-	  virt_to_phys() done against the non-linear part of the
+	  virt_to_phys() done against the yesn-linear part of the
 	  kernel's virtual address map.
 
 	  If unsure, say N.

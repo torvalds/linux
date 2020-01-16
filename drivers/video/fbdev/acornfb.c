@@ -7,7 +7,7 @@
  * Frame buffer code for Acorn platforms
  *
  * NOTE: Most of the modes with X!=640 will disappear shortly.
- * NOTE: Startup setting of HS & VS polarity not supported.
+ * NOTE: Startup setting of HS & VS polarity yest supported.
  *       (do we need to support it if we're coming up in 640x480?)
  *
  * FIXME: (things broken by the "new improved" FBCON API)
@@ -16,7 +16,7 @@
 
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/string.h>
 #include <linux/ctype.h>
 #include <linux/mm.h>
@@ -51,8 +51,8 @@
 /*
  * Translation from RISC OS monitor types to actual
  * HSYNC and VSYNC frequency ranges.  These are
- * probably not right, but they're the best info I
- * have.  Allow 1% either way on the nominal for TVs.
+ * probably yest right, but they're the best info I
+ * have.  Allow 1% either way on the yesminal for TVs.
  */
 #define NR_MONTYPES	6
 static struct fb_monspecs monspecs[NR_MONTYPES] = {
@@ -66,7 +66,7 @@ static struct fb_monspecs monspecs[NR_MONTYPES] = {
 		.hfmax	= 99999,
 		.vfmin	= 0,
 		.vfmax	= 199,
-	}, {	/* Hi-res mono	*/
+	}, {	/* Hi-res moyes	*/
 		.hfmin	= 58608,
 		.hfmax	= 58608,
 		.vfmin	= 64,
@@ -245,7 +245,7 @@ static void acornfb_set_timing(struct fb_info *info)
 }
 
 /*
- * We have to take note of the VIDC20's 16-bit palette here.
+ * We have to take yeste of the VIDC20's 16-bit palette here.
  * The VIDC20 looks up a 16 bit pixel as follows:
  *
  *   bits   111111
@@ -263,22 +263,22 @@ static void acornfb_set_timing(struct fb_info *info)
  *   blue    +++++            (5 bits, 14 to 10)
  */
 static int
-acornfb_setcolreg(u_int regno, u_int red, u_int green, u_int blue,
+acornfb_setcolreg(u_int regyes, u_int red, u_int green, u_int blue,
 		  u_int trans, struct fb_info *info)
 {
 	union palette pal;
 
-	if (regno >= current_par.palette_size)
+	if (regyes >= current_par.palette_size)
 		return 1;
 
-	if (regno < 16 && info->fix.visual == FB_VISUAL_DIRECTCOLOR) {
+	if (regyes < 16 && info->fix.visual == FB_VISUAL_DIRECTCOLOR) {
 		u32 pseudo_val;
 
-		pseudo_val  = regno << info->var.red.offset;
-		pseudo_val |= regno << info->var.green.offset;
-		pseudo_val |= regno << info->var.blue.offset;
+		pseudo_val  = regyes << info->var.red.offset;
+		pseudo_val |= regyes << info->var.green.offset;
+		pseudo_val |= regyes << info->var.blue.offset;
 
-		((u32 *)info->pseudo_palette)[regno] = pseudo_val;
+		((u32 *)info->pseudo_palette)[regyes] = pseudo_val;
 	}
 
 	pal.p = 0;
@@ -286,7 +286,7 @@ acornfb_setcolreg(u_int regno, u_int red, u_int green, u_int blue,
 	pal.vidc20.green = green >> 8;
 	pal.vidc20.blue  = blue >> 8;
 
-	current_par.palette[regno] = pal;
+	current_par.palette[regyes] = pal;
 
 	if (info->var.bits_per_pixel == 16) {
 		int i;
@@ -301,7 +301,7 @@ acornfb_setcolreg(u_int regno, u_int red, u_int green, u_int blue,
 			/* Palette register pointer auto-increments */
 		}
 	} else {
-		vidc_writel(0x10000000 | regno);
+		vidc_writel(0x10000000 | regyes);
 		vidc_writel(pal.p);
 	}
 
@@ -718,7 +718,7 @@ static void acornfb_init_fbinfo(void)
 #endif
 	fb_info.var.green	   = fb_info.var.red;
 	fb_info.var.blue	   = fb_info.var.red;
-	fb_info.var.nonstd	   = 0;
+	fb_info.var.yesnstd	   = 0;
 	fb_info.var.activate	   = FB_ACTIVATE_NOW;
 	fb_info.var.height	   = -1;
 	fb_info.var.width	   = -1;
@@ -747,7 +747,7 @@ static void acornfb_init_fbinfo(void)
  *	Set RISC-OS style monitor type:
  *		0 (or tv)	- TV frequency
  *		1 (or multi)	- Multi frequency
- *		2 (or hires)	- Hi-res monochrome
+ *		2 (or hires)	- Hi-res moyeschrome
  *		3 (or vga)	- VGA
  *		4 (or svga)	- SVGA
  *		auto, or option missing
@@ -833,7 +833,7 @@ static void acornfb_parse_montype(char *opt)
 
 	if (current_par.montype == -2 ||
 	    current_par.montype > NR_MONTYPES) {
-		printk(KERN_ERR "acornfb: unknown monitor type: %s\n",
+		printk(KERN_ERR "acornfb: unkyeswn monitor type: %s\n",
 			opt);
 		current_par.montype = -1;
 	} else
@@ -842,7 +842,7 @@ static void acornfb_parse_montype(char *opt)
 			current_par.dpms = 1;
 		else
 			printk(KERN_ERR
-			       "acornfb: unknown monitor option: %s\n",
+			       "acornfb: unkyeswn monitor option: %s\n",
 			       opt);
 	}
 }
@@ -907,7 +907,7 @@ static int acornfb_setup(char *options)
 		}
 
 		if (!optp->name)
-			printk(KERN_ERR "acornfb: unknown parameter: %s\n",
+			printk(KERN_ERR "acornfb: unkyeswn parameter: %s\n",
 			       opt);
 	}
 	return 0;
@@ -915,7 +915,7 @@ static int acornfb_setup(char *options)
 
 /*
  * Detect type of monitor connected
- *  For now, we just assume SVGA
+ *  For yesw, we just assume SVGA
  */
 static int acornfb_detect_monitortype(void)
 {
@@ -1035,7 +1035,7 @@ static int acornfb_probe(struct platform_device *dev)
 
 		/*
 		 * RiscPC needs to allocate the DRAM memory
-		 * for the framebuffer if we are not using
+		 * for the framebuffer if we are yest using
 		 * VRAM.
 		 */
 		base = dma_alloc_wc(current_par.dev, size, &handle,
@@ -1090,7 +1090,7 @@ static int acornfb_probe(struct platform_device *dev)
 	 * generic database.
 	 */
 	if (rc == 0) {
-		printk("Acornfb: no valid mode found\n");
+		printk("Acornfb: yes valid mode found\n");
 		return -EINVAL;
 	}
 

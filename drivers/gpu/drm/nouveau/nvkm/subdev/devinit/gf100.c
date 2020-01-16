@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -99,7 +99,7 @@ gf100_devinit_preinit(struct nvkm_devinit *base)
 
 	/*
 	 * This bit is set by devinit, and flips back to 0 on suspend. We
-	 * can use it as a reliable way to know whether we should run devinit.
+	 * can use it as a reliable way to kyesw whether we should run devinit.
 	 */
 	base->post = ((nvkm_rd32(device, 0x2240c) & BIT(1)) == 0);
 }

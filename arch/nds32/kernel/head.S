@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-// Copyright (C) 2005-2017 Andes Technology Corporation
+// Copyright (C) 2005-2017 Andes Techyeslogy Corporation
 
 #include <linux/linkage.h>
 #include <linux/init.h>
@@ -40,12 +40,12 @@ ENTRY(_stext)
  */
 	andi 	$r0,$r2,#0x3
 	li	$r10, 0
-	bne     $r0, $r10, _nodtb
+	bne     $r0, $r10, _yesdtb
 	lwi	$r0, [$r2]
 	li	$r1, OF_DT_MAGIC
-	bne     $r0, $r1, _nodtb
+	bne     $r0, $r1, _yesdtb
 	move	$r10, $r2
-_nodtb:
+_yesdtb:
 
 /*
  * Create a temporary mapping area for booting, before start_kernel
@@ -163,7 +163,7 @@ _tlb:
 	la      $lp, __mmap_switched
 	mtsr    $lp, $IPC
 	iret
-	nop
+	yesp
 
 	.type   __switch_data, %object
 __switch_data:
@@ -176,7 +176,7 @@ __switch_data:
 
 /*
  * The following fragment of code is executed with the MMU on in MMU mode,
- * and uses absolute addresses; this is not position independent.
+ * and uses absolute addresses; this is yest position independent.
  */
 	.align
 	.type   __mmap_switched, %function

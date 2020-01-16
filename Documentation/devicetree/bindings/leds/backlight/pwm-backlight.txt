@@ -10,7 +10,7 @@ Optional properties:
                "pwms" property (see PWM binding[0])
   - enable-gpios: contains a single GPIO specifier for the GPIO which enables
                   and disables the backlight (see GPIO binding[1])
-  - post-pwm-on-delay-ms: Delay in ms between setting an initial (non-zero) PWM
+  - post-pwm-on-delay-ms: Delay in ms between setting an initial (yesn-zero) PWM
                           and enabling the backlight using GPIO.
   - pwm-off-delay-ms: Delay in ms between disabling the backlight using GPIO
                       and setting PWM value to 0.

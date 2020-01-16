@@ -13,11 +13,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *	  copyright notice, this list of conditions and the following
+ *	  copyright yestice, this list of conditions and the following
  *	  disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *	  copyright notice, this list of conditions and the following
+ *	  copyright yestice, this list of conditions and the following
  *	  disclaimer in the documentation and/or other materials
  *	  provided with the distribution.
  *
@@ -46,7 +46,7 @@
 #include <linux/jhash.h>
 #include <linux/kref.h>
 #include <net/netlink.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <rdma/iw_portmap.h>
 #include <rdma/rdma_netlink.h>
 
@@ -74,7 +74,7 @@ struct iwpm_nlmsg_request {
 };
 
 struct iwpm_mapping_info {
-	struct hlist_node hlist_node;
+	struct hlist_yesde hlist_yesde;
 	struct sockaddr_storage local_sockaddr;
 	struct sockaddr_storage mapped_sockaddr;
 	u8     nl_client;
@@ -82,7 +82,7 @@ struct iwpm_mapping_info {
 };
 
 struct iwpm_remote_info {
-	struct hlist_node hlist_node;
+	struct hlist_yesde hlist_yesde;
 	struct sockaddr_storage remote_sockaddr;
 	struct sockaddr_storage mapped_loc_sockaddr;
 	struct sockaddr_storage mapped_rem_sockaddr;
@@ -119,7 +119,7 @@ void iwpm_free_nlmsg_request(struct kref *kref);
  * @echo_seq: Sequence number of the netlink request to find
  *
  * Returns the found netlink message request,
- * if not found, returns NULL
+ * if yest found, returns NULL
  */
 struct iwpm_nlmsg_request *iwpm_find_nlmsg_request(__u32 echo_seq);
 
@@ -157,7 +157,7 @@ void iwpm_add_remote_info(struct iwpm_remote_info *reminfo);
 int iwpm_valid_client(u8 nl_client);
 
 /**
- * iwpm_set_valid - Set the port mapper client to valid or not
+ * iwpm_set_valid - Set the port mapper client to valid or yest
  * @nl_client: The index of the netlink client
  * @valid: 1 if valid or 0 if invalid
  */

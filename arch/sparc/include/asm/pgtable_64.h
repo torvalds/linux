@@ -72,7 +72,7 @@
 #endif
 
 #if (PGDIR_SHIFT + PGDIR_BITS) != 53
-#error Page table parameters do not cover virtual address space properly.
+#error Page table parameters do yest cover virtual address space properly.
 #endif
 
 #if (PMD_SHIFT != HPAGE_SHIFT)
@@ -131,7 +131,7 @@ bool kern_addr_valid(unsigned long addr);
 #define _PAGE_SZ32MB_4U	  _AC(0x0001000000000000,UL) /* (Panther) 32MB page  */
 #define _PAGE_SZ256MB_4U  _AC(0x2001000000000000,UL) /* (Panther) 256MB page */
 #define _PAGE_SZALL_4U	  _AC(0x6001000000000000,UL) /* All pgsz bits        */
-#define _PAGE_SN_4U	  _AC(0x0000800000000000,UL) /* (Cheetah) Snoop      */
+#define _PAGE_SN_4U	  _AC(0x0000800000000000,UL) /* (Cheetah) Syesop      */
 #define _PAGE_RES2_4U	  _AC(0x0000780000000000,UL) /* Reserved             */
 #define _PAGE_PADDR_4U	  _AC(0x000007FFFFFFE000,UL) /* (Cheetah) pa[42:13]  */
 #define _PAGE_SOFT_4U	  _AC(0x0000000000001F80,UL) /* Software bits:       */
@@ -346,7 +346,7 @@ static inline pmd_t pmd_modify(pmd_t pmd, pgprot_t newprot)
 }
 #endif
 
-static inline pgprot_t pgprot_noncached(pgprot_t prot)
+static inline pgprot_t pgprot_yesncached(pgprot_t prot)
 {
 	unsigned long val = pgprot_val(prot);
 
@@ -371,10 +371,10 @@ static inline pgprot_t pgprot_noncached(pgprot_t prot)
 	return __pgprot(val);
 }
 /* Various pieces of code check for platform support by ifdef testing
- * on "pgprot_noncached".  That's broken and should be fixed, but for
- * now...
+ * on "pgprot_yesncached".  That's broken and should be fixed, but for
+ * yesw...
  */
-#define pgprot_noncached pgprot_noncached
+#define pgprot_yesncached pgprot_yesncached
 
 #if defined(CONFIG_HUGETLB_PAGE) || defined(CONFIG_TRANSPARENT_HUGEPAGE)
 extern pte_t arch_make_huge_pte(pte_t entry, struct vm_area_struct *vma,
@@ -390,7 +390,7 @@ static inline unsigned long __pte_default_huge_mask(void)
 	"	.section	.sun4v_2insn_patch, \"ax\"\n"
 	"	.word		661b\n"
 	"	mov		%2, %0\n"
-	"	nop\n"
+	"	yesp\n"
 	"	.previous\n"
 	: "=r" (mask)
 	: "i" (_PAGE_SZHUGE_4U), "i" (_PAGE_SZHUGE_4V));
@@ -444,9 +444,9 @@ static inline pte_t pte_mkdirty(pte_t pte)
 
 	__asm__ __volatile__(
 	"\n661:	or		%0, %3, %0\n"
-	"	nop\n"
-	"\n662:	nop\n"
-	"	nop\n"
+	"	yesp\n"
+	"\n662:	yesp\n"
+	"	yesp\n"
 	"	.section	.sun4v_2insn_patch, \"ax\"\n"
 	"	.word		661b\n"
 	"	sethi		%%uhi(%4), %1\n"
@@ -468,9 +468,9 @@ static inline pte_t pte_mkclean(pte_t pte)
 
 	__asm__ __volatile__(
 	"\n661:	andn		%0, %3, %0\n"
-	"	nop\n"
-	"\n662:	nop\n"
-	"	nop\n"
+	"	yesp\n"
+	"\n662:	yesp\n"
+	"	yesp\n"
 	"	.section	.sun4v_2insn_patch, \"ax\"\n"
 	"	.word		661b\n"
 	"	sethi		%%uhi(%4), %1\n"
@@ -492,7 +492,7 @@ static inline pte_t pte_mkwrite(pte_t pte)
 
 	__asm__ __volatile__(
 	"\n661:	mov		%1, %0\n"
-	"	nop\n"
+	"	yesp\n"
 	"	.section	.sun4v_2insn_patch, \"ax\"\n"
 	"	.word		661b\n"
 	"	sethi		%%uhi(%2), %0\n"
@@ -510,9 +510,9 @@ static inline pte_t pte_wrprotect(pte_t pte)
 
 	__asm__ __volatile__(
 	"\n661:	andn		%0, %3, %0\n"
-	"	nop\n"
-	"\n662:	nop\n"
-	"	nop\n"
+	"	yesp\n"
+	"\n662:	yesp\n"
+	"	yesp\n"
 	"	.section	.sun4v_2insn_patch, \"ax\"\n"
 	"	.word		661b\n"
 	"	sethi		%%uhi(%4), %1\n"
@@ -534,7 +534,7 @@ static inline pte_t pte_mkold(pte_t pte)
 
 	__asm__ __volatile__(
 	"\n661:	mov		%1, %0\n"
-	"	nop\n"
+	"	yesp\n"
 	"	.section	.sun4v_2insn_patch, \"ax\"\n"
 	"	.word		661b\n"
 	"	sethi		%%uhi(%2), %0\n"
@@ -554,7 +554,7 @@ static inline pte_t pte_mkyoung(pte_t pte)
 
 	__asm__ __volatile__(
 	"\n661:	mov		%1, %0\n"
-	"	nop\n"
+	"	yesp\n"
 	"	.section	.sun4v_2insn_patch, \"ax\"\n"
 	"	.word		661b\n"
 	"	sethi		%%uhi(%2), %0\n"
@@ -580,7 +580,7 @@ static inline pte_t pte_mkmcd(pte_t pte)
 	return pte;
 }
 
-static inline pte_t pte_mknotmcd(pte_t pte)
+static inline pte_t pte_mkyestmcd(pte_t pte)
 {
 	pte_val(pte) &= ~_PAGE_MCD_4V;
 	return pte;
@@ -592,7 +592,7 @@ static inline unsigned long pte_young(pte_t pte)
 
 	__asm__ __volatile__(
 	"\n661:	mov		%1, %0\n"
-	"	nop\n"
+	"	yesp\n"
 	"	.section	.sun4v_2insn_patch, \"ax\"\n"
 	"	.word		661b\n"
 	"	sethi		%%uhi(%2), %0\n"
@@ -610,7 +610,7 @@ static inline unsigned long pte_dirty(pte_t pte)
 
 	__asm__ __volatile__(
 	"\n661:	mov		%1, %0\n"
-	"	nop\n"
+	"	yesp\n"
 	"	.section	.sun4v_2insn_patch, \"ax\"\n"
 	"	.word		661b\n"
 	"	sethi		%%uhi(%2), %0\n"
@@ -628,7 +628,7 @@ static inline unsigned long pte_write(pte_t pte)
 
 	__asm__ __volatile__(
 	"\n661:	mov		%1, %0\n"
-	"	nop\n"
+	"	yesp\n"
 	"	.section	.sun4v_2insn_patch, \"ax\"\n"
 	"	.word		661b\n"
 	"	sethi		%%uhi(%2), %0\n"
@@ -796,9 +796,9 @@ static inline int pmd_present(pmd_t pmd)
 	return pmd_val(pmd) != 0UL;
 }
 
-#define pmd_none(pmd)			(!pmd_val(pmd))
+#define pmd_yesne(pmd)			(!pmd_val(pmd))
 
-/* pmd_bad() is only called on non-trans-huge PMDs.  Our encoding is
+/* pmd_bad() is only called on yesn-trans-huge PMDs.  Our encoding is
  * very simple, it's just the physical address.  PTE tables are of
  * size PAGE_SIZE so make sure the sub-PAGE_SIZE bits are clear and
  * the top bits outside of the range of any physical address size we
@@ -806,11 +806,11 @@ static inline int pmd_present(pmd_t pmd)
  */
 #define pmd_bad(pmd)			(pmd_val(pmd) & ~PAGE_MASK)
 
-#define pud_none(pud)			(!pud_val(pud))
+#define pud_yesne(pud)			(!pud_val(pud))
 
 #define pud_bad(pud)			(pud_val(pud) & ~PAGE_MASK)
 
-#define pgd_none(pgd)			(!pgd_val(pgd))
+#define pgd_yesne(pgd)			(!pgd_val(pgd))
 
 #define pgd_bad(pgd)			(pgd_val(pgd) & ~PAGE_MASK)
 
@@ -882,7 +882,7 @@ static inline unsigned long pud_pfn(pud_t pud)
 }
 
 /* Same in both SUN4V and SUN4U.  */
-#define pte_none(pte) 			(!pte_val(pte))
+#define pte_yesne(pte) 			(!pte_val(pte))
 
 #define pgd_set(pgdp, pudp)	\
 	(pgd_val(*(pgdp)) = (__pa((unsigned long) (pudp))))
@@ -912,7 +912,7 @@ static inline unsigned long pud_pfn(pud_t pud)
 #define pte_offset_map			pte_index
 #define pte_unmap(pte)			do { } while (0)
 
-/* We cannot include <linux/mm_types.h> at this point yet: */
+/* We canyest include <linux/mm_types.h> at this point yet: */
 extern struct mm_struct init_mm;
 
 /* Actual page table PTE updates.  */
@@ -960,7 +960,7 @@ static inline void __set_pte_at(struct mm_struct *mm, unsigned long addr,
 	set_pte_at((mm), (addr), (ptep), __pte(0UL))
 
 #define __HAVE_ARCH_PTE_CLEAR_NOT_PRESENT_FULL
-#define pte_clear_not_present_full(mm,addr,ptep,fullmm)	\
+#define pte_clear_yest_present_full(mm,addr,ptep,fullmm)	\
 	__set_pte_at((mm), (addr), (ptep), __pte(0UL), (fullmm))
 
 #ifdef DCACHE_ALIASING_POSSIBLE
@@ -1043,11 +1043,11 @@ static inline void arch_do_swap_page(struct mm_struct *mm,
 				     unsigned long addr,
 				     pte_t pte, pte_t oldpte)
 {
-	/* If this is a new page being mapped in, there can be no
+	/* If this is a new page being mapped in, there can be yes
 	 * ADI tags stored away for this page. Skip looking for
 	 * stored tags
 	 */
-	if (pte_none(oldpte))
+	if (pte_yesne(oldpte))
 		return;
 
 	if (adi_state.enabled && (pte_val(pte) & _PAGE_MCD_4V))
@@ -1084,14 +1084,14 @@ static inline unsigned long __untagged_addr(unsigned long start)
 		long addr = start;
 
 		/* If userspace has passed a versioned address, kernel
-		 * will not find it in the VMAs since it does not store
+		 * will yest find it in the VMAs since it does yest store
 		 * the version tags in the list of VMAs. Storing version
 		 * tags in list of VMAs is impractical since they can be
 		 * changed any time from userspace without dropping into
 		 * kernel. Any address search in VMAs will be done with
-		 * non-versioned addresses. Ensure the ADI version bits
+		 * yesn-versioned addresses. Ensure the ADI version bits
 		 * are dropped here by sign extending the last bit before
-		 * ADI bits. IOMMU does not implement version tags.
+		 * ADI bits. IOMMU does yest implement version tags.
 		 */
 		return (addr << (long)adi_nbits()) >> (long)adi_nbits();
 	}

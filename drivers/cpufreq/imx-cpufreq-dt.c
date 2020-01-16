@@ -46,7 +46,7 @@ static int imx_cpufreq_dt_probe(struct platform_device *pdev)
 	/*
 	 * Early samples without fuses written report "0 0" which may NOT
 	 * match any OPP defined in DT. So clamp to minimum OPP defined in
-	 * DT to avoid warning for "no OPPs".
+	 * DT to avoid warning for "yes OPPs".
 	 *
 	 * Applies to i.MX8M series SoCs.
 	 */

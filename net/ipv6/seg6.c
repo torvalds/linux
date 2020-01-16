@@ -6,7 +6,7 @@
  *  David Lebrun <david.lebrun@uclouvain.be>
  */
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/types.h>
 #include <linux/socket.h>
 #include <linux/net.h>

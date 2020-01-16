@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -141,7 +141,7 @@ static int smu10_init_dynamic_state_adjustment_rule_settings(
 				GFP_KERNEL);
 
 	if (NULL == table_clk_vlt) {
-		pr_err("Can not allocate memory!\n");
+		pr_err("Can yest allocate memory!\n");
 		return -ENOMEM;
 	}
 
@@ -572,7 +572,7 @@ static int smu10_dpm_force_dpm_level(struct pp_hwmgr *hwmgr,
 	uint32_t min_mclk = hwmgr->display_config->min_mem_set_clock/100;
 
 	if (hwmgr->smu_version < 0x1E3700) {
-		pr_info("smu firmware version too old, can not set dpm level\n");
+		pr_info("smu firmware version too old, can yest set dpm level\n");
 		return 0;
 	}
 
@@ -884,17 +884,17 @@ static int smu10_print_clock_levels(struct pp_hwmgr *hwmgr,
 	struct smu10_hwmgr *data = (struct smu10_hwmgr *)(hwmgr->backend);
 	struct smu10_voltage_dependency_table *mclk_table =
 			data->clock_vol_info.vdd_dep_on_fclk;
-	uint32_t i, now, size = 0;
+	uint32_t i, yesw, size = 0;
 
 	switch (type) {
 	case PP_SCLK:
 		smum_send_msg_to_smc(hwmgr, PPSMC_MSG_GetGfxclkFrequency);
-		now = smum_get_argument(hwmgr);
+		yesw = smum_get_argument(hwmgr);
 
-	/* driver only know min/max gfx_clk, Add level 1 for all other gfx clks */
-		if (now == data->gfx_max_freq_limit/100)
+	/* driver only kyesw min/max gfx_clk, Add level 1 for all other gfx clks */
+		if (yesw == data->gfx_max_freq_limit/100)
 			i = 2;
-		else if (now == data->gfx_min_freq_limit/100)
+		else if (yesw == data->gfx_min_freq_limit/100)
 			i = 0;
 		else
 			i = 1;
@@ -903,7 +903,7 @@ static int smu10_print_clock_levels(struct pp_hwmgr *hwmgr,
 					data->gfx_min_freq_limit/100,
 					i == 0 ? "*" : "");
 		size += sprintf(buf + size, "1: %uMhz %s\n",
-					i == 1 ? now : SMU10_UMD_PSTATE_GFXCLK,
+					i == 1 ? yesw : SMU10_UMD_PSTATE_GFXCLK,
 					i == 1 ? "*" : "");
 		size += sprintf(buf + size, "2: %uMhz %s\n",
 					data->gfx_max_freq_limit/100,
@@ -911,14 +911,14 @@ static int smu10_print_clock_levels(struct pp_hwmgr *hwmgr,
 		break;
 	case PP_MCLK:
 		smum_send_msg_to_smc(hwmgr, PPSMC_MSG_GetFclkFrequency);
-		now = smum_get_argument(hwmgr);
+		yesw = smum_get_argument(hwmgr);
 
 		for (i = 0; i < mclk_table->count; i++)
 			size += sprintf(buf + size, "%d: %uMhz %s\n",
 					i,
 					mclk_table->entries[i].clk / 100,
 					((mclk_table->entries[i].clk / 100)
-					 == now) ? "*" : "");
+					 == yesw) ? "*" : "");
 		break;
 	default:
 		break;
@@ -947,8 +947,8 @@ static int smu10_get_performance_level(struct pp_hwmgr *hwmgr, const struct pp_h
 		level->coreClock = data->gfx_max_freq_limit;
 	}
 
-	level->nonLocalMemoryFreq = 0;
-	level->nonLocalMemoryWidth = 0;
+	level->yesnLocalMemoryFreq = 0;
+	level->yesnLocalMemoryWidth = 0;
 
 	return 0;
 }
@@ -1159,7 +1159,7 @@ static int smu10_set_watermarks_for_clocks_ranges(struct pp_hwmgr *hwmgr,
 	return result;
 }
 
-static int smu10_smus_notify_pwe(struct pp_hwmgr *hwmgr)
+static int smu10_smus_yestify_pwe(struct pp_hwmgr *hwmgr)
 {
 
 	return smum_send_msg_to_smc(hwmgr, PPSMC_MSG_SetRccPfcPmeRestoreRegister);
@@ -1353,7 +1353,7 @@ static const struct pp_hwmgr_func smu10_hwmgr_funcs = {
 	.power_state_set = smu10_set_power_state_tasks,
 	.dynamic_state_management_disable = smu10_disable_dpm_tasks,
 	.powergate_mmhub = smu10_powergate_mmhub,
-	.smus_notify_pwe = smu10_smus_notify_pwe,
+	.smus_yestify_pwe = smu10_smus_yestify_pwe,
 	.display_clock_voltage_request = smu10_display_clock_voltage_request,
 	.powergate_gfx = smu10_gfx_off_control,
 	.powergate_sdma = smu10_powergate_sdma,

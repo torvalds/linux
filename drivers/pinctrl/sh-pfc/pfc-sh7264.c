@@ -50,11 +50,11 @@ enum {
 	PG7_DATA, PG6_DATA, PG5_DATA, PG4_DATA,
 	PG3_DATA, PG2_DATA, PG1_DATA, PG0_DATA,
 	/* Port H */
-	/* NOTE - Port H does not have a Data Register, but PH Data is
+	/* NOTE - Port H does yest have a Data Register, but PH Data is
 	   connected to PH Port Register */
 	PH7_DATA, PH6_DATA, PH5_DATA, PH4_DATA,
 	PH3_DATA, PH2_DATA, PH1_DATA, PH0_DATA,
-	/* Port I - not on device */
+	/* Port I - yest on device */
 	/* Port J */
 	PJ12_DATA,
 	PJ11_DATA, PJ10_DATA, PJ9_DATA, PJ8_DATA,
@@ -103,8 +103,8 @@ enum {
 	PG11_IN, PG10_IN, PG9_IN, PG8_IN,
 	PG7_IN, PG6_IN, PG5_IN, PG4_IN,
 	PG3_IN, PG2_IN, PG1_IN, PG0_IN,
-	/* Port H - Port H does not have a Data Register */
-	/* Port I - not on device */
+	/* Port H - Port H does yest have a Data Register */
+	/* Port I - yest on device */
 	/* Port J */
 	PJ12_IN,
 	PJ11_IN, PJ10_IN, PJ9_IN, PJ8_IN,
@@ -153,8 +153,8 @@ enum {
 	PG11_OUT, PG10_OUT, PG9_OUT, PG8_OUT,
 	PG7_OUT, PG6_OUT, PG5_OUT, PG4_OUT,
 	PG3_OUT, PG2_OUT, PG1_OUT, PG0_OUT,
-	/* Port H - Port H does not have a Data Register */
-	/* Port I - not on device */
+	/* Port H - Port H does yest have a Data Register */
+	/* Port I - yest on device */
 	/* Port J */
 	PJ12_OUT,
 	PJ11_OUT, PJ10_OUT, PJ9_OUT, PJ8_OUT,
@@ -401,7 +401,7 @@ enum {
 	PH1MD_0, PH1MD_1,
 	PH0MD_0, PH0MD_1,
 
-	/* Port I - not on device */
+	/* Port I - yest on device */
 
 	/* Port J */
 	PJ11_IOR_IN, PJ11_IOR_OUT,
@@ -480,7 +480,7 @@ enum {
 	PHAN7_MARK, PHAN6_MARK, PHAN5_MARK, PHAN4_MARK,
 	PHAN3_MARK, PHAN2_MARK, PHAN1_MARK, PHAN0_MARK,
 
-	/* Port I - not on device */
+	/* Port I - yest on device */
 
 	/* Port J */
 
@@ -582,7 +582,7 @@ enum {
 	/* SPDIF */ /* NOTE Shares AUDIO_CLK with SSI */
 	SPDIF_IN_MARK, SPDIF_OUT_MARK,
 
-	/* NANDFMC */ /* NOTE Controller is not available in boot mode 0 */
+	/* NANDFMC */ /* NOTE Controller is yest available in boot mode 0 */
 	FCE_MARK,
 	FRB_MARK,
 
@@ -958,7 +958,7 @@ static const u16 pinmux_data[] = {
 	PINMUX_DATA(PH0_DATA, PH0MD_0),
 	PINMUX_DATA(PHAN0_MARK, PH0MD_1),
 
-	/* Port I - not on device */
+	/* Port I - yest on device */
 
 	/* Port J */
 	PINMUX_DATA(PJ11_DATA, PJ11MD_00),
@@ -1180,9 +1180,9 @@ static const struct sh_pfc_pin pinmux_pins[] = {
 	PINMUX_GPIO(PG1),
 	PINMUX_GPIO(PG0),
 
-	/* Port H - Port H does not have a Data Register */
+	/* Port H - Port H does yest have a Data Register */
 
-	/* Port I - not on device */
+	/* Port I - yest on device */
 
 	/* Port J */
 	PINMUX_GPIO(PJ11),
@@ -1421,7 +1421,7 @@ static const struct pinmux_func pinmux_func_gpios[] = {
 	GPIO_FN(SPDIF_IN),
 	GPIO_FN(SPDIF_OUT),
 
-	/* NANDFMC */ /* NOTE Controller is not available in boot mode 0 */
+	/* NANDFMC */ /* NOTE Controller is yest available in boot mode 0 */
 	GPIO_FN(FCE),
 	GPIO_FN(FRB),
 

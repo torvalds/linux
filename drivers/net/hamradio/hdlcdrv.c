@@ -6,7 +6,7 @@
  *
  *	Copyright (C) 1996-2000  Thomas Sailer (sailer@ife.ee.ethz.ch)
  *
- *  Please note that the GPL allows you to use the driver, NOT the radio.
+ *  Please yeste that the GPL allows you to use the driver, NOT the radio.
  *  In order to use the radio, you need a license from the communications
  *  authority of your country.
  *
@@ -18,7 +18,7 @@
  *        18.10.1996  Changed to new user space access routines 
  *                    (copy_{to,from}_user)
  *   0.2  21.11.1996  various small changes
- *   0.3  03.03.1997  fixed (hopefully) IP not working with ax.25 as a module
+ *   0.3  03.03.1997  fixed (hopefully) IP yest working with ax.25 as a module
  *   0.4  16.04.1997  init code/data tagged
  *   0.5  30.07.1997  made HDLC buffers bigger (solves a problem with the
  *                    soundmodem driver)
@@ -35,7 +35,7 @@
 #include <linux/net.h>
 #include <linux/in.h>
 #include <linux/if.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/init.h>
 #include <linux/bitops.h>
 
@@ -426,7 +426,7 @@ static int hdlcdrv_set_mac_address(struct net_device *dev, void *addr)
  *
  * This routine should set everything up anew at each open, even
  * registers that "should" only need to be set once at boot, so that
- * there is non-reboot way to recover if something goes wrong.
+ * there is yesn-reboot way to recover if something goes wrong.
  */
 
 static int hdlcdrv_open(struct net_device *dev)
@@ -708,7 +708,7 @@ struct net_device *hdlcdrv_register(const struct hdlcdrv_ops *ops,
 
 	err = register_netdev(dev);
 	if (err < 0) {
-		printk(KERN_WARNING "hdlcdrv: cannot register net "
+		printk(KERN_WARNING "hdlcdrv: canyest register net "
 		       "device %s\n", dev->name);
 		free_netdev(dev);
 		dev = ERR_PTR(err);

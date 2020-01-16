@@ -24,7 +24,7 @@
 #include "msm_gem.h"
 #include "msm_gpu.h"
 #include "msm_kms.h"
-#include "adreno/adreno_gpu.h"
+#include "adreyes/adreyes_gpu.h"
 
 /*
  * MSM driver version:
@@ -138,7 +138,7 @@ void __iomem *msm_ioremap(struct platform_device *pdev, const char *name,
 
 	size = resource_size(res);
 
-	ptr = devm_ioremap_nocache(&pdev->dev, res->start, size);
+	ptr = devm_ioremap_yescache(&pdev->dev, res->start, size);
 	if (!ptr) {
 		DRM_DEV_ERROR(&pdev->dev, "failed to ioremap: %s\n", name);
 		return ERR_PTR(-ENOMEM);
@@ -217,7 +217,7 @@ static int msm_drm_uninit(struct device *dev)
 	int i;
 
 	/*
-	 * Shutdown the hw if we're far enough along where things might be on.
+	 * Shutdown the hw if we're far eyesugh along where things might be on.
 	 * If we run this too early, we'll end up panicking in any variety of
 	 * places. Since we don't register the drm device until late in
 	 * msm_drm_init, drm_dev->registered is used as an indicator that the
@@ -309,38 +309,38 @@ bool msm_use_mmu(struct drm_device *dev)
 static int msm_init_vram(struct drm_device *dev)
 {
 	struct msm_drm_private *priv = dev->dev_private;
-	struct device_node *node;
+	struct device_yesde *yesde;
 	unsigned long size = 0;
 	int ret = 0;
 
 	/* In the device-tree world, we could have a 'memory-region'
 	 * phandle, which gives us a link to our "vram".  Allocating
 	 * is all nicely abstracted behind the dma api, but we need
-	 * to know the entire size to allocate it all in one go. There
+	 * to kyesw the entire size to allocate it all in one go. There
 	 * are two cases:
-	 *  1) device with no IOMMU, in which case we need exclusive
-	 *     access to a VRAM carveout big enough for all gpu
+	 *  1) device with yes IOMMU, in which case we need exclusive
+	 *     access to a VRAM carveout big eyesugh for all gpu
 	 *     buffers
 	 *  2) device with IOMMU, but where the bootloader puts up
 	 *     a splash screen.  In this case, the VRAM carveout
-	 *     need only be large enough for fbdev fb.  But we need
+	 *     need only be large eyesugh for fbdev fb.  But we need
 	 *     exclusive access to the buffer to avoid the kernel
 	 *     using those pages for other purposes (which appears
 	 *     as corruption on screen before we have a chance to
 	 *     load and do initial modeset)
 	 */
 
-	node = of_parse_phandle(dev->dev->of_node, "memory-region", 0);
-	if (node) {
+	yesde = of_parse_phandle(dev->dev->of_yesde, "memory-region", 0);
+	if (yesde) {
 		struct resource r;
-		ret = of_address_to_resource(node, 0, &r);
-		of_node_put(node);
+		ret = of_address_to_resource(yesde, 0, &r);
+		of_yesde_put(yesde);
 		if (ret)
 			return ret;
 		size = r.end - r.start;
 		DRM_INFO("using VRAM carveout: %lx@%pa\n", size, &r.start);
 
-		/* if we have no IOMMU, then we need to use carveout allocator.
+		/* if we have yes IOMMU, then we need to use carveout allocator.
 		 * Grab the entire CMA chunk carved out in early startup in
 		 * mach-msm:
 		 */
@@ -361,8 +361,8 @@ static int msm_init_vram(struct drm_device *dev)
 		attrs |= DMA_ATTR_NO_KERNEL_MAPPING;
 		attrs |= DMA_ATTR_WRITE_COMBINE;
 
-		/* note that for no-kernel-mapping, the vaddr returned
-		 * is bogus, but non-null if allocation succeeded:
+		/* yeste that for yes-kernel-mapping, the vaddr returned
+		 * is bogus, but yesn-null if allocation succeeded:
 		 */
 		p = dma_alloc_attrs(dev->dev, size,
 				&priv->vram.paddr, GFP_KERNEL, attrs);
@@ -456,8 +456,8 @@ static int msm_drm_init(struct device *dev, struct drm_driver *drv)
 		priv->kms = kms;
 		break;
 	default:
-		/* valid only for the dummy headless case, where of_node=NULL */
-		WARN_ON(dev->of_node);
+		/* valid only for the dummy headless case, where of_yesde=NULL */
+		WARN_ON(dev->of_yesde);
 		kms = NULL;
 		break;
 	}
@@ -469,8 +469,8 @@ static int msm_drm_init(struct device *dev, struct drm_driver *drv)
 		goto err_msm_uninit;
 	}
 
-	/* Enable normalization of plane zpos */
-	ddev->mode_config.normalize_zpos = true;
+	/* Enable yesrmalization of plane zpos */
+	ddev->mode_config.yesrmalize_zpos = true;
 
 	if (kms) {
 		kms->dev = ddev;
@@ -487,7 +487,7 @@ static int msm_drm_init(struct device *dev, struct drm_driver *drv)
 	/**
 	 * this priority was found during empiric testing to have appropriate
 	 * realtime scheduling to process display updates and interact with
-	 * other real time and normal priority task
+	 * other real time and yesrmal priority task
 	 */
 	param.sched_priority = 16;
 	for (i = 0; i < priv->num_crtcs; i++) {
@@ -572,7 +572,7 @@ static void load_gpu(struct drm_device *dev)
 	mutex_lock(&init_lock);
 
 	if (!priv->gpu)
-		priv->gpu = adreno_load_gpu(dev);
+		priv->gpu = adreyes_load_gpu(dev);
 
 	mutex_unlock(&init_lock);
 }
@@ -596,7 +596,7 @@ static int context_init(struct drm_device *dev, struct drm_file *file)
 
 static int msm_open(struct drm_device *dev, struct drm_file *file)
 {
-	/* For now, load gpu on open.. to avoid the requirement of having
+	/* For yesw, load gpu on open.. to avoid the requirement of having
 	 * firmware in the initrd.
 	 */
 	load_gpu(dev);
@@ -691,7 +691,7 @@ static int msm_ioctl_get_param(struct drm_device *dev, void *data,
 	struct drm_msm_param *args = data;
 	struct msm_gpu *gpu;
 
-	/* for now, we just have 3d pipe.. eventually this would need to
+	/* for yesw, we just have 3d pipe.. eventually this would need to
 	 * be more clever to dispatch to appropriate gpu module:
 	 */
 	if (args->pipe != MSM_PIPE_3D0)
@@ -795,7 +795,7 @@ static int msm_ioctl_gem_info(struct drm_device *dev, void *data,
 	switch (args->info) {
 	case MSM_INFO_GET_OFFSET:
 	case MSM_INFO_GET_IOVA:
-		/* value returned as immediate, not pointer, so len==0: */
+		/* value returned as immediate, yest pointer, so len==0: */
 		if (args->len)
 			return -EINVAL;
 		break;
@@ -980,7 +980,7 @@ static const struct file_operations fops = {
 	.compat_ioctl       = drm_compat_ioctl,
 	.poll               = drm_poll,
 	.read               = drm_read,
-	.llseek             = no_llseek,
+	.llseek             = yes_llseek,
 	.mmap               = msm_gem_mmap,
 };
 
@@ -1021,7 +1021,7 @@ static struct drm_driver msm_driver = {
 	.desc               = "MSM Snapdragon DRM",
 	.date               = "20130625",
 	.major              = MSM_VERSION_MAJOR,
-	.minor              = MSM_VERSION_MINOR,
+	.miyesr              = MSM_VERSION_MINOR,
 	.patchlevel         = MSM_VERSION_PATCHLEVEL,
 };
 
@@ -1101,25 +1101,25 @@ static const struct dev_pm_ops msm_pm_ops = {
  */
 
 /*
- * NOTE: duplication of the same code as exynos or imx (or probably any other).
+ * NOTE: duplication of the same code as exyyess or imx (or probably any other).
  * so probably some room for some helpers
  */
 static int compare_of(struct device *dev, void *data)
 {
-	return dev->of_node == data;
+	return dev->of_yesde == data;
 }
 
 /*
  * Identify what components need to be added by parsing what remote-endpoints
  * our MDP output ports are connected to. In the case of LVDS on MDP4, there
- * is no external component that we need to add since LVDS is within MDP4
+ * is yes external component that we need to add since LVDS is within MDP4
  * itself.
  */
 static int add_components_mdp(struct device *mdp_dev,
 			      struct component_match **matchptr)
 {
-	struct device_node *np = mdp_dev->of_node;
-	struct device_node *ep_node;
+	struct device_yesde *np = mdp_dev->of_yesde;
+	struct device_yesde *ep_yesde;
 	struct device *master_dev;
 
 	/*
@@ -1135,15 +1135,15 @@ static int add_components_mdp(struct device *mdp_dev,
 	else
 		master_dev = mdp_dev->parent;
 
-	for_each_endpoint_of_node(np, ep_node) {
-		struct device_node *intf;
+	for_each_endpoint_of_yesde(np, ep_yesde) {
+		struct device_yesde *intf;
 		struct of_endpoint ep;
 		int ret;
 
-		ret = of_graph_parse_endpoint(ep_node, &ep);
+		ret = of_graph_parse_endpoint(ep_yesde, &ep);
 		if (ret) {
 			DRM_DEV_ERROR(mdp_dev, "unable to parse port endpoint\n");
-			of_node_put(ep_node);
+			of_yesde_put(ep_yesde);
 			return ret;
 		}
 
@@ -1160,7 +1160,7 @@ static int add_components_mdp(struct device *mdp_dev,
 		 * specified. It just means that the port isn't connected to
 		 * any external interface.
 		 */
-		intf = of_graph_get_remote_port_parent(ep_node);
+		intf = of_graph_get_remote_port_parent(ep_yesde);
 		if (!intf)
 			continue;
 
@@ -1168,7 +1168,7 @@ static int add_components_mdp(struct device *mdp_dev,
 			drm_of_component_match_add(master_dev, matchptr,
 						   compare_of, intf);
 
-		of_node_put(intf);
+		of_yesde_put(intf);
 	}
 
 	return 0;
@@ -1188,12 +1188,12 @@ static int add_display_components(struct device *dev,
 	/*
 	 * MDP5/DPU based devices don't have a flat hierarchy. There is a top
 	 * level parent: MDSS, and children: MDP5/DPU, DSI, HDMI, eDP etc.
-	 * Populate the children devices, find the MDP5/DPU node, and then add
+	 * Populate the children devices, find the MDP5/DPU yesde, and then add
 	 * the interfaces to our components list.
 	 */
-	if (of_device_is_compatible(dev->of_node, "qcom,mdss") ||
-	    of_device_is_compatible(dev->of_node, "qcom,sdm845-mdss")) {
-		ret = of_platform_populate(dev->of_node, NULL, NULL, dev);
+	if (of_device_is_compatible(dev->of_yesde, "qcom,mdss") ||
+	    of_device_is_compatible(dev->of_yesde, "qcom,sdm845-mdss")) {
+		ret = of_platform_populate(dev->of_yesde, NULL, NULL, dev);
 		if (ret) {
 			DRM_DEV_ERROR(dev, "failed to populate children devices\n");
 			return ret;
@@ -1201,7 +1201,7 @@ static int add_display_components(struct device *dev,
 
 		mdp_dev = device_find_child(dev, NULL, compare_name_mdp);
 		if (!mdp_dev) {
-			DRM_DEV_ERROR(dev, "failed to find MDSS MDP node\n");
+			DRM_DEV_ERROR(dev, "failed to find MDSS MDP yesde\n");
 			of_platform_depopulate(dev);
 			return -ENODEV;
 		}
@@ -1210,7 +1210,7 @@ static int add_display_components(struct device *dev,
 
 		/* add the MDP component itself */
 		drm_of_component_match_add(dev, matchptr, compare_of,
-					   mdp_dev->of_node);
+					   mdp_dev->of_yesde);
 	} else {
 		/* MDP4 */
 		mdp_dev = dev;
@@ -1224,13 +1224,13 @@ static int add_display_components(struct device *dev,
 }
 
 /*
- * We don't know what's the best binding to link the gpu with the drm device.
- * Fow now, we just hunt for all the possible gpus that we support, and add them
+ * We don't kyesw what's the best binding to link the gpu with the drm device.
+ * Fow yesw, we just hunt for all the possible gpus that we support, and add them
  * as components.
  */
 static const struct of_device_id msm_gpu_match[] = {
-	{ .compatible = "qcom,adreno" },
-	{ .compatible = "qcom,adreno-3xx" },
+	{ .compatible = "qcom,adreyes" },
+	{ .compatible = "qcom,adreyes-3xx" },
 	{ .compatible = "amd,imageon" },
 	{ .compatible = "qcom,kgsl-3d0" },
 	{ },
@@ -1239,16 +1239,16 @@ static const struct of_device_id msm_gpu_match[] = {
 static int add_gpu_components(struct device *dev,
 			      struct component_match **matchptr)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 
-	np = of_find_matching_node(NULL, msm_gpu_match);
+	np = of_find_matching_yesde(NULL, msm_gpu_match);
 	if (!np)
 		return 0;
 
 	if (of_device_is_available(np))
 		drm_of_component_match_add(dev, matchptr, compare_of, np);
 
-	of_node_put(np);
+	of_yesde_put(np);
 
 	return 0;
 }
@@ -1342,7 +1342,7 @@ static int __init msm_drm_register(void)
 	msm_dsi_register();
 	msm_edp_register();
 	msm_hdmi_register();
-	adreno_register();
+	adreyes_register();
 	return platform_driver_register(&msm_platform_driver);
 }
 
@@ -1351,7 +1351,7 @@ static void __exit msm_drm_unregister(void)
 	DBG("fini");
 	platform_driver_unregister(&msm_platform_driver);
 	msm_hdmi_unregister();
-	adreno_unregister();
+	adreyes_unregister();
 	msm_edp_unregister();
 	msm_dsi_unregister();
 	msm_mdp_unregister();

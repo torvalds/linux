@@ -27,7 +27,7 @@ void acpi_db_dump_buffer(u32 address);
  * PARAMETERS:  user_argument           - User command line
  *              arguments               - Array of commands to match against
  *
- * RETURN:      Index into command array or ACPI_TYPE_NOT_FOUND if not found
+ * RETURN:      Index into command array or ACPI_TYPE_NOT_FOUND if yest found
  *
  * DESCRIPTION: Search command array for a command match
  *
@@ -51,7 +51,7 @@ acpi_db_match_argument(char *user_argument,
 		}
 	}
 
-	/* Argument not recognized */
+	/* Argument yest recognized */
 
 	return (ACPI_TYPE_NOT_FOUND);
 }
@@ -177,7 +177,7 @@ void acpi_db_dump_external_object(union acpi_object *obj_desc, u32 level)
 
 	default:
 
-		acpi_os_printf("[Unknown Type] %X\n", obj_desc->type);
+		acpi_os_printf("[Unkyeswn Type] %X\n", obj_desc->type);
 		break;
 	}
 }
@@ -209,7 +209,7 @@ void acpi_db_prep_namestring(char *name)
 		*name = '\\';
 	}
 
-	/* Ignore a leading backslash, this is the root prefix */
+	/* Igyesre a leading backslash, this is the root prefix */
 
 	if (ACPI_IS_ROOT_PREFIX(*name)) {
 		name++;
@@ -232,20 +232,20 @@ void acpi_db_prep_namestring(char *name)
  *
  * PARAMETERS:  name            - Name to lookup
  *
- * RETURN:      Pointer to a namespace node, null on failure
+ * RETURN:      Pointer to a namespace yesde, null on failure
  *
  * DESCRIPTION: Lookup a name in the ACPI namespace
  *
  * Note: Currently begins search from the root. Could be enhanced to use
- * the current prefix (scope) node as the search beginning point.
+ * the current prefix (scope) yesde as the search beginning point.
  *
  ******************************************************************************/
 
-struct acpi_namespace_node *acpi_db_local_ns_lookup(char *name)
+struct acpi_namespace_yesde *acpi_db_local_ns_lookup(char *name)
 {
 	char *internal_path;
 	acpi_status status;
-	struct acpi_namespace_node *node = NULL;
+	struct acpi_namespace_yesde *yesde = NULL;
 
 	acpi_db_prep_namestring(name);
 
@@ -259,19 +259,19 @@ struct acpi_namespace_node *acpi_db_local_ns_lookup(char *name)
 
 	/*
 	 * Lookup the name.
-	 * (Uses root node as the search starting point)
+	 * (Uses root yesde as the search starting point)
 	 */
 	status = acpi_ns_lookup(NULL, internal_path, ACPI_TYPE_ANY,
 				ACPI_IMODE_EXECUTE,
 				ACPI_NS_NO_UPSEARCH | ACPI_NS_DONT_OPEN_SCOPE,
-				NULL, &node);
+				NULL, &yesde);
 	if (ACPI_FAILURE(status)) {
-		acpi_os_printf("Could not locate name: %s, %s\n",
+		acpi_os_printf("Could yest locate name: %s, %s\n",
 			       name, acpi_format_exception(status));
 	}
 
 	ACPI_FREE(internal_path);
-	return (node);
+	return (yesde);
 }
 
 /*******************************************************************************
@@ -279,7 +279,7 @@ struct acpi_namespace_node *acpi_db_local_ns_lookup(char *name)
  * FUNCTION:    acpi_db_uint32_to_hex_string
  *
  * PARAMETERS:  value           - The value to be converted to string
- *              buffer          - Buffer for result (not less than 11 bytes)
+ *              buffer          - Buffer for result (yest less than 11 bytes)
  *
  * RETURN:      None
  *

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * IPv6 library code, needed by static components when full IPv6 support is
- * not configured or static.
+ * yest configured or static.
  */
 
 #include <linux/export.h>
@@ -11,7 +11,7 @@
 #include <net/ip.h>
 
 /* if ipv6 module registers this function is used by xfrm to force all
- * sockets to relookup their nodes - this is fairly expensive, be
+ * sockets to relookup their yesdes - this is fairly expensive, be
  * careful
  */
 void (*__fib6_flush_trees)(struct net *);
@@ -92,44 +92,44 @@ EXPORT_SYMBOL(__ipv6_addr_type);
 static ATOMIC_NOTIFIER_HEAD(inet6addr_chain);
 static BLOCKING_NOTIFIER_HEAD(inet6addr_validator_chain);
 
-int register_inet6addr_notifier(struct notifier_block *nb)
+int register_inet6addr_yestifier(struct yestifier_block *nb)
 {
-	return atomic_notifier_chain_register(&inet6addr_chain, nb);
+	return atomic_yestifier_chain_register(&inet6addr_chain, nb);
 }
-EXPORT_SYMBOL(register_inet6addr_notifier);
+EXPORT_SYMBOL(register_inet6addr_yestifier);
 
-int unregister_inet6addr_notifier(struct notifier_block *nb)
+int unregister_inet6addr_yestifier(struct yestifier_block *nb)
 {
-	return atomic_notifier_chain_unregister(&inet6addr_chain, nb);
+	return atomic_yestifier_chain_unregister(&inet6addr_chain, nb);
 }
-EXPORT_SYMBOL(unregister_inet6addr_notifier);
+EXPORT_SYMBOL(unregister_inet6addr_yestifier);
 
-int inet6addr_notifier_call_chain(unsigned long val, void *v)
+int inet6addr_yestifier_call_chain(unsigned long val, void *v)
 {
-	return atomic_notifier_call_chain(&inet6addr_chain, val, v);
+	return atomic_yestifier_call_chain(&inet6addr_chain, val, v);
 }
-EXPORT_SYMBOL(inet6addr_notifier_call_chain);
+EXPORT_SYMBOL(inet6addr_yestifier_call_chain);
 
-int register_inet6addr_validator_notifier(struct notifier_block *nb)
+int register_inet6addr_validator_yestifier(struct yestifier_block *nb)
 {
-	return blocking_notifier_chain_register(&inet6addr_validator_chain, nb);
+	return blocking_yestifier_chain_register(&inet6addr_validator_chain, nb);
 }
-EXPORT_SYMBOL(register_inet6addr_validator_notifier);
+EXPORT_SYMBOL(register_inet6addr_validator_yestifier);
 
-int unregister_inet6addr_validator_notifier(struct notifier_block *nb)
+int unregister_inet6addr_validator_yestifier(struct yestifier_block *nb)
 {
-	return blocking_notifier_chain_unregister(&inet6addr_validator_chain,
+	return blocking_yestifier_chain_unregister(&inet6addr_validator_chain,
 						  nb);
 }
-EXPORT_SYMBOL(unregister_inet6addr_validator_notifier);
+EXPORT_SYMBOL(unregister_inet6addr_validator_yestifier);
 
-int inet6addr_validator_notifier_call_chain(unsigned long val, void *v)
+int inet6addr_validator_yestifier_call_chain(unsigned long val, void *v)
 {
-	return blocking_notifier_call_chain(&inet6addr_validator_chain, val, v);
+	return blocking_yestifier_call_chain(&inet6addr_validator_chain, val, v);
 }
-EXPORT_SYMBOL(inet6addr_validator_notifier_call_chain);
+EXPORT_SYMBOL(inet6addr_validator_yestifier_call_chain);
 
-static struct dst_entry *eafnosupport_ipv6_dst_lookup_flow(struct net *net,
+static struct dst_entry *eafyessupport_ipv6_dst_lookup_flow(struct net *net,
 							   const struct sock *sk,
 							   struct flowi6 *fl6,
 							   const struct in6_addr *final_dst)
@@ -137,18 +137,18 @@ static struct dst_entry *eafnosupport_ipv6_dst_lookup_flow(struct net *net,
 	return ERR_PTR(-EAFNOSUPPORT);
 }
 
-static int eafnosupport_ipv6_route_input(struct sk_buff *skb)
+static int eafyessupport_ipv6_route_input(struct sk_buff *skb)
 {
 	return -EAFNOSUPPORT;
 }
 
-static struct fib6_table *eafnosupport_fib6_get_table(struct net *net, u32 id)
+static struct fib6_table *eafyessupport_fib6_get_table(struct net *net, u32 id)
 {
 	return NULL;
 }
 
 static int
-eafnosupport_fib6_table_lookup(struct net *net, struct fib6_table *table,
+eafyessupport_fib6_table_lookup(struct net *net, struct fib6_table *table,
 			       int oif, struct flowi6 *fl6,
 			       struct fib6_result *res, int flags)
 {
@@ -156,50 +156,50 @@ eafnosupport_fib6_table_lookup(struct net *net, struct fib6_table *table,
 }
 
 static int
-eafnosupport_fib6_lookup(struct net *net, int oif, struct flowi6 *fl6,
+eafyessupport_fib6_lookup(struct net *net, int oif, struct flowi6 *fl6,
 			 struct fib6_result *res, int flags)
 {
 	return -EAFNOSUPPORT;
 }
 
 static void
-eafnosupport_fib6_select_path(const struct net *net, struct fib6_result *res,
+eafyessupport_fib6_select_path(const struct net *net, struct fib6_result *res,
 			      struct flowi6 *fl6, int oif, bool have_oif_match,
 			      const struct sk_buff *skb, int strict)
 {
 }
 
 static u32
-eafnosupport_ip6_mtu_from_fib6(const struct fib6_result *res,
+eafyessupport_ip6_mtu_from_fib6(const struct fib6_result *res,
 			       const struct in6_addr *daddr,
 			       const struct in6_addr *saddr)
 {
 	return 0;
 }
 
-static int eafnosupport_fib6_nh_init(struct net *net, struct fib6_nh *fib6_nh,
+static int eafyessupport_fib6_nh_init(struct net *net, struct fib6_nh *fib6_nh,
 				     struct fib6_config *cfg, gfp_t gfp_flags,
 				     struct netlink_ext_ack *extack)
 {
-	NL_SET_ERR_MSG(extack, "IPv6 support not enabled in kernel");
+	NL_SET_ERR_MSG(extack, "IPv6 support yest enabled in kernel");
 	return -EAFNOSUPPORT;
 }
 
-static int eafnosupport_ip6_del_rt(struct net *net, struct fib6_info *rt)
+static int eafyessupport_ip6_del_rt(struct net *net, struct fib6_info *rt)
 {
 	return -EAFNOSUPPORT;
 }
 
 const struct ipv6_stub *ipv6_stub __read_mostly = &(struct ipv6_stub) {
-	.ipv6_dst_lookup_flow = eafnosupport_ipv6_dst_lookup_flow,
-	.ipv6_route_input  = eafnosupport_ipv6_route_input,
-	.fib6_get_table    = eafnosupport_fib6_get_table,
-	.fib6_table_lookup = eafnosupport_fib6_table_lookup,
-	.fib6_lookup       = eafnosupport_fib6_lookup,
-	.fib6_select_path  = eafnosupport_fib6_select_path,
-	.ip6_mtu_from_fib6 = eafnosupport_ip6_mtu_from_fib6,
-	.fib6_nh_init	   = eafnosupport_fib6_nh_init,
-	.ip6_del_rt	   = eafnosupport_ip6_del_rt,
+	.ipv6_dst_lookup_flow = eafyessupport_ipv6_dst_lookup_flow,
+	.ipv6_route_input  = eafyessupport_ipv6_route_input,
+	.fib6_get_table    = eafyessupport_fib6_get_table,
+	.fib6_table_lookup = eafyessupport_fib6_table_lookup,
+	.fib6_lookup       = eafyessupport_fib6_lookup,
+	.fib6_select_path  = eafyessupport_fib6_select_path,
+	.ip6_mtu_from_fib6 = eafyessupport_ip6_mtu_from_fib6,
+	.fib6_nh_init	   = eafyessupport_fib6_nh_init,
+	.ip6_del_rt	   = eafyessupport_ip6_del_rt,
 };
 EXPORT_SYMBOL_GPL(ipv6_stub);
 
@@ -208,12 +208,12 @@ const struct in6_addr in6addr_loopback = IN6ADDR_LOOPBACK_INIT;
 EXPORT_SYMBOL(in6addr_loopback);
 const struct in6_addr in6addr_any = IN6ADDR_ANY_INIT;
 EXPORT_SYMBOL(in6addr_any);
-const struct in6_addr in6addr_linklocal_allnodes = IN6ADDR_LINKLOCAL_ALLNODES_INIT;
-EXPORT_SYMBOL(in6addr_linklocal_allnodes);
+const struct in6_addr in6addr_linklocal_allyesdes = IN6ADDR_LINKLOCAL_ALLNODES_INIT;
+EXPORT_SYMBOL(in6addr_linklocal_allyesdes);
 const struct in6_addr in6addr_linklocal_allrouters = IN6ADDR_LINKLOCAL_ALLROUTERS_INIT;
 EXPORT_SYMBOL(in6addr_linklocal_allrouters);
-const struct in6_addr in6addr_interfacelocal_allnodes = IN6ADDR_INTERFACELOCAL_ALLNODES_INIT;
-EXPORT_SYMBOL(in6addr_interfacelocal_allnodes);
+const struct in6_addr in6addr_interfacelocal_allyesdes = IN6ADDR_INTERFACELOCAL_ALLNODES_INIT;
+EXPORT_SYMBOL(in6addr_interfacelocal_allyesdes);
 const struct in6_addr in6addr_interfacelocal_allrouters = IN6ADDR_INTERFACELOCAL_ALLROUTERS_INIT;
 EXPORT_SYMBOL(in6addr_interfacelocal_allrouters);
 const struct in6_addr in6addr_sitelocal_allrouters = IN6ADDR_SITELOCAL_ALLROUTERS_INIT;

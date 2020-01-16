@@ -14,7 +14,7 @@
 #include <target/iscsi/iscsi_target_core.h>
 #include "iscsi_target_erl0.h"
 #include "iscsi_target_login.h"
-#include "iscsi_target_nodeattrib.h"
+#include "iscsi_target_yesdeattrib.h"
 #include "iscsi_target_tpg.h"
 #include "iscsi_target_util.h"
 #include "iscsi_target.h"
@@ -213,7 +213,7 @@ static void iscsit_set_default_tpg_attribs(struct iscsi_portal_group *tpg)
 	a->login_timeout = TA_LOGIN_TIMEOUT;
 	a->netif_timeout = TA_NETIF_TIMEOUT;
 	a->default_cmdsn_depth = TA_DEFAULT_CMDSN_DEPTH;
-	a->generate_node_acls = TA_GENERATE_NODE_ACLS;
+	a->generate_yesde_acls = TA_GENERATE_NODE_ACLS;
 	a->cache_dynamic_acls = TA_CACHE_DYNAMIC_ACLS;
 	a->demo_mode_write_protect = TA_DEMO_MODE_WRITE_PROTECT;
 	a->prod_mode_write_protect = TA_PROD_MODE_WRITE_PROTECT;
@@ -229,7 +229,7 @@ int iscsit_tpg_add_portal_group(struct iscsi_tiqn *tiqn, struct iscsi_portal_gro
 {
 	if (tpg->tpg_state != TPG_STATE_FREE) {
 		pr_err("Unable to add iSCSI Target Portal Group: %d"
-			" while not in TPG_STATE_FREE state.\n", tpg->tpgt);
+			" while yest in TPG_STATE_FREE state.\n", tpg->tpgt);
 		return -EEXIST;
 	}
 	iscsit_set_default_tpg_attribs(tpg);
@@ -309,11 +309,11 @@ int iscsit_tpg_enable_portal_group(struct iscsi_portal_group *tpg)
 
 	if (tpg->tpg_state == TPG_STATE_ACTIVE) {
 		pr_err("iSCSI target portal group: %hu is already"
-			" active, ignoring request.\n", tpg->tpgt);
+			" active, igyesring request.\n", tpg->tpgt);
 		return -EINVAL;
 	}
 	/*
-	 * Make sure that AuthMethod does not contain None as an option
+	 * Make sure that AuthMethod does yest contain None as an option
 	 * unless explictly disabled.  Set the default to CHAP if authentication
 	 * is enforced (as per default), and remove the NONE option.
 	 */
@@ -357,7 +357,7 @@ int iscsit_tpg_disable_portal_group(struct iscsi_portal_group *tpg, int force)
 	spin_lock(&tpg->tpg_state_lock);
 	if (tpg->tpg_state == TPG_STATE_INACTIVE) {
 		pr_err("iSCSI Target Portal Group: %hu is already"
-			" inactive, ignoring request.\n", tpg->tpgt);
+			" inactive, igyesring request.\n", tpg->tpgt);
 		spin_unlock(&tpg->tpg_state_lock);
 		return -EINVAL;
 	}
@@ -389,15 +389,15 @@ int iscsit_tpg_disable_portal_group(struct iscsi_portal_group *tpg, int force)
 	return 0;
 }
 
-struct iscsi_node_attrib *iscsit_tpg_get_node_attrib(
+struct iscsi_yesde_attrib *iscsit_tpg_get_yesde_attrib(
 	struct iscsi_session *sess)
 {
 	struct se_session *se_sess = sess->se_sess;
-	struct se_node_acl *se_nacl = se_sess->se_node_acl;
-	struct iscsi_node_acl *acl = container_of(se_nacl, struct iscsi_node_acl,
-					se_node_acl);
+	struct se_yesde_acl *se_nacl = se_sess->se_yesde_acl;
+	struct iscsi_yesde_acl *acl = container_of(se_nacl, struct iscsi_yesde_acl,
+					se_yesde_acl);
 
-	return &acl->node_attrib;
+	return &acl->yesde_attrib;
 }
 
 struct iscsi_tpg_np *iscsit_tpg_locate_child_np(
@@ -550,7 +550,7 @@ int iscsit_tpg_del_network_portal(
 	if (!tpg_np->tpg_np_parent) {
 		/*
 		 * We are the parent tpg network portal.  Release all of the
-		 * child tpg_np's (eg: the non ISCSI_TCP ones) on our parent
+		 * child tpg_np's (eg: the yesn ISCSI_TCP ones) on our parent
 		 * list first.
 		 */
 		list_for_each_entry_safe(tpg_np_child, tpg_np_child_tmp,
@@ -563,7 +563,7 @@ int iscsit_tpg_del_network_portal(
 		}
 	} else {
 		/*
-		 * We are not the parent ISCSI_TCP tpg network portal.  Release
+		 * We are yest the parent ISCSI_TCP tpg network portal.  Release
 		 * our own network portals from the child list.
 		 */
 		spin_lock(&tpg_np->tpg_np_parent->tpg_np_parent_lock);
@@ -583,14 +583,14 @@ int iscsit_tpg_del_network_portal(
 
 int iscsit_ta_authentication(struct iscsi_portal_group *tpg, u32 authentication)
 {
-	unsigned char buf1[256], buf2[256], *none = NULL;
+	unsigned char buf1[256], buf2[256], *yesne = NULL;
 	int len;
 	struct iscsi_param *param;
 	struct iscsi_tpg_attrib *a = &tpg->tpg_attrib;
 
 	if ((authentication != 1) && (authentication != 0)) {
 		pr_err("Illegal value for authentication parameter:"
-			" %u, ignoring request.\n", authentication);
+			" %u, igyesring request.\n", authentication);
 		return -EINVAL;
 	}
 
@@ -603,30 +603,30 @@ int iscsit_ta_authentication(struct iscsi_portal_group *tpg, u32 authentication)
 
 	if (authentication) {
 		snprintf(buf1, sizeof(buf1), "%s", param->value);
-		none = strstr(buf1, NONE);
-		if (!none)
+		yesne = strstr(buf1, NONE);
+		if (!yesne)
 			goto out;
-		if (!strncmp(none + 4, ",", 1)) {
-			if (!strcmp(buf1, none))
-				sprintf(buf2, "%s", none+5);
+		if (!strncmp(yesne + 4, ",", 1)) {
+			if (!strcmp(buf1, yesne))
+				sprintf(buf2, "%s", yesne+5);
 			else {
-				none--;
-				*none = '\0';
+				yesne--;
+				*yesne = '\0';
 				len = sprintf(buf2, "%s", buf1);
-				none += 5;
-				sprintf(buf2 + len, "%s", none);
+				yesne += 5;
+				sprintf(buf2 + len, "%s", yesne);
 			}
 		} else {
-			none--;
-			*none = '\0';
+			yesne--;
+			*yesne = '\0';
 			sprintf(buf2, "%s", buf1);
 		}
 		if (iscsi_update_param_value(param, buf2) < 0)
 			return -EINVAL;
 	} else {
 		snprintf(buf1, sizeof(buf1), "%s", param->value);
-		none = strstr(buf1, NONE);
-		if (none)
+		yesne = strstr(buf1, NONE);
+		if (yesne)
 			goto out;
 		strlcat(buf1, "," NONE, sizeof(buf1));
 		if (iscsi_update_param_value(param, buf1) < 0)
@@ -689,7 +689,7 @@ int iscsit_ta_netif_timeout(
 	return 0;
 }
 
-int iscsit_ta_generate_node_acls(
+int iscsit_ta_generate_yesde_acls(
 	struct iscsi_portal_group *tpg,
 	u32 flag)
 {
@@ -700,13 +700,13 @@ int iscsit_ta_generate_node_acls(
 		return -EINVAL;
 	}
 
-	a->generate_node_acls = flag;
+	a->generate_yesde_acls = flag;
 	pr_debug("iSCSI_TPG[%hu] - Generate Initiator Portal Group ACLs: %s\n",
-		tpg->tpgt, (a->generate_node_acls) ? "Enabled" : "Disabled");
+		tpg->tpgt, (a->generate_yesde_acls) ? "Enabled" : "Disabled");
 
 	if (flag == 1 && a->cache_dynamic_acls == 0) {
 		pr_debug("Explicitly setting cache_dynamic_acls=1 when "
-			"generate_node_acls=1\n");
+			"generate_yesde_acls=1\n");
 		a->cache_dynamic_acls = 1;
 	}
 
@@ -749,9 +749,9 @@ int iscsit_ta_cache_dynamic_acls(
 		return -EINVAL;
 	}
 
-	if (a->generate_node_acls == 1 && flag == 0) {
+	if (a->generate_yesde_acls == 1 && flag == 0) {
 		pr_debug("Skipping cache_dynamic_acls=0 when"
-			" generate_node_acls=1\n");
+			" generate_yesde_acls=1\n");
 		return 0;
 	}
 

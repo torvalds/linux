@@ -13,7 +13,7 @@
 #include "xfs_errortag.h"
 #include "xfs_error.h"
 #include "xfs_sysfs.h"
-#include "xfs_inode.h"
+#include "xfs_iyesde.h"
 
 #ifdef DEBUG
 
@@ -127,7 +127,7 @@ static struct xfs_errortag_attr xfs_errortag_attr_##_name = {		\
 
 #define XFS_ERRORTAG_ATTR_LIST(_name) &xfs_errortag_attr_##_name.attr
 
-XFS_ERRORTAG_ATTR_RW(noerror,		XFS_ERRTAG_NOERROR);
+XFS_ERRORTAG_ATTR_RW(yeserror,		XFS_ERRTAG_NOERROR);
 XFS_ERRORTAG_ATTR_RW(iflush1,		XFS_ERRTAG_IFLUSH_1);
 XFS_ERRORTAG_ATTR_RW(iflush2,		XFS_ERRTAG_IFLUSH_2);
 XFS_ERRORTAG_ATTR_RW(iflush3,		XFS_ERRTAG_IFLUSH_3);
@@ -142,7 +142,7 @@ XFS_ERRORTAG_ATTR_RW(readagi,		XFS_ERRTAG_IALLOC_READ_AGI);
 XFS_ERRORTAG_ATTR_RW(itobp,		XFS_ERRTAG_ITOBP_INOTOBP);
 XFS_ERRORTAG_ATTR_RW(iunlink,		XFS_ERRTAG_IUNLINK);
 XFS_ERRORTAG_ATTR_RW(iunlinkrm,		XFS_ERRTAG_IUNLINK_REMOVE);
-XFS_ERRORTAG_ATTR_RW(dirinovalid,	XFS_ERRTAG_DIR_INO_VALIDATE);
+XFS_ERRORTAG_ATTR_RW(diriyesvalid,	XFS_ERRTAG_DIR_INO_VALIDATE);
 XFS_ERRORTAG_ATTR_RW(bulkstat,		XFS_ERRTAG_BULKSTAT_READ_CHUNK);
 XFS_ERRORTAG_ATTR_RW(logiodone,		XFS_ERRTAG_IODONE_IOERR);
 XFS_ERRORTAG_ATTR_RW(stratread,		XFS_ERRTAG_STRATREAD_IOERR);
@@ -164,7 +164,7 @@ XFS_ERRORTAG_ATTR_RW(bad_summary,	XFS_ERRTAG_FORCE_SUMMARY_RECALC);
 XFS_ERRORTAG_ATTR_RW(iunlink_fallback,	XFS_ERRTAG_IUNLINK_FALLBACK);
 
 static struct attribute *xfs_errortag_attrs[] = {
-	XFS_ERRORTAG_ATTR_LIST(noerror),
+	XFS_ERRORTAG_ATTR_LIST(yeserror),
 	XFS_ERRORTAG_ATTR_LIST(iflush1),
 	XFS_ERRORTAG_ATTR_LIST(iflush2),
 	XFS_ERRORTAG_ATTR_LIST(iflush3),
@@ -179,7 +179,7 @@ static struct attribute *xfs_errortag_attrs[] = {
 	XFS_ERRORTAG_ATTR_LIST(itobp),
 	XFS_ERRORTAG_ATTR_LIST(iunlink),
 	XFS_ERRORTAG_ATTR_LIST(iunlinkrm),
-	XFS_ERRORTAG_ATTR_LIST(dirinovalid),
+	XFS_ERRORTAG_ATTR_LIST(diriyesvalid),
 	XFS_ERRORTAG_ATTR_LIST(bulkstat),
 	XFS_ERRORTAG_ATTR_LIST(logiodone),
 	XFS_ERRORTAG_ATTR_LIST(stratread),
@@ -343,7 +343,7 @@ xfs_corruption_error(
 
 /*
  * Complain about the kinds of metadata corruption that we can't detect from a
- * verifier, such as incorrect inter-block relationship data.  Does not set
+ * verifier, such as incorrect inter-block relationship data.  Does yest set
  * bp->b_error.
  */
 void
@@ -415,12 +415,12 @@ xfs_verifier_error(
 }
 
 /*
- * Warnings for inode corruption problems.  Don't bother with the stack
+ * Warnings for iyesde corruption problems.  Don't bother with the stack
  * trace unless the error level is turned up high.
  */
 void
-xfs_inode_verifier_error(
-	struct xfs_inode	*ip,
+xfs_iyesde_verifier_error(
+	struct xfs_iyesde	*ip,
 	int			error,
 	const char		*name,
 	const void		*buf,
@@ -433,9 +433,9 @@ xfs_inode_verifier_error(
 
 	fa = failaddr ? failaddr : __return_address;
 
-	xfs_alert(mp, "Metadata %s detected at %pS, inode 0x%llx %s",
+	xfs_alert(mp, "Metadata %s detected at %pS, iyesde 0x%llx %s",
 		  error == -EFSBADCRC ? "CRC error" : "corruption",
-		  fa, ip->i_ino, name);
+		  fa, ip->i_iyes, name);
 
 	xfs_alert(mp, "Unmount and run xfs_repair");
 

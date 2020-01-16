@@ -9,7 +9,7 @@
         "ArchStdEvent": "BR_INDIRECT_SPEC"
     },
     {
-        "PublicDescription": "Mispredicted or not predicted branch speculatively executed",
+        "PublicDescription": "Mispredicted or yest predicted branch speculatively executed",
         "EventCode": "0x10",
         "EventName": "BR_MIS_PRED",
         "BriefDescription": "Branch mispredicted"

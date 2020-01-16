@@ -47,7 +47,7 @@ static int configvertoutep(struct ieee80211_hw *hw)
 	return (rtlusb->out_ep_nums == ep_nums) ? 0 : -EINVAL;
 }
 
-static int configvernoutep(struct ieee80211_hw *hw)
+static int configveryesutep(struct ieee80211_hw *hw)
 {
 	u8 ep_cfg;
 	u8 ep_nums = 0;
@@ -184,7 +184,7 @@ int  rtl8192cu_endpoint_mapping(struct ieee80211_hw *hw)
 	int error = 0;
 
 	if (likely(IS_NORMAL_CHIP(rtlhal->version)))
-		error = configvernoutep(hw);
+		error = configveryesutep(hw);
 	else
 		error = configvertoutep(hw);
 	if (error)

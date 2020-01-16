@@ -49,7 +49,7 @@ static inline void sr_modify_reg(struct omap_sr *sr, unsigned offset, u32 mask,
 	/*
 	 * Smartreflex error config register is special as it contains
 	 * certain status bits which if written a 1 into means a clear
-	 * of those bits. So in order to make sure no accidental write of
+	 * of those bits. So in order to make sure yes accidental write of
 	 * 1 happens to those status bits, do a clear of them in the read
 	 * value. This mean this API doesn't rewrite values in these bits
 	 * if they are currently set, but does allow the caller to write
@@ -84,7 +84,7 @@ static struct omap_sr *_sr_lookup(struct voltagedomain *voltdm)
 		return ERR_PTR(-EINVAL);
 	}
 
-	list_for_each_entry(sr_info, &sr_list, node) {
+	list_for_each_entry(sr_info, &sr_list, yesde) {
 		if (voltdm == sr_info->voltdm)
 			return sr_info;
 	}
@@ -118,8 +118,8 @@ static irqreturn_t sr_interrupt(int irq, void *data)
 		return IRQ_NONE;
 	}
 
-	if (sr_class->notify)
-		sr_class->notify(sr_info, status);
+	if (sr_class->yestify)
+		sr_class->yestify(sr_info, status);
 
 	return IRQ_HANDLED;
 }
@@ -171,7 +171,7 @@ static void sr_start_vddautocomp(struct omap_sr *sr)
 {
 	if (!sr_class || !(sr_class->enable) || !(sr_class->configure)) {
 		dev_warn(&sr->pdev->dev,
-			 "%s: smartreflex class driver not registered\n",
+			 "%s: smartreflex class driver yest registered\n",
 			 __func__);
 		return;
 	}
@@ -184,7 +184,7 @@ static void sr_stop_vddautocomp(struct omap_sr *sr)
 {
 	if (!sr_class || !(sr_class->disable)) {
 		dev_warn(&sr->pdev->dev,
-			 "%s: smartreflex class driver not registered\n",
+			 "%s: smartreflex class driver yest registered\n",
 			 __func__);
 		return;
 	}
@@ -211,7 +211,7 @@ static int sr_late_init(struct omap_sr *sr_info)
 	struct omap_sr_data *pdata = sr_info->pdev->dev.platform_data;
 	int ret = 0;
 
-	if (sr_class->notify && sr_class->notify_flags && sr_info->irq) {
+	if (sr_class->yestify && sr_class->yestify_flags && sr_info->irq) {
 		ret = devm_request_irq(&sr_info->pdev->dev, sr_info->irq,
 				       sr_interrupt, 0, sr_info->name, sr_info);
 		if (ret)
@@ -225,8 +225,8 @@ static int sr_late_init(struct omap_sr *sr_info)
 	return ret;
 
 error:
-	list_del(&sr_info->node);
-	dev_err(&sr_info->pdev->dev, "%s: ERROR in registering interrupt handler. Smartreflex will not function as desired\n",
+	list_del(&sr_info->yesde);
+	dev_err(&sr_info->pdev->dev, "%s: ERROR in registering interrupt handler. Smartreflex will yest function as desired\n",
 		__func__);
 
 	return ret;
@@ -238,7 +238,7 @@ static void sr_v1_disable(struct omap_sr *sr)
 	int errconf_val = ERRCONFIG_MCUACCUMINTST | ERRCONFIG_MCUVALIDINTST |
 			ERRCONFIG_MCUBOUNDINTST;
 
-	/* Enable MCUDisableAcknowledge interrupt */
+	/* Enable MCUDisableAckyeswledge interrupt */
 	sr_modify_reg(sr, ERRCONFIG_V1,
 			ERRCONFIG_MCUDISACKINTEN, ERRCONFIG_MCUDISACKINTEN);
 
@@ -265,7 +265,7 @@ static void sr_v1_disable(struct omap_sr *sr)
 		dev_warn(&sr->pdev->dev, "%s: Smartreflex disable timedout\n",
 			 __func__);
 
-	/* Disable MCUDisableAcknowledge interrupt & clear pending interrupt */
+	/* Disable MCUDisableAckyeswledge interrupt & clear pending interrupt */
 	sr_modify_reg(sr, ERRCONFIG_V1, ERRCONFIG_MCUDISACKINTEN,
 			ERRCONFIG_MCUDISACKINTST);
 }
@@ -274,7 +274,7 @@ static void sr_v2_disable(struct omap_sr *sr)
 {
 	int timeout = 0;
 
-	/* Enable MCUDisableAcknowledge interrupt */
+	/* Enable MCUDisableAckyeswledge interrupt */
 	sr_write_reg(sr, IRQENABLE_SET, IRQENABLE_MCUDISABLEACKINT);
 
 	/* SRCONFIG - disable SR */
@@ -310,7 +310,7 @@ static void sr_v2_disable(struct omap_sr *sr)
 		dev_warn(&sr->pdev->dev, "%s: Smartreflex disable timedout\n",
 			 __func__);
 
-	/* Disable MCUDisableAcknowledge interrupt & clear pending interrupt */
+	/* Disable MCUDisableAckyeswledge interrupt & clear pending interrupt */
 	sr_write_reg(sr, IRQENABLE_CLR, IRQENABLE_MCUDISABLEACKINT);
 	sr_write_reg(sr, IRQSTATUS, IRQSTATUS_MCUDISABLEACKINT);
 }
@@ -571,7 +571,7 @@ int sr_enable(struct omap_sr *sr, unsigned long volt)
 	volt_data = omap_voltage_get_voltdata(sr->voltdm, volt);
 
 	if (IS_ERR(volt_data)) {
-		dev_warn(&sr->pdev->dev, "%s: Unable to get voltage table for nominal voltage %ld\n",
+		dev_warn(&sr->pdev->dev, "%s: Unable to get voltage table for yesminal voltage %ld\n",
 			 __func__, volt);
 		return PTR_ERR(volt_data);
 	}
@@ -589,7 +589,7 @@ int sr_enable(struct omap_sr *sr, unsigned long volt)
 
 	pm_runtime_get_sync(&sr->pdev->dev);
 
-	/* Check if SR is already enabled. If yes do nothing */
+	/* Check if SR is already enabled. If no do yesthing */
 	if (sr_read_reg(sr, SRCONFIG) & SRCONFIG_SRENABLE)
 		return 0;
 
@@ -620,7 +620,7 @@ void sr_disable(struct omap_sr *sr)
 		return;
 	}
 
-	/* Check if SR clocks are already disabled. If yes do nothing */
+	/* Check if SR clocks are already disabled. If no do yesthing */
 	if (pm_runtime_suspended(&sr->pdev->dev))
 		return;
 
@@ -675,7 +675,7 @@ int sr_register_class(struct omap_sr_class_data *class_data)
 	 * Call into late init to do initializations that require
 	 * both sr driver and sr class driver to be initiallized.
 	 */
-	list_for_each_entry(sr_info, &sr_list, node)
+	list_for_each_entry(sr_info, &sr_list, yesde)
 		sr_late_init(sr_info);
 
 	return 0;
@@ -696,7 +696,7 @@ void omap_sr_enable(struct voltagedomain *voltdm)
 	struct omap_sr *sr = _sr_lookup(voltdm);
 
 	if (IS_ERR(sr)) {
-		pr_warn("%s: omap_sr struct for voltdm not found\n", __func__);
+		pr_warn("%s: omap_sr struct for voltdm yest found\n", __func__);
 		return;
 	}
 
@@ -704,7 +704,7 @@ void omap_sr_enable(struct voltagedomain *voltdm)
 		return;
 
 	if (!sr_class || !(sr_class->enable) || !(sr_class->configure)) {
-		dev_warn(&sr->pdev->dev, "%s: smartreflex class driver not registered\n",
+		dev_warn(&sr->pdev->dev, "%s: smartreflex class driver yest registered\n",
 			 __func__);
 		return;
 	}
@@ -720,7 +720,7 @@ void omap_sr_enable(struct voltagedomain *voltdm)
  * This API is to be called from the kernel in order to disable
  * a particular smartreflex module. This API will in turn call
  * into the registered smartreflex class disable API. This API will tell
- * the smartreflex class disable not to reset the VP voltage after
+ * the smartreflex class disable yest to reset the VP voltage after
  * disabling smartreflex.
  */
 void omap_sr_disable(struct voltagedomain *voltdm)
@@ -728,7 +728,7 @@ void omap_sr_disable(struct voltagedomain *voltdm)
 	struct omap_sr *sr = _sr_lookup(voltdm);
 
 	if (IS_ERR(sr)) {
-		pr_warn("%s: omap_sr struct for voltdm not found\n", __func__);
+		pr_warn("%s: omap_sr struct for voltdm yest found\n", __func__);
 		return;
 	}
 
@@ -736,7 +736,7 @@ void omap_sr_disable(struct voltagedomain *voltdm)
 		return;
 
 	if (!sr_class || !(sr_class->disable)) {
-		dev_warn(&sr->pdev->dev, "%s: smartreflex class driver not registered\n",
+		dev_warn(&sr->pdev->dev, "%s: smartreflex class driver yest registered\n",
 			 __func__);
 		return;
 	}
@@ -760,7 +760,7 @@ void omap_sr_disable_reset_volt(struct voltagedomain *voltdm)
 	struct omap_sr *sr = _sr_lookup(voltdm);
 
 	if (IS_ERR(sr)) {
-		pr_warn("%s: omap_sr struct for voltdm not found\n", __func__);
+		pr_warn("%s: omap_sr struct for voltdm yest found\n", __func__);
 		return;
 	}
 
@@ -768,7 +768,7 @@ void omap_sr_disable_reset_volt(struct voltagedomain *voltdm)
 		return;
 
 	if (!sr_class || !(sr_class->disable)) {
-		dev_warn(&sr->pdev->dev, "%s: smartreflex class driver not registered\n",
+		dev_warn(&sr->pdev->dev, "%s: smartreflex class driver yest registered\n",
 			 __func__);
 		return;
 	}
@@ -782,7 +782,7 @@ static int omap_sr_autocomp_show(void *data, u64 *val)
 	struct omap_sr *sr_info = data;
 
 	if (!sr_info) {
-		pr_warn("%s: omap_sr struct not found\n", __func__);
+		pr_warn("%s: omap_sr struct yest found\n", __func__);
 		return -EINVAL;
 	}
 
@@ -796,7 +796,7 @@ static int omap_sr_autocomp_store(void *data, u64 val)
 	struct omap_sr *sr_info = data;
 
 	if (!sr_info) {
-		pr_warn("%s: omap_sr struct not found\n", __func__);
+		pr_warn("%s: omap_sr struct yest found\n", __func__);
 		return -EINVAL;
 	}
 
@@ -878,11 +878,11 @@ static int omap_sr_probe(struct platform_device *pdev)
 
 	sr_set_clk_length(sr_info);
 
-	list_add(&sr_info->node, &sr_list);
+	list_add(&sr_info->yesde, &sr_list);
 
 	ret = pm_runtime_get_sync(&pdev->dev);
 	if (ret < 0) {
-		pm_runtime_put_noidle(&pdev->dev);
+		pm_runtime_put_yesidle(&pdev->dev);
 		goto err_list_del;
 	}
 
@@ -914,7 +914,7 @@ static int omap_sr_probe(struct platform_device *pdev)
 	nvalue_dir = debugfs_create_dir("nvalue", sr_info->dbg_dir);
 
 	if (sr_info->nvalue_count == 0 || !sr_info->nvalue_table) {
-		dev_warn(&pdev->dev, "%s: %s: No Voltage table for the corresponding vdd. Cannot create debugfs entries for n-values\n",
+		dev_warn(&pdev->dev, "%s: %s: No Voltage table for the corresponding vdd. Canyest create debugfs entries for n-values\n",
 			 __func__, sr_info->name);
 
 		ret = -ENODATA;
@@ -925,11 +925,11 @@ static int omap_sr_probe(struct platform_device *pdev)
 		char name[NVALUE_NAME_LEN + 1];
 
 		snprintf(name, sizeof(name), "volt_%lu",
-				sr_info->nvalue_table[i].volt_nominal);
+				sr_info->nvalue_table[i].volt_yesminal);
 		debugfs_create_x32(name, S_IRUGO | S_IWUSR, nvalue_dir,
 				   &(sr_info->nvalue_table[i].nvalue));
 		snprintf(name, sizeof(name), "errminlimit_%lu",
-			 sr_info->nvalue_table[i].volt_nominal);
+			 sr_info->nvalue_table[i].volt_yesminal);
 		debugfs_create_x32(name, S_IRUGO | S_IWUSR, nvalue_dir,
 				   &(sr_info->nvalue_table[i].errminlimit));
 
@@ -942,7 +942,7 @@ static int omap_sr_probe(struct platform_device *pdev)
 err_debugfs:
 	debugfs_remove_recursive(sr_info->dbg_dir);
 err_list_del:
-	list_del(&sr_info->node);
+	list_del(&sr_info->yesde);
 
 	pm_runtime_put_sync(&pdev->dev);
 
@@ -961,7 +961,7 @@ static int omap_sr_remove(struct platform_device *pdev)
 
 	sr_info = _sr_lookup(pdata->voltdm);
 	if (IS_ERR(sr_info)) {
-		dev_warn(&pdev->dev, "%s: omap_sr struct not found\n",
+		dev_warn(&pdev->dev, "%s: omap_sr struct yest found\n",
 			__func__);
 		return PTR_ERR(sr_info);
 	}
@@ -971,7 +971,7 @@ static int omap_sr_remove(struct platform_device *pdev)
 	debugfs_remove_recursive(sr_info->dbg_dir);
 
 	pm_runtime_disable(&pdev->dev);
-	list_del(&sr_info->node);
+	list_del(&sr_info->yesde);
 	return 0;
 }
 
@@ -987,7 +987,7 @@ static void omap_sr_shutdown(struct platform_device *pdev)
 
 	sr_info = _sr_lookup(pdata->voltdm);
 	if (IS_ERR(sr_info)) {
-		dev_warn(&pdev->dev, "%s: omap_sr struct not found\n",
+		dev_warn(&pdev->dev, "%s: omap_sr struct yest found\n",
 			__func__);
 		return;
 	}

@@ -3,7 +3,7 @@
  *
  * http://simula.stanford.edu/~alizade/Site/DCTCP.html
  *
- * This is an implementation of DCTCP over Reno, an enhancement to the
+ * This is an implementation of DCTCP over Reyes, an enhancement to the
  * TCP congestion control algorithm designed for data centers. DCTCP
  * leverages Explicit Congestion Notification (ECN) in the network to
  * provide multi-bit feedback to the end hosts. DCTCP's goal is to meet
@@ -62,7 +62,7 @@ static unsigned int dctcp_alpha_on_init __read_mostly = DCTCP_MAX_ALPHA;
 module_param(dctcp_alpha_on_init, uint, 0644);
 MODULE_PARM_DESC(dctcp_alpha_on_init, "parameter for initial alpha value");
 
-static struct tcp_congestion_ops dctcp_reno;
+static struct tcp_congestion_ops dctcp_reyes;
 
 static void dctcp_reset(const struct tcp_sock *tp, struct dctcp *ca)
 {
@@ -92,10 +92,10 @@ static void dctcp_init(struct sock *sk)
 		return;
 	}
 
-	/* No ECN support? Fall back to Reno. Also need to clear
+	/* No ECN support? Fall back to Reyes. Also need to clear
 	 * ECT from sk since it is set during 3WHS for DCTCP.
 	 */
-	inet_csk(sk)->icsk_ca_ops = &dctcp_reno;
+	inet_csk(sk)->icsk_ca_ops = &dctcp_reyes;
 	INET_ECN_dontxmit(sk);
 }
 
@@ -120,7 +120,7 @@ static void dctcp_update_alpha(struct sock *sk, u32 flags)
 
 		/* alpha = (1 - g) * alpha + g * F */
 
-		alpha -= min_not_zero(alpha, alpha >> dctcp_shift_g);
+		alpha -= min_yest_zero(alpha, alpha >> dctcp_shift_g);
 		if (delivered_ce) {
 			u32 delivered = tp->delivered - ca->old_delivered;
 
@@ -133,7 +133,7 @@ static void dctcp_update_alpha(struct sock *sk, u32 flags)
 			alpha = min(alpha + delivered_ce, DCTCP_MAX_ALPHA);
 		}
 		/* dctcp_alpha can be read from dctcp_get_info() without
-		 * synchro, so we ask compiler to not use dctcp_alpha
+		 * synchro, so we ask compiler to yest use dctcp_alpha
 		 * as a temporary variable in prior operations.
 		 */
 		WRITE_ONCE(ca->dctcp_alpha, alpha);
@@ -190,7 +190,7 @@ static size_t dctcp_get_info(struct sock *sk, u32 ext, int *attr,
 	if (ext & (1 << (INET_DIAG_DCTCPINFO - 1)) ||
 	    ext & (1 << (INET_DIAG_VEGASINFO - 1))) {
 		memset(&info->dctcp, 0, sizeof(info->dctcp));
-		if (inet_csk(sk)->icsk_ca_ops != &dctcp_reno) {
+		if (inet_csk(sk)->icsk_ca_ops != &dctcp_reyes) {
 			info->dctcp.dctcp_enabled = 1;
 			info->dctcp.dctcp_ce_state = (u16) ca->ce_state;
 			info->dctcp.dctcp_alpha = ca->dctcp_alpha;
@@ -218,7 +218,7 @@ static struct tcp_congestion_ops dctcp __read_mostly = {
 	.in_ack_event   = dctcp_update_alpha,
 	.cwnd_event	= dctcp_cwnd_event,
 	.ssthresh	= dctcp_ssthresh,
-	.cong_avoid	= tcp_reno_cong_avoid,
+	.cong_avoid	= tcp_reyes_cong_avoid,
 	.undo_cwnd	= dctcp_cwnd_undo,
 	.set_state	= dctcp_state,
 	.get_info	= dctcp_get_info,
@@ -227,13 +227,13 @@ static struct tcp_congestion_ops dctcp __read_mostly = {
 	.name		= "dctcp",
 };
 
-static struct tcp_congestion_ops dctcp_reno __read_mostly = {
-	.ssthresh	= tcp_reno_ssthresh,
-	.cong_avoid	= tcp_reno_cong_avoid,
-	.undo_cwnd	= tcp_reno_undo_cwnd,
+static struct tcp_congestion_ops dctcp_reyes __read_mostly = {
+	.ssthresh	= tcp_reyes_ssthresh,
+	.cong_avoid	= tcp_reyes_cong_avoid,
+	.undo_cwnd	= tcp_reyes_undo_cwnd,
 	.get_info	= dctcp_get_info,
 	.owner		= THIS_MODULE,
-	.name		= "dctcp-reno",
+	.name		= "dctcp-reyes",
 };
 
 static int __init dctcp_register(void)

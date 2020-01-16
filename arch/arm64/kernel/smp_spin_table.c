@@ -27,7 +27,7 @@ static phys_addr_t cpu_release_addr[NR_CPUS];
 /*
  * Write secondary_holding_pen_release in a way that is guaranteed to be
  * visible to all observers, irrespective of whether they're taking part
- * in coherency or not.  This is necessary for the hotplug code to work
+ * in coherency or yest.  This is necessary for the hotplug code to work
  * reliably.
  */
 static void write_pen_release(u64 val)
@@ -42,10 +42,10 @@ static void write_pen_release(u64 val)
 
 static int smp_spin_table_cpu_init(unsigned int cpu)
 {
-	struct device_node *dn;
+	struct device_yesde *dn;
 	int ret;
 
-	dn = of_get_cpu_node(cpu, NULL);
+	dn = of_get_cpu_yesde(cpu, NULL);
 	if (!dn)
 		return -ENODEV;
 
@@ -58,7 +58,7 @@ static int smp_spin_table_cpu_init(unsigned int cpu)
 		pr_err("CPU %d: missing or invalid cpu-release-addr property\n",
 		       cpu);
 
-	of_node_put(dn);
+	of_yesde_put(dn);
 
 	return ret;
 }
@@ -71,7 +71,7 @@ static int smp_spin_table_cpu_prepare(unsigned int cpu)
 		return -ENODEV;
 
 	/*
-	 * The cpu-release-addr may or may not be inside the linear mapping.
+	 * The cpu-release-addr may or may yest be inside the linear mapping.
 	 * As ioremap_cache will either give us a new mapping or reuse the
 	 * existing linear mapping, we can use it to cover both cases. In
 	 * either case the memory will be MT_NORMAL.

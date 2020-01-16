@@ -31,7 +31,7 @@
 
 #define MESON_SEC_TO_TC(s, c)	((s) * (c))
 
-static bool nowayout = WATCHDOG_NOWAYOUT;
+static bool yeswayout = WATCHDOG_NOWAYOUT;
 static unsigned int timeout;
 
 struct meson_wdt_data {
@@ -193,7 +193,7 @@ static int meson_wdt_probe(struct platform_device *pdev)
 	watchdog_set_drvdata(&meson_wdt->wdt_dev, meson_wdt);
 
 	watchdog_init_timeout(&meson_wdt->wdt_dev, timeout, dev);
-	watchdog_set_nowayout(&meson_wdt->wdt_dev, nowayout);
+	watchdog_set_yeswayout(&meson_wdt->wdt_dev, yeswayout);
 	watchdog_set_restart_priority(&meson_wdt->wdt_dev, 128);
 
 	meson_wdt_stop(&meson_wdt->wdt_dev);
@@ -203,8 +203,8 @@ static int meson_wdt_probe(struct platform_device *pdev)
 	if (err)
 		return err;
 
-	dev_info(dev, "Watchdog enabled (timeout=%d sec, nowayout=%d)",
-		 meson_wdt->wdt_dev.timeout, nowayout);
+	dev_info(dev, "Watchdog enabled (timeout=%d sec, yeswayout=%d)",
+		 meson_wdt->wdt_dev.timeout, yeswayout);
 
 	return 0;
 }
@@ -222,9 +222,9 @@ module_platform_driver(meson_wdt_driver);
 module_param(timeout, uint, 0);
 MODULE_PARM_DESC(timeout, "Watchdog heartbeat in seconds");
 
-module_param(nowayout, bool, 0);
-MODULE_PARM_DESC(nowayout,
-		 "Watchdog cannot be stopped once started (default="
+module_param(yeswayout, bool, 0);
+MODULE_PARM_DESC(yeswayout,
+		 "Watchdog canyest be stopped once started (default="
 		 __MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
 
 MODULE_LICENSE("GPL");

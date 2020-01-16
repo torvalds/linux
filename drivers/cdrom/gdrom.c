@@ -73,8 +73,8 @@ static const struct {
 } sense_texts[] = {
 	{NO_SENSE, "OK"},
 	{RECOVERED_ERROR, "Recovered from error"},
-	{NOT_READY, "Device not ready"},
-	{MEDIUM_ERROR, "Disk not ready"},
+	{NOT_READY, "Device yest ready"},
+	{MEDIUM_ERROR, "Disk yest ready"},
 	{HARDWARE_ERROR, "Hardware error"},
 	{ILLEGAL_REQUEST, "Command has failed"},
 	{UNIT_ATTENTION, "Device needs attention - disk may have been changed"},
@@ -167,7 +167,7 @@ static void gdrom_identifydevice(void *buf)
 		gdrom_getsense(NULL);
 		return;
 	}
-	/* now read in the data */
+	/* yesw read in the data */
 	for (c = 0; c < 40; c++)
 		data[c] = __raw_readw(GDROM_DATA_REG);
 }
@@ -203,13 +203,13 @@ static void gdrom_spicommand(void *spi_string, int buflen)
 }
 
 
-/* gdrom_command_executediagnostic:
+/* gdrom_command_executediagyesstic:
  * Used to probe for presence of working GDROM
  * Restarts GDROM device and then applies standard ATA 3
- * Execute Diagnostic Command: a return of '1' indicates device 0
+ * Execute Diagyesstic Command: a return of '1' indicates device 0
  * present and device 1 absent
  */
-static char gdrom_execute_diagnostic(void)
+static char gdrom_execute_diagyesstic(void)
 {
 	gdrom_hardreset(gd.cd_info);
 	if (!gdrom_wait_clrbusy())
@@ -324,7 +324,7 @@ static int gdrom_get_last_session(struct cdrom_device_info *cd_info,
 	if (err) {
 		err = gdrom_readtoc_cmd(gd.toc, 0);
 		if (err) {
-			pr_info("Could not get CD table of contents\n");
+			pr_info("Could yest get CD table of contents\n");
 			return -ENXIO;
 		}
 	}
@@ -363,7 +363,7 @@ static void gdrom_release(struct cdrom_device_info *cd_info)
 {
 }
 
-static int gdrom_drivestatus(struct cdrom_device_info *cd_info, int ignore)
+static int gdrom_drivestatus(struct cdrom_device_info *cd_info, int igyesre)
 {
 	/* read the sense key */
 	char sense = __raw_readb(GDROM_ERROR_REG);
@@ -377,7 +377,7 @@ static int gdrom_drivestatus(struct cdrom_device_info *cd_info, int ignore)
 }
 
 static unsigned int gdrom_check_events(struct cdrom_device_info *cd_info,
-				       unsigned int clearing, int ignore)
+				       unsigned int clearing, int igyesre)
 {
 	/* check the sense key */
 	return (__raw_readb(GDROM_ERROR_REG) & 0xF0) == 0x60 ?
@@ -436,14 +436,14 @@ static int gdrom_getsense(short *bufstring)
 		goto cleanup_sense;
 	insw(GDROM_DATA_REG, &sense, sense_command->buflen/2);
 	if (sense[1] & 40) {
-		pr_info("Drive not ready - command aborted\n");
+		pr_info("Drive yest ready - command aborted\n");
 		goto cleanup_sense;
 	}
 	sense_key = sense[1] & 0x0F;
 	if (sense_key < ARRAY_SIZE(sense_texts))
 		pr_info("%s\n", sense_texts[sense_key].text);
 	else
-		pr_err("Unknown sense key: %d\n", sense_key);
+		pr_err("Unkyeswn sense key: %d\n", sense_key);
 	if (bufstring) /* return addional sense data */
 		memcpy(bufstring, &sense[4], 2);
 	if (sense_key < 2)
@@ -637,10 +637,10 @@ static blk_status_t gdrom_queue_rq(struct blk_mq_hw_ctx *hctx,
 	case REQ_OP_READ:
 		return gdrom_readdisk_dma(bd->rq);
 	case REQ_OP_WRITE:
-		pr_notice("Read only device - write request ignored\n");
+		pr_yestice("Read only device - write request igyesred\n");
 		return BLK_STS_IOERR;
 	default:
-		printk(KERN_DEBUG "gdrom: Non-fs request ignored\n");
+		printk(KERN_DEBUG "gdrom: Non-fs request igyesred\n");
 		return BLK_STS_IOERR;
 	}
 }
@@ -713,8 +713,8 @@ static void probe_gdrom_setupcd(void)
 static void probe_gdrom_setupdisk(void)
 {
 	gd.disk->major = gdrom_major;
-	gd.disk->first_minor = 1;
-	gd.disk->minors = 1;
+	gd.disk->first_miyesr = 1;
+	gd.disk->miyesrs = 1;
 	strcpy(gd.disk->disk_name, GDROM_DEV_NAME);
 }
 
@@ -741,7 +741,7 @@ static int probe_gdrom(struct platform_device *devptr)
 {
 	int err;
 	/* Start the device */
-	if (gdrom_execute_diagnostic() != 1) {
+	if (gdrom_execute_diagyesstic() != 1) {
 		pr_warn("ATA Probe for GDROM failed\n");
 		return -ENODEV;
 	}
@@ -758,13 +758,13 @@ static int probe_gdrom(struct platform_device *devptr)
 	gd.cd_info = kzalloc(sizeof(struct cdrom_device_info), GFP_KERNEL);
 	if (!gd.cd_info) {
 		err = -ENOMEM;
-		goto probe_fail_no_mem;
+		goto probe_fail_yes_mem;
 	}
 	probe_gdrom_setupcd();
 	gd.disk = alloc_disk(1);
 	if (!gd.disk) {
 		err = -ENODEV;
-		goto probe_fail_no_disk;
+		goto probe_fail_yes_disk;
 	}
 	probe_gdrom_setupdisk();
 	if (register_cdrom(gd.cd_info)) {
@@ -809,9 +809,9 @@ probe_fail_requestq:
 probe_fail_cmdirq_register:
 probe_fail_cdrom_register:
 	del_gendisk(gd.disk);
-probe_fail_no_disk:
+probe_fail_yes_disk:
 	kfree(gd.cd_info);
-probe_fail_no_mem:
+probe_fail_yes_mem:
 	unregister_blkdev(gdrom_major, GDROM_DEV_NAME);
 	gdrom_major = 0;
 	pr_warn("Probe failed - error is 0x%X\n", err);

@@ -20,31 +20,31 @@
 TRACE_EVENT(vfio_ccw_fsm_async_request,
 	TP_PROTO(struct subchannel_id schid,
 		 int command,
-		 int errno),
-	TP_ARGS(schid, command, errno),
+		 int erryes),
+	TP_ARGS(schid, command, erryes),
 
 	TP_STRUCT__entry(
 		__field(u8, cssid)
 		__field(u8, ssid)
-		__field(u16, sch_no)
+		__field(u16, sch_yes)
 		__field(int, command)
-		__field(int, errno)
+		__field(int, erryes)
 	),
 
 	TP_fast_assign(
 		__entry->cssid = schid.cssid;
 		__entry->ssid = schid.ssid;
-		__entry->sch_no = schid.sch_no;
+		__entry->sch_yes = schid.sch_yes;
 		__entry->command = command;
-		__entry->errno = errno;
+		__entry->erryes = erryes;
 	),
 
-	TP_printk("schid=%x.%x.%04x command=0x%x errno=%d",
+	TP_printk("schid=%x.%x.%04x command=0x%x erryes=%d",
 		  __entry->cssid,
 		  __entry->ssid,
-		  __entry->sch_no,
+		  __entry->sch_yes,
 		  __entry->command,
-		  __entry->errno)
+		  __entry->erryes)
 );
 
 TRACE_EVENT(vfio_ccw_fsm_event,
@@ -54,7 +54,7 @@ TRACE_EVENT(vfio_ccw_fsm_event,
 	TP_STRUCT__entry(
 		__field(u8, cssid)
 		__field(u8, ssid)
-		__field(u16, schno)
+		__field(u16, schyes)
 		__field(int, state)
 		__field(int, event)
 	),
@@ -62,45 +62,45 @@ TRACE_EVENT(vfio_ccw_fsm_event,
 	TP_fast_assign(
 		__entry->cssid = schid.cssid;
 		__entry->ssid = schid.ssid;
-		__entry->schno = schid.sch_no;
+		__entry->schyes = schid.sch_yes;
 		__entry->state = state;
 		__entry->event = event;
 	),
 
 	TP_printk("schid=%x.%x.%04x state=%d event=%d",
-		__entry->cssid, __entry->ssid, __entry->schno,
+		__entry->cssid, __entry->ssid, __entry->schyes,
 		__entry->state,
 		__entry->event)
 );
 
 TRACE_EVENT(vfio_ccw_fsm_io_request,
-	TP_PROTO(int fctl, struct subchannel_id schid, int errno, char *errstr),
-	TP_ARGS(fctl, schid, errno, errstr),
+	TP_PROTO(int fctl, struct subchannel_id schid, int erryes, char *errstr),
+	TP_ARGS(fctl, schid, erryes, errstr),
 
 	TP_STRUCT__entry(
 		__field(u8, cssid)
 		__field(u8, ssid)
-		__field(u16, sch_no)
+		__field(u16, sch_yes)
 		__field(int, fctl)
-		__field(int, errno)
+		__field(int, erryes)
 		__field(char*, errstr)
 	),
 
 	TP_fast_assign(
 		__entry->cssid = schid.cssid;
 		__entry->ssid = schid.ssid;
-		__entry->sch_no = schid.sch_no;
+		__entry->sch_yes = schid.sch_yes;
 		__entry->fctl = fctl;
-		__entry->errno = errno;
+		__entry->erryes = erryes;
 		__entry->errstr = errstr;
 	),
 
-	TP_printk("schid=%x.%x.%04x fctl=0x%x errno=%d info=%s",
+	TP_printk("schid=%x.%x.%04x fctl=0x%x erryes=%d info=%s",
 		  __entry->cssid,
 		  __entry->ssid,
-		  __entry->sch_no,
+		  __entry->sch_yes,
 		  __entry->fctl,
-		  __entry->errno,
+		  __entry->erryes,
 		  __entry->errstr)
 );
 

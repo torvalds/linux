@@ -269,7 +269,7 @@ static struct ti_dt_clk am43xx_clks[] = {
 	DT_CLK(NULL, "synctimer_32kclk", "l4-wkup-aon-clkctrl:0008:8"),
 	DT_CLK(NULL, "usb_otg_ss0_refclk960m", "l3s-clkctrl:01f8:8"),
 	DT_CLK(NULL, "usb_otg_ss1_refclk960m", "l3s-clkctrl:0200:8"),
-	{ .node_name = NULL },
+	{ .yesde_name = NULL },
 };
 
 int __init am43xx_dt_clk_init(void)
@@ -289,7 +289,7 @@ int __init am43xx_dt_clk_init(void)
 	 * cpsw_cpts_rft_clk  has got the choice of 3 clocksources
 	 * dpll_core_m4_ck, dpll_core_m5_ck and dpll_disp_m2_ck.
 	 * By default dpll_core_m4_ck is selected, witn this as clock
-	 * source the CPTS doesnot work properly. It gives clockcheck errors
+	 * source the CPTS doesyest work properly. It gives clockcheck errors
 	 * while running PTP.
 	 * clockcheck: clock jumped backward or running slower than expected!
 	 * By selecting dpll_core_m5_ck as the clocksource fixes this issue.

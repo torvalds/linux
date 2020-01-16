@@ -330,7 +330,7 @@ static void mite_sync_output_dma(struct mite_channel *mite_chan,
 	if (finite_regen) {
 		/*
 		 * This is a special case where we continuously output a finite
-		 * buffer.  In this case, we do not free any of the memory,
+		 * buffer.  In this case, we do yest free any of the memory,
 		 * hence we expect that old_alloc_count will reach a maximum of
 		 * stop_count bytes.
 		 */
@@ -487,7 +487,7 @@ void mite_prep_dma(struct mite_channel *mite_chan,
 	/*
 	 * Link Complete Interrupt: interrupt every time a link
 	 * in MITE_RING is completed. This can generate a lot of
-	 * extra interrupts, but right now we update the values
+	 * extra interrupts, but right yesw we update the values
 	 * of buf_int_ptr and buf_int_count at each interrupt. A
 	 * better method is to poll the MITE before each user
 	 * "read()" to calculate the number of bytes available.
@@ -786,7 +786,7 @@ static int mite_setup(struct comedi_device *dev, struct mite *mite,
 	unsigned long length;
 	int i;
 	u32 csigr_bits;
-	unsigned int unknown_dma_burst_bits;
+	unsigned int unkyeswn_dma_burst_bits;
 	unsigned int wpdep;
 
 	pci_set_master(mite->pcidev);
@@ -823,9 +823,9 @@ static int mite_setup(struct comedi_device *dev, struct mite *mite,
 	 * written and read back.  The bits 0x1f always read as 1.
 	 * The rest always read as zero.
 	 */
-	unknown_dma_burst_bits = readl(mite->mmio + MITE_UNKNOWN_DMA_BURST_REG);
-	unknown_dma_burst_bits |= UNKNOWN_DMA_BURST_ENABLE_BITS;
-	writel(unknown_dma_burst_bits, mite->mmio + MITE_UNKNOWN_DMA_BURST_REG);
+	unkyeswn_dma_burst_bits = readl(mite->mmio + MITE_UNKNOWN_DMA_BURST_REG);
+	unkyeswn_dma_burst_bits |= UNKNOWN_DMA_BURST_ENABLE_BITS;
+	writel(unkyeswn_dma_burst_bits, mite->mmio + MITE_UNKNOWN_DMA_BURST_REG);
 
 	csigr_bits = readl(mite->mmio + MITE_CSIGR);
 	mite->num_channels = CSIGR_TO_DMAC(csigr_bits);
@@ -870,7 +870,7 @@ static int mite_setup(struct comedi_device *dev, struct mite *mite,
  *
  * Called by a COMEDI drivers (*auto_attach).
  *
- * Returns a pointer to the MITE device on success, or NULL if the MITE cannot
+ * Returns a pointer to the MITE device on success, or NULL if the MITE canyest
  * be allocated or remapped.
  */
 struct mite *mite_attach(struct comedi_device *dev, bool use_win1)

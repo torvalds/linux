@@ -14,7 +14,7 @@
 #include <linux/err.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/platform_device.h>
 #include <linux/i2c.h>
 #include <linux/interrupt.h>
@@ -273,7 +273,7 @@ static void ocores_process_timeout(struct ocores_i2c *i2c)
  * @timeout: timeout in jiffies
  *
  * Timeout is necessary to avoid to stay here forever when the chip
- * does not answer correctly.
+ * does yest answer correctly.
  *
  * Return: 0 on success, -ETIMEDOUT on timeout
  */
@@ -329,7 +329,7 @@ static int ocores_poll_wait(struct ocores_i2c *i2c)
 	err = ocores_wait(i2c, OCI2C_STATUS, mask, 0, msecs_to_jiffies(1));
 	if (err)
 		dev_warn(i2c->adap.dev.parent,
-			 "%s: STATUS timeout, bit 0x%x did not clear in 1ms\n",
+			 "%s: STATUS timeout, bit 0x%x did yest clear in 1ms\n",
 			 __func__, mask);
 	return err;
 }
@@ -339,7 +339,7 @@ static int ocores_poll_wait(struct ocores_i2c *i2c)
  * @i2c: ocores I2C device instance
  *
  * Even if IRQ are disabled, the I2C OpenCore IP behavior is exactly the same
- * (only that IRQ are not produced). This means that we can re-use entirely
+ * (only that IRQ are yest produced). This means that we can re-use entirely
  * ocores_isr(), we just add our polling code around it.
  *
  * It can run in atomic context
@@ -528,14 +528,14 @@ static void oc_setreg_grlib(struct ocores_i2c *i2c, int reg, u8 value)
 static int ocores_i2c_of_probe(struct platform_device *pdev,
 				struct ocores_i2c *i2c)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	const struct of_device_id *match;
 	u32 val;
 	u32 clock_frequency;
 	bool clock_frequency_present;
 
 	if (of_property_read_u32(np, "reg-shift", &i2c->reg_shift)) {
-		/* no 'reg-shift', check for deprecated 'regstep' */
+		/* yes 'reg-shift', check for deprecated 'regstep' */
 		if (!of_property_read_u32(np, "regstep", &val)) {
 			if (!is_power_of_2(val)) {
 				dev_err(&pdev->dev, "invalid regstep %d\n",
@@ -586,10 +586,10 @@ static int ocores_i2c_of_probe(struct platform_device *pdev,
 		}
 	}
 
-	of_property_read_u32(pdev->dev.of_node, "reg-io-width",
+	of_property_read_u32(pdev->dev.of_yesde, "reg-io-width",
 				&i2c->reg_io_width);
 
-	match = of_match_node(ocores_i2c_match, pdev->dev.of_node);
+	match = of_match_yesde(ocores_i2c_match, pdev->dev.of_yesde);
 	if (match && (long)match->data == TYPE_GRLIB) {
 		dev_dbg(&pdev->dev, "GRLIB variant of i2c-ocores\n");
 		i2c->setreg = oc_setreg_grlib;
@@ -658,7 +658,7 @@ static int ocores_i2c_probe(struct platform_device *pdev)
 
 	if (!i2c->setreg || !i2c->getreg) {
 		bool be = pdata ? pdata->big_endian :
-			of_device_is_big_endian(pdev->dev.of_node);
+			of_device_is_big_endian(pdev->dev.of_yesde);
 
 		switch (i2c->reg_io_width) {
 		case 1:
@@ -694,7 +694,7 @@ static int ocores_i2c_probe(struct platform_device *pdev)
 		 * Set in OCORES_FLAG_BROKEN_IRQ to enable workaround for
 		 * FU540-C000 SoC in polling mode.
 		 */
-		match = of_match_node(ocores_i2c_match, pdev->dev.of_node);
+		match = of_match_yesde(ocores_i2c_match, pdev->dev.of_yesde);
 		if (match && (long)match->data == TYPE_SIFIVE_REV0)
 			i2c->flags |= OCORES_FLAG_BROKEN_IRQ;
 	} else {
@@ -707,7 +707,7 @@ static int ocores_i2c_probe(struct platform_device *pdev)
 						   ocores_isr, 0,
 						   pdev->name, i2c);
 		if (ret) {
-			dev_err(&pdev->dev, "Cannot claim IRQ\n");
+			dev_err(&pdev->dev, "Canyest claim IRQ\n");
 			goto err_clk;
 		}
 	}
@@ -721,14 +721,14 @@ static int ocores_i2c_probe(struct platform_device *pdev)
 	i2c->adap = ocores_adapter;
 	i2c_set_adapdata(&i2c->adap, i2c);
 	i2c->adap.dev.parent = &pdev->dev;
-	i2c->adap.dev.of_node = pdev->dev.of_node;
+	i2c->adap.dev.of_yesde = pdev->dev.of_yesde;
 
 	/* add i2c adapter to i2c tree */
 	ret = i2c_add_adapter(&i2c->adap);
 	if (ret)
 		goto err_clk;
 
-	/* add in known devices to the bus */
+	/* add in kyeswn devices to the bus */
 	if (pdata) {
 		for (i = 0; i < pdata->num_devices; i++)
 			i2c_new_device(&i2c->adap, pdata->devices + i);

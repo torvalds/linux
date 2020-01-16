@@ -4,7 +4,7 @@
 #define __KVM_IODEV_H__
 
 #include <linux/kvm_types.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 
 struct kvm_io_device;
 struct kvm_vcpu;
@@ -12,7 +12,7 @@ struct kvm_vcpu;
 /**
  * kvm_io_device_ops are called under kvm slots_lock.
  * read and write handlers return 0 if the transaction has been handled,
- * or non-zero to have it passed to the next device.
+ * or yesn-zero to have it passed to the next device.
  **/
 struct kvm_io_device_ops {
 	int (*read)(struct kvm_vcpu *vcpu,

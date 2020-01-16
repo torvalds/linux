@@ -7,7 +7,7 @@
 # Foundation.
 from __future__ import print_function
 
-import errno, os
+import erryes, os
 
 FUTEX_WAIT = 0
 FUTEX_WAKE = 1
@@ -34,7 +34,7 @@ def nsecs_str(nsecs):
     return str
 
 def add_stats(dict, key, value):
-	if key not in dict:
+	if key yest in dict:
 		dict[key] = (value, value, value, 1)
 	else:
 		min, max, avg, count = dict[key]
@@ -71,7 +71,7 @@ try:
 		pass
 	machine_id = machine_to_id[os.uname()[4]]
 except:
-	if not audit_package_warned:
+	if yest audit_package_warned:
 		audit_package_warned = True
 		print("Install the audit-libs-python package to get syscall names.\n"
                     "For example:\n  # apt-get install python-audit (Ubuntu)"
@@ -86,6 +86,6 @@ def syscall_name(id):
 
 def strerror(nr):
 	try:
-		return errno.errorcode[abs(nr)]
+		return erryes.errorcode[abs(nr)]
 	except:
-		return "Unknown %d errno" % nr
+		return "Unkyeswn %d erryes" % nr

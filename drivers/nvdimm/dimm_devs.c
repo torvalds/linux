@@ -18,9 +18,9 @@
 
 static DEFINE_IDA(dimm_ida);
 
-static bool noblk;
-module_param(noblk, bool, 0444);
-MODULE_PARM_DESC(noblk, "force disable BLK / local alias support");
+static bool yesblk;
+module_param(yesblk, bool, 0444);
+MODULE_PARM_DESC(yesblk, "force disable BLK / local alias support");
 
 /*
  * Retrieve bus and dimm handle and return if this bus supports
@@ -391,7 +391,7 @@ static ssize_t security_store(struct device *dev,
 
 	/*
 	 * Require all userspace triggered security management to be
-	 * done while probing is idle and the DIMM is not in active use
+	 * done while probing is idle and the DIMM is yest in active use
 	 * in any region.
 	 */
 	nd_device_lock(dev);
@@ -482,7 +482,7 @@ struct nvdimm *__nvdimm_create(struct nvdimm_bus *nvdimm_bus,
 
 	nvdimm->dimm_id = dimm_id;
 	nvdimm->provider_data = provider_data;
-	if (noblk)
+	if (yesblk)
 		flags |= 1 << NDD_NOBLK;
 	nvdimm->flags = flags;
 	nvdimm->cmd_mask = cmd_mask;
@@ -511,7 +511,7 @@ struct nvdimm *__nvdimm_create(struct nvdimm_bus *nvdimm_bus,
 }
 EXPORT_SYMBOL_GPL(__nvdimm_create);
 
-static void shutdown_security_notify(void *data)
+static void shutdown_security_yestify(void *data)
 {
 	struct nvdimm *nvdimm = data;
 
@@ -529,7 +529,7 @@ int nvdimm_security_setup_events(struct device *dev)
 	if (!nvdimm->sec.overwrite_state)
 		return -ENOMEM;
 
-	return devm_add_action_or_reset(dev, shutdown_security_notify, nvdimm);
+	return devm_add_action_or_reset(dev, shutdown_security_yestify, nvdimm);
 }
 EXPORT_SYMBOL_GPL(nvdimm_security_setup_events);
 
@@ -659,7 +659,7 @@ resource_size_t nd_blk_available_dpa(struct nd_region *nd_region)
 
 	device_for_each_child(&nvdimm_bus->dev, &info, alias_dpa_busy);
 
-	/* now account for busy blk allocations in unaliased dpa */
+	/* yesw account for busy blk allocations in unaliased dpa */
 	for_each_dpa_resource(ndd, res) {
 		if (strncmp(res->name, "blk", 3) != 0)
 			continue;
@@ -743,7 +743,7 @@ resource_size_t nd_pmem_available_dpa(struct nd_region *nd_region,
 			if (strncmp(res->name, "blk", 3) == 0) {
 				/*
 				 * If a BLK allocation overlaps the start of
-				 * PMEM the entire interleave set may now only
+				 * PMEM the entire interleave set may yesw only
 				 * be used for BLK.
 				 */
 				blk_start = map_start;

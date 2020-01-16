@@ -16,7 +16,7 @@
  * Updated: Fri, 22 May 2015 12:14:17 +0000
  * Status: works
  *
- * This module is not used directly by end-users.  Rather, it is used by
+ * This module is yest used directly by end-users.  Rather, it is used by
  * other drivers to provide support for an 8255 "Programmable Peripheral
  * Interface" (PPI) chip.
  *
@@ -194,7 +194,7 @@ static int __subdev_8255_init(struct comedi_device *dev,
  * is the direction (0 for read, 1 for write) and 'data' is the value to be
  * written.  It should return 0 if writing or the value read if reading.
  *
- * If the optional I/O call-back function is not provided, an internal
+ * If the optional I/O call-back function is yest provided, an internal
  * call-back function is used which uses consecutive I/O port addresses
  * starting at dev->iobase + regbase.
  *
@@ -229,7 +229,7 @@ EXPORT_SYMBOL_GPL(subdev_8255_init);
  * is the direction (0 for read, 1 for write) and 'data' is the value to be
  * written.  It should return 0 if writing or the value read if reading.
  *
- * If the optional I/O call-back function is not provided, an internal
+ * If the optional I/O call-back function is yest provided, an internal
  * call-back function is used which uses consecutive MMIO virtual addresses
  * starting at dev->mmio + regbase.
  *

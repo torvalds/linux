@@ -53,18 +53,18 @@ static int __init load_powerpc_certs(void)
 	void *db = NULL, *dbx = NULL;
 	uint64_t dbsize = 0, dbxsize = 0;
 	int rc = 0;
-	struct device_node *node;
+	struct device_yesde *yesde;
 
 	if (!secvar_ops)
 		return -ENODEV;
 
 	/* The following only applies for the edk2-compat backend. */
-	node = of_find_compatible_node(NULL, NULL, "ibm,edk2-compat-v1");
-	if (!node)
+	yesde = of_find_compatible_yesde(NULL, NULL, "ibm,edk2-compat-v1");
+	if (!yesde)
 		return -ENODEV;
 
 	/*
-	 * Get db, and dbx. They might not exist, so it isn't an error if we
+	 * Get db, and dbx. They might yest exist, so it isn't an error if we
 	 * can't get them.
 	 */
 	db = get_cert_list("db", 3, &dbsize);
@@ -89,7 +89,7 @@ static int __init load_powerpc_certs(void)
 		kfree(dbx);
 	}
 
-	of_node_put(node);
+	of_yesde_put(yesde);
 
 	return rc;
 }

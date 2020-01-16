@@ -244,7 +244,7 @@ static int q6tdm_set_channel_map(struct snd_soc_dai *dai,
 	case PRIMARY_TDM_RX_0 ... QUINARY_TDM_TX_7:
 		if (dai->id & 0x1) {
 			if (!tx_slot) {
-				dev_err(dai->dev, "tx slot not found\n");
+				dev_err(dai->dev, "tx slot yest found\n");
 				return -EINVAL;
 			}
 			if (tx_num > AFE_PORT_MAX_AUDIO_CHAN_CNT) {
@@ -263,7 +263,7 @@ static int q6tdm_set_channel_map(struct snd_soc_dai *dai,
 		} else {
 			/* rx */
 			if (!rx_slot) {
-				dev_err(dai->dev, "rx slot not found\n");
+				dev_err(dai->dev, "rx slot yest found\n");
 				return -EINVAL;
 			}
 			if (rx_num > AFE_PORT_MAX_AUDIO_CHAN_CNT) {
@@ -387,7 +387,7 @@ static int q6slim_set_channel_map(struct snd_soc_dai *dai,
 	if (dai->id & 0x1) {
 		/* TX */
 		if (!tx_slot) {
-			pr_err("%s: tx slot not found\n", __func__);
+			pr_err("%s: tx slot yest found\n", __func__);
 			return -EINVAL;
 		}
 
@@ -399,7 +399,7 @@ static int q6slim_set_channel_map(struct snd_soc_dai *dai,
 
 	} else {
 		if (!rx_slot) {
-			pr_err("%s: rx slot not found\n", __func__);
+			pr_err("%s: rx slot yest found\n", __func__);
 			return -EINVAL;
 		}
 
@@ -1349,17 +1349,17 @@ static const struct snd_soc_component_driver q6afe_dai_component = {
 static void of_q6afe_parse_dai_data(struct device *dev,
 				    struct q6afe_dai_data *data)
 {
-	struct device_node *node;
+	struct device_yesde *yesde;
 	int ret;
 
-	for_each_child_of_node(dev->of_node, node) {
+	for_each_child_of_yesde(dev->of_yesde, yesde) {
 		unsigned int lines[Q6AFE_MAX_MI2S_LINES];
 		struct q6afe_dai_priv_data *priv;
 		int id, i, num_lines;
 
-		ret = of_property_read_u32(node, "reg", &id);
+		ret = of_property_read_u32(yesde, "reg", &id);
 		if (ret || id < 0 || id >= AFE_PORT_MAX) {
-			dev_err(dev, "valid dai id not found:%d\n", ret);
+			dev_err(dev, "valid dai id yest found:%d\n", ret);
 			continue;
 		}
 
@@ -1367,7 +1367,7 @@ static void of_q6afe_parse_dai_data(struct device *dev,
 		/* MI2S specific properties */
 		case PRIMARY_MI2S_RX ... QUATERNARY_MI2S_TX:
 			priv = &data->priv[id];
-			ret = of_property_read_variable_u32_array(node,
+			ret = of_property_read_variable_u32_array(yesde,
 							"qcom,sd-lines",
 							lines, 0,
 							Q6AFE_MAX_MI2S_LINES);
@@ -1384,37 +1384,37 @@ static void of_q6afe_parse_dai_data(struct device *dev,
 			break;
 		case PRIMARY_TDM_RX_0 ... QUINARY_TDM_TX_7:
 			priv = &data->priv[id];
-			ret = of_property_read_u32(node, "qcom,tdm-sync-mode",
+			ret = of_property_read_u32(yesde, "qcom,tdm-sync-mode",
 						   &priv->sync_mode);
 			if (ret) {
 				dev_err(dev, "No Sync mode from DT\n");
 				break;
 			}
-			ret = of_property_read_u32(node, "qcom,tdm-sync-src",
+			ret = of_property_read_u32(yesde, "qcom,tdm-sync-src",
 						   &priv->sync_src);
 			if (ret) {
 				dev_err(dev, "No Sync Src from DT\n");
 				break;
 			}
-			ret = of_property_read_u32(node, "qcom,tdm-data-out",
+			ret = of_property_read_u32(yesde, "qcom,tdm-data-out",
 						   &priv->data_out_enable);
 			if (ret) {
 				dev_err(dev, "No Data out enable from DT\n");
 				break;
 			}
-			ret = of_property_read_u32(node, "qcom,tdm-invert-sync",
+			ret = of_property_read_u32(yesde, "qcom,tdm-invert-sync",
 						   &priv->invert_sync);
 			if (ret) {
 				dev_err(dev, "No Invert sync from DT\n");
 				break;
 			}
-			ret = of_property_read_u32(node, "qcom,tdm-data-delay",
+			ret = of_property_read_u32(yesde, "qcom,tdm-data-delay",
 						   &priv->data_delay);
 			if (ret) {
 				dev_err(dev, "No Data Delay from DT\n");
 				break;
 			}
-			ret = of_property_read_u32(node, "qcom,tdm-data-align",
+			ret = of_property_read_u32(yesde, "qcom,tdm-data-align",
 						   &priv->data_align);
 			if (ret) {
 				dev_err(dev, "No Data align from DT\n");

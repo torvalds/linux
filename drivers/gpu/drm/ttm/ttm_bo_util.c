@@ -12,7 +12,7 @@
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright yestice and this permission yestice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
  *
@@ -45,7 +45,7 @@ struct ttm_transfer_obj {
 	struct ttm_buffer_object *bo;
 };
 
-void ttm_bo_free_old_node(struct ttm_buffer_object *bo)
+void ttm_bo_free_old_yesde(struct ttm_buffer_object *bo)
 {
 	ttm_bo_mem_put(bo, &bo->mem);
 }
@@ -59,7 +59,7 @@ int ttm_bo_move_ttm(struct ttm_buffer_object *bo,
 	int ret;
 
 	if (old_mem->mem_type != TTM_PL_SYSTEM) {
-		ret = ttm_bo_wait(bo, ctx->interruptible, ctx->no_wait_gpu);
+		ret = ttm_bo_wait(bo, ctx->interruptible, ctx->yes_wait_gpu);
 
 		if (unlikely(ret != 0)) {
 			if (ret != -ERESTARTSYS)
@@ -68,7 +68,7 @@ int ttm_bo_move_ttm(struct ttm_buffer_object *bo,
 		}
 
 		ttm_tt_unbind(ttm);
-		ttm_bo_free_old_node(bo);
+		ttm_bo_free_old_yesde(bo);
 		ttm_flag_masked(&old_mem->placement, TTM_PL_FLAG_SYSTEM,
 				TTM_PL_MASK_MEM);
 		old_mem->mem_type = TTM_PL_SYSTEM;
@@ -85,7 +85,7 @@ int ttm_bo_move_ttm(struct ttm_buffer_object *bo,
 	}
 
 	*old_mem = *new_mem;
-	new_mem->mm_node = NULL;
+	new_mem->mm_yesde = NULL;
 
 	return 0;
 }
@@ -218,7 +218,7 @@ static int ttm_mem_reg_ioremap(struct ttm_bo_device *bdev, struct ttm_mem_reg *m
 		if (mem->placement & TTM_PL_FLAG_WC)
 			addr = ioremap_wc(mem->bus.base + mem->bus.offset, mem->bus.size);
 		else
-			addr = ioremap_nocache(mem->bus.base + mem->bus.offset, mem->bus.size);
+			addr = ioremap_yescache(mem->bus.base + mem->bus.offset, mem->bus.size);
 		if (!addr) {
 			(void) ttm_mem_io_lock(man, false);
 			ttm_mem_io_free(bdev, mem);
@@ -275,7 +275,7 @@ static int ttm_copy_io_page(void *dst, void *src, unsigned long page)
  *
  * This function maps a TTM page using the kmap_atomic api if available,
  * otherwise falls back to vmap. The user must make sure that the
- * specified page does not have an aliased mapping with a different caching
+ * specified page does yest have an aliased mapping with a different caching
  * policy unless the architecture explicitly allows it. Also mapping and
  * unmapping using this api must be correctly nested. Unmapping should
  * occur in the reverse order of mapping.
@@ -366,7 +366,7 @@ int ttm_bo_move_memcpy(struct ttm_buffer_object *bo,
 	unsigned long add = 0;
 	int dir;
 
-	ret = ttm_bo_wait(bo, ctx->interruptible, ctx->no_wait_gpu);
+	ret = ttm_bo_wait(bo, ctx->interruptible, ctx->yes_wait_gpu);
 	if (ret)
 		return ret;
 
@@ -384,7 +384,7 @@ int ttm_bo_move_memcpy(struct ttm_buffer_object *bo,
 		goto out2;
 
 	/*
-	 * Don't move nonexistent data. Clear destination instead.
+	 * Don't move yesnexistent data. Clear destination instead.
 	 */
 	if (old_iomap == NULL &&
 	    (ttm == NULL || (ttm->state == tt_unpopulated &&
@@ -433,7 +433,7 @@ int ttm_bo_move_memcpy(struct ttm_buffer_object *bo,
 out2:
 	old_copy = *old_mem;
 	*old_mem = *new_mem;
-	new_mem->mm_node = NULL;
+	new_mem->mm_yesde = NULL;
 
 	if (man->flags & TTM_MEMTYPE_FLAG_FIXED) {
 		ttm_tt_destroy(ttm);
@@ -446,7 +446,7 @@ out:
 	ttm_mem_reg_iounmap(bdev, &old_copy, old_iomap);
 
 	/*
-	 * On error, keep the mm node!
+	 * On error, keep the mm yesde!
 	 */
 	if (!ret)
 		ttm_bo_mem_put(bo, &old_copy);
@@ -506,7 +506,7 @@ static int ttm_buffer_object_transfer(struct ttm_buffer_object *bo,
 	INIT_LIST_HEAD(&fbo->base.io_reserve_lru);
 	mutex_init(&fbo->base.wu_mutex);
 	fbo->base.moving = NULL;
-	drm_vma_node_reset(&fbo->base.base.vma_node);
+	drm_vma_yesde_reset(&fbo->base.base.vma_yesde);
 
 	kref_init(&fbo->base.list_kref);
 	kref_init(&fbo->base.kref);
@@ -525,7 +525,7 @@ static int ttm_buffer_object_transfer(struct ttm_buffer_object *bo,
 
 pgprot_t ttm_io_prot(uint32_t caching_flags, pgprot_t tmp)
 {
-	/* Cached mappings need no adjustment */
+	/* Cached mappings need yes adjustment */
 	if (caching_flags & TTM_PL_FLAG_CACHED)
 		return tmp;
 
@@ -533,17 +533,17 @@ pgprot_t ttm_io_prot(uint32_t caching_flags, pgprot_t tmp)
 	if (caching_flags & TTM_PL_FLAG_WC)
 		tmp = pgprot_writecombine(tmp);
 	else if (boot_cpu_data.x86 > 3)
-		tmp = pgprot_noncached(tmp);
+		tmp = pgprot_yesncached(tmp);
 #endif
 #if defined(__ia64__) || defined(__arm__) || defined(__aarch64__) || \
     defined(__powerpc__) || defined(__mips__)
 	if (caching_flags & TTM_PL_FLAG_WC)
 		tmp = pgprot_writecombine(tmp);
 	else
-		tmp = pgprot_noncached(tmp);
+		tmp = pgprot_yesncached(tmp);
 #endif
 #if defined(__sparc__)
-	tmp = pgprot_noncached(tmp);
+	tmp = pgprot_yesncached(tmp);
 #endif
 	return tmp;
 }
@@ -565,7 +565,7 @@ static int ttm_bo_ioremap(struct ttm_buffer_object *bo,
 			map->virtual = ioremap_wc(bo->mem.bus.base + bo->mem.bus.offset + offset,
 						  size);
 		else
-			map->virtual = ioremap_nocache(bo->mem.bus.base + bo->mem.bus.offset + offset,
+			map->virtual = ioremap_yescache(bo->mem.bus.base + bo->mem.bus.offset + offset,
 						       size);
 	}
 	return (!map->virtual) ? -ENOMEM : 0;
@@ -579,7 +579,7 @@ static int ttm_bo_kmap_ttm(struct ttm_buffer_object *bo,
 	struct ttm_mem_reg *mem = &bo->mem;
 	struct ttm_operation_ctx ctx = {
 		.interruptible = false,
-		.no_wait_gpu = false
+		.yes_wait_gpu = false
 	};
 	struct ttm_tt *ttm = bo->ttm;
 	pgprot_t prot;
@@ -696,7 +696,7 @@ int ttm_bo_move_accel_cleanup(struct ttm_buffer_object *bo,
 			ttm_tt_destroy(bo->ttm);
 			bo->ttm = NULL;
 		}
-		ttm_bo_free_old_node(bo);
+		ttm_bo_free_old_yesde(bo);
 	} else {
 		/**
 		 * This should help pipeline ordinary buffer moves.
@@ -716,7 +716,7 @@ int ttm_bo_move_accel_cleanup(struct ttm_buffer_object *bo,
 		dma_resv_add_excl_fence(&ghost_obj->base._resv, fence);
 
 		/**
-		 * If we're not moving to fixed memory, the TTM object
+		 * If we're yest moving to fixed memory, the TTM object
 		 * needs to stay alive. Otherwhise hang it on the ghost
 		 * bo to be unbound and destroyed.
 		 */
@@ -731,7 +731,7 @@ int ttm_bo_move_accel_cleanup(struct ttm_buffer_object *bo,
 	}
 
 	*old_mem = *new_mem;
-	new_mem->mm_node = NULL;
+	new_mem->mm_yesde = NULL;
 
 	return 0;
 }
@@ -772,7 +772,7 @@ int ttm_bo_pipeline_move(struct ttm_buffer_object *bo,
 		dma_resv_add_excl_fence(&ghost_obj->base._resv, fence);
 
 		/**
-		 * If we're not moving to fixed memory, the TTM object
+		 * If we're yest moving to fixed memory, the TTM object
 		 * needs to stay alive. Otherwhise hang it on the ghost
 		 * bo to be unbound and destroyed.
 		 */
@@ -799,7 +799,7 @@ int ttm_bo_pipeline_move(struct ttm_buffer_object *bo,
 		}
 		spin_unlock(&from->move_lock);
 
-		ttm_bo_free_old_node(bo);
+		ttm_bo_free_old_yesde(bo);
 
 		dma_fence_put(bo->moving);
 		bo->moving = dma_fence_get(fence);
@@ -819,11 +819,11 @@ int ttm_bo_pipeline_move(struct ttm_buffer_object *bo,
 			ttm_tt_destroy(bo->ttm);
 			bo->ttm = NULL;
 		}
-		ttm_bo_free_old_node(bo);
+		ttm_bo_free_old_yesde(bo);
 	}
 
 	*old_mem = *new_mem;
-	new_mem->mm_node = NULL;
+	new_mem->mm_yesde = NULL;
 
 	return 0;
 }

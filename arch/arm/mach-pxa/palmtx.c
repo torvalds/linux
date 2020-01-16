@@ -6,7 +6,7 @@
  *
  * Based on work of:
  *		Alex Osborne <ato@meshy.org>
- *		Cristiano P. <cristianop@users.sourceforge.net>
+ *		Cristiayes P. <cristiayesp@users.sourceforge.net>
  *		Jan Herman <2hp@seznam.cz>
  *		Michal Hrusecky
  *
@@ -159,12 +159,12 @@ static struct platform_device palmtx_flash = {
 	},
 };
 
-static void __init palmtx_nor_init(void)
+static void __init palmtx_yesr_init(void)
 {
 	platform_device_register(&palmtx_flash);
 }
 #else
-static inline void palmtx_nor_init(void) {}
+static inline void palmtx_yesr_init(void) {}
 #endif
 
 /******************************************************************************
@@ -366,7 +366,7 @@ static void __init palmtx_init(void)
 	palm27x_pmic_init();
 	palmtx_kpc_init();
 	palmtx_keys_init();
-	palmtx_nor_init();
+	palmtx_yesr_init();
 	palmtx_nand_init();
 }
 

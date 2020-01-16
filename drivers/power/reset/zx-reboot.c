@@ -10,7 +10,7 @@
 #include <linux/delay.h>
 #include <linux/io.h>
 #include <linux/module.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/of_address.h>
 #include <linux/platform_device.h>
 #include <linux/reboot.h>
@@ -18,7 +18,7 @@
 static void __iomem *base;
 static void __iomem *pcu_base;
 
-static int zx_restart_handler(struct notifier_block *this,
+static int zx_restart_handler(struct yestifier_block *this,
 			      unsigned long mode, void *cmd)
 {
 	writel_relaxed(1, base + 0xb0);
@@ -30,14 +30,14 @@ static int zx_restart_handler(struct notifier_block *this,
 	return NOTIFY_DONE;
 }
 
-static struct notifier_block zx_restart_nb = {
-	.notifier_call = zx_restart_handler,
+static struct yestifier_block zx_restart_nb = {
+	.yestifier_call = zx_restart_handler,
 	.priority = 128,
 };
 
 static int zx_reboot_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	int err;
 
 	base = of_iomap(np, 0);
@@ -46,9 +46,9 @@ static int zx_reboot_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	np = of_find_compatible_node(NULL, NULL, "zte,zx296702-pcu");
+	np = of_find_compatible_yesde(NULL, NULL, "zte,zx296702-pcu");
 	pcu_base = of_iomap(np, 0);
-	of_node_put(np);
+	of_yesde_put(np);
 	if (!pcu_base) {
 		iounmap(base);
 		WARN(1, "failed to map pcu_base address");

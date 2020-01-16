@@ -75,7 +75,7 @@ int ft_queue_data_in(struct se_cmd *se_cmd)
 	remaining = se_cmd->data_length;
 
 	/*
-	 * Setup to use first mem list entry, unless no data.
+	 * Setup to use first mem list entry, unless yes data.
 	 */
 	BUG_ON(remaining && !se_cmd->t_data_sg);
 	if (remaining) {
@@ -85,7 +85,7 @@ int ft_queue_data_in(struct se_cmd *se_cmd)
 		page = sg_page(sg);
 	}
 
-	/* no scatter/gather in skb for odd word length due to fc_seq_send() */
+	/* yes scatter/gather in skb for odd word length due to fc_seq_send() */
 	use_sg = !(remaining % 4);
 
 	while (remaining) {
@@ -169,10 +169,10 @@ int ft_queue_data_in(struct se_cmd *se_cmd)
 						__func__, fp, ep->xid,
 						remaining, lport->lso_max);
 			/*
-			 * Go ahead and set TASK_SET_FULL status ignoring the
+			 * Go ahead and set TASK_SET_FULL status igyesring the
 			 * rest of the DataIN, and immediately attempt to
 			 * send the response via ft_queue_status() in order
-			 * to notify the initiator that it should reduce it's
+			 * to yestify the initiator that it should reduce it's
 			 * per LUN queue_depth.
 			 */
 			se_cmd->scsi_status = SAM_STAT_TASK_SET_FULL;
@@ -231,10 +231,10 @@ void ft_recv_write_data(struct ft_cmd *cmd, struct fc_frame *fp)
 		if (buf)
 			pr_err("%s: xid 0x%x, f_ctl 0x%x, cmd->sg %p, "
 				"cmd->sg_cnt 0x%x. DDP was setup"
-				" hence not expected to receive frame with "
+				" hence yest expected to receive frame with "
 				"payload, Frame will be dropped if"
 				"'Sequence Initiative' bit in f_ctl is"
-				"not set\n", __func__, ep->xid, f_ctl,
+				"yest set\n", __func__, ep->xid, f_ctl,
 				se_cmd->t_data_sg, se_cmd->t_data_nents);
 		/*
 		 * Invalidate HW DDP context if it was setup for respective
@@ -249,7 +249,7 @@ void ft_recv_write_data(struct ft_cmd *cmd, struct fc_frame *fp)
 		 * posted directly to user buffer and only the last frame's
 		 * header is posted in receive queue.
 		 *
-		 * If "Sequence Initiative (TSI)" bit is not set, means error
+		 * If "Sequence Initiative (TSI)" bit is yest set, means error
 		 * condition w.r.t. DDP, hence drop the packet and let explict
 		 * ABORTS from other end of exchange timer trigger the recovery.
 		 */
@@ -271,7 +271,7 @@ void ft_recv_write_data(struct ft_cmd *cmd, struct fc_frame *fp)
 		frame_len = se_cmd->data_length - rel_off;
 
 	/*
-	 * Setup to use first mem list entry, unless no data.
+	 * Setup to use first mem list entry, unless yes data.
 	 */
 	BUG_ON(frame_len && !se_cmd->t_data_sg);
 	if (frame_len) {

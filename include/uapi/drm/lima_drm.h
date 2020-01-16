@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: (GPL-2.0 WITH Linux-syscall-note) OR MIT */
+/* SPDX-License-Identifier: (GPL-2.0 WITH Linux-syscall-yeste) OR MIT */
 /* Copyright 2017-2018 Qiang Yu <yuq825@gmail.com> */
 
 #ifndef __LIMA_DRM_H__
@@ -37,7 +37,7 @@ struct drm_lima_get_param {
  */
 struct drm_lima_gem_create {
 	__u32 size;    /* in, buffer size */
-	__u32 flags;   /* in, currently no flags, must be zero */
+	__u32 flags;   /* in, currently yes flags, must be zero */
 	__u32 handle;  /* out, GEM buffer handle */
 	__u32 pad;     /* pad, must be zero */
 };
@@ -103,7 +103,7 @@ struct drm_lima_m450_pp_frame {
  *
  * User can always merge multi sync_file and drm_syncobj
  * into one drm_syncobj as in_sync[0], but we reserve
- * in_sync[1] for another task's out_sync to avoid the
+ * in_sync[1] for ayesther task's out_sync to avoid the
  * export/import/merge pass when explicit sync.
  */
 struct drm_lima_gem_submit {

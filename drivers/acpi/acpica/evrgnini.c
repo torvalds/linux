@@ -121,7 +121,7 @@ acpi_ev_io_space_region_setup(acpi_handle handle,
  *
  * DESCRIPTION: Setup a PCI_Config operation region
  *
- * MUTEX:       Assumes namespace is not locked
+ * MUTEX:       Assumes namespace is yest locked
  *
  ******************************************************************************/
 
@@ -134,9 +134,9 @@ acpi_ev_pci_config_region_setup(acpi_handle handle,
 	u64 pci_value;
 	struct acpi_pci_id *pci_id = *region_context;
 	union acpi_operand_object *handler_obj;
-	struct acpi_namespace_node *parent_node;
-	struct acpi_namespace_node *pci_root_node;
-	struct acpi_namespace_node *pci_device_node;
+	struct acpi_namespace_yesde *parent_yesde;
+	struct acpi_namespace_yesde *pci_root_yesde;
+	struct acpi_namespace_yesde *pci_device_yesde;
 	union acpi_operand_object *region_obj =
 	    (union acpi_operand_object *)handle;
 
@@ -149,7 +149,7 @@ acpi_ev_pci_config_region_setup(acpi_handle handle,
 		 * routine checks before we get here, but we check again just in case.
 		 */
 		ACPI_DEBUG_PRINT((ACPI_DB_OPREGION,
-				  "Attempting to init a region %p, with no handler\n",
+				  "Attempting to init a region %p, with yes handler\n",
 				  region_obj));
 		return_ACPI_STATUS(AE_NOT_EXIST);
 	}
@@ -162,7 +162,7 @@ acpi_ev_pci_config_region_setup(acpi_handle handle,
 		return_ACPI_STATUS(status);
 	}
 
-	parent_node = region_obj->region.node->parent;
+	parent_yesde = region_obj->region.yesde->parent;
 
 	/*
 	 * Get the _SEG and _BBN values from the device upon which the handler
@@ -177,20 +177,20 @@ acpi_ev_pci_config_region_setup(acpi_handle handle,
 	 * to scan upward for a PCI Root bridge and re-associate the op_region
 	 * handlers with that device.
 	 */
-	if (handler_obj->address_space.node == acpi_gbl_root_node) {
+	if (handler_obj->address_space.yesde == acpi_gbl_root_yesde) {
 
 		/* Start search from the parent object */
 
-		pci_root_node = parent_node;
-		while (pci_root_node != acpi_gbl_root_node) {
+		pci_root_yesde = parent_yesde;
+		while (pci_root_yesde != acpi_gbl_root_yesde) {
 
 			/* Get the _HID/_CID in order to detect a root_bridge */
 
-			if (acpi_ev_is_pci_root_bridge(pci_root_node)) {
+			if (acpi_ev_is_pci_root_bridge(pci_root_yesde)) {
 
 				/* Install a handler for this PCI root bridge */
 
-				status = acpi_install_address_space_handler((acpi_handle)pci_root_node, ACPI_ADR_SPACE_PCI_CONFIG, ACPI_DEFAULT_HANDLER, NULL, NULL);
+				status = acpi_install_address_space_handler((acpi_handle)pci_root_yesde, ACPI_ADR_SPACE_PCI_CONFIG, ACPI_DEFAULT_HANDLER, NULL, NULL);
 				if (ACPI_FAILURE(status)) {
 					if (status == AE_SAME_HANDLER) {
 						/*
@@ -200,32 +200,32 @@ acpi_ev_pci_config_region_setup(acpi_handle handle,
 						 */
 					} else {
 						ACPI_EXCEPTION((AE_INFO, status,
-								"Could not install PciConfig handler "
+								"Could yest install PciConfig handler "
 								"for Root Bridge %4.4s",
-								acpi_ut_get_node_name
-								(pci_root_node)));
+								acpi_ut_get_yesde_name
+								(pci_root_yesde)));
 					}
 				}
 				break;
 			}
 
-			pci_root_node = pci_root_node->parent;
+			pci_root_yesde = pci_root_yesde->parent;
 		}
 
-		/* PCI root bridge not found, use namespace root node */
+		/* PCI root bridge yest found, use namespace root yesde */
 	} else {
-		pci_root_node = handler_obj->address_space.node;
+		pci_root_yesde = handler_obj->address_space.yesde;
 	}
 
 	/*
-	 * If this region is now initialized, we are done.
+	 * If this region is yesw initialized, we are done.
 	 * (install_address_space_handler could have initialized it)
 	 */
 	if (region_obj->region.flags & AOPOBJ_SETUP_COMPLETE) {
 		return_ACPI_STATUS(AE_OK);
 	}
 
-	/* Region is still not initialized. Create a new context */
+	/* Region is still yest initialized. Create a new context */
 
 	pci_id = ACPI_ALLOCATE_ZEROED(sizeof(struct acpi_pci_id));
 	if (!pci_id) {
@@ -239,12 +239,12 @@ acpi_ev_pci_config_region_setup(acpi_handle handle,
 	 * Find the parent device object. (This allows the operation region to be
 	 * within a subscope under the device, such as a control method.)
 	 */
-	pci_device_node = region_obj->region.node;
-	while (pci_device_node && (pci_device_node->type != ACPI_TYPE_DEVICE)) {
-		pci_device_node = pci_device_node->parent;
+	pci_device_yesde = region_obj->region.yesde;
+	while (pci_device_yesde && (pci_device_yesde->type != ACPI_TYPE_DEVICE)) {
+		pci_device_yesde = pci_device_yesde->parent;
 	}
 
-	if (!pci_device_node) {
+	if (!pci_device_yesde) {
 		ACPI_FREE(pci_id);
 		return_ACPI_STATUS(AE_AML_OPERAND_TYPE);
 	}
@@ -254,11 +254,11 @@ acpi_ev_pci_config_region_setup(acpi_handle handle,
 	 * contained in the parent's scope.
 	 */
 	status = acpi_ut_evaluate_numeric_object(METHOD_NAME__ADR,
-						 pci_device_node, &pci_value);
+						 pci_device_yesde, &pci_value);
 
 	/*
 	 * The default is zero, and since the allocation above zeroed the data,
-	 * just do nothing on failure.
+	 * just do yesthing on failure.
 	 */
 	if (ACPI_SUCCESS(status)) {
 		pci_id->device = ACPI_HIWORD(ACPI_LODWORD(pci_value));
@@ -268,7 +268,7 @@ acpi_ev_pci_config_region_setup(acpi_handle handle,
 	/* The PCI segment number comes from the _SEG method */
 
 	status = acpi_ut_evaluate_numeric_object(METHOD_NAME__SEG,
-						 pci_root_node, &pci_value);
+						 pci_root_yesde, &pci_value);
 	if (ACPI_SUCCESS(status)) {
 		pci_id->segment = ACPI_LOWORD(pci_value);
 	}
@@ -276,7 +276,7 @@ acpi_ev_pci_config_region_setup(acpi_handle handle,
 	/* The PCI bus number comes from the _BBN method */
 
 	status = acpi_ut_evaluate_numeric_object(METHOD_NAME__BBN,
-						 pci_root_node, &pci_value);
+						 pci_root_yesde, &pci_value);
 	if (ACPI_SUCCESS(status)) {
 		pci_id->bus = ACPI_LOWORD(pci_value);
 	}
@@ -284,8 +284,8 @@ acpi_ev_pci_config_region_setup(acpi_handle handle,
 	/* Complete/update the PCI ID for this device */
 
 	status =
-	    acpi_hw_derive_pci_id(pci_id, pci_root_node,
-				  region_obj->region.node);
+	    acpi_hw_derive_pci_id(pci_id, pci_root_yesde,
+				  region_obj->region.yesde);
 	if (ACPI_FAILURE(status)) {
 		ACPI_FREE(pci_id);
 		return_ACPI_STATUS(status);
@@ -299,7 +299,7 @@ acpi_ev_pci_config_region_setup(acpi_handle handle,
  *
  * FUNCTION:    acpi_ev_is_pci_root_bridge
  *
- * PARAMETERS:  node            - Device node being examined
+ * PARAMETERS:  yesde            - Device yesde being examined
  *
  * RETURN:      TRUE if device is a PCI/PCI-Express Root Bridge
  *
@@ -308,7 +308,7 @@ acpi_ev_pci_config_region_setup(acpi_handle handle,
  *
  ******************************************************************************/
 
-u8 acpi_ev_is_pci_root_bridge(struct acpi_namespace_node *node)
+u8 acpi_ev_is_pci_root_bridge(struct acpi_namespace_yesde *yesde)
 {
 	acpi_status status;
 	struct acpi_pnp_device_id *hid;
@@ -318,7 +318,7 @@ u8 acpi_ev_is_pci_root_bridge(struct acpi_namespace_node *node)
 
 	/* Get the _HID and check for a PCI Root Bridge */
 
-	status = acpi_ut_execute_HID(node, &hid);
+	status = acpi_ut_execute_HID(yesde, &hid);
 	if (ACPI_FAILURE(status)) {
 		return (FALSE);
 	}
@@ -330,9 +330,9 @@ u8 acpi_ev_is_pci_root_bridge(struct acpi_namespace_node *node)
 		return (TRUE);
 	}
 
-	/* The _HID did not match. Get the _CID and check for a PCI Root Bridge */
+	/* The _HID did yest match. Get the _CID and check for a PCI Root Bridge */
 
-	status = acpi_ut_execute_CID(node, &cid);
+	status = acpi_ut_execute_CID(yesde, &cid);
 	if (ACPI_FAILURE(status)) {
 		return (FALSE);
 	}
@@ -363,7 +363,7 @@ u8 acpi_ev_is_pci_root_bridge(struct acpi_namespace_node *node)
  *
  * DESCRIPTION: Setup a pci_BAR operation region
  *
- * MUTEX:       Assumes namespace is not locked
+ * MUTEX:       Assumes namespace is yest locked
  *
  ******************************************************************************/
 
@@ -390,7 +390,7 @@ acpi_ev_pci_bar_region_setup(acpi_handle handle,
  *
  * DESCRIPTION: Setup a CMOS operation region
  *
- * MUTEX:       Assumes namespace is not locked
+ * MUTEX:       Assumes namespace is yest locked
  *
  ******************************************************************************/
 
@@ -465,8 +465,8 @@ acpi_ev_default_region_setup(acpi_handle handle,
  *              2. When the interpreter is loading a table, we can also
  *                 automatically run _REG for the following case:
  *                   operation_region (OPR1, 0x80, 0x1000010, 0x4)
- *              Though this may not be compliant to the de-facto standard, the
- *              logic is kept in order not to trigger regressions. And keeping
+ *              Though this may yest be compliant to the de-facto standard, the
+ *              logic is kept in order yest to trigger regressions. And keeping
  *              this logic should be taken care by the caller of this function.
  *
  ******************************************************************************/
@@ -476,7 +476,7 @@ acpi_status acpi_ev_initialize_region(union acpi_operand_object *region_obj)
 	union acpi_operand_object *handler_obj;
 	union acpi_operand_object *obj_desc;
 	acpi_adr_space_type space_id;
-	struct acpi_namespace_node *node;
+	struct acpi_namespace_yesde *yesde;
 
 	ACPI_FUNCTION_TRACE(ev_initialize_region);
 
@@ -490,34 +490,34 @@ acpi_status acpi_ev_initialize_region(union acpi_operand_object *region_obj)
 
 	region_obj->common.flags |= AOPOBJ_OBJECT_INITIALIZED;
 
-	node = region_obj->region.node->parent;
+	yesde = region_obj->region.yesde->parent;
 	space_id = region_obj->region.space_id;
 
 	/*
-	 * The following loop depends upon the root Node having no parent
-	 * ie: acpi_gbl_root_node->Parent being set to NULL
+	 * The following loop depends upon the root Node having yes parent
+	 * ie: acpi_gbl_root_yesde->Parent being set to NULL
 	 */
-	while (node) {
+	while (yesde) {
 
 		/* Check to see if a handler exists */
 
 		handler_obj = NULL;
-		obj_desc = acpi_ns_get_attached_object(node);
+		obj_desc = acpi_ns_get_attached_object(yesde);
 		if (obj_desc) {
 
 			/* Can only be a handler if the object exists */
 
-			switch (node->type) {
+			switch (yesde->type) {
 			case ACPI_TYPE_DEVICE:
 			case ACPI_TYPE_PROCESSOR:
 			case ACPI_TYPE_THERMAL:
 
-				handler_obj = obj_desc->common_notify.handler;
+				handler_obj = obj_desc->common_yestify.handler;
 				break;
 
 			default:
 
-				/* Ignore other objects */
+				/* Igyesre other objects */
 
 				break;
 			}
@@ -548,13 +548,13 @@ acpi_status acpi_ev_initialize_region(union acpi_operand_object *region_obj)
 			}
 		}
 
-		/* This node does not have the handler we need; Pop up one level */
+		/* This yesde does yest have the handler we need; Pop up one level */
 
-		node = node->parent;
+		yesde = yesde->parent;
 	}
 
 	/*
-	 * If we get here, there is no handler for this region. This is not
+	 * If we get here, there is yes handler for this region. This is yest
 	 * fatal because many regions get created before a handler is installed
 	 * for said region.
 	 */

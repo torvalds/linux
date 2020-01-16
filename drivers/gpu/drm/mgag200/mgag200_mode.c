@@ -819,7 +819,7 @@ static void mga_g200wb_commit(struct drm_crtc *crtc)
 /*
    This is how the framebuffer base address is stored in g200 cards:
    * Assume @offset is the gpu_addr variable of the framebuffer object
-   * Then addr is the number of _pixels_ (not bytes) from the start of
+   * Then addr is the number of _pixels_ (yest bytes) from the start of
      VRAM to the first pixel we want to display. (divided by 2 for 32bit
      framebuffers)
    * addr is stored in the CRTCEXT0, CRTCC and CRTCD registers
@@ -1311,7 +1311,7 @@ static void mga_crtc_dpms(struct drm_crtc *crtc, int mode)
 /*
  * This is called before a mode is programmed. A typical use might be to
  * enable DPMS during the programming to avoid seeing intermediate stages,
- * but that's not relevant to us
+ * but that's yest relevant to us
  */
 static void mga_crtc_prepare(struct drm_crtc *crtc)
 {

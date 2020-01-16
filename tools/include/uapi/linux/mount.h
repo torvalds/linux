@@ -9,29 +9,29 @@
  * equivalent instead.
  */
 #define MS_RDONLY	 1	/* Mount read-only */
-#define MS_NOSUID	 2	/* Ignore suid and sgid bits */
+#define MS_NOSUID	 2	/* Igyesre suid and sgid bits */
 #define MS_NODEV	 4	/* Disallow access to device special files */
 #define MS_NOEXEC	 8	/* Disallow program execution */
 #define MS_SYNCHRONOUS	16	/* Writes are synced at once */
 #define MS_REMOUNT	32	/* Alter flags of a mounted FS */
 #define MS_MANDLOCK	64	/* Allow mandatory locks on an FS */
-#define MS_DIRSYNC	128	/* Directory modifications are synchronous */
-#define MS_NOATIME	1024	/* Do not update access times. */
-#define MS_NODIRATIME	2048	/* Do not update directory access times */
+#define MS_DIRSYNC	128	/* Directory modifications are synchroyesus */
+#define MS_NOATIME	1024	/* Do yest update access times. */
+#define MS_NODIRATIME	2048	/* Do yest update directory access times */
 #define MS_BIND		4096
 #define MS_MOVE		8192
 #define MS_REC		16384
 #define MS_VERBOSE	32768	/* War is peace. Verbosity is silence.
 				   MS_VERBOSE is deprecated. */
 #define MS_SILENT	32768
-#define MS_POSIXACL	(1<<16)	/* VFS does not apply the umask */
+#define MS_POSIXACL	(1<<16)	/* VFS does yest apply the umask */
 #define MS_UNBINDABLE	(1<<17)	/* change to unbindable */
 #define MS_PRIVATE	(1<<18)	/* change to private */
 #define MS_SLAVE	(1<<19)	/* change to slave */
 #define MS_SHARED	(1<<20)	/* change to shared */
 #define MS_RELATIME	(1<<21)	/* Update atime relative to mtime/ctime. */
 #define MS_KERNMOUNT	(1<<22) /* this is a kern_mount call */
-#define MS_I_VERSION	(1<<23) /* Update inode I_version field */
+#define MS_I_VERSION	(1<<23) /* Update iyesde I_version field */
 #define MS_STRICTATIME	(1<<24) /* Always perform atime updates */
 #define MS_LAZYTIME	(1<<25) /* Update the on-disk [acm]times lazily */
 
@@ -89,7 +89,7 @@
  * The type of fsconfig() call made.
  */
 enum fsconfig_command {
-	FSCONFIG_SET_FLAG	= 0,	/* Set parameter, supplying no value */
+	FSCONFIG_SET_FLAG	= 0,	/* Set parameter, supplying yes value */
 	FSCONFIG_SET_STRING	= 1,	/* Set parameter, supplying a string value */
 	FSCONFIG_SET_BINARY	= 2,	/* Set parameter, supplying a binary blob value */
 	FSCONFIG_SET_PATH	= 3,	/* Set parameter, supplying an object by path */
@@ -108,13 +108,13 @@ enum fsconfig_command {
  * Mount attributes.
  */
 #define MOUNT_ATTR_RDONLY	0x00000001 /* Mount read-only */
-#define MOUNT_ATTR_NOSUID	0x00000002 /* Ignore suid and sgid bits */
+#define MOUNT_ATTR_NOSUID	0x00000002 /* Igyesre suid and sgid bits */
 #define MOUNT_ATTR_NODEV	0x00000004 /* Disallow access to device special files */
 #define MOUNT_ATTR_NOEXEC	0x00000008 /* Disallow program execution */
 #define MOUNT_ATTR__ATIME	0x00000070 /* Setting on how atime should be updated */
 #define MOUNT_ATTR_RELATIME	0x00000000 /* - Update atime relative to mtime/ctime. */
-#define MOUNT_ATTR_NOATIME	0x00000010 /* - Do not update access times. */
+#define MOUNT_ATTR_NOATIME	0x00000010 /* - Do yest update access times. */
 #define MOUNT_ATTR_STRICTATIME	0x00000020 /* - Always perform atime updates */
-#define MOUNT_ATTR_NODIRATIME	0x00000080 /* Do not update directory access times */
+#define MOUNT_ATTR_NODIRATIME	0x00000080 /* Do yest update directory access times */
 
 #endif /* _UAPI_LINUX_MOUNT_H */

@@ -52,12 +52,12 @@ struct ath10k_dump_file_data {
 
 	__le32 chip_id;
 
-	/* 0 for now, in place for later hardware */
+	/* 0 for yesw, in place for later hardware */
 	__le32 bus_type;
 
 	__le32 target_version;
 	__le32 fw_version_major;
-	__le32 fw_version_minor;
+	__le32 fw_version_miyesr;
 	__le32 fw_version_release;
 	__le32 fw_version_build;
 	__le32 phy_capability;
@@ -75,7 +75,7 @@ struct ath10k_dump_file_data {
 	/* time-of-day stamp */
 	__le64 tv_sec;
 
-	/* time-of-day stamp, nano-seconds */
+	/* time-of-day stamp, nayes-seconds */
 	__le64 tv_nsec;
 
 	/* LINUX_VERSION_CODE */
@@ -97,13 +97,13 @@ struct ath10k_dump_ram_data_hdr {
 
 	__le32 start;
 
-	/* length of payload data, not including this header */
+	/* length of payload data, yest including this header */
 	__le32 length;
 
 	u8 data[0];
 };
 
-/* magic number to fill the holes not copied due to sections in regions */
+/* magic number to fill the holes yest copied due to sections in regions */
 #define ATH10K_MAGIC_NOT_COPIED		0xAA
 
 /* part of user space ABI */
@@ -118,7 +118,7 @@ enum ath10k_mem_region_type {
 	ATH10K_MEM_REGION_TYPE_MSA	= 8,
 };
 
-/* Define a section of the region which should be copied. As not all parts
+/* Define a section of the region which should be copied. As yest all parts
  * of the memory is possible to copy, for example some of the registers can
  * be like that, sections can be used to define what is safe to copy.
  *
@@ -133,7 +133,7 @@ struct ath10k_mem_section {
 };
 
 /* One region of a memory layout. If the sections field is null entire
- * region is copied. If sections is non-null only the areas specified in
+ * region is copied. If sections is yesn-null only the areas specified in
  * sections are copied and rest of the areas are filled with
  * ATH10K_MAGIC_NOT_COPIED.
  */

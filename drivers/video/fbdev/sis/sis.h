@@ -545,13 +545,13 @@ struct sis_video_info {
 	int		sisfb_fstn;
 	int		sisfb_tvplug;
 	int		sisfb_tvstd;
-	int		sisfb_nocrt2rate;
+	int		sisfb_yescrt2rate;
 
 	u32		heapstart;		/* offset  */
 	void __iomem	*sisfb_heap_start;	/* address */
 	void __iomem	*sisfb_heap_end;	/* address */
 	u32		sisfb_heap_size;
-	int		havenoheap;
+	int		haveyesheap;
 
 	struct SIS_HEAP	sisfb_heap;		/* This card's vram heap */
 
@@ -575,7 +575,7 @@ struct sis_video_info {
 	int		cmdqueuelength;		/* Current (for accel) */
 	u32		cmdQueueSize;		/* Total size in KB */
 
-	spinlock_t	lockaccel;		/* Do not use outside of kernel! */
+	spinlock_t	lockaccel;		/* Do yest use outside of kernel! */
 
 	unsigned int	pcibus;
 	unsigned int	pcislot;
@@ -607,7 +607,7 @@ struct sis_video_info {
 
 	unsigned int	current_base;
 
-	u8		mode_no;
+	u8		mode_yes;
 	u8		rate_idx;
 	int		modechanged;
 	unsigned char	modeprechange;
@@ -693,11 +693,11 @@ extern void		SiS_SetEnableFstn(struct SiS_Private *SiS_Pr, int enable);
 
 extern bool		SiSDetermineROMLayout661(struct SiS_Private *SiS_Pr);
 
-extern bool		sisfb_gettotalfrommode(struct SiS_Private *SiS_Pr, unsigned char modeno,
+extern bool		sisfb_gettotalfrommode(struct SiS_Private *SiS_Pr, unsigned char modeyes,
 				int *htotal, int *vtotal, unsigned char rateindex);
 extern int		sisfb_mode_rate_to_dclock(struct SiS_Private *SiS_Pr,
-				unsigned char modeno, unsigned char rateindex);
-extern int		sisfb_mode_rate_to_ddata(struct SiS_Private *SiS_Pr, unsigned char modeno,
+				unsigned char modeyes, unsigned char rateindex);
+extern int		sisfb_mode_rate_to_ddata(struct SiS_Private *SiS_Pr, unsigned char modeyes,
 				unsigned char rateindex, struct fb_var_screeninfo *var);
 
 

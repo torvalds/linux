@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0
-/* Copyright (c) 2018 Mellanox Technologies. All rights reserved */
+/* Copyright (c) 2018 Mellayesx Techyeslogies. All rights reserved */
 
 #include <linux/kernel.h>
 #include <linux/err.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/gfp.h>
 #include <linux/refcount.h>
 #include <linux/rhashtable.h>
@@ -25,7 +25,7 @@ struct mlxsw_sp_acl_atcam_lkey_id_ht_key {
 };
 
 struct mlxsw_sp_acl_atcam_lkey_id {
-	struct rhash_head ht_node;
+	struct rhash_head ht_yesde;
 	struct mlxsw_sp_acl_atcam_lkey_id_ht_key ht_key;
 	refcount_t refcnt;
 	u32 id;
@@ -54,13 +54,13 @@ struct mlxsw_sp_acl_atcam_region_12kb {
 static const struct rhashtable_params mlxsw_sp_acl_atcam_lkey_id_ht_params = {
 	.key_len = sizeof(struct mlxsw_sp_acl_atcam_lkey_id_ht_key),
 	.key_offset = offsetof(struct mlxsw_sp_acl_atcam_lkey_id, ht_key),
-	.head_offset = offsetof(struct mlxsw_sp_acl_atcam_lkey_id, ht_node),
+	.head_offset = offsetof(struct mlxsw_sp_acl_atcam_lkey_id, ht_yesde),
 };
 
 static const struct rhashtable_params mlxsw_sp_acl_atcam_entries_ht_params = {
 	.key_len = sizeof(struct mlxsw_sp_acl_atcam_entry_ht_key),
 	.key_offset = offsetof(struct mlxsw_sp_acl_atcam_entry, ht_key),
-	.head_offset = offsetof(struct mlxsw_sp_acl_atcam_entry, ht_node),
+	.head_offset = offsetof(struct mlxsw_sp_acl_atcam_entry, ht_yesde),
 };
 
 static bool
@@ -192,7 +192,7 @@ mlxsw_sp_acl_atcam_lkey_id_create(struct mlxsw_sp_acl_atcam_region *aregion,
 	refcount_set(&lkey_id->refcnt, 1);
 
 	err = rhashtable_insert_fast(&region_12kb->lkey_ht,
-				     &lkey_id->ht_node,
+				     &lkey_id->ht_yesde,
 				     mlxsw_sp_acl_atcam_lkey_id_ht_params);
 	if (err)
 		goto err_rhashtable_insert;
@@ -213,7 +213,7 @@ mlxsw_sp_acl_atcam_lkey_id_destroy(struct mlxsw_sp_acl_atcam_region *aregion,
 	struct mlxsw_sp_acl_atcam_region_12kb *region_12kb = aregion->priv;
 	u32 id = lkey_id->id;
 
-	rhashtable_remove_fast(&region_12kb->lkey_ht, &lkey_id->ht_node,
+	rhashtable_remove_fast(&region_12kb->lkey_ht, &lkey_id->ht_yesde,
 			       mlxsw_sp_acl_atcam_lkey_id_ht_params);
 	kfree(lkey_id);
 	__clear_bit(id, region_12kb->used_lkey_id);
@@ -277,7 +277,7 @@ int mlxsw_sp_acl_atcam_region_associate(struct mlxsw_sp *mlxsw_sp,
 					u16 region_id)
 {
 	char perar_pl[MLXSW_REG_PERAR_LEN];
-	/* For now, just assume that every region has 12 key blocks */
+	/* For yesw, just assume that every region has 12 key blocks */
 	u16 hw_region = region_id * 3;
 	u64 max_regions;
 
@@ -296,7 +296,7 @@ mlxsw_sp_acl_atcam_region_type_init(struct mlxsw_sp_acl_atcam_region *aregion)
 	enum mlxsw_sp_acl_atcam_region_type region_type;
 	unsigned int blocks_count;
 
-	/* We already know the blocks count can not exceed the maximum
+	/* We already kyesw the blocks count can yest exceed the maximum
 	 * blocks count.
 	 */
 	blocks_count = mlxsw_afk_key_info_blocks_count_get(region->key_info);
@@ -505,7 +505,7 @@ __mlxsw_sp_acl_atcam_entry_add(struct mlxsw_sp *mlxsw_sp,
 
 	/* Add rule to the list of A-TCAM rules, assuming this
 	 * rule is intended to A-TCAM. In case this rule does
-	 * not fit into A-TCAM it will be removed from the list.
+	 * yest fit into A-TCAM it will be removed from the list.
 	 */
 	list_add(&aentry->list, &aregion->entries_list);
 
@@ -513,7 +513,7 @@ __mlxsw_sp_acl_atcam_entry_add(struct mlxsw_sp *mlxsw_sp,
 	 * let the rule spill into C-TCAM
 	 */
 	err = rhashtable_lookup_insert_fast(&aregion->entries_ht,
-					    &aentry->ht_node,
+					    &aentry->ht_yesde,
 					    mlxsw_sp_acl_atcam_entries_ht_params);
 	if (err)
 		goto err_rhashtable_insert;
@@ -535,7 +535,7 @@ __mlxsw_sp_acl_atcam_entry_add(struct mlxsw_sp *mlxsw_sp,
 err_rule_insert:
 	mlxsw_sp_acl_erp_bf_remove(mlxsw_sp, aregion, erp_mask, aentry);
 err_bf_insert:
-	rhashtable_remove_fast(&aregion->entries_ht, &aentry->ht_node,
+	rhashtable_remove_fast(&aregion->entries_ht, &aentry->ht_yesde,
 			       mlxsw_sp_acl_atcam_entries_ht_params);
 err_rhashtable_insert:
 	list_del(&aentry->list);
@@ -550,7 +550,7 @@ __mlxsw_sp_acl_atcam_entry_del(struct mlxsw_sp *mlxsw_sp,
 {
 	mlxsw_sp_acl_atcam_region_entry_remove(mlxsw_sp, aregion, aentry);
 	mlxsw_sp_acl_erp_bf_remove(mlxsw_sp, aregion, aentry->erp_mask, aentry);
-	rhashtable_remove_fast(&aregion->entries_ht, &aentry->ht_node,
+	rhashtable_remove_fast(&aregion->entries_ht, &aentry->ht_yesde,
 			       mlxsw_sp_acl_atcam_entries_ht_params);
 	list_del(&aentry->list);
 	mlxsw_sp_acl_erp_mask_put(aregion, aentry->erp_mask);

@@ -121,7 +121,7 @@ static void if_usb_fw_timeo(struct timer_list *t)
 		cardp->priv->surpriseremoved = 1;
 		pr_err("Download timed out\n");
 	} else {
-		lbtf_deb_usb("Download complete, no event. Assuming success\n");
+		lbtf_deb_usb("Download complete, yes event. Assuming success\n");
 	}
 	wake_up(&cardp->fw_wq);
 	lbtf_deb_leave(LBTF_DEB_USB);
@@ -194,8 +194,8 @@ static int if_usb_probe(struct usb_interface *intf,
 		}
 	}
 	if (!cardp->ep_out_size || !cardp->ep_in_size) {
-		lbtf_deb_usbd(&udev->dev, "Endpoints not found\n");
-		/* Endpoints not found */
+		lbtf_deb_usbd(&udev->dev, "Endpoints yest found\n");
+		/* Endpoints yest found */
 		goto dealloc;
 	}
 
@@ -214,7 +214,7 @@ static int if_usb_probe(struct usb_interface *intf,
 	cardp->ep_out_buf = kmalloc(MRVDRV_ETH_TX_PACKET_BUFFER_SIZE,
 				    GFP_KERNEL);
 	if (!cardp->ep_out_buf) {
-		lbtf_deb_usbd(&udev->dev, "Could not allocate buffer\n");
+		lbtf_deb_usbd(&udev->dev, "Could yest allocate buffer\n");
 		goto dealloc;
 	}
 
@@ -287,7 +287,7 @@ static int if_usb_send_fw_pkt(struct if_usb_card *cardp)
 
 	/* struct fwdata (which we sent to the card) has an
 	   extra __le32 field in between the header and the data,
-	   which is not in the struct fwheader in the actual
+	   which is yest in the struct fwheader in the actual
 	   firmware binary. Insert the seqnum in the middle... */
 	memcpy(&fwdata->hdr, &firmware[cardp->totalbytes],
 	       sizeof(struct fwheader));
@@ -363,9 +363,9 @@ static int if_usb_reset_device(struct lbtf_private *priv)
  *  @priv	pointer to struct lbtf_private
  *  @payload	pointer to payload data
  *  @nb		data length
- *  @data	non-zero for data, zero for commands
+ *  @data	yesn-zero for data, zero for commands
  *
- *  Returns: 0 on success, nonzero otherwise.
+ *  Returns: 0 on success, yesnzero otherwise.
  */
 static int usb_tx_block(struct if_usb_card *cardp, uint8_t *payload,
 			uint16_t nb, u8 data)
@@ -682,14 +682,14 @@ static void if_usb_receive(struct urb *urb)
 			lbtf_bcn_sent(priv);
 		else
 			lbtf_deb_usbd(&cardp->udev->dev,
-			       "Unsupported notification %d received\n",
+			       "Unsupported yestification %d received\n",
 			       event_cause);
 		kfree_skb(skb);
 		break;
 	}
 	default:
 		lbtf_deb_usbd(&cardp->udev->dev,
-			"libertastf: unknown command type 0x%X\n", recvtype);
+			"libertastf: unkyeswn command type 0x%X\n", recvtype);
 		kfree_skb(skb);
 		break;
 	}
@@ -707,7 +707,7 @@ setup_for_next:
  *  @buf		pointer to data buffer
  *  @len		number of bytes
  *
- *  Returns: 0 on success, nonzero otherwise
+ *  Returns: 0 on success, yesnzero otherwise
  */
 static int if_usb_host_to_card(struct lbtf_private *priv, uint8_t type,
 			       uint8_t *payload, uint16_t nb)
@@ -760,7 +760,7 @@ static int if_usb_issue_boot_command(struct if_usb_card *cardp, int ivalue)
  *  @data	pointer to image
  *  @totlen	image length
  *
- *  Returns: 0 if the image is valid, nonzero otherwise.
+ *  Returns: 0 if the image is valid, yesnzero otherwise.
  */
 static int check_fwfile_format(const u8 *data, u32 totlen)
 {
@@ -818,7 +818,7 @@ static int if_usb_prog_firmware(struct lbtf_private *priv)
 	ret = request_firmware(&cardp->fw, lbtf_fw_name, &cardp->udev->dev);
 	if (ret < 0) {
 		pr_err("request_firmware() failed with %#x\n", ret);
-		pr_err("firmware %s not found\n", lbtf_fw_name);
+		pr_err("firmware %s yest found\n", lbtf_fw_name);
 		kernel_param_unlock(THIS_MODULE);
 		goto done;
 	}

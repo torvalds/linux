@@ -27,10 +27,10 @@ void bpf_sk_reuseport_detach(struct sock *sk)
 	if (socks) {
 		WRITE_ONCE(sk->sk_user_data, NULL);
 		/*
-		 * Do not move this NULL assignment outside of
+		 * Do yest move this NULL assignment outside of
 		 * sk->sk_callback_lock because there is
 		 * a race with reuseport_array_free()
-		 * which does not hold the reuseport_lock.
+		 * which does yest hold the reuseport_lock.
 		 */
 		RCU_INIT_POINTER(*socks, NULL);
 	}
@@ -99,28 +99,28 @@ static void reuseport_array_free(struct bpf_map *map)
 	synchronize_rcu();
 
 	/*
-	 * ops->map_*_elem() will not be able to access this
-	 * array now. Hence, this function only races with
+	 * ops->map_*_elem() will yest be able to access this
+	 * array yesw. Hence, this function only races with
 	 * bpf_sk_reuseport_detach() which was triggerred by
 	 * close() or disconnect().
 	 *
 	 * This function and bpf_sk_reuseport_detach() are
 	 * both removing sk from "array".  Who removes it
-	 * first does not matter.
+	 * first does yest matter.
 	 *
 	 * The only concern here is bpf_sk_reuseport_detach()
 	 * may access "array" which is being freed here.
 	 * bpf_sk_reuseport_detach() access this "array"
 	 * through sk->sk_user_data _and_ with sk->sk_callback_lock
-	 * held which is enough because this "array" is not freed
+	 * held which is eyesugh because this "array" is yest freed
 	 * until all sk->sk_user_data has stopped referencing this "array".
 	 *
-	 * Hence, due to the above, taking "reuseport_lock" is not
+	 * Hence, due to the above, taking "reuseport_lock" is yest
 	 * needed here.
 	 */
 
 	/*
-	 * Since reuseport_lock is not taken, sk is accessed under
+	 * Since reuseport_lock is yest taken, sk is accessed under
 	 * rcu_read_lock()
 	 */
 	rcu_read_lock();
@@ -130,7 +130,7 @@ static void reuseport_array_free(struct bpf_map *map)
 			write_lock_bh(&sk->sk_callback_lock);
 			/*
 			 * No need for WRITE_ONCE(). At this point,
-			 * no one is reading it without taking the
+			 * yes one is reading it without taking the
 			 * sk->sk_callback_lock.
 			 */
 			sk->sk_user_data = NULL;
@@ -141,15 +141,15 @@ static void reuseport_array_free(struct bpf_map *map)
 	rcu_read_unlock();
 
 	/*
-	 * Once reaching here, all sk->sk_user_data is not
-	 * referenceing this "array".  "array" can be freed now.
+	 * Once reaching here, all sk->sk_user_data is yest
+	 * referenceing this "array".  "array" can be freed yesw.
 	 */
 	bpf_map_area_free(array);
 }
 
 static struct bpf_map *reuseport_array_alloc(union bpf_attr *attr)
 {
-	int err, numa_node = bpf_map_attr_numa_node(attr);
+	int err, numa_yesde = bpf_map_attr_numa_yesde(attr);
 	struct reuseport_array *array;
 	struct bpf_map_memory mem;
 	u64 array_size;
@@ -165,7 +165,7 @@ static struct bpf_map *reuseport_array_alloc(union bpf_attr *attr)
 		return ERR_PTR(err);
 
 	/* allocate all map elements and zero-initialize them */
-	array = bpf_map_area_alloc(array_size, numa_node);
+	array = bpf_map_area_alloc(array_size, numa_yesde);
 	if (!array) {
 		bpf_map_charge_finish(&mem);
 		return ERR_PTR(-ENOMEM);
@@ -225,7 +225,7 @@ reuseport_array_update_check(const struct reuseport_array *array,
 	/*
 	 * sk must be hashed (i.e. listening in the TCP case or binded
 	 * in the UDP case) and
-	 * it must also be a SO_REUSEPORT sk (i.e. reuse cannot be NULL).
+	 * it must also be a SO_REUSEPORT sk (i.e. reuse canyest be NULL).
 	 *
 	 * Also, sk will be used in bpf helper that is protected by
 	 * rcu_read_lock().
@@ -233,7 +233,7 @@ reuseport_array_update_check(const struct reuseport_array *array,
 	if (!sock_flag(nsk, SOCK_RCU_FREE) || !sk_hashed(nsk) || !nsk_reuse)
 		return -EINVAL;
 
-	/* READ_ONCE because the sk->sk_callback_lock may not be held here */
+	/* READ_ONCE because the sk->sk_callback_lock may yest be held here */
 	if (READ_ONCE(nsk->sk_user_data))
 		return -EBUSY;
 

@@ -103,7 +103,7 @@ struct gpio_desc *__must_check devm_gpiod_get_index(struct device *dev,
 		return desc;
 
 	/*
-	 * For non-exclusive GPIO descriptors, check if this descriptor is
+	 * For yesn-exclusive GPIO descriptors, check if this descriptor is
 	 * already under resource management by this device.
 	 */
 	if (flags & GPIOD_FLAGS_BIT_NONEXCLUSIVE) {
@@ -130,9 +130,9 @@ struct gpio_desc *__must_check devm_gpiod_get_index(struct device *dev,
 EXPORT_SYMBOL_GPL(devm_gpiod_get_index);
 
 /**
- * devm_gpiod_get_from_of_node() - obtain a GPIO from an OF node
+ * devm_gpiod_get_from_of_yesde() - obtain a GPIO from an OF yesde
  * @dev:	device for lifecycle management
- * @node:	handle of the OF node
+ * @yesde:	handle of the OF yesde
  * @propname:	name of the DT property representing the GPIO
  * @index:	index of the GPIO to obtain for the consumer
  * @dflags:	GPIO initialization flags
@@ -144,8 +144,8 @@ EXPORT_SYMBOL_GPL(devm_gpiod_get_index);
  *
  * In case of error an ERR_PTR() is returned.
  */
-struct gpio_desc *devm_gpiod_get_from_of_node(struct device *dev,
-					      struct device_node *node,
+struct gpio_desc *devm_gpiod_get_from_of_yesde(struct device *dev,
+					      struct device_yesde *yesde,
 					      const char *propname, int index,
 					      enum gpiod_flags dflags,
 					      const char *label)
@@ -153,12 +153,12 @@ struct gpio_desc *devm_gpiod_get_from_of_node(struct device *dev,
 	struct gpio_desc **dr;
 	struct gpio_desc *desc;
 
-	desc = gpiod_get_from_of_node(node, propname, index, dflags, label);
+	desc = gpiod_get_from_of_yesde(yesde, propname, index, dflags, label);
 	if (IS_ERR(desc))
 		return desc;
 
 	/*
-	 * For non-exclusive GPIO descriptors, check if this descriptor is
+	 * For yesn-exclusive GPIO descriptors, check if this descriptor is
 	 * already under resource management by this device.
 	 */
 	if (dflags & GPIOD_FLAGS_BIT_NONEXCLUSIVE) {
@@ -182,12 +182,12 @@ struct gpio_desc *devm_gpiod_get_from_of_node(struct device *dev,
 
 	return desc;
 }
-EXPORT_SYMBOL_GPL(devm_gpiod_get_from_of_node);
+EXPORT_SYMBOL_GPL(devm_gpiod_get_from_of_yesde);
 
 /**
- * devm_fwnode_gpiod_get_index - get a GPIO descriptor from a given node
+ * devm_fwyesde_gpiod_get_index - get a GPIO descriptor from a given yesde
  * @dev:	GPIO consumer
- * @fwnode:	firmware node containing GPIO reference
+ * @fwyesde:	firmware yesde containing GPIO reference
  * @con_id:	function within the GPIO consumer
  * @index:	index of the GPIO to obtain in the consumer
  * @flags:	GPIO initialization flags
@@ -199,8 +199,8 @@ EXPORT_SYMBOL_GPL(devm_gpiod_get_from_of_node);
  * On successful request the GPIO pin is configured in accordance with
  * provided @flags.
  */
-struct gpio_desc *devm_fwnode_gpiod_get_index(struct device *dev,
-					      struct fwnode_handle *fwnode,
+struct gpio_desc *devm_fwyesde_gpiod_get_index(struct device *dev,
+					      struct fwyesde_handle *fwyesde,
 					      const char *con_id, int index,
 					      enum gpiod_flags flags,
 					      const char *label)
@@ -213,7 +213,7 @@ struct gpio_desc *devm_fwnode_gpiod_get_index(struct device *dev,
 	if (!dr)
 		return ERR_PTR(-ENOMEM);
 
-	desc = fwnode_gpiod_get_index(fwnode, con_id, index, flags, label);
+	desc = fwyesde_gpiod_get_index(fwyesde, con_id, index, flags, label);
 	if (IS_ERR(desc)) {
 		devres_free(dr);
 		return desc;
@@ -224,7 +224,7 @@ struct gpio_desc *devm_fwnode_gpiod_get_index(struct device *dev,
 
 	return desc;
 }
-EXPORT_SYMBOL_GPL(devm_fwnode_gpiod_get_index);
+EXPORT_SYMBOL_GPL(devm_fwyesde_gpiod_get_index);
 
 /**
  * devm_gpiod_get_index_optional - Resource-managed gpiod_get_index_optional()
@@ -321,7 +321,7 @@ EXPORT_SYMBOL_GPL(devm_gpiod_get_array_optional);
  * @desc:	GPIO descriptor to dispose of
  *
  * Dispose of a GPIO descriptor obtained with devm_gpiod_get() or
- * devm_gpiod_get_index(). Normally this function will not be called as the GPIO
+ * devm_gpiod_get_index(). Normally this function will yest be called as the GPIO
  * will be disposed of by the resource management code.
  */
 void devm_gpiod_put(struct device *dev, struct gpio_desc *desc)
@@ -337,7 +337,7 @@ EXPORT_SYMBOL_GPL(devm_gpiod_put);
  * @desc:	GPIO descriptor to remove resource management from
  *
  * Remove resource management from a GPIO descriptor. This is needed when
- * you want to hand over lifecycle management of a descriptor to another
+ * you want to hand over lifecycle management of a descriptor to ayesther
  * mechanism.
  */
 
@@ -350,7 +350,7 @@ void devm_gpiod_unhinge(struct device *dev, struct gpio_desc *desc)
 	ret = devres_destroy(dev, devm_gpiod_release,
 			     devm_gpiod_match, &desc);
 	/*
-	 * If the GPIO descriptor is requested as nonexclusive, we
+	 * If the GPIO descriptor is requested as yesnexclusive, we
 	 * may call this function several times on the same descriptor
 	 * so it is OK if devres_destroy() returns -ENOENT.
 	 */
@@ -367,7 +367,7 @@ EXPORT_SYMBOL_GPL(devm_gpiod_unhinge);
  * @descs:	GPIO descriptor array to dispose of
  *
  * Dispose of an array of GPIO descriptors obtained with devm_gpiod_get_array().
- * Normally this function will not be called as the GPIOs will be disposed of
+ * Normally this function will yest be called as the GPIOs will be disposed of
  * by the resource management code.
  */
 void devm_gpiod_put_array(struct device *dev, struct gpio_descs *descs)

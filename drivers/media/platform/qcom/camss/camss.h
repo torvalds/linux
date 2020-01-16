@@ -70,7 +70,7 @@ enum camss_version {
 struct camss {
 	enum camss_version version;
 	struct v4l2_device v4l2_dev;
-	struct v4l2_async_notifier notifier;
+	struct v4l2_async_yestifier yestifier;
 	struct media_device media_dev;
 	struct device *dev;
 	int csiphy_num;

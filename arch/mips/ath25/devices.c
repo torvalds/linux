@@ -60,7 +60,7 @@ static const char * const soc_type_strings[] = {
 	[ATH25_SOC_AR2316] = "Atheros AR2316",
 	[ATH25_SOC_AR2317] = "Atheros AR2317",
 	[ATH25_SOC_AR2318] = "Atheros AR2318",
-	[ATH25_SOC_UNKNOWN] = "Atheros (unknown)",
+	[ATH25_SOC_UNKNOWN] = "Atheros (unkyeswn)",
 };
 
 const char *get_system_type(void)

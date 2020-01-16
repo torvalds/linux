@@ -122,7 +122,7 @@ struct scmi_chan_info {
  * @rx_idr: IDR object to map protocol id to Rx channel info pointer
  * @protocols_imp: List of protocols implemented, currently maximum of
  *	MAX_PROTOCOLS_IMP elements allocated by the base protocol
- * @node: List head
+ * @yesde: List head
  * @users: Number of users of this instance
  */
 struct scmi_info {
@@ -134,7 +134,7 @@ struct scmi_info {
 	struct idr tx_idr;
 	struct idr rx_idr;
 	u8 *protocols_imp;
-	struct list_head node;
+	struct list_head yesde;
 	int users;
 };
 
@@ -174,10 +174,10 @@ static const int scmi_linux_errmap[] = {
 	-EPROTO,		/* SCMI_ERR_PROTOCOL */
 };
 
-static inline int scmi_to_linux_errno(int errno)
+static inline int scmi_to_linux_erryes(int erryes)
 {
-	if (errno < SCMI_SUCCESS && errno > SCMI_ERR_MAX)
-		return scmi_linux_errmap[-errno];
+	if (erryes < SCMI_SUCCESS && erryes > SCMI_ERR_MAX)
+		return scmi_linux_errmap[-erryes];
 	return -EIO;
 }
 
@@ -248,7 +248,7 @@ static void scmi_tx_prepare(struct mbox_client *cl, void *m)
 	struct scmi_shared_mem __iomem *mem = cinfo->payload;
 
 	/*
-	 * Ideally channel must be free by now unless OS timeout last
+	 * Ideally channel must be free by yesw unless OS timeout last
 	 * request and platform continued to process the same, wait
 	 * until it releases the shared memory, otherwise we may endup
 	 * overwriting its response with new message payload or vice-versa
@@ -323,7 +323,7 @@ __scmi_xfer_put(struct scmi_xfers_info *minfo, struct scmi_xfer *xfer)
 
 	/*
 	 * Keep the locked section as small as possible
-	 * NOTE: we might escape with smp_mb and no lock here..
+	 * NOTE: we might escape with smp_mb and yes lock here..
 	 * but just be conservative and symmetric.
 	 */
 	spin_lock_irqsave(&minfo->xfer_lock, flags);
@@ -360,11 +360,11 @@ static void scmi_rx_callback(struct mbox_client *cl, void *m)
 	xfer_id = MSG_XTRACT_TOKEN(msg_hdr);
 
 	if (msg_type == MSG_TYPE_NOTIFICATION)
-		return; /* Notifications not yet supported */
+		return; /* Notifications yest yet supported */
 
 	/* Are we even expecting this? */
 	if (!test_bit(xfer_id, minfo->xfer_alloc_table)) {
-		dev_err(dev, "message for %d is not expected!\n", xfer_id);
+		dev_err(dev, "message for %d is yest expected!\n", xfer_id);
 		return;
 	}
 
@@ -409,7 +409,7 @@ scmi_xfer_poll_done(const struct scmi_chan_info *cinfo, struct scmi_xfer *xfer)
 
 #define SCMI_MAX_POLL_TO_NS	(100 * NSEC_PER_USEC)
 
-static bool scmi_xfer_done_no_timeout(const struct scmi_chan_info *cinfo,
+static bool scmi_xfer_done_yes_timeout(const struct scmi_chan_info *cinfo,
 				      struct scmi_xfer *xfer, ktime_t stop)
 {
 	ktime_t __cur = ktime_get();
@@ -423,7 +423,7 @@ static bool scmi_xfer_done_no_timeout(const struct scmi_chan_info *cinfo,
  * @handle: Pointer to SCMI entity handle
  * @xfer: Transfer to initiate and wait for response
  *
- * Return: -ETIMEDOUT in case of no response, if transmit error,
+ * Return: -ETIMEDOUT in case of yes response, if transmit error,
  *	return corresponding error, else if all goes well,
  *	return 0.
  */
@@ -445,13 +445,13 @@ int scmi_do_xfer(const struct scmi_handle *handle, struct scmi_xfer *xfer)
 		return ret;
 	}
 
-	/* mbox_send_message returns non-negative value on success, so reset */
+	/* mbox_send_message returns yesn-negative value on success, so reset */
 	ret = 0;
 
 	if (xfer->hdr.poll_completion) {
 		ktime_t stop = ktime_add_ns(ktime_get(), SCMI_MAX_POLL_TO_NS);
 
-		spin_until_cond(scmi_xfer_done_no_timeout(cinfo, xfer, stop));
+		spin_until_cond(scmi_xfer_done_yes_timeout(cinfo, xfer, stop));
 
 		if (ktime_before(ktime_get(), stop))
 			scmi_fetch_response(xfer, cinfo->payload);
@@ -468,10 +468,10 @@ int scmi_do_xfer(const struct scmi_handle *handle, struct scmi_xfer *xfer)
 	}
 
 	if (!ret && xfer->hdr.status)
-		ret = scmi_to_linux_errno(xfer->hdr.status);
+		ret = scmi_to_linux_erryes(xfer->hdr.status);
 
 	/*
-	 * NOTE: we might prefer not to need the mailbox ticker to manage the
+	 * NOTE: we might prefer yest to need the mailbox ticker to manage the
 	 * transfer queueing since the protocol layer queues things by itself.
 	 * Unfortunately, we have to kick the mailbox framework after we have
 	 * received our message.
@@ -490,7 +490,7 @@ int scmi_do_xfer(const struct scmi_handle *handle, struct scmi_xfer *xfer)
  * @handle: Pointer to SCMI entity handle
  * @xfer: Transfer to initiate and wait for response
  *
- * Return: -ETIMEDOUT in case of no delayed response, if transmit error,
+ * Return: -ETIMEDOUT in case of yes delayed response, if transmit error,
  *	return corresponding error, else if all goes well, return 0.
  */
 int scmi_do_xfer_with_response(const struct scmi_handle *handle,
@@ -618,7 +618,7 @@ scmi_is_protocol_implemented(const struct scmi_handle *handle, u8 prot_id)
  *
  * @dev: pointer to device for which we want SCMI handle
  *
- * NOTE: The function does not track individual clients of the framework
+ * NOTE: The function does yest track individual clients of the framework
  * and is expected to be maintained by caller of SCMI protocol library.
  * scmi_handle_put must be balanced with successful scmi_handle_get
  *
@@ -632,7 +632,7 @@ struct scmi_handle *scmi_handle_get(struct device *dev)
 
 	mutex_lock(&scmi_list_mutex);
 	list_for_each(p, &scmi_list) {
-		info = list_entry(p, struct scmi_info, node);
+		info = list_entry(p, struct scmi_info, yesde);
 		if (dev->parent == info->dev) {
 			handle = &info->handle;
 			info->users++;
@@ -649,7 +649,7 @@ struct scmi_handle *scmi_handle_get(struct device *dev)
  *
  * @handle: handle acquired by scmi_handle_get
  *
- * NOTE: The function does not track individual clients of the framework
+ * NOTE: The function does yest track individual clients of the framework
  * and is expected to be maintained by caller of SCMI protocol library.
  * scmi_handle_put must be balanced with successful scmi_handle_get
  *
@@ -680,7 +680,7 @@ static int scmi_xfer_info_init(struct scmi_info *sinfo)
 	const struct scmi_desc *desc = sinfo->desc;
 	struct scmi_xfers_info *info = &sinfo->tx_minfo;
 
-	/* Pre-allocated messages, no more than what hdr.seq can support */
+	/* Pre-allocated messages, yes more than what hdr.seq can support */
 	if (WARN_ON(desc->max_msg >= MSG_TOKEN_MAX)) {
 		dev_err(dev, "Maximum message of %d exceeds supported %ld\n",
 			desc->max_msg, MSG_TOKEN_MAX);
@@ -713,7 +713,7 @@ static int scmi_xfer_info_init(struct scmi_info *sinfo)
 	return 0;
 }
 
-static int scmi_mailbox_check(struct device_node *np, int idx)
+static int scmi_mailbox_check(struct device_yesde *np, int idx)
 {
 	return of_parse_phandle_with_args(np, "mboxes", "#mbox-cells",
 					  idx, NULL);
@@ -725,7 +725,7 @@ static int scmi_mbox_chan_setup(struct scmi_info *info, struct device *dev,
 	int ret, idx;
 	struct resource res;
 	resource_size_t size;
-	struct device_node *shmem, *np = dev->of_node;
+	struct device_yesde *shmem, *np = dev->of_yesde;
 	struct scmi_chan_info *cinfo;
 	struct mbox_client *cl;
 	struct idr *idr;
@@ -737,7 +737,7 @@ static int scmi_mbox_chan_setup(struct scmi_info *info, struct device *dev,
 
 	if (scmi_mailbox_check(np, idx)) {
 		cinfo = idr_find(idr, SCMI_PROTOCOL_BASE);
-		if (unlikely(!cinfo)) /* Possible only if platform has no Rx */
+		if (unlikely(!cinfo)) /* Possible only if platform has yes Rx */
 			return -EINVAL;
 		goto idr_alloc;
 	}
@@ -753,11 +753,11 @@ static int scmi_mbox_chan_setup(struct scmi_info *info, struct device *dev,
 	cl->rx_callback = scmi_rx_callback;
 	cl->tx_prepare = tx ? scmi_tx_prepare : NULL;
 	cl->tx_block = false;
-	cl->knows_txdone = tx;
+	cl->kyesws_txdone = tx;
 
 	shmem = of_parse_phandle(np, "shmem", idx);
 	ret = of_address_to_resource(shmem, 0, &res);
-	of_node_put(shmem);
+	of_yesde_put(shmem);
 	if (ret) {
 		dev_err(dev, "failed to get SCMI %s payload memory\n", desc);
 		return ret;
@@ -795,14 +795,14 @@ scmi_mbox_txrx_setup(struct scmi_info *info, struct device *dev, int prot_id)
 {
 	int ret = scmi_mbox_chan_setup(info, dev, prot_id, true);
 
-	if (!ret) /* Rx is optional, hence no error check */
+	if (!ret) /* Rx is optional, hence yes error check */
 		scmi_mbox_chan_setup(info, dev, prot_id, false);
 
 	return ret;
 }
 
 static inline void
-scmi_create_protocol_device(struct device_node *np, struct scmi_info *info,
+scmi_create_protocol_device(struct device_yesde *np, struct scmi_info *info,
 			    int prot_id)
 {
 	struct scmi_device *sdev;
@@ -820,7 +820,7 @@ scmi_create_protocol_device(struct device_node *np, struct scmi_info *info,
 		return;
 	}
 
-	/* setup handle now as the transport is ready */
+	/* setup handle yesw as the transport is ready */
 	scmi_set_handle(sdev);
 }
 
@@ -831,11 +831,11 @@ static int scmi_probe(struct platform_device *pdev)
 	const struct scmi_desc *desc;
 	struct scmi_info *info;
 	struct device *dev = &pdev->dev;
-	struct device_node *child, *np = dev->of_node;
+	struct device_yesde *child, *np = dev->of_yesde;
 
 	/* Only mailbox method supported, check for the presence of one */
 	if (scmi_mailbox_check(np, 0)) {
-		dev_err(dev, "no mailbox found in %pOF\n", np);
+		dev_err(dev, "yes mailbox found in %pOF\n", np);
 		return -EINVAL;
 	}
 
@@ -849,7 +849,7 @@ static int scmi_probe(struct platform_device *pdev)
 
 	info->dev = dev;
 	info->desc = desc;
-	INIT_LIST_HEAD(&info->node);
+	INIT_LIST_HEAD(&info->yesde);
 
 	ret = scmi_xfer_info_init(info);
 	if (ret)
@@ -874,10 +874,10 @@ static int scmi_probe(struct platform_device *pdev)
 	}
 
 	mutex_lock(&scmi_list_mutex);
-	list_add_tail(&info->node, &scmi_list);
+	list_add_tail(&info->yesde, &scmi_list);
 	mutex_unlock(&scmi_list_mutex);
 
-	for_each_available_child_of_node(np, child) {
+	for_each_available_child_of_yesde(np, child) {
 		u32 prot_id;
 
 		if (of_property_read_u32(child, "reg", &prot_id))
@@ -887,7 +887,7 @@ static int scmi_probe(struct platform_device *pdev)
 			dev_err(dev, "Out of range protocol %d\n", prot_id);
 
 		if (!scmi_is_protocol_implemented(handle, prot_id)) {
-			dev_err(dev, "SCMI protocol %d not implemented\n",
+			dev_err(dev, "SCMI protocol %d yest implemented\n",
 				prot_id);
 			continue;
 		}
@@ -923,13 +923,13 @@ static int scmi_remove(struct platform_device *pdev)
 	if (info->users)
 		ret = -EBUSY;
 	else
-		list_del(&info->node);
+		list_del(&info->yesde);
 	mutex_unlock(&scmi_list_mutex);
 
 	if (ret)
 		return ret;
 
-	/* Safe to free channels since no more users */
+	/* Safe to free channels since yes more users */
 	ret = idr_for_each(idr, scmi_mbox_free_channel, idr);
 	idr_destroy(&info->tx_idr);
 

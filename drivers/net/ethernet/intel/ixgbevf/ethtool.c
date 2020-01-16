@@ -256,7 +256,7 @@ static int ixgbevf_set_ringparam(struct net_device *netdev,
 	new_rx_count = min_t(u32, new_rx_count, IXGBEVF_MAX_RXD);
 	new_rx_count = ALIGN(new_rx_count, IXGBE_REQ_RX_DESCRIPTOR_MULTIPLE);
 
-	/* if nothing to do return success */
+	/* if yesthing to do return success */
 	if ((new_tx_count == adapter->tx_ring_count) &&
 	    (new_rx_count == adapter->rx_ring_count))
 		return 0;
@@ -875,7 +875,7 @@ static int ixgbevf_get_rxnfc(struct net_device *dev, struct ethtool_rxnfc *info,
 		info->data = adapter->num_rx_queues;
 		return 0;
 	default:
-		hw_dbg(&adapter->hw, "Command parameters not supported\n");
+		hw_dbg(&adapter->hw, "Command parameters yest supported\n");
 		return -EOPNOTSUPP;
 	}
 }
@@ -916,7 +916,7 @@ static int ixgbevf_get_rxfh(struct net_device *netdev, u32 *indir, u8 *key,
 				indir[i] = adapter->rss_indir_tbl[i];
 		}
 	} else {
-		/* If neither indirection table nor hash key was requested
+		/* If neither indirection table yesr hash key was requested
 		 *  - just return a success avoiding taking any locks.
 		 */
 		if (!indir && !key)

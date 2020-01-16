@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -53,34 +53,34 @@ static inline void intel_timeline_put(struct intel_timeline *timeline)
 }
 
 static inline int __intel_timeline_sync_set(struct intel_timeline *tl,
-					    u64 context, u32 seqno)
+					    u64 context, u32 seqyes)
 {
-	return i915_syncmap_set(&tl->sync, context, seqno);
+	return i915_syncmap_set(&tl->sync, context, seqyes);
 }
 
 static inline int intel_timeline_sync_set(struct intel_timeline *tl,
 					  const struct dma_fence *fence)
 {
-	return __intel_timeline_sync_set(tl, fence->context, fence->seqno);
+	return __intel_timeline_sync_set(tl, fence->context, fence->seqyes);
 }
 
 static inline bool __intel_timeline_sync_is_later(struct intel_timeline *tl,
-						  u64 context, u32 seqno)
+						  u64 context, u32 seqyes)
 {
-	return i915_syncmap_is_later(&tl->sync, context, seqno);
+	return i915_syncmap_is_later(&tl->sync, context, seqyes);
 }
 
 static inline bool intel_timeline_sync_is_later(struct intel_timeline *tl,
 						const struct dma_fence *fence)
 {
-	return __intel_timeline_sync_is_later(tl, fence->context, fence->seqno);
+	return __intel_timeline_sync_is_later(tl, fence->context, fence->seqyes);
 }
 
 int intel_timeline_pin(struct intel_timeline *tl);
 void intel_timeline_enter(struct intel_timeline *tl);
-int intel_timeline_get_seqno(struct intel_timeline *tl,
+int intel_timeline_get_seqyes(struct intel_timeline *tl,
 			     struct i915_request *rq,
-			     u32 *seqno);
+			     u32 *seqyes);
 void intel_timeline_exit(struct intel_timeline *tl);
 void intel_timeline_unpin(struct intel_timeline *tl);
 

@@ -16,7 +16,7 @@ static enum probes_insn __kprobes t32_check_stack(probes_opcode_t insn,
 {
 	/*
 	 * PROBES_T32_LDMSTM, PROBES_T32_LDRDSTRD and PROBES_T32_LDRSTR
-	 * may get here. Simply mark all normal insns as STACK_USE_NONE.
+	 * may get here. Simply mark all yesrmal insns as STACK_USE_NONE.
 	 */
 	static const union decode_item table[] = {
 
@@ -24,7 +24,7 @@ static enum probes_insn __kprobes t32_check_stack(probes_opcode_t insn,
 		 * First, filter out all ldr insns to make our life easier.
 		 * Following load insns may come here:
 		 * LDM, LDRD, LDR.
-		 * In T32 encoding, bit 20 is enough for distinguishing
+		 * In T32 encoding, bit 20 is eyesugh for distinguishing
 		 * load and store. All load insns have this bit set, when
 		 * all store insns have this bit clear.
 		 */
@@ -39,7 +39,7 @@ static enum probes_insn __kprobes t32_check_stack(probes_opcode_t insn,
 		/* STRB (register)	1111 1000 0000 xxxx xxxx 0000 00xx xxxx */
 		/* STRH (register)	1111 1000 0010 xxxx xxxx 0000 00xx xxxx */
 		/* INVALID INSN		1111 1000 0110 xxxx xxxx 0000 00xx xxxx */
-		/* By Introducing INVALID INSN, bit 21 and 22 can be ignored. */
+		/* By Introducing INVALID INSN, bit 21 and 22 can be igyesred. */
 		DECODE_OR	(0xff9f0fc0, 0xf80d0000),
 		DECODE_CUSTOM	(0xff900fcf, 0xf800000d, STACK_USE_UNKNOWN),
 
@@ -52,13 +52,13 @@ static enum probes_insn __kprobes t32_check_stack(probes_opcode_t insn,
 		/* Only consider U == 0 and P == 1: strx rx, [sp, #-<imm>] */
 		DECODE_CUSTOM	(0xff9f0e00, 0xf80d0c00, STACK_USE_FIXED_0XX),
 
-		/* For STR{,B,H} (imm 12), offset is always positive, so ignore them. */
+		/* For STR{,B,H} (imm 12), offset is always positive, so igyesre them. */
 
 		/*                              P U W | Rn | Rt | Rt2|   imm8  |*/
 		/* STRD (immediate)	1110 1001 01x0 1101 xxxx xxxx xxxx xxxx */
 		/*
 		 * Only consider U == 0 and P == 1.
-		 * Also note that STRD in T32 encoding is special:
+		 * Also yeste that STRD in T32 encoding is special:
 		 * imm = ZeroExtend(imm8:'00', 32)
 		 */
 		DECODE_CUSTOM	(0xffdf0000, 0xe94d0000, STACK_USE_T32STRD),

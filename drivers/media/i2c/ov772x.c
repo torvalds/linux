@@ -5,7 +5,7 @@
  * Copyright (C) 2017 Jacopo Mondi <jacopo+renesas@jmondi.org>
  *
  * Copyright (C) 2008 Renesas Solutions Corp.
- * Kuninori Morimoto <morimoto.kuninori@renesas.com>
+ * Kuniyesri Morimoto <morimoto.kuniyesri@renesas.com>
  *
  * Based on ov7670 and soc_camera_platform driver,
  *
@@ -176,10 +176,10 @@
 #define GAM14       0x8B /* Gamma Curve 14th segment input end point */
 #define GAM15       0x8C /* Gamma Curve 15th segment input end point */
 #define SLOP        0x8D /* Gamma curve highest segment slope */
-#define DNSTH       0x8E /* De-noise threshold */
+#define DNSTH       0x8E /* De-yesise threshold */
 #define EDGE_STRNGT 0x8F /* Edge strength  control when manual mode */
 #define EDGE_TRSHLD 0x90 /* Edge threshold control when manual mode */
-#define DNSOFF      0x91 /* Auto De-noise threshold control */
+#define DNSOFF      0x91 /* Auto De-yesise threshold control */
 #define EDGE_UPPER  0x92 /* Edge strength upper limit when Auto mode */
 #define EDGE_LOWER  0x93 /* Edge strength lower limit when Auto mode */
 #define MTX1        0x94 /* Matrix coefficient 1 */
@@ -363,7 +363,7 @@
 
 /* DSPAUTO (DSP Auto Function ON/OFF Control) */
 #define AWB_ACTRL       0x80 /* AWB auto threshold control */
-#define DENOISE_ACTRL   0x40 /* De-noise auto threshold control */
+#define DENOISE_ACTRL   0x40 /* De-yesise auto threshold control */
 #define EDGE_ACTRL      0x20 /* Edge enhancement auto strength control */
 #define UV_ACTRL        0x10 /* UV adjust auto slope control */
 #define SCAL0_ACTRL     0x08 /* Auto scaling factor control */
@@ -602,8 +602,8 @@ static unsigned int ov772x_select_fps(struct ov772x_priv *priv,
 				      struct v4l2_fract *tpf)
 {
 	unsigned int fps = tpf->numerator ?
-			   tpf->denominator / tpf->numerator :
-			   tpf->denominator;
+			   tpf->deyesminator / tpf->numerator :
+			   tpf->deyesminator;
 	unsigned int best_diff;
 	unsigned int diff;
 	unsigned int idx;
@@ -669,7 +669,7 @@ static int ov772x_set_frame_rate(struct ov772x_priv *priv,
 	 * Choose the PLL_mult and CLKRC_div pair that gives a pixel clock
 	 * closer to the desired one.
 	 *
-	 * The desired pixel clock is calculated using a known frame size
+	 * The desired pixel clock is calculated using a kyeswn frame size
 	 * (blanking included) and FPS.
 	 */
 	best_diff = ~0L;
@@ -710,7 +710,7 @@ static int ov772x_g_frame_interval(struct v4l2_subdev *sd,
 	struct v4l2_fract *tpf = &ival->interval;
 
 	tpf->numerator = 1;
-	tpf->denominator = priv->fps;
+	tpf->deyesminator = priv->fps;
 
 	return 0;
 }
@@ -733,8 +733,8 @@ static int ov772x_s_frame_interval(struct v4l2_subdev *sd,
 	fps = ov772x_select_fps(priv, tpf);
 
 	/*
-	 * If the device is not powered up by the host driver do
-	 * not apply any changes to H/W at this time. Instead
+	 * If the device is yest powered up by the host driver do
+	 * yest apply any changes to H/W at this time. Instead
 	 * the frame rate will be restored right after power-up.
 	 */
 	if (priv->power_count > 0) {
@@ -744,7 +744,7 @@ static int ov772x_s_frame_interval(struct v4l2_subdev *sd,
 	}
 
 	tpf->numerator = 1;
-	tpf->denominator = fps;
+	tpf->deyesminator = fps;
 	priv->fps = fps;
 
 error:
@@ -764,8 +764,8 @@ static int ov772x_s_ctrl(struct v4l2_ctrl *ctrl)
 	/* v4l2_ctrl_lock() locks our own mutex */
 
 	/*
-	 * If the device is not powered up by the host driver do
-	 * not apply any controls to H/W at this time. Instead
+	 * If the device is yest powered up by the host driver do
+	 * yest apply any controls to H/W at this time. Instead
 	 * the controls will be restored right after power-up.
 	 */
 	if (priv->power_count == 0)
@@ -784,7 +784,7 @@ static int ov772x_s_ctrl(struct v4l2_ctrl *ctrl)
 		return regmap_update_bits(regmap, COM3, HFLIP_IMG, val);
 	case V4L2_CID_BAND_STOP_FILTER:
 		if (!ctrl->val) {
-			/* Switch the filter off, it is on now */
+			/* Switch the filter off, it is on yesw */
 			ret = regmap_update_bits(regmap, BDBASE, 0xff, 0xff);
 			if (!ret)
 				ret = regmap_update_bits(regmap, COM8,
@@ -1213,8 +1213,8 @@ static int ov772x_set_fmt(struct v4l2_subdev *sd,
 	}
 
 	/*
-	 * If the device is not powered up by the host driver do
-	 * not apply any changes to H/W at this time. Instead
+	 * If the device is yest powered up by the host driver do
+	 * yest apply any changes to H/W at this time. Instead
 	 * the format will be restored right after power-up.
 	 */
 	if (priv->power_count > 0) {
@@ -1311,7 +1311,7 @@ static int ov772x_enum_frame_interval(struct v4l2_subdev *sd,
 		return -EINVAL;
 
 	fie->interval.numerator = 1;
-	fie->interval.denominator = ov772x_frame_intervals[fie->index];
+	fie->interval.deyesminator = ov772x_frame_intervals[fie->index];
 
 	return 0;
 }
@@ -1362,9 +1362,9 @@ static int ov772x_probe(struct i2c_client *client)
 		.max_register = DSPAUTO,
 	};
 
-	if (!client->dev.of_node && !client->dev.platform_data) {
+	if (!client->dev.of_yesde && !client->dev.platform_data) {
 		dev_err(&client->dev,
-			"Missing ov772x platform data for non-DT device\n");
+			"Missing ov772x platform data for yesn-DT device\n");
 		return -EINVAL;
 	}
 
@@ -1493,5 +1493,5 @@ static struct i2c_driver ov772x_i2c_driver = {
 module_i2c_driver(ov772x_i2c_driver);
 
 MODULE_DESCRIPTION("V4L2 driver for OV772x image sensor");
-MODULE_AUTHOR("Kuninori Morimoto");
+MODULE_AUTHOR("Kuniyesri Morimoto");
 MODULE_LICENSE("GPL v2");

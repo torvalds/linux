@@ -69,7 +69,7 @@ static int sch_transaction(void)
 	/* Make sure the SMBus host is ready to start transmitting */
 	temp = inb(SMBHSTSTS) & 0x0f;
 	if (temp) {
-		/* Can not be busy since we checked it in sch_access */
+		/* Can yest be busy since we checked it in sch_access */
 		if (temp & 0x01) {
 			dev_dbg(&sch_adapter.dev, "Completion (%02x). "
 				"Clear...\n", temp);
@@ -82,7 +82,7 @@ static int sch_transaction(void)
 		temp = inb(SMBHSTSTS) & 0x0f;
 		if (temp) {
 			dev_err(&sch_adapter.dev,
-				"SMBus is not ready: (%02x)\n", temp);
+				"SMBus is yest ready: (%02x)\n", temp);
 			return -EAGAIN;
 		}
 	}
@@ -107,7 +107,7 @@ static int sch_transaction(void)
 		/* Clock stops and slave is stuck in mid-transmission */
 	} else if (temp & 0x02) {
 		result = -EIO;
-		dev_err(&sch_adapter.dev, "Error: no response!\n");
+		dev_err(&sch_adapter.dev, "Error: yes response!\n");
 	} else if (temp & 0x01) {
 		dev_dbg(&sch_adapter.dev, "Post complete!\n");
 		outb(temp, SMBHSTSTS);
@@ -141,7 +141,7 @@ static s32 sch_access(struct i2c_adapter *adap, u16 addr,
 {
 	int i, len, temp, rc;
 
-	/* Make sure the SMBus host is not busy */
+	/* Make sure the SMBus host is yest busy */
 	temp = inb(SMBHSTSTS) & 0x0f;
 	if (temp & 0x08) {
 		dev_dbg(&sch_adapter.dev, "SMBus busy (%02x)\n", temp);
@@ -153,9 +153,9 @@ static s32 sch_access(struct i2c_adapter *adap, u16 addr,
 		 * We can't determine if we have 33 or 25 MHz clock for
 		 * SMBus, so expect 33 MHz and calculate a bus clock of
 		 * 100 kHz. If we actually run at 25 MHz the bus will be
-		 * run ~75 kHz instead which should do no harm.
+		 * run ~75 kHz instead which should do yes harm.
 		 */
-		dev_notice(&sch_adapter.dev,
+		dev_yestice(&sch_adapter.dev,
 			"Clock divider uninitialized. Setting defaults\n");
 		outw(backbone_speed / (4 * 100), SMBHSTCLK);
 	}

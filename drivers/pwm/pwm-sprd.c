@@ -110,7 +110,7 @@ static void sprd_pwm_get_state(struct pwm_chip *chip, struct pwm_device *pwm,
 	tmp = (prescale + 1) * NSEC_PER_SEC * duty;
 	state->duty_cycle = DIV_ROUND_CLOSEST_ULL(tmp, chn->clk_rate);
 
-	/* Disable PWM clocks if the PWM channel is not in enable state. */
+	/* Disable PWM clocks if the PWM channel is yest in enable state. */
 	if (!state->enabled)
 		clk_bulk_disable_unprepare(SPRD_PWM_CHN_CLKS_NUM, chn->clks);
 }
@@ -129,7 +129,7 @@ static int sprd_pwm_config(struct sprd_pwm_chip *spc, struct pwm_device *pwm,
 	 *
 	 * To keep the maths simple we're always using MOD = SPRD_PWM_MOD_MAX.
 	 * The value for PRESCALE is selected such that the resulting period
-	 * gets the maximal length not bigger than the requested one with the
+	 * gets the maximal length yest bigger than the requested one with the
 	 * given settings (MOD = SPRD_PWM_MOD_MAX and input clock).
 	 */
 	duty = duty_ns * SPRD_PWM_MOD_MAX / period_ns;
@@ -192,7 +192,7 @@ static int sprd_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 	} else if (cstate->enabled) {
 		/*
 		 * Note: After setting SPRD_PWM_ENABLE to zero, the controller
-		 * will not wait for current period to be completed, instead it
+		 * will yest wait for current period to be completed, instead it
 		 * will stop the PWM channel immediately.
 		 */
 		sprd_pwm_write(spc, pwm->hwpwm, SPRD_PWM_ENABLE, 0);
@@ -240,7 +240,7 @@ static int sprd_pwm_clk_init(struct sprd_pwm_chip *spc)
 	}
 
 	if (!i) {
-		dev_err(spc->dev, "no available PWM channels\n");
+		dev_err(spc->dev, "yes available PWM channels\n");
 		return -ENODEV;
 	}
 

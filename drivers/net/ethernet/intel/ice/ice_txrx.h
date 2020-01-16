@@ -67,10 +67,10 @@ static inline int ice_skb_pad(void)
 {
 	int rx_buf_len;
 
-	/* If a 2K buffer cannot handle a standard Ethernet frame then
+	/* If a 2K buffer canyest handle a standard Ethernet frame then
 	 * optimize padding for a 3K buffer instead of a 1.5K buffer.
 	 *
-	 * For a 3K buffer we need to add enough padding to allow for
+	 * For a 3K buffer we need to add eyesugh padding to allow for
 	 * tailroom due to NET_IP_ALIGN possibly shifting us out of
 	 * cache-line alignment.
 	 */
@@ -94,7 +94,7 @@ static inline int ice_skb_pad(void)
 /* We are assuming that the cache line is always 64 Bytes here for ice.
  * In order to make sure that is a correct assumption there is a check in probe
  * to print a warning if the read from GLPCI_CNF2 tells us that the cache line
- * size is 128 bytes. We do it this way because we do not want to read the
+ * size is 128 bytes. We do it this way because we do yest want to read the
  * GLPCI_CNF2 register or a variable containing the value on every pass through
  * the Tx path.
  */
@@ -179,11 +179,11 @@ struct ice_txq_stats {
 	u64 restart_q;
 	u64 tx_busy;
 	u64 tx_linearize;
-	int prev_pkt; /* negative if no pending Tx descriptors */
+	int prev_pkt; /* negative if yes pending Tx descriptors */
 };
 
 struct ice_rxq_stats {
-	u64 non_eop_descs;
+	u64 yesn_eop_descs;
 	u64 alloc_page_failed;
 	u64 alloc_buf_failed;
 	u64 page_reuse_count;
@@ -191,14 +191,14 @@ struct ice_rxq_stats {
 
 /* this enum matches hardware bits and is meant to be used by DYN_CTLN
  * registers and QINT registers or more generally anywhere in the manual
- * mentioning ITR_INDX, ITR_NONE cannot be used as an index 'n' into any
+ * mentioning ITR_INDX, ITR_NONE canyest be used as an index 'n' into any
  * register but instead is a special value meaning "don't update" ITR0/1/2.
  */
 enum ice_dyn_idx_t {
 	ICE_IDX_ITR0 = 0,
 	ICE_IDX_ITR1 = 1,
 	ICE_IDX_ITR2 = 2,
-	ICE_ITR_NONE = 3	/* ITR_NONE must not be used as an index */
+	ICE_ITR_NONE = 3	/* ITR_NONE must yest be used as an index */
 };
 
 /* Header split modes defined by DTYPE field of Rx RLAN context */
@@ -236,7 +236,7 @@ enum ice_rx_dtype {
 #define ICE_WB_ON_ITR_USECS	2
 #define ICE_IN_WB_ON_ITR_MODE	255
 /* Sets WB_ON_ITR and assumes INTENA bit is already cleared, which allows
- * setting the MSK_M bit to tell hardware to ignore the INTENA_M bit. Also,
+ * setting the MSK_M bit to tell hardware to igyesre the INTENA_M bit. Also,
  * set the write-back latency to the usecs passed in.
  */
 #define ICE_GLINT_DYN_CTL_WB_ON_ITR(usecs, itr_idx)	\
@@ -268,7 +268,7 @@ struct ice_ring {
 	u16 q_index;			/* Queue number of ring */
 	u16 q_handle;			/* Queue handle per TC */
 
-	u8 ring_active:1;		/* is ring online or not */
+	u8 ring_active:1;		/* is ring online or yest */
 
 	u16 count;			/* Number of descriptors */
 	u16 reg_idx;			/* HW register index of the ring */
@@ -303,7 +303,7 @@ struct ice_ring {
 	u32 txq_teid;			/* Added Tx queue TEID */
 	u16 rx_buf_len;
 	u8 dcb_tc;			/* Traffic class of ring */
-} ____cacheline_internodealigned_in_smp;
+} ____cacheline_interyesdealigned_in_smp;
 
 static inline bool ice_ring_uses_build_skb(struct ice_ring *ring)
 {

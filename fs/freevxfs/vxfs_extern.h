@@ -6,9 +6,9 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions, and the following disclaimer,
+ *    yestice, this list of conditions, and the following disclaimer,
  *    without modification.
- * 2. The name of the author may not be used to endorse or promote products
+ * 2. The name of the author may yest be used to endorse or promote products
  *    derived from this software without specific prior written permission.
  *
  * Alternatively, this software may be distributed under the terms of the
@@ -40,26 +40,26 @@
 
 struct kmem_cache;
 struct super_block;
-struct vxfs_inode_info;
-struct inode;
+struct vxfs_iyesde_info;
+struct iyesde;
 
 
 /* vxfs_bmap.c */
-extern daddr_t			vxfs_bmap1(struct inode *, long);
+extern daddr_t			vxfs_bmap1(struct iyesde *, long);
 
 /* vxfs_fshead.c */
 extern int			vxfs_read_fshead(struct super_block *);
 
-/* vxfs_inode.c */
+/* vxfs_iyesde.c */
 extern const struct address_space_operations vxfs_immed_aops;
-extern void			vxfs_dumpi(struct vxfs_inode_info *, ino_t);
-extern struct inode		*vxfs_blkiget(struct super_block *, u_long, ino_t);
-extern struct inode		*vxfs_stiget(struct super_block *, ino_t);
-extern struct inode		*vxfs_iget(struct super_block *, ino_t);
-extern void			vxfs_evict_inode(struct inode *);
+extern void			vxfs_dumpi(struct vxfs_iyesde_info *, iyes_t);
+extern struct iyesde		*vxfs_blkiget(struct super_block *, u_long, iyes_t);
+extern struct iyesde		*vxfs_stiget(struct super_block *, iyes_t);
+extern struct iyesde		*vxfs_iget(struct super_block *, iyes_t);
+extern void			vxfs_evict_iyesde(struct iyesde *);
 
 /* vxfs_lookup.c */
-extern const struct inode_operations	vxfs_dir_inode_ops;
+extern const struct iyesde_operations	vxfs_dir_iyesde_ops;
 extern const struct file_operations	vxfs_dir_operations;
 
 /* vxfs_olt.c */
@@ -69,6 +69,6 @@ extern int			vxfs_read_olt(struct super_block *, u_long);
 extern const struct address_space_operations vxfs_aops;
 extern struct page *		vxfs_get_page(struct address_space *, u_long);
 extern void			vxfs_put_page(struct page *);
-extern struct buffer_head *	vxfs_bread(struct inode *, int);
+extern struct buffer_head *	vxfs_bread(struct iyesde *, int);
 
 #endif /* _VXFS_EXTERN_H_ */

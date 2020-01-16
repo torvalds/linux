@@ -47,7 +47,7 @@ static int bd718xx_buck1234_set_ramp_delay(struct regulator_dev *rdev,
 	default:
 		ramp_value = BUCK_RAMPRATE_10P00MV;
 		dev_err(&rdev->dev,
-			"%s: ramp_delay: %d not supported, setting 10000mV//us\n",
+			"%s: ramp_delay: %d yest supported, setting 10000mV//us\n",
 			rdev->desc->name, ramp_delay);
 	}
 
@@ -106,7 +106,7 @@ static const struct regulator_ops bd718xx_ldo_regulator_ops = {
 	.get_voltage_sel = regulator_get_voltage_sel_regmap,
 };
 
-static const struct regulator_ops bd718xx_ldo_regulator_nolinear_ops = {
+static const struct regulator_ops bd718xx_ldo_regulator_yeslinear_ops = {
 	.enable = regulator_enable_regmap,
 	.disable = regulator_disable_regmap,
 	.is_enabled = regulator_is_enabled_regmap,
@@ -125,7 +125,7 @@ static const struct regulator_ops bd718xx_buck_regulator_ops = {
 	.set_voltage_time_sel = regulator_set_voltage_time_sel,
 };
 
-static const struct regulator_ops bd718xx_buck_regulator_nolinear_ops = {
+static const struct regulator_ops bd718xx_buck_regulator_yeslinear_ops = {
 	.enable = regulator_enable_regmap,
 	.disable = regulator_disable_regmap,
 	.is_enabled = regulator_is_enabled_regmap,
@@ -229,7 +229,7 @@ static const struct regulator_linear_range bd71837_buck6_volts[] = {
  * 110 = 1.95V
  * 111 = 1.995V
  */
-static const unsigned int bd718xx_3rd_nodvs_buck_volts[] = {
+static const unsigned int bd718xx_3rd_yesdvs_buck_volts[] = {
 	1605000, 1695000, 1755000, 1800000, 1845000, 1905000, 1950000, 1995000
 };
 
@@ -237,7 +237,7 @@ static const unsigned int bd718xx_3rd_nodvs_buck_volts[] = {
  * BUCK8
  * 0.8V to 1.40V (step 10mV)
  */
-static const struct regulator_linear_range bd718xx_4th_nodvs_buck_volts[] = {
+static const struct regulator_linear_range bd718xx_4th_yesdvs_buck_volts[] = {
 	REGULATOR_LINEAR_RANGE(800000, 0x00, 0x3C, 10000),
 };
 
@@ -357,7 +357,7 @@ struct of_dvs_setting {
 };
 
 static int set_dvs_levels(const struct of_dvs_setting *dvs,
-			  struct device_node *np,
+			  struct device_yesde *np,
 			  const struct regulator_desc *desc,
 			  struct regmap *regmap)
 {
@@ -385,7 +385,7 @@ static int set_dvs_levels(const struct of_dvs_setting *dvs,
 	return ret;
 }
 
-static int buck4_set_hw_dvs_levels(struct device_node *np,
+static int buck4_set_hw_dvs_levels(struct device_yesde *np,
 			    const struct regulator_desc *desc,
 			    struct regulator_config *cfg)
 {
@@ -404,7 +404,7 @@ static int buck4_set_hw_dvs_levels(struct device_node *np,
 	}
 	return ret;
 }
-static int buck3_set_hw_dvs_levels(struct device_node *np,
+static int buck3_set_hw_dvs_levels(struct device_yesde *np,
 			    const struct regulator_desc *desc,
 			    struct regulator_config *cfg)
 {
@@ -424,7 +424,7 @@ static int buck3_set_hw_dvs_levels(struct device_node *np,
 	return ret;
 }
 
-static int buck2_set_hw_dvs_levels(struct device_node *np,
+static int buck2_set_hw_dvs_levels(struct device_yesde *np,
 			    const struct regulator_desc *desc,
 			    struct regulator_config *cfg)
 {
@@ -450,7 +450,7 @@ static int buck2_set_hw_dvs_levels(struct device_node *np,
 	return ret;
 }
 
-static int buck1_set_hw_dvs_levels(struct device_node *np,
+static int buck1_set_hw_dvs_levels(struct device_yesde *np,
 			    const struct regulator_desc *desc,
 			    struct regulator_config *cfg)
 {
@@ -483,7 +483,7 @@ static const struct bd718xx_regulator_data bd71847_regulators[] = {
 		.desc = {
 			.name = "buck1",
 			.of_match = of_match_ptr("BUCK1"),
-			.regulators_node = of_match_ptr("regulators"),
+			.regulators_yesde = of_match_ptr("regulators"),
 			.id = BD718XX_BUCK1,
 			.ops = &bd718xx_dvs_buck_regulator_ops,
 			.type = REGULATOR_VOLTAGE,
@@ -508,7 +508,7 @@ static const struct bd718xx_regulator_data bd71847_regulators[] = {
 		.desc = {
 			.name = "buck2",
 			.of_match = of_match_ptr("BUCK2"),
-			.regulators_node = of_match_ptr("regulators"),
+			.regulators_yesde = of_match_ptr("regulators"),
 			.id = BD718XX_BUCK2,
 			.ops = &bd718xx_dvs_buck_regulator_ops,
 			.type = REGULATOR_VOLTAGE,
@@ -532,7 +532,7 @@ static const struct bd718xx_regulator_data bd71847_regulators[] = {
 		.desc = {
 			.name = "buck3",
 			.of_match = of_match_ptr("BUCK3"),
-			.regulators_node = of_match_ptr("regulators"),
+			.regulators_yesde = of_match_ptr("regulators"),
 			.id = BD718XX_BUCK3,
 			.ops = &bd718xx_pickable_range_buck_ops,
 			.type = REGULATOR_VOLTAGE,
@@ -559,7 +559,7 @@ static const struct bd718xx_regulator_data bd71847_regulators[] = {
 		.desc = {
 			.name = "buck4",
 			.of_match = of_match_ptr("BUCK4"),
-			.regulators_node = of_match_ptr("regulators"),
+			.regulators_yesde = of_match_ptr("regulators"),
 			.id = BD718XX_BUCK4,
 			.ops = &bd718xx_pickable_range_buck_ops,
 			.type = REGULATOR_VOLTAGE,
@@ -586,12 +586,12 @@ static const struct bd718xx_regulator_data bd71847_regulators[] = {
 		.desc = {
 			.name = "buck5",
 			.of_match = of_match_ptr("BUCK5"),
-			.regulators_node = of_match_ptr("regulators"),
+			.regulators_yesde = of_match_ptr("regulators"),
 			.id = BD718XX_BUCK5,
-			.ops = &bd718xx_buck_regulator_nolinear_ops,
+			.ops = &bd718xx_buck_regulator_yeslinear_ops,
 			.type = REGULATOR_VOLTAGE,
-			.volt_table = &bd718xx_3rd_nodvs_buck_volts[0],
-			.n_voltages = ARRAY_SIZE(bd718xx_3rd_nodvs_buck_volts),
+			.volt_table = &bd718xx_3rd_yesdvs_buck_volts[0],
+			.n_voltages = ARRAY_SIZE(bd718xx_3rd_yesdvs_buck_volts),
 			.vsel_reg = BD718XX_REG_3RD_NODVS_BUCK_VOLT,
 			.vsel_mask = BD718XX_3RD_NODVS_BUCK_MASK,
 			.enable_reg = BD718XX_REG_3RD_NODVS_BUCK_CTRL,
@@ -608,14 +608,14 @@ static const struct bd718xx_regulator_data bd71847_regulators[] = {
 		.desc = {
 			.name = "buck6",
 			.of_match = of_match_ptr("BUCK6"),
-			.regulators_node = of_match_ptr("regulators"),
+			.regulators_yesde = of_match_ptr("regulators"),
 			.id = BD718XX_BUCK6,
 			.ops = &bd718xx_buck_regulator_ops,
 			.type = REGULATOR_VOLTAGE,
 			.n_voltages = BD718XX_4TH_NODVS_BUCK_VOLTAGE_NUM,
-			.linear_ranges = bd718xx_4th_nodvs_buck_volts,
+			.linear_ranges = bd718xx_4th_yesdvs_buck_volts,
 			.n_linear_ranges =
-				ARRAY_SIZE(bd718xx_4th_nodvs_buck_volts),
+				ARRAY_SIZE(bd718xx_4th_yesdvs_buck_volts),
 			.vsel_reg = BD718XX_REG_4TH_NODVS_BUCK_VOLT,
 			.vsel_mask = BD718XX_4TH_NODVS_BUCK_MASK,
 			.enable_reg = BD718XX_REG_4TH_NODVS_BUCK_CTRL,
@@ -632,7 +632,7 @@ static const struct bd718xx_regulator_data bd71847_regulators[] = {
 		.desc = {
 			.name = "ldo1",
 			.of_match = of_match_ptr("LDO1"),
-			.regulators_node = of_match_ptr("regulators"),
+			.regulators_yesde = of_match_ptr("regulators"),
 			.id = BD718XX_LDO1,
 			.ops = &bd718xx_pickable_range_ldo_ops,
 			.type = REGULATOR_VOLTAGE,
@@ -658,9 +658,9 @@ static const struct bd718xx_regulator_data bd71847_regulators[] = {
 		.desc = {
 			.name = "ldo2",
 			.of_match = of_match_ptr("LDO2"),
-			.regulators_node = of_match_ptr("regulators"),
+			.regulators_yesde = of_match_ptr("regulators"),
 			.id = BD718XX_LDO2,
-			.ops = &bd718xx_ldo_regulator_nolinear_ops,
+			.ops = &bd718xx_ldo_regulator_yeslinear_ops,
 			.type = REGULATOR_VOLTAGE,
 			.volt_table = &ldo_2_volts[0],
 			.vsel_reg = BD718XX_REG_LDO2_VOLT,
@@ -680,7 +680,7 @@ static const struct bd718xx_regulator_data bd71847_regulators[] = {
 		.desc = {
 			.name = "ldo3",
 			.of_match = of_match_ptr("LDO3"),
-			.regulators_node = of_match_ptr("regulators"),
+			.regulators_yesde = of_match_ptr("regulators"),
 			.id = BD718XX_LDO3,
 			.ops = &bd718xx_ldo_regulator_ops,
 			.type = REGULATOR_VOLTAGE,
@@ -703,7 +703,7 @@ static const struct bd718xx_regulator_data bd71847_regulators[] = {
 		.desc = {
 			.name = "ldo4",
 			.of_match = of_match_ptr("LDO4"),
-			.regulators_node = of_match_ptr("regulators"),
+			.regulators_yesde = of_match_ptr("regulators"),
 			.id = BD718XX_LDO4,
 			.ops = &bd718xx_ldo_regulator_ops,
 			.type = REGULATOR_VOLTAGE,
@@ -726,7 +726,7 @@ static const struct bd718xx_regulator_data bd71847_regulators[] = {
 		.desc = {
 			.name = "ldo5",
 			.of_match = of_match_ptr("LDO5"),
-			.regulators_node = of_match_ptr("regulators"),
+			.regulators_yesde = of_match_ptr("regulators"),
 			.id = BD718XX_LDO5,
 			.ops = &bd718xx_pickable_range_ldo_ops,
 			.type = REGULATOR_VOLTAGE,
@@ -752,7 +752,7 @@ static const struct bd718xx_regulator_data bd71847_regulators[] = {
 		.desc = {
 			.name = "ldo6",
 			.of_match = of_match_ptr("LDO6"),
-			.regulators_node = of_match_ptr("regulators"),
+			.regulators_yesde = of_match_ptr("regulators"),
 			.id = BD718XX_LDO6,
 			.ops = &bd718xx_ldo_regulator_ops,
 			.type = REGULATOR_VOLTAGE,
@@ -780,7 +780,7 @@ static const struct bd718xx_regulator_data bd71837_regulators[] = {
 		.desc = {
 			.name = "buck1",
 			.of_match = of_match_ptr("BUCK1"),
-			.regulators_node = of_match_ptr("regulators"),
+			.regulators_yesde = of_match_ptr("regulators"),
 			.id = BD718XX_BUCK1,
 			.ops = &bd718xx_dvs_buck_regulator_ops,
 			.type = REGULATOR_VOLTAGE,
@@ -804,7 +804,7 @@ static const struct bd718xx_regulator_data bd71837_regulators[] = {
 		.desc = {
 			.name = "buck2",
 			.of_match = of_match_ptr("BUCK2"),
-			.regulators_node = of_match_ptr("regulators"),
+			.regulators_yesde = of_match_ptr("regulators"),
 			.id = BD718XX_BUCK2,
 			.ops = &bd718xx_dvs_buck_regulator_ops,
 			.type = REGULATOR_VOLTAGE,
@@ -828,7 +828,7 @@ static const struct bd718xx_regulator_data bd71837_regulators[] = {
 		.desc = {
 			.name = "buck3",
 			.of_match = of_match_ptr("BUCK3"),
-			.regulators_node = of_match_ptr("regulators"),
+			.regulators_yesde = of_match_ptr("regulators"),
 			.id = BD718XX_BUCK3,
 			.ops = &bd718xx_dvs_buck_regulator_ops,
 			.type = REGULATOR_VOLTAGE,
@@ -852,7 +852,7 @@ static const struct bd718xx_regulator_data bd71837_regulators[] = {
 		.desc = {
 			.name = "buck4",
 			.of_match = of_match_ptr("BUCK4"),
-			.regulators_node = of_match_ptr("regulators"),
+			.regulators_yesde = of_match_ptr("regulators"),
 			.id = BD718XX_BUCK4,
 			.ops = &bd718xx_dvs_buck_regulator_ops,
 			.type = REGULATOR_VOLTAGE,
@@ -876,7 +876,7 @@ static const struct bd718xx_regulator_data bd71837_regulators[] = {
 		.desc = {
 			.name = "buck5",
 			.of_match = of_match_ptr("BUCK5"),
-			.regulators_node = of_match_ptr("regulators"),
+			.regulators_yesde = of_match_ptr("regulators"),
 			.id = BD718XX_BUCK5,
 			.ops = &bd718xx_pickable_range_buck_ops,
 			.type = REGULATOR_VOLTAGE,
@@ -903,7 +903,7 @@ static const struct bd718xx_regulator_data bd71837_regulators[] = {
 		.desc = {
 			.name = "buck6",
 			.of_match = of_match_ptr("BUCK6"),
-			.regulators_node = of_match_ptr("regulators"),
+			.regulators_yesde = of_match_ptr("regulators"),
 			.id = BD718XX_BUCK6,
 			.ops = &bd718xx_buck_regulator_ops,
 			.type = REGULATOR_VOLTAGE,
@@ -927,12 +927,12 @@ static const struct bd718xx_regulator_data bd71837_regulators[] = {
 		.desc = {
 			.name = "buck7",
 			.of_match = of_match_ptr("BUCK7"),
-			.regulators_node = of_match_ptr("regulators"),
+			.regulators_yesde = of_match_ptr("regulators"),
 			.id = BD718XX_BUCK7,
-			.ops = &bd718xx_buck_regulator_nolinear_ops,
+			.ops = &bd718xx_buck_regulator_yeslinear_ops,
 			.type = REGULATOR_VOLTAGE,
-			.volt_table = &bd718xx_3rd_nodvs_buck_volts[0],
-			.n_voltages = ARRAY_SIZE(bd718xx_3rd_nodvs_buck_volts),
+			.volt_table = &bd718xx_3rd_yesdvs_buck_volts[0],
+			.n_voltages = ARRAY_SIZE(bd718xx_3rd_yesdvs_buck_volts),
 			.vsel_reg = BD718XX_REG_3RD_NODVS_BUCK_VOLT,
 			.vsel_mask = BD718XX_3RD_NODVS_BUCK_MASK,
 			.enable_reg = BD718XX_REG_3RD_NODVS_BUCK_CTRL,
@@ -949,14 +949,14 @@ static const struct bd718xx_regulator_data bd71837_regulators[] = {
 		.desc = {
 			.name = "buck8",
 			.of_match = of_match_ptr("BUCK8"),
-			.regulators_node = of_match_ptr("regulators"),
+			.regulators_yesde = of_match_ptr("regulators"),
 			.id = BD718XX_BUCK8,
 			.ops = &bd718xx_buck_regulator_ops,
 			.type = REGULATOR_VOLTAGE,
 			.n_voltages = BD718XX_4TH_NODVS_BUCK_VOLTAGE_NUM,
-			.linear_ranges = bd718xx_4th_nodvs_buck_volts,
+			.linear_ranges = bd718xx_4th_yesdvs_buck_volts,
 			.n_linear_ranges =
-				ARRAY_SIZE(bd718xx_4th_nodvs_buck_volts),
+				ARRAY_SIZE(bd718xx_4th_yesdvs_buck_volts),
 			.vsel_reg = BD718XX_REG_4TH_NODVS_BUCK_VOLT,
 			.vsel_mask = BD718XX_4TH_NODVS_BUCK_MASK,
 			.enable_reg = BD718XX_REG_4TH_NODVS_BUCK_CTRL,
@@ -973,7 +973,7 @@ static const struct bd718xx_regulator_data bd71837_regulators[] = {
 		.desc = {
 			.name = "ldo1",
 			.of_match = of_match_ptr("LDO1"),
-			.regulators_node = of_match_ptr("regulators"),
+			.regulators_yesde = of_match_ptr("regulators"),
 			.id = BD718XX_LDO1,
 			.ops = &bd718xx_pickable_range_ldo_ops,
 			.type = REGULATOR_VOLTAGE,
@@ -999,9 +999,9 @@ static const struct bd718xx_regulator_data bd71837_regulators[] = {
 		.desc = {
 			.name = "ldo2",
 			.of_match = of_match_ptr("LDO2"),
-			.regulators_node = of_match_ptr("regulators"),
+			.regulators_yesde = of_match_ptr("regulators"),
 			.id = BD718XX_LDO2,
-			.ops = &bd718xx_ldo_regulator_nolinear_ops,
+			.ops = &bd718xx_ldo_regulator_yeslinear_ops,
 			.type = REGULATOR_VOLTAGE,
 			.volt_table = &ldo_2_volts[0],
 			.vsel_reg = BD718XX_REG_LDO2_VOLT,
@@ -1021,7 +1021,7 @@ static const struct bd718xx_regulator_data bd71837_regulators[] = {
 		.desc = {
 			.name = "ldo3",
 			.of_match = of_match_ptr("LDO3"),
-			.regulators_node = of_match_ptr("regulators"),
+			.regulators_yesde = of_match_ptr("regulators"),
 			.id = BD718XX_LDO3,
 			.ops = &bd718xx_ldo_regulator_ops,
 			.type = REGULATOR_VOLTAGE,
@@ -1044,7 +1044,7 @@ static const struct bd718xx_regulator_data bd71837_regulators[] = {
 		.desc = {
 			.name = "ldo4",
 			.of_match = of_match_ptr("LDO4"),
-			.regulators_node = of_match_ptr("regulators"),
+			.regulators_yesde = of_match_ptr("regulators"),
 			.id = BD718XX_LDO4,
 			.ops = &bd718xx_ldo_regulator_ops,
 			.type = REGULATOR_VOLTAGE,
@@ -1067,7 +1067,7 @@ static const struct bd718xx_regulator_data bd71837_regulators[] = {
 		.desc = {
 			.name = "ldo5",
 			.of_match = of_match_ptr("LDO5"),
-			.regulators_node = of_match_ptr("regulators"),
+			.regulators_yesde = of_match_ptr("regulators"),
 			.id = BD718XX_LDO5,
 			.ops = &bd718xx_ldo_regulator_ops,
 			.type = REGULATOR_VOLTAGE,
@@ -1094,7 +1094,7 @@ static const struct bd718xx_regulator_data bd71837_regulators[] = {
 		.desc = {
 			.name = "ldo6",
 			.of_match = of_match_ptr("LDO6"),
-			.regulators_node = of_match_ptr("regulators"),
+			.regulators_yesde = of_match_ptr("regulators"),
 			.id = BD718XX_LDO6,
 			.ops = &bd718xx_ldo_regulator_ops,
 			.type = REGULATOR_VOLTAGE,
@@ -1121,7 +1121,7 @@ static const struct bd718xx_regulator_data bd71837_regulators[] = {
 		.desc = {
 			.name = "ldo7",
 			.of_match = of_match_ptr("LDO7"),
-			.regulators_node = of_match_ptr("regulators"),
+			.regulators_yesde = of_match_ptr("regulators"),
 			.id = BD718XX_LDO7,
 			.ops = &bd718xx_ldo_regulator_ops,
 			.type = REGULATOR_VOLTAGE,
@@ -1190,7 +1190,7 @@ static int bd718xx_probe(struct platform_device *pdev)
 			BD718XX_REG_REGLOCK);
 	}
 
-	use_snvs = of_property_read_bool(pdev->dev.parent->of_node,
+	use_snvs = of_property_read_bool(pdev->dev.parent->of_yesde,
 					 "rohm,reset-snvs-powered");
 
 	/*
@@ -1240,7 +1240,7 @@ static int bd718xx_probe(struct platform_device *pdev)
 		 * Regulator register gets the regulator constraints and
 		 * applies them (set_machine_constraints). This should have
 		 * turned the control register(s) to correct values and we
-		 * can now switch the control from PMIC state machine to the
+		 * can yesw switch the control from PMIC state machine to the
 		 * register interface
 		 *
 		 * At poweroff transition PMIC HW disables EN bit for

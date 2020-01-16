@@ -4,9 +4,9 @@
  *
  *	(c) Copyright 2006-2009 Wim Van Sebroeck <wim@iguana.be>.
  *
- *	Neither Wim Van Sebroeck nor Iguana vzw. admit liability nor
+ *	Neither Wim Van Sebroeck yesr Iguana vzw. admit liability yesr
  *	provide warranty for any of this software. This material is
- *	provided "AS-IS" and at no charge.
+ *	provided "AS-IS" and at yes charge.
  */
 
 /*
@@ -23,7 +23,7 @@
 #include <linux/module.h>		/* For module specific items */
 #include <linux/moduleparam.h>		/* For new moduleparam's */
 #include <linux/types.h>		/* For standard types (like size_t) */
-#include <linux/errno.h>		/* For the -ENODEV/... values */
+#include <linux/erryes.h>		/* For the -ENODEV/... values */
 #include <linux/kernel.h>		/* For printk/panic/... */
 #include <linux/init.h>			/* For __init/__exit/... */
 #include <linux/ioport.h>		/* For io-port access */
@@ -34,7 +34,7 @@
 /* List of vendor support modes */
 /* SuperMicro Pentium 3 Era 370SSE+-OEM1/P3TSSE */
 #define SUPERMICRO_OLD_BOARD	1
-/* SuperMicro Pentium 4 / Xeon 4 / EMT64T Era Systems - no longer supported */
+/* SuperMicro Pentium 4 / Xeon 4 / EMT64T Era Systems - yes longer supported */
 #define SUPERMICRO_NEW_BOARD	2
 /* Broken BIOS */
 #define BROKEN_BIOS		911
@@ -42,7 +42,7 @@
 static int vendorsupport;
 module_param(vendorsupport, int, 0);
 MODULE_PARM_DESC(vendorsupport, "iTCO vendor specific support mode, default="
-			"0 (none), 1=SuperMicro Pent3, 911=Broken SMI BIOS");
+			"0 (yesne), 1=SuperMicro Pent3, 911=Broken SMI BIOS");
 
 /*
  *	Vendor Specific Support
@@ -99,7 +99,7 @@ static void supermicro_old_pre_stop(struct resource *smires)
  *
  *	Some Intel motherboards have a broken BIOS implementation: i.e.
  *	the SMI handler clear's the TIMEOUT bit in the TC01_STS register
- *	and does not reload the time. Thus the TCO watchdog does not reboot
+ *	and does yest reload the time. Thus the TCO watchdog does yest reboot
  *	the system.
  *
  *	These are the conclusions of Andriy Gapon <avg@icyb.net.ua> after
@@ -176,7 +176,7 @@ void iTCO_vendor_pre_stop(struct resource *smires)
 }
 EXPORT_SYMBOL(iTCO_vendor_pre_stop);
 
-int iTCO_vendor_check_noreboot_on(void)
+int iTCO_vendor_check_yesreboot_on(void)
 {
 	switch (vendorsupport) {
 	case SUPERMICRO_OLD_BOARD:
@@ -185,12 +185,12 @@ int iTCO_vendor_check_noreboot_on(void)
 		return 1;
 	}
 }
-EXPORT_SYMBOL(iTCO_vendor_check_noreboot_on);
+EXPORT_SYMBOL(iTCO_vendor_check_yesreboot_on);
 
 static int __init iTCO_vendor_init_module(void)
 {
 	if (vendorsupport == SUPERMICRO_NEW_BOARD) {
-		pr_warn("Option vendorsupport=%d is no longer supported, "
+		pr_warn("Option vendorsupport=%d is yes longer supported, "
 			"please use the w83627hf_wdt driver instead\n",
 			SUPERMICRO_NEW_BOARD);
 		return -EINVAL;

@@ -16,7 +16,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
+ * along with this program; if yest, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
  * 02110-1301, USA.
  *
@@ -40,7 +40,7 @@
 /**
  * WUSB Information Element header
  *
- * I don't know why, they decided to make it different to the MBOA MAC
+ * I don't kyesw why, they decided to make it different to the MBOA MAC
  * IE Header; beats me.
  */
 struct wuie_hdr {
@@ -100,7 +100,7 @@ struct wuie_host_info {
 /**
  * WUSB IE: Connect Ack (WUSB1.0[7.5.1])
  *
- * Used to acknowledge device connect requests. See note for
+ * Used to ackyeswledge device connect requests. See yeste for
  * WUIE_ELT_MAX.
  */
 struct wuie_connect_ack {
@@ -185,7 +185,7 @@ struct wuie_host_disconnect {
  */
 struct wusb_dn_hdr {
 	u8 bType;
-	u8 notifdata[];
+	u8 yestifdata[];
 } __attribute__((packed));
 
 /** Device Notification codes (WUSB1.0[Table 7-54]) */
@@ -260,7 +260,7 @@ static inline u8 wusb_key_index(int index, int type, int originator)
 #define WUSB_KEY_INDEX_MAX			15
 
 /* A CCM Nonce, defined in WUSB1.0[6.4.1] */
-struct aes_ccm_nonce {
+struct aes_ccm_yesnce {
 	u8 sfn[6];              /* Little Endian */
 	u8 tkid[3];             /* LE */
 	struct uwb_dev_addr dest_addr;
@@ -278,8 +278,8 @@ struct aes_ccm_label {
  * PRF function.
  */
 struct wusb_keydvt_in {
-	u8 hnonce[16];
-	u8 dnonce[16];
+	u8 hyesnce[16];
+	u8 dyesnce[16];
 } __attribute__((packed));
 
 /*
@@ -295,12 +295,12 @@ struct wusb_keydvt_out {
 extern int wusb_crypto_init(void);
 extern void wusb_crypto_exit(void);
 extern ssize_t wusb_prf(void *out, size_t out_size,
-			const u8 key[16], const struct aes_ccm_nonce *_n,
+			const u8 key[16], const struct aes_ccm_yesnce *_n,
 			const struct aes_ccm_label *a,
 			const void *b, size_t blen, size_t len);
 
 static inline int wusb_prf_64(void *out, size_t out_size, const u8 key[16],
-			      const struct aes_ccm_nonce *n,
+			      const struct aes_ccm_yesnce *n,
 			      const struct aes_ccm_label *a,
 			      const void *b, size_t blen)
 {
@@ -308,7 +308,7 @@ static inline int wusb_prf_64(void *out, size_t out_size, const u8 key[16],
 }
 
 static inline int wusb_prf_128(void *out, size_t out_size, const u8 key[16],
-			       const struct aes_ccm_nonce *n,
+			       const struct aes_ccm_yesnce *n,
 			       const struct aes_ccm_label *a,
 			       const void *b, size_t blen)
 {
@@ -316,7 +316,7 @@ static inline int wusb_prf_128(void *out, size_t out_size, const u8 key[16],
 }
 
 static inline int wusb_prf_256(void *out, size_t out_size, const u8 key[16],
-			       const struct aes_ccm_nonce *n,
+			       const struct aes_ccm_yesnce *n,
 			       const struct aes_ccm_label *a,
 			       const void *b, size_t blen)
 {
@@ -326,7 +326,7 @@ static inline int wusb_prf_256(void *out, size_t out_size, const u8 key[16],
 /* Key derivation WUSB1.0[6.5.1] */
 static inline int wusb_key_derive(struct wusb_keydvt_out *keydvt_out,
 				  const u8 key[16],
-				  const struct aes_ccm_nonce *n,
+				  const struct aes_ccm_yesnce *n,
 				  const struct wusb_keydvt_in *keydvt_in)
 {
 	const struct aes_ccm_label a = { .data = "Pair-wise keys" };
@@ -341,17 +341,17 @@ static inline int wusb_key_derive(struct wusb_keydvt_out *keydvt_out,
  *
  * @mic_out:  Where to place the 8 byte MIC tag
  * @key:      KCK from the derivation process
- * @n:        CCM nonce, n->sfn == 0, TKID as established in the
+ * @n:        CCM yesnce, n->sfn == 0, TKID as established in the
  *            process.
  * @hs:       Handshake struct for phase 2 of the 4-way.
  *            hs->bStatus and hs->bReserved are zero.
  *            hs->bMessageNumber is 2 (WUSB1.0[7.3.2.5.2]
  *            hs->dest_addr is the device's USB address padded with 0
  *            hs->src_addr is the hosts's UWB device address
- *            hs->mic is ignored (as we compute that value).
+ *            hs->mic is igyesred (as we compute that value).
  */
 static inline int wusb_oob_mic(u8 mic_out[8], const u8 key[16],
-			       const struct aes_ccm_nonce *n,
+			       const struct aes_ccm_yesnce *n,
 			       const struct usb_handshake *hs)
 {
 	const struct aes_ccm_label a = { .data = "out-of-bandMIC" };

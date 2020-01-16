@@ -306,8 +306,8 @@ static bool atmel_spi_is_v2(struct atmel_spi *as)
 
 /*
  * Earlier SPI controllers (e.g. on at91rm9200) have a design bug whereby
- * they assume that spi slave device state will not change on deselect, so
- * that automagic deselection is OK.  ("NPCSx rises if no data is to be
+ * they assume that spi slave device state will yest change on deselect, so
+ * that automagic deselection is OK.  ("NPCSx rises if yes data is to be
  * transmitted")  Not so!  Workaround uses nCSx pins as GPIOs; or newer
  * controllers have CSAAT and friends.
  *
@@ -316,7 +316,7 @@ static bool atmel_spi_is_v2(struct atmel_spi *as)
  * belief that only active-low devices/systems exists.
  *
  * However, at91rm9200 has a second erratum whereby nCS0 doesn't work
- * right when driven with GPIO.  ("Mode Fault does not allow more than one
+ * right when driven with GPIO.  ("Mode Fault does yest allow more than one
  * Master on Chip Select 0.")  No workaround exists for that ... so for
  * nCS0 on that chip, we (a) don't use the GPIO, (b) can't support CS_HIGH,
  * and (c) will trigger that first erratum in some cases.
@@ -389,7 +389,7 @@ static void cs_deactivate(struct atmel_spi *as, struct spi_device *spi)
 		chip_select = spi->chip_select;
 
 	/* only deactivate *this* device; sometimes transfers to
-	 * another device may be active when this routine is called.
+	 * ayesther device may be active when this routine is called.
 	 */
 	mr = spi_readl(as, MR);
 	if (~SPI_BFEXT(PCS, mr) & (1 << chip_select)) {
@@ -466,14 +466,14 @@ static int atmel_spi_dma_slave_config(struct atmel_spi *as,
 	 * the Mode Register).
 	 * So according to the datasheet, when FIFOs are available (and
 	 * enabled), the Transmit FIFO operates in Multiple Data Mode.
-	 * In this mode, up to 2 data, not 4, can be written into the Transmit
+	 * In this mode, up to 2 data, yest 4, can be written into the Transmit
 	 * Data Register in a single access.
 	 * However, the first data has to be written into the lowest 16 bits and
 	 * the second data into the highest 16 bits of the Transmit
 	 * Data Register. For 8bit data (the most frequent case), it would
 	 * require to rework tx_buf so each data would actualy fit 16 bits.
 	 * So we'd rather write only one data at the time. Hence the transmit
-	 * path works the same whether FIFOs are available (and enabled) or not.
+	 * path works the same whether FIFOs are available (and enabled) or yest.
 	 */
 	slave_config->direction = DMA_MEM_TO_DEV;
 	if (dmaengine_slave_config(master->dma_tx, slave_config)) {
@@ -488,7 +488,7 @@ static int atmel_spi_dma_slave_config(struct atmel_spi *as,
 	 * So according to the datasheet, when FIFOs are available (and
 	 * enabled), the Receive FIFO operates in Single Data Mode.
 	 * So the receive path works the same whether FIFOs are available (and
-	 * enabled) or not.
+	 * enabled) or yest.
 	 */
 	slave_config->direction = DMA_DEV_TO_MEM;
 	if (dmaengine_slave_config(master->dma_rx, slave_config)) {
@@ -515,24 +515,24 @@ static int atmel_spi_configure_dma(struct spi_master *master,
 	if (IS_ERR(master->dma_tx)) {
 		err = PTR_ERR(master->dma_tx);
 		if (err == -EPROBE_DEFER) {
-			dev_warn(dev, "no DMA channel available at the moment\n");
+			dev_warn(dev, "yes DMA channel available at the moment\n");
 			goto error_clear;
 		}
 		dev_err(dev,
-			"DMA TX channel not available, SPI unable to use DMA\n");
+			"DMA TX channel yest available, SPI unable to use DMA\n");
 		err = -EBUSY;
 		goto error_clear;
 	}
 
 	/*
 	 * No reason to check EPROBE_DEFER here since we have already requested
-	 * tx channel. If it fails here, it's for another reason.
+	 * tx channel. If it fails here, it's for ayesther reason.
 	 */
 	master->dma_rx = dma_request_slave_channel(dev, "rx");
 
 	if (!master->dma_rx) {
 		dev_err(dev,
-			"DMA RX channel not available, SPI unable to use DMA\n");
+			"DMA RX channel yest available, SPI unable to use DMA\n");
 		err = -EBUSY;
 		goto error;
 	}
@@ -602,7 +602,7 @@ static void atmel_spi_next_xfer_single(struct spi_master *master,
 
 	dev_vdbg(master->dev.parent, "atmel_spi_next_xfer_pio\n");
 
-	/* Make sure data is not remaining in RDR */
+	/* Make sure data is yest remaining in RDR */
 	spi_readl(as, RDR);
 	while (spi_readl(as, SR) & SPI_BIT(RDRF)) {
 		spi_readl(as, RDR);
@@ -687,7 +687,7 @@ static void atmel_spi_next_xfer_fifo(struct spi_master *master,
 		xfer->bits_per_word);
 
 	/*
-	 * Enable RX FIFO Threshold Flag interrupt to be notified about
+	 * Enable RX FIFO Threshold Flag interrupt to be yestified about
 	 * transfer completion.
 	 */
 	spi_writel(as, IER, SPI_BIT(RXFTHF) | SPI_BIT(OVRES));
@@ -929,7 +929,7 @@ static void atmel_spi_pdc_next_xfer(struct spi_master *master,
 	 * actually waiting for and the RXBUFF interrupt of the
 	 * previous transfer.
 	 *
-	 * It should be doable, though. Just not now...
+	 * It should be doable, though. Just yest yesw...
 	 */
 	spi_writel(as, IER, SPI_BIT(RXBUFF) | SPI_BIT(OVRES));
 	spi_writel(as, PTCR, SPI_BIT(TXTEN) | SPI_BIT(RXTEN));
@@ -951,10 +951,10 @@ atmel_spi_dma_map_xfer(struct atmel_spi *as, struct spi_transfer *xfer)
 	if (xfer->tx_buf) {
 		/* tx_buf is a const void* where we need a void * for the dma
 		 * mapping */
-		void *nonconst_tx = (void *)xfer->tx_buf;
+		void *yesnconst_tx = (void *)xfer->tx_buf;
 
 		xfer->tx_dma = dma_map_single(dev,
-				nonconst_tx, xfer->len,
+				yesnconst_tx, xfer->len,
 				DMA_TO_DEVICE);
 		if (dma_mapping_error(dev, xfer->tx_dma))
 			return -ENOMEM;
@@ -1088,11 +1088,11 @@ atmel_spi_pio_interrupt(int irq, void *dev_id)
 
 		/*
 		 * When we get an overrun, we disregard the current
-		 * transfer. Data will not be copied back from any
-		 * bounce buffer and msg->actual_len will not be
+		 * transfer. Data will yest be copied back from any
+		 * bounce buffer and msg->actual_len will yest be
 		 * updated with the last xfer.
 		 *
-		 * We will also not process any remaning transfers in
+		 * We will also yest process any remaning transfers in
 		 * the message.
 		 */
 		as->done_status = -EIO;
@@ -1118,7 +1118,7 @@ atmel_spi_pio_interrupt(int irq, void *dev_id)
 
 		atmel_spi_unlock(as);
 	} else {
-		WARN_ONCE(pending, "IRQ not handled, pending = %x\n", pending);
+		WARN_ONCE(pending, "IRQ yest handled, pending = %x\n", pending);
 		ret = IRQ_HANDLED;
 		spi_writel(as, IDR, pending);
 	}
@@ -1220,9 +1220,9 @@ static int atmel_spi_setup(struct spi_device *spi)
 
 	as = spi_master_get_devdata(spi->master);
 
-	/* see notes above re chipselect */
+	/* see yestes above re chipselect */
 	if (!spi->cs_gpiod && (spi->mode & SPI_CS_HIGH)) {
-		dev_warn(&spi->dev, "setup: non GPIO CS can't be active-high\n");
+		dev_warn(&spi->dev, "setup: yesn GPIO CS can't be active-high\n");
 		return -EINVAL;
 	}
 
@@ -1400,7 +1400,7 @@ static int atmel_spi_one_transfer(struct spi_master *master,
 		return 0;
 
 	} else {
-		/* only update length if no error */
+		/* only update length if yes error */
 		msg->actual_length += xfer->len;
 	}
 
@@ -1561,7 +1561,7 @@ static int atmel_spi_probe(struct platform_device *pdev)
 	master->use_gpio_descriptors = true;
 	master->mode_bits = SPI_CPOL | SPI_CPHA | SPI_CS_HIGH;
 	master->bits_per_word_mask = SPI_BPW_RANGE_MASK(8, 16);
-	master->dev.of_node = pdev->dev.of_node;
+	master->dev.of_yesde = pdev->dev.of_yesde;
 	master->bus_num = pdev->id;
 	master->num_chipselect = 4;
 	master->setup = atmel_spi_setup;
@@ -1625,7 +1625,7 @@ static int atmel_spi_probe(struct platform_device *pdev)
 		}
 		if (!as->use_dma)
 			dev_info(master->dev.parent,
-				 "  can not allocate dma coherent memory\n");
+				 "  can yest allocate dma coherent memory\n");
 	}
 
 	if (as->caps.has_dma_support && !as->use_dma)
@@ -1649,7 +1649,7 @@ static int atmel_spi_probe(struct platform_device *pdev)
 	as->spi_clk = clk_get_rate(clk);
 
 	as->fifo_size = 0;
-	if (!of_property_read_u32(pdev->dev.of_node, "atmel,fifo-size",
+	if (!of_property_read_u32(pdev->dev.of_yesde, "atmel,fifo-size",
 				  &as->fifo_size)) {
 		dev_info(&pdev->dev, "Using FIFO (%u data)\n", as->fifo_size);
 	}
@@ -1718,7 +1718,7 @@ static int atmel_spi_remove(struct platform_device *pdev)
 
 	clk_disable_unprepare(as->clk);
 
-	pm_runtime_put_noidle(&pdev->dev);
+	pm_runtime_put_yesidle(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
 
 	return 0;

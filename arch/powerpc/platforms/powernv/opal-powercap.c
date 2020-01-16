@@ -141,12 +141,12 @@ static void powercap_add_attr(int handle, const char *name,
 
 void __init opal_powercap_init(void)
 {
-	struct device_node *powercap, *node;
+	struct device_yesde *powercap, *yesde;
 	int i = 0;
 
-	powercap = of_find_compatible_node(NULL, NULL, "ibm,opal-powercap");
+	powercap = of_find_compatible_yesde(NULL, NULL, "ibm,opal-powercap");
 	if (!powercap) {
-		pr_devel("Powercap node not found\n");
+		pr_devel("Powercap yesde yest found\n");
 		return;
 	}
 
@@ -162,22 +162,22 @@ void __init opal_powercap_init(void)
 	}
 
 	i = 0;
-	for_each_child_of_node(powercap, node) {
+	for_each_child_of_yesde(powercap, yesde) {
 		u32 cur, min, max;
 		int j = 0;
 		bool has_cur = false, has_min = false, has_max = false;
 
-		if (!of_property_read_u32(node, "powercap-min", &min)) {
+		if (!of_property_read_u32(yesde, "powercap-min", &min)) {
 			j++;
 			has_min = true;
 		}
 
-		if (!of_property_read_u32(node, "powercap-max", &max)) {
+		if (!of_property_read_u32(yesde, "powercap-max", &max)) {
 			j++;
 			has_max = true;
 		}
 
-		if (!of_property_read_u32(node, "powercap-current", &cur)) {
+		if (!of_property_read_u32(yesde, "powercap-current", &cur)) {
 			j++;
 			has_cur = true;
 		}
@@ -195,7 +195,7 @@ void __init opal_powercap_init(void)
 		}
 
 		j = 0;
-		pcaps[i].pg.name = kasprintf(GFP_KERNEL, "%pOFn", node);
+		pcaps[i].pg.name = kasprintf(GFP_KERNEL, "%pOFn", yesde);
 		if (has_min) {
 			powercap_add_attr(min, "powercap-min",
 					  &pcaps[i].pattrs[j]);

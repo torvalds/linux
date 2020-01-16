@@ -43,7 +43,7 @@ extern struct file_system_type autofs_fs_type;
 
 /*
  * Unified info structure.  This is pointed to by both the dentry and
- * inode structures.  Each file in the filesystem has an instance of this
+ * iyesde structures.  Each file in the filesystem has an instance of this
  * structure.  It holds a reference to the dentry, so dentries are never
  * flushed while the file exists.  All name lookups are dealt with at the
  * dentry level, although the filesystem can interfere in the validation
@@ -51,7 +51,7 @@ extern struct file_system_type autofs_fs_type;
  */
 struct autofs_info {
 	struct dentry	*dentry;
-	struct inode	*inode;
+	struct iyesde	*iyesde;
 
 	int		flags;
 
@@ -73,9 +73,9 @@ struct autofs_info {
 #define AUTOFS_INF_EXPIRING	(1<<0) /* dentry in the process of expiring */
 #define AUTOFS_INF_WANT_EXPIRE	(1<<1) /* the dentry is being considered
 					* for expiry, so RCU_walk is
-					* not permitted.  If it progresses to
+					* yest permitted.  If it progresses to
 					* actual expiry attempt, the flag is
-					* not cleared when EXPIRING is set -
+					* yest cleared when EXPIRING is set -
 					* in that case it gets cleared only
 					* when it comes to clearing EXPIRING.
 					*/
@@ -88,7 +88,7 @@ struct autofs_wait_queue {
 	/* We use the following to see what we are waiting for */
 	struct qstr name;
 	u32 dev;
-	u64 ino;
+	u64 iyes;
 	kuid_t uid;
 	kgid_t gid;
 	pid_t pid;
@@ -132,7 +132,7 @@ static inline struct autofs_sb_info *autofs_sbi(struct super_block *sb)
 	return (struct autofs_sb_info *)(sb->s_fs_info);
 }
 
-static inline struct autofs_info *autofs_dentry_ino(struct dentry *dentry)
+static inline struct autofs_info *autofs_dentry_iyes(struct dentry *dentry)
 {
 	return (struct autofs_info *)(dentry->d_fsdata);
 }
@@ -147,8 +147,8 @@ static inline int autofs_oz_mode(struct autofs_sb_info *sbi)
 		 task_pgrp(current) == sbi->oz_pgrp);
 }
 
-struct inode *autofs_get_inode(struct super_block *, umode_t);
-void autofs_free_ino(struct autofs_info *);
+struct iyesde *autofs_get_iyesde(struct super_block *, umode_t);
+void autofs_free_iyes(struct autofs_info *);
 
 /* Expiration */
 int is_autofs_dentry(struct dentry *);
@@ -161,15 +161,15 @@ int autofs_do_expire_multi(struct super_block *sb, struct vfsmount *mnt,
 int autofs_expire_multi(struct super_block *, struct vfsmount *,
 			struct autofs_sb_info *, int __user *);
 
-/* Device node initialization */
+/* Device yesde initialization */
 
 int autofs_dev_ioctl_init(void);
 void autofs_dev_ioctl_exit(void);
 
 /* Operations structures */
 
-extern const struct inode_operations autofs_symlink_inode_operations;
-extern const struct inode_operations autofs_dir_inode_operations;
+extern const struct iyesde_operations autofs_symlink_iyesde_operations;
+extern const struct iyesde_operations autofs_dir_iyesde_operations;
 extern const struct file_operations autofs_dir_operations;
 extern const struct file_operations autofs_root_operations;
 extern const struct dentry_operations autofs_dentry_operations;
@@ -202,14 +202,14 @@ static inline void managed_dentry_clear_managed(struct dentry *dentry)
 /* Initializing function */
 
 int autofs_fill_super(struct super_block *, void *, int);
-struct autofs_info *autofs_new_ino(struct autofs_sb_info *);
-void autofs_clean_ino(struct autofs_info *);
+struct autofs_info *autofs_new_iyes(struct autofs_sb_info *);
+void autofs_clean_iyes(struct autofs_info *);
 
 static inline int autofs_prepare_pipe(struct file *pipe)
 {
 	if (!(pipe->f_mode & FMODE_CAN_WRITE))
 		return -EINVAL;
-	if (!S_ISFIFO(file_inode(pipe)->i_mode))
+	if (!S_ISFIFO(file_iyesde(pipe)->i_mode))
 		return -EINVAL;
 	/* We want a packet pipe */
 	pipe->f_flags |= O_DIRECT;
@@ -221,7 +221,7 @@ static inline int autofs_prepare_pipe(struct file *pipe)
 /* Queue management functions */
 
 int autofs_wait(struct autofs_sb_info *,
-		 const struct path *, enum autofs_notify);
+		 const struct path *, enum autofs_yestify);
 int autofs_wait_release(struct autofs_sb_info *, autofs_wqt_t, int);
 void autofs_catatonic_mode(struct autofs_sb_info *);
 
@@ -230,31 +230,31 @@ static inline u32 autofs_get_dev(struct autofs_sb_info *sbi)
 	return new_encode_dev(sbi->sb->s_dev);
 }
 
-static inline u64 autofs_get_ino(struct autofs_sb_info *sbi)
+static inline u64 autofs_get_iyes(struct autofs_sb_info *sbi)
 {
-	return d_inode(sbi->sb->s_root)->i_ino;
+	return d_iyesde(sbi->sb->s_root)->i_iyes;
 }
 
 static inline void __autofs_add_expiring(struct dentry *dentry)
 {
 	struct autofs_sb_info *sbi = autofs_sbi(dentry->d_sb);
-	struct autofs_info *ino = autofs_dentry_ino(dentry);
+	struct autofs_info *iyes = autofs_dentry_iyes(dentry);
 
-	if (ino) {
-		if (list_empty(&ino->expiring))
-			list_add(&ino->expiring, &sbi->expiring_list);
+	if (iyes) {
+		if (list_empty(&iyes->expiring))
+			list_add(&iyes->expiring, &sbi->expiring_list);
 	}
 }
 
 static inline void autofs_add_expiring(struct dentry *dentry)
 {
 	struct autofs_sb_info *sbi = autofs_sbi(dentry->d_sb);
-	struct autofs_info *ino = autofs_dentry_ino(dentry);
+	struct autofs_info *iyes = autofs_dentry_iyes(dentry);
 
-	if (ino) {
+	if (iyes) {
 		spin_lock(&sbi->lookup_lock);
-		if (list_empty(&ino->expiring))
-			list_add(&ino->expiring, &sbi->expiring_list);
+		if (list_empty(&iyes->expiring))
+			list_add(&iyes->expiring, &sbi->expiring_list);
 		spin_unlock(&sbi->lookup_lock);
 	}
 }
@@ -262,12 +262,12 @@ static inline void autofs_add_expiring(struct dentry *dentry)
 static inline void autofs_del_expiring(struct dentry *dentry)
 {
 	struct autofs_sb_info *sbi = autofs_sbi(dentry->d_sb);
-	struct autofs_info *ino = autofs_dentry_ino(dentry);
+	struct autofs_info *iyes = autofs_dentry_iyes(dentry);
 
-	if (ino) {
+	if (iyes) {
 		spin_lock(&sbi->lookup_lock);
-		if (!list_empty(&ino->expiring))
-			list_del_init(&ino->expiring);
+		if (!list_empty(&iyes->expiring))
+			list_del_init(&iyes->expiring);
 		spin_unlock(&sbi->lookup_lock);
 	}
 }

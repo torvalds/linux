@@ -75,7 +75,7 @@ static void pata_platform_setup_port(struct ata_ioports *ioaddr,
  *	@use16bit: Flag to indicate 16-bit IO instead of 32-bit
  *
  *	Register a platform bus IDE interface. Such interfaces are PIO and we
- *	assume do not support IRQ sharing.
+ *	assume do yest support IRQ sharing.
  *
  *	Platform devices are expected to contain at least 2 resources per port:
  *
@@ -87,10 +87,10 @@ static void pata_platform_setup_port(struct ata_ioports *ioaddr,
  *		- IRQ	   (IORESOURCE_IRQ)
  *
  *	If the base resources are both mem types, the ioremap() is handled
- *	here. For IORESOURCE_IO, it's assumed that there's no remapping
+ *	here. For IORESOURCE_IO, it's assumed that there's yes remapping
  *	necessary.
  *
- *	If no IRQ resource is present, PIO polling mode is used instead.
+ *	If yes IRQ resource is present, PIO polling mode is used instead.
  */
 int __pata_platform_probe(struct device *dev, struct resource *io_res,
 			  struct resource *ctl_res, struct resource *irq_res,
@@ -127,7 +127,7 @@ int __pata_platform_probe(struct device *dev, struct resource *io_res,
 
 	ap->ops = devm_kzalloc(dev, sizeof(*ap->ops), GFP_KERNEL);
 	ap->ops->inherits = &ata_sff_port_ops;
-	ap->ops->cable_detect = ata_cable_unknown;
+	ap->ops->cable_detect = ata_cable_unkyeswn;
 	ap->ops->set_mode = pata_platform_set_mode;
 	if (use16bit)
 		ap->ops->sff_data_xfer = ata_sff_data_xfer;
@@ -138,11 +138,11 @@ int __pata_platform_probe(struct device *dev, struct resource *io_res,
 	ap->flags |= ATA_FLAG_SLAVE_POSS;
 
 	/*
-	 * Use polling mode if there's no IRQ
+	 * Use polling mode if there's yes IRQ
 	 */
 	if (!irq) {
 		ap->flags |= ATA_FLAG_PIO_POLLING;
-		ata_port_desc(ap, "no IRQ, using PIO polling");
+		ata_port_desc(ap, "yes IRQ, using PIO polling");
 	}
 
 	/*

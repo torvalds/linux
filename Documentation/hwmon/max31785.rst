@@ -28,7 +28,7 @@ the slowest rotor measurement, and does so in the fan[1-4]_input attributes.
 Usage Notes
 -----------
 
-This driver does not probe for PMBus devices. You will have to instantiate
+This driver does yest probe for PMBus devices. You will have to instantiate
 devices explicitly.
 
 Sysfs attributes

@@ -12,7 +12,7 @@
  *
  *  Copyright (C) 2004  LynuxWorks, Inc., Igor Manyilov, Bill Huey
  *  Copyright (C) 2006  Esben Nielsen
- *  Copyright (C) 2006  Kihon Technologies Inc.,
+ *  Copyright (C) 2006  Kihon Techyeslogies Inc.,
  *			Steven Rostedt <rostedt@goodmis.org>
  *
  * See rt.c in preempt-rt for proper credits and further information
@@ -37,7 +37,7 @@ static void printk_task(struct task_struct *p)
 	if (p)
 		printk("%16s:%5d [%p, %3d]", p->comm, task_pid_nr(p), p, p->prio);
 	else
-		printk("<none>");
+		printk("<yesne>");
 }
 
 static void printk_lock(struct rt_mutex *lock, int print_owner)
@@ -170,9 +170,9 @@ void debug_rt_mutex_free_waiter(struct rt_mutex_waiter *waiter)
 void debug_rt_mutex_init(struct rt_mutex *lock, const char *name, struct lock_class_key *key)
 {
 	/*
-	 * Make sure we are not reinitializing a held lock:
+	 * Make sure we are yest reinitializing a held lock:
 	 */
-	debug_check_no_locks_freed((void *)lock, sizeof(*lock));
+	debug_check_yes_locks_freed((void *)lock, sizeof(*lock));
 	lock->name = name;
 
 #ifdef CONFIG_DEBUG_LOCK_ALLOC

@@ -13,7 +13,7 @@
 #include "qla_target.h"
 
 struct tcm_qla2xxx_nacl {
-	struct se_node_acl se_node_acl;
+	struct se_yesde_acl se_yesde_acl;
 
 	/* From libfc struct fc_rport->port_id */
 	u32 nport_id;
@@ -28,7 +28,7 @@ struct tcm_qla2xxx_nacl {
 };
 
 struct tcm_qla2xxx_tpg_attrib {
-	int generate_node_acls;
+	int generate_yesde_acls;
 	int cache_dynamic_acls;
 	int demo_mode_write_protect;
 	int prod_mode_write_protect;
@@ -51,7 +51,7 @@ struct tcm_qla2xxx_tpg {
 };
 
 struct tcm_qla2xxx_fc_loopid {
-	struct se_node_acl *se_nacl;
+	struct se_yesde_acl *se_nacl;
 };
 
 struct tcm_qla2xxx_lport {
@@ -73,7 +73,7 @@ struct tcm_qla2xxx_lport {
 	struct scsi_qla_host *qla_vha;
 	/* Pointer to struct qla_tgt pointer */
 	struct qla_tgt lport_qla_tgt;
-	/* Pointer to TPG=1 for non NPIV mode */
+	/* Pointer to TPG=1 for yesn NPIV mode */
 	struct tcm_qla2xxx_tpg *tpg_1;
 	/* Returned by tcm_qla2xxx_make_lport() */
 	struct se_wwn lport_wwn;

@@ -49,15 +49,15 @@ static int syscon_reboot_mode_probe(struct platform_device *pdev)
 	syscon_rbm->reboot.write = syscon_reboot_mode_write;
 	syscon_rbm->mask = 0xffffffff;
 
-	syscon_rbm->map = syscon_node_to_regmap(pdev->dev.parent->of_node);
+	syscon_rbm->map = syscon_yesde_to_regmap(pdev->dev.parent->of_yesde);
 	if (IS_ERR(syscon_rbm->map))
 		return PTR_ERR(syscon_rbm->map);
 
-	if (of_property_read_u32(pdev->dev.of_node, "offset",
+	if (of_property_read_u32(pdev->dev.of_yesde, "offset",
 	    &syscon_rbm->offset))
 		return -EINVAL;
 
-	of_property_read_u32(pdev->dev.of_node, "mask", &syscon_rbm->mask);
+	of_property_read_u32(pdev->dev.of_yesde, "mask", &syscon_rbm->mask);
 
 	ret = devm_reboot_mode_register(&pdev->dev, &syscon_rbm->reboot);
 	if (ret)

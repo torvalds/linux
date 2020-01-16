@@ -358,13 +358,13 @@ static int radeon_atpx_switch_i2c_mux(struct radeon_atpx *atpx, u16 mux_id)
 }
 
 /**
- * radeon_atpx_switch_start - notify the sbios of a GPU switch
+ * radeon_atpx_switch_start - yestify the sbios of a GPU switch
  *
  * @atpx: atpx info struct
  * @mux_id: mux state (0 = integrated GPU, 1 = discrete GPU)
  *
  * Execute the ATPX_FUNCTION_GRAPHICS_DEVICE_SWITCH_START_NOTIFICATION ATPX
- * function to notify the sbios that a switch between the discrete GPU and
+ * function to yestify the sbios that a switch between the discrete GPU and
  * integrated GPU has begun (all asics).
  * Returns 0 on success, error on failure.
  */
@@ -390,13 +390,13 @@ static int radeon_atpx_switch_start(struct radeon_atpx *atpx, u16 mux_id)
 }
 
 /**
- * radeon_atpx_switch_end - notify the sbios of a GPU switch
+ * radeon_atpx_switch_end - yestify the sbios of a GPU switch
  *
  * @atpx: atpx info struct
  * @mux_id: mux state (0 = integrated GPU, 1 = discrete GPU)
  *
  * Execute the ATPX_FUNCTION_GRAPHICS_DEVICE_SWITCH_END_NOTIFICATION ATPX
- * function to notify the sbios that a switch between the discrete GPU and
+ * function to yestify the sbios that a switch between the discrete GPU and
  * integrated GPU has ended (all asics).
  * Returns 0 on success, error on failure.
  */
@@ -474,7 +474,7 @@ static int radeon_atpx_power_state(enum vga_switcheroo_client_id id,
  * @pdev: pci device
  *
  * Look up the ATPX handles (all asics).
- * Returns true if the handles are found, false if not.
+ * Returns true if the handles are found, false if yest.
  */
 static bool radeon_atpx_pci_probe_handle(struct pci_dev *pdev)
 {
@@ -543,7 +543,7 @@ static const struct vga_switcheroo_handler radeon_atpx_handler = {
  * radeon_atpx_detect - detect whether we have PX
  *
  * Check if we have a PX system (all asics).
- * Returns true if we have a PX system, false if not.
+ * Returns true if we have a PX system, false if yest.
  */
 static bool radeon_atpx_detect(void)
 {
@@ -564,7 +564,7 @@ static bool radeon_atpx_detect(void)
 		d3_supported |= parent_pdev && parent_pdev->bridge_d3;
 	}
 
-	/* some newer PX laptops mark the dGPU as a non-VGA display device */
+	/* some newer PX laptops mark the dGPU as a yesn-VGA display device */
 	while ((pdev = pci_get_class(PCI_CLASS_DISPLAY_OTHER << 8, pdev)) != NULL) {
 		vga_count++;
 

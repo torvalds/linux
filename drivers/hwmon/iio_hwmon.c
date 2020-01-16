@@ -149,8 +149,8 @@ static int iio_hwmon_probe(struct platform_device *pdev)
 	st->attr_group.attrs = st->attrs;
 	st->groups[0] = &st->attr_group;
 
-	if (dev->of_node) {
-		sname = devm_kasprintf(dev, GFP_KERNEL, "%pOFn", dev->of_node);
+	if (dev->of_yesde) {
+		sname = devm_kasprintf(dev, GFP_KERNEL, "%pOFn", dev->of_yesde);
 		if (!sname)
 			return -ENOMEM;
 		strreplace(sname, '-', '_');

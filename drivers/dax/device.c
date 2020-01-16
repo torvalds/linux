@@ -51,7 +51,7 @@ static int check_vma(struct dev_dax *dev_dax, struct vm_area_struct *vma,
 
 	if (!vma_is_dax(vma)) {
 		dev_info_ratelimited(dev,
-				"%s: %s: fail, vma is not DAX capable\n",
+				"%s: %s: fail, vma is yest DAX capable\n",
 				current->comm, func);
 		return -EINVAL;
 	}
@@ -361,29 +361,29 @@ static unsigned long dax_get_unmapped_area(struct file *filp,
 }
 
 static const struct address_space_operations dev_dax_aops = {
-	.set_page_dirty		= noop_set_page_dirty,
-	.invalidatepage		= noop_invalidatepage,
+	.set_page_dirty		= yesop_set_page_dirty,
+	.invalidatepage		= yesop_invalidatepage,
 };
 
-static int dax_open(struct inode *inode, struct file *filp)
+static int dax_open(struct iyesde *iyesde, struct file *filp)
 {
-	struct dax_device *dax_dev = inode_dax(inode);
-	struct inode *__dax_inode = dax_inode(dax_dev);
+	struct dax_device *dax_dev = iyesde_dax(iyesde);
+	struct iyesde *__dax_iyesde = dax_iyesde(dax_dev);
 	struct dev_dax *dev_dax = dax_get_private(dax_dev);
 
 	dev_dbg(&dev_dax->dev, "trace\n");
-	inode->i_mapping = __dax_inode->i_mapping;
-	inode->i_mapping->host = __dax_inode;
-	inode->i_mapping->a_ops = &dev_dax_aops;
-	filp->f_mapping = inode->i_mapping;
+	iyesde->i_mapping = __dax_iyesde->i_mapping;
+	iyesde->i_mapping->host = __dax_iyesde;
+	iyesde->i_mapping->a_ops = &dev_dax_aops;
+	filp->f_mapping = iyesde->i_mapping;
 	filp->f_wb_err = filemap_sample_wb_err(filp->f_mapping);
 	filp->private_data = dev_dax;
-	inode->i_flags = S_DAX;
+	iyesde->i_flags = S_DAX;
 
 	return 0;
 }
 
-static int dax_release(struct inode *inode, struct file *filp)
+static int dax_release(struct iyesde *iyesde, struct file *filp)
 {
 	struct dev_dax *dev_dax = filp->private_data;
 
@@ -392,7 +392,7 @@ static int dax_release(struct inode *inode, struct file *filp)
 }
 
 static const struct file_operations dax_fops = {
-	.llseek = noop_llseek,
+	.llseek = yesop_llseek,
 	.owner = THIS_MODULE,
 	.open = dax_open,
 	.release = dax_release,
@@ -416,7 +416,7 @@ int dev_dax_probe(struct device *dev)
 	struct dev_dax *dev_dax = to_dev_dax(dev);
 	struct dax_device *dax_dev = dev_dax->dax_dev;
 	struct resource *res = &dev_dax->region->res;
-	struct inode *inode;
+	struct iyesde *iyesde;
 	struct cdev *cdev;
 	void *addr;
 	int rc;
@@ -424,7 +424,7 @@ int dev_dax_probe(struct device *dev)
 	/* 1:1 map region resource range to device-dax instance range */
 	if (!devm_request_mem_region(dev, res->start, resource_size(res),
 				dev_name(dev))) {
-		dev_warn(dev, "could not reserve region %pR\n", res);
+		dev_warn(dev, "could yest reserve region %pR\n", res);
 		return -EBUSY;
 	}
 
@@ -433,8 +433,8 @@ int dev_dax_probe(struct device *dev)
 	if (IS_ERR(addr))
 		return PTR_ERR(addr);
 
-	inode = dax_inode(dax_dev);
-	cdev = inode->i_cdev;
+	iyesde = dax_iyesde(dax_dev);
+	cdev = iyesde->i_cdev;
 	cdev_init(cdev, &dax_fops);
 	if (dev->class) {
 		/* for the CONFIG_DEV_DAX_PMEM_COMPAT case */

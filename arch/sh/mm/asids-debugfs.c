@@ -3,14 +3,14 @@
  *
  *  Copyright (C) 2000, 2001  Paolo Alberelli
  *  Copyright (C) 2003 - 2008  Paul Mundt
- *  Copyright (C) 2003, 2004  Richard Curnow
+ *  Copyright (C) 2003, 2004  Richard Curyesw
  *
  * Provides a debugfs file that lists out the ASIDs currently associated
  * with the processes.
  *
  * In the SH-5 case, if the DM.PC register is examined through the debug
  * link, this shows ASID + PC. To make use of this, the PID->ASID
- * relationship needs to be known. This is primarily for debugging.
+ * relationship needs to be kyeswn. This is primarily for debugging.
  *
  * This file is subject to the terms and conditions of the GNU General Public
  * License.  See the file "COPYING" in the main directory of this archive
@@ -48,9 +48,9 @@ static int asids_seq_show(struct seq_file *file, void *iter)
 	return 0;
 }
 
-static int asids_debugfs_open(struct inode *inode, struct file *file)
+static int asids_debugfs_open(struct iyesde *iyesde, struct file *file)
 {
-	return single_open(file, asids_seq_show, inode->i_private);
+	return single_open(file, asids_seq_show, iyesde->i_private);
 }
 
 static const struct file_operations asids_debugfs_fops = {

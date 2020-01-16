@@ -18,7 +18,7 @@ unsigned long __clear_user(void __user *addr, unsigned long size)
 {
 	long __d0;
 	might_fault();
-	/* no memory constraint because it doesn't change any memory gcc knows
+	/* yes memory constraint because it doesn't change any memory gcc kyesws
 	   about */
 	stac();
 	asm volatile(
@@ -60,7 +60,7 @@ EXPORT_SYMBOL(clear_user);
  * but reuse __memcpy_mcsafe in case a new read error is encountered.
  * clac() is handled in _copy_to_iter_mcsafe().
  */
-__visible notrace unsigned long
+__visible yestrace unsigned long
 mcsafe_handle_tail(char *to, char *from, unsigned len)
 {
 	for (; len; --len, to++, from++) {
@@ -107,13 +107,13 @@ EXPORT_SYMBOL_GPL(arch_wb_cache_pmem);
 long __copy_user_flushcache(void *dst, const void __user *src, unsigned size)
 {
 	unsigned long flushed, dest = (unsigned long) dst;
-	long rc = __copy_user_nocache(dst, src, size, 0);
+	long rc = __copy_user_yescache(dst, src, size, 0);
 
 	/*
-	 * __copy_user_nocache() uses non-temporal stores for the bulk
+	 * __copy_user_yescache() uses yesn-temporal stores for the bulk
 	 * of the transfer, but we need to manually flush if the
 	 * transfer is unaligned. A cached memory copy is used when
-	 * destination or size is not naturally aligned. That is:
+	 * destination or size is yest naturally aligned. That is:
 	 *   - Require 8-byte alignment when size is 8 bytes or larger.
 	 *   - Require 4-byte alignment when size is 4 bytes.
 	 */

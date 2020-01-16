@@ -23,12 +23,12 @@
   are met:
 
     * Redistributions of source code must retain the above copyright
-      notice, this list of conditions and the following disclaimer.
+      yestice, this list of conditions and the following disclaimer.
     * Redistributions in binary form must reproduce the above copyright
-      notice, this list of conditions and the following disclaimer in
+      yestice, this list of conditions and the following disclaimer in
       the documentation and/or other materials provided with the
       distribution.
-    * Neither the name of Intel Corporation nor the names of its
+    * Neither the name of Intel Corporation yesr the names of its
       contributors may be used to endorse or promote products derived
       from this software without specific prior written permission.
 
@@ -310,7 +310,7 @@ static int adf_ctl_ioctl_dev_stop(struct file *fp, unsigned int cmd,
 		return ret;
 
 	if (adf_devmgr_verify_id(ctl_data->device_id)) {
-		pr_err("QAT: Device %d not found\n", ctl_data->device_id);
+		pr_err("QAT: Device %d yest found\n", ctl_data->device_id);
 		ret = -ENODEV;
 		goto out;
 	}
@@ -507,6 +507,6 @@ module_init(adf_register_ctl_device_driver);
 module_exit(adf_unregister_ctl_device_driver);
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_AUTHOR("Intel");
-MODULE_DESCRIPTION("Intel(R) QuickAssist Technology");
+MODULE_DESCRIPTION("Intel(R) QuickAssist Techyeslogy");
 MODULE_ALIAS_CRYPTO("intel_qat");
 MODULE_VERSION(ADF_DRV_VERSION);

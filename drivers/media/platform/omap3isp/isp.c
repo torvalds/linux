@@ -14,19 +14,19 @@
  *	Laurent Pinchart <laurent.pinchart@ideasonboard.com>
  *	Sakari Ailus <sakari.ailus@iki.fi>
  *	David Cohen <dacohen@gmail.com>
- *	Stanimir Varbanov <svarbanov@mm-sol.com>
+ *	Stanimir Varbayesv <svarbayesv@mm-sol.com>
  *	Vimarsh Zutshi <vimarsh.zutshi@gmail.com>
  *	Tuukka Toivonen <tuukkat76@gmail.com>
  *	Sergio Aguirre <saaguirre@ti.com>
  *	Antti Koskipaa <akoskipa@gmail.com>
- *	Ivan T. Ivanov <iivanov@mm-sol.com>
+ *	Ivan T. Ivayesv <iivayesv@mm-sol.com>
  *	RaniSuneela <r-m@ti.com>
  *	Atanas Filipov <afilipov@mm-sol.com>
  *	Gjorgji Rosikopulos <grosikopulos@mm-sol.com>
- *	Hiroshi DOYU <hiroshi.doyu@nokia.com>
+ *	Hiroshi DOYU <hiroshi.doyu@yeskia.com>
  *	Nayden Kanchev <nkanchev@mm-sol.com>
- *	Phil Carmody <ext-phil.2.carmody@nokia.com>
- *	Artem Bityutskiy <artem.bityutskiy@nokia.com>
+ *	Phil Carmody <ext-phil.2.carmody@yeskia.com>
+ *	Artem Bityutskiy <artem.bityutskiy@yeskia.com>
  *	Dominic Curran <dcurran@ti.com>
  *	Ilkka Myllyperkio <ilkka.myllyperkio@sofica.fi>
  *	Pallavi Kulkarni <p-kulkarni@ti.com>
@@ -35,7 +35,7 @@
  *	Sameer Venkatraman <sameerv@ti.com>
  *	Senthilvadivu Guruswamy <svadivu@ti.com>
  *	Thara Gopinath <thara@ti.com>
- *	Toni Leinonen <toni.leinonen@nokia.com>
+ *	Toni Leiyesnen <toni.leiyesnen@yeskia.com>
  *	Troy Laramy <t-laramy@ti.com>
  */
 
@@ -63,7 +63,7 @@
 #endif
 
 #include <media/v4l2-common.h>
-#include <media/v4l2-fwnode.h>
+#include <media/v4l2-fwyesde.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-mc.h>
 
@@ -296,7 +296,7 @@ static struct clk *isp_xclk_src_get(struct of_phandle_args *clkspec, void *data)
 
 static int isp_xclk_init(struct isp_device *isp)
 {
-	struct device_node *np = isp->dev->of_node;
+	struct device_yesde *np = isp->dev->of_yesde;
 	struct clk_init_data init = {};
 	unsigned int i;
 
@@ -336,7 +336,7 @@ static int isp_xclk_init(struct isp_device *isp)
 
 static void isp_xclk_cleanup(struct isp_device *isp)
 {
-	struct device_node *np = isp->dev->of_node;
+	struct device_yesde *np = isp->dev->of_yesde;
 	unsigned int i;
 
 	if (np)
@@ -471,10 +471,10 @@ void omap3isp_hist_dma_done(struct isp_device *isp)
 {
 	if (omap3isp_ccdc_busy(&isp->isp_ccdc) ||
 	    omap3isp_stat_pcr_busy(&isp->isp_hist)) {
-		/* Histogram cannot be enabled in this frame anymore */
+		/* Histogram canyest be enabled in this frame anymore */
 		atomic_set(&isp->isp_hist.buf_err, 1);
 		dev_dbg(isp->dev,
-			"hist: Out of synchronization with CCDC. Ignoring next buffer.\n");
+			"hist: Out of synchronization with CCDC. Igyesring next buffer.\n");
 	}
 }
 
@@ -533,7 +533,7 @@ static void isp_isr_sbl(struct isp_device *isp)
 
 	/*
 	 * Handle shared buffer logic overflows for video buffers.
-	 * ISPSBL_PCR_CCDCPRV_2_RSZ_OVF can be safely ignored.
+	 * ISPSBL_PCR_CCDCPRV_2_RSZ_OVF can be safely igyesred.
 	 */
 	sbl_pcr = isp_reg_readl(isp, OMAP3_ISP_IOMEM_SBL, ISPSBL_PCR);
 	isp_reg_writel(isp, sbl_pcr, OMAP3_ISP_IOMEM_SBL, ISPSBL_PCR);
@@ -651,7 +651,7 @@ static irqreturn_t isp_isr(int irq, void *_isp)
 }
 
 static const struct media_device_ops isp_media_ops = {
-	.link_notify = v4l2_pipeline_link_notify,
+	.link_yestify = v4l2_pipeline_link_yestify,
 };
 
 /* -----------------------------------------------------------------------------
@@ -663,7 +663,7 @@ static const struct media_device_ops isp_media_ops = {
  * @pipe: ISP pipeline
  * @mode: Stream mode (single shot or continuous)
  *
- * Walk the entities chain starting at the pipeline output video node and start
+ * Walk the entities chain starting at the pipeline output video yesde and start
  * all modules in the chain in the given mode.
  *
  * Return 0 if successful, or the return value of the failed video::s_stream
@@ -765,8 +765,8 @@ static int isp_pipeline_wait(struct isp_device *isp,
  * isp_pipeline_disable - Disable streaming on a pipeline
  * @pipe: ISP pipeline
  *
- * Walk the entities chain starting at the pipeline output video node and stop
- * all modules in the chain. Wait synchronously for the modules to be stopped if
+ * Walk the entities chain starting at the pipeline output video yesde and stop
+ * all modules in the chain. Wait synchroyesusly for the modules to be stopped if
  * necessary.
  *
  * Return 0 if all modules have been properly stopped, or -ETIMEDOUT if a module
@@ -784,7 +784,7 @@ static int isp_pipeline_disable(struct isp_pipeline *pipe)
 
 	/*
 	 * We need to stop all the modules after CCDC first or they'll
-	 * never stop since they may not get a full frame from CCDC.
+	 * never stop since they may yest get a full frame from CCDC.
 	 */
 	entity = &pipe->output->video.entity;
 	while (1) {
@@ -818,7 +818,7 @@ static int isp_pipeline_disable(struct isp_pipeline *pipe)
 			ret |= isp_pipeline_wait(isp, isp_pipeline_wait_ccdc);
 
 		/* Handle stop failures. An entity that fails to stop can
-		 * usually just be restarted. Flag the stop failure nonetheless
+		 * usually just be restarted. Flag the stop failure yesnetheless
 		 * to trigger an ISP reset the next time the device is released,
 		 * just in case.
 		 *
@@ -855,7 +855,7 @@ static int isp_pipeline_disable(struct isp_pipeline *pipe)
  * single-shot or continuous mode.
  *
  * Return 0 if successful, or the return value of the failed video::s_stream
- * operation otherwise. The pipeline state is not updated when the operation
+ * operation otherwise. The pipeline state is yest updated when the operation
  * fails, except when stopping the pipeline.
  */
 int omap3isp_pipeline_set_stream(struct isp_pipeline *pipe,
@@ -878,8 +878,8 @@ int omap3isp_pipeline_set_stream(struct isp_pipeline *pipe,
  * omap3isp_pipeline_cancel_stream - Cancel stream on a pipeline
  * @pipe: ISP pipeline
  *
- * Cancelling a stream mark all buffers on all video nodes in the pipeline as
- * erroneous and makes sure no new buffer can be queued. This function is called
+ * Cancelling a stream mark all buffers on all video yesdes in the pipeline as
+ * erroneous and makes sure yes new buffer can be queued. This function is called
  * when a fatal error that prevents any further operation on the pipeline
  * occurs.
  */
@@ -920,12 +920,12 @@ static void isp_pipeline_suspend(struct isp_pipeline *pipe)
 
 /*
  * isp_pipeline_is_last - Verify if entity has an enabled link to the output
- *			  video node
+ *			  video yesde
  * @me: ISP module's media entity
  *
- * Returns 1 if the entity has an enabled link to the output video node or 0
- * otherwise. It's true only while pipeline can have no more than one output
- * node.
+ * Returns 1 if the entity has an enabled link to the output video yesde or 0
+ * otherwise. It's true only while pipeline can have yes more than one output
+ * yesde.
  */
 static int isp_pipeline_is_last(struct media_entity *me)
 {
@@ -946,8 +946,8 @@ static int isp_pipeline_is_last(struct media_entity *me)
  * @me: ISP module's media entity
  *
  * Suspend the whole pipeline if module's entity has an enabled link to the
- * output video node. It works only while pipeline can have no more than one
- * output node.
+ * output video yesde. It works only while pipeline can have yes more than one
+ * output yesde.
  */
 static void isp_suspend_module_pipeline(struct media_entity *me)
 {
@@ -960,8 +960,8 @@ static void isp_suspend_module_pipeline(struct media_entity *me)
  * @me: ISP module's media entity
  *
  * Resume the whole pipeline if module's entity has an enabled link to the
- * output video node. It works only while pipeline can have no more than one
- * output node.
+ * output video yesde. It works only while pipeline can have yes more than one
+ * output yesde.
  */
 static void isp_resume_module_pipeline(struct media_entity *me)
 {
@@ -1037,7 +1037,7 @@ static int isp_reset(struct isp_device *isp)
 	while (!(isp_reg_readl(isp, OMAP3_ISP_IOMEM_MAIN,
 			       ISP_SYSSTATUS) & 0x1)) {
 		if (timeout++ > 10000) {
-			dev_alert(isp->dev, "cannot reset ISP\n");
+			dev_alert(isp->dev, "canyest reset ISP\n");
 			return -ETIMEDOUT;
 		}
 		udelay(1);
@@ -1180,7 +1180,7 @@ void omap3isp_sbl_disable(struct isp_device *isp, enum isp_sbl_resource res)
  * @stopping: flag which tells module wants to stop
  *
  * This function checks if ISP submodule needs to wait for next interrupt. If
- * yes, makes the caller to sleep while waiting for such event.
+ * no, makes the caller to sleep while waiting for such event.
  */
 int omap3isp_module_sync_idle(struct media_entity *me, wait_queue_head_t *wait,
 			      atomic_t *stopping)
@@ -1235,8 +1235,8 @@ int omap3isp_module_sync_idle(struct media_entity *me, wait_queue_head_t *wait,
  * @wait: ISP submodule's wait queue for streamoff/interrupt synchronization
  * @stopping: flag which tells module wants to stop
  *
- * This function checks if ISP submodule was stopping. In case of yes, it
- * notices the caller by setting stopping to 0 and waking up the wait queue.
+ * This function checks if ISP submodule was stopping. In case of no, it
+ * yestices the caller by setting stopping to 0 and waking up the wait queue.
  * Returns 1 if it was stopping or 0 otherwise.
  */
 int omap3isp_module_sync_is_stopping(wait_queue_head_t *wait,
@@ -1514,7 +1514,7 @@ void omap3isp_print_status(struct isp_device *isp)
 /*
  * Power management support.
  *
- * As the ISP can't properly handle an input video stream interruption on a non
+ * As the ISP can't properly handle an input video stream interruption on a yesn
  * frame boundary, the ISP pipelines need to be stopped before sensors get
  * suspended. However, as suspending the sensors can require a running clock,
  * which can be provided by the ISP, the ISP can't be completely suspended
@@ -1525,7 +1525,7 @@ void omap3isp_print_status(struct isp_device *isp)
  * ISP clocks get disabled in suspend(). Similarly, the clocks are re-enabled in
  * resume(), and the the pipelines are restarted in complete().
  *
- * TODO: PM dependencies between the ISP and sensors are not modelled explicitly
+ * TODO: PM dependencies between the ISP and sensors are yest modelled explicitly
  * yet.
  */
 static int isp_pm_prepare(struct device *dev)
@@ -1657,7 +1657,7 @@ static int isp_link_entity(
 	 * Not all interfaces are available on all revisions of the
 	 * ISP. The sub-devices of those interfaces aren't initialised
 	 * in such a case. Check this by ensuring the num_pads is
-	 * non-zero.
+	 * yesn-zero.
 	 */
 	if (!input->num_pads) {
 		dev_err(isp->dev, "%s: invalid input %u\n", entity->name,
@@ -1670,7 +1670,7 @@ static int isp_link_entity(
 			break;
 	}
 	if (i == entity->num_pads) {
-		dev_err(isp->dev, "%s: no source pad in external entity %s\n",
+		dev_err(isp->dev, "%s: yes source pad in external entity %s\n",
 			__func__, entity->name);
 		return -EINVAL;
 	}
@@ -1751,7 +1751,7 @@ static int isp_create_links(struct isp_device *isp)
 {
 	int ret;
 
-	/* Create links between entities and video nodes. */
+	/* Create links between entities and video yesdes. */
 	ret = media_create_pad_link(
 			&isp->isp_csi2a.subdev.entity, CSI2_PAD_SOURCE,
 			&isp->isp_csi2a.video_out.video.entity, 0, 0);
@@ -1999,7 +1999,7 @@ static int isp_remove(struct platform_device *pdev)
 {
 	struct isp_device *isp = platform_get_drvdata(pdev);
 
-	v4l2_async_notifier_unregister(&isp->notifier);
+	v4l2_async_yestifier_unregister(&isp->yestifier);
 	isp_unregister_entities(isp);
 	isp_cleanup_modules(isp);
 	isp_xclk_cleanup(isp);
@@ -2009,7 +2009,7 @@ static int isp_remove(struct platform_device *pdev)
 	__omap3isp_put(isp, false);
 
 	media_entity_enum_cleanup(&isp->crashed);
-	v4l2_async_notifier_cleanup(&isp->notifier);
+	v4l2_async_yestifier_cleanup(&isp->yestifier);
 
 	kfree(isp);
 
@@ -2022,10 +2022,10 @@ enum isp_of_phy {
 	ISP_OF_PHY_CSIPHY2,
 };
 
-static int isp_subdev_notifier_complete(struct v4l2_async_notifier *async)
+static int isp_subdev_yestifier_complete(struct v4l2_async_yestifier *async)
 {
 	struct isp_device *isp = container_of(async, struct isp_device,
-					      notifier);
+					      yestifier);
 	struct v4l2_device *v4l2_dev = &isp->v4l2_dev;
 	struct v4l2_subdev *sd;
 	int ret;
@@ -2035,7 +2035,7 @@ static int isp_subdev_notifier_complete(struct v4l2_async_notifier *async)
 		return ret;
 
 	list_for_each_entry(sd, &v4l2_dev->subdevs, list) {
-		if (sd->notifier != &isp->notifier)
+		if (sd->yestifier != &isp->yestifier)
 			continue;
 
 		ret = isp_link_entity(isp, &sd->entity,
@@ -2044,7 +2044,7 @@ static int isp_subdev_notifier_complete(struct v4l2_async_notifier *async)
 			return ret;
 	}
 
-	ret = v4l2_device_register_subdev_nodes(&isp->v4l2_dev);
+	ret = v4l2_device_register_subdev_yesdes(&isp->v4l2_dev);
 	if (ret < 0)
 		return ret;
 
@@ -2052,7 +2052,7 @@ static int isp_subdev_notifier_complete(struct v4l2_async_notifier *async)
 }
 
 static void isp_parse_of_parallel_endpoint(struct device *dev,
-					   struct v4l2_fwnode_endpoint *vep,
+					   struct v4l2_fwyesde_endpoint *vep,
 					   struct isp_bus_cfg *buscfg)
 {
 	buscfg->interface = ISP_INTERFACE_PARALLEL;
@@ -2071,7 +2071,7 @@ static void isp_parse_of_parallel_endpoint(struct device *dev,
 }
 
 static void isp_parse_of_csi2_endpoint(struct device *dev,
-				       struct v4l2_fwnode_endpoint *vep,
+				       struct v4l2_fwyesde_endpoint *vep,
 				       struct isp_bus_cfg *buscfg)
 {
 	unsigned int i;
@@ -2096,14 +2096,14 @@ static void isp_parse_of_csi2_endpoint(struct device *dev,
 			buscfg->bus.csi2.lanecfg.data[i].pos);
 	}
 	/*
-	 * FIXME: now we assume the CRC is always there. Implement a way to
+	 * FIXME: yesw we assume the CRC is always there. Implement a way to
 	 * obtain this information from the sensor. Frame descriptors, perhaps?
 	 */
 	buscfg->bus.csi2.crc = 1;
 }
 
 static void isp_parse_of_csi1_endpoint(struct device *dev,
-				       struct v4l2_fwnode_endpoint *vep,
+				       struct v4l2_fwyesde_endpoint *vep,
 				       struct isp_bus_cfg *buscfg)
 {
 	buscfg->bus.ccp2.lanecfg.clk.pos = vep->bus.mipi_csi1.clock_lane;
@@ -2156,24 +2156,24 @@ static struct {
 
 static int isp_parse_of_endpoints(struct isp_device *isp)
 {
-	struct fwnode_handle *ep;
+	struct fwyesde_handle *ep;
 	struct isp_async_subdev *isd = NULL;
 	struct isp_bus_cfg *buscfg;
 	unsigned int i;
 
-	ep = fwnode_graph_get_endpoint_by_id(
-		dev_fwnode(isp->dev), ISP_OF_PHY_PARALLEL, 0,
+	ep = fwyesde_graph_get_endpoint_by_id(
+		dev_fwyesde(isp->dev), ISP_OF_PHY_PARALLEL, 0,
 		FWNODE_GRAPH_ENDPOINT_NEXT);
 
 	if (ep) {
-		struct v4l2_fwnode_endpoint vep = {
+		struct v4l2_fwyesde_endpoint vep = {
 			.bus_type = V4L2_MBUS_PARALLEL
 		};
 		int ret;
 
 		dev_dbg(isp->dev, "parsing parallel interface\n");
 
-		ret = v4l2_fwnode_endpoint_parse(ep, &vep);
+		ret = v4l2_fwyesde_endpoint_parse(ep, &vep);
 
 		if (!ret) {
 			ret = isp_alloc_isd(&isd, &buscfg);
@@ -2183,48 +2183,48 @@ static int isp_parse_of_endpoints(struct isp_device *isp)
 
 		if (!ret) {
 			isp_parse_of_parallel_endpoint(isp->dev, &vep, buscfg);
-			ret = v4l2_async_notifier_add_fwnode_remote_subdev(
-				&isp->notifier, ep, &isd->asd);
+			ret = v4l2_async_yestifier_add_fwyesde_remote_subdev(
+				&isp->yestifier, ep, &isd->asd);
 		}
 
-		fwnode_handle_put(ep);
+		fwyesde_handle_put(ep);
 		if (ret)
 			kfree(isd);
 	}
 
 	for (i = 0; i < ARRAY_SIZE(isp_bus_interfaces); i++) {
-		struct v4l2_fwnode_endpoint vep = {
+		struct v4l2_fwyesde_endpoint vep = {
 			.bus_type = V4L2_MBUS_CSI2_DPHY
 		};
 		int ret;
 
-		ep = fwnode_graph_get_endpoint_by_id(
-			dev_fwnode(isp->dev), isp_bus_interfaces[i].phy, 0,
+		ep = fwyesde_graph_get_endpoint_by_id(
+			dev_fwyesde(isp->dev), isp_bus_interfaces[i].phy, 0,
 			FWNODE_GRAPH_ENDPOINT_NEXT);
 
 		if (!ep)
 			continue;
 
-		dev_dbg(isp->dev, "parsing serial interface %u, node %pOF\n", i,
-			to_of_node(ep));
+		dev_dbg(isp->dev, "parsing serial interface %u, yesde %pOF\n", i,
+			to_of_yesde(ep));
 
 		ret = isp_alloc_isd(&isd, &buscfg);
 		if (ret)
 			return ret;
 
-		ret = v4l2_fwnode_endpoint_parse(ep, &vep);
+		ret = v4l2_fwyesde_endpoint_parse(ep, &vep);
 		if (!ret) {
 			buscfg->interface = isp_bus_interfaces[i].csi2_if;
 			isp_parse_of_csi2_endpoint(isp->dev, &vep, buscfg);
 		} else if (ret == -ENXIO) {
-			vep = (struct v4l2_fwnode_endpoint)
+			vep = (struct v4l2_fwyesde_endpoint)
 				{ .bus_type = V4L2_MBUS_CSI1 };
-			ret = v4l2_fwnode_endpoint_parse(ep, &vep);
+			ret = v4l2_fwyesde_endpoint_parse(ep, &vep);
 
 			if (ret == -ENXIO) {
-				vep = (struct v4l2_fwnode_endpoint)
+				vep = (struct v4l2_fwyesde_endpoint)
 					{ .bus_type = V4L2_MBUS_CCP2 };
-				ret = v4l2_fwnode_endpoint_parse(ep, &vep);
+				ret = v4l2_fwyesde_endpoint_parse(ep, &vep);
 			}
 			if (!ret) {
 				buscfg->interface =
@@ -2235,10 +2235,10 @@ static int isp_parse_of_endpoints(struct isp_device *isp)
 		}
 
 		if (!ret)
-			ret = v4l2_async_notifier_add_fwnode_remote_subdev(
-				&isp->notifier, ep, &isd->asd);
+			ret = v4l2_async_yestifier_add_fwyesde_remote_subdev(
+				&isp->yestifier, ep, &isd->asd);
 
-		fwnode_handle_put(ep);
+		fwyesde_handle_put(ep);
 		if (ret)
 			kfree(isd);
 	}
@@ -2246,8 +2246,8 @@ static int isp_parse_of_endpoints(struct isp_device *isp)
 	return 0;
 }
 
-static const struct v4l2_async_notifier_operations isp_subdev_notifier_ops = {
-	.complete = isp_subdev_notifier_complete,
+static const struct v4l2_async_yestifier_operations isp_subdev_yestifier_ops = {
+	.complete = isp_subdev_yestifier_complete,
 };
 
 /*
@@ -2255,9 +2255,9 @@ static const struct v4l2_async_notifier_operations isp_subdev_notifier_ops = {
  * @pdev: Pointer to ISP platform device
  *
  * Returns 0 if successful,
- *   -ENOMEM if no memory available,
- *   -ENODEV if no platform device resources found
- *     or no space for remapping registers,
+ *   -ENOMEM if yes memory available,
+ *   -ENODEV if yes platform device resources found
+ *     or yes space for remapping registers,
  *   -EINVAL if couldn't install ISR,
  *   or clk_get return error value.
  */
@@ -2270,23 +2270,23 @@ static int isp_probe(struct platform_device *pdev)
 
 	isp = kzalloc(sizeof(*isp), GFP_KERNEL);
 	if (!isp) {
-		dev_err(&pdev->dev, "could not allocate memory\n");
+		dev_err(&pdev->dev, "could yest allocate memory\n");
 		return -ENOMEM;
 	}
 
-	ret = fwnode_property_read_u32(of_fwnode_handle(pdev->dev.of_node),
+	ret = fwyesde_property_read_u32(of_fwyesde_handle(pdev->dev.of_yesde),
 				       "ti,phy-type", &isp->phy_type);
 	if (ret)
 		goto error_release_isp;
 
-	isp->syscon = syscon_regmap_lookup_by_phandle(pdev->dev.of_node,
+	isp->syscon = syscon_regmap_lookup_by_phandle(pdev->dev.of_yesde,
 						      "syscon");
 	if (IS_ERR(isp->syscon)) {
 		ret = PTR_ERR(isp->syscon);
 		goto error_release_isp;
 	}
 
-	ret = of_property_read_u32_index(pdev->dev.of_node,
+	ret = of_property_read_u32_index(pdev->dev.of_yesde,
 					 "syscon", 1, &isp->syscon_offset);
 	if (ret)
 		goto error_release_isp;
@@ -2295,7 +2295,7 @@ static int isp_probe(struct platform_device *pdev)
 
 	mutex_init(&isp->isp_mutex);
 	spin_lock_init(&isp->stat_lock);
-	v4l2_async_notifier_init(&isp->notifier);
+	v4l2_async_yestifier_init(&isp->yestifier);
 	isp->dev = &pdev->dev;
 
 	ret = isp_parse_of_endpoints(isp);
@@ -2320,7 +2320,7 @@ static int isp_probe(struct platform_device *pdev)
 	 * manually to read the revision before calling __omap3isp_get().
 	 *
 	 * Start by mapping the ISP MMIO area, which is in two pieces.
-	 * The ISP IOMMU is in between. Map both now, and fill in the
+	 * The ISP IOMMU is in between. Map both yesw, and fill in the
 	 * ISP revision specific portions a little later in the
 	 * function.
 	 */
@@ -2420,9 +2420,9 @@ static int isp_probe(struct platform_device *pdev)
 	if (ret < 0)
 		goto error_register_entities;
 
-	isp->notifier.ops = &isp_subdev_notifier_ops;
+	isp->yestifier.ops = &isp_subdev_yestifier_ops;
 
-	ret = v4l2_async_notifier_register(&isp->v4l2_dev, &isp->notifier);
+	ret = v4l2_async_yestifier_register(&isp->v4l2_dev, &isp->yestifier);
 	if (ret)
 		goto error_register_entities;
 
@@ -2441,7 +2441,7 @@ error_isp:
 	isp_xclk_cleanup(isp);
 	__omap3isp_put(isp, false);
 error:
-	v4l2_async_notifier_cleanup(&isp->notifier);
+	v4l2_async_yestifier_cleanup(&isp->yestifier);
 	mutex_destroy(&isp->isp_mutex);
 error_release_isp:
 	kfree(isp);

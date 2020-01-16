@@ -13,7 +13,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -58,7 +58,7 @@ static int virtio_gpu_map_ioctl(struct drm_device *dev, void *data,
 /*
  * Usage of execbuffer:
  * Relocations need to take into account the full VIRTIO_GPUDrawable size.
- * However, the command as passed from user space must *not* contain the initial
+ * However, the command as passed from user space must *yest* contain the initial
  * VIRTIO_GPUReleaseInfo struct (first XXX bytes)
  */
 static int virtio_gpu_execbuffer_ioctl(struct drm_device *dev, void *data,
@@ -458,7 +458,7 @@ static int virtio_gpu_get_caps_ioctl(struct drm_device *dev,
 	}
 	spin_unlock(&vgdev->display_info_lock);
 
-	/* not in cache - need to talk to hw */
+	/* yest in cache - need to talk to hw */
 	virtio_gpu_cmd_get_capset(vgdev, found_valid, args->cap_set_ver,
 				  &cache_ent);
 
@@ -496,7 +496,7 @@ struct drm_ioctl_desc virtio_gpu_ioctls[DRM_VIRTIO_NUM_IOCTLS] = {
 	DRM_IOCTL_DEF_DRV(VIRTGPU_RESOURCE_INFO, virtio_gpu_resource_info_ioctl,
 			  DRM_RENDER_ALLOW),
 
-	/* make transfer async to the main ring? - no sure, can we
+	/* make transfer async to the main ring? - yes sure, can we
 	 * thread these in the underlying GL
 	 */
 	DRM_IOCTL_DEF_DRV(VIRTGPU_TRANSFER_FROM_HOST,

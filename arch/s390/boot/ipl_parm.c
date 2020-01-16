@@ -18,7 +18,7 @@ int __bootdata_preserved(ipl_block_valid);
 unsigned long __bootdata(vmalloc_size) = VMALLOC_DEFAULT_SIZE;
 unsigned long __bootdata(memory_end);
 int __bootdata(memory_end_set);
-int __bootdata(noexec_disabled);
+int __bootdata(yesexec_disabled);
 
 int kaslr_enabled __section(.data);
 
@@ -36,7 +36,7 @@ static inline int __diag308(unsigned long subcode, void *addr)
 		"	larl	%0,1f\n"
 		"	stg	%0,%[psw_pgm]+8\n"
 		"	diag	%[addr],%[subcode],0x308\n"
-		"1:	nopr	%%r7\n"
+		"1:	yespr	%%r7\n"
 		: "=&d" (reg1), "=&a" (reg2),
 		  [psw_pgm] "=Q" (S390_lowcore.program_new_psw),
 		  [addr] "+d" (_addr), "+d" (_rc)
@@ -229,16 +229,16 @@ void parse_boot_command_line(void)
 		if (!strcmp(param, "vmalloc") && val)
 			vmalloc_size = round_up(memparse(val, NULL), PAGE_SIZE);
 
-		if (!strcmp(param, "noexec")) {
+		if (!strcmp(param, "yesexec")) {
 			rc = kstrtobool(val, &enabled);
 			if (!rc && !enabled)
-				noexec_disabled = 1;
+				yesexec_disabled = 1;
 		}
 
 		if (!strcmp(param, "facilities") && val)
 			modify_fac_list(val);
 
-		if (!strcmp(param, "nokaslr"))
+		if (!strcmp(param, "yeskaslr"))
 			kaslr_enabled = 0;
 	}
 }

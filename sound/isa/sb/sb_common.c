@@ -91,7 +91,7 @@ static int snd_sbdsp_version(struct snd_sb * chip)
 static int snd_sbdsp_probe(struct snd_sb * chip)
 {
 	int version;
-	int major, minor;
+	int major, miyesr;
 	char *str;
 	unsigned long flags;
 
@@ -111,9 +111,9 @@ static int snd_sbdsp_probe(struct snd_sb * chip)
 	}
 	spin_unlock_irqrestore(&chip->reg_lock, flags);
 	major = version >> 8;
-	minor = version & 0xff;
+	miyesr = version & 0xff;
 	snd_printdd("SB [0x%lx]: DSP chip found, version = %i.%i\n",
-		    chip->port, major, minor);
+		    chip->port, major, miyesr);
 
 	switch (chip->hardware) {
 	case SB_HW_AUTO:
@@ -123,7 +123,7 @@ static int snd_sbdsp_probe(struct snd_sb * chip)
 			str = "1.0";
 			break;
 		case 2:
-			if (minor) {
+			if (miyesr) {
 				chip->hardware = SB_HW_201;
 				str = "2.01+";
 			} else {
@@ -140,8 +140,8 @@ static int snd_sbdsp_probe(struct snd_sb * chip)
 			str = "16";
 			break;
 		default:
-			snd_printk(KERN_INFO "SB [0x%lx]: unknown DSP chip version %i.%i\n",
-				   chip->port, major, minor);
+			snd_printk(KERN_INFO "SB [0x%lx]: unkyeswn DSP chip version %i.%i\n",
+				   chip->port, major, miyesr);
 			return -ENODEV;
 		}
 		break;
@@ -164,7 +164,7 @@ static int snd_sbdsp_probe(struct snd_sb * chip)
 		return -ENODEV;
 	}
 	sprintf(chip->name, "Sound Blaster %s", str);
-	chip->version = (major << 8) | minor;
+	chip->version = (major << 8) | miyesr;
 	return 0;
 }
 
@@ -252,7 +252,7 @@ int snd_sbdsp_create(struct snd_card *card,
 	chip->dma8 = dma8;
 	if (dma16 >= 0) {
 		if (hardware != SB_HW_ALS100 && (dma16 < 5 || dma16 > 7)) {
-			/* no duplex */
+			/* yes duplex */
 			dma16 = -1;
 		} else if (request_dma(dma16, "SoundBlaster - 16bit")) {
 			snd_printk(KERN_ERR "sb: can't grab DMA16 %d\n", dma16);

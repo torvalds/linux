@@ -237,7 +237,7 @@ static void gb_fw_core_disconnect(struct gb_bundle *bundle)
 	if (!(bundle->intf->quirks & GB_INTERFACE_QUIRK_NO_PM)) {
 		ret = gb_pm_runtime_get_sync(bundle);
 		if (ret)
-			gb_pm_runtime_get_noresume(bundle);
+			gb_pm_runtime_get_yesresume(bundle);
 	}
 
 	gb_fw_mgmt_connection_exit(fw_core->mgmt_connection);

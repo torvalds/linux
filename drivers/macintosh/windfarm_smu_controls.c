@@ -7,7 +7,7 @@
  */
 
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/kernel.h>
 #include <linux/delay.h>
 #include <linux/slab.h>
@@ -61,7 +61,7 @@ static int smu_set_fan(int pwm, u8 id, u16 value)
 	cmd.cmd = SMU_CMD_FAN_COMMAND;
 
 	/* The SMU has an "old" and a "new" way of setting the fan speed
-	 * Unfortunately, I found no reliable way to know which one works
+	 * Unfortunately, I found yes reliable way to kyesw which one works
 	 * on a given machine model. After some investigations it appears
 	 * that MacOS X just tries the new one, and if it fails fallbacks
 	 * to the old ones ... Ugh.
@@ -153,7 +153,7 @@ static const struct wf_control_ops smu_fan_ops = {
 	.owner		= THIS_MODULE,
 };
 
-static struct smu_fan_control *smu_fan_create(struct device_node *node,
+static struct smu_fan_control *smu_fan_create(struct device_yesde *yesde,
 					      int pwm_fan)
 {
 	struct smu_fan_control *fct;
@@ -165,7 +165,7 @@ static struct smu_fan_control *smu_fan_create(struct device_node *node,
 	if (fct == NULL)
 		return NULL;
 	fct->ctrl.ops = &smu_fan_ops;
-	l = of_get_property(node, "location", NULL);
+	l = of_get_property(yesde, "location", NULL);
 	if (l == NULL)
 		goto fail;
 
@@ -175,7 +175,7 @@ static struct smu_fan_control *smu_fan_create(struct device_node *node,
 	/* We use the name & location here the same way we do for SMU sensors,
 	 * see the comment in windfarm_smu_sensors.c. The locations are a bit
 	 * less consistent here between the iMac and the desktop models, but
-	 * that is good enough for our needs for now at least.
+	 * that is good eyesugh for our needs for yesw at least.
 	 *
 	 * One problem though is that Apple seem to be inconsistent with case
 	 * and the kernel doesn't have strcasecmp =P
@@ -228,17 +228,17 @@ static struct smu_fan_control *smu_fan_create(struct device_node *node,
 		goto fail;
 
 	/* Get min & max values*/
-	v = of_get_property(node, "min-value", NULL);
+	v = of_get_property(yesde, "min-value", NULL);
 	if (v == NULL)
 		goto fail;
 	fct->min = *v;
-	v = of_get_property(node, "max-value", NULL);
+	v = of_get_property(yesde, "max-value", NULL);
 	if (v == NULL)
 		goto fail;
 	fct->max = *v;
 
 	/* Get "reg" value */
-	reg = of_get_property(node, "reg", NULL);
+	reg = of_get_property(yesde, "reg", NULL);
 	if (reg == NULL)
 		goto fail;
 	fct->reg = *reg;
@@ -255,18 +255,18 @@ static struct smu_fan_control *smu_fan_create(struct device_node *node,
 
 static int __init smu_controls_init(void)
 {
-	struct device_node *smu, *fans, *fan;
+	struct device_yesde *smu, *fans, *fan;
 
 	if (!smu_present())
 		return -ENODEV;
 
-	smu = of_find_node_by_type(NULL, "smu");
+	smu = of_find_yesde_by_type(NULL, "smu");
 	if (smu == NULL)
 		return -ENODEV;
 
 	/* Look for RPM fans */
 	for (fans = NULL; (fans = of_get_next_child(smu, fans)) != NULL;)
-		if (of_node_name_eq(fans, "rpm-fans") ||
+		if (of_yesde_name_eq(fans, "rpm-fans") ||
 		    of_device_is_compatible(fans, "smu-rpm-fans"))
 			break;
 	for (fan = NULL;
@@ -281,12 +281,12 @@ static int __init smu_controls_init(void)
 		}
 		list_add(&fct->link, &smu_fans);
 	}
-	of_node_put(fans);
+	of_yesde_put(fans);
 
 
 	/* Look for PWM fans */
 	for (fans = NULL; (fans = of_get_next_child(smu, fans)) != NULL;)
-		if (of_node_name_eq(fans, "pwm-fans"))
+		if (of_yesde_name_eq(fans, "pwm-fans"))
 			break;
 	for (fan = NULL;
 	     fans && (fan = of_get_next_child(fans, fan)) != NULL;) {
@@ -300,8 +300,8 @@ static int __init smu_controls_init(void)
 		}
 		list_add(&fct->link, &smu_fans);
 	}
-	of_node_put(fans);
-	of_node_put(smu);
+	of_yesde_put(fans);
+	of_yesde_put(smu);
 
 	return 0;
 }

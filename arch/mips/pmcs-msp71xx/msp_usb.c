@@ -20,7 +20,7 @@
  *  THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *  You should have received a copy of the  GNU General Public License along
- *  with this program; if not, write  to the Free Software Foundation, Inc.,
+ *  with this program; if yest, write  to the Free Software Foundation, Inc.,
  *  675 Mass Ave, Cambridge, MA 02139, USA.
  */
 #if defined(CONFIG_USB_EHCI_HCD) || defined(CONFIG_USB_GADGET)
@@ -130,7 +130,7 @@ static int __init msp_usb_setup(void)
 	/*
 	 * Could this perhaps be integrated into the "features" env var?
 	 * Use the features key "U", and follow with "H" for host-mode,
-	 * "D" for device-mode.	 If it works for Ethernet, why not USB...
+	 * "D" for device-mode.	 If it works for Ethernet, why yest USB...
 	 *  -- hammtrev, 2007/03/22
 	 */
 	snprintf(&envstr[0], sizeof(envstr), "usbmode");
@@ -151,7 +151,7 @@ static int __init msp_usb_setup(void)
 		msp_devs[0] = &msp_usbhost0_device.dev;
 		ppfinit("platform add USB HOST done %s.\n", msp_devs[0]->name);
 #else
-		ppfinit("%s: echi_hcd not supported\n", __FILE__);
+		ppfinit("%s: echi_hcd yest supported\n", __FILE__);
 #endif	/* CONFIG_USB_EHCI_HCD */
 	} else {
 #if defined(CONFIG_USB_GADGET)
@@ -160,7 +160,7 @@ static int __init msp_usb_setup(void)
 		ppfinit("platform add USB DEVICE done %s.\n"
 					, msp_devs[0]->name);
 #else
-		ppfinit("%s: usb_gadget not supported\n", __FILE__);
+		ppfinit("%s: usb_gadget yest supported\n", __FILE__);
 #endif	/* CONFIG_USB_GADGET */
 	}
 	/* add device */

@@ -368,7 +368,7 @@
 			#size-cells = <1>;
 			ranges = <0x0 0x66000 0x1000>;
 
-			/* mmu_dsp cannot be moved before reset driver */
+			/* mmu_dsp canyest be moved before reset driver */
 			status = "disabled";
 		};
 

@@ -5,7 +5,7 @@
  * Framebuffer driver for TI OMAP boards
  *
  * Copyright (C) 2004 Nokia Corporation
- * Author: Imre Deak <imre.deak@nokia.com>
+ * Author: Imre Deak <imre.deak@yeskia.com>
  */
 #ifndef __LINUX_OMAPFB_H__
 #define __LINUX_OMAPFB_H__

@@ -7,7 +7,7 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/dma-mapping.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/string.h>
 #include <linux/slab.h>
 #include <linux/delay.h>
@@ -69,13 +69,13 @@ static inline u32 convert_bitfield(int val, struct fb_bitfield *bf)
 }
 
 static int
-goldfish_fb_setcolreg(unsigned int regno, unsigned int red, unsigned int green,
+goldfish_fb_setcolreg(unsigned int regyes, unsigned int red, unsigned int green,
 		 unsigned int blue, unsigned int transp, struct fb_info *info)
 {
 	struct goldfish_fb *fb = container_of(info, struct goldfish_fb, fb);
 
-	if (regno < 16) {
-		fb->cmap[regno] = convert_bitfield(transp, &fb->fb.var.transp) |
+	if (regyes < 16) {
+		fb->cmap[regyes] = convert_bitfield(transp, &fb->fb.var.transp) |
 				  convert_bitfield(blue, &fb->fb.var.blue) |
 				  convert_bitfield(green, &fb->fb.var.green) |
 				  convert_bitfield(red, &fb->fb.var.red);
@@ -194,18 +194,18 @@ static int goldfish_fb_probe(struct platform_device *pdev)
 	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (r == NULL) {
 		ret = -ENODEV;
-		goto err_no_io_base;
+		goto err_yes_io_base;
 	}
 	fb->reg_base = ioremap(r->start, PAGE_SIZE);
 	if (fb->reg_base == NULL) {
 		ret = -ENOMEM;
-		goto err_no_io_base;
+		goto err_yes_io_base;
 	}
 
 	fb->irq = platform_get_irq(pdev, 0);
 	if (fb->irq <= 0) {
 		ret = -ENODEV;
-		goto err_no_irq;
+		goto err_yes_irq;
 	}
 
 	width = readl(fb->reg_base + FB_GET_WIDTH);
@@ -275,9 +275,9 @@ err_fb_set_var_failed:
 				(void *)fb->fb.screen_base,
 				fb->fb.fix.smem_start);
 err_alloc_screen_base_failed:
-err_no_irq:
+err_yes_irq:
 	iounmap(fb->reg_base);
-err_no_io_base:
+err_yes_io_base:
 	kfree(fb);
 err_fb_alloc_failed:
 	return ret;

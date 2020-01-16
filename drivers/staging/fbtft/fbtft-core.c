@@ -9,7 +9,7 @@
 
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/string.h>
 #include <linux/mm.h>
 #include <linux/vmalloc.h>
@@ -179,7 +179,7 @@ void fbtft_register_backlight(struct fbtft_par *par)
 
 	if (!par->gpio.led[0]) {
 		fbtft_par_dbg(DEBUG_BACKLIGHT, par,
-			      "%s(): led pin not set, exiting.\n", __func__);
+			      "%s(): led pin yest set, exiting.\n", __func__);
 		return;
 	}
 
@@ -194,7 +194,7 @@ void fbtft_register_backlight(struct fbtft_par *par)
 				       &fbtft_bl_ops, &bl_props);
 	if (IS_ERR(bd)) {
 		dev_err(par->info->device,
-			"cannot register backlight device (%ld)\n",
+			"canyest register backlight device (%ld)\n",
 			PTR_ERR(bd));
 		return;
 	}
@@ -324,7 +324,7 @@ static void fbtft_mkdirty(struct fb_info *info, int y, int height)
 		par->dirty_lines_end = y + height - 1;
 	spin_unlock(&par->dirty_lock);
 
-	/* Schedule deferred_io to update display (no-op if already on queue)*/
+	/* Schedule deferred_io to update display (yes-op if already on queue)*/
 	schedule_delayed_work(&info->deferred_work, fbdefio->delay);
 }
 
@@ -415,7 +415,7 @@ static ssize_t fbtft_fb_write(struct fb_info *info, const char __user *buf,
 		"%s: count=%zd, ppos=%llu\n", __func__,  count, *ppos);
 	res = fb_sys_write(info, buf, count, ppos);
 
-	/* TODO: only mark changed area update all for now */
+	/* TODO: only mark changed area update all for yesw */
 	par->fbtftops.mkdirty(info, -1, 0);
 
 	return res;
@@ -429,7 +429,7 @@ static unsigned int chan_to_field(unsigned int chan, struct fb_bitfield *bf)
 	return chan << bf->offset;
 }
 
-static int fbtft_fb_setcolreg(unsigned int regno, unsigned int red,
+static int fbtft_fb_setcolreg(unsigned int regyes, unsigned int red,
 			      unsigned int green, unsigned int blue,
 			      unsigned int transp, struct fb_info *info)
 {
@@ -437,19 +437,19 @@ static int fbtft_fb_setcolreg(unsigned int regno, unsigned int red,
 	int ret = 1;
 
 	dev_dbg(info->dev,
-		"%s(regno=%u, red=0x%X, green=0x%X, blue=0x%X, trans=0x%X)\n",
-		__func__, regno, red, green, blue, transp);
+		"%s(regyes=%u, red=0x%X, green=0x%X, blue=0x%X, trans=0x%X)\n",
+		__func__, regyes, red, green, blue, transp);
 
 	switch (info->fix.visual) {
 	case FB_VISUAL_TRUECOLOR:
-		if (regno < 16) {
+		if (regyes < 16) {
 			u32 *pal = info->pseudo_palette;
 
 			val  = chan_to_field(red,   &info->var.red);
 			val |= chan_to_field(green, &info->var.green);
 			val |= chan_to_field(blue,  &info->var.blue);
 
-			pal[regno] = val;
+			pal[regyes] = val;
 			ret = 0;
 		}
 		break;
@@ -679,7 +679,7 @@ struct fb_info *fbtft_framebuffer_alloc(struct fbtft_display *display,
 	info->var.xres_virtual =   info->var.xres;
 	info->var.yres_virtual =   info->var.yres;
 	info->var.bits_per_pixel = bpp;
-	info->var.nonstd =         1;
+	info->var.yesnstd =         1;
 
 	/* RGB565 */
 	info->var.red.offset =     11;
@@ -784,7 +784,7 @@ EXPORT_SYMBOL(fbtft_framebuffer_release);
  *  Updates display.
  *	Registers a frame buffer device @fb_info.
  *
- *	Returns negative errno on error, or zero for success.
+ *	Returns negative erryes on error, or zero for success.
  *
  */
 int fbtft_register_framebuffer(struct fb_info *fb_info)
@@ -1003,7 +1003,7 @@ int fbtft_init_display(struct fbtft_par *par)
 	/* sanity check */
 	if (!par->init_sequence) {
 		dev_err(par->info->device,
-			"error: init_sequence is not set\n");
+			"error: init_sequence is yest set\n");
 		return -EINVAL;
 	}
 
@@ -1091,7 +1091,7 @@ int fbtft_init_display(struct fbtft_par *par)
 			break;
 		default:
 			dev_err(par->info->device,
-				"unknown delimiter %d at position %d\n",
+				"unkyeswn delimiter %d at position %d\n",
 				par->init_sequence[i], i);
 			return -EINVAL;
 		}
@@ -1143,7 +1143,7 @@ static int fbtft_verify_gpios(struct fbtft_par *par)
 	return 0;
 }
 
-/* returns 0 if the property is not present */
+/* returns 0 if the property is yest present */
 static u32 fbtft_property_value(struct device *dev, const char *propname)
 {
 	int ret;
@@ -1160,7 +1160,7 @@ static struct fbtft_platform_data *fbtft_properties_read(struct device *dev)
 {
 	struct fbtft_platform_data *pdata;
 
-	if (!dev_fwnode(dev)) {
+	if (!dev_fwyesde(dev)) {
 		dev_err(dev, "Missing platform data or properties\n");
 		return ERR_PTR(-EINVAL);
 	}
@@ -1238,7 +1238,7 @@ int fbtft_probe_common(struct fbtft_display *display,
 	par->pdev = pdev;
 
 	if (display->buswidth == 0) {
-		dev_err(dev, "buswidth is not set\n");
+		dev_err(dev, "buswidth is yest set\n");
 		return -EINVAL;
 	}
 
@@ -1253,7 +1253,7 @@ int fbtft_probe_common(struct fbtft_display *display,
 		par->fbtftops.write_register = fbtft_write_reg16_bus16;
 	else
 		dev_warn(dev,
-			 "no default functions for regwidth=%d and buswidth=%d\n",
+			 "yes default functions for regwidth=%d and buswidth=%d\n",
 			 display->regwidth, display->buswidth);
 
 	/* write_vmem() functions */
@@ -1278,7 +1278,7 @@ int fbtft_probe_common(struct fbtft_display *display,
 			par->spi->bits_per_word = 9;
 		} else {
 			dev_warn(&par->spi->dev,
-				 "9-bit SPI not available, emulating using 8-bit.\n");
+				 "9-bit SPI yest available, emulating using 8-bit.\n");
 			/* allocate buffer with room for dc bits */
 			par->extra = devm_kzalloc(par->info->device,
 						  par->txbuf.len +

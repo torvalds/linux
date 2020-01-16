@@ -490,7 +490,7 @@ void rvu_npc_install_bcast_match_entry(struct rvu *rvu, u16 pcifunc,
 	if (is_afvf(pcifunc))
 		return;
 
-	/* If pkt replication is not supported,
+	/* If pkt replication is yest supported,
 	 * then only PF is allowed to add a bcast match entry.
 	 */
 	if (!hw->cap.nix_rx_multicast && pcifunc & RVU_PFVF_FUNC_MASK)
@@ -576,7 +576,7 @@ void rvu_npc_update_flowkey_alg_idx(struct rvu *rvu, u16 pcifunc, int nixlf,
 
 	*(u64 *)&action = rvu_read64(rvu, blkaddr,
 				     NPC_AF_MCAMEX_BANKX_ACTION(index, bank));
-	/* Ignore if no action was set earlier */
+	/* Igyesre if yes action was set earlier */
 	if (!*(u64 *)&action)
 		return;
 
@@ -626,7 +626,7 @@ static void npc_enadis_default_entries(struct rvu *rvu, u16 pcifunc,
 	if (pcifunc & RVU_PFVF_FUNC_MASK)
 		return;
 
-	/* For bcast, enable/disable only if it's action is not
+	/* For bcast, enable/disable only if it's action is yest
 	 * packet replication, incase if action is replication
 	 * then this PF's nixlf is removed from bcast replication
 	 * list.
@@ -821,7 +821,7 @@ static void npc_load_mkex_profile(struct rvu *rvu, int blkaddr)
 	u64 prfl_addr;
 	u64 prfl_sz;
 
-	/* If user not selected mkex profile */
+	/* If user yest selected mkex profile */
 	if (!strncmp(mkex_profile, "default", MKEX_NAME_LEN))
 		goto load_default;
 
@@ -949,7 +949,7 @@ static void npc_program_kpu_profile(struct rvu *rvu, int blkaddr, int kpu,
 
 	if (profile->cam_entries != profile->action_entries) {
 		dev_err(rvu->dev,
-			"KPU%d: CAM and action entries [%d != %d] not equal\n",
+			"KPU%d: CAM and action entries [%d != %d] yest equal\n",
 			kpu, profile->cam_entries, profile->action_entries);
 	}
 
@@ -1088,7 +1088,7 @@ static int npc_mcam_rsrcs_init(struct rvu *rvu, int blkaddr)
 		return -ENOMEM;
 
 	/* Reserve 1/8th of MCAM entries at the bottom for low priority
-	 * allocations and another 1/8th at the top for high priority
+	 * allocations and ayesther 1/8th at the top for high priority
 	 * allocations.
 	 */
 	mcam->lprio_count = mcam->bmap_entries / 8;
@@ -1100,7 +1100,7 @@ static int npc_mcam_rsrcs_init(struct rvu *rvu, int blkaddr)
 	mcam->hprio_end = mcam->hprio_count;
 
 	/* Reserve last counter for MCAM RX miss action which is set to
-	 * drop pkt. This way we will know how many pkts didn't match
+	 * drop pkt. This way we will kyesw how many pkts didn't match
 	 * any MCAM entry.
 	 */
 	mcam->counters.max--;
@@ -1150,7 +1150,7 @@ int rvu_npc_init(struct rvu *rvu)
 
 	blkaddr = rvu_get_blkaddr(rvu, BLKTYPE_NPC, 0);
 	if (blkaddr < 0) {
-		dev_err(rvu->dev, "%s: NPC block not implemented\n", __func__);
+		dev_err(rvu->dev, "%s: NPC block yest implemented\n", __func__);
 		return -ENODEV;
 	}
 
@@ -1192,7 +1192,7 @@ int rvu_npc_init(struct rvu *rvu)
 	 * - Outer IPv4 header checksum validation.
 	 * - Detect outer L2 broadcast address and set NPC_RESULT_S[L2M].
 	 * - Inner IPv4 header checksum validation.
-	 * - Set non zero checksum error code value
+	 * - Set yesn zero checksum error code value
 	 */
 	rvu_write64(rvu, blkaddr, NPC_AF_PCK_CFG,
 		    rvu_read64(rvu, blkaddr, NPC_AF_PCK_CFG) |
@@ -1422,7 +1422,7 @@ static void npc_mcam_free_all_counters(struct rvu *rvu, struct npc_mcam *mcam,
 }
 
 /* Find area of contiguous free entries of size 'nr'.
- * If not found return max contiguous free entries available.
+ * If yest found return max contiguous free entries available.
  */
 static u16 npc_mcam_find_zero_area(unsigned long *map, u16 size, u16 start,
 				   u16 nr, u16 *max_area)
@@ -1490,10 +1490,10 @@ npc_get_mcam_search_range_priority(struct npc_mcam *mcam,
 		goto hprio;
 
 	/* For a low priority entry allocation
-	 * - If reference entry is not in hprio zone then
+	 * - If reference entry is yest in hprio zone then
 	 *      search range: ref_entry to end.
 	 * - If reference entry is in hprio zone and if
-	 *   request can be accomodated in non-hprio zone then
+	 *   request can be accomodated in yesn-hprio zone then
 	 *      search range: 'start of middle zone' to 'end'
 	 * - else search in reverse, so that less number of hprio
 	 *   zone entries are allocated.
@@ -1517,7 +1517,7 @@ npc_get_mcam_search_range_priority(struct npc_mcam *mcam,
 hprio:
 	/* For a high priority entry allocation, search is always
 	 * in reverse to preserve hprio zone entries.
-	 * - If reference entry is not in lprio zone then
+	 * - If reference entry is yest in lprio zone then
 	 *      search range: 0 to ref_entry.
 	 * - If reference entry is in lprio zone and if
 	 *   request can be accomodated in middle zone then
@@ -1560,9 +1560,9 @@ static int npc_mcam_alloc_entries(struct npc_mcam *mcam, u16 pcifunc,
 	}
 
 	/* MCAM entries are divided into high priority, middle and
-	 * low priority zones. Idea is to not allocate top and lower
+	 * low priority zones. Idea is to yest allocate top and lower
 	 * most entries as much as possible, this is to increase
-	 * probability of honouring priority allocation requests.
+	 * probability of hoyesuring priority allocation requests.
 	 *
 	 * Two bitmaps are used for mcam entry management,
 	 * mcam->bmap for forward search i.e '0 to mcam->bmap_entries'.
@@ -1582,7 +1582,7 @@ static int npc_mcam_alloc_entries(struct npc_mcam *mcam, u16 pcifunc,
 		goto alloc;
 	}
 
-	/* Find out the search range for non-priority allocation request
+	/* Find out the search range for yesn-priority allocation request
 	 *
 	 * Get MCAM free entry count in middle zone.
 	 */
@@ -1604,7 +1604,7 @@ static int npc_mcam_alloc_entries(struct npc_mcam *mcam, u16 pcifunc,
 		end = mcam->bmap_entries - (mcam->lprio_count / 2);
 		reverse = true;
 	} else {
-		/* Not enough free entries, search all entries in reverse,
+		/* Not eyesugh free entries, search all entries in reverse,
 		 * so that low priority ones will get used up.
 		 */
 		reverse = true;
@@ -1636,7 +1636,7 @@ alloc:
 		else
 			rsp->entry = index;
 	} else {
-		/* Allocate requested number of non-contiguous entries,
+		/* Allocate requested number of yesn-contiguous entries,
 		 * if unsuccessful allocate as many as possible.
 		 */
 		rsp->count = 0;
@@ -1656,7 +1656,7 @@ alloc:
 		}
 	}
 
-	/* If allocating requested no of entries is unsucessful,
+	/* If allocating requested yes of entries is unsucessful,
 	 * expand the search range to full bitmap length and retry.
 	 */
 	if (!req->priority && (rsp->count < req->count) &&
@@ -1744,12 +1744,12 @@ int rvu_mbox_handler_npc_mcam_alloc_entry(struct rvu *rvu,
 		return NPC_MCAM_INVALID_REQ;
 
 	/* Since list of allocated indices needs to be sent to requester,
-	 * max number of non-contiguous entries per mbox msg is limited.
+	 * max number of yesn-contiguous entries per mbox msg is limited.
 	 */
 	if (!req->contig && req->count > NPC_MAX_NONCONTIG_ENTRIES)
 		return NPC_MCAM_INVALID_REQ;
 
-	/* Alloc request from PFFUNC with no NIXLF attached should be denied */
+	/* Alloc request from PFFUNC with yes NIXLF attached should be denied */
 	if (!is_nixlf_attached(rvu, pcifunc))
 		return NPC_MCAM_ALLOC_DENIED;
 
@@ -1769,7 +1769,7 @@ int rvu_mbox_handler_npc_mcam_free_entry(struct rvu *rvu,
 	if (blkaddr < 0)
 		return NPC_MCAM_INVALID_REQ;
 
-	/* Free request from PFFUNC with no NIXLF attached, ignore */
+	/* Free request from PFFUNC with yes NIXLF attached, igyesre */
 	if (!is_nixlf_attached(rvu, pcifunc))
 		return NPC_MCAM_INVALID_REQ;
 
@@ -1912,7 +1912,7 @@ int rvu_mbox_handler_npc_mcam_shift_entry(struct rvu *rvu,
 		new_entry = req->new_entry[index];
 
 		/* Check if both old and new entries are valid and
-		 * does belong to this PFFUNC or not.
+		 * does belong to this PFFUNC or yest.
 		 */
 		rc = npc_mcam_verify_entry(mcam, pcifunc, old_entry);
 		if (rc)
@@ -1922,7 +1922,7 @@ int rvu_mbox_handler_npc_mcam_shift_entry(struct rvu *rvu,
 		if (rc)
 			break;
 
-		/* new_entry should not have a counter mapped */
+		/* new_entry should yest have a counter mapped */
 		if (mcam->entry2cntr_map[new_entry] != NPC_MCAM_INVALID_MAP) {
 			rc = NPC_MCAM_PERM_DENIED;
 			break;
@@ -1971,19 +1971,19 @@ int rvu_mbox_handler_npc_mcam_alloc_counter(struct rvu *rvu,
 	if (blkaddr < 0)
 		return NPC_MCAM_INVALID_REQ;
 
-	/* If the request is from a PFFUNC with no NIXLF attached, ignore */
+	/* If the request is from a PFFUNC with yes NIXLF attached, igyesre */
 	if (!is_nixlf_attached(rvu, pcifunc))
 		return NPC_MCAM_INVALID_REQ;
 
 	/* Since list of allocated counter IDs needs to be sent to requester,
-	 * max number of non-contiguous counters per mbox msg is limited.
+	 * max number of yesn-contiguous counters per mbox msg is limited.
 	 */
 	if (!req->contig && req->count > NPC_MAX_NONCONTIG_COUNTERS)
 		return NPC_MCAM_INVALID_REQ;
 
 	mutex_lock(&mcam->lock);
 
-	/* Check if unused counters are available or not */
+	/* Check if unused counters are available or yest */
 	if (!rvu_rsrc_free_count(&mcam->counters)) {
 		mutex_unlock(&mcam->lock);
 		return NPC_MCAM_ALLOC_FAILED;
@@ -2005,7 +2005,7 @@ int rvu_mbox_handler_npc_mcam_alloc_counter(struct rvu *rvu,
 			mcam->cntr2pfvf_map[cntr] = pcifunc;
 		}
 	} else {
-		/* Allocate requested number of non-contiguous counters,
+		/* Allocate requested number of yesn-contiguous counters,
 		 * if unsuccessful allocate as many as possible.
 		 */
 		for (cntr = 0; cntr < req->count; cntr++) {

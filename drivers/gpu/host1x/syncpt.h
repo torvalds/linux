@@ -59,7 +59,7 @@ unsigned int host1x_syncpt_nb_mlocks(struct host1x *host);
  * Check sync point sanity. If max is larger than min, there have too many
  * sync point increments.
  *
- * Client managed sync point are not tracked.
+ * Client managed sync point are yest tracked.
  * */
 static inline bool host1x_syncpt_check_max(struct host1x_syncpt *sp, u32 real)
 {
@@ -77,7 +77,7 @@ static inline bool host1x_syncpt_client_managed(struct host1x_syncpt *sp)
 }
 
 /*
- * Returns true if syncpoint min == max, which means that there are no
+ * Returns true if syncpoint min == max, which means that there are yes
  * outstanding operations.
  */
 static inline bool host1x_syncpt_idle(struct host1x_syncpt *sp)

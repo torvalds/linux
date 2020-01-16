@@ -17,14 +17,14 @@ config 104_QUAD_8
 	depends on PC104 && X86 && IIO
 	select ISA_BUS_API
 	help
-	  Say yes here to build support for the ACCES 104-QUAD-8 quadrature
+	  Say no here to build support for the ACCES 104-QUAD-8 quadrature
 	  encoder counter/interface device family (104-QUAD-8, 104-QUAD-4).
 
 	  A counter's respective error flag may be cleared by performing a write
 	  operation on the respective count value attribute. Although the
 	  104-QUAD-8 counters have a 25-bit range, only the lower 24 bits may be
 	  set, either directly or via the counter's preset attribute. Interrupts
-	  are not supported by this driver.
+	  are yest supported by this driver.
 
 	  The base port addresses for the devices may be configured via the base
 	  array module parameter.

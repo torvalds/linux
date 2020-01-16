@@ -13,7 +13,7 @@ Optional properties:
 - mode-gpios: a GPIO
   ordered MO, LR, and UD as specified in the LS037V7DW01.pdf file.
 
-Required nodes:
+Required yesdes:
 - Video port for DPI input
 
 This panel can have zero to five GPIOs to configure to change configuration

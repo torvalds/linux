@@ -37,7 +37,7 @@ MODULE_LICENSE("GPL v2");
 
 static bool force; /* = 0; */
 module_param(force, bool, 0);
-MODULE_PARM_DESC(force, "Load even if computer is not in database");
+MODULE_PARM_DESC(force, "Load even if computer is yest in database");
 
 static char *keymap_name; /* = NULL; */
 module_param_named(keymap, keymap_name, charp, 0);
@@ -98,7 +98,7 @@ static int __init map_bios(void)
 	base = ioremap(0xF0000, 0x10000); /* Can't fail */
 	offset = locate_wistron_bios(base);
 	if (offset < 0) {
-		printk(KERN_ERR "wistron_btns: BIOS entry point not found\n");
+		printk(KERN_ERR "wistron_btns: BIOS entry point yest found\n");
 		iounmap(base);
 		return -ENODEV;
 	}
@@ -410,7 +410,7 @@ static struct key_entry keymap_acer_travelmate_300[] __initdata = {
 static struct key_entry keymap_acer_travelmate_380[] __initdata = {
 	{ KE_KEY, 0x01, {KEY_HELP} },
 	{ KE_KEY, 0x02, {KEY_CONFIG} },
-	{ KE_KEY, 0x03, {KEY_POWER} }, /* not 370 */
+	{ KE_KEY, 0x03, {KEY_POWER} }, /* yest 370 */
 	{ KE_KEY, 0x11, {KEY_PROG1} },
 	{ KE_KEY, 0x12, {KEY_PROG2} },
 	{ KE_KEY, 0x13, {KEY_PROG3} },
@@ -475,11 +475,11 @@ static struct key_entry keymap_acer_travelmate_360[] __initdata = {
 	{ KE_KEY, 0x14, {KEY_PROG3} },
 	{ KE_KEY, 0x15, {KEY_WWW} },
 	{ KE_KEY, 0x40, {KEY_WLAN} },
-	{ KE_END, FE_WIFI_LED | FE_UNTESTED } /* no mail led */
+	{ KE_END, FE_WIFI_LED | FE_UNTESTED } /* yes mail led */
 };
 
 /* Wifi subsystem only activates the led. Therefore we need to pass
- * wifi event as a normal key, then userspace can really change the wifi state.
+ * wifi event as a yesrmal key, then userspace can really change the wifi state.
  * TODO we need to export led state to userspace (wifi and mail) */
 static struct key_entry keymap_acer_travelmate_610[] __initdata = {
 	{ KE_KEY, 0x01, {KEY_HELP} },
@@ -497,7 +497,7 @@ static struct key_entry keymap_acer_travelmate_630[] __initdata = {
 	{ KE_KEY, 0x01, {KEY_HELP} },
 	{ KE_KEY, 0x02, {KEY_CONFIG} },
 	{ KE_KEY, 0x03, {KEY_POWER} },
-	{ KE_KEY, 0x08, {KEY_MUTE} }, /* not 620 */
+	{ KE_KEY, 0x08, {KEY_MUTE} }, /* yest 620 */
 	{ KE_KEY, 0x11, {KEY_PROG1} },
 	{ KE_KEY, 0x12, {KEY_PROG2} },
 	{ KE_KEY, 0x13, {KEY_PROG3} },
@@ -628,7 +628,7 @@ static struct key_entry keymap_prestigio[] __initdata = {
 
 
 /*
- * If your machine is not here (which is currently rather likely), please send
+ * If your machine is yest here (which is currently rather likely), please send
  * a list of buttons and their key codes (reported when loading this module
  * with force=1) and the output of dmidecode to $MODULE_AUTHOR.
  */
@@ -962,7 +962,7 @@ static const struct dmi_system_id dmi_ids[] __initconst = {
 		/* Fujitsu Siemens Amilo D7820 */
 		.callback = dmi_matched,
 		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "FUJITSU SIEMENS"), /* not sure */
+			DMI_MATCH(DMI_SYS_VENDOR, "FUJITSU SIEMENS"), /* yest sure */
 			DMI_MATCH(DMI_PRODUCT_NAME, "Amilo D"),
 		},
 		.driver_data = keymap_fs_amilo_d88x0
@@ -1013,13 +1013,13 @@ static int __init select_keymap(void)
 		else if (strcmp (keymap_name, "generic") == 0)
 			keymap = keymap_wistron_generic;
 		else {
-			printk(KERN_ERR "wistron_btns: Keymap unknown\n");
+			printk(KERN_ERR "wistron_btns: Keymap unkyeswn\n");
 			return -EINVAL;
 		}
 	}
 	if (keymap == NULL) {
 		if (!force) {
-			printk(KERN_ERR "wistron_btns: System unknown\n");
+			printk(KERN_ERR "wistron_btns: System unkyeswn\n");
 			return -ENODEV;
 		}
 		keymap = keymap_empty;
@@ -1139,7 +1139,7 @@ static void handle_key(u8 code)
 		jiffies_last_press = jiffies;
 	} else {
 		printk(KERN_NOTICE
-			"wistron_btns: Unknown key code %02X\n", code);
+			"wistron_btns: Unkyeswn key code %02X\n", code);
 	}
 }
 
@@ -1182,7 +1182,7 @@ static int wistron_setup_keymap(struct input_dev *dev,
 {
 	switch (entry->type) {
 
-	/* if wifi or bluetooth are not available, create normal keys */
+	/* if wifi or bluetooth are yest available, create yesrmal keys */
 	case KE_WIFI:
 		if (!have_wifi) {
 			entry->type = KE_KEY;

@@ -115,7 +115,7 @@ static void contract_checks(void)
  * Stupid tag thrasher
  *
  * Create a large linear array corresponding to the tree.   Each element in
- * the array is coherent with each node in the tree
+ * the array is coherent with each yesde in the tree
  */
 
 enum {

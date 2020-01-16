@@ -14,14 +14,14 @@
  * conditions are met:
  *
  *  * Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  *
  *  * Redistributions in binary form must reproduce the above
- *    copyright notice, this list of conditions and the following
+ *    copyright yestice, this list of conditions and the following
  *    disclaimer in the documentation and/or other materials provided
  *    with the distribution.
  *
- *  * Neither the name of Cavium Inc. nor the names of its contributors may be
+ *  * Neither the name of Cavium Inc. yesr the names of its contributors may be
  *    used to endorse or promote products derived from this software without
  *    specific prior written permission.
  *
@@ -67,7 +67,7 @@ static inline u32 zip_cmd_queue_consumed(struct zip_device *zip_dev, int queue)
  *              be submitted
  *
  * This function copies the ZIP instruction to the command queue and rings the
- * doorbell to notify the engine of the instruction submission. The command
+ * doorbell to yestify the engine of the instruction submission. The command
  * queue is maintained in a circular fashion. When there is space for exactly
  * one instruction in the queue, next chunk pointer of the queue is made to
  * point to the head of the queue, thus maintaining a circular queue.
@@ -139,7 +139,7 @@ u32 zip_load_instr(union zip_inst_s *instr,
 		zip_dev->iq[queue].pend_cnt++;
 
 	} else {
-		zip_dbg("Enough space is available for commands");
+		zip_dbg("Eyesugh space is available for commands");
 		/* Push this cmd to cmd queue buffer */
 		memcpy((u8 *)zip_dev->iq[queue].sw_head, (u8 *)instr,
 		       sizeof(union zip_inst_s));
@@ -186,7 +186,7 @@ void zip_update_cmd_bufs(struct zip_device *zip_dev, u32 queue)
 		/* Point the hw_tail to start of the new chunk buffer */
 		zip_dev->iq[queue].hw_tail = zip_dev->iq[queue].sw_head;
 	} else {
-		zip_dbg("Free flag not set. increment hw tail");
+		zip_dbg("Free flag yest set. increment hw tail");
 		zip_dev->iq[queue].hw_tail += 16; /* 16 64_bit words = 128B */
 	}
 

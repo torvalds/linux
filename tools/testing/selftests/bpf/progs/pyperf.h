@@ -17,7 +17,7 @@ typedef struct {
 	int PyThreadState_thread;
 	int PyFrameObject_back;
 	int PyFrameObject_code;
-	int PyFrameObject_lineno;
+	int PyFrameObject_lineyes;
 	int PyCodeObject_filename;
 	int PyCodeObject_name;
 	int String_data;

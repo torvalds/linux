@@ -6,7 +6,7 @@ Spectre Side Channels
 Spectre is a class of side channel attacks that exploit branch prediction
 and speculative execution on modern CPUs to read memory, possibly
 bypassing access controls. Speculative execution side channel exploits
-do not modify memory but attempt to infer privileged data in the memory.
+do yest modify memory but attempt to infer privileged data in the memory.
 
 This document covers Spectre variant 1 and Spectre variant 2.
 
@@ -21,7 +21,7 @@ The following CPUs are vulnerable:
 
     - Intel Core, Atom, Pentium, and Xeon processors
 
-    - AMD Phenom, EPYC, and Zen processors
+    - AMD Pheyesm, EPYC, and Zen processors
 
     - IBM POWER and zSeries processors
 
@@ -33,7 +33,7 @@ The following CPUs are vulnerable:
 
     - Likely most other high performance CPUs. Contact your CPU vendor for details.
 
-Whether a processor is affected or not can be read out from the Spectre
+Whether a processor is affected or yest can be read out from the Spectre
 vulnerability files in sysfs. See :ref:`spectre_sys_info`.
 
 Related CVEs
@@ -79,7 +79,7 @@ There are some extensions of Spectre variant 1 attacks for reading data
 over the network, see :ref:`[12] <spec_ref12>`. However such attacks
 are difficult, low bandwidth, fragile, and are considered low risk.
 
-Note that, despite "Bounds Check Bypass" name, Spectre variant 1 is not
+Note that, despite "Bounds Check Bypass" name, Spectre variant 1 is yest
 only about user-controlled array bounds checks.  It can affect any
 conditional checks.  The kernel entry code interrupt, exception, and NMI
 handlers all have conditional swapgs checks.  Those may be problematic
@@ -104,7 +104,7 @@ branches in the victim to gadget code by poisoning the branch target
 buffer of a CPU used for predicting indirect branch addresses. Such
 poisoning could be done by indirect branching into existing code,
 with the address offset of the indirect branch under the attacker's
-control. Since the branch prediction on impacted hardware does not
+control. Since the branch prediction on impacted hardware does yest
 fully disambiguate branch address and uses the offset for prediction,
 this could cause privileged code's indirect branch to jump to a gadget
 code with the same offset.
@@ -135,7 +135,7 @@ Attack scenarios
 ----------------
 
 The following list of attack scenarios have been anticipated, but may
-not cover all possible attack vectors.
+yest cover all possible attack vectors.
 
 1. A user process attacking the kernel
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -144,7 +144,7 @@ Spectre variant 1
 ~~~~~~~~~~~~~~~~~
 
    The attacker passes a parameter to the kernel via a register or
-   via a known address in memory during a syscall. Such parameter may
+   via a kyeswn address in memory during a syscall. Such parameter may
    be used later by the kernel as an index to an array or to derive
    a pointer for a Spectre variant 1 attack.  The index or pointer
    is invalid, but bound checks are bypassed in the code branch taken
@@ -152,7 +152,7 @@ Spectre variant 1
    accessed and leaked.
 
    For kernel code that has been identified where data pointers could
-   potentially be influenced for Spectre attacks, new "nospec" accessor
+   potentially be influenced for Spectre attacks, new "yesspec" accessor
    macros are used to prevent speculative loading of data.
 
 Spectre variant 1 (swapgs)
@@ -178,7 +178,7 @@ Spectre variant 1 (swapgs)
    swapgs, and then do a speculative percpu load using the user GS
    value.  So the user can speculatively force a read of any kernel
    value.  If a gadget exists which uses the percpu value as an address
-   in another load/store, then the contents of the kernel value may
+   in ayesther load/store, then the contents of the kernel value may
    become visible via an L1 side channel attack.
 
    A similar attack exists when coming from kernel space.  The CPU can
@@ -196,11 +196,11 @@ Spectre variant 2
 
    If an attacker tries to control the memory addresses leaked during
    speculative execution, he would also need to pass a parameter to the
-   gadget, either through a register or a known address in memory. After
+   gadget, either through a register or a kyeswn address in memory. After
    the gadget has executed, he can measure the side effect.
 
    The kernel can protect itself against consuming poisoned branch
-   target buffer entries by using return trampolines (also known as
+   target buffer entries by using return trampolines (also kyeswn as
    "retpoline") :ref:`[3] <spec_ref3>` :ref:`[9] <spec_ref9>` for all
    indirect branches. Return trampolines trap speculative execution paths
    to prevent jumping to gadget code during speculative execution.
@@ -214,10 +214,10 @@ Spectre variant 2
    attacks on x86, Indirect Branch Restricted Speculation (IBRS) feature
    is turned on before the kernel invokes any firmware code.
 
-2. A user process attacking another user process
+2. A user process attacking ayesther user process
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-   A malicious user process can try to attack another user process,
+   A malicious user process can try to attack ayesther user process,
    either via a context switch on the same hardware thread, or from the
    sibling hyperthread sharing a physical processor core on simultaneous
    multi-threading (SMT) system.
@@ -239,7 +239,7 @@ Spectre variant 2
    for itself.  An administrator can also cordon off an unsafe process
    from polluting the branch target buffer by disabling the process's
    indirect branch speculation. This comes with a performance cost
-   from not using indirect branch speculation and clearing the branch
+   from yest using indirect branch speculation and clearing the branch
    target buffer.  When SMT is enabled on x86, for a process that has
    indirect branch speculation disabled, Single Threaded Indirect Branch
    Predictors (STIBP) :ref:`[4] <spec_ref4>` are turned on to prevent the
@@ -266,7 +266,7 @@ Spectre variant 2
    For Spectre variant 1 attacks, rogue guests can pass parameters
    (e.g. in registers) via hyper-calls to derive invalid pointers to
    speculate into privileged memory after entering the kernel.  For places
-   where such kernel code has been identified, nospec accessor macros
+   where such kernel code has been identified, yesspec accessor macros
    are used to stop speculative memory access.
 
    For Spectre variant 2 attacks, rogue guests can :ref:`poison
@@ -285,7 +285,7 @@ Spectre variant 2
 4. A virtualized guest attacking other guest
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-   A rogue guest may attack another guest to get data accessible by the
+   A rogue guest may attack ayesther guest to get data accessible by the
    other guest.
 
    Spectre variant 1 attacks are possible if parameters can be passed
@@ -327,8 +327,8 @@ The possible values in this file are:
   .. list-table::
 
      * - 'Not affected'
-       - The processor is not vulnerable.
-     * - 'Vulnerable: __user pointer sanitization and usercopy barriers only; no swapgs barriers'
+       - The processor is yest vulnerable.
+     * - 'Vulnerable: __user pointer sanitization and usercopy barriers only; yes swapgs barriers'
        - The swapgs protections are disabled; otherwise it has
          protection in the kernel on a case by case base with explicit
          pointer sanitation and usercopy LFENCE barriers.
@@ -338,7 +338,7 @@ The possible values in this file are:
          barriers.
 
 However, the protections are put in place on a case by case basis,
-and there is no guarantee that all possible attack vectors for Spectre
+and there is yes guarantee that all possible attack vectors for Spectre
 variant 1 are covered.
 
 The spectre_v2 kernel file reports if the kernel has been compiled with
@@ -365,8 +365,8 @@ The possible values in this file are:
   - Kernel status:
 
   ====================================  =================================
-  'Not affected'                        The processor is not vulnerable
-  'Vulnerable'                          Vulnerable, no mitigation
+  'Not affected'                        The processor is yest vulnerable
+  'Vulnerable'                          Vulnerable, yes mitigation
   'Mitigation: Full generic retpoline'  Software-focused mitigation
   'Mitigation: Full AMD retpoline'      AMD-specific software mitigation
   'Mitigation: Enhanced IBRS'           Hardware-focused mitigation
@@ -408,7 +408,7 @@ The possible values in this file are:
   =============   ===========================================
 
 Full mitigation might require a microcode update from the CPU
-vendor. When the necessary microcode is not available, the kernel will
+vendor. When the necessary microcode is yest available, the kernel will
 report vulnerability.
 
 Turning on mitigation for Spectre variant 1 and Spectre variant 2
@@ -421,14 +421,14 @@ Spectre variant 1
 ~~~~~~~~~~~~~~~~~
 
    For the Spectre variant 1, vulnerable kernel code (as determined
-   by code audit or scanning tools) is annotated on a case by case
-   basis to use nospec accessor macros for bounds clipping :ref:`[2]
+   by code audit or scanning tools) is anyestated on a case by case
+   basis to use yesspec accessor macros for bounds clipping :ref:`[2]
    <spec_ref2>` to avoid any usable disclosure gadgets. However, it may
-   not cover all attack vectors for Spectre variant 1.
+   yest cover all attack vectors for Spectre variant 1.
 
    Copy-from-user code has an LFENCE barrier to prevent the access_ok()
    check from being mis-speculated.  The barrier is done by the
-   barrier_nospec() macro.
+   barrier_yesspec() macro.
 
    For the swapgs variant of Spectre variant 1, LFENCE barriers are
    added to interrupt, exception and NMI entry where needed.  These
@@ -453,7 +453,7 @@ Spectre variant 2
    CONFIG_RETPOLINE needs to be turned on, and the CPU needs to run with
    the latest updated microcode.
 
-   On Intel Skylake-era systems the mitigation covers most, but not all,
+   On Intel Skylake-era systems the mitigation covers most, but yest all,
    cases. See :ref:`[3] <spec_ref3>` for more details.
 
    On CPUs with hardware mitigation for Spectre variant 2 (e.g. Enhanced
@@ -507,8 +507,8 @@ Spectre variant 2
 
    Within the kernel, Spectre variant 1 attacks from rogue guests are
    mitigated on a case by case basis in VM exit paths. Vulnerable code
-   uses nospec accessor macros for "bounds clipping", to avoid any
-   usable disclosure gadgets.  However, this may not cover all variant
+   uses yesspec accessor macros for "bounds clipping", to avoid any
+   usable disclosure gadgets.  However, this may yest cover all variant
    1 attack vectors.
 
    For Spectre variant 2 attacks from rogue guests to the kernel, the
@@ -539,13 +539,13 @@ Mitigation control on the kernel command line
 Spectre variant 2 mitigation can be disabled or force enabled at the
 kernel command line.
 
-	nospectre_v1
+	yesspectre_v1
 
 		[X86,PPC] Disable mitigations for Spectre Variant 1
 		(bounds check bypass). With this option data leaks are
 		possible in the system.
 
-	nospectre_v2
+	yesspectre_v2
 
 		[X86] Disable all mitigations for the Spectre variant 2
 		(indirect branch prediction) vulnerability. System may
@@ -647,7 +647,7 @@ For user space mitigation:
 		reasonable mitigations for the current CPU. To
 		disable Spectre variant 2 mitigations, boot with
 		spectre_v2=off. Spectre variant 1 mitigations
-		cannot be disabled.
+		canyest be disabled.
 
 Mitigation selection guide
 --------------------------
@@ -655,7 +655,7 @@ Mitigation selection guide
 1. Trusted userspace
 ^^^^^^^^^^^^^^^^^^^^
 
-   If all userspace applications are from trusted sources and do not
+   If all userspace applications are from trusted sources and do yest
    execute externally supplied untrusted code, then the mitigations can
    be disabled.
 
@@ -726,7 +726,7 @@ AMD white papers:
 
 .. _spec_ref5:
 
-[5] `AMD64 technology indirect branch control extension <https://developer.amd.com/wp-content/resources/Architecture_Guidelines_Update_Indirect_Branch_Control.pdf>`_.
+[5] `AMD64 techyeslogy indirect branch control extension <https://developer.amd.com/wp-content/resources/Architecture_Guidelines_Update_Indirect_Branch_Control.pdf>`_.
 
 .. _spec_ref6:
 

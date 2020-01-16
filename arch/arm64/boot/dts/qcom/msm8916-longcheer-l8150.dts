@@ -20,12 +20,12 @@
 	};
 
 	reserved-memory {
-		// wcnss.mdt is not relocatable, so it must be loaded at 0x8b600000
-		/delete-node/ wcnss@89300000;
+		// wcnss.mdt is yest relocatable, so it must be loaded at 0x8b600000
+		/delete-yesde/ wcnss@89300000;
 
 		wcnss_mem: wcnss@8b600000 {
 			reg = <0x0 0x8b600000 0x0 0x600000>;
-			no-map;
+			yes-map;
 		};
 	};
 
@@ -51,7 +51,7 @@
 			pinctrl-0 = <&sdc2_clk_on &sdc2_cmd_on &sdc2_data_on>;
 			pinctrl-1 = <&sdc2_clk_off &sdc2_cmd_off &sdc2_data_off>;
 
-			non-removable;
+			yesn-removable;
 		};
 
 		serial@78b0000 {
@@ -84,10 +84,10 @@
 		};
 
 		/*
-		 * Attempting to enable these devices causes a "synchronous
+		 * Attempting to enable these devices causes a "synchroyesus
 		 * external abort". Suspected cause is that the debug power
-		 * domain is not enabled by default on this device.
-		 * Disable these devices for now to avoid the crash.
+		 * domain is yest enabled by default on this device.
+		 * Disable these devices for yesw to avoid the crash.
 		 *
 		 * See: https://lore.kernel.org/linux-arm-msm/20190618202623.GA53651@gerhold.net/
 		 */

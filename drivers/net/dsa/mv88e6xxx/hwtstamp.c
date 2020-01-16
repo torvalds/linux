@@ -58,7 +58,7 @@ static int mv88e6xxx_ptp_read(struct mv88e6xxx_chip *chip, int addr,
 
 /* TX_TSTAMP_TIMEOUT: This limits the time spent polling for a TX
  * timestamp. When working properly, hardware will produce a timestamp
- * within 1ms. Software may enounter delays due to MDIO contention, so
+ * within 1ms. Software may eyesunter delays due to MDIO contention, so
  * the timeout is set accordingly.
  */
 #define TX_TSTAMP_TIMEOUT	msecs_to_jiffies(40)
@@ -115,7 +115,7 @@ static int mv88e6xxx_set_hwtstamp_config(struct mv88e6xxx_chip *chip, int port,
 		return -ERANGE;
 	}
 
-	/* The switch supports timestamping both L2 and L4; one cannot be
+	/* The switch supports timestamping both L2 and L4; one canyest be
 	 * disabled independently of the other.
 	 */
 
@@ -242,7 +242,7 @@ static u8 *parse_ptp_header(struct sk_buff *skb, unsigned int type)
 }
 
 /* Returns a pointer to the PTP header if the caller should time stamp,
- * or NULL if the caller should not.
+ * or NULL if the caller should yest.
  */
 static u8 *mv88e6xxx_should_tstamp(struct mv88e6xxx_chip *chip, int port,
 				   struct sk_buff *skb, unsigned int type)
@@ -429,7 +429,7 @@ static int mv88e6xxx_txtstamp_work(struct mv88e6xxx_chip *chip,
 		return 1;
 	}
 
-	/* We have the timestamp; go ahead and clear valid now */
+	/* We have the timestamp; go ahead and clear valid yesw */
 	mv88e6xxx_reg_lock(chip);
 	mv88e6xxx_port_ptp_write(chip, ps->port_id, ptp_ops->dep_sts_reg, 0);
 	mv88e6xxx_reg_unlock(chip);
@@ -458,7 +458,7 @@ static int mv88e6xxx_txtstamp_work(struct mv88e6xxx_chip *chip,
 		departure_block[0], ps->tx_seq_id, departure_block[3]);
 
 	/* skb_complete_tx_timestamp() will free up the client to make
-	 * another timestamp-able transmit. We have to be ready for it
+	 * ayesther timestamp-able transmit. We have to be ready for it
 	 * -- by clearing the ps->tx_skb "flag" -- beforehand.
 	 */
 

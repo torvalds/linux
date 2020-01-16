@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * spu aware cpufreq governor for the cell processor
+ * spu aware cpufreq goveryesr for the cell processor
  *
  * © Copyright IBM Corporation 2006-2008
  *
@@ -34,7 +34,7 @@ static int calc_freq(struct spu_gov_info_struct *info)
 	int busy_spus;
 
 	cpu = info->policy->cpu;
-	busy_spus = atomic_read(&cbe_spu_info[cpu_to_node(cpu)].busy_spus);
+	busy_spus = atomic_read(&cbe_spu_info[cpu_to_yesde(cpu)].busy_spus);
 
 	info->busy_spus = calc_load(info->busy_spus, EXP, busy_spus * FIXED_1);
 	pr_debug("cpu %d: busy_spus=%d, info->busy_spus=%ld\n",
@@ -81,12 +81,12 @@ static int spu_gov_start(struct cpufreq_policy *policy)
 	int i;
 
 	if (!cpu_online(cpu)) {
-		printk(KERN_ERR "cpu %d is not online\n", cpu);
+		printk(KERN_ERR "cpu %d is yest online\n", cpu);
 		return -EINVAL;
 	}
 
 	if (!policy->cur) {
-		printk(KERN_ERR "no cpu specified in policy\n");
+		printk(KERN_ERR "yes cpu specified in policy\n");
 		return -EINVAL;
 	}
 
@@ -120,7 +120,7 @@ static void spu_gov_stop(struct cpufreq_policy *policy)
 	}
 }
 
-static struct cpufreq_governor spu_governor = {
+static struct cpufreq_goveryesr spu_goveryesr = {
 	.name = "spudemand",
 	.start = spu_gov_start,
 	.stop = spu_gov_stop,
@@ -135,15 +135,15 @@ static int __init spu_gov_init(void)
 {
 	int ret;
 
-	ret = cpufreq_register_governor(&spu_governor);
+	ret = cpufreq_register_goveryesr(&spu_goveryesr);
 	if (ret)
-		printk(KERN_ERR "registration of governor failed\n");
+		printk(KERN_ERR "registration of goveryesr failed\n");
 	return ret;
 }
 
 static void __exit spu_gov_exit(void)
 {
-	cpufreq_unregister_governor(&spu_governor);
+	cpufreq_unregister_goveryesr(&spu_goveryesr);
 }
 
 

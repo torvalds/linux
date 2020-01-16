@@ -35,7 +35,7 @@ static void vbva_buffer_place_data_at(struct vbva_buf_ctx *vbva_ctx,
 	s32 diff = len - bytes_till_boundary;
 
 	if (diff <= 0) {
-		/* Chunk will not cross buffer boundary. */
+		/* Chunk will yest cross buffer boundary. */
 		memcpy(dst, p, len);
 	} else {
 		/* Chunk crosses buffer boundary. */
@@ -179,7 +179,7 @@ bool vbva_buffer_begin_update(struct vbva_buf_ctx *vbva_ctx,
 	if (next == vbva_ctx->vbva->record_first_index)
 		vbva_buffer_flush(ctx);
 
-	/* If even after flush there is no place then fail the request */
+	/* If even after flush there is yes place then fail the request */
 	if (next == vbva_ctx->vbva->record_first_index)
 		return false;
 

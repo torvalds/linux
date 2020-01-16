@@ -18,7 +18,7 @@
  */
 
 
-/* defines for the obio chip (not vme) */
+/* defines for the obio chip (yest vme) */
 #define IEOB_NORSET 0x80        /* don't reset the board */
 #define IEOB_ONAIR  0x40        /* put us on the air */
 #define IEOB_ATTEN  0x20        /* attention! */
@@ -99,7 +99,7 @@ struct scb_struct
 #define CUC_ABORT       0x04  /* abort command operation immediately */
 
 #define ACK_MASK        0xf0  /* mask for ACK command */
-#define ACK_CX          0x80  /* acknowledges STAT_CX */
+#define ACK_CX          0x80  /* ackyeswledges STAT_CX */
 #define ACK_FR          0x40  /* ack. STAT_FR */
 #define ACK_CNA         0x20  /* ack. STAT_CNA */
 #define ACK_RNR         0x10  /* ack. STAT_RNR */
@@ -119,7 +119,7 @@ struct scb_struct
 
 #define RU_STATUS	0x70	/* RU status, 0=idle */
 #define RU_SUSPEND	0x10	/* RU suspended */
-#define RU_NOSPACE	0x20	/* RU no resources */
+#define RU_NOSPACE	0x20	/* RU yes resources */
 #define RU_READY	0x40	/* RU is ready */
 
 /*
@@ -189,7 +189,7 @@ struct rbd_struct
 #define CMD_XMIT	0x0004	/* transmit command */
 #define CMD_TDR		0x0005	/* time domain reflectometer (TDR) command */
 #define CMD_DUMP	0x0006	/* dump command */
-#define CMD_DIAGNOSE	0x0007	/* diagnose command */
+#define CMD_DIAGNOSE	0x0007	/* diagyesse command */
 
 /*
  * Action command bits
@@ -201,7 +201,7 @@ struct rbd_struct
 /*
  * NOP - command
  */
-struct nop_cmd_struct
+struct yesp_cmd_struct
 {
   unsigned short cmd_status;	/* status of this command */
   unsigned short cmd_cmd;       /* the command itself (+bits) */
@@ -297,7 +297,7 @@ struct tdr_cmd_struct
 
 #define TDR_LNK_OK	0x8000	/* No link problem identified */
 #define TDR_XCVR_PRB	0x4000	/* indicates a transceiver problem */
-#define TDR_ET_OPN	0x2000	/* open, no correct termination */
+#define TDR_ET_OPN	0x2000	/* open, yes correct termination */
 #define TDR_ET_SRT	0x1000	/* TDR detected a short circuit */
 #define TDR_TIMEMASK	0x07ff	/* mask for the time field */
 

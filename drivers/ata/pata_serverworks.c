@@ -23,7 +23,7 @@
  *         all revisions support UDMA mode 4 (66 MB/s)
  *         revision A2.0 and up support UDMA mode 5 (100 MB/s)
  *
- *         *** The CSB5 does not provide ANY register ***
+ *         *** The CSB5 does yest provide ANY register ***
  *         *** to detect 80-conductor cable presence. ***
  *
  *   CSB6: `Champion South Bridge' IDE Interface (optional: third channel)
@@ -69,7 +69,7 @@ static int oem_cable(struct ata_port *ap)
 {
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
 
-	if (pdev->subsystem_device & (1 << (ap->port_no + 14)))
+	if (pdev->subsystem_device & (1 << (ap->port_yes + 14)))
 		return ATA_CBL_PATA80;
 	return ATA_CBL_PATA40;
 }
@@ -85,10 +85,10 @@ static struct sv_cable_table cable_detect[] = {
 	{ PCI_DEVICE_ID_SERVERWORKS_CSB6IDE,   PCI_VENDOR_ID_DELL, oem_cable },
 	{ PCI_DEVICE_ID_SERVERWORKS_CSB5IDE,   PCI_VENDOR_ID_SUN,  oem_cable },
 	{ PCI_DEVICE_ID_SERVERWORKS_OSB4IDE,   PCI_ANY_ID, ata_cable_40wire  },
-	{ PCI_DEVICE_ID_SERVERWORKS_CSB5IDE,   PCI_ANY_ID, ata_cable_unknown },
-	{ PCI_DEVICE_ID_SERVERWORKS_CSB6IDE,   PCI_ANY_ID, ata_cable_unknown },
-	{ PCI_DEVICE_ID_SERVERWORKS_CSB6IDE2,  PCI_ANY_ID, ata_cable_unknown },
-	{ PCI_DEVICE_ID_SERVERWORKS_HT1000IDE, PCI_ANY_ID, ata_cable_unknown },
+	{ PCI_DEVICE_ID_SERVERWORKS_CSB5IDE,   PCI_ANY_ID, ata_cable_unkyeswn },
+	{ PCI_DEVICE_ID_SERVERWORKS_CSB6IDE,   PCI_ANY_ID, ata_cable_unkyeswn },
+	{ PCI_DEVICE_ID_SERVERWORKS_CSB6IDE2,  PCI_ANY_ID, ata_cable_unkyeswn },
+	{ PCI_DEVICE_ID_SERVERWORKS_HT1000IDE, PCI_ANY_ID, ata_cable_unkyeswn },
 	{ }
 };
 
@@ -122,7 +122,7 @@ static int serverworks_cable_detect(struct ata_port *ap)
  *	serverworks_is_csb	-	Check for CSB or OSB
  *	@pdev: PCI device to check
  *
- *	Returns true if the device being checked is known to be a CSB
+ *	Returns true if the device being checked is kyeswn to be a CSB
  *	series device.
  */
 
@@ -146,7 +146,7 @@ static u8 serverworks_is_csb(struct pci_dev *pdev)
  *	@mask: Mask of proposed modes
  *
  *	Filter the offered modes for the device to apply controller
- *	specific rules. OSB4 requires no UDMA for disks due to a FIFO
+ *	specific rules. OSB4 requires yes UDMA for disks due to a FIFO
  *	bug we hit.
  */
 
@@ -197,8 +197,8 @@ static unsigned long serverworks_csb_filter(struct ata_device *adev, unsigned lo
 static void serverworks_set_piomode(struct ata_port *ap, struct ata_device *adev)
 {
 	static const u8 pio_mode[] = { 0x5d, 0x47, 0x34, 0x22, 0x20 };
-	int offset = 1 + 2 * ap->port_no - adev->devno;
-	int devbits = (2 * ap->port_no + adev->devno) * 4;
+	int offset = 1 + 2 * ap->port_yes - adev->devyes;
+	int devbits = (2 * ap->port_yes + adev->devyes) * 4;
 	u16 csb5_pio;
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
 	int pio = adev->pio_mode - XFER_PIO_0;
@@ -227,28 +227,28 @@ static void serverworks_set_piomode(struct ata_port *ap, struct ata_device *adev
 static void serverworks_set_dmamode(struct ata_port *ap, struct ata_device *adev)
 {
 	static const u8 dma_mode[] = { 0x77, 0x21, 0x20 };
-	int offset = 1 + 2 * ap->port_no - adev->devno;
-	int devbits = 2 * ap->port_no + adev->devno;
+	int offset = 1 + 2 * ap->port_yes - adev->devyes;
+	int devbits = 2 * ap->port_yes + adev->devyes;
 	u8 ultra;
 	u8 ultra_cfg;
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
 
 	pci_read_config_byte(pdev, 0x54, &ultra_cfg);
-	pci_read_config_byte(pdev, 0x56 + ap->port_no, &ultra);
-	ultra &= ~(0x0F << (adev->devno * 4));
+	pci_read_config_byte(pdev, 0x56 + ap->port_yes, &ultra);
+	ultra &= ~(0x0F << (adev->devyes * 4));
 
 	if (adev->dma_mode >= XFER_UDMA_0) {
 		pci_write_config_byte(pdev, 0x44 + offset,  0x20);
 
 		ultra |= (adev->dma_mode - XFER_UDMA_0)
-					<< (adev->devno * 4);
+					<< (adev->devyes * 4);
 		ultra_cfg |=  (1 << devbits);
 	} else {
 		pci_write_config_byte(pdev, 0x44 + offset,
 			dma_mode[adev->dma_mode - XFER_MW_DMA_0]);
 		ultra_cfg &= ~(1 << devbits);
 	}
-	pci_write_config_byte(pdev, 0x56 + ap->port_no, ultra);
+	pci_write_config_byte(pdev, 0x56 + ap->port_yes, ultra);
 	pci_write_config_byte(pdev, 0x54, ultra_cfg);
 }
 
@@ -285,7 +285,7 @@ static int serverworks_fixup_osb4(struct pci_dev *pdev)
 		pci_read_config_dword(isa_dev, 0x64, &reg);
 		reg &= ~0x00002000; /* disable 600ns interrupt mask */
 		if (!(reg & 0x00004000))
-			printk(KERN_DEBUG DRV_NAME ": UDMA not BIOS enabled.\n");
+			printk(KERN_DEBUG DRV_NAME ": UDMA yest BIOS enabled.\n");
 		reg |=  0x00004000; /* enable UDMA/33 support */
 		pci_write_config_dword(isa_dev, 0x64, reg);
 		pci_dev_put(isa_dev);
@@ -391,7 +391,7 @@ static int serverworks_init_one(struct pci_dev *pdev, const struct pci_device_id
 			.mwdma_mask = ATA_MWDMA2,
 			.udma_mask = ATA_UDMA2,
 			.port_ops = &serverworks_osb4_port_ops
-		}, { /* OSB4 no UDMA */
+		}, { /* OSB4 yes UDMA */
 			.flags = ATA_FLAG_SLAVE_POSS,
 			.pio_mask = ATA_PIO4,
 			.mwdma_mask = ATA_MWDMA2,
@@ -423,7 +423,7 @@ static int serverworks_init_one(struct pci_dev *pdev, const struct pci_device_id
 
 	/* OSB4 : South Bridge and IDE */
 	if (pdev->device == PCI_DEVICE_ID_SERVERWORKS_OSB4IDE) {
-		/* Select non UDMA capable OSB4 if we can't do fixups */
+		/* Select yesn UDMA capable OSB4 if we can't do fixups */
 		if (rc < 0)
 			ppi[0] = &info[1];
 		sht = &serverworks_osb4_sht;

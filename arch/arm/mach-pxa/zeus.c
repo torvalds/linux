@@ -139,7 +139,7 @@ static void __init zeus_init_irq(void)
 	pxa27x_init_irq();
 
 	/* Peripheral IRQs. It would be nice to move those inside driver
-	   configuration, but it is not supported at the moment. */
+	   configuration, but it is yest supported at the moment. */
 	irq_set_irq_type(gpio_to_irq(ZEUS_AC97_GPIO), IRQ_TYPE_EDGE_RISING);
 	irq_set_irq_type(gpio_to_irq(ZEUS_WAKEUP_GPIO), IRQ_TYPE_EDGE_RISING);
 	irq_set_irq_type(gpio_to_irq(ZEUS_PTT_GPIO), IRQ_TYPE_EDGE_RISING);
@@ -234,7 +234,7 @@ static struct resource zeus_serial_resources[] = {
 
 static struct plat_serial8250_port serial_platform_data[] = {
 	/* External UARTs */
-	/* FIXME: Shared IRQs on COM1-COM4 will not work properly on v1i1 hardware. */
+	/* FIXME: Shared IRQs on COM1-COM4 will yest work properly on v1i1 hardware. */
 	{ /* COM1 */
 		.mapbase	= 0x10000000,
 		.irq		= PXA_GPIO_TO_IRQ(ZEUS_UARTA_GPIO),
@@ -936,7 +936,7 @@ static void __init zeus_map_io(void)
 	/* Clear PSPR to ensure a full restart on wake-up. */
 	PMCR = PSPR = 0;
 
-	/* enable internal 32.768Khz oscillator (ignore OSCC_OOK) */
+	/* enable internal 32.768Khz oscillator (igyesre OSCC_OOK) */
 	writel(readl(OSCC) | OSCC_OON, OSCC);
 
 	/* Some clock cycles later (from OSCC_ON), programme PCFR (OPDE...).

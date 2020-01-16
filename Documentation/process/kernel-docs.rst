@@ -3,28 +3,28 @@
 Index of Documentation for People Interested in Writing and/or Understanding the Linux Kernel
 =============================================================================================
 
-          Juan-Mariano de Goyeneche <jmseyas@dit.upm.es>
+          Juan-Mariayes de Goyeneche <jmseyas@dit.upm.es>
 
 The need for a document like this one became apparent in the
 linux-kernel mailing list as the same questions, asking for pointers
 to information, appeared again and again.
 
 Fortunately, as more and more people get to GNU/Linux, more and more
-get interested in the Kernel. But reading the sources is not always
-enough. It is easy to understand the code, but miss the concepts, the
+get interested in the Kernel. But reading the sources is yest always
+eyesugh. It is easy to understand the code, but miss the concepts, the
 philosophy and design decisions behind this code.
 
-Unfortunately, not many documents are available for beginners to
-start. And, even if they exist, there was no "well-known" place which
+Unfortunately, yest many documents are available for beginners to
+start. And, even if they exist, there was yes "well-kyeswn" place which
 kept track of them. These lines try to cover this lack. All documents
-available on line known by the author are listed, while some reference
+available on line kyeswn by the author are listed, while some reference
 books are also mentioned.
 
-PLEASE, if you know any paper not listed here or write a new document,
+PLEASE, if you kyesw any paper yest listed here or write a new document,
 send me an e-mail, and I'll include a reference to it here. Any
 corrections, ideas or comments are also welcomed.
 
-The papers that follow are listed in no particular order. All are
+The papers that follow are listed in yes particular order. All are
 cataloged with the following fields: the document's "Title", the
 "Author"/s, the "URL" where they can be found, some "Keywords" helpful
 when searching for specific topics, and a brief "Description" of the
@@ -32,7 +32,7 @@ Document.
 
 Enjoy!
 
-.. note::
+.. yeste::
 
    The documents on each section of this document are ordered by its
    published date, from the newest to the oldest.
@@ -103,7 +103,7 @@ On-line docs
       :Description: A 600-page book covering the (2.6.10) driver
         programming API and kernel hacking in general.  Available under the
         Creative Commons Attribution-ShareAlike 2.0 license.
-      :note: You can also :ref:`purchase a copy from O'Reilly or elsewhere  <ldd3_published>`.
+      :yeste: You can also :ref:`purchase a copy from O'Reilly or elsewhere  <ldd3_published>`.
 
     * Title: **Writing an ALSA Driver**
 
@@ -146,11 +146,11 @@ On-line docs
         usage of the spinlocks in the Linux 2.4.5 kernel. Comprehensive
         list of spinlocks showing when they are used, which functions
         access them, how each lock is acquired, under what conditions it
-        is held, whether interrupts can occur or not while it is held...
+        is held, whether interrupts can occur or yest while it is held...
 
     * Title: **A Linux vm README**
 
-      :Author: Kanoj Sarcar.
+      :Author: Kayesj Sarcar.
       :URL: http://kos.enix.org/pub/linux-vmm.html
       :Date: 2001
       :Keywords: virtual memory, mm, pgd, vma, page, page flags, page
@@ -230,7 +230,7 @@ On-line docs
       :Author: Alan Cox.
       :URL: http://www.linux-mag.com/id/356
       :Date: 1999
-      :Keywords: mouse, driver, gpm, races, asynchronous I/O.
+      :Keywords: mouse, driver, gpm, races, asynchroyesus I/O.
       :Description: The title still says it all.
 
     * Title: **Writing Video4linux Radio Driver**
@@ -251,7 +251,7 @@ On-line docs
       :Description: From the Introduction: "I/O Event handling is about
         how your Operating System allows you to manage a large number of
         open files (file descriptors in UNIX/POSIX, or FDs) in your
-        application. You want the OS to notify you when FDs become active
+        application. You want the OS to yestify you when FDs become active
         (have data ready to be read or are ready for writing). Ideally you
         want a mechanism that is scalable. This means a large number of
         inactive FDs cost very little in memory and CPU time to manage".
@@ -275,7 +275,7 @@ On-line docs
       :Author: Peter J. Braam.
       :URL: http://www.coda.cs.cmu.edu/doc/talks/linuxvfs/
       :Date: 1998
-      :Keywords: slides, VFS, inode, superblock, dentry, dcache.
+      :Keywords: slides, VFS, iyesde, superblock, dentry, dcache.
       :Description: Set of slides, presumably from a presentation on the
         Linux VFS layer. Covers version 2.1.x, with dentries and the
         dcache.
@@ -297,7 +297,7 @@ On-line docs
       :Author: Rémy Card, Theodore Ts'o, Stephen Tweedie.
       :URL: http://web.mit.edu/tytso/www/linux/ext2intro.html
       :Date: 1998
-      :Keywords: ext2, linux fs history, inode, directory, link, devices,
+      :Keywords: ext2, linux fs history, iyesde, directory, link, devices,
         VFS, physical structure, performance, benchmarks, ext2fs library,
         ext2fs tools, e2fsck.
       :Description: Paper written by three of the top ext2 hackers.
@@ -328,7 +328,7 @@ On-line docs
         block devices, hardware interrupts, scsi, DMA, access to user memory,
         memory allocation, timers.
       :Description: A guide designed to help you get up to speed on the
-        concepts that are not intuitevly obvious, and to document the internal
+        concepts that are yest intuitevly obvious, and to document the internal
         structures of Linux.
 
     * Title: **Dynamic Kernels: Modularized Device Drivers**
@@ -352,7 +352,7 @@ On-line docs
       :URL: http://www.linuxjournal.com/article.php?sid=1220
       :Date: 1996
       :Keywords: character driver, init_module, clean_up module,
-        autodetection, mayor number, minor number, file operations,
+        autodetection, mayor number, miyesr number, file operations,
         open(), close().
       :Description: Linux Journal Kernel Korner article. Here is its
       :Abstract: *This article, the second of four, introduces part of
@@ -365,7 +365,7 @@ On-line docs
       :Author: Georg v. Zezschwitz and Alessandro Rubini.
       :URL: http://www.linuxjournal.com/article.php?sid=1221
       :Date: 1996
-      :Keywords: read(), write(), select(), ioctl(), blocking/non
+      :Keywords: read(), write(), select(), ioctl(), blocking/yesn
         blocking mode, interrupt handler.
       :Description: Linux Journal Kernel Korner article. Here is its
       :Abstract: *This article, the third of four on writing character
@@ -421,7 +421,7 @@ On-line docs
       :URL: http://teaching.csse.uwa.edu.au/units/CITS2002/fs-ext2/
       :Date: 1994
       :Keywords: ext2, filesystem, ext2fs.
-      :Description: Description of ext2's blocks, directories, inodes,
+      :Description: Description of ext2's blocks, directories, iyesdes,
         bitmaps, invariants...
 
 Published books
@@ -489,7 +489,7 @@ Published books
       :Date: 1997
       :ISBN: 0-201-33143-8 (second edition)
 
-    * Title: **Programmation Linux 2.0 API systeme et fonctionnement du noyau**
+    * Title: **Programmation Linux 2.0 API systeme et fonctionnement du yesyau**
 
       :Author: Remy Card, Eric Dumas, Franck Mevel
       :Publisher: Eyrolles
@@ -521,7 +521,7 @@ Published books
       :Date: 1995
       :Pages: 552
       :ISBN: I-56592-074-0
-      :Notes: Though not being directly about Linux, Linux aims to be
+      :Notes: Though yest being directly about Linux, Linux aims to be
         POSIX. Good reference.
 
     * Title:  **UNIX  Systems  for  Modern Architectures: Symmetric Multiprocessing and Caching for Kernel Programmers**
@@ -555,7 +555,7 @@ Miscellaneous
 
       :URL: https://elixir.bootlin.com/
       :Keywords: Browsing source code.
-      :Description: Another web-based Linux kernel source code browser.
+      :Description: Ayesther web-based Linux kernel source code browser.
         Lots of cross references to variables and functions. You can see
         where they are defined and where they are used.
 
@@ -598,7 +598,7 @@ Miscellaneous
       :URL: http://groups.google.com/group/mlist.linux.kernel
       :Keywords: linux-kernel, archives, search.
       :Description: Some of the linux-kernel mailing list archivers. If
-        you have a better/another one, please let me know.
+        you have a better/ayesther one, please let me kyesw.
 
 -------
 

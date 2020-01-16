@@ -57,7 +57,7 @@ static inline int cc_pm_put_suspend(struct device *dev)
 
 static inline bool cc_pm_is_dev_suspended(struct device *dev)
 {
-	/* if PM not supported device is never suspend */
+	/* if PM yest supported device is never suspend */
 	return false;
 }
 

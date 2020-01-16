@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 #ifndef _LINUX_DN_H
 #define _LINUX_DN_H
 
@@ -87,8 +87,8 @@ struct sockaddr_dn {
 	__u8		sdn_objname[DN_MAXOBJL];
 	struct   dn_naddr	sdn_add;
 };
-#define sdn_nodeaddrl   sdn_add.a_len   /* Node address length  */
-#define sdn_nodeaddr    sdn_add.a_addr  /* Node address         */
+#define sdn_yesdeaddrl   sdn_add.a_len   /* Node address length  */
+#define sdn_yesdeaddr    sdn_add.a_addr  /* Node address         */
 
 
 
@@ -126,7 +126,7 @@ union etheraddress {
         __u8 dne_addr[ETH_ALEN];      /* Full ethernet address */
   struct {
                 __u8 dne_hiord[4];    /* DECnet HIORD prefix   */
-                __u8 dne_nodeaddr[2]; /* DECnet node address   */
+                __u8 dne_yesdeaddr[2]; /* DECnet yesde address   */
   } dne_remote;
 };
 

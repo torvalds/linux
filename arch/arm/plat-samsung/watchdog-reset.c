@@ -29,7 +29,7 @@ static struct clk *wdt_clock;
 void samsung_wdt_reset(void)
 {
 	if (!wdt_base) {
-		pr_err("%s: wdt reset not initialized\n", __func__);
+		pr_err("%s: wdt reset yest initialized\n", __func__);
 		/* delay to allow the serial port to show the message */
 		mdelay(50);
 		return;
@@ -68,11 +68,11 @@ static const struct of_device_id s3c2410_wdt_match[] = {
 
 void __init samsung_wdt_reset_of_init(void)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 
-	np = of_find_matching_node(NULL, s3c2410_wdt_match);
+	np = of_find_matching_yesde(NULL, s3c2410_wdt_match);
 	if (!np) {
-		pr_err("%s: failed to find watchdog node\n", __func__);
+		pr_err("%s: failed to find watchdog yesde\n", __func__);
 		return;
 	}
 

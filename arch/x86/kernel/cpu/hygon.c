@@ -22,31 +22,31 @@
 #define APICID_SOCKET_ID_BIT 6
 
 /*
- * nodes_per_socket: Stores the number of nodes per socket.
+ * yesdes_per_socket: Stores the number of yesdes per socket.
  * Refer to CPUID Fn8000_001E_ECX Node Identifiers[10:8]
  */
-static u32 nodes_per_socket = 1;
+static u32 yesdes_per_socket = 1;
 
 #ifdef CONFIG_NUMA
 /*
  * To workaround broken NUMA config.  Read the comment in
- * srat_detect_node().
+ * srat_detect_yesde().
  */
-static int nearby_node(int apicid)
+static int nearby_yesde(int apicid)
 {
-	int i, node;
+	int i, yesde;
 
 	for (i = apicid - 1; i >= 0; i--) {
-		node = __apicid_to_node[i];
-		if (node != NUMA_NO_NODE && node_online(node))
-			return node;
+		yesde = __apicid_to_yesde[i];
+		if (yesde != NUMA_NO_NODE && yesde_online(yesde))
+			return yesde;
 	}
 	for (i = apicid + 1; i < MAX_LOCAL_APIC; i++) {
-		node = __apicid_to_node[i];
-		if (node != NUMA_NO_NODE && node_online(node))
-			return node;
+		yesde = __apicid_to_yesde[i];
+		if (yesde != NUMA_NO_NODE && yesde_online(yesde))
+			return yesde;
 	}
-	return first_node(node_online_map); /* Shouldn't happen */
+	return first_yesde(yesde_online_map); /* Shouldn't happen */
 }
 #endif
 
@@ -58,23 +58,23 @@ static void hygon_get_topology_early(struct cpuinfo_x86 *c)
 
 /*
  * Fixup core topology information for
- * (1) Hygon multi-node processors
- *     Assumption: Number of cores in each internal node is the same.
+ * (1) Hygon multi-yesde processors
+ *     Assumption: Number of cores in each internal yesde is the same.
  * (2) Hygon processors supporting compute units
  */
 static void hygon_get_topology(struct cpuinfo_x86 *c)
 {
-	u8 node_id;
+	u8 yesde_id;
 	int cpu = smp_processor_id();
 
-	/* get information required for multi-node processors */
+	/* get information required for multi-yesde processors */
 	if (boot_cpu_has(X86_FEATURE_TOPOEXT)) {
 		int err;
 		u32 eax, ebx, ecx, edx;
 
 		cpuid(0x8000001e, &eax, &ebx, &ecx, &edx);
 
-		node_id  = ecx & 0xff;
+		yesde_id  = ecx & 0xff;
 
 		c->cpu_core_id = ebx & 0xff;
 
@@ -92,18 +92,18 @@ static void hygon_get_topology(struct cpuinfo_x86 *c)
 		/* Socket ID is ApicId[6] for these processors. */
 		c->phys_proc_id = c->apicid >> APICID_SOCKET_ID_BIT;
 
-		cacheinfo_hygon_init_llc_id(c, cpu, node_id);
+		cacheinfo_hygon_init_llc_id(c, cpu, yesde_id);
 	} else if (cpu_has(c, X86_FEATURE_NODEID_MSR)) {
 		u64 value;
 
 		rdmsrl(MSR_FAM10H_NODE_ID, value);
-		node_id = value & 7;
+		yesde_id = value & 7;
 
-		per_cpu(cpu_llc_id, cpu) = node_id;
+		per_cpu(cpu_llc_id, cpu) = yesde_id;
 	} else
 		return;
 
-	if (nodes_per_socket > 1)
+	if (yesdes_per_socket > 1)
 		set_cpu_cap(c, X86_FEATURE_AMD_DCM);
 }
 
@@ -125,16 +125,16 @@ static void hygon_detect_cmp(struct cpuinfo_x86 *c)
 	per_cpu(cpu_llc_id, cpu) = c->phys_proc_id;
 }
 
-static void srat_detect_node(struct cpuinfo_x86 *c)
+static void srat_detect_yesde(struct cpuinfo_x86 *c)
 {
 #ifdef CONFIG_NUMA
 	int cpu = smp_processor_id();
-	int node;
+	int yesde;
 	unsigned int apicid = c->apicid;
 
-	node = numa_cpu_node(cpu);
-	if (node == NUMA_NO_NODE)
-		node = per_cpu(cpu_llc_id, cpu);
+	yesde = numa_cpu_yesde(cpu);
+	if (yesde == NUMA_NO_NODE)
+		yesde = per_cpu(cpu_llc_id, cpu);
 
 	/*
 	 * On multi-fabric platform (e.g. Numascale NumaChip) a
@@ -142,36 +142,36 @@ static void srat_detect_node(struct cpuinfo_x86 *c)
 	 * IDs of the CPU.
 	 */
 	if (x86_cpuinit.fixup_cpu_id)
-		x86_cpuinit.fixup_cpu_id(c, node);
+		x86_cpuinit.fixup_cpu_id(c, yesde);
 
-	if (!node_online(node)) {
+	if (!yesde_online(yesde)) {
 		/*
 		 * Two possibilities here:
 		 *
-		 * - The CPU is missing memory and no node was created.  In
+		 * - The CPU is missing memory and yes yesde was created.  In
 		 *   that case try picking one from a nearby CPU.
 		 *
-		 * - The APIC IDs differ from the HyperTransport node IDs.
+		 * - The APIC IDs differ from the HyperTransport yesde IDs.
 		 *   Assume they are all increased by a constant offset, but
-		 *   in the same order as the HT nodeids.  If that doesn't
-		 *   result in a usable node fall back to the path for the
+		 *   in the same order as the HT yesdeids.  If that doesn't
+		 *   result in a usable yesde fall back to the path for the
 		 *   previous case.
 		 *
 		 * This workaround operates directly on the mapping between
-		 * APIC ID and NUMA node, assuming certain relationship
-		 * between APIC ID, HT node ID and NUMA topology.  As going
+		 * APIC ID and NUMA yesde, assuming certain relationship
+		 * between APIC ID, HT yesde ID and NUMA topology.  As going
 		 * through CPU mapping may alter the outcome, directly
-		 * access __apicid_to_node[].
+		 * access __apicid_to_yesde[].
 		 */
-		int ht_nodeid = c->initial_apicid;
+		int ht_yesdeid = c->initial_apicid;
 
-		if (__apicid_to_node[ht_nodeid] != NUMA_NO_NODE)
-			node = __apicid_to_node[ht_nodeid];
-		/* Pick a nearby node */
-		if (!node_online(node))
-			node = nearby_node(apicid);
+		if (__apicid_to_yesde[ht_yesdeid] != NUMA_NO_NODE)
+			yesde = __apicid_to_yesde[ht_yesdeid];
+		/* Pick a nearby yesde */
+		if (!yesde_online(yesde))
+			yesde = nearby_yesde(apicid);
 	}
-	numa_set_node(cpu, node);
+	numa_set_yesde(cpu, yesde);
 #endif
 }
 
@@ -235,19 +235,19 @@ static void bsp_init_hygon(struct cpuinfo_x86 *c)
 		u32 ecx;
 
 		ecx = cpuid_ecx(0x8000001e);
-		nodes_per_socket = ((ecx >> 8) & 7) + 1;
+		yesdes_per_socket = ((ecx >> 8) & 7) + 1;
 	} else if (boot_cpu_has(X86_FEATURE_NODEID_MSR)) {
 		u64 value;
 
 		rdmsrl(MSR_FAM10H_NODE_ID, value);
-		nodes_per_socket = ((value >> 3) & 7) + 1;
+		yesdes_per_socket = ((value >> 3) & 7) + 1;
 	}
 
 	if (!boot_cpu_has(X86_FEATURE_AMD_SSBD) &&
 	    !boot_cpu_has(X86_FEATURE_VIRT_SSBD)) {
 		/*
 		 * Try to cache the base value so further operations can
-		 * avoid RMW. If that faults, do not enable SSBD.
+		 * avoid RMW. If that faults, do yest enable SSBD.
 		 */
 		if (!rdmsrl_safe(MSR_AMD64_LS_CFG, &x86_amd_ls_cfg_base)) {
 			setup_force_cpu_cap(X86_FEATURE_LS_CFG_SSBD);
@@ -269,7 +269,7 @@ static void early_init_hygon(struct cpuinfo_x86 *c)
 
 	/*
 	 * c->x86_power is 8000_0007 edx. Bit 8 is TSC runs at constant rate
-	 * with P/T states and does not stop in deep C-states
+	 * with P/T states and does yest stop in deep C-states
 	 */
 	if (c->x86_power & (1 << 8)) {
 		set_cpu_cap(c, X86_FEATURE_CONSTANT_TSC);
@@ -308,7 +308,7 @@ static void init_hygon(struct cpuinfo_x86 *c)
 	early_init_hygon(c);
 
 	/*
-	 * Bit 31 in normal CPUID used for nonstandard 3DNow ID;
+	 * Bit 31 in yesrmal CPUID used for yesnstandard 3DNow ID;
 	 * 3DNow is IDd by bit 31 in extended CPUID (1*32+31) anyway
 	 */
 	clear_cpu_cap(c, 0*32+31);
@@ -325,7 +325,7 @@ static void init_hygon(struct cpuinfo_x86 *c)
 
 	hygon_detect_cmp(c);
 	hygon_get_topology(c);
-	srat_detect_node(c);
+	srat_detect_yesde(c);
 
 	init_hygon_cacheinfo(c);
 
@@ -334,7 +334,7 @@ static void init_hygon(struct cpuinfo_x86 *c)
 		 * Use LFENCE for execution serialization.  On families which
 		 * don't have that MSR, LFENCE is already serializing.
 		 * msr_set_bit() uses the safe accessors, too, even if the MSR
-		 * is not present.
+		 * is yest present.
 		 */
 		msr_set_bit(MSR_F10H_DECFG,
 			    MSR_F10H_DECFG_LFENCE_SERIALIZE_BIT);

@@ -4,7 +4,7 @@
  * Copyright (c) 2014 The Linux Foundation
  */
 #include <linux/dma-direct.h>
-#include <linux/dma-noncoherent.h>
+#include <linux/dma-yesncoherent.h>
 #include <linux/dma-contiguous.h>
 #include <linux/init.h>
 #include <linux/genalloc.h>
@@ -38,8 +38,8 @@ static struct vm_struct *__dma_common_pages_remap(struct page **pages,
 }
 
 /*
- * Remaps an array of PAGE_SIZE pages into another vm_area.
- * Cannot be used in non-sleeping contexts
+ * Remaps an array of PAGE_SIZE pages into ayesther vm_area.
+ * Canyest be used in yesn-sleeping contexts
  */
 void *dma_common_pages_remap(struct page **pages, size_t size,
 			 pgprot_t prot, const void *caller)
@@ -56,8 +56,8 @@ void *dma_common_pages_remap(struct page **pages, size_t size,
 }
 
 /*
- * Remaps an allocated contiguous region into another vm_area.
- * Cannot be used in non-sleeping contexts
+ * Remaps an allocated contiguous region into ayesther vm_area.
+ * Canyest be used in yesn-sleeping contexts
  */
 void *dma_common_contiguous_remap(struct page *page, size_t size,
 			pgprot_t prot, const void *caller)
@@ -187,7 +187,7 @@ void *dma_alloc_from_pool(size_t size, struct page **ret_page, gfp_t flags)
 	void *ptr = NULL;
 
 	if (!atomic_pool) {
-		WARN(1, "coherent pool not initialised!\n");
+		WARN(1, "coherent pool yest initialised!\n");
 		return NULL;
 	}
 

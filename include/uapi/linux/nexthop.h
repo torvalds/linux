@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 #ifndef _UAPI_LINUX_NEXTHOP_H
 #define _UAPI_LINUX_NEXTHOP_H
 
@@ -21,7 +21,7 @@ struct nexthop_grp {
 };
 
 enum {
-	NEXTHOP_GRP_TYPE_MPATH,  /* default type if not specified */
+	NEXTHOP_GRP_TYPE_MPATH,  /* default type if yest specified */
 	__NEXTHOP_GRP_TYPE_MAX,
 };
 
@@ -33,10 +33,10 @@ enum {
 
 	NHA_GROUP,	/* array of nexthop_grp */
 	NHA_GROUP_TYPE,	/* u16 one of NEXTHOP_GRP_TYPE */
-	/* if NHA_GROUP attribute is added, no other attributes can be set */
+	/* if NHA_GROUP attribute is added, yes other attributes can be set */
 
 	NHA_BLACKHOLE,	/* flag; nexthop used to blackhole packets */
-	/* if NHA_BLACKHOLE is added, OIF, GATEWAY, ENCAP can not be set */
+	/* if NHA_BLACKHOLE is added, OIF, GATEWAY, ENCAP can yest be set */
 
 	NHA_OIF,	/* u32; nexthop device */
 	NHA_GATEWAY,	/* be32 (IPv4) or in6_addr (IPv6) gw address */

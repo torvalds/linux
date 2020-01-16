@@ -19,41 +19,41 @@ enum {
 enum io_wq_cancel {
 	IO_WQ_CANCEL_OK,	/* cancelled before started */
 	IO_WQ_CANCEL_RUNNING,	/* found, running, and attempted cancelled */
-	IO_WQ_CANCEL_NOTFOUND,	/* work not found */
+	IO_WQ_CANCEL_NOTFOUND,	/* work yest found */
 };
 
-struct io_wq_work_node {
-	struct io_wq_work_node *next;
+struct io_wq_work_yesde {
+	struct io_wq_work_yesde *next;
 };
 
 struct io_wq_work_list {
-	struct io_wq_work_node *first;
-	struct io_wq_work_node *last;
+	struct io_wq_work_yesde *first;
+	struct io_wq_work_yesde *last;
 };
 
-static inline void wq_list_add_tail(struct io_wq_work_node *node,
+static inline void wq_list_add_tail(struct io_wq_work_yesde *yesde,
 				    struct io_wq_work_list *list)
 {
 	if (!list->first) {
-		list->last = node;
-		WRITE_ONCE(list->first, node);
+		list->last = yesde;
+		WRITE_ONCE(list->first, yesde);
 	} else {
-		list->last->next = node;
-		list->last = node;
+		list->last->next = yesde;
+		list->last = yesde;
 	}
 }
 
-static inline void wq_node_del(struct io_wq_work_list *list,
-			       struct io_wq_work_node *node,
-			       struct io_wq_work_node *prev)
+static inline void wq_yesde_del(struct io_wq_work_list *list,
+			       struct io_wq_work_yesde *yesde,
+			       struct io_wq_work_yesde *prev)
 {
-	if (node == list->first)
-		WRITE_ONCE(list->first, node->next);
-	if (node == list->last)
+	if (yesde == list->first)
+		WRITE_ONCE(list->first, yesde->next);
+	if (yesde == list->last)
 		list->last = prev;
 	if (prev)
-		prev->next = node->next;
-	node->next = NULL;
+		prev->next = yesde->next;
+	yesde->next = NULL;
 }
 
 #define wq_list_for_each(pos, prv, head)			\
@@ -67,7 +67,7 @@ static inline void wq_node_del(struct io_wq_work_list *list,
 
 struct io_wq_work {
 	union {
-		struct io_wq_work_node list;
+		struct io_wq_work_yesde list;
 		void *data;
 	};
 	void (*func)(struct io_wq_work **);

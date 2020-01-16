@@ -18,9 +18,9 @@
 
 static int armada_3700_xtal_clock_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	const char *xtal_name = "xtal";
-	struct device_node *parent;
+	struct device_yesde *parent;
 	struct regmap *regmap;
 	struct clk_hw *xtal_hw;
 	unsigned int rate;
@@ -35,19 +35,19 @@ static int armada_3700_xtal_clock_probe(struct platform_device *pdev)
 
 	parent = np->parent;
 	if (!parent) {
-		dev_err(&pdev->dev, "no parent\n");
+		dev_err(&pdev->dev, "yes parent\n");
 		return -ENODEV;
 	}
 
-	regmap = syscon_node_to_regmap(parent);
+	regmap = syscon_yesde_to_regmap(parent);
 	if (IS_ERR(regmap)) {
-		dev_err(&pdev->dev, "cannot get regmap\n");
+		dev_err(&pdev->dev, "canyest get regmap\n");
 		return PTR_ERR(regmap);
 	}
 
 	ret = regmap_read(regmap, NB_GPIO1_LATCH, &reg);
 	if (ret) {
-		dev_err(&pdev->dev, "cannot read from regmap\n");
+		dev_err(&pdev->dev, "canyest read from regmap\n");
 		return ret;
 	}
 
@@ -67,7 +67,7 @@ static int armada_3700_xtal_clock_probe(struct platform_device *pdev)
 
 static int armada_3700_xtal_clock_remove(struct platform_device *pdev)
 {
-	of_clk_del_provider(pdev->dev.of_node);
+	of_clk_del_provider(pdev->dev.of_yesde);
 
 	return 0;
 }

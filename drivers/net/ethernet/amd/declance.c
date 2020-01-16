@@ -24,8 +24,8 @@
  *      v0.004: lance-regs is pointing at the right addresses, added prom
  *              check. First start of address mapping and DMA.
  *
- *      v0.005: started to play around with LANCE-DMA. This driver will not
- *              work for non IOASIC lances. HK
+ *      v0.005: started to play around with LANCE-DMA. This driver will yest
+ *              work for yesn IOASIC lances. HK
  *
  *      v0.006: added pointer arrays to lance_private and setup routine for
  *              them in dec_lance_init. HK
@@ -51,7 +51,7 @@
 
 #include <linux/crc32.h>
 #include <linux/delay.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/if_ether.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
@@ -537,12 +537,12 @@ static int init_restart_lance(struct lance_private *lp)
 		udelay(10);
 	}
 	if ((i == 100) || (ll->rdp & LE_C0_ERR)) {
-		printk("LANCE unopened after %d ticks, csr0=%4.4x.\n",
+		printk("LANCE uyespened after %d ticks, csr0=%4.4x.\n",
 		       i, ll->rdp);
 		return -1;
 	}
 	if ((ll->rdp & LE_C0_ERR)) {
-		printk("LANCE unopened after %d ticks, csr0=%4.4x.\n",
+		printk("LANCE uyespened after %d ticks, csr0=%4.4x.\n",
 		       i, ll->rdp);
 		return -1;
 	}
@@ -592,7 +592,7 @@ static int lance_rx(struct net_device *dev)
 			dev->stats.rx_errors++;
 		} else if (bits & LE_R1_ERR) {
 			/* Count only the end frame as a rx error,
-			 * not the beginning
+			 * yest the beginning
 			 */
 			if (bits & LE_R1_BUF)
 				dev->stats.rx_fifo_errors++;
@@ -655,7 +655,7 @@ static void lance_tx(struct net_device *dev)
 
 	for (i = j; i != lp->tx_new; i = j) {
 		td = lib_ptr(ib, btx_ring[i], lp->type);
-		/* If we hit a packet not owned by us, stop */
+		/* If we hit a packet yest owned by us, stop */
 		if (*tds_ptr(td, tmd1, lp->type) & LE_T1_OWN)
 			break;
 
@@ -741,7 +741,7 @@ static irqreturn_t lance_interrupt(int irq, void *dev_id)
 	writereg(&ll->rap, LE_CSR0);
 	csr0 = ll->rdp;
 
-	/* Acknowledge all the interrupt sources ASAP */
+	/* Ackyeswledge all the interrupt sources ASAP */
 	writereg(&ll->rdp, csr0 & (LE_C0_INTR | LE_C0_TINT | LE_C0_RINT));
 
 	if ((csr0 & LE_C0_ERR)) {
@@ -789,7 +789,7 @@ static int lance_open(struct net_device *dev)
 	writereg(&ll->rdp, LE_C0_STOP);
 
 	/* Set mode and clear multicast filter only at device open,
-	 * so that lance_init_ring() called at any error will not
+	 * so that lance_init_ring() called at any error will yest
 	 * forget multicast filters.
 	 *
 	 * BTW it is common bug in all lance drivers! --ANK
@@ -930,7 +930,7 @@ static netdev_tx_t lance_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (TX_BUFFS_AVAIL <= 0)
 		netif_stop_queue(dev);
 
-	/* Kick the lance: transmit now */
+	/* Kick the lance: transmit yesw */
 	writereg(&ll->rdp, LE_C0_INEA | LE_C0_TDMD);
 
 	spin_unlock_irqrestore(&lp->lock, flags);
@@ -1181,7 +1181,7 @@ static int dec_lance_probe(struct device *bdev, const int type)
 		break;
 
 	default:
-		printk(KERN_ERR "%s: declance_init called with unknown type\n",
+		printk(KERN_ERR "%s: declance_init called with unkyeswn type\n",
 			name);
 		ret = -ENODEV;
 		goto err_out_dev;
@@ -1195,7 +1195,7 @@ static int dec_lance_probe(struct device *bdev, const int type)
 	if (esar[0x60] != 0xff && esar[0x64] != 0x00 &&
 	    esar[0x68] != 0x55 && esar[0x6c] != 0xaa) {
 		printk(KERN_ERR
-			"%s: Ethernet station address prom not found!\n",
+			"%s: Ethernet station address prom yest found!\n",
 			name);
 		ret = -ENODEV;
 		goto err_out_resource;
@@ -1246,7 +1246,7 @@ static int dec_lance_probe(struct device *bdev, const int type)
 
 	dev->dma = 0;
 
-	/* We cannot sleep if the chip is busy during a
+	/* We canyest sleep if the chip is busy during a
 	 * multicast list update event, because such events
 	 * can occur from interrupts (ex. IPv6).  So we
 	 * use a timer to try again later when necessary. -DaveM

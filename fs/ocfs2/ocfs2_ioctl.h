@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /* -*- mode: c; c-basic-offset: 8; -*-
- * vim: noexpandtab sw=8 ts=8 sts=0:
+ * vim: yesexpandtab sw=8 ts=8 sts=0:
  *
  * ocfs2_ioctl.h
  *
@@ -24,7 +24,7 @@
  * Space reservation / allocation / free ioctls and argument structure
  * are designed to be compatible with XFS.
  *
- * ALLOCSP* and FREESP* are not and will never be supported, but are
+ * ALLOCSP* and FREESP* are yest and will never be supported, but are
  * included here for completeness.
  */
 struct ocfs2_space_resv {
@@ -48,7 +48,7 @@ struct ocfs2_space_resv {
 
 /* Used to pass group descriptor data when online resize is done */
 struct ocfs2_new_group_input {
-	__u64 group;		/* Group descriptor's blkno. */
+	__u64 group;		/* Group descriptor's blkyes. */
 	__u32 clusters;		/* Total number of clusters in this group */
 	__u32 frees;		/* Total free clusters in this group */
 	__u16 chain;		/* Chain for this group */
@@ -134,9 +134,9 @@ struct ocfs2_info_journal_size {
 	__u64 ij_journal_size;
 };
 
-struct ocfs2_info_freeinode {
+struct ocfs2_info_freeiyesde {
 	struct ocfs2_info_request ifi_req;
-	struct ocfs2_info_local_freeinode {
+	struct ocfs2_info_local_freeiyesde {
 		__u64 lfi_total;
 		__u64 lfi_free;
 	} ifi_stat[OCFS2_MAX_SLOTS];
@@ -182,7 +182,7 @@ enum ocfs2_info_type {
 
 /* Flags for struct ocfs2_info_request */
 /* Filled by the caller */
-#define OCFS2_INFO_FL_NON_COHERENT	(0x00000001)	/* Cluster coherency not
+#define OCFS2_INFO_FL_NON_COHERENT	(0x00000001)	/* Cluster coherency yest
 							   required. This is a hint.
 							   It is up to ocfs2 whether
 							   the request can be fulfilled

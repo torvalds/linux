@@ -140,7 +140,7 @@ static void m68vz328_reset(void)
 }
 
 unsigned char *cs8900a_hwaddr;
-static int errno;
+static int erryes;
 
 _bsc0(char *, getserialnum)
 _bsc1(unsigned char *, gethwaddr, int, a)

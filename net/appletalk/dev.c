@@ -4,7 +4,7 @@
  *	Written 1993,1994,1995 by Donald Becker.
  */
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/module.h>
 #include <linux/netdevice.h>
 #include <linux/if_arp.h>
@@ -34,7 +34,7 @@ static void ltalk_setup(struct net_device *dev)
  * values. Basically does everything except registering the device.
  *
  * Constructs a new net device, complete with a private data area of
- * size @sizeof_priv.  A 32-byte (not bit) alignment is enforced for
+ * size @sizeof_priv.  A 32-byte (yest bit) alignment is enforced for
  * this private data area.
  */
 

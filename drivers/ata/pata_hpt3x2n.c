@@ -119,7 +119,7 @@ static u32 hpt3x2n_find_mode(struct ata_port *ap, int speed)
  *	@adev: ATA device
  *	@mask: mode mask
  *
- *	The Marvell bridge chips used on the HighPoint SATA cards do not seem
+ *	The Marvell bridge chips used on the HighPoint SATA cards do yest seem
  *	to support the UltraDMA modes 1, 2, and 3 as well as any MWDMA modes...
  */
 static unsigned long hpt372n_filter(struct ata_device *adev, unsigned long mask)
@@ -147,12 +147,12 @@ static int hpt3x2n_cable_detect(struct ata_port *ap)
 
 	udelay(10); /* debounce */
 
-	/* Cable register now active */
+	/* Cable register yesw active */
 	pci_read_config_byte(pdev, 0x5A, &ata66);
 	/* Restore state */
 	pci_write_config_byte(pdev, 0x5B, scr2);
 
-	if (ata66 & (2 >> ap->port_no))
+	if (ata66 & (2 >> ap->port_yes))
 		return ATA_CBL_PATA40;
 	else
 		return ATA_CBL_PATA80;
@@ -173,7 +173,7 @@ static int hpt3x2n_pre_reset(struct ata_link *link, unsigned long deadline)
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
 
 	/* Reset the state machine */
-	pci_write_config_byte(pdev, 0x50 + 4 * ap->port_no, 0x37);
+	pci_write_config_byte(pdev, 0x50 + 4 * ap->port_yes, 0x37);
 	udelay(100);
 
 	return ata_sff_prereset(link, deadline);
@@ -187,8 +187,8 @@ static void hpt3x2n_set_mode(struct ata_port *ap, struct ata_device *adev,
 	u32 reg, timing, mask;
 	u8 fast;
 
-	addr1 = 0x40 + 4 * (adev->devno + 2 * ap->port_no);
-	addr2 = 0x51 + 4 * ap->port_no;
+	addr1 = 0x40 + 4 * (adev->devyes + 2 * ap->port_yes);
+	addr2 = 0x51 + 4 * ap->port_yes;
 
 	/* Fast interrupt prediction disable, hold off interrupt disable */
 	pci_read_config_byte(pdev, addr2, &fast);
@@ -247,12 +247,12 @@ static void hpt3x2n_bmdma_stop(struct ata_queued_cmd *qc)
 {
 	struct ata_port *ap = qc->ap;
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
-	int mscreg = 0x50 + 2 * ap->port_no;
+	int mscreg = 0x50 + 2 * ap->port_yes;
 	u8 bwsr_stat, msc_stat;
 
 	pci_read_config_byte(pdev, 0x6A, &bwsr_stat);
 	pci_read_config_byte(pdev, mscreg, &msc_stat);
-	if (bwsr_stat & (1 << ap->port_no))
+	if (bwsr_stat & (1 << ap->port_yes))
 		pci_write_config_byte(pdev, mscreg, msc_stat | 0x30);
 	ata_bmdma_stop(qc);
 }
@@ -275,7 +275,7 @@ static void hpt3x2n_bmdma_stop(struct ata_queued_cmd *qc)
 
 static void hpt3x2n_set_clock(struct ata_port *ap, int source)
 {
-	void __iomem *bmdma = ap->ioaddr.bmdma_addr - ap->port_no * 8;
+	void __iomem *bmdma = ap->ioaddr.bmdma_addr - ap->port_yes * 8;
 
 	/* Tristate the bus */
 	iowrite8(0x80, bmdma+0x73);
@@ -312,7 +312,7 @@ static int hpt3x2n_use_dpll(struct ata_port *ap, int writing)
 static int hpt3x2n_qc_defer(struct ata_queued_cmd *qc)
 {
 	struct ata_port *ap = qc->ap;
-	struct ata_port *alt = ap->host->ports[ap->port_no ^ 1];
+	struct ata_port *alt = ap->host->ports[ap->port_yes ^ 1];
 	int rc, flags = (long)ap->host->private_data;
 	int dpll = hpt3x2n_use_dpll(ap, qc->tf.flags & ATA_TFLAG_WRITE);
 
@@ -420,7 +420,7 @@ static int hpt3x2n_pci_clock(struct pci_dev *pdev)
 		u16 sr;
 		u32 total = 0;
 
-		pr_warn("BIOS clock data not set\n");
+		pr_warn("BIOS clock data yest set\n");
 
 		/* This is the process the HPT371 BIOS is reported to use */
 		for (i = 0; i < 128; i++) {
@@ -454,7 +454,7 @@ static int hpt3x2n_pci_clock(struct pci_dev *pdev)
  *	Secondly all the timings depend on the clock for the chip which we must
  *	detect and look up
  *
- *	This is the known chip mappings. It may be missing a couple of later
+ *	This is the kyeswn chip mappings. It may be missing a couple of later
  *	releases.
  *
  *	Chip version		PCI		Rev	Notes
@@ -548,7 +548,7 @@ hpt372n:
 	/*
 	 * HPT371 chips physically have only one channel, the secondary one,
 	 * but the primary channel registers do exist!  Go figure...
-	 * So,  we manually disable the non-existing channel here
+	 * So,  we manually disable the yesn-existing channel here
 	 * (if the BIOS hasn't done this already).
 	 */
 	if (dev->device == PCI_DEVICE_ID_TTI_HPT371) {
@@ -560,7 +560,7 @@ hpt372n:
 
 	/*
 	 * Tune the PLL. HPT recommend using 75 for SATA, 66 for UDMA133 or
-	 * 50 for UDMA100. Right now we always use 66
+	 * 50 for UDMA100. Right yesw we always use 66
 	 */
 
 	pci_mhz = hpt3x2n_pci_clock(dev);
@@ -579,7 +579,7 @@ hpt372n:
 		pci_write_config_dword(dev, 0x5C, (f_high << 16) | f_low);
 	}
 	if (adjust == 8) {
-		pr_err("DPLL did not stabilize!\n");
+		pr_err("DPLL did yest stabilize!\n");
 		return -ENODEV;
 	}
 

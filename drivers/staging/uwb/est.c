@@ -9,7 +9,7 @@
  * FIXME: docs
  *
  * Infrastructure, code and data tables for guessing the size of
- * events received on the notification endpoints of UWB radio
+ * events received on the yestification endpoints of UWB radio
  * controllers.
  *
  * You define a table of events and for each, its size and how to get
@@ -46,7 +46,7 @@ static DEFINE_RWLOCK(uwb_est_lock);
 /**
  * WUSB Standard Event Size Table, HWA-RC interface
  *
- * Sizes for events and notifications type 0 (general), high nibble 0.
+ * Sizes for events and yestifications type 0 (general), high nibble 0.
  */
 static
 struct uwb_est_entry uwb_est_00_00xx[] = {
@@ -153,7 +153,7 @@ struct uwb_est_entry uwb_est_01_00xx[] = {
 		.size = sizeof(struct uwb_rc_evt_set_daa_energy_mask),
 	},
 	[UWB_RC_SET_NOTIFICATION_FILTER_EX] = {
-		.size = sizeof(struct uwb_rc_evt_set_notification_filter_ex),
+		.size = sizeof(struct uwb_rc_evt_set_yestification_filter_ex),
 	},
 };
 
@@ -197,7 +197,7 @@ void uwb_est_destroy(void)
 /**
  * Double the capacity of the EST table
  *
- * @returns 0 if ok, < 0 errno no error.
+ * @returns 0 if ok, < 0 erryes yes error.
  */
 static
 int uwb_est_grow(void)
@@ -228,7 +228,7 @@ int uwb_est_grow(void)
  *           after checking vendor specific ones.
  *
  * @product: product code from that vendor; same matching rules, use
- *           0x0000 for not allowing vendor specific matches, 0xffff
+ *           0x0000 for yest allowing vendor specific matches, 0xffff
  *           for allowing.
  *
  * This arragement just makes the tables sort differenty. Because the
@@ -236,7 +236,7 @@ int uwb_est_grow(void)
  * vendor will match before than a 0x456a vendor, that will match
  * before a 0xfffff vendor.
  *
- * @returns 0 if ok, < 0 errno on error (-ENOENT if not found).
+ * @returns 0 if ok, < 0 erryes on error (-ENOENT if yest found).
  */
 /* FIXME: add bus type to vendor/product code */
 int uwb_est_register(u8 type, u8 event_high, u16 vendor, u16 product,
@@ -279,14 +279,14 @@ EXPORT_SYMBOL_GPL(uwb_est_register);
  * Unregister an event size table
  *
  * This just removes the specified entry and moves the ones after it
- * to fill in the gap. This is needed to keep the list sorted; no
+ * to fill in the gap. This is needed to keep the list sorted; yes
  * reallocation is done to reduce the size of the table.
  *
  * We unregister by all the data we used to register instead of by
  * pointer to the @entry array because we might have used the same
  * table for a bunch of IDs (for example).
  *
- * @returns 0 if ok, < 0 errno on error (-ENOENT if not found).
+ * @returns 0 if ok, < 0 erryes on error (-ENOENT if yest found).
  */
 int uwb_est_unregister(u8 type, u8 event_high, u16 vendor, u16 product,
 		       const struct uwb_est_entry *entry, size_t entries)
@@ -323,15 +323,15 @@ EXPORT_SYMBOL_GPL(uwb_est_unregister);
  * @rceb: pointer to the buffer with the event
  * @rceb_size: size of the area pointed to by @rceb in bytes.
  * @returns: > 0      Size of the event
- *	     -ENOSPC  An area big enough was not provided to look
+ *	     -ENOSPC  An area big eyesugh was yest provided to look
  *		      ahead into the event's guts and guess the size.
- *	     -EINVAL  Unknown event code (wEvent).
+ *	     -EINVAL  Unkyeswn event code (wEvent).
  *
  * This will look at the received RCEB and guess what is the total
  * size. For variable sized events, it will look further ahead into
  * their length field to see how much data should be read.
  *
- * Note this size is *not* final--the neh (Notification/Event Handle)
+ * Note this size is *yest* final--the neh (Notification/Event Handle)
  * might specificy an extra size to add.
  */
 static
@@ -353,8 +353,8 @@ ssize_t uwb_est_get_size(struct uwb_rc *uwb_rc, struct uwb_est *est,
 	}
 	size = -ENOENT;
 	entry = &est->entry[event_low];
-	if (entry->size == 0 && entry->offset == 0) {	/* unknown? */
-		dev_err(dev, "EST %p 0x%04x/%04x/%04x[%u]: event %u unknown\n",
+	if (entry->size == 0 && entry->offset == 0) {	/* unkyeswn? */
+		dev_err(dev, "EST %p 0x%04x/%04x/%04x[%u]: event %u unkyeswn\n",
 			est, est->type_event_high, est->vendor,	est->product,
 			est->entries, event_low);
 		goto out;
@@ -367,7 +367,7 @@ ssize_t uwb_est_get_size(struct uwb_rc *uwb_rc, struct uwb_est *est,
 		const void *ptr = rceb;
 		size_t type_size = 0;
 		offset--;
-		size = -ENOSPC;			/* enough data for more? */
+		size = -ENOSPC;			/* eyesugh data for more? */
 		switch (entry->type) {
 		case UWB_EST_16:  type_size = sizeof(__le16); break;
 		case UWB_EST_8:   type_size = sizeof(u8);     break;
@@ -375,7 +375,7 @@ ssize_t uwb_est_get_size(struct uwb_rc *uwb_rc, struct uwb_est *est,
 		}
 		if (offset + type_size > rceb_size) {
 			dev_err(dev, "EST %p 0x%04x/%04x/%04x[%u]: "
-				"not enough data to read extra size\n",
+				"yest eyesugh data to read extra size\n",
 				est, est->type_event_high, est->vendor,
 				est->product, est->entries);
 			goto out;
@@ -399,16 +399,16 @@ out:
  * @rceb: pointer to the buffer with the event
  * @rceb_size: size of the area pointed to by @rceb in bytes.
  * @returns: > 0      Size of the event
- *	     -ENOSPC  An area big enough was not provided to look
+ *	     -ENOSPC  An area big eyesugh was yest provided to look
  *		      ahead into the event's guts and guess the size.
- *	     -EINVAL  Unknown event code (wEvent).
+ *	     -EINVAL  Unkyeswn event code (wEvent).
  *
  * This will look at the received RCEB and guess what is the total
  * size by checking all the tables registered with
  * uwb_est_register(). For variable sized events, it will look further
  * ahead into their length field to see how much data should be read.
  *
- * Note this size is *not* final--the neh (Notification/Event Handle)
+ * Note this size is *yest* final--the neh (Notification/Event Handle)
  * might specificy an extra size to add or replace.
  */
 ssize_t uwb_est_find_size(struct uwb_rc *rc, const struct uwb_rceb *rceb,
@@ -437,7 +437,7 @@ ssize_t uwb_est_find_size(struct uwb_rc *rc, const struct uwb_rceb *rceb,
 			goto out;
 	}
 	dev_dbg(dev,
-		"event 0x%02x/%04x/%02x: no handlers available; RCEB %4ph\n",
+		"event 0x%02x/%04x/%02x: yes handlers available; RCEB %4ph\n",
 		(unsigned) rceb->bEventType,
 		(unsigned) le16_to_cpu(rceb->wEvent),
 		(unsigned) rceb->bEventContext,

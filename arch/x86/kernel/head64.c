@@ -7,7 +7,7 @@
 
 #define DISABLE_BRANCH_PROFILING
 
-/* cpu_feature_enabled() cannot be used this early */
+/* cpu_feature_enabled() canyest be used this early */
 #define USE_EARLY_PGTABLE_L5
 
 #include <linux/init.h>
@@ -106,7 +106,7 @@ static bool __head check_la57_support(unsigned long physaddr)
 
 /* Code in __startup_64() can be relocated during execution, but the compiler
  * doesn't have to generate PC-relative relocations when accessing globals from
- * that function. Clang actually does not generate them, which leads to
+ * that function. Clang actually does yest generate them, which leads to
  * boot-time crashes. To work around this problem, every global pointer must
  * be adjusted using fixup_pointer().
  */
@@ -137,7 +137,7 @@ unsigned long __head __startup_64(unsigned long physaddr,
 	 */
 	load_delta = physaddr - (unsigned long)(_text - __START_KERNEL_map);
 
-	/* Is the address not 2M aligned? */
+	/* Is the address yest 2M aligned? */
 	if (load_delta & ~PMD_PAGE_MASK)
 		for (;;);
 
@@ -173,7 +173,7 @@ unsigned long __head __startup_64(unsigned long physaddr,
 	/*
 	 * Set up the identity mapping for the switchover.  These
 	 * entries should *NOT* have the global bit set!  This also
-	 * creates a bunch of nonsense entries but that is fine --
+	 * creates a bunch of yesnsense entries but that is fine --
 	 * it avoids problems around wraparound.
 	 */
 
@@ -260,7 +260,7 @@ unsigned long __head __startup_64(unsigned long physaddr,
 	/*
 	 * Clear the memory encryption mask from the .bss..decrypted section.
 	 * The bss section will be memset to zero later in the initialization so
-	 * there is no need to zero it after changing the memory encryption
+	 * there is yes need to zero it after changing the memory encryption
 	 * attribute.
 	 */
 	if (mem_encrypt_active()) {
@@ -293,7 +293,7 @@ static void __init reset_early_page_tables(void)
 {
 	memset(early_top_pgt, 0, sizeof(pgd_t)*(PTRS_PER_PGD-1));
 	next_early_pgt = 0;
-	write_cr3(__sme_pa_nodebug(early_top_pgt));
+	write_cr3(__sme_pa_yesdebug(early_top_pgt));
 }
 
 /* Create a new PMD entry */
@@ -306,7 +306,7 @@ int __init __early_make_pgtable(unsigned long address, pmdval_t pmd)
 	pmdval_t *pmd_p;
 
 	/* Invalid address or early pgt is done ?  */
-	if (physaddr >= MAXMEM || read_cr3_pa() != __pa_nodebug(early_top_pgt))
+	if (physaddr >= MAXMEM || read_cr3_pa() != __pa_yesdebug(early_top_pgt))
 		return -1;
 
 again:
@@ -377,7 +377,7 @@ int __init early_make_pgtable(unsigned long address)
 	return __early_make_pgtable(address, pmd);
 }
 
-/* Don't add a printk in there. printk relies on the PDA which is not initialized 
+/* Don't add a printk in there. printk relies on the PDA which is yest initialized 
    yet. */
 static void __init clear_bss(void)
 {
@@ -414,7 +414,7 @@ static void __init copy_bootdata(char *real_mode_data)
 	}
 
 	/*
-	 * The old boot data is no longer needed and won't be reserved,
+	 * The old boot data is yes longer needed and won't be reserved,
 	 * freeing up that memory for use by the system. If SME is active,
 	 * we need to remove the mappings that were created so that the
 	 * memory doesn't remain mapped as decrypted.
@@ -426,7 +426,7 @@ asmlinkage __visible void __init x86_64_start_kernel(char * real_mode_data)
 {
 	/*
 	 * Build-time sanity checks on the kernel image and module
-	 * area mappings. (these are purely build-time and produce no code)
+	 * area mappings. (these are purely build-time and produce yes code)
 	 */
 	BUILD_BUG_ON(MODULES_VADDR < __START_KERNEL_map);
 	BUILD_BUG_ON(MODULES_VADDR - __START_KERNEL_map < KERNEL_IMAGE_SIZE);
@@ -473,7 +473,7 @@ asmlinkage __visible void __init x86_64_start_kernel(char * real_mode_data)
 
 void __init x86_64_start_reservations(char *real_mode_data)
 {
-	/* version is always not zero if it is copied */
+	/* version is always yest zero if it is copied */
 	if (!boot_params.hdr.version)
 		copy_bootdata(__va(real_mode_data));
 

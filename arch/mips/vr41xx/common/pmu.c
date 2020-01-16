@@ -5,7 +5,7 @@
  *  Copyright (C) 2003-2007  Yoichi Yuasa <yuasa@linux-mips.org>
  */
 #include <linux/cpu.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/init.h>
 #include <linux/ioport.h>
 #include <linux/kernel.h>

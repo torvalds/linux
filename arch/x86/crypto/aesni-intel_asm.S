@@ -7,7 +7,7 @@
  *
  * Copyright (C) 2008, Intel Corp.
  *    Author: Huang Ying <ying.huang@intel.com>
- *            Vinodh Gopal <vinodh.gopal@intel.com>
+ *            Viyesdh Gopal <viyesdh.gopal@intel.com>
  *            Kahraman Akdemir
  *
  * Added RFC4106 AES-GCM support for 128-bit keys under the AEAD
@@ -28,7 +28,7 @@
 #include <linux/linkage.h>
 #include <asm/inst.h>
 #include <asm/frame.h>
-#include <asm/nospec-branch.h>
+#include <asm/yesspec-branch.h>
 
 /*
  * The following macros are used to move an (un)aligned 16 byte value to/from
@@ -36,7 +36,7 @@
  * movaps (move aligned packed single) or integer use movdqa (move double quad
  * aligned).  It doesn't make a performance difference which instruction is used
  * since Nehalem (original Core i7) was released.  However, the movaps is a byte
- * shorter, so that is the one we'll use for now. (same for unaligned).
+ * shorter, so that is the one we'll use for yesw. (same for unaligned).
  */
 #define MOVADQ	movaps
 #define MOVUDQ	movups
@@ -77,7 +77,7 @@ dec:        .octa 0x1
 .align 16
 enc:        .octa 0x2
 
-# order of these constants should not change.
+# order of these constants should yest change.
 # more specifically, ALL_F should follow SHIFT_MASK,
 # and zero should follow ALL_F
 .section	.rodata, "a", @progbits
@@ -180,7 +180,7 @@ ALL_F:      .octa 0xffffffffffffffffffffffffffffffff
 	push	%r13
 	push	%r14
 #
-# states of %xmm registers %xmm6:%xmm15 not saved
+# states of %xmm registers %xmm6:%xmm15 yest saved
 # all %xmm registers are clobbered
 #
 .endm
@@ -353,14 +353,14 @@ _zero_cipher_left_\@:
 	movdqu %xmm0, PBlockEncKey(%arg2)
 
 	cmp	$16, %arg5
-	jge _large_enough_update_\@
+	jge _large_eyesugh_update_\@
 
 	lea (%arg4,%r11,1), %r10
 	mov %r13, %r12
 	READ_PARTIAL_BLOCK %r10 %r12 %xmm2 %xmm1
 	jmp _data_read_\@
 
-_large_enough_update_\@:
+_large_eyesugh_update_\@:
 	sub	$16, %r11
 	add	%r13, %r11
 
@@ -594,7 +594,7 @@ _read_next_byte_lt8_\@:
 _done_read_partial_block_\@:
 .endm
 
-# CALC_AAD_HASH: Calculates the hash of the data which will not be encrypted.
+# CALC_AAD_HASH: Calculates the hash of the data which will yest be encrypted.
 # clobbers r10-11, xmm14
 .macro CALC_AAD_HASH HASHKEY AAD AADLEN TMP1 TMP2 TMP3 TMP4 TMP5 \
 	TMP6 TMP7
@@ -642,7 +642,7 @@ _get_AAD_done\@:
 	AAD_HASH operation
 	mov 	PBlockLen(%arg2), %r13
 	cmp	$0, %r13
-	je	_partial_block_done_\@	# Leave Macro if no partial blocks
+	je	_partial_block_done_\@	# Leave Macro if yes partial blocks
 	# Read in input data without over reading
 	cmp	$16, \PLAIN_CYPH_LEN
 	jl	_fewer_than_16_bytes_\@
@@ -677,11 +677,11 @@ _data_read_\@:				# Finished reading in data
 	add	%r13, %r10
 	# Set r10 to be the amount of data left in CYPH_PLAIN_IN after filling
 	sub	$16, %r10
-	# Determine if if partial block is not being filled and
+	# Determine if if partial block is yest being filled and
 	# shift mask accordingly
-	jge	_no_extra_mask_1_\@
+	jge	_yes_extra_mask_1_\@
 	sub	%r10, %r12
-_no_extra_mask_1_\@:
+_yes_extra_mask_1_\@:
 
 	movdqu	ALL_F-SHIFT_MASK(%r12), %xmm1
 	# get the appropriate mask to mask out bottom r13 bytes of xmm9
@@ -713,11 +713,11 @@ _dec_done_\@:
 	add	%r13, %r10
 	# Set r10 to be the amount of data left in CYPH_PLAIN_IN after filling
 	sub	$16, %r10
-	# Determine if if partial block is not being filled and
+	# Determine if if partial block is yest being filled and
 	# shift mask accordingly
-	jge	_no_extra_mask_2_\@
+	jge	_yes_extra_mask_2_\@
 	sub	%r10, %r12
-_no_extra_mask_2_\@:
+_yes_extra_mask_2_\@:
 
 	movdqu	ALL_F-SHIFT_MASK(%r12), %xmm1
 	# get the appropriate mask to mask out bottom r13 bytes of xmm9
@@ -785,7 +785,7 @@ _partial_block_done_\@:
 * the ciphertext
 * %r10, %r11, %r12, %rax, %xmm5, %xmm6, %xmm7, %xmm8, %xmm9 registers
 * are clobbered
-* arg1, %arg2, %arg3 are used as a pointer only, not modified
+* arg1, %arg2, %arg3 are used as a pointer only, yest modified
 */
 
 
@@ -867,7 +867,7 @@ aes_loop_initial_\@:
 .endif
 	cmp	   $64, %r13
 	jl	_initial_blocks_done\@
-	# no need for precomputed values
+	# yes need for precomputed values
 /*
 *
 * Precomputations for HashKey parallel with encryption of first 4 blocks.
@@ -975,7 +975,7 @@ _initial_blocks_done\@:
 /*
 * encrypt 4 blocks at a time
 * ghash the 4 previously encrypted ciphertext blocks
-* arg1, %arg3, %arg4 are used as pointers only, not modified
+* arg1, %arg3, %arg4 are used as pointers only, yest modified
 * %r11 is the data offset value
 */
 .macro GHASH_4_ENCRYPT_4_PARALLEL_ENC TMP1 TMP2 TMP3 TMP4 TMP5 \
@@ -1183,7 +1183,7 @@ aes_loop_par_enc_done\@:
 /*
 * decrypt 4 blocks at a time
 * ghash the 4 previously decrypted ciphertext blocks
-* arg1, %arg3, %arg4 are used as pointers only, not modified
+* arg1, %arg3, %arg4 are used as pointers only, yest modified
 * %r11 is the data offset value
 */
 .macro GHASH_4_ENCRYPT_4_PARALLEL_DEC TMP1 TMP2 TMP3 TMP4 TMP5 \

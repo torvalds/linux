@@ -180,7 +180,7 @@ static void iproc_gpio_irq_handler(struct irq_desc *desc)
 
 			/*
 			 * Clear the interrupt before invoking the
-			 * handler, so we do not leave any window
+			 * handler, so we do yest leave any window
 			 */
 			writel(BIT(bit), chip->base + (i * GPIO_BANK_SIZE) +
 			       IPROC_GPIO_INT_CLR_OFFSET);
@@ -303,7 +303,7 @@ static int iproc_gpio_request(struct gpio_chip *gc, unsigned offset)
 	struct iproc_gpio *chip = gpiochip_get_data(gc);
 	unsigned gpio = gc->base + offset;
 
-	/* not all Iproc GPIO pins can be muxed individually */
+	/* yest all Iproc GPIO pins can be muxed individually */
 	if (!chip->pinmux_is_supported)
 		return 0;
 
@@ -433,7 +433,7 @@ static int iproc_pinconf_disable_map_create(struct iproc_gpio *chip,
 
 	chip->nr_pinconf_disable = nbits;
 
-	/* now store these parameters */
+	/* yesw store these parameters */
 	nbits = 0;
 	for_each_set_bit(bit, &disable_mask, map_size)
 		chip->pinconf_disable[nbits++] = iproc_pinconf_disable_map[bit];
@@ -459,7 +459,7 @@ static const char *iproc_get_group_name(struct pinctrl_dev *pctldev,
 static const struct pinctrl_ops iproc_pctrl_ops = {
 	.get_groups_count = iproc_get_groups_count,
 	.get_group_name = iproc_get_group_name,
-	.dt_node_to_map = pinconf_generic_dt_node_to_map_pin,
+	.dt_yesde_to_map = pinconf_generic_dt_yesde_to_map_pin,
 	.dt_free_map = pinctrl_utils_free_map,
 };
 
@@ -479,7 +479,7 @@ static int iproc_gpio_set_pull(struct iproc_gpio *chip, unsigned gpio,
 		val_1 = readl(base + IPROC_GPIO_PULL_UP_OFFSET);
 		val_2 = readl(base + IPROC_GPIO_PULL_DN_OFFSET);
 		if (disable) {
-			/* no pull-up or pull-down */
+			/* yes pull-up or pull-down */
 			val_1 &= ~BIT(shift);
 			val_2 &= ~BIT(shift);
 		} else if (pull_up) {
@@ -777,16 +777,16 @@ static int iproc_gpio_probe(struct platform_device *pdev)
 	struct gpio_chip *gc;
 	u32 ngpios, pinconf_disable_mask = 0;
 	int irq, ret;
-	bool no_pinconf = false;
+	bool yes_pinconf = false;
 	enum iproc_pinconf_ctrl_type io_ctrl_type = IOCTRL_TYPE_INVALID;
 
-	/* NSP does not support drive strength config */
-	if (of_device_is_compatible(dev->of_node, "brcm,iproc-nsp-gpio"))
+	/* NSP does yest support drive strength config */
+	if (of_device_is_compatible(dev->of_yesde, "brcm,iproc-nsp-gpio"))
 		pinconf_disable_mask = BIT(IPROC_PINCONF_DRIVE_STRENGTH);
-	/* Stingray does not support pinconf in this controller */
-	else if (of_device_is_compatible(dev->of_node,
+	/* Stingray does yest support pinconf in this controller */
+	else if (of_device_is_compatible(dev->of_yesde,
 					 "brcm,iproc-stingray-gpio"))
-		no_pinconf = true;
+		yes_pinconf = true;
 
 	chip = devm_kzalloc(dev, sizeof(*chip), GFP_KERNEL);
 	if (!chip)
@@ -808,7 +808,7 @@ static int iproc_gpio_probe(struct platform_device *pdev)
 			dev_err(dev, "unable to map I/O memory\n");
 			return PTR_ERR(chip->io_ctrl);
 		}
-		if (of_device_is_compatible(dev->of_node,
+		if (of_device_is_compatible(dev->of_yesde,
 					    "brcm,cygnus-ccm-gpio"))
 			io_ctrl_type = IOCTRL_TYPE_CDRU;
 		else
@@ -817,7 +817,7 @@ static int iproc_gpio_probe(struct platform_device *pdev)
 
 	chip->io_ctrl_type = io_ctrl_type;
 
-	if (of_property_read_u32(dev->of_node, "ngpios", &ngpios)) {
+	if (of_property_read_u32(dev->of_yesde, "ngpios", &ngpios)) {
 		dev_err(&pdev->dev, "missing ngpios DT property\n");
 		return -ENODEV;
 	}
@@ -830,7 +830,7 @@ static int iproc_gpio_probe(struct platform_device *pdev)
 	chip->num_banks = (ngpios + NGPIOS_PER_BANK - 1) / NGPIOS_PER_BANK;
 	gc->label = dev_name(dev);
 	gc->parent = dev;
-	gc->of_node = dev->of_node;
+	gc->of_yesde = dev->of_yesde;
 	gc->request = iproc_gpio_request;
 	gc->free = iproc_gpio_free;
 	gc->direction_input = iproc_gpio_direction_input;
@@ -839,7 +839,7 @@ static int iproc_gpio_probe(struct platform_device *pdev)
 	gc->set = iproc_gpio_set;
 	gc->get = iproc_gpio_get;
 
-	chip->pinmux_is_supported = of_property_read_bool(dev->of_node,
+	chip->pinmux_is_supported = of_property_read_bool(dev->of_yesde,
 							"gpio-ranges");
 
 	/* optional GPIO interrupt support */
@@ -877,7 +877,7 @@ static int iproc_gpio_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	if (!no_pinconf) {
+	if (!yes_pinconf) {
 		ret = iproc_gpio_register_pinconf(chip);
 		if (ret) {
 			dev_err(dev, "unable to register pinconf\n");

@@ -347,7 +347,7 @@ int qla4_83xx_drv_lock(struct scsi_qla_host *ha)
 				/* Some other driver got lock, OR same driver
 				 * got lock again (counter value changed), when
 				 * we were waiting for lock.
-				 * Retry for another 2 sec */
+				 * Retry for ayesther 2 sec */
 				ql4_printk(KERN_INFO, ha, "%s: IDC lock failed for func %d\n",
 					   __func__, ha->func_num);
 				timeout = 0;
@@ -493,7 +493,7 @@ int qla4_83xx_can_perform_reset(struct scsi_qla_host *ha)
 	 * present. */
 	if (!nic_present && (ha->func_num == iscsi_func_low)) {
 		DEBUG2(ql4_printk(KERN_INFO, ha,
-				  "%s: can reset - NIC not present and lower iSCSI function is %d\n",
+				  "%s: can reset - NIC yest present and lower iSCSI function is %d\n",
 				  __func__, ha->func_num));
 		return 1;
 	}
@@ -516,7 +516,7 @@ void qla4_83xx_need_reset_handler(struct scsi_qla_host *ha)
 		   __func__);
 
 	if (!test_bit(AF_8XXX_RST_OWNER, &ha->flags)) {
-		DEBUG2(ql4_printk(KERN_INFO, ha, "%s: reset acknowledged\n",
+		DEBUG2(ql4_printk(KERN_INFO, ha, "%s: reset ackyeswledged\n",
 				  __func__));
 		qla4_8xxx_set_rst_ready(ha);
 
@@ -566,7 +566,7 @@ void qla4_83xx_need_reset_handler(struct scsi_qla_host *ha)
 		}
 
 		if (drv_state != drv_active) {
-			ql4_printk(KERN_INFO, ha, "%s: Reset_owner turning off drv_active of non-acking function 0x%x\n",
+			ql4_printk(KERN_INFO, ha, "%s: Reset_owner turning off drv_active of yesn-acking function 0x%x\n",
 				   __func__, (drv_active ^ drv_state));
 			drv_active = drv_active & drv_state;
 			qla4_8xxx_wr_direct(ha, QLA8XXX_CRB_DRV_ACTIVE,
@@ -1159,7 +1159,7 @@ static void qla4_83xx_process_reset_template(struct scsi_qla_host *ha,
 			qla4_83xx_poll_read_list(ha, p_hdr);
 			break;
 		default:
-			ql4_printk(KERN_ERR, ha, "%s: Unknown command ==> 0x%04x on entry = %d\n",
+			ql4_printk(KERN_ERR, ha, "%s: Unkyeswn command ==> 0x%04x on entry = %d\n",
 				   __func__, p_hdr->cmd, index);
 			break;
 		}
@@ -1252,7 +1252,7 @@ int qla4_83xx_start_firmware(struct scsi_qla_host *ha)
 
 	ret_val = qla4_83xx_check_cmd_peg_status(ha);
 	if (ret_val == QLA_ERROR)
-		ql4_printk(KERN_ERR, ha, "%s: Peg not initialized\n",
+		ql4_printk(KERN_ERR, ha, "%s: Peg yest initialized\n",
 			   __func__);
 
 exit_start_fw:
@@ -1374,7 +1374,7 @@ int qla4_83xx_isp_reset(struct scsi_qla_host *ha)
 	} else {
 		/* If device_state is NEED_RESET, go ahead with
 		 * Reset,irrespective of ql4xdontresethba. This is to allow a
-		 * non-reset-owner to force a reset. Non-reset-owner sets
+		 * yesn-reset-owner to force a reset. Non-reset-owner sets
 		 * the IDC_CTRL BIT0 to prevent Reset-owner from doing a Reset
 		 * and then forces a Reset by setting device_state to
 		 * NEED_RESET. */
@@ -1385,7 +1385,7 @@ int qla4_83xx_isp_reset(struct scsi_qla_host *ha)
 
 	/* For ISP8324 and ISP8042, Reset owner is NIC, iSCSI or FCOE based on
 	 * priority and which drivers are present. Unlike ISP8022, the function
-	 * setting NEED_RESET, may not be the Reset owner. */
+	 * setting NEED_RESET, may yest be the Reset owner. */
 	if (qla4_83xx_can_perform_reset(ha))
 		set_bit(AF_8XXX_RST_OWNER, &ha->flags);
 
@@ -1568,7 +1568,7 @@ static void qla4_83xx_eport_init(struct scsi_qla_host *ha)
 void qla4_83xx_disable_pause(struct scsi_qla_host *ha)
 {
 	ha->isp_ops->idc_lock(ha);
-	/* Before disabling pause frames, ensure that eport is not in reset */
+	/* Before disabling pause frames, ensure that eport is yest in reset */
 	qla4_83xx_eport_init(ha);
 	qla4_83xx_dump_pause_control_regs(ha);
 	__qla4_83xx_disable_pause(ha);

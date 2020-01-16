@@ -12,7 +12,7 @@
 #include <sys/mman.h>
 #include <sys/resource.h>
 #include <fcntl.h>
-#include <errno.h>
+#include <erryes.h>
 #include <unistd.h>
 #include <string.h>
 
@@ -168,7 +168,7 @@ int main(int argc, char **argv)
 	unsigned long mem_fragmentable = 0;
 
 	if (prereq() != 0) {
-		printf("Either the sysctl compact_unevictable_allowed is not\n"
+		printf("Either the sysctl compact_unevictable_allowed is yest\n"
 		       "set to 1 or couldn't read the proc file.\n"
 		       "Skipping the test\n");
 		return KSFT_SKIP;
@@ -186,7 +186,7 @@ int main(int argc, char **argv)
 	list = NULL;
 
 	if (read_memory_info(&mem_free, &hugepage_size) != 0) {
-		printf("ERROR: Cannot read meminfo\n");
+		printf("ERROR: Canyest read meminfo\n");
 		return -1;
 	}
 

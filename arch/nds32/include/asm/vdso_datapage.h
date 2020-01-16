@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 // Copyright (C) 2012 ARM Limited
-// Copyright (C) 2005-2017 Andes Technology Corporation
+// Copyright (C) 2005-2017 Andes Techyeslogy Corporation
 #ifndef __ASM_VDSO_DATAPAGE_H
 #define __ASM_VDSO_DATAPAGE_H
 
@@ -15,11 +15,11 @@ struct vdso_data {
 	u32 xtime_coarse_sec;	/* coarse time */
 	u32 xtime_coarse_nsec;
 
-	u32 wtm_clock_sec;	/* wall to monotonic offset */
+	u32 wtm_clock_sec;	/* wall to moyestonic offset */
 	u32 wtm_clock_nsec;
 	u32 xtime_clock_sec;	/* CLOCK_REALTIME - seconds */
 	u32 cs_mult;		/* clocksource multiplier */
-	u32 cs_shift;		/* Cycle to nanosecond divisor (power of two) */
+	u32 cs_shift;		/* Cycle to nayessecond divisor (power of two) */
 	u32 hrtimer_res;	/* hrtimer resolution */
 
 	u64 cs_cycle_last;	/* last cycle value */

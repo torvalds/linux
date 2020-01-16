@@ -12,7 +12,7 @@
 OUTPUT_FORMAT("elf64-alpha")
 OUTPUT_ARCH(alpha)
 ENTRY(__start)
-PHDRS { text PT_LOAD; note PT_NOTE; }
+PHDRS { text PT_LOAD; yeste PT_NOTE; }
 jiffies = jiffies_64;
 SECTIONS
 {
@@ -66,8 +66,8 @@ SECTIONS
 	.mdebug 0 : {
 		*(.mdebug)
 	}
-	.note 0 : {
-		*(.note)
+	.yeste 0 : {
+		*(.yeste)
 	}
 
 	STABS_DEBUG

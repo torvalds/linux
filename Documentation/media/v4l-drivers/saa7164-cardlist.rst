@@ -15,7 +15,7 @@ SAA7164 cards list
      - PCI IDs
 
    * - 0
-     - Unknown
+     - Unkyeswn
      -
 
    * - 1

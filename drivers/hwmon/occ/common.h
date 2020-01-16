@@ -17,7 +17,7 @@ struct device;
  * Allocate the largest possible response.
  */
 struct occ_response {
-	u8 seq_no;
+	u8 seq_yes;
 	u8 cmd_type;
 	u8 return_status;
 	__be16 data_length;
@@ -95,7 +95,7 @@ struct occ {
 	struct occ_sensors sensors;
 
 	int powr_sample_time_us;	/* average power sample time */
-	u8 seq_no;
+	u8 seq_yes;
 	u8 poll_cmd_data;		/* to perform OCC poll command */
 	int (*send_cmd)(struct occ *occ, u8 *cmd);
 
@@ -113,7 +113,7 @@ struct occ {
 	unsigned long last_safe;        /* time OCC entered "safe" state */
 
 	/*
-	 * Store the previous state data for comparison in order to notify
+	 * Store the previous state data for comparison in order to yestify
 	 * sysfs readers of state changes.
 	 */
 	int prev_error;

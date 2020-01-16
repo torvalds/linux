@@ -9527,7 +9527,7 @@ const struct imgu_abi_anr_config imgu_css_anr_defaults = {
 		.xreset = -1632,
 		.yreset = -1224,
 		.x_sqr_reset = 2663424,
-		.r_normfactor = 14,
+		.r_yesrmfactor = 14,
 		.y_sqr_reset = 1498176,
 		.gain_scale = 115
 	},

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 /*
  *
  * Copyright (C) 2002,2003 Jun Nakajima <jun.nakajima@intel.com>
@@ -402,7 +402,7 @@ extern void ia64_bad_param_for_getreg (void);
 # define ia64_dv_serialize_instruction()
 #endif
 
-#define ia64_nop(x)	asm volatile ("nop %0"::"i"(x));
+#define ia64_yesp(x)	asm volatile ("yesp %0"::"i"(x));
 
 #define ia64_itci(addr)	asm volatile ("itc.i %0;;" :: "r"(addr) : "memory")
 
@@ -530,7 +530,7 @@ do {										\
 
 /* Values for lfhint in ia64_lfetch and ia64_lfetch_fault */
 
-#define ia64_lfhint_none   0
+#define ia64_lfhint_yesne   0
 #define ia64_lfhint_nt1    1
 #define ia64_lfhint_nt2    2
 #define ia64_lfhint_nta    3
@@ -538,7 +538,7 @@ do {										\
 #define ia64_lfetch(lfhint, y)					\
 ({								\
         switch (lfhint) {					\
-        case ia64_lfhint_none:					\
+        case ia64_lfhint_yesne:					\
                 asm volatile ("lfetch [%0]" : : "r"(y));	\
                 break;						\
         case ia64_lfhint_nt1:					\
@@ -556,7 +556,7 @@ do {										\
 #define ia64_lfetch_excl(lfhint, y)					\
 ({									\
         switch (lfhint) {						\
-        case ia64_lfhint_none:						\
+        case ia64_lfhint_yesne:						\
                 asm volatile ("lfetch.excl [%0]" :: "r"(y));		\
                 break;							\
         case ia64_lfhint_nt1:						\
@@ -574,7 +574,7 @@ do {										\
 #define ia64_lfetch_fault(lfhint, y)					\
 ({									\
         switch (lfhint) {						\
-        case ia64_lfhint_none:						\
+        case ia64_lfhint_yesne:						\
                 asm volatile ("lfetch.fault [%0]" : : "r"(y));		\
                 break;							\
         case ia64_lfhint_nt1:						\
@@ -592,7 +592,7 @@ do {										\
 #define ia64_lfetch_fault_excl(lfhint, y)				\
 ({									\
         switch (lfhint) {						\
-        case ia64_lfhint_none:						\
+        case ia64_lfhint_yesne:						\
                 asm volatile ("lfetch.fault.excl [%0]" :: "r"(y));	\
                 break;							\
         case ia64_lfhint_nt1:						\

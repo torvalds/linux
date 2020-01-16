@@ -12,7 +12,7 @@
 #include <linux/netdevice.h>
 #include <linux/rtnetlink.h>
 #include <linux/slab.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <net/mac80211.h>
 #include <net/cfg80211.h>
 #include "ieee80211_i.h"
@@ -360,7 +360,7 @@ static ssize_t ieee80211_if_parse_tkip_mic_test(
 
 	/*
 	 * Add some length to the test frame to make it look bit more valid.
-	 * The exact contents does not matter since the recipient is required
+	 * The exact contents does yest matter since the recipient is required
 	 * to drop this because of the Michael MIC failure.
 	 */
 	skb_put_zero(skb, 50);
@@ -594,8 +594,8 @@ IEEE80211_IF_FILE(fwded_frames, u.mesh.mshstats.fwded_frames, DEC);
 IEEE80211_IF_FILE(dropped_frames_ttl, u.mesh.mshstats.dropped_frames_ttl, DEC);
 IEEE80211_IF_FILE(dropped_frames_congestion,
 		  u.mesh.mshstats.dropped_frames_congestion, DEC);
-IEEE80211_IF_FILE(dropped_frames_no_route,
-		  u.mesh.mshstats.dropped_frames_no_route, DEC);
+IEEE80211_IF_FILE(dropped_frames_yes_route,
+		  u.mesh.mshstats.dropped_frames_yes_route, DEC);
 
 /* Mesh parameters */
 IEEE80211_IF_FILE(dot11MeshMaxRetries,
@@ -627,8 +627,8 @@ IEEE80211_IF_FILE(min_discovery_timeout,
 		  u.mesh.mshcfg.min_discovery_timeout, DEC);
 IEEE80211_IF_FILE(dot11MeshHWMPRootMode,
 		  u.mesh.mshcfg.dot11MeshHWMPRootMode, DEC);
-IEEE80211_IF_FILE(dot11MeshGateAnnouncementProtocol,
-		  u.mesh.mshcfg.dot11MeshGateAnnouncementProtocol, DEC);
+IEEE80211_IF_FILE(dot11MeshGateAnyesuncementProtocol,
+		  u.mesh.mshcfg.dot11MeshGateAnyesuncementProtocol, DEC);
 IEEE80211_IF_FILE(dot11MeshHWMPRannInterval,
 		  u.mesh.mshcfg.dot11MeshHWMPRannInterval, DEC);
 IEEE80211_IF_FILE(dot11MeshForwarding, u.mesh.mshcfg.dot11MeshForwarding, DEC);
@@ -729,7 +729,7 @@ static void add_mesh_stats(struct ieee80211_sub_if_data *sdata)
 	MESHSTATS_ADD(fwded_unicast);
 	MESHSTATS_ADD(fwded_frames);
 	MESHSTATS_ADD(dropped_frames_ttl);
-	MESHSTATS_ADD(dropped_frames_no_route);
+	MESHSTATS_ADD(dropped_frames_yes_route);
 	MESHSTATS_ADD(dropped_frames_congestion);
 #undef MESHSTATS_ADD
 }
@@ -760,7 +760,7 @@ static void add_mesh_config(struct ieee80211_sub_if_data *sdata)
 	MESHPARAMS_ADD(dot11MeshHWMPRootMode);
 	MESHPARAMS_ADD(dot11MeshHWMPRannInterval);
 	MESHPARAMS_ADD(dot11MeshForwarding);
-	MESHPARAMS_ADD(dot11MeshGateAnnouncementProtocol);
+	MESHPARAMS_ADD(dot11MeshGateAnyesuncementProtocol);
 	MESHPARAMS_ADD(rssi_threshold);
 	MESHPARAMS_ADD(ht_opmode);
 	MESHPARAMS_ADD(dot11MeshHWMPactivePathToRootTimeout);

@@ -38,7 +38,7 @@ int ibmphp_debug;
 
 static bool debug;
 module_param(debug, bool, S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(debug, "Debugging mode enabled or not");
+MODULE_PARM_DESC(debug, "Debugging mode enabled or yest");
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION(DRIVER_DESC);
 
@@ -105,7 +105,7 @@ static int __init get_max_slots(void)
 	u8 slot_count = 0;
 
 	list_for_each_entry(slot_cur, &ibmphp_slot_head, ibm_slot_list) {
-		/* sometimes the hot-pluggable slots start with 4 (not always from 1) */
+		/* sometimes the hot-pluggable slots start with 4 (yest always from 1) */
 		slot_count = max(slot_count, slot_cur->number);
 	}
 	return slot_count;
@@ -117,7 +117,7 @@ static int __init get_max_slots(void)
  * Parameters: struct slot
  * Returns 0 or errors
  */
-int ibmphp_init_devno(struct slot **cur_slot)
+int ibmphp_init_devyes(struct slot **cur_slot)
 {
 	struct irq_routing_table *rtable;
 	int len;
@@ -126,7 +126,7 @@ int ibmphp_init_devno(struct slot **cur_slot)
 
 	rtable = pcibios_get_irq_routing_table();
 	if (!rtable) {
-		err("no BIOS routing table...\n");
+		err("yes BIOS routing table...\n");
 		return -ENOMEM;
 	}
 
@@ -173,7 +173,7 @@ int ibmphp_init_devno(struct slot **cur_slot)
 					rtable->slots[loop].irq[2].link);
 			debug("rtable->slots[loop].irq[3].link = %x\n",
 					rtable->slots[loop].irq[3].link);
-			debug("end of init_devno\n");
+			debug("end of init_devyes\n");
 			kfree(rtable);
 			return 0;
 		}
@@ -194,7 +194,7 @@ static inline int power_on(struct slot *slot_cur)
 		return retval;
 	}
 	if (CTLR_RESULT(slot_cur->ctrl->status)) {
-		err("command not completed successfully in power_on\n");
+		err("command yest completed successfully in power_on\n");
 		return -EIO;
 	}
 	msleep(3000);	/* For ServeRAID cards, and some 66 PCI */
@@ -212,7 +212,7 @@ static inline int power_off(struct slot *slot_cur)
 		return retval;
 	}
 	if (CTLR_RESULT(slot_cur->ctrl->status)) {
-		err("command not completed successfully in power_off\n");
+		err("command yest completed successfully in power_off\n");
 		retval = -EIO;
 	}
 	return retval;
@@ -607,7 +607,7 @@ int ibmphp_update_slot_info(struct slot *slot_cur)
  * is called from visit routines
  ******************************************************************************/
 
-static struct pci_func *ibm_slot_find(u8 busno, u8 device, u8 function)
+static struct pci_func *ibm_slot_find(u8 busyes, u8 device, u8 function)
 {
 	struct pci_func *func_cur;
 	struct slot *slot_cur;
@@ -615,7 +615,7 @@ static struct pci_func *ibm_slot_find(u8 busno, u8 device, u8 function)
 		if (slot_cur->func) {
 			func_cur = slot_cur->func;
 			while (func_cur) {
-				if ((func_cur->busno == busno) &&
+				if ((func_cur->busyes == busyes) &&
 						(func_cur->device == device) &&
 						(func_cur->function == function))
 					return func_cur;
@@ -668,7 +668,7 @@ static void ibm_unconfigure_device(struct pci_func *func)
 	pci_lock_rescan_remove();
 
 	for (j = 0; j < 0x08; j++) {
-		temp = pci_get_domain_bus_and_slot(0, func->busno,
+		temp = pci_get_domain_bus_and_slot(0, func->busyes,
 						   (func->device << 3) | j);
 		if (temp) {
 			pci_stop_and_remove_bus_device(temp);
@@ -686,13 +686,13 @@ static void ibm_unconfigure_device(struct pci_func *func)
  * getting bus entries, here we manually add those primary
  * bus entries to kernel bus structure whenever apply
  */
-static u8 bus_structure_fixup(u8 busno)
+static u8 bus_structure_fixup(u8 busyes)
 {
 	struct pci_bus *bus, *b;
 	struct pci_dev *dev;
 	u16 l;
 
-	if (pci_find_bus(0, busno) || !(ibmphp_find_same_bus_num(busno)))
+	if (pci_find_bus(0, busyes) || !(ibmphp_find_same_bus_num(busyes)))
 		return 1;
 
 	bus = kmalloc(sizeof(*bus), GFP_KERNEL);
@@ -705,7 +705,7 @@ static u8 bus_structure_fixup(u8 busno)
 		return 1;
 	}
 
-	bus->number = busno;
+	bus->number = busyes;
 	bus->ops = ibmphp_pci_bus->ops;
 	dev->bus = bus;
 	for (dev->devfn = 0; dev->devfn < 256; dev->devfn += 8) {
@@ -713,7 +713,7 @@ static u8 bus_structure_fixup(u8 busno)
 					(l != 0x0000) && (l != 0xffff)) {
 			debug("%s - Inside bus_structure_fixup()\n",
 							__func__);
-			b = pci_scan_bus(busno, ibmphp_pci_bus->ops, NULL);
+			b = pci_scan_bus(busyes, ibmphp_pci_bus->ops, NULL);
 			if (!b)
 				continue;
 
@@ -737,14 +737,14 @@ static int ibm_configure_device(struct pci_func *func)
 
 	pci_lock_rescan_remove();
 
-	if (!(bus_structure_fixup(func->busno)))
+	if (!(bus_structure_fixup(func->busyes)))
 		flag = 1;
 	if (func->dev == NULL)
-		func->dev = pci_get_domain_bus_and_slot(0, func->busno,
+		func->dev = pci_get_domain_bus_and_slot(0, func->busyes,
 				PCI_DEVFN(func->device, func->function));
 
 	if (func->dev == NULL) {
-		struct pci_bus *bus = pci_find_bus(0, func->busno);
+		struct pci_bus *bus = pci_find_bus(0, func->busyes);
 		if (!bus)
 			goto out;
 
@@ -753,7 +753,7 @@ static int ibm_configure_device(struct pci_func *func)
 		if (num)
 			pci_bus_add_devices(bus);
 
-		func->dev = pci_get_domain_bus_and_slot(0, func->busno,
+		func->dev = pci_get_domain_bus_and_slot(0, func->busyes,
 				PCI_DEVFN(func->device, func->function));
 		if (func->dev == NULL) {
 			err("ERROR... : pci_dev still NULL\n");
@@ -773,7 +773,7 @@ static int ibm_configure_device(struct pci_func *func)
 }
 
 /*******************************************************
- * Returns whether the bus is empty or not
+ * Returns whether the bus is empty or yest
  *******************************************************/
 static int is_bus_empty(struct slot *slot_cur)
 {
@@ -835,7 +835,7 @@ static int set_bus(struct slot *slot_cur)
 					cmd = HPC_BUS_66PCIXMODE;
 				else if (!SLOT_BUS_MODE(slot_cur->ext_status))
 					/* if max slot/bus capability is 66 pci
-					and there's no bus mode mismatch, then
+					and there's yes bus mode mismatch, then
 					the adapter supports 66 pci */
 					cmd = HPC_BUS_66CONVMODE;
 				else
@@ -885,23 +885,23 @@ static int set_bus(struct slot *slot_cur)
 			return retval;
 		}
 		if (CTLR_RESULT(slot_cur->ctrl->status)) {
-			err("command not completed successfully in set_bus\n");
+			err("command yest completed successfully in set_bus\n");
 			return -EIO;
 		}
 	}
 	/* This is for x440, once Brandon fixes the firmware,
-	will not need this delay */
+	will yest need this delay */
 	msleep(1000);
 	debug("%s -Exit\n", __func__);
 	return 0;
 }
 
 /* This routine checks the bus limitations that the slot is on from the BIOS.
- * This is used in deciding whether or not to power up the slot.
+ * This is used in deciding whether or yest to power up the slot.
  * (electrical/spec limitations. For example, >1 133 MHz or >2 66 PCI cards on
  * same bus)
  * Parameters: slot
- * Returns: 0 = no limitations, -EINVAL = exceeded limitations on the bus
+ * Returns: 0 = yes limitations, -EINVAL = exceeded limitations on the bus
  */
 static int check_limitations(struct slot *slot_cur)
 {
@@ -976,15 +976,15 @@ static int enable_slot(struct hotplug_slot *hs)
 	rc = validate(slot_cur, ENABLE);
 	if (rc) {
 		err("validate function failed\n");
-		goto error_nopower;
+		goto error_yespower;
 	}
 
 	attn_LED_blink(slot_cur);
 
 	rc = set_bus(slot_cur);
 	if (rc) {
-		err("was not able to set the bus\n");
-		goto error_nopower;
+		err("was yest able to set the bus\n");
+		goto error_yespower;
 	}
 
 	/*-----------------debugging------------------------------*/
@@ -997,9 +997,9 @@ static int enable_slot(struct hotplug_slot *hs)
 	if (rc) {
 		err("Adding this card exceeds the limitations of this bus.\n");
 		err("(i.e., >1 133MHz cards running on same bus, or >2 66 PCI cards running on same bus.\n");
-		err("Try hot-adding into another bus\n");
+		err("Try hot-adding into ayesther bus\n");
 		rc = -EINVAL;
-		goto error_nopower;
+		goto error_yespower;
 	}
 
 	rc = power_on(slot_cur);
@@ -1051,7 +1051,7 @@ static int enable_slot(struct hotplug_slot *hs)
 		goto error_power;
 	}
 	/* Don't think this case will happen after above checks...
-	 * but just in case, for paranoia sake */
+	 * but just in case, for parayesia sake */
 	if (!(SLOT_POWER(slot_cur->status))) {
 		err("power on failed...\n");
 		goto error_power;
@@ -1063,7 +1063,7 @@ static int enable_slot(struct hotplug_slot *hs)
 		rc = -ENOMEM;
 		goto error_power;
 	}
-	slot_cur->func->busno = slot_cur->bus;
+	slot_cur->func->busyes = slot_cur->bus;
 	slot_cur->func->device = slot_cur->device;
 	for (i = 0; i < 4; i++)
 		slot_cur->func->irq[i] = slot_cur->irq[i];
@@ -1101,7 +1101,7 @@ exit:
 	ibmphp_unlock_operations();
 	return rc;
 
-error_nopower:
+error_yespower:
 	attn_off(slot_cur);	/* need to turn off if was blinking b4 */
 	attn_on(slot_cur);
 error_cont:
@@ -1169,7 +1169,7 @@ int ibmphp_do_disable_slot(struct slot *slot_cur)
 			rc = -ENOMEM;
 			goto error;
 		}
-		slot_cur->func->busno = slot_cur->bus;
+		slot_cur->func->busyes = slot_cur->bus;
 		slot_cur->func->device = slot_cur->device;
 	}
 
@@ -1177,7 +1177,7 @@ int ibmphp_do_disable_slot(struct slot *slot_cur)
 
 	/*
 	 * If we got here from latch suddenly opening on operating card or
-	 * a power fault, there's no power to the card, so cannot
+	 * a power fault, there's yes power to the card, so canyest
 	 * read from it to determine what resources it occupied.  This operation
 	 * is forbidden anyhow.  The best we can do is remove it from kernel
 	 * lists at least */
@@ -1191,7 +1191,7 @@ int ibmphp_do_disable_slot(struct slot *slot_cur)
 	slot_cur->func = NULL;
 	debug("in disable_slot. after unconfigure_card\n");
 	if (rc) {
-		err("could not unconfigure card.\n");
+		err("could yest unconfigure card.\n");
 		goto error;
 	}
 
@@ -1269,7 +1269,7 @@ static int __init ibmphp_init(void)
 
 	bus = pci_find_bus(0, 0);
 	if (!bus) {
-		err("Can't find the root pci bus, can not continue\n");
+		err("Can't find the root pci bus, can yest continue\n");
 		rc = -ENODEV;
 		goto error;
 	}

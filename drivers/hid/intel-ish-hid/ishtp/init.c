@@ -38,7 +38,7 @@ const char *ishtp_dev_state_str(int state)
 	case ISHTP_DEV_POWER_UP:
 		return	"POWER_UP";
 	default:
-		return "unknown";
+		return "unkyeswn";
 	}
 }
 
@@ -94,7 +94,7 @@ int ishtp_start(struct ishtp_device *dev)
 		goto err;
 	}
 
-	/* suspend & resume notification - send QUERY_SUBSCRIBERS msg */
+	/* suspend & resume yestification - send QUERY_SUBSCRIBERS msg */
 	ishtp_query_subscribers(dev);
 
 	return 0;

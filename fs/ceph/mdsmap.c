@@ -102,7 +102,7 @@ bad:
 /*
  * Decode an MDS map
  *
- * Ignore any fields we don't care about (there are quite a few of
+ * Igyesre any fields we don't care about (there are quite a few of
  * them).
  */
 struct ceph_mdsmap *ceph_mdsmap_decode(void **p, void *end)
@@ -142,9 +142,9 @@ struct ceph_mdsmap *ceph_mdsmap_decode(void **p, void *end)
 
 	m->m_info = kcalloc(m->m_num_mds, sizeof(*m->m_info), GFP_NOFS);
 	if (!m->m_info)
-		goto nomem;
+		goto yesmem;
 
-	/* pick out active nodes from mds_info (state > 0) */
+	/* pick out active yesdes from mds_info (state > 0) */
 	n = ceph_decode_32(p);
 	for (i = 0; i < n; i++) {
 		u64 global_id;
@@ -224,7 +224,7 @@ struct ceph_mdsmap *ceph_mdsmap_decode(void **p, void *end)
 						new_num * sizeof(*m->m_info),
 						GFP_NOFS | __GFP_ZERO);
 			if (!new_m_info)
-				goto nomem;
+				goto yesmem;
 			m->m_info = new_m_info;
 			m->m_num_mds = new_num;
 		}
@@ -239,7 +239,7 @@ struct ceph_mdsmap *ceph_mdsmap_decode(void **p, void *end)
 			info->export_targets = kcalloc(num_export_targets,
 						       sizeof(u32), GFP_NOFS);
 			if (!info->export_targets)
-				goto nomem;
+				goto yesmem;
 			for (j = 0; j < num_export_targets; j++)
 				info->export_targets[j] =
 				       ceph_decode_32(&pexport_targets);
@@ -261,7 +261,7 @@ struct ceph_mdsmap *ceph_mdsmap_decode(void **p, void *end)
 	m->m_num_data_pg_pools = n;
 	m->m_data_pg_pools = kcalloc(n, sizeof(u64), GFP_NOFS);
 	if (!m->m_data_pg_pools)
-		goto nomem;
+		goto yesmem;
 	ceph_decode_need(p, end, sizeof(u64)*(n+1), bad);
 	for (i = 0; i < n; i++)
 		m->m_data_pg_pools[i] = ceph_decode_64(p);
@@ -308,7 +308,7 @@ struct ceph_mdsmap *ceph_mdsmap_decode(void **p, void *end)
 						    n * sizeof(*m->m_info),
 						    GFP_NOFS | __GFP_ZERO);
 			if (!new_m_info)
-				goto nomem;
+				goto yesmem;
 			m->m_info = new_m_info;
 		}
 		m->m_num_mds = n;
@@ -362,7 +362,7 @@ bad_ext:
 	*p = end;
 	dout("mdsmap_decode success epoch %u\n", m->m_epoch);
 	return m;
-nomem:
+yesmem:
 	err = -ENOMEM;
 	goto out_err;
 corrupt:

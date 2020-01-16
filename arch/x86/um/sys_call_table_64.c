@@ -17,16 +17,16 @@
  * and the UML syscall table.
  */
 
-/* Not going to be implemented by UML, since we have no hardware. */
+/* Not going to be implemented by UML, since we have yes hardware. */
 #define sys_iopl sys_ni_syscall
 #define sys_ioperm sys_ni_syscall
 
 /*
- * The UML TLS problem. Note that x86_64 does not implement this, so the below
+ * The UML TLS problem. Note that x86_64 does yest implement this, so the below
  * is needed only for the ia32 compatibility.
  */
 
-/* On UML we call it this way ("old" means it's not mmap2) */
+/* On UML we call it this way ("old" means it's yest mmap2) */
 #define sys_mmap old_mmap
 
 #define stub_clone sys_clone

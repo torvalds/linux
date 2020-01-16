@@ -16,7 +16,7 @@
  ---------------------------------------------------------------------------
  rdi rsi rdx rcx r8-9 | rbx rbp [*] r12-15 | r10-11             | rax, rdx [**]
 
- ( rsp is obviously invariant across normal function calls. (gcc can 'merge'
+ ( rsp is obviously invariant across yesrmal function calls. (gcc can 'merge'
    functions when it sees tail-call optimization possibilities) rflags is
    clobbered. Leftover arguments are passed over the stack frame.)
 
@@ -38,9 +38,9 @@ For 32-bit we have the following conventions - kernel is built with
   arguments         | callee-saved        | extra caller-saved | return
  [callee-clobbered] |                     | [callee-clobbered] |
  -------------------------------------------------------------------------
- eax edx ecx        | ebx edi esi ebp [*] | <none>             | eax, edx [**]
+ eax edx ecx        | ebx edi esi ebp [*] | <yesne>             | eax, edx [**]
 
- ( here too esp is obviously invariant across normal function calls. eflags
+ ( here too esp is obviously invariant across yesrmal function calls. eflags
    is clobbered. Leftover arguments are passed over the stack frame. )
 
  [*]  In the frame-pointers case ebp is fixed to the stack frame.
@@ -114,30 +114,30 @@ For 32-bit we have the following conventions - kernel is built with
 	pushq   %rsi		/* pt_regs->si */
 	.endif
 	pushq	\rdx		/* pt_regs->dx */
-	xorl	%edx, %edx	/* nospec   dx */
+	xorl	%edx, %edx	/* yesspec   dx */
 	pushq   %rcx		/* pt_regs->cx */
-	xorl	%ecx, %ecx	/* nospec   cx */
+	xorl	%ecx, %ecx	/* yesspec   cx */
 	pushq   \rax		/* pt_regs->ax */
 	pushq   %r8		/* pt_regs->r8 */
-	xorl	%r8d, %r8d	/* nospec   r8 */
+	xorl	%r8d, %r8d	/* yesspec   r8 */
 	pushq   %r9		/* pt_regs->r9 */
-	xorl	%r9d, %r9d	/* nospec   r9 */
+	xorl	%r9d, %r9d	/* yesspec   r9 */
 	pushq   %r10		/* pt_regs->r10 */
-	xorl	%r10d, %r10d	/* nospec   r10 */
+	xorl	%r10d, %r10d	/* yesspec   r10 */
 	pushq   %r11		/* pt_regs->r11 */
-	xorl	%r11d, %r11d	/* nospec   r11*/
+	xorl	%r11d, %r11d	/* yesspec   r11*/
 	pushq	%rbx		/* pt_regs->rbx */
-	xorl    %ebx, %ebx	/* nospec   rbx*/
+	xorl    %ebx, %ebx	/* yesspec   rbx*/
 	pushq	%rbp		/* pt_regs->rbp */
-	xorl    %ebp, %ebp	/* nospec   rbp*/
+	xorl    %ebp, %ebp	/* yesspec   rbp*/
 	pushq	%r12		/* pt_regs->r12 */
-	xorl	%r12d, %r12d	/* nospec   r12*/
+	xorl	%r12d, %r12d	/* yesspec   r12*/
 	pushq	%r13		/* pt_regs->r13 */
-	xorl	%r13d, %r13d	/* nospec   r13*/
+	xorl	%r13d, %r13d	/* yesspec   r13*/
 	pushq	%r14		/* pt_regs->r14 */
-	xorl	%r14d, %r14d	/* nospec   r14*/
+	xorl	%r14d, %r14d	/* yesspec   r14*/
 	pushq	%r15		/* pt_regs->r15 */
-	xorl	%r15d, %r15d	/* nospec   r15*/
+	xorl	%r15d, %r15d	/* yesspec   r15*/
 	UNWIND_HINT_REGS
 	.if \save_ret
 	pushq	%rsi		/* return address on top of stack */
@@ -217,14 +217,14 @@ For 32-bit we have the following conventions - kernel is built with
 	movq	\scratch_reg, \scratch_reg2
 	andq	$(0x7FF), \scratch_reg		/* mask ASID */
 	bt	\scratch_reg, THIS_CPU_user_pcid_flush_mask
-	jnc	.Lnoflush_\@
+	jnc	.Lyesflush_\@
 
 	/* Flush needed, clear the bit */
 	btr	\scratch_reg, THIS_CPU_user_pcid_flush_mask
 	movq	\scratch_reg2, \scratch_reg
 	jmp	.Lwrcr3_pcid_\@
 
-.Lnoflush_\@:
+.Lyesflush_\@:
 	movq	\scratch_reg2, \scratch_reg
 	SET_NOFLUSH_BIT \scratch_reg
 
@@ -273,7 +273,7 @@ For 32-bit we have the following conventions - kernel is built with
 	 * explicit flushes.
 	 */
 	bt	$PTI_USER_PGTABLE_BIT, \save_reg
-	jnc	.Lnoflush_\@
+	jnc	.Lyesflush_\@
 
 	/*
 	 * Check if there's a pending flush for the user ASID we're
@@ -282,17 +282,17 @@ For 32-bit we have the following conventions - kernel is built with
 	movq	\save_reg, \scratch_reg
 	andq	$(0x7FF), \scratch_reg
 	bt	\scratch_reg, THIS_CPU_user_pcid_flush_mask
-	jnc	.Lnoflush_\@
+	jnc	.Lyesflush_\@
 
 	btr	\scratch_reg, THIS_CPU_user_pcid_flush_mask
 	jmp	.Lwrcr3_\@
 
-.Lnoflush_\@:
+.Lyesflush_\@:
 	SET_NOFLUSH_BIT \save_reg
 
 .Lwrcr3_\@:
 	/*
-	 * The CR3 write could be avoided when not changing its value,
+	 * The CR3 write could be avoided when yest changing its value,
 	 * but would require a CR3 read *and* a scratch register.
 	 */
 	movq	\save_reg, %cr3
@@ -320,7 +320,7 @@ For 32-bit we have the following conventions - kernel is built with
  * FENCE_SWAPGS_USER_ENTRY is used in the user entry swapgs code path, to
  * prevent a speculative swapgs when coming from kernel space.
  *
- * FENCE_SWAPGS_KERNEL_ENTRY is used in the kernel entry non-swapgs code path,
+ * FENCE_SWAPGS_KERNEL_ENTRY is used in the kernel entry yesn-swapgs code path,
  * to prevent the swapgs from getting speculatively skipped when coming from
  * user space.
  */

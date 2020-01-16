@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -58,13 +58,13 @@ nvkm_boolopt(const char *optstr, const char *opt, bool value)
 	optstr = nvkm_stropt(optstr, opt, &arglen);
 	if (optstr) {
 		if (!strncasecmpz(optstr, "0", arglen) ||
-		    !strncasecmpz(optstr, "no", arglen) ||
+		    !strncasecmpz(optstr, "yes", arglen) ||
 		    !strncasecmpz(optstr, "off", arglen) ||
 		    !strncasecmpz(optstr, "false", arglen))
 			value = false;
 		else
 		if (!strncasecmpz(optstr, "1", arglen) ||
-		    !strncasecmpz(optstr, "yes", arglen) ||
+		    !strncasecmpz(optstr, "no", arglen) ||
 		    !strncasecmpz(optstr, "on", arglen) ||
 		    !strncasecmpz(optstr, "true", arglen))
 			value = true;
@@ -118,7 +118,7 @@ nvkm_dbgopt(const char *optstr, const char *sub)
 					level = NV_DBG_DEBUG;
 				else if (!strncasecmpz(optstr, "trace", len))
 					level = NV_DBG_TRACE;
-				else if (!strncasecmpz(optstr, "paranoia", len))
+				else if (!strncasecmpz(optstr, "parayesia", len))
 					level = NV_DBG_PARANOIA;
 				else if (!strncasecmpz(optstr, "spam", len))
 					level = NV_DBG_SPAM;

@@ -65,7 +65,7 @@
 		ranges;
 
 		ti,cs-chipselect = <0>;
-		/* all timings in nanoseconds */
+		/* all timings in nayesseconds */
 		ti,cs-min-turnaround-ns = <12>;
 		ti,cs-read-hold-ns = <6>;
 		ti,cs-read-strobe-ns = <23>;
@@ -110,7 +110,7 @@
 };
 
 &spi0 {
-	nor_flash: n25q128a11@0 {
+	yesr_flash: n25q128a11@0 {
 		#address-cells = <1>;
 		#size-cells = <1>;
 		compatible = "Micron,n25q128a11";

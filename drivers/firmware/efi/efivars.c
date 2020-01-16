@@ -3,7 +3,7 @@
  * Originally from efivars.c,
  *
  * Copyright (C) 2001,2003,2004 Dell <Matt_Domsch@dell.com>
- * Copyright (C) 2004 Intel Corporation <matthew.e.tolentino@intel.com>
+ * Copyright (C) 2004 Intel Corporation <matthew.e.tolentiyes@intel.com>
  *
  * This code takes all variables accessible from EFI runtime and
  *  exports them via sysfs
@@ -155,7 +155,7 @@ sanity_check(struct efi_variable *var, efi_char16_t *name, efi_guid_t vendor,
 	 */
 	if (memcmp(name, var->VariableName, sizeof(var->VariableName)) ||
 		efi_guidcmp(vendor, var->VendorGuid)) {
-		printk(KERN_ERR "efivars: Cannot edit the wrong variable!\n");
+		printk(KERN_ERR "efivars: Canyest edit the wrong variable!\n");
 		return -EINVAL;
 	}
 
@@ -498,7 +498,7 @@ efivar_create_sysfs_entry(struct efivar_entry *new_var)
 	ucs2_as_utf8(short_name, variable_name, short_name_size);
 
 	/* This is ugly, but necessary to separate one vendor's
-	   private variables from another's.         */
+	   private variables from ayesther's.         */
 	short_name[utf8_name_size] = '-';
 	efi_guid_to_str(&new_var->var.VendorGuid,
 			 short_name + utf8_name_size + 1);

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006 - 2009 Mellanox Technology Inc.  All rights reserved.
+ * Copyright (c) 2006 - 2009 Mellayesx Techyeslogy Inc.  All rights reserved.
  * Copyright (C) 2009 - 2010 Bart Van Assche <bvanassche@acm.org>.
  *
  * This software is available to you under a choice of one of two
@@ -13,11 +13,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -60,7 +60,7 @@ struct srpt_nexus;
 enum {
 	/*
 	 * SRP IOControllerProfile attributes for SRP target ports that have
-	 * not been defined in <scsi/srp.h>. Source: section B.7, table B.7
+	 * yest been defined in <scsi/srp.h>. Source: section B.7, table B.7
 	 * in the SRP specification.
 	 */
 	SRP_PROTOCOL = 0x0108,
@@ -76,22 +76,22 @@ enum {
 	 * specification.
 	 */
 	SRP_MTCH_ACTION = 0x03, /* MULTI-CHANNEL ACTION */
-	SRP_LOSOLNT = 0x10, /* logout solicited notification */
-	SRP_CRSOLNT = 0x20, /* credit request solicited notification */
-	SRP_AESOLNT = 0x40, /* asynchronous event solicited notification */
+	SRP_LOSOLNT = 0x10, /* logout solicited yestification */
+	SRP_CRSOLNT = 0x20, /* credit request solicited yestification */
+	SRP_AESOLNT = 0x40, /* asynchroyesus event solicited yestification */
 
 	/*
-	 * srp_cmd.sol_nt / srp_tsk_mgmt.sol_not bitmasks. See also tables
+	 * srp_cmd.sol_nt / srp_tsk_mgmt.sol_yest bitmasks. See also tables
 	 * 18 and 20 in the SRP specification.
 	 */
-	SRP_SCSOLNT = 0x02, /* SCSOLNT = successful solicited notification */
-	SRP_UCSOLNT = 0x04, /* UCSOLNT = unsuccessful solicited notification */
+	SRP_SCSOLNT = 0x02, /* SCSOLNT = successful solicited yestification */
+	SRP_UCSOLNT = 0x04, /* UCSOLNT = unsuccessful solicited yestification */
 
 	/*
-	 * srp_rsp.sol_not / srp_t_logout.sol_not bitmasks. See also tables
+	 * srp_rsp.sol_yest / srp_t_logout.sol_yest bitmasks. See also tables
 	 * 16 and 22 in the SRP specification.
 	 */
-	SRP_SOLNT = 0x01, /* SOLNT = solicited notification */
+	SRP_SOLNT = 0x01, /* SOLNT = solicited yestification */
 
 	/* See also table 24 in the SRP specification. */
 	SRP_TSK_MGMT_SUCCESS = 0x00,
@@ -212,7 +212,7 @@ struct srpt_rw_ctx {
  * @sense_data:  SCSI sense data.
  * @n_rdma:      Number of work requests needed to transfer this ioctx.
  * @n_rw_ctx:    Size of rw_ctxs array.
- * @queue_status_only: Send a SCSI status back to the initiator but no data.
+ * @queue_status_only: Send a SCSI status back to the initiator but yes data.
  * @sense_data:  Sense data to be sent to the initiator.
  */
 struct srpt_send_ioctx {
@@ -274,12 +274,12 @@ enum rdma_ch_state {
  * @max_ti_iu_len: maximum target-to-initiator information unit length.
  * @req_lim:       request limit: maximum number of requests that may be sent
  *                 by the initiator without having received a response.
- * @req_lim_delta: Number of credits not yet sent back to the initiator.
+ * @req_lim_delta: Number of credits yest yet sent back to the initiator.
  * @imm_data_offset: Offset from start of SRP_CMD for immediate data.
  * @spinlock:      Protects free_list and state.
  * @state:         channel state. See also enum rdma_ch_state.
  * @using_rdma_cm: Whether the RDMA/CM or IB/CM is used for this channel.
- * @processing_wait_list: Whether or not cmd_wait_list is being processed.
+ * @processing_wait_list: Whether or yest cmd_wait_list is being processed.
  * @rsp_buf_cache: kmem_cache for @ioctx_ring.
  * @ioctx_ring:    Send ring.
  * @req_buf_cache: kmem_cache for @ioctx_recv_ring.
@@ -336,7 +336,7 @@ struct srpt_rdma_ch {
 /**
  * struct srpt_nexus - I_T nexus
  * @rcu:       RCU head for this data structure.
- * @entry:     srpt_port.nexus_list list node.
+ * @entry:     srpt_port.nexus_list list yesde.
  * @ch_list:   struct srpt_rdma_ch list. Protected by srpt_port.mutex.
  * @i_port_id: 128-bit initiator port identifier copied from SRP_LOGIN_REQ.
  * @t_port_id: 128-bit target port identifier copied from SRP_LOGIN_REQ.
@@ -354,7 +354,7 @@ struct srpt_nexus {
  * @srp_max_rdma_size: Maximum size of SRP RDMA transfers for new connections.
  * @srp_max_rsp_size: Maximum size of SRP response messages in bytes.
  * @srp_sq_size: Shared receive queue (SRQ) size.
- * @use_srq: Whether or not to use SRQ.
+ * @use_srq: Whether or yest to use SRQ.
  */
 struct srpt_port_attrib {
 	u32			srp_max_rdma_size;
@@ -399,7 +399,7 @@ struct srpt_port_id {
  * struct srpt_port - information associated by SRPT with a single IB port
  * @sdev:      backpointer to the HCA information.
  * @mad_agent: per-port management datagram processing information.
- * @enabled:   Whether or not this target port is enabled.
+ * @enabled:   Whether or yest this target port is enabled.
  * @port:      one-based port number.
  * @sm_lid:    cached value of the port's sm_lid.
  * @lid:       cached value of the port's lid.
@@ -440,10 +440,10 @@ struct srpt_port {
  * @cm_id:         Connection identifier.
  * @srq_size:      SRQ size.
  * @sdev_mutex:	   Serializes use_srq changes.
- * @use_srq:       Whether or not to use SRQ.
+ * @use_srq:       Whether or yest to use SRQ.
  * @req_buf_cache: kmem_cache for @ioctx_ring buffers.
  * @ioctx_ring:    Per-HCA SRQ.
- * @event_handler: Per-HCA asynchronous IB event handler.
+ * @event_handler: Per-HCA asynchroyesus IB event handler.
  * @list:          Node in srpt_dev_list.
  * @port:          Information about the ports owned by this HCA.
  */

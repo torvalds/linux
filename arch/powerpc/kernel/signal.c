@@ -38,7 +38,7 @@ void __user *get_sigframe(struct ksignal *ksig, unsigned long sp,
 {
         unsigned long oldsp, newsp;
 
-        /* Default to using normal stack */
+        /* Default to using yesrmal stack */
         oldsp = get_clean_sp(sp, is_32);
 	oldsp = sigsp(oldsp, ksig);
 	newsp = (oldsp - frame_size) & ~0xFUL;
@@ -68,13 +68,13 @@ static void check_syscall_restart(struct pt_regs *regs, struct k_sigaction *ka,
 	case ERESTART_RESTARTBLOCK:
 	case ERESTARTNOHAND:
 		/* ERESTARTNOHAND means that the syscall should only be
-		 * restarted if there was no handler for the signal, and since
+		 * restarted if there was yes handler for the signal, and since
 		 * we only get here if there is a handler, we dont restart.
 		 */
 		restart = !has_handler;
 		break;
 	case ERESTARTSYS:
-		/* ERESTARTSYS means to restart the syscall if there is no
+		/* ERESTARTSYS means to restart the syscall if there is yes
 		 * handler or the handler was registered with SA_RESTART
 		 */
 		restart = !has_handler || (ka->sa.sa_flags & SA_RESTART) != 0;
@@ -119,7 +119,7 @@ static void do_signal(struct task_struct *tsk)
 		/* No signal to deliver -- put the saved sigmask back */
 		restore_saved_sigmask();
 		tsk->thread.regs->trap = 0;
-		return;               /* no signals delivered */
+		return;               /* yes signals delivered */
 	}
 
 #ifndef CONFIG_PPC_ADV_DEBUG_REGS
@@ -149,7 +149,7 @@ static void do_signal(struct task_struct *tsk)
 	signal_setup_done(ret, &ksig, test_thread_flag(TIF_SINGLESTEP));
 }
 
-void do_notify_resume(struct pt_regs *regs, unsigned long thread_info_flags)
+void do_yestify_resume(struct pt_regs *regs, unsigned long thread_info_flags)
 {
 	user_exit();
 
@@ -157,7 +157,7 @@ void do_notify_resume(struct pt_regs *regs, unsigned long thread_info_flags)
 	addr_limit_user_check();
 
 	if (thread_info_flags & _TIF_UPROBE)
-		uprobe_notify_resume(regs);
+		uprobe_yestify_resume(regs);
 
 	if (thread_info_flags & _TIF_PATCH_PENDING)
 		klp_update_patch_state(current);
@@ -169,8 +169,8 @@ void do_notify_resume(struct pt_regs *regs, unsigned long thread_info_flags)
 
 	if (thread_info_flags & _TIF_NOTIFY_RESUME) {
 		clear_thread_flag(TIF_NOTIFY_RESUME);
-		tracehook_notify_resume(regs);
-		rseq_handle_notify_resume(NULL, regs);
+		tracehook_yestify_resume(regs);
+		rseq_handle_yestify_resume(NULL, regs);
 	}
 
 	user_enter();
@@ -183,7 +183,7 @@ unsigned long get_tm_stackpointer(struct task_struct *tsk)
 	 * up after the tbegin.  The obvious case here is when the tbegin is
 	 * called inside a function that returns before a tend.  In this case,
 	 * the stack is part of the checkpointed transactional memory state.
-	 * If we write over this non transactionally or in suspend, we are in
+	 * If we write over this yesn transactionally or in suspend, we are in
 	 * trouble because if we get a tm abort, the program counter and stack
 	 * pointer will be back at the tbegin but our in memory stack won't be
 	 * valid anymore.
@@ -196,8 +196,8 @@ unsigned long get_tm_stackpointer(struct task_struct *tsk)
 	 * so any memory written between the tbegin and the signal will be
 	 * rolled back anyway.
 	 *
-	 * For signals taken in non-TM or suspended mode, we use the
-	 * normal/non-checkpointed stack pointer.
+	 * For signals taken in yesn-TM or suspended mode, we use the
+	 * yesrmal/yesn-checkpointed stack pointer.
 	 */
 
 #ifdef CONFIG_PPC_TRANSACTIONAL_MEM

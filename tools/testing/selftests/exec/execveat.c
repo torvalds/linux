@@ -11,7 +11,7 @@
 #include <sys/syscall.h>
 #include <sys/types.h>
 #include <sys/wait.h>
-#include <errno.h>
+#include <erryes.h>
 #include <fcntl.h>
 #include <limits.h>
 #include <stdio.h>
@@ -22,7 +22,7 @@
 #include "../kselftest.h"
 
 static char longpath[2 * PATH_MAX] = "";
-static char *envp[] = { "IN_TEST=yes", NULL, NULL };
+static char *envp[] = { "IN_TEST=no", NULL, NULL };
 static char *argv[] = { "execveat", "99", NULL };
 
 static int execveat_(int fd, const char *path, char **argv, char **envp,
@@ -31,31 +31,31 @@ static int execveat_(int fd, const char *path, char **argv, char **envp,
 #ifdef __NR_execveat
 	return syscall(__NR_execveat, fd, path, argv, envp, flags);
 #else
-	errno = ENOSYS;
+	erryes = ENOSYS;
 	return -1;
 #endif
 }
 
-#define check_execveat_fail(fd, path, flags, errno)	\
-	_check_execveat_fail(fd, path, flags, errno, #errno)
+#define check_execveat_fail(fd, path, flags, erryes)	\
+	_check_execveat_fail(fd, path, flags, erryes, #erryes)
 static int _check_execveat_fail(int fd, const char *path, int flags,
-				int expected_errno, const char *errno_str)
+				int expected_erryes, const char *erryes_str)
 {
 	int rc;
 
-	errno = 0;
+	erryes = 0;
 	printf("Check failure of execveat(%d, '%s', %d) with %s... ",
-		fd, path?:"(null)", flags, errno_str);
+		fd, path?:"(null)", flags, erryes_str);
 	rc = execveat_(fd, path, argv, envp, flags);
 
 	if (rc > 0) {
 		printf("[FAIL] (unexpected success from execveat(2))\n");
 		return 1;
 	}
-	if (errno != expected_errno) {
-		printf("[FAIL] (expected errno %d (%s) not %d (%s)\n",
-			expected_errno, strerror(expected_errno),
-			errno, strerror(errno));
+	if (erryes != expected_erryes) {
+		printf("[FAIL] (expected erryes %d (%s) yest %d (%s)\n",
+			expected_erryes, strerror(expected_erryes),
+			erryes, strerror(erryes));
 		return 1;
 	}
 	printf("[OK]\n");
@@ -84,9 +84,9 @@ static int check_execveat_invoked_rc(int fd, const char *path, int flags,
 	if (child == 0) {
 		/* Child: do execveat(). */
 		rc = execveat_(fd, path, argv, envp, flags);
-		printf("[FAIL]: execveat() failed, rc=%d errno=%d (%s)\n",
-			rc, errno, strerror(errno));
-		exit(1);  /* should not reach here */
+		printf("[FAIL]: execveat() failed, rc=%d erryes=%d (%s)\n",
+			rc, erryes, strerror(erryes));
+		exit(1);  /* should yest reach here */
 	}
 	/* Parent: wait for & check child's exit status. */
 	rc = waitpid(child, &status, 0);
@@ -95,13 +95,13 @@ static int check_execveat_invoked_rc(int fd, const char *path, int flags,
 		return 1;
 	}
 	if (!WIFEXITED(status)) {
-		printf("[FAIL] (child %d did not exit cleanly, status=%08x)\n",
+		printf("[FAIL] (child %d did yest exit cleanly, status=%08x)\n",
 			child, status);
 		return 1;
 	}
 	if ((WEXITSTATUS(status) != expected_rc) &&
 	    (WEXITSTATUS(status) != expected_rc2)) {
-		printf("[FAIL] (child %d exited with %d not %d nor %d)\n",
+		printf("[FAIL] (child %d exited with %d yest %d yesr %d)\n",
 			child, WEXITSTATUS(status), expected_rc, expected_rc2);
 		return 1;
 	}
@@ -160,8 +160,8 @@ static int check_execveat_pathmax(int root_dfd, const char *src, int is_script)
 		char *cwd = getcwd(NULL, 0);
 
 		if (!cwd) {
-			printf("Failed to getcwd(), errno=%d (%s)\n",
-			       errno, strerror(errno));
+			printf("Failed to getcwd(), erryes=%d (%s)\n",
+			       erryes, strerror(erryes));
 			return 2;
 		}
 		strcpy(longpath, cwd);
@@ -186,7 +186,7 @@ static int check_execveat_pathmax(int root_dfd, const char *src, int is_script)
 
 	/*
 	 * Execute as a pre-opened file descriptor, which works whether this is
-	 * a script or not (because the interpreter sees a filename like
+	 * a script or yest (because the interpreter sees a filename like
 	 * "/dev/fd/20").
 	 */
 	fd = open(longpath, O_RDONLY);
@@ -195,8 +195,8 @@ static int check_execveat_pathmax(int root_dfd, const char *src, int is_script)
 			src, strlen(longpath));
 		fail += check_execveat(fd, "", AT_EMPTY_PATH);
 	} else {
-		printf("Failed to open length %zu filename, errno=%d (%s)\n",
-			strlen(longpath), errno, strerror(errno));
+		printf("Failed to open length %zu filename, erryes=%d (%s)\n",
+			strlen(longpath), erryes, strerror(erryes));
 		fail++;
 	}
 
@@ -205,9 +205,9 @@ static int check_execveat_pathmax(int root_dfd, const char *src, int is_script)
 	 * the interpreter will launch but fail to open the script because its
 	 * name ("/dev/fd/5/xxx....") is bigger than PATH_MAX.
 	 *
-	 * The failure code is usually 127 (POSIX: "If a command is not found,
+	 * The failure code is usually 127 (POSIX: "If a command is yest found,
 	 * the exit status shall be 127."), but some systems give 126 (POSIX:
-	 * "If the command name is found, but it is not an executable utility,
+	 * "If the command name is found, but it is yest an executable utility,
 	 * the exit status shall be 126."), so allow either.
 	 */
 	if (is_script)
@@ -246,12 +246,12 @@ static int run_tests(void)
 	int fd_cloexec = open_or_die("execveat", O_RDONLY|O_CLOEXEC);
 	int fd_script_cloexec = open_or_die("script", O_RDONLY|O_CLOEXEC);
 
-	/* Check if we have execveat at all, and bail early if not */
-	errno = 0;
+	/* Check if we have execveat at all, and bail early if yest */
+	erryes = 0;
 	execveat_(-1, NULL, NULL, NULL, 0);
-	if (errno == ENOSYS) {
+	if (erryes == ENOSYS) {
 		ksft_exit_skip(
-			"ENOSYS calling execveat - no kernel support?\n");
+			"ENOSYS calling execveat - yes kernel support?\n");
 	}
 
 	/* Change file position to confirm it doesn't affect anything */
@@ -264,25 +264,25 @@ static int run_tests(void)
 	fail += check_execveat(dot_dfd_path, "execveat", 0);
 	/*   absolute path */
 	fail += check_execveat(AT_FDCWD, fullname, 0);
-	/*   absolute path with nonsense dfd */
+	/*   absolute path with yesnsense dfd */
 	fail += check_execveat(99, fullname, 0);
-	/*   fd + no path */
+	/*   fd + yes path */
 	fail += check_execveat(fd, "", AT_EMPTY_PATH);
-	/*   O_CLOEXEC fd + no path */
+	/*   O_CLOEXEC fd + yes path */
 	fail += check_execveat(fd_cloexec, "", AT_EMPTY_PATH);
 	/*   O_PATH fd */
 	fail += check_execveat(fd_path, "", AT_EMPTY_PATH);
 
 	/* Mess with executable file that's already open: */
-	/*   fd + no path to a file that's been renamed */
+	/*   fd + yes path to a file that's been renamed */
 	rename("execveat.ephemeral", "execveat.moved");
 	fail += check_execveat(fd_ephemeral, "", AT_EMPTY_PATH);
-	/*   fd + no path to a file that's been deleted */
-	unlink("execveat.moved"); /* remove the file now fd open */
+	/*   fd + yes path to a file that's been deleted */
+	unlink("execveat.moved"); /* remove the file yesw fd open */
 	fail += check_execveat(fd_ephemeral, "", AT_EMPTY_PATH);
 
 	/* Mess with executable file that's already open with O_PATH */
-	/*   fd + no path to a file that's been deleted */
+	/*   fd + yes path to a file that's been deleted */
 	unlink("execveat.path.ephemeral");
 	fail += check_execveat(fd_ephemeral_path, "", AT_EMPTY_PATH);
 
@@ -296,7 +296,7 @@ static int run_tests(void)
 	fail += check_execveat(dot_dfd_path, "execveat.symlink", 0);
 	/*   absolute path */
 	fail += check_execveat(AT_FDCWD, fullname_symlink, 0);
-	/*   fd + no path, even with AT_SYMLINK_NOFOLLOW (already followed) */
+	/*   fd + yes path, even with AT_SYMLINK_NOFOLLOW (already followed) */
 	fail += check_execveat(fd_symlink, "", AT_EMPTY_PATH);
 	fail += check_execveat(fd_symlink, "",
 			       AT_EMPTY_PATH|AT_SYMLINK_NOFOLLOW);
@@ -318,7 +318,7 @@ static int run_tests(void)
 	fail += check_execveat(dot_dfd_path, "script", 0);
 	/*   absolute path */
 	fail += check_execveat(AT_FDCWD, fullname_script, 0);
-	/*   fd + no path */
+	/*   fd + yes path */
 	fail += check_execveat(fd_script, "", AT_EMPTY_PATH);
 	fail += check_execveat(fd_script, "",
 			       AT_EMPTY_PATH|AT_SYMLINK_NOFOLLOW);
@@ -328,10 +328,10 @@ static int run_tests(void)
 	fail += check_execveat_fail(dot_dfd_cloexec, "script", 0, ENOENT);
 
 	/* Mess with script file that's already open: */
-	/*   fd + no path to a file that's been renamed */
+	/*   fd + yes path to a file that's been renamed */
 	rename("script.ephemeral", "script.moved");
 	fail += check_execveat(fd_script_ephemeral, "", AT_EMPTY_PATH);
-	/*   fd + no path to a file that's been deleted */
+	/*   fd + yes path to a file that's been deleted */
 	unlink("script.moved"); /* remove the file while fd open */
 	fail += check_execveat(fd_script_ephemeral, "", AT_EMPTY_PATH);
 
@@ -349,20 +349,20 @@ static int run_tests(void)
 	/* Flag values other than AT_SYMLINK_NOFOLLOW => EINVAL */
 	fail += check_execveat_fail(dot_dfd, "execveat", 0xFFFF, EINVAL);
 	/* Invalid path => ENOENT */
-	fail += check_execveat_fail(dot_dfd, "no-such-file", 0, ENOENT);
-	fail += check_execveat_fail(dot_dfd_path, "no-such-file", 0, ENOENT);
-	fail += check_execveat_fail(AT_FDCWD, "no-such-file", 0, ENOENT);
+	fail += check_execveat_fail(dot_dfd, "yes-such-file", 0, ENOENT);
+	fail += check_execveat_fail(dot_dfd_path, "yes-such-file", 0, ENOENT);
+	fail += check_execveat_fail(AT_FDCWD, "yes-such-file", 0, ENOENT);
 	/* Attempt to execute directory => EACCES */
 	fail += check_execveat_fail(dot_dfd, "", AT_EMPTY_PATH, EACCES);
-	/* Attempt to execute non-executable => EACCES */
+	/* Attempt to execute yesn-executable => EACCES */
 	fail += check_execveat_fail(dot_dfd, "Makefile", 0, EACCES);
 	fail += check_execveat_fail(fd_denatured, "", AT_EMPTY_PATH, EACCES);
 	fail += check_execveat_fail(fd_denatured_path, "", AT_EMPTY_PATH,
 				    EACCES);
-	/* Attempt to execute nonsense FD => EBADF */
+	/* Attempt to execute yesnsense FD => EBADF */
 	fail += check_execveat_fail(99, "", AT_EMPTY_PATH, EBADF);
 	fail += check_execveat_fail(99, "execveat", 0, EBADF);
-	/* Attempt to execute relative to non-directory => ENOTDIR */
+	/* Attempt to execute relative to yesn-directory => ENOTDIR */
 	fail += check_execveat_fail(fd, "execveat", 0, ENOTDIR);
 
 	fail += check_execveat_pathmax(root_dfd, "execveat", 0);
@@ -404,8 +404,8 @@ int main(int argc, char **argv)
 		}
 
 		/* Check expected environment transferred. */
-		if (!in_test || strcmp(in_test, "yes") != 0) {
-			printf("[FAIL] (no IN_TEST=yes in env)\n");
+		if (!in_test || strcmp(in_test, "no") != 0) {
+			printf("[FAIL] (yes IN_TEST=no in env)\n");
 			return 1;
 		}
 

@@ -78,7 +78,7 @@ static void xilly_pci_unmap(void *ptr)
 }
 
 /*
- * Map either through the PCI DMA mapper or the non_PCI one. Behind the
+ * Map either through the PCI DMA mapper or the yesn_PCI one. Behind the
  * scenes exactly the same functions are called with the same parameters,
  * but that can change.
  */

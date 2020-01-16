@@ -6,7 +6,7 @@ This file is the documentation for the Raylink Wireless LAN card driver for
 Linux.  The Raylink wireless LAN card is a PCMCIA card which provides IEEE
 802.11 compatible wireless network connectivity at 1 and 2 megabits/second.
 See http://www.raytheon.com/micro/raylink/ for more information on the Raylink
-card.  This driver is in early development and does have bugs.  See the known
+card.  This driver is in early development and does have bugs.  See the kyeswn
 bugs and limitations at the end of this document for more information.
 This driver also works with WebGear's Aviator 2.4 and Aviator Pro
 wireless LAN cards.
@@ -24,7 +24,7 @@ available when compiled as a module.  When built into the kernel, only
 the essid= string parameter is available via the kernel command line.
 This will change after the method of sorting out parameters for all
 the PCMCIA drivers is agreed upon.  If you must have a built in driver
-with nondefault parameters, they can be edited in
+with yesndefault parameters, they can be edited in
 /usr/src/linux/drivers/net/pcmcia/ray_cs.c.  Searching for module_param
 will find them all.
 
@@ -36,7 +36,7 @@ Card services user programs are still required for PCMCIA devices.
 pcmcia-cs-3.1.1 or greater is required for the kernel version of
 the driver.
 
-Currently, ray_cs is not part of David Hinds card services package,
+Currently, ray_cs is yest part of David Hinds card services package,
 so the following magic is required.
 
 At the end of the /etc/pcmcia/config.opts file, add the line: 
@@ -65,7 +65,7 @@ Add the parameters below between the empty quotes.
 
 Parameters for ray_cs driver which may be specified in ray_cs.opts:
 
-bc              integer         0 = normal mode (802.11 timing)
+bc              integer         0 = yesrmal mode (802.11 timing)
                                 1 = slow down inter frame timing to allow
                                     operation with older breezecom access
                                     points.
@@ -105,7 +105,7 @@ phy_addr	string          string containing new MAC address in
 				x00008f123456
 
 psm		integer         0 = continuously active
-				1 = power save mode (not useful yet)
+				1 = power save mode (yest useful yet)
 
 pc_debug	integer		(0-5) larger values for more verbose
 				logging.  Replaces ray_debug.
@@ -114,37 +114,37 @@ ray_debug	integer		Replaced with pc_debug
 
 ray_mem_speed   integer         defaults to 500
 
-sniffer         integer         0 = not sniffer (default)
+sniffer         integer         0 = yest sniffer (default)
                                 1 = sniffer which can be used to record all
                                     network traffic using tcpdump or similar, 
-                                    but no normal network use is allowed.
+                                    but yes yesrmal network use is allowed.
 
-translate	integer		0 = no translation (encapsulate frames)
+translate	integer		0 = yes translation (encapsulate frames)
 				1 = translation    (RFC1042/802.1)
 
 
 More on sniffer mode:
 
-tcpdump does not understand 802.11 headers, so it can't
+tcpdump does yest understand 802.11 headers, so it can't
 interpret the contents, but it can record to a file.  This is only
-useful for debugging 802.11 lowlevel protocols that are not visible to
+useful for debugging 802.11 lowlevel protocols that are yest visible to
 linux.  If you want to watch ftp xfers, or do similar things, you
 don't need to use sniffer mode.  Also, some packet types are never
 sent up by the card, so you will never see them (ack, rts, cts, probe
 etc.)  There is a simple program (showcap) included in the ray_cs
 package which parses the 802.11 headers.
 
-Known Problems and missing features
+Kyeswn Problems and missing features
 
-        Does not work with non x86
+        Does yest work with yesn x86
 
-	Does not work with SMP
+	Does yest work with SMP
 
-	Support for defragmenting frames is not yet debugged, and in
-	fact is known to not work.  I have never encountered a net set
+	Support for defragmenting frames is yest yet debugged, and in
+	fact is kyeswn to yest work.  I have never encountered a net set
 	up to fragment, but still, it should be fixed.
 
-	The ioctl support is incomplete.  The hardware address cannot be set
+	The ioctl support is incomplete.  The hardware address canyest be set
 	using ifconfig yet.  If a different hardware address is needed, it may
 	be set using the phy_addr parameter in ray_cs.opts.  This requires
 	a card insertion to take effect.

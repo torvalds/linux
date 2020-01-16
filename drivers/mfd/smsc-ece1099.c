@@ -49,7 +49,7 @@ static int smsc_i2c_probe(struct i2c_client *i2c,
 	smsc->dev = &i2c->dev;
 
 #ifdef CONFIG_OF
-	of_property_read_u32(i2c->dev.of_node, "clock", &smsc->clk);
+	of_property_read_u32(i2c->dev.of_yesde, "clock", &smsc->clk);
 #endif
 
 	regmap_read(smsc->regmap, SMSC_DEV_ID, &devid);
@@ -65,7 +65,7 @@ static int smsc_i2c_probe(struct i2c_client *i2c,
 		return ret;
 
 #ifdef CONFIG_OF
-	if (i2c->dev.of_node)
+	if (i2c->dev.of_yesde)
 		ret = devm_of_platform_populate(&i2c->dev);
 #endif
 

@@ -1,4 +1,4 @@
-Binding for Synopsys IntelliDDR Multi Protocol Memory Controller
+Binding for Syyespsys IntelliDDR Multi Protocol Memory Controller
 
 The ZynqMP DDR ECC controller has an optional ECC support in 64-bit and 32-bit
 bus width configurations.

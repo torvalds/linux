@@ -17,7 +17,7 @@
  * details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this file; if not, write to the Free Software
+ * along with this file; if yest, write to the Free Software
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
  * or visit http://www.gnu.org/licenses/.
  *
@@ -32,18 +32,18 @@
  * extended consistency checks. The define
  * CVMX_ENABLE_POW_CHECKS controls the runtime insertion of POW
  * internal state checks to find common programming errors. If
- * CVMX_ENABLE_POW_CHECKS is not defined, checks are by default
+ * CVMX_ENABLE_POW_CHECKS is yest defined, checks are by default
  * enabled. For example, cvmx-pow will check for the following
  * program errors or POW state inconsistency.
  * - Requesting a POW operation with an active tag switch in
  *   progress.
  * - Waiting for a tag switch to complete for an excessively
- *   long period. This is normally a sign of an error in locking
+ *   long period. This is yesrmally a sign of an error in locking
  *   causing deadlock.
  * - Illegal tag switches from NULL_NULL.
  * - Illegal tag switches from NULL.
  * - Illegal deschedule request.
- * - WQE pointer not matching the one attached to the core by
+ * - WQE pointer yest matching the one attached to the core by
  *   the POW.
  *
  */
@@ -71,7 +71,7 @@ enum cvmx_pow_tag_type {
 	 * NULL to NULL
 	 */
 	CVMX_POW_TAG_TYPE_NULL	    = 2L,
-	/* A tag switch to NULL, and there is no space reserved in POW
+	/* A tag switch to NULL, and there is yes space reserved in POW
 	 * - NEVER tag switch to NULL_NULL
 	 * - NEVER tag switch from NULL_NULL
 	 * - NULL_NULL is entered at the beginning of time and on a deschedule.
@@ -95,7 +95,7 @@ typedef enum {
 typedef enum {
 	/*
 	 * switch the tag (only) for this PP
-	 * - the previous tag should be non-NULL in this case
+	 * - the previous tag should be yesn-NULL in this case
 	 * - tag switch response required
 	 * - fields used: op, type, tag
 	 */
@@ -110,12 +110,12 @@ typedef enum {
 	/*
 	 * switch the tag (and/or group) for this PP and de-schedule
 	 * - OK to keep the tag the same and only change the group
-	 * - fields used: op, no_sched, grp, type, tag
+	 * - fields used: op, yes_sched, grp, type, tag
 	 */
 	CVMX_POW_TAG_OP_SWTAG_DESCH = 2L,
 	/*
 	 * just de-schedule
-	 * - fields used: op, no_sched
+	 * - fields used: op, yes_sched
 	 */
 	CVMX_POW_TAG_OP_DESCH = 3L,
 	/*
@@ -129,12 +129,12 @@ typedef enum {
 	 */
 	CVMX_POW_TAG_OP_UPDATE_WQP_GRP = 5L,
 	/*
-	 * set the no_sched bit on the de-schedule list
+	 * set the yes_sched bit on the de-schedule list
 	 *
-	 * - does nothing if the selected entry is not on the
+	 * - does yesthing if the selected entry is yest on the
 	 *   de-schedule list
 	 *
-	 * - does nothing if the stored work queue pointer does not
+	 * - does yesthing if the stored work queue pointer does yest
 	 *   match the address field
 	 *
 	 * - fields used: address, index, op
@@ -149,12 +149,12 @@ typedef enum {
 	 */
 	CVMX_POW_TAG_OP_SET_NSCHED = 6L,
 	/*
-	 * clears the no_sched bit on the de-schedule list
+	 * clears the yes_sched bit on the de-schedule list
 	 *
-	 * - does nothing if the selected entry is not on the
+	 * - does yesthing if the selected entry is yest on the
 	 *   de-schedule list
 	 *
-	 * - does nothing if the stored work queue pointer does not
+	 * - does yesthing if the stored work queue pointer does yest
 	 *   match the address field
 	 *
 	 * - fields used: address, index, op
@@ -168,7 +168,7 @@ typedef enum {
 	 * subsequent operations.
 	 */
 	CVMX_POW_TAG_OP_CLR_NSCHED = 7L,
-	/* do nothing */
+	/* do yesthing */
 	CVMX_POW_TAG_OP_NOP = 15L
 } cvmx_pow_tag_op_t;
 
@@ -180,11 +180,11 @@ typedef union {
 	struct {
 #ifdef __BIG_ENDIAN_BITFIELD
 		/*
-		 * Don't reschedule this entry. no_sched is used for
+		 * Don't reschedule this entry. yes_sched is used for
 		 * CVMX_POW_TAG_OP_SWTAG_DESCH and
 		 * CVMX_POW_TAG_OP_DESCH
 		 */
-		uint64_t no_sched:1;
+		uint64_t yes_sched:1;
 		uint64_t unused:2;
 		/* Tontains index of entry for a CVMX_POW_TAG_OP_*_NSCHED */
 		uint64_t index:13;
@@ -227,7 +227,7 @@ typedef union {
 		cvmx_pow_tag_op_t op:4;
 		uint64_t index:13;
 		uint64_t unused:2;
-		uint64_t no_sched:1;
+		uint64_t yes_sched:1;
 #endif
 	} s;
 } cvmx_pow_tag_req_t;
@@ -339,13 +339,13 @@ typedef union {
 		/*
 		 * If set, return deschedule information rather than
 		 * the standard response for work-queue index (invalid
-		 * if the work-queue entry is not on the deschedule
+		 * if the work-queue entry is yest on the deschedule
 		 * list).
 		 */
 		uint64_t get_des:1;
 		/*
 		 * If set, get the work-queue pointer rather than
-		 * tag/type (no effect when get_des set).
+		 * tag/type (yes effect when get_des set).
 		 */
 		uint64_t get_wqp:1;
 		/* Must be zero */
@@ -430,9 +430,9 @@ typedef union {
     /**
      * address for NULL_RD request (did<2:0> == 4) when this is read,
      * HW attempts to change the state to NULL if it is NULL_NULL (the
-     * hardware cannot switch from NULL_NULL to NULL if a POW entry is
-     * not available - software may need to recover by finishing
-     * another piece of work before a POW entry can ever become
+     * hardware canyest switch from NULL_NULL to NULL if a POW entry is
+     * yest available - software may need to recover by finishing
+     * ayesther piece of work before a POW entry can ever become
      * available.)
      */
 	struct {
@@ -470,19 +470,19 @@ typedef union {
 	struct {
 #ifdef __BIG_ENDIAN_BITFIELD
 		/*
-		 * Set when no new work queue entry was returned.  *
+		 * Set when yes new work queue entry was returned.  *
 		 * If there was de-scheduled work, the HW will
 		 * definitely return it. When this bit is set, it
 		 * could mean either mean:
 		 *
-		 * - There was no work, or
+		 * - There was yes work, or
 		 *
-		 * - There was no work that the HW could find. This
+		 * - There was yes work that the HW could find. This
 		 *   case can happen, regardless of the wait bit value
 		 *   in the original request, when there is work in
 		 *   the IQ's that is too deep down the list.
 		 */
-		uint64_t no_work:1;
+		uint64_t yes_work:1;
 		/* Must be zero */
 		uint64_t reserved_40_62:23;
 		/* 36 in O1 -- the work queue pointer */
@@ -490,7 +490,7 @@ typedef union {
 #else
 		uint64_t addr:40;
 		uint64_t reserved_40_62:23;
-		uint64_t no_work:1;
+		uint64_t yes_work:1;
 #endif
 	} s_work;
 
@@ -500,8 +500,8 @@ typedef union {
 	struct {
 #ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t reserved_62_63:2;
-		/* Set when there is a pending non-NULL SWTAG or
-		 * SWTAG_FULL, and the POW entry has not left the list
+		/* Set when there is a pending yesn-NULL SWTAG or
+		 * SWTAG_FULL, and the POW entry has yest left the list
 		 * for the original tag. */
 		uint64_t pend_switch:1;
 		/* Set when SWTAG_FULL and pend_switch is set. */
@@ -518,8 +518,8 @@ typedef union {
 		 * pend_desched is set.
 		 */
 		uint64_t pend_desched_switch:1;
-		/* Set when nosched is desired and pend_desched is set. */
-		uint64_t pend_nosched:1;
+		/* Set when yessched is desired and pend_desched is set. */
+		uint64_t pend_yessched:1;
 		/* Set when there is a pending GET_WORK. */
 		uint64_t pend_new_work:1;
 		/*
@@ -530,9 +530,9 @@ typedef union {
 		/* Set when there is a pending NULL_RD. */
 		uint64_t pend_null_rd:1;
 		/* Set when there is a pending CLR_NSCHED. */
-		uint64_t pend_nosched_clr:1;
+		uint64_t pend_yessched_clr:1;
 		uint64_t reserved_51:1;
-		/* This is the index when pend_nosched_clr is set. */
+		/* This is the index when pend_yessched_clr is set. */
 		uint64_t pend_index:11;
 		/*
 		 * This is the new_grp when (pend_desched AND
@@ -557,11 +557,11 @@ typedef union {
 		uint64_t pend_grp:4;
 		uint64_t pend_index:11;
 		uint64_t reserved_51:1;
-		uint64_t pend_nosched_clr:1;
+		uint64_t pend_yessched_clr:1;
 		uint64_t pend_null_rd:1;
 		uint64_t pend_new_work_wait:1;
 		uint64_t pend_new_work:1;
-		uint64_t pend_nosched:1;
+		uint64_t pend_yessched:1;
 		uint64_t pend_desched_switch:1;
 		uint64_t pend_desched:1;
 		uint64_t pend_switch_null:1;
@@ -578,8 +578,8 @@ typedef union {
 #ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t reserved_62_63:2;
 		/*
-		 * Set when there is a pending non-NULL SWTAG or
-		 * SWTAG_FULL, and the POW entry has not left the list
+		 * Set when there is a pending yesn-NULL SWTAG or
+		 * SWTAG_FULL, and the POW entry has yest left the list
 		 * for the original tag.
 		 */
 		uint64_t pend_switch:1;
@@ -600,8 +600,8 @@ typedef union {
 		 * pend_desched is set.
 		 */
 		uint64_t pend_desched_switch:1;
-		/* Set when nosched is desired and pend_desched is set. */
-		uint64_t pend_nosched:1;
+		/* Set when yessched is desired and pend_desched is set. */
+		uint64_t pend_yessched:1;
 		/* Set when there is a pending GET_WORK. */
 		uint64_t pend_new_work:1;
 		/*
@@ -612,27 +612,27 @@ typedef union {
 		/* Set when there is a pending NULL_RD. */
 		uint64_t pend_null_rd:1;
 		/* Set when there is a pending CLR_NSCHED. */
-		uint64_t pend_nosched_clr:1;
+		uint64_t pend_yessched_clr:1;
 		uint64_t reserved_51:1;
-		/* This is the index when pend_nosched_clr is set. */
+		/* This is the index when pend_yessched_clr is set. */
 		uint64_t pend_index:11;
 		/*
 		 * This is the new_grp when (pend_desched AND
 		 * pend_desched_switch) is set.
 		 */
 		uint64_t pend_grp:4;
-		/* This is the wqp when pend_nosched_clr is set. */
+		/* This is the wqp when pend_yessched_clr is set. */
 		uint64_t pend_wqp:36;
 #else
 	        uint64_t pend_wqp:36;
 	        uint64_t pend_grp:4;
 	        uint64_t pend_index:11;
 	        uint64_t reserved_51:1;
-	        uint64_t pend_nosched_clr:1;
+	        uint64_t pend_yessched_clr:1;
 	        uint64_t pend_null_rd:1;
 	        uint64_t pend_new_work_wait:1;
 	        uint64_t pend_new_work:1;
-	        uint64_t pend_nosched:1;
+	        uint64_t pend_yessched:1;
 	        uint64_t pend_desched_switch:1;
 	        uint64_t pend_desched:1;
 	        uint64_t pend_switch_null:1;
@@ -651,7 +651,7 @@ typedef union {
 		uint64_t reserved_62_63:2;
 		/*
 		 * Points to the next POW entry in the tag list when
-		 * tail == 0 (and tag_type is not NULL or NULL_NULL).
+		 * tail == 0 (and tag_type is yest NULL or NULL_NULL).
 		 */
 		uint64_t link_index:11;
 		/* The POW entry attached to the core. */
@@ -705,7 +705,7 @@ typedef union {
 		uint64_t reserved_62_63:2;
 		/*
 		 * Points to the prior POW entry in the tag list when
-		 * head == 0 (and tag_type is not NULL or
+		 * head == 0 (and tag_type is yest NULL or
 		 * NULL_NULL). This field is unpredictable when the
 		 * core's state is NULL or NULL_NULL.
 		 */
@@ -761,7 +761,7 @@ typedef union {
 		uint64_t reserved_62_63:2;
 		/*
 		 * Points to the next POW entry in the tag list when
-		 * tail == 0 (and tag_type is not NULL or NULL_NULL).
+		 * tail == 0 (and tag_type is yest NULL or NULL_NULL).
 		 */
 		uint64_t link_index:11;
 		/* The POW entry attached to the core. */
@@ -794,7 +794,7 @@ typedef union {
 		uint64_t reserved_62_63:2;
 		/*
 		 * Points to the prior POW entry in the tag list when
-		 * head == 0 (and tag_type is not NULL or
+		 * head == 0 (and tag_type is yest NULL or
 		 * NULL_NULL). This field is unpredictable when the
 		 * core's state is NULL or NULL_NULL.
 		 */
@@ -893,8 +893,8 @@ typedef union {
 		uint64_t fwd_index:11;
 		/* The group of the POW entry. */
 		uint64_t grp:4;
-		/* The nosched bit for the POW entry. */
-		uint64_t nosched:1;
+		/* The yessched bit for the POW entry. */
+		uint64_t yessched:1;
 		/* There is a pending tag switch */
 		uint64_t pend_switch:1;
 		/*
@@ -911,7 +911,7 @@ typedef union {
 	        uint64_t pend_tag:32;
 	        uint64_t pend_type:2;
 	        uint64_t pend_switch:1;
-	        uint64_t nosched:1;
+	        uint64_t yessched:1;
 	        uint64_t grp:4;
 	        uint64_t fwd_index:11;
 	        uint64_t reserved_51_63:13;
@@ -993,26 +993,26 @@ typedef union {
 		uint64_t reserved_52_63:12;
 		/*
 		 * set when there is one or more POW entries on the
-		 * nosched list.
+		 * yessched list.
 		 */
-		uint64_t nosched_val:1;
+		uint64_t yessched_val:1;
 		/*
 		 * set when there is exactly one POW entry on the
-		 * nosched list.
+		 * yessched list.
 		 */
-		uint64_t nosched_one:1;
+		uint64_t yessched_one:1;
 		uint64_t reserved_49:1;
 		/*
-		 * when nosched_val is set, indicates the first entry
-		 * on the nosched list.
+		 * when yessched_val is set, indicates the first entry
+		 * on the yessched list.
 		 */
-		uint64_t nosched_head:11;
+		uint64_t yessched_head:11;
 		uint64_t reserved_37:1;
 		/*
-		 * when nosched_val is set, indicates the last entry
-		 * on the nosched list.
+		 * when yessched_val is set, indicates the last entry
+		 * on the yessched list.
 		 */
-		uint64_t nosched_tail:11;
+		uint64_t yessched_tail:11;
 		/*
 		 * set when there is one or more descheduled heads on
 		 * the descheduled list selected by qosgrp.
@@ -1043,12 +1043,12 @@ typedef union {
 	        uint64_t reserved_23:1;
 	        uint64_t des_one:1;
 	        uint64_t des_val:1;
-	        uint64_t nosched_tail:11;
+	        uint64_t yessched_tail:11;
 	        uint64_t reserved_37:1;
-	        uint64_t nosched_head:11;
+	        uint64_t yessched_head:11;
 	        uint64_t reserved_49:1;
-	        uint64_t nosched_one:1;
-	        uint64_t nosched_val:1;
+	        uint64_t yessched_one:1;
+	        uint64_t yessched_val:1;
 	        uint64_t reserved_52_63:12;
 #endif
 	} sindexload1;
@@ -1167,16 +1167,16 @@ typedef union {
  *  hardware assumes that an aligned 64-bit store was used for all
  *  these stores.  Note the assumption that the work queue entry is
  *  aligned on an 8-byte boundary (since the low-order 3 address bits
- *  must be zero).  Note that not all fields are used by all
+ *  must be zero).  Note that yest all fields are used by all
  *  operations.
  *
  *  NOTE: The following is the behavior of the pending switch bit at the PP
  *	 for POW stores (i.e. when did<7:3> == 0xc)
  *     - did<2:0> == 0	    => pending switch bit is set
- *     - did<2:0> == 1	    => no affect on the pending switch bit
+ *     - did<2:0> == 1	    => yes affect on the pending switch bit
  *     - did<2:0> == 3	    => pending switch bit is cleared
- *     - did<2:0> == 7	    => no affect on the pending switch bit
- *     - did<2:0> == others => must not be used
+ *     - did<2:0> == 7	    => yes affect on the pending switch bit
+ *     - did<2:0> == others => must yest be used
  *     - No other loads/stores have an affect on the pending switch bit
  *     - The switch bus from POW can clear the pending switch bit
  *
@@ -1225,9 +1225,9 @@ typedef union {
 		 * to (if len != 0)
 		 */
 		uint64_t scraddr:8;
-		/* the number of words in the response (0 => no response) */
+		/* the number of words in the response (0 => yes response) */
 		uint64_t len:8;
-		/* the ID of the device on the non-coherent bus */
+		/* the ID of the device on the yesn-coherent bus */
 		uint64_t did:8;
 		uint64_t unused:36;
 		/* if set, don't return load response until work is available */
@@ -1252,7 +1252,7 @@ typedef union {
  * tag type, tag, group, and POW entry index associated with
  * this core. Index is only valid if the tag type isn't NULL_NULL.
  * If a tag switch is pending this routine returns the tag before
- * the tag switch, not after.
+ * the tag switch, yest after.
  *
  * Returns Current tag
  */
@@ -1318,7 +1318,7 @@ static inline void __cvmx_pow_warn_if_pending_switch(const char *function)
 
 /**
  * Waits for a tag switch to complete by polling the completion bit.
- * Note that switches to NULL complete immediately and do not need
+ * Note that switches to NULL complete immediately and do yest need
  * to be waited for.
  */
 static inline void cvmx_pow_tag_sw_wait(void)
@@ -1338,17 +1338,17 @@ static inline void cvmx_pow_tag_sw_wait(void)
 }
 
 /**
- * Synchronous work request.  Requests work from the POW.
+ * Synchroyesus work request.  Requests work from the POW.
  * This function does NOT wait for previous tag switches to complete,
- * so the caller must ensure that there is not a pending tag switch.
+ * so the caller must ensure that there is yest a pending tag switch.
  *
  * @wait:   When set, call stalls until work becomes avaiable, or times out.
- *		 If not set, returns immediately.
+ *		 If yest set, returns immediately.
  *
- * Returns Returns the WQE pointer from POW. Returns NULL if no work
+ * Returns Returns the WQE pointer from POW. Returns NULL if yes work
  * was available.
  */
-static inline cvmx_wqe_t *cvmx_pow_work_request_sync_nocheck(cvmx_pow_wait_t
+static inline cvmx_wqe_t *cvmx_pow_work_request_sync_yescheck(cvmx_pow_wait_t
 							     wait)
 {
 	cvmx_pow_load_addr_t ptr;
@@ -1365,21 +1365,21 @@ static inline cvmx_wqe_t *cvmx_pow_work_request_sync_nocheck(cvmx_pow_wait_t
 
 	result.u64 = cvmx_read_csr(ptr.u64);
 
-	if (result.s_work.no_work)
+	if (result.s_work.yes_work)
 		return NULL;
 	else
 		return (cvmx_wqe_t *) cvmx_phys_to_ptr(result.s_work.addr);
 }
 
 /**
- * Synchronous work request.  Requests work from the POW.
+ * Synchroyesus work request.  Requests work from the POW.
  * This function waits for any previous tag switch to complete before
  * requesting the new work.
  *
  * @wait:   When set, call stalls until work becomes avaiable, or times out.
- *		 If not set, returns immediately.
+ *		 If yest set, returns immediately.
  *
- * Returns Returns the WQE pointer from POW. Returns NULL if no work
+ * Returns Returns the WQE pointer from POW. Returns NULL if yes work
  * was available.
  */
 static inline cvmx_wqe_t *cvmx_pow_work_request_sync(cvmx_pow_wait_t wait)
@@ -1387,14 +1387,14 @@ static inline cvmx_wqe_t *cvmx_pow_work_request_sync(cvmx_pow_wait_t wait)
 	if (CVMX_ENABLE_POW_CHECKS)
 		__cvmx_pow_warn_if_pending_switch(__func__);
 
-	/* Must not have a switch pending when requesting work */
+	/* Must yest have a switch pending when requesting work */
 	cvmx_pow_tag_sw_wait();
-	return cvmx_pow_work_request_sync_nocheck(wait);
+	return cvmx_pow_work_request_sync_yescheck(wait);
 
 }
 
 /**
- * Synchronous null_rd request.	 Requests a switch out of NULL_NULL POW state.
+ * Synchroyesus null_rd request.	 Requests a switch out of NULL_NULL POW state.
  * This function waits for any previous tag switch to complete before
  * requesting the null_rd.
  *
@@ -1408,7 +1408,7 @@ static inline enum cvmx_pow_tag_type cvmx_pow_work_request_null_rd(void)
 	if (CVMX_ENABLE_POW_CHECKS)
 		__cvmx_pow_warn_if_pending_switch(__func__);
 
-	/* Must not have a switch pending when requesting work */
+	/* Must yest have a switch pending when requesting work */
 	cvmx_pow_tag_sw_wait();
 
 	ptr.u64 = 0;
@@ -1422,11 +1422,11 @@ static inline enum cvmx_pow_tag_type cvmx_pow_work_request_null_rd(void)
 }
 
 /**
- * Asynchronous work request.  Work is requested from the POW unit,
+ * Asynchroyesus work request.  Work is requested from the POW unit,
  * and should later be checked with function
  * cvmx_pow_work_response_async.  This function does NOT wait for
  * previous tag switches to complete, so the caller must ensure that
- * there is not a pending tag switch.
+ * there is yest a pending tag switch.
  *
  * @scr_addr: Scratch memory address that response will be returned
  *	      to, which is either a valid WQE, or a response with the
@@ -1435,7 +1435,7 @@ static inline enum cvmx_pow_tag_type cvmx_pow_work_request_null_rd(void)
  * @wait: 1 to cause response to wait for work to become available (or
  *	  timeout), 0 to cause response to return immediately
  */
-static inline void cvmx_pow_work_request_async_nocheck(int scr_addr,
+static inline void cvmx_pow_work_request_async_yescheck(int scr_addr,
 						       cvmx_pow_wait_t wait)
 {
 	cvmx_pow_iobdma_store_t data;
@@ -1452,7 +1452,7 @@ static inline void cvmx_pow_work_request_async_nocheck(int scr_addr,
 }
 
 /**
- * Asynchronous work request.  Work is requested from the POW unit,
+ * Asynchroyesus work request.  Work is requested from the POW unit,
  * and should later be checked with function
  * cvmx_pow_work_response_async.  This function waits for any previous
  * tag switch to complete before requesting the new work.
@@ -1470,19 +1470,19 @@ static inline void cvmx_pow_work_request_async(int scr_addr,
 	if (CVMX_ENABLE_POW_CHECKS)
 		__cvmx_pow_warn_if_pending_switch(__func__);
 
-	/* Must not have a switch pending when requesting work */
+	/* Must yest have a switch pending when requesting work */
 	cvmx_pow_tag_sw_wait();
-	cvmx_pow_work_request_async_nocheck(scr_addr, wait);
+	cvmx_pow_work_request_async_yescheck(scr_addr, wait);
 }
 
 /**
- * Gets result of asynchronous work request.  Performs a IOBDMA sync
+ * Gets result of asynchroyesus work request.  Performs a IOBDMA sync
  * to wait for the response.
  *
  * @scr_addr: Scratch memory address to get result from Byte address,
  *	      must be 8 byte aligned.
  *
- * Returns Returns the WQE from the scratch register, or NULL if no
+ * Returns Returns the WQE from the scratch register, or NULL if yes
  * work was available.
  */
 static inline cvmx_wqe_t *cvmx_pow_work_response_async(int scr_addr)
@@ -1492,7 +1492,7 @@ static inline cvmx_wqe_t *cvmx_pow_work_response_async(int scr_addr)
 	CVMX_SYNCIOBDMA;
 	result.u64 = cvmx_scratch_read64(scr_addr);
 
-	if (result.s_work.no_work)
+	if (result.s_work.yes_work)
 		return NULL;
 	else
 		return (cvmx_wqe_t *) cvmx_phys_to_ptr(result.s_work.addr);
@@ -1500,13 +1500,13 @@ static inline cvmx_wqe_t *cvmx_pow_work_response_async(int scr_addr)
 
 /**
  * Checks if a work queue entry pointer returned by a work
- * request is valid.  It may be invalid due to no work
+ * request is valid.  It may be invalid due to yes work
  * being available or due to a timeout.
  *
  * @wqe_ptr: pointer to a work queue entry returned by the POW
  *
  * Returns 0 if pointer is valid
- *	   1 if invalid (no work was returned)
+ *	   1 if invalid (yes work was returned)
  */
 static inline uint64_t cvmx_pow_work_invalid(cvmx_wqe_t *wqe_ptr)
 {
@@ -1518,20 +1518,20 @@ static inline uint64_t cvmx_pow_work_invalid(cvmx_wqe_t *wqe_ptr)
  * Completion for the tag switch must be checked for separately.  This
  * function does NOT update the work queue entry in dram to match tag
  * value and type, so the application must keep track of these if they
- * are important to the application.  This tag switch command must not
+ * are important to the application.  This tag switch command must yest
  * be used for switches to NULL, as the tag switch pending bit will be
  * set by the switch request, but never cleared by the hardware.
  *
- * NOTE: This should not be used when switching from a NULL tag.  Use
+ * NOTE: This should yest be used when switching from a NULL tag.  Use
  * cvmx_pow_tag_sw_full() instead.
  *
- * This function does no checks, so the caller must ensure that any
+ * This function does yes checks, so the caller must ensure that any
  * previous tag switch has completed.
  *
  * @tag:      new tag value
  * @tag_type: new tag type (ordered or atomic)
  */
-static inline void cvmx_pow_tag_sw_nocheck(uint32_t tag,
+static inline void cvmx_pow_tag_sw_yescheck(uint32_t tag,
 					   enum cvmx_pow_tag_type tag_type)
 {
 	cvmx_addr_t ptr;
@@ -1555,8 +1555,8 @@ static inline void cvmx_pow_tag_sw_nocheck(uint32_t tag,
 	}
 
 	/*
-	 * Note that WQE in DRAM is not updated here, as the POW does
-	 * not read from DRAM once the WQE is in flight.  See hardware
+	 * Note that WQE in DRAM is yest updated here, as the POW does
+	 * yest read from DRAM once the WQE is in flight.  See hardware
 	 * manual for complete details.	 It is the application's
 	 * responsibility to keep track of the current tag value if
 	 * that is important.
@@ -1582,11 +1582,11 @@ static inline void cvmx_pow_tag_sw_nocheck(uint32_t tag,
  * Completion for the tag switch must be checked for separately.  This
  * function does NOT update the work queue entry in dram to match tag
  * value and type, so the application must keep track of these if they
- * are important to the application.  This tag switch command must not
+ * are important to the application.  This tag switch command must yest
  * be used for switches to NULL, as the tag switch pending bit will be
  * set by the switch request, but never cleared by the hardware.
  *
- * NOTE: This should not be used when switching from a NULL tag.  Use
+ * NOTE: This should yest be used when switching from a NULL tag.  Use
  * cvmx_pow_tag_sw_full() instead.
  *
  * This function waits for any previous tag switch to complete, and also
@@ -1602,20 +1602,20 @@ static inline void cvmx_pow_tag_sw(uint32_t tag,
 		__cvmx_pow_warn_if_pending_switch(__func__);
 
 	/*
-	 * Note that WQE in DRAM is not updated here, as the POW does
-	 * not read from DRAM once the WQE is in flight.  See hardware
+	 * Note that WQE in DRAM is yest updated here, as the POW does
+	 * yest read from DRAM once the WQE is in flight.  See hardware
 	 * manual for complete details.	 It is the application's
 	 * responsibility to keep track of the current tag value if
 	 * that is important.
 	 */
 
 	/*
-	 * Ensure that there is not a pending tag switch, as a tag
-	 * switch cannot be started if a previous switch is still
+	 * Ensure that there is yest a pending tag switch, as a tag
+	 * switch canyest be started if a previous switch is still
 	 * pending.
 	 */
 	cvmx_pow_tag_sw_wait();
-	cvmx_pow_tag_sw_nocheck(tag, tag_type);
+	cvmx_pow_tag_sw_yescheck(tag, tag_type);
 }
 
 /**
@@ -1623,13 +1623,13 @@ static inline void cvmx_pow_tag_sw(uint32_t tag,
  * Completion for the tag switch must be checked for separately.  This
  * function does NOT update the work queue entry in dram to match tag
  * value and type, so the application must keep track of these if they
- * are important to the application.  This tag switch command must not
+ * are important to the application.  This tag switch command must yest
  * be used for switches to NULL, as the tag switch pending bit will be
  * set by the switch request, but never cleared by the hardware.
  *
  * This function must be used for tag switches from NULL.
  *
- * This function does no checks, so the caller must ensure that any
+ * This function does yes checks, so the caller must ensure that any
  * previous tag switch has completed.
  *
  * @wqp:      pointer to work queue entry to submit.  This entry is
@@ -1638,7 +1638,7 @@ static inline void cvmx_pow_tag_sw(uint32_t tag,
  * @tag_type: type of tag
  * @group:    group value for the work queue entry.
  */
-static inline void cvmx_pow_tag_sw_full_nocheck(cvmx_wqe_t *wqp, uint32_t tag,
+static inline void cvmx_pow_tag_sw_full_yescheck(cvmx_wqe_t *wqp, uint32_t tag,
 						enum cvmx_pow_tag_type tag_type,
 						uint64_t group)
 {
@@ -1666,8 +1666,8 @@ static inline void cvmx_pow_tag_sw_full_nocheck(cvmx_wqe_t *wqp, uint32_t tag,
 	}
 
 	/*
-	 * Note that WQE in DRAM is not updated here, as the POW does
-	 * not read from DRAM once the WQE is in flight.  See hardware
+	 * Note that WQE in DRAM is yest updated here, as the POW does
+	 * yest read from DRAM once the WQE is in flight.  See hardware
 	 * manual for complete details.	 It is the application's
 	 * responsibility to keep track of the current tag value if
 	 * that is important.
@@ -1697,7 +1697,7 @@ static inline void cvmx_pow_tag_sw_full_nocheck(cvmx_wqe_t *wqp, uint32_t tag,
  * Completion for the tag switch must be checked for separately.  This
  * function does NOT update the work queue entry in dram to match tag
  * value and type, so the application must keep track of these if they
- * are important to the application.  This tag switch command must not
+ * are important to the application.  This tag switch command must yest
  * be used for switches to NULL, as the tag switch pending bit will be
  * set by the switch request, but never cleared by the hardware.
  *
@@ -1720,23 +1720,23 @@ static inline void cvmx_pow_tag_sw_full(cvmx_wqe_t *wqp, uint32_t tag,
 		__cvmx_pow_warn_if_pending_switch(__func__);
 
 	/*
-	 * Ensure that there is not a pending tag switch, as a tag
-	 * switch cannot be started if a previous switch is still
+	 * Ensure that there is yest a pending tag switch, as a tag
+	 * switch canyest be started if a previous switch is still
 	 * pending.
 	 */
 	cvmx_pow_tag_sw_wait();
-	cvmx_pow_tag_sw_full_nocheck(wqp, tag, tag_type, group);
+	cvmx_pow_tag_sw_full_yescheck(wqp, tag, tag_type, group);
 }
 
 /**
  * Switch to a NULL tag, which ends any ordering or
  * synchronization provided by the POW for the current
  * work queue entry.  This operation completes immediately,
- * so completion should not be waited for.
+ * so completion should yest be waited for.
  * This function does NOT wait for previous tag switches to complete,
  * so the caller must ensure that any previous tag switches have completed.
  */
-static inline void cvmx_pow_tag_sw_null_nocheck(void)
+static inline void cvmx_pow_tag_sw_null_yescheck(void)
 {
 	cvmx_addr_t ptr;
 	cvmx_pow_tag_req_t tag_req;
@@ -1770,7 +1770,7 @@ static inline void cvmx_pow_tag_sw_null_nocheck(void)
  * Switch to a NULL tag, which ends any ordering or
  * synchronization provided by the POW for the current
  * work queue entry.  This operation completes immediately,
- * so completion should not be waited for.
+ * so completion should yest be waited for.
  * This function waits for any pending tag switches to complete
  * before requesting the switch to NULL.
  */
@@ -1780,12 +1780,12 @@ static inline void cvmx_pow_tag_sw_null(void)
 		__cvmx_pow_warn_if_pending_switch(__func__);
 
 	/*
-	 * Ensure that there is not a pending tag switch, as a tag
-	 * switch cannot be started if a previous switch is still
+	 * Ensure that there is yest a pending tag switch, as a tag
+	 * switch canyest be started if a previous switch is still
 	 * pending.
 	 */
 	cvmx_pow_tag_sw_wait();
-	cvmx_pow_tag_sw_null_nocheck();
+	cvmx_pow_tag_sw_null_yescheck();
 
 	/* switch to NULL completes immediately */
 }
@@ -1866,9 +1866,9 @@ static inline void cvmx_pow_set_group_mask(uint64_t core_num, uint64_t mask)
  *		     Highest priority is 0 and lowest is 7. A priority value
  *		     of 0xF instructs POW to skip the Input Queue when
  *		     scheduling to this specific core.
- *		     NOTE: priorities should not have gaps in values, meaning
+ *		     NOTE: priorities should yest have gaps in values, meaning
  *			   {0,1,1,1,1,1,1,1} is a valid configuration while
- *			   {0,2,2,2,2,2,2,2} is not.
+ *			   {0,2,2,2,2,2,2,2} is yest.
  */
 static inline void cvmx_pow_set_priority(uint64_t core_num,
 					 const uint8_t priority[])
@@ -1910,7 +1910,7 @@ static inline void cvmx_pow_set_priority(uint64_t core_num,
 
 /**
  * Performs a tag switch and then an immediate deschedule. This completes
- * immediately, so completion must not be waited for.  This function does NOT
+ * immediately, so completion must yest be waited for.  This function does NOT
  * update the wqe in DRAM to match arguments.
  *
  * This function does NOT wait for any prior tag switches to complete, so the
@@ -1919,7 +1919,7 @@ static inline void cvmx_pow_set_priority(uint64_t core_num,
  * Note the following CAVEAT of the Octeon HW behavior when
  * re-scheduling DE-SCHEDULEd items whose (next) state is
  * ORDERED:
- *   - If there are no switches pending at the time that the
+ *   - If there are yes switches pending at the time that the
  *     HW executes the de-schedule, the HW will only re-schedule
  *     the head of the FIFO associated with the given tag. This
  *     means that in many respects, the HW treats this ORDERED
@@ -1945,15 +1945,15 @@ static inline void cvmx_pow_set_priority(uint64_t core_num,
  * @tag:      New tag value
  * @tag_type: New tag type
  * @group:    New group value
- * @no_sched: Control whether this work queue entry will be rescheduled.
+ * @yes_sched: Control whether this work queue entry will be rescheduled.
  *		   - 1 : don't schedule this work
  *		   - 0 : allow this work to be scheduled.
  */
-static inline void cvmx_pow_tag_sw_desched_nocheck(
+static inline void cvmx_pow_tag_sw_desched_yescheck(
 	uint32_t tag,
 	enum cvmx_pow_tag_type tag_type,
 	uint64_t group,
-	uint64_t no_sched)
+	uint64_t yes_sched)
 {
 	cvmx_addr_t ptr;
 	cvmx_pow_tag_req_t tag_req;
@@ -1965,7 +1965,7 @@ static inline void cvmx_pow_tag_sw_desched_nocheck(
 		if (current_tag.s.type == CVMX_POW_TAG_TYPE_NULL_NULL)
 			pr_warn("%s called with NULL_NULL tag\n", __func__);
 		if (current_tag.s.type == CVMX_POW_TAG_TYPE_NULL)
-			pr_warn("%s called with NULL tag. Deschedule not allowed from NULL state\n",
+			pr_warn("%s called with NULL tag. Deschedule yest allowed from NULL state\n",
 				__func__);
 		if ((current_tag.s.type != CVMX_POW_TAG_TYPE_ATOMIC)
 			&& (tag_type != CVMX_POW_TAG_TYPE_ATOMIC))
@@ -1978,7 +1978,7 @@ static inline void cvmx_pow_tag_sw_desched_nocheck(
 	tag_req.s.tag = tag;
 	tag_req.s.type = tag_type;
 	tag_req.s.grp = group;
-	tag_req.s.no_sched = no_sched;
+	tag_req.s.yes_sched = yes_sched;
 
 	ptr.u64 = 0;
 	ptr.sio.mem_region = CVMX_IO_SEG;
@@ -1993,7 +1993,7 @@ static inline void cvmx_pow_tag_sw_desched_nocheck(
 
 /**
  * Performs a tag switch and then an immediate deschedule. This completes
- * immediately, so completion must not be waited for.  This function does NOT
+ * immediately, so completion must yest be waited for.  This function does NOT
  * update the wqe in DRAM to match arguments.
  *
  * This function waits for any prior tag switches to complete, so the
@@ -2002,7 +2002,7 @@ static inline void cvmx_pow_tag_sw_desched_nocheck(
  * Note the following CAVEAT of the Octeon HW behavior when
  * re-scheduling DE-SCHEDULEd items whose (next) state is
  * ORDERED:
- *   - If there are no switches pending at the time that the
+ *   - If there are yes switches pending at the time that the
  *     HW executes the de-schedule, the HW will only re-schedule
  *     the head of the FIFO associated with the given tag. This
  *     means that in many respects, the HW treats this ORDERED
@@ -2028,13 +2028,13 @@ static inline void cvmx_pow_tag_sw_desched_nocheck(
  * @tag:      New tag value
  * @tag_type: New tag type
  * @group:    New group value
- * @no_sched: Control whether this work queue entry will be rescheduled.
+ * @yes_sched: Control whether this work queue entry will be rescheduled.
  *		   - 1 : don't schedule this work
  *		   - 0 : allow this work to be scheduled.
  */
 static inline void cvmx_pow_tag_sw_desched(uint32_t tag,
 					   enum cvmx_pow_tag_type tag_type,
-					   uint64_t group, uint64_t no_sched)
+					   uint64_t group, uint64_t yes_sched)
 {
 	if (CVMX_ENABLE_POW_CHECKS)
 		__cvmx_pow_warn_if_pending_switch(__func__);
@@ -2042,22 +2042,22 @@ static inline void cvmx_pow_tag_sw_desched(uint32_t tag,
 	/* Need to make sure any writes to the work queue entry are complete */
 	CVMX_SYNCWS;
 	/*
-	 * Ensure that there is not a pending tag switch, as a tag
-	 * switch cannot be started if a previous switch is still
+	 * Ensure that there is yest a pending tag switch, as a tag
+	 * switch canyest be started if a previous switch is still
 	 * pending.
 	 */
 	cvmx_pow_tag_sw_wait();
-	cvmx_pow_tag_sw_desched_nocheck(tag, tag_type, group, no_sched);
+	cvmx_pow_tag_sw_desched_yescheck(tag, tag_type, group, yes_sched);
 }
 
 /**
  * Deschedules the current work queue entry.
  *
- * @no_sched: no schedule flag value to be set on the work queue
- *	      entry.  If this is set the entry will not be
+ * @yes_sched: yes schedule flag value to be set on the work queue
+ *	      entry.  If this is set the entry will yest be
  *	      rescheduled.
  */
-static inline void cvmx_pow_desched(uint64_t no_sched)
+static inline void cvmx_pow_desched(uint64_t yes_sched)
 {
 	cvmx_addr_t ptr;
 	cvmx_pow_tag_req_t tag_req;
@@ -2069,7 +2069,7 @@ static inline void cvmx_pow_desched(uint64_t no_sched)
 		if (current_tag.s.type == CVMX_POW_TAG_TYPE_NULL_NULL)
 			pr_warn("%s called with NULL_NULL tag\n", __func__);
 		if (current_tag.s.type == CVMX_POW_TAG_TYPE_NULL)
-			pr_warn("%s called with NULL tag. Deschedule not expected from NULL state\n",
+			pr_warn("%s called with NULL tag. Deschedule yest expected from NULL state\n",
 				__func__);
 	}
 
@@ -2078,7 +2078,7 @@ static inline void cvmx_pow_desched(uint64_t no_sched)
 
 	tag_req.u64 = 0;
 	tag_req.s.op = CVMX_POW_TAG_OP_DESCH;
-	tag_req.s.no_sched = no_sched;
+	tag_req.s.yes_sched = yes_sched;
 
 	ptr.u64 = 0;
 	ptr.sio.mem_region = CVMX_IO_SEG;

@@ -470,7 +470,7 @@ static int sd_read_long_data(struct realtek_pci_sdmmc *host,
 			SD_TRANSFER_START | SD_TM_AUTO_READ_2);
 	rtsx_pci_add_cmd(pcr, CHECK_REG_CMD, SD_TRANSFER,
 			SD_TRANSFER_END, SD_TRANSFER_END);
-	rtsx_pci_send_cmd_no_wait(pcr);
+	rtsx_pci_send_cmd_yes_wait(pcr);
 
 	err = rtsx_pci_dma_transfer(pcr, data->sg, host->sg_count, 1, 10000);
 	if (err < 0) {
@@ -529,7 +529,7 @@ static int sd_write_long_data(struct realtek_pci_sdmmc *host,
 			SD_TRANSFER_START | SD_TM_AUTO_WRITE_3);
 	rtsx_pci_add_cmd(pcr, CHECK_REG_CMD, SD_TRANSFER,
 			SD_TRANSFER_END, SD_TRANSFER_END);
-	rtsx_pci_send_cmd_no_wait(pcr);
+	rtsx_pci_send_cmd_yes_wait(pcr);
 	err = rtsx_pci_dma_transfer(pcr, data->sg, host->sg_count, 0, 10000);
 	if (err < 0) {
 		sd_clear_error(host);
@@ -568,7 +568,7 @@ static inline void sd_disable_initial_mode(struct realtek_pci_sdmmc *host)
 			SD_CLK_DIVIDE_MASK, SD_CLK_DIVIDE_0);
 }
 
-static void sd_normal_rw(struct realtek_pci_sdmmc *host,
+static void sd_yesrmal_rw(struct realtek_pci_sdmmc *host,
 		struct mmc_request *mrq)
 {
 	struct mmc_command *cmd = mrq->cmd;
@@ -832,7 +832,7 @@ static void sd_request(struct work_struct *work)
 		if (mmc_op_multi(cmd->opcode) && mrq->stop)
 			sd_send_cmd_get_rsp(host, mrq->stop);
 	} else {
-		sd_normal_rw(host, mrq);
+		sd_yesrmal_rw(host, mrq);
 	}
 
 	if (mrq->data) {
@@ -1142,7 +1142,7 @@ static int sd_wait_voltage_stable_1(struct realtek_pci_sdmmc *host)
 	mdelay(1);
 
 	/* SD_CMD, SD_DAT[3:0] should be driven to low by card;
-	 * If either one of SD_CMD,SD_DAT[3:0] is not low,
+	 * If either one of SD_CMD,SD_DAT[3:0] is yest low,
 	 * abort the voltage switch sequence;
 	 */
 	err = rtsx_pci_read_register(pcr, SD_BUS_STAT, &stat);

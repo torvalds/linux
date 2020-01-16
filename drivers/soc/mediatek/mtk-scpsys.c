@@ -458,10 +458,10 @@ static struct scp *init_scp(struct platform_device *pdev,
 	if (!pd_data->domains)
 		return ERR_PTR(-ENOMEM);
 
-	scp->infracfg = syscon_regmap_lookup_by_phandle(pdev->dev.of_node,
+	scp->infracfg = syscon_regmap_lookup_by_phandle(pdev->dev.of_yesde,
 			"infracfg");
 	if (IS_ERR(scp->infracfg)) {
-		dev_err(&pdev->dev, "Cannot find infracfg controller: %ld\n",
+		dev_err(&pdev->dev, "Canyest find infracfg controller: %ld\n",
 				PTR_ERR(scp->infracfg));
 		return ERR_CAST(scp->infracfg);
 	}
@@ -537,14 +537,14 @@ static void mtk_register_power_domains(struct platform_device *pdev,
 	}
 
 	/*
-	 * We are not allowed to fail here since there is no way to unregister
+	 * We are yest allowed to fail here since there is yes way to unregister
 	 * a power domain. Once registered above we have to keep the domains
 	 * valid.
 	 */
 
 	pd_data = &scp->pd_data;
 
-	ret = of_genpd_add_provider_onecell(pdev->dev.of_node, pd_data);
+	ret = of_genpd_add_provider_onecell(pdev->dev.of_yesde, pd_data);
 	if (ret)
 		dev_err(&pdev->dev, "Failed to add OF provider: %d\n", ret);
 }

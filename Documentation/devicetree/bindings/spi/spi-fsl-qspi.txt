@@ -13,7 +13,7 @@ Required properties:
   - clocks : The clocks needed by the QuadSPI controller
   - clock-names : Should contain the name of the clocks: "qspi_en" and "qspi".
 
-Required SPI slave node properties:
+Required SPI slave yesde properties:
   - reg: There are two buses (A and B) with two chip selects each.
 	 This encodes to which bus and CS the flash is connected:
 		<0>: Bus A, CS 0
@@ -35,7 +35,7 @@ qspi0: quadspi@40044000 {
 	flash0: s25fl128s@0 {
 		#address-cells = <1>;
 		#size-cells = <1>;
-		compatible = "spansion,s25fl128s", "jedec,spi-nor";
+		compatible = "spansion,s25fl128s", "jedec,spi-yesr";
 		spi-max-frequency = <50000000>;
 		reg = <0>;
 	};
@@ -51,7 +51,7 @@ Example showing the usage of two SPI NOR devices on bus A:
 	flash0: n25q256a@0 {
 		#address-cells = <1>;
 		#size-cells = <1>;
-		compatible = "micron,n25q256a", "jedec,spi-nor";
+		compatible = "micron,n25q256a", "jedec,spi-yesr";
 		spi-max-frequency = <29000000>;
 		reg = <0>;
 	};
@@ -59,7 +59,7 @@ Example showing the usage of two SPI NOR devices on bus A:
 	flash1: n25q256a@1 {
 		#address-cells = <1>;
 		#size-cells = <1>;
-		compatible = "micron,n25q256a", "jedec,spi-nor";
+		compatible = "micron,n25q256a", "jedec,spi-yesr";
 		spi-max-frequency = <29000000>;
 		reg = <1>;
 	};

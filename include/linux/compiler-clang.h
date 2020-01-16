@@ -18,18 +18,18 @@
 #if __has_feature(address_sanitizer) || __has_feature(hwaddress_sanitizer)
 /* emulate gcc's __SANITIZE_ADDRESS__ flag */
 #define __SANITIZE_ADDRESS__
-#define __no_sanitize_address \
-		__attribute__((no_sanitize("address", "hwaddress")))
+#define __yes_sanitize_address \
+		__attribute__((yes_sanitize("address", "hwaddress")))
 #else
-#define __no_sanitize_address
+#define __yes_sanitize_address
 #endif
 
 /*
  * Not all versions of clang implement the the type-generic versions
  * of the builtin overflow checkers. Fortunately, clang implements
  * __has_builtin allowing us to avoid awkward version
- * checks. Unfortunately, we don't know which version of gcc clang
- * pretends to be, so the macro may or may not be defined.
+ * checks. Unfortunately, we don't kyesw which version of gcc clang
+ * pretends to be, so the macro may or may yest be defined.
  */
 #if __has_builtin(__builtin_mul_overflow) && \
     __has_builtin(__builtin_add_overflow) && \
@@ -38,7 +38,7 @@
 #endif
 
 /* The following are for compatibility with GCC, from compiler-gcc.h,
- * and may be redefined here because they should not be shared with other
+ * and may be redefined here because they should yest be shared with other
  * compilers, like ICC.
  */
 #define barrier() __asm__ __volatile__("" : : : "memory")

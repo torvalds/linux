@@ -7,7 +7,7 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/types.h>
@@ -152,7 +152,7 @@ static const struct i2c_algorithm usb_algorithm = {
 
 /*
  * Initially the usb i2c interface uses a vid/pid pair donated by
- * Future Technology Devices International Ltd., later a pair was
+ * Future Techyeslogy Devices International Ltd., later a pair was
  * bought from EZPrototypes
  */
 static const struct usb_device_id i2c_tiny_usb_table[] = {

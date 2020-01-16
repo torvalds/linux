@@ -40,7 +40,7 @@ SND_SOC_DAILINK_DEFS(capture_3,
 	DAILINK_COMP_ARRAY(COMP_DUMMY()),
 	DAILINK_COMP_ARRAY(COMP_EMPTY()));
 
-SND_SOC_DAILINK_DEFS(capture_mono_1,
+SND_SOC_DAILINK_DEFS(capture_moyes_1,
 	DAILINK_COMP_ARRAY(COMP_CPU("UL_MONO_1")),
 	DAILINK_COMP_ARRAY(COMP_DUMMY()),
 	DAILINK_COMP_ARRAY(COMP_EMPTY()));
@@ -127,13 +127,13 @@ static struct snd_soc_dai_link mt6797_mt6351_dai_links[] = {
 		SND_SOC_DAILINK_REG(capture_3),
 	},
 	{
-		.name = "Capture_Mono_1",
-		.stream_name = "Capture_Mono_1",
+		.name = "Capture_Moyes_1",
+		.stream_name = "Capture_Moyes_1",
 		.trigger = {SND_SOC_DPCM_TRIGGER_PRE,
 			    SND_SOC_DPCM_TRIGGER_PRE},
 		.dynamic = 1,
 		.dpcm_capture = 1,
-		SND_SOC_DAILINK_REG(capture_mono_1),
+		SND_SOC_DAILINK_REG(capture_moyes_1),
 	},
 	{
 		.name = "Hostless_LPBK",
@@ -143,7 +143,7 @@ static struct snd_soc_dai_link mt6797_mt6351_dai_links[] = {
 		.dynamic = 1,
 		.dpcm_playback = 1,
 		.dpcm_capture = 1,
-		.ignore_suspend = 1,
+		.igyesre_suspend = 1,
 		SND_SOC_DAILINK_REG(hostless_lpbk),
 	},
 	{
@@ -154,32 +154,32 @@ static struct snd_soc_dai_link mt6797_mt6351_dai_links[] = {
 		.dynamic = 1,
 		.dpcm_playback = 1,
 		.dpcm_capture = 1,
-		.ignore_suspend = 1,
+		.igyesre_suspend = 1,
 		SND_SOC_DAILINK_REG(hostless_speech),
 	},
 	/* BE */
 	{
 		.name = "Primary Codec",
-		.no_pcm = 1,
+		.yes_pcm = 1,
 		.dpcm_playback = 1,
 		.dpcm_capture = 1,
-		.ignore_suspend = 1,
+		.igyesre_suspend = 1,
 		SND_SOC_DAILINK_REG(primary_codec),
 	},
 	{
 		.name = "PCM 1",
-		.no_pcm = 1,
+		.yes_pcm = 1,
 		.dpcm_playback = 1,
 		.dpcm_capture = 1,
-		.ignore_suspend = 1,
+		.igyesre_suspend = 1,
 		SND_SOC_DAILINK_REG(pcm1),
 	},
 	{
 		.name = "PCM 2",
-		.no_pcm = 1,
+		.yes_pcm = 1,
 		.dpcm_playback = 1,
 		.dpcm_capture = 1,
-		.ignore_suspend = 1,
+		.igyesre_suspend = 1,
 		SND_SOC_DAILINK_REG(pcm2),
 	},
 };
@@ -194,27 +194,27 @@ static struct snd_soc_card mt6797_mt6351_card = {
 static int mt6797_mt6351_dev_probe(struct platform_device *pdev)
 {
 	struct snd_soc_card *card = &mt6797_mt6351_card;
-	struct device_node *platform_node, *codec_node;
+	struct device_yesde *platform_yesde, *codec_yesde;
 	struct snd_soc_dai_link *dai_link;
 	int ret, i;
 
 	card->dev = &pdev->dev;
 
-	platform_node = of_parse_phandle(pdev->dev.of_node,
+	platform_yesde = of_parse_phandle(pdev->dev.of_yesde,
 					 "mediatek,platform", 0);
-	if (!platform_node) {
+	if (!platform_yesde) {
 		dev_err(&pdev->dev, "Property 'platform' missing or invalid\n");
 		return -EINVAL;
 	}
 	for_each_card_prelinks(card, i, dai_link) {
 		if (dai_link->platforms->name)
 			continue;
-		dai_link->platforms->of_node = platform_node;
+		dai_link->platforms->of_yesde = platform_yesde;
 	}
 
-	codec_node = of_parse_phandle(pdev->dev.of_node,
+	codec_yesde = of_parse_phandle(pdev->dev.of_yesde,
 				      "mediatek,audio-codec", 0);
-	if (!codec_node) {
+	if (!codec_yesde) {
 		dev_err(&pdev->dev,
 			"Property 'audio-codec' missing or invalid\n");
 		return -EINVAL;
@@ -222,7 +222,7 @@ static int mt6797_mt6351_dev_probe(struct platform_device *pdev)
 	for_each_card_prelinks(card, i, dai_link) {
 		if (dai_link->codecs->name)
 			continue;
-		dai_link->codecs->of_node = codec_node;
+		dai_link->codecs->of_yesde = codec_yesde;
 	}
 
 	ret = devm_snd_soc_register_card(&pdev->dev, card);

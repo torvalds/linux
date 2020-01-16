@@ -24,7 +24,7 @@ Please refer to the binding documentation for the clock and/or power domain
 providers for more details.
 
 
-Device node example
+Device yesde example
 -------------------
 
 	fdp1@fe940000 {

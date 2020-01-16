@@ -58,7 +58,7 @@
 struct rt3883_pci_controller {
 	void __iomem *base;
 
-	struct device_node *intc_of_node;
+	struct device_yesde *intc_of_yesde;
 	struct irq_domain *irq_domain;
 
 	struct pci_controller pci_controller;
@@ -202,9 +202,9 @@ static int rt3883_pci_irq_init(struct device *dev,
 {
 	int irq;
 
-	irq = irq_of_parse_and_map(rpc->intc_of_node, 0);
+	irq = irq_of_parse_and_map(rpc->intc_of_yesde, 0);
 	if (irq == 0) {
-		dev_err(dev, "%pOF has no IRQ", rpc->intc_of_node);
+		dev_err(dev, "%pOF has yes IRQ", rpc->intc_of_yesde);
 		return -EINVAL;
 	}
 
@@ -212,7 +212,7 @@ static int rt3883_pci_irq_init(struct device *dev,
 	rt3883_pci_w32(rpc, 0, RT3883_PCI_REG_PCIENA);
 
 	rpc->irq_domain =
-		irq_domain_add_linear(rpc->intc_of_node, RT3883_PCI_IRQ_COUNT,
+		irq_domain_add_linear(rpc->intc_of_yesde, RT3883_PCI_IRQ_COUNT,
 				      &rt3883_pci_irq_domain_ops,
 				      rpc);
 	if (!rpc->irq_domain) {
@@ -409,9 +409,9 @@ static int rt3883_pci_probe(struct platform_device *pdev)
 {
 	struct rt3883_pci_controller *rpc;
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 	struct resource *res;
-	struct device_node *child;
+	struct device_yesde *child;
 	u32 val;
 	int err;
 	int mode;
@@ -425,42 +425,42 @@ static int rt3883_pci_probe(struct platform_device *pdev)
 	if (IS_ERR(rpc->base))
 		return PTR_ERR(rpc->base);
 
-	/* find the interrupt controller child node */
-	for_each_child_of_node(np, child) {
+	/* find the interrupt controller child yesde */
+	for_each_child_of_yesde(np, child) {
 		if (of_get_property(child, "interrupt-controller", NULL)) {
-			rpc->intc_of_node = child;
+			rpc->intc_of_yesde = child;
 			break;
 		}
 	}
 
-	if (!rpc->intc_of_node) {
-		dev_err(dev, "%pOF has no %s child node",
-			rpc->intc_of_node,
+	if (!rpc->intc_of_yesde) {
+		dev_err(dev, "%pOF has yes %s child yesde",
+			rpc->intc_of_yesde,
 			"interrupt controller");
 		return -EINVAL;
 	}
 
-	/* find the PCI host bridge child node */
-	for_each_child_of_node(np, child) {
-		if (of_node_is_type(child, "pci")) {
-			rpc->pci_controller.of_node = child;
+	/* find the PCI host bridge child yesde */
+	for_each_child_of_yesde(np, child) {
+		if (of_yesde_is_type(child, "pci")) {
+			rpc->pci_controller.of_yesde = child;
 			break;
 		}
 	}
 
-	if (!rpc->pci_controller.of_node) {
-		dev_err(dev, "%pOF has no %s child node",
-			rpc->intc_of_node,
+	if (!rpc->pci_controller.of_yesde) {
+		dev_err(dev, "%pOF has yes %s child yesde",
+			rpc->intc_of_yesde,
 			"PCI host bridge");
 		err = -EINVAL;
-		goto err_put_intc_node;
+		goto err_put_intc_yesde;
 	}
 
 	mode = RT3883_PCI_MODE_NONE;
-	for_each_available_child_of_node(rpc->pci_controller.of_node, child) {
+	for_each_available_child_of_yesde(rpc->pci_controller.of_yesde, child) {
 		int devfn;
 
-		if (!of_node_is_type(child, "pci"))
+		if (!of_yesde_is_type(child, "pci"))
 			continue;
 
 		devfn = of_pci_get_devfn(child);
@@ -482,7 +482,7 @@ static int rt3883_pci_probe(struct platform_device *pdev)
 	if (mode == RT3883_PCI_MODE_NONE) {
 		dev_err(dev, "unable to determine PCI mode\n");
 		err = -EINVAL;
-		goto err_put_hb_node;
+		goto err_put_hb_yesde;
 	}
 
 	dev_info(dev, "mode:%s%s\n",
@@ -497,7 +497,7 @@ static int rt3883_pci_probe(struct platform_device *pdev)
 
 	/* Load PCI I/O and memory resources from DT */
 	pci_load_of_ranges(&rpc->pci_controller,
-			   rpc->pci_controller.of_node);
+			   rpc->pci_controller.of_yesde);
 
 	rt3883_pci_w32(rpc, rpc->mem_res.start, RT3883_PCI_REG_MEMBASE);
 	rt3883_pci_w32(rpc, rpc->io_res.start, RT3883_PCI_REG_IOBASE);
@@ -521,7 +521,7 @@ static int rt3883_pci_probe(struct platform_device *pdev)
 
 	err = rt3883_pci_irq_init(dev, rpc);
 	if (err)
-		goto err_put_hb_node;
+		goto err_put_hb_yesde;
 
 	/* PCIe */
 	val = rt3883_pci_read_cfg32(rpc, 0, 0x01, 0, PCI_COMMAND);
@@ -552,10 +552,10 @@ static int rt3883_pci_probe(struct platform_device *pdev)
 
 	return 0;
 
-err_put_hb_node:
-	of_node_put(rpc->pci_controller.of_node);
-err_put_intc_node:
-	of_node_put(rpc->intc_of_node);
+err_put_hb_yesde:
+	of_yesde_put(rpc->pci_controller.of_yesde);
+err_put_intc_yesde:
+	of_yesde_put(rpc->intc_of_yesde);
 	return err;
 }
 

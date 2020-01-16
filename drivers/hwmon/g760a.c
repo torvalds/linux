@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * g760a - Driver for the Global Mixed-mode Technology Inc. G760A
+ * g760a - Driver for the Global Mixed-mode Techyeslogy Inc. G760A
  *	   fan speed PWM controller chip
  *
  * Copyright (C) 2007  Herbert Valerio Riedel <hvr@gnu.org>
@@ -187,7 +187,7 @@ static int g760a_probe(struct i2c_client *client,
 	data->client = client;
 	mutex_init(&data->update_lock);
 
-	/* setup default configuration for now */
+	/* setup default configuration for yesw */
 	data->fan_div = G760A_DEFAULT_FAN_DIV;
 	data->clk = G760A_DEFAULT_CLK;
 

@@ -123,7 +123,7 @@ static int exiu_domain_translate(struct irq_domain *domain,
 {
 	struct exiu_irq_data *info = domain->host_data;
 
-	if (is_of_node(fwspec->fwnode)) {
+	if (is_of_yesde(fwspec->fwyesde)) {
 		if (fwspec->param_count != 3)
 			return -EINVAL;
 
@@ -150,7 +150,7 @@ static int exiu_domain_alloc(struct irq_domain *dom, unsigned int virq,
 	irq_hw_number_t hwirq;
 
 	parent_fwspec = *fwspec;
-	if (is_of_node(dom->parent->fwnode)) {
+	if (is_of_yesde(dom->parent->fwyesde)) {
 		if (fwspec->param_count != 3)
 			return -EINVAL;	/* Not GIC compliant */
 		if (fwspec->param[0] != GIC_SPI)
@@ -164,7 +164,7 @@ static int exiu_domain_alloc(struct irq_domain *dom, unsigned int virq,
 	WARN_ON(nr_irqs != 1);
 	irq_domain_set_hwirq_and_chip(dom, virq, hwirq, &exiu_irq_chip, info);
 
-	parent_fwspec.fwnode = dom->parent->fwnode;
+	parent_fwspec.fwyesde = dom->parent->fwyesde;
 	return irq_domain_alloc_irqs_parent(dom, virq, nr_irqs, &parent_fwspec);
 }
 
@@ -174,7 +174,7 @@ static const struct irq_domain_ops exiu_domain_ops = {
 	.free		= irq_domain_free_irqs_common,
 };
 
-static struct exiu_irq_data *exiu_init(const struct fwnode_handle *fwnode,
+static struct exiu_irq_data *exiu_init(const struct fwyesde_handle *fwyesde,
 				       struct resource *res)
 {
 	struct exiu_irq_data *data;
@@ -184,7 +184,7 @@ static struct exiu_irq_data *exiu_init(const struct fwnode_handle *fwnode,
 	if (!data)
 		return ERR_PTR(-ENOMEM);
 
-	if (fwnode_property_read_u32_array(fwnode, "socionext,spi-base",
+	if (fwyesde_property_read_u32_array(fwyesde, "socionext,spi-base",
 					   &data->spi_base, 1)) {
 		err = -ENODEV;
 		goto out_free;
@@ -207,41 +207,41 @@ out_free:
 	return ERR_PTR(err);
 }
 
-static int __init exiu_dt_init(struct device_node *node,
-			       struct device_node *parent)
+static int __init exiu_dt_init(struct device_yesde *yesde,
+			       struct device_yesde *parent)
 {
 	struct irq_domain *parent_domain, *domain;
 	struct exiu_irq_data *data;
 	struct resource res;
 
 	if (!parent) {
-		pr_err("%pOF: no parent, giving up\n", node);
+		pr_err("%pOF: yes parent, giving up\n", yesde);
 		return -ENODEV;
 	}
 
 	parent_domain = irq_find_host(parent);
 	if (!parent_domain) {
-		pr_err("%pOF: unable to obtain parent domain\n", node);
+		pr_err("%pOF: unable to obtain parent domain\n", yesde);
 		return -ENXIO;
 	}
 
-	if (of_address_to_resource(node, 0, &res)) {
-		pr_err("%pOF: failed to parse memory resource\n", node);
+	if (of_address_to_resource(yesde, 0, &res)) {
+		pr_err("%pOF: failed to parse memory resource\n", yesde);
 		return -ENXIO;
 	}
 
-	data = exiu_init(of_node_to_fwnode(node), &res);
+	data = exiu_init(of_yesde_to_fwyesde(yesde), &res);
 	if (IS_ERR(data))
 		return PTR_ERR(data);
 
-	domain = irq_domain_add_hierarchy(parent_domain, 0, NUM_IRQS, node,
+	domain = irq_domain_add_hierarchy(parent_domain, 0, NUM_IRQS, yesde,
 					  &exiu_domain_ops, data);
 	if (!domain) {
-		pr_err("%pOF: failed to allocate domain\n", node);
+		pr_err("%pOF: failed to allocate domain\n", yesde);
 		goto out_unmap;
 	}
 
-	pr_info("%pOF: %d interrupts forwarded to %pOF\n", node, NUM_IRQS,
+	pr_info("%pOF: %d interrupts forwarded to %pOF\n", yesde, NUM_IRQS,
 		parent);
 
 	return 0;
@@ -266,11 +266,11 @@ static int exiu_acpi_probe(struct platform_device *pdev)
 		return -ENXIO;
 	}
 
-	data = exiu_init(dev_fwnode(&pdev->dev), res);
+	data = exiu_init(dev_fwyesde(&pdev->dev), res);
 	if (IS_ERR(data))
 		return PTR_ERR(data);
 
-	domain = acpi_irq_create_hierarchy(0, NUM_IRQS, dev_fwnode(&pdev->dev),
+	domain = acpi_irq_create_hierarchy(0, NUM_IRQS, dev_fwyesde(&pdev->dev),
 					   &exiu_domain_ops, data);
 	if (!domain) {
 		dev_err(&pdev->dev, "failed to create IRQ domain\n");

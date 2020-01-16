@@ -80,9 +80,9 @@ static char *sym_name(const struct sym_entry *s)
 	return (char *)s->sym + 1;
 }
 
-static bool is_ignored_symbol(const char *name, char type)
+static bool is_igyesred_symbol(const char *name, char type)
 {
-	static const char * const ignored_symbols[] = {
+	static const char * const igyesred_symbols[] = {
 		/*
 		 * Symbols which vary between passes. Passes 1 and 2 must have
 		 * identical symbol lists. The kallsyms_* symbols below are
@@ -104,7 +104,7 @@ static bool is_ignored_symbol(const char *name, char type)
 		NULL
 	};
 
-	static const char * const ignored_prefixes[] = {
+	static const char * const igyesred_prefixes[] = {
 		"$",			/* local symbols for ARM, MIPS, etc. */
 		".LASANPC",		/* s390 kasan local symbols */
 		"__crc_",		/* modversions */
@@ -112,7 +112,7 @@ static bool is_ignored_symbol(const char *name, char type)
 		NULL
 	};
 
-	static const char * const ignored_suffixes[] = {
+	static const char * const igyesred_suffixes[] = {
 		"_from_arm",		/* arm */
 		"_from_thumb",		/* arm */
 		"_veneer",		/* arm */
@@ -122,15 +122,15 @@ static bool is_ignored_symbol(const char *name, char type)
 	const char * const *p;
 
 	/* Exclude symbols which vary between passes. */
-	for (p = ignored_symbols; *p; p++)
+	for (p = igyesred_symbols; *p; p++)
 		if (!strcmp(name, *p))
 			return true;
 
-	for (p = ignored_prefixes; *p; p++)
+	for (p = igyesred_prefixes; *p; p++)
 		if (!strncmp(name, *p, strlen(*p)))
 			return true;
 
-	for (p = ignored_suffixes; *p; p++) {
+	for (p = igyesred_suffixes; *p; p++) {
 		int l = strlen(name) - strlen(*p);
 
 		if (l >= 0 && !strcmp(name + l, *p))
@@ -192,10 +192,10 @@ static int read_symbol(FILE *in, struct sym_entry *s)
 		return -1;
 	}
 
-	if (is_ignored_symbol(sym, stype))
+	if (is_igyesred_symbol(sym, stype))
 		return -1;
 
-	/* Ignore most absolute/undefined (?) symbols. */
+	/* Igyesre most absolute/undefined (?) symbols. */
 	if (strcmp(sym, "_text") == 0)
 		_text = s->addr;
 
@@ -239,7 +239,7 @@ static int symbol_valid(const struct sym_entry *s)
 {
 	const char *name = sym_name(s);
 
-	/* if --all-symbols is not specified, then symbols outside the text
+	/* if --all-symbols is yest specified, then symbols outside the text
 	 * and inittext sections are discarded */
 	if (!all_symbols) {
 		if (symbol_in_range(s, text_ranges,
@@ -278,7 +278,7 @@ static void shrink_table(void)
 	}
 	table_cnt = pos;
 
-	/* When valid symbol is not registered, exit to error */
+	/* When valid symbol is yest registered, exit to error */
 	if (!table_cnt) {
 		fprintf(stderr, "No valid symbol.\n");
 		exit(1);
@@ -333,7 +333,7 @@ static int expand_symbol(const unsigned char *data, int len, char *result)
 			*result++ = c;
 			total++;
 		} else {
-			/* if not, recurse and expand */
+			/* if yest, recurse and expand */
 			rlen = expand_symbol(best_table[c], best_table_len[c], result);
 			total += rlen;
 			result += rlen;
@@ -379,7 +379,7 @@ static void write_src(void)
 			/*
 			 * Use the offset relative to the lowest value
 			 * encountered of all relative symbols, and emit
-			 * non-relocatable fixed offsets that will be fixed
+			 * yesn-relocatable fixed offsets that will be fixed
 			 * up at runtime.
 			 */
 
@@ -580,7 +580,7 @@ static void optimize_result(void)
 	 * fast string functions */
 	for (i = 255; i >= 0; i--) {
 
-		/* if this table slot is empty (it is not used by an actual
+		/* if this table slot is empty (it is yest used by an actual
 		 * original char code */
 		if (!best_table_len[i]) {
 
@@ -716,7 +716,7 @@ static void make_percpus_absolute(void)
 		}
 }
 
-/* find the minimum non-absolute symbol address */
+/* find the minimum yesn-absolute symbol address */
 static void record_relative_base(void)
 {
 	unsigned int i;
@@ -725,7 +725,7 @@ static void record_relative_base(void)
 		if (!symbol_absolute(&table[i])) {
 			/*
 			 * The table is sorted by address.
-			 * Take the first non-absolute symbol value.
+			 * Take the first yesn-absolute symbol value.
 			 */
 			relative_base = table[i].addr;
 			return;

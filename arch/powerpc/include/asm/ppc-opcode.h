@@ -3,7 +3,7 @@
  * Copyright 2009 Freescale Semiconductor, Inc.
  *
  * provides masks and opcode images for use by code generation, emulation
- * and for instructions that older assemblers might not know about
+ * and for instructions that older assemblers might yest kyesw about
  */
 #ifndef _ASM_POWERPC_PPC_OPCODE_H
 #define _ASM_POWERPC_PPC_OPCODE_H
@@ -601,7 +601,7 @@
 /*
  * These may only be used on ISA v3.0 or later (aka. CPU_FTR_ARCH_300, radix
  * implies CPU_FTR_ARCH_300). USER/GUEST invalidates may only be used by radix
- * mode (on HPT these would also invalidate various SLBEs which may not be
+ * mode (on HPT these would also invalidate various SLBEs which may yest be
  * desired).
  */
 #define PPC_ISA_3_0_INVALIDATE_ERAT	PPC_SLBIA(7)

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 #include <linux/module.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/socket.h>
 #include <linux/skbuff.h>
 #include <linux/ip.h>
@@ -87,7 +87,7 @@ drop:
 
 static struct guehdr *gue_remcsum(struct sk_buff *skb, struct guehdr *guehdr,
 				  void *data, size_t hdrlen, u8 ipproto,
-				  bool nopartial)
+				  bool yespartial)
 {
 	__be16 *pd = data;
 	size_t start = ntohs(pd[0]);
@@ -103,7 +103,7 @@ static struct guehdr *gue_remcsum(struct sk_buff *skb, struct guehdr *guehdr,
 	guehdr = (struct guehdr *)&udp_hdr(skb)[1];
 
 	skb_remcsum_process(skb, (void *)guehdr + hdrlen,
-			    start, offset, nopartial);
+			    start, offset, yespartial);
 
 	return guehdr;
 }
@@ -183,7 +183,7 @@ static int gue_udp_recv(struct sock *sk, struct sk_buff *skb)
 		ipv6_hdr(skb)->payload_len =
 		    htons(ntohs(ipv6_hdr(skb)->payload_len) - len);
 
-	/* Pull csum through the guehdr now . This can be used if
+	/* Pull csum through the guehdr yesw . This can be used if
 	 * there is a remote checksum offload.
 	 */
 	skb_postpull_rcsum(skb, udp_hdr(skb), len);
@@ -287,7 +287,7 @@ out_unlock:
 static struct guehdr *gue_gro_remcsum(struct sk_buff *skb, unsigned int off,
 				      struct guehdr *guehdr, void *data,
 				      size_t hdrlen, struct gro_remcsum *grc,
-				      bool nopartial)
+				      bool yespartial)
 {
 	__be16 *pd = data;
 	size_t start = ntohs(pd[0]);
@@ -300,7 +300,7 @@ static struct guehdr *gue_gro_remcsum(struct sk_buff *skb, unsigned int off,
 		return NULL;
 
 	guehdr = skb_gro_remcsum_process(skb, (void *)guehdr, off, hdrlen,
-					 start, offset, grc, nopartial);
+					 start, offset, grc, yespartial);
 
 	skb->remcsum_offload = 1;
 

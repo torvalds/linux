@@ -93,7 +93,7 @@ retry:
 			DART_OUT(DART_CNTL, reg);
 			goto retry;
 		} else
-			panic("DART: TLB did not flush after waiting a long "
+			panic("DART: TLB did yest flush after waiting a long "
 			      "time. Buggy U3 ?");
 	}
 
@@ -125,7 +125,7 @@ wait_more:
 			limit++;
 			goto wait_more;
 		} else
-			panic("DART: TLB did not flush after waiting a long "
+			panic("DART: TLB did yest flush after waiting a long "
 			      "time. Buggy U4 ?");
 	}
 
@@ -212,8 +212,8 @@ static void dart_free(struct iommu_table *tbl, long index, long npages)
 	long orig_npages = npages;
 
 	/* We don't worry about flushing the TLB cache. The only drawback of
-	 * not doing it is that we won't catch buggy device drivers doing
-	 * bad DMAs, but then no 32-bit architecture ever does either.
+	 * yest doing it is that we won't catch buggy device drivers doing
+	 * bad DMAs, but then yes 32-bit architecture ever does either.
 	 */
 
 	DBG("dart: free at: %lx, %lx\n", index, npages);
@@ -243,8 +243,8 @@ static void allocate_dart(void)
 	if (!dart_tablebase)
 		panic("Failed to allocate 16MB below 2GB for DART table\n");
 
-	/* There is no point scanning the DART space for leaks*/
-	kmemleak_no_scan((void *)dart_tablebase);
+	/* There is yes point scanning the DART space for leaks*/
+	kmemleak_yes_scan((void *)dart_tablebase);
 
 	/* Allocate a spare page to map all invalid DART pages. We need to do
 	 * that to work around what looks like a problem with the HT bridge
@@ -260,7 +260,7 @@ static void allocate_dart(void)
 	printk(KERN_INFO "DART table allocated at: %p\n", dart_tablebase);
 }
 
-static int __init dart_init(struct device_node *dart_node)
+static int __init dart_init(struct device_yesde *dart_yesde)
 {
 	unsigned int i;
 	unsigned long base, size;
@@ -282,13 +282,13 @@ static int __init dart_init(struct device_node *dart_node)
 		return -ENODEV;
 
 	/* Get DART registers */
-	if (of_address_to_resource(dart_node, 0, &r))
+	if (of_address_to_resource(dart_yesde, 0, &r))
 		panic("DART: can't get register base ! ");
 
 	/* Map in DART registers */
 	dart = ioremap(r.start, resource_size(&r));
 	if (dart == NULL)
-		panic("DART: Cannot map registers!");
+		panic("DART: Canyest map registers!");
 
 	/* Allocate the DART and dummy page */
 	allocate_dart();
@@ -333,7 +333,7 @@ static struct iommu_table_ops iommu_dart_ops = {
 
 static void iommu_table_dart_setup(void)
 {
-	iommu_table_dart.it_busno = 0;
+	iommu_table_dart.it_busyes = 0;
 	iommu_table_dart.it_offset = 0;
 	/* it_size is in number of entries */
 	iommu_table_dart.it_size = dart_tablesize / sizeof(u32);
@@ -362,12 +362,12 @@ static void pci_dma_bus_setup_dart(struct pci_bus *bus)
 
 static bool dart_device_on_pcie(struct device *dev)
 {
-	struct device_node *np = of_node_get(dev->of_node);
+	struct device_yesde *np = of_yesde_get(dev->of_yesde);
 
 	while(np) {
 		if (of_device_is_compatible(np, "U4-pcie") ||
 		    of_device_is_compatible(np, "u4-pcie")) {
-			of_node_put(np);
+			of_yesde_put(np);
 			return true;
 		}
 		np = of_get_next_parent(np);
@@ -391,12 +391,12 @@ static bool iommu_bypass_supported_dart(struct pci_dev *dev, u64 mask)
 
 void __init iommu_init_early_dart(struct pci_controller_ops *controller_ops)
 {
-	struct device_node *dn;
+	struct device_yesde *dn;
 
 	/* Find the DART in the device-tree */
-	dn = of_find_compatible_node(NULL, "dart", "u3-dart");
+	dn = of_find_compatible_yesde(NULL, "dart", "u3-dart");
 	if (dn == NULL) {
-		dn = of_find_compatible_node(NULL, "dart", "u4-dart");
+		dn = of_find_compatible_yesde(NULL, "dart", "u4-dart");
 		if (dn == NULL)
 			return;	/* use default direct_dma_ops */
 		dart_is_u4 = 1;
@@ -409,7 +409,7 @@ void __init iommu_init_early_dart(struct pci_controller_ops *controller_ops)
 	/*
 	 * U4 supports a DART bypass, we use it for 64-bit capable devices to
 	 * improve performance.  However, that only works for devices connected
-	 * to the U4 own PCIe interface, not bridged through hypertransport.
+	 * to the U4 own PCIe interface, yest bridged through hypertransport.
 	 * We need the device to support at least 40 bits of addresses.
 	 */
 	controller_ops->dma_dev_setup = pci_dma_dev_setup_dart;

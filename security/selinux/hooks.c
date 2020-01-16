@@ -9,7 +9,7 @@
  *	      Wayne Salamon, <wsalamon@nai.com>
  *	      James Morris <jmorris@redhat.com>
  *
- *  Copyright (C) 2001,2002 Networks Associates Technology, Inc.
+ *  Copyright (C) 2001,2002 Networks Associates Techyeslogy, Inc.
  *  Copyright (C) 2003-2008 Red Hat, Inc., James Morris <jmorris@redhat.com>
  *					   Eric Paris <eparis@redhat.com>
  *  Copyright (C) 2004-2005 Trusted Computer Solutions, Inc.
@@ -18,14 +18,14 @@
  *	Paul Moore <paul@paul-moore.com>
  *  Copyright (C) 2007 Hitachi Software Engineering Co., Ltd.
  *		       Yuichi Nakamura <ynakam@hitachisoft.jp>
- *  Copyright (C) 2016 Mellanox Technologies
+ *  Copyright (C) 2016 Mellayesx Techyeslogies
  */
 
 #include <linux/init.h>
 #include <linux/kd.h>
 #include <linux/kernel.h>
 #include <linux/tracehook.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/sched/signal.h>
 #include <linux/sched/task.h>
 #include <linux/lsm_hooks.h>
@@ -89,13 +89,13 @@
 #include <linux/kernfs.h>
 #include <linux/stringhash.h>	/* for hashlen_string() */
 #include <uapi/linux/mount.h>
-#include <linux/fsnotify.h>
-#include <linux/fanotify.h>
+#include <linux/fsyestify.h>
+#include <linux/fayestify.h>
 
 #include "avc.h"
 #include "objsec.h"
 #include "netif.h"
-#include "netnode.h"
+#include "netyesde.h"
 #include "netport.h"
 #include "ibpkey.h"
 #include "xfrm.h"
@@ -185,18 +185,18 @@ static int selinux_netcache_avc_callback(u32 event)
 {
 	if (event == AVC_CALLBACK_RESET) {
 		sel_netif_flush();
-		sel_netnode_flush();
+		sel_netyesde_flush();
 		sel_netport_flush();
 		synchronize_net();
 	}
 	return 0;
 }
 
-static int selinux_lsm_notifier_avc_callback(u32 event)
+static int selinux_lsm_yestifier_avc_callback(u32 event)
 {
 	if (event == AVC_CALLBACK_RESET) {
 		sel_ib_pkey_flush();
-		call_blocking_lsm_notifier(LSM_POLICY_CHANGE, NULL);
+		call_blocking_lsm_yestifier(LSM_POLICY_CHANGE, NULL);
 	}
 
 	return 0;
@@ -240,14 +240,14 @@ static inline u32 task_sid(const struct task_struct *task)
 
 /* Allocate and free functions for each kind of security blob. */
 
-static int inode_alloc_security(struct inode *inode)
+static int iyesde_alloc_security(struct iyesde *iyesde)
 {
-	struct inode_security_struct *isec = selinux_inode(inode);
+	struct iyesde_security_struct *isec = selinux_iyesde(iyesde);
 	u32 sid = current_sid();
 
 	spin_lock_init(&isec->lock);
 	INIT_LIST_HEAD(&isec->list);
-	isec->inode = inode;
+	isec->iyesde = iyesde;
 	isec->sid = SECINITSID_UNLABELED;
 	isec->sclass = SECCLASS_FILE;
 	isec->task_sid = sid;
@@ -256,19 +256,19 @@ static int inode_alloc_security(struct inode *inode)
 	return 0;
 }
 
-static int inode_doinit_with_dentry(struct inode *inode, struct dentry *opt_dentry);
+static int iyesde_doinit_with_dentry(struct iyesde *iyesde, struct dentry *opt_dentry);
 
 /*
- * Try reloading inode security labels that have been marked as invalid.  The
+ * Try reloading iyesde security labels that have been marked as invalid.  The
  * @may_sleep parameter indicates when sleeping and thus reloading labels is
  * allowed; when set to false, returns -ECHILD when the label is
- * invalid.  The @dentry parameter should be set to a dentry of the inode.
+ * invalid.  The @dentry parameter should be set to a dentry of the iyesde.
  */
-static int __inode_security_revalidate(struct inode *inode,
+static int __iyesde_security_revalidate(struct iyesde *iyesde,
 				       struct dentry *dentry,
 				       bool may_sleep)
 {
-	struct inode_security_struct *isec = selinux_inode(inode);
+	struct iyesde_security_struct *isec = selinux_iyesde(iyesde);
 
 	might_sleep_if(may_sleep);
 
@@ -278,72 +278,72 @@ static int __inode_security_revalidate(struct inode *inode,
 			return -ECHILD;
 
 		/*
-		 * Try reloading the inode security label.  This will fail if
-		 * @opt_dentry is NULL and no dentry for this inode can be
+		 * Try reloading the iyesde security label.  This will fail if
+		 * @opt_dentry is NULL and yes dentry for this iyesde can be
 		 * found; in that case, continue using the old label.
 		 */
-		inode_doinit_with_dentry(inode, dentry);
+		iyesde_doinit_with_dentry(iyesde, dentry);
 	}
 	return 0;
 }
 
-static struct inode_security_struct *inode_security_novalidate(struct inode *inode)
+static struct iyesde_security_struct *iyesde_security_yesvalidate(struct iyesde *iyesde)
 {
-	return selinux_inode(inode);
+	return selinux_iyesde(iyesde);
 }
 
-static struct inode_security_struct *inode_security_rcu(struct inode *inode, bool rcu)
+static struct iyesde_security_struct *iyesde_security_rcu(struct iyesde *iyesde, bool rcu)
 {
 	int error;
 
-	error = __inode_security_revalidate(inode, NULL, !rcu);
+	error = __iyesde_security_revalidate(iyesde, NULL, !rcu);
 	if (error)
 		return ERR_PTR(error);
-	return selinux_inode(inode);
+	return selinux_iyesde(iyesde);
 }
 
 /*
- * Get the security label of an inode.
+ * Get the security label of an iyesde.
  */
-static struct inode_security_struct *inode_security(struct inode *inode)
+static struct iyesde_security_struct *iyesde_security(struct iyesde *iyesde)
 {
-	__inode_security_revalidate(inode, NULL, true);
-	return selinux_inode(inode);
+	__iyesde_security_revalidate(iyesde, NULL, true);
+	return selinux_iyesde(iyesde);
 }
 
-static struct inode_security_struct *backing_inode_security_novalidate(struct dentry *dentry)
+static struct iyesde_security_struct *backing_iyesde_security_yesvalidate(struct dentry *dentry)
 {
-	struct inode *inode = d_backing_inode(dentry);
+	struct iyesde *iyesde = d_backing_iyesde(dentry);
 
-	return selinux_inode(inode);
+	return selinux_iyesde(iyesde);
 }
 
 /*
- * Get the security label of a dentry's backing inode.
+ * Get the security label of a dentry's backing iyesde.
  */
-static struct inode_security_struct *backing_inode_security(struct dentry *dentry)
+static struct iyesde_security_struct *backing_iyesde_security(struct dentry *dentry)
 {
-	struct inode *inode = d_backing_inode(dentry);
+	struct iyesde *iyesde = d_backing_iyesde(dentry);
 
-	__inode_security_revalidate(inode, dentry, true);
-	return selinux_inode(inode);
+	__iyesde_security_revalidate(iyesde, dentry, true);
+	return selinux_iyesde(iyesde);
 }
 
-static void inode_free_security(struct inode *inode)
+static void iyesde_free_security(struct iyesde *iyesde)
 {
-	struct inode_security_struct *isec = selinux_inode(inode);
+	struct iyesde_security_struct *isec = selinux_iyesde(iyesde);
 	struct superblock_security_struct *sbsec;
 
 	if (!isec)
 		return;
-	sbsec = inode->i_sb->s_security;
+	sbsec = iyesde->i_sb->s_security;
 	/*
-	 * As not all inode security structures are in a list, we check for
+	 * As yest all iyesde security structures are in a list, we check for
 	 * empty list outside of the lock to make sure that we won't waste
-	 * time taking a lock doing nothing.
+	 * time taking a lock doing yesthing.
 	 *
 	 * The list_del_init() function can be safely called more than once.
-	 * It should not be possible for this function to be called with
+	 * It should yest be possible for this function to be called with
 	 * concurrent list_add(), but for better safety against future changes
 	 * in the code, we use list_empty_careful() here.
 	 */
@@ -406,9 +406,9 @@ static void selinux_free_mnt_opts(void *mnt_opts)
 	kfree(opts);
 }
 
-static inline int inode_doinit(struct inode *inode)
+static inline int iyesde_doinit(struct iyesde *iyesde)
 {
-	return inode_doinit_with_dentry(inode, NULL);
+	return iyesde_doinit_with_dentry(iyesde, NULL);
 }
 
 enum {
@@ -475,7 +475,7 @@ static int may_context_mount_sb_relabel(u32 sid,
 	return rc;
 }
 
-static int may_context_mount_inode_relabel(u32 sid,
+static int may_context_mount_iyesde_relabel(u32 sid,
 			struct superblock_security_struct *sbsec,
 			const struct cred *cred)
 {
@@ -538,31 +538,31 @@ static int sb_finish_set_opts(struct super_block *sb)
 {
 	struct superblock_security_struct *sbsec = sb->s_security;
 	struct dentry *root = sb->s_root;
-	struct inode *root_inode = d_backing_inode(root);
+	struct iyesde *root_iyesde = d_backing_iyesde(root);
 	int rc = 0;
 
 	if (sbsec->behavior == SECURITY_FS_USE_XATTR) {
-		/* Make sure that the xattr handler exists and that no
+		/* Make sure that the xattr handler exists and that yes
 		   error other than -ENODATA is returned by getxattr on
 		   the root directory.  -ENODATA is ok, as this may be
 		   the first boot of the SELinux kernel before we have
 		   assigned xattr values to the filesystem. */
-		if (!(root_inode->i_opflags & IOP_XATTR)) {
-			pr_warn("SELinux: (dev %s, type %s) has no "
+		if (!(root_iyesde->i_opflags & IOP_XATTR)) {
+			pr_warn("SELinux: (dev %s, type %s) has yes "
 			       "xattr support\n", sb->s_id, sb->s_type->name);
 			rc = -EOPNOTSUPP;
 			goto out;
 		}
 
-		rc = __vfs_getxattr(root, root_inode, XATTR_NAME_SELINUX, NULL, 0);
+		rc = __vfs_getxattr(root, root_iyesde, XATTR_NAME_SELINUX, NULL, 0);
 		if (rc < 0 && rc != -ENODATA) {
 			if (rc == -EOPNOTSUPP)
 				pr_warn("SELinux: (dev %s, type "
-				       "%s) has no security xattr handler\n",
+				       "%s) has yes security xattr handler\n",
 				       sb->s_id, sb->s_type->name);
 			else
 				pr_warn("SELinux: (dev %s, type "
-				       "%s) getxattr errno %d\n", sb->s_id,
+				       "%s) getxattr erryes %d\n", sb->s_id,
 				       sb->s_type->name, -rc);
 			goto out;
 		}
@@ -571,7 +571,7 @@ static int sb_finish_set_opts(struct super_block *sb)
 	sbsec->flags |= SE_SBINITIALIZED;
 
 	/*
-	 * Explicitly set or clear SBLABEL_MNT.  It's not sufficient to simply
+	 * Explicitly set or clear SBLABEL_MNT.  It's yest sufficient to simply
 	 * leave the flag untouched because sb_clone_mnt_opts might be handing
 	 * us a superblock that needs the flag to be cleared.
 	 */
@@ -580,26 +580,26 @@ static int sb_finish_set_opts(struct super_block *sb)
 	else
 		sbsec->flags &= ~SBLABEL_MNT;
 
-	/* Initialize the root inode. */
-	rc = inode_doinit_with_dentry(root_inode, root);
+	/* Initialize the root iyesde. */
+	rc = iyesde_doinit_with_dentry(root_iyesde, root);
 
-	/* Initialize any other inodes associated with the superblock, e.g.
-	   inodes created prior to initial policy load or inodes created
+	/* Initialize any other iyesdes associated with the superblock, e.g.
+	   iyesdes created prior to initial policy load or iyesdes created
 	   during get_sb by a pseudo filesystem that directly
 	   populates itself. */
 	spin_lock(&sbsec->isec_lock);
 	while (!list_empty(&sbsec->isec_head)) {
-		struct inode_security_struct *isec =
+		struct iyesde_security_struct *isec =
 				list_first_entry(&sbsec->isec_head,
-					   struct inode_security_struct, list);
-		struct inode *inode = isec->inode;
+					   struct iyesde_security_struct, list);
+		struct iyesde *iyesde = isec->iyesde;
 		list_del_init(&isec->list);
 		spin_unlock(&sbsec->isec_lock);
-		inode = igrab(inode);
-		if (inode) {
-			if (!IS_PRIVATE(inode))
-				inode_doinit(inode);
-			iput(inode);
+		iyesde = igrab(iyesde);
+		if (iyesde) {
+			if (!IS_PRIVATE(iyesde))
+				iyesde_doinit(iyesde);
+			iput(iyesde);
 		}
 		spin_lock(&sbsec->isec_lock);
 	}
@@ -634,7 +634,7 @@ static int parse_sid(struct super_block *sb, const char *s, u32 *sid)
 					     sid, GFP_KERNEL);
 	if (rc)
 		pr_warn("SELinux: security_context_str_to_sid"
-		       "(%s) failed for (dev %s, type %s) errno=%d\n",
+		       "(%s) failed for (dev %s, type %s) erryes=%d\n",
 		       s, sb->s_id, sb->s_type->name, rc);
 	return rc;
 }
@@ -652,7 +652,7 @@ static int selinux_set_mnt_opts(struct super_block *sb,
 	struct superblock_security_struct *sbsec = sb->s_security;
 	struct dentry *root = sbsec->sb->s_root;
 	struct selinux_mnt_opts *opts = mnt_opts;
-	struct inode_security_struct *root_isec;
+	struct iyesde_security_struct *root_isec;
 	u32 fscontext_sid = 0, context_sid = 0, rootcontext_sid = 0;
 	u32 defcontext_sid = 0;
 	int rc = 0;
@@ -673,7 +673,7 @@ static int selinux_set_mnt_opts(struct super_block *sb,
 	}
 	if (kern_flags && !set_kern_flags) {
 		/* Specifying internal flags without providing a place to
-		 * place the results is not allowed */
+		 * place the results is yest allowed */
 		rc = -EINVAL;
 		goto out;
 	}
@@ -681,19 +681,19 @@ static int selinux_set_mnt_opts(struct super_block *sb,
 	/*
 	 * Binary mount data FS will come through this function twice.  Once
 	 * from an explicit call and once from the generic calls from the vfs.
-	 * Since the generic VFS calls will not contain any security mount data
+	 * Since the generic VFS calls will yest contain any security mount data
 	 * we need to skip the double mount verification.
 	 *
-	 * This does open a hole in which we will not notice if the first
+	 * This does open a hole in which we will yest yestice if the first
 	 * mount using this sb set explict options and a second mount using
-	 * this sb does not set any security options.  (The first options
+	 * this sb does yest set any security options.  (The first options
 	 * will be used for both mounts)
 	 */
 	if ((sbsec->flags & SE_SBINITIALIZED) && (sb->s_type->fs_flags & FS_BINARY_MOUNTDATA)
 	    && !opts)
 		goto out;
 
-	root_isec = backing_inode_security_novalidate(root);
+	root_isec = backing_iyesde_security_yesvalidate(root);
 
 	/*
 	 * parse the mount options, check if they are valid sids.
@@ -740,7 +740,7 @@ static int selinux_set_mnt_opts(struct super_block *sb,
 	}
 
 	if (sbsec->flags & SE_SBINITIALIZED) {
-		/* previously mounted with options, but not on this attempt? */
+		/* previously mounted with options, but yest on this attempt? */
 		if ((sbsec->flags & SE_MNTMASK) && !opts)
 			goto out_double_mount;
 		rc = 0;
@@ -774,9 +774,9 @@ static int selinux_set_mnt_opts(struct super_block *sb,
 	}
 
 	/*
-	 * If this is a user namespace mount and the filesystem type is not
-	 * explicitly whitelisted, then no contexts are allowed on the command
-	 * line and security labels must be ignored.
+	 * If this is a user namespace mount and the filesystem type is yest
+	 * explicitly whitelisted, then yes contexts are allowed on the command
+	 * line and security labels must be igyesred.
 	 */
 	if (sb->s_user_ns != &init_user_ns &&
 	    strcmp(sb->s_type->name, "tmpfs") &&
@@ -812,7 +812,7 @@ static int selinux_set_mnt_opts(struct super_block *sb,
 	/*
 	 * Switch to using mount point labeling behavior.
 	 * sets the label used on all file below the mountpoint, and will set
-	 * the superblock context if not already set.
+	 * the superblock context if yest already set.
 	 */
 	if (kern_flags & SECURITY_LSM_NATIVE_LABELS && !context_sid) {
 		sbsec->behavior = SECURITY_FS_USE_NATIVE;
@@ -827,7 +827,7 @@ static int selinux_set_mnt_opts(struct super_block *sb,
 				goto out;
 			sbsec->sid = context_sid;
 		} else {
-			rc = may_context_mount_inode_relabel(context_sid, sbsec,
+			rc = may_context_mount_iyesde_relabel(context_sid, sbsec,
 							     cred);
 			if (rc)
 				goto out;
@@ -840,7 +840,7 @@ static int selinux_set_mnt_opts(struct super_block *sb,
 	}
 
 	if (rootcontext_sid) {
-		rc = may_context_mount_inode_relabel(rootcontext_sid, sbsec,
+		rc = may_context_mount_iyesde_relabel(rootcontext_sid, sbsec,
 						     cred);
 		if (rc)
 			goto out;
@@ -859,7 +859,7 @@ static int selinux_set_mnt_opts(struct super_block *sb,
 		}
 
 		if (defcontext_sid != sbsec->def_sid) {
-			rc = may_context_mount_inode_relabel(defcontext_sid,
+			rc = may_context_mount_iyesde_relabel(defcontext_sid,
 							     sbsec, cred);
 			if (rc)
 				goto out;
@@ -898,8 +898,8 @@ static int selinux_cmp_sb_context(const struct super_block *oldsb,
 	if ((oldflags & DEFCONTEXT_MNT) && old->def_sid != new->def_sid)
 		goto mismatch;
 	if (oldflags & ROOTCONTEXT_MNT) {
-		struct inode_security_struct *oldroot = backing_inode_security(oldsb->s_root);
-		struct inode_security_struct *newroot = backing_inode_security(newsb->s_root);
+		struct iyesde_security_struct *oldroot = backing_iyesde_security(oldsb->s_root);
+		struct iyesde_security_struct *newroot = backing_iyesde_security(newsb->s_root);
 		if (oldroot->sid != newroot->sid)
 			goto mismatch;
 	}
@@ -925,7 +925,7 @@ static int selinux_sb_clone_mnt_opts(const struct super_block *oldsb,
 	int set_rootcontext =	(oldsbsec->flags & ROOTCONTEXT_MNT);
 
 	/*
-	 * if the parent was able to be mounted it clearly had no special lsm
+	 * if the parent was able to be mounted it clearly had yes special lsm
 	 * mount options.  thus we can safely deal with this superblock later
 	 */
 	if (!selinux_state.initialized)
@@ -933,7 +933,7 @@ static int selinux_sb_clone_mnt_opts(const struct super_block *oldsb,
 
 	/*
 	 * Specifying internal flags without providing a place to
-	 * place the results is not allowed.
+	 * place the results is yest allowed.
 	 */
 	if (kern_flags && !set_kern_flags)
 		return -EINVAL;
@@ -974,14 +974,14 @@ static int selinux_sb_clone_mnt_opts(const struct super_block *oldsb,
 		if (!set_fscontext)
 			newsbsec->sid = sid;
 		if (!set_rootcontext) {
-			struct inode_security_struct *newisec = backing_inode_security(newsb->s_root);
+			struct iyesde_security_struct *newisec = backing_iyesde_security(newsb->s_root);
 			newisec->sid = sid;
 		}
 		newsbsec->mntpoint_sid = sid;
 	}
 	if (set_rootcontext) {
-		const struct inode_security_struct *oldisec = backing_inode_security(oldsb->s_root);
-		struct inode_security_struct *newisec = backing_inode_security(newsb->s_root);
+		const struct iyesde_security_struct *oldisec = backing_iyesde_security(oldsb->s_root);
+		struct iyesde_security_struct *newisec = backing_iyesde_security(newsb->s_root);
 
 		newisec->sid = oldisec->sid;
 	}
@@ -996,7 +996,7 @@ static int selinux_add_opt(int token, const char *s, void **mnt_opts)
 {
 	struct selinux_mnt_opts *opts = *mnt_opts;
 
-	if (token == Opt_seclabel)	/* eaten and completely ignored */
+	if (token == Opt_seclabel)	/* eaten and completely igyesred */
 		return 0;
 
 	if (!opts) {
@@ -1129,7 +1129,7 @@ static int selinux_sb_show_options(struct seq_file *m, struct super_block *sb)
 	}
 	if (sbsec->flags & ROOTCONTEXT_MNT) {
 		struct dentry *root = sbsec->sb->s_root;
-		struct inode_security_struct *isec = backing_inode_security(root);
+		struct iyesde_security_struct *isec = backing_iyesde_security(root);
 		seq_putc(m, ',');
 		seq_puts(m, ROOTCONTEXT_STR);
 		rc = show_sid(m, isec->sid);
@@ -1143,7 +1143,7 @@ static int selinux_sb_show_options(struct seq_file *m, struct super_block *sb)
 	return 0;
 }
 
-static inline u16 inode_mode_to_security_class(umode_t mode)
+static inline u16 iyesde_mode_to_security_class(umode_t mode)
 {
 	switch (mode & S_IFMT) {
 	case S_IFSOCK:
@@ -1366,7 +1366,7 @@ static int selinux_genfs_get_sid(struct dentry *dentry,
 	return rc;
 }
 
-static int inode_doinit_use_xattr(struct inode *inode, struct dentry *dentry,
+static int iyesde_doinit_use_xattr(struct iyesde *iyesde, struct dentry *dentry,
 				  u32 def_sid, u32 *sid)
 {
 #define INITCONTEXTLEN 255
@@ -1380,12 +1380,12 @@ static int inode_doinit_use_xattr(struct inode *inode, struct dentry *dentry,
 		return -ENOMEM;
 
 	context[len] = '\0';
-	rc = __vfs_getxattr(dentry, inode, XATTR_NAME_SELINUX, context, len);
+	rc = __vfs_getxattr(dentry, iyesde, XATTR_NAME_SELINUX, context, len);
 	if (rc == -ERANGE) {
 		kfree(context);
 
 		/* Need a larger buffer.  Query for the right size. */
-		rc = __vfs_getxattr(dentry, inode, XATTR_NAME_SELINUX, NULL, 0);
+		rc = __vfs_getxattr(dentry, iyesde, XATTR_NAME_SELINUX, NULL, 0);
 		if (rc < 0)
 			return rc;
 
@@ -1395,14 +1395,14 @@ static int inode_doinit_use_xattr(struct inode *inode, struct dentry *dentry,
 			return -ENOMEM;
 
 		context[len] = '\0';
-		rc = __vfs_getxattr(dentry, inode, XATTR_NAME_SELINUX,
+		rc = __vfs_getxattr(dentry, iyesde, XATTR_NAME_SELINUX,
 				    context, len);
 	}
 	if (rc < 0) {
 		kfree(context);
 		if (rc != -ENODATA) {
-			pr_warn("SELinux: %s:  getxattr returned %d for dev=%s ino=%ld\n",
-				__func__, -rc, inode->i_sb->s_id, inode->i_ino);
+			pr_warn("SELinux: %s:  getxattr returned %d for dev=%s iyes=%ld\n",
+				__func__, -rc, iyesde->i_sb->s_id, iyesde->i_iyes);
 			return rc;
 		}
 		*sid = def_sid;
@@ -1412,26 +1412,26 @@ static int inode_doinit_use_xattr(struct inode *inode, struct dentry *dentry,
 	rc = security_context_to_sid_default(&selinux_state, context, rc, sid,
 					     def_sid, GFP_NOFS);
 	if (rc) {
-		char *dev = inode->i_sb->s_id;
-		unsigned long ino = inode->i_ino;
+		char *dev = iyesde->i_sb->s_id;
+		unsigned long iyes = iyesde->i_iyes;
 
 		if (rc == -EINVAL) {
-			pr_notice_ratelimited("SELinux: inode=%lu on dev=%s was found to have an invalid context=%s.  This indicates you may need to relabel the inode or the filesystem in question.\n",
-					      ino, dev, context);
+			pr_yestice_ratelimited("SELinux: iyesde=%lu on dev=%s was found to have an invalid context=%s.  This indicates you may need to relabel the iyesde or the filesystem in question.\n",
+					      iyes, dev, context);
 		} else {
-			pr_warn("SELinux: %s:  context_to_sid(%s) returned %d for dev=%s ino=%ld\n",
-				__func__, context, -rc, dev, ino);
+			pr_warn("SELinux: %s:  context_to_sid(%s) returned %d for dev=%s iyes=%ld\n",
+				__func__, context, -rc, dev, iyes);
 		}
 	}
 	kfree(context);
 	return 0;
 }
 
-/* The inode's security attributes must be initialized before first use. */
-static int inode_doinit_with_dentry(struct inode *inode, struct dentry *opt_dentry)
+/* The iyesde's security attributes must be initialized before first use. */
+static int iyesde_doinit_with_dentry(struct iyesde *iyesde, struct dentry *opt_dentry)
 {
 	struct superblock_security_struct *sbsec = NULL;
-	struct inode_security_struct *isec = selinux_inode(inode);
+	struct iyesde_security_struct *isec = selinux_iyesde(iyesde);
 	u32 task_sid, sid = 0;
 	u16 sclass;
 	struct dentry *dentry;
@@ -1445,9 +1445,9 @@ static int inode_doinit_with_dentry(struct inode *inode, struct dentry *opt_dent
 		goto out_unlock;
 
 	if (isec->sclass == SECCLASS_FILE)
-		isec->sclass = inode_mode_to_security_class(inode->i_mode);
+		isec->sclass = iyesde_mode_to_security_class(iyesde->i_mode);
 
-	sbsec = inode->i_sb->s_security;
+	sbsec = iyesde->i_sb->s_security;
 	if (!(sbsec->flags & SE_SBINITIALIZED)) {
 		/* Defer initialization until selinux_complete_init,
 		   after the initial policy is loaded and the security
@@ -1469,12 +1469,12 @@ static int inode_doinit_with_dentry(struct inode *inode, struct dentry *opt_dent
 	case SECURITY_FS_USE_NATIVE:
 		break;
 	case SECURITY_FS_USE_XATTR:
-		if (!(inode->i_opflags & IOP_XATTR)) {
+		if (!(iyesde->i_opflags & IOP_XATTR)) {
 			sid = sbsec->def_sid;
 			break;
 		}
 		/* Need a dentry, since the xattr API requires one.
-		   Life would be simpler if we could just pass the inode. */
+		   Life would be simpler if we could just pass the iyesde. */
 		if (opt_dentry) {
 			/* Called from d_instantiate or d_splice_alias. */
 			dentry = dget(opt_dentry);
@@ -1485,24 +1485,24 @@ static int inode_doinit_with_dentry(struct inode *inode, struct dentry *opt_dent
 			 * that first.  We could split SECURITY_FS_USE_XATTR in
 			 * two, depending upon that...
 			 */
-			dentry = d_find_alias(inode);
+			dentry = d_find_alias(iyesde);
 			if (!dentry)
-				dentry = d_find_any_alias(inode);
+				dentry = d_find_any_alias(iyesde);
 		}
 		if (!dentry) {
 			/*
 			 * this is can be hit on boot when a file is accessed
 			 * before the policy is loaded.  When we load policy we
-			 * may find inodes that have no dentry on the
+			 * may find iyesdes that have yes dentry on the
 			 * sbsec->isec_head list.  No reason to complain as these
 			 * will get fixed up the next time we go through
-			 * inode_doinit with a dentry, before these inodes could
+			 * iyesde_doinit with a dentry, before these iyesdes could
 			 * be used again by userspace.
 			 */
 			goto out;
 		}
 
-		rc = inode_doinit_use_xattr(inode, dentry, sbsec->def_sid,
+		rc = iyesde_doinit_use_xattr(iyesde, dentry, sbsec->def_sid,
 					    &sid);
 		dput(dentry);
 		if (rc)
@@ -1528,9 +1528,9 @@ static int inode_doinit_with_dentry(struct inode *inode, struct dentry *opt_dent
 		/* Default to the fs superblock SID. */
 		sid = sbsec->sid;
 
-		if ((sbsec->flags & SE_SBGENFS) && !S_ISLNK(inode->i_mode)) {
+		if ((sbsec->flags & SE_SBGENFS) && !S_ISLNK(iyesde->i_mode)) {
 			/* We must have a dentry to determine the label on
-			 * procfs inodes */
+			 * procfs iyesdes */
 			if (opt_dentry) {
 				/* Called from d_instantiate or
 				 * d_splice_alias. */
@@ -1540,17 +1540,17 @@ static int inode_doinit_with_dentry(struct inode *inode, struct dentry *opt_dent
 				 * find a dentry.  Some filesystems really want
 				 * a connected one, so try that first.
 				 */
-				dentry = d_find_alias(inode);
+				dentry = d_find_alias(iyesde);
 				if (!dentry)
-					dentry = d_find_any_alias(inode);
+					dentry = d_find_any_alias(iyesde);
 			}
 			/*
 			 * This can be hit on boot when a file is accessed
 			 * before the policy is loaded.  When we load policy we
-			 * may find inodes that have no dentry on the
+			 * may find iyesdes that have yes dentry on the
 			 * sbsec->isec_head list.  No reason to complain as
 			 * these will get fixed up the next time we go through
-			 * inode_doinit() with a dentry, before these inodes
+			 * iyesde_doinit() with a dentry, before these iyesdes
 			 * could be used again by userspace.
 			 */
 			if (!dentry)
@@ -1563,8 +1563,8 @@ static int inode_doinit_with_dentry(struct inode *inode, struct dentry *opt_dent
 			}
 
 			if ((sbsec->flags & SE_SBGENFS_XATTR) &&
-			    (inode->i_opflags & IOP_XATTR)) {
-				rc = inode_doinit_use_xattr(inode, dentry,
+			    (iyesde->i_opflags & IOP_XATTR)) {
+				rc = iyesde_doinit_use_xattr(iyesde, dentry,
 							    sid, &sid);
 				if (rc) {
 					dput(dentry);
@@ -1604,11 +1604,11 @@ static inline u32 signal_to_av(int sig)
 		perm = PROCESS__SIGCHLD;
 		break;
 	case SIGKILL:
-		/* Cannot be caught or ignored */
+		/* Canyest be caught or igyesred */
 		perm = PROCESS__SIGKILL;
 		break;
 	case SIGSTOP:
-		/* Cannot be caught or ignored */
+		/* Canyest be caught or igyesred */
 		perm = PROCESS__SIGSTOP;
 		break;
 	default:
@@ -1651,7 +1651,7 @@ static int cred_has_capability(const struct cred *cred,
 		return -EINVAL;
 	}
 
-	rc = avc_has_perm_noaudit(&selinux_state,
+	rc = avc_has_perm_yesaudit(&selinux_state,
 				  sid, sid, sclass, av, 0, &avd);
 	if (!(opts & CAP_OPT_NOAUDIT)) {
 		int rc2 = avc_audit(&selinux_state,
@@ -1662,62 +1662,62 @@ static int cred_has_capability(const struct cred *cred,
 	return rc;
 }
 
-/* Check whether a task has a particular permission to an inode.
+/* Check whether a task has a particular permission to an iyesde.
    The 'adp' parameter is optional and allows other audit
    data to be passed (e.g. the dentry). */
-static int inode_has_perm(const struct cred *cred,
-			  struct inode *inode,
+static int iyesde_has_perm(const struct cred *cred,
+			  struct iyesde *iyesde,
 			  u32 perms,
 			  struct common_audit_data *adp)
 {
-	struct inode_security_struct *isec;
+	struct iyesde_security_struct *isec;
 	u32 sid;
 
 	validate_creds(cred);
 
-	if (unlikely(IS_PRIVATE(inode)))
+	if (unlikely(IS_PRIVATE(iyesde)))
 		return 0;
 
 	sid = cred_sid(cred);
-	isec = selinux_inode(inode);
+	isec = selinux_iyesde(iyesde);
 
 	return avc_has_perm(&selinux_state,
 			    sid, isec->sid, isec->sclass, perms, adp);
 }
 
-/* Same as inode_has_perm, but pass explicit audit data containing
+/* Same as iyesde_has_perm, but pass explicit audit data containing
    the dentry to help the auditing code to more easily generate the
    pathname if needed. */
 static inline int dentry_has_perm(const struct cred *cred,
 				  struct dentry *dentry,
 				  u32 av)
 {
-	struct inode *inode = d_backing_inode(dentry);
+	struct iyesde *iyesde = d_backing_iyesde(dentry);
 	struct common_audit_data ad;
 
 	ad.type = LSM_AUDIT_DATA_DENTRY;
 	ad.u.dentry = dentry;
-	__inode_security_revalidate(inode, dentry, true);
-	return inode_has_perm(cred, inode, av, &ad);
+	__iyesde_security_revalidate(iyesde, dentry, true);
+	return iyesde_has_perm(cred, iyesde, av, &ad);
 }
 
-/* Same as inode_has_perm, but pass explicit audit data containing
+/* Same as iyesde_has_perm, but pass explicit audit data containing
    the path to help the auditing code to more easily generate the
    pathname if needed. */
 static inline int path_has_perm(const struct cred *cred,
 				const struct path *path,
 				u32 av)
 {
-	struct inode *inode = d_backing_inode(path->dentry);
+	struct iyesde *iyesde = d_backing_iyesde(path->dentry);
 	struct common_audit_data ad;
 
 	ad.type = LSM_AUDIT_DATA_PATH;
 	ad.u.path = *path;
-	__inode_security_revalidate(inode, path->dentry, true);
-	return inode_has_perm(cred, inode, av, &ad);
+	__iyesde_security_revalidate(iyesde, path->dentry, true);
+	return iyesde_has_perm(cred, iyesde, av, &ad);
 }
 
-/* Same as path_has_perm, but uses the inode from the file struct. */
+/* Same as path_has_perm, but uses the iyesde from the file struct. */
 static inline int file_path_has_perm(const struct cred *cred,
 				     struct file *file,
 				     u32 av)
@@ -1726,7 +1726,7 @@ static inline int file_path_has_perm(const struct cred *cred,
 
 	ad.type = LSM_AUDIT_DATA_FILE;
 	ad.u.file = file;
-	return inode_has_perm(cred, file_inode(file), av, &ad);
+	return iyesde_has_perm(cred, file_iyesde(file), av, &ad);
 }
 
 #ifdef CONFIG_BPF_SYSCALL
@@ -1734,19 +1734,19 @@ static int bpf_fd_pass(struct file *file, u32 sid);
 #endif
 
 /* Check whether a task can use an open file descriptor to
-   access an inode in a given way.  Check access to the
+   access an iyesde in a given way.  Check access to the
    descriptor itself, and then use dentry_has_perm to
    check a particular permission to the file.
    Access to the descriptor is implicitly granted if it
    has the same SID as the process.  If av is zero, then
-   access to the file is not checked, e.g. for cases
+   access to the file is yest checked, e.g. for cases
    where only the descriptor is affected like seek. */
 static int file_has_perm(const struct cred *cred,
 			 struct file *file,
 			 u32 av)
 {
 	struct file_security_struct *fsec = selinux_file(file);
-	struct inode *inode = file_inode(file);
+	struct iyesde *iyesde = file_iyesde(file);
 	struct common_audit_data ad;
 	u32 sid = cred_sid(cred);
 	int rc;
@@ -1773,18 +1773,18 @@ static int file_has_perm(const struct cred *cred,
 	/* av is zero if only checking access to the descriptor. */
 	rc = 0;
 	if (av)
-		rc = inode_has_perm(cred, inode, av, &ad);
+		rc = iyesde_has_perm(cred, iyesde, av, &ad);
 
 out:
 	return rc;
 }
 
 /*
- * Determine the label for an inode that might be unioned.
+ * Determine the label for an iyesde that might be unioned.
  */
 static int
-selinux_determine_inode_label(const struct task_security_struct *tsec,
-				 struct inode *dir,
+selinux_determine_iyesde_label(const struct task_security_struct *tsec,
+				 struct iyesde *dir,
 				 const struct qstr *name, u16 tclass,
 				 u32 *_new_isid)
 {
@@ -1797,7 +1797,7 @@ selinux_determine_inode_label(const struct task_security_struct *tsec,
 		   tsec->create_sid) {
 		*_new_isid = tsec->create_sid;
 	} else {
-		const struct inode_security_struct *dsec = inode_security(dir);
+		const struct iyesde_security_struct *dsec = iyesde_security(dir);
 		return security_transition_sid(&selinux_state, tsec->sid,
 					       dsec->sid, tclass,
 					       name, _new_isid);
@@ -1807,18 +1807,18 @@ selinux_determine_inode_label(const struct task_security_struct *tsec,
 }
 
 /* Check whether a task can create a file. */
-static int may_create(struct inode *dir,
+static int may_create(struct iyesde *dir,
 		      struct dentry *dentry,
 		      u16 tclass)
 {
 	const struct task_security_struct *tsec = selinux_cred(current_cred());
-	struct inode_security_struct *dsec;
+	struct iyesde_security_struct *dsec;
 	struct superblock_security_struct *sbsec;
 	u32 sid, newsid;
 	struct common_audit_data ad;
 	int rc;
 
-	dsec = inode_security(dir);
+	dsec = iyesde_security(dir);
 	sbsec = dir->i_sb->s_security;
 
 	sid = tsec->sid;
@@ -1833,7 +1833,7 @@ static int may_create(struct inode *dir,
 	if (rc)
 		return rc;
 
-	rc = selinux_determine_inode_label(selinux_cred(current_cred()), dir,
+	rc = selinux_determine_iyesde_label(selinux_cred(current_cred()), dir,
 					   &dentry->d_name, tclass, &newsid);
 	if (rc)
 		return rc;
@@ -1854,19 +1854,19 @@ static int may_create(struct inode *dir,
 #define MAY_RMDIR	2
 
 /* Check whether a task can link, unlink, or rmdir a file/directory. */
-static int may_link(struct inode *dir,
+static int may_link(struct iyesde *dir,
 		    struct dentry *dentry,
 		    int kind)
 
 {
-	struct inode_security_struct *dsec, *isec;
+	struct iyesde_security_struct *dsec, *isec;
 	struct common_audit_data ad;
 	u32 sid = current_sid();
 	u32 av;
 	int rc;
 
-	dsec = inode_security(dir);
-	isec = backing_inode_security(dentry);
+	dsec = iyesde_security(dir);
+	isec = backing_iyesde_security(dentry);
 
 	ad.type = LSM_AUDIT_DATA_DENTRY;
 	ad.u.dentry = dentry;
@@ -1899,22 +1899,22 @@ static int may_link(struct inode *dir,
 	return rc;
 }
 
-static inline int may_rename(struct inode *old_dir,
+static inline int may_rename(struct iyesde *old_dir,
 			     struct dentry *old_dentry,
-			     struct inode *new_dir,
+			     struct iyesde *new_dir,
 			     struct dentry *new_dentry)
 {
-	struct inode_security_struct *old_dsec, *new_dsec, *old_isec, *new_isec;
+	struct iyesde_security_struct *old_dsec, *new_dsec, *old_isec, *new_isec;
 	struct common_audit_data ad;
 	u32 sid = current_sid();
 	u32 av;
 	int old_is_dir, new_is_dir;
 	int rc;
 
-	old_dsec = inode_security(old_dir);
-	old_isec = backing_inode_security(old_dentry);
+	old_dsec = iyesde_security(old_dir);
+	old_isec = backing_iyesde_security(old_dentry);
 	old_is_dir = d_is_dir(old_dentry);
-	new_dsec = inode_security(new_dir);
+	new_dsec = iyesde_security(new_dir);
 
 	ad.type = LSM_AUDIT_DATA_DENTRY;
 
@@ -1946,7 +1946,7 @@ static inline int may_rename(struct inode *old_dir,
 	if (rc)
 		return rc;
 	if (d_is_positive(new_dentry)) {
-		new_isec = backing_inode_security(new_dentry);
+		new_isec = backing_iyesde_security(new_dentry);
 		new_is_dir = d_is_dir(new_dentry);
 		rc = avc_has_perm(&selinux_state,
 				  sid, new_isec->sid,
@@ -2031,10 +2031,10 @@ static inline u32 file_to_av(struct file *file)
 static inline u32 open_file_to_av(struct file *file)
 {
 	u32 av = file_to_av(file);
-	struct inode *inode = file_inode(file);
+	struct iyesde *iyesde = file_iyesde(file);
 
 	if (selinux_policycap_openperm() &&
-	    inode->i_sb->s_magic != SOCKFS_MAGIC)
+	    iyesde->i_sb->s_magic != SOCKFS_MAGIC)
 		av |= FILE__OPEN;
 
 	return av;
@@ -2091,7 +2091,7 @@ static int selinux_binder_transfer_file(struct task_struct *from,
 	u32 sid = task_sid(to);
 	struct file_security_struct *fsec = selinux_file(file);
 	struct dentry *dentry = file->f_path.dentry;
-	struct inode_security_struct *isec;
+	struct iyesde_security_struct *isec;
 	struct common_audit_data ad;
 	int rc;
 
@@ -2114,10 +2114,10 @@ static int selinux_binder_transfer_file(struct task_struct *from,
 		return rc;
 #endif
 
-	if (unlikely(IS_PRIVATE(d_backing_inode(dentry))))
+	if (unlikely(IS_PRIVATE(d_backing_iyesde(dentry))))
 		return 0;
 
-	isec = backing_inode_security(dentry);
+	isec = backing_iyesde_security(dentry);
 	return avc_has_perm(&selinux_state,
 			    sid, isec->sid, isec->sclass, file_to_av(file),
 			    &ad);
@@ -2167,7 +2167,7 @@ static int selinux_capset(struct cred *new, const struct cred *old,
  * which was removed).
  *
  * Since setuid only affects the current process, and since the SELinux
- * controls are not based on the Linux identity attributes, SELinux does not
+ * controls are yest based on the Linux identity attributes, SELinux does yest
  * need to control this operation.  However, SELinux does control the use of
  * the CAP_SETUID and CAP_SETGID capabilities using the capable hook.
  */
@@ -2237,14 +2237,14 @@ static int selinux_syslog(int type)
 }
 
 /*
- * Check that a process has enough memory to allocate a new virtual
- * mapping. 0 means there is enough memory for the allocation to
- * succeed and -ENOMEM implies there is not.
+ * Check that a process has eyesugh memory to allocate a new virtual
+ * mapping. 0 means there is eyesugh memory for the allocation to
+ * succeed and -ENOMEM implies there is yest.
  *
- * Do not audit the selinux permission check, as this is applied to all
+ * Do yest audit the selinux permission check, as this is applied to all
  * processes that allocate mappings.
  */
-static int selinux_vm_enough_memory(struct mm_struct *mm, long pages)
+static int selinux_vm_eyesugh_memory(struct mm_struct *mm, long pages)
 {
 	int rc, cap_sys_admin = 0;
 
@@ -2272,32 +2272,32 @@ static u32 ptrace_parent_sid(void)
 	return sid;
 }
 
-static int check_nnp_nosuid(const struct linux_binprm *bprm,
+static int check_nnp_yessuid(const struct linux_binprm *bprm,
 			    const struct task_security_struct *old_tsec,
 			    const struct task_security_struct *new_tsec)
 {
 	int nnp = (bprm->unsafe & LSM_UNSAFE_NO_NEW_PRIVS);
-	int nosuid = !mnt_may_suid(bprm->file->f_path.mnt);
+	int yessuid = !mnt_may_suid(bprm->file->f_path.mnt);
 	int rc;
 	u32 av;
 
-	if (!nnp && !nosuid)
-		return 0; /* neither NNP nor nosuid */
+	if (!nnp && !yessuid)
+		return 0; /* neither NNP yesr yessuid */
 
 	if (new_tsec->sid == old_tsec->sid)
 		return 0; /* No change in credentials */
 
 	/*
-	 * If the policy enables the nnp_nosuid_transition policy capability,
-	 * then we permit transitions under NNP or nosuid if the
+	 * If the policy enables the nnp_yessuid_transition policy capability,
+	 * then we permit transitions under NNP or yessuid if the
 	 * policy allows the corresponding permission between
 	 * the old and new contexts.
 	 */
-	if (selinux_policycap_nnp_nosuid_transition()) {
+	if (selinux_policycap_nnp_yessuid_transition()) {
 		av = 0;
 		if (nnp)
 			av |= PROCESS2__NNP_TRANSITION;
-		if (nosuid)
+		if (yessuid)
 			av |= PROCESS2__NOSUID_TRANSITION;
 		rc = avc_has_perm(&selinux_state,
 				  old_tsec->sid, new_tsec->sid,
@@ -2307,7 +2307,7 @@ static int check_nnp_nosuid(const struct linux_binprm *bprm,
 	}
 
 	/*
-	 * We also permit NNP or nosuid transitions to bounded SIDs,
+	 * We also permit NNP or yessuid transitions to bounded SIDs,
 	 * i.e. SIDs that are guaranteed to only be allowed a subset
 	 * of the permissions of the current SID.
 	 */
@@ -2317,9 +2317,9 @@ static int check_nnp_nosuid(const struct linux_binprm *bprm,
 		return 0;
 
 	/*
-	 * On failure, preserve the errno values for NNP vs nosuid.
-	 * NNP:  Operation not permitted for caller.
-	 * nosuid:  Permission denied to file.
+	 * On failure, preserve the erryes values for NNP vs yessuid.
+	 * NNP:  Operation yest permitted for caller.
+	 * yessuid:  Permission denied to file.
 	 */
 	if (nnp)
 		return -EPERM;
@@ -2330,19 +2330,19 @@ static int selinux_bprm_set_creds(struct linux_binprm *bprm)
 {
 	const struct task_security_struct *old_tsec;
 	struct task_security_struct *new_tsec;
-	struct inode_security_struct *isec;
+	struct iyesde_security_struct *isec;
 	struct common_audit_data ad;
-	struct inode *inode = file_inode(bprm->file);
+	struct iyesde *iyesde = file_iyesde(bprm->file);
 	int rc;
 
-	/* SELinux context only depends on initial program or script and not
+	/* SELinux context only depends on initial program or script and yest
 	 * the script interpreter */
 	if (bprm->called_set_creds)
 		return 0;
 
 	old_tsec = selinux_cred(current_cred());
 	new_tsec = selinux_cred(bprm->cred);
-	isec = inode_security(inode);
+	isec = iyesde_security(iyesde);
 
 	/* Default to the current task SID. */
 	new_tsec->sid = old_tsec->sid;
@@ -2358,8 +2358,8 @@ static int selinux_bprm_set_creds(struct linux_binprm *bprm)
 		/* Reset exec SID on execve. */
 		new_tsec->exec_sid = 0;
 
-		/* Fail on NNP or nosuid if not an allowed transition. */
-		rc = check_nnp_nosuid(bprm, old_tsec, new_tsec);
+		/* Fail on NNP or yessuid if yest an allowed transition. */
+		rc = check_nnp_yessuid(bprm, old_tsec, new_tsec);
 		if (rc)
 			return rc;
 	} else {
@@ -2371,10 +2371,10 @@ static int selinux_bprm_set_creds(struct linux_binprm *bprm)
 			return rc;
 
 		/*
-		 * Fallback to old SID on NNP or nosuid if not an allowed
+		 * Fallback to old SID on NNP or yessuid if yest an allowed
 		 * transition.
 		 */
-		rc = check_nnp_nosuid(bprm, old_tsec, new_tsec);
+		rc = check_nnp_yessuid(bprm, old_tsec, new_tsec);
 		if (rc)
 			new_tsec->sid = old_tsec->sid;
 	}
@@ -2430,7 +2430,7 @@ static int selinux_bprm_set_creds(struct linux_binprm *bprm)
 		bprm->per_clear |= PER_CLEAR_ON_SETID;
 
 		/* Enable secure mode for SIDs transitions unless
-		   the noatsecure permission is granted between
+		   the yesatsecure permission is granted between
 		   the two SIDs, i.e. ahp returns 0. */
 		rc = avc_has_perm(&selinux_state,
 				  old_tsec->sid, new_tsec->sid,
@@ -2465,8 +2465,8 @@ static inline void flush_unauthorized_files(const struct cred *cred,
 			/* Revalidate access to controlling tty.
 			   Use file_path_has_perm on the tty path directly
 			   rather than using file_has_perm, as this particular
-			   open file may belong to another process and we are
-			   only interested in the inode-based check here. */
+			   open file may belong to ayesther process and we are
+			   only interested in the iyesde-based check here. */
 			file_priv = list_first_entry(&tty->tty_files,
 						struct tty_file_private, list);
 			file = file_priv->file;
@@ -2478,11 +2478,11 @@ static inline void flush_unauthorized_files(const struct cred *cred,
 	}
 	/* Reset controlling tty. */
 	if (drop_tty)
-		no_tty();
+		yes_tty();
 
 	/* Revalidate access to inherited open files. */
 	n = iterate_fd(files, 0, match_file, cred);
-	if (!n) /* none found? */
+	if (!n) /* yesne found? */
 		return;
 
 	devnull = dentry_open(&selinux_null, O_RDWR, cred);
@@ -2509,14 +2509,14 @@ static void selinux_bprm_committing_creds(struct linux_binprm *bprm)
 	if (new_tsec->sid == new_tsec->osid)
 		return;
 
-	/* Close files for which the new task SID is not authorized. */
+	/* Close files for which the new task SID is yest authorized. */
 	flush_unauthorized_files(bprm->cred, current->files);
 
 	/* Always clear parent death signal on SID transitions. */
 	current->pdeath_signal = 0;
 
 	/* Check whether the new SID can inherit resource limits from the old
-	 * SID.  If not, reset all soft limits to the lower of the current
+	 * SID.  If yest, reset all soft limits to the lower of the current
 	 * task's hard limit and the init task's soft limit.
 	 *
 	 * Note that the setting of hard limits (even to lower them) can be
@@ -2559,7 +2559,7 @@ static void selinux_bprm_committed_creds(struct linux_binprm *bprm)
 		return;
 
 	/* Check whether the new SID can inherit signal state from the old SID.
-	 * If not, clear itimers to avoid subsequent signal generation and
+	 * If yest, clear itimers to avoid subsequent signal generation and
 	 * flush and unblock signals.
 	 *
 	 * This must occur _after_ the task SID has been updated so that any
@@ -2703,8 +2703,8 @@ static int selinux_sb_remount(struct super_block *sb, void *mnt_opts)
 			goto out_bad_option;
 	}
 	if (opts->rootcontext) {
-		struct inode_security_struct *root_isec;
-		root_isec = backing_inode_security(sb->s_root);
+		struct iyesde_security_struct *root_isec;
+		root_isec = backing_iyesde_security(sb->s_root);
 		rc = parse_sid(sb, opts->rootcontext, &sid);
 		if (rc)
 			return rc;
@@ -2840,16 +2840,16 @@ static int selinux_fs_context_parse_param(struct fs_context *fc,
 	return rc;
 }
 
-/* inode security operations */
+/* iyesde security operations */
 
-static int selinux_inode_alloc_security(struct inode *inode)
+static int selinux_iyesde_alloc_security(struct iyesde *iyesde)
 {
-	return inode_alloc_security(inode);
+	return iyesde_alloc_security(iyesde);
 }
 
-static void selinux_inode_free_security(struct inode *inode)
+static void selinux_iyesde_free_security(struct iyesde *iyesde)
 {
-	inode_free_security(inode);
+	iyesde_free_security(iyesde);
 }
 
 static int selinux_dentry_init_security(struct dentry *dentry, int mode,
@@ -2859,9 +2859,9 @@ static int selinux_dentry_init_security(struct dentry *dentry, int mode,
 	u32 newsid;
 	int rc;
 
-	rc = selinux_determine_inode_label(selinux_cred(current_cred()),
-					   d_inode(dentry->d_parent), name,
-					   inode_mode_to_security_class(mode),
+	rc = selinux_determine_iyesde_label(selinux_cred(current_cred()),
+					   d_iyesde(dentry->d_parent), name,
+					   iyesde_mode_to_security_class(mode),
 					   &newsid);
 	if (rc)
 		return rc;
@@ -2879,9 +2879,9 @@ static int selinux_dentry_create_files_as(struct dentry *dentry, int mode,
 	int rc;
 	struct task_security_struct *tsec;
 
-	rc = selinux_determine_inode_label(selinux_cred(old),
-					   d_inode(dentry->d_parent), name,
-					   inode_mode_to_security_class(mode),
+	rc = selinux_determine_iyesde_label(selinux_cred(old),
+					   d_iyesde(dentry->d_parent), name,
+					   iyesde_mode_to_security_class(mode),
 					   &newsid);
 	if (rc)
 		return rc;
@@ -2891,7 +2891,7 @@ static int selinux_dentry_create_files_as(struct dentry *dentry, int mode,
 	return 0;
 }
 
-static int selinux_inode_init_security(struct inode *inode, struct inode *dir,
+static int selinux_iyesde_init_security(struct iyesde *iyesde, struct iyesde *dir,
 				       const struct qstr *qstr,
 				       const char **name,
 				       void **value, size_t *len)
@@ -2906,17 +2906,17 @@ static int selinux_inode_init_security(struct inode *inode, struct inode *dir,
 
 	newsid = tsec->create_sid;
 
-	rc = selinux_determine_inode_label(selinux_cred(current_cred()),
+	rc = selinux_determine_iyesde_label(selinux_cred(current_cred()),
 		dir, qstr,
-		inode_mode_to_security_class(inode->i_mode),
+		iyesde_mode_to_security_class(iyesde->i_mode),
 		&newsid);
 	if (rc)
 		return rc;
 
 	/* Possibly defer initialization to selinux_complete_init. */
 	if (sbsec->flags & SE_SBINITIALIZED) {
-		struct inode_security_struct *isec = selinux_inode(inode);
-		isec->sclass = inode_mode_to_security_class(inode->i_mode);
+		struct iyesde_security_struct *isec = selinux_iyesde(iyesde);
+		isec->sclass = iyesde_mode_to_security_class(iyesde->i_mode);
 		isec->sid = newsid;
 		isec->initialized = LABEL_INITIALIZED;
 	}
@@ -2939,60 +2939,60 @@ static int selinux_inode_init_security(struct inode *inode, struct inode *dir,
 	return 0;
 }
 
-static int selinux_inode_create(struct inode *dir, struct dentry *dentry, umode_t mode)
+static int selinux_iyesde_create(struct iyesde *dir, struct dentry *dentry, umode_t mode)
 {
 	return may_create(dir, dentry, SECCLASS_FILE);
 }
 
-static int selinux_inode_link(struct dentry *old_dentry, struct inode *dir, struct dentry *new_dentry)
+static int selinux_iyesde_link(struct dentry *old_dentry, struct iyesde *dir, struct dentry *new_dentry)
 {
 	return may_link(dir, old_dentry, MAY_LINK);
 }
 
-static int selinux_inode_unlink(struct inode *dir, struct dentry *dentry)
+static int selinux_iyesde_unlink(struct iyesde *dir, struct dentry *dentry)
 {
 	return may_link(dir, dentry, MAY_UNLINK);
 }
 
-static int selinux_inode_symlink(struct inode *dir, struct dentry *dentry, const char *name)
+static int selinux_iyesde_symlink(struct iyesde *dir, struct dentry *dentry, const char *name)
 {
 	return may_create(dir, dentry, SECCLASS_LNK_FILE);
 }
 
-static int selinux_inode_mkdir(struct inode *dir, struct dentry *dentry, umode_t mask)
+static int selinux_iyesde_mkdir(struct iyesde *dir, struct dentry *dentry, umode_t mask)
 {
 	return may_create(dir, dentry, SECCLASS_DIR);
 }
 
-static int selinux_inode_rmdir(struct inode *dir, struct dentry *dentry)
+static int selinux_iyesde_rmdir(struct iyesde *dir, struct dentry *dentry)
 {
 	return may_link(dir, dentry, MAY_RMDIR);
 }
 
-static int selinux_inode_mknod(struct inode *dir, struct dentry *dentry, umode_t mode, dev_t dev)
+static int selinux_iyesde_mkyesd(struct iyesde *dir, struct dentry *dentry, umode_t mode, dev_t dev)
 {
-	return may_create(dir, dentry, inode_mode_to_security_class(mode));
+	return may_create(dir, dentry, iyesde_mode_to_security_class(mode));
 }
 
-static int selinux_inode_rename(struct inode *old_inode, struct dentry *old_dentry,
-				struct inode *new_inode, struct dentry *new_dentry)
+static int selinux_iyesde_rename(struct iyesde *old_iyesde, struct dentry *old_dentry,
+				struct iyesde *new_iyesde, struct dentry *new_dentry)
 {
-	return may_rename(old_inode, old_dentry, new_inode, new_dentry);
+	return may_rename(old_iyesde, old_dentry, new_iyesde, new_dentry);
 }
 
-static int selinux_inode_readlink(struct dentry *dentry)
+static int selinux_iyesde_readlink(struct dentry *dentry)
 {
 	const struct cred *cred = current_cred();
 
 	return dentry_has_perm(cred, dentry, FILE__READ);
 }
 
-static int selinux_inode_follow_link(struct dentry *dentry, struct inode *inode,
+static int selinux_iyesde_follow_link(struct dentry *dentry, struct iyesde *iyesde,
 				     bool rcu)
 {
 	const struct cred *cred = current_cred();
 	struct common_audit_data ad;
-	struct inode_security_struct *isec;
+	struct iyesde_security_struct *isec;
 	u32 sid;
 
 	validate_creds(cred);
@@ -3000,7 +3000,7 @@ static int selinux_inode_follow_link(struct dentry *dentry, struct inode *inode,
 	ad.type = LSM_AUDIT_DATA_DENTRY;
 	ad.u.dentry = dentry;
 	sid = cred_sid(cred);
-	isec = inode_security_rcu(inode, rcu);
+	isec = iyesde_security_rcu(iyesde, rcu);
 	if (IS_ERR(isec))
 		return PTR_ERR(isec);
 
@@ -3008,17 +3008,17 @@ static int selinux_inode_follow_link(struct dentry *dentry, struct inode *inode,
 			    sid, isec->sid, isec->sclass, FILE__READ, &ad);
 }
 
-static noinline int audit_inode_permission(struct inode *inode,
+static yesinline int audit_iyesde_permission(struct iyesde *iyesde,
 					   u32 perms, u32 audited, u32 denied,
 					   int result,
 					   unsigned flags)
 {
 	struct common_audit_data ad;
-	struct inode_security_struct *isec = selinux_inode(inode);
+	struct iyesde_security_struct *isec = selinux_iyesde(iyesde);
 	int rc;
 
 	ad.type = LSM_AUDIT_DATA_INODE;
-	ad.u.inode = inode;
+	ad.u.iyesde = iyesde;
 
 	rc = slow_avc_audit(&selinux_state,
 			    current_sid(), isec->sid, isec->sclass, perms,
@@ -3028,13 +3028,13 @@ static noinline int audit_inode_permission(struct inode *inode,
 	return 0;
 }
 
-static int selinux_inode_permission(struct inode *inode, int mask)
+static int selinux_iyesde_permission(struct iyesde *iyesde, int mask)
 {
 	const struct cred *cred = current_cred();
 	u32 perms;
 	bool from_access;
 	unsigned flags = mask & MAY_NOT_BLOCK;
-	struct inode_security_struct *isec;
+	struct iyesde_security_struct *isec;
 	u32 sid;
 	struct av_decision avd;
 	int rc, rc2;
@@ -3049,17 +3049,17 @@ static int selinux_inode_permission(struct inode *inode, int mask)
 
 	validate_creds(cred);
 
-	if (unlikely(IS_PRIVATE(inode)))
+	if (unlikely(IS_PRIVATE(iyesde)))
 		return 0;
 
-	perms = file_mask_to_av(inode->i_mode, mask);
+	perms = file_mask_to_av(iyesde->i_mode, mask);
 
 	sid = cred_sid(cred);
-	isec = inode_security_rcu(inode, flags & MAY_NOT_BLOCK);
+	isec = iyesde_security_rcu(iyesde, flags & MAY_NOT_BLOCK);
 	if (IS_ERR(isec))
 		return PTR_ERR(isec);
 
-	rc = avc_has_perm_noaudit(&selinux_state,
+	rc = avc_has_perm_yesaudit(&selinux_state,
 				  sid, isec->sid, isec->sclass, perms,
 				  (flags & MAY_NOT_BLOCK) ? AVC_NONBLOCKING : 0,
 				  &avd);
@@ -3069,16 +3069,16 @@ static int selinux_inode_permission(struct inode *inode, int mask)
 	if (likely(!audited))
 		return rc;
 
-	rc2 = audit_inode_permission(inode, perms, audited, denied, rc, flags);
+	rc2 = audit_iyesde_permission(iyesde, perms, audited, denied, rc, flags);
 	if (rc2)
 		return rc2;
 	return rc;
 }
 
-static int selinux_inode_setattr(struct dentry *dentry, struct iattr *iattr)
+static int selinux_iyesde_setattr(struct dentry *dentry, struct iattr *iattr)
 {
 	const struct cred *cred = current_cred();
-	struct inode *inode = d_backing_inode(dentry);
+	struct iyesde *iyesde = d_backing_iyesde(dentry);
 	unsigned int ia_valid = iattr->ia_valid;
 	__u32 av = FILE__WRITE;
 
@@ -3095,7 +3095,7 @@ static int selinux_inode_setattr(struct dentry *dentry, struct iattr *iattr)
 		return dentry_has_perm(cred, dentry, FILE__SETATTR);
 
 	if (selinux_policycap_openperm() &&
-	    inode->i_sb->s_magic != SOCKFS_MAGIC &&
+	    iyesde->i_sb->s_magic != SOCKFS_MAGIC &&
 	    (ia_valid & ATTR_SIZE) &&
 	    !(ia_valid & ATTR_FILE))
 		av |= FILE__OPEN;
@@ -3103,7 +3103,7 @@ static int selinux_inode_setattr(struct dentry *dentry, struct iattr *iattr)
 	return dentry_has_perm(cred, dentry, av);
 }
 
-static int selinux_inode_getattr(const struct path *path)
+static int selinux_iyesde_getattr(const struct path *path)
 {
 	return path_has_perm(current_cred(), path, FILE__GETATTR);
 }
@@ -3120,18 +3120,18 @@ static bool has_cap_mac_admin(bool audit)
 	return true;
 }
 
-static int selinux_inode_setxattr(struct dentry *dentry, const char *name,
+static int selinux_iyesde_setxattr(struct dentry *dentry, const char *name,
 				  const void *value, size_t size, int flags)
 {
-	struct inode *inode = d_backing_inode(dentry);
-	struct inode_security_struct *isec;
+	struct iyesde *iyesde = d_backing_iyesde(dentry);
+	struct iyesde_security_struct *isec;
 	struct superblock_security_struct *sbsec;
 	struct common_audit_data ad;
 	u32 newsid, sid = current_sid();
 	int rc = 0;
 
 	if (strcmp(name, XATTR_NAME_SELINUX)) {
-		rc = cap_inode_setxattr(dentry, name, value, size, flags);
+		rc = cap_iyesde_setxattr(dentry, name, value, size, flags);
 		if (rc)
 			return rc;
 
@@ -3141,19 +3141,19 @@ static int selinux_inode_setxattr(struct dentry *dentry, const char *name,
 	}
 
 	if (!selinux_state.initialized)
-		return (inode_owner_or_capable(inode) ? 0 : -EPERM);
+		return (iyesde_owner_or_capable(iyesde) ? 0 : -EPERM);
 
-	sbsec = inode->i_sb->s_security;
+	sbsec = iyesde->i_sb->s_security;
 	if (!(sbsec->flags & SBLABEL_MNT))
 		return -EOPNOTSUPP;
 
-	if (!inode_owner_or_capable(inode))
+	if (!iyesde_owner_or_capable(iyesde))
 		return -EPERM;
 
 	ad.type = LSM_AUDIT_DATA_DENTRY;
 	ad.u.dentry = dentry;
 
-	isec = backing_inode_security(dentry);
+	isec = backing_iyesde_security(dentry);
 	rc = avc_has_perm(&selinux_state,
 			  sid, isec->sid, isec->sclass,
 			  FILE__RELABELFROM, &ad);
@@ -3212,17 +3212,17 @@ static int selinux_inode_setxattr(struct dentry *dentry, const char *name,
 			    &ad);
 }
 
-static void selinux_inode_post_setxattr(struct dentry *dentry, const char *name,
+static void selinux_iyesde_post_setxattr(struct dentry *dentry, const char *name,
 					const void *value, size_t size,
 					int flags)
 {
-	struct inode *inode = d_backing_inode(dentry);
-	struct inode_security_struct *isec;
+	struct iyesde *iyesde = d_backing_iyesde(dentry);
+	struct iyesde_security_struct *isec;
 	u32 newsid;
 	int rc;
 
 	if (strcmp(name, XATTR_NAME_SELINUX)) {
-		/* Not an attribute we recognize, so nothing to do. */
+		/* Not an attribute we recognize, so yesthing to do. */
 		return;
 	}
 
@@ -3240,13 +3240,13 @@ static void selinux_inode_post_setxattr(struct dentry *dentry, const char *name,
 	if (rc) {
 		pr_err("SELinux:  unable to map context to SID"
 		       "for (%s, %lu), rc=%d\n",
-		       inode->i_sb->s_id, inode->i_ino, -rc);
+		       iyesde->i_sb->s_id, iyesde->i_iyes, -rc);
 		return;
 	}
 
-	isec = backing_inode_security(dentry);
+	isec = backing_iyesde_security(dentry);
 	spin_lock(&isec->lock);
-	isec->sclass = inode_mode_to_security_class(inode->i_mode);
+	isec->sclass = iyesde_mode_to_security_class(iyesde->i_mode);
 	isec->sid = newsid;
 	isec->initialized = LABEL_INITIALIZED;
 	spin_unlock(&isec->lock);
@@ -3254,24 +3254,24 @@ static void selinux_inode_post_setxattr(struct dentry *dentry, const char *name,
 	return;
 }
 
-static int selinux_inode_getxattr(struct dentry *dentry, const char *name)
+static int selinux_iyesde_getxattr(struct dentry *dentry, const char *name)
 {
 	const struct cred *cred = current_cred();
 
 	return dentry_has_perm(cred, dentry, FILE__GETATTR);
 }
 
-static int selinux_inode_listxattr(struct dentry *dentry)
+static int selinux_iyesde_listxattr(struct dentry *dentry)
 {
 	const struct cred *cred = current_cred();
 
 	return dentry_has_perm(cred, dentry, FILE__GETATTR);
 }
 
-static int selinux_inode_removexattr(struct dentry *dentry, const char *name)
+static int selinux_iyesde_removexattr(struct dentry *dentry, const char *name)
 {
 	if (strcmp(name, XATTR_NAME_SELINUX)) {
-		int rc = cap_inode_removexattr(dentry, name);
+		int rc = cap_iyesde_removexattr(dentry, name);
 		if (rc)
 			return rc;
 
@@ -3285,7 +3285,7 @@ static int selinux_inode_removexattr(struct dentry *dentry, const char *name)
 	return -EACCES;
 }
 
-static int selinux_path_notify(const struct path *path, u64 mask,
+static int selinux_path_yestify(const struct path *path, u64 mask,
 						unsigned int obj_type)
 {
 	int ret;
@@ -3330,30 +3330,30 @@ static int selinux_path_notify(const struct path *path, u64 mask,
 }
 
 /*
- * Copy the inode security context value to the user.
+ * Copy the iyesde security context value to the user.
  *
- * Permission check is handled by selinux_inode_getxattr hook.
+ * Permission check is handled by selinux_iyesde_getxattr hook.
  */
-static int selinux_inode_getsecurity(struct inode *inode, const char *name, void **buffer, bool alloc)
+static int selinux_iyesde_getsecurity(struct iyesde *iyesde, const char *name, void **buffer, bool alloc)
 {
 	u32 size;
 	int error;
 	char *context = NULL;
-	struct inode_security_struct *isec;
+	struct iyesde_security_struct *isec;
 
 	if (strcmp(name, XATTR_SELINUX_SUFFIX))
 		return -EOPNOTSUPP;
 
 	/*
 	 * If the caller has CAP_MAC_ADMIN, then get the raw context
-	 * value even if it is not defined by current policy; otherwise,
+	 * value even if it is yest defined by current policy; otherwise,
 	 * use the in-core value under current policy.
-	 * Use the non-auditing forms of the permission checks since
+	 * Use the yesn-auditing forms of the permission checks since
 	 * getxattr may be called by unprivileged processes commonly
 	 * and lack of permission just means that we fall back to the
-	 * in-core context value, not a denial.
+	 * in-core context value, yest a denial.
 	 */
-	isec = inode_security(inode);
+	isec = iyesde_security(iyesde);
 	if (has_cap_mac_admin(false))
 		error = security_sid_to_context_force(&selinux_state,
 						      isec->sid, &context,
@@ -3366,18 +3366,18 @@ static int selinux_inode_getsecurity(struct inode *inode, const char *name, void
 	error = size;
 	if (alloc) {
 		*buffer = context;
-		goto out_nofree;
+		goto out_yesfree;
 	}
 	kfree(context);
-out_nofree:
+out_yesfree:
 	return error;
 }
 
-static int selinux_inode_setsecurity(struct inode *inode, const char *name,
+static int selinux_iyesde_setsecurity(struct iyesde *iyesde, const char *name,
 				     const void *value, size_t size, int flags)
 {
-	struct inode_security_struct *isec = inode_security_novalidate(inode);
-	struct superblock_security_struct *sbsec = inode->i_sb->s_security;
+	struct iyesde_security_struct *isec = iyesde_security_yesvalidate(iyesde);
+	struct superblock_security_struct *sbsec = iyesde->i_sb->s_security;
 	u32 newsid;
 	int rc;
 
@@ -3396,14 +3396,14 @@ static int selinux_inode_setsecurity(struct inode *inode, const char *name,
 		return rc;
 
 	spin_lock(&isec->lock);
-	isec->sclass = inode_mode_to_security_class(inode->i_mode);
+	isec->sclass = iyesde_mode_to_security_class(iyesde->i_mode);
 	isec->sid = newsid;
 	isec->initialized = LABEL_INITIALIZED;
 	spin_unlock(&isec->lock);
 	return 0;
 }
 
-static int selinux_inode_listsecurity(struct inode *inode, char *buffer, size_t buffer_size)
+static int selinux_iyesde_listsecurity(struct iyesde *iyesde, char *buffer, size_t buffer_size)
 {
 	const int len = sizeof(XATTR_NAME_SELINUX);
 	if (buffer && len <= buffer_size)
@@ -3411,13 +3411,13 @@ static int selinux_inode_listsecurity(struct inode *inode, char *buffer, size_t 
 	return len;
 }
 
-static void selinux_inode_getsecid(struct inode *inode, u32 *secid)
+static void selinux_iyesde_getsecid(struct iyesde *iyesde, u32 *secid)
 {
-	struct inode_security_struct *isec = inode_security_novalidate(inode);
+	struct iyesde_security_struct *isec = iyesde_security_yesvalidate(iyesde);
 	*secid = isec->sid;
 }
 
-static int selinux_inode_copy_up(struct dentry *src, struct cred **new)
+static int selinux_iyesde_copy_up(struct dentry *src, struct cred **new)
 {
 	u32 sid;
 	struct task_security_struct *tsec;
@@ -3430,32 +3430,32 @@ static int selinux_inode_copy_up(struct dentry *src, struct cred **new)
 	}
 
 	tsec = selinux_cred(new_creds);
-	/* Get label from overlay inode and set it in create_sid */
-	selinux_inode_getsecid(d_inode(src), &sid);
+	/* Get label from overlay iyesde and set it in create_sid */
+	selinux_iyesde_getsecid(d_iyesde(src), &sid);
 	tsec->create_sid = sid;
 	*new = new_creds;
 	return 0;
 }
 
-static int selinux_inode_copy_up_xattr(const char *name)
+static int selinux_iyesde_copy_up_xattr(const char *name)
 {
-	/* The copy_up hook above sets the initial context on an inode, but we
+	/* The copy_up hook above sets the initial context on an iyesde, but we
 	 * don't then want to overwrite it by blindly copying all the lower
 	 * xattrs up.  Instead, we have to filter out SELinux-related xattrs.
 	 */
 	if (strcmp(name, XATTR_NAME_SELINUX) == 0)
 		return 1; /* Discard */
 	/*
-	 * Any other attribute apart from SELINUX is not claimed, supported
+	 * Any other attribute apart from SELINUX is yest claimed, supported
 	 * by selinux.
 	 */
 	return -EOPNOTSUPP;
 }
 
-/* kernfs node operations */
+/* kernfs yesde operations */
 
-static int selinux_kernfs_init_security(struct kernfs_node *kn_dir,
-					struct kernfs_node *kn)
+static int selinux_kernfs_init_security(struct kernfs_yesde *kn_dir,
+					struct kernfs_yesde *kn)
 {
 	const struct task_security_struct *tsec = selinux_cred(current_cred());
 	u32 parent_sid, newsid, clen;
@@ -3488,7 +3488,7 @@ static int selinux_kernfs_init_security(struct kernfs_node *kn_dir,
 	if (tsec->create_sid) {
 		newsid = tsec->create_sid;
 	} else {
-		u16 secclass = inode_mode_to_security_class(kn->mode);
+		u16 secclass = iyesde_mode_to_security_class(kn->mode);
 		struct qstr q;
 
 		q.name = kn->name;
@@ -3518,30 +3518,30 @@ static int selinux_kernfs_init_security(struct kernfs_node *kn_dir,
 static int selinux_revalidate_file_permission(struct file *file, int mask)
 {
 	const struct cred *cred = current_cred();
-	struct inode *inode = file_inode(file);
+	struct iyesde *iyesde = file_iyesde(file);
 
 	/* file_mask_to_av won't add FILE__WRITE if MAY_APPEND is set */
 	if ((file->f_flags & O_APPEND) && (mask & MAY_WRITE))
 		mask |= MAY_APPEND;
 
 	return file_has_perm(cred, file,
-			     file_mask_to_av(inode->i_mode, mask));
+			     file_mask_to_av(iyesde->i_mode, mask));
 }
 
 static int selinux_file_permission(struct file *file, int mask)
 {
-	struct inode *inode = file_inode(file);
+	struct iyesde *iyesde = file_iyesde(file);
 	struct file_security_struct *fsec = selinux_file(file);
-	struct inode_security_struct *isec;
+	struct iyesde_security_struct *isec;
 	u32 sid = current_sid();
 
 	if (!mask)
 		/* No permission to check.  Existence test. */
 		return 0;
 
-	isec = inode_security(inode);
+	isec = iyesde_security(iyesde);
 	if (sid == fsec->sid && fsec->isid == isec->sid &&
-	    fsec->pseqno == avc_policy_seqno(&selinux_state))
+	    fsec->pseqyes == avc_policy_seqyes(&selinux_state))
 		/* No change since file_open check. */
 		return 0;
 
@@ -3555,15 +3555,15 @@ static int selinux_file_alloc_security(struct file *file)
 
 /*
  * Check whether a task has the ioctl permission and cmd
- * operation to an inode.
+ * operation to an iyesde.
  */
 static int ioctl_has_perm(const struct cred *cred, struct file *file,
 		u32 requested, u16 cmd)
 {
 	struct common_audit_data ad;
 	struct file_security_struct *fsec = selinux_file(file);
-	struct inode *inode = file_inode(file);
-	struct inode_security_struct *isec;
+	struct iyesde *iyesde = file_iyesde(file);
+	struct iyesde_security_struct *isec;
 	struct lsm_ioctlop_audit ioctl;
 	u32 ssid = cred_sid(cred);
 	int rc;
@@ -3585,10 +3585,10 @@ static int ioctl_has_perm(const struct cred *cred, struct file *file,
 			goto out;
 	}
 
-	if (unlikely(IS_PRIVATE(inode)))
+	if (unlikely(IS_PRIVATE(iyesde)))
 		return 0;
 
-	isec = inode_security(inode);
+	isec = iyesde_security(iyesde);
 	rc = avc_has_extended_perms(&selinux_state,
 				    ssid, isec->sid, isec->sclass,
 				    requested, driver, xperm, &ad);
@@ -3643,7 +3643,7 @@ static int selinux_file_ioctl(struct file *file, unsigned int cmd,
 	return error;
 }
 
-static int default_noexec;
+static int default_yesexec;
 
 static int file_map_prot_check(struct file *file, unsigned long prot, int shared)
 {
@@ -3651,11 +3651,11 @@ static int file_map_prot_check(struct file *file, unsigned long prot, int shared
 	u32 sid = cred_sid(cred);
 	int rc = 0;
 
-	if (default_noexec &&
-	    (prot & PROT_EXEC) && (!file || IS_PRIVATE(file_inode(file)) ||
+	if (default_yesexec &&
+	    (prot & PROT_EXEC) && (!file || IS_PRIVATE(file_iyesde(file)) ||
 				   (!shared && (prot & PROT_WRITE)))) {
 		/*
-		 * We are making executable an anonymous mapping or a
+		 * We are making executable an ayesnymous mapping or a
 		 * private file mapping that will also be writable.
 		 * This has an additional check.
 		 */
@@ -3707,7 +3707,7 @@ static int selinux_mmap_file(struct file *file, unsigned long reqprot,
 	if (file) {
 		ad.type = LSM_AUDIT_DATA_FILE;
 		ad.u.file = file;
-		rc = inode_has_perm(current_cred(), file_inode(file),
+		rc = iyesde_has_perm(current_cred(), file_iyesde(file),
 				    FILE__MAP, &ad);
 		if (rc)
 			return rc;
@@ -3730,7 +3730,7 @@ static int selinux_file_mprotect(struct vm_area_struct *vma,
 	if (selinux_state.checkreqprot)
 		prot = reqprot;
 
-	if (default_noexec &&
+	if (default_yesexec &&
 	    (prot & PROT_EXEC) && !(vma->vm_flags & VM_EXEC)) {
 		int rc = 0;
 		if (vma->vm_start >= vma->vm_mm->start_brk &&
@@ -3745,7 +3745,7 @@ static int selinux_file_mprotect(struct vm_area_struct *vma,
 			rc = avc_has_perm(&selinux_state,
 					  sid, sid, SECCLASS_PROCESS,
 					  PROCESS__EXECSTACK, NULL);
-		} else if (vma->vm_file && vma->anon_vma) {
+		} else if (vma->vm_file && vma->ayesn_vma) {
 			/*
 			 * We are making executable a file mapping that has
 			 * had some COW done. Since pages might have been
@@ -3850,26 +3850,26 @@ static int selinux_file_receive(struct file *file)
 static int selinux_file_open(struct file *file)
 {
 	struct file_security_struct *fsec;
-	struct inode_security_struct *isec;
+	struct iyesde_security_struct *isec;
 
 	fsec = selinux_file(file);
-	isec = inode_security(file_inode(file));
+	isec = iyesde_security(file_iyesde(file));
 	/*
-	 * Save inode label and policy sequence number
+	 * Save iyesde label and policy sequence number
 	 * at open-time so that selinux_file_permission
 	 * can determine whether revalidation is necessary.
 	 * Task label is already saved in the file security
 	 * struct as its SID.
 	 */
 	fsec->isid = isec->sid;
-	fsec->pseqno = avc_policy_seqno(&selinux_state);
+	fsec->pseqyes = avc_policy_seqyes(&selinux_state);
 	/*
-	 * Since the inode label or policy seqno may have changed
-	 * between the selinux_inode_permission check and the saving
+	 * Since the iyesde label or policy seqyes may have changed
+	 * between the selinux_iyesde_permission check and the saving
 	 * of state above, recheck that access is still permitted.
 	 * Otherwise, access might never be revalidated against the
-	 * new inode label or new policy.
-	 * This check is not redundant - do not remove.
+	 * new iyesde label or new policy.
+	 * This check is yest redundant - do yest remove.
 	 */
 	return file_path_has_perm(file->f_cred, file, open_file_to_av(file));
 }
@@ -3940,11 +3940,11 @@ static int selinux_kernel_act_as(struct cred *new, u32 secid)
 
 /*
  * set the file creation context in a security record to the same as the
- * objective context of the specified inode
+ * objective context of the specified iyesde
  */
-static int selinux_kernel_create_files_as(struct cred *new, struct inode *inode)
+static int selinux_kernel_create_files_as(struct cred *new, struct iyesde *iyesde)
 {
-	struct inode_security_struct *isec = inode_security(inode);
+	struct iyesde_security_struct *isec = iyesde_security(iyesde);
 	struct task_security_struct *tsec = selinux_cred(new);
 	u32 sid = current_sid();
 	int ret;
@@ -3975,7 +3975,7 @@ static int selinux_kernel_module_request(char *kmod_name)
 static int selinux_kernel_module_from_file(struct file *file)
 {
 	struct common_audit_data ad;
-	struct inode_security_struct *isec;
+	struct iyesde_security_struct *isec;
 	struct file_security_struct *fsec;
 	u32 sid = current_sid();
 	int rc;
@@ -3999,7 +3999,7 @@ static int selinux_kernel_module_from_file(struct file *file)
 			return rc;
 	}
 
-	isec = inode_security(file_inode(file));
+	isec = iyesde_security(file_iyesde(file));
 	return avc_has_perm(&selinux_state,
 			    sid, isec->sid, SECCLASS_SYSTEM,
 				SYSTEM__MODULE_LOAD, &ad);
@@ -4154,14 +4154,14 @@ static int selinux_task_kill(struct task_struct *p, struct kernel_siginfo *info,
 			    secid, task_sid(p), SECCLASS_PROCESS, perm, NULL);
 }
 
-static void selinux_task_to_inode(struct task_struct *p,
-				  struct inode *inode)
+static void selinux_task_to_iyesde(struct task_struct *p,
+				  struct iyesde *iyesde)
 {
-	struct inode_security_struct *isec = selinux_inode(inode);
+	struct iyesde_security_struct *isec = selinux_iyesde(iyesde);
 	u32 sid = task_sid(p);
 
 	spin_lock(&isec->lock);
-	isec->sclass = inode_mode_to_security_class(inode->i_mode);
+	isec->sclass = iyesde_mode_to_security_class(iyesde->i_mode);
 	isec->sid = sid;
 	isec->initialized = LABEL_INITIALIZED;
 	spin_unlock(&isec->lock);
@@ -4442,7 +4442,7 @@ static int selinux_skb_peerlbl_sid(struct sk_buff *skb, u16 family, u32 *sid)
  *
  * If @skb_sid is valid then the user:role:type information from @sk_sid is
  * combined with the MLS information from @skb_sid in order to create
- * @conn_sid.  If @skb_sid is not valid then then @conn_sid is simply a copy
+ * @conn_sid.  If @skb_sid is yest valid then then @conn_sid is simply a copy
  * of @sk_sid.  Returns zero on success, negative values on failure.
  *
  */
@@ -4515,7 +4515,7 @@ static int selinux_socket_post_create(struct socket *sock, int family,
 				      int type, int protocol, int kern)
 {
 	const struct task_security_struct *tsec = selinux_cred(current_cred());
-	struct inode_security_struct *isec = inode_security_novalidate(SOCK_INODE(sock));
+	struct iyesde_security_struct *isec = iyesde_security_yesvalidate(SOCK_INODE(sock));
 	struct sk_security_struct *sksec;
 	u16 sclass = socket_type_to_security_class(family, type, protocol);
 	u32 sid = SECINITSID_KERNEL;
@@ -4582,7 +4582,7 @@ static int selinux_socket_bind(struct socket *sock, struct sockaddr *address, in
 		struct sockaddr_in6 *addr6 = NULL;
 		u16 family_sa;
 		unsigned short snum;
-		u32 sid, node_perm;
+		u32 sid, yesde_perm;
 
 		/*
 		 * sctp_bindx(3) calls via selinux_sctp_bind_connect()
@@ -4648,27 +4648,27 @@ static int selinux_socket_bind(struct socket *sock, struct sockaddr *address, in
 
 		switch (sksec->sclass) {
 		case SECCLASS_TCP_SOCKET:
-			node_perm = TCP_SOCKET__NODE_BIND;
+			yesde_perm = TCP_SOCKET__NODE_BIND;
 			break;
 
 		case SECCLASS_UDP_SOCKET:
-			node_perm = UDP_SOCKET__NODE_BIND;
+			yesde_perm = UDP_SOCKET__NODE_BIND;
 			break;
 
 		case SECCLASS_DCCP_SOCKET:
-			node_perm = DCCP_SOCKET__NODE_BIND;
+			yesde_perm = DCCP_SOCKET__NODE_BIND;
 			break;
 
 		case SECCLASS_SCTP_SOCKET:
-			node_perm = SCTP_SOCKET__NODE_BIND;
+			yesde_perm = SCTP_SOCKET__NODE_BIND;
 			break;
 
 		default:
-			node_perm = RAWIP_SOCKET__NODE_BIND;
+			yesde_perm = RAWIP_SOCKET__NODE_BIND;
 			break;
 		}
 
-		err = sel_netnode_sid(addrp, family_sa, &sid);
+		err = sel_netyesde_sid(addrp, family_sa, &sid);
 		if (err)
 			goto out;
 
@@ -4679,7 +4679,7 @@ static int selinux_socket_bind(struct socket *sock, struct sockaddr *address, in
 
 		err = avc_has_perm(&selinux_state,
 				   sksec->sid, sid,
-				   sksec->sclass, node_perm, &ad);
+				   sksec->sclass, yesde_perm, &ad);
 		if (err)
 			goto out;
 	}
@@ -4807,8 +4807,8 @@ static int selinux_socket_listen(struct socket *sock, int backlog)
 static int selinux_socket_accept(struct socket *sock, struct socket *newsock)
 {
 	int err;
-	struct inode_security_struct *isec;
-	struct inode_security_struct *newisec;
+	struct iyesde_security_struct *isec;
+	struct iyesde_security_struct *newisec;
 	u16 sclass;
 	u32 sid;
 
@@ -4816,13 +4816,13 @@ static int selinux_socket_accept(struct socket *sock, struct socket *newsock)
 	if (err)
 		return err;
 
-	isec = inode_security_novalidate(SOCK_INODE(sock));
+	isec = iyesde_security_yesvalidate(SOCK_INODE(sock));
 	spin_lock(&isec->lock);
 	sclass = isec->sclass;
 	sid = isec->sid;
 	spin_unlock(&isec->lock);
 
-	newisec = inode_security_novalidate(SOCK_INODE(newsock));
+	newisec = iyesde_security_yesvalidate(SOCK_INODE(newsock));
 	newisec->sclass = sclass;
 	newisec->sid = sid;
 	newisec->initialized = LABEL_INITIALIZED;
@@ -4932,7 +4932,7 @@ static int selinux_inet_sys_rcv_skb(struct net *ns, int ifindex,
 {
 	int err;
 	u32 if_sid;
-	u32 node_sid;
+	u32 yesde_sid;
 
 	err = sel_netif_sid(ns, ifindex, &if_sid);
 	if (err)
@@ -4943,11 +4943,11 @@ static int selinux_inet_sys_rcv_skb(struct net *ns, int ifindex,
 	if (err)
 		return err;
 
-	err = sel_netnode_sid(addrp, family, &node_sid);
+	err = sel_netyesde_sid(addrp, family, &yesde_sid);
 	if (err)
 		return err;
 	return avc_has_perm(&selinux_state,
-			    peer_sid, node_sid,
+			    peer_sid, yesde_sid,
 			    SECCLASS_NODE, NODE__RECVFROM, ad);
 }
 
@@ -5096,7 +5096,7 @@ static int selinux_socket_getpeersec_dgram(struct socket *sock, struct sk_buff *
 {
 	u32 peer_secid = SECSID_NULL;
 	u16 family;
-	struct inode_security_struct *isec;
+	struct iyesde_security_struct *isec;
 
 	if (skb && skb->protocol == htons(ETH_P_IP))
 		family = PF_INET;
@@ -5108,7 +5108,7 @@ static int selinux_socket_getpeersec_dgram(struct socket *sock, struct sk_buff *
 		goto out;
 
 	if (sock && family == PF_UNIX) {
-		isec = inode_security_novalidate(SOCK_INODE(sock));
+		isec = iyesde_security_yesvalidate(SOCK_INODE(sock));
 		peer_secid = isec->sid;
 	} else if (skb)
 		selinux_skb_peerlbl_sid(skb, family, &peer_secid);
@@ -5171,8 +5171,8 @@ static void selinux_sk_getsecid(struct sock *sk, u32 *secid)
 
 static void selinux_sock_graft(struct sock *sk, struct socket *parent)
 {
-	struct inode_security_struct *isec =
-		inode_security_novalidate(SOCK_INODE(parent));
+	struct iyesde_security_struct *isec =
+		iyesde_security_yesvalidate(SOCK_INODE(parent));
 	struct sk_security_struct *sksec = sk->sk_security;
 
 	if (sk->sk_family == PF_INET || sk->sk_family == PF_INET6 ||
@@ -5182,7 +5182,7 @@ static void selinux_sock_graft(struct sock *sk, struct socket *parent)
 }
 
 /* Called whenever SCTP receives an INIT chunk. This happens when an incoming
- * connect(2), sctp_connectx(3) or sctp_sendmsg(3) (with no association
+ * connect(2), sctp_connectx(3) or sctp_sendmsg(3) (with yes association
  * already present).
  */
 static int selinux_sctp_assoc_request(struct sctp_endpoint *ep,
@@ -5203,7 +5203,7 @@ static int selinux_sctp_assoc_request(struct sctp_endpoint *ep,
 
 	if (peerlbl_active) {
 		/* This will return peer_sid = SECSID_NULL if there are
-		 * no peer labels, see security_net_peersid_resolve().
+		 * yes peer labels, see security_net_peersid_resolve().
 		 */
 		err = selinux_skb_peerlbl_sid(skb, ep->base.sk->sk_family,
 					      &peer_sid);
@@ -5218,7 +5218,7 @@ static int selinux_sctp_assoc_request(struct sctp_endpoint *ep,
 		sksec->sctp_assoc_state = SCTP_ASSOC_SET;
 
 		/* Here as first association on socket. As the peer SID
-		 * was allowed by peer recv (and the netif/node checks),
+		 * was allowed by peer recv (and the netif/yesde checks),
 		 * then it is approved by policy and used as the primary
 		 * peer SID for getpeercon(3).
 		 */
@@ -5342,8 +5342,8 @@ static void selinux_sctp_sk_clone(struct sctp_endpoint *ep, struct sock *sk,
 	struct sk_security_struct *sksec = sk->sk_security;
 	struct sk_security_struct *newsksec = newsk->sk_security;
 
-	/* If policy does not support SECCLASS_SCTP_SOCKET then call
-	 * the non-sctp clone version.
+	/* If policy does yest support SECCLASS_SCTP_SOCKET then call
+	 * the yesn-sctp clone version.
 	 */
 	if (!selinux_policycap_extsockclass())
 		return selinux_sk_clone_security(sk, newsk);
@@ -5456,7 +5456,7 @@ static int selinux_tun_dev_create(void)
 	u32 sid = current_sid();
 
 	/* we aren't taking into account the "sockcreate" SID since the socket
-	 * that is being created here is not a socket in the traditional sense,
+	 * that is being created here is yest a socket in the traditional sense,
 	 * instead it is a private sock, accessible only to the kernel, and
 	 * representing a wide range of network traffic spanning multiple
 	 * connections unlike traditional sockets - check the TUN driver to
@@ -5485,7 +5485,7 @@ static int selinux_tun_dev_attach(struct sock *sk, void *security)
 	 * isn't clear that we would want to do so anyway; while we could apply
 	 * labeling without the support of the TUN user the resulting labeled
 	 * traffic from the other end of the connection would almost certainly
-	 * cause confusion to the TUN user that had no idea network labeling
+	 * cause confusion to the TUN user that had yes idea network labeling
 	 * protocols were being used */
 
 	sksec->sid = tunsec->sid;
@@ -5538,11 +5538,11 @@ static int selinux_nlmsg_perm(struct sock *sk, struct sk_buff *skb)
 			       secclass_map[sksec->sclass - 1].name,
 			       task_pid_nr(current), current->comm);
 			if (!enforcing_enabled(&selinux_state) ||
-			    security_get_allow_unknown(&selinux_state))
+			    security_get_allow_unkyeswn(&selinux_state))
 				err = 0;
 		}
 
-		/* Ignore */
+		/* Igyesre */
 		if (err == -ENOENT)
 			err = 0;
 		goto out;
@@ -5603,7 +5603,7 @@ static unsigned int selinux_ip_forward(struct sk_buff *skb,
 			return NF_DROP;
 
 	if (netlbl_active)
-		/* we do this in the FORWARD path and not the POST_ROUTING
+		/* we do this in the FORWARD path and yest the POST_ROUTING
 		 * path because we want to make sure we apply the necessary
 		 * labeling before IPsec is applied so we can leverage AH
 		 * protection */
@@ -5638,7 +5638,7 @@ static unsigned int selinux_ip_output(struct sk_buff *skb,
 	if (!netlbl_enabled())
 		return NF_ACCEPT;
 
-	/* we do this in the LOCAL_OUT path and not the POST_ROUTING path
+	/* we do this in the LOCAL_OUT path and yest the POST_ROUTING path
 	 * because we want to make sure we apply the necessary labeling
 	 * before IPsec is applied so we can leverage AH protection */
 	sk = skb->sk;
@@ -5649,7 +5649,7 @@ static unsigned int selinux_ip_output(struct sk_buff *skb,
 			/* if the socket is the listening state then this
 			 * packet is a SYN-ACK packet which means it needs to
 			 * be labeled based on the connection/request_sock and
-			 * not the parent socket.  unfortunately, we can't
+			 * yest the parent socket.  unfortunately, we can't
 			 * lookup the request_sock yet as it isn't queued on
 			 * the parent socket until after the SYN-ACK is sent.
 			 * the "solution" is to simply pass the packet as-is
@@ -5750,14 +5750,14 @@ static unsigned int selinux_ip_postroute(struct sk_buff *skb,
 	sk = skb_to_full_sk(skb);
 
 #ifdef CONFIG_XFRM
-	/* If skb->dst->xfrm is non-NULL then the packet is undergoing an IPsec
+	/* If skb->dst->xfrm is yesn-NULL then the packet is undergoing an IPsec
 	 * packet transformation so allow the packet to pass without any checks
-	 * since we'll have another chance to perform access control checks
+	 * since we'll have ayesther chance to perform access control checks
 	 * when the packet is on it's final way out.
 	 * NOTE: there appear to be some IPv6 multicast cases where skb->dst
 	 *       is NULL, in this case go ahead and apply access control.
 	 * NOTE: if this is a local socket (skb->sk != NULL) that is in the
-	 *       TCP listening state we cannot wait until the XFRM processing
+	 *       TCP listening state we canyest wait until the XFRM processing
 	 *       is done as we will miss out on the SA label if we do;
 	 *       unfortunately, this means more work, but it is only once per
 	 *       connection. */
@@ -5841,7 +5841,7 @@ static unsigned int selinux_ip_postroute(struct sk_buff *skb,
 
 	if (peerlbl_active) {
 		u32 if_sid;
-		u32 node_sid;
+		u32 yesde_sid;
 
 		if (sel_netif_sid(dev_net(outdev), ifindex, &if_sid))
 			return NF_DROP;
@@ -5850,10 +5850,10 @@ static unsigned int selinux_ip_postroute(struct sk_buff *skb,
 				 SECCLASS_NETIF, NETIF__EGRESS, &ad))
 			return NF_DROP_ERR(-ECONNREFUSED);
 
-		if (sel_netnode_sid(addrp, family, &node_sid))
+		if (sel_netyesde_sid(addrp, family, &yesde_sid))
 			return NF_DROP;
 		if (avc_has_perm(&selinux_state,
-				 peer_sid, node_sid,
+				 peer_sid, yesde_sid,
 				 SECCLASS_NODE, NODE__SENDTO, &ad))
 			return NF_DROP_ERR(-ECONNREFUSED);
 	}
@@ -6261,10 +6261,10 @@ static void selinux_ipc_getsecid(struct kern_ipc_perm *ipcp, u32 *secid)
 	*secid = isec->sid;
 }
 
-static void selinux_d_instantiate(struct dentry *dentry, struct inode *inode)
+static void selinux_d_instantiate(struct dentry *dentry, struct iyesde *iyesde)
 {
-	if (inode)
-		inode_doinit_with_dentry(inode, dentry);
+	if (iyesde)
+		iyesde_doinit_with_dentry(iyesde, dentry);
 }
 
 static int selinux_getprocattr(struct task_struct *p,
@@ -6395,10 +6395,10 @@ static int selinux_setprocattr(const char *name, void *value, size_t size)
 
 	/* Permission checking based on the specified context is
 	   performed during the actual operation (execve,
-	   open/mkdir/...), when we know the full context of the
+	   open/mkdir/...), when we kyesw the full context of the
 	   operation.  See selinux_bprm_set_creds for the execve
 	   checks and may_create for the file creation checks. The
-	   operation will then fail if the context is not permitted. */
+	   operation will then fail if the context is yest permitted. */
 	tsec = selinux_cred(new);
 	if (!strcmp(name, "exec")) {
 		tsec->exec_sid = sid;
@@ -6482,9 +6482,9 @@ static void selinux_release_secctx(char *secdata, u32 seclen)
 	kfree(secdata);
 }
 
-static void selinux_inode_invalidate_secctx(struct inode *inode)
+static void selinux_iyesde_invalidate_secctx(struct iyesde *iyesde)
 {
-	struct inode_security_struct *isec = selinux_inode(inode);
+	struct iyesde_security_struct *isec = selinux_iyesde(iyesde);
 
 	spin_lock(&isec->lock);
 	isec->initialized = LABEL_INVALID;
@@ -6492,28 +6492,28 @@ static void selinux_inode_invalidate_secctx(struct inode *inode)
 }
 
 /*
- *	called with inode->i_mutex locked
+ *	called with iyesde->i_mutex locked
  */
-static int selinux_inode_notifysecctx(struct inode *inode, void *ctx, u32 ctxlen)
+static int selinux_iyesde_yestifysecctx(struct iyesde *iyesde, void *ctx, u32 ctxlen)
 {
-	int rc = selinux_inode_setsecurity(inode, XATTR_SELINUX_SUFFIX,
+	int rc = selinux_iyesde_setsecurity(iyesde, XATTR_SELINUX_SUFFIX,
 					   ctx, ctxlen, 0);
-	/* Do not return error when suppressing label (SBLABEL_MNT not set). */
+	/* Do yest return error when suppressing label (SBLABEL_MNT yest set). */
 	return rc == -EOPNOTSUPP ? 0 : rc;
 }
 
 /*
- *	called with inode->i_mutex locked
+ *	called with iyesde->i_mutex locked
  */
-static int selinux_inode_setsecctx(struct dentry *dentry, void *ctx, u32 ctxlen)
+static int selinux_iyesde_setsecctx(struct dentry *dentry, void *ctx, u32 ctxlen)
 {
-	return __vfs_setxattr_noperm(dentry, XATTR_NAME_SELINUX, ctx, ctxlen, 0);
+	return __vfs_setxattr_yesperm(dentry, XATTR_NAME_SELINUX, ctx, ctxlen, 0);
 }
 
-static int selinux_inode_getsecctx(struct inode *inode, void **ctx, u32 *ctxlen)
+static int selinux_iyesde_getsecctx(struct iyesde *iyesde, void **ctx, u32 *ctxlen)
 {
 	int len = 0;
-	len = selinux_inode_getsecurity(inode, XATTR_SELINUX_SUFFIX,
+	len = selinux_iyesde_getsecurity(iyesde, XATTR_SELINUX_SUFFIX,
 						ctx, true);
 	if (len < 0)
 		return len;
@@ -6558,7 +6558,7 @@ static int selinux_key_permission(key_ref_t key_ref,
 	struct key_security_struct *ksec;
 	u32 sid;
 
-	/* if no specific permissions are requested, we skip the
+	/* if yes specific permissions are requested, we skip the
 	   permission check. No serious, additional covert channels
 	   appear to be created. */
 	if (perm == 0)
@@ -6695,9 +6695,9 @@ static u32 bpf_map_fmode_to_av(fmode_t fmode)
 
 /* This function will check the file pass through unix socket or binder to see
  * if it is a bpf related object. And apply correspinding checks on the bpf
- * object based on the type. The bpf maps and programs, not like other files and
- * socket, are using a shared anonymous inode inside the kernel as their inode.
- * So checking that inode cannot identify if the process have privilege to
+ * object based on the type. The bpf maps and programs, yest like other files and
+ * socket, are using a shared ayesnymous iyesde inside the kernel as their iyesde.
+ * So checking that iyesde canyest identify if the process have privilege to
  * access the bpf object and that's why we have to add this additional check in
  * selinux_file_receive and selinux_binder_transfer_files.
  */
@@ -6798,7 +6798,7 @@ static void selinux_bpf_prog_free(struct bpf_prog_aux *aux)
 struct lsm_blob_sizes selinux_blob_sizes __lsm_ro_after_init = {
 	.lbs_cred = sizeof(struct task_security_struct),
 	.lbs_file = sizeof(struct file_security_struct),
-	.lbs_inode = sizeof(struct inode_security_struct),
+	.lbs_iyesde = sizeof(struct iyesde_security_struct),
 	.lbs_ipc = sizeof(struct ipc_security_struct),
 	.lbs_msg_msg = sizeof(struct msg_security_struct),
 };
@@ -6878,7 +6878,7 @@ static struct security_hook_list selinux_hooks[] __lsm_ro_after_init = {
 	LSM_HOOK_INIT(quotactl, selinux_quotactl),
 	LSM_HOOK_INIT(quota_on, selinux_quota_on),
 	LSM_HOOK_INIT(syslog, selinux_syslog),
-	LSM_HOOK_INIT(vm_enough_memory, selinux_vm_enough_memory),
+	LSM_HOOK_INIT(vm_eyesugh_memory, selinux_vm_eyesugh_memory),
 
 	LSM_HOOK_INIT(netlink_send, selinux_netlink_send),
 
@@ -6906,34 +6906,34 @@ static struct security_hook_list selinux_hooks[] __lsm_ro_after_init = {
 	LSM_HOOK_INIT(dentry_init_security, selinux_dentry_init_security),
 	LSM_HOOK_INIT(dentry_create_files_as, selinux_dentry_create_files_as),
 
-	LSM_HOOK_INIT(inode_alloc_security, selinux_inode_alloc_security),
-	LSM_HOOK_INIT(inode_free_security, selinux_inode_free_security),
-	LSM_HOOK_INIT(inode_init_security, selinux_inode_init_security),
-	LSM_HOOK_INIT(inode_create, selinux_inode_create),
-	LSM_HOOK_INIT(inode_link, selinux_inode_link),
-	LSM_HOOK_INIT(inode_unlink, selinux_inode_unlink),
-	LSM_HOOK_INIT(inode_symlink, selinux_inode_symlink),
-	LSM_HOOK_INIT(inode_mkdir, selinux_inode_mkdir),
-	LSM_HOOK_INIT(inode_rmdir, selinux_inode_rmdir),
-	LSM_HOOK_INIT(inode_mknod, selinux_inode_mknod),
-	LSM_HOOK_INIT(inode_rename, selinux_inode_rename),
-	LSM_HOOK_INIT(inode_readlink, selinux_inode_readlink),
-	LSM_HOOK_INIT(inode_follow_link, selinux_inode_follow_link),
-	LSM_HOOK_INIT(inode_permission, selinux_inode_permission),
-	LSM_HOOK_INIT(inode_setattr, selinux_inode_setattr),
-	LSM_HOOK_INIT(inode_getattr, selinux_inode_getattr),
-	LSM_HOOK_INIT(inode_setxattr, selinux_inode_setxattr),
-	LSM_HOOK_INIT(inode_post_setxattr, selinux_inode_post_setxattr),
-	LSM_HOOK_INIT(inode_getxattr, selinux_inode_getxattr),
-	LSM_HOOK_INIT(inode_listxattr, selinux_inode_listxattr),
-	LSM_HOOK_INIT(inode_removexattr, selinux_inode_removexattr),
-	LSM_HOOK_INIT(inode_getsecurity, selinux_inode_getsecurity),
-	LSM_HOOK_INIT(inode_setsecurity, selinux_inode_setsecurity),
-	LSM_HOOK_INIT(inode_listsecurity, selinux_inode_listsecurity),
-	LSM_HOOK_INIT(inode_getsecid, selinux_inode_getsecid),
-	LSM_HOOK_INIT(inode_copy_up, selinux_inode_copy_up),
-	LSM_HOOK_INIT(inode_copy_up_xattr, selinux_inode_copy_up_xattr),
-	LSM_HOOK_INIT(path_notify, selinux_path_notify),
+	LSM_HOOK_INIT(iyesde_alloc_security, selinux_iyesde_alloc_security),
+	LSM_HOOK_INIT(iyesde_free_security, selinux_iyesde_free_security),
+	LSM_HOOK_INIT(iyesde_init_security, selinux_iyesde_init_security),
+	LSM_HOOK_INIT(iyesde_create, selinux_iyesde_create),
+	LSM_HOOK_INIT(iyesde_link, selinux_iyesde_link),
+	LSM_HOOK_INIT(iyesde_unlink, selinux_iyesde_unlink),
+	LSM_HOOK_INIT(iyesde_symlink, selinux_iyesde_symlink),
+	LSM_HOOK_INIT(iyesde_mkdir, selinux_iyesde_mkdir),
+	LSM_HOOK_INIT(iyesde_rmdir, selinux_iyesde_rmdir),
+	LSM_HOOK_INIT(iyesde_mkyesd, selinux_iyesde_mkyesd),
+	LSM_HOOK_INIT(iyesde_rename, selinux_iyesde_rename),
+	LSM_HOOK_INIT(iyesde_readlink, selinux_iyesde_readlink),
+	LSM_HOOK_INIT(iyesde_follow_link, selinux_iyesde_follow_link),
+	LSM_HOOK_INIT(iyesde_permission, selinux_iyesde_permission),
+	LSM_HOOK_INIT(iyesde_setattr, selinux_iyesde_setattr),
+	LSM_HOOK_INIT(iyesde_getattr, selinux_iyesde_getattr),
+	LSM_HOOK_INIT(iyesde_setxattr, selinux_iyesde_setxattr),
+	LSM_HOOK_INIT(iyesde_post_setxattr, selinux_iyesde_post_setxattr),
+	LSM_HOOK_INIT(iyesde_getxattr, selinux_iyesde_getxattr),
+	LSM_HOOK_INIT(iyesde_listxattr, selinux_iyesde_listxattr),
+	LSM_HOOK_INIT(iyesde_removexattr, selinux_iyesde_removexattr),
+	LSM_HOOK_INIT(iyesde_getsecurity, selinux_iyesde_getsecurity),
+	LSM_HOOK_INIT(iyesde_setsecurity, selinux_iyesde_setsecurity),
+	LSM_HOOK_INIT(iyesde_listsecurity, selinux_iyesde_listsecurity),
+	LSM_HOOK_INIT(iyesde_getsecid, selinux_iyesde_getsecid),
+	LSM_HOOK_INIT(iyesde_copy_up, selinux_iyesde_copy_up),
+	LSM_HOOK_INIT(iyesde_copy_up_xattr, selinux_iyesde_copy_up_xattr),
+	LSM_HOOK_INIT(path_yestify, selinux_path_yestify),
 
 	LSM_HOOK_INIT(kernfs_init_security, selinux_kernfs_init_security),
 
@@ -6973,7 +6973,7 @@ static struct security_hook_list selinux_hooks[] __lsm_ro_after_init = {
 	LSM_HOOK_INIT(task_getscheduler, selinux_task_getscheduler),
 	LSM_HOOK_INIT(task_movememory, selinux_task_movememory),
 	LSM_HOOK_INIT(task_kill, selinux_task_kill),
-	LSM_HOOK_INIT(task_to_inode, selinux_task_to_inode),
+	LSM_HOOK_INIT(task_to_iyesde, selinux_task_to_iyesde),
 
 	LSM_HOOK_INIT(ipc_permission, selinux_ipc_permission),
 	LSM_HOOK_INIT(ipc_getsecid, selinux_ipc_getsecid),
@@ -7006,10 +7006,10 @@ static struct security_hook_list selinux_hooks[] __lsm_ro_after_init = {
 	LSM_HOOK_INIT(secid_to_secctx, selinux_secid_to_secctx),
 	LSM_HOOK_INIT(secctx_to_secid, selinux_secctx_to_secid),
 	LSM_HOOK_INIT(release_secctx, selinux_release_secctx),
-	LSM_HOOK_INIT(inode_invalidate_secctx, selinux_inode_invalidate_secctx),
-	LSM_HOOK_INIT(inode_notifysecctx, selinux_inode_notifysecctx),
-	LSM_HOOK_INIT(inode_setsecctx, selinux_inode_setsecctx),
-	LSM_HOOK_INIT(inode_getsecctx, selinux_inode_getsecctx),
+	LSM_HOOK_INIT(iyesde_invalidate_secctx, selinux_iyesde_invalidate_secctx),
+	LSM_HOOK_INIT(iyesde_yestifysecctx, selinux_iyesde_yestifysecctx),
+	LSM_HOOK_INIT(iyesde_setsecctx, selinux_iyesde_setsecctx),
+	LSM_HOOK_INIT(iyesde_getsecctx, selinux_iyesde_getsecctx),
 
 	LSM_HOOK_INIT(unix_stream_connect, selinux_socket_unix_stream_connect),
 	LSM_HOOK_INIT(unix_may_send, selinux_socket_unix_may_send),
@@ -7085,7 +7085,7 @@ static struct security_hook_list selinux_hooks[] __lsm_ro_after_init = {
 
 #ifdef CONFIG_AUDIT
 	LSM_HOOK_INIT(audit_rule_init, selinux_audit_rule_init),
-	LSM_HOOK_INIT(audit_rule_known, selinux_audit_rule_known),
+	LSM_HOOK_INIT(audit_rule_kyeswn, selinux_audit_rule_kyeswn),
 	LSM_HOOK_INIT(audit_rule_match, selinux_audit_rule_match),
 	LSM_HOOK_INIT(audit_rule_free, selinux_audit_rule_free),
 #endif
@@ -7122,7 +7122,7 @@ static __init int selinux_init(void)
 	/* Set the security state for the initial task. */
 	cred_init_security();
 
-	default_noexec = !(VM_DATA_DEFAULT_FLAGS & VM_EXEC);
+	default_yesexec = !(VM_DATA_DEFAULT_FLAGS & VM_EXEC);
 
 	avc_init();
 
@@ -7137,8 +7137,8 @@ static __init int selinux_init(void)
 	if (avc_add_callback(selinux_netcache_avc_callback, AVC_CALLBACK_RESET))
 		panic("SELinux: Unable to register AVC netcache callback\n");
 
-	if (avc_add_callback(selinux_lsm_notifier_avc_callback, AVC_CALLBACK_RESET))
-		panic("SELinux: Unable to register AVC LSM notifier callback\n");
+	if (avc_add_callback(selinux_lsm_yestifier_avc_callback, AVC_CALLBACK_RESET))
+		panic("SELinux: Unable to register AVC LSM yestifier callback\n");
 
 	if (selinux_enforcing_boot)
 		pr_debug("SELinux:  Starting in enforcing mode\n");
@@ -7289,7 +7289,7 @@ int selinux_disable(struct selinux_state *state)
 
 	security_delete_hooks(selinux_hooks, ARRAY_SIZE(selinux_hooks));
 
-	/* Try to destroy the avc node cache */
+	/* Try to destroy the avc yesde cache */
 	avc_disable();
 
 	/* Unregister netfilter hooks. */

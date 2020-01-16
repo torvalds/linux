@@ -182,7 +182,7 @@ struct perf_cpu_map *perf_cpu_map__new(const char *cpu_list)
 
 	/*
 	 * must handle the case of empty cpumap to cover
-	 * TOPOLOGY header for NUMA nodes with no CPU
+	 * TOPOLOGY header for NUMA yesdes with yes CPU
 	 * ( e.g., because of CPU hotplug)
 	 */
 	if (!isdigit(*cpu_list) && *cpu_list != '\0')
@@ -291,7 +291,7 @@ int perf_cpu_map__max(struct perf_cpu_map *map)
  * Merge two cpumaps
  *
  * orig either gets freed and replaced with a new map, or reused
- * with no reference count change (similar to "realloc")
+ * with yes reference count change (similar to "realloc")
  * other has its reference count increased.
  */
 

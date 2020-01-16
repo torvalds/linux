@@ -14,11 +14,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -38,7 +38,7 @@
 /* This file contains definitions for various T4 register value hardware
  * constants.  The types of values encoded here are predominantly those for
  * register fields which control "modal" behavior.  For the most part, we do
- * not include definitions for register fields which are simple numeric
+ * yest include definitions for register fields which are simple numeric
  * metrics, etc.
  */
 
@@ -105,11 +105,11 @@
  * (IDXSIZE_UNIT_X) Gather Buffer interface at offset 64.  For Ingress Queues,
  * we have a Going To Sleep register at offsets 8x+4.
  *
- * As noted above, we have many instances of the Simple Doorbell and Going To
+ * As yested above, we have many instances of the Simple Doorbell and Going To
  * Sleep registers at offsets 8x and 8x+4, respectively.  We want to use a
- * non-64-byte aligned offset for the Simple Doorbell in order to attempt to
+ * yesn-64-byte aligned offset for the Simple Doorbell in order to attempt to
  * avoid buffering of the writes to the Simple Doorbell and we want to use a
- * non-contiguous offset for the Going To Sleep writes in order to avoid
+ * yesn-contiguous offset for the Going To Sleep writes in order to avoid
  * possible combining between them.
  */
 #define SGE_UDB_SIZE		128

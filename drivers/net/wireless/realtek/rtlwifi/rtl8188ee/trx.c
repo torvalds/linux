@@ -53,11 +53,11 @@ static void _rtl88ee_query_rxphystatus(struct ieee80211_hw *hw,
 	if (is_cck) {
 		u8 cck_highpwr;
 		u8 cck_agc_rpt;
-		/* CCK Driver info Structure is not the same as OFDM packet. */
+		/* CCK Driver info Structure is yest the same as OFDM packet. */
 		cck_buf = (struct phy_sts_cck_8192s_t *)p_drvinfo;
 		cck_agc_rpt = cck_buf->cck_agc_rpt;
 
-		/* (1)Hardware does not provide RSSI for CCK
+		/* (1)Hardware does yest provide RSSI for CCK
 		 * (2)PWDB, Average PWDB cacluated by
 		 * hardware (for rate adaptive)
 		 */
@@ -167,7 +167,7 @@ static void _rtl88ee_query_rxphystatus(struct ieee80211_hw *hw,
 
 		/* (1)Get RSSI for HT rate */
 		for (i = RF90_PATH_A; i < RF6052_MAX_PATH; i++) {
-			/* we will judge RF RX path now. */
+			/* we will judge RF RX path yesw. */
 			if (rtlpriv->dm.rfpath_rxenable[i])
 				rf_rx_num++;
 
@@ -432,7 +432,7 @@ bool rtl88ee_rx_query_desc(struct ieee80211_hw *hw,
 
 	/* hw will set status->decrypted true, if it finds the
 	 * frame is open data frame or mgmt frame.
-	 * So hw will not decryption robust managment frame
+	 * So hw will yest decryption robust managment frame
 	 * for IEEE80211w but still set status->decrypted
 	 * true, so here we should set it back to undecrypted
 	 * for IEEE80211w frame, and mac80211 sw will help
@@ -742,7 +742,7 @@ void rtl88ee_set_desc(struct ieee80211_hw *hw, u8 *pdesc8,
 			set_tx_desc_next_desc_address(pdesc, *(u32 *)val);
 			break;
 		default:
-			WARN_ONCE(true, "rtl8188ee: ERR txdesc :%d not processed\n",
+			WARN_ONCE(true, "rtl8188ee: ERR txdesc :%d yest processed\n",
 				  desc_name);
 			break;
 		}
@@ -761,7 +761,7 @@ void rtl88ee_set_desc(struct ieee80211_hw *hw, u8 *pdesc8,
 			set_rx_desc_eor(pdesc, 1);
 			break;
 		default:
-			WARN_ONCE(true, "rtl8188ee: ERR rxdesc :%d not processed\n",
+			WARN_ONCE(true, "rtl8188ee: ERR rxdesc :%d yest processed\n",
 				  desc_name);
 			break;
 		}
@@ -783,7 +783,7 @@ u64 rtl88ee_get_desc(struct ieee80211_hw *hw,
 			ret = get_tx_desc_tx_buffer_address(pdesc);
 			break;
 		default:
-			WARN_ONCE(true, "rtl8188ee: ERR txdesc :%d not processed\n",
+			WARN_ONCE(true, "rtl8188ee: ERR txdesc :%d yest processed\n",
 				  desc_name);
 			break;
 		}
@@ -799,7 +799,7 @@ u64 rtl88ee_get_desc(struct ieee80211_hw *hw,
 			ret = get_rx_desc_buff_addr(pdesc);
 			break;
 		default:
-			WARN_ONCE(true, "rtl8188ee: ERR rxdesc :%d not processed\n",
+			WARN_ONCE(true, "rtl8188ee: ERR rxdesc :%d yest processed\n",
 				  desc_name);
 			break;
 		}
@@ -815,7 +815,7 @@ bool rtl88ee_is_tx_desc_closed(struct ieee80211_hw *hw, u8 hw_queue, u16 index)
 	u8 own = (u8)rtl88ee_get_desc(hw, entry, true, HW_DESC_OWN);
 
 	/*beacon packet will only use the first
-	 *descriptor defautly,and the own may not
+	 *descriptor defautly,and the own may yest
 	 *be cleared by the hardware
 	 */
 	if (own)

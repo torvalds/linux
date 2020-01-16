@@ -38,7 +38,7 @@
    the clobber list so it is left out. Also the input arguments
    registers r20 -> r26 will conflict with the list so they
    are treated specially. Although r19 is clobbered by the syscall
-   we cannot say this because it would violate ABI, thus we say
+   we canyest say this because it would violate ABI, thus we say
    r4 is clobbered and use that register to save/restore r19
    across the syscall. */
 
@@ -64,7 +64,7 @@
 		__sys_res = (long)__res;				\
 	}								\
 	if ( (unsigned long)__sys_res >= (unsigned long)-4095 ){	\
-		errno = -__sys_res;		        		\
+		erryes = -__sys_res;		        		\
 		__sys_res = -1;						\
 	}								\
 	__sys_res;							\
@@ -99,7 +99,7 @@
 #define K_ASM_ARGS_5 K_ASM_ARGS_4, "r" (__r22)
 #define K_ASM_ARGS_6 K_ASM_ARGS_5, "r" (__r21)
 
-/* The registers not listed as inputs but clobbered */
+/* The registers yest listed as inputs but clobbered */
 #define K_CLOB_ARGS_6
 #define K_CLOB_ARGS_5 K_CLOB_ARGS_6, "%r21"
 #define K_CLOB_ARGS_4 K_CLOB_ARGS_5, "%r22"

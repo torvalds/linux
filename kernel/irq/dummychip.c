@@ -26,22 +26,22 @@ static void ack_bad(struct irq_data *data)
 /*
  * NOP functions
  */
-static void noop(struct irq_data *data) { }
+static void yesop(struct irq_data *data) { }
 
-static unsigned int noop_ret(struct irq_data *data)
+static unsigned int yesop_ret(struct irq_data *data)
 {
 	return 0;
 }
 
 /*
- * Generic no controller implementation
+ * Generic yes controller implementation
  */
-struct irq_chip no_irq_chip = {
-	.name		= "none",
-	.irq_startup	= noop_ret,
-	.irq_shutdown	= noop,
-	.irq_enable	= noop,
-	.irq_disable	= noop,
+struct irq_chip yes_irq_chip = {
+	.name		= "yesne",
+	.irq_startup	= yesop_ret,
+	.irq_shutdown	= yesop,
+	.irq_enable	= yesop,
+	.irq_disable	= yesop,
 	.irq_ack	= ack_bad,
 	.flags		= IRQCHIP_SKIP_SET_WAKE,
 };
@@ -52,13 +52,13 @@ struct irq_chip no_irq_chip = {
  */
 struct irq_chip dummy_irq_chip = {
 	.name		= "dummy",
-	.irq_startup	= noop_ret,
-	.irq_shutdown	= noop,
-	.irq_enable	= noop,
-	.irq_disable	= noop,
-	.irq_ack	= noop,
-	.irq_mask	= noop,
-	.irq_unmask	= noop,
+	.irq_startup	= yesop_ret,
+	.irq_shutdown	= yesop,
+	.irq_enable	= yesop,
+	.irq_disable	= yesop,
+	.irq_ack	= yesop,
+	.irq_mask	= yesop,
+	.irq_unmask	= yesop,
 	.flags		= IRQCHIP_SKIP_SET_WAKE,
 };
 EXPORT_SYMBOL_GPL(dummy_irq_chip);

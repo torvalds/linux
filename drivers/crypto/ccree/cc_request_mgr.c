@@ -2,7 +2,7 @@
 /* Copyright (C) 2012-2019 ARM Limited (or its affiliates). */
 
 #include <linux/kernel.h>
-#include <linux/nospec.h>
+#include <linux/yesspec.h>
 #include "cc_driver.h"
 #include "cc_buffer_mgr.h"
 #include "cc_request_mgr.h"
@@ -49,7 +49,7 @@ struct cc_bl_item {
 	struct cc_hw_desc desc[CC_MAX_DESC_SEQ_LEN];
 	unsigned int len;
 	struct list_head list;
-	bool notif;
+	bool yestif;
 };
 
 static const u32 cc_cpp_int_masks[CC_CPP_NUM_ALGS][CC_CPP_NUM_SLOTS] = {
@@ -78,8 +78,8 @@ static void comp_work_handler(struct work_struct *work);
 
 static inline u32 cc_cpp_int_mask(enum cc_cpp_alg alg, int slot)
 {
-	alg = array_index_nospec(alg, CC_CPP_NUM_ALGS);
-	slot = array_index_nospec(slot, CC_CPP_NUM_SLOTS);
+	alg = array_index_yesspec(alg, CC_CPP_NUM_ALGS);
+	slot = array_index_yesspec(slot, CC_CPP_NUM_SLOTS);
 
 	return cc_cpp_int_masks[alg][slot];
 }
@@ -162,7 +162,7 @@ int cc_req_mgr_init(struct cc_drvdata *drvdata)
 				   &req_mgr_h->dummy_comp_buff_dma,
 				   GFP_KERNEL);
 	if (!req_mgr_h->dummy_comp_buff) {
-		dev_err(dev, "Not enough memory to allocate DMA (%zu) dropped buffer\n",
+		dev_err(dev, "Not eyesugh memory to allocate DMA (%zu) dropped buffer\n",
 			sizeof(u32));
 		rc = -ENOMEM;
 		goto req_mgr_init_err;
@@ -229,7 +229,7 @@ static int cc_queues_status(struct cc_drvdata *drvdata,
 	unsigned long poll_queue;
 	struct device *dev = drvdata_to_dev(drvdata);
 
-	/* SW queue is checked only once as it will not
+	/* SW queue is checked only once as it will yest
 	 * be chaned during the poll because the spinlock_bh
 	 * is held by the thread
 	 */
@@ -251,7 +251,7 @@ static int cc_queues_status(struct cc_drvdata *drvdata,
 			req_mgr_h->min_free_hw_slots = req_mgr_h->q_free_slots;
 
 		if (req_mgr_h->q_free_slots >= total_seq_len) {
-			/* If there is enough place return */
+			/* If there is eyesugh place return */
 			return 0;
 		}
 
@@ -304,7 +304,7 @@ static int cc_do_send_request(struct cc_drvdata *drvdata,
 	/*
 	 * We are about to push command to the HW via the command registers
 	 * that may refernece hsot memory. We need to issue a memory barrier
-	 * to make sure there are no outstnading memory writes
+	 * to make sure there are yes outstnading memory writes
 	 */
 	wmb();
 
@@ -372,9 +372,9 @@ static void cc_proc_backlog(struct cc_drvdata *drvdata)
 		 * Notify the request we're moving out of the backlog
 		 * but only if we haven't done so already.
 		 */
-		if (!bli->notif) {
+		if (!bli->yestif) {
 			creq->user_cb(dev, req, -EINPROGRESS);
-			bli->notif = true;
+			bli->yestif = true;
 		}
 
 		spin_lock(&mgr->hw_lock);
@@ -382,7 +382,7 @@ static void cc_proc_backlog(struct cc_drvdata *drvdata)
 		rc = cc_queues_status(drvdata, mgr, bli->len);
 		if (rc) {
 			/*
-			 * There is still not room in the FIFO for
+			 * There is still yest room in the FIFO for
 			 * this request. Bail out. We'll return here
 			 * on the next completion irq.
 			 */
@@ -446,7 +446,7 @@ int cc_send_request(struct cc_drvdata *drvdata, struct cc_crypto_req *cc_req,
 		memcpy(&bli->creq, cc_req, sizeof(*cc_req));
 		memcpy(&bli->desc, desc, len * sizeof(*desc));
 		bli->len = len;
-		bli->notif = false;
+		bli->yestif = false;
 		cc_enqueue_backlog(drvdata, bli);
 		return -EBUSY;
 	}
@@ -506,7 +506,7 @@ int cc_send_sync_request(struct cc_drvdata *drvdata,
 
 /*!
  * Enqueue caller request to crypto hardware during init process.
- * assume this function is not called in middle of a flow,
+ * assume this function is yest called in middle of a flow,
  * since we set QUEUE_LAST_IND flag in the last descriptor.
  *
  * \param drvdata
@@ -533,7 +533,7 @@ int send_request_init(struct cc_drvdata *drvdata, struct cc_hw_desc *desc,
 	/*
 	 * We are about to push command to the HW via the command registers
 	 * that may refernece hsot memory. We need to issue a memory barrier
-	 * to make sure there are no outstnading memory writes
+	 * to make sure there are yes outstnading memory writes
 	 */
 	wmb();
 	enqueue_seq(drvdata, desc, len);
@@ -586,7 +586,7 @@ static void proc_completions(struct cc_drvdata *drvdata)
 		/* Dequeue request */
 		if (*head == *tail) {
 			/* We are supposed to handle a completion but our
-			 * queue is empty. This is not normal. Return and
+			 * queue is empty. This is yest yesrmal. Return and
 			 * hope for the best.
 			 */
 			dev_err(dev, "Request queue is empty head == tail %u\n",
@@ -639,7 +639,7 @@ static void comp_handler(unsigned long devarg)
 	irq = (drvdata->irq & drvdata->comp_mask);
 
 	/* To avoid the interrupt from firing as we unmask it,
-	 * we clear it now
+	 * we clear it yesw
 	 */
 	cc_iowrite(drvdata, CC_REG(HOST_ICR), irq);
 
@@ -668,7 +668,7 @@ static void comp_handler(unsigned long devarg)
 		request_mgr_handle->axi_completed += cc_axi_comp_count(drvdata);
 	}
 
-	/* after verifing that there is nothing to do,
+	/* after verifing that there is yesthing to do,
 	 * unmask AXI completion interrupt
 	 */
 	cc_iowrite(drvdata, CC_REG(HOST_IMR),
@@ -679,7 +679,7 @@ static void comp_handler(unsigned long devarg)
 }
 
 /*
- * resume the queue configuration - no need to take the lock as this happens
+ * resume the queue configuration - yes need to take the lock as this happens
  * inside the spin lock protection
  */
 #if defined(CONFIG_PM)

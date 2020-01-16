@@ -16,15 +16,15 @@ I/O layer.
 The document assumes a familarity with the technical terms associated
 with the s390 channel I/O architecture. For a description of this
 architecture, please refer to the "z/Architecture: Principles of
-Operation", IBM publication no. SA22-7832.
+Operation", IBM publication yes. SA22-7832.
 
 While most I/O devices on a s390 system are typically driven through the
 channel I/O mechanism described here, there are various other methods
 (like the diag interface). These are out of the scope of this document.
 
 The s390 common I/O layer also provides access to some devices that are
-not strictly considered I/O devices. They are considered here as well,
-although they are not the focus of this document.
+yest strictly considered I/O devices. They are considered here as well,
+although they are yest the focus of this document.
 
 Some additional information can also be found in the kernel source under
 Documentation/s390/driver-model.rst.
@@ -41,7 +41,7 @@ into several categories:
   Documentation/s390/vfio-ccw.rst.
 * Message subchannels. No Linux driver currently exists.
 * CHSC subchannels (at most one). The chsc subchannel driver can be used
-  to send asynchronous chsc commands.
+  to send asynchroyesus chsc commands.
 * eADM subchannels. Used for talking to storage class memory.
 
 The ccw bus
@@ -75,7 +75,7 @@ Interaction with the driver core is done via the common I/O layer, which
 provides the abstractions of ccw devices and ccw device drivers.
 
 The functions that initiate or terminate channel I/O all act upon a ccw
-device structure. Device drivers must not bypass those functions or
+device structure. Device drivers must yest bypass those functions or
 strange side effects may happen.
 
 .. kernel-doc:: arch/s390/include/asm/ccwdev.h
@@ -121,7 +121,7 @@ ccw group devices
 Generic interfaces
 ==================
 
-The following section contains interfaces in use not only by drivers
+The following section contains interfaces in use yest only by drivers
 dealing with ccw devices, but drivers for various other s390 hardware
 as well.
 

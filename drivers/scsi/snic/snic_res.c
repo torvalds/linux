@@ -15,7 +15,7 @@
  * SOFTWARE.
  */
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/types.h>
 #include <linux/pci.h>
 
@@ -162,7 +162,7 @@ snic_alloc_vnic_res(struct snic *snic)
 		   ((intr_mode == VNIC_DEV_INTR_MODE_MSI) ?
 		    "MSI" :
 		    ((intr_mode == VNIC_DEV_INTR_MODE_MSIX) ?
-		     "MSI-X" : "Unknown"))));
+		     "MSI-X" : "Unkyeswn"))));
 
 	/* only MSI-X is supported */
 	SNIC_BUG_ON(intr_mode != VNIC_DEV_INTR_MODE_MSIX);

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016 Mellanox Technologies Ltd. All rights reserved.
+ * Copyright (c) 2016 Mellayesx Techyeslogies Ltd. All rights reserved.
  * Copyright (c) 2015 System Fabric Works, Inc. All rights reserved.
  *
  * This software is available to you under a choice of one of two
@@ -13,11 +13,11 @@
  *     conditions are met:
  *
  *	- Redistributions of source code must retain the above
- *	  copyright notice, this list of conditions and the following
+ *	  copyright yestice, this list of conditions and the following
  *	  disclaimer.
  *
  *	- Redistributions in binary form must reproduce the above
- *	  copyright notice, this list of conditions and the following
+ *	  copyright yestice, this list of conditions and the following
  *	  disclaimer in the documentation and/or other materials
  *	  provided with the distribution.
  *
@@ -150,7 +150,7 @@ static struct rxe_send_wqe *req_next_wqe(struct rxe_qp *qp)
 			if (wqe && ((qp->req.wqe_index !=
 				consumer_index(qp->sq.queue)) ||
 				(wqe->state != wqe_state_posted))) {
-				/* comp not done yet */
+				/* comp yest done yet */
 				spin_unlock_irqrestore(&qp->state_lock,
 						       flags);
 				break;
@@ -427,9 +427,9 @@ static struct sk_buff *init_req_packet(struct rxe_qp *qp,
 					 qp->attr.dest_qp_num;
 
 	ack_req = ((pkt->mask & RXE_END_MASK) ||
-		(qp->req.noack_pkts++ > RXE_MAX_PKT_PER_ACK));
+		(qp->req.yesack_pkts++ > RXE_MAX_PKT_PER_ACK));
 	if (ack_req)
-		qp->req.noack_pkts = 0;
+		qp->req.yesack_pkts = 0;
 
 	bth_init(pkt, pkt->opcode, solicited, 0, pad, pkey, qp_num,
 		 ack_req, pkt->psn);
@@ -694,7 +694,7 @@ next_wqe:
 		if (qp_type(qp) == IB_QPT_UD) {
 			/* C10-93.1.1: If the total sum of all the buffer lengths specified for a
 			 * UD message exceeds the MTU of the port as returned by QueryHCA, the CI
-			 * shall not emit any packets for this message. Further, the CI shall not
+			 * shall yest emit any packets for this message. Further, the CI shall yest
 			 * generate an error due to this condition.
 			 */
 

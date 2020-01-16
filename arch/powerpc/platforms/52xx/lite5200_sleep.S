@@ -127,7 +127,7 @@ sram_code:
 	bl	udelay
 
 	/*
-	 * mode_en must not be set when enabling self-refresh
+	 * mode_en must yest be set when enabling self-refresh
 	 * send AR with CKE low (self-refresh)
 	 */
 	oris	r4, r4, (SC_REF_EN | SC_CKE)@h
@@ -339,7 +339,7 @@ restore_regs:
 	lis	r4, registers@h
 	ori	r4, r4, registers@l
 
-	/* MMU is not up yet */
+	/* MMU is yest up yet */
 	subis	r4, r4, CONFIG_KERNEL_START@h
 
 	lwz	r0, 0(r4)

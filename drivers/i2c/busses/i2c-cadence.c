@@ -156,7 +156,7 @@ struct cdns_i2c {
 	unsigned int i2c_clk;
 	unsigned int bus_hold_flag;
 	struct clk *clk;
-	struct notifier_block clk_rate_change_nb;
+	struct yestifier_block clk_rate_change_nb;
 	u32 quirks;
 };
 
@@ -254,7 +254,7 @@ static irqreturn_t cdns_i2c_isr(int irq, void *ptr)
 		 * The controller sends NACK to the slave when transfer size
 		 * register reaches zero without considering the HOLD bit.
 		 * This workaround is implemented for large data transfers to
-		 * maintain transfer size non-zero while performing a large
+		 * maintain transfer size yesn-zero while performing a large
 		 * receive operation.
 		 */
 		if (cdns_is_holdquirk(id, hold_quirk)) {
@@ -297,7 +297,7 @@ static irqreturn_t cdns_i2c_isr(int irq, void *ptr)
 			}
 		}
 
-		/* Clear hold (if not repeated start) and signal completion */
+		/* Clear hold (if yest repeated start) and signal completion */
 		if ((isr_status & CDNS_I2C_IXR_COMP) && !id->recv_count) {
 			if (!id->bus_hold_flag)
 				cdns_i2c_clear_bus_hold(id);
@@ -330,7 +330,7 @@ static irqreturn_t cdns_i2c_isr(int irq, void *ptr)
 		} else {
 			/*
 			 * Signal the completion of transaction and
-			 * clear the hold bus bit if there are no
+			 * clear the hold bus bit if there are yes
 			 * further messages to be processed.
 			 */
 			done_flag = 1;
@@ -389,8 +389,8 @@ static void cdns_i2c_mrecv(struct cdns_i2c *id)
 	cdns_i2c_writereg(isr_status, CDNS_I2C_ISR_OFFSET);
 
 	/*
-	 * The no. of bytes to receive is checked against the limit of
-	 * max transfer size. Set transfer size register with no of bytes
+	 * The yes. of bytes to receive is checked against the limit of
+	 * max transfer size. Set transfer size register with yes of bytes
 	 * receive if it is less than transfer size and transfer size if
 	 * it is more. Enable the interrupts.
 	 */
@@ -467,7 +467,7 @@ static void cdns_i2c_msend(struct cdns_i2c *id)
 	}
 
 	/*
-	 * Clear the bus hold flag if there is no more data
+	 * Clear the bus hold flag if there is yes more data
 	 * and if it is the last message.
 	 */
 	if (!id->bus_hold_flag && !id->send_count)
@@ -589,11 +589,11 @@ static int cdns_i2c_master_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs,
 	 */
 	if (num > 1) {
 		/*
-		 * This controller does not give completion interrupt after a
+		 * This controller does yest give completion interrupt after a
 		 * master receive message if HOLD bit is set (repeated start),
 		 * resulting in SW timeout. Hence, if a receive message is
 		 * followed by any other message, an error is returned
-		 * indicating that this sequence is not supported.
+		 * indicating that this sequence is yest supported.
 		 */
 		for (count = 0; (count < num - 1 && hold_quirk); count++) {
 			if (msgs[count].flags & I2C_M_RD) {
@@ -668,7 +668,7 @@ static const struct i2c_algorithm cdns_i2c_algo = {
  * f is used as input and output variable. As input it is used as target I2C
  * frequency. On function exit f holds the actually resulting I2C frequency.
  *
- * Return: 0 on success, negative errno otherwise.
+ * Return: 0 on success, negative erryes otherwise.
  */
 static int cdns_i2c_calc_divs(unsigned long *f, unsigned long input_clk,
 		unsigned int *a, unsigned int *b)
@@ -729,7 +729,7 @@ static int cdns_i2c_calc_divs(unsigned long *f, unsigned long input_clk,
  * The formula for determining the correct register values is
  *	Fscl = Fpclk/(22 x (divisor_a+1) x (divisor_b+1))
  * See the hardware data sheet for a full explanation of setting the serial
- * clock rate. The clock can not be faster than the input clock divide by 22.
+ * clock rate. The clock can yest be faster than the input clock divide by 22.
  * The two most common clock rates are 100KHz and 400KHz.
  *
  * Return: 0 on success, negative error otherwise
@@ -755,25 +755,25 @@ static int cdns_i2c_setclk(unsigned long clk_in, struct cdns_i2c *id)
 }
 
 /**
- * cdns_i2c_clk_notifier_cb - Clock rate change callback
- * @nb:		Pointer to notifier block
+ * cdns_i2c_clk_yestifier_cb - Clock rate change callback
+ * @nb:		Pointer to yestifier block
  * @event:	Notification reason
- * @data:	Pointer to notification data object
+ * @data:	Pointer to yestification data object
  *
  * This function is called when the cdns_i2c input clock frequency changes.
  * The callback checks whether a valid bus frequency can be generated after the
- * change. If so, the change is acknowledged, otherwise the change is aborted.
- * New dividers are written to the HW in the pre- or post change notification
+ * change. If so, the change is ackyeswledged, otherwise the change is aborted.
+ * New dividers are written to the HW in the pre- or post change yestification
  * depending on the scaling direction.
  *
  * Return:	NOTIFY_STOP if the rate change should be aborted, NOTIFY_OK
- *		to acknowledge the change, NOTIFY_DONE if the notification is
+ *		to ackyeswledge the change, NOTIFY_DONE if the yestification is
  *		considered irrelevant.
  */
-static int cdns_i2c_clk_notifier_cb(struct notifier_block *nb, unsigned long
+static int cdns_i2c_clk_yestifier_cb(struct yestifier_block *nb, unsigned long
 		event, void *data)
 {
-	struct clk_notifier_data *ndata = data;
+	struct clk_yestifier_data *ndata = data;
 	struct cdns_i2c *id = to_cdns_i2c(nb);
 
 	if (pm_runtime_suspended(id->dev))
@@ -848,7 +848,7 @@ static int __maybe_unused cdns_i2c_runtime_resume(struct device *dev)
 
 	ret = clk_enable(xi2c->clk);
 	if (ret) {
-		dev_err(dev, "Cannot enable clock.\n");
+		dev_err(dev, "Canyest enable clock.\n");
 		return ret;
 	}
 
@@ -895,7 +895,7 @@ static int cdns_i2c_probe(struct platform_device *pdev)
 	id->dev = &pdev->dev;
 	platform_set_drvdata(pdev, id);
 
-	match = of_match_node(cdns_i2c_of_match, pdev->dev.of_node);
+	match = of_match_yesde(cdns_i2c_of_match, pdev->dev.of_yesde);
 	if (match && match->data) {
 		const struct cdns_platform_data *data = match->data;
 		id->quirks = data->quirks;
@@ -909,7 +909,7 @@ static int cdns_i2c_probe(struct platform_device *pdev)
 	id->irq = platform_get_irq(pdev, 0);
 
 	id->adap.owner = THIS_MODULE;
-	id->adap.dev.of_node = pdev->dev.of_node;
+	id->adap.dev.of_yesde = pdev->dev.of_yesde;
 	id->adap.algo = &cdns_i2c_algo;
 	id->adap.timeout = CDNS_I2C_TIMEOUT;
 	id->adap.retries = 3;		/* Default retry value. */
@@ -921,7 +921,7 @@ static int cdns_i2c_probe(struct platform_device *pdev)
 
 	id->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(id->clk)) {
-		dev_err(&pdev->dev, "input clock not found.\n");
+		dev_err(&pdev->dev, "input clock yest found.\n");
 		return PTR_ERR(id->clk);
 	}
 	ret = clk_prepare_enable(id->clk);
@@ -933,12 +933,12 @@ static int cdns_i2c_probe(struct platform_device *pdev)
 	pm_runtime_use_autosuspend(id->dev);
 	pm_runtime_set_active(id->dev);
 
-	id->clk_rate_change_nb.notifier_call = cdns_i2c_clk_notifier_cb;
-	if (clk_notifier_register(id->clk, &id->clk_rate_change_nb))
-		dev_warn(&pdev->dev, "Unable to register clock notifier.\n");
+	id->clk_rate_change_nb.yestifier_call = cdns_i2c_clk_yestifier_cb;
+	if (clk_yestifier_register(id->clk, &id->clk_rate_change_nb))
+		dev_warn(&pdev->dev, "Unable to register clock yestifier.\n");
 	id->input_clk = clk_get_rate(id->clk);
 
-	ret = of_property_read_u32(pdev->dev.of_node, "clock-frequency",
+	ret = of_property_read_u32(pdev->dev.of_yesde, "clock-frequency",
 			&id->i2c_clk);
 	if (ret || (id->i2c_clk > CDNS_I2C_SPEED_MAX))
 		id->i2c_clk = CDNS_I2C_SPEED_DEFAULT;
@@ -956,15 +956,15 @@ static int cdns_i2c_probe(struct platform_device *pdev)
 	ret = devm_request_irq(&pdev->dev, id->irq, cdns_i2c_isr, 0,
 				 DRIVER_NAME, id);
 	if (ret) {
-		dev_err(&pdev->dev, "cannot get irq %d\n", id->irq);
+		dev_err(&pdev->dev, "canyest get irq %d\n", id->irq);
 		goto err_clk_dis;
 	}
 
 	/*
 	 * Cadence I2C controller has a bug wherein it generates
 	 * invalid read transaction after HW timeout in master receiver mode.
-	 * HW timeout is not used by this driver and the interrupt is disabled.
-	 * But the feature itself cannot be disabled. Hence maximum value
+	 * HW timeout is yest used by this driver and the interrupt is disabled.
+	 * But the feature itself canyest be disabled. Hence maximum value
 	 * is written to this register to reduce the chances of error.
 	 */
 	cdns_i2c_writereg(CDNS_I2C_TIMEOUT_MAX, CDNS_I2C_TIME_OUT_OFFSET);
@@ -998,7 +998,7 @@ static int cdns_i2c_remove(struct platform_device *pdev)
 	struct cdns_i2c *id = platform_get_drvdata(pdev);
 
 	i2c_del_adapter(&id->adap);
-	clk_notifier_unregister(id->clk, &id->clk_rate_change_nb);
+	clk_yestifier_unregister(id->clk, &id->clk_rate_change_nb);
 	clk_disable_unprepare(id->clk);
 	pm_runtime_disable(&pdev->dev);
 

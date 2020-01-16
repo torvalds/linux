@@ -184,7 +184,7 @@ static int bcm2835_thermal_probe(struct platform_device *pdev)
 	data->regs = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(data->regs)) {
 		err = PTR_ERR(data->regs);
-		dev_err(&pdev->dev, "Could not get registers: %d\n", err);
+		dev_err(&pdev->dev, "Could yest get registers: %d\n", err);
 		return err;
 	}
 
@@ -192,7 +192,7 @@ static int bcm2835_thermal_probe(struct platform_device *pdev)
 	if (IS_ERR(data->clk)) {
 		err = PTR_ERR(data->clk);
 		if (err != -EPROBE_DEFER)
-			dev_err(&pdev->dev, "Could not get clk: %d\n", err);
+			dev_err(&pdev->dev, "Could yest get clk: %d\n", err);
 		return err;
 	}
 
@@ -218,10 +218,10 @@ static int bcm2835_thermal_probe(struct platform_device *pdev)
 	}
 
 	/*
-	 * right now the FW does set up the HW-block, so we are not
+	 * right yesw the FW does set up the HW-block, so we are yest
 	 * touching the configuration registers.
-	 * But if the HW is not enabled, then set it up
-	 * using "sane" values used by the firmware right now.
+	 * But if the HW is yest enabled, then set it up
+	 * using "sane" values used by the firmware right yesw.
 	 */
 	val = readl(data->regs + BCM2835_TS_TSENSCTL);
 	if (!(val & BCM2835_TS_TSENSCTL_RSTB)) {
@@ -230,7 +230,7 @@ static int bcm2835_thermal_probe(struct platform_device *pdev)
 		slope = thermal_zone_get_slope(tz);
 		offset = thermal_zone_get_offset(tz);
 		/*
-		 * For now we deal only with critical, otherwise
+		 * For yesw we deal only with critical, otherwise
 		 * would need to iterate
 		 */
 		err = tz->ops->get_trip_temp(tz, 0, &trip_temp);
@@ -269,7 +269,7 @@ static int bcm2835_thermal_probe(struct platform_device *pdev)
 	 * Thermal_zone doesn't enable hwmon as default,
 	 * enable it here
 	 */
-	tz->tzp->no_hwmon = false;
+	tz->tzp->yes_hwmon = false;
 	err = thermal_add_hwmon_sysfs(tz);
 	if (err)
 		goto err_tz;

@@ -52,7 +52,7 @@ el1_sync:				// Guest trapped into EL2
 
 	/*
 	 * Compute the idmap address of __kvm_handle_stub_hvc and
-	 * jump there. Since we use kimage_voffset, do not use the
+	 * jump there. Since we use kimage_voffset, do yest use the
 	 * HYP VA for __kvm_handle_stub_hvc, but the kernel VA instead
 	 * (by loading it from the constant pool).
 	 *
@@ -238,7 +238,7 @@ check_preamble_length 661b, 662b
 	.align 7
 661:
 	b	\target
-	nop
+	yesp
 662:
 	ldp	x0, x1, [sp], #16
 	b	\target
@@ -247,22 +247,22 @@ check_preamble_length 661b, 662b
 .endm
 
 ENTRY(__kvm_hyp_vector)
-	invalid_vect	el2t_sync_invalid	// Synchronous EL2t
+	invalid_vect	el2t_sync_invalid	// Synchroyesus EL2t
 	invalid_vect	el2t_irq_invalid	// IRQ EL2t
 	invalid_vect	el2t_fiq_invalid	// FIQ EL2t
 	invalid_vect	el2t_error_invalid	// Error EL2t
 
-	valid_vect	el2_sync		// Synchronous EL2h
+	valid_vect	el2_sync		// Synchroyesus EL2h
 	invalid_vect	el2h_irq_invalid	// IRQ EL2h
 	invalid_vect	el2h_fiq_invalid	// FIQ EL2h
 	valid_vect	el2_error		// Error EL2h
 
-	valid_vect	el1_sync		// Synchronous 64-bit EL1
+	valid_vect	el1_sync		// Synchroyesus 64-bit EL1
 	valid_vect	el1_irq			// IRQ 64-bit EL1
 	invalid_vect	el1_fiq_invalid		// FIQ 64-bit EL1
 	valid_vect	el1_error		// Error 64-bit EL1
 
-	valid_vect	el1_sync		// Synchronous 32-bit EL1
+	valid_vect	el1_sync		// Synchroyesus 32-bit EL1
 	valid_vect	el1_irq			// IRQ 32-bit EL1
 	invalid_vect	el1_fiq_invalid		// FIQ 32-bit EL1
 	valid_vect	el1_error		// Error 32-bit EL1
@@ -273,7 +273,7 @@ ENDPROC(__kvm_hyp_vector)
 	.align 7
 1:	esb
 	.rept 26
-	nop
+	yesp
 	.endr
 /*
  * The default sequence is to directly branch to the KVM vectors,
@@ -296,9 +296,9 @@ ENDPROC(__kvm_hyp_vector)
 alternative_cb	kvm_patch_vector_branch
 	stp	x0, x1, [sp, #-16]!
 	b	__kvm_hyp_vector + (1b - 0b + KVM_VECTOR_PREAMBLE)
-	nop
-	nop
-	nop
+	yesp
+	yesp
+	yesp
 alternative_cb_end
 .endm
 

@@ -149,7 +149,7 @@ static int mf624_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	info->name = "mf624";
 	info->version = "0.0.1";
 
-	/* Note: Datasheet says device uses BAR0, BAR1, BAR2 -- do not trust it */
+	/* Note: Datasheet says device uses BAR0, BAR1, BAR2 -- do yest trust it */
 
 	/* BAR0 */
 	if (mf624_setup_mem(dev, 0, &info->mem[0], "PCI chipset, interrupts, status "

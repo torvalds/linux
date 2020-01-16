@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -36,7 +36,7 @@ void amdgpu_mn_unregister(struct amdgpu_bo *bo);
 #else
 static inline int amdgpu_mn_register(struct amdgpu_bo *bo, unsigned long addr)
 {
-	DRM_WARN_ONCE("HMM_MIRROR kernel config option is not enabled, "
+	DRM_WARN_ONCE("HMM_MIRROR kernel config option is yest enabled, "
 		      "add CONFIG_ZONE_DEVICE=y in config file to fix this\n");
 	return -ENODEV;
 }

@@ -7,7 +7,7 @@
 	- memory management
 	- generation
 
-    (c) 2000-2003 Gerd Knorr <kraxel@bytesex.org>
+    (c) 2000-2003 Gerd Kyesrr <kraxel@bytesex.org>
 
 
 */
@@ -325,14 +325,14 @@ bttv_risc_overlay(struct bttv *btv, struct btcx_riscmem *risc,
 static void
 bttv_calc_geo_old(struct bttv *btv, struct bttv_geometry *geo,
 		  int width, int height, int interleaved,
-		  const struct bttv_tvnorm *tvnorm)
+		  const struct bttv_tvyesrm *tvyesrm)
 {
 	u32 xsf, sr;
 	int vdelay;
 
-	int swidth       = tvnorm->swidth;
-	int totalwidth   = tvnorm->totalwidth;
-	int scaledtwidth = tvnorm->scaledtwidth;
+	int swidth       = tvyesrm->swidth;
+	int totalwidth   = tvyesrm->totalwidth;
+	int scaledtwidth = tvyesrm->scaledtwidth;
 
 	if (btv->input == btv->dig) {
 		swidth       = 720;
@@ -340,22 +340,22 @@ bttv_calc_geo_old(struct bttv *btv, struct bttv_geometry *geo,
 		scaledtwidth = 858;
 	}
 
-	vdelay = tvnorm->vdelay;
+	vdelay = tvyesrm->vdelay;
 
 	xsf = (width*scaledtwidth)/swidth;
 	geo->hscale =  ((totalwidth*4096UL)/xsf-4096);
-	geo->hdelay =  tvnorm->hdelayx1;
+	geo->hdelay =  tvyesrm->hdelayx1;
 	geo->hdelay =  (geo->hdelay*width)/swidth;
 	geo->hdelay &= 0x3fe;
-	sr = ((tvnorm->sheight >> (interleaved?0:1))*512)/height - 512;
+	sr = ((tvyesrm->sheight >> (interleaved?0:1))*512)/height - 512;
 	geo->vscale =  (0x10000UL-sr) & 0x1fff;
 	geo->crop   =  ((width>>8)&0x03) | ((geo->hdelay>>6)&0x0c) |
-		((tvnorm->sheight>>4)&0x30) | ((vdelay>>2)&0xc0);
+		((tvyesrm->sheight>>4)&0x30) | ((vdelay>>2)&0xc0);
 	geo->vscale |= interleaved ? (BT848_VSCALE_INT<<8) : 0;
 	geo->vdelay  =  vdelay;
 	geo->width   =  width;
-	geo->sheight =  tvnorm->sheight;
-	geo->vtotal  =  tvnorm->vtotal;
+	geo->sheight =  tvyesrm->sheight;
+	geo->vtotal  =  tvyesrm->vtotal;
 
 	if (btv->opt_combfilter) {
 		geo->vtc  = (width < 193) ? 2 : ((width < 385) ? 1 : 0);
@@ -372,21 +372,21 @@ bttv_calc_geo		(struct bttv *                  btv,
 			 unsigned int                   width,
 			 unsigned int                   height,
 			 int                            both_fields,
-			 const struct bttv_tvnorm *     tvnorm,
+			 const struct bttv_tvyesrm *     tvyesrm,
 			 const struct v4l2_rect *       crop)
 {
 	unsigned int c_width;
 	unsigned int c_height;
 	u32 sr;
 
-	if ((crop->left == tvnorm->cropcap.defrect.left
-	     && crop->top == tvnorm->cropcap.defrect.top
-	     && crop->width == tvnorm->cropcap.defrect.width
-	     && crop->height == tvnorm->cropcap.defrect.height
-	     && width <= tvnorm->swidth /* see PAL-Nc et al */)
+	if ((crop->left == tvyesrm->cropcap.defrect.left
+	     && crop->top == tvyesrm->cropcap.defrect.top
+	     && crop->width == tvyesrm->cropcap.defrect.width
+	     && crop->height == tvyesrm->cropcap.defrect.height
+	     && width <= tvyesrm->swidth /* see PAL-Nc et al */)
 	    || btv->input == btv->dig) {
 		bttv_calc_geo_old(btv, geo, width, height,
-				  both_fields, tvnorm);
+				  both_fields, tvyesrm);
 		return;
 	}
 
@@ -401,12 +401,12 @@ bttv_calc_geo		(struct bttv *                  btv,
 	geo->hdelay = ((crop->left * width + c_width) / c_width) & ~1;
 
 	geo->sheight = c_height;
-	geo->vdelay = crop->top - tvnorm->cropcap.bounds.top + MIN_VDELAY;
+	geo->vdelay = crop->top - tvyesrm->cropcap.bounds.top + MIN_VDELAY;
 	sr = c_height >> !both_fields;
 	sr = (sr * 512U + (height >> 1)) / height - 512;
 	geo->vscale = (0x10000UL - sr) & 0x1fff;
 	geo->vscale |= both_fields ? (BT848_VSCALE_INT << 8) : 0;
-	geo->vtotal = tvnorm->vtotal;
+	geo->vtotal = tvyesrm->vtotal;
 
 	geo->crop = (((geo->width   >> 8) & 0x03) |
 		     ((geo->hdelay  >> 6) & 0x0c) |
@@ -696,7 +696,7 @@ bttv_buffer_activate_video(struct bttv *btv,
 int
 bttv_buffer_risc(struct bttv *btv, struct bttv_buffer *buf)
 {
-	const struct bttv_tvnorm *tvnorm = bttv_tvnorms + buf->tvnorm;
+	const struct bttv_tvyesrm *tvyesrm = bttv_tvyesrms + buf->tvyesrm;
 	struct videobuf_dmabuf *dma=videobuf_to_dma(&buf->vb);
 
 	dprintk("%d: buffer field: %s  format: 0x%08x  size: %dx%d\n",
@@ -710,7 +710,7 @@ bttv_buffer_risc(struct bttv *btv, struct bttv_buffer *buf)
 
 		bttv_calc_geo(btv,&buf->geo,buf->vb.width,buf->vb.height,
 			      V4L2_FIELD_HAS_BOTH(buf->vb.field),
-			      tvnorm,&buf->crop);
+			      tvyesrm,&buf->crop);
 
 		switch (buf->vb.field) {
 		case V4L2_FIELD_TOP:
@@ -764,7 +764,7 @@ bttv_buffer_risc(struct bttv *btv, struct bttv_buffer *buf)
 		case V4L2_FIELD_TOP:
 			bttv_calc_geo(btv,&buf->geo,buf->vb.width,
 				      buf->vb.height,/* both_fields */ 0,
-				      tvnorm,&buf->crop);
+				      tvyesrm,&buf->crop);
 			bttv_risc_planar(btv, &buf->top, dma->sglist,
 					 0,buf->vb.width,0,buf->vb.height,
 					 uoffset,voffset,buf->fmt->hshift,
@@ -773,7 +773,7 @@ bttv_buffer_risc(struct bttv *btv, struct bttv_buffer *buf)
 		case V4L2_FIELD_BOTTOM:
 			bttv_calc_geo(btv,&buf->geo,buf->vb.width,
 				      buf->vb.height,0,
-				      tvnorm,&buf->crop);
+				      tvyesrm,&buf->crop);
 			bttv_risc_planar(btv, &buf->bottom, dma->sglist,
 					 0,buf->vb.width,0,buf->vb.height,
 					 uoffset,voffset,buf->fmt->hshift,
@@ -782,7 +782,7 @@ bttv_buffer_risc(struct bttv *btv, struct bttv_buffer *buf)
 		case V4L2_FIELD_INTERLACED:
 			bttv_calc_geo(btv,&buf->geo,buf->vb.width,
 				      buf->vb.height,1,
-				      tvnorm,&buf->crop);
+				      tvyesrm,&buf->crop);
 			lines    = buf->vb.height >> 1;
 			ypadding = buf->vb.width;
 			cpadding = buf->vb.width >> buf->fmt->hshift;
@@ -805,7 +805,7 @@ bttv_buffer_risc(struct bttv *btv, struct bttv_buffer *buf)
 		case V4L2_FIELD_SEQ_TB:
 			bttv_calc_geo(btv,&buf->geo,buf->vb.width,
 				      buf->vb.height,1,
-				      tvnorm,&buf->crop);
+				      tvyesrm,&buf->crop);
 			lines    = buf->vb.height >> 1;
 			ypadding = buf->vb.width;
 			cpadding = buf->vb.width >> buf->fmt->hshift;
@@ -835,8 +835,8 @@ bttv_buffer_risc(struct bttv *btv, struct bttv_buffer *buf)
 	if (buf->fmt->flags & FORMAT_FLAGS_RAW) {
 		/* build risc code */
 		buf->vb.field = V4L2_FIELD_SEQ_TB;
-		bttv_calc_geo(btv,&buf->geo,tvnorm->swidth,tvnorm->sheight,
-			      1,tvnorm,&buf->crop);
+		bttv_calc_geo(btv,&buf->geo,tvyesrm->swidth,tvyesrm->sheight,
+			      1,tvyesrm,&buf->crop);
 		bttv_risc_packed(btv, &buf->top,  dma->sglist,
 				 /* offset */ 0, RAW_BPL, /* padding */ 0,
 				 /* skip_lines */ 0, RAW_LINES);
@@ -867,7 +867,7 @@ bttv_overlay_risc(struct bttv *btv,
 	/* calculate geometry */
 	bttv_calc_geo(btv,&buf->geo,ov->w.width,ov->w.height,
 		      V4L2_FIELD_HAS_BOTH(ov->field),
-		      &bttv_tvnorms[ov->tvnorm],&buf->crop);
+		      &bttv_tvyesrms[ov->tvyesrm],&buf->crop);
 
 	/* build risc code */
 	switch (ov->field) {

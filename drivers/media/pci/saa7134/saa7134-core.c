@@ -4,7 +4,7 @@
  * device driver for philips saa7134 based TV cards
  * driver core
  *
- * (c) 2001-03 Gerd Knorr <kraxel@bytesex.org> [SuSE Labs]
+ * (c) 2001-03 Gerd Kyesrr <kraxel@bytesex.org> [SuSE Labs]
  */
 
 #include "saa7134.h"
@@ -24,7 +24,7 @@
 #include <linux/pm.h>
 
 MODULE_DESCRIPTION("v4l2 driver module for saa7130/34 based TV cards");
-MODULE_AUTHOR("Gerd Knorr <kraxel@bytesex.org> [SuSE Labs]");
+MODULE_AUTHOR("Gerd Kyesrr <kraxel@bytesex.org> [SuSE Labs]");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(SAA7134_VERSION);
 
@@ -51,9 +51,9 @@ static unsigned int latency = UNSET;
 module_param(latency, int, 0444);
 MODULE_PARM_DESC(latency,"pci latency timer");
 
-int saa7134_no_overlay=-1;
-module_param_named(no_overlay, saa7134_no_overlay, int, 0444);
-MODULE_PARM_DESC(no_overlay, "allow override overlay default (0 disables, 1 enables) [some VIA/SIS chipsets are known to have problem with overlay]");
+int saa7134_yes_overlay=-1;
+module_param_named(yes_overlay, saa7134_yes_overlay, int, 0444);
+MODULE_PARM_DESC(yes_overlay, "allow override overlay default (0 disables, 1 enables) [some VIA/SIS chipsets are kyeswn to have problem with overlay]");
 
 bool saa7134_userptr;
 module_param(saa7134_userptr, bool, 0644);
@@ -113,15 +113,15 @@ void saa7134_track_gpio(struct saa7134_dev *dev, const char *msg)
 	       dev->name, mode, (~mode) & status, mode & status, msg);
 }
 
-void saa7134_set_gpio(struct saa7134_dev *dev, int bit_no, int value)
+void saa7134_set_gpio(struct saa7134_dev *dev, int bit_yes, int value)
 {
 	u32 index, bitval;
 
-	index = 1 << bit_no;
+	index = 1 << bit_yes;
 	switch (value) {
 	case 0: /* static value */
 	case 1:
-		core_dbg("setting GPIO%d to static %d\n", bit_no, value);
+		core_dbg("setting GPIO%d to static %d\n", bit_yes, value);
 		/* turn sync mode off if necessary */
 		if (index & 0x00c00000)
 			saa_andorb(SAA7134_VIDEO_PORT_CTRL6, 0x0f, 0x00);
@@ -133,7 +133,7 @@ void saa7134_set_gpio(struct saa7134_dev *dev, int bit_no, int value)
 		saa_andorl(SAA7134_GPIO_GPSTATUS0 >> 2, index, bitval);
 		break;
 	case 3:	/* tristate */
-		core_dbg("setting GPIO%d to tristate\n", bit_no);
+		core_dbg("setting GPIO%d to tristate\n", bit_yes);
 		saa_andorl(SAA7134_GPIO_GPMODE0 >> 2, index, 0);
 		break;
 	}
@@ -183,12 +183,12 @@ static void flush_request_submodules(struct saa7134_dev *dev)
 static int saa7134_buffer_pages(int size)
 {
 	size  = PAGE_ALIGN(size);
-	size += PAGE_SIZE; /* for non-page-aligned buffers */
+	size += PAGE_SIZE; /* for yesn-page-aligned buffers */
 	size /= 4096;
 	return size;
 }
 
-/* calc max # of buffers from size (must not exceed the 4MB virtual
+/* calc max # of buffers from size (must yest exceed the 4MB virtual
  * address space per DMA channel) */
 int saa7134_buffer_count(unsigned int size, unsigned int count)
 {
@@ -322,7 +322,7 @@ void saa7134_buffer_next(struct saa7134_dev *dev,
 		core_dbg("buffer_next #2 prev=%p/next=%p\n",
 			q->queue.prev, q->queue.next);
 	} else {
-		/* nothing to do -- just stop DMA */
+		/* yesthing to do -- just stop DMA */
 		core_dbg("buffer_next %p\n", NULL);
 		saa7134_set_dmabits(dev);
 		del_timer(&q->timeout);
@@ -470,7 +470,7 @@ int saa7134_set_dmabits(struct saa7134_dev *dev)
 		   SAA7134_MAIN_CTRL_TE6,
 		   ctrl);
 	core_dbg("dmabits: task=0x%02x ctrl=0x%02x irq=0x%x split=%s\n",
-		task, ctrl, irq, split ? "no" : "yes");
+		task, ctrl, irq, split ? "yes" : "no");
 
 	return 0;
 }
@@ -532,7 +532,7 @@ static irqreturn_t saa7134_irq(int irq, void *dev_id)
 		}
 
 		if (0 == report) {
-			irq_dbg(2, "no (more) work\n");
+			irq_dbg(2, "yes (more) work\n");
 			goto out;
 		}
 
@@ -576,7 +576,7 @@ static irqreturn_t saa7134_irq(int irq, void *dev_id)
 				case SAA7134_REMOTE_I2C:
 					break;			/* FIXME: invoke I2C get_key() */
 
-				default:			/* GPIO16 not used by IR remote */
+				default:			/* GPIO16 yest used by IR remote */
 					break;
 			}
 		}
@@ -595,7 +595,7 @@ static irqreturn_t saa7134_irq(int irq, void *dev_id)
 				case SAA7134_REMOTE_I2C:
 					break;			/* FIXME: invoke I2C get_key() */
 
-				default:			/* GPIO18 not used by IR remote */
+				default:			/* GPIO18 yest used by IR remote */
 					break;
 			}
 		}
@@ -635,7 +635,7 @@ static irqreturn_t saa7134_irq(int irq, void *dev_id)
 
 /* ------------------------------------------------------------------ */
 
-/* early init (no i2c, no irq) */
+/* early init (yes i2c, yes irq) */
 
 static int saa7134_hw_enable1(struct saa7134_dev *dev)
 {
@@ -657,7 +657,7 @@ static int saa7134_hw_enable1(struct saa7134_dev *dev)
 	* Initialize OSS _after_ enabling audio clock PLL and audio processing.
 	* OSS initialization writes to registers via the audio DSP; these
 	* writes will fail unless the audio clock has been started.  At worst,
-	* audio will not work.
+	* audio will yest work.
 	*/
 
 	/* enable peripheral devices */
@@ -765,14 +765,14 @@ static void must_configure_manually(int has_eeprom)
 	if (!has_eeprom)
 		pr_warn("saa7134: <rant>\n"
 			"saa7134:  Congratulations!  Your TV card vendor saved a few\n"
-			"saa7134:  cents for a eeprom, thus your pci board has no\n"
+			"saa7134:  cents for a eeprom, thus your pci board has yes\n"
 			"saa7134:  subsystem ID and I can't identify it automatically\n"
 			"saa7134: </rant>\n"
-			"saa7134: I feel better now.  Ok, here are the good news:\n"
+			"saa7134: I feel better yesw.  Ok, here are the good news:\n"
 			"saa7134: You can use the card=<nr> insmod option to specify\n"
 			"saa7134: which board do you have.  The list:\n");
 	else
-		pr_warn("saa7134: Board is currently unknown. You might try to use the card=<nr>\n"
+		pr_warn("saa7134: Board is currently unkyeswn. You might try to use the card=<nr>\n"
 			"saa7134: insmod option to specify which board do you have, but this is\n"
 			"saa7134: somewhat risky, as might damage your card. It is better to ask\n"
 			"saa7134: for support at linux-media@vger.kernel.org.\n"
@@ -831,7 +831,7 @@ static void saa7134_create_entities(struct saa7134_dev *dev)
 	}
 
 	/*
-	 * saa713x is not using an external ATV demod.
+	 * saa713x is yest using an external ATV demod.
 	 * Register the internal one
 	 */
 	if (!decoder) {
@@ -903,7 +903,7 @@ static void saa7134_create_entities(struct saa7134_dev *dev)
 			/*
 			 * SAA7134_INPUT_TV and SAA7134_INPUT_TV_MONO.
 			 *
-			 * Please notice that neither SAA7134_INPUT_MUTE or
+			 * Please yestice that neither SAA7134_INPUT_MUTE or
 			 * SAA7134_INPUT_RADIO are defined at
 			 * saa7134_board.input.
 			 */
@@ -1068,12 +1068,12 @@ static int saa7134_initdev(struct pci_dev *pci_dev,
 		}
 #endif
 		if (pci_pci_problems & (PCIPCI_FAIL|PCIAGP_FAIL)) {
-			pr_info("%s: quirk: this driver and your chipset may not work together in overlay mode.\n",
+			pr_info("%s: quirk: this driver and your chipset may yest work together in overlay mode.\n",
 				dev->name);
-			if (!saa7134_no_overlay) {
+			if (!saa7134_yes_overlay) {
 				pr_info("%s: quirk: overlay mode will be disabled.\n",
 						dev->name);
-				saa7134_no_overlay = 1;
+				saa7134_yes_overlay = 1;
 			} else {
 				pr_info("%s: quirk: overlay mode will be forced. Use this option at your own risk.\n",
 						dev->name);
@@ -1096,7 +1096,7 @@ static int saa7134_initdev(struct pci_dev *pci_dev,
 	pci_set_master(pci_dev);
 	err = pci_set_dma_mask(pci_dev, DMA_BIT_MASK(32));
 	if (err) {
-		pr_warn("%s: Oops: no 32bit PCI DMA ???\n", dev->name);
+		pr_warn("%s: Oops: yes 32bit PCI DMA ???\n", dev->name);
 		goto fail1;
 	}
 
@@ -1199,7 +1199,7 @@ static int saa7134_initdev(struct pci_dev *pci_dev,
 		saa_call_all(dev, core, s_power, 0);
 
 	/* register v4l devices */
-	if (saa7134_no_overlay > 0)
+	if (saa7134_yes_overlay > 0)
 		pr_info("%s: Overlay support disabled.\n", dev->name);
 
 	dev->video_dev = vdev_init(dev,&saa7134_video_template,"video");
@@ -1211,7 +1211,7 @@ static int saa7134_initdev(struct pci_dev *pci_dev,
 	if (dev->tuner_type != TUNER_ABSENT && dev->tuner_type != UNSET)
 		dev->video_dev->device_caps |= V4L2_CAP_TUNER;
 
-	if (saa7134_no_overlay <= 0)
+	if (saa7134_yes_overlay <= 0)
 		dev->video_dev->device_caps |= V4L2_CAP_VIDEO_OVERLAY;
 
 	err = video_register_device(dev->video_dev,VFL_TYPE_GRABBER,
@@ -1222,7 +1222,7 @@ static int saa7134_initdev(struct pci_dev *pci_dev,
 		goto fail4;
 	}
 	pr_info("%s: registered device %s [v4l2]\n",
-	       dev->name, video_device_node_name(dev->video_dev));
+	       dev->name, video_device_yesde_name(dev->video_dev));
 
 	dev->vbi_dev = vdev_init(dev, &saa7134_video_template, "vbi");
 	dev->vbi_dev->ctrl_handler = &dev->ctrl_handler;
@@ -1238,7 +1238,7 @@ static int saa7134_initdev(struct pci_dev *pci_dev,
 	if (err < 0)
 		goto fail4;
 	pr_info("%s: registered device %s\n",
-	       dev->name, video_device_node_name(dev->vbi_dev));
+	       dev->name, video_device_yesde_name(dev->vbi_dev));
 
 	if (card_has_radio(dev)) {
 		dev->radio_dev = vdev_init(dev,&saa7134_radio_template,"radio");
@@ -1252,7 +1252,7 @@ static int saa7134_initdev(struct pci_dev *pci_dev,
 		if (err < 0)
 			goto fail4;
 		pr_info("%s: registered device %s\n",
-		       dev->name, video_device_node_name(dev->radio_dev));
+		       dev->name, video_device_yesde_name(dev->radio_dev));
 	}
 
 #ifdef CONFIG_MEDIA_CONTROLLER
@@ -1462,7 +1462,7 @@ static int saa7134_resume(struct pci_dev *pci_dev)
 	saa7134_board_init2(dev);
 
 	/*saa7134_hwinit2*/
-	saa7134_set_tvnorm_hw(dev);
+	saa7134_set_tvyesrm_hw(dev);
 	saa7134_tvaudio_setmute(dev);
 	saa7134_tvaudio_setvolume(dev, dev->ctl_volume);
 	saa7134_tvaudio_init(dev);
@@ -1482,7 +1482,7 @@ static int saa7134_resume(struct pci_dev *pci_dev)
 
 	dev->dmasound.dma_running = 0;
 
-	/* start DMA now*/
+	/* start DMA yesw*/
 	dev->insuspend = 0;
 	smp_wmb();
 	saa7134_set_dmabits(dev);

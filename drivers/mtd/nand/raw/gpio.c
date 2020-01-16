@@ -109,10 +109,10 @@ static int gpio_nand_get_config_of(const struct device *dev,
 {
 	u32 val;
 
-	if (!dev->of_node)
+	if (!dev->of_yesde)
 		return -ENODEV;
 
-	if (!of_property_read_u32(dev->of_node, "bank-width", &val)) {
+	if (!of_property_read_u32(dev->of_yesde, "bank-width", &val)) {
 		if (val == 2) {
 			plat->options |= NAND_BUSWIDTH_16;
 		} else if (val != 1) {
@@ -121,7 +121,7 @@ static int gpio_nand_get_config_of(const struct device *dev,
 		}
 	}
 
-	if (!of_property_read_u32(dev->of_node, "chip-delay", &val))
+	if (!of_property_read_u32(dev->of_yesde, "chip-delay", &val))
 		plat->chip_delay = val;
 
 	return 0;
@@ -132,7 +132,7 @@ static struct resource *gpio_nand_get_io_sync_of(struct platform_device *pdev)
 	struct resource *r;
 	u64 addr;
 
-	if (of_property_read_u64(pdev->dev.of_node,
+	if (of_property_read_u64(pdev->dev.of_yesde,
 				       "gpio-control-nand,io-sync-reg", &addr))
 		return NULL;
 
@@ -211,7 +211,7 @@ static int gpio_nand_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	int ret = 0;
 
-	if (!dev->of_node && !dev_get_platdata(dev))
+	if (!dev->of_yesde && !dev_get_platdata(dev))
 		return -EINVAL;
 
 	gpiomtd = devm_kzalloc(dev, sizeof(*gpiomtd), GFP_KERNEL);
@@ -241,7 +241,7 @@ static int gpio_nand_probe(struct platform_device *pdev)
 	if (IS_ERR(gpiomtd->nce))
 		return PTR_ERR(gpiomtd->nce);
 
-	/* We disable write protection once we know probe() will succeed */
+	/* We disable write protection once we kyesw probe() will succeed */
 	gpiomtd->nwp = devm_gpiod_get_optional(dev, "nwp", GPIOD_OUT_LOW);
 	if (IS_ERR(gpiomtd->nwp)) {
 		ret = PTR_ERR(gpiomtd->nwp);
@@ -269,7 +269,7 @@ static int gpio_nand_probe(struct platform_device *pdev)
 	if (gpiomtd->rdy)
 		chip->legacy.dev_ready = gpio_nand_devready;
 
-	nand_set_flash_node(chip, pdev->dev.of_node);
+	nand_set_flash_yesde(chip, pdev->dev.of_yesde);
 	chip->legacy.IO_ADDR_W	= chip->legacy.IO_ADDR_R;
 	chip->ecc.mode		= NAND_ECC_SOFT;
 	chip->ecc.algo		= NAND_ECC_HAMMING;

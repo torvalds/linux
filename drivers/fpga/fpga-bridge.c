@@ -87,19 +87,19 @@ err_dev:
 /**
  * of_fpga_bridge_get - get an exclusive reference to a fpga bridge
  *
- * @np: node pointer of a FPGA bridge
+ * @np: yesde pointer of a FPGA bridge
  * @info: fpga image specific information
  *
  * Return fpga_bridge struct if successful.
  * Return -EBUSY if someone already has a reference to the bridge.
- * Return -ENODEV if @np is not a FPGA Bridge.
+ * Return -ENODEV if @np is yest a FPGA Bridge.
  */
-struct fpga_bridge *of_fpga_bridge_get(struct device_node *np,
+struct fpga_bridge *of_fpga_bridge_get(struct device_yesde *np,
 				       struct fpga_image_info *info)
 {
 	struct device *dev;
 
-	dev = class_find_device_by_of_node(fpga_bridge_class, np);
+	dev = class_find_device_by_of_yesde(fpga_bridge_class, np);
 	if (!dev)
 		return ERR_PTR(-ENODEV);
 
@@ -155,7 +155,7 @@ EXPORT_SYMBOL_GPL(fpga_bridge_put);
  * fpga_bridges_enable - enable bridges in a list
  * @bridge_list: list of FPGA bridges
  *
- * Enable each bridge in the list.  If list is empty, do nothing.
+ * Enable each bridge in the list.  If list is empty, do yesthing.
  *
  * Return 0 for success or empty bridge list; return error code otherwise.
  */
@@ -164,7 +164,7 @@ int fpga_bridges_enable(struct list_head *bridge_list)
 	struct fpga_bridge *bridge;
 	int ret;
 
-	list_for_each_entry(bridge, bridge_list, node) {
+	list_for_each_entry(bridge, bridge_list, yesde) {
 		ret = fpga_bridge_enable(bridge);
 		if (ret)
 			return ret;
@@ -179,7 +179,7 @@ EXPORT_SYMBOL_GPL(fpga_bridges_enable);
  *
  * @bridge_list: list of FPGA bridges
  *
- * Disable each bridge in the list.  If list is empty, do nothing.
+ * Disable each bridge in the list.  If list is empty, do yesthing.
  *
  * Return 0 for success or empty bridge list; return error code otherwise.
  */
@@ -188,7 +188,7 @@ int fpga_bridges_disable(struct list_head *bridge_list)
 	struct fpga_bridge *bridge;
 	int ret;
 
-	list_for_each_entry(bridge, bridge_list, node) {
+	list_for_each_entry(bridge, bridge_list, yesde) {
 		ret = fpga_bridge_disable(bridge);
 		if (ret)
 			return ret;
@@ -204,18 +204,18 @@ EXPORT_SYMBOL_GPL(fpga_bridges_disable);
  * @bridge_list: list of FPGA bridges
  *
  * For each bridge in the list, put the bridge and remove it from the list.
- * If list is empty, do nothing.
+ * If list is empty, do yesthing.
  */
 void fpga_bridges_put(struct list_head *bridge_list)
 {
 	struct fpga_bridge *bridge, *next;
 	unsigned long flags;
 
-	list_for_each_entry_safe(bridge, next, bridge_list, node) {
+	list_for_each_entry_safe(bridge, next, bridge_list, yesde) {
 		fpga_bridge_put(bridge);
 
 		spin_lock_irqsave(&bridge_list_lock, flags);
-		list_del(&bridge->node);
+		list_del(&bridge->yesde);
 		spin_unlock_irqrestore(&bridge_list_lock, flags);
 	}
 }
@@ -224,7 +224,7 @@ EXPORT_SYMBOL_GPL(fpga_bridges_put);
 /**
  * of_fpga_bridge_get_to_list - get a bridge, add it to a list
  *
- * @np: node pointer of a FPGA bridge
+ * @np: yesde pointer of a FPGA bridge
  * @info: fpga image specific information
  * @bridge_list: list of FPGA bridges
  *
@@ -232,7 +232,7 @@ EXPORT_SYMBOL_GPL(fpga_bridges_put);
  *
  * Return 0 for success, error code from of_fpga_bridge_get() othewise.
  */
-int of_fpga_bridge_get_to_list(struct device_node *np,
+int of_fpga_bridge_get_to_list(struct device_yesde *np,
 			       struct fpga_image_info *info,
 			       struct list_head *bridge_list)
 {
@@ -244,7 +244,7 @@ int of_fpga_bridge_get_to_list(struct device_node *np,
 		return PTR_ERR(bridge);
 
 	spin_lock_irqsave(&bridge_list_lock, flags);
-	list_add(&bridge->node, bridge_list);
+	list_add(&bridge->yesde, bridge_list);
 	spin_unlock_irqrestore(&bridge_list_lock, flags);
 
 	return 0;
@@ -274,7 +274,7 @@ int fpga_bridge_get_to_list(struct device *dev,
 		return PTR_ERR(bridge);
 
 	spin_lock_irqsave(&bridge_list_lock, flags);
-	list_add(&bridge->node, bridge_list);
+	list_add(&bridge->yesde, bridge_list);
 	spin_unlock_irqrestore(&bridge_list_lock, flags);
 
 	return 0;
@@ -331,7 +331,7 @@ struct fpga_bridge *fpga_bridge_create(struct device *dev, const char *name,
 	int id, ret = 0;
 
 	if (!name || !strlen(name)) {
-		dev_err(dev, "Attempt to register with no name!\n");
+		dev_err(dev, "Attempt to register with yes name!\n");
 		return NULL;
 	}
 
@@ -346,7 +346,7 @@ struct fpga_bridge *fpga_bridge_create(struct device *dev, const char *name,
 	}
 
 	mutex_init(&bridge->mutex);
-	INIT_LIST_HEAD(&bridge->node);
+	INIT_LIST_HEAD(&bridge->yesde);
 
 	bridge->name = name;
 	bridge->br_ops = br_ops;
@@ -356,7 +356,7 @@ struct fpga_bridge *fpga_bridge_create(struct device *dev, const char *name,
 	bridge->dev.groups = br_ops->groups;
 	bridge->dev.class = fpga_bridge_class;
 	bridge->dev.parent = dev;
-	bridge->dev.of_node = dev->of_node;
+	bridge->dev.of_yesde = dev->of_yesde;
 	bridge->dev.id = id;
 
 	ret = dev_set_name(&bridge->dev, "br%d", id);
@@ -447,7 +447,7 @@ int fpga_bridge_register(struct fpga_bridge *bridge)
 	if (ret)
 		return ret;
 
-	of_platform_populate(dev->of_node, NULL, NULL, dev);
+	of_platform_populate(dev->of_yesde, NULL, NULL, dev);
 
 	dev_info(dev->parent, "fpga bridge [%s] registered\n", bridge->name);
 

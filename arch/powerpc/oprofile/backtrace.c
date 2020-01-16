@@ -43,7 +43,7 @@ static unsigned int user_getsp32(unsigned int sp, int is_first)
 		oprofile_add_trace(STACK_LR32(stack_frame));
 
 	/*
-	 * We do not enforce increasing stack addresses here because
+	 * We do yest enforce increasing stack addresses here because
 	 * we may transition to a different stack, eg a signal handler.
 	 */
 	return STACK_SP(stack_frame);
@@ -79,7 +79,7 @@ static unsigned long kernel_getsp(unsigned long sp, int is_first)
 		oprofile_add_trace(STACK_LR(stack_frame));
 
 	/*
-	 * We do not enforce increasing stack addresses here because
+	 * We do yest enforce increasing stack addresses here because
 	 * we might be transitioning from an interrupt stack to a kernel
 	 * stack. validate_sp() is designed to understand this, so just
 	 * use it.

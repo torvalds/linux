@@ -4,8 +4,8 @@
 
 /* Devmaps primary use is as a backend map for XDP BPF helper call
  * bpf_redirect_map(). Because XDP is mostly concerned with performance we
- * spent some effort to ensure the datapath with redirect maps does not use
- * any locking. This is a quick note on the details.
+ * spent some effort to ensure the datapath with redirect maps does yest use
+ * any locking. This is a quick yeste on the details.
  *
  * We have three possible paths to get into the devmap control plane bpf
  * syscalls, bpf programs, and driver side xmit/flush operations. A bpf syscall
@@ -17,24 +17,24 @@
  * datapath always has a valid copy. However, the datapath does a "flush"
  * operation that pushes any pending packets in the driver outside the RCU
  * critical section. Each bpf_dtab_netdev tracks these pending operations using
- * a per-cpu flush list. The bpf_dtab_netdev object will not be destroyed  until
+ * a per-cpu flush list. The bpf_dtab_netdev object will yest be destroyed  until
  * this list is empty, indicating outstanding flush operations have completed.
  *
  * BPF syscalls may race with BPF program calls on any of the update, delete
- * or lookup operations. As noted above the xchg() operation also keep the
+ * or lookup operations. As yested above the xchg() operation also keep the
  * netdev_map consistent in this case. From the devmap side BPF programs
  * calling into these operations are the same as multiple user space threads
  * making system calls.
  *
- * Finally, any of the above may race with a netdev_unregister notifier. The
- * unregister notifier must search for net devices in the map structure that
+ * Finally, any of the above may race with a netdev_unregister yestifier. The
+ * unregister yestifier must search for net devices in the map structure that
  * contain a reference to the net device and remove them. This is a two step
  * process (a) dereference the bpf_dtab_netdev object in netdev_map and (b)
  * check to see if the ifindex is the same as the net_device being removed.
  * When removing the dev a cmpxchg() is used to ensure the correct dev is
  * removed, in the case of a concurrent update or delete operation it is
- * possible that the initially referenced dev is no longer in the map. As the
- * notifier hook walks the map we know that new dev references can not be
+ * possible that the initially referenced dev is yes longer in the map. As the
+ * yestifier hook walks the map we kyesw that new dev references can yest be
  * added by the user because core infrastructure ensures dev_get_by_index()
  * calls will fail at this point.
  *
@@ -57,7 +57,7 @@ struct bpf_dtab_netdev;
 
 struct xdp_bulk_queue {
 	struct xdp_frame *q[DEV_MAP_BULK_SIZE];
-	struct list_head flush_node;
+	struct list_head flush_yesde;
 	struct net_device *dev_rx;
 	struct bpf_dtab_netdev *obj;
 	unsigned int count;
@@ -65,7 +65,7 @@ struct xdp_bulk_queue {
 
 struct bpf_dtab_netdev {
 	struct net_device *dev; /* must be first member, due to tracepoint */
-	struct hlist_node index_hlist;
+	struct hlist_yesde index_hlist;
 	struct bpf_dtab *dtab;
 	struct xdp_bulk_queue __percpu *bulkq;
 	struct rcu_head rcu;
@@ -159,7 +159,7 @@ static int dev_map_init_map(struct bpf_dtab *dtab, union bpf_attr *attr)
 	} else {
 		dtab->netdev_map = bpf_map_area_alloc(dtab->map.max_entries *
 						      sizeof(struct bpf_dtab_netdev *),
-						      dtab->map.numa_node);
+						      dtab->map.numa_yesde);
 		if (!dtab->netdev_map)
 			goto free_percpu;
 	}
@@ -207,7 +207,7 @@ static void dev_map_free(struct bpf_map *map)
 	 * so the programs (can be more than one that used this map) were
 	 * disconnected from events. Wait for outstanding critical sections in
 	 * these programs to complete. The rcu critical section only guarantees
-	 * no further reads against netdev_map. It does __not__ ensure pending
+	 * yes further reads against netdev_map. It does __yest__ ensure pending
 	 * flush operations (if any) are complete.
 	 */
 
@@ -224,7 +224,7 @@ static void dev_map_free(struct bpf_map *map)
 	/* To ensure all pending flush operations have completed wait for flush
 	 * list to empty on _all_ cpus.
 	 * Because the above synchronize_rcu() ensures the map is disconnected
-	 * from the program we can assume no new items will be added.
+	 * from the program we can assume yes new items will be added.
 	 */
 	for_each_online_cpu(cpu) {
 		struct list_head *flush_list = per_cpu_ptr(dtab->flush_list, cpu);
@@ -237,7 +237,7 @@ static void dev_map_free(struct bpf_map *map)
 		for (i = 0; i < dtab->n_buckets; i++) {
 			struct bpf_dtab_netdev *dev;
 			struct hlist_head *head;
-			struct hlist_node *next;
+			struct hlist_yesde *next;
 
 			head = dev_map_index_hash(dtab, i);
 
@@ -375,10 +375,10 @@ out:
 	trace_xdp_devmap_xmit(&obj->dtab->map, obj->idx,
 			      sent, drops, bq->dev_rx, dev, err);
 	bq->dev_rx = NULL;
-	__list_del_clearprev(&bq->flush_node);
+	__list_del_clearprev(&bq->flush_yesde);
 	return 0;
 error:
-	/* If ndo_xdp_xmit fails with an errno, no frames have been
+	/* If ndo_xdp_xmit fails with an erryes, yes frames have been
 	 * xmit'ed and it's our responsibility to them free all.
 	 */
 	for (i = 0; i < bq->count; i++) {
@@ -408,7 +408,7 @@ void __dev_map_flush(struct bpf_map *map)
 	struct xdp_bulk_queue *bq, *tmp;
 
 	rcu_read_lock();
-	list_for_each_entry_safe(bq, tmp, flush_list, flush_node)
+	list_for_each_entry_safe(bq, tmp, flush_list, flush_yesde)
 		bq_xmit_all(bq, XDP_XMIT_FLUSH, true);
 	rcu_read_unlock();
 }
@@ -451,8 +451,8 @@ static int bq_enqueue(struct bpf_dtab_netdev *obj, struct xdp_frame *xdpf,
 
 	bq->q[bq->count++] = xdpf;
 
-	if (!bq->flush_node.prev)
-		list_add(&bq->flush_node, flush_list);
+	if (!bq->flush_yesde.prev)
+		list_add(&bq->flush_yesde, flush_list);
 
 	return 0;
 }
@@ -545,10 +545,10 @@ static int dev_map_delete_elem(struct bpf_map *map, void *key)
 		return -EINVAL;
 
 	/* Use call_rcu() here to ensure any rcu critical sections have
-	 * completed, but this does not guarantee a flush has happened
+	 * completed, but this does yest guarantee a flush has happened
 	 * yet. Because driver side rcu_read_lock/unlock only protects the
 	 * running XDP program. However, for pending flush operations the
-	 * dev and ctx are stored in another per cpu map. And additionally,
+	 * dev and ctx are stored in ayesther per cpu map. And additionally,
 	 * the driver tear down ensures all soft irqs are complete before
 	 * removing the net device in the case of dev_put equals zero.
 	 */
@@ -580,7 +580,7 @@ static int dev_map_hash_delete_elem(struct bpf_map *map, void *key)
 	return ret;
 }
 
-static struct bpf_dtab_netdev *__dev_map_alloc_node(struct net *net,
+static struct bpf_dtab_netdev *__dev_map_alloc_yesde(struct net *net,
 						    struct bpf_dtab *dtab,
 						    u32 ifindex,
 						    unsigned int idx)
@@ -590,7 +590,7 @@ static struct bpf_dtab_netdev *__dev_map_alloc_node(struct net *net,
 	struct xdp_bulk_queue *bq;
 	int cpu;
 
-	dev = kmalloc_node(sizeof(*dev), gfp, dtab->map.numa_node);
+	dev = kmalloc_yesde(sizeof(*dev), gfp, dtab->map.numa_yesde);
 	if (!dev)
 		return ERR_PTR(-ENOMEM);
 
@@ -637,7 +637,7 @@ static int __dev_map_update_elem(struct net *net, struct bpf_map *map,
 	if (!ifindex) {
 		dev = NULL;
 	} else {
-		dev = __dev_map_alloc_node(net, dtab, ifindex, i);
+		dev = __dev_map_alloc_yesde(net, dtab, ifindex, i);
 		if (IS_ERR(dev))
 			return PTR_ERR(dev);
 	}
@@ -679,7 +679,7 @@ static int __dev_map_hash_update_elem(struct net *net, struct bpf_map *map,
 	if (old_dev && (map_flags & BPF_NOEXIST))
 		goto out_err;
 
-	dev = __dev_map_alloc_node(net, dtab, ifindex, idx);
+	dev = __dev_map_alloc_yesde(net, dtab, ifindex, idx);
 	if (IS_ERR(dev)) {
 		err = PTR_ERR(dev);
 		goto out_err;
@@ -724,7 +724,7 @@ const struct bpf_map_ops dev_map_ops = {
 	.map_lookup_elem = dev_map_lookup_elem,
 	.map_update_elem = dev_map_update_elem,
 	.map_delete_elem = dev_map_delete_elem,
-	.map_check_btf = map_check_no_btf,
+	.map_check_btf = map_check_yes_btf,
 };
 
 const struct bpf_map_ops dev_map_hash_ops = {
@@ -734,7 +734,7 @@ const struct bpf_map_ops dev_map_hash_ops = {
 	.map_lookup_elem = dev_map_hash_lookup_elem,
 	.map_update_elem = dev_map_hash_update_elem,
 	.map_delete_elem = dev_map_hash_delete_elem,
-	.map_check_btf = map_check_no_btf,
+	.map_check_btf = map_check_yes_btf,
 };
 
 static void dev_map_hash_remove_netdev(struct bpf_dtab *dtab,
@@ -747,7 +747,7 @@ static void dev_map_hash_remove_netdev(struct bpf_dtab *dtab,
 	for (i = 0; i < dtab->n_buckets; i++) {
 		struct bpf_dtab_netdev *dev;
 		struct hlist_head *head;
-		struct hlist_node *next;
+		struct hlist_yesde *next;
 
 		head = dev_map_index_hash(dtab, i);
 
@@ -763,10 +763,10 @@ static void dev_map_hash_remove_netdev(struct bpf_dtab *dtab,
 	spin_unlock_irqrestore(&dtab->index_lock, flags);
 }
 
-static int dev_map_notification(struct notifier_block *notifier,
+static int dev_map_yestification(struct yestifier_block *yestifier,
 				ulong event, void *ptr)
 {
-	struct net_device *netdev = netdev_notifier_info_to_dev(ptr);
+	struct net_device *netdev = netdev_yestifier_info_to_dev(ptr);
 	struct bpf_dtab *dtab;
 	int i;
 
@@ -774,7 +774,7 @@ static int dev_map_notification(struct notifier_block *notifier,
 	case NETDEV_UNREGISTER:
 		/* This rcu_read_lock/unlock pair is needed because
 		 * dev_map_list is an RCU list AND to ensure a delete
-		 * operation does not free a netdev_map entry while we
+		 * operation does yest free a netdev_map entry while we
 		 * are comparing it against the netdev being unregistered.
 		 */
 		rcu_read_lock();
@@ -804,8 +804,8 @@ static int dev_map_notification(struct notifier_block *notifier,
 	return NOTIFY_OK;
 }
 
-static struct notifier_block dev_map_notifier = {
-	.notifier_call = dev_map_notification,
+static struct yestifier_block dev_map_yestifier = {
+	.yestifier_call = dev_map_yestification,
 };
 
 static int __init dev_map_init(void)
@@ -813,7 +813,7 @@ static int __init dev_map_init(void)
 	/* Assure tracepoint shadow struct _bpf_dtab_netdev is in sync */
 	BUILD_BUG_ON(offsetof(struct bpf_dtab_netdev, dev) !=
 		     offsetof(struct _bpf_dtab_netdev, dev));
-	register_netdevice_notifier(&dev_map_notifier);
+	register_netdevice_yestifier(&dev_map_yestifier);
 	return 0;
 }
 

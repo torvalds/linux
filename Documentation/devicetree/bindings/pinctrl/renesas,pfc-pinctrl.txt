@@ -50,26 +50,26 @@ Optional properties:
     forbidden otherwise. When specified, it must contain one interrupt per
     external IRQ, sorted by external IRQ number.
 
-The PFC node also acts as a container for pin configuration nodes. Please refer
+The PFC yesde also acts as a container for pin configuration yesdes. Please refer
 to pinctrl-bindings.txt in this directory for the definition of the term "pin
-configuration node" and for the common pinctrl bindings used by client devices.
+configuration yesde" and for the common pinctrl bindings used by client devices.
 
-Each pin configuration node represents a desired configuration for a pin, a
+Each pin configuration yesde represents a desired configuration for a pin, a
 pin group, or a list of pins or pin groups. The configuration can include the
 function to select on those pin(s) and pin configuration parameters (such as
 pull-up and pull-down).
 
-Pin configuration nodes contain pin configuration properties, either directly
-or grouped in child subnodes. Both pin muxing and configuration parameters can
-be grouped in that way and referenced as a single pin configuration node by
+Pin configuration yesdes contain pin configuration properties, either directly
+or grouped in child subyesdes. Both pin muxing and configuration parameters can
+be grouped in that way and referenced as a single pin configuration yesde by
 client devices.
 
-A configuration node or subnode must reference at least one pin (through the
+A configuration yesde or subyesde must reference at least one pin (through the
 pins or pin groups properties) and contain at least a function or one
 configuration parameter. When the function is present only pin groups can be
 used to reference pins.
 
-All pin configuration nodes and subnodes names are ignored. All of those nodes
+All pin configuration yesdes and subyesdes names are igyesred. All of those yesdes
 are parsed through phandles and processed purely based on their content.
 
 Pin Configuration Node Properties:
@@ -89,26 +89,26 @@ The pin configuration parameters use the generic pinconf bindings defined in
 pinctrl-bindings.txt in this directory. The supported parameters are
 bias-disable, bias-pull-up, bias-pull-down, drive-strength and power-source. For
 pins that have a configurable I/O voltage, the power-source value should be the
-nominal I/O voltage in millivolts.
+yesminal I/O voltage in millivolts.
 
 
 GPIO
 ----
 
-On SH73A0, R8A73A4 and R8A7740 the PFC node is also a GPIO controller node.
+On SH73A0, R8A73A4 and R8A7740 the PFC yesde is also a GPIO controller yesde.
 
 Required Properties:
 
-  - gpio-controller: Marks the device node as a gpio controller.
+  - gpio-controller: Marks the device yesde as a gpio controller.
 
   - #gpio-cells: Should be 2. The first cell is the GPIO number and the second
     cell specifies GPIO flags, as defined in <dt-bindings/gpio/gpio.h>. Only the
     GPIO_ACTIVE_HIGH and GPIO_ACTIVE_LOW flags are supported.
 
-The syntax of the gpio specifier used by client nodes should be the following
+The syntax of the gpio specifier used by client yesdes should be the following
 with values derived from the SoC user manual.
 
-  <[phandle of the gpio controller node]
+  <[phandle of the gpio controller yesde]
    [pin number within the gpio controller]
    [flags]>
 
@@ -120,7 +120,7 @@ for documentation of the GPIO device tree bindings on those platforms.
 Examples
 --------
 
-Example 1: SH73A0 (SH-Mobile AG5) pin controller node
+Example 1: SH73A0 (SH-Mobile AG5) pin controller yesde
 
 	pfc: pin-controller@e6050000 {
 		compatible = "renesas,pfc-sh73a0";
@@ -139,7 +139,7 @@ Example 1: SH73A0 (SH-Mobile AG5) pin controller node
 			<&irqpin3 4 0>, <&irqpin3 5 0>, <&irqpin3 6 0>, <&irqpin3 7 0>;
 	};
 
-Example 2: A GPIO LED node that references a GPIO
+Example 2: A GPIO LED yesde that references a GPIO
 
 	#include <dt-bindings/gpio/gpio.h>
 

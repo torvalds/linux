@@ -24,9 +24,9 @@ struct call_path;
 /*
  * Call/Return flags.
  *
- * CALL_RETURN_NO_CALL: 'return' but no matching 'call'
- * CALL_RETURN_NO_RETURN: 'call' but no matching 'return'
- * CALL_RETURN_NON_CALL: a branch but not a 'call' to the start of a different
+ * CALL_RETURN_NO_CALL: 'return' but yes matching 'call'
+ * CALL_RETURN_NO_RETURN: 'call' but yes matching 'return'
+ * CALL_RETURN_NON_CALL: a branch but yest a 'call' to the start of a different
  *                       symbol
  */
 enum {
@@ -40,8 +40,8 @@ enum {
  * @thread: thread in which call/return occurred
  * @comm: comm in which call/return occurred
  * @cp: call path
- * @call_time: timestamp of call (if known)
- * @return_time: timestamp of return (if known)
+ * @call_time: timestamp of call (if kyeswn)
+ * @return_time: timestamp of return (if kyeswn)
  * @branch_count: number of branches seen between call and return
  * @insn_count: approx. number of instructions between call and return
  * @cyc_count: approx. number of cycles between call and return
@@ -72,7 +72,7 @@ struct call_return {
  *                                information.
  * @cpr: call path root
  * @process: call-back that accepts call/return information
- * @data: anonymous data for call-back
+ * @data: ayesnymous data for call-back
  */
 struct call_return_processor {
 	struct call_path_root *cpr;

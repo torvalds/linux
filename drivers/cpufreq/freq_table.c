@@ -240,7 +240,7 @@ static ssize_t show_available_freqs(struct cpufreq_policy *policy, char *buf,
 		 *
 		 * show_boost = false and driver_data = BOOST freq
 		 * show_boost = true and driver_data != BOOST freq
-		 * continue - do not display anything
+		 * continue - do yest display anything
 		 *
 		 * show_boost = false and driver_data != BOOST freq
 		 * display NON BOOST freqs
@@ -261,7 +261,7 @@ struct freq_attr cpufreq_freq_attr_##_name##_freqs =     \
 __ATTR_RO(_name##_frequencies)
 
 /**
- * show_scaling_available_frequencies - show available normal frequencies for
+ * show_scaling_available_frequencies - show available yesrmal frequencies for
  * the specified CPU
  */
 static ssize_t scaling_available_frequencies_show(struct cpufreq_policy *policy,

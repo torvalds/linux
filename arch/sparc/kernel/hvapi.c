@@ -13,12 +13,12 @@
 /* If the hypervisor indicates that the API setting
  * calls are unsupported, by returning HV_EBADTRAP or
  * HV_ENOTSUPPORTED, we assume that API groups with the
- * PRE_API flag set are major 1 minor 0.
+ * PRE_API flag set are major 1 miyesr 0.
  */
 struct api_info {
 	unsigned long group;
 	unsigned long major;
-	unsigned long minor;
+	unsigned long miyesr;
 	unsigned int refcnt;
 	unsigned int flags;
 #define FLAG_PRE_API		0x00000001
@@ -75,26 +75,26 @@ static void __get_ref(struct api_info *p)
 static void __put_ref(struct api_info *p)
 {
 	if (--p->refcnt == 0) {
-		unsigned long ignore;
+		unsigned long igyesre;
 
-		sun4v_set_version(p->group, 0, 0, &ignore);
-		p->major = p->minor = 0;
+		sun4v_set_version(p->group, 0, 0, &igyesre);
+		p->major = p->miyesr = 0;
 	}
 }
 
 /* Register a hypervisor API specification.  It indicates the
- * API group and desired major+minor.
+ * API group and desired major+miyesr.
  *
  * If an existing API registration exists '0' (success) will
  * be returned if it is compatible with the one being registered.
  * Otherwise a negative error code will be returned.
  *
  * Otherwise an attempt will be made to negotiate the requested
- * API group/major/minor with the hypervisor, and errors returned
- * if that does not succeed.
+ * API group/major/miyesr with the hypervisor, and errors returned
+ * if that does yest succeed.
  */
 int sun4v_hvapi_register(unsigned long group, unsigned long major,
-			 unsigned long *minor)
+			 unsigned long *miyesr)
 {
 	struct api_info *p;
 	unsigned long flags;
@@ -107,28 +107,28 @@ int sun4v_hvapi_register(unsigned long group, unsigned long major,
 		if (p->refcnt) {
 			ret = -EINVAL;
 			if (p->major == major) {
-				*minor = p->minor;
+				*miyesr = p->miyesr;
 				ret = 0;
 			}
 		} else {
-			unsigned long actual_minor;
+			unsigned long actual_miyesr;
 			unsigned long hv_ret;
 
-			hv_ret = sun4v_set_version(group, major, *minor,
-						   &actual_minor);
+			hv_ret = sun4v_set_version(group, major, *miyesr,
+						   &actual_miyesr);
 			ret = -EINVAL;
 			if (hv_ret == HV_EOK) {
-				*minor = actual_minor;
+				*miyesr = actual_miyesr;
 				p->major = major;
-				p->minor = actual_minor;
+				p->miyesr = actual_miyesr;
 				ret = 0;
 			} else if (hv_ret == HV_EBADTRAP ||
 				   hv_ret == HV_ENOTSUPPORTED) {
 				if (p->flags & FLAG_PRE_API) {
 					if (major == 1) {
 						p->major = 1;
-						p->minor = 0;
-						*minor = 0;
+						p->miyesr = 0;
+						*miyesr = 0;
 						ret = 0;
 					}
 				}
@@ -159,7 +159,7 @@ EXPORT_SYMBOL(sun4v_hvapi_unregister);
 
 int sun4v_hvapi_get(unsigned long group,
 		    unsigned long *major,
-		    unsigned long *minor)
+		    unsigned long *miyesr)
 {
 	struct api_info *p;
 	unsigned long flags;
@@ -170,7 +170,7 @@ int sun4v_hvapi_get(unsigned long group,
 	p = __get_info(group);
 	if (p && p->refcnt) {
 		*major = p->major;
-		*minor = p->minor;
+		*miyesr = p->miyesr;
 		ret = 0;
 	}
 	spin_unlock_irqrestore(&hvapi_lock, flags);
@@ -181,25 +181,25 @@ EXPORT_SYMBOL(sun4v_hvapi_get);
 
 void __init sun4v_hvapi_init(void)
 {
-	unsigned long group, major, minor;
+	unsigned long group, major, miyesr;
 
 	group = HV_GRP_SUN4V;
 	major = 1;
-	minor = 0;
-	if (sun4v_hvapi_register(group, major, &minor))
+	miyesr = 0;
+	if (sun4v_hvapi_register(group, major, &miyesr))
 		goto bad;
 
 	group = HV_GRP_CORE;
 	major = 1;
-	minor = 6;
-	if (sun4v_hvapi_register(group, major, &minor))
+	miyesr = 6;
+	if (sun4v_hvapi_register(group, major, &miyesr))
 		goto bad;
 
 	return;
 
 bad:
-	prom_printf("HVAPI: Cannot register API group "
-		    "%lx with major(%lu) minor(%lu)\n",
-		    group, major, minor);
+	prom_printf("HVAPI: Canyest register API group "
+		    "%lx with major(%lu) miyesr(%lu)\n",
+		    group, major, miyesr);
 	prom_halt();
 }

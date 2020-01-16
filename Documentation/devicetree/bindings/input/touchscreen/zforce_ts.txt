@@ -1,7 +1,7 @@
-* Neonode infrared touchscreen controller
+* Neoyesde infrared touchscreen controller
 
 Required properties:
-- compatible: must be "neonode,zforce"
+- compatible: must be "neoyesde,zforce"
 - reg: I2C address of the chip
 - interrupts: interrupt to which the chip is connected
 - reset-gpios: reset gpio the chip is connected to
@@ -18,7 +18,7 @@ Example:
 		/* ... */
 
 		zforce_ts@50 {
-			compatible = "neonode,zforce";
+			compatible = "neoyesde,zforce";
 			reg = <0x50>;
 			interrupts = <2 0>;
 			vdd-supply = <&reg_zforce_vdd>;

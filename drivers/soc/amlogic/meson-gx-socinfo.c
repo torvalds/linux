@@ -59,7 +59,7 @@ static const struct meson_gx_package_id {
 	{ "S905M2", 0x21, 0xe0, 0xf0 },
 	{ "S805X", 0x21, 0x30, 0xf0 },
 	{ "S805Y", 0x21, 0xb0, 0xf0 },
-	{ "S912", 0x22, 0, 0x0 }, /* Only S912 is known for GXM */
+	{ "S912", 0x22, 0, 0x0 }, /* Only S912 is kyeswn for GXM */
 	{ "962X", 0x24, 0x10, 0xf0 },
 	{ "962E", 0x24, 0x20, 0xf0 },
 	{ "A113X", 0x25, 0x37, 0xff },
@@ -78,7 +78,7 @@ static inline unsigned int socinfo_to_major(u32 socinfo)
 	return FIELD_GET(SOCINFO_MAJOR, socinfo);
 }
 
-static inline unsigned int socinfo_to_minor(u32 socinfo)
+static inline unsigned int socinfo_to_miyesr(u32 socinfo)
 {
 	return FIELD_GET(SOCINFO_MINOR, socinfo);
 }
@@ -106,7 +106,7 @@ static const char *socinfo_to_package_id(u32 socinfo)
 			return soc_packages[i].name;
 	}
 
-	return "Unknown";
+	return "Unkyeswn";
 }
 
 static const char *socinfo_to_soc_id(u32 socinfo)
@@ -119,39 +119,39 @@ static const char *socinfo_to_soc_id(u32 socinfo)
 			return soc_ids[i].name;
 	}
 
-	return "Unknown";
+	return "Unkyeswn";
 }
 
 static int __init meson_gx_socinfo_init(void)
 {
 	struct soc_device_attribute *soc_dev_attr;
 	struct soc_device *soc_dev;
-	struct device_node *np;
+	struct device_yesde *np;
 	struct regmap *regmap;
 	unsigned int socinfo;
 	struct device *dev;
 	int ret;
 
-	/* look up for chipid node */
-	np = of_find_compatible_node(NULL, NULL, "amlogic,meson-gx-ao-secure");
+	/* look up for chipid yesde */
+	np = of_find_compatible_yesde(NULL, NULL, "amlogic,meson-gx-ao-secure");
 	if (!np)
 		return -ENODEV;
 
 	/* check if interface is enabled */
 	if (!of_device_is_available(np)) {
-		of_node_put(np);
+		of_yesde_put(np);
 		return -ENODEV;
 	}
 
 	/* check if chip-id is available */
 	if (!of_property_read_bool(np, "amlogic,has-chip-id")) {
-		of_node_put(np);
+		of_yesde_put(np);
 		return -ENODEV;
 	}
 
-	/* node should be a syscon */
-	regmap = syscon_node_to_regmap(np);
-	of_node_put(np);
+	/* yesde should be a syscon */
+	regmap = syscon_yesde_to_regmap(np);
+	of_yesde_put(np);
 	if (IS_ERR(regmap)) {
 		pr_err("%s: failed to get regmap\n", __func__);
 		return -ENODEV;
@@ -172,13 +172,13 @@ static int __init meson_gx_socinfo_init(void)
 
 	soc_dev_attr->family = "Amlogic Meson";
 
-	np = of_find_node_by_path("/");
+	np = of_find_yesde_by_path("/");
 	of_property_read_string(np, "model", &soc_dev_attr->machine);
-	of_node_put(np);
+	of_yesde_put(np);
 
 	soc_dev_attr->revision = kasprintf(GFP_KERNEL, "%x:%x - %x:%x",
 					   socinfo_to_major(socinfo),
-					   socinfo_to_minor(socinfo),
+					   socinfo_to_miyesr(socinfo),
 					   socinfo_to_pack(socinfo),
 					   socinfo_to_misc(socinfo));
 	soc_dev_attr->soc_id = kasprintf(GFP_KERNEL, "%s (%s)",
@@ -197,7 +197,7 @@ static int __init meson_gx_socinfo_init(void)
 	dev_info(dev, "Amlogic Meson %s Revision %x:%x (%x:%x) Detected\n",
 			soc_dev_attr->soc_id,
 			socinfo_to_major(socinfo),
-			socinfo_to_minor(socinfo),
+			socinfo_to_miyesr(socinfo),
 			socinfo_to_pack(socinfo),
 			socinfo_to_misc(socinfo));
 

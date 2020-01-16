@@ -229,7 +229,7 @@ static int mtk_dai_pcm_hw_params(struct snd_pcm_substream *substream,
 				   0xfffffffe, pcm_con);
 		break;
 	default:
-		dev_warn(afe->dev, "%s(), id %d not support\n",
+		dev_warn(afe->dev, "%s(), id %d yest support\n",
 			 __func__, dai->id);
 		return -EINVAL;
 	}

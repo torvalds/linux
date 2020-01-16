@@ -161,7 +161,7 @@ int igb_sysfs_init(struct igb_adapter *adapter)
 	if (adapter->hw.mac.ops.init_thermal_sensor_thresh == NULL)
 		goto exit;
 
-	/* Don't create thermal hwmon interface if no sensors present */
+	/* Don't create thermal hwmon interface if yes sensors present */
 	rc = (adapter->hw.mac.ops.init_thermal_sensor_thresh(&adapter->hw));
 	if (rc)
 		goto exit;

@@ -24,7 +24,7 @@ Required properties:
 - reg              : Address start and address range size of the device
 - interrupts       : A list of interrupt-specifiers, one for each entry in
 		     interrupt-names.
-		     If interrupt-names is not present, an interrupt specifier
+		     If interrupt-names is yest present, an interrupt specifier
 		     for a single muxed interrupt.
 - interrupt-names  : A list of interrupt names. Should contain (if present):
 		       - "error" for SPEI,

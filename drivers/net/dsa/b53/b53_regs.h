@@ -6,7 +6,7 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright yestice and this permission yestice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
@@ -120,7 +120,7 @@
  * Override Ports 0-7 State on devices with xMII interfaces (8 bit)
  *
  * For port 8 still use B53_PORT_OVERRIDE_CTRL
- * Please note that not all ports are available on every hardware, e.g. BCM5301X
+ * Please yeste that yest all ports are available on every hardware, e.g. BCM5301X
  * don't include overriding port 6, BCM63xx also have some limitations.
  */
 #define B53_GMII_PORT_OVERRIDE_CTRL(i)	(0x58 + (i))
@@ -411,9 +411,9 @@
 #define B53_VLAN_CTRL4_63XX		0x06
 #define   VC4_ING_VID_CHECK_S		6
 #define   VC4_ING_VID_CHECK_MASK	(0x3 << VC4_ING_VID_CHECK_S)
-#define   VC4_ING_VID_VIO_FWD		0 /* forward, but do not learn */
+#define   VC4_ING_VID_VIO_FWD		0 /* forward, but do yest learn */
 #define   VC4_ING_VID_VIO_DROP		1 /* drop VID violations */
-#define   VC4_NO_ING_VID_CHK		2 /* do not check */
+#define   VC4_NO_ING_VID_CHK		2 /* do yest check */
 #define   VC4_ING_VID_VIO_TO_IMP	3 /* redirect to MII port */
 
 /* VLAN Control 5 (8 bit) */

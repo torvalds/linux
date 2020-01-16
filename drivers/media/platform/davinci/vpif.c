@@ -427,7 +427,7 @@ static int vpif_probe(struct platform_device *pdev)
 {
 	static struct resource	*res, *res_irq;
 	struct platform_device *pdev_capture, *pdev_display;
-	struct device_node *endpoint = NULL;
+	struct device_yesde *endpoint = NULL;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	vpif_base = devm_ioremap_resource(&pdev->dev, res);
@@ -442,11 +442,11 @@ static int vpif_probe(struct platform_device *pdev)
 
 	/*
 	 * If VPIF Node has endpoints, assume "new" DT support,
-	 * where capture and display drivers don't have DT nodes
+	 * where capture and display drivers don't have DT yesdes
 	 * so their devices need to be registered manually here
 	 * for their legacy platform_drivers to work.
 	 */
-	endpoint = of_graph_get_next_endpoint(pdev->dev.of_node,
+	endpoint = of_graph_get_next_endpoint(pdev->dev.of_yesde,
 					      endpoint);
 	if (!endpoint)
 		return 0;

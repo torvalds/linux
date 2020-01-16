@@ -4,13 +4,13 @@
 # Check if current architecture are missing any function calls compared
 # to i386.
 # i386 define a number of legacy system calls that are i386 specific
-# and listed below so they are ignored.
+# and listed below so they are igyesred.
 #
 # Usage:
 # checksyscalls.sh gcc gcc-options
 #
 
-ignore_list() {
+igyesre_list() {
 cat << EOF
 #include <asm/types.h>
 #include <asm/unistd.h>
@@ -19,7 +19,7 @@ cat << EOF
 #define __IGNORE_open		/* openat */
 #define __IGNORE_link		/* linkat */
 #define __IGNORE_unlink		/* unlinkat */
-#define __IGNORE_mknod		/* mknodat */
+#define __IGNORE_mkyesd		/* mkyesdat */
 #define __IGNORE_chmod		/* fchmodat */
 #define __IGNORE_chown		/* fchownat */
 #define __IGNORE_mkdir		/* mkdirat */
@@ -47,7 +47,7 @@ cat << EOF
 #define __IGNORE_pipe		/* pipe2 */
 #define __IGNORE_dup2		/* dup3 */
 #define __IGNORE_epoll_create	/* epoll_create1 */
-#define __IGNORE_inotify_init	/* inotify_init1 */
+#define __IGNORE_iyestify_init	/* iyestify_init1 */
 #define __IGNORE_eventfd	/* eventfd2 */
 #define __IGNORE_signalfd	/* signalfd4 */
 
@@ -90,7 +90,7 @@ cat << EOF
 #define __IGNORE_clock_settime64
 #define __IGNORE_clock_adjtime64
 #define __IGNORE_clock_getres_time64
-#define __IGNORE_clock_nanosleep_time64
+#define __IGNORE_clock_nayessleep_time64
 #define __IGNORE_timer_gettime64
 #define __IGNORE_timer_settime64
 #define __IGNORE_timerfd_gettime64
@@ -124,7 +124,7 @@ cat << EOF
 #define __IGNORE_clock_settime
 #define __IGNORE_clock_adjtime
 #define __IGNORE_clock_getres
-#define __IGNORE_clock_nanosleep
+#define __IGNORE_clock_nayessleep
 #define __IGNORE_timer_gettime
 #define __IGNORE_timer_settime
 #define __IGNORE_timerfd_gettime
@@ -144,7 +144,7 @@ cat << EOF
 #define __IGNORE_settimeofday
 #define __IGNORE_wait4
 #define __IGNORE_adjtimex
-#define __IGNORE_nanosleep
+#define __IGNORE_nayessleep
 #define __IGNORE_io_getevents
 #define __IGNORE_recvmmsg
 #endif
@@ -256,10 +256,10 @@ syscall_list() {
     grep '^[0-9]' "$1" | sort -n |
 	while read nr abi name entry ; do
 		echo "#if !defined(__NR_${name}) && !defined(__IGNORE_${name})"
-		echo "#warning syscall ${name} not implemented"
+		echo "#warning syscall ${name} yest implemented"
 		echo "#endif"
 	done
 }
 
-(ignore_list && syscall_list $(dirname $0)/../arch/x86/entry/syscalls/syscall_32.tbl) | \
+(igyesre_list && syscall_list $(dirname $0)/../arch/x86/entry/syscalls/syscall_32.tbl) | \
 $* -E -x c - > /dev/null

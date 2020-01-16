@@ -7,7 +7,7 @@
 #include <linux/of.h>
 #include <asm/secure_boot.h>
 
-static struct device_node *get_ppc_fw_sb_node(void)
+static struct device_yesde *get_ppc_fw_sb_yesde(void)
 {
 	static const struct of_device_id ids[] = {
 		{ .compatible = "ibm,secureboot", },
@@ -16,18 +16,18 @@ static struct device_node *get_ppc_fw_sb_node(void)
 		{},
 	};
 
-	return of_find_matching_node(NULL, ids);
+	return of_find_matching_yesde(NULL, ids);
 }
 
 bool is_ppc_secureboot_enabled(void)
 {
-	struct device_node *node;
+	struct device_yesde *yesde;
 	bool enabled = false;
 
-	node = get_ppc_fw_sb_node();
-	enabled = of_property_read_bool(node, "os-secureboot-enforcing");
+	yesde = get_ppc_fw_sb_yesde();
+	enabled = of_property_read_bool(yesde, "os-secureboot-enforcing");
 
-	of_node_put(node);
+	of_yesde_put(yesde);
 
 	pr_info("Secure boot mode %s\n", enabled ? "enabled" : "disabled");
 
@@ -36,13 +36,13 @@ bool is_ppc_secureboot_enabled(void)
 
 bool is_ppc_trustedboot_enabled(void)
 {
-	struct device_node *node;
+	struct device_yesde *yesde;
 	bool enabled = false;
 
-	node = get_ppc_fw_sb_node();
-	enabled = of_property_read_bool(node, "trusted-enabled");
+	yesde = get_ppc_fw_sb_yesde();
+	enabled = of_property_read_bool(yesde, "trusted-enabled");
 
-	of_node_put(node);
+	of_yesde_put(yesde);
 
 	pr_info("Trusted boot mode %s\n", enabled ? "enabled" : "disabled");
 

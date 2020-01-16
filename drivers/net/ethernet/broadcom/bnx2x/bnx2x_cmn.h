@@ -28,7 +28,7 @@
 #include "bnx2x.h"
 #include "bnx2x_sriov.h"
 
-/* This is used as a replacement for an MCP if it's not present */
+/* This is used as a replacement for an MCP if it's yest present */
 extern int bnx2x_load_count[2][3]; /* per-path: 0-common, 1-port0, 2-port1 */
 extern int bnx2x_num_queues;
 
@@ -241,7 +241,7 @@ u16 bnx2x_get_mf_speed(struct bnx2x *bp);
 irqreturn_t bnx2x_msix_sp_int(int irq, void *dev_instance);
 
 /**
- * bnx2x_interrupt - non MSI-X interrupt handler
+ * bnx2x_interrupt - yesn MSI-X interrupt handler
  *
  * @irq:		irq number
  * @dev_instance:	private instance
@@ -249,12 +249,12 @@ irqreturn_t bnx2x_msix_sp_int(int irq, void *dev_instance);
 irqreturn_t bnx2x_interrupt(int irq, void *dev_instance);
 
 /**
- * bnx2x_cnic_notify - send command to cnic driver
+ * bnx2x_cnic_yestify - send command to cnic driver
  *
  * @bp:		driver handle
  * @cmd:	command
  */
-int bnx2x_cnic_notify(struct bnx2x *bp, int cmd);
+int bnx2x_cnic_yestify(struct bnx2x *bp, int cmd);
 
 /**
  * bnx2x_setup_cnic_irq_info - provides cnic with IRQ information
@@ -283,7 +283,7 @@ void bnx2x_int_enable(struct bnx2x *bp);
  * @bp:		driver handle
  * @disable_hw:	true, disable HW interrupts.
  *
- * This function ensures that there are no
+ * This function ensures that there are yes
  * ISRs or SP DPCs (sp_task) are running after it returns.
  */
 void bnx2x_int_disable_sync(struct bnx2x *bp, int disable_hw);
@@ -602,7 +602,7 @@ int bnx2x_change_mtu(struct net_device *dev, int new_mtu);
  *
  * @dev:	net_device
  * @wwn:	output buffer
- * @type:	WWN type: NETDEV_FCOE_WWNN (node) or NETDEV_FCOE_WWPN (port)
+ * @type:	WWN type: NETDEV_FCOE_WWNN (yesde) or NETDEV_FCOE_WWPN (port)
  *
  */
 int bnx2x_fcoe_get_wwn(struct net_device *dev, u64 *wwn, int type);
@@ -623,7 +623,7 @@ void bnx2x_tx_timeout(struct net_device *dev);
  * c2s_map should have BNX2X_MAX_PRIORITY entries.
  * @bp:			driver handle
  * @c2s_map:		should have BNX2X_MAX_PRIORITY entries for mapping
- * @c2s_default:	entry for non-tagged configuration
+ * @c2s_default:	entry for yesn-tagged configuration
  */
 void bnx2x_get_c2s_mapping(struct bnx2x *bp, u8 *c2s_map, u8 *c2s_default);
 
@@ -881,10 +881,10 @@ static inline void bnx2x_init_sge_ring_bit_mask(struct bnx2x_fastpath *fp)
 	bnx2x_clear_sge_mask_next_elems(fp);
 }
 
-/* note that we are not allocating a new buffer,
+/* yeste that we are yest allocating a new buffer,
  * we are just moving one from cons to prod
- * we are not creating a new mapping,
- * so there is no need to check for dma_mapping_error().
+ * we are yest creating a new mapping,
+ * so there is yes need to check for dma_mapping_error().
  */
 static inline void bnx2x_reuse_rx_data(struct bnx2x_fastpath *fp,
 				      u16 cons, u16 prod)
@@ -976,7 +976,7 @@ static inline int bnx2x_func_start(struct bnx2x *bp)
 	if (IS_MF_UFP(bp) && BNX2X_IS_MF_SD_PROTOCOL_FCOE(bp)) {
 		start_params->class_fail_ethtype = ETH_P_FIP;
 		start_params->class_fail = 1;
-		start_params->no_added_tags = 1;
+		start_params->yes_added_tags = 1;
 	}
 
 	return bnx2x_func_state_change(bp, &func_params);
@@ -1086,7 +1086,7 @@ static inline void bnx2x_init_vlan_mac_fp_objs(struct bnx2x_fastpath *fp,
  *
  * @bp:		driver handle
  *
- * Calculates the number of active (not hidden) functions on the
+ * Calculates the number of active (yest hidden) functions on the
  * current path.
  */
 static inline u8 bnx2x_get_path_func_num(struct bnx2x *bp)
@@ -1303,7 +1303,7 @@ static inline bool bnx2x_mtu_allows_gro(int mtu)
 	int fpp = SGE_PAGE_SIZE / (mtu - ETH_MAX_TPA_HEADER_SIZE);
 
 	/*
-	 * 1. Number of frags should not grow above MAX_SKB_FRAGS
+	 * 1. Number of frags should yest grow above MAX_SKB_FRAGS
 	 * 2. Frag must fit the page
 	 */
 	return mtu <= SGE_PAGE_SIZE && (U_ETH_SGL_SIZE * fpp) <= MAX_SKB_FRAGS;
@@ -1318,12 +1318,12 @@ static inline bool bnx2x_mtu_allows_gro(int mtu)
 void bnx2x_get_iscsi_info(struct bnx2x *bp);
 
 /**
- * bnx2x_link_sync_notify - send notification to other functions.
+ * bnx2x_link_sync_yestify - send yestification to other functions.
  *
  * @bp:		driver handle
  *
  */
-static inline void bnx2x_link_sync_notify(struct bnx2x *bp)
+static inline void bnx2x_link_sync_yestify(struct bnx2x *bp)
 {
 	int func;
 	int vn;

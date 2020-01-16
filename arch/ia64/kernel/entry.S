@@ -15,7 +15,7 @@
  * Copyright (C) 1999 Walt Drummond <drummond@valinux.com>
  */
 /*
- * ia64_switch_to now places correct virtual mapping in in TR2 for
+ * ia64_switch_to yesw places correct virtual mapping in in TR2 for
  * kernel stack. This allows us to handle interrupts without changing
  * to physical mode.
  *
@@ -40,7 +40,7 @@
 
 #include <asm/asmmacro.h>
 #include <asm/cache.h>
-#include <asm/errno.h>
+#include <asm/erryes.h>
 #include <asm/kregs.h>
 #include <asm/asm-offsets.h>
 #include <asm/pgtable.h>
@@ -83,7 +83,7 @@ ENTRY(ia64_execve)
 	/*
 	 * In theory, we'd have to zap this state only to prevent leaking of
 	 * security sensitive state (e.g., if current->mm->dumpable is zero).  However,
-	 * this executes in less than 20 cycles even on Itanium, so it's not worth
+	 * this executes in less than 20 cycles even on Itanium, so it's yest worth
 	 * optimizing for...).
 	 */
 	mov ar.unat=0; 		mov ar.lc=0
@@ -227,9 +227,9 @@ END(ia64_switch_to)
  * Note that interrupts are enabled during save_switch_stack and load_switch_stack.  This
  * means that we may get an interrupt with "sp" pointing to the new kernel stack while
  * ar.bspstore is still pointing to the old kernel backing store area.  Since ar.rsc,
- * ar.rnat, ar.bsp, and ar.bspstore are all preserved by interrupts, this is not a
+ * ar.rnat, ar.bsp, and ar.bspstore are all preserved by interrupts, this is yest a
  * problem.  Also, we don't need to specify unwind information for preserved registers
- * that are not modified in save_switch_stack as the right unwind information is already
+ * that are yest modified in save_switch_stack as the right unwind information is already
  * specified at the call-site of save_switch_stack.
  */
 
@@ -358,9 +358,9 @@ END(save_switch_stack)
 
 /*
  * load_switch_stack:
- *	- "invala" MUST be done at call site (normally in DO_LOAD_SWITCH_STACK)
+ *	- "invala" MUST be done at call site (yesrmally in DO_LOAD_SWITCH_STACK)
  *	- b7 holds address to return to
- *	- must not touch r8-r11
+ *	- must yest touch r8-r11
  */
 GLOBAL_ENTRY(load_switch_stack)
 	.prologue
@@ -532,7 +532,7 @@ GLOBAL_ENTRY(ia64_trace_syscall)
 
 strace_error:
 	ld8 r3=[r2]				// load pt_regs.r8
-	sub r9=0,r8				// negate return value to get errno value
+	sub r9=0,r8				// negate return value to get erryes value
 	;;
 	cmp.ne p6,p0=r3,r0			// is pt_regs.r8!=0?
 	adds r3=16,r2				// r3=&pt_regs.r10
@@ -552,8 +552,8 @@ GLOBAL_ENTRY(ia64_strace_leave_kernel)
 	 * Some versions of gas generate bad unwind info if the first instruction of a
 	 * procedure doesn't go into the first slot of a bundle.  This is a workaround.
 	 */
-	nop.m 0
-	nop.i 0
+	yesp.m 0
+	yesp.i 0
 	br.call.sptk.many rp=syscall_trace_leave // give parent a chance to catch return value
 }
 .ret4:	br.cond.sptk ia64_leave_kernel
@@ -586,8 +586,8 @@ GLOBAL_ENTRY(ia64_ret_from_clone)
 	 * Some versions of gas generate bad unwind info if the first instruction of a
 	 * procedure doesn't go into the first slot of a bundle.  This is a workaround.
 	 */
-	nop.m 0
-	nop.i 0
+	yesp.m 0
+	yesp.i 0
 	/*
 	 * We need to call schedule_tail() to complete the scheduling process.
 	 * Called by ia64_switch_to() after do_fork()->copy_thread().  r8 contains the
@@ -622,7 +622,7 @@ END(ia64_ret_from_syscall)
  * ia64_leave_syscall(): Same as ia64_leave_kernel, except that it doesn't
  *	need to switch to bank 0 and doesn't restore the scratch registers.
  *	To avoid leaking kernel bits, the scratch registers are set to
- *	the following known-to-be-safe values:
+ *	the following kyeswn-to-be-safe values:
  *
  *		  r1: restored (global pointer)
  *		  r2: cleared
@@ -708,7 +708,7 @@ ia64_work_processed_syscall:
 	;;
 (p6)	ld4 r31=[r18]				// load current_thread_info()->flags
 	ld8 r19=[r2],PT(B6)-PT(LOADRS)		// load ar.rsc value for "loadrs"
-	nop.i 0
+	yesp.i 0
 	;;
 #endif
 	mov r16=ar.bsp				// M2  get existing backing store pointer
@@ -746,8 +746,8 @@ ia64_work_processed_syscall:
 	;;
 #endif
 	ld8 r26=[r2],PT(B0)-PT(AR_PFS)	// M0|1 load ar.pfs
-	MOV_FROM_PSR(pKStk, r22, r21)	// M2   read PSR now that interrupts are disabled
-	nop 0
+	MOV_FROM_PSR(pKStk, r22, r21)	// M2   read PSR yesw that interrupts are disabled
+	yesp 0
 	;;
 	ld8 r21=[r2],PT(AR_RNAT)-PT(B0) // M0|1 load b0
 	ld8 r27=[r3],PT(PR)-PT(AR_RSC)	// M0|1 load ar.rsc
@@ -793,7 +793,7 @@ ia64_work_processed_syscall:
 	mov r19=ar.bsp			// M2   get new backing store pointer
 	mov f10=f0			// F    clear f10
 
-	nop.m 0
+	yesp.m 0
 	movl r14=__kernel_syscall_via_epc // X
 	;;
 #endif
@@ -910,7 +910,7 @@ GLOBAL_ENTRY(ia64_leave_kernel)
 	mov ar.ccv=r15
 	;;
 	ldf.fill f11=[r2]
-	BSW_0(r2, r3, r15)	// switch back to bank 0 (no stop bit required beforehand...)
+	BSW_0(r2, r3, r15)	// switch back to bank 0 (yes stop bit required beforehand...)
 	;;
 (pUStk)	mov r18=IA64_KR(CURRENT)// M2 (12 cycle read latency)
 	adds r16=PT(CR_IPSR)+16,r12
@@ -918,14 +918,14 @@ GLOBAL_ENTRY(ia64_leave_kernel)
 
 #ifdef CONFIG_VIRT_CPU_ACCOUNTING_NATIVE
 	.pred.rel.mutex pUStk,pKStk
-	MOV_FROM_PSR(pKStk, r22, r29)	// M2 read PSR now that interrupts are disabled
+	MOV_FROM_PSR(pKStk, r22, r29)	// M2 read PSR yesw that interrupts are disabled
 	MOV_FROM_ITC(pUStk, p9, r22, r29)	// M  fetch time at leave
-	nop.i 0
+	yesp.i 0
 	;;
 #else
-	MOV_FROM_PSR(pKStk, r22, r29)	// M2 read PSR now that interrupts are disabled
-	nop.i 0
-	nop.i 0
+	MOV_FROM_PSR(pKStk, r22, r29)	// M2 read PSR yesw that interrupts are disabled
+	yesp.i 0
+	yesp.i 0
 	;;
 #endif
 	ld8 r29=[r16],16	// load cr.ipsr
@@ -968,9 +968,9 @@ GLOBAL_ENTRY(ia64_leave_kernel)
 #ifdef CONFIG_VIRT_CPU_ACCOUNTING_NATIVE
 	//  mmi_ :  ld8 st1 shr;;         mmi_ : st8 st1 shr;;
 	//  mib  :  mov add br        ->  mib  : ld8 add br
-	//  bbb_ :  br  nop cover;;       mbb_ : mov br  cover;;
+	//  bbb_ :  br  yesp cover;;       mbb_ : mov br  cover;;
 	//
-	//  no one require bsp in r16 if (pKStk) branch is selected.
+	//  yes one require bsp in r16 if (pKStk) branch is selected.
 (pUStk)	st8 [r3]=r22		// save time at leave
 (pUStk)	st1 [r18]=r17		// restore current->thread.on_ustack
 	shr.u r18=r19,16	// get byte size of existing "dirty" partition
@@ -1039,12 +1039,12 @@ rse_clear_invalid:
 	add out0=-Nregs*8,in0
 }{ .mfb
 	add out1=1,in1			// increment recursion count
-	nop.f 0
-	nop.b 0				// can't do br.call here because of alloc (WAW on CFM)
+	yesp.f 0
+	yesp.b 0				// can't do br.call here because of alloc (WAW on CFM)
 	;;
 }{ .mfi	// cycle 1
 	mov loc1=0
-	nop.f 0
+	yesp.f 0
 	mov loc2=0
 }{ .mib
 	mov loc3=0
@@ -1053,7 +1053,7 @@ rse_clear_invalid:
 
 }{ .mfi	// cycle 2
 	mov loc5=0
-	nop.f 0
+	yesp.f 0
 	cmp.ne pReturn,p0=r0,in1	// if recursion count != 0, we need to do a br.ret
 }{ .mib
 	mov loc6=0
@@ -1092,26 +1092,26 @@ rse_clear_invalid:
 skip_rbs_switch:
 	mov ar.unat=r25		// M2
 (pKStk)	extr.u r22=r22,21,1	// I0 extract current value of psr.pp from r22
-(pLvSys)mov r19=r0		// A  clear r19 for leave_syscall, no-op otherwise
+(pLvSys)mov r19=r0		// A  clear r19 for leave_syscall, yes-op otherwise
 	;;
 (pUStk)	mov ar.bspstore=r23	// M2
 (pKStk)	dep r29=r22,r29,21,1	// I0 update ipsr.pp with psr.pp
-(pLvSys)mov r16=r0		// A  clear r16 for leave_syscall, no-op otherwise
+(pLvSys)mov r16=r0		// A  clear r16 for leave_syscall, yes-op otherwise
 	;;
 	MOV_TO_IPSR(p0, r29, r25)	// M2
 	mov ar.pfs=r26		// I0
-(pLvSys)mov r17=r0		// A  clear r17 for leave_syscall, no-op otherwise
+(pLvSys)mov r17=r0		// A  clear r17 for leave_syscall, yes-op otherwise
 
 	MOV_TO_IFS(p9, r30, r25)// M2
 	mov b0=r21		// I0
-(pLvSys)mov r18=r0		// A  clear r18 for leave_syscall, no-op otherwise
+(pLvSys)mov r18=r0		// A  clear r18 for leave_syscall, yes-op otherwise
 
 	mov ar.fpsr=r20		// M2
 	MOV_TO_IIP(r28, r25)	// M2
-	nop 0
+	yesp 0
 	;;
 (pUStk)	mov ar.rnat=r24		// M2 must happen with RSE in lazy mode
-	nop 0
+	yesp 0
 (pLvSys)mov r2=r0
 
 	mov ar.rsc=r27		// M2
@@ -1135,15 +1135,15 @@ skip_rbs_switch:
 	st8 [r2]=r8
 	st8 [r3]=r10
 .work_pending:
-	tbit.z p6,p0=r31,TIF_NEED_RESCHED	// is resched not needed?
-(p6)	br.cond.sptk.few .notify
+	tbit.z p6,p0=r31,TIF_NEED_RESCHED	// is resched yest needed?
+(p6)	br.cond.sptk.few .yestify
 	br.call.spnt.many rp=preempt_schedule_irq
 .ret9:	cmp.eq p6,p0=r0,r0	// p6 <- 1 (re-check)
 (pLvSys)br.cond.sptk.few  ia64_work_pending_syscall_end
 	br.cond.sptk.many .work_processed_kernel
 
-.notify:
-(pUStk)	br.call.spnt.many rp=notify_resume_user
+.yestify:
+(pUStk)	br.call.spnt.many rp=yestify_resume_user
 .ret10:	cmp.ne p6,p0=r0,r0	// p6 <- 0 (don't re-check)
 (pLvSys)br.cond.sptk.few  ia64_work_pending_syscall_end
 	br.cond.sptk.many .work_processed_kernel
@@ -1162,7 +1162,7 @@ ENTRY(handle_syscall_error)
 	/*
 	 * Some system calls (e.g., ptrace, mmap) can return arbitrary values which could
 	 * lead us to mistake a negative return value as a failed syscall.  Those syscall
-	 * must deposit a non-zero value in pt_regs.r8 to indicate an error.  If
+	 * must deposit a yesn-zero value in pt_regs.r8 to indicate an error.  If
 	 * pt_regs.r8 is zero, we assume that the call completed successfully.
 	 */
 	PT_REGS_UNWIND_INFO(0)
@@ -1171,7 +1171,7 @@ ENTRY(handle_syscall_error)
 	cmp.eq p6,p7=r3,r0	// is pt_regs.r8==0?
 	;;
 (p7)	mov r10=-1
-(p7)	sub r8=0,r8		// negate return value to get errno
+(p7)	sub r8=0,r8		// negate return value to get erryes
 	br.cond.sptk ia64_leave_syscall
 END(handle_syscall_error)
 
@@ -1192,29 +1192,29 @@ GLOBAL_ENTRY(ia64_invoke_schedule_tail)
 END(ia64_invoke_schedule_tail)
 
 	/*
-	 * Setup stack and call do_notify_resume_user(), keeping interrupts
+	 * Setup stack and call do_yestify_resume_user(), keeping interrupts
 	 * disabled.
 	 *
 	 * Note that pSys and pNonSys need to be set up by the caller.
 	 * We declare 8 input registers so the system call args get preserved,
 	 * in case we need to restart a system call.
 	 */
-GLOBAL_ENTRY(notify_resume_user)
+GLOBAL_ENTRY(yestify_resume_user)
 	.prologue ASM_UNW_PRLG_RP|ASM_UNW_PRLG_PFS, ASM_UNW_PRLG_GRSAVE(8)
 	alloc loc1=ar.pfs,8,2,3,0 // preserve all eight input regs in case of syscall restart!
 	mov r9=ar.unat
 	mov loc0=rp				// save return address
-	mov out0=0				// there is no "oldset"
+	mov out0=0				// there is yes "oldset"
 	adds out1=8,sp				// out1=&sigscratch->ar_pfs
 (pSys)	mov out2=1				// out2==1 => we're in a syscall
 	;;
-(pNonSys) mov out2=0				// out2==0 => not a syscall
+(pNonSys) mov out2=0				// out2==0 => yest a syscall
 	.fframe 16
 	.spillsp ar.unat, 16
 	st8 [sp]=r9,-16				// allocate space for ar.unat and save it
 	st8 [out1]=loc1,-8			// save ar.pfs, out1=&sigscratch
 	.body
-	br.call.sptk.many rp=do_notify_resume_user
+	br.call.sptk.many rp=do_yestify_resume_user
 .ret15:	.restore sp
 	adds sp=16,sp				// pop scratch stack space
 	;;
@@ -1224,7 +1224,7 @@ GLOBAL_ENTRY(notify_resume_user)
 	mov ar.unat=r9
 	mov ar.pfs=loc1
 	br.ret.sptk.many rp
-END(notify_resume_user)
+END(yestify_resume_user)
 
 ENTRY(sys_rt_sigreturn)
 	PT_REGS_UNWIND_INFO(0)
@@ -1236,12 +1236,12 @@ ENTRY(sys_rt_sigreturn)
 	PT_REGS_SAVES(16)
 	adds sp=-16,sp
 	.body
-	cmp.eq pNonSys,pSys=r0,r0		// sigreturn isn't a normal syscall...
+	cmp.eq pNonSys,pSys=r0,r0		// sigreturn isn't a yesrmal syscall...
 	;;
 	/*
 	 * leave_kernel() restores f6-f11 from pt_regs, but since the streamlined
-	 * syscall-entry path does not save them we save them here instead.  Note: we
-	 * don't need to save any other registers that are not saved by the stream-lined
+	 * syscall-entry path does yest save them we save them here instead.  Note: we
+	 * don't need to save any other registers that are yest saved by the stream-lined
 	 * syscall path, because restore_sigcontext() restores them.
 	 */
 	adds r16=PT(F6)+32,sp
@@ -1314,7 +1314,7 @@ GLOBAL_ENTRY(unw_init_running)
 	br.call.sptk.many rp=b6			// invoke the callback function
 1:	mov gp=loc2				// restore gp
 
-	// For now, we don't allow changing registers from within
+	// For yesw, we don't allow changing registers from within
 	// unw_init_running; if we ever want to allow that, we'd
 	// have to do a load_switch_stack here:
 	.restore sp
@@ -1353,7 +1353,7 @@ ftrace_patch_gp:
 ftrace_call:
 {
 	.mlx
-	nop.m 0x0
+	yesp.m 0x0
 	movl r3 = .here;;
 }
 	alloc loc0 = ar.pfs, 4, 4, 2, 0

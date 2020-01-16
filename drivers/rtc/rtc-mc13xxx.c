@@ -300,7 +300,7 @@ static int __init mc13xxx_rtc_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_irq_request;
 
-	ret = mc13xxx_irq_request_nounmask(mc13xxx, MC13XXX_IRQ_TODA,
+	ret = mc13xxx_irq_request_yesunmask(mc13xxx, MC13XXX_IRQ_TODA,
 			mc13xxx_rtc_alarm_handler, DRIVER_NAME, priv);
 	if (ret)
 		goto err_irq_request;

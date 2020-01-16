@@ -17,7 +17,7 @@
  * General Public License for more details.
  *
  * For the avoidance of doubt the "preferred form" of this code is one which
- * is in an open non patent encumbered format. Where cryptographic key signing
+ * is in an open yesn patent encumbered format. Where cryptographic key signing
  * forms part of the process of creating an executable the information
  * including keys needed to generate an equivalently functional executable
  * are deemed to be part of the source code.
@@ -32,7 +32,7 @@
 #include <linux/mm.h>
 #include <linux/interrupt.h>
 #include <linux/major.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/genhd.h>
 #include <linux/blkpg.h>
 #include <linux/slab.h>
@@ -58,7 +58,7 @@ int ide_end_rq(ide_drive_t *drive, struct request *rq, blk_status_t error,
 	       unsigned int nr_bytes)
 {
 	/*
-	 * decide whether to reenable DMA -- 3 is a random magic for now,
+	 * decide whether to reenable DMA -- 3 is a random magic for yesw,
 	 * if we DMA timeout more than 3 times, just stay in PIO
 	 */
 	if ((drive->dev_flags & IDE_DFLAG_DMA_PIO_RETRY) &&
@@ -130,9 +130,9 @@ int ide_complete_rq(ide_drive_t *drive, blk_status_t error, unsigned int nr_byte
 
 	/*
 	 * if failfast is set on a request, override number of sectors
-	 * and complete the whole request right now
+	 * and complete the whole request right yesw
 	 */
-	if (blk_noretry_request(rq) && error)
+	if (blk_yesretry_request(rq) && error)
 		nr_bytes = blk_rq_sectors(rq) << 9;
 
 	rc = ide_end_rq(drive, rq, error, nr_bytes);
@@ -337,7 +337,7 @@ static ide_startstop_t start_request (ide_drive_t *drive, struct request *rq)
 	drive->hwif->tp_ops->dev_select(drive);
 	if (ide_wait_stat(&startstop, drive, drive->ready_stat,
 			  ATA_BUSY | ATA_DRQ, WAIT_READY)) {
-		printk(KERN_ERR "%s: drive not ready for command\n", drive->name);
+		printk(KERN_ERR "%s: drive yest ready for command\n", drive->name);
 		return startstop;
 	}
 
@@ -492,7 +492,7 @@ repeat:
 
 			/*
 			 * set nIEN for previous port, drives in the
-			 * quirk list may not like intr setups/cleanups
+			 * quirk list may yest like intr setups/cleanups
 			 */
 			if (cur_dev &&
 			    (cur_dev->dev_flags & IDE_DFLAG_NIEN_QUIRK) == 0)
@@ -514,14 +514,14 @@ repeat:
 		 * the queue is blocked...
 		 * 
 		 * We let requests forced at head of queue with ide-preempt
-		 * though. I hope that doesn't happen too much, hopefully not
+		 * though. I hope that doesn't happen too much, hopefully yest
 		 * unless the subdriver triggers such a thing in its own PM
 		 * state machine.
 		 */
 		if ((drive->dev_flags & IDE_DFLAG_BLOCKED) &&
 		    ata_pm_request(rq) == 0 &&
 		    (rq->rq_flags & RQF_PREEMPT) == 0) {
-			/* there should be no pending command at this point */
+			/* there should be yes pending command at this point */
 			ide_unlock_port(hwif);
 			goto plug_device;
 		}
@@ -595,7 +595,7 @@ static int drive_is_ready(ide_drive_t *drive)
 		stat = hwif->tp_ops->read_status(hwif);
 
 	if (stat & ATA_BUSY)
-		/* drive busy: definitely not interrupting */
+		/* drive busy: definitely yest interrupting */
 		return 0;
 
 	/* drive ready: *might* be interrupting */
@@ -662,7 +662,7 @@ void ide_timer_expiry (struct timer_list *t)
 		 * globally mask the specific IRQ:
 		 */
 		spin_unlock(&hwif->lock);
-		/* disable_irq_nosync ?? */
+		/* disable_irq_yessync ?? */
 		disable_irq(hwif->irq);
 
 		if (hwif->polling) {
@@ -706,14 +706,14 @@ void ide_timer_expiry (struct timer_list *t)
  *	@irq: interrupt line
  *	@hwif: port being processed
  *
- *	There's nothing really useful we can do with an unexpected interrupt,
+ *	There's yesthing really useful we can do with an unexpected interrupt,
  *	other than reading the status register (to clear it), and logging it.
- *	There should be no way that an irq can happen before we're ready for it,
+ *	There should be yes way that an irq can happen before we're ready for it,
  *	so we needn't worry much about losing an "important" interrupt here.
  *
  *	On laptops (and "green" PCs), an unexpected interrupt occurs whenever
  *	the drive enters "idle", "standby", or "sleep" mode, so if the status
- *	looks "good", we just ignore the interrupt completely.
+ *	looks "good", we just igyesre the interrupt completely.
  *
  *	This routine assumes __cli() is in effect when called.
  *
@@ -722,10 +722,10 @@ void ide_timer_expiry (struct timer_list *t)
  *	we could screw up by interfering with a new request being set up for 
  *	irq15.
  *
- *	In reality, this is a non-issue.  The new command is not sent unless 
- *	the drive is ready to accept one, in which case we know the drive is
- *	not trying to interrupt us.  And ide_set_handler() is always invoked
- *	before completing the issuance of any new drive command, so we will not
+ *	In reality, this is a yesn-issue.  The new command is yest sent unless 
+ *	the drive is ready to accept one, in which case we kyesw the drive is
+ *	yest trying to interrupt us.  And ide_set_handler() is always invoked
+ *	before completing the issuance of any new drive command, so we will yest
  *	be accidentally invoked as a result of any valid command completion
  *	interrupt.
  */
@@ -735,7 +735,7 @@ static void unexpected_intr(int irq, ide_hwif_t *hwif)
 	u8 stat = hwif->tp_ops->read_status(hwif);
 
 	if (!OK_STAT(stat, ATA_DRDY, BAD_STAT)) {
-		/* Try to not flood the console with msgs */
+		/* Try to yest flood the console with msgs */
 		static unsigned long last_msgtime, count;
 		++count;
 
@@ -755,7 +755,7 @@ static void unexpected_intr(int irq, ide_hwif_t *hwif)
  *	@regs: unused weirdness from the kernel irq layer
  *
  *	This is the default IRQ handler for the IDE layer. You should
- *	not need to override it. If you do be aware it is subtle in
+ *	yest need to override it. If you do be aware it is subtle in
  *	places
  *
  *	hwif is the interface in the group currently performing
@@ -802,18 +802,18 @@ irqreturn_t ide_intr (int irq, void *dev_id)
 		/*
 		 * Not expecting an interrupt from this drive.
 		 * That means this could be:
-		 *	(1) an interrupt from another PCI device
+		 *	(1) an interrupt from ayesther PCI device
 		 *	sharing the same PCI INT# as us.
 		 * or	(2) a drive just entered sleep or standby mode,
-		 *	and is interrupting to let us know.
-		 * or	(3) a spurious interrupt of unknown origin.
+		 *	and is interrupting to let us kyesw.
+		 * or	(3) a spurious interrupt of unkyeswn origin.
 		 *
-		 * For PCI, we cannot tell the difference,
-		 * so in that case we just ignore it and hope it goes away.
+		 * For PCI, we canyest tell the difference,
+		 * so in that case we just igyesre it and hope it goes away.
 		 */
 		if ((host->irq_flags & IRQF_SHARED) == 0) {
 			/*
-			 * Probably not a shared PCI interrupt,
+			 * Probably yest a shared PCI interrupt,
 			 * so we can safely try to do something about it:
 			 */
 			unexpected_intr(irq, hwif);
@@ -832,10 +832,10 @@ irqreturn_t ide_intr (int irq, void *dev_id)
 	if (!drive_is_ready(drive))
 		/*
 		 * This happens regularly when we share a PCI IRQ with
-		 * another device.  Unfortunately, it can also happen
+		 * ayesther device.  Unfortunately, it can also happen
 		 * with some buggy drives that trigger the IRQ before
 		 * their status register is up to date.  Hopefully we have
-		 * enough advance overhead that the latter isn't a problem.
+		 * eyesugh advance overhead that the latter isn't a problem.
 		 */
 		goto out;
 
@@ -856,11 +856,11 @@ irqreturn_t ide_intr (int irq, void *dev_id)
 
 	spin_lock_irq(&hwif->lock);
 	/*
-	 * Note that handler() may have set things up for another
-	 * interrupt to occur soon, but it cannot happen until
+	 * Note that handler() may have set things up for ayesther
+	 * interrupt to occur soon, but it canyest happen until
 	 * we exit from this routine, because it will be the
 	 * same irq as is currently being serviced here, and Linux
-	 * won't allow another of the same (on any CPU) until we return.
+	 * won't allow ayesther of the same (on any CPU) until we return.
 	 */
 	if (startstop == ide_stopped && hwif->polling == 0) {
 		BUG_ON(hwif->handler);

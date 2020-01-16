@@ -115,7 +115,7 @@ static struct sk_buff *edsa_rcv(struct sk_buff *skb, struct net_device *dev,
 		/*
 		 * Insert 802.1q ethertype and copy the VLAN-related
 		 * fields, but clear the bit that will hold CFI (since
-		 * DSA uses that bit location for another purpose).
+		 * DSA uses that bit location for ayesther purpose).
 		 */
 		new_header[0] = (ETH_P_8021Q >> 8) & 0xff;
 		new_header[1] = ETH_P_8021Q & 0xff;

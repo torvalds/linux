@@ -188,7 +188,7 @@ u64 __btrfs_block_rsv_release(struct btrfs_fs_info *fs_info,
 
 	/*
 	 * If we are the delayed_rsv then push to the global rsv, otherwise dump
-	 * into the delayed rsv if it is not full.
+	 * into the delayed rsv if it is yest full.
 	 */
 	if (block_rsv == delayed_rsv)
 		target = global_rsv;
@@ -277,7 +277,7 @@ void btrfs_update_global_block_rsv(struct btrfs_fs_info *fs_info)
 	min_items = 3;
 
 	/*
-	 * But we also want to reserve enough space so we can do the fallback
+	 * But we also want to reserve eyesugh space so we can do the fallback
 	 * global reserve for an unlink, which is an additional 5 items (see the
 	 * comment in __unlink_start_trans for what we're modifying.)
 	 *

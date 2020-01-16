@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 #ifndef _LINUX_NFS4_MOUNT_H
 #define _LINUX_NFS4_MOUNT_H
 
@@ -11,7 +11,7 @@
  */
 
 /*
- * WARNING!  Do not delete or change the order of these fields.  If
+ * WARNING!  Do yest delete or change the order of these fields.  If
  * a new field is required then add it to the end.  The version field
  * tracks which fields are present.  This will ensure some measure of
  * mount-to-kernel version compatibility.  Some of these aren't used yet

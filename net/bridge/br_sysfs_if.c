@@ -117,12 +117,12 @@ static ssize_t show_port_id(struct net_bridge_port *p, char *buf)
 }
 static BRPORT_ATTR(port_id, 0444, show_port_id, NULL);
 
-static ssize_t show_port_no(struct net_bridge_port *p, char *buf)
+static ssize_t show_port_yes(struct net_bridge_port *p, char *buf)
 {
-	return sprintf(buf, "0x%x\n", p->port_no);
+	return sprintf(buf, "0x%x\n", p->port_yes);
 }
 
-static BRPORT_ATTR(port_no, 0444, show_port_no, NULL);
+static BRPORT_ATTR(port_yes, 0444, show_port_yes, NULL);
 
 static ssize_t show_change_ack(struct net_bridge_port *p, char *buf)
 {
@@ -253,7 +253,7 @@ static const struct brport_attribute *brport_attrs[] = {
 	&brport_attr_path_cost,
 	&brport_attr_priority,
 	&brport_attr_port_id,
-	&brport_attr_port_no,
+	&brport_attr_port_yes,
 	&brport_attr_designated_root,
 	&brport_attr_designated_bridge,
 	&brport_attr_designated_port,
@@ -338,7 +338,7 @@ static ssize_t brport_store(struct kobject *kobj,
 	}
 
 	if (!ret) {
-		br_ifinfo_notify(RTM_NEWLINK, NULL, p);
+		br_ifinfo_yestify(RTM_NEWLINK, NULL, p);
 		ret = count;
 	}
 out_unlock:
@@ -384,7 +384,7 @@ int br_sysfs_renameif(struct net_bridge_port *p)
 	struct net_bridge *br = p->br;
 	int err;
 
-	/* If a rename fails, the rollback will cause another
+	/* If a rename fails, the rollback will cause ayesther
 	 * rename call with the existing name.
 	 */
 	if (!strncmp(p->sysfs_name, p->dev->name, IFNAMSIZ))
@@ -393,7 +393,7 @@ int br_sysfs_renameif(struct net_bridge_port *p)
 	err = sysfs_rename_link(br->ifobj, &p->kobj,
 				p->sysfs_name, p->dev->name);
 	if (err)
-		netdev_notice(br->dev, "unable to rename link %s to %s",
+		netdev_yestice(br->dev, "unable to rename link %s to %s",
 			      p->sysfs_name, p->dev->name);
 	else
 		strlcpy(p->sysfs_name, p->dev->name, IFNAMSIZ);

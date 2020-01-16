@@ -329,7 +329,7 @@ otx2_reply_invalid_msg(struct otx2_mbox *mbox, int devid, u16 pcifunc, u16 id)
 }
 EXPORT_SYMBOL(otx2_reply_invalid_msg);
 
-bool otx2_mbox_nonempty(struct otx2_mbox *mbox, int devid)
+bool otx2_mbox_yesnempty(struct otx2_mbox *mbox, int devid)
 {
 	struct otx2_mbox_dev *mdev = &mbox->dev[devid];
 	bool ret;
@@ -340,7 +340,7 @@ bool otx2_mbox_nonempty(struct otx2_mbox *mbox, int devid)
 
 	return ret;
 }
-EXPORT_SYMBOL(otx2_mbox_nonempty);
+EXPORT_SYMBOL(otx2_mbox_yesnempty);
 
 const char *otx2_mbox_id2name(u16 id)
 {

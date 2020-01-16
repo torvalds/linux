@@ -3,7 +3,7 @@
 #           sayli karnik <karniksayli1995@gmail.com>
 #
 # This script detects files with kernel-doc comments for exported functions
-# that are not included in documentation.
+# that are yest included in documentation.
 #
 # usage: Run 'scripts/find-unused-docs.sh directory' from top level of kernel
 # 	 tree.
@@ -33,7 +33,7 @@ cd ..
 cd Documentation/
 
 echo "The following files contain kerneldoc comments for exported functions \
-that are not used in the formatted documentation"
+that are yest used in the formatted documentation"
 
 # FILES INCLUDED
 

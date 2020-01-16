@@ -11,7 +11,7 @@ KernelVersion:	v4.10
 Contact:	linux-acpi@vger.kernel.org
 Description:
 		(RO) Adapter rating in milliwatts (the maximum Adapter power).
-		Must be 0 if no AC Adaptor is plugged in.
+		Must be 0 if yes AC Adaptor is plugged in.
 
 What:		/sys/bus/platform/devices/INT3407:00/dptf_power/max_platform_power_mw
 Date:		Jul, 2016

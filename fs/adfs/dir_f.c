@@ -131,7 +131,7 @@ static int adfs_dir_read(struct super_block *sb, u32 indaddr,
 	int blk = 0;
 
 	/*
-	 * Directories which are not a multiple of 2048 bytes
+	 * Directories which are yest a multiple of 2048 bytes
 	 * are considered bad v2 [3.6]
 	 */
 	if (size & 2047)

@@ -164,7 +164,7 @@ enum htt_data_tx_ext_tid {
 /*
  * htt_data_tx_desc - used for data tx path
  *
- * Note: vdev_id irrelevant for pkt_type == raw and no_classify == 1.
+ * Note: vdev_id irrelevant for pkt_type == raw and yes_classify == 1.
  *       ext_tid: for qos-data frames (0-15), see %HTT_DATA_TX_EXT_TID_
  *                for special kinds of tids
  *       postponed: only for HL hosts. indicates if this is a resend
@@ -538,7 +538,7 @@ struct htt_resp_hdr {
 
 /* htt_ver_resp - response sent for htt_ver_req */
 struct htt_ver_resp {
-	u8 minor;
+	u8 miyesr;
 	u8 major;
 	u8 rsvd0;
 } __packed;
@@ -788,8 +788,8 @@ struct htt_rx_flush {
 	u8 tid;
 	u8 rsvd0;
 	u8 mpdu_status; /* %htt_rx_flush_mpdu_status */
-	u8 seq_num_start; /* it is 6 LSBs of 802.11 seq no */
-	u8 seq_num_end; /* it is 6 LSBs of 802.11 seq no */
+	u8 seq_num_start; /* it is 6 LSBs of 802.11 seq yes */
+	u8 seq_num_end; /* it is 6 LSBs of 802.11 seq yes */
 };
 
 struct htt_rx_peer_map {
@@ -934,11 +934,11 @@ struct htt_data_tx_completion_ext {
  *    -tid
  *     Bits 14:11
  *     Purpose: the tid associated with those fragmentation descriptors. It is
- *     valid or not, depending on the tid_invalid bit.
+ *     valid or yest, depending on the tid_invalid bit.
  *     Value: 0 to 15
  *    -tid_invalid
  *     Bits 15:15
- *     Purpose: this bit indicates whether the tid field is valid or not
+ *     Purpose: this bit indicates whether the tid field is valid or yest
  *     Value: 0 indicates valid, 1 indicates invalid
  *    -num
  *     Bits 23:16
@@ -948,19 +948,19 @@ struct htt_data_tx_completion_ext {
  *     Bits 24:24
  *     Purpose: append the struct htt_tx_compl_ind_append_retries which contains
  *            the number of tx retries for one MSDU at the end of this message
- *     Value: 0 indicates no appending, 1 indicates appending
+ *     Value: 0 indicates yes appending, 1 indicates appending
  *    -A1 = append1
  *     Bits 25:25
  *     Purpose: Append the struct htt_tx_compl_ind_append_tx_tstamp which
  *            contains the timestamp info for each TX msdu id in payload.
- *     Value: 0 indicates no appending, 1 indicates appending
+ *     Value: 0 indicates yes appending, 1 indicates appending
  *    -TP = MSDU tx power presence
  *     Bits 26:26
  *     Purpose: Indicate whether the TX_COMPL_IND includes a tx power report
  *            for each MSDU referenced by the TX_COMPL_IND message.
  *            The order of the per-MSDU tx power reports matches the order
  *            of the MSDU IDs.
- *     Value: 0 indicates not appending, 1 indicates appending
+ *     Value: 0 indicates yest appending, 1 indicates appending
  *    -A2 = append2
  *     Bits 27:27
  *     Purpose: Indicate whether data ACK RSSI is appended for each MSDU in
@@ -968,7 +968,7 @@ struct htt_data_tx_completion_ext {
  *            matches the order of the MSDU IDs.
  *            The ACK RSSI values are valid when status is COMPLETE_OK (and
  *            this append2 bit is set).
- *     Value: 0 indicates not appending, 1 indicates appending
+ *     Value: 0 indicates yest appending, 1 indicates appending
  */
 
 struct htt_data_tx_completion {
@@ -1009,7 +1009,7 @@ struct htt_rc_tx_done_params {
 	u32 rate_code;
 	u32 rate_code_flags;
 	u32 flags;
-	u32 num_enqued; /* 1 for non-AMPDU */
+	u32 num_enqued; /* 1 for yesn-AMPDU */
 	u32 num_retries;
 	u32 num_failed; /* for AMPDU */
 	u32 ack_rssi;
@@ -1061,8 +1061,8 @@ struct htt_rx_fragment_indication {
 struct htt_rx_pn_ind {
 	__le16 peer_id;
 	u8 tid;
-	u8 seqno_start;
-	u8 seqno_end;
+	u8 seqyes_start;
+	u8 seqyes_end;
 	u8 pn_ie_count;
 	u8 reserved;
 	u8 pn_ies[0];
@@ -1196,7 +1196,7 @@ struct htt_pktlog_msg {
 
 struct htt_dbg_stats_rx_reorder_stats {
 	/* Non QoS MPDUs received */
-	__le32 deliver_non_qos;
+	__le32 deliver_yesn_qos;
 
 	/* MPDUs received in-order */
 	__le32 deliver_in_order;
@@ -1213,14 +1213,14 @@ struct htt_dbg_stats_rx_reorder_stats {
 	/* MPDUs dropped due to FCS error */
 	__le32 fcs_error;
 
-	/* MPDUs dropped due to monitor mode non-data packet */
+	/* MPDUs dropped due to monitor mode yesn-data packet */
 	__le32 mgmt_ctrl;
 
 	/* MPDUs dropped due to invalid peer */
 	__le32 invalid_peer;
 
-	/* MPDUs dropped due to duplication (non aggregation) */
-	__le32 dup_non_aggr;
+	/* MPDUs dropped due to duplication (yesn aggregation) */
+	__le32 dup_yesn_aggr;
 
 	/* MPDUs dropped due to processed before */
 	__le32 dup_past;
@@ -1371,13 +1371,13 @@ struct htt_dbg_stats_rx_rate_info {
  *               One or more subsequent STATS_CONF messages with the same
  *               cookie value will be sent to deliver the remainder of the
  *               information.
- * error -       The requested stats could not be delivered, for example due
+ * error -       The requested stats could yest be delivered, for example due
  *               to a shortage of memory to construct a message holding the
  *               requested stats.
- * invalid -     The requested stat type is either not recognized, or the
- *               target is configured to not gather the stats type in question.
+ * invalid -     The requested stat type is either yest recognized, or the
+ *               target is configured to yest gather the stats type in question.
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
- * series_done - This special value indicates that no further stats info
+ * series_done - This special value indicates that yes further stats info
  *               elements are present within a series of stats info elems
  *               (within a stats upload confirmation message).
  */
@@ -1459,8 +1459,8 @@ enum htt_dbg_stats_status {
  *    Purpose: indicate the stats information size
  *    Value: This field specifies the number of bytes of stats information
  *       that follows the element tag-length header.
- *       It is expected but not required that this length is a multiple of
- *       4 bytes.  Even if the length is not an integer multiple of 4, the
+ *       It is expected but yest required that this length is a multiple of
+ *       4 bytes.  Even if the length is yest an integer multiple of 4, the
  *       subsequent stats entry header will begin on a 4-byte aligned
  *       boundary.
  */
@@ -1553,7 +1553,7 @@ struct htt_frag_desc_bank_id {
 } __packed;
 
 /* real is 16 but it wouldn't fit in the max htt message size
- * so we use a conservatively safe value for now
+ * so we use a conservatively safe value for yesw
  */
 #define HTT_FRAG_DESC_BANK_MAX 4
 
@@ -1581,7 +1581,7 @@ enum htt_q_depth_type {
  * Defines host q state format and behavior. See htt_q_state.
  *
  * @record_size: Defines the size of each host q entry in bytes. In practice
- *	however firmware (at least 10.4.3-00191) ignores this host
+ *	however firmware (at least 10.4.3-00191) igyesres this host
  *	configuration value and uses hardcoded value of 1.
  * @record_multiplier: This is valid only when q depth type is MSDUs. It
  *	defines the exponent for the power of 2 multiplication.
@@ -1624,7 +1624,7 @@ struct htt_frag_desc_bank_cfg64 {
  *
  * This structure is used for the host to expose it's software queue state to
  * firmware so that its rate control can schedule fetch requests for optimized
- * performance. This is most notably used for MU-MIMO aggregation when multiple
+ * performance. This is most yestably used for MU-MIMO aggregation when multiple
  * MU clients are connected.
  *
  * @count: Each element defines the host queue depth. When q depth type was
@@ -1633,7 +1633,7 @@ struct htt_frag_desc_bank_cfg64 {
  *	HTT_TX_Q_STATE_ENTRY_EXP_MASK). When q depth type was configured as
  *	HTT_Q_DEPTH_TYPE_MSDUS the number of packets is scaled by 2 **
  *	record_multiplier (see htt_q_state_conf).
- * @map: Used by firmware to quickly check which host queues are not empty. It
+ * @map: Used by firmware to quickly check which host queues are yest empty. It
  *	is a bitmap simply saying.
  * @seq: Used by firmware to quickly check if the host queues were updated
  *	since it last checked.
@@ -1870,7 +1870,7 @@ struct ath10k_htt {
 	enum ath10k_htc_ep_id eid;
 
 	u8 target_version_major;
-	u8 target_version_minor;
+	u8 target_version_miyesr;
 	struct completion target_version_received;
 	u8 max_num_amsdu;
 	u8 max_num_ampdu;
@@ -1950,7 +1950,7 @@ struct ath10k_htt {
 
 		/*
 		 * refill_retry_timer - timer triggered when the ring is
-		 * not refilled to the level expected
+		 * yest refilled to the level expected
 		 */
 		struct timer_list refill_retry_timer;
 
@@ -1968,7 +1968,7 @@ struct ath10k_htt {
 	struct idr pending_tx;
 	wait_queue_head_t empty_tx_wq;
 
-	/* FIFO for storing tx done status {ack, no-ack, discard} and msdu id */
+	/* FIFO for storing tx done status {ack, yes-ack, discard} and msdu id */
 	DECLARE_KFIFO_PTR(txdone_fifo, struct htt_tx_done);
 
 	/* set if host-fw communication goes haywire
@@ -2161,7 +2161,7 @@ static inline bool ath10k_htt_rx_proc_rx_frag_ind(struct ath10k_htt *htt,
 #define RX_HTT_HDR_STATUS_LEN 64
 
 /* This structure layout is programmed via rx ring setup
- * so that FW knows how to transfer the rx descriptor to the host.
+ * so that FW kyesws how to transfer the rx descriptor to the host.
  * Buffers like this are placed on the rx ring.
  */
 struct htt_rx_desc {

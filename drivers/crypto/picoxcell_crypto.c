@@ -71,7 +71,7 @@ struct spacc_ddt {
 };
 
 /*
- * Asynchronous crypto request structure.
+ * Asynchroyesus crypto request structure.
  *
  * This structure defines a request that is either queued for processing or
  * being processed.
@@ -418,7 +418,7 @@ static void spacc_aead_free_ddts(struct spacc_req *req)
 	struct spacc_engine *engine = aead_ctx->generic.engine;
 	int nents = sg_nents_for_len(areq->src, total);
 
-	/* sg_nents_for_len should not fail since it works when mapping sg */
+	/* sg_nents_for_len should yest fail since it works when mapping sg */
 	if (unlikely(nents < 0)) {
 		dev_err(engine->dev, "Invalid numbers of src SG.\n");
 		return;
@@ -505,7 +505,7 @@ static int spacc_aead_setauthsize(struct crypto_aead *tfm,
 
 /*
  * Check if an AEAD request requires a fallback operation. Some requests can't
- * be completed in hardware because the hardware may not support certain key
+ * be completed in hardware because the hardware may yest support certain key
  * sizes. In these cases we need to complete the request in software.
  */
 static int spacc_aead_need_fallback(struct aead_request *aead_req)
@@ -516,7 +516,7 @@ static int spacc_aead_need_fallback(struct aead_request *aead_req)
 	struct spacc_aead_ctx *ctx = crypto_aead_ctx(aead);
 
 	/*
-	 * If we have a non-supported key-length, then we need to do a
+	 * If we have a yesn-supported key-length, then we need to do a
 	 * software fallback.
 	 */
 	if ((spacc_alg->ctrl_default & SPACC_CRYPTO_ALG_MASK) ==
@@ -770,7 +770,7 @@ static int spacc_des3_setkey(struct crypto_skcipher *cipher, const u8 *key,
 }
 
 /*
- * Set the key for an AES block cipher. Some key lengths are not supported in
+ * Set the key for an AES block cipher. Some key lengths are yest supported in
  * hardware so this must also check whether a fallback is needed.
  */
 static int spacc_aes_setkey(struct crypto_skcipher *cipher, const u8 *key,
@@ -978,9 +978,9 @@ static int spacc_ablk_setup(struct skcipher_request *req, unsigned alg_type,
 	err = -EINPROGRESS;
 	spin_lock_irqsave(&engine->hw_lock, flags);
 	/*
-	 * Check if the engine will accept the operation now. If it won't then
+	 * Check if the engine will accept the operation yesw. If it won't then
 	 * we either stick it on the end of a pending list if we can backlog,
-	 * or bailout with an error if not.
+	 * or bailout with an error if yest.
 	 */
 	if (unlikely(spacc_fifo_cmd_full(engine)) ||
 	    engine->in_flight + 1 > engine->fifo_sz) {
@@ -1599,7 +1599,7 @@ static int spacc_probe(struct platform_device *pdev)
 {
 	int i, err, ret;
 	struct resource *irq;
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	struct spacc_engine *engine = devm_kzalloc(&pdev->dev, sizeof(*engine),
 						   GFP_KERNEL);
 	if (!engine)
@@ -1633,7 +1633,7 @@ static int spacc_probe(struct platform_device *pdev)
 
 	irq = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
 	if (!irq) {
-		dev_err(&pdev->dev, "no memory/irq resource for engine\n");
+		dev_err(&pdev->dev, "yes memory/irq resource for engine\n");
 		return -ENXIO;
 	}
 
@@ -1680,7 +1680,7 @@ static int spacc_probe(struct platform_device *pdev)
 
 	/*
 	 * Configure the interrupts. We only use the STAT_CNT interrupt as we
-	 * only submit a new packet for processing when we complete another in
+	 * only submit a new packet for processing when we complete ayesther in
 	 * the queue. This minimizes time spent in the interrupt handler.
 	 */
 	writel(engine->stat_irq_thresh << SPA_IRQ_CTRL_STAT_CNT_OFFSET,

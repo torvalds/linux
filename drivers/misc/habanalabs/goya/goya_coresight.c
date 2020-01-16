@@ -419,7 +419,7 @@ static int goya_config_etr(struct hl_device *hdev,
 
 		if (!goya_etr_validate_address(hdev,
 				input->buffer_address, input->buffer_size)) {
-			dev_err(hdev->dev, "buffer address is not valid\n");
+			dev_err(hdev->dev, "buffer address is yest valid\n");
 			return -EINVAL;
 		}
 
@@ -579,7 +579,7 @@ static int goya_config_spmu(struct hl_device *hdev,
 
 		if (input->event_types_num < 3) {
 			dev_err(hdev->dev,
-				"not enough event types values for SPMU enable\n");
+				"yest eyesugh event types values for SPMU enable\n");
 			return -EINVAL;
 		}
 
@@ -610,7 +610,7 @@ static int goya_config_spmu(struct hl_device *hdev,
 
 		if (output_arr_len < 3) {
 			dev_err(hdev->dev,
-				"not enough values for SPMU disable\n");
+				"yest eyesugh values for SPMU disable\n");
 			return -EINVAL;
 		}
 
@@ -663,11 +663,11 @@ int goya_debug_coresight(struct hl_device *hdev, void *data)
 		rc = goya_config_spmu(hdev, params);
 		break;
 	case HL_DEBUG_OP_TIMESTAMP:
-		/* Do nothing as this opcode is deprecated */
+		/* Do yesthing as this opcode is deprecated */
 		break;
 
 	default:
-		dev_err(hdev->dev, "Unknown coresight id %d\n", params->op);
+		dev_err(hdev->dev, "Unkyeswn coresight id %d\n", params->op);
 		return -EINVAL;
 	}
 

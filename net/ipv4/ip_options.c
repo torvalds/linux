@@ -33,7 +33,7 @@
 /*
  * Write options to IP header, record destination address to
  * source route option, address of outgoing interface
- * (we should already know it, so that this  function is allowed be
+ * (we should already kyesw it, so that this  function is allowed be
  * called only after routing decision) and timestamp,
  * if we originate this datagram.
  *
@@ -81,10 +81,10 @@ void ip_options_build(struct sk_buff *skb, struct ip_options *opt,
 /*
  * Provided (sopt, skb) points to received options,
  * build in dopt compiled option set appropriate for answering.
- * i.e. invert SRR option, copy anothers,
+ * i.e. invert SRR option, copy ayesthers,
  * and grab room in RR/TS options.
  *
- * NOTE: dopt cannot point to skb.
+ * NOTE: dopt canyest point to skb.
  */
 
 int __ip_options_echo(struct net *net, struct ip_options *dopt,
@@ -200,7 +200,7 @@ int __ip_options_echo(struct net *net, struct ip_options *dopt,
 }
 
 /*
- *	Options "fragmenting", just fill options not
+ *	Options "fragmenting", just fill options yest
  *	allowed in fragments with NOOPs.
  *	Simple and stupid 8), but the most efficient way.
  */

@@ -8,7 +8,7 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/platform_device.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/io.h>
 #include <linux/io-pgtable.h>
 #include <linux/interrupt.h>
@@ -122,7 +122,7 @@ static void __flush_iotlb(void *cookie)
 	struct msm_iommu_ctx_dev *master;
 	int ret = 0;
 
-	list_for_each_entry(iommu, &priv->list_attached, dom_node) {
+	list_for_each_entry(iommu, &priv->list_attached, dom_yesde) {
 		ret = __enable_clocks(iommu);
 		if (ret)
 			goto fail;
@@ -145,7 +145,7 @@ static void __flush_iotlb_range(unsigned long iova, size_t size,
 	int ret = 0;
 	int temp_size;
 
-	list_for_each_entry(iommu, &priv->list_attached, dom_node) {
+	list_for_each_entry(iommu, &priv->list_attached, dom_yesde) {
 		ret = __enable_clocks(iommu);
 		if (ret)
 			goto fail;
@@ -319,7 +319,7 @@ static struct iommu_domain *msm_iommu_domain_alloc(unsigned type)
 
 	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		goto fail_nomem;
+		goto fail_yesmem;
 
 	INIT_LIST_HEAD(&priv->list_attached);
 
@@ -329,7 +329,7 @@ static struct iommu_domain *msm_iommu_domain_alloc(unsigned type)
 
 	return &priv->domain;
 
-fail_nomem:
+fail_yesmem:
 	kfree(priv);
 	return NULL;
 }
@@ -375,11 +375,11 @@ static struct msm_iommu_dev *find_iommu_for_dev(struct device *dev)
 	struct msm_iommu_dev *iommu, *ret = NULL;
 	struct msm_iommu_ctx_dev *master;
 
-	list_for_each_entry(iommu, &qcom_iommu_devices, dev_node) {
+	list_for_each_entry(iommu, &qcom_iommu_devices, dev_yesde) {
 		master = list_first_entry(&iommu->ctx_list,
 					  struct msm_iommu_ctx_dev,
 					  list);
-		if (master->of_node == dev->of_node) {
+		if (master->of_yesde == dev->of_yesde) {
 			ret = iommu;
 			break;
 		}
@@ -439,11 +439,11 @@ static int msm_iommu_attach_dev(struct iommu_domain *domain, struct device *dev)
 	msm_iommu_domain_config(priv);
 
 	spin_lock_irqsave(&msm_iommu_lock, flags);
-	list_for_each_entry(iommu, &qcom_iommu_devices, dev_node) {
+	list_for_each_entry(iommu, &qcom_iommu_devices, dev_yesde) {
 		master = list_first_entry(&iommu->ctx_list,
 					  struct msm_iommu_ctx_dev,
 					  list);
-		if (master->of_node == dev->of_node) {
+		if (master->of_yesde == dev->of_yesde) {
 			ret = __enable_clocks(iommu);
 			if (ret)
 				goto fail;
@@ -466,7 +466,7 @@ static int msm_iommu_attach_dev(struct iommu_domain *domain, struct device *dev)
 						  priv);
 			}
 			__disable_clocks(iommu);
-			list_add(&iommu->dom_node, &priv->list_attached);
+			list_add(&iommu->dom_yesde, &priv->list_attached);
 		}
 	}
 
@@ -488,7 +488,7 @@ static void msm_iommu_detach_dev(struct iommu_domain *domain,
 	free_io_pgtable_ops(priv->iop);
 
 	spin_lock_irqsave(&msm_iommu_lock, flags);
-	list_for_each_entry(iommu, &priv->list_attached, dom_node) {
+	list_for_each_entry(iommu, &priv->list_attached, dom_yesde) {
 		ret = __enable_clocks(iommu);
 		if (ret)
 			goto fail;
@@ -544,7 +544,7 @@ static phys_addr_t msm_iommu_iova_to_phys(struct iommu_domain *domain,
 
 	priv = to_msm_priv(domain);
 	iommu = list_first_entry(&priv->list_attached,
-				 struct msm_iommu_dev, dom_node);
+				 struct msm_iommu_dev, dom_yesde);
 
 	if (list_empty(&iommu->ctx_list))
 		goto fail;
@@ -618,14 +618,14 @@ static void insert_iommu_master(struct device *dev,
 
 	if (list_empty(&(*iommu)->ctx_list)) {
 		master = kzalloc(sizeof(*master), GFP_ATOMIC);
-		master->of_node = dev->of_node;
+		master->of_yesde = dev->of_yesde;
 		list_add(&master->list, &(*iommu)->ctx_list);
 		dev->archdata.iommu = master;
 	}
 
 	for (sid = 0; sid < master->num_mids; sid++)
 		if (master->mids[sid] == spec->args[0]) {
-			dev_warn(dev, "Stream ID 0x%hx repeated; ignoring\n",
+			dev_warn(dev, "Stream ID 0x%hx repeated; igyesring\n",
 				 sid);
 			return;
 		}
@@ -641,11 +641,11 @@ static int qcom_iommu_of_xlate(struct device *dev,
 	int ret = 0;
 
 	spin_lock_irqsave(&msm_iommu_lock, flags);
-	list_for_each_entry(iommu, &qcom_iommu_devices, dev_node)
-		if (iommu->dev->of_node == spec->np)
+	list_for_each_entry(iommu, &qcom_iommu_devices, dev_yesde)
+		if (iommu->dev->of_yesde == spec->np)
 			break;
 
-	if (!iommu || iommu->dev->of_node != spec->np) {
+	if (!iommu || iommu->dev->of_yesde != spec->np) {
 		ret = -ENODEV;
 		goto fail;
 	}
@@ -731,26 +731,26 @@ static int msm_iommu_probe(struct platform_device *pdev)
 
 	iommu->pclk = devm_clk_get(iommu->dev, "smmu_pclk");
 	if (IS_ERR(iommu->pclk)) {
-		dev_err(iommu->dev, "could not get smmu_pclk\n");
+		dev_err(iommu->dev, "could yest get smmu_pclk\n");
 		return PTR_ERR(iommu->pclk);
 	}
 
 	ret = clk_prepare(iommu->pclk);
 	if (ret) {
-		dev_err(iommu->dev, "could not prepare smmu_pclk\n");
+		dev_err(iommu->dev, "could yest prepare smmu_pclk\n");
 		return ret;
 	}
 
 	iommu->clk = devm_clk_get(iommu->dev, "iommu_clk");
 	if (IS_ERR(iommu->clk)) {
-		dev_err(iommu->dev, "could not get iommu_clk\n");
+		dev_err(iommu->dev, "could yest get iommu_clk\n");
 		clk_unprepare(iommu->pclk);
 		return PTR_ERR(iommu->clk);
 	}
 
 	ret = clk_prepare(iommu->clk);
 	if (ret) {
-		dev_err(iommu->dev, "could not prepare iommu_clk\n");
+		dev_err(iommu->dev, "could yest prepare iommu_clk\n");
 		clk_unprepare(iommu->pclk);
 		return ret;
 	}
@@ -758,7 +758,7 @@ static int msm_iommu_probe(struct platform_device *pdev)
 	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	iommu->base = devm_ioremap_resource(iommu->dev, r);
 	if (IS_ERR(iommu->base)) {
-		dev_err(iommu->dev, "could not get iommu base\n");
+		dev_err(iommu->dev, "could yest get iommu base\n");
 		ret = PTR_ERR(iommu->base);
 		goto fail;
 	}
@@ -770,9 +770,9 @@ static int msm_iommu_probe(struct platform_device *pdev)
 		goto fail;
 	}
 
-	ret = of_property_read_u32(iommu->dev->of_node, "qcom,ncb", &val);
+	ret = of_property_read_u32(iommu->dev->of_yesde, "qcom,ncb", &val);
 	if (ret) {
-		dev_err(iommu->dev, "could not get ncb\n");
+		dev_err(iommu->dev, "could yest get ncb\n");
 		goto fail;
 	}
 	iommu->ncb = val;
@@ -802,21 +802,21 @@ static int msm_iommu_probe(struct platform_device *pdev)
 		goto fail;
 	}
 
-	list_add(&iommu->dev_node, &qcom_iommu_devices);
+	list_add(&iommu->dev_yesde, &qcom_iommu_devices);
 
 	ret = iommu_device_sysfs_add(&iommu->iommu, iommu->dev, NULL,
 				     "msm-smmu.%pa", &ioaddr);
 	if (ret) {
-		pr_err("Could not add msm-smmu at %pa to sysfs\n", &ioaddr);
+		pr_err("Could yest add msm-smmu at %pa to sysfs\n", &ioaddr);
 		goto fail;
 	}
 
 	iommu_device_set_ops(&iommu->iommu, &msm_iommu_ops);
-	iommu_device_set_fwnode(&iommu->iommu, &pdev->dev.of_node->fwnode);
+	iommu_device_set_fwyesde(&iommu->iommu, &pdev->dev.of_yesde->fwyesde);
 
 	ret = iommu_device_register(&iommu->iommu);
 	if (ret) {
-		pr_err("Could not register msm-smmu at %pa\n", &ioaddr);
+		pr_err("Could yest register msm-smmu at %pa\n", &ioaddr);
 		goto fail;
 	}
 

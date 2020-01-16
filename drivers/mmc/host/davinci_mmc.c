@@ -163,7 +163,7 @@ MODULE_PARM_DESC(poll_loopcount,
 
 static unsigned use_dma = 1;
 module_param(use_dma, uint, 0);
-MODULE_PARM_DESC(use_dma, "Whether to use DMA or not. Default = 1");
+MODULE_PARM_DESC(use_dma, "Whether to use DMA or yest. Default = 1");
 
 struct mmc_davinci_host {
 	struct mmc_command *cmd;
@@ -207,7 +207,7 @@ struct mmc_davinci_host {
 	/* Number of sg segments */
 	u8 nr_sg;
 #ifdef CONFIG_CPU_FREQ
-	struct notifier_block	freq_transition;
+	struct yestifier_block	freq_transition;
 #endif
 };
 
@@ -240,7 +240,7 @@ static void davinci_fifo_data_trans(struct mmc_davinci_host *host,
 	host->bytes_left -= n;
 
 	/* NOTE:  we never transfer more than rw_threshold bytes
-	 * to/from the fifo here; there's no I/O overlap.
+	 * to/from the fifo here; there's yes I/O overlap.
 	 * This also assumes that access width( i.e. ACCWD) is 4 bytes
 	 */
 	if (host->data_dir == DAVINCI_MMC_DATADIR_WRITE) {
@@ -307,12 +307,12 @@ static void mmc_davinci_start_command(struct mmc_davinci_host *host,
 	case MMC_RSP_R2:		/* 136 bits, CRC */
 		cmd_reg |= MMCCMD_RSPFMT_R2;
 		break;
-	case MMC_RSP_R3:		/* 48 bits, no CRC */
+	case MMC_RSP_R3:		/* 48 bits, yes CRC */
 		cmd_reg |= MMCCMD_RSPFMT_R3;
 		break;
 	default:
 		cmd_reg |= MMCCMD_RSPFMT_NONE;
-		dev_dbg(mmc_dev(host->mmc), "unknown resp_type %04x\n",
+		dev_dbg(mmc_dev(host->mmc), "unkyeswn resp_type %04x\n",
 			mmc_resp_type(cmd));
 		break;
 	}
@@ -328,7 +328,7 @@ static void mmc_davinci_start_command(struct mmc_davinci_host *host,
 			host->data_dir == DAVINCI_MMC_DATADIR_READ)
 		cmd_reg |= MMCCMD_DMATRIG;
 
-	/* Setting whether command involves data transfer or not */
+	/* Setting whether command involves data transfer or yest */
 	if (cmd->data)
 		cmd_reg |= MMCCMD_WDATX;
 
@@ -357,7 +357,7 @@ static void mmc_davinci_start_command(struct mmc_davinci_host *host,
 	}
 
 	/*
-	 * Before non-DMA WRITE commands the controller needs priming:
+	 * Before yesn-DMA WRITE commands the controller needs priming:
 	 * FIFO should be populated with 32 bytes i.e. whatever is the FIFO size
 	 */
 	if (!host->do_dma && (host->data_dir == DAVINCI_MMC_DATADIR_WRITE))
@@ -467,7 +467,7 @@ static int mmc_davinci_start_dma_transfer(struct mmc_davinci_host *host,
 	host->sg_len = dma_map_sg(mmc_dev(host->mmc), data->sg, data->sg_len,
 				  mmc_get_dma_dir(data));
 
-	/* no individual DMA segment should need a partial FIFO */
+	/* yes individual DMA segment should need a partial FIFO */
 	for (i = 0; i < host->sg_len; i++) {
 		if (sg_dma_len(data->sg + i) & mask) {
 			dma_unmap_sg(mmc_dev(host->mmc),
@@ -562,7 +562,7 @@ mmc_davinci_prepare_data(struct mmc_davinci_host *host, struct mmc_request *req)
 	host->buffer = NULL;
 	host->bytes_left = data->blocks * data->blksz;
 
-	/* For now we try to use DMA whenever we won't need partial FIFO
+	/* For yesw we try to use DMA whenever we won't need partial FIFO
 	 * reads or writes, either for the whole transfer (as tested here)
 	 * or for any individual scatterlist segment (tested when we call
 	 * start_dma_transfer).
@@ -572,7 +572,7 @@ mmc_davinci_prepare_data(struct mmc_davinci_host *host, struct mmc_request *req)
 	 */
 	if (host->use_dma && (host->bytes_left & (rw_threshold - 1)) == 0
 			&& mmc_davinci_start_dma_transfer(host, data) == 0) {
-		/* zero this to ensure we take no PIO paths */
+		/* zero this to ensure we take yes PIO paths */
 		host->bytes_left = 0;
 	} else {
 		/* Revert to CPU Copy */
@@ -646,7 +646,7 @@ static void calculate_clk_divider(struct mmc_host *mmc, struct mmc_ios *ios)
 	if (ios->bus_mode == MMC_BUSMODE_OPENDRAIN) {
 		u32 temp;
 
-		/* Ignoring the init clock value passed for fixing the inter
+		/* Igyesring the init clock value passed for fixing the inter
 		 * operability with different cards.
 		 */
 		open_drain_freq = ((unsigned int)mmc_pclk
@@ -885,8 +885,8 @@ static irqreturn_t mmc_davinci_irq(int irq, void *dev_id)
 	 * bytes_left will decrease to zero as I/O progress and status will
 	 * read zero over iteration because this controller status
 	 * register(MMCST0) reports any status only once and it is cleared
-	 * by read. So, it is not unbouned loop even in the case of
-	 * non-dma.
+	 * by read. So, it is yest unbouned loop even in the case of
+	 * yesn-dma.
 	 */
 	if (host->bytes_left && (status & (MMCST0_DXRDY | MMCST0_DRRDY))) {
 		unsigned long im_val;
@@ -922,7 +922,7 @@ static irqreturn_t mmc_davinci_irq(int irq, void *dev_id)
 		if (data != NULL) {
 			if ((host->do_dma == 0) && (host->bytes_left > 0)) {
 				/* if datasize < rw_threshold
-				 * no RX ints are generated
+				 * yes RX ints are generated
 				 */
 				davinci_fifo_data_trans(host, host->bytes_left);
 			}
@@ -930,7 +930,7 @@ static irqreturn_t mmc_davinci_irq(int irq, void *dev_id)
 			data->bytes_xfered = data->blocks * data->blksz;
 		} else {
 			dev_err(mmc_dev(host->mmc),
-					"DATDNE with no host->data\n");
+					"DATDNE with yes host->data\n");
 		}
 	}
 
@@ -1059,7 +1059,7 @@ static const struct mmc_host_ops mmc_davinci_ops = {
 /*----------------------------------------------------------------------*/
 
 #ifdef CONFIG_CPU_FREQ
-static int mmc_davinci_cpufreq_transition(struct notifier_block *nb,
+static int mmc_davinci_cpufreq_transition(struct yestifier_block *nb,
 				     unsigned long val, void *data)
 {
 	struct mmc_davinci_host *host;
@@ -1083,15 +1083,15 @@ static int mmc_davinci_cpufreq_transition(struct notifier_block *nb,
 
 static inline int mmc_davinci_cpufreq_register(struct mmc_davinci_host *host)
 {
-	host->freq_transition.notifier_call = mmc_davinci_cpufreq_transition;
+	host->freq_transition.yestifier_call = mmc_davinci_cpufreq_transition;
 
-	return cpufreq_register_notifier(&host->freq_transition,
+	return cpufreq_register_yestifier(&host->freq_transition,
 					 CPUFREQ_TRANSITION_NOTIFIER);
 }
 
 static inline void mmc_davinci_cpufreq_deregister(struct mmc_davinci_host *host)
 {
-	cpufreq_unregister_notifier(&host->freq_transition,
+	cpufreq_unregister_yestifier(&host->freq_transition,
 				    CPUFREQ_TRANSITION_NOTIFIER);
 }
 #else
@@ -1173,7 +1173,7 @@ static int mmc_davinci_parse_pdata(struct mmc_host *mmc)
 	if (pdata && pdata->caps)
 		mmc->caps |= pdata->caps;
 
-	/* Register a cd gpio, if there is not one, enable polling */
+	/* Register a cd gpio, if there is yest one, enable polling */
 	ret = mmc_gpiod_request_cd(mmc, "cd", 0, false, 0, NULL);
 	if (ret == -EPROBE_DEFER)
 		return ret;
@@ -1242,14 +1242,14 @@ static int davinci_mmcsd_probe(struct platform_device *pdev)
 		if (ret) {
 			if (ret != -EPROBE_DEFER)
 				dev_err(&pdev->dev,
-					"could not parse of data: %d\n", ret);
+					"could yest parse of data: %d\n", ret);
 			goto parse_fail;
 		}
 	} else {
 		ret = mmc_davinci_parse_pdata(mmc);
 		if (ret) {
 			dev_err(&pdev->dev,
-				"could not parse platform data: %d\n", ret);
+				"could yest parse platform data: %d\n", ret);
 			goto parse_fail;
 	}	}
 
@@ -1279,7 +1279,7 @@ static int davinci_mmcsd_probe(struct platform_device *pdev)
 	mmc->ops = &mmc_davinci_ops;
 	mmc->ocr_avail = MMC_VDD_32_33 | MMC_VDD_33_34;
 
-	/* With no iommu coalescing pages, each phys_seg is a hw_seg.
+	/* With yes iommu coalescing pages, each phys_seg is a hw_seg.
 	 * Each hw_seg uses one EDMA parameter RAM slot, always one
 	 * channel and then usually some linked slots.
 	 */

@@ -60,18 +60,18 @@ static int mpu3050_i2c_probe(struct i2c_client *client,
 	if (ret)
 		return ret;
 
-	/* The main driver is up, now register the I2C mux */
+	/* The main driver is up, yesw register the I2C mux */
 	mpu3050 = iio_priv(dev_get_drvdata(&client->dev));
 	mpu3050->i2cmux = i2c_mux_alloc(client->adapter, &client->dev,
 					1, 0, I2C_MUX_LOCKED | I2C_MUX_GATE,
 					mpu3050_i2c_bypass_select,
 					mpu3050_i2c_bypass_deselect);
-	/* Just fail the mux, there is no point in killing the driver */
+	/* Just fail the mux, there is yes point in killing the driver */
 	if (!mpu3050->i2cmux)
 		dev_err(&client->dev, "failed to allocate I2C mux\n");
 	else {
 		mpu3050->i2cmux->priv = mpu3050;
-		/* Ignore failure, not critical */
+		/* Igyesre failure, yest critical */
 		i2c_mux_add_adapter(mpu3050->i2cmux, 0, 0, 0);
 	}
 

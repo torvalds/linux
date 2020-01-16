@@ -6,13 +6,13 @@
  *  Modifications for ARM processor (c) 1995-2001 Russell King
  *  Thumb alignment fault fixups (c) 2004 MontaVista Software, Inc.
  *  - Adapted from gdb/sim/arm/thumbemu.c -- Thumb instruction emulation.
- *    Copyright (C) 1996, Cygnus Software Technologies Ltd.
+ *    Copyright (C) 1996, Cygnus Software Techyeslogies Ltd.
  */
 #include <linux/moduleparam.h>
 #include <linux/compiler.h>
 #include <linux/kernel.h>
 #include <linux/sched/debug.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/string.h>
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
@@ -36,7 +36,7 @@
  * Speed optimisations and better fault handling by Russell King.
  *
  * *** NOTE ***
- * This code is not portable to processors with late data abort handling.
+ * This code is yest portable to processors with late data abort handling.
  */
 #define CODING_BITS(i)	(i & 0x0e000000)
 #define COND_BITS(i)	(i & 0xf0000000)
@@ -82,7 +82,7 @@ static unsigned long ai_word;
 static unsigned long ai_dword;
 static unsigned long ai_multi;
 static int ai_usermode;
-static unsigned long cr_no_alignment;
+static unsigned long cr_yes_alignment;
 
 core_param(alignment, ai_usermode, int, 0600);
 
@@ -103,7 +103,7 @@ static int safe_usermode(int new_usermode, bool warn)
 	 * most single load and store instructions up to word size.
 	 * LDM, STM, LDRD and STRD still need to be handled.
 	 *
-	 * Ignoring the alignment fault is not an option on these
+	 * Igyesring the alignment fault is yest an option on these
 	 * CPUs since we spin re-faulting the instruction without
 	 * making any progress.
 	 */
@@ -111,7 +111,7 @@ static int safe_usermode(int new_usermode, bool warn)
 		new_usermode |= UM_FIXUP;
 
 		if (warn)
-			pr_warn("alignment: ignoring faults is unsafe on this CPU.  Defaulting to fixup mode.\n");
+			pr_warn("alignment: igyesring faults is unsafe on this CPU.  Defaulting to fixup mode.\n");
 	}
 
 	return new_usermode;
@@ -119,7 +119,7 @@ static int safe_usermode(int new_usermode, bool warn)
 
 #ifdef CONFIG_PROC_FS
 static const char *usermode_action[] = {
-	"ignored",
+	"igyesred",
 	"warn",
 	"fixup",
 	"fixup+warn",
@@ -143,7 +143,7 @@ static int alignment_proc_show(struct seq_file *m, void *v)
 	return 0;
 }
 
-static int alignment_proc_open(struct inode *inode, struct file *file)
+static int alignment_proc_open(struct iyesde *iyesde, struct file *file)
 {
 	return single_open(file, alignment_proc_show, NULL);
 }
@@ -530,7 +530,7 @@ do_alignment_ldmstm(unsigned long addr, u32 instr, struct pt_regs *regs)
 	 * the FSR (and hence addr) equal to the updated base address
 	 * of the multiple access rather than the restored value.
 	 * Switch this message off if we've got a ARM92[02], otherwise
-	 * [ls]dm alignment faults are noisy!
+	 * [ls]dm alignment faults are yesisy!
 	 */
 #if !(defined CONFIG_CPU_ARM922T)  && !(defined CONFIG_CPU_ARM920T)
 	/*
@@ -584,7 +584,7 @@ fault:
 	return TYPE_FAULT;
 
 bad:
-	pr_err("Alignment trap: not handling ldm with s-bit set\n");
+	pr_err("Alignment trap: yest handling ldm with s-bit set\n");
 	return TYPE_ERROR;
 }
 
@@ -598,8 +598,8 @@ bad:
  *
  * NOTES:
  * 1. Comments below refer to ARM ARM DDI0100E Thumb Instruction sections.
- * 2. If for some reason we're passed an non-ld/st Thumb instruction to
- *    decode, we return 0xdeadc0de. This should never happen under normal
+ * 2. If for some reason we're passed an yesn-ld/st Thumb instruction to
+ *    decode, we return 0xdeadc0de. This should never happen under yesrmal
  *    circumstances but if it does, we've got other problems to deal with
  *    elsewhere and we obviously can't fix those problems here.
  */
@@ -653,10 +653,10 @@ thumb2arm(u16 tinstr)
 
 	/* 6.5.1 Format 3: */
 	case 0x4800 >> 11:				/* 7.1.28 LDR(3) */
-		/* NOTE: This case is not technically possible. We're
+		/* NOTE: This case is yest technically possible. We're
 		 *	 loading 32-bit memory data via PC relative
 		 *	 addressing mode. So we can and should eliminate
-		 *	 this case. But I'll leave it here for now.
+		 *	 this case. But I'll leave it here for yesw.
 		 */
 		return 0xe59f0000 |
 		    ((tinstr & (7<<8)) << (12-8)) |		/* Rd */
@@ -728,7 +728,7 @@ do_alignment_t32_to_handler(u32 *pinstr, struct pt_regs *regs,
 	case 0xe8a0:		/* ...above writeback version */
 	case 0xe900:		/* STMDB/STMFD, LDMDB/LDMEA */
 	case 0xe920:		/* ...above writeback version */
-		/* no need offset decision since handler calculates it */
+		/* yes need offset decision since handler calculates it */
 		return do_alignment_ldmstm;
 
 	case 0xf840:		/* POP/PUSH T3 (single register) */
@@ -947,13 +947,13 @@ do_alignment(unsigned long addr, unsigned int fsr, struct pt_regs *regs)
 	return 0;
 
  swp:
-	pr_err("Alignment trap: not handling swp instruction\n");
+	pr_err("Alignment trap: yest handling swp instruction\n");
 
  bad:
 	/*
 	 * Oops, we didn't handle the instruction.
 	 */
-	pr_err("Alignment trap: not handling instruction "
+	pr_err("Alignment trap: yest handling instruction "
 		"%0*x at [<%08lx>]\n",
 		isize << 1,
 		isize == 2 ? tinstr : instr, instrptr);
@@ -981,34 +981,34 @@ do_alignment(unsigned long addr, unsigned int fsr, struct pt_regs *regs)
 		 * We're about to disable the alignment trap and return to
 		 * user space.  But if an interrupt occurs before actually
 		 * reaching user space, then the IRQ vector entry code will
-		 * notice that we were still in kernel space and therefore
+		 * yestice that we were still in kernel space and therefore
 		 * the alignment trap won't be re-enabled in that case as it
 		 * is presumed to be always on from kernel space.
 		 * Let's prevent that race by disabling interrupts here (they
 		 * are disabled on the way back to user space anyway in
 		 * entry-common.S) and disable the alignment trap only if
-		 * there is no work pending for this thread.
+		 * there is yes work pending for this thread.
 		 */
 		raw_local_irq_disable();
 		if (!(current_thread_info()->flags & _TIF_WORK_MASK))
-			set_cr(cr_no_alignment);
+			set_cr(cr_yes_alignment);
 	}
 
 	return 0;
 }
 
-static int __init noalign_setup(char *__unused)
+static int __init yesalign_setup(char *__unused)
 {
 	set_cr(__clear_cr(CR_A));
 	return 1;
 }
-__setup("noalign", noalign_setup);
+__setup("yesalign", yesalign_setup);
 
 /*
  * This needs to be done after sysctl_init, otherwise sys/ will be
  * overwritten.  Actually, this shouldn't be in sys/ at all since
  * it isn't a sysctl, and it doesn't contain sysctl information.
- * We now locate it in /proc/cpu/alignment instead.
+ * We yesw locate it in /proc/cpu/alignment instead.
  */
 static int __init alignment_init(void)
 {
@@ -1026,14 +1026,14 @@ static int __init alignment_init(void)
 		ai_usermode = safe_usermode(ai_usermode, false);
 	}
 
-	cr_no_alignment = get_cr() & ~CR_A;
+	cr_yes_alignment = get_cr() & ~CR_A;
 
 	hook_fault_code(FAULT_CODE_ALIGNMENT, do_alignment, SIGBUS, BUS_ADRALN,
 			"alignment exception");
 
 	/*
 	 * ARMv6K and ARMv7 use fault status 3 (0b00011) as Access Flag section
-	 * fault, not as alignment error.
+	 * fault, yest as alignment error.
 	 *
 	 * TODO: handle ARMv6K properly. Runtime check for 'K' extension is
 	 * needed.

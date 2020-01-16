@@ -323,12 +323,12 @@ static int _rtl92e_wx_get_range(struct net_device *dev,
 
 	range->max_qual.qual = 100;
 	range->max_qual.level = 0;
-	range->max_qual.noise = 0;
+	range->max_qual.yesise = 0;
 	range->max_qual.updated = 7; /* Updated all three */
 
 	range->avg_qual.qual = 70; /* > 8% missed beacons is 'bad' */
 	range->avg_qual.level = 0;
-	range->avg_qual.noise = 0;
+	range->avg_qual.yesise = 0;
 	range->avg_qual.updated = 7; /* Updated all three */
 
 	range->num_bitrates = min(RATE_COUNT, IW_MAX_BITRATES);
@@ -608,7 +608,7 @@ static int _rtl92e_wx_get_frag(struct net_device *dev,
 	struct r8192_priv *priv = rtllib_priv(dev);
 
 	wrqu->frag.value = priv->rtllib->fts;
-	wrqu->frag.fixed = 0;	/* no auto select */
+	wrqu->frag.fixed = 0;	/* yes auto select */
 	wrqu->frag.disabled = (wrqu->frag.value == DEFAULT_FRAG_THRESHOLD);
 
 	return 0;
@@ -736,7 +736,7 @@ static int _rtl92e_wx_set_enc(struct net_device *dev,
 					 zero_addr[key_idx], 0, hwkey, 0);
 		} else {
 			netdev_info(dev,
-				    "wrong type in WEP, not WEP40 and WEP104\n");
+				    "wrong type in WEP, yest WEP40 and WEP104\n");
 		}
 	}
 
@@ -829,7 +829,7 @@ static int _rtl92e_wx_get_sens(struct net_device *dev,
 	struct r8192_priv *priv = rtllib_priv(dev);
 
 	if (priv->rf_set_sens == NULL)
-		return -1; /* we have not this support for this radio */
+		return -1; /* we have yest this support for this radio */
 	wrqu->sens.value = priv->sens;
 	return 0;
 }
@@ -847,7 +847,7 @@ static int _rtl92e_wx_set_sens(struct net_device *dev,
 
 	mutex_lock(&priv->wx_mutex);
 	if (priv->rf_set_sens == NULL) {
-		err = -1; /* we have not this support for this radio */
+		err = -1; /* we have yest this support for this radio */
 		goto exit;
 	}
 	if (priv->rf_set_sens(dev, wrqu->sens.value) == 0)
@@ -1184,23 +1184,23 @@ static struct iw_statistics *_rtl92e_get_wireless_stats(struct net_device *dev)
 	struct iw_statistics *wstats = &priv->wstats;
 	int tmp_level = 0;
 	int tmp_qual = 0;
-	int tmp_noise = 0;
+	int tmp_yesise = 0;
 
 	if (ieee->state < RTLLIB_LINKED) {
 		wstats->qual.qual = 10;
 		wstats->qual.level = 0;
-		wstats->qual.noise = 0x100 - 100;	/* -100 dBm */
+		wstats->qual.yesise = 0x100 - 100;	/* -100 dBm */
 		wstats->qual.updated = IW_QUAL_ALL_UPDATED | IW_QUAL_DBM;
 		return wstats;
 	}
 
 	tmp_level = (&ieee->current_network)->stats.rssi;
 	tmp_qual = (&ieee->current_network)->stats.signal;
-	tmp_noise = (&ieee->current_network)->stats.noise;
+	tmp_yesise = (&ieee->current_network)->stats.yesise;
 
 	wstats->qual.level = tmp_level;
 	wstats->qual.qual = tmp_qual;
-	wstats->qual.noise = tmp_noise;
+	wstats->qual.yesise = tmp_yesise;
 	wstats->qual.updated = IW_QUAL_ALL_UPDATED | IW_QUAL_DBM;
 	return wstats;
 }

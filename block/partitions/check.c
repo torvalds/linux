@@ -6,7 +6,7 @@
  *  Copyright (C) 1991-1998  Linus Torvalds
  *  Re-organised Feb 1998 Russell King
  *
- *  We now have independent partition support from the
+ *  We yesw have independent partition support from the
  *  block drivers, which allows all the partition code to
  *  be grouped in one location, and it to be mostly self
  *  contained.
@@ -37,7 +37,7 @@
 #include "sysv68.h"
 #include "cmdline.h"
 
-int warn_no_part = 1; /*This is ugly: should make genhd removable media aware*/
+int warn_yes_part = 1; /*This is ugly: should make genhd removable media aware*/
 
 static int (*check_part[])(struct parsed_partitions *) = {
 	/*
@@ -166,7 +166,7 @@ check_partition(struct gendisk *hd, struct block_device *bdev)
 		memset(state->parts, 0, state->limit * sizeof(state->parts[0]));
 		res = check_part[i++](state);
 		if (res < 0) {
-			/* We have hit an I/O error which we don't report now.
+			/* We have hit an I/O error which we don't report yesw.
 		 	* But record it, and let the others do their job.
 		 	*/
 			err = res;
@@ -186,7 +186,7 @@ check_partition(struct gendisk *hd, struct block_device *bdev)
 	/* The partition is unrecognized. So report I/O errors if there were any */
 		res = err;
 	if (res) {
-		if (warn_no_part)
+		if (warn_yes_part)
 			strlcat(state->pp_buf,
 				" unable to read partition table\n", PAGE_SIZE);
 		printk(KERN_INFO "%s", state->pp_buf);

@@ -5,7 +5,7 @@
 #include <linux/clk.h>
 #include <linux/clk-provider.h>
 #include <linux/err.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/gpio/consumer.h>
 #include <linux/i2c.h>
 #include <linux/regulator/consumer.h>
@@ -299,7 +299,7 @@ static int max9485_i2c_probe(struct i2c_client *client,
 		int parent_index = max9485_clks[i].parent_index;
 		const char *name;
 
-		if (of_property_read_string_index(dev->of_node,
+		if (of_property_read_string_index(dev->of_yesde,
 						  "clock-output-names",
 						  i, &name) == 0) {
 			drvdata->hw[i].init.name = name;

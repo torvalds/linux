@@ -9,13 +9,13 @@
  */
 
 /* This is meant for core cpu support, machine or other driver files
- * should not be including this header.
+ * should yest be including this header.
  */
 
 #ifndef __PLAT_GPIO_CFG_HELPERS_H
 #define __PLAT_GPIO_CFG_HELPERS_H __FILE__
 
-/* As a note, all gpio configuration functions are entered exclusively, either
+/* As a yeste, all gpio configuration functions are entered exclusively, either
  * with the relevant lock held or the system prevented from doing anything else
  * by disabling interrupts.
 */
@@ -49,11 +49,11 @@ static inline samsung_gpio_pull_t samsung_gpio_do_getpull(struct samsung_gpio_ch
  * S3C2410,S3C2440 = Pull-UP,
  * S3C2412,S3C2413 = Pull-Down
  * S3C6400,S3C6410 = Pull-Both [None,Down,Up,Undef]
- * S3C2443 = Pull-Both [not same as S3C6400]
+ * S3C2443 = Pull-Both [yest same as S3C6400]
  */
 
 /**
- * s3c24xx_gpio_setpull_1up() - Pull configuration for choice of up or none.
+ * s3c24xx_gpio_setpull_1up() - Pull configuration for choice of up or yesne.
  * @chip: The gpio chip that is being configured.
  * @off: The offset for the GPIO being configured.
  * @param: pull: The pull mode being requested.
@@ -65,7 +65,7 @@ extern int s3c24xx_gpio_setpull_1up(struct samsung_gpio_chip *chip,
 				    unsigned int off, samsung_gpio_pull_t pull);
 
 /**
- * s3c24xx_gpio_setpull_1down() - Pull configuration for choice of down or none
+ * s3c24xx_gpio_setpull_1down() - Pull configuration for choice of down or yesne
  * @chip: The gpio chip that is being configured
  * @off: The offset for the GPIO being configured
  * @param: pull: The pull mode being requested
@@ -78,7 +78,7 @@ extern int s3c24xx_gpio_setpull_1down(struct samsung_gpio_chip *chip,
 
 /**
  * samsung_gpio_setpull_upown() - Pull configuration for choice of up,
- * down or none
+ * down or yesne
  *
  * @chip: The gpio chip that is being configured.
  * @off: The offset for the GPIO being configured.
@@ -96,7 +96,7 @@ extern int samsung_gpio_setpull_updown(struct samsung_gpio_chip *chip,
 
 /**
  * samsung_gpio_getpull_updown() - Get configuration for choice of up,
- * down or none
+ * down or yesne
  *
  * @chip: The gpio chip that the GPIO pin belongs to
  * @off: The offset to the pin to get the configuration of.
@@ -108,7 +108,7 @@ extern samsung_gpio_pull_t samsung_gpio_getpull_updown(struct samsung_gpio_chip 
 						       unsigned int off);
 
 /**
- * s3c24xx_gpio_getpull_1up() - Get configuration for choice of up or none
+ * s3c24xx_gpio_getpull_1up() - Get configuration for choice of up or yesne
  * @chip: The gpio chip that the GPIO pin belongs to
  * @off: The offset to the pin to get the configuration of.
  *
@@ -119,7 +119,7 @@ extern samsung_gpio_pull_t s3c24xx_gpio_getpull_1up(struct samsung_gpio_chip *ch
 						    unsigned int off);
 
 /**
- * s3c24xx_gpio_getpull_1down() - Get configuration for choice of down or none
+ * s3c24xx_gpio_getpull_1down() - Get configuration for choice of down or yesne
  * @chip: The gpio chip that the GPIO pin belongs to
  * @off: The offset to the pin to get the configuration of.
  *

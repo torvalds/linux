@@ -76,7 +76,7 @@ struct hpre_sqe {
 	__le32 rsvd1[_HPRE_SQE_ALIGN_EXT];
 };
 
-struct hpre *hpre_find_device(int node);
+struct hpre *hpre_find_device(int yesde);
 int hpre_algs_register(void);
 void hpre_algs_unregister(void);
 

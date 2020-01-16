@@ -6,9 +6,9 @@
 #include <linux/pkt_cls.h>
 #include "bpf_helpers.h"
 
-/* It is a dumb bpf program such that it must have no
+/* It is a dumb bpf program such that it must have yes
  * issue to be loaded since testing the verifier is
- * not the focus here.
+ * yest the focus here.
  */
 
 int _version SEC("version") = 1;

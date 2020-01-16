@@ -12,20 +12,20 @@ INSTALL = /usr/bin/install
 
 default: all
 
-$(OUTPUT)centrino-decode: ../i386/centrino-decode.c
+$(OUTPUT)centriyes-decode: ../i386/centriyes-decode.c
 	$(CC) $(CFLAGS) -o $@ $(LDFLAGS) $<
 
-$(OUTPUT)powernow-k8-decode: ../i386/powernow-k8-decode.c
+$(OUTPUT)poweryesw-k8-decode: ../i386/poweryesw-k8-decode.c
 	$(CC) $(CFLAGS) -o $@ $(LDFLAGS) $<
 
-all: $(OUTPUT)centrino-decode $(OUTPUT)powernow-k8-decode
+all: $(OUTPUT)centriyes-decode $(OUTPUT)poweryesw-k8-decode
 
 clean:
-	rm -rf $(OUTPUT)centrino-decode $(OUTPUT)powernow-k8-decode
+	rm -rf $(OUTPUT)centriyes-decode $(OUTPUT)poweryesw-k8-decode
 
 install:
 	$(INSTALL) -d $(DESTDIR)${bindir}
-	$(INSTALL) $(OUTPUT)centrino-decode $(DESTDIR)${bindir}
-	$(INSTALL) $(OUTPUT)powernow-k8-decode $(DESTDIR)${bindir}
+	$(INSTALL) $(OUTPUT)centriyes-decode $(DESTDIR)${bindir}
+	$(INSTALL) $(OUTPUT)poweryesw-k8-decode $(DESTDIR)${bindir}
 
 .PHONY: all default clean install

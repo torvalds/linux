@@ -1,7 +1,7 @@
 /*
  * Copyright (C) 2008-2009 Michal Simek <monstr@monstr.eu>
  * Copyright (C) 2008-2009 PetaLogix
- * Copyright (C) 2006 Atmark Techno, Inc.
+ * Copyright (C) 2006 Atmark Techyes, Inc.
  *
  * This file is subject to the terms and conditions of the GNU General Public
  * License. See the file "COPYING" in the main directory of this archive
@@ -48,7 +48,7 @@ static inline void local_flush_tlb_range(struct vm_area_struct *vma,
 
 /*
  * This is called in munmap when we have freed up some page-table
- * pages.  We don't need to do anything here, there's nothing special
+ * pages.  We don't need to do anything here, there's yesthing special
  * about our page-table pages.  -- paulus
  */
 static inline void flush_tlb_pgtables(struct mm_struct *mm,

@@ -116,7 +116,7 @@
 	bus-width = <8>;
 	cap-mmc-highspeed;
 	mmc-hs200-1_8v;
-	non-removable;
+	yesn-removable;
 	mmc-pwrseq = <&emmc_pwrseq>;
 	vmmc-supply = <&vcc_3v0>;
 	vqmmc-supply = <&vccio_flash>;
@@ -411,7 +411,7 @@
 
 	emmc {
 		emmc_reset: emmc-reset {
-			rockchip,pins = <1 RK_PB3 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <1 RK_PB3 RK_FUNC_GPIO &pcfg_pull_yesne>;
 		};
 	};
 
@@ -428,19 +428,19 @@
 
 		soc_slppin_slp: soc_slppin_slp {
 			rockchip,pins =
-				<0 RK_PA4 1 &pcfg_pull_none>;
+				<0 RK_PA4 1 &pcfg_pull_yesne>;
 		};
 
 		soc_slppin_rst: soc_slppin_rst {
 			rockchip,pins =
-				<0 RK_PA4 2 &pcfg_pull_none>;
+				<0 RK_PA4 2 &pcfg_pull_yesne>;
 		};
 	};
 
 	sdio-pwrseq {
 		wifi_enable_h: wifi-enable-h {
 			rockchip,pins =
-				<0 RK_PA2 RK_FUNC_GPIO &pcfg_pull_none>;
+				<0 RK_PA2 RK_FUNC_GPIO &pcfg_pull_yesne>;
 		};
 	};
 };
@@ -479,7 +479,7 @@
 	bus-width = <4>;
 	cap-sd-highspeed;
 	keep-power-in-suspend;
-	non-removable;
+	yesn-removable;
 	mmc-pwrseq = <&sdio_pwrseq>;
 	sd-uhs-sdr104;
 	status = "okay";

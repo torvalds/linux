@@ -24,8 +24,8 @@
 #include <linux/sched.h>
 
 /*
- * Define if arch has non-standard setup.  This is a _PCI_ standard
- * not a legacy or ISA standard.
+ * Define if arch has yesn-standard setup.  This is a _PCI_ standard
+ * yest a legacy or ISA standard.
  */
 #ifdef CONFIG_ATA_NONSTANDARD
 #include <asm/libata-portmap.h>
@@ -44,7 +44,7 @@
 #undef ATA_NDEBUG		/* define to disable quick runtime checks */
 
 
-/* note: prints function name for you */
+/* yeste: prints function name for you */
 #ifdef ATA_DEBUG
 #define DPRINTK(fmt, args...) printk(KERN_ERR "%s: " fmt, __func__, ## args)
 #ifdef ATA_VERBOSE_DEBUG
@@ -143,9 +143,9 @@ enum {
 	ATA_DFLAG_CFG_MASK	= (1 << 12) - 1,
 
 	ATA_DFLAG_PIO		= (1 << 12), /* device limited to PIO mode */
-	ATA_DFLAG_NCQ_OFF	= (1 << 13), /* device limited to non-NCQ mode */
+	ATA_DFLAG_NCQ_OFF	= (1 << 13), /* device limited to yesn-NCQ mode */
 	ATA_DFLAG_SLEEPING	= (1 << 15), /* device is sleeping */
-	ATA_DFLAG_DUBIOUS_XFER	= (1 << 16), /* data transfer not verified */
+	ATA_DFLAG_DUBIOUS_XFER	= (1 << 16), /* data transfer yest verified */
 	ATA_DFLAG_NO_UNLOAD	= (1 << 17), /* device doesn't support unload */
 	ATA_DFLAG_UNLOCK_HPA	= (1 << 18), /* unlock HPA */
 	ATA_DFLAG_NCQ_SEND_RECV = (1 << 19), /* device supports NCQ SEND and RECV */
@@ -162,7 +162,7 @@ enum {
 	ATA_DFLAG_D_SENSE	= (1 << 29), /* Descriptor sense requested */
 	ATA_DFLAG_ZAC		= (1 << 30), /* ZAC device */
 
-	ATA_DEV_UNKNOWN		= 0,	/* unknown device */
+	ATA_DEV_UNKNOWN		= 0,	/* unkyeswn device */
 	ATA_DEV_ATA		= 1,	/* ATA device */
 	ATA_DEV_ATA_UNSUP	= 2,	/* ATA device (unsupported) */
 	ATA_DEV_ATAPI		= 3,	/* ATAPI device */
@@ -173,7 +173,7 @@ enum {
 	ATA_DEV_SEMB_UNSUP	= 8,	/* SEMB (unsupported) */
 	ATA_DEV_ZAC		= 9,	/* ZAC device */
 	ATA_DEV_ZAC_UNSUP	= 10,	/* ZAC device (unsupported) */
-	ATA_DEV_NONE		= 11,	/* no device */
+	ATA_DEV_NONE		= 11,	/* yes device */
 
 	/* struct ata_link flags */
 	ATA_LFLAG_NO_HRST	= (1 << 1), /* avoid hardreset */
@@ -187,14 +187,14 @@ enum {
 	ATA_LFLAG_NO_LPM	= (1 << 8), /* disable LPM on this link */
 	ATA_LFLAG_RST_ONCE	= (1 << 9), /* limit recovery to one reset */
 	ATA_LFLAG_CHANGED	= (1 << 10), /* LPM state changed on this link */
-	ATA_LFLAG_NO_DB_DELAY	= (1 << 11), /* no debounce delay on link resume */
+	ATA_LFLAG_NO_DB_DELAY	= (1 << 11), /* yes debounce delay on link resume */
 
 	/* struct ata_port flags */
 	ATA_FLAG_SLAVE_POSS	= (1 << 0), /* host supports slave dev */
 					    /* (doesn't imply presence) */
 	ATA_FLAG_SATA		= (1 << 1),
-	ATA_FLAG_NO_LPM		= (1 << 2), /* host not happy with LPM */
-	ATA_FLAG_NO_LOG_PAGE	= (1 << 5), /* do not issue log page read */
+	ATA_FLAG_NO_LPM		= (1 << 2), /* host yest happy with LPM */
+	ATA_FLAG_NO_LOG_PAGE	= (1 << 5), /* do yest issue log page read */
 	ATA_FLAG_NO_ATAPI	= (1 << 6), /* No ATAPI support */
 	ATA_FLAG_PIO_DMA	= (1 << 7), /* PIO cmds via DMA */
 	ATA_FLAG_PIO_LBA48	= (1 << 8), /* Host DMA engine is LBA28 only */
@@ -205,7 +205,7 @@ enum {
 	ATA_FLAG_NO_HIBERNATE_SPINDOWN = (1 << 12), /* don't spindown before hibernation */
 	ATA_FLAG_DEBUGMSG	= (1 << 13),
 	ATA_FLAG_FPDMA_AA		= (1 << 14), /* driver supports Auto-Activate */
-	ATA_FLAG_IGN_SIMPLEX	= (1 << 15), /* ignore SIMPLEX */
+	ATA_FLAG_IGN_SIMPLEX	= (1 << 15), /* igyesre SIMPLEX */
 	ATA_FLAG_NO_IORDY	= (1 << 16), /* controller lacks iordy */
 	ATA_FLAG_ACPI_SATA	= (1 << 17), /* need native SATA ACPI layout */
 	ATA_FLAG_AN		= (1 << 18), /* controller supports AN */
@@ -215,7 +215,7 @@ enum {
 					      * management */
 	ATA_FLAG_SW_ACTIVITY	= (1 << 22), /* driver supports sw activity
 					      * led */
-	ATA_FLAG_NO_DIPM	= (1 << 23), /* host not happy with DIPM */
+	ATA_FLAG_NO_DIPM	= (1 << 23), /* host yest happy with DIPM */
 	ATA_FLAG_SAS_HOST	= (1 << 24), /* SAS host */
 
 	/* bits 24:31 of ap->flags are reserved for LLD specific flags */
@@ -242,7 +242,7 @@ enum {
 	ATA_PFLAG_EXTERNAL	= (1 << 22),  /* eSATA/external port */
 
 	/* struct ata_queued_cmd flags */
-	ATA_QCFLAG_ACTIVE	= (1 << 0), /* cmd not yet ack'd to scsi lyer */
+	ATA_QCFLAG_ACTIVE	= (1 << 0), /* cmd yest yet ack'd to scsi lyer */
 	ATA_QCFLAG_DMAMAP	= (1 << 1), /* SG table is DMA mapped */
 	ATA_QCFLAG_IO		= (1 << 3), /* standard IO command */
 	ATA_QCFLAG_RESULT_TF	= (1 << 4), /* result TF requested */
@@ -258,7 +258,7 @@ enum {
 	ATA_HOST_SIMPLEX	= (1 << 0),	/* Host is simplex, one DMA channel per host only */
 	ATA_HOST_STARTED	= (1 << 1),	/* Host started */
 	ATA_HOST_PARALLEL_SCAN	= (1 << 2),	/* Ports on this host can be scanned in parallel */
-	ATA_HOST_IGNORE_ATA	= (1 << 3),	/* Ignore ATA devices on this host. */
+	ATA_HOST_IGNORE_ATA	= (1 << 3),	/* Igyesre ATA devices on this host. */
 
 	/* bits 24:31 of host->flags are reserved for LLD specific flags */
 
@@ -296,7 +296,7 @@ enum {
 	ATA_TMOUT_PMP_SRST_WAIT	= 5000,
 
 	/* When the LPM policy is set to ATA_LPM_MAX_POWER, there might
-	 * be a spurious PHY event, so ignore the first PHY event that
+	 * be a spurious PHY event, so igyesre the first PHY event that
 	 * occurs within 10s after the policy change.
 	 */
 	ATA_TMOUT_SPURIOUS_PHY	= 10000,
@@ -358,9 +358,9 @@ enum {
 
 	/* ata_eh_info->flags */
 	ATA_EHI_HOTPLUGGED	= (1 << 0),  /* could have been hotplugged */
-	ATA_EHI_NO_AUTOPSY	= (1 << 2),  /* no autopsy */
+	ATA_EHI_NO_AUTOPSY	= (1 << 2),  /* yes autopsy */
 	ATA_EHI_QUIET		= (1 << 3),  /* be quiet */
-	ATA_EHI_NO_RECOVERY	= (1 << 4),  /* no recovery */
+	ATA_EHI_NO_RECOVERY	= (1 << 4),  /* yes recovery */
 
 	ATA_EHI_DID_SOFTRESET	= (1 << 16), /* already soft-reset this port */
 	ATA_EHI_DID_HARDRESET	= (1 << 17), /* already soft-reset this port */
@@ -404,9 +404,9 @@ enum {
 	ATA_HORKAGE_HPA_SIZE	= (1 << 6),	/* native size off by one */
 	ATA_HORKAGE_IVB		= (1 << 8),	/* cbl det validity bit bugs */
 	ATA_HORKAGE_STUCK_ERR	= (1 << 9),	/* stuck ERR on next PACKET */
-	ATA_HORKAGE_BRIDGE_OK	= (1 << 10),	/* no bridge limits */
+	ATA_HORKAGE_BRIDGE_OK	= (1 << 10),	/* yes bridge limits */
 	ATA_HORKAGE_ATAPI_MOD16_DMA = (1 << 11), /* use ATAPI DMA for commands
-						    not multiple of 16 bytes */
+						    yest multiple of 16 bytes */
 	ATA_HORKAGE_FIRMWARE_WARN = (1 << 12),	/* firmware update warning */
 	ATA_HORKAGE_1_5_GBPS	= (1 << 13),	/* force 1.5 Gbps */
 	ATA_HORKAGE_NOSETXFER	= (1 << 14),	/* skip SETXFER, SATA only */
@@ -457,7 +457,7 @@ enum {
 	ATA_ACPI_FILTER_SETXFER	= 1 << 0,
 	ATA_ACPI_FILTER_LOCK	= 1 << 1,
 	ATA_ACPI_FILTER_DIPM	= 1 << 2,
-	ATA_ACPI_FILTER_FPDMA_OFFSET = 1 << 3,	/* FPDMA non-zero offset */
+	ATA_ACPI_FILTER_FPDMA_OFFSET = 1 << 3,	/* FPDMA yesn-zero offset */
 	ATA_ACPI_FILTER_FPDMA_AA = 1 << 4,	/* FPDMA auto activate */
 
 	ATA_ACPI_FILTER_DEFAULT	= ATA_ACPI_FILTER_SETXFER |
@@ -475,7 +475,7 @@ enum ata_xfer_mask {
 };
 
 enum hsm_task_states {
-	HSM_ST_IDLE,		/* no command on going */
+	HSM_ST_IDLE,		/* yes command on going */
 	HSM_ST_FIRST,		/* (waiting the device to)
 				   write CDB or first data block */
 	HSM_ST,			/* (waiting the device to) transfer data */
@@ -484,7 +484,7 @@ enum hsm_task_states {
 };
 
 enum ata_completion_errors {
-	AC_ERR_OK		= 0,	    /* no error */
+	AC_ERR_OK		= 0,	    /* yes error */
 	AC_ERR_DEV		= (1 << 0), /* device reported error */
 	AC_ERR_HSM		= (1 << 1), /* host state machine violation */
 	AC_ERR_TIMEOUT		= (1 << 2), /* timeout */
@@ -493,7 +493,7 @@ enum ata_completion_errors {
 	AC_ERR_HOST_BUS		= (1 << 5), /* host bus error */
 	AC_ERR_SYSTEM		= (1 << 6), /* system error */
 	AC_ERR_INVALID		= (1 << 7), /* invalid argument */
-	AC_ERR_OTHER		= (1 << 8), /* unknown */
+	AC_ERR_OTHER		= (1 << 8), /* unkyeswn */
 	AC_ERR_NODEV_HINT	= (1 << 9), /* polling device detection hint */
 	AC_ERR_NCQ		= (1 << 10), /* marker for offending NCQ qc */
 };
@@ -508,7 +508,7 @@ enum ata_lpm_policy {
 	ATA_LPM_MED_POWER,
 	ATA_LPM_MED_POWER_WITH_DIPM, /* Med power + DIPM as win IRST does */
 	ATA_LPM_MIN_POWER_WITH_PARTIAL, /* Min Power + partial and slumber */
-	ATA_LPM_MIN_POWER, /* Min power + no partial (slumber only) */
+	ATA_LPM_MIN_POWER, /* Min power + yes partial (slumber only) */
 };
 
 enum ata_lpm_hints {
@@ -669,7 +669,7 @@ struct ata_ering {
 
 struct ata_device {
 	struct ata_link		*link;
-	unsigned int		devno;		/* 0 or 1 */
+	unsigned int		devyes;		/* 0 or 1 */
 	unsigned int		horkage;	/* List of broken features */
 	unsigned long		flags;		/* ATA_DFLAG_xxx */
 	struct scsi_device	*sdev;		/* attached SCSI device */
@@ -718,12 +718,12 @@ struct ata_device {
 
 	/* NCQ send and receive log subcommand support */
 	u8			ncq_send_recv_cmds[ATA_LOG_NCQ_SEND_RECV_SIZE];
-	u8			ncq_non_data_cmds[ATA_LOG_NCQ_NON_DATA_SIZE];
+	u8			ncq_yesn_data_cmds[ATA_LOG_NCQ_NON_DATA_SIZE];
 
 	/* ZAC zone configuration */
 	u32			zac_zoned_cap;
 	u32			zac_zones_optimal_open;
-	u32			zac_zones_optimal_nonseq;
+	u32			zac_zones_optimal_yesnseq;
 	u32			zac_zones_max_open;
 
 	/* error history */
@@ -815,8 +815,8 @@ struct ata_port {
 	/* Flags that change dynamically, protected by ap->lock */
 	unsigned int		pflags; /* ATA_PFLAG_xxx */
 	unsigned int		print_id; /* user visible unique port ID */
-	unsigned int            local_port_no; /* host local port num */
-	unsigned int		port_no; /* 0 based port no. inside the host */
+	unsigned int            local_port_yes; /* host local port num */
+	unsigned int		port_yes; /* 0 based port yes. inside the host */
 
 #ifdef CONFIG_ATA_SFF
 	struct ata_ioports	ioaddr;	/* ATA cmd/ctl/dma register blocks */
@@ -882,7 +882,7 @@ struct ata_port {
 };
 
 /* The following initializer overrides a method to NULL whether one of
- * its parent has the method defined or not.  This is equivalent to
+ * its parent has the method defined or yest.  This is equivalent to
  * ERR_PTR(-ENOENT).  Unfortunately, ERR_PTR doesn't render a constant
  * expression and thus can't be used as an initializer.
  */
@@ -1020,7 +1020,7 @@ struct ata_timing {
 /*
  * Core layer - drivers/ata/libata-core.c
  */
-extern const unsigned long sata_deb_timing_normal[];
+extern const unsigned long sata_deb_timing_yesrmal[];
 extern const unsigned long sata_deb_timing_hotplug[];
 extern const unsigned long sata_deb_timing_long[];
 
@@ -1067,7 +1067,7 @@ sata_ehc_deb_timing(struct ata_eh_context *ehc)
 	if (ehc->i.flags & ATA_EHI_HOTPLUGGED)
 		return sata_deb_timing_hotplug;
 	else
-		return sata_deb_timing_normal;
+		return sata_deb_timing_yesrmal;
 }
 
 static inline int ata_port_is_dummy(struct ata_port *ap)
@@ -1162,7 +1162,7 @@ extern int ata_xfer_mode2shift(unsigned long xfer_mode);
 extern const char *ata_mode_string(unsigned long xfer_mask);
 extern unsigned long ata_id_xfermask(const u16 *id);
 extern int ata_std_qc_defer(struct ata_queued_cmd *qc);
-extern enum ata_completion_errors ata_noop_qc_prep(struct ata_queued_cmd *qc);
+extern enum ata_completion_errors ata_yesop_qc_prep(struct ata_queued_cmd *qc);
 extern void ata_sg_init(struct ata_queued_cmd *qc, struct scatterlist *sg,
 		 unsigned int n_elem);
 extern unsigned int ata_dev_classify(const struct ata_taskfile *tf);
@@ -1191,13 +1191,13 @@ extern struct ata_device *ata_dev_pair(struct ata_device *adev);
 extern int ata_do_set_mode(struct ata_link *link, struct ata_device **r_failed_dev);
 extern void ata_scsi_port_error_handler(struct Scsi_Host *host, struct ata_port *ap);
 extern void ata_scsi_cmd_error_handler(struct Scsi_Host *host, struct ata_port *ap, struct list_head *eh_q);
-extern bool sata_lpm_ignore_phy_events(struct ata_link *link);
+extern bool sata_lpm_igyesre_phy_events(struct ata_link *link);
 
 extern int ata_cable_40wire(struct ata_port *ap);
 extern int ata_cable_80wire(struct ata_port *ap);
 extern int ata_cable_sata(struct ata_port *ap);
-extern int ata_cable_ignore(struct ata_port *ap);
-extern int ata_cable_unknown(struct ata_port *ap);
+extern int ata_cable_igyesre(struct ata_port *ap);
+extern int ata_cable_unkyeswn(struct ata_port *ap);
 
 /* Timing helpers */
 extern unsigned int ata_pio_need_iordy(const struct ata_device *);
@@ -1289,7 +1289,7 @@ extern void ata_port_wait_eh(struct ata_port *ap);
 extern int ata_link_abort(struct ata_link *link);
 extern int ata_port_abort(struct ata_port *ap);
 extern int ata_port_freeze(struct ata_port *ap);
-extern int sata_async_notification(struct ata_port *ap);
+extern int sata_async_yestification(struct ata_port *ap);
 
 extern void ata_eh_freeze_port(struct ata_port *ap);
 extern void ata_eh_thaw_port(struct ata_port *ap);
@@ -1416,7 +1416,7 @@ void ata_dev_printk(const struct ata_device *dev, const char *level,
 	ata_port_printk(ap, KERN_ERR, fmt, ##__VA_ARGS__)
 #define ata_port_warn(ap, fmt, ...)				\
 	ata_port_printk(ap, KERN_WARNING, fmt, ##__VA_ARGS__)
-#define ata_port_notice(ap, fmt, ...)				\
+#define ata_port_yestice(ap, fmt, ...)				\
 	ata_port_printk(ap, KERN_NOTICE, fmt, ##__VA_ARGS__)
 #define ata_port_info(ap, fmt, ...)				\
 	ata_port_printk(ap, KERN_INFO, fmt, ##__VA_ARGS__)
@@ -1427,7 +1427,7 @@ void ata_dev_printk(const struct ata_device *dev, const char *level,
 	ata_link_printk(link, KERN_ERR, fmt, ##__VA_ARGS__)
 #define ata_link_warn(link, fmt, ...)				\
 	ata_link_printk(link, KERN_WARNING, fmt, ##__VA_ARGS__)
-#define ata_link_notice(link, fmt, ...)				\
+#define ata_link_yestice(link, fmt, ...)				\
 	ata_link_printk(link, KERN_NOTICE, fmt, ##__VA_ARGS__)
 #define ata_link_info(link, fmt, ...)				\
 	ata_link_printk(link, KERN_INFO, fmt, ##__VA_ARGS__)
@@ -1438,7 +1438,7 @@ void ata_dev_printk(const struct ata_device *dev, const char *level,
 	ata_dev_printk(dev, KERN_ERR, fmt, ##__VA_ARGS__)
 #define ata_dev_warn(dev, fmt, ...)				\
 	ata_dev_printk(dev, KERN_WARNING, fmt, ##__VA_ARGS__)
-#define ata_dev_notice(dev, fmt, ...)				\
+#define ata_dev_yestice(dev, fmt, ...)				\
 	ata_dev_printk(dev, KERN_NOTICE, fmt, ##__VA_ARGS__)
 #define ata_dev_info(dev, fmt, ...)				\
 	ata_dev_printk(dev, KERN_INFO, fmt, ##__VA_ARGS__)
@@ -1489,7 +1489,7 @@ static inline bool ata_tag_valid(unsigned int tag)
 	     ({ qc = fn((ap), (tag)); 1; }); (tag)++)		\
 
 /*
- * Internal use only, iterate commands ignoring error handling and
+ * Internal use only, iterate commands igyesring error handling and
  * status of 'qc'.
  */
 #define ata_qc_for_each_raw(ap, qc, tag)					\
@@ -1573,7 +1573,7 @@ static inline int ata_link_active(struct ata_link *link)
  */
 enum ata_link_iter_mode {
 	ATA_LITER_EDGE,		/* if present, PMP links only; otherwise,
-				 * host link.  no slave link */
+				 * host link.  yes slave link */
 	ATA_LITER_HOST_FIRST,	/* host link followed by PMP or slave links */
 	ATA_LITER_PMP_FIRST,	/* PMP links followed by host link,
 				 * slave link still comes after host link */
@@ -1595,7 +1595,7 @@ extern struct ata_device *ata_dev_next(struct ata_device *dev,
 				       enum ata_dev_iter_mode mode);
 
 /*
- * Shortcut notation for iterations
+ * Shortcut yestation for iterations
  *
  * ata_for_each_link() iterates over each link of @ap according to
  * @mode.  @link points to the current link in the loop.  @link is
@@ -1603,9 +1603,9 @@ extern struct ata_device *ata_dev_next(struct ata_device *dev,
  * except that it iterates over each device of @link.
  *
  * Note that the mode prefixes ATA_{L|D}ITER_ shouldn't need to be
- * specified when using the following shorthand notations.  Only the
+ * specified when using the following shorthand yestations.  Only the
  * mode itself (EDGE, HOST_FIRST, ENABLED, etc...) should be
- * specified.  This not only increases brevity but also makes it
+ * specified.  This yest only increases brevity but also makes it
  * impossible to use ATA_LITER_* for device iteration or vice-versa.
  */
 #define ata_for_each_link(link, ap, mode) \
@@ -1655,7 +1655,7 @@ static inline bool ata_fpdma_zac_mgmt_in_supported(struct ata_device *dev)
 
 static inline bool ata_fpdma_zac_mgmt_out_supported(struct ata_device *dev)
 {
-	return (dev->ncq_non_data_cmds[ATA_LOG_NCQ_NON_DATA_ZAC_MGMT_OFFSET] &
+	return (dev->ncq_yesn_data_cmds[ATA_LOG_NCQ_NON_DATA_ZAC_MGMT_OFFSET] &
 		ATA_LOG_NCQ_NON_DATA_ZAC_MGMT_OUT);
 }
 
@@ -1701,7 +1701,7 @@ static inline void ata_tf_init(struct ata_device *dev, struct ata_taskfile *tf)
 #else
 	tf->ctl = ATA_DEVCTL_OBS;
 #endif
-	if (dev->devno == 0)
+	if (dev->devyes == 0)
 		tf->device = ATA_DEVICE_OBS;
 	else
 		tf->device = ATA_DEVICE_OBS | ATA_DEV1;
@@ -1721,7 +1721,7 @@ static inline void ata_qc_reinit(struct ata_queued_cmd *qc)
 
 	ata_tf_init(qc->dev, &qc->tf);
 
-	/* init result_tf such that it indicates normal completion */
+	/* init result_tf such that it indicates yesrmal completion */
 	qc->result_tf.command = ATA_DRDY;
 	qc->result_tf.feature = 0;
 }
@@ -1760,7 +1760,7 @@ static inline int ata_check_ready(u8 status)
 	if (!(status & ATA_BUSY))
 		return 1;
 
-	/* 0xff indicates either no device or device not ready */
+	/* 0xff indicates either yes device or device yest ready */
 	if (status == 0xff)
 		return -ENODEV;
 
@@ -1774,7 +1774,7 @@ static inline unsigned long ata_deadline(unsigned long from_jiffies,
 }
 
 /* Don't open code these in drivers as there are traps. Firstly the range may
-   change in future hardware and specs, secondly 0xFF means 'no DMA' but is
+   change in future hardware and specs, secondly 0xFF means 'yes DMA' but is
    > UDMA_0. Dyma ddreigiau */
 
 static inline int ata_using_mwdma(struct ata_device *adev)
@@ -1967,7 +1967,7 @@ static inline u8 ata_wait_idle(struct ata_port *ap)
 
 #ifdef ATA_DEBUG
 	if (status != 0xff && (status & (ATA_BUSY | ATA_DRQ)))
-		ata_port_printk(ap, KERN_DEBUG, "abnormal Status 0x%X\n",
+		ata_port_printk(ap, KERN_DEBUG, "abyesrmal Status 0x%X\n",
 				status);
 #endif
 

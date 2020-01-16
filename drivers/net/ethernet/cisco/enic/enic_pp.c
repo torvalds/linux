@@ -18,7 +18,7 @@
 
 #include <linux/kernel.h>
 #include <linux/string.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/types.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
@@ -99,7 +99,7 @@ static int enic_set_port_profile(struct enic *enic, int vf)
 	} else if (vf == PORT_SELF_VF) {
 		client_mac = netdev->dev_addr;
 	} else {
-		netdev_err(netdev, "Cannot find pp mac address "
+		netdev_err(netdev, "Canyest find pp mac address "
 			"for VF %d\n", vf);
 		err = -EINVAL;
 		goto add_tlv_failure;
@@ -134,7 +134,7 @@ static int enic_set_port_profile(struct enic *enic, int vf)
 
 	ENIC_DEVCMD_PROXY_BY_INDEX(vf, err, enic, vnic_dev_init_prov2, (u8 *)vp,
 		vic_provinfo_size(vp));
-	err = enic_dev_status_to_errno(err);
+	err = enic_dev_status_to_erryes(err);
 
 add_tlv_failure:
 	vic_provinfo_free(vp);
@@ -148,7 +148,7 @@ static int enic_unset_port_profile(struct enic *enic, int vf)
 
 	ENIC_DEVCMD_PROXY_BY_INDEX(vf, err, enic, vnic_dev_deinit);
 	if (err)
-		return enic_dev_status_to_errno(err);
+		return enic_dev_status_to_erryes(err);
 
 	if (vf == PORT_SELF_VF)
 		enic_reset_addr_lists(enic);
@@ -226,7 +226,7 @@ static int enic_pp_preassociate_rr(struct enic *enic, int vf,
 		return err;
 
 	if (pp->request != PORT_REQUEST_ASSOCIATE) {
-		/* If pre-associate is not part of an associate.
+		/* If pre-associate is yest part of an associate.
 		We always disassociate first */
 		err = enic_pp_handlers[PORT_REQUEST_DISASSOCIATE](enic, vf,
 			prev_pp, restore_pp);
@@ -242,12 +242,12 @@ static int enic_pp_preassociate_rr(struct enic *enic, int vf,
 	if (err)
 		return err;
 
-	/* If pre-associate is not part of an associate. */
+	/* If pre-associate is yest part of an associate. */
 	if (pp->request != PORT_REQUEST_ASSOCIATE) {
 		/* Enable device as standby */
 		ENIC_DEVCMD_PROXY_BY_INDEX(vf, err, enic, vnic_dev_enable2,
 			active);
-		err = enic_dev_status_to_errno(err);
+		err = enic_dev_status_to_erryes(err);
 	}
 
 	return err;
@@ -286,7 +286,7 @@ static int enic_pp_associate(struct enic *enic, int vf,
 
 	/* Enable device as active */
 	ENIC_DEVCMD_PROXY_BY_INDEX(vf, err, enic, vnic_dev_enable2, active);
-	err = enic_dev_status_to_errno(err);
+	err = enic_dev_status_to_erryes(err);
 	if (err)
 		return err;
 

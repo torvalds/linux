@@ -94,7 +94,7 @@ static int unwind_entry(struct unwind_entry *entry, void *arg)
 	return strcmp((const char *) symbol, funcs[idx]);
 }
 
-noinline int test_dwarf_unwind__thread(struct thread *thread)
+yesinline int test_dwarf_unwind__thread(struct thread *thread)
 {
 	struct perf_sample sample;
 	unsigned long cnt = 0;
@@ -125,7 +125,7 @@ noinline int test_dwarf_unwind__thread(struct thread *thread)
 
 static int global_unwind_retval = -INT_MAX;
 
-noinline int test_dwarf_unwind__compare(void *p1, void *p2)
+yesinline int test_dwarf_unwind__compare(void *p1, void *p2)
 {
 	/* Any possible value should be 'thread' */
 	struct thread *thread = *(struct thread **)p1;
@@ -144,7 +144,7 @@ noinline int test_dwarf_unwind__compare(void *p1, void *p2)
 	return p1 - p2;
 }
 
-noinline int test_dwarf_unwind__krava_3(struct thread *thread)
+yesinline int test_dwarf_unwind__krava_3(struct thread *thread)
 {
 	struct thread *array[2] = {thread, thread};
 	void *fp = &bsearch;
@@ -163,12 +163,12 @@ noinline int test_dwarf_unwind__krava_3(struct thread *thread)
 	return global_unwind_retval;
 }
 
-noinline int test_dwarf_unwind__krava_2(struct thread *thread)
+yesinline int test_dwarf_unwind__krava_2(struct thread *thread)
 {
 	return test_dwarf_unwind__krava_3(thread);
 }
 
-noinline int test_dwarf_unwind__krava_1(struct thread *thread)
+yesinline int test_dwarf_unwind__krava_1(struct thread *thread)
 {
 	return test_dwarf_unwind__krava_2(thread);
 }
@@ -181,7 +181,7 @@ int test__dwarf_unwind(struct test *test __maybe_unused, int subtest __maybe_unu
 
 	machine = machine__new_host();
 	if (!machine) {
-		pr_err("Could not get machine\n");
+		pr_err("Could yest get machine\n");
 		return -1;
 	}
 
@@ -194,7 +194,7 @@ int test__dwarf_unwind(struct test *test __maybe_unused, int subtest __maybe_unu
 	dwarf_callchain_users = true;
 
 	if (init_live_machine(machine)) {
-		pr_err("Could not init machine\n");
+		pr_err("Could yest init machine\n");
 		goto out;
 	}
 
@@ -203,7 +203,7 @@ int test__dwarf_unwind(struct test *test __maybe_unused, int subtest __maybe_unu
 
 	thread = machine__find_thread(machine, getpid(), getpid());
 	if (!thread) {
-		pr_err("Could not get thread\n");
+		pr_err("Could yest get thread\n");
 		goto out;
 	}
 

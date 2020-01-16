@@ -118,7 +118,7 @@ void efi_call_virt_check_flags(unsigned long flags, const char *call)
 }
 
 /*
- * According to section 7.1 of the UEFI spec, Runtime Services are not fully
+ * According to section 7.1 of the UEFI spec, Runtime Services are yest fully
  * reentrant, and there are particular combinations of calls that need to be
  * serialized. (source: UEFI Specification v2.4A)
  *
@@ -134,7 +134,7 @@ void efi_call_virt_check_flags(unsigned long flags, const char *call)
  * | UpdateCapsule()			|				|
  * | SetTime()				|				|
  * | SetWakeupTime()			|				|
- * | GetNextHighMonotonicCount()	|				|
+ * | GetNextHighMoyestonicCount()	|				|
  * +------------------------------------+-------------------------------+
  * | GetVariable()			| GetVariable()			|
  * | GetNextVariableName()		| GetNextVariableName()		|
@@ -142,7 +142,7 @@ void efi_call_virt_check_flags(unsigned long flags, const char *call)
  * | QueryVariableInfo()		| QueryVariableInfo()		|
  * | UpdateCapsule()			| UpdateCapsule()		|
  * | QueryCapsuleCapabilities()		| QueryCapsuleCapabilities()	|
- * | GetNextHighMonotonicCount()	| GetNextHighMonotonicCount()	|
+ * | GetNextHighMoyestonicCount()	| GetNextHighMoyestonicCount()	|
  * +------------------------------------+-------------------------------+
  * | GetTime()				| GetTime()			|
  * | SetTime()				| SetTime()			|
@@ -153,7 +153,7 @@ void efi_call_virt_check_flags(unsigned long flags, const char *call)
  * Due to the fact that the EFI pstore may write to the variable store in
  * interrupt context, we need to use a lock for at least the groups that
  * contain SetVariable() and QueryVariableInfo(). That leaves little else, as
- * none of the remaining functions are actually ever called at runtime.
+ * yesne of the remaining functions are actually ever called at runtime.
  * So let's just use a single lock to serialize all Runtime Services calls.
  */
 static DEFINE_SEMAPHORE(efi_runtime_lock);
@@ -222,7 +222,7 @@ static void efi_call_rts(struct work_struct *work)
 				       (u64 *)arg2, (u64 *)arg3, (u64 *)arg4);
 		break;
 	case EFI_GET_NEXT_HIGH_MONO_COUNT:
-		status = efi_call_virt(get_next_high_mono_count, (u32 *)arg1);
+		status = efi_call_virt(get_next_high_moyes_count, (u32 *)arg1);
 		break;
 	case EFI_UPDATE_CAPSULE:
 		status = efi_call_virt(update_capsule,
@@ -343,7 +343,7 @@ static efi_status_t virt_efi_set_variable(efi_char16_t *name,
 }
 
 static efi_status_t
-virt_efi_set_variable_nonblocking(efi_char16_t *name, efi_guid_t *vendor,
+virt_efi_set_variable_yesnblocking(efi_char16_t *name, efi_guid_t *vendor,
 				  u32 attr, unsigned long data_size,
 				  void *data)
 {
@@ -378,7 +378,7 @@ static efi_status_t virt_efi_query_variable_info(u32 attr,
 }
 
 static efi_status_t
-virt_efi_query_variable_info_nonblocking(u32 attr,
+virt_efi_query_variable_info_yesnblocking(u32 attr,
 					 u64 *storage_space,
 					 u64 *remaining_space,
 					 u64 *max_variable_size)
@@ -397,7 +397,7 @@ virt_efi_query_variable_info_nonblocking(u32 attr,
 	return status;
 }
 
-static efi_status_t virt_efi_get_next_high_mono_count(u32 *count)
+static efi_status_t virt_efi_get_next_high_moyes_count(u32 *count)
 {
 	efi_status_t status;
 
@@ -416,7 +416,7 @@ static void virt_efi_reset_system(int reset_type,
 {
 	if (down_interruptible(&efi_runtime_lock)) {
 		pr_warn("failed to invoke the reset_system() runtime service:\n"
-			"could not get exclusive access to the firmware\n");
+			"could yest get exclusive access to the firmware\n");
 		return;
 	}
 	efi_rts_work.efi_rts_id = EFI_RESET_SYSTEM;
@@ -468,11 +468,11 @@ void efi_native_runtime_setup(void)
 	efi.get_variable = virt_efi_get_variable;
 	efi.get_next_variable = virt_efi_get_next_variable;
 	efi.set_variable = virt_efi_set_variable;
-	efi.set_variable_nonblocking = virt_efi_set_variable_nonblocking;
-	efi.get_next_high_mono_count = virt_efi_get_next_high_mono_count;
+	efi.set_variable_yesnblocking = virt_efi_set_variable_yesnblocking;
+	efi.get_next_high_moyes_count = virt_efi_get_next_high_moyes_count;
 	efi.reset_system = virt_efi_reset_system;
 	efi.query_variable_info = virt_efi_query_variable_info;
-	efi.query_variable_info_nonblocking = virt_efi_query_variable_info_nonblocking;
+	efi.query_variable_info_yesnblocking = virt_efi_query_variable_info_yesnblocking;
 	efi.update_capsule = virt_efi_update_capsule;
 	efi.query_capsule_caps = virt_efi_query_capsule_caps;
 }

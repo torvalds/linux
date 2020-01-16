@@ -307,7 +307,7 @@ static int alsa_hw_rule(struct snd_pcm_hw_params *params,
 	changed  = 0;
 
 	sndif_formats = to_alsa_formats_mask(resp.formats);
-	snd_mask_none(&mask);
+	snd_mask_yesne(&mask);
 	mask.bits[0] = (u32)sndif_formats;
 	mask.bits[1] = (u32)(sndif_formats >> 32);
 	ret = snd_mask_refine(formats, &mask);
@@ -683,10 +683,10 @@ static int alsa_pb_fill_silence(struct snd_pcm_substream *substream,
 }
 
 /*
- * FIXME: The mmaped data transfer is asynchronous and there is no
+ * FIXME: The mmaped data transfer is asynchroyesus and there is yes
  * ack signal from user-space when it is done. This is the
- * reason it is not implemented in the PV driver as we do need
- * to know when the buffer can be transferred to the backend.
+ * reason it is yest implemented in the PV driver as we do need
+ * to kyesw when the buffer can be transferred to the backend.
  */
 
 static const struct snd_pcm_ops snd_drv_alsa_playback_ops = {
@@ -783,8 +783,8 @@ static int new_pcm_instance(struct xen_snd_front_card_info *card_info,
 
 	pcm->private_data = pcm_instance_info;
 	pcm->info_flags = 0;
-	/* we want to handle all PCM operations in non-atomic context */
-	pcm->nonatomic = true;
+	/* we want to handle all PCM operations in yesn-atomic context */
+	pcm->yesnatomic = true;
 	strncpy(pcm->name, "Virtual card PCM", sizeof(pcm->name));
 
 	if (instance_cfg->num_streams_pb)

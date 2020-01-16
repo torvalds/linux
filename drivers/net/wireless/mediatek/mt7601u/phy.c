@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * (c) Copyright 2002-2010, Ralink Technology, Inc.
+ * (c) Copyright 2002-2010, Ralink Techyeslogy, Inc.
  * Copyright (C) 2014 Felix Fietkau <nbd@openwrt.org>
  * Copyright (C) 2015 Jakub Kicinski <kubakici@wp.pl>
  */
@@ -218,7 +218,7 @@ int mt7601u_wait_bbp_ready(struct mt7601u_dev *dev)
 	} while (--i);
 
 	if (!i) {
-		dev_err(dev->dev, "Error: BBP is not ready\n");
+		dev_err(dev->dev, "Error: BBP is yest ready\n");
 		return -EIO;
 	}
 
@@ -762,7 +762,7 @@ static int mt7601u_temp_comp(struct mt7601u_dev *dev, bool on)
 	if (temp > hi_temp)
 		return mt7601u_bbp_temp(dev, MT_TEMP_MODE_HIGH, "high");
 	else if (temp > lo_temp)
-		return mt7601u_bbp_temp(dev, MT_TEMP_MODE_NORMAL, "normal");
+		return mt7601u_bbp_temp(dev, MT_TEMP_MODE_NORMAL, "yesrmal");
 	else
 		return mt7601u_bbp_temp(dev, MT_TEMP_MODE_LOW, "low");
 }
@@ -972,8 +972,8 @@ static void mt7601u_agc_tune(struct mt7601u_dev *dev)
 	if (test_bit(MT7601U_STATE_SCANNING, &dev->state))
 		return;
 
-	/* Note: only in STA mode and not dozing; perhaps do this only if
-	 *	 there is enough rssi updates since last run?
+	/* Note: only in STA mode and yest dozing; perhaps do this only if
+	 *	 there is eyesugh rssi updates since last run?
 	 *	 Rssi updates are only on beacons and U2M so should work...
 	 */
 	spin_lock_bh(&dev->con_mon_lock);
@@ -1091,7 +1091,7 @@ static void mt7601u_phy_freq_cal(struct work_struct *work)
 	spin_unlock_bh(&dev->con_mon_lock);
 }
 
-void mt7601u_phy_con_cal_onoff(struct mt7601u_dev *dev,
+void mt7601u_phy_con_cal_oyesff(struct mt7601u_dev *dev,
 			       struct ieee80211_bss_conf *info)
 {
 	if (!info->assoc)
@@ -1176,7 +1176,7 @@ int mt7601u_bbp_set_bw(struct mt7601u_dev *dev, int bw)
 	u32 val, old;
 
 	if (bw == dev->bw) {
-		/* Vendor driver does the rmc even when no change is needed. */
+		/* Vendor driver does the rmc even when yes change is needed. */
 		mt7601u_bbp_rmc(dev, 4, 0x18, bw == MT_BW_20 ? 0 : 0x10);
 
 		return 0;

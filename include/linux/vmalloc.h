@@ -11,7 +11,7 @@
 #include <linux/overflow.h>
 
 struct vm_area_struct;		/* vma defining user mapping in mm_types.h */
-struct notifier_block;		/* in notifier.h */
+struct yestifier_block;		/* in yestifier.h */
 
 /* bits in flags of vmalloc's vm_struct below */
 #define VM_IOREMAP		0x00000001	/* ioremap() and friends */
@@ -19,7 +19,7 @@ struct notifier_block;		/* in notifier.h */
 #define VM_MAP			0x00000004	/* vmap()ed pages */
 #define VM_USERMAP		0x00000008	/* suitable for remap_vmalloc_range */
 #define VM_DMA_COHERENT		0x00000010	/* dma_alloc_coherent */
-#define VM_UNINITIALIZED	0x00000020	/* vm_struct is not fully initialized */
+#define VM_UNINITIALIZED	0x00000020	/* vm_struct is yest fully initialized */
 #define VM_NO_GUARD		0x00000040      /* don't add guard page */
 #define VM_KASAN		0x00000080      /* has allocated kasan shadow memory */
 
@@ -35,7 +35,7 @@ struct notifier_block;		/* in notifier.h */
  */
 
 /*
- * Memory with VM_FLUSH_RESET_PERMS cannot be freed in an interrupt or with
+ * Memory with VM_FLUSH_RESET_PERMS canyest be freed in an interrupt or with
  * vfree_atomic().
  */
 #define VM_FLUSH_RESET_PERMS	0x00000100      /* Reset direct map and flush TLB on unmap */
@@ -65,7 +65,7 @@ struct vmap_area {
 	unsigned long va_start;
 	unsigned long va_end;
 
-	struct rb_node rb_node;         /* address sorted rbtree */
+	struct rb_yesde rb_yesde;         /* address sorted rbtree */
 	struct list_head list;          /* address sorted list */
 
 	/*
@@ -78,7 +78,7 @@ struct vmap_area {
 	union {
 		unsigned long subtree_max_size; /* in "free" tree */
 		struct vm_struct *vm;           /* in "busy" tree */
-		struct llist_node purge_list;   /* in purge list */
+		struct llist_yesde purge_list;   /* in purge list */
 	};
 };
 
@@ -87,7 +87,7 @@ struct vmap_area {
  */
 extern void vm_unmap_ram(const void *mem, unsigned int count);
 extern void *vm_map_ram(struct page **pages, unsigned int count,
-				int node, pgprot_t prot);
+				int yesde, pgprot_t prot);
 extern void vm_unmap_aliases(void);
 
 #ifdef CONFIG_MMU
@@ -103,27 +103,27 @@ static inline unsigned long vmalloc_nr_pages(void) { return 0; }
 extern void *vmalloc(unsigned long size);
 extern void *vzalloc(unsigned long size);
 extern void *vmalloc_user(unsigned long size);
-extern void *vmalloc_node(unsigned long size, int node);
-extern void *vzalloc_node(unsigned long size, int node);
-extern void *vmalloc_user_node_flags(unsigned long size, int node, gfp_t flags);
+extern void *vmalloc_yesde(unsigned long size, int yesde);
+extern void *vzalloc_yesde(unsigned long size, int yesde);
+extern void *vmalloc_user_yesde_flags(unsigned long size, int yesde, gfp_t flags);
 extern void *vmalloc_exec(unsigned long size);
 extern void *vmalloc_32(unsigned long size);
 extern void *vmalloc_32_user(unsigned long size);
 extern void *__vmalloc(unsigned long size, gfp_t gfp_mask, pgprot_t prot);
-extern void *__vmalloc_node_range(unsigned long size, unsigned long align,
+extern void *__vmalloc_yesde_range(unsigned long size, unsigned long align,
 			unsigned long start, unsigned long end, gfp_t gfp_mask,
-			pgprot_t prot, unsigned long vm_flags, int node,
+			pgprot_t prot, unsigned long vm_flags, int yesde,
 			const void *caller);
 #ifndef CONFIG_MMU
-extern void *__vmalloc_node_flags(unsigned long size, int node, gfp_t flags);
-static inline void *__vmalloc_node_flags_caller(unsigned long size, int node,
+extern void *__vmalloc_yesde_flags(unsigned long size, int yesde, gfp_t flags);
+static inline void *__vmalloc_yesde_flags_caller(unsigned long size, int yesde,
 						gfp_t flags, void *caller)
 {
-	return __vmalloc_node_flags(size, node, flags);
+	return __vmalloc_yesde_flags(size, yesde, flags);
 }
 #else
-extern void *__vmalloc_node_flags_caller(unsigned long size,
-					 int node, gfp_t flags, void *caller);
+extern void *__vmalloc_yesde_flags_caller(unsigned long size,
+					 int yesde, gfp_t flags, void *caller);
 #endif
 
 extern void vfree(const void *addr);
@@ -142,7 +142,7 @@ extern int remap_vmalloc_range(struct vm_area_struct *vma, void *addr,
 void vmalloc_sync_all(void);
  
 /*
- *	Lowlevel-APIs (not for driver use!)
+ *	Lowlevel-APIs (yest for driver use!)
  */
 
 static inline size_t get_vm_area_size(const struct vm_struct *area)
@@ -170,9 +170,9 @@ extern struct vm_struct *find_vm_area(const void *addr);
 extern int map_vm_area(struct vm_struct *area, pgprot_t prot,
 			struct page **pages);
 #ifdef CONFIG_MMU
-extern int map_kernel_range_noflush(unsigned long start, unsigned long size,
+extern int map_kernel_range_yesflush(unsigned long start, unsigned long size,
 				    pgprot_t prot, struct page **pages);
-extern void unmap_kernel_range_noflush(unsigned long addr, unsigned long size);
+extern void unmap_kernel_range_yesflush(unsigned long addr, unsigned long size);
 extern void unmap_kernel_range(unsigned long addr, unsigned long size);
 static inline void set_vm_flush_reset_perms(void *addr)
 {
@@ -183,13 +183,13 @@ static inline void set_vm_flush_reset_perms(void *addr)
 }
 #else
 static inline int
-map_kernel_range_noflush(unsigned long start, unsigned long size,
+map_kernel_range_yesflush(unsigned long start, unsigned long size,
 			pgprot_t prot, struct page **pages)
 {
 	return size >> PAGE_SHIFT;
 }
 static inline void
-unmap_kernel_range_noflush(unsigned long addr, unsigned long size)
+unmap_kernel_range_yesflush(unsigned long addr, unsigned long size)
 {
 }
 static inline void
@@ -245,7 +245,7 @@ pcpu_free_vm_areas(struct vm_struct **vms, int nr_vms)
 #define VMALLOC_TOTAL 0UL
 #endif
 
-int register_vmap_purge_notifier(struct notifier_block *nb);
-int unregister_vmap_purge_notifier(struct notifier_block *nb);
+int register_vmap_purge_yestifier(struct yestifier_block *nb);
+int unregister_vmap_purge_yestifier(struct yestifier_block *nb);
 
 #endif /* _LINUX_VMALLOC_H */

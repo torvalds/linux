@@ -142,19 +142,19 @@
 #define AC97_CX_SPDIF		(1<<3)	/* Conexant's spdif interface */
 #define AC97_STEREO_MUTES	(1<<4)	/* has stereo mute bits */
 #define AC97_DOUBLE_RATE	(1<<5)	/* supports double rate playback */
-#define AC97_HAS_NO_MASTER_VOL	(1<<6)	/* no Master volume */
-#define AC97_HAS_NO_PCM_VOL	(1<<7)	/* no PCM volume */
-#define AC97_DEFAULT_POWER_OFF	(1<<8)	/* no RESET write */
+#define AC97_HAS_NO_MASTER_VOL	(1<<6)	/* yes Master volume */
+#define AC97_HAS_NO_PCM_VOL	(1<<7)	/* yes PCM volume */
+#define AC97_DEFAULT_POWER_OFF	(1<<8)	/* yes RESET write */
 #define AC97_MODEM_PATCH	(1<<9)	/* modem patch */
-#define AC97_HAS_NO_REC_GAIN	(1<<10) /* no Record gain */
-#define AC97_HAS_NO_PHONE	(1<<11) /* no PHONE volume */
-#define AC97_HAS_NO_PC_BEEP	(1<<12) /* no PC Beep volume */
-#define AC97_HAS_NO_VIDEO	(1<<13) /* no Video volume */
-#define AC97_HAS_NO_CD		(1<<14) /* no CD volume */
-#define AC97_HAS_NO_MIC	(1<<15) /* no MIC volume */
-#define AC97_HAS_NO_TONE	(1<<16) /* no Tone volume */
-#define AC97_HAS_NO_STD_PCM	(1<<17)	/* no standard AC97 PCM volume and mute */
-#define AC97_HAS_NO_AUX		(1<<18) /* no standard AC97 AUX volume and mute */
+#define AC97_HAS_NO_REC_GAIN	(1<<10) /* yes Record gain */
+#define AC97_HAS_NO_PHONE	(1<<11) /* yes PHONE volume */
+#define AC97_HAS_NO_PC_BEEP	(1<<12) /* yes PC Beep volume */
+#define AC97_HAS_NO_VIDEO	(1<<13) /* yes Video volume */
+#define AC97_HAS_NO_CD		(1<<14) /* yes CD volume */
+#define AC97_HAS_NO_MIC	(1<<15) /* yes MIC volume */
+#define AC97_HAS_NO_TONE	(1<<16) /* yes Tone volume */
+#define AC97_HAS_NO_STD_PCM	(1<<17)	/* yes standard AC97 PCM volume and mute */
+#define AC97_HAS_NO_AUX		(1<<18) /* yes standard AC97 AUX volume and mute */
 #define AC97_HAS_8CH		(1<<19) /* supports 8-channel output */
 
 /* rates indexes */
@@ -203,7 +203,7 @@ struct snd_ac97_bus {
 	/* --- */
 	struct snd_card *card;
 	unsigned short num;	/* bus number */
-	unsigned short no_vra: 1, /* bridge doesn't support VRA */
+	unsigned short yes_vra: 1, /* bridge doesn't support VRA */
 		       dra: 1,	/* bridge supports double rate */
 		       isdin: 1;/* independent SDIN */
 	unsigned int clock;	/* AC'97 base clock (usually 48000Hz) */
@@ -340,8 +340,8 @@ int snd_ac97_reset(struct snd_ac97 *ac97, bool try_warm, unsigned int id,
 
 /* quirk types */
 enum {
-	AC97_TUNE_DEFAULT = -1,	/* use default from quirk list (not valid in list) */
-	AC97_TUNE_NONE = 0,	/* nothing extra to do */
+	AC97_TUNE_DEFAULT = -1,	/* use default from quirk list (yest valid in list) */
+	AC97_TUNE_NONE = 0,	/* yesthing extra to do */
 	AC97_TUNE_HP_ONLY,	/* headphone (true line-out) control as master only */
 	AC97_TUNE_SWAP_HP,	/* swap headphone and master controls */
 	AC97_TUNE_SWAP_SURROUND, /* swap master and surround controls */

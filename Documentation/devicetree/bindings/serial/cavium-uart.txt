@@ -1,4 +1,4 @@
-* Universal Asynchronous Receiver/Transmitter (UART)
+* Universal Asynchroyesus Receiver/Transmitter (UART)
 
 - compatible: "cavium,octeon-3860-uart"
 

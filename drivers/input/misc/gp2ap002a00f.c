@@ -32,7 +32,7 @@ enum gp2a_addr {
 };
 
 enum gp2a_controls {
-	/* Software Shutdown control: 0 = shutdown, 1 = normal operation */
+	/* Software Shutdown control: 0 = shutdown, 1 = yesrmal operation */
 	GP2A_CTRL_SSD	= 0x01
 };
 

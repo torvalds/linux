@@ -84,20 +84,20 @@ static const int ppr_to_ps[] = {
  * by 4 */
 #define SPI_STATIC_PPR	0x0c
 
-static int sprint_frac(char *dest, int value, int denom)
+static int sprint_frac(char *dest, int value, int deyesm)
 {
-	int frac = value % denom;
-	int result = sprintf(dest, "%d", value / denom);
+	int frac = value % deyesm;
+	int result = sprintf(dest, "%d", value / deyesm);
 
 	if (frac == 0)
 		return result;
 	dest[result++] = '.';
 
 	do {
-		denom /= 10;
-		sprintf(dest + result, "%d", frac / denom);
+		deyesm /= 10;
+		sprintf(dest + result, "%d", frac / deyesm);
 		result++;
-		frac %= denom;
+		frac %= deyesm;
 	} while (frac);
 
 	dest[result++] = '\0';
@@ -134,7 +134,7 @@ static struct {
 	enum spi_signal_type	value;
 	char			*name;
 } signal_types[] = {
-	{ SPI_SIGNAL_UNKNOWN, "unknown" },
+	{ SPI_SIGNAL_UNKNOWN, "unkyeswn" },
 	{ SPI_SIGNAL_SE, "SE" },
 	{ SPI_SIGNAL_LVD, "LVD" },
 	{ SPI_SIGNAL_HVD, "HVD" },
@@ -244,7 +244,7 @@ static int spi_setup_transport_attrs(struct transport_container *tc,
 	spi_max_offset(starget) = 255;
 	spi_width(starget) = 0;	/* narrow */
 	spi_max_width(starget) = 1;
-	spi_iu(starget) = 0;	/* no IU */
+	spi_iu(starget) = 0;	/* yes IU */
 	spi_max_iu(starget) = 1;
 	spi_dt(starget) = 0;	/* ST */
 	spi_qas(starget) = 0;
@@ -787,7 +787,7 @@ spi_dv_retrain(struct scsi_device *sdev, u8 *buffer, u8 *ptr,
 
 			if (unlikely(period > 0xff || period == prevperiod)) {
 				/* Total failure; set to async and return */
-				starget_printk(KERN_ERR, starget, "Domain Validation Failure, dropping back to Asynchronous\n");
+				starget_printk(KERN_ERR, starget, "Domain Validation Failure, dropping back to Asynchroyesus\n");
 				DV_SET(offset, 0);
 				return SPI_COMPARE_FAILURE;
 			}
@@ -821,7 +821,7 @@ spi_dv_device_get_echo_buffer(struct scsi_device *sdev, u8 *buffer)
 	/* We send a set of three TURs to clear any outstanding 
 	 * unit attention conditions if they exist (Otherwise the
 	 * buffer tests won't be happy).  If the TUR still fails
-	 * (reservation conflict, device not ready, etc) just
+	 * (reservation conflict, device yest ready, etc) just
 	 * skip the write tests */
 	for (l = 0; ; l++) {
 		result = spi_execute(sdev, spi_test_unit_ready, DMA_NONE, 
@@ -840,7 +840,7 @@ spi_dv_device_get_echo_buffer(struct scsi_device *sdev, u8 *buffer)
 			     DMA_FROM_DEVICE, buffer, 4, NULL);
 
 	if (result)
-		/* Device has no echo buffer */
+		/* Device has yes echo buffer */
 		return 0;
 
 	return buffer[3] + ((buffer[2] & 0x1f) << 8);
@@ -892,7 +892,7 @@ spi_dv_device_internal(struct scsi_device *sdev, u8 *buffer)
 	if (!i->f->set_period)
 		return;
 
-	/* device can't handle synchronous */
+	/* device can't handle synchroyesus */
 	if (!spi_support_sync(starget) && !spi_support_dt(starget))
 		return;
 
@@ -903,7 +903,7 @@ spi_dv_device_internal(struct scsi_device *sdev, u8 *buffer)
 
  retry:
 
-	/* now set up to the maximum */
+	/* yesw set up to the maximum */
 	DV_SET(offset, spi_max_offset(starget));
 	DV_SET(period, min_period);
 
@@ -929,8 +929,8 @@ spi_dv_device_internal(struct scsi_device *sdev, u8 *buffer)
 		DV_SET(iu, 0);
 	}
 
-	/* now that we've done all this, actually check the bus
-	 * signal type (if known).  Some devices are stupid on
+	/* yesw that we've done all this, actually check the bus
+	 * signal type (if kyeswn).  Some devices are stupid on
 	 * a SE bus and still claim they can try LVD only settings */
 	if (i->f->get_signalling)
 		i->f->get_signalling(shost);
@@ -986,7 +986,7 @@ spi_dv_device_internal(struct scsi_device *sdev, u8 *buffer)
  *
  *	Performs the domain validation on the given device in the
  *	current execution thread.  Since DV operations may sleep,
- *	the current thread must have user context.  Also no SCSI
+ *	the current thread must have user context.  Also yes SCSI
  *	related locks that would deadlock I/O issued by the DV may
  *	be held.
  */
@@ -999,7 +999,7 @@ spi_dv_device(struct scsi_device *sdev)
 
 	/*
 	 * Because this function and the power management code both call
-	 * scsi_device_quiesce(), it is not safe to perform domain validation
+	 * scsi_device_quiesce(), it is yest safe to perform domain validation
 	 * while suspend or resume is in progress. Hence the
 	 * lock/unlock_system_sleep() calls.
 	 */
@@ -1163,7 +1163,7 @@ void spi_display_xfer_agreement(struct scsi_target *starget)
 			 tp->hold_mcs ? " HMCS" : "",
 			 tmp, tp->offset);
 	} else {
-		dev_info(&starget->dev, "%sasynchronous\n",
+		dev_info(&starget->dev, "%sasynchroyesus\n",
 				tp->width ? "wide " : "");
 	}
 }
@@ -1241,11 +1241,11 @@ static const char * const one_byte_msgs[] = {
 
 static const char * const two_byte_msgs[] = {
 /* 0x20 */ "Simple Queue Tag", "Head of Queue Tag", "Ordered Queue Tag",
-/* 0x23 */ "Ignore Wide Residue", "ACA"
+/* 0x23 */ "Igyesre Wide Residue", "ACA"
 };
 
 static const char * const extended_msgs[] = {
-/* 0x00 */ "Modify Data Pointer", "Synchronous Data Transfer Request",
+/* 0x00 */ "Modify Data Pointer", "Synchroyesus Data Transfer Request",
 /* 0x02 */ "SCSI-I Extended Identify", "Wide Data Transfer Request",
 /* 0x04 */ "Parallel Protocol Request", "Modify Bidirectional Data Pointer"
 };
@@ -1307,7 +1307,7 @@ int spi_print_msg(const unsigned char *msg)
 	/* Identify */
 	} else if (msg[0] & 0x80) {
 		printk("Identify disconnect %sallowed %s %d ",
-			(msg[0] & 0x40) ? "" : "not ",
+			(msg[0] & 0x40) ? "" : "yest ",
 			(msg[0] & 0x20) ? "target routine" : "lun",
 			msg[0] & 0x7);
 	/* Normal One byte */
@@ -1377,8 +1377,8 @@ static int spi_device_match(struct attribute_container *cont,
 	if (!shost->transportt  || shost->transportt->host_attrs.ac.class
 	    != &spi_host_class.class)
 		return 0;
-	/* Note: this class has no device attributes, so it has
-	 * no per-HBA allocation and thus we don't need to distinguish
+	/* Note: this class has yes device attributes, so it has
+	 * yes per-HBA allocation and thus we don't need to distinguish
 	 * the attribute containers for the device */
 	i = to_spi_internal(shost->transportt);
 	if (i->f->deny_binding && i->f->deny_binding(sdev->sdev_target))
@@ -1609,14 +1609,14 @@ static __init int spi_transport_init(void)
 	error = transport_class_register(&spi_transport_class);
 	if (error)
 		return error;
-	error = anon_transport_class_register(&spi_device_class);
+	error = ayesn_transport_class_register(&spi_device_class);
 	return transport_class_register(&spi_host_class);
 }
 
 static void __exit spi_transport_exit(void)
 {
 	transport_class_unregister(&spi_transport_class);
-	anon_transport_class_unregister(&spi_device_class);
+	ayesn_transport_class_unregister(&spi_device_class);
 	transport_class_unregister(&spi_host_class);
 	scsi_dev_info_remove_list(SCSI_DEVINFO_SPI);
 }

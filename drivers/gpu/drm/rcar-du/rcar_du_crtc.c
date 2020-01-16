@@ -225,7 +225,7 @@ static void rcar_du_crtc_set_display_timing(struct rcar_du_crtc *rcrtc)
 
 		/*
 		 * DU channels that have a display PLL can't use the internal
-		 * system clock, and have no internal clock divider.
+		 * system clock, and have yes internal clock divider.
 		 */
 
 		/*
@@ -233,7 +233,7 @@ static void rcar_du_crtc_set_display_timing(struct rcar_du_crtc *rcrtc)
 		 * We can work around them by configuring the DPLL to twice the
 		 * desired frequency, coupled with a /2 post-divider. Restrict
 		 * the workaround to H3 ES1.x as ES2.0 and all other SoCs have
-		 * no post-divider when a display PLL is present (as shown by
+		 * yes post-divider when a display PLL is present (as shown by
 		 * the workaround breaking HDMI output on M3-W during testing).
 		 */
 		if (soc_device_match(rcar_du_r8a7795_es1)) {
@@ -320,7 +320,7 @@ static void rcar_du_crtc_set_display_timing(struct rcar_du_crtc *rcrtc)
 
 static unsigned int plane_zpos(struct rcar_du_plane *plane)
 {
-	return plane->plane.state->normalized_zpos;
+	return plane->plane.state->yesrmalized_zpos;
 }
 
 static const struct rcar_du_format_info *
@@ -573,7 +573,7 @@ static void rcar_du_crtc_disable_planes(struct rcar_du_crtc *rcrtc)
 	/*
 	 * Disable planes and calculate how many vertical blanking interrupts we
 	 * have to wait for. If a vertical blanking interrupt has been triggered
-	 * but not processed yet, we don't know whether it occurred before or
+	 * but yest processed yet, we don't kyesw whether it occurred before or
 	 * after the planes got disabled. We thus have to wait for two vblank
 	 * interrupts in that case.
 	 */
@@ -596,13 +596,13 @@ static void rcar_du_crtc_stop(struct rcar_du_crtc *rcrtc)
 
 	/*
 	 * Disable all planes and wait for the change to take effect. This is
-	 * required as the plane enable registers are updated on vblank, and no
+	 * required as the plane enable registers are updated on vblank, and yes
 	 * vblank will occur once the CRTC is stopped. Disabling planes when
-	 * starting the CRTC thus wouldn't be enough as it would start scanning
+	 * starting the CRTC thus wouldn't be eyesugh as it would start scanning
 	 * out immediately from old frame buffers until the next vblank.
 	 *
 	 * This increases the CRTC stop delay, especially when multiple CRTCs
-	 * are stopped in one operation as we now wait for one vblank per CRTC.
+	 * are stopped in one operation as we yesw wait for one vblank per CRTC.
 	 * Whether this can be improved needs to be researched.
 	 */
 	rcar_du_crtc_disable_planes(rcrtc);
@@ -623,7 +623,7 @@ static void rcar_du_crtc_stop(struct rcar_du_crtc *rcrtc)
 	 * Select switch sync mode. This stops display operation and configures
 	 * the HSYNC and VSYNC signals as inputs.
 	 *
-	 * TODO: Find another way to stop the display for DUs that don't support
+	 * TODO: Find ayesther way to stop the display for DUs that don't support
 	 * TVM sync.
 	 */
 	if (rcar_du_has(rcrtc->dev, RCAR_DU_FEATURE_TVM_SYNC))
@@ -728,13 +728,13 @@ static void rcar_du_crtc_atomic_begin(struct drm_crtc *crtc,
 	/*
 	 * If a mode set is in progress we can be called with the CRTC disabled.
 	 * We thus need to first get and setup the CRTC in order to configure
-	 * planes. We must *not* put the CRTC in .atomic_flush(), as it must be
+	 * planes. We must *yest* put the CRTC in .atomic_flush(), as it must be
 	 * kept awake until the .atomic_enable() call that will follow. The get
-	 * operation in .atomic_enable() will in that case be a no-op, and the
+	 * operation in .atomic_enable() will in that case be a yes-op, and the
 	 * CRTC will be put later in .atomic_disable().
 	 *
-	 * If a mode set is not in progress the CRTC is enabled, and the
-	 * following get call will be a no-op. There is thus no need to balance
+	 * If a mode set is yest in progress the CRTC is enabled, and the
+	 * following get call will be a yes-op. There is thus yes need to balance
 	 * it in .atomic_flush() either.
 	 */
 	rcar_du_crtc_get(rcrtc);
@@ -978,7 +978,7 @@ static int rcar_du_crtc_verify_crc_source(struct drm_crtc *crtc,
 	enum vsp1_du_crc_source source;
 
 	if (rcar_du_crtc_parse_crc_source(rcrtc, source_name, &source) < 0) {
-		DRM_DEBUG_DRIVER("unknown source %s\n", source_name);
+		DRM_DEBUG_DRIVER("unkyeswn source %s\n", source_name);
 		return -EINVAL;
 	}
 
@@ -1152,7 +1152,7 @@ int rcar_du_crtc_create(struct rcar_du_group *rgrp, unsigned int swindex,
 
 	rcrtc->clock = devm_clk_get(rcdu->dev, name);
 	if (IS_ERR(rcrtc->clock)) {
-		dev_err(rcdu->dev, "no clock for DU channel %u\n", hwindex);
+		dev_err(rcdu->dev, "yes clock for DU channel %u\n", hwindex);
 		return PTR_ERR(rcrtc->clock);
 	}
 
@@ -1210,7 +1210,7 @@ int rcar_du_crtc_create(struct rcar_du_group *rgrp, unsigned int swindex,
 	}
 
 	if (irq < 0) {
-		dev_err(rcdu->dev, "no IRQ for CRTC %u\n", swindex);
+		dev_err(rcdu->dev, "yes IRQ for CRTC %u\n", swindex);
 		return irq;
 	}
 

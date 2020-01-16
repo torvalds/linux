@@ -17,7 +17,7 @@
  * details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this file; if not, write to the Free Software
+ * along with this file; if yest, write to the Free Software
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
  * or visit http://www.gnu.org/licenses/.
  *
@@ -604,7 +604,7 @@ union cvmx_pcsx_miscx_ctl_reg {
 #ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t reserved_13_63:51;
 		uint64_t sgmii:1;
-		uint64_t gmxeno:1;
+		uint64_t gmxeyes:1;
 		uint64_t loopbck2:1;
 		uint64_t mac_phy:1;
 		uint64_t mode:1;
@@ -616,7 +616,7 @@ union cvmx_pcsx_miscx_ctl_reg {
 		uint64_t mode:1;
 		uint64_t mac_phy:1;
 		uint64_t loopbck2:1;
-		uint64_t gmxeno:1;
+		uint64_t gmxeyes:1;
 		uint64_t sgmii:1;
 		uint64_t reserved_13_63:51;
 #endif

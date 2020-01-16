@@ -244,7 +244,7 @@ struct dibGPIOFunction {
  * is LSB and possible GPIO31 is MSB.  The same bit-position as in the
  * mask is used for the direction and the value. Direction == 1 is OUT,
  * 0 == IN. For direction "OUT" value is either 1 or 0, for direction IN
- * value has no meaning.
+ * value has yes meaning.
  *
  * In case of BOARD_GPIO_FUNCTION_PWM mask is giving the GPIO to be
  * used to do the PWM. Direction gives the PWModulator to be used.

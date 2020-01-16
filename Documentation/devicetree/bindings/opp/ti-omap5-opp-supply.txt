@@ -20,13 +20,13 @@ Required Properties for Device Node:
 - vbb-supply: phandle to regulator controlling Body Bias supply
 	      (Usually Adaptive Body Bias regulator)
 
-Required Properties for opp-supply node:
+Required Properties for opp-supply yesde:
 - compatible: Should be one of:
 	"ti,omap-opp-supply" - basic OPP supply controlling VDD and VBB
 	"ti,omap5-opp-supply" - OMAP5+ optimized voltages in efuse(class0)VDD
 			    along with VBB
 	"ti,omap5-core-opp-supply" - OMAP5+ optimized voltages in efuse(class0) VDD
-			    but no VBB.
+			    but yes VBB.
 - reg: Address and length of the efuse register set for the device (mandatory
 	only for "ti,omap5-opp-supply")
 - ti,efuse-settings: An array of u32 tuple items providing information about

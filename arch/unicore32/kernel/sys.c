@@ -7,7 +7,7 @@
  * Copyright (C) 2001-2010 GUAN Xue-tao
  */
 #include <linux/module.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/mm.h>

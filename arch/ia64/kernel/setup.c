@@ -113,13 +113,13 @@ EXPORT_SYMBOL(io_space);
 unsigned int num_io_spaces;
 
 /*
- * "flush_icache_range()" needs to know what processor dependent stride size to use
+ * "flush_icache_range()" needs to kyesw what processor dependent stride size to use
  * when it makes i-cache(s) coherent with d-caches.
  */
 #define	I_CACHE_STRIDE_SHIFT	5	/* Safest way to go: 32 bytes by 32 bytes */
 unsigned long ia64_i_cache_stride_shift = ~0;
 /*
- * "clflush_cache_range()" needs to know what processor dependent stride size to
+ * "clflush_cache_range()" needs to kyesw what processor dependent stride size to
  * use when it flushes cache lines including both d-cache and i-cache.
  */
 /* Safest way to go: 32 bytes by 32 bytes */
@@ -137,7 +137,7 @@ int num_rsvd_regions __initdata;
  * Filter incoming memory segments based on the primitive map created from the boot
  * parameters. Segments contained in the map are removed from the memory ranges. A
  * caller-specified function is called with the memory ranges that remain after filtering.
- * This routine does not assume the incoming segments are sorted.
+ * This routine does yest assume the incoming segments are sorted.
  */
 int __init
 filter_rsvd_memory (u64 start, u64 end, void *arg)
@@ -164,9 +164,9 @@ filter_rsvd_memory (u64 start, u64 end, void *arg)
 		range_end   = min(end, rsvd_region[i].start);
 
 		if (range_start < range_end)
-			call_pernode_memory(__pa(range_start), range_end - range_start, func);
+			call_peryesde_memory(__pa(range_start), range_end - range_start, func);
 
-		/* nothing more available in this segment */
+		/* yesthing more available in this segment */
 		if (range_end == end) return 0;
 
 		prev_start = rsvd_region[i].end;
@@ -177,7 +177,7 @@ filter_rsvd_memory (u64 start, u64 end, void *arg)
 
 /*
  * Similar to "filter_rsvd_memory()", but the reserved memory ranges
- * are not filtered out.
+ * are yest filtered out.
  */
 int __init
 filter_memory(u64 start, u64 end, void *arg)
@@ -194,7 +194,7 @@ filter_memory(u64 start, u64 end, void *arg)
 #endif
 	func = arg;
 	if (start < end)
-		call_pernode_memory(__pa(start), end - start, func);
+		call_peryesde_memory(__pa(start), end - start, func);
 	return 0;
 }
 
@@ -259,7 +259,7 @@ __initcall(register_memory);
  * This function checks if the reserved crashkernel is allowed on the specific
  * IA64 machine flavour. Machines without an IO TLB use swiotlb and require
  * some memory below 4 GB (i.e. in 32 bit area), see the implementation of
- * kernel/dma/swiotlb.c. The hpzx1 architecture has an IO TLB but cannot use that
+ * kernel/dma/swiotlb.c. The hpzx1 architecture has an IO TLB but canyest use that
  * in kdump case. See the comment in sba_init() in sba_iommu.c.
  *
  * So, the only machvec that really supports loading the kdump kernel
@@ -338,7 +338,7 @@ reserve_memory (void)
 	unsigned long total_memory;
 
 	/*
-	 * none of the entries in this table overlap
+	 * yesne of the entries in this table overlap
 	 */
 	rsvd_region[n].start = (unsigned long) ia64_boot_param;
 	rsvd_region[n].end   = rsvd_region[n].start + sizeof(*ia64_boot_param);
@@ -433,7 +433,7 @@ io_port_init (void)
 	 * /dev/mem, and the inX()/outX() interfaces use MMIO.  In both
 	 * cases, user-mode can only use the legacy 0-64K I/O port space.
 	 *
-	 * ar.k0 is not involved in kernel I/O port accesses, which can use
+	 * ar.k0 is yest involved in kernel I/O port accesses, which can use
 	 * any of the I/O port spaces and are done via MMIO using the
 	 * virtual mmio_base from the appropriate io_space[].
 	 */
@@ -455,11 +455,11 @@ io_port_init (void)
 /**
  * early_console_setup - setup debugging console
  *
- * Consoles started here require little enough setup that we can start using
+ * Consoles started here require little eyesugh setup that we can start using
  * them very early in the boot process, either right after the machine
  * vector initialization, or even before if the drivers can detect their hw.
  *
- * Returns non-zero if a console couldn't be setup.
+ * Returns yesn-zero if a console couldn't be setup.
  */
 static inline int __init
 early_console_setup (char *cmdline)
@@ -513,13 +513,13 @@ mark_bsp_online (void)
 #endif
 }
 
-static __initdata int nomca;
-static __init int setup_nomca(char *s)
+static __initdata int yesmca;
+static __init int setup_yesmca(char *s)
 {
-	nomca = 1;
+	yesmca = 1;
 	return 0;
 }
-early_param("nomca", setup_nomca);
+early_param("yesmca", setup_yesmca);
 
 #ifdef CONFIG_CRASH_DUMP
 int __init reserve_elfcorehdr(u64 *start, u64 *end)
@@ -625,7 +625,7 @@ setup_arch (char **cmdline_p)
 #endif
 
 	/* enable IA-64 Machine Check Abort Handling unless disabled */
-	if (!nomca)
+	if (!yesmca)
 		ia64_mca_init();
 
 	/*
@@ -692,7 +692,7 @@ show_cpuinfo (struct seq_file *m, void *v)
 		}
 	}
 	if (mask && size > 1) {
-		/* print unknown features as a hex value */
+		/* print unkyeswn features as a hex value */
 		snprintf(cp, size, "%s0x%lx", sep, mask);
 	}
 
@@ -776,7 +776,7 @@ get_model_name(__u8 family, __u8 model)
 	char brand[128];
 	int i;
 
-	memcpy(brand, "Unknown", 8);
+	memcpy(brand, "Unkyeswn", 8);
 	if (ia64_pal_get_brand_info(brand)) {
 		if (family == 0x7)
 			memcpy(brand, "Merced", 7);
@@ -796,7 +796,7 @@ get_model_name(__u8 family, __u8 model)
 		printk(KERN_ERR
 		       "%s: Table overflow. Some processor model information will be missing\n",
 		       __func__);
-	return "Unknown";
+	return "Unkyeswn";
 }
 
 static void
@@ -934,7 +934,7 @@ get_cache_info(void)
 
 /*
  * cpu_init() initializes state that is per-CPU.  This function acts
- * as a 'CPU state barrier', nothing should get across.
+ * as a 'CPU state barrier', yesthing should get across.
  */
 void
 cpu_init (void)
@@ -975,7 +975,7 @@ cpu_init (void)
 	 * We can't pass "local_cpu_data" to identify_cpu() because we haven't called
 	 * ia64_mmu_init() yet.  And we can't call ia64_mmu_init() first because it
 	 * depends on the data returned by identify_cpu().  We break the dependency by
-	 * accessing cpu_data() through the canonical per-CPU address.
+	 * accessing cpu_data() through the cayesnical per-CPU address.
 	 */
 	cpu_info = cpu_data + ((char *) &__ia64_per_cpu_var(ia64_cpu_info) - __per_cpu_start);
 	identify_cpu(cpu_info);
@@ -1010,7 +1010,7 @@ cpu_init (void)
 
 	/*
 	 * Initialize default control register to defer speculative faults except
-	 * for those arising from TLB misses, which are not deferred.  The
+	 * for those arising from TLB misses, which are yest deferred.  The
 	 * kernel MUST NOT depend on a particular setting of these bits (in other words,
 	 * the kernel must have recovery code for all speculative accesses).  Turn on
 	 * dcr.lc as per recommendation by the architecture team.  Most IA-32 apps
@@ -1044,7 +1044,7 @@ cpu_init (void)
 		ia64_eoi();
 
 #ifdef CONFIG_SMP
-	normal_xtp();
+	yesrmal_xtp();
 #endif
 
 	/* set ia64_ctx.max_rid to the maximum RID that is supported by all CPUs: */

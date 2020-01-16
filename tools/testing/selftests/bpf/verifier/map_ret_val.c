@@ -8,7 +8,7 @@
 	BPF_RAW_INSN(BPF_JMP | BPF_CALL, 0, 0, 0, BPF_FUNC_map_delete_elem),
 	BPF_EXIT_INSN(),
 	},
-	.errstr = "fd 0 is not pointing to valid bpf_map",
+	.errstr = "fd 0 is yest pointing to valid bpf_map",
 	.result = REJECT,
 },
 {

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Technologic Systems TS-73xx SBC FPGA loader
+ * Techyeslogic Systems TS-73xx SBC FPGA loader
  *
  * Copyright (C) 2016 Florian Fainelli <f.fainelli@gmail.com>
  *

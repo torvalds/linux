@@ -123,8 +123,8 @@ static int ads7828_probe(struct i2c_client *client,
 		ext_vref = pdata->ext_vref;
 		if (ext_vref && pdata->vref_mv)
 			vref_mv = pdata->vref_mv;
-	} else if (dev->of_node) {
-		diff_input = of_property_read_bool(dev->of_node,
+	} else if (dev->of_yesde) {
+		diff_input = of_property_read_bool(dev->of_yesde,
 						   "ti,differential-input");
 		reg = devm_regulator_get_optional(dev, "vref");
 		if (!IS_ERR(reg)) {
@@ -137,7 +137,7 @@ static int ads7828_probe(struct i2c_client *client,
 		}
 	}
 
-	if (client->dev.of_node)
+	if (client->dev.of_yesde)
 		chip = (enum ads7828_chips)
 			of_device_get_match_data(&client->dev);
 	else

@@ -10,7 +10,7 @@
 
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/string.h>
 #include <linux/mm.h>
 #include <linux/tty.h>
@@ -185,7 +185,7 @@ static int sm501_alloc_mem(struct sm501fb_info *inf, struct sm501_mem *mem,
 		ptr = inf->fbmem_len - size;
 		fbi = inf->fb[HEAD_CRT];
 
-		/* round down, some programs such as directfb do not draw
+		/* round down, some programs such as directfb do yest draw
 		 * 0,0 correctly unless the start is aligned to a page start.
 		 */
 
@@ -480,7 +480,7 @@ static int sm501fb_set_par_common(struct fb_info *info,
 		info->fix.line_length);
 
 	if (sm501_alloc_mem(fbi, &par->screen, mem_type, smem_len, smem_len)) {
-		dev_err(fbi->dev, "no memory available\n");
+		dev_err(fbi->dev, "yes memory available\n");
 		return -ENOMEM;
 	}
 
@@ -638,7 +638,7 @@ static int sm501fb_set_par_crt(struct fb_info *info)
 
 	dev_dbg(fbi->dev, "%s(%p)\n", __func__, info);
 
-	/* enable CRT DAC - note 0 is on!*/
+	/* enable CRT DAC - yeste 0 is on!*/
 	sm501_misc_control(fbi->dev->parent, 0, SM501_MISC_DAC_POWER);
 
 	control = smc501_readl(fbi->regs + SM501_DC_CRT_CONTROL);
@@ -877,7 +877,7 @@ static int sm501fb_set_par_pnl(struct fb_info *info)
 	smc501_writel(control, fbi->regs + SM501_DC_PANEL_CONTROL);
 	sm501fb_sync_regs(fbi);
 
-	/* ensure the panel interface is not tristated at this point */
+	/* ensure the panel interface is yest tristated at this point */
 
 	sm501_modify_reg(fbi->dev->parent, SM501_SYSTEM_CONTROL,
 			 0, SM501_SYSCTRL_PANEL_TRISTATE);
@@ -908,7 +908,7 @@ static inline unsigned int chan_to_field(unsigned int chan,
  * set the colour mapping for modes that support palettised data
 */
 
-static int sm501fb_setcolreg(unsigned regno,
+static int sm501fb_setcolreg(unsigned regyes,
 			     unsigned red, unsigned green, unsigned blue,
 			     unsigned transp, struct fb_info *info)
 {
@@ -926,30 +926,30 @@ static int sm501fb_setcolreg(unsigned regno,
 	case FB_VISUAL_TRUECOLOR:
 		/* true-colour, use pseuo-palette */
 
-		if (regno < 16) {
+		if (regyes < 16) {
 			u32 *pal = par->pseudo_palette;
 
 			val  = chan_to_field(red,   &info->var.red);
 			val |= chan_to_field(green, &info->var.green);
 			val |= chan_to_field(blue,  &info->var.blue);
 
-			pal[regno] = val;
+			pal[regyes] = val;
 		}
 		break;
 
 	case FB_VISUAL_PSEUDOCOLOR:
-		if (regno < 256) {
+		if (regyes < 256) {
 			val = (red >> 8) << 16;
 			val |= (green >> 8) << 8;
 			val |= blue >> 8;
 
-			smc501_writel(val, base + (regno * 4));
+			smc501_writel(val, base + (regyes * 4));
 		}
 
 		break;
 
 	default:
-		return 1;   /* unknown type */
+		return 1;   /* unkyeswn type */
 	}
 
 	return 0;
@@ -1050,7 +1050,7 @@ static int sm501fb_cursor(struct fb_info *info, struct fb_cursor *cursor)
 	else
 		base += SM501_DC_PANEL_HWC_BASE;
 
-	/* check not being asked to exceed capabilities */
+	/* check yest being asked to exceed capabilities */
 
 	if (cursor->image.width > 64)
 		return -EINVAL;
@@ -1314,7 +1314,7 @@ static void sm501fb_copyarea(struct fb_info *info, const struct fb_copyarea *are
 	/* source clip */
 	if ((sx >= info->var.xres_virtual) ||
 	    (sy >= info->var.yres_virtual))
-		/* source Area not within virtual screen, skipping */
+		/* source Area yest within virtual screen, skipping */
 		return;
 	if ((sx + width) >= info->var.xres_virtual)
 		width = info->var.xres_virtual - sx - 1;
@@ -1324,7 +1324,7 @@ static void sm501fb_copyarea(struct fb_info *info, const struct fb_copyarea *are
 	/* dest clip */
 	if ((dx >= info->var.xres_virtual) ||
 	    (dy >= info->var.yres_virtual))
-		/* Destination Area not within virtual screen, skipping */
+		/* Destination Area yest within virtual screen, skipping */
 		return;
 	if ((dx + width) >= info->var.xres_virtual)
 		width = info->var.xres_virtual - dx - 1;
@@ -1393,7 +1393,7 @@ static void sm501fb_fillrect(struct fb_info *info, const struct fb_fillrect *rec
 
 	if ((rect->dx >= info->var.xres_virtual) ||
 	    (rect->dy >= info->var.yres_virtual))
-		/* Rectangle not within virtual screen, skipping */
+		/* Rectangle yest within virtual screen, skipping */
 		return;
 	if ((rect->dx + width) >= info->var.xres_virtual)
 		width = info->var.xres_virtual - rect->dx - 1;
@@ -1530,15 +1530,15 @@ static int sm501fb_start(struct sm501fb_info *info,
 
 	info->irq = ret = platform_get_irq(pdev, 0);
 	if (ret < 0) {
-		/* we currently do not use the IRQ */
-		dev_warn(dev, "no irq for device\n");
+		/* we currently do yest use the IRQ */
+		dev_warn(dev, "yes irq for device\n");
 	}
 
 	/* allocate, reserve and remap resources for display
 	 * controller registers */
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (res == NULL) {
-		dev_err(dev, "no resource definition for registers\n");
+		dev_err(dev, "yes resource definition for registers\n");
 		ret = -ENOENT;
 		goto err_release;
 	}
@@ -1548,14 +1548,14 @@ static int sm501fb_start(struct sm501fb_info *info,
 					    pdev->name);
 
 	if (info->regs_res == NULL) {
-		dev_err(dev, "cannot claim registers\n");
+		dev_err(dev, "canyest claim registers\n");
 		ret = -ENXIO;
 		goto err_release;
 	}
 
 	info->regs = ioremap(res->start, resource_size(res));
 	if (info->regs == NULL) {
-		dev_err(dev, "cannot remap registers\n");
+		dev_err(dev, "canyest remap registers\n");
 		ret = -ENXIO;
 		goto err_regs_res;
 	}
@@ -1564,7 +1564,7 @@ static int sm501fb_start(struct sm501fb_info *info,
 	 * controller registers */
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
 	if (res == NULL) {
-		dev_err(dev, "no resource definition for 2d registers\n");
+		dev_err(dev, "yes resource definition for 2d registers\n");
 		ret = -ENOENT;
 		goto err_regs_map;
 	}
@@ -1574,14 +1574,14 @@ static int sm501fb_start(struct sm501fb_info *info,
 					      pdev->name);
 
 	if (info->regs2d_res == NULL) {
-		dev_err(dev, "cannot claim registers\n");
+		dev_err(dev, "canyest claim registers\n");
 		ret = -ENXIO;
 		goto err_regs_map;
 	}
 
 	info->regs2d = ioremap(res->start, resource_size(res));
 	if (info->regs2d == NULL) {
-		dev_err(dev, "cannot remap registers\n");
+		dev_err(dev, "canyest remap registers\n");
 		ret = -ENXIO;
 		goto err_regs2d_res;
 	}
@@ -1589,7 +1589,7 @@ static int sm501fb_start(struct sm501fb_info *info,
 	/* allocate, reserve resources for framebuffer */
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 2);
 	if (res == NULL) {
-		dev_err(dev, "no memory resource defined\n");
+		dev_err(dev, "yes memory resource defined\n");
 		ret = -ENXIO;
 		goto err_regs2d_map;
 	}
@@ -1598,14 +1598,14 @@ static int sm501fb_start(struct sm501fb_info *info,
 					     resource_size(res),
 					     pdev->name);
 	if (info->fbmem_res == NULL) {
-		dev_err(dev, "cannot claim framebuffer\n");
+		dev_err(dev, "canyest claim framebuffer\n");
 		ret = -ENXIO;
 		goto err_regs2d_map;
 	}
 
 	info->fbmem = ioremap(res->start, resource_size(res));
 	if (info->fbmem == NULL) {
-		dev_err(dev, "cannot remap framebuffer\n");
+		dev_err(dev, "canyest remap framebuffer\n");
 		ret = -ENXIO;
 		goto err_mem_res;
 	}
@@ -1737,10 +1737,10 @@ static int sm501fb_init_fb(struct fb_info *fb, enum sm501_controller head,
 
 #if defined(CONFIG_OF)
 #ifdef __BIG_ENDIAN
-	if (of_get_property(info->dev->parent->of_node, "little-endian", NULL))
+	if (of_get_property(info->dev->parent->of_yesde, "little-endian", NULL))
 		fb->flags |= FBINFO_FOREIGN_ENDIAN;
 #else
-	if (of_get_property(info->dev->parent->of_node, "big-endian", NULL))
+	if (of_get_property(info->dev->parent->of_yesde, "big-endian", NULL))
 		fb->flags |= FBINFO_FOREIGN_ENDIAN;
 #endif
 #endif
@@ -1755,7 +1755,7 @@ static int sm501fb_init_fb(struct fb_info *fb, enum sm501_controller head,
 
 	/* screenmode */
 
-	fb->var.nonstd		= 0;
+	fb->var.yesnstd		= 0;
 	fb->var.activate	= FB_ACTIVATE_NOW;
 	fb->var.accel_flags	= 0;
 	fb->var.vmode		= FB_VMODE_NONINTERLACED;
@@ -1785,7 +1785,7 @@ static int sm501fb_init_fb(struct fb_info *fb, enum sm501_controller head,
 					fb->monspecs.modedb,
 					fb->monspecs.modedb_len,
 					&sm501_default_mode, default_bpp);
-				/* edid_data is no longer needed, free it */
+				/* edid_data is yes longer needed, free it */
 				kfree(info->edid_data);
 			} else {
 				ret = fb_find_mode(&fb->var, fb,
@@ -1799,7 +1799,7 @@ static int sm501fb_init_fb(struct fb_info *fb, enum sm501_controller head,
 				break;
 			case 2:
 				dev_info(info->dev, "using mode specified in "
-					"@mode with ignored refresh rate\n");
+					"@mode with igyesred refresh rate\n");
 				break;
 			case 3:
 				dev_info(info->dev, "using mode default "
@@ -1830,7 +1830,7 @@ static int sm501fb_init_fb(struct fb_info *fb, enum sm501_controller head,
 	return 0;
 }
 
-/* default platform data if none is supplied (ie, PCI device) */
+/* default platform data if yesne is supplied (ie, PCI device) */
 
 static struct sm501_platdata_fbsub sm501fb_pdata_crt = {
 	.flags		= (SM501FB_FLAG_USE_INIT_MODE |
@@ -1866,9 +1866,9 @@ static int sm501fb_probe_one(struct sm501fb_info *info,
 
 	pd = (head == HEAD_CRT) ? info->pdata->fb_crt : info->pdata->fb_pnl;
 
-	/* Do not initialise if we've not been given any platform data */
+	/* Do yest initialise if we've yest been given any platform data */
 	if (pd == NULL) {
-		dev_info(info->dev, "no data for fb %s (disabled)\n", name);
+		dev_info(info->dev, "yes data for fb %s (disabled)\n", name);
 		return 0;
 	}
 
@@ -1912,7 +1912,7 @@ static int sm501fb_start_one(struct sm501fb_info *info,
 
 	ret = sm501fb_init_fb(info->fb[head], head, drvname);
 	if (ret) {
-		dev_err(info->dev, "cannot initialise fb %s\n", drvname);
+		dev_err(info->dev, "canyest initialise fb %s\n", drvname);
 		return ret;
 	}
 
@@ -1923,7 +1923,7 @@ static int sm501fb_start_one(struct sm501fb_info *info,
 		return ret;
 	}
 
-	dev_info(info->dev, "fb%d: %s frame buffer\n", fbi->node, fbi->fix.id);
+	dev_info(info->dev, "fb%d: %s frame buffer\n", fbi->yesde, fbi->fix.id);
 
 	return 0;
 }
@@ -1952,7 +1952,7 @@ static int sm501fb_probe(struct platform_device *pdev)
 	if (info->pdata == NULL) {
 		int found = 0;
 #if defined(CONFIG_OF)
-		struct device_node *np = pdev->dev.parent->of_node;
+		struct device_yesde *np = pdev->dev.parent->of_yesde;
 		const u8 *prop;
 		const char *cp;
 		int len;
@@ -1994,7 +1994,7 @@ static int sm501fb_probe(struct platform_device *pdev)
 
 	if (info->fb[HEAD_PANEL] == NULL &&
 	    info->fb[HEAD_CRT] == NULL) {
-		dev_err(dev, "no framebuffers found\n");
+		dev_err(dev, "yes framebuffers found\n");
 		ret = -ENODEV;
 		goto err_alloc;
 	}
@@ -2003,7 +2003,7 @@ static int sm501fb_probe(struct platform_device *pdev)
 
 	ret = sm501fb_start(info, pdev);
 	if (ret) {
-		dev_err(dev, "cannot initialise SM501\n");
+		dev_err(dev, "canyest initialise SM501\n");
 		goto err_probed_panel;
 	}
 
@@ -2096,14 +2096,14 @@ static int sm501fb_suspend_fb(struct sm501fb_info *info,
 
 	par->store_fb = vmalloc(par->screen.size);
 	if (par->store_fb == NULL) {
-		dev_err(info->dev, "no memory to store screen\n");
+		dev_err(info->dev, "yes memory to store screen\n");
 		return -ENOMEM;
 	}
 
 	par->store_cursor = vmalloc(par->cursor.size);
 	if (par->store_cursor == NULL) {
-		dev_err(info->dev, "no memory to store cursor\n");
-		goto err_nocursor;
+		dev_err(info->dev, "yes memory to store cursor\n");
+		goto err_yescursor;
 	}
 
 	dev_dbg(info->dev, "suspending screen to %p\n", par->store_fb);
@@ -2114,7 +2114,7 @@ static int sm501fb_suspend_fb(struct sm501fb_info *info,
 
 	return 0;
 
- err_nocursor:
+ err_yescursor:
 	vfree(par->store_fb);
 	par->store_fb = NULL;
 
@@ -2172,7 +2172,7 @@ static int sm501fb_suspend(struct platform_device *pdev, pm_message_t state)
 	sm501fb_suspend_fb(info, HEAD_CRT);
 	sm501fb_suspend_fb(info, HEAD_PANEL);
 
-	/* turn off the clocks, in case the device is not powered down */
+	/* turn off the clocks, in case the device is yest powered down */
 	sm501_unit_power(info->dev->parent, SM501_GATE_DISPLAY, 0);
 
 	return 0;
@@ -2224,7 +2224,7 @@ module_param_named(mode, fb_mode, charp, 0);
 MODULE_PARM_DESC(mode,
 	"Specify resolution as \"<xres>x<yres>[-<bpp>][@<refresh>]\" ");
 module_param_named(bpp, default_bpp, ulong, 0);
-MODULE_PARM_DESC(bpp, "Specify bit-per-pixel if not specified mode");
+MODULE_PARM_DESC(bpp, "Specify bit-per-pixel if yest specified mode");
 MODULE_AUTHOR("Ben Dooks, Vincent Sanders");
 MODULE_DESCRIPTION("SM501 Framebuffer driver");
 MODULE_LICENSE("GPL v2");

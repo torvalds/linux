@@ -36,7 +36,7 @@
 #include <asm/x86_init.h>
 #include <asm/reboot.h>
 #include <asm/cache.h>
-#include <asm/nospec-branch.h>
+#include <asm/yesspec-branch.h>
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/nmi.h>
@@ -68,29 +68,29 @@ static struct nmi_desc nmi_desc[NMI_MAX] =
 };
 
 struct nmi_stats {
-	unsigned int normal;
-	unsigned int unknown;
+	unsigned int yesrmal;
+	unsigned int unkyeswn;
 	unsigned int external;
 	unsigned int swallow;
 };
 
 static DEFINE_PER_CPU(struct nmi_stats, nmi_stats);
 
-static int ignore_nmis __read_mostly;
+static int igyesre_nmis __read_mostly;
 
-int unknown_nmi_panic;
+int unkyeswn_nmi_panic;
 /*
  * Prevent NMI reason port (0x61) being accessed simultaneously, can
  * only be used in NMI handler.
  */
 static DEFINE_RAW_SPINLOCK(nmi_reason_lock);
 
-static int __init setup_unknown_nmi_panic(char *str)
+static int __init setup_unkyeswn_nmi_panic(char *str)
 {
-	unknown_nmi_panic = 1;
+	unkyeswn_nmi_panic = 1;
 	return 1;
 }
-__setup("unknown_nmi_panic", setup_unknown_nmi_panic);
+__setup("unkyeswn_nmi_panic", setup_unkyeswn_nmi_panic);
 
 #define nmi_to_desc(type) (&nmi_desc[type])
 
@@ -127,7 +127,7 @@ static int nmi_handle(unsigned int type, struct pt_regs *regs)
 	rcu_read_lock();
 
 	/*
-	 * NMIs are edge-triggered, which means if you have enough
+	 * NMIs are edge-triggered, which means if you have eyesugh
 	 * of them concurrently, you can lose some because only one
 	 * can be latched at any given time.  Walk the whole list
 	 * to handle those situations.
@@ -277,34 +277,34 @@ io_check_error(unsigned char reason, struct pt_regs *regs)
 NOKPROBE_SYMBOL(io_check_error);
 
 static void
-unknown_nmi_error(unsigned char reason, struct pt_regs *regs)
+unkyeswn_nmi_error(unsigned char reason, struct pt_regs *regs)
 {
 	int handled;
 
 	/*
 	 * Use 'false' as back-to-back NMIs are dealt with one level up.
-	 * Of course this makes having multiple 'unknown' handlers useless
+	 * Of course this makes having multiple 'unkyeswn' handlers useless
 	 * as only the first one is ever run (unless it can actually determine
 	 * if it caused the NMI)
 	 */
 	handled = nmi_handle(NMI_UNKNOWN, regs);
 	if (handled) {
-		__this_cpu_add(nmi_stats.unknown, handled);
+		__this_cpu_add(nmi_stats.unkyeswn, handled);
 		return;
 	}
 
-	__this_cpu_add(nmi_stats.unknown, 1);
+	__this_cpu_add(nmi_stats.unkyeswn, 1);
 
-	pr_emerg("Uhhuh. NMI received for unknown reason %02x on CPU %d.\n",
+	pr_emerg("Uhhuh. NMI received for unkyeswn reason %02x on CPU %d.\n",
 		 reason, smp_processor_id());
 
 	pr_emerg("Do you have a strange power saving mode enabled?\n");
-	if (unknown_nmi_panic || panic_on_unrecovered_nmi)
+	if (unkyeswn_nmi_panic || panic_on_unrecovered_nmi)
 		nmi_panic(regs, "NMI: Not continuing");
 
 	pr_emerg("Dazed and confused, but trying to continue\n");
 }
-NOKPROBE_SYMBOL(unknown_nmi_error);
+NOKPROBE_SYMBOL(unkyeswn_nmi_error);
 
 static DEFINE_PER_CPU(bool, swallow_nmi);
 static DEFINE_PER_CPU(unsigned long, last_nmi_rip);
@@ -316,9 +316,9 @@ static void default_do_nmi(struct pt_regs *regs)
 	bool b2b = false;
 
 	/*
-	 * CPU-specific NMI must be processed before non-CPU-specific
+	 * CPU-specific NMI must be processed before yesn-CPU-specific
 	 * NMI, otherwise we may lose it, because the CPU-specific
-	 * NMI can not be detected/processed on other CPUs.
+	 * NMI can yest be detected/processed on other CPUs.
 	 */
 
 	/*
@@ -336,13 +336,13 @@ static void default_do_nmi(struct pt_regs *regs)
 	__this_cpu_write(last_nmi_rip, regs->ip);
 
 	handled = nmi_handle(NMI_LOCAL, regs);
-	__this_cpu_add(nmi_stats.normal, handled);
+	__this_cpu_add(nmi_stats.yesrmal, handled);
 	if (handled) {
 		/*
 		 * There are cases when a NMI handler handles multiple
 		 * events in the current NMI.  One of these events may
 		 * be queued for in the next NMI.  Because the event is
-		 * already handled, the next NMI will result in an unknown
+		 * already handled, the next NMI will result in an unkyeswn
 		 * NMI.  Instead lets flag this for a potential NMI to
 		 * swallow.
 		 */
@@ -354,9 +354,9 @@ static void default_do_nmi(struct pt_regs *regs)
 	/*
 	 * Non-CPU-specific NMI: NMI sources can be processed on any CPU.
 	 *
-	 * Another CPU may be processing panic routines while holding
+	 * Ayesther CPU may be processing panic routines while holding
 	 * nmi_reason_lock. Check if the CPU issued the IPI for crash dumping,
-	 * and if so, call its callback directly.  If there is no CPU preparing
+	 * and if so, call its callback directly.  If there is yes CPU preparing
 	 * crash dump, we simply loop here.
 	 */
 	while (!raw_spin_trylock(&nmi_reason_lock)) {
@@ -390,7 +390,7 @@ static void default_do_nmi(struct pt_regs *regs)
 	 * cover the case where an NMI is dropped.  The downside
 	 * to this approach is we may process an NMI prematurely,
 	 * while its real NMI is sitting latched.  This will cause
-	 * an unknown NMI on the next run of the NMI processing.
+	 * an unkyeswn NMI on the next run of the NMI processing.
 	 *
 	 * We tried to flag that condition above, by setting the
 	 * swallow_nmi flag when we process more than one event.
@@ -402,22 +402,22 @@ static void default_do_nmi(struct pt_regs *regs)
 	 * the logic.
 	 *
 	 * There are scenarios where we may accidentally swallow
-	 * a 'real' unknown NMI.  For example, while processing
-	 * a perf NMI another perf NMI comes in along with a
-	 * 'real' unknown NMI.  These two NMIs get combined into
+	 * a 'real' unkyeswn NMI.  For example, while processing
+	 * a perf NMI ayesther perf NMI comes in along with a
+	 * 'real' unkyeswn NMI.  These two NMIs get combined into
 	 * one (as descibed above).  When the next NMI gets
 	 * processed, it will be flagged by perf as handled, but
-	 * noone will know that there was a 'real' unknown NMI sent
+	 * yesone will kyesw that there was a 'real' unkyeswn NMI sent
 	 * also.  As a result it gets swallowed.  Or if the first
 	 * perf NMI returns two events handled then the second
 	 * NMI will get eaten by the logic below, again losing a
-	 * 'real' unknown NMI.  But this is the best we can do
-	 * for now.
+	 * 'real' unkyeswn NMI.  But this is the best we can do
+	 * for yesw.
 	 */
 	if (b2b && __this_cpu_read(swallow_nmi))
 		__this_cpu_add(nmi_stats.swallow, 1);
 	else
-		unknown_nmi_error(reason, regs);
+		unkyeswn_nmi_error(reason, regs);
 }
 NOKPROBE_SYMBOL(default_do_nmi);
 
@@ -432,38 +432,38 @@ NOKPROBE_SYMBOL(default_do_nmi);
  *
  * To handle these nested NMIs, we have three states:
  *
- *  1) not running
+ *  1) yest running
  *  2) executing
  *  3) latched
  *
- * When no NMI is in progress, it is in the "not running" state.
+ * When yes NMI is in progress, it is in the "yest running" state.
  * When an NMI comes in, it goes into the "executing" state.
- * Normally, if another NMI is triggered, it does not interrupt
+ * Normally, if ayesther NMI is triggered, it does yest interrupt
  * the running NMI and the HW will simply latch it so that when
  * the first NMI finishes, it will restart the second NMI.
  * (Note, the latch is binary, thus multiple NMIs triggering,
- *  when one is running, are ignored. Only one NMI is restarted.)
+ *  when one is running, are igyesred. Only one NMI is restarted.)
  *
- * If an NMI executes an iret, another NMI can preempt it. We do not
+ * If an NMI executes an iret, ayesther NMI can preempt it. We do yest
  * want to allow this new NMI to run, but we want to execute it when the
  * first one finishes.  We set the state to "latched", and the exit of
  * the first NMI will perform a dec_return, if the result is zero
- * (NOT_RUNNING), then it will simply exit the NMI handler. If not, the
+ * (NOT_RUNNING), then it will simply exit the NMI handler. If yest, the
  * dec_return would have set the state to NMI_EXECUTING (what we want it
  * to be when we are running). In this case, we simply jump back to
  * rerun the NMI handler again, and restart the 'latched' NMI.
  *
  * No trap (breakpoint or page fault) should be hit before nmi_restart,
- * thus there is no race between the first check of state for NOT_RUNNING
+ * thus there is yes race between the first check of state for NOT_RUNNING
  * and setting it to NMI_EXECUTING. The HW will prevent nested NMIs
  * at this point.
  *
  * In case the NMI takes a page fault, we need to save off the CR2
- * because the NMI could have preempted another page fault and corrupt
+ * because the NMI could have preempted ayesther page fault and corrupt
  * the CR2 that is about to be read. As nested NMIs must be restarted
- * and they can not take breakpoints or page faults, the update of the
+ * and they can yest take breakpoints or page faults, the update of the
  * CR2 must be done before converting the nmi state back to NOT_RUNNING.
- * Otherwise, there would be a race of another nested NMI coming in
+ * Otherwise, there would be a race of ayesther nested NMI coming in
  * after setting state to NOT_RUNNING but before updating the nmi_cr2.
  */
 enum nmi_states {
@@ -486,12 +486,12 @@ static DEFINE_PER_CPU(unsigned long, nmi_cr2);
  * was interrupted, causing that stack to be corrupted. To handle this
  * case, check if the stack that was interrupted is the debug stack, and
  * if so, change the IDT so that new breakpoints will use the current
- * stack and not switch to the fixed address. On return of the NMI,
+ * stack and yest switch to the fixed address. On return of the NMI,
  * switch back to the original IDT.
  */
 static DEFINE_PER_CPU(int, update_debug_stack);
 
-static bool notrace is_debug_stack(unsigned long addr)
+static bool yestrace is_debug_stack(unsigned long addr)
 {
 	struct cea_exception_stacks *cs = __this_cpu_read(cea_exception_stacks);
 	unsigned long top = CEA_ESTACK_TOP(cs, DB);
@@ -509,7 +509,7 @@ static bool notrace is_debug_stack(unsigned long addr)
 NOKPROBE_SYMBOL(is_debug_stack);
 #endif
 
-dotraplinkage notrace void
+dotraplinkage yestrace void
 do_nmi(struct pt_regs *regs, long error_code)
 {
 	if (IS_ENABLED(CONFIG_SMP) && cpu_is_offline(smp_processor_id()))
@@ -540,7 +540,7 @@ nmi_restart:
 
 	inc_irq_stat(__nmi_count);
 
-	if (!ignore_nmis)
+	if (!igyesre_nmis)
 		default_do_nmi(regs);
 
 	nmi_exit();
@@ -564,12 +564,12 @@ NOKPROBE_SYMBOL(do_nmi);
 
 void stop_nmi(void)
 {
-	ignore_nmis++;
+	igyesre_nmis++;
 }
 
 void restart_nmi(void)
 {
-	ignore_nmis--;
+	igyesre_nmis--;
 }
 
 /* reset the back-to-back NMI logic */

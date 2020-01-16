@@ -33,7 +33,7 @@
 #endif
 
 #ifndef FUNC_NAME
-#define FUNC_NAME	csum_partial_copy_nocheck
+#define FUNC_NAME	csum_partial_copy_yescheck
 #endif
 
 	.register	%g2, #scratch
@@ -46,7 +46,7 @@
 	 * at least one byte.
 	 */
 	be,pt		%icc, 1f
-	 nop
+	 yesp
 	EX_LD(LOAD(ldub, %o0 + 0x00, %o4))
 	add		%o0, 1, %o0
 	sub		%o2, 1, %o2
@@ -56,7 +56,7 @@
 	be,pn		%icc, 80f
 	 cmp		%o2, 2
 	blu,pn		%icc, 60f
-	 nop
+	 yesp
 	EX_LD(LOAD(lduh, %o0 + 0x00, %o5))
 	add		%o0, 2, %o0
 	sub		%o2, 2, %o2
@@ -95,7 +95,7 @@ FUNC_NAME:		/* %o0=src, %o1=dst, %o2=len, %o3=sum */
 	brz,pn		%g3, 2f
 	 LOAD(prefetch, %o0 + 0x100, #n_reads)
 
-	/* So that we don't need to use the non-pairing
+	/* So that we don't need to use the yesn-pairing
 	 * add-with-carry instructions we accumulate 32-bit
 	 * values into a 64-bit register.  At the end of the
 	 * loop we fold it down to 32-bits and so on.
@@ -191,7 +191,7 @@ FUNC_NAME:		/* %o0=src, %o1=dst, %o2=len, %o3=sum */
 	/* %o4 has the 16-bit sum we have calculated so-far.  */
 	cmp		%o2, 2
 	blu,pt		%icc, 1f
-	 nop
+	 yesp
 	EX_LD(LOAD(lduh, %o0 + 0x00, %o5))
 	sub		%o2, 2, %o2
 	add		%o0, 2, %o0
@@ -199,7 +199,7 @@ FUNC_NAME:		/* %o0=src, %o1=dst, %o2=len, %o3=sum */
 	EX_ST(STORE(sth, %o5, %o1 + 0x00))
 	add		%o1, 0x2, %o1
 1:	brz,pt		%o2, 1f
-	 nop
+	 yesp
 	EX_LD(LOAD(ldub, %o0 + 0x00, %o5))
 	sub		%o2, 1, %o2
 	add		%o0, 1, %o0
@@ -218,7 +218,7 @@ FUNC_NAME:		/* %o0=src, %o1=dst, %o2=len, %o3=sum */
 	add		%o5, %g2, %o4
 
 1:	brz,pt		GLOBAL_SPARE, 1f
-	 nop
+	 yesp
 
 	/* We started with an odd byte, byte-swap the result.  */
 	srl		%o4, 8, %o5

@@ -22,14 +22,14 @@
 #define JFS_SUPER_MAGIC 0x3153464a /* "JFS1" */
 
 /*
- * JFS-private inode information
+ * JFS-private iyesde information
  */
-struct jfs_inode_info {
+struct jfs_iyesde_info {
 	int	fileset;	/* fileset number (always 16)*/
 	uint	mode2;		/* jfs-specific mode		*/
 	kuid_t	saved_uid;	/* saved for uid mount option */
 	kgid_t	saved_gid;	/* saved for gid mount option */
-	pxd_t	ixpxd;		/* inode extent descriptor	*/
+	pxd_t	ixpxd;		/* iyesde extent descriptor	*/
 	dxd_t	acl;		/* dxd describing acl	*/
 	dxd_t	ea;		/* dxd describing ea	*/
 	time64_t otime;		/* time created	*/
@@ -37,28 +37,28 @@ struct jfs_inode_info {
 	int	acltype;	/* Type of ACL	*/
 	short	btorder;	/* access order	*/
 	short	btindex;	/* btpage entry index*/
-	struct inode *ipimap;	/* inode map			*/
+	struct iyesde *ipimap;	/* iyesde map			*/
 	unsigned long cflag;	/* commit flags		*/
 	u64	agstart;	/* agstart of the containing IAG */
 	u16	bxflag;		/* xflag of pseudo buffer?	*/
 	unchar	pad;
 	signed char active_ag;	/* ag currently allocating from	*/
 	lid_t	blid;		/* lid of pseudo buffer?	*/
-	lid_t	atlhead;	/* anonymous tlock list head	*/
-	lid_t	atltail;	/* anonymous tlock list tail	*/
+	lid_t	atlhead;	/* ayesnymous tlock list head	*/
+	lid_t	atltail;	/* ayesnymous tlock list tail	*/
 	spinlock_t ag_lock;	/* protects active_ag		*/
-	struct list_head anon_inode_list; /* inodes having anonymous txns */
+	struct list_head ayesn_iyesde_list; /* iyesdes having ayesnymous txns */
 	/*
 	 * rdwrlock serializes xtree between reads & writes and synchronizes
-	 * changes to special inodes.  It's use would be redundant on
+	 * changes to special iyesdes.  It's use would be redundant on
 	 * directories since the i_mutex taken in the VFS is sufficient.
 	 */
 	struct rw_semaphore rdwrlock;
 	/*
-	 * commit_mutex serializes transaction processing on an inode.
+	 * commit_mutex serializes transaction processing on an iyesde.
 	 * It must be taken after beginning a transaction (txBegin), since
-	 * dirty inodes may be committed while a new transaction on the
-	 * inode is blocked in txBegin or TxBeginAnon
+	 * dirty iyesdes may be committed while a new transaction on the
+	 * iyesde is blocked in txBegin or TxBeginAyesn
 	 */
 	struct mutex commit_mutex;
 	/* xattr_sem allows us to access the xattrs without taking i_mutex */
@@ -67,7 +67,7 @@ struct jfs_inode_info {
 	union {
 		struct {
 			xtpage_t _xtroot;	/* 288: xtree root */
-			struct inomap *_imap;	/* 4: inode map header	*/
+			struct iyesmap *_imap;	/* 4: iyesde map header	*/
 		} file;
 		struct {
 			struct dir_table_slot _table[12]; /* 96: dir index */
@@ -88,7 +88,7 @@ struct jfs_inode_info {
 	struct dquot *i_dquot[MAXQUOTAS];
 #endif
 	u32 dev;	/* will die when we get wide dev_t */
-	struct inode	vfs_inode;
+	struct iyesde	vfs_iyesde;
 };
 #define i_xtroot u.file._xtroot
 #define i_imap u.file._imap
@@ -108,12 +108,12 @@ struct jfs_inode_info {
  * cflag
  */
 enum cflags {
-	COMMIT_Nolink,		/* inode committed with zero link count */
-	COMMIT_Inlineea,	/* commit inode inline EA */
+	COMMIT_Nolink,		/* iyesde committed with zero link count */
+	COMMIT_Inlineea,	/* commit iyesde inline EA */
 	COMMIT_Freewmap,	/* free WMAP at iClose() */
-	COMMIT_Dirty,		/* Inode is really dirty */
+	COMMIT_Dirty,		/* Iyesde is really dirty */
 	COMMIT_Dirtable,	/* commit changes to di_dirtable */
-	COMMIT_Stale,		/* data extent is no longer valid */
+	COMMIT_Stale,		/* data extent is yes longer valid */
 	COMMIT_Synclist,	/* metadata pages on group commit synclist */
 };
 
@@ -125,12 +125,12 @@ enum commit_mutex_class
 	COMMIT_MUTEX_PARENT,
 	COMMIT_MUTEX_CHILD,
 	COMMIT_MUTEX_SECOND_PARENT,	/* Renaming */
-	COMMIT_MUTEX_VICTIM		/* Inode being unlinked due to rename */
+	COMMIT_MUTEX_VICTIM		/* Iyesde being unlinked due to rename */
 };
 
 /*
  * rdwrlock subclasses:
- * The dmap inode may be locked while a normal inode or the imap inode are
+ * The dmap iyesde may be locked while a yesrmal iyesde or the imap iyesde are
  * locked.
  */
 enum rdwrlock_class
@@ -151,17 +151,17 @@ enum rdwrlock_class
 struct jfs_sb_info {
 	struct super_block *sb;		/* Point back to vfs super block */
 	unsigned long	mntflag;	/* aggregate attributes	*/
-	struct inode	*ipbmap;	/* block map inode		*/
-	struct inode	*ipaimap;	/* aggregate inode map inode	*/
-	struct inode	*ipaimap2;	/* secondary aimap inode	*/
-	struct inode	*ipimap;	/* aggregate inode map inode	*/
+	struct iyesde	*ipbmap;	/* block map iyesde		*/
+	struct iyesde	*ipaimap;	/* aggregate iyesde map iyesde	*/
+	struct iyesde	*ipaimap2;	/* secondary aimap iyesde	*/
+	struct iyesde	*ipimap;	/* aggregate iyesde map iyesde	*/
 	struct jfs_log	*log;		/* log			*/
 	struct list_head log_list;	/* volumes associated with a journal */
 	short		bsize;		/* logical block size	*/
 	short		l2bsize;	/* log2 logical block size	*/
 	short		nbperpage;	/* blocks per page		*/
 	short		l2nbperpage;	/* log2 blocks per page	*/
-	short		l2niperblk;	/* log2 inodes per page	*/
+	short		l2niperblk;	/* log2 iyesdes per page	*/
 	dev_t		logdev;		/* external log device	*/
 	uint		aggregate;	/* volume identifier in log record */
 	pxd_t		logpxd;		/* pxd describing log	*/
@@ -175,16 +175,16 @@ struct jfs_sb_info {
 	 */
 	int		commit_state;	/* commit state */
 	/* Formerly in ipimap */
-	uint		gengen;		/* inode generation generator*/
-	uint		inostamp;	/* shows inode belongs to fileset*/
+	uint		gengen;		/* iyesde generation generator*/
+	uint		iyesstamp;	/* shows iyesde belongs to fileset*/
 
 	/* Formerly in ipbmap */
 	struct bmap	*bmap;		/* incore bmap descriptor	*/
 	struct nls_table *nls_tab;	/* current codepage		*/
-	struct inode *direct_inode;	/* metadata inode */
+	struct iyesde *direct_iyesde;	/* metadata iyesde */
 	uint		state;		/* mount/recovery state	*/
 	unsigned long	flag;		/* mount time flags */
-	uint		p_state;	/* state prior to going no integrity */
+	uint		p_state;	/* state prior to going yes integrity */
 	kuid_t		uid;		/* uid to override on-disk uid */
 	kgid_t		gid;		/* gid to override on-disk gid */
 	uint		umask;		/* umask to override on-disk umask */
@@ -194,14 +194,14 @@ struct jfs_sb_info {
 /* jfs_sb_info commit_state */
 #define IN_LAZYCOMMIT 1
 
-static inline struct jfs_inode_info *JFS_IP(struct inode *inode)
+static inline struct jfs_iyesde_info *JFS_IP(struct iyesde *iyesde)
 {
-	return container_of(inode, struct jfs_inode_info, vfs_inode);
+	return container_of(iyesde, struct jfs_iyesde_info, vfs_iyesde);
 }
 
-static inline int jfs_dirtable_inline(struct inode *inode)
+static inline int jfs_dirtable_inline(struct iyesde *iyesde)
 {
-	return (JFS_IP(inode)->next_index <= (MAX_INLINE_DIRTABLE_ENTRY + 1));
+	return (JFS_IP(iyesde)->next_index <= (MAX_INLINE_DIRTABLE_ENTRY + 1));
 }
 
 static inline struct jfs_sb_info *JFS_SBI(struct super_block *sb)
@@ -209,9 +209,9 @@ static inline struct jfs_sb_info *JFS_SBI(struct super_block *sb)
 	return sb->s_fs_info;
 }
 
-static inline int isReadOnly(struct inode *inode)
+static inline int isReadOnly(struct iyesde *iyesde)
 {
-	if (JFS_SBI(inode->i_sb)->log)
+	if (JFS_SBI(iyesde->i_sb)->log)
 		return 0;
 	return 1;
 }

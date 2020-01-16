@@ -26,7 +26,7 @@ static s64 __uv_bios_call(enum uv_bios_cmd which, u64 a1, u64 a2, u64 a3,
 
 	if (!tab || !tab->function)
 		/*
-		 * BIOS does not support UV systab
+		 * BIOS does yest support UV systab
 		 */
 		return BIOS_STATUS_UNIMPLEMENTED;
 
@@ -174,8 +174,8 @@ EXPORT_SYMBOL_GPL(uv_bios_freq_base);
  * Returns:
  *    0: Success
  *    -EINVAL: Invalid domain or bus number
- *    -ENOSYS: Capability not available
- *    -EBUSY: Legacy VGA I/O cannot be retargeted at this time
+ *    -ENOSYS: Capability yest available
+ *    -EBUSY: Legacy VGA I/O canyest be retargeted at this time
  */
 int uv_bios_set_legacy_vga_target(bool decode, int domain, int bus)
 {

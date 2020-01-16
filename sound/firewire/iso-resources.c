@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * isochronous resources helper functions
+ * isochroyesus resources helper functions
  *
  * Copyright (c) Clemens Ladisch <clemens@ladisch.de>
  */
@@ -20,7 +20,7 @@
  * @r: the resource manager to initialize
  * @unit: the device unit for which the resources will be needed
  *
- * If the device does not support all channel numbers, change @r->channels_mask
+ * If the device does yest support all channel numbers, change @r->channels_mask
  * after calling this function.
  */
 int fw_iso_resources_init(struct fw_iso_resources *r, struct fw_unit *unit)
@@ -36,7 +36,7 @@ EXPORT_SYMBOL(fw_iso_resources_init);
 
 /**
  * fw_iso_resources_destroy - destroy a resource manager
- * @r: the resource manager that is no longer needed
+ * @r: the resource manager that is yes longer needed
  */
 void fw_iso_resources_destroy(struct fw_iso_resources *r)
 {
@@ -65,7 +65,7 @@ static int current_bandwidth_overhead(struct fw_card *card)
 {
 	/*
 	 * Under the usual pessimistic assumption (cable length 4.5 m), the
-	 * isochronous overhead for N cables is 1.797 µs + N * 0.494 µs, or
+	 * isochroyesus overhead for N cables is 1.797 µs + N * 0.494 µs, or
 	 * 88.3 + N * 24.3 in bandwidth units.
 	 *
 	 * The calculation below tries to deduce N from the current gap count.
@@ -88,19 +88,19 @@ static int wait_isoch_resource_delay_after_bus_reset(struct fw_card *card)
 }
 
 /**
- * fw_iso_resources_allocate - allocate isochronous channel and bandwidth
+ * fw_iso_resources_allocate - allocate isochroyesus channel and bandwidth
  * @r: the resource manager
  * @max_payload_bytes: the amount of data (including CIP headers) per packet
  * @speed: the speed (e.g., SCODE_400) at which the packets will be sent
  *
- * This function allocates one isochronous channel and enough bandwidth for the
+ * This function allocates one isochroyesus channel and eyesugh bandwidth for the
  * specified packet size.
  *
  * Returns the channel number that the caller must use for streaming, or
  * a negative error code.  Due to potentionally long delays, this function is
  * interruptible and can return -ERESTARTSYS.  On success, the caller is
  * responsible for calling fw_iso_resources_update() on bus resets, and
- * fw_iso_resources_free() when the resources are not longer needed.
+ * fw_iso_resources_free() when the resources are yest longer needed.
  */
 int fw_iso_resources_allocate(struct fw_iso_resources *r,
 			      unsigned int max_payload_bytes, int speed)
@@ -138,10 +138,10 @@ retry_after_bus_reset:
 	} else {
 		if (channel == -EBUSY)
 			dev_err(&r->unit->device,
-				"isochronous resources exhausted\n");
+				"isochroyesus resources exhausted\n");
 		else
 			dev_err(&r->unit->device,
-				"isochronous resource allocation failed\n");
+				"isochroyesus resource allocation failed\n");
 	}
 
 	mutex_unlock(&r->mutex);
@@ -156,7 +156,7 @@ EXPORT_SYMBOL(fw_iso_resources_allocate);
  *
  * This function must be called from the driver's .update handler to reallocate
  * any resources that were allocated before the bus reset.  It is safe to call
- * this function if no resources are currently allocated.
+ * this function if yes resources are currently allocated.
  *
  * Returns a negative error code on failure.  If this happens, the caller must
  * stop streaming.
@@ -183,17 +183,17 @@ int fw_iso_resources_update(struct fw_iso_resources *r)
 	fw_iso_resource_manage(card, r->generation, 1uLL << r->channel,
 			       &channel, &bandwidth, true);
 	/*
-	 * When another bus reset happens, pretend that the allocation
+	 * When ayesther bus reset happens, pretend that the allocation
 	 * succeeded; we will try again for the new generation later.
 	 */
 	if (channel < 0 && channel != -EAGAIN) {
 		r->allocated = false;
 		if (channel == -EBUSY)
 			dev_err(&r->unit->device,
-				"isochronous resources exhausted\n");
+				"isochroyesus resources exhausted\n");
 		else
 			dev_err(&r->unit->device,
-				"isochronous resource allocation failed\n");
+				"isochroyesus resource allocation failed\n");
 	}
 
 	mutex_unlock(&r->mutex);
@@ -226,7 +226,7 @@ void fw_iso_resources_free(struct fw_iso_resources *r)
 				       &channel, &bandwidth, false);
 		if (channel < 0)
 			dev_err(&r->unit->device,
-				"isochronous resource deallocation failed\n");
+				"isochroyesus resource deallocation failed\n");
 
 		r->allocated = false;
 	}

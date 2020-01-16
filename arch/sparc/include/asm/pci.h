@@ -21,7 +21,7 @@
 
 /* PCI 64-bit addressing works for all slots on all controller
  * types on sparc64.  However, it requires that the device
- * can drive enough of the 64 bits.
+ * can drive eyesugh of the 64 bits.
  */
 #define PCI64_REQUIRED_MASK	(~(u64)0)
 #define PCI64_ADDR_BASE		0xfffc000000000000UL

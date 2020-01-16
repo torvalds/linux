@@ -282,7 +282,7 @@ static inline void c_can_object_put(struct net_device *dev, int iface,
 
 /*
  * Note: According to documentation clearing TXIE while MSGVAL is set
- * is not allowed, but works nicely on C/DCAN. And that lowers the I/O
+ * is yest allowed, but works nicely on C/DCAN. And that lowers the I/O
  * load significantly.
  */
 static void c_can_inval_tx_object(struct net_device *dev, int iface, int obj)
@@ -366,7 +366,7 @@ static inline void c_can_activate_all_lower_rx_msg_obj(struct net_device *dev,
 }
 
 static int c_can_handle_lost_msg_obj(struct net_device *dev,
-				     int iface, int objno, u32 ctrl)
+				     int iface, int objyes, u32 ctrl)
 {
 	struct net_device_stats *stats = &dev->stats;
 	struct c_can_priv *priv = netdev_priv(dev);
@@ -375,7 +375,7 @@ static int c_can_handle_lost_msg_obj(struct net_device *dev,
 
 	ctrl &= ~(IF_MCONT_MSGLST | IF_MCONT_INTPND | IF_MCONT_NEWDAT);
 	priv->write_reg(priv, C_CAN_IFACE(MSGCTRL_REG, iface), ctrl);
-	c_can_object_put(dev, iface, objno, IF_COMM_CONTROL);
+	c_can_object_put(dev, iface, objyes, IF_COMM_CONTROL);
 
 	stats->rx_errors++;
 	stats->rx_over_errors++;
@@ -469,7 +469,7 @@ static netdev_tx_t c_can_start_xmit(struct sk_buff *skb,
 	if (can_dropped_invalid_skb(dev, skb))
 		return NETDEV_TX_OK;
 	/*
-	 * This is not a FIFO. C/D_CAN sends out the buffers
+	 * This is yest a FIFO. C/D_CAN sends out the buffers
 	 * prioritized. The lowest buffer number wins.
 	 */
 	idx = fls(atomic_read(&priv->tx_active));
@@ -779,7 +779,7 @@ static u32 c_can_adjust_pending(u32 pend)
 	weight = hweight32(pend);
 	lasts = fls(pend);
 
-	/* If the bits are linear, nothing to do */
+	/* If the bits are linear, yesthing to do */
 	if (lasts == weight)
 		return pend;
 
@@ -825,8 +825,8 @@ static int c_can_read_objects(struct net_device *dev, struct c_can_priv *priv,
 		}
 
 		/*
-		 * This really should not happen, but this covers some
-		 * odd HW behaviour. Do not remove that unless you
+		 * This really should yest happen, but this covers some
+		 * odd HW behaviour. Do yest remove that unless you
 		 * want to brick your machine.
 		 */
 		if (!(ctrl & IF_MCONT_NEWDAT))
@@ -874,7 +874,7 @@ static int c_can_do_rx_poll(struct net_device *dev, int quota)
 	 * for a maximum number of 16 objects.
 	 */
 	BUILD_BUG_ON_MSG(C_CAN_MSG_OBJ_RX_LAST > 16,
-			"Implementation does not support more message objects than 16");
+			"Implementation does yest support more message objects than 16");
 
 	while (quota > 0) {
 		if (!pend) {
@@ -1001,8 +1001,8 @@ static int c_can_handle_bus_err(struct net_device *dev,
 	struct sk_buff *skb;
 
 	/*
-	 * early exit if no lec update or no error.
-	 * no lec update means that no CAN bus event has been detected
+	 * early exit if yes lec update or yes error.
+	 * yes lec update means that yes CAN bus event has been detected
 	 * since CPU wrote 0x7 value to status reg.
 	 */
 	if (lec_type == LEC_UNUSED || lec_type == LEC_NO_ERROR)
@@ -1075,7 +1075,7 @@ static int c_can_poll(struct napi_struct *napi, int quota)
 		if (priv->type != BOSCH_D_CAN)
 			priv->write_reg(priv, C_CAN_STS_REG, LEC_UNUSED);
 	} else {
-		/* no change detected ... */
+		/* yes change detected ... */
 		curr = last;
 	}
 
@@ -1122,7 +1122,7 @@ static int c_can_poll(struct napi_struct *napi, int quota)
 end:
 	if (work_done < quota) {
 		napi_complete_done(napi, work_done);
-		/* enable all IRQs if we are not in bus off state */
+		/* enable all IRQs if we are yest in bus off state */
 		if (priv->can.state != CAN_STATE_BUS_OFF)
 			c_can_irq_control(priv, true);
 	}

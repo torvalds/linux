@@ -3,7 +3,7 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright yestice and this permission yestice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
@@ -351,10 +351,10 @@ void rsi_interrupt_handler(struct rsi_hw *adapter)
 				break;
 			default:
 				rsi_sdio_ack_intr(common->priv, isr_status);
-				dev->rx_info.total_sdio_unknown_intr++;
+				dev->rx_info.total_sdio_unkyeswn_intr++;
 				isr_status = 0;
 				rsi_dbg(ISR_ZONE,
-					"Unknown Interrupt %x\n",
+					"Unkyeswn Interrupt %x\n",
 					isr_status);
 				break;
 			}

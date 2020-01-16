@@ -293,7 +293,7 @@ static void __init cpmac_get_mac(int instance, unsigned char *dev_addr)
 
 	if (mac) {
 		if (!mac_pton(mac, dev_addr)) {
-			pr_warn("cannot parse mac address, using random address\n");
+			pr_warn("canyest parse mac address, using random address\n");
 			eth_random_addr(dev_addr);
 		}
 	} else
@@ -702,7 +702,7 @@ static int __init ar7_register_devices(void)
 		pr_warn("unable to register usb slave: %d\n", res);
 
 	/* Register watchdog only if enabled in hardware */
-	bootcr = ioremap_nocache(AR7_REGS_DCL, 4);
+	bootcr = ioremap_yescache(AR7_REGS_DCL, 4);
 	val = readl(bootcr);
 	iounmap(bootcr);
 	if (val & AR7_WDT_HW_ENA) {

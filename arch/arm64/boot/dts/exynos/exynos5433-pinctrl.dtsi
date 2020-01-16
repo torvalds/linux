@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Samsung's Exynos5433 SoC pin-mux and pin-config device tree source
+ * Samsung's Exyyess5433 SoC pin-mux and pin-config device tree source
  *
  * Copyright (c) 2016 Samsung Electronics Co., Ltd.
  * Chanwoo Choi <cw00.choi@samsung.com>
  *
- * Samsung's Exynos5433 SoC pin-mux and pin-config options are listed as device
- * tree nodes are listed in this file.
+ * Samsung's Exyyess5433 SoC pin-mux and pin-config options are listed as device
+ * tree yesdes are listed in this file.
  */
 
 #include <dt-bindings/pinctrl/samsung.h>

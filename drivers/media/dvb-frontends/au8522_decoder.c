@@ -6,10 +6,10 @@
  * Copyright (C) 2005-2008 Auvitek International, Ltd.
  */
 
-/* Developer notes:
+/* Developer yestes:
  *
- * Enough is implemented here for CVBS and S-Video inputs, but the actual
- *  analog demodulator code isn't implemented (not needed for xc5000 since it
+ * Eyesugh is implemented here for CVBS and S-Video inputs, but the actual
+ *  analog demodulator code isn't implemented (yest needed for xc5000 since it
  *  has its own demodulator and outputs CVBS)
  *
  */
@@ -273,7 +273,7 @@ static void setup_decoder_defaults(struct au8522_state *state, bool is_svideo)
 
 	/*
 	 * Despite what the table says, for the HVR-950q we still need
-	 * to be in CVBS mode for the S-Video input (reason unknown).
+	 * to be in CVBS mode for the S-Video input (reason unkyeswn).
 	 */
 	/* filter_coef_type = 3; */
 	filter_coef_type = 5;
@@ -284,7 +284,7 @@ static void setup_decoder_defaults(struct au8522_state *state, bool is_svideo)
 				filter_coef[i].reg_val[filter_coef_type]);
 	}
 
-	/* It's not clear what these registers are for, but they are always
+	/* It's yest clear what these registers are for, but they are always
 	   set to the same value regardless of what mode we're in */
 	au8522_writereg(state, AU8522_REG42EH, 0x87);
 	au8522_writereg(state, AU8522_REG42FH, 0xa2);
@@ -324,7 +324,7 @@ static void au8522_setup_cvbs_tuner_mode(struct au8522_state *state,
 	au8522_writereg(state, AU8522_MODULE_CLOCK_CONTROL_REG0A3H,
 			AU8522_MODULE_CLOCK_CONTROL_REG0A3H_CVBS);
 
-	/* It's not clear why we have to have the PGA in automatic mode while
+	/* It's yest clear why we have to have the PGA in automatic mode while
 	   enabling clamp control, but it's what Windows does */
 	au8522_writereg(state, AU8522_PGA_CONTROL_REG082H, 0x00);
 
@@ -548,7 +548,7 @@ static int au8522_s_stream(struct v4l2_subdev *sd, int enable)
 
 		state->operational_mode = AU8522_ANALOG_MODE;
 	} else {
-		/* This does not completely power down the device
+		/* This does yest completely power down the device
 		   (it only reduces it from around 140ma to 80ma) */
 		au8522_writereg(state, AU8522_SYSTEM_MODULE_CONTROL_0_REG0A4H,
 				1 << 5);
@@ -569,7 +569,7 @@ static int au8522_s_video_routing(struct v4l2_subdev *sd,
 		state->vid_input = input;
 		break;
 	default:
-		printk(KERN_ERR "au8522 mode not currently supported\n");
+		printk(KERN_ERR "au8522 mode yest currently supported\n");
 		return -EINVAL;
 	}
 

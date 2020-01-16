@@ -6,7 +6,7 @@
  *
  *  Added devfs support.
  *    Jan-11-1998, C. Scott Ananian <cananian@alumni.princeton.edu>
- *  Shared /dev/zero mmapping support, Feb 2000, Kanoj Sarcar <kanoj@sgi.com>
+ *  Shared /dev/zero mmapping support, Feb 2000, Kayesj Sarcar <kayesj@sgi.com>
  */
 
 #include <linux/mm.h>
@@ -281,12 +281,12 @@ int __weak phys_mem_access_prot_allowed(struct file *file,
  * outside of main memory.
  *
  */
-#ifdef pgprot_noncached
+#ifdef pgprot_yesncached
 static int uncached_access(struct file *file, phys_addr_t addr)
 {
 #if defined(CONFIG_IA64)
 	/*
-	 * On ia64, we ignore O_DSYNC because we cannot tolerate memory
+	 * On ia64, we igyesre O_DSYNC because we canyest tolerate memory
 	 * attribute aliases.
 	 */
 	return !(efi_mem_attributes(addr) & EFI_MEMORY_WB);
@@ -299,9 +299,9 @@ static int uncached_access(struct file *file, phys_addr_t addr)
 	}
 #else
 	/*
-	 * Accessing memory above the top the kernel knows about or through a
+	 * Accessing memory above the top the kernel kyesws about or through a
 	 * file pointer
-	 * that was marked O_DSYNC will be done non-cached.
+	 * that was marked O_DSYNC will be done yesn-cached.
 	 */
 	if (file->f_flags & O_DSYNC)
 		return 1;
@@ -313,11 +313,11 @@ static int uncached_access(struct file *file, phys_addr_t addr)
 static pgprot_t phys_mem_access_prot(struct file *file, unsigned long pfn,
 				     unsigned long size, pgprot_t vma_prot)
 {
-#ifdef pgprot_noncached
+#ifdef pgprot_yesncached
 	phys_addr_t offset = pfn << PAGE_SHIFT;
 
 	if (uncached_access(file, offset))
-		return pgprot_noncached(vma_prot);
+		return pgprot_yesncached(vma_prot);
 #endif
 	return vma_prot;
 }
@@ -347,7 +347,7 @@ static unsigned zero_mmap_capabilities(struct file *file)
 	return NOMMU_MAP_COPY;
 }
 
-/* can't do an in-place private mapping if there's no MMU */
+/* can't do an in-place private mapping if there's yes MMU */
 static inline int private_mapping_ok(struct vm_area_struct *vma)
 {
 	return vma->vm_flags & VM_MAYSHARE;
@@ -421,7 +421,7 @@ static int mmap_kmem(struct file *file, struct vm_area_struct *vma)
 	 * available in mem_map which pfn_valid checks for. Perhaps should add a
 	 * new macro here.
 	 *
-	 * RED-PEN: vmalloc is not supported right now.
+	 * RED-PEN: vmalloc is yest supported right yesw.
 	 */
 	if (!pfn_valid(pfn))
 		return -EIO;
@@ -690,13 +690,13 @@ static ssize_t write_iter_null(struct kiocb *iocb, struct iov_iter *from)
 	return count;
 }
 
-static int pipe_to_null(struct pipe_inode_info *info, struct pipe_buffer *buf,
+static int pipe_to_null(struct pipe_iyesde_info *info, struct pipe_buffer *buf,
 			struct splice_desc *sd)
 {
 	return sd->len;
 }
 
-static ssize_t splice_write_null(struct pipe_inode_info *pipe, struct file *out,
+static ssize_t splice_write_null(struct pipe_iyesde_info *pipe, struct file *out,
 				 loff_t *ppos, size_t len, unsigned int flags)
 {
 	return splice_from_pipe(pipe, out, ppos, len, flags, pipe_to_null);
@@ -729,7 +729,7 @@ static int mmap_zero(struct file *file, struct vm_area_struct *vma)
 #endif
 	if (vma->vm_flags & VM_SHARED)
 		return shmem_zero_setup(vma);
-	vma_set_anonymous(vma);
+	vma_set_ayesnymous(vma);
 	return 0;
 }
 
@@ -743,12 +743,12 @@ static unsigned long get_unmapped_area_zero(struct file *file,
 		 * mmap_zero() will call shmem_zero_setup() to create a file,
 		 * so use shmem's get_unmapped_area in case it can be huge;
 		 * and pass NULL for file as in mmap.c's get_unmapped_area(),
-		 * so as not to confuse shmem with our handle on "/dev/zero".
+		 * so as yest to confuse shmem with our handle on "/dev/zero".
 		 */
 		return shmem_get_unmapped_area(NULL, addr, len, pgoff, flags);
 	}
 
-	/* Otherwise flags & MAP_PRIVATE: with no shmem object beneath it */
+	/* Otherwise flags & MAP_PRIVATE: with yes shmem object beneath it */
 	return current->mm->get_unmapped_area(file, addr, len, pgoff, flags);
 #else
 	return -ENOSYS;
@@ -762,8 +762,8 @@ static ssize_t write_full(struct file *file, const char __user *buf,
 }
 
 /*
- * Special lseek() function for /dev/null and /dev/zero.  Most notably, you
- * can fopen() both devices with "a" now.  This was previously impossible.
+ * Special lseek() function for /dev/null and /dev/zero.  Most yestably, you
+ * can fopen() both devices with "a" yesw.  This was previously impossible.
  * -- SRB.
  */
 static loff_t null_lseek(struct file *file, loff_t offset, int orig)
@@ -772,18 +772,18 @@ static loff_t null_lseek(struct file *file, loff_t offset, int orig)
 }
 
 /*
- * The memory devices use the full 32/64 bits of the offset, and so we cannot
+ * The memory devices use the full 32/64 bits of the offset, and so we canyest
  * check against negative addresses: they are ok. The return value is weird,
  * though, in that case (0).
  *
- * also note that seeking relative to the "end of file" isn't supported:
- * it has no meaning, so it returns -EINVAL.
+ * also yeste that seeking relative to the "end of file" isn't supported:
+ * it has yes meaning, so it returns -EINVAL.
  */
 static loff_t memory_lseek(struct file *file, loff_t offset, int orig)
 {
 	loff_t ret;
 
-	inode_lock(file_inode(file));
+	iyesde_lock(file_iyesde(file));
 	switch (orig) {
 	case SEEK_CUR:
 		offset += file->f_pos;
@@ -801,11 +801,11 @@ static loff_t memory_lseek(struct file *file, loff_t offset, int orig)
 	default:
 		ret = -EINVAL;
 	}
-	inode_unlock(file_inode(file));
+	iyesde_unlock(file_iyesde(file));
 	return ret;
 }
 
-static int open_port(struct inode *inode, struct file *filp)
+static int open_port(struct iyesde *iyesde, struct file *filp)
 {
 	if (!capable(CAP_SYS_RAWIO))
 		return -EPERM;
@@ -903,16 +903,16 @@ static const struct memdev {
 #endif
 };
 
-static int memory_open(struct inode *inode, struct file *filp)
+static int memory_open(struct iyesde *iyesde, struct file *filp)
 {
-	int minor;
+	int miyesr;
 	const struct memdev *dev;
 
-	minor = iminor(inode);
-	if (minor >= ARRAY_SIZE(devlist))
+	miyesr = imiyesr(iyesde);
+	if (miyesr >= ARRAY_SIZE(devlist))
 		return -ENXIO;
 
-	dev = &devlist[minor];
+	dev = &devlist[miyesr];
 	if (!dev->fops)
 		return -ENXIO;
 
@@ -920,17 +920,17 @@ static int memory_open(struct inode *inode, struct file *filp)
 	filp->f_mode |= dev->fmode;
 
 	if (dev->fops->open)
-		return dev->fops->open(inode, filp);
+		return dev->fops->open(iyesde, filp);
 
 	return 0;
 }
 
 static const struct file_operations memory_fops = {
 	.open = memory_open,
-	.llseek = noop_llseek,
+	.llseek = yesop_llseek,
 };
 
-static char *mem_devnode(struct device *dev, umode_t *mode)
+static char *mem_devyesde(struct device *dev, umode_t *mode)
 {
 	if (mode && devlist[MINOR(dev->devt)].mode)
 		*mode = devlist[MINOR(dev->devt)].mode;
@@ -941,7 +941,7 @@ static struct class *mem_class;
 
 static int __init chr_dev_init(void)
 {
-	int minor;
+	int miyesr;
 
 	if (register_chrdev(MEM_MAJOR, "mem", &memory_fops))
 		printk("unable to get major %d for memory devs\n", MEM_MAJOR);
@@ -950,19 +950,19 @@ static int __init chr_dev_init(void)
 	if (IS_ERR(mem_class))
 		return PTR_ERR(mem_class);
 
-	mem_class->devnode = mem_devnode;
-	for (minor = 1; minor < ARRAY_SIZE(devlist); minor++) {
-		if (!devlist[minor].name)
+	mem_class->devyesde = mem_devyesde;
+	for (miyesr = 1; miyesr < ARRAY_SIZE(devlist); miyesr++) {
+		if (!devlist[miyesr].name)
 			continue;
 
 		/*
 		 * Create /dev/port?
 		 */
-		if ((minor == DEVPORT_MINOR) && !arch_has_dev_port())
+		if ((miyesr == DEVPORT_MINOR) && !arch_has_dev_port())
 			continue;
 
-		device_create(mem_class, NULL, MKDEV(MEM_MAJOR, minor),
-			      NULL, devlist[minor].name);
+		device_create(mem_class, NULL, MKDEV(MEM_MAJOR, miyesr),
+			      NULL, devlist[miyesr].name);
 	}
 
 	return tty_init();

@@ -11,7 +11,7 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/device.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/init.h>
 
 #include <mach/hardware.h>
@@ -41,7 +41,7 @@
  *  CF Vcc on BadgePAD 4 can be jumpered either for 3v3 (short pins 1
  *  and 2 on JP10) or 5v0 (short pins 2 and 3 on JP10).
  *
- * Unfortunately there's no way programmatically to determine how a
+ * Unfortunately there's yes way programmatically to determine how a
  * given board is jumpered.  This code assumes a default jumpering
  * as described below.
  *

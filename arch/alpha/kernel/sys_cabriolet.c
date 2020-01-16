@@ -127,13 +127,13 @@ cabriolet_init_irq(void)
 /* In theory, the PC164 has the same interrupt hardware as the other
    Cabriolet based systems.  However, something got screwed up late
    in the development cycle which broke the interrupt masking hardware.
-   Repeat, it is not possible to mask and ack interrupts.  At all.
+   Repeat, it is yest possible to mask and ack interrupts.  At all.
 
    In an attempt to work around this, while processing interrupts,
-   we do not allow the IPL to drop below what it is currently.  This
+   we do yest allow the IPL to drop below what it is currently.  This
    prevents the possibility of recursion.  
 
-   ??? Another option might be to force all PCI devices to use edge
+   ??? Ayesther option might be to force all PCI devices to use edge
    triggered rather than level triggered interrupts.  That might be
    too invasive though.  */
 
@@ -161,9 +161,9 @@ pc164_init_irq(void)
 #endif
 
 /*
- * The EB66+ is very similar to the EB66 except that it does not have
+ * The EB66+ is very similar to the EB66 except that it does yest have
  * the on-board NCR and Tulip chips.  In the code below, I have used
- * slot number to refer to the id select line and *not* the slot
+ * slot number to refer to the id select line and *yest* the slot
  * number used in the EB66+ documentation.  However, in the table,
  * I've given the slot number, the id select line and the Jxx number
  * that's printed on the board.  The interrupt pins from the PCI slots
@@ -193,7 +193,7 @@ eb66p_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 /*
  * The AlphaPC64 is very similar to the EB66+ except that its slots
  * are numbered differently.  In the code below, I have used slot
- * number to refer to the id select line and *not* the slot number
+ * number to refer to the id select line and *yest* the slot number
  * used in the AlphaPC64 documentation.  However, in the table, I've
  * given the slot number, the id select line and the Jxx number that's
  * printed on the board.  The interrupt pins from the PCI slots are
@@ -257,7 +257,7 @@ cia_cab_init_pci(void)
  * located at ISA address 804h, 805h and 806h.
  * 
  * An I/O read at ISA address 804h, 805h, 806h will return the
- * state of the 11 PCI interrupts and not the state of the MASKED
+ * state of the 11 PCI interrupts and yest the state of the MASKED
  * interrupts.
  * 
  * Note: A write to I/O 804h, 805h, and 806h the mask register will be

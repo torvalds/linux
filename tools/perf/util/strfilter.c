@@ -2,7 +2,7 @@
 #include "string2.h"
 #include "strfilter.h"
 
-#include <errno.h>
+#include <erryes.h>
 #include <stdlib.h>
 #include <linux/ctype.h>
 #include <linux/string.h>
@@ -11,26 +11,26 @@
 /* Operators */
 static const char *OP_and	= "&";	/* Logical AND */
 static const char *OP_or	= "|";	/* Logical OR */
-static const char *OP_not	= "!";	/* Logical NOT */
+static const char *OP_yest	= "!";	/* Logical NOT */
 
 #define is_operator(c)	((c) == '|' || (c) == '&' || (c) == '!')
 #define is_separator(c)	(is_operator(c) || (c) == '(' || (c) == ')')
 
-static void strfilter_node__delete(struct strfilter_node *node)
+static void strfilter_yesde__delete(struct strfilter_yesde *yesde)
 {
-	if (node) {
-		if (node->p && !is_operator(*node->p))
-			zfree((char **)&node->p);
-		strfilter_node__delete(node->l);
-		strfilter_node__delete(node->r);
-		free(node);
+	if (yesde) {
+		if (yesde->p && !is_operator(*yesde->p))
+			zfree((char **)&yesde->p);
+		strfilter_yesde__delete(yesde->l);
+		strfilter_yesde__delete(yesde->r);
+		free(yesde);
 	}
 }
 
 void strfilter__delete(struct strfilter *filter)
 {
 	if (filter) {
-		strfilter_node__delete(filter->root);
+		strfilter_yesde__delete(filter->root);
 		free(filter);
 	}
 }
@@ -63,25 +63,25 @@ end:
 	return s;
 }
 
-static struct strfilter_node *strfilter_node__alloc(const char *op,
-						    struct strfilter_node *l,
-						    struct strfilter_node *r)
+static struct strfilter_yesde *strfilter_yesde__alloc(const char *op,
+						    struct strfilter_yesde *l,
+						    struct strfilter_yesde *r)
 {
-	struct strfilter_node *node = zalloc(sizeof(*node));
+	struct strfilter_yesde *yesde = zalloc(sizeof(*yesde));
 
-	if (node) {
-		node->p = op;
-		node->l = l;
-		node->r = r;
+	if (yesde) {
+		yesde->p = op;
+		yesde->l = l;
+		yesde->r = r;
 	}
 
-	return node;
+	return yesde;
 }
 
-static struct strfilter_node *strfilter_node__new(const char *s,
+static struct strfilter_yesde *strfilter_yesde__new(const char *s,
 						  const char **ep)
 {
-	struct strfilter_node root, *cur, *last_op;
+	struct strfilter_yesde root, *cur, *last_op;
 	const char *e;
 
 	if (!s)
@@ -96,35 +96,35 @@ static struct strfilter_node *strfilter_node__new(const char *s,
 		case '&':	/* Exchg last OP->r with AND */
 			if (!cur->r || !last_op->r)
 				goto error;
-			cur = strfilter_node__alloc(OP_and, last_op->r, NULL);
+			cur = strfilter_yesde__alloc(OP_and, last_op->r, NULL);
 			if (!cur)
-				goto nomem;
+				goto yesmem;
 			last_op->r = cur;
 			last_op = cur;
 			break;
 		case '|':	/* Exchg the root with OR */
 			if (!cur->r || !root.r)
 				goto error;
-			cur = strfilter_node__alloc(OP_or, root.r, NULL);
+			cur = strfilter_yesde__alloc(OP_or, root.r, NULL);
 			if (!cur)
-				goto nomem;
+				goto yesmem;
 			root.r = cur;
 			last_op = cur;
 			break;
-		case '!':	/* Add NOT as a leaf node */
+		case '!':	/* Add NOT as a leaf yesde */
 			if (cur->r)
 				goto error;
-			cur->r = strfilter_node__alloc(OP_not, NULL, NULL);
+			cur->r = strfilter_yesde__alloc(OP_yest, NULL, NULL);
 			if (!cur->r)
-				goto nomem;
+				goto yesmem;
 			cur = cur->r;
 			break;
 		case '(':	/* Recursively parses inside the parenthesis */
 			if (cur->r)
 				goto error;
-			cur->r = strfilter_node__new(s + 1, &s);
+			cur->r = strfilter_yesde__new(s + 1, &s);
 			if (!s)
-				goto nomem;
+				goto yesmem;
 			if (!cur->r || *s != ')')
 				goto error;
 			e = s + 1;
@@ -132,12 +132,12 @@ static struct strfilter_node *strfilter_node__new(const char *s,
 		default:
 			if (cur->r)
 				goto error;
-			cur->r = strfilter_node__alloc(NULL, NULL, NULL);
+			cur->r = strfilter_yesde__alloc(NULL, NULL, NULL);
 			if (!cur->r)
-				goto nomem;
+				goto yesmem;
 			cur->r->p = strndup(s, e - s);
 			if (!cur->r->p)
-				goto nomem;
+				goto yesmem;
 		}
 		s = get_token(e, &e);
 	}
@@ -145,11 +145,11 @@ static struct strfilter_node *strfilter_node__new(const char *s,
 		goto error;
 	*ep = s;
 	return root.r;
-nomem:
+yesmem:
 	s = NULL;
 error:
 	*ep = s;
-	strfilter_node__delete(root.r);
+	strfilter_yesde__delete(root.r);
 	return NULL;
 }
 
@@ -163,7 +163,7 @@ struct strfilter *strfilter__new(const char *rules, const char **err)
 	const char *ep = NULL;
 
 	if (filter)
-		filter->root = strfilter_node__new(rules, &ep);
+		filter->root = strfilter_yesde__new(rules, &ep);
 
 	if (!filter || !filter->root || *ep != '\0') {
 		if (err)
@@ -178,19 +178,19 @@ struct strfilter *strfilter__new(const char *rules, const char **err)
 static int strfilter__append(struct strfilter *filter, bool _or,
 			     const char *rules, const char **err)
 {
-	struct strfilter_node *right, *root;
+	struct strfilter_yesde *right, *root;
 	const char *ep = NULL;
 
 	if (!filter || !rules)
 		return -EINVAL;
 
-	right = strfilter_node__new(rules, &ep);
+	right = strfilter_yesde__new(rules, &ep);
 	if (!right || *ep != '\0') {
 		if (err)
 			*err = ep;
 		goto error;
 	}
-	root = strfilter_node__alloc(_or ? OP_or : OP_and, filter->root, right);
+	root = strfilter_yesde__alloc(_or ? OP_or : OP_and, filter->root, right);
 	if (!root) {
 		ep = NULL;
 		goto error;
@@ -200,7 +200,7 @@ static int strfilter__append(struct strfilter *filter, bool _or,
 	return 0;
 
 error:
-	strfilter_node__delete(right);
+	strfilter_yesde__delete(right);
 	return ep ? -EINVAL : -ENOMEM;
 }
 
@@ -215,23 +215,23 @@ int strfilter__and(struct strfilter *filter, const char *rules,
 	return strfilter__append(filter, false, rules, err);
 }
 
-static bool strfilter_node__compare(struct strfilter_node *node,
+static bool strfilter_yesde__compare(struct strfilter_yesde *yesde,
 				    const char *str)
 {
-	if (!node || !node->p)
+	if (!yesde || !yesde->p)
 		return false;
 
-	switch (*node->p) {
+	switch (*yesde->p) {
 	case '|':	/* OR */
-		return strfilter_node__compare(node->l, str) ||
-			strfilter_node__compare(node->r, str);
+		return strfilter_yesde__compare(yesde->l, str) ||
+			strfilter_yesde__compare(yesde->r, str);
 	case '&':	/* AND */
-		return strfilter_node__compare(node->l, str) &&
-			strfilter_node__compare(node->r, str);
+		return strfilter_yesde__compare(yesde->l, str) &&
+			strfilter_yesde__compare(yesde->r, str);
 	case '!':	/* NOT */
-		return !strfilter_node__compare(node->r, str);
+		return !strfilter_yesde__compare(yesde->r, str);
 	default:
-		return strglobmatch(str, node->p);
+		return strglobmatch(str, yesde->p);
 	}
 }
 
@@ -240,20 +240,20 @@ bool strfilter__compare(struct strfilter *filter, const char *str)
 {
 	if (!filter)
 		return false;
-	return strfilter_node__compare(filter->root, str);
+	return strfilter_yesde__compare(filter->root, str);
 }
 
-static int strfilter_node__sprint(struct strfilter_node *node, char *buf);
+static int strfilter_yesde__sprint(struct strfilter_yesde *yesde, char *buf);
 
-/* sprint node in parenthesis if needed */
-static int strfilter_node__sprint_pt(struct strfilter_node *node, char *buf)
+/* sprint yesde in parenthesis if needed */
+static int strfilter_yesde__sprint_pt(struct strfilter_yesde *yesde, char *buf)
 {
 	int len;
-	int pt = node->r ? 2 : 0;	/* don't need to check node->l */
+	int pt = yesde->r ? 2 : 0;	/* don't need to check yesde->l */
 
 	if (buf && pt)
 		*buf++ = '(';
-	len = strfilter_node__sprint(node, buf);
+	len = strfilter_yesde__sprint(yesde, buf);
 	if (len < 0)
 		return len;
 	if (buf && pt)
@@ -261,35 +261,35 @@ static int strfilter_node__sprint_pt(struct strfilter_node *node, char *buf)
 	return len + pt;
 }
 
-static int strfilter_node__sprint(struct strfilter_node *node, char *buf)
+static int strfilter_yesde__sprint(struct strfilter_yesde *yesde, char *buf)
 {
 	int len = 0, rlen;
 
-	if (!node || !node->p)
+	if (!yesde || !yesde->p)
 		return -EINVAL;
 
-	switch (*node->p) {
+	switch (*yesde->p) {
 	case '|':
 	case '&':
-		len = strfilter_node__sprint_pt(node->l, buf);
+		len = strfilter_yesde__sprint_pt(yesde->l, buf);
 		if (len < 0)
 			return len;
 		__fallthrough;
 	case '!':
 		if (buf) {
-			*(buf + len++) = *node->p;
+			*(buf + len++) = *yesde->p;
 			buf += len;
 		} else
 			len++;
-		rlen = strfilter_node__sprint_pt(node->r, buf);
+		rlen = strfilter_yesde__sprint_pt(yesde->r, buf);
 		if (rlen < 0)
 			return rlen;
 		len += rlen;
 		break;
 	default:
-		len = strlen(node->p);
+		len = strlen(yesde->p);
 		if (buf)
-			strcpy(buf, node->p);
+			strcpy(buf, yesde->p);
 	}
 
 	return len;
@@ -300,13 +300,13 @@ char *strfilter__string(struct strfilter *filter)
 	int len;
 	char *ret = NULL;
 
-	len = strfilter_node__sprint(filter->root, NULL);
+	len = strfilter_yesde__sprint(filter->root, NULL);
 	if (len < 0)
 		return NULL;
 
 	ret = malloc(len + 1);
 	if (ret)
-		strfilter_node__sprint(filter->root, ret);
+		strfilter_yesde__sprint(filter->root, ret);
 
 	return ret;
 }

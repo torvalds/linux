@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 #include "block-range.h"
-#include "annotate.h"
+#include "anyestate.h"
 #include <assert.h>
 #include <stdlib.h>
 
@@ -12,15 +12,15 @@ struct {
 static void block_range__debug(void)
 {
 	/*
-	 * XXX still paranoid for now; see if we can make this depend on
+	 * XXX still parayesid for yesw; see if we can make this depend on
 	 * DEBUG=1 builds.
 	 */
 #if 1
-	struct rb_node *rb;
+	struct rb_yesde *rb;
 	u64 old = 0; /* NULL isn't executable */
 
 	for (rb = rb_first(&block_ranges.root); rb; rb = rb_next(rb)) {
-		struct block_range *entry = rb_entry(rb, struct block_range, node);
+		struct block_range *entry = rb_entry(rb, struct block_range, yesde);
 
 		assert(old < entry->start);
 		assert(entry->start <= entry->end); /* single instruction block; jump to a jump */
@@ -32,13 +32,13 @@ static void block_range__debug(void)
 
 struct block_range *block_range__find(u64 addr)
 {
-	struct rb_node **p = &block_ranges.root.rb_node;
-	struct rb_node *parent = NULL;
+	struct rb_yesde **p = &block_ranges.root.rb_yesde;
+	struct rb_yesde *parent = NULL;
 	struct block_range *entry;
 
 	while (*p != NULL) {
 		parent = *p;
-		entry = rb_entry(parent, struct block_range, node);
+		entry = rb_entry(parent, struct block_range, yesde);
 
 		if (addr < entry->start)
 			p = &parent->rb_left;
@@ -51,24 +51,24 @@ struct block_range *block_range__find(u64 addr)
 	return NULL;
 }
 
-static inline void rb_link_left_of_node(struct rb_node *left, struct rb_node *node)
+static inline void rb_link_left_of_yesde(struct rb_yesde *left, struct rb_yesde *yesde)
 {
-	struct rb_node **p = &node->rb_left;
+	struct rb_yesde **p = &yesde->rb_left;
 	while (*p) {
-		node = *p;
-		p = &node->rb_right;
+		yesde = *p;
+		p = &yesde->rb_right;
 	}
-	rb_link_node(left, node, p);
+	rb_link_yesde(left, yesde, p);
 }
 
-static inline void rb_link_right_of_node(struct rb_node *right, struct rb_node *node)
+static inline void rb_link_right_of_yesde(struct rb_yesde *right, struct rb_yesde *yesde)
 {
-	struct rb_node **p = &node->rb_right;
+	struct rb_yesde **p = &yesde->rb_right;
 	while (*p) {
-		node = *p;
-		p = &node->rb_left;
+		yesde = *p;
+		p = &yesde->rb_left;
 	}
-	rb_link_node(right, node, p);
+	rb_link_yesde(right, yesde, p);
 }
 
 /**
@@ -80,14 +80,14 @@ static inline void rb_link_right_of_node(struct rb_node *right, struct rb_node *
  */
 struct block_range_iter block_range__create(u64 start, u64 end)
 {
-	struct rb_node **p = &block_ranges.root.rb_node;
-	struct rb_node *n, *parent = NULL;
+	struct rb_yesde **p = &block_ranges.root.rb_yesde;
+	struct rb_yesde *n, *parent = NULL;
 	struct block_range *next, *entry = NULL;
 	struct block_range_iter iter = { NULL, NULL };
 
 	while (*p != NULL) {
 		parent = *p;
-		entry = rb_entry(parent, struct block_range, node);
+		entry = rb_entry(parent, struct block_range, yesde);
 
 		if (start < entry->start)
 			p = &parent->rb_left;
@@ -106,7 +106,7 @@ struct block_range_iter block_range__create(u64 start, u64 end)
 			goto do_whole;
 
 		/*
-		 * If the last node is before, advance one to find the next.
+		 * If the last yesde is before, advance one to find the next.
 		 */
 		n = parent;
 		if (entry->end < start) {
@@ -114,7 +114,7 @@ struct block_range_iter block_range__create(u64 start, u64 end)
 			if (!n)
 				goto do_whole;
 		}
-		next = rb_entry(n, struct block_range, node);
+		next = rb_entry(n, struct block_range, yesde);
 
 		if (next->start <= end) { /* add head: [start...][n->start...] */
 			struct block_range *head = malloc(sizeof(struct block_range));
@@ -128,8 +128,8 @@ struct block_range_iter block_range__create(u64 start, u64 end)
 				.is_branch	= 0,
 			};
 
-			rb_link_left_of_node(&head->node, &next->node);
-			rb_insert_color(&head->node, &block_ranges.root);
+			rb_link_left_of_yesde(&head->yesde, &next->yesde);
+			rb_insert_color(&head->yesde, &block_ranges.root);
 			block_range__debug();
 
 			iter.start = head;
@@ -138,7 +138,7 @@ struct block_range_iter block_range__create(u64 start, u64 end)
 
 do_whole:
 		/*
-		 * The whole [start..end] range is non-overlapping.
+		 * The whole [start..end] range is yesn-overlapping.
 		 */
 		entry = malloc(sizeof(struct block_range));
 		if (!entry)
@@ -151,8 +151,8 @@ do_whole:
 			.is_branch	= 1,
 		};
 
-		rb_link_node(&entry->node, parent, p);
-		rb_insert_color(&entry->node, &block_ranges.root);
+		rb_link_yesde(&entry->yesde, parent, p);
+		rb_insert_color(&entry->yesde, &block_ranges.root);
 		block_range__debug();
 
 		iter.start = entry;
@@ -182,8 +182,8 @@ do_whole:
 		entry->is_target	= 1;
 		entry->entry		= 0;
 
-		rb_link_left_of_node(&head->node, &entry->node);
-		rb_insert_color(&head->node, &block_ranges.root);
+		rb_link_left_of_yesde(&head->yesde, &entry->yesde);
+		rb_insert_color(&head->yesde, &block_ranges.root);
 		block_range__debug();
 
 	} else if (entry->start == start)
@@ -222,8 +222,8 @@ do_tail:
 			entry->taken		= 0;
 			entry->pred		= 0;
 
-			rb_link_right_of_node(&tail->node, &entry->node);
-			rb_insert_color(&tail->node, &block_ranges.root);
+			rb_link_right_of_yesde(&tail->yesde, &entry->yesde);
+			rb_insert_color(&tail->yesde, &block_ranges.root);
 			block_range__debug();
 
 			iter.end = entry;
@@ -244,7 +244,7 @@ do_tail:
 			goto add_tail;
 
 		/*
-		 * If @end is in beyond @entry but not inside @next, add tail.
+		 * If @end is in beyond @entry but yest inside @next, add tail.
 		 */
 		if (end < next->start) { /* add tail: [...e->end][...end] */
 			struct block_range *tail;
@@ -260,8 +260,8 @@ add_tail:
 				.is_branch	= 1,
 			};
 
-			rb_link_right_of_node(&tail->node, &entry->node);
-			rb_insert_color(&tail->node, &block_ranges.root);
+			rb_link_right_of_yesde(&tail->yesde, &entry->yesde);
+			rb_insert_color(&tail->yesde, &block_ranges.root);
 			block_range__debug();
 
 			iter.end = tail;
@@ -283,8 +283,8 @@ add_tail:
 				.is_branch	= 0,
 			};
 
-			rb_link_left_of_node(&hole->node, &next->node);
-			rb_insert_color(&hole->node, &block_ranges.root);
+			rb_link_left_of_yesde(&hole->yesde, &next->yesde);
+			rb_insert_color(&hole->yesde, &block_ranges.root);
 			block_range__debug();
 		}
 
@@ -309,8 +309,8 @@ done:
  * This ensures each symbol has a 100% spot, to reflect that each symbol has a
  * most covered section.
  *
- * Returns [0-1] for coverage and -1 if we had no data what so ever or the
- * symbol does not exist.
+ * Returns [0-1] for coverage and -1 if we had yes data what so ever or the
+ * symbol does yest exist.
  */
 double block_range__coverage(struct block_range *br)
 {
@@ -327,5 +327,5 @@ double block_range__coverage(struct block_range *br)
 	if (!sym)
 		return -1;
 
-	return (double)br->coverage / symbol__annotation(sym)->max_coverage;
+	return (double)br->coverage / symbol__anyestation(sym)->max_coverage;
 }

@@ -64,20 +64,20 @@ static int lt3593_led_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct lt3593_led_data *led_data;
-	struct fwnode_handle *child;
+	struct fwyesde_handle *child;
 	int ret, state = LEDS_GPIO_DEFSTATE_OFF;
 	struct led_init_data init_data = {};
 	const char *tmp;
 
-	if (!dev->of_node)
+	if (!dev->of_yesde)
 		return -ENODEV;
 
 	led_data = devm_kzalloc(dev, sizeof(*led_data), GFP_KERNEL);
 	if (!led_data)
 		return -ENOMEM;
 
-	if (device_get_child_node_count(dev) != 1) {
-		dev_err(dev, "Device must have exactly one LED sub-node.");
+	if (device_get_child_yesde_count(dev) != 1) {
+		dev_err(dev, "Device must have exactly one LED sub-yesde.");
 		return -EINVAL;
 	}
 
@@ -85,12 +85,12 @@ static int lt3593_led_probe(struct platform_device *pdev)
 	if (IS_ERR(led_data->gpiod))
 		return PTR_ERR(led_data->gpiod);
 
-	child = device_get_next_child_node(dev, NULL);
+	child = device_get_next_child_yesde(dev, NULL);
 
-	fwnode_property_read_string(child, "linux,default-trigger",
+	fwyesde_property_read_string(child, "linux,default-trigger",
 				    &led_data->cdev.default_trigger);
 
-	if (!fwnode_property_read_string(child, "default-state", &tmp)) {
+	if (!fwyesde_property_read_string(child, "default-state", &tmp)) {
 		if (!strcmp(tmp, "on"))
 			state = LEDS_GPIO_DEFSTATE_ON;
 	}
@@ -98,17 +98,17 @@ static int lt3593_led_probe(struct platform_device *pdev)
 	led_data->cdev.brightness_set_blocking = lt3593_led_set;
 	led_data->cdev.brightness = state ? LED_FULL : LED_OFF;
 
-	init_data.fwnode = child;
+	init_data.fwyesde = child;
 	init_data.devicename = LED_LT3593_NAME;
 	init_data.default_label = ":";
 
 	ret = devm_led_classdev_register_ext(dev, &led_data->cdev, &init_data);
 	if (ret < 0) {
-		fwnode_handle_put(child);
+		fwyesde_handle_put(child);
 		return ret;
 	}
 
-	led_data->cdev.dev->of_node = dev->of_node;
+	led_data->cdev.dev->of_yesde = dev->of_yesde;
 	platform_set_drvdata(pdev, led_data);
 
 	return 0;

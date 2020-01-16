@@ -9,7 +9,7 @@
 /*
  * arch/x86/boot/cpu.c
  *
- * Check for obligatory CPU features and abort if the features are not
+ * Check for obligatory CPU features and abort if the features are yest
  * present.
  */
 
@@ -87,7 +87,7 @@ int validate_cpu(void)
 
 	if (err_flags) {
 		puts("This kernel requires the following features "
-		     "not present on the CPU:\n");
+		     "yest present on the CPU:\n");
 		show_cap_strs(err_flags);
 		putchar('\n');
 		return -1;

@@ -160,7 +160,7 @@ static void quirk_final_uli1575(struct pci_dev *dev)
 	CMOS_WRITE(RTC_SET, RTC_CONTROL);
 	CMOS_WRITE(RTC_24H, RTC_CONTROL);
 
-	/* ensure month, date, and week alarm fields are ignored */
+	/* ensure month, date, and week alarm fields are igyesred */
 	CMOS_WRITE(0, RTC_VALID);
 
 	outb_p(0x7c, 0x72);
@@ -285,7 +285,7 @@ static void hpcd_quirk_uli5288(struct pci_dev *dev)
 }
 
 /*
- * Since 8259PIC was disabled on the board, the IDE device can not
+ * Since 8259PIC was disabled on the board, the IDE device can yest
  * use the legacy IRQ, we need to let the IDE device work under
  * native mode and use the interrupt line like other PCI devices.
  * IRQ14 is a sideband interrupt from IDE device to CPU and we use this
@@ -306,7 +306,7 @@ static void hpcd_quirk_uli5229(struct pci_dev *dev)
 /*
  * SATA interrupt pin bug fix
  * There's a chip bug for 5288, The interrupt pin should be 2,
- * not the read only value 1, So it use INTB#, not INTA# which
+ * yest the read only value 1, So it use INTB#, yest INTA# which
  * actually used by the IDE device 5229.
  * As of this bug, during the PCI initialization, 5288 read the
  * irq of IDE device from the device tree, this function fix this
@@ -316,20 +316,20 @@ static void hpcd_quirk_uli5229(struct pci_dev *dev)
 static void hpcd_final_uli5288(struct pci_dev *dev)
 {
 	struct pci_controller *hose = pci_bus_to_host(dev->bus);
-	struct device_node *hosenode = hose ? hose->dn : NULL;
+	struct device_yesde *hoseyesde = hose ? hose->dn : NULL;
 	struct of_phandle_args oirq;
 	u32 laddr[3];
 
 	if (!machine_is(mpc86xx_hpcd))
 		return;
 
-	if (!hosenode)
+	if (!hoseyesde)
 		return;
 
-	oirq.np = hosenode;
+	oirq.np = hoseyesde;
 	oirq.args[0] = 2;
 	oirq.args_count = 1;
-	laddr[0] = (hose->first_busno << 16) | (PCI_DEVFN(31, 0) << 8);
+	laddr[0] = (hose->first_busyes << 16) | (PCI_DEVFN(31, 0) << 8);
 	laddr[1] = laddr[2] = 0;
 	of_irq_parse_raw(laddr, &oirq);
 	dev->irq = irq_create_of_mapping(&oirq);
@@ -343,7 +343,7 @@ DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_AL, 0x5288, hpcd_final_uli5288);
 int uli_exclude_device(struct pci_controller *hose,
 			u_char bus, u_char devfn)
 {
-	if (bus == (hose->first_busno + 2)) {
+	if (bus == (hose->first_busyes + 2)) {
 		/* exclude Modem controller */
 		if ((PCI_SLOT(devfn) == 29) && (PCI_FUNC(devfn) == 1))
 			return PCIBIOS_DEVICE_NOT_FOUND;

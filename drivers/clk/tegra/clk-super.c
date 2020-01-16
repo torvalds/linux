@@ -50,7 +50,7 @@ static u8 clk_super_get_parent(struct clk_hw *hw)
 	source = (val >> shift) & super_state_to_src_mask(mux);
 
 	/*
-	 * If LP_DIV2_BYPASS is not set and PLLX is current parent then
+	 * If LP_DIV2_BYPASS is yest set and PLLX is current parent then
 	 * PLLX/2 is the input source to CCLKLP.
 	 */
 	if ((mux->flags & TEGRA_DIVIDER_2) && !(val & SUPER_LP_DIV2_BYPASS) &&
@@ -112,7 +112,7 @@ static int clk_super_set_parent(struct clk_hw *hw, u8 index)
 	writel_relaxed(val, mux->reg);
 	udelay(2);
 
-	/* disable PLLP branches to CPU if not used */
+	/* disable PLLP branches to CPU if yest used */
 	if ((mux->flags & TEGRA210_CPU_CLK) &&
 	    index != CCLK_SRC_PLLP_OUT0 && index != CCLK_SRC_PLLP_OUT4)
 		tegra_clk_set_pllp_out_cpu(false);

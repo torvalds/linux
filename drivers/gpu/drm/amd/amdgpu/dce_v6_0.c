@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -199,7 +199,7 @@ static void dce_v6_0_page_flip(struct amdgpu_device *adev,
 	/* update pitch */
 	WREG32(mmGRPH_PITCH + amdgpu_crtc->crtc_offset,
 	       fb->pitches[0] / fb->format->cpp[0]);
-	/* update the scanout addresses */
+	/* update the scayesut addresses */
 	WREG32(mmGRPH_PRIMARY_SURFACE_ADDRESS_HIGH + amdgpu_crtc->crtc_offset,
 	       upper_32_bits(crtc_base));
 	WREG32(mmGRPH_PRIMARY_SURFACE_ADDRESS + amdgpu_crtc->crtc_offset,
@@ -209,7 +209,7 @@ static void dce_v6_0_page_flip(struct amdgpu_device *adev,
 	RREG32(mmGRPH_PRIMARY_SURFACE_ADDRESS + amdgpu_crtc->crtc_offset);
 }
 
-static int dce_v6_0_crtc_get_scanoutpos(struct amdgpu_device *adev, int crtc,
+static int dce_v6_0_crtc_get_scayesutpos(struct amdgpu_device *adev, int crtc,
 					u32 *vbl, u32 *position)
 {
 	if ((crtc < 0) || (crtc >= adev->mode_info.num_crtc))
@@ -228,7 +228,7 @@ static int dce_v6_0_crtc_get_scanoutpos(struct amdgpu_device *adev, int crtc,
  * @hpd: hpd (hotplug detect) pin
  *
  * Checks if a digital monitor is connected (evergreen+).
- * Returns true if connected, false if not connected.
+ * Returns true if connected, false if yest connected.
  */
 static bool dce_v6_0_hpd_sense(struct amdgpu_device *adev,
 			       enum amdgpu_hpd_id hpd)
@@ -298,7 +298,7 @@ static void dce_v6_0_hpd_init(struct amdgpu_device *adev)
 		if (connector->connector_type == DRM_MODE_CONNECTOR_eDP ||
 		    connector->connector_type == DRM_MODE_CONNECTOR_LVDS) {
 			/* don't try to enable hpd on eDP or LVDS avoid breaking the
-			 * aux dp channel on imac and help (but not completely fix)
+			 * aux dp channel on imac and help (but yest completely fix)
 			 * https://bugzilla.redhat.com/show_bug.cgi?id=726143
 			 * also avoid interrupt storms during dpms.
 			 */
@@ -447,7 +447,7 @@ static void dce_v6_0_program_fmt(struct drm_encoder *encoder)
 		break;
 	case 10:
 	default:
-		/* not needed */
+		/* yest needed */
 		break;
 	}
 
@@ -635,7 +635,7 @@ static u32 dce_v6_0_dmif_request_bandwidth(struct dce6_wm_params *wm)
  */
 static u32 dce_v6_0_available_bandwidth(struct dce6_wm_params *wm)
 {
-	/* Calculate the Available bandwidth. Display can use this temporarily but not in average. */
+	/* Calculate the Available bandwidth. Display can use this temporarily but yest in average. */
 	u32 dram_bandwidth = dce_v6_0_dram_bandwidth(wm);
 	u32 data_return_bandwidth = dce_v6_0_data_return_bandwidth(wm);
 	u32 dmif_req_bandwidth = dce_v6_0_dmif_request_bandwidth(wm);
@@ -744,7 +744,7 @@ static u32 dce_v6_0_latency_watermark(struct dce6_wm_params *wm)
  * Check if the display average bandwidth fits in the display
  * dram bandwidth (CIK).
  * Used for display watermark bandwidth calculations
- * Returns true if the display fits, false if not.
+ * Returns true if the display fits, false if yest.
  */
 static bool dce_v6_0_average_bandwidth_vs_dram_bandwidth_for_display(struct dce6_wm_params *wm)
 {
@@ -764,7 +764,7 @@ static bool dce_v6_0_average_bandwidth_vs_dram_bandwidth_for_display(struct dce6
  * Check if the display average bandwidth fits in the display
  * available bandwidth (CIK).
  * Used for display watermark bandwidth calculations
- * Returns true if the display fits, false if not.
+ * Returns true if the display fits, false if yest.
  */
 static bool dce_v6_0_average_bandwidth_vs_available_bandwidth(struct dce6_wm_params *wm)
 {
@@ -782,7 +782,7 @@ static bool dce_v6_0_average_bandwidth_vs_available_bandwidth(struct dce6_wm_par
  *
  * Check latency hiding (CIK).
  * Used for display watermark bandwidth calculations
- * Returns true if the display fits, false if not.
+ * Returns true if the display fits, false if yest.
  */
 static bool dce_v6_0_check_latency_hiding(struct dce6_wm_params *wm)
 {
@@ -981,7 +981,7 @@ static void dce_v6_0_program_watermarks(struct amdgpu_device *adev,
 	amdgpu_crtc->line_time = line_time;
 	amdgpu_crtc->wm_high = latency_watermark_a;
 
-	/* Save number of lines the linebuffer leads before the scanout */
+	/* Save number of lines the linebuffer leads before the scayesut */
 	amdgpu_crtc->lb_vblank_lead_lines = lb_vblank_lead_lines;
 }
 
@@ -1004,7 +1004,7 @@ static u32 dce_v6_0_line_buffer_adjust(struct amdgpu_device *adev,
 	 */
 	/* this can get tricky if we have two large displays on a paired group
 	 * of crtcs.  Ideally for multiple large displays we'd assign them to
-	 * non-linked crtcs for maximum line buffer allocation.
+	 * yesn-linked crtcs for maximum line buffer allocation.
 	 */
 	if (amdgpu_crtc->base.enabled && mode) {
 		if (other_mode) {
@@ -1041,7 +1041,7 @@ static u32 dce_v6_0_line_buffer_adjust(struct amdgpu_device *adev,
 		}
 	}
 
-	/* controller not enabled, so no lb used */
+	/* controller yest enabled, so yes lb used */
 	return 0;
 }
 
@@ -1497,7 +1497,7 @@ static void dce_v6_0_audio_set_dto(struct drm_encoder *encoder, u32 clock)
 	 * Two dtos: generally use dto0 for hdmi, dto1 for dp.
 	 * Express [24MHz / target pixel clock] as an exact rational
 	 * number (coefficient of two integer numbers.  DCCG_AUDIO_DTOx_PHASE
-	 * is the numerator, DCCG_AUDIO_DTOx_MODULE is the denominator
+	 * is the numerator, DCCG_AUDIO_DTOx_MODULE is the deyesminator
 	 */
 	tmp = RREG32(mmDCCG_AUDIO_DTO_SOURCE);
 	tmp = REG_SET_FIELD(tmp, DCCG_AUDIO_DTO_SOURCE,
@@ -1822,7 +1822,7 @@ static int dce_v6_0_crtc_do_set_base(struct drm_crtc *crtc,
 	bool bypass_lut = false;
 	struct drm_format_name_buf format_name;
 
-	/* no fb bound */
+	/* yes fb bound */
 	if (!atomic && !crtc->primary->fb) {
 		DRM_DEBUG_KMS("No FB bound\n");
 		return 0;
@@ -1976,7 +1976,7 @@ static int dce_v6_0_crtc_do_set_base(struct drm_crtc *crtc,
 
 	/*
 	 * The LUT only has 256 slots for indexing by a 8 bpc fb. Bypass the LUT
-	 * for > 8 bpc scanout to avoid truncation of fb indices to 8 msb's, to
+	 * for > 8 bpc scayesut to avoid truncation of fb indices to 8 msb's, to
 	 * retain the full precision throughout the pipeline.
 	 */
 	WREG32_P(mmGRPH_LUT_10BIT_BYPASS + amdgpu_crtc->crtc_offset,
@@ -1984,7 +1984,7 @@ static int dce_v6_0_crtc_do_set_base(struct drm_crtc *crtc,
 		 ~GRPH_LUT_10BIT_BYPASS__GRPH_LUT_10BIT_BYPASS_EN_MASK);
 
 	if (bypass_lut)
-		DRM_DEBUG_KMS("Bypassing hardware LUT due to 10 bit fb scanout.\n");
+		DRM_DEBUG_KMS("Bypassing hardware LUT due to 10 bit fb scayesut.\n");
 
 	WREG32(mmGRPH_SURFACE_OFFSET_X + amdgpu_crtc->crtc_offset, 0);
 	WREG32(mmGRPH_SURFACE_OFFSET_Y + amdgpu_crtc->crtc_offset, 0);
@@ -2135,10 +2135,10 @@ static int dce_v6_0_pick_dig_encoder(struct drm_encoder *encoder)
  * @crtc: drm crtc
  *
  * Returns the PPLL (Pixel PLL) to be used by the crtc.  For DP monitors
- * a single PPLL can be used for all DP crtcs/encoders.  For non-DP
+ * a single PPLL can be used for all DP crtcs/encoders.  For yesn-DP
  * monitors a dedicated PPLL must be used.  If a particular board has
  * an external DP PLL, return ATOM_PPLL_INVALID to skip PLL programming
- * as there is no need to program the PLL itself.  If we are not able to
+ * as there is yes need to program the PLL itself.  If we are yest able to
  * allocate a PLL, return ATOM_PPLL_INVALID to skip PLL programming to
  * avoid messing up an existing monitor.
  *
@@ -2160,7 +2160,7 @@ static u32 dce_v6_0_pick_pll(struct drm_crtc *crtc)
 			return ATOM_PPLL0;
 	} else {
 		/* use the same PPLL for all monitors with the same clock */
-		pll = amdgpu_pll_get_shared_nondp_ppll(crtc);
+		pll = amdgpu_pll_get_shared_yesndp_ppll(crtc);
 		if (pll != ATOM_PPLL_INVALID)
 			return pll;
 	}
@@ -2292,7 +2292,7 @@ static int dce_v6_0_crtc_cursor_set2(struct drm_crtc *crtc,
 
 	obj = drm_gem_object_lookup(file_priv, handle);
 	if (!obj) {
-		DRM_ERROR("Cannot find cursor object %x for crtc %d\n", handle, amdgpu_crtc->crtc_id);
+		DRM_ERROR("Canyest find cursor object %x for crtc %d\n", handle, amdgpu_crtc->crtc_id);
 		return -ENOENT;
 	}
 
@@ -2545,7 +2545,7 @@ static bool dce_v6_0_crtc_mode_fixup(struct drm_crtc *crtc,
 		return false;
 	/* pick pll */
 	amdgpu_crtc->pll_id = dce_v6_0_pick_pll(crtc);
-	/* if we can't get a PPLL for a non-DP encoder, fail */
+	/* if we can't get a PPLL for a yesn-DP encoder, fail */
 	if ((amdgpu_crtc->pll_id == ATOM_PPLL_INVALID) &&
 	    !ENCODER_MODE_IS_DP(amdgpu_atombios_encoder_get_encoder_mode(amdgpu_crtc->encoder)))
 		return false;
@@ -2805,7 +2805,7 @@ static int dce_v6_0_wait_for_idle(void *handle)
 
 static int dce_v6_0_soft_reset(void *handle)
 {
-	DRM_INFO("xxxx: dce_v6_0_soft_reset --- no impl!!\n");
+	DRM_INFO("xxxx: dce_v6_0_soft_reset --- yes impl!!\n");
 	return 0;
 }
 
@@ -3251,7 +3251,7 @@ static const struct drm_encoder_helper_funcs dce_v6_0_ext_helper_funcs = {
 	.mode_set = dce_v6_0_ext_mode_set,
 	.commit = dce_v6_0_ext_commit,
 	.disable = dce_v6_0_ext_disable,
-	/* no detect for TMDS/LVDS yet */
+	/* yes detect for TMDS/LVDS yet */
 };
 
 static const struct drm_encoder_helper_funcs dce_v6_0_dig_helper_funcs = {
@@ -3399,7 +3399,7 @@ static const struct amdgpu_display_funcs dce_v6_0_display_funcs = {
 	.hpd_set_polarity = &dce_v6_0_hpd_set_polarity,
 	.hpd_get_gpio_reg = &dce_v6_0_hpd_get_gpio_reg,
 	.page_flip = &dce_v6_0_page_flip,
-	.page_flip_get_scanoutpos = &dce_v6_0_crtc_get_scanoutpos,
+	.page_flip_get_scayesutpos = &dce_v6_0_crtc_get_scayesutpos,
 	.add_encoder = &dce_v6_0_encoder_add,
 	.add_connector = &amdgpu_connector_add,
 };
@@ -3443,7 +3443,7 @@ const struct amdgpu_ip_block_version dce_v6_0_ip_block =
 {
 	.type = AMD_IP_BLOCK_TYPE_DCE,
 	.major = 6,
-	.minor = 0,
+	.miyesr = 0,
 	.rev = 0,
 	.funcs = &dce_v6_0_ip_funcs,
 };
@@ -3452,7 +3452,7 @@ const struct amdgpu_ip_block_version dce_v6_4_ip_block =
 {
 	.type = AMD_IP_BLOCK_TYPE_DCE,
 	.major = 6,
-	.minor = 4,
+	.miyesr = 4,
 	.rev = 0,
 	.funcs = &dce_v6_0_ip_funcs,
 };

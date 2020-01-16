@@ -345,7 +345,7 @@ static int __bpf_fill_ja(struct bpf_test *self, unsigned int len,
 
 static int bpf_fill_maxinsns11(struct bpf_test *self)
 {
-	/* Hits 70 passes on x86_64, so cannot get JITed there. */
+	/* Hits 70 passes on x86_64, so canyest get JITed there. */
 	return __bpf_fill_ja(self, BPF_MAXINSNS, 68);
 }
 
@@ -1026,7 +1026,7 @@ static struct bpf_test tests[] = {
 		/* 3c:07:54:43:e5:76 > 10:bf:48:d6:43:d6, ethertype IPv4(0x0800)
 		 * length 114: 10.1.1.149.49700 > 10.1.2.10.22: Flags [P.],
 		 * seq 1305692979:1305693027, ack 3650467037, win 65535,
-		 * options [nop,nop,TS val 2502645400 ecr 3971138], length 48
+		 * options [yesp,yesp,TS val 2502645400 ecr 3971138], length 48
 		 */
 		{ 0x10, 0xbf, 0x48, 0xd6, 0x43, 0xd6,
 		  0x3c, 0x07, 0x54, 0x43, 0xe5, 0x76,
@@ -1940,7 +1940,7 @@ static struct bpf_test tests[] = {
 		.expected_errcode = -EINVAL,
 	},
 	{
-		"check: unknown insn",
+		"check: unkyeswn insn",
 		.u.insns = {
 			/* seccomp insn, rejected in socket filter */
 			BPF_STMT(BPF_LDX | BPF_W | BPF_ABS, 0),
@@ -4712,7 +4712,7 @@ static struct bpf_test tests[] = {
 			BPF_ALU32_IMM(BPF_MOV, R0, 1), /* out: */
 			BPF_EXIT_INSN(),
 			BPF_ALU32_IMM(BPF_MOV, R0, 0), /* start: */
-			BPF_LD_IMM64(R1, 3), /* note: this takes 2 insns */
+			BPF_LD_IMM64(R1, 3), /* yeste: this takes 2 insns */
 			BPF_JMP_IMM(BPF_JGT, R1, 2, -6), /* goto out */
 			BPF_EXIT_INSN(),
 		},
@@ -4742,7 +4742,7 @@ static struct bpf_test tests[] = {
 			BPF_ALU32_IMM(BPF_MOV, R0, 1), /* out: */
 			BPF_EXIT_INSN(),
 			BPF_ALU32_IMM(BPF_MOV, R0, 0), /* start: */
-			BPF_LD_IMM64(R1, 2), /* note: this takes 2 insns */
+			BPF_LD_IMM64(R1, 2), /* yeste: this takes 2 insns */
 			BPF_JMP_IMM(BPF_JLT, R1, 3, -6), /* goto out */
 			BPF_EXIT_INSN(),
 		},
@@ -5516,7 +5516,7 @@ static struct bpf_test tests[] = {
 		.frag_data = { 0x19, 0x82 },
 	},
 	/*
-	 * LD_IND / LD_ABS on non fragmented SKBs
+	 * LD_IND / LD_ABS on yesn fragmented SKBs
 	 */
 	{
 		/*
@@ -6598,7 +6598,7 @@ static struct bpf_prog *generate_filter(int which, int *err)
 			} else {
 				pr_cont("UNEXPECTED_PASS\n");
 				/* Verifier didn't reject the test that's
-				 * bad enough, just return!
+				 * bad eyesugh, just return!
 				 */
 				*err = -EINVAL;
 				return NULL;
@@ -6614,18 +6614,18 @@ static struct bpf_prog *generate_filter(int which, int *err)
 	case INTERNAL:
 		fp = bpf_prog_alloc(bpf_prog_size(flen), 0);
 		if (fp == NULL) {
-			pr_cont("UNEXPECTED_FAIL no memory left\n");
+			pr_cont("UNEXPECTED_FAIL yes memory left\n");
 			*err = -ENOMEM;
 			return NULL;
 		}
 
 		fp->len = flen;
-		/* Type doesn't really matter here as long as it's not unspec. */
+		/* Type doesn't really matter here as long as it's yest unspec. */
 		fp->type = BPF_PROG_TYPE_SOCKET_FILTER;
 		memcpy(fp->insnsi, fptr, fp->len * sizeof(struct bpf_insn));
 		fp->aux->stack_depth = tests[which].stack_depth;
 
-		/* We cannot error here as we don't need type compatibility
+		/* We canyest error here as we don't need type compatibility
 		 * checks.
 		 */
 		fp = bpf_prog_select_runtime(fp, err);
@@ -6753,7 +6753,7 @@ static __init int prepare_bpf_tests(void)
 		int idx = find_test_index(test_name);
 
 		if (idx < 0) {
-			pr_err("test_bpf: no test named '%s' found.\n",
+			pr_err("test_bpf: yes test named '%s' found.\n",
 			       test_name);
 			return -EINVAL;
 		}
@@ -6859,7 +6859,7 @@ err_page0:
 	return NULL;
 }
 
-static __init struct sk_buff *build_test_skb_linear_no_head_frag(void)
+static __init struct sk_buff *build_test_skb_linear_yes_head_frag(void)
 {
 	unsigned int alloc_size = 2000;
 	unsigned int headroom = 102, doffset = 72, data_size = 1308;
@@ -6927,8 +6927,8 @@ static struct skb_segment_test skb_segment_tests[] __initconst = {
 			    NETIF_F_IPV6_CSUM | NETIF_F_RXCSUM
 	},
 	{
-		.descr = "gso_linear_no_head_frag",
-		.build_skb = build_test_skb_linear_no_head_frag,
+		.descr = "gso_linear_yes_head_frag",
+		.build_skb = build_test_skb_linear_yes_head_frag,
 		.features = NETIF_F_SG | NETIF_F_FRAGLIST |
 			    NETIF_F_HW_VLAN_CTAG_TX | NETIF_F_GSO |
 			    NETIF_F_LLTX_BIT | NETIF_F_GRO |

@@ -89,7 +89,7 @@ void acpi_rs_dump_resource_list(struct acpi_resource *resource_list)
 			return;
 		}
 
-		/* Sanity check the length. It must not be zero, or we loop forever */
+		/* Sanity check the length. It must yest be zero, or we loop forever */
 
 		if (!resource_list->length) {
 			acpi_os_printf

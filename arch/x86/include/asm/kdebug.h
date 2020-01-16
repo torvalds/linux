@@ -2,7 +2,7 @@
 #ifndef _ASM_X86_KDEBUG_H
 #define _ASM_X86_KDEBUG_H
 
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 
 struct pt_regs;
 

@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0
 # CPU tuning section - shared with UML.
-# Must change only cflags-y (or [yn]), not CFLAGS! That makes a difference for UML.
+# Must change only cflags-y (or [yn]), yest CFLAGS! That makes a difference for UML.
 
 #-mtune exists since gcc 3.4
 HAS_MTUNE	:= $(call cc-option-yn, -mtune=i386)
@@ -21,7 +21,7 @@ cflags-$(CONFIG_MPENTIUMIII)	+= -march=i686 $(call tune,pentium3)
 cflags-$(CONFIG_MPENTIUMM)	+= -march=i686 $(call tune,pentium3)
 cflags-$(CONFIG_MPENTIUM4)	+= -march=i686 $(call tune,pentium4)
 cflags-$(CONFIG_MK6)		+= -march=k6
-# Please note, that patches that add -march=athlon-xp and friends are pointless.
+# Please yeste, that patches that add -march=athlon-xp and friends are pointless.
 # They make zero difference whatsosever to performance at this time.
 cflags-$(CONFIG_MK7)		+= -march=athlon
 cflags-$(CONFIG_MK8)		+= $(call cc-option,-march=k8,-march=athlon)

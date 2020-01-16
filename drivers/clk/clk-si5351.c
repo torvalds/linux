@@ -18,7 +18,7 @@
 #include <linux/clk-provider.h>
 #include <linux/delay.h>
 #include <linux/err.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/rational.h>
 #include <linux/i2c.h>
 #include <linux/of_platform.h>
@@ -447,7 +447,7 @@ static long si5351_pll_round_rate(struct clk_hw *hw, unsigned long rate,
 {
 	struct si5351_hw_data *hwdata =
 		container_of(hw, struct si5351_hw_data, hw);
-	unsigned long rfrac, denom, a, b, c;
+	unsigned long rfrac, deyesm, a, b, c;
 	unsigned long long lltmp;
 
 	if (rate < SI5351_PLL_VCO_MIN)
@@ -464,16 +464,16 @@ static long si5351_pll_round_rate(struct clk_hw *hw, unsigned long rate,
 		rate = *parent_rate * SI5351_PLL_A_MAX;
 
 	/* find best approximation for b/c = fVCO mod fIN */
-	denom = 1000 * 1000;
+	deyesm = 1000 * 1000;
 	lltmp = rate % (*parent_rate);
-	lltmp *= denom;
+	lltmp *= deyesm;
 	do_div(lltmp, *parent_rate);
 	rfrac = (unsigned long)lltmp;
 
 	b = 0;
 	c = 1;
 	if (rfrac)
-		rational_best_approximation(rfrac, denom,
+		rational_best_approximation(rfrac, deyesm,
 				    SI5351_PLL_B_MAX, SI5351_PLL_C_MAX, &b, &c);
 
 	/* calculate parameters */
@@ -554,7 +554,7 @@ static const struct clk_ops si5351_pll_ops = {
  * MSx_P3[19:0] = c
  *
  * MS[6,7] are integer (P1) divide only, P1 = divide value,
- * P2 and P3 are not applicable
+ * P2 and P3 are yest applicable
  *
  * for 150MHz < fOUT <= 160MHz:
  *
@@ -691,7 +691,7 @@ static long si5351_msynth_round_rate(struct clk_hw *hw, unsigned long rate,
 		b = 0;
 		c = 1;
 	} else {
-		unsigned long rfrac, denom;
+		unsigned long rfrac, deyesm;
 
 		/* disable divby4 */
 		if (divby4) {
@@ -707,16 +707,16 @@ static long si5351_msynth_round_rate(struct clk_hw *hw, unsigned long rate,
 			a = SI5351_MULTISYNTH_A_MAX;
 
 		/* find best approximation for b/c = fVCO mod fOUT */
-		denom = 1000 * 1000;
+		deyesm = 1000 * 1000;
 		lltmp = (*parent_rate) % rate;
-		lltmp *= denom;
+		lltmp *= deyesm;
 		do_div(lltmp, rate);
 		rfrac = (unsigned long)lltmp;
 
 		b = 0;
 		c = 1;
 		if (rfrac)
-			rational_best_approximation(rfrac, denom,
+			rational_best_approximation(rfrac, deyesm,
 			    SI5351_MULTISYNTH_B_MAX, SI5351_MULTISYNTH_C_MAX,
 			    &b, &c);
 	}
@@ -906,7 +906,7 @@ static void _si5351_clkout_reset_pll(struct si5351_driver_data *drvdata, int num
 	switch (val & SI5351_CLK_INPUT_MASK) {
 	case SI5351_CLK_INPUT_XTAL:
 	case SI5351_CLK_INPUT_CLKIN:
-		return;  /* pll not used, no need to reset */
+		return;  /* pll yest used, yes need to reset */
 	}
 
 	si5351_reg_write(drvdata, SI5351_PLL_RESET,
@@ -1156,7 +1156,7 @@ MODULE_DEVICE_TABLE(of, si5351_dt_ids);
 static int si5351_dt_parse(struct i2c_client *client,
 			   enum si5351_variant variant)
 {
-	struct device_node *child, *np = client->dev.of_node;
+	struct device_yesde *child, *np = client->dev.of_yesde;
 	struct si5351_platform_data *pdata;
 	struct property *prop;
 	const __be32 *p;
@@ -1209,7 +1209,7 @@ static int si5351_dt_parse(struct i2c_client *client,
 	}
 
 	/* per clkout properties */
-	for_each_child_of_node(np, child) {
+	for_each_child_of_yesde(np, child) {
 		if (of_property_read_u32(child, "reg", &num)) {
 			dev_err(&client->dev, "missing reg property of %pOFn\n",
 				child);
@@ -1330,7 +1330,7 @@ static int si5351_dt_parse(struct i2c_client *client,
 
 	return 0;
 put_child:
-	of_node_put(child);
+	of_yesde_put(child);
 	return -EINVAL;
 }
 
@@ -1619,13 +1619,13 @@ static int si5351_i2c_probe(struct i2c_client *client,
 			ret = clk_set_rate(drvdata->clkout[n].hw.clk,
 					   pdata->clkout[n].rate);
 			if (ret != 0) {
-				dev_err(&client->dev, "Cannot set rate : %d\n",
+				dev_err(&client->dev, "Canyest set rate : %d\n",
 					ret);
 			}
 		}
 	}
 
-	ret = of_clk_add_hw_provider(client->dev.of_node, si53351_of_clk_get,
+	ret = of_clk_add_hw_provider(client->dev.of_yesde, si53351_of_clk_get,
 				     drvdata);
 	if (ret) {
 		dev_err(&client->dev, "unable to add clk provider\n");
@@ -1637,7 +1637,7 @@ static int si5351_i2c_probe(struct i2c_client *client,
 
 static int si5351_i2c_remove(struct i2c_client *client)
 {
-	of_clk_del_provider(client->dev.of_node);
+	of_clk_del_provider(client->dev.of_yesde);
 
 	return 0;
 }

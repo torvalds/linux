@@ -48,12 +48,12 @@ config QCA7000_UART
 	  will be called qcauart.
 
 config QCOM_EMAC
-	tristate "Qualcomm Technologies, Inc. EMAC Gigabit Ethernet support"
+	tristate "Qualcomm Techyeslogies, Inc. EMAC Gigabit Ethernet support"
 	depends on HAS_DMA && HAS_IOMEM
 	select CRC32
 	select PHYLIB
 	---help---
-	  This driver supports the Qualcomm Technologies, Inc. Gigabit
+	  This driver supports the Qualcomm Techyeslogies, Inc. Gigabit
 	  Ethernet Media Access Controller (EMAC). The controller
 	  supports IEEE 802.3-2002, half-duplex mode at 10/100 Mb/s,
 	  full-duplex mode at 10/100/1000Mb/s, Wake On LAN (WOL) for

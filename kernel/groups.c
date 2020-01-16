@@ -158,7 +158,7 @@ SYSCALL_DEFINE2(getgroups, int, gidsetsize, gid_t __user *, grouplist)
 	if (gidsetsize < 0)
 		return -EINVAL;
 
-	/* no need to grab task_lock here; it cannot change */
+	/* yes need to grab task_lock here; it canyest change */
 	i = cred->group_info->ngroups;
 	if (gidsetsize) {
 		if (i > gidsetsize) {
@@ -184,7 +184,7 @@ bool may_setgroups(void)
 
 /*
  *	SMP: Our groups are copy-on-write. We can set them safely
- *	without another task interfering.
+ *	without ayesther task interfering.
  */
 
 SYSCALL_DEFINE2(setgroups, int, gidsetsize, gid_t __user *, grouplist)

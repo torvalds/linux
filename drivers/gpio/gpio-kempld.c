@@ -10,7 +10,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/bitops.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/platform_device.h>
 #include <linux/gpio/driver.h>
 #include <linux/mfd/kempld.h>
@@ -175,7 +175,7 @@ static int kempld_gpio_probe(struct platform_device *pdev)
 
 	ret = devm_gpiochip_add_data(dev, chip, gpio);
 	if (ret) {
-		dev_err(dev, "Could not register GPIO chip\n");
+		dev_err(dev, "Could yest register GPIO chip\n");
 		return ret;
 	}
 

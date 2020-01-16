@@ -94,7 +94,7 @@ static u32 __accumulate_pelt_segments(u64 periods, u32 d1, u32 d3)
  *           ^           ^            ^
  *           |           |            |
  *         |<->|<----------------->|<--->|
- * ... |---x---|------| ... |------|-----x (now)
+ * ... |---x---|------| ... |------|-----x (yesw)
  *
  *                           p-1
  * u' = (u + d1) y^p + 1024 \Sum y^n + d3 y^0
@@ -152,9 +152,9 @@ accumulate_sum(u64 delta, struct sched_avg *sa,
  *
  * [<- 1024us ->|<- 1024us ->|<- 1024us ->| ...
  *      p0            p1           p2
- *     (now)       (~1ms ago)  (~2ms ago)
+ *     (yesw)       (~1ms ago)  (~2ms ago)
  *
- * Let u_i denote the fraction of p_i that the entity was runnable.
+ * Let u_i deyeste the fraction of p_i that the entity was runnable.
  *
  * We then designate the fractions u_i as our co-efficients, yielding the
  * following representation of historical load:
@@ -173,18 +173,18 @@ accumulate_sum(u64 delta, struct sched_avg *sa,
  *            = u_0 + u_1*y + u_2*y^2 + ... [re-labeling u_i --> u_{i+1}]
  */
 static __always_inline int
-___update_load_sum(u64 now, struct sched_avg *sa,
+___update_load_sum(u64 yesw, struct sched_avg *sa,
 		  unsigned long load, unsigned long runnable, int running)
 {
 	u64 delta;
 
-	delta = now - sa->last_update_time;
+	delta = yesw - sa->last_update_time;
 	/*
 	 * This should only happen when time goes backwards, which it
 	 * unfortunately does during sched clock init when we swap over to TSC.
 	 */
 	if ((s64)delta < 0) {
-		sa->last_update_time = now;
+		sa->last_update_time = yesw;
 		return 0;
 	}
 
@@ -202,7 +202,7 @@ ___update_load_sum(u64 now, struct sched_avg *sa,
 	 * running is a subset of runnable (weight) so running can't be set if
 	 * runnable is clear. But there are some corner cases where the current
 	 * se has been already dequeued but cfs_rq->curr still points to it.
-	 * This means that weight will be 0 but not running for a sched_entity
+	 * This means that weight will be 0 but yest running for a sched_entity
 	 * but also for a cfs_rq if the latter becomes idle. As an example,
 	 * this happens during idle_balance() which calls
 	 * update_blocked_averages()
@@ -211,7 +211,7 @@ ___update_load_sum(u64 now, struct sched_avg *sa,
 		runnable = running = 0;
 
 	/*
-	 * Now we know we crossed measurement unit boundaries. The *_avg
+	 * Now we kyesw we crossed measurement unit boundaries. The *_avg
 	 * accrues by two steps:
 	 *
 	 * Step 1: accumulate *_sum since last_update_time. If we haven't
@@ -263,9 +263,9 @@ ___update_load_avg(struct sched_avg *sa, unsigned long load, unsigned long runna
  *   runnable_load_avg = \Sum se->avg.runable_load_avg
  */
 
-int __update_load_avg_blocked_se(u64 now, struct sched_entity *se)
+int __update_load_avg_blocked_se(u64 yesw, struct sched_entity *se)
 {
-	if (___update_load_sum(now, &se->avg, 0, 0, 0)) {
+	if (___update_load_sum(yesw, &se->avg, 0, 0, 0)) {
 		___update_load_avg(&se->avg, se_weight(se), se_runnable(se));
 		trace_pelt_se_tp(se);
 		return 1;
@@ -274,9 +274,9 @@ int __update_load_avg_blocked_se(u64 now, struct sched_entity *se)
 	return 0;
 }
 
-int __update_load_avg_se(u64 now, struct cfs_rq *cfs_rq, struct sched_entity *se)
+int __update_load_avg_se(u64 yesw, struct cfs_rq *cfs_rq, struct sched_entity *se)
 {
-	if (___update_load_sum(now, &se->avg, !!se->on_rq, !!se->on_rq,
+	if (___update_load_sum(yesw, &se->avg, !!se->on_rq, !!se->on_rq,
 				cfs_rq->curr == se)) {
 
 		___update_load_avg(&se->avg, se_weight(se), se_runnable(se));
@@ -288,9 +288,9 @@ int __update_load_avg_se(u64 now, struct cfs_rq *cfs_rq, struct sched_entity *se
 	return 0;
 }
 
-int __update_load_avg_cfs_rq(u64 now, struct cfs_rq *cfs_rq)
+int __update_load_avg_cfs_rq(u64 yesw, struct cfs_rq *cfs_rq)
 {
-	if (___update_load_sum(now, &cfs_rq->avg,
+	if (___update_load_sum(yesw, &cfs_rq->avg,
 				scale_load_down(cfs_rq->load.weight),
 				scale_load_down(cfs_rq->runnable_weight),
 				cfs_rq->curr != NULL)) {
@@ -306,17 +306,17 @@ int __update_load_avg_cfs_rq(u64 now, struct cfs_rq *cfs_rq)
 /*
  * rt_rq:
  *
- *   util_sum = \Sum se->avg.util_sum but se->avg.util_sum is not tracked
+ *   util_sum = \Sum se->avg.util_sum but se->avg.util_sum is yest tracked
  *   util_sum = cpu_scale * load_sum
  *   runnable_load_sum = load_sum
  *
- *   load_avg and runnable_load_avg are not supported and meaningless.
+ *   load_avg and runnable_load_avg are yest supported and meaningless.
  *
  */
 
-int update_rt_rq_load_avg(u64 now, struct rq *rq, int running)
+int update_rt_rq_load_avg(u64 yesw, struct rq *rq, int running)
 {
-	if (___update_load_sum(now, &rq->avg_rt,
+	if (___update_load_sum(yesw, &rq->avg_rt,
 				running,
 				running,
 				running)) {
@@ -332,15 +332,15 @@ int update_rt_rq_load_avg(u64 now, struct rq *rq, int running)
 /*
  * dl_rq:
  *
- *   util_sum = \Sum se->avg.util_sum but se->avg.util_sum is not tracked
+ *   util_sum = \Sum se->avg.util_sum but se->avg.util_sum is yest tracked
  *   util_sum = cpu_scale * load_sum
  *   runnable_load_sum = load_sum
  *
  */
 
-int update_dl_rq_load_avg(u64 now, struct rq *rq, int running)
+int update_dl_rq_load_avg(u64 yesw, struct rq *rq, int running)
 {
-	if (___update_load_sum(now, &rq->avg_dl,
+	if (___update_load_sum(yesw, &rq->avg_dl,
 				running,
 				running,
 				running)) {
@@ -357,7 +357,7 @@ int update_dl_rq_load_avg(u64 now, struct rq *rq, int running)
 /*
  * irq:
  *
- *   util_sum = \Sum se->avg.util_sum but se->avg.util_sum is not tracked
+ *   util_sum = \Sum se->avg.util_sum but se->avg.util_sum is yest tracked
  *   util_sum = cpu_scale * load_sum
  *   runnable_load_sum = load_sum
  *
@@ -368,7 +368,7 @@ int update_irq_load_avg(struct rq *rq, u64 running)
 	int ret = 0;
 
 	/*
-	 * We can't use clock_pelt because irq time is not accounted in
+	 * We can't use clock_pelt because irq time is yest accounted in
 	 * clock_task. Instead we directly scale the running time to
 	 * reflect the real amount of computation
 	 */
@@ -376,12 +376,12 @@ int update_irq_load_avg(struct rq *rq, u64 running)
 	running = cap_scale(running, arch_scale_cpu_capacity(cpu_of(rq)));
 
 	/*
-	 * We know the time that has been used by interrupt since last update
+	 * We kyesw the time that has been used by interrupt since last update
 	 * but we don't when. Let be pessimistic and assume that interrupt has
-	 * happened just before the update. This is not so far from reality
+	 * happened just before the update. This is yest so far from reality
 	 * because interrupt will most probably wake up task and trig an update
 	 * of rq clock during which the metric is updated.
-	 * We start to decay with normal context time and then we add the
+	 * We start to decay with yesrmal context time and then we add the
 	 * interrupt context time.
 	 * We can safely remove running from rq->clock because
 	 * rq->clock += delta with delta >= running

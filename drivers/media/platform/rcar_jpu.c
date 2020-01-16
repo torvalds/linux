@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Author: Mikhail Ulyanov
+ * Author: Mikhail Ulyayesv
  * Copyright (C) 2014-2015 Cogent Embedded, Inc.  <source@cogentembedded.com>
  * Copyright (C) 2014-2015 Renesas Electronics Corporation
  *
@@ -41,7 +41,7 @@
 #define DRV_NAME "rcar_jpu"
 
 /*
- * Align JPEG header end to cache line to make sure we will not have any issues
+ * Align JPEG header end to cache line to make sure we will yest have any issues
  * with cache; additionally to requerment (33.3.27 R01UH0501EJ0100 Rev.1.00)
  */
 #define JPU_JPEG_HDR_SIZE		(ALIGN(0x258, L1_CACHE_BYTES))
@@ -191,8 +191,8 @@
  * @mutex: the mutex protecting this structure
  * @lock: spinlock protecting the device contexts
  * @v4l2_dev: v4l2 device for mem2mem mode
- * @vfd_encoder: video device node for encoder mem2mem mode
- * @vfd_decoder: video device node for decoder mem2mem mode
+ * @vfd_encoder: video device yesde for encoder mem2mem mode
+ * @vfd_decoder: video device yesde for decoder mem2mem mode
  * @m2m_dev: v4l2 mem2mem device data
  * @curr: pointer to current context
  * @regs: JPEG IP registers mapping
@@ -231,7 +231,7 @@ struct jpu_buffer {
 
 /**
  * struct jpu_fmt - driver's internal format data
- * @fourcc: the fourcc code, 0 if not applicable
+ * @fourcc: the fourcc code, 0 if yest applicable
  * @colorspace: the colorspace specifier
  * @bpp: number of bits per pixel per plane
  * @h_align: horizontal alignment order (align to 2^h_align)
@@ -447,21 +447,21 @@ static const unsigned int hactbl_chr[HACTBL_SIZE] = {
 
 static const char *error_to_text[16] = {
 	"Normal",
-	"SOI not detected",
+	"SOI yest detected",
 	"SOF1 to SOFF detected",
-	"Subsampling not detected",
+	"Subsampling yest detected",
 	"SOF accuracy error",
 	"DQT accuracy error",
 	"Component error 1",
 	"Component error 2",
-	"SOF0, DQT, and DHT not detected when SOS detected",
-	"SOS not detected",
-	"EOI not detected",
+	"SOF0, DQT, and DHT yest detected when SOS detected",
+	"SOS yest detected",
+	"EOI yest detected",
 	"Restart interval data number error detected",
 	"Image size error",
 	"Last MCU data number error",
 	"Block data number error",
-	"Unknown"
+	"Unkyeswn"
 };
 
 static struct jpu_buffer *vb2_to_jpu_buffer(struct vb2_v4l2_buffer *vb)
@@ -779,7 +779,7 @@ static int __jpu_try_fmt(struct jpu_ctx *ctx, struct jpu_fmt **fmtinfo,
 	if (!fmt) {
 		unsigned int pixelformat;
 
-		dev_dbg(ctx->jpu->dev, "unknown format; set default format\n");
+		dev_dbg(ctx->jpu->dev, "unkyeswn format; set default format\n");
 		if (ctx->encoder)
 			pixelformat = f_type == JPU_FMT_TYPE_OUTPUT ?
 				V4L2_PIX_FMT_NV16M : V4L2_PIX_FMT_JPEG;
@@ -803,7 +803,7 @@ static int __jpu_try_fmt(struct jpu_ctx *ctx, struct jpu_fmt **fmtinfo,
 	h = pix->height;
 
 	if (fmt->fourcc == V4L2_PIX_FMT_JPEG) {
-		/* ignore userspaces's sizeimage for encoding */
+		/* igyesre userspaces's sizeimage for encoding */
 		if (pix->plane_fmt[0].sizeimage <= 0 || ctx->encoder)
 			pix->plane_fmt[0].sizeimage = JPU_JPEG_HDR_SIZE +
 				(JPU_JPEG_MAX_BYTES_PER_PIXEL * w * h);
@@ -935,7 +935,7 @@ static int jpu_streamon(struct file *file, void *priv, enum v4l2_buf_type type)
 
 	if (adj.format.width != orig->format.width ||
 	    adj.format.height != orig->format.height) {
-		dev_err(ctx->jpu->dev, "src and dst formats do not match.\n");
+		dev_err(ctx->jpu->dev, "src and dst formats do yest match.\n");
 		/* maybe we can return -EPIPE here? */
 		return -EINVAL;
 	}
@@ -1060,7 +1060,7 @@ static int jpu_buf_prepare(struct vb2_buffer *vb)
 
 		if (vb2_plane_size(vb, i) < size) {
 			dev_err(ctx->jpu->dev,
-				"%s: data will not fit into plane (%lu < %lu)\n",
+				"%s: data will yest fit into plane (%lu < %lu)\n",
 			       __func__, vb2_plane_size(vb, i), size);
 			return -EINVAL;
 		}
@@ -1409,7 +1409,7 @@ static void jpu_device_run(void *priv)
 			inft = JIFECNT_INFT_422;
 		}
 
-		/* only no marker mode works for encoding */
+		/* only yes marker mode works for encoding */
 		jpu_write(jpu, JCMOD_DSP_ENC | JCMOD_PCTR | redu |
 			  JCMOD_MSKIP_ENABLE, JCMOD);
 
@@ -1450,7 +1450,7 @@ static void jpu_device_run(void *priv)
 
 		if (jpu_buf->subsampling != subsampling) {
 			dev_err(ctx->jpu->dev,
-				"src and dst formats do not match.\n");
+				"src and dst formats do yest match.\n");
 			spin_unlock_irqrestore(&ctx->jpu->lock, flags);
 			jpu_cleanup(ctx, false);
 			return;
@@ -1523,8 +1523,8 @@ static irqreturn_t jpu_irq_handler(int irq, void *dev_id)
 
 	curr_ctx = v4l2_m2m_get_curr_priv(jpu->m2m_dev);
 	if (!curr_ctx) {
-		/* ...instance is not running */
-		dev_err(jpu->dev, "no active context for m2m\n");
+		/* ...instance is yest running */
+		dev_err(jpu->dev, "yes active context for m2m\n");
 		goto handled;
 	}
 
@@ -1615,21 +1615,21 @@ static int jpu_probe(struct platform_device *pdev)
 	/* interrupt service routine registration */
 	jpu->irq = ret = platform_get_irq(pdev, 0);
 	if (ret < 0) {
-		dev_err(&pdev->dev, "cannot find IRQ\n");
+		dev_err(&pdev->dev, "canyest find IRQ\n");
 		return ret;
 	}
 
 	ret = devm_request_irq(&pdev->dev, jpu->irq, jpu_irq_handler, 0,
 			       dev_name(&pdev->dev), jpu);
 	if (ret) {
-		dev_err(&pdev->dev, "cannot claim IRQ %d\n", jpu->irq);
+		dev_err(&pdev->dev, "canyest claim IRQ %d\n", jpu->irq);
 		return ret;
 	}
 
 	/* clocks */
 	jpu->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(jpu->clk)) {
-		dev_err(&pdev->dev, "cannot get clock\n");
+		dev_err(&pdev->dev, "canyest get clock\n");
 		return PTR_ERR(jpu->clk);
 	}
 
@@ -1655,7 +1655,7 @@ static int jpu_probe(struct platform_device *pdev)
 	strscpy(jpu->vfd_encoder.name, DRV_NAME, sizeof(jpu->vfd_encoder.name));
 	jpu->vfd_encoder.fops		= &jpu_fops;
 	jpu->vfd_encoder.ioctl_ops	= &jpu_ioctl_ops;
-	jpu->vfd_encoder.minor		= -1;
+	jpu->vfd_encoder.miyesr		= -1;
 	jpu->vfd_encoder.release	= video_device_release_empty;
 	jpu->vfd_encoder.lock		= &jpu->mutex;
 	jpu->vfd_encoder.v4l2_dev	= &jpu->v4l2_dev;
@@ -1674,7 +1674,7 @@ static int jpu_probe(struct platform_device *pdev)
 	strscpy(jpu->vfd_decoder.name, DRV_NAME, sizeof(jpu->vfd_decoder.name));
 	jpu->vfd_decoder.fops		= &jpu_fops;
 	jpu->vfd_decoder.ioctl_ops	= &jpu_ioctl_ops;
-	jpu->vfd_decoder.minor		= -1;
+	jpu->vfd_decoder.miyesr		= -1;
 	jpu->vfd_decoder.release	= video_device_release_empty;
 	jpu->vfd_decoder.lock		= &jpu->mutex;
 	jpu->vfd_decoder.v4l2_dev	= &jpu->v4l2_dev;
@@ -1765,6 +1765,6 @@ static struct platform_driver jpu_driver = {
 module_platform_driver(jpu_driver);
 
 MODULE_ALIAS("platform:" DRV_NAME);
-MODULE_AUTHOR("Mikhail Ulianov <mikhail.ulyanov@cogentembedded.com>");
+MODULE_AUTHOR("Mikhail Uliayesv <mikhail.ulyayesv@cogentembedded.com>");
 MODULE_DESCRIPTION("Renesas R-Car JPEG processing unit driver");
 MODULE_LICENSE("GPL v2");

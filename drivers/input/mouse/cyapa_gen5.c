@@ -142,7 +142,7 @@ struct cyapa_pip_touch_record {
 	 * Bit 2 - 0: touch type;
 	 *            0 : standard finger;
 	 *            1 : proximity (Start supported in Gen5 TP).
-	 *            2 : finger hover (defined, but not used yet.)
+	 *            2 : finger hover (defined, but yest used yet.)
 	 *            3 - 15 : reserved.
 	 */
 	u8 touch_type;
@@ -152,10 +152,10 @@ struct cyapa_pip_touch_record {
 	 *		0 : touch is currently on the panel.
 	 *		1 : touch record indicates a liftoff.
 	 * Bit 6 - 5: indicates an event associated with this touch instance
-	 *		0 : no event
+	 *		0 : yes event
 	 *		1 : touchdown
 	 *		2 : significant displacement (> active distance)
-	 *		3 : liftoff (record reports last known coordinates)
+	 *		3 : liftoff (record reports last kyeswn coordinates)
 	 * Bit 4 - 0: An arbitrary ID tag associated with a finger
 	 *		to allow tracking a touch as it moves around the panel.
 	 */
@@ -190,10 +190,10 @@ struct cyapa_pip_touch_record {
 	u8 major_axis_len;
 
 	/*
-	 * The length of the minor axis of the ellipse of contact between
+	 * The length of the miyesr axis of the ellipse of contact between
 	 * the finger and the panel (ABS_MT_TOUCH_MINOR).
 	 */
-	u8 minor_axis_len;
+	u8 miyesr_axis_len;
 
 	/*
 	 * The length of the major axis of the approaching tool.
@@ -202,10 +202,10 @@ struct cyapa_pip_touch_record {
 	u8 major_tool_len;
 
 	/*
-	 * The length of the minor axis of the approaching tool.
+	 * The length of the miyesr axis of the approaching tool.
 	 * (ABS_MT_WIDTH_MINOR)
 	 */
-	u8 minor_tool_len;
+	u8 miyesr_tool_len;
 
 	/*
 	 * The angle between the panel vertical axis and
@@ -227,9 +227,9 @@ struct cyapa_pip_report_data {
 struct cyapa_tsg_bin_image_head {
 	u8 head_size;  /* Unit: bytes, including itself. */
 	u8 ttda_driver_major_version;  /* Reserved as 0. */
-	u8 ttda_driver_minor_version;  /* Reserved as 0. */
+	u8 ttda_driver_miyesr_version;  /* Reserved as 0. */
 	u8 fw_major_version;
-	u8 fw_minor_version;
+	u8 fw_miyesr_version;
 	u8 fw_revision_control_number[8];
 	u8 silicon_id_hi;
 	u8 silicon_id_lo;
@@ -266,7 +266,7 @@ struct pip_bl_packet_end {
 
 struct pip_bl_cmd_head {
 	__le16 addr;   /* Output report register address, must be 0004h */
-	/* Size of packet not including output report register address */
+	/* Size of packet yest including output report register address */
 	__le16 length;
 	u8 report_id;  /* Bootloader output report id, must be 40h */
 	u8 rsvd;  /* Reserved, must be 0 */
@@ -305,7 +305,7 @@ struct tsg_bl_flash_row_head {
 
 struct pip_app_cmd_head {
 	__le16 addr;   /* Output report register address, must be 0004h */
-	/* Size of packet not including output report register address */
+	/* Size of packet yest including output report register address */
 	__le16 length;
 	u8 report_id;  /* Application output report id, must be 2Fh */
 	u8 rsvd;  /* Reserved, must be 0 */
@@ -367,7 +367,7 @@ int cyapa_pip_cmd_state_initialize(struct cyapa *cyapa)
 	return 0;
 }
 
-/* Return negative errno, or else the number of bytes read. */
+/* Return negative erryes, or else the number of bytes read. */
 ssize_t cyapa_i2c_pip_read(struct cyapa *cyapa, u8 *buf, size_t size)
 {
 	int ret;
@@ -386,7 +386,7 @@ ssize_t cyapa_i2c_pip_read(struct cyapa *cyapa, u8 *buf, size_t size)
 }
 
 /**
- * Return a negative errno code else zero on success.
+ * Return a negative erryes code else zero on success.
  */
 ssize_t cyapa_i2c_pip_write(struct cyapa *cyapa, u8 *buf, size_t size)
 {
@@ -417,7 +417,7 @@ static void cyapa_reset_pip_pm_state(struct cyapa *cyapa)
 {
 	struct cyapa_pip_cmd_states *pip = &cyapa->cmd_states.pip;
 
-	/* Indicates the pip->pm_stage is not valid. */
+	/* Indicates the pip->pm_stage is yest valid. */
 	mutex_lock(&pip->pm_stage_lock);
 	pip->pm_stage = CYAPA_PM_DEACTIVE;
 	mutex_unlock(&pip->pm_stage_lock);
@@ -436,7 +436,7 @@ static enum cyapa_pm_stage cyapa_get_pip_pm_state(struct cyapa *cyapa)
 }
 
 /**
- * This function is aimed to dump all not read data in Gen5 trackpad
+ * This function is aimed to dump all yest read data in Gen5 trackpad
  * before send any command, otherwise, the interrupt line will be blocked.
  */
 int cyapa_empty_pip_output_data(struct cyapa *cyapa,
@@ -486,7 +486,7 @@ int cyapa_empty_pip_output_data(struct cyapa *cyapa,
 			empty_count++;
 			continue;
 		} else if (length > CYAPA_REG_MAP_SIZE) {
-			/* Should not happen */
+			/* Should yest happen */
 			return -EINVAL;
 		} else if (length == 0) {
 			/* Application or bootloader launch data polled out. */
@@ -642,7 +642,7 @@ int cyapa_i2c_pip_cmd_irq_sync(
 		if (error == -ETIMEDOUT && resp_data &&
 				resp_len && *resp_len != 0 && func) {
 			/*
-			 * For some old version, there was no interrupt for
+			 * For some old version, there was yes interrupt for
 			 * the command response data, so need to poll here
 			 * to try to get the response data.
 			 */
@@ -786,7 +786,7 @@ static int gen5_idle_state_parse(struct cyapa *cyapa)
 
 	length = get_unaligned_le16(&resp_data[PIP_RESP_LENGTH_OFFSET]);
 	if (length == PIP_RESP_LENGTH_SIZE) {
-		/* Normal state of Gen5 with no data to response */
+		/* Normal state of Gen5 with yes data to response */
 		cyapa->gen = CYAPA_GEN5;
 
 		cyapa_empty_pip_output_data(cyapa, NULL, NULL, NULL);
@@ -822,7 +822,7 @@ static int gen5_idle_state_parse(struct cyapa *cyapa)
 			/* APP mode HID Description read */
 			cyapa->state = CYAPA_STATE_GEN5_APP;
 		} else {
-			/* Should not happen!!! */
+			/* Should yest happen!!! */
 			cyapa->state = CYAPA_STATE_NO_DEVICE;
 		}
 	}
@@ -841,7 +841,7 @@ static int gen5_hid_description_header_parse(struct cyapa *cyapa, u8 *reg_data)
 	 * 0x20 0x00 0xFF is Gen5 Bootloader HID Description Header.
 	 *
 	 * Must read HID Description content through out,
-	 * otherwise Gen5 trackpad cannot response next command
+	 * otherwise Gen5 trackpad canyest response next command
 	 * or report any touch or button data.
 	 */
 	ret = cyapa_i2c_pip_read(cyapa, resp_data,
@@ -881,7 +881,7 @@ static int gen5_hid_description_header_parse(struct cyapa *cyapa, u8 *reg_data)
 		cyapa->gen = CYAPA_GEN5;
 		cyapa->state = CYAPA_STATE_GEN5_APP;
 	} else {
-		/* Should not happen!!! */
+		/* Should yest happen!!! */
 		cyapa->state = CYAPA_STATE_NO_DEVICE;
 	}
 
@@ -927,7 +927,7 @@ static int gen5_cmd_resp_header_parse(struct cyapa *cyapa, u8 *reg_data)
 
 	/*
 	 * Must read report data through out,
-	 * otherwise Gen5 trackpad cannot response next command
+	 * otherwise Gen5 trackpad canyest response next command
 	 * or report any touch or button data.
 	 */
 	length = get_unaligned_le16(&reg_data[PIP_RESP_LENGTH_OFFSET]);
@@ -966,7 +966,7 @@ static int gen5_cmd_resp_header_parse(struct cyapa *cyapa, u8 *reg_data)
 		cyapa->gen = CYAPA_GEN5;
 		cyapa->state = CYAPA_STATE_GEN5_APP;
 	} else {
-		/* Should not happen!!! */
+		/* Should yest happen!!! */
 		cyapa->state = CYAPA_STATE_NO_DEVICE;
 	}
 
@@ -1016,7 +1016,7 @@ static int cyapa_gen5_state_parse(struct cyapa *cyapa, u8 *reg_data, int len)
 		/*
 		 * Must read the content (e.g.: report description and so on)
 		 * from trackpad device throughout. Otherwise,
-		 * Gen5 trackpad cannot response to next command or
+		 * Gen5 trackpad canyest response to next command or
 		 * report any touch or button data later.
 		 */
 		cyapa_empty_pip_output_data(cyapa, NULL, NULL, NULL);
@@ -1248,10 +1248,10 @@ int cyapa_pip_check_fw(struct cyapa *cyapa, const struct firmware *fw)
 	u16 app_integrity_crc;
 	int i;
 
-	/* Verify the firmware image not miss-used for Gen5 and Gen6. */
+	/* Verify the firmware image yest miss-used for Gen5 and Gen6. */
 	if (cyapa_pip_fw_head_check(cyapa,
 		(struct cyapa_tsg_bin_image_head *)fw->data)) {
-		dev_err(dev, "%s: firmware image not match TP device.\n",
+		dev_err(dev, "%s: firmware image yest match TP device.\n",
 			     __func__);
 		return -EINVAL;
 	}
@@ -1661,7 +1661,7 @@ static int cyapa_gen5_set_power_mode(struct cyapa *cyapa,
 	}
 
 	/*
-	 * When trackpad in power off mode, it cannot change to other power
+	 * When trackpad in power off mode, it canyest change to other power
 	 * state directly, must be wake up from sleep firstly, then
 	 * continue to do next power sate change.
 	 */
@@ -1695,7 +1695,7 @@ static int cyapa_gen5_set_power_mode(struct cyapa *cyapa,
 		/*
 		 * Continue to change power mode even failed to set
 		 * interval time, it won't affect the power mode change.
-		 * except the sleep interval time is not correct.
+		 * except the sleep interval time is yest correct.
 		 */
 		if (PIP_DEV_UNINIT_SLEEP_TIME(cyapa) ||
 				sleep_time != PIP_DEV_GET_SLEEP_TIME(cyapa))
@@ -1887,7 +1887,7 @@ static s32 cyapa_parse_structure_data(u8 data_format, u8 *buf, int buf_len)
 			value = get_unaligned_le32(buf);
 		break;
 	default:
-		/* Should not happen, just as default case here. */
+		/* Should yest happen, just as default case here. */
 		value = 0;
 		break;
 	}
@@ -1920,14 +1920,14 @@ static void cyapa_gen5_guess_electrodes(struct cyapa *cyapa,
  * data, the min value of global mutual idac and the average value of the
  * global mutual idac data. For read global self idac data, @idac_max is used
  * to return the global self cap idac data in Rx direction, @idac_min is used
- * to return the global self cap idac data in Tx direction. @idac_ave is not
+ * to return the global self cap idac data in Tx direction. @idac_ave is yest
  * used.
- * If the input value of @data_size is not 0, than means read the mutual or
+ * If the input value of @data_size is yest 0, than means read the mutual or
  * self local PWC data. The @idac_max, @idac_min and @idac_ave are used to
  * return the max, min and average value of the mutual or self local PWC data.
  * Note, in order to read mutual local PWC data, must read invoke this function
  * to read the mutual global idac data firstly to set the correct Rx number
- * value, otherwise, the read mutual idac and PWC data may not correct.
+ * value, otherwise, the read mutual idac and PWC data may yest correct.
  */
 static int cyapa_gen5_read_idac_data(struct cyapa *cyapa,
 		u8 cmd_code, u8 idac_data_type, int *data_size,
@@ -1961,7 +1961,7 @@ static int cyapa_gen5_read_idac_data(struct cyapa *cyapa,
 	if (*data_size == 0) {
 		/*
 		 * Read global idac values firstly.
-		 * Currently, no idac data exceed 4 bytes.
+		 * Currently, yes idac data exceed 4 bytes.
 		 */
 		read_global_idac = true;
 		offset = 0;
@@ -2497,7 +2497,7 @@ static int cyapa_gen5_get_query_data(struct cyapa *cyapa)
 	cyapa->platform_ver = (resp_data[49] >> PIP_BL_PLATFORM_VER_SHIFT) &
 			      PIP_BL_PLATFORM_VER_MASK;
 	if (cyapa->gen == CYAPA_GEN5 && cyapa->platform_ver < 2) {
-		/* Gen5 firmware that does not support proximity. */
+		/* Gen5 firmware that does yest support proximity. */
 		cyapa->fw_maj_ver = resp_data[15];
 		cyapa->fw_min_ver = resp_data[16];
 	} else {
@@ -2585,7 +2585,7 @@ static int cyapa_gen5_do_operational_check(struct cyapa *cyapa)
 		/* Only support product ID starting with CYTRA */
 		if (memcmp(cyapa->product_id, product_id,
 				strlen(product_id)) != 0) {
-			dev_err(dev, "%s: unknown product ID (%s)\n",
+			dev_err(dev, "%s: unkyeswn product ID (%s)\n",
 				__func__, cyapa->product_id);
 			error = -EINVAL;
 		}
@@ -2599,7 +2599,7 @@ out:
 }
 
 /*
- * Return false, do not continue process
+ * Return false, do yest continue process
  * Return true, continue process.
  */
 bool cyapa_pip_irq_cmd_handler(struct cyapa *cyapa)
@@ -2613,7 +2613,7 @@ bool cyapa_pip_irq_cmd_handler(struct cyapa *cyapa)
 			return false;
 
 		/*
-		 * Read out all none command response data.
+		 * Read out all yesne command response data.
 		 * these output data may caused by user put finger on
 		 * trackpad when host waiting the command response.
 		 */
@@ -2630,7 +2630,7 @@ bool cyapa_pip_irq_cmd_handler(struct cyapa *cyapa)
 				pip->irq_cmd_buf, length))) {
 			/*
 			 * Cover the Gen5 V1 firmware issue.
-			 * The issue is no interrupt would be asserted from
+			 * The issue is yes interrupt would be asserted from
 			 * trackpad device to host for the command response
 			 * ready event. Because when there was a finger touch
 			 * on trackpad device, and the firmware output queue
@@ -2732,12 +2732,12 @@ static void cyapa_pip_report_slot_data(struct cyapa *cyapa,
 	input_report_abs(input, ABS_MT_TOUCH_MAJOR,
 		touch->major_axis_len);
 	input_report_abs(input, ABS_MT_TOUCH_MINOR,
-		touch->minor_axis_len);
+		touch->miyesr_axis_len);
 
 	input_report_abs(input, ABS_MT_WIDTH_MAJOR,
 		touch->major_tool_len);
 	input_report_abs(input, ABS_MT_WIDTH_MINOR,
-		touch->minor_tool_len);
+		touch->miyesr_tool_len);
 
 	input_report_abs(input, ABS_MT_ORIENTATION,
 		touch->orientation);
@@ -2791,7 +2791,7 @@ int cyapa_pip_irq_handler(struct cyapa *cyapa)
 		return -EINVAL;
 	}
 
-	/* Idle, no data for report. */
+	/* Idle, yes data for report. */
 	if (report_len == PIP_RESP_LENGTH_SIZE)
 		return 0;
 
@@ -2814,7 +2814,7 @@ static int cyapa_pip_event_process(struct cyapa *cyapa,
 
 	report_len = get_unaligned_le16(
 			&report_data->report_head[PIP_RESP_LENGTH_OFFSET]);
-	/* Idle, no data for report. */
+	/* Idle, yes data for report. */
 	if (report_len == PIP_RESP_LENGTH_SIZE)
 		return 0;
 
@@ -2840,7 +2840,7 @@ static int cyapa_pip_event_process(struct cyapa *cyapa,
 			report_id != GEN5_OLD_PUSH_BTN_REPORT_ID &&
 			report_id != PIP_PUSH_BTN_REPORT_ID &&
 			report_id != PIP_PROXIMITY_REPORT_ID) {
-		/* Running in BL mode or unknown response data read. */
+		/* Running in BL mode or unkyeswn response data read. */
 		dev_err(dev, "invalid report_id=0x%02x\n", report_id);
 		return -EINVAL;
 	}

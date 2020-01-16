@@ -29,13 +29,13 @@ meaning of events.
 INTERACTIVE COMMANDS
 --------------------
 [horizontal]
-*b*::	toggle events by guests (debugfs only, honors filters)
+*b*::	toggle events by guests (debugfs only, hoyesrs filters)
 
 *c*::	clear filter
 
 *f*::	filter by regular expression
  ::     *Note*: Child events pull in their parents, and parents' stats summarize
-                all child events, not just the filtered ones
+                all child events, yest just the filtered ones
 
 *g*::	filter by guest name/PID
 
@@ -102,4 +102,4 @@ SEE ALSO
 
 AUTHOR
 ------
-Stefan Hajnoczi <stefanha@redhat.com>
+Stefan Hajyesczi <stefanha@redhat.com>

@@ -18,7 +18,7 @@ Required properties:
 			the second cell is used to specify the gpio polarity:
 			0 = active high
 			1 = active low
-	- gpio-controller: Marks the device node as a gpio controller.
+	- gpio-controller: Marks the device yesde as a gpio controller.
 
 Optional properties:
 	- native-endian: use native endian memory.

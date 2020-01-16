@@ -26,7 +26,7 @@ struct mpic_msgr {
  *
  * A pointer to the message register is returned.  If
  * the message register asked for is already in use, then
- * EBUSY is returned.  If the number given is not associated
+ * EBUSY is returned.  If the number given is yest associated
  * with an actual message register, then ENODEV is returned.
  * Successfully getting the register marks it as in use.
  */
@@ -105,7 +105,7 @@ static inline void mpic_msgr_clear(struct mpic_msgr *msgr)
  * @cpu_num:	the Linux CPU number to bind the message register to
  *
  * Note that the CPU number given is the CPU number used by the kernel
- * and *not* the actual hardware CPU number.
+ * and *yest* the actual hardware CPU number.
  */
 static inline void mpic_msgr_set_destination(struct mpic_msgr *msgr,
 					     u32 cpu_num)
@@ -117,8 +117,8 @@ static inline void mpic_msgr_set_destination(struct mpic_msgr *msgr,
  * @msgr:	the message register whose IRQ is to be returned
  *
  * Returns the IRQ number associated with the given message register.
- * 0 is returned if this message register is not capable of receiving
- * interrupts.  What message register can and cannot receive interrupts is
+ * 0 is returned if this message register is yest capable of receiving
+ * interrupts.  What message register can and canyest receive interrupts is
  * specified in the device tree for the system.
  */
 static inline int mpic_msgr_get_irq(struct mpic_msgr *msgr)

@@ -227,7 +227,7 @@ struct aac_hba_cmd_req {
 	struct aac_hba_sgl sge[HBA_MAX_SG_SEPARATE+2]; /* SG list space */
 
 	/*
-	 * structure must not exceed
+	 * structure must yest exceed
 	 * AAC_MAX_NATIVE_SIZE-FW_ERROR_BUFFER_SIZE
 	 */
 };
@@ -320,7 +320,7 @@ struct aac_ciss_phys_luns_resp {
 		u8	bus;		/* Bus, flag (bits 6,7) */
 		u8	level3[2];
 		u8	level2[2];
-		u8	node_ident[16];	/* phys. node identifier */
+		u8	yesde_ident[16];	/* phys. yesde identifier */
 	} lun[1];			/* List of phys. devices */
 };
 
@@ -339,7 +339,7 @@ struct aac_ciss_identify_pd {
 	u8 serial_number[40];		/* Drive Serial Number */
 	u8 firmware_revision[8];	/* drive firmware revision */
 	u8 scsi_inquiry_bits;		/* inquiry byte 7 bits */
-	u8 compaq_drive_stamp;		/* 0 means drive not stamped */
+	u8 compaq_drive_stamp;		/* 0 means drive yest stamped */
 	u8 last_failure_reason;
 
 	u8  flags;
@@ -347,7 +347,7 @@ struct aac_ciss_identify_pd {
 	u8  scsi_lun;			/* SCSI LUN for phys drive */
 	u8  yet_more_flags;
 	u8  even_more_flags;
-	u32 spi_speed_rules;		/* SPI Speed :Ultra disable diagnose */
+	u32 spi_speed_rules;		/* SPI Speed :Ultra disable diagyesse */
 	u8  phys_connector[2];		/* connector number on controller */
 	u8  phys_box_on_bus;		/* phys enclosure this drive resides */
 	u8  phys_bay_in_box;		/* phys drv bay this drive resides */
@@ -452,7 +452,7 @@ struct diskparm
  *	Host side memory scatter gather list
  *	Used by the adapter for read, write, and readdirplus operations
  *	We have separate 32 and 64 bit version because even
- *	on 64 bit systems not all cards support the 64 bit version
+ *	on 64 bit systems yest all cards support the 64 bit version
  */
 struct sgentry {
 	__le32	addr;	/* 32-bit address. */
@@ -611,13 +611,13 @@ struct aac_qhdr {
 };
 
 /*
- *	Define all the events which the adapter would like to notify
+ *	Define all the events which the adapter would like to yestify
  *	the host of.
  */
 
-#define		HostNormCmdQue		1	/* Change in host normal priority command queue */
+#define		HostNormCmdQue		1	/* Change in host yesrmal priority command queue */
 #define		HostHighCmdQue		2	/* Change in host high priority command queue */
-#define		HostNormRespQue		3	/* Change in host normal priority response queue */
+#define		HostNormRespQue		3	/* Change in host yesrmal priority response queue */
 #define		HostHighRespQue		4	/* Change in host high priority response queue */
 #define		AdapNormRespNotFull	5
 #define		AdapHighRespNotFull	6
@@ -627,7 +627,7 @@ struct aac_qhdr {
 #define		AdapInternalError	0xfe    /* The adapter detected an internal error shutting down */
 
 /*
- *	Define all the events the host wishes to notify the
+ *	Define all the events the host wishes to yestify the
  *	adapter of. The first four values much match the Qid the
  *	corresponding queue.
  */
@@ -652,13 +652,13 @@ struct aac_qhdr {
  */
 
 enum aac_queue_types {
-        HostNormCmdQueue = 0,	/* Adapter to host normal priority command traffic */
+        HostNormCmdQueue = 0,	/* Adapter to host yesrmal priority command traffic */
         HostHighCmdQueue,	/* Adapter to host high priority command traffic */
-        AdapNormCmdQueue,	/* Host to adapter normal priority command traffic */
+        AdapNormCmdQueue,	/* Host to adapter yesrmal priority command traffic */
         AdapHighCmdQueue,	/* Host to adapter high priority command traffic */
-        HostNormRespQueue,	/* Adapter to host normal priority response traffic */
+        HostNormRespQueue,	/* Adapter to host yesrmal priority response traffic */
         HostHighRespQueue,	/* Adapter to host high priority response traffic */
-        AdapNormRespQueue,	/* Host to adapter normal priority response traffic */
+        AdapNormRespQueue,	/* Host to adapter yesrmal priority response traffic */
         AdapHighRespQueue	/* Host to adapter high priority response traffic */
 };
 
@@ -803,7 +803,7 @@ enum fib_xfer_state {
 	BIOSFibPath			= (1<<18),
 	FastResponseCapable		= (1<<19),
 	ApiFib				= (1<<20),	/* Its an API Fib */
-	/* PMC NEW COMM: There is no more AIF data pending */
+	/* PMC NEW COMM: There is yes more AIF data pending */
 	NoMoreAifDataAvailable		= (1<<21)
 };
 
@@ -822,7 +822,7 @@ union aac_init
 {
 	struct _r7 {
 		__le32	init_struct_revision;
-		__le32	no_of_msix_vectors;
+		__le32	yes_of_msix_vectors;
 		__le32	fsrev;
 		__le32	comm_header_address;
 		__le32	fast_io_comm_area_address;
@@ -899,7 +899,7 @@ struct adapter_ops
 {
 	/* Low level operations */
 	void (*adapter_interrupt)(struct aac_dev *dev);
-	void (*adapter_notify)(struct aac_dev *dev, u32 event);
+	void (*adapter_yestify)(struct aac_dev *dev, u32 event);
 	void (*adapter_disable_int)(struct aac_dev *dev);
 	void (*adapter_enable_int)(struct aac_dev *dev);
 	int  (*adapter_sync_cmd)(struct aac_dev *dev, u32 command, u32 p1, u32 p2, u32 p3, u32 p4, u32 p5, u32 p6, u32 *status, u32 *r1, u32 *r2, u32 *r3, u32 *r4);
@@ -941,14 +941,14 @@ struct aac_driver_ident
 #define AAC_QUIRK_31BIT	0x0001
 
 /*
- * Some adapter firmware, when the raid card's cache is turned off, can not
+ * Some adapter firmware, when the raid card's cache is turned off, can yest
  * split up scatter gathers in order to deal with the limits of the
  * underlying CHIM. This limit is 34 scatter gather elements.
  */
 #define AAC_QUIRK_34SG	0x0002
 
 /*
- * This adapter is a slave (no Firmware)
+ * This adapter is a slave (yes Firmware)
  */
 #define AAC_QUIRK_SLAVE 0x0004
 
@@ -965,7 +965,7 @@ struct aac_driver_ident
 #define AAC_QUIRK_17SG	0x0010
 
 /*
- *	Some adapter firmware does not support 64 bit scsi passthrough
+ *	Some adapter firmware does yest support 64 bit scsi passthrough
  * commands.
  */
 #define AAC_QUIRK_SCSI_32	0x0020
@@ -1254,10 +1254,10 @@ struct sense_data {
 				 * the sense key
 				 */
 	u8 add_sense_len;	/* number of additional sense bytes to follow this field */
-	u8 cmnd_info[4];	/* not used */
+	u8 cmnd_info[4];	/* yest used */
 	u8 ASC;			/* Additional Sense Code */
 	u8 ASCQ;		/* Additional Sense Code Qualifier */
-	u8 FRUC;		/* Field Replaceable Unit Code - not used */
+	u8 FRUC;		/* Field Replaceable Unit Code - yest used */
 	u8 bit_ptr:3;		/* indicates which byte of the CDB or parameter data
 				 * was in error
 				 */
@@ -1300,7 +1300,7 @@ struct fib {
 	struct aac_dev		*dev;
 	/*
 	 *	This is the event the sendfib routine will wait on if the
-	 *	caller did not pass one and this is synch io.
+	 *	caller did yest pass one and this is synch io.
 	 */
 	struct completion	event_wait;
 	spinlock_t		event_lock;
@@ -1315,7 +1315,7 @@ struct fib {
 	 */
 	struct list_head	fiblink;
 	void			*data;
-	u32			vector_no;
+	u32			vector_yes;
 	struct hw_fib		*hw_fib_va;	/* also used for native */
 	dma_addr_t		hw_fib_pa;	/* physical address of hw_fib*/
 	dma_addr_t		hw_sgl_pa;	/* extra sgl for native */
@@ -1335,7 +1335,7 @@ struct fib {
 struct aac_hba_map_info {
 	__le32	rmw_nexus;		/* nexus for native HBA devices */
 	u8		devtype;	/* device type */
-	s8		reset_state;	/* 0 - no reset, 1..x - */
+	s8		reset_state;	/* 0 - yes reset, 1..x - */
 					/* after xth TM LUN reset */
 	u16		qd_limit;
 	u32		scan_counter;
@@ -1398,7 +1398,7 @@ struct aac_supplement_adapter_info
 	__le32	raid_type_morph_options;
 	__le32	flash_firmware_boot_revision;
 	__le32	flash_firmware_boot_build;
-	u8	mfg_pcba_serial_no[12];
+	u8	mfg_pcba_serial_yes[12];
 	u8	mfg_wwn_name[8];
 	__le32	supported_options2;
 	__le32	struct_expansion;
@@ -1522,7 +1522,7 @@ struct aac_bus_info_response {
 
 /* MSIX context */
 struct aac_msix_ctx {
-	int		vector_no;
+	int		vector_yes;
 	struct aac_dev	*dev;
 };
 
@@ -1588,7 +1588,7 @@ struct aac_dev
 	/* index into rrq buffer */
 	u32			host_rrq_idx[AAC_MAX_MSIX];
 	atomic_t		rrq_outstanding[AAC_MAX_MSIX];
-	u32			fibs_pushed_no;
+	u32			fibs_pushed_yes;
 	struct pci_dev		*pdev;		/* Our PCI interface */
 	/* pointer to buffer used for printf's from the adapter */
 	void			*printfbuf;
@@ -1643,7 +1643,7 @@ struct aac_dev
 	/* These are in adapter info but they are in the io flow so
 	 * lets break them out so we don't have to do an AND to check them
 	 */
-	u8			nondasd_support;
+	u8			yesndasd_support;
 	u8			jbod;
 	u8			cache_protected;
 	u8			dac_support;
@@ -1682,8 +1682,8 @@ struct aac_dev
 #define aac_adapter_interrupt(dev) \
 	(dev)->a_ops.adapter_interrupt(dev)
 
-#define aac_adapter_notify(dev, event) \
-	(dev)->a_ops.adapter_notify(dev, event)
+#define aac_adapter_yestify(dev, event) \
+	(dev)->a_ops.adapter_yestify(dev, event)
 
 #define aac_adapter_disable_int(dev) \
 	(dev)->a_ops.adapter_disable_int(dev)
@@ -1778,7 +1778,7 @@ struct aac_dev
 
 /*
  *	Define the status returns. These are very unixlike although
- *	most are not in fact used
+ *	most are yest in fact used
  */
 
 #define		ST_OK		0
@@ -1826,7 +1826,7 @@ struct aac_dev
 #define CACHE_UNSTABLE		2
 
 /*
- *	Lets the client know at which level the data was committed on
+ *	Lets the client kyesw at which level the data was committed on
  *	a write request
  */
 
@@ -1975,7 +1975,7 @@ struct aac_pause {
 	__le32		type;		/* CT_PAUSE_IO */
 	__le32		timeout;	/* 10ms ticks */
 	__le32		min;
-	__le32		noRescan;
+	__le32		yesRescan;
 	__le32		parm3;
 	__le32		parm4;
 	__le32		count;	/* sizeof(((struct aac_pause_reply *)NULL)->data) */
@@ -2135,7 +2135,7 @@ struct aac_srb_unit {
  *	that a content manager might report.  The
  *	FileArray filesystem component is one example
  *	of a content manager.  Raw mode might be
- *	another.
+ *	ayesther.
  */
 
 struct aac_fsinfo {
@@ -2146,7 +2146,7 @@ struct aac_fsinfo {
 	__le32  fsSpaceUnits;
 	__le32  fsMaxNumFiles;
 	__le32  fsNumFreeFiles;
-	__le32  fsInodeDensity;
+	__le32  fsIyesdeDensity;
 };	/* valid iff ObjType == FT_FILESYS && !(ContentState & FSCS_NOTCLEAN) */
 
 struct  aac_blockdevinfo {
@@ -2249,7 +2249,7 @@ struct aac_mntent {
 
 #define FSCS_NOTCLEAN	0x0001  /* fsck is necessary before mounting */
 #define FSCS_READONLY	0x0002	/* possible result of broken mirror */
-#define FSCS_HIDDEN	0x0004	/* should be ignored - set during a clear */
+#define FSCS_HIDDEN	0x0004	/* should be igyesred - set during a clear */
 #define FSCS_NOT_READY	0x0008	/* Array spinning up to fulfil request */
 
 struct aac_query_mount {
@@ -2347,7 +2347,7 @@ struct revision
 
 
 /*
- *	Ugly - non Linux like ioctl coding for back compat.
+ *	Ugly - yesn Linux like ioctl coding for back compat.
  */
 
 #define CTL_CODE(function, method) (                 \
@@ -2460,7 +2460,7 @@ struct aac_hba_info {
 	u8	new_comm_interface:1;
 	u8	new_commands_supported:1;
 	u8	disable_passthrough:1;
-	u8	expose_non_dasd:1;
+	u8	expose_yesn_dasd:1;
 	u8	queue_allowed:1;
 	u8	bled_check_enabled:1;
 	u8	reserved1:1;
@@ -2614,7 +2614,7 @@ struct aac_hba_info {
  */
 
 struct aac_aifcmd {
-	__le32 command;		/* Tell host what type of notify this is */
+	__le32 command;		/* Tell host what type of yestify this is */
 	__le32 seqnum;		/* To allow ordering of reports (if necessary) */
 	u8 data[1];		/* Undefined length (from kernel viewpoint) */
 };
@@ -2719,11 +2719,11 @@ int aac_nark_init(struct aac_dev *dev);
 int aac_sa_init(struct aac_dev *dev);
 int aac_src_init(struct aac_dev *dev);
 int aac_srcv_init(struct aac_dev *dev);
-int aac_queue_get(struct aac_dev * dev, u32 * index, u32 qid, struct hw_fib * hw_fib, int wait, struct fib * fibptr, unsigned long *nonotify);
+int aac_queue_get(struct aac_dev * dev, u32 * index, u32 qid, struct hw_fib * hw_fib, int wait, struct fib * fibptr, unsigned long *yesyestify);
 void aac_define_int_mode(struct aac_dev *dev);
-unsigned int aac_response_normal(struct aac_queue * q);
-unsigned int aac_command_normal(struct aac_queue * q);
-unsigned int aac_intr_normal(struct aac_dev *dev, u32 Index,
+unsigned int aac_response_yesrmal(struct aac_queue * q);
+unsigned int aac_command_yesrmal(struct aac_queue * q);
+unsigned int aac_intr_yesrmal(struct aac_dev *dev, u32 Index,
 			int isAif, int isFastResponse,
 			struct hw_fib *aif_fib);
 int aac_reset_adapter(struct aac_dev *dev, int forced, u8 reset_type);

@@ -2,7 +2,7 @@
 /*
  * Thunderbolt driver - NHI registers
  *
- * Copyright (c) 2014 Andreas Noever <andreas.noever@gmail.com>
+ * Copyright (c) 2014 Andreas Noever <andreas.yesever@gmail.com>
  * Copyright (C) 2018, Intel Corporation
  */
 
@@ -15,7 +15,7 @@ enum ring_flags {
 	RING_FLAG_ISOCH_ENABLE = 1 << 27, /* TX only? */
 	RING_FLAG_E2E_FLOW_CONTROL = 1 << 28,
 	RING_FLAG_PCI_NO_SNOOP = 1 << 29,
-	RING_FLAG_RAW = 1 << 30, /* ignore EOF/SOF mask, include checksum */
+	RING_FLAG_RAW = 1 << 30, /* igyesre EOF/SOF mask, include checksum */
 	RING_FLAG_ENABLE = 1 << 31,
 };
 
@@ -40,7 +40,7 @@ struct ring_desc {
  * 16 bytes per entry, one entry for every hop (REG_HOP_COUNT)
  * 00: physical pointer to an array of struct ring_desc
  * 08: ring tail (set by NHI)
- * 10: ring head (index of first non posted descriptor)
+ * 10: ring head (index of first yesn posted descriptor)
  * 12: descriptor count
  */
 #define REG_TX_RING_BASE	0x00000
@@ -48,10 +48,10 @@ struct ring_desc {
 /*
  * 16 bytes per entry, one entry for every hop (REG_HOP_COUNT)
  * 00: physical pointer to an array of struct ring_desc
- * 08: ring head (index of first not posted descriptor)
+ * 08: ring head (index of first yest posted descriptor)
  * 10: ring tail (set by NHI)
  * 12: descriptor count
- * 14: max frame sizes (anything larger than 0x100 has no effect)
+ * 14: max frame sizes (anything larger than 0x100 has yes effect)
  */
 #define REG_RX_RING_BASE	0x08000
 
@@ -59,7 +59,7 @@ struct ring_desc {
  * 32 bytes per entry, one entry for every hop (REG_HOP_COUNT)
  * 00: enum_ring_flags
  * 04: isoch time stamp ?? (write 0)
- * ..: unknown
+ * ..: unkyeswn
  */
 #define REG_TX_OPTIONS_BASE	0x19800
 
@@ -68,8 +68,8 @@ struct ring_desc {
  * 00: enum ring_flags
  *     If RING_FLAG_E2E_FLOW_CONTROL is set then bits 13-23 must be set to
  *     the corresponding TX hop id.
- * 04: EOF/SOF mask (ignored for RING_FLAG_RAW rings)
- * ..: unknown
+ * 04: EOF/SOF mask (igyesred for RING_FLAG_RAW rings)
+ * ..: unkyeswn
  */
 #define REG_RX_OPTIONS_BASE	0x29800
 #define REG_RX_OPTIONS_E2E_HOP_MASK	GENMASK(22, 12)

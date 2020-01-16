@@ -48,7 +48,7 @@
 		movne	\rx, #0x6e000000	@ virtual address
 
 		@ We probe for the active serial port here
-		@ However, now we assume UART0 is active:	epip4d
+		@ However, yesw we assume UART0 is active:	epip4d
 		@ We assume r1 and r2 can be clobbered.
 
 		movl 	r2, #UART_DIVISOR_DEFAULT

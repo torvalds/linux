@@ -119,7 +119,7 @@ static void __init zfcp_init_device_setup(char *devstr)
 
 err_out:
 	kfree(str_saved);
-	pr_err("%s is not a valid SCSI device\n", devstr);
+	pr_err("%s is yest a valid SCSI device\n", devstr);
 }
 
 static int __init zfcp_module_init(void)
@@ -148,7 +148,7 @@ static int __init zfcp_module_init(void)
 
 	retval = ccw_driver_register(&zfcp_ccw_driver);
 	if (retval) {
-		pr_err("The zfcp device driver could not register with "
+		pr_err("The zfcp device driver could yest register with "
 		       "the common I/O layer\n");
 		goto out_ccw_register;
 	}
@@ -268,7 +268,7 @@ static void zfcp_free_low_mem_buffers(struct zfcp_adapter *adapter)
  *
  * Return:
  * * 0 on success meaning at least one status read is pending
- * * 1 if posting failed and not a single status read buffer is pending,
+ * * 1 if posting failed and yest a single status read buffer is pending,
  *     also triggers adapter reopen recovery
  */
 int zfcp_status_read_refill(struct zfcp_adapter *adapter)
@@ -483,7 +483,7 @@ static void zfcp_port_release(struct device *dev)
  * Returns: pointer to enqueued port on success, ERR_PTR on error
  *
  * All port internal structures are set up and the sysfs entry is generated.
- * d_id is used to enqueue ports with a well known address like the Directory
+ * d_id is used to enqueue ports with a well kyeswn address like the Directory
  * Service for nameserver lookup.
  */
 struct zfcp_port *zfcp_port_enqueue(struct zfcp_adapter *adapter, u64 wwpn,

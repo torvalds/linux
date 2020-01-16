@@ -74,7 +74,7 @@ struct ab8500_btemp_ranges {
 /**
  * struct ab8500_btemp - ab8500 BTEMP device information
  * @dev:		Pointer to the structure device
- * @node:		List of AB8500 BTEMPs, hence prepared for reentrance
+ * @yesde:		List of AB8500 BTEMPs, hence prepared for reentrance
  * @curr_source:	What current source we use, in uA
  * @bat_temp:		Dispatched battery temperature in degree Celsius
  * @prev_bat_temp	Last measured battery temperature in degree Celsius
@@ -92,7 +92,7 @@ struct ab8500_btemp_ranges {
  */
 struct ab8500_btemp {
 	struct device *dev;
-	struct list_head node;
+	struct list_head yesde;
 	int curr_source;
 	int bat_temp;
 	int prev_bat_temp;
@@ -125,7 +125,7 @@ static LIST_HEAD(ab8500_btemp_list);
  */
 struct ab8500_btemp *ab8500_btemp_get(void)
 {
-	return list_first_entry(&ab8500_btemp_list, struct ab8500_btemp, node);
+	return list_first_entry(&ab8500_btemp_list, struct ab8500_btemp, yesde);
 }
 EXPORT_SYMBOL(ab8500_btemp_get);
 
@@ -544,7 +544,7 @@ static int ab8500_btemp_id(struct ab8500_btemp *di)
 	}
 
 	if (di->bm->batt_id == BATTERY_UNKNOWN) {
-		dev_warn(di->dev, "Battery identified as unknown"
+		dev_warn(di->dev, "Battery identified as unkyeswn"
 			", resistance %d Ohm\n", res);
 		return -ENXIO;
 	}
@@ -606,7 +606,7 @@ static void ab8500_btemp_periodic_work(struct work_struct *work)
 	if (di->events.ac_conn || di->events.usb_conn)
 		interval = di->bm->temp_interval_chg;
 	else
-		interval = di->bm->temp_interval_nochg;
+		interval = di->bm->temp_interval_yeschg;
 
 	/* Schedule a new measurement */
 	queue_delayed_work(di->btemp_wq,
@@ -644,7 +644,7 @@ static irqreturn_t ab8500_btemp_templow_handler(int irq, void *_di)
 	struct ab8500_btemp *di = _di;
 
 	if (is_ab8500_3p3_or_earlier(di->parent)) {
-		dev_dbg(di->dev, "Ignore false btemp low irq"
+		dev_dbg(di->dev, "Igyesre false btemp low irq"
 			" for ABB cut 1.0, 1.1, 2.0 and 3.3\n");
 	} else {
 		dev_crit(di->dev, "Battery temperature lower than -10deg c\n");
@@ -759,7 +759,7 @@ int ab8500_btemp_get_temp(struct ab8500_btemp *di)
 	int temp = 0;
 
 	/*
-	 * The BTEMP events are not reliabe on AB8500 cut3.3
+	 * The BTEMP events are yest reliabe on AB8500 cut3.3
 	 * and prior versions
 	 */
 	if (is_ab8500_3p3_or_earlier(di->parent)) {
@@ -814,7 +814,7 @@ EXPORT_SYMBOL(ab8500_btemp_get_batctrl_temp);
  * properties by reading the sysfs files.
  * online:	presence of the battery
  * present:	presence of the battery
- * technology:	battery technology
+ * techyeslogy:	battery techyeslogy
  * temp:	battery temperature
  * Returns error code in case of failure else 0(on success)
  */
@@ -996,7 +996,7 @@ static const struct power_supply_desc ab8500_btemp_desc = {
 
 static int ab8500_btemp_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	struct abx500_bm_data *plat = pdev->dev.platform_data;
 	struct power_supply_config psy_cfg = {};
 	struct ab8500_btemp *di;
@@ -1005,12 +1005,12 @@ static int ab8500_btemp_probe(struct platform_device *pdev)
 
 	di = devm_kzalloc(&pdev->dev, sizeof(*di), GFP_KERNEL);
 	if (!di) {
-		dev_err(&pdev->dev, "%s no mem for ab8500_btemp\n", __func__);
+		dev_err(&pdev->dev, "%s yes mem for ab8500_btemp\n", __func__);
 		return -ENOMEM;
 	}
 
 	if (!plat) {
-		dev_err(&pdev->dev, "no battery management data supplied\n");
+		dev_err(&pdev->dev, "yes battery management data supplied\n");
 		return -EINVAL;
 	}
 	di->bm = plat;
@@ -1121,7 +1121,7 @@ static int ab8500_btemp_probe(struct platform_device *pdev)
 
 	/* Kick off periodic temperature measurements */
 	ab8500_btemp_periodic(di, true);
-	list_add_tail(&di->node, &ab8500_btemp_list);
+	list_add_tail(&di->yesde, &ab8500_btemp_list);
 
 	return ret;
 

@@ -26,7 +26,7 @@
 
 #define DW_PER_PAGE (PAGE_SIZE / sizeof(u32))
 
-static int live_nop_switch(void *arg)
+static int live_yesp_switch(void *arg)
 {
 	const unsigned int nctx = 1024;
 	struct drm_i915_private *i915 = arg;
@@ -110,7 +110,7 @@ static int live_nop_switch(void *arg)
 				/*
 				 * This space is left intentionally blank.
 				 *
-				 * We do not actually want to perform any
+				 * We do yest actually want to perform any
 				 * action with this request, we just want
 				 * to measure the latency in allocation
 				 * and submission of our breadcrumbs -
@@ -454,7 +454,7 @@ static int cpu_fill(struct drm_i915_gem_object *obj, u32 value)
 	return 0;
 }
 
-static noinline int cpu_check(struct drm_i915_gem_object *obj,
+static yesinline int cpu_check(struct drm_i915_gem_object *obj,
 			      unsigned int idx, unsigned int max)
 {
 	unsigned int n, m, needs_flush;
@@ -670,7 +670,7 @@ static int igt_ctx_exec(void *arg)
 				pr_err("Failed to fill dword %lu [%lu/%lu] with gpu (%s) [full-ppgtt? %s], err=%d\n",
 				       ndwords, dw, max_dwords(obj),
 				       engine->name,
-				       yesno(!!rcu_access_pointer(ctx->vm)),
+				       noyes(!!rcu_access_pointer(ctx->vm)),
 				       err);
 				intel_context_put(ce);
 				kernel_context_close(ctx);
@@ -754,7 +754,7 @@ static int igt_shared_ctx_exec(void *arg)
 		goto out_file;
 	}
 
-	if (!parent->vm) { /* not full-ppgtt; nothing to share */
+	if (!parent->vm) { /* yest full-ppgtt; yesthing to share */
 		err = 0;
 		goto out_file;
 	}
@@ -807,7 +807,7 @@ static int igt_shared_ctx_exec(void *arg)
 				pr_err("Failed to fill dword %lu [%lu/%lu] with gpu (%s) [full-ppgtt? %s], err=%d\n",
 				       ndwords, dw, max_dwords(obj),
 				       engine->name,
-				       yesno(!!rcu_access_pointer(ctx->vm)),
+				       noyes(!!rcu_access_pointer(ctx->vm)),
 				       err);
 				intel_context_put(ce);
 				kernel_context_close(ctx);
@@ -879,8 +879,8 @@ static struct i915_vma *rpcs_query_batch(struct i915_vma *vma)
 
 	*cmd++ = MI_STORE_REGISTER_MEM_GEN8;
 	*cmd++ = i915_mmio_reg_offset(GEN8_R_PWR_CLK_STATE);
-	*cmd++ = lower_32_bits(vma->node.start);
-	*cmd++ = upper_32_bits(vma->node.start);
+	*cmd++ = lower_32_bits(vma->yesde.start);
+	*cmd++ = upper_32_bits(vma->yesde.start);
 	*cmd = MI_BATCH_BUFFER_END;
 
 	__i915_gem_object_flush_map(obj, 0, 64);
@@ -944,7 +944,7 @@ emit_rpcs_query(struct drm_i915_gem_object *obj,
 	}
 
 	err = rq->engine->emit_bb_start(rq,
-					batch->node.start, batch->node.size,
+					batch->yesde.start, batch->yesde.size,
 					0);
 	if (err)
 		goto err_request;
@@ -1096,7 +1096,7 @@ __check_rpcs(const char *name, u32 rpcs, int slices, unsigned int expected,
 		return slices;
 	}
 
-	pr_err("%s: %s slice count %d is not %u%s\n",
+	pr_err("%s: %s slice count %d is yest %u%s\n",
 	       name, prefix, slices, expected, suffix);
 
 	pr_info("RPCS=0x%x; %u%sx%u%s\n",
@@ -1380,7 +1380,7 @@ static int igt_ctx_readonly(void *arg)
 				pr_err("Failed to fill dword %lu [%lu/%lu] with gpu (%s) [full-ppgtt? %s], err=%d\n",
 				       ndwords, dw, max_dwords(obj),
 				       ce->engine->name,
-				       yesno(!!rcu_access_pointer(ctx->vm)),
+				       noyes(!!rcu_access_pointer(ctx->vm)),
 				       err);
 				i915_gem_context_unlock_engines(ctx);
 				goto out_file;
@@ -1432,15 +1432,15 @@ out_file:
 
 static int check_scratch(struct i915_address_space *vm, u64 offset)
 {
-	struct drm_mm_node *node =
+	struct drm_mm_yesde *yesde =
 		__drm_mm_interval_first(&vm->mm,
 					offset, offset + sizeof(u32) - 1);
-	if (!node || node->start > offset)
+	if (!yesde || yesde->start > offset)
 		return 0;
 
-	GEM_BUG_ON(offset >= node->start + node->size);
+	GEM_BUG_ON(offset >= yesde->start + yesde->size);
 
-	pr_err("Target offset 0x%08x_%08x overlaps with a node in the mm!\n",
+	pr_err("Target offset 0x%08x_%08x overlaps with a yesde in the mm!\n",
 	       upper_32_bits(offset), lower_32_bits(offset));
 	return -EINVAL;
 }
@@ -1505,7 +1505,7 @@ static int write_to_scratch(struct i915_gem_context *ctx,
 		goto err_unpin;
 	}
 
-	err = engine->emit_bb_start(rq, vma->node.start, vma->node.size, 0);
+	err = engine->emit_bb_start(rq, vma->yesde.start, vma->yesde.size, 0);
 	if (err)
 		goto err_request;
 
@@ -1544,7 +1544,7 @@ static int read_from_scratch(struct i915_gem_context *ctx,
 	struct drm_i915_private *i915 = ctx->i915;
 	struct drm_i915_gem_object *obj;
 	struct i915_address_space *vm;
-	const u32 RCS_GPR0 = 0x2600; /* not all engines have their own GPR! */
+	const u32 RCS_GPR0 = 0x2600; /* yest all engines have their own GPR! */
 	const u32 result = 0x100;
 	struct i915_request *rq;
 	struct i915_vma *vma;
@@ -1609,7 +1609,7 @@ static int read_from_scratch(struct i915_gem_context *ctx,
 		goto err_unpin;
 	}
 
-	err = engine->emit_bb_start(rq, vma->node.start, vma->node.size, 0);
+	err = engine->emit_bb_start(rq, vma->yesde.start, vma->yesde.size, 0);
 	if (err)
 		goto err_request;
 
@@ -1673,7 +1673,7 @@ static int igt_vm_isolation(void *arg)
 		return 0;
 
 	/*
-	 * The simple goal here is that a write into one context is not
+	 * The simple goal here is that a write into one context is yest
 	 * observed in a second (separate page tables and scratch).
 	 */
 
@@ -1719,7 +1719,7 @@ static int igt_vm_isolation(void *arg)
 
 			div64_u64_rem(i915_prandom_u64_state(&prng),
 				      vm_total, &offset);
-			offset = round_down(offset, alignof_dword);
+			offset = round_down(offset, aligyesf_dword);
 			offset += I915_GTT_PAGE_SIZE;
 
 			err = write_to_scratch(ctx_a, engine,
@@ -1793,7 +1793,7 @@ static int mock_context_barrier(void *arg)
 		goto out;
 	}
 	if (counter == 0) {
-		pr_err("Did not retire immediately with 0 engines\n");
+		pr_err("Did yest retire immediately with 0 engines\n");
 		err = -EINVAL;
 		goto out;
 	}
@@ -1809,7 +1809,7 @@ static int mock_context_barrier(void *arg)
 		goto out;
 	}
 	if (counter == 0) {
-		pr_err("Did not retire immediately for all unused engines\n");
+		pr_err("Did yest retire immediately for all unused engines\n");
 		err = -EINVAL;
 		goto out;
 	}
@@ -1829,7 +1829,7 @@ static int mock_context_barrier(void *arg)
 	if (err == -ENXIO)
 		err = 0;
 	else
-		pr_err("Did not hit fault injection!\n");
+		pr_err("Did yest hit fault injection!\n");
 	if (counter != 0) {
 		pr_err("Invoked callback on error!\n");
 		err = -EIO;
@@ -1849,7 +1849,7 @@ static int mock_context_barrier(void *arg)
 	}
 	mock_device_flush(i915);
 	if (counter == 0) {
-		pr_err("Did not retire on each active engines\n");
+		pr_err("Did yest retire on each active engines\n");
 		err = -EINVAL;
 		goto out;
 	}
@@ -1882,7 +1882,7 @@ int i915_gem_context_mock_selftests(void)
 int i915_gem_context_live_selftests(struct drm_i915_private *i915)
 {
 	static const struct i915_subtest tests[] = {
-		SUBTEST(live_nop_switch),
+		SUBTEST(live_yesp_switch),
 		SUBTEST(live_parallel_switch),
 		SUBTEST(igt_ctx_exec),
 		SUBTEST(igt_ctx_readonly),

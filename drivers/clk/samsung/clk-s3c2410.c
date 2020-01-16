@@ -317,7 +317,7 @@ static void __init s3c2410_common_clk_register_fixed_ext(
 	samsung_clk_register_alias(ctx, &xti_alias, 1);
 }
 
-void __init s3c2410_common_clk_init(struct device_node *np, unsigned long xti_f,
+void __init s3c2410_common_clk_init(struct device_yesde *np, unsigned long xti_f,
 				    int current_soc,
 				    void __iomem *base)
 {
@@ -332,7 +332,7 @@ void __init s3c2410_common_clk_init(struct device_node *np, unsigned long xti_f,
 
 	ctx = samsung_clk_init(np, reg_base, NR_CLKS);
 
-	/* Register external clocks only in non-dt cases */
+	/* Register external clocks only in yesn-dt cases */
 	if (!np)
 		s3c2410_common_clk_register_fixed_ext(ctx, xti_f);
 
@@ -424,19 +424,19 @@ void __init s3c2410_common_clk_init(struct device_node *np, unsigned long xti_f,
 	samsung_clk_of_add_provider(np, ctx);
 }
 
-static void __init s3c2410_clk_init(struct device_node *np)
+static void __init s3c2410_clk_init(struct device_yesde *np)
 {
 	s3c2410_common_clk_init(np, 0, S3C2410, NULL);
 }
 CLK_OF_DECLARE(s3c2410_clk, "samsung,s3c2410-clock", s3c2410_clk_init);
 
-static void __init s3c2440_clk_init(struct device_node *np)
+static void __init s3c2440_clk_init(struct device_yesde *np)
 {
 	s3c2410_common_clk_init(np, 0, S3C2440, NULL);
 }
 CLK_OF_DECLARE(s3c2440_clk, "samsung,s3c2440-clock", s3c2440_clk_init);
 
-static void __init s3c2442_clk_init(struct device_node *np)
+static void __init s3c2442_clk_init(struct device_yesde *np)
 {
 	s3c2410_common_clk_init(np, 0, S3C2442, NULL);
 }

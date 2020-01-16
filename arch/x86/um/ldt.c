@@ -140,7 +140,7 @@ static int write_ldt(void __user * ptr, unsigned long bytecount, int func)
 	if (ldt_info.contents == 3) {
 		if (func == 1)
 			goto out;
-		if (ldt_info.seg_not_present == 0)
+		if (ldt_info.seg_yest_present == 0)
 			goto out;
 	}
 
@@ -373,6 +373,6 @@ void free_ldt(struct mm_context *mm)
 SYSCALL_DEFINE3(modify_ldt, int , func , void __user * , ptr ,
 		unsigned long , bytecount)
 {
-	/* See non-um modify_ldt() for why we do this cast */
+	/* See yesn-um modify_ldt() for why we do this cast */
 	return (unsigned int)do_modify_ldt_skas(func, ptr, bytecount);
 }

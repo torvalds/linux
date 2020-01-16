@@ -369,7 +369,7 @@ static void rcar_gen3_init_otg(struct rcar_gen3_chan *ch)
 	void __iomem *usb2_base = ch->base;
 	u32 val;
 
-	/* Should not use functions of read-modify-write a register */
+	/* Should yest use functions of read-modify-write a register */
 	val = readl(usb2_base + USB2_LINECTRL1);
 	val = (val & ~USB2_LINECTRL1_DP_RPD) | USB2_LINECTRL1_DPRPD_EN |
 	      USB2_LINECTRL1_DMRPD_EN | USB2_LINECTRL1_DM_RPD;
@@ -567,13 +567,13 @@ static struct phy *rcar_gen3_phy_usb2_xlate(struct device *dev,
 	return ch->rphys[args->args[0]].phy;
 }
 
-static enum usb_dr_mode rcar_gen3_get_dr_mode(struct device_node *np)
+static enum usb_dr_mode rcar_gen3_get_dr_mode(struct device_yesde *np)
 {
 	enum usb_dr_mode candidate = USB_DR_MODE_UNKNOWN;
 	int i;
 
 	/*
-	 * If one of device nodes has other dr_mode except UNKNOWN,
+	 * If one of device yesdes has other dr_mode except UNKNOWN,
 	 * this function returns UNKNOWN. To achieve backward compatibility,
 	 * this loop starts the index as 0.
 	 */
@@ -600,7 +600,7 @@ static int rcar_gen3_phy_usb2_probe(struct platform_device *pdev)
 	const struct phy_ops *phy_usb2_ops;
 	int irq, ret = 0, i;
 
-	if (!dev->of_node) {
+	if (!dev->of_yesde) {
 		dev_err(dev, "This driver needs device tree\n");
 		return -EINVAL;
 	}
@@ -624,13 +624,13 @@ static int rcar_gen3_phy_usb2_probe(struct platform_device *pdev)
 			dev_err(dev, "No irq handler (%d)\n", irq);
 	}
 
-	channel->dr_mode = rcar_gen3_get_dr_mode(dev->of_node);
+	channel->dr_mode = rcar_gen3_get_dr_mode(dev->of_yesde);
 	if (channel->dr_mode != USB_DR_MODE_UNKNOWN) {
 		int ret;
 
 		channel->is_otg_channel = true;
-		channel->uses_otg_pins = !of_property_read_bool(dev->of_node,
-							"renesas,no-otg-pins");
+		channel->uses_otg_pins = !of_property_read_bool(dev->of_yesde,
+							"renesas,yes-otg-pins");
 		channel->extcon = devm_extcon_dev_allocate(dev,
 							rcar_gen3_phy_cable);
 		if (IS_ERR(channel->extcon))

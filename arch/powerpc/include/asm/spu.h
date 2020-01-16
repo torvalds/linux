@@ -95,7 +95,7 @@
 struct spu_context;
 struct spu_runqueue;
 struct spu_lscsa;
-struct device_node;
+struct device_yesde;
 
 enum spu_utilization_state {
 	SPU_UTIL_USER,
@@ -117,7 +117,7 @@ struct spu {
 	enum { SPU_FREE, SPU_USED } alloc_state;
 	int number;
 	unsigned int irqs[3];
-	u32 node;
+	u32 yesde;
 	unsigned long flags;
 	u64 class_0_pending;
 	u64 class_0_dar;
@@ -147,7 +147,7 @@ struct spu {
 	void* pdata; /* platform private data */
 
 	/* of based platforms only */
-	struct device_node *devnode;
+	struct device_yesde *devyesde;
 
 	/* native only */
 	struct spu_priv1 __iomem *priv1;
@@ -231,9 +231,9 @@ struct spufs_calls {
 					struct file *neighbor);
 	long (*spu_run)(struct file *filp, __u32 __user *unpc,
 						__u32 __user *ustatus);
-	int (*coredump_extra_notes_size)(void);
-	int (*coredump_extra_notes_write)(struct coredump_params *cprm);
-	void (*notify_spus_active)(void);
+	int (*coredump_extra_yestes_size)(void);
+	int (*coredump_extra_yestes_write)(struct coredump_params *cprm);
+	void (*yestify_spus_active)(void);
 	struct module *owner;
 };
 
@@ -269,24 +269,24 @@ void spu_remove_dev_attr_group(struct attribute_group *attrs);
 /*
  * Notifier blocks:
  *
- * oprofile can get notified when a context switch is performed
- * on an spe. The notifer function that gets called is passed
+ * oprofile can get yestified when a context switch is performed
+ * on an spe. The yestifer function that gets called is passed
  * a pointer to the SPU structure as well as the object-id that
- * identifies the binary running on that SPU now.
+ * identifies the binary running on that SPU yesw.
  *
  * For a context save, the object-id that is passed is zero,
  * identifying that the kernel will run from that moment on.
  *
  * For a context restore, the object-id is the value written
- * to object-id spufs file from user space and the notifer
+ * to object-id spufs file from user space and the yestifer
  * function can assume that spu->ctx is valid.
  */
-struct notifier_block;
-int spu_switch_event_register(struct notifier_block * n);
-int spu_switch_event_unregister(struct notifier_block * n);
+struct yestifier_block;
+int spu_switch_event_register(struct yestifier_block * n);
+int spu_switch_event_unregister(struct yestifier_block * n);
 
-extern void notify_spus_active(void);
-extern void do_notify_spus_active(void);
+extern void yestify_spus_active(void);
+extern void do_yestify_spus_active(void);
 
 /*
  * This defines the Local Store, Problem Area and Privilege Area of an SPU.
@@ -370,9 +370,9 @@ struct spu_problem {
 
 	/* Signal Notification Area */
 	u8  pad_0x14000_0x1400c[0xc];				/* 0x14000 */
-	u32 signal_notify1;					/* 0x1400c */
+	u32 signal_yestify1;					/* 0x1400c */
 	u8  pad_0x14010_0x1c00c[0x7ffc];			/* 0x14010 */
-	u32 signal_notify2;					/* 0x1c00c */
+	u32 signal_yestify2;					/* 0x1c00c */
 } __attribute__ ((aligned(0x20000)));
 
 /* SPU Privilege 2 State Area */

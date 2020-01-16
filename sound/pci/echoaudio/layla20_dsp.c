@@ -17,14 +17,14 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
+   along with this program; if yest, write to the Free Software
    Foundation, Inc., 59 Temple Place - Suite 330, Boston,
    MA  02111-1307, USA.
 
    *************************************************************************
 
  Translation from C++ and adaptation for use in ALSA-Driver
- were made by Giuliano Pochini <pochini@shiny.it>
+ were made by Giuliayes Pochini <pochini@shiny.it>
 
 ****************************************************************************/
 
@@ -45,7 +45,7 @@ static int init_hw(struct echoaudio *chip, u16 device_id, u16 subdevice_id)
 
 	if ((err = init_dsp_comm_page(chip))) {
 		dev_err(chip->card->dev,
-			"init_hw - could not initialize DSP comm page\n");
+			"init_hw - could yest initialize DSP comm page\n");
 		return err;
 	}
 
@@ -104,7 +104,7 @@ static u32 detect_input_clocks(const struct echoaudio *chip)
 /* ASIC status check - some cards have one or two ASICs that need to be
 loaded.  Once that load is complete, this function is called to see if
 the load was successful.
-If this load fails, it does not necessarily mean that the hardware is
+If this load fails, it does yest necessarily mean that the hardware is
 defective - the external box may be disconnected or turned off.
 This routine sometimes fails for Layla20; for Layla20, the loop runs
 5 times and succeeds if it wins on three of the loops. */
@@ -117,7 +117,7 @@ static int check_asic_status(struct echoaudio *chip)
 	for (i = goodcnt = 0; i < 5; i++) {
 		send_vector(chip, DSP_VC_TEST_ASIC);
 
-		/* The DSP will return a value to indicate whether or not
+		/* The DSP will return a value to indicate whether or yest
 		   the ASIC is currently loaded */
 		if (read_dsp(chip, &asic_status) < 0) {
 			dev_err(chip->card->dev,
@@ -161,11 +161,11 @@ static int set_sample_rate(struct echoaudio *chip, u32 rate)
 	if (snd_BUG_ON(rate < 8000 || rate > 50000))
 		return -EINVAL;
 
-	/* Only set the clock for internal mode. Do not return failure,
-	   simply treat it as a non-event. */
+	/* Only set the clock for internal mode. Do yest return failure,
+	   simply treat it as a yesn-event. */
 	if (chip->input_clock != ECHO_CLOCK_INTERNAL) {
 		dev_warn(chip->card->dev,
-			 "Cannot set sample rate - clock not set to CLK_CLOCKININTERNAL\n");
+			 "Canyest set sample rate - clock yest set to CLK_CLOCKININTERNAL\n");
 		chip->comm_page->sample_rate = cpu_to_le32(rate);
 		chip->sample_rate = rate;
 		return 0;
@@ -205,7 +205,7 @@ static int set_input_clock(struct echoaudio *chip, u16 clock_source)
 		break;
 	default:
 		dev_err(chip->card->dev,
-			"Input clock 0x%x not supported for Layla24\n",
+			"Input clock 0x%x yest supported for Layla24\n",
 			clock_source);
 		return -EINVAL;
 	}

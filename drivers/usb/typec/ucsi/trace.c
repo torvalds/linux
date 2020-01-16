@@ -4,7 +4,7 @@
 #include "trace.h"
 
 static const char * const ucsi_cmd_strs[] = {
-	[0]				= "Unknown command",
+	[0]				= "Unkyeswn command",
 	[UCSI_PPM_RESET]		= "PPM_RESET",
 	[UCSI_CANCEL]			= "CANCEL",
 	[UCSI_CONNECTOR_RESET]		= "CONNECTOR_RESET",

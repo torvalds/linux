@@ -10,7 +10,7 @@
 #include <linux/sched/signal.h>
 #include <linux/vmalloc.h>
 #include <linux/mmzone.h>
-#include <linux/anon_inodes.h>
+#include <linux/ayesn_iyesdes.h>
 #include <linux/fdtable.h>
 #include <linux/file.h>
 #include <linux/fs.h>
@@ -22,7 +22,7 @@
 #include <linux/cred.h>
 #include <linux/timekeeping.h>
 #include <linux/ctype.h>
-#include <linux/nospec.h>
+#include <linux/yesspec.h>
 #include <uapi/linux/btf.h>
 
 #define IS_FD_ARRAY(map) ((map)->map_type == BPF_MAP_TYPE_PERF_EVENT_ARRAY || \
@@ -53,12 +53,12 @@ static const struct bpf_map_ops * const bpf_map_types[] = {
 };
 
 /*
- * If we're handed a bigger struct than we know of, ensure all the unknown bits
- * are 0 - i.e. new user-space does not rely on any kernel feature extensions
- * we don't know about yet.
+ * If we're handed a bigger struct than we kyesw of, ensure all the unkyeswn bits
+ * are 0 - i.e. new user-space does yest rely on any kernel feature extensions
+ * we don't kyesw about yet.
  *
  * There is a ToCToU between this function call and the following
- * copy_from_user() call. However, this is not a concern since this function is
+ * copy_from_user() call. However, this is yest a concern since this function is
  * meant to be a future-proofing of bits.
  */
 int bpf_check_uarg_tail_zero(void __user *uaddr,
@@ -96,7 +96,7 @@ int bpf_check_uarg_tail_zero(void __user *uaddr,
 const struct bpf_map_ops bpf_map_offload_ops = {
 	.map_alloc = bpf_map_offload_map_alloc,
 	.map_free = bpf_map_offload_map_free,
-	.map_check_btf = map_check_no_btf,
+	.map_check_btf = map_check_yes_btf,
 };
 
 static struct bpf_map *find_and_alloc_map(union bpf_attr *attr)
@@ -108,7 +108,7 @@ static struct bpf_map *find_and_alloc_map(union bpf_attr *attr)
 
 	if (type >= ARRAY_SIZE(bpf_map_types))
 		return ERR_PTR(-EINVAL);
-	type = array_index_nospec(type, ARRAY_SIZE(bpf_map_types));
+	type = array_index_yesspec(type, ARRAY_SIZE(bpf_map_types));
 	ops = bpf_map_types[type];
 	if (!ops)
 		return ERR_PTR(-EINVAL);
@@ -128,14 +128,14 @@ static struct bpf_map *find_and_alloc_map(union bpf_attr *attr)
 	return map;
 }
 
-static void *__bpf_map_area_alloc(u64 size, int numa_node, bool mmapable)
+static void *__bpf_map_area_alloc(u64 size, int numa_yesde, bool mmapable)
 {
 	/* We really just want to fail instead of triggering OOM killer
 	 * under memory pressure, therefore we set __GFP_NORETRY to kmalloc,
 	 * which is used for lower order allocation requests.
 	 *
 	 * It has been observed that higher order allocation requests done by
-	 * vmalloc with __GFP_NORETRY being set might fail due to not trying
+	 * vmalloc with __GFP_NORETRY being set might fail due to yest trying
 	 * to reclaim memory from the page cache, thus we set
 	 * __GFP_RETRY_MAYFAIL to avoid such situations.
 	 */
@@ -148,29 +148,29 @@ static void *__bpf_map_area_alloc(u64 size, int numa_node, bool mmapable)
 
 	/* kmalloc()'ed memory can't be mmap()'ed */
 	if (!mmapable && size <= (PAGE_SIZE << PAGE_ALLOC_COSTLY_ORDER)) {
-		area = kmalloc_node(size, GFP_USER | __GFP_NORETRY | flags,
-				    numa_node);
+		area = kmalloc_yesde(size, GFP_USER | __GFP_NORETRY | flags,
+				    numa_yesde);
 		if (area != NULL)
 			return area;
 	}
 	if (mmapable) {
 		BUG_ON(!PAGE_ALIGNED(size));
-		return vmalloc_user_node_flags(size, numa_node, GFP_KERNEL |
+		return vmalloc_user_yesde_flags(size, numa_yesde, GFP_KERNEL |
 					       __GFP_RETRY_MAYFAIL | flags);
 	}
-	return __vmalloc_node_flags_caller(size, numa_node,
+	return __vmalloc_yesde_flags_caller(size, numa_yesde,
 					   GFP_KERNEL | __GFP_RETRY_MAYFAIL |
 					   flags, __builtin_return_address(0));
 }
 
-void *bpf_map_area_alloc(u64 size, int numa_node)
+void *bpf_map_area_alloc(u64 size, int numa_yesde)
 {
-	return __bpf_map_area_alloc(size, numa_node, false);
+	return __bpf_map_area_alloc(size, numa_yesde, false);
 }
 
-void *bpf_map_area_mmapable_alloc(u64 size, int numa_node)
+void *bpf_map_area_mmapable_alloc(u64 size, int numa_yesde)
 {
-	return __bpf_map_area_alloc(size, numa_node, true);
+	return __bpf_map_area_alloc(size, numa_yesde, true);
 }
 
 void bpf_map_area_free(void *area)
@@ -180,8 +180,8 @@ void bpf_map_area_free(void *area)
 
 static u32 bpf_map_flags_retain_permanent(u32 flags)
 {
-	/* Some map creation flags are not tied to the map object but
-	 * rather to the map fd instead, so they have no meaning upon
+	/* Some map creation flags are yest tied to the map object but
+	 * rather to the map fd instead, so they have yes meaning upon
 	 * map object inspection since multiple file descriptors with
 	 * different (access) properties can exist here. Thus, given
 	 * this has zero meaning for the map itself, lets clear these
@@ -197,7 +197,7 @@ void bpf_map_init_from_attr(struct bpf_map *map, union bpf_attr *attr)
 	map->value_size = attr->value_size;
 	map->max_entries = attr->max_entries;
 	map->map_flags = bpf_map_flags_retain_permanent(attr->map_flags);
-	map->numa_node = bpf_map_attr_numa_node(attr);
+	map->numa_yesde = bpf_map_attr_numa_yesde(attr);
 }
 
 static int bpf_charge_memlock(struct user_struct *user, u32 pages)
@@ -250,7 +250,7 @@ void bpf_map_charge_move(struct bpf_map_memory *dst,
 {
 	*dst = *src;
 
-	/* Make sure src will not be used for the redundant uncharging. */
+	/* Make sure src will yest be used for the redundant uncharging. */
 	memset(src, 0, sizeof(struct bpf_map_memory));
 }
 
@@ -362,7 +362,7 @@ void bpf_map_put_with_uref(struct bpf_map *map)
 	bpf_map_put(map);
 }
 
-static int bpf_map_release(struct inode *inode, struct file *filp)
+static int bpf_map_release(struct iyesde *iyesde, struct file *filp)
 {
 	struct bpf_map *map = filp->private_data;
 
@@ -526,7 +526,7 @@ int bpf_map_new_fd(struct bpf_map *map, int flags)
 	if (ret < 0)
 		return ret;
 
-	return anon_inode_getfd("bpf-map", &bpf_map_fops, map,
+	return ayesn_iyesde_getfd("bpf-map", &bpf_map_fops, map,
 				flags | O_CLOEXEC);
 }
 
@@ -572,7 +572,7 @@ static int bpf_obj_name_cpy(char *dst, const char *src)
 	return 0;
 }
 
-int map_check_no_btf(const struct bpf_map *map,
+int map_check_yes_btf(const struct bpf_map *map,
 		     const struct btf *btf,
 		     const struct btf_type *key_type,
 		     const struct btf_type *value_type)
@@ -631,7 +631,7 @@ static int map_check_btf(struct bpf_map *map, const struct btf *btf,
 /* called via syscall */
 static int map_create(union bpf_attr *attr)
 {
-	int numa_node = bpf_map_attr_numa_node(attr);
+	int numa_yesde = bpf_map_attr_numa_yesde(attr);
 	struct bpf_map_memory mem;
 	struct bpf_map *map;
 	int f_flags;
@@ -645,9 +645,9 @@ static int map_create(union bpf_attr *attr)
 	if (f_flags < 0)
 		return f_flags;
 
-	if (numa_node != NUMA_NO_NODE &&
-	    ((unsigned int)numa_node >= nr_node_ids ||
-	     !node_online(numa_node)))
+	if (numa_yesde != NUMA_NO_NODE &&
+	    ((unsigned int)numa_yesde >= nr_yesde_ids ||
+	     !yesde_online(numa_yesde)))
 		return -EINVAL;
 
 	/* find map type and init map: hashtable vs rbtree vs bloom vs ... */
@@ -767,7 +767,7 @@ struct bpf_map *bpf_map_get_with_uref(u32 ufd)
 }
 
 /* map_idr_lock should have been held */
-static struct bpf_map *__bpf_map_inc_not_zero(struct bpf_map *map, bool uref)
+static struct bpf_map *__bpf_map_inc_yest_zero(struct bpf_map *map, bool uref)
 {
 	int refold;
 
@@ -780,15 +780,15 @@ static struct bpf_map *__bpf_map_inc_not_zero(struct bpf_map *map, bool uref)
 	return map;
 }
 
-struct bpf_map *bpf_map_inc_not_zero(struct bpf_map *map)
+struct bpf_map *bpf_map_inc_yest_zero(struct bpf_map *map)
 {
 	spin_lock_bh(&map_idr_lock);
-	map = __bpf_map_inc_not_zero(map, false);
+	map = __bpf_map_inc_yest_zero(map, false);
 	spin_unlock_bh(&map_idr_lock);
 
 	return map;
 }
-EXPORT_SYMBOL_GPL(bpf_map_inc_not_zero);
+EXPORT_SYMBOL_GPL(bpf_map_inc_yest_zero);
 
 int __weak bpf_stackmap_copy(struct bpf_map *map, void *key, void *value)
 {
@@ -934,7 +934,7 @@ err_put:
 static void maybe_wait_bpf_programs(struct bpf_map *map)
 {
 	/* Wait for any running BPF programs to complete so that
-	 * userspace, when we return to it, knows that all programs
+	 * userspace, when we return to it, kyesws that all programs
 	 * that could be running use the new map value.
 	 */
 	if (map->map_type == BPF_MAP_TYPE_HASH_OF_MAPS ||
@@ -1035,7 +1035,7 @@ static int map_update_elem(union bpf_attr *attr)
 						  attr->flags);
 		rcu_read_unlock();
 	} else if (map->map_type == BPF_MAP_TYPE_REUSEPORT_SOCKARRAY) {
-		/* rcu_read_lock() is not needed */
+		/* rcu_read_lock() is yest needed */
 		err = bpf_fd_reuseport_array_update_elem(map, key, value,
 							 attr->flags);
 	} else if (map->map_type == BPF_MAP_TYPE_QUEUE ||
@@ -1293,7 +1293,7 @@ static int find_prog_type(enum bpf_prog_type type, struct bpf_prog *prog)
 
 	if (type >= ARRAY_SIZE(bpf_prog_types))
 		return -EINVAL;
-	type = array_index_nospec(type, ARRAY_SIZE(bpf_prog_types));
+	type = array_index_yesspec(type, ARRAY_SIZE(bpf_prog_types));
 	ops = bpf_prog_types[type];
 	if (!ops)
 		return -EINVAL;
@@ -1372,7 +1372,7 @@ static int bpf_prog_alloc_id(struct bpf_prog *prog)
 
 void bpf_prog_free_id(struct bpf_prog *prog, bool do_idr_lock)
 {
-	/* cBPF to eBPF migrations are currently not in the idr store.
+	/* cBPF to eBPF migrations are currently yest in the idr store.
 	 * Offloaded programs are removed from the store when their device
 	 * disappears - even if someone grabs an fd to them they are unusable,
 	 * simply waiting for refcnt to drop to be freed.
@@ -1405,7 +1405,7 @@ static void __bpf_prog_put_rcu(struct rcu_head *rcu)
 	bpf_prog_free(aux->prog);
 }
 
-static void __bpf_prog_put_noref(struct bpf_prog *prog, bool deferred)
+static void __bpf_prog_put_yesref(struct bpf_prog *prog, bool deferred)
 {
 	bpf_prog_kallsyms_del_all(prog);
 	btf_put(prog->aux->btf);
@@ -1423,7 +1423,7 @@ static void __bpf_prog_put(struct bpf_prog *prog, bool do_idr_lock)
 		perf_event_bpf_event(prog, PERF_BPF_EVENT_PROG_UNLOAD, 0);
 		/* bpf_prog_free_id() must be called first */
 		bpf_prog_free_id(prog, do_idr_lock);
-		__bpf_prog_put_noref(prog, true);
+		__bpf_prog_put_yesref(prog, true);
 	}
 }
 
@@ -1433,7 +1433,7 @@ void bpf_prog_put(struct bpf_prog *prog)
 }
 EXPORT_SYMBOL_GPL(bpf_prog_put);
 
-static int bpf_prog_release(struct inode *inode, struct file *filp)
+static int bpf_prog_release(struct iyesde *iyesde, struct file *filp)
 {
 	struct bpf_prog *prog = filp->private_data;
 
@@ -1509,7 +1509,7 @@ int bpf_prog_new_fd(struct bpf_prog *prog)
 	if (ret < 0)
 		return ret;
 
-	return anon_inode_getfd("bpf-prog", &bpf_prog_fops, prog,
+	return ayesn_iyesde_getfd("bpf-prog", &bpf_prog_fops, prog,
 				O_RDWR | O_CLOEXEC);
 }
 
@@ -1534,7 +1534,7 @@ EXPORT_SYMBOL_GPL(bpf_prog_add);
 void bpf_prog_sub(struct bpf_prog *prog, int i)
 {
 	/* Only to be used for undoing previous bpf_prog_add() in some
-	 * error path. We still know that another entity in our call
+	 * error path. We still kyesw that ayesther entity in our call
 	 * path holds a reference to the program, thus atomic_sub() can
 	 * be safely used in such cases!
 	 */
@@ -1549,7 +1549,7 @@ void bpf_prog_inc(struct bpf_prog *prog)
 EXPORT_SYMBOL_GPL(bpf_prog_inc);
 
 /* prog_idr_lock should have been held */
-struct bpf_prog *bpf_prog_inc_not_zero(struct bpf_prog *prog)
+struct bpf_prog *bpf_prog_inc_yest_zero(struct bpf_prog *prog)
 {
 	int refold;
 
@@ -1560,12 +1560,12 @@ struct bpf_prog *bpf_prog_inc_not_zero(struct bpf_prog *prog)
 
 	return prog;
 }
-EXPORT_SYMBOL_GPL(bpf_prog_inc_not_zero);
+EXPORT_SYMBOL_GPL(bpf_prog_inc_yest_zero);
 
 bool bpf_prog_get_ok(struct bpf_prog *prog,
 			    enum bpf_prog_type *attach_type, bool attach_drv)
 {
-	/* not an attachment, just a refcount inc, always allow */
+	/* yest an attachment, just a refcount inc, always allow */
 	if (!attach_type)
 		return true;
 
@@ -1626,7 +1626,7 @@ static void bpf_prog_load_fixup_attach_type(union bpf_attr *attr)
 	switch (attr->prog_type) {
 	case BPF_PROG_TYPE_CGROUP_SOCK:
 		/* Unfortunately BPF_ATTACH_TYPE_UNSPEC enumeration doesn't
-		 * exist so checking for non-zero is the way to go here.
+		 * exist so checking for yesn-zero is the way to go here.
 		 */
 		if (!attr->expected_attach_type)
 			attr->expected_attach_type =
@@ -1757,7 +1757,7 @@ static int bpf_prog_load(union bpf_attr *attr, union bpf_attr __user *uattr)
 		tgt_prog = bpf_prog_get(attr->attach_prog_fd);
 		if (IS_ERR(tgt_prog)) {
 			err = PTR_ERR(tgt_prog);
-			goto free_prog_nouncharge;
+			goto free_prog_yesuncharge;
 		}
 		prog->aux->linked_prog = tgt_prog;
 	}
@@ -1766,7 +1766,7 @@ static int bpf_prog_load(union bpf_attr *attr, union bpf_attr __user *uattr)
 
 	err = security_bpf_prog_alloc(prog->aux);
 	if (err)
-		goto free_prog_nouncharge;
+		goto free_prog_yesuncharge;
 
 	err = bpf_prog_charge_memlock(prog);
 	if (err)
@@ -1816,13 +1816,13 @@ static int bpf_prog_load(union bpf_attr *attr, union bpf_attr __user *uattr)
 
 	/* Upon success of bpf_prog_alloc_id(), the BPF prog is
 	 * effectively publicly exposed. However, retrieving via
-	 * bpf_prog_get_fd_by_id() will take another reference,
-	 * therefore it cannot be gone underneath us.
+	 * bpf_prog_get_fd_by_id() will take ayesther reference,
+	 * therefore it canyest be gone underneath us.
 	 *
 	 * Only for the time /after/ successful bpf_prog_new_fd()
 	 * and before returning to userspace, we might just hold
 	 * one reference and any parallel close on that fd could
-	 * rip everything out. Hence, below notifications must
+	 * rip everything out. Hence, below yestifications must
 	 * happen before bpf_prog_new_fd().
 	 *
 	 * Also, any failure handling from this point onwards must
@@ -1841,13 +1841,13 @@ free_used_maps:
 	 * period before we can tear down JIT memory since symbols
 	 * are already exposed under kallsyms.
 	 */
-	__bpf_prog_put_noref(prog, prog->aux->func_cnt);
+	__bpf_prog_put_yesref(prog, prog->aux->func_cnt);
 	return err;
 free_prog:
 	bpf_prog_uncharge_memlock(prog);
 free_prog_sec:
 	security_bpf_prog_free(prog->aux);
-free_prog_nouncharge:
+free_prog_yesuncharge:
 	bpf_prog_free(prog);
 	return err;
 }
@@ -1872,7 +1872,7 @@ static int bpf_obj_get(const union bpf_attr *attr)
 				attr->file_flags);
 }
 
-static int bpf_tracing_prog_release(struct inode *inode, struct file *filp)
+static int bpf_tracing_prog_release(struct iyesde *iyesde, struct file *filp)
 {
 	struct bpf_prog *prog = filp->private_data;
 
@@ -1901,7 +1901,7 @@ static int bpf_tracing_prog_attach(struct bpf_prog *prog)
 	if (err)
 		goto out_put_prog;
 
-	tr_fd = anon_inode_getfd("bpf-tracing-prog", &bpf_tracing_prog_fops,
+	tr_fd = ayesn_iyesde_getfd("bpf-tracing-prog", &bpf_tracing_prog_fops,
 				 prog, O_CLOEXEC);
 	if (tr_fd < 0) {
 		WARN_ON_ONCE(bpf_trampoline_unlink_prog(prog));
@@ -1920,7 +1920,7 @@ struct bpf_raw_tracepoint {
 	struct bpf_prog *prog;
 };
 
-static int bpf_raw_tracepoint_release(struct inode *inode, struct file *filp)
+static int bpf_raw_tracepoint_release(struct iyesde *iyesde, struct file *filp)
 {
 	struct bpf_raw_tracepoint *raw_tp = filp->private_data;
 
@@ -2005,7 +2005,7 @@ static int bpf_raw_tracepoint_open(const union bpf_attr *attr)
 	if (err)
 		goto out_free_tp;
 
-	tp_fd = anon_inode_getfd("bpf-raw-tracepoint", &bpf_raw_tp_fops, raw_tp,
+	tp_fd = ayesn_iyesde_getfd("bpf-raw-tracepoint", &bpf_raw_tp_fops, raw_tp,
 				 O_CLOEXEC);
 	if (tp_fd < 0) {
 		bpf_probe_unregister(raw_tp->btp, prog);
@@ -2320,7 +2320,7 @@ static int bpf_prog_get_fd_by_id(const union bpf_attr *attr)
 	spin_lock_bh(&prog_idr_lock);
 	prog = idr_find(&prog_idr, id);
 	if (prog)
-		prog = bpf_prog_inc_not_zero(prog);
+		prog = bpf_prog_inc_yest_zero(prog);
 	else
 		prog = ERR_PTR(-ENOENT);
 	spin_unlock_bh(&prog_idr_lock);
@@ -2358,7 +2358,7 @@ static int bpf_map_get_fd_by_id(const union bpf_attr *attr)
 	spin_lock_bh(&map_idr_lock);
 	map = idr_find(&map_idr, id);
 	if (map)
-		map = __bpf_map_inc_not_zero(map, true);
+		map = __bpf_map_inc_yest_zero(map, true);
 	else
 		map = ERR_PTR(-ENOENT);
 	spin_unlock_bh(&map_idr_lock);
@@ -2875,7 +2875,7 @@ static int bpf_task_fd_query_copy(const union bpf_attr *attr,
 	input_len = attr->task_fd_query.buf_len;
 	if (input_len && ubuf) {
 		if (!len) {
-			/* nothing to copy, just make ubuf NULL terminated */
+			/* yesthing to copy, just make ubuf NULL terminated */
 			char zero = '\0';
 
 			if (put_user(zero, ubuf))
@@ -2885,7 +2885,7 @@ static int bpf_task_fd_query_copy(const union bpf_attr *attr,
 			if (copy_to_user(ubuf, buf, len + 1))
 				return -EFAULT;
 		} else {
-			/* ubuf cannot hold the string with NULL terminator,
+			/* ubuf canyest hold the string with NULL terminator,
 			 * do a partial copy with NULL terminator.
 			 */
 			char zero = '\0';

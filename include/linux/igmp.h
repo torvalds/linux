@@ -46,7 +46,7 @@ struct ip_sf_socklist {
 
 #define IP_SFBLOCK	10	/* allocate this many at once */
 
-/* ip_mc_socklist is real list now. Speed is not argument;
+/* ip_mc_socklist is real list yesw. Speed is yest argument;
    this list never used in fast path code
  */
 

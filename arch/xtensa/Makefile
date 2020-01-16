@@ -12,7 +12,7 @@
 # this architecture
 
 # Core configuration.
-# (Use VAR=<xtensa_config> to use another default compiler.)
+# (Use VAR=<xtensa_config> to use ayesther default compiler.)
 
 variant-y := $(patsubst "%",%,$(CONFIG_XTENSA_VARIANT_NAME))
 
@@ -43,13 +43,13 @@ export PLATFORM
 # temporarily until string.h is fixed
 KBUILD_CFLAGS += -ffreestanding -D__linux__
 KBUILD_CFLAGS += -pipe -mlongcalls -mtext-section-literals
-KBUILD_CFLAGS += $(call cc-option,-mforce-no-pic,)
-KBUILD_CFLAGS += $(call cc-option,-mno-serialize-volatile,)
+KBUILD_CFLAGS += $(call cc-option,-mforce-yes-pic,)
+KBUILD_CFLAGS += $(call cc-option,-myes-serialize-volatile,)
 
 KBUILD_AFLAGS += -mlongcalls -mtext-section-literals
 
 ifneq ($(CONFIG_LD_NO_RELAX),)
-KBUILD_LDFLAGS := --no-relax
+KBUILD_LDFLAGS := --yes-relax
 endif
 
 ifeq ($(shell echo __XTENSA_EB__ | $(CC) -E - | grep -v "\#"),1)

@@ -30,7 +30,7 @@ static int sd_zbc_parse_report(struct scsi_disk *sdkp, u8 *buf,
 	if (buf[1] & 0x01)
 		zone.reset = 1;
 	if (buf[1] & 0x02)
-		zone.non_seq = 1;
+		zone.yesn_seq = 1;
 
 	zone.len = logical_to_sectors(sdp, get_unaligned_be64(&buf[8]));
 	zone.start = logical_to_sectors(sdp, get_unaligned_be64(&buf[16]));
@@ -52,7 +52,7 @@ static int sd_zbc_parse_report(struct scsi_disk *sdkp, u8 *buf,
  *
  * For internal use during device validation.
  * Using partial=true can significantly speed up execution of a report zones
- * command because the disk does not have to count all possible report matching
+ * command because the disk does yest have to count all possible report matching
  * zones and will only report the count of zones fitting in the command reply
  * buffer.
  */
@@ -123,8 +123,8 @@ static void *sd_zbc_alloc_report_buffer(struct scsi_disk *sdkp,
 	 * Report zone buffer size should be at most 64B times the number of
 	 * zones requested plus the 64B reply header, but should be at least
 	 * SECTOR_SIZE for ATA devices.
-	 * Make sure that this size does not exceed the hardware capabilities.
-	 * Furthermore, since the report zone command cannot be split, make
+	 * Make sure that this size does yest exceed the hardware capabilities.
+	 * Furthermore, since the report zone command canyest be split, make
 	 * sure that the allocated buffer can always be mapped by limiting the
 	 * number of pages allocated to the HBA max segments limit.
 	 */
@@ -299,25 +299,25 @@ static int sd_zbc_check_zoned_characteristics(struct scsi_disk *sdkp,
 		/* Host-aware */
 		sdkp->urswrz = 1;
 		sdkp->zones_optimal_open = get_unaligned_be32(&buf[8]);
-		sdkp->zones_optimal_nonseq = get_unaligned_be32(&buf[12]);
+		sdkp->zones_optimal_yesnseq = get_unaligned_be32(&buf[12]);
 		sdkp->zones_max_open = 0;
 	} else {
 		/* Host-managed */
 		sdkp->urswrz = buf[4] & 1;
 		sdkp->zones_optimal_open = 0;
-		sdkp->zones_optimal_nonseq = 0;
+		sdkp->zones_optimal_yesnseq = 0;
 		sdkp->zones_max_open = get_unaligned_be32(&buf[16]);
 	}
 
 	/*
 	 * Check for unconstrained reads: host-managed devices with
 	 * constrained reads (drives failing read after write pointer)
-	 * are not supported.
+	 * are yest supported.
 	 */
 	if (!sdkp->urswrz) {
 		if (sdkp->first_scan)
 			sd_printk(KERN_NOTICE, sdkp,
-			  "constrained reads devices are not supported\n");
+			  "constrained reads devices are yest supported\n");
 		return -ENODEV;
 	}
 
@@ -369,8 +369,8 @@ static int sd_zbc_check_zones(struct scsi_disk *sdkp, unsigned char *buf,
 	if (!zone_blocks || !is_power_of_2(zone_blocks)) {
 		if (sdkp->first_scan)
 			sd_printk(KERN_NOTICE, sdkp,
-				  "Devices with non power of 2 zone "
-				  "size are not supported\n");
+				  "Devices with yesn power of 2 zone "
+				  "size are yest supported\n");
 		return -ENODEV;
 	}
 
@@ -395,8 +395,8 @@ int sd_zbc_read_zones(struct scsi_disk *sdkp, unsigned char *buf)
 
 	if (!sd_is_zoned(sdkp))
 		/*
-		 * Device managed or normal SCSI disk,
-		 * no special handling required
+		 * Device managed or yesrmal SCSI disk,
+		 * yes special handling required
 		 */
 		return 0;
 
@@ -426,7 +426,7 @@ int sd_zbc_read_zones(struct scsi_disk *sdkp, unsigned char *buf)
 	/*
 	 * Revalidate the disk zone bitmaps once the block device capacity is
 	 * set on the second revalidate execution during disk scan and if
-	 * something changed when executing a normal revalidate.
+	 * something changed when executing a yesrmal revalidate.
 	 */
 	if (sdkp->first_scan) {
 		sdkp->zone_blocks = zone_blocks;

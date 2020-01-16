@@ -52,7 +52,7 @@ mt7601u_ampdu_stat_read(struct seq_file *file, void *data)
 	stat_printf(tx_stat, 4, tx_zero_len);
 	stat_printf(tx_stat, 5, tx_underflow);
 
-	stat_printf(aggr_stat, 0, non_aggr_tx);
+	stat_printf(aggr_stat, 0, yesn_aggr_tx);
 	stat_printf(aggr_stat, 1, aggr_tx);
 
 	stat_printf(zero_len_del, 0, tx_zero_len_del);
@@ -74,9 +74,9 @@ mt7601u_ampdu_stat_read(struct seq_file *file, void *data)
 }
 
 static int
-mt7601u_ampdu_stat_open(struct inode *inode, struct file *f)
+mt7601u_ampdu_stat_open(struct iyesde *iyesde, struct file *f)
 {
-	return single_open(f, mt7601u_ampdu_stat_read, inode->i_private);
+	return single_open(f, mt7601u_ampdu_stat_read, iyesde->i_private);
 }
 
 static const struct file_operations fops_ampdu_stat = {
@@ -132,9 +132,9 @@ mt7601u_eeprom_param_read(struct seq_file *file, void *data)
 }
 
 static int
-mt7601u_eeprom_param_open(struct inode *inode, struct file *f)
+mt7601u_eeprom_param_open(struct iyesde *iyesde, struct file *f)
 {
-	return single_open(f, mt7601u_eeprom_param_read, inode->i_private);
+	return single_open(f, mt7601u_eeprom_param_read, iyesde->i_private);
 }
 
 static const struct file_operations fops_eeprom_param = {

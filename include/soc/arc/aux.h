@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (C) 2016-2017 Synopsys, Inc. (www.synopsys.com)
+ * Copyright (C) 2016-2017 Syyespsys, Inc. (www.syyespsys.com)
  */
 
 #ifndef __SOC_ARC_AUX_H__

@@ -23,21 +23,21 @@
 int stvdebug = 1;
 module_param_named(debug, stvdebug, int, 0644);
 
-/* internal params node */
-struct stv0900_inode {
+/* internal params yesde */
+struct stv0900_iyesde {
 	/* pointer for internal params, one for each pair of demods */
 	struct stv0900_internal		*internal;
-	struct stv0900_inode		*next_inode;
+	struct stv0900_iyesde		*next_iyesde;
 };
 
 /* first internal params */
-static struct stv0900_inode *stv0900_first_inode;
+static struct stv0900_iyesde *stv0900_first_iyesde;
 
 /* find chip by i2c adapter and i2c address */
-static struct stv0900_inode *find_inode(struct i2c_adapter *i2c_adap,
+static struct stv0900_iyesde *find_iyesde(struct i2c_adapter *i2c_adap,
 							u8 i2c_addr)
 {
-	struct stv0900_inode *temp_chip = stv0900_first_inode;
+	struct stv0900_iyesde *temp_chip = stv0900_first_iyesde;
 
 	if (temp_chip != NULL) {
 		/*
@@ -47,7 +47,7 @@ static struct stv0900_inode *find_inode(struct i2c_adapter *i2c_adap,
 			((temp_chip->internal->i2c_adap != i2c_adap) ||
 			(temp_chip->internal->i2c_addr != i2c_addr)))
 
-			temp_chip = temp_chip->next_inode;
+			temp_chip = temp_chip->next_iyesde;
 
 	}
 
@@ -55,56 +55,56 @@ static struct stv0900_inode *find_inode(struct i2c_adapter *i2c_adap,
 }
 
 /* deallocating chip */
-static void remove_inode(struct stv0900_internal *internal)
+static void remove_iyesde(struct stv0900_internal *internal)
 {
-	struct stv0900_inode *prev_node = stv0900_first_inode;
-	struct stv0900_inode *del_node = find_inode(internal->i2c_adap,
+	struct stv0900_iyesde *prev_yesde = stv0900_first_iyesde;
+	struct stv0900_iyesde *del_yesde = find_iyesde(internal->i2c_adap,
 						internal->i2c_addr);
 
-	if (del_node != NULL) {
-		if (del_node == stv0900_first_inode) {
-			stv0900_first_inode = del_node->next_inode;
+	if (del_yesde != NULL) {
+		if (del_yesde == stv0900_first_iyesde) {
+			stv0900_first_iyesde = del_yesde->next_iyesde;
 		} else {
-			while (prev_node->next_inode != del_node)
-				prev_node = prev_node->next_inode;
+			while (prev_yesde->next_iyesde != del_yesde)
+				prev_yesde = prev_yesde->next_iyesde;
 
-			if (del_node->next_inode == NULL)
-				prev_node->next_inode = NULL;
+			if (del_yesde->next_iyesde == NULL)
+				prev_yesde->next_iyesde = NULL;
 			else
-				prev_node->next_inode =
-					prev_node->next_inode->next_inode;
+				prev_yesde->next_iyesde =
+					prev_yesde->next_iyesde->next_iyesde;
 		}
 
-		kfree(del_node);
+		kfree(del_yesde);
 	}
 }
 
 /* allocating new chip */
-static struct stv0900_inode *append_internal(struct stv0900_internal *internal)
+static struct stv0900_iyesde *append_internal(struct stv0900_internal *internal)
 {
-	struct stv0900_inode *new_node = stv0900_first_inode;
+	struct stv0900_iyesde *new_yesde = stv0900_first_iyesde;
 
-	if (new_node == NULL) {
-		new_node = kmalloc(sizeof(struct stv0900_inode), GFP_KERNEL);
-		stv0900_first_inode = new_node;
+	if (new_yesde == NULL) {
+		new_yesde = kmalloc(sizeof(struct stv0900_iyesde), GFP_KERNEL);
+		stv0900_first_iyesde = new_yesde;
 	} else {
-		while (new_node->next_inode != NULL)
-			new_node = new_node->next_inode;
+		while (new_yesde->next_iyesde != NULL)
+			new_yesde = new_yesde->next_iyesde;
 
-		new_node->next_inode = kmalloc(sizeof(struct stv0900_inode),
+		new_yesde->next_iyesde = kmalloc(sizeof(struct stv0900_iyesde),
 								GFP_KERNEL);
-		if (new_node->next_inode != NULL)
-			new_node = new_node->next_inode;
+		if (new_yesde->next_iyesde != NULL)
+			new_yesde = new_yesde->next_iyesde;
 		else
-			new_node = NULL;
+			new_yesde = NULL;
 	}
 
-	if (new_node != NULL) {
-		new_node->internal = internal;
-		new_node->next_inode = NULL;
+	if (new_yesde != NULL) {
+		new_yesde->internal = internal;
+		new_yesde->next_iyesde = NULL;
 	}
 
-	return new_node;
+	return new_yesde;
 }
 
 s32 ge2comp(s32 a, s32 width)
@@ -667,17 +667,17 @@ static s32 stv0900_carr_get_quality(struct dvb_frontend *fe,
 		imin,
 		imax,
 		i,
-		noise_field1,
-		noise_field0;
+		yesise_field1,
+		yesise_field0;
 
 	dprintk("%s\n", __func__);
 
 	if (stv0900_get_standard(fe, demod) == STV0900_DVBS2_STANDARD) {
-		noise_field1 = NOSPLHT_NORMED1;
-		noise_field0 = NOSPLHT_NORMED0;
+		yesise_field1 = NOSPLHT_NORMED1;
+		yesise_field0 = NOSPLHT_NORMED0;
 	} else {
-		noise_field1 = NOSDATAT_NORMED1;
-		noise_field0 = NOSDATAT_NORMED0;
+		yesise_field1 = NOSDATAT_NORMED1;
+		yesise_field0 = NOSDATAT_NORMED0;
 	}
 
 	if (stv0900_get_bits(intp, LOCK_DEFINITIF)) {
@@ -686,9 +686,9 @@ static s32 stv0900_carr_get_quality(struct dvb_frontend *fe,
 			msleep(5);
 			for (i = 0; i < 16; i++) {
 				regval += MAKEWORD(stv0900_get_bits(intp,
-								noise_field1),
+								yesise_field1),
 						stv0900_get_bits(intp,
-								noise_field0));
+								yesise_field0));
 				msleep(1);
 			}
 
@@ -734,12 +734,12 @@ static int stv0900_read_ucblocks(struct dvb_frontend *fe, u32 * ucblocks)
 	if (stv0900_get_standard(fe, demod) == STV0900_DVBS2_STANDARD) {
 		/* DVB-S2 delineator errors count */
 
-		/* retrieving number for errnous headers */
+		/* retrieving number for erryesus headers */
 		err_val1 = stv0900_read_reg(intp, BBFCRCKO1);
 		err_val0 = stv0900_read_reg(intp, BBFCRCKO0);
 		header_err_val = (err_val1 << 8) | err_val0;
 
-		/* retrieving number for errnous packets */
+		/* retrieving number for erryesus packets */
 		err_val1 = stv0900_read_reg(intp, UPCRCKO1);
 		err_val0 = stv0900_read_reg(intp, UPCRCKO0);
 		*ucblocks = (err_val1 << 8) | err_val0;
@@ -1337,7 +1337,7 @@ static enum fe_stv0900_error stv0900_init_internal(struct dvb_frontend *fe,
 	struct stv0900_internal *intp = NULL;
 	int selosci, i;
 
-	struct stv0900_inode *temp_int = find_inode(state->i2c_adap,
+	struct stv0900_iyesde *temp_int = find_iyesde(state->i2c_adap,
 						state->config->demod_address);
 
 	dprintk("%s\n", __func__);
@@ -1829,7 +1829,7 @@ static void stv0900_release(struct dvb_frontend *fe)
 
 		dprintk("%s: Actually removing\n", __func__);
 
-		remove_inode(state->internal);
+		remove_iyesde(state->internal);
 		kfree(state->internal);
 	}
 

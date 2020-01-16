@@ -135,7 +135,7 @@ static const struct pmc_bit_map spt_ltr_show_map[] = {
 	{"ESPI",		SPT_PMC_LTR_ESPI},
 	{"SCC",			SPT_PMC_LTR_SCC},
 	{"ISH",			SPT_PMC_LTR_ISH},
-	/* Below two cannot be used for LTR_IGNORE */
+	/* Below two canyest be used for LTR_IGNORE */
 	{"CURRENT_PLATFORM",	SPT_PMC_LTR_CUR_PLT},
 	{"AGGREGATED_SYSTEM",	SPT_PMC_LTR_CUR_ASLT},
 	{}
@@ -148,19 +148,19 @@ static const struct pmc_reg_map spt_reg_map = {
 	.ltr_show_sts = spt_ltr_show_map,
 	.msr_sts = msr_map,
 	.slp_s0_offset = SPT_PMC_SLP_S0_RES_COUNTER_OFFSET,
-	.ltr_ignore_offset = SPT_PMC_LTR_IGNORE_OFFSET,
+	.ltr_igyesre_offset = SPT_PMC_LTR_IGNORE_OFFSET,
 	.regmap_length = SPT_PMC_MMIO_REG_LEN,
 	.ppfear0_offset = SPT_PMC_XRAM_PPFEAR0A,
 	.ppfear_buckets = SPT_PPFEAR_NUM_ENTRIES,
 	.pm_cfg_offset = SPT_PMC_PM_CFG_OFFSET,
 	.pm_read_disable_bit = SPT_PMC_READ_DISABLE_BIT,
-	.ltr_ignore_max = SPT_NUM_IP_IGN_ALLOWED,
+	.ltr_igyesre_max = SPT_NUM_IP_IGN_ALLOWED,
 	.pm_vric1_offset = SPT_PMC_VRIC1_OFFSET,
 };
 
-/* Cannon Lake: PGD PFET Enable Ack Status Register(s) bitmap */
+/* Canyesn Lake: PGD PFET Enable Ack Status Register(s) bitmap */
 static const struct pmc_bit_map cnp_pfear_map[] = {
-	/* Reserved for Cannon Lake but valid for Comet Lake */
+	/* Reserved for Canyesn Lake but valid for Comet Lake */
 	{"PMC",                 BIT(0)},
 	{"OPI-DMI",             BIT(1)},
 	{"SPI/eSPI",            BIT(2)},
@@ -186,7 +186,7 @@ static const struct pmc_bit_map cnp_pfear_map[] = {
 	{"SDX",                 BIT(4)},
 	{"SPE",                 BIT(5)},
 	{"Fuse",                BIT(6)},
-	/* Reserved for Cannon Lake but valid for Ice Lake and Comet Lake */
+	/* Reserved for Canyesn Lake but valid for Ice Lake and Comet Lake */
 	{"SBR8",		BIT(7)},
 
 	{"CSME_FSC",            BIT(0)},
@@ -230,7 +230,7 @@ static const struct pmc_bit_map cnp_pfear_map[] = {
 	{"HDA_PGD4",            BIT(2)},
 	{"HDA_PGD5",            BIT(3)},
 	{"HDA_PGD6",            BIT(4)},
-	/* Reserved for Cannon Lake but valid for Ice Lake and Comet Lake */
+	/* Reserved for Canyesn Lake but valid for Ice Lake and Comet Lake */
 	{"PSF6",		BIT(5)},
 	{"PSF7",		BIT(6)},
 	{"PSF8",		BIT(7)},
@@ -325,9 +325,9 @@ static const struct pmc_bit_map cnp_ltr_show_map[] = {
 	{"ISH",			CNP_PMC_LTR_ISH},
 	{"UFSX2",		CNP_PMC_LTR_UFSX2},
 	{"EMMC",		CNP_PMC_LTR_EMMC},
-	/* Reserved for Cannon Lake but valid for Ice Lake */
+	/* Reserved for Canyesn Lake but valid for Ice Lake */
 	{"WIGIG",		ICL_PMC_LTR_WIGIG},
-	/* Below two cannot be used for LTR_IGNORE */
+	/* Below two canyest be used for LTR_IGNORE */
 	{"CURRENT_PLATFORM",	CNP_PMC_LTR_CUR_PLT},
 	{"AGGREGATED_SYSTEM",	CNP_PMC_LTR_CUR_ASLT},
 	{}
@@ -340,13 +340,13 @@ static const struct pmc_reg_map cnp_reg_map = {
 	.ltr_show_sts = cnp_ltr_show_map,
 	.msr_sts = msr_map,
 	.slps0_dbg_offset = CNP_PMC_SLPS0_DBG_OFFSET,
-	.ltr_ignore_offset = CNP_PMC_LTR_IGNORE_OFFSET,
+	.ltr_igyesre_offset = CNP_PMC_LTR_IGNORE_OFFSET,
 	.regmap_length = CNP_PMC_MMIO_REG_LEN,
 	.ppfear0_offset = CNP_PMC_HOST_PPFEAR0A,
 	.ppfear_buckets = CNP_PPFEAR_NUM_ENTRIES,
 	.pm_cfg_offset = CNP_PMC_PM_CFG_OFFSET,
 	.pm_read_disable_bit = CNP_PMC_READ_DISABLE_BIT,
-	.ltr_ignore_max = CNP_NUM_IP_IGN_ALLOWED,
+	.ltr_igyesre_max = CNP_NUM_IP_IGN_ALLOWED,
 };
 
 static const struct pmc_reg_map icl_reg_map = {
@@ -356,13 +356,13 @@ static const struct pmc_reg_map icl_reg_map = {
 	.ltr_show_sts = cnp_ltr_show_map,
 	.msr_sts = msr_map,
 	.slps0_dbg_offset = CNP_PMC_SLPS0_DBG_OFFSET,
-	.ltr_ignore_offset = CNP_PMC_LTR_IGNORE_OFFSET,
+	.ltr_igyesre_offset = CNP_PMC_LTR_IGNORE_OFFSET,
 	.regmap_length = CNP_PMC_MMIO_REG_LEN,
 	.ppfear0_offset = CNP_PMC_HOST_PPFEAR0A,
 	.ppfear_buckets = ICL_PPFEAR_NUM_ENTRIES,
 	.pm_cfg_offset = CNP_PMC_PM_CFG_OFFSET,
 	.pm_read_disable_bit = CNP_PMC_READ_DISABLE_BIT,
-	.ltr_ignore_max = ICL_NUM_IP_IGN_ALLOWED,
+	.ltr_igyesre_max = ICL_NUM_IP_IGN_ALLOWED,
 };
 
 static inline u8 pmc_core_reg_read_byte(struct pmc_dev *pmcdev, int offset)
@@ -561,7 +561,7 @@ out_unlock:
 }
 DEFINE_SHOW_ATTRIBUTE(pmc_core_pll);
 
-static ssize_t pmc_core_ltr_ignore_write(struct file *file, const char __user
+static ssize_t pmc_core_ltr_igyesre_write(struct file *file, const char __user
 *userbuf, size_t count, loff_t *ppos)
 {
 	struct pmc_dev *pmcdev = &pmc;
@@ -577,34 +577,34 @@ static ssize_t pmc_core_ltr_ignore_write(struct file *file, const char __user
 		goto out_unlock;
 	}
 
-	if (val > map->ltr_ignore_max) {
+	if (val > map->ltr_igyesre_max) {
 		err = -EINVAL;
 		goto out_unlock;
 	}
 
-	fd = pmc_core_reg_read(pmcdev, map->ltr_ignore_offset);
+	fd = pmc_core_reg_read(pmcdev, map->ltr_igyesre_offset);
 	fd |= (1U << val);
-	pmc_core_reg_write(pmcdev, map->ltr_ignore_offset, fd);
+	pmc_core_reg_write(pmcdev, map->ltr_igyesre_offset, fd);
 
 out_unlock:
 	mutex_unlock(&pmcdev->lock);
 	return err == 0 ? count : err;
 }
 
-static int pmc_core_ltr_ignore_show(struct seq_file *s, void *unused)
+static int pmc_core_ltr_igyesre_show(struct seq_file *s, void *unused)
 {
 	return 0;
 }
 
-static int pmc_core_ltr_ignore_open(struct inode *inode, struct file *file)
+static int pmc_core_ltr_igyesre_open(struct iyesde *iyesde, struct file *file)
 {
-	return single_open(file, pmc_core_ltr_ignore_show, inode->i_private);
+	return single_open(file, pmc_core_ltr_igyesre_show, iyesde->i_private);
 }
 
-static const struct file_operations pmc_core_ltr_ignore_ops = {
-	.open           = pmc_core_ltr_ignore_open,
+static const struct file_operations pmc_core_ltr_igyesre_ops = {
+	.open           = pmc_core_ltr_igyesre_open,
 	.read           = seq_read,
-	.write          = pmc_core_ltr_ignore_write,
+	.write          = pmc_core_ltr_igyesre_write,
 	.llseek         = seq_lseek,
 	.release        = single_release,
 };
@@ -668,8 +668,8 @@ static u32 convert_ltr_scale(u32 val)
 	 * Tolerance Reporting data payload is encoded in a
 	 * 3 bit scale and 10 bit value fields. Values are
 	 * multiplied by the indicated scale to yield an absolute time
-	 * value, expressible in a range from 1 nanosecond to
-	 * 2^25*(2^10-1) = 34,326,183,936 nanoseconds.
+	 * value, expressible in a range from 1 nayessecond to
+	 * 2^25*(2^10-1) = 34,326,183,936 nayesseconds.
 	 *
 	 * scale encoding is as follows:
 	 *
@@ -698,34 +698,34 @@ static int pmc_core_ltr_show(struct seq_file *s, void *unused)
 {
 	struct pmc_dev *pmcdev = s->private;
 	const struct pmc_bit_map *map = pmcdev->map->ltr_show_sts;
-	u64 decoded_snoop_ltr, decoded_non_snoop_ltr;
+	u64 decoded_syesop_ltr, decoded_yesn_syesop_ltr;
 	u32 ltr_raw_data, scale, val;
-	u16 snoop_ltr, nonsnoop_ltr;
+	u16 syesop_ltr, yesnsyesop_ltr;
 	int index;
 
 	for (index = 0; map[index].name ; index++) {
-		decoded_snoop_ltr = decoded_non_snoop_ltr = 0;
+		decoded_syesop_ltr = decoded_yesn_syesop_ltr = 0;
 		ltr_raw_data = pmc_core_reg_read(pmcdev,
 						 map[index].bit_mask);
-		snoop_ltr = ltr_raw_data & ~MTPMC_MASK;
-		nonsnoop_ltr = (ltr_raw_data >> 0x10) & ~MTPMC_MASK;
+		syesop_ltr = ltr_raw_data & ~MTPMC_MASK;
+		yesnsyesop_ltr = (ltr_raw_data >> 0x10) & ~MTPMC_MASK;
 
 		if (FIELD_GET(LTR_REQ_NONSNOOP, ltr_raw_data)) {
-			scale = FIELD_GET(LTR_DECODED_SCALE, nonsnoop_ltr);
-			val = FIELD_GET(LTR_DECODED_VAL, nonsnoop_ltr);
-			decoded_non_snoop_ltr = val * convert_ltr_scale(scale);
+			scale = FIELD_GET(LTR_DECODED_SCALE, yesnsyesop_ltr);
+			val = FIELD_GET(LTR_DECODED_VAL, yesnsyesop_ltr);
+			decoded_yesn_syesop_ltr = val * convert_ltr_scale(scale);
 		}
 
 		if (FIELD_GET(LTR_REQ_SNOOP, ltr_raw_data)) {
-			scale = FIELD_GET(LTR_DECODED_SCALE, snoop_ltr);
-			val = FIELD_GET(LTR_DECODED_VAL, snoop_ltr);
-			decoded_snoop_ltr = val * convert_ltr_scale(scale);
+			scale = FIELD_GET(LTR_DECODED_SCALE, syesop_ltr);
+			val = FIELD_GET(LTR_DECODED_VAL, syesop_ltr);
+			decoded_syesop_ltr = val * convert_ltr_scale(scale);
 		}
 
-		seq_printf(s, "%-32s\tLTR: RAW: 0x%-16x\tNon-Snoop(ns): %-16llu\tSnoop(ns): %-16llu\n",
+		seq_printf(s, "%-32s\tLTR: RAW: 0x%-16x\tNon-Syesop(ns): %-16llu\tSyesop(ns): %-16llu\n",
 			   map[index].name, ltr_raw_data,
-			   decoded_non_snoop_ltr,
-			   decoded_snoop_ltr);
+			   decoded_yesn_syesop_ltr,
+			   decoded_syesop_ltr);
 	}
 	return 0;
 }
@@ -770,8 +770,8 @@ static void pmc_core_dbgfs_register(struct pmc_dev *pmcdev)
 	debugfs_create_file("pch_ip_power_gating_status", 0444, dir, pmcdev,
 			    &pmc_core_ppfear_fops);
 
-	debugfs_create_file("ltr_ignore", 0644, dir, pmcdev,
-			    &pmc_core_ltr_ignore_ops);
+	debugfs_create_file("ltr_igyesre", 0644, dir, pmcdev,
+			    &pmc_core_ltr_igyesre_ops);
 
 	debugfs_create_file("ltr_show", 0444, dir, pmcdev, &pmc_core_ltr_fops);
 
@@ -831,7 +831,7 @@ static const struct pci_device_id pmc_pci_ids[] = {
  * the platform BIOS enforces 24Mhx Crystal to shutdown
  * before PMC can assert SLP_S0#.
  */
-static int quirk_xtal_ignore(const struct dmi_system_id *id)
+static int quirk_xtal_igyesre(const struct dmi_system_id *id)
 {
 	struct pmc_dev *pmcdev = &pmc;
 	u32 value;
@@ -847,7 +847,7 @@ static int quirk_xtal_ignore(const struct dmi_system_id *id)
 
 static const struct dmi_system_id pmc_core_dmi_table[]  = {
 	{
-	.callback = quirk_xtal_ignore,
+	.callback = quirk_xtal_igyesre,
 	.ident = "HP Elite x2 1013 G3",
 	.matches = {
 		DMI_MATCH(DMI_SYS_VENDOR, "HP"),
@@ -874,8 +874,8 @@ static int pmc_core_probe(struct platform_device *pdev)
 	pmcdev->map = (struct pmc_reg_map *)cpu_id->driver_data;
 
 	/*
-	 * Coffee Lake has CPU ID of Kaby Lake and Cannon Lake PCH. So here
-	 * Sunrisepoint PCH regmap can't be used. Use Cannon Lake PCH regmap
+	 * Coffee Lake has CPU ID of Kaby Lake and Canyesn Lake PCH. So here
+	 * Sunrisepoint PCH regmap can't be used. Use Canyesn Lake PCH regmap
 	 * in this case.
 	 */
 	if (pmcdev->map == &spt_reg_map && !pci_dev_present(pmc_pci_ids))
@@ -993,13 +993,13 @@ static int pmc_core_resume(struct device *dev)
 
 	if (pmc_core_is_pc10_failed(pmcdev)) {
 		/* S0ix failed because of PC10 entry failure */
-		dev_info(dev, "CPU did not enter PC10!!! (PC10 cnt=0x%llx)\n",
+		dev_info(dev, "CPU did yest enter PC10!!! (PC10 cnt=0x%llx)\n",
 			 pmcdev->pc10_counter);
 		return 0;
 	}
 
 	/* The real interesting case - S0ix failed - lets ask PMC why. */
-	dev_warn(dev, "CPU did not enter SLP_S0!!! (S0ix cnt=%llu)\n",
+	dev_warn(dev, "CPU did yest enter SLP_S0!!! (S0ix cnt=%llu)\n",
 		 pmcdev->s0ix_counter);
 	while (*maps) {
 		map = *maps;

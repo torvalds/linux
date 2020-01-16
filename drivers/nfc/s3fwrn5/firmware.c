@@ -2,7 +2,7 @@
 /*
  * NCI based driver for Samsung S3FWRN5 NFC chip
  *
- * Copyright (C) 2015 Samsung Electrnoics
+ * Copyright (C) 2015 Samsung Electryesics
  * Robert Baldyga <r.baldyga@samsung.com>
  */
 
@@ -381,7 +381,7 @@ int s3fwrn5_fw_setup(struct s3fwrn5_fw_info *fw_info)
 	ret = s3fwrn5_fw_get_base_addr(&bootinfo, &fw_info->base_addr);
 	if (ret < 0) {
 		dev_err(&fw_info->ndev->nfc_dev->dev,
-			"Unknown hardware version\n");
+			"Unkyeswn hardware version\n");
 		goto err;
 	}
 
@@ -430,7 +430,7 @@ int s3fwrn5_fw_download(struct s3fwrn5_fw_info *fw_info)
 	if (IS_ERR(tfm)) {
 		ret = PTR_ERR(tfm);
 		dev_err(&fw_info->ndev->nfc_dev->dev,
-			"Cannot allocate shash (code=%d)\n", ret);
+			"Canyest allocate shash (code=%d)\n", ret);
 		goto out;
 	}
 
@@ -447,7 +447,7 @@ int s3fwrn5_fw_download(struct s3fwrn5_fw_info *fw_info)
 	crypto_free_shash(tfm);
 	if (ret) {
 		dev_err(&fw_info->ndev->nfc_dev->dev,
-			"Cannot compute hash (code=%d)\n", ret);
+			"Canyest compute hash (code=%d)\n", ret);
 		goto out;
 	}
 

@@ -3,7 +3,7 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright yestice and this permission yestice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
@@ -167,9 +167,9 @@ static const struct locale_mimo_info *brcms_c_get_mimo_5g(u8 locale_idx)
 
 /*
  * Indicates whether the country provided is valid to pass
- * to cfg80211 or not.
+ * to cfg80211 or yest.
  *
- * returns true if valid; false if not.
+ * returns true if valid; false if yest.
  */
 static bool brcms_c_country_valid(const char *ccode)
 {
@@ -182,7 +182,7 @@ static bool brcms_c_country_valid(const char *ccode)
 		return false;
 
 	/*
-	 * do not match ISO 3166-1 user assigned country codes
+	 * do yest match ISO 3166-1 user assigned country codes
 	 * that may be in the driver table
 	 */
 	if (!strcmp("AA", ccode) ||        /* AA */
@@ -344,7 +344,7 @@ struct brcms_cm_info *brcms_c_channel_mgr_attach(struct brcms_c_info *wlc)
 		strncpy(wlc->pub->srom_ccode, ccode, ccode_len);
 
 	/*
-	 * If no custom world domain is found in the SROM, use the
+	 * If yes custom world domain is found in the SROM, use the
 	 * default "X2" domain.
 	 */
 	if (!wlc_cm->world_regd) {
@@ -582,7 +582,7 @@ static bool brcms_c_chspec_malformed(u16 chanspec)
 	if (!CHSPEC_IS40(chanspec) && !CHSPEC_IS20(chanspec))
 		return true;
 
-	/* 20MHZ b/w must have no ctl sb, 40 must have a ctl sb */
+	/* 20MHZ b/w must have yes ctl sb, 40 must have a ctl sb */
 	if (CHSPEC_IS20(chanspec)) {
 		if (!CHSPEC_SB_NONE(chanspec))
 			return true;
@@ -690,7 +690,7 @@ brcms_reg_apply_beaconing_flags(struct wiphy *wiphy,
 	}
 }
 
-static void brcms_reg_notifier(struct wiphy *wiphy,
+static void brcms_reg_yestifier(struct wiphy *wiphy,
 			       struct regulatory_request *request)
 {
 	struct ieee80211_hw *hw = wiphy_to_ieee80211_hw(wiphy);
@@ -725,7 +725,7 @@ static void brcms_reg_notifier(struct wiphy *wiphy,
 	} else {
 		mboolset(wlc->pub->radio_disabled, WL_RADIO_COUNTRY_DISABLE);
 		brcms_err(wlc->hw->d11core,
-			  "wl%d: %s: no valid channel for \"%s\"\n",
+			  "wl%d: %s: yes valid channel for \"%s\"\n",
 			  wlc->pub->unit, __func__, request->alpha2);
 	}
 
@@ -744,7 +744,7 @@ void brcms_c_regd_init(struct brcms_c_info *wlc)
 	struct brcms_band *band;
 	int band_idx, i;
 
-	/* Disable any channels not supported by the phy */
+	/* Disable any channels yest supported by the phy */
 	for (band_idx = 0; band_idx < wlc->pub->_nbands; band_idx++) {
 		band = wlc->bandstate[band_idx];
 
@@ -763,7 +763,7 @@ void brcms_c_regd_init(struct brcms_c_info *wlc)
 		}
 	}
 
-	wlc->wiphy->reg_notifier = brcms_reg_notifier;
+	wlc->wiphy->reg_yestifier = brcms_reg_yestifier;
 	wlc->wiphy->regulatory_flags |= REGULATORY_CUSTOM_REG |
 					REGULATORY_STRICT_REG;
 	wiphy_apply_custom_regulatory(wlc->wiphy, regd->regdomain);

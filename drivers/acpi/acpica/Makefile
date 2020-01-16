@@ -170,7 +170,7 @@ acpi-y +=		\
 	utmath.o	\
 	utmisc.o	\
 	utmutex.o	\
-	utnonansi.o	\
+	utyesnansi.o	\
 	utobject.o	\
 	utosi.o		\
 	utownerid.o	\

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (c) 2012 - 2018 Microchip Technology Inc., and its subsidiaries.
+ * Copyright (c) 2012 - 2018 Microchip Techyeslogy Inc., and its subsidiaries.
  * All rights reserved.
  */
 
@@ -86,7 +86,7 @@ struct host_if_msg {
 	bool is_sync;
 };
 
-struct wilc_noa_opp_enable {
+struct wilc_yesa_opp_enable {
 	u8 ct_window;
 	u8 cnt;
 	__le32 duration;
@@ -94,7 +94,7 @@ struct wilc_noa_opp_enable {
 	__le32 start_time;
 } __packed;
 
-struct wilc_noa_opp_disable {
+struct wilc_yesa_opp_disable {
 	u8 cnt;
 	__le32 duration;
 	__le32 interval;
@@ -121,13 +121,13 @@ struct wilc_join_bss_param {
 	u8 p_suites[3];
 	u8 akm_suites[3];
 	u8 rsn_cap[2];
-	u8 noa_enabled;
+	u8 yesa_enabled;
 	__le32 tsf_lo;
 	u8 idx;
 	u8 opp_enabled;
 	union {
-		struct wilc_noa_opp_disable opp_dis;
-		struct wilc_noa_opp_enable opp_en;
+		struct wilc_yesa_opp_disable opp_dis;
+		struct wilc_yesa_opp_enable opp_en;
 	};
 } __packed;
 
@@ -446,7 +446,7 @@ void *wilc_parse_join_bss_param(struct cfg80211_bss *bss,
 				struct cfg80211_crypto_settings *crypto)
 {
 	struct wilc_join_bss_param *param;
-	struct ieee80211_p2p_noa_attr noa_attr;
+	struct ieee80211_p2p_yesa_attr yesa_attr;
 	u8 rates_len = 0;
 	const u8 *tim_elm, *ssid_elm, *rates_ie, *supp_rates_ie;
 	const u8 *ht_ie, *wpa_ie, *wmm_ie, *rsn_ie;
@@ -508,24 +508,24 @@ void *wilc_parse_join_bss_param(struct cfg80211_bss *bss,
 
 	ret = cfg80211_get_p2p_attr(ies->data, ies->len,
 				    IEEE80211_P2P_ATTR_ABSENCE_NOTICE,
-				    (u8 *)&noa_attr, sizeof(noa_attr));
+				    (u8 *)&yesa_attr, sizeof(yesa_attr));
 	if (ret > 0) {
 		param->tsf_lo = cpu_to_le32(ies->tsf);
-		param->noa_enabled = 1;
-		param->idx = noa_attr.index;
-		if (noa_attr.oppps_ctwindow & IEEE80211_P2P_OPPPS_ENABLE_BIT) {
+		param->yesa_enabled = 1;
+		param->idx = yesa_attr.index;
+		if (yesa_attr.oppps_ctwindow & IEEE80211_P2P_OPPPS_ENABLE_BIT) {
 			param->opp_enabled = 1;
-			param->opp_en.ct_window = noa_attr.oppps_ctwindow;
-			param->opp_en.cnt = noa_attr.desc[0].count;
-			param->opp_en.duration = noa_attr.desc[0].duration;
-			param->opp_en.interval = noa_attr.desc[0].interval;
-			param->opp_en.start_time = noa_attr.desc[0].start_time;
+			param->opp_en.ct_window = yesa_attr.oppps_ctwindow;
+			param->opp_en.cnt = yesa_attr.desc[0].count;
+			param->opp_en.duration = yesa_attr.desc[0].duration;
+			param->opp_en.interval = yesa_attr.desc[0].interval;
+			param->opp_en.start_time = yesa_attr.desc[0].start_time;
 		} else {
 			param->opp_enabled = 0;
-			param->opp_dis.cnt = noa_attr.desc[0].count;
-			param->opp_dis.duration = noa_attr.desc[0].duration;
-			param->opp_dis.interval = noa_attr.desc[0].interval;
-			param->opp_dis.start_time = noa_attr.desc[0].start_time;
+			param->opp_dis.cnt = yesa_attr.desc[0].count;
+			param->opp_dis.duration = yesa_attr.desc[0].duration;
+			param->opp_dis.interval = yesa_attr.desc[0].interval;
+			param->opp_dis.start_time = yesa_attr.desc[0].start_time;
 		}
 	}
 	wmm_ie = cfg80211_find_vendor_ie(WLAN_OUI_MICROSOFT,
@@ -1640,7 +1640,7 @@ void wilc_network_info_received(struct wilc *wilc, u8 *buffer, u32 length)
 	hif_drv = vif->hif_drv;
 
 	if (!hif_drv) {
-		netdev_err(vif->ndev, "driver not init[%p]\n", hif_drv);
+		netdev_err(vif->ndev, "driver yest init[%p]\n", hif_drv);
 		return;
 	}
 

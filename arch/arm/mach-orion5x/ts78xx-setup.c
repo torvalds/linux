@@ -106,7 +106,7 @@ static int ts78xx_ts_rtc_load(void)
 	}
 
 	if (rc)
-		pr_info("RTC could not be registered: %d\n", rc);
+		pr_info("RTC could yest be registered: %d\n", rc);
 
 	return rc;
 }
@@ -238,8 +238,8 @@ static struct platform_nand_data ts78xx_ts_nand_data = {
 		 * The HW ECC offloading functions, used to give about a 9%
 		 * performance increase for 'dd if=/dev/mtdblockX' and 5% for
 		 * nanddump.  This all however was changed by git commit
-		 * e6cf5df1838c28bb060ac45b5585e48e71bbc740 so now there is
-		 * no performance advantage to be had so we no longer bother
+		 * e6cf5df1838c28bb060ac45b5585e48e71bbc740 so yesw there is
+		 * yes performance advantage to be had so we yes longer bother
 		 */
 		.cmd_ctrl		= ts78xx_ts_nand_cmd_ctrl,
 		.dev_ready		= ts78xx_ts_nand_dev_ready,
@@ -273,7 +273,7 @@ static int ts78xx_ts_nand_load(void)
 		rc = platform_device_add(&ts78xx_ts_nand_device);
 
 	if (rc)
-		pr_info("NAND could not be registered: %d\n", rc);
+		pr_info("NAND could yest be registered: %d\n", rc);
 	return rc;
 };
 
@@ -316,7 +316,7 @@ static int ts78xx_ts_rng_load(void)
 		rc = platform_device_add(&ts78xx_ts_rng_device);
 
 	if (rc)
-		pr_info("RNG could not be registered: %d\n", rc);
+		pr_info("RNG could yest be registered: %d\n", rc);
 	return rc;
 };
 
@@ -435,15 +435,15 @@ static int ts78xx_fpga_unload(void)
 	fpga_id = readl(TS78XX_FPGA_REGS_VIRT_BASE);
 
 	/*
-	 * There does not seem to be a feasible way to block access to the GPIO
+	 * There does yest seem to be a feasible way to block access to the GPIO
 	 * pins from userspace (/dev/mem).  This if clause should hopefully warn
-	 * those foolish enough not to follow 'policy' :)
+	 * those foolish eyesugh yest to follow 'policy' :)
 	 *
 	 * UrJTAG SVN since r1381 can be used to reprogram the FPGA
 	 */
 	if (ts78xx_fpga.id != fpga_id) {
 		pr_err("FPGA magic/rev mismatch\n"
-			"TS-78xx FPGA: was 0x%.6x/%.2x but now 0x%.6x/%.2x\n",
+			"TS-78xx FPGA: was 0x%.6x/%.2x but yesw 0x%.6x/%.2x\n",
 			(ts78xx_fpga.id >> 8) & 0xffffff, ts78xx_fpga.id & 0xff,
 			(fpga_id >> 8) & 0xffffff, fpga_id & 0xff);
 		ts78xx_fpga.state = -1;
@@ -565,7 +565,7 @@ static void __init ts78xx_init(void)
 		pr_err("sysfs_create_file failed: %d\n", ret);
 }
 
-MACHINE_START(TS78XX, "Technologic Systems TS-78xx SBC")
+MACHINE_START(TS78XX, "Techyeslogic Systems TS-78xx SBC")
 	/* Maintainer: Alexander Clouter <alex@digriz.org.uk> */
 	.atag_offset	= 0x100,
 	.nr_irqs	= ORION5X_NR_IRQS,

@@ -29,7 +29,7 @@
 #define to_bond(cd)	((struct bonding *)(netdev_priv(to_net_dev(cd))))
 
 /* "show" function for the bond_masters attribute.
- * The class parameter is ignored.
+ * The class parameter is igyesred.
  */
 static ssize_t bonding_show_bonds(struct class *cls,
 				  struct class_attribute *attr,
@@ -44,7 +44,7 @@ static ssize_t bonding_show_bonds(struct class *cls,
 
 	list_for_each_entry(bond, &bn->dev_list, bond_list) {
 		if (res > (PAGE_SIZE - IFNAMSIZ)) {
-			/* not enough space for another interface name */
+			/* yest eyesugh space for ayesther interface name */
 			if ((PAGE_SIZE - res) > 10)
 				res = PAGE_SIZE - 10;
 			res += sprintf(buf + res, "++more++ ");
@@ -73,7 +73,7 @@ static struct net_device *bond_get_by_name(struct bond_net *bn, const char *ifna
 /* "store" function for the bond_masters attribute.  This is what
  * creates and deletes entire bonds.
  *
- * The class parameter is ignored.
+ * The class parameter is igyesred.
  */
 static ssize_t bonding_store_bonds(struct class *cls,
 				   struct class_attribute *attr,
@@ -89,7 +89,7 @@ static ssize_t bonding_store_bonds(struct class *cls,
 	ifname = command + 1;
 	if ((strlen(command) <= 1) ||
 	    !dev_valid_name(ifname))
-		goto err_no_cmd;
+		goto err_yes_cmd;
 
 	if (command[0] == '+') {
 		pr_info("%s is being created...\n", ifname);
@@ -110,20 +110,20 @@ static ssize_t bonding_store_bonds(struct class *cls,
 			pr_info("%s is being deleted...\n", ifname);
 			unregister_netdevice(bond_dev);
 		} else {
-			pr_err("unable to delete non-existent %s\n", ifname);
+			pr_err("unable to delete yesn-existent %s\n", ifname);
 			res = -ENODEV;
 		}
 		rtnl_unlock();
 	} else
-		goto err_no_cmd;
+		goto err_yes_cmd;
 
 	/* Always return either count or an error.  If you return 0, you'll
 	 * get called forever, which is bad.
 	 */
 	return res;
 
-err_no_cmd:
-	pr_err("no command found in bonding_masters - use +ifname or -ifname\n");
+err_yes_cmd:
+	pr_err("yes command found in bonding_masters - use +ifname or -ifname\n");
 	return -EPERM;
 }
 
@@ -175,7 +175,7 @@ static ssize_t bonding_show_slaves(struct device *d,
 
 	bond_for_each_slave(bond, slave, iter) {
 		if (res > (PAGE_SIZE - IFNAMSIZ)) {
-			/* not enough space for another interface name */
+			/* yest eyesugh space for ayesther interface name */
 			if ((PAGE_SIZE - res) > 10)
 				res = PAGE_SIZE - 10;
 			res += sprintf(buf + res, "++more++ ");
@@ -327,17 +327,17 @@ static ssize_t bonding_show_updelay(struct device *d,
 static DEVICE_ATTR(updelay, 0644,
 		   bonding_show_updelay, bonding_sysfs_store_option);
 
-static ssize_t bonding_show_peer_notif_delay(struct device *d,
+static ssize_t bonding_show_peer_yestif_delay(struct device *d,
 					     struct device_attribute *attr,
 					     char *buf)
 {
 	struct bonding *bond = to_bond(d);
 
 	return sprintf(buf, "%d\n",
-		       bond->params.peer_notif_delay * bond->params.miimon);
+		       bond->params.peer_yestif_delay * bond->params.miimon);
 }
-static DEVICE_ATTR(peer_notif_delay, 0644,
-		   bonding_show_peer_notif_delay, bonding_sysfs_store_option);
+static DEVICE_ATTR(peer_yestif_delay, 0644,
+		   bonding_show_peer_yestif_delay, bonding_sysfs_store_option);
 
 /* Show the LACP interval. */
 static ssize_t bonding_show_lacp(struct device *d,
@@ -379,18 +379,18 @@ static ssize_t bonding_show_ad_select(struct device *d,
 static DEVICE_ATTR(ad_select, 0644,
 		   bonding_show_ad_select, bonding_sysfs_store_option);
 
-/* Show the number of peer notifications to send after a failover event. */
-static ssize_t bonding_show_num_peer_notif(struct device *d,
+/* Show the number of peer yestifications to send after a failover event. */
+static ssize_t bonding_show_num_peer_yestif(struct device *d,
 					   struct device_attribute *attr,
 					   char *buf)
 {
 	struct bonding *bond = to_bond(d);
-	return sprintf(buf, "%d\n", bond->params.num_peer_notif);
+	return sprintf(buf, "%d\n", bond->params.num_peer_yestif);
 }
 static DEVICE_ATTR(num_grat_arp, 0644,
-		   bonding_show_num_peer_notif, bonding_sysfs_store_option);
+		   bonding_show_num_peer_yestif, bonding_sysfs_store_option);
 static DEVICE_ATTR(num_unsol_na, 0644,
-		   bonding_show_num_peer_notif, bonding_sysfs_store_option);
+		   bonding_show_num_peer_yestif, bonding_sysfs_store_option);
 
 /* Show the MII monitor interval. */
 static ssize_t bonding_show_miimon(struct device *d,
@@ -599,7 +599,7 @@ static ssize_t bonding_show_queue_id(struct device *d,
 
 	bond_for_each_slave(bond, slave, iter) {
 		if (res > (PAGE_SIZE - IFNAMSIZ - 6)) {
-			/* not enough space for another interface_name:queue_id pair */
+			/* yest eyesugh space for ayesther interface_name:queue_id pair */
 			if ((PAGE_SIZE - res) > 10)
 				res = PAGE_SIZE - 10;
 			res += sprintf(buf + res, "++more++ ");
@@ -730,7 +730,7 @@ static struct attribute *per_bond_attrs[] = {
 	&dev_attr_arp_ip_target.attr,
 	&dev_attr_downdelay.attr,
 	&dev_attr_updelay.attr,
-	&dev_attr_peer_notif_delay.attr,
+	&dev_attr_peer_yestif_delay.attr,
 	&dev_attr_lacp_rate.attr,
 	&dev_attr_ad_select.attr,
 	&dev_attr_xmit_hash_policy.attr,
@@ -777,10 +777,10 @@ int bond_create_sysfs(struct bond_net *bn)
 
 	ret = netdev_class_create_file_ns(&bn->class_attr_bonding_masters,
 					  bn->net);
-	/* Permit multiple loads of the module by ignoring failures to
+	/* Permit multiple loads of the module by igyesring failures to
 	 * create the bonding_masters sysfs file.  Bonding devices
 	 * created by second or subsequent loads of the module will
-	 * not be listed in, or controllable by, bonding_masters, but
+	 * yest be listed in, or controllable by, bonding_masters, but
 	 * will have the usual "bonding" sysfs directory.
 	 *
 	 * This is done to preserve backwards compatibility for

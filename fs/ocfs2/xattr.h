@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /* -*- mode: c; c-basic-offset: 8; -*-
- * vim: noexpandtab sw=8 ts=8 sts=0:
+ * vim: yesexpandtab sw=8 ts=8 sts=0:
  *
  * xattr.h
  *
@@ -35,34 +35,34 @@ extern const struct xattr_handler ocfs2_xattr_security_handler;
 extern const struct xattr_handler *ocfs2_xattr_handlers[];
 
 ssize_t ocfs2_listxattr(struct dentry *, char *, size_t);
-int ocfs2_xattr_get_nolock(struct inode *, struct buffer_head *, int,
+int ocfs2_xattr_get_yeslock(struct iyesde *, struct buffer_head *, int,
 			   const char *, void *, size_t);
-int ocfs2_xattr_set(struct inode *, int, const char *, const void *,
+int ocfs2_xattr_set(struct iyesde *, int, const char *, const void *,
 		    size_t, int);
-int ocfs2_xattr_set_handle(handle_t *, struct inode *, struct buffer_head *,
+int ocfs2_xattr_set_handle(handle_t *, struct iyesde *, struct buffer_head *,
 			   int, const char *, const void *, size_t, int,
 			   struct ocfs2_alloc_context *,
 			   struct ocfs2_alloc_context *);
-int ocfs2_has_inline_xattr_value_outside(struct inode *inode,
-					 struct ocfs2_dinode *di);
-int ocfs2_xattr_remove(struct inode *, struct buffer_head *);
-int ocfs2_init_security_get(struct inode *, struct inode *,
+int ocfs2_has_inline_xattr_value_outside(struct iyesde *iyesde,
+					 struct ocfs2_diyesde *di);
+int ocfs2_xattr_remove(struct iyesde *, struct buffer_head *);
+int ocfs2_init_security_get(struct iyesde *, struct iyesde *,
 			    const struct qstr *,
 			    struct ocfs2_security_xattr_info *);
-int ocfs2_init_security_set(handle_t *, struct inode *,
+int ocfs2_init_security_set(handle_t *, struct iyesde *,
 			    struct buffer_head *,
 			    struct ocfs2_security_xattr_info *,
 			    struct ocfs2_alloc_context *,
 			    struct ocfs2_alloc_context *);
-int ocfs2_calc_security_init(struct inode *,
+int ocfs2_calc_security_init(struct iyesde *,
 			     struct ocfs2_security_xattr_info *,
 			     int *, int *, struct ocfs2_alloc_context **);
-int ocfs2_calc_xattr_init(struct inode *, struct buffer_head *,
+int ocfs2_calc_xattr_init(struct iyesde *, struct buffer_head *,
 			  umode_t, struct ocfs2_security_xattr_info *,
 			  int *, int *, int *);
 
 /*
- * xattrs can live inside an inode, as part of an external xattr block,
+ * xattrs can live inside an iyesde, as part of an external xattr block,
  * or inside an xattr bucket, which is the leaf of a tree rooted in an
  * xattr block.  Some of the xattr calls, especially the value setting
  * functions, want to treat each of these locations as equal.  Let's wrap
@@ -74,17 +74,17 @@ struct ocfs2_xattr_value_buf {
 	struct ocfs2_xattr_value_root	*vb_xv;
 };
 
-int ocfs2_xattr_attach_refcount_tree(struct inode *inode,
+int ocfs2_xattr_attach_refcount_tree(struct iyesde *iyesde,
 				     struct buffer_head *fe_bh,
 				     struct ocfs2_caching_info *ref_ci,
 				     struct buffer_head *ref_root_bh,
 				     struct ocfs2_cached_dealloc_ctxt *dealloc);
-int ocfs2_reflink_xattrs(struct inode *old_inode,
+int ocfs2_reflink_xattrs(struct iyesde *old_iyesde,
 			 struct buffer_head *old_bh,
-			 struct inode *new_inode,
+			 struct iyesde *new_iyesde,
 			 struct buffer_head *new_bh,
 			 bool preserve_security);
-int ocfs2_init_security_and_acl(struct inode *dir,
-				struct inode *inode,
+int ocfs2_init_security_and_acl(struct iyesde *dir,
+				struct iyesde *iyesde,
 				const struct qstr *qstr);
 #endif /* OCFS2_XATTR_H */

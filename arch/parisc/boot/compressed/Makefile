@@ -16,8 +16,8 @@ targets += real2.S firmware.c
 
 KBUILD_CFLAGS := -D__KERNEL__ -O2 -DBOOTLOADER
 KBUILD_CFLAGS += -DDISABLE_BRANCH_PROFILING
-KBUILD_CFLAGS += $(cflags-y) -fno-delete-null-pointer-checks -fno-builtin-printf
-KBUILD_CFLAGS += -fno-PIE -mno-space-regs -mdisable-fpregs -Os
+KBUILD_CFLAGS += $(cflags-y) -fyes-delete-null-pointer-checks -fyes-builtin-printf
+KBUILD_CFLAGS += -fyes-PIE -myes-space-regs -mdisable-fpregs -Os
 ifndef CONFIG_64BIT
 KBUILD_CFLAGS += -mfast-indirect-calls
 endif
@@ -56,7 +56,7 @@ $(obj)/misc.o: $(obj)/sizes.h
 CPPFLAGS_vmlinux.lds += -I$(objtree)/$(obj) -DBOOTLOADER
 $(obj)/vmlinux.lds: $(obj)/sizes.h
 
-OBJCOPYFLAGS_vmlinux.bin := -R .comment -R .note -S
+OBJCOPYFLAGS_vmlinux.bin := -R .comment -R .yeste -S
 $(obj)/vmlinux.bin: vmlinux FORCE
 	$(call if_changed,objcopy)
 

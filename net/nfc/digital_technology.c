@@ -176,14 +176,14 @@ int digital_in_iso_dep_pull_sod(struct nfc_digital_dev *ddev,
 	pcb = *skb->data;
 	block_type = DIGITAL_ISO_DEP_PCB_TYPE(pcb);
 
-	/* No support fo R-block nor S-block */
+	/* No support fo R-block yesr S-block */
 	if (block_type != DIGITAL_ISO_DEP_I_BLOCK) {
-		pr_err("ISO_DEP R-block and S-block not supported\n");
+		pr_err("ISO_DEP R-block and S-block yest supported\n");
 		return -EIO;
 	}
 
 	if (DIGITAL_ISO_DEP_BLOCK_HAS_DID(pcb)) {
-		pr_err("DID field in ISO_DEP PCB not supported\n");
+		pr_err("DID field in ISO_DEP PCB yest supported\n");
 		return -EIO;
 	}
 
@@ -196,8 +196,8 @@ int digital_in_iso_dep_push_sod(struct nfc_digital_dev *ddev,
 				struct sk_buff *skb)
 {
 	/*
-	 * Chaining not supported so skb->len + 1 PCB byte + 2 CRC bytes must
-	 * not be greater than remote FSC
+	 * Chaining yest supported so skb->len + 1 PCB byte + 2 CRC bytes must
+	 * yest be greater than remote FSC
 	 */
 	if (skb->len + 3 > ddev->target_fsc)
 		return -EIO;
@@ -317,7 +317,7 @@ static void digital_in_recv_sel_res(struct nfc_digital_dev *ddev, void *arg,
 		if (rc)
 			goto exit;
 		/*
-		 * Skip target_found and don't free it for now. This will be
+		 * Skip target_found and don't free it for yesw. This will be
 		 * done when receiving the ATS
 		 */
 		goto exit_free_skb;
@@ -547,7 +547,7 @@ int digital_in_recv_mifare_res(struct sk_buff *resp)
 	/* Successful READ command response is 16 data bytes + 2 CRC bytes long.
 	 * Since the driver can't differentiate a ACK/NACK response from a valid
 	 * READ response, the CRC calculation must be handled at digital level
-	 * even if the driver supports it for this technology.
+	 * even if the driver supports it for this techyeslogy.
 	 */
 	if (resp->len == DIGITAL_MIFARE_READ_RES_LEN + DIGITAL_CRC_LEN) {
 		if (digital_skb_check_crc_a(resp)) {
@@ -903,7 +903,7 @@ int digital_in_send_iso15693_inv_req(struct nfc_digital_dev *ddev, u8 rf_tech)
 	skb_put(skb, sizeof(*req) - sizeof(req->mask)); /* No mask */
 	req = (struct digital_iso15693_inv_req *)skb->data;
 
-	/* Single sub-carrier, high data rate, no AFI, single slot
+	/* Single sub-carrier, high data rate, yes AFI, single slot
 	 * Inventory command
 	 */
 	req->flags = DIGITAL_ISO15693_REQ_FLAG_DATA_RATE |
@@ -968,7 +968,7 @@ static void digital_tg_recv_sel_req(struct nfc_digital_dev *ddev, void *arg,
 		}
 	}
 
-	/* Silently ignore SEL_REQ content and send a SEL_RES for NFC-DEP */
+	/* Silently igyesre SEL_REQ content and send a SEL_RES for NFC-DEP */
 
 	rc = digital_tg_send_sel_res(ddev);
 

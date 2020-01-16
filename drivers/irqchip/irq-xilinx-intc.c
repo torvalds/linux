@@ -2,7 +2,7 @@
  * Copyright (C) 2007-2013 Michal Simek <monstr@monstr.eu>
  * Copyright (C) 2012-2013 Xilinx, Inc.
  * Copyright (C) 2007-2009 PetaLogix
- * Copyright (C) 2006 Atmark Techno, Inc.
+ * Copyright (C) 2006 Atmark Techyes, Inc.
  *
  * This file is subject to the terms and conditions of the GNU General Public
  * License. See the file "COPYING" in the main directory of this archive
@@ -23,7 +23,7 @@
 #define ISR 0x00			/* Interrupt Status Register */
 #define IPR 0x04			/* Interrupt Pending Register */
 #define IER 0x08			/* Interrupt Enable Register */
-#define IAR 0x0c			/* Interrupt Acknowledge Register */
+#define IAR 0x0c			/* Interrupt Ackyeswledge Register */
 #define SIE 0x10			/* Set Interrupt Enable bits */
 #define CIE 0x14			/* Clear Interrupt Enable bits */
 #define IVR 0x18			/* Interrupt Vector Register */
@@ -150,8 +150,8 @@ static void xil_intc_irq_handler(struct irq_desc *desc)
 	chained_irq_exit(chip, desc);
 }
 
-static int __init xilinx_intc_of_init(struct device_node *intc,
-					     struct device_node *parent)
+static int __init xilinx_intc_of_init(struct device_yesde *intc,
+					     struct device_yesde *parent)
 {
 	u32 nr_irq;
 	int ret, irq;
@@ -196,7 +196,7 @@ static int __init xilinx_intc_of_init(struct device_node *intc,
 	 */
 	xintc_write(IER, 0);
 
-	/* Acknowledge any pending interrupts just in case. */
+	/* Ackyeswledge any pending interrupts just in case. */
 	xintc_write(IAR, 0xffffffff);
 
 	/* Turn on the Master Enable. */
@@ -220,7 +220,7 @@ static int __init xilinx_intc_of_init(struct device_node *intc,
 							 xil_intc_irq_handler,
 							 irqc);
 		} else {
-			pr_err("irq-xilinx: interrupts property not in DT\n");
+			pr_err("irq-xilinx: interrupts property yest in DT\n");
 			ret = -EINVAL;
 			goto err_alloc;
 		}

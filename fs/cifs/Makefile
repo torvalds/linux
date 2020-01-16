@@ -6,11 +6,11 @@ ccflags-y += -I$(src)		# needed for trace events
 obj-$(CONFIG_CIFS) += cifs.o
 
 cifs-y := trace.o cifsfs.o cifssmb.o cifs_debug.o connect.o dir.o file.o \
-	  inode.o link.o misc.o netmisc.o smbencrypt.o transport.o asn1.o \
+	  iyesde.o link.o misc.o netmisc.o smbencrypt.o transport.o asn1.o \
 	  cifs_unicode.o nterr.o cifsencrypt.o \
 	  readdir.o ioctl.o sess.o export.o smb1ops.o winucase.o \
 	  smb2ops.o smb2maperror.o smb2transport.o \
-	  smb2misc.o smb2pdu.o smb2inode.o smb2file.o cifsacl.o
+	  smb2misc.o smb2pdu.o smb2iyesde.o smb2file.o cifsacl.o
 
 cifs-$(CONFIG_CIFS_XATTR) += xattr.o
 

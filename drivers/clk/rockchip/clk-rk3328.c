@@ -724,7 +724,7 @@ static struct rockchip_clk_branch rk3328_clk_branches[] __initdata = {
 	GATE(PCLK_HDCP, "pclk_hdcp", "hclk_vio_pre", 0, RK3328_CLKGATE_CON(22), 5, GFLAGS),
 
 	/* PD_PERI */
-	GATE(0, "aclk_peri_noc", "aclk_peri", CLK_IGNORE_UNUSED, RK3328_CLKGATE_CON(19), 11, GFLAGS),
+	GATE(0, "aclk_peri_yesc", "aclk_peri", CLK_IGNORE_UNUSED, RK3328_CLKGATE_CON(19), 11, GFLAGS),
 	GATE(ACLK_USB3OTG, "aclk_usb3otg", "aclk_peri", 0, RK3328_CLKGATE_CON(19), 14, GFLAGS),
 
 	GATE(HCLK_SDMMC, "hclk_sdmmc", "hclk_peri", 0, RK3328_CLKGATE_CON(19), 0, GFLAGS),
@@ -877,14 +877,14 @@ static const char *const rk3328_critical_clocks[] __initconst = {
 	"pclk_phy_niu",
 };
 
-static void __init rk3328_clk_init(struct device_node *np)
+static void __init rk3328_clk_init(struct device_yesde *np)
 {
 	struct rockchip_clk_provider *ctx;
 	void __iomem *reg_base;
 
 	reg_base = of_iomap(np, 0);
 	if (!reg_base) {
-		pr_err("%s: could not map cru region\n", __func__);
+		pr_err("%s: could yest map cru region\n", __func__);
 		return;
 	}
 
@@ -911,7 +911,7 @@ static void __init rk3328_clk_init(struct device_node *np)
 	rockchip_register_softrst(np, 12, reg_base + RK3328_SOFTRST_CON(0),
 				  ROCKCHIP_SOFTRST_HIWORD_MASK);
 
-	rockchip_register_restart_notifier(ctx, RK3328_GLB_SRST_FST, NULL);
+	rockchip_register_restart_yestifier(ctx, RK3328_GLB_SRST_FST, NULL);
 
 	rockchip_clk_of_add_provider(np, ctx);
 }

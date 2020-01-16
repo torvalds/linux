@@ -81,7 +81,7 @@
 	};
 
 
-	/* Global Mixed-Mode Technology G751 mounted on GPIO I2C */
+	/* Global Mixed-Mode Techyeslogy G751 mounted on GPIO I2C */
 	gpio-i2c {
 		compatible = "i2c-gpio";
 		sda-gpios = <&gpio0 15 (GPIO_ACTIVE_HIGH|GPIO_OPEN_DRAIN)>;

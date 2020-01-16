@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -52,7 +52,7 @@ struct intel_shared_dpll;
  */
 enum intel_dpll_id {
 	/**
-	 * @DPLL_ID_PRIVATE: non-shared dpll in use
+	 * @DPLL_ID_PRIVATE: yesn-shared dpll in use
 	 */
 	DPLL_ID_PRIVATE = -1,
 
@@ -224,7 +224,7 @@ struct intel_dpll_hw_state {
  */
 struct intel_shared_dpll_state {
 	/**
-	 * @crtc_mask: mask of CRTC using this DPLL, active or not
+	 * @crtc_mask: mask of CRTC using this DPLL, active or yest
 	 */
 	unsigned crtc_mask;
 
@@ -253,7 +253,7 @@ struct intel_shared_dpll_funcs {
 	 * @enable:
 	 *
 	 * Hook for enabling the pll, called from intel_enable_shared_dpll()
-	 * if the pll is not already enabled.
+	 * if the pll is yest already enabled.
 	 */
 	void (*enable)(struct drm_i915_private *dev_priv,
 		       struct intel_shared_dpll *pll);
@@ -262,7 +262,7 @@ struct intel_shared_dpll_funcs {
 	 * @disable:
 	 *
 	 * Hook for disabling the pll, called from intel_disable_shared_dpll()
-	 * only when it is safe to disable the pll, i.e., there are no more
+	 * only when it is safe to disable the pll, i.e., there are yes more
 	 * tracked users for it.
 	 */
 	void (*disable)(struct drm_i915_private *dev_priv,
@@ -306,7 +306,7 @@ struct dpll_info {
 	 *
 	 * INTEL_DPLL_ALWAYS_ON
 	 *     Inform the state checker that the DPLL is kept enabled even if
-	 *     not in use by any CRTC.
+	 *     yest in use by any CRTC.
 	 */
 	u32 flags;
 };

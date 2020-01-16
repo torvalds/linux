@@ -112,7 +112,7 @@ static const struct afs_call_type afs_SRXYFSCB_CallBack = {
 
 /*
  * route an incoming cache manager call
- * - return T if supported, F if not
+ * - return T if supported, F if yest
  */
 bool afs_cm_incoming_call(struct afs_call *call)
 {
@@ -162,7 +162,7 @@ static int afs_record_cm_probe(struct afs_call *call, struct afs_server *server)
 			return 0;
 
 		if (!server->probe.said_rebooted) {
-			pr_notice("kAFS: FS rebooted %pU\n", &server->uuid);
+			pr_yestice("kAFS: FS rebooted %pU\n", &server->uuid);
 			server->probe.said_rebooted = true;
 		}
 	}
@@ -178,7 +178,7 @@ static int afs_record_cm_probe(struct afs_call *call, struct afs_server *server)
 	if (server->probe.cm_probed &&
 	    call->epoch != server->probe.cm_epoch &&
 	    !server->probe.said_inconsistent) {
-		pr_notice("kAFS: FS endpoints inconsistent %pU\n",
+		pr_yestice("kAFS: FS endpoints inconsistent %pU\n",
 			  &server->uuid);
 		server->probe.said_inconsistent = true;
 	}
@@ -205,7 +205,7 @@ static int afs_find_cm_server_by_peer(struct afs_call *call)
 
 	server = afs_find_server(call->net, &srx);
 	if (!server) {
-		trace_afs_cm_no_server(call, &srx);
+		trace_afs_cm_yes_server(call, &srx);
 		return 0;
 	}
 
@@ -226,7 +226,7 @@ static int afs_find_cm_server_by_uuid(struct afs_call *call,
 	server = afs_find_server_by_uuid(call->net, call->request);
 	rcu_read_unlock();
 	if (!server) {
-		trace_afs_cm_no_server_u(call, call->request);
+		trace_afs_cm_yes_server_u(call, call->request);
 		return 0;
 	}
 
@@ -322,7 +322,7 @@ static int afs_deliver_cb_callback(struct afs_call *call)
 		bp = call->buffer;
 		for (loop = call->count; loop > 0; loop--, cb++) {
 			cb->fid.vid	= ntohl(*bp++);
-			cb->fid.vnode	= ntohl(*bp++);
+			cb->fid.vyesde	= ntohl(*bp++);
 			cb->fid.unique	= ntohl(*bp++);
 		}
 
@@ -364,7 +364,7 @@ static int afs_deliver_cb_callback(struct afs_call *call)
 		return afs_io_error(call, afs_io_error_cm_reply);
 
 	/* we'll need the file server record as that tells us which set of
-	 * vnodes to operate upon */
+	 * vyesdes to operate upon */
 	return afs_find_cm_server_by_peer(call);
 }
 
@@ -399,7 +399,7 @@ static int afs_deliver_cb_init_call_back_state(struct afs_call *call)
 		return ret;
 
 	/* we'll need the file server record as that tells us which set of
-	 * vnodes to operate upon */
+	 * vyesdes to operate upon */
 	return afs_find_cm_server_by_peer(call);
 }
 
@@ -449,7 +449,7 @@ static int afs_deliver_cb_init_call_back_state3(struct afs_call *call)
 		r->clock_seq_low		= ntohl(b[4]);
 
 		for (loop = 0; loop < 6; loop++)
-			r->node[loop] = ntohl(b[loop + 5]);
+			r->yesde[loop] = ntohl(b[loop + 5]);
 
 		call->unmarshall++;
 
@@ -461,7 +461,7 @@ static int afs_deliver_cb_init_call_back_state3(struct afs_call *call)
 		return afs_io_error(call, afs_io_error_cm_reply);
 
 	/* we'll need the file server record as that tells us which set of
-	 * vnodes to operate upon */
+	 * vyesdes to operate upon */
 	return afs_find_cm_server_by_uuid(call, call->request);
 }
 
@@ -561,7 +561,7 @@ static int afs_deliver_cb_probe_uuid(struct afs_call *call)
 		r->clock_seq_low		= ntohl(b[4]);
 
 		for (loop = 0; loop < 6; loop++)
-			r->node[loop] = ntohl(b[loop + 5]);
+			r->yesde[loop] = ntohl(b[loop + 5]);
 
 		call->unmarshall++;
 
@@ -606,7 +606,7 @@ static void SRXAFSCB_TellMeAboutYourself(struct work_struct *work)
 	reply.ia.uuid[3] = htonl((s8) call->net->uuid.clock_seq_hi_and_reserved);
 	reply.ia.uuid[4] = htonl((s8) call->net->uuid.clock_seq_low);
 	for (loop = 0; loop < 6; loop++)
-		reply.ia.uuid[loop + 5] = htonl((s8) call->net->uuid.node[loop]);
+		reply.ia.uuid[loop + 5] = htonl((s8) call->net->uuid.yesde[loop]);
 
 	reply.cap.capcount = htonl(1);
 	reply.cap.caps[0] = htonl(AFS_CAP_ERROR_TRANSLATION);
@@ -690,9 +690,9 @@ static int afs_deliver_yfs_cb_callback(struct afs_call *call)
 		bp = call->buffer;
 		for (loop = call->count; loop > 0; loop--, cb++) {
 			cb->fid.vid	= xdr_to_u64(bp->volume);
-			cb->fid.vnode	= xdr_to_u64(bp->vnode.lo);
-			cb->fid.vnode_hi = ntohl(bp->vnode.hi);
-			cb->fid.unique	= ntohl(bp->vnode.unique);
+			cb->fid.vyesde	= xdr_to_u64(bp->vyesde.lo);
+			cb->fid.vyesde_hi = ntohl(bp->vyesde.hi);
+			cb->fid.unique	= ntohl(bp->vyesde.unique);
 			bp++;
 		}
 
@@ -707,7 +707,7 @@ static int afs_deliver_yfs_cb_callback(struct afs_call *call)
 		return afs_io_error(call, afs_io_error_cm_reply);
 
 	/* We'll need the file server record as that tells us which set of
-	 * vnodes to operate upon.
+	 * vyesdes to operate upon.
 	 */
 	return afs_find_cm_server_by_peer(call);
 }

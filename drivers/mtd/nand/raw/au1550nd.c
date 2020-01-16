@@ -187,7 +187,7 @@ static void au1550_hwcontrol(struct mtd_info *mtd, int cmd)
 
 	case NAND_CTL_CLRALE:
 		this->legacy.IO_ADDR_W = ctx->base + MEM_STNAND_DATA;
-		/* FIXME: Nobody knows why this is necessary,
+		/* FIXME: Nobody kyesws why this is necessary,
 		 * but it works only that way */
 		udelay(1);
 		break;
@@ -219,7 +219,7 @@ int au1550_device_ready(struct nand_chip *this)
  *	Keeping -CE asserted during the whole sector reads interferes with the
  *	NOR flash and PCMCIA drivers as it causes contention on the static bus.
  *	We only have to hold -CE low for the NAND read commands since the flash
- *	chip needs it to be asserted during chip not ready time but the NAND
+ *	chip needs it to be asserted during chip yest ready time but the NAND
  *	controller keeps it released.
  *
  * @this:	NAND chip object
@@ -233,8 +233,8 @@ static void au1550_select_chip(struct nand_chip *this, int chip)
  * au1550_command - Send command to NAND device
  * @this:	NAND chip object
  * @command:	the command to be sent
- * @column:	the column address for this command, -1 if none
- * @page_addr:	the page address for this command, -1 if none
+ * @column:	the column address for this command, -1 if yesne
+ * @page_addr:	the page address for this command, -1 if yesne
  */
 static void au1550_command(struct nand_chip *this, unsigned command,
 			   int column, int page_addr)
@@ -313,7 +313,7 @@ static void au1550_command(struct nand_chip *this, unsigned command,
 
 	/*
 	 * Program and erase have their own busy handlers.
-	 * Status and sequential in need no delay.
+	 * Status and sequential in need yes delay.
 	 */
 	switch (command) {
 
@@ -394,19 +394,19 @@ static int au1550nd_probe(struct platform_device *pdev)
 
 	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!r) {
-		dev_err(&pdev->dev, "no NAND memory resource\n");
+		dev_err(&pdev->dev, "yes NAND memory resource\n");
 		ret = -ENODEV;
 		goto out1;
 	}
 	if (request_mem_region(r->start, resource_size(r), "au1550-nand")) {
-		dev_err(&pdev->dev, "cannot claim NAND memory area\n");
+		dev_err(&pdev->dev, "canyest claim NAND memory area\n");
 		ret = -ENOMEM;
 		goto out1;
 	}
 
-	ctx->base = ioremap_nocache(r->start, 0x1000);
+	ctx->base = ioremap_yescache(r->start, 0x1000);
 	if (!ctx->base) {
-		dev_err(&pdev->dev, "cannot remap NAND memory area\n");
+		dev_err(&pdev->dev, "canyest remap NAND memory area\n");
 		ret = -ENODEV;
 		goto out2;
 	}
@@ -418,7 +418,7 @@ static int au1550nd_probe(struct platform_device *pdev)
 	/* figure out which CS# r->start belongs to */
 	cs = find_nand_cs(r->start);
 	if (cs < 0) {
-		dev_err(&pdev->dev, "cannot detect NAND chipselect\n");
+		dev_err(&pdev->dev, "canyest detect NAND chipselect\n");
 		ret = -ENODEV;
 		goto out3;
 	}

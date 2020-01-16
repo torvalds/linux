@@ -40,24 +40,24 @@
  * 256KB NOR Flash on BOOT Device
  ****************************************************************************/
 
-static struct physmap_flash_data ls_hgl_nor_flash_data = {
+static struct physmap_flash_data ls_hgl_yesr_flash_data = {
 	.width		= 1,
 };
 
-static struct resource ls_hgl_nor_flash_resource = {
+static struct resource ls_hgl_yesr_flash_resource = {
 	.flags	= IORESOURCE_MEM,
 	.start	= LS_HGL_NOR_BOOT_BASE,
 	.end	= LS_HGL_NOR_BOOT_BASE + LS_HGL_NOR_BOOT_SIZE - 1,
 };
 
-static struct platform_device ls_hgl_nor_flash = {
+static struct platform_device ls_hgl_yesr_flash = {
 	.name			= "physmap-flash",
 	.id			= 0,
 	.dev		= {
-		.platform_data	= &ls_hgl_nor_flash_data,
+		.platform_data	= &ls_hgl_yesr_flash_data,
 	},
 	.num_resources		= 1,
-	.resource		= &ls_hgl_nor_flash_resource,
+	.resource		= &ls_hgl_yesr_flash_resource,
 };
 
 /*****************************************************************************
@@ -247,7 +247,7 @@ static void __init ls_hgl_init(void)
 				    ORION_MBUS_DEVBUS_BOOT_ATTR,
 				    LS_HGL_NOR_BOOT_BASE,
 				    LS_HGL_NOR_BOOT_SIZE);
-	platform_device_register(&ls_hgl_nor_flash);
+	platform_device_register(&ls_hgl_yesr_flash);
 
 	platform_device_register(&ls_hgl_button_device);
 

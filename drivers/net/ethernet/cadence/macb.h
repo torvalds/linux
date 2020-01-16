@@ -144,13 +144,13 @@
 #define GEM_TISUBN		0x01bc /* 1588 Timer Increment Sub-ns */
 #define GEM_TSH			0x01c0 /* 1588 Timer Seconds High */
 #define GEM_TSL			0x01d0 /* 1588 Timer Seconds Low */
-#define GEM_TN			0x01d4 /* 1588 Timer Nanoseconds */
+#define GEM_TN			0x01d4 /* 1588 Timer Nayesseconds */
 #define GEM_TA			0x01d8 /* 1588 Timer Adjust */
 #define GEM_TI			0x01dc /* 1588 Timer Increment */
 #define GEM_EFTSL		0x01e0 /* PTP Event Frame Tx Seconds Low */
-#define GEM_EFTN		0x01e4 /* PTP Event Frame Tx Nanoseconds */
+#define GEM_EFTN		0x01e4 /* PTP Event Frame Tx Nayesseconds */
 #define GEM_EFRSL		0x01e8 /* PTP Event Frame Rx Seconds Low */
-#define GEM_EFRN		0x01ec /* PTP Event Frame Rx Nanoseconds */
+#define GEM_EFRN		0x01ec /* PTP Event Frame Rx Nayesseconds */
 #define GEM_PEFTSL		0x01f0 /* PTP Peer Event Frame Tx Secs Low */
 #define GEM_PEFTN		0x01f4 /* PTP Peer Event Frame Tx Ns */
 #define GEM_PEFRSL		0x01f8 /* PTP Peer Event Frame Rx Sec Low */
@@ -235,7 +235,7 @@
 #define MACB_SPD_SIZE		1
 #define MACB_FD_OFFSET		1 /* Full duplex */
 #define MACB_FD_SIZE		1
-#define MACB_BIT_RATE_OFFSET	2 /* Discard non-VLAN frames */
+#define MACB_BIT_RATE_OFFSET	2 /* Discard yesn-VLAN frames */
 #define MACB_BIT_RATE_SIZE	1
 #define MACB_JFRAME_OFFSET	3 /* reserved */
 #define MACB_JFRAME_SIZE	1
@@ -305,7 +305,7 @@
 #define GEM_TXCOEN_SIZE		1
 #define GEM_RXBS_OFFSET		16 /* DMA receive buffer size */
 #define GEM_RXBS_SIZE		8
-#define GEM_DDRP_OFFSET		24 /* disc_when_no_ahb */
+#define GEM_DDRP_OFFSET		24 /* disc_when_yes_ahb */
 #define GEM_DDRP_SIZE		1
 #define GEM_RXEXT_OFFSET	28 /* RX extended Buffer Descriptor mode */
 #define GEM_RXEXT_SIZE		1
@@ -342,7 +342,7 @@
 #define MACB_UND_SIZE		1
 
 /* Bitfields in RSR */
-#define MACB_BNA_OFFSET		0 /* Buffer not available */
+#define MACB_BNA_OFFSET		0 /* Buffer yest available */
 #define MACB_BNA_SIZE		1
 #define MACB_REC_OFFSET		1 /* Frame received */
 #define MACB_REC_SIZE		1
@@ -370,7 +370,7 @@
 #define MACB_ISR_LINK_SIZE	1
 #define MACB_ISR_ROVR_OFFSET	10 /* Enable receive overrun interrupt */
 #define MACB_ISR_ROVR_SIZE	1
-#define MACB_HRESP_OFFSET	11 /* Enable hrsep not OK interrupt */
+#define MACB_HRESP_OFFSET	11 /* Enable hrsep yest OK interrupt */
 #define MACB_HRESP_SIZE		1
 #define MACB_PFR_OFFSET		12 /* Enable pause frame w/ quantum interrupt */
 #define MACB_PFR_SIZE		1
@@ -570,7 +570,7 @@
 
 /* Offset for screener type 2 compare values (T2CMPOFST).
  * Note the offset is applied after the specified point,
- * e.g. GEM_T2COMPOFST_ETYPE denotes the EtherType field, so an offset
+ * e.g. GEM_T2COMPOFST_ETYPE deyestes the EtherType field, so an offset
  * of 12 bytes from this would be the source IP address in an IP header
  */
 #define GEM_T2COMPOFST_SOF		0
@@ -597,13 +597,13 @@
 /* DMA buffer descriptor Word 2 (32 bit addressing) or Word 4 (64 bit addressing) */
 #define GEM_DMA_SECL_OFFSET			30 /* Timestamp seconds[1:0]  */
 #define GEM_DMA_SECL_SIZE			2
-#define GEM_DMA_NSEC_OFFSET			0 /* Timestamp nanosecs [29:0] */
+#define GEM_DMA_NSEC_OFFSET			0 /* Timestamp nayessecs [29:0] */
 #define GEM_DMA_NSEC_SIZE			30
 
 /* DMA buffer descriptor Word 3 (32 bit addressing) or Word 5 (64 bit addressing) */
 
 /* New hardware supports 12 bit precision of timestamp in DMA buffer descriptor.
- * Old hardware supports only 6 bit precision but it is enough for PTP.
+ * Old hardware supports only 6 bit precision but it is eyesugh for PTP.
  * Less accuracy is used always instead of checking hardware version.
  */
 #define GEM_DMA_SECH_OFFSET			0 /* Timestamp seconds[5:2] */

@@ -10,7 +10,7 @@
 /*
  * List of supported pixel formats for the subdevs.
  *
- * In all of these tables, the non-mbus formats (with no
+ * In all of these tables, the yesn-mbus formats (with yes
  * mbus codes) must all fall at the end of the table.
  */
 
@@ -33,7 +33,7 @@ static const struct imx_media_pixfmt yuv_formats[] = {
 		.bpp    = 16,
 	},
 	/***
-	 * non-mbus YUV formats start here. NOTE! when adding non-mbus
+	 * yesn-mbus YUV formats start here. NOTE! when adding yesn-mbus
 	 * formats, NUM_NON_MBUS_YUV_FORMATS must be updated below.
 	 ***/
 	{
@@ -176,7 +176,7 @@ static const struct imx_media_pixfmt rgb_formats[] = {
 		.bayer  = true,
 	},
 	/***
-	 * non-mbus RGB formats start here. NOTE! when adding non-mbus
+	 * yesn-mbus RGB formats start here. NOTE! when adding yesn-mbus
 	 * formats, NUM_NON_MBUS_RGB_FORMATS must be updated below.
 	 ***/
 	{
@@ -242,7 +242,7 @@ static void init_mbus_colorimetry(struct v4l2_mbus_framefmt *mbus,
 static const
 struct imx_media_pixfmt *__find_format(u32 fourcc,
 				       u32 code,
-				       bool allow_non_mbus,
+				       bool allow_yesn_mbus,
 				       bool allow_bayer,
 				       const struct imx_media_pixfmt *array,
 				       u32 array_size)
@@ -253,7 +253,7 @@ struct imx_media_pixfmt *__find_format(u32 fourcc,
 	for (i = 0; i < array_size; i++) {
 		fmt = &array[i];
 
-		if ((!allow_non_mbus && !fmt->codes[0]) ||
+		if ((!allow_yesn_mbus && !fmt->codes[0]) ||
 		    (!allow_bayer && fmt->bayer))
 			continue;
 
@@ -274,24 +274,24 @@ struct imx_media_pixfmt *__find_format(u32 fourcc,
 static const struct imx_media_pixfmt *find_format(u32 fourcc,
 						  u32 code,
 						  enum codespace_sel cs_sel,
-						  bool allow_non_mbus,
+						  bool allow_yesn_mbus,
 						  bool allow_bayer)
 {
 	const struct imx_media_pixfmt *ret;
 
 	switch (cs_sel) {
 	case CS_SEL_YUV:
-		return __find_format(fourcc, code, allow_non_mbus, allow_bayer,
+		return __find_format(fourcc, code, allow_yesn_mbus, allow_bayer,
 				     yuv_formats, NUM_YUV_FORMATS);
 	case CS_SEL_RGB:
-		return __find_format(fourcc, code, allow_non_mbus, allow_bayer,
+		return __find_format(fourcc, code, allow_yesn_mbus, allow_bayer,
 				     rgb_formats, NUM_RGB_FORMATS);
 	case CS_SEL_ANY:
-		ret = __find_format(fourcc, code, allow_non_mbus, allow_bayer,
+		ret = __find_format(fourcc, code, allow_yesn_mbus, allow_bayer,
 				    yuv_formats, NUM_YUV_FORMATS);
 		if (ret)
 			return ret;
-		return __find_format(fourcc, code, allow_non_mbus, allow_bayer,
+		return __find_format(fourcc, code, allow_yesn_mbus, allow_bayer,
 				     rgb_formats, NUM_RGB_FORMATS);
 	default:
 		return NULL;
@@ -300,7 +300,7 @@ static const struct imx_media_pixfmt *find_format(u32 fourcc,
 
 static int enum_format(u32 *fourcc, u32 *code, u32 index,
 		       enum codespace_sel cs_sel,
-		       bool allow_non_mbus,
+		       bool allow_yesn_mbus,
 		       bool allow_bayer)
 {
 	const struct imx_media_pixfmt *fmt;
@@ -312,20 +312,20 @@ static int enum_format(u32 *fourcc, u32 *code, u32 index,
 	switch (cs_sel) {
 	case CS_SEL_YUV:
 		if (index >= yuv_sz ||
-		    (!allow_non_mbus && index >= mbus_yuv_sz))
+		    (!allow_yesn_mbus && index >= mbus_yuv_sz))
 			return -EINVAL;
 		fmt = &yuv_formats[index];
 		break;
 	case CS_SEL_RGB:
 		if (index >= rgb_sz ||
-		    (!allow_non_mbus && index >= mbus_rgb_sz))
+		    (!allow_yesn_mbus && index >= mbus_rgb_sz))
 			return -EINVAL;
 		fmt = &rgb_formats[index];
 		if (!allow_bayer && fmt->bayer)
 			return -EINVAL;
 		break;
 	case CS_SEL_ANY:
-		if (!allow_non_mbus) {
+		if (!allow_yesn_mbus) {
 			if (index >= mbus_yuv_sz) {
 				index -= mbus_yuv_sz;
 				if (index >= mbus_rgb_sz)
@@ -520,7 +520,7 @@ EXPORT_SYMBOL_GPL(imx_media_init_cfg);
 
 /*
  * Default the colorspace in tryfmt to SRGB if set to an unsupported
- * colorspace or not initialized. Then set the remaining colorimetry
+ * colorspace or yest initialized. Then set the remaining colorimetry
  * parameters based on the colorspace if they are uninitialized.
  *
  * tryfmt->code must be set on entry.
@@ -596,7 +596,7 @@ int imx_media_mbus_fmt_to_pix_fmt(struct v4l2_pix_format *pix,
 	}
 
 	/*
-	 * TODO: the IPU currently does not support the AYUV32 format,
+	 * TODO: the IPU currently does yest support the AYUV32 format,
 	 * so until it does convert to a supported YUV format.
 	 */
 	if (cc->ipufmt && cc->cs == IPUV3_COLORSPACE_YUV) {
@@ -730,19 +730,19 @@ void imx_media_grp_id_to_sd_name(char *sd_name, int sz, u32 grp_id, int ipu_id)
 EXPORT_SYMBOL_GPL(imx_media_grp_id_to_sd_name);
 
 struct v4l2_subdev *
-imx_media_find_subdev_by_fwnode(struct imx_media_dev *imxmd,
-				struct fwnode_handle *fwnode)
+imx_media_find_subdev_by_fwyesde(struct imx_media_dev *imxmd,
+				struct fwyesde_handle *fwyesde)
 {
 	struct v4l2_subdev *sd;
 
 	list_for_each_entry(sd, &imxmd->v4l2_dev.subdevs, list) {
-		if (sd->fwnode == fwnode)
+		if (sd->fwyesde == fwyesde)
 			return sd;
 	}
 
 	return NULL;
 }
-EXPORT_SYMBOL_GPL(imx_media_find_subdev_by_fwnode);
+EXPORT_SYMBOL_GPL(imx_media_find_subdev_by_fwyesde);
 
 struct v4l2_subdev *
 imx_media_find_subdev_by_devname(struct imx_media_dev *imxmd,

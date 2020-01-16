@@ -11,7 +11,7 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/acpi.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/types.h>
 #include <linux/interrupt.h>
 #include <linux/i2c.h>
@@ -450,7 +450,7 @@ static const struct st_sensor_settings st_accel_sensors_settings[] = {
 			.mask = 0x20,
 			/*
 			 * TODO: check these resulting gain settings, these are
-			 * not in the datsheet
+			 * yest in the datsheet
 			 */
 			.fs_avl = {
 				[0] = {
@@ -1024,8 +1024,8 @@ static int apply_acpi_orientation(struct iio_dev *indio_dev,
 	int i, j;
 	int final_ont[3][3] = { { 0 }, };
 
-	/* For some reason, ST's _ONT translation does not apply directly
-	 * to the data read from the sensor. Another translation must be
+	/* For some reason, ST's _ONT translation does yest apply directly
+	 * to the data read from the sensor. Ayesther translation must be
 	 * performed first, as described by the matrix below. Perhaps
 	 * ST required this specific translation for the first product
 	 * where the device was mounted?
@@ -1056,7 +1056,7 @@ static int apply_acpi_orientation(struct iio_dev *indio_dev,
 		goto out;
 
 	/* The first 3 integers provide axis order information.
-	 * e.g. 0 1 2 would indicate normal X,Y,Z ordering.
+	 * e.g. 0 1 2 would indicate yesrmal X,Y,Z ordering.
 	 * e.g. 1 0 2 indicates that data arrives in order Y,X,Z.
 	 */
 	elements = ont->package.elements;
@@ -1078,7 +1078,7 @@ static int apply_acpi_orientation(struct iio_dev *indio_dev,
 	}
 
 	/* The final 3 integers provide sign flip information.
-	 * 0 means no change, 1 means flip.
+	 * 0 means yes change, 1 means flip.
 	 * e.g. 0 0 1 means that Z data should be sign-flipped.
 	 * This is applied after the axis reordering from above.
 	 */

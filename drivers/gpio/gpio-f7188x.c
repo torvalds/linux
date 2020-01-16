@@ -4,7 +4,7 @@
  *
  * Copyright (C) 2010-2013 LaCie
  *
- * Author: Simon Guinot <simon.guinot@sequanux.org>
+ * Author: Simon Guiyest <simon.guiyest@sequanux.org>
  */
 
 #include <linux/module.h>
@@ -580,5 +580,5 @@ static void __exit f7188x_gpio_exit(void)
 module_exit(f7188x_gpio_exit);
 
 MODULE_DESCRIPTION("GPIO driver for Super-I/O chips F71869, F71869A, F71882FG, F71889A, F71889F and F81866");
-MODULE_AUTHOR("Simon Guinot <simon.guinot@sequanux.org>");
+MODULE_AUTHOR("Simon Guiyest <simon.guiyest@sequanux.org>");
 MODULE_LICENSE("GPL");

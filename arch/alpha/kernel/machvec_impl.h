@@ -120,18 +120,18 @@
 
 /*
  * In a GENERIC kernel, we have lots of these vectors floating about,
- * all but one of which we want to go away.  In a non-GENERIC kernel,
+ * all but one of which we want to go away.  In a yesn-GENERIC kernel,
  * we want only one, ever.
  *
  * Accomplish this in the GENERIC kernel by putting all of the vectors
  * in the .init.data section where they'll go away.  We'll copy the
  * one we want to the real alpha_mv vector in setup_arch.
  *
- * Accomplish this in a non-GENERIC kernel by ifdef'ing out all but
- * one of the vectors, which will not reside in .init.data.  We then
- * alias this one vector to alpha_mv, so no copy is needed.
+ * Accomplish this in a yesn-GENERIC kernel by ifdef'ing out all but
+ * one of the vectors, which will yest reside in .init.data.  We then
+ * alias this one vector to alpha_mv, so yes copy is needed.
  *
- * Upshot: set __initdata to nothing for non-GENERIC kernels.
+ * Upshot: set __initdata to yesthing for yesn-GENERIC kernels.
  */
 
 #ifdef CONFIG_ALPHA_GENERIC

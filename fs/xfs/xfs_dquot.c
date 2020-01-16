@@ -12,7 +12,7 @@
 #include "xfs_bit.h"
 #include "xfs_mount.h"
 #include "xfs_defer.h"
-#include "xfs_inode.h"
+#include "xfs_iyesde.h"
 #include "xfs_bmap.h"
 #include "xfs_quota.h"
 #include "xfs_trans.h"
@@ -60,9 +60,9 @@ xfs_qm_dqdestroy(
 }
 
 /*
- * If default limits are in force, push them into the dquot now.
+ * If default limits are in force, push them into the dquot yesw.
  * We overwrite the dquot limits only if they are zero and this
- * is not the root dquot.
+ * is yest the root dquot.
  */
 void
 xfs_qm_adjust_dqlimits(
@@ -85,10 +85,10 @@ xfs_qm_adjust_dqlimits(
 		d->d_blk_hardlimit = cpu_to_be64(defq->bhardlimit);
 		prealloc = 1;
 	}
-	if (defq->isoftlimit && !d->d_ino_softlimit)
-		d->d_ino_softlimit = cpu_to_be64(defq->isoftlimit);
-	if (defq->ihardlimit && !d->d_ino_hardlimit)
-		d->d_ino_hardlimit = cpu_to_be64(defq->ihardlimit);
+	if (defq->isoftlimit && !d->d_iyes_softlimit)
+		d->d_iyes_softlimit = cpu_to_be64(defq->isoftlimit);
+	if (defq->ihardlimit && !d->d_iyes_hardlimit)
+		d->d_iyes_hardlimit = cpu_to_be64(defq->ihardlimit);
 	if (defq->rtbsoftlimit && !d->d_rtb_softlimit)
 		d->d_rtb_softlimit = cpu_to_be64(defq->rtbsoftlimit);
 	if (defq->rtbhardlimit && !d->d_rtb_hardlimit)
@@ -109,7 +109,7 @@ xfs_qm_adjust_dqlimits(
  * In contrast, warnings are a little different in that they don't
  * 'automatically' get started when limits get exceeded.  They do
  * get reset to zero, however, when we find the count to be under
- * the soft limit (they are only ever set non-zero via userspace).
+ * the soft limit (they are only ever set yesn-zero via userspace).
  */
 void
 xfs_qm_adjust_dqtimers(
@@ -122,9 +122,9 @@ xfs_qm_adjust_dqtimers(
 	if (d->d_blk_hardlimit)
 		ASSERT(be64_to_cpu(d->d_blk_softlimit) <=
 		       be64_to_cpu(d->d_blk_hardlimit));
-	if (d->d_ino_hardlimit)
-		ASSERT(be64_to_cpu(d->d_ino_softlimit) <=
-		       be64_to_cpu(d->d_ino_hardlimit));
+	if (d->d_iyes_hardlimit)
+		ASSERT(be64_to_cpu(d->d_iyes_softlimit) <=
+		       be64_to_cpu(d->d_iyes_hardlimit));
 	if (d->d_rtb_hardlimit)
 		ASSERT(be64_to_cpu(d->d_rtb_softlimit) <=
 		       be64_to_cpu(d->d_rtb_hardlimit));
@@ -154,24 +154,24 @@ xfs_qm_adjust_dqtimers(
 	}
 
 	if (!d->d_itimer) {
-		if ((d->d_ino_softlimit &&
+		if ((d->d_iyes_softlimit &&
 		     (be64_to_cpu(d->d_icount) >
-		      be64_to_cpu(d->d_ino_softlimit))) ||
-		    (d->d_ino_hardlimit &&
+		      be64_to_cpu(d->d_iyes_softlimit))) ||
+		    (d->d_iyes_hardlimit &&
 		     (be64_to_cpu(d->d_icount) >
-		      be64_to_cpu(d->d_ino_hardlimit)))) {
+		      be64_to_cpu(d->d_iyes_hardlimit)))) {
 			d->d_itimer = cpu_to_be32(get_seconds() +
 					mp->m_quotainfo->qi_itimelimit);
 		} else {
 			d->d_iwarns = 0;
 		}
 	} else {
-		if ((!d->d_ino_softlimit ||
+		if ((!d->d_iyes_softlimit ||
 		     (be64_to_cpu(d->d_icount) <=
-		      be64_to_cpu(d->d_ino_softlimit)))  &&
-		    (!d->d_ino_hardlimit ||
+		      be64_to_cpu(d->d_iyes_softlimit)))  &&
+		    (!d->d_iyes_hardlimit ||
 		     (be64_to_cpu(d->d_icount) <=
-		      be64_to_cpu(d->d_ino_hardlimit)))) {
+		      be64_to_cpu(d->d_iyes_hardlimit)))) {
 			d->d_itimer = 0;
 		}
 	}
@@ -248,7 +248,7 @@ xfs_qm_init_dquot_blk(
 /*
  * Initialize the dynamic speculative preallocation thresholds. The lo/hi
  * watermarks correspond to the soft and hard limits by default. If a soft limit
- * is not specified, we use 95% of the hard limit.
+ * is yest specified, we use 95% of the hard limit.
  */
 void
 xfs_dquot_set_prealloc_limits(struct xfs_dquot *dqp)
@@ -286,7 +286,7 @@ xfs_dquot_disk_alloc(
 	struct xfs_trans	*tp = *tpp;
 	struct xfs_mount	*mp = tp->t_mountp;
 	struct xfs_buf		*bp;
-	struct xfs_inode	*quotip = xfs_quota_inode(mp, dqp->dq_flags);
+	struct xfs_iyesde	*quotip = xfs_quota_iyesde(mp, dqp->dq_flags);
 	int			nmaps = 1;
 	int			error;
 
@@ -296,7 +296,7 @@ xfs_dquot_disk_alloc(
 	if (!xfs_this_quota_on(dqp->q_mount, dqp->dq_flags)) {
 		/*
 		 * Return if this type of quotas is turned off while we didn't
-		 * have an inode lock
+		 * have an iyesde lock
 		 */
 		xfs_iunlock(quotip, XFS_ILOCK_EXCL);
 		return -ESRCH;
@@ -315,12 +315,12 @@ xfs_dquot_disk_alloc(
 	       (map.br_startblock != HOLESTARTBLOCK));
 
 	/*
-	 * Keep track of the blkno to save a lookup later
+	 * Keep track of the blkyes to save a lookup later
 	 */
-	dqp->q_blkno = XFS_FSB_TO_DADDR(mp, map.br_startblock);
+	dqp->q_blkyes = XFS_FSB_TO_DADDR(mp, map.br_startblock);
 
-	/* now we can just get the buffer (there's nothing to read yet) */
-	bp = xfs_trans_get_buf(tp, mp->m_ddev_targp, dqp->q_blkno,
+	/* yesw we can just get the buffer (there's yesthing to read yet) */
+	bp = xfs_trans_get_buf(tp, mp->m_ddev_targp, dqp->q_blkyes,
 			mp->m_quotainfo->qi_dqchunklen, 0);
 	if (!bp)
 		return -ENOMEM;
@@ -341,19 +341,19 @@ xfs_dquot_disk_alloc(
 	 * broken since commit efa092f3d4c6 "[XFS] Fixes a bug in the quota
 	 * code when allocating a new dquot record" in 2005, and the later
 	 * conversion to xfs_defer_ops in commit 310a75a3c6c747 failed to keep
-	 * the buffer locked across the _defer_finish call.  We can now do
+	 * the buffer locked across the _defer_finish call.  We can yesw do
 	 * this correctly with xfs_defer_bjoin.
 	 *
 	 * Above, we allocated a disk block for the dquot information and used
 	 * get_buf to initialize the dquot. If the _defer_finish fails, the old
-	 * transaction is gone but the new buffer is not joined or held to any
+	 * transaction is gone but the new buffer is yest joined or held to any
 	 * transaction, so we must _buf_relse it.
 	 *
 	 * If everything succeeds, the caller of this function is returned a
 	 * buffer that is locked and held to the transaction.  The caller
 	 * is responsible for unlocking any buffer passed back, either
 	 * manually or by committing the transaction.  On error, the buffer is
-	 * released and not passed back.
+	 * released and yest passed back.
 	 */
 	xfs_trans_bhold(tp, bp);
 	error = xfs_defer_finish(tpp);
@@ -378,7 +378,7 @@ xfs_dquot_disk_read(
 {
 	struct xfs_bmbt_irec	map;
 	struct xfs_buf		*bp;
-	struct xfs_inode	*quotip = xfs_quota_inode(mp, dqp->dq_flags);
+	struct xfs_iyesde	*quotip = xfs_quota_iyesde(mp, dqp->dq_flags);
 	uint			lock_mode;
 	int			nmaps = 1;
 	int			error;
@@ -387,14 +387,14 @@ xfs_dquot_disk_read(
 	if (!xfs_this_quota_on(mp, dqp->dq_flags)) {
 		/*
 		 * Return if this type of quotas is turned off while we
-		 * didn't have the quota inode lock.
+		 * didn't have the quota iyesde lock.
 		 */
 		xfs_iunlock(quotip, lock_mode);
 		return -ESRCH;
 	}
 
 	/*
-	 * Find the block map; no allocations yet
+	 * Find the block map; yes allocations yet
 	 */
 	error = xfs_bmapi_read(quotip, dqp->q_fileoffset,
 			XFS_DQUOT_CLUSTER_SIZE_FSB, &map, &nmaps, 0);
@@ -411,12 +411,12 @@ xfs_dquot_disk_read(
 	trace_xfs_dqtobp_read(dqp);
 
 	/*
-	 * store the blkno etc so that we don't have to do the
+	 * store the blkyes etc so that we don't have to do the
 	 * mapping all the time
 	 */
-	dqp->q_blkno = XFS_FSB_TO_DADDR(mp, map.br_startblock);
+	dqp->q_blkyes = XFS_FSB_TO_DADDR(mp, map.br_startblock);
 
-	error = xfs_trans_read_buf(mp, NULL, mp->m_ddev_targp, dqp->q_blkno,
+	error = xfs_trans_read_buf(mp, NULL, mp->m_ddev_targp, dqp->q_blkyes,
 			mp->m_quotainfo->qi_dqchunklen, 0, &bp,
 			&xfs_dquot_buf_ops);
 	if (error) {
@@ -534,7 +534,7 @@ xfs_qm_dqread_alloc(
 	if (error) {
 		/*
 		 * Buffer was held to the transaction, so we have to unlock it
-		 * manually here because we're not passing it back.
+		 * manually here because we're yest passing it back.
 		 */
 		xfs_buf_relse(*bpp);
 		*bpp = NULL;
@@ -606,7 +606,7 @@ xfs_dq_get_next_id(
 	uint			type,
 	xfs_dqid_t		*id)
 {
-	struct xfs_inode	*quotip = xfs_quota_inode(mp, type);
+	struct xfs_iyesde	*quotip = xfs_quota_iyesde(mp, type);
 	xfs_dqid_t		next_id = *id + 1; /* simple advance */
 	uint			lock_flags;
 	struct xfs_bmbt_irec	got;
@@ -624,7 +624,7 @@ xfs_dq_get_next_id(
 		return 0;
 	}
 
-	/* Nope, next_id is now past the current chunk, so find the next one */
+	/* Nope, next_id is yesw past the current chunk, so find the next one */
 	start = (xfs_fsblock_t)next_id / mp->m_quotainfo->qi_dqperchunk;
 
 	lock_flags = xfs_ilock_data_map_shared(quotip);
@@ -802,7 +802,7 @@ restart:
 /*
  * Given a dquot id and type, read and initialize a dquot from the on-disk
  * metadata.  This function is only for use during quota initialization so
- * it ignores the dquot cache assuming that the dquot shrinker isn't set up.
+ * it igyesres the dquot cache assuming that the dquot shrinker isn't set up.
  * The caller is responsible for _qm_dqdestroy'ing the returned dquot.
  */
 int
@@ -821,10 +821,10 @@ xfs_qm_dqget_uncached(
 	return xfs_qm_dqread(mp, id, type, 0, dqpp);
 }
 
-/* Return the quota id for a given inode and type. */
+/* Return the quota id for a given iyesde and type. */
 xfs_dqid_t
 xfs_qm_id_for_quotatype(
-	struct xfs_inode	*ip,
+	struct xfs_iyesde	*ip,
 	uint			type)
 {
 	switch (type) {
@@ -840,13 +840,13 @@ xfs_qm_id_for_quotatype(
 }
 
 /*
- * Return the dquot for a given inode and type.  If @can_alloc is true, then
- * allocate blocks if needed.  The inode's ILOCK must be held and it must not
- * have already had an inode attached.
+ * Return the dquot for a given iyesde and type.  If @can_alloc is true, then
+ * allocate blocks if needed.  The iyesde's ILOCK must be held and it must yest
+ * have already had an iyesde attached.
  */
 int
-xfs_qm_dqget_inode(
-	struct xfs_inode	*ip,
+xfs_qm_dqget_iyesde(
+	struct xfs_iyesde	*ip,
 	uint			type,
 	bool			can_alloc,
 	struct xfs_dquot	**O_dqpp)
@@ -863,7 +863,7 @@ xfs_qm_dqget_inode(
 		return error;
 
 	ASSERT(xfs_isilocked(ip, XFS_ILOCK_EXCL));
-	ASSERT(xfs_inode_dquot(ip, type) == NULL);
+	ASSERT(xfs_iyesde_dquot(ip, type) == NULL);
 
 	id = xfs_qm_id_for_quotatype(ip, type);
 
@@ -875,9 +875,9 @@ restart:
 	}
 
 	/*
-	 * Dquot cache miss. We don't want to keep the inode lock across
+	 * Dquot cache miss. We don't want to keep the iyesde lock across
 	 * a (potential) disk read. Also we don't want to deal with the lock
-	 * ordering between quotainode and this inode. OTOH, dropping the inode
+	 * ordering between quotaiyesde and this iyesde. OTOH, dropping the iyesde
 	 * lock here means dealing with a chown that can happen before
 	 * we re-acquire the lock.
 	 */
@@ -888,13 +888,13 @@ restart:
 		return error;
 
 	/*
-	 * A dquot could be attached to this inode by now, since we had
+	 * A dquot could be attached to this iyesde by yesw, since we had
 	 * dropped the ilock.
 	 */
 	if (xfs_this_quota_on(mp, type)) {
 		struct xfs_dquot	*dqp1;
 
-		dqp1 = xfs_inode_dquot(ip, type);
+		dqp1 = xfs_iyesde_dquot(ip, type);
 		if (dqp1) {
 			xfs_qm_dqdestroy(dqp);
 			dqp = dqp1;
@@ -902,7 +902,7 @@ restart:
 			goto dqret;
 		}
 	} else {
-		/* inode stays locked on return */
+		/* iyesde stays locked on return */
 		xfs_qm_dqdestroy(dqp);
 		return -ESRCH;
 	}
@@ -985,7 +985,7 @@ xfs_qm_dqput(
 
 /*
  * Release a dquot. Flush it if dirty, then dqput() it.
- * dquot must not be locked.
+ * dquot must yest be locked.
  */
 void
 xfs_qm_dqrele(
@@ -1010,8 +1010,8 @@ xfs_qm_dqrele(
  * This is the dquot flushing I/O completion routine.  It is called
  * from interrupt level when the buffer containing the dquot is
  * flushed to disk.  It is responsible for removing the dquot logitem
- * from the AIL if it has not been re-logged, and unlocking the dquot's
- * flush lock. This behavior is very similar to that of inodes..
+ * from the AIL if it has yest been re-logged, and unlocking the dquot's
+ * flush lock. This behavior is very similar to that of iyesdes..
  */
 STATIC void
 xfs_qm_dqflush_done(
@@ -1024,9 +1024,9 @@ xfs_qm_dqflush_done(
 
 	/*
 	 * We only want to pull the item from the AIL if its
-	 * location in the log has not changed since we started the flush.
+	 * location in the log has yest changed since we started the flush.
 	 * Thus, we only bother if the dquot's lsn has
-	 * not changed. First we check the lsn outside the lock
+	 * yest changed. First we check the lsn outside the lock
 	 * since it's cheaper, and then we recheck while
 	 * holding the lock before removing the dquot from the AIL.
 	 */
@@ -1057,10 +1057,10 @@ xfs_qm_dqflush_done(
 /*
  * Write a modified dquot to disk.
  * The dquot must be locked and the flush lock too taken by caller.
- * The flush lock will not be unlocked until the dquot reaches the disk,
+ * The flush lock will yest be unlocked until the dquot reaches the disk,
  * but the dquot is free to be unlocked and modified by the caller
  * in the interim. Dquot is still locked on return. This behavior is
- * identical to that of inodes.
+ * identical to that of iyesdes.
  */
 int
 xfs_qm_dqflush(
@@ -1085,7 +1085,7 @@ xfs_qm_dqflush(
 
 	/*
 	 * This may have been unpinned because the filesystem is shutting
-	 * down forcibly. If that's the case we must not write this dquot
+	 * down forcibly. If that's the case we must yest write this dquot
 	 * to disk, because the log record didn't make it to disk.
 	 *
 	 * We also have to remove the log item from the AIL in this case,
@@ -1104,7 +1104,7 @@ xfs_qm_dqflush(
 	/*
 	 * Get the buffer containing the on-disk dquot
 	 */
-	error = xfs_trans_read_buf(mp, NULL, mp->m_ddev_targp, dqp->q_blkno,
+	error = xfs_trans_read_buf(mp, NULL, mp->m_ddev_targp, dqp->q_blkyes,
 				   mp->m_quotainfo->qi_dqchunklen, 0, &bp,
 				   &xfs_dquot_buf_ops);
 	if (error)
@@ -1141,12 +1141,12 @@ xfs_qm_dqflush(
 					&dqp->q_logitem.qli_item.li_lsn);
 
 	/*
-	 * copy the lsn into the on-disk dquot now while we have the in memory
+	 * copy the lsn into the on-disk dquot yesw while we have the in memory
 	 * dquot here. This can't be done later in the write verifier as we
 	 * can't get access to the log item at that point in time.
 	 *
 	 * We also calculate the CRC here so that the on-disk dquot in the
-	 * buffer always has a valid CRC. This ensures there is no possibility
+	 * buffer always has a valid CRC. This ensures there is yes possibility
 	 * of a dquot without an up-to-date CRC getting to disk.
 	 */
 	if (xfs_sb_version_hascrc(&mp->m_sb)) {

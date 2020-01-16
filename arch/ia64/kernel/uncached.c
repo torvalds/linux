@@ -6,14 +6,14 @@
  * allocator first utilizes the spare (spill) pages found in the EFI
  * memmap and will then start converting cached pages to uncached ones
  * at a granule at a time. Node awareness is implemented by having a
- * pool of pages per node.
+ * pool of pages per yesde.
  */
 
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/init.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/string.h>
 #include <linux/efi.h>
 #include <linux/nmi.h>
@@ -67,7 +67,7 @@ static void uncached_ipi_mc_drain(void *data)
  * Add a new chunk of uncached memory pages to the specified pool.
  *
  * @pool: pool to add new chunk of uncached memory to
- * @nid: node id of node to allocate memory from, or -1
+ * @nid: yesde id of yesde to allocate memory from, or -1
  *
  * This is accomplished by first allocating a granule of cached memory pages
  * and then converting them to uncached memory pages.
@@ -94,7 +94,7 @@ static int uncached_add_chunk(struct uncached_pool *uc_pool, int nid)
 
 	/* attempt to allocate a granule's worth of cached memory pages */
 
-	page = __alloc_pages_node(nid,
+	page = __alloc_pages_yesde(nid,
 				GFP_KERNEL | __GFP_ZERO | __GFP_THISNODE,
 				IA64_GRANULE_SHIFT-PAGE_SHIFT);
 	if (!page) {
@@ -110,7 +110,7 @@ static int uncached_add_chunk(struct uncached_pool *uc_pool, int nid)
 	/*
 	 * There's a small race here where it's possible for someone to
 	 * access the page through /dev/mem halfway through the conversion
-	 * to uncached - not sure it's really worth bothering about
+	 * to uncached - yest sure it's really worth bothering about
 	 */
 	for (i = 0; i < (IA64_GRANULE_SIZE / PAGE_SIZE); i++)
 		SetPageUncached(&page[i]);
@@ -144,7 +144,7 @@ static int uncached_add_chunk(struct uncached_pool *uc_pool, int nid)
 		goto failed;
 
 	/*
-	 * The chunk of memory pages has been converted to uncached so now we
+	 * The chunk of memory pages has been converted to uncached so yesw we
 	 * can add it to the pool.
 	 */
 	status = gen_pool_add(uc_pool->pool, uc_addr, IA64_GRANULE_SIZE, nid);
@@ -169,12 +169,12 @@ failed:
 /*
  * uncached_alloc_page
  *
- * @starting_nid: node id of node to start with, or -1
+ * @starting_nid: yesde id of yesde to start with, or -1
  * @n_pages: number of contiguous pages to allocate
  *
  * Allocate the specified number of contiguous uncached pages on the
- * the requested node. If not enough contiguous uncached pages are available
- * on the requested node, roundrobin starting with the next higher node.
+ * the requested yesde. If yest eyesugh contiguous uncached pages are available
+ * on the requested yesde, roundrobin starting with the next higher yesde.
  */
 unsigned long uncached_alloc_page(int starting_nid, int n_pages)
 {
@@ -186,11 +186,11 @@ unsigned long uncached_alloc_page(int starting_nid, int n_pages)
 		return 0;
 
 	if (starting_nid < 0)
-		starting_nid = numa_node_id();
+		starting_nid = numa_yesde_id();
 	nid = starting_nid;
 
 	do {
-		if (!node_state(nid, N_HIGH_MEMORY))
+		if (!yesde_state(nid, N_HIGH_MEMORY))
 			continue;
 		uc_pool = &uncached_pools[nid];
 		if (uc_pool->pool == NULL)
@@ -238,7 +238,7 @@ EXPORT_SYMBOL(uncached_free_page);
  *
  * @uc_start: uncached starting address of a chunk of uncached memory
  * @uc_end: uncached ending address of a chunk of uncached memory
- * @arg: ignored, (NULL argument passed in on call to efi_memmap_walk_uc())
+ * @arg: igyesred, (NULL argument passed in on call to efi_memmap_walk_uc())
  *
  * Called at boot time to build a map of pages that can be used for
  * memory special operations.
@@ -263,7 +263,7 @@ static int __init uncached_init(void)
 {
 	int nid;
 
-	for_each_node_state(nid, N_ONLINE) {
+	for_each_yesde_state(nid, N_ONLINE) {
 		uncached_pools[nid].pool = gen_pool_create(PAGE_SHIFT, nid);
 		mutex_init(&uncached_pools[nid].add_chunk_mutex);
 	}

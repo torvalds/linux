@@ -239,7 +239,7 @@ static void loopback_complete(struct usb_ep *ep, struct usb_request *req)
 	int			status = req->status;
 
 	switch (status) {
-	case 0:				/* normal completion? */
+	case 0:				/* yesrmal completion? */
 		if (ep == loop->out_ep) {
 			/*
 			 * We received some data from the host so let's
@@ -410,7 +410,7 @@ static int loopback_set_alt(struct usb_function *f,
 	struct f_loopback	*loop = func_to_loop(f);
 	struct usb_composite_dev *cdev = f->config->cdev;
 
-	/* we know alt is zero */
+	/* we kyesw alt is zero */
 	disable_loopback(loop);
 	return enable_loopback(cdev, loop);
 }

@@ -10,7 +10,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -350,7 +350,7 @@ timeout:
 		 bus->reg0 & 0xff, bus->adapter.name);
 	GMBUS_REG_WRITE(GMBUS0 + reg_offset, 0);
 
-	/* Hardware may not support GMBUS over these pins? Try GPIO bitbanging instead. */
+	/* Hardware may yest support GMBUS over these pins? Try GPIO bitbanging instead. */
 	bus->force_bit = intel_gpio_create(dev_priv, bus->reg0 & 0xff);
 	if (!bus->force_bit)
 		return -ENOMEM;

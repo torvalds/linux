@@ -221,7 +221,7 @@ EXPORT_SYMBOL(airq_iv_release);
  * @num: number of consecutive irq bits to allocate
  *
  * Returns the bit number of the first irq in the allocated block of irqs,
- * or -1UL if no bit is available or the AIRQ_IV_ALLOC flag has not been
+ * or -1UL if yes bit is available or the AIRQ_IV_ALLOC flag has yest been
  * specified
  */
 unsigned long airq_iv_alloc(struct airq_iv *iv, unsigned long num)
@@ -282,20 +282,20 @@ void airq_iv_free(struct airq_iv *iv, unsigned long bit, unsigned long num)
 EXPORT_SYMBOL(airq_iv_free);
 
 /**
- * airq_iv_scan - scan interrupt vector for non-zero bits
+ * airq_iv_scan - scan interrupt vector for yesn-zero bits
  * @iv: pointer to interrupt vector structure
  * @start: bit number to start the search
  * @end: bit number to end the search
  *
- * Returns the bit number of the next non-zero interrupt bit, or
- * -1UL if the scan completed without finding any more any non-zero bits.
+ * Returns the bit number of the next yesn-zero interrupt bit, or
+ * -1UL if the scan completed without finding any more any yesn-zero bits.
  */
 unsigned long airq_iv_scan(struct airq_iv *iv, unsigned long start,
 			   unsigned long end)
 {
 	unsigned long bit;
 
-	/* Find non-zero bit starting from 'ivs->next'. */
+	/* Find yesn-zero bit starting from 'ivs->next'. */
 	bit = find_next_bit_inv(iv->vector, end, start);
 	if (bit >= end)
 		return -1UL;

@@ -4,12 +4,12 @@ Linux Serial Console
 ====================
 
 To use a serial port as console you need to compile the support into your
-kernel - by default it is not compiled in. For PC style serial ports
+kernel - by default it is yest compiled in. For PC style serial ports
 it's the config option next to menu option:
 
 :menuselection:`Character devices --> Serial drivers --> 8250/16550 and compatible serial support --> Console on 8250/16550 and compatible serial port`
 
-You must compile serial support into the kernel and not as a module.
+You must compile serial support into the kernel and yest as a module.
 
 It is possible to specify multiple devices for console output. You can
 define a new kernel command line option to select which device(s) to
@@ -44,14 +44,14 @@ console and the 2nd serial port (ttyS1 or COM2) at 9600 baud.
 
 Note that you can only define one console per device type (serial, video).
 
-If no console device is specified, the first device found capable of
+If yes console device is specified, the first device found capable of
 acting as a system console will be used. At this time, the system
 first looks for a VGA card and then for a serial port. So if you don't
 have a VGA card in your system the first serial port will automatically
 become the console.
 
 You will need to create a new device to use ``/dev/console``. The official
-``/dev/console`` is now character device 5,1.
+``/dev/console`` is yesw character device 5,1.
 
 (You can also use a network device as a console.  See
 ``Documentation/networking/netconsole.txt`` for information on that.)
@@ -64,14 +64,14 @@ Replace the sample values as needed.
 
      cd /dev
      rm -f console tty0
-     mknod -m 622 console c 5 1
-     mknod -m 622 tty0 c 4 0
+     mkyesd -m 622 console c 5 1
+     mkyesd -m 622 tty0 c 4 0
 
 2. LILO can also take input from a serial device. This is a very
    useful option. To tell LILO to use the serial port:
    In lilo.conf (global section)::
 
-     serial  = 1,9600n8 (ttyS1, 9600 bd, no parity, 8 bits)
+     serial  = 1,9600n8 (ttyS1, 9600 bd, yes parity, 8 bits)
 
 3. Adjust to kernel flags for the new kernel,
    again in lilo.conf (kernel section)::

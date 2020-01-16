@@ -50,7 +50,7 @@ struct lpc32xx_clock_event_ddata {
 /* Needed for the sched clock */
 static void __iomem *clocksource_timer_counter;
 
-static u64 notrace lpc32xx_read_sched_clock(void)
+static u64 yestrace lpc32xx_read_sched_clock(void)
 {
 	return readl(clocksource_timer_counter);
 }
@@ -156,7 +156,7 @@ static struct lpc32xx_clock_event_ddata lpc32xx_clk_event_ddata = {
 	},
 };
 
-static int __init lpc32xx_clocksource_init(struct device_node *np)
+static int __init lpc32xx_clocksource_init(struct device_yesde *np)
 {
 	void __iomem *base;
 	unsigned long rate;
@@ -184,7 +184,7 @@ static int __init lpc32xx_clocksource_init(struct device_node *np)
 
 	/*
 	 * Disable and reset timer then set it to free running timer
-	 * mode (CTCR) with no prescaler (PR) or match operations (MCR).
+	 * mode (CTCR) with yes prescaler (PR) or match operations (MCR).
 	 * After setup the timer is released from reset and enabled.
 	 */
 	writel_relaxed(LPC32XX_TIMER_TCR_CRST, base + LPC32XX_TIMER_TCR);
@@ -217,7 +217,7 @@ err_clk_enable:
 	return ret;
 }
 
-static int __init lpc32xx_clockevent_init(struct device_node *np)
+static int __init lpc32xx_clockevent_init(struct device_yesde *np)
 {
 	void __iomem *base;
 	unsigned long rate;
@@ -252,7 +252,7 @@ static int __init lpc32xx_clockevent_init(struct device_node *np)
 
 	/*
 	 * Disable timer and clear any pending interrupt (IR) on match
-	 * channel 0 (MR0). Clear the prescaler as it's not used.
+	 * channel 0 (MR0). Clear the prescaler as it's yest used.
 	 */
 	writel_relaxed(0, base + LPC32XX_TIMER_TCR);
 	writel_relaxed(0, base + LPC32XX_TIMER_PR);
@@ -288,7 +288,7 @@ err_clk_enable:
  * This function asserts that we have exactly one clocksource and one
  * clock_event_device in the end.
  */
-static int __init lpc32xx_timer_init(struct device_node *np)
+static int __init lpc32xx_timer_init(struct device_yesde *np)
 {
 	static int has_clocksource, has_clockevent;
 	int ret = 0;

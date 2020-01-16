@@ -8,9 +8,9 @@
 #define _MALIDP_PRODUCT_H_
 
 /* Product identification */
-#define MALIDP_CORE_ID(__product, __major, __minor, __status) \
+#define MALIDP_CORE_ID(__product, __major, __miyesr, __status) \
 	((((__product) & 0xFFFF) << 16) | (((__major) & 0xF) << 12) | \
-	(((__minor) & 0xF) << 8) | ((__status) & 0xFF))
+	(((__miyesr) & 0xF) << 8) | ((__status) & 0xFF))
 
 #define MALIDP_CORE_ID_PRODUCT_ID(__core_id) ((__u32)(__core_id) >> 16)
 #define MALIDP_CORE_ID_MAJOR(__core_id)      (((__u32)(__core_id) >> 12) & 0xF)

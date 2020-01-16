@@ -162,7 +162,7 @@ static int pwm_regulator_get_voltage(struct regulator_dev *rdev)
 	/*
 	 * The dutycycle for min_uV might be greater than the one for max_uV.
 	 * This is happening when the user needs an inversed polarity, but the
-	 * PWM device does not support inversing it in hardware.
+	 * PWM device does yest support inversing it in hardware.
 	 */
 	if (max_uV_duty < min_uV_duty) {
 		voltage = min_uV_duty - voltage;
@@ -198,7 +198,7 @@ static int pwm_regulator_set_voltage(struct regulator_dev *rdev,
 	/*
 	 * The dutycycle for min_uV might be greater than the one for max_uV.
 	 * This is happening when the user needs an inversed polarity, but the
-	 * PWM device does not support inversing it in hardware.
+	 * PWM device does yest support inversing it in hardware.
 	 */
 	if (max_uV_duty < min_uV_duty)
 		diff_duty = min_uV_duty - max_uV_duty;
@@ -253,7 +253,7 @@ static const struct regulator_desc pwm_regulator_desc = {
 static int pwm_regulator_init_table(struct platform_device *pdev,
 				    struct pwm_regulator_data *drvdata)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	struct pwm_voltages *duty_cycle_table;
 	unsigned int length = 0;
 	int ret;
@@ -296,10 +296,10 @@ static int pwm_regulator_init_continuous(struct platform_device *pdev,
 	drvdata->desc.ops = &pwm_regulator_voltage_continuous_ops;
 	drvdata->desc.continuous_voltage_range = true;
 
-	of_property_read_u32_array(pdev->dev.of_node,
+	of_property_read_u32_array(pdev->dev.of_yesde,
 				   "pwm-dutycycle-range",
 				   dutycycle_range, 2);
-	of_property_read_u32(pdev->dev.of_node, "pwm-dutycycle-unit",
+	of_property_read_u32(pdev->dev.of_yesde, "pwm-dutycycle-unit",
 			     &dutycycle_unit);
 
 	if (dutycycle_range[0] > dutycycle_unit ||
@@ -319,12 +319,12 @@ static int pwm_regulator_probe(struct platform_device *pdev)
 	struct pwm_regulator_data *drvdata;
 	struct regulator_dev *regulator;
 	struct regulator_config config = { };
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	enum gpiod_flags gpio_flags;
 	int ret;
 
 	if (!np) {
-		dev_err(&pdev->dev, "Device Tree node missing\n");
+		dev_err(&pdev->dev, "Device Tree yesde missing\n");
 		return -EINVAL;
 	}
 
@@ -346,7 +346,7 @@ static int pwm_regulator_probe(struct platform_device *pdev)
 	if (!init_data)
 		return -ENOMEM;
 
-	config.of_node = np;
+	config.of_yesde = np;
 	config.dev = &pdev->dev;
 	config.driver_data = drvdata;
 	config.init_data = init_data;

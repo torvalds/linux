@@ -256,7 +256,7 @@ static int ad7292_probe(struct spi_device *spi)
 {
 	struct ad7292_state *st;
 	struct iio_dev *indio_dev;
-	struct device_node *child;
+	struct device_yesde *child;
 	bool diff_channels = 0;
 	int ret;
 
@@ -306,7 +306,7 @@ static int ad7292_probe(struct spi_device *spi)
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->info = &ad7292_info;
 
-	for_each_available_child_of_node(spi->dev.of_node, child) {
+	for_each_available_child_of_yesde(spi->dev.of_yesde, child) {
 		diff_channels = of_property_read_bool(child, "diff-channels");
 		if (diff_channels)
 			break;

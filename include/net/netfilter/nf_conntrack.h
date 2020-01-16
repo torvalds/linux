@@ -84,7 +84,7 @@ struct nf_conn {
 	possible_net_t ct_net;
 
 #if IS_ENABLED(CONFIG_NF_NAT)
-	struct hlist_node	nat_bysource;
+	struct hlist_yesde	nat_bysource;
 #endif
 	/* all members below initialized via memset */
 	u8 __nfct_init_offset[0];
@@ -140,10 +140,10 @@ static inline struct net *nf_ct_net(const struct nf_conn *ct)
 void nf_conntrack_alter_reply(struct nf_conn *ct,
 			      const struct nf_conntrack_tuple *newreply);
 
-/* Is this tuple taken? (ignoring any belonging to the given
+/* Is this tuple taken? (igyesring any belonging to the given
    conntrack). */
 int nf_conntrack_tuple_taken(const struct nf_conntrack_tuple *tuple,
-			     const struct nf_conn *ignored_conntrack);
+			     const struct nf_conn *igyesred_conntrack);
 
 /* Return conntrack_info and tuple hash for given skb. */
 static inline struct nf_conn *

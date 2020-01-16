@@ -55,7 +55,7 @@ SysKonnect adapters:
   - SK-5841 (SK-NET FDDI-FP64)
   - SK-5843 (SK-NET FDDI-LP64)
   - SK-5844 (SK-NET FDDI-LP64 DAS)
-Compaq adapters (not tested):
+Compaq adapters (yest tested):
   - Netelligent 100 FDDI DAS Fibre SC
   - Netelligent 100 FDDI SAS Fibre SC
   - Netelligent 100 FDDI DAS UTP
@@ -81,31 +81,31 @@ Makes my life much easier :-)
 
 If you run into problems during installation, check those items:
 
-Problem:  The FDDI adapter cannot be found by the driver.
+Problem:  The FDDI adapter canyest be found by the driver.
 Reason:   Look in /proc/pci for the following entry:
              'FDDI network controller: SysKonnect SK-FDDI-PCI ...'
 	  If this entry exists, then the FDDI adapter has been
 	  found by the system and should be able to be used.
-	  If this entry does not exist or if the file '/proc/pci'
-	  is not there, then you may have a hardware problem or PCI
-	  support may not be enabled in your kernel.
-	  The adapter can be checked using the diagnostic program
+	  If this entry does yest exist or if the file '/proc/pci'
+	  is yest there, then you may have a hardware problem or PCI
+	  support may yest be enabled in your kernel.
+	  The adapter can be checked using the diagyesstic program
 	  which is available from the SysKonnect web site:
 	      www.syskonnect.de
 	  Some COMPAQ machines have a problem with PCI under
 	  Linux. This is described in the 'PCI howto' document
 	  (included in some distributions or available from the
-	  www, e.g. at 'www.linux.org') and no workaround is available.
+	  www, e.g. at 'www.linux.org') and yes workaround is available.
 
 Problem:  You want to use your computer as a router between
           multiple IP subnetworks (using multiple adapters), but
-	  you cannot reach computers in other subnetworks.
-Reason:   Either the router's kernel is not configured for IP
+	  you canyest reach computers in other subnetworks.
+Reason:   Either the router's kernel is yest configured for IP
 	  forwarding or there is a problem with the routing table
 	  and gateway configuration in at least one of the
 	  computers.
 
-If your problem is not listed here, please contact our
+If your problem is yest listed here, please contact our
 technical support for help. 
 You can send email to:
   linux@syskonnect.de
@@ -125,7 +125,7 @@ please ensure that the following information is available:
         The functionality of the LED's on the FDDI network adapters was
         changed in SMT version v2.82. With this new SMT version, the yellow
         LED works as a ring operational indicator. An active yellow LED
-        indicates that the ring is down. The green LED on the adapter now
+        indicates that the ring is down. The green LED on the adapter yesw
         works as a link indicator where an active GREEN LED indicates that
         the respective port has a physical connection.
 
@@ -134,7 +134,7 @@ please ensure that the following information is available:
         status of the adapter. During a ring down the green LED was off and
         the yellow LED was on.
 
-        All implementations indicate that a driver is not loaded if
+        All implementations indicate that a driver is yest loaded if
         all LEDs are off.
 
 ***
@@ -204,16 +204,16 @@ v1.00 beta 01 (980507)
 	None.
     Problems fixed:
 	None.
-    Known limitations:
+    Kyeswn limitations:
         - tar archive instead of standard package format (rpm).
 	- FDDI statistic is empty.
-	- not tested with 2.1.xx kernels
-	- integration in kernel not tested
-	- not tested simultaneously with FDDI adapters from other vendors.
+	- yest tested with 2.1.xx kernels
+	- integration in kernel yest tested
+	- yest tested simultaneously with FDDI adapters from other vendors.
 	- only X86 processors supported.
-	- SBA (Synchronous Bandwidth Allocator) parameters can
-	  not be configured.
-	- does not work on some COMPAQ machines. See the PCI howto
+	- SBA (Synchroyesus Bandwidth Allocator) parameters can
+	  yest be configured.
+	- does yest work on some COMPAQ machines. See the PCI howto
 	  document for details about this problem.
 	- data corruption with kernel versions below 2.0.33.
 

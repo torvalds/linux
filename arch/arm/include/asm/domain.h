@@ -20,10 +20,10 @@
  *  DOMAIN_KERNEL - domain 0 includes all kernel memory only
  *
  * The domain numbering depends on whether we support 36 physical
- * address for I/O or not.  Addresses above the 32 bit boundary can
+ * address for I/O or yest.  Addresses above the 32 bit boundary can
  * only be mapped using supersections and supersections can only
  * be set for domain 0.  We could just default to DOMAIN_IO as zero,
- * but there may be systems with supersection support and no 36-bit
+ * but there may be systems with supersection support and yes 36-bit
  * addressing.  In such cases, we want to map system memory with
  * supersections to reduce TLB misses and footprint.
  *

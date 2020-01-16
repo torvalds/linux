@@ -209,7 +209,7 @@
  * TCR trigger levels are available from 0 to 60 characters with a granularity
  * of four.
  * The programmer must program the TCR such that TCR[3:0] > TCR[7:4]. There is
- * no built-in hardware check to make sure this condition is met. Also, the TCR
+ * yes built-in hardware check to make sure this condition is met. Also, the TCR
  * must be programmed with this condition before auto RTS or software flow
  * control is enabled to avoid spurious operation of the device.
  */
@@ -224,7 +224,7 @@
  * available with a granularity of four.
  *
  * When the trigger level setting in TLR is zero, the SC16IS740/750/760 uses the
- * trigger level setting defined in FCR. If TLR has non-zero trigger level value
+ * trigger level setting defined in FCR. If TLR has yesn-zero trigger level value
  * the trigger level defined in FCR is discarded. This applies to both transmit
  * FIFO and receive FIFO trigger level setting.
  *
@@ -265,7 +265,7 @@
 #define SC16IS7XX_EFR_SWFLOW2_BIT	(1 << 2) /* SWFLOW bit 2
 						  *
 						  * SWFLOW bits 3 & 2 table:
-						  * 00 -> no transmitter flow
+						  * 00 -> yes transmitter flow
 						  *       control
 						  * 01 -> transmitter generates
 						  *       XON2 and XOFF2
@@ -279,7 +279,7 @@
 #define SC16IS7XX_EFR_SWFLOW0_BIT	(1 << 0) /* SWFLOW bit 3
 						  *
 						  * SWFLOW bits 3 & 2 table:
-						  * 00 -> no received flow
+						  * 00 -> yes received flow
 						  *       control
 						  * 01 -> receiver compares
 						  *       XON2 and XOFF2
@@ -527,7 +527,7 @@ static int sc16is7xx_set_baud(struct uart_port *port, int baud)
 			     SC16IS7XX_EFR_ENABLE_BIT);
 	regcache_cache_bypass(s->regmap, false);
 
-	/* Put LCR back to the normal mode */
+	/* Put LCR back to the yesrmal mode */
 	sc16is7xx_port_write(port, SC16IS7XX_LCR_REG, lcr);
 
 	mutex_unlock(&s->efr_lock);
@@ -546,7 +546,7 @@ static int sc16is7xx_set_baud(struct uart_port *port, int baud)
 	sc16is7xx_port_write(port, SC16IS7XX_DLL_REG, div % 256);
 	regcache_cache_bypass(s->regmap, false);
 
-	/* Put LCR back to the normal mode */
+	/* Put LCR back to the yesrmal mode */
 	sc16is7xx_port_write(port, SC16IS7XX_LCR_REG, lcr);
 
 	return DIV_ROUND_CLOSEST(clk / 16, div);
@@ -618,7 +618,7 @@ static void sc16is7xx_handle_rx(struct uart_port *port, unsigned int rxlen,
 			if (uart_handle_sysrq_char(port, ch))
 				continue;
 
-			if (lsr & port->ignore_status_mask)
+			if (lsr & port->igyesre_status_mask)
 				continue;
 
 			uart_insert_char(port, lsr, SC16IS7XX_LSR_OE_BIT, ch,
@@ -675,9 +675,9 @@ static void sc16is7xx_handle_tx(struct uart_port *port)
 		uart_write_wakeup(port);
 }
 
-static bool sc16is7xx_port_irq(struct sc16is7xx_port *s, int portno)
+static bool sc16is7xx_port_irq(struct sc16is7xx_port *s, int portyes)
 {
-	struct uart_port *port = &s->p[portno].port;
+	struct uart_port *port = &s->p[portyes].port;
 
 	do {
 		unsigned int iir, rxlen;
@@ -841,7 +841,7 @@ static unsigned int sc16is7xx_tx_empty(struct uart_port *port)
 
 static unsigned int sc16is7xx_get_mctrl(struct uart_port *port)
 {
-	/* DCD and DSR are not wired and CTS/RTS is handled automatically
+	/* DCD and DSR are yest wired and CTS/RTS is handled automatically
 	 * so just indicate DSR and CAR asserted
 	 */
 	return TIOCM_DSR | TIOCM_CAR;
@@ -914,12 +914,12 @@ static void sc16is7xx_set_termios(struct uart_port *port,
 	if (termios->c_iflag & (BRKINT | PARMRK))
 		port->read_status_mask |= SC16IS7XX_LSR_BI_BIT;
 
-	/* Set status ignore mask */
-	port->ignore_status_mask = 0;
+	/* Set status igyesre mask */
+	port->igyesre_status_mask = 0;
 	if (termios->c_iflag & IGNBRK)
-		port->ignore_status_mask |= SC16IS7XX_LSR_BI_BIT;
+		port->igyesre_status_mask |= SC16IS7XX_LSR_BI_BIT;
 	if (!(termios->c_cflag & CREAD))
-		port->ignore_status_mask |= SC16IS7XX_LSR_BRK_ERROR_MASK;
+		port->igyesre_status_mask |= SC16IS7XX_LSR_BRK_ERROR_MASK;
 
 	/* As above, claim the mutex while accessing the EFR. */
 	mutex_lock(&s->efr_lock);
@@ -1072,7 +1072,7 @@ static const char *sc16is7xx_type(struct uart_port *port)
 
 static int sc16is7xx_request_port(struct uart_port *port)
 {
-	/* Do nothing */
+	/* Do yesthing */
 	return 0;
 }
 
@@ -1101,7 +1101,7 @@ static void sc16is7xx_pm(struct uart_port *port, unsigned int state,
 
 static void sc16is7xx_null_void(struct uart_port *port)
 {
-	/* Do nothing */
+	/* Do yesthing */
 }
 
 static const struct uart_ops sc16is7xx_ops = {
@@ -1391,7 +1391,7 @@ static int sc16is7xx_spi_probe(struct spi_device *spi)
 	if (ret)
 		return ret;
 
-	if (spi->dev.of_node) {
+	if (spi->dev.of_yesde) {
 		devtype = device_get_match_data(&spi->dev);
 		if (!devtype)
 			return -ENODEV;
@@ -1448,7 +1448,7 @@ static int sc16is7xx_i2c_probe(struct i2c_client *i2c,
 	unsigned long flags = 0;
 	struct regmap *regmap;
 
-	if (i2c->dev.of_node) {
+	if (i2c->dev.of_yesde) {
 		devtype = device_get_match_data(&i2c->dev);
 		if (!devtype)
 			return -ENODEV;

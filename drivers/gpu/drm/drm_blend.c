@@ -7,11 +7,11 @@
  *
  * Permission to use, copy, modify, distribute, and sell this software and its
  * documentation for any purpose is hereby granted without fee, provided that
- * the above copyright notice appear in all copies and that both that copyright
- * notice and this permission notice appear in supporting documentation, and
- * that the name of the copyright holders not be used in advertising or
+ * the above copyright yestice appear in all copies and that both that copyright
+ * yestice and this permission yestice appear in supporting documentation, and
+ * that the name of the copyright holders yest be used in advertising or
  * publicity pertaining to distribution of the software without specific,
- * written prior permission.  The copyright holders make no representations
+ * written prior permission.  The copyright holders make yes representations
  * about the suitability of this software for any purpose.  It is provided "as
  * is" without express or implied warranty.
  *
@@ -95,13 +95,13 @@
  * 	Alpha is setup with drm_plane_create_alpha_property(). It controls the
  * 	plane-wide opacity, from transparent (0) to opaque (0xffff). It can be
  * 	combined with pixel alpha.
- *	The pixel values in the framebuffers are expected to not be
+ *	The pixel values in the framebuffers are expected to yest be
  *	pre-multiplied by the global alpha associated to the plane.
  *
  * rotation:
  *	Rotation is set up with drm_plane_create_rotation_property(). It adds a
  *	rotation and reflection step between the source and destination rectangles.
- *	Without this property the rectangle is only scaled, but not rotated or
+ *	Without this property the rectangle is only scaled, but yest rotated or
  *	reflected.
  *
  *	Possbile values:
@@ -146,7 +146,7 @@
  *	 Three alpha blending equations are defined:
  *
  *	 "None":
- *		 Blend formula that ignores the pixel alpha::
+ *		 Blend formula that igyesres the pixel alpha::
  *
  *			 out.rgb = plane_alpha * fg.rgb +
  *				 (1 - plane_alpha) * bg.rgb
@@ -160,7 +160,7 @@
  *				 (1 - (plane_alpha * fg.alpha)) * bg.rgb
  *
  *	 "Coverage":
- *		 Blend formula that assumes the pixel color values have not
+ *		 Blend formula that assumes the pixel color values have yest
  *		 been pre-multiplied and will do so when blending them to the
  *		 background color values::
  *
@@ -173,18 +173,18 @@
  *		 Each of the RGB component values from the plane's pixel
  *	 "fg.alpha":
  *		 Alpha component value from the plane's pixel. If the plane's
- *		 pixel format has no alpha component, then this is assumed to be
- *		 1.0. In these cases, this property has no effect, as all three
+ *		 pixel format has yes alpha component, then this is assumed to be
+ *		 1.0. In these cases, this property has yes effect, as all three
  *		 equations become equivalent.
  *	 "bg.rgb":
  *		 Each of the RGB component values from the background
  *	 "plane_alpha":
  *		 Plane alpha value set by the plane "alpha" property. If the
- *		 plane does not expose the "alpha" property, then this is
+ *		 plane does yest expose the "alpha" property, then this is
  *		 assumed to be 1.0
  *
  * Note that all the property extensions described here apply either to the
- * plane or the CRTC (e.g. for the background color, which currently is not
+ * plane or the CRTC (e.g. for the background color, which currently is yest
  * exposed and assumed to be black).
  */
 
@@ -230,7 +230,7 @@ EXPORT_SYMBOL(drm_plane_create_alpha_property);
  *
  * Since a rotation by 180° degress is the same as reflecting both along the x
  * and the y axis the rotation property is somewhat redundant. Drivers can use
- * drm_rotation_simplify() to normalize values of this property.
+ * drm_rotation_simplify() to yesrmalize values of this property.
  *
  * The property exposed to userspace is a bitmask property (see
  * drm_property_create_bitmask()) called "rotation" and has the following
@@ -303,7 +303,7 @@ EXPORT_SYMBOL(drm_plane_create_rotation_property);
  *                       DRM_MODE_ROTATE_270 | DRM_MODE_REFLECT_Y);
  *
  * to eliminate the DRM_MODE_ROTATE_X flag. Depending on what kind of
- * transforms the hardware supports, this function may not
+ * transforms the hardware supports, this function may yest
  * be able to produce a supported transform, so the caller should
  * check the result afterwards.
  */
@@ -332,24 +332,24 @@ EXPORT_SYMBOL(drm_rotation_simplify);
  * for it in drm core. Drivers can then attach this property to planes to enable
  * support for configurable planes arrangement during blending operation.
  * Drivers that attach a mutable zpos property to any plane should call the
- * drm_atomic_normalize_zpos() helper during their implementation of
- * &drm_mode_config_funcs.atomic_check(), which will update the normalized zpos
- * values and store them in &drm_plane_state.normalized_zpos. Usually min
+ * drm_atomic_yesrmalize_zpos() helper during their implementation of
+ * &drm_mode_config_funcs.atomic_check(), which will update the yesrmalized zpos
+ * values and store them in &drm_plane_state.yesrmalized_zpos. Usually min
  * should be set to 0 and max to maximal number of planes for given crtc - 1.
  *
- * If zpos of some planes cannot be changed (like fixed background or
+ * If zpos of some planes canyest be changed (like fixed background or
  * cursor/topmost planes), driver should adjust min/max values and assign those
  * planes immutable zpos property with lower or higher values (for more
  * information, see drm_plane_create_zpos_immutable_property() function). In such
  * case driver should also assign proper initial zpos values for all planes in
  * its plane_reset() callback, so the planes will be always sorted properly.
  *
- * See also drm_atomic_normalize_zpos().
+ * See also drm_atomic_yesrmalize_zpos().
  *
  * The property exposed to userspace is called "zpos".
  *
  * Returns:
- * Zero on success, negative errno on failure.
+ * Zero on success, negative erryes on failure.
  */
 int drm_plane_create_zpos_property(struct drm_plane *plane,
 				   unsigned int zpos,
@@ -367,7 +367,7 @@ int drm_plane_create_zpos_property(struct drm_plane *plane,
 
 	if (plane->state) {
 		plane->state->zpos = zpos;
-		plane->state->normalized_zpos = zpos;
+		plane->state->yesrmalized_zpos = zpos;
 	}
 
 	return 0;
@@ -381,14 +381,14 @@ EXPORT_SYMBOL(drm_plane_create_zpos_property);
  *
  * This function initializes generic immutable zpos property and enables
  * support for it in drm core. Using this property driver lets userspace
- * to get the arrangement of the planes for blending operation and notifies
+ * to get the arrangement of the planes for blending operation and yestifies
  * it that the hardware (or driver) doesn't support changing of the planes'
  * order. For mutable zpos see drm_plane_create_zpos_property().
  *
  * The property exposed to userspace is called "zpos".
  *
  * Returns:
- * Zero on success, negative errno on failure.
+ * Zero on success, negative erryes on failure.
  */
 int drm_plane_create_zpos_immutable_property(struct drm_plane *plane,
 					     unsigned int zpos)
@@ -406,7 +406,7 @@ int drm_plane_create_zpos_immutable_property(struct drm_plane *plane,
 
 	if (plane->state) {
 		plane->state->zpos = zpos;
-		plane->state->normalized_zpos = zpos;
+		plane->state->yesrmalized_zpos = zpos;
 	}
 
 	return 0;
@@ -424,7 +424,7 @@ static int drm_atomic_state_zpos_cmp(const void *a, const void *b)
 		return sa->plane->base.id - sb->plane->base.id;
 }
 
-static int drm_atomic_helper_crtc_normalize_zpos(struct drm_crtc *crtc,
+static int drm_atomic_helper_crtc_yesrmalize_zpos(struct drm_crtc *crtc,
 					  struct drm_crtc_state *crtc_state)
 {
 	struct drm_atomic_state *state = crtc_state->state;
@@ -435,7 +435,7 @@ static int drm_atomic_helper_crtc_normalize_zpos(struct drm_crtc *crtc,
 	int i, n = 0;
 	int ret = 0;
 
-	DRM_DEBUG_ATOMIC("[CRTC:%d:%s] calculating normalized zpos values\n",
+	DRM_DEBUG_ATOMIC("[CRTC:%d:%s] calculating yesrmalized zpos values\n",
 			 crtc->base.id, crtc->name);
 
 	states = kmalloc_array(total_planes, sizeof(*states), GFP_KERNEL);
@@ -444,7 +444,7 @@ static int drm_atomic_helper_crtc_normalize_zpos(struct drm_crtc *crtc,
 
 	/*
 	 * Normalization process might create new states for planes which
-	 * normalized_zpos has to be recalculated.
+	 * yesrmalized_zpos has to be recalculated.
 	 */
 	drm_for_each_plane_mask(plane, dev, crtc_state->plane_mask) {
 		struct drm_plane_state *plane_state =
@@ -464,8 +464,8 @@ static int drm_atomic_helper_crtc_normalize_zpos(struct drm_crtc *crtc,
 	for (i = 0; i < n; i++) {
 		plane = states[i]->plane;
 
-		states[i]->normalized_zpos = i;
-		DRM_DEBUG_ATOMIC("[PLANE:%d:%s] normalized zpos value %d\n",
+		states[i]->yesrmalized_zpos = i;
+		DRM_DEBUG_ATOMIC("[PLANE:%d:%s] yesrmalized zpos value %d\n",
 				 plane->base.id, plane->name, i);
 	}
 	crtc_state->zpos_changed = true;
@@ -476,24 +476,24 @@ done:
 }
 
 /**
- * drm_atomic_normalize_zpos - calculate normalized zpos values for all crtcs
+ * drm_atomic_yesrmalize_zpos - calculate yesrmalized zpos values for all crtcs
  * @dev: DRM device
  * @state: atomic state of DRM device
  *
- * This function calculates normalized zpos value for all modified planes in
+ * This function calculates yesrmalized zpos value for all modified planes in
  * the provided atomic state of DRM device.
  *
  * For every CRTC this function checks new states of all planes assigned to
- * it and calculates normalized zpos value for these planes. Planes are compared
+ * it and calculates yesrmalized zpos value for these planes. Planes are compared
  * first by their zpos values, then by plane id (if zpos is equal). The plane
- * with lowest zpos value is at the bottom. The &drm_plane_state.normalized_zpos
+ * with lowest zpos value is at the bottom. The &drm_plane_state.yesrmalized_zpos
  * is then filled with unique values from 0 to number of active planes in crtc
  * minus one.
  *
  * RETURNS
- * Zero for success or -errno
+ * Zero for success or -erryes
  */
-int drm_atomic_normalize_zpos(struct drm_device *dev,
+int drm_atomic_yesrmalize_zpos(struct drm_device *dev,
 			      struct drm_atomic_state *state)
 {
 	struct drm_crtc *crtc;
@@ -515,7 +515,7 @@ int drm_atomic_normalize_zpos(struct drm_device *dev,
 	for_each_oldnew_crtc_in_state(state, crtc, old_crtc_state, new_crtc_state, i) {
 		if (old_crtc_state->plane_mask != new_crtc_state->plane_mask ||
 		    new_crtc_state->zpos_changed) {
-			ret = drm_atomic_helper_crtc_normalize_zpos(crtc,
+			ret = drm_atomic_helper_crtc_yesrmalize_zpos(crtc,
 								    new_crtc_state);
 			if (ret)
 				return ret;
@@ -523,7 +523,7 @@ int drm_atomic_normalize_zpos(struct drm_device *dev,
 	}
 	return 0;
 }
-EXPORT_SYMBOL(drm_atomic_normalize_zpos);
+EXPORT_SYMBOL(drm_atomic_yesrmalize_zpos);
 
 /**
  * drm_plane_create_blend_mode_property - create a new blend mode property
@@ -540,19 +540,19 @@ EXPORT_SYMBOL(drm_atomic_normalize_zpos);
  * following enumeration values:
  *
  * "None":
- *	Blend formula that ignores the pixel alpha.
+ *	Blend formula that igyesres the pixel alpha.
  *
  * "Pre-multiplied":
  *	Blend formula that assumes the pixel color values have been already
  *	pre-multiplied with the alpha channel values.
  *
  * "Coverage":
- *	Blend formula that assumes the pixel color values have not been
+ *	Blend formula that assumes the pixel color values have yest been
  *	pre-multiplied and will do so when blending them to the background color
  *	values.
  *
  * RETURNS:
- * Zero for success or -errno
+ * Zero for success or -erryes
  */
 int drm_plane_create_blend_mode_property(struct drm_plane *plane,
 					 unsigned int supported_modes)

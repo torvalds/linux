@@ -23,18 +23,18 @@ u32 __iomem *clint_ipi_base;
 
 void clint_init_boot_cpu(void)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 	void __iomem *base;
 
-	np = of_find_compatible_node(NULL, NULL, "riscv,clint0");
+	np = of_find_compatible_yesde(NULL, NULL, "riscv,clint0");
 	if (!np) {
-		panic("clint not found");
+		panic("clint yest found");
 		return;
 	}
 
 	base = of_iomap(np, 0);
 	if (!base)
-		panic("could not map CLINT");
+		panic("could yest map CLINT");
 
 	clint_ipi_base = base + CLINT_IPI_OFF;
 	riscv_time_cmp = base + CLINT_TIME_CMP_OFF;

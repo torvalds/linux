@@ -9,8 +9,8 @@
  * When a PCI Express function (either an entire device or an SR-IOV
  * Virtual Function) is being passed through to the VM, this driver exposes
  * a new bus to the guest VM.  This is modeled as a root PCI bus because
- * no bridges are being exposed to the VM.  In fact, with a "Generation 2"
- * VM within Hyper-V, there may seem to be no PCI bus at all in the VM
+ * yes bridges are being exposed to the VM.  In fact, with a "Generation 2"
+ * VM within Hyper-V, there may seem to be yes PCI bus at all in the VM
  * until a device as been exposed using this driver.
  *
  * Each root PCI bus has its own PCI domain, which is called "Segment" in
@@ -25,7 +25,7 @@
  * set up, torn down, or reaffined, this driver communicates with the
  * underlying hypervisor to adjust the mappings in the I/O MMU so that each
  * interrupt will be delivered to the correct virtual processor at the right
- * vector.  This driver does not support level-triggered (line-based)
+ * vector.  This driver does yest support level-triggered (line-based)
  * interrupts, and will report that the Interrupt Line register in the
  * function's configuration space is zero.
  *
@@ -52,11 +52,11 @@
 #include <asm/mshyperv.h>
 
 /*
- * Protocol versions. The low word is the minor version, the high word the
+ * Protocol versions. The low word is the miyesr version, the high word the
  * major version.
  */
 
-#define PCI_MAKE_VERSION(major, minor) ((u32)(((major) << 16) | (minor)))
+#define PCI_MAKE_VERSION(major, miyesr) ((u32)(((major) << 16) | (miyesr)))
 #define PCI_MAJOR_VERSION(version) ((u32)(version) >> 16)
 #define PCI_MINOR_VERSION(version) ((u32)(version) & 0xff)
 
@@ -128,7 +128,7 @@ enum pci_message_type {
 
 union pci_version {
 	struct {
-		u16 minor_version;
+		u16 miyesr_version;
 		u16 major_version;
 	} parts;
 	u32 version;
@@ -323,7 +323,7 @@ struct pci_set_power_response {
 struct pci_resources_assigned {
 	struct pci_message message_type;
 	union win_slot_encoding wslot;
-	u8 memory_range[0x14][6];	/* not used here */
+	u8 memory_range[0x14][6];	/* yest used here */
 	u32 msi_descriptors;
 	u32 reserved[4];
 } __packed;
@@ -331,7 +331,7 @@ struct pci_resources_assigned {
 struct pci_resources_assigned2 {
 	struct pci_message message_type;
 	union win_slot_encoding wslot;
-	u8 memory_range[0x14][6];	/* not used here */
+	u8 memory_range[0x14][6];	/* yest used here */
 	u32 msi_descriptor_count;
 	u8 reserved[70];
 } __packed;
@@ -487,7 +487,7 @@ struct hv_pcibus_device {
 
 	struct workqueue_struct *wq;
 
-	/* hypercall arg, must not cross page boundary */
+	/* hypercall arg, must yest cross page boundary */
 	struct retarget_msi_interrupt retarget_msi_interrupt_params;
 
 	/*
@@ -555,7 +555,7 @@ static void hv_pci_onchannelcallback(void *context);
  *
  * This function is used to trigger an event and report status
  * for any message for which the completion packet contains a
- * status and nothing else.
+ * status and yesthing else.
  */
 static void hv_pci_generic_compl(void *context, struct pci_response *resp,
 				 int resp_packet_size)
@@ -588,8 +588,8 @@ static void get_hvpcibus(struct hv_pcibus_device *hv_pcibus);
 static void put_hvpcibus(struct hv_pcibus_device *hv_pcibus);
 
 /*
- * There is no good way to get notified from vmbus_onoffer_rescind(),
- * so let's use polling here, since this is not a hot path.
+ * There is yes good way to get yestified from vmbus_oyesffer_rescind(),
+ * so let's use polling here, since this is yest a hot path.
  */
 static int wait_for_response(struct hv_device *hdev,
 			     struct completion *comp)
@@ -636,10 +636,10 @@ static u32 devfn_to_wslot(int devfn)
  */
 static int wslot_to_devfn(u32 wslot)
 {
-	union win_slot_encoding slot_no;
+	union win_slot_encoding slot_yes;
 
-	slot_no.slot = wslot;
-	return PCI_DEVFN(slot_no.bits.dev, slot_no.bits.func);
+	slot_yes.slot = wslot;
+	return PCI_DEVFN(slot_yes.bits.dev, slot_yes.bits.func);
 }
 
 /*
@@ -734,7 +734,7 @@ static u16 hv_pcifront_get_vendor_id(struct hv_pci_dev *hpdev)
 	/* Read from that function's config space. */
 	ret = readw(addr);
 	/*
-	 * mb() is not required here, because the spin_unlock_irqrestore()
+	 * mb() is yest required here, because the spin_unlock_irqrestore()
 	 * is a barrier.
 	 */
 
@@ -858,7 +858,7 @@ static struct pci_ops hv_pcifront_ops = {
  * communication between a VF driver and a PF driver.  These
  * "configuration blocks" are similar in concept to PCI configuration space,
  * but instead of doing reads and writes in 32-bit chunks through a very slow
- * path, packets of up to 128 bytes can be sent or received asynchronously.
+ * path, packets of up to 128 bytes can be sent or received asynchroyesusly.
  *
  * Nearly every SR-IOV device contains just such a communications channel in
  * hardware, so using this one in software is usually optional.  Using the
@@ -926,7 +926,7 @@ out:
  * @block_id:		Identifies the config block which has been requested.
  * @bytes_returned:	Size which came back from the back-end driver.
  *
- * Return: 0 on success, -errno on failure
+ * Return: 0 on success, -erryes on failure
  */
 int hv_read_config_block(struct pci_dev *pdev, void *buf, unsigned int len,
 			 unsigned int block_id, unsigned int *bytes_returned)
@@ -1006,7 +1006,7 @@ static void hv_pci_write_config_compl(void *context, struct pci_response *resp,
  * @len:		Size in bytes of buf.
  * @block_id:		Identifies the config block which is being written.
  *
- * Return: 0 on success, -errno on failure
+ * Return: 0 on success, -erryes on failure
  */
 int hv_write_config_block(struct pci_dev *pdev, void *buf, unsigned int len,
 			  unsigned int block_id)
@@ -1075,7 +1075,7 @@ int hv_write_config_block(struct pci_dev *pdev, void *buf, unsigned int len,
  * @context:		Identifies the device.
  * @block_invalidate:	Identifies all of the blocks being invalidated.
  *
- * Return: 0 on success, -errno on failure
+ * Return: 0 on success, -erryes on failure
  */
 int hv_register_block_invalidate(struct pci_dev *pdev, void *context,
 				 void (*block_invalidate)(void *context,
@@ -1128,7 +1128,7 @@ static void hv_int_desc_free(struct hv_pci_dev *hpdev,
  * The Hyper-V parent partition and hypervisor are tracking the
  * messages that are in use, keeping the interrupt redirection
  * table up to date.  This callback sends a message that frees
- * the IRT entry and related tracking nonsense.
+ * the IRT entry and related tracking yesnsense.
  */
 static void hv_msi_free(struct irq_domain *domain, struct msi_domain_info *info,
 			unsigned int irq)
@@ -1216,9 +1216,9 @@ static void hv_irq_unmask(struct irq_data *data)
 	params->int_target.vector = cfg->vector;
 
 	/*
-	 * Honoring apic->irq_delivery_mode set to dest_Fixed by
+	 * Hoyesring apic->irq_delivery_mode set to dest_Fixed by
 	 * setting the HV_DEVICE_INTERRUPT_TARGET_MULTICAST flag results in a
-	 * spurious interrupt storm. Not doing so does not seem to have a
+	 * spurious interrupt storm. Not doing so does yest seem to have a
 	 * negative effect (yet?).
 	 */
 
@@ -1228,7 +1228,7 @@ static void hv_irq_unmask(struct irq_data *data)
 		 * HVCALL_RETARGET_INTERRUPT hypercall, which also coincides
 		 * with >64 VP support.
 		 * ms_hyperv.hints & HV_X64_EX_PROCESSOR_MASKS_RECOMMENDED
-		 * is not sufficient for this hypercall.
+		 * is yest sufficient for this hypercall.
 		 */
 		params->int_target.flags |=
 			HV_DEVICE_INTERRUPT_TARGET_PROCESSOR_SET;
@@ -1249,7 +1249,7 @@ static void hv_irq_unmask(struct irq_data *data)
 
 		/*
 		 * var-sized hypercall, var-size starts after vp_mask (thus
-		 * vp_set.format does not count, but vp_set.valid_bank_mask
+		 * vp_set.format does yest count, but vp_set.valid_bank_mask
 		 * does).
 		 */
 		var_size = 1 + nr_bank;
@@ -1408,8 +1408,8 @@ static void hv_compose_msi_msg(struct irq_data *data, struct msi_msg *msg)
 		break;
 
 	default:
-		/* As we only negotiate protocol versions known to this driver,
-		 * this path should never hit. However, this is it not a hot
+		/* As we only negotiate protocol versions kyeswn to this driver,
+		 * this path should never hit. However, this is it yest a hot
 		 * path so we print a message to aid future updates.
 		 */
 		dev_err(&hbus->hdev->device,
@@ -1430,7 +1430,7 @@ static void hv_compose_msi_msg(struct irq_data *data, struct msi_msg *msg)
 
 	/*
 	 * Since this function is called with IRQ locks held, can't
-	 * do normal wait for completion; instead poll.
+	 * do yesrmal wait for completion; instead poll.
 	 */
 	while (!try_wait_for_completion(&comp.comp_pkt.host_event)) {
 		/* 0xFFFF means an invalid PCI VENDOR ID. */
@@ -1527,7 +1527,7 @@ static struct msi_domain_ops hv_msi_ops = {
  *
  * This function creates an IRQ domain which will be used for
  * interrupts from devices that have been passed through.  These
- * devices only support MSI and MSI-X, not line-based interrupts
+ * devices only support MSI and MSI-X, yest line-based interrupts
  * or simulations of line-based interrupts through PCIe's
  * fabric-layer messages.  Because interrupts are remapped, we
  * can support multi-message MSI here.
@@ -1544,7 +1544,7 @@ static int hv_pcie_init_irq_domain(struct hv_pcibus_device *hbus)
 	hbus->msi_info.handler = handle_edge_irq;
 	hbus->msi_info.handler_name = "edge";
 	hbus->msi_info.data = hbus;
-	hbus->irq_domain = pci_msi_create_irq_domain(hbus->sysdata.fwnode,
+	hbus->irq_domain = pci_msi_create_irq_domain(hbus->sysdata.fwyesde,
 						     &hbus->msi_info,
 						     x86_vector_domain);
 	if (!hbus->irq_domain) {
@@ -1589,7 +1589,7 @@ static void survey_child_resources(struct hv_pcibus_device *hbus)
 	u64 bar_val;
 	int i;
 
-	/* If nobody is waiting on the answer, don't compute it. */
+	/* If yesbody is waiting on the answer, don't compute it. */
 	event = xchg(&hbus->survey_event, NULL);
 	if (!event)
 		return;
@@ -1685,8 +1685,8 @@ static void prepopulate_bars(struct hv_pcibus_device *hbus)
 	 * resumed and suspended again: see hibernation_snapshot() and
 	 * hibernation_platform_enter().
 	 *
-	 * If the memory enable bit is already set, Hyper-V sliently ignores
-	 * the below BAR updates, and the related PCI device driver can not
+	 * If the memory enable bit is already set, Hyper-V sliently igyesres
+	 * the below BAR updates, and the related PCI device driver can yest
 	 * work, because reading from the device register(s) always returns
 	 * 0xFFFFFFFF.
 	 */
@@ -1757,10 +1757,10 @@ static void prepopulate_bars(struct hv_pcibus_device *hbus)
 /*
  * Assign entries in sysfs pci slot directory.
  *
- * Note that this function does not need to lock the children list
+ * Note that this function does yest need to lock the children list
  * because it is called from pci_devices_present_work which
  * is serialized with hv_eject_device_work because they are on the
- * same ordered workqueue. Therefore hbus->children list will not change
+ * same ordered workqueue. Therefore hbus->children list will yest change
  * even when pci_create_slot sleeps.
  */
 static void hv_pci_assign_slots(struct hv_pcibus_device *hbus)
@@ -1803,7 +1803,7 @@ static void hv_pci_remove_slots(struct hv_pcibus_device *hbus)
  * create_root_hv_pci_bus() - Expose a new root PCI bus
  * @hbus:	Root PCI bus, as understood by this driver
  *
- * Return: 0 on success, -errno on failure
+ * Return: 0 on success, -erryes on failure
  */
 static int create_root_hv_pci_bus(struct hv_pcibus_device *hbus)
 {
@@ -1966,7 +1966,7 @@ static struct hv_pci_dev *get_pcichild_wslot(struct hv_pcibus_device *hbus,
  * @work:	Work struct embedded in struct hv_dr_work
  *
  * "Bus Relations" is the Windows term for "children of this
- * bus."  The terminology is preserved here for people trying to
+ * bus."  The termiyeslogy is preserved here for people trying to
  * debug the interaction between Hyper-V and Linux.  This
  * function is called when the parent partition reports a list
  * of functions that should be observed under this PCI Express
@@ -1979,14 +1979,14 @@ static struct hv_pci_dev *get_pcichild_wslot(struct hv_pcibus_device *hbus,
  * simple and inefficient.
  *
  * It must also treat the omission of a previously observed device as
- * notification that the device no longer exists.
+ * yestification that the device yes longer exists.
  *
  * Note that this function is serialized with hv_eject_device_work(),
  * because both are pushed to the ordered workqueue hbus->wq.
  */
 static void pci_devices_present_work(struct work_struct *work)
 {
-	u32 child_no;
+	u32 child_yes;
 	bool found;
 	struct pci_function_description *new_desc;
 	struct hv_pci_dev *hpdev;
@@ -2030,9 +2030,9 @@ static void pci_devices_present_work(struct work_struct *work)
 	spin_unlock_irqrestore(&hbus->device_list_lock, flags);
 
 	/* Next, add back any reported devices. */
-	for (child_no = 0; child_no < dr->device_count; child_no++) {
+	for (child_yes = 0; child_yes < dr->device_count; child_yes++) {
 		found = false;
-		new_desc = &dr->func[child_no];
+		new_desc = &dr->func[child_yes];
 
 		spin_lock_irqsave(&hbus->device_list_lock, flags);
 		list_for_each_entry(hpdev, &hbus->children, list_entry) {
@@ -2069,7 +2069,7 @@ static void pci_devices_present_work(struct work_struct *work)
 	} while (found);
 	spin_unlock_irqrestore(&hbus->device_list_lock, flags);
 
-	/* Delete everything that should no longer exist. */
+	/* Delete everything that should yes longer exist. */
 	while (!list_empty(&removed)) {
 		hpdev = list_first_entry(&removed, struct hv_pci_dev,
 					 list_entry);
@@ -2124,7 +2124,7 @@ static void hv_pci_devices_present(struct hv_pcibus_device *hbus,
 
 	if (hbus->state == hv_pcibus_removing) {
 		dev_info(&hbus->hdev->device,
-			 "PCI VMBus BUS_RELATIONS: ignored\n");
+			 "PCI VMBus BUS_RELATIONS: igyesred\n");
 		return;
 	}
 
@@ -2168,7 +2168,7 @@ static void hv_pci_devices_present(struct hv_pcibus_device *hbus,
 }
 
 /**
- * hv_eject_device_work() - Asynchronously handles ejection
+ * hv_eject_device_work() - Asynchroyesusly handles ejection
  * @work:	Work struct embedded in internal device struct
  *
  * This function handles ejecting a device.  Windows will
@@ -2198,7 +2198,7 @@ static void hv_eject_device_work(struct work_struct *work)
 	 * Ejection can come before or after the PCI bus has been set up, so
 	 * attempt to find it and tear down the bus state, if it exists.  This
 	 * must be done without constructs like pci_domain_nr(hbus->pci_bus)
-	 * because hbus->pci_bus may not exist yet.
+	 * because hbus->pci_bus may yest exist yet.
 	 */
 	wslot = wslot_to_devfn(hpdev->desc.win_slot.slot);
 	pdev = pci_get_domain_bus_and_slot(hbus->sysdata.domain, 0, wslot);
@@ -2229,7 +2229,7 @@ static void hv_eject_device_work(struct work_struct *work)
 	/* For the two refs got in new_pcichild_device() */
 	put_pcichild(hpdev);
 	put_pcichild(hpdev);
-	/* hpdev has been freed. Do not use it any more. */
+	/* hpdev has been freed. Do yest use it any more. */
 
 	put_hvpcibus(hbus);
 }
@@ -2248,7 +2248,7 @@ static void hv_pci_eject_device(struct hv_pci_dev *hpdev)
 	struct hv_device *hdev = hbus->hdev;
 
 	if (hbus->state == hv_pcibus_removing) {
-		dev_info(&hdev->device, "PCI VMBus EJECT: ignored\n");
+		dev_info(&hdev->device, "PCI VMBus EJECT: igyesred\n");
 		return;
 	}
 
@@ -2302,7 +2302,7 @@ static void hv_pci_onchannelcallback(void *context)
 			continue;
 		}
 
-		/* Zero length indicates there are no more packets. */
+		/* Zero length indicates there are yes more packets. */
 		if (ret || !bytes_recvd)
 			break;
 
@@ -2397,10 +2397,10 @@ static void hv_pci_onchannelcallback(void *context)
  * @hdev:	VMBus's tracking struct for this root PCI bus
  *
  * This driver is intended to support running on Windows 10
- * (server) and later versions. It will not run on earlier
+ * (server) and later versions. It will yest run on earlier
  * versions, as they assume that many of the operations which
  * Linux needs accomplished with a spinlock held were done via
- * asynchronous messaging via VMBus.  Windows 10 increases the
+ * asynchroyesus messaging via VMBus.  Windows 10 increases the
  * surface area of PCI emulation so that these actions can take
  * place by suspending a virtual processor for their duration.
  *
@@ -2422,7 +2422,7 @@ static int hv_pci_protocol_negotiation(struct hv_device *hdev,
 	/*
 	 * Initiate the handshake with the host and negotiate
 	 * a version that the host can support. We start with the
-	 * highest version number and go down if the host cannot
+	 * highest version number and go down if the host canyest
 	 * support it.
 	 */
 	pkt = kzalloc(sizeof(*pkt) + sizeof(*version_req), GFP_KERNEL);
@@ -2513,12 +2513,12 @@ static void hv_pci_free_bridge_windows(struct hv_pcibus_device *hbus)
  * bit of a compromise.  Ideally, we might change the pnp layer
  * in the kernel such that it comprehends either PCI devices
  * which are "grandchildren of ACPI," with some intermediate bus
- * node (in this case, VMBus) or change it such that it
+ * yesde (in this case, VMBus) or change it such that it
  * understands VMBus.  The pnp layer, however, has been declared
- * deprecated, and not subject to change.
+ * deprecated, and yest subject to change.
  *
  * The workaround, implemented here, is to ask VMBus to allocate
- * MMIO space for this bus.  VMBus itself knows which ranges are
+ * MMIO space for this bus.  VMBus itself kyesws which ranges are
  * appropriate by looking at its own ACPI objects.  Then, after
  * these ranges are claimed, they're modified to look like they
  * would have looked if the ACPI and pnp code had allocated
@@ -2527,7 +2527,7 @@ static void hv_pci_free_bridge_windows(struct hv_pcibus_device *hbus)
  * endpoint PCI function driver calls request_mem_region() or
  * request_mem_region_exclusive().
  *
- * Return: 0 on success, -errno on failure
+ * Return: 0 on success, -erryes on failure
  */
 static int hv_pci_allocate_bridge_windows(struct hv_pcibus_device *hbus)
 {
@@ -2592,7 +2592,7 @@ release_low_mmio:
  * This function claims memory-mapped I/O space for accessing
  * configuration space for the functions on this bus.
  *
- * Return: 0 on success, -errno on failure
+ * Return: 0 on success, -erryes on failure
  */
 static int hv_allocate_config_window(struct hv_pcibus_device *hbus)
 {
@@ -2609,7 +2609,7 @@ static int hv_allocate_config_window(struct hv_pcibus_device *hbus)
 
 	/*
 	 * vmbus_allocate_mmio() gets used for allocating both device endpoint
-	 * resource claims (those which cannot be overlapped) and the ranges
+	 * resource claims (those which canyest be overlapped) and the ranges
 	 * which are valid for the children of this bus, which are intended
 	 * to be overlapped by those children.  Set the flag on this claim
 	 * meaning that this region can't be overlapped.
@@ -2629,7 +2629,7 @@ static void hv_free_config_window(struct hv_pcibus_device *hbus)
  * hv_pci_enter_d0() - Bring the "bus" into the D0 power state
  * @hdev:	VMBus's tracking struct for this root PCI bus
  *
- * Return: 0 on success, -errno on failure
+ * Return: 0 on success, -erryes on failure
  */
 static int hv_pci_enter_d0(struct hv_device *hdev)
 {
@@ -2685,7 +2685,7 @@ exit:
  * devices
  * @hdev:	VMBus's tracking struct for this root PCI bus
  *
- * Return: 0 on success, -errno on failure
+ * Return: 0 on success, -erryes on failure
  */
 static int hv_pci_query_relations(struct hv_device *hdev)
 {
@@ -2725,7 +2725,7 @@ static int hv_pci_query_relations(struct hv_device *hdev)
  * space.  So this message is sent here only to drive the state
  * machine on the host forward.
  *
- * Return: 0 on success, -errno on failure
+ * Return: 0 on success, -erryes on failure
  */
 static int hv_send_resources_allocated(struct hv_device *hdev)
 {
@@ -2800,7 +2800,7 @@ static int hv_send_resources_allocated(struct hv_device *hdev)
  * released
  * @hdev:	VMBus's tracking struct for this root PCI bus
  *
- * Return: 0 on success, -errno on failure
+ * Return: 0 on success, -erryes on failure
  */
 static int hv_send_resources_released(struct hv_device *hdev)
 {
@@ -2852,7 +2852,7 @@ static DECLARE_BITMAP(hvpci_dom_map, HVPCI_DOM_MAP_SIZE);
 
 /**
  * hv_get_dom_num() - Get a valid PCI domain number
- * Check if the PCI domain number is in use, and return another number if
+ * Check if the PCI domain number is in use, and return ayesther number if
  * it is in use.
  *
  * @dom: Requested domain number
@@ -2888,7 +2888,7 @@ static void hv_put_dom_num(u16 dom)
  * @hdev:	VMBus's tracking struct for this root PCI bus
  * @dev_id:	Identifies the device itself
  *
- * Return: 0 on success, -errno on failure
+ * Return: 0 on success, -erryes on failure
  */
 static int hv_pci_probe(struct hv_device *hdev,
 			const struct hv_vmbus_device_id *dev_id)
@@ -2900,7 +2900,7 @@ static int hv_pci_probe(struct hv_device *hdev,
 
 	/*
 	 * hv_pcibus_device contains the hypercall arguments for retargeting in
-	 * hv_irq_unmask(). Those must not cross a page boundary.
+	 * hv_irq_unmask(). Those must yest cross a page boundary.
 	 */
 	BUILD_BUG_ON(sizeof(*hbus) > HV_HYP_PAGE_SIZE);
 
@@ -2909,10 +2909,10 @@ static int hv_pci_probe(struct hv_device *hdev,
 	 * alignment for kmalloc(power-of-two)"), kzalloc() is able to allocate
 	 * a 4KB buffer that is guaranteed to be 4KB-aligned. Here the size and
 	 * alignment of hbus is important because hbus's field
-	 * retarget_msi_interrupt_params must not cross a 4KB page boundary.
+	 * retarget_msi_interrupt_params must yest cross a 4KB page boundary.
 	 *
 	 * Here we prefer kzalloc to get_zeroed_page(), because a buffer
-	 * allocated by the latter is not tracked and scanned by kmemleak, and
+	 * allocated by the latter is yest tracked and scanned by kmemleak, and
 	 * hence kmemleak reports the pointer contained in the hbus buffer
 	 * (i.e. the hpdev struct, which is created in new_pcichild_device() and
 	 * is tracked by hbus->children) as memory leak (false positive).
@@ -2930,14 +2930,14 @@ static int hv_pci_probe(struct hv_device *hdev,
 	/*
 	 * The PCI bus "domain" is what is called "segment" in ACPI and other
 	 * specs. Pull it from the instance ID, to get something usually
-	 * unique. In rare cases of collision, we will find out another number
-	 * not in use.
+	 * unique. In rare cases of collision, we will find out ayesther number
+	 * yest in use.
 	 *
 	 * Note that, since this code only runs in a Hyper-V VM, Hyper-V
 	 * together with this guest driver can guarantee that (1) The only
 	 * domain used by Gen1 VMs for something that looks like a physical
 	 * PCI bus (which is actually emulated by the hypervisor) is domain 0.
-	 * (2) There will be no overlap between domains (after fixing possible
+	 * (2) There will be yes overlap between domains (after fixing possible
 	 * collisions) in the same VM.
 	 */
 	dom_req = hdev->dev_instance.b[5] << 8 | hdev->dev_instance.b[4];
@@ -3004,16 +3004,16 @@ static int hv_pci_probe(struct hv_device *hdev,
 		goto unmap;
 	}
 
-	hbus->sysdata.fwnode = irq_domain_alloc_named_fwnode(name);
+	hbus->sysdata.fwyesde = irq_domain_alloc_named_fwyesde(name);
 	kfree(name);
-	if (!hbus->sysdata.fwnode) {
+	if (!hbus->sysdata.fwyesde) {
 		ret = -ENOMEM;
 		goto unmap;
 	}
 
 	ret = hv_pcie_init_irq_domain(hbus);
 	if (ret)
-		goto free_fwnode;
+		goto free_fwyesde;
 
 	ret = hv_pci_query_relations(hdev);
 	if (ret)
@@ -3045,8 +3045,8 @@ free_windows:
 	hv_pci_free_bridge_windows(hbus);
 free_irq_domain:
 	irq_domain_remove(hbus->irq_domain);
-free_fwnode:
-	irq_domain_free_fwnode(hbus->sysdata.fwnode);
+free_fwyesde:
+	irq_domain_free_fwyesde(hbus->sysdata.fwyesde);
 unmap:
 	iounmap(hbus->cfg_addr);
 free_config:
@@ -3117,7 +3117,7 @@ static int hv_pci_bus_exit(struct hv_device *hdev, bool hibernating)
  * hv_pci_remove() - Remove routine for this VMBus channel
  * @hdev:	VMBus's tracking struct for this root PCI bus
  *
- * Return: 0 on success, -errno on failure
+ * Return: 0 on success, -erryes on failure
  */
 static int hv_pci_remove(struct hv_device *hdev)
 {
@@ -3144,7 +3144,7 @@ static int hv_pci_remove(struct hv_device *hdev)
 	pci_free_resource_list(&hbus->resources_for_children);
 	hv_pci_free_bridge_windows(hbus);
 	irq_domain_remove(hbus->irq_domain);
-	irq_domain_free_fwnode(hbus->sysdata.fwnode);
+	irq_domain_free_fwyesde(hbus->sysdata.fwyesde);
 	put_hvpcibus(hbus);
 	wait_for_completion(&hbus->remove_event);
 	destroy_workqueue(hbus->wq);
@@ -3162,7 +3162,7 @@ static int hv_pci_suspend(struct hv_device *hdev)
 	int ret;
 
 	/*
-	 * hv_pci_suspend() must make sure there are no pending work items
+	 * hv_pci_suspend() must make sure there are yes pending work items
 	 * before calling vmbus_close(), since it runs in a process context
 	 * as a callback in dpm_suspend().  When it starts to run, the channel
 	 * callback hv_pci_onchannelcallback(), which runs in a tasklet
@@ -3176,7 +3176,7 @@ static int hv_pci_suspend(struct hv_device *hdev)
 	 * To eliminate the race, hv_pci_suspend() disables the channel
 	 * callback tasklet, sets hbus->state to hv_pcibus_removing, and
 	 * re-enables the tasklet. This way, when hv_pci_suspend() proceeds,
-	 * it knows that no new work item can be scheduled, and then it flushes
+	 * it kyesws that yes new work item can be scheduled, and then it flushes
 	 * hbus->wq and safely closes the vmbus channel.
 	 */
 	tasklet_disable(&hdev->channel->callback_event);
@@ -3271,7 +3271,7 @@ static void __exit exit_hv_pci_drv(void)
 
 static int __init init_hv_pci_drv(void)
 {
-	/* Set the invalid domain number's bit, so it will not be used */
+	/* Set the invalid domain number's bit, so it will yest be used */
 	set_bit(HVPCI_DOM_INVALID, hvpci_dom_map);
 
 	/* Initialize PCI block r/w interface */

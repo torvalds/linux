@@ -105,7 +105,7 @@ void do_signal(struct pt_regs *regs)
 
 	/* Did we come from a system call? */
 	if (!handled_sig && (PT_REGS_SYSCALL_NR(regs) >= 0)) {
-		/* Restart the system call - no handlers present */
+		/* Restart the system call - yes handlers present */
 		switch (PT_REGS_SYSCALL_RET(regs)) {
 		case -ERESTARTNOHAND:
 		case -ERESTARTSYS:
@@ -133,7 +133,7 @@ void do_signal(struct pt_regs *regs)
 			is_syscall(PT_REGS_IP(&current->thread.regs));
 
 	/*
-	 * if there's no signal to deliver, we just put the saved sigmask
+	 * if there's yes signal to deliver, we just put the saved sigmask
 	 * back
 	 */
 	if (!handled_sig)

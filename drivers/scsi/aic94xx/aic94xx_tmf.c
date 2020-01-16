@@ -331,7 +331,7 @@ static int asd_clear_nexus(struct sas_task *task)
 
 	tascb->completion = &completion;
 
-	ASD_DPRINTK("task not done, clearing nexus\n");
+	ASD_DPRINTK("task yest done, clearing nexus\n");
 	if (tascb->tag_valid)
 		res = asd_clear_nexus_tag(task);
 	else
@@ -372,7 +372,7 @@ static int asd_clear_nexus(struct sas_task *task)
  * xor free the task, depending on their framework.  The return code
  * is TMF_RESP_FUNC_FAILED in this case.
  *
- * Else the SAS_TASK_STATE_DONE bit is not set,
+ * Else the SAS_TASK_STATE_DONE bit is yest set,
  * 	If the return code is TMF_RESP_FUNC_COMPLETE, then
  * 		the task was aborted successfully.  The caller of
  * 		ABORT TASK has responsibility to call task->task_done()
@@ -380,7 +380,7 @@ static int asd_clear_nexus(struct sas_task *task)
  *		framework.
  *	else
  * 		the ABORT TASK returned some kind of error. The task
- *              was _not_ cancelled.  Nothing can be assumed.
+ *              was _yest_ cancelled.  Nothing can be assumed.
  *		The caller of ABORT TASK may wish to retry.
  */
 int asd_abort_task(struct sas_task *task)
@@ -500,7 +500,7 @@ int asd_abort_task(struct sas_task *task)
 		case TF_NAK_RECV:
 			res = TMF_RESP_INVALID_FRAME;
 			break;
-		case TF_TMF_TASK_DONE:	/* done but not reported yet */
+		case TF_TMF_TASK_DONE:	/* done but yest reported yet */
 			res = TMF_RESP_FUNC_FAILED;
 			leftover =
 				wait_for_completion_timeout(&tascb_completion,
@@ -514,10 +514,10 @@ int asd_abort_task(struct sas_task *task)
 			break;
 		case TF_TMF_NO_TAG:
 		case TF_TMF_TAG_FREE: /* the tag is in the free list */
-		case TF_TMF_NO_CONN_HANDLE: /* no such device */
+		case TF_TMF_NO_CONN_HANDLE: /* yes such device */
 			res = TMF_RESP_FUNC_COMPLETE;
 			break;
-		case TF_TMF_NO_CTX: /* not in seq, or proto != SSP */
+		case TF_TMF_NO_CTX: /* yest in seq, or proto != SSP */
 			res = TMF_RESP_FUNC_ESUPP;
 			break;
 		}
@@ -618,10 +618,10 @@ static int asd_initiate_ssp_tmf(struct domain_device *dev, u8 *lun,
 		break;
 	case TF_TMF_NO_TAG:
 	case TF_TMF_TAG_FREE: /* the tag is in the free list */
-	case TF_TMF_NO_CONN_HANDLE: /* no such device */
+	case TF_TMF_NO_CONN_HANDLE: /* yes such device */
 		res = TMF_RESP_FUNC_COMPLETE;
 		break;
-	case TF_TMF_NO_CTX: /* not in seq, or proto != SSP */
+	case TF_TMF_NO_CTX: /* yest in seq, or proto != SSP */
 		res = TMF_RESP_FUNC_ESUPP;
 		break;
 	default:
@@ -675,7 +675,7 @@ int asd_lu_reset(struct domain_device *dev, u8 *lun)
  * asd_query_task -- send a QUERY TASK TMF to an I_T_L_Q nexus
  * task: pointer to sas_task struct of interest
  *
- * Returns: TMF_RESP_FUNC_COMPLETE if the task is not in the task set,
+ * Returns: TMF_RESP_FUNC_COMPLETE if the task is yest in the task set,
  * or TMF_RESP_FUNC_SUCC if the task is in the task set.
  *
  * Normally the management layer sets the task to aborted state,

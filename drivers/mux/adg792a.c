@@ -2,7 +2,7 @@
 /*
  * Multiplexer driver for Analog Devices ADG792A/G Triple 4:1 mux
  *
- * Copyright (C) 2017 Axentia Technologies AB
+ * Copyright (C) 2017 Axentia Techyeslogies AB
  *
  * Author: Peter Rosin <peda@axentia.se>
  */

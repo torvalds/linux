@@ -15,9 +15,9 @@
  * are met:
  *
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
+ *    yestice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
  *
@@ -130,7 +130,7 @@ struct bnxt_qplib_crsbe {
 };
 
 /* CREQ */
-/* Allocate 1 per QP for async error notification for now */
+/* Allocate 1 per QP for async error yestification for yesw */
 #define BNXT_QPLIB_CREQE_MAX_CNT	(64 * 1024)
 #define BNXT_QPLIB_CREQE_UNITS		16	/* 16-Bytes per prod unit */
 #define BNXT_QPLIB_CREQE_CNT_PER_PG	(PAGE_SIZE / BNXT_QPLIB_CREQE_UNITS)
@@ -218,7 +218,7 @@ struct bnxt_qplib_rcfw_sbuf {
 	u32 size;
 };
 
-struct bnxt_qplib_qp_node {
+struct bnxt_qplib_qp_yesde {
 	u32 qp_id;              /* QP id */
 	void *qp_handle;        /* ptr to qplib_qp */
 };
@@ -252,7 +252,7 @@ struct bnxt_qplib_rcfw {
 	u16			creq_bar_reg;
 	void __iomem		*creq_bar_reg_iomem;
 
-	/* Cmd-Resp and Async Event notification queue */
+	/* Cmd-Resp and Async Event yestification queue */
 	struct bnxt_qplib_hwq	creq;
 	u64			creq_qp_event_processed;
 	u64			creq_func_event_processed;
@@ -261,7 +261,7 @@ struct bnxt_qplib_rcfw {
 	struct bnxt_qplib_hwq	cmdq;
 	struct bnxt_qplib_crsq	*crsqe_tbl;
 	int qp_tbl_size;
-	struct bnxt_qplib_qp_node *qp_tbl;
+	struct bnxt_qplib_qp_yesde *qp_tbl;
 	u64 oos_prev;
 	u32 init_oos_stats;
 	u32 cmdq_depth;

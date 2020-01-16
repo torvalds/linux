@@ -215,7 +215,7 @@ static int tc3589x_irq_map(struct irq_domain *d, unsigned int virq,
 	irq_set_chip_and_handler(virq, &dummy_irq_chip,
 				handle_edge_irq);
 	irq_set_nested_thread(virq, 1);
-	irq_set_noprobe(virq);
+	irq_set_yesprobe(virq);
 
 	return 0;
 }
@@ -232,7 +232,7 @@ static const struct irq_domain_ops tc3589x_irq_ops = {
 	.xlate  = irq_domain_xlate_onecell,
 };
 
-static int tc3589x_irq_init(struct tc3589x *tc3589x, struct device_node *np)
+static int tc3589x_irq_init(struct tc3589x *tc3589x, struct device_yesde *np)
 {
 	tc3589x->domain = irq_domain_add_simple(
 		np, TC3589x_NR_INTERNAL_IRQS, 0,
@@ -259,7 +259,7 @@ static int tc3589x_chip_init(struct tc3589x *tc3589x)
 		return ver;
 
 	if (manf != TC3589x_MANFCODE_MAGIC) {
-		dev_err(tc3589x->dev, "unknown manufacturer: %#x\n", manf);
+		dev_err(tc3589x->dev, "unkyeswn manufacturer: %#x\n", manf);
 		return -EINVAL;
 	}
 
@@ -328,9 +328,9 @@ MODULE_DEVICE_TABLE(of, tc3589x_match);
 static struct tc3589x_platform_data *
 tc3589x_of_probe(struct device *dev, enum tc3589x_version *version)
 {
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 	struct tc3589x_platform_data *pdata;
-	struct device_node *child;
+	struct device_yesde *child;
 	const struct of_device_id *of_id;
 
 	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
@@ -342,7 +342,7 @@ tc3589x_of_probe(struct device *dev, enum tc3589x_version *version)
 		return ERR_PTR(-ENODEV);
 	*version = (enum tc3589x_version) of_id->data;
 
-	for_each_child_of_node(np, child) {
+	for_each_child_of_yesde(np, child) {
 		if (of_device_is_compatible(child, "toshiba,tc3589x-gpio"))
 			pdata->block |= TC3589x_BLOCK_GPIO;
 		if (of_device_is_compatible(child, "toshiba,tc3589x-keypad"))
@@ -355,7 +355,7 @@ tc3589x_of_probe(struct device *dev, enum tc3589x_version *version)
 static int tc3589x_probe(struct i2c_client *i2c,
 				   const struct i2c_device_id *id)
 {
-	struct device_node *np = i2c->dev.of_node;
+	struct device_yesde *np = i2c->dev.of_yesde;
 	struct tc3589x_platform_data *pdata = dev_get_platdata(&i2c->dev);
 	struct tc3589x *tc3589x;
 	enum tc3589x_version version;
@@ -368,7 +368,7 @@ static int tc3589x_probe(struct i2c_client *i2c,
 			return PTR_ERR(pdata);
 		}
 	} else {
-		/* When not probing from device tree we have this ID */
+		/* When yest probing from device tree we have this ID */
 		version = id->driver_data;
 	}
 

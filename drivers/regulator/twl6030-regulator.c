@@ -111,7 +111,7 @@ static int twlreg_grp(struct regulator_dev *rdev)
 
 /*
  * Enable/disable regulators by joining/leaving the P1 (processor) group.
- * We assume nobody else is updating the DEV_GRP registers.
+ * We assume yesbody else is updating the DEV_GRP registers.
  */
 /* definition for 6030 family */
 #define P3_GRP_6030	BIT(2)		/* secondary processor, modem, etc */
@@ -405,7 +405,7 @@ static int twl6030smps_map_voltage(struct regulator_dev *rdev, int min_uV,
 			vsel++;
 		}
 		/* Values 1..57 for vsel are linear and can be calculated
-		 * values 58..62 are non linear.
+		 * values 58..62 are yesn linear.
 		 */
 		else if ((min_uV > 1900000) && (min_uV <= 2100000))
 			vsel = 62;
@@ -428,7 +428,7 @@ static int twl6030smps_map_voltage(struct regulator_dev *rdev, int min_uV,
 			vsel++;
 		}
 		/* Values 1..57 for vsel are linear and can be calculated
-		 * values 58..62 are non linear.
+		 * values 58..62 are yesn linear.
 		 */
 		else if ((min_uV > 1900000) && (min_uV <= 2100000))
 			vsel = 62;
@@ -542,7 +542,7 @@ static const struct twlreg_info TWL6032_INFO_##label = { \
 		}, \
 	}
 
-#define TWL6030_FIXED_LDO(label, offset, mVolts, turnon_delay) \
+#define TWL6030_FIXED_LDO(label, offset, mVolts, turyesn_delay) \
 static const struct twlreg_info TWLFIXED_INFO_##label = { \
 	.base = offset, \
 	.id = 0, \
@@ -554,7 +554,7 @@ static const struct twlreg_info TWLFIXED_INFO_##label = { \
 		.type = REGULATOR_VOLTAGE, \
 		.owner = THIS_MODULE, \
 		.min_uV = mVolts * 1000, \
-		.enable_time = turnon_delay, \
+		.enable_time = turyesn_delay, \
 		.of_map_mode = NULL, \
 		}, \
 	}
@@ -574,8 +574,8 @@ static const struct twlreg_info TWLSMPS_INFO_##label = { \
 
 /* VUSBCP is managed *only* by the USB subchip */
 /* 6030 REG with base as PMC Slave Misc : 0x0030 */
-/* Turnon-delay and remap configuration values for 6030 are not
-   verified since the specification is not public */
+/* Turyesn-delay and remap configuration values for 6030 are yest
+   verified since the specification is yest public */
 TWL6030_ADJUSTABLE_SMPS(VDD1);
 TWL6030_ADJUSTABLE_SMPS(VDD2);
 TWL6030_ADJUSTABLE_SMPS(VDD3);
@@ -675,7 +675,7 @@ static int twlreg_probe(struct platform_device *pdev)
 	struct regulation_constraints	*c;
 	struct regulator_dev		*rdev;
 	struct regulator_config		config = { };
-	struct device_node		*np = pdev->dev.of_node;
+	struct device_yesde		*np = pdev->dev.of_yesde;
 
 	template = of_device_get_match_data(&pdev->dev);
 	if (!template)
@@ -726,7 +726,7 @@ static int twlreg_probe(struct platform_device *pdev)
 	config.dev = &pdev->dev;
 	config.init_data = initdata;
 	config.driver_data = info;
-	config.of_node = np;
+	config.of_yesde = np;
 
 	rdev = devm_regulator_register(&pdev->dev, &info->desc, &config);
 	if (IS_ERR(rdev)) {
@@ -737,7 +737,7 @@ static int twlreg_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, rdev);
 
 	/* NOTE:  many regulators support short-circuit IRQs (presentable
-	 * as REGULATOR_OVER_CURRENT notifications?) configured via:
+	 * as REGULATOR_OVER_CURRENT yestifications?) configured via:
 	 *  - SC_CONFIG
 	 *  - SC_DETECT1 (vintana2, vmmc1/2, vaux1/2/3/4)
 	 *  - SC_DETECT2 (vusb, vdac, vio, vdd1/2, vpll2)

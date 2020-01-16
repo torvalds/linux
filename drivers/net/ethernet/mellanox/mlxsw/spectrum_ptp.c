@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0
-/* Copyright (c) 2019 Mellanox Technologies. All rights reserved */
+/* Copyright (c) 2019 Mellayesx Techyeslogies. All rights reserved */
 
 #include <linux/ptp_clock_kernel.h>
 #include <linux/clocksource.h>
@@ -45,7 +45,7 @@ struct mlxsw_sp1_ptp_key {
 
 struct mlxsw_sp1_ptp_unmatched {
 	struct mlxsw_sp1_ptp_key key;
-	struct rhlist_head ht_node;
+	struct rhlist_head ht_yesde;
 	struct rcu_head rcu;
 	struct sk_buff *skb;
 	u64 timestamp;
@@ -55,7 +55,7 @@ struct mlxsw_sp1_ptp_unmatched {
 static const struct rhashtable_params mlxsw_sp1_ptp_unmatched_ht_params = {
 	.key_len = sizeof_field(struct mlxsw_sp1_ptp_unmatched, key),
 	.key_offset = offsetof(struct mlxsw_sp1_ptp_unmatched, key),
-	.head_offset = offsetof(struct mlxsw_sp1_ptp_unmatched, ht_node),
+	.head_offset = offsetof(struct mlxsw_sp1_ptp_unmatched, ht_yesde),
 };
 
 struct mlxsw_sp_ptp_clock {
@@ -63,7 +63,7 @@ struct mlxsw_sp_ptp_clock {
 	spinlock_t lock; /* protect this structure */
 	struct cyclecounter cycles;
 	struct timecounter tc;
-	u32 nominal_c_mult;
+	u32 yesminal_c_mult;
 	struct ptp_clock *ptp;
 	struct ptp_clock_info ptp_info;
 	unsigned long overflow_period;
@@ -164,14 +164,14 @@ static int mlxsw_sp1_ptp_adjfine(struct ptp_clock_info *ptp, long scaled_ppm)
 		ppb = -ppb;
 	}
 
-	adj = clock->nominal_c_mult;
+	adj = clock->yesminal_c_mult;
 	adj *= ppb;
 	diff = div_u64(adj, NSEC_PER_SEC);
 
 	spin_lock_bh(&clock->lock);
 	timecounter_read(&clock->tc);
-	clock->cycles.mult = neg_adj ? clock->nominal_c_mult - diff :
-				       clock->nominal_c_mult + diff;
+	clock->cycles.mult = neg_adj ? clock->yesminal_c_mult - diff :
+				       clock->yesminal_c_mult + diff;
 	spin_unlock_bh(&clock->lock);
 
 	return mlxsw_sp1_ptp_phc_adjfreq(clock, neg_adj ? -ppb : ppb);
@@ -263,7 +263,7 @@ mlxsw_sp1_ptp_clock_init(struct mlxsw_sp *mlxsw_sp, struct device *dev)
 	clock->cycles.shift = MLXSW_SP1_PTP_CLOCK_CYCLES_SHIFT;
 	clock->cycles.mult = clocksource_khz2mult(MLXSW_SP1_PTP_CLOCK_FREQ_KHZ,
 						  clock->cycles.shift);
-	clock->nominal_c_mult = clock->cycles.mult;
+	clock->yesminal_c_mult = clock->cycles.mult;
 	clock->cycles.mask = CLOCKSOURCE_MASK(MLXSW_SP1_PTP_CLOCK_MASK);
 	clock->core = mlxsw_sp->core;
 
@@ -379,7 +379,7 @@ mlxsw_sp1_ptp_unmatched_save(struct mlxsw_sp *mlxsw_sp,
 	unmatched->timestamp = timestamp;
 	unmatched->gc_cycle = mlxsw_sp->ptp_state->gc_cycle + cycles;
 
-	err = rhltable_insert(&ptp_state->unmatched_ht, &unmatched->ht_node,
+	err = rhltable_insert(&ptp_state->unmatched_ht, &unmatched->ht_yesde,
 			      mlxsw_sp1_ptp_unmatched_ht_params);
 	if (err)
 		kfree(unmatched);
@@ -397,7 +397,7 @@ mlxsw_sp1_ptp_unmatched_lookup(struct mlxsw_sp *mlxsw_sp,
 
 	list = rhltable_lookup(&mlxsw_sp->ptp_state->unmatched_ht, &key,
 			       mlxsw_sp1_ptp_unmatched_ht_params);
-	rhl_for_each_entry_rcu(unmatched, tmp, list, ht_node) {
+	rhl_for_each_entry_rcu(unmatched, tmp, list, ht_yesde) {
 		last = unmatched;
 		length++;
 	}
@@ -411,7 +411,7 @@ mlxsw_sp1_ptp_unmatched_remove(struct mlxsw_sp *mlxsw_sp,
 			       struct mlxsw_sp1_ptp_unmatched *unmatched)
 {
 	return rhltable_remove(&mlxsw_sp->ptp_state->unmatched_ht,
-			       &unmatched->ht_node,
+			       &unmatched->ht_yesde,
 			       mlxsw_sp1_ptp_unmatched_ht_params);
 }
 
@@ -443,7 +443,7 @@ static void mlxsw_sp1_ptp_packet_finish(struct mlxsw_sp *mlxsw_sp,
 	if (ingress) {
 		if (hwtstamps)
 			*skb_hwtstamps(skb) = *hwtstamps;
-		mlxsw_sp_rx_listener_no_mark_func(skb, local_port, mlxsw_sp);
+		mlxsw_sp_rx_listener_yes_mark_func(skb, local_port, mlxsw_sp);
 	} else {
 		/* skb_tstamp_tx() allows hwtstamps to be NULL. */
 		skb_tstamp_tx(skb, hwtstamps);
@@ -513,7 +513,7 @@ static void mlxsw_sp1_ptp_got_piece(struct mlxsw_sp *mlxsw_sp,
 	} else if (timestamp && unmatched && unmatched->skb) {
 		unmatched->timestamp = timestamp;
 	} else {
-		/* Either there is no entry to match, or one that is there is
+		/* Either there is yes entry to match, or one that is there is
 		 * incompatible.
 		 */
 		if (length < 100)
@@ -568,7 +568,7 @@ static void mlxsw_sp1_ptp_got_packet(struct mlxsw_sp *mlxsw_sp,
 	if (err)
 		goto immediate;
 
-	/* For packets whose timestamping was not enabled on this port, don't
+	/* For packets whose timestamping was yest enabled on this port, don't
 	 * bother trying to match the timestamp.
 	 */
 	if (!((1 << key.message_type) & types))
@@ -597,7 +597,7 @@ void mlxsw_sp1_ptp_got_timestamp(struct mlxsw_sp *mlxsw_sp, bool ingress,
 	types = ingress ? mlxsw_sp_port->ptp.ing_types :
 			  mlxsw_sp_port->ptp.egr_types;
 
-	/* For message types whose timestamping was not enabled on this port,
+	/* For message types whose timestamping was yest enabled on this port,
 	 * don't bother with the timestamp.
 	 */
 	if (!((1 << message_type) & types))
@@ -644,7 +644,7 @@ mlxsw_sp1_ptp_ht_gc_collect(struct mlxsw_sp_ptp_state *ptp_state,
 	local_bh_disable();
 
 	spin_lock(&ptp_state->unmatched_lock);
-	err = rhltable_remove(&ptp_state->unmatched_ht, &unmatched->ht_node,
+	err = rhltable_remove(&ptp_state->unmatched_ht, &unmatched->ht_yesde,
 			      mlxsw_sp1_ptp_unmatched_ht_params);
 	spin_unlock(&ptp_state->unmatched_lock);
 
@@ -667,7 +667,7 @@ mlxsw_sp1_ptp_ht_gc_collect(struct mlxsw_sp_ptp_state *ptp_state,
 	 * the comment at that function states that it can only be called in
 	 * soft IRQ context, this pattern of local_bh_disable() +
 	 * netif_receive_skb(), in process context, is seen elsewhere in the
-	 * kernel, notably in pktgen.
+	 * kernel, yestably in pktgen.
 	 */
 	mlxsw_sp1_ptp_unmatched_finish(ptp_state->mlxsw_sp, unmatched);
 
@@ -969,7 +969,7 @@ static int mlxsw_sp1_ptp_mtpppc_update(struct mlxsw_sp_port *mlxsw_sp_port,
 	int err;
 	int i;
 
-	/* MTPPPC configures timestamping globally, not per port. Find the
+	/* MTPPPC configures timestamping globally, yest per port. Find the
 	 * configuration that contains all configured timestamping requests.
 	 */
 	for (i = 1; i < mlxsw_core_max_ports(mlxsw_sp->core); i++) {

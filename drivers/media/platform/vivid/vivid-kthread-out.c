@@ -6,7 +6,7 @@
  */
 
 #include <linux/module.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/sched.h>
@@ -89,7 +89,7 @@ static void vivid_thread_vid_out_tick(struct vivid_dev *dev)
 		vid_out_buf->vb.sequence = dev->vid_out_seq_count;
 		if (dev->field_out == V4L2_FIELD_ALTERNATE) {
 			/*
-			 * The sequence counter counts frames, not fields.
+			 * The sequence counter counts frames, yest fields.
 			 * So divide by two.
 			 */
 			vid_out_buf->vb.sequence /= 2;
@@ -146,7 +146,7 @@ static int vivid_thread_vid_out(void *data)
 	unsigned long cur_jiffies;
 	unsigned wait_jiffies;
 	unsigned numerator;
-	unsigned denominator;
+	unsigned deyesminator;
 
 	dprintk(dev, 1, "Video Output Thread Start\n");
 
@@ -179,15 +179,15 @@ static int vivid_thread_vid_out(void *data)
 			dev->out_seq_resync = false;
 		}
 		numerator = dev->timeperframe_vid_out.numerator;
-		denominator = dev->timeperframe_vid_out.denominator;
+		deyesminator = dev->timeperframe_vid_out.deyesminator;
 
 		if (dev->field_out == V4L2_FIELD_ALTERNATE)
-			denominator *= 2;
+			deyesminator *= 2;
 
 		/* Calculate the number of jiffies since we started streaming */
 		jiffies_since_start = cur_jiffies - dev->jiffies_vid_out;
 		/* Get the number of buffers streamed since the start */
-		buffers_since_start = (u64)jiffies_since_start * denominator +
+		buffers_since_start = (u64)jiffies_since_start * deyesminator +
 				      (HZ * numerator) / 2;
 		do_div(buffers_since_start, HZ * numerator);
 
@@ -212,7 +212,7 @@ static int vivid_thread_vid_out(void *data)
 
 		/*
 		 * Calculate the number of 'numerators' streamed since we started,
-		 * not including the current buffer.
+		 * yest including the current buffer.
 		 */
 		numerators_since_start = buffers_since_start * numerator;
 
@@ -226,8 +226,8 @@ static int vivid_thread_vid_out(void *data)
 		 * in jiffies since we started streaming.
 		 */
 		next_jiffies_since_start = numerators_since_start * HZ +
-					   denominator / 2;
-		do_div(next_jiffies_since_start, denominator);
+					   deyesminator / 2;
+		do_div(next_jiffies_since_start, deyesminator);
 		/* If it is in the past, then just schedule asap */
 		if (next_jiffies_since_start < jiffies_since_start)
 			next_jiffies_since_start = jiffies_since_start;

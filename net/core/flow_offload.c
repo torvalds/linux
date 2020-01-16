@@ -295,7 +295,7 @@ struct flow_indr_block_cb {
 };
 
 struct flow_indr_block_dev {
-	struct rhash_head ht_node;
+	struct rhash_head ht_yesde;
 	struct net_device *dev;
 	unsigned int refcnt;
 	struct list_head cb_list;
@@ -303,7 +303,7 @@ struct flow_indr_block_dev {
 
 static const struct rhashtable_params flow_indr_setup_block_ht_params = {
 	.key_offset	= offsetof(struct flow_indr_block_dev, dev),
-	.head_offset	= offsetof(struct flow_indr_block_dev, ht_node),
+	.head_offset	= offsetof(struct flow_indr_block_dev, ht_yesde),
 	.key_len	= sizeof(struct net_device *),
 };
 
@@ -329,7 +329,7 @@ flow_indr_block_dev_get(struct net_device *dev)
 
 	INIT_LIST_HEAD(&indr_dev->cb_list);
 	indr_dev->dev = dev;
-	if (rhashtable_insert_fast(&indr_setup_block_ht, &indr_dev->ht_node,
+	if (rhashtable_insert_fast(&indr_setup_block_ht, &indr_dev->ht_yesde,
 				   flow_indr_setup_block_ht_params)) {
 		kfree(indr_dev);
 		return NULL;
@@ -345,7 +345,7 @@ static void flow_indr_block_dev_put(struct flow_indr_block_dev *indr_dev)
 	if (--indr_dev->refcnt)
 		return;
 
-	rhashtable_remove_fast(&indr_setup_block_ht, &indr_dev->ht_node,
+	rhashtable_remove_fast(&indr_setup_block_ht, &indr_dev->ht_yesde,
 			       flow_indr_setup_block_ht_params);
 	kfree(indr_dev);
 }

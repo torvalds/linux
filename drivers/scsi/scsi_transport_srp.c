@@ -2,7 +2,7 @@
 /*
  * SCSI RDMA (SRP) transport class
  *
- * Copyright (C) 2007 FUJITA Tomonori <tomof@acm.org>
+ * Copyright (C) 2007 FUJITA Tomoyesri <tomof@acm.org>
  */
 #include <linux/init.h>
 #include <linux/module.h>
@@ -75,11 +75,11 @@ static inline struct srp_rport *shost_to_rport(struct Scsi_Host *shost)
  * @dev_loss_tmo: Device loss timeout in seconds.
  *
  * The combination of the timeout parameters must be such that SCSI commands
- * are finished in a reasonable time. Hence do not allow the fast I/O fail
- * timeout to exceed SCSI_DEVICE_BLOCK_MAX_TIMEOUT nor allow dev_loss_tmo to
+ * are finished in a reasonable time. Hence do yest allow the fast I/O fail
+ * timeout to exceed SCSI_DEVICE_BLOCK_MAX_TIMEOUT yesr allow dev_loss_tmo to
  * exceed that limit if failing I/O fast has been disabled. Furthermore, these
  * parameters must be such that multipath can detect failed paths timely.
- * Hence do not allow all three parameters to be disabled simultaneously.
+ * Hence do yest allow all three parameters to be disabled simultaneously.
  */
 int srp_tmo_valid(int reconnect_delay, int fast_io_fail_tmo, long dev_loss_tmo)
 {
@@ -148,7 +148,7 @@ show_srp_rport_roles(struct device *dev, struct device_attribute *attr,
 			name = srp_rport_role_names[i].name;
 			break;
 		}
-	return sprintf(buf, "%s\n", name ? : "unknown");
+	return sprintf(buf, "%s\n", name ? : "unkyeswn");
 }
 
 static DEVICE_ATTR(roles, S_IRUGO, show_srp_rport_roles, NULL);
@@ -496,7 +496,7 @@ static void __srp_start_tl_fail_timers(struct srp_rport *rport)
  * srp_start_tl_fail_timers() - start the transport layer failure timers
  * @rport: SRP target port.
  *
- * Start the transport layer fast I/O failure and device loss timers. Do not
+ * Start the transport layer fast I/O failure and device loss timers. Do yest
  * modify a timer that was already started.
  */
 void srp_start_tl_fail_timers(struct srp_rport *rport)
@@ -517,14 +517,14 @@ EXPORT_SYMBOL(srp_start_tl_fail_timers);
  * reallocate resources needed by queuecommand().
  *
  * Notes:
- * - This function neither waits until outstanding requests have finished nor
+ * - This function neither waits until outstanding requests have finished yesr
  *   tries to abort these. It is the responsibility of the reconnect()
  *   function to finish outstanding commands before reconnecting to the target
  *   port.
  * - It is the responsibility of the caller to ensure that the resources
  *   reallocated by the reconnect() function won't be used while this function
  *   is in progress. One possible strategy is to invoke this function from
- *   the context of the SCSI EH thread only. Another possible strategy is to
+ *   the context of the SCSI EH thread only. Ayesther possible strategy is to
  *   lock the rport mutex inside each SCSI LLD callback that can be invoked by
  *   the SCSI EH (the scsi_host_template.eh_*() functions and also the
  *   scsi_host_template.queuecommand() function).
@@ -567,7 +567,7 @@ int srp_reconnect_rport(struct srp_rport *rport)
 		/*
 		 * srp_reconnect_rport() has been invoked with fast_io_fail
 		 * and dev_loss off. Mark the port as failed and start the TL
-		 * failure timers if these had not yet been started.
+		 * failure timers if these had yest yet been started.
 		 */
 		__rport_fail_io_fast(rport);
 		scsi_target_unblock(&shost->shost_gendev,
@@ -721,7 +721,7 @@ struct srp_rport *srp_rport_add(struct Scsi_Host *shost,
 	INIT_DELAYED_WORK(&rport->dev_loss_work, rport_dev_loss_timedout);
 
 	id = atomic_inc_return(&to_srp_host_attrs(shost)->next_port_id);
-	dev_set_name(&rport->dev, "port-%d:%d", shost->host_no, id);
+	dev_set_name(&rport->dev, "port-%d:%d", shost->host_yes, id);
 
 	transport_setup_device(&rport->dev);
 
@@ -887,7 +887,7 @@ static void __exit srp_transport_exit(void)
 	transport_class_unregister(&srp_rport_class);
 }
 
-MODULE_AUTHOR("FUJITA Tomonori");
+MODULE_AUTHOR("FUJITA Tomoyesri");
 MODULE_DESCRIPTION("SRP Transport Attributes");
 MODULE_LICENSE("GPL");
 

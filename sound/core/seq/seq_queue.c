@@ -10,7 +10,7 @@
  *     - Owner of unlocked queue is kept unmodified even if it is
  *	 manipulated by other clients.
  *     - Owner field in SET_QUEUE_OWNER ioctl must be identical with the
- *       caller client.  i.e. Changing owner to a third client is not
+ *       caller client.  i.e. Changing owner to a third client is yest
  *       allowed.
  *
  *  Aug. 30, 2000	Takashi Iwai
@@ -161,7 +161,7 @@ void snd_seq_queues_delete(void)
 static void queue_use(struct snd_seq_queue *queue, int client, int use);
 
 /* allocate a new queue -
- * return pointer to new queue or ERR_PTR(-errno) for error
+ * return pointer to new queue or ERR_PTR(-erryes) for error
  * The new queue's use_lock is set to 1. It is the caller's responsibility to
  * call snd_use_lock_free(&q->use_lock).
  */
@@ -242,7 +242,7 @@ void snd_seq_check_queue(struct snd_seq_queue *q, int atomic, int hop)
 	if (q == NULL)
 		return;
 
-	/* make this function non-reentrant */
+	/* make this function yesn-reentrant */
 	spin_lock_irqsave(&q->check_lock, flags);
 	if (q->check_blocked) {
 		q->check_again = 1;
@@ -494,7 +494,7 @@ static void queue_use(struct snd_seq_queue *queue, int client, int use)
 
 /* use or unuse this queue -
  * if it is the first client, starts the timer.
- * if it is not longer used by any clients, stop the timer.
+ * if it is yest longer used by any clients, stop the timer.
  */
 int snd_seq_queue_use(int queueid, int client, int use)
 {
@@ -513,7 +513,7 @@ int snd_seq_queue_use(int queueid, int client, int use)
 /*
  * check if queue is used by the client
  * return negative value if the queue is invalid.
- * return 0 if not used, 1 if used.
+ * return 0 if yest used, 1 if used.
  */
 int snd_seq_queue_is_used(int queueid, int client)
 {
@@ -531,7 +531,7 @@ int snd_seq_queue_is_used(int queueid, int client)
 
 /*----------------------------------------------------------------*/
 
-/* notification that client has left the system -
+/* yestification that client has left the system -
  * stop the timer on all queues owned by this client
  */
 void snd_seq_queue_client_termination(int client)
@@ -556,8 +556,8 @@ void snd_seq_queue_client_termination(int client)
 	}
 }
 
-/* final stage notification -
- * remove cells for no longer exist client (for non-owned queue)
+/* final stage yestification -
+ * remove cells for yes longer exist client (for yesn-owned queue)
  * or delete this queue (for owned queue)
  */
 void snd_seq_queue_client_leave(int client)
@@ -572,7 +572,7 @@ void snd_seq_queue_client_leave(int client)
 	}
 
 	/* remove cells from existing queues -
-	 * they are not owned by this client
+	 * they are yest owned by this client
 	 */
 	for (i = 0; i < SNDRV_SEQ_MAX_QUEUES; i++) {
 		if ((q = queueptr(i)) == NULL)

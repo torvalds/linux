@@ -11,13 +11,13 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/export.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/mm.h>
 #include <linux/memblock.h>
 #include <linux/spinlock.h>
 #include <linux/gfp.h>
 #include <linux/dma-direct.h>
-#include <linux/dma-noncoherent.h>
+#include <linux/dma-yesncoherent.h>
 #include <asm/mipsregs.h>
 #include <asm/jazz.h>
 #include <asm/io.h>
@@ -122,7 +122,7 @@ unsigned long vdma_alloc(unsigned long paddr, unsigned long size)
 	while (1) {
 		while (pgtbl[first].owner != VDMA_PAGE_EMPTY &&
 		       first < VDMA_PGTBL_ENTRIES) first++;
-		if (first + pages > VDMA_PGTBL_ENTRIES) {	/* nothing free */
+		if (first + pages > VDMA_PGTBL_ENTRIES) {	/* yesthing free */
 			spin_unlock_irqrestore(&vdma_lock, flags);
 			return DMA_MAPPING_ERROR;
 		}
@@ -211,7 +211,7 @@ int vdma_free(unsigned long laddr)
 EXPORT_SYMBOL(vdma_free);
 
 /*
- * Map certain page(s) to another physical address.
+ * Map certain page(s) to ayesther physical address.
  * Caller must have allocated the page(s) before.
  */
 int vdma_remap(unsigned long laddr, unsigned long paddr, unsigned long size)
@@ -248,7 +248,7 @@ int vdma_remap(unsigned long laddr, unsigned long paddr, unsigned long size)
 		if (pgtbl[first].owner != laddr) {
 			if (vdma_debug)
 				printk("Trying to remap other's pages.\n");
-			return -EPERM;	/* not owner */
+			return -EPERM;	/* yest owner */
 		}
 		pgtbl[first].frame = paddr;
 		paddr += VDMA_PAGESIZE;
@@ -424,7 +424,7 @@ void vdma_disable(int channel)
 
 	/*
 	 * After disabling a DMA channel a remote bus register should be
-	 * read to ensure that the current DMA acknowledge cycle is completed.
+	 * read to ensure that the current DMA ackyeswledge cycle is completed.
 	 */
 	*((volatile unsigned int *) JAZZ_DUMMY_DEVICE);
 }
@@ -438,7 +438,7 @@ EXPORT_SYMBOL(vdma_disable);
  * called.
  * NOTE: The FAST and BURST dma modes are supported by the
  * R4030 Rev. 2 and PICA chipsets only. I leave them disabled
- * for now.
+ * for yesw.
  */
 void vdma_set_mode(int channel, int mode)
 {
@@ -467,7 +467,7 @@ void vdma_set_mode(int channel, int mode)
 
 	case JAZZ_AUDIOL_DMA:
 	case JAZZ_AUDIOR_DMA:
-		printk("VDMA: Audio DMA not supported yet.\n");
+		printk("VDMA: Audio DMA yest supported yet.\n");
 		break;
 
 	default:
@@ -493,7 +493,7 @@ void vdma_set_mode(int channel, int mode)
 
 	default:
 		printk
-		    ("VDMA: vdma_set_mode() called with unknown dma mode 0x%x\n",
+		    ("VDMA: vdma_set_mode() called with unkyeswn dma mode 0x%x\n",
 		     mode);
 	}
 }

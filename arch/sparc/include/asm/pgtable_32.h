@@ -12,7 +12,7 @@
 #include <linux/const.h>
 
 #ifndef __ASSEMBLY__
-#include <asm-generic/pgtable-nopud.h>
+#include <asm-generic/pgtable-yespud.h>
 
 #include <linux/spinlock.h>
 #include <linux/mm_types.h>
@@ -138,7 +138,7 @@ static inline unsigned long pud_page_vaddr(pud_t pud)
 		return ~0;
 	} else {
 		unsigned long v = pud_val(pud) & SRMMU_PTD_PMASK;
-		return (unsigned long)__nocache_va(v << 4);
+		return (unsigned long)__yescache_va(v << 4);
 	}
 }
 
@@ -147,7 +147,7 @@ static inline int pte_present(pte_t pte)
 	return ((pte_val(pte) & SRMMU_ET_MASK) == SRMMU_ET_PTE);
 }
 
-static inline int pte_none(pte_t pte)
+static inline int pte_yesne(pte_t pte)
 {
 	return !pte_val(pte);
 }
@@ -172,7 +172,7 @@ static inline int pmd_present(pmd_t pmd)
 	return ((pmd_val(pmd) & SRMMU_ET_MASK) == SRMMU_ET_PTD);
 }
 
-static inline int pmd_none(pmd_t pmd)
+static inline int pmd_yesne(pmd_t pmd)
 {
 	return !pmd_val(pmd);
 }
@@ -184,7 +184,7 @@ static inline void pmd_clear(pmd_t *pmdp)
 		set_pte((pte_t *)&pmdp->pmdv[i], __pte(0));
 }
 
-static inline int pud_none(pud_t pud)
+static inline int pud_yesne(pud_t pud)
 {
 	return !(pud_val(pud) & 0xFFFFFFF);
 }
@@ -206,7 +206,7 @@ static inline void pud_clear(pud_t *pudp)
 
 /*
  * The following only work if pte_present() is true.
- * Undefined behaviour if not..
+ * Undefined behaviour if yest..
  */
 static inline int pte_write(pte_t pte)
 {
@@ -296,8 +296,8 @@ static inline pte_t mk_pte_io(unsigned long page, pgprot_t pgprot, int space)
 	return __pte(((page) >> 4) | (space << 28) | pgprot_val(pgprot));
 }
 
-#define pgprot_noncached pgprot_noncached
-static inline pgprot_t pgprot_noncached(pgprot_t prot)
+#define pgprot_yesncached pgprot_yesncached
+static inline pgprot_t pgprot_yesncached(pgprot_t prot)
 {
 	pgprot_val(prot) &= ~pgprot_val(__pgprot(SRMMU_CACHE));
 	return prot;
@@ -329,7 +329,7 @@ static inline pmd_t *pmd_offset(pud_t * dir, unsigned long address)
 pte_t *pte_offset_kernel(pmd_t * dir, unsigned long address);
 
 /*
- * This shortcut works on sun4m (and sun4d) because the nocache area is static.
+ * This shortcut works on sun4m (and sun4d) because the yescache area is static.
  */
 #define pte_offset_map(d, a)		pte_offset_kernel(d,a)
 #define pte_unmap(pte)		do{}while(0)
@@ -395,7 +395,7 @@ __get_iospace (unsigned long addr)
 
 extern unsigned long *sparc_valid_addr_bitmap;
 
-/* Needs to be defined here and not in linux/mm.h, as it is arch dependent */
+/* Needs to be defined here and yest in linux/mm.h, as it is arch dependent */
 #define kern_addr_valid(addr) \
 	(test_bit(__pa((unsigned long)(addr))>>20, sparc_valid_addr_bitmap))
 

@@ -26,7 +26,7 @@
 #include "bast.h"
 #include "simtec.h"
 
-static void simtec_nor_vpp(struct platform_device *pdev, int vpp)
+static void simtec_yesr_vpp(struct platform_device *pdev, int vpp)
 {
 	unsigned int val;
 
@@ -42,33 +42,33 @@ static void simtec_nor_vpp(struct platform_device *pdev, int vpp)
 	__raw_writeb(val, BAST_VA_CTRL3);
 }
 
-static struct physmap_flash_data simtec_nor_pdata = {
+static struct physmap_flash_data simtec_yesr_pdata = {
 	.width		= 2,
-	.set_vpp	= simtec_nor_vpp,
+	.set_vpp	= simtec_yesr_vpp,
 	.nr_parts	= 0,
 };
 
-static struct resource simtec_nor_resource[] = {
+static struct resource simtec_yesr_resource[] = {
 	[0] = DEFINE_RES_MEM(S3C2410_CS1 + 0x4000000, SZ_8M),
 };
 
-static struct platform_device simtec_device_nor = {
+static struct platform_device simtec_device_yesr = {
 	.name		= "physmap-flash",
 	.id		= -1,
-	.num_resources	= ARRAY_SIZE(simtec_nor_resource),
-	.resource	= simtec_nor_resource,
+	.num_resources	= ARRAY_SIZE(simtec_yesr_resource),
+	.resource	= simtec_yesr_resource,
 	.dev		= {
-		.platform_data = &simtec_nor_pdata,
+		.platform_data = &simtec_yesr_pdata,
 	},
 };
 
-void __init nor_simtec_init(void)
+void __init yesr_simtec_init(void)
 {
 	int ret;
 
-	ret = platform_device_register(&simtec_device_nor);
+	ret = platform_device_register(&simtec_device_yesr);
 	if (ret < 0)
 		printk(KERN_ERR "failed to register physmap-flash device\n");
 	else
-		simtec_nor_vpp(NULL, 1);
+		simtec_yesr_vpp(NULL, 1);
 }

@@ -125,7 +125,7 @@ static struct map_desc bast_iodesc[] __initdata = {
   },
 
   /* peripheral space... one for each of fast/slow/byte/16bit */
-  /* note, ide is only decoded in word space, even though some registers
+  /* yeste, ide is only decoded in word space, even though some registers
    * are only 8bit */
 
   /* slow, byte */
@@ -168,7 +168,7 @@ static struct s3c2410_uartcfg bast_uartcfgs[] __initdata = {
 		.ulcon	     = ULCON,
 		.ufcon	     = UFCON,
 	},
-	/* port 2 is not actually used */
+	/* port 2 is yest actually used */
 	[2] = {
 		.hwport	     = 2,
 		.flags	     = 0,
@@ -183,7 +183,7 @@ static struct s3c2410_uartcfg bast_uartcfgs[] __initdata = {
 #ifdef CONFIG_PM
 static int bast_pm_suspend(void)
 {
-	/* ensure that an nRESET is not generated on resume. */
+	/* ensure that an nRESET is yest generated on resume. */
 	gpio_direction_output(S3C2410_GPA(21), 1);
 	return 0;
 }
@@ -230,7 +230,7 @@ static struct mtd_partition __initdata bast_default_nand_part[] = {
  * on-board chip areas, as well as the external SmartMedia
  * slot.
  *
- * Note, there is no current hot-plug support for the SmartMedia
+ * Note, there is yes current hot-plug support for the SmartMedia
  * socket.
 */
 
@@ -282,7 +282,7 @@ static void bast_nand_select(struct s3c2410_nand_set *set, int slot)
 	tmp |= slot;
 	tmp |= BAST_CPLD_CTRL2_WNAND;
 
-	pr_debug("bast_nand: ctrl2 now %02x\n", tmp);
+	pr_debug("bast_nand: ctrl2 yesw %02x\n", tmp);
 
 	__raw_writeb(tmp, BAST_VA_CTRL2);
 }
@@ -358,7 +358,7 @@ static struct platform_device bast_sio = {
 	},
 };
 
-/* we have devices on the bus which cannot work much over the
+/* we have devices on the bus which canyest work much over the
  * standard 100KHz i2c bus frequency
 */
 
@@ -572,7 +572,7 @@ static void __init bast_init(void)
 				ARRAY_SIZE(bast_i2c_devs));
 
 	usb_simtec_init();
-	nor_simtec_init();
+	yesr_simtec_init();
 	simtec_audio_add(NULL, true, &bast_audio);
 
 	WARN_ON(gpio_request(S3C2410_GPA(21), "bast nreset"));

@@ -40,7 +40,7 @@
 #include <asm/ptrace.h>
 #include <asm/hw_breakpoint.h>
 
-/* We do _not_ want to define new machine types at all, those must die
+/* We do _yest_ want to define new machine types at all, those must die
  * in favor of using the device-tree
  * -- BenH.
  */
@@ -151,7 +151,7 @@ struct thread_struct {
 	mm_segment_t	addr_limit;	/* for get_fs() validation */
 #ifdef CONFIG_BOOKE
 	/* BookE base exception scratch space; align on cacheline */
-	unsigned long	normsave[8] ____cacheline_aligned;
+	unsigned long	yesrmsave[8] ____cacheline_aligned;
 #endif
 #ifdef CONFIG_PPC32
 	void		*pgdir;		/* root of page-table tree */
@@ -409,7 +409,7 @@ static inline unsigned long get_clean_sp(unsigned long sp, int is_32)
 #endif
 
 /* asm stubs */
-extern unsigned long isa300_idle_stop_noloss(unsigned long psscr_val);
+extern unsigned long isa300_idle_stop_yesloss(unsigned long psscr_val);
 extern unsigned long isa300_idle_stop_mayloss(unsigned long psscr_val);
 extern unsigned long isa206_idle_insn_mayloss(unsigned long type);
 
@@ -423,8 +423,8 @@ extern void power9_idle_type(unsigned long stop_psscr_val,
 			      unsigned long stop_psscr_mask);
 
 extern void flush_instruction_cache(void);
-extern void hard_reset_now(void);
-extern void poweroff_now(void);
+extern void hard_reset_yesw(void);
+extern void poweroff_yesw(void);
 extern int fix_alignment(struct pt_regs *);
 extern void cvt_fd(float *from, double *to);
 extern void cvt_df(double *from, float *to);

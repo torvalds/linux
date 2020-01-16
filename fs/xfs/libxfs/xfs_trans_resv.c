@@ -13,7 +13,7 @@
 #include "xfs_mount.h"
 #include "xfs_da_format.h"
 #include "xfs_da_btree.h"
-#include "xfs_inode.h"
+#include "xfs_iyesde.h"
 #include "xfs_bmap_btree.h"
 #include "xfs_quota.h"
 #include "xfs_trans.h"
@@ -55,7 +55,7 @@ xfs_calc_buf_res(
 /*
  * Per-extent log reservation for the btree changes involved in freeing or
  * allocating an extent.  In classic XFS there were two trees that will be
- * modified (bnobt + cntbt).  With rmap enabled, there are three trees
+ * modified (byesbt + cntbt).  With rmap enabled, there are three trees
  * (rmapbt).  With reflink, there are four trees (refcountbt).  The number of
  * blocks reserved is based on the formula:
  *
@@ -80,104 +80,104 @@ xfs_allocfree_log_count(
 }
 
 /*
- * Logging inodes is really tricksy. They are logged in memory format,
+ * Logging iyesdes is really tricksy. They are logged in memory format,
  * which means that what we write into the log doesn't directly translate into
  * the amount of space they use on disk.
  *
  * Case in point - btree format forks in memory format use more space than the
- * on-disk format. In memory, the buffer contains a normal btree block header so
- * the btree code can treat it as though it is just another generic buffer.
- * However, when we write it to the inode fork, we don't write all of this
- * header as it isn't needed. e.g. the root is only ever in the inode, so
- * there's no need for sibling pointers which would waste 16 bytes of space.
+ * on-disk format. In memory, the buffer contains a yesrmal btree block header so
+ * the btree code can treat it as though it is just ayesther generic buffer.
+ * However, when we write it to the iyesde fork, we don't write all of this
+ * header as it isn't needed. e.g. the root is only ever in the iyesde, so
+ * there's yes need for sibling pointers which would waste 16 bytes of space.
  *
- * Hence when we have an inode with a maximally sized btree format fork, then
- * amount of information we actually log is greater than the size of the inode
- * on disk. Hence we need an inode reservation function that calculates all this
+ * Hence when we have an iyesde with a maximally sized btree format fork, then
+ * amount of information we actually log is greater than the size of the iyesde
+ * on disk. Hence we need an iyesde reservation function that calculates all this
  * correctly. So, we log:
  *
  * - 4 log op headers for object
- *	- for the ilf, the inode core and 2 forks
- * - inode log format object
- * - the inode core
- * - two inode forks containing bmap btree root blocks.
- *	- the btree data contained by both forks will fit into the inode size,
- *	  hence when combined with the inode core above, we have a total of the
- *	  actual inode size.
+ *	- for the ilf, the iyesde core and 2 forks
+ * - iyesde log format object
+ * - the iyesde core
+ * - two iyesde forks containing bmap btree root blocks.
+ *	- the btree data contained by both forks will fit into the iyesde size,
+ *	  hence when combined with the iyesde core above, we have a total of the
+ *	  actual iyesde size.
  *	- the BMBT headers need to be accounted separately, as they are
- *	  additional to the records and pointers that fit inside the inode
+ *	  additional to the records and pointers that fit inside the iyesde
  *	  forks.
  */
 STATIC uint
-xfs_calc_inode_res(
+xfs_calc_iyesde_res(
 	struct xfs_mount	*mp,
-	uint			ninodes)
+	uint			niyesdes)
 {
-	return ninodes *
+	return niyesdes *
 		(4 * sizeof(struct xlog_op_header) +
-		 sizeof(struct xfs_inode_log_format) +
-		 mp->m_sb.sb_inodesize +
+		 sizeof(struct xfs_iyesde_log_format) +
+		 mp->m_sb.sb_iyesdesize +
 		 2 * XFS_BMBT_BLOCK_LEN(mp));
 }
 
 /*
- * Inode btree record insertion/removal modifies the inode btree and free space
- * btrees (since the inobt does not use the agfl). This requires the following
+ * Iyesde btree record insertion/removal modifies the iyesde btree and free space
+ * btrees (since the iyesbt does yest use the agfl). This requires the following
  * reservation:
  *
- * the inode btree: max depth * blocksize
+ * the iyesde btree: max depth * blocksize
  * the allocation btrees: 2 trees * (max depth - 1) * block size
  *
  * The caller must account for SB and AG header modifications, etc.
  */
 STATIC uint
-xfs_calc_inobt_res(
+xfs_calc_iyesbt_res(
 	struct xfs_mount	*mp)
 {
-	return xfs_calc_buf_res(M_IGEO(mp)->inobt_maxlevels,
+	return xfs_calc_buf_res(M_IGEO(mp)->iyesbt_maxlevels,
 			XFS_FSB_TO_B(mp, 1)) +
 				xfs_calc_buf_res(xfs_allocfree_log_count(mp, 1),
 			XFS_FSB_TO_B(mp, 1));
 }
 
 /*
- * The free inode btree is a conditional feature. The behavior differs slightly
- * from that of the traditional inode btree in that the finobt tracks records
- * for inode chunks with at least one free inode. A record can be removed from
- * the tree during individual inode allocation. Therefore the finobt
- * reservation is unconditional for both the inode chunk allocation and
- * individual inode allocation (modify) cases.
+ * The free iyesde btree is a conditional feature. The behavior differs slightly
+ * from that of the traditional iyesde btree in that the fiyesbt tracks records
+ * for iyesde chunks with at least one free iyesde. A record can be removed from
+ * the tree during individual iyesde allocation. Therefore the fiyesbt
+ * reservation is unconditional for both the iyesde chunk allocation and
+ * individual iyesde allocation (modify) cases.
  *
- * Behavior aside, the reservation for finobt modification is equivalent to the
- * traditional inobt: cover a full finobt shape change plus block allocation.
+ * Behavior aside, the reservation for fiyesbt modification is equivalent to the
+ * traditional iyesbt: cover a full fiyesbt shape change plus block allocation.
  */
 STATIC uint
-xfs_calc_finobt_res(
+xfs_calc_fiyesbt_res(
 	struct xfs_mount	*mp)
 {
-	if (!xfs_sb_version_hasfinobt(&mp->m_sb))
+	if (!xfs_sb_version_hasfiyesbt(&mp->m_sb))
 		return 0;
 
-	return xfs_calc_inobt_res(mp);
+	return xfs_calc_iyesbt_res(mp);
 }
 
 /*
- * Calculate the reservation required to allocate or free an inode chunk. This
+ * Calculate the reservation required to allocate or free an iyesde chunk. This
  * includes:
  *
  * the allocation btrees: 2 trees * (max depth - 1) * block size
- * the inode chunk: m_ino_geo.ialloc_blks * N
+ * the iyesde chunk: m_iyes_geo.ialloc_blks * N
  *
- * The size N of the inode chunk reservation depends on whether it is for
- * allocation or free and which type of create transaction is in use. An inode
+ * The size N of the iyesde chunk reservation depends on whether it is for
+ * allocation or free and which type of create transaction is in use. An iyesde
  * chunk free always invalidates the buffers and only requires reservation for
- * headers (N == 0). An inode chunk allocation requires a chunk sized
+ * headers (N == 0). An iyesde chunk allocation requires a chunk sized
  * reservation on v4 and older superblocks to initialize the chunk. No chunk
  * reservation is required for allocation on v5 supers, which use ordered
  * buffers to initialize.
  */
 STATIC uint
-xfs_calc_inode_chunk_res(
+xfs_calc_iyesde_chunk_res(
 	struct xfs_mount	*mp,
 	bool			alloc)
 {
@@ -226,7 +226,7 @@ xfs_rtalloc_log_count(
  * This is because the number in the worst case is quite high and quite
  * unusual.  In order to fix this we need to change xfs_defer_finish() to free
  * extents in only a single AG at a time.  This will require changes to the
- * EFI code as well, however, so that the EFI for the extents not freed is
+ * EFI code as well, however, so that the EFI for the extents yest freed is
  * logged again in each transaction.  See SGI PV #261917.
  *
  * Reservation functions here avoid a huge stack in xfs_trans_init due to
@@ -237,14 +237,14 @@ xfs_rtalloc_log_count(
 /*
  * In a write transaction we can allocate a maximum of 2
  * extents.  This gives (t1):
- *    the inode getting the new extents: inode size
- *    the inode's bmap btree: max depth * block size
+ *    the iyesde getting the new extents: iyesde size
+ *    the iyesde's bmap btree: max depth * block size
  *    the agfs of the ags from which the extents are allocated: 2 * sector
  *    the superblock free block counter: sector size
  *    the allocation btrees: 2 exts * 2 trees * (2 * max depth - 1) * block size
  * Or, if we're writing to a realtime file (t2):
- *    the inode getting the new extents: inode size
- *    the inode's bmap btree: max depth * block size
+ *    the iyesde getting the new extents: iyesde size
+ *    the iyesde's bmap btree: max depth * block size
  *    the agfs of the ags from which the extents are allocated: 2 * sector
  *    the superblock free block counter: sector size
  *    the realtime bitmap: ((MAXEXTLEN / rtextsize) / NBBY) bytes
@@ -263,13 +263,13 @@ xfs_calc_write_reservation(
 	unsigned int		t1, t2, t3;
 	unsigned int		blksz = XFS_FSB_TO_B(mp, 1);
 
-	t1 = xfs_calc_inode_res(mp, 1) +
+	t1 = xfs_calc_iyesde_res(mp, 1) +
 	     xfs_calc_buf_res(XFS_BM_MAXLEVELS(mp, XFS_DATA_FORK), blksz) +
 	     xfs_calc_buf_res(3, mp->m_sb.sb_sectsize) +
 	     xfs_calc_buf_res(xfs_allocfree_log_count(mp, 2), blksz);
 
 	if (xfs_sb_version_hasrealtime(&mp->m_sb)) {
-		t2 = xfs_calc_inode_res(mp, 1) +
+		t2 = xfs_calc_iyesde_res(mp, 1) +
 		     xfs_calc_buf_res(XFS_BM_MAXLEVELS(mp, XFS_DATA_FORK),
 				     blksz) +
 		     xfs_calc_buf_res(3, mp->m_sb.sb_sectsize) +
@@ -287,8 +287,8 @@ xfs_calc_write_reservation(
 
 /*
  * In truncating a file we free up to two extents at once.  We can modify (t1):
- *    the inode being truncated: inode size
- *    the inode's bmap btree: (max depth + 1) * block size
+ *    the iyesde being truncated: iyesde size
+ *    the iyesde's bmap btree: (max depth + 1) * block size
  * And the bmap_finish transaction can free the blocks and bmap blocks (t2):
  *    the agf for each of the ags: 4 * sector size
  *    the agfl for each of the ags: 4 * sector size
@@ -311,7 +311,7 @@ xfs_calc_itruncate_reservation(
 	unsigned int		t1, t2, t3;
 	unsigned int		blksz = XFS_FSB_TO_B(mp, 1);
 
-	t1 = xfs_calc_inode_res(mp, 1) +
+	t1 = xfs_calc_iyesde_res(mp, 1) +
 	     xfs_calc_buf_res(XFS_BM_MAXLEVELS(mp, XFS_DATA_FORK) + 1, blksz);
 
 	t2 = xfs_calc_buf_res(9, mp->m_sb.sb_sectsize) +
@@ -330,7 +330,7 @@ xfs_calc_itruncate_reservation(
 
 /*
  * In renaming a files we can modify:
- *    the four inodes involved: 4 * inode size
+ *    the four iyesdes involved: 4 * iyesde size
  *    the two directory btrees: 2 * (max depth + v2) * dir block size
  *    the two directory bmap btrees: 2 * max depth * block size
  * And the bmap_finish transaction can free dir and bmap blocks (two sets
@@ -345,7 +345,7 @@ xfs_calc_rename_reservation(
 	struct xfs_mount	*mp)
 {
 	return XFS_DQUOT_LOGRES(mp) +
-		max((xfs_calc_inode_res(mp, 4) +
+		max((xfs_calc_iyesde_res(mp, 4) +
 		     xfs_calc_buf_res(2 * XFS_DIROP_LOG_COUNT(mp),
 				      XFS_FSB_TO_B(mp, 1))),
 		    (xfs_calc_buf_res(7, mp->m_sb.sb_sectsize) +
@@ -354,23 +354,23 @@ xfs_calc_rename_reservation(
 }
 
 /*
- * For removing an inode from unlinked list at first, we can modify:
+ * For removing an iyesde from unlinked list at first, we can modify:
  *    the agi hash list and counters: sector size
- *    the on disk inode before ours in the agi hash list: inode cluster size
- *    the on disk inode in the agi hash list: inode cluster size
+ *    the on disk iyesde before ours in the agi hash list: iyesde cluster size
+ *    the on disk iyesde in the agi hash list: iyesde cluster size
  */
 STATIC uint
 xfs_calc_iunlink_remove_reservation(
 	struct xfs_mount        *mp)
 {
 	return xfs_calc_buf_res(1, mp->m_sb.sb_sectsize) +
-	       2 * M_IGEO(mp)->inode_cluster_size;
+	       2 * M_IGEO(mp)->iyesde_cluster_size;
 }
 
 /*
- * For creating a link to an inode:
- *    the parent directory inode: inode size
- *    the linked inode: inode size
+ * For creating a link to an iyesde:
+ *    the parent directory iyesde: iyesde size
+ *    the linked iyesde: iyesde size
  *    the directory btree could split: (max depth + v2) * dir block size
  *    the directory bmap btree could join or split: (max depth + v2) * blocksize
  * And the bmap_finish transaction can free some bmap blocks giving:
@@ -385,7 +385,7 @@ xfs_calc_link_reservation(
 {
 	return XFS_DQUOT_LOGRES(mp) +
 		xfs_calc_iunlink_remove_reservation(mp) +
-		max((xfs_calc_inode_res(mp, 2) +
+		max((xfs_calc_iyesde_res(mp, 2) +
 		     xfs_calc_buf_res(XFS_DIROP_LOG_COUNT(mp),
 				      XFS_FSB_TO_B(mp, 1))),
 		    (xfs_calc_buf_res(3, mp->m_sb.sb_sectsize) +
@@ -394,21 +394,21 @@ xfs_calc_link_reservation(
 }
 
 /*
- * For adding an inode to unlinked list we can modify:
+ * For adding an iyesde to unlinked list we can modify:
  *    the agi hash list: sector size
- *    the on disk inode: inode cluster size
+ *    the on disk iyesde: iyesde cluster size
  */
 STATIC uint
 xfs_calc_iunlink_add_reservation(xfs_mount_t *mp)
 {
 	return xfs_calc_buf_res(1, mp->m_sb.sb_sectsize) +
-			M_IGEO(mp)->inode_cluster_size;
+			M_IGEO(mp)->iyesde_cluster_size;
 }
 
 /*
  * For removing a directory entry we can modify:
- *    the parent directory inode: inode size
- *    the removed inode: inode size
+ *    the parent directory iyesde: iyesde size
+ *    the removed iyesde: iyesde size
  *    the directory btree could join: (max depth + v2) * dir block size
  *    the directory bmap btree could join or split: (max depth + v2) * blocksize
  * And the bmap_finish transaction can free the dir and bmap blocks giving:
@@ -423,7 +423,7 @@ xfs_calc_remove_reservation(
 {
 	return XFS_DQUOT_LOGRES(mp) +
 		xfs_calc_iunlink_add_reservation(mp) +
-		max((xfs_calc_inode_res(mp, 1) +
+		max((xfs_calc_iyesde_res(mp, 1) +
 		     xfs_calc_buf_res(XFS_DIROP_LOG_COUNT(mp),
 				      XFS_FSB_TO_B(mp, 1))),
 		    (xfs_calc_buf_res(4, mp->m_sb.sb_sectsize) +
@@ -434,37 +434,37 @@ xfs_calc_remove_reservation(
 /*
  * For create, break it in to the two cases that the transaction
  * covers. We start with the modify case - allocation done by modification
- * of the state of existing inodes - and the allocation case.
+ * of the state of existing iyesdes - and the allocation case.
  */
 
 /*
  * For create we can modify:
- *    the parent directory inode: inode size
- *    the new inode: inode size
- *    the inode btree entry: block size
+ *    the parent directory iyesde: iyesde size
+ *    the new iyesde: iyesde size
+ *    the iyesde btree entry: block size
  *    the superblock for the nlink flag: sector size
  *    the directory btree: (max depth + v2) * dir block size
- *    the directory inode's bmap btree: (max depth + v2) * block size
- *    the finobt (record modification and allocation btrees)
+ *    the directory iyesde's bmap btree: (max depth + v2) * block size
+ *    the fiyesbt (record modification and allocation btrees)
  */
 STATIC uint
 xfs_calc_create_resv_modify(
 	struct xfs_mount	*mp)
 {
-	return xfs_calc_inode_res(mp, 2) +
+	return xfs_calc_iyesde_res(mp, 2) +
 		xfs_calc_buf_res(1, mp->m_sb.sb_sectsize) +
 		(uint)XFS_FSB_TO_B(mp, 1) +
 		xfs_calc_buf_res(XFS_DIROP_LOG_COUNT(mp), XFS_FSB_TO_B(mp, 1)) +
-		xfs_calc_finobt_res(mp);
+		xfs_calc_fiyesbt_res(mp);
 }
 
 /*
- * For icreate we can allocate some inodes giving:
- *    the agi and agf of the ag getting the new inodes: 2 * sectorsize
+ * For icreate we can allocate some iyesdes giving:
+ *    the agi and agf of the ag getting the new iyesdes: 2 * sectorsize
  *    the superblock for the nlink flag: sector size
- *    the inode chunk (allocation, optional init)
- *    the inobt (record insertion)
- *    the finobt (optional, record insertion)
+ *    the iyesde chunk (allocation, optional init)
+ *    the iyesbt (record insertion)
+ *    the fiyesbt (optional, record insertion)
  */
 STATIC uint
 xfs_calc_icreate_resv_alloc(
@@ -472,9 +472,9 @@ xfs_calc_icreate_resv_alloc(
 {
 	return xfs_calc_buf_res(2, mp->m_sb.sb_sectsize) +
 		mp->m_sb.sb_sectsize +
-		xfs_calc_inode_chunk_res(mp, _ALLOC) +
-		xfs_calc_inobt_res(mp) +
-		xfs_calc_finobt_res(mp);
+		xfs_calc_iyesde_chunk_res(mp, _ALLOC) +
+		xfs_calc_iyesbt_res(mp) +
+		xfs_calc_fiyesbt_res(mp);
 }
 
 STATIC uint
@@ -520,35 +520,35 @@ xfs_calc_symlink_reservation(
 }
 
 /*
- * In freeing an inode we can modify:
- *    the inode being freed: inode size
- *    the super block free inode counter, AGF and AGFL: sector size
- *    the on disk inode (agi unlinked list removal)
- *    the inode chunk (invalidated, headers only)
- *    the inode btree
- *    the finobt (record insertion, removal or modification)
+ * In freeing an iyesde we can modify:
+ *    the iyesde being freed: iyesde size
+ *    the super block free iyesde counter, AGF and AGFL: sector size
+ *    the on disk iyesde (agi unlinked list removal)
+ *    the iyesde chunk (invalidated, headers only)
+ *    the iyesde btree
+ *    the fiyesbt (record insertion, removal or modification)
  *
- * Note that the inode chunk res. includes an allocfree res. for freeing of the
- * inode chunk. This is technically extraneous because the inode chunk free is
+ * Note that the iyesde chunk res. includes an allocfree res. for freeing of the
+ * iyesde chunk. This is technically extraneous because the iyesde chunk free is
  * deferred (it occurs after a transaction roll). Include the extra reservation
  * anyways since we've had reports of ifree transaction overruns due to too many
- * agfl fixups during inode chunk frees.
+ * agfl fixups during iyesde chunk frees.
  */
 STATIC uint
 xfs_calc_ifree_reservation(
 	struct xfs_mount	*mp)
 {
 	return XFS_DQUOT_LOGRES(mp) +
-		xfs_calc_inode_res(mp, 1) +
+		xfs_calc_iyesde_res(mp, 1) +
 		xfs_calc_buf_res(3, mp->m_sb.sb_sectsize) +
 		xfs_calc_iunlink_remove_reservation(mp) +
-		xfs_calc_inode_chunk_res(mp, _FREE) +
-		xfs_calc_inobt_res(mp) +
-		xfs_calc_finobt_res(mp);
+		xfs_calc_iyesde_chunk_res(mp, _FREE) +
+		xfs_calc_iyesbt_res(mp) +
+		xfs_calc_fiyesbt_res(mp);
 }
 
 /*
- * When only changing the inode we log the inode and possibly the superblock
+ * When only changing the iyesde we log the iyesde and possibly the superblock
  * We also add a bit of slop for the transaction stuff.
  */
 STATIC uint
@@ -556,7 +556,7 @@ xfs_calc_ichange_reservation(
 	struct xfs_mount	*mp)
 {
 	return XFS_DQUOT_LOGRES(mp) +
-		xfs_calc_inode_res(mp, 1) +
+		xfs_calc_iyesde_res(mp, 1) +
 		xfs_calc_buf_res(1, mp->m_sb.sb_sectsize);
 
 }
@@ -582,8 +582,8 @@ xfs_calc_growdata_reservation(
  * bitmap or summary files.
  *	superblock: sector size
  *	agf of the ag from which the extent is allocated: sector size
- *	bmap btree for bitmap/summary inode: max depth * blocksize
- *	bitmap/summary inode: inode size
+ *	bmap btree for bitmap/summary iyesde: max depth * blocksize
+ *	bitmap/summary iyesde: iyesde size
  *	allocation btrees for 1 block alloc: 2 * (2 * maxdepth - 1) * blocksize
  */
 STATIC uint
@@ -593,7 +593,7 @@ xfs_calc_growrtalloc_reservation(
 	return xfs_calc_buf_res(2, mp->m_sb.sb_sectsize) +
 		xfs_calc_buf_res(XFS_BM_MAXLEVELS(mp, XFS_DATA_FORK),
 				 XFS_FSB_TO_B(mp, 1)) +
-		xfs_calc_inode_res(mp, 1) +
+		xfs_calc_iyesde_res(mp, 1) +
 		xfs_calc_buf_res(xfs_allocfree_log_count(mp, 1),
 				 XFS_FSB_TO_B(mp, 1));
 }
@@ -615,8 +615,8 @@ xfs_calc_growrtzero_reservation(
  * In the third set of transactions (FREE) we update metadata without
  * allocating any new blocks.
  *	superblock: sector size
- *	bitmap inode: inode size
- *	summary inode: inode size
+ *	bitmap iyesde: iyesde size
+ *	summary iyesde: iyesde size
  *	one bitmap block: blocksize
  *	summary blocks: new summary size
  */
@@ -625,36 +625,36 @@ xfs_calc_growrtfree_reservation(
 	struct xfs_mount	*mp)
 {
 	return xfs_calc_buf_res(1, mp->m_sb.sb_sectsize) +
-		xfs_calc_inode_res(mp, 2) +
+		xfs_calc_iyesde_res(mp, 2) +
 		xfs_calc_buf_res(1, mp->m_sb.sb_blocksize) +
 		xfs_calc_buf_res(1, mp->m_rsumsize);
 }
 
 /*
- * Logging the inode modification timestamp on a synchronous write.
- *	inode
+ * Logging the iyesde modification timestamp on a synchroyesus write.
+ *	iyesde
  */
 STATIC uint
 xfs_calc_swrite_reservation(
 	struct xfs_mount	*mp)
 {
-	return xfs_calc_inode_res(mp, 1);
+	return xfs_calc_iyesde_res(mp, 1);
 }
 
 /*
- * Logging the inode mode bits when writing a setuid/setgid file
- *	inode
+ * Logging the iyesde mode bits when writing a setuid/setgid file
+ *	iyesde
  */
 STATIC uint
 xfs_calc_writeid_reservation(
 	struct xfs_mount	*mp)
 {
-	return xfs_calc_inode_res(mp, 1);
+	return xfs_calc_iyesde_res(mp, 1);
 }
 
 /*
- * Converting the inode from non-attributed to attributed.
- *	the inode being converted: inode size
+ * Converting the iyesde from yesn-attributed to attributed.
+ *	the iyesde being converted: iyesde size
  *	agf block and superblock (for block allocation)
  *	the new block (directory sized)
  *	bmap blocks for the new directory block
@@ -665,7 +665,7 @@ xfs_calc_addafork_reservation(
 	struct xfs_mount	*mp)
 {
 	return XFS_DQUOT_LOGRES(mp) +
-		xfs_calc_inode_res(mp, 1) +
+		xfs_calc_iyesde_res(mp, 1) +
 		xfs_calc_buf_res(2, mp->m_sb.sb_sectsize) +
 		xfs_calc_buf_res(1, mp->m_dir_geo->blksize) +
 		xfs_calc_buf_res(XFS_DAENTER_BMAP1B(mp, XFS_DATA_FORK) + 1,
@@ -676,8 +676,8 @@ xfs_calc_addafork_reservation(
 
 /*
  * Removing the attribute fork of a file
- *    the inode being truncated: inode size
- *    the inode's bmap btree: max depth * block size
+ *    the iyesde being truncated: iyesde size
+ *    the iyesde's bmap btree: max depth * block size
  * And the bmap_finish transaction can free the blocks and bmap blocks:
  *    the agf for each of the ags: 4 * sector size
  *    the agfl for each of the ags: 4 * sector size
@@ -689,7 +689,7 @@ STATIC uint
 xfs_calc_attrinval_reservation(
 	struct xfs_mount	*mp)
 {
-	return max((xfs_calc_inode_res(mp, 1) +
+	return max((xfs_calc_iyesde_res(mp, 1) +
 		    xfs_calc_buf_res(XFS_BM_MAXLEVELS(mp, XFS_ATTR_FORK),
 				     XFS_FSB_TO_B(mp, 1))),
 		   (xfs_calc_buf_res(9, mp->m_sb.sb_sectsize) +
@@ -699,11 +699,11 @@ xfs_calc_attrinval_reservation(
 
 /*
  * Setting an attribute at mount time.
- *	the inode getting the attribute
+ *	the iyesde getting the attribute
  *	the superblock for allocations
  *	the agfs extents are allocated from
  *	the attribute btree * max depth
- *	the inode allocation btree
+ *	the iyesde allocation btree
  * Since attribute transaction space is dependent on the size of the attribute,
  * the calculation is done partially at mount time and partially at runtime(see
  * below).
@@ -713,7 +713,7 @@ xfs_calc_attrsetm_reservation(
 	struct xfs_mount	*mp)
 {
 	return XFS_DQUOT_LOGRES(mp) +
-		xfs_calc_inode_res(mp, 1) +
+		xfs_calc_iyesde_res(mp, 1) +
 		xfs_calc_buf_res(1, mp->m_sb.sb_sectsize) +
 		xfs_calc_buf_res(XFS_DA_NODE_MAXDEPTH, XFS_FSB_TO_B(mp, 1));
 }
@@ -721,7 +721,7 @@ xfs_calc_attrsetm_reservation(
 /*
  * Setting an attribute at runtime, transaction space unit per block.
  * 	the superblock for allocations: sector size
- *	the inode bmap btree could join or split: max depth * block size
+ *	the iyesde bmap btree could join or split: max depth * block size
  * Since the runtime attribute transaction space is dependent on the total
  * blocks needed for the 1st bmap, here we calculate out the space unit for
  * one block so that the caller could figure out the total space according
@@ -739,9 +739,9 @@ xfs_calc_attrsetrt_reservation(
 
 /*
  * Removing an attribute.
- *    the inode: inode size
+ *    the iyesde: iyesde size
  *    the attribute btree could join: max depth * block size
- *    the inode bmap btree could join or split: max depth * block size
+ *    the iyesde bmap btree could join or split: max depth * block size
  * And the bmap_finish transaction can free the attr blocks freed giving:
  *    the agf for the ag in which the blocks live: 2 * sector size
  *    the agfl for the ag in which the blocks live: 2 * sector size
@@ -753,7 +753,7 @@ xfs_calc_attrrm_reservation(
 	struct xfs_mount	*mp)
 {
 	return XFS_DQUOT_LOGRES(mp) +
-		max((xfs_calc_inode_res(mp, 1) +
+		max((xfs_calc_iyesde_res(mp, 1) +
 		     xfs_calc_buf_res(XFS_DA_NODE_MAXDEPTH,
 				      XFS_FSB_TO_B(mp, 1)) +
 		     (uint)XFS_FSB_TO_B(mp,
@@ -765,7 +765,7 @@ xfs_calc_attrrm_reservation(
 }
 
 /*
- * Clearing a bad agino number in an agi hash bucket.
+ * Clearing a bad agiyes number in an agi hash bucket.
  */
 STATIC uint
 xfs_calc_clear_agi_bucket_reservation(

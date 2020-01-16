@@ -27,8 +27,8 @@
 #define HDR_SYS_SIG		0x00	/* 2 bytes system signature */
 #define  SYS_SIG_SHARED		0x5348
 #define  SYS_SIG_SPLIT		0x5350
-#define HDR_FW_VERS		0x02	/* 2 bytes Major.Minor */
-#define HDR_API_VERS		0x04	/* 2 bytes Major.Minor */
+#define HDR_FW_VERS		0x02	/* 2 bytes Major.Miyesr */
+#define HDR_API_VERS		0x04	/* 2 bytes Major.Miyesr */
 #define  API_VERSION_MAJ	2	/* Current version */
 #define  API_VERSION_MIN	1
 #define HDR_FW_OPTIONS		0x08	/* 4 bytes option flags */

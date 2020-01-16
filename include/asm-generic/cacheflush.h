@@ -9,7 +9,7 @@
 
 /*
  * The cache doesn't need to be flushed when TLB entries change when
- * the cache is mapped to physical memory, not virtual memory
+ * the cache is mapped to physical memory, yest virtual memory
  */
 #ifndef flush_cache_all
 static inline void flush_cache_all(void)

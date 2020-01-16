@@ -72,7 +72,7 @@ static int arndale_wm1811_hw_params(struct snd_pcm_substream *substream,
 	/*
 	 * We add 1 to the frequency value to ensure proper EPLL setting
 	 * for each audio sampling rate (see epll_24mhz_tbl in drivers/clk/
-	 * samsung/clk-exynos5250.c for list of available EPLL rates).
+	 * samsung/clk-exyyess5250.c for list of available EPLL rates).
 	 * The CODEC uses clk API and the value will be rounded hence the MCLK1
 	 * clock's frequency will still be exact multiple of the sample rate.
 	 */
@@ -132,20 +132,20 @@ static struct snd_soc_card arndale_wm1811 = {
 	.num_links = ARRAY_SIZE(arndale_wm1811_dai),
 };
 
-static void arndale_put_of_nodes(struct snd_soc_card *card)
+static void arndale_put_of_yesdes(struct snd_soc_card *card)
 {
 	struct snd_soc_dai_link *dai_link;
 	int i;
 
 	for_each_card_prelinks(card, i, dai_link) {
-		of_node_put(dai_link->cpus->of_node);
-		of_node_put(dai_link->codecs->of_node);
+		of_yesde_put(dai_link->cpus->of_yesde);
+		of_yesde_put(dai_link->codecs->of_yesde);
 	}
 }
 
 static int arndale_audio_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	struct snd_soc_card *card;
 	struct snd_soc_dai_link *dai_link;
 	int ret;
@@ -154,33 +154,33 @@ static int arndale_audio_probe(struct platform_device *pdev)
 	card->dev = &pdev->dev;
 	dai_link = card->dai_link;
 
-	dai_link->cpus->of_node = of_parse_phandle(np, "samsung,audio-cpu", 0);
-	if (!dai_link->cpus->of_node) {
+	dai_link->cpus->of_yesde = of_parse_phandle(np, "samsung,audio-cpu", 0);
+	if (!dai_link->cpus->of_yesde) {
 		dev_err(&pdev->dev,
 			"Property 'samsung,audio-cpu' missing or invalid\n");
 		return -EINVAL;
 	}
 
 	if (!dai_link->platforms->name)
-		dai_link->platforms->of_node = dai_link->cpus->of_node;
+		dai_link->platforms->of_yesde = dai_link->cpus->of_yesde;
 
-	dai_link->codecs->of_node = of_parse_phandle(np, "samsung,audio-codec", 0);
-	if (!dai_link->codecs->of_node) {
+	dai_link->codecs->of_yesde = of_parse_phandle(np, "samsung,audio-codec", 0);
+	if (!dai_link->codecs->of_yesde) {
 		dev_err(&pdev->dev,
 			"Property 'samsung,audio-codec' missing or invalid\n");
 		ret = -EINVAL;
-		goto err_put_of_nodes;
+		goto err_put_of_yesdes;
 	}
 
 	ret = devm_snd_soc_register_card(card->dev, card);
 	if (ret) {
 		dev_err(&pdev->dev, "snd_soc_register_card() failed: %d\n", ret);
-		goto err_put_of_nodes;
+		goto err_put_of_yesdes;
 	}
 	return 0;
 
-err_put_of_nodes:
-	arndale_put_of_nodes(card);
+err_put_of_yesdes:
+	arndale_put_of_yesdes(card);
 	return ret;
 }
 
@@ -188,7 +188,7 @@ static int arndale_audio_remove(struct platform_device *pdev)
 {
 	struct snd_soc_card *card = platform_get_drvdata(pdev);
 
-	arndale_put_of_nodes(card);
+	arndale_put_of_yesdes(card);
 	return 0;
 }
 

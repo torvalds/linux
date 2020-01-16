@@ -60,25 +60,25 @@ static const struct pci_bridge_reg_behavior pci_regs_behavior[] = {
 	[PCI_CLASS_REVISION / 4] = { .ro = ~0 },
 
 	/*
-	 * Cache Line Size register: implement as read-only, we do not
+	 * Cache Line Size register: implement as read-only, we do yest
 	 * pretend implementing "Memory Write and Invalidate"
 	 * transactions"
 	 *
 	 * Latency Timer Register: implemented as read-only, as "A
-	 * bridge that is not capable of a burst transfer of more than
+	 * bridge that is yest capable of a burst transfer of more than
 	 * two data phases on its primary interface is permitted to
 	 * hardwire the Latency Timer to a value of 16 or less"
 	 *
 	 * Header Type: always read-only
 	 *
 	 * BIST register: implemented as read-only, as "A bridge that
-	 * does not support BIST must implement this register as a
+	 * does yest support BIST must implement this register as a
 	 * read-only register that returns 0 when read"
 	 */
 	[PCI_CACHE_LINE_SIZE / 4] = { .ro = ~0 },
 
 	/*
-	 * Base Address registers not used must be implemented as
+	 * Base Address registers yest used must be implemented as
 	 * read-only registers that return 0 when read.
 	 */
 	[PCI_BASE_ADDRESS_0 / 4] = { .ro = ~0 },

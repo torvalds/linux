@@ -25,7 +25,7 @@
  *  THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *  You should have received a copy of the  GNU General Public License along
- *  with this program; if not, write  to the Free Software Foundation, Inc.,
+ *  with this program; if yest, write  to the Free Software Foundation, Inc.,
  *  675 Mass Ave, Cambridge, MA 02139, USA.
  *
  */
@@ -33,7 +33,7 @@
 #include <linux/init.h>
 #include <linux/export.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/spinlock.h>
 #include <linux/interrupt.h>
 
@@ -41,7 +41,7 @@
 #include <asm/mach-au1x00/au1000_dma.h>
 
 /*
- * A note on resource allocation:
+ * A yeste on resource allocation:
  *
  * All drivers needing DMA channels, should allocate and release them
  * through the public routines `request_dma()' and `free_dma()'.
@@ -52,7 +52,7 @@
  * So, when allocating DMAs and IRQs, first allocate the DMA, then the IRQ.
  * When releasing them, first release the IRQ, then release the DMA. The
  * main reason for this order is that, if you are requesting the DMA buffer
- * done interrupt, you won't know the irq number until the DMA channel is
+ * done interrupt, you won't kyesw the irq number until the DMA channel is
  * returned from request_dma.
  */
 

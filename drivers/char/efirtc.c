@@ -13,8 +13,8 @@
  * is by using ioctl(). There is a /proc interface which provides the raw 
  * information.
  *
- * Please note that we have kept the API as close as possible to the
- * legacy RTC. The standard /sbin/hwclock program should work normally 
+ * Please yeste that we have kept the API as close as possible to the
+ * legacy RTC. The standard /sbin/hwclock program should work yesrmally 
  * when used to get/set the time.
  *
  * NOTES:
@@ -29,7 +29,7 @@
  */
 
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/miscdevice.h>
 #include <linux/init.h>
 #include <linux/rtc.h>
@@ -109,7 +109,7 @@ convert_to_efi_time(struct rtc_time *wtime, efi_time_t *eft)
 	eft->hour	= wtime->tm_hour;
 	eft->minute	= wtime->tm_min;
 	eft->second 	= wtime->tm_sec;
-	eft->nanosecond = 0; 
+	eft->nayessecond = 0; 
 	eft->daylight	= wtime->tm_isdst ? EFI_ISDST: 0;
 	eft->timezone	= EFI_UNSPECIFIED_TIMEZONE;
 }
@@ -223,7 +223,7 @@ static long efi_rtc_ioctl(struct file *file, unsigned int cmd,
 			/*
 			 * XXX Fixme:
 			 * As of EFI 0.92 with the firmware I have on my
-			 * machine this call does not seem to work quite
+			 * machine this call does yest seem to work quite
 			 * right
 			 */
 			status = efi.set_wakeup_time((efi_bool_t)enabled, &eft);
@@ -262,7 +262,7 @@ static long efi_rtc_ioctl(struct file *file, unsigned int cmd,
 static const struct file_operations efi_rtc_fops = {
 	.owner		= THIS_MODULE,
 	.unlocked_ioctl	= efi_rtc_ioctl,
-	.llseek		= no_llseek,
+	.llseek		= yes_llseek,
 };
 
 static struct miscdevice efi_rtc_dev= {
@@ -296,7 +296,7 @@ static int efi_rtc_proc_show(struct seq_file *m, void *v)
 		   "Time           : %u:%u:%u.%09u\n"
 		   "Date           : %u-%u-%u\n"
 		   "Daylight       : %u\n",
-		   eft.hour, eft.minute, eft.second, eft.nanosecond, 
+		   eft.hour, eft.minute, eft.second, eft.nayessecond, 
 		   eft.year, eft.month, eft.day,
 		   eft.daylight);
 
@@ -313,11 +313,11 @@ static int efi_rtc_proc_show(struct seq_file *m, void *v)
 		   "Alarm Daylight : %u\n"
 		   "Enabled        : %s\n"
 		   "Pending        : %s\n",
-		   alm.hour, alm.minute, alm.second, alm.nanosecond, 
+		   alm.hour, alm.minute, alm.second, alm.nayessecond, 
 		   alm.year, alm.month, alm.day, 
 		   alm.daylight,
-		   enabled == 1 ? "yes" : "no",
-		   pending == 1 ? "yes" : "no");
+		   enabled == 1 ? "no" : "yes",
+		   pending == 1 ? "no" : "yes");
 
 	if (eft.timezone == EFI_UNSPECIFIED_TIMEZONE)
 		seq_puts(m, "Timezone       : unspecified\n");
@@ -326,7 +326,7 @@ static int efi_rtc_proc_show(struct seq_file *m, void *v)
 		seq_printf(m, "Timezone       : %u\n", alm.timezone);
 
 	/*
-	 * now prints the capabilities
+	 * yesw prints the capabilities
 	 */
 	seq_printf(m,
 		   "Resolution     : %u\n"
@@ -346,7 +346,7 @@ efi_rtc_init(void)
 
 	ret = misc_register(&efi_rtc_dev);
 	if (ret) {
-		printk(KERN_ERR "efirtc: can't misc_register on minor=%d\n",
+		printk(KERN_ERR "efirtc: can't misc_register on miyesr=%d\n",
 				EFI_RTC_MINOR);
 		return ret;
 	}

@@ -20,7 +20,7 @@ struct _ddebug {
 	const char *function;
 	const char *filename;
 	const char *format;
-	unsigned int lineno:18;
+	unsigned int lineyes:18;
 	/*
 	 * The flags field controls the behaviour at the callsite.
 	 * The bits here are changed dynamically when the user
@@ -85,7 +85,7 @@ void __dynamic_ibdev_dbg(struct _ddebug *descriptor,
 		.function = __func__,				\
 		.filename = __FILE__,				\
 		.format = (fmt),				\
-		.lineno = __LINE__,				\
+		.lineyes = __LINE__,				\
 		.flags = _DPRINTK_FLAGS_DEFAULT,		\
 		_DPRINTK_KEY_INIT				\
 	}
@@ -125,7 +125,7 @@ void __dynamic_ibdev_dbg(struct _ddebug *descriptor,
 		func(&id, ##__VA_ARGS__);		\
 } while (0)
 
-#define __dynamic_func_call_no_desc(id, fmt, func, ...) do {	\
+#define __dynamic_func_call_yes_desc(id, fmt, func, ...) do {	\
 	DEFINE_DYNAMIC_DEBUG_METADATA(id, fmt);			\
 	if (DYNAMIC_DEBUG_BRANCH(id))				\
 		func(__VA_ARGS__);				\
@@ -142,12 +142,12 @@ void __dynamic_ibdev_dbg(struct _ddebug *descriptor,
 #define _dynamic_func_call(fmt, func, ...)				\
 	__dynamic_func_call(__UNIQUE_ID(ddebug), fmt, func, ##__VA_ARGS__)
 /*
- * A variant that does the same, except that the descriptor is not
+ * A variant that does the same, except that the descriptor is yest
  * passed as the first argument to the function; it is only called
  * with precisely the macro's varargs.
  */
-#define _dynamic_func_call_no_desc(fmt, func, ...)	\
-	__dynamic_func_call_no_desc(__UNIQUE_ID(ddebug), fmt, func, ##__VA_ARGS__)
+#define _dynamic_func_call_yes_desc(fmt, func, ...)	\
+	__dynamic_func_call_yes_desc(__UNIQUE_ID(ddebug), fmt, func, ##__VA_ARGS__)
 
 #define dynamic_pr_debug(fmt, ...)				\
 	_dynamic_func_call(fmt,	__dynamic_pr_debug,		\
@@ -167,7 +167,7 @@ void __dynamic_ibdev_dbg(struct _ddebug *descriptor,
 
 #define dynamic_hex_dump(prefix_str, prefix_type, rowsize,		\
 			 groupsize, buf, len, ascii)			\
-	_dynamic_func_call_no_desc(__builtin_constant_p(prefix_str) ? prefix_str : "hexdump", \
+	_dynamic_func_call_yes_desc(__builtin_constant_p(prefix_str) ? prefix_str : "hexdump", \
 				   print_hex_dump,			\
 				   KERN_DEBUG, prefix_str, prefix_type,	\
 				   rowsize, groupsize, buf, len, ascii)
@@ -175,7 +175,7 @@ void __dynamic_ibdev_dbg(struct _ddebug *descriptor,
 #else
 
 #include <linux/string.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 
 static inline int ddebug_add_module(struct _ddebug *tab, unsigned int n,
 				    const char *modname)
@@ -195,7 +195,7 @@ static inline int ddebug_dyndbg_module_param_cb(char *param, char *val,
 		/* avoid pr_warn(), which wants pr_fmt() fully defined */
 		printk(KERN_WARNING "dyndbg param is supported only in "
 			"CONFIG_DYNAMIC_DEBUG builds\n");
-		return 0; /* allow and ignore */
+		return 0; /* allow and igyesre */
 	}
 	return -EINVAL;
 }

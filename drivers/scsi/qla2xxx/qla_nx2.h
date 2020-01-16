@@ -281,7 +281,7 @@ struct qla8044_reset_template {
 };
 
 /* Driver_code is for driver to write some info about the entry
- * currently not used.
+ * currently yest used.
  */
 struct qla8044_minidump_entry_hdr {
 	uint32_t entry_type;
@@ -534,7 +534,7 @@ enum qla_regs {
 /* MiniDump Structures */
 
 /* Driver_code is for driver to write some info about the entry
- * currently not used.
+ * currently yest used.
  */
 #define QLA8044_SS_OCM_WNDREG_INDEX             3
 #define QLA8044_DBG_STATE_ARRAY_LEN             16

@@ -7,7 +7,7 @@
 #include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/delay.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/list.h>
 #include <linux/interrupt.h>
 #include <linux/usb/ch9.h>
@@ -328,8 +328,8 @@ struct pch_vbus_gpio_data {
  * @suspended:		driver in suspended state
  * @connected:		gadget driver associated
  * @vbus_session:	required vbus_session state
- * @set_cfg_not_acked:	pending acknowledgement 4 setup
- * @waiting_zlp_ack:	pending acknowledgement 4 ZLP
+ * @set_cfg_yest_acked:	pending ackyeswledgement 4 setup
+ * @waiting_zlp_ack:	pending ackyeswledgement 4 ZLP
  * @data_requests:	DMA pool for data requests
  * @stp_requests:	DMA pool for setup requests
  * @dma_addr:		DMA pool for received
@@ -350,7 +350,7 @@ struct pch_udc_dev {
 			suspended:1,
 			connected:1,
 			vbus_session:1,
-			set_cfg_not_acked:1,
+			set_cfg_yest_acked:1,
 			waiting_zlp_ack:1;
 	struct dma_pool		*data_requests;
 	struct dma_pool		*stp_requests;
@@ -938,7 +938,7 @@ static void pch_udc_ep_clear_nak(struct pch_udc_ep *ep)
 			--loopcnt)
 			udelay(5);
 		if (!loopcnt)
-			dev_err(&dev->pdev->dev, "%s: RxFIFO not Empty\n",
+			dev_err(&dev->pdev->dev, "%s: RxFIFO yest Empty\n",
 				__func__);
 	}
 	loopcnt = 10000;
@@ -947,7 +947,7 @@ static void pch_udc_ep_clear_nak(struct pch_udc_ep *ep)
 		udelay(5);
 	}
 	if (!loopcnt)
-		dev_err(&dev->pdev->dev, "%s: Clear NAK not set for ep%d%s\n",
+		dev_err(&dev->pdev->dev, "%s: Clear NAK yest set for ep%d%s\n",
 			__func__, ep->num, (ep->in ? "in" : "out"));
 }
 
@@ -1132,9 +1132,9 @@ static int pch_udc_pcd_wakeup(struct usb_gadget *gadget)
 
 /**
  * pch_udc_pcd_selfpowered() - This API is invoked to specify whether the device
- *				is self powered or not
+ *				is self powered or yest
  * @gadget:	Reference to the gadget driver
- * @value:	Specifies self powered or not
+ * @value:	Specifies self powered or yest
  *
  * Return codes:
  *	0:		Success
@@ -1246,7 +1246,7 @@ static const struct usb_gadget_ops pch_udc_ops = {
  * Return value:
  *	1: VBUS is high
  *	0: VBUS is low
- *     -1: It is not enable to detect VBUS using GPIO
+ *     -1: It is yest enable to detect VBUS using GPIO
  */
 static int pch_vbus_gpio_get_value(struct pch_udc_dev *dev)
 {
@@ -1515,7 +1515,7 @@ static void pch_udc_free_dma_chain(struct pch_udc_dev *dev,
 	dma_addr_t addr = (dma_addr_t)td->next;
 	td->next = 0x00;
 	for (; i > 1; --i) {
-		/* do not free first desc., will be done by free for request */
+		/* do yest free first desc., will be done by free for request */
 		td = phys_to_virt(addr);
 		addr2 = (dma_addr_t)td->next;
 		dma_pool_free(dev->data_requests, td, addr);
@@ -1563,7 +1563,7 @@ static int pch_udc_create_dma_chain(struct pch_udc_ep *ep,
 		td = dma_pool_alloc(ep->dev->data_requests, gfp_flags,
 				    &dma_addr);
 		if (!td)
-			goto nomem;
+			goto yesmem;
 		i += buf_len;
 		td->dataptr = req->td_data->dataptr + i;
 		last->next = dma_addr;
@@ -1575,7 +1575,7 @@ static int pch_udc_create_dma_chain(struct pch_udc_ep *ep,
 	req->chain_len = len;
 	return 0;
 
-nomem:
+yesmem:
 	if (len > 1) {
 		req->chain_len = len;
 		pch_udc_free_dma_chain(ep->dev, req);
@@ -1603,7 +1603,7 @@ static int prepare_dma(struct pch_udc_ep *ep, struct pch_udc_request *req,
 	/* Allocate and create a DMA chain */
 	retval = pch_udc_create_dma_chain(ep, req, ep->ep.maxpacket, gfp);
 	if (retval) {
-		pr_err("%s: could not create DMA chain:%d\n", __func__, retval);
+		pr_err("%s: could yest create DMA chain:%d\n", __func__, retval);
 		return retval;
 	}
 	if (ep->in)
@@ -1628,11 +1628,11 @@ static void process_zlp(struct pch_udc_ep *ep, struct pch_udc_request *req)
 	/* if set_config or set_intf is waiting for ack by zlp
 	 * then set CSR_DONE
 	 */
-	if (dev->set_cfg_not_acked) {
+	if (dev->set_cfg_yest_acked) {
 		pch_udc_set_csr_done(dev);
-		dev->set_cfg_not_acked = 0;
+		dev->set_cfg_yest_acked = 0;
 	}
-	/* setup command is ACK'ed now by zlp */
+	/* setup command is ACK'ed yesw by zlp */
 	if (!dev->stall && dev->waiting_zlp_ack) {
 		pch_udc_ep_clear_nak(&(dev->ep[UDC_EP0IN_IDX]));
 		dev->waiting_zlp_ack = 0;
@@ -1799,7 +1799,7 @@ static void pch_udc_free_request(struct usb_ep *usbep,
 	req = container_of(usbreq, struct pch_udc_request, req);
 	dev = ep->dev;
 	if (!list_empty(&req->queue))
-		dev_err(&dev->pdev->dev, "%s: %s req=0x%p queue not empty\n",
+		dev_err(&dev->pdev->dev, "%s: %s req=0x%p queue yest empty\n",
 			__func__, usbep->name, req);
 	if (req->td_data != NULL) {
 		if (req->chain_len > 1)
@@ -1885,7 +1885,7 @@ static int pch_udc_pcd_queue(struct usb_ep *usbep, struct usb_request *usbreq,
 	usbreq->status = -EINPROGRESS;
 	req->dma_done = 0;
 	if (list_empty(&ep->queue) && !ep->halted) {
-		/* no pending transfer, so start this req */
+		/* yes pending transfer, so start this req */
 		if (!usbreq->length) {
 			process_zlp(ep, req);
 			retval = 0;
@@ -2208,7 +2208,7 @@ static void pch_udc_complete_receiver(struct pch_udc_ep *ep)
 	req->dma_going = 0;
 	req->req.actual = count;
 	complete_req(ep, req, 0);
-	/* If there is a new/failed requests try that now */
+	/* If there is a new/failed requests try that yesw */
 	if (!list_empty(&ep->queue)) {
 		req = list_entry(ep->queue.next, struct pch_udc_request, queue);
 		pch_udc_start_rxrequest(ep, req);
@@ -2551,7 +2551,7 @@ static void pch_udc_svc_ur_interrupt(struct pch_udc_dev *dev)
 	dev->stall = 0;
 	dev->prot_stall = 0;
 	dev->waiting_zlp_ack = 0;
-	dev->set_cfg_not_acked = 0;
+	dev->set_cfg_yest_acked = 0;
 
 	/* disable ep to empty req queue. Skip the control EP's */
 	for (i = 0; i < (PCH_UDC_USED_EP_NUM*2); i++) {
@@ -2622,7 +2622,7 @@ static void pch_udc_svc_intf_interrupt(struct pch_udc_dev *dev)
 							 UDC_DEVSTS_INTF_SHIFT;
 	dev->cfg_data.cur_alt = (dev_stat & UDC_DEVSTS_ALT_MASK) >>
 							 UDC_DEVSTS_ALT_SHIFT;
-	dev->set_cfg_not_acked = 1;
+	dev->set_cfg_yest_acked = 1;
 	/* Construct the usb request for gadget driver and inform it */
 	memset(&dev->setup_data, 0 , sizeof dev->setup_data);
 	dev->setup_data.bRequest = USB_REQ_SET_INTERFACE;
@@ -2659,7 +2659,7 @@ static void pch_udc_svc_cfg_interrupt(struct pch_udc_dev *dev)
 	u32 reg, dev_stat = 0;
 
 	dev_stat = pch_udc_read_device_status(dev);
-	dev->set_cfg_not_acked = 1;
+	dev->set_cfg_yest_acked = 1;
 	dev->cfg_data.cur_cfg = (dev_stat & UDC_DEVSTS_CFG_MASK) >>
 				UDC_DEVSTS_CFG_SHIFT;
 	/* make usb request for gadget driver */
@@ -2984,7 +2984,7 @@ static int pch_udc_stop(struct usb_gadget *g)
 
 	pch_udc_disable_interrupts(dev, UDC_DEVINT_MSK);
 
-	/* Assures that there are no pending requests with this driver */
+	/* Assures that there are yes pending requests with this driver */
 	dev->driver = NULL;
 	dev->connected = 0;
 
@@ -3011,7 +3011,7 @@ static void pch_udc_remove(struct pci_dev *pdev)
 
 	usb_del_gadget_udc(&dev->gadget);
 
-	/* gadget driver must not be registered */
+	/* gadget driver must yest be registered */
 	if (dev->driver)
 		dev_err(&pdev->dev,
 			"%s: gadget driver still bound!!!\n", __func__);

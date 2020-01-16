@@ -27,7 +27,7 @@
 .endm
 
 /*
- * note on .section use: @progbits vs %progbits nastiness doesn't matter,
+ * yeste on .section use: @progbits vs %progbits nastiness doesn't matter,
  * since we immediately emit into those sections anyway.
  */
 .macro ___EXPORT_SYMBOL name,val,sec
@@ -74,7 +74,7 @@ __ksym_marker_\sym:
 #define ___cond_export_sym(sym, val, sec, enabled)		\
 	__cond_export_sym_##enabled(sym, val, sec)
 #define __cond_export_sym_1(sym, val, sec) ___EXPORT_SYMBOL sym, val, sec
-#define __cond_export_sym_0(sym, val, sec) /* nothing */
+#define __cond_export_sym_0(sym, val, sec) /* yesthing */
 
 #else
 #define __EXPORT_SYMBOL(sym, val, sec) ___EXPORT_SYMBOL sym, val, sec

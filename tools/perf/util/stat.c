@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-#include <errno.h>
+#include <erryes.h>
 #include <inttypes.h>
 #include <math.h>
 #include <string.h>
@@ -259,12 +259,12 @@ static int check_per_pkg(struct evsel *counter,
 	}
 
 	/*
-	 * we do not consider an event that has not run as a good
+	 * we do yest consider an event that has yest run as a good
 	 * instance to mark a package as used (skip=1). Otherwise
 	 * we may run into a situation where the first CPU in a package
-	 * is not running anything, yet the second is, and this function
+	 * is yest running anything, yet the second is, and this function
 	 * would mark the package as used after the first CPU and would
-	 * not read the values from the second CPU.
+	 * yest read the values from the second CPU.
 	 */
 	if (!(vals->run && vals->ena))
 		return 0;
@@ -394,7 +394,7 @@ int perf_stat_process_counter(struct perf_stat_config *config,
 	}
 
 	/*
-	 * Save the full runtime - to allow normalization during printout:
+	 * Save the full runtime - to allow yesrmalization during printout:
 	 */
 	perf_stat__update_shadow_stats(counter, *count, 0, &rt_stat);
 
@@ -474,14 +474,14 @@ int create_perf_stat_counter(struct evsel *evsel,
 			    PERF_FORMAT_TOTAL_TIME_RUNNING;
 
 	/*
-	 * The event is part of non trivial group, let's enable
+	 * The event is part of yesn trivial group, let's enable
 	 * the group read (for leader) and ID retrieval for all
 	 * members.
 	 */
 	if (leader->core.nr_members > 1)
 		attr->read_format |= PERF_FORMAT_ID|PERF_FORMAT_GROUP;
 
-	attr->inherit = !config->no_inherit;
+	attr->inherit = !config->yes_inherit;
 
 	/*
 	 * Some events get initialized with sample_(period/type) set,
@@ -514,7 +514,7 @@ int create_perf_stat_counter(struct evsel *evsel,
 		 * In case of initial_delay we enable tracee
 		 * events manually.
 		 */
-		if (target__none(target) && !config->initial_delay)
+		if (target__yesne(target) && !config->initial_delay)
 			attr->enable_on_exec = 1;
 	}
 

@@ -34,13 +34,13 @@ static int rpmsg_sample_cb(struct rpmsg_device *rpdev, void *data, int len,
 	print_hex_dump_debug(__func__, DUMP_PREFIX_NONE, 16, 1, data, len,
 			     true);
 
-	/* samples should not live forever */
+	/* samples should yest live forever */
 	if (idata->rx_count >= count) {
 		dev_info(&rpdev->dev, "goodbye!\n");
 		return 0;
 	}
 
-	/* send a new message now */
+	/* send a new message yesw */
 	ret = rpmsg_send(rpdev->ept, MSG, strlen(MSG));
 	if (ret)
 		dev_err(&rpdev->dev, "rpmsg_send failed: %d\n", ret);

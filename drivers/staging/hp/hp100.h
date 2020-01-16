@@ -53,8 +53,8 @@
 #define HP100_REG_TX_PDA_H      0x1c	/* W: (32) BM: Ptr to PDL, High Pri */
 #define HP100_REG_RX_PKT_CNT	0x18	/* RD: (8) Rx count of pkts on card  */
 #define HP100_REG_TX_PKT_CNT	0x19	/* RD: (8) Tx count of pkts on card  */
-#define HP100_REG_RX_PDL        0x1a	/* R: (8) BM: # rx pdl not executed */
-#define HP100_REG_TX_PDL        0x1b	/* R: (8) BM: # tx pdl not executed */
+#define HP100_REG_RX_PDL        0x1a	/* R: (8) BM: # rx pdl yest executed */
+#define HP100_REG_TX_PDL        0x1b	/* R: (8) BM: # tx pdl yest executed */
 #define HP100_REG_RX_PDA        0x18	/* W: (32) BM: Up to 31 addresses */
 					/*             which point to a PDL */
 #define HP100_REG_SL_EARLY      0x1c	/*    (32) Enhanced Slave Early Rx */
@@ -108,7 +108,7 @@
 #define HP100_REG_DROPPED	0x10	/* R:  (16),11:0 Pkts can't fit in mem */
 #define HP100_REG_CRC		0x12	/* R:  (8) Pkts with CRC             */
 #define HP100_REG_ABORT		0x13	/* R:  (8) Aborted Tx pkts           */
-#define HP100_REG_TRAIN_REQUEST 0x14	/* RW: (16) Endnode MAC register. */
+#define HP100_REG_TRAIN_REQUEST 0x14	/* RW: (16) Endyesde MAC register. */
 #define HP100_REG_TRAIN_ALLOW   0x16	/* R:  (16) Hub allowed register */
 
 /*  Page 5 - MMU  */
@@ -116,7 +116,7 @@
 #define HP100_REG_RX_MEM_STOP	0x0c	/* RW: (16) End of Rx ring addr      */
 #define HP100_REG_TX_MEM_STOP	0x0e	/* RW: (16) End of Tx ring addr      */
 #define HP100_REG_PDL_MEM_STOP  0x10	/* Not used by 802.12 devices */
-#define HP100_REG_ECB_MEM_STOP  0x14	/* I've no idea what this is */
+#define HP100_REG_ECB_MEM_STOP  0x14	/* I've yes idea what this is */
 
 /*  Page 6 - Card ID/Physical LAN Address  */
 
@@ -269,7 +269,7 @@
  * Mode Control Register II
  * (Page HW_MAP, MODECTRL2, Offset0x11)
  */
-#define HP100_EE_MASK           0x0f	/* Tell EEPROM circuit not to load */
+#define HP100_EE_MASK           0x0f	/* Tell EEPROM circuit yest to load */
 				       /* certain resources */
 #define HP100_DIS_CANCEL        0x20	/* For tx dualq mode operation */
 #define HP100_EN_PDL_WB         0x40	/* 1: Status of PDL completion may be */
@@ -298,8 +298,8 @@
 #define HP100_MWI               0x08	/* 1: en. PCI memory write invalidate */
 #define HP100_ARB_MODE          0x10	/* Select PCI arbitor type */
 #define HP100_STOP_EN           0x20	/* Enables PCI state machine to issue */
-				       /* pci stop if cascade not ready */
-#define HP100_IGNORE_PAR        0x40	/* 1: PCI state machine ignores parity */
+				       /* pci stop if cascade yest ready */
+#define HP100_IGNORE_PAR        0x40	/* 1: PCI state machine igyesres parity */
 #define HP100_PCI_RESET         0x80	/* 0->1: Reset PCI block */
 
 /*
@@ -377,7 +377,7 @@
  * (Page MAC_CTRL, VG_LAN_CFG_1, Offset 0x0a)
  */
 #define HP100_VG_SEL	        0x80	/* 0:No, 1:Yes use 100 Mbit MAC */
-#define HP100_LINK_UP_ST	0x40	/* 0:No, 1:Yes endnode logged in */
+#define HP100_LINK_UP_ST	0x40	/* 0:No, 1:Yes endyesde logged in */
 #define HP100_LINK_CABLE_ST	0x20	/* 0:No, 1:Yes cable can hear tones */
 					/*         from  hub */
 #define HP100_LOAD_ADDR		0x10	/* 0->1 card addr will be sent  */
@@ -406,7 +406,7 @@
 #define HP100_ACC_BC		0x02	/* 0:No, 1:Yes allow Rx of broadcast pkts */
 #define HP100_ACC_PHY		0x01	/* 0:No, 1:Yes allow Rx of ALL phys. pkts */
 #define HP100_MAC1MODEMASK	0xf0	/* Hide ACC bits */
-#define HP100_MAC1MODE1		0x00	/* Receive nothing, must also disable RX */
+#define HP100_MAC1MODE1		0x00	/* Receive yesthing, must also disable RX */
 #define HP100_MAC1MODE2		0x00
 #define HP100_MAC1MODE3		HP100_MAC1MODE2 | HP100_ACC_BC
 #define HP100_MAC1MODE4		HP100_MAC1MODE3 | HP100_ACC_MC
@@ -475,7 +475,7 @@
 #define HP100_MACRQ_PROMSC           0x0006	/* 2 bits: Promiscious mode
 						 * 00: Rcv only unicast packets
 						 *     specifically addr to this
-						 *     endnode
+						 *     endyesde
 						 * 10: Rcv all pckts fwded by
 						 *     the local repeater */
 #define HP100_MACRQ_FRAMEFMT_EITHER  0x0018	/* 11: either format allowed */
@@ -483,11 +483,11 @@
 #define HP100_MACRQ_FRAMEFMT_802_5   0x0010	/* 10: 802.5 format is requested */
 #define HP100_CARD_MACVER            0xe000	/* R: 3 bit Cards 100VG MAC version */
 #define HP100_MALLOW_REPEATER        0x0001	/* If reset, requested access as an
-						 * end node is allowed */
+						 * end yesde is allowed */
 #define HP100_MALLOW_PROMSC          0x0004	/* 2 bits: Promiscious mode
 						 * 00: Rcv only unicast packets
 						 *     specifically addr to this
-						 *     endnode
+						 *     endyesde
 						 * 10: Rcv all pckts fwded by
 						 *     the local repeater */
 #define HP100_MALLOW_FRAMEFMT        0x00e0	/* 2 bits: Frame Format
@@ -559,7 +559,7 @@ typedef struct hp100_ring {
 #define HP100_RCV_IPM_ERR	0x0800	/* 0:No, 1:Yes pkt had an invalid packet */
 					/*   marker */
 #define HP100_SYMBOL_BAL_ERR	0x0400	/* 0:No, 1:Yes symbol balance error */
-#define HP100_VG_ALN_ERR	0x0200	/* 0:No, 1:Yes non-octet received */
+#define HP100_VG_ALN_ERR	0x0200	/* 0:No, 1:Yes yesn-octet received */
 #define HP100_TRUNC_ERR		0x0100	/* 0:No, 1:Yes the packet was truncated */
 #define HP100_RUNT_ERR		0x0040	/* 0:No, 1:Yes pkt length < Min Pkt */
 					/*   Length Reg. */
@@ -572,7 +572,7 @@ typedef struct hp100_ring {
 #define HP100_BROADCAST_ADDR	0x0003	/* x11: Addr broadcast */
 #define HP100_MULTI_ADDR_NO_HASH 0x0002	/* 010: Addr multicast, didn't match hash */
 #define HP100_PHYS_ADDR_MATCH	0x0001	/* x01: Addr was physical and mine */
-#define HP100_PHYS_ADDR_NO_MATCH 0x0000	/* x00: Addr was physical but not mine */
+#define HP100_PHYS_ADDR_NO_MATCH 0x0000	/* x00: Addr was physical but yest mine */
 
 /*
  *  macros

@@ -112,7 +112,7 @@
 #define HWCAP_S390_SORT		131072
 #define HWCAP_S390_DFLT		262144
 
-/* Internal bits, not exposed via elf */
+/* Internal bits, yest exposed via elf */
 #define HWCAP_INT_SIE		1UL
 
 /*
@@ -213,7 +213,7 @@ struct arch_elf_state {
 extern unsigned long elf_hwcap;
 #define ELF_HWCAP (elf_hwcap)
 
-/* Internal hardware capabilities, not exposed via elf */
+/* Internal hardware capabilities, yest exposed via elf */
 
 extern unsigned long int_hwcap;
 
@@ -256,9 +256,9 @@ do {								\
 
 /*
  * Cache aliasing on the latest machines calls for a mapping granularity
- * of 512KB for the anonymous mapping base. For 64-bit processes use a
+ * of 512KB for the ayesnymous mapping base. For 64-bit processes use a
  * 512KB alignment and a randomization of up to 1GB. For 31-bit processes
- * the virtual address space is limited, use no alignment and limit the
+ * the virtual address space is limited, use yes alignment and limit the
  * randomization to 8MB.
  * For the additional randomization of the program break use 32MB for
  * 64-bit and 8MB for 31-bit.

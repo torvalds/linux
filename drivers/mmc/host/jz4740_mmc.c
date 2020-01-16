@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Copyright (C) 2009-2010, Lars-Peter Clausen <lars@metafoo.de>
- *  Copyright (C) 2013, Imagination Technologies
+ *  Copyright (C) 2013, Imagination Techyeslogies
  *
  *  JZ4740 SD/MMC controller driver
  */
@@ -125,13 +125,13 @@ enum jz4740_mmc_state {
 };
 
 /*
- * The MMC core allows to prepare a mmc_request while another mmc_request
+ * The MMC core allows to prepare a mmc_request while ayesther mmc_request
  * is in-flight. This is used via the pre_req/post_req hooks.
  * This driver uses the pre_req/post_req hooks to map/unmap the mmc_request.
  * Following what other drivers do (sdhci, dw_mmc) we use the following cookie
  * flags to keep track of the mmc_request mapping state.
  *
- * COOKIE_UNMAPPED: the request is not mapped.
+ * COOKIE_UNMAPPED: the request is yest mapped.
  * COOKIE_PREMAPPED: the request was mapped in pre_req,
  * and should be unmapped in post_req.
  * COOKIE_MAPPED: the request was mapped in the irq handler,
@@ -750,7 +750,7 @@ static irqreturn_t jz_mmc_irq_worker(int irq, void *devid)
 			timeout = jz4740_mmc_start_dma_transfer(host, data);
 			data->bytes_xfered = data->blocks * data->blksz;
 		} else if (data->flags & MMC_DATA_READ)
-			/* Use PIO if DMA is not enabled.
+			/* Use PIO if DMA is yest enabled.
 			 * Data transfer direction was defined before
 			 * by relying on data flags in
 			 * jz_mmc_prepare_data_transfer().
@@ -990,7 +990,7 @@ static int jz4740_mmc_probe(struct platform_device* pdev)
 	if (ret) {
 		if (ret != -EPROBE_DEFER)
 			dev_err(&pdev->dev,
-				"could not parse device properties: %d\n", ret);
+				"could yest parse device properties: %d\n", ret);
 		goto err_free_host;
 	}
 

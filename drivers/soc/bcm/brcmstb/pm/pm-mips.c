@@ -293,7 +293,7 @@ static int brcmstb_pm_standby(bool deep_standby)
 	else
 		brcmstb_pm_s2();
 
-	/* Send IRQs to normal runtime vectors */
+	/* Send IRQs to yesrmal runtime vectors */
 	clear_c0_status(ST0_BEV);
 	irq_disable_hazard();
 	set_c0_cause(CAUSEF_IV);
@@ -355,7 +355,7 @@ static const struct of_device_id timers_ids[] = {
 	{ /* sentinel */ }
 };
 
-static inline void __iomem *brcmstb_ioremap_node(struct device_node *dn,
+static inline void __iomem *brcmstb_ioremap_yesde(struct device_yesde *dn,
 						 int index)
 {
 	return of_io_request_and_map(dn, index, dn->full_name);
@@ -364,22 +364,22 @@ static inline void __iomem *brcmstb_ioremap_node(struct device_node *dn,
 static void __iomem *brcmstb_ioremap_match(const struct of_device_id *matches,
 					   int index, const void **ofdata)
 {
-	struct device_node *dn;
+	struct device_yesde *dn;
 	const struct of_device_id *match;
 
-	dn = of_find_matching_node_and_match(NULL, matches, &match);
+	dn = of_find_matching_yesde_and_match(NULL, matches, &match);
 	if (!dn)
 		return ERR_PTR(-EINVAL);
 
 	if (ofdata)
 		*ofdata = match->data;
 
-	return brcmstb_ioremap_node(dn, index);
+	return brcmstb_ioremap_yesde(dn, index);
 }
 
 static int brcmstb_pm_init(void)
 {
-	struct device_node *dn;
+	struct device_yesde *dn;
 	void __iomem *base;
 	int i;
 
@@ -401,13 +401,13 @@ static int brcmstb_pm_init(void)
 
 	ctrl.num_memc = 0;
 	/* Map MEMC DDR PHY registers */
-	for_each_matching_node(dn, ddr_phy_dt_ids) {
+	for_each_matching_yesde(dn, ddr_phy_dt_ids) {
 		i = ctrl.num_memc;
 		if (i >= MAX_NUM_MEMC) {
 			pr_warn("Too many MEMCs (max %d)\n", MAX_NUM_MEMC);
 			break;
 		}
-		base = brcmstb_ioremap_node(dn, 0);
+		base = brcmstb_ioremap_yesde(dn, 0);
 		if (IS_ERR(base))
 			goto ddr_err;
 

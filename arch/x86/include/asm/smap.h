@@ -9,7 +9,7 @@
 #ifndef _ASM_X86_SMAP_H
 #define _ASM_X86_SMAP_H
 
-#include <asm/nops.h>
+#include <asm/yesps.h>
 #include <asm/cpufeatures.h>
 
 /* "Raw" instruction opcodes */

@@ -105,7 +105,7 @@ static int mcs_touchkey_probe(struct i2c_client *client,
 
 	pdata = dev_get_platdata(&client->dev);
 	if (!pdata) {
-		dev_err(&client->dev, "no platform data defined\n");
+		dev_err(&client->dev, "yes platform data defined\n");
 		return -EINVAL;
 	}
 
@@ -146,7 +146,7 @@ static int mcs_touchkey_probe(struct i2c_client *client,
 	input_dev->id.bustype = BUS_I2C;
 	input_dev->dev.parent = &client->dev;
 	input_dev->evbit[0] = BIT_MASK(EV_KEY);
-	if (!pdata->no_autorepeat)
+	if (!pdata->yes_autorepeat)
 		input_dev->evbit[0] |= BIT_MASK(EV_REP);
 	input_dev->keycode = data->keycodes;
 	input_dev->keycodesize = sizeof(data->keycodes[0]);

@@ -129,7 +129,7 @@ static const struct attribute_group haps_attr_group = {
 /*
  * ACPI stuff
  */
-static void toshiba_haps_notify(struct acpi_device *device, u32 event)
+static void toshiba_haps_yestify(struct acpi_device *device, u32 event)
 {
 	pr_debug("Received event: 0x%x", event);
 
@@ -155,7 +155,7 @@ static int toshiba_haps_available(acpi_handle handle)
 	u64 hdd_present;
 
 	/*
-	 * A non existent device as well as having (only)
+	 * A yesn existent device as well as having (only)
 	 * Solid State Drives can cause the call to fail.
 	 */
 	status = acpi_evaluate_integer(handle, "_STA", NULL, &hdd_present);
@@ -165,7 +165,7 @@ static int toshiba_haps_available(acpi_handle handle)
 	}
 
 	if (!hdd_present) {
-		pr_info("HDD protection not available or using SSD\n");
+		pr_info("HDD protection yest available or using SSD\n");
 		return 0;
 	}
 
@@ -259,7 +259,7 @@ static struct acpi_driver toshiba_haps_driver = {
 	.ops = {
 		.add =		toshiba_haps_add,
 		.remove =	toshiba_haps_remove,
-		.notify =	toshiba_haps_notify,
+		.yestify =	toshiba_haps_yestify,
 	},
 	.drv.pm = &toshiba_haps_pm,
 };

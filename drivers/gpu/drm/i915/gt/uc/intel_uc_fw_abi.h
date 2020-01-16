@@ -25,10 +25,10 @@
  *                                                    <-mod size->
  *                                                                 <-exp size->
  *
- * The firmware may or may not have modulus key and exponent data. The header,
+ * The firmware may or may yest have modulus key and exponent data. The header,
  * uCode and RSA signature are must-have components that will be used by driver.
  * Length of each components, which is all in dwords, can be found in header.
- * In the case that modulus and exponent are not present in fw, a.k.a truncated
+ * In the case that modulus and exponent are yest present in fw, a.k.a truncated
  * image, the length value still appears in header.
  *
  * Driver will do some basic fw size validation based on the following rules:
@@ -37,14 +37,14 @@
  * 2. All firmware components, if they present, are in the sequence illustrated
  *    in the layout table above.
  * 3. Length info of each component can be found in header, in dwords.
- * 4. Modulus and exponent key are not required by driver. They may not appear
+ * 4. Modulus and exponent key are yest required by driver. They may yest appear
  *    in fw. So driver will load a truncated firmware in this case.
  */
 
 struct uc_css_header {
 	u32 module_type;
 	/*
-	 * header_size includes all non-uCode bits, including css_header, rsa
+	 * header_size includes all yesn-uCode bits, including css_header, rsa
 	 * key, modulus key and exponent data.
 	 */
 	u32 header_size_dw;

@@ -31,7 +31,7 @@ struct svc_cacherep {
 		struct sockaddr_in6	k_addr;
 	} c_key;
 
-	struct rb_node		c_node;
+	struct rb_yesde		c_yesde;
 	struct list_head	c_lru;
 	unsigned char		c_state,	/* unused, inprog, done */
 				c_type,		/* status, buffer */
@@ -82,6 +82,6 @@ int	nfsd_reply_cache_init(struct nfsd_net *);
 void	nfsd_reply_cache_shutdown(struct nfsd_net *);
 int	nfsd_cache_lookup(struct svc_rqst *);
 void	nfsd_cache_update(struct svc_rqst *, int, __be32 *);
-int	nfsd_reply_cache_stats_open(struct inode *, struct file *);
+int	nfsd_reply_cache_stats_open(struct iyesde *, struct file *);
 
 #endif /* NFSCACHE_H */

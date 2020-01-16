@@ -172,7 +172,7 @@ static int ql_get_serdes_regs(struct ql_adapter *qdev,
 
 	if ((temp & XG_SERDES_ADDR_XFI1_PWR_UP) ==
 					XG_SERDES_ADDR_XFI1_PWR_UP) {
-		/* now see if i'm NIC 1 or NIC 2 */
+		/* yesw see if i'm NIC 1 or NIC 2 */
 		if (qdev->func & 1)
 			/* I'm NIC 2, so the indirect (NIC1) xfi is up. */
 			xfi_indirect_valid = true;
@@ -181,7 +181,7 @@ static int ql_get_serdes_regs(struct ql_adapter *qdev,
 	}
 	if ((temp & XG_SERDES_ADDR_XFI2_PWR_UP) ==
 					XG_SERDES_ADDR_XFI2_PWR_UP) {
-		/* now see if i'm NIC 1 or NIC 2 */
+		/* yesw see if i'm NIC 1 or NIC 2 */
 		if (qdev->func & 1)
 			/* I'm NIC 2, so the indirect (NIC1) xfi is up. */
 			xfi_direct_valid = true;
@@ -353,7 +353,7 @@ static int ql_get_xgmac_regs(struct ql_adapter *qdev, u32 *buf,
 
 	for (i = PAUSE_SRC_LO; i < XGMAC_REGISTER_END; i += 4, buf++) {
 		/* We're reading 400 xgmac registers, but we filter out
-		 * several locations that are non-responsive to reads.
+		 * several locations that are yesn-responsive to reads.
 		 */
 		if ((i == 0x00000114) ||
 		    (i == 0x00000118) ||
@@ -1307,7 +1307,7 @@ void ql_get_dump(struct ql_adapter *qdev, void *buff)
 	 * just start the spool to dump it to the log file
 	 * and also, take a snapshot of the general regs to
 	 * to the user's buffer or else take complete dump
-	 * to the user's buffer if force is not set.
+	 * to the user's buffer if force is yest set.
 	 */
 
 	if (!test_bit(QL_FRC_COREDUMP, &qdev->flags)) {

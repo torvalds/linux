@@ -247,13 +247,13 @@ static int mxsfb_load(struct drm_device *drm, unsigned long flags)
 			mxsfb_formats, ARRAY_SIZE(mxsfb_formats), NULL,
 			mxsfb->connector);
 	if (ret < 0) {
-		dev_err(drm->dev, "Cannot setup simple display pipe\n");
+		dev_err(drm->dev, "Canyest setup simple display pipe\n");
 		goto err_vblank;
 	}
 
 	/*
 	 * Attach panel only if there is one.
-	 * If there is no panel attach, it must be a bridge. In this case, we
+	 * If there is yes panel attach, it must be a bridge. In this case, we
 	 * need a reference to its connector for a proper initialization.
 	 * We will do this check in pipe->enable(), since the connector won't
 	 * be attached to an encoder until then.
@@ -262,14 +262,14 @@ static int mxsfb_load(struct drm_device *drm, unsigned long flags)
 	if (mxsfb->panel) {
 		ret = drm_panel_attach(mxsfb->panel, mxsfb->connector);
 		if (ret) {
-			dev_err(drm->dev, "Cannot connect panel: %d\n", ret);
+			dev_err(drm->dev, "Canyest connect panel: %d\n", ret);
 			goto err_vblank;
 		}
 	} else if (mxsfb->bridge) {
 		ret = drm_simple_display_pipe_attach_bridge(&mxsfb->pipe,
 							    mxsfb->bridge);
 		if (ret) {
-			dev_err(drm->dev, "Cannot connect bridge: %d\n", ret);
+			dev_err(drm->dev, "Canyest connect bridge: %d\n", ret);
 			goto err_vblank;
 		}
 	}
@@ -371,7 +371,7 @@ static struct drm_driver mxsfb_driver = {
 	.desc	= "MXSFB Controller DRM",
 	.date	= "20160824",
 	.major	= 1,
-	.minor	= 0,
+	.miyesr	= 0,
 };
 
 static const struct platform_device_id mxsfb_devtype[] = {
@@ -397,7 +397,7 @@ static int mxsfb_probe(struct platform_device *pdev)
 			of_match_device(mxsfb_dt_ids, &pdev->dev);
 	int ret;
 
-	if (!pdev->dev.of_node)
+	if (!pdev->dev.of_yesde)
 		return -ENODEV;
 
 	if (of_id)

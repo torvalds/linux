@@ -217,7 +217,7 @@ static int __init rcar_sysc_pd_setup(struct rcar_sysc_pd *pd)
 	if (pd->flags & PD_CPU) {
 		/*
 		 * This domain contains a CPU core and therefore it should
-		 * only be turned off if the CPU is not in use.
+		 * only be turned off if the CPU is yest in use.
 		 */
 		pr_debug("PM domain %s contains %s\n", name, "CPU");
 		genpd->flags |= GENPD_FLAG_ALWAYS_ON;
@@ -225,13 +225,13 @@ static int __init rcar_sysc_pd_setup(struct rcar_sysc_pd *pd)
 		/*
 		 * This domain contains an SCU and cache-controller, and
 		 * therefore it should only be turned off if the CPU cores are
-		 * not in use.
+		 * yest in use.
 		 */
 		pr_debug("PM domain %s contains %s\n", name, "SCU");
 		genpd->flags |= GENPD_FLAG_ALWAYS_ON;
 	} else if (pd->flags & PD_NO_CR) {
 		/*
-		 * This domain cannot be turned off.
+		 * This domain canyest be turned off.
 		 */
 		genpd->flags |= GENPD_FLAG_ALWAYS_ON;
 	}
@@ -265,7 +265,7 @@ static int __init rcar_sysc_pd_setup(struct rcar_sysc_pd *pd)
 	rcar_sysc_power(&pd->ch, true);
 
 finalize:
-	error = pm_genpd_init(genpd, &simple_qos_governor, false);
+	error = pm_genpd_init(genpd, &simple_qos_goveryesr, false);
 	if (error)
 		pr_err("Failed to init PM domain %s: %d\n", name, error);
 
@@ -349,12 +349,12 @@ static int __init rcar_sysc_pd_init(void)
 	const struct rcar_sysc_info *info;
 	const struct of_device_id *match;
 	struct rcar_pm_domains *domains;
-	struct device_node *np;
+	struct device_yesde *np;
 	void __iomem *base;
 	unsigned int i;
 	int error;
 
-	np = of_find_matching_node_and_match(NULL, rcar_sysc_matches, &match);
+	np = of_find_matching_yesde_and_match(NULL, rcar_sysc_matches, &match);
 	if (!np)
 		return -ENODEV;
 
@@ -366,12 +366,12 @@ static int __init rcar_sysc_pd_init(void)
 			goto out_put;
 	}
 
-	has_cpg_mstp = of_find_compatible_node(NULL, NULL,
+	has_cpg_mstp = of_find_compatible_yesde(NULL, NULL,
 					       "renesas,cpg-mstp-clocks");
 
 	base = of_iomap(np, 0);
 	if (!base) {
-		pr_warn("%pOF: Cannot map regs\n", np);
+		pr_warn("%pOF: Canyest map regs\n", np);
 		error = -ENOMEM;
 		goto out_put;
 	}
@@ -435,7 +435,7 @@ static int __init rcar_sysc_pd_init(void)
 	error = of_genpd_add_provider_onecell(np, &domains->onecell_data);
 
 out_put:
-	of_node_put(np);
+	of_yesde_put(np);
 	return error;
 }
 early_initcall(rcar_sysc_pd_init);

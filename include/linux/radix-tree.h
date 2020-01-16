@@ -19,7 +19,7 @@
 
 /* Keep unconverted code working */
 #define radix_tree_root		xarray
-#define radix_tree_node		xa_node
+#define radix_tree_yesde		xa_yesde
 
 /*
  * The bottom two bits of the slot determine how the remaining bits in the
@@ -31,16 +31,16 @@
  *
  * The internal entry may be a pointer to the next level in the tree, a
  * sibling entry, or an indicator that the entry in this slot has been moved
- * to another location in the tree and the lookup should be restarted.  While
- * NULL fits the 'data pointer' pattern, it means that there is no entry in
- * the tree for this index (no matter what level of the tree it is found at).
+ * to ayesther location in the tree and the lookup should be restarted.  While
+ * NULL fits the 'data pointer' pattern, it means that there is yes entry in
+ * the tree for this index (yes matter what level of the tree it is found at).
  * This means that storing a NULL entry in the tree is the same as deleting
  * the entry from the tree.
  */
 #define RADIX_TREE_ENTRY_MASK		3UL
 #define RADIX_TREE_INTERNAL_NODE	2UL
 
-static inline bool radix_tree_is_internal_node(void *ptr)
+static inline bool radix_tree_is_internal_yesde(void *ptr)
 {
 	return ((unsigned long)ptr & RADIX_TREE_ENTRY_MASK) ==
 				RADIX_TREE_INTERNAL_NODE;
@@ -82,10 +82,10 @@ static inline bool radix_tree_empty(const struct radix_tree_root *root)
  * @index:	index of current slot
  * @next_index:	one beyond the last index for this chunk
  * @tags:	bit-mask for tag-iterating
- * @node:	node that contains current slot
+ * @yesde:	yesde that contains current slot
  *
  * This radix tree iterator works in terms of "chunks" of slots.  A chunk is a
- * subinterval of slots contained within one radix tree leaf node.  It is
+ * subinterval of slots contained within one radix tree leaf yesde.  It is
  * described by a pointer to its first slot and a struct radix_tree_iter
  * which holds the chunk's position in the tree and its size.  For tagged
  * iteration radix_tree_iter also holds the slots' bit-mask for one chosen
@@ -95,14 +95,14 @@ struct radix_tree_iter {
 	unsigned long	index;
 	unsigned long	next_index;
 	unsigned long	tags;
-	struct radix_tree_node *node;
+	struct radix_tree_yesde *yesde;
 };
 
 /**
  * Radix-tree synchronization
  *
  * The radix-tree API requires that users provide all synchronisation (with
- * specific exceptions, noted below).
+ * specific exceptions, yested below).
  *
  * Synchronization of access to the data items being stored in the tree, and
  * management of their lifetimes must be completely managed by API users.
@@ -115,7 +115,7 @@ struct radix_tree_iter {
  *   gang lookups) must exclude modifications to the tree, but may occur
  *   concurrently with other readers.
  *
- * The notable exceptions to this rule are the following functions:
+ * The yestable exceptions to this rule are the following functions:
  * __radix_tree_lookup
  * radix_tree_lookup
  * radix_tree_lookup_slot
@@ -136,12 +136,12 @@ struct radix_tree_iter {
  * that the items are freed by RCU (or only freed after having been deleted from
  * the radix tree *and* a synchronize_rcu() grace period).
  *
- * (Note, rcu_assign_pointer and rcu_dereference are not needed to control
+ * (Note, rcu_assign_pointer and rcu_dereference are yest needed to control
  * access to data items when inserting into or looking up from the radix tree)
  *
- * Note that the value returned by radix_tree_tag_get() may not be relied upon
+ * Note that the value returned by radix_tree_tag_get() may yest be relied upon
  * if only the RCU read lock is held.  Functions to set/clear tags and to
- * delete nodes running concurrently with it may affect its result such that
+ * delete yesdes running concurrently with it may affect its result such that
  * two consecutive reads in the same locked section may return different
  * values.  If reliability is required, modification functions must also be
  * excluded from concurrency.
@@ -155,7 +155,7 @@ struct radix_tree_iter {
  *
  * For use with radix_tree_lookup_slot().  Caller must hold tree at least read
  * locked across slot lookup and dereference. Not required if write lock is
- * held (ie. items cannot be concurrently inserted).
+ * held (ie. items canyest be concurrently inserted).
  *
  * radix_tree_deref_retry must be used to confirm validity of the pointer if
  * only the read lock is held.
@@ -171,7 +171,7 @@ static inline void *radix_tree_deref_slot(void __rcu **slot)
  * radix_tree_deref_slot_protected - dereference a slot with tree lock held
  * @slot: slot pointer, returned by radix_tree_lookup_slot
  *
- * Similar to radix_tree_deref_slot.  The caller does not hold the RCU read
+ * Similar to radix_tree_deref_slot.  The caller does yest hold the RCU read
  * lock but it must hold the tree lock to prevent parallel updates.
  *
  * Return: entry stored in that slot.
@@ -185,19 +185,19 @@ static inline void *radix_tree_deref_slot_protected(void __rcu **slot,
 /**
  * radix_tree_deref_retry	- check radix_tree_deref_slot
  * @arg:	pointer returned by radix_tree_deref_slot
- * Returns:	0 if retry is not required, otherwise retry is required
+ * Returns:	0 if retry is yest required, otherwise retry is required
  *
  * radix_tree_deref_retry must be used with radix_tree_deref_slot.
  */
 static inline int radix_tree_deref_retry(void *arg)
 {
-	return unlikely(radix_tree_is_internal_node(arg));
+	return unlikely(radix_tree_is_internal_yesde(arg));
 }
 
 /**
  * radix_tree_exception	- radix_tree_deref_slot returned either exception?
  * @arg:	value returned by radix_tree_deref_slot
- * Returns:	0 if well-aligned pointer, non-0 if either kind of exception.
+ * Returns:	0 if well-aligned pointer, yesn-0 if either kind of exception.
  */
 static inline int radix_tree_exception(void *arg)
 {
@@ -207,11 +207,11 @@ static inline int radix_tree_exception(void *arg)
 int radix_tree_insert(struct radix_tree_root *, unsigned long index,
 			void *);
 void *__radix_tree_lookup(const struct radix_tree_root *, unsigned long index,
-			  struct radix_tree_node **nodep, void __rcu ***slotp);
+			  struct radix_tree_yesde **yesdep, void __rcu ***slotp);
 void *radix_tree_lookup(const struct radix_tree_root *, unsigned long);
 void __rcu **radix_tree_lookup_slot(const struct radix_tree_root *,
 					unsigned long index);
-void __radix_tree_replace(struct radix_tree_root *, struct radix_tree_node *,
+void __radix_tree_replace(struct radix_tree_root *, struct radix_tree_yesde *,
 			  void __rcu **slot, void *entry);
 void radix_tree_iter_replace(struct radix_tree_root *,
 		const struct radix_tree_iter *, void __rcu **slot, void *entry);
@@ -271,7 +271,7 @@ radix_tree_iter_init(struct radix_tree_iter *iter, unsigned long start)
 	/*
 	 * Leave iter->tags uninitialized. radix_tree_next_chunk() will fill it
 	 * in the case of a successful tagged chunk lookup.  If the lookup was
-	 * unsuccessful or non-tagged then nobody cares about ->tags.
+	 * unsuccessful or yesn-tagged then yesbody cares about ->tags.
 	 *
 	 * Set index to zero to bypass next_index overflow protection.
 	 * See the comment in radix_tree_next_chunk() for details.
@@ -287,7 +287,7 @@ radix_tree_iter_init(struct radix_tree_iter *iter, unsigned long start)
  * @root:	radix tree root
  * @iter:	iterator state
  * @flags:	RADIX_TREE_ITER_* flags and tag index
- * Returns:	pointer to chunk first slot, or NULL if there no more left
+ * Returns:	pointer to chunk first slot, or NULL if there yes more left
  *
  * This function looks up the next chunk in the radix tree starting from
  * @iter->next_index.  It returns a pointer to the chunk's first slot.
@@ -304,7 +304,7 @@ void __rcu **radix_tree_next_chunk(const struct radix_tree_root *,
  * @index: key to look up
  *
  * If @index is present in the radix tree, this function returns the slot
- * containing it and updates @iter to describe the entry.  If @index is not
+ * containing it and updates @iter to describe the entry.  If @index is yest
  * present, it returns NULL.
  */
 static inline void __rcu **
@@ -369,7 +369,7 @@ radix_tree_chunk_size(struct radix_tree_iter *iter)
  * @slot:	pointer to current slot
  * @iter:	pointer to interator state
  * @flags:	RADIX_TREE_ITER_*, should be constant
- * Returns:	pointer to next slot, or NULL if there no more left
+ * Returns:	pointer to next slot, or NULL if there yes more left
  *
  * This function updates @iter->index in the case of a successful lookup.
  * For tagged lookup it also eats @iter->tags.
@@ -379,7 +379,7 @@ radix_tree_chunk_size(struct radix_tree_iter *iter)
  * radix_tree_iter_retry().  In these cases we don't end up dereferencing
  * 'slot' because either:
  * a) we are doing tagged iteration and iter->tags has been set to 0, or
- * b) we are doing non-tagged iteration, and iter->index and iter->next_index
+ * b) we are doing yesn-tagged iteration, and iter->index and iter->next_index
  *    have been set up so that radix_tree_chunk_size() returns 1 or 0.
  */
 static __always_inline void __rcu **radix_tree_next_slot(void __rcu **slot,
@@ -425,7 +425,7 @@ static __always_inline void __rcu **radix_tree_next_slot(void __rcu **slot,
 }
 
 /**
- * radix_tree_for_each_slot - iterate over non-empty slots
+ * radix_tree_for_each_slot - iterate over yesn-empty slots
  *
  * @slot:	the void** variable for pointer to slot
  * @root:	the struct radix_tree_root pointer

@@ -2,7 +2,7 @@
 
 /*
  * Preserved registers that are shared between code in ivt.S and
- * entry.S.  Be careful not to step on these!
+ * entry.S.  Be careful yest to step on these!
  */
 #define PRED_LEAVE_SYSCALL	1 /* TRUE iff leave from syscall */
 #define PRED_KERNEL_STACK	2 /* returning to kernel-stacks? */

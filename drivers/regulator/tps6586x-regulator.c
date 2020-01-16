@@ -395,8 +395,8 @@ static struct tps6586x_platform_data *tps6586x_parse_regulator_dt(
 		struct of_regulator_match **tps6586x_reg_matches)
 {
 	const unsigned int num = ARRAY_SIZE(tps6586x_matches);
-	struct device_node *np = pdev->dev.parent->of_node;
-	struct device_node *regs;
+	struct device_yesde *np = pdev->dev.parent->of_yesde;
+	struct device_yesde *regs;
 	const char *sys_rail = NULL;
 	unsigned int i;
 	struct tps6586x_platform_data *pdata;
@@ -404,12 +404,12 @@ static struct tps6586x_platform_data *tps6586x_parse_regulator_dt(
 
 	regs = of_get_child_by_name(np, "regulators");
 	if (!regs) {
-		dev_err(&pdev->dev, "regulator node not found\n");
+		dev_err(&pdev->dev, "regulator yesde yest found\n");
 		return NULL;
 	}
 
 	err = of_regulator_match(&pdev->dev, regs, tps6586x_matches, num);
-	of_node_put(regs);
+	of_yesde_put(regs);
 	if (err < 0) {
 		dev_err(&pdev->dev, "Regulator match failed, e %d\n", err);
 		return NULL;
@@ -460,12 +460,12 @@ static int tps6586x_regulator_probe(struct platform_device *pdev)
 	dev_dbg(&pdev->dev, "Probing regulator\n");
 
 	pdata = dev_get_platdata(pdev->dev.parent);
-	if ((!pdata) && (pdev->dev.parent->of_node))
+	if ((!pdata) && (pdev->dev.parent->of_yesde))
 		pdata = tps6586x_parse_regulator_dt(pdev,
 					&tps6586x_reg_matches);
 
 	if (!pdata) {
-		dev_err(&pdev->dev, "Platform data not available, exiting\n");
+		dev_err(&pdev->dev, "Platform data yest available, exiting\n");
 		return -ENODEV;
 	}
 
@@ -493,7 +493,7 @@ static int tps6586x_regulator_probe(struct platform_device *pdev)
 		config.driver_data = ri;
 
 		if (tps6586x_reg_matches)
-			config.of_node = tps6586x_reg_matches[id].of_node;
+			config.of_yesde = tps6586x_reg_matches[id].of_yesde;
 
 		rdev = devm_regulator_register(&pdev->dev, &ri->desc, &config);
 		if (IS_ERR(rdev)) {

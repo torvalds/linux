@@ -38,7 +38,7 @@ static int ocelot_setup_tc_cls_matchall(struct ocelot_port_private *priv,
 
 		if (priv->tc.block_shared) {
 			NL_SET_ERR_MSG_MOD(extack,
-					   "Rate limit is not supported on shared blocks");
+					   "Rate limit is yest supported on shared blocks");
 			return -EOPNOTSUPP;
 		}
 
@@ -62,7 +62,7 @@ static int ocelot_setup_tc_cls_matchall(struct ocelot_port_private *priv,
 
 		err = ocelot_port_policer_add(ocelot, port, &pol);
 		if (err) {
-			NL_SET_ERR_MSG_MOD(extack, "Could not add policer\n");
+			NL_SET_ERR_MSG_MOD(extack, "Could yest add policer\n");
 			return err;
 		}
 
@@ -76,7 +76,7 @@ static int ocelot_setup_tc_cls_matchall(struct ocelot_port_private *priv,
 		err = ocelot_port_policer_del(ocelot, port);
 		if (err) {
 			NL_SET_ERR_MSG_MOD(extack,
-					   "Could not delete policer\n");
+					   "Could yest delete policer\n");
 			return err;
 		}
 		priv->tc.police_id = 0;

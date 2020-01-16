@@ -37,7 +37,7 @@ obj-y				+= dwc/
 # They contain MCFG quirks to replace the generic ECAM accessors with
 # device-specific ones that are shared with the DT driver.
 
-# The ACPI driver is generic and should not require driver-specific
+# The ACPI driver is generic and should yest require driver-specific
 # config options to be enabled, so we always build these drivers on
 # ARM64 and use internal ifdefs to only build the pieces we need
 # depending on whether ACPI, the DT driver, or both are enabled.

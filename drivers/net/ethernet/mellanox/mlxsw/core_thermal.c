@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0
-/* Copyright (c) 2016-2018 Mellanox Technologies. All rights reserved
+/* Copyright (c) 2016-2018 Mellayesx Techyeslogies. All rights reserved
  * Copyright (c) 2016 Ivan Vecera <cera@cera.cz>
  */
 
@@ -181,7 +181,7 @@ mlxsw_thermal_module_trips_update(struct device *dev, struct mlxsw_core *core,
 	/* According to the system thermal requirements, the thermal zones are
 	 * defined with four trip points. The critical and emergency
 	 * temperature thresholds, provided by QSFP module are set as "active"
-	 * and "hot" trip points, "normal" and "critical" trip points are
+	 * and "hot" trip points, "yesrmal" and "critical" trip points are
 	 * derived from "active" and "hot" by subtracting or adding double
 	 * hysteresis value.
 	 */
@@ -512,7 +512,7 @@ static int mlxsw_thermal_module_temp_get(struct thermal_zone_device *tzdev,
 			    tz->module, false, false);
 	err = mlxsw_reg_query(thermal->core, MLXSW_REG(mtmp), mtmp_pl);
 	if (err) {
-		/* Do not return error - in case of broken module's sensor
+		/* Do yest return error - in case of broken module's sensor
 		 * it will cause error message flooding.
 		 */
 		temp = 0;

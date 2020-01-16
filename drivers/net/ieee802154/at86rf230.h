@@ -6,7 +6,7 @@
  *
  * Written by:
  * Dmitry Eremin-Solenikov <dbaryshkov@gmail.com>
- * Alexander Smirnov <alex.bluesman.smirnov@gmail.com>
+ * Alexander Smiryesv <alex.bluesman.smiryesv@gmail.com>
  */
 
 #ifndef _AT86RF230_H

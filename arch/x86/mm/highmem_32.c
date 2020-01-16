@@ -25,10 +25,10 @@ EXPORT_SYMBOL(kunmap);
 
 /*
  * kmap_atomic/kunmap_atomic is significantly faster than kmap/kunmap because
- * no global lock is needed and because the kmap code must perform a global TLB
+ * yes global lock is needed and because the kmap code must perform a global TLB
  * invalidation when the kmap pool wraps.
  *
- * However when holding an atomic kmap it is not legal to sleep, so atomic
+ * However when holding an atomic kmap it is yest legal to sleep, so atomic
  * kmaps are appropriate for short, tight code paths only.
  */
 void *kmap_atomic_prot(struct page *page, pgprot_t prot)
@@ -45,7 +45,7 @@ void *kmap_atomic_prot(struct page *page, pgprot_t prot)
 	type = kmap_atomic_idx_push();
 	idx = type + KM_TYPE_NR*smp_processor_id();
 	vaddr = __fix_to_virt(FIX_KMAP_BEGIN + idx);
-	BUG_ON(!pte_none(*(kmap_pte-idx)));
+	BUG_ON(!pte_yesne(*(kmap_pte-idx)));
 	set_pte(kmap_pte-idx, mk_pte(page, prot));
 	arch_flush_lazy_mmu_mode();
 
@@ -125,7 +125,7 @@ void __init set_highmem_pages_init(void)
 		zone_end_pfn = zone_start_pfn + zone->spanned_pages;
 
 		nid = zone_to_nid(zone);
-		printk(KERN_INFO "Initializing %s for node %d (%08lx:%08lx)\n",
+		printk(KERN_INFO "Initializing %s for yesde %d (%08lx:%08lx)\n",
 				zone->name, nid, zone_start_pfn, zone_end_pfn);
 
 		add_highpages_with_active_regions(nid, zone_start_pfn,

@@ -33,9 +33,9 @@ struct fru_common_header {
 	uint8_t checksum;		/* sum modulo 256 must be 0 */
 };
 
-/* chapter 9, page 5 -- internal_use: not used by us */
+/* chapter 9, page 5 -- internal_use: yest used by us */
 
-/* chapter 10, page 6 -- chassis info: not used by us */
+/* chapter 10, page 6 -- chassis info: yest used by us */
 
 /* chapter 13, page 9 -- used by board_info_area below */
 struct fru_type_length {
@@ -69,7 +69,7 @@ enum fru_type {
 	FRU_TYPE_BINARY		= 0x00,
 	FRU_TYPE_BCDPLUS	= 0x40,
 	FRU_TYPE_ASCII6		= 0x80,
-	FRU_TYPE_ASCII		= 0xc0, /* not ascii: depends on language */
+	FRU_TYPE_ASCII		= 0xc0, /* yest ascii: depends on language */
 };
 
 /*
@@ -78,7 +78,7 @@ enum fru_type {
 static inline struct fru_board_info_area *fru_get_board_area(
 	const struct fru_common_header *header)
 {
-	/* we know for sure that the header is 8 bytes in size */
+	/* we kyesw for sure that the header is 8 bytes in size */
 	return (struct fru_board_info_area *)(header + header->board_area_off);
 }
 

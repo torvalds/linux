@@ -9,7 +9,7 @@
 #include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/pm.h>
 #include <linux/pm_runtime.h>
 #include <linux/string.h>
@@ -124,7 +124,7 @@ static int pcie_port_enable_irq_vec(struct pci_dev *dev, int *irqs, int mask)
 	 *
 	 * If we're using MSI, hardware is *allowed* to change the Interrupt
 	 * Message Numbers when we free and reallocate the vectors, but we
-	 * assume it won't because we allocate enough vectors for the
+	 * assume it won't because we allocate eyesugh vectors for the
 	 * biggest Message Number we found.
 	 */
 	if (nvec != nr_entries) {
@@ -136,7 +136,7 @@ static int pcie_port_enable_irq_vec(struct pci_dev *dev, int *irqs, int mask)
 			return nr_entries;
 	}
 
-	/* PME, hotplug and bandwidth notification share an MSI/MSI-X vector */
+	/* PME, hotplug and bandwidth yestification share an MSI/MSI-X vector */
 	if (mask & (PCIE_PORT_SERVICE_PME | PCIE_PORT_SERVICE_HP |
 		    PCIE_PORT_SERVICE_BWNOTIF)) {
 		pcie_irq = pci_irq_vector(dev, pme);
@@ -174,7 +174,7 @@ static int pcie_init_service_irqs(struct pci_dev *dev, int *irqs, int mask)
 	 * fall back to INTx or other interrupts, e.g., a system shared
 	 * interrupt.
 	 */
-	if ((mask & PCIE_PORT_SERVICE_PME) && pcie_pme_no_msi())
+	if ((mask & PCIE_PORT_SERVICE_PME) && pcie_pme_yes_msi())
 		goto legacy_irq;
 
 	/* Try to use MSI-X or MSI if supported */
@@ -214,7 +214,7 @@ static int get_port_device_capability(struct pci_dev *dev)
 
 		/*
 		 * Disable hot-plug interrupts in case they have been enabled
-		 * by the BIOS and the hot-plug service driver is not loaded.
+		 * by the BIOS and the hot-plug service driver is yest loaded.
 		 */
 		pcie_capability_clear_word(dev, PCI_EXP_SLTCTL,
 			  PCI_EXP_SLTCTL_CCIE | PCI_EXP_SLTCTL_HPIE);
@@ -301,7 +301,7 @@ static int pcie_device_init(struct pci_dev *pdev, int service, int irq)
 		return retval;
 	}
 
-	pm_runtime_no_callbacks(device);
+	pm_runtime_yes_callbacks(device);
 
 	return 0;
 }
@@ -331,7 +331,7 @@ int pcie_port_device_register(struct pci_dev *dev)
 	pci_set_master(dev);
 	/*
 	 * Initialize service irqs. Don't use service devices that
-	 * require interrupts if there is no way to generate them.
+	 * require interrupts if there is yes way to generate them.
 	 * However, some drivers may have a polling mode (e.g. pciehp_poll_mode)
 	 * that can be used in the absence of irqs.  Allow them to determine
 	 * if that is to be used.
@@ -393,9 +393,9 @@ int pcie_port_device_suspend(struct device *dev)
 	return device_for_each_child(dev, &off, pm_iter);
 }
 
-int pcie_port_device_resume_noirq(struct device *dev)
+int pcie_port_device_resume_yesirq(struct device *dev)
 {
-	size_t off = offsetof(struct pcie_port_service_driver, resume_noirq);
+	size_t off = offsetof(struct pcie_port_service_driver, resume_yesirq);
 	return device_for_each_child(dev, &off, pm_iter);
 }
 

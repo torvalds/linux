@@ -41,7 +41,7 @@ static void string_stream_fragment_free(struct kunit_resource *res)
 {
 	struct string_stream_fragment *frag = res->allocation;
 
-	list_del(&frag->node);
+	list_del(&frag->yesde);
 	kunit_kfree(frag->test, frag->fragment);
 	kunit_kfree(frag->test, frag);
 }
@@ -95,7 +95,7 @@ int string_stream_vadd(struct string_stream *stream,
 	len = vsnprintf(frag_container->fragment, len, fmt, args);
 	spin_lock(&stream->lock);
 	stream->length += len;
-	list_add_tail(&frag_container->node, &stream->fragments);
+	list_add_tail(&frag_container->yesde, &stream->fragments);
 	spin_unlock(&stream->lock);
 
 	return 0;
@@ -121,7 +121,7 @@ static void string_stream_clear(struct string_stream *stream)
 	list_for_each_entry_safe(frag_container,
 				 frag_container_safe,
 				 &stream->fragments,
-				 node) {
+				 yesde) {
 		string_stream_fragment_destroy(frag_container);
 	}
 	stream->length = 0;
@@ -139,7 +139,7 @@ char *string_stream_get_string(struct string_stream *stream)
 		return NULL;
 
 	spin_lock(&stream->lock);
-	list_for_each_entry(frag_container, &stream->fragments, node)
+	list_for_each_entry(frag_container, &stream->fragments, yesde)
 		strlcat(buf, frag_container->fragment, buf_len);
 	spin_unlock(&stream->lock);
 

@@ -13,7 +13,7 @@ AccessModifierOffset: -4
 AlignAfterOpenBracket: Align
 AlignConsecutiveAssignments: false
 AlignConsecutiveDeclarations: false
-#AlignEscapedNewlines: Left # Unknown to clang-format-4.0
+#AlignEscapedNewlines: Left # Unkyeswn to clang-format-4.0
 AlignOperands: true
 AlignTrailingComments: false
 AllowAllParametersOfDeclarationOnNextLine: false
@@ -37,24 +37,24 @@ BraceWrapping:
   AfterObjCDeclaration: false
   AfterStruct: false
   AfterUnion: false
-  #AfterExternBlock: false # Unknown to clang-format-5.0
+  #AfterExternBlock: false # Unkyeswn to clang-format-5.0
   BeforeCatch: false
   BeforeElse: false
   IndentBraces: false
-  #SplitEmptyFunction: true # Unknown to clang-format-4.0
-  #SplitEmptyRecord: true # Unknown to clang-format-4.0
-  #SplitEmptyNamespace: true # Unknown to clang-format-4.0
+  #SplitEmptyFunction: true # Unkyeswn to clang-format-4.0
+  #SplitEmptyRecord: true # Unkyeswn to clang-format-4.0
+  #SplitEmptyNamespace: true # Unkyeswn to clang-format-4.0
 BreakBeforeBinaryOperators: None
 BreakBeforeBraces: Custom
-#BreakBeforeInheritanceComma: false # Unknown to clang-format-4.0
+#BreakBeforeInheritanceComma: false # Unkyeswn to clang-format-4.0
 BreakBeforeTernaryOperators: false
 BreakConstructorInitializersBeforeComma: false
-#BreakConstructorInitializers: BeforeComma # Unknown to clang-format-4.0
-BreakAfterJavaFieldAnnotations: false
+#BreakConstructorInitializers: BeforeComma # Unkyeswn to clang-format-4.0
+BreakAfterJavaFieldAnyestations: false
 BreakStringLiterals: false
 ColumnLimit: 80
 CommentPragmas: '^ IWYU pragma:'
-#CompactNamespaces: false # Unknown to clang-format-4.0
+#CompactNamespaces: false # Unkyeswn to clang-format-4.0
 ConstructorInitializerAllOnOneLineOrOnePerLine: false
 ConstructorInitializerIndentWidth: 8
 ContinuationIndentWidth: 8
@@ -62,7 +62,7 @@ Cpp11BracedListStyle: false
 DerivePointerAlignment: false
 DisableFormat: false
 ExperimentalAutoDetectBinPacking: false
-#FixNamespaceComments: false # Unknown to clang-format-4.0
+#FixNamespaceComments: false # Unkyeswn to clang-format-4.0
 
 # Taken from:
 #   git grep -h '^#define [^[:space:]]*for_each[^[:space:]]*(' include/ \
@@ -106,7 +106,7 @@ ForEachMacros:
   - 'css_for_each_child'
   - 'css_for_each_descendant_post'
   - 'css_for_each_descendant_pre'
-  - 'device_for_each_child_node'
+  - 'device_for_each_child_yesde'
   - 'dma_fence_chain_for_each'
   - 'drm_atomic_crtc_for_each_plane'
   - 'drm_atomic_crtc_state_for_each_plane'
@@ -125,14 +125,14 @@ ForEachMacros:
   - 'drm_for_each_plane_mask'
   - 'drm_for_each_privobj'
   - 'drm_mm_for_each_hole'
-  - 'drm_mm_for_each_node'
-  - 'drm_mm_for_each_node_in_range'
-  - 'drm_mm_for_each_node_safe'
+  - 'drm_mm_for_each_yesde'
+  - 'drm_mm_for_each_yesde_in_range'
+  - 'drm_mm_for_each_yesde_safe'
   - 'flow_action_for_each'
   - 'for_each_active_dev_scope'
   - 'for_each_active_drhd_unit'
   - 'for_each_active_iommu'
-  - 'for_each_available_child_of_node'
+  - 'for_each_available_child_of_yesde'
   - 'for_each_bio'
   - 'for_each_board_func_rsrc'
   - 'for_each_bvec'
@@ -143,18 +143,18 @@ ForEachMacros:
   - 'for_each_card_rtds'
   - 'for_each_card_rtds_safe'
   - 'for_each_cgroup_storage_type'
-  - 'for_each_child_of_node'
+  - 'for_each_child_of_yesde'
   - 'for_each_clear_bit'
   - 'for_each_clear_bit_from'
   - 'for_each_cmsghdr'
-  - 'for_each_compatible_node'
+  - 'for_each_compatible_yesde'
   - 'for_each_component_dais'
   - 'for_each_component_dais_safe'
   - 'for_each_comp_order'
   - 'for_each_console'
   - 'for_each_cpu'
   - 'for_each_cpu_and'
-  - 'for_each_cpu_not'
+  - 'for_each_cpu_yest'
   - 'for_each_cpu_wrap'
   - 'for_each_dev_addr'
   - 'for_each_dev_scope'
@@ -171,9 +171,9 @@ ForEachMacros:
   - 'for_each_element'
   - 'for_each_element_extid'
   - 'for_each_element_id'
-  - 'for_each_endpoint_of_node'
+  - 'for_each_endpoint_of_yesde'
   - 'for_each_evictable_lru'
-  - 'for_each_fib6_node_rt_rcu'
+  - 'for_each_fib6_yesde_rt_rcu'
   - 'for_each_fib6_walker_rt'
   - 'for_each_free_mem_pfn_range_in_zone'
   - 'for_each_free_mem_pfn_range_in_zone_from'
@@ -188,8 +188,8 @@ ForEachMacros:
   - 'for_each_link_codecs'
   - 'for_each_link_platforms'
   - 'for_each_lru'
-  - 'for_each_matching_node'
-  - 'for_each_matching_node_and_match'
+  - 'for_each_matching_yesde'
+  - 'for_each_matching_yesde_and_match'
   - 'for_each_memblock'
   - 'for_each_memblock_type'
   - 'for_each_memcg_cache_index'
@@ -214,16 +214,16 @@ ForEachMacros:
   - 'for_each_new_mst_mgr_in_state'
   - 'for_each_new_plane_in_state'
   - 'for_each_new_private_obj_in_state'
-  - 'for_each_node'
-  - 'for_each_node_by_name'
-  - 'for_each_node_by_type'
-  - 'for_each_node_mask'
-  - 'for_each_node_state'
-  - 'for_each_node_with_cpus'
-  - 'for_each_node_with_property'
-  - 'for_each_of_allnodes'
-  - 'for_each_of_allnodes_from'
-  - 'for_each_of_cpu_node'
+  - 'for_each_yesde'
+  - 'for_each_yesde_by_name'
+  - 'for_each_yesde_by_type'
+  - 'for_each_yesde_mask'
+  - 'for_each_yesde_state'
+  - 'for_each_yesde_with_cpus'
+  - 'for_each_yesde_with_property'
+  - 'for_each_of_allyesdes'
+  - 'for_each_of_allyesdes_from'
+  - 'for_each_of_cpu_yesde'
   - 'for_each_of_pci_range'
   - 'for_each_old_connector_in_state'
   - 'for_each_old_crtc_in_state'
@@ -237,7 +237,7 @@ ForEachMacros:
   - 'for_each_old_plane_in_state'
   - 'for_each_old_private_obj_in_state'
   - 'for_each_online_cpu'
-  - 'for_each_online_node'
+  - 'for_each_online_yesde'
   - 'for_each_online_pgdat'
   - 'for_each_pci_bridge'
   - 'for_each_pci_dev'
@@ -249,7 +249,7 @@ ForEachMacros:
   - 'for_each_prime_number_from'
   - 'for_each_process'
   - 'for_each_process_thread'
-  - 'for_each_property_of_node'
+  - 'for_each_property_of_yesde'
   - 'for_each_registered_fb'
   - 'for_each_reserved_mem_region'
   - 'for_each_rtd_codec_dai'
@@ -269,17 +269,17 @@ ForEachMacros:
   - 'for_each_thread'
   - 'for_each_zone'
   - 'for_each_zone_zonelist'
-  - 'for_each_zone_zonelist_nodemask'
-  - 'fwnode_for_each_available_child_node'
-  - 'fwnode_for_each_child_node'
-  - 'fwnode_graph_for_each_endpoint'
+  - 'for_each_zone_zonelist_yesdemask'
+  - 'fwyesde_for_each_available_child_yesde'
+  - 'fwyesde_for_each_child_yesde'
+  - 'fwyesde_graph_for_each_endpoint'
   - 'gadget_for_each_ep'
   - 'genradix_for_each'
   - 'genradix_for_each_from'
   - 'hash_for_each'
   - 'hash_for_each_possible'
   - 'hash_for_each_possible_rcu'
-  - 'hash_for_each_possible_rcu_notrace'
+  - 'hash_for_each_possible_rcu_yestrace'
   - 'hash_for_each_possible_safe'
   - 'hash_for_each_rcu'
   - 'hash_for_each_safe'
@@ -296,7 +296,7 @@ ForEachMacros:
   - 'hlist_for_each_entry_from_rcu'
   - 'hlist_for_each_entry_rcu'
   - 'hlist_for_each_entry_rcu_bh'
-  - 'hlist_for_each_entry_rcu_notrace'
+  - 'hlist_for_each_entry_rcu_yestrace'
   - 'hlist_for_each_entry_safe'
   - '__hlist_for_each_rcu'
   - 'hlist_for_each_safe'
@@ -370,8 +370,8 @@ ForEachMacros:
   - 'nlmsg_for_each_msg'
   - 'nr_neigh_for_each'
   - 'nr_neigh_for_each_safe'
-  - 'nr_node_for_each'
-  - 'nr_node_for_each_safe'
+  - 'nr_yesde_for_each'
+  - 'nr_yesde_for_each_safe'
   - 'of_for_each_phandle'
   - 'of_property_for_each_string'
   - 'of_property_for_each_u32'
@@ -450,13 +450,13 @@ ForEachMacros:
   - 'xas_for_each_marked'
   - 'zorro_for_each_dev'
 
-#IncludeBlocks: Preserve # Unknown to clang-format-5.0
+#IncludeBlocks: Preserve # Unkyeswn to clang-format-5.0
 IncludeCategories:
   - Regex: '.*'
     Priority: 1
 IncludeIsMainRegex: '(Test)?$'
 IndentCaseLabels: false
-#IndentPPDirectives: None # Unknown to clang-format-5.0
+#IndentPPDirectives: None # Unkyeswn to clang-format-5.0
 IndentWidth: 8
 IndentWrappedFunctionNames: false
 JavaScriptQuotes: Leave
@@ -466,13 +466,13 @@ MacroBlockBegin: ''
 MacroBlockEnd: ''
 MaxEmptyLinesToKeep: 1
 NamespaceIndentation: Inner
-#ObjCBinPackProtocolList: Auto # Unknown to clang-format-5.0
+#ObjCBinPackProtocolList: Auto # Unkyeswn to clang-format-5.0
 ObjCBlockIndentWidth: 8
 ObjCSpaceAfterProperty: true
 ObjCSpaceBeforeProtocolList: true
 
 # Taken from git's rules
-#PenaltyBreakAssignment: 10 # Unknown to clang-format-4.0
+#PenaltyBreakAssignment: 10 # Unkyeswn to clang-format-4.0
 PenaltyBreakBeforeFirstCallParameter: 30
 PenaltyBreakComment: 10
 PenaltyBreakFirstLessLess: 0
@@ -483,14 +483,14 @@ PenaltyReturnTypeOnItsOwnLine: 60
 PointerAlignment: Right
 ReflowComments: false
 SortIncludes: false
-#SortUsingDeclarations: false # Unknown to clang-format-4.0
+#SortUsingDeclarations: false # Unkyeswn to clang-format-4.0
 SpaceAfterCStyleCast: false
 SpaceAfterTemplateKeyword: true
 SpaceBeforeAssignmentOperators: true
-#SpaceBeforeCtorInitializerColon: true # Unknown to clang-format-5.0
-#SpaceBeforeInheritanceColon: true # Unknown to clang-format-5.0
+#SpaceBeforeCtorInitializerColon: true # Unkyeswn to clang-format-5.0
+#SpaceBeforeInheritanceColon: true # Unkyeswn to clang-format-5.0
 SpaceBeforeParens: ControlStatements
-#SpaceBeforeRangeBasedForLoopColon: true # Unknown to clang-format-5.0
+#SpaceBeforeRangeBasedForLoopColon: true # Unkyeswn to clang-format-5.0
 SpaceInEmptyParentheses: false
 SpacesBeforeTrailingComments: 1
 SpacesInAngles: false

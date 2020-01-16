@@ -40,10 +40,10 @@ EXPORT_SYMBOL(_copy_to_user);
  *
  * This is effectively shorthand for "memchr_inv(from, 0, size) == NULL" for
  * userspace addresses (and is more efficient because we don't care where the
- * first non-zero byte is).
+ * first yesn-zero byte is).
  *
  * Returns:
- *  * 0: There were non-zero bytes present in the buffer.
+ *  * 0: There were yesn-zero bytes present in the buffer.
  *  * 1: The buffer was full of zero bytes.
  *  * -EFAULT: access to userspace failed.
  */

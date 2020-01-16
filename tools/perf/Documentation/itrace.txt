@@ -23,7 +23,7 @@
 		t	ticks
 		ms	milliseconds
 		us	microseconds
-		ns	nanoseconds (default)
+		ns	nayesseconds (default)
 
 	Also the call chain size (default 16, max. 1024) for instructions or
 	transactions events can be specified.
@@ -32,7 +32,7 @@
 	instructions or transactions events can be specified.
 
 	It is also possible to skip events generated (instructions, branches, transactions,
-	ptwrite, power) at the beginning. This is useful to ignore initialization code.
+	ptwrite, power) at the beginning. This is useful to igyesre initialization code.
 
 	--itrace=i0nss1000000
 

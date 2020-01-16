@@ -6,7 +6,7 @@
 /* Copyright (c) 2008-2019, IBM Corporation */
 /* Copyright (c) 2017, Open Grid Computing, Inc. */
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/types.h>
 #include <linux/net.h>
 #include <linux/inetdevice.h>
@@ -95,11 +95,11 @@ static void siw_socket_disassoc(struct socket *s)
 			siw_sk_restore_upcalls(sk, cep);
 			siw_cep_put(cep);
 		} else {
-			pr_warn("siw: cannot restore sk callbacks: no ep\n");
+			pr_warn("siw: canyest restore sk callbacks: yes ep\n");
 		}
 		write_unlock_bh(&sk->sk_callback_lock);
 	} else {
-		pr_warn("siw: cannot restore sk callbacks: no sk\n");
+		pr_warn("siw: canyest restore sk callbacks: yes sk\n");
 	}
 }
 
@@ -125,7 +125,7 @@ static void siw_rtr_data_ready(struct sock *sk)
 	tcp_read_sock(sk, &rd_desc, siw_tcp_rx_data);
 	/*
 	 * Check if first frame was successfully processed.
-	 * Signal connection full establishment if yes.
+	 * Signal connection full establishment if no.
 	 * Failed data processing would have already scheduled
 	 * connection drop.
 	 */
@@ -202,7 +202,7 @@ static void siw_cancel_mpatimer(struct siw_cep *cep)
 	if (cep->mpa_timer) {
 		if (cancel_delayed_work(&cep->mpa_timer->work)) {
 			siw_cep_put(cep);
-			kfree(cep->mpa_timer); /* not needed again */
+			kfree(cep->mpa_timer); /* yest needed again */
 		}
 		cep->mpa_timer = NULL;
 	}
@@ -364,10 +364,10 @@ static int siw_cm_upcall(struct siw_cep *cep, enum iw_cm_event_type reason,
 /*
  * siw_qp_cm_drop()
  *
- * Drops established LLP connection if present and not already
+ * Drops established LLP connection if present and yest already
  * scheduled for dropping. Called from user context, SQ workqueue
  * or receive IRQ. Caller signals if socket can be immediately
- * closed (basically, if not in IRQ).
+ * closed (basically, if yest in IRQ).
  */
 void siw_qp_cm_drop(struct siw_qp *qp, int schedule)
 {
@@ -522,7 +522,7 @@ static int siw_recv_mpa_rr(struct siw_cep *cep)
 	pd_len = be16_to_cpu(hdr->params.pd_len);
 
 	/*
-	 * At least the MPA Request/Reply header (frame not including
+	 * At least the MPA Request/Reply header (frame yest including
 	 * private data) has been received.
 	 * Receive (or continue receiving) any private data.
 	 */
@@ -625,7 +625,7 @@ static int siw_proc_mpareq(struct siw_cep *cep)
 		cep->enhanced_rdma_conn_est = true;
 	}
 
-	/* MPA Markers: currently not supported. Marker TX to be added. */
+	/* MPA Markers: currently yest supported. Marker TX to be added. */
 	if (req->params.bits & MPA_RR_FLAG_MARKERS)
 		goto reject_conn;
 
@@ -664,8 +664,8 @@ static int siw_proc_mpareq(struct siw_cep *cep)
 		 * Support for peer sent zero length Write or Read to
 		 * let local side enter RTS. Writes are preferred.
 		 * Sends would require pre-posting a Receive and are
-		 * not supported.
-		 * Propose zero length Write if none of Read and Write
+		 * yest supported.
+		 * Propose zero length Write if yesne of Read and Write
 		 * is indicated.
 		 */
 		if (v2->ird & MPA_V2_PEER_TO_PEER) {
@@ -834,7 +834,7 @@ static int siw_proc_mpareply(struct siw_cep *cep)
 			if ((mpa_p2p_mode & v2->ord) == 0) {
 				/*
 				 * We requested RTR mode(s), but the peer
-				 * did not pick any mode we support.
+				 * did yest pick any mode we support.
 				 */
 				siw_dbg_cep(cep,
 					    "rtr mode:  req %2x, got %2x\n",
@@ -1045,7 +1045,7 @@ static void siw_cm_work_handler(struct work_struct *w)
 			/*
 			 * CEP already moved out of MPA handshake.
 			 * any connection management already done.
-			 * silently ignore the mpa packet.
+			 * silently igyesre the mpa packet.
 			 */
 			if (cep->state == SIW_EPSTATE_RDMA_MODE) {
 				cep->sock->sk->sk_data_ready(cep->sock->sk);
@@ -1076,7 +1076,7 @@ static void siw_cm_work_handler(struct work_struct *w)
 		if (cep->cm_id) {
 			if (cep->state == SIW_EPSTATE_AWAIT_MPAREP) {
 				/*
-				 * MPA reply not received, but connection drop
+				 * MPA reply yest received, but connection drop
 				 */
 				siw_cm_upcall(cep, IW_CM_EVENT_CONNECT_REPLY,
 					      -ECONNRESET);
@@ -1089,8 +1089,8 @@ static void siw_cm_work_handler(struct work_struct *w)
 				siw_cm_upcall(cep, IW_CM_EVENT_CLOSE, 0);
 			}
 			/*
-			 * for other states there is no connection
-			 * known to the IWCM.
+			 * for other states there is yes connection
+			 * kyeswn to the IWCM.
 			 */
 		} else {
 			if (cep->state == SIW_EPSTATE_RECVD_MPAREQ) {
@@ -1103,7 +1103,7 @@ static void siw_cm_work_handler(struct work_struct *w)
 				/*
 				 * Socket close before MPA request received.
 				 */
-				siw_dbg_cep(cep, "no mpareq: drop listener\n");
+				siw_dbg_cep(cep, "yes mpareq: drop listener\n");
 				siw_cep_put(cep->listen_cep);
 				cep->listen_cep = NULL;
 			}
@@ -1192,7 +1192,7 @@ int siw_cm_queue_work(struct siw_cep *cep, enum siw_work_type type)
 	unsigned long delay = 0;
 
 	if (!work) {
-		siw_dbg_cep(cep, "failed with no work available\n");
+		siw_dbg_cep(cep, "failed with yes work available\n");
 		return -ENOMEM;
 	}
 	work->type = type;
@@ -1360,7 +1360,7 @@ int siw_connect(struct iw_cm_id *id, struct iw_cm_conn_param *params)
 
 	/*
 	 * Respect any iwarp port mapping: Use mapped remote address
-	 * if valid. Local address must not be mapped, since siw
+	 * if valid. Local address must yest be mapped, since siw
 	 * uses kernel TCP stack.
 	 */
 	if ((v4 && to_sockaddr_in(id->remote_addr).sin_port != 0) ||
@@ -1369,7 +1369,7 @@ int siw_connect(struct iw_cm_id *id, struct iw_cm_conn_param *params)
 
 	qp = siw_qp_id2obj(sdev, params->qpn);
 	if (!qp) {
-		WARN(1, "[QP %u] does not exist\n", params->qpn);
+		WARN(1, "[QP %u] does yest exist\n", params->qpn);
 		rv = -EINVAL;
 		goto error;
 	}
@@ -1443,7 +1443,7 @@ int siw_connect(struct iw_cm_id *id, struct iw_cm_conn_param *params)
 	cep->state = SIW_EPSTATE_AWAIT_MPAREP;
 
 	/*
-	 * Set MPA Request bits: CRC if required, no MPA Markers,
+	 * Set MPA Request bits: CRC if required, yes MPA Markers,
 	 * MPA Rev. according to module parameter 'mpa_version', Key 'Request'.
 	 */
 	cep->mpa.hdr.params.bits = 0;
@@ -1574,7 +1574,7 @@ int siw_accept(struct iw_cm_id *id, struct iw_cm_conn_param *params)
 	}
 	qp = siw_qp_id2obj(sdev, params->qpn);
 	if (!qp) {
-		WARN(1, "[QP %d] does not exist\n", params->qpn);
+		WARN(1, "[QP %d] does yest exist\n", params->qpn);
 		siw_cep_set_free(cep);
 		siw_cep_put(cep);
 
@@ -1838,7 +1838,7 @@ static int siw_listen_address(struct iw_cm_id *id, int backlog,
 	 *     new passive-side IWCM id equal to event.provider_data
 	 *   Uses: siw_accept(), siw_reject()
 	 *
-	 * o For an active-side IWCM id, id->provider_data is not used at all.
+	 * o For an active-side IWCM id, id->provider_data is yest used at all.
 	 *
 	 */
 	if (!id->provider_data) {
@@ -2014,7 +2014,7 @@ out:
 int siw_destroy_listen(struct iw_cm_id *id)
 {
 	if (!id->provider_data) {
-		siw_dbg(id->device, "no cep(s)\n");
+		siw_dbg(id->device, "yes cep(s)\n");
 		return 0;
 	}
 	siw_drop_listeners(id);

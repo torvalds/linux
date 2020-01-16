@@ -281,7 +281,7 @@ static int elants_i2c_sw_reset(struct i2c_client *client)
 	}
 
 	/*
-	 * We should wait at least 10 msec (but no more than 40) before
+	 * We should wait at least 10 msec (but yes more than 40) before
 	 * sending fastboot or IAP command to the device.
 	 */
 	msleep(30);
@@ -654,7 +654,7 @@ static int elants_i2c_do_update_firmware(struct i2c_client *client,
 	error = elants_i2c_read(client, buf, 4);
 	if (error) {
 		dev_err(&client->dev,
-			"failed to read IAP acknowledgement: %d\n",
+			"failed to read IAP ackyeswledgement: %d\n",
 			error);
 		return error;
 	}
@@ -844,7 +844,7 @@ static void elants_i2c_event(struct elants_data *ts, u8 *buf)
 			 checksum, buf[FW_POS_CHECKSUM]);
 	else if (unlikely(buf[FW_POS_HEADER] != HEADER_REPORT_10_FINGER))
 		dev_warn(&ts->client->dev,
-			 "%s: unknown packet type: %02x\n",
+			 "%s: unkyeswn packet type: %02x\n",
 			 __func__, buf[FW_POS_HEADER]);
 	else
 		elants_i2c_mt_event(ts, buf);
@@ -933,7 +933,7 @@ static irqreturn_t elants_i2c_irq(int irq, void *_dev)
 			break;
 
 		default:
-			dev_err(&client->dev, "unknown packet %*ph\n",
+			dev_err(&client->dev, "unkyeswn packet %*ph\n",
 				HEADER_SIZE, ts->buf);
 			break;
 		}
@@ -1071,7 +1071,7 @@ static int elants_i2c_power_on(struct elants_data *ts)
 	int error;
 
 	/*
-	 * If we do not have reset gpio assume platform firmware
+	 * If we do yest have reset gpio assume platform firmware
 	 * controls regulators and does power them on for us.
 	 */
 	if (IS_ERR_OR_NULL(ts->reset_gpio))
@@ -1203,7 +1203,7 @@ static int elants_i2c_probe(struct i2c_client *client,
 	/* Make sure there is something at this address */
 	if (i2c_smbus_xfer(client->adapter, client->addr, 0,
 			   I2C_SMBUS_READ, 0, I2C_SMBUS_BYTE, &dummy) < 0) {
-		dev_err(&client->dev, "nothing at this address\n");
+		dev_err(&client->dev, "yesthing at this address\n");
 		return -ENXIO;
 	}
 
@@ -1257,8 +1257,8 @@ static int elants_i2c_probe(struct i2c_client *client,
 	}
 
 	/*
-	 * Platform code (ACPI, DTS) should normally set up interrupt
-	 * for us, but in case it did not let's fall back to using falling
+	 * Platform code (ACPI, DTS) should yesrmally set up interrupt
+	 * for us, but in case it did yest let's fall back to using falling
 	 * edge to be compatible with older Chromebooks.
 	 */
 	irqflags = irq_get_trigger_type(client->irq);
@@ -1278,7 +1278,7 @@ static int elants_i2c_probe(struct i2c_client *client,
 	 * Systems using device tree should set up wakeup via DTS,
 	 * the rest will configure device as wakeup source by default.
 	 */
-	if (!client->dev.of_node)
+	if (!client->dev.of_yesde)
 		device_init_wakeup(&client->dev, true);
 
 	error = devm_device_add_group(&client->dev, &elants_attribute_group);
@@ -1299,7 +1299,7 @@ static int __maybe_unused elants_i2c_suspend(struct device *dev)
 	int retry_cnt;
 	int error;
 
-	/* Command not support in IAP recovery mode */
+	/* Command yest support in IAP recovery mode */
 	if (ts->iap_mode != ELAN_IAP_OPERATIONAL)
 		return -EBUSY;
 

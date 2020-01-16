@@ -17,7 +17,7 @@
  *   the GNU Lesser General Public License for more details.
  *
  *   You should have received a copy of the GNU Lesser General Public License
- *   along with this library; if not, write to the Free Software
+ *   along with this library; if yest, write to the Free Software
  *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 #ifndef _SMB2PROTO_H
@@ -59,7 +59,7 @@ extern int smb2_calc_signature(struct smb_rqst *rqst,
 extern int smb3_calc_signature(struct smb_rqst *rqst,
 				struct TCP_Server_Info *server);
 extern void smb2_echo_request(struct work_struct *work);
-extern __le32 smb2_get_lease_state(struct cifsInodeInfo *cinode);
+extern __le32 smb2_get_lease_state(struct cifsIyesdeInfo *ciyesde);
 extern bool smb2_is_valid_oplock_break(char *buffer,
 				       struct TCP_Server_Info *srv);
 extern struct cifs_ses *smb2_find_smb_ses(struct TCP_Server_Info *server,
@@ -81,16 +81,16 @@ extern int smb2_query_path_info(const unsigned int xid, struct cifs_tcon *tcon,
 extern int smb2_set_path_size(const unsigned int xid, struct cifs_tcon *tcon,
 			      const char *full_path, __u64 size,
 			      struct cifs_sb_info *cifs_sb, bool set_alloc);
-extern int smb2_set_file_info(struct inode *inode, const char *full_path,
+extern int smb2_set_file_info(struct iyesde *iyesde, const char *full_path,
 			      FILE_BASIC_INFO *buf, const unsigned int xid);
-extern int smb311_posix_mkdir(const unsigned int xid, struct inode *inode,
+extern int smb311_posix_mkdir(const unsigned int xid, struct iyesde *iyesde,
 			       umode_t mode, struct cifs_tcon *tcon,
 			       const char *full_path,
 			       struct cifs_sb_info *cifs_sb);
-extern int smb2_mkdir(const unsigned int xid, struct inode *inode,
+extern int smb2_mkdir(const unsigned int xid, struct iyesde *iyesde,
 		      umode_t mode, struct cifs_tcon *tcon,
 		      const char *name, struct cifs_sb_info *cifs_sb);
-extern void smb2_mkdir_setinfo(struct inode *inode, const char *full_path,
+extern void smb2_mkdir_setinfo(struct iyesde *iyesde, const char *full_path,
 			       struct cifs_sb_info *cifs_sb,
 			       struct cifs_tcon *tcon, const unsigned int xid);
 extern int smb2_rmdir(const unsigned int xid, struct cifs_tcon *tcon,
@@ -153,7 +153,7 @@ extern int SMB2_ioctl_init(struct cifs_tcon *tcon, struct smb_rqst *rqst,
 			   bool is_fsctl, char *in_data, u32 indatalen,
 			   __u32 max_response_size);
 extern void SMB2_ioctl_free(struct smb_rqst *rqst);
-extern int SMB2_change_notify(const unsigned int xid, struct cifs_tcon *tcon,
+extern int SMB2_change_yestify(const unsigned int xid, struct cifs_tcon *tcon,
 			u64 persistent_fid, u64 volatile_fid, bool watch_tree,
 			u32 completion_filter);
 

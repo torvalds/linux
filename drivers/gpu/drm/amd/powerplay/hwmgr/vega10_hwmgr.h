@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -252,7 +252,7 @@ struct vega10_registry_data {
 	uint8_t   sclk_deep_sleep_support;
 	uint8_t   sclk_dpm_key_disabled;
 	uint8_t   sclk_from_vbios;
-	uint8_t   sclk_throttle_low_notification;
+	uint8_t   sclk_throttle_low_yestification;
 	uint8_t   show_baco_dbg_info;
 	uint8_t   skip_baco_hardware;
 	uint8_t   socclk_dpm_key_disabled;
@@ -435,8 +435,8 @@ struct vega10_hwmgr {
 extern int tonga_initializa_dynamic_state_adjustment_rule_settings(struct pp_hwmgr *hwmgr);
 extern int tonga_hwmgr_backend_fini(struct pp_hwmgr *hwmgr);
 extern int tonga_get_mc_microcode_version (struct pp_hwmgr *hwmgr);
-extern int tonga_notify_smc_display_config_after_ps_adjustment(struct pp_hwmgr *hwmgr);
-extern int tonga_notify_smc_display_change(struct pp_hwmgr *hwmgr, bool has_display);
+extern int tonga_yestify_smc_display_config_after_ps_adjustment(struct pp_hwmgr *hwmgr);
+extern int tonga_yestify_smc_display_change(struct pp_hwmgr *hwmgr, bool has_display);
 int vega10_update_vce_dpm(struct pp_hwmgr *hwmgr, const void *input);
 int vega10_update_uvd_dpm(struct pp_hwmgr *hwmgr, bool bgate);
 int vega10_update_samu_dpm(struct pp_hwmgr *hwmgr, bool bgate);

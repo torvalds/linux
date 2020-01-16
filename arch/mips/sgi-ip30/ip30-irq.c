@@ -2,7 +2,7 @@
 /*
  * ip30-irq.c: Highlevel interrupt handling for IP30 architecture.
  */
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
@@ -49,7 +49,7 @@ static void ip30_error_irq(struct irq_desc *desc)
 	cause = heart_read(&heart_regs->cause);
 	error_irqs = (pending & HEART_L4_INT_MASK & mask);
 
-	/* Bail if there's nothing to process (how did we get here, then?) */
+	/* Bail if there's yesthing to process (how did we get here, then?) */
 	if (unlikely(!error_irqs))
 		return;
 
@@ -63,7 +63,7 @@ static void ip30_error_irq(struct irq_desc *desc)
 	 * If we also have a cause value, then something happened, so loop
 	 * through the error IRQs and report a "heart attack" for each one
 	 * and print the value of the HEART cause register.  This is really
-	 * primitive right now, but it should hopefully work until a more
+	 * primitive right yesw, but it should hopefully work until a more
 	 * robust error handling routine can be put together.
 	 *
 	 * Refer to heart.h for the HC_* macros to work out the cause
@@ -91,7 +91,7 @@ static void ip30_error_irq(struct irq_desc *desc)
 	heart_write(mask, &heart_regs->imr[cpu]);
 }
 
-static void ip30_normal_irq(struct irq_desc *desc)
+static void ip30_yesrmal_irq(struct irq_desc *desc)
 {
 	int cpu = smp_processor_id();
 	struct irq_domain *domain;
@@ -260,7 +260,7 @@ void __init ip30_install_ipi(void)
 void __init arch_init_irq(void)
 {
 	struct irq_domain *domain;
-	struct fwnode_handle *fn;
+	struct fwyesde_handle *fn;
 	unsigned long *mask;
 	int i;
 
@@ -301,7 +301,7 @@ void __init arch_init_irq(void)
 	for (i = HEART_L4_INT_XWID_ERR_9; i <= HEART_L4_INT_HEART_EXCP; i++)
 		set_bit(i, heart_irq_map);
 
-	fn = irq_domain_alloc_named_fwnode("HEART");
+	fn = irq_domain_alloc_named_fwyesde("HEART");
 	WARN_ON(fn == NULL);
 	if (!fn)
 		return;
@@ -314,13 +314,13 @@ void __init arch_init_irq(void)
 	irq_set_default_host(domain);
 
 	irq_set_percpu_devid(IP30_HEART_L0_IRQ);
-	irq_set_chained_handler_and_data(IP30_HEART_L0_IRQ, ip30_normal_irq,
+	irq_set_chained_handler_and_data(IP30_HEART_L0_IRQ, ip30_yesrmal_irq,
 					 domain);
 	irq_set_percpu_devid(IP30_HEART_L1_IRQ);
-	irq_set_chained_handler_and_data(IP30_HEART_L1_IRQ, ip30_normal_irq,
+	irq_set_chained_handler_and_data(IP30_HEART_L1_IRQ, ip30_yesrmal_irq,
 					 domain);
 	irq_set_percpu_devid(IP30_HEART_L2_IRQ);
-	irq_set_chained_handler_and_data(IP30_HEART_L2_IRQ, ip30_normal_irq,
+	irq_set_chained_handler_and_data(IP30_HEART_L2_IRQ, ip30_yesrmal_irq,
 					 domain);
 	irq_set_percpu_devid(IP30_HEART_ERR_IRQ);
 	irq_set_chained_handler_and_data(IP30_HEART_ERR_IRQ, ip30_error_irq,

@@ -75,7 +75,7 @@ struct apr_resp_pkt {
 	int payload_size;
 };
 
-/* Bits 0 to 15 -- Minor version,  Bits 16 to 31 -- Major version */
+/* Bits 0 to 15 -- Miyesr version,  Bits 16 to 31 -- Major version */
 #define APR_SVC_MAJOR_VERSION(v)	((v >> 16) & 0xFF)
 #define APR_SVC_MINOR_VERSION(v)	(v & 0xFF)
 
@@ -86,7 +86,7 @@ struct apr_device {
 	uint32_t	version;
 	char name[APR_NAME_SIZE];
 	spinlock_t	lock;
-	struct list_head node;
+	struct list_head yesde;
 };
 
 #define to_apr_device(d) container_of(d, struct apr_device, dev)
@@ -114,7 +114,7 @@ void apr_driver_unregister(struct apr_driver *drv);
  * module_apr_driver() - Helper macro for registering a aprbus driver
  * @__aprbus_driver: aprbus_driver struct
  *
- * Helper macro for aprbus drivers which do not do anything special in
+ * Helper macro for aprbus drivers which do yest do anything special in
  * module init/exit. This eliminates a lot of boilerplate. Each module
  * may only use this macro once, and calling it replaces module_init()
  * and module_exit()

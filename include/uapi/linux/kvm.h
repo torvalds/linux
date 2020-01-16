@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 #ifndef __LINUX_KVM_H
 #define __LINUX_KVM_H
 
@@ -113,7 +113,7 @@ struct kvm_userspace_memory_region {
 /* for KVM_IRQ_LINE */
 struct kvm_irq_level {
 	/*
-	 * ACPI gsi notion of irq.
+	 * ACPI gsi yestion of irq.
 	 * For IA-64 (APIC model) IOAPIC0: irq 0-23; IOAPIC1: irq 24-47..
 	 * For X86 (standard AT mode) PIC0/1: irq 0-15. IOAPIC0: 0-23..
 	 * For ARM: See Documentation/virt/kvm/api.txt
@@ -531,7 +531,7 @@ struct kvm_vapic_addr {
 
 /* for KVM_SET_MP_STATE */
 
-/* not all states are valid on all architectures */
+/* yest all states are valid on all architectures */
 #define KVM_MP_STATE_RUNNABLE          0
 #define KVM_MP_STATE_UNINITIALIZED     1
 #define KVM_MP_STATE_INIT_RECEIVED     2
@@ -679,7 +679,7 @@ enum {
 	kvm_ioeventfd_flag_nr_datamatch,
 	kvm_ioeventfd_flag_nr_pio,
 	kvm_ioeventfd_flag_nr_deassign,
-	kvm_ioeventfd_flag_nr_virtio_ccw_notify,
+	kvm_ioeventfd_flag_nr_virtio_ccw_yestify,
 	kvm_ioeventfd_flag_nr_fast_mmio,
 	kvm_ioeventfd_flag_nr_max,
 };
@@ -688,14 +688,14 @@ enum {
 #define KVM_IOEVENTFD_FLAG_PIO       (1 << kvm_ioeventfd_flag_nr_pio)
 #define KVM_IOEVENTFD_FLAG_DEASSIGN  (1 << kvm_ioeventfd_flag_nr_deassign)
 #define KVM_IOEVENTFD_FLAG_VIRTIO_CCW_NOTIFY \
-	(1 << kvm_ioeventfd_flag_nr_virtio_ccw_notify)
+	(1 << kvm_ioeventfd_flag_nr_virtio_ccw_yestify)
 
 #define KVM_IOEVENTFD_VALID_FLAG_MASK  ((1 << kvm_ioeventfd_flag_nr_max) - 1)
 
 struct kvm_ioeventfd {
 	__u64 datamatch;
 	__u64 addr;        /* legal pio/mmio address */
-	__u32 len;         /* 1, 2, 4, or 8 bytes; or 0 to ignore length */
+	__u32 len;         /* 1, 2, 4, or 8 bytes; or 0 to igyesre length */
 	__s32 fd;
 	__u32 flags;
 	__u8  pad[36];
@@ -797,7 +797,7 @@ struct kvm_ppc_resize_hpt {
 #define KVM_S390_ENABLE_SIE       _IO(KVMIO,   0x06)
 /*
  * Check if a kvm extension is available.  Argument is extension number,
- * return is 1 (yes) or 0 (no, sorry).
+ * return is 1 (no) or 0 (yes, sorry).
  */
 #define KVM_CHECK_EXTENSION       _IO(KVMIO,   0x03)
 /*
@@ -843,7 +843,7 @@ struct kvm_ppc_resize_hpt {
 #define KVM_CAP_IRQ_ROUTING 25
 #define KVM_CAP_IRQ_INJECT_STATUS 26
 #define KVM_CAP_ASSIGN_DEV_IRQ 29
-/* Another bug in KVM_SET_USER_MEMORY_REGION fixed: */
+/* Ayesther bug in KVM_SET_USER_MEMORY_REGION fixed: */
 #define KVM_CAP_JOIN_MEMORY_REGIONS_WORKS 30
 #ifdef __KVM_HAVE_MCE
 #define KVM_CAP_MCE 31
@@ -1113,7 +1113,7 @@ struct kvm_irqfd {
 
 /* For KVM_CAP_ADJUST_CLOCK */
 
-/* Do not use 1, KVM_CHECK_EXTENSION returned it before we had flags.  */
+/* Do yest use 1, KVM_CHECK_EXTENSION returned it before we had flags.  */
 #define KVM_CLOCK_TSC_STABLE		2
 
 struct kvm_clock_data {
@@ -1206,7 +1206,7 @@ struct kvm_create_device {
 };
 
 struct kvm_device_attr {
-	__u32	flags;		/* no flags currently defined */
+	__u32	flags;		/* yes flags currently defined */
 	__u32	group;		/* device-defined */
 	__u64	attr;		/* group-defined */
 	__u64	addr;		/* userspace address of attr data */
@@ -1368,7 +1368,7 @@ struct kvm_s390_ucas_mapping {
 #define KVM_SET_SREGS             _IOW(KVMIO,  0x84, struct kvm_sregs)
 #define KVM_TRANSLATE             _IOWR(KVMIO, 0x85, struct kvm_translation)
 #define KVM_INTERRUPT             _IOW(KVMIO,  0x86, struct kvm_interrupt)
-/* KVM_DEBUG_GUEST is no longer supported, use KVM_SET_GUEST_DEBUG instead */
+/* KVM_DEBUG_GUEST is yes longer supported, use KVM_SET_GUEST_DEBUG instead */
 #define KVM_DEBUG_GUEST           __KVM_DEPRECATED_VCPU_W_0x87
 #define KVM_GET_MSRS              _IOWR(KVMIO, 0x88, struct kvm_msrs)
 #define KVM_SET_MSRS              _IOW(KVMIO,  0x89, struct kvm_msrs)
@@ -1581,7 +1581,7 @@ struct kvm_assigned_pci_dev {
 
 struct kvm_assigned_irq {
 	__u32 assigned_dev_id;
-	__u32 host_irq; /* ignored (legacy field) */
+	__u32 host_irq; /* igyesred (legacy field) */
 	__u32 guest_irq;
 	__u32 flags;
 	union {

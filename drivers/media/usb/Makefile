@@ -4,7 +4,7 @@
 #
 
 # DVB USB-only drivers
-obj-y += ttusb-dec/ ttusb-budget/ dvb-usb/ dvb-usb-v2/ siano/ b2c2/
+obj-y += ttusb-dec/ ttusb-budget/ dvb-usb/ dvb-usb-v2/ siayes/ b2c2/
 obj-y += zr364xx/ stkwebcam/ s2255/
 
 obj-$(CONFIG_USB_VIDEO_CLASS)	+= uvc/

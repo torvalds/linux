@@ -161,15 +161,15 @@ struct comedi_isadma *comedi_isadma_alloc(struct comedi_device *dev,
 	int i;
 
 	if (n_desc < 1 || n_desc > 2)
-		goto no_dma;
+		goto yes_dma;
 
 	dma = kzalloc(sizeof(*dma), GFP_KERNEL);
 	if (!dma)
-		goto no_dma;
+		goto yes_dma;
 
 	desc = kcalloc(n_desc, sizeof(*desc), GFP_KERNEL);
 	if (!desc)
-		goto no_dma;
+		goto yes_dma;
 	dma->desc = desc;
 	dma->n_desc = n_desc;
 	if (dev->hw_dev) {
@@ -177,11 +177,11 @@ struct comedi_isadma *comedi_isadma_alloc(struct comedi_device *dev,
 	} else {
 		/* Fall back to using the "class" device. */
 		if (!dev->class_dev)
-			goto no_dma;
+			goto yes_dma;
 		/* Need 24-bit mask for ISA DMA. */
 		if (dma_coerce_mask_and_coherent(dev->class_dev,
 						 DMA_BIT_MASK(24))) {
-			goto no_dma;
+			goto yes_dma;
 		}
 		dma->dev = dev->class_dev;
 	}
@@ -193,11 +193,11 @@ struct comedi_isadma *comedi_isadma_alloc(struct comedi_device *dev,
 		dma_chans[1] = dma_chan2;
 
 	if (request_dma(dma_chans[0], dev->board_name))
-		goto no_dma;
+		goto yes_dma;
 	dma->chan = dma_chans[0];
 	if (dma_chans[1] != dma_chans[0]) {
 		if (request_dma(dma_chans[1], dev->board_name))
-			goto no_dma;
+			goto yes_dma;
 	}
 	dma->chan2 = dma_chans[1];
 
@@ -209,13 +209,13 @@ struct comedi_isadma *comedi_isadma_alloc(struct comedi_device *dev,
 						     &desc->hw_addr,
 						     GFP_KERNEL);
 		if (!desc->virt_addr)
-			goto no_dma;
+			goto yes_dma;
 		comedi_isadma_set_mode(desc, dma_dir);
 	}
 
 	return dma;
 
-no_dma:
+yes_dma:
 	comedi_isadma_free(dma);
 	return NULL;
 }

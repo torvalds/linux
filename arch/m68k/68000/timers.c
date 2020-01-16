@@ -36,7 +36,7 @@
 
 #elif defined(CONFIG_XCOPILOT_BUGS)
 /*
- * The only thing I know is that CLK32 is not available on Xcopilot
+ * The only thing I kyesw is that CLK32 is yest available on Xcopilot
  * I have little idea about what frequency SYSCLK has on Xcopilot.
  * The values for prescaler and compare registers were simply
  * taken from the original source
@@ -124,13 +124,13 @@ void hw_timer_init(irq_handler_t handler)
 int m68328_hwclk(int set, struct rtc_time *t)
 {
 	if (!set) {
-		long now = RTCTIME;
+		long yesw = RTCTIME;
 		t->tm_year = 1;
 		t->tm_mon = 0;
 		t->tm_mday = 1;
-		t->tm_hour = (now >> 24) % 24;
-		t->tm_min = (now >> 16) % 60;
-		t->tm_sec = now % 60;
+		t->tm_hour = (yesw >> 24) % 24;
+		t->tm_min = (yesw >> 16) % 60;
+		t->tm_sec = yesw % 60;
 	}
 
 	return 0;

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 /*
  * This file is subject to the terms and conditions of the GNU General Public
  * License.  See the file "COPYING" in the main directory of this archive
@@ -24,7 +24,7 @@
 	field;
 
 #else /* !defined (__MIPSEB__) && !defined (__MIPSEL__) */
-#error "MIPS but neither __MIPSEL__ nor __MIPSEB__?"
+#error "MIPS but neither __MIPSEL__ yesr __MIPSEB__?"
 #endif
 
 #endif /* __UAPI_ASM_BITFIELD_H */

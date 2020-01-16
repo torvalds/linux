@@ -48,7 +48,7 @@ struct crypto4xx_device;
 union shadow_sa_buf {
 	struct dynamic_sa_ctl sa;
 
-	/* alloc 256 bytes which is enough for any kind of dynamic sa */
+	/* alloc 256 bytes which is eyesugh for any kind of dynamic sa */
 	u8 buf[256];
 } __packed;
 
@@ -118,7 +118,7 @@ struct crypto4xx_ctx {
 	struct crypto4xx_device *dev;
 	struct dynamic_sa_ctl *sa_in;
 	struct dynamic_sa_ctl *sa_out;
-	__le32 iv_nonce;
+	__le32 iv_yesnce;
 	u32 sa_len;
 	union {
 		struct crypto_sync_skcipher *cipher;
@@ -177,8 +177,8 @@ int crypto4xx_encrypt_iv_stream(struct skcipher_request *req);
 int crypto4xx_decrypt_iv_stream(struct skcipher_request *req);
 int crypto4xx_encrypt_iv_block(struct skcipher_request *req);
 int crypto4xx_decrypt_iv_block(struct skcipher_request *req);
-int crypto4xx_encrypt_noiv_block(struct skcipher_request *req);
-int crypto4xx_decrypt_noiv_block(struct skcipher_request *req);
+int crypto4xx_encrypt_yesiv_block(struct skcipher_request *req);
+int crypto4xx_decrypt_yesiv_block(struct skcipher_request *req);
 int crypto4xx_rfc3686_encrypt(struct skcipher_request *req);
 int crypto4xx_rfc3686_decrypt(struct skcipher_request *req);
 int crypto4xx_sha1_alg_init(struct crypto_tfm *tfm);

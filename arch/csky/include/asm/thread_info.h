@@ -31,7 +31,7 @@ struct thread_info {
 	.addr_limit     = KERNEL_DS,		\
 	.cpu		= 0,			\
 	.restart_block = {			\
-		.fn = do_no_restart_syscall,	\
+		.fn = do_yes_restart_syscall,	\
 	},					\
 }
 

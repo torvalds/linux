@@ -5,7 +5,7 @@
 
 #include <stddef.h>
 #include <unistd.h>
-#include <errno.h>
+#include <erryes.h>
 #include <string.h>
 #include <sys/mman.h>
 #include <init.h>
@@ -58,14 +58,14 @@ static inline long do_syscall_stub(struct mm_id * mm_idp, void **addr)
 		printk(UM_KERN_ERR "Registers - \n");
 		for (i = 0; i < MAX_REG_NR; i++)
 			printk(UM_KERN_ERR "\t%d\t0x%lx\n", i, syscall_regs[i]);
-		panic("do_syscall_stub : PTRACE_SETREGS failed, errno = %d\n",
+		panic("do_syscall_stub : PTRACE_SETREGS failed, erryes = %d\n",
 		      -n);
 	}
 
 	err = ptrace(PTRACE_CONT, pid, 0, 0);
 	if (err)
-		panic("Failed to continue stub, pid = %d, errno = %d\n", pid,
-		      errno);
+		panic("Failed to continue stub, pid = %d, erryes = %d\n", pid,
+		      erryes);
 
 	wait_stub_done(pid);
 
@@ -73,7 +73,7 @@ static inline long do_syscall_stub(struct mm_id * mm_idp, void **addr)
 	 * When the stub stops, we find the following values on the
 	 * beginning of the stack:
 	 * (long )return_value
-	 * (long )offset to failed sycall-data (0, if no error)
+	 * (long )offset to failed sycall-data (0, if yes error)
 	 */
 	ret = *((unsigned long *) mm_idp->stack);
 	offset = *((unsigned long *) mm_idp->stack + 1);

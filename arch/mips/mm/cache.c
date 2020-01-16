@@ -4,7 +4,7 @@
  * for more details.
  *
  * Copyright (C) 1994 - 2003, 06, 07 by Ralf Baechle (ralf@linux-mips.org)
- * Copyright (C) 2007 MIPS Technologies, Inc.
+ * Copyright (C) 2007 MIPS Techyeslogies, Inc.
  */
 #include <linux/fs.h>
 #include <linux/fcntl.h>
@@ -65,7 +65,7 @@ void (*_dma_cache_inv)(unsigned long start, unsigned long size);
 #endif /* CONFIG_DMA_NONCOHERENT */
 
 /*
- * We could optimize the case where the cache argument is not BCACHE but
+ * We could optimize the case where the cache argument is yest BCACHE but
  * that seems very atypical use ...
  */
 SYSCALL_DEFINE3(cacheflush, unsigned long, addr, unsigned long, bytes,
@@ -109,7 +109,7 @@ void __flush_dcache_page(struct page *page)
 
 EXPORT_SYMBOL(__flush_dcache_page);
 
-void __flush_anon_page(struct page *page, unsigned long vmaddr)
+void __flush_ayesn_page(struct page *page, unsigned long vmaddr)
 {
 	unsigned long addr = (unsigned long) page_address(page);
 
@@ -125,13 +125,13 @@ void __flush_anon_page(struct page *page, unsigned long vmaddr)
 	}
 }
 
-EXPORT_SYMBOL(__flush_anon_page);
+EXPORT_SYMBOL(__flush_ayesn_page);
 
 void __update_cache(unsigned long address, pte_t pte)
 {
 	struct page *page;
 	unsigned long pfn, addr;
-	int exec = !pte_no_exec(pte) && !cpu_has_ic_fills_f_dc;
+	int exec = !pte_yes_exec(pte) && !cpu_has_ic_fills_f_dc;
 
 	pfn = pte_pfn(pte);
 	if (unlikely(!pfn_valid(pfn)))

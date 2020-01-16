@@ -3,7 +3,7 @@
 // Copyright (c) 2018 MediaTek Inc.
 
 #include <linux/completion.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/dma-mapping.h>
 #include <linux/module.h>
 #include <linux/mailbox_controller.h>
@@ -119,7 +119,7 @@ static int cmdq_pkt_append_command(struct cmdq_pkt *pkt, enum cmdq_code code,
 		/*
 		 * In the case of allocated buffer size (pkt->buf_size) is used
 		 * up, the real required size (pkt->cmdq_buf_size) is still
-		 * increased, so that the user knows how much memory should be
+		 * increased, so that the user kyesws how much memory should be
 		 * ultimately allocated after appending all commands and
 		 * flushing the command packet. Therefor, the user can call
 		 * cmdq_pkt_create() again with the real required buffer size.
@@ -171,9 +171,9 @@ int cmdq_pkt_wfe(struct cmdq_pkt *pkt, u16 event)
 	/*
 	 * WFE arg_b
 	 * bit 0-11: wait value
-	 * bit 15: 1 - wait, 0 - no wait
+	 * bit 15: 1 - wait, 0 - yes wait
 	 * bit 16-27: update value
-	 * bit 31: 1 - update, 0 - no update
+	 * bit 31: 1 - update, 0 - yes update
 	 */
 	arg_b = CMDQ_WFE_UPDATE | CMDQ_WFE_WAIT | CMDQ_WFE_WAIT_VALUE;
 

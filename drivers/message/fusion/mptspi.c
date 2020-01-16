@@ -1,7 +1,7 @@
 /*
  *  linux/drivers/message/fusion/mptspi.c
  *      For use with LSI PCI chip/adapter(s)
- *      running LSI Fusion MPT (Message Passing Technology) firmware.
+ *      running LSI Fusion MPT (Message Passing Techyeslogy) firmware.
  *
  *  Copyright (c) 1999-2008 LSI Corporation
  *  (mailto:DL-MPTFusionLinux@lsi.com)
@@ -25,7 +25,7 @@
     MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE. Each Recipient is
     solely responsible for determining the appropriateness of using and
     distributing the Program and assumes all risks associated with its
-    exercise of rights under this Agreement, including but not limited to
+    exercise of rights under this Agreement, including but yest limited to
     the risks and costs of program errors, damage to or loss of data,
     programs or equipment, and unavailability or interruption of operations.
 
@@ -39,7 +39,7 @@
     HEREUNDER, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGES
 
     You should have received a copy of the GNU General Public License
-    along with this program; if not, write to the Free Software
+    along with this program; if yest, write to the Free Software
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
@@ -48,12 +48,12 @@
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/init.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/kdev_t.h>
 #include <linux/blkdev.h>
 #include <linux/delay.h>	/* for mdelay */
 #include <linux/interrupt.h>	/* needed for in_interrupt() proto */
-#include <linux/reboot.h>	/* notifier code */
+#include <linux/reboot.h>	/* yestifier code */
 #include <linux/workqueue.h>
 #include <linux/raid_class.h>
 
@@ -116,9 +116,9 @@ mptspi_setTargetNegoParms(MPT_SCSI_HOST *hd, VirtTarget *target,
 	u8 factor = MPT_ASYNC;
 	u8 offset = 0;
 	u8 nfactor;
-	u8 noQas = 1;
+	u8 yesQas = 1;
 
-	target->negoFlags = pspi_data->noQas;
+	target->negoFlags = pspi_data->yesQas;
 
 	if (sdev->scsi_level < SCSI_2) {
 		width = 0;
@@ -144,7 +144,7 @@ mptspi_setTargetNegoParms(MPT_SCSI_HOST *hd, VirtTarget *target,
 						printk(MYIOC_s_DEBUG_FMT "Enabling QAS due to "
 						"byte56=%02x on id=%d!\n", ioc->name,
 						scsi_device_qas(sdev), id));
-						noQas = 0;
+						yesQas = 0;
 					}
 					if (sdev->type == TYPE_TAPE &&
 					    scsi_device_ius(sdev))
@@ -154,13 +154,13 @@ mptspi_setTargetNegoParms(MPT_SCSI_HOST *hd, VirtTarget *target,
 			offset = pspi_data->maxSyncOffset;
 
 			/* If RAID, never disable QAS
-			 * else if non RAID, do not disable
+			 * else if yesn RAID, do yest disable
 			 *   QAS if bit 1 is set
-			 * bit 1 QAS support, non-raid only
+			 * bit 1 QAS support, yesn-raid only
 			 * bit 0 IU support
 			 */
 			if (target->raidVolume == 1)
-				noQas = 0;
+				yesQas = 0;
 		} else {
 			factor = MPT_ASYNC;
 			offset = 0;
@@ -225,17 +225,17 @@ mptspi_setTargetNegoParms(MPT_SCSI_HOST *hd, VirtTarget *target,
 		target->negoFlags |= MPT_TARGET_NO_NEGO_SYNC;
 
 	if ( factor > MPT_ULTRA320 )
-		noQas = 0;
+		yesQas = 0;
 
-	if (noQas && (pspi_data->noQas == 0)) {
-		pspi_data->noQas |= MPT_TARGET_NO_NEGO_QAS;
+	if (yesQas && (pspi_data->yesQas == 0)) {
+		pspi_data->yesQas |= MPT_TARGET_NO_NEGO_QAS;
 		target->negoFlags |= MPT_TARGET_NO_NEGO_QAS;
 
 		/* Disable QAS in a mixed configuration case
 		 */
 
 		ddvprintk(ioc, printk(MYIOC_s_DEBUG_FMT
-			"Disabling QAS due to noQas=%02x on id=%d!\n", ioc->name, noQas, id));
+			"Disabling QAS due to yesQas=%02x on id=%d!\n", ioc->name, yesQas, id));
 	}
 }
 
@@ -248,7 +248,7 @@ mptspi_setTargetNegoParms(MPT_SCSI_HOST *hd, VirtTarget *target,
  *	Return: -EAGAIN if unable to obtain a Message Frame
  *		or 0 if success.
  *
- *	Remark: We do not wait for a return, write pages sequentially.
+ *	Remark: We do yest wait for a return, write pages sequentially.
  **/
 static int
 mptspi_writeIOCPage4(MPT_SCSI_HOST *hd, u8 channel , u8 id)
@@ -265,7 +265,7 @@ mptspi_writeIOCPage4(MPT_SCSI_HOST *hd, u8 channel , u8 id)
 	 */
 	if ((mf = mpt_get_msg_frame(ioc->DoneCtx, ioc)) == NULL) {
 		dfailprintk(ioc, printk(MYIOC_s_WARN_FMT
-				"writeIOCPage4 : no msg frames!\n",ioc->name));
+				"writeIOCPage4 : yes msg frames!\n",ioc->name));
 		return -EAGAIN;
 	}
 
@@ -368,7 +368,7 @@ mptspi_initTarget(MPT_SCSI_HOST *hd, VirtTarget *vtarget,
  *	@id: target device id
  *
  *	Return:
- *		non-zero = true
+ *		yesn-zero = true
  *		zero = false
  *
  */
@@ -629,7 +629,7 @@ mptscsih_quiesce_raid(MPT_SCSI_HOST *hd, int quiesce, u8 channel, u8 id)
 	 */
 	if ((mf = mpt_get_msg_frame(ioc->InternalCtx, ioc)) == NULL) {
 		dfailprintk(hd->ioc, printk(MYIOC_s_WARN_FMT
-			"%s: no msg frames!\n", ioc->name, __func__));
+			"%s: yes msg frames!\n", ioc->name, __func__));
 		ret = -EAGAIN;
 		goto out;
 	}
@@ -686,7 +686,7 @@ static void mptspi_dv_device(struct _MPT_SCSI_HOST *hd,
 	VirtTarget *vtarget = scsi_target(sdev)->hostdata;
 	MPT_ADAPTER *ioc = hd->ioc;
 
-	/* no DV on RAID devices */
+	/* yes DV on RAID devices */
 	if (sdev->channel == 0 &&
 	    mptspi_is_raid(hd, sdev->id))
 		return;
@@ -741,7 +741,7 @@ static int mptspi_slave_alloc(struct scsi_device *sdev)
 	vtarget->num_luns++;
 
 	if (sdev->channel == 1)
-		sdev->no_uld_attach = 1;
+		sdev->yes_uld_attach = 1;
 
 	return 0;
 }
@@ -805,7 +805,7 @@ static void mptspi_slave_destroy(struct scsi_device *sdev)
 	VirtTarget *vtarget = starget->hostdata;
 	VirtDevice *vdevice = sdev->hostdata;
 
-	/* Will this be the last lun on a non-raid device? */
+	/* Will this be the last lun on a yesn-raid device? */
 	if (vtarget->num_luns == 1 && vdevice->configured_lun) {
 		struct _CONFIG_PAGE_SCSI_DEVICE_1 pg1;
 
@@ -1065,7 +1065,7 @@ static void mptspi_write_qas(struct scsi_target *starget, int qas)
 	u32 nego;
 
 	if ((vtarget->negoFlags & MPT_TARGET_NO_NEGO_QAS) ||
-	    hd->ioc->spi_data.noQas)
+	    hd->ioc->spi_data.yesQas)
 		spi_qas(starget) = 0;
 	else
 		spi_qas(starget) = qas;
@@ -1345,7 +1345,7 @@ mptspi_resume(struct pci_dev *pdev)
  *	mptspi_probe - Installs scsi devices per bus.
  *	@pdev: Pointer to pci_dev structure
  *
- *	Returns 0 for success, non-zero for failure.
+ *	Returns 0 for success, yesn-zero for failure.
  *
  */
 static int
@@ -1374,7 +1374,7 @@ mptspi_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	 */
 	if (ioc->last_state != MPI_IOC_STATE_OPERATIONAL) {
 		printk(MYIOC_s_WARN_FMT
-		  "Skipping because it's not operational!\n",
+		  "Skipping because it's yest operational!\n",
 		  ioc->name);
 		error = -ENODEV;
 		goto out_mptspi_probe;
@@ -1416,7 +1416,7 @@ mptspi_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	/* VMWare emulation doesn't properly implement WRITE_SAME
 	 */
 	if (pdev->subsystem_vendor == 0x15AD)
-		sh->no_write_same = 1;
+		sh->yes_write_same = 1;
 
 	spin_lock_irqsave(&ioc->FreeQlock, flags);
 
@@ -1435,7 +1435,7 @@ mptspi_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	 * Otherwise, by default, linux
 	 * only scans target IDs 0-7!
 	 * pfactsN->MaxDevices unreliable
-	 * (not supported in early
+	 * (yest supported in early
 	 *	versions of the FW).
 	 * max_id = 1 + actual max id,
 	 * max_lun = 1 + actual last lun,
@@ -1508,7 +1508,7 @@ mptspi_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		"saf_te %x\n",
 		ioc->name,
 		mpt_saf_te));
-	ioc->spi_data.noQas = 0;
+	ioc->spi_data.yesQas = 0;
 
 	hd->last_queue_full = 0;
 	hd->spi_pending = 0;
@@ -1566,7 +1566,7 @@ static struct pci_driver mptspi_driver = {
 /**
  *	mptspi_init - Register MPT adapter(s) as SCSI host(s) with SCSI mid-layer.
  *
- *	Returns 0 for success, non-zero for failure.
+ *	Returns 0 for success, yesn-zero for failure.
  */
 static int __init
 mptspi_init(void)

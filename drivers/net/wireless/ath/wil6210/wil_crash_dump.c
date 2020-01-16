@@ -57,7 +57,7 @@ int wil_fw_copy_crash_dump(struct wil6210_priv *wil, void *dest, u32 size)
 	}
 
 	if (dump_size > size) {
-		wil_err(wil, "not enough space for dump. Need %d have %d\n",
+		wil_err(wil, "yest eyesugh space for dump. Need %d have %d\n",
 			dump_size, size);
 		return -EINVAL;
 	}

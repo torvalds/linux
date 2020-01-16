@@ -7,7 +7,7 @@
  *
  * This stub allows us to make EFI calls in physical mode with interrupts
  * turned off.  We need this because we can't call SetVirtualMap() until
- * the kernel has booted far enough to allow allocation of struct vma_struct
+ * the kernel has booted far eyesugh to allow allocation of struct vma_struct
  * entries (which we would need to map stuff with memory attributes other
  * than uncached or writeback...).  Since the GetTime() service gets called
  * earlier than that, we need to be able to make physical mode EFI calls from
@@ -20,7 +20,7 @@
  * psr.dfl and psr.dfh MUST be cleared, despite what this manual says.
  * Otherwise, SAL dies whenever it's trying to do an IA-32 BIOS call
  * (the br.ia instruction fails unless psr.dfl and psr.dfh are
- * cleared).  Fortunately, SAL promises not to touch the floating
+ * cleared).  Fortunately, SAL promises yest to touch the floating
  * point regs, so at least we don't have to save f2-f127.
  */
 #define PSR_BITS_TO_CLEAR						\

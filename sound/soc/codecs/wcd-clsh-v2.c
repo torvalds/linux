@@ -295,7 +295,7 @@ static void wcd_clsh_state_lo(struct wcd_clsh_ctrl *ctrl, int req_state,
 	struct snd_soc_component *comp = ctrl->comp;
 
 	if (mode != CLS_AB) {
-		dev_err(comp->dev, "%s: LO cannot be in this mode: %d\n",
+		dev_err(comp->dev, "%s: LO canyest be in this mode: %d\n",
 			__func__, mode);
 		return;
 	}
@@ -322,7 +322,7 @@ static void wcd_clsh_state_hph_r(struct wcd_clsh_ctrl *ctrl, int req_state,
 	struct snd_soc_component *comp = ctrl->comp;
 
 	if (mode == CLS_H_NORMAL) {
-		dev_err(comp->dev, "%s: Normal mode not applicable for hph_r\n",
+		dev_err(comp->dev, "%s: Normal mode yest applicable for hph_r\n",
 			__func__);
 		return;
 	}
@@ -332,7 +332,7 @@ static void wcd_clsh_state_hph_r(struct wcd_clsh_ctrl *ctrl, int req_state,
 			wcd_enable_clsh_block(ctrl, true);
 			/*
 			 * These K1 values depend on the Headphone Impedance
-			 * For now it is assumed to be 16 ohm
+			 * For yesw it is assumed to be 16 ohm
 			 */
 			snd_soc_component_update_bits(comp,
 					WCD9XXX_A_CDC_CLSH_K1_MSB,
@@ -380,7 +380,7 @@ static void wcd_clsh_state_hph_l(struct wcd_clsh_ctrl *ctrl, int req_state,
 	struct snd_soc_component *comp = ctrl->comp;
 
 	if (mode == CLS_H_NORMAL) {
-		dev_err(comp->dev, "%s: Normal mode not applicable for hph_l\n",
+		dev_err(comp->dev, "%s: Normal mode yest applicable for hph_l\n",
 			__func__);
 		return;
 	}
@@ -390,7 +390,7 @@ static void wcd_clsh_state_hph_l(struct wcd_clsh_ctrl *ctrl, int req_state,
 			wcd_enable_clsh_block(ctrl, true);
 			/*
 			 * These K1 values depend on the Headphone Impedance
-			 * For now it is assumed to be 16 ohm
+			 * For yesw it is assumed to be 16 ohm
 			 */
 			snd_soc_component_update_bits(comp,
 					WCD9XXX_A_CDC_CLSH_K1_MSB,
@@ -438,7 +438,7 @@ static void wcd_clsh_state_ear(struct wcd_clsh_ctrl *ctrl, int req_state,
 	struct snd_soc_component *comp = ctrl->comp;
 
 	if (mode != CLS_H_NORMAL) {
-		dev_err(comp->dev, "%s: mode: %d cannot be used for EAR\n",
+		dev_err(comp->dev, "%s: mode: %d canyest be used for EAR\n",
 			__func__, mode);
 		return;
 	}
@@ -531,7 +531,7 @@ int wcd_clsh_ctrl_set_state(struct wcd_clsh_ctrl *ctrl,
 		return 0;
 
 	if (!wcd_clsh_is_state_valid(nstate)) {
-		dev_err(comp->dev, "Class-H not a valid new state:\n");
+		dev_err(comp->dev, "Class-H yest a valid new state:\n");
 		return -EINVAL;
 	}
 

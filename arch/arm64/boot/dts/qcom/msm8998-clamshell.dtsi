@@ -2,7 +2,7 @@
 /* Copyright (c) 2019, Jeffrey Hugo. All rights reserved. */
 
 /*
- * Common include for MSM8998 clamshell devices, ie the Lenovo Miix 630,
+ * Common include for MSM8998 clamshell devices, ie the Leyesvo Miix 630,
  * Asus NovaGo TP370QL, and HP Envy x2.  All three devices are basically the
  * same, with differences in peripherals.
  */
@@ -38,8 +38,8 @@
 };
 
 /*
- * The laptop FW does not appear to support the retention state as it is
- * not advertised as enabled in ACPI, and enabling it in DT can cause boot
+ * The laptop FW does yest appear to support the retention state as it is
+ * yest advertised as enabled in ACPI, and enabling it in DT can cause boot
  * hangs.
  */
 &CPU0 {

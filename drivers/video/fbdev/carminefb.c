@@ -8,7 +8,7 @@
  * - both display use 32 bit colors
  */
 #include <linux/delay.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/fb.h>
 #include <linux/interrupt.h>
 #include <linux/pci.h>
@@ -19,7 +19,7 @@
 #include "carminefb_regs.h"
 
 #if !defined(__LITTLE_ENDIAN) && !defined(__BIG_ENDIAN)
-#error  "The endianness of the target host has not been defined."
+#error  "The endianness of the target host has yest been defined."
 #endif
 
 /*
@@ -28,7 +28,7 @@
  * - as an integer that picks the video mode from carmine_modedb[] (module
  *   option fb_mode)
  *
- * If nothing is used than the initial video mode will be the
+ * If yesthing is used than the initial video mode will be the
  * CARMINEFB_DEFAULT_VIDEO_MODE member of the carmine_modedb[].
  */
 #define CARMINEFB_DEFAULT_VIDEO_MODE	1
@@ -160,10 +160,10 @@ static u32 c_get_hw_reg(const struct carmine_hw *hw,
 	return readl(hw->v_regs + offset);
 }
 
-static int carmine_setcolreg(unsigned regno, unsigned red, unsigned green,
+static int carmine_setcolreg(unsigned regyes, unsigned red, unsigned green,
 		unsigned blue, unsigned transp, struct fb_info *info)
 {
-	if (regno >= 16)
+	if (regyes >= 16)
 		return 1;
 
 	red >>= 8;
@@ -171,7 +171,7 @@ static int carmine_setcolreg(unsigned regno, unsigned red, unsigned green,
 	blue >>= 8;
 	transp >>= 8;
 
-	((__be32 *)info->pseudo_palette)[regno] = cpu_to_be32(transp << 24 |
+	((__be32 *)info->pseudo_palette)[regyes] = cpu_to_be32(transp << 24 |
 		red << 0 | green << 8 | blue << 16);
 	return 0;
 }
@@ -185,7 +185,7 @@ static int carmine_check_var(struct fb_var_screeninfo *var,
 	if (ret < 0)
 		return ret;
 
-	if (var->grayscale || var->rotate || var->nonstd)
+	if (var->grayscale || var->rotate || var->yesnstd)
 		return -EINVAL;
 
 	var->xres_virtual = var->xres;
@@ -633,7 +633,7 @@ static int carminefb_probe(struct pci_dev *dev, const struct pci_device_id *ent)
 		ret = -EBUSY;
 		goto err_free_hw;
 	}
-	hw->v_regs = ioremap_nocache(carminefb_fix.mmio_start,
+	hw->v_regs = ioremap_yescache(carminefb_fix.mmio_start,
 			carminefb_fix.mmio_len);
 	if (!hw->v_regs) {
 		printk(KERN_ERR "carminefb: Can't remap %s register.\n",
@@ -664,7 +664,7 @@ static int carminefb_probe(struct pci_dev *dev, const struct pci_device_id *ent)
 		goto err_unmap_vregs;
 	}
 
-	hw->screen_mem = ioremap_nocache(carminefb_fix.smem_start,
+	hw->screen_mem = ioremap_yescache(carminefb_fix.smem_start,
 			carminefb_fix.smem_len);
 	if (!hw->screen_mem) {
 		printk(KERN_ERR "carmine: Can't ioremap smem area.\n");
@@ -727,7 +727,7 @@ static void carminefb_remove(struct pci_dev *dev)
 	struct fb_fix_screeninfo fix;
 	int i;
 
-	/* in case we use only fb1 and not fb1 */
+	/* in case we use only fb1 and yest fb1 */
 	if (hw->fb[0])
 		fix = hw->fb[0]->fix;
 	else

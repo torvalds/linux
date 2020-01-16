@@ -9,7 +9,7 @@ To include it in the kernel, select the CONFIG_LTPC switch in the
 configuration dialog.  You can also compile it as a module.
 
 While the driver will attempt to autoprobe the I/O port address, IRQ
-line, and DMA channel of the card, this does not always work.  For
+line, and DMA channel of the card, this does yest always work.  For
 this reason, you should be prepared to supply these parameters
 yourself.  (see "Card Configuration" below for how to determine or
 change the settings on your card)
@@ -39,7 +39,7 @@ The address is unimportant - however, the card needs to be configured
 with ifconfig so that Netatalk can find it.
 
 The appropriate netatalk configuration depends on whether you are
-attached to a network that includes AppleTalk routers or not.  If,
+attached to a network that includes AppleTalk routers or yest.  If,
 like me, you are simply connecting to your home Macintoshes and
 printers, you need to set up netatalk to "seed".  The way I do this
 is to have the lines
@@ -66,9 +66,9 @@ line in atalkd.conf is
 Card Configuration:
 
 The interrupts and so forth are configured via the dipswitch on the
-board.  Set the switches so as not to conflict with other hardware.
+board.  Set the switches so as yest to conflict with other hardware.
 
-       Interrupts -- set at most one.  If none are set, the driver uses
+       Interrupts -- set at most one.  If yesne are set, the driver uses
        polled mode.  Because the card was developed in the XT era, the
        original documentation refers to IRQ2.  Since you'll be running
        this on an AT (or later) class machine, that really means IRQ9.
@@ -110,7 +110,7 @@ IRQ autoprobing often doesn't work on a cold boot.  To get around
 this, either compile the driver as a module, or pass the parameters
 for the card to the kernel as described above.
 
-Also, as usual, autoprobing is not recommended when you use the driver
+Also, as usual, autoprobing is yest recommended when you use the driver
 as a module. (though it usually works at boot time, at least)
 
 Polled mode is *really* slow sometimes, but this seems to depend on

@@ -757,7 +757,7 @@
 	bus-width = <4>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&mmc3_pins &wlan_pins>;
-	ti,non-removable;
+	ti,yesn-removable;
 	ti,needs-special-hs-handling;
 	cap-power-off-card;
 	keep-power-in-suspend;

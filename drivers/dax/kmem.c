@@ -22,19 +22,19 @@ int dev_dax_kmem_probe(struct device *dev)
 	resource_size_t kmem_size;
 	resource_size_t kmem_end;
 	struct resource *new_res;
-	int numa_node;
+	int numa_yesde;
 	int rc;
 
 	/*
 	 * Ensure good NUMA information for the persistent memory.
 	 * Without this check, there is a risk that slow memory
-	 * could be mixed in a node with faster memory, causing
+	 * could be mixed in a yesde with faster memory, causing
 	 * unavoidable performance issues.
 	 */
-	numa_node = dev_dax->target_node;
-	if (numa_node < 0) {
-		dev_warn(dev, "rejecting DAX region %pR with invalid node: %d\n",
-			 res, numa_node);
+	numa_yesde = dev_dax->target_yesde;
+	if (numa_yesde < 0) {
+		dev_warn(dev, "rejecting DAX region %pR with invalid yesde: %d\n",
+			 res, numa_yesde);
 		return -EINVAL;
 	}
 
@@ -48,24 +48,24 @@ int dev_dax_kmem_probe(struct device *dev)
 	kmem_size &= ~(memory_block_size_bytes() - 1);
 	kmem_end = kmem_start + kmem_size;
 
-	/* Region is permanently reserved.  Hot-remove not yet implemented. */
+	/* Region is permanently reserved.  Hot-remove yest yet implemented. */
 	new_res = request_mem_region(kmem_start, kmem_size, dev_name(dev));
 	if (!new_res) {
-		dev_warn(dev, "could not reserve region [%pa-%pa]\n",
+		dev_warn(dev, "could yest reserve region [%pa-%pa]\n",
 			 &kmem_start, &kmem_end);
 		return -EBUSY;
 	}
 
 	/*
 	 * Set flags appropriate for System RAM.  Leave ..._BUSY clear
-	 * so that add_memory() can add a child resource.  Do not
+	 * so that add_memory() can add a child resource.  Do yest
 	 * inherit flags from the parent since it may set new flags
-	 * unknown to us that will break add_memory() below.
+	 * unkyeswn to us that will break add_memory() below.
 	 */
 	new_res->flags = IORESOURCE_SYSTEM_RAM;
 	new_res->name = dev_name(dev);
 
-	rc = add_memory(numa_node, new_res->start, resource_size(new_res));
+	rc = add_memory(numa_yesde, new_res->start, resource_size(new_res));
 	if (rc) {
 		release_resource(new_res);
 		kfree(new_res);
@@ -86,15 +86,15 @@ static int dev_dax_kmem_remove(struct device *dev)
 	int rc;
 
 	/*
-	 * We have one shot for removing memory, if some memory blocks were not
+	 * We have one shot for removing memory, if some memory blocks were yest
 	 * offline prior to calling this function remove_memory() will fail, and
-	 * there is no way to hotremove this memory until reboot because device
+	 * there is yes way to hotremove this memory until reboot because device
 	 * unbind will succeed even if we return failure.
 	 */
-	rc = remove_memory(dev_dax->target_node, kmem_start, kmem_size);
+	rc = remove_memory(dev_dax->target_yesde, kmem_start, kmem_size);
 	if (rc) {
 		dev_err(dev,
-			"DAX region %pR cannot be hotremoved until the next reboot\n",
+			"DAX region %pR canyest be hotremoved until the next reboot\n",
 			res);
 		return rc;
 	}

@@ -46,7 +46,7 @@ struct parser_context {
 	struct visor_controlvm_parameters_header data;
 };
 
-/* VMCALL_CONTROLVM_ADDR: Used by all guests, not just IO. */
+/* VMCALL_CONTROLVM_ADDR: Used by all guests, yest just IO. */
 #define VMCALL_CONTROLVM_ADDR 0x0501
 
 enum vmcall_result {
@@ -322,7 +322,7 @@ static int chipset_init(struct controlvm_message *inmsg)
 	chipset_inited = 1;
 	/*
 	 * Set features to indicate we support parahotplug (if Command also
-	 * supports it). Set the "reply" bit so Command knows this is a
+	 * supports it). Set the "reply" bit so Command kyesws this is a
 	 * features-aware driver.
 	 */
 	features = inmsg->cmd.init_chipset.features &
@@ -437,8 +437,8 @@ static int device_changestate_responder(enum controlvm_id cmd_id,
 		return -EINVAL;
 
 	controlvm_init_response(&outmsg, p->pending_msg_hdr, response);
-	outmsg.cmd.device_change_state.bus_no = p->chipset_bus_no;
-	outmsg.cmd.device_change_state.dev_no = p->chipset_dev_no;
+	outmsg.cmd.device_change_state.bus_yes = p->chipset_bus_yes;
+	outmsg.cmd.device_change_state.dev_yes = p->chipset_dev_yes;
 	outmsg.cmd.device_change_state.state = state;
 	return visorchannel_signalinsert(chipset_dev->controlvm_channel,
 					 CONTROLVM_QUEUE_REQUEST, &outmsg);
@@ -448,12 +448,12 @@ static int visorbus_create(struct controlvm_message *inmsg)
 {
 	struct controlvm_message_packet *cmd = &inmsg->cmd;
 	struct controlvm_message_header *pmsg_hdr;
-	u32 bus_no = cmd->create_bus.bus_no;
+	u32 bus_yes = cmd->create_bus.bus_yes;
 	struct visor_device *bus_info;
 	struct visorchannel *visorchannel;
 	int err;
 
-	bus_info = visorbus_get_device_by_id(bus_no, BUS_ROOT_DEVICE, NULL);
+	bus_info = visorbus_get_device_by_id(bus_yes, BUS_ROOT_DEVICE, NULL);
 	if (bus_info && bus_info->state.created == 1) {
 		dev_err(&chipset_dev->acpi_device->dev,
 			"failed %s: already exists\n", __func__);
@@ -466,8 +466,8 @@ static int visorbus_create(struct controlvm_message *inmsg)
 		goto err_respond;
 	}
 	INIT_LIST_HEAD(&bus_info->list_all);
-	bus_info->chipset_bus_no = bus_no;
-	bus_info->chipset_dev_no = BUS_ROOT_DEVICE;
+	bus_info->chipset_bus_yes = bus_yes;
+	bus_info->chipset_dev_yes = BUS_ROOT_DEVICE;
 	if (guid_equal(&cmd->create_bus.bus_inst_guid, &visor_siovm_guid)) {
 		err = save_crash_message(inmsg, CRASH_BUS);
 		if (err)
@@ -516,11 +516,11 @@ err_respond:
 static int visorbus_destroy(struct controlvm_message *inmsg)
 {
 	struct controlvm_message_header *pmsg_hdr;
-	u32 bus_no = inmsg->cmd.destroy_bus.bus_no;
+	u32 bus_yes = inmsg->cmd.destroy_bus.bus_yes;
 	struct visor_device *bus_info;
 	int err;
 
-	bus_info = visorbus_get_device_by_id(bus_no, BUS_ROOT_DEVICE, NULL);
+	bus_info = visorbus_get_device_by_id(bus_yes, BUS_ROOT_DEVICE, NULL);
 	if (!bus_info) {
 		err = -ENODEV;
 		goto err_respond;
@@ -530,7 +530,7 @@ static int visorbus_destroy(struct controlvm_message *inmsg)
 		goto err_respond;
 	}
 	if (bus_info->pending_msg_hdr) {
-		/* only non-NULL if dev is still waiting on a response */
+		/* only yesn-NULL if dev is still waiting on a response */
 		err = -EEXIST;
 		goto err_respond;
 	}
@@ -593,12 +593,12 @@ static int visorbus_configure(struct controlvm_message *inmsg,
 			      struct parser_context *parser_ctx)
 {
 	struct controlvm_message_packet *cmd = &inmsg->cmd;
-	u32 bus_no;
+	u32 bus_yes;
 	struct visor_device *bus_info;
 	int err = 0;
 
-	bus_no = cmd->configure_bus.bus_no;
-	bus_info = visorbus_get_device_by_id(bus_no, BUS_ROOT_DEVICE, NULL);
+	bus_yes = cmd->configure_bus.bus_yes;
+	bus_info = visorbus_get_device_by_id(bus_yes, BUS_ROOT_DEVICE, NULL);
 	if (!bus_info) {
 		err = -EINVAL;
 		goto err_respond;
@@ -637,30 +637,30 @@ static int visorbus_device_create(struct controlvm_message *inmsg)
 {
 	struct controlvm_message_packet *cmd = &inmsg->cmd;
 	struct controlvm_message_header *pmsg_hdr;
-	u32 bus_no = cmd->create_device.bus_no;
-	u32 dev_no = cmd->create_device.dev_no;
+	u32 bus_yes = cmd->create_device.bus_yes;
+	u32 dev_yes = cmd->create_device.dev_yes;
 	struct visor_device *dev_info;
 	struct visor_device *bus_info;
 	struct visorchannel *visorchannel;
 	int err;
 
-	bus_info = visorbus_get_device_by_id(bus_no, BUS_ROOT_DEVICE, NULL);
+	bus_info = visorbus_get_device_by_id(bus_yes, BUS_ROOT_DEVICE, NULL);
 	if (!bus_info) {
 		dev_err(&chipset_dev->acpi_device->dev,
-			"failed to get bus by id: %d\n", bus_no);
+			"failed to get bus by id: %d\n", bus_yes);
 		err = -ENODEV;
 		goto err_respond;
 	}
 	if (bus_info->state.created == 0) {
 		dev_err(&chipset_dev->acpi_device->dev,
-			"bus not created, id: %d\n", bus_no);
+			"bus yest created, id: %d\n", bus_yes);
 		err = -EINVAL;
 		goto err_respond;
 	}
-	dev_info = visorbus_get_device_by_id(bus_no, dev_no, NULL);
+	dev_info = visorbus_get_device_by_id(bus_yes, dev_yes, NULL);
 	if (dev_info && dev_info->state.created == 1) {
 		dev_err(&chipset_dev->acpi_device->dev,
-			"failed to get bus by id: %d/%d\n", bus_no, dev_no);
+			"failed to get bus by id: %d/%d\n", bus_yes, dev_yes);
 		err = -EEXIST;
 		goto err_respond;
 	}
@@ -670,8 +670,8 @@ static int visorbus_device_create(struct controlvm_message *inmsg)
 		err = -ENOMEM;
 		goto err_respond;
 	}
-	dev_info->chipset_bus_no = bus_no;
-	dev_info->chipset_dev_no = dev_no;
+	dev_info->chipset_bus_yes = bus_yes;
+	dev_info->chipset_dev_yes = dev_yes;
 	guid_copy(&dev_info->inst, &cmd->create_device.dev_inst_guid);
 	dev_info->device.parent = &bus_info->device;
 	visorchannel = visorchannel_create(cmd->create_device.channel_addr,
@@ -681,7 +681,7 @@ static int visorbus_device_create(struct controlvm_message *inmsg)
 	if (!visorchannel) {
 		dev_err(&chipset_dev->acpi_device->dev,
 			"failed to create visorchannel: %d/%d\n",
-			bus_no, dev_no);
+			bus_yes, dev_yes);
 		err = -ENOMEM;
 		goto err_free_dev_info;
 	}
@@ -727,13 +727,13 @@ static int visorbus_device_changestate(struct controlvm_message *inmsg)
 {
 	struct controlvm_message_packet *cmd = &inmsg->cmd;
 	struct controlvm_message_header *pmsg_hdr;
-	u32 bus_no = cmd->device_change_state.bus_no;
-	u32 dev_no = cmd->device_change_state.dev_no;
+	u32 bus_yes = cmd->device_change_state.bus_yes;
+	u32 dev_yes = cmd->device_change_state.dev_yes;
 	struct visor_segment_state state = cmd->device_change_state.state;
 	struct visor_device *dev_info;
 	int err = 0;
 
-	dev_info = visorbus_get_device_by_id(bus_no, dev_no, NULL);
+	dev_info = visorbus_get_device_by_id(bus_yes, dev_yes, NULL);
 	if (!dev_info) {
 		err = -ENODEV;
 		goto err_respond;
@@ -743,7 +743,7 @@ static int visorbus_device_changestate(struct controlvm_message *inmsg)
 		goto err_respond;
 	}
 	if (dev_info->pending_msg_hdr) {
-		/* only non-NULL if dev is still waiting on a response */
+		/* only yesn-NULL if dev is still waiting on a response */
 		err = -EIO;
 		goto err_respond;
 	}
@@ -785,12 +785,12 @@ static int visorbus_device_destroy(struct controlvm_message *inmsg)
 {
 	struct controlvm_message_packet *cmd = &inmsg->cmd;
 	struct controlvm_message_header *pmsg_hdr;
-	u32 bus_no = cmd->destroy_device.bus_no;
-	u32 dev_no = cmd->destroy_device.dev_no;
+	u32 bus_yes = cmd->destroy_device.bus_yes;
+	u32 dev_yes = cmd->destroy_device.dev_yes;
 	struct visor_device *dev_info;
 	int err;
 
-	dev_info = visorbus_get_device_by_id(bus_no, dev_no, NULL);
+	dev_info = visorbus_get_device_by_id(bus_yes, dev_yes, NULL);
 	if (!dev_info) {
 		err = -ENODEV;
 		goto err_respond;
@@ -800,7 +800,7 @@ static int visorbus_device_destroy(struct controlvm_message *inmsg)
 		goto err_respond;
 	}
 	if (dev_info->pending_msg_hdr) {
-		/* only non-NULL if dev is still waiting on a response */
+		/* only yesn-NULL if dev is still waiting on a response */
 		err = -EIO;
 		goto err_respond;
 	}
@@ -943,8 +943,8 @@ static int parahotplug_request_complete(int id, u16 active)
 
 /*
  * devicedisabled_store() - disables the hotplug device
- * @dev:   sysfs interface variable not utilized in this function
- * @attr:  sysfs interface variable not utilized in this function
+ * @dev:   sysfs interface variable yest utilized in this function
+ * @attr:  sysfs interface variable yest utilized in this function
  * @buf:   buffer containing the device id
  * @count: the size of the buffer
  *
@@ -972,8 +972,8 @@ static DEVICE_ATTR_WO(devicedisabled);
 
 /*
  * deviceenabled_store() - enables the hotplug device
- * @dev:   sysfs interface variable not utilized in this function
- * @attr:  sysfs interface variable not utilized in this function
+ * @dev:   sysfs interface variable yest utilized in this function
+ * @attr:  sysfs interface variable yest utilized in this function
  * @buf:   buffer containing the device id
  * @count: the size of the buffer
  *
@@ -1048,11 +1048,11 @@ static int parahotplug_request_kickoff(struct parahotplug_request *req)
 	sprintf(env_state, "VISOR_PARAHOTPLUG_STATE=%d",
 		cmd->device_change_state.state.active);
 	sprintf(env_bus, "VISOR_PARAHOTPLUG_BUS=%d",
-		cmd->device_change_state.bus_no);
+		cmd->device_change_state.bus_yes);
 	sprintf(env_dev, "VISOR_PARAHOTPLUG_DEVICE=%d",
-		cmd->device_change_state.dev_no >> 3);
+		cmd->device_change_state.dev_yes >> 3);
 	sprintf(env_func, "VISOR_PARAHOTPLUG_FUNCTION=%d",
-		cmd->device_change_state.dev_no & 0x7);
+		cmd->device_change_state.dev_yes & 0x7);
 	return kobject_uevent_env(&chipset_dev->acpi_device->dev.kobj,
 				  KOBJ_CHANGE, envp);
 }
@@ -1141,13 +1141,13 @@ static int chipset_selftest_uevent(struct controlvm_message_header *msg_hdr)
 }
 
 /*
- * chipset_notready_uevent() - sends chipset_notready action
+ * chipset_yestready_uevent() - sends chipset_yestready action
  *
  * Send ACTION=offline for DEVPATH=/sys/devices/platform/visorchipset.
  *
  * Return: 0 on success, negative on failure
  */
-static int chipset_notready_uevent(struct controlvm_message_header *msg_hdr)
+static int chipset_yestready_uevent(struct controlvm_message_header *msg_hdr)
 {
 	int res = kobject_uevent(&chipset_dev->acpi_device->dev.kobj,
 				 KOBJ_OFFLINE);
@@ -1263,14 +1263,14 @@ static void setup_crash_devices_work_queue(struct work_struct *work)
 	/* reuse IOVM create bus message */
 	if (!local_crash_bus_msg.cmd.create_bus.channel_addr) {
 		dev_err(&chipset_dev->acpi_device->dev,
-			"no valid create_bus message\n");
+			"yes valid create_bus message\n");
 		return;
 	}
 	visorbus_create(&local_crash_bus_msg);
 	/* reuse create device message for storage device */
 	if (!local_crash_dev_msg.cmd.create_device.channel_addr) {
 		dev_err(&chipset_dev->acpi_device->dev,
-			"no valid create_device message\n");
+			"yes valid create_device message\n");
 		return;
 	}
 	visorbus_device_create(&local_crash_dev_msg);
@@ -1350,7 +1350,7 @@ err_finish_ctx:
  *
  * Return:
  *	0	- Successfully processed the message
- *	-EAGAIN - ControlVM message was not processed and should be retried
+ *	-EAGAIN - ControlVM message was yest processed and should be retried
  *		  reading the next controlvm message; a scenario where this can
  *		  occur is when we need to throttle the allocation of memory in
  *		  which to copy out controlvm payload data.
@@ -1370,7 +1370,7 @@ static int handle_command(struct controlvm_message inmsg, u64 channel_addr)
 	parm_bytes = inmsg.hdr.payload_bytes;
 	/*
 	 * Parameter and channel addresses within test messages actually lie
-	 * within our OS-controlled memory. We need to know that, because it
+	 * within our OS-controlled memory. We need to kyesw that, because it
 	 * makes a difference in how we compute the virtual address.
 	 */
 	if (parm_bytes) {
@@ -1417,7 +1417,7 @@ static int handle_command(struct controlvm_message inmsg, u64 channel_addr)
 		err = visorbus_device_destroy(&inmsg);
 		break;
 	case CONTROLVM_DEVICE_CONFIGURE:
-		/* no op just send a respond that we passed */
+		/* yes op just send a respond that we passed */
 		if (inmsg.hdr.flags.response_expected)
 			controlvm_respond(&inmsg.hdr, CONTROLVM_RESP_SUCCESS,
 					  NULL);
@@ -1429,7 +1429,7 @@ static int handle_command(struct controlvm_message inmsg, u64 channel_addr)
 		err = chipset_selftest_uevent(&inmsg.hdr);
 		break;
 	case CONTROLVM_CHIPSET_STOP:
-		err = chipset_notready_uevent(&inmsg.hdr);
+		err = chipset_yestready_uevent(&inmsg.hdr);
 		break;
 	default:
 		err = -ENOMSG;
@@ -1536,7 +1536,7 @@ static void controlvm_periodic_work(struct work_struct *work)
 
 /*
  * The controlvm messages are sent in a bulk. If we start receiving messages, we
- * want the polling to be fast. If we do not receive any message for
+ * want the polling to be fast. If we do yest receive any message for
  * MIN_IDLE_SECONDS, we can slow down the polling.
  */
 schedule_out:

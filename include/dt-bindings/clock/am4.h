@@ -8,7 +8,7 @@
 #define AM4_CLKCTRL_OFFSET	0x20
 #define AM4_CLKCTRL_INDEX(offset)	((offset) - AM4_CLKCTRL_OFFSET)
 
-/* XXX: Compatibility part begin, remove this once compatibility support is no longer needed */
+/* XXX: Compatibility part begin, remove this once compatibility support is yes longer needed */
 
 /* l4_wkup clocks */
 #define AM4_ADC_TSC_CLKCTRL	AM4_CLKCTRL_INDEX(0x120)

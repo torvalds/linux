@@ -731,13 +731,13 @@ static inline int rdev_tx_control_port(struct cfg80211_registered_device *rdev,
 				       struct net_device *dev,
 				       const void *buf, size_t len,
 				       const u8 *dest, __be16 proto,
-				       const bool noencrypt)
+				       const bool yesencrypt)
 {
 	int ret;
 	trace_rdev_tx_control_port(&rdev->wiphy, dev, buf, len,
-				   dest, proto, noencrypt);
+				   dest, proto, yesencrypt);
 	ret = rdev->ops->tx_control_port(&rdev->wiphy, dev, buf, len,
-					 dest, proto, noencrypt);
+					 dest, proto, yesencrypt);
 	trace_rdev_return_int(&rdev->wiphy, ret);
 	return ret;
 }
@@ -908,12 +908,12 @@ static inline int rdev_probe_client(struct cfg80211_registered_device *rdev,
 	return ret;
 }
 
-static inline int rdev_set_noack_map(struct cfg80211_registered_device *rdev,
-				     struct net_device *dev, u16 noack_map)
+static inline int rdev_set_yesack_map(struct cfg80211_registered_device *rdev,
+				     struct net_device *dev, u16 yesack_map)
 {
 	int ret;
-	trace_rdev_set_noack_map(&rdev->wiphy, dev, noack_map);
-	ret = rdev->ops->set_noack_map(&rdev->wiphy, dev, noack_map);
+	trace_rdev_set_yesack_map(&rdev->wiphy, dev, yesack_map);
+	ret = rdev->ops->set_yesack_map(&rdev->wiphy, dev, yesack_map);
 	trace_rdev_return_int(&rdev->wiphy, ret);
 	return ret;
 }

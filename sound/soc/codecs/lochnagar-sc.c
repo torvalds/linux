@@ -212,7 +212,7 @@ static struct snd_soc_dai_driver lochnagar_sc_dai[] = {
 };
 
 static const struct snd_soc_component_driver lochnagar_sc_driver = {
-	.non_legacy_dai_naming = 1,
+	.yesn_legacy_dai_naming = 1,
 
 	.dapm_widgets = lochnagar_sc_widgets,
 	.num_dapm_widgets = ARRAY_SIZE(lochnagar_sc_widgets),

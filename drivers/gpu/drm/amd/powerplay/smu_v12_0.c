@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -127,7 +127,7 @@ int smu_v12_0_check_fw_version(struct smu_context *smu)
 {
 	uint32_t if_version = 0xff, smu_version = 0xff;
 	uint16_t smu_major;
-	uint8_t smu_minor, smu_debug;
+	uint8_t smu_miyesr, smu_debug;
 	int ret = 0;
 
 	ret = smu_get_smc_version(smu, &if_version, &smu_version);
@@ -135,11 +135,11 @@ int smu_v12_0_check_fw_version(struct smu_context *smu)
 		return ret;
 
 	smu_major = (smu_version >> 16) & 0xffff;
-	smu_minor = (smu_version >> 8) & 0xff;
+	smu_miyesr = (smu_version >> 8) & 0xff;
 	smu_debug = (smu_version >> 0) & 0xff;
 
 	/*
-	 * 1. if_version mismatch is not critical as our fw is designed
+	 * 1. if_version mismatch is yest critical as our fw is designed
 	 * to be backward compatible.
 	 * 2. New fw usually brings some optimizations. But that's visible
 	 * only on the paired driver.
@@ -150,8 +150,8 @@ int smu_v12_0_check_fw_version(struct smu_context *smu)
 		pr_info("smu driver if version = 0x%08x, smu fw if version = 0x%08x, "
 			"smu fw version = 0x%08x (%d.%d.%d)\n",
 			smu->smc_if_version, if_version,
-			smu_version, smu_major, smu_minor, smu_debug);
-		pr_warn("SMU driver if version not matched\n");
+			smu_version, smu_major, smu_miyesr, smu_debug);
+		pr_warn("SMU driver if version yest matched\n");
 	}
 
 	return ret;

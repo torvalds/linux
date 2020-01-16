@@ -6,7 +6,7 @@
  * with ARM GIC to wake the CPU out from low power states on
  * external interrupts. It is responsible for generating wakeup
  * event from the incoming interrupts and enable bits. It is
- * implemented in MPU always ON power domain. During normal operation,
+ * implemented in MPU always ON power domain. During yesrmal operation,
  * WakeupGen delivers external interrupts directly to the GIC.
  *
  * Copyright (C) 2011 Texas Instruments, Inc.
@@ -22,7 +22,7 @@
 #include <linux/of_address.h>
 #include <linux/platform_device.h>
 #include <linux/cpu.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/cpu_pm.h>
 
 #include "omap-wakeupgen.h"
@@ -251,8 +251,8 @@ static inline void omap4_irq_save_context(void)
 
 		/*
 		 * Disable the secure interrupts for CPUx. The restore
-		 * code blindly restores secure and non-secure interrupt
-		 * masks from SAR RAM. Secure interrupts are not suppose
+		 * code blindly restores secure and yesn-secure interrupt
+		 * masks from SAR RAM. Secure interrupts are yest suppose
 		 * to be enabled from HLOS. So overwrite the SAR location
 		 * so that the secure interrupt remains disabled.
 		 */
@@ -322,11 +322,11 @@ static inline void am43xx_irq_save_context(void)
  * interrupt wakeups from CPU low power states. It manages
  * masking/unmasking of Shared peripheral interrupts(SPI). So the
  * interrupt enable/disable control should be in sync and consistent
- * at WakeupGen and GIC so that interrupts are not lost.
+ * at WakeupGen and GIC so that interrupts are yest lost.
  */
 static void irq_save_context(void)
 {
-	/* DRA7 has no SAR to save */
+	/* DRA7 has yes SAR to save */
 	if (soc_is_dra7xx())
 		return;
 
@@ -341,7 +341,7 @@ static void irq_sar_clear(void)
 {
 	u32 val;
 	u32 offset = SAR_BACKUP_STATUS_OFFSET;
-	/* DRA7 has no SAR to save */
+	/* DRA7 has yes SAR to save */
 	if (soc_is_dra7xx())
 		return;
 
@@ -417,9 +417,9 @@ static int omap_wakeupgen_cpu_dead(unsigned int cpu)
 
 static void __init irq_hotplug_init(void)
 {
-	cpuhp_setup_state_nocalls(CPUHP_AP_ONLINE_DYN, "arm/omap-wake:online",
+	cpuhp_setup_state_yescalls(CPUHP_AP_ONLINE_DYN, "arm/omap-wake:online",
 				  omap_wakeupgen_cpu_online, NULL);
-	cpuhp_setup_state_nocalls(CPUHP_ARM_OMAP_WAKE_DEAD,
+	cpuhp_setup_state_yescalls(CPUHP_ARM_OMAP_WAKE_DEAD,
 				  "arm/omap-wake:dead", NULL,
 				  omap_wakeupgen_cpu_dead);
 }
@@ -429,7 +429,7 @@ static void __init irq_hotplug_init(void)
 #endif
 
 #ifdef CONFIG_CPU_PM
-static int irq_notifier(struct notifier_block *self, unsigned long cmd,	void *v)
+static int irq_yestifier(struct yestifier_block *self, unsigned long cmd,	void *v)
 {
 	switch (cmd) {
 	case CPU_CLUSTER_PM_ENTER:
@@ -446,15 +446,15 @@ static int irq_notifier(struct notifier_block *self, unsigned long cmd,	void *v)
 	return NOTIFY_OK;
 }
 
-static struct notifier_block irq_notifier_block = {
-	.notifier_call = irq_notifier,
+static struct yestifier_block irq_yestifier_block = {
+	.yestifier_call = irq_yestifier,
 };
 
 static void __init irq_pm_init(void)
 {
 	/* FIXME: Remove this when MPU OSWR support is added */
 	if (!IS_PM44XX_ERRATUM(PM_OMAP4_CPU_OSWR_DISABLE))
-		cpu_pm_register_notifier(&irq_notifier_block);
+		cpu_pm_register_yestifier(&irq_yestifier_block);
 }
 #else
 static void __init irq_pm_init(void)
@@ -489,7 +489,7 @@ static int wakeupgen_domain_translate(struct irq_domain *d,
 				      unsigned long *hwirq,
 				      unsigned int *type)
 {
-	if (is_of_node(fwspec->fwnode)) {
+	if (is_of_yesde(fwspec->fwyesde)) {
 		if (fwspec->param_count != 3)
 			return -EINVAL;
 
@@ -528,7 +528,7 @@ static int wakeupgen_domain_alloc(struct irq_domain *domain,
 					      &wakeupgen_chip, NULL);
 
 	parent_fwspec = *fwspec;
-	parent_fwspec.fwnode = domain->parent->fwnode;
+	parent_fwspec.fwyesde = domain->parent->fwyesde;
 	return irq_domain_alloc_irqs_parent(domain, virq, nr_irqs,
 					    &parent_fwspec);
 }
@@ -542,8 +542,8 @@ static const struct irq_domain_ops wakeupgen_domain_ops = {
 /*
  * Initialise the wakeupgen module.
  */
-static int __init wakeupgen_init(struct device_node *node,
-				 struct device_node *parent)
+static int __init wakeupgen_init(struct device_yesde *yesde,
+				 struct device_yesde *parent)
 {
 	struct irq_domain *parent_domain, *domain;
 	int i;
@@ -551,13 +551,13 @@ static int __init wakeupgen_init(struct device_node *node,
 	u32 val;
 
 	if (!parent) {
-		pr_err("%pOF: no parent, giving up\n", node);
+		pr_err("%pOF: yes parent, giving up\n", yesde);
 		return -ENODEV;
 	}
 
 	parent_domain = irq_find_host(parent);
 	if (!parent_domain) {
-		pr_err("%pOF: unable to obtain parent domain\n", node);
+		pr_err("%pOF: unable to obtain parent domain\n", yesde);
 		return -ENXIO;
 	}
 	/* Not supported on OMAP4 ES1.0 silicon */
@@ -567,7 +567,7 @@ static int __init wakeupgen_init(struct device_node *node,
 	}
 
 	/* Static mapping, never released */
-	wakeupgen_base = of_iomap(node, 0);
+	wakeupgen_base = of_iomap(yesde, 0);
 	if (WARN_ON(!wakeupgen_base))
 		return -ENOMEM;
 
@@ -585,7 +585,7 @@ static int __init wakeupgen_init(struct device_node *node,
 	}
 
 	domain = irq_domain_add_hierarchy(parent_domain, 0, max_irqs,
-					  node, &wakeupgen_domain_ops,
+					  yesde, &wakeupgen_domain_ops,
 					  NULL);
 	if (!domain) {
 		iounmap(wakeupgen_base);
@@ -615,7 +615,7 @@ static int __init wakeupgen_init(struct device_node *node,
 	 * independently.
 	 * This needs to be set one time thanks to always ON domain.
 	 *
-	 * We do not support ES1 behavior anymore. OMAP5 is assumed to be
+	 * We do yest support ES1 behavior anymore. OMAP5 is assumed to be
 	 * ES2.0, and the same is applicable for DRA7.
 	 */
 	if (soc_is_omap54xx() || soc_is_dra7xx()) {

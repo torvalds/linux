@@ -15,7 +15,7 @@
 static struct page *vdso_page;
 
 /* Create a vDSO page holding the signal trampoline.
- * We want this for a non-executable stack.
+ * We want this for a yesn-executable stack.
  */
 static int __init vdso_init(void)
 {
@@ -23,11 +23,11 @@ static int __init vdso_init(void)
 
 	vdso_page = alloc_page(GFP_KERNEL);
 	if (!vdso_page)
-		panic("Cannot allocate vdso");
+		panic("Canyest allocate vdso");
 
 	vdso = vmap(&vdso_page, 1, 0, PAGE_KERNEL);
 	if (!vdso)
-		panic("Cannot map vdso");
+		panic("Canyest map vdso");
 	clear_page(vdso);
 
 	/* Install the signal trampoline; currently looks like this:

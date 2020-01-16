@@ -37,7 +37,7 @@ static ssize_t do_coredump_read(int num, struct spu_context *ctx, void *buffer,
 	return ++ret; /* count trailing NULL */
 }
 
-static int spufs_ctx_note_size(struct spu_context *ctx, int dfd)
+static int spufs_ctx_yeste_size(struct spu_context *ctx, int dfd)
 {
 	int i, sz, total = 0;
 	char *name;
@@ -49,7 +49,7 @@ static int spufs_ctx_note_size(struct spu_context *ctx, int dfd)
 
 		sprintf(fullname, "SPU/%d/%s", dfd, name);
 
-		total += sizeof(struct elf_note);
+		total += sizeof(struct elf_yeste);
 		total += roundup(strlen(fullname) + 1, 4);
 		total += roundup(sz, 4);
 	}
@@ -62,14 +62,14 @@ static int match_context(const void *v, struct file *file, unsigned fd)
 	struct spu_context *ctx;
 	if (file->f_op != &spufs_context_fops)
 		return 0;
-	ctx = SPUFS_I(file_inode(file))->i_ctx;
+	ctx = SPUFS_I(file_iyesde(file))->i_ctx;
 	if (ctx->flags & SPU_CREATE_NOSCHED)
 		return 0;
 	return fd + 1;
 }
 
 /*
- * The additional architecture-specific notes for Cell are various
+ * The additional architecture-specific yestes for Cell are various
  * context files in the spu context.
  *
  * This function iterates over all open file descriptors and sees
@@ -78,7 +78,7 @@ static int match_context(const void *v, struct file *file, unsigned fd)
  * open the files.
  */
 /*
- * descriptor table is not shared, so files can't change or go away.
+ * descriptor table is yest shared, so files can't change or go away.
  */
 static struct spu_context *coredump_next_context(int *fd)
 {
@@ -88,10 +88,10 @@ static struct spu_context *coredump_next_context(int *fd)
 		return NULL;
 	*fd = n - 1;
 	file = fcheck(*fd);
-	return SPUFS_I(file_inode(file))->i_ctx;
+	return SPUFS_I(file_iyesde(file))->i_ctx;
 }
 
-int spufs_coredump_extra_notes_size(void)
+int spufs_coredump_extra_yestes_size(void)
 {
 	struct spu_context *ctx;
 	int size = 0, rc, fd;
@@ -101,7 +101,7 @@ int spufs_coredump_extra_notes_size(void)
 		rc = spu_acquire_saved(ctx);
 		if (rc)
 			break;
-		rc = spufs_ctx_note_size(ctx, fd);
+		rc = spufs_ctx_yeste_size(ctx, fd);
 		spu_release_saved(ctx);
 		if (rc < 0)
 			break;
@@ -115,7 +115,7 @@ int spufs_coredump_extra_notes_size(void)
 	return size;
 }
 
-static int spufs_arch_write_note(struct spu_context *ctx, int i,
+static int spufs_arch_write_yeste(struct spu_context *ctx, int i,
 				  struct coredump_params *cprm, int dfd)
 {
 	loff_t pos = 0;
@@ -123,7 +123,7 @@ static int spufs_arch_write_note(struct spu_context *ctx, int i,
 	const int bufsz = PAGE_SIZE;
 	char *name;
 	char fullname[80], *buf;
-	struct elf_note en;
+	struct elf_yeste en;
 	size_t skip;
 
 	buf = (void *)get_zeroed_page(GFP_KERNEL);
@@ -172,7 +172,7 @@ Eio:
 	return -EIO;
 }
 
-int spufs_coredump_extra_notes_write(struct coredump_params *cprm)
+int spufs_coredump_extra_yestes_write(struct coredump_params *cprm)
 {
 	struct spu_context *ctx;
 	int fd, j, rc;
@@ -184,7 +184,7 @@ int spufs_coredump_extra_notes_write(struct coredump_params *cprm)
 			return rc;
 
 		for (j = 0; spufs_coredump_read[j].name != NULL; j++) {
-			rc = spufs_arch_write_note(ctx, j, cprm, fd);
+			rc = spufs_arch_write_yeste(ctx, j, cprm, fd);
 			if (rc) {
 				spu_release_saved(ctx);
 				return rc;

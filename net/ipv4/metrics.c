@@ -34,7 +34,7 @@ static int ip_metrics_convert(struct net *net, struct nlattr *fc_mx,
 			nla_strlcpy(tmp, nla, sizeof(tmp));
 			val = tcp_ca_get_key_by_name(net, tmp, &ecn_ca);
 			if (val == TCP_CA_UNSPEC) {
-				NL_SET_ERR_MSG(extack, "Unknown tcp congestion algorithm");
+				NL_SET_ERR_MSG(extack, "Unkyeswn tcp congestion algorithm");
 				return -EINVAL;
 			}
 		} else {
@@ -52,7 +52,7 @@ static int ip_metrics_convert(struct net *net, struct nlattr *fc_mx,
 		if (type == RTAX_HOPLIMIT && val > 255)
 			val = 255;
 		if (type == RTAX_FEATURES && (val & ~RTAX_FEATURE_MASK)) {
-			NL_SET_ERR_MSG(extack, "Unknown flag set in feature mask in metrics attribute");
+			NL_SET_ERR_MSG(extack, "Unkyeswn flag set in feature mask in metrics attribute");
 			return -EINVAL;
 		}
 		metrics[type - 1] = val;

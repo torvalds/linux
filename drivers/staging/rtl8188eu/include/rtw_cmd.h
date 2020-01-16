@@ -38,7 +38,7 @@ struct cmd_priv {
 	struct adapter *padapter;
 };
 
-#define init_h2fwcmd_w_parm_no_rsp(pcmd, pparm, code) \
+#define init_h2fwcmd_w_parm_yes_rsp(pcmd, pparm, code) \
 do {\
 	INIT_LIST_HEAD(&pcmd->list);\
 	pcmd->cmdcode = code;\
@@ -151,7 +151,7 @@ struct setauth_parm {
  *
  */
 struct setkey_parm {
-	u8	algorithm;	/* could be none, wep40, TKIP, CCMP, wep104 */
+	u8	algorithm;	/* could be yesne, wep40, TKIP, CCMP, wep104 */
 	u8	keyid;
 	u8	grpkey;		/* 1: this is the grpkey for 802.1x.
 				 * 0: this is the unicast key for 802.1x
@@ -238,9 +238,9 @@ struct set_assocsta_rsp {
  *	event:			parm:
  *		mac[0]  =   mac[5];
  *		mac[1]  =   mac[4];
- *		mac[2]  =   event's seq no, starting from 1 to parm's marc[3]
- *		mac[2]  =   event's seq no, starting from 1 to parm's marc[3]
- *		mac[2]  =   event's seq no, starting from 1 to parm's marc[3]
+ *		mac[2]  =   event's seq yes, starting from 1 to parm's marc[3]
+ *		mac[2]  =   event's seq yes, starting from 1 to parm's marc[3]
+ *		mac[2]  =   event's seq yes, starting from 1 to parm's marc[3]
  *		mac[3]  =   mac[2];
  *		mac[4]  =   mac[1];
  *		mac[5]  =   mac[0];
@@ -285,7 +285,7 @@ struct SetChannelPlan_param {
  * Result:
  * 0x00: success
  * 0x01: success, and check Response.
- * 0x02: cmd ignored due to duplicated sequcne number
+ * 0x02: cmd igyesred due to duplicated sequcne number
  * 0x03: cmd dropped due to invalid cmd code
  * 0x04: reserved.
  *

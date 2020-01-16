@@ -2,7 +2,7 @@
 //
 // MCP16502 PMIC driver
 //
-// Copyright (C) 2018 Microchip Technology Inc. and its subsidiaries
+// Copyright (C) 2018 Microchip Techyeslogy Inc. and its subsidiaries
 //
 // Author: Andrei Stefanescu <andrei.stefanescu@microchip.com>
 //
@@ -86,7 +86,7 @@ static unsigned int mcp16502_of_map_mode(unsigned int mode)
 #define MCP16502_REGULATOR(_name, _id, _ranges, _ops)			\
 	[_id] = {							\
 		.name			= _name,			\
-		.regulators_node	= of_match_ptr("regulators"),	\
+		.regulators_yesde	= of_match_ptr("regulators"),	\
 		.id			= _id,				\
 		.ops			= &(_ops),			\
 		.type			= REGULATOR_VOLTAGE,		\
@@ -167,7 +167,7 @@ static int mcp16502_get_reg(struct regulator_dev *rdev, int opmode)
 /*
  * mcp16502_get_mode() - return the current operating mode of a regulator
  *
- * Note: all functions that are not part of entering/exiting standby/suspend
+ * Note: all functions that are yest part of entering/exiting standby/suspend
  *	 use the Active mode registers.
  *
  * Note: this is different from the PMIC's operatig mode, it is the
@@ -366,7 +366,7 @@ static const struct regulator_ops mcp16502_buck_ops = {
 };
 
 /*
- * LDOs cannot change operating modes.
+ * LDOs canyest change operating modes.
  */
 static const struct regulator_ops mcp16502_ldo_ops = {
 	.list_voltage			= regulator_list_voltage_linear_range,
@@ -413,9 +413,9 @@ static const struct regmap_range mcp16502_ranges[] = {
 	regmap_reg_range(MCP16502_MIN_REG, MCP16502_MAX_REG)
 };
 
-static const struct regmap_access_table mcp16502_yes_reg_table = {
-	.yes_ranges = mcp16502_ranges,
-	.n_yes_ranges = ARRAY_SIZE(mcp16502_ranges),
+static const struct regmap_access_table mcp16502_no_reg_table = {
+	.no_ranges = mcp16502_ranges,
+	.n_no_ranges = ARRAY_SIZE(mcp16502_ranges),
 };
 
 static const struct regmap_config mcp16502_regmap_config = {
@@ -423,8 +423,8 @@ static const struct regmap_config mcp16502_regmap_config = {
 	.val_bits	= 8,
 	.max_register	= MCP16502_MAX_REG,
 	.cache_type	= REGCACHE_NONE,
-	.rd_table	= &mcp16502_yes_reg_table,
-	.wr_table	= &mcp16502_yes_reg_table,
+	.rd_table	= &mcp16502_no_reg_table,
+	.wr_table	= &mcp16502_no_reg_table,
 };
 
 static int mcp16502_probe(struct i2c_client *client,
@@ -477,7 +477,7 @@ static int mcp16502_probe(struct i2c_client *client,
 }
 
 #ifdef CONFIG_PM_SLEEP
-static int mcp16502_suspend_noirq(struct device *dev)
+static int mcp16502_suspend_yesirq(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct mcp16502 *mcp = i2c_get_clientdata(client);
@@ -487,7 +487,7 @@ static int mcp16502_suspend_noirq(struct device *dev)
 	return 0;
 }
 
-static int mcp16502_resume_noirq(struct device *dev)
+static int mcp16502_resume_yesirq(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct mcp16502 *mcp = i2c_get_clientdata(client);
@@ -500,8 +500,8 @@ static int mcp16502_resume_noirq(struct device *dev)
 
 #ifdef CONFIG_PM
 static const struct dev_pm_ops mcp16502_pm_ops = {
-	SET_NOIRQ_SYSTEM_SLEEP_PM_OPS(mcp16502_suspend_noirq,
-				      mcp16502_resume_noirq)
+	SET_NOIRQ_SYSTEM_SLEEP_PM_OPS(mcp16502_suspend_yesirq,
+				      mcp16502_resume_yesirq)
 };
 #endif
 static const struct i2c_device_id mcp16502_i2c_id[] = {

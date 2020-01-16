@@ -9,9 +9,9 @@ static struct callback_head work_exited; /* all we need is ->next == NULL */
  * task_work_add - ask the @task to execute @work->func()
  * @task: the task which should run the callback
  * @work: the callback to run
- * @notify: send the notification if true
+ * @yestify: send the yestification if true
  *
- * Queue @work for task_work_run() below and notify the @task if @notify.
+ * Queue @work for task_work_run() below and yestify the @task if @yestify.
  * Fails if the @task is exiting/exited and thus it can't process this @work.
  * Otherwise @work->func() will be called when the @task returns from kernel
  * mode or exits.
@@ -19,13 +19,13 @@ static struct callback_head work_exited; /* all we need is ->next == NULL */
  * This is like the signal handler which runs in kernel mode, but it doesn't
  * try to wake up the @task.
  *
- * Note: there is no ordering guarantee on works queued here.
+ * Note: there is yes ordering guarantee on works queued here.
  *
  * RETURNS:
  * 0 if succeeds or -ESRCH.
  */
 int
-task_work_add(struct task_struct *task, struct callback_head *work, bool notify)
+task_work_add(struct task_struct *task, struct callback_head *work, bool yestify)
 {
 	struct callback_head *head;
 
@@ -36,8 +36,8 @@ task_work_add(struct task_struct *task, struct callback_head *work, bool notify)
 		work->next = head;
 	} while (cmpxchg(&task->task_works, head, work) != head);
 
-	if (notify)
-		set_notify_resume(task);
+	if (yestify)
+		set_yestify_resume(task);
 	return 0;
 }
 
@@ -50,7 +50,7 @@ task_work_add(struct task_struct *task, struct callback_head *work, bool notify)
  * it from queue.
  *
  * RETURNS:
- * The found work or NULL if not found.
+ * The found work or NULL if yest found.
  */
 struct callback_head *
 task_work_cancel(struct task_struct *task, task_work_func_t func)
@@ -84,7 +84,7 @@ task_work_cancel(struct task_struct *task, task_work_func_t func)
  *
  * Flush the pending works. Should be used by the core kernel code.
  * Called before the task returns to the user-mode or stops, or when
- * it exits. In the latter case task_work_add() can no longer add the
+ * it exits. In the latter case task_work_add() can yes longer add the
  * new work after task_work_run() returns.
  */
 void task_work_run(void)
@@ -94,7 +94,7 @@ void task_work_run(void)
 
 	for (;;) {
 		/*
-		 * work->func() can do task_work_add(), do not set
+		 * work->func() can do task_work_add(), do yest set
 		 * work_exited unless the list is empty.
 		 */
 		raw_spin_lock_irq(&task->pi_lock);

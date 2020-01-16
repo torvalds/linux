@@ -29,7 +29,7 @@ pgd_t *get_pgd_slow(struct mm_struct *mm)
 
 	new_pgd = (pgd_t *)__get_free_pages(GFP_KERNEL, 0);
 	if (!new_pgd)
-		goto no_pgd;
+		goto yes_pgd;
 
 	memset(new_pgd, 0, FIRST_KERNEL_PGD_NR * sizeof(pgd_t));
 
@@ -49,11 +49,11 @@ pgd_t *get_pgd_slow(struct mm_struct *mm)
 		 */
 		new_pmd = pmd_alloc(mm, (pud_t *)new_pgd, 0);
 		if (!new_pmd)
-			goto no_pmd;
+			goto yes_pmd;
 
 		new_pte = pte_alloc_map(mm, new_pmd, 0);
 		if (!new_pte)
-			goto no_pte;
+			goto yes_pte;
 
 		init_pmd = pmd_offset((pud_t *)init_pgd, 0);
 		init_pte = pte_offset_map(init_pmd, 0);
@@ -64,12 +64,12 @@ pgd_t *get_pgd_slow(struct mm_struct *mm)
 
 	return new_pgd;
 
-no_pte:
+yes_pte:
 	pmd_free(mm, new_pmd);
 	mm_dec_nr_pmds(mm);
-no_pmd:
+yes_pmd:
 	free_pages((unsigned long)new_pgd, 0);
-no_pgd:
+yes_pgd:
 	return NULL;
 }
 
@@ -83,7 +83,7 @@ void free_pgd_slow(struct mm_struct *mm, pgd_t *pgd)
 
 	/* pgd is always present and good */
 	pmd = pmd_off(pgd, 0);
-	if (pmd_none(*pmd))
+	if (pmd_yesne(*pmd))
 		goto free;
 	if (pmd_bad(*pmd)) {
 		pmd_ERROR(*pmd);

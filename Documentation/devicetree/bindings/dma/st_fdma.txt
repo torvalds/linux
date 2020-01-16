@@ -56,7 +56,7 @@ Each dmas request consists of 4 cells:
 	0x0: disabled
 	0x1: enabled
  -bit 21: Increment Address
-	0x0: no address increment between transfers
+	0x0: yes address increment between transfers
 	0x1: increment address between transfers
  -bit 22: 2 STBus Initiator Coprocessor interface
 	0x0: high priority port

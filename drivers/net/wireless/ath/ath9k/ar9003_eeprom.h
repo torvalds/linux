@@ -3,7 +3,7 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright yestice and this permission yestice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
@@ -55,7 +55,7 @@
 
 /* Delta from which to start power to pdadc table */
 /* This offset is used in both open loop and closed loop power control
- * schemes. In open loop power control, it is not really needed, but for
+ * schemes. In open loop power control, it is yest really needed, but for
  * the "sake of consistency" it was kept. For certain AP designs, this
  * value is overwritten by the value in the flag "pwrTableOffset" just
  * before writing the pdadc vs pwr into the chip registers.
@@ -79,7 +79,7 @@
 #define AR9300_BASE_ADDR 0x3ff
 #define AR9300_BASE_ADDR_512 0x1ff
 
-/* AR5416_EEPMISC_BIG_ENDIAN not set indicates little endian */
+/* AR5416_EEPMISC_BIG_ENDIAN yest set indicates little endian */
 #define AR9300_EEPMISC_LITTLE_ENDIAN 0
 
 #define AR9300_OTP_BASE \
@@ -231,7 +231,7 @@ struct ar9300_modal_eep_header {
 	/* spur channels in usual fbin coding format */
 	u8 spurChans[AR_EEPROM_MODAL_SPURS];
 	/* 3  Check if the register is per chain */
-	int8_t noiseFloorThreshCh[AR9300_MAX_CHAINS];
+	int8_t yesiseFloorThreshCh[AR9300_MAX_CHAINS];
 	u8 reserved[11];
 	int8_t quick_drop;
 	u8 xpaBiasLvl;
@@ -260,9 +260,9 @@ struct ar9300_cal_data_per_freq_op_loop {
 	u8 tempMeas;
 	/* range is -60 to -127 create a mapping equation 1db resolution */
 	int8_t rxNoisefloorCal;
-	/*range is same as noisefloor */
+	/*range is same as yesisefloor */
 	int8_t rxNoisefloorPower;
-	/* temp measured when noisefloor cal was performed */
+	/* temp measured when yesisefloor cal was performed */
 	u8 rxTempMeas;
 } __packed;
 

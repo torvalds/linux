@@ -21,7 +21,7 @@
  * @our_gpio: GPIO descriptor we'll use to claim.
  * @their_gpio: GPIO descriptor that the other side will use to claim.
  * @slew_delay_us: microseconds to wait for a GPIO to go high.
- * @wait_retry_us: we'll attempt another claim after this many microseconds.
+ * @wait_retry_us: we'll attempt ayesther claim after this many microseconds.
  * @wait_free_us: we'll give up after this many microseconds.
  */
 
@@ -73,7 +73,7 @@ static int i2c_arbitrator_select(struct i2c_mux_core *muxc, u32 chan)
 	/* Give up, release our claim */
 	gpiod_set_value(arb->our_gpio, 0);
 	udelay(arb->slew_delay_us);
-	dev_err(muxc->dev, "Could not claim bus, timeout\n");
+	dev_err(muxc->dev, "Could yest claim bus, timeout\n");
 	return -EBUSY;
 }
 
@@ -86,7 +86,7 @@ static int i2c_arbitrator_deselect(struct i2c_mux_core *muxc, u32 chan)
 {
 	const struct i2c_arbitrator_data *arb = i2c_mux_priv(muxc);
 
-	/* Release the bus and wait for the other master to notice */
+	/* Release the bus and wait for the other master to yestice */
 	gpiod_set_value(arb->our_gpio, 0);
 	udelay(arb->slew_delay_us);
 
@@ -96,20 +96,20 @@ static int i2c_arbitrator_deselect(struct i2c_mux_core *muxc, u32 chan)
 static int i2c_arbitrator_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
-	struct device_node *parent_np;
+	struct device_yesde *np = dev->of_yesde;
+	struct device_yesde *parent_np;
 	struct i2c_mux_core *muxc;
 	struct i2c_arbitrator_data *arb;
 	struct gpio_desc *dummy;
 	int ret;
 
-	/* We only support probing from device tree; no platform_data */
+	/* We only support probing from device tree; yes platform_data */
 	if (!np) {
-		dev_err(dev, "Cannot find device tree node\n");
+		dev_err(dev, "Canyest find device tree yesde\n");
 		return -ENODEV;
 	}
 	if (dev_get_platdata(dev)) {
-		dev_err(dev, "Platform data is not supported\n");
+		dev_err(dev, "Platform data is yest supported\n");
 		return -EINVAL;
 	}
 
@@ -124,14 +124,14 @@ static int i2c_arbitrator_probe(struct platform_device *pdev)
 	/* Request GPIOs, our GPIO as unclaimed to begin with */
 	arb->our_gpio = devm_gpiod_get(dev, "our-claim", GPIOD_OUT_LOW);
 	if (IS_ERR(arb->our_gpio)) {
-		dev_err(dev, "could not get \"our-claim\" GPIO (%ld)\n",
+		dev_err(dev, "could yest get \"our-claim\" GPIO (%ld)\n",
 			PTR_ERR(arb->our_gpio));
 		return PTR_ERR(arb->our_gpio);
 	}
 
 	arb->their_gpio = devm_gpiod_get(dev, "their-claim", GPIOD_IN);
 	if (IS_ERR(arb->their_gpio)) {
-		dev_err(dev, "could not get \"their-claim\" GPIO (%ld)\n",
+		dev_err(dev, "could yest get \"their-claim\" GPIO (%ld)\n",
 			PTR_ERR(arb->their_gpio));
 		return PTR_ERR(arb->their_gpio);
 	}
@@ -156,13 +156,13 @@ static int i2c_arbitrator_probe(struct platform_device *pdev)
 	/* Find our parent */
 	parent_np = of_parse_phandle(np, "i2c-parent", 0);
 	if (!parent_np) {
-		dev_err(dev, "Cannot parse i2c-parent\n");
+		dev_err(dev, "Canyest parse i2c-parent\n");
 		return -EINVAL;
 	}
-	muxc->parent = of_get_i2c_adapter_by_node(parent_np);
-	of_node_put(parent_np);
+	muxc->parent = of_get_i2c_adapter_by_yesde(parent_np);
+	of_yesde_put(parent_np);
 	if (!muxc->parent) {
-		dev_err(dev, "Cannot find parent bus\n");
+		dev_err(dev, "Canyest find parent bus\n");
 		return -EPROBE_DEFER;
 	}
 

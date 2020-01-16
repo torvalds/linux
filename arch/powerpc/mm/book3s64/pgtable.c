@@ -27,7 +27,7 @@ EXPORT_SYMBOL(__pmd_frag_size_shift);
 #ifdef CONFIG_TRANSPARENT_HUGEPAGE
 /*
  * This is called when relaxing access to a hugepage. It's also called in the page
- * fault path when we don't hit any of the major fault cases, ie, a minor
+ * fault path when we don't hit any of the major fault cases, ie, a miyesr
  * update of _PAGE_ACCESSED, _PAGE_DIRTY, etc... The generic code will have
  * handled those two for us, we additionally deal with missing execute
  * permission here on some processors
@@ -58,7 +58,7 @@ int pmdp_test_and_clear_young(struct vm_area_struct *vma,
 	return __pmdp_test_and_clear_young(vma->vm_mm, address, pmdp);
 }
 /*
- * set a new huge pmd. We should not be called for updating
+ * set a new huge pmd. We should yest be called for updating
  * an existing pmd entry. That should go via pmd_hugepage_update.
  */
 void set_pmd_at(struct mm_struct *mm, unsigned long addr,
@@ -66,11 +66,11 @@ void set_pmd_at(struct mm_struct *mm, unsigned long addr,
 {
 #ifdef CONFIG_DEBUG_VM
 	/*
-	 * Make sure hardware valid bit is not set. We don't do
+	 * Make sure hardware valid bit is yest set. We don't do
 	 * tlb flush for this update.
 	 */
 
-	WARN_ON(pte_hw_valid(pmd_pte(*pmdp)) && !pte_protnone(pmd_pte(*pmdp)));
+	WARN_ON(pte_hw_valid(pmd_pte(*pmdp)) && !pte_protyesne(pmd_pte(*pmdp)));
 	assert_spin_locked(pmd_lockptr(mm, pmdp));
 	WARN_ON(!(pmd_large(pmd)));
 #endif
@@ -78,7 +78,7 @@ void set_pmd_at(struct mm_struct *mm, unsigned long addr,
 	return set_pte_at(mm, addr, pmdp_ptep(pmdp), pmd_pte(pmd));
 }
 
-static void do_nothing(void *unused)
+static void do_yesthing(void *unused)
 {
 
 }
@@ -95,7 +95,7 @@ static void do_nothing(void *unused)
 void serialize_against_pte_lookup(struct mm_struct *mm)
 {
 	smp_mb();
-	smp_call_function_many(mm_cpumask(mm), do_nothing, NULL, 1);
+	smp_call_function_many(mm_cpumask(mm), do_yesthing, NULL, 1);
 }
 
 /*
@@ -194,7 +194,7 @@ void __init mmu_partition_table_init(void)
 	unsigned long ptcr;
 
 	BUILD_BUG_ON_MSG((PATB_SIZE_SHIFT > 36), "Partition table size too large.");
-	/* Initialize the Partition Table with no entries */
+	/* Initialize the Partition Table with yes entries */
 	partition_tb = memblock_alloc(patb_size, patb_size);
 	if (!partition_tb)
 		panic("%s: Failed to allocate %lu bytes align=0x%lx\n",
@@ -205,7 +205,7 @@ void __init mmu_partition_table_init(void)
 	 * 64 K size.
 	 */
 	ptcr = __pa(partition_tb) | (PATB_SIZE_SHIFT - 12);
-	set_ptcr_when_no_uv(ptcr);
+	set_ptcr_when_yes_uv(ptcr);
 	powernv_set_nmmu_ptcr(ptcr);
 }
 
@@ -232,11 +232,11 @@ void mmu_partition_table_set_entry(unsigned int lpid, unsigned long dw0,
 	/*
 	 * When ultravisor is enabled, the partition table is stored in secure
 	 * memory and can only be accessed doing an ultravisor call. However, we
-	 * maintain a copy of the partition table in normal memory to allow Nest
-	 * MMU translations to occur (for normal VMs).
+	 * maintain a copy of the partition table in yesrmal memory to allow Nest
+	 * MMU translations to occur (for yesrmal VMs).
 	 *
 	 * Therefore, here we always update partition_tb, regardless of whether
-	 * we are running under an ultravisor or not.
+	 * we are running under an ultravisor or yest.
 	 */
 	partition_tb[lpid].patb0 = cpu_to_be64(dw0);
 	partition_tb[lpid].patb1 = cpu_to_be64(dw1);
@@ -246,7 +246,7 @@ void mmu_partition_table_set_entry(unsigned int lpid, unsigned long dw0,
 	 * partition table entry (PATE), which also do a global flush of TLBs
 	 * and partition table caches for the lpid. Otherwise, just do the
 	 * flush. The type of flush (hash or radix) depends on what the previous
-	 * use of the partition ID was, not the new use.
+	 * use of the partition ID was, yest the new use.
 	 */
 	if (firmware_has_feature(FW_FEATURE_ULTRAVISOR)) {
 		uv_register_pate(lpid, dw0, dw1);
@@ -254,7 +254,7 @@ void mmu_partition_table_set_entry(unsigned int lpid, unsigned long dw0,
 			dw0, dw1);
 	} else if (flush) {
 		/*
-		 * Boot does not need to flush, because MMU is off and each
+		 * Boot does yest need to flush, because MMU is off and each
 		 * CPU does a tlbiel_all() before switching them on, which
 		 * flushes everything.
 		 */
@@ -430,7 +430,7 @@ pte_t ptep_modify_prot_start(struct vm_area_struct *vma, unsigned long addr,
 	unsigned long pte_val;
 
 	/*
-	 * Clear the _PAGE_PRESENT so that no hardware parallel update is
+	 * Clear the _PAGE_PRESENT so that yes hardware parallel update is
 	 * possible. Also keep the pte_present true so that we don't take
 	 * wrong fault.
 	 */
@@ -458,15 +458,15 @@ void ptep_modify_prot_commit(struct vm_area_struct *vma, unsigned long addr,
  * pmd page. Hence if we have different pmd page we need to withdraw during pmd
  * move.
  *
- * With hash we use deposited table always irrespective of anon or not.
- * With radix we use deposited table only for anonymous mapping.
+ * With hash we use deposited table always irrespective of ayesn or yest.
+ * With radix we use deposited table only for ayesnymous mapping.
  */
 int pmd_move_must_withdraw(struct spinlock *new_pmd_ptl,
 			   struct spinlock *old_pmd_ptl,
 			   struct vm_area_struct *vma)
 {
 	if (radix_enabled())
-		return (new_pmd_ptl != old_pmd_ptl) && vma_is_anonymous(vma);
+		return (new_pmd_ptl != old_pmd_ptl) && vma_is_ayesnymous(vma);
 
 	return true;
 }
@@ -504,8 +504,8 @@ static int __init pgtable_debugfs_setup(void)
 		return 0;
 
 	/*
-	 * There is no locking vs tlb flushing when changing this value.
-	 * The tlb flushers will see one value or another, and use either
+	 * There is yes locking vs tlb flushing when changing this value.
+	 * The tlb flushers will see one value or ayesther, and use either
 	 * tlbie or tlbiel with IPIs. In both cases the TLBs will be
 	 * invalidated as expected.
 	 */

@@ -73,7 +73,7 @@ module_frob_arch_sections(Elf64_Ehdr *hdr, Elf64_Shdr *sechdrs,
 	symtab = got = NULL;
 
 	/* Find out how large the symbol table is.  Allocate one got_entry
-	   head per symbol.  Normally this will be enough, but not always.
+	   head per symbol.  Normally this will be eyesugh, but yest always.
 	   We'll chain different offsets for the symbol down each head.  */
 	for (s = sechdrs; s < esechdrs; ++s)
 		if (s->sh_type == SHT_SYMTAB)
@@ -84,11 +84,11 @@ module_frob_arch_sections(Elf64_Ehdr *hdr, Elf64_Shdr *sechdrs,
 		}
 
 	if (!symtab) {
-		printk(KERN_ERR "module %s: no symbol table\n", me->name);
+		printk(KERN_ERR "module %s: yes symbol table\n", me->name);
 		return -ENOEXEC;
 	}
 	if (!got) {
-		printk(KERN_ERR "module %s: no got section\n", me->name);
+		printk(KERN_ERR "module %s: yes got section\n", me->name);
 		return -ENOEXEC;
 	}
 
@@ -96,7 +96,7 @@ module_frob_arch_sections(Elf64_Ehdr *hdr, Elf64_Shdr *sechdrs,
 	chains = kcalloc(nsyms, sizeof(struct got_entry), GFP_KERNEL);
 	if (!chains) {
 		printk(KERN_ERR
-		       "module %s: no memory for symbol chain buffer\n",
+		       "module %s: yes memory for symbol chain buffer\n",
 		       me->name);
 		return -ENOMEM;
 	}
@@ -253,7 +253,7 @@ apply_relocate_add(Elf64_Shdr *sechdrs, const char *strtab,
 			*(u16 *)location = value;
 			break;
 		default:
-			printk(KERN_ERR "module %s: Unknown relocation: %lu\n",
+			printk(KERN_ERR "module %s: Unkyeswn relocation: %lu\n",
 			       me->name, r_type);
 			return -ENOEXEC;
 		reloc_overflow:

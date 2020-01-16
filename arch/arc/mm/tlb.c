@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * TLB Management (flush/create/diagnostics) for ARC700
+ * TLB Management (flush/create/diagyesstics) for ARC700
  *
- * Copyright (C) 2004, 2007-2010, 2011-2012 Synopsys, Inc. (www.synopsys.com)
+ * Copyright (C) 2004, 2007-2010, 2011-2012 Syyespsys, Inc. (www.syyespsys.com)
  *
  * vineetg: Aug 2011
  *  -Reintroduce duplicate PD fixup - some customer chips still have the issue
@@ -20,10 +20,10 @@
  *
  * vineetg: April 2011 : Preparing for MMU V3
  *  -MMU v2/v3 BCRs decoded differently
- *  -Remove TLB_SIZE hardcoding as it's variable now: 256 or 512
+ *  -Remove TLB_SIZE hardcoding as it's variable yesw: 256 or 512
  *  -tlb_entry_erase( ) can be void
  *  -local_flush_tlb_range( ):
- *      = need not "ceil" @end
+ *      = need yest "ceil" @end
  *      = walks MMU only if range spans < 32 entries, as opposed to 256
  *
  * Vineetg: Sept 10th 2008
@@ -45,7 +45,7 @@
  *    Problem: tlb_flush_kernel_range() doesn't do anything if the range to
  *              flush is more than the size of TLB itself.
  *
- * Rahul Trivedi : Codito Technologies 2004
+ * Rahul Trivedi : Codito Techyeslogies 2004
  */
 
 #include <linux/module.h>
@@ -67,13 +67,13 @@
  * Although J-TLB is 2 way set assoc, ARC700 caches J-TLB into uTLBS which has
  * much higher associativity. u-D-TLB is 8 ways, u-I-TLB is 4 ways.
  * Given this, the thrasing problem should never happen because once the 3
- * J-TLB entries are created (even though 3rd will knock out one of the prev
+ * J-TLB entries are created (even though 3rd will kyesck out one of the prev
  * two), the u-D-TLB and u-I-TLB will have what is required to accomplish memcpy
  *
  * Yet we still see the Thrashing because a J-TLB Write cause flush of u-TLBs.
  * This is a simple design for keeping them in sync. So what do we do?
  * The solution which James came up was pretty neat. It utilised the assoc
- * of uTLBs by not invalidating always but only when absolutely necessary.
+ * of uTLBs by yest invalidating always but only when absolutely necessary.
  *
  * - Existing TLB commands work as before
  * - New command (TLBWriteNI) for TLB write without clearing uTLBs
@@ -93,7 +93,7 @@
  * removed page are removed (flushed) from the TLB using TLBWrite. In this
  * circumstance, the uTLBs must also be cleared. This is done by using the
  * existing TLBWrite command. An explicit IVUTLB is also required for those
- * corner cases when TLBWrite was not executed at all because the corresp
+ * corner cases when TLBWrite was yest executed at all because the corresp
  * J-TLB entry got evicted/replaced.
  */
 
@@ -135,7 +135,7 @@ static void utlb_invalidate(void)
 	/* make sure INDEX Reg is valid */
 	idx = read_aux_reg(ARC_REG_TLBINDEX);
 
-	/* If not write some dummy val */
+	/* If yest write some dummy val */
 	if (unlikely(idx & TLB_LKUP_ERR))
 		write_aux_reg(ARC_REG_TLBINDEX, 0xa);
 #endif
@@ -231,7 +231,7 @@ static void tlb_entry_insert(unsigned int pd0, pte_t pd1)
  * Un-conditionally (without lookup) erase the entire MMU contents
  */
 
-noinline void local_flush_tlb_all(void)
+yesinline void local_flush_tlb_all(void)
 {
 	struct cpuinfo_arc_mmu *mmu = &cpuinfo_arc700[smp_processor_id()].mmu;
 	unsigned long flags;
@@ -274,7 +274,7 @@ noinline void local_flush_tlb_all(void)
 /*
  * Flush the entrie MM for userland. The fastest way is to move to Next ASID
  */
-noinline void local_flush_tlb_mm(struct mm_struct *mm)
+yesinline void local_flush_tlb_mm(struct mm_struct *mm)
 {
 	/*
 	 * Small optimisation courtesy IA64
@@ -290,7 +290,7 @@ noinline void local_flush_tlb_mm(struct mm_struct *mm)
 	 *   (Android Binder ended up calling this for vma->mm != tsk->mm,
 	 *    causing h/w - s/w ASID to get out of sync)
 	 * - Also get_new_mmu_context() new implementation allocates a new
-	 *   ASID only if it is not allocated already - so unallocate first
+	 *   ASID only if it is yest allocated already - so unallocate first
 	 */
 	destroy_context(mm);
 	if (current->mm == mm)
@@ -352,7 +352,7 @@ void local_flush_tlb_kernel_range(unsigned long start, unsigned long end)
 {
 	unsigned long flags;
 
-	/* exactly same as above, except for TLB entry not taking ASID */
+	/* exactly same as above, except for TLB entry yest taking ASID */
 
 	if (unlikely((end - start) >= PAGE_SIZE * 32)) {
 		local_flush_tlb_all();
@@ -505,7 +505,7 @@ void create_tlb(struct vm_area_struct *vma, unsigned long vaddr, pte_t *ptep)
 	 *
 	 * Removing the assumption involves
 	 * -Using vma->mm->context{ASID,SASID}, as opposed to MMU reg.
-	 * -Fix the TLB paranoid debug code to not trigger false negatives.
+	 * -Fix the TLB parayesid debug code to yest trigger false negatives.
 	 * -More importantly it makes this handler inconsistent with fast-path
 	 *  TLB Refill handler which always deals with "current"
 	 *
@@ -515,20 +515,20 @@ void create_tlb(struct vm_area_struct *vma, unsigned long vaddr, pte_t *ptep)
 	 *     current->mm still points to pre-execve mm (hence the condition).
 	 *     However the stack vaddr is soon relocated (randomization) and
 	 *     move_page_tables() tries to undo that TLB entry.
-	 *     Thus not creating TLB entry is not any worse.
+	 *     Thus yest creating TLB entry is yest any worse.
 	 *
 	 *  2. ptrace(POKETEXT) causes a CoW - debugger(current) inserting a
-	 *     breakpoint in debugged task. Not creating a TLB now is not
+	 *     breakpoint in debugged task. Not creating a TLB yesw is yest
 	 *     performance critical.
 	 *
-	 * Both the cases above are not good enough for code churn.
+	 * Both the cases above are yest good eyesugh for code churn.
 	 */
 	if (current->active_mm != vma->vm_mm)
 		return;
 
 	local_irq_save(flags);
 
-	tlb_paranoid_check(asid_mm(vma->vm_mm, smp_processor_id()), vaddr);
+	tlb_parayesid_check(asid_mm(vma->vm_mm, smp_processor_id()), vaddr);
 
 	vaddr &= PAGE_MASK;
 
@@ -570,7 +570,7 @@ void create_tlb(struct vm_area_struct *vma, unsigned long vaddr, pte_t *ptep)
  *  	flush_dcache_page(), copy_user_page()
  *
  * Note that flush (when done) involves both WBACK - so physical page is
- * in sync as well as INV - so any non-congruent aliases don't remain
+ * in sync as well as INV - so any yesn-congruent aliases don't remain
  */
 void update_mmu_cache(struct vm_area_struct *vma, unsigned long vaddr_unaligned,
 		      pte_t *ptep)
@@ -587,7 +587,7 @@ void update_mmu_cache(struct vm_area_struct *vma, unsigned long vaddr_unaligned,
 
 	/*
 	 * Exec page : Independent of aliasing/page-color considerations,
-	 *	       since icache doesn't snoop dcache on ARC, any dirty
+	 *	       since icache doesn't syesop dcache on ARC, any dirty
 	 *	       K-mapping of a code page needs to be wback+inv so that
 	 *	       icache fetch by userspace sees code correctly.
 	 * !EXEC page: If K-mapping is NOT congruent to U-mapping, flush it
@@ -595,7 +595,7 @@ void update_mmu_cache(struct vm_area_struct *vma, unsigned long vaddr_unaligned,
 	 *  (Avoids the flush for Non-exec + congruent mapping case)
 	 */
 	if ((vma->vm_flags & VM_EXEC) ||
-	     addr_not_cache_congruent(paddr, vaddr)) {
+	     addr_yest_cache_congruent(paddr, vaddr)) {
 
 		int dirty = !test_and_set_bit(PG_dc_clean, &page->flags);
 		if (dirty) {
@@ -615,7 +615,7 @@ void update_mmu_cache(struct vm_area_struct *vma, unsigned long vaddr_unaligned,
  * MMUv4 in HS38x cores supports Super Pages which are basis for Linux THP
  * support.
  *
- * Normal and Super pages can co-exist (ofcourse not overlap) in TLB with a
+ * Normal and Super pages can co-exist (ofcourse yest overlap) in TLB with a
  * new bit "SZ" in TLB page descriptor to distinguish between them.
  * Super Page size is configurable in hardware (4K to 16M), but fixed once
  * RTL builds.
@@ -627,7 +627,7 @@ void update_mmu_cache(struct vm_area_struct *vma, unsigned long vaddr_unaligned,
  * So for above default, THP size supported is 8K * (2^8) = 2M
  *
  * Default Page Walker is 2 levels, PGD:PTE:PFN, which in THP regime
- * reduces to 1 level (as PTE is folded into PGD and canonically referred
+ * reduces to 1 level (as PTE is folded into PGD and cayesnically referred
  * to as PMD).
  * Thus THP PMD accessors are implemented in terms of PTE (just like sparc)
  */
@@ -789,7 +789,7 @@ char *arc_mmu_mumbojumbo(int cpu_id, char *buf, int len)
 	return buf;
 }
 
-int pae40_exist_but_not_enab(void)
+int pae40_exist_but_yest_enab(void)
 {
 	return pae_exists && !is_pae40_enabled();
 }
@@ -816,9 +816,9 @@ void arc_mmu_init(void)
 	/*
 	 * Ensure that MMU features assumed by kernel exist in hardware.
 	 * For older ARC700 cpus, it has to be exact match, since the MMU
-	 * revisions were not backwards compatible (MMUv3 TLB layout changed
+	 * revisions were yest backwards compatible (MMUv3 TLB layout changed
 	 * so even if kernel for v2 didn't use any new cmds of v3, it would
-	 * still not work.
+	 * still yest work.
 	 * For HS cpus, MMUv4 was baseline and v5 is backwards compatible
 	 * (will run older software).
 	 */
@@ -852,7 +852,7 @@ void arc_mmu_init(void)
 	write_aux_reg(ARC_REG_SCRATCH_DATA0, swapper_pg_dir);
 #endif
 
-	if (pae40_exist_but_not_enab())
+	if (pae40_exist_but_yest_enab())
 		write_aux_reg(ARC_REG_TLBPD1HI, 0);
 }
 
@@ -867,19 +867,19 @@ void arc_mmu_init(void)
  *		~		    ~	~	  ~
  * [set127]	| 508| 509| 510| 511|	| 254| 255|
  *		---------------------	-----------
- * For normal operations we don't(must not) care how above works since
+ * For yesrmal operations we don't(must yest) care how above works since
  * MMU cmd getIndex(vaddr) abstracts that out.
- * However for walking WAYS of a SET, we need to know this
+ * However for walking WAYS of a SET, we need to kyesw this
  */
 #define SET_WAY_TO_IDX(mmu, set, way)  ((set) * mmu->ways + (way))
 
 /* Handling of Duplicate PD (TLB entry) in MMU.
  * -Could be due to buggy customer tapeouts or obscure kernel bugs
- * -MMU complaints not at the time of duplicate PD installation, but at the
+ * -MMU complaints yest at the time of duplicate PD installation, but at the
  *      time of lookup matching multiple ways.
  * -Ideally these should never happen - but if they do - workaround by deleting
  *      the duplicate one.
- * -Knob to be verbose abt it.(TODO: hook them up to debugfs)
+ * -Kyesb to be verbose abt it.(TODO: hook them up to debugfs)
  */
 volatile int dup_pd_silent; /* Be slient abt it or complain (default) */
 
@@ -932,7 +932,7 @@ void do_tlb_overlap_fault(unsigned long cause, unsigned long address,
 						pd0[way], set, way, n);
 
 				/*
-				 * clear entry @way and not @n.
+				 * clear entry @way and yest @n.
 				 * This is critical to our optimised loop
 				 */
 				pd0[way] = 0;
@@ -947,7 +947,7 @@ void do_tlb_overlap_fault(unsigned long cause, unsigned long address,
 }
 
 /***********************************************************************
- * Diagnostic Routines
+ * Diagyesstic Routines
  *  -Called from Low Level TLB Hanlders if things don;t look good
  **********************************************************************/
 
@@ -965,7 +965,7 @@ void print_asid_mismatch(int mm_asid, int mmu_asid, int is_fast_path)
 	__asm__ __volatile__("flag 1");
 }
 
-void tlb_paranoid_check(unsigned int mm_asid, unsigned long addr)
+void tlb_parayesid_check(unsigned int mm_asid, unsigned long addr)
 {
 	unsigned int mmu_asid;
 

@@ -4,7 +4,7 @@
  *              operating system.  DECnet is implemented using the  BSD Socket
  *              interface as the means of communication with the user level.
  *
- *              DECnet Routing Functions (Endnode and Router)
+ *              DECnet Routing Functions (Endyesde and Router)
  *
  * Authors:     Steve Whitehouse <SteveW@ACM.org>
  *              Eduardo Marcelo Serrat <emserrat@geocities.com>
@@ -20,13 +20,13 @@
  *                                 DECnet routing design
  *              Alexey Kuznetsov : New SMP locking
  *              Steve Whitehouse : More SMP locking changes & dn_cache_dump()
- *              Steve Whitehouse : Prerouting NF hook, now really is prerouting.
+ *              Steve Whitehouse : Prerouting NF hook, yesw really is prerouting.
  *				   Fixed possible skb leak in rtnetlink funcs.
  *              Steve Whitehouse : Dave Miller's dynamic hash table sizing and
  *                                 Alexey Kuznetsov's finer grained locking
  *                                 from ipv4/route.c.
- *              Steve Whitehouse : Routing is now starting to look like a
- *                                 sensible set of code now, mainly due to
+ *              Steve Whitehouse : Routing is yesw starting to look like a
+ *                                 sensible set of code yesw, mainly due to
  *                                 my copying the IPv4 routing code. The
  *                                 hooks here are modified and will continue
  *                                 to evolve for a while.
@@ -36,10 +36,10 @@
  *              Steve Whitehouse : Added return-to-sender functions. Added
  *                                 backlog congestion level return codes.
  *		Steve Whitehouse : Fixed bug where routes were set up with
- *                                 no ref count on net devices.
+ *                                 yes ref count on net devices.
  *              Steve Whitehouse : RCU for the route cache
  *              Steve Whitehouse : Preparations for the flow cache
- *              Steve Whitehouse : Prepare for nonlinear skbs
+ *              Steve Whitehouse : Prepare for yesnlinear skbs
  */
 
 /******************************************************************************
@@ -47,7 +47,7 @@
 
 *******************************************************************************/
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/types.h>
 #include <linux/socket.h>
 #include <linux/in.h>
@@ -70,7 +70,7 @@
 #include <linux/rcupdate.h>
 #include <linux/times.h>
 #include <linux/export.h>
-#include <asm/errno.h>
+#include <asm/erryes.h>
 #include <net/net_namespace.h>
 #include <net/netlink.h>
 #include <net/neighbour.h>
@@ -181,7 +181,7 @@ static void dn_dst_check_expire(struct timer_list *unused)
 	int i;
 	struct dn_route *rt;
 	struct dn_route __rcu **rtp;
-	unsigned long now = jiffies;
+	unsigned long yesw = jiffies;
 	unsigned long expire = 120 * HZ;
 
 	for (i = 0; i <= dn_rt_hash_mask; i++) {
@@ -191,7 +191,7 @@ static void dn_dst_check_expire(struct timer_list *unused)
 		while ((rt = rcu_dereference_protected(*rtp,
 						lockdep_is_held(&dn_rt_hash_table[i].lock))) != NULL) {
 			if (atomic_read(&rt->dst.__refcnt) > 1 ||
-			    (now - rt->dst.lastuse) < expire) {
+			    (yesw - rt->dst.lastuse) < expire) {
 				rtp = &rt->dn_next;
 				continue;
 			}
@@ -202,11 +202,11 @@ static void dn_dst_check_expire(struct timer_list *unused)
 		}
 		spin_unlock(&dn_rt_hash_table[i].lock);
 
-		if ((jiffies - now) > 0)
+		if ((jiffies - yesw) > 0)
 			break;
 	}
 
-	mod_timer(&dn_route_timer, now + decnet_dst_gc_interval * HZ);
+	mod_timer(&dn_route_timer, yesw + decnet_dst_gc_interval * HZ);
 }
 
 static int dn_dst_gc(struct dst_ops *ops)
@@ -214,7 +214,7 @@ static int dn_dst_gc(struct dst_ops *ops)
 	struct dn_route *rt;
 	struct dn_route __rcu **rtp;
 	int i;
-	unsigned long now = jiffies;
+	unsigned long yesw = jiffies;
 	unsigned long expire = 10 * HZ;
 
 	for (i = 0; i <= dn_rt_hash_mask; i++) {
@@ -225,7 +225,7 @@ static int dn_dst_gc(struct dst_ops *ops)
 		while ((rt = rcu_dereference_protected(*rtp,
 						lockdep_is_held(&dn_rt_hash_table[i].lock))) != NULL) {
 			if (atomic_read(&rt->dst.__refcnt) > 1 ||
-			    (now - rt->dst.lastuse) < expire) {
+			    (yesw - rt->dst.lastuse) < expire) {
 				rtp = &rt->dn_next;
 				continue;
 			}
@@ -245,7 +245,7 @@ static int dn_dst_gc(struct dst_ops *ops)
  * The decnet standards don't impose a particular minimum mtu, what they
  * do insist on is that the routing layer accepts a datagram of at least
  * 230 bytes long. Here we have to subtract the routing header length from
- * 230 to get the minimum acceptable mtu. If there is no neighbour, then we
+ * 230 to get the minimum acceptable mtu. If there is yes neighbour, then we
  * assume the worst and use a long header size.
  *
  * We update both the mtu and the advertised mss (i.e. the segment size we
@@ -318,7 +318,7 @@ static int dn_insert_route(struct dn_route *rt, unsigned int hash, struct dn_rou
 {
 	struct dn_route *rth;
 	struct dn_route __rcu **rthp;
-	unsigned long now = jiffies;
+	unsigned long yesw = jiffies;
 
 	rthp = &dn_rt_hash_table[hash].chain;
 
@@ -332,7 +332,7 @@ static int dn_insert_route(struct dn_route *rt, unsigned int hash, struct dn_rou
 					   dn_rt_hash_table[hash].chain);
 			rcu_assign_pointer(dn_rt_hash_table[hash].chain, rth);
 
-			dst_hold_and_use(&rth->dst, now);
+			dst_hold_and_use(&rth->dst, yesw);
 			spin_unlock_bh(&dn_rt_hash_table[hash].lock);
 
 			dst_release_immediate(&rt->dst);
@@ -345,7 +345,7 @@ static int dn_insert_route(struct dn_route *rt, unsigned int hash, struct dn_rou
 	rcu_assign_pointer(rt->dn_next, dn_rt_hash_table[hash].chain);
 	rcu_assign_pointer(dn_rt_hash_table[hash].chain, rt);
 
-	dst_hold_and_use(&rt->dst, now);
+	dst_hold_and_use(&rt->dst, yesw);
 	spin_unlock_bh(&dn_rt_hash_table[hash].lock);
 	*rp = rt;
 	return 0;
@@ -360,7 +360,7 @@ static void dn_run_flush(struct timer_list *unused)
 		spin_lock_bh(&dn_rt_hash_table[i].lock);
 
 		if ((rt = xchg((struct dn_route **)&dn_rt_hash_table[i].chain, NULL)) == NULL)
-			goto nothing_to_declare;
+			goto yesthing_to_declare;
 
 		for(; rt; rt = next) {
 			next = rcu_dereference_raw(rt->dn_next);
@@ -369,7 +369,7 @@ static void dn_run_flush(struct timer_list *unused)
 			dst_release(&rt->dst);
 		}
 
-nothing_to_declare:
+yesthing_to_declare:
 		spin_unlock_bh(&dn_rt_hash_table[i].lock);
 	}
 }
@@ -378,7 +378,7 @@ static DEFINE_SPINLOCK(dn_rt_flush_lock);
 
 void dn_rt_cache_flush(int delay)
 {
-	unsigned long now = jiffies;
+	unsigned long yesw = jiffies;
 	int user_mode = !in_interrupt();
 
 	if (delay < 0)
@@ -387,7 +387,7 @@ void dn_rt_cache_flush(int delay)
 	spin_lock_bh(&dn_rt_flush_lock);
 
 	if (del_timer(&dn_rt_flush_timer) && delay > 0 && dn_rt_deadline) {
-		long tmo = (long)(dn_rt_deadline - now);
+		long tmo = (long)(dn_rt_deadline - yesw);
 
 		if (user_mode && tmo < dn_rt_max_delay - dn_rt_min_delay)
 			tmo = 0;
@@ -403,9 +403,9 @@ void dn_rt_cache_flush(int delay)
 	}
 
 	if (dn_rt_deadline == 0)
-		dn_rt_deadline = now + dn_rt_max_delay;
+		dn_rt_deadline = yesw + dn_rt_max_delay;
 
-	dn_rt_flush_timer.expires = now + delay;
+	dn_rt_flush_timer.expires = yesw + delay;
 	add_timer(&dn_rt_flush_timer);
 	spin_unlock_bh(&dn_rt_flush_lock);
 }
@@ -465,7 +465,7 @@ static int dn_return_long(struct sk_buff *skb)
 		return NET_RX_DROP;
 
 	cb = DN_SKB_CB(skb);
-	/* Ignore packet length and point to flags */
+	/* Igyesre packet length and point to flags */
 	ptr = skb->data + 2;
 
 	/* Skip padding */
@@ -599,7 +599,7 @@ drop_it:
 static int dn_route_discard(struct net *net, struct sock *sk, struct sk_buff *skb)
 {
 	/*
-	 * I know we drop the packet here, but thats considered success in
+	 * I kyesw we drop the packet here, but thats considered success in
 	 * this case
 	 */
 	kfree_skb(skb);
@@ -708,7 +708,7 @@ int dn_route_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type
 		case DN_RT_PKT_EEDH:
 			return NF_HOOK(NFPROTO_DECNET, NF_DN_HELLO,
 				       &init_net, NULL, skb, skb->dev, NULL,
-				       dn_neigh_endnode_hello);
+				       dn_neigh_endyesde_hello);
 		}
 	} else {
 		if (dn->parms.state != DN_DEV_S_RU)
@@ -749,7 +749,7 @@ static int dn_output(struct net *net, struct sock *sk, struct sk_buff *skb)
 
 	/*
 	 * Always set the Intra-Ethernet bit on all outgoing packets
-	 * originated on this node. Only valid flag from upper layers
+	 * originated on this yesde. Only valid flag from upper layers
 	 * is return-to-sender-requested. Set hop count to 0 too.
 	 */
 	cb->rt_flags &= ~DN_RT_F_RQR;
@@ -761,7 +761,7 @@ static int dn_output(struct net *net, struct sock *sk, struct sk_buff *skb)
 		       dn_to_neigh_output);
 
 error:
-	net_dbg_ratelimited("dn_output: This should not happen\n");
+	net_dbg_ratelimited("dn_output: This should yest happen\n");
 
 	kfree_skb(skb);
 
@@ -780,7 +780,7 @@ static int dn_forward(struct sk_buff *skb)
 	if (skb->pkt_type != PACKET_HOST)
 		goto drop;
 
-	/* Ensure that we have enough space for headers */
+	/* Ensure that we have eyesugh space for headers */
 	rt = (struct dn_route *)skb_dst(skb);
 	header_len = dn_db->use_long ? 21 : 6;
 	if (skb_cow(skb, LL_RESERVED_SPACE(rt->dst.dev)+header_len))
@@ -796,7 +796,7 @@ static int dn_forward(struct sk_buff *skb)
 
 	/*
 	 * If packet goes out same interface it came in on, then set
-	 * the Intra-Ethernet bit. This has no effect for short
+	 * the Intra-Ethernet bit. This has yes effect for short
 	 * packets, so we don't need to test for them here.
 	 */
 	cb->rt_flags &= ~DN_RT_F_IE;
@@ -813,7 +813,7 @@ drop:
 }
 
 /*
- * Used to catch bugs. This should never normally get
+ * Used to catch bugs. This should never yesrmally get
  * called.
  */
 static int dn_rt_bug_out(struct net *net, struct sock *sk, struct sk_buff *skb)
@@ -856,7 +856,7 @@ static struct neighbour *dn_dst_neigh_lookup(const struct dst_entry *dst,
 					     struct sk_buff *skb,
 					     const void *daddr)
 {
-	return __neigh_lookup_errno(&dn_neigh_table, daddr, dst->dev);
+	return __neigh_lookup_erryes(&dn_neigh_table, daddr, dst->dev);
 }
 
 static int dn_rt_set_next_hop(struct dn_route *rt, struct dn_fib_res *res)
@@ -875,7 +875,7 @@ static int dn_rt_set_next_hop(struct dn_route *rt, struct dn_fib_res *res)
 	rt->rt_type = res->type;
 
 	if (dev != NULL && rt->n == NULL) {
-		n = __neigh_lookup_errno(&dn_neigh_table, &rt->rt_gateway, dev);
+		n = __neigh_lookup_erryes(&dn_neigh_table, &rt->rt_gateway, dev);
 		if (IS_ERR(n))
 			return PTR_ERR(n);
 		rt->n = n;
@@ -1049,7 +1049,7 @@ source_ok:
 
 	/*
 	 * N.B. If the kernel is compiled without router support then
-	 * dn_fib_lookup() will evaluate to non-zero so this if () block
+	 * dn_fib_lookup() will evaluate to yesn-zero so this if () block
 	 * will always be executed.
 	 */
 	err = -ESRCH;
@@ -1059,16 +1059,16 @@ source_ok:
 			goto out;
 		/*
 		 * Here the fallback is basically the standard algorithm for
-		 * routing in endnodes which is described in the DECnet routing
+		 * routing in endyesdes which is described in the DECnet routing
 		 * docs
 		 *
-		 * If we are not trying hard, look in neighbour cache.
+		 * If we are yest trying hard, look in neighbour cache.
 		 * The result is tested to ensure that if a specific output
-		 * device/source address was requested, then we honour that
+		 * device/source address was requested, then we hoyesur that
 		 * here
 		 */
 		if (!try_hard) {
-			neigh = neigh_lookup_nodev(&dn_neigh_table, &init_net, &fld.daddr);
+			neigh = neigh_lookup_yesdev(&dn_neigh_table, &init_net, &fld.daddr);
 			if (neigh) {
 				if ((oldflp->flowidn_oif &&
 				    (neigh->dev->ifindex != oldflp->flowidn_oif)) ||
@@ -1175,7 +1175,7 @@ make_route:
 
 	rt = dst_alloc(&dn_dst_ops, dev_out, 0, DST_OBSOLETE_NONE, DST_HOST);
 	if (rt == NULL)
-		goto e_nobufs;
+		goto e_yesbufs;
 
 	rt->dn_next = NULL;
 	memset(&rt->fld, 0, sizeof(rt->fld));
@@ -1227,12 +1227,12 @@ e_addr:
 e_inval:
 	err = -EINVAL;
 	goto done;
-e_nobufs:
+e_yesbufs:
 	err = -ENOBUFS;
 	goto done;
 e_neighbour:
 	dst_release_immediate(&rt->dst);
-	goto e_nobufs;
+	goto e_yesbufs;
 }
 
 
@@ -1325,7 +1325,7 @@ static int dn_route_input_slow(struct sk_buff *skb)
 	if ((dn_db = rcu_dereference(in_dev->dn_ptr)) == NULL)
 		goto out;
 
-	/* Zero source addresses are not allowed */
+	/* Zero source addresses are yest allowed */
 	if (fld.saddr == 0)
 		goto out;
 
@@ -1363,7 +1363,7 @@ static int dn_route_input_slow(struct sk_buff *skb)
 		dev_hold(out_dev);
 
 		if (res.r)
-			src_map = fld.saddr; /* no NAT support for now */
+			src_map = fld.saddr; /* yes NAT support for yesw */
 
 		gateway = DN_FIB_RES_GW(res);
 		if (res.type == RTN_NAT) {
@@ -1418,7 +1418,7 @@ static int dn_route_input_slow(struct sk_buff *skb)
 		if (gateway)
 			goto make_route;
 
-		/* Packet was intra-ethernet, so we know its on-link */
+		/* Packet was intra-ethernet, so we kyesw its on-link */
 		if (cb->rt_flags & DN_RT_F_IE) {
 			gateway = cb->src;
 			goto make_route;
@@ -1431,7 +1431,7 @@ static int dn_route_input_slow(struct sk_buff *skb)
 			goto make_route;
 		}
 
-		/* Close eyes and pray */
+		/* Close eno and pray */
 		gateway = cb->src;
 		goto make_route;
 	default:
@@ -1441,7 +1441,7 @@ static int dn_route_input_slow(struct sk_buff *skb)
 make_route:
 	rt = dst_alloc(&dn_dst_ops, out_dev, 1, DST_OBSOLETE_NONE, DST_HOST);
 	if (rt == NULL)
-		goto e_nobufs;
+		goto e_yesbufs;
 
 	rt->dn_next = NULL;
 	memset(&rt->fld, 0, sizeof(rt->fld));
@@ -1505,7 +1505,7 @@ e_inval:
 	err = -EINVAL;
 	goto done;
 
-e_nobufs:
+e_yesbufs:
 	err = -ENOBUFS;
 	goto done;
 
@@ -1543,7 +1543,7 @@ static int dn_route_input(struct sk_buff *skb)
 }
 
 static int dn_rt_fill_info(struct sk_buff *skb, u32 portid, u32 seq,
-			   int event, int nowait, unsigned int flags)
+			   int event, int yeswait, unsigned int flags)
 {
 	struct dn_route *rt = (struct dn_route *)skb_dst(skb);
 	struct rtmsg *r;
@@ -1583,7 +1583,7 @@ static int dn_rt_fill_info(struct sk_buff *skb, u32 portid, u32 seq,
 
 	/*
 	 * Note to self - change this if input routes reverse direction when
-	 * they deal only with inputs and not with replies like they do
+	 * they deal only with inputs and yest with replies like they do
 	 * currently.
 	 */
 	if (nla_put_le16(skb, RTA_PREFSRC, rt->rt_local_src) < 0)
@@ -1628,7 +1628,7 @@ const struct nla_policy rtm_dn_policy[RTA_MAX + 1] = {
 };
 
 /*
- * This is called by both endnodes and routers now.
+ * This is called by both endyesdes and routers yesw.
  */
 static int dn_cache_getroute(struct sk_buff *in_skb, struct nlmsghdr *nlh,
 			     struct netlink_ext_ack *extack)
@@ -1714,7 +1714,7 @@ out_free:
 }
 
 /*
- * For routers, this is called from dn_fib_dump, but for endnodes its
+ * For routers, this is called from dn_fib_dump, but for endyesdes its
  * called directly from the rtnetlink dispatch table.
  */
 int dn_cache_dump(struct sk_buff *skb, struct netlink_callback *cb)

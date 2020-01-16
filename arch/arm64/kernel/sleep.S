@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/linkage.h>
 #include <asm/asm-offsets.h>
 #include <asm/assembler.h>
@@ -56,7 +56,7 @@
  * cpu_resume() will restore this saved state, and return. Because the
  * link-register is saved and restored, it will appear to return from this
  * function. So that the caller can tell the suspend/resume paths apart,
- * __cpu_suspend_enter() will always return a non-zero value, whereas the
+ * __cpu_suspend_enter() will always return a yesn-zero value, whereas the
  * path through cpu_resume() will return 0.
  *
  *  x0 = struct sleep_stack_data area

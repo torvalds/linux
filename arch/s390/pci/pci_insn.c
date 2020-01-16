@@ -6,7 +6,7 @@
  */
 
 #include <linux/export.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/delay.h>
 #include <linux/jump_label.h>
 #include <asm/facility.h>

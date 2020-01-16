@@ -3,7 +3,7 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright yestice and this permission yestice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
@@ -29,9 +29,9 @@ static inline bool ath9k_check_auto_sleep(struct ath_softc *sc)
 /*
  * Setup and link descriptors.
  *
- * 11N: we can no longer afford to self link the last descriptor.
- * MAC acknowledges BA status as long as it copies frames to host
- * buffer (or rx fifo). This can incorrectly acknowledge packets
+ * 11N: we can yes longer afford to self link the last descriptor.
+ * MAC ackyeswledges BA status as long as it copies frames to host
+ * buffer (or rx fifo). This can incorrectly ackyeswledge packets
  * to a sender if last desc is self-linked.
  */
 static void ath_rx_buf_link(struct ath_softc *sc, struct ath_rxbuf *bf,
@@ -359,13 +359,13 @@ void ath_rx_cleanup(struct ath_softc *sc)
  *
  * o always accept unicast, broadcast, and multicast traffic
  * o maintain current state of phy error reception (the hal
- *   may enable phy error frames for noise immunity work)
+ *   may enable phy error frames for yesise immunity work)
  * o probe request frames are accepted only when operating in
  *   hostap, adhoc, or monitor modes
  * o enable promiscuous mode according to the interface state
  * o accept beacons:
  *   - when operating in adhoc mode so the 802.11 layer creates
- *     node table entries for peers,
+ *     yesde table entries for peers,
  *   - when operating in station mode for collecting rssi data when
  *     the station is otherwise quiet, or
  *   - when operating as a repeater so we see repeater-sta beacons
@@ -456,7 +456,7 @@ void ath_startrecv(struct ath_softc *sc)
 		ath_rx_buf_link(sc, bf, false);
 	}
 
-	/* We could have deleted elements so the list may be empty now */
+	/* We could have deleted elements so the list may be empty yesw */
 	if (list_empty(&sc->rx.rxbuf))
 		goto start_recv;
 
@@ -565,7 +565,7 @@ static void ath_rx_ps_beacon(struct ath_softc *sc, struct sk_buff *skb)
 	if (ath_beacon_dtim_pending_cab(skb)) {
 		/*
 		 * Remain awake waiting for buffered broadcast/multicast
-		 * frames. If the last broadcast/multicast frame is not
+		 * frames. If the last broadcast/multicast frame is yest
 		 * received properly, the next beacon frame will work as
 		 * a backup trigger for returning into NETWORK SLEEP state,
 		 * so we are waiting for it as well.
@@ -740,7 +740,7 @@ static struct ath_rxbuf *ath_get_next_rx_buf(struct ath_softc *sc,
 		 * On some hardware the descriptor status words could
 		 * get corrupted, including the done bit. Because of
 		 * this, check if the next descriptor's done bit is
-		 * set or not.
+		 * set or yest.
 		 *
 		 * If the next descriptor's done bit is set, the current
 		 * descriptor has been corrupted. Force s/w to discard
@@ -801,7 +801,7 @@ static void ath9k_process_tsf(struct ath_rx_status *rs,
 
 /*
  * For Decrypt or Demic errors, we only mark packet status here and always push
- * up the frame up to let mac80211 handle the actual error case, be it no
+ * up the frame up to let mac80211 handle the actual error case, be it yes
  * decryption key or real decryption error. This let us keep statistics there.
  */
 static int ath9k_rx_skb_preprocess(struct ath_softc *sc,
@@ -828,7 +828,7 @@ static int ath9k_rx_skb_preprocess(struct ath_softc *sc,
 
 	/*
 	 * Discard zero-length packets and packets smaller than an ACK
-	 * which are not PHY_ERROR (short radar pulses have a length of 3)
+	 * which are yest PHY_ERROR (short radar pulses have a length of 3)
 	 */
 	is_phyerr = rx_stats->rs_status & ATH9K_RXERR_PHY;
 	if (!rx_stats->rs_datalen ||
@@ -839,7 +839,7 @@ static int ath9k_rx_skb_preprocess(struct ath_softc *sc,
 
 	/*
 	 * rs_status follows rs_datalen so if rs_datalen is too large
-	 * we can take a hint that hardware corrupted it, so ignore
+	 * we can take a hint that hardware corrupted it, so igyesre
 	 * those frames.
 	 */
 	if (rx_stats->rs_datalen > (common->rx_bufsize - ah->caps.rx_status_len)) {
@@ -914,7 +914,7 @@ static int ath9k_rx_skb_preprocess(struct ath_softc *sc,
 
 	if (ath9k_cmn_process_rate(common, hw, rx_stats, rx_status)) {
 		/*
-		 * No valid hardware bitrate found -- we should not get here
+		 * No valid hardware bitrate found -- we should yest get here
 		 * because hardware has already validated this frame as OK.
 		 */
 		ath_dbg(common, ANY, "unsupported hw bitrate detected 0x%02x using 1 Mbit\n",
@@ -1020,7 +1020,7 @@ static void ath_rx_count_airtime(struct ath_softc *sc,
 	int phy;
 	u16 len = rs->rs_datalen;
 	u32 airtime = 0;
-	u8 tidno;
+	u8 tidyes;
 
 	if (!ieee80211_is_data(hdr->frame_control))
 		return;
@@ -1030,7 +1030,7 @@ static void ath_rx_count_airtime(struct ath_softc *sc,
 	sta = ieee80211_find_sta_by_ifaddr(sc->hw, hdr->addr2, NULL);
 	if (!sta)
 		goto exit;
-	tidno = skb->priority & IEEE80211_QOS_CTL_TID_MASK;
+	tidyes = skb->priority & IEEE80211_QOS_CTL_TID_MASK;
 
 	rxs = IEEE80211_SKB_RXCB(skb);
 
@@ -1051,7 +1051,7 @@ static void ath_rx_count_airtime(struct ath_softc *sc,
 						len, rxs->rate_idx, is_sp);
 	}
 
-	ieee80211_sta_register_airtime(sta, tidno, 0, airtime);
+	ieee80211_sta_register_airtime(sta, tidyes, 0, airtime);
 exit:
 	rcu_read_unlock();
 }
@@ -1121,7 +1121,7 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush, bool hp)
 		 * processing the current buffer's skb */
 		requeue_skb = ath_rxbuf_alloc(common, common->rx_bufsize, GFP_ATOMIC);
 
-		/* If there is no memory we ignore the current RX'd frame,
+		/* If there is yes memory we igyesre the current RX'd frame,
 		 * tell hardware it can give us a new frame using the old
 		 * skb and put it at the tail of the sc->rx.rxbuf list for
 		 * processing. */
@@ -1130,7 +1130,7 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush, bool hp)
 			goto requeue_drop_frag;
 		}
 
-		/* We will now give hardware our shiny new allocated skb */
+		/* We will yesw give hardware our shiny new allocated skb */
 		new_buf_addr = dma_map_single(sc->dev, requeue_skb->data,
 					      common->rx_bufsize, dma_type);
 		if (unlikely(dma_mapping_error(sc->dev, new_buf_addr))) {
@@ -1161,7 +1161,7 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush, bool hp)
 			 * scatter-gather operation.
 			 */
 			if (sc->rx.frag) {
-				/* too many fragments - cannot handle frame */
+				/* too many fragments - canyest handle frame */
 				dev_kfree_skb_any(sc->rx.frag);
 				dev_kfree_skb_any(skb);
 				RX_STAT_INC(sc, rx_too_many_frags_err);

@@ -13474,7 +13474,7 @@ static const struct rtw_txpwr_lmt_cfg_pair rtw8822c_txpwr_lmt_type0[] = {
 
 RTW_DECL_TABLE_TXPWR_LMT(rtw8822c_txpwr_lmt_type0);
 
-static const u32 rtw8822c_dpk_afe_no_dpk[] = {
+static const u32 rtw8822c_dpk_afe_yes_dpk[] = {
 	0x18a4, BIT(7), 0,
 	0x41a4, BIT(7), 0,
 	0x1c38, MASKDWORD, 0xffa1005e,
@@ -13512,7 +13512,7 @@ static const u32 rtw8822c_dpk_afe_no_dpk[] = {
 	0x4130, MASKDWORD, 0x70fb8041,
 };
 
-RTW_DECL_TABLE_DPK(rtw8822c_dpk_afe_no_dpk);
+RTW_DECL_TABLE_DPK(rtw8822c_dpk_afe_yes_dpk);
 
 static const u32 rtw8822c_dpk_afe_is_dpk[] = {
 	0x1c38, MASKDWORD, 0xFFFFFFFF,

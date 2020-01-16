@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Purna Chandra Mandal,<purna.mandal@microchip.com>
- * Copyright (C) 2015 Microchip Technology Inc.  All rights reserved.
+ * Copyright (C) 2015 Microchip Techyeslogy Inc.  All rights reserved.
  */
 #include <linux/clk-provider.h>
 #include <linux/delay.h>
@@ -76,13 +76,13 @@
 static struct clk_hw *pic32_sclk_hw;
 
 /* add instruction pipeline delay while CPU clock is in-transition. */
-#define cpu_nop5()			\
+#define cpu_yesp5()			\
 do {					\
-	__asm__ __volatile__("nop");	\
-	__asm__ __volatile__("nop");	\
-	__asm__ __volatile__("nop");	\
-	__asm__ __volatile__("nop");	\
-	__asm__ __volatile__("nop");	\
+	__asm__ __volatile__("yesp");	\
+	__asm__ __volatile__("yesp");	\
+	__asm__ __volatile__("yesp");	\
+	__asm__ __volatile__("yesp");	\
+	__asm__ __volatile__("yesp");	\
 } while (0)
 
 /* Perpheral bus clocks */
@@ -324,7 +324,7 @@ static void roclk_calc_div_trim(unsigned long rate,
 	 * i.e. fout = fin / 2 * DIV
 	 *      whereas DIV = rodiv + (rotrim / 512)
 	 *
-	 * Since kernel does not perform floating-point arithmatic so
+	 * Since kernel does yest perform floating-point arithmatic so
 	 * (rotrim/512) will be zero. And DIV & rodiv will result same.
 	 *
 	 * ie. fout = (fin * 256) / [(512 * rodiv) + rotrim]  ... from (1)
@@ -415,9 +415,9 @@ static int roclk_determine_rate(struct clk_hw *hw,
 		}
 	}
 
-	/* if no match found, retain old rate */
+	/* if yes match found, retain old rate */
 	if (!best_parent_clk) {
-		pr_err("%s:%s, no parent found for rate %lu.\n",
+		pr_err("%s:%s, yes parent found for rate %lu.\n",
 		       __func__, clk_hw_get_name(hw), req->rate);
 		return clk_hw_get_rate(hw);
 	}
@@ -623,7 +623,7 @@ static unsigned long spll_calc_mult_div(struct pic32_sys_pll *pll,
 	}
 
 	if (!match_found) {
-		pr_warn("spll: no match found\n");
+		pr_warn("spll: yes match found\n");
 		return 0;
 	}
 
@@ -708,9 +708,9 @@ static int spll_clk_set_rate(struct clk_hw *hw, unsigned long rate,
 	writel(v, pll->ctrl_reg);
 	cpu_relax();
 
-	/* insert few nops (5-stage) to ensure CPU does not hang */
-	cpu_nop5();
-	cpu_nop5();
+	/* insert few yesps (5-stage) to ensure CPU does yest hang */
+	cpu_yesp5();
+	cpu_yesp5();
 
 	/* Wait until PLL is locked (maximum 100 usecs). */
 	err = readl_poll_timeout_atomic(pll->status_reg, v,
@@ -834,18 +834,18 @@ static int sclk_set_parent(struct clk_hw *hw, u8 index)
 {
 	struct pic32_sys_clk *sclk = clkhw_to_sys_clk(hw);
 	unsigned long flags;
-	u32 nosc, cosc, v;
+	u32 yessc, cosc, v;
 	int err;
 
 	spin_lock_irqsave(&sclk->core->reg_lock, flags);
 
 	/* find new_osc */
-	nosc = sclk->parent_map ? sclk->parent_map[index] : index;
+	yessc = sclk->parent_map ? sclk->parent_map[index] : index;
 
 	/* set new parent */
 	v = readl(sclk->mux_reg);
 	v &= ~(OSC_NEW_MASK << OSC_NEW_SHIFT);
-	v |= nosc << OSC_NEW_SHIFT;
+	v |= yessc << OSC_NEW_SHIFT;
 
 	pic32_syskey_unlock();
 
@@ -855,8 +855,8 @@ static int sclk_set_parent(struct clk_hw *hw, u8 index)
 	writel(OSC_SWEN, PIC32_SET(sclk->mux_reg));
 	cpu_relax();
 
-	/* add nop to flush pipeline (as cpu_clk is in-flux) */
-	cpu_nop5();
+	/* add yesp to flush pipeline (as cpu_clk is in-flux) */
+	cpu_yesp5();
 
 	/* wait for SWEN bit to clear */
 	err = readl_poll_timeout_atomic(sclk->slew_reg, v,
@@ -866,14 +866,14 @@ static int sclk_set_parent(struct clk_hw *hw, u8 index)
 
 	/*
 	 * SCLK clock-switching logic might reject a clock switching request
-	 * if pre-requisites (like new clk_src not present or unstable) are
-	 * not met.
+	 * if pre-requisites (like new clk_src yest present or unstable) are
+	 * yest met.
 	 * So confirm before claiming success.
 	 */
 	cosc = (readl(sclk->mux_reg) >> OSC_CUR_SHIFT) & OSC_CUR_MASK;
-	if (cosc != nosc) {
+	if (cosc != yessc) {
 		pr_err("%s: err, failed to set_parent() to %d, current %d\n",
-		       clk_hw_get_name(hw), nosc, cosc);
+		       clk_hw_get_name(hw), yessc, cosc);
 		err = -EBUSY;
 	}
 
@@ -912,8 +912,8 @@ const struct clk_ops pic32_sclk_ops = {
 	.determine_rate = __clk_mux_determine_rate,
 };
 
-/* sclk with no slew and no post-divider */
-const struct clk_ops pic32_sclk_no_div_ops = {
+/* sclk with yes slew and yes post-divider */
+const struct clk_ops pic32_sclk_yes_div_ops = {
 	.get_parent	= sclk_get_parent,
 	.set_parent	= sclk_set_parent,
 	.init		= sclk_init,

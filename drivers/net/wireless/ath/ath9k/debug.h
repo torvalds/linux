@@ -3,7 +3,7 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright yestice and this permission yestice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
@@ -59,11 +59,11 @@ enum ath_reset_type {
 
 /**
  * struct ath_interrupt_stats - Contains statistics about interrupts
- * @total: Total no. of interrupts generated so far
- * @rxok: RX with no errors
+ * @total: Total yes. of interrupts generated so far
+ * @rxok: RX with yes errors
  * @rxlp: RX with low priority RX
  * @rxhp: RX with high priority, uapsd only
- * @rxeol: RX with no more RXDESC available
+ * @rxeol: RX with yes more RXDESC available
  * @rxorn: RX FIFO overrun
  * @txok: TX completed at the requested rate
  * @txurn: TX FIFO underrun
@@ -143,9 +143,9 @@ struct ath_interrupt_stats {
 	may have had errors.
  * @tx_bytes_all:  No. of total bytes transmitted, including ones that
 	may have had errors.
- * @queued: Total MPDUs (non-aggr) queued
- * @completed: Total MPDUs (non-aggr) completed
- * @a_aggr: Total no. of aggregates queued
+ * @queued: Total MPDUs (yesn-aggr) queued
+ * @completed: Total MPDUs (yesn-aggr) completed
+ * @a_aggr: Total yes. of aggregates queued
  * @a_queued_hw: Total AMPDUs queued to hardware
  * @a_completed: Total AMPDUs completed
  * @a_retries: No. of AMPDUs retried (SW)
@@ -153,7 +153,7 @@ struct ath_interrupt_stats {
  * @txerr_filtered: No. of frames with TXERR_FILT flag set.
  * @fifo_underrun: FIFO underrun occurrences
 	Valid only for:
-		- non-aggregate condition.
+		- yesn-aggregate condition.
 		- first packet of aggregate.
  * @xtxop: No. of frames filtered because of TXOP limit
  * @timer_exp: Transmit timer expiry

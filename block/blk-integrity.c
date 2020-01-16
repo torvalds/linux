@@ -62,7 +62,7 @@ EXPORT_SYMBOL(blk_rq_count_integrity_sg);
  * @sglist:	target scatterlist
  *
  * Description: Map the integrity vectors in request into a
- * scatterlist.  The scatterlist must be big enough to hold all
+ * scatterlist.  The scatterlist must be big eyesugh to hold all
  * elements.  I.e. sized using blk_rq_count_integrity_sg().
  */
 int blk_rq_map_integrity_sg(struct request_queue *q, struct bio *bio,
@@ -252,7 +252,7 @@ static ssize_t integrity_format_show(struct blk_integrity *bi, char *page)
 	if (bi->profile && bi->profile->name)
 		return sprintf(page, "%s\n", bi->profile->name);
 	else
-		return sprintf(page, "none\n");
+		return sprintf(page, "yesne\n");
 }
 
 static ssize_t integrity_tag_size_show(struct blk_integrity *bi, char *page)
@@ -363,26 +363,26 @@ static struct kobj_type integrity_ktype = {
 	.sysfs_ops	= &integrity_ops,
 };
 
-static blk_status_t blk_integrity_nop_fn(struct blk_integrity_iter *iter)
+static blk_status_t blk_integrity_yesp_fn(struct blk_integrity_iter *iter)
 {
 	return BLK_STS_OK;
 }
 
-static void blk_integrity_nop_prepare(struct request *rq)
+static void blk_integrity_yesp_prepare(struct request *rq)
 {
 }
 
-static void blk_integrity_nop_complete(struct request *rq,
+static void blk_integrity_yesp_complete(struct request *rq,
 		unsigned int nr_bytes)
 {
 }
 
-static const struct blk_integrity_profile nop_profile = {
-	.name = "nop",
-	.generate_fn = blk_integrity_nop_fn,
-	.verify_fn = blk_integrity_nop_fn,
-	.prepare_fn = blk_integrity_nop_prepare,
-	.complete_fn = blk_integrity_nop_complete,
+static const struct blk_integrity_profile yesp_profile = {
+	.name = "yesp",
+	.generate_fn = blk_integrity_yesp_fn,
+	.verify_fn = blk_integrity_yesp_fn,
+	.prepare_fn = blk_integrity_yesp_prepare,
+	.complete_fn = blk_integrity_yesp_complete,
 };
 
 /**
@@ -404,7 +404,7 @@ void blk_integrity_register(struct gendisk *disk, struct blk_integrity *template
 		template->flags;
 	bi->interval_exp = template->interval_exp ? :
 		ilog2(queue_logical_block_size(disk->queue));
-	bi->profile = template->profile ? template->profile : &nop_profile;
+	bi->profile = template->profile ? template->profile : &yesp_profile;
 	bi->tuple_size = template->tuple_size;
 	bi->tag_size = template->tag_size;
 

@@ -14,17 +14,17 @@
 #ifndef _LINUX_CPU_H_
 #define _LINUX_CPU_H_
 
-#include <linux/node.h>
+#include <linux/yesde.h>
 #include <linux/compiler.h>
 #include <linux/cpumask.h>
 #include <linux/cpuhotplug.h>
 
 struct device;
-struct device_node;
+struct device_yesde;
 struct attribute_group;
 
 struct cpu {
-	int node_id;		/* The node which contains the CPU */
+	int yesde_id;		/* The yesde which contains the CPU */
 	int hotpluggable;	/* creates sysfs control file if hotpluggable */
 	struct device dev;
 };
@@ -38,7 +38,7 @@ extern int register_cpu(struct cpu *cpu, int num);
 extern struct device *get_cpu_device(unsigned cpu);
 extern bool cpu_is_hotpluggable(unsigned cpu);
 extern bool arch_match_cpu_phys_id(int cpu, u64 phys_id);
-extern bool arch_find_n_match_cpu_physical_id(struct device_node *cpun,
+extern bool arch_find_n_match_cpu_physical_id(struct device_yesde *cpun,
 					      int cpu, unsigned int *thread);
 
 extern int cpu_add_dev_attr(struct device_attribute *attr);
@@ -76,7 +76,7 @@ extern ssize_t arch_cpu_release(const char *, size_t);
 #endif
 
 /*
- * These states are not related to the core CPU hotplug mechanism. They are
+ * These states are yest related to the core CPU hotplug mechanism. They are
  * used by various (sub)architectures to track internal state
  */
 #define CPU_ONLINE		0x0002 /* CPU is up */
@@ -84,12 +84,12 @@ extern ssize_t arch_cpu_release(const char *, size_t);
 #define CPU_DEAD		0x0007 /* CPU dead */
 #define CPU_DEAD_FROZEN		0x0008 /* CPU timed out on unplug */
 #define CPU_POST_DEAD		0x0009 /* CPU successfully unplugged */
-#define CPU_BROKEN		0x000B /* CPU did not die properly */
+#define CPU_BROKEN		0x000B /* CPU did yest die properly */
 
 #ifdef CONFIG_SMP
 extern bool cpuhp_tasks_frozen;
 int cpu_up(unsigned int cpu);
-void notify_cpu_starting(unsigned int cpu);
+void yestify_cpu_starting(unsigned int cpu);
 extern void cpu_maps_update_begin(void);
 extern void cpu_maps_update_done(void);
 
@@ -139,11 +139,11 @@ static inline void put_online_cpus(void) { cpus_read_unlock(); }
 
 #ifdef CONFIG_PM_SLEEP_SMP
 extern int freeze_secondary_cpus(int primary);
-static inline int disable_nonboot_cpus(void)
+static inline int disable_yesnboot_cpus(void)
 {
 	return freeze_secondary_cpus(0);
 }
-extern void enable_nonboot_cpus(void);
+extern void enable_yesnboot_cpus(void);
 
 static inline int suspend_disable_secondary_cpus(void)
 {
@@ -156,12 +156,12 @@ static inline int suspend_disable_secondary_cpus(void)
 }
 static inline void suspend_enable_secondary_cpus(void)
 {
-	return enable_nonboot_cpus();
+	return enable_yesnboot_cpus();
 }
 
 #else /* !CONFIG_PM_SLEEP_SMP */
-static inline int disable_nonboot_cpus(void) { return 0; }
-static inline void enable_nonboot_cpus(void) {}
+static inline int disable_yesnboot_cpus(void) { return 0; }
+static inline void enable_yesnboot_cpus(void) {}
 static inline int suspend_disable_secondary_cpus(void) { return 0; }
 static inline void suspend_enable_secondary_cpus(void) { }
 #endif /* !CONFIG_PM_SLEEP_SMP */
@@ -224,6 +224,6 @@ static inline int cpuhp_smt_disable(enum cpuhp_smt_control ctrlval) { return 0; 
 #endif
 
 extern bool cpu_mitigations_off(void);
-extern bool cpu_mitigations_auto_nosmt(void);
+extern bool cpu_mitigations_auto_yessmt(void);
 
 #endif /* _LINUX_CPU_H_ */

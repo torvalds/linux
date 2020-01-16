@@ -48,7 +48,7 @@ struct isp1704_charger {
 	struct power_supply_desc	psy_desc;
 	struct gpio_desc		*enable_gpio;
 	struct usb_phy			*phy;
-	struct notifier_block		nb;
+	struct yestifier_block		nb;
 	struct work_struct		work;
 
 	/* properties */
@@ -131,7 +131,7 @@ static inline int isp1704_charger_verify(struct isp1704_charger *isp)
 	isp1704_write(isp, ULPI_FUNC_CTRL, r);
 	usleep_range(1000, 2000);
 
-	/* Set normal mode */
+	/* Set yesrmal mode */
 	r &= ~(ULPI_FUNC_CTRL_RESET | ULPI_FUNC_CTRL_OPMODE_MASK);
 	isp1704_write(isp, ULPI_FUNC_CTRL, r);
 
@@ -230,7 +230,7 @@ static void isp1704_charger_work(struct work_struct *data)
 
 	switch (isp->phy->last_event) {
 	case USB_EVENT_VBUS:
-		/* do not call wall charger detection more times */
+		/* do yest call wall charger detection more times */
 		if (!isp->present) {
 			isp->online = true;
 			isp->present = 1;
@@ -274,7 +274,7 @@ static void isp1704_charger_work(struct work_struct *data)
 		 *
 		 * FIXME: This is here to allow charger detection with Host/HUB
 		 * chargers. The pullups may be enabled elsewhere, so this can
-		 * not be the final solution.
+		 * yest be the final solution.
 		 */
 		if (isp->phy->otg->gadget)
 			usb_gadget_disconnect(isp->phy->otg->gadget);
@@ -290,7 +290,7 @@ out:
 	mutex_unlock(&lock);
 }
 
-static int isp1704_notifier_call(struct notifier_block *nb,
+static int isp1704_yestifier_call(struct yestifier_block *nb,
 		unsigned long val, void *v)
 {
 	struct isp1704_charger *isp =
@@ -372,7 +372,7 @@ static inline int isp1704_test_ulpi(struct isp1704_charger *isp)
 		}
 	}
 
-	dev_err(isp->dev, "product id %x not matching known ids", product);
+	dev_err(isp->dev, "product id %x yest matching kyeswn ids", product);
 
 	return -ENODEV;
 }
@@ -391,11 +391,11 @@ static int isp1704_charger_probe(struct platform_device *pdev)
 					  GPIOD_OUT_HIGH);
 	if (IS_ERR(isp->enable_gpio)) {
 		ret = PTR_ERR(isp->enable_gpio);
-		dev_err(&pdev->dev, "Could not get reset gpio: %d\n", ret);
+		dev_err(&pdev->dev, "Could yest get reset gpio: %d\n", ret);
 		return ret;
 	}
 
-	if (pdev->dev.of_node)
+	if (pdev->dev.of_yesde)
 		isp->phy = devm_usb_get_phy_by_phandle(&pdev->dev, "usb-phy", 0);
 	else
 		isp->phy = devm_usb_get_phy(&pdev->dev, USB_PHY_TYPE_USB2);
@@ -433,16 +433,16 @@ static int isp1704_charger_probe(struct platform_device *pdev)
 	}
 
 	/*
-	 * REVISIT: using work in order to allow the usb notifications to be
+	 * REVISIT: using work in order to allow the usb yestifications to be
 	 * made atomically in the future.
 	 */
 	INIT_WORK(&isp->work, isp1704_charger_work);
 
-	isp->nb.notifier_call = isp1704_notifier_call;
+	isp->nb.yestifier_call = isp1704_yestifier_call;
 
-	ret = usb_register_notifier(isp->phy, &isp->nb);
+	ret = usb_register_yestifier(isp->phy, &isp->nb);
 	if (ret) {
-		dev_err(&pdev->dev, "usb_register_notifier failed\n");
+		dev_err(&pdev->dev, "usb_register_yestifier failed\n");
 		goto fail2;
 	}
 
@@ -481,7 +481,7 @@ static int isp1704_charger_remove(struct platform_device *pdev)
 {
 	struct isp1704_charger *isp = platform_get_drvdata(pdev);
 
-	usb_unregister_notifier(isp->phy, &isp->nb);
+	usb_unregister_yestifier(isp->phy, &isp->nb);
 	power_supply_unregister(isp->psy);
 	isp1704_charger_set_power(isp, 0);
 

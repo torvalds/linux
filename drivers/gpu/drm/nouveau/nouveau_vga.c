@@ -5,15 +5,15 @@
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_fb_helper.h>
 
-#include "nouveau_drv.h"
-#include "nouveau_acpi.h"
-#include "nouveau_fbcon.h"
-#include "nouveau_vga.h"
+#include "yesuveau_drv.h"
+#include "yesuveau_acpi.h"
+#include "yesuveau_fbcon.h"
+#include "yesuveau_vga.h"
 
 static unsigned int
-nouveau_vga_set_decode(void *priv, bool state)
+yesuveau_vga_set_decode(void *priv, bool state)
 {
-	struct nouveau_drm *drm = nouveau_drm(priv);
+	struct yesuveau_drm *drm = yesuveau_drm(priv);
 	struct nvif_object *device = &drm->client.device.object;
 
 	if (drm->client.device.info.family == NV_DEVICE_INFO_V0_CURIE &&
@@ -33,82 +33,82 @@ nouveau_vga_set_decode(void *priv, bool state)
 }
 
 static void
-nouveau_switcheroo_set_state(struct pci_dev *pdev,
+yesuveau_switcheroo_set_state(struct pci_dev *pdev,
 			     enum vga_switcheroo_state state)
 {
 	struct drm_device *dev = pci_get_drvdata(pdev);
 
-	if ((nouveau_is_optimus() || nouveau_is_v1_dsm()) && state == VGA_SWITCHEROO_OFF)
+	if ((yesuveau_is_optimus() || yesuveau_is_v1_dsm()) && state == VGA_SWITCHEROO_OFF)
 		return;
 
 	if (state == VGA_SWITCHEROO_ON) {
-		pr_err("VGA switcheroo: switched nouveau on\n");
+		pr_err("VGA switcheroo: switched yesuveau on\n");
 		dev->switch_power_state = DRM_SWITCH_POWER_CHANGING;
-		nouveau_pmops_resume(&pdev->dev);
+		yesuveau_pmops_resume(&pdev->dev);
 		dev->switch_power_state = DRM_SWITCH_POWER_ON;
 	} else {
-		pr_err("VGA switcheroo: switched nouveau off\n");
+		pr_err("VGA switcheroo: switched yesuveau off\n");
 		dev->switch_power_state = DRM_SWITCH_POWER_CHANGING;
-		nouveau_switcheroo_optimus_dsm();
-		nouveau_pmops_suspend(&pdev->dev);
+		yesuveau_switcheroo_optimus_dsm();
+		yesuveau_pmops_suspend(&pdev->dev);
 		dev->switch_power_state = DRM_SWITCH_POWER_OFF;
 	}
 }
 
 static void
-nouveau_switcheroo_reprobe(struct pci_dev *pdev)
+yesuveau_switcheroo_reprobe(struct pci_dev *pdev)
 {
 	struct drm_device *dev = pci_get_drvdata(pdev);
 	drm_fb_helper_output_poll_changed(dev);
 }
 
 static bool
-nouveau_switcheroo_can_switch(struct pci_dev *pdev)
+yesuveau_switcheroo_can_switch(struct pci_dev *pdev)
 {
 	struct drm_device *dev = pci_get_drvdata(pdev);
 
 	/*
 	 * FIXME: open_count is protected by drm_global_mutex but that would lead to
 	 * locking inversion with the driver load path. And the access here is
-	 * completely racy anyway. So don't bother with locking for now.
+	 * completely racy anyway. So don't bother with locking for yesw.
 	 */
 	return dev->open_count == 0;
 }
 
 static const struct vga_switcheroo_client_ops
-nouveau_switcheroo_ops = {
-	.set_gpu_state = nouveau_switcheroo_set_state,
-	.reprobe = nouveau_switcheroo_reprobe,
-	.can_switch = nouveau_switcheroo_can_switch,
+yesuveau_switcheroo_ops = {
+	.set_gpu_state = yesuveau_switcheroo_set_state,
+	.reprobe = yesuveau_switcheroo_reprobe,
+	.can_switch = yesuveau_switcheroo_can_switch,
 };
 
 void
-nouveau_vga_init(struct nouveau_drm *drm)
+yesuveau_vga_init(struct yesuveau_drm *drm)
 {
 	struct drm_device *dev = drm->dev;
-	bool runtime = nouveau_pmops_runtime();
+	bool runtime = yesuveau_pmops_runtime();
 
 	/* only relevant for PCI devices */
 	if (!dev->pdev)
 		return;
 
-	vga_client_register(dev->pdev, dev, NULL, nouveau_vga_set_decode);
+	vga_client_register(dev->pdev, dev, NULL, yesuveau_vga_set_decode);
 
 	/* don't register Thunderbolt eGPU with vga_switcheroo */
 	if (pci_is_thunderbolt_attached(dev->pdev))
 		return;
 
-	vga_switcheroo_register_client(dev->pdev, &nouveau_switcheroo_ops, runtime);
+	vga_switcheroo_register_client(dev->pdev, &yesuveau_switcheroo_ops, runtime);
 
-	if (runtime && nouveau_is_v1_dsm() && !nouveau_is_optimus())
+	if (runtime && yesuveau_is_v1_dsm() && !yesuveau_is_optimus())
 		vga_switcheroo_init_domain_pm_ops(drm->dev->dev, &drm->vga_pm_domain);
 }
 
 void
-nouveau_vga_fini(struct nouveau_drm *drm)
+yesuveau_vga_fini(struct yesuveau_drm *drm)
 {
 	struct drm_device *dev = drm->dev;
-	bool runtime = nouveau_pmops_runtime();
+	bool runtime = yesuveau_pmops_runtime();
 
 	/* only relevant for PCI devices */
 	if (!dev->pdev)
@@ -120,13 +120,13 @@ nouveau_vga_fini(struct nouveau_drm *drm)
 		return;
 
 	vga_switcheroo_unregister_client(dev->pdev);
-	if (runtime && nouveau_is_v1_dsm() && !nouveau_is_optimus())
+	if (runtime && yesuveau_is_v1_dsm() && !yesuveau_is_optimus())
 		vga_switcheroo_fini_domain_pm_ops(drm->dev->dev);
 }
 
 
 void
-nouveau_vga_lastclose(struct drm_device *dev)
+yesuveau_vga_lastclose(struct drm_device *dev)
 {
 	vga_switcheroo_process_delayed_switch();
 }

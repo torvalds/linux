@@ -76,7 +76,7 @@ static void ti_am335x_xbar_free(struct device *dev, void *route_data)
 static void *ti_am335x_xbar_route_allocate(struct of_phandle_args *dma_spec,
 					   struct of_dma *ofdma)
 {
-	struct platform_device *pdev = of_find_device_by_node(ofdma->of_node);
+	struct platform_device *pdev = of_find_device_by_yesde(ofdma->of_yesde);
 	struct ti_am335x_xbar_data *xbar = platform_get_drvdata(pdev);
 	struct ti_am335x_xbar_map *map;
 
@@ -95,8 +95,8 @@ static void *ti_am335x_xbar_route_allocate(struct of_phandle_args *dma_spec,
 		return ERR_PTR(-EINVAL);
 	}
 
-	/* The of_node_put() will be done in the core for the node */
-	dma_spec->np = of_parse_phandle(ofdma->of_node, "dma-masters", 0);
+	/* The of_yesde_put() will be done in the core for the yesde */
+	dma_spec->np = of_parse_phandle(ofdma->of_yesde, "dma-masters", 0);
 	if (!dma_spec->np) {
 		dev_err(&pdev->dev, "Can't get DMA master\n");
 		return ERR_PTR(-EINVAL);
@@ -104,7 +104,7 @@ static void *ti_am335x_xbar_route_allocate(struct of_phandle_args *dma_spec,
 
 	map = kzalloc(sizeof(*map), GFP_KERNEL);
 	if (!map) {
-		of_node_put(dma_spec->np);
+		of_yesde_put(dma_spec->np);
 		return ERR_PTR(-ENOMEM);
 	}
 
@@ -129,44 +129,44 @@ static const struct of_device_id ti_am335x_master_match[] = {
 
 static int ti_am335x_xbar_probe(struct platform_device *pdev)
 {
-	struct device_node *node = pdev->dev.of_node;
+	struct device_yesde *yesde = pdev->dev.of_yesde;
 	const struct of_device_id *match;
-	struct device_node *dma_node;
+	struct device_yesde *dma_yesde;
 	struct ti_am335x_xbar_data *xbar;
 	struct resource *res;
 	void __iomem *iomem;
 	int i, ret;
 
-	if (!node)
+	if (!yesde)
 		return -ENODEV;
 
 	xbar = devm_kzalloc(&pdev->dev, sizeof(*xbar), GFP_KERNEL);
 	if (!xbar)
 		return -ENOMEM;
 
-	dma_node = of_parse_phandle(node, "dma-masters", 0);
-	if (!dma_node) {
-		dev_err(&pdev->dev, "Can't get DMA master node\n");
+	dma_yesde = of_parse_phandle(yesde, "dma-masters", 0);
+	if (!dma_yesde) {
+		dev_err(&pdev->dev, "Can't get DMA master yesde\n");
 		return -ENODEV;
 	}
 
-	match = of_match_node(ti_am335x_master_match, dma_node);
+	match = of_match_yesde(ti_am335x_master_match, dma_yesde);
 	if (!match) {
-		dev_err(&pdev->dev, "DMA master is not supported\n");
-		of_node_put(dma_node);
+		dev_err(&pdev->dev, "DMA master is yest supported\n");
+		of_yesde_put(dma_yesde);
 		return -EINVAL;
 	}
 
-	if (of_property_read_u32(dma_node, "dma-requests",
+	if (of_property_read_u32(dma_yesde, "dma-requests",
 				 &xbar->dma_requests)) {
 		dev_info(&pdev->dev,
 			 "Missing XBAR output information, using %u.\n",
 			 TI_AM335X_XBAR_LINES);
 		xbar->dma_requests = TI_AM335X_XBAR_LINES;
 	}
-	of_node_put(dma_node);
+	of_yesde_put(dma_yesde);
 
-	if (of_property_read_u32(node, "dma-requests", &xbar->xbar_events)) {
+	if (of_property_read_u32(yesde, "dma-requests", &xbar->xbar_events)) {
 		dev_info(&pdev->dev,
 			 "Missing XBAR input information, using %u.\n",
 			 TI_AM335X_XBAR_LINES);
@@ -189,7 +189,7 @@ static int ti_am335x_xbar_probe(struct platform_device *pdev)
 	for (i = 0; i < xbar->dma_requests; i++)
 		ti_am335x_xbar_write(xbar->iomem, i, 0);
 
-	ret = of_dma_router_register(node, ti_am335x_xbar_route_allocate,
+	ret = of_dma_router_register(yesde, ti_am335x_xbar_route_allocate,
 				     &xbar->dmarouter);
 
 	return ret;
@@ -240,7 +240,7 @@ static void ti_dra7_xbar_free(struct device *dev, void *route_data)
 static void *ti_dra7_xbar_route_allocate(struct of_phandle_args *dma_spec,
 					 struct of_dma *ofdma)
 {
-	struct platform_device *pdev = of_find_device_by_node(ofdma->of_node);
+	struct platform_device *pdev = of_find_device_by_yesde(ofdma->of_yesde);
 	struct ti_dra7_xbar_data *xbar = platform_get_drvdata(pdev);
 	struct ti_dra7_xbar_map *map;
 
@@ -250,8 +250,8 @@ static void *ti_dra7_xbar_route_allocate(struct of_phandle_args *dma_spec,
 		return ERR_PTR(-EINVAL);
 	}
 
-	/* The of_node_put() will be done in the core for the node */
-	dma_spec->np = of_parse_phandle(ofdma->of_node, "dma-masters", 0);
+	/* The of_yesde_put() will be done in the core for the yesde */
+	dma_spec->np = of_parse_phandle(ofdma->of_yesde, "dma-masters", 0);
 	if (!dma_spec->np) {
 		dev_err(&pdev->dev, "Can't get DMA master\n");
 		return ERR_PTR(-EINVAL);
@@ -259,7 +259,7 @@ static void *ti_dra7_xbar_route_allocate(struct of_phandle_args *dma_spec,
 
 	map = kzalloc(sizeof(*map), GFP_KERNEL);
 	if (!map) {
-		of_node_put(dma_spec->np);
+		of_yesde_put(dma_spec->np);
 		return ERR_PTR(-ENOMEM);
 	}
 
@@ -318,9 +318,9 @@ static inline void ti_dra7_xbar_reserve(int offset, int len, unsigned long *p)
 
 static int ti_dra7_xbar_probe(struct platform_device *pdev)
 {
-	struct device_node *node = pdev->dev.of_node;
+	struct device_yesde *yesde = pdev->dev.of_yesde;
 	const struct of_device_id *match;
-	struct device_node *dma_node;
+	struct device_yesde *dma_yesde;
 	struct ti_dra7_xbar_data *xbar;
 	struct property *prop;
 	struct resource *res;
@@ -329,34 +329,34 @@ static int ti_dra7_xbar_probe(struct platform_device *pdev)
 	void __iomem *iomem;
 	int i, ret;
 
-	if (!node)
+	if (!yesde)
 		return -ENODEV;
 
 	xbar = devm_kzalloc(&pdev->dev, sizeof(*xbar), GFP_KERNEL);
 	if (!xbar)
 		return -ENOMEM;
 
-	dma_node = of_parse_phandle(node, "dma-masters", 0);
-	if (!dma_node) {
-		dev_err(&pdev->dev, "Can't get DMA master node\n");
+	dma_yesde = of_parse_phandle(yesde, "dma-masters", 0);
+	if (!dma_yesde) {
+		dev_err(&pdev->dev, "Can't get DMA master yesde\n");
 		return -ENODEV;
 	}
 
-	match = of_match_node(ti_dra7_master_match, dma_node);
+	match = of_match_yesde(ti_dra7_master_match, dma_yesde);
 	if (!match) {
-		dev_err(&pdev->dev, "DMA master is not supported\n");
-		of_node_put(dma_node);
+		dev_err(&pdev->dev, "DMA master is yest supported\n");
+		of_yesde_put(dma_yesde);
 		return -EINVAL;
 	}
 
-	if (of_property_read_u32(dma_node, "dma-requests",
+	if (of_property_read_u32(dma_yesde, "dma-requests",
 				 &xbar->dma_requests)) {
 		dev_info(&pdev->dev,
 			 "Missing XBAR output information, using %u.\n",
 			 TI_DRA7_XBAR_OUTPUTS);
 		xbar->dma_requests = TI_DRA7_XBAR_OUTPUTS;
 	}
-	of_node_put(dma_node);
+	of_yesde_put(dma_yesde);
 
 	xbar->dma_inuse = devm_kcalloc(&pdev->dev,
 				       BITS_TO_LONGS(xbar->dma_requests),
@@ -364,18 +364,18 @@ static int ti_dra7_xbar_probe(struct platform_device *pdev)
 	if (!xbar->dma_inuse)
 		return -ENOMEM;
 
-	if (of_property_read_u32(node, "dma-requests", &xbar->xbar_requests)) {
+	if (of_property_read_u32(yesde, "dma-requests", &xbar->xbar_requests)) {
 		dev_info(&pdev->dev,
 			 "Missing XBAR input information, using %u.\n",
 			 TI_DRA7_XBAR_INPUTS);
 		xbar->xbar_requests = TI_DRA7_XBAR_INPUTS;
 	}
 
-	if (!of_property_read_u32(node, "ti,dma-safe-map", &safe_val))
+	if (!of_property_read_u32(yesde, "ti,dma-safe-map", &safe_val))
 		xbar->safe_val = (u16)safe_val;
 
 
-	prop = of_find_property(node, "ti,reserved-dma-request-ranges", &sz);
+	prop = of_find_property(yesde, "ti,reserved-dma-request-ranges", &sz);
 	if (prop) {
 		const char pname[] = "ti,reserved-dma-request-ranges";
 		u32 (*rsv_events)[2];
@@ -389,7 +389,7 @@ static int ti_dra7_xbar_probe(struct platform_device *pdev)
 		if (!rsv_events)
 			return -ENOMEM;
 
-		ret = of_property_read_u32_array(node, pname, (u32 *)rsv_events,
+		ret = of_property_read_u32_array(yesde, pname, (u32 *)rsv_events,
 						 nelm * 2);
 		if (ret) {
 			kfree(rsv_events);
@@ -423,7 +423,7 @@ static int ti_dra7_xbar_probe(struct platform_device *pdev)
 			ti_dra7_xbar_write(xbar->iomem, i, xbar->safe_val);
 	}
 
-	ret = of_dma_router_register(node, ti_dra7_xbar_route_allocate,
+	ret = of_dma_router_register(yesde, ti_dra7_xbar_route_allocate,
 				     &xbar->dmarouter);
 	if (ret) {
 		/* Restore the defaults for the crossbar */
@@ -441,7 +441,7 @@ static int ti_dma_xbar_probe(struct platform_device *pdev)
 	const struct of_device_id *match;
 	int ret;
 
-	match = of_match_node(ti_dma_xbar_match, pdev->dev.of_node);
+	match = of_match_yesde(ti_dma_xbar_match, pdev->dev.of_yesde);
 	if (unlikely(!match))
 		return -EINVAL;
 

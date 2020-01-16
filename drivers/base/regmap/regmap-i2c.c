@@ -263,7 +263,7 @@ static const struct regmap_bus *regmap_get_i2c_bus(struct i2c_client *i2c,
 			return &regmap_smbus_word;
 		case REGMAP_ENDIAN_BIG:
 			return &regmap_smbus_word_swapped;
-		default:		/* everything else is not supported */
+		default:		/* everything else is yest supported */
 			break;
 		}
 	else if (config->val_bits == 8 && config->reg_bits == 8 &&

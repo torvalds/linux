@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-note) OR BSD-3-Clause) */
+/* SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-yeste) OR BSD-3-Clause) */
 /*
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
@@ -12,7 +12,7 @@
 #include <linux/types.h>
 
 /*
- * Header for all non IPC ABI data.
+ * Header for all yesn IPC ABI data.
  *
  * Identifies data type, size and ABI.
  * Used by any bespoke component data structures or binary blobs.

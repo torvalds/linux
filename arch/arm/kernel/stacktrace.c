@@ -23,9 +23,9 @@
  *	ldm	sp, {fp, sp, pc}
  *
  * Note that with framepointer enabled, even the leaf functions have the same
- * prologue and epilogue, therefore we can ignore the LR value in this case.
+ * prologue and epilogue, therefore we can igyesre the LR value in this case.
  */
-int notrace unwind_frame(struct stackframe *frame)
+int yestrace unwind_frame(struct stackframe *frame)
 {
 	unsigned long high, low;
 	unsigned long fp = frame->fp;
@@ -47,7 +47,7 @@ int notrace unwind_frame(struct stackframe *frame)
 }
 #endif
 
-void notrace walk_stackframe(struct stackframe *frame,
+void yestrace walk_stackframe(struct stackframe *frame,
 		     int (*fn)(struct stackframe *, void *), void *data)
 {
 	while (1) {
@@ -65,7 +65,7 @@ EXPORT_SYMBOL(walk_stackframe);
 #ifdef CONFIG_STACKTRACE
 struct stack_trace_data {
 	struct stack_trace *trace;
-	unsigned int no_sched_functions;
+	unsigned int yes_sched_functions;
 	unsigned int skip;
 };
 
@@ -76,7 +76,7 @@ static int save_trace(struct stackframe *frame, void *d)
 	struct pt_regs *regs;
 	unsigned long addr = frame->pc;
 
-	if (data->no_sched_functions && in_sched_functions(addr))
+	if (data->yes_sched_functions && in_sched_functions(addr))
 		return 0;
 	if (data->skip) {
 		data->skip--;
@@ -98,22 +98,22 @@ static int save_trace(struct stackframe *frame, void *d)
 	return trace->nr_entries >= trace->max_entries;
 }
 
-/* This must be noinline to so that our skip calculation works correctly */
-static noinline void __save_stack_trace(struct task_struct *tsk,
-	struct stack_trace *trace, unsigned int nosched)
+/* This must be yesinline to so that our skip calculation works correctly */
+static yesinline void __save_stack_trace(struct task_struct *tsk,
+	struct stack_trace *trace, unsigned int yessched)
 {
 	struct stack_trace_data data;
 	struct stackframe frame;
 
 	data.trace = trace;
 	data.skip = trace->skip;
-	data.no_sched_functions = nosched;
+	data.yes_sched_functions = yessched;
 
 	if (tsk != current) {
 #ifdef CONFIG_SMP
 		/*
-		 * What guarantees do we have here that 'tsk' is not
-		 * running on another CPU?  For now, ignore it as we
+		 * What guarantees do we have here that 'tsk' is yest
+		 * running on ayesther CPU?  For yesw, igyesre it as we
 		 * can't guarantee we won't explode.
 		 */
 		return;
@@ -124,7 +124,7 @@ static noinline void __save_stack_trace(struct task_struct *tsk,
 		frame.pc = thread_saved_pc(tsk);
 #endif
 	} else {
-		/* We don't want this function nor the caller */
+		/* We don't want this function yesr the caller */
 		data.skip += 2;
 		frame.fp = (unsigned long)__builtin_frame_address(0);
 		frame.sp = current_stack_pointer;
@@ -142,7 +142,7 @@ void save_stack_trace_regs(struct pt_regs *regs, struct stack_trace *trace)
 
 	data.trace = trace;
 	data.skip = trace->skip;
-	data.no_sched_functions = 0;
+	data.yes_sched_functions = 0;
 
 	frame.fp = regs->ARM_fp;
 	frame.sp = regs->ARM_sp;

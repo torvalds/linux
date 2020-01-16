@@ -37,7 +37,7 @@
  *  - Short repeat: One-byte repeat at a recently seen distance
  *
  * The symbol names are in from STATE_oldest_older_previous. REP means
- * either short or long repeated match, and NONLIT means any non-literal.
+ * either short or long repeated match, and NONLIT means any yesn-literal.
  */
 enum lzma_state {
 	STATE_LIT_LIT,

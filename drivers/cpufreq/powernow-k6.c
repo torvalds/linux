@@ -75,12 +75,12 @@ static const struct {
 #define FREQ_RANGE		3000
 
 /**
- * powernow_k6_get_cpu_multiplier - returns the current FSB multiplier
+ * poweryesw_k6_get_cpu_multiplier - returns the current FSB multiplier
  *
  * Returns the current setting of the frequency multiplier. Core clock
  * speed is frequency of the Front-Side Bus multiplied with this value.
  */
-static int powernow_k6_get_cpu_multiplier(void)
+static int poweryesw_k6_get_cpu_multiplier(void)
 {
 	unsigned long invalue = 0;
 	u32 msrval;
@@ -98,13 +98,13 @@ static int powernow_k6_get_cpu_multiplier(void)
 	return clock_ratio[register_to_index[(invalue >> 5)&7]].driver_data;
 }
 
-static void powernow_k6_set_cpu_multiplier(unsigned int best_i)
+static void poweryesw_k6_set_cpu_multiplier(unsigned int best_i)
 {
 	unsigned long outvalue, invalue;
 	unsigned long msrval;
 	unsigned long cr0;
 
-	/* we now need to transform best_i to the BVC format, see AMD#23446 */
+	/* we yesw need to transform best_i to the BVC format, see AMD#23446 */
 
 	/*
 	 * The processor doesn't respond to inquiry cycles while changing the
@@ -131,12 +131,12 @@ static void powernow_k6_set_cpu_multiplier(unsigned int best_i)
 }
 
 /**
- * powernow_k6_target - set the PowerNow! multiplier
+ * poweryesw_k6_target - set the PowerNow! multiplier
  * @best_i: clock_ratio[best_i] is the target multiplier
  *
  *   Tries to change the PowerNow! multiplier
  */
-static int powernow_k6_target(struct cpufreq_policy *policy,
+static int poweryesw_k6_target(struct cpufreq_policy *policy,
 		unsigned int best_i)
 {
 
@@ -145,12 +145,12 @@ static int powernow_k6_target(struct cpufreq_policy *policy,
 		return -EINVAL;
 	}
 
-	powernow_k6_set_cpu_multiplier(best_i);
+	poweryesw_k6_set_cpu_multiplier(best_i);
 
 	return 0;
 }
 
-static int powernow_k6_cpu_init(struct cpufreq_policy *policy)
+static int poweryesw_k6_cpu_init(struct cpufreq_policy *policy)
 {
 	struct cpufreq_frequency_table *pos;
 	unsigned int i, f;
@@ -180,7 +180,7 @@ static int powernow_k6_cpu_init(struct cpufreq_policy *policy)
 	}
 
 	if (!max_multiplier) {
-		pr_warn("unknown frequency %u, cannot determine current multiplier\n",
+		pr_warn("unkyeswn frequency %u, canyest determine current multiplier\n",
 			khz);
 		pr_warn("use module parameters max_multiplier and bus_frequency\n");
 		return -EOPNOTSUPP;
@@ -219,7 +219,7 @@ have_busfreq:
 }
 
 
-static int powernow_k6_cpu_exit(struct cpufreq_policy *policy)
+static int poweryesw_k6_cpu_exit(struct cpufreq_policy *policy)
 {
 	unsigned int i;
 
@@ -232,7 +232,7 @@ static int powernow_k6_cpu_exit(struct cpufreq_policy *policy)
 			freqs.flags = 0;
 
 			cpufreq_freq_transition_begin(policy, &freqs);
-			powernow_k6_target(policy, i);
+			poweryesw_k6_target(policy, i);
 			cpufreq_freq_transition_end(policy, &freqs, 0);
 			break;
 		}
@@ -240,40 +240,40 @@ static int powernow_k6_cpu_exit(struct cpufreq_policy *policy)
 	return 0;
 }
 
-static unsigned int powernow_k6_get(unsigned int cpu)
+static unsigned int poweryesw_k6_get(unsigned int cpu)
 {
 	unsigned int ret;
-	ret = (busfreq * powernow_k6_get_cpu_multiplier());
+	ret = (busfreq * poweryesw_k6_get_cpu_multiplier());
 	return ret;
 }
 
-static struct cpufreq_driver powernow_k6_driver = {
+static struct cpufreq_driver poweryesw_k6_driver = {
 	.verify		= cpufreq_generic_frequency_table_verify,
-	.target_index	= powernow_k6_target,
-	.init		= powernow_k6_cpu_init,
-	.exit		= powernow_k6_cpu_exit,
-	.get		= powernow_k6_get,
-	.name		= "powernow-k6",
+	.target_index	= poweryesw_k6_target,
+	.init		= poweryesw_k6_cpu_init,
+	.exit		= poweryesw_k6_cpu_exit,
+	.get		= poweryesw_k6_get,
+	.name		= "poweryesw-k6",
 	.attr		= cpufreq_generic_attr,
 };
 
-static const struct x86_cpu_id powernow_k6_ids[] = {
+static const struct x86_cpu_id poweryesw_k6_ids[] = {
 	{ X86_VENDOR_AMD, 5, 12 },
 	{ X86_VENDOR_AMD, 5, 13 },
 	{}
 };
-MODULE_DEVICE_TABLE(x86cpu, powernow_k6_ids);
+MODULE_DEVICE_TABLE(x86cpu, poweryesw_k6_ids);
 
 /**
- * powernow_k6_init - initializes the k6 PowerNow! CPUFreq driver
+ * poweryesw_k6_init - initializes the k6 PowerNow! CPUFreq driver
  *
  *   Initializes the K6 PowerNow! support. Returns -ENODEV on unsupported
  * devices, -EINVAL or -ENOMEM on problems during initiatization, and zero
  * on success.
  */
-static int __init powernow_k6_init(void)
+static int __init poweryesw_k6_init(void)
 {
-	if (!x86_match_cpu(powernow_k6_ids))
+	if (!x86_match_cpu(poweryesw_k6_ids))
 		return -ENODEV;
 
 	if (!request_region(POWERNOW_IOPORT, 16, "PowerNow!")) {
@@ -281,7 +281,7 @@ static int __init powernow_k6_init(void)
 		return -EIO;
 	}
 
-	if (cpufreq_register_driver(&powernow_k6_driver)) {
+	if (cpufreq_register_driver(&poweryesw_k6_driver)) {
 		release_region(POWERNOW_IOPORT, 16);
 		return -EINVAL;
 	}
@@ -291,13 +291,13 @@ static int __init powernow_k6_init(void)
 
 
 /**
- * powernow_k6_exit - unregisters AMD K6-2+/3+ PowerNow! support
+ * poweryesw_k6_exit - unregisters AMD K6-2+/3+ PowerNow! support
  *
  *   Unregisters AMD K6-2+ / K6-3+ PowerNow! support.
  */
-static void __exit powernow_k6_exit(void)
+static void __exit poweryesw_k6_exit(void)
 {
-	cpufreq_unregister_driver(&powernow_k6_driver);
+	cpufreq_unregister_driver(&poweryesw_k6_driver);
 	release_region(POWERNOW_IOPORT, 16);
 }
 
@@ -307,5 +307,5 @@ MODULE_AUTHOR("Arjan van de Ven, Dave Jones, "
 MODULE_DESCRIPTION("PowerNow! driver for AMD K6-2+ / K6-3+ processors.");
 MODULE_LICENSE("GPL");
 
-module_init(powernow_k6_init);
-module_exit(powernow_k6_exit);
+module_init(poweryesw_k6_init);
+module_exit(poweryesw_k6_exit);

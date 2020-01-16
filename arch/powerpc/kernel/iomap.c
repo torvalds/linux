@@ -133,7 +133,7 @@ EXPORT_SYMBOL(iowrite64be_hi_lo);
 
 /*
  * These are the "repeat read/write" functions. Note the
- * non-CPU byte order. We do things in "IO byteorder"
+ * yesn-CPU byte order. We do things in "IO byteorder"
  * here.
  *
  * FIXME! We could make these do EEH handling if we really

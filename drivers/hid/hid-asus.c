@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- *  HID driver for Asus notebook built-in keyboard.
+ *  HID driver for Asus yestebook built-in keyboard.
  *  Fixes small logical maximum to match usage maximum.
  *
  *  Currently supported devices are:
@@ -384,7 +384,7 @@ static void asus_kbd_backlight_work(struct work_struct *work)
 
 /* WMI-based keyboard backlight LED control (via asus-wmi driver) takes
  * precedence. We only activate HID-based backlight control when the
- * WMI control is not available.
+ * WMI control is yest available.
  */
 static bool asus_kbd_wmi_led_control_present(struct hid_device *hdev)
 {
@@ -486,7 +486,7 @@ static int asus_parse_battery(struct asus_drvdata *drvdata, u8 *data, int size)
 
 static int asus_report_battery(struct asus_drvdata *drvdata, u8 *data, int size)
 {
-	/* notify only the autonomous event by device */
+	/* yestify only the autoyesmous event by device */
 	if ((drvdata->battery_in_query == false) &&
 			 (size == BATTERY_REPORT_SIZE))
 		power_supply_changed(drvdata->battery);
@@ -673,8 +673,8 @@ static int asus_input_mapping(struct hid_device *hdev,
 	}
 
 	/*
-	 * Ignore a bunch of bogus collections in the T100CHI descriptor.
-	 * This avoids a bunch of non-functional hid_input devices getting
+	 * Igyesre a bunch of bogus collections in the T100CHI descriptor.
+	 * This avoids a bunch of yesn-functional hid_input devices getting
 	 * created because of the T100CHI using HID_QUIRK_MULTI_INPUT.
 	 */
 	if (drvdata->quirks & (QUIRK_T100CHI | QUIRK_T90CHI)) {
@@ -723,7 +723,7 @@ static int asus_input_mapping(struct hid_device *hdev,
 		case 0x99: asus_map_key_clear(KEY_PROG4);		break;
 
 		default:
-			/* ASUS lazily declares 256 usages, ignore the rest,
+			/* ASUS lazily declares 256 usages, igyesre the rest,
 			 * as some make the keyboard appear as a pointer device. */
 			return -1;
 		}
@@ -775,7 +775,7 @@ static int asus_input_mapping(struct hid_device *hdev,
 		case 0xea: /* Volume down */
 			return 0;
 		default:
-			/* Ignore dummy Consumer usages which make the
+			/* Igyesre dummy Consumer usages which make the
 			 * keyboard incorrectly appear as a pointer device.
 			 */
 			return -1;
@@ -909,7 +909,7 @@ static int asus_probe(struct hid_device *hdev, const struct hid_device_id *id)
 	}
 
 	if (!drvdata->input) {
-		hid_err(hdev, "Asus input not registered\n");
+		hid_err(hdev, "Asus input yest registered\n");
 		ret = -ENOMEM;
 		goto err_stop_hw;
 	}
@@ -956,7 +956,7 @@ static __u8 *asus_report_fixup(struct hid_device *hdev, __u8 *rdesc,
 
 	if (drvdata->quirks & QUIRK_FIX_NOTEBOOK_REPORT &&
 			*rsize >= 56 && rdesc[54] == 0x25 && rdesc[55] == 0x65) {
-		hid_info(hdev, "Fixing up Asus notebook report descriptor\n");
+		hid_info(hdev, "Fixing up Asus yestebook report descriptor\n");
 		rdesc[55] = 0xdd;
 	}
 	/* For the T100TA/T200TA keyboard dock */

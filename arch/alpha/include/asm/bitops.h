@@ -16,7 +16,7 @@
 /*
  * These have to be done with inline assembly: that way the bit-setting
  * is guaranteed to be atomic. All bit operations return 0 if the bit
- * was cleared before the operation and != 0 if it was not.
+ * was cleared before the operation and != 0 if it was yest.
  *
  * To get proper branch prediction for the main line, we must branch
  * forward to code at the end of this object's .text section, then
@@ -44,7 +44,7 @@ set_bit(unsigned long nr, volatile void * addr)
 }
 
 /*
- * WARNING: non atomic version.
+ * WARNING: yesn atomic version.
  */
 static inline void
 __set_bit(unsigned long nr, volatile void * addr)
@@ -80,7 +80,7 @@ clear_bit_unlock(unsigned long nr, volatile void * addr)
 }
 
 /*
- * WARNING: non atomic version.
+ * WARNING: yesn atomic version.
  */
 static __inline__ void
 __clear_bit(unsigned long nr, volatile void * addr)
@@ -116,7 +116,7 @@ change_bit(unsigned long nr, volatile void * addr)
 }
 
 /*
- * WARNING: non atomic version.
+ * WARNING: yesn atomic version.
  */
 static __inline__ void
 __change_bit(unsigned long nr, volatile void * addr)
@@ -184,7 +184,7 @@ test_and_set_bit_lock(unsigned long nr, volatile void *addr)
 }
 
 /*
- * WARNING: non atomic version.
+ * WARNING: yesn atomic version.
  */
 static inline int
 __test_and_set_bit(unsigned long nr, volatile void * addr)
@@ -228,7 +228,7 @@ test_and_clear_bit(unsigned long nr, volatile void * addr)
 }
 
 /*
- * WARNING: non atomic version.
+ * WARNING: yesn atomic version.
  */
 static inline int
 __test_and_clear_bit(unsigned long nr, volatile void * addr)
@@ -270,7 +270,7 @@ test_and_change_bit(unsigned long nr, volatile void * addr)
 }
 
 /*
- * WARNING: non atomic version.
+ * WARNING: yesn atomic version.
  */
 static __inline__ int
 __test_and_change_bit(unsigned long nr, volatile void * addr)
@@ -290,7 +290,7 @@ test_bit(int nr, const volatile void * addr)
 }
 
 /*
- * ffz = Find First Zero in word. Undefined if no zero exists,
+ * ffz = Find First Zero in word. Undefined if yes zero exists,
  * so code should check against ~0UL first..
  *
  * Do a binary search on the bits.  Due to the nature of large
@@ -329,7 +329,7 @@ static inline unsigned long ffz(unsigned long word)
 }
 
 /*
- * __ffs = Find First set bit in word.  Undefined if no set bit exists.
+ * __ffs = Find First set bit in word.  Undefined if yes set bit exists.
  */
 static inline unsigned long __ffs(unsigned long word)
 {

@@ -88,7 +88,7 @@ static int hv_cpu_init(unsigned int cpu)
 	 * 5.2.1 "GPA Overlay Pages"). Here it must be zeroed out to make sure
 	 * we always write the EOI MSR in hv_apic_eoi_write() *after* the
 	 * EOI optimization is disabled in hv_cpu_die(), otherwise a CPU may
-	 * not be stopped in the case of CPU offlining and the VM will hang.
+	 * yest be stopped in the case of CPU offlining and the VM will hang.
 	 */
 	if (!*hvp) {
 		*hvp = __vmalloc(PAGE_SIZE, GFP_KERNEL | __GFP_ZERO,
@@ -110,17 +110,17 @@ static int hv_cpu_init(unsigned int cpu)
 
 static void (*hv_reenlightenment_cb)(void);
 
-static void hv_reenlightenment_notify(struct work_struct *dummy)
+static void hv_reenlightenment_yestify(struct work_struct *dummy)
 {
 	struct hv_tsc_emulation_status emu_status;
 
 	rdmsrl(HV_X64_MSR_TSC_EMULATION_STATUS, *(u64 *)&emu_status);
 
-	/* Don't issue the callback if TSC accesses are not emulated */
+	/* Don't issue the callback if TSC accesses are yest emulated */
 	if (hv_reenlightenment_cb && emu_status.inprogress)
 		hv_reenlightenment_cb();
 }
-static DECLARE_DELAYED_WORK(hv_reenlightenment_work, hv_reenlightenment_notify);
+static DECLARE_DELAYED_WORK(hv_reenlightenment_work, hv_reenlightenment_yestify);
 
 void hyperv_stop_tsc_emulation(void)
 {
@@ -140,7 +140,7 @@ static inline bool hv_reenlightenment_available(void)
 {
 	/*
 	 * Check for required features and priviliges to make TSC frequency
-	 * change notifications work.
+	 * change yestifications work.
 	 */
 	return ms_hyperv.features & HV_X64_ACCESS_FREQUENCY_MSRS &&
 		ms_hyperv.misc_features & HV_FEATURE_FREQUENCY_MSRS_AVAILABLE &&
@@ -272,7 +272,7 @@ void __init hyperv_init(void)
 
 	/*
 	 * Allocate the per-CPU state for the hypercall input arg.
-	 * If this allocation fails, we will not be able to setup
+	 * If this allocation fails, we will yest be able to setup
 	 * (per-CPU) hypercall input page and thus this failure is
 	 * fatal on Hyper-V.
 	 */
@@ -321,7 +321,7 @@ void __init hyperv_init(void)
 	wrmsrl(HV_X64_MSR_HYPERCALL, hypercall_msr.as_uint64);
 
 	/*
-	 * Ignore any errors in setting up stimer clockevents
+	 * Igyesre any errors in setting up stimer clockevents
 	 * as we can run with the LAPIC timer as a fallback.
 	 */
 	(void)hv_stimer_alloc();
@@ -392,7 +392,7 @@ void hyperv_report_panic(struct pt_regs *regs, long err)
 	wrmsrl(HV_X64_MSR_CRASH_P4, regs->sp);
 
 	/*
-	 * Let Hyper-V know there is crash data available
+	 * Let Hyper-V kyesw there is crash data available
 	 */
 	wrmsrl(HV_X64_MSR_CRASH_CTL, HV_CRASH_CTL_CRASH_NOTIFY);
 }
@@ -408,7 +408,7 @@ void hyperv_report_panic_msg(phys_addr_t pa, size_t size)
 	/*
 	 * P3 to contain the physical address of the panic page & P4 to
 	 * contain the size of the panic data in that page. Rest of the
-	 * registers are no-op when the NOTIFY_MSG flag is set.
+	 * registers are yes-op when the NOTIFY_MSG flag is set.
 	 */
 	wrmsrl(HV_X64_MSR_CRASH_P0, 0);
 	wrmsrl(HV_X64_MSR_CRASH_P1, 0);
@@ -417,7 +417,7 @@ void hyperv_report_panic_msg(phys_addr_t pa, size_t size)
 	wrmsrl(HV_X64_MSR_CRASH_P4, size);
 
 	/*
-	 * Let Hyper-V know there is crash data available along with
+	 * Let Hyper-V kyesw there is crash data available along with
 	 * the panic message.
 	 */
 	wrmsrl(HV_X64_MSR_CRASH_CTL,
@@ -430,7 +430,7 @@ bool hv_is_hyperv_initialized(void)
 	union hv_x64_msr_hypercall_contents hypercall_msr;
 
 	/*
-	 * Ensure that we're really on Hyper-V, and not a KVM or Xen
+	 * Ensure that we're really on Hyper-V, and yest a KVM or Xen
 	 * emulation of Hyper-V
 	 */
 	if (x86_hyper_type != X86_HYPER_MS_HYPERV)

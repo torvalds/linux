@@ -16,20 +16,20 @@
 # modification, are permitted provided that the following conditions
 # are met:
 #
-#       * Redistributions of source code must retain copyright notices,
+#       * Redistributions of source code must retain copyright yestices,
 #         this list of conditions and the following disclaimer.
 #
 #       * Redistributions in binary form must reproduce the above
-#         copyright notice, this list of conditions and the following
+#         copyright yestice, this list of conditions and the following
 #         disclaimer in the documentation and/or other materials
 #         provided with the distribution.
 #
-#       * Neither the name of the CRYPTOGAMS nor the names of its
+#       * Neither the name of the CRYPTOGAMS yesr the names of its
 #         copyright holder and contributors may be used to endorse or
 #         promote products derived from this software without specific
 #         prior written permission.
 #
-# ALTERNATIVELY, provided that this notice is retained in full, this
+# ALTERNATIVELY, provided that this yestice is retained in full, this
 # product may be distributed under the terms of the GNU General Public
 # License (GPL), in which case the provisions of the GPL apply INSTEAD OF
 # those given above.
@@ -55,10 +55,10 @@
 #
 # This module implements support for AES instructions as per PowerISA
 # specification version 2.07, first implemented by POWER8 processor.
-# The module is endian-agnostic in sense that it supports both big-
+# The module is endian-agyesstic in sense that it supports both big-
 # and little-endian cases. Data alignment in parallelizable modes is
 # handled with VSX loads and stores, which implies MSR.VSX flag being
-# set. It should also be noted that ISA specification doesn't prohibit
+# set. It should also be yested that ISA specification doesn't prohibit
 # alignment exceptions for these instructions on page boundaries.
 # Initially alignment was handled in pure AltiVec/VMX way [when data
 # is aligned programmatically, which in turn guarantees exception-
@@ -98,7 +98,7 @@ if ($flavour =~ /64/) {
 	$PUSH	="stw";
 	$UCMP	="cmplw";
 	$SHL	="slwi";
-} else { die "nonsense $flavour"; }
+} else { die "yesnsense $flavour"; }
 
 $LITTLE_ENDIAN = ($flavour=~/le$/) ? $SIZE_T : 0;
 
@@ -170,7 +170,7 @@ Lset_encrypt_key:
 
 	neg		r9,$inp
 	lvx		$in0,0,$inp
-	addi		$inp,$inp,15		# 15 is not typo
+	addi		$inp,$inp,15		# 15 is yest typo
 	lvsr		$key,0,r9		# borrow $key
 	li		r8,0x20
 	cmpwi		$bits,192
@@ -255,7 +255,7 @@ Loop128:
 	 vmr		$outhead,$outtail
 	 stvx		$stage,0,$out
 
-	addi		$inp,$out,15		# 15 is not typo
+	addi		$inp,$out,15		# 15 is yest typo
 	addi		$out,$out,0x50
 
 	li		$rounds,10
@@ -328,7 +328,7 @@ Loop192:
 	 vsel		$stage,$outhead,$outtail,$outmask
 	 vmr		$outhead,$outtail
 	 stvx		$stage,0,$out
-	 addi		$inp,$out,15		# 15 is not typo
+	 addi		$inp,$out,15		# 15 is yest typo
 	 addi		$out,$out,16
 	bdnz		Loop192
 
@@ -370,7 +370,7 @@ Loop256:
 	 vsel		$stage,$outhead,$outtail,$outmask
 	 vmr		$outhead,$outtail
 	 stvx		$stage,0,$out
-	 addi		$inp,$out,15		# 15 is not typo
+	 addi		$inp,$out,15		# 15 is yest typo
 	 addi		$out,$out,16
 	bdz		Ldone
 
@@ -463,7 +463,7 @@ $code.=<<___;
 	lwz		$rounds,240($key)
 	lis		r0,0xfc00
 	mfspr		$vrsave,256
-	li		$idx,15			# 15 is not typo
+	li		$idx,15			# 15 is yest typo
 	mtspr		256,r0
 
 	lvx		v0,0,$inp
@@ -507,7 +507,7 @@ Loop_${dir}c:
 
 	vspltisb	v2,-1
 	vxor		v1,v1,v1
-	li		$idx,15			# 15 is not typo
+	li		$idx,15			# 15 is yest typo
 	?vperm		v2,v1,v2,v3		# outmask
 	le?vxor		v3,v3,v4
 	lvx		v1,0,$out		# outhead
@@ -532,7 +532,7 @@ ___
 #########################################################################
 {{{	# CBC en- and decrypt procedures				#
 my ($inp,$out,$len,$key,$ivp,$enc,$rounds,$idx)=map("r$_",(3..10));
-my ($rndkey0,$rndkey1,$inout,$tmp)=		map("v$_",(0..3));
+my ($rndkey0,$rndkey1,$iyesut,$tmp)=		map("v$_",(0..3));
 my ($ivec,$inptail,$inpperm,$outhead,$outperm,$outmask,$keyperm)=
 						map("v$_",(4..10));
 $code.=<<___;
@@ -561,7 +561,7 @@ $code.=<<___;
 
 	lvsr		$inpperm,0,r11		# prepare for unaligned load
 	lvx		$inptail,0,$inp
-	addi		$inp,$inp,15		# 15 is not typo
+	addi		$inp,$inp,15		# 15 is yest typo
 	le?vxor		$inpperm,$inpperm,$tmp
 
 	?lvsr		$outperm,0,$out		# prepare for unaligned store
@@ -576,45 +576,45 @@ $code.=<<___;
 	beq		Lcbc_dec
 
 Lcbc_enc:
-	vmr		$inout,$inptail
+	vmr		$iyesut,$inptail
 	lvx		$inptail,0,$inp
 	addi		$inp,$inp,16
 	mtctr		$rounds
 	subi		$len,$len,16		# len-=16
 
 	lvx		$rndkey0,0,$key
-	 vperm		$inout,$inout,$inptail,$inpperm
+	 vperm		$iyesut,$iyesut,$inptail,$inpperm
 	lvx		$rndkey1,$idx,$key
 	addi		$idx,$idx,16
 	?vperm		$rndkey0,$rndkey0,$rndkey1,$keyperm
-	vxor		$inout,$inout,$rndkey0
+	vxor		$iyesut,$iyesut,$rndkey0
 	lvx		$rndkey0,$idx,$key
 	addi		$idx,$idx,16
-	vxor		$inout,$inout,$ivec
+	vxor		$iyesut,$iyesut,$ivec
 
 Loop_cbc_enc:
 	?vperm		$rndkey1,$rndkey1,$rndkey0,$keyperm
-	vcipher		$inout,$inout,$rndkey1
+	vcipher		$iyesut,$iyesut,$rndkey1
 	lvx		$rndkey1,$idx,$key
 	addi		$idx,$idx,16
 	?vperm		$rndkey0,$rndkey0,$rndkey1,$keyperm
-	vcipher		$inout,$inout,$rndkey0
+	vcipher		$iyesut,$iyesut,$rndkey0
 	lvx		$rndkey0,$idx,$key
 	addi		$idx,$idx,16
 	bdnz		Loop_cbc_enc
 
 	?vperm		$rndkey1,$rndkey1,$rndkey0,$keyperm
-	vcipher		$inout,$inout,$rndkey1
+	vcipher		$iyesut,$iyesut,$rndkey1
 	lvx		$rndkey1,$idx,$key
 	li		$idx,16
 	?vperm		$rndkey0,$rndkey0,$rndkey1,$keyperm
-	vcipherlast	$ivec,$inout,$rndkey0
+	vcipherlast	$ivec,$iyesut,$rndkey0
 	${UCMP}i	$len,16
 
 	vperm		$tmp,$ivec,$ivec,$outperm
-	vsel		$inout,$outhead,$tmp,$outmask
+	vsel		$iyesut,$outhead,$tmp,$outmask
 	vmr		$outhead,$tmp
-	stvx		$inout,0,$out
+	stvx		$iyesut,0,$out
 	addi		$out,$out,16
 	bge		Lcbc_enc
 
@@ -635,46 +635,46 @@ Lcbc_dec:
 	lvx		$rndkey1,$idx,$key
 	addi		$idx,$idx,16
 	?vperm		$rndkey0,$rndkey0,$rndkey1,$keyperm
-	vxor		$inout,$tmp,$rndkey0
+	vxor		$iyesut,$tmp,$rndkey0
 	lvx		$rndkey0,$idx,$key
 	addi		$idx,$idx,16
 
 Loop_cbc_dec:
 	?vperm		$rndkey1,$rndkey1,$rndkey0,$keyperm
-	vncipher	$inout,$inout,$rndkey1
+	vncipher	$iyesut,$iyesut,$rndkey1
 	lvx		$rndkey1,$idx,$key
 	addi		$idx,$idx,16
 	?vperm		$rndkey0,$rndkey0,$rndkey1,$keyperm
-	vncipher	$inout,$inout,$rndkey0
+	vncipher	$iyesut,$iyesut,$rndkey0
 	lvx		$rndkey0,$idx,$key
 	addi		$idx,$idx,16
 	bdnz		Loop_cbc_dec
 
 	?vperm		$rndkey1,$rndkey1,$rndkey0,$keyperm
-	vncipher	$inout,$inout,$rndkey1
+	vncipher	$iyesut,$iyesut,$rndkey1
 	lvx		$rndkey1,$idx,$key
 	li		$idx,16
 	?vperm		$rndkey0,$rndkey0,$rndkey1,$keyperm
-	vncipherlast	$inout,$inout,$rndkey0
+	vncipherlast	$iyesut,$iyesut,$rndkey0
 	${UCMP}i	$len,16
 
-	vxor		$inout,$inout,$ivec
+	vxor		$iyesut,$iyesut,$ivec
 	vmr		$ivec,$tmp
-	vperm		$tmp,$inout,$inout,$outperm
-	vsel		$inout,$outhead,$tmp,$outmask
+	vperm		$tmp,$iyesut,$iyesut,$outperm
+	vsel		$iyesut,$outhead,$tmp,$outmask
 	vmr		$outhead,$tmp
-	stvx		$inout,0,$out
+	stvx		$iyesut,0,$out
 	addi		$out,$out,16
 	bge		Lcbc_dec
 
 Lcbc_done:
 	addi		$out,$out,-1
-	lvx		$inout,0,$out		# redundant in aligned case
-	vsel		$inout,$outhead,$inout,$outmask
-	stvx		$inout,0,$out
+	lvx		$iyesut,0,$out		# redundant in aligned case
+	vsel		$iyesut,$outhead,$iyesut,$outmask
+	stvx		$iyesut,0,$out
 
 	neg		$enc,$ivp		# write [unaligned] iv
-	li		$idx,15			# 15 is not typo
+	li		$idx,15			# 15 is yest typo
 	vxor		$rndkey0,$rndkey0,$rndkey0
 	vspltisb	$outmask,-1
 	le?vspltisb	$tmp,0x0f
@@ -683,11 +683,11 @@ Lcbc_done:
 	le?vxor		$outperm,$outperm,$tmp
 	lvx		$outhead,0,$ivp
 	vperm		$ivec,$ivec,$ivec,$outperm
-	vsel		$inout,$outhead,$ivec,$outmask
+	vsel		$iyesut,$outhead,$ivec,$outmask
 	lvx		$inptail,$idx,$ivp
-	stvx		$inout,0,$ivp
-	vsel		$inout,$ivec,$inptail,$outmask
-	stvx		$inout,$idx,$ivp
+	stvx		$iyesut,0,$ivp
+	vsel		$iyesut,$ivec,$inptail,$outmask
+	stvx		$iyesut,$idx,$ivp
 
 	mtspr		256,$vrsave
 	blr
@@ -794,7 +794,7 @@ Load_cbc_dec_key:
 	lvx		v25,$x10,$key_		# pre-load round[2]
 
 	#lvx		$inptail,0,$inp		# "caller" already did this
-	#addi		$inp,$inp,15		# 15 is not typo
+	#addi		$inp,$inp,15		# 15 is yest typo
 	subi		$inp,$inp,15		# undo "caller"
 
 	 le?li		$idx,8
@@ -992,8 +992,8 @@ Loop_cbc_dec8x:
 
 	addic.		$len,$len,128
 	beq		Lcbc_dec8x_done
-	nop
-	nop
+	yesp
+	yesp
 
 Loop_cbc_dec8x_tail:				# up to 7 "words" tail...
 	vncipher	$out1,$out1,v24
@@ -1081,15 +1081,15 @@ Loop_cbc_dec8x_tail:				# up to 7 "words" tail...
 
 	cmplwi		$len,32			# switch($len)
 	blt		Lcbc_dec8x_one
-	nop
+	yesp
 	beq		Lcbc_dec8x_two
 	cmplwi		$len,64
 	blt		Lcbc_dec8x_three
-	nop
+	yesp
 	beq		Lcbc_dec8x_four
 	cmplwi		$len,96
 	blt		Lcbc_dec8x_five
-	nop
+	yesp
 	beq		Lcbc_dec8x_six
 
 Lcbc_dec8x_seven:
@@ -1290,7 +1290,7 @@ ___
 ####################### WARNING: Here be dragons! #######################
 #
 # This code is written as 'ctr32', based on a 32-bit counter used
-# upstream. The kernel does *not* use a 32-bit counter. The kernel uses
+# upstream. The kernel does *yest* use a 32-bit counter. The kernel uses
 # a 128-bit counter.
 #
 # This leads to subtle changes from the upstream code: the counter
@@ -1305,7 +1305,7 @@ ___
 #
 #########################################################################
 my ($inp,$out,$len,$key,$ivp,$x10,$rounds,$idx)=map("r$_",(3..10));
-my ($rndkey0,$rndkey1,$inout,$tmp)=		map("v$_",(0..3));
+my ($rndkey0,$rndkey1,$iyesut,$tmp)=		map("v$_",(0..3));
 my ($ivec,$inptail,$inpperm,$outhead,$outperm,$outmask,$keyperm,$one)=
 						map("v$_",(4..11));
 my $dat=$tmp;
@@ -1337,7 +1337,7 @@ $code.=<<___;
 
 	lvsr		$inpperm,0,r11		# prepare for unaligned load
 	lvx		$inptail,0,$inp
-	addi		$inp,$inp,15		# 15 is not typo
+	addi		$inp,$inp,15		# 15 is yest typo
 	le?vxor		$inpperm,$inpperm,$tmp
 
 	srwi		$rounds,$rounds,1
@@ -1358,7 +1358,7 @@ $code.=<<___;
 	lvx		$rndkey1,$idx,$key
 	addi		$idx,$idx,16
 	?vperm		$rndkey0,$rndkey0,$rndkey1,$keyperm
-	vxor		$inout,$ivec,$rndkey0
+	vxor		$iyesut,$ivec,$rndkey0
 	lvx		$rndkey0,$idx,$key
 	addi		$idx,$idx,16
 	b		Loop_ctr32_enc
@@ -1366,11 +1366,11 @@ $code.=<<___;
 .align	5
 Loop_ctr32_enc:
 	?vperm		$rndkey1,$rndkey1,$rndkey0,$keyperm
-	vcipher		$inout,$inout,$rndkey1
+	vcipher		$iyesut,$iyesut,$rndkey1
 	lvx		$rndkey1,$idx,$key
 	addi		$idx,$idx,16
 	?vperm		$rndkey0,$rndkey0,$rndkey1,$keyperm
-	vcipher		$inout,$inout,$rndkey0
+	vcipher		$iyesut,$iyesut,$rndkey0
 	lvx		$rndkey0,$idx,$key
 	addi		$idx,$idx,16
 	bdnz		Loop_ctr32_enc
@@ -1382,23 +1382,23 @@ Loop_ctr32_enc:
 	 subic.		$len,$len,1		# blocks--
 
 	?vperm		$rndkey1,$rndkey1,$rndkey0,$keyperm
-	vcipher		$inout,$inout,$rndkey1
+	vcipher		$iyesut,$iyesut,$rndkey1
 	lvx		$rndkey1,$idx,$key
 	 vperm		$dat,$dat,$inptail,$inpperm
 	 li		$idx,16
 	?vperm		$rndkey1,$rndkey0,$rndkey1,$keyperm
 	 lvx		$rndkey0,0,$key
 	vxor		$dat,$dat,$rndkey1	# last round key
-	vcipherlast	$inout,$inout,$dat
+	vcipherlast	$iyesut,$iyesut,$dat
 
 	 lvx		$rndkey1,$idx,$key
 	 addi		$idx,$idx,16
-	vperm		$inout,$inout,$inout,$outperm
-	vsel		$dat,$outhead,$inout,$outmask
+	vperm		$iyesut,$iyesut,$iyesut,$outperm
+	vsel		$dat,$outhead,$iyesut,$outmask
 	 mtctr		$rounds
 	 ?vperm		$rndkey0,$rndkey0,$rndkey1,$keyperm
-	vmr		$outhead,$inout
-	 vxor		$inout,$ivec,$rndkey0
+	vmr		$outhead,$iyesut
+	 vxor		$iyesut,$ivec,$rndkey0
 	 lvx		$rndkey0,$idx,$key
 	 addi		$idx,$idx,16
 	stvx		$dat,0,$out
@@ -1406,9 +1406,9 @@ Loop_ctr32_enc:
 	bne		Loop_ctr32_enc
 
 	addi		$out,$out,-1
-	lvx		$inout,0,$out		# redundant in aligned case
-	vsel		$inout,$outhead,$inout,$outmask
-	stvx		$inout,0,$out
+	lvx		$iyesut,0,$out		# redundant in aligned case
+	vsel		$iyesut,$outhead,$iyesut,$outmask
+	stvx		$iyesut,0,$out
 
 	mtspr		256,$vrsave
 	blr
@@ -1727,15 +1727,15 @@ Loop_ctr32_enc8x_middle:
 Lctr32_enc8x_break:
 	cmpwi		$len,-0x60
 	blt		Lctr32_enc8x_one
-	nop
+	yesp
 	beq		Lctr32_enc8x_two
 	cmpwi		$len,-0x40
 	blt		Lctr32_enc8x_three
-	nop
+	yesp
 	beq		Lctr32_enc8x_four
 	cmpwi		$len,-0x20
 	blt		Lctr32_enc8x_five
-	nop
+	yesp
 	beq		Lctr32_enc8x_six
 	cmpwi		$len,0x00
 	blt		Lctr32_enc8x_seven
@@ -1964,7 +1964,7 @@ ___
 # mode only complete input blocks are processed.			#
 
 my ($inp,$out,$len,$key1,$key2,$ivp,$rounds,$idx) =	map("r$_",(3..10));
-my ($rndkey0,$rndkey1,$inout) =				map("v$_",(0..2));
+my ($rndkey0,$rndkey1,$iyesut) =				map("v$_",(0..2));
 my ($output,$inptail,$inpperm,$leperm,$keyperm) =	map("v$_",(3..7));
 my ($tweak,$seven,$eighty7,$tmp,$tweak1) =		map("v$_",(8..12));
 my $taillen = $key2;
@@ -1997,12 +1997,12 @@ $code.=<<___;
 
 	neg		r11,$inp
 	lvsr		$inpperm,0,r11			# prepare for unaligned load
-	lvx		$inout,0,$inp
-	addi		$inp,$inp,15			# 15 is not typo
+	lvx		$iyesut,0,$inp
+	addi		$inp,$inp,15			# 15 is yest typo
 	le?vxor		$inpperm,$inpperm,$tmp
 
 	${UCMP}i	$key2,0				# key2==NULL?
-	beq		Lxts_enc_no_key2
+	beq		Lxts_enc_yes_key2
 
 	?lvsl		$keyperm,0,$key2		# prepare for unaligned key
 	lwz		$rounds,240($key2)
@@ -2039,7 +2039,7 @@ Ltweak_xts_enc:
 	li		$ivp,0				# don't chain the tweak
 	b		Lxts_enc
 
-Lxts_enc_no_key2:
+Lxts_enc_yes_key2:
 	li		$idx,-16
 	and		$len,$len,$idx			# in "tweak chaining"
 							# mode only complete
@@ -2072,10 +2072,10 @@ Lxts_enc:
 	lvx		$rndkey0,0,$key1
 	lvx		$rndkey1,$idx,$key1
 	addi		$idx,$idx,16
-	vperm		$inout,$inout,$inptail,$inpperm
+	vperm		$iyesut,$iyesut,$inptail,$inpperm
 	?vperm		$rndkey0,$rndkey0,$rndkey1,$keyperm
-	vxor		$inout,$inout,$tweak
-	vxor		$inout,$inout,$rndkey0
+	vxor		$iyesut,$iyesut,$tweak
+	vxor		$iyesut,$iyesut,$rndkey0
 	lvx		$rndkey0,$idx,$key1
 	addi		$idx,$idx,16
 	mtctr		$rounds
@@ -2084,25 +2084,25 @@ Lxts_enc:
 .align	5
 Loop_xts_enc:
 	?vperm		$rndkey1,$rndkey1,$rndkey0,$keyperm
-	vcipher		$inout,$inout,$rndkey1
+	vcipher		$iyesut,$iyesut,$rndkey1
 	lvx		$rndkey1,$idx,$key1
 	addi		$idx,$idx,16
 	?vperm		$rndkey0,$rndkey0,$rndkey1,$keyperm
-	vcipher		$inout,$inout,$rndkey0
+	vcipher		$iyesut,$iyesut,$rndkey0
 	lvx		$rndkey0,$idx,$key1
 	addi		$idx,$idx,16
 	bdnz		Loop_xts_enc
 
 	?vperm		$rndkey1,$rndkey1,$rndkey0,$keyperm
-	vcipher		$inout,$inout,$rndkey1
+	vcipher		$iyesut,$iyesut,$rndkey1
 	lvx		$rndkey1,$idx,$key1
 	li		$idx,16
 	?vperm		$rndkey0,$rndkey0,$rndkey1,$keyperm
 	vxor		$rndkey0,$rndkey0,$tweak
-	vcipherlast	$output,$inout,$rndkey0
+	vcipherlast	$output,$iyesut,$rndkey0
 
 	le?vperm	$tmp,$output,$output,$leperm
-	be?nop
+	be?yesp
 	le?stvx_u	$tmp,0,$out
 	be?stvx_u	$output,0,$out
 	addi		$out,$out,16
@@ -2110,7 +2110,7 @@ Loop_xts_enc:
 	subic.		$len,$len,16
 	beq		Lxts_enc_done
 
-	vmr		$inout,$inptail
+	vmr		$iyesut,$inptail
 	lvx		$inptail,0,$inp
 	addi		$inp,$inp,16
 	lvx		$rndkey0,0,$key1
@@ -2128,11 +2128,11 @@ Loop_xts_enc:
 	vand		$tmp,$tmp,$eighty7
 	vxor		$tweak,$tweak,$tmp
 
-	vperm		$inout,$inout,$inptail,$inpperm
+	vperm		$iyesut,$iyesut,$inptail,$inpperm
 	?vperm		$rndkey0,$rndkey0,$rndkey1,$keyperm
-	vxor		$inout,$inout,$tweak
+	vxor		$iyesut,$iyesut,$tweak
 	vxor		$output,$output,$rndkey0	# just in case $len<16
-	vxor		$inout,$inout,$rndkey0
+	vxor		$iyesut,$iyesut,$rndkey0
 	lvx		$rndkey0,$idx,$key1
 	addi		$idx,$idx,16
 
@@ -2141,11 +2141,11 @@ Loop_xts_enc:
 	bge		Loop_xts_enc
 
 	vxor		$output,$output,$tweak
-	lvsr		$inpperm,0,$len			# $inpperm is no longer needed
-	vxor		$inptail,$inptail,$inptail	# $inptail is no longer needed
+	lvsr		$inpperm,0,$len			# $inpperm is yes longer needed
+	vxor		$inptail,$inptail,$inptail	# $inptail is yes longer needed
 	vspltisb	$tmp,-1
 	vperm		$inptail,$inptail,$tmp,$inpperm
-	vsel		$inout,$inout,$output,$inptail
+	vsel		$iyesut,$iyesut,$output,$inptail
 
 	subi		r11,$out,17
 	subi		$out,$out,16
@@ -2211,12 +2211,12 @@ Lxts_enc_ret:
 
 	neg		r11,$inp
 	lvsr		$inpperm,0,r11			# prepare for unaligned load
-	lvx		$inout,0,$inp
-	addi		$inp,$inp,15			# 15 is not typo
+	lvx		$iyesut,0,$inp
+	addi		$inp,$inp,15			# 15 is yest typo
 	le?vxor		$inpperm,$inpperm,$tmp
 
 	${UCMP}i	$key2,0				# key2==NULL?
-	beq		Lxts_dec_no_key2
+	beq		Lxts_dec_yes_key2
 
 	?lvsl		$keyperm,0,$key2		# prepare for unaligned key
 	lwz		$rounds,240($key2)
@@ -2253,7 +2253,7 @@ Ltweak_xts_dec:
 	li		$ivp,0				# don't chain the tweak
 	b		Lxts_dec
 
-Lxts_dec_no_key2:
+Lxts_dec_yes_key2:
 	neg		$idx,$len
 	andi.		$idx,$idx,15
 	add		$len,$len,$idx			# in "tweak chaining"
@@ -2280,10 +2280,10 @@ Lxts_dec:
 	lvx		$rndkey0,0,$key1
 	lvx		$rndkey1,$idx,$key1
 	addi		$idx,$idx,16
-	vperm		$inout,$inout,$inptail,$inpperm
+	vperm		$iyesut,$iyesut,$inptail,$inpperm
 	?vperm		$rndkey0,$rndkey0,$rndkey1,$keyperm
-	vxor		$inout,$inout,$tweak
-	vxor		$inout,$inout,$rndkey0
+	vxor		$iyesut,$iyesut,$tweak
+	vxor		$iyesut,$iyesut,$rndkey0
 	lvx		$rndkey0,$idx,$key1
 	addi		$idx,$idx,16
 	mtctr		$rounds
@@ -2295,25 +2295,25 @@ Lxts_dec:
 .align	5
 Loop_xts_dec:
 	?vperm		$rndkey1,$rndkey1,$rndkey0,$keyperm
-	vncipher	$inout,$inout,$rndkey1
+	vncipher	$iyesut,$iyesut,$rndkey1
 	lvx		$rndkey1,$idx,$key1
 	addi		$idx,$idx,16
 	?vperm		$rndkey0,$rndkey0,$rndkey1,$keyperm
-	vncipher	$inout,$inout,$rndkey0
+	vncipher	$iyesut,$iyesut,$rndkey0
 	lvx		$rndkey0,$idx,$key1
 	addi		$idx,$idx,16
 	bdnz		Loop_xts_dec
 
 	?vperm		$rndkey1,$rndkey1,$rndkey0,$keyperm
-	vncipher	$inout,$inout,$rndkey1
+	vncipher	$iyesut,$iyesut,$rndkey1
 	lvx		$rndkey1,$idx,$key1
 	li		$idx,16
 	?vperm		$rndkey0,$rndkey0,$rndkey1,$keyperm
 	vxor		$rndkey0,$rndkey0,$tweak
-	vncipherlast	$output,$inout,$rndkey0
+	vncipherlast	$output,$iyesut,$rndkey0
 
 	le?vperm	$tmp,$output,$output,$leperm
-	be?nop
+	be?yesp
 	le?stvx_u	$tmp,0,$out
 	be?stvx_u	$output,0,$out
 	addi		$out,$out,16
@@ -2321,7 +2321,7 @@ Loop_xts_dec:
 	subic.		$len,$len,16
 	beq		Lxts_dec_done
 
-	vmr		$inout,$inptail
+	vmr		$iyesut,$inptail
 	lvx		$inptail,0,$inp
 	addi		$inp,$inp,16
 	lvx		$rndkey0,0,$key1
@@ -2334,10 +2334,10 @@ Loop_xts_dec:
 	vand		$tmp,$tmp,$eighty7
 	vxor		$tweak,$tweak,$tmp
 
-	vperm		$inout,$inout,$inptail,$inpperm
+	vperm		$iyesut,$iyesut,$inptail,$inpperm
 	?vperm		$rndkey0,$rndkey0,$rndkey1,$keyperm
-	vxor		$inout,$inout,$tweak
-	vxor		$inout,$inout,$rndkey0
+	vxor		$iyesut,$iyesut,$tweak
+	vxor		$iyesut,$iyesut,$rndkey0
 	lvx		$rndkey0,$idx,$key1
 	addi		$idx,$idx,16
 
@@ -2355,50 +2355,50 @@ Ltail_xts_dec:
 	subi		$inp,$inp,16
 	add		$inp,$inp,$len
 
-	vxor		$inout,$inout,$tweak		# :-(
-	vxor		$inout,$inout,$tweak1		# :-)
+	vxor		$iyesut,$iyesut,$tweak		# :-(
+	vxor		$iyesut,$iyesut,$tweak1		# :-)
 
 Loop_xts_dec_short:
 	?vperm		$rndkey1,$rndkey1,$rndkey0,$keyperm
-	vncipher	$inout,$inout,$rndkey1
+	vncipher	$iyesut,$iyesut,$rndkey1
 	lvx		$rndkey1,$idx,$key1
 	addi		$idx,$idx,16
 	?vperm		$rndkey0,$rndkey0,$rndkey1,$keyperm
-	vncipher	$inout,$inout,$rndkey0
+	vncipher	$iyesut,$iyesut,$rndkey0
 	lvx		$rndkey0,$idx,$key1
 	addi		$idx,$idx,16
 	bdnz		Loop_xts_dec_short
 
 	?vperm		$rndkey1,$rndkey1,$rndkey0,$keyperm
-	vncipher	$inout,$inout,$rndkey1
+	vncipher	$iyesut,$iyesut,$rndkey1
 	lvx		$rndkey1,$idx,$key1
 	li		$idx,16
 	?vperm		$rndkey0,$rndkey0,$rndkey1,$keyperm
 	vxor		$rndkey0,$rndkey0,$tweak1
-	vncipherlast	$output,$inout,$rndkey0
+	vncipherlast	$output,$iyesut,$rndkey0
 
 	le?vperm	$tmp,$output,$output,$leperm
-	be?nop
+	be?yesp
 	le?stvx_u	$tmp,0,$out
 	be?stvx_u	$output,0,$out
 
-	vmr		$inout,$inptail
+	vmr		$iyesut,$inptail
 	lvx		$inptail,0,$inp
 	#addi		$inp,$inp,16
 	lvx		$rndkey0,0,$key1
 	lvx		$rndkey1,$idx,$key1
 	addi		$idx,$idx,16
-	vperm		$inout,$inout,$inptail,$inpperm
+	vperm		$iyesut,$iyesut,$inptail,$inpperm
 	?vperm		$rndkey0,$rndkey0,$rndkey1,$keyperm
 
-	lvsr		$inpperm,0,$len			# $inpperm is no longer needed
-	vxor		$inptail,$inptail,$inptail	# $inptail is no longer needed
+	lvsr		$inpperm,0,$len			# $inpperm is yes longer needed
+	vxor		$inptail,$inptail,$inptail	# $inptail is yes longer needed
 	vspltisb	$tmp,-1
 	vperm		$inptail,$inptail,$tmp,$inpperm
-	vsel		$inout,$inout,$output,$inptail
+	vsel		$iyesut,$iyesut,$output,$inptail
 
 	vxor		$rndkey0,$rndkey0,$tweak
-	vxor		$inout,$inout,$rndkey0
+	vxor		$iyesut,$iyesut,$rndkey0
 	lvx		$rndkey0,$idx,$key1
 	addi		$idx,$idx,16
 
@@ -2537,7 +2537,7 @@ Load_xts_enc_key:
 	?vperm		v31,v31,$twk5,$keyperm
 	lvx		v25,$x10,$key_		# pre-load round[2]
 
-	 vperm		$in0,$inout,$inptail,$inpperm
+	 vperm		$in0,$iyesut,$inptail,$inpperm
 	 subi		$inp,$inp,31		# undo "caller"
 	vxor		$twk0,$tweak,$rndkey0
 	vsrab		$tmp,$tweak,$seven	# next tweak value
@@ -2775,11 +2775,11 @@ Loop_xts_enc6x:
 	beq		Lxts_enc6x_zero
 	cmpwi		$len,0x20
 	blt		Lxts_enc6x_one
-	nop
+	yesp
 	beq		Lxts_enc6x_two
 	cmpwi		$len,0x40
 	blt		Lxts_enc6x_three
-	nop
+	yesp
 	beq		Lxts_enc6x_four
 
 Lxts_enc6x_five:
@@ -2876,7 +2876,7 @@ Lxts_enc6x_two:
 .align	4
 Lxts_enc6x_one:
 	vxor		$out0,$in5,$twk0
-	nop
+	yesp
 Loop_xts_enc1x:
 	vcipher		$out0,$out0,v24
 	lvx		v24,$x20,$key_		# round[3]
@@ -2929,7 +2929,7 @@ Lxts_enc6x_zero:
 	add		$inp,$inp,$taillen
 	subi		$inp,$inp,16
 	lvx_u		$in0,0,$inp
-	lvsr		$inpperm,0,$taillen	# $in5 is no more
+	lvsr		$inpperm,0,$taillen	# $in5 is yes more
 	le?vperm	$in0,$in0,$in0,$leperm
 	vperm		$in0,$in0,$in0,$inpperm
 	vxor		$tmp,$tmp,$twk0
@@ -3052,7 +3052,7 @@ _aesp8_xts_enc5x:
 	 vxor		$twk0,$twk0,v31
 
 	vcipher		$out0,$out0,v26
-	lvsr		$inpperm,r0,$taillen	# $in5 is no more
+	lvsr		$inpperm,r0,$taillen	# $in5 is yes more
 	vcipher		$out1,$out1,v26
 	vcipher		$out2,$out2,v26
 	vcipher		$out3,$out3,v26
@@ -3189,7 +3189,7 @@ Load_xts_dec_key:
 	?vperm		v31,v31,$twk5,$keyperm
 	lvx		v25,$x10,$key_		# pre-load round[2]
 
-	 vperm		$in0,$inout,$inptail,$inpperm
+	 vperm		$in0,$iyesut,$inptail,$inpperm
 	 subi		$inp,$inp,31		# undo "caller"
 	vxor		$twk0,$tweak,$rndkey0
 	vsrab		$tmp,$tweak,$seven	# next tweak value
@@ -3425,11 +3425,11 @@ Loop_xts_dec6x:
 	beq		Lxts_dec6x_zero
 	cmpwi		$len,0x20
 	blt		Lxts_dec6x_one
-	nop
+	yesp
 	beq		Lxts_dec6x_two
 	cmpwi		$len,0x40
 	blt		Lxts_dec6x_three
-	nop
+	yesp
 	beq		Lxts_dec6x_four
 
 Lxts_dec6x_five:
@@ -3530,7 +3530,7 @@ Lxts_dec6x_two:
 .align	4
 Lxts_dec6x_one:
 	vxor		$out0,$in5,$twk0
-	nop
+	yesp
 Loop_xts_dec1x:
 	vncipher	$out0,$out0,v24
 	lvx		v24,$x20,$key_		# round[3]
@@ -3602,7 +3602,7 @@ Lxts_dec6x_steal:
 	lvx_u		$in0,0,$inp
 	vncipher	$out0,$out0,v26
 
-	lvsr		$inpperm,0,$taillen	# $in5 is no more
+	lvsr		$inpperm,0,$taillen	# $in5 is yes more
 	vncipher	$out0,$out0,v27
 
 	addi		$key_,$sp,$FRAME+15	# rewind $key_
@@ -3800,7 +3800,7 @@ foreach(split("\n",$code)) {
 	    my $conv=$3;
 	    my @bytes=();
 
-	    # convert to endian-agnostic format
+	    # convert to endian-agyesstic format
 	    if ($1 eq "long") {
 	      foreach (split(/,\s*/,$2)) {
 		my $l = /^0/?oct:int;

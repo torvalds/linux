@@ -38,7 +38,7 @@ fi
 DELAY="0"  # Zero means max speed
 
 if [[ -n "$BURST" ]]; then
-    err 1 "Bursting not supported for this mode"
+    err 1 "Bursting yest supported for this mode"
 fi
 
 # 198.18.0.0 / 198.19.255.255

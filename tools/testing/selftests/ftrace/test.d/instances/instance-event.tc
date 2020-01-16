@@ -3,7 +3,7 @@
 # description: Test creation and deletion of trace instances while setting an event
 
 if [ ! -d instances ] ; then
-    echo "no instance directory with this kernel"
+    echo "yes instance directory with this kernel"
     exit_unsupported;
 fi
 
@@ -24,7 +24,7 @@ rmdir x
 result=$?
 
 if [ $result -ne 0 ]; then
-    echo "instance rmdir not supported"
+    echo "instance rmdir yest supported"
     exit_unsupported
 fi
 

@@ -4,10 +4,10 @@
  * for more details.
  *
  * Copyright (C) 2004, 2005 Ralf Baechle
- * Copyright (C) 2005 MIPS Technologies, Inc.
+ * Copyright (C) 2005 MIPS Techyeslogies, Inc.
  */
 #include <linux/compiler.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/init.h>
 #include <linux/oprofile.h>
 #include <linux/smp.h>

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
-/* Copyright (c) 2019 Mellanox Technologies */
+/* Copyright (c) 2019 Mellayesx Techyeslogies */
 
 #include <devlink.h>
 
@@ -31,12 +31,12 @@ static u8 mlx5_fw_ver_major(u32 version)
 	return (version >> 24) & 0xff;
 }
 
-static u8 mlx5_fw_ver_minor(u32 version)
+static u8 mlx5_fw_ver_miyesr(u32 version)
 {
 	return (version >> 16) & 0xff;
 }
 
-static u16 mlx5_fw_ver_subminor(u32 version)
+static u16 mlx5_fw_ver_submiyesr(u32 version)
 {
 	return version & 0xffff;
 }
@@ -65,19 +65,19 @@ mlx5_devlink_info_get(struct devlink *devlink, struct devlink_info_req *req,
 		return err;
 
 	snprintf(version_str, sizeof(version_str), "%d.%d.%04d",
-		 mlx5_fw_ver_major(running_fw), mlx5_fw_ver_minor(running_fw),
-		 mlx5_fw_ver_subminor(running_fw));
+		 mlx5_fw_ver_major(running_fw), mlx5_fw_ver_miyesr(running_fw),
+		 mlx5_fw_ver_submiyesr(running_fw));
 	err = devlink_info_version_running_put(req, "fw.version", version_str);
 	if (err)
 		return err;
 
-	/* no pending version, return running (stored) version */
+	/* yes pending version, return running (stored) version */
 	if (stored_fw == 0)
 		stored_fw = running_fw;
 
 	snprintf(version_str, sizeof(version_str), "%d.%d.%04d",
-		 mlx5_fw_ver_major(stored_fw), mlx5_fw_ver_minor(stored_fw),
-		 mlx5_fw_ver_subminor(stored_fw));
+		 mlx5_fw_ver_major(stored_fw), mlx5_fw_ver_miyesr(stored_fw),
+		 mlx5_fw_ver_submiyesr(stored_fw));
 	err = devlink_info_version_stored_put(req, "fw.version", version_str);
 	if (err)
 		return err;
@@ -146,12 +146,12 @@ static int mlx5_devlink_fs_mode_validate(struct devlink *devlink, u32 id,
 		if (!smfs_cap) {
 			err = -EOPNOTSUPP;
 			NL_SET_ERR_MSG_MOD(extack,
-					   "Software managed steering is not supported by current device");
+					   "Software managed steering is yest supported by current device");
 		}
 
 		else if (eswitch_mode == MLX5_ESWITCH_OFFLOADS) {
 			NL_SET_ERR_MSG_MOD(extack,
-					   "Software managed steering is not supported when eswitch offloads enabled.");
+					   "Software managed steering is yest supported when eswitch offloads enabled.");
 			err = -EOPNOTSUPP;
 		}
 	} else {

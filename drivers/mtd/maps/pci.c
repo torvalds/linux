@@ -94,7 +94,7 @@ intel_iq80310_init(struct pci_dev *dev, struct map_pci_info *map)
 	map->map.write = mtd_pci_write8,
 
 	map->map.size     = 0x00800000;
-	map->base         = ioremap_nocache(pci_resource_start(dev, 0),
+	map->base         = ioremap_yescache(pci_resource_start(dev, 0),
 					    pci_resource_len(dev, 0));
 
 	if (!map->base)
@@ -102,7 +102,7 @@ intel_iq80310_init(struct pci_dev *dev, struct map_pci_info *map)
 
 	/*
 	 * We want to base the memory window at Xscale
-	 * bus address 0, not 0x1000.
+	 * bus address 0, yest 0x1000.
 	 */
 	pci_read_config_dword(dev, 0x44, &win_base);
 	pci_write_config_dword(dev, 0x44, 0);
@@ -127,7 +127,7 @@ intel_iq80310_translate(struct map_pci_info *map, unsigned long ofs)
 
 	/*
 	 * This mundges the flash location so we avoid
-	 * the first 80 bytes (they appear to read nonsense).
+	 * the first 80 bytes (they appear to read yesnsense).
 	 */
 	if (page_addr) {
 		writel(0x00000008, map->base + 0x1558);
@@ -174,7 +174,7 @@ intel_dc21285_init(struct pci_dev *dev, struct map_pci_info *map)
 	} else {
 		/*
 		 * Hmm, if an address was allocated to the ROM resource, but
-		 * not enabled, should we be allocating a new resource for it
+		 * yest enabled, should we be allocating a new resource for it
 		 * or simply enabling it?
 		 */
 		pci_enable_rom(dev);
@@ -188,7 +188,7 @@ intel_dc21285_init(struct pci_dev *dev, struct map_pci_info *map)
 	map->map.read = mtd_pci_read32,
 	map->map.write = mtd_pci_write32,
 	map->map.size     = len;
-	map->base         = ioremap_nocache(base, len);
+	map->base         = ioremap_yescache(base, len);
 
 	if (!map->base)
 		return -ENOMEM;

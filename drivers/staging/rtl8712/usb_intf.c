@@ -102,7 +102,7 @@ static const struct usb_device_id rtl871x_usb_id_tbl[] = {
 	{USB_DEVICE(0x13D3, 0x3323)},
 	{USB_DEVICE(0x13D3, 0x3311)}, /* 11n mode disable */
 	{USB_DEVICE(0x13D3, 0x3342)},
-	/* ASUS/EKBLenovo */
+	/* ASUS/EKBLeyesvo */
 	{USB_DEVICE(0x13D3, 0x3333)},
 	{USB_DEVICE(0x13D3, 0x3334)},
 	{USB_DEVICE(0x13D3, 0x3335)}, /* 11n mode disable */
@@ -339,7 +339,7 @@ static const struct device_type wlan_type = {
 /*
  * drv_init() - a device potentially for us
  *
- * notes: drv_init() is called when the bus driver has located a card for us
+ * yestes: drv_init() is called when the bus driver has located a card for us
  * to support. We accept the new device by returning 0.
  */
 static int r871xu_drv_init(struct usb_interface *pusb_intf,
@@ -405,7 +405,7 @@ static int r871xu_drv_init(struct usb_interface *pusb_intf,
 			 (tmpU1b & _9356SEL) ? "EEPROM" : "EFUSE",
 			 (tmpU1b & _EEPROM_EN) ? "OK" : "Failed");
 
-		/* To check autoload success or not.*/
+		/* To check autoload success or yest.*/
 		if (tmpU1b & _EEPROM_EN) {
 			AutoloadFail = true;
 			/* The following operations prevent Efuse leakage by
@@ -556,7 +556,7 @@ static int r871xu_drv_init(struct usb_interface *pusb_intf,
 			mac[5] = 0x00;
 		}
 		if (r8712_initmac) {
-			/* Make sure the user did not select a multicast
+			/* Make sure the user did yest select a multicast
 			 * address by setting bit 1 of first octet.
 			 */
 			mac[0] &= 0xFE;
@@ -568,7 +568,7 @@ static int r871xu_drv_init(struct usb_interface *pusb_intf,
 		}
 		ether_addr_copy(pnetdev->dev_addr, mac);
 	}
-	/* step 6. Load the firmware asynchronously */
+	/* step 6. Load the firmware asynchroyesusly */
 	if (rtl871x_load_fw(padapter))
 		goto error;
 	spin_lock_init(&padapter->lock_rx_ff0_filter);

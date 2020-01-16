@@ -164,7 +164,7 @@ static struct kvm_pmc *amd_pmc_idx_to_pmc(struct kvm_pmu *pmu, int pmc_idx)
 
 	if (guest_cpuid_has(vcpu, X86_FEATURE_PERFCTR_CORE)) {
 		/*
-		 * The idx is contiguous. The MSRs are not. The counter MSRs
+		 * The idx is contiguous. The MSRs are yest. The counter MSRs
 		 * are interleaved with the event select MSRs.
 		 */
 		pmc_idx *= 2;
@@ -200,7 +200,7 @@ static struct kvm_pmc *amd_rdpmc_ecx_to_pmc(struct kvm_vcpu *vcpu,
 
 static bool amd_is_valid_msr(struct kvm_vcpu *vcpu, u32 msr)
 {
-	/* All MSRs refer to exactly one PMC, so msr_idx_to_pmc is enough.  */
+	/* All MSRs refer to exactly one PMC, so msr_idx_to_pmc is eyesugh.  */
 	return false;
 }
 
@@ -275,7 +275,7 @@ static void amd_pmu_refresh(struct kvm_vcpu *vcpu)
 	pmu->counter_bitmask[KVM_PMC_GP] = ((u64)1 << 48) - 1;
 	pmu->reserved_bits = 0xffffffff00200000ull;
 	pmu->version = 1;
-	/* not applicable to AMD; but clean them to prevent any fall out */
+	/* yest applicable to AMD; but clean them to prevent any fall out */
 	pmu->counter_bitmask[KVM_PMC_FIXED] = 0;
 	pmu->nr_arch_fixed_counters = 0;
 	pmu->global_status = 0;

@@ -7,7 +7,7 @@
  */
 
 #include <linux/acpi.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/gpio/driver.h>
 #include <linux/io.h>
 #include <linux/kernel.h>
@@ -111,12 +111,12 @@ static int sch_gpio_direction_out(struct gpio_chip *gc, unsigned gpio_num,
 	spin_unlock(&sch->lock);
 
 	/*
-	 * according to the datasheet, writing to the level register has no
+	 * according to the datasheet, writing to the level register has yes
 	 * effect when GPIO is programmed as input.
 	 * Actually the the level register is read-only when configured as input.
 	 * Thus presetting the output level before switching to output is _NOT_ possible.
 	 * Hence we set the level after configuring the GPIO as output.
-	 * But we cannot prevent a short low pulse if direction is set to high
+	 * But we canyest prevent a short low pulse if direction is set to high
 	 * and an external pull-up is connected.
 	 */
 	sch_gpio_set(gc, gpio_num, val);

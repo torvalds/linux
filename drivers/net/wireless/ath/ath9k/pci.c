@@ -3,7 +3,7 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright yestice and this permission yestice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
@@ -789,8 +789,8 @@ static void ath_pci_read_cachesize(struct ath_common *common, int *csz)
 
 	/*
 	 * This check was put in to avoid "unpleasant" consequences if
-	 * the bootrom has not fully initialized all PCI devices.
-	 * Sometimes the cache line size register is not set
+	 * the bootrom has yest fully initialized all PCI devices.
+	 * Sometimes the cache line size register is yest set
 	 */
 
 	if (*csz == 0)
@@ -897,7 +897,7 @@ static int ath_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	ret =  pci_set_dma_mask(pdev, DMA_BIT_MASK(32));
 	if (ret) {
-		pr_err("32-bit DMA not available\n");
+		pr_err("32-bit DMA yest available\n");
 		return ret;
 	}
 
@@ -1032,7 +1032,7 @@ static int ath_pci_suspend(struct device *device)
 
 	/* The device has to be moved to FULLSLEEP forcibly.
 	 * Otherwise the chip never moved to full sleep,
-	 * when no interface is up.
+	 * when yes interface is up.
 	 */
 	ath9k_stop_btcoex(sc);
 	ath9k_hw_disable(sc->sc_ah);

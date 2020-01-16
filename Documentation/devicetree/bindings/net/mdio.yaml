@@ -13,12 +13,12 @@ maintainers:
 
 description:
   These are generic properties that can apply to any MDIO bus. Any
-  MDIO bus must have a list of child nodes, one per device on the
+  MDIO bus must have a list of child yesdes, one per device on the
   bus. These should follow the generic ethernet-phy.yaml document, or
   a device specific binding document.
 
 properties:
-  $nodename:
+  $yesdename:
     pattern: "^mdio(@.*)?"
 
   "#address-cells":

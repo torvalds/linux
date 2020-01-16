@@ -23,7 +23,7 @@
  * * GNU General Public License for more details.
  * *
  * * You should have received a copy of the GNU General Public License
- * * along with this program; if not, write to the Free Software
+ * * along with this program; if yest, write to the Free Software
  * * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307, USA
  *
  * Otherwise, the following license terms apply:
@@ -32,11 +32,11 @@
  * * modification, are permitted provided that the following conditions
  * * are met:
  * * 1) Redistributions of source code must retain the above copyright
- * *    notice, this list of conditions and the following disclaimer.
+ * *    yestice, this list of conditions and the following disclaimer.
  * * 2) Redistributions in binary form must reproduce the above copyright
- * *    notice, this list of conditions and the following disclaimer in the
+ * *    yestice, this list of conditions and the following disclaimer in the
  * *    documentation and/or other materials provided with the distribution.
- * * 3) The name of the author may not be used to endorse or promote products
+ * * 3) The name of the author may yest be used to endorse or promote products
  * *    derived from this software without specific prior written permission.
  * *
  * * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
@@ -52,7 +52,7 @@
  *
  * Author: 	Thomas Winischhofer <thomas@winischhofer.net>
  *
- * Formerly based on non-functional code-fragements for 300 series by SiS, Inc.
+ * Formerly based on yesn-functional code-fragements for 300 series by SiS, Inc.
  * Used by permission.
  *
  */
@@ -253,7 +253,7 @@ static const unsigned char SiS_LCDStruct661[] = {
     0x02,0xC0,0x00,0x04,0x00,0x03,0x40,0x05,0x26,0x03,0x10,0x00,0x88,
     0x00,0x02,0x00,0x06,0x00,0x41,0x5A,0x64,0x00,0x00,0x00,0x00,0x04,
     /*  | vss     |    vse  |clck|  clock  |CRT2DataP|CRT2DataP|idx     */
-    /*					      VESA    non-VESA  noscale */
+    /*					      VESA    yesn-VESA  yesscale */
     /* 1280x1024 */
     0x03,0xC0,0x00,0x05,0x00,0x04,0x98,0x06,0x2A,0x04,0x30,0x00,0x70,
     0x00,0x01,0x00,0x03,0x00,0x6C,0xF8,0x2F,0x00,0x00,0x00,0x00,0x08,
@@ -391,7 +391,7 @@ static unsigned short	SiS_CheckACK(struct SiS_Private *SiS_Pr);
 static unsigned short	SiS_WriteDABDDC(struct SiS_Private *SiS_Pr);
 static unsigned short	SiS_PrepareReadDDC(struct SiS_Private *SiS_Pr);
 static unsigned short	SiS_PrepareDDC(struct SiS_Private *SiS_Pr);
-static void		SiS_SendACK(struct SiS_Private *SiS_Pr, unsigned short yesno);
+static void		SiS_SendACK(struct SiS_Private *SiS_Pr, unsigned short noyes);
 static unsigned short	SiS_DoProbeDDC(struct SiS_Private *SiS_Pr);
 
 #ifdef CONFIG_FB_SIS_300
@@ -465,9 +465,9 @@ GetLCDStructPtr661(struct SiS_Private *SiS_Pr)
    unsigned short romindex = 0, reg = 0, idx = 0;
 
    /* Use the BIOS tables only for LVDS panels; TMDS is unreliable
-    * due to the variaty of panels the BIOS doesn't know about.
-    * Exception: If the BIOS has better knowledge (such as in case
-    * of machines with a 301C and a panel that does not support DDC)
+    * due to the variaty of panels the BIOS doesn't kyesw about.
+    * Exception: If the BIOS has better kyeswledge (such as in case
+    * of machines with a 301C and a panel that does yest support DDC)
     * use the BIOS data as well.
     */
 
@@ -498,9 +498,9 @@ GetLCDStructPtr661_2(struct SiS_Private *SiS_Pr)
    unsigned short romptr = 0;
 
    /* Use the BIOS tables only for LVDS panels; TMDS is unreliable
-    * due to the variaty of panels the BIOS doesn't know about.
-    * Exception: If the BIOS has better knowledge (such as in case
-    * of machines with a 301C and a panel that does not support DDC)
+    * due to the variaty of panels the BIOS doesn't kyesw about.
+    * Exception: If the BIOS has better kyeswledge (such as in case
+    * of machines with a 301C and a panel that does yest support DDC)
     * use the BIOS data as well.
     */
 
@@ -592,7 +592,7 @@ SiS_AdjustCRT2Rate(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned s
    }
 
    /* Look through the whole mode-section of the table from the beginning
-    * for a matching CRT2 mode if no mode was found yet.
+    * for a matching CRT2 mode if yes mode was found yet.
     */
    for((*i) = 0; ; (*i)++) {
       if(SiS_Pr->SiS_RefIndex[RRTI + (*i)].ModeID != modeid) break;
@@ -1289,7 +1289,7 @@ SiS_GetVBInfo(struct SiS_Private *SiS_Pr, unsigned short ModeNo,
 		 SiS_SetRegAND(SiS_Pr->SiS_P3d4,0x31,0xbf);
 	      }
 	      if(!(SiS_GetReg(SiS_Pr->SiS_P3d4,0x31) & (DriverMode >> 8))) {
-		 /* Reset LCDA setting if not driver mode */
+		 /* Reset LCDA setting if yest driver mode */
 		 SiS_SetRegAND(SiS_Pr->SiS_P3d4,0x38,0xfc);
 	      }
 	      if(IS_SIS650) {
@@ -1772,11 +1772,11 @@ SiS_GetLCDInfoBIOS(struct SiS_Private *SiS_Pr)
 
 static void
 SiS_CheckScaling(struct SiS_Private *SiS_Pr, unsigned short resinfo,
-			const unsigned char *nonscalingmodes)
+			const unsigned char *yesnscalingmodes)
 {
    int i = 0;
-   while(nonscalingmodes[i] != 0xff) {
-      if(nonscalingmodes[i++] == resinfo) {
+   while(yesnscalingmodes[i] != 0xff) {
+      if(yesnscalingmodes[i++] == resinfo) {
 	 if((SiS_Pr->SiS_VBInfo & SetCRT2ToLCD) ||
 	    (SiS_Pr->UsePanelScaler == -1)) {
 	    SiS_Pr->SiS_LCDInfo |= DontExpandLCD;
@@ -1838,7 +1838,7 @@ SiS_GetLCDResInfo(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned sh
   temp &= 0x0f;
 #ifdef CONFIG_FB_SIS_300
   if(SiS_Pr->ChipType < SIS_315H) {
-     /* Very old BIOSes only know 7 sizes (NetVista 2179, 1.01g) */
+     /* Very old BIOSes only kyesw 7 sizes (NetVista 2179, 1.01g) */
      if(SiS_Pr->SiS_VBType & VB_SIS301) {
         if(temp < 0x0f) temp &= 0x07;
      }
@@ -1895,7 +1895,7 @@ SiS_GetLCDResInfo(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned sh
   SiS_Pr->SiS_LCDInfo = temp & ~0x000e;
   /* Need temp below! */
 
-  /* These must/can't scale no matter what */
+  /* These must/can't scale yes matter what */
   switch(SiS_Pr->SiS_LCDResInfo) {
   case Panel_320x240_1:
   case Panel_320x240_2:
@@ -2205,40 +2205,40 @@ SiS_GetLCDResInfo(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned sh
 	break;
 
      case Panel_800x600: {
-	static const unsigned char nonscalingmodes[] = {
+	static const unsigned char yesnscalingmodes[] = {
 	   SIS_RI_720x480, SIS_RI_720x576, SIS_RI_768x576, SIS_RI_800x480, 0xff
 	};
-	SiS_CheckScaling(SiS_Pr, resinfo, nonscalingmodes);
+	SiS_CheckScaling(SiS_Pr, resinfo, yesnscalingmodes);
 	break;
      }
      case Panel_1024x768: {
-	static const unsigned char nonscalingmodes[] = {
+	static const unsigned char yesnscalingmodes[] = {
 	   SIS_RI_720x480, SIS_RI_720x576, SIS_RI_768x576, SIS_RI_800x480, SIS_RI_848x480,
 	   SIS_RI_856x480, SIS_RI_960x540, SIS_RI_960x600, SIS_RI_1024x576,SIS_RI_1024x600,
 	   0xff
 	};
-	SiS_CheckScaling(SiS_Pr, resinfo, nonscalingmodes);
+	SiS_CheckScaling(SiS_Pr, resinfo, yesnscalingmodes);
 	break;
      }
      case Panel_1280x720: {
-	static const unsigned char nonscalingmodes[] = {
+	static const unsigned char yesnscalingmodes[] = {
 	   SIS_RI_720x480, SIS_RI_720x576, SIS_RI_768x576, SIS_RI_800x480, SIS_RI_848x480,
 	   SIS_RI_856x480, SIS_RI_960x540, SIS_RI_960x600, SIS_RI_1024x576,SIS_RI_1024x600,
 	   0xff
 	};
-	SiS_CheckScaling(SiS_Pr, resinfo, nonscalingmodes);
+	SiS_CheckScaling(SiS_Pr, resinfo, yesnscalingmodes);
 	if(SiS_Pr->PanelHT == 1650) {
 	   SiS_Pr->SiS_LCDInfo |= DontExpandLCD;
 	}
 	break;
      }
      case Panel_1280x768_2: {  /* LVDS only */
-	static const unsigned char nonscalingmodes[] = {
+	static const unsigned char yesnscalingmodes[] = {
 	   SIS_RI_720x480, SIS_RI_720x576, SIS_RI_768x576, SIS_RI_800x480, SIS_RI_848x480,
 	   SIS_RI_856x480, SIS_RI_960x540, SIS_RI_960x600, SIS_RI_1024x576,SIS_RI_1024x600,
 	   SIS_RI_1152x768,0xff
 	};
-	SiS_CheckScaling(SiS_Pr, resinfo, nonscalingmodes);
+	SiS_CheckScaling(SiS_Pr, resinfo, yesnscalingmodes);
 	switch(resinfo) {
 	case SIS_RI_1280x720:  if(SiS_Pr->UsePanelScaler == -1) {
 				  SiS_Pr->SiS_LCDInfo |= DontExpandLCD;
@@ -2248,21 +2248,21 @@ SiS_GetLCDResInfo(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned sh
 	break;
      }
      case Panel_1280x800: {  	/* SiS TMDS special (Averatec 6200 series) */
-	static const unsigned char nonscalingmodes[] = {
+	static const unsigned char yesnscalingmodes[] = {
 	   SIS_RI_720x480, SIS_RI_720x576, SIS_RI_768x576, SIS_RI_800x480, SIS_RI_848x480,
 	   SIS_RI_856x480, SIS_RI_960x540, SIS_RI_960x600, SIS_RI_1024x576,SIS_RI_1024x600,
 	   SIS_RI_1152x768,SIS_RI_1280x720,SIS_RI_1280x768,0xff
 	};
-	SiS_CheckScaling(SiS_Pr, resinfo, nonscalingmodes);
+	SiS_CheckScaling(SiS_Pr, resinfo, yesnscalingmodes);
 	break;
      }
      case Panel_1280x800_2:  { 	/* SiS LVDS */
-	static const unsigned char nonscalingmodes[] = {
+	static const unsigned char yesnscalingmodes[] = {
 	   SIS_RI_720x480, SIS_RI_720x576, SIS_RI_768x576, SIS_RI_800x480, SIS_RI_848x480,
 	   SIS_RI_856x480, SIS_RI_960x540, SIS_RI_960x600, SIS_RI_1024x576,SIS_RI_1024x600,
 	   SIS_RI_1152x768,0xff
 	};
-	SiS_CheckScaling(SiS_Pr, resinfo, nonscalingmodes);
+	SiS_CheckScaling(SiS_Pr, resinfo, yesnscalingmodes);
 	switch(resinfo) {
 	case SIS_RI_1280x720:
 	case SIS_RI_1280x768:  if(SiS_Pr->UsePanelScaler == -1) {
@@ -2273,12 +2273,12 @@ SiS_GetLCDResInfo(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned sh
 	break;
      }
      case Panel_1280x854: {  	/* SiS LVDS */
-	static const unsigned char nonscalingmodes[] = {
+	static const unsigned char yesnscalingmodes[] = {
 	   SIS_RI_720x480, SIS_RI_720x576, SIS_RI_768x576, SIS_RI_800x480, SIS_RI_848x480,
 	   SIS_RI_856x480, SIS_RI_960x540, SIS_RI_960x600, SIS_RI_1024x576,SIS_RI_1024x600,
 	   SIS_RI_1152x768,0xff
 	};
-	SiS_CheckScaling(SiS_Pr, resinfo, nonscalingmodes);
+	SiS_CheckScaling(SiS_Pr, resinfo, yesnscalingmodes);
 	switch(resinfo) {
 	case SIS_RI_1280x720:
 	case SIS_RI_1280x768:
@@ -2290,33 +2290,33 @@ SiS_GetLCDResInfo(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned sh
 	break;
      }
      case Panel_1280x960: {
-	static const unsigned char nonscalingmodes[] = {
+	static const unsigned char yesnscalingmodes[] = {
 	   SIS_RI_720x480, SIS_RI_720x576, SIS_RI_768x576, SIS_RI_800x480, SIS_RI_848x480,
 	   SIS_RI_856x480, SIS_RI_960x540, SIS_RI_960x600, SIS_RI_1024x576,SIS_RI_1024x600,
 	   SIS_RI_1152x768,SIS_RI_1152x864,SIS_RI_1280x720,SIS_RI_1280x768,SIS_RI_1280x800,
 	   SIS_RI_1280x854,0xff
 	};
-	SiS_CheckScaling(SiS_Pr, resinfo, nonscalingmodes);
+	SiS_CheckScaling(SiS_Pr, resinfo, yesnscalingmodes);
 	break;
      }
      case Panel_1280x1024: {
-	static const unsigned char nonscalingmodes[] = {
+	static const unsigned char yesnscalingmodes[] = {
 	   SIS_RI_720x480, SIS_RI_720x576, SIS_RI_768x576, SIS_RI_800x480, SIS_RI_848x480,
 	   SIS_RI_856x480, SIS_RI_960x540, SIS_RI_960x600, SIS_RI_1024x576,SIS_RI_1024x600,
 	   SIS_RI_1152x768,SIS_RI_1152x864,SIS_RI_1280x720,SIS_RI_1280x768,SIS_RI_1280x800,
 	   SIS_RI_1280x854,SIS_RI_1280x960,0xff
 	};
-	SiS_CheckScaling(SiS_Pr, resinfo, nonscalingmodes);
+	SiS_CheckScaling(SiS_Pr, resinfo, yesnscalingmodes);
 	break;
      }
      case Panel_1400x1050: {
-	static const unsigned char nonscalingmodes[] = {
+	static const unsigned char yesnscalingmodes[] = {
 	     SIS_RI_720x480, SIS_RI_720x576, SIS_RI_768x576, SIS_RI_800x480, SIS_RI_848x480,
 	     SIS_RI_856x480, SIS_RI_960x540, SIS_RI_960x600, SIS_RI_1024x576,SIS_RI_1024x600,
 	     SIS_RI_1152x768,SIS_RI_1152x864,SIS_RI_1280x768,SIS_RI_1280x800,SIS_RI_1280x854,
 	     SIS_RI_1280x960,0xff
 	};
-	SiS_CheckScaling(SiS_Pr, resinfo, nonscalingmodes);
+	SiS_CheckScaling(SiS_Pr, resinfo, yesnscalingmodes);
 	switch(resinfo) {
 	case SIS_RI_1280x720:  if(SiS_Pr->UsePanelScaler == -1) {
 				  SiS_Pr->SiS_LCDInfo |= DontExpandLCD;
@@ -2328,23 +2328,23 @@ SiS_GetLCDResInfo(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned sh
 	break;
      }
      case Panel_1600x1200: {
-	static const unsigned char nonscalingmodes[] = {
+	static const unsigned char yesnscalingmodes[] = {
 	     SIS_RI_720x480, SIS_RI_720x576, SIS_RI_768x576, SIS_RI_800x480, SIS_RI_848x480,
 	     SIS_RI_856x480, SIS_RI_960x540, SIS_RI_960x600, SIS_RI_1024x576,SIS_RI_1024x600,
 	     SIS_RI_1152x768,SIS_RI_1152x864,SIS_RI_1280x720,SIS_RI_1280x768,SIS_RI_1280x800,
 	     SIS_RI_1280x854,SIS_RI_1280x960,SIS_RI_1360x768,SIS_RI_1360x1024,0xff
 	};
-	SiS_CheckScaling(SiS_Pr, resinfo, nonscalingmodes);
+	SiS_CheckScaling(SiS_Pr, resinfo, yesnscalingmodes);
 	break;
      }
      case Panel_1680x1050: {
-	static const unsigned char nonscalingmodes[] = {
+	static const unsigned char yesnscalingmodes[] = {
 	     SIS_RI_720x480, SIS_RI_720x576, SIS_RI_768x576, SIS_RI_800x480, SIS_RI_848x480,
 	     SIS_RI_856x480, SIS_RI_960x540, SIS_RI_960x600, SIS_RI_1024x576,SIS_RI_1024x600,
 	     SIS_RI_1152x768,SIS_RI_1152x864,SIS_RI_1280x854,SIS_RI_1280x960,SIS_RI_1360x768,
 	     SIS_RI_1360x1024,0xff
 	};
-	SiS_CheckScaling(SiS_Pr, resinfo, nonscalingmodes);
+	SiS_CheckScaling(SiS_Pr, resinfo, yesnscalingmodes);
 	break;
      }
      }
@@ -2565,7 +2565,7 @@ SiS_GetVCLK2Ptr(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned shor
 	   }
 	}
 
-     } else {   /* If not programming CRT2 */
+     } else {   /* If yest programming CRT2 */
 
 	VCLKIndex = VCLKIndexGENCRT;
 	if(SiS_Pr->ChipType < SIS_315H) {
@@ -2653,7 +2653,7 @@ SiS_GetVCLK2Ptr(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned shor
 	   }
 	}
 
-     } else {  /* if not programming CRT2 */
+     } else {  /* if yest programming CRT2 */
 
 	VCLKIndex = VCLKIndexGENCRT;
 	if(SiS_Pr->ChipType < SIS_315H) {
@@ -2892,7 +2892,7 @@ SiS_SetCRT2ModeRegs(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned 
 	 * to machine. Especially the 301DH seems to be a real trouble
 	 * maker. Some BIOSes simply set the registers (like in the
 	 * NoLCD-if-statements here), some set them according to the
-	 * LCDA stuff. It is very likely that some machines are not
+	 * LCDA stuff. It is very likely that some machines are yest
 	 * treated correctly in the following, very case-orientated
 	 * code. What do I do then...?
 	 */
@@ -2912,10 +2912,10 @@ SiS_SetCRT2ModeRegs(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned 
 	}
 
 	/* The following two are responsible for eventually wrong colors
-	 * in TV output. The DH (VB_NoLCD) conditions are unknown; the
+	 * in TV output. The DH (VB_NoLCD) conditions are unkyeswn; the
 	 * b0 was found in some 651 machine (Pim; P4_23=0xe5); the b1 version
 	 * in a 650 box (Jake). What is the criteria?
-	 * Addendum: Another combination 651+301B-DH(b1) (Rapo) needs same
+	 * Addendum: Ayesther combination 651+301B-DH(b1) (Rapo) needs same
 	 * treatment like the 651+301B-DH(b0) case. Seems more to be the
 	 * chipset than the bridge revision.
 	 */
@@ -3183,7 +3183,7 @@ SiS_GetCRT2Ptr(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned short
 	if(SiS_Pr->SiS_LCDInfo & DontExpandLCD) {
 	   /* Pass 1:1 only (center-screen handled outside) */
 	   /* This is never called for the panel's native resolution */
-	   /* since Pass1:1 will not be set in this case */
+	   /* since Pass1:1 will yest be set in this case */
 	   tempbx = 100;
 	   if(ModeNo >= 0x13) {
 	      tempal = SiS_Pr->SiS_RefIndex[RefreshRateTableIndex].Ext_CRT2CRTC_NS;
@@ -3951,7 +3951,7 @@ SiS_GetLVDSDesData(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned s
 
 #ifdef CONFIG_FB_SIS_315
      if(SiS_Pr->SiS_LCDInfo & DontExpandLCD) {
-	/* non-pass 1:1 only, see above */
+	/* yesn-pass 1:1 only, see above */
 	if(SiS_Pr->SiS_VGAHDE != SiS_Pr->PanelXRes) {
 	   SiS_Pr->SiS_LCDHDES = SiS_Pr->SiS_HT - ((SiS_Pr->PanelXRes - SiS_Pr->SiS_VGAHDE) / 2);
 	}
@@ -4800,8 +4800,8 @@ SiS_EnableBridge(struct SiS_Private *SiS_Pr)
 
 		  /* EMI_30 is read at driver start; however, the BIOS sets this
 		   * (if it is used) only if the LCD is in use. In case we caught
-		   * the machine while on TV output, this bit is not set and we
-		   * don't know if it should be set - hence our detection is wrong.
+		   * the machine while on TV output, this bit is yest set and we
+		   * don't kyesw if it should be set - hence our detection is wrong.
 		   * Work-around this here:
 		   */
 
@@ -4835,7 +4835,7 @@ SiS_EnableBridge(struct SiS_Private *SiS_Pr)
 			   }
 			}
 			break;
-		     case 11: /* 1600x1200 - unknown */
+		     case 11: /* 1600x1200 - unkyeswn */
 			r30 |= 0x40;
 			if(!SiS_Pr->HaveEMI) {
 			   r31 = 0x05; r32 = 0x60; r33 = 0x00;
@@ -5205,7 +5205,7 @@ SiS_SetCRT2Sync(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned shor
 	    tempah >>= 3;
 	    tempah &= 0x18;
 	    SiS_SetRegANDOR(SiS_Pr->SiS_Part1Port,0x13,0xE7,tempah);
-	    /* Don't care about 12/18/24 bit mode - TV is via VGA, not PL */
+	    /* Don't care about 12/18/24 bit mode - TV is via VGA, yest PL */
 	 } else {
 	    SiS_SetRegANDOR(SiS_Pr->SiS_Part1Port,0x19,0x0F,0xe0);
 	 }
@@ -5703,7 +5703,7 @@ SiS_SetGroup1_LVDS(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned s
      islvds = true;
   }
 
-  /* is really sis if sis bridge, but not 301B-DH */
+  /* is really sis if sis bridge, but yest 301B-DH */
   if((SiS_Pr->SiS_VBType & VB_SISVB) && (!(SiS_Pr->SiS_VBType & VB_NoLCD))) {
      issis = true;
   }
@@ -7390,7 +7390,7 @@ SiS_SetGroup2(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned short 
        }
     }
 
-    /* non-expanding: lcdvrs = ((VT + VDE) / 2) - 10 */
+    /* yesn-expanding: lcdvrs = ((VT + VDE) / 2) - 10 */
 
     if(SiS_Pr->UseCustomMode) {
        tempbx = SiS_Pr->CVSyncStart;
@@ -7628,7 +7628,7 @@ SiS_SetGroup4_C_ELV(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned 
       } else {
          temp1 = SiS_GetReg(SiS_Pr->SiS_P3d4,0x3b) & 0x03;
 	 if(temp1 == 0x01) temp |= 0x01;
-	 if(temp1 == 0x03) temp |= 0x04;  /* ? why not 0x10? */
+	 if(temp1 == 0x03) temp |= 0x04;  /* ? why yest 0x10? */
 	 SiS_SetRegANDOR(SiS_Pr->SiS_Part4Port,0x26,0xf8,(temp & 0xff));
 	 SiS_SetRegANDOR(SiS_Pr->SiS_Part4Port,0x3a,0xfb,(temp >> 8));
 	 if(ModeNo > 0x13) {
@@ -7940,7 +7940,7 @@ SiS_GetLVDSCRT1Ptr(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned s
   unsigned short modeflag = 0;
   bool checkhd = true;
 
-  /* Pass 1:1 not supported here */
+  /* Pass 1:1 yest supported here */
 
   if(ModeNo <= 0x13) {
      modeflag = SiS_Pr->SiS_SModeIDTable[ModeIdIndex].St_ModeFlag;
@@ -8191,16 +8191,16 @@ SiS_SetCHTVReg(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned short
 
 #ifdef CONFIG_FB_SIS_300
 
-      /* Chrontel 7005 - I assume that it does not come with a 315 series chip */
+      /* Chrontel 7005 - I assume that it does yest come with a 315 series chip */
 
       /* We don't support modes >800x600 */
       if (resindex > 5) return;
 
       if(SiS_Pr->SiS_TVMode & TVSetPAL) {
-	 SiS_SetCH700x(SiS_Pr,0x04,0x43);  /* 0x40=76uA (PAL); 0x03=15bit non-multi RGB*/
+	 SiS_SetCH700x(SiS_Pr,0x04,0x43);  /* 0x40=76uA (PAL); 0x03=15bit yesn-multi RGB*/
 	 SiS_SetCH700x(SiS_Pr,0x09,0x69);  /* Black level for PAL (105)*/
       } else {
-	 SiS_SetCH700x(SiS_Pr,0x04,0x03);   /* upper nibble=71uA (NTSC), 0x03=15bit non-multi RGB*/
+	 SiS_SetCH700x(SiS_Pr,0x04,0x03);   /* upper nibble=71uA (NTSC), 0x03=15bit yesn-multi RGB*/
 	 SiS_SetCH700x(SiS_Pr,0x09,0x71);   /* Black level for NTSC (113)*/
       }
 
@@ -8226,7 +8226,7 @@ SiS_SetCHTVReg(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned short
       */
       SiS_SetCH700x(SiS_Pr,0x03,0xb1);       /* old: 3103 */
 
-      /* Register 0x3D does not exist in non-macrovision register map
+      /* Register 0x3D does yest exist in yesn-macrovision register map
             (Maybe this is a macrovision register?)
        */
 #ifndef SIS_CP
@@ -8251,7 +8251,7 @@ SiS_SetCHTVReg(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned short
          if(SiS_Pr->SiS_TVMode & TVSetCHOverScan) {
             if(resindex == 0x04) {   			/* 640x480 overscan: Mode 16 */
       	       SiS_SetCH70xxANDOR(SiS_Pr,0x20,0x00,0xEF);	/* loop filter off */
-               SiS_SetCH70xxANDOR(SiS_Pr,0x21,0x01,0xFE);	/* ACIV on, no need to set FSCI */
+               SiS_SetCH70xxANDOR(SiS_Pr,0x21,0x01,0xFE);	/* ACIV on, yes need to set FSCI */
             } else if(resindex == 0x05) {    		/* 800x600 overscan: Mode 23 */
                SiS_SetCH70xxANDOR(SiS_Pr,0x18,0x01,0xF0);	/* 0x18-0x1f: FSCI 469,762,048 */
                SiS_SetCH70xxANDOR(SiS_Pr,0x19,0x0C,0xF0);
@@ -8295,7 +8295,7 @@ SiS_SetCHTVReg(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned short
 
    } else {
 
-      /* Chrontel 7019 - assumed that it does not come with a 300 series chip */
+      /* Chrontel 7019 - assumed that it does yest come with a 300 series chip */
 
 #ifdef CONFIG_FB_SIS_315
 
@@ -8332,7 +8332,7 @@ SiS_SetCHTVReg(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned short
       /* D1 should be set for PAL, PAL-N and NTSC-J,
          but I won't do that for PAL unless somebody
 	 tells me to do so. Since the BIOS uses
-	 non-default CIV values and blacklevels,
+	 yesn-default CIV values and blacklevels,
 	 this might be compensated anyway.
        */
       if(SiS_Pr->SiS_TVMode & (TVSetPALN | TVSetNTSCJ)) temp |= 0x02;
@@ -8667,7 +8667,7 @@ SiS_ChrontelInitTVVSync(struct SiS_Private *SiS_Pr)
         SiS_SetCH701x(SiS_Pr,0x76,0xaf);  /* Power up LVDS block */
         temp = SiS_GetCH701x(SiS_Pr,0x49);
         temp &= 1;
-        if(temp != 1) {  /* TV block powered? (0 = yes, 1 = no) */
+        if(temp != 1) {  /* TV block powered? (0 = no, 1 = yes) */
 	   temp = SiS_GetCH701x(SiS_Pr,0x47);
 	   temp &= 0x70;
 	   SiS_SetCH701x(SiS_Pr,0x47,temp);  /* enable VSYNC */
@@ -8744,7 +8744,7 @@ SiS_ChrontelDoSomething2(struct SiS_Private *SiS_Pr)
        if(temp == 0x04) break;
 
        if(SiS_Pr->ChipType == SIS_740) {
-          /* Power down LVDS output, PLL normal operation */
+          /* Power down LVDS output, PLL yesrmal operation */
           SiS_SetCH701x(SiS_Pr,0x76,0xac);
        }
 
@@ -8755,7 +8755,7 @@ SiS_ChrontelDoSomething2(struct SiS_Private *SiS_Pr)
        SiS_SetCH701x(SiS_Pr,0x76,temp);
        SiS_LongDelay(SiS_Pr, 2);
        temp = SiS_GetCH701x(SiS_Pr,0x76);
-       temp |= 0x04;  /* PLL normal operation */
+       temp |= 0x04;  /* PLL yesrmal operation */
        SiS_SetCH701x(SiS_Pr,0x76,temp);
        if(SiS_Pr->ChipType == SIS_740) {
           SiS_SetCH701x(SiS_Pr,0x78,0xe0);	/* PLL loop filter */
@@ -8787,7 +8787,7 @@ SiS_ChrontelDoSomething1(struct SiS_Private *SiS_Pr)
         SiS_SetReg(SiS_Pr->SiS_Part1Port,0x2d,0x03);
 
         temp = SiS_GetCH701x(SiS_Pr,0x64);
-        temp |= 0x40;	/* ? Bit not defined */
+        temp |= 0x40;	/* ? Bit yest defined */
         SiS_SetCH701x(SiS_Pr,0x64,temp);
 
         temp = SiS_GetCH701x(SiS_Pr,0x03);
@@ -8816,7 +8816,7 @@ SiS_ChrontelDoSomething1(struct SiS_Private *SiS_Pr)
         SiS_ChrontelDoSomething2(SiS_Pr);
         temp = SiS_GetReg(SiS_Pr->SiS_P3d4,0x34);
         SiS_ChrontelDoSomething3(SiS_Pr,temp);
-        SiS_SetCH701x(SiS_Pr,0x76,0xaf);  /* All power on, LVDS normal operation */
+        SiS_SetCH701x(SiS_Pr,0x76,0xaf);  /* All power on, LVDS yesrmal operation */
 
      }
 
@@ -9055,10 +9055,10 @@ SiS_SetTrumpBlockLoop(struct SiS_Private *SiS_Pr, unsigned char *dataptr)
      if(SiS_SetStart(SiS_Pr)) continue;		/* Set start condition */
      tempah = SiS_Pr->SiS_DDC_DeviceAddr;
      temp = SiS_WriteDDC2Data(SiS_Pr,tempah);	/* Write DAB (S0=0=write) */
-     if(temp) continue;				/*    (ERROR: no ack) */
+     if(temp) continue;				/*    (ERROR: yes ack) */
      tempah = *mydataptr++;
      temp = SiS_WriteDDC2Data(SiS_Pr,tempah);	/* Write register number */
-     if(temp) continue;				/*    (ERROR: no ack) */
+     if(temp) continue;				/*    (ERROR: yes ack) */
      for(j=0; j<num; j++) {
         tempah = *mydataptr++;
         temp = SiS_WriteDDC2Data(SiS_Pr,tempah);/* Write DAB (S0=0=write) */
@@ -9109,11 +9109,11 @@ SiS_SetChReg(struct SiS_Private *SiS_Pr, unsigned short reg, unsigned char val, 
      }
      if(SiS_SetStart(SiS_Pr)) continue;					/* Set start condition */
      temp = SiS_WriteDDC2Data(SiS_Pr, SiS_Pr->SiS_DDC_DeviceAddr);	/* Write DAB (S0=0=write) */
-     if(temp) continue;							/*    (ERROR: no ack) */
+     if(temp) continue;							/*    (ERROR: yes ack) */
      temp = SiS_WriteDDC2Data(SiS_Pr, (reg | myor));			/* Write RAB (700x: set bit 7, see datasheet) */
-     if(temp) continue;							/*    (ERROR: no ack) */
+     if(temp) continue;							/*    (ERROR: yes ack) */
      temp = SiS_WriteDDC2Data(SiS_Pr, val);				/* Write data */
-     if(temp) continue;							/*    (ERROR: no ack) */
+     if(temp) continue;							/*    (ERROR: yes ack) */
      if(SiS_SetStop(SiS_Pr)) continue;					/* Set stop condition */
      SiS_Pr->SiS_ChrontelInit = 1;
      return true;
@@ -9148,7 +9148,7 @@ SiS_SetCH700x(struct SiS_Private *SiS_Pr, unsigned short reg, unsigned char val)
 }
 
 /* Write to Chrontel 701x */
-/* Parameter is [Data (S15-S8) | Register no (S7-S0)] */
+/* Parameter is [Data (S15-S8) | Register yes (S7-S0)] */
 void
 SiS_SetCH701x(struct SiS_Private *SiS_Pr, unsigned short reg, unsigned char val)
 {
@@ -9182,12 +9182,12 @@ SiS_GetChReg(struct SiS_Private *SiS_Pr, unsigned short myor)
      }
      if(SiS_SetStart(SiS_Pr)) continue;					/* Set start condition */
      temp = SiS_WriteDDC2Data(SiS_Pr,SiS_Pr->SiS_DDC_DeviceAddr);	/* Write DAB (S0=0=write) */
-     if(temp) continue;							/*        (ERROR: no ack) */
+     if(temp) continue;							/*        (ERROR: yes ack) */
      temp = SiS_WriteDDC2Data(SiS_Pr,SiS_Pr->SiS_DDC_ReadAddr | myor);	/* Write RAB (700x: | 0x80) */
-     if(temp) continue;							/*        (ERROR: no ack) */
+     if(temp) continue;							/*        (ERROR: yes ack) */
      if (SiS_SetStart(SiS_Pr)) continue;				/* Re-start */
      temp = SiS_WriteDDC2Data(SiS_Pr,SiS_Pr->SiS_DDC_DeviceAddr | 0x01);/* DAB (S0=1=read) */
-     if(temp) continue;							/*        (ERROR: no ack) */
+     if(temp) continue;							/*        (ERROR: yes ack) */
      tempah = SiS_ReadDDC2Data(SiS_Pr);					/* Read byte */
      if(SiS_SetStop(SiS_Pr)) continue;					/* Stop condition */
      SiS_Pr->SiS_ChrontelInit = 1;
@@ -9197,7 +9197,7 @@ SiS_GetChReg(struct SiS_Private *SiS_Pr, unsigned short myor)
 }
 
 /* Read from Chrontel 700x */
-/* Parameter is [Register no (S7-S0)] */
+/* Parameter is [Register yes (S7-S0)] */
 unsigned short
 SiS_GetCH700x(struct SiS_Private *SiS_Pr, unsigned short tempbx)
 {
@@ -9230,7 +9230,7 @@ SiS_GetCH700x(struct SiS_Private *SiS_Pr, unsigned short tempbx)
 }
 
 /* Read from Chrontel 701x */
-/* Parameter is [Register no (S7-S0)] */
+/* Parameter is [Register yes (S7-S0)] */
 unsigned short
 SiS_GetCH701x(struct SiS_Private *SiS_Pr, unsigned short tempbx)
 {
@@ -9246,7 +9246,7 @@ SiS_GetCH701x(struct SiS_Private *SiS_Pr, unsigned short tempbx)
 }
 
 /* Read from Chrontel 70xx */
-/* Parameter is [Register no (S7-S0)] */
+/* Parameter is [Register yes (S7-S0)] */
 static
 unsigned short
 SiS_GetCH70xx(struct SiS_Private *SiS_Pr, unsigned short tempbx)
@@ -9411,10 +9411,10 @@ SiS_PrepareDDC(struct SiS_Private *SiS_Pr)
 }
 
 static void
-SiS_SendACK(struct SiS_Private *SiS_Pr, unsigned short yesno)
+SiS_SendACK(struct SiS_Private *SiS_Pr, unsigned short noyes)
 {
    SiS_SetSCLKLow(SiS_Pr);
-   if(yesno) {
+   if(noyes) {
       SiS_SetRegANDOR(SiS_Pr->SiS_DDC_Port,
 		      SiS_Pr->SiS_DDC_Index,
 		      SiS_Pr->SiS_DDC_NData,
@@ -9685,7 +9685,7 @@ SiS_WriteDDC2Data(struct SiS_Private *SiS_Pr, unsigned short tempax)
     SiS_SetSCLKHigh(SiS_Pr);					/* SC->high */
     flag >>= 1;
   }
-  temp = SiS_CheckACK(SiS_Pr);					/* Check acknowledge */
+  temp = SiS_CheckACK(SiS_Pr);					/* Check ackyeswledge */
   return temp;
 }
 
@@ -9739,8 +9739,8 @@ SiS_SetSCLKHigh(struct SiS_Private *SiS_Pr)
   return 0;
 }
 
-/* Check I2C acknowledge */
-/* Returns 0 if ack ok, non-0 if ack not ok */
+/* Check I2C ackyeswledge */
+/* Returns 0 if ack ok, yesn-0 if ack yest ok */
 static unsigned short
 SiS_CheckACK(struct SiS_Private *SiS_Pr)
 {
@@ -9838,7 +9838,7 @@ GetLCDPtrIndexBIOS(struct SiS_Private *SiS_Pr)
 
   index = SiS_GetBIOSLCDResInfo(SiS_Pr) & 0x0F;
   if(SiS_Pr->SiS_LCDResInfo == Panel_1400x1050)      index -= 5;
-  if(SiS_Pr->SiS_VBType & VB_SIS301C) {  /* 1.15.20 and later (not VB specific) */
+  if(SiS_Pr->SiS_VBType & VB_SIS301C) {  /* 1.15.20 and later (yest VB specific) */
      if(SiS_Pr->SiS_LCDResInfo == Panel_1600x1200) index -= 5;
      if(SiS_Pr->SiS_LCDResInfo == Panel_1280x768) index -= 5;
   } else {
@@ -9986,7 +9986,7 @@ SetDelayComp(struct SiS_Private *SiS_Pr, unsigned short ModeNo)
 
      bool gotitfrompci = false;
 
-     /* Could we detect a PDC for LCD or did we get a user-defined? If yes, use it */
+     /* Could we detect a PDC for LCD or did we get a user-defined? If no, use it */
 
      if(SiS_Pr->SiS_VBInfo & SetCRT2ToLCD) {
 	if(SiS_Pr->PDC != -1) {
@@ -10028,8 +10028,8 @@ SetDelayComp(struct SiS_Private *SiS_Pr, unsigned short ModeNo)
      }
 
      /* This is a piece of typical SiS crap: They code the OEM LCD
-      * delay into the code, at no defined place in the BIOS.
-      * We now have to start doing a PCI subsystem check here.
+      * delay into the code, at yes defined place in the BIOS.
+      * We yesw have to start doing a PCI subsystem check here.
       */
 
      switch(SiS_Pr->SiS_CustomT) {
@@ -10059,7 +10059,7 @@ SetDelayComp(struct SiS_Private *SiS_Pr, unsigned short ModeNo)
 	break;
      }
 
-     /* Could we find it through the PCI ID? If no, use ROM or table */
+     /* Could we find it through the PCI ID? If yes, use ROM or table */
 
      if(!gotitfrompci) {
 
@@ -10373,7 +10373,7 @@ SetPhaseIncr(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned short M
 
   if(!(SiS_Pr->SiS_VBInfo & SetCRT2ToTV)) return;
 
-  /* NTSC-J data not in BIOS, and already set in SetGroup2 */
+  /* NTSC-J data yest in BIOS, and already set in SetGroup2 */
   if(SiS_Pr->SiS_TVMode & TVSetNTSCJ) return;
 
   if((SiS_Pr->ChipType >= SIS_661) || SiS_Pr->SiS_ROMNew) {
@@ -10385,7 +10385,7 @@ SetPhaseIncr(struct SiS_Private *SiS_Pr, unsigned short ModeNo, unsigned short M
      return;
   }
 
-  /* PAL-M, PAL-N not in BIOS, and already set in SetGroup2 */
+  /* PAL-M, PAL-N yest in BIOS, and already set in SetGroup2 */
   if(SiS_Pr->SiS_TVMode & (TVSetPALM | TVSetPALN)) return;
 
   if(ModeNo<=0x13) {
@@ -10546,20 +10546,20 @@ SetDelayComp661(struct SiS_Private *SiS_Pr, unsigned short ModeNo,
 
    } else if(SiS_Pr->SiS_VBInfo & (SetCRT2ToLCD | SetCRT2ToLCDA)) {
 
-      /* 4. LCD, LCDA (for new ROM only LV and non-Pass 1:1) */
+      /* 4. LCD, LCDA (for new ROM only LV and yesn-Pass 1:1) */
 
       if( (SiS_Pr->SiS_LCDResInfo != Panel_Custom) &&
           ((romptr = GetLCDStructPtr661_2(SiS_Pr))) ) {
 
 	 lcdpdcindex = (SiS_Pr->SiS_VBType & VB_UMC) ? 14 : 12;
 
-	 /* For LVDS (and sometimes TMDS), the BIOS must know about the correct value */
+	 /* For LVDS (and sometimes TMDS), the BIOS must kyesw about the correct value */
 	 delay = ROMAddr[romptr + lcdpdcindex + 1];	/* LCD  */
 	 delay |= (ROMAddr[romptr + lcdpdcindex] << 8);	/* LCDA */
 
       } else {
 
-         /* TMDS: Set our own, since BIOS has no idea */
+         /* TMDS: Set our own, since BIOS has yes idea */
 	 /* (This is done on >=661 only, since <661 is calling this only for LVDS) */
          if(!(SiS_Pr->SiS_LCDInfo & LCDPass11)) {
 	    switch(SiS_Pr->SiS_LCDResInfo) {

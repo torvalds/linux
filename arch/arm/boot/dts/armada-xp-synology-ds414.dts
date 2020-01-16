@@ -1,17 +1,17 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
- * Device Tree file for Synology DS414
+ * Device Tree file for Syyeslogy DS414
  *
- * Copyright (C) 2014, Arnaud EBALARD <arno@natisbad.org>
+ * Copyright (C) 2014, Arnaud EBALARD <aryes@natisbad.org>
  *
  * Note: this Device Tree assumes that the bootloader has remapped the
  * internal registers to 0xf1000000 (instead of the old 0xd0000000).
  * The 0xf1000000 is the default used by the recent, DT-capable, U-Boot
  * bootloaders provided by Marvell. It is used in recent versions of
- * DSM software provided by Synology. Nonetheless, some earlier boards
+ * DSM software provided by Syyeslogy. Nonetheless, some earlier boards
  * were delivered with an older version of u-boot that left internal
  * registers mapped at 0xd0000000. If you have such a device you will
- * not be able to directly boot a kernel based on this Device Tree. In
+ * yest be able to directly boot a kernel based on this Device Tree. In
  * that case, the preferred solution is to update your bootloader (e.g.
  * by upgrading to latest version of DSM, or building a new one and
  * installing it from u-boot prompt) or adjust the Devive Tree
@@ -25,8 +25,8 @@
 #include "armada-xp-mv78230.dtsi"
 
 / {
-	model = "Synology DS414";
-	compatible = "synology,ds414", "marvell,armadaxp-mv78230",
+	model = "Syyeslogy DS414";
+	compatible = "syyeslogy,ds414", "marvell,armadaxp-mv78230",
 		     "marvell,armadaxp", "marvell,armada-370-xp";
 
 	chosen {
@@ -64,7 +64,7 @@
 			/* Connected to a header on device's PCB. This
 			 * provides the main console for the device.
 			 *
-			 * Warning: the device may not boot with a 3.3V
+			 * Warning: the device may yest boot with a 3.3V
 			 * USB-serial converter connected when the power
 			 * button is pressed. The converter needs to be
 			 * connected a few seconds after pressing the
@@ -81,7 +81,7 @@
 			};
 
 			poweroff@12100 {
-				compatible = "synology,power-off";
+				compatible = "syyeslogy,power-off";
 				reg = <0x12100 0x100>;
 				clocks = <&coreclk 0>;
 			};
@@ -245,17 +245,17 @@
 		marvell,function = "gpio";
 	};
 
-	syno_id_bit0_pin: syno-id-bit0-pin {
+	syyes_id_bit0_pin: syyes-id-bit0-pin {
 		marvell,pins = "mpp26";
 		marvell,function = "gpio";
 	};
 
-	syno_id_bit1_pin: syno-id-bit1-pin {
+	syyes_id_bit1_pin: syyes-id-bit1-pin {
 		marvell,pins = "mpp28";
 		marvell,function = "gpio";
 	};
 
-	syno_id_bit2_pin: syno-id-bit2-pin {
+	syyes_id_bit2_pin: syyes-id-bit2-pin {
 		marvell,pins = "mpp29";
 		marvell,function = "gpio";
 	};
@@ -277,22 +277,22 @@
 	spi-flash@0 {
 		#address-cells = <1>;
 		#size-cells = <1>;
-		compatible = "micron,n25q064", "jedec,spi-nor";
+		compatible = "micron,n25q064", "jedec,spi-yesr";
 		reg = <0>; /* Chip select 0 */
 		spi-max-frequency = <20000000>;
 
 		/*
 		 * Warning!
 		 *
-		 * Synology u-boot uses its compiled-in environment
-		 * and it seems Synology did not care to change u-boot
+		 * Syyeslogy u-boot uses its compiled-in environment
+		 * and it seems Syyeslogy did yest care to change u-boot
 		 * default configuration in order to allow saving a
 		 * modified environment at a sensible location. So,
 		 * if you do a 'saveenv' under u-boot, your modified
 		 * environment will be saved at 1MB after the start
 		 * of the flash, i.e. in the middle of the uImage.
-		 * For that reason, it is strongly advised not to
-		 * change the default environment, unless you know
+		 * For that reason, it is strongly advised yest to
+		 * change the default environment, unless you kyesw
 		 * what you are doing.
 		 */
 		partition@0 { /* u-boot */

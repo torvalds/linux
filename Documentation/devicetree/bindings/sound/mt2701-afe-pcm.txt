@@ -49,8 +49,8 @@ Required properties:
 - assigned-clocks-parents: parent of input clocks of assigned clocks.
 - assigned-clock-rates: list of clock frequencies of assigned clocks.
 
-Must be a subnode of MediaTek audsys device tree node.
-See ../arm/mediatek/mediatek,audsys.txt for details about the parent node.
+Must be a subyesde of MediaTek audsys device tree yesde.
+See ../arm/mediatek/mediatek,audsys.txt for details about the parent yesde.
 
 Example:
 

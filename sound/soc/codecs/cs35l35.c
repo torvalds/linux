@@ -180,7 +180,7 @@ static int cs35l35_wait_for_pdn(struct cs35l35_private *cs35l35)
 	ret = wait_for_completion_timeout(&cs35l35->pdn_done,
 					  msecs_to_jiffies(100));
 	if (ret == 0) {
-		dev_err(cs35l35->dev, "PDN_DONE did not complete\n");
+		dev_err(cs35l35->dev, "PDN_DONE did yest complete\n");
 		return -ETIMEDOUT;
 	}
 
@@ -493,8 +493,8 @@ static int cs35l35_hw_params(struct snd_pcm_substream *substream,
 	/*
 	 * Rev A0 Errata
 	 * When configured for the weak-drive detection path (CH_WKFET_DIS = 0)
-	 * the Class H algorithm does not enable weak-drive operation for
-	 * nonzero values of CH_WKFET_DELAY if SP_RATE = 01 or 10
+	 * the Class H algorithm does yest enable weak-drive operation for
+	 * yesnzero values of CH_WKFET_DELAY if SP_RATE = 01 or 10
 	 */
 	errata_chk = clk_ctl & CS35L35_SP_RATE_MASK;
 
@@ -513,7 +513,7 @@ static int cs35l35_hw_params(struct snd_pcm_substream *substream,
 
 	/*
 	 * You can pull more Monitor data from the SDOUT pin than going to SDIN
-	 * Just make sure your SCLK is fast enough to fill the frame
+	 * Just make sure your SCLK is fast eyesugh to fill the frame
 	 */
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 		switch (params_width(params)) {
@@ -564,7 +564,7 @@ static int cs35l35_hw_params(struct snd_pcm_substream *substream,
 			case CS35L35_SP_SCLKS_64FS:
 				break;
 			default:
-				dev_err(component->dev, "ratio not supported\n");
+				dev_err(component->dev, "ratio yest supported\n");
 				return -EINVAL;
 			}
 		} else {
@@ -574,7 +574,7 @@ static int cs35l35_hw_params(struct snd_pcm_substream *substream,
 			case CS35L35_SP_SCLKS_64FS:
 				break;
 			default:
-				dev_err(component->dev, "ratio not supported\n");
+				dev_err(component->dev, "ratio yest supported\n");
 				return -EINVAL;
 			}
 		}
@@ -1087,7 +1087,7 @@ static const struct snd_soc_component_driver soc_component_dev_cs35l35 = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
+	.yesn_legacy_dai_naming	= 1,
 };
 
 static struct regmap_config cs35l35_regmap = {
@@ -1137,7 +1137,7 @@ static irqreturn_t cs35l35_irq(int irq, void *data)
 	if (sticky1 & CS35L35_CAL_ERR) {
 		dev_crit(cs35l35->dev, "Calibration Error\n");
 
-		/* error is no longer asserted; safe to reset */
+		/* error is yes longer asserted; safe to reset */
 		if (!(current1 & CS35L35_CAL_ERR)) {
 			pr_debug("%s : Cal error release\n", __func__);
 			regmap_update_bits(cs35l35->regmap,
@@ -1155,7 +1155,7 @@ static irqreturn_t cs35l35_irq(int irq, void *data)
 
 	if (sticky1 & CS35L35_AMP_SHORT) {
 		dev_crit(cs35l35->dev, "AMP Short Error\n");
-		/* error is no longer asserted; safe to reset */
+		/* error is yes longer asserted; safe to reset */
 		if (!(current1 & CS35L35_AMP_SHORT)) {
 			dev_dbg(cs35l35->dev, "Amp short error release\n");
 			regmap_update_bits(cs35l35->regmap,
@@ -1174,7 +1174,7 @@ static irqreturn_t cs35l35_irq(int irq, void *data)
 	if (sticky1 & CS35L35_OTW) {
 		dev_warn(cs35l35->dev, "Over temperature warning\n");
 
-		/* error is no longer asserted; safe to reset */
+		/* error is yes longer asserted; safe to reset */
 		if (!(current1 & CS35L35_OTW)) {
 			dev_dbg(cs35l35->dev, "Over temperature warn release\n");
 			regmap_update_bits(cs35l35->regmap,
@@ -1192,7 +1192,7 @@ static irqreturn_t cs35l35_irq(int irq, void *data)
 
 	if (sticky1 & CS35L35_OTE) {
 		dev_crit(cs35l35->dev, "Over temperature error\n");
-		/* error is no longer asserted; safe to reset */
+		/* error is yes longer asserted; safe to reset */
 		if (!(current1 & CS35L35_OTE)) {
 			dev_dbg(cs35l35->dev, "Over temperature error release\n");
 			regmap_update_bits(cs35l35->regmap,
@@ -1225,7 +1225,7 @@ static irqreturn_t cs35l35_irq(int irq, void *data)
 	}
 
 	if (sticky2 & CS35L35_VPBR_ERR)
-		dev_dbg(cs35l35->dev, "Error: Reactive Brownout\n");
+		dev_dbg(cs35l35->dev, "Error: Reactive Browyesut\n");
 
 	if (sticky4 & CS35L35_VMON_OVFL)
 		dev_dbg(cs35l35->dev, "Error: VMON overflow\n");
@@ -1240,8 +1240,8 @@ static irqreturn_t cs35l35_irq(int irq, void *data)
 static int cs35l35_handle_of_data(struct i2c_client *i2c_client,
 				struct cs35l35_platform_data *pdata)
 {
-	struct device_node *np = i2c_client->dev.of_node;
-	struct device_node *classh, *signal_format;
+	struct device_yesde *np = i2c_client->dev.of_yesde;
+	struct device_yesde *classh, *signal_format;
 	struct classh_cfg *classh_config = &pdata->classh_algo;
 	struct monitor_cfg *monitor_config = &pdata->mon_cfg;
 	unsigned int val32 = 0;
@@ -1277,11 +1277,11 @@ static int cs35l35_handle_of_data(struct i2c_client *i2c_client,
 		pdata->bst_ipk = ((val32 - 1680) / 110) | CS35L35_VALID_PDATA;
 	}
 
-	ret = of_property_read_u32(np, "cirrus,boost-ind-nanohenry", &val32);
+	ret = of_property_read_u32(np, "cirrus,boost-ind-nayeshenry", &val32);
 	if (ret >= 0) {
 		pdata->boost_ind = val32;
 	} else {
-		dev_err(&i2c_client->dev, "Inductor not specified.\n");
+		dev_err(&i2c_client->dev, "Inductor yest specified.\n");
 		return -EINVAL;
 	}
 
@@ -1389,7 +1389,7 @@ static int cs35l35_handle_of_data(struct i2c_client *i2c_client,
 		if (ret >= 0)
 			classh_config->classh_vpch_man = val32;
 	}
-	of_node_put(classh);
+	of_yesde_put(classh);
 
 	/* frame depth location */
 	signal_format = of_get_child_by_name(np, "cirrus,monitor-signal-format");
@@ -1445,7 +1445,7 @@ static int cs35l35_handle_of_data(struct i2c_client *i2c_client,
 			monitor_config->zerofill_frm = monitor_array[2];
 		}
 	}
-	of_node_put(signal_format);
+	of_yesde_put(signal_format);
 
 	return 0;
 }
@@ -1510,7 +1510,7 @@ static int cs35l35_i2c_probe(struct i2c_client *i2c_client,
 				     GFP_KERNEL);
 		if (!pdata)
 			return -ENOMEM;
-		if (i2c_client->dev.of_node) {
+		if (i2c_client->dev.of_yesde) {
 			ret = cs35l35_handle_of_data(i2c_client, pdata);
 			if (ret != 0)
 				return ret;

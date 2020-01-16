@@ -80,7 +80,7 @@ int dm_cache_policy_register(struct dm_cache_policy_type *type)
 {
 	int r;
 
-	/* One size fits all for now */
+	/* One size fits all for yesw */
 	if (type->hint_size != 0 && type->hint_size != 4) {
 		DMWARN("hint size must be 0 or 4 but %llu supplied.", (unsigned long long) type->hint_size);
 		return -EINVAL;
@@ -118,7 +118,7 @@ struct dm_cache_policy *dm_cache_policy_create(const char *name,
 
 	type = get_policy(name);
 	if (!type) {
-		DMWARN("unknown policy type");
+		DMWARN("unkyeswn policy type");
 		return ERR_PTR(-EINVAL);
 	}
 

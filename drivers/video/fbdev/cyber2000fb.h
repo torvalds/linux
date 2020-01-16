@@ -198,7 +198,7 @@ static void debug_printf(char *fmt, ...)
 #define EXT_CAP_MODE1		0xa4
 #define EXT_CAP_MODE1_8BIT		0x01	/* enable 8bit capture mode		*/
 #define EXT_CAP_MODE1_CCIR656		0x02	/* CCIR656 mode				*/
-#define EXT_CAP_MODE1_IGNOREVGT		0x04	/* ignore VGT				*/
+#define EXT_CAP_MODE1_IGNOREVGT		0x04	/* igyesre VGT				*/
 #define EXT_CAP_MODE1_ALTFIFO		0x10	/* use alternate FIFO for capture	*/
 #define EXT_CAP_MODE1_SWAPUV		0x20	/* swap UV bytes			*/
 #define EXT_CAP_MODE1_MIRRORY		0x40	/* mirror vertically			*/
@@ -276,8 +276,8 @@ static void debug_printf(char *fmt, ...)
 
 #define EXT_VID_DISP_CTL1	0xdc
 #define EXT_VID_DISP_CTL1_INTRAM	0x01	/* video pixels go to internal RAM	*/
-#define EXT_VID_DISP_CTL1_IGNORE_CCOMP	0x02	/* ignore colour compare registers	*/
-#define EXT_VID_DISP_CTL1_NOCLIP	0x04	/* do not clip to 16235,16240		*/
+#define EXT_VID_DISP_CTL1_IGNORE_CCOMP	0x02	/* igyesre colour compare registers	*/
+#define EXT_VID_DISP_CTL1_NOCLIP	0x04	/* do yest clip to 16235,16240		*/
 #define EXT_VID_DISP_CTL1_UV_AVG	0x08	/* U/V data is averaged			*/
 #define EXT_VID_DISP_CTL1_Y128		0x10	/* Y data offset by 128 (if YUV128 set)	*/
 #define EXT_VID_DISP_CTL1_VINTERPOL_OFF	0x20	/* disable vertical interpolation	*/
@@ -473,7 +473,7 @@ struct cyberpro_info {
 	/*
 	 * The following is a pointer to be passed into the
 	 * functions below.  The modules outside the main
-	 * cyber2000fb.c driver have no knowledge as to what
+	 * cyber2000fb.c driver have yes kyeswledge as to what
 	 * is within this structure.
 	 */
 	struct cfb_info *info;

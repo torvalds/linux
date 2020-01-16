@@ -80,7 +80,7 @@ typedef enum configtype {
 	GIOAdapter,
 	TPUAdapter,
 
-	Anonymous
+	Ayesnymous
 } CONFIGTYPE;
 
 typedef enum {

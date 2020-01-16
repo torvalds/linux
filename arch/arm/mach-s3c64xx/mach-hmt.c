@@ -87,7 +87,7 @@ static int hmt_bl_init(struct device *dev)
 	return ret;
 }
 
-static int hmt_bl_notify(struct device *dev, int brightness)
+static int hmt_bl_yestify(struct device *dev, int brightness)
 {
 	/*
 	 * translate from CIELUV/CIELAB L*->brightness, E.G. from
@@ -117,7 +117,7 @@ static struct platform_pwm_backlight_data hmt_backlight_data = {
 	.dft_brightness	= 40 * 256,
 	.enable_gpio	= -1,
 	.init		= hmt_bl_init,
-	.notify		= hmt_bl_notify,
+	.yestify		= hmt_bl_yestify,
 	.exit		= hmt_bl_exit,
 
 };

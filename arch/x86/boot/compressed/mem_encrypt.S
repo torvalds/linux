@@ -27,12 +27,12 @@ SYM_FUNC_START(get_sev_encryption_bit)
 	movl	$1, %eax
 	cpuid
 	bt	$31, %ecx		/* Check the hypervisor bit */
-	jnc	.Lno_sev
+	jnc	.Lyes_sev
 
 	movl	$0x80000000, %eax	/* CPUID to check the highest leaf */
 	cpuid
 	cmpl	$0x8000001f, %eax	/* See if 0x8000001f is available */
-	jb	.Lno_sev
+	jb	.Lyes_sev
 
 	/*
 	 * Check for the SEV feature:
@@ -43,18 +43,18 @@ SYM_FUNC_START(get_sev_encryption_bit)
 	movl	$0x8000001f, %eax
 	cpuid
 	bt	$1, %eax		/* Check if SEV is available */
-	jnc	.Lno_sev
+	jnc	.Lyes_sev
 
 	movl	$MSR_AMD64_SEV, %ecx	/* Read the SEV MSR */
 	rdmsr
 	bt	$MSR_AMD64_SEV_ENABLED_BIT, %eax	/* Check if SEV is active */
-	jnc	.Lno_sev
+	jnc	.Lyes_sev
 
 	movl	%ebx, %eax
 	andl	$0x3f, %eax		/* Return the encryption bit location */
 	jmp	.Lsev_exit
 
-.Lno_sev:
+.Lyes_sev:
 	xor	%eax, %eax
 
 .Lsev_exit:
@@ -77,11 +77,11 @@ SYM_FUNC_START(set_sev_encryption_mask)
 
 	call	get_sev_encryption_bit	/* Get the encryption bit position */
 	testl	%eax, %eax
-	jz	.Lno_sev_mask
+	jz	.Lyes_sev_mask
 
 	bts	%rax, sme_me_mask(%rip)	/* Create the encryption mask */
 
-.Lno_sev_mask:
+.Lyes_sev_mask:
 	movq	%rbp, %rsp		/* Restore original stack pointer */
 
 	pop	%rdx

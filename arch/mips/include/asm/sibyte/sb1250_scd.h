@@ -336,7 +336,7 @@
 #define K_SCD_WDOG_RESET_CPU1	    5
 #define K_SCD_WDOG_RESET_BOTH_CPUS  7
 
-/* This feature is present in 1250 C0 and later, but *not* in 112x A revs.  */
+/* This feature is present in 1250 C0 and later, but *yest* in 112x A revs.  */
 #if SIBYTE_HDR_FEATURE(1250, PASS3)
 #define S_SCD_WDOG_HAS_RESET	    8
 #define M_SCD_WDOG_HAS_RESET	    _SB_MAKEMASK1(S_SCD_WDOG_HAS_RESET)

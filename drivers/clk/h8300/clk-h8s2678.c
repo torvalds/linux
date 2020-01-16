@@ -2,7 +2,7 @@
 /*
  * H8S2678 clock driver
  *
- * Copyright 2015 Yoshinori Sato <ysato@users.sourceforge.jp>
+ * Copyright 2015 Yoshiyesri Sato <ysato@users.sourceforge.jp>
  */
 
 #include <linux/clk-provider.h>
@@ -83,18 +83,18 @@ static const struct clk_ops pll_ops = {
 	.set_rate = pll_set_rate,
 };
 
-static void __init h8s2678_pll_clk_setup(struct device_node *node)
+static void __init h8s2678_pll_clk_setup(struct device_yesde *yesde)
 {
 	unsigned int num_parents;
-	const char *clk_name = node->name;
+	const char *clk_name = yesde->name;
 	const char *parent_name;
 	struct pll_clock *pll_clock;
 	struct clk_init_data init;
 	int ret;
 
-	num_parents = of_clk_get_parent_count(node);
+	num_parents = of_clk_get_parent_count(yesde);
 	if (!num_parents) {
-		pr_err("%s: no parent found\n", clk_name);
+		pr_err("%s: yes parent found\n", clk_name);
 		return;
 	}
 
@@ -103,19 +103,19 @@ static void __init h8s2678_pll_clk_setup(struct device_node *node)
 	if (!pll_clock)
 		return;
 
-	pll_clock->sckcr = of_iomap(node, 0);
+	pll_clock->sckcr = of_iomap(yesde, 0);
 	if (pll_clock->sckcr == NULL) {
 		pr_err("%s: failed to map divide register\n", clk_name);
 		goto free_clock;
 	}
 
-	pll_clock->pllcr = of_iomap(node, 1);
+	pll_clock->pllcr = of_iomap(yesde, 1);
 	if (pll_clock->pllcr == NULL) {
 		pr_err("%s: failed to map multiply register\n", clk_name);
 		goto unmap_sckcr;
 	}
 
-	parent_name = of_clk_get_parent_name(node, 0);
+	parent_name = of_clk_get_parent_name(yesde, 0);
 	init.name = clk_name;
 	init.ops = &pll_ops;
 	init.flags = 0;
@@ -130,7 +130,7 @@ static void __init h8s2678_pll_clk_setup(struct device_node *node)
 		goto unmap_pllcr;
 	}
 
-	of_clk_add_hw_provider(node, of_clk_hw_simple_get, &pll_clock->hw);
+	of_clk_add_hw_provider(yesde, of_clk_hw_simple_get, &pll_clock->hw);
 	return;
 
 unmap_pllcr:

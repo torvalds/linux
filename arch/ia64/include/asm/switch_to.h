@@ -17,7 +17,7 @@
 struct task_struct;
 
 /*
- * Context switch from one thread to another.  If the two threads have
+ * Context switch from one thread to ayesther.  If the two threads have
  * different address spaces, schedule() has already taken care of
  * switching to the new address space by calling switch_mm().
  *
@@ -54,9 +54,9 @@ extern void ia64_load_extra (struct task_struct *task);
 #ifdef CONFIG_SMP
 /*
  * In the SMP case, we save the fph state when context-switching away from a thread that
- * modified fph.  This way, when the thread gets scheduled on another CPU, the CPU can
+ * modified fph.  This way, when the thread gets scheduled on ayesther CPU, the CPU can
  * pick up the state from task->thread.fph, avoiding the complication of having to fetch
- * the latest fph state from another CPU.  In other words: eager save, lazy restore.
+ * the latest fph state from ayesther CPU.  In other words: eager save, lazy restore.
  */
 # define switch_to(prev,next,last) do {						\
 	if (ia64_psr(task_pt_regs(prev))->mfh && ia64_is_local_fpu_owner(prev)) {				\

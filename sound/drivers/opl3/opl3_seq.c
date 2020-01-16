@@ -129,10 +129,10 @@ static int snd_opl3_synth_unuse(void *private_data, struct snd_seq_port_subscrib
  * MIDI emulation operators
  */
 struct snd_midi_op opl3_ops = {
-	.note_on =		snd_opl3_note_on,
-	.note_off =		snd_opl3_note_off,
+	.yeste_on =		snd_opl3_yeste_on,
+	.yeste_off =		snd_opl3_yeste_off,
 	.key_press =		snd_opl3_key_press,
-	.note_terminate =	snd_opl3_terminate_note,
+	.yeste_terminate =	snd_opl3_terminate_yeste,
 	.control =		snd_opl3_control,
 	.nrpn =			snd_opl3_nrpn,
 	.sysex =		snd_opl3_sysex,

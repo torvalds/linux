@@ -25,7 +25,7 @@
 #define TARGET_CHNL_NUM_2G			14
 #define CV_CURVE_CNT				64
 
-static u32 rf_reg_for_5g_swchnl_normal[MAX_RF_IMR_INDEX_NORMAL] = {
+static u32 rf_reg_for_5g_swchnl_yesrmal[MAX_RF_IMR_INDEX_NORMAL] = {
 	0, 0x2f, 0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37, 0x38, 0x39, 0x0
 };
 
@@ -81,7 +81,7 @@ static u32 rf_pram_c_5g_int_pa[3][RF_REG_NUM_FOR_C_CUT_5G_INTERNALPA] = {
 };
 
 /* [mode][patha+b][reg] */
-static u32 rf_imr_param_normal[1][3][MAX_RF_IMR_INDEX_NORMAL] = {
+static u32 rf_imr_param_yesrmal[1][3][MAX_RF_IMR_INDEX_NORMAL] = {
 	{
 		/* channel 1-14. */
 		{
@@ -809,7 +809,7 @@ bool rtl92d_phy_config_rf_with_headerfile(struct ieee80211_hw *hw,
 		break;
 	case RF90_PATH_C:
 	case RF90_PATH_D:
-		pr_err("switch case %#x not processed\n", rfpath);
+		pr_err("switch case %#x yest processed\n", rfpath);
 		break;
 	}
 	return true;
@@ -962,7 +962,7 @@ void rtl92d_phy_set_bw_mode(struct ieee80211_hw *hw,
 		rtl_write_byte(rtlpriv, REG_RRSR + 2, reg_prsr_rsc);
 		break;
 	default:
-		pr_err("unknown bandwidth: %#X\n",
+		pr_err("unkyeswn bandwidth: %#X\n",
 		       rtlphy->current_chan_bw);
 		break;
 	}
@@ -994,7 +994,7 @@ void rtl92d_phy_set_bw_mode(struct ieee80211_hw *hw,
 			HAL_PRIME_CHNL_OFFSET_LOWER) ? 2 : 1);
 		break;
 	default:
-		pr_err("unknown bandwidth: %#X\n",
+		pr_err("unkyeswn bandwidth: %#X\n",
 		       rtlphy->current_chan_bw);
 		break;
 
@@ -1047,7 +1047,7 @@ static void rtl92d_phy_switch_wirelessband(struct ieee80211_hw *hw, u8 band)
 	/* 20M BW. */
 	/* rtl_set_bbreg(hw, RFPGA0_ANALOGPARAMETER2, BIT(10), 1); */
 	rtlhal->reloadtxpowerindex = true;
-	/* notice fw know band status  0x81[1]/0x53[1] = 0: 5G, 1: 2G */
+	/* yestice fw kyesw band status  0x81[1]/0x53[1] = 0: 5G, 1: 2G */
 	if (rtlhal->current_bandtype == BAND_ON_2_4G) {
 		value8 = rtl_read_byte(rtlpriv,	(rtlhal->interfaceindex ==
 			0 ? REG_MAC0 : REG_MAC1));
@@ -1091,8 +1091,8 @@ static void _rtl92d_phy_reload_imr_setting(struct ieee80211_hw *hw,
 		imr_num = MAX_RF_IMR_INDEX_NORMAL;
 		for (i = 0; i < imr_num; i++)
 			rtl_set_rfreg(hw, (enum radio_path)rfpath,
-				      rf_reg_for_5g_swchnl_normal[i], rfmask,
-				      rf_imr_param_normal[0][group][i]);
+				      rf_reg_for_5g_swchnl_yesrmal[i], rfmask,
+				      rf_imr_param_yesrmal[0][group][i]);
 		rtl_set_bbreg(hw, RFPGA0_ANALOGPARAMETER4, 0x00f00000, 0);
 		rtl_set_bbreg(hw, RFPGA0_RFMOD, BOFDMEN, 1);
 	} else {
@@ -1112,9 +1112,9 @@ static void _rtl92d_phy_reload_imr_setting(struct ieee80211_hw *hw,
 			imr_num = MAX_RF_IMR_INDEX_NORMAL;
 			for (i = 0; i < imr_num; i++) {
 				rtl_set_rfreg(hw, (enum radio_path)rfpath,
-					      rf_reg_for_5g_swchnl_normal[i],
+					      rf_reg_for_5g_swchnl_yesrmal[i],
 					      RFREG_OFFSET_MASK,
-					      rf_imr_param_normal[0][0][i]);
+					      rf_imr_param_yesrmal[0][0][i]);
 			}
 			rtl_set_bbreg(hw, RFPGA0_ANALOGPARAMETER4,
 				      0x00f00000, 0);
@@ -1220,9 +1220,9 @@ static void _rtl92d_phy_switch_rf_setting(struct ieee80211_hw *hw, u8 channel)
 
 		if (rtlhal->macphymode == DUALMAC_DUALPHY
 		    && rtlhal->interfaceindex == 1) {
-			need_pwr_down = rtl92d_phy_enable_anotherphy(hw, false);
+			need_pwr_down = rtl92d_phy_enable_ayestherphy(hw, false);
 			rtlhal->during_mac1init_radioa = true;
-			/* asume no this case */
+			/* asume yes this case */
 			if (need_pwr_down)
 				_rtl92d_phy_enable_rf_env(hw, path,
 							  &u4regvalue);
@@ -1258,7 +1258,7 @@ static void _rtl92d_phy_switch_rf_setting(struct ieee80211_hw *hw, u8 channel)
 		if (need_pwr_down)
 			_rtl92d_phy_restore_rf_env(hw, path, &u4regvalue);
 		if (rtlhal->during_mac1init_radioa)
-			rtl92d_phy_powerdown_anotherphy(hw, false);
+			rtl92d_phy_powerdown_ayestherphy(hw, false);
 		if (channel < 149)
 			value = 0x07;
 		else if (channel >= 149)
@@ -1312,7 +1312,7 @@ static void _rtl92d_phy_switch_rf_setting(struct ieee80211_hw *hw, u8 channel)
 			path = RF90_PATH_A;
 			if (rtlhal->interfaceindex == 0) {
 				need_pwr_down =
-					 rtl92d_phy_enable_anotherphy(hw, true);
+					 rtl92d_phy_enable_ayestherphy(hw, true);
 				rtlhal->during_mac0init_radiob = true;
 
 				if (need_pwr_down)
@@ -1352,7 +1352,7 @@ static void _rtl92d_phy_switch_rf_setting(struct ieee80211_hw *hw, u8 channel)
 		if (need_pwr_down)
 			_rtl92d_phy_restore_rf_env(hw, path, &u4regvalue);
 		if (rtlhal->during_mac0init_radiob)
-			rtl92d_phy_powerdown_anotherphy(hw, true);
+			rtl92d_phy_powerdown_ayestherphy(hw, true);
 	}
 	RT_TRACE(rtlpriv, COMP_CMD, DBG_LOUD, "<====\n");
 }
@@ -1434,7 +1434,7 @@ static u8 _rtl92d_phy_patha_iqk(struct ieee80211_hw *hw, bool configpathb)
 	if (!(regeac & BIT(28)) && (((rege94 & 0x03FF0000) >> 16) != 0x142) &&
 	    (((rege9c & 0x03FF0000) >> 16) != 0x42))
 		result |= 0x01;
-	else			/* if Tx not OK, ignore Rx */
+	else			/* if Tx yest OK, igyesre Rx */
 		return result;
 	/* if Tx is OK, check whether Rx is OK */
 	if (!(regeac & BIT(27)) && (((regea4 & 0x03FF0000) >> 16) != 0x132) &&
@@ -1446,7 +1446,7 @@ static u8 _rtl92d_phy_patha_iqk(struct ieee80211_hw *hw, bool configpathb)
 }
 
 /* bit0 = 1 => Tx OK, bit1 = 1 => Rx OK */
-static u8 _rtl92d_phy_patha_iqk_5g_normal(struct ieee80211_hw *hw,
+static u8 _rtl92d_phy_patha_iqk_5g_yesrmal(struct ieee80211_hw *hw,
 					  bool configpathb)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
@@ -1505,7 +1505,7 @@ static u8 _rtl92d_phy_patha_iqk_5g_normal(struct ieee80211_hw *hw,
 		if (!(regeac & TXOKBIT) &&
 		     (((rege94 & 0x03FF0000) >> 16) != 0x142)) {
 			result |= 0x01;
-		} else { /* if Tx not OK, ignore Rx */
+		} else { /* if Tx yest OK, igyesre Rx */
 			RTPRINT(rtlpriv, FINIT, INIT_IQK,
 				"Path A Tx IQK fail!!\n");
 			continue;
@@ -1570,7 +1570,7 @@ static u8 _rtl92d_phy_pathb_iqk(struct ieee80211_hw *hw)
 }
 
 /* bit0 = 1 => Tx OK, bit1 = 1 => Rx OK */
-static u8 _rtl92d_phy_pathb_iqk_5g_normal(struct ieee80211_hw *hw)
+static u8 _rtl92d_phy_pathb_iqk_5g_yesrmal(struct ieee80211_hw *hw)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_phy *rtlphy = &(rtlpriv->phy);
@@ -1912,7 +1912,7 @@ static void _rtl92d_phy_iq_calibrate(struct ieee80211_hw *hw, long result[][8],
 	RTPRINT(rtlpriv, FINIT, INIT_IQK,  "<==\n");
 }
 
-static void _rtl92d_phy_iq_calibrate_5g_normal(struct ieee80211_hw *hw,
+static void _rtl92d_phy_iq_calibrate_5g_yesrmal(struct ieee80211_hw *hw,
 					       long result[][8], u8 t)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
@@ -1988,7 +1988,7 @@ static void _rtl92d_phy_iq_calibrate_5g_normal(struct ieee80211_hw *hw,
 	rtl_set_bbreg(hw, 0xe28, MASKDWORD, 0x80800000);
 	rtl_set_bbreg(hw, 0xe40, MASKDWORD, 0x10007c00);
 	rtl_set_bbreg(hw, 0xe44, MASKDWORD, 0x01004800);
-	patha_ok = _rtl92d_phy_patha_iqk_5g_normal(hw, is2t);
+	patha_ok = _rtl92d_phy_patha_iqk_5g_yesrmal(hw, is2t);
 	if (patha_ok == 0x03) {
 		RTPRINT(rtlpriv, FINIT, INIT_IQK,  "Path A IQK Success!!\n");
 		result[t][0] = (rtl_get_bbreg(hw, 0xe94, MASKDWORD) &
@@ -2014,7 +2014,7 @@ static void _rtl92d_phy_iq_calibrate_5g_normal(struct ieee80211_hw *hw,
 		/* _rtl92d_phy_patha_standby(hw); */
 		/* Turn Path B ADDA on  */
 		_rtl92d_phy_path_adda_on(hw, adda_reg, false, is2t);
-		pathb_ok = _rtl92d_phy_pathb_iqk_5g_normal(hw);
+		pathb_ok = _rtl92d_phy_pathb_iqk_5g_yesrmal(hw);
 		if (pathb_ok == 0x03) {
 			RTPRINT(rtlpriv, FINIT, INIT_IQK,
 				"Path B IQK Success!!\n");
@@ -2268,7 +2268,7 @@ void rtl92d_phy_iq_calibrate(struct ieee80211_hw *hw)
 	rtl92d_acquire_cckandrw_pagea_ctl(hw, &flag);
 	for (i = 0; i < 3; i++) {
 		if (rtlhal->current_bandtype == BAND_ON_5G) {
-			_rtl92d_phy_iq_calibrate_5g_normal(hw, result, i);
+			_rtl92d_phy_iq_calibrate_5g_yesrmal(hw, result, i);
 		} else if (rtlhal->current_bandtype == BAND_ON_2_4G) {
 			if (IS_92D_SINGLEPHY(rtlhal->version))
 				_rtl92d_phy_iq_calibrate(hw, result, i, true);
@@ -2371,7 +2371,7 @@ void rtl92d_phy_reload_iqk_setting(struct ieee80211_hw *hw, u8 channel)
 	u8 indexforchannel;
 
 	RT_TRACE(rtlpriv, COMP_CMD, DBG_LOUD, "channel %d\n", channel);
-	/*------Do IQK for normal chip and test chip 5G band------- */
+	/*------Do IQK for yesrmal chip and test chip 5G band------- */
 	indexforchannel = rtl92d_get_rightchnlplace_for_iqk(channel);
 	RT_TRACE(rtlpriv, COMP_CMD, DBG_LOUD, "indexforchannel %d done %d\n",
 		 indexforchannel,
@@ -2488,9 +2488,9 @@ static void _rtl92d_phy_reload_lck_setting(struct ieee80211_hw *hw,
 		if (rtlpriv->rtlhal.macphymode == DUALMAC_DUALPHY &&
 			rtlpriv->rtlhal.interfaceindex == 1) {
 			bneed_powerdown_radio =
-				rtl92d_phy_enable_anotherphy(hw, false);
+				rtl92d_phy_enable_ayestherphy(hw, false);
 			rtlpriv->rtlhal.during_mac1init_radioa = true;
-			/* asume no this case */
+			/* asume yes this case */
 			if (bneed_powerdown_radio)
 				_rtl92d_phy_enable_rf_env(hw, erfpath,
 							  &u4regvalue);
@@ -2499,7 +2499,7 @@ static void _rtl92d_phy_reload_lck_setting(struct ieee80211_hw *hw,
 		if (bneed_powerdown_radio)
 			_rtl92d_phy_restore_rf_env(hw, erfpath, &u4regvalue);
 		if (rtlpriv->rtlhal.during_mac1init_radioa)
-			rtl92d_phy_powerdown_anotherphy(hw, false);
+			rtl92d_phy_powerdown_ayestherphy(hw, false);
 	} else if (rtlpriv->rtlhal.current_bandtype == BAND_ON_2_4G) {
 		u4tmp = curveindex_2g[channel-1];
 		RTPRINT(rtlpriv, FINIT, INIT_IQK,
@@ -2507,7 +2507,7 @@ static void _rtl92d_phy_reload_lck_setting(struct ieee80211_hw *hw,
 		if (rtlpriv->rtlhal.macphymode == DUALMAC_DUALPHY &&
 			rtlpriv->rtlhal.interfaceindex == 0) {
 			bneed_powerdown_radio =
-				rtl92d_phy_enable_anotherphy(hw, true);
+				rtl92d_phy_enable_ayestherphy(hw, true);
 			rtlpriv->rtlhal.during_mac0init_radiob = true;
 			if (bneed_powerdown_radio)
 				_rtl92d_phy_enable_rf_env(hw, erfpath,
@@ -2520,7 +2520,7 @@ static void _rtl92d_phy_reload_lck_setting(struct ieee80211_hw *hw,
 		if (bneed_powerdown_radio)
 			_rtl92d_phy_restore_rf_env(hw, erfpath, &u4regvalue);
 		if (rtlpriv->rtlhal.during_mac0init_radiob)
-			rtl92d_phy_powerdown_anotherphy(hw, true);
+			rtl92d_phy_powerdown_ayestherphy(hw, true);
 	}
 	RT_TRACE(rtlpriv, COMP_CMD, DBG_LOUD, "<====\n");
 }
@@ -2675,7 +2675,7 @@ static bool _rtl92d_phy_set_sw_chnl_cmdarray(struct swchnlcmd *cmdtable,
 	struct swchnlcmd *pcmd;
 
 	if (cmdtable == NULL) {
-		WARN_ONCE(true, "rtl8192de: cmdtable cannot be NULL\n");
+		WARN_ONCE(true, "rtl8192de: cmdtable canyest be NULL\n");
 		return false;
 	}
 	if (cmdtableidx >= cmdtablesz)
@@ -2817,7 +2817,7 @@ static bool _rtl92d_phy_sw_chnl_step_by_step(struct ieee80211_hw *hw,
 			rtl92d_phy_reload_iqk_setting(hw, channel);
 			break;
 		default:
-			pr_err("switch case %#x not processed\n",
+			pr_err("switch case %#x yest processed\n",
 			       currentcmd->cmdid);
 			break;
 		}
@@ -2930,7 +2930,7 @@ static void rtl92d_phy_set_io(struct ieee80211_hw *hw)
 		rtl92d_dm_write_dig(hw);
 		break;
 	default:
-		pr_err("switch case %#x not processed\n",
+		pr_err("switch case %#x yest processed\n",
 		       rtlphy->current_io_type);
 		break;
 	}
@@ -2961,7 +2961,7 @@ bool rtl92d_phy_set_io_cmd(struct ieee80211_hw *hw, enum io_type iotype)
 			postprocessing = true;
 			break;
 		default:
-			pr_err("switch case %#x not processed\n",
+			pr_err("switch case %#x yest processed\n",
 			       iotype);
 			break;
 		}
@@ -3149,7 +3149,7 @@ bool rtl92d_phy_set_rf_power_state(struct ieee80211_hw *hw,
 		_rtl92d_phy_set_rfsleep(hw);
 		break;
 	default:
-		pr_err("switch case %#x not processed\n",
+		pr_err("switch case %#x yest processed\n",
 		       rfpwr_state);
 		bresult = false;
 		break;
@@ -3271,7 +3271,7 @@ void rtl92d_phy_set_poweron(struct ieee80211_hw *hw)
 	u16 i;
 	u32 mac_reg = (rtlhal->interfaceindex == 0 ? REG_MAC0 : REG_MAC1);
 
-	/* notice fw know band status  0x81[1]/0x53[1] = 0: 5G, 1: 2G */
+	/* yestice fw kyesw band status  0x81[1]/0x53[1] = 0: 5G, 1: 2G */
 	if (rtlhal->current_bandtype == BAND_ON_2_4G) {
 		value8 = rtl_read_byte(rtlpriv, mac_reg);
 		value8 |= BIT(1);
@@ -3309,7 +3309,7 @@ void rtl92d_phy_set_poweron(struct ieee80211_hw *hw)
 			}
 		}
 		if (i == 200)
-			WARN_ONCE(true, "rtl8192de: Another mac power off over time\n");
+			WARN_ONCE(true, "rtl8192de: Ayesther mac power off over time\n");
 	}
 }
 
@@ -3493,7 +3493,7 @@ void rtl92d_update_bbrf_configuration(struct ieee80211_hw *hw)
 			rtl_set_bbreg(hw, RFPGA0_ADDALLOCKEN, BIT(12) |
 				      BIT(13), 0x3);
 		} else {
-			rtl92d_phy_enable_anotherphy(hw, false);
+			rtl92d_phy_enable_ayestherphy(hw, false);
 			RT_TRACE(rtlpriv, COMP_INIT, DBG_LOUD,
 				 "MAC1 use DBI to update 0x888\n");
 			/* 0x888 */
@@ -3502,7 +3502,7 @@ void rtl92d_update_bbrf_configuration(struct ieee80211_hw *hw)
 						RFPGA0_ADDALLOCKEN,
 						BIT(3)) | BIT(12) | BIT(13),
 						BIT(3));
-			rtl92d_phy_powerdown_anotherphy(hw, false);
+			rtl92d_phy_powerdown_ayestherphy(hw, false);
 		}
 	} else {
 		/* Single PHY */

@@ -26,15 +26,15 @@ native mode makes use of 5 PCI BARs and all of them should be
 maintained.
 
 As with many other device drivers, libata low level drivers have
-sufficient bugs in ->remove and ->probe failure path.  Well, yes,
+sufficient bugs in ->remove and ->probe failure path.  Well, no,
 that's probably because libata low level driver developers are lazy
 bunch, but aren't all low level driver developers?  After spending a
-day fiddling with braindamaged hardware with no document or
+day fiddling with braindamaged hardware with yes document or
 braindamaged document, if it's finally working, well, it's working.
 
-For one reason or another, low level drivers don't receive as much
+For one reason or ayesther, low level drivers don't receive as much
 attention or testing as core code, and bugs on driver detach or
-initialization failure don't happen often enough to be noticeable.
+initialization failure don't happen often eyesugh to be yesticeable.
 Init failure path is worse because it's much less travelled while
 needs to handle multiple entry points.
 
@@ -138,7 +138,7 @@ Note though that when converting current calls or assignments to
 managed devm_* versions it is up to you to check if internal operations
 like allocating memory, have failed. Managed resources pertains to the
 freeing of these resources *only* - all other checks needed are still
-on you. In some cases this may mean introducing checks that were not
+on you. In some cases this may mean introducing checks that were yest
 necessary before moving to the managed devm_* calls.
 
 
@@ -146,7 +146,7 @@ necessary before moving to the managed devm_* calls.
 ---------------
 
 Devres entries can be grouped using devres group.  When a group is
-released, all contained normal devres entries and properly nested
+released, all contained yesrmal devres entries and properly nested
 groups are released.  One usage is to rollback series of acquired
 resources on failure.  For example::
 
@@ -205,14 +205,14 @@ For example, you can do something like the following::
 ----------
 
 Lifetime of a devres entry begins on devres allocation and finishes
-when it is released or destroyed (removed and freed) - no reference
+when it is released or destroyed (removed and freed) - yes reference
 counting.
 
 devres core guarantees atomicity to all basic devres operations and
 has support for single-instance devres types (atomic
-lookup-and-add-if-not-found).  Other than that, synchronizing
+lookup-and-add-if-yest-found).  Other than that, synchronizing
 concurrent accesses to allocated devres data is caller's
-responsibility.  This is usually non-issue because bus ops and
+responsibility.  This is usually yesn-issue because bus ops and
 resource allocations already do the job.
 
 For an example of single-instance devres type, read pcim_iomap_table()
@@ -313,7 +313,7 @@ IOMAP
   devm_ioport_map()
   devm_ioport_unmap()
   devm_ioremap()
-  devm_ioremap_nocache()
+  devm_ioremap_yescache()
   devm_ioremap_uc()
   devm_ioremap_wc()
   devm_ioremap_resource() : checks resource, requests memory region, ioremaps

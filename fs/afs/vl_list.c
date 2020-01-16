@@ -130,7 +130,7 @@ static struct afs_addr_list *afs_extract_vl_addrs(const u8 **_b, const u8 *end,
 			break;
 
 		default:
-			_leave(" = -EADDRNOTAVAIL [unknown af %u]",
+			_leave(" = -EADDRNOTAVAIL [unkyeswn af %u]",
 			       hdr.address_type);
 			ret = -EADDRNOTAVAIL;
 			goto error;
@@ -171,7 +171,7 @@ struct afs_vlserver_list *afs_extract_vlserver_list(struct afs_cell *cell,
 	if (end - b < sizeof(*hdr) ||
 	    hdr->hdr.content != DNS_PAYLOAD_IS_SERVER_LIST ||
 	    hdr->hdr.version != 1) {
-		pr_notice("kAFS: Got DNS record [%u,%u] len %zu\n",
+		pr_yestice("kAFS: Got DNS record [%u,%u] len %zu\n",
 			  hdr->hdr.content, hdr->hdr.version, end - b);
 		ret = -EDESTADDRREQ;
 		goto dump;
@@ -250,7 +250,7 @@ struct afs_vlserver_list *afs_extract_vlserver_list(struct afs_cell *cell,
 
 		b += bs.name_len;
 
-		/* Extract the addresses - note that we can't skip this as we
+		/* Extract the addresses - yeste that we can't skip this as we
 		 * have to advance the payload pointer.
 		 */
 		addrs = afs_extract_vl_addrs(&b, end, bs.nr_addrs, bs.port);

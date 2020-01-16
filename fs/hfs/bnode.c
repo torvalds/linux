@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- *  linux/fs/hfs/bnode.c
+ *  linux/fs/hfs/byesde.c
  *
  * Copyright (C) 2001
  * Brad Boyer (flar@allandria.com)
- * (C) 2003 Ardis Technologies <roman@ardistech.com>
+ * (C) 2003 Ardis Techyeslogies <roman@ardistech.com>
  *
- * Handle basic btree node operations
+ * Handle basic btree yesde operations
  */
 
 #include <linux/pagemap.h>
@@ -15,98 +15,98 @@
 
 #include "btree.h"
 
-void hfs_bnode_read(struct hfs_bnode *node, void *buf,
+void hfs_byesde_read(struct hfs_byesde *yesde, void *buf,
 		int off, int len)
 {
 	struct page *page;
 
-	off += node->page_offset;
-	page = node->page[0];
+	off += yesde->page_offset;
+	page = yesde->page[0];
 
 	memcpy(buf, kmap(page) + off, len);
 	kunmap(page);
 }
 
-u16 hfs_bnode_read_u16(struct hfs_bnode *node, int off)
+u16 hfs_byesde_read_u16(struct hfs_byesde *yesde, int off)
 {
 	__be16 data;
 	// optimize later...
-	hfs_bnode_read(node, &data, off, 2);
+	hfs_byesde_read(yesde, &data, off, 2);
 	return be16_to_cpu(data);
 }
 
-u8 hfs_bnode_read_u8(struct hfs_bnode *node, int off)
+u8 hfs_byesde_read_u8(struct hfs_byesde *yesde, int off)
 {
 	u8 data;
 	// optimize later...
-	hfs_bnode_read(node, &data, off, 1);
+	hfs_byesde_read(yesde, &data, off, 1);
 	return data;
 }
 
-void hfs_bnode_read_key(struct hfs_bnode *node, void *key, int off)
+void hfs_byesde_read_key(struct hfs_byesde *yesde, void *key, int off)
 {
 	struct hfs_btree *tree;
 	int key_len;
 
-	tree = node->tree;
-	if (node->type == HFS_NODE_LEAF ||
+	tree = yesde->tree;
+	if (yesde->type == HFS_NODE_LEAF ||
 	    tree->attributes & HFS_TREE_VARIDXKEYS)
-		key_len = hfs_bnode_read_u8(node, off) + 1;
+		key_len = hfs_byesde_read_u8(yesde, off) + 1;
 	else
 		key_len = tree->max_key_len + 1;
 
-	hfs_bnode_read(node, key, off, key_len);
+	hfs_byesde_read(yesde, key, off, key_len);
 }
 
-void hfs_bnode_write(struct hfs_bnode *node, void *buf, int off, int len)
+void hfs_byesde_write(struct hfs_byesde *yesde, void *buf, int off, int len)
 {
 	struct page *page;
 
-	off += node->page_offset;
-	page = node->page[0];
+	off += yesde->page_offset;
+	page = yesde->page[0];
 
 	memcpy(kmap(page) + off, buf, len);
 	kunmap(page);
 	set_page_dirty(page);
 }
 
-void hfs_bnode_write_u16(struct hfs_bnode *node, int off, u16 data)
+void hfs_byesde_write_u16(struct hfs_byesde *yesde, int off, u16 data)
 {
 	__be16 v = cpu_to_be16(data);
 	// optimize later...
-	hfs_bnode_write(node, &v, off, 2);
+	hfs_byesde_write(yesde, &v, off, 2);
 }
 
-void hfs_bnode_write_u8(struct hfs_bnode *node, int off, u8 data)
+void hfs_byesde_write_u8(struct hfs_byesde *yesde, int off, u8 data)
 {
 	// optimize later...
-	hfs_bnode_write(node, &data, off, 1);
+	hfs_byesde_write(yesde, &data, off, 1);
 }
 
-void hfs_bnode_clear(struct hfs_bnode *node, int off, int len)
+void hfs_byesde_clear(struct hfs_byesde *yesde, int off, int len)
 {
 	struct page *page;
 
-	off += node->page_offset;
-	page = node->page[0];
+	off += yesde->page_offset;
+	page = yesde->page[0];
 
 	memset(kmap(page) + off, 0, len);
 	kunmap(page);
 	set_page_dirty(page);
 }
 
-void hfs_bnode_copy(struct hfs_bnode *dst_node, int dst,
-		struct hfs_bnode *src_node, int src, int len)
+void hfs_byesde_copy(struct hfs_byesde *dst_yesde, int dst,
+		struct hfs_byesde *src_yesde, int src, int len)
 {
 	struct page *src_page, *dst_page;
 
 	hfs_dbg(BNODE_MOD, "copybytes: %u,%u,%u\n", dst, src, len);
 	if (!len)
 		return;
-	src += src_node->page_offset;
-	dst += dst_node->page_offset;
-	src_page = src_node->page[0];
-	dst_page = dst_node->page[0];
+	src += src_yesde->page_offset;
+	dst += dst_yesde->page_offset;
+	src_page = src_yesde->page[0];
+	dst_page = dst_yesde->page[0];
 
 	memcpy(kmap(dst_page) + dst, kmap(src_page) + src, len);
 	kunmap(src_page);
@@ -114,7 +114,7 @@ void hfs_bnode_copy(struct hfs_bnode *dst_node, int dst,
 	set_page_dirty(dst_page);
 }
 
-void hfs_bnode_move(struct hfs_bnode *node, int dst, int src, int len)
+void hfs_byesde_move(struct hfs_byesde *yesde, int dst, int src, int len)
 {
 	struct page *page;
 	void *ptr;
@@ -122,162 +122,162 @@ void hfs_bnode_move(struct hfs_bnode *node, int dst, int src, int len)
 	hfs_dbg(BNODE_MOD, "movebytes: %u,%u,%u\n", dst, src, len);
 	if (!len)
 		return;
-	src += node->page_offset;
-	dst += node->page_offset;
-	page = node->page[0];
+	src += yesde->page_offset;
+	dst += yesde->page_offset;
+	page = yesde->page[0];
 	ptr = kmap(page);
 	memmove(ptr + dst, ptr + src, len);
 	kunmap(page);
 	set_page_dirty(page);
 }
 
-void hfs_bnode_dump(struct hfs_bnode *node)
+void hfs_byesde_dump(struct hfs_byesde *yesde)
 {
-	struct hfs_bnode_desc desc;
+	struct hfs_byesde_desc desc;
 	__be32 cnid;
 	int i, off, key_off;
 
-	hfs_dbg(BNODE_MOD, "bnode: %d\n", node->this);
-	hfs_bnode_read(node, &desc, 0, sizeof(desc));
+	hfs_dbg(BNODE_MOD, "byesde: %d\n", yesde->this);
+	hfs_byesde_read(yesde, &desc, 0, sizeof(desc));
 	hfs_dbg(BNODE_MOD, "%d, %d, %d, %d, %d\n",
 		be32_to_cpu(desc.next), be32_to_cpu(desc.prev),
 		desc.type, desc.height, be16_to_cpu(desc.num_recs));
 
-	off = node->tree->node_size - 2;
+	off = yesde->tree->yesde_size - 2;
 	for (i = be16_to_cpu(desc.num_recs); i >= 0; off -= 2, i--) {
-		key_off = hfs_bnode_read_u16(node, off);
+		key_off = hfs_byesde_read_u16(yesde, off);
 		hfs_dbg_cont(BNODE_MOD, " %d", key_off);
-		if (i && node->type == HFS_NODE_INDEX) {
+		if (i && yesde->type == HFS_NODE_INDEX) {
 			int tmp;
 
-			if (node->tree->attributes & HFS_TREE_VARIDXKEYS)
-				tmp = (hfs_bnode_read_u8(node, key_off) | 1) + 1;
+			if (yesde->tree->attributes & HFS_TREE_VARIDXKEYS)
+				tmp = (hfs_byesde_read_u8(yesde, key_off) | 1) + 1;
 			else
-				tmp = node->tree->max_key_len + 1;
+				tmp = yesde->tree->max_key_len + 1;
 			hfs_dbg_cont(BNODE_MOD, " (%d,%d",
-				     tmp, hfs_bnode_read_u8(node, key_off));
-			hfs_bnode_read(node, &cnid, key_off + tmp, 4);
+				     tmp, hfs_byesde_read_u8(yesde, key_off));
+			hfs_byesde_read(yesde, &cnid, key_off + tmp, 4);
 			hfs_dbg_cont(BNODE_MOD, ",%d)", be32_to_cpu(cnid));
-		} else if (i && node->type == HFS_NODE_LEAF) {
+		} else if (i && yesde->type == HFS_NODE_LEAF) {
 			int tmp;
 
-			tmp = hfs_bnode_read_u8(node, key_off);
+			tmp = hfs_byesde_read_u8(yesde, key_off);
 			hfs_dbg_cont(BNODE_MOD, " (%d)", tmp);
 		}
 	}
 	hfs_dbg_cont(BNODE_MOD, "\n");
 }
 
-void hfs_bnode_unlink(struct hfs_bnode *node)
+void hfs_byesde_unlink(struct hfs_byesde *yesde)
 {
 	struct hfs_btree *tree;
-	struct hfs_bnode *tmp;
+	struct hfs_byesde *tmp;
 	__be32 cnid;
 
-	tree = node->tree;
-	if (node->prev) {
-		tmp = hfs_bnode_find(tree, node->prev);
+	tree = yesde->tree;
+	if (yesde->prev) {
+		tmp = hfs_byesde_find(tree, yesde->prev);
 		if (IS_ERR(tmp))
 			return;
-		tmp->next = node->next;
+		tmp->next = yesde->next;
 		cnid = cpu_to_be32(tmp->next);
-		hfs_bnode_write(tmp, &cnid, offsetof(struct hfs_bnode_desc, next), 4);
-		hfs_bnode_put(tmp);
-	} else if (node->type == HFS_NODE_LEAF)
-		tree->leaf_head = node->next;
+		hfs_byesde_write(tmp, &cnid, offsetof(struct hfs_byesde_desc, next), 4);
+		hfs_byesde_put(tmp);
+	} else if (yesde->type == HFS_NODE_LEAF)
+		tree->leaf_head = yesde->next;
 
-	if (node->next) {
-		tmp = hfs_bnode_find(tree, node->next);
+	if (yesde->next) {
+		tmp = hfs_byesde_find(tree, yesde->next);
 		if (IS_ERR(tmp))
 			return;
-		tmp->prev = node->prev;
+		tmp->prev = yesde->prev;
 		cnid = cpu_to_be32(tmp->prev);
-		hfs_bnode_write(tmp, &cnid, offsetof(struct hfs_bnode_desc, prev), 4);
-		hfs_bnode_put(tmp);
-	} else if (node->type == HFS_NODE_LEAF)
-		tree->leaf_tail = node->prev;
+		hfs_byesde_write(tmp, &cnid, offsetof(struct hfs_byesde_desc, prev), 4);
+		hfs_byesde_put(tmp);
+	} else if (yesde->type == HFS_NODE_LEAF)
+		tree->leaf_tail = yesde->prev;
 
 	// move down?
-	if (!node->prev && !node->next) {
+	if (!yesde->prev && !yesde->next) {
 		printk(KERN_DEBUG "hfs_btree_del_level\n");
 	}
-	if (!node->parent) {
+	if (!yesde->parent) {
 		tree->root = 0;
 		tree->depth = 0;
 	}
-	set_bit(HFS_BNODE_DELETED, &node->flags);
+	set_bit(HFS_BNODE_DELETED, &yesde->flags);
 }
 
-static inline int hfs_bnode_hash(u32 num)
+static inline int hfs_byesde_hash(u32 num)
 {
 	num = (num >> 16) + num;
 	num += num >> 8;
 	return num & (NODE_HASH_SIZE - 1);
 }
 
-struct hfs_bnode *hfs_bnode_findhash(struct hfs_btree *tree, u32 cnid)
+struct hfs_byesde *hfs_byesde_findhash(struct hfs_btree *tree, u32 cnid)
 {
-	struct hfs_bnode *node;
+	struct hfs_byesde *yesde;
 
-	if (cnid >= tree->node_count) {
-		pr_err("request for non-existent node %d in B*Tree\n", cnid);
+	if (cnid >= tree->yesde_count) {
+		pr_err("request for yesn-existent yesde %d in B*Tree\n", cnid);
 		return NULL;
 	}
 
-	for (node = tree->node_hash[hfs_bnode_hash(cnid)];
-	     node; node = node->next_hash) {
-		if (node->this == cnid) {
-			return node;
+	for (yesde = tree->yesde_hash[hfs_byesde_hash(cnid)];
+	     yesde; yesde = yesde->next_hash) {
+		if (yesde->this == cnid) {
+			return yesde;
 		}
 	}
 	return NULL;
 }
 
-static struct hfs_bnode *__hfs_bnode_create(struct hfs_btree *tree, u32 cnid)
+static struct hfs_byesde *__hfs_byesde_create(struct hfs_btree *tree, u32 cnid)
 {
-	struct hfs_bnode *node, *node2;
+	struct hfs_byesde *yesde, *yesde2;
 	struct address_space *mapping;
 	struct page *page;
 	int size, block, i, hash;
 	loff_t off;
 
-	if (cnid >= tree->node_count) {
-		pr_err("request for non-existent node %d in B*Tree\n", cnid);
+	if (cnid >= tree->yesde_count) {
+		pr_err("request for yesn-existent yesde %d in B*Tree\n", cnid);
 		return NULL;
 	}
 
-	size = sizeof(struct hfs_bnode) + tree->pages_per_bnode *
+	size = sizeof(struct hfs_byesde) + tree->pages_per_byesde *
 		sizeof(struct page *);
-	node = kzalloc(size, GFP_KERNEL);
-	if (!node)
+	yesde = kzalloc(size, GFP_KERNEL);
+	if (!yesde)
 		return NULL;
-	node->tree = tree;
-	node->this = cnid;
-	set_bit(HFS_BNODE_NEW, &node->flags);
-	atomic_set(&node->refcnt, 1);
-	hfs_dbg(BNODE_REFS, "new_node(%d:%d): 1\n",
-		node->tree->cnid, node->this);
-	init_waitqueue_head(&node->lock_wq);
+	yesde->tree = tree;
+	yesde->this = cnid;
+	set_bit(HFS_BNODE_NEW, &yesde->flags);
+	atomic_set(&yesde->refcnt, 1);
+	hfs_dbg(BNODE_REFS, "new_yesde(%d:%d): 1\n",
+		yesde->tree->cnid, yesde->this);
+	init_waitqueue_head(&yesde->lock_wq);
 	spin_lock(&tree->hash_lock);
-	node2 = hfs_bnode_findhash(tree, cnid);
-	if (!node2) {
-		hash = hfs_bnode_hash(cnid);
-		node->next_hash = tree->node_hash[hash];
-		tree->node_hash[hash] = node;
-		tree->node_hash_cnt++;
+	yesde2 = hfs_byesde_findhash(tree, cnid);
+	if (!yesde2) {
+		hash = hfs_byesde_hash(cnid);
+		yesde->next_hash = tree->yesde_hash[hash];
+		tree->yesde_hash[hash] = yesde;
+		tree->yesde_hash_cnt++;
 	} else {
 		spin_unlock(&tree->hash_lock);
-		kfree(node);
-		wait_event(node2->lock_wq, !test_bit(HFS_BNODE_NEW, &node2->flags));
-		return node2;
+		kfree(yesde);
+		wait_event(yesde2->lock_wq, !test_bit(HFS_BNODE_NEW, &yesde2->flags));
+		return yesde2;
 	}
 	spin_unlock(&tree->hash_lock);
 
-	mapping = tree->inode->i_mapping;
-	off = (loff_t)cnid * tree->node_size;
+	mapping = tree->iyesde->i_mapping;
+	off = (loff_t)cnid * tree->yesde_size;
 	block = off >> PAGE_SHIFT;
-	node->page_offset = off & ~PAGE_MASK;
-	for (i = 0; i < tree->pages_per_bnode; i++) {
+	yesde->page_offset = off & ~PAGE_MASK;
+	for (i = 0; i < tree->pages_per_byesde; i++) {
 		page = read_mapping_page(mapping, block++, NULL);
 		if (IS_ERR(page))
 			goto fail;
@@ -285,195 +285,195 @@ static struct hfs_bnode *__hfs_bnode_create(struct hfs_btree *tree, u32 cnid)
 			put_page(page);
 			goto fail;
 		}
-		node->page[i] = page;
+		yesde->page[i] = page;
 	}
 
-	return node;
+	return yesde;
 fail:
-	set_bit(HFS_BNODE_ERROR, &node->flags);
-	return node;
+	set_bit(HFS_BNODE_ERROR, &yesde->flags);
+	return yesde;
 }
 
-void hfs_bnode_unhash(struct hfs_bnode *node)
+void hfs_byesde_unhash(struct hfs_byesde *yesde)
 {
-	struct hfs_bnode **p;
+	struct hfs_byesde **p;
 
-	hfs_dbg(BNODE_REFS, "remove_node(%d:%d): %d\n",
-		node->tree->cnid, node->this, atomic_read(&node->refcnt));
-	for (p = &node->tree->node_hash[hfs_bnode_hash(node->this)];
-	     *p && *p != node; p = &(*p)->next_hash)
+	hfs_dbg(BNODE_REFS, "remove_yesde(%d:%d): %d\n",
+		yesde->tree->cnid, yesde->this, atomic_read(&yesde->refcnt));
+	for (p = &yesde->tree->yesde_hash[hfs_byesde_hash(yesde->this)];
+	     *p && *p != yesde; p = &(*p)->next_hash)
 		;
 	BUG_ON(!*p);
-	*p = node->next_hash;
-	node->tree->node_hash_cnt--;
+	*p = yesde->next_hash;
+	yesde->tree->yesde_hash_cnt--;
 }
 
-/* Load a particular node out of a tree */
-struct hfs_bnode *hfs_bnode_find(struct hfs_btree *tree, u32 num)
+/* Load a particular yesde out of a tree */
+struct hfs_byesde *hfs_byesde_find(struct hfs_btree *tree, u32 num)
 {
-	struct hfs_bnode *node;
-	struct hfs_bnode_desc *desc;
+	struct hfs_byesde *yesde;
+	struct hfs_byesde_desc *desc;
 	int i, rec_off, off, next_off;
 	int entry_size, key_size;
 
 	spin_lock(&tree->hash_lock);
-	node = hfs_bnode_findhash(tree, num);
-	if (node) {
-		hfs_bnode_get(node);
+	yesde = hfs_byesde_findhash(tree, num);
+	if (yesde) {
+		hfs_byesde_get(yesde);
 		spin_unlock(&tree->hash_lock);
-		wait_event(node->lock_wq, !test_bit(HFS_BNODE_NEW, &node->flags));
-		if (test_bit(HFS_BNODE_ERROR, &node->flags))
-			goto node_error;
-		return node;
+		wait_event(yesde->lock_wq, !test_bit(HFS_BNODE_NEW, &yesde->flags));
+		if (test_bit(HFS_BNODE_ERROR, &yesde->flags))
+			goto yesde_error;
+		return yesde;
 	}
 	spin_unlock(&tree->hash_lock);
-	node = __hfs_bnode_create(tree, num);
-	if (!node)
+	yesde = __hfs_byesde_create(tree, num);
+	if (!yesde)
 		return ERR_PTR(-ENOMEM);
-	if (test_bit(HFS_BNODE_ERROR, &node->flags))
-		goto node_error;
-	if (!test_bit(HFS_BNODE_NEW, &node->flags))
-		return node;
+	if (test_bit(HFS_BNODE_ERROR, &yesde->flags))
+		goto yesde_error;
+	if (!test_bit(HFS_BNODE_NEW, &yesde->flags))
+		return yesde;
 
-	desc = (struct hfs_bnode_desc *)(kmap(node->page[0]) + node->page_offset);
-	node->prev = be32_to_cpu(desc->prev);
-	node->next = be32_to_cpu(desc->next);
-	node->num_recs = be16_to_cpu(desc->num_recs);
-	node->type = desc->type;
-	node->height = desc->height;
-	kunmap(node->page[0]);
+	desc = (struct hfs_byesde_desc *)(kmap(yesde->page[0]) + yesde->page_offset);
+	yesde->prev = be32_to_cpu(desc->prev);
+	yesde->next = be32_to_cpu(desc->next);
+	yesde->num_recs = be16_to_cpu(desc->num_recs);
+	yesde->type = desc->type;
+	yesde->height = desc->height;
+	kunmap(yesde->page[0]);
 
-	switch (node->type) {
+	switch (yesde->type) {
 	case HFS_NODE_HEADER:
 	case HFS_NODE_MAP:
-		if (node->height != 0)
-			goto node_error;
+		if (yesde->height != 0)
+			goto yesde_error;
 		break;
 	case HFS_NODE_LEAF:
-		if (node->height != 1)
-			goto node_error;
+		if (yesde->height != 1)
+			goto yesde_error;
 		break;
 	case HFS_NODE_INDEX:
-		if (node->height <= 1 || node->height > tree->depth)
-			goto node_error;
+		if (yesde->height <= 1 || yesde->height > tree->depth)
+			goto yesde_error;
 		break;
 	default:
-		goto node_error;
+		goto yesde_error;
 	}
 
-	rec_off = tree->node_size - 2;
-	off = hfs_bnode_read_u16(node, rec_off);
-	if (off != sizeof(struct hfs_bnode_desc))
-		goto node_error;
-	for (i = 1; i <= node->num_recs; off = next_off, i++) {
+	rec_off = tree->yesde_size - 2;
+	off = hfs_byesde_read_u16(yesde, rec_off);
+	if (off != sizeof(struct hfs_byesde_desc))
+		goto yesde_error;
+	for (i = 1; i <= yesde->num_recs; off = next_off, i++) {
 		rec_off -= 2;
-		next_off = hfs_bnode_read_u16(node, rec_off);
+		next_off = hfs_byesde_read_u16(yesde, rec_off);
 		if (next_off <= off ||
-		    next_off > tree->node_size ||
+		    next_off > tree->yesde_size ||
 		    next_off & 1)
-			goto node_error;
+			goto yesde_error;
 		entry_size = next_off - off;
-		if (node->type != HFS_NODE_INDEX &&
-		    node->type != HFS_NODE_LEAF)
+		if (yesde->type != HFS_NODE_INDEX &&
+		    yesde->type != HFS_NODE_LEAF)
 			continue;
-		key_size = hfs_bnode_read_u8(node, off) + 1;
+		key_size = hfs_byesde_read_u8(yesde, off) + 1;
 		if (key_size >= entry_size /*|| key_size & 1*/)
-			goto node_error;
+			goto yesde_error;
 	}
-	clear_bit(HFS_BNODE_NEW, &node->flags);
-	wake_up(&node->lock_wq);
-	return node;
+	clear_bit(HFS_BNODE_NEW, &yesde->flags);
+	wake_up(&yesde->lock_wq);
+	return yesde;
 
-node_error:
-	set_bit(HFS_BNODE_ERROR, &node->flags);
-	clear_bit(HFS_BNODE_NEW, &node->flags);
-	wake_up(&node->lock_wq);
-	hfs_bnode_put(node);
+yesde_error:
+	set_bit(HFS_BNODE_ERROR, &yesde->flags);
+	clear_bit(HFS_BNODE_NEW, &yesde->flags);
+	wake_up(&yesde->lock_wq);
+	hfs_byesde_put(yesde);
 	return ERR_PTR(-EIO);
 }
 
-void hfs_bnode_free(struct hfs_bnode *node)
+void hfs_byesde_free(struct hfs_byesde *yesde)
 {
 	int i;
 
-	for (i = 0; i < node->tree->pages_per_bnode; i++)
-		if (node->page[i])
-			put_page(node->page[i]);
-	kfree(node);
+	for (i = 0; i < yesde->tree->pages_per_byesde; i++)
+		if (yesde->page[i])
+			put_page(yesde->page[i]);
+	kfree(yesde);
 }
 
-struct hfs_bnode *hfs_bnode_create(struct hfs_btree *tree, u32 num)
+struct hfs_byesde *hfs_byesde_create(struct hfs_btree *tree, u32 num)
 {
-	struct hfs_bnode *node;
+	struct hfs_byesde *yesde;
 	struct page **pagep;
 	int i;
 
 	spin_lock(&tree->hash_lock);
-	node = hfs_bnode_findhash(tree, num);
+	yesde = hfs_byesde_findhash(tree, num);
 	spin_unlock(&tree->hash_lock);
-	if (node) {
-		pr_crit("new node %u already hashed?\n", num);
+	if (yesde) {
+		pr_crit("new yesde %u already hashed?\n", num);
 		WARN_ON(1);
-		return node;
+		return yesde;
 	}
-	node = __hfs_bnode_create(tree, num);
-	if (!node)
+	yesde = __hfs_byesde_create(tree, num);
+	if (!yesde)
 		return ERR_PTR(-ENOMEM);
-	if (test_bit(HFS_BNODE_ERROR, &node->flags)) {
-		hfs_bnode_put(node);
+	if (test_bit(HFS_BNODE_ERROR, &yesde->flags)) {
+		hfs_byesde_put(yesde);
 		return ERR_PTR(-EIO);
 	}
 
-	pagep = node->page;
-	memset(kmap(*pagep) + node->page_offset, 0,
-	       min((int)PAGE_SIZE, (int)tree->node_size));
+	pagep = yesde->page;
+	memset(kmap(*pagep) + yesde->page_offset, 0,
+	       min((int)PAGE_SIZE, (int)tree->yesde_size));
 	set_page_dirty(*pagep);
 	kunmap(*pagep);
-	for (i = 1; i < tree->pages_per_bnode; i++) {
+	for (i = 1; i < tree->pages_per_byesde; i++) {
 		memset(kmap(*++pagep), 0, PAGE_SIZE);
 		set_page_dirty(*pagep);
 		kunmap(*pagep);
 	}
-	clear_bit(HFS_BNODE_NEW, &node->flags);
-	wake_up(&node->lock_wq);
+	clear_bit(HFS_BNODE_NEW, &yesde->flags);
+	wake_up(&yesde->lock_wq);
 
-	return node;
+	return yesde;
 }
 
-void hfs_bnode_get(struct hfs_bnode *node)
+void hfs_byesde_get(struct hfs_byesde *yesde)
 {
-	if (node) {
-		atomic_inc(&node->refcnt);
-		hfs_dbg(BNODE_REFS, "get_node(%d:%d): %d\n",
-			node->tree->cnid, node->this,
-			atomic_read(&node->refcnt));
+	if (yesde) {
+		atomic_inc(&yesde->refcnt);
+		hfs_dbg(BNODE_REFS, "get_yesde(%d:%d): %d\n",
+			yesde->tree->cnid, yesde->this,
+			atomic_read(&yesde->refcnt));
 	}
 }
 
-/* Dispose of resources used by a node */
-void hfs_bnode_put(struct hfs_bnode *node)
+/* Dispose of resources used by a yesde */
+void hfs_byesde_put(struct hfs_byesde *yesde)
 {
-	if (node) {
-		struct hfs_btree *tree = node->tree;
+	if (yesde) {
+		struct hfs_btree *tree = yesde->tree;
 		int i;
 
-		hfs_dbg(BNODE_REFS, "put_node(%d:%d): %d\n",
-			node->tree->cnid, node->this,
-			atomic_read(&node->refcnt));
-		BUG_ON(!atomic_read(&node->refcnt));
-		if (!atomic_dec_and_lock(&node->refcnt, &tree->hash_lock))
+		hfs_dbg(BNODE_REFS, "put_yesde(%d:%d): %d\n",
+			yesde->tree->cnid, yesde->this,
+			atomic_read(&yesde->refcnt));
+		BUG_ON(!atomic_read(&yesde->refcnt));
+		if (!atomic_dec_and_lock(&yesde->refcnt, &tree->hash_lock))
 			return;
-		for (i = 0; i < tree->pages_per_bnode; i++) {
-			if (!node->page[i])
+		for (i = 0; i < tree->pages_per_byesde; i++) {
+			if (!yesde->page[i])
 				continue;
-			mark_page_accessed(node->page[i]);
+			mark_page_accessed(yesde->page[i]);
 		}
 
-		if (test_bit(HFS_BNODE_DELETED, &node->flags)) {
-			hfs_bnode_unhash(node);
+		if (test_bit(HFS_BNODE_DELETED, &yesde->flags)) {
+			hfs_byesde_unhash(yesde);
 			spin_unlock(&tree->hash_lock);
-			hfs_bmap_free(node);
-			hfs_bnode_free(node);
+			hfs_bmap_free(yesde);
+			hfs_byesde_free(yesde);
 			return;
 		}
 		spin_unlock(&tree->hash_lock);

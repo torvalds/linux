@@ -16,7 +16,7 @@ FMan Node
 DESCRIPTION
 
 Due to the fact that the FMan is an aggregation of sub-engines (ports, MACs,
-etc.) the FMan node will have child nodes for each of them.
+etc.) the FMan yesde will have child yesdes for each of them.
 
 PROPERTIES
 
@@ -27,7 +27,7 @@ PROPERTIES
 		FMan version can be determined via FM_IP_REV_1 register in the
 		FMan block. The offset is 0xc4 from the beginning of the
 		Frame Processing Manager memory map (0xc3000 from the
-		beginning of the FMan node).
+		beginning of the FMan yesde).
 
 - cell-index
 		Usage: required
@@ -200,7 +200,7 @@ PROPERTIES
 		Value type: boolean
 		Definition: Can be defined only if 10G-support is set.
 		This property marks a best-effort 10G port (10G port that
-		may not be capable of line rate).
+		may yest be capable of line rate).
 
 EXAMPLE
 
@@ -403,9 +403,9 @@ PROPERTIES
 		The settings and programming routines for internal/external
 		MDIO are different. Must be included for internal MDIO.
 
-For internal PHY device on internal mdio bus, a PHY node should be created.
-See the definition of the PHY node in booting-without-of.txt for an
-example of how to define a PHY (Internal PHY has no interrupt line).
+For internal PHY device on internal mdio bus, a PHY yesde should be created.
+See the definition of the PHY yesde in booting-without-of.txt for an
+example of how to define a PHY (Internal PHY has yes interrupt line).
 - For "fsl,fman-mdio" compatible internal mdio bus, the PHY is TBI PHY.
 - For "fsl,fman-memac-mdio" compatible internal mdio bus, the PHY is PCS PHY,
   PCS PHY addr must be '0'.

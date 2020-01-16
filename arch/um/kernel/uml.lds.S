@@ -9,7 +9,7 @@ jiffies = jiffies_64;
 
 SECTIONS
 {
-  /* This must contain the right address - not quite the default ELF one.*/
+  /* This must contain the right address - yest quite the default ELF one.*/
   PROVIDE (__executable_start = START);
   /* Static binaries stick stuff here, like the sigreturn trampoline,
    * invisibly to objdump.  So, just make __binary_start equal to the very

@@ -47,7 +47,7 @@ static int pl030_set_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 	int ret;
 
 	/*
-	 * At the moment, we can only deal with non-wildcarded alarm times.
+	 * At the moment, we can only deal with yesn-wildcarded alarm times.
 	 */
 	ret = rtc_valid_tm(&alrm->time);
 	if (ret == 0)

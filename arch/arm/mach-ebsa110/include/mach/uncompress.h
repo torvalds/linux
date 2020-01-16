@@ -10,7 +10,7 @@
 #define SERIAL_BASE	((unsigned char *)0xf0000be0)
 
 /*
- * This does not append a newline
+ * This does yest append a newline
  */
 static inline void putc(int c)
 {
@@ -36,6 +36,6 @@ static inline void flush(void)
 }
 
 /*
- * nothing to do
+ * yesthing to do
  */
 #define arch_decomp_setup()

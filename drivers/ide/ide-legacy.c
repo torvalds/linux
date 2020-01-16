@@ -4,13 +4,13 @@
 #include <linux/ide.h>
 
 static void ide_legacy_init_one(struct ide_hw **hws, struct ide_hw *hw,
-				u8 port_no, const struct ide_port_info *d,
+				u8 port_yes, const struct ide_port_info *d,
 				unsigned long config)
 {
 	unsigned long base, ctl;
 	int irq;
 
-	if (port_no == 0) {
+	if (port_yes == 0) {
 		base = 0x1f0;
 		ctl  = 0x3f6;
 		irq  = 14;
@@ -21,13 +21,13 @@ static void ide_legacy_init_one(struct ide_hw **hws, struct ide_hw *hw,
 	}
 
 	if (!request_region(base, 8, d->name)) {
-		printk(KERN_ERR "%s: I/O resource 0x%lX-0x%lX not free.\n",
+		printk(KERN_ERR "%s: I/O resource 0x%lX-0x%lX yest free.\n",
 				d->name, base, base + 7);
 		return;
 	}
 
 	if (!request_region(ctl, 1, d->name)) {
-		printk(KERN_ERR "%s: I/O resource 0x%lX not free.\n",
+		printk(KERN_ERR "%s: I/O resource 0x%lX yest free.\n",
 				d->name, ctl);
 		release_region(base, 8);
 		return;
@@ -37,7 +37,7 @@ static void ide_legacy_init_one(struct ide_hw **hws, struct ide_hw *hw,
 	hw->irq = irq;
 	hw->config = config;
 
-	hws[port_no] = hw;
+	hws[port_yes] = hw;
 }
 
 int ide_legacy_device_add(const struct ide_port_info *d, unsigned long config)

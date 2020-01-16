@@ -78,7 +78,7 @@ struct iavf_aq_desc {
 /* error codes */
 enum iavf_admin_queue_err {
 	IAVF_AQ_RC_OK		= 0,  /* success */
-	IAVF_AQ_RC_EPERM	= 1,  /* Operation not permitted */
+	IAVF_AQ_RC_EPERM	= 1,  /* Operation yest permitted */
 	IAVF_AQ_RC_ENOENT	= 2,  /* No such element */
 	IAVF_AQ_RC_ESRCH	= 3,  /* Bad opcode */
 	IAVF_AQ_RC_EINTR	= 4,  /* operation interrupted */
@@ -94,11 +94,11 @@ enum iavf_admin_queue_err {
 	IAVF_AQ_RC_EINVAL	= 14, /* Invalid argument */
 	IAVF_AQ_RC_ENOTTY	= 15, /* Not a typewriter */
 	IAVF_AQ_RC_ENOSPC	= 16, /* No space left or alloc failure */
-	IAVF_AQ_RC_ENOSYS	= 17, /* Function not implemented */
+	IAVF_AQ_RC_ENOSYS	= 17, /* Function yest implemented */
 	IAVF_AQ_RC_ERANGE	= 18, /* Parameter out of range */
 	IAVF_AQ_RC_EFLUSHED	= 19, /* Cmd flushed due to prev cmd error */
 	IAVF_AQ_RC_BAD_ADDR	= 20, /* Descriptor contains a bad pointer */
-	IAVF_AQ_RC_EMODE	= 21, /* Op not allowed in current dev mode */
+	IAVF_AQ_RC_EMODE	= 21, /* Op yest allowed in current dev mode */
 	IAVF_AQ_RC_EFBIG	= 22, /* File too large */
 };
 
@@ -180,7 +180,7 @@ enum iavf_admin_queue_opc {
 	iavf_aqc_opc_get_personalization_profile_list	= 0x0271,
 
 	/* DCB commands */
-	iavf_aqc_opc_dcb_ignore_pfc	= 0x0301,
+	iavf_aqc_opc_dcb_igyesre_pfc	= 0x0301,
 	iavf_aqc_opc_dcb_updated	= 0x0302,
 	iavf_aqc_opc_set_dcb_parameters = 0x0303,
 
@@ -284,19 +284,19 @@ enum iavf_admin_queue_opc {
 /* command structures and indirect data structures */
 
 /* Structure naming conventions:
- * - no suffix for direct command descriptor structures
+ * - yes suffix for direct command descriptor structures
  * - _data for indirect sent data
  * - _resp for indirect return data (data which is both will use _data)
  * - _completion for direct return data
  * - _element_ for repeated elements (may also be _data or _resp)
  *
  * Command structures are expected to overlay the params.raw member of the basic
- * descriptor, and as such cannot exceed 16 bytes in length.
+ * descriptor, and as such canyest exceed 16 bytes in length.
  */
 
 /* This macro is used to generate a compilation error if a structure
- * is not exactly the correct length. It gives a divide by zero error if the
- * structure is not of the correct size, otherwise it creates an enum that is
+ * is yest exactly the correct length. It gives a divide by zero error if the
+ * structure is yest of the correct size, otherwise it creates an enum that is
  * never used.
  */
 #define IAVF_CHECK_STRUCT_LEN(n, X) enum iavf_static_assert_enum_##X \

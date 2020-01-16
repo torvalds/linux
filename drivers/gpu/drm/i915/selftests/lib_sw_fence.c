@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -27,7 +27,7 @@
 /* Small library of different fence types useful for writing tests */
 
 static int __i915_sw_fence_call
-nop_fence_notify(struct i915_sw_fence *fence, enum i915_sw_fence_notify state)
+yesp_fence_yestify(struct i915_sw_fence *fence, enum i915_sw_fence_yestify state)
 {
 	return NOTIFY_DONE;
 }
@@ -41,7 +41,7 @@ void __onstack_fence_init(struct i915_sw_fence *fence,
 	__init_waitqueue_head(&fence->wait, name, key);
 	atomic_set(&fence->pending, 1);
 	fence->error = 0;
-	fence->flags = (unsigned long)nop_fence_notify;
+	fence->flags = (unsigned long)yesp_fence_yestify;
 }
 
 void onstack_fence_fini(struct i915_sw_fence *fence)
@@ -90,7 +90,7 @@ struct heap_fence {
 };
 
 static int __i915_sw_fence_call
-heap_fence_notify(struct i915_sw_fence *fence, enum i915_sw_fence_notify state)
+heap_fence_yestify(struct i915_sw_fence *fence, enum i915_sw_fence_yestify state)
 {
 	struct heap_fence *h = container_of(fence, typeof(*h), fence);
 
@@ -113,7 +113,7 @@ struct i915_sw_fence *heap_fence_create(gfp_t gfp)
 	if (!h)
 		return NULL;
 
-	i915_sw_fence_init(&h->fence, heap_fence_notify);
+	i915_sw_fence_init(&h->fence, heap_fence_yestify);
 	refcount_set(&h->ref.refcount, 2);
 
 	return &h->fence;

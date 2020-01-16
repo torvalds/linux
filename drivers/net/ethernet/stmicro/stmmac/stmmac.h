@@ -110,7 +110,7 @@ struct stmmac_tc_entry {
 		u8 res1:4;
 		u8 frame_offset;
 		u8 ok_index;
-		u8 dma_ch_no;
+		u8 dma_ch_yes;
 		u32 res2;
 	} __packed val;
 };
@@ -187,7 +187,7 @@ struct stmmac_priv {
 	struct dma_features dma_cap;
 	struct stmmac_counters mmc;
 	int hw_cap_support;
-	int synopsys_id;
+	int syyespsys_id;
 	u32 msg_enable;
 	int wolopts;
 	int wol_irq;

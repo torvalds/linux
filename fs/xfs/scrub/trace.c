@@ -10,13 +10,13 @@
 #include "xfs_log_format.h"
 #include "xfs_trans_resv.h"
 #include "xfs_mount.h"
-#include "xfs_inode.h"
+#include "xfs_iyesde.h"
 #include "xfs_btree.h"
 #include "scrub/scrub.h"
 
 /* Figure out which block the btree cursor was pointing to. */
 static inline xfs_fsblock_t
-xchk_btree_cur_fsbno(
+xchk_btree_cur_fsbyes(
 	struct xfs_btree_cur	*cur,
 	int			level)
 {
@@ -24,9 +24,9 @@ xchk_btree_cur_fsbno(
 		return XFS_DADDR_TO_FSB(cur->bc_mp, cur->bc_bufs[level]->b_bn);
 	else if (level == cur->bc_nlevels - 1 &&
 		 cur->bc_flags & XFS_BTREE_LONG_PTRS)
-		return XFS_INO_TO_FSB(cur->bc_mp, cur->bc_private.b.ip->i_ino);
+		return XFS_INO_TO_FSB(cur->bc_mp, cur->bc_private.b.ip->i_iyes);
 	else if (!(cur->bc_flags & XFS_BTREE_LONG_PTRS))
-		return XFS_AGB_TO_FSB(cur->bc_mp, cur->bc_private.a.agno, 0);
+		return XFS_AGB_TO_FSB(cur->bc_mp, cur->bc_private.a.agyes, 0);
 	return NULLFSBLOCK;
 }
 

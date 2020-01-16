@@ -13,11 +13,11 @@
 *   conditions are met:
 *
 *    - Redistributions of source code must retain the above
-*	copyright notice, this list of conditions and the following
+*	copyright yestice, this list of conditions and the following
 *	disclaimer.
 *
 *    - Redistributions in binary form must reproduce the above
-*	copyright notice, this list of conditions and the following
+*	copyright yestice, this list of conditions and the following
 *	disclaimer in the documentation and/or other materials
 *	provided with the distribution.
 *
@@ -38,7 +38,7 @@
 #include <linux/init.h>
 #include <linux/if_arp.h>
 #include <linux/if_vlan.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/net.h>
 #include <linux/types.h>
 #include <linux/timer.h>
@@ -63,7 +63,7 @@
 
 #include "i40iw.h"
 
-static void i40iw_rem_ref_cm_node(struct i40iw_cm_node *);
+static void i40iw_rem_ref_cm_yesde(struct i40iw_cm_yesde *);
 static void i40iw_cm_post_event(struct i40iw_cm_event *event);
 static void i40iw_disconnect_worker(struct work_struct *work);
 
@@ -84,7 +84,7 @@ void i40iw_free_sqbuf(struct i40iw_sc_vsi *vsi, void *bufp)
 /**
  * i40iw_derive_hw_ird_setting - Calculate IRD
  *
- * @cm_ird: IRD of connection's node
+ * @cm_ird: IRD of connection's yesde
  *
  * The ird from the connection is rounded to a supported HW
  * setting (2,8,32,64) and then encoded for ird_size field of
@@ -117,11 +117,11 @@ static u8 i40iw_derive_hw_ird_setting(u16 cm_ird)
 
 /**
  * i40iw_record_ird_ord - Record IRD/ORD passed in
- * @cm_node: connection's node
+ * @cm_yesde: connection's yesde
  * @conn_ird: connection IRD
  * @conn_ord: connection ORD
  */
-static void i40iw_record_ird_ord(struct i40iw_cm_node *cm_node, u32 conn_ird,
+static void i40iw_record_ird_ord(struct i40iw_cm_yesde *cm_yesde, u32 conn_ird,
 				 u32 conn_ord)
 {
 	if (conn_ird > I40IW_MAX_IRD_SIZE)
@@ -129,11 +129,11 @@ static void i40iw_record_ird_ord(struct i40iw_cm_node *cm_node, u32 conn_ird,
 
 	if (conn_ord > I40IW_MAX_ORD_SIZE)
 		conn_ord = I40IW_MAX_ORD_SIZE;
-	else if (!conn_ord && cm_node->send_rdma0_op == SEND_RDMA_READ_ZERO)
+	else if (!conn_ord && cm_yesde->send_rdma0_op == SEND_RDMA_READ_ZERO)
 		conn_ord = 1;
 
-	cm_node->ird_size = conn_ird;
-	cm_node->ord_size = conn_ord;
+	cm_yesde->ird_size = conn_ird;
+	cm_yesde->ord_size = conn_ord;
 }
 
 /**
@@ -164,10 +164,10 @@ static inline void i40iw_copy_ip_htonl(__be32 *dst, u32 *src)
 
 /**
  * i40iw_fill_sockaddr4 - get addr info for passive connection
- * @cm_node: connection's node
+ * @cm_yesde: connection's yesde
  * @event: upper layer's cm event
  */
-static inline void i40iw_fill_sockaddr4(struct i40iw_cm_node *cm_node,
+static inline void i40iw_fill_sockaddr4(struct i40iw_cm_yesde *cm_yesde,
 					struct iw_cm_event *event)
 {
 	struct sockaddr_in *laddr = (struct sockaddr_in *)&event->local_addr;
@@ -176,19 +176,19 @@ static inline void i40iw_fill_sockaddr4(struct i40iw_cm_node *cm_node,
 	laddr->sin_family = AF_INET;
 	raddr->sin_family = AF_INET;
 
-	laddr->sin_port = htons(cm_node->loc_port);
-	raddr->sin_port = htons(cm_node->rem_port);
+	laddr->sin_port = htons(cm_yesde->loc_port);
+	raddr->sin_port = htons(cm_yesde->rem_port);
 
-	laddr->sin_addr.s_addr = htonl(cm_node->loc_addr[0]);
-	raddr->sin_addr.s_addr = htonl(cm_node->rem_addr[0]);
+	laddr->sin_addr.s_addr = htonl(cm_yesde->loc_addr[0]);
+	raddr->sin_addr.s_addr = htonl(cm_yesde->rem_addr[0]);
 }
 
 /**
  * i40iw_fill_sockaddr6 - get ipv6 addr info for passive side
- * @cm_node: connection's node
+ * @cm_yesde: connection's yesde
  * @event: upper layer's cm event
  */
-static inline void i40iw_fill_sockaddr6(struct i40iw_cm_node *cm_node,
+static inline void i40iw_fill_sockaddr6(struct i40iw_cm_yesde *cm_yesde,
 					struct iw_cm_event *event)
 {
 	struct sockaddr_in6 *laddr6 = (struct sockaddr_in6 *)&event->local_addr;
@@ -197,39 +197,39 @@ static inline void i40iw_fill_sockaddr6(struct i40iw_cm_node *cm_node,
 	laddr6->sin6_family = AF_INET6;
 	raddr6->sin6_family = AF_INET6;
 
-	laddr6->sin6_port = htons(cm_node->loc_port);
-	raddr6->sin6_port = htons(cm_node->rem_port);
+	laddr6->sin6_port = htons(cm_yesde->loc_port);
+	raddr6->sin6_port = htons(cm_yesde->rem_port);
 
 	i40iw_copy_ip_htonl(laddr6->sin6_addr.in6_u.u6_addr32,
-			    cm_node->loc_addr);
+			    cm_yesde->loc_addr);
 	i40iw_copy_ip_htonl(raddr6->sin6_addr.in6_u.u6_addr32,
-			    cm_node->rem_addr);
+			    cm_yesde->rem_addr);
 }
 
 /**
  * i40iw_get_addr_info
- * @cm_node: contains ip/tcp info
- * @cm_info: to get a copy of the cm_node ip/tcp info
+ * @cm_yesde: contains ip/tcp info
+ * @cm_info: to get a copy of the cm_yesde ip/tcp info
 */
-static void i40iw_get_addr_info(struct i40iw_cm_node *cm_node,
+static void i40iw_get_addr_info(struct i40iw_cm_yesde *cm_yesde,
 				struct i40iw_cm_info *cm_info)
 {
-	cm_info->ipv4 = cm_node->ipv4;
-	cm_info->vlan_id = cm_node->vlan_id;
-	memcpy(cm_info->loc_addr, cm_node->loc_addr, sizeof(cm_info->loc_addr));
-	memcpy(cm_info->rem_addr, cm_node->rem_addr, sizeof(cm_info->rem_addr));
-	cm_info->loc_port = cm_node->loc_port;
-	cm_info->rem_port = cm_node->rem_port;
-	cm_info->user_pri = cm_node->user_pri;
+	cm_info->ipv4 = cm_yesde->ipv4;
+	cm_info->vlan_id = cm_yesde->vlan_id;
+	memcpy(cm_info->loc_addr, cm_yesde->loc_addr, sizeof(cm_info->loc_addr));
+	memcpy(cm_info->rem_addr, cm_yesde->rem_addr, sizeof(cm_info->rem_addr));
+	cm_info->loc_port = cm_yesde->loc_port;
+	cm_info->rem_port = cm_yesde->rem_port;
+	cm_info->user_pri = cm_yesde->user_pri;
 }
 
 /**
  * i40iw_get_cmevent_info - for cm event upcall
- * @cm_node: connection's node
+ * @cm_yesde: connection's yesde
  * @cm_id: upper layers cm struct for the event
  * @event: upper layer's cm event
  */
-static inline void i40iw_get_cmevent_info(struct i40iw_cm_node *cm_node,
+static inline void i40iw_get_cmevent_info(struct i40iw_cm_yesde *cm_yesde,
 					  struct iw_cm_id *cm_id,
 					  struct iw_cm_event *event)
 {
@@ -237,22 +237,22 @@ static inline void i40iw_get_cmevent_info(struct i40iw_cm_node *cm_node,
 	       sizeof(event->local_addr));
 	memcpy(&event->remote_addr, &cm_id->m_remote_addr,
 	       sizeof(event->remote_addr));
-	if (cm_node) {
-		event->private_data = (void *)cm_node->pdata_buf;
-		event->private_data_len = (u8)cm_node->pdata.size;
-		event->ird = cm_node->ird_size;
-		event->ord = cm_node->ord_size;
+	if (cm_yesde) {
+		event->private_data = (void *)cm_yesde->pdata_buf;
+		event->private_data_len = (u8)cm_yesde->pdata.size;
+		event->ird = cm_yesde->ird_size;
+		event->ord = cm_yesde->ord_size;
 	}
 }
 
 /**
  * i40iw_send_cm_event - upcall cm's event handler
- * @cm_node: connection's node
+ * @cm_yesde: connection's yesde
  * @cm_id: upper layer's cm info struct
  * @type: Event type to indicate
  * @status: status for the event type
  */
-static int i40iw_send_cm_event(struct i40iw_cm_node *cm_node,
+static int i40iw_send_cm_event(struct i40iw_cm_yesde *cm_yesde,
 			       struct iw_cm_id *cm_id,
 			       enum iw_cm_event_type type,
 			       int status)
@@ -264,21 +264,21 @@ static int i40iw_send_cm_event(struct i40iw_cm_node *cm_node,
 	event.status = status;
 	switch (type) {
 	case IW_CM_EVENT_CONNECT_REQUEST:
-		if (cm_node->ipv4)
-			i40iw_fill_sockaddr4(cm_node, &event);
+		if (cm_yesde->ipv4)
+			i40iw_fill_sockaddr4(cm_yesde, &event);
 		else
-			i40iw_fill_sockaddr6(cm_node, &event);
-		event.provider_data = (void *)cm_node;
-		event.private_data = (void *)cm_node->pdata_buf;
-		event.private_data_len = (u8)cm_node->pdata.size;
-		event.ird = cm_node->ird_size;
+			i40iw_fill_sockaddr6(cm_yesde, &event);
+		event.provider_data = (void *)cm_yesde;
+		event.private_data = (void *)cm_yesde->pdata_buf;
+		event.private_data_len = (u8)cm_yesde->pdata.size;
+		event.ird = cm_yesde->ird_size;
 		break;
 	case IW_CM_EVENT_CONNECT_REPLY:
-		i40iw_get_cmevent_info(cm_node, cm_id, &event);
+		i40iw_get_cmevent_info(cm_yesde, cm_id, &event);
 		break;
 	case IW_CM_EVENT_ESTABLISHED:
-		event.ird = cm_node->ird_size;
-		event.ord = cm_node->ord_size;
+		event.ird = cm_yesde->ird_size;
+		event.ord = cm_yesde->ord_size;
 		break;
 	case IW_CM_EVENT_DISCONNECT:
 		break;
@@ -293,15 +293,15 @@ static int i40iw_send_cm_event(struct i40iw_cm_node *cm_node,
 
 /**
  * i40iw_create_event - create cm event
- * @cm_node: connection's node
+ * @cm_yesde: connection's yesde
  * @type: Event type to generate
  */
-static struct i40iw_cm_event *i40iw_create_event(struct i40iw_cm_node *cm_node,
+static struct i40iw_cm_event *i40iw_create_event(struct i40iw_cm_yesde *cm_yesde,
 						 enum i40iw_cm_event_type type)
 {
 	struct i40iw_cm_event *event;
 
-	if (!cm_node->cm_id)
+	if (!cm_yesde->cm_id)
 		return NULL;
 
 	event = kzalloc(sizeof(*event), GFP_ATOMIC);
@@ -310,17 +310,17 @@ static struct i40iw_cm_event *i40iw_create_event(struct i40iw_cm_node *cm_node,
 		return NULL;
 
 	event->type = type;
-	event->cm_node = cm_node;
-	memcpy(event->cm_info.rem_addr, cm_node->rem_addr, sizeof(event->cm_info.rem_addr));
-	memcpy(event->cm_info.loc_addr, cm_node->loc_addr, sizeof(event->cm_info.loc_addr));
-	event->cm_info.rem_port = cm_node->rem_port;
-	event->cm_info.loc_port = cm_node->loc_port;
-	event->cm_info.cm_id = cm_node->cm_id;
+	event->cm_yesde = cm_yesde;
+	memcpy(event->cm_info.rem_addr, cm_yesde->rem_addr, sizeof(event->cm_info.rem_addr));
+	memcpy(event->cm_info.loc_addr, cm_yesde->loc_addr, sizeof(event->cm_info.loc_addr));
+	event->cm_info.rem_port = cm_yesde->rem_port;
+	event->cm_info.loc_port = cm_yesde->loc_port;
+	event->cm_info.cm_id = cm_yesde->cm_id;
 
-	i40iw_debug(cm_node->dev,
+	i40iw_debug(cm_yesde->dev,
 		    I40IW_DEBUG_CM,
-		    "node=%p event=%p type=%u dst=%pI4 src=%pI4\n",
-		    cm_node,
+		    "yesde=%p event=%p type=%u dst=%pI4 src=%pI4\n",
+		    cm_yesde,
 		    event,
 		    type,
 		    event->cm_info.loc_addr,
@@ -332,51 +332,51 @@ static struct i40iw_cm_event *i40iw_create_event(struct i40iw_cm_node *cm_node,
 
 /**
  * i40iw_free_retrans_entry - free send entry
- * @cm_node: connection's node
+ * @cm_yesde: connection's yesde
  */
-static void i40iw_free_retrans_entry(struct i40iw_cm_node *cm_node)
+static void i40iw_free_retrans_entry(struct i40iw_cm_yesde *cm_yesde)
 {
-	struct i40iw_device *iwdev = cm_node->iwdev;
+	struct i40iw_device *iwdev = cm_yesde->iwdev;
 	struct i40iw_timer_entry *send_entry;
 
-	send_entry = cm_node->send_entry;
+	send_entry = cm_yesde->send_entry;
 	if (send_entry) {
-		cm_node->send_entry = NULL;
+		cm_yesde->send_entry = NULL;
 		i40iw_free_sqbuf(&iwdev->vsi, (void *)send_entry->sqbuf);
 		kfree(send_entry);
-		atomic_dec(&cm_node->ref_count);
+		atomic_dec(&cm_yesde->ref_count);
 	}
 }
 
 /**
  * i40iw_cleanup_retrans_entry - free send entry with lock
- * @cm_node: connection's node
+ * @cm_yesde: connection's yesde
  */
-static void i40iw_cleanup_retrans_entry(struct i40iw_cm_node *cm_node)
+static void i40iw_cleanup_retrans_entry(struct i40iw_cm_yesde *cm_yesde)
 {
 	unsigned long flags;
 
-	spin_lock_irqsave(&cm_node->retrans_list_lock, flags);
-	i40iw_free_retrans_entry(cm_node);
-	spin_unlock_irqrestore(&cm_node->retrans_list_lock, flags);
+	spin_lock_irqsave(&cm_yesde->retrans_list_lock, flags);
+	i40iw_free_retrans_entry(cm_yesde);
+	spin_unlock_irqrestore(&cm_yesde->retrans_list_lock, flags);
 }
 
 /**
  * i40iw_form_cm_frame - get a free packet and build frame
- * @cm_node: connection's node ionfo to use in frame
+ * @cm_yesde: connection's yesde ionfo to use in frame
  * @options: pointer to options info
  * @hdr: pointer mpa header
  * @pdata: pointer to private data
  * @flags:  indicates FIN or ACK
  */
-static struct i40iw_puda_buf *i40iw_form_cm_frame(struct i40iw_cm_node *cm_node,
+static struct i40iw_puda_buf *i40iw_form_cm_frame(struct i40iw_cm_yesde *cm_yesde,
 						  struct i40iw_kmem_info *options,
 						  struct i40iw_kmem_info *hdr,
 						  struct i40iw_kmem_info *pdata,
 						  u8 flags)
 {
 	struct i40iw_puda_buf *sqbuf;
-	struct i40iw_sc_vsi *vsi = &cm_node->iwdev->vsi;
+	struct i40iw_sc_vsi *vsi = &cm_yesde->iwdev->vsi;
 	u8 *buf;
 
 	struct tcphdr *tcph;
@@ -404,10 +404,10 @@ static struct i40iw_puda_buf *i40iw_form_cm_frame(struct i40iw_cm_node *cm_node,
 	if (pdata)
 		pd_len = pdata->size;
 
-	if (cm_node->vlan_id <= VLAN_VID_MASK)
+	if (cm_yesde->vlan_id <= VLAN_VID_MASK)
 		eth_hlen += 4;
 
-	if (cm_node->ipv4)
+	if (cm_yesde->ipv4)
 		packetsize = sizeof(*iph) + sizeof(*tcph);
 	else
 		packetsize = sizeof(*ip6h) + sizeof(*tcph);
@@ -418,12 +418,12 @@ static struct i40iw_puda_buf *i40iw_form_cm_frame(struct i40iw_cm_node *cm_node,
 	sqbuf->totallen = packetsize + eth_hlen;
 	sqbuf->maclen = eth_hlen;
 	sqbuf->tcphlen = sizeof(*tcph) + opts_len;
-	sqbuf->scratch = (void *)cm_node;
+	sqbuf->scratch = (void *)cm_yesde;
 
 	ethh = (struct ethhdr *)buf;
 	buf += eth_hlen;
 
-	if (cm_node->ipv4) {
+	if (cm_yesde->ipv4) {
 		sqbuf->ipv4 = true;
 
 		iph = (struct iphdr *)buf;
@@ -431,11 +431,11 @@ static struct i40iw_puda_buf *i40iw_form_cm_frame(struct i40iw_cm_node *cm_node,
 		tcph = (struct tcphdr *)buf;
 		buf += sizeof(*tcph);
 
-		ether_addr_copy(ethh->h_dest, cm_node->rem_mac);
-		ether_addr_copy(ethh->h_source, cm_node->loc_mac);
-		if (cm_node->vlan_id <= VLAN_VID_MASK) {
+		ether_addr_copy(ethh->h_dest, cm_yesde->rem_mac);
+		ether_addr_copy(ethh->h_source, cm_yesde->loc_mac);
+		if (cm_yesde->vlan_id <= VLAN_VID_MASK) {
 			((struct vlan_ethhdr *)ethh)->h_vlan_proto = htons(ETH_P_8021Q);
-			vtag = (cm_node->user_pri << VLAN_PRIO_SHIFT) | cm_node->vlan_id;
+			vtag = (cm_yesde->user_pri << VLAN_PRIO_SHIFT) | cm_yesde->vlan_id;
 			((struct vlan_ethhdr *)ethh)->h_vlan_TCI = htons(vtag);
 
 			((struct vlan_ethhdr *)ethh)->h_vlan_encapsulated_proto = htons(ETH_P_IP);
@@ -445,15 +445,15 @@ static struct i40iw_puda_buf *i40iw_form_cm_frame(struct i40iw_cm_node *cm_node,
 
 		iph->version = IPVERSION;
 		iph->ihl = 5;	/* 5 * 4Byte words, IP headr len */
-		iph->tos = cm_node->tos;
+		iph->tos = cm_yesde->tos;
 		iph->tot_len = htons(packetsize);
-		iph->id = htons(++cm_node->tcp_cntxt.loc_id);
+		iph->id = htons(++cm_yesde->tcp_cntxt.loc_id);
 
 		iph->frag_off = htons(0x4000);
 		iph->ttl = 0x40;
 		iph->protocol = IPPROTO_TCP;
-		iph->saddr = htonl(cm_node->loc_addr[0]);
-		iph->daddr = htonl(cm_node->rem_addr[0]);
+		iph->saddr = htonl(cm_yesde->loc_addr[0]);
+		iph->daddr = htonl(cm_yesde->rem_addr[0]);
 	} else {
 		sqbuf->ipv4 = false;
 		ip6h = (struct ipv6hdr *)buf;
@@ -461,52 +461,52 @@ static struct i40iw_puda_buf *i40iw_form_cm_frame(struct i40iw_cm_node *cm_node,
 		tcph = (struct tcphdr *)buf;
 		buf += sizeof(*tcph);
 
-		ether_addr_copy(ethh->h_dest, cm_node->rem_mac);
-		ether_addr_copy(ethh->h_source, cm_node->loc_mac);
-		if (cm_node->vlan_id <= VLAN_VID_MASK) {
+		ether_addr_copy(ethh->h_dest, cm_yesde->rem_mac);
+		ether_addr_copy(ethh->h_source, cm_yesde->loc_mac);
+		if (cm_yesde->vlan_id <= VLAN_VID_MASK) {
 			((struct vlan_ethhdr *)ethh)->h_vlan_proto = htons(ETH_P_8021Q);
-			vtag = (cm_node->user_pri << VLAN_PRIO_SHIFT) | cm_node->vlan_id;
+			vtag = (cm_yesde->user_pri << VLAN_PRIO_SHIFT) | cm_yesde->vlan_id;
 			((struct vlan_ethhdr *)ethh)->h_vlan_TCI = htons(vtag);
 			((struct vlan_ethhdr *)ethh)->h_vlan_encapsulated_proto = htons(ETH_P_IPV6);
 		} else {
 			ethh->h_proto = htons(ETH_P_IPV6);
 		}
 		ip6h->version = 6;
-		ip6h->priority = cm_node->tos >> 4;
-		ip6h->flow_lbl[0] = cm_node->tos << 4;
+		ip6h->priority = cm_yesde->tos >> 4;
+		ip6h->flow_lbl[0] = cm_yesde->tos << 4;
 		ip6h->flow_lbl[1] = 0;
 		ip6h->flow_lbl[2] = 0;
 		ip6h->payload_len = htons(packetsize - sizeof(*ip6h));
 		ip6h->nexthdr = 6;
 		ip6h->hop_limit = 128;
 		i40iw_copy_ip_htonl(ip6h->saddr.in6_u.u6_addr32,
-				    cm_node->loc_addr);
+				    cm_yesde->loc_addr);
 		i40iw_copy_ip_htonl(ip6h->daddr.in6_u.u6_addr32,
-				    cm_node->rem_addr);
+				    cm_yesde->rem_addr);
 	}
 
-	tcph->source = htons(cm_node->loc_port);
-	tcph->dest = htons(cm_node->rem_port);
+	tcph->source = htons(cm_yesde->loc_port);
+	tcph->dest = htons(cm_yesde->rem_port);
 
-	tcph->seq = htonl(cm_node->tcp_cntxt.loc_seq_num);
+	tcph->seq = htonl(cm_yesde->tcp_cntxt.loc_seq_num);
 
 	if (flags & SET_ACK) {
-		cm_node->tcp_cntxt.loc_ack_num = cm_node->tcp_cntxt.rcv_nxt;
-		tcph->ack_seq = htonl(cm_node->tcp_cntxt.loc_ack_num);
+		cm_yesde->tcp_cntxt.loc_ack_num = cm_yesde->tcp_cntxt.rcv_nxt;
+		tcph->ack_seq = htonl(cm_yesde->tcp_cntxt.loc_ack_num);
 		tcph->ack = 1;
 	} else {
 		tcph->ack_seq = 0;
 	}
 
 	if (flags & SET_SYN) {
-		cm_node->tcp_cntxt.loc_seq_num++;
+		cm_yesde->tcp_cntxt.loc_seq_num++;
 		tcph->syn = 1;
 	} else {
-		cm_node->tcp_cntxt.loc_seq_num += hdr_len + pd_len;
+		cm_yesde->tcp_cntxt.loc_seq_num += hdr_len + pd_len;
 	}
 
 	if (flags & SET_FIN) {
-		cm_node->tcp_cntxt.loc_seq_num++;
+		cm_yesde->tcp_cntxt.loc_seq_num++;
 		tcph->fin = 1;
 	}
 
@@ -515,7 +515,7 @@ static struct i40iw_puda_buf *i40iw_form_cm_frame(struct i40iw_cm_node *cm_node,
 
 	tcph->doff = (u16)((sizeof(*tcph) + opts_len + 3) >> 2);
 	sqbuf->tcphlen = tcph->doff << 2;
-	tcph->window = htons(cm_node->tcp_cntxt.rcv_wnd);
+	tcph->window = htons(cm_yesde->tcp_cntxt.rcv_wnd);
 	tcph->urg_ptr = 0;
 
 	if (opts_len) {
@@ -538,66 +538,66 @@ static struct i40iw_puda_buf *i40iw_form_cm_frame(struct i40iw_cm_node *cm_node,
 
 /**
  * i40iw_send_reset - Send RST packet
- * @cm_node: connection's node
+ * @cm_yesde: connection's yesde
  */
-int i40iw_send_reset(struct i40iw_cm_node *cm_node)
+int i40iw_send_reset(struct i40iw_cm_yesde *cm_yesde)
 {
 	struct i40iw_puda_buf *sqbuf;
 	int flags = SET_RST | SET_ACK;
 
-	sqbuf = i40iw_form_cm_frame(cm_node, NULL, NULL, NULL, flags);
+	sqbuf = i40iw_form_cm_frame(cm_yesde, NULL, NULL, NULL, flags);
 	if (!sqbuf) {
-		i40iw_pr_err("no sqbuf\n");
+		i40iw_pr_err("yes sqbuf\n");
 		return -1;
 	}
 
-	return i40iw_schedule_cm_timer(cm_node, sqbuf, I40IW_TIMER_TYPE_SEND, 0, 1);
+	return i40iw_schedule_cm_timer(cm_yesde, sqbuf, I40IW_TIMER_TYPE_SEND, 0, 1);
 }
 
 /**
  * i40iw_active_open_err - send event for active side cm error
- * @cm_node: connection's node
- * @reset: Flag to send reset or not
+ * @cm_yesde: connection's yesde
+ * @reset: Flag to send reset or yest
  */
-static void i40iw_active_open_err(struct i40iw_cm_node *cm_node, bool reset)
+static void i40iw_active_open_err(struct i40iw_cm_yesde *cm_yesde, bool reset)
 {
-	i40iw_cleanup_retrans_entry(cm_node);
-	cm_node->cm_core->stats_connect_errs++;
+	i40iw_cleanup_retrans_entry(cm_yesde);
+	cm_yesde->cm_core->stats_connect_errs++;
 	if (reset) {
-		i40iw_debug(cm_node->dev,
+		i40iw_debug(cm_yesde->dev,
 			    I40IW_DEBUG_CM,
-			    "%s cm_node=%p state=%d\n",
+			    "%s cm_yesde=%p state=%d\n",
 			    __func__,
-			    cm_node,
-			    cm_node->state);
-		atomic_inc(&cm_node->ref_count);
-		i40iw_send_reset(cm_node);
+			    cm_yesde,
+			    cm_yesde->state);
+		atomic_inc(&cm_yesde->ref_count);
+		i40iw_send_reset(cm_yesde);
 	}
 
-	cm_node->state = I40IW_CM_STATE_CLOSED;
-	i40iw_create_event(cm_node, I40IW_CM_EVENT_ABORTED);
+	cm_yesde->state = I40IW_CM_STATE_CLOSED;
+	i40iw_create_event(cm_yesde, I40IW_CM_EVENT_ABORTED);
 }
 
 /**
  * i40iw_passive_open_err - handle passive side cm error
- * @cm_node: connection's node
- * @reset: send reset or just free cm_node
+ * @cm_yesde: connection's yesde
+ * @reset: send reset or just free cm_yesde
  */
-static void i40iw_passive_open_err(struct i40iw_cm_node *cm_node, bool reset)
+static void i40iw_passive_open_err(struct i40iw_cm_yesde *cm_yesde, bool reset)
 {
-	i40iw_cleanup_retrans_entry(cm_node);
-	cm_node->cm_core->stats_passive_errs++;
-	cm_node->state = I40IW_CM_STATE_CLOSED;
-	i40iw_debug(cm_node->dev,
+	i40iw_cleanup_retrans_entry(cm_yesde);
+	cm_yesde->cm_core->stats_passive_errs++;
+	cm_yesde->state = I40IW_CM_STATE_CLOSED;
+	i40iw_debug(cm_yesde->dev,
 		    I40IW_DEBUG_CM,
-		    "%s cm_node=%p state =%d\n",
+		    "%s cm_yesde=%p state =%d\n",
 		    __func__,
-		    cm_node,
-		    cm_node->state);
+		    cm_yesde,
+		    cm_yesde->state);
 	if (reset)
-		i40iw_send_reset(cm_node);
+		i40iw_send_reset(cm_yesde);
 	else
-		i40iw_rem_ref_cm_node(cm_node);
+		i40iw_rem_ref_cm_yesde(cm_yesde);
 }
 
 /**
@@ -609,7 +609,7 @@ static void i40iw_event_connect_error(struct i40iw_cm_event *event)
 	struct i40iw_qp *iwqp;
 	struct iw_cm_id *cm_id;
 
-	cm_id = event->cm_node->cm_id;
+	cm_id = event->cm_yesde->cm_id;
 	if (!cm_id)
 		return;
 
@@ -620,32 +620,32 @@ static void i40iw_event_connect_error(struct i40iw_cm_event *event)
 
 	iwqp->cm_id = NULL;
 	cm_id->provider_data = NULL;
-	i40iw_send_cm_event(event->cm_node, cm_id,
+	i40iw_send_cm_event(event->cm_yesde, cm_id,
 			    IW_CM_EVENT_CONNECT_REPLY,
 			    -ECONNRESET);
 	cm_id->rem_ref(cm_id);
-	i40iw_rem_ref_cm_node(event->cm_node);
+	i40iw_rem_ref_cm_yesde(event->cm_yesde);
 }
 
 /**
  * i40iw_process_options
- * @cm_node: connection's node
+ * @cm_yesde: connection's yesde
  * @optionsloc: point to start of options
  * @optionsize: size of all options
  * @syn_packet: flag if syn packet
  */
-static int i40iw_process_options(struct i40iw_cm_node *cm_node,
+static int i40iw_process_options(struct i40iw_cm_yesde *cm_yesde,
 				 u8 *optionsloc,
 				 u32 optionsize,
 				 u32 syn_packet)
 {
 	u32 tmp;
 	u32 offset = 0;
-	union all_known_options *all_options;
+	union all_kyeswn_options *all_options;
 	char got_mss_option = 0;
 
 	while (offset < optionsize) {
-		all_options = (union all_known_options *)(optionsloc + offset);
+		all_options = (union all_kyeswn_options *)(optionsloc + offset);
 		switch (all_options->as_base.optionnum) {
 		case OPTION_NUMBER_END:
 			offset = optionsize;
@@ -654,7 +654,7 @@ static int i40iw_process_options(struct i40iw_cm_node *cm_node,
 			offset += 1;
 			continue;
 		case OPTION_NUMBER_MSS:
-			i40iw_debug(cm_node->dev,
+			i40iw_debug(cm_yesde->dev,
 				    I40IW_DEBUG_CM,
 				    "%s: MSS Length: %d Offset: %d Size: %d\n",
 				    __func__,
@@ -665,35 +665,35 @@ static int i40iw_process_options(struct i40iw_cm_node *cm_node,
 			if (all_options->as_mss.length != 4)
 				return -1;
 			tmp = ntohs(all_options->as_mss.mss);
-			if (tmp > 0 && tmp < cm_node->tcp_cntxt.mss)
-				cm_node->tcp_cntxt.mss = tmp;
+			if (tmp > 0 && tmp < cm_yesde->tcp_cntxt.mss)
+				cm_yesde->tcp_cntxt.mss = tmp;
 			break;
 		case OPTION_NUMBER_WINDOW_SCALE:
-			cm_node->tcp_cntxt.snd_wscale =
+			cm_yesde->tcp_cntxt.snd_wscale =
 			    all_options->as_windowscale.shiftcount;
 			break;
 		default:
-			i40iw_debug(cm_node->dev,
+			i40iw_debug(cm_yesde->dev,
 				    I40IW_DEBUG_CM,
-				    "TCP Option not understood: %x\n",
+				    "TCP Option yest understood: %x\n",
 				    all_options->as_base.optionnum);
 			break;
 		}
 		offset += all_options->as_base.length;
 	}
 	if (!got_mss_option && syn_packet)
-		cm_node->tcp_cntxt.mss = I40IW_CM_DEFAULT_MSS;
+		cm_yesde->tcp_cntxt.mss = I40IW_CM_DEFAULT_MSS;
 	return 0;
 }
 
 /**
  * i40iw_handle_tcp_options -
- * @cm_node: connection's node
+ * @cm_yesde: connection's yesde
  * @tcph: pointer tcp header
  * @optionsize: size of options rcvd
  * @passive: active or passive flag
  */
-static int i40iw_handle_tcp_options(struct i40iw_cm_node *cm_node,
+static int i40iw_handle_tcp_options(struct i40iw_cm_yesde *cm_yesde,
 				    struct tcphdr *tcph,
 				    int optionsize,
 				    int passive)
@@ -701,37 +701,37 @@ static int i40iw_handle_tcp_options(struct i40iw_cm_node *cm_node,
 	u8 *optionsloc = (u8 *)&tcph[1];
 
 	if (optionsize) {
-		if (i40iw_process_options(cm_node,
+		if (i40iw_process_options(cm_yesde,
 					  optionsloc,
 					  optionsize,
 					  (u32)tcph->syn)) {
-			i40iw_debug(cm_node->dev,
+			i40iw_debug(cm_yesde->dev,
 				    I40IW_DEBUG_CM,
 				    "%s: Node %p, Sending RESET\n",
 				    __func__,
-				    cm_node);
+				    cm_yesde);
 			if (passive)
-				i40iw_passive_open_err(cm_node, true);
+				i40iw_passive_open_err(cm_yesde, true);
 			else
-				i40iw_active_open_err(cm_node, true);
+				i40iw_active_open_err(cm_yesde, true);
 			return -1;
 		}
 	}
 
-	cm_node->tcp_cntxt.snd_wnd = ntohs(tcph->window) <<
-	    cm_node->tcp_cntxt.snd_wscale;
+	cm_yesde->tcp_cntxt.snd_wnd = ntohs(tcph->window) <<
+	    cm_yesde->tcp_cntxt.snd_wscale;
 
-	if (cm_node->tcp_cntxt.snd_wnd > cm_node->tcp_cntxt.max_snd_wnd)
-		cm_node->tcp_cntxt.max_snd_wnd = cm_node->tcp_cntxt.snd_wnd;
+	if (cm_yesde->tcp_cntxt.snd_wnd > cm_yesde->tcp_cntxt.max_snd_wnd)
+		cm_yesde->tcp_cntxt.max_snd_wnd = cm_yesde->tcp_cntxt.snd_wnd;
 	return 0;
 }
 
 /**
  * i40iw_build_mpa_v1 - build a MPA V1 frame
- * @cm_node: connection's node
+ * @cm_yesde: connection's yesde
  * @mpa_key: to do read0 or write0
  */
-static void i40iw_build_mpa_v1(struct i40iw_cm_node *cm_node,
+static void i40iw_build_mpa_v1(struct i40iw_cm_yesde *cm_yesde,
 			       void *start_addr,
 			       u8 mpa_key)
 {
@@ -748,17 +748,17 @@ static void i40iw_build_mpa_v1(struct i40iw_cm_node *cm_node,
 		break;
 	}
 	mpa_frame->flags = IETF_MPA_FLAGS_CRC;
-	mpa_frame->rev = cm_node->mpa_frame_rev;
-	mpa_frame->priv_data_len = htons(cm_node->pdata.size);
+	mpa_frame->rev = cm_yesde->mpa_frame_rev;
+	mpa_frame->priv_data_len = htons(cm_yesde->pdata.size);
 }
 
 /**
  * i40iw_build_mpa_v2 - build a MPA V2 frame
- * @cm_node: connection's node
+ * @cm_yesde: connection's yesde
  * @start_addr: buffer start address
  * @mpa_key: to do read0 or write0
  */
-static void i40iw_build_mpa_v2(struct i40iw_cm_node *cm_node,
+static void i40iw_build_mpa_v2(struct i40iw_cm_yesde *cm_yesde,
 			       void *start_addr,
 			       u8 mpa_key)
 {
@@ -767,19 +767,19 @@ static void i40iw_build_mpa_v2(struct i40iw_cm_node *cm_node,
 	u16 ctrl_ird, ctrl_ord;
 
 	/* initialize the upper 5 bytes of the frame */
-	i40iw_build_mpa_v1(cm_node, start_addr, mpa_key);
+	i40iw_build_mpa_v1(cm_yesde, start_addr, mpa_key);
 	mpa_frame->flags |= IETF_MPA_V2_FLAG;
 	mpa_frame->priv_data_len += htons(IETF_RTR_MSG_SIZE);
 
 	/* initialize RTR msg */
-	if (cm_node->mpav2_ird_ord == IETF_NO_IRD_ORD) {
+	if (cm_yesde->mpav2_ird_ord == IETF_NO_IRD_ORD) {
 		ctrl_ird = IETF_NO_IRD_ORD;
 		ctrl_ord = IETF_NO_IRD_ORD;
 	} else {
-		ctrl_ird = (cm_node->ird_size > IETF_NO_IRD_ORD) ?
-			IETF_NO_IRD_ORD : cm_node->ird_size;
-		ctrl_ord = (cm_node->ord_size > IETF_NO_IRD_ORD) ?
-			IETF_NO_IRD_ORD : cm_node->ord_size;
+		ctrl_ird = (cm_yesde->ird_size > IETF_NO_IRD_ORD) ?
+			IETF_NO_IRD_ORD : cm_yesde->ird_size;
+		ctrl_ord = (cm_yesde->ord_size > IETF_NO_IRD_ORD) ?
+			IETF_NO_IRD_ORD : cm_yesde->ord_size;
 	}
 
 	ctrl_ird |= IETF_PEER_TO_PEER;
@@ -790,7 +790,7 @@ static void i40iw_build_mpa_v2(struct i40iw_cm_node *cm_node,
 		ctrl_ord |= IETF_RDMA0_READ;
 		break;
 	case MPA_KEY_REPLY:
-		switch (cm_node->send_rdma0_op) {
+		switch (cm_yesde->send_rdma0_op) {
 		case SEND_RDMA_WRITE_ZERO:
 			ctrl_ord |= IETF_RDMA0_WRITE;
 			break;
@@ -808,24 +808,24 @@ static void i40iw_build_mpa_v2(struct i40iw_cm_node *cm_node,
 
 /**
  * i40iw_cm_build_mpa_frame - build mpa frame for mpa version 1 or version 2
- * @cm_node: connection's node
+ * @cm_yesde: connection's yesde
  * @mpa: mpa: data buffer
  * @mpa_key: to do read0 or write0
  */
-static int i40iw_cm_build_mpa_frame(struct i40iw_cm_node *cm_node,
+static int i40iw_cm_build_mpa_frame(struct i40iw_cm_yesde *cm_yesde,
 				    struct i40iw_kmem_info *mpa,
 				    u8 mpa_key)
 {
 	int hdr_len = 0;
 
-	switch (cm_node->mpa_frame_rev) {
+	switch (cm_yesde->mpa_frame_rev) {
 	case IETF_MPA_V1:
 		hdr_len = sizeof(struct ietf_mpa_v1);
-		i40iw_build_mpa_v1(cm_node, mpa->addr, mpa_key);
+		i40iw_build_mpa_v1(cm_yesde, mpa->addr, mpa_key);
 		break;
 	case IETF_MPA_V2:
 		hdr_len = sizeof(struct ietf_mpa_v2);
-		i40iw_build_mpa_v2(cm_node, mpa->addr, mpa_key);
+		i40iw_build_mpa_v2(cm_yesde, mpa->addr, mpa_key);
 		break;
 	default:
 		break;
@@ -835,82 +835,82 @@ static int i40iw_cm_build_mpa_frame(struct i40iw_cm_node *cm_node,
 }
 
 /**
- * i40iw_send_mpa_request - active node send mpa request to passive node
- * @cm_node: connection's node
+ * i40iw_send_mpa_request - active yesde send mpa request to passive yesde
+ * @cm_yesde: connection's yesde
  */
-static int i40iw_send_mpa_request(struct i40iw_cm_node *cm_node)
+static int i40iw_send_mpa_request(struct i40iw_cm_yesde *cm_yesde)
 {
 	struct i40iw_puda_buf *sqbuf;
 
-	if (!cm_node) {
-		i40iw_pr_err("cm_node == NULL\n");
+	if (!cm_yesde) {
+		i40iw_pr_err("cm_yesde == NULL\n");
 		return -1;
 	}
 
-	cm_node->mpa_hdr.addr = &cm_node->mpa_frame;
-	cm_node->mpa_hdr.size = i40iw_cm_build_mpa_frame(cm_node,
-							 &cm_node->mpa_hdr,
+	cm_yesde->mpa_hdr.addr = &cm_yesde->mpa_frame;
+	cm_yesde->mpa_hdr.size = i40iw_cm_build_mpa_frame(cm_yesde,
+							 &cm_yesde->mpa_hdr,
 							 MPA_KEY_REQUEST);
-	if (!cm_node->mpa_hdr.size) {
-		i40iw_pr_err("mpa size = %d\n", cm_node->mpa_hdr.size);
+	if (!cm_yesde->mpa_hdr.size) {
+		i40iw_pr_err("mpa size = %d\n", cm_yesde->mpa_hdr.size);
 		return -1;
 	}
 
-	sqbuf = i40iw_form_cm_frame(cm_node,
+	sqbuf = i40iw_form_cm_frame(cm_yesde,
 				    NULL,
-				    &cm_node->mpa_hdr,
-				    &cm_node->pdata,
+				    &cm_yesde->mpa_hdr,
+				    &cm_yesde->pdata,
 				    SET_ACK);
 	if (!sqbuf) {
 		i40iw_pr_err("sq_buf == NULL\n");
 		return -1;
 	}
-	return i40iw_schedule_cm_timer(cm_node, sqbuf, I40IW_TIMER_TYPE_SEND, 1, 0);
+	return i40iw_schedule_cm_timer(cm_yesde, sqbuf, I40IW_TIMER_TYPE_SEND, 1, 0);
 }
 
 /**
  * i40iw_send_mpa_reject -
- * @cm_node: connection's node
+ * @cm_yesde: connection's yesde
  * @pdata: reject data for connection
  * @plen: length of reject data
  */
-static int i40iw_send_mpa_reject(struct i40iw_cm_node *cm_node,
+static int i40iw_send_mpa_reject(struct i40iw_cm_yesde *cm_yesde,
 				 const void *pdata,
 				 u8 plen)
 {
 	struct i40iw_puda_buf *sqbuf;
 	struct i40iw_kmem_info priv_info;
 
-	cm_node->mpa_hdr.addr = &cm_node->mpa_frame;
-	cm_node->mpa_hdr.size = i40iw_cm_build_mpa_frame(cm_node,
-							 &cm_node->mpa_hdr,
+	cm_yesde->mpa_hdr.addr = &cm_yesde->mpa_frame;
+	cm_yesde->mpa_hdr.size = i40iw_cm_build_mpa_frame(cm_yesde,
+							 &cm_yesde->mpa_hdr,
 							 MPA_KEY_REPLY);
 
-	cm_node->mpa_frame.flags |= IETF_MPA_FLAGS_REJECT;
+	cm_yesde->mpa_frame.flags |= IETF_MPA_FLAGS_REJECT;
 	priv_info.addr = (void *)pdata;
 	priv_info.size = plen;
 
-	sqbuf = i40iw_form_cm_frame(cm_node,
+	sqbuf = i40iw_form_cm_frame(cm_yesde,
 				    NULL,
-				    &cm_node->mpa_hdr,
+				    &cm_yesde->mpa_hdr,
 				    &priv_info,
 				    SET_ACK | SET_FIN);
 	if (!sqbuf) {
-		i40iw_pr_err("no sqbuf\n");
+		i40iw_pr_err("yes sqbuf\n");
 		return -ENOMEM;
 	}
-	cm_node->state = I40IW_CM_STATE_FIN_WAIT1;
-	return i40iw_schedule_cm_timer(cm_node, sqbuf, I40IW_TIMER_TYPE_SEND, 1, 0);
+	cm_yesde->state = I40IW_CM_STATE_FIN_WAIT1;
+	return i40iw_schedule_cm_timer(cm_yesde, sqbuf, I40IW_TIMER_TYPE_SEND, 1, 0);
 }
 
 /**
  * recv_mpa - process an IETF MPA frame
- * @cm_node: connection's node
+ * @cm_yesde: connection's yesde
  * @buffer: Data pointer
  * @type: to return accept or reject
  * @len: Len of mpa buffer
  */
-static int i40iw_parse_mpa(struct i40iw_cm_node *cm_node, u8 *buffer, u32 *type, u32 len)
+static int i40iw_parse_mpa(struct i40iw_cm_yesde *cm_yesde, u8 *buffer, u32 *type, u32 len)
 {
 	struct ietf_mpa_v1 *mpa_frame;
 	struct ietf_mpa_v2 *mpa_v2_frame;
@@ -937,13 +937,13 @@ static int i40iw_parse_mpa(struct i40iw_cm_node *cm_node, u8 *buffer, u32 *type,
 		i40iw_pr_err("unsupported mpa rev = %d\n", mpa_frame->rev);
 		return -1;
 	}
-	if (mpa_frame->rev > cm_node->mpa_frame_rev) {
+	if (mpa_frame->rev > cm_yesde->mpa_frame_rev) {
 		i40iw_pr_err("rev %d\n", mpa_frame->rev);
 		return -1;
 	}
-	cm_node->mpa_frame_rev = mpa_frame->rev;
+	cm_yesde->mpa_frame_rev = mpa_frame->rev;
 
-	if (cm_node->state != I40IW_CM_STATE_MPAREQ_SENT) {
+	if (cm_yesde->state != I40IW_CM_STATE_MPAREQ_SENT) {
 		if (memcmp(mpa_frame->key, IEFT_MPA_KEY_REQ, IETF_MPA_KEY_SIZE)) {
 			i40iw_pr_err("Unexpected MPA Key received\n");
 			return -1;
@@ -986,38 +986,38 @@ static int i40iw_parse_mpa(struct i40iw_cm_node *cm_node, u8 *buffer, u32 *type,
 				return -1;
 
 			if (ird_size == IETF_NO_IRD_ORD || ord_size == IETF_NO_IRD_ORD) {
-				cm_node->mpav2_ird_ord = IETF_NO_IRD_ORD;
+				cm_yesde->mpav2_ird_ord = IETF_NO_IRD_ORD;
 				goto negotiate_done;
 			}
 
-			if (cm_node->state != I40IW_CM_STATE_MPAREQ_SENT) {
+			if (cm_yesde->state != I40IW_CM_STATE_MPAREQ_SENT) {
 				/* responder */
 				if (!ord_size && (ctrl_ord & IETF_RDMA0_READ))
-					cm_node->ird_size = 1;
-				if (cm_node->ord_size > ird_size)
-					cm_node->ord_size = ird_size;
+					cm_yesde->ird_size = 1;
+				if (cm_yesde->ord_size > ird_size)
+					cm_yesde->ord_size = ird_size;
 			} else {
 				/* initiator */
 				if (!ird_size && (ctrl_ord & IETF_RDMA0_READ))
 					return -1;
-				if (cm_node->ord_size > ird_size)
-					cm_node->ord_size = ird_size;
+				if (cm_yesde->ord_size > ird_size)
+					cm_yesde->ord_size = ird_size;
 
-				if (cm_node->ird_size < ord_size)
-					/* no resources available */
+				if (cm_yesde->ird_size < ord_size)
+					/* yes resources available */
 					return -1;
 			}
 
 negotiate_done:
 			if (ctrl_ord & IETF_RDMA0_READ)
-				cm_node->send_rdma0_op = SEND_RDMA_READ_ZERO;
+				cm_yesde->send_rdma0_op = SEND_RDMA_READ_ZERO;
 			else if (ctrl_ord & IETF_RDMA0_WRITE)
-				cm_node->send_rdma0_op = SEND_RDMA_WRITE_ZERO;
+				cm_yesde->send_rdma0_op = SEND_RDMA_WRITE_ZERO;
 			else	/* Not supported RDMA0 operation */
 				return -1;
-			i40iw_debug(cm_node->dev, I40IW_DEBUG_CM,
+			i40iw_debug(cm_yesde->dev, I40IW_DEBUG_CM,
 				    "MPAV2: Negotiated ORD: %d, IRD: %d\n",
-				    cm_node->ord_size, cm_node->ird_size);
+				    cm_yesde->ord_size, cm_yesde->ird_size);
 			break;
 		}
 		break;
@@ -1026,39 +1026,39 @@ negotiate_done:
 		break;
 	}
 
-	memcpy(cm_node->pdata_buf, buffer + mpa_hdr_len, priv_data_len);
-	cm_node->pdata.size = priv_data_len;
+	memcpy(cm_yesde->pdata_buf, buffer + mpa_hdr_len, priv_data_len);
+	cm_yesde->pdata.size = priv_data_len;
 
 	if (mpa_frame->flags & IETF_MPA_FLAGS_REJECT)
 		*type = I40IW_MPA_REQUEST_REJECT;
 
 	if (mpa_frame->flags & IETF_MPA_FLAGS_MARKERS)
-		cm_node->snd_mark_en = true;
+		cm_yesde->snd_mark_en = true;
 
 	return 0;
 }
 
 /**
  * i40iw_schedule_cm_timer
- * @@cm_node: connection's node
+ * @@cm_yesde: connection's yesde
  * @sqbuf: buffer to send
  * @type: if it is send or close
  * @send_retrans: if rexmits to be done
- * @close_when_complete: is cm_node to be removed
+ * @close_when_complete: is cm_yesde to be removed
  *
- * note - cm_node needs to be protected before calling this. Encase in:
- *		i40iw_rem_ref_cm_node(cm_core, cm_node);
+ * yeste - cm_yesde needs to be protected before calling this. Encase in:
+ *		i40iw_rem_ref_cm_yesde(cm_core, cm_yesde);
  *		i40iw_schedule_cm_timer(...)
- *		atomic_inc(&cm_node->ref_count);
+ *		atomic_inc(&cm_yesde->ref_count);
  */
-int i40iw_schedule_cm_timer(struct i40iw_cm_node *cm_node,
+int i40iw_schedule_cm_timer(struct i40iw_cm_yesde *cm_yesde,
 			    struct i40iw_puda_buf *sqbuf,
 			    enum i40iw_timer_type type,
 			    int send_retrans,
 			    int close_when_complete)
 {
-	struct i40iw_sc_vsi *vsi = &cm_node->iwdev->vsi;
-	struct i40iw_cm_core *cm_core = cm_node->cm_core;
+	struct i40iw_sc_vsi *vsi = &cm_yesde->iwdev->vsi;
+	struct i40iw_cm_core *cm_core = cm_yesde->cm_core;
 	struct i40iw_timer_entry *new_send;
 	int ret = 0;
 	u32 was_timer_set;
@@ -1080,27 +1080,27 @@ int i40iw_schedule_cm_timer(struct i40iw_cm_node *cm_node,
 
 	if (type == I40IW_TIMER_TYPE_CLOSE) {
 		new_send->timetosend += (HZ / 10);
-		if (cm_node->close_entry) {
+		if (cm_yesde->close_entry) {
 			kfree(new_send);
 			i40iw_pr_err("already close entry\n");
 			return -EINVAL;
 		}
-		cm_node->close_entry = new_send;
+		cm_yesde->close_entry = new_send;
 	}
 
 	if (type == I40IW_TIMER_TYPE_SEND) {
-		spin_lock_irqsave(&cm_node->retrans_list_lock, flags);
-		cm_node->send_entry = new_send;
-		atomic_inc(&cm_node->ref_count);
-		spin_unlock_irqrestore(&cm_node->retrans_list_lock, flags);
+		spin_lock_irqsave(&cm_yesde->retrans_list_lock, flags);
+		cm_yesde->send_entry = new_send;
+		atomic_inc(&cm_yesde->ref_count);
+		spin_unlock_irqrestore(&cm_yesde->retrans_list_lock, flags);
 		new_send->timetosend = jiffies + I40IW_RETRY_TIMEOUT;
 
 		atomic_inc(&sqbuf->refcount);
 		i40iw_puda_send_buf(vsi->ilq, sqbuf);
 		if (!send_retrans) {
-			i40iw_cleanup_retrans_entry(cm_node);
+			i40iw_cleanup_retrans_entry(cm_yesde);
 			if (close_when_complete)
-				i40iw_rem_ref_cm_node(cm_node);
+				i40iw_rem_ref_cm_yesde(cm_yesde);
 			return ret;
 		}
 	}
@@ -1118,43 +1118,43 @@ int i40iw_schedule_cm_timer(struct i40iw_cm_node *cm_node,
 }
 
 /**
- * i40iw_retrans_expired - Could not rexmit the packet
- * @cm_node: connection's node
+ * i40iw_retrans_expired - Could yest rexmit the packet
+ * @cm_yesde: connection's yesde
  */
-static void i40iw_retrans_expired(struct i40iw_cm_node *cm_node)
+static void i40iw_retrans_expired(struct i40iw_cm_yesde *cm_yesde)
 {
-	struct iw_cm_id *cm_id = cm_node->cm_id;
-	enum i40iw_cm_node_state state = cm_node->state;
+	struct iw_cm_id *cm_id = cm_yesde->cm_id;
+	enum i40iw_cm_yesde_state state = cm_yesde->state;
 
-	cm_node->state = I40IW_CM_STATE_CLOSED;
+	cm_yesde->state = I40IW_CM_STATE_CLOSED;
 	switch (state) {
 	case I40IW_CM_STATE_SYN_RCVD:
 	case I40IW_CM_STATE_CLOSING:
-		i40iw_rem_ref_cm_node(cm_node);
+		i40iw_rem_ref_cm_yesde(cm_yesde);
 		break;
 	case I40IW_CM_STATE_FIN_WAIT1:
 	case I40IW_CM_STATE_LAST_ACK:
-		if (cm_node->cm_id)
+		if (cm_yesde->cm_id)
 			cm_id->rem_ref(cm_id);
-		i40iw_send_reset(cm_node);
+		i40iw_send_reset(cm_yesde);
 		break;
 	default:
-		atomic_inc(&cm_node->ref_count);
-		i40iw_send_reset(cm_node);
-		i40iw_create_event(cm_node, I40IW_CM_EVENT_ABORTED);
+		atomic_inc(&cm_yesde->ref_count);
+		i40iw_send_reset(cm_yesde);
+		i40iw_create_event(cm_yesde, I40IW_CM_EVENT_ABORTED);
 		break;
 	}
 }
 
 /**
  * i40iw_handle_close_entry - for handling retry/timeouts
- * @cm_node: connection's node
- * @rem_node: flag for remove cm_node
+ * @cm_yesde: connection's yesde
+ * @rem_yesde: flag for remove cm_yesde
  */
-static void i40iw_handle_close_entry(struct i40iw_cm_node *cm_node, u32 rem_node)
+static void i40iw_handle_close_entry(struct i40iw_cm_yesde *cm_yesde, u32 rem_yesde)
 {
-	struct i40iw_timer_entry *close_entry = cm_node->close_entry;
-	struct iw_cm_id *cm_id = cm_node->cm_id;
+	struct i40iw_timer_entry *close_entry = cm_yesde->close_entry;
+	struct iw_cm_id *cm_id = cm_yesde->cm_id;
 	struct i40iw_qp *iwqp;
 	unsigned long flags;
 
@@ -1173,32 +1173,32 @@ static void i40iw_handle_close_entry(struct i40iw_cm_node *cm_node, u32 rem_node
 		} else {
 			spin_unlock_irqrestore(&iwqp->lock, flags);
 		}
-	} else if (rem_node) {
+	} else if (rem_yesde) {
 		/* TIME_WAIT state */
-		i40iw_rem_ref_cm_node(cm_node);
+		i40iw_rem_ref_cm_yesde(cm_yesde);
 	}
 	if (cm_id)
 		cm_id->rem_ref(cm_id);
 	kfree(close_entry);
-	cm_node->close_entry = NULL;
+	cm_yesde->close_entry = NULL;
 }
 
 /**
- * i40iw_build_timer_list - Add cm_nodes to timer list
+ * i40iw_build_timer_list - Add cm_yesdes to timer list
  * @timer_list: ptr to timer list
- * @hte: ptr to accelerated or non-accelerated list
+ * @hte: ptr to accelerated or yesn-accelerated list
  */
 static void i40iw_build_timer_list(struct list_head *timer_list,
 				   struct list_head *hte)
 {
-	struct i40iw_cm_node *cm_node;
-	struct list_head *list_core_temp, *list_node;
+	struct i40iw_cm_yesde *cm_yesde;
+	struct list_head *list_core_temp, *list_yesde;
 
-	list_for_each_safe(list_node, list_core_temp, hte) {
-		cm_node = container_of(list_node, struct i40iw_cm_node, list);
-		if (cm_node->close_entry || cm_node->send_entry) {
-			atomic_inc(&cm_node->ref_count);
-			list_add(&cm_node->timer_entry, timer_list);
+	list_for_each_safe(list_yesde, list_core_temp, hte) {
+		cm_yesde = container_of(list_yesde, struct i40iw_cm_yesde, list);
+		if (cm_yesde->close_entry || cm_yesde->send_entry) {
+			atomic_inc(&cm_yesde->ref_count);
+			list_add(&cm_yesde->timer_entry, timer_list);
 		}
 	}
 }
@@ -1210,11 +1210,11 @@ static void i40iw_build_timer_list(struct list_head *timer_list,
 static void i40iw_cm_timer_tick(struct timer_list *t)
 {
 	unsigned long nexttimeout = jiffies + I40IW_LONG_TIME;
-	struct i40iw_cm_node *cm_node;
+	struct i40iw_cm_yesde *cm_yesde;
 	struct i40iw_timer_entry *send_entry, *close_entry;
 	struct list_head *list_core_temp;
 	struct i40iw_sc_vsi *vsi;
-	struct list_head *list_node;
+	struct list_head *list_yesde;
 	struct i40iw_cm_core *cm_core = from_timer(cm_core, t, tcp_timer);
 	u32 settimer = 0;
 	unsigned long timetosend;
@@ -1225,15 +1225,15 @@ static void i40iw_cm_timer_tick(struct timer_list *t)
 	INIT_LIST_HEAD(&timer_list);
 
 	spin_lock_irqsave(&cm_core->ht_lock, flags);
-	i40iw_build_timer_list(&timer_list, &cm_core->non_accelerated_list);
+	i40iw_build_timer_list(&timer_list, &cm_core->yesn_accelerated_list);
 	i40iw_build_timer_list(&timer_list, &cm_core->accelerated_list);
 	spin_unlock_irqrestore(&cm_core->ht_lock, flags);
 
-	list_for_each_safe(list_node, list_core_temp, &timer_list) {
-		cm_node = container_of(list_node,
-				       struct i40iw_cm_node,
+	list_for_each_safe(list_yesde, list_core_temp, &timer_list) {
+		cm_yesde = container_of(list_yesde,
+				       struct i40iw_cm_yesde,
 				       timer_entry);
-		close_entry = cm_node->close_entry;
+		close_entry = cm_yesde->close_entry;
 
 		if (close_entry) {
 			if (time_after(close_entry->timetosend, jiffies)) {
@@ -1243,53 +1243,53 @@ static void i40iw_cm_timer_tick(struct timer_list *t)
 					settimer = 1;
 				}
 			} else {
-				i40iw_handle_close_entry(cm_node, 1);
+				i40iw_handle_close_entry(cm_yesde, 1);
 			}
 		}
 
-		spin_lock_irqsave(&cm_node->retrans_list_lock, flags);
+		spin_lock_irqsave(&cm_yesde->retrans_list_lock, flags);
 
-		send_entry = cm_node->send_entry;
+		send_entry = cm_yesde->send_entry;
 		if (!send_entry)
 			goto done;
 		if (time_after(send_entry->timetosend, jiffies)) {
-			if (cm_node->state != I40IW_CM_STATE_OFFLOADED) {
+			if (cm_yesde->state != I40IW_CM_STATE_OFFLOADED) {
 				if ((nexttimeout > send_entry->timetosend) ||
 				    !settimer) {
 					nexttimeout = send_entry->timetosend;
 					settimer = 1;
 				}
 			} else {
-				i40iw_free_retrans_entry(cm_node);
+				i40iw_free_retrans_entry(cm_yesde);
 			}
 			goto done;
 		}
 
-		if ((cm_node->state == I40IW_CM_STATE_OFFLOADED) ||
-		    (cm_node->state == I40IW_CM_STATE_CLOSED)) {
-			i40iw_free_retrans_entry(cm_node);
+		if ((cm_yesde->state == I40IW_CM_STATE_OFFLOADED) ||
+		    (cm_yesde->state == I40IW_CM_STATE_CLOSED)) {
+			i40iw_free_retrans_entry(cm_yesde);
 			goto done;
 		}
 
 		if (!send_entry->retranscount || !send_entry->retrycount) {
-			i40iw_free_retrans_entry(cm_node);
+			i40iw_free_retrans_entry(cm_yesde);
 
-			spin_unlock_irqrestore(&cm_node->retrans_list_lock, flags);
-			i40iw_retrans_expired(cm_node);
-			cm_node->state = I40IW_CM_STATE_CLOSED;
-			spin_lock_irqsave(&cm_node->retrans_list_lock, flags);
+			spin_unlock_irqrestore(&cm_yesde->retrans_list_lock, flags);
+			i40iw_retrans_expired(cm_yesde);
+			cm_yesde->state = I40IW_CM_STATE_CLOSED;
+			spin_lock_irqsave(&cm_yesde->retrans_list_lock, flags);
 			goto done;
 		}
-		spin_unlock_irqrestore(&cm_node->retrans_list_lock, flags);
+		spin_unlock_irqrestore(&cm_yesde->retrans_list_lock, flags);
 
-		vsi = &cm_node->iwdev->vsi;
+		vsi = &cm_yesde->iwdev->vsi;
 
-		if (!cm_node->ack_rcvd) {
+		if (!cm_yesde->ack_rcvd) {
 			atomic_inc(&send_entry->sqbuf->refcount);
 			i40iw_puda_send_buf(vsi->ilq, send_entry->sqbuf);
-			cm_node->cm_core->stats_pkt_retrans++;
+			cm_yesde->cm_core->stats_pkt_retrans++;
 		}
-		spin_lock_irqsave(&cm_node->retrans_list_lock, flags);
+		spin_lock_irqsave(&cm_yesde->retrans_list_lock, flags);
 		if (send_entry->send_retrans) {
 			send_entry->retranscount--;
 			timetosend = (I40IW_RETRY_TIMEOUT <<
@@ -1306,18 +1306,18 @@ static void i40iw_cm_timer_tick(struct timer_list *t)
 			int close_when_complete;
 
 			close_when_complete = send_entry->close_when_complete;
-			i40iw_debug(cm_node->dev,
+			i40iw_debug(cm_yesde->dev,
 				    I40IW_DEBUG_CM,
-				    "cm_node=%p state=%d\n",
-				    cm_node,
-				    cm_node->state);
-			i40iw_free_retrans_entry(cm_node);
+				    "cm_yesde=%p state=%d\n",
+				    cm_yesde,
+				    cm_yesde->state);
+			i40iw_free_retrans_entry(cm_yesde);
 			if (close_when_complete)
-				i40iw_rem_ref_cm_node(cm_node);
+				i40iw_rem_ref_cm_yesde(cm_yesde);
 		}
 done:
-		spin_unlock_irqrestore(&cm_node->retrans_list_lock, flags);
-		i40iw_rem_ref_cm_node(cm_node);
+		spin_unlock_irqrestore(&cm_yesde->retrans_list_lock, flags);
+		i40iw_rem_ref_cm_yesde(cm_yesde);
 	}
 
 	if (settimer) {
@@ -1332,10 +1332,10 @@ done:
 
 /**
  * i40iw_send_syn - send SYN packet
- * @cm_node: connection's node
- * @sendack: flag to set ACK bit or not
+ * @cm_yesde: connection's yesde
+ * @sendack: flag to set ACK bit or yest
  */
-int i40iw_send_syn(struct i40iw_cm_node *cm_node, u32 sendack)
+int i40iw_send_syn(struct i40iw_cm_yesde *cm_yesde, u32 sendack)
 {
 	struct i40iw_puda_buf *sqbuf;
 	int flags = SET_SYN;
@@ -1346,26 +1346,26 @@ int i40iw_send_syn(struct i40iw_cm_node *cm_node, u32 sendack)
 
 	int optionssize = 0;
 	/* Sending MSS option */
-	union all_known_options *options;
+	union all_kyeswn_options *options;
 
 	opts.addr = optionsbuffer;
-	if (!cm_node) {
-		i40iw_pr_err("no cm_node\n");
+	if (!cm_yesde) {
+		i40iw_pr_err("yes cm_yesde\n");
 		return -EINVAL;
 	}
 
-	options = (union all_known_options *)&optionsbuffer[optionssize];
+	options = (union all_kyeswn_options *)&optionsbuffer[optionssize];
 	options->as_mss.optionnum = OPTION_NUMBER_MSS;
 	options->as_mss.length = sizeof(struct option_mss);
-	options->as_mss.mss = htons(cm_node->tcp_cntxt.mss);
+	options->as_mss.mss = htons(cm_yesde->tcp_cntxt.mss);
 	optionssize += sizeof(struct option_mss);
 
-	options = (union all_known_options *)&optionsbuffer[optionssize];
+	options = (union all_kyeswn_options *)&optionsbuffer[optionssize];
 	options->as_windowscale.optionnum = OPTION_NUMBER_WINDOW_SCALE;
 	options->as_windowscale.length = sizeof(struct option_windowscale);
-	options->as_windowscale.shiftcount = cm_node->tcp_cntxt.rcv_wscale;
+	options->as_windowscale.shiftcount = cm_yesde->tcp_cntxt.rcv_wscale;
 	optionssize += sizeof(struct option_windowscale);
-	options = (union all_known_options *)&optionsbuffer[optionssize];
+	options = (union all_kyeswn_options *)&optionsbuffer[optionssize];
 	options->as_end = OPTION_NUMBER_END;
 	optionssize += 1;
 
@@ -1374,57 +1374,57 @@ int i40iw_send_syn(struct i40iw_cm_node *cm_node, u32 sendack)
 
 	opts.size = optionssize;
 
-	sqbuf = i40iw_form_cm_frame(cm_node, &opts, NULL, NULL, flags);
+	sqbuf = i40iw_form_cm_frame(cm_yesde, &opts, NULL, NULL, flags);
 	if (!sqbuf) {
-		i40iw_pr_err("no sqbuf\n");
+		i40iw_pr_err("yes sqbuf\n");
 		return -1;
 	}
-	return i40iw_schedule_cm_timer(cm_node, sqbuf, I40IW_TIMER_TYPE_SEND, 1, 0);
+	return i40iw_schedule_cm_timer(cm_yesde, sqbuf, I40IW_TIMER_TYPE_SEND, 1, 0);
 }
 
 /**
  * i40iw_send_ack - Send ACK packet
- * @cm_node: connection's node
+ * @cm_yesde: connection's yesde
  */
-static void i40iw_send_ack(struct i40iw_cm_node *cm_node)
+static void i40iw_send_ack(struct i40iw_cm_yesde *cm_yesde)
 {
 	struct i40iw_puda_buf *sqbuf;
-	struct i40iw_sc_vsi *vsi = &cm_node->iwdev->vsi;
+	struct i40iw_sc_vsi *vsi = &cm_yesde->iwdev->vsi;
 
-	sqbuf = i40iw_form_cm_frame(cm_node, NULL, NULL, NULL, SET_ACK);
+	sqbuf = i40iw_form_cm_frame(cm_yesde, NULL, NULL, NULL, SET_ACK);
 	if (sqbuf)
 		i40iw_puda_send_buf(vsi->ilq, sqbuf);
 	else
-		i40iw_pr_err("no sqbuf\n");
+		i40iw_pr_err("yes sqbuf\n");
 }
 
 /**
  * i40iw_send_fin - Send FIN pkt
- * @cm_node: connection's node
+ * @cm_yesde: connection's yesde
  */
-static int i40iw_send_fin(struct i40iw_cm_node *cm_node)
+static int i40iw_send_fin(struct i40iw_cm_yesde *cm_yesde)
 {
 	struct i40iw_puda_buf *sqbuf;
 
-	sqbuf = i40iw_form_cm_frame(cm_node, NULL, NULL, NULL, SET_ACK | SET_FIN);
+	sqbuf = i40iw_form_cm_frame(cm_yesde, NULL, NULL, NULL, SET_ACK | SET_FIN);
 	if (!sqbuf) {
-		i40iw_pr_err("no sqbuf\n");
+		i40iw_pr_err("yes sqbuf\n");
 		return -1;
 	}
-	return i40iw_schedule_cm_timer(cm_node, sqbuf, I40IW_TIMER_TYPE_SEND, 1, 0);
+	return i40iw_schedule_cm_timer(cm_yesde, sqbuf, I40IW_TIMER_TYPE_SEND, 1, 0);
 }
 
 /**
- * i40iw_find_node - find a cm node that matches the reference cm node
+ * i40iw_find_yesde - find a cm yesde that matches the reference cm yesde
  * @cm_core: cm's core
  * @rem_port: remote tcp port num
  * @rem_addr: remote ip addr
  * @loc_port: local tcp port num
  * @loc_addr: loc ip addr
- * @add_refcnt: flag to increment refcount of cm_node
- * @accelerated_list: flag for accelerated vs non-accelerated list to search
+ * @add_refcnt: flag to increment refcount of cm_yesde
+ * @accelerated_list: flag for accelerated vs yesn-accelerated list to search
  */
-struct i40iw_cm_node *i40iw_find_node(struct i40iw_cm_core *cm_core,
+struct i40iw_cm_yesde *i40iw_find_yesde(struct i40iw_cm_core *cm_core,
 				      u16 rem_port,
 				      u32 *rem_addr,
 				      u16 loc_port,
@@ -1433,37 +1433,37 @@ struct i40iw_cm_node *i40iw_find_node(struct i40iw_cm_core *cm_core,
 				      bool accelerated_list)
 {
 	struct list_head *hte;
-	struct i40iw_cm_node *cm_node;
+	struct i40iw_cm_yesde *cm_yesde;
 	unsigned long flags;
 
 	hte = accelerated_list ?
-	      &cm_core->accelerated_list : &cm_core->non_accelerated_list;
+	      &cm_core->accelerated_list : &cm_core->yesn_accelerated_list;
 
-	/* walk list and find cm_node associated with this session ID */
+	/* walk list and find cm_yesde associated with this session ID */
 	spin_lock_irqsave(&cm_core->ht_lock, flags);
-	list_for_each_entry(cm_node, hte, list) {
-		if (!memcmp(cm_node->loc_addr, loc_addr, sizeof(cm_node->loc_addr)) &&
-		    (cm_node->loc_port == loc_port) &&
-		    !memcmp(cm_node->rem_addr, rem_addr, sizeof(cm_node->rem_addr)) &&
-		    (cm_node->rem_port == rem_port)) {
+	list_for_each_entry(cm_yesde, hte, list) {
+		if (!memcmp(cm_yesde->loc_addr, loc_addr, sizeof(cm_yesde->loc_addr)) &&
+		    (cm_yesde->loc_port == loc_port) &&
+		    !memcmp(cm_yesde->rem_addr, rem_addr, sizeof(cm_yesde->rem_addr)) &&
+		    (cm_yesde->rem_port == rem_port)) {
 			if (add_refcnt)
-				atomic_inc(&cm_node->ref_count);
+				atomic_inc(&cm_yesde->ref_count);
 			spin_unlock_irqrestore(&cm_core->ht_lock, flags);
-			return cm_node;
+			return cm_yesde;
 		}
 	}
 	spin_unlock_irqrestore(&cm_core->ht_lock, flags);
 
-	/* no owner node */
+	/* yes owner yesde */
 	return NULL;
 }
 
 /**
- * i40iw_find_listener - find a cm node listening on this addr-port pair
+ * i40iw_find_listener - find a cm yesde listening on this addr-port pair
  * @cm_core: cm's core
  * @dst_port: listener tcp port num
  * @dst_addr: listener ip addr
- * @listener_state: state to match with listen node's
+ * @listener_state: state to match with listen yesde's
  */
 static struct i40iw_cm_listener *i40iw_find_listener(
 						     struct i40iw_cm_core *cm_core,
@@ -1473,25 +1473,25 @@ static struct i40iw_cm_listener *i40iw_find_listener(
 						     enum i40iw_cm_listener_state
 						     listener_state)
 {
-	struct i40iw_cm_listener *listen_node;
+	struct i40iw_cm_listener *listen_yesde;
 	static const u32 ip_zero[4] = { 0, 0, 0, 0 };
 	u32 listen_addr[4];
 	u16 listen_port;
 	unsigned long flags;
 
-	/* walk list and find cm_node associated with this session ID */
+	/* walk list and find cm_yesde associated with this session ID */
 	spin_lock_irqsave(&cm_core->listen_list_lock, flags);
-	list_for_each_entry(listen_node, &cm_core->listen_nodes, list) {
-		memcpy(listen_addr, listen_node->loc_addr, sizeof(listen_addr));
-		listen_port = listen_node->loc_port;
-		/* compare node pair, return node handle if a match */
+	list_for_each_entry(listen_yesde, &cm_core->listen_yesdes, list) {
+		memcpy(listen_addr, listen_yesde->loc_addr, sizeof(listen_addr));
+		listen_port = listen_yesde->loc_port;
+		/* compare yesde pair, return yesde handle if a match */
 		if ((!memcmp(listen_addr, dst_addr, sizeof(listen_addr)) ||
 		     !memcmp(listen_addr, ip_zero, sizeof(listen_addr))) &&
 		     (listen_port == dst_port) &&
-		     (listener_state & listen_node->listener_state)) {
-			atomic_inc(&listen_node->ref_count);
+		     (listener_state & listen_yesde->listener_state)) {
+			atomic_inc(&listen_yesde->ref_count);
 			spin_unlock_irqrestore(&cm_core->listen_list_lock, flags);
-			return listen_node;
+			return listen_yesde;
 		}
 	}
 	spin_unlock_irqrestore(&cm_core->listen_list_lock, flags);
@@ -1499,36 +1499,36 @@ static struct i40iw_cm_listener *i40iw_find_listener(
 }
 
 /**
- * i40iw_add_hte_node - add a cm node to the hash table
+ * i40iw_add_hte_yesde - add a cm yesde to the hash table
  * @cm_core: cm's core
- * @cm_node: connection's node
+ * @cm_yesde: connection's yesde
  */
-static void i40iw_add_hte_node(struct i40iw_cm_core *cm_core,
-			       struct i40iw_cm_node *cm_node)
+static void i40iw_add_hte_yesde(struct i40iw_cm_core *cm_core,
+			       struct i40iw_cm_yesde *cm_yesde)
 {
 	unsigned long flags;
 
-	if (!cm_node || !cm_core) {
-		i40iw_pr_err("cm_node or cm_core == NULL\n");
+	if (!cm_yesde || !cm_core) {
+		i40iw_pr_err("cm_yesde or cm_core == NULL\n");
 		return;
 	}
 
 	spin_lock_irqsave(&cm_core->ht_lock, flags);
-	list_add_tail(&cm_node->list, &cm_core->non_accelerated_list);
+	list_add_tail(&cm_yesde->list, &cm_core->yesn_accelerated_list);
 	spin_unlock_irqrestore(&cm_core->ht_lock, flags);
 }
 
 /**
  * i40iw_find_port - find port that matches reference port
- * @hte: ptr to accelerated or non-accelerated list
- * @accelerated_list: flag for accelerated vs non-accelerated list
+ * @hte: ptr to accelerated or yesn-accelerated list
+ * @accelerated_list: flag for accelerated vs yesn-accelerated list
  */
 static bool i40iw_find_port(struct list_head *hte, u16 port)
 {
-	struct i40iw_cm_node *cm_node;
+	struct i40iw_cm_yesde *cm_yesde;
 
-	list_for_each_entry(cm_node, hte, list) {
-		if (cm_node->loc_port == port)
+	list_for_each_entry(cm_yesde, hte, list) {
+		if (cm_yesde->loc_port == port)
 			return true;
 	}
 	return false;
@@ -1541,20 +1541,20 @@ static bool i40iw_find_port(struct list_head *hte, u16 port)
  */
 bool i40iw_port_in_use(struct i40iw_cm_core *cm_core, u16 port)
 {
-	struct i40iw_cm_listener *listen_node;
+	struct i40iw_cm_listener *listen_yesde;
 	unsigned long flags;
 
 	spin_lock_irqsave(&cm_core->ht_lock, flags);
 	if (i40iw_find_port(&cm_core->accelerated_list, port) ||
-	    i40iw_find_port(&cm_core->non_accelerated_list, port)) {
+	    i40iw_find_port(&cm_core->yesn_accelerated_list, port)) {
 		spin_unlock_irqrestore(&cm_core->ht_lock, flags);
 		return true;
 	}
 	spin_unlock_irqrestore(&cm_core->ht_lock, flags);
 
 	spin_lock_irqsave(&cm_core->listen_list_lock, flags);
-	list_for_each_entry(listen_node, &cm_core->listen_nodes, list) {
-		if (listen_node->loc_port == port) {
+	list_for_each_entry(listen_yesde, &cm_core->listen_yesdes, list) {
+		if (listen_yesde->loc_port == port) {
 			spin_unlock_irqrestore(&cm_core->listen_list_lock, flags);
 			return true;
 		}
@@ -1567,54 +1567,54 @@ bool i40iw_port_in_use(struct i40iw_cm_core *cm_core, u16 port)
 /**
  * i40iw_del_multiple_qhash - Remove qhash and child listens
  * @iwdev: iWarp device
- * @cm_info: CM info for parent listen node
- * @cm_parent_listen_node: The parent listen node
+ * @cm_info: CM info for parent listen yesde
+ * @cm_parent_listen_yesde: The parent listen yesde
  */
 static enum i40iw_status_code i40iw_del_multiple_qhash(
 						       struct i40iw_device *iwdev,
 						       struct i40iw_cm_info *cm_info,
-						       struct i40iw_cm_listener *cm_parent_listen_node)
+						       struct i40iw_cm_listener *cm_parent_listen_yesde)
 {
-	struct i40iw_cm_listener *child_listen_node;
+	struct i40iw_cm_listener *child_listen_yesde;
 	enum i40iw_status_code ret = I40IW_ERR_CONFIG;
 	struct list_head *pos, *tpos;
 	unsigned long flags;
 
 	spin_lock_irqsave(&iwdev->cm_core.listen_list_lock, flags);
-	list_for_each_safe(pos, tpos, &cm_parent_listen_node->child_listen_list) {
-		child_listen_node = list_entry(pos, struct i40iw_cm_listener, child_listen_list);
-		if (child_listen_node->ipv4)
+	list_for_each_safe(pos, tpos, &cm_parent_listen_yesde->child_listen_list) {
+		child_listen_yesde = list_entry(pos, struct i40iw_cm_listener, child_listen_list);
+		if (child_listen_yesde->ipv4)
 			i40iw_debug(&iwdev->sc_dev,
 				    I40IW_DEBUG_CM,
 				    "removing child listen for IP=%pI4, port=%d, vlan=%d\n",
-				    child_listen_node->loc_addr,
-				    child_listen_node->loc_port,
-				    child_listen_node->vlan_id);
+				    child_listen_yesde->loc_addr,
+				    child_listen_yesde->loc_port,
+				    child_listen_yesde->vlan_id);
 		else
 			i40iw_debug(&iwdev->sc_dev, I40IW_DEBUG_CM,
 				    "removing child listen for IP=%pI6, port=%d, vlan=%d\n",
-				    child_listen_node->loc_addr,
-				    child_listen_node->loc_port,
-				    child_listen_node->vlan_id);
+				    child_listen_yesde->loc_addr,
+				    child_listen_yesde->loc_port,
+				    child_listen_yesde->vlan_id);
 		list_del(pos);
-		memcpy(cm_info->loc_addr, child_listen_node->loc_addr,
+		memcpy(cm_info->loc_addr, child_listen_yesde->loc_addr,
 		       sizeof(cm_info->loc_addr));
-		cm_info->vlan_id = child_listen_node->vlan_id;
-		if (child_listen_node->qhash_set) {
+		cm_info->vlan_id = child_listen_yesde->vlan_id;
+		if (child_listen_yesde->qhash_set) {
 			ret = i40iw_manage_qhash(iwdev, cm_info,
 						 I40IW_QHASH_TYPE_TCP_SYN,
 						 I40IW_QHASH_MANAGE_TYPE_DELETE,
 						 NULL, false);
-			child_listen_node->qhash_set = false;
+			child_listen_yesde->qhash_set = false;
 		} else {
 			ret = I40IW_SUCCESS;
 		}
 		i40iw_debug(&iwdev->sc_dev,
 			    I40IW_DEBUG_CM,
 			    "freed pointer = %p\n",
-			    child_listen_node);
-		kfree(child_listen_node);
-		cm_parent_listen_node->cm_core->stats_listen_nodes_destroyed++;
+			    child_listen_yesde);
+		kfree(child_listen_yesde);
+		cm_parent_listen_yesde->cm_core->stats_listen_yesdes_destroyed++;
 	}
 	spin_unlock_irqrestore(&iwdev->cm_core.listen_list_lock, flags);
 
@@ -1671,21 +1671,21 @@ static u16 i40iw_get_vlan_ipv4(u32 *addr)
 /**
  * i40iw_add_mqh_6 - Adds multiple qhashes for IPv6
  * @iwdev: iWarp device
- * @cm_info: CM info for parent listen node
- * @cm_parent_listen_node: The parent listen node
+ * @cm_info: CM info for parent listen yesde
+ * @cm_parent_listen_yesde: The parent listen yesde
  *
- * Adds a qhash and a child listen node for every IPv6 address
+ * Adds a qhash and a child listen yesde for every IPv6 address
  * on the adapter and adds the associated qhash filter
  */
 static enum i40iw_status_code i40iw_add_mqh_6(struct i40iw_device *iwdev,
 					      struct i40iw_cm_info *cm_info,
-					      struct i40iw_cm_listener *cm_parent_listen_node)
+					      struct i40iw_cm_listener *cm_parent_listen_yesde)
 {
 	struct net_device *ip_dev;
 	struct inet6_dev *idev;
 	struct inet6_ifaddr *ifp, *tmp;
 	enum i40iw_status_code ret = 0;
-	struct i40iw_cm_listener *child_listen_node;
+	struct i40iw_cm_listener *child_listen_yesde;
 	unsigned long flags;
 
 	rtnl_lock();
@@ -1705,25 +1705,25 @@ static enum i40iw_status_code i40iw_add_mqh_6(struct i40iw_device *iwdev,
 					    &ifp->addr,
 					    rdma_vlan_dev_vlan_id(ip_dev),
 					    ip_dev->dev_addr);
-				child_listen_node =
-					kzalloc(sizeof(*child_listen_node), GFP_ATOMIC);
+				child_listen_yesde =
+					kzalloc(sizeof(*child_listen_yesde), GFP_ATOMIC);
 				i40iw_debug(&iwdev->sc_dev,
 					    I40IW_DEBUG_CM,
 					    "Allocating child listener %p\n",
-					    child_listen_node);
-				if (!child_listen_node) {
+					    child_listen_yesde);
+				if (!child_listen_yesde) {
 					ret = I40IW_ERR_NO_MEMORY;
 					goto exit;
 				}
 				cm_info->vlan_id = rdma_vlan_dev_vlan_id(ip_dev);
-				cm_parent_listen_node->vlan_id = cm_info->vlan_id;
+				cm_parent_listen_yesde->vlan_id = cm_info->vlan_id;
 
-				memcpy(child_listen_node, cm_parent_listen_node,
-				       sizeof(*child_listen_node));
+				memcpy(child_listen_yesde, cm_parent_listen_yesde,
+				       sizeof(*child_listen_yesde));
 
-				i40iw_copy_ip_ntohl(child_listen_node->loc_addr,
+				i40iw_copy_ip_ntohl(child_listen_yesde->loc_addr,
 						    ifp->addr.in6_u.u6_addr32);
-				memcpy(cm_info->loc_addr, child_listen_node->loc_addr,
+				memcpy(cm_info->loc_addr, child_listen_yesde->loc_addr,
 				       sizeof(cm_info->loc_addr));
 
 				ret = i40iw_manage_qhash(iwdev, cm_info,
@@ -1731,14 +1731,14 @@ static enum i40iw_status_code i40iw_add_mqh_6(struct i40iw_device *iwdev,
 							 I40IW_QHASH_MANAGE_TYPE_ADD,
 							 NULL, true);
 				if (!ret) {
-					child_listen_node->qhash_set = true;
+					child_listen_yesde->qhash_set = true;
 					spin_lock_irqsave(&iwdev->cm_core.listen_list_lock, flags);
-					list_add(&child_listen_node->child_listen_list,
-						 &cm_parent_listen_node->child_listen_list);
+					list_add(&child_listen_yesde->child_listen_list,
+						 &cm_parent_listen_yesde->child_listen_list);
 					spin_unlock_irqrestore(&iwdev->cm_core.listen_list_lock, flags);
-					cm_parent_listen_node->cm_core->stats_listen_nodes_created++;
+					cm_parent_listen_yesde->cm_core->stats_listen_yesdes_created++;
 				} else {
-					kfree(child_listen_node);
+					kfree(child_listen_yesde);
 				}
 			}
 		}
@@ -1751,20 +1751,20 @@ exit:
 /**
  * i40iw_add_mqh_4 - Adds multiple qhashes for IPv4
  * @iwdev: iWarp device
- * @cm_info: CM info for parent listen node
- * @cm_parent_listen_node: The parent listen node
+ * @cm_info: CM info for parent listen yesde
+ * @cm_parent_listen_yesde: The parent listen yesde
  *
- * Adds a qhash and a child listen node for every IPv4 address
+ * Adds a qhash and a child listen yesde for every IPv4 address
  * on the adapter and adds the associated qhash filter
  */
 static enum i40iw_status_code i40iw_add_mqh_4(
 				struct i40iw_device *iwdev,
 				struct i40iw_cm_info *cm_info,
-				struct i40iw_cm_listener *cm_parent_listen_node)
+				struct i40iw_cm_listener *cm_parent_listen_yesde)
 {
 	struct net_device *dev;
 	struct in_device *idev;
-	struct i40iw_cm_listener *child_listen_node;
+	struct i40iw_cm_listener *child_listen_yesde;
 	enum i40iw_status_code ret = 0;
 	unsigned long flags;
 
@@ -1784,25 +1784,25 @@ static enum i40iw_status_code i40iw_add_mqh_4(
 					    &ifa->ifa_address,
 					    rdma_vlan_dev_vlan_id(dev),
 					    dev->dev_addr);
-				child_listen_node = kzalloc(sizeof(*child_listen_node), GFP_KERNEL);
-				cm_parent_listen_node->cm_core->stats_listen_nodes_created++;
+				child_listen_yesde = kzalloc(sizeof(*child_listen_yesde), GFP_KERNEL);
+				cm_parent_listen_yesde->cm_core->stats_listen_yesdes_created++;
 				i40iw_debug(&iwdev->sc_dev,
 					    I40IW_DEBUG_CM,
 					    "Allocating child listener %p\n",
-					    child_listen_node);
-				if (!child_listen_node) {
+					    child_listen_yesde);
+				if (!child_listen_yesde) {
 					in_dev_put(idev);
 					ret = I40IW_ERR_NO_MEMORY;
 					goto exit;
 				}
 				cm_info->vlan_id = rdma_vlan_dev_vlan_id(dev);
-				cm_parent_listen_node->vlan_id = cm_info->vlan_id;
-				memcpy(child_listen_node,
-				       cm_parent_listen_node,
-				       sizeof(*child_listen_node));
+				cm_parent_listen_yesde->vlan_id = cm_info->vlan_id;
+				memcpy(child_listen_yesde,
+				       cm_parent_listen_yesde,
+				       sizeof(*child_listen_yesde));
 
-				child_listen_node->loc_addr[0] = ntohl(ifa->ifa_address);
-				memcpy(cm_info->loc_addr, child_listen_node->loc_addr,
+				child_listen_yesde->loc_addr[0] = ntohl(ifa->ifa_address);
+				memcpy(cm_info->loc_addr, child_listen_yesde->loc_addr,
 				       sizeof(cm_info->loc_addr));
 
 				ret = i40iw_manage_qhash(iwdev,
@@ -1812,14 +1812,14 @@ static enum i40iw_status_code i40iw_add_mqh_4(
 							 NULL,
 							 true);
 				if (!ret) {
-					child_listen_node->qhash_set = true;
+					child_listen_yesde->qhash_set = true;
 					spin_lock_irqsave(&iwdev->cm_core.listen_list_lock, flags);
-					list_add(&child_listen_node->child_listen_list,
-						 &cm_parent_listen_node->child_listen_list);
+					list_add(&child_listen_yesde->child_listen_list,
+						 &cm_parent_listen_yesde->child_listen_list);
 					spin_unlock_irqrestore(&iwdev->cm_core.listen_list_lock, flags);
 				} else {
-					kfree(child_listen_node);
-					cm_parent_listen_node->cm_core->stats_listen_nodes_created--;
+					kfree(child_listen_yesde);
+					cm_parent_listen_yesde->cm_core->stats_listen_yesdes_created--;
 				}
 			}
 
@@ -1832,64 +1832,64 @@ exit:
 }
 
 /**
- * i40iw_dec_refcnt_listen - delete listener and associated cm nodes
+ * i40iw_dec_refcnt_listen - delete listener and associated cm yesdes
  * @cm_core: cm's core
- * @free_hanging_nodes: to free associated cm_nodes
+ * @free_hanging_yesdes: to free associated cm_yesdes
  * @apbvt_del: flag to delete the apbvt
  */
 static int i40iw_dec_refcnt_listen(struct i40iw_cm_core *cm_core,
 				   struct i40iw_cm_listener *listener,
-				   int free_hanging_nodes, bool apbvt_del)
+				   int free_hanging_yesdes, bool apbvt_del)
 {
 	int ret = -EINVAL;
 	int err = 0;
 	struct list_head *list_pos;
 	struct list_head *list_temp;
-	struct i40iw_cm_node *cm_node;
+	struct i40iw_cm_yesde *cm_yesde;
 	struct list_head reset_list;
 	struct i40iw_cm_info nfo;
-	struct i40iw_cm_node *loopback;
-	enum i40iw_cm_node_state old_state;
+	struct i40iw_cm_yesde *loopback;
+	enum i40iw_cm_yesde_state old_state;
 	unsigned long flags;
 
-	/* free non-accelerated child nodes for this listener */
+	/* free yesn-accelerated child yesdes for this listener */
 	INIT_LIST_HEAD(&reset_list);
-	if (free_hanging_nodes) {
+	if (free_hanging_yesdes) {
 		spin_lock_irqsave(&cm_core->ht_lock, flags);
 		list_for_each_safe(list_pos,
-				   list_temp, &cm_core->non_accelerated_list) {
-			cm_node = container_of(list_pos, struct i40iw_cm_node, list);
-			if ((cm_node->listener == listener) &&
-			    !cm_node->accelerated) {
-				atomic_inc(&cm_node->ref_count);
-				list_add(&cm_node->reset_entry, &reset_list);
+				   list_temp, &cm_core->yesn_accelerated_list) {
+			cm_yesde = container_of(list_pos, struct i40iw_cm_yesde, list);
+			if ((cm_yesde->listener == listener) &&
+			    !cm_yesde->accelerated) {
+				atomic_inc(&cm_yesde->ref_count);
+				list_add(&cm_yesde->reset_entry, &reset_list);
 			}
 		}
 		spin_unlock_irqrestore(&cm_core->ht_lock, flags);
 	}
 
 	list_for_each_safe(list_pos, list_temp, &reset_list) {
-		cm_node = container_of(list_pos, struct i40iw_cm_node, reset_entry);
-		loopback = cm_node->loopbackpartner;
-		if (cm_node->state >= I40IW_CM_STATE_FIN_WAIT1) {
-			i40iw_rem_ref_cm_node(cm_node);
+		cm_yesde = container_of(list_pos, struct i40iw_cm_yesde, reset_entry);
+		loopback = cm_yesde->loopbackpartner;
+		if (cm_yesde->state >= I40IW_CM_STATE_FIN_WAIT1) {
+			i40iw_rem_ref_cm_yesde(cm_yesde);
 		} else {
 			if (!loopback) {
-				i40iw_cleanup_retrans_entry(cm_node);
-				err = i40iw_send_reset(cm_node);
+				i40iw_cleanup_retrans_entry(cm_yesde);
+				err = i40iw_send_reset(cm_yesde);
 				if (err) {
-					cm_node->state = I40IW_CM_STATE_CLOSED;
+					cm_yesde->state = I40IW_CM_STATE_CLOSED;
 					i40iw_pr_err("send reset\n");
 				} else {
-					old_state = cm_node->state;
-					cm_node->state = I40IW_CM_STATE_LISTENER_DESTROYED;
+					old_state = cm_yesde->state;
+					cm_yesde->state = I40IW_CM_STATE_LISTENER_DESTROYED;
 					if (old_state != I40IW_CM_STATE_MPAREQ_RCVD)
-						i40iw_rem_ref_cm_node(cm_node);
+						i40iw_rem_ref_cm_yesde(cm_yesde);
 				}
 			} else {
 				struct i40iw_cm_event event;
 
-				event.cm_node = loopback;
+				event.cm_yesde = loopback;
 				memcpy(event.cm_info.rem_addr,
 				       loopback->rem_addr, sizeof(event.cm_info.rem_addr));
 				memcpy(event.cm_info.loc_addr,
@@ -1901,8 +1901,8 @@ static int i40iw_dec_refcnt_listen(struct i40iw_cm_core *cm_core,
 				atomic_inc(&loopback->ref_count);
 				loopback->state = I40IW_CM_STATE_CLOSED;
 				i40iw_event_connect_error(&event);
-				cm_node->state = I40IW_CM_STATE_LISTENER_DESTROYED;
-				i40iw_rem_ref_cm_node(cm_node);
+				cm_yesde->state = I40IW_CM_STATE_LISTENER_DESTROYED;
+				i40iw_rem_ref_cm_yesde(cm_yesde);
 			}
 		}
 	}
@@ -1939,7 +1939,7 @@ static int i40iw_dec_refcnt_listen(struct i40iw_cm_core *cm_core,
 
 		cm_core->stats_listen_destroyed++;
 		kfree(listener);
-		cm_core->stats_listen_nodes_destroyed++;
+		cm_core->stats_listen_yesdes_destroyed++;
 		listener = NULL;
 		ret = 0;
 	}
@@ -2155,108 +2155,108 @@ static bool i40iw_ipv6_is_loopback(u32 *loc_addr, u32 *rem_addr)
 }
 
 /**
- * i40iw_make_cm_node - create a new instance of a cm node
+ * i40iw_make_cm_yesde - create a new instance of a cm yesde
  * @cm_core: cm's core
  * @iwdev: iwarp device structure
  * @cm_info: quad info for connection
  * @listener: passive connection's listener
  */
-static struct i40iw_cm_node *i40iw_make_cm_node(
+static struct i40iw_cm_yesde *i40iw_make_cm_yesde(
 				   struct i40iw_cm_core *cm_core,
 				   struct i40iw_device *iwdev,
 				   struct i40iw_cm_info *cm_info,
 				   struct i40iw_cm_listener *listener)
 {
-	struct i40iw_cm_node *cm_node;
+	struct i40iw_cm_yesde *cm_yesde;
 	int oldarpindex;
 	int arpindex;
 	struct net_device *netdev = iwdev->netdev;
 
-	/* create an hte and cm_node for this instance */
-	cm_node = kzalloc(sizeof(*cm_node), GFP_ATOMIC);
-	if (!cm_node)
+	/* create an hte and cm_yesde for this instance */
+	cm_yesde = kzalloc(sizeof(*cm_yesde), GFP_ATOMIC);
+	if (!cm_yesde)
 		return NULL;
 
-	/* set our node specific transport info */
-	cm_node->ipv4 = cm_info->ipv4;
-	cm_node->vlan_id = cm_info->vlan_id;
-	if ((cm_node->vlan_id == I40IW_NO_VLAN) && iwdev->dcb)
-		cm_node->vlan_id = 0;
-	cm_node->tos = cm_info->tos;
-	cm_node->user_pri = cm_info->user_pri;
+	/* set our yesde specific transport info */
+	cm_yesde->ipv4 = cm_info->ipv4;
+	cm_yesde->vlan_id = cm_info->vlan_id;
+	if ((cm_yesde->vlan_id == I40IW_NO_VLAN) && iwdev->dcb)
+		cm_yesde->vlan_id = 0;
+	cm_yesde->tos = cm_info->tos;
+	cm_yesde->user_pri = cm_info->user_pri;
 	if (listener) {
 		if (listener->tos != cm_info->tos)
 			i40iw_debug(&iwdev->sc_dev, I40IW_DEBUG_DCB,
 				    "application TOS[%d] and remote client TOS[%d] mismatch\n",
 				     listener->tos, cm_info->tos);
-		cm_node->tos = max(listener->tos, cm_info->tos);
-		cm_node->user_pri = rt_tos2priority(cm_node->tos);
+		cm_yesde->tos = max(listener->tos, cm_info->tos);
+		cm_yesde->user_pri = rt_tos2priority(cm_yesde->tos);
 		i40iw_debug(&iwdev->sc_dev, I40IW_DEBUG_DCB, "listener: TOS:[%d] UP:[%d]\n",
-			    cm_node->tos, cm_node->user_pri);
+			    cm_yesde->tos, cm_yesde->user_pri);
 	}
-	memcpy(cm_node->loc_addr, cm_info->loc_addr, sizeof(cm_node->loc_addr));
-	memcpy(cm_node->rem_addr, cm_info->rem_addr, sizeof(cm_node->rem_addr));
-	cm_node->loc_port = cm_info->loc_port;
-	cm_node->rem_port = cm_info->rem_port;
+	memcpy(cm_yesde->loc_addr, cm_info->loc_addr, sizeof(cm_yesde->loc_addr));
+	memcpy(cm_yesde->rem_addr, cm_info->rem_addr, sizeof(cm_yesde->rem_addr));
+	cm_yesde->loc_port = cm_info->loc_port;
+	cm_yesde->rem_port = cm_info->rem_port;
 
-	cm_node->mpa_frame_rev = iwdev->mpa_version;
-	cm_node->send_rdma0_op = SEND_RDMA_READ_ZERO;
-	cm_node->ird_size = I40IW_MAX_IRD_SIZE;
-	cm_node->ord_size = I40IW_MAX_ORD_SIZE;
+	cm_yesde->mpa_frame_rev = iwdev->mpa_version;
+	cm_yesde->send_rdma0_op = SEND_RDMA_READ_ZERO;
+	cm_yesde->ird_size = I40IW_MAX_IRD_SIZE;
+	cm_yesde->ord_size = I40IW_MAX_ORD_SIZE;
 
-	cm_node->listener = listener;
-	cm_node->cm_id = cm_info->cm_id;
-	ether_addr_copy(cm_node->loc_mac, netdev->dev_addr);
-	spin_lock_init(&cm_node->retrans_list_lock);
-	cm_node->ack_rcvd = false;
+	cm_yesde->listener = listener;
+	cm_yesde->cm_id = cm_info->cm_id;
+	ether_addr_copy(cm_yesde->loc_mac, netdev->dev_addr);
+	spin_lock_init(&cm_yesde->retrans_list_lock);
+	cm_yesde->ack_rcvd = false;
 
-	atomic_set(&cm_node->ref_count, 1);
+	atomic_set(&cm_yesde->ref_count, 1);
 	/* associate our parent CM core */
-	cm_node->cm_core = cm_core;
-	cm_node->tcp_cntxt.loc_id = I40IW_CM_DEF_LOCAL_ID;
-	cm_node->tcp_cntxt.rcv_wscale = I40IW_CM_DEFAULT_RCV_WND_SCALE;
-	cm_node->tcp_cntxt.rcv_wnd =
+	cm_yesde->cm_core = cm_core;
+	cm_yesde->tcp_cntxt.loc_id = I40IW_CM_DEF_LOCAL_ID;
+	cm_yesde->tcp_cntxt.rcv_wscale = I40IW_CM_DEFAULT_RCV_WND_SCALE;
+	cm_yesde->tcp_cntxt.rcv_wnd =
 			I40IW_CM_DEFAULT_RCV_WND_SCALED >> I40IW_CM_DEFAULT_RCV_WND_SCALE;
-	if (cm_node->ipv4) {
-		cm_node->tcp_cntxt.loc_seq_num = secure_tcp_seq(htonl(cm_node->loc_addr[0]),
-							htonl(cm_node->rem_addr[0]),
-							htons(cm_node->loc_port),
-							htons(cm_node->rem_port));
-		cm_node->tcp_cntxt.mss = iwdev->vsi.mtu - I40IW_MTU_TO_MSS_IPV4;
+	if (cm_yesde->ipv4) {
+		cm_yesde->tcp_cntxt.loc_seq_num = secure_tcp_seq(htonl(cm_yesde->loc_addr[0]),
+							htonl(cm_yesde->rem_addr[0]),
+							htons(cm_yesde->loc_port),
+							htons(cm_yesde->rem_port));
+		cm_yesde->tcp_cntxt.mss = iwdev->vsi.mtu - I40IW_MTU_TO_MSS_IPV4;
 	} else if (IS_ENABLED(CONFIG_IPV6)) {
 		__be32 loc[4] = {
-			htonl(cm_node->loc_addr[0]), htonl(cm_node->loc_addr[1]),
-			htonl(cm_node->loc_addr[2]), htonl(cm_node->loc_addr[3])
+			htonl(cm_yesde->loc_addr[0]), htonl(cm_yesde->loc_addr[1]),
+			htonl(cm_yesde->loc_addr[2]), htonl(cm_yesde->loc_addr[3])
 		};
 		__be32 rem[4] = {
-			htonl(cm_node->rem_addr[0]), htonl(cm_node->rem_addr[1]),
-			htonl(cm_node->rem_addr[2]), htonl(cm_node->rem_addr[3])
+			htonl(cm_yesde->rem_addr[0]), htonl(cm_yesde->rem_addr[1]),
+			htonl(cm_yesde->rem_addr[2]), htonl(cm_yesde->rem_addr[3])
 		};
-		cm_node->tcp_cntxt.loc_seq_num = secure_tcpv6_seq(loc, rem,
-							htons(cm_node->loc_port),
-							htons(cm_node->rem_port));
-		cm_node->tcp_cntxt.mss = iwdev->vsi.mtu - I40IW_MTU_TO_MSS_IPV6;
+		cm_yesde->tcp_cntxt.loc_seq_num = secure_tcpv6_seq(loc, rem,
+							htons(cm_yesde->loc_port),
+							htons(cm_yesde->rem_port));
+		cm_yesde->tcp_cntxt.mss = iwdev->vsi.mtu - I40IW_MTU_TO_MSS_IPV6;
 	}
 
-	cm_node->iwdev = iwdev;
-	cm_node->dev = &iwdev->sc_dev;
+	cm_yesde->iwdev = iwdev;
+	cm_yesde->dev = &iwdev->sc_dev;
 
-	if ((cm_node->ipv4 &&
-	     i40iw_ipv4_is_loopback(cm_node->loc_addr[0], cm_node->rem_addr[0])) ||
-	     (!cm_node->ipv4 && i40iw_ipv6_is_loopback(cm_node->loc_addr,
-						       cm_node->rem_addr))) {
+	if ((cm_yesde->ipv4 &&
+	     i40iw_ipv4_is_loopback(cm_yesde->loc_addr[0], cm_yesde->rem_addr[0])) ||
+	     (!cm_yesde->ipv4 && i40iw_ipv6_is_loopback(cm_yesde->loc_addr,
+						       cm_yesde->rem_addr))) {
 		arpindex = i40iw_arp_table(iwdev,
-					   cm_node->rem_addr,
+					   cm_yesde->rem_addr,
 					   false,
 					   NULL,
 					   I40IW_ARP_RESOLVE);
 	} else {
 		oldarpindex = i40iw_arp_table(iwdev,
-					      cm_node->rem_addr,
+					      cm_yesde->rem_addr,
 					      false,
 					      NULL,
 					      I40IW_ARP_RESOLVE);
-		if (cm_node->ipv4)
+		if (cm_yesde->ipv4)
 			arpindex = i40iw_addr_resolve_neigh(iwdev,
 							    cm_info->loc_addr[0],
 							    cm_info->rem_addr[0],
@@ -2270,191 +2270,191 @@ static struct i40iw_cm_node *i40iw_make_cm_node(
 			arpindex = -EINVAL;
 	}
 	if (arpindex < 0) {
-		i40iw_pr_err("cm_node arpindex\n");
-		kfree(cm_node);
+		i40iw_pr_err("cm_yesde arpindex\n");
+		kfree(cm_yesde);
 		return NULL;
 	}
-	ether_addr_copy(cm_node->rem_mac, iwdev->arp_table[arpindex].mac_addr);
-	i40iw_add_hte_node(cm_core, cm_node);
-	cm_core->stats_nodes_created++;
-	return cm_node;
+	ether_addr_copy(cm_yesde->rem_mac, iwdev->arp_table[arpindex].mac_addr);
+	i40iw_add_hte_yesde(cm_core, cm_yesde);
+	cm_core->stats_yesdes_created++;
+	return cm_yesde;
 }
 
 /**
- * i40iw_rem_ref_cm_node - destroy an instance of a cm node
- * @cm_node: connection's node
+ * i40iw_rem_ref_cm_yesde - destroy an instance of a cm yesde
+ * @cm_yesde: connection's yesde
  */
-static void i40iw_rem_ref_cm_node(struct i40iw_cm_node *cm_node)
+static void i40iw_rem_ref_cm_yesde(struct i40iw_cm_yesde *cm_yesde)
 {
-	struct i40iw_cm_core *cm_core = cm_node->cm_core;
+	struct i40iw_cm_core *cm_core = cm_yesde->cm_core;
 	struct i40iw_qp *iwqp;
 	struct i40iw_cm_info nfo;
 	unsigned long flags;
 
-	spin_lock_irqsave(&cm_node->cm_core->ht_lock, flags);
-	if (atomic_dec_return(&cm_node->ref_count)) {
-		spin_unlock_irqrestore(&cm_node->cm_core->ht_lock, flags);
+	spin_lock_irqsave(&cm_yesde->cm_core->ht_lock, flags);
+	if (atomic_dec_return(&cm_yesde->ref_count)) {
+		spin_unlock_irqrestore(&cm_yesde->cm_core->ht_lock, flags);
 		return;
 	}
-	list_del(&cm_node->list);
-	spin_unlock_irqrestore(&cm_node->cm_core->ht_lock, flags);
+	list_del(&cm_yesde->list);
+	spin_unlock_irqrestore(&cm_yesde->cm_core->ht_lock, flags);
 
-	/* if the node is destroyed before connection was accelerated */
-	if (!cm_node->accelerated && cm_node->accept_pend) {
-		pr_err("node destroyed before established\n");
-		atomic_dec(&cm_node->listener->pend_accepts_cnt);
+	/* if the yesde is destroyed before connection was accelerated */
+	if (!cm_yesde->accelerated && cm_yesde->accept_pend) {
+		pr_err("yesde destroyed before established\n");
+		atomic_dec(&cm_yesde->listener->pend_accepts_cnt);
 	}
-	if (cm_node->close_entry)
-		i40iw_handle_close_entry(cm_node, 0);
-	if (cm_node->listener) {
-		i40iw_dec_refcnt_listen(cm_core, cm_node->listener, 0, true);
+	if (cm_yesde->close_entry)
+		i40iw_handle_close_entry(cm_yesde, 0);
+	if (cm_yesde->listener) {
+		i40iw_dec_refcnt_listen(cm_core, cm_yesde->listener, 0, true);
 	} else {
-		if (cm_node->apbvt_set) {
-			i40iw_manage_apbvt(cm_node->iwdev,
-					   cm_node->loc_port,
+		if (cm_yesde->apbvt_set) {
+			i40iw_manage_apbvt(cm_yesde->iwdev,
+					   cm_yesde->loc_port,
 					   I40IW_MANAGE_APBVT_DEL);
-			cm_node->apbvt_set = 0;
+			cm_yesde->apbvt_set = 0;
 		}
-		i40iw_get_addr_info(cm_node, &nfo);
-		if (cm_node->qhash_set) {
-			i40iw_manage_qhash(cm_node->iwdev,
+		i40iw_get_addr_info(cm_yesde, &nfo);
+		if (cm_yesde->qhash_set) {
+			i40iw_manage_qhash(cm_yesde->iwdev,
 					   &nfo,
 					   I40IW_QHASH_TYPE_TCP_ESTABLISHED,
 					   I40IW_QHASH_MANAGE_TYPE_DELETE,
 					   NULL,
 					   false);
-			cm_node->qhash_set = 0;
+			cm_yesde->qhash_set = 0;
 		}
 	}
 
-	iwqp = cm_node->iwqp;
+	iwqp = cm_yesde->iwqp;
 	if (iwqp) {
-		iwqp->cm_node = NULL;
+		iwqp->cm_yesde = NULL;
 		i40iw_rem_ref(&iwqp->ibqp);
-		cm_node->iwqp = NULL;
-	} else if (cm_node->qhash_set) {
-		i40iw_get_addr_info(cm_node, &nfo);
-		i40iw_manage_qhash(cm_node->iwdev,
+		cm_yesde->iwqp = NULL;
+	} else if (cm_yesde->qhash_set) {
+		i40iw_get_addr_info(cm_yesde, &nfo);
+		i40iw_manage_qhash(cm_yesde->iwdev,
 				   &nfo,
 				   I40IW_QHASH_TYPE_TCP_ESTABLISHED,
 				   I40IW_QHASH_MANAGE_TYPE_DELETE,
 				   NULL,
 				   false);
-		cm_node->qhash_set = 0;
+		cm_yesde->qhash_set = 0;
 	}
 
-	cm_node->cm_core->stats_nodes_destroyed++;
-	kfree(cm_node);
+	cm_yesde->cm_core->stats_yesdes_destroyed++;
+	kfree(cm_yesde);
 }
 
 /**
  * i40iw_handle_fin_pkt - FIN packet received
- * @cm_node: connection's node
+ * @cm_yesde: connection's yesde
  */
-static void i40iw_handle_fin_pkt(struct i40iw_cm_node *cm_node)
+static void i40iw_handle_fin_pkt(struct i40iw_cm_yesde *cm_yesde)
 {
 	u32 ret;
 
-	switch (cm_node->state) {
+	switch (cm_yesde->state) {
 	case I40IW_CM_STATE_SYN_RCVD:
 	case I40IW_CM_STATE_SYN_SENT:
 	case I40IW_CM_STATE_ESTABLISHED:
 	case I40IW_CM_STATE_MPAREJ_RCVD:
-		cm_node->tcp_cntxt.rcv_nxt++;
-		i40iw_cleanup_retrans_entry(cm_node);
-		cm_node->state = I40IW_CM_STATE_LAST_ACK;
-		i40iw_send_fin(cm_node);
+		cm_yesde->tcp_cntxt.rcv_nxt++;
+		i40iw_cleanup_retrans_entry(cm_yesde);
+		cm_yesde->state = I40IW_CM_STATE_LAST_ACK;
+		i40iw_send_fin(cm_yesde);
 		break;
 	case I40IW_CM_STATE_MPAREQ_SENT:
-		i40iw_create_event(cm_node, I40IW_CM_EVENT_ABORTED);
-		cm_node->tcp_cntxt.rcv_nxt++;
-		i40iw_cleanup_retrans_entry(cm_node);
-		cm_node->state = I40IW_CM_STATE_CLOSED;
-		atomic_inc(&cm_node->ref_count);
-		i40iw_send_reset(cm_node);
+		i40iw_create_event(cm_yesde, I40IW_CM_EVENT_ABORTED);
+		cm_yesde->tcp_cntxt.rcv_nxt++;
+		i40iw_cleanup_retrans_entry(cm_yesde);
+		cm_yesde->state = I40IW_CM_STATE_CLOSED;
+		atomic_inc(&cm_yesde->ref_count);
+		i40iw_send_reset(cm_yesde);
 		break;
 	case I40IW_CM_STATE_FIN_WAIT1:
-		cm_node->tcp_cntxt.rcv_nxt++;
-		i40iw_cleanup_retrans_entry(cm_node);
-		cm_node->state = I40IW_CM_STATE_CLOSING;
-		i40iw_send_ack(cm_node);
+		cm_yesde->tcp_cntxt.rcv_nxt++;
+		i40iw_cleanup_retrans_entry(cm_yesde);
+		cm_yesde->state = I40IW_CM_STATE_CLOSING;
+		i40iw_send_ack(cm_yesde);
 		/*
 		 * Wait for ACK as this is simultaneous close.
-		 * After we receive ACK, do not send anything.
-		 * Just rm the node.
+		 * After we receive ACK, do yest send anything.
+		 * Just rm the yesde.
 		 */
 		break;
 	case I40IW_CM_STATE_FIN_WAIT2:
-		cm_node->tcp_cntxt.rcv_nxt++;
-		i40iw_cleanup_retrans_entry(cm_node);
-		cm_node->state = I40IW_CM_STATE_TIME_WAIT;
-		i40iw_send_ack(cm_node);
+		cm_yesde->tcp_cntxt.rcv_nxt++;
+		i40iw_cleanup_retrans_entry(cm_yesde);
+		cm_yesde->state = I40IW_CM_STATE_TIME_WAIT;
+		i40iw_send_ack(cm_yesde);
 		ret =
-		    i40iw_schedule_cm_timer(cm_node, NULL, I40IW_TIMER_TYPE_CLOSE, 1, 0);
+		    i40iw_schedule_cm_timer(cm_yesde, NULL, I40IW_TIMER_TYPE_CLOSE, 1, 0);
 		if (ret)
-			i40iw_pr_err("node %p state = %d\n", cm_node, cm_node->state);
+			i40iw_pr_err("yesde %p state = %d\n", cm_yesde, cm_yesde->state);
 		break;
 	case I40IW_CM_STATE_TIME_WAIT:
-		cm_node->tcp_cntxt.rcv_nxt++;
-		i40iw_cleanup_retrans_entry(cm_node);
-		cm_node->state = I40IW_CM_STATE_CLOSED;
-		i40iw_rem_ref_cm_node(cm_node);
+		cm_yesde->tcp_cntxt.rcv_nxt++;
+		i40iw_cleanup_retrans_entry(cm_yesde);
+		cm_yesde->state = I40IW_CM_STATE_CLOSED;
+		i40iw_rem_ref_cm_yesde(cm_yesde);
 		break;
 	case I40IW_CM_STATE_OFFLOADED:
 	default:
-		i40iw_pr_err("bad state node %p state = %d\n", cm_node, cm_node->state);
+		i40iw_pr_err("bad state yesde %p state = %d\n", cm_yesde, cm_yesde->state);
 		break;
 	}
 }
 
 /**
  * i40iw_handle_rst_pkt - process received RST packet
- * @cm_node: connection's node
+ * @cm_yesde: connection's yesde
  * @rbuf: receive buffer
  */
-static void i40iw_handle_rst_pkt(struct i40iw_cm_node *cm_node,
+static void i40iw_handle_rst_pkt(struct i40iw_cm_yesde *cm_yesde,
 				 struct i40iw_puda_buf *rbuf)
 {
-	i40iw_cleanup_retrans_entry(cm_node);
-	switch (cm_node->state) {
+	i40iw_cleanup_retrans_entry(cm_yesde);
+	switch (cm_yesde->state) {
 	case I40IW_CM_STATE_SYN_SENT:
 	case I40IW_CM_STATE_MPAREQ_SENT:
-		switch (cm_node->mpa_frame_rev) {
+		switch (cm_yesde->mpa_frame_rev) {
 		case IETF_MPA_V2:
-			cm_node->mpa_frame_rev = IETF_MPA_V1;
+			cm_yesde->mpa_frame_rev = IETF_MPA_V1;
 			/* send a syn and goto syn sent state */
-			cm_node->state = I40IW_CM_STATE_SYN_SENT;
-			if (i40iw_send_syn(cm_node, 0))
-				i40iw_active_open_err(cm_node, false);
+			cm_yesde->state = I40IW_CM_STATE_SYN_SENT;
+			if (i40iw_send_syn(cm_yesde, 0))
+				i40iw_active_open_err(cm_yesde, false);
 			break;
 		case IETF_MPA_V1:
 		default:
-			i40iw_active_open_err(cm_node, false);
+			i40iw_active_open_err(cm_yesde, false);
 			break;
 		}
 		break;
 	case I40IW_CM_STATE_MPAREQ_RCVD:
-		atomic_add_return(1, &cm_node->passive_state);
+		atomic_add_return(1, &cm_yesde->passive_state);
 		break;
 	case I40IW_CM_STATE_ESTABLISHED:
 	case I40IW_CM_STATE_SYN_RCVD:
 	case I40IW_CM_STATE_LISTENING:
-		i40iw_pr_err("Bad state state = %d\n", cm_node->state);
-		i40iw_passive_open_err(cm_node, false);
+		i40iw_pr_err("Bad state state = %d\n", cm_yesde->state);
+		i40iw_passive_open_err(cm_yesde, false);
 		break;
 	case I40IW_CM_STATE_OFFLOADED:
-		i40iw_active_open_err(cm_node, false);
+		i40iw_active_open_err(cm_yesde, false);
 		break;
 	case I40IW_CM_STATE_CLOSED:
 		break;
 	case I40IW_CM_STATE_FIN_WAIT2:
 	case I40IW_CM_STATE_FIN_WAIT1:
 	case I40IW_CM_STATE_LAST_ACK:
-		cm_node->cm_id->rem_ref(cm_node->cm_id);
+		cm_yesde->cm_id->rem_ref(cm_yesde->cm_id);
 		/* fall through */
 	case I40IW_CM_STATE_TIME_WAIT:
-		cm_node->state = I40IW_CM_STATE_CLOSED;
-		i40iw_rem_ref_cm_node(cm_node);
+		cm_yesde->state = I40IW_CM_STATE_CLOSED;
+		i40iw_rem_ref_cm_yesde(cm_yesde);
 		break;
 	default:
 		break;
@@ -2463,10 +2463,10 @@ static void i40iw_handle_rst_pkt(struct i40iw_cm_node *cm_node,
 
 /**
  * i40iw_handle_rcv_mpa - Process a recv'd mpa buffer
- * @cm_node: connection's node
+ * @cm_yesde: connection's yesde
  * @rbuf: receive buffer
  */
-static void i40iw_handle_rcv_mpa(struct i40iw_cm_node *cm_node,
+static void i40iw_handle_rcv_mpa(struct i40iw_cm_yesde *cm_yesde,
 				 struct i40iw_puda_buf *rbuf)
 {
 	int ret;
@@ -2476,57 +2476,57 @@ static void i40iw_handle_rcv_mpa(struct i40iw_cm_node *cm_node,
 	enum i40iw_cm_event_type type = I40IW_CM_EVENT_UNKNOWN;
 	u32 res_type;
 
-	ret = i40iw_parse_mpa(cm_node, dataloc, &res_type, datasize);
+	ret = i40iw_parse_mpa(cm_yesde, dataloc, &res_type, datasize);
 	if (ret) {
-		if (cm_node->state == I40IW_CM_STATE_MPAREQ_SENT)
-			i40iw_active_open_err(cm_node, true);
+		if (cm_yesde->state == I40IW_CM_STATE_MPAREQ_SENT)
+			i40iw_active_open_err(cm_yesde, true);
 		else
-			i40iw_passive_open_err(cm_node, true);
+			i40iw_passive_open_err(cm_yesde, true);
 		return;
 	}
 
-	switch (cm_node->state) {
+	switch (cm_yesde->state) {
 	case I40IW_CM_STATE_ESTABLISHED:
 		if (res_type == I40IW_MPA_REQUEST_REJECT)
 			i40iw_pr_err("state for reject\n");
-		cm_node->state = I40IW_CM_STATE_MPAREQ_RCVD;
+		cm_yesde->state = I40IW_CM_STATE_MPAREQ_RCVD;
 		type = I40IW_CM_EVENT_MPA_REQ;
-		i40iw_send_ack(cm_node);	/* ACK received MPA request */
-		atomic_set(&cm_node->passive_state,
+		i40iw_send_ack(cm_yesde);	/* ACK received MPA request */
+		atomic_set(&cm_yesde->passive_state,
 			   I40IW_PASSIVE_STATE_INDICATED);
 		break;
 	case I40IW_CM_STATE_MPAREQ_SENT:
-		i40iw_cleanup_retrans_entry(cm_node);
+		i40iw_cleanup_retrans_entry(cm_yesde);
 		if (res_type == I40IW_MPA_REQUEST_REJECT) {
 			type = I40IW_CM_EVENT_MPA_REJECT;
-			cm_node->state = I40IW_CM_STATE_MPAREJ_RCVD;
+			cm_yesde->state = I40IW_CM_STATE_MPAREJ_RCVD;
 		} else {
 			type = I40IW_CM_EVENT_CONNECTED;
-			cm_node->state = I40IW_CM_STATE_OFFLOADED;
+			cm_yesde->state = I40IW_CM_STATE_OFFLOADED;
 		}
-		i40iw_send_ack(cm_node);
+		i40iw_send_ack(cm_yesde);
 		break;
 	default:
-		pr_err("%s wrong cm_node state =%d\n", __func__, cm_node->state);
+		pr_err("%s wrong cm_yesde state =%d\n", __func__, cm_yesde->state);
 		break;
 	}
-	i40iw_create_event(cm_node, type);
+	i40iw_create_event(cm_yesde, type);
 }
 
 /**
  * i40iw_indicate_pkt_err - Send up err event to cm
- * @cm_node: connection's node
+ * @cm_yesde: connection's yesde
  */
-static void i40iw_indicate_pkt_err(struct i40iw_cm_node *cm_node)
+static void i40iw_indicate_pkt_err(struct i40iw_cm_yesde *cm_yesde)
 {
-	switch (cm_node->state) {
+	switch (cm_yesde->state) {
 	case I40IW_CM_STATE_SYN_SENT:
 	case I40IW_CM_STATE_MPAREQ_SENT:
-		i40iw_active_open_err(cm_node, true);
+		i40iw_active_open_err(cm_yesde, true);
 		break;
 	case I40IW_CM_STATE_ESTABLISHED:
 	case I40IW_CM_STATE_SYN_RCVD:
-		i40iw_passive_open_err(cm_node, true);
+		i40iw_passive_open_err(cm_yesde, true);
 		break;
 	case I40IW_CM_STATE_OFFLOADED:
 	default:
@@ -2536,54 +2536,54 @@ static void i40iw_indicate_pkt_err(struct i40iw_cm_node *cm_node)
 
 /**
  * i40iw_check_syn - Check for error on received syn ack
- * @cm_node: connection's node
+ * @cm_yesde: connection's yesde
  * @tcph: pointer tcp header
  */
-static int i40iw_check_syn(struct i40iw_cm_node *cm_node, struct tcphdr *tcph)
+static int i40iw_check_syn(struct i40iw_cm_yesde *cm_yesde, struct tcphdr *tcph)
 {
 	int err = 0;
 
-	if (ntohl(tcph->ack_seq) != cm_node->tcp_cntxt.loc_seq_num) {
+	if (ntohl(tcph->ack_seq) != cm_yesde->tcp_cntxt.loc_seq_num) {
 		err = 1;
-		i40iw_active_open_err(cm_node, true);
+		i40iw_active_open_err(cm_yesde, true);
 	}
 	return err;
 }
 
 /**
  * i40iw_check_seq - check seq numbers if OK
- * @cm_node: connection's node
+ * @cm_yesde: connection's yesde
  * @tcph: pointer tcp header
  */
-static int i40iw_check_seq(struct i40iw_cm_node *cm_node, struct tcphdr *tcph)
+static int i40iw_check_seq(struct i40iw_cm_yesde *cm_yesde, struct tcphdr *tcph)
 {
 	int err = 0;
 	u32 seq;
 	u32 ack_seq;
-	u32 loc_seq_num = cm_node->tcp_cntxt.loc_seq_num;
-	u32 rcv_nxt = cm_node->tcp_cntxt.rcv_nxt;
+	u32 loc_seq_num = cm_yesde->tcp_cntxt.loc_seq_num;
+	u32 rcv_nxt = cm_yesde->tcp_cntxt.rcv_nxt;
 	u32 rcv_wnd;
 
 	seq = ntohl(tcph->seq);
 	ack_seq = ntohl(tcph->ack_seq);
-	rcv_wnd = cm_node->tcp_cntxt.rcv_wnd;
+	rcv_wnd = cm_yesde->tcp_cntxt.rcv_wnd;
 	if (ack_seq != loc_seq_num)
 		err = -1;
 	else if (!between(seq, rcv_nxt, (rcv_nxt + rcv_wnd)))
 		err = -1;
 	if (err) {
 		i40iw_pr_err("seq number\n");
-		i40iw_indicate_pkt_err(cm_node);
+		i40iw_indicate_pkt_err(cm_yesde);
 	}
 	return err;
 }
 
 /**
- * i40iw_handle_syn_pkt - is for Passive node
- * @cm_node: connection's node
+ * i40iw_handle_syn_pkt - is for Passive yesde
+ * @cm_yesde: connection's yesde
  * @rbuf: receive buffer
  */
-static void i40iw_handle_syn_pkt(struct i40iw_cm_node *cm_node,
+static void i40iw_handle_syn_pkt(struct i40iw_cm_yesde *cm_yesde,
 				 struct i40iw_puda_buf *rbuf)
 {
 	struct tcphdr *tcph = (struct tcphdr *)rbuf->tcph;
@@ -2595,44 +2595,44 @@ static void i40iw_handle_syn_pkt(struct i40iw_cm_node *cm_node,
 	optionsize = (tcph->doff << 2) - sizeof(struct tcphdr);
 	inc_sequence = ntohl(tcph->seq);
 
-	switch (cm_node->state) {
+	switch (cm_yesde->state) {
 	case I40IW_CM_STATE_SYN_SENT:
 	case I40IW_CM_STATE_MPAREQ_SENT:
 		/* Rcvd syn on active open connection */
-		i40iw_active_open_err(cm_node, 1);
+		i40iw_active_open_err(cm_yesde, 1);
 		break;
 	case I40IW_CM_STATE_LISTENING:
 		/* Passive OPEN */
-		if (atomic_read(&cm_node->listener->pend_accepts_cnt) >
-		    cm_node->listener->backlog) {
-			cm_node->cm_core->stats_backlog_drops++;
-			i40iw_passive_open_err(cm_node, false);
+		if (atomic_read(&cm_yesde->listener->pend_accepts_cnt) >
+		    cm_yesde->listener->backlog) {
+			cm_yesde->cm_core->stats_backlog_drops++;
+			i40iw_passive_open_err(cm_yesde, false);
 			break;
 		}
-		ret = i40iw_handle_tcp_options(cm_node, tcph, optionsize, 1);
+		ret = i40iw_handle_tcp_options(cm_yesde, tcph, optionsize, 1);
 		if (ret) {
-			i40iw_passive_open_err(cm_node, false);
+			i40iw_passive_open_err(cm_yesde, false);
 			/* drop pkt */
 			break;
 		}
-		cm_node->tcp_cntxt.rcv_nxt = inc_sequence + 1;
-		cm_node->accept_pend = 1;
-		atomic_inc(&cm_node->listener->pend_accepts_cnt);
+		cm_yesde->tcp_cntxt.rcv_nxt = inc_sequence + 1;
+		cm_yesde->accept_pend = 1;
+		atomic_inc(&cm_yesde->listener->pend_accepts_cnt);
 
-		cm_node->state = I40IW_CM_STATE_SYN_RCVD;
-		i40iw_get_addr_info(cm_node, &nfo);
-		ret = i40iw_manage_qhash(cm_node->iwdev,
+		cm_yesde->state = I40IW_CM_STATE_SYN_RCVD;
+		i40iw_get_addr_info(cm_yesde, &nfo);
+		ret = i40iw_manage_qhash(cm_yesde->iwdev,
 					 &nfo,
 					 I40IW_QHASH_TYPE_TCP_ESTABLISHED,
 					 I40IW_QHASH_MANAGE_TYPE_ADD,
-					 (void *)cm_node,
+					 (void *)cm_yesde,
 					 false);
-		cm_node->qhash_set = true;
+		cm_yesde->qhash_set = true;
 		break;
 	case I40IW_CM_STATE_CLOSED:
-		i40iw_cleanup_retrans_entry(cm_node);
-		atomic_inc(&cm_node->ref_count);
-		i40iw_send_reset(cm_node);
+		i40iw_cleanup_retrans_entry(cm_yesde);
+		atomic_inc(&cm_yesde->ref_count);
+		i40iw_send_reset(cm_yesde);
 		break;
 	case I40IW_CM_STATE_OFFLOADED:
 	case I40IW_CM_STATE_ESTABLISHED:
@@ -2649,10 +2649,10 @@ static void i40iw_handle_syn_pkt(struct i40iw_cm_node *cm_node,
 
 /**
  * i40iw_handle_synack_pkt - Process SYN+ACK packet (active side)
- * @cm_node: connection's node
+ * @cm_yesde: connection's yesde
  * @rbuf: receive buffer
  */
-static void i40iw_handle_synack_pkt(struct i40iw_cm_node *cm_node,
+static void i40iw_handle_synack_pkt(struct i40iw_cm_yesde *cm_yesde,
 				    struct i40iw_puda_buf *rbuf)
 {
 	struct tcphdr *tcph = (struct tcphdr *)rbuf->tcph;
@@ -2662,51 +2662,51 @@ static void i40iw_handle_synack_pkt(struct i40iw_cm_node *cm_node,
 
 	optionsize = (tcph->doff << 2) - sizeof(struct tcphdr);
 	inc_sequence = ntohl(tcph->seq);
-	switch (cm_node->state) {
+	switch (cm_yesde->state) {
 	case I40IW_CM_STATE_SYN_SENT:
-		i40iw_cleanup_retrans_entry(cm_node);
+		i40iw_cleanup_retrans_entry(cm_yesde);
 		/* active open */
-		if (i40iw_check_syn(cm_node, tcph)) {
+		if (i40iw_check_syn(cm_yesde, tcph)) {
 			i40iw_pr_err("check syn fail\n");
 			return;
 		}
-		cm_node->tcp_cntxt.rem_ack_num = ntohl(tcph->ack_seq);
+		cm_yesde->tcp_cntxt.rem_ack_num = ntohl(tcph->ack_seq);
 		/* setup options */
-		ret = i40iw_handle_tcp_options(cm_node, tcph, optionsize, 0);
+		ret = i40iw_handle_tcp_options(cm_yesde, tcph, optionsize, 0);
 		if (ret) {
-			i40iw_debug(cm_node->dev,
+			i40iw_debug(cm_yesde->dev,
 				    I40IW_DEBUG_CM,
-				    "cm_node=%p tcp_options failed\n",
-				    cm_node);
+				    "cm_yesde=%p tcp_options failed\n",
+				    cm_yesde);
 			break;
 		}
-		i40iw_cleanup_retrans_entry(cm_node);
-		cm_node->tcp_cntxt.rcv_nxt = inc_sequence + 1;
-		i40iw_send_ack(cm_node);	/* ACK  for the syn_ack */
-		ret = i40iw_send_mpa_request(cm_node);
+		i40iw_cleanup_retrans_entry(cm_yesde);
+		cm_yesde->tcp_cntxt.rcv_nxt = inc_sequence + 1;
+		i40iw_send_ack(cm_yesde);	/* ACK  for the syn_ack */
+		ret = i40iw_send_mpa_request(cm_yesde);
 		if (ret) {
-			i40iw_debug(cm_node->dev,
+			i40iw_debug(cm_yesde->dev,
 				    I40IW_DEBUG_CM,
-				    "cm_node=%p i40iw_send_mpa_request failed\n",
-				    cm_node);
+				    "cm_yesde=%p i40iw_send_mpa_request failed\n",
+				    cm_yesde);
 			break;
 		}
-		cm_node->state = I40IW_CM_STATE_MPAREQ_SENT;
+		cm_yesde->state = I40IW_CM_STATE_MPAREQ_SENT;
 		break;
 	case I40IW_CM_STATE_MPAREQ_RCVD:
-		i40iw_passive_open_err(cm_node, true);
+		i40iw_passive_open_err(cm_yesde, true);
 		break;
 	case I40IW_CM_STATE_LISTENING:
-		cm_node->tcp_cntxt.loc_seq_num = ntohl(tcph->ack_seq);
-		i40iw_cleanup_retrans_entry(cm_node);
-		cm_node->state = I40IW_CM_STATE_CLOSED;
-		i40iw_send_reset(cm_node);
+		cm_yesde->tcp_cntxt.loc_seq_num = ntohl(tcph->ack_seq);
+		i40iw_cleanup_retrans_entry(cm_yesde);
+		cm_yesde->state = I40IW_CM_STATE_CLOSED;
+		i40iw_send_reset(cm_yesde);
 		break;
 	case I40IW_CM_STATE_CLOSED:
-		cm_node->tcp_cntxt.loc_seq_num = ntohl(tcph->ack_seq);
-		i40iw_cleanup_retrans_entry(cm_node);
-		atomic_inc(&cm_node->ref_count);
-		i40iw_send_reset(cm_node);
+		cm_yesde->tcp_cntxt.loc_seq_num = ntohl(tcph->ack_seq);
+		i40iw_cleanup_retrans_entry(cm_yesde);
+		atomic_inc(&cm_yesde->ref_count);
+		i40iw_send_reset(cm_yesde);
 		break;
 	case I40IW_CM_STATE_ESTABLISHED:
 	case I40IW_CM_STATE_FIN_WAIT1:
@@ -2723,10 +2723,10 @@ static void i40iw_handle_synack_pkt(struct i40iw_cm_node *cm_node,
 
 /**
  * i40iw_handle_ack_pkt - process packet with ACK
- * @cm_node: connection's node
+ * @cm_yesde: connection's yesde
  * @rbuf: receive buffer
  */
-static int i40iw_handle_ack_pkt(struct i40iw_cm_node *cm_node,
+static int i40iw_handle_ack_pkt(struct i40iw_cm_yesde *cm_yesde,
 				struct i40iw_puda_buf *rbuf)
 {
 	struct tcphdr *tcph = (struct tcphdr *)rbuf->tcph;
@@ -2737,61 +2737,61 @@ static int i40iw_handle_ack_pkt(struct i40iw_cm_node *cm_node,
 
 	optionsize = (tcph->doff << 2) - sizeof(struct tcphdr);
 
-	if (i40iw_check_seq(cm_node, tcph))
+	if (i40iw_check_seq(cm_yesde, tcph))
 		return -EINVAL;
 
 	inc_sequence = ntohl(tcph->seq);
-	switch (cm_node->state) {
+	switch (cm_yesde->state) {
 	case I40IW_CM_STATE_SYN_RCVD:
-		i40iw_cleanup_retrans_entry(cm_node);
-		ret = i40iw_handle_tcp_options(cm_node, tcph, optionsize, 1);
+		i40iw_cleanup_retrans_entry(cm_yesde);
+		ret = i40iw_handle_tcp_options(cm_yesde, tcph, optionsize, 1);
 		if (ret)
 			break;
-		cm_node->tcp_cntxt.rem_ack_num = ntohl(tcph->ack_seq);
-		cm_node->state = I40IW_CM_STATE_ESTABLISHED;
+		cm_yesde->tcp_cntxt.rem_ack_num = ntohl(tcph->ack_seq);
+		cm_yesde->state = I40IW_CM_STATE_ESTABLISHED;
 		if (datasize) {
-			cm_node->tcp_cntxt.rcv_nxt = inc_sequence + datasize;
-			i40iw_handle_rcv_mpa(cm_node, rbuf);
+			cm_yesde->tcp_cntxt.rcv_nxt = inc_sequence + datasize;
+			i40iw_handle_rcv_mpa(cm_yesde, rbuf);
 		}
 		break;
 	case I40IW_CM_STATE_ESTABLISHED:
-		i40iw_cleanup_retrans_entry(cm_node);
+		i40iw_cleanup_retrans_entry(cm_yesde);
 		if (datasize) {
-			cm_node->tcp_cntxt.rcv_nxt = inc_sequence + datasize;
-			i40iw_handle_rcv_mpa(cm_node, rbuf);
+			cm_yesde->tcp_cntxt.rcv_nxt = inc_sequence + datasize;
+			i40iw_handle_rcv_mpa(cm_yesde, rbuf);
 		}
 		break;
 	case I40IW_CM_STATE_MPAREQ_SENT:
-		cm_node->tcp_cntxt.rem_ack_num = ntohl(tcph->ack_seq);
+		cm_yesde->tcp_cntxt.rem_ack_num = ntohl(tcph->ack_seq);
 		if (datasize) {
-			cm_node->tcp_cntxt.rcv_nxt = inc_sequence + datasize;
-			cm_node->ack_rcvd = false;
-			i40iw_handle_rcv_mpa(cm_node, rbuf);
+			cm_yesde->tcp_cntxt.rcv_nxt = inc_sequence + datasize;
+			cm_yesde->ack_rcvd = false;
+			i40iw_handle_rcv_mpa(cm_yesde, rbuf);
 		} else {
-			cm_node->ack_rcvd = true;
+			cm_yesde->ack_rcvd = true;
 		}
 		break;
 	case I40IW_CM_STATE_LISTENING:
-		i40iw_cleanup_retrans_entry(cm_node);
-		cm_node->state = I40IW_CM_STATE_CLOSED;
-		i40iw_send_reset(cm_node);
+		i40iw_cleanup_retrans_entry(cm_yesde);
+		cm_yesde->state = I40IW_CM_STATE_CLOSED;
+		i40iw_send_reset(cm_yesde);
 		break;
 	case I40IW_CM_STATE_CLOSED:
-		i40iw_cleanup_retrans_entry(cm_node);
-		atomic_inc(&cm_node->ref_count);
-		i40iw_send_reset(cm_node);
+		i40iw_cleanup_retrans_entry(cm_yesde);
+		atomic_inc(&cm_yesde->ref_count);
+		i40iw_send_reset(cm_yesde);
 		break;
 	case I40IW_CM_STATE_LAST_ACK:
 	case I40IW_CM_STATE_CLOSING:
-		i40iw_cleanup_retrans_entry(cm_node);
-		cm_node->state = I40IW_CM_STATE_CLOSED;
-		if (!cm_node->accept_pend)
-			cm_node->cm_id->rem_ref(cm_node->cm_id);
-		i40iw_rem_ref_cm_node(cm_node);
+		i40iw_cleanup_retrans_entry(cm_yesde);
+		cm_yesde->state = I40IW_CM_STATE_CLOSED;
+		if (!cm_yesde->accept_pend)
+			cm_yesde->cm_id->rem_ref(cm_yesde->cm_id);
+		i40iw_rem_ref_cm_yesde(cm_yesde);
 		break;
 	case I40IW_CM_STATE_FIN_WAIT1:
-		i40iw_cleanup_retrans_entry(cm_node);
-		cm_node->state = I40IW_CM_STATE_FIN_WAIT2;
+		i40iw_cleanup_retrans_entry(cm_yesde);
+		cm_yesde->state = I40IW_CM_STATE_FIN_WAIT2;
 		break;
 	case I40IW_CM_STATE_SYN_SENT:
 	case I40IW_CM_STATE_FIN_WAIT2:
@@ -2799,7 +2799,7 @@ static int i40iw_handle_ack_pkt(struct i40iw_cm_node *cm_node,
 	case I40IW_CM_STATE_MPAREQ_RCVD:
 	case I40IW_CM_STATE_UNKNOWN:
 	default:
-		i40iw_cleanup_retrans_entry(cm_node);
+		i40iw_cleanup_retrans_entry(cm_yesde);
 		break;
 	}
 	return ret;
@@ -2807,10 +2807,10 @@ static int i40iw_handle_ack_pkt(struct i40iw_cm_node *cm_node,
 
 /**
  * i40iw_process_packet - process cm packet
- * @cm_node: connection's node
+ * @cm_yesde: connection's yesde
  * @rbuf: receive buffer
  */
-static void i40iw_process_packet(struct i40iw_cm_node *cm_node,
+static void i40iw_process_packet(struct i40iw_cm_yesde *cm_yesde,
 				 struct i40iw_puda_buf *rbuf)
 {
 	enum i40iw_tcpip_pkt_type pkt_type = I40IW_PKT_TYPE_UNKNOWN;
@@ -2832,34 +2832,34 @@ static void i40iw_process_packet(struct i40iw_cm_node *cm_node,
 
 	switch (pkt_type) {
 	case I40IW_PKT_TYPE_SYN:
-		i40iw_handle_syn_pkt(cm_node, rbuf);
+		i40iw_handle_syn_pkt(cm_yesde, rbuf);
 		break;
 	case I40IW_PKT_TYPE_SYNACK:
-		i40iw_handle_synack_pkt(cm_node, rbuf);
+		i40iw_handle_synack_pkt(cm_yesde, rbuf);
 		break;
 	case I40IW_PKT_TYPE_ACK:
-		ret = i40iw_handle_ack_pkt(cm_node, rbuf);
+		ret = i40iw_handle_ack_pkt(cm_yesde, rbuf);
 		if (fin_set && !ret)
-			i40iw_handle_fin_pkt(cm_node);
+			i40iw_handle_fin_pkt(cm_yesde);
 		break;
 	case I40IW_PKT_TYPE_RST:
-		i40iw_handle_rst_pkt(cm_node, rbuf);
+		i40iw_handle_rst_pkt(cm_yesde, rbuf);
 		break;
 	default:
 		if (fin_set &&
-		    (!i40iw_check_seq(cm_node, (struct tcphdr *)rbuf->tcph)))
-			i40iw_handle_fin_pkt(cm_node);
+		    (!i40iw_check_seq(cm_yesde, (struct tcphdr *)rbuf->tcph)))
+			i40iw_handle_fin_pkt(cm_yesde);
 		break;
 	}
 }
 
 /**
- * i40iw_make_listen_node - create a listen node with params
+ * i40iw_make_listen_yesde - create a listen yesde with params
  * @cm_core: cm's core
  * @iwdev: iwarp device structure
  * @cm_info: quad info for connection
  */
-static struct i40iw_cm_listener *i40iw_make_listen_node(
+static struct i40iw_cm_listener *i40iw_make_listen_yesde(
 					struct i40iw_cm_core *cm_core,
 					struct i40iw_device *iwdev,
 					struct i40iw_cm_info *cm_info)
@@ -2867,7 +2867,7 @@ static struct i40iw_cm_listener *i40iw_make_listen_node(
 	struct i40iw_cm_listener *listener;
 	unsigned long flags;
 
-	/* cannot have multiple matching listeners */
+	/* canyest have multiple matching listeners */
 	listener = i40iw_find_listener(cm_core, cm_info->loc_addr,
 				       cm_info->loc_port,
 				       cm_info->vlan_id,
@@ -2882,11 +2882,11 @@ static struct i40iw_cm_listener *i40iw_make_listen_node(
 	}
 
 	if (!listener) {
-		/* create a CM listen node (1/2 node to compare incoming traffic to) */
+		/* create a CM listen yesde (1/2 yesde to compare incoming traffic to) */
 		listener = kzalloc(sizeof(*listener), GFP_KERNEL);
 		if (!listener)
 			return NULL;
-		cm_core->stats_listen_nodes_created++;
+		cm_core->stats_listen_yesdes_created++;
 		memcpy(listener->loc_addr, cm_info->loc_addr, sizeof(listener->loc_addr));
 		listener->loc_port = cm_info->loc_port;
 
@@ -2894,7 +2894,7 @@ static struct i40iw_cm_listener *i40iw_make_listen_node(
 
 		atomic_set(&listener->ref_count, 1);
 	} else {
-		listener->reused_node = 1;
+		listener->reused_yesde = 1;
 	}
 
 	listener->cm_id = cm_info->cm_id;
@@ -2907,9 +2907,9 @@ static struct i40iw_cm_listener *i40iw_make_listen_node(
 	listener->backlog = cm_info->backlog;
 	listener->listener_state = I40IW_CM_LISTENER_ACTIVE_STATE;
 
-	if (!listener->reused_node) {
+	if (!listener->reused_yesde) {
 		spin_lock_irqsave(&cm_core->listen_list_lock, flags);
-		list_add(&listener->list, &cm_core->listen_nodes);
+		list_add(&listener->list, &cm_core->listen_yesdes);
 		spin_unlock_irqrestore(&cm_core->listen_list_lock, flags);
 	}
 
@@ -2917,45 +2917,45 @@ static struct i40iw_cm_listener *i40iw_make_listen_node(
 }
 
 /**
- * i40iw_create_cm_node - make a connection node with params
+ * i40iw_create_cm_yesde - make a connection yesde with params
  * @cm_core: cm's core
  * @iwdev: iwarp device structure
  * @conn_param: upper layer connection parameters
  * @cm_info: quad info for connection
  */
-static struct i40iw_cm_node *i40iw_create_cm_node(
+static struct i40iw_cm_yesde *i40iw_create_cm_yesde(
 					struct i40iw_cm_core *cm_core,
 					struct i40iw_device *iwdev,
 					struct iw_cm_conn_param *conn_param,
 					struct i40iw_cm_info *cm_info)
 {
-	struct i40iw_cm_node *cm_node;
+	struct i40iw_cm_yesde *cm_yesde;
 	struct i40iw_cm_listener *loopback_remotelistener;
-	struct i40iw_cm_node *loopback_remotenode;
+	struct i40iw_cm_yesde *loopback_remoteyesde;
 	struct i40iw_cm_info loopback_cm_info;
 
 	u16 private_data_len = conn_param->private_data_len;
 	const void *private_data = conn_param->private_data;
 
-	/* create a CM connection node */
-	cm_node = i40iw_make_cm_node(cm_core, iwdev, cm_info, NULL);
-	if (!cm_node)
+	/* create a CM connection yesde */
+	cm_yesde = i40iw_make_cm_yesde(cm_core, iwdev, cm_info, NULL);
+	if (!cm_yesde)
 		return ERR_PTR(-ENOMEM);
-	/* set our node side to client (active) side */
-	cm_node->tcp_cntxt.client = 1;
-	cm_node->tcp_cntxt.rcv_wscale = I40IW_CM_DEFAULT_RCV_WND_SCALE;
+	/* set our yesde side to client (active) side */
+	cm_yesde->tcp_cntxt.client = 1;
+	cm_yesde->tcp_cntxt.rcv_wscale = I40IW_CM_DEFAULT_RCV_WND_SCALE;
 
-	i40iw_record_ird_ord(cm_node, conn_param->ird, conn_param->ord);
+	i40iw_record_ird_ord(cm_yesde, conn_param->ird, conn_param->ord);
 
 	if (!memcmp(cm_info->loc_addr, cm_info->rem_addr, sizeof(cm_info->loc_addr))) {
 		loopback_remotelistener = i40iw_find_listener(
 						cm_core,
 						cm_info->rem_addr,
-						cm_node->rem_port,
-						cm_node->vlan_id,
+						cm_yesde->rem_port,
+						cm_yesde->vlan_id,
 						I40IW_CM_LISTENER_ACTIVE_STATE);
 		if (!loopback_remotelistener) {
-			i40iw_rem_ref_cm_node(cm_node);
+			i40iw_rem_ref_cm_yesde(cm_yesde);
 			return ERR_PTR(-ECONNREFUSED);
 		} else {
 			loopback_cm_info = *cm_info;
@@ -2963,83 +2963,83 @@ static struct i40iw_cm_node *i40iw_create_cm_node(
 			loopback_cm_info.rem_port = cm_info->loc_port;
 			loopback_cm_info.cm_id = loopback_remotelistener->cm_id;
 			loopback_cm_info.ipv4 = cm_info->ipv4;
-			loopback_remotenode = i40iw_make_cm_node(cm_core,
+			loopback_remoteyesde = i40iw_make_cm_yesde(cm_core,
 								 iwdev,
 								 &loopback_cm_info,
 								 loopback_remotelistener);
-			if (!loopback_remotenode) {
-				i40iw_rem_ref_cm_node(cm_node);
+			if (!loopback_remoteyesde) {
+				i40iw_rem_ref_cm_yesde(cm_yesde);
 				return ERR_PTR(-ENOMEM);
 			}
 			cm_core->stats_loopbacks++;
-			loopback_remotenode->loopbackpartner = cm_node;
-			loopback_remotenode->tcp_cntxt.rcv_wscale =
+			loopback_remoteyesde->loopbackpartner = cm_yesde;
+			loopback_remoteyesde->tcp_cntxt.rcv_wscale =
 				I40IW_CM_DEFAULT_RCV_WND_SCALE;
-			cm_node->loopbackpartner = loopback_remotenode;
-			memcpy(loopback_remotenode->pdata_buf, private_data,
+			cm_yesde->loopbackpartner = loopback_remoteyesde;
+			memcpy(loopback_remoteyesde->pdata_buf, private_data,
 			       private_data_len);
-			loopback_remotenode->pdata.size = private_data_len;
+			loopback_remoteyesde->pdata.size = private_data_len;
 
-			if (loopback_remotenode->ord_size > cm_node->ird_size)
-				loopback_remotenode->ord_size =
-					cm_node->ird_size;
+			if (loopback_remoteyesde->ord_size > cm_yesde->ird_size)
+				loopback_remoteyesde->ord_size =
+					cm_yesde->ird_size;
 
-			cm_node->state = I40IW_CM_STATE_OFFLOADED;
-			cm_node->tcp_cntxt.rcv_nxt =
-				loopback_remotenode->tcp_cntxt.loc_seq_num;
-			loopback_remotenode->tcp_cntxt.rcv_nxt =
-				cm_node->tcp_cntxt.loc_seq_num;
-			cm_node->tcp_cntxt.max_snd_wnd =
-				loopback_remotenode->tcp_cntxt.rcv_wnd;
-			loopback_remotenode->tcp_cntxt.max_snd_wnd = cm_node->tcp_cntxt.rcv_wnd;
-			cm_node->tcp_cntxt.snd_wnd = loopback_remotenode->tcp_cntxt.rcv_wnd;
-			loopback_remotenode->tcp_cntxt.snd_wnd = cm_node->tcp_cntxt.rcv_wnd;
-			cm_node->tcp_cntxt.snd_wscale = loopback_remotenode->tcp_cntxt.rcv_wscale;
-			loopback_remotenode->tcp_cntxt.snd_wscale = cm_node->tcp_cntxt.rcv_wscale;
+			cm_yesde->state = I40IW_CM_STATE_OFFLOADED;
+			cm_yesde->tcp_cntxt.rcv_nxt =
+				loopback_remoteyesde->tcp_cntxt.loc_seq_num;
+			loopback_remoteyesde->tcp_cntxt.rcv_nxt =
+				cm_yesde->tcp_cntxt.loc_seq_num;
+			cm_yesde->tcp_cntxt.max_snd_wnd =
+				loopback_remoteyesde->tcp_cntxt.rcv_wnd;
+			loopback_remoteyesde->tcp_cntxt.max_snd_wnd = cm_yesde->tcp_cntxt.rcv_wnd;
+			cm_yesde->tcp_cntxt.snd_wnd = loopback_remoteyesde->tcp_cntxt.rcv_wnd;
+			loopback_remoteyesde->tcp_cntxt.snd_wnd = cm_yesde->tcp_cntxt.rcv_wnd;
+			cm_yesde->tcp_cntxt.snd_wscale = loopback_remoteyesde->tcp_cntxt.rcv_wscale;
+			loopback_remoteyesde->tcp_cntxt.snd_wscale = cm_yesde->tcp_cntxt.rcv_wscale;
 		}
-		return cm_node;
+		return cm_yesde;
 	}
 
-	cm_node->pdata.size = private_data_len;
-	cm_node->pdata.addr = cm_node->pdata_buf;
+	cm_yesde->pdata.size = private_data_len;
+	cm_yesde->pdata.addr = cm_yesde->pdata_buf;
 
-	memcpy(cm_node->pdata_buf, private_data, private_data_len);
+	memcpy(cm_yesde->pdata_buf, private_data, private_data_len);
 
-	cm_node->state = I40IW_CM_STATE_SYN_SENT;
-	return cm_node;
+	cm_yesde->state = I40IW_CM_STATE_SYN_SENT;
+	return cm_yesde;
 }
 
 /**
  * i40iw_cm_reject - reject and teardown a connection
- * @cm_node: connection's node
+ * @cm_yesde: connection's yesde
  * @pdate: ptr to private data for reject
  * @plen: size of private data
  */
-static int i40iw_cm_reject(struct i40iw_cm_node *cm_node, const void *pdata, u8 plen)
+static int i40iw_cm_reject(struct i40iw_cm_yesde *cm_yesde, const void *pdata, u8 plen)
 {
 	int ret = 0;
 	int err;
 	int passive_state;
-	struct iw_cm_id *cm_id = cm_node->cm_id;
-	struct i40iw_cm_node *loopback = cm_node->loopbackpartner;
+	struct iw_cm_id *cm_id = cm_yesde->cm_id;
+	struct i40iw_cm_yesde *loopback = cm_yesde->loopbackpartner;
 
-	if (cm_node->tcp_cntxt.client)
+	if (cm_yesde->tcp_cntxt.client)
 		return ret;
-	i40iw_cleanup_retrans_entry(cm_node);
+	i40iw_cleanup_retrans_entry(cm_yesde);
 
 	if (!loopback) {
-		passive_state = atomic_add_return(1, &cm_node->passive_state);
+		passive_state = atomic_add_return(1, &cm_yesde->passive_state);
 		if (passive_state == I40IW_SEND_RESET_EVENT) {
-			cm_node->state = I40IW_CM_STATE_CLOSED;
-			i40iw_rem_ref_cm_node(cm_node);
+			cm_yesde->state = I40IW_CM_STATE_CLOSED;
+			i40iw_rem_ref_cm_yesde(cm_yesde);
 		} else {
-			if (cm_node->state == I40IW_CM_STATE_LISTENER_DESTROYED) {
-				i40iw_rem_ref_cm_node(cm_node);
+			if (cm_yesde->state == I40IW_CM_STATE_LISTENER_DESTROYED) {
+				i40iw_rem_ref_cm_yesde(cm_yesde);
 			} else {
-				ret = i40iw_send_mpa_reject(cm_node, pdata, plen);
+				ret = i40iw_send_mpa_reject(cm_yesde, pdata, plen);
 				if (ret) {
-					cm_node->state = I40IW_CM_STATE_CLOSED;
-					err = i40iw_send_reset(cm_node);
+					cm_yesde->state = I40IW_CM_STATE_CLOSED;
+					err = i40iw_send_reset(cm_yesde);
 					if (err)
 						i40iw_pr_err("send reset failed\n");
 				} else {
@@ -3048,20 +3048,20 @@ static int i40iw_cm_reject(struct i40iw_cm_node *cm_node, const void *pdata, u8 
 			}
 		}
 	} else {
-		cm_node->cm_id = NULL;
-		if (cm_node->state == I40IW_CM_STATE_LISTENER_DESTROYED) {
-			i40iw_rem_ref_cm_node(cm_node);
-			i40iw_rem_ref_cm_node(loopback);
+		cm_yesde->cm_id = NULL;
+		if (cm_yesde->state == I40IW_CM_STATE_LISTENER_DESTROYED) {
+			i40iw_rem_ref_cm_yesde(cm_yesde);
+			i40iw_rem_ref_cm_yesde(loopback);
 		} else {
 			ret = i40iw_send_cm_event(loopback,
 						  loopback->cm_id,
 						  IW_CM_EVENT_CONNECT_REPLY,
 						  -ECONNREFUSED);
-			i40iw_rem_ref_cm_node(cm_node);
+			i40iw_rem_ref_cm_yesde(cm_yesde);
 			loopback->state = I40IW_CM_STATE_CLOSING;
 
 			cm_id = loopback->cm_id;
-			i40iw_rem_ref_cm_node(loopback);
+			i40iw_rem_ref_cm_yesde(loopback);
 			cm_id->rem_ref(cm_id);
 		}
 	}
@@ -3071,16 +3071,16 @@ static int i40iw_cm_reject(struct i40iw_cm_node *cm_node, const void *pdata, u8 
 
 /**
  * i40iw_cm_close - close of cm connection
- * @cm_node: connection's node
+ * @cm_yesde: connection's yesde
  */
-static int i40iw_cm_close(struct i40iw_cm_node *cm_node)
+static int i40iw_cm_close(struct i40iw_cm_yesde *cm_yesde)
 {
 	int ret = 0;
 
-	if (!cm_node)
+	if (!cm_yesde)
 		return -EINVAL;
 
-	switch (cm_node->state) {
+	switch (cm_yesde->state) {
 	case I40IW_CM_STATE_SYN_RCVD:
 	case I40IW_CM_STATE_SYN_SENT:
 	case I40IW_CM_STATE_ONE_SIDE_ESTABLISHED:
@@ -3088,12 +3088,12 @@ static int i40iw_cm_close(struct i40iw_cm_node *cm_node)
 	case I40IW_CM_STATE_ACCEPTING:
 	case I40IW_CM_STATE_MPAREQ_SENT:
 	case I40IW_CM_STATE_MPAREQ_RCVD:
-		i40iw_cleanup_retrans_entry(cm_node);
-		i40iw_send_reset(cm_node);
+		i40iw_cleanup_retrans_entry(cm_yesde);
+		i40iw_send_reset(cm_yesde);
 		break;
 	case I40IW_CM_STATE_CLOSE_WAIT:
-		cm_node->state = I40IW_CM_STATE_LAST_ACK;
-		i40iw_send_fin(cm_node);
+		cm_yesde->state = I40IW_CM_STATE_LAST_ACK;
+		i40iw_send_fin(cm_yesde);
 		break;
 	case I40IW_CM_STATE_FIN_WAIT1:
 	case I40IW_CM_STATE_FIN_WAIT2:
@@ -3103,20 +3103,20 @@ static int i40iw_cm_close(struct i40iw_cm_node *cm_node)
 		ret = -1;
 		break;
 	case I40IW_CM_STATE_LISTENING:
-		i40iw_cleanup_retrans_entry(cm_node);
-		i40iw_send_reset(cm_node);
+		i40iw_cleanup_retrans_entry(cm_yesde);
+		i40iw_send_reset(cm_yesde);
 		break;
 	case I40IW_CM_STATE_MPAREJ_RCVD:
 	case I40IW_CM_STATE_UNKNOWN:
 	case I40IW_CM_STATE_INITED:
 	case I40IW_CM_STATE_CLOSED:
 	case I40IW_CM_STATE_LISTENER_DESTROYED:
-		i40iw_rem_ref_cm_node(cm_node);
+		i40iw_rem_ref_cm_yesde(cm_yesde);
 		break;
 	case I40IW_CM_STATE_OFFLOADED:
-		if (cm_node->send_entry)
+		if (cm_yesde->send_entry)
 			i40iw_pr_err("send_entry\n");
-		i40iw_rem_ref_cm_node(cm_node);
+		i40iw_rem_ref_cm_yesde(cm_yesde);
 		break;
 	}
 	return ret;
@@ -3130,7 +3130,7 @@ static int i40iw_cm_close(struct i40iw_cm_node *cm_node)
  */
 void i40iw_receive_ilq(struct i40iw_sc_vsi *vsi, struct i40iw_puda_buf *rbuf)
 {
-	struct i40iw_cm_node *cm_node;
+	struct i40iw_cm_yesde *cm_yesde;
 	struct i40iw_cm_listener *listener;
 	struct iphdr *iph;
 	struct ipv6hdr *ip6h;
@@ -3183,7 +3183,7 @@ void i40iw_receive_ilq(struct i40iw_sc_vsi *vsi, struct i40iw_puda_buf *rbuf)
 	}
 	cm_info.loc_port = ntohs(tcph->dest);
 	cm_info.rem_port = ntohs(tcph->source);
-	cm_node = i40iw_find_node(cm_core,
+	cm_yesde = i40iw_find_yesde(cm_core,
 				  cm_info.rem_port,
 				  cm_info.rem_addr,
 				  cm_info.loc_port,
@@ -3191,7 +3191,7 @@ void i40iw_receive_ilq(struct i40iw_sc_vsi *vsi, struct i40iw_puda_buf *rbuf)
 				  true,
 				  false);
 
-	if (!cm_node) {
+	if (!cm_yesde) {
 		/* Only type of packet accepted are for */
 		/* the PASSIVE open (syn only) */
 		if (!tcph->syn || tcph->ack)
@@ -3206,33 +3206,33 @@ void i40iw_receive_ilq(struct i40iw_sc_vsi *vsi, struct i40iw_puda_buf *rbuf)
 			cm_info.cm_id = NULL;
 			i40iw_debug(cm_core->dev,
 				    I40IW_DEBUG_CM,
-				    "%s no listener found\n",
+				    "%s yes listener found\n",
 				    __func__);
 			return;
 		}
 		cm_info.cm_id = listener->cm_id;
-		cm_node = i40iw_make_cm_node(cm_core, iwdev, &cm_info, listener);
-		if (!cm_node) {
+		cm_yesde = i40iw_make_cm_yesde(cm_core, iwdev, &cm_info, listener);
+		if (!cm_yesde) {
 			i40iw_debug(cm_core->dev,
 				    I40IW_DEBUG_CM,
-				    "%s allocate node failed\n",
+				    "%s allocate yesde failed\n",
 				    __func__);
 			atomic_dec(&listener->ref_count);
 			return;
 		}
 		if (!tcph->rst && !tcph->fin) {
-			cm_node->state = I40IW_CM_STATE_LISTENING;
+			cm_yesde->state = I40IW_CM_STATE_LISTENING;
 		} else {
-			i40iw_rem_ref_cm_node(cm_node);
+			i40iw_rem_ref_cm_yesde(cm_yesde);
 			return;
 		}
-		atomic_inc(&cm_node->ref_count);
-	} else if (cm_node->state == I40IW_CM_STATE_OFFLOADED) {
-		i40iw_rem_ref_cm_node(cm_node);
+		atomic_inc(&cm_yesde->ref_count);
+	} else if (cm_yesde->state == I40IW_CM_STATE_OFFLOADED) {
+		i40iw_rem_ref_cm_yesde(cm_yesde);
 		return;
 	}
-	i40iw_process_packet(cm_node, rbuf);
-	i40iw_rem_ref_cm_node(cm_node);
+	i40iw_process_packet(cm_yesde, rbuf);
+	i40iw_rem_ref_cm_yesde(cm_yesde);
 }
 
 /**
@@ -3248,8 +3248,8 @@ int i40iw_setup_cm_core(struct i40iw_device *iwdev)
 	cm_core->dev = &iwdev->sc_dev;
 
 	INIT_LIST_HEAD(&cm_core->accelerated_list);
-	INIT_LIST_HEAD(&cm_core->non_accelerated_list);
-	INIT_LIST_HEAD(&cm_core->listen_nodes);
+	INIT_LIST_HEAD(&cm_core->yesn_accelerated_list);
+	INIT_LIST_HEAD(&cm_core->listen_yesdes);
 
 	timer_setup(&cm_core->tcp_timer, i40iw_cm_timer_tick, 0);
 
@@ -3299,20 +3299,20 @@ void i40iw_cleanup_cm_core(struct i40iw_cm_core *cm_core)
 
 /**
  * i40iw_init_tcp_ctx - setup qp context
- * @cm_node: connection's node
+ * @cm_yesde: connection's yesde
  * @tcp_info: offload info for tcp
  * @iwqp: associate qp for the connection
  */
-static void i40iw_init_tcp_ctx(struct i40iw_cm_node *cm_node,
+static void i40iw_init_tcp_ctx(struct i40iw_cm_yesde *cm_yesde,
 			       struct i40iw_tcp_offload_info *tcp_info,
 			       struct i40iw_qp *iwqp)
 {
-	tcp_info->ipv4 = cm_node->ipv4;
+	tcp_info->ipv4 = cm_yesde->ipv4;
 	tcp_info->drop_ooo_seg = true;
 	tcp_info->wscale = true;
-	tcp_info->ignore_tcp_opt = true;
-	tcp_info->ignore_tcp_uns_opt = true;
-	tcp_info->no_nagle = false;
+	tcp_info->igyesre_tcp_opt = true;
+	tcp_info->igyesre_tcp_uns_opt = true;
+	tcp_info->yes_nagle = false;
 
 	tcp_info->ttl = I40IW_DEFAULT_TTL;
 	tcp_info->rtt_var = cpu_to_le32(I40IW_DEFAULT_RTT_VAR);
@@ -3320,35 +3320,35 @@ static void i40iw_init_tcp_ctx(struct i40iw_cm_node *cm_node,
 	tcp_info->rexmit_thresh = I40IW_DEFAULT_REXMIT_THRESH;
 
 	tcp_info->tcp_state = I40IW_TCP_STATE_ESTABLISHED;
-	tcp_info->snd_wscale = cm_node->tcp_cntxt.snd_wscale;
-	tcp_info->rcv_wscale = cm_node->tcp_cntxt.rcv_wscale;
+	tcp_info->snd_wscale = cm_yesde->tcp_cntxt.snd_wscale;
+	tcp_info->rcv_wscale = cm_yesde->tcp_cntxt.rcv_wscale;
 
-	tcp_info->snd_nxt = cpu_to_le32(cm_node->tcp_cntxt.loc_seq_num);
-	tcp_info->snd_wnd = cpu_to_le32(cm_node->tcp_cntxt.snd_wnd);
-	tcp_info->rcv_nxt = cpu_to_le32(cm_node->tcp_cntxt.rcv_nxt);
-	tcp_info->snd_max = cpu_to_le32(cm_node->tcp_cntxt.loc_seq_num);
+	tcp_info->snd_nxt = cpu_to_le32(cm_yesde->tcp_cntxt.loc_seq_num);
+	tcp_info->snd_wnd = cpu_to_le32(cm_yesde->tcp_cntxt.snd_wnd);
+	tcp_info->rcv_nxt = cpu_to_le32(cm_yesde->tcp_cntxt.rcv_nxt);
+	tcp_info->snd_max = cpu_to_le32(cm_yesde->tcp_cntxt.loc_seq_num);
 
-	tcp_info->snd_una = cpu_to_le32(cm_node->tcp_cntxt.loc_seq_num);
-	tcp_info->cwnd = cpu_to_le32(2 * cm_node->tcp_cntxt.mss);
-	tcp_info->snd_wl1 = cpu_to_le32(cm_node->tcp_cntxt.rcv_nxt);
-	tcp_info->snd_wl2 = cpu_to_le32(cm_node->tcp_cntxt.loc_seq_num);
-	tcp_info->max_snd_window = cpu_to_le32(cm_node->tcp_cntxt.max_snd_wnd);
-	tcp_info->rcv_wnd = cpu_to_le32(cm_node->tcp_cntxt.rcv_wnd <<
-					cm_node->tcp_cntxt.rcv_wscale);
+	tcp_info->snd_una = cpu_to_le32(cm_yesde->tcp_cntxt.loc_seq_num);
+	tcp_info->cwnd = cpu_to_le32(2 * cm_yesde->tcp_cntxt.mss);
+	tcp_info->snd_wl1 = cpu_to_le32(cm_yesde->tcp_cntxt.rcv_nxt);
+	tcp_info->snd_wl2 = cpu_to_le32(cm_yesde->tcp_cntxt.loc_seq_num);
+	tcp_info->max_snd_window = cpu_to_le32(cm_yesde->tcp_cntxt.max_snd_wnd);
+	tcp_info->rcv_wnd = cpu_to_le32(cm_yesde->tcp_cntxt.rcv_wnd <<
+					cm_yesde->tcp_cntxt.rcv_wscale);
 
 	tcp_info->flow_label = 0;
-	tcp_info->snd_mss = cpu_to_le32(((u32)cm_node->tcp_cntxt.mss));
-	if (cm_node->vlan_id <= VLAN_VID_MASK) {
+	tcp_info->snd_mss = cpu_to_le32(((u32)cm_yesde->tcp_cntxt.mss));
+	if (cm_yesde->vlan_id <= VLAN_VID_MASK) {
 		tcp_info->insert_vlan_tag = true;
-		tcp_info->vlan_tag = cpu_to_le16(((u16)cm_node->user_pri << I40IW_VLAN_PRIO_SHIFT) |
-						  cm_node->vlan_id);
+		tcp_info->vlan_tag = cpu_to_le16(((u16)cm_yesde->user_pri << I40IW_VLAN_PRIO_SHIFT) |
+						  cm_yesde->vlan_id);
 	}
-	if (cm_node->ipv4) {
-		tcp_info->src_port = cpu_to_le16(cm_node->loc_port);
-		tcp_info->dst_port = cpu_to_le16(cm_node->rem_port);
+	if (cm_yesde->ipv4) {
+		tcp_info->src_port = cpu_to_le16(cm_yesde->loc_port);
+		tcp_info->dst_port = cpu_to_le16(cm_yesde->rem_port);
 
-		tcp_info->dest_ip_addr3 = cpu_to_le32(cm_node->rem_addr[0]);
-		tcp_info->local_ipaddr3 = cpu_to_le32(cm_node->loc_addr[0]);
+		tcp_info->dest_ip_addr3 = cpu_to_le32(cm_yesde->rem_addr[0]);
+		tcp_info->local_ipaddr3 = cpu_to_le32(cm_yesde->loc_addr[0]);
 		tcp_info->arp_idx =
 			cpu_to_le16((u16)i40iw_arp_table(
 							 iwqp->iwdev,
@@ -3357,16 +3357,16 @@ static void i40iw_init_tcp_ctx(struct i40iw_cm_node *cm_node,
 							 NULL,
 							 I40IW_ARP_RESOLVE));
 	} else {
-		tcp_info->src_port = cpu_to_le16(cm_node->loc_port);
-		tcp_info->dst_port = cpu_to_le16(cm_node->rem_port);
-		tcp_info->dest_ip_addr0 = cpu_to_le32(cm_node->rem_addr[0]);
-		tcp_info->dest_ip_addr1 = cpu_to_le32(cm_node->rem_addr[1]);
-		tcp_info->dest_ip_addr2 = cpu_to_le32(cm_node->rem_addr[2]);
-		tcp_info->dest_ip_addr3 = cpu_to_le32(cm_node->rem_addr[3]);
-		tcp_info->local_ipaddr0 = cpu_to_le32(cm_node->loc_addr[0]);
-		tcp_info->local_ipaddr1 = cpu_to_le32(cm_node->loc_addr[1]);
-		tcp_info->local_ipaddr2 = cpu_to_le32(cm_node->loc_addr[2]);
-		tcp_info->local_ipaddr3 = cpu_to_le32(cm_node->loc_addr[3]);
+		tcp_info->src_port = cpu_to_le16(cm_yesde->loc_port);
+		tcp_info->dst_port = cpu_to_le16(cm_yesde->rem_port);
+		tcp_info->dest_ip_addr0 = cpu_to_le32(cm_yesde->rem_addr[0]);
+		tcp_info->dest_ip_addr1 = cpu_to_le32(cm_yesde->rem_addr[1]);
+		tcp_info->dest_ip_addr2 = cpu_to_le32(cm_yesde->rem_addr[2]);
+		tcp_info->dest_ip_addr3 = cpu_to_le32(cm_yesde->rem_addr[3]);
+		tcp_info->local_ipaddr0 = cpu_to_le32(cm_yesde->loc_addr[0]);
+		tcp_info->local_ipaddr1 = cpu_to_le32(cm_yesde->loc_addr[1]);
+		tcp_info->local_ipaddr2 = cpu_to_le32(cm_yesde->loc_addr[2]);
+		tcp_info->local_ipaddr3 = cpu_to_le32(cm_yesde->loc_addr[3]);
 		tcp_info->arp_idx =
 			cpu_to_le16((u16)i40iw_arp_table(
 							 iwqp->iwdev,
@@ -3380,10 +3380,10 @@ static void i40iw_init_tcp_ctx(struct i40iw_cm_node *cm_node,
 /**
  * i40iw_cm_init_tsa_conn - setup qp for RTS
  * @iwqp: associate qp for the connection
- * @cm_node: connection's node
+ * @cm_yesde: connection's yesde
  */
 static void i40iw_cm_init_tsa_conn(struct i40iw_qp *iwqp,
-				   struct i40iw_cm_node *cm_node)
+				   struct i40iw_cm_yesde *cm_yesde)
 {
 	struct i40iw_tcp_offload_info tcp_info;
 	struct i40iwarp_offload_info *iwarp_info;
@@ -3399,8 +3399,8 @@ static void i40iw_cm_init_tsa_conn(struct i40iw_qp *iwqp,
 	ctx_info->send_cq_num = iwqp->iwscq->sc_cq.cq_uk.cq_id;
 	ctx_info->rcv_cq_num = iwqp->iwrcq->sc_cq.cq_uk.cq_id;
 
-	iwarp_info->ord_size = cm_node->ord_size;
-	iwarp_info->ird_size = i40iw_derive_hw_ird_setting(cm_node->ird_size);
+	iwarp_info->ord_size = cm_yesde->ord_size;
+	iwarp_info->ird_size = i40iw_derive_hw_ird_setting(cm_yesde->ird_size);
 
 	if (iwarp_info->ord_size == 1)
 		iwarp_info->ord_size = 2;
@@ -3414,23 +3414,23 @@ static void i40iw_cm_init_tsa_conn(struct i40iw_qp *iwqp,
 	ctx_info->tcp_info_valid = true;
 	ctx_info->iwarp_info_valid = true;
 	ctx_info->add_to_qoslist = true;
-	ctx_info->user_pri = cm_node->user_pri;
+	ctx_info->user_pri = cm_yesde->user_pri;
 
-	i40iw_init_tcp_ctx(cm_node, &tcp_info, iwqp);
-	if (cm_node->snd_mark_en) {
+	i40iw_init_tcp_ctx(cm_yesde, &tcp_info, iwqp);
+	if (cm_yesde->snd_mark_en) {
 		iwarp_info->snd_mark_en = true;
 		iwarp_info->snd_mark_offset = (tcp_info.snd_nxt &
-				SNDMARKER_SEQNMASK) + cm_node->lsmm_size;
+				SNDMARKER_SEQNMASK) + cm_yesde->lsmm_size;
 	}
 
-	cm_node->state = I40IW_CM_STATE_OFFLOADED;
+	cm_yesde->state = I40IW_CM_STATE_OFFLOADED;
 	tcp_info.tcp_state = I40IW_TCP_STATE_ESTABLISHED;
 	tcp_info.src_mac_addr_idx = iwdev->mac_ip_table_idx;
-	tcp_info.tos = cm_node->tos;
+	tcp_info.tos = cm_yesde->tos;
 
 	dev->iw_priv_qp_ops->qp_setctx(&iwqp->sc_qp, (u64 *)(iwqp->host_ctx.va), ctx_info);
 
-	/* once tcp_info is set, no need to do it again */
+	/* once tcp_info is set, yes need to do it again */
 	ctx_info->tcp_info_valid = false;
 	ctx_info->iwarp_info_valid = false;
 	ctx_info->add_to_qoslist = false;
@@ -3499,10 +3499,10 @@ static void i40iw_qp_disconnect(struct i40iw_qp *iwqp)
 		}
 	}
 
-	/* close the CM node down if it is still active */
-	if (iwqp->cm_node) {
+	/* close the CM yesde down if it is still active */
+	if (iwqp->cm_yesde) {
 		i40iw_debug(&iwdev->sc_dev, I40IW_DEBUG_CM, "%s Call close API\n", __func__);
-		i40iw_cm_close(iwqp->cm_node);
+		i40iw_cm_close(iwqp->cm_yesde);
 	}
 }
 
@@ -3646,7 +3646,7 @@ int i40iw_accept(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 	struct i40iw_device *iwdev;
 	struct i40iw_sc_dev *dev;
 	struct i40iw_cm_core *cm_core;
-	struct i40iw_cm_node *cm_node;
+	struct i40iw_cm_yesde *cm_yesde;
 	struct ib_qp_attr attr;
 	int passive_state;
 	struct ib_mr *ibmr;
@@ -3666,35 +3666,35 @@ int i40iw_accept(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 	iwdev = iwqp->iwdev;
 	dev = &iwdev->sc_dev;
 	cm_core = &iwdev->cm_core;
-	cm_node = (struct i40iw_cm_node *)cm_id->provider_data;
+	cm_yesde = (struct i40iw_cm_yesde *)cm_id->provider_data;
 
 	if (((struct sockaddr_in *)&cm_id->local_addr)->sin_family == AF_INET) {
-		cm_node->ipv4 = true;
-		cm_node->vlan_id = i40iw_get_vlan_ipv4(cm_node->loc_addr);
+		cm_yesde->ipv4 = true;
+		cm_yesde->vlan_id = i40iw_get_vlan_ipv4(cm_yesde->loc_addr);
 	} else {
-		cm_node->ipv4 = false;
-		i40iw_netdev_vlan_ipv6(cm_node->loc_addr, &cm_node->vlan_id);
+		cm_yesde->ipv4 = false;
+		i40iw_netdev_vlan_ipv6(cm_yesde->loc_addr, &cm_yesde->vlan_id);
 	}
-	i40iw_debug(cm_node->dev,
+	i40iw_debug(cm_yesde->dev,
 		    I40IW_DEBUG_CM,
 		    "Accept vlan_id=%d\n",
-		    cm_node->vlan_id);
-	if (cm_node->state == I40IW_CM_STATE_LISTENER_DESTROYED) {
-		if (cm_node->loopbackpartner)
-			i40iw_rem_ref_cm_node(cm_node->loopbackpartner);
-		i40iw_rem_ref_cm_node(cm_node);
+		    cm_yesde->vlan_id);
+	if (cm_yesde->state == I40IW_CM_STATE_LISTENER_DESTROYED) {
+		if (cm_yesde->loopbackpartner)
+			i40iw_rem_ref_cm_yesde(cm_yesde->loopbackpartner);
+		i40iw_rem_ref_cm_yesde(cm_yesde);
 		return -EINVAL;
 	}
 
-	passive_state = atomic_add_return(1, &cm_node->passive_state);
+	passive_state = atomic_add_return(1, &cm_yesde->passive_state);
 	if (passive_state == I40IW_SEND_RESET_EVENT) {
-		i40iw_rem_ref_cm_node(cm_node);
+		i40iw_rem_ref_cm_yesde(cm_yesde);
 		return -ECONNRESET;
 	}
 
-	cm_node->cm_core->stats_accepts++;
-	iwqp->cm_node = (void *)cm_node;
-	cm_node->iwqp = iwqp;
+	cm_yesde->cm_core->stats_accepts++;
+	iwqp->cm_yesde = (void *)cm_yesde;
+	cm_yesde->iwqp = iwqp;
 
 	buf_len = conn_param->private_data_len + I40IW_MAX_IETF_SIZE;
 
@@ -3702,17 +3702,17 @@ int i40iw_accept(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 
 	if (status)
 		return -ENOMEM;
-	cm_node->pdata.size = conn_param->private_data_len;
+	cm_yesde->pdata.size = conn_param->private_data_len;
 	accept.addr = iwqp->ietf_mem.va;
-	accept.size = i40iw_cm_build_mpa_frame(cm_node, &accept, MPA_KEY_REPLY);
+	accept.size = i40iw_cm_build_mpa_frame(cm_yesde, &accept, MPA_KEY_REPLY);
 	memcpy(accept.addr + accept.size, conn_param->private_data,
 	       conn_param->private_data_len);
 
 	/* setup our first outgoing iWarp send WQE (the IETF frame response) */
-	if ((cm_node->ipv4 &&
-	     !i40iw_ipv4_is_loopback(cm_node->loc_addr[0], cm_node->rem_addr[0])) ||
-	    (!cm_node->ipv4 &&
-	     !i40iw_ipv6_is_loopback(cm_node->loc_addr, cm_node->rem_addr))) {
+	if ((cm_yesde->ipv4 &&
+	     !i40iw_ipv4_is_loopback(cm_yesde->loc_addr[0], cm_yesde->rem_addr[0])) ||
+	    (!cm_yesde->ipv4 &&
+	     !i40iw_ipv6_is_loopback(cm_yesde->loc_addr, cm_yesde->rem_addr))) {
 		iwpd = iwqp->iwpd;
 		tagged_offset = (uintptr_t)iwqp->ietf_mem.va;
 		ibmr = i40iw_reg_phys_mr(&iwpd->ibpd,
@@ -3745,43 +3745,43 @@ int i40iw_accept(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 		kunmap(iwqp->page);
 
 	iwqp->cm_id = cm_id;
-	cm_node->cm_id = cm_id;
+	cm_yesde->cm_id = cm_id;
 
 	cm_id->provider_data = (void *)iwqp;
 	iwqp->active_conn = 0;
 
-	cm_node->lsmm_size = accept.size + conn_param->private_data_len;
-	i40iw_cm_init_tsa_conn(iwqp, cm_node);
+	cm_yesde->lsmm_size = accept.size + conn_param->private_data_len;
+	i40iw_cm_init_tsa_conn(iwqp, cm_yesde);
 	cm_id->add_ref(cm_id);
 	i40iw_add_ref(&iwqp->ibqp);
 
 	attr.qp_state = IB_QPS_RTS;
-	cm_node->qhash_set = false;
+	cm_yesde->qhash_set = false;
 	i40iw_modify_qp(&iwqp->ibqp, &attr, IB_QP_STATE, NULL);
 
-	cm_node->accelerated = true;
+	cm_yesde->accelerated = true;
 	spin_lock_irqsave(&cm_core->ht_lock, flags);
-	list_move_tail(&cm_node->list, &cm_core->accelerated_list);
+	list_move_tail(&cm_yesde->list, &cm_core->accelerated_list);
 	spin_unlock_irqrestore(&cm_core->ht_lock, flags);
 
 	status =
-		i40iw_send_cm_event(cm_node, cm_id, IW_CM_EVENT_ESTABLISHED, 0);
+		i40iw_send_cm_event(cm_yesde, cm_id, IW_CM_EVENT_ESTABLISHED, 0);
 	if (status)
 		i40iw_debug(dev, I40IW_DEBUG_CM, "error sending cm event - ESTABLISHED\n");
 
-	if (cm_node->loopbackpartner) {
-		cm_node->loopbackpartner->pdata.size = conn_param->private_data_len;
+	if (cm_yesde->loopbackpartner) {
+		cm_yesde->loopbackpartner->pdata.size = conn_param->private_data_len;
 
-		/* copy entire MPA frame to our cm_node's frame */
-		memcpy(cm_node->loopbackpartner->pdata_buf,
+		/* copy entire MPA frame to our cm_yesde's frame */
+		memcpy(cm_yesde->loopbackpartner->pdata_buf,
 		       conn_param->private_data,
 		       conn_param->private_data_len);
-		i40iw_create_event(cm_node->loopbackpartner, I40IW_CM_EVENT_CONNECTED);
+		i40iw_create_event(cm_yesde->loopbackpartner, I40IW_CM_EVENT_CONNECTED);
 	}
 
-	if (cm_node->accept_pend) {
-		atomic_dec(&cm_node->listener->pend_accepts_cnt);
-		cm_node->accept_pend = 0;
+	if (cm_yesde->accept_pend) {
+		atomic_dec(&cm_yesde->listener->pend_accepts_cnt);
+		cm_yesde->accept_pend = 0;
 	}
 	return 0;
 }
@@ -3795,18 +3795,18 @@ int i40iw_accept(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 int i40iw_reject(struct iw_cm_id *cm_id, const void *pdata, u8 pdata_len)
 {
 	struct i40iw_device *iwdev;
-	struct i40iw_cm_node *cm_node;
-	struct i40iw_cm_node *loopback;
+	struct i40iw_cm_yesde *cm_yesde;
+	struct i40iw_cm_yesde *loopback;
 
-	cm_node = (struct i40iw_cm_node *)cm_id->provider_data;
-	loopback = cm_node->loopbackpartner;
-	cm_node->cm_id = cm_id;
-	cm_node->pdata.size = pdata_len;
+	cm_yesde = (struct i40iw_cm_yesde *)cm_id->provider_data;
+	loopback = cm_yesde->loopbackpartner;
+	cm_yesde->cm_id = cm_id;
+	cm_yesde->pdata.size = pdata_len;
 
 	iwdev = to_iwdev(cm_id->device);
 	if (!iwdev)
 		return -EINVAL;
-	cm_node->cm_core->stats_rejects++;
+	cm_yesde->cm_core->stats_rejects++;
 
 	if (pdata_len + sizeof(struct ietf_mpa_v2) > MAX_CM_BUFFER)
 		return -EINVAL;
@@ -3816,7 +3816,7 @@ int i40iw_reject(struct iw_cm_id *cm_id, const void *pdata, u8 pdata_len)
 		loopback->pdata.size = pdata_len;
 	}
 
-	return i40iw_cm_reject(cm_node, pdata, pdata_len);
+	return i40iw_cm_reject(cm_yesde, pdata, pdata_len);
 }
 
 /**
@@ -3829,7 +3829,7 @@ int i40iw_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 	struct ib_qp *ibqp;
 	struct i40iw_qp *iwqp;
 	struct i40iw_device *iwdev;
-	struct i40iw_cm_node *cm_node;
+	struct i40iw_cm_yesde *cm_yesde;
 	struct i40iw_cm_info cm_info;
 	struct sockaddr_in *laddr;
 	struct sockaddr_in *raddr;
@@ -3859,7 +3859,7 @@ int i40iw_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 	iwqp->cm_id = NULL;
 	cm_id->provider_data = iwqp;
 
-	/* set up the connection params for the node */
+	/* set up the connection params for the yesde */
 	if (cm_id->remote_addr.ss_family == AF_INET) {
 		cm_info.ipv4 = true;
 		memset(cm_info.loc_addr, 0, sizeof(cm_info.loc_addr));
@@ -3885,11 +3885,11 @@ int i40iw_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 	i40iw_debug(&iwdev->sc_dev, I40IW_DEBUG_DCB, "%s TOS:[%d] UP:[%d]\n",
 		    __func__, cm_id->tos, cm_info.user_pri);
 	cm_id->add_ref(cm_id);
-	cm_node = i40iw_create_cm_node(&iwdev->cm_core, iwdev,
+	cm_yesde = i40iw_create_cm_yesde(&iwdev->cm_core, iwdev,
 				       conn_param, &cm_info);
 
-	if (IS_ERR(cm_node)) {
-		ret = PTR_ERR(cm_node);
+	if (IS_ERR(cm_yesde)) {
+		ret = PTR_ERR(cm_yesde);
 		cm_id->rem_ref(cm_id);
 		return ret;
 	}
@@ -3903,7 +3903,7 @@ int i40iw_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 			ret = -EINVAL;
 			goto err;
 		}
-		cm_node->qhash_set = true;
+		cm_yesde->qhash_set = true;
 	}
 
 	if (i40iw_manage_apbvt(iwdev, cm_info.loc_port,
@@ -3912,31 +3912,31 @@ int i40iw_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 		goto err;
 	}
 
-	cm_node->apbvt_set = true;
-	iwqp->cm_node = cm_node;
-	cm_node->iwqp = iwqp;
+	cm_yesde->apbvt_set = true;
+	iwqp->cm_yesde = cm_yesde;
+	cm_yesde->iwqp = iwqp;
 	iwqp->cm_id = cm_id;
 	i40iw_add_ref(&iwqp->ibqp);
 
-	if (cm_node->state != I40IW_CM_STATE_OFFLOADED) {
-		cm_node->state = I40IW_CM_STATE_SYN_SENT;
-		ret = i40iw_send_syn(cm_node, 0);
+	if (cm_yesde->state != I40IW_CM_STATE_OFFLOADED) {
+		cm_yesde->state = I40IW_CM_STATE_SYN_SENT;
+		ret = i40iw_send_syn(cm_yesde, 0);
 		if (ret)
 			goto err;
 	}
 
-	if (cm_node->loopbackpartner) {
-		cm_node->loopbackpartner->state = I40IW_CM_STATE_MPAREQ_RCVD;
-		i40iw_create_event(cm_node->loopbackpartner,
+	if (cm_yesde->loopbackpartner) {
+		cm_yesde->loopbackpartner->state = I40IW_CM_STATE_MPAREQ_RCVD;
+		i40iw_create_event(cm_yesde->loopbackpartner,
 				   I40IW_CM_EVENT_MPA_REQ);
 	}
 
-	i40iw_debug(cm_node->dev,
+	i40iw_debug(cm_yesde->dev,
 		    I40IW_DEBUG_CM,
-		    "Api - connect(): port=0x%04x, cm_node=%p, cm_id = %p.\n",
-		    cm_node->rem_port,
-		    cm_node,
-		    cm_node->cm_id);
+		    "Api - connect(): port=0x%04x, cm_yesde=%p, cm_id = %p.\n",
+		    cm_yesde->rem_port,
+		    cm_yesde,
+		    cm_yesde->cm_id);
 
 	return 0;
 
@@ -3952,7 +3952,7 @@ err:
 			    "Api - connect() FAILED: dest addr=%pI6",
 			    cm_info.rem_addr);
 
-	i40iw_rem_ref_cm_node(cm_node);
+	i40iw_rem_ref_cm_yesde(cm_yesde);
 	cm_id->rem_ref(cm_id);
 	iwdev->cm_core.stats_connect_errs++;
 	return ret;
@@ -3966,7 +3966,7 @@ err:
 int i40iw_create_listen(struct iw_cm_id *cm_id, int backlog)
 {
 	struct i40iw_device *iwdev;
-	struct i40iw_cm_listener *cm_listen_node;
+	struct i40iw_cm_listener *cm_listen_yesde;
 	struct i40iw_cm_info cm_info;
 	enum i40iw_status_code ret;
 	struct sockaddr_in *laddr;
@@ -4004,28 +4004,28 @@ int i40iw_create_listen(struct iw_cm_id *cm_id, int backlog)
 	cm_info.backlog = backlog;
 	cm_info.cm_id = cm_id;
 
-	cm_listen_node = i40iw_make_listen_node(&iwdev->cm_core, iwdev, &cm_info);
-	if (!cm_listen_node) {
-		i40iw_pr_err("cm_listen_node == NULL\n");
+	cm_listen_yesde = i40iw_make_listen_yesde(&iwdev->cm_core, iwdev, &cm_info);
+	if (!cm_listen_yesde) {
+		i40iw_pr_err("cm_listen_yesde == NULL\n");
 		return -ENOMEM;
 	}
 
-	cm_id->provider_data = cm_listen_node;
+	cm_id->provider_data = cm_listen_yesde;
 
-	cm_listen_node->tos = cm_id->tos;
-	cm_listen_node->user_pri = rt_tos2priority(cm_id->tos);
-	cm_info.user_pri = cm_listen_node->user_pri;
+	cm_listen_yesde->tos = cm_id->tos;
+	cm_listen_yesde->user_pri = rt_tos2priority(cm_id->tos);
+	cm_info.user_pri = cm_listen_yesde->user_pri;
 
-	if (!cm_listen_node->reused_node) {
+	if (!cm_listen_yesde->reused_yesde) {
 		if (wildcard) {
 			if (cm_info.ipv4)
 				ret = i40iw_add_mqh_4(iwdev,
 						      &cm_info,
-						      cm_listen_node);
+						      cm_listen_yesde);
 			else
 				ret = i40iw_add_mqh_6(iwdev,
 						      &cm_info,
-						      cm_listen_node);
+						      cm_listen_yesde);
 			if (ret)
 				goto error;
 
@@ -4044,7 +4044,7 @@ int i40iw_create_listen(struct iw_cm_id *cm_id, int backlog)
 						 true);
 			if (ret)
 				goto error;
-			cm_listen_node->qhash_set = true;
+			cm_listen_yesde->qhash_set = true;
 			ret = i40iw_manage_apbvt(iwdev,
 						 cm_info.loc_port,
 						 I40IW_MANAGE_APBVT_ADD);
@@ -4053,10 +4053,10 @@ int i40iw_create_listen(struct iw_cm_id *cm_id, int backlog)
 		}
 	}
 	cm_id->add_ref(cm_id);
-	cm_listen_node->cm_core->stats_listen_created++;
+	cm_listen_yesde->cm_core->stats_listen_created++;
 	return 0;
  error:
-	i40iw_cm_del_listen(&iwdev->cm_core, (void *)cm_listen_node, false);
+	i40iw_cm_del_listen(&iwdev->cm_core, (void *)cm_listen_yesde, false);
 	return -EINVAL;
 }
 
@@ -4080,15 +4080,15 @@ int i40iw_destroy_listen(struct iw_cm_id *cm_id)
 }
 
 /**
- * i40iw_cm_event_connected - handle connected active node
- * @event: the info for cm_node of connection
+ * i40iw_cm_event_connected - handle connected active yesde
+ * @event: the info for cm_yesde of connection
  */
 static void i40iw_cm_event_connected(struct i40iw_cm_event *event)
 {
 	struct i40iw_qp *iwqp;
 	struct i40iw_device *iwdev;
 	struct i40iw_cm_core *cm_core;
-	struct i40iw_cm_node *cm_node;
+	struct i40iw_cm_yesde *cm_yesde;
 	struct i40iw_sc_dev *dev;
 	struct ib_qp_attr attr;
 	struct iw_cm_id *cm_id;
@@ -4096,8 +4096,8 @@ static void i40iw_cm_event_connected(struct i40iw_cm_event *event)
 	int status;
 	bool read0;
 
-	cm_node = event->cm_node;
-	cm_id = cm_node->cm_id;
+	cm_yesde = event->cm_yesde;
+	cm_id = cm_yesde->cm_id;
 	iwqp = (struct i40iw_qp *)cm_id->provider_data;
 	iwdev = to_iwdev(iwqp->ibqp.device);
 	dev = &iwdev->sc_dev;
@@ -4107,8 +4107,8 @@ static void i40iw_cm_event_connected(struct i40iw_cm_event *event)
 		status = -ETIMEDOUT;
 		goto error;
 	}
-	i40iw_cm_init_tsa_conn(iwqp, cm_node);
-	read0 = (cm_node->send_rdma0_op == SEND_RDMA_READ_ZERO);
+	i40iw_cm_init_tsa_conn(iwqp, cm_yesde);
+	read0 = (cm_yesde->send_rdma0_op == SEND_RDMA_READ_ZERO);
 	if (iwqp->page)
 		iwqp->sc_qp.qp_uk.sq_base = kmap(iwqp->page);
 	dev->iw_priv_qp_ops->qp_send_rtt(&iwqp->sc_qp, read0);
@@ -4117,14 +4117,14 @@ static void i40iw_cm_event_connected(struct i40iw_cm_event *event)
 
 	memset(&attr, 0, sizeof(attr));
 	attr.qp_state = IB_QPS_RTS;
-	cm_node->qhash_set = false;
+	cm_yesde->qhash_set = false;
 	i40iw_modify_qp(&iwqp->ibqp, &attr, IB_QP_STATE, NULL);
 
-	cm_node->accelerated = true;
+	cm_yesde->accelerated = true;
 	spin_lock_irqsave(&cm_core->ht_lock, flags);
-	list_move_tail(&cm_node->list, &cm_core->accelerated_list);
+	list_move_tail(&cm_yesde->list, &cm_core->accelerated_list);
 	spin_unlock_irqrestore(&cm_core->ht_lock, flags);
-	status = i40iw_send_cm_event(cm_node, cm_id, IW_CM_EVENT_CONNECT_REPLY,
+	status = i40iw_send_cm_event(cm_yesde, cm_id, IW_CM_EVENT_CONNECT_REPLY,
 				     0);
 	if (status)
 		i40iw_debug(dev, I40IW_DEBUG_CM, "error sending cm event - CONNECT_REPLY\n");
@@ -4134,22 +4134,22 @@ static void i40iw_cm_event_connected(struct i40iw_cm_event *event)
 error:
 	iwqp->cm_id = NULL;
 	cm_id->provider_data = NULL;
-	i40iw_send_cm_event(event->cm_node,
+	i40iw_send_cm_event(event->cm_yesde,
 			    cm_id,
 			    IW_CM_EVENT_CONNECT_REPLY,
 			    status);
 	cm_id->rem_ref(cm_id);
-	i40iw_rem_ref_cm_node(event->cm_node);
+	i40iw_rem_ref_cm_yesde(event->cm_yesde);
 }
 
 /**
  * i40iw_cm_event_reset - handle reset
- * @event: the info for cm_node of connection
+ * @event: the info for cm_yesde of connection
  */
 static void i40iw_cm_event_reset(struct i40iw_cm_event *event)
 {
-	struct i40iw_cm_node *cm_node = event->cm_node;
-	struct iw_cm_id   *cm_id = cm_node->cm_id;
+	struct i40iw_cm_yesde *cm_yesde = event->cm_yesde;
+	struct iw_cm_id   *cm_id = cm_yesde->cm_id;
 	struct i40iw_qp *iwqp;
 
 	if (!cm_id)
@@ -4159,14 +4159,14 @@ static void i40iw_cm_event_reset(struct i40iw_cm_event *event)
 	if (!iwqp)
 		return;
 
-	i40iw_debug(cm_node->dev,
+	i40iw_debug(cm_yesde->dev,
 		    I40IW_DEBUG_CM,
 		    "reset event %p - cm_id = %p\n",
-		     event->cm_node, cm_id);
+		     event->cm_yesde, cm_id);
 	iwqp->cm_id = NULL;
 
-	i40iw_send_cm_event(cm_node, cm_node->cm_id, IW_CM_EVENT_DISCONNECT, -ECONNRESET);
-	i40iw_send_cm_event(cm_node, cm_node->cm_id, IW_CM_EVENT_CLOSE, 0);
+	i40iw_send_cm_event(cm_yesde, cm_yesde->cm_id, IW_CM_EVENT_DISCONNECT, -ECONNRESET);
+	i40iw_send_cm_event(cm_yesde, cm_yesde->cm_id, IW_CM_EVENT_CLOSE, 0);
 }
 
 /**
@@ -4178,17 +4178,17 @@ static void i40iw_cm_event_handler(struct work_struct *work)
 	struct i40iw_cm_event *event = container_of(work,
 						    struct i40iw_cm_event,
 						    event_work);
-	struct i40iw_cm_node *cm_node;
+	struct i40iw_cm_yesde *cm_yesde;
 
-	if (!event || !event->cm_node || !event->cm_node->cm_core)
+	if (!event || !event->cm_yesde || !event->cm_yesde->cm_core)
 		return;
 
-	cm_node = event->cm_node;
+	cm_yesde = event->cm_yesde;
 
 	switch (event->type) {
 	case I40IW_CM_EVENT_MPA_REQ:
-		i40iw_send_cm_event(cm_node,
-				    cm_node->cm_id,
+		i40iw_send_cm_event(cm_yesde,
+				    cm_yesde->cm_id,
 				    IW_CM_EVENT_CONNECT_REQUEST,
 				    0);
 		break;
@@ -4196,23 +4196,23 @@ static void i40iw_cm_event_handler(struct work_struct *work)
 		i40iw_cm_event_reset(event);
 		break;
 	case I40IW_CM_EVENT_CONNECTED:
-		if (!event->cm_node->cm_id ||
-		    (event->cm_node->state != I40IW_CM_STATE_OFFLOADED))
+		if (!event->cm_yesde->cm_id ||
+		    (event->cm_yesde->state != I40IW_CM_STATE_OFFLOADED))
 			break;
 		i40iw_cm_event_connected(event);
 		break;
 	case I40IW_CM_EVENT_MPA_REJECT:
-		if (!event->cm_node->cm_id ||
-		    (cm_node->state == I40IW_CM_STATE_OFFLOADED))
+		if (!event->cm_yesde->cm_id ||
+		    (cm_yesde->state == I40IW_CM_STATE_OFFLOADED))
 			break;
-		i40iw_send_cm_event(cm_node,
-				    cm_node->cm_id,
+		i40iw_send_cm_event(cm_yesde,
+				    cm_yesde->cm_id,
 				    IW_CM_EVENT_CONNECT_REPLY,
 				    -ECONNREFUSED);
 		break;
 	case I40IW_CM_EVENT_ABORTED:
-		if (!event->cm_node->cm_id ||
-		    (event->cm_node->state == I40IW_CM_STATE_OFFLOADED))
+		if (!event->cm_yesde->cm_id ||
+		    (event->cm_yesde->state == I40IW_CM_STATE_OFFLOADED))
 			break;
 		i40iw_event_connect_error(event);
 		break;
@@ -4222,87 +4222,87 @@ static void i40iw_cm_event_handler(struct work_struct *work)
 	}
 
 	event->cm_info.cm_id->rem_ref(event->cm_info.cm_id);
-	i40iw_rem_ref_cm_node(event->cm_node);
+	i40iw_rem_ref_cm_yesde(event->cm_yesde);
 	kfree(event);
 }
 
 /**
  * i40iw_cm_post_event - queue event request for worker thread
- * @event: cm node's info for up event call
+ * @event: cm yesde's info for up event call
  */
 static void i40iw_cm_post_event(struct i40iw_cm_event *event)
 {
-	atomic_inc(&event->cm_node->ref_count);
+	atomic_inc(&event->cm_yesde->ref_count);
 	event->cm_info.cm_id->add_ref(event->cm_info.cm_id);
 	INIT_WORK(&event->event_work, i40iw_cm_event_handler);
 
-	queue_work(event->cm_node->cm_core->event_wq, &event->event_work);
+	queue_work(event->cm_yesde->cm_core->event_wq, &event->event_work);
 }
 
 /**
  * i40iw_qhash_ctrl - enable/disable qhash for list
  * @iwdev: device pointer
- * @parent_listen_node: parent listen node
- * @nfo: cm info node
+ * @parent_listen_yesde: parent listen yesde
+ * @nfo: cm info yesde
  * @ipaddr: Pointer to IPv4 or IPv6 address
  * @ipv4: flag indicating IPv4 when true
  * @ifup: flag indicating interface up when true
  *
- * Enables or disables the qhash for the node in the child
- * listen list that matches ipaddr. If no matching IP was found
- * it will allocate and add a new child listen node to the
- * parent listen node. The listen_list_lock is assumed to be
+ * Enables or disables the qhash for the yesde in the child
+ * listen list that matches ipaddr. If yes matching IP was found
+ * it will allocate and add a new child listen yesde to the
+ * parent listen yesde. The listen_list_lock is assumed to be
  * held when called.
  */
 static void i40iw_qhash_ctrl(struct i40iw_device *iwdev,
-			     struct i40iw_cm_listener *parent_listen_node,
+			     struct i40iw_cm_listener *parent_listen_yesde,
 			     struct i40iw_cm_info *nfo,
 			     u32 *ipaddr, bool ipv4, bool ifup)
 {
-	struct list_head *child_listen_list = &parent_listen_node->child_listen_list;
-	struct i40iw_cm_listener *child_listen_node;
+	struct list_head *child_listen_list = &parent_listen_yesde->child_listen_list;
+	struct i40iw_cm_listener *child_listen_yesde;
 	struct list_head *pos, *tpos;
 	enum i40iw_status_code ret;
-	bool node_allocated = false;
+	bool yesde_allocated = false;
 	enum i40iw_quad_hash_manage_type op =
 		ifup ? I40IW_QHASH_MANAGE_TYPE_ADD : I40IW_QHASH_MANAGE_TYPE_DELETE;
 
 	list_for_each_safe(pos, tpos, child_listen_list) {
-		child_listen_node =
+		child_listen_yesde =
 			list_entry(pos,
 				   struct i40iw_cm_listener,
 				   child_listen_list);
-		if (!memcmp(child_listen_node->loc_addr, ipaddr, ipv4 ? 4 : 16))
+		if (!memcmp(child_listen_yesde->loc_addr, ipaddr, ipv4 ? 4 : 16))
 			goto set_qhash;
 	}
 
-	/* if not found then add a child listener if interface is going up */
+	/* if yest found then add a child listener if interface is going up */
 	if (!ifup)
 		return;
-	child_listen_node = kmemdup(parent_listen_node,
-			sizeof(*child_listen_node), GFP_ATOMIC);
-	if (!child_listen_node)
+	child_listen_yesde = kmemdup(parent_listen_yesde,
+			sizeof(*child_listen_yesde), GFP_ATOMIC);
+	if (!child_listen_yesde)
 		return;
-	node_allocated = true;
+	yesde_allocated = true;
 
-	memcpy(child_listen_node->loc_addr, ipaddr,  ipv4 ? 4 : 16);
+	memcpy(child_listen_yesde->loc_addr, ipaddr,  ipv4 ? 4 : 16);
 
 set_qhash:
 	memcpy(nfo->loc_addr,
-	       child_listen_node->loc_addr,
+	       child_listen_yesde->loc_addr,
 	       sizeof(nfo->loc_addr));
-	nfo->vlan_id = child_listen_node->vlan_id;
+	nfo->vlan_id = child_listen_yesde->vlan_id;
 	ret = i40iw_manage_qhash(iwdev, nfo,
 				 I40IW_QHASH_TYPE_TCP_SYN,
 				 op,
 				 NULL, false);
 	if (!ret) {
-		child_listen_node->qhash_set = ifup;
-		if (node_allocated)
-			list_add(&child_listen_node->child_listen_list,
-				 &parent_listen_node->child_listen_list);
-	} else if (node_allocated) {
-		kfree(child_listen_node);
+		child_listen_yesde->qhash_set = ifup;
+		if (yesde_allocated)
+			list_add(&child_listen_yesde->child_listen_list,
+				 &parent_listen_yesde->child_listen_list);
+	} else if (yesde_allocated) {
+		kfree(child_listen_yesde);
 	}
 }
 
@@ -4320,62 +4320,62 @@ void i40iw_cm_teardown_connections(struct i40iw_device *iwdev, u32 *ipaddr,
 {
 	struct i40iw_cm_core *cm_core = &iwdev->cm_core;
 	struct list_head *list_core_temp;
-	struct list_head *list_node;
-	struct i40iw_cm_node *cm_node;
+	struct list_head *list_yesde;
+	struct i40iw_cm_yesde *cm_yesde;
 	unsigned long flags;
 	struct list_head teardown_list;
 	struct ib_qp_attr attr;
 
 	INIT_LIST_HEAD(&teardown_list);
 	spin_lock_irqsave(&cm_core->ht_lock, flags);
-	list_for_each_safe(list_node, list_core_temp,
+	list_for_each_safe(list_yesde, list_core_temp,
 			   &cm_core->accelerated_list) {
-		cm_node = container_of(list_node, struct i40iw_cm_node, list);
+		cm_yesde = container_of(list_yesde, struct i40iw_cm_yesde, list);
 		if (disconnect_all ||
-		    (nfo->vlan_id == cm_node->vlan_id &&
-		    (!memcmp(cm_node->loc_addr, ipaddr, nfo->ipv4 ? 4 : 16) ||
-		     !memcmp(cm_node->rem_addr, ipaddr, nfo->ipv4 ? 4 : 16)))) {
-			atomic_inc(&cm_node->ref_count);
-			list_add(&cm_node->teardown_entry, &teardown_list);
+		    (nfo->vlan_id == cm_yesde->vlan_id &&
+		    (!memcmp(cm_yesde->loc_addr, ipaddr, nfo->ipv4 ? 4 : 16) ||
+		     !memcmp(cm_yesde->rem_addr, ipaddr, nfo->ipv4 ? 4 : 16)))) {
+			atomic_inc(&cm_yesde->ref_count);
+			list_add(&cm_yesde->teardown_entry, &teardown_list);
 		}
 	}
-	list_for_each_safe(list_node, list_core_temp,
-			   &cm_core->non_accelerated_list) {
-		cm_node = container_of(list_node, struct i40iw_cm_node, list);
+	list_for_each_safe(list_yesde, list_core_temp,
+			   &cm_core->yesn_accelerated_list) {
+		cm_yesde = container_of(list_yesde, struct i40iw_cm_yesde, list);
 		if (disconnect_all ||
-		    (nfo->vlan_id == cm_node->vlan_id &&
-		    (!memcmp(cm_node->loc_addr, ipaddr, nfo->ipv4 ? 4 : 16) ||
-		     !memcmp(cm_node->rem_addr, ipaddr, nfo->ipv4 ? 4 : 16)))) {
-			atomic_inc(&cm_node->ref_count);
-			list_add(&cm_node->teardown_entry, &teardown_list);
+		    (nfo->vlan_id == cm_yesde->vlan_id &&
+		    (!memcmp(cm_yesde->loc_addr, ipaddr, nfo->ipv4 ? 4 : 16) ||
+		     !memcmp(cm_yesde->rem_addr, ipaddr, nfo->ipv4 ? 4 : 16)))) {
+			atomic_inc(&cm_yesde->ref_count);
+			list_add(&cm_yesde->teardown_entry, &teardown_list);
 		}
 	}
 	spin_unlock_irqrestore(&cm_core->ht_lock, flags);
 
-	list_for_each_safe(list_node, list_core_temp, &teardown_list) {
-		cm_node = container_of(list_node, struct i40iw_cm_node,
+	list_for_each_safe(list_yesde, list_core_temp, &teardown_list) {
+		cm_yesde = container_of(list_yesde, struct i40iw_cm_yesde,
 				       teardown_entry);
 		attr.qp_state = IB_QPS_ERR;
-		i40iw_modify_qp(&cm_node->iwqp->ibqp, &attr, IB_QP_STATE, NULL);
+		i40iw_modify_qp(&cm_yesde->iwqp->ibqp, &attr, IB_QP_STATE, NULL);
 		if (iwdev->reset)
-			i40iw_cm_disconn(cm_node->iwqp);
-		i40iw_rem_ref_cm_node(cm_node);
+			i40iw_cm_disconn(cm_yesde->iwqp);
+		i40iw_rem_ref_cm_yesde(cm_yesde);
 	}
 }
 
 /**
- * i40iw_ifdown_notify - process an ifdown on an interface
+ * i40iw_ifdown_yestify - process an ifdown on an interface
  * @iwdev: device pointer
  * @ipaddr: Pointer to IPv4 or IPv6 address
  * @ipv4: flag indicating IPv4 when true
  * @ifup: flag indicating interface up when true
  */
-void i40iw_if_notify(struct i40iw_device *iwdev, struct net_device *netdev,
+void i40iw_if_yestify(struct i40iw_device *iwdev, struct net_device *netdev,
 		     u32 *ipaddr, bool ipv4, bool ifup)
 {
 	struct i40iw_cm_core *cm_core = &iwdev->cm_core;
 	unsigned long flags;
-	struct i40iw_cm_listener *listen_node;
+	struct i40iw_cm_listener *listen_yesde;
 	static const u32 ip_zero[4] = { 0, 0, 0, 0 };
 	struct i40iw_cm_info nfo;
 	u16 vlan_id = rdma_vlan_dev_vlan_id(netdev);
@@ -4388,20 +4388,20 @@ void i40iw_if_notify(struct i40iw_device *iwdev, struct net_device *netdev,
 
 	/* Disable or enable qhash for listeners */
 	spin_lock_irqsave(&cm_core->listen_list_lock, flags);
-	list_for_each_entry(listen_node, &cm_core->listen_nodes, list) {
-		if (vlan_id == listen_node->vlan_id &&
-		    (!memcmp(listen_node->loc_addr, ipaddr, ipv4 ? 4 : 16) ||
-		    !memcmp(listen_node->loc_addr, ip_zero, ipv4 ? 4 : 16))) {
-			memcpy(nfo.loc_addr, listen_node->loc_addr,
+	list_for_each_entry(listen_yesde, &cm_core->listen_yesdes, list) {
+		if (vlan_id == listen_yesde->vlan_id &&
+		    (!memcmp(listen_yesde->loc_addr, ipaddr, ipv4 ? 4 : 16) ||
+		    !memcmp(listen_yesde->loc_addr, ip_zero, ipv4 ? 4 : 16))) {
+			memcpy(nfo.loc_addr, listen_yesde->loc_addr,
 			       sizeof(nfo.loc_addr));
-			nfo.loc_port = listen_node->loc_port;
-			nfo.user_pri = listen_node->user_pri;
-			if (!list_empty(&listen_node->child_listen_list)) {
+			nfo.loc_port = listen_yesde->loc_port;
+			nfo.user_pri = listen_yesde->user_pri;
+			if (!list_empty(&listen_yesde->child_listen_list)) {
 				i40iw_qhash_ctrl(iwdev,
-						 listen_node,
+						 listen_yesde,
 						 &nfo,
 						 ipaddr, ipv4, ifup);
-			} else if (memcmp(listen_node->loc_addr, ip_zero,
+			} else if (memcmp(listen_yesde->loc_addr, ip_zero,
 					  ipv4 ? 4 : 16)) {
 				ret = i40iw_manage_qhash(iwdev,
 							 &nfo,
@@ -4410,7 +4410,7 @@ void i40iw_if_notify(struct i40iw_device *iwdev, struct net_device *netdev,
 							 NULL,
 							 false);
 				if (!ret)
-					listen_node->qhash_set = ifup;
+					listen_yesde->qhash_set = ifup;
 			}
 		}
 	}

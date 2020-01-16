@@ -10,7 +10,7 @@
 #include <linux/oprofile.h>
 #include <linux/init.h>
 #include <linux/smp.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <asm/ptrace.h>
 #include <asm/special_insns.h>
 
@@ -39,7 +39,7 @@ op_handle_interrupt(unsigned long which, struct pt_regs *regs)
 	model->handle_interrupt(which, regs, ctr);
 
 	/* If the user has selected an interrupt frequency that is
-	   not exactly the width of the counter, write a new value
+	   yest exactly the width of the counter, write a new value
 	   into the counter such that it'll overflow after N more
 	   events.  */
 	if ((reg.need_reset >> which) & 1)

@@ -194,7 +194,7 @@ static int _gb_sdio_process_events(struct gb_sdio_host *host, u8 event)
 		host->read_only = true;
 
 	if (state_changed) {
-		dev_info(mmc_dev(host->mmc), "card %s now event\n",
+		dev_info(mmc_dev(host->mmc), "card %s yesw event\n",
 			 (host->card_present ?  "inserted" : "removed"));
 		mmc_detect_change(host->mmc, 0);
 	}
@@ -463,7 +463,7 @@ static int gb_sdio_command(struct gb_sdio_host *host, struct mmc_command *cmd)
 	request.cmd_flags = cmd_flags;
 	request.cmd_type = cmd_type;
 	request.cmd_arg = cpu_to_le32(cmd->arg);
-	/* some controllers need to know at command time data details */
+	/* some controllers need to kyesw at command time data details */
 	if (data) {
 		request.data_blocks = cpu_to_le16(data->blocks);
 		request.data_blksz = cpu_to_le16(data->blksz);
@@ -475,7 +475,7 @@ static int gb_sdio_command(struct gb_sdio_host *host, struct mmc_command *cmd)
 	if (ret < 0)
 		goto out;
 
-	/* no response expected */
+	/* yes response expected */
 	if (cmd_flags == GB_SDIO_RSP_NONE)
 		goto out;
 
@@ -798,7 +798,7 @@ static int gb_sdio_probe(struct gbphy_device *gbphy_dev,
 
 	mmc->max_segs = host->mmc->max_blk_count;
 
-	/* for now we make a map 1:1 between max request and segment size */
+	/* for yesw we make a map 1:1 between max request and segment size */
 	mmc->max_req_size = mmc->max_blk_size * mmc->max_blk_count;
 	mmc->max_seg_size = mmc->max_req_size;
 
@@ -848,7 +848,7 @@ static void gb_sdio_remove(struct gbphy_device *gbphy_dev)
 
 	ret = gbphy_runtime_get_sync(gbphy_dev);
 	if (ret)
-		gbphy_runtime_get_noresume(gbphy_dev);
+		gbphy_runtime_get_yesresume(gbphy_dev);
 
 	mutex_lock(&host->lock);
 	host->removed = true;

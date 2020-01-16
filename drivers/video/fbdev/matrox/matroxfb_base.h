@@ -28,7 +28,7 @@
 
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/string.h>
 #include <linux/mm.h>
 #include <linux/slab.h>
@@ -149,7 +149,7 @@ static inline void mga_memcpy_toio(vaddr_t va, const void* src, int len) {
 #if defined(__alpha__) || defined(__i386__) || defined(__x86_64__)
 	/*
 	 * iowrite32_rep works for us if:
-	 *  (1) Copies data as 32bit quantities, not byte after byte,
+	 *  (1) Copies data as 32bit quantities, yest byte after byte,
 	 *  (2) Performs LE ordered stores, and
 	 *  (3) It copes with unaligned source (destination is guaranteed to be page
 	 *      aligned and length is guaranteed to be multiple of 4).
@@ -270,9 +270,9 @@ struct matrox_hw_state {
 	unsigned char	CRTC[25];
 	unsigned char	CRTCEXT[9];
 	unsigned char	SEQ[5];
-	/* unused for MGA mode, but who knows... */
+	/* unused for MGA mode, but who kyesws... */
 	unsigned char	GCTL[9];
-	/* unused for MGA mode, but who knows... */
+	/* unused for MGA mode, but who kyesws... */
 	unsigned char	ATTR[21];
 
 	/* TVOut only */
@@ -433,10 +433,10 @@ struct matrox_fb_info {
 	struct {
 		int		precise_width;
 		int		mga_24bpp_fix;
-		int		novga;
-		int		nobios;
-		int		nopciretry;
-		int		noinit;
+		int		yesvga;
+		int		yesbios;
+		int		yespciretry;
+		int		yesinit;
 		int		sgram;
 		int		support32MB;
 
@@ -454,7 +454,7 @@ struct matrox_fb_info {
 		int		memtype;
 		int		g450dac;
 		int		dfp_type;
-		int		panellink;	/* G400 DFP possible (not G450/G550) */
+		int		panellink;	/* G400 DFP possible (yest G450/G550) */
 		int		dualhead;
 		unsigned int	fbResource;
 			      } devflags;
@@ -504,7 +504,7 @@ struct matrox_switch {
 };
 
 struct matroxfb_driver {
-	struct list_head	node;
+	struct list_head	yesde;
 	char*			name;
 	void*			(*probe)(struct matrox_fb_info* info);
 	void			(*remove)(struct matrox_fb_info* info, void* data);
@@ -590,11 +590,11 @@ void matroxfb_unregister_driver(struct matroxfb_driver* drv);
 #define     M_OPMODE_DMA_GEN_WRITE	0x00
 #define     M_OPMODE_DMA_BLIT		0x04
 #define     M_OPMODE_DMA_VECTOR_WRITE	0x08
-#define     M_OPMODE_DMA_LE		0x0000		/* little endian - no transformation */
+#define     M_OPMODE_DMA_LE		0x0000		/* little endian - yes transformation */
 #define     M_OPMODE_DMA_BE_8BPP	0x0000
 #define     M_OPMODE_DMA_BE_16BPP	0x0100
 #define     M_OPMODE_DMA_BE_32BPP	0x0200
-#define     M_OPMODE_DIR_LE		0x000000	/* little endian - no transformation */
+#define     M_OPMODE_DIR_LE		0x000000	/* little endian - yes transformation */
 #define     M_OPMODE_DIR_BE_8BPP	0x000000
 #define     M_OPMODE_DIR_BE_16BPP	0x010000
 #define     M_OPMODE_DIR_BE_32BPP	0x020000
@@ -659,7 +659,7 @@ void matroxfb_unregister_driver(struct matroxfb_driver* drv);
 #define M_OPMODE_24BPP	(M_OPMODE_DMA_LE | M_OPMODE_DIR_BE_8BPP  | M_OPMODE_DMA_BLIT)	/* TODO, ?32 */
 #define M_OPMODE_32BPP	(M_OPMODE_DMA_LE | M_OPMODE_DIR_BE_32BPP | M_OPMODE_DMA_BLIT)
 #else
-#error "Byte ordering have to be defined. Cannot continue."
+#error "Byte ordering have to be defined. Canyest continue."
 #endif
 #endif
 

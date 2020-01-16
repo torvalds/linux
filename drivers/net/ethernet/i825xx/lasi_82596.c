@@ -41,8 +41,8 @@
 
    980825:  Changed to receive directly in to sk_buffs which are
    allocated at open() time.  Eliminates copy on incoming frames
-   (small ones are still copied).  Shared data now held in a
-   non-cached page, so we can run on 68060 in copyback mode.
+   (small ones are still copied).  Shared data yesw held in a
+   yesn-cached page, so we can run on 68060 in copyback mode.
 
    TBD:
    * look at deferring rx frames rather than discarding (as per tulip)
@@ -72,7 +72,7 @@
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include <linux/ptrace.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/ioport.h>
 #include <linux/interrupt.h>
 #include <linux/delay.h>
@@ -159,7 +159,7 @@ lan_init_chip(struct parisc_device *dev)
 	int i;
 
 	if (!dev->irq) {
-		printk(KERN_ERR "%s: IRQ not found for i82596 at 0x%lx\n",
+		printk(KERN_ERR "%s: IRQ yest found for i82596 at 0x%lx\n",
 			__FILE__, (unsigned long)dev->hpa.start);
 		return -ENODEV;
 	}

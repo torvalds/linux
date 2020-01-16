@@ -94,12 +94,12 @@ __vector128 __initdata boot_cpu_vector_save_area[__NUM_VXRS];
 
 static unsigned int smp_max_threads __initdata = -1U;
 
-static int __init early_nosmt(char *s)
+static int __init early_yessmt(char *s)
 {
 	smp_max_threads = 1;
 	return 0;
 }
-early_param("nosmt", early_nosmt);
+early_param("yessmt", early_yessmt);
 
 static int __init early_smt(char *s)
 {
@@ -158,7 +158,7 @@ static inline int pcpu_running(struct pcpu *pcpu)
 	if (__pcpu_sigp(pcpu->address, SIGP_SENSE_RUNNING,
 			0, NULL) != SIGP_CC_STATUS_STORED)
 		return 1;
-	/* Status stored condition code is equivalent to cpu not running. */
+	/* Status stored condition code is equivalent to cpu yest running. */
 	return 0;
 }
 
@@ -188,17 +188,17 @@ static void pcpu_ec_call(struct pcpu *pcpu, int ec_bit)
 
 static int pcpu_alloc_lowcore(struct pcpu *pcpu, int cpu)
 {
-	unsigned long async_stack, nodat_stack;
+	unsigned long async_stack, yesdat_stack;
 	struct lowcore *lc;
 
 	if (pcpu != &pcpu_devices[0]) {
 		pcpu->lowcore =	(struct lowcore *)
 			__get_free_pages(GFP_KERNEL | GFP_DMA, LC_ORDER);
-		nodat_stack = __get_free_pages(GFP_KERNEL, THREAD_SIZE_ORDER);
-		if (!pcpu->lowcore || !nodat_stack)
+		yesdat_stack = __get_free_pages(GFP_KERNEL, THREAD_SIZE_ORDER);
+		if (!pcpu->lowcore || !yesdat_stack)
 			goto out;
 	} else {
-		nodat_stack = pcpu->lowcore->nodat_stack - STACK_INIT_OFFSET;
+		yesdat_stack = pcpu->lowcore->yesdat_stack - STACK_INIT_OFFSET;
 	}
 	async_stack = stack_alloc();
 	if (!async_stack)
@@ -207,7 +207,7 @@ static int pcpu_alloc_lowcore(struct pcpu *pcpu, int cpu)
 	memcpy(lc, &S390_lowcore, 512);
 	memset((char *) lc + 512, 0, sizeof(*lc) - 512);
 	lc->async_stack = async_stack + STACK_INIT_OFFSET;
-	lc->nodat_stack = nodat_stack + STACK_INIT_OFFSET;
+	lc->yesdat_stack = yesdat_stack + STACK_INIT_OFFSET;
 	lc->cpu_nr = cpu;
 	lc->spinlock_lockval = arch_spin_lockval(cpu);
 	lc->spinlock_index = 0;
@@ -226,7 +226,7 @@ out_async:
 	stack_free(async_stack);
 out:
 	if (pcpu != &pcpu_devices[0]) {
-		free_pages(nodat_stack, THREAD_SIZE_ORDER);
+		free_pages(yesdat_stack, THREAD_SIZE_ORDER);
 		free_pages((unsigned long) pcpu->lowcore, LC_ORDER);
 	}
 	return -ENOMEM;
@@ -234,9 +234,9 @@ out:
 
 static void pcpu_free_lowcore(struct pcpu *pcpu)
 {
-	unsigned long async_stack, nodat_stack, lowcore;
+	unsigned long async_stack, yesdat_stack, lowcore;
 
-	nodat_stack = pcpu->lowcore->nodat_stack - STACK_INIT_OFFSET;
+	yesdat_stack = pcpu->lowcore->yesdat_stack - STACK_INIT_OFFSET;
 	async_stack = pcpu->lowcore->async_stack - STACK_INIT_OFFSET;
 	lowcore = (unsigned long) pcpu->lowcore;
 
@@ -247,7 +247,7 @@ static void pcpu_free_lowcore(struct pcpu *pcpu)
 	stack_free(async_stack);
 	if (pcpu == &pcpu_devices[0])
 		return;
-	free_pages(nodat_stack, THREAD_SIZE_ORDER);
+	free_pages(yesdat_stack, THREAD_SIZE_ORDER);
 	free_pages(lowcore, LC_ORDER);
 }
 
@@ -298,7 +298,7 @@ static void pcpu_start_fn(struct pcpu *pcpu, void (*func)(void *), void *data)
 {
 	struct lowcore *lc = pcpu->lowcore;
 
-	lc->restart_stack = lc->nodat_stack;
+	lc->restart_stack = lc->yesdat_stack;
 	lc->restart_fn = (unsigned long) func;
 	lc->restart_data = (unsigned long) data;
 	lc->restart_source = -1UL;
@@ -310,10 +310,10 @@ static void pcpu_start_fn(struct pcpu *pcpu, void (*func)(void *), void *data)
  */
 static void __pcpu_delegate(void (*func)(void*), void *data)
 {
-	func(data);	/* should not return */
+	func(data);	/* should yest return */
 }
 
-static void __no_sanitize_address pcpu_delegate(struct pcpu *pcpu,
+static void __yes_sanitize_address pcpu_delegate(struct pcpu *pcpu,
 						void (*func)(void *),
 						void *data, unsigned long stack)
 {
@@ -388,7 +388,7 @@ void smp_call_ipl_cpu(void (*func)(void *), void *data)
 		lc = &S390_lowcore;
 
 	pcpu_delegate(&pcpu_devices[0], func, data,
-		      lc->nodat_stack);
+		      lc->yesdat_stack);
 }
 
 int smp_find_processor_id(u16 address)
@@ -415,7 +415,7 @@ void smp_yield_cpu(int cpu)
 {
 	if (!MACHINE_HAS_DIAG9C)
 		return;
-	diag_stat_inc_norecursion(DIAG_STAT_X09C);
+	diag_stat_inc_yesrecursion(DIAG_STAT_X09C);
 	asm volatile("diag %0,0,0x9c"
 		     : : "d" (pcpu_devices[cpu].address));
 }
@@ -424,7 +424,7 @@ void smp_yield_cpu(int cpu)
  * Send cpus emergency shutdown signal. This gives the cpus the
  * opportunity to complete outstanding interrupts.
  */
-void notrace smp_emergency_stop(void)
+void yestrace smp_emergency_stop(void)
 {
 	cpumask_t cpumask;
 	u64 end;
@@ -518,8 +518,8 @@ void arch_send_call_function_single_ipi(int cpu)
 }
 
 /*
- * this function sends a 'reschedule' IPI to another CPU.
- * it goes straight through and wastes no time serializing
+ * this function sends a 'reschedule' IPI to ayesther CPU.
+ * it goes straight through and wastes yes time serializing
  * anything. Worst case is that we lose a reschedule ...
  */
 void smp_send_reschedule(int cpu)
@@ -608,7 +608,7 @@ int smp_store_status(int cpu)
  *    with sigp stop-and-store-status. The firmware or the boot-loader
  *    stored the registers of the boot CPU in the absolute lowcore in the
  *    memory of the old system.
- * 3) kdump and the old kernel did not store the CPU state,
+ * 3) kdump and the old kernel did yest store the CPU state,
  *    or stand-alone kdump for DASD
  *    condition: OLDMEM_BASE != NULL && !is_kdump_kernel()
  *    The state for all CPUs except the boot CPU needs to be collected
@@ -616,7 +616,7 @@ int smp_store_status(int cpu)
  *    stored the registers of the boot CPU in the memory of the old system.
  * 4) kdump and the old kernel stored the CPU state
  *    condition: OLDMEM_BASE != NULL && is_kdump_kernel()
- *    This case does not exist for s390 anymore, setup_arch explicitly
+ *    This case does yest exist for s390 anymore, setup_arch explicitly
  *    deactivates the elfcorehdr= kernel parameter
  */
 static __init void smp_save_cpu_vxrs(struct save_area *sa, u16 addr,
@@ -651,7 +651,7 @@ void __init smp_save_dump_cpus(void)
 	bool is_boot_cpu;
 
 	if (!(OLDMEM_BASE || ipl_info.type == IPL_TYPE_FCP_DUMP))
-		/* No previous system present, normal boot. */
+		/* No previous system present, yesrmal boot. */
 		return;
 	/* Allocate a page as dumping area for the store status sigps */
 	page = memblock_phys_alloc_range(PAGE_SIZE, PAGE_SIZE, 0, 1UL << 31);
@@ -671,7 +671,7 @@ void __init smp_save_dump_cpus(void)
 		/* Allocate save area */
 		sa = save_area_alloc(is_boot_cpu);
 		if (!sa)
-			panic("could not allocate memory for save area\n");
+			panic("could yest allocate memory for save area\n");
 		if (MACHINE_HAS_VX)
 			/* Get the vector registers */
 			smp_save_cpu_vxrs(sa, addr, is_boot_cpu, page);
@@ -810,7 +810,7 @@ void __init smp_detect_cpus(void)
 				break;
 			}
 		if (cpu >= info->combined)
-			panic("Could not find boot CPU type");
+			panic("Could yest find boot CPU type");
 	}
 
 	/* Set multi-threading state for the current system */
@@ -851,7 +851,7 @@ static void smp_init_secondary(void)
 	init_cpu_timer();
 	vtime_init();
 	pfault_init();
-	notify_cpu_starting(smp_processor_id());
+	yestify_cpu_starting(smp_processor_id());
 	if (topology_cpu_dedicated(cpu))
 		set_cpu_flag(CIF_DEDICATED_CPU);
 	else
@@ -865,7 +865,7 @@ static void smp_init_secondary(void)
 /*
  *	Activate a secondary processor.
  */
-static void __no_sanitize_address smp_start_secondary(void *cpuvoid)
+static void __yes_sanitize_address smp_start_secondary(void *cpuvoid)
 {
 	S390_lowcore.restart_stack = (unsigned long) restart_stack;
 	S390_lowcore.restart_fn = (unsigned long) do_restart;
@@ -953,7 +953,7 @@ void __cpu_die(unsigned int cpu)
 	cpumask_clear_cpu(cpu, &init_mm.context.cpu_attach_mask);
 }
 
-void __noreturn cpu_die(void)
+void __yesreturn cpu_die(void)
 {
 	idle_task_exit();
 	__bpon();

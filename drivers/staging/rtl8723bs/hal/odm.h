@@ -37,7 +37,7 @@
 /* 3 PSD Handler */
 /* 3 ============================================================ */
 
-#define	AFH_PSD		1	/* 0:normal PSD scan, 1: only do 20 pts PSD */
+#define	AFH_PSD		1	/* 0:yesrmal PSD scan, 1: only do 20 pts PSD */
 #define	MODE_40M		0	/* 0:20M, 1:40M */
 #define	PSD_TH2		3
 #define	PSD_CHMIN		20   /*  Minimum channel number for BT AFH */
@@ -148,8 +148,8 @@ typedef struct _SW_Antenna_Switch_ {
 	u32 SWAS_NoLink_BK_Reg860;
 	u32 SWAS_NoLink_BK_Reg92c;
 	u32 SWAS_NoLink_BK_Reg948;
-	bool ANTA_ON;	/* To indicate Ant A is or not */
-	bool ANTB_ON;	/* To indicate Ant B is on or not */
+	bool ANTA_ON;	/* To indicate Ant A is or yest */
+	bool ANTB_ON;	/* To indicate Ant B is on or yest */
 	bool Pre_Aux_FailDetec;
 	bool RSSI_AntDect_bResult;
 	u8 Ant5G;
@@ -239,7 +239,7 @@ struct odm_phy_info {
 	s8 rx_power;                   /* in dBm Translate from PWdB */
 
 	/*
-	 * Real power in dBm for this packet, no beautification and
+	 * Real power in dBm for this packet, yes beautification and
 	 * aggregation. Keep this raw info to be used for the other procedures.
 	 */
 	s8 recv_signal_power;
@@ -299,7 +299,7 @@ typedef enum tag_Dynamic_ODM_Support_Ability_Type {
 /*  */
 typedef struct _ODM_STA_INFO {
 	/*  Driver Write */
-	bool bUsed;				/*  record the sta status link or not? */
+	bool bUsed;				/*  record the sta status link or yest? */
 	/* u8 WirelessMode;		 */
 	u8 IOTPeer;			/*  Enum value.	HT_IOT_PEER_E */
 
@@ -402,7 +402,7 @@ typedef enum _ODM_Common_Info_Definition {
 	ODM_CMNINFO_BT_HS_CONNECT_PROCESS,
 	ODM_CMNINFO_BT_HS_RSSI,
 	ODM_CMNINFO_BT_OPERATION,
-	ODM_CMNINFO_BT_LIMITED_DIG,		/* Need to Limited Dig or not */
+	ODM_CMNINFO_BT_LIMITED_DIG,		/* Need to Limited Dig or yest */
 	ODM_CMNINFO_BT_DISABLE_EDCA,
 /* CALL BY VALUE------------- */
 
@@ -588,18 +588,18 @@ typedef enum tag_Bandwidth_Definition {
 } ODM_BW_E;
 
 /*  ODM_CMNINFO_BOARD_TYPE */
-/*  For non-AC-series IC , ODM_BOARD_5G_EXT_PA and ODM_BOARD_5G_EXT_LNA are ignored */
+/*  For yesn-AC-series IC , ODM_BOARD_5G_EXT_PA and ODM_BOARD_5G_EXT_LNA are igyesred */
 /*  For AC-series IC, external PA & LNA can be indivisuallly added on 2.4G and/or 5G */
 typedef enum tag_Board_Definition {
 	ODM_BOARD_DEFAULT    = 0,      /*  The DEFAULT case. */
-	ODM_BOARD_MINICARD   = BIT(0), /*  0 = non-mini card, 1 = mini card. */
-	ODM_BOARD_SLIM       = BIT(1), /*  0 = non-slim card, 1 = slim card */
+	ODM_BOARD_MINICARD   = BIT(0), /*  0 = yesn-mini card, 1 = mini card. */
+	ODM_BOARD_SLIM       = BIT(1), /*  0 = yesn-slim card, 1 = slim card */
 	ODM_BOARD_BT         = BIT(2), /*  0 = without BT card, 1 = with BT */
-	ODM_BOARD_EXT_PA     = BIT(3), /*  0 = no 2G ext-PA, 1 = existing 2G ext-PA */
-	ODM_BOARD_EXT_LNA    = BIT(4), /*  0 = no 2G ext-LNA, 1 = existing 2G ext-LNA */
-	ODM_BOARD_EXT_TRSW   = BIT(5), /*  0 = no ext-TRSW, 1 = existing ext-TRSW */
-	ODM_BOARD_EXT_PA_5G  = BIT(6), /*  0 = no 5G ext-PA, 1 = existing 5G ext-PA */
-	ODM_BOARD_EXT_LNA_5G = BIT(7), /*  0 = no 5G ext-LNA, 1 = existing 5G ext-LNA */
+	ODM_BOARD_EXT_PA     = BIT(3), /*  0 = yes 2G ext-PA, 1 = existing 2G ext-PA */
+	ODM_BOARD_EXT_LNA    = BIT(4), /*  0 = yes 2G ext-LNA, 1 = existing 2G ext-LNA */
+	ODM_BOARD_EXT_TRSW   = BIT(5), /*  0 = yes ext-TRSW, 1 = existing ext-TRSW */
+	ODM_BOARD_EXT_PA_5G  = BIT(6), /*  0 = yes 5G ext-PA, 1 = existing 5G ext-PA */
+	ODM_BOARD_EXT_LNA_5G = BIT(7), /*  0 = yes 5G ext-LNA, 1 = existing 5G ext-LNA */
 } ODM_BOARD_TYPE_E;
 
 typedef enum tag_ODM_Package_Definition {
@@ -770,7 +770,7 @@ typedef struct ODM_RF_Calibration_Structure {
 	/* for APK */
 	u32 APKoutput[2][2]; /* path A/B; output1_1a/output1_2a */
 	u8 bAPKdone;
-	u8 bAPKThermalMeterIgnore;
+	u8 bAPKThermalMeterIgyesre;
 
 	/*  DPK */
 	bool bDPKFail;
@@ -1076,7 +1076,7 @@ typedef  struct DM_Out_Source_Dynamic_Mechanism_Structure {
 	u8 Adaptivity_IGI_upper;
 	u8 NHM_cnt_0;
 
-	ODM_NOISE_MONITOR noise_level;/* ODM_MAX_CHANNEL_NUM]; */
+	ODM_NOISE_MONITOR yesise_level;/* ODM_MAX_CHANNEL_NUM]; */
 	/*  */
 	/* 2 Define STA info. */
 	/*  _ODM_STA_INFO */
@@ -1354,7 +1354,7 @@ extern	u8 CCKSwingTable_Ch14_New[CCK_TABLE_SIZE][8];
 extern  u32 TxScalingTable_Jaguar[TXSCALE_TABLE_SIZE];
 
 /*  */
-/*  check Sta pointer valid or not */
+/*  check Sta pointer valid or yest */
 /*  */
 #define IS_STA_VALID(pSta)		(pSta)
 /*  20100514 Joseph: Add definition for antenna switching test after link. */

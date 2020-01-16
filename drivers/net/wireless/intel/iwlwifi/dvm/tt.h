@@ -28,7 +28,7 @@ enum iwl_antenna_ok {
 
 /* Thermal Throttling State Machine states */
 enum  iwl_tt_state {
-	IWL_TI_0,	/* normal temperature, system power state */
+	IWL_TI_0,	/* yesrmal temperature, system power state */
 	IWL_TI_1,	/* high temperature detect, low power state */
 	IWL_TI_2,	/* higher temperature detected, lower power state */
 	IWL_TI_CT_KILL, /* critical temperature detected, lowest power state */
@@ -79,7 +79,7 @@ struct iwl_tt_trans {
  * @tt_previous_temperature: last measured temperature
  * @iwl_tt_restriction: ptr to restriction tbl, used by advance
  *		    thermal throttling to determine how many tx/rx streams
- *		    should be used in tt state; and can HT be enabled or not
+ *		    should be used in tt state; and can HT be enabled or yest
  * @iwl_tt_trans: ptr to adv trans table, used by advance thermal throttling
  *		    state transaction
  * @ct_kill_toggle: used to toggle the CSR bit when checking uCode temperature

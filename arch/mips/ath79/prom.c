@@ -35,5 +35,5 @@ void __init prom_init(void)
 
 void __init prom_free_prom_memory(void)
 {
-	/* We do not have to prom memory to free */
+	/* We do yest have to prom memory to free */
 }

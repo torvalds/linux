@@ -30,7 +30,7 @@ __sum16 nf_ip_checksum(struct sk_buff *skb, unsigned int hook,
 		if (protocol != IPPROTO_TCP && protocol != IPPROTO_UDP)
 			skb->csum = 0;
 		else
-			skb->csum = csum_tcpudp_nofold(iph->saddr, iph->daddr,
+			skb->csum = csum_tcpudp_yesfold(iph->saddr, iph->daddr,
 						       skb->len - dataoff,
 						       protocol, 0);
 		csum = __skb_checksum_complete(skb);
@@ -53,7 +53,7 @@ static __sum16 nf_ip_checksum_partial(struct sk_buff *skb, unsigned int hook,
 			return nf_ip_checksum(skb, hook, dataoff, protocol);
 		/* fall through */
 	case CHECKSUM_NONE:
-		skb->csum = csum_tcpudp_nofold(iph->saddr, iph->daddr, protocol,
+		skb->csum = csum_tcpudp_yesfold(iph->saddr, iph->daddr, protocol,
 					       skb->len - dataoff, 0);
 		skb->ip_summed = CHECKSUM_NONE;
 		return __skb_checksum_complete_head(skb, dataoff + len);

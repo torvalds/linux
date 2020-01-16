@@ -37,7 +37,7 @@ void kvmppc_emulate_dec(struct kvm_vcpu *vcpu)
 #endif
 
 #ifdef CONFIG_BOOKE
-	/* On BOOKE, DEC = 0 is as good as decrementer not enabled */
+	/* On BOOKE, DEC = 0 is as good as decrementer yest enabled */
 	if (vcpu->arch.dec == 0)
 		return;
 #endif
@@ -108,14 +108,14 @@ static int kvmppc_emulate_mtspr(struct kvm_vcpu *vcpu, int sprn, int rs)
 		kvmppc_set_sprg3(vcpu, spr_val);
 		break;
 
-	/* PIR can legally be written, but we ignore it */
+	/* PIR can legally be written, but we igyesre it */
 	case SPRN_PIR: break;
 
 	default:
 		emulated = vcpu->kvm->arch.kvm_ops->emulate_mtspr(vcpu, sprn,
 								  spr_val);
 		if (emulated == EMULATE_FAIL)
-			printk(KERN_INFO "mtspr: unknown spr "
+			printk(KERN_INFO "mtspr: unkyeswn spr "
 				"0x%x\n", sprn);
 		break;
 	}
@@ -176,7 +176,7 @@ static int kvmppc_emulate_mfspr(struct kvm_vcpu *vcpu, int sprn, int rt)
 		emulated = vcpu->kvm->arch.kvm_ops->emulate_mfspr(vcpu, sprn,
 								  &spr_val);
 		if (unlikely(emulated == EMULATE_FAIL)) {
-			printk(KERN_INFO "mfspr: unknown spr "
+			printk(KERN_INFO "mfspr: unkyeswn spr "
 				"0x%x\n", sprn);
 		}
 		break;

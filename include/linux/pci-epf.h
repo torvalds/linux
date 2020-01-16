@@ -15,7 +15,7 @@
 
 struct pci_epf;
 
-enum pci_barno {
+enum pci_baryes {
 	BAR_0,
 	BAR_1,
 	BAR_2,
@@ -97,7 +97,7 @@ struct pci_epf_driver {
 struct pci_epf_bar {
 	dma_addr_t	phys_addr;
 	size_t		size;
-	enum pci_barno	barno;
+	enum pci_baryes	baryes;
 	int		flags;
 };
 
@@ -108,7 +108,7 @@ struct pci_epf_bar {
  * @header: represents standard configuration header
  * @bar: represents the BAR of EPF device
  * @msi_interrupts: number of MSI interrupts required by this function
- * @func_no: unique function number within this endpoint device
+ * @func_yes: unique function number within this endpoint device
  * @epc: the EPC device to which this EPF device is bound
  * @driver: the EPF driver to which this EPF device is bound
  * @list: to add pci_epf as a list of PCI endpoint functions to pci_epc
@@ -120,7 +120,7 @@ struct pci_epf {
 	struct pci_epf_bar	bar[6];
 	u8			msi_interrupts;
 	u16			msix_interrupts;
-	u8			func_no;
+	u8			func_yes;
 
 	struct pci_epc		*epc;
 	struct pci_epf_driver	*driver;
@@ -149,9 +149,9 @@ void pci_epf_destroy(struct pci_epf *epf);
 int __pci_epf_register_driver(struct pci_epf_driver *driver,
 			      struct module *owner);
 void pci_epf_unregister_driver(struct pci_epf_driver *driver);
-void *pci_epf_alloc_space(struct pci_epf *epf, size_t size, enum pci_barno bar,
+void *pci_epf_alloc_space(struct pci_epf *epf, size_t size, enum pci_baryes bar,
 			  size_t align);
-void pci_epf_free_space(struct pci_epf *epf, void *addr, enum pci_barno bar);
+void pci_epf_free_space(struct pci_epf *epf, void *addr, enum pci_baryes bar);
 int pci_epf_bind(struct pci_epf *epf);
 void pci_epf_unbind(struct pci_epf *epf);
 void pci_epf_linkup(struct pci_epf *epf);

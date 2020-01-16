@@ -103,7 +103,7 @@ static int snd_pdacf_probe(struct pcmcia_device *link)
 	err = snd_card_new(&link->dev, index[i], id[i], THIS_MODULE,
 			   0, &card);
 	if (err < 0) {
-		snd_printk(KERN_ERR "pdacf: cannot create a card instance\n");
+		snd_printk(KERN_ERR "pdacf: canyest create a card instance\n");
 		return err;
 	}
 

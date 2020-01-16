@@ -43,7 +43,7 @@ MAP COMMANDS
 |	*DATA* := { [**hex**] *BYTES* }
 |	*PROG* := { **id** *PROG_ID* | **pinned** *FILE* | **tag** *PROG_TAG* }
 |	*VALUE* := { *DATA* | *MAP* | *PROG* }
-|	*UPDATE_FLAGS* := { **any** | **exist** | **noexist** }
+|	*UPDATE_FLAGS* := { **any** | **exist** | **yesexist** }
 |	*TYPE* := { **hash** | **array** | **prog_array** | **perf_event_array** | **percpu_hash**
 |		| **percpu_array** | **stack_trace** | **cgroup_array** | **lru_hash**
 |		| **lru_percpu_hash** | **lpm_trie** | **array_of_maps** | **hash_of_maps**
@@ -73,11 +73,11 @@ DESCRIPTION
 
 		  *UPDATE_FLAGS* can be one of: **any** update existing entry
 		  or add if doesn't exit; **exist** update only if entry already
-		  exists; **noexist** update only if entry doesn't exist.
+		  exists; **yesexist** update only if entry doesn't exist.
 
 		  If the **hex** keyword is provided in front of the bytes
 		  sequence, the bytes are parsed as hexadeximal values, even if
-		  no "0x" prefix is added. If the keyword is not provided, then
+		  yes "0x" prefix is added. If the keyword is yest provided, then
 		  the bytes are parsed as decimal values, unless a "0x" prefix
 		  (for hexadecimal) or a "0" prefix (for octal) is provided.
 
@@ -85,7 +85,7 @@ DESCRIPTION
 		  Lookup **key** in the map.
 
 	**bpftool map getnext** *MAP* [**key** *DATA*]
-		  Get next key.  If *key* is not specified, get first key.
+		  Get next key.  If *key* is yest specified, get first key.
 
 	**bpftool map delete**  *MAP*  **key** *DATA*
 		  Remove entry from the map.
@@ -93,7 +93,7 @@ DESCRIPTION
 	**bpftool map pin**     *MAP*  *FILE*
 		  Pin map *MAP* as *FILE*.
 
-		  Note: *FILE* must be located in *bpffs* mount. It must not
+		  Note: *FILE* must be located in *bpffs* mount. It must yest
 		  contain a dot character ('.'), which is reserved for future
 		  extensions of *bpffs*.
 
@@ -130,8 +130,8 @@ DESCRIPTION
 
 	**bpftool map freeze**  *MAP*
 		  Freeze the map as read-only from user space. Entries from a
-		  frozen map can not longer be updated or deleted with the
-		  **bpf\ ()** system call. This operation is not reversible,
+		  frozen map can yest longer be updated or deleted with the
+		  **bpf\ ()** system call. This operation is yest reversible,
 		  and the map remains immutable from user space until its
 		  destruction. However, read and write permissions for BPF
 		  programs to the map remain unchanged.
@@ -148,8 +148,8 @@ OPTIONS
 		  Print version number (similar to **bpftool version**).
 
 	-j, --json
-		  Generate JSON output. For commands that cannot produce JSON, this
-		  option has no effect.
+		  Generate JSON output. For commands that canyest produce JSON, this
+		  option has yes effect.
 
 	-p, --pretty
 		  Generate human-readable JSON output. Implies **-j**.
@@ -157,8 +157,8 @@ OPTIONS
 	-f, --bpffs
 		  Show file names of pinned maps.
 
-	-n, --nomount
-		  Do not automatically attempt to mount any virtual file system
+	-n, --yesmount
+		  Do yest automatically attempt to mount any virtual file system
 		  (such as tracefs or BPF virtual file system) when necessary.
 
 	-d, --debug
@@ -203,7 +203,7 @@ The following three commands are equivalent:
   0d 00 07 00
 
 |
-| **# mount -t bpf none /sys/fs/bpf/**
+| **# mount -t bpf yesne /sys/fs/bpf/**
 | **# bpftool map pin id 10 /sys/fs/bpf/map**
 | **# bpftool map del pinned /sys/fs/bpf/map key 13 00 07 00**
 
@@ -215,7 +215,7 @@ defining a prog array map, and with a main function that contains a tail call
 to other programs that can be used either to "process" packets or to "debug"
 processing. Note that the prog array map MUST be pinned into the BPF virtual
 file system for the map update to work successfully, as kernel flushes prog
-array maps when they have no more references from user space (and the update
+array maps when they have yes more references from user space (and the update
 would be lost as soon as bpftool exits).
 
 |

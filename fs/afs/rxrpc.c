@@ -24,15 +24,15 @@ static void afs_rx_new_call(struct sock *, struct rxrpc_call *, unsigned long);
 static void afs_rx_discard_new_call(struct rxrpc_call *, unsigned long);
 static int afs_deliver_cm_op_id(struct afs_call *);
 
-/* asynchronous incoming call initial processing */
+/* asynchroyesus incoming call initial processing */
 static const struct afs_call_type afs_RXCMxxxx = {
 	.name		= "CB.xxxx",
 	.deliver	= afs_deliver_cm_op_id,
 };
 
 /*
- * open an RxRPC socket and bind it to be a server for callback notifications
- * - the socket is left in blocking mode and non-blocking ops use MSG_DONTWAIT
+ * open an RxRPC socket and bind it to be a server for callback yestifications
+ * - the socket is left in blocking mode and yesn-blocking ops use MSG_DONTWAIT
  */
 int afs_open_socket(struct afs_net *net)
 {
@@ -84,7 +84,7 @@ int afs_open_socket(struct afs_net *net)
 	 * it sends back to us.
 	 */
 
-	rxrpc_kernel_new_call_notification(socket, afs_rx_new_call,
+	rxrpc_kernel_new_call_yestification(socket, afs_rx_new_call,
 					   afs_rx_discard_new_call);
 
 	ret = kernel_listen(socket, INT_MAX);
@@ -121,7 +121,7 @@ void afs_close_socket(struct afs_net *net)
 	_debug("outstanding %u", atomic_read(&net->nr_outstanding_calls));
 	wait_var_event(&net->nr_outstanding_calls,
 		       !atomic_read(&net->nr_outstanding_calls));
-	_debug("no outstanding calls");
+	_debug("yes outstanding calls");
 
 	kernel_sock_shutdown(net->socket, SHUT_RDWR);
 	flush_workqueue(afs_async_calls);
@@ -235,20 +235,20 @@ struct afs_call *afs_alloc_flat_call(struct afs_net *net,
 
 	call = afs_alloc_call(net, type, GFP_NOFS);
 	if (!call)
-		goto nomem_call;
+		goto yesmem_call;
 
 	if (request_size) {
 		call->request_size = request_size;
 		call->request = kmalloc(request_size, GFP_NOFS);
 		if (!call->request)
-			goto nomem_free;
+			goto yesmem_free;
 	}
 
 	if (reply_max) {
 		call->reply_max = reply_max;
 		call->buffer = kmalloc(reply_max, GFP_NOFS);
 		if (!call->buffer)
-			goto nomem_free;
+			goto yesmem_free;
 	}
 
 	afs_extract_to_buf(call, call->reply_max);
@@ -256,9 +256,9 @@ struct afs_call *afs_alloc_flat_call(struct afs_net *net,
 	init_waitqueue_head(&call->waitq);
 	return call;
 
-nomem_free:
+yesmem_free:
 	afs_put_call(call);
-nomem_call:
+yesmem_call:
 	return NULL;
 }
 
@@ -311,7 +311,7 @@ static void afs_load_bvec(struct afs_call *call, struct msghdr *msg,
 /*
  * Advance the AFS call state when the RxRPC call ends the transmit phase.
  */
-static void afs_notify_end_request_tx(struct sock *sock,
+static void afs_yestify_end_request_tx(struct sock *sock,
 				      struct rxrpc_call *rxcall,
 				      unsigned long call_user_ID)
 {
@@ -321,7 +321,7 @@ static void afs_notify_end_request_tx(struct sock *sock,
 }
 
 /*
- * attach the data from a bunch of pages on an inode to a call
+ * attach the data from a bunch of pages on an iyesde to a call
  */
 static int afs_send_pages(struct afs_call *call, struct msghdr *msg)
 {
@@ -342,7 +342,7 @@ static int afs_send_pages(struct afs_call *call, struct msghdr *msg)
 		nr = msg->msg_iter.nr_segs;
 
 		ret = rxrpc_kernel_send_data(call->net->socket, call->rxcall, msg,
-					     bytes, afs_notify_end_request_tx);
+					     bytes, afs_yestify_end_request_tx);
 		for (loop = 0; loop < nr; loop++)
 			put_page(bv[loop].bv_page);
 		if (ret < 0)
@@ -356,7 +356,7 @@ static int afs_send_pages(struct afs_call *call, struct msghdr *msg)
 }
 
 /*
- * Initiate a call and synchronously queue up the parameters for dispatch.  Any
+ * Initiate a call and synchroyesusly queue up the parameters for dispatch.  Any
  * error is stored into the call struct, which the caller must check for.
  */
 void afs_make_call(struct afs_addr_cursor *ac, struct afs_call *call, gfp_t gfp)
@@ -399,8 +399,8 @@ void afs_make_call(struct afs_addr_cursor *ac, struct afs_call *call, gfp_t gfp)
 		}
 	}
 
-	/* If the call is going to be asynchronous, we need an extra ref for
-	 * the call to hold itself so the caller need not hang on to its ref.
+	/* If the call is going to be asynchroyesus, we need an extra ref for
+	 * the call to hold itself so the caller need yest hang on to its ref.
 	 */
 	if (call->async)
 		afs_get_call(call, afs_call_trace_get);
@@ -440,7 +440,7 @@ void afs_make_call(struct afs_addr_cursor *ac, struct afs_call *call, gfp_t gfp)
 
 	ret = rxrpc_kernel_send_data(call->net->socket, rxcall,
 				     &msg, call->request_size,
-				     afs_notify_end_request_tx);
+				     afs_yestify_end_request_tx);
 	if (ret < 0)
 		goto error_do_abort;
 
@@ -451,10 +451,10 @@ void afs_make_call(struct afs_addr_cursor *ac, struct afs_call *call, gfp_t gfp)
 	}
 
 	/* Note that at this point, we may have received the reply or an abort
-	 * - and an asynchronous call may already have completed.
+	 * - and an asynchroyesus call may already have completed.
 	 *
 	 * afs_wait_for_call_to_complete(call, ac)
-	 * must be called to synchronously clean up.
+	 * must be called to synchroyesusly clean up.
 	 */
 	return;
 
@@ -478,7 +478,7 @@ error_kill_call:
 
 	/* We need to dispose of the extra ref we grabbed for an async call.
 	 * The call, however, might be queued on afs_async_calls and we need to
-	 * make sure we don't get any more notifications that might requeue it.
+	 * make sure we don't get any more yestifications that might requeue it.
 	 */
 	if (call->rxcall) {
 		rxrpc_kernel_end_call(call->net->socket, call->rxcall);
@@ -599,7 +599,7 @@ call_complete:
 }
 
 /*
- * Wait synchronously for a call to complete and clean up the call struct.
+ * Wait synchroyesusly for a call to complete and clean up the call struct.
  */
 long afs_wait_for_call_to_complete(struct afs_call *call,
 				   struct afs_addr_cursor *ac)
@@ -722,7 +722,7 @@ static void afs_wake_up_call_waiter(struct sock *sk, struct rxrpc_call *rxcall,
 }
 
 /*
- * wake up an asynchronous call
+ * wake up an asynchroyesus call
  */
 static void afs_wake_up_async_call(struct sock *sk, struct rxrpc_call *rxcall,
 				   unsigned long call_user_ID)
@@ -730,7 +730,7 @@ static void afs_wake_up_async_call(struct sock *sk, struct rxrpc_call *rxcall,
 	struct afs_call *call = (struct afs_call *)call_user_ID;
 	int u;
 
-	trace_afs_notify_call(rxcall, call);
+	trace_afs_yestify_call(rxcall, call);
 	call->need_attention = true;
 
 	u = atomic_fetch_add_unless(&call->usage, 1, 0);
@@ -745,7 +745,7 @@ static void afs_wake_up_async_call(struct sock *sk, struct rxrpc_call *rxcall,
 }
 
 /*
- * Delete an asynchronous call.  The work item carries a ref to the call struct
+ * Delete an asynchroyesus call.  The work item carries a ref to the call struct
  * that we need to release.
  */
 static void afs_delete_async_call(struct work_struct *work)
@@ -760,7 +760,7 @@ static void afs_delete_async_call(struct work_struct *work)
 }
 
 /*
- * Perform I/O processing on an asynchronous call.  The work item carries a ref
+ * Perform I/O processing on an asynchroyesus call.  The work item carries a ref
  * to the call struct that we either need to release or to pass on.
  */
 static void afs_process_async_call(struct work_struct *work)
@@ -885,7 +885,7 @@ static int afs_deliver_cm_op_id(struct afs_call *call)
  * Advance the AFS call state when an RxRPC service call ends the transmit
  * phase.
  */
-static void afs_notify_end_reply_tx(struct sock *sock,
+static void afs_yestify_end_reply_tx(struct sock *sock,
 				    struct rxrpc_call *rxcall,
 				    unsigned long call_user_ID)
 {
@@ -914,7 +914,7 @@ void afs_send_empty_reply(struct afs_call *call)
 	msg.msg_flags		= 0;
 
 	switch (rxrpc_kernel_send_data(net->socket, call->rxcall, &msg, 0,
-				       afs_notify_end_reply_tx)) {
+				       afs_yestify_end_reply_tx)) {
 	case 0:
 		_leave(" [replied]");
 		return;
@@ -954,7 +954,7 @@ void afs_send_simple_reply(struct afs_call *call, const void *buf, size_t len)
 	msg.msg_flags		= 0;
 
 	n = rxrpc_kernel_send_data(net->socket, call->rxcall, &msg, len,
-				   afs_notify_end_reply_tx);
+				   afs_yestify_end_reply_tx);
 	if (n >= 0) {
 		/* Success */
 		_leave(" [replied]");
@@ -1013,7 +1013,7 @@ int afs_extract_data(struct afs_call *call, bool want_more)
 /*
  * Log protocol error production.
  */
-noinline int afs_protocol_error(struct afs_call *call, int error,
+yesinline int afs_protocol_error(struct afs_call *call, int error,
 				enum afs_eproto_cause cause)
 {
 	trace_afs_protocol_error(call, error, cause);

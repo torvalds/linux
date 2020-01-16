@@ -4,7 +4,7 @@
  * Driver for the ov9650 sensor
  *
  * Copyright (C) 2008 Erik Andrén
- * Copyright (C) 2007 Ilyes Gouta. Based on the m5603x Linux Driver Project.
+ * Copyright (C) 2007 Ilno Gouta. Based on the m5603x Linux Driver Project.
  * Copyright (C) 2005 m5603x Linux Driver Project <m5602@x3ng.com.br>
  *
  * Portions of code to USB interface and ALi driver software,
@@ -97,7 +97,7 @@ static const unsigned char init_ov9650[][3] = {
 	{SENSOR, OV9650_DBLC1, 0xdf},
 	{SENSOR, OV9650_COM21, 0x06},
 	{SENSOR, OV9650_RSVD35, 0x91},
-	/* Necessary, no camera stream without it */
+	/* Necessary, yes camera stream without it */
 	{SENSOR, OV9650_RSVD16, 0x06},
 	{SENSOR, OV9650_RSVD94, 0x99},
 	{SENSOR, OV9650_RSVD95, 0x99},
@@ -111,7 +111,7 @@ static const unsigned char init_ov9650[][3] = {
 	{SENSOR, OV9650_BBIAS, 0xa0},
 	/* Subtract 32 from the Gb channel bias */
 	{SENSOR, OV9650_GbBIAS, 0xa0},
-	/* Do not bypass the analog BLC and to some out of spec stuff */
+	/* Do yest bypass the analog BLC and to some out of spec stuff */
 	{SENSOR, OV9650_Gr_COM, 0x00},
 	/* Subtract 32 from the R channel bias */
 	{SENSOR, OV9650_RBIAS, 0xa0},
@@ -148,7 +148,7 @@ static const unsigned char init_ov9650[][3] = {
 	{SENSOR, OV9650_ADC, 0x04},
 	{SENSOR, OV9650_HV, 0x40},
 
-	/* Enable denoise, and white-pixel erase */
+	/* Enable deyesise, and white-pixel erase */
 	{SENSOR, OV9650_COM22, OV9650_DENOISE_ENABLE |
 		 OV9650_WHITE_PIXEL_ENABLE |
 		 OV9650_WHITE_PIXEL_OPTION},
@@ -302,7 +302,7 @@ int ov9650_probe(struct sd *sd)
 			pr_info("Forcing an %s sensor\n", ov9650.name);
 			goto sensor_found;
 		}
-		/* If we want to force another sensor,
+		/* If we want to force ayesther sensor,
 		   don't try to probe this one */
 		return -ENODEV;
 	}
@@ -395,7 +395,7 @@ int ov9650_init_controls(struct sd *sd)
 				      0, 1, 1, 0);
 
 	if (hdl->error) {
-		pr_err("Could not initialize controls\n");
+		pr_err("Could yest initialize controls\n");
 		return hdl->error;
 	}
 

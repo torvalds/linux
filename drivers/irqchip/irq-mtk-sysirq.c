@@ -72,7 +72,7 @@ static int mtk_sysirq_domain_translate(struct irq_domain *d,
 				       unsigned long *hwirq,
 				       unsigned int *type)
 {
-	if (is_of_node(fwspec->fwnode)) {
+	if (is_of_yesde(fwspec->fwyesde)) {
 		if (fwspec->param_count != 3)
 			return -EINVAL;
 
@@ -109,7 +109,7 @@ static int mtk_sysirq_domain_alloc(struct irq_domain *domain, unsigned int virq,
 					      &mtk_sysirq_chip,
 					      domain->host_data);
 
-	gic_fwspec.fwnode = domain->parent->fwnode;
+	gic_fwspec.fwyesde = domain->parent->fwyesde;
 	return irq_domain_alloc_irqs_parent(domain, virq, nr_irqs, &gic_fwspec);
 }
 
@@ -119,8 +119,8 @@ static const struct irq_domain_ops sysirq_domain_ops = {
 	.free		= irq_domain_free_irqs_common,
 };
 
-static int __init mtk_sysirq_of_init(struct device_node *node,
-				     struct device_node *parent)
+static int __init mtk_sysirq_of_init(struct device_yesde *yesde,
+				     struct device_yesde *parent)
 {
 	struct irq_domain *domain, *domain_parent;
 	struct mtk_sysirq_chip_data *chip_data;
@@ -128,7 +128,7 @@ static int __init mtk_sysirq_of_init(struct device_node *node,
 
 	domain_parent = irq_find_host(parent);
 	if (!domain_parent) {
-		pr_err("mtk_sysirq: interrupt-parent not found\n");
+		pr_err("mtk_sysirq: interrupt-parent yest found\n");
 		return -EINVAL;
 	}
 
@@ -136,11 +136,11 @@ static int __init mtk_sysirq_of_init(struct device_node *node,
 	if (!chip_data)
 		return -ENOMEM;
 
-	while (of_get_address(node, i++, NULL, NULL))
+	while (of_get_address(yesde, i++, NULL, NULL))
 		nr_intpol_bases++;
 
 	if (nr_intpol_bases == 0) {
-		pr_err("mtk_sysirq: base address not specified\n");
+		pr_err("mtk_sysirq: base address yest specified\n");
 		ret = -EINVAL;
 		goto out_free_chip;
 	}
@@ -164,13 +164,13 @@ static int __init mtk_sysirq_of_init(struct device_node *node,
 	for (i = 0; i < nr_intpol_bases; i++) {
 		struct resource res;
 
-		ret = of_address_to_resource(node, i, &res);
+		ret = of_address_to_resource(yesde, i, &res);
 		size = resource_size(&res);
 		intpol_num += size * 8;
 		chip_data->intpol_words[i] = size / 4;
-		chip_data->intpol_bases[i] = of_iomap(node, i);
+		chip_data->intpol_bases[i] = of_iomap(yesde, i);
 		if (ret || !chip_data->intpol_bases[i]) {
-			pr_err("%pOF: couldn't map region %d\n", node, i);
+			pr_err("%pOF: couldn't map region %d\n", yesde, i);
 			ret = -ENODEV;
 			goto out_free_intpol;
 		}
@@ -206,7 +206,7 @@ static int __init mtk_sysirq_of_init(struct device_node *node,
 		chip_data->which_word[i] = word;
 	}
 
-	domain = irq_domain_add_hierarchy(domain_parent, 0, intpol_num, node,
+	domain = irq_domain_add_hierarchy(domain_parent, 0, intpol_num, yesde,
 					  &sysirq_domain_ops, chip_data);
 	if (!domain) {
 		ret = -ENOMEM;

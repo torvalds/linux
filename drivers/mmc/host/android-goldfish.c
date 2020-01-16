@@ -5,7 +5,7 @@
  *
  *  based on omap.c driver, which was
  *  Copyright (C) 2004 Nokia Corporation
- *  Written by Tuukka Tikkanen and Juha Yrjölä <juha.yrjola@nokia.com>
+ *  Written by Tuukka Tikkanen and Juha Yrjölä <juha.yrjola@yeskia.com>
  *  Misc hacks here and there by Tony Lindgren <tony@atomide.com>
  *  Other hacks (DMA, SD, etc) by David Brownell
  */
@@ -20,7 +20,7 @@
 
 #include <linux/kernel.h>
 #include <linux/fs.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/hdreg.h>
 #include <linux/kdev_t.h>
 #include <linux/blkdev.h>
@@ -155,7 +155,7 @@ goldfish_mmc_start_command(struct goldfish_mmc_host *host, struct mmc_command *c
 	resptype = 0;
 	cmdtype = 0;
 
-	/* Our hardware needs to know exact type */
+	/* Our hardware needs to kyesw exact type */
 	switch (mmc_resp_type(cmd)) {
 	case MMC_RSP_NONE:
 		break;
@@ -322,8 +322,8 @@ static irqreturn_t goldfish_mmc_irq(int irq, void *dev_id)
 		/*
 		 * WORKAROUND -- after porting this driver from 2.6 to 3.4,
 		 * during device initialization, cases where host->data is
-		 * non-null but end_transfer is false would occur. Doing
-		 * nothing in such cases results in no further interrupts,
+		 * yesn-null but end_transfer is false would occur. Doing
+		 * yesthing in such cases results in yes further interrupts,
 		 * and initialization failure.
 		 * TODO -- find the real cause.
 		 */
@@ -333,7 +333,7 @@ static irqreturn_t goldfish_mmc_irq(int irq, void *dev_id)
 
 	if (state_changed) {
 		u32 state = GOLDFISH_MMC_READ(host, MMC_STATE);
-		pr_info("%s: Card detect now %d\n", __func__,
+		pr_info("%s: Card detect yesw %d\n", __func__,
 			(state & MMC_STATE_INSERTED));
 		mmc_detect_change(mmc_from_priv(host), 0);
 	}
@@ -485,7 +485,7 @@ static int goldfish_mmc_probe(struct platform_device *pdev)
 
 	/* Use scatterlist DMA to reduce per-transfer costs.
 	 * NOTE max_seg_size assumption that small blocks aren't
-	 * normally used (except e.g. for reading SD registers).
+	 * yesrmally used (except e.g. for reading SD registers).
 	 */
 	mmc->max_segs = 32;
 	mmc->max_blk_size = 2048;	/* MMC_BLOCK_LENGTH is 11 bits (+1) */

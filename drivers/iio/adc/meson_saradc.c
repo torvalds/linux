@@ -326,7 +326,7 @@ static int meson_sar_adc_wait_busy_clear(struct iio_dev *indio_dev)
 
 	/*
 	 * NOTE: we need a small delay before reading the status, otherwise
-	 * the sample engine may not have started internally (which would
+	 * the sample engine may yest have started internally (which would
 	 * seem to us that sampling is already finished).
 	 */
 	do {
@@ -559,7 +559,7 @@ static int meson_sar_adc_get_sample(struct iio_dev *indio_dev,
 	if (ret)
 		return ret;
 
-	/* clear the FIFO to make sure we're not reading old values */
+	/* clear the FIFO to make sure we're yest reading old values */
 	meson_sar_adc_clear_fifo(indio_dev);
 
 	meson_sar_adc_set_averaging(indio_dev, chan, avg_mode, avg_samples);
@@ -713,7 +713,7 @@ static int meson_sar_adc_temp_sensor_init(struct iio_dev *indio_dev)
 		ret = PTR_ERR(temperature_calib);
 
 		/*
-		 * leave the temperature sensor disabled if no calibration data
+		 * leave the temperature sensor disabled if yes calibration data
 		 * was passed via nvmem-cells.
 		 */
 		if (ret == -ENODEV)
@@ -727,7 +727,7 @@ static int meson_sar_adc_temp_sensor_init(struct iio_dev *indio_dev)
 	}
 
 	priv->tsc_regmap =
-		syscon_regmap_lookup_by_phandle(indio_dev->dev.parent->of_node,
+		syscon_regmap_lookup_by_phandle(indio_dev->dev.parent->of_yesde,
 						"amlogic,hhi-sysctrl");
 	if (IS_ERR(priv->tsc_regmap)) {
 		dev_err(indio_dev->dev.parent,
@@ -1029,11 +1029,11 @@ static irqreturn_t meson_sar_adc_irq(int irq, void *data)
 static int meson_sar_adc_calib(struct iio_dev *indio_dev)
 {
 	struct meson_sar_adc_priv *priv = iio_priv(indio_dev);
-	int ret, nominal0, nominal1, value0, value1;
+	int ret, yesminal0, yesminal1, value0, value1;
 
 	/* use points 25% and 75% for calibration */
-	nominal0 = (1 << priv->param->resolution) / 4;
-	nominal1 = (1 << priv->param->resolution) * 3 / 4;
+	yesminal0 = (1 << priv->param->resolution) / 4;
+	yesminal1 = (1 << priv->param->resolution) * 3 / 4;
 
 	meson_sar_adc_set_chan7_mux(indio_dev, CHAN7_MUX_VDD_DIV4);
 	usleep_range(10, 20);
@@ -1056,9 +1056,9 @@ static int meson_sar_adc_calib(struct iio_dev *indio_dev)
 		goto out;
 	}
 
-	priv->calibscale = div_s64((nominal1 - nominal0) * (s64)MILLION,
+	priv->calibscale = div_s64((yesminal1 - yesminal0) * (s64)MILLION,
 				   value1 - value0);
-	priv->calibbias = nominal0 - div_s64((s64)value0 * priv->calibscale,
+	priv->calibbias = yesminal0 - div_s64((s64)value0 * priv->calibscale,
 					     MILLION);
 	ret = 0;
 out:
@@ -1209,7 +1209,7 @@ static int meson_sar_adc_probe(struct platform_device *pdev)
 
 	indio_dev->name = match_data->name;
 	indio_dev->dev.parent = &pdev->dev;
-	indio_dev->dev.of_node = pdev->dev.of_node;
+	indio_dev->dev.of_yesde = pdev->dev.of_yesde;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->info = &meson_sar_adc_iio_info;
 
@@ -1222,7 +1222,7 @@ static int meson_sar_adc_probe(struct platform_device *pdev)
 	if (IS_ERR(priv->regmap))
 		return PTR_ERR(priv->regmap);
 
-	irq = irq_of_parse_and_map(pdev->dev.of_node, 0);
+	irq = irq_of_parse_and_map(pdev->dev.of_yesde, 0);
 	if (!irq)
 		return -EINVAL;
 

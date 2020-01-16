@@ -17,7 +17,7 @@
 #include <linux/list.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/rwsem.h>
 #include <linux/slab.h>
 
@@ -33,7 +33,7 @@ struct crypto_larval {
 
 extern struct list_head crypto_alg_list;
 extern struct rw_semaphore crypto_alg_sem;
-extern struct blocking_notifier_head crypto_chain;
+extern struct blocking_yestifier_head crypto_chain;
 
 #ifdef CONFIG_PROC_FS
 void __init crypto_init_proc(void);
@@ -79,7 +79,7 @@ struct crypto_alg *crypto_find_alg(const char *alg_name,
 void *crypto_alloc_tfm(const char *alg_name,
 		       const struct crypto_type *frontend, u32 type, u32 mask);
 
-int crypto_probing_notify(unsigned long val, void *v);
+int crypto_probing_yestify(unsigned long val, void *v);
 
 unsigned int crypto_alg_extsize(struct crypto_alg *alg);
 
@@ -123,9 +123,9 @@ static inline int crypto_is_moribund(struct crypto_alg *alg)
 	return alg->cra_flags & (CRYPTO_ALG_DEAD | CRYPTO_ALG_DYING);
 }
 
-static inline void crypto_notify(unsigned long val, void *v)
+static inline void crypto_yestify(unsigned long val, void *v)
 {
-	blocking_notifier_call_chain(&crypto_chain, val, v);
+	blocking_yestifier_call_chain(&crypto_chain, val, v);
 }
 
 #endif	/* _CRYPTO_INTERNAL_H */

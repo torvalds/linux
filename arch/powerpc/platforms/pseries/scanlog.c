@@ -18,7 +18,7 @@
 
 #include <linux/module.h>
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/proc_fs.h>
 #include <linux/init.h>
 #include <linux/delay.h>
@@ -55,7 +55,7 @@ static ssize_t scanlog_read(struct file *file, char __user *buf,
 		 * than do all the buffering we insist the user code handle
 		 * larger reads.  As long as cp works... :)
 		 */
-		printk(KERN_ERR "scanlog: cannot perform a small read (%ld)\n", count);
+		printk(KERN_ERR "scanlog: canyest perform a small read (%ld)\n", count);
 		return -EINVAL;
 	}
 
@@ -63,7 +63,7 @@ static ssize_t scanlog_read(struct file *file, char __user *buf,
 		return -EFAULT;
 
 	for (;;) {
-		wait_time = 500;	/* default wait if no data */
+		wait_time = 500;	/* default wait if yes data */
 		spin_lock(&rtas_data_buf_lock);
 		memcpy(rtas_data_buf, data, RTAS_DATA_BUF_SIZE);
 		status = rtas_call(ibm_scan_log_dump, 2, 1, NULL,
@@ -81,7 +81,7 @@ static ssize_t scanlog_read(struct file *file, char __user *buf,
 			pr_debug("scanlog: hardware error reading data\n");
 			return -EIO;
 		    case SCANLOG_CONTINUE:
-			/* We may or may not have data yet */
+			/* We may or may yest have data yet */
 			len = data[1];
 			off = data[2];
 			if (len > 0) {
@@ -95,12 +95,12 @@ static ssize_t scanlog_read(struct file *file, char __user *buf,
 			/* Assume extended busy */
 			wait_time = rtas_busy_delay_time(status);
 			if (!wait_time) {
-				printk(KERN_ERR "scanlog: unknown error " \
+				printk(KERN_ERR "scanlog: unkyeswn error " \
 				       "from rtas: %d\n", status);
 				return -EIO;
 			}
 		}
-		/* Apparently no data yet.  Wait and try again. */
+		/* Apparently yes data yet.  Wait and try again. */
 		msleep_interruptible(wait_time);
 	}
 	/*NOTREACHED*/
@@ -128,7 +128,7 @@ static ssize_t scanlog_write(struct file * file, const char __user * buf,
 	return count;
 }
 
-static int scanlog_open(struct inode * inode, struct file * file)
+static int scanlog_open(struct iyesde * iyesde, struct file * file)
 {
 	unsigned int *data = scanlog_buffer;
 
@@ -144,7 +144,7 @@ static int scanlog_open(struct inode * inode, struct file * file)
 	return 0;
 }
 
-static int scanlog_release(struct inode * inode, struct file * file)
+static int scanlog_release(struct iyesde * iyesde, struct file * file)
 {
 	unsigned int *data = scanlog_buffer;
 
@@ -158,7 +158,7 @@ static const struct file_operations scanlog_fops = {
 	.write		= scanlog_write,
 	.open		= scanlog_open,
 	.release	= scanlog_release,
-	.llseek		= noop_llseek,
+	.llseek		= yesop_llseek,
 };
 
 static int __init scanlog_init(void)

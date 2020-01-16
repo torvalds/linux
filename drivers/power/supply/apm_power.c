@@ -5,7 +5,7 @@
  * Author: Eugeny Boger <eugenyboger@dgap.mipt.ru>
  *
  * Use consistent with the GNU GPL is permitted,
- * provided that this copyright notice is
+ * provided that this copyright yestice is
  * preserved in its entirety in all copies and derived works.
  */
 
@@ -126,7 +126,7 @@ static int do_calculate_time(int status, enum apm_source source)
 	enum power_supply_property empty_prop;
 	enum power_supply_property empty_design_prop;
 	enum power_supply_property cur_avg_prop;
-	enum power_supply_property cur_now_prop;
+	enum power_supply_property cur_yesw_prop;
 
 	if (MPSY_PROP(CURRENT_AVG, &I)) {
 		/* if battery can't report average value, use momentary */
@@ -144,7 +144,7 @@ static int do_calculate_time(int status, enum apm_source source)
 		empty_prop = POWER_SUPPLY_PROP_CHARGE_EMPTY;
 		empty_design_prop = POWER_SUPPLY_PROP_CHARGE_EMPTY;
 		cur_avg_prop = POWER_SUPPLY_PROP_CHARGE_AVG;
-		cur_now_prop = POWER_SUPPLY_PROP_CHARGE_NOW;
+		cur_yesw_prop = POWER_SUPPLY_PROP_CHARGE_NOW;
 		break;
 	case SOURCE_ENERGY:
 		full_prop = POWER_SUPPLY_PROP_ENERGY_FULL;
@@ -152,7 +152,7 @@ static int do_calculate_time(int status, enum apm_source source)
 		empty_prop = POWER_SUPPLY_PROP_ENERGY_EMPTY;
 		empty_design_prop = POWER_SUPPLY_PROP_CHARGE_EMPTY;
 		cur_avg_prop = POWER_SUPPLY_PROP_ENERGY_AVG;
-		cur_now_prop = POWER_SUPPLY_PROP_ENERGY_NOW;
+		cur_yesw_prop = POWER_SUPPLY_PROP_ENERGY_NOW;
 		break;
 	case SOURCE_VOLTAGE:
 		full_prop = POWER_SUPPLY_PROP_VOLTAGE_MAX;
@@ -160,7 +160,7 @@ static int do_calculate_time(int status, enum apm_source source)
 		empty_prop = POWER_SUPPLY_PROP_VOLTAGE_MIN;
 		empty_design_prop = POWER_SUPPLY_PROP_VOLTAGE_MIN_DESIGN;
 		cur_avg_prop = POWER_SUPPLY_PROP_VOLTAGE_AVG;
-		cur_now_prop = POWER_SUPPLY_PROP_VOLTAGE_NOW;
+		cur_yesw_prop = POWER_SUPPLY_PROP_VOLTAGE_NOW;
 		break;
 	default:
 		printk(KERN_ERR "Unsupported source: %d\n", source);
@@ -181,7 +181,7 @@ static int do_calculate_time(int status, enum apm_source source)
 
 	if (_MPSY_PROP(cur_avg_prop, &cur)) {
 		/* if battery can't report average value, use momentary */
-		if (_MPSY_PROP(cur_now_prop, &cur))
+		if (_MPSY_PROP(cur_yesw_prop, &cur))
 			return -1;
 	}
 
@@ -214,7 +214,7 @@ static int calculate_capacity(enum apm_source source)
 {
 	enum power_supply_property full_prop, empty_prop;
 	enum power_supply_property full_design_prop, empty_design_prop;
-	enum power_supply_property now_prop, avg_prop;
+	enum power_supply_property yesw_prop, avg_prop;
 	union power_supply_propval empty, full, cur;
 	int ret;
 
@@ -224,7 +224,7 @@ static int calculate_capacity(enum apm_source source)
 		empty_prop = POWER_SUPPLY_PROP_CHARGE_EMPTY;
 		full_design_prop = POWER_SUPPLY_PROP_CHARGE_FULL_DESIGN;
 		empty_design_prop = POWER_SUPPLY_PROP_CHARGE_EMPTY_DESIGN;
-		now_prop = POWER_SUPPLY_PROP_CHARGE_NOW;
+		yesw_prop = POWER_SUPPLY_PROP_CHARGE_NOW;
 		avg_prop = POWER_SUPPLY_PROP_CHARGE_AVG;
 		break;
 	case SOURCE_ENERGY:
@@ -232,7 +232,7 @@ static int calculate_capacity(enum apm_source source)
 		empty_prop = POWER_SUPPLY_PROP_ENERGY_EMPTY;
 		full_design_prop = POWER_SUPPLY_PROP_ENERGY_FULL_DESIGN;
 		empty_design_prop = POWER_SUPPLY_PROP_ENERGY_EMPTY_DESIGN;
-		now_prop = POWER_SUPPLY_PROP_ENERGY_NOW;
+		yesw_prop = POWER_SUPPLY_PROP_ENERGY_NOW;
 		avg_prop = POWER_SUPPLY_PROP_ENERGY_AVG;
 		break;
 	case SOURCE_VOLTAGE:
@@ -240,7 +240,7 @@ static int calculate_capacity(enum apm_source source)
 		empty_prop = POWER_SUPPLY_PROP_VOLTAGE_MIN;
 		full_design_prop = POWER_SUPPLY_PROP_VOLTAGE_MAX_DESIGN;
 		empty_design_prop = POWER_SUPPLY_PROP_VOLTAGE_MIN_DESIGN;
-		now_prop = POWER_SUPPLY_PROP_VOLTAGE_NOW;
+		yesw_prop = POWER_SUPPLY_PROP_VOLTAGE_NOW;
 		avg_prop = POWER_SUPPLY_PROP_VOLTAGE_AVG;
 		break;
 	default:
@@ -256,7 +256,7 @@ static int calculate_capacity(enum apm_source source)
 
 	if (_MPSY_PROP(avg_prop, &cur)) {
 		/* if battery can't report average value, use momentary */
-		if (_MPSY_PROP(now_prop, &cur))
+		if (_MPSY_PROP(yesw_prop, &cur))
 			return -1;
 	}
 

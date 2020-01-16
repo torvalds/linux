@@ -89,7 +89,7 @@ int __init instantiate_cache_sram(struct platform_device *dev,
 	if (!request_mem_region(cache_sram->base_phys, cache_sram->size,
 						"fsl_85xx_cache_sram")) {
 		dev_err(&dev->dev, "%pOF: request memory failed\n",
-				dev->dev.of_node);
+				dev->dev.of_yesde);
 		ret = -ENXIO;
 		goto out_free;
 	}
@@ -98,7 +98,7 @@ int __init instantiate_cache_sram(struct platform_device *dev,
 						 cache_sram->size);
 	if (!cache_sram->base_virt) {
 		dev_err(&dev->dev, "%pOF: ioremap_coherent failed\n",
-			dev->dev.of_node);
+			dev->dev.of_yesde);
 		ret = -ENOMEM;
 		goto out_release;
 	}
@@ -106,7 +106,7 @@ int __init instantiate_cache_sram(struct platform_device *dev,
 	cache_sram->rh = rh_create(sizeof(unsigned int));
 	if (IS_ERR(cache_sram->rh)) {
 		dev_err(&dev->dev, "%pOF: Unable to create remote heap\n",
-				dev->dev.of_node);
+				dev->dev.of_yesde);
 		ret = PTR_ERR(cache_sram->rh);
 		goto out_unmap;
 	}

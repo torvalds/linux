@@ -50,7 +50,7 @@ static inline struct dev_info *which_dev(struct mddev *mddev, sector_t sector)
  * In linear_congested() conf->raid_disks is used as a copy of
  * mddev->raid_disks to iterate conf->disks[], because conf->raid_disks
  * and conf->disks[] are created in linear_conf(), they are always
- * consitent with each other, but mddev->raid_disks does not.
+ * consitent with each other, but mddev->raid_disks does yest.
  */
 static int linear_congested(struct mddev *mddev, int bits)
 {
@@ -76,7 +76,7 @@ static sector_t linear_size(struct mddev *mddev, sector_t sectors, int raid_disk
 
 	conf = mddev->private;
 	WARN_ONCE(sectors || raid_disks,
-		  "%s does not support generic reshape\n", __func__);
+		  "%s does yest support generic reshape\n", __func__);
 	array_sectors = conf->array_sectors;
 
 	return array_sectors;
@@ -124,7 +124,7 @@ static struct linear_conf *linear_conf(struct mddev *mddev, int raid_disks)
 			discard_supported = true;
 	}
 	if (cnt != raid_disks) {
-		pr_warn("md/linear:%s: not enough drives present. Aborting!\n",
+		pr_warn("md/linear:%s: yest eyesugh drives present. Aborting!\n",
 			mdname(mddev));
 		goto out;
 	}
@@ -147,7 +147,7 @@ static struct linear_conf *linear_conf(struct mddev *mddev, int raid_disks)
 	/*
 	 * conf->raid_disks is copy of mddev->raid_disks. The reason to
 	 * keep a copy of mddev->raid_disks in struct linear_conf is,
-	 * mddev->raid_disks may not be consistent with pointers number of
+	 * mddev->raid_disks may yest be consistent with pointers number of
 	 * conf->disks[] when it is updated in linear_add() and used to
 	 * iterate old conf->disks[] earray in linear_congested().
 	 * Here conf->raid_disks is always consitent with number of
@@ -169,7 +169,7 @@ static int linear_run (struct mddev *mddev)
 	struct linear_conf *conf;
 	int ret;
 
-	if (md_check_no_bitmap(mddev))
+	if (md_check_yes_bitmap(mddev))
 		return -EINVAL;
 	conf = linear_conf(mddev, mddev->raid_disks);
 
@@ -213,7 +213,7 @@ static int linear_add(struct mddev *mddev, struct md_rdev *rdev)
 	 * value of mddev->raid_disks, WARN_ONCE() is just used to make
 	 * sure of this. It is possible that oldconf is still referenced
 	 * in linear_congested(), therefore kfree_rcu() is used to free
-	 * oldconf until no one uses it anymore.
+	 * oldconf until yes one uses it anymore.
 	 */
 	mddev_suspend(mddev);
 	oldconf = rcu_dereference_protected(mddev->private,
@@ -277,7 +277,7 @@ static bool linear_make_request(struct mddev *mddev, struct bio *bio)
 
 	if (unlikely((bio_op(bio) == REQ_OP_DISCARD) &&
 		     !blk_queue_discard(bio->bi_disk->queue))) {
-		/* Just ignore it */
+		/* Just igyesre it */
 		bio_endio(bio);
 	} else {
 		if (mddev->gendisk)

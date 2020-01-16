@@ -12,7 +12,7 @@
 #include <linux/of.h>
 #include <linux/slab.h>
 
-static int __must_check of_clk_bulk_get(struct device_node *np, int num_clks,
+static int __must_check of_clk_bulk_get(struct device_yesde *np, int num_clks,
 					struct clk_bulk_data *clks)
 {
 	int ret;
@@ -43,7 +43,7 @@ err:
 	return ret;
 }
 
-static int __must_check of_clk_bulk_get_all(struct device_node *np,
+static int __must_check of_clk_bulk_get_all(struct device_yesde *np,
 					    struct clk_bulk_data **clks)
 {
 	struct clk_bulk_data *clk_bulk;
@@ -139,7 +139,7 @@ EXPORT_SYMBOL(clk_bulk_put_all);
 int __must_check clk_bulk_get_all(struct device *dev,
 				  struct clk_bulk_data **clks)
 {
-	struct device_node *np = dev_of_node(dev);
+	struct device_yesde *np = dev_of_yesde(dev);
 
 	if (!np)
 		return 0;
@@ -204,7 +204,7 @@ EXPORT_SYMBOL_GPL(clk_bulk_prepare);
  * @num_clks: the number of clk_bulk_data
  * @clks: the clk_bulk_data table being gated
  *
- * clk_bulk_disable must not sleep, which differentiates it from
+ * clk_bulk_disable must yest sleep, which differentiates it from
  * clk_bulk_unprepare. clk_bulk_disable must be called before
  * clk_bulk_unprepare.
  */
@@ -221,7 +221,7 @@ EXPORT_SYMBOL_GPL(clk_bulk_disable);
  * @num_clks: the number of clk_bulk_data
  * @clks: the clk_bulk_data table being ungated
  *
- * clk_bulk_enable must not sleep
+ * clk_bulk_enable must yest sleep
  * Returns 0 on success, -EERROR otherwise.
  */
 int __must_check clk_bulk_enable(int num_clks, const struct clk_bulk_data *clks)

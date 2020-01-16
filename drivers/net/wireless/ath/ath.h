@@ -3,7 +3,7 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright yestice and this permission yestice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
@@ -27,7 +27,7 @@
  * The key cache is used for h/w cipher state and also for
  * tracking station state such as the current tx antenna.
  * We also setup a mapping table between key cache slot indices
- * and station state to short-circuit node lookups on rx.
+ * and station state to short-circuit yesde lookups on rx.
  * Different parts have different size key caches.  We handle
  * up to ATH_KEYMAX entries (could dynamically allocate state).
  */
@@ -220,7 +220,7 @@ void ath_printk(const char *level, const struct ath_common *common,
 	ath_printk(KERN_ERR, common, fmt, ##__VA_ARGS__)
 #define ath_warn(common, fmt, ...)				\
 	ath_printk(KERN_WARNING, common, fmt, ##__VA_ARGS__)
-#define ath_notice(common, fmt, ...)				\
+#define ath_yestice(common, fmt, ...)				\
 	ath_printk(KERN_NOTICE, common, fmt, ##__VA_ARGS__)
 #define ath_info(common, fmt, ...)				\
 	ath_printk(KERN_INFO, common, fmt, ##__VA_ARGS__)
@@ -234,7 +234,7 @@ void ath_printk(const char *level, const struct ath_common *common,
  * @ATH_DBG_CALIBRATE: periodic calibration
  * @ATH_DBG_INTERRUPT: interrupt processing
  * @ATH_DBG_REGULATORY: regulatory processing
- * @ATH_DBG_ANI: adaptive noise immunitive processing
+ * @ATH_DBG_ANI: adaptive yesise immunitive processing
  * @ATH_DBG_XMIT: basic xmit operation
  * @ATH_DBG_BEACON: beacon handling
  * @ATH_DBG_CONFIG: configuration of the hardware
@@ -315,7 +315,7 @@ void _ath_dbg(struct ath_common *common, enum ATH_DEBUG dbg_mask,
 
 #endif /* CONFIG_ATH_DEBUG */
 
-/** Returns string describing opmode, or NULL if unknown mode. */
+/** Returns string describing opmode, or NULL if unkyeswn mode. */
 #ifdef CONFIG_ATH_DEBUG
 const char *ath_opmode_to_string(enum nl80211_iftype opmode);
 #else

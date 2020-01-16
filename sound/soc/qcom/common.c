@@ -7,10 +7,10 @@
 
 int qcom_snd_parse_of(struct snd_soc_card *card)
 {
-	struct device_node *np;
-	struct device_node *codec = NULL;
-	struct device_node *platform = NULL;
-	struct device_node *cpu = NULL;
+	struct device_yesde *np;
+	struct device_yesde *codec = NULL;
+	struct device_yesde *platform = NULL;
+	struct device_yesde *cpu = NULL;
 	struct device *dev = card->dev;
 	struct snd_soc_dai_link *link;
 	struct of_phandle_args args;
@@ -24,7 +24,7 @@ int qcom_snd_parse_of(struct snd_soc_card *card)
 	}
 
 	/* DAPM routes */
-	if (of_property_read_bool(dev->of_node, "audio-routing")) {
+	if (of_property_read_bool(dev->of_yesde, "audio-routing")) {
 		ret = snd_soc_of_parse_audio_routing(card,
 				"audio-routing");
 		if (ret)
@@ -32,7 +32,7 @@ int qcom_snd_parse_of(struct snd_soc_card *card)
 	}
 
 	/* Populate links */
-	num_links = of_get_child_count(dev->of_node);
+	num_links = of_get_child_count(dev->of_yesde);
 
 	/* Allocate the DAI link array */
 	card->dai_link = kcalloc(num_links, sizeof(*link), GFP_KERNEL);
@@ -42,7 +42,7 @@ int qcom_snd_parse_of(struct snd_soc_card *card)
 	card->num_links = num_links;
 	link = card->dai_link;
 
-	for_each_child_of_node(dev->of_node, np) {
+	for_each_child_of_yesde(dev->of_yesde, np) {
 		dlc = devm_kzalloc(dev, 2 * sizeof(*dlc), GFP_KERNEL);
 		if (!dlc)
 			return -ENOMEM;
@@ -64,7 +64,7 @@ int qcom_snd_parse_of(struct snd_soc_card *card)
 		codec = of_get_child_by_name(np, "codec");
 
 		if (!cpu) {
-			dev_err(dev, "%s: Can't find cpu DT node\n", link->name);
+			dev_err(dev, "%s: Can't find cpu DT yesde\n", link->name);
 			ret = -EINVAL;
 			goto err;
 		}
@@ -75,7 +75,7 @@ int qcom_snd_parse_of(struct snd_soc_card *card)
 			dev_err(card->dev, "%s: error getting cpu phandle\n", link->name);
 			goto err;
 		}
-		link->cpus->of_node = args.np;
+		link->cpus->of_yesde = args.np;
 		link->id = args.args[0];
 
 		ret = snd_soc_of_get_dai_name(cpu, &link->cpus->dai_name);
@@ -85,22 +85,22 @@ int qcom_snd_parse_of(struct snd_soc_card *card)
 		}
 
 		if (codec && platform) {
-			link->platforms->of_node = of_parse_phandle(platform,
+			link->platforms->of_yesde = of_parse_phandle(platform,
 					"sound-dai",
 					0);
-			if (!link->platforms->of_node) {
-				dev_err(card->dev, "%s: platform dai not found\n", link->name);
+			if (!link->platforms->of_yesde) {
+				dev_err(card->dev, "%s: platform dai yest found\n", link->name);
 				ret = -EINVAL;
 				goto err;
 			}
 
 			ret = snd_soc_of_get_dai_link_codecs(dev, codec, link);
 			if (ret < 0) {
-				dev_err(card->dev, "%s: codec dai not found\n", link->name);
+				dev_err(card->dev, "%s: codec dai yest found\n", link->name);
 				goto err;
 			}
-			link->no_pcm = 1;
-			link->ignore_pmdown_time = 1;
+			link->yes_pcm = 1;
+			link->igyesre_pmdown_time = 1;
 		} else {
 			dlc = devm_kzalloc(dev, sizeof(*dlc), GFP_KERNEL);
 			if (!dlc)
@@ -109,30 +109,30 @@ int qcom_snd_parse_of(struct snd_soc_card *card)
 			link->codecs	 = dlc;
 			link->num_codecs = 1;
 
-			link->platforms->of_node = link->cpus->of_node;
+			link->platforms->of_yesde = link->cpus->of_yesde;
 			link->codecs->dai_name = "snd-soc-dummy-dai";
 			link->codecs->name = "snd-soc-dummy";
 			link->dynamic = 1;
 		}
 
-		link->ignore_suspend = 1;
-		link->nonatomic = 1;
+		link->igyesre_suspend = 1;
+		link->yesnatomic = 1;
 		link->dpcm_playback = 1;
 		link->dpcm_capture = 1;
 		link->stream_name = link->name;
 		link++;
 
-		of_node_put(cpu);
-		of_node_put(codec);
-		of_node_put(platform);
+		of_yesde_put(cpu);
+		of_yesde_put(codec);
+		of_yesde_put(platform);
 	}
 
 	return 0;
 err:
-	of_node_put(np);
-	of_node_put(cpu);
-	of_node_put(codec);
-	of_node_put(platform);
+	of_yesde_put(np);
+	of_yesde_put(cpu);
+	of_yesde_put(codec);
+	of_yesde_put(platform);
 	kfree(card->dai_link);
 	return ret;
 }

@@ -52,7 +52,7 @@ struct guest {
 } guest;
 
 struct host {
-	/* we do not need to track last avail index
+	/* we do yest need to track last avail index
 	 * unless we have more than one in flight.
 	 */
 	unsigned short used_idx;
@@ -209,7 +209,7 @@ bool used_empty()
 
 void disable_call()
 {
-	/* Doing nothing to disable calls might cause
+	/* Doing yesthing to disable calls might cause
 	 * extra interrupts, but reduces the number of cache misses.
 	 */
 }
@@ -242,7 +242,7 @@ void kick_available(void)
 /* host side */
 void disable_kick()
 {
-	/* Doing nothing to disable kicks might cause
+	/* Doing yesthing to disable kicks might cause
 	 * extra interrupts, but reduces the number of cache misses.
 	 */
 }
@@ -304,7 +304,7 @@ bool use_buf(unsigned *lenp, void **bufp)
 #ifdef INORDER
 	desc->len = desc->len - 1;
 #else
-	/* now update used ring */
+	/* yesw update used ring */
 	ring.used->ring[used_idx].id = head;
 	ring.used->ring[used_idx].len = desc->len - 1;
 #endif

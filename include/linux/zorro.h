@@ -52,11 +52,11 @@ extern struct bus_type zorro_bus_type;
      */
 
 struct zorro_driver {
-    struct list_head node;
+    struct list_head yesde;
     char *name;
     const struct zorro_device_id *id_table;	/* NULL if wants all devices */
     int (*probe)(struct zorro_dev *z, const struct zorro_device_id *id);	/* New device inserted */
-    void (*remove)(struct zorro_dev *z);	/* Device removed (NULL if not a hot-plug capable driver) */
+    void (*remove)(struct zorro_dev *z);	/* Device removed (NULL if yest a hot-plug capable driver) */
     struct device_driver driver;
 };
 

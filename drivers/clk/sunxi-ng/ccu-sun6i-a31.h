@@ -47,7 +47,7 @@
 
 /* The first bunch of module clocks are exported */
 
-/* EMAC clock is not implemented */
+/* EMAC clock is yest implemented */
 
 #define CLK_MDFS		107
 #define CLK_SDRAM0		108

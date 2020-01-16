@@ -66,12 +66,12 @@ static const char *rproc_crash_to_string(enum rproc_crash_type type)
 {
 	if (type < ARRAY_SIZE(rproc_crash_names))
 		return rproc_crash_names[type];
-	return "unknown";
+	return "unkyeswn";
 }
 
 /*
  * This is the IOMMU fault handler we register with the IOMMU API
- * (when relevant; not all remote processors access memory through
+ * (when relevant; yest all remote processors access memory through
  * an IOMMU).
  *
  * IOMMU core will invoke this handler whenever the remote processor
@@ -87,7 +87,7 @@ static int rproc_iommu_fault(struct iommu_domain *domain, struct device *dev,
 	rproc_report_crash(rproc, RPROC_MMUFAULT);
 
 	/*
-	 * Let the iommu core know we're not really handling this fault;
+	 * Let the iommu core kyesw we're yest really handling this fault;
 	 * we just used it as a recovery trigger.
 	 */
 	return -ENOSYS;
@@ -100,7 +100,7 @@ static int rproc_enable_iommu(struct rproc *rproc)
 	int ret;
 
 	if (!rproc->has_iommu) {
-		dev_dbg(dev, "iommu not present\n");
+		dev_dbg(dev, "iommu yest present\n");
 		return 0;
 	}
 
@@ -196,7 +196,7 @@ void *rproc_da_to_va(struct rproc *rproc, u64 da, int len)
 			goto out;
 	}
 
-	list_for_each_entry(carveout, &rproc->carveouts, node) {
+	list_for_each_entry(carveout, &rproc->carveouts, yesde) {
 		int offset = da - carveout->da;
 
 		/*  Verify that carveout is allocated */
@@ -252,7 +252,7 @@ rproc_find_carveout_by_name(struct rproc *rproc, const char *name, ...)
 	vsnprintf(_name, sizeof(_name), name, args);
 	va_end(args);
 
-	list_for_each_entry(carveout, &rproc->carveouts, node) {
+	list_for_each_entry(carveout, &rproc->carveouts, yesde) {
 		/* Compare carveout and requested names */
 		if (!strcmp(carveout->name, _name)) {
 			mem = carveout;
@@ -272,7 +272,7 @@ rproc_find_carveout_by_name(struct rproc *rproc, const char *name, ...)
  *
  * This function is a helper function to verify requested device area (couple
  * da, len) is part of specified carveout.
- * If da is not set (defined as FW_RSC_ADDR_ANY), only requested length is
+ * If da is yest set (defined as FW_RSC_ADDR_ANY), only requested length is
  * checked.
  *
  * Return: 0 if carveout matches request else error
@@ -318,7 +318,7 @@ int rproc_alloc_vring(struct rproc_vdev *rvdev, int i)
 	struct device *dev = &rproc->dev;
 	struct rproc_vring *rvring = &rvdev->vring[i];
 	struct fw_rsc_vdev *rsc;
-	int ret, size, notifyid;
+	int ret, size, yestifyid;
 	struct rproc_mem_entry *mem;
 
 	/* actual size of vring (in bytes) */
@@ -350,24 +350,24 @@ int rproc_alloc_vring(struct rproc_vdev *rvdev, int i)
 
 	/*
 	 * Assign an rproc-wide unique index for this vring
-	 * TODO: assign a notifyid for rvdev updates as well
-	 * TODO: support predefined notifyids (via resource table)
+	 * TODO: assign a yestifyid for rvdev updates as well
+	 * TODO: support predefined yestifyids (via resource table)
 	 */
-	ret = idr_alloc(&rproc->notifyids, rvring, 0, 0, GFP_KERNEL);
+	ret = idr_alloc(&rproc->yestifyids, rvring, 0, 0, GFP_KERNEL);
 	if (ret < 0) {
 		dev_err(dev, "idr_alloc failed: %d\n", ret);
 		return ret;
 	}
-	notifyid = ret;
+	yestifyid = ret;
 
-	/* Potentially bump max_notifyid */
-	if (notifyid > rproc->max_notifyid)
-		rproc->max_notifyid = notifyid;
+	/* Potentially bump max_yestifyid */
+	if (yestifyid > rproc->max_yestifyid)
+		rproc->max_yestifyid = yestifyid;
 
-	rvring->notifyid = notifyid;
+	rvring->yestifyid = yestifyid;
 
-	/* Let the rproc know the notifyid of this vring.*/
-	rsc->vring[i].notifyid = notifyid;
+	/* Let the rproc kyesw the yestifyid of this vring.*/
+	rsc->vring[i].yestifyid = yestifyid;
 	return 0;
 }
 
@@ -402,12 +402,12 @@ void rproc_free_vring(struct rproc_vring *rvring)
 	int idx = rvring - rvring->rvdev->vring;
 	struct fw_rsc_vdev *rsc;
 
-	idr_remove(&rproc->notifyids, rvring->notifyid);
+	idr_remove(&rproc->yestifyids, rvring->yestifyid);
 
 	/* reset resource entry info */
 	rsc = (void *)rproc->table_ptr + rvring->rvdev->rsc_offset;
 	rsc->vring[idx].da = 0;
-	rsc->vring[idx].notifyid = -1;
+	rsc->vring[idx].yestifyid = -1;
 }
 
 static int rproc_vdev_do_start(struct rproc_subdev *subdev)
@@ -452,14 +452,14 @@ static void rproc_rvdev_release(struct device *dev)
  * everything needed to make it possible: the virtio device id, virtio
  * device features, vrings information, virtio config space, etc...
  *
- * Before registering the vdev, the vrings are allocated from non-cacheable
+ * Before registering the vdev, the vrings are allocated from yesn-cacheable
  * physically contiguous memory. Currently we only support two vrings per
  * remote processor (temporary limitation). We might also want to consider
  * doing the vring allocation only later when ->find_vqs() is invoked, and
  * then release them upon ->del_vqs().
  *
- * Note: @da is currently not really handled correctly: we dynamically
- * allocate it using the DMA API, ignoring requested hard coded addresses,
+ * Note: @da is currently yest really handled correctly: we dynamically
+ * allocate it using the DMA API, igyesring requested hard coded addresses,
  * and we don't take care of any required IOMMU programming. This is all
  * going to be taken care of when the generic iommu-based DMA API will be
  * merged. Meanwhile, statically-addressed iommu-based firmware images should
@@ -485,7 +485,7 @@ static int rproc_handle_vdev(struct rproc *rproc, struct fw_rsc_vdev *rsc,
 
 	/* make sure reserved bytes are zeroes */
 	if (rsc->reserved[0] || rsc->reserved[1]) {
-		dev_err(dev, "vdev rsc has non zero reserved bytes\n");
+		dev_err(dev, "vdev rsc has yesn zero reserved bytes\n");
 		return -EINVAL;
 	}
 
@@ -549,7 +549,7 @@ static int rproc_handle_vdev(struct rproc *rproc, struct fw_rsc_vdev *rsc,
 			goto unwind_vring_allocations;
 	}
 
-	list_add_tail(&rvdev->node, &rproc->rvdevs);
+	list_add_tail(&rvdev->yesde, &rproc->rvdevs);
 
 	rvdev->subdev.start = rproc_vdev_do_start;
 	rvdev->subdev.stop = rproc_vdev_do_stop;
@@ -579,7 +579,7 @@ void rproc_vdev_release(struct kref *ref)
 	}
 
 	rproc_remove_subdev(rproc, &rvdev->subdev);
-	list_del(&rvdev->node);
+	list_del(&rvdev->yesde);
 	device_unregister(&rvdev->dev);
 }
 
@@ -613,7 +613,7 @@ static int rproc_handle_trace(struct rproc *rproc, struct fw_rsc_trace *rsc,
 
 	/* make sure reserved bytes are zeroes */
 	if (rsc->reserved) {
-		dev_err(dev, "trace rsc has non zero reserved bytes\n");
+		dev_err(dev, "trace rsc has yesn zero reserved bytes\n");
 		return -EINVAL;
 	}
 
@@ -638,7 +638,7 @@ static int rproc_handle_trace(struct rproc *rproc, struct fw_rsc_trace *rsc,
 		return -EINVAL;
 	}
 
-	list_add_tail(&trace->node, &rproc->traces);
+	list_add_tail(&trace->yesde, &rproc->traces);
 
 	rproc->num_traces++;
 
@@ -670,7 +670,7 @@ static int rproc_handle_trace(struct rproc *rproc, struct fw_rsc_trace *rsc,
  * Currently we just "trust" those devmem entries to contain valid physical
  * addresses, but this is going to change: we want the implementations to
  * tell us ranges of physical addresses the firmware is allowed to request,
- * and not allow firmwares to request access to physical addresses that
+ * and yest allow firmwares to request access to physical addresses that
  * are outside those ranges.
  */
 static int rproc_handle_devmem(struct rproc *rproc, struct fw_rsc_devmem *rsc,
@@ -680,7 +680,7 @@ static int rproc_handle_devmem(struct rproc *rproc, struct fw_rsc_devmem *rsc,
 	struct device *dev = &rproc->dev;
 	int ret;
 
-	/* no point in handling this resource without a valid iommu domain */
+	/* yes point in handling this resource without a valid iommu domain */
 	if (!rproc->domain)
 		return -EINVAL;
 
@@ -691,7 +691,7 @@ static int rproc_handle_devmem(struct rproc *rproc, struct fw_rsc_devmem *rsc,
 
 	/* make sure reserved bytes are zeroes */
 	if (rsc->reserved) {
-		dev_err(dev, "devmem rsc has non zero reserved bytes\n");
+		dev_err(dev, "devmem rsc has yesn zero reserved bytes\n");
 		return -EINVAL;
 	}
 
@@ -709,12 +709,12 @@ static int rproc_handle_devmem(struct rproc *rproc, struct fw_rsc_devmem *rsc,
 	 * We'll need this info later when we'll want to unmap everything
 	 * (e.g. on shutdown).
 	 *
-	 * We can't trust the remote processor not to change the resource
+	 * We can't trust the remote processor yest to change the resource
 	 * table, so we must maintain this info independently.
 	 */
 	mapping->da = rsc->da;
 	mapping->len = rsc->len;
-	list_add_tail(&mapping->node, &rproc->mappings);
+	list_add_tail(&mapping->yesde, &rproc->mappings);
 
 	dev_dbg(dev, "mapped devmem pa 0x%x, da 0x%x, len 0x%x\n",
 		rsc->pa, rsc->da, rsc->len);
@@ -766,7 +766,7 @@ static int rproc_alloc_carveout(struct rproc *rproc,
 	}
 
 	/*
-	 * Ok, this is non-standard.
+	 * Ok, this is yesn-standard.
 	 *
 	 * Sometimes we can't rely on the generic iommu-based DMA API
 	 * to dynamically allocate the device address and then set the IOMMU
@@ -778,7 +778,7 @@ static int rproc_alloc_carveout(struct rproc *rproc,
 	 * the memory to the device address as expected by the remote
 	 * processor.
 	 *
-	 * Obviously such remote processor devices should not be configured
+	 * Obviously such remote processor devices should yest be configured
 	 * to use the iommu-based DMA API: we expect 'dma' to contain the
 	 * physical address in this case.
 	 */
@@ -800,12 +800,12 @@ static int rproc_alloc_carveout(struct rproc *rproc,
 		 * We'll need this info later when we'll want to unmap
 		 * everything (e.g. on shutdown).
 		 *
-		 * We can't trust the remote processor not to change the
+		 * We can't trust the remote processor yest to change the
 		 * resource table, so we must maintain this info independently.
 		 */
 		mapping->da = mem->da;
 		mapping->len = mem->len;
-		list_add_tail(&mapping->node, &rproc->mappings);
+		list_add_tail(&mapping->yesde, &rproc->mappings);
 
 		dev_dbg(dev, "carveout mapped 0x%x to %pad\n",
 			mem->da, &dma);
@@ -881,7 +881,7 @@ static int rproc_handle_carveout(struct rproc *rproc,
 
 	/* make sure reserved bytes are zeroes */
 	if (rsc->reserved) {
-		dev_err(dev, "carveout rsc has non zero reserved bytes\n");
+		dev_err(dev, "carveout rsc has yesn zero reserved bytes\n");
 		return -EINVAL;
 	}
 
@@ -937,7 +937,7 @@ static int rproc_handle_carveout(struct rproc *rproc,
  */
 void rproc_add_carveout(struct rproc *rproc, struct rproc_mem_entry *mem)
 {
-	list_add_tail(&mem->node, &rproc->carveouts);
+	list_add_tail(&mem->yesde, &rproc->carveouts);
 }
 EXPORT_SYMBOL(rproc_add_carveout);
 
@@ -1094,7 +1094,7 @@ static int rproc_prepare_subdevices(struct rproc *rproc)
 	struct rproc_subdev *subdev;
 	int ret;
 
-	list_for_each_entry(subdev, &rproc->subdevs, node) {
+	list_for_each_entry(subdev, &rproc->subdevs, yesde) {
 		if (subdev->prepare) {
 			ret = subdev->prepare(subdev);
 			if (ret)
@@ -1105,7 +1105,7 @@ static int rproc_prepare_subdevices(struct rproc *rproc)
 	return 0;
 
 unroll_preparation:
-	list_for_each_entry_continue_reverse(subdev, &rproc->subdevs, node) {
+	list_for_each_entry_continue_reverse(subdev, &rproc->subdevs, yesde) {
 		if (subdev->unprepare)
 			subdev->unprepare(subdev);
 	}
@@ -1118,7 +1118,7 @@ static int rproc_start_subdevices(struct rproc *rproc)
 	struct rproc_subdev *subdev;
 	int ret;
 
-	list_for_each_entry(subdev, &rproc->subdevs, node) {
+	list_for_each_entry(subdev, &rproc->subdevs, yesde) {
 		if (subdev->start) {
 			ret = subdev->start(subdev);
 			if (ret)
@@ -1129,7 +1129,7 @@ static int rproc_start_subdevices(struct rproc *rproc)
 	return 0;
 
 unroll_registration:
-	list_for_each_entry_continue_reverse(subdev, &rproc->subdevs, node) {
+	list_for_each_entry_continue_reverse(subdev, &rproc->subdevs, yesde) {
 		if (subdev->stop)
 			subdev->stop(subdev, true);
 	}
@@ -1141,7 +1141,7 @@ static void rproc_stop_subdevices(struct rproc *rproc, bool crashed)
 {
 	struct rproc_subdev *subdev;
 
-	list_for_each_entry_reverse(subdev, &rproc->subdevs, node) {
+	list_for_each_entry_reverse(subdev, &rproc->subdevs, yesde) {
 		if (subdev->stop)
 			subdev->stop(subdev, crashed);
 	}
@@ -1151,7 +1151,7 @@ static void rproc_unprepare_subdevices(struct rproc *rproc)
 {
 	struct rproc_subdev *subdev;
 
-	list_for_each_entry_reverse(subdev, &rproc->subdevs, node) {
+	list_for_each_entry_reverse(subdev, &rproc->subdevs, yesde) {
 		if (subdev->unprepare)
 			subdev->unprepare(subdev);
 	}
@@ -1176,7 +1176,7 @@ static int rproc_alloc_registered_carveouts(struct rproc *rproc)
 	u64 pa;
 	int ret;
 
-	list_for_each_entry_safe(entry, tmp, &rproc->carveouts, node) {
+	list_for_each_entry_safe(entry, tmp, &rproc->carveouts, yesde) {
 		if (entry->alloc) {
 			ret = entry->alloc(rproc, entry);
 			if (ret) {
@@ -1191,15 +1191,15 @@ static int rproc_alloc_registered_carveouts(struct rproc *rproc)
 			rsc = (void *)rproc->table_ptr + entry->rsc_offset;
 
 			/*
-			 * Some remote processors might need to know the pa
+			 * Some remote processors might need to kyesw the pa
 			 * even though they are behind an IOMMU. E.g., OMAP4's
 			 * remote M3 processor needs this so it can control
-			 * on-chip hardware accelerators that are not behind
-			 * the IOMMU, and therefor must know the pa.
+			 * on-chip hardware accelerators that are yest behind
+			 * the IOMMU, and therefor must kyesw the pa.
 			 *
 			 * Generally we don't want to expose physical addresses
 			 * if we don't have to (remote processors are generally
-			 * _not_ trusted), so we might want to do this only for
+			 * _yest_ trusted), so we might want to do this only for
 			 * remote processor that _must_ have this (e.g. OMAP4's
 			 * dual M3 subsystem).
 			 *
@@ -1235,8 +1235,8 @@ static void rproc_coredump_cleanup(struct rproc *rproc)
 {
 	struct rproc_dump_segment *entry, *tmp;
 
-	list_for_each_entry_safe(entry, tmp, &rproc->dump_segments, node) {
-		list_del(&entry->node);
+	list_for_each_entry_safe(entry, tmp, &rproc->dump_segments, yesde) {
+		list_del(&entry->yesde);
 		kfree(entry);
 	}
 }
@@ -1256,38 +1256,38 @@ static void rproc_resource_cleanup(struct rproc *rproc)
 	struct device *dev = &rproc->dev;
 
 	/* clean up debugfs trace entries */
-	list_for_each_entry_safe(trace, ttmp, &rproc->traces, node) {
+	list_for_each_entry_safe(trace, ttmp, &rproc->traces, yesde) {
 		rproc_remove_trace_file(trace->tfile);
 		rproc->num_traces--;
-		list_del(&trace->node);
+		list_del(&trace->yesde);
 		kfree(trace);
 	}
 
 	/* clean up iommu mapping entries */
-	list_for_each_entry_safe(entry, tmp, &rproc->mappings, node) {
+	list_for_each_entry_safe(entry, tmp, &rproc->mappings, yesde) {
 		size_t unmapped;
 
 		unmapped = iommu_unmap(rproc->domain, entry->da, entry->len);
 		if (unmapped != entry->len) {
-			/* nothing much to do besides complaining */
+			/* yesthing much to do besides complaining */
 			dev_err(dev, "failed to unmap %u/%zu\n", entry->len,
 				unmapped);
 		}
 
-		list_del(&entry->node);
+		list_del(&entry->yesde);
 		kfree(entry);
 	}
 
 	/* clean up carveout allocations */
-	list_for_each_entry_safe(entry, tmp, &rproc->carveouts, node) {
+	list_for_each_entry_safe(entry, tmp, &rproc->carveouts, yesde) {
 		if (entry->release)
 			entry->release(rproc, entry);
-		list_del(&entry->node);
+		list_del(&entry->yesde);
 		kfree(entry);
 	}
 
 	/* clean up remote vdev entries */
-	list_for_each_entry_safe(rvdev, rvtmp, &rproc->rvdevs, node)
+	list_for_each_entry_safe(rvdev, rvtmp, &rproc->rvdevs, yesde)
 		kref_put(&rvdev->refcount, rproc_vdev_release);
 
 	rproc_coredump_cleanup(rproc);
@@ -1344,7 +1344,7 @@ static int rproc_start(struct rproc *rproc, const struct firmware *fw)
 
 	rproc->state = RPROC_RUNNING;
 
-	dev_info(dev, "remote processor %s is now up\n", rproc->name);
+	dev_info(dev, "remote processor %s is yesw up\n", rproc->name);
 
 	return 0;
 
@@ -1375,7 +1375,7 @@ static int rproc_fw_boot(struct rproc *rproc, const struct firmware *fw)
 
 	/*
 	 * if enabling an IOMMU isn't relevant for this rproc, this is
-	 * just a nop
+	 * just a yesp
 	 */
 	ret = rproc_enable_iommu(rproc);
 	if (ret) {
@@ -1390,8 +1390,8 @@ static int rproc_fw_boot(struct rproc *rproc, const struct firmware *fw)
 	if (ret)
 		goto disable_iommu;
 
-	/* reset max_notifyid */
-	rproc->max_notifyid = -1;
+	/* reset max_yestifyid */
+	rproc->max_yestifyid = -1;
 
 	/* reset handled vdev */
 	rproc->nb_vdev = 0;
@@ -1430,7 +1430,7 @@ disable_iommu:
 /*
  * take a firmware and boot it up.
  *
- * Note: this function is called asynchronously upon registration of the
+ * Note: this function is called asynchroyesusly upon registration of the
  * remote processor (so we must wait until it completes before we try
  * to unregister the device. one other option is just to use kref here,
  * that might be cleaner).
@@ -1449,14 +1449,14 @@ static int rproc_trigger_auto_boot(struct rproc *rproc)
 	int ret;
 
 	/*
-	 * We're initiating an asynchronous firmware loading, so we can
+	 * We're initiating an asynchroyesus firmware loading, so we can
 	 * be built-in kernel code, without hanging the boot process.
 	 */
-	ret = request_firmware_nowait(THIS_MODULE, FW_ACTION_HOTPLUG,
+	ret = request_firmware_yeswait(THIS_MODULE, FW_ACTION_HOTPLUG,
 				      rproc->firmware, &rproc->dev, GFP_KERNEL,
 				      rproc, rproc_auto_boot_callback);
 	if (ret < 0)
-		dev_err(&rproc->dev, "request_firmware_nowait err: %d\n", ret);
+		dev_err(&rproc->dev, "request_firmware_yeswait err: %d\n", ret);
 
 	return ret;
 }
@@ -1469,7 +1469,7 @@ static int rproc_stop(struct rproc *rproc, bool crashed)
 	/* Stop any subdevices for the remote processor */
 	rproc_stop_subdevices(rproc, crashed);
 
-	/* the installed resource table is no longer accessible */
+	/* the installed resource table is yes longer accessible */
 	rproc->table_ptr = rproc->cached_table;
 
 	/* power off the remote processor */
@@ -1497,7 +1497,7 @@ static int rproc_stop(struct rproc *rproc, bool crashed)
  * Add device memory to the list of segments to be included in a coredump for
  * the remoteproc.
  *
- * Return: 0 on success, negative errno on error.
+ * Return: 0 on success, negative erryes on error.
  */
 int rproc_coredump_add_segment(struct rproc *rproc, dma_addr_t da, size_t size)
 {
@@ -1510,7 +1510,7 @@ int rproc_coredump_add_segment(struct rproc *rproc, dma_addr_t da, size_t size)
 	segment->da = da;
 	segment->size = size;
 
-	list_add_tail(&segment->node, &rproc->dump_segments);
+	list_add_tail(&segment->yesde, &rproc->dump_segments);
 
 	return 0;
 }
@@ -1528,7 +1528,7 @@ EXPORT_SYMBOL(rproc_coredump_add_segment);
  * and associate the segment with the given custom dump function and private
  * data.
  *
- * Return: 0 on success, negative errno on error.
+ * Return: 0 on success, negative erryes on error.
  */
 int rproc_coredump_add_custom_segment(struct rproc *rproc,
 				      dma_addr_t da, size_t size,
@@ -1548,7 +1548,7 @@ int rproc_coredump_add_custom_segment(struct rproc *rproc,
 	segment->priv = priv;
 	segment->dump = dumpfn;
 
-	list_add_tail(&segment->node, &rproc->dump_segments);
+	list_add_tail(&segment->yesde, &rproc->dump_segments);
 
 	return 0;
 }
@@ -1576,7 +1576,7 @@ static void rproc_coredump(struct rproc *rproc)
 		return;
 
 	data_size = sizeof(*ehdr);
-	list_for_each_entry(segment, &rproc->dump_segments, node) {
+	list_for_each_entry(segment, &rproc->dump_segments, yesde) {
 		data_size += sizeof(*phdr) + segment->size;
 
 		phnum++;
@@ -1605,7 +1605,7 @@ static void rproc_coredump(struct rproc *rproc)
 
 	phdr = data + ehdr->e_phoff;
 	offset = ehdr->e_phoff + sizeof(*phdr) * ehdr->e_phnum;
-	list_for_each_entry(segment, &rproc->dump_segments, node) {
+	list_for_each_entry(segment, &rproc->dump_segments, yesde) {
 		memset(phdr, 0, sizeof(*phdr));
 		phdr->p_type = PT_LOAD;
 		phdr->p_offset = offset;
@@ -1645,7 +1645,7 @@ static void rproc_coredump(struct rproc *rproc)
  * rpmsg drivers will be reseted along with the remote processor making the
  * remoteproc functional again.
  *
- * This function can sleep, so it cannot be called from atomic context.
+ * This function can sleep, so it canyest be called from atomic context.
  */
 int rproc_trigger_recovery(struct rproc *rproc)
 {
@@ -1792,7 +1792,7 @@ EXPORT_SYMBOL(rproc_boot);
  * to rproc_shutdown(). Calling rproc_shutdown() redundantly is a bug.
  *
  * Notes:
- * - we're not decrementing the rproc's refcount, only the power refcount.
+ * - we're yest decrementing the rproc's refcount, only the power refcount.
  *   which means that the @rproc handle stays valid even after rproc_shutdown()
  *   returns, and users can still use it with a subsequent rproc_boot(), if
  *   needed.
@@ -1848,15 +1848,15 @@ EXPORT_SYMBOL(rproc_shutdown);
 struct rproc *rproc_get_by_phandle(phandle phandle)
 {
 	struct rproc *rproc = NULL, *r;
-	struct device_node *np;
+	struct device_yesde *np;
 
-	np = of_find_node_by_phandle(phandle);
+	np = of_find_yesde_by_phandle(phandle);
 	if (!np)
 		return NULL;
 
 	mutex_lock(&rproc_list_mutex);
-	list_for_each_entry(r, &rproc_list, node) {
-		if (r->dev.parent && r->dev.parent->of_node == np) {
+	list_for_each_entry(r, &rproc_list, yesde) {
+		if (r->dev.parent && r->dev.parent->of_yesde == np) {
 			/* prevent underlying implementation from being removed */
 			if (!try_module_get(r->dev.parent->driver->owner)) {
 				dev_err(&r->dev, "can't get owner\n");
@@ -1870,7 +1870,7 @@ struct rproc *rproc_get_by_phandle(phandle phandle)
 	}
 	mutex_unlock(&rproc_list_mutex);
 
-	of_node_put(np);
+	of_yesde_put(np);
 
 	return rproc;
 }
@@ -1894,7 +1894,7 @@ EXPORT_SYMBOL(rproc_get_by_phandle);
  *
  * Returns 0 on success and an appropriate error code otherwise.
  *
- * Note: this function initiates an asynchronous firmware loading
+ * Note: this function initiates an asynchroyesus firmware loading
  * context, which will look for virtio devices supported by the rproc's
  * firmware.
  *
@@ -1925,7 +1925,7 @@ int rproc_add(struct rproc *rproc)
 
 	/* expose to rproc_get_by_phandle users */
 	mutex_lock(&rproc_list_mutex);
-	list_add(&rproc->node, &rproc_list);
+	list_add(&rproc->yesde, &rproc_list);
 	mutex_unlock(&rproc_list_mutex);
 
 	return 0;
@@ -1938,7 +1938,7 @@ EXPORT_SYMBOL(rproc_add);
  *
  * This function should _never_ be called directly.
  *
- * It will be called by the driver core when no one holds a valid pointer
+ * It will be called by the driver core when yes one holds a valid pointer
  * to @dev anymore.
  */
 static void rproc_type_release(struct device *dev)
@@ -1947,7 +1947,7 @@ static void rproc_type_release(struct device *dev)
 
 	dev_info(&rproc->dev, "releasing %s\n", rproc->name);
 
-	idr_destroy(&rproc->notifyids);
+	idr_destroy(&rproc->yestifyids);
 
 	if (rproc->index >= 0)
 		ida_simple_remove(&rproc_dev_index, rproc->index);
@@ -1970,7 +1970,7 @@ static const struct device_type rproc_type = {
  * @firmware: name of firmware file to load, can be NULL
  * @len: length of private data needed by the rproc driver (in bytes)
  *
- * Allocates a new remote processor handle, but does not register
+ * Allocates a new remote processor handle, but does yest register
  * it yet. if @firmware is NULL, a default name is used.
  *
  * This function should be used by rproc implementations during initialization
@@ -1982,7 +1982,7 @@ static const struct device_type rproc_type = {
  *
  * On success the new rproc is returned, and on failure, NULL.
  *
- * Note: _never_ directly deallocate @rproc, even if it was not registered
+ * Note: _never_ directly deallocate @rproc, even if it was yest registered
  * yet. Instead, when you need to unroll rproc_alloc(), use rproc_free().
  */
 struct rproc *rproc_alloc(struct device *dev, const char *name,
@@ -2048,7 +2048,7 @@ struct rproc *rproc_alloc(struct device *dev, const char *name,
 
 	atomic_set(&rproc->power, 0);
 
-	/* Default to ELF loader if no load function is specified */
+	/* Default to ELF loader if yes load function is specified */
 	if (!rproc->ops->load) {
 		rproc->ops->load = rproc_elf_load_segments;
 		rproc->ops->parse_fw = rproc_elf_load_rsc_table;
@@ -2059,7 +2059,7 @@ struct rproc *rproc_alloc(struct device *dev, const char *name,
 
 	mutex_init(&rproc->lock);
 
-	idr_init(&rproc->notifyids);
+	idr_init(&rproc->yestifyids);
 
 	INIT_LIST_HEAD(&rproc->carveouts);
 	INIT_LIST_HEAD(&rproc->mappings);
@@ -2082,8 +2082,8 @@ EXPORT_SYMBOL(rproc_alloc);
  *
  * This function decrements the rproc dev refcount.
  *
- * If no one holds any reference to rproc anymore, then its refcount would
- * now drop to zero, and it would be freed.
+ * If yes one holds any reference to rproc anymore, then its refcount would
+ * yesw drop to zero, and it would be freed.
  */
 void rproc_free(struct rproc *rproc)
 {
@@ -2097,8 +2097,8 @@ EXPORT_SYMBOL(rproc_free);
  *
  * This function decrements the rproc dev refcount.
  *
- * If no one holds any reference to rproc anymore, then its refcount would
- * now drop to zero, and it would be freed.
+ * If yes one holds any reference to rproc anymore, then its refcount would
+ * yesw drop to zero, and it would be freed.
  */
 void rproc_put(struct rproc *rproc)
 {
@@ -2140,7 +2140,7 @@ int rproc_del(struct rproc *rproc)
 
 	/* the rproc is downref'ed as soon as it's removed from the klist */
 	mutex_lock(&rproc_list_mutex);
-	list_del(&rproc->node);
+	list_del(&rproc->yesde);
 	mutex_unlock(&rproc_list_mutex);
 
 	device_del(&rproc->dev);
@@ -2158,7 +2158,7 @@ EXPORT_SYMBOL(rproc_del);
  */
 void rproc_add_subdev(struct rproc *rproc, struct rproc_subdev *subdev)
 {
-	list_add_tail(&subdev->node, &rproc->subdevs);
+	list_add_tail(&subdev->yesde, &rproc->subdevs);
 }
 EXPORT_SYMBOL(rproc_add_subdev);
 
@@ -2169,7 +2169,7 @@ EXPORT_SYMBOL(rproc_add_subdev);
  */
 void rproc_remove_subdev(struct rproc *rproc, struct rproc_subdev *subdev)
 {
-	list_del(&subdev->node);
+	list_del(&subdev->yesde);
 }
 EXPORT_SYMBOL(rproc_remove_subdev);
 
@@ -2177,7 +2177,7 @@ EXPORT_SYMBOL(rproc_remove_subdev);
  * rproc_get_by_child() - acquire rproc handle of @dev's ancestor
  * @dev:	child device to find ancestor of
  *
- * Returns the ancestor rproc instance, or NULL if not found.
+ * Returns the ancestor rproc instance, or NULL if yest found.
  */
 struct rproc *rproc_get_by_child(struct device *dev)
 {
@@ -2196,8 +2196,8 @@ EXPORT_SYMBOL(rproc_get_by_child);
  * @type: crash type
  *
  * This function must be called every time a crash is detected by the low-level
- * drivers implementing a specific remoteproc. This should not be called from a
- * non-remoteproc driver.
+ * drivers implementing a specific remoteproc. This should yest be called from a
+ * yesn-remoteproc driver.
  *
  * This function can be called from atomic/interrupt context.
  */

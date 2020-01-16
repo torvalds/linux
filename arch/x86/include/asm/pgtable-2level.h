@@ -97,12 +97,12 @@ static inline unsigned long pte_bitop(unsigned long value, unsigned int rightshi
 
 /* No inverted PFNs on 2 level page tables */
 
-static inline u64 protnone_mask(u64 val)
+static inline u64 protyesne_mask(u64 val)
 {
 	return 0;
 }
 
-static inline u64 flip_protnone_guard(u64 oldval, u64 val, u64 mask)
+static inline u64 flip_protyesne_guard(u64 oldval, u64 val, u64 mask)
 {
 	return val;
 }

@@ -142,7 +142,7 @@ static int pistachio_usb_phy_probe(struct platform_device *pdev)
 	p_phy->dev = &pdev->dev;
 	platform_set_drvdata(pdev, p_phy);
 
-	p_phy->cr_top = syscon_regmap_lookup_by_phandle(p_phy->dev->of_node,
+	p_phy->cr_top = syscon_regmap_lookup_by_phandle(p_phy->dev->of_yesde,
 							"img,cr-top");
 	if (IS_ERR(p_phy->cr_top)) {
 		dev_err(p_phy->dev, "Failed to get CR_TOP registers: %ld\n",
@@ -157,7 +157,7 @@ static int pistachio_usb_phy_probe(struct platform_device *pdev)
 		return PTR_ERR(p_phy->phy_clk);
 	}
 
-	ret = of_property_read_u32(p_phy->dev->of_node, "img,refclk",
+	ret = of_property_read_u32(p_phy->dev->of_yesde, "img,refclk",
 				   &p_phy->refclk);
 	if (ret < 0) {
 		dev_err(p_phy->dev, "No reference clock selector specified\n");

@@ -6,7 +6,7 @@
  * Copyright (c) 2006, Michael Wu <flamingice@sourmilk.net>
  *
  * Based on the islsm (softmac prism54) driver, which is:
- * Copyright 2004-2006 Jean-Baptiste Note <jbnote@gmail.com>, et al.
+ * Copyright 2004-2006 Jean-Baptiste Note <jbyeste@gmail.com>, et al.
  */
 
 #include <linux/usb.h>
@@ -93,7 +93,7 @@ static const struct usb_device_id p54u_table[] = {
 	{USB_DEVICE(0x0baf, 0x0118)},   /* U.S. Robotics U5 802.11g Adapter*/
 	{USB_DEVICE(0x0bf8, 0x1009)},   /* FUJITSU E-5400 USB D1700*/
 	/* {USB_DEVICE(0x0cde, 0x0006)}, * Medion MD40900 already listed above,
-					 * just noting it here for clarity */
+					 * just yesting it here for clarity */
 	{USB_DEVICE(0x0cde, 0x0008)},	/* Sagem XG703A */
 	{USB_DEVICE(0x0cde, 0x0015)},	/* Zcomax XG-705A */
 	{USB_DEVICE(0x0d8e, 0x3762)},	/* DLink DWL-G120 Cohiba */
@@ -270,7 +270,7 @@ static int p54u_init_urbs(struct ieee80211_hw *dev)
 static int p54u_open(struct ieee80211_hw *dev)
 {
 	/*
-	 * TODO: Because we don't know how to reliably stop the 3887 and
+	 * TODO: Because we don't kyesw how to reliably stop the 3887 and
 	 * the isl3886+net2280, other than brutally cut off all
 	 * communications. We have to reinitialize the urbs on every start.
 	 */
@@ -734,7 +734,7 @@ static int p54u_upload_firmware_net2280(struct ieee80211_hw *dev)
 	P54U_READ(NET2280_DEV_U32, &devreg->int_ident);
 	P54U_WRITE(NET2280_DEV_U32, &devreg->int_ack, reg);
 
-	/* finally, we can upload firmware now! */
+	/* finally, we can upload firmware yesw! */
 	remains = priv->fw->size;
 	data = priv->fw->data;
 	offset = ISL38XX_DEV_FIRMWARE_ADDR;
@@ -928,13 +928,13 @@ static void p54u_load_firmware_cb(const struct firmware *firmware,
 		err = p54u_start_ops(priv);
 	} else {
 		err = -ENOENT;
-		dev_err(&udev->dev, "Firmware not found.\n");
+		dev_err(&udev->dev, "Firmware yest found.\n");
 	}
 
 	complete(&priv->fw_wait_load);
 	/*
 	 * At this point p54u_disconnect may have already freed
-	 * the "priv" context. Do not use it anymore!
+	 * the "priv" context. Do yest use it anymore!
 	 */
 	priv = NULL;
 
@@ -968,11 +968,11 @@ static int p54u_load_firmware(struct ieee80211_hw *dev,
 	       p54u_fwlist[i].fw);
 
 	usb_get_intf(intf);
-	err = request_firmware_nowait(THIS_MODULE, 1, p54u_fwlist[i].fw,
+	err = request_firmware_yeswait(THIS_MODULE, 1, p54u_fwlist[i].fw,
 				      device, GFP_KERNEL, priv,
 				      p54u_load_firmware_cb);
 	if (err) {
-		dev_err(&priv->udev->dev, "(p54usb) cannot load firmware %s "
+		dev_err(&priv->udev->dev, "(p54usb) canyest load firmware %s "
 					  "(%d)!\n", p54u_fwlist[i].fw, err);
 		usb_put_intf(intf);
 	}

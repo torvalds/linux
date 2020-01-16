@@ -231,7 +231,7 @@ static unsigned int samsung_gpio_getcfg_2bit(struct samsung_gpio_chip *chip,
  *	others = Special functions (dependent on bank)
  *
  * Note, since the code to deal with the case where there are two control
- * registers instead of one, we do not have a separate set of functions for
+ * registers instead of one, we do yest have a separate set of functions for
  * each case.
  */
 
@@ -501,7 +501,7 @@ static int samsung_gpiolib_4bit_input(struct gpio_chip *chip,
 		con &= ~(0xf << con_4bit_shift(offset));
 	__raw_writel(con, base + GPIOCON_OFF);
 
-	pr_debug("%s: %p: CON now %08lx\n", __func__, base, con);
+	pr_debug("%s: %p: CON yesw %08lx\n", __func__, base, con);
 
 	return 0;
 }
@@ -716,7 +716,7 @@ static __init void s3c_gpiolib_track(struct samsung_gpio_chip *chip)
  *
  * This is a wrapper to gpiochip_add() that takes our specific gpio chip
  * information and makes the necessary alterations for the platform and
- * notes the information for use with the configuration systems and any
+ * yestes the information for use with the configuration systems and any
  * other parts of the system.
  */
 
@@ -746,7 +746,7 @@ static void __init samsung_gpiolib_add(struct samsung_gpio_chip *chip)
 			pr_err("gpio: %s has missing PM functions\n",
 			       gc->label);
 	} else
-		pr_err("gpio: %s has no PM function\n", gc->label);
+		pr_err("gpio: %s has yes PM function\n", gc->label);
 #endif
 
 	/* gpiochip_add() prints own failure message on error. */
@@ -762,7 +762,7 @@ static void __init s3c24xx_gpiolib_add_chips(struct samsung_gpio_chip *chip,
 	struct gpio_chip *gc = &chip->chip;
 
 	for (i = 0 ; i < nr_chips; i++, chip++) {
-		/* skip banks not present on SoC */
+		/* skip banks yest present on SoC */
 		if (chip->chip.base >= S3C_GPIO_END)
 			continue;
 
@@ -806,7 +806,7 @@ static void __init samsung_gpiolib_add_2bit_chips(struct samsung_gpio_chip *chip
 /*
  * samsung_gpiolib_add_4bit_chips - 4bit single register GPIO config.
  * @chip: The gpio chip that is being configured.
- * @nr_chips: The no of chips (gpio ports) for the GPIO being configured.
+ * @nr_chips: The yes of chips (gpio ports) for the GPIO being configured.
  *
  * This helper deal with the GPIO cases where the control register has 4 bits
  * of control per GPIO, generally in the form of:
@@ -815,7 +815,7 @@ static void __init samsung_gpiolib_add_2bit_chips(struct samsung_gpio_chip *chip
  * others = Special functions (dependent on bank)
  *
  * Note, since the code to deal with the case where there are two control
- * registers instead of one, we do not have a separate set of function
+ * registers instead of one, we do yest have a separate set of function
  * (samsung_gpiolib_add_4bit2_chips)for each case.
  */
 
@@ -1017,7 +1017,7 @@ struct samsung_gpio_chip s3c24xx_gpios[] = {
  * P	15	2Bit	Yes	8
  * Q	9	2Bit	Yes	9
  *
- * [1] BANKF pins 14,15 do not form part of the external interrupt sources
+ * [1] BANKF pins 14,15 do yest form part of the external interrupt sources
  * [2] BANK has two control registers, GPxCON0 and GPxCON1
  */
 
@@ -1170,7 +1170,7 @@ static __init int samsung_gpiolib_init(void)
 	 * Currently there are two drivers that can provide GPIO support for
 	 * Samsung SoCs. For device tree enabled platforms, the new
 	 * pinctrl-samsung driver is used, providing both GPIO and pin control
-	 * interfaces. For legacy (non-DT) platforms this driver is used.
+	 * interfaces. For legacy (yesn-DT) platforms this driver is used.
 	 */
 	if (of_have_populated_dt())
 		return 0;

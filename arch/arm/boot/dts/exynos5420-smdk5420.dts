@@ -7,13 +7,13 @@
  */
 
 /dts-v1/;
-#include "exynos5420.dtsi"
-#include "exynos5420-cpus.dtsi"
+#include "exyyess5420.dtsi"
+#include "exyyess5420-cpus.dtsi"
 #include <dt-bindings/gpio/gpio.h>
 
 / {
 	model = "Samsung SMDK5420 board based on EXYNOS5420";
-	compatible = "samsung,smdk5420", "samsung,exynos5420", "samsung,exynos5";
+	compatible = "samsung,smdk5420", "samsung,exyyess5420", "samsung,exyyess5";
 
 	memory@20000000 {
 		device_type = "memory";
@@ -27,7 +27,7 @@
 
 	fixed-rate-clocks {
 		oscclk {
-			compatible = "samsung,exynos5420-oscclk";
+			compatible = "samsung,exyyess5420-oscclk";
 			clock-frequency = <24000000>;
 		};
 	};

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2016, Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2013-2016, Mellayesx Techyeslogies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -32,7 +32,7 @@
 
 #include <linux/highmem.h>
 #include <linux/module.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/pci.h>
 #include <linux/dma-mapping.h>
 #include <linux/slab.h>
@@ -452,7 +452,7 @@ static int mlx5_internal_err_ret_value(struct mlx5_core_dev *dev, u16 op,
 		*synd = MLX5_DRIVER_SYND;
 		return -EIO;
 	default:
-		mlx5_core_err(dev, "Unknown FW command (%d)\n", op);
+		mlx5_core_err(dev, "Unkyeswn FW command (%d)\n", op);
 		return -EINVAL;
 	}
 }
@@ -641,7 +641,7 @@ const char *mlx5_command_str(int command)
 	MLX5_COMMAND_STR_CASE(DESTROY_UMEM);
 	MLX5_COMMAND_STR_CASE(RELEASE_XRQ_ERROR);
 	MLX5_COMMAND_STR_CASE(MODIFY_XRQ);
-	default: return "unknown command opcode";
+	default: return "unkyeswn command opcode";
 	}
 }
 
@@ -669,7 +669,7 @@ static const char *cmd_status_str(u8 status)
 	case MLX5_CMD_STAT_IX_ERR:
 		return "bad index";
 	case MLX5_CMD_STAT_NO_RES_ERR:
-		return "no resources";
+		return "yes resources";
 	case MLX5_CMD_STAT_BAD_INP_LEN_ERR:
 		return "bad input length";
 	case MLX5_CMD_STAT_BAD_OUTP_LEN_ERR:
@@ -681,7 +681,7 @@ static const char *cmd_status_str(u8 status)
 	case MLX5_CMD_STAT_BAD_SIZE_OUTS_CQES_ERR:
 		return "bad size too many outstanding CQEs";
 	default:
-		return "unknown status";
+		return "unkyeswn status";
 	}
 }
 
@@ -929,7 +929,7 @@ static void cmd_work_handler(struct work_struct *work)
 	mlx5_core_dbg(dev, "writing 0x%x to command doorbell\n", 1 << ent->idx);
 	wmb();
 	iowrite32be(1 << ent->idx, &dev->iseg->cmd_dbell);
-	/* if not in polling don't use ent after this point */
+	/* if yest in polling don't use ent after this point */
 	if (cmd_mode == CMD_MODE_POLLING || poll_cmd) {
 		poll_timeout(ent);
 		/* make sure we read the descriptor after ownership is SW */
@@ -942,7 +942,7 @@ static const char *deliv_status_to_str(u8 status)
 {
 	switch (status) {
 	case MLX5_CMD_DELIVERY_STAT_OK:
-		return "no errors";
+		return "yes errors";
 	case MLX5_CMD_DELIVERY_STAT_SIGNAT_ERR:
 		return "signature error";
 	case MLX5_CMD_DELIVERY_STAT_TOK_ERR:
@@ -950,9 +950,9 @@ static const char *deliv_status_to_str(u8 status)
 	case MLX5_CMD_DELIVERY_STAT_BAD_BLK_NUM_ERR:
 		return "bad block number";
 	case MLX5_CMD_DELIVERY_STAT_OUT_PTR_ALIGN_ERR:
-		return "output pointer not aligned to block size";
+		return "output pointer yest aligned to block size";
 	case MLX5_CMD_DELIVERY_STAT_IN_PTR_ALIGN_ERR:
-		return "input pointer not aligned to block size";
+		return "input pointer yest aligned to block size";
 	case MLX5_CMD_DELIVERY_STAT_FW_ERR:
 		return "firmware internal error";
 	case MLX5_CMD_DELIVERY_STAT_IN_LENGTH_ERR:
@@ -960,11 +960,11 @@ static const char *deliv_status_to_str(u8 status)
 	case MLX5_CMD_DELIVERY_STAT_OUT_LENGTH_ERR:
 		return "command output length error";
 	case MLX5_CMD_DELIVERY_STAT_RES_FLD_NOT_CLR_ERR:
-		return "reserved fields not cleared";
+		return "reserved fields yest cleared";
 	case MLX5_CMD_DELIVERY_STAT_CMD_DESCR_ERR:
 		return "bad command descriptor type";
 	default:
-		return "unknown status code";
+		return "unkyeswn status code";
 	}
 }
 
@@ -995,8 +995,8 @@ static int wait_func(struct mlx5_core_dev *dev, struct mlx5_cmd_work_ent *ent)
 }
 
 /*  Notes:
- *    1. Callback functions may not sleep
- *    2. page queue commands do not support asynchrous completion
+ *    1. Callback functions may yest sleep
+ *    2. page queue commands do yest support asynchrous completion
  */
 static int mlx5_cmd_invoke(struct mlx5_core_dev *dev, struct mlx5_cmd_msg *in,
 			   struct mlx5_cmd_msg *out, void *uout, int uout_size,
@@ -1403,7 +1403,7 @@ static void mlx5_cmd_change_mod(struct mlx5_core_dev *dev, int mode)
 		up(&cmd->sem);
 }
 
-static int cmd_comp_notifier(struct notifier_block *nb,
+static int cmd_comp_yestifier(struct yestifier_block *nb,
 			     unsigned long type, void *data)
 {
 	struct mlx5_core_dev *dev;
@@ -1420,15 +1420,15 @@ static int cmd_comp_notifier(struct notifier_block *nb,
 }
 void mlx5_cmd_use_events(struct mlx5_core_dev *dev)
 {
-	MLX5_NB_INIT(&dev->cmd.nb, cmd_comp_notifier, CMD);
-	mlx5_eq_notifier_register(dev, &dev->cmd.nb);
+	MLX5_NB_INIT(&dev->cmd.nb, cmd_comp_yestifier, CMD);
+	mlx5_eq_yestifier_register(dev, &dev->cmd.nb);
 	mlx5_cmd_change_mod(dev, CMD_MODE_EVENTS);
 }
 
 void mlx5_cmd_use_polling(struct mlx5_core_dev *dev)
 {
 	mlx5_cmd_change_mod(dev, CMD_MODE_POLLING);
-	mlx5_eq_notifier_unregister(dev, &dev->cmd.nb);
+	mlx5_eq_yestifier_unregister(dev, &dev->cmd.nb);
 }
 
 static void free_msg(struct mlx5_core_dev *dev, struct mlx5_cmd_msg *msg)
@@ -1465,7 +1465,7 @@ static void mlx5_cmd_comp_handler(struct mlx5_core_dev *dev, u64 vec, bool force
 
 			ent = cmd->ent_arr[i];
 
-			/* if we already completed the command, ignore it */
+			/* if we already completed the command, igyesre it */
 			if (!test_and_clear_bit(MLX5_CMD_ENT_STATE_PENDING_COMP,
 						&ent->state)) {
 				/* only real completion can free the cmd slot */
@@ -1553,7 +1553,7 @@ void mlx5_cmd_trigger_completions(struct mlx5_core_dev *dev)
 	spin_lock_irqsave(&dev->cmd.alloc_lock, flags);
 	vector = ~dev->cmd.bitmask & ((1ul << (1 << dev->cmd.log_sz)) - 1);
 	if (!vector)
-		goto no_trig;
+		goto yes_trig;
 
 	vector |= MLX5_TRIGGERED_CMD_COMP;
 	spin_unlock_irqrestore(&dev->cmd.alloc_lock, flags);
@@ -1562,7 +1562,7 @@ void mlx5_cmd_trigger_completions(struct mlx5_core_dev *dev)
 	mlx5_cmd_comp_handler(dev, vector, true);
 	return;
 
-no_trig:
+yes_trig:
 	spin_unlock_irqrestore(&dev->cmd.alloc_lock, flags);
 }
 
@@ -1736,7 +1736,7 @@ void mlx5_cmd_init_async_ctx(struct mlx5_core_dev *dev,
 			     struct mlx5_async_ctx *ctx)
 {
 	ctx->dev = dev;
-	/* Starts at 1 to avoid doing wake_up if we are not cleaning up */
+	/* Starts at 1 to avoid doing wake_up if we are yest cleaning up */
 	atomic_set(&ctx->num_inflight, 1);
 	init_waitqueue_head(&ctx->wait);
 }
@@ -1747,7 +1747,7 @@ EXPORT_SYMBOL(mlx5_cmd_init_async_ctx);
  * @ctx: The ctx to clean
  *
  * Upon return all callbacks given to mlx5_cmd_exec_cb() have been called. The
- * caller must ensure that mlx5_cmd_exec_cb() is not called during or after
+ * caller must ensure that mlx5_cmd_exec_cb() is yest called during or after
  * the call mlx5_cleanup_async_ctx().
  */
 void mlx5_cmd_cleanup_async_ctx(struct mlx5_async_ctx *ctx)
@@ -1775,7 +1775,7 @@ int mlx5_cmd_exec_cb(struct mlx5_async_ctx *ctx, void *in, int in_size,
 
 	work->ctx = ctx;
 	work->user_callback = callback;
-	if (WARN_ON(!atomic_inc_not_zero(&ctx->num_inflight)))
+	if (WARN_ON(!atomic_inc_yest_zero(&ctx->num_inflight)))
 		return -EIO;
 	ret = cmd_exec(ctx->dev, in, in_size, out, out_size,
 		       mlx5_cmd_exec_cb_handler, work, false);
@@ -1939,7 +1939,7 @@ int mlx5_cmd_init(struct mlx5_core_dev *dev)
 
 	cmd->cmdif_rev = ioread32be(&dev->iseg->cmdif_rev_fw_sub) >> 16;
 	if (cmd->cmdif_rev > CMD_IF_REV) {
-		mlx5_core_err(dev, "driver does not support command interface version. driver %d, firmware %d\n",
+		mlx5_core_err(dev, "driver does yest support command interface version. driver %d, firmware %d\n",
 			      CMD_IF_REV, cmd->cmdif_rev);
 		err = -EOPNOTSUPP;
 		goto err_free_page;

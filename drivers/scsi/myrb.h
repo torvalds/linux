@@ -92,7 +92,7 @@ enum myrb_cmd_opcode {
 	MYRB_CMD_LOAD_IMAGE =		0x20,
 	MYRB_CMD_STORE_IMAGE =		0x21,
 	MYRB_CMD_PROGRAM_IMAGE =	0x22,
-	/* Diagnostic Commands */
+	/* Diagyesstic Commands */
 	MYRB_CMD_SET_DIAGNOSTIC_MODE =	0x31,
 	MYRB_CMD_RUN_DIAGNOSTIC =	0x32,
 	/* Subsystem Service Commands */
@@ -170,7 +170,7 @@ struct myrb_enquiry {
 		unsigned char rsvd2:6;			/* Byte 134 Bits 2-7 */
 	} status;
 	unsigned char rsvd3:8;				/* Byte 135 */
-	unsigned char fw_minor_version;			/* Byte 136 */
+	unsigned char fw_miyesr_version;			/* Byte 136 */
 	unsigned char fw_major_version;			/* Byte 137 */
 	enum {
 		MYRB_NO_STDBY_RBLD_OR_CHECK_IN_PROGRESS =	0x00,
@@ -235,10 +235,10 @@ struct myrb_enquiry2 {
 			MYRB_SCSI_TO_SCSI =		0x08
 		} __packed controller;	/* Byte 3 */
 	} hw;						/* Bytes 0-3 */
-	/* MajorVersion.MinorVersion-FirmwareType-TurnID */
+	/* MajorVersion.MiyesrVersion-FirmwareType-TurnID */
 	struct {
 		unsigned char major_version;		/* Byte 4 */
-		unsigned char minor_version;		/* Byte 5 */
+		unsigned char miyesr_version;		/* Byte 5 */
 		unsigned char turn_id;			/* Byte 6 */
 		char firmware_type;			/* Byte 7 */
 	} fw;						/* Bytes 4-7 */
@@ -458,10 +458,10 @@ struct myrb_config2 {
 	unsigned rsvd1:1;				/* Byte 0 Bit 0 */
 	unsigned active_negation:1;			/* Byte 0 Bit 1 */
 	unsigned rsvd2:5;				/* Byte 0 Bits 2-6 */
-	unsigned no_rescan_on_reset_during_scan:1;	/* Byte 0 Bit 7 */
+	unsigned yes_rescan_on_reset_during_scan:1;	/* Byte 0 Bit 7 */
 	unsigned StorageWorks_support:1;		/* Byte 1 Bit 0 */
 	unsigned HewlettPackard_support:1;		/* Byte 1 Bit 1 */
-	unsigned no_disconnect_on_first_command:1;	/* Byte 1 Bit 2 */
+	unsigned yes_disconnect_on_first_command:1;	/* Byte 1 Bit 2 */
 	unsigned rsvd3:2;				/* Byte 1 Bits 3-4 */
 	unsigned AEMI_ARM:1;				/* Byte 1 Bit 5 */
 	unsigned AEMI_OFM:1;				/* Byte 1 Bit 6 */
@@ -544,7 +544,7 @@ struct myrb_dcdb {
 		MYRB_DCDB_TMO_60_SECS =	2,
 		MYRB_DCDB_TMO_10_MINS =	3
 	} __packed timeout:2;				/* Byte 1 Bits 4-5 */
-	unsigned no_autosense:1;			/* Byte 1 Bit 6 */
+	unsigned yes_autosense:1;			/* Byte 1 Bit 6 */
 	unsigned allow_disconnect:1;			/* Byte 1 Bit 7 */
 	unsigned short xfer_len_lo;			/* Bytes 2-3 */
 	u32 dma_addr;					/* Bytes 4-7 */
@@ -568,7 +568,7 @@ struct myrb_sge {
 
 /*
  * 13 Byte DAC960 V1 Firmware Command Mailbox structure.
- * Bytes 13-15 are not used.  The structure is padded to 16 bytes for
+ * Bytes 13-15 are yest used.  The structure is padded to 16 bytes for
  * efficient access.
  */
 union myrb_cmd_mbox {

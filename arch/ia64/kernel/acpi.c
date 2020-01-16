@@ -26,7 +26,7 @@
 #include <linux/acpi.h>
 #include <linux/efi.h>
 #include <linux/mmzone.h>
-#include <linux/nodemask.h>
+#include <linux/yesdemask.h>
 #include <linux/slab.h>
 #include <acpi/processor.h>
 #include <asm/io.h>
@@ -279,8 +279,8 @@ static void __init acpi_madt_oem_check(char *oem_id, char *oem_table_id)
 	if (!strncmp(oem_id, "IBM", 3) && (!strncmp(oem_table_id, "SERMOW", 6))) {
 
 		/*
-		 * Unfortunately ITC_DRIFT is not yet part of the
-		 * official SAL spec, so the ITC_DRIFT bit is not
+		 * Unfortunately ITC_DRIFT is yest yet part of the
+		 * official SAL spec, so the ITC_DRIFT bit is yest
 		 * set by the BIOS on this hardware.
 		 */
 		sal_platform_features |= IA64_SAL_PLATFORM_FEATURE_ITC_DRIFT;
@@ -379,21 +379,21 @@ acpi_numa_processor_affinity_init(struct acpi_srat_cpu_affinity *pa)
 	if (!(pa->flags & ACPI_SRAT_CPU_ENABLED))
 		return;
 
-	if (srat_num_cpus >= ARRAY_SIZE(node_cpuid)) {
+	if (srat_num_cpus >= ARRAY_SIZE(yesde_cpuid)) {
 		printk_once(KERN_WARNING
-			    "node_cpuid[%ld] is too small, may not be able to use all cpus\n",
-			    ARRAY_SIZE(node_cpuid));
+			    "yesde_cpuid[%ld] is too small, may yest be able to use all cpus\n",
+			    ARRAY_SIZE(yesde_cpuid));
 		return;
 	}
 	pxm = get_processor_proximity_domain(pa);
 
-	/* record this node in proximity bitmap */
+	/* record this yesde in proximity bitmap */
 	pxm_bit_set(pxm);
 
-	node_cpuid[srat_num_cpus].phys_id =
+	yesde_cpuid[srat_num_cpus].phys_id =
 	    (pa->apic_id << 8) | (pa->local_sapic_eid);
-	/* nid should be overridden as logical node id later */
-	node_cpuid[srat_num_cpus].nid = pxm;
+	/* nid should be overridden as logical yesde id later */
+	yesde_cpuid[srat_num_cpus].nid = pxm;
 	cpumask_set_cpu(srat_num_cpus, &early_cpu_possible_map);
 	srat_num_cpus++;
 }
@@ -403,29 +403,29 @@ acpi_numa_memory_affinity_init(struct acpi_srat_mem_affinity *ma)
 {
 	unsigned long paddr, size;
 	int pxm;
-	struct node_memblk_s *p, *q, *pend;
+	struct yesde_memblk_s *p, *q, *pend;
 
 	pxm = get_memory_proximity_domain(ma);
 
-	/* fill node memory chunk structure */
+	/* fill yesde memory chunk structure */
 	paddr = ma->base_address;
 	size = ma->length;
 
-	/* Ignore disabled entries */
+	/* Igyesre disabled entries */
 	if (!(ma->flags & ACPI_SRAT_MEM_ENABLED))
 		return -1;
 
-	if (num_node_memblks >= NR_NODE_MEMBLKS) {
+	if (num_yesde_memblks >= NR_NODE_MEMBLKS) {
 		pr_err("NUMA: too many memblk ranges\n");
 		return -EINVAL;
 	}
 
-	/* record this node in proximity bitmap */
+	/* record this yesde in proximity bitmap */
 	pxm_bit_set(pxm);
 
 	/* Insertion sort based on base address */
-	pend = &node_memblk[num_node_memblks];
-	for (p = &node_memblk[0]; p < pend; p++) {
+	pend = &yesde_memblk[num_yesde_memblks];
+	for (p = &yesde_memblk[0]; p < pend; p++) {
 		if (paddr < p->start_paddr)
 			break;
 	}
@@ -436,55 +436,55 @@ acpi_numa_memory_affinity_init(struct acpi_srat_mem_affinity *ma)
 	p->start_paddr = paddr;
 	p->size = size;
 	p->nid = pxm;
-	num_node_memblks++;
+	num_yesde_memblks++;
 	return 0;
 }
 
 void __init acpi_numa_fixup(void)
 {
-	int i, j, node_from, node_to;
+	int i, j, yesde_from, yesde_to;
 
-	/* If there's no SRAT, fix the phys_id and mark node 0 online */
+	/* If there's yes SRAT, fix the phys_id and mark yesde 0 online */
 	if (srat_num_cpus == 0) {
-		node_set_online(0);
-		node_cpuid[0].phys_id = hard_smp_processor_id();
+		yesde_set_online(0);
+		yesde_cpuid[0].phys_id = hard_smp_processor_id();
 		return;
 	}
 
 	/*
-	 * MCD - This can probably be dropped now.  No need for pxm ID to node ID
-	 * mapping with sparse node numbering iff MAX_PXM_DOMAINS <= MAX_NUMNODES.
+	 * MCD - This can probably be dropped yesw.  No need for pxm ID to yesde ID
+	 * mapping with sparse yesde numbering iff MAX_PXM_DOMAINS <= MAX_NUMNODES.
 	 */
-	nodes_clear(node_online_map);
+	yesdes_clear(yesde_online_map);
 	for (i = 0; i < MAX_PXM_DOMAINS; i++) {
 		if (pxm_bit_test(i)) {
-			int nid = acpi_map_pxm_to_node(i);
-			node_set_online(nid);
+			int nid = acpi_map_pxm_to_yesde(i);
+			yesde_set_online(nid);
 		}
 	}
 
-	/* set logical node id in memory chunk structure */
-	for (i = 0; i < num_node_memblks; i++)
-		node_memblk[i].nid = pxm_to_node(node_memblk[i].nid);
+	/* set logical yesde id in memory chunk structure */
+	for (i = 0; i < num_yesde_memblks; i++)
+		yesde_memblk[i].nid = pxm_to_yesde(yesde_memblk[i].nid);
 
-	/* assign memory bank numbers for each chunk on each node */
-	for_each_online_node(i) {
+	/* assign memory bank numbers for each chunk on each yesde */
+	for_each_online_yesde(i) {
 		int bank;
 
 		bank = 0;
-		for (j = 0; j < num_node_memblks; j++)
-			if (node_memblk[j].nid == i)
-				node_memblk[j].bank = bank++;
+		for (j = 0; j < num_yesde_memblks; j++)
+			if (yesde_memblk[j].nid == i)
+				yesde_memblk[j].bank = bank++;
 	}
 
-	/* set logical node id in cpu structure */
+	/* set logical yesde id in cpu structure */
 	for_each_possible_early_cpu(i)
-		node_cpuid[i].nid = pxm_to_node(node_cpuid[i].nid);
+		yesde_cpuid[i].nid = pxm_to_yesde(yesde_cpuid[i].nid);
 
-	printk(KERN_INFO "Number of logical nodes in system = %d\n",
-	       num_online_nodes());
+	printk(KERN_INFO "Number of logical yesdes in system = %d\n",
+	       num_online_yesdes());
 	printk(KERN_INFO "Number of memory chunks in system = %d\n",
-	       num_node_memblks);
+	       num_yesde_memblks);
 
 	if (!slit_table) {
 		for (i = 0; i < MAX_NUMNODES; i++)
@@ -498,21 +498,21 @@ void __init acpi_numa_fixup(void)
 	for (i = 0; i < slit_table->locality_count; i++) {
 		if (!pxm_bit_test(i))
 			continue;
-		node_from = pxm_to_node(i);
+		yesde_from = pxm_to_yesde(i);
 		for (j = 0; j < slit_table->locality_count; j++) {
 			if (!pxm_bit_test(j))
 				continue;
-			node_to = pxm_to_node(j);
-			slit_distance(node_from, node_to) =
+			yesde_to = pxm_to_yesde(j);
+			slit_distance(yesde_from, yesde_to) =
 			    slit_table->entry[i * slit_table->locality_count + j];
 		}
 	}
 
 #ifdef SLIT_DEBUG
 	printk("ACPI 2.0 SLIT locality table:\n");
-	for_each_online_node(i) {
-		for_each_online_node(j)
-		    printk("%03d ", node_distance(i, j));
+	for_each_online_yesde(i) {
+		for_each_online_yesde(j)
+		    printk("%03d ", yesde_distance(i, j));
 		printk("\n");
 	}
 #endif
@@ -586,7 +586,7 @@ int __init early_acpi_boot_init(void)
 		acpi_parse_lsapic, NR_CPUS);
 	if (ret < 1)
 		printk(KERN_ERR PREFIX
-		       "Error parsing MADT - no LAPIC entries\n");
+		       "Error parsing MADT - yes LAPIC entries\n");
 	else
 		acpi_lapic = 1;
 
@@ -596,7 +596,7 @@ int __init early_acpi_boot_init(void)
 		printk(KERN_INFO "CPU 0 (0x%04x)", hard_smp_processor_id());
 		smp_boot_data.cpu_phys_id[available_cpus] =
 		    hard_smp_processor_id();
-		available_cpus = 1;	/* We've got at least one of these, no? */
+		available_cpus = 1;	/* We've got at least one of these, yes? */
 	}
 	smp_boot_data.cpu_count = available_cpus;
 #endif
@@ -639,7 +639,7 @@ int __init acpi_boot_init(void)
 	if (acpi_table_parse_madt
 	    (ACPI_MADT_TYPE_IO_SAPIC, acpi_parse_iosapic, NR_IOSAPICS) < 1) {
 		printk(KERN_ERR PREFIX
-		       "Error parsing MADT - no IOSAPIC entries\n");
+		       "Error parsing MADT - yes IOSAPIC entries\n");
 	}
 
 	/* System-Level Interrupt Routing */
@@ -662,7 +662,7 @@ int __init acpi_boot_init(void)
 	/*
 	 * FADT says whether a legacy keyboard controller is present.
 	 * The FADT also contains an SCI_INT line, by which the system
-	 * gets interrupts such as power and sleep buttons.  If it's not
+	 * gets interrupts such as power and sleep buttons.  If it's yest
 	 * on a Legacy interrupt, it needs to be setup.
 	 */
 	if (acpi_table_parse(ACPI_SIG_FADT, acpi_parse_fadt))
@@ -675,11 +675,11 @@ int __init acpi_boot_init(void)
 		for (cpu = 0; cpu < smp_boot_data.cpu_count; cpu++)
 			if (smp_boot_data.cpu_phys_id[cpu] !=
 			    hard_smp_processor_id())
-				node_cpuid[i++].phys_id =
+				yesde_cpuid[i++].phys_id =
 				    smp_boot_data.cpu_phys_id[cpu];
 	}
 #endif
-	build_cpu_to_node_map();
+	build_cpu_to_yesde_map();
 #endif
 	return 0;
 }
@@ -711,18 +711,18 @@ int acpi_isa_irq_to_gsi(unsigned isa_irq, u32 *gsi)
  *  ACPI based hotplug CPU support
  */
 #ifdef CONFIG_ACPI_HOTPLUG_CPU
-int acpi_map_cpu2node(acpi_handle handle, int cpu, int physid)
+int acpi_map_cpu2yesde(acpi_handle handle, int cpu, int physid)
 {
 #ifdef CONFIG_ACPI_NUMA
 	/*
-	 * We don't have cpu-only-node hotadd. But if the system equips
-	 * SRAT table, pxm is already found and node is ready.
+	 * We don't have cpu-only-yesde hotadd. But if the system equips
+	 * SRAT table, pxm is already found and yesde is ready.
   	 * So, just pxm_to_nid(pxm) is OK.
 	 * This code here is for the system which doesn't have full SRAT
   	 * table for possible cpus.
 	 */
-	node_cpuid[cpu].phys_id = physid;
-	node_cpuid[cpu].nid = acpi_get_node(handle);
+	yesde_cpuid[cpu].phys_id = physid;
+	yesde_cpuid[cpu].nid = acpi_get_yesde(handle);
 #endif
 	return 0;
 }
@@ -740,12 +740,12 @@ static __init int setup_additional_cpus(char *s)
 early_param("additional_cpus", setup_additional_cpus);
 
 /*
- * cpu_possible_mask should be static, it cannot change as CPUs
+ * cpu_possible_mask should be static, it canyest change as CPUs
  * are onlined, or offlined. The reason is per-cpu data-structures
  * are allocated by some modules at init time, and dont expect to
  * do this dynamically on cpu arrival/departure.
  * cpu_present_mask on the other hand can change dynamically.
- * In case when cpu_hotplug is not compiled, then we resort to current
+ * In case when cpu_hotplug is yest compiled, then we resort to current
  * behaviour, which is cpu_possible == cpu_present.
  * - Ashok Raj
  *
@@ -790,7 +790,7 @@ static int _acpi_map_lsapic(acpi_handle handle, int physid, int *pcpu)
 	if (cpu >= nr_cpu_ids)
 		return -EINVAL;
 
-	acpi_map_cpu2node(handle, cpu, physid);
+	acpi_map_cpu2yesde(handle, cpu, physid);
 
 	set_cpu_present(cpu, true);
 	ia64_cpu_to_sapicid[cpu] = physid;
@@ -831,7 +831,7 @@ static acpi_status acpi_map_iosapic(acpi_handle handle, u32 depth,
 	union acpi_object *obj;
 	struct acpi_madt_io_sapic *iosapic;
 	unsigned int gsi_base;
-	int node;
+	int yesde;
 
 	/* Only care about objects w/ a method that returns the MADT */
 	if (ACPI_FAILURE(acpi_evaluate_object(handle, "_MAT", NULL, &buffer)))
@@ -858,14 +858,14 @@ static acpi_status acpi_map_iosapic(acpi_handle handle, u32 depth,
 
 	kfree(buffer.pointer);
 
-	/* OK, it's an IOSAPIC MADT entry; associate it with a node */
-	node = acpi_get_node(handle);
-	if (node == NUMA_NO_NODE || !node_online(node) ||
-	    cpumask_empty(cpumask_of_node(node)))
+	/* OK, it's an IOSAPIC MADT entry; associate it with a yesde */
+	yesde = acpi_get_yesde(handle);
+	if (yesde == NUMA_NO_NODE || !yesde_online(yesde) ||
+	    cpumask_empty(cpumask_of_yesde(yesde)))
 		return AE_OK;
 
-	/* We know a gsi to node mapping! */
-	map_iosapic_to_node(gsi_base, node);
+	/* We kyesw a gsi to yesde mapping! */
+	map_iosapic_to_yesde(gsi_base, yesde);
 	return AE_OK;
 }
 

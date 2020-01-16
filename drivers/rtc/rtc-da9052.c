@@ -111,7 +111,7 @@ static int da9052_set_alarm(struct da9052_rtc *rtc, struct rtc_time *rtc_tm)
 		alm_time += 60 - rtc_tm->tm_sec;
 		rtc_time_to_tm(alm_time, rtc_tm);
 	}
-	BUG_ON(rtc_tm->tm_sec); /* it will cause repeated irqs if not zero */
+	BUG_ON(rtc_tm->tm_sec); /* it will cause repeated irqs if yest zero */
 
 	rtc_tm->tm_year -= 100;
 	rtc_tm->tm_mon += 1;

@@ -25,16 +25,16 @@ efi_status_t check_platform_features(efi_system_table_t *sys_table_arg)
 {
 	u64 tg;
 
-	/* UEFI mandates support for 4 KB granularity, no need to check */
+	/* UEFI mandates support for 4 KB granularity, yes need to check */
 	if (IS_ENABLED(CONFIG_ARM64_4K_PAGES))
 		return EFI_SUCCESS;
 
 	tg = (read_cpuid(ID_AA64MMFR0_EL1) >> ID_AA64MMFR0_TGRAN_SHIFT) & 0xf;
 	if (tg != ID_AA64MMFR0_TGRAN_SUPPORTED) {
 		if (IS_ENABLED(CONFIG_ARM64_64K_PAGES))
-			pr_efi_err(sys_table_arg, "This 64 KB granular kernel is not supported by your CPU\n");
+			pr_efi_err(sys_table_arg, "This 64 KB granular kernel is yest supported by your CPU\n");
 		else
-			pr_efi_err(sys_table_arg, "This 16 KB granular kernel is not supported by your CPU\n");
+			pr_efi_err(sys_table_arg, "This 16 KB granular kernel is yest supported by your CPU\n");
 		return EFI_UNSUPPORTED;
 	}
 	return EFI_SUCCESS;
@@ -55,12 +55,12 @@ efi_status_t handle_kernel_image(efi_system_table_t *sys_table_arg,
 	u64 phys_seed = 0;
 
 	if (IS_ENABLED(CONFIG_RANDOMIZE_BASE)) {
-		if (!nokaslr()) {
+		if (!yeskaslr()) {
 			status = efi_get_random_bytes(sys_table_arg,
 						      sizeof(phys_seed),
 						      (u8 *)&phys_seed);
 			if (status == EFI_NOT_FOUND) {
-				pr_efi(sys_table_arg, "EFI_RNG_PROTOCOL unavailable, no randomness supplied\n");
+				pr_efi(sys_table_arg, "EFI_RNG_PROTOCOL unavailable, yes randomness supplied\n");
 			} else if (status != EFI_SUCCESS) {
 				pr_efi_err(sys_table_arg, "efi_get_random_bytes() failed\n");
 				return status;
@@ -84,7 +84,7 @@ efi_status_t handle_kernel_image(efi_system_table_t *sys_table_arg,
 
 	if (IS_ENABLED(CONFIG_RANDOMIZE_BASE) && phys_seed != 0) {
 		/*
-		 * If CONFIG_DEBUG_ALIGN_RODATA is not set, produce a
+		 * If CONFIG_DEBUG_ALIGN_RODATA is yest set, produce a
 		 * displacement in the interval [0, MIN_KIMG_ALIGN) that
 		 * doesn't violate this kernel's de-facto alignment
 		 * constraints.
@@ -94,7 +94,7 @@ efi_status_t handle_kernel_image(efi_system_table_t *sys_table_arg,
 			     (phys_seed >> 32) & mask : TEXT_OFFSET;
 
 		/*
-		 * With CONFIG_RANDOMIZE_TEXT_OFFSET=y, TEXT_OFFSET may not
+		 * With CONFIG_RANDOMIZE_TEXT_OFFSET=y, TEXT_OFFSET may yest
 		 * be a multiple of EFI_KIMG_ALIGN, and we must ensure that
 		 * we preserve the misalignment of 'offset' relative to
 		 * EFI_KIMG_ALIGN so that statically allocated objects whose

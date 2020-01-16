@@ -20,7 +20,7 @@
  * @gpio_pullup_inverted: true if gpio_pullup is active low
  * @wakeup: configure gpio_vbus as a wake-up source
  *
- * The VBUS sensing GPIO should have a pulldown, which will normally be
+ * The VBUS sensing GPIO should have a pulldown, which will yesrmally be
  * part of a resistor ladder turning a 4.0V-5.25V level on VBUS into a
  * value the GPIO detects as active.  Some systems will use comparators.
  */

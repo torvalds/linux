@@ -65,11 +65,11 @@ struct st_modedef {
 	unsigned char do_read_ahead;
 	unsigned char defaults_for_writes;
 	unsigned char default_compression;	/* 0 = don't touch, etc */
-	short default_density;	/* Forced density, -1 = no value */
-	int default_blksize;	/* Forced blocksize, -1 = no value */
+	short default_density;	/* Forced density, -1 = yes value */
+	int default_blksize;	/* Forced blocksize, -1 = yes value */
 	struct scsi_tape *tape;
-	struct device *devs[2];  /* Auto-rewind and non-rewind devices */
-	struct cdev *cdevs[2];  /* Auto-rewind and non-rewind devices */
+	struct device *devs[2];  /* Auto-rewind and yesn-rewind devices */
+	struct cdev *cdevs[2];  /* Auto-rewind and yesn-rewind devices */
 };
 
 /* Number of modes can be changed by changing ST_NBR_MODE_BITS. The maximum
@@ -136,18 +136,18 @@ struct scsi_tape {
 	unsigned char restr_dma;
 	unsigned char scsi2_logical;
 	unsigned char default_drvbuffer;	/* 0xff = don't touch, value 3 bits */
-	unsigned char cln_mode;			/* 0 = none, otherwise sense byte nbr */
+	unsigned char cln_mode;			/* 0 = yesne, otherwise sense byte nbr */
 	unsigned char cln_sense_value;
 	unsigned char cln_sense_mask;
 	unsigned char use_pf;			/* Set Page Format bit in all mode selects? */
 	unsigned char try_dio;			/* try direct i/o in general? */
-	unsigned char try_dio_now;		/* try direct i/o before next close? */
+	unsigned char try_dio_yesw;		/* try direct i/o before next close? */
 	unsigned char c_algo;			/* compression algorithm */
-	unsigned char pos_unknown;			/* after reset position unknown */
+	unsigned char pos_unkyeswn;			/* after reset position unkyeswn */
 	unsigned char sili;			/* use SILI when reading in variable b mode */
 	unsigned char immediate_filemark;	/* write filemark immediately */
 	int tape_type;
-	int long_timeout;	/* timeout for commands known to take long time */
+	int long_timeout;	/* timeout for commands kyeswn to take long time */
 
 	/* Mode characteristics */
 	struct st_modedef modes[ST_NBR_MODES];
@@ -211,7 +211,7 @@ struct scsi_tape {
    return zero => ST_EOD, return ENOSPC */
 /* When writing: ST_EOM_OK == early warning found, write OK
 		 ST_EOD_1  == allow trying new write after early warning
-		 ST_EOM_ERROR == early warning found, not able to write all */
+		 ST_EOM_ERROR == early warning found, yest able to write all */
 
 /* Values of rw */
 #define	ST_IDLE		0

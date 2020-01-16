@@ -24,7 +24,7 @@ void io_bitmap_share(struct task_struct *tsk)
 	if (current->thread.io_bitmap) {
 		/*
 		 * Take a refcount on current's bitmap. It can be used by
-		 * both tasks as long as none of them changes the bitmap.
+		 * both tasks as long as yesne of them changes the bitmap.
 		 */
 		refcount_inc(&current->thread.io_bitmap->refcnt);
 		tsk->thread.io_bitmap = current->thread.io_bitmap;
@@ -76,7 +76,7 @@ long ksys_ioperm(unsigned long from, unsigned long num, int turn_on)
 	/*
 	 * If it's the first ioperm() call in this thread's lifetime, set the
 	 * IO bitmap up. ioperm() is much less timing critical than clone(),
-	 * this is why we delay this operation until now:
+	 * this is why we delay this operation until yesw:
 	 */
 	iobm = t->io_bitmap;
 	if (!iobm) {
@@ -92,8 +92,8 @@ long ksys_ioperm(unsigned long from, unsigned long num, int turn_on)
 	}
 
 	/*
-	 * If the bitmap is not shared, then nothing can take a refcount as
-	 * current can obviously not fork at the same time. If it's shared
+	 * If the bitmap is yest shared, then yesthing can take a refcount as
+	 * current can obviously yest fork at the same time. If it's shared
 	 * duplicate it and drop the refcount on the original one.
 	 */
 	if (refcount_read(&iobm->refcnt) > 1) {
@@ -115,7 +115,7 @@ long ksys_ioperm(unsigned long from, unsigned long num, int turn_on)
 
 	/*
 	 * Update the tasks bitmap. The update of the TSS bitmap happens on
-	 * exit to user mode. So this needs no protection.
+	 * exit to user mode. So this needs yes protection.
 	 */
 	if (turn_on)
 		bitmap_clear(iobm->bitmap, from, num);
@@ -157,7 +157,7 @@ SYSCALL_DEFINE3(ioperm, unsigned long, from, unsigned long, num, int, turn_on)
  * The sys_iopl functionality depends on the level argument, which if
  * granted for the task is used to enable access to all 65536 I/O ports.
  *
- * This does not use the IOPL mechanism provided by the CPU as that would
+ * This does yest use the IOPL mechanism provided by the CPU as that would
  * also allow the user space task to use the CLI/STI instructions.
  *
  * Disabling interrupts in a user space task is dangerous as it might lock
@@ -179,7 +179,7 @@ SYSCALL_DEFINE1(iopl, unsigned int, level)
 
 	old = t->iopl_emul;
 
-	/* No point in going further if nothing changes */
+	/* No point in going further if yesthing changes */
 	if (level == old)
 		return 0;
 

@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -21,7 +21,7 @@
  * IN THE SOFTWARE.
  *
  * Authors:
- *    Eugeni Dodonov <eugeni.dodonov@intel.com>
+ *    Eugeni Dodoyesv <eugeni.dodoyesv@intel.com>
  *    Daniel Vetter <daniel.vetter@ffwll.ch>
  *
  */
@@ -56,7 +56,7 @@
 
 #define STACKDEPTH 8
 
-static noinline depot_stack_handle_t __save_depot_stack(void)
+static yesinline depot_stack_handle_t __save_depot_stack(void)
 {
 	unsigned long entries[STACKDEPTH];
 	unsigned int n;
@@ -80,7 +80,7 @@ static void init_intel_runtime_pm_wakeref(struct intel_runtime_pm *rpm)
 	spin_lock_init(&rpm->debug.lock);
 }
 
-static noinline depot_stack_handle_t
+static yesinline depot_stack_handle_t
 track_intel_runtime_pm_wakeref(struct intel_runtime_pm *rpm)
 {
 	depot_stack_handle_t stack, *stacks;
@@ -207,7 +207,7 @@ __print_intel_runtime_pm_wakeref(struct drm_printer *p,
 	kfree(buf);
 }
 
-static noinline void
+static yesinline void
 __untrack_all_wakerefs(struct intel_runtime_pm_debug *debug,
 		       struct intel_runtime_pm_debug *saved)
 {
@@ -230,7 +230,7 @@ dump_and_free_wakeref_tracking(struct intel_runtime_pm_debug *debug)
 	kfree(debug->owners);
 }
 
-static noinline void
+static yesinline void
 __intel_wakeref_dec_and_check_tracking(struct intel_runtime_pm *rpm)
 {
 	struct intel_runtime_pm_debug dbg = {};
@@ -247,7 +247,7 @@ __intel_wakeref_dec_and_check_tracking(struct intel_runtime_pm *rpm)
 	dump_and_free_wakeref_tracking(&dbg);
 }
 
-static noinline void
+static yesinline void
 untrack_all_intel_runtime_pm_wakerefs(struct intel_runtime_pm *rpm)
 {
 	struct intel_runtime_pm_debug dbg = {};
@@ -373,8 +373,8 @@ static intel_wakeref_t __intel_runtime_pm_get(struct intel_runtime_pm *rpm,
  * only be used from error capture and recovery code where deadlocks are
  * possible.
  * This function grabs a device-level runtime pm reference (mostly used for
- * asynchronous PM management from display code) and ensures that it is powered
- * up. Raw references are not considered during wakelock assert checks.
+ * asynchroyesus PM management from display code) and ensures that it is powered
+ * up. Raw references are yest considered during wakelock assert checks.
  *
  * Any runtime pm reference obtained by this function must have a symmetric
  * call to intel_runtime_pm_put_raw() to release the reference again.
@@ -423,7 +423,7 @@ intel_wakeref_t intel_runtime_pm_get_if_in_use(struct intel_runtime_pm *rpm)
 	if (IS_ENABLED(CONFIG_PM)) {
 		/*
 		 * In cases runtime PM is disabled by the RPM core and we get
-		 * an -EINVAL return value we are not supposed to call this
+		 * an -EINVAL return value we are yest supposed to call this
 		 * function, since the power state is undefined. This applies
 		 * atm to the late/early system suspend/resume handlers.
 		 */
@@ -437,15 +437,15 @@ intel_wakeref_t intel_runtime_pm_get_if_in_use(struct intel_runtime_pm *rpm)
 }
 
 /**
- * intel_runtime_pm_get_noresume - grab a runtime pm reference
+ * intel_runtime_pm_get_yesresume - grab a runtime pm reference
  * @rpm: the intel_runtime_pm structure
  *
  * This function grabs a device-level runtime pm reference (mostly used for GEM
  * code to ensure the GTT or GT is on).
  *
- * It will _not_ power up the device but instead only check that it's powered
+ * It will _yest_ power up the device but instead only check that it's powered
  * on.  Therefore it is only valid to call this functions from contexts where
- * the device is known to be powered up and where trying to power it up would
+ * the device is kyeswn to be powered up and where trying to power it up would
  * result in hilarity and deadlocks. That pretty much means only the system
  * suspend/resume code where this is used to grab runtime pm references for
  * delayed setup down in work items.
@@ -455,10 +455,10 @@ intel_wakeref_t intel_runtime_pm_get_if_in_use(struct intel_runtime_pm *rpm)
  *
  * Returns: the wakeref cookie to pass to intel_runtime_pm_put()
  */
-intel_wakeref_t intel_runtime_pm_get_noresume(struct intel_runtime_pm *rpm)
+intel_wakeref_t intel_runtime_pm_get_yesresume(struct intel_runtime_pm *rpm)
 {
 	assert_rpm_wakelock_held(rpm);
-	pm_runtime_get_noresume(rpm->kdev);
+	pm_runtime_get_yesresume(rpm->kdev);
 
 	intel_runtime_pm_acquire(rpm, true);
 
@@ -503,7 +503,7 @@ intel_runtime_pm_put_raw(struct intel_runtime_pm *rpm, intel_wakeref_t wref)
  * hardware block right away if this is the last reference.
  *
  * This function exists only for historical reasons and should be avoided in
- * new code, as the correctness of its use cannot be checked. Always use
+ * new code, as the correctness of its use canyest be checked. Always use
  * intel_runtime_pm_put() instead.
  */
 void intel_runtime_pm_put_unchecked(struct intel_runtime_pm *rpm)
@@ -533,7 +533,7 @@ void intel_runtime_pm_put(struct intel_runtime_pm *rpm, intel_wakeref_t wref)
  *
  * This function enables runtime pm at the end of the driver load sequence.
  *
- * Note that this function does currently not enable runtime pm for the
+ * Note that this function does currently yest enable runtime pm for the
  * subordinate display power domains. That is done by
  * intel_power_domains_enable().
  */

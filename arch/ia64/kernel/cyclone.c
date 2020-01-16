@@ -2,7 +2,7 @@
 #include <linux/module.h>
 #include <linux/smp.h>
 #include <linux/time.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/timex.h>
 #include <linux/clocksource.h>
 #include <linux/io.h>
@@ -50,9 +50,9 @@ int __init init_cyclone_clock(void)
 
 	/* find base address */
 	offset = (CYCLONE_CBAR_ADDR);
-	reg = ioremap_nocache(offset, sizeof(u64));
+	reg = ioremap_yescache(offset, sizeof(u64));
 	if(!reg){
-		printk(KERN_ERR "Summit chipset: Could not find valid CBAR"
+		printk(KERN_ERR "Summit chipset: Could yest find valid CBAR"
 				" register.\n");
 		use_cyclone = 0;
 		return -ENODEV;
@@ -60,7 +60,7 @@ int __init init_cyclone_clock(void)
 	base = readq(reg);
 	iounmap(reg);
 	if(!base){
-		printk(KERN_ERR "Summit chipset: Could not find valid CBAR"
+		printk(KERN_ERR "Summit chipset: Could yest find valid CBAR"
 				" value.\n");
 		use_cyclone = 0;
 		return -ENODEV;
@@ -68,9 +68,9 @@ int __init init_cyclone_clock(void)
 
 	/* setup PMCC */
 	offset = (base + CYCLONE_PMCC_OFFSET);
-	reg = ioremap_nocache(offset, sizeof(u64));
+	reg = ioremap_yescache(offset, sizeof(u64));
 	if(!reg){
-		printk(KERN_ERR "Summit chipset: Could not find valid PMCC"
+		printk(KERN_ERR "Summit chipset: Could yest find valid PMCC"
 				" register.\n");
 		use_cyclone = 0;
 		return -ENODEV;
@@ -80,9 +80,9 @@ int __init init_cyclone_clock(void)
 
 	/* setup MPCS */
 	offset = (base + CYCLONE_MPCS_OFFSET);
-	reg = ioremap_nocache(offset, sizeof(u64));
+	reg = ioremap_yescache(offset, sizeof(u64));
 	if(!reg){
-		printk(KERN_ERR "Summit chipset: Could not find valid MPCS"
+		printk(KERN_ERR "Summit chipset: Could yest find valid MPCS"
 				" register.\n");
 		use_cyclone = 0;
 		return -ENODEV;
@@ -92,9 +92,9 @@ int __init init_cyclone_clock(void)
 
 	/* map in cyclone_timer */
 	offset = (base + CYCLONE_MPMC_OFFSET);
-	cyclone_timer = ioremap_nocache(offset, sizeof(u32));
+	cyclone_timer = ioremap_yescache(offset, sizeof(u32));
 	if(!cyclone_timer){
-		printk(KERN_ERR "Summit chipset: Could not find valid MPMC"
+		printk(KERN_ERR "Summit chipset: Could yest find valid MPMC"
 				" register.\n");
 		use_cyclone = 0;
 		return -ENODEV;
@@ -106,7 +106,7 @@ int __init init_cyclone_clock(void)
 		int stall = 100;
 		while(stall--) barrier();
 		if(readl(cyclone_timer) == old){
-			printk(KERN_ERR "Summit chipset: Counter not counting!"
+			printk(KERN_ERR "Summit chipset: Counter yest counting!"
 					" DISABLED\n");
 			iounmap(cyclone_timer);
 			cyclone_timer = NULL;

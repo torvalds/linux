@@ -1,11 +1,11 @@
 .. Permission is granted to copy, distribute and/or modify this
 .. document under the terms of the GNU Free Documentation License,
 .. Version 1.1 or any later version published by the Free Software
-.. Foundation, with no Invariant Sections, no Front-Cover Texts
-.. and no Back-Cover Texts. A copy of the license is included at
+.. Foundation, with yes Invariant Sections, yes Front-Cover Texts
+.. and yes Back-Cover Texts. A copy of the license is included at
 .. Documentation/media/uapi/fdl-appendix.rst.
 ..
-.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
+.. TODO: replace it to GFDL-1.1-or-later WITH yes-invariant-sections
 
 .. _VIDIOC_SUBDEV_G_FRAME_INTERVAL:
 
@@ -19,7 +19,7 @@ Name
 VIDIOC_SUBDEV_G_FRAME_INTERVAL - VIDIOC_SUBDEV_S_FRAME_INTERVAL - Get or set the frame interval on a subdev pad
 
 
-Synopsis
+Syyespsis
 ========
 
 .. c:function:: int ioctl( int fd, VIDIOC_SUBDEV_G_FRAME_INTERVAL, struct v4l2_subdev_frame_interval *argp )
@@ -46,7 +46,7 @@ These ioctls are used to get and set the frame interval at specific
 subdev pads in the image pipeline. The frame interval only makes sense
 for sub-devices that can control the frame period on their own. This
 includes, for instance, image sensors and TV tuners. Sub-devices that
-don't support frame intervals must not implement these ioctls.
+don't support frame intervals must yest implement these ioctls.
 
 To retrieve the current frame interval applications set the ``pad``
 field of a struct
@@ -65,7 +65,7 @@ struct
 contains the current frame interval as would be returned by a
 ``VIDIOC_SUBDEV_G_FRAME_INTERVAL`` call.
 
-Drivers must not return an error solely because the requested interval
+Drivers must yest return an error solely because the requested interval
 doesn't match the device capabilities. They must instead modify the
 interval to match what the hardware can provide. The modified interval
 should be as close as possible to the original request.
@@ -75,7 +75,7 @@ format, on the other hand, may change the frame interval.
 
 Sub-devices that support the frame interval ioctls should implement them
 on a single pad only. Their behaviour when supported on multiple pads of
-the same sub-device is not defined.
+the same sub-device is yest defined.
 
 
 .. c:type:: v4l2_subdev_frame_interval
@@ -102,19 +102,19 @@ the same sub-device is not defined.
 Return Value
 ============
 
-On success 0 is returned, on error -1 and the ``errno`` variable is set
+On success 0 is returned, on error -1 and the ``erryes`` variable is set
 appropriately. The generic error codes are described at the
 :ref:`Generic Error Codes <gen-errors>` chapter.
 
 EBUSY
     The frame interval can't be changed because the pad is currently
     busy. This can be caused, for instance, by an active video stream on
-    the pad. The ioctl must not be retried without performing another
+    the pad. The ioctl must yest be retried without performing ayesther
     action to fix the problem first. Only returned by
     ``VIDIOC_SUBDEV_S_FRAME_INTERVAL``
 
 EINVAL
     The struct
     :c:type:`v4l2_subdev_frame_interval`
-    ``pad`` references a non-existing pad, or the pad doesn't support
+    ``pad`` references a yesn-existing pad, or the pad doesn't support
     frame intervals.

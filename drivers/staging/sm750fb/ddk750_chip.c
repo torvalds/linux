@@ -70,7 +70,7 @@ static void set_chip_clock(unsigned int frequency)
 
 		/*
 		 * Call sm750_calc_pll_value() to fill the other fields
-		 * of the PLL structure. Sometimes, the chip cannot set
+		 * of the PLL structure. Sometimes, the chip canyest set
 		 * up the exact clock required by the User.
 		 * Return value of sm750_calc_pll_value gives the actual
 		 * possible clock.
@@ -247,7 +247,7 @@ int ddk750_init_hw(struct initchip_param *p_init_param)
 
 	/*
 	 * Reset the memory controller.
-	 * If the memory controller is not reset in SM750,
+	 * If the memory controller is yest reset in SM750,
 	 * the system might hang when sw accesses the memory.
 	 * The memory should be resetted after changing the MXCLK.
 	 */
@@ -295,7 +295,7 @@ int ddk750_init_hw(struct initchip_param *p_init_param)
 /*
  * monk liu @ 4/6/2011:
  *	re-write the calculatePLL function of ddk750.
- *	the original version function does not use
+ *	the original version function does yest use
  *	some mathematics tricks and shortcut
  *	when it doing the calculation of the best N,M,D combination
  *	I think this version gives a little upgrade in speed
@@ -340,14 +340,14 @@ unsigned int sm750_calc_pll_value(unsigned int request_orig,
 
 	/*
 	 * for MXCLK register,
-	 * no POD provided, so need be treated differently
+	 * yes POD provided, so need be treated differently
 	 */
 	if (pll->clock_type == MXCLK_PLL)
 		max_d = 3;
 
 	for (N = 15; N > 1; N--) {
 		/*
-		 * RN will not exceed maximum long
+		 * RN will yest exceed maximum long
 		 * if @request <= 285 MHZ (for 32bit cpu)
 		 */
 		RN = N * request;

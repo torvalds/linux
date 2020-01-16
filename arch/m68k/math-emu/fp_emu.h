@@ -7,12 +7,12 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, and the entire permission notice in its entirety,
+ *    yestice, and the entire permission yestice in its entirety,
  *    including the disclaimer of warranties.
  * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
+ *    yestice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. The name of the author may not be used to endorse or promote
+ * 3. The name of the author may yest be used to endorse or promote
  *    products derived from this software without specific prior
  *    written permission.
  *
@@ -61,7 +61,7 @@
 /* linkage for several useful functions */
 
 /* Normalize the extended struct, return 0 for a NaN */
-#define fp_normalize_ext(fpreg) ({				\
+#define fp_yesrmalize_ext(fpreg) ({				\
 	register struct fp_ext *reg asm ("a0") = fpreg;		\
 	register int res asm ("d0");				\
 								\
@@ -77,14 +77,14 @@
 
 #define fp_monadic_check(dest, src) ({				\
 	fp_copy_ext(dest, src);					\
-	if (!fp_normalize_ext(dest))				\
+	if (!fp_yesrmalize_ext(dest))				\
 		return dest;					\
 })
 
 #define fp_dyadic_check(dest, src) ({				\
-	if (!fp_normalize_ext(dest))				\
+	if (!fp_yesrmalize_ext(dest))				\
 		return dest;					\
-	if (!fp_normalize_ext(src)) {				\
+	if (!fp_yesrmalize_ext(src)) {				\
 		fp_copy_ext(dest, src);				\
 		return dest;					\
 	}							\

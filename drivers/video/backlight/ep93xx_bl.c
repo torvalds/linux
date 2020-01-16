@@ -78,7 +78,7 @@ static int ep93xxbl_probe(struct platform_device *dev)
 	 * drivers/video/ep93xx-fb.c) and doing so will cause the second
 	 * loaded driver to return -EBUSY.
 	 *
-	 * NOTE: No locking is required; the framebuffer does not touch
+	 * NOTE: No locking is required; the framebuffer does yest touch
 	 * this register.
 	 */
 	ep93xxbl->mmio = devm_ioremap(&dev->dev, res->start,

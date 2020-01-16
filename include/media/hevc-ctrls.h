@@ -3,7 +3,7 @@
  * These are the HEVC state controls for use with stateless HEVC
  * codec drivers.
  *
- * It turns out that these structs are not stable yet and will undergo
+ * It turns out that these structs are yest stable yet and will undergo
  * more changes. So keep them private until they are stable and ready to
  * become part of the official public API.
  */
@@ -51,7 +51,7 @@ enum v4l2_mpeg_video_hevc_start_code {
 #define V4L2_HEVC_SPS_FLAG_SPS_TEMPORAL_MVP_ENABLED		(1ULL << 7)
 #define V4L2_HEVC_SPS_FLAG_STRONG_INTRA_SMOOTHING_ENABLED	(1ULL << 8)
 
-/* The controls are not stable at the moment and will likely be reworked. */
+/* The controls are yest stable at the moment and will likely be reworked. */
 struct v4l2_ctrl_hevc_sps {
 	/* ISO/IEC 23008-2, ITU-T Rec. H.265: Sequence parameter set */
 	__u16	pic_width_in_luma_samples;
@@ -147,8 +147,8 @@ struct v4l2_hevc_pred_weight_table {
 
 	__u8	padding[6];
 
-	__u8	luma_log2_weight_denom;
-	__s8	delta_chroma_log2_weight_denom;
+	__u8	luma_log2_weight_deyesm;
+	__s8	delta_chroma_log2_weight_deyesm;
 };
 
 #define V4L2_HEVC_SLICE_PARAMS_FLAG_SLICE_SAO_LUMA		(1ULL << 0)

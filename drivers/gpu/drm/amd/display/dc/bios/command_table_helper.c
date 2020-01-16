@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -174,7 +174,7 @@ void dal_cmd_table_helper_assign_control_parameter(
 	/* there are three transmitter blocks, each one has two links 4-lanes
 	 * each, A+B, C+D, E+F, Uniphy A, C and E are enumerated as link 0 in
 	 * each transmitter block B, D and F as link 1, third transmitter block
-	 * has non splitable links (UniphyE and UniphyF can not be configured
+	 * has yesn splitable links (UniphyE and UniphyF can yest be configured
 	 * separately to drive two different streams)
 	 */
 	if ((control->transmitter == TRANSMITTER_UNIPHY_B) ||

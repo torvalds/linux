@@ -62,7 +62,7 @@ Major parts of the initialization program :
 	c.mtu = 127;
 	/* set the new configuration */
 	ioctl(fd, GSMIOC_SETCONF, &c);
-	/* get first gsmtty device node */
+	/* get first gsmtty device yesde */
 	ioctl(fd, GSMIOC_GETFIRST, &first);
 	printf("first muxed line: /dev/gsmtty%i\n", first);
 
@@ -74,7 +74,7 @@ Major parts of the initialization program :
 
    for example, it's possible:
 
-   - and to use gnokii to send / receive SMS on ttygsm1
+   - and to use gyeskii to send / receive SMS on ttygsm1
    - to use ppp to establish a datalink on ttygsm2
 
 6. first close all virtual ports before closing the physical port.
@@ -94,7 +94,7 @@ modems can be found in the following documents :
 
 - http://www.telit.com/module/infopool/download.php?id=616
 - http://www.u-blox.com/images/downloads/Product_Docs/LEON-G100-G200-MuxImplementation_ApplicationNote_%28GSM%20G1-CS-10002%29.pdf
-- http://www.sierrawireless.com/Support/Downloads/AirPrime/WMP_Series/~/media/Support_Downloads/AirPrime/Application_notes/CMUX_Feature_Application_Note-Rev004.ashx
+- http://www.sierrawireless.com/Support/Downloads/AirPrime/WMP_Series/~/media/Support_Downloads/AirPrime/Application_yestes/CMUX_Feature_Application_Note-Rev004.ashx
 - http://wm.sim.com/sim/News/photo/2010721161442.pdf
 
 11-03-08 - Eric Bénard - <eric@eukrea.com>

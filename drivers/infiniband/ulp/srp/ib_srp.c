@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -129,13 +129,13 @@ MODULE_PARM_DESC(dev_loss_tmo,
 		 " insulate transport layer errors. After this time has been"
 		 " exceeded the SCSI host is removed. Should be"
 		 " between 1 and " __stringify(SCSI_DEVICE_BLOCK_MAX_TIMEOUT)
-		 " if fast_io_fail_tmo has not been set. \"off\" means that"
+		 " if fast_io_fail_tmo has yest been set. \"off\" means that"
 		 " this functionality is disabled.");
 
 static bool srp_use_imm_data = true;
 module_param_named(use_imm_data, srp_use_imm_data, bool, 0644);
 MODULE_PARM_DESC(use_imm_data,
-		 "Whether or not to request permission to use immediate data during SRP login.");
+		 "Whether or yest to request permission to use immediate data during SRP login.");
 
 static unsigned int srp_max_imm_data = 8 * 1024;
 module_param_named(max_imm_data, srp_max_imm_data, uint, 0644);
@@ -695,7 +695,7 @@ static void srp_free_ch_ib(struct srp_target_port *target,
 		}
 	}
 
-	/* If srp_new_cm_id() succeeded but srp_create_ch_ib() not, return. */
+	/* If srp_new_cm_id() succeeded but srp_create_ch_ib() yest, return. */
 	if (!ch->qp)
 		return;
 
@@ -940,7 +940,7 @@ static int srp_send_req(struct srp_rdma_ch *ch, uint32_t max_iu_len,
 	/*
 	 * Topspin/Cisco SRP targets will reject our login unless we
 	 * zero out the first 8 bytes of our initiator port ID and set
-	 * the second 8 bytes to the local node GUID.
+	 * the second 8 bytes to the local yesde GUID.
 	 */
 	if (srp_target_is_topspin(target)) {
 		shost_printk(KERN_DEBUG, target->scsi_host,
@@ -948,7 +948,7 @@ static int srp_send_req(struct srp_rdma_ch *ch, uint32_t max_iu_len,
 			     "activated for target GUID %016llx\n",
 			     be64_to_cpu(target->ioc_guid));
 		memset(ipi, 0, 8);
-		memcpy(ipi + 8, &target->srp_host->srp_dev->dev->node_guid, 8);
+		memcpy(ipi + 8, &target->srp_host->srp_dev->dev->yesde_guid, 8);
 	}
 
 	if (target->using_rdma_cm)
@@ -1088,8 +1088,8 @@ out:
  * srp_del_scsi_host_attr() - Remove attributes defined in the host template.
  * @shost: SCSI host whose attributes to remove from sysfs.
  *
- * Note: Any attributes defined in the host template and that did not exist
- * before invocation of this function will be ignored.
+ * Note: Any attributes defined in the host template and that did yest exist
+ * before invocation of this function will be igyesred.
  */
 static void srp_del_scsi_host_attr(struct Scsi_Host *shost)
 {
@@ -1287,8 +1287,8 @@ static void srp_unmap_data(struct scsi_cmnd *scmnd,
  * srp_claim_req - Take ownership of the scmnd associated with a request.
  * @ch: SRP RDMA channel.
  * @req: SRP request.
- * @sdev: If not NULL, only take ownership for this SCSI device.
- * @scmnd: If NULL, take ownership of @req->scmnd. If not NULL, only take
+ * @sdev: If yest NULL, only take ownership for this SCSI device.
+ * @scmnd: If NULL, take ownership of @req->scmnd. If yest NULL, only take
  *         ownership of @req->scmnd if it equals @scmnd.
  *
  * Return value:
@@ -1386,9 +1386,9 @@ static uint32_t srp_max_it_iu_len(int cmd_sg_cnt, bool use_imm_data,
 
 /*
  * It is up to the caller to ensure that srp_rport_reconnect() calls are
- * serialized and that no concurrent srp_queuecommand(), srp_abort(),
+ * serialized and that yes concurrent srp_queuecommand(), srp_abort(),
  * srp_reset_device() or srp_reset_host() calls will occur while this function
- * is in progress. One way to realize that is not to call this function
+ * is in progress. One way to realize that is yest to call this function
  * directly but to call srp_reconnect_rport() instead since that last function
  * serializes calls of this function via rport->mutex and also blocks
  * srp_queuecommand() calls before invoking this function.
@@ -1428,7 +1428,7 @@ static int srp_rport_reconnect(struct srp_rport *rport)
 	for (i = 0; i < target->ch_count; i++) {
 		ch = &target->ch[i];
 		/*
-		 * Whether or not creating a new CM ID succeeded, create a new
+		 * Whether or yest creating a new CM ID succeeded, create a new
 		 * QP. This guarantees that all completion callback function
 		 * invocations have finished before request resetting starts.
 		 */
@@ -1525,7 +1525,7 @@ static void srp_reg_mr_err_done(struct ib_cq *cq, struct ib_wc *wc)
  * Map up to sg_nents elements of state->sg where *sg_offset_p is the offset
  * where to start in the first element. If sg_offset_p != NULL then
  * *sg_offset_p is updated to the offset in state->sg[retval] of the first
- * byte that has not yet been mapped.
+ * byte that has yest yet been mapped.
  */
 static int srp_map_finish_fr(struct srp_map_state *state,
 			     struct srp_request *req,
@@ -1640,7 +1640,7 @@ static int srp_map_sg_entry(struct srp_map_state *state,
 	}
 
 	/*
-	 * If the end of the MR is not on a page boundary then we need to
+	 * If the end of the MR is yest on a page boundary then we need to
 	 * close it out and start a new one -- we can only merge at page
 	 * boundaries.
 	 */
@@ -1804,7 +1804,7 @@ static void srp_check_mapping(struct srp_map_state *state,
  * @req: SRP request
  *
  * Returns the length in bytes of the SRP_CMD IU or a negative value if
- * mapping failed. The size of any immediate data is not included in the
+ * mapping failed. The size of any immediate data is yest included in the
  * return value.
  */
 static int srp_map_data(struct scsi_cmnd *scmnd, struct srp_rdma_ch *ch,
@@ -1919,9 +1919,9 @@ static int srp_map_data(struct scsi_cmnd *scmnd, struct srp_rdma_ch *ch,
 			srp_check_mapping(&state, ch, req, scat, count);
 	}
 
-	/* We've mapped the request, now pull as much of the indirect
+	/* We've mapped the request, yesw pull as much of the indirect
 	 * descriptor table as we can into the command buffer. If this
-	 * target is not using an external indirect table, we are
+	 * target is yest using an external indirect table, we are
 	 * guaranteed to fit into the command, as the SCSI layer won't
 	 * give us more S/G entries than we allow.
 	 */
@@ -1940,7 +1940,7 @@ static int srp_map_data(struct scsi_cmnd *scmnd, struct srp_rdma_ch *ch,
 	if (unlikely(target->cmd_sg_cnt < state.ndesc &&
 						!target->allow_ext_sg)) {
 		shost_printk(KERN_ERR, target->scsi_host,
-			     "Could not fit S/G list into SRP_CMD\n");
+			     "Could yest fit S/G list into SRP_CMD\n");
 		ret = -EIO;
 		goto unmap;
 	}
@@ -2012,7 +2012,7 @@ static void srp_put_tx_iu(struct srp_rdma_ch *ch, struct srp_iu *iu,
 
 /*
  * Must be called with ch->lock held to protect req_lim and free_tx.
- * If IU is not sent, it must be returned using srp_put_tx_iu().
+ * If IU is yest sent, it must be returned using srp_put_tx_iu().
  *
  * Note:
  * An upper limit for the number of allocated information units for each
@@ -2037,7 +2037,7 @@ static struct srp_iu *__srp_get_tx_iu(struct srp_rdma_ch *ch,
 	if (list_empty(&ch->free_tx))
 		return NULL;
 
-	/* Initiator responses to target requests do not consume credits */
+	/* Initiator responses to target requests do yest consume credits */
 	if (iu_type != SRP_IU_RSP) {
 		if (ch->req_lim <= rsv) {
 			++target->zero_req_lim;
@@ -2204,7 +2204,7 @@ static int srp_response_common(struct srp_rdma_ch *ch, s32 req_delta,
 
 	if (!iu) {
 		shost_printk(KERN_ERR, target->scsi_host, PFX
-			     "no IU available to send response\n");
+			     "yes IU available to send response\n");
 		return 1;
 	}
 
@@ -2248,7 +2248,7 @@ static void srp_process_aer_req(struct srp_rdma_ch *ch,
 	s32 delta = be32_to_cpu(req->req_lim_delta);
 
 	shost_printk(KERN_ERR, target->scsi_host, PFX
-		     "ignoring AER for LUN %llu\n", scsilun_to_int(&req->lun));
+		     "igyesring AER for LUN %llu\n", scsilun_to_int(&req->lun));
 
 	if (srp_response_common(ch, delta, &rsp, sizeof(rsp)))
 		shost_printk(KERN_ERR, target->scsi_host, PFX
@@ -2464,11 +2464,11 @@ static int srp_alloc_iu_bufs(struct srp_rdma_ch *ch)
 	ch->rx_ring = kcalloc(target->queue_size, sizeof(*ch->rx_ring),
 			      GFP_KERNEL);
 	if (!ch->rx_ring)
-		goto err_no_ring;
+		goto err_yes_ring;
 	ch->tx_ring = kcalloc(target->queue_size, sizeof(*ch->tx_ring),
 			      GFP_KERNEL);
 	if (!ch->tx_ring)
-		goto err_no_ring;
+		goto err_yes_ring;
 
 	for (i = 0; i < target->queue_size; ++i) {
 		ch->rx_ring[i] = srp_alloc_iu(target->srp_host,
@@ -2497,7 +2497,7 @@ err:
 	}
 
 
-err_no_ring:
+err_yes_ring:
 	kfree(ch->tx_ring);
 	ch->tx_ring = NULL;
 	kfree(ch->rx_ring);
@@ -2523,7 +2523,7 @@ static uint32_t srp_compute_rq_tmo(struct ib_qp_attr *qp_attr, int attr_mask)
 	 * Set target->rq_tmo_jiffies to one second more than the largest time
 	 * it can take before an error completion is generated. See also
 	 * C9-140..142 in the IBTA spec for more information about how to
-	 * convert the QP Local ACK Timeout value to nanoseconds.
+	 * convert the QP Local ACK Timeout value to nayesseconds.
 	 */
 	T_tr_ns = 4096 * (1ULL << qp_attr->timeout);
 	max_compl_time_ms = qp_attr->retry_cnt * 4 * T_tr_ns;
@@ -3290,7 +3290,7 @@ static int srp_sdev_count(struct Scsi_Host *host)
 /*
  * Return values:
  * < 0 upon failure. Caller is responsible for SRP target port cleanup.
- * 0 and target->state == SRP_TARGET_REMOVED if asynchronous target port
+ * 0 and target->state == SRP_TARGET_REMOVED if asynchroyesus target port
  *    removal has been scheduled.
  * 0 and target->state != SRP_TARGET_REMOVED upon success.
  */
@@ -3464,7 +3464,7 @@ static const match_table_t srp_opt_tokens = {
  * @net:	   [in]  Network namespace.
  * @sa:		   [out] Address family, IP address and port number.
  * @addr_port_str: [in]  IP address and port number.
- * @has_port:	   [out] Whether or not @addr_port_str includes a port number.
+ * @has_port:	   [out] Whether or yest @addr_port_str includes a port number.
  *
  * Parse the following address formats:
  * - IPv4: <ip_address>:<port>, e.g. 1.2.3.4:5.
@@ -3681,7 +3681,7 @@ static int srp_parse_options(struct net *net, const char *buf,
 			}
 			if (token != SRP_REV10_IB_IO_CLASS &&
 			    token != SRP_REV16A_IB_IO_CLASS) {
-				pr_warn("unknown IO class parameter value %x specified (use %x or %x).\n",
+				pr_warn("unkyeswn IO class parameter value %x specified (use %x or %x).\n",
 					token, SRP_REV10_IB_IO_CLASS,
 					SRP_REV16A_IB_IO_CLASS);
 				goto out;
@@ -3758,7 +3758,7 @@ static int srp_parse_options(struct net *net, const char *buf,
 			break;
 
 		default:
-			pr_warn("unknown parameter or missing value '%s' in target creation request\n",
+			pr_warn("unkyeswn parameter or missing value '%s' in target creation request\n",
 				p);
 			goto out;
 		}
@@ -3795,7 +3795,7 @@ static ssize_t srp_create_target(struct device *dev,
 	struct srp_rdma_ch *ch;
 	struct srp_device *srp_dev = host->srp_dev;
 	struct ib_device *ibdev = srp_dev->dev;
-	int ret, node_idx, node, cpu, i;
+	int ret, yesde_idx, yesde, cpu, i;
 	unsigned int max_sectors_per_mr, mr_per_cmd = 0;
 	bool multich = false;
 	uint32_t max_iu_len;
@@ -3865,7 +3865,7 @@ static ssize_t srp_create_target(struct device *dev,
 
 	if (!srp_dev->has_fmr && !srp_dev->has_fr && !target->allow_ext_sg &&
 	    target->cmd_sg_cnt < target->sg_tablesize) {
-		pr_warn("No MR pool and no external indirect descriptors, limiting sg_tablesize to cmd_sg_cnt\n");
+		pr_warn("No MR pool and yes external indirect descriptors, limiting sg_tablesize to cmd_sg_cnt\n");
 		target->sg_tablesize = target->cmd_sg_cnt;
 	}
 
@@ -3878,7 +3878,7 @@ static ssize_t srp_create_target(struct device *dev,
 		if (!gaps_reg) {
 			/*
 			 * FR and FMR can only map one HCA page per entry. If
-			 * the start address is not aligned on a HCA page
+			 * the start address is yest aligned on a HCA page
 			 * boundary two entries will be used for the head and
 			 * the tail although these two entries combined
 			 * contain at most one HCA page of data. Hence the "+
@@ -3920,9 +3920,9 @@ static ssize_t srp_create_target(struct device *dev,
 		goto out;
 
 	ret = -ENOMEM;
-	target->ch_count = max_t(unsigned, num_online_nodes(),
+	target->ch_count = max_t(unsigned, num_online_yesdes(),
 				 min(ch_count ? :
-				     min(4 * num_online_nodes(),
+				     min(4 * num_online_yesdes(),
 					 ibdev->num_comp_vectors),
 				     num_online_cpus()));
 	target->ch = kcalloc(target->ch_count, sizeof(*target->ch),
@@ -3930,20 +3930,20 @@ static ssize_t srp_create_target(struct device *dev,
 	if (!target->ch)
 		goto out;
 
-	node_idx = 0;
-	for_each_online_node(node) {
-		const int ch_start = (node_idx * target->ch_count /
-				      num_online_nodes());
-		const int ch_end = ((node_idx + 1) * target->ch_count /
-				    num_online_nodes());
-		const int cv_start = node_idx * ibdev->num_comp_vectors /
-				     num_online_nodes();
-		const int cv_end = (node_idx + 1) * ibdev->num_comp_vectors /
-				   num_online_nodes();
+	yesde_idx = 0;
+	for_each_online_yesde(yesde) {
+		const int ch_start = (yesde_idx * target->ch_count /
+				      num_online_yesdes());
+		const int ch_end = ((yesde_idx + 1) * target->ch_count /
+				    num_online_yesdes());
+		const int cv_start = yesde_idx * ibdev->num_comp_vectors /
+				     num_online_yesdes();
+		const int cv_end = (yesde_idx + 1) * ibdev->num_comp_vectors /
+				   num_online_yesdes();
 		int cpu_idx = 0;
 
 		for_each_online_cpu(cpu) {
-			if (cpu_to_node(cpu) != node)
+			if (cpu_to_yesde(cpu) != yesde)
 				continue;
 			if (ch_start + cpu_idx >= ch_end)
 				continue;
@@ -3979,7 +3979,7 @@ static ssize_t srp_create_target(struct device *dev,
 					     PFX "Connection %d/%d to %s failed\n",
 					     ch_start + cpu_idx,
 					     target->ch_count, dst);
-				if (node_idx == 0 && cpu_idx == 0) {
+				if (yesde_idx == 0 && cpu_idx == 0) {
 					goto free_ch;
 				} else {
 					srp_free_ch_ib(target, ch);
@@ -3992,7 +3992,7 @@ static ssize_t srp_create_target(struct device *dev,
 			multich = true;
 			cpu_idx++;
 		}
-		node_idx++;
+		yesde_idx++;
 	}
 
 connected:
@@ -4030,8 +4030,8 @@ put:
 	scsi_host_put(target->scsi_host);
 	if (ret < 0) {
 		/*
-		 * If a call to srp_remove_target() has not been scheduled,
-		 * drop the network namespace reference now that was obtained
+		 * If a call to srp_remove_target() has yest been scheduled,
+		 * drop the network namespace reference yesw that was obtained
 		 * earlier in this function.
 		 */
 		if (target->state != SRP_TARGET_REMOVED)
@@ -4168,7 +4168,7 @@ static void srp_add_one(struct ib_device *device)
 	srp_dev->has_fr = (attr->device_cap_flags &
 			   IB_DEVICE_MEM_MGT_EXTENSIONS);
 	if (!never_register && !srp_dev->has_fmr && !srp_dev->has_fr) {
-		dev_warn(&device->dev, "neither FMR nor FR is supported\n");
+		dev_warn(&device->dev, "neither FMR yesr FR is supported\n");
 	} else if (!never_register &&
 		   attr->max_mr_size >= 2 * srp_dev->mr_page_size) {
 		srp_dev->use_fast_reg = (srp_dev->has_fr &&
@@ -4230,7 +4230,7 @@ static void srp_remove_one(struct ib_device *device, void *client_data)
 	list_for_each_entry_safe(host, tmp_host, &srp_dev->dev_list, list) {
 		device_unregister(&host->dev);
 		/*
-		 * Wait for the sysfs entry to go away, so that no new
+		 * Wait for the sysfs entry to go away, so that yes new
 		 * target ports can be created.
 		 */
 		wait_for_completion(&host->released);

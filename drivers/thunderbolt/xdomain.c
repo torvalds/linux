@@ -119,7 +119,7 @@ static int __tb_xdomain_response(struct tb_ctl *ctl, const void *response,
  * This can be used to send a XDomain response message to the other
  * domain. No response for the message is expected.
  *
- * Return: %0 in case of success and negative errno in case of failure
+ * Return: %0 in case of success and negative erryes in case of failure
  */
 int tb_xdomain_response(struct tb_xdomain *xd, const void *response,
 			size_t size, enum tb_cfg_pkg_type type)
@@ -171,7 +171,7 @@ static int __tb_xdomain_request(struct tb_ctl *ctl, const void *request,
  * the other domain. The function waits until the response is received
  * or when timeout triggers. Whichever comes first.
  *
- * Return: %0 in case of success and negative errno in case of failure
+ * Return: %0 in case of success and negative erryes in case of failure
  */
 int tb_xdomain_request(struct tb_xdomain *xd, const void *request,
 	size_t request_size, enum tb_cfg_pkg_type request_type,
@@ -338,7 +338,7 @@ static int tb_xdp_properties_request(struct tb_ctl *ctl, u64 route,
 		}
 
 		/*
-		 * First time allocate block that has enough space for
+		 * First time allocate block that has eyesugh space for
 		 * the whole properties block.
 		 */
 		if (!data) {
@@ -802,7 +802,7 @@ static void enumerate_services(struct tb_xdomain *xd)
 	int id;
 
 	/*
-	 * First remove all services that are not available anymore in
+	 * First remove all services that are yest available anymore in
 	 * the updated property block.
 	 */
 	device_for_each_child_reverse(&xd->dev, xd, remove_missing_service);
@@ -916,7 +916,7 @@ static void tb_xdomain_get_uuid(struct work_struct *work)
 	}
 
 	/*
-	 * If the UUID is different, there is another domain connected
+	 * If the UUID is different, there is ayesther domain connected
 	 * so mark this one unplugged and wait for the connection
 	 * manager to replace it.
 	 */
@@ -933,7 +933,7 @@ static void tb_xdomain_get_uuid(struct work_struct *work)
 			return;
 	}
 
-	/* Now we can start the normal properties exchange */
+	/* Now we can start the yesrmal properties exchange */
 	queue_delayed_work(xd->tb->wq, &xd->properties_changed_work,
 			   msecs_to_jiffies(100));
 	queue_delayed_work(xd->tb->wq, &xd->get_properties_work,
@@ -959,7 +959,7 @@ static void tb_xdomain_get_properties(struct work_struct *work)
 			queue_delayed_work(xd->tb->wq, &xd->get_properties_work,
 					   msecs_to_jiffies(1000));
 		} else {
-			/* Give up now */
+			/* Give up yesw */
 			dev_err(&xd->dev,
 				"failed read XDomain properties from %pUb\n",
 				xd->remote_uuid);
@@ -975,7 +975,7 @@ static void tb_xdomain_get_properties(struct work_struct *work)
 	if (xd->properties && gen <= xd->property_block_gen) {
 		/*
 		 * On resume it is likely that the properties block is
-		 * not changed (unless the other end added or removed
+		 * yest changed (unless the other end added or removed
 		 * services). However, we need to make sure the existing
 		 * DMA paths are restored properly.
 		 */
@@ -1011,9 +1011,9 @@ static void tb_xdomain_get_properties(struct work_struct *work)
 	kfree(block);
 
 	/*
-	 * Now the device should be ready enough so we can add it to the
-	 * bus and let userspace know about it. If the device is already
-	 * registered, we notify the userspace that it has changed.
+	 * Now the device should be ready eyesugh so we can add it to the
+	 * bus and let userspace kyesw about it. If the device is already
+	 * registered, we yestify the userspace that it has changed.
 	 */
 	if (!update) {
 		if (device_add(&xd->dev)) {
@@ -1257,10 +1257,10 @@ struct tb_xdomain *tb_xdomain_alloc(struct tb *tb, struct device *parent,
 
 	/*
 	 * This keeps the DMA powered on as long as we have active
-	 * connection to another host.
+	 * connection to ayesther host.
 	 */
 	pm_runtime_set_active(&xd->dev);
-	pm_runtime_get_noresume(&xd->dev);
+	pm_runtime_get_yesresume(&xd->dev);
 	pm_runtime_enable(&xd->dev);
 
 	return xd;
@@ -1280,7 +1280,7 @@ err_free:
  * This function starts XDomain discovery protocol handshake and
  * eventually adds the XDomain to the bus. After calling this function
  * the caller needs to call tb_xdomain_remove() in order to remove and
- * release the object regardless whether the handshake succeeded or not.
+ * release the object regardless whether the handshake succeeded or yest.
  */
 void tb_xdomain_add(struct tb_xdomain *xd)
 {
@@ -1311,10 +1311,10 @@ void tb_xdomain_remove(struct tb_xdomain *xd)
 	/*
 	 * Undo runtime PM here explicitly because it is possible that
 	 * the XDomain was never added to the bus and thus device_del()
-	 * is not called for it (device_del() would handle this otherwise).
+	 * is yest called for it (device_del() would handle this otherwise).
 	 */
 	pm_runtime_disable(&xd->dev);
-	pm_runtime_put_noidle(&xd->dev);
+	pm_runtime_put_yesidle(&xd->dev);
 	pm_runtime_set_suspended(&xd->dev);
 
 	if (!device_is_registered(&xd->dev))
@@ -1337,7 +1337,7 @@ void tb_xdomain_remove(struct tb_xdomain *xd)
  * return the caller can send and receive packets using high-speed DMA
  * path.
  *
- * Return: %0 in case of success and negative errno in case of error
+ * Return: %0 in case of success and negative erryes in case of error
  */
 int tb_xdomain_enable_paths(struct tb_xdomain *xd, u16 transmit_path,
 			    u16 transmit_ring, u16 receive_path,
@@ -1371,9 +1371,9 @@ EXPORT_SYMBOL_GPL(tb_xdomain_enable_paths);
  * @xd: XDomain connection
  *
  * This does the opposite of tb_xdomain_enable_paths(). After call to
- * this the caller is not expected to use the rings anymore.
+ * this the caller is yest expected to use the rings anymore.
  *
- * Return: %0 in case of success and negative errno in case of error
+ * Return: %0 in case of success and negative erryes in case of error
  */
 int tb_xdomain_disable_paths(struct tb_xdomain *xd)
 {
@@ -1444,7 +1444,7 @@ static struct tb_xdomain *switch_find_xdomain(struct tb_switch *sw,
  * caller needs to call tb_xdomain_put() when it is done with the
  * object.
  *
- * This will find all XDomains including the ones that are not yet added
+ * This will find all XDomains including the ones that are yest yet added
  * to the bus (handshake is still in progress).
  *
  * The caller needs to hold @tb->lock.
@@ -1473,7 +1473,7 @@ EXPORT_SYMBOL_GPL(tb_xdomain_find_by_uuid);
  * caller needs to call tb_xdomain_put() when it is done with the
  * object.
  *
- * This will find all XDomains including the ones that are not yet added
+ * This will find all XDomains including the ones that are yest yet added
  * to the bus (handshake is still in progress).
  *
  * The caller needs to hold @tb->lock.
@@ -1502,7 +1502,7 @@ struct tb_xdomain *tb_xdomain_find_by_link_depth(struct tb *tb, u8 link,
  * caller needs to call tb_xdomain_put() when it is done with the
  * object.
  *
- * This will find all XDomains including the ones that are not yet added
+ * This will find all XDomains including the ones that are yest yet added
  * to the bus (handshake is still in progress).
  *
  * The caller needs to hold @tb->lock.
@@ -1630,10 +1630,10 @@ static bool remove_directory(const char *key, const struct tb_property_dir *dir)
  *
  * Service drivers can use this function to add new property directory
  * to the host available properties. The other connected hosts are
- * notified so they can re-read properties of this host if they are
+ * yestified so they can re-read properties of this host if they are
  * interested.
  *
- * Return: %0 on success and negative errno on failure
+ * Return: %0 on success and negative erryes on failure
  */
 int tb_register_property_dir(const char *key, struct tb_property_dir *dir)
 {
@@ -1677,7 +1677,7 @@ EXPORT_SYMBOL_GPL(tb_register_property_dir);
  * @key: Key (name) of the directory
  * @dir: Directory to remove
  *
- * This will remove the existing directory from this host and notify the
+ * This will remove the existing directory from this host and yestify the
  * connected hosts about the change.
  */
 void tb_unregister_property_dir(const char *key, struct tb_property_dir *dir)
@@ -1712,7 +1712,7 @@ int tb_xdomain_init(void)
 	tb_property_add_text(xdomain_property_dir, "vendorid", "Intel Corp.");
 	tb_property_add_immediate(xdomain_property_dir, "deviceid", 0x1);
 	tb_property_add_text(xdomain_property_dir, "deviceid",
-			     utsname()->nodename);
+			     utsname()->yesdename);
 	tb_property_add_immediate(xdomain_property_dir, "devicerv", 0x80000100);
 
 	ret = rebuild_property_block();

@@ -289,7 +289,7 @@ static int max77620_gpio_probe(struct platform_device *pdev)
 	mgpio->gpio_chip.can_sleep = 1;
 	mgpio->gpio_chip.base = -1;
 #ifdef CONFIG_OF_GPIO
-	mgpio->gpio_chip.of_node = pdev->dev.parent->of_node;
+	mgpio->gpio_chip.of_yesde = pdev->dev.parent->of_yesde;
 #endif
 
 	platform_set_drvdata(pdev, mgpio);

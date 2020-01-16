@@ -11,7 +11,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -38,7 +38,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -77,7 +77,7 @@
  * These IRQ helpers are strictly optional. Drivers which roll their own only
  * need to set &drm_device.irq_enabled to signal the DRM core that vblank
  * interrupts are working. Since these helpers don't automatically clean up the
- * requested interrupt like e.g. devm_request_irq() they're not really
+ * requested interrupt like e.g. devm_request_irq() they're yest really
  * recommended.
  */
 
@@ -90,7 +90,7 @@
  * &drm_driver.irq_preinstall and &drm_driver.irq_postinstall functions before
  * and after the installation.
  *
- * This is the simplified helper interface provided for drivers with no special
+ * This is the simplified helper interface provided for drivers with yes special
  * needs. Drivers which need to install interrupt handlers for multiple
  * interrupts must instead set &drm_device.irq_enabled to signal the DRM core
  * that vblank interrupts are available.

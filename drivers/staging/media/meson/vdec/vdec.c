@@ -106,7 +106,7 @@ disable_dos_parser:
 
 static void vdec_wait_inactive(struct amvdec_session *sess)
 {
-	/* We consider 50ms with no IRQ to be inactive. */
+	/* We consider 50ms with yes IRQ to be inactive. */
 	while (time_is_after_jiffies64(sess->last_irq_jiffies +
 				       msecs_to_jiffies(50)))
 		msleep(25);
@@ -312,7 +312,7 @@ static int vdec_start_streaming(struct vb2_queue *q, unsigned int count)
 	sess->last_offset = 0;
 	sess->wrap_count = 0;
 	sess->pixelaspect.numerator = 1;
-	sess->pixelaspect.denominator = 1;
+	sess->pixelaspect.deyesminator = 1;
 	atomic_set(&sess->esparser_queued_bufs, 0);
 	v4l2_ctrl_s_ctrl(sess->ctrl_min_buf_capture, 1);
 
@@ -699,14 +699,14 @@ vdec_decoder_cmd(struct file *file, void *fh, struct v4l2_decoder_cmd *cmd)
 	if (!(sess->streamon_out & sess->streamon_cap))
 		return 0;
 
-	/* Currently not handled since we do not support dynamic resolution
+	/* Currently yest handled since we do yest support dynamic resolution
 	 * for MPEG2. We consider both queues streaming to mean that the
 	 * decoding session is started
 	 */
 	if (cmd->cmd == V4L2_DEC_CMD_START)
 		return 0;
 
-	/* Should not happen */
+	/* Should yest happen */
 	if (cmd->cmd != V4L2_DEC_CMD_STOP)
 		return -EINVAL;
 
@@ -880,7 +880,7 @@ static int vdec_open(struct file *file)
 	sess->width = 1280;
 	sess->height = 720;
 	sess->pixelaspect.numerator = 1;
-	sess->pixelaspect.denominator = 1;
+	sess->pixelaspect.deyesminator = 1;
 
 	INIT_LIST_HEAD(&sess->timestamps);
 	INIT_LIST_HEAD(&sess->bufs_recycle);
@@ -992,7 +992,7 @@ static int vdec_probe(struct platform_device *pdev)
 	}
 
 	core->regmap_ao =
-		syscon_regmap_lookup_by_phandle(dev->of_node,
+		syscon_regmap_lookup_by_phandle(dev->of_yesde,
 						"amlogic,ao-sysctrl");
 	if (IS_ERR(core->regmap_ao)) {
 		dev_err(dev, "Couldn't regmap AO sysctrl\n");
@@ -1045,7 +1045,7 @@ static int vdec_probe(struct platform_device *pdev)
 		goto err_vdev_release;
 	}
 
-	of_id = of_match_node(vdec_dt_match, dev->of_node);
+	of_id = of_match_yesde(vdec_dt_match, dev->of_yesde);
 	core->platform = of_id->data;
 	core->vdev_dec = vdev;
 	core->dev_dec = dev;

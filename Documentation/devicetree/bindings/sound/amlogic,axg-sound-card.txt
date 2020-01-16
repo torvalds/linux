@@ -11,11 +11,11 @@ Optional properties:
 - audio-widgets : Please refer to widgets.txt.
 - audio-routing : A list of the connections between audio components.
 
-Subnodes:
+Subyesdes:
 
 - dai-link: Container for dai-link level properties and the CODEC
-	    sub-nodes. There should be at least one (and probably more)
-	    subnode of this type.
+	    sub-yesdes. There should be at least one (and probably more)
+	    subyesde of this type.
 
 Required dai-link properties:
 
@@ -27,7 +27,7 @@ Required TDM Backend dai-link properties:
 Optional TDM Backend dai-link properties:
 - dai-tdm-slot-rx-mask-{0,1,2,3}: Receive direction slot masks
 - dai-tdm-slot-tx-mask-{0,1,2,3}: Transmit direction slot masks
-				  When omitted, mask is assumed to have to no
+				  When omitted, mask is assumed to have to yes
 				  slots. A valid must have at one slot, so at
 				  least one these mask should be provided with
 				  an enabled slot.
@@ -37,18 +37,18 @@ Optional TDM Backend dai-link properties:
 - dai-tdm-slot-width : Please refer to tdm-slot.txt. default to 32 if omitted.
 - mclk-fs : Multiplication factor between stream rate and mclk
 
-Backend dai-link subnodes:
+Backend dai-link subyesdes:
 
-- codec: dai-link representing backend links should have at least one subnode.
-	 One subnode for each codec of the dai-link.
-	 dai-link representing frontend links have no codec, therefore have no
-	 subnodes
+- codec: dai-link representing backend links should have at least one subyesde.
+	 One subyesde for each codec of the dai-link.
+	 dai-link representing frontend links have yes codec, therefore have yes
+	 subyesdes
 
-Required codec subnodes properties:
+Required codec subyesdes properties:
 
 - sound-dai: phandle and port of the CODEC DAI.
 
-Optional codec subnodes properties:
+Optional codec subyesdes properties:
 
 - dai-tdm-slot-tx-mask : Please refer to tdm-slot.txt.
 - dai-tdm-slot-rx-mask : Please refer to tdm-slot.txt.

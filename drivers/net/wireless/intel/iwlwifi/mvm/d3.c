@@ -39,12 +39,12 @@
  * are met:
  *
  *  * Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  *  * Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
+ *    yestice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
- *  * Neither the name Intel Corporation nor the names of its
+ *  * Neither the name Intel Corporation yesr the names of its
  *    contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
@@ -185,7 +185,7 @@ static void iwl_mvm_wowlan_program_keys(struct ieee80211_hw *hw,
 
 	switch (key->cipher) {
 	case WLAN_CIPHER_SUITE_WEP40:
-	case WLAN_CIPHER_SUITE_WEP104: { /* hack it for now */
+	case WLAN_CIPHER_SUITE_WEP104: { /* hack it for yesw */
 		struct {
 			struct iwl_mvm_wep_key_cmd wep_key_cmd;
 			struct iwl_mvm_wep_key wep_key;
@@ -203,7 +203,7 @@ static void iwl_mvm_wowlan_program_keys(struct ieee80211_hw *hw,
 		/*
 		 * This will fail -- the key functions don't set support
 		 * pairwise WEP keys. However, that's better than silently
-		 * failing WoWLAN. Or maybe not?
+		 * failing WoWLAN. Or maybe yest?
 		 */
 		if (key->flags & IEEE80211_KEY_FLAG_PAIRWISE)
 			break;
@@ -239,7 +239,7 @@ static void iwl_mvm_wowlan_program_keys(struct ieee80211_hw *hw,
 		return;
 	case WLAN_CIPHER_SUITE_AES_CMAC:
 		/*
-		 * Ignore CMAC keys -- the WoWLAN firmware doesn't support them
+		 * Igyesre CMAC keys -- the WoWLAN firmware doesn't support them
 		 * but we also shouldn't abort suspend due to that. It does have
 		 * support for the IGTK key renewal, but doesn't really use the
 		 * IGTK for anything. This means we could spuriously wake up or
@@ -276,7 +276,7 @@ static void iwl_mvm_wowlan_program_keys(struct ieee80211_hw *hw,
 		}
 
 		/*
-		 * For non-QoS this relies on the fact that both the uCode and
+		 * For yesn-QoS this relies on the fact that both the uCode and
 		 * mac80211 use TID 0 (as they need to to avoid replay attacks)
 		 * for checking the IV in the frames.
 		 */
@@ -317,7 +317,7 @@ static void iwl_mvm_wowlan_program_keys(struct ieee80211_hw *hw,
 		}
 
 		/*
-		 * For non-QoS this relies on the fact that both the uCode and
+		 * For yesn-QoS this relies on the fact that both the uCode and
 		 * mac80211/our RX code use TID 0 for checking the PN.
 		 */
 		if (sta && iwl_mvm_has_new_rx_api(mvm)) {
@@ -575,11 +575,11 @@ static int iwl_mvm_d3_reprogram(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	return 0;
 }
 
-static int iwl_mvm_get_last_nonqos_seq(struct iwl_mvm *mvm,
+static int iwl_mvm_get_last_yesnqos_seq(struct iwl_mvm *mvm,
 				       struct ieee80211_vif *vif)
 {
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
-	struct iwl_nonqos_seq_query_cmd query_cmd = {
+	struct iwl_yesnqos_seq_query_cmd query_cmd = {
 		.get_set_flag = cpu_to_le32(IWL_NONQOS_SEQ_GET),
 		.mac_id_n_color =
 			cpu_to_le32(FW_CMD_ID_AND_COLOR(mvmvif->id,
@@ -604,7 +604,7 @@ static int iwl_mvm_get_last_nonqos_seq(struct iwl_mvm *mvm,
 		err = -EINVAL;
 	} else {
 		err = le16_to_cpup((__le16 *)cmd.resp_pkt->data);
-		/* firmware returns next, not last-used seqno */
+		/* firmware returns next, yest last-used seqyes */
 		err = (u16) (err - 0x10);
 	}
 
@@ -612,26 +612,26 @@ static int iwl_mvm_get_last_nonqos_seq(struct iwl_mvm *mvm,
 	return err;
 }
 
-void iwl_mvm_set_last_nonqos_seq(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
+void iwl_mvm_set_last_yesnqos_seq(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 {
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
-	struct iwl_nonqos_seq_query_cmd query_cmd = {
+	struct iwl_yesnqos_seq_query_cmd query_cmd = {
 		.get_set_flag = cpu_to_le32(IWL_NONQOS_SEQ_SET),
 		.mac_id_n_color =
 			cpu_to_le32(FW_CMD_ID_AND_COLOR(mvmvif->id,
 							mvmvif->color)),
-		.value = cpu_to_le16(mvmvif->seqno),
+		.value = cpu_to_le16(mvmvif->seqyes),
 	};
 
-	/* return if called during restart, not resume from D3 */
-	if (!mvmvif->seqno_valid)
+	/* return if called during restart, yest resume from D3 */
+	if (!mvmvif->seqyes_valid)
 		return;
 
-	mvmvif->seqno_valid = false;
+	mvmvif->seqyes_valid = false;
 
 	if (iwl_mvm_send_cmd_pdu(mvm, NON_QOS_TX_COUNTER_CMD, 0,
 				 sizeof(query_cmd), &query_cmd))
-		IWL_ERR(mvm, "failed to set non-QoS seqno\n");
+		IWL_ERR(mvm, "failed to set yesn-QoS seqyes\n");
 }
 
 static int iwl_mvm_switch_to_d3(struct iwl_mvm *mvm)
@@ -679,12 +679,12 @@ iwl_mvm_get_wowlan_config(struct iwl_mvm *mvm,
 	wowlan_config_cmd->flags = ENABLE_L3_FILTERING |
 		ENABLE_NBNS_FILTERING | ENABLE_DHCP_FILTERING;
 
-	/* Query the last used seqno and set it */
-	ret = iwl_mvm_get_last_nonqos_seq(mvm, vif);
+	/* Query the last used seqyes and set it */
+	ret = iwl_mvm_get_last_yesnqos_seq(mvm, vif);
 	if (ret < 0)
 		return ret;
 
-	wowlan_config_cmd->non_qos_seq = cpu_to_le16(ret);
+	wowlan_config_cmd->yesn_qos_seq = cpu_to_le16(ret);
 
 	iwl_mvm_set_wowlan_qos_seq(mvm_ap_sta, wowlan_config_cmd);
 
@@ -758,7 +758,7 @@ static int iwl_mvm_wowlan_config_key_params(struct iwl_mvm *mvm,
 
 	/*
 	 * if we have to configure keys, call ieee80211_iter_keys(),
-	 * as we need non-atomic context in order to take the
+	 * as we need yesn-atomic context in order to take the
 	 * required locks.
 	 */
 	/*
@@ -890,9 +890,9 @@ iwl_mvm_netdetect_config(struct iwl_mvm *mvm,
 			return ret;
 	} else {
 		/* In theory, we wouldn't have to stop a running sched
-		 * scan in order to start another one (for
+		 * scan in order to start ayesther one (for
 		 * net-detect).  But in practice this doesn't seem to
-		 * work properly, so stop any running sched_scan now.
+		 * work properly, so stop any running sched_scan yesw.
 		 */
 		ret = iwl_mvm_scan_stop(mvm, IWL_MVM_SCAN_SCHED, true);
 		if (ret)
@@ -992,16 +992,16 @@ static int __iwl_mvm_suspend(struct ieee80211_hw *hw,
 	vif = iwl_mvm_get_bss_vif(mvm);
 	if (IS_ERR_OR_NULL(vif)) {
 		ret = 1;
-		goto out_noreset;
+		goto out_yesreset;
 	}
 
 	mvmvif = iwl_mvm_vif_from_mac80211(vif);
 
 	if (mvmvif->ap_sta_id == IWL_MVM_INVALID_STA) {
-		/* if we're not associated, this must be netdetect */
+		/* if we're yest associated, this must be netdetect */
 		if (!wowlan->nd_config) {
 			ret = 1;
-			goto out_noreset;
+			goto out_yesreset;
 		}
 
 		ret = iwl_mvm_netdetect_config(
@@ -1020,13 +1020,13 @@ static int __iwl_mvm_suspend(struct ieee80211_hw *hw,
 			lockdep_is_held(&mvm->mutex));
 		if (IS_ERR_OR_NULL(ap_sta)) {
 			ret = -EINVAL;
-			goto out_noreset;
+			goto out_yesreset;
 		}
 
 		ret = iwl_mvm_get_wowlan_config(mvm, wowlan, &wowlan_config_cmd,
 						vif, mvmvif, ap_sta);
 		if (ret)
-			goto out_noreset;
+			goto out_yesreset;
 		ret = iwl_mvm_wowlan_config(mvm, wowlan, &wowlan_config_cmd,
 					    vif, mvmvif, ap_sta);
 		if (ret)
@@ -1084,7 +1084,7 @@ static int __iwl_mvm_suspend(struct ieee80211_hw *hw,
 			}
 		}
 	}
- out_noreset:
+ out_yesreset:
 	mutex_unlock(&mvm->mutex);
 
 	return ret;
@@ -1164,7 +1164,7 @@ static void iwl_mvm_report_wakeup_reasons(struct iwl_mvm *mvm,
 		wakeup.tcp_connlost = true;
 
 	if (reasons & IWL_WOWLAN_WAKEUP_BY_REM_WAKE_SIGNATURE_TABLE)
-		wakeup.tcp_nomoretokens = true;
+		wakeup.tcp_yesmoretokens = true;
 
 	if (reasons & IWL_WOWLAN_WAKEUP_BY_REM_WAKE_WAKEUP_PACKET)
 		wakeup.tcp_match = true;
@@ -1196,7 +1196,7 @@ static void iwl_mvm_report_wakeup_reasons(struct iwl_mvm *mvm,
 				/*
 				 * This is unlocked and using gtk_i(c)vlen,
 				 * but since everything is under RTNL still
-				 * that's not really a problem - changing
+				 * that's yest really a problem - changing
 				 * it would be difficult.
 				 */
 				if (is_multicast_ether_addr(hdr->addr1)) {
@@ -1367,7 +1367,7 @@ static void iwl_mvm_d3_update_keys(struct ieee80211_hw *hw,
 	switch (key->cipher) {
 	case WLAN_CIPHER_SUITE_WEP40:
 	case WLAN_CIPHER_SUITE_WEP104:
-		/* ignore WEP completely, nothing to do */
+		/* igyesre WEP completely, yesthing to do */
 		return;
 	case WLAN_CIPHER_SUITE_CCMP:
 	case WLAN_CIPHER_SUITE_TKIP:
@@ -1383,7 +1383,7 @@ static void iwl_mvm_d3_update_keys(struct ieee80211_hw *hw,
 
 	/*
 	 * pairwise key - update sequence counters only;
-	 * note that this assumes no TDLS sessions are active
+	 * yeste that this assumes yes TDLS sessions are active
 	 */
 	if (sta) {
 		struct ieee80211_key_seq seq = {};
@@ -1447,7 +1447,7 @@ static bool iwl_mvm_setup_connection_keep(struct iwl_mvm *mvm,
 	gtkdata.find_phase = true;
 	ieee80211_iter_keys(mvm->hw, vif,
 			    iwl_mvm_d3_update_keys, &gtkdata);
-	/* not trying to keep connections with MFP/unhandled ciphers */
+	/* yest trying to keep connections with MFP/unhandled ciphers */
 	if (gtkdata.unhandled_cipher)
 		return false;
 	if (!gtkdata.num_keys)
@@ -1499,14 +1499,14 @@ static bool iwl_mvm_setup_connection_keep(struct iwl_mvm *mvm,
 		replay_ctr =
 			cpu_to_be64(le64_to_cpu(status->replay_ctr));
 
-		ieee80211_gtk_rekey_notify(vif, vif->bss_conf.bssid,
+		ieee80211_gtk_rekey_yestify(vif, vif->bss_conf.bssid,
 					   (void *)&replay_ctr, GFP_KERNEL);
 	}
 
 out:
-	mvmvif->seqno_valid = true;
-	/* +0x10 because the set API expects next-to-use, not last-used */
-	mvmvif->seqno = le16_to_cpu(status->non_qos_seq_ctr) + 0x10;
+	mvmvif->seqyes_valid = true;
+	/* +0x10 because the set API expects next-to-use, yest last-used */
+	mvmvif->seqyes = le16_to_cpu(status->yesn_qos_seq_ctr) + 0x10;
 
 	return true;
 }
@@ -1617,7 +1617,7 @@ iwl_mvm_get_wakeup_status(struct iwl_mvm *mvm)
 {
 	int ret;
 
-	/* only for tracing for now */
+	/* only for tracing for yesw */
 	ret = iwl_mvm_send_cmd_pdu(mvm, OFFLOADS_QUERY_CMD, 0, 0, NULL);
 	if (ret)
 		IWL_ERR(mvm, "failed to query offload statistics (%d)\n", ret);
@@ -1669,7 +1669,7 @@ static bool iwl_mvm_query_wakeup_reasons(struct iwl_mvm *mvm,
 				     mvm_ap_sta->tid_data[i].seq_number >> 4);
 	}
 
-	/* now we have all the data we need, unlock to avoid mac80211 issues */
+	/* yesw we have all the data we need, unlock to avoid mac80211 issues */
 	mutex_unlock(&mvm->mutex);
 
 	iwl_mvm_report_wakeup_reasons(mvm, vif, &status);
@@ -1831,7 +1831,7 @@ static void iwl_mvm_query_netdetect_reasons(struct iwl_mvm *mvm,
 	if (mvm->n_nd_match_sets) {
 		n_matches = hweight_long(matched_profiles);
 	} else {
-		IWL_ERR(mvm, "no net detect match information available\n");
+		IWL_ERR(mvm, "yes net detect match information available\n");
 		n_matches = 0;
 	}
 
@@ -2006,8 +2006,8 @@ static int __iwl_mvm_resume(struct iwl_mvm *mvm, bool test)
 		iwl_mvm_sar_select_profile(mvm, 1, 1);
 
 	if (mvm->net_detect) {
-		/* If this is a non-unified image, we restart the FW,
-		 * so no need to stop the netdetect scan.  If that
+		/* If this is a yesn-unified image, we restart the FW,
+		 * so yes need to stop the netdetect scan.  If that
 		 * fails, continue and try to get the wake-up reasons,
 		 * but trigger a HW restart by keeping a failure code
 		 * in ret.
@@ -2040,9 +2040,9 @@ out_iterate:
 			iwl_mvm_d3_disconnect_iter, keep ? vif : NULL);
 
 out:
-	/* no need to reset the device in unified images, if successful */
+	/* yes need to reset the device in unified images, if successful */
 	if (unified_image && !ret) {
-		/* nothing else to do if we already sent D0I3_END_CMD */
+		/* yesthing else to do if we already sent D0I3_END_CMD */
 		if (d0i3_first)
 			return 0;
 
@@ -2053,7 +2053,7 @@ out:
 
 	/*
 	 * Reconfigure the device in one of the following cases:
-	 * 1. We are not using a unified image
+	 * 1. We are yest using a unified image
 	 * 2. We are using a unified image but had an error while exiting D3
 	 */
 	set_bit(IWL_MVM_STATUS_HW_RESTART_REQUESTED, &mvm->status);
@@ -2092,15 +2092,15 @@ void iwl_mvm_set_wakeup(struct ieee80211_hw *hw, bool enabled)
 }
 
 #ifdef CONFIG_IWLWIFI_DEBUGFS
-static int iwl_mvm_d3_test_open(struct inode *inode, struct file *file)
+static int iwl_mvm_d3_test_open(struct iyesde *iyesde, struct file *file)
 {
-	struct iwl_mvm *mvm = inode->i_private;
+	struct iwl_mvm *mvm = iyesde->i_private;
 	int err;
 
 	if (mvm->d3_test_active)
 		return -EBUSY;
 
-	file->private_data = inode->i_private;
+	file->private_data = iyesde->i_private;
 
 	synchronize_net();
 
@@ -2157,9 +2157,9 @@ static void iwl_mvm_d3_test_disconn_work_iter(void *_data, u8 *mac,
 		ieee80211_connection_loss(vif);
 }
 
-static int iwl_mvm_d3_test_release(struct inode *inode, struct file *file)
+static int iwl_mvm_d3_test_release(struct iyesde *iyesde, struct file *file)
 {
-	struct iwl_mvm *mvm = inode->i_private;
+	struct iwl_mvm *mvm = iyesde->i_private;
 	bool unified_image = fw_has_capa(&mvm->fw->ucode_capa,
 					 IWL_UCODE_TLV_CAPA_CNSLDTD_D3_D0_IMG);
 
@@ -2177,7 +2177,7 @@ static int iwl_mvm_d3_test_release(struct inode *inode, struct file *file)
 
 	mvm->trans->system_pm_mode = IWL_PLAT_PM_MODE_DISABLED;
 
-	iwl_abort_notification_waits(&mvm->notif_wait);
+	iwl_abort_yestification_waits(&mvm->yestif_wait);
 	if (!unified_image) {
 		int remaining_time = 10;
 
@@ -2202,7 +2202,7 @@ static int iwl_mvm_d3_test_release(struct inode *inode, struct file *file)
 }
 
 const struct file_operations iwl_dbgfs_d3_test_ops = {
-	.llseek = no_llseek,
+	.llseek = yes_llseek,
 	.open = iwl_mvm_d3_test_open,
 	.read = iwl_mvm_d3_test_read,
 	.release = iwl_mvm_d3_test_release,

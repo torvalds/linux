@@ -23,12 +23,12 @@
 #include <asm/kdebug.h>
 #include <asm/winmacro.h>
 #include <asm/thread_info.h>	/* TI_UWINMASK */
-#include <asm/errno.h>
+#include <asm/erryes.h>
 #include <asm/pgtsrmmu.h>	/* SRMMU_PGDIR_SHIFT */
 #include <asm/export.h>
 
 	.data
-/* The following are used with the prom_vector node-ops to figure out
+/* The following are used with the prom_vector yesde-ops to figure out
  * the cpu-type
  */
 	.align 4
@@ -44,12 +44,12 @@ cputypvar:
 
 	.align 4
 
-notsup:
-	.asciz	"Sparc-Linux sun4/sun4c or MMU-less not supported\n\n"
+yestsup:
+	.asciz	"Sparc-Linux sun4/sun4c or MMU-less yest supported\n\n"
 	.align 4
 
-sun4e_notsup:
-        .asciz  "Sparc-Linux sun4e support does not exist\n\n"
+sun4e_yestsup:
+        .asciz  "Sparc-Linux sun4e support does yest exist\n\n"
 	.align 4
 
 /* The trap-table - located in the __HEAD section */
@@ -96,7 +96,7 @@ sparc_ramdisk_size:
  * a v0, v2, or v3 prom.
  */
 gokernel:
-		/* Ok, it's nice to know, as early as possible, if we
+		/* Ok, it's nice to kyesw, as early as possible, if we
 		 * are already mapped where we expect to be in virtual
 		 * memory.  The Solaris /boot elf format bootloader
 		 * will peek into our elf header and load us where
@@ -112,13 +112,13 @@ gokernel:
 		/* Jump to it, and pray... */
 current_pc:
 		call	1f
-		 nop
+		 yesp
 
 1:
 		mov	%o7, %g3
 
 		tst	%o0
-		be	no_sun4u_here
+		be	yes_sun4u_here
 		 mov	%g4, %o7		/* Previous %o7. */
 
 		mov	%o0, %l0		! stash away romvec
@@ -129,7 +129,7 @@ current_pc:
 		set	current_pc, %g5
 		cmp	%g3, %g5
 		be	already_mapped
-		 nop
+		 yesp
 
 		/* %l6 will hold the offset we have to subtract
 		 * from absolute symbols in order to access areas
@@ -138,7 +138,7 @@ current_pc:
 		 */
 		set	KERNBASE, %l6
 		b	copy_prom_lvl14
-		 nop
+		 yesp
 
 already_mapped:
 		mov	0, %l6
@@ -178,27 +178,27 @@ copy_prom_lvl14:
 		 */
 copy_prom_done:
 		cmp	%l6, 0
-		be	go_to_highmem		! this will be a nop then
-		 nop
+		be	go_to_highmem		! this will be a yesp then
+		 yesp
 
 		/* Validate that we are in fact running on an
 		 * SRMMU based cpu.
 		 */
 		set	0x4000, %g6
 		cmp	%g7, %g6
-		bne	not_a_sun4
-		 nop
+		bne	yest_a_sun4
+		 yesp
 
-halt_notsup:
+halt_yestsup:
 		ld	[%g7 + 0x68], %o1
-		set	notsup, %o0
+		set	yestsup, %o0
 		sub	%o0, %l6, %o0
 		call	%o1
-		 nop
+		 yesp
 		ba	halt_me
-		 nop
+		 yesp
 
-not_a_sun4:
+yest_a_sun4:
 		/* It looks like this is a machine we support.
 		 * Now find out what MMU we are dealing with
 		 * LEON - identified by the psr.impl field
@@ -213,22 +213,22 @@ not_a_sun4:
 		and	%g3, PSR_IMPL_SHIFTED_MASK, %g3
 		cmp	%g3, PSR_IMPL_LEON
 		be	leon_remap		/* It is a LEON - jump */
-		 nop
+		 yesp
 
 		/* Sanity-check, is MMU enabled */
 		lda	[%g0] ASI_M_MMUREGS, %g1
 		andcc	%g1, 1, %g0
-		be	halt_notsup
-		 nop
+		be	halt_yestsup
+		 yesp
 
 		/* Check for a viking (TI) module. */
 		cmp	%g3, PSR_IMPL_TI
-		bne	srmmu_not_viking
-		 nop
+		bne	srmmu_yest_viking
+		 yesp
 
 		/* Figure out what kind of viking we are on.
-		 * We need to know if we have to play with the
-		 * AC bit and disable traps or not.
+		 * We need to kyesw if we have to play with the
+		 * AC bit and disable traps or yest.
 		 */
 
 		/* I've only seen MicroSparc's on SparcClassics with this
@@ -238,8 +238,8 @@ not_a_sun4:
 		lda	[%g0] ASI_M_MMUREGS, %g3	! peek in the control reg
 		and	%g2, %g3, %g3
 		subcc	%g3, 0x0, %g0
-		bnz	srmmu_not_viking			! is in mbus mode
-		 nop
+		bnz	srmmu_yest_viking			! is in mbus mode
+		 yesp
 
 		rd	%psr, %g3			! DO NOT TOUCH %g3
 		andn	%g3, PSR_ET, %g2
@@ -258,7 +258,7 @@ not_a_sun4:
 		lda	[%g0] ASI_M_MMUREGS, %g5	! DO NOT TOUCH %g5
 		set	0x8000, %g6			! AC bit mask
 		or	%g5, %g6, %g6			! Or it in...
-		sta	%g6, [%g0] ASI_M_MMUREGS	! Close your eyes...
+		sta	%g6, [%g0] ASI_M_MMUREGS	! Close your eno...
 
 		/* Grrr, why does it seem like every other load/store
 		 * on the sun4m is in some ASI space...
@@ -280,7 +280,7 @@ not_a_sun4:
 
 		/* I don't get it Sun, if you engineered all these
 		 * boot loaders and the PROM (thank you for the debugging
-		 * features btw) why did you not have them load kernel
+		 * features btw) why did you yest have them load kernel
 		 * images up in high address space, since this is necessary
 		 * for ABI compliance anyways?  Does this low-mapping provide
 		 * enhanced interoperability?
@@ -298,12 +298,12 @@ not_a_sun4:
 		WRITE_PAUSE
 
 		/* Wow, all that just to move a 32-bit value from one
-		 * place to another...  Jump to high memory.
+		 * place to ayesther...  Jump to high memory.
 		 */
 		b	go_to_highmem
-		 nop
+		 yesp
 
-srmmu_not_viking:
+srmmu_yest_viking:
 		/* This works on viking's in Mbus mode and all
 		 * other MBUS modules.  It is virtually the same as
 		 * the above madness sans turning traps off and flipping
@@ -320,17 +320,17 @@ srmmu_not_viking:
 		add	%g1, KERNBASE >> (SRMMU_PGDIR_SHIFT - 2), %g3
 		sta	%g2, [%g3] ASI_M_BYPASS		! place at KERNBASE entry
 		b	go_to_highmem
-		 nop					! wheee....
+		 yesp					! wheee....
 
 
 leon_remap:
 		/* Sanity-check, is MMU enabled */
 		lda	[%g0] ASI_LEON_MMUREGS, %g1
 		andcc	%g1, 1, %g0
-		be	halt_notsup
-		 nop
+		be	halt_yestsup
+		 yesp
 
-		/* Same code as in the srmmu_not_viking case,
+		/* Same code as in the srmmu_yest_viking case,
 		 * with the LEON ASI for mmuregs
 		 */
 		set	AC_M_CTPR, %g1
@@ -344,13 +344,13 @@ leon_remap:
 		add	%g1, KERNBASE >> (SRMMU_PGDIR_SHIFT - 2), %g3
 		sta	%g2, [%g3] ASI_M_BYPASS		! place at KERNBASE entry
 		b	go_to_highmem
-		 nop					! wheee....
+		 yesp					! wheee....
 
-/* Now do a non-relative jump so that PC is in high-memory */
+/* Now do a yesn-relative jump so that PC is in high-memory */
 go_to_highmem:
 		set	execute_in_high_mem, %g1
 		jmpl	%g1, %g0
-		 nop
+		 yesp
 
 /* The code above should be at beginning and we have to take care about
  * short jumps, as branching to .init.text section from .text is usually
@@ -370,23 +370,23 @@ execute_in_high_mem:
 		st	%o1, [%g1 + %lo(linux_dbvec)]
 
 		/* Get the machine type via the romvec
-		 * getprops node operation
+		 * getprops yesde operation
 		 */
 		add	%g7, 0x1c, %l1
 		ld	[%l1], %l0
 		ld	[%l0], %l0
 		call	%l0
-		 or	%g0, %g0, %o0		! next_node(0) = first_node
+		 or	%g0, %g0, %o0		! next_yesde(0) = first_yesde
 		or	%o0, %g0, %g6
 
-		sethi	%hi(cputypvar), %o1	! First node has cpu-arch
+		sethi	%hi(cputypvar), %o1	! First yesde has cpu-arch
 		or	%o1, %lo(cputypvar), %o1
 		sethi	%hi(cputypval), %o2	! information, the string
 		or	%o2, %lo(cputypval), %o2
 		ld	[%l1], %l0		! 'compatible' tells
 		ld	[%l0 + 0xc], %l0	! that we want 'sun4x' where
 		call	%l0			! x is one of 'm', 'd' or 'e'.
-		 nop				! %o2 holds pointer
+		 yesp				! %o2 holds pointer
 						! to a buf where above string
 						! will get stored by the prom.
 
@@ -397,8 +397,8 @@ execute_in_high_mem:
 		 * sun4m => sun4m
 		 * sun4s => sun4m
 		 * sun4d => sun4d
-		 * sun4e => "no_sun4e_here"
-		 * '*'   => "no_sun4u_here"
+		 * sun4e => "yes_sun4e_here"
+		 * '*'   => "yes_sun4u_here"
 		 * Check single letters only
 		 */
 
@@ -407,7 +407,7 @@ execute_in_high_mem:
 		ldub	[%o2], %l1
 		cmp	%l1, 'l'
 		be	leon_init
-		 nop
+		 yesp
 
 		/* Check cputypval[4] to find the sun model */
 		ldub	[%o2 + 0x4], %l1
@@ -419,10 +419,10 @@ execute_in_high_mem:
 		 cmp	%l1, 'd'
 		be	sun4d_init
 		 cmp	%l1, 'e'
-		be	no_sun4e_here		! Could be a sun4e.
-		 nop
-		b	no_sun4u_here		! AIEEE, a V9 sun4u... Get our BIG BROTHER kernel :))
-		 nop
+		be	yes_sun4e_here		! Could be a sun4e.
+		 yesp
+		b	yes_sun4u_here		! AIEEE, a V9 sun4u... Get our BIG BROTHER kernel :))
+		 yesp
 
 leon_init:
 		/* LEON CPU - set boot_cpu_id */
@@ -432,7 +432,7 @@ leon_init:
 		ldub	[%g2 + %lo(boot_cpu_id)], %g1
 		cmp	%g1, 0xff		! unset means first CPU
 		bne	leon_smp_cpu_startup	! continue only with master
-		 nop
+		 yesp
 #endif
 		/* Get CPU-ID from most significant 4-bit of ASR17 */
 		rd     %asr17, %g1
@@ -442,7 +442,7 @@ leon_init:
 		stub	%g1, [%g2 + %lo(boot_cpu_id)]
 
 		ba continue_boot
-		 nop
+		 yesp
 
 /* CPUID in bootbus can be found at PA 0xff0140000 */
 #define SUN4D_BOOTBUS_CPUID     0xf0140000
@@ -482,28 +482,28 @@ sun4m_init:
 
 		subcc	%o1, PSR_IMPL_TI, %g0		! TI: Viking or MicroSPARC
 		be	continue_boot
-		 nop
+		 yesp
 
 		set	AC_M_SFSR, %o0
 		lda	[%o0] ASI_M_MMUREGS, %g0
 		set	AC_M_SFAR, %o0
 		lda	[%o0] ASI_M_MMUREGS, %g0
 
-		/* Fujitsu MicroSPARC-II has no asynchronous flavors of FARs */
+		/* Fujitsu MicroSPARC-II has yes asynchroyesus flavors of FARs */
 		subcc	%o1, 0, %g0
 		be	continue_boot
-		 nop
+		 yesp
 
 		set	AC_M_AFSR, %o0
 		lda	[%o0] ASI_M_MMUREGS, %g0
 		set	AC_M_AFAR, %o0
 		lda	[%o0] ASI_M_MMUREGS, %g0
-		 nop
+		 yesp
 
 
 continue_boot:
 
-/* Aieee, now set PC and nPC, enable traps, give ourselves a stack and it's
+/* Aieee, yesw set PC and nPC, enable traps, give ourselves a stack and it's
  * show-time!
  */
 		/* Turn on Supervisor, EnableFloating, and all the PIL bits.
@@ -529,14 +529,14 @@ continue_boot:
 		bl	1b
 		 add	%o0, 0x1, %o0
 
-		/* If boot_cpu_id has not been setup by machine specific
+		/* If boot_cpu_id has yest been setup by machine specific
 		 * init-code above we default it to zero.
 		 */
 		sethi	%hi(boot_cpu_id), %g2
 		ldub	[%g2 + %lo(boot_cpu_id)], %g3
 		cmp	%g3, 0xff
 		bne	1f
-		 nop
+		 yesp
 		mov	%g0, %g3
 		stub	%g3, [%g2 + %lo(boot_cpu_id)]
 
@@ -560,7 +560,7 @@ continue_boot:
  * No, it doesn't work, have to play the save/readCWP/restore trick.
  */
 
-		wr	%g0, 0x0, %wim			! so we do not get a trap
+		wr	%g0, 0x0, %wim			! so we do yest get a trap
 		WRITE_PAUSE
 
 		save
@@ -578,7 +578,7 @@ continue_boot:
 
 		cmp	%g3, 0x7
 		bne	2f
-		 nop
+		 yesp
 
 		/* Adjust our window handling routines to
 		 * do things correctly on 7 window Sparcs.
@@ -664,19 +664,19 @@ continue_boot:
 		sethi	%hi(prom_vector_p), %g5
 		ld	[%g5 + %lo(prom_vector_p)], %o0
 		call	sparc32_start_kernel
-		 nop
+		 yesp
 
-		/* We should not get here. */
+		/* We should yest get here. */
 		call	halt_me
-		 nop
+		 yesp
 
-no_sun4e_here:
+yes_sun4e_here:
 		ld	[%g7 + 0x68], %o1
-		set	sun4e_notsup, %o0
+		set	sun4e_yestsup, %o0
 		call	%o1
-		 nop
+		 yesp
 		b	halt_me
-		 nop
+		 yesp
 
 		__INITDATA
 
@@ -696,7 +696,7 @@ sun4u_5:
 		.asciz "write"
 		.align	4
 sun4u_6:
-		.asciz  "\n\rOn sun4u you have to use sparc64 kernel\n\rand not a sparc32 version\n\r\n\r"
+		.asciz  "\n\rOn sun4u you have to use sparc64 kernel\n\rand yest a sparc32 version\n\r\n\r"
 sun4u_6e:
 		.align	4
 sun4u_7:
@@ -723,7 +723,7 @@ sun4u_a4:
 sun4u_r4:
 
 		__INIT
-no_sun4u_here:
+yes_sun4u_here:
 		set	sun4u_a1, %o0
 		set	current_pc, %l2
 		cmp	%l2, %g3
@@ -765,16 +765,16 @@ no_sun4u_here:
 halt_me:
 		ld	[%g7 + 0x74], %o0
 		call	%o0			! Get us out of here...
-		 nop				! Apparently Solaris is better.
+		 yesp				! Apparently Solaris is better.
 
-/* Ok, now we continue in the .data/.text sections */
+/* Ok, yesw we continue in the .data/.text sections */
 
 	.data
 	.align 4
 
 /*
- * Fill up the prom vector, note in particular the kind first element,
- * no joke. I don't need all of them in here as the entire prom vector
+ * Fill up the prom vector, yeste in particular the kind first element,
+ * yes joke. I don't need all of them in here as the entire prom vector
  * gets initialized in c-code so all routines can use it.
  */
 

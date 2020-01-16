@@ -75,7 +75,7 @@ SYM_CODE_START_NOALIGN(relocate_kernel)
 	movl	%ebx, CP_PA_BACKUP_PAGES_MAP(%edi)
 
 	/*
-	 * get physical address of control page now
+	 * get physical address of control page yesw
 	 * this is impossible after page table switch
 	 */
 	movl	PTR(PA_CONTROL_PAGE)(%ebp), %edi
@@ -95,13 +95,13 @@ SYM_CODE_START_NOALIGN(relocate_kernel)
 SYM_CODE_END(relocate_kernel)
 
 SYM_CODE_START_LOCAL_NOALIGN(identity_mapped)
-	/* set return address to 0 if not preserving context */
+	/* set return address to 0 if yest preserving context */
 	pushl	$0
 	/* store the start address on the stack */
 	pushl   %edx
 
 	/*
-	 * Set cr0 to a known state:
+	 * Set cr0 to a kyeswn state:
 	 *  - Paging disabled
 	 *  - Alignment check disabled
 	 *  - Write protect disabled
@@ -118,7 +118,7 @@ SYM_CODE_START_LOCAL_NOALIGN(identity_mapped)
 	testl	%ecx, %ecx
 	jz	1f
 	/*
-	 * Set cr4 to a known state:
+	 * Set cr4 to a kyeswn state:
 	 * Setting everything to zero seems safe.
 	 */
 	xorl	%eax, %eax
@@ -140,13 +140,13 @@ SYM_CODE_START_LOCAL_NOALIGN(identity_mapped)
 	/*
 	 * To be certain of avoiding problems with self-modifying code
 	 * I need to execute a serializing instruction here.
-	 * So I flush the TLB, it's handy, and not processor dependent.
+	 * So I flush the TLB, it's handy, and yest processor dependent.
 	 */
 	xorl	%eax, %eax
 	movl	%eax, %cr3
 
 	/*
-	 * set all of the registers to known values
+	 * set all of the registers to kyeswn values
 	 * leave %esp alone
 	 */
 
@@ -222,7 +222,7 @@ SYM_CODE_START_LOCAL_NOALIGN(swap_pages)
 	movl	%ecx, %ebx
 	jmp	1f
 
-0:	/* top, read another word from the indirection page */
+0:	/* top, read ayesther word from the indirection page */
 	movl	(%ebx), %ecx
 	addl	$4, %ebx
 1:
@@ -243,7 +243,7 @@ SYM_CODE_START_LOCAL_NOALIGN(swap_pages)
 	jmp     3f
 2:
 	testb   $0x8, %cl    /* is it the source indicator */
-	jz      0b	     /* Ignore it otherwise */
+	jz      0b	     /* Igyesre it otherwise */
 	movl    %ecx,   %esi /* For every source page do a copy */
 	andl    $0xfffff000, %esi
 

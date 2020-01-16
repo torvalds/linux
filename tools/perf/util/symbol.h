@@ -25,7 +25,7 @@ struct maps;
 struct option;
 
 /*
- * libelf 0.8.x and earlier do not support ELF_C_READ_MMAP;
+ * libelf 0.8.x and earlier do yest support ELF_C_READ_MMAP;
  * for newer versions we can use mmap to reduce memory usage:
  */
 #ifdef HAVE_LIBELF_MMAP_SUPPORT
@@ -41,20 +41,20 @@ Elf_Scn *elf_section_by_name(Elf *elf, GElf_Ehdr *ep,
 
 /** struct symbol - symtab entry
  *
- * @ignore - resolvable but tools ignore it (e.g. idle routines)
+ * @igyesre - resolvable but tools igyesre it (e.g. idle routines)
  */
 struct symbol {
-	struct rb_node	rb_node;
+	struct rb_yesde	rb_yesde;
 	u64		start;
 	u64		end;
 	u16		namelen;
 	u8		type:4;
 	u8		binding:4;
 	u8		idle:1;
-	u8		ignore:1;
+	u8		igyesre:1;
 	u8		inlined:1;
 	u8		arch_sym;
-	bool		annotate2;
+	bool		anyestate2;
 	char		name[0];
 };
 
@@ -65,11 +65,11 @@ void symbols__delete(struct rb_root_cached *symbols);
  *
  * @symbols: the rb_root of symbols
  * @pos: the 'struct symbol *' to use as a loop cursor
- * @nd: the 'struct rb_node *' to use as a temporary storage
+ * @nd: the 'struct rb_yesde *' to use as a temporary storage
  */
 #define symbols__for_each_entry(symbols, pos, nd)			\
 	for (nd = rb_first_cached(symbols);					\
-	     nd && (pos = rb_entry(nd, struct symbol, rb_node));	\
+	     nd && (pos = rb_entry(nd, struct symbol, rb_yesde));	\
 	     nd = rb_next(nd))
 
 static inline size_t symbol__size(const struct symbol *sym)
@@ -80,8 +80,8 @@ static inline size_t symbol__size(const struct symbol *sym)
 struct strlist;
 struct intlist;
 
-struct symbol_name_rb_node {
-	struct rb_node	rb_node;
+struct symbol_name_rb_yesde {
+	struct rb_yesde	rb_yesde;
 	struct symbol	sym;
 };
 
@@ -125,7 +125,7 @@ int dso__load_vmlinux(struct dso *dso, struct map *map,
 		      const char *vmlinux, bool vmlinux_allocated);
 int dso__load_vmlinux_path(struct dso *dso, struct map *map);
 int __dso__load_kallsyms(struct dso *dso, const char *filename, struct map *map,
-			 bool no_kcore);
+			 bool yes_kcore);
 int dso__load_kallsyms(struct dso *dso, const char *filename, struct map *map);
 
 void dso__insert_symbol(struct dso *dso,
@@ -154,18 +154,18 @@ struct perf_env;
 int symbol__init(struct perf_env *env);
 void symbol__exit(void);
 void symbol__elf_init(void);
-int symbol__annotation_init(void);
+int symbol__anyestation_init(void);
 
 struct symbol *symbol__new(u64 start, u64 len, u8 binding, u8 type, const char *name);
 size_t __symbol__fprintf_symname_offs(const struct symbol *sym,
 				      const struct addr_location *al,
-				      bool unknown_as_addr,
+				      bool unkyeswn_as_addr,
 				      bool print_offsets, FILE *fp);
 size_t symbol__fprintf_symname_offs(const struct symbol *sym,
 				    const struct addr_location *al, FILE *fp);
 size_t __symbol__fprintf_symname(const struct symbol *sym,
 				 const struct addr_location *al,
-				 bool unknown_as_addr, FILE *fp);
+				 bool unkyeswn_as_addr, FILE *fp);
 size_t symbol__fprintf_symname(const struct symbol *sym, FILE *fp);
 size_t symbol__fprintf(struct symbol *sym, FILE *fp);
 bool symbol__restricted_filename(const char *filename,
@@ -219,7 +219,7 @@ bool elf__needs_adjust_symbols(GElf_Ehdr ehdr);
 void arch__sym_update(struct symbol *s, GElf_Sym *sym);
 #endif
 
-const char *arch__normalize_symbol_name(const char *name);
+const char *arch__yesrmalize_symbol_name(const char *name);
 #define SYMBOL_A 0
 #define SYMBOL_B 1
 
@@ -237,9 +237,9 @@ enum symbol_tag_include {
 int symbol__match_symbol_name(const char *namea, const char *nameb,
 			      enum symbol_tag_include includes);
 
-/* structure containing an SDT note's info */
-struct sdt_note {
-	char *name;			/* name of the note*/
+/* structure containing an SDT yeste's info */
+struct sdt_yeste {
+	char *name;			/* name of the yeste*/
 	char *provider;			/* provider name */
 	char *args;
 	bool bit32;			/* whether the location is 32 bits? */
@@ -247,16 +247,16 @@ struct sdt_note {
 		Elf64_Addr a64[3];
 		Elf32_Addr a32[3];
 	} addr;
-	struct list_head note_list;	/* SDT notes' list */
+	struct list_head yeste_list;	/* SDT yestes' list */
 };
 
-int get_sdt_note_list(struct list_head *head, const char *target);
-int cleanup_sdt_note_list(struct list_head *sdt_notes);
-int sdt_notes__get_count(struct list_head *start);
+int get_sdt_yeste_list(struct list_head *head, const char *target);
+int cleanup_sdt_yeste_list(struct list_head *sdt_yestes);
+int sdt_yestes__get_count(struct list_head *start);
 
 #define SDT_PROBES_SCN ".probes"
 #define SDT_BASE_SCN ".stapsdt.base"
-#define SDT_NOTE_SCN  ".note.stapsdt"
+#define SDT_NOTE_SCN  ".yeste.stapsdt"
 #define SDT_NOTE_TYPE 3
 #define SDT_NOTE_NAME "stapsdt"
 #define NR_ADDR 3

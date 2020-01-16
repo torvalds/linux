@@ -140,7 +140,7 @@ static int cfserl_receive(struct cflayer *l, struct cfpkt *newpkt)
 		}
 
 		/*
-		 * Enough data for at least one frame.
+		 * Eyesugh data for at least one frame.
 		 * Split the frame, if too long
 		 */
 		if (pkt_len > expectlen)

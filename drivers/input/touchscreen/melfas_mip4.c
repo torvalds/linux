@@ -157,9 +157,9 @@ struct mip4_ts {
 
 	unsigned int max_x;
 	unsigned int max_y;
-	u8 node_x;
-	u8 node_y;
-	u8 node_key;
+	u8 yesde_x;
+	u8 yesde_y;
+	u8 yesde_key;
 	unsigned int ppm_x;
 	unsigned int ppm_y;
 
@@ -250,12 +250,12 @@ static int mip4_query_device(struct mip4_ts *ts)
 	u8 buf[14];
 
 	/*
-	 * Make sure there is something at this address as we do not
+	 * Make sure there is something at this address as we do yest
 	 * consider subsequent failures as fatal.
 	 */
 	if (i2c_smbus_xfer(ts->client->adapter, ts->client->addr,
 			   0, I2C_SMBUS_READ, 0, I2C_SMBUS_BYTE, &dummy) < 0) {
-		dev_err(&ts->client->dev, "nothing at this address\n");
+		dev_err(&ts->client->dev, "yesthing at this address\n");
 		return -ENXIO;
 	}
 
@@ -324,12 +324,12 @@ static int mip4_query_device(struct mip4_ts *ts)
 		dev_dbg(&ts->client->dev, "max_x: %d, max_y: %d\n",
 			ts->max_x, ts->max_y);
 
-		ts->node_x = buf[4];
-		ts->node_y = buf[5];
-		ts->node_key = buf[6];
+		ts->yesde_x = buf[4];
+		ts->yesde_y = buf[5];
+		ts->yesde_key = buf[6];
 		dev_dbg(&ts->client->dev,
-			"node_x: %d, node_y: %d, node_key: %d\n",
-			ts->node_x, ts->node_y, ts->node_key);
+			"yesde_x: %d, yesde_y: %d, yesde_key: %d\n",
+			ts->yesde_x, ts->yesde_y, ts->yesde_key);
 
 		ts->ppm_x = buf[12];
 		ts->ppm_y = buf[13];
@@ -337,8 +337,8 @@ static int mip4_query_device(struct mip4_ts *ts)
 			ts->ppm_x, ts->ppm_y);
 
 		/* Key ts */
-		if (ts->node_key > 0)
-			ts->key_num = ts->node_key;
+		if (ts->yesde_key > 0)
+			ts->key_num = ts->yesde_key;
 	}
 
 	/* Protocol */
@@ -357,7 +357,7 @@ static int mip4_query_device(struct mip4_ts *ts)
 
 		if (ts->event_format == 2 || ts->event_format > 3)
 			dev_warn(&ts->client->dev,
-				 "Unknown event format %d\n", ts->event_format);
+				 "Unkyeswn event format %d\n", ts->event_format);
 	}
 
 	return 0;
@@ -458,7 +458,7 @@ static void mip4_report_keys(struct mip4_ts *ts, u8 *packet)
 		input_report_key(ts->input, keycode, down);
 
 	} else {
-		dev_err(&ts->client->dev, "Unknown key: %d\n", key);
+		dev_err(&ts->client->dev, "Unkyeswn key: %d\n", key);
 	}
 }
 
@@ -473,7 +473,7 @@ static void mip4_report_touch(struct mip4_ts *ts, u8 *packet)
 	u8 pressure;
 	u8 size;
 	u8 touch_major;
-	u8 touch_minor;
+	u8 touch_miyesr;
 
 	switch (ts->event_format) {
 	case 0:
@@ -490,10 +490,10 @@ static void mip4_report_touch(struct mip4_ts *ts, u8 *packet)
 		size = packet[5];
 		if (ts->event_format == 0) {
 			touch_major = packet[5];
-			touch_minor = packet[5];
+			touch_miyesr = packet[5];
 		} else {
 			touch_major = packet[6];
-			touch_minor = packet[7];
+			touch_miyesr = packet[7];
 		}
 		break;
 
@@ -512,7 +512,7 @@ static void mip4_report_touch(struct mip4_ts *ts, u8 *packet)
 		pressure = ((packet[7] & 0x0F) << 8) |
 			packet[8];
 		touch_major = packet[9];
-		touch_minor = packet[10];
+		touch_miyesr = packet[10];
 		break;
 	}
 
@@ -530,7 +530,7 @@ static void mip4_report_touch(struct mip4_ts *ts, u8 *packet)
 		input_report_abs(ts->input, ABS_MT_POSITION_Y, y);
 		input_report_abs(ts->input, ABS_MT_PRESSURE, pressure);
 		input_report_abs(ts->input, ABS_MT_TOUCH_MAJOR, touch_major);
-		input_report_abs(ts->input, ABS_MT_TOUCH_MINOR, touch_minor);
+		input_report_abs(ts->input, ABS_MT_TOUCH_MINOR, touch_miyesr);
 	} else {
 		/* Release event */
 		input_mt_slot(ts->input, id);
@@ -555,7 +555,7 @@ static int mip4_handle_packet(struct mip4_ts *ts, u8 *packet)
 		break;
 
 	default:
-		/* Should not happen unless we have corrupted firmware */
+		/* Should yest happen unless we have corrupted firmware */
 		return -EINVAL;
 	}
 
@@ -572,7 +572,7 @@ static int mip4_handle_packet(struct mip4_ts *ts, u8 *packet)
 		break;
 
 	default:
-		dev_err(&ts->client->dev, "Unknown event type: %d\n", type);
+		dev_err(&ts->client->dev, "Unkyeswn event type: %d\n", type);
 		break;
 	}
 
@@ -1201,7 +1201,7 @@ static int mip4_parse_firmware(struct mip4_ts *ts, const struct firmware *fw,
 
 	if (*fw_size % MIP4_BL_PAGE_SIZE) {
 		dev_err(&ts->client->dev,
-			"encoded fw length %d is not multiple of pages (%d)\n",
+			"encoded fw length %d is yest multiple of pages (%d)\n",
 			*fw_size, MIP4_BL_PAGE_SIZE);
 		return -EINVAL;
 	}

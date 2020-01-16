@@ -6,7 +6,7 @@
 
 / {
 	model = "NVIDIA Tegra132 Norrin";
-	compatible = "nvidia,norrin", "nvidia,tegra132", "nvidia,tegra124";
+	compatible = "nvidia,yesrrin", "nvidia,tegra132", "nvidia,tegra124";
 
 	aliases {
 		rtc0 = "/i2c@7000d000/as3722@40";
@@ -912,7 +912,7 @@
 	sdhci@700b0600 {
 		status = "okay";
 		bus-width = <8>;
-		non-removable;
+		yesn-removable;
 	};
 
 	usb@7d000000 {
@@ -990,7 +990,7 @@
 	};
 
 	panel: panel {
-		compatible = "innolux,n116bge", "simple-panel";
+		compatible = "inyeslux,n116bge", "simple-panel";
 		backlight = <&backlight>;
 		ddc-i2c-bus = <&dpaux>;
 	};

@@ -15,7 +15,7 @@
 #define FUSE_CTL_SUPER_MAGIC 0x65735543
 
 /*
- * This is non-NULL when the single instance of the control filesystem
+ * This is yesn-NULL when the single instance of the control filesystem
  * exists.  Protected by fuse_mutex
  */
 static struct super_block *fuse_control_sb;
@@ -24,7 +24,7 @@ static struct fuse_conn *fuse_ctl_file_conn_get(struct file *file)
 {
 	struct fuse_conn *fc;
 	mutex_lock(&fuse_mutex);
-	fc = file_inode(file)->i_private;
+	fc = file_iyesde(file)->i_private;
 	if (fc)
 		fc = fuse_conn_get(fc);
 	mutex_unlock(&fuse_mutex);
@@ -192,64 +192,64 @@ out:
 }
 
 static const struct file_operations fuse_ctl_abort_ops = {
-	.open = nonseekable_open,
+	.open = yesnseekable_open,
 	.write = fuse_conn_abort_write,
-	.llseek = no_llseek,
+	.llseek = yes_llseek,
 };
 
 static const struct file_operations fuse_ctl_waiting_ops = {
-	.open = nonseekable_open,
+	.open = yesnseekable_open,
 	.read = fuse_conn_waiting_read,
-	.llseek = no_llseek,
+	.llseek = yes_llseek,
 };
 
 static const struct file_operations fuse_conn_max_background_ops = {
-	.open = nonseekable_open,
+	.open = yesnseekable_open,
 	.read = fuse_conn_max_background_read,
 	.write = fuse_conn_max_background_write,
-	.llseek = no_llseek,
+	.llseek = yes_llseek,
 };
 
 static const struct file_operations fuse_conn_congestion_threshold_ops = {
-	.open = nonseekable_open,
+	.open = yesnseekable_open,
 	.read = fuse_conn_congestion_threshold_read,
 	.write = fuse_conn_congestion_threshold_write,
-	.llseek = no_llseek,
+	.llseek = yes_llseek,
 };
 
 static struct dentry *fuse_ctl_add_dentry(struct dentry *parent,
 					  struct fuse_conn *fc,
 					  const char *name,
 					  int mode, int nlink,
-					  const struct inode_operations *iop,
+					  const struct iyesde_operations *iop,
 					  const struct file_operations *fop)
 {
 	struct dentry *dentry;
-	struct inode *inode;
+	struct iyesde *iyesde;
 
 	BUG_ON(fc->ctl_ndents >= FUSE_CTL_NUM_DENTRIES);
 	dentry = d_alloc_name(parent, name);
 	if (!dentry)
 		return NULL;
 
-	inode = new_inode(fuse_control_sb);
-	if (!inode) {
+	iyesde = new_iyesde(fuse_control_sb);
+	if (!iyesde) {
 		dput(dentry);
 		return NULL;
 	}
 
-	inode->i_ino = get_next_ino();
-	inode->i_mode = mode;
-	inode->i_uid = fc->user_id;
-	inode->i_gid = fc->group_id;
-	inode->i_atime = inode->i_mtime = inode->i_ctime = current_time(inode);
-	/* setting ->i_op to NULL is not allowed */
+	iyesde->i_iyes = get_next_iyes();
+	iyesde->i_mode = mode;
+	iyesde->i_uid = fc->user_id;
+	iyesde->i_gid = fc->group_id;
+	iyesde->i_atime = iyesde->i_mtime = iyesde->i_ctime = current_time(iyesde);
+	/* setting ->i_op to NULL is yest allowed */
 	if (iop)
-		inode->i_op = iop;
-	inode->i_fop = fop;
-	set_nlink(inode, nlink);
-	inode->i_private = fc;
-	d_add(dentry, inode);
+		iyesde->i_op = iop;
+	iyesde->i_fop = fop;
+	set_nlink(iyesde, nlink);
+	iyesde->i_private = fc;
+	d_add(dentry, iyesde);
 
 	fc->ctl_dentry[fc->ctl_ndents++] = dentry;
 
@@ -269,10 +269,10 @@ int fuse_ctl_add_conn(struct fuse_conn *fc)
 		return 0;
 
 	parent = fuse_control_sb->s_root;
-	inc_nlink(d_inode(parent));
+	inc_nlink(d_iyesde(parent));
 	sprintf(name, "%u", fc->dev);
 	parent = fuse_ctl_add_dentry(parent, fc, name, S_IFDIR | 0500, 2,
-				     &simple_dir_inode_operations,
+				     &simple_dir_iyesde_operations,
 				     &simple_dir_operations);
 	if (!parent)
 		goto err;
@@ -308,14 +308,14 @@ void fuse_ctl_remove_conn(struct fuse_conn *fc)
 
 	for (i = fc->ctl_ndents - 1; i >= 0; i--) {
 		struct dentry *dentry = fc->ctl_dentry[i];
-		d_inode(dentry)->i_private = NULL;
+		d_iyesde(dentry)->i_private = NULL;
 		if (!i) {
 			/* Get rid of submounts: */
 			d_invalidate(dentry);
 		}
 		dput(dentry);
 	}
-	drop_nlink(d_inode(fuse_control_sb->s_root));
+	drop_nlink(d_iyesde(fuse_control_sb->s_root));
 }
 
 static int fuse_ctl_fill_super(struct super_block *sb, struct fs_context *fctx)

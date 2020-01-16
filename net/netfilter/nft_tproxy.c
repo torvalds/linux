@@ -54,12 +54,12 @@ static void nft_tproxy_eval_v4(const struct nft_expr *expr,
 	if (!tport)
 		tport = hp->dest;
 
-	/* UDP has no TCP_TIME_WAIT state, so we never enter here */
+	/* UDP has yes TCP_TIME_WAIT state, so we never enter here */
 	if (sk && sk->sk_state == TCP_TIME_WAIT) {
 		/* reopening a TIME_WAIT connection needs special handling */
 		sk = nf_tproxy_handle_time_wait4(nft_net(pkt), skb, taddr, tport, sk);
 	} else if (!sk) {
-		/* no, there's no established connection, check if
+		/* yes, there's yes established connection, check if
 		 * there's a listener on the redirected addr/port
 		 */
 		sk = nf_tproxy_get_sock_v4(nft_net(pkt), skb, iph->protocol,
@@ -121,7 +121,7 @@ static void nft_tproxy_eval_v6(const struct nft_expr *expr,
 	if (!tport)
 		tport = hp->dest;
 
-	/* UDP has no TCP_TIME_WAIT state, so we never enter here */
+	/* UDP has yes TCP_TIME_WAIT state, so we never enter here */
 	if (sk && sk->sk_state == TCP_TIME_WAIT) {
 		/* reopening a TIME_WAIT connection needs special handling */
 		sk = nf_tproxy_handle_time_wait6(skb, l4proto, thoff,
@@ -130,7 +130,7 @@ static void nft_tproxy_eval_v6(const struct nft_expr *expr,
 						 tport,
 						 sk);
 	} else if (!sk) {
-		/* no there's no established connection, check if
+		/* yes there's yes established connection, check if
 		 * there's a listener on the redirected addr/port
 		 */
 		sk = nf_tproxy_get_sock_v6(nft_net(pkt), skb, thoff,
@@ -212,7 +212,7 @@ static int nft_tproxy_init(const struct nft_ctx *ctx,
 		return -EOPNOTSUPP;
 	}
 
-	/* Address is specified but the rule family is not set accordingly */
+	/* Address is specified but the rule family is yest set accordingly */
 	if (priv->family == NFPROTO_UNSPEC && tb[NFTA_TPROXY_REG_ADDR])
 		return -EINVAL;
 

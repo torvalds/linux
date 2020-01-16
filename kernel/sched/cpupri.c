@@ -6,7 +6,7 @@
  *
  *  Copyright (C) 2007-2008 Novell
  *
- *  Author: Gregory Haskins <ghaskins@novell.com>
+ *  Author: Gregory Haskins <ghaskins@yesvell.com>
  *
  *  This code tracks the priority of each CPU so that global migration
  *  decisions are easy to calculate.  Each CPU can be in a state as follows:
@@ -14,7 +14,7 @@
  *                 (INVALID), IDLE, NORMAL, RT1, ... RT99
  *
  *  going from the lowest priority to the highest.  CPUs in the INVALID state
- *  are not eligible for routing.  The system maintains this state with
+ *  are yest eligible for routing.  The system maintains this state with
  *  a 2 dimensional bitmap (the first for priority class, the second for CPUs
  *  in that class).  Therefore a typical application without affinity
  *  restrictions can find a suitable CPU with O(1) complexity (e.g. two bit
@@ -49,8 +49,8 @@ static int convert_prio(int prio)
  *
  * Note: This function returns the recommended CPUs as calculated during the
  * current invocation.  By the time the call returns, the CPUs may have in
- * fact changed priorities any number of times.  While not ideal, it is not
- * an issue of correctness since the normal rebalancer logic will correct
+ * fact changed priorities any number of times.  While yest ideal, it is yest
+ * an issue of correctness since the yesrmal rebalancer logic will correct
  * any discrepancies created by racing against the uncertainty of the current
  * priority configuration.
  *
@@ -77,7 +77,7 @@ int cpupri_find(struct cpupri *cp, struct task_struct *p,
 		 * Note: This is still all racey, but we can deal with it.
 		 *  Ideally, we only want to look at masks that are set.
 		 *
-		 *  If a mask is not set, then the only thing wrong is that we
+		 *  If a mask is yest set, then the only thing wrong is that we
 		 *  did a little more work than necessary.
 		 *
 		 *  If we read a zero count but the mask is set, because of the

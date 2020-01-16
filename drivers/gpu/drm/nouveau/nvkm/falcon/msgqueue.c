@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -86,7 +86,7 @@ msg_queue_pop(struct nvkm_msgqueue *priv, struct nvkm_msgqueue_queue *queue,
 	available = head - tail;
 
 	if (available == 0) {
-		nvkm_warn(subdev, "no message data available\n");
+		nvkm_warn(subdev, "yes message data available\n");
 		return 0;
 	}
 
@@ -286,7 +286,7 @@ msgqueue_seq_acquire(struct nvkm_msgqueue *priv)
 	index = find_first_zero_bit(priv->seq_tbl, NVKM_MSGQUEUE_NUM_SEQUENCES);
 
 	if (index >= NVKM_MSGQUEUE_NUM_SEQUENCES) {
-		nvkm_error(subdev, "no free sequence available\n");
+		nvkm_error(subdev, "yes free sequence available\n");
 		mutex_unlock(&priv->seq_lock);
 		return ERR_PTR(-EAGAIN);
 	}
@@ -304,14 +304,14 @@ msgqueue_seq_acquire(struct nvkm_msgqueue *priv)
 static void
 msgqueue_seq_release(struct nvkm_msgqueue *priv, struct nvkm_msgqueue_seq *seq)
 {
-	/* no need to acquire seq_lock since clear_bit is atomic */
+	/* yes need to acquire seq_lock since clear_bit is atomic */
 	seq->state = SEQ_STATE_FREE;
 	seq->callback = NULL;
 	seq->completion = NULL;
 	clear_bit(seq->id, priv->seq_tbl);
 }
 
-/* specifies that we want to know the command status in the answer message */
+/* specifies that we want to kyesw the command status in the answer message */
 #define CMD_FLAGS_STATUS BIT(0)
 /* specifies that we want an interrupt when the answer message is queued */
 #define CMD_FLAGS_INTR BIT(1)
@@ -361,7 +361,7 @@ msgqueue_msg_handle(struct nvkm_msgqueue *priv, struct nvkm_msgqueue_hdr *hdr)
 
 	seq = &priv->seq[hdr->seq_id];
 	if (seq->state != SEQ_STATE_USED && seq->state != SEQ_STATE_CANCELLED) {
-		nvkm_error(subdev, "msg for unknown sequence %d", seq->id);
+		nvkm_error(subdev, "msg for unkyeswn sequence %d", seq->id);
 		return -EINVAL;
 	}
 
@@ -406,7 +406,7 @@ msgqueue_handle_init_msg(struct nvkm_msgqueue *priv,
 	}
 
 	/*
-	 * Read the message - queues are not initialized yet so we cannot rely
+	 * Read the message - queues are yest initialized yet so we canyest rely
 	 * on msg_queue_read()
 	 */
 	tail = nvkm_falcon_rd32(falcon, tail_reg);
@@ -435,7 +435,7 @@ nvkm_msgqueue_process_msgs(struct nvkm_msgqueue *priv,
 			   struct nvkm_msgqueue_queue *queue)
 {
 	/*
-	 * We are invoked from a worker thread, so normally we have plenty of
+	 * We are invoked from a worker thread, so yesrmally we have plenty of
 	 * stack space to work with.
 	 */
 	u8 msg_buffer[MSG_BUF_SIZE];
@@ -548,7 +548,7 @@ nvkm_msgqueue_recv(struct nvkm_msgqueue *queue)
 int
 nvkm_msgqueue_reinit(struct nvkm_msgqueue *queue)
 {
-	/* firmware not set yet... */
+	/* firmware yest set yet... */
 	if (!queue)
 		return 0;
 

@@ -2,10 +2,10 @@
 #define _UAPI__ASM_GENERIC_BITS_PER_LONG
 
 /*
- * There seems to be no way of detecting this automatically from user
+ * There seems to be yes way of detecting this automatically from user
  * space, so 64 bit architectures should override this in their
  * bitsperlong.h. In particular, an architecture that supports
- * both 32 and 64 bit user space must not rely on CONFIG_64BIT
+ * both 32 and 64 bit user space must yest rely on CONFIG_64BIT
  * to decide it, but rather check a compiler provided macro.
  */
 #ifndef __BITS_PER_LONG

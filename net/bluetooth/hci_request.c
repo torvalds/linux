@@ -68,7 +68,7 @@ static int req_run(struct hci_request *req, hci_req_complete_t complete,
 		return req->err;
 	}
 
-	/* Do not allow empty requests */
+	/* Do yest allow empty requests */
 	if (skb_queue_empty(&req->cmd_q))
 		return -ENODATA;
 
@@ -151,7 +151,7 @@ struct sk_buff *__hci_cmd_sync_ev(struct hci_dev *hdev, u16 opcode, u32 plen,
 
 	switch (hdev->req_status) {
 	case HCI_REQ_DONE:
-		err = -bt_to_errno(hdev->req_result);
+		err = -bt_to_erryes(hdev->req_result);
 		break;
 
 	case HCI_REQ_CANCELED:
@@ -215,8 +215,8 @@ int __hci_req_sync(struct hci_dev *hdev, int (*func)(struct hci_request *req,
 
 		/* ENODATA means the HCI request command queue is empty.
 		 * This can happen when a request with conditionals doesn't
-		 * trigger any commands to be sent. This is normal behavior
-		 * and should not trigger an error return.
+		 * trigger any commands to be sent. This is yesrmal behavior
+		 * and should yest trigger an error return.
 		 */
 		if (err == -ENODATA) {
 			if (hci_status)
@@ -238,7 +238,7 @@ int __hci_req_sync(struct hci_dev *hdev, int (*func)(struct hci_request *req,
 
 	switch (hdev->req_status) {
 	case HCI_REQ_DONE:
-		err = -bt_to_errno(hdev->req_result);
+		err = -bt_to_erryes(hdev->req_result);
 		if (hci_status)
 			*hci_status = hdev->req_result;
 		break;
@@ -308,7 +308,7 @@ struct sk_buff *hci_prepare_cmd(struct hci_dev *hdev, u16 opcode, u32 plen,
 	return skb;
 }
 
-/* Queue a command to an asynchronous HCI request */
+/* Queue a command to an asynchroyesus HCI request */
 void hci_req_add_ev(struct hci_request *req, u16 opcode, u32 plen,
 		    const void *param, u8 event)
 {
@@ -317,7 +317,7 @@ void hci_req_add_ev(struct hci_request *req, u16 opcode, u32 plen,
 
 	BT_DBG("%s opcode 0x%4.4x plen %d", hdev->name, opcode, plen);
 
-	/* If an error occurred during request building, there is no point in
+	/* If an error occurred during request building, there is yes point in
 	 * queueing the HCI command. We can simply return.
 	 */
 	if (req->err)
@@ -325,7 +325,7 @@ void hci_req_add_ev(struct hci_request *req, u16 opcode, u32 plen,
 
 	skb = hci_prepare_cmd(hdev, opcode, plen, param);
 	if (!skb) {
-		bt_dev_err(hdev, "no memory for command (opcode 0x%4.4x)",
+		bt_dev_err(hdev, "yes memory for command (opcode 0x%4.4x)",
 			   opcode);
 		req->err = -ENOMEM;
 		return;
@@ -417,12 +417,12 @@ static void __hci_update_background_scan(struct hci_request *req)
 
 	if (list_empty(&hdev->pend_le_conns) &&
 	    list_empty(&hdev->pend_le_reports)) {
-		/* If there is no pending LE connections or devices
+		/* If there is yes pending LE connections or devices
 		 * to be scanned for, we should stop the background
 		 * scanning.
 		 */
 
-		/* If controller is not scanning we are done. */
+		/* If controller is yest scanning we are done. */
 		if (!hci_dev_test_flag(hdev, HCI_LE_SCAN))
 			return;
 
@@ -434,8 +434,8 @@ static void __hci_update_background_scan(struct hci_request *req)
 		 * keep the background scan running.
 		 */
 
-		/* If controller is connecting, we should not start scanning
-		 * since some controllers are not able to scan and connect at
+		/* If controller is connecting, we should yest start scanning
+		 * since some controllers are yest able to scan and connect at
 		 * the same time.
 		 */
 		if (hci_lookup_le_connect(hdev))
@@ -493,7 +493,7 @@ static u8 *create_uuid16_list(struct hci_dev *hdev, u8 *data, ptrdiff_t len)
 			ptr += 2;
 		}
 
-		/* Stop if not enough space to put next UUID */
+		/* Stop if yest eyesugh space to put next UUID */
 		if ((ptr - data) + sizeof(u16) > len) {
 			uuids_start[1] = EIR_UUID16_SOME;
 			break;
@@ -526,7 +526,7 @@ static u8 *create_uuid32_list(struct hci_dev *hdev, u8 *data, ptrdiff_t len)
 			ptr += 2;
 		}
 
-		/* Stop if not enough space to put next UUID */
+		/* Stop if yest eyesugh space to put next UUID */
 		if ((ptr - data) + sizeof(u32) > len) {
 			uuids_start[1] = EIR_UUID32_SOME;
 			break;
@@ -559,7 +559,7 @@ static u8 *create_uuid128_list(struct hci_dev *hdev, u8 *data, ptrdiff_t len)
 			ptr += 2;
 		}
 
-		/* Stop if not enough space to put next UUID */
+		/* Stop if yest eyesugh space to put next UUID */
 		if ((ptr - data) + 16 > len) {
 			uuids_start[1] = EIR_UUID128_SOME;
 			break;
@@ -691,11 +691,11 @@ static u8 update_white_list(struct hci_request *req)
 	/* Go through the current white list programmed into the
 	 * controller one by one and check if that address is still
 	 * in the list of pending connections or list of devices to
-	 * report. If not present in either list, then queue the
+	 * report. If yest present in either list, then queue the
 	 * command to remove it from the controller.
 	 */
 	list_for_each_entry(b, &hdev->le_white_list, list) {
-		/* If the device is neither in pend_le_conns nor
+		/* If the device is neither in pend_le_conns yesr
 		 * pend_le_reports then remove it from the whitelist.
 		 */
 		if (!hci_pend_le_action_lookup(&hdev->pend_le_conns,
@@ -713,21 +713,21 @@ static u8 update_white_list(struct hci_request *req)
 		}
 
 		if (hci_find_irk_by_addr(hdev, &b->bdaddr, b->bdaddr_type)) {
-			/* White list can not be used with RPAs */
+			/* White list can yest be used with RPAs */
 			return 0x00;
 		}
 
 		white_list_entries++;
 	}
 
-	/* Since all no longer valid white list entries have been
+	/* Since all yes longer valid white list entries have been
 	 * removed, walk through the list of pending connections
 	 * and ensure that any new device gets programmed into
 	 * the controller.
 	 *
 	 * If the list of the devices is larger than the list of
 	 * available white list entries in the controller, then
-	 * just abort and return filer policy value to not use the
+	 * just abort and return filer policy value to yest use the
 	 * white list.
 	 */
 	list_for_each_entry(params, &hdev->pend_le_conns, action) {
@@ -742,7 +742,7 @@ static u8 update_white_list(struct hci_request *req)
 
 		if (hci_find_irk_by_addr(hdev, &params->addr,
 					 params->addr_type)) {
-			/* White list can not be used with RPAs */
+			/* White list can yest be used with RPAs */
 			return 0x00;
 		}
 
@@ -766,7 +766,7 @@ static u8 update_white_list(struct hci_request *req)
 
 		if (hci_find_irk_by_addr(hdev, &params->addr,
 					 params->addr_type)) {
-			/* White list can not be used with RPAs */
+			/* White list can yest be used with RPAs */
 			return 0x00;
 		}
 
@@ -867,8 +867,8 @@ void hci_req_add_le_passive_scan(struct hci_request *req)
 	u8 own_addr_type;
 	u8 filter_policy;
 
-	/* Set require_privacy to false since no SCAN_REQ are send
-	 * during passive scanning. Not using an non-resolvable address
+	/* Set require_privacy to false since yes SCAN_REQ are send
+	 * during passive scanning. Not using an yesn-resolvable address
 	 * here is important so that peer devices using direct
 	 * advertising with our address will be correctly reported
 	 * by the controller.
@@ -879,18 +879,18 @@ void hci_req_add_le_passive_scan(struct hci_request *req)
 
 	/* Adding or removing entries from the white list must
 	 * happen before enabling scanning. The controller does
-	 * not allow white list modification while scanning.
+	 * yest allow white list modification while scanning.
 	 */
 	filter_policy = update_white_list(req);
 
 	/* When the controller is using random resolvable addresses and
 	 * with that having LE privacy enabled, then controllers with
-	 * Extended Scanner Filter Policies support can now enable support
+	 * Extended Scanner Filter Policies support can yesw enable support
 	 * for handling directed advertising.
 	 *
-	 * So instead of using filter polices 0x00 (no whitelist)
+	 * So instead of using filter polices 0x00 (yes whitelist)
 	 * and 0x01 (whitelist enabled) use the new filter policies
-	 * 0x02 (no whitelist) and 0x03 (whitelist enabled).
+	 * 0x02 (yes whitelist) and 0x03 (whitelist enabled).
 	 */
 	if (hci_dev_test_flag(hdev, HCI_PRIVACY) &&
 	    (hdev->le_features[0] & HCI_LE_EXT_SCAN_POLICY))
@@ -913,7 +913,7 @@ static u8 get_adv_instance_scan_rsp_len(struct hci_dev *hdev, u8 instance)
 		return 0;
 
 	/* TODO: Take into account the "appearance" and "local-name" flags here.
-	 * These are currently being ignored as they are not supported.
+	 * These are currently being igyesred as they are yest supported.
 	 */
 	return adv_instance->scan_rsp_len;
 }
@@ -932,7 +932,7 @@ static u8 get_cur_adv_instance_scan_rsp_len(struct hci_dev *hdev)
 		return 0;
 
 	/* TODO: Take into account the "appearance" and "local-name" flags here.
-	 * These are currently being ignored as they are not supported.
+	 * These are currently being igyesred as they are yest supported.
 	 */
 	return adv_instance->scan_rsp_len;
 }
@@ -990,7 +990,7 @@ static u32 get_adv_instance_flags(struct hci_dev *hdev, u8 instance)
 
 static bool adv_use_rpa(struct hci_dev *hdev, uint32_t flags)
 {
-	/* If privacy is not enabled don't use RPA */
+	/* If privacy is yest enabled don't use RPA */
 	if (!hci_dev_test_flag(hdev, HCI_PRIVACY))
 		return false;
 
@@ -1005,7 +1005,7 @@ static bool adv_use_rpa(struct hci_dev *hdev, uint32_t flags)
 	    hci_dev_test_flag(hdev, HCI_BONDABLE))
 		return false;
 
-	/* We're neither bondable nor discoverable in the limited
+	/* We're neither bondable yesr discoverable in the limited
 	 * privacy mode, therefore use RPA.
 	 */
 	return true;
@@ -1013,13 +1013,13 @@ static bool adv_use_rpa(struct hci_dev *hdev, uint32_t flags)
 
 static bool is_advertising_allowed(struct hci_dev *hdev, bool connectable)
 {
-	/* If there is no connection we are OK to advertise. */
+	/* If there is yes connection we are OK to advertise. */
 	if (hci_conn_num(hdev, LE_LINK) == 0)
 		return true;
 
 	/* Check le_states if there is any connection in slave role. */
 	if (hdev->conn_hash.le_num_slave > 0) {
-		/* Slave connection state and non connectable mode bit 20. */
+		/* Slave connection state and yesn connectable mode bit 20. */
 		if (!connectable && !(hdev->le_states[2] & 0x10))
 			return false;
 
@@ -1033,7 +1033,7 @@ static bool is_advertising_allowed(struct hci_dev *hdev, bool connectable)
 
 	/* Check le_states if there is any connection in master role. */
 	if (hci_conn_num(hdev, LE_LINK) != hdev->conn_hash.le_num_slave) {
-		/* Master connection state and non connectable mode bit 18. */
+		/* Master connection state and yesn connectable mode bit 18. */
 		if (!connectable && !(hdev->le_states[2] & 0x02))
 			return false;
 
@@ -1059,7 +1059,7 @@ void __hci_req_enable_advertising(struct hci_request *req)
 
 	flags = get_adv_instance_flags(hdev, hdev->cur_adv_instance);
 
-	/* If the "connectable" instance flag was not set, then choose between
+	/* If the "connectable" instance flag was yest set, then choose between
 	 * ADV_IND and ADV_NONCONN_IND based on the global connectable setting.
 	 */
 	connectable = (flags & MGMT_ADV_FLAG_CONNECTABLE) ||
@@ -1072,15 +1072,15 @@ void __hci_req_enable_advertising(struct hci_request *req)
 		__hci_req_disable_advertising(req);
 
 	/* Clear the HCI_LE_ADV bit temporarily so that the
-	 * hci_update_random_address knows that it's safe to go ahead
+	 * hci_update_random_address kyesws that it's safe to go ahead
 	 * and write a new random address. The flag will be set back on
 	 * as soon as the SET_ADV_ENABLE HCI command completes.
 	 */
 	hci_dev_clear_flag(hdev, HCI_LE_ADV);
 
-	/* Set require_privacy to true only when non-connectable
+	/* Set require_privacy to true only when yesn-connectable
 	 * advertising is used. In that case it is fine to use a
-	 * non-resolvable private address.
+	 * yesn-resolvable private address.
 	 */
 	if (hci_update_random_address(req, !connectable,
 				      adv_use_rpa(hdev, flags),
@@ -1125,7 +1125,7 @@ u8 append_local_name(struct hci_dev *hdev, u8 *ptr, u8 ad_len)
 	size_t short_len;
 	size_t complete_len;
 
-	/* no space left for name (+ NULL + type + len) */
+	/* yes space left for name (+ NULL + type + len) */
 	if ((HCI_MAX_AD_LENGTH - ad_len) < HCI_MAX_SHORT_NAME_LENGTH + 3)
 		return ad_len;
 
@@ -1141,7 +1141,7 @@ u8 append_local_name(struct hci_dev *hdev, u8 *ptr, u8 ad_len)
 		return eir_append_data(ptr, ad_len, EIR_NAME_SHORT,
 				       hdev->short_name, short_len + 1);
 
-	/* use shortened full name if present, we already know that name
+	/* use shortened full name if present, we already kyesw that name
 	 * is longer then HCI_MAX_SHORT_NAME_LENGTH
 	 */
 	if (complete_len) {
@@ -1300,7 +1300,7 @@ static u8 create_instance_adv_data(struct hci_dev *hdev, u8 instance, u8 *ptr)
 		if (!flags)
 			flags |= mgmt_get_adv_discov_flags(hdev);
 
-		/* If flags would still be empty, then there is no need to
+		/* If flags would still be empty, then there is yes need to
 		 * include the "Flags" AD field".
 		 */
 		if (flags) {
@@ -1362,7 +1362,7 @@ void __hci_req_update_adv_data(struct hci_request *req, u8 instance)
 
 		len = create_instance_adv_data(hdev, instance, cp.data);
 
-		/* There's nothing to do if the data hasn't changed */
+		/* There's yesthing to do if the data hasn't changed */
 		if (hdev->adv_data_len == len &&
 		    memcmp(cp.data, hdev->adv_data, len) == 0)
 			return;
@@ -1383,7 +1383,7 @@ void __hci_req_update_adv_data(struct hci_request *req, u8 instance)
 
 		len = create_instance_adv_data(hdev, instance, cp.data);
 
-		/* There's nothing to do if the data hasn't changed */
+		/* There's yesthing to do if the data hasn't changed */
 		if (hdev->adv_data_len == len &&
 		    memcmp(cp.data, hdev->adv_data, len) == 0)
 			return;
@@ -1517,21 +1517,21 @@ int hci_get_random_address(struct hci_dev *hdev, bool require_privacy,
 	}
 
 	/* In case of required privacy without resolvable private address,
-	 * use an non-resolvable private address. This is useful for
-	 * non-connectable advertising.
+	 * use an yesn-resolvable private address. This is useful for
+	 * yesn-connectable advertising.
 	 */
 	if (require_privacy) {
 		bdaddr_t nrpa;
 
 		while (true) {
-			/* The non-resolvable private address is generated
+			/* The yesn-resolvable private address is generated
 			 * from random six bytes with the two most significant
 			 * bits cleared.
 			 */
 			get_random_bytes(&nrpa, 6);
 			nrpa.b[5] &= 0x3f;
 
-			/* The non-resolvable private address shall not be
+			/* The yesn-resolvable private address shall yest be
 			 * equal to the public address.
 			 */
 			if (bacmp(&hdev->bdaddr, &nrpa))
@@ -1579,7 +1579,7 @@ int __hci_req_setup_ext_adv_instance(struct hci_request *req, u8 instance)
 
 	flags = get_adv_instance_flags(hdev, instance);
 
-	/* If the "connectable" instance flag was not set, then choose between
+	/* If the "connectable" instance flag was yest set, then choose between
 	 * ADV_IND and ADV_NONCONN_IND based on the global connectable setting.
 	 */
 	connectable = (flags & MGMT_ADV_FLAG_CONNECTABLE) ||
@@ -1588,9 +1588,9 @@ int __hci_req_setup_ext_adv_instance(struct hci_request *req, u8 instance)
 	if (!is_advertising_allowed(hdev, connectable))
 		return -EPERM;
 
-	/* Set require_privacy to true only when non-connectable
+	/* Set require_privacy to true only when yesn-connectable
 	 * advertising is used. In that case it is fine to use a
-	 * non-resolvable private address.
+	 * yesn-resolvable private address.
 	 */
 	err = hci_get_random_address(hdev, !connectable,
 				     adv_use_rpa(hdev, flags), adv_instance,
@@ -1749,7 +1749,7 @@ int __hci_req_schedule_adv_instance(struct hci_request *req, u8 instance,
 		return -ENOENT;
 
 	/* A zero timeout means unlimited advertising. As long as there is
-	 * only one instance, duration should be ignored. We still set a timeout
+	 * only one instance, duration should be igyesred. We still set a timeout
 	 * in case further instances are being added later on.
 	 *
 	 * If the remaining lifetime of the instance is more than the duration
@@ -1777,7 +1777,7 @@ int __hci_req_schedule_adv_instance(struct hci_request *req, u8 instance,
 			   msecs_to_jiffies(timeout * 1000));
 	}
 
-	/* If we're just re-scheduling the same instance again then do not
+	/* If we're just re-scheduling the same instance again then do yest
 	 * execute any HCI commands. This happens when a single instance is
 	 * being advertised.
 	 */
@@ -1807,7 +1807,7 @@ static void cancel_adv_timeout(struct hci_dev *hdev)
 
 /* For a single instance:
  * - force == true: The instance will be removed even when its remaining
- *   lifetime is not zero.
+ *   lifetime is yest zero.
  * - force == false: the instance will be deactivated but kept stored unless
  *   the remaining lifetime is zero.
  *
@@ -1929,21 +1929,21 @@ int hci_update_random_address(struct hci_request *req, bool require_privacy,
 	}
 
 	/* In case of required privacy without resolvable private address,
-	 * use an non-resolvable private address. This is useful for active
-	 * scanning and non-connectable advertising.
+	 * use an yesn-resolvable private address. This is useful for active
+	 * scanning and yesn-connectable advertising.
 	 */
 	if (require_privacy) {
 		bdaddr_t nrpa;
 
 		while (true) {
-			/* The non-resolvable private address is generated
+			/* The yesn-resolvable private address is generated
 			 * from random six bytes with the two most significant
 			 * bits cleared.
 			 */
 			get_random_bytes(&nrpa, 6);
 			nrpa.b[5] &= 0x3f;
 
-			/* The non-resolvable private address shall not be
+			/* The yesn-resolvable private address shall yest be
 			 * equal to the public address.
 			 */
 			if (bacmp(&hdev->bdaddr, &nrpa))
@@ -1955,7 +1955,7 @@ int hci_update_random_address(struct hci_request *req, bool require_privacy,
 		return 0;
 	}
 
-	/* If forcing static address is in use or there is no public
+	/* If forcing static address is in use or there is yes public
 	 * address use the static address as random address (but skip
 	 * the HCI command if the current random address is already the
 	 * static one.
@@ -1975,7 +1975,7 @@ int hci_update_random_address(struct hci_request *req, bool require_privacy,
 		return 0;
 	}
 
-	/* Neither privacy nor static address is being used so use a
+	/* Neither privacy yesr static address is being used so use a
 	 * public address.
 	 */
 	*own_addr_type = ADDR_LE_DEV_PUBLIC;
@@ -2054,7 +2054,7 @@ static int connectable_update(struct hci_request *req, unsigned long opt)
 
 	__hci_req_update_scan(req);
 
-	/* If BR/EDR is not enabled and we disable advertising as a
+	/* If BR/EDR is yest enabled and we disable advertising as a
 	 * by-product of disabling connectable, we need to update the
 	 * advertising flags.
 	 */
@@ -2114,7 +2114,7 @@ void __hci_req_update_class(struct hci_request *req)
 	if (hci_dev_test_flag(hdev, HCI_SERVICE_CACHE))
 		return;
 
-	cod[0] = hdev->minor_class;
+	cod[0] = hdev->miyesr_class;
 	cod[1] = hdev->major_class;
 	cod[2] = get_service_classes(hdev);
 
@@ -2381,7 +2381,7 @@ static void le_scan_disable_work(struct work_struct *work)
 	 * we were running both LE and BR/EDR inquiry simultaneously,
 	 * and BR/EDR inquiry is already finished, stop discovery,
 	 * otherwise BR/EDR inquiry will stop discovery when finished.
-	 * If we will resolve remote device name, do not change
+	 * If we will resolve remote device name, do yest change
 	 * discovery state.
 	 */
 
@@ -2418,7 +2418,7 @@ static int le_scan_restart(struct hci_request *req, unsigned long opt)
 {
 	struct hci_dev *hdev = req->hdev;
 
-	/* If controller is not scanning we are done. */
+	/* If controller is yest scanning we are done. */
 	if (!hci_dev_test_flag(hdev, HCI_LE_SCAN))
 		return 0;
 
@@ -2449,7 +2449,7 @@ static void le_scan_restart_work(struct work_struct *work)
 {
 	struct hci_dev *hdev = container_of(work, struct hci_dev,
 					    le_scan_restart.work);
-	unsigned long timeout, duration, scan_start, now;
+	unsigned long timeout, duration, scan_start, yesw;
 	u8 status;
 
 	BT_DBG("%s", hdev->name);
@@ -2470,18 +2470,18 @@ static void le_scan_restart_work(struct work_struct *work)
 	/* When the scan was started, hdev->le_scan_disable has been queued
 	 * after duration from scan_start. During scan restart this job
 	 * has been canceled, and we need to queue it again after proper
-	 * timeout, to make sure that scan does not run indefinitely.
+	 * timeout, to make sure that scan does yest run indefinitely.
 	 */
 	duration = hdev->discovery.scan_duration;
 	scan_start = hdev->discovery.scan_start;
-	now = jiffies;
-	if (now - scan_start <= duration) {
+	yesw = jiffies;
+	if (yesw - scan_start <= duration) {
 		int elapsed;
 
-		if (now >= scan_start)
-			elapsed = now - scan_start;
+		if (yesw >= scan_start)
+			elapsed = yesw - scan_start;
 		else
-			elapsed = ULONG_MAX - scan_start + now;
+			elapsed = ULONG_MAX - scan_start + yesw;
 
 		timeout = duration - elapsed;
 	} else {
@@ -2529,7 +2529,7 @@ static int active_scan(struct hci_request *req, unsigned long opt)
 		hci_req_add_le_scan_disable(req);
 
 	/* All active scans will be done with either a resolvable private
-	 * address (when privacy feature has been enabled) or non-resolvable
+	 * address (when privacy feature has been enabled) or yesn-resolvable
 	 * private address.
 	 */
 	err = hci_update_random_address(req, true, scan_use_rpa(hdev),

@@ -334,7 +334,7 @@ static int cs43130_change_clksrc(struct snd_soc_component *component,
 	int mclk_int_decoded;
 
 	if (src == cs43130->mclk_int_src) {
-		/* clk source has not changed */
+		/* clk source has yest changed */
 		return 0;
 	}
 
@@ -778,7 +778,7 @@ static int cs43130_dsd_hw_params(struct snd_pcm_substream *substream,
 
 	mutex_lock(&cs43130->clk_mutex);
 	if (!cs43130->clk_req) {
-		/* no DAI is currently using clk */
+		/* yes DAI is currently using clk */
 		if (!(CS43130_MCLK_22M % params_rate(params)))
 			required_clk = CS43130_MCLK_22M;
 		else
@@ -804,7 +804,7 @@ static int cs43130_dsd_hw_params(struct snd_pcm_substream *substream,
 		dsd_speed = 1;
 		break;
 	default:
-		dev_err(component->dev, "Rate(%u) not supported\n",
+		dev_err(component->dev, "Rate(%u) yest supported\n",
 			params_rate(params));
 		return -EINVAL;
 	}
@@ -841,7 +841,7 @@ static int cs43130_hw_params(struct snd_pcm_substream *substream,
 
 	mutex_lock(&cs43130->clk_mutex);
 	if (!cs43130->clk_req) {
-		/* no DAI is currently using clk */
+		/* yes DAI is currently using clk */
 		if (!(CS43130_MCLK_22M % params_rate(params)))
 			required_clk = CS43130_MCLK_22M;
 		else
@@ -875,7 +875,7 @@ static int cs43130_hw_params(struct snd_pcm_substream *substream,
 			dsd_speed = 1;
 			break;
 		default:
-			dev_err(component->dev, "Rate(%u) not supported\n",
+			dev_err(component->dev, "Rate(%u) yest supported\n",
 				params_rate(params));
 			return -EINVAL;
 		}
@@ -916,13 +916,13 @@ static int cs43130_hw_params(struct snd_pcm_substream *substream,
 
 	if (!sclk) {
 		/* at this point, SCLK must be set */
-		dev_err(component->dev, "SCLK freq is not set\n");
+		dev_err(component->dev, "SCLK freq is yest set\n");
 		return -EINVAL;
 	}
 
 	bitwidth_sclk = (sclk / params_rate(params)) / params_channels(params);
 	if (bitwidth_sclk < bitwidth_dai) {
-		dev_err(component->dev, "Format not supported: SCLK freq is too low\n");
+		dev_err(component->dev, "Format yest supported: SCLK freq is too low\n");
 		return -EINVAL;
 	}
 
@@ -949,7 +949,7 @@ static int cs43130_hw_free(struct snd_pcm_substream *substream,
 	mutex_lock(&cs43130->clk_mutex);
 	cs43130->clk_req--;
 	if (!cs43130->clk_req) {
-		/* no DAI is currently using clk */
+		/* yes DAI is currently using clk */
 		cs43130_change_clksrc(component, CS43130_MCLK_SRC_RCO);
 		cs43130_pcm_dsd_mix(false, cs43130->regmap);
 	}
@@ -1080,7 +1080,7 @@ static const struct snd_kcontrol_new cs43130_snd_controls[] = {
 		     cs43130_pcm_ch_put),
 	SOC_ENUM("PCM Filter Speed", pcm_spd_enum),
 	SOC_SINGLE("PCM Phase Compensation", CS43130_PCM_FILT_OPT, 6, 1, 0),
-	SOC_SINGLE("PCM Nonoversample Emulate", CS43130_PCM_FILT_OPT, 5, 1, 0),
+	SOC_SINGLE("PCM Noyesversample Emulate", CS43130_PCM_FILT_OPT, 5, 1, 0),
 	SOC_SINGLE("PCM High-pass Filter", CS43130_PCM_FILT_OPT, 1, 1, 0),
 	SOC_SINGLE("PCM De-emphasis Filter", CS43130_PCM_FILT_OPT, 0, 1, 0),
 	SOC_ENUM("DSD Phase Modulation", dsd_enum),
@@ -2066,7 +2066,7 @@ static void cs43130_imp_meas(struct work_struct *wk)
 
 	mutex_lock(&cs43130->clk_mutex);
 	if (!cs43130->clk_req) {
-		/* clk not in use */
+		/* clk yest in use */
 		cs43130_set_pll(component, 0, 0, cs43130->mclk, CS43130_MCLK_22M);
 		if (cs43130->pll_bypass)
 			cs43130_change_clksrc(component, CS43130_MCLK_SRC_EXT);
@@ -2149,7 +2149,7 @@ exit:
 
 	mutex_lock(&cs43130->clk_mutex);
 	cs43130->clk_req--;
-	/* clk not in use */
+	/* clk yest in use */
 	if (!cs43130->clk_req)
 		cs43130_change_clksrc(component, CS43130_MCLK_SRC_RCO);
 	mutex_unlock(&cs43130->clk_mutex);
@@ -2195,7 +2195,7 @@ static irqreturn_t cs43130_irq_thread(int irq, void *data)
 	if (stickies[3] & CS43130_HPLOAD_NO_DC_INT) {
 		cs43130->hpload_stat = stickies[3];
 		dev_err(component->dev,
-			"DC load has not completed before AC load (%x)\n",
+			"DC load has yest completed before AC load (%x)\n",
 			cs43130->hpload_stat);
 		complete(&cs43130->hpload_evt);
 		return IRQ_HANDLED;
@@ -2250,7 +2250,7 @@ static irqreturn_t cs43130_irq_thread(int irq, void *data)
 	}
 
 	if (stickies[0] & CS43130_XTAL_ERR_INT) {
-		dev_err(component->dev, "Crystal err: clock is not running\n");
+		dev_err(component->dev, "Crystal err: clock is yest running\n");
 		return IRQ_HANDLED;
 	}
 
@@ -2296,7 +2296,7 @@ static int cs43130_probe(struct snd_soc_component *component)
 	ret = snd_soc_card_jack_new(card, "Headphone", CS43130_JACK_MASK,
 				    &cs43130->jack, NULL, 0);
 	if (ret < 0) {
-		dev_err(component->dev, "Cannot create jack\n");
+		dev_err(component->dev, "Canyest create jack\n");
 		return ret;
 	}
 
@@ -2346,7 +2346,7 @@ static struct snd_soc_component_driver soc_component_dev_cs43130 = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
+	.yesn_legacy_dai_naming	= 1,
 };
 
 static const struct regmap_config cs43130_regmap = {
@@ -2374,7 +2374,7 @@ static u16 const cs43130_dc_threshold[CS43130_DC_THRESHOLD] = {
 static int cs43130_handle_device_data(struct i2c_client *i2c_client,
 				      struct cs43130_private *cs43130)
 {
-	struct device_node *np = i2c_client->dev.of_node;
+	struct device_yesde *np = i2c_client->dev.of_yesde;
 	unsigned int val;
 	int i;
 
@@ -2440,7 +2440,7 @@ static int cs43130_i2c_probe(struct i2c_client *client,
 		return ret;
 	}
 
-	if (client->dev.of_node) {
+	if (client->dev.of_yesde) {
 		ret = cs43130_handle_device_data(client, cs43130);
 		if (ret != 0)
 			return ret;

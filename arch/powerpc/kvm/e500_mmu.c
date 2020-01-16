@@ -419,7 +419,7 @@ int kvmppc_e500_emul_tlbwe(struct kvm_vcpu *vcpu)
 	if (tlbsel == 1) {
 		/*
 		 * If a valid tlb1 entry is overwritten then recalculate the
-		 * min/max TLB1 map address range otherwise no need to look
+		 * min/max TLB1 map address range otherwise yes need to look
 		 * in tlb1 array.
 		 */
 		if (recal)

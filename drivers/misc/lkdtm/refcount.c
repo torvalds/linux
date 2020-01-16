@@ -57,26 +57,26 @@ void lkdtm_REFCOUNT_ADD_OVERFLOW(void)
 	overflow_check(&over);
 }
 
-/* refcount_inc_not_zero() should behave just like refcount_inc() above. */
+/* refcount_inc_yest_zero() should behave just like refcount_inc() above. */
 void lkdtm_REFCOUNT_INC_NOT_ZERO_OVERFLOW(void)
 {
 	refcount_t over = REFCOUNT_INIT(REFCOUNT_MAX);
 
-	pr_info("attempting bad refcount_inc_not_zero() overflow\n");
-	if (!refcount_inc_not_zero(&over))
-		pr_warn("Weird: refcount_inc_not_zero() reported zero\n");
+	pr_info("attempting bad refcount_inc_yest_zero() overflow\n");
+	if (!refcount_inc_yest_zero(&over))
+		pr_warn("Weird: refcount_inc_yest_zero() reported zero\n");
 
 	overflow_check(&over);
 }
 
-/* refcount_add_not_zero() should behave just like refcount_inc() above. */
+/* refcount_add_yest_zero() should behave just like refcount_inc() above. */
 void lkdtm_REFCOUNT_ADD_NOT_ZERO_OVERFLOW(void)
 {
 	refcount_t over = REFCOUNT_INIT(REFCOUNT_MAX);
 
-	pr_info("attempting bad refcount_add_not_zero() overflow\n");
-	if (!refcount_add_not_zero(6, &over))
-		pr_warn("Weird: refcount_add_not_zero() reported zero\n");
+	pr_info("attempting bad refcount_add_yest_zero() overflow\n");
+	if (!refcount_add_yest_zero(6, &over))
+		pr_warn("Weird: refcount_add_yest_zero() reported zero\n");
 
 	overflow_check(&over);
 }
@@ -91,7 +91,7 @@ static void check_zero(refcount_t *ref)
 		pr_warn("Zero detected: unsafely reset to max\n");
 		break;
 	case 0:
-		pr_warn("Still at zero: refcount_inc/add() must not inc-from-0\n");
+		pr_warn("Still at zero: refcount_inc/add() must yest inc-from-0\n");
 		break;
 	default:
 		pr_err("Fail: refcount went crazy: %d\n", refcount_read(ref));
@@ -124,7 +124,7 @@ static void check_negative(refcount_t *ref, int start)
 	 * looking only at zero-pinning.
 	 */
 	if (refcount_read(ref) == start) {
-		pr_warn("Still at %d: refcount_inc/add() must not inc-from-0\n",
+		pr_warn("Still at %d: refcount_inc/add() must yest inc-from-0\n",
 			start);
 		return;
 	}
@@ -195,7 +195,7 @@ static void check_from_zero(refcount_t *ref)
 		pr_warn("Zero detected: unsafely reset to max\n");
 		break;
 	default:
-		pr_info("Fail: zero not detected, incremented to %d\n",
+		pr_info("Fail: zero yest detected, incremented to %d\n",
 			refcount_read(ref));
 	}
 }
@@ -207,15 +207,15 @@ void lkdtm_REFCOUNT_INC_ZERO(void)
 {
 	refcount_t zero = REFCOUNT_INIT(0);
 
-	pr_info("attempting safe refcount_inc_not_zero() from zero\n");
-	if (!refcount_inc_not_zero(&zero)) {
+	pr_info("attempting safe refcount_inc_yest_zero() from zero\n");
+	if (!refcount_inc_yest_zero(&zero)) {
 		pr_info("Good: zero detected\n");
 		if (refcount_read(&zero) == 0)
 			pr_info("Correctly stayed at zero\n");
 		else
 			pr_err("Fail: refcount went past zero!\n");
 	} else {
-		pr_err("Fail: Zero not detected!?\n");
+		pr_err("Fail: Zero yest detected!?\n");
 	}
 
 	pr_info("attempting bad refcount_inc() from zero\n");
@@ -232,15 +232,15 @@ void lkdtm_REFCOUNT_ADD_ZERO(void)
 {
 	refcount_t zero = REFCOUNT_INIT(0);
 
-	pr_info("attempting safe refcount_add_not_zero() from zero\n");
-	if (!refcount_add_not_zero(3, &zero)) {
+	pr_info("attempting safe refcount_add_yest_zero() from zero\n");
+	if (!refcount_add_yest_zero(3, &zero)) {
 		pr_info("Good: zero detected\n");
 		if (refcount_read(&zero) == 0)
 			pr_info("Correctly stayed at zero\n");
 		else
 			pr_err("Fail: refcount went past zero\n");
 	} else {
-		pr_err("Fail: Zero not detected!?\n");
+		pr_err("Fail: Zero yest detected!?\n");
 	}
 
 	pr_info("attempting bad refcount_add() from zero\n");
@@ -304,9 +304,9 @@ void lkdtm_REFCOUNT_INC_NOT_ZERO_SATURATED(void)
 {
 	refcount_t sat = REFCOUNT_INIT(REFCOUNT_SATURATED);
 
-	pr_info("attempting bad refcount_inc_not_zero() from saturated\n");
-	if (!refcount_inc_not_zero(&sat))
-		pr_warn("Weird: refcount_inc_not_zero() reported zero\n");
+	pr_info("attempting bad refcount_inc_yest_zero() from saturated\n");
+	if (!refcount_inc_yest_zero(&sat))
+		pr_warn("Weird: refcount_inc_yest_zero() reported zero\n");
 
 	check_saturated(&sat);
 }
@@ -316,9 +316,9 @@ void lkdtm_REFCOUNT_ADD_NOT_ZERO_SATURATED(void)
 {
 	refcount_t sat = REFCOUNT_INIT(REFCOUNT_SATURATED);
 
-	pr_info("attempting bad refcount_add_not_zero() from saturated\n");
-	if (!refcount_add_not_zero(7, &sat))
-		pr_warn("Weird: refcount_add_not_zero() reported zero\n");
+	pr_info("attempting bad refcount_add_yest_zero() from saturated\n");
+	if (!refcount_add_yest_zero(7, &sat))
+		pr_warn("Weird: refcount_add_yest_zero() reported zero\n");
 
 	check_saturated(&sat);
 }

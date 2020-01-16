@@ -135,7 +135,7 @@ static int cros_ec_light_prox_write(struct iio_dev *indio_dev,
 	switch (mask) {
 	case IIO_CHAN_INFO_CALIBBIAS:
 		st->core.calib[idx].offset = val;
-		/* Send to EC for each axis, even if not complete */
+		/* Send to EC for each axis, even if yest complete */
 		st->core.param.cmd = MOTIONSENSE_CMD_SENSOR_OFFSET;
 		st->core.param.sensor_offset.flags = MOTION_SENSE_SET_OFFSET;
 		st->core.param.sensor_offset.offset[0] =
@@ -218,7 +218,7 @@ static int cros_ec_light_prox_probe(struct platform_device *pdev)
 			BIT(IIO_CHAN_INFO_CALIBSCALE);
 		break;
 	default:
-		dev_warn(dev, "Unknown motion sensor\n");
+		dev_warn(dev, "Unkyeswn motion sensor\n");
 		return -EINVAL;
 	}
 

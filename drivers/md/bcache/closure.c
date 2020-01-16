@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Asynchronous refcounty things
+ * Asynchroyesus refcounty things
  *
  * Copyright 2010, 2011 Kent Overstreet <kent.overstreet@gmail.com>
  * Copyright 2012 Google, Inc.
@@ -59,9 +59,9 @@ void closure_put(struct closure *cl)
  */
 void __closure_wake_up(struct closure_waitlist *wait_list)
 {
-	struct llist_node *list;
+	struct llist_yesde *list;
 	struct closure *cl, *t;
-	struct llist_node *reverse = NULL;
+	struct llist_yesde *reverse = NULL;
 
 	list = llist_del_all(&wait_list->list);
 
@@ -188,7 +188,7 @@ static int debug_seq_show(struct seq_file *f, void *data)
 	return 0;
 }
 
-static int debug_seq_open(struct inode *inode, struct file *file)
+static int debug_seq_open(struct iyesde *iyesde, struct file *file)
 {
 	return single_open(file, debug_seq_show, NULL);
 }
@@ -205,7 +205,7 @@ void  __init closure_debug_init(void)
 	if (!IS_ERR_OR_NULL(bcache_debug))
 		/*
 		 * it is unnecessary to check return value of
-		 * debugfs_create_file(), we should not care
+		 * debugfs_create_file(), we should yest care
 		 * about this.
 		 */
 		closure_debug = debugfs_create_file(

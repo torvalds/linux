@@ -35,7 +35,7 @@ u32 __initdata __visible main_extable_sort_needed = 1;
 void __init sort_main_extable(void)
 {
 	if (main_extable_sort_needed && __stop___ex_table > __start___ex_table) {
-		pr_notice("Sorting __ex_table...\n");
+		pr_yestice("Sorting __ex_table...\n");
 		sort_extable(__start___ex_table, __stop___ex_table);
 	}
 }
@@ -69,7 +69,7 @@ int init_kernel_text(unsigned long addr)
 	return 0;
 }
 
-int notrace core_kernel_text(unsigned long addr)
+int yestrace core_kernel_text(unsigned long addr)
 {
 	if (addr >= (unsigned long)_stext &&
 	    addr < (unsigned long)_etext)
@@ -109,7 +109,7 @@ int __kernel_text_address(unsigned long addr)
 	 * backtraces (such as lockdep traces).
 	 *
 	 * Since we are after the module-symbols check, there's
-	 * no danger of address overlap:
+	 * yes danger of address overlap:
 	 */
 	if (init_kernel_text(addr))
 		return 1;
@@ -118,15 +118,15 @@ int __kernel_text_address(unsigned long addr)
 
 int kernel_text_address(unsigned long addr)
 {
-	bool no_rcu;
+	bool yes_rcu;
 	int ret = 1;
 
 	if (core_kernel_text(addr))
 		return 1;
 
 	/*
-	 * If a stack dump happens while RCU is not watching, then
-	 * RCU needs to be notified that it requires to start
+	 * If a stack dump happens while RCU is yest watching, then
+	 * RCU needs to be yestified that it requires to start
 	 * watching again. This can happen either by tracing that
 	 * triggers a stack trace, or a WARN() that happens during
 	 * coming back from idle, or cpu on or offlining.
@@ -134,10 +134,10 @@ int kernel_text_address(unsigned long addr)
 	 * is_module_text_address() as well as the kprobe slots
 	 * and is_bpf_text_address() require RCU to be watching.
 	 */
-	no_rcu = !rcu_is_watching();
+	yes_rcu = !rcu_is_watching();
 
 	/* Treat this like an NMI as it can happen anywhere */
-	if (no_rcu)
+	if (yes_rcu)
 		rcu_nmi_enter();
 
 	if (is_module_text_address(addr))
@@ -150,7 +150,7 @@ int kernel_text_address(unsigned long addr)
 		goto out;
 	ret = 0;
 out:
-	if (no_rcu)
+	if (yes_rcu)
 		rcu_nmi_exit();
 
 	return ret;

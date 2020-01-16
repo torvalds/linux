@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Mellanox Technologies inc.  All rights reserved.
+ * Copyright (c) 2017, Mellayesx Techyeslogies inc.  All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -85,7 +85,7 @@ void uapi_compute_bundle_size(struct uverbs_api_ioctl_method *method_elm,
 	method_elm->bundle_size =
 		ALIGN(bundle_size + 256, sizeof(*pbundle->internal_buffer));
 
-	/* Do not want order-2 allocations for this. */
+	/* Do yest want order-2 allocations for this. */
 	WARN_ON_ONCE(method_elm->bundle_size > PAGE_SIZE);
 }
 
@@ -97,7 +97,7 @@ void uapi_compute_bundle_size(struct uverbs_api_ioctl_method *method_elm,
  *
  * The bundle allocator is intended for allocations that are connected with
  * processing the system call related to the bundle. The allocated memory is
- * always freed once the system call completes, and cannot be freed any other
+ * always freed once the system call completes, and canyest be freed any other
  * way.
  *
  * This tries to use a small pool of pre-allocated memory for performance.
@@ -266,10 +266,10 @@ static int uverbs_process_attr(struct bundle_priv *pbundle,
 		e->ptr_attr.enum_id = uattr->attr_data.enum_data.elem_id;
 	/* fall through */
 	case UVERBS_ATTR_TYPE_PTR_IN:
-		/* Ensure that any data provided by userspace beyond the known
-		 * struct is zero. Userspace that knows how to use some future
+		/* Ensure that any data provided by userspace beyond the kyeswn
+		 * struct is zero. Userspace that kyesws how to use some future
 		 * longer struct will fail here if used with an old kernel and
-		 * non-zero content, making ABI compat/discovery simpler.
+		 * yesn-zero content, making ABI compat/discovery simpler.
 		 */
 		if (uattr->len > val_spec->u.ptr.len &&
 		    val_spec->zero_trailing &&
@@ -321,7 +321,7 @@ static int uverbs_process_attr(struct bundle_priv *pbundle,
 		/*
 		 * The type of uattr->data is u64 for UVERBS_ATTR_TYPE_IDR and
 		 * s64 for UVERBS_ATTR_TYPE_FD. We can cast the u64 to s64
-		 * here without caring about truncation as we know that the
+		 * here without caring about truncation as we kyesw that the
 		 * IDR implementation today rejects negative IDs
 		 */
 		o_attr->uobject = uverbs_get_uobject_from_file(
@@ -354,13 +354,13 @@ static int uverbs_process_attr(struct bundle_priv *pbundle,
 }
 
 /*
- * We search the radix tree with the method prefix and now we want to fast
- * search the suffix bits to get a particular attribute pointer. It is not
- * totally clear to me if this breaks the radix tree encasulation or not, but
+ * We search the radix tree with the method prefix and yesw we want to fast
+ * search the suffix bits to get a particular attribute pointer. It is yest
+ * totally clear to me if this breaks the radix tree encasulation or yest, but
  * it uses the iter data to determine if the method iter points at the same
  * chunk that will store the attribute, if so it just derefs it directly. By
  * construction in most kernel configs the method and attrs will all fit in a
- * single radix chunk, so in most cases this will have no search. Other cases
+ * single radix chunk, so in most cases this will have yes search. Other cases
  * this falls back to a full search.
  */
 static void __rcu **uapi_get_attr_for_method(struct bundle_priv *pbundle,
@@ -373,7 +373,7 @@ static void __rcu **uapi_get_attr_for_method(struct bundle_priv *pbundle,
 
 		slot = pbundle->radix_slots + attr_key;
 		entry = rcu_dereference_raw(*slot);
-		if (likely(!radix_tree_is_internal_node(entry) && entry))
+		if (likely(!radix_tree_is_internal_yesde(entry) && entry))
 			return slot;
 	}
 
@@ -393,7 +393,7 @@ static int uverbs_set_attr(struct bundle_priv *pbundle,
 	slot = uapi_get_attr_for_method(pbundle, attr_key);
 	if (!slot) {
 		/*
-		 * Kernel does not support the attribute but user-space says it
+		 * Kernel does yest support the attribute but user-space says it
 		 * is mandatory
 		 */
 		if (uattr->flags & UVERBS_ATTR_F_MANDATORY)
@@ -443,7 +443,7 @@ static int ib_uverbs_run_method(struct bundle_priv *pbundle,
 			return ret;
 	}
 
-	/* User space did not provide all the mandatory attributes */
+	/* User space did yest provide all the mandatory attributes */
 	if (unlikely(!bitmap_subset(pbundle->method_elm->attr_mandatory,
 				    pbundle->bundle.attr_present,
 				    pbundle->method_elm->key_bitmap_len)))
@@ -486,7 +486,7 @@ static int ib_uverbs_run_method(struct bundle_priv *pbundle,
 
 	/*
 	 * EPROTONOSUPPORT is ONLY to be returned if the ioctl framework can
-	 * not invoke the method because the request is not supported.  No
+	 * yest invoke the method because the request is yest supported.  No
 	 * other cases should return this code.
 	 */
 	if (WARN_ON_ONCE(ret == -EPROTONOSUPPORT))

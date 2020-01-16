@@ -3,7 +3,7 @@
  * Linux multi-function-device driver (MFD) for the integrated peripherals
  * of the VIA VX855 chipset
  *
- * Copyright (C) 2009 VIA Technologies, Inc.
+ * Copyright (C) 2009 VIA Techyeslogies, Inc.
  * Copyright (C) 2010 One Laptop per Child
  * Author: Harald Welte <HaraldWelte@viatech.com>
  * All rights reserved.
@@ -51,9 +51,9 @@ static const struct mfd_cell vx855_cells[] = {
 		.num_resources = ARRAY_SIZE(vx855_gpio_resources),
 		.resources = vx855_gpio_resources,
 
-		/* we must ignore resource conflicts, for reasons outlined in
+		/* we must igyesre resource conflicts, for reasons outlined in
 		 * the vx855_gpio driver */
-		.ignore_resource_conflicts = true,
+		.igyesre_resource_conflicts = true,
 	},
 };
 
@@ -70,7 +70,7 @@ static int vx855_probe(struct pci_dev *pdev,
 	pci_read_config_word(pdev, VX855_CFG_PMIO_OFFSET, &gpio_io_offset);
 	if (!gpio_io_offset) {
 		dev_warn(&pdev->dev,
-			"BIOS did not assign PMIO base offset?!?\n");
+			"BIOS did yest assign PMIO base offset?!?\n");
 		ret = -ENODEV;
 		goto out;
 	}
@@ -79,7 +79,7 @@ static int vx855_probe(struct pci_dev *pdev,
 	 * hardware returns them as 0x01 */
 	gpio_io_offset &= 0xff80;
 
-	/* As the region identified here includes many non-GPIO things, we
+	/* As the region identified here includes many yesn-GPIO things, we
 	 * only work with the specific registers that concern us. */
 	vx855_gpio_resources[0].start = gpio_io_offset + VX855_PMIO_R_GPI;
 	vx855_gpio_resources[0].end = vx855_gpio_resources[0].start + 3;
@@ -90,7 +90,7 @@ static int vx855_probe(struct pci_dev *pdev,
 			NULL, 0, NULL);
 
 	/* we always return -ENODEV here in order to enable other
-	 * drivers like old, not-yet-platform_device ported i2c-viapro */
+	 * drivers like old, yest-yet-platform_device ported i2c-viapro */
 	return -ENODEV;
 out:
 	pci_disable_device(pdev);

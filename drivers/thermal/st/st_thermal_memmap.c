@@ -125,7 +125,7 @@ static int st_mmap_regmap_init(struct st_thermal_sensor *sensor)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {
-		dev_err(dev, "no memory resources defined\n");
+		dev_err(dev, "yes memory resources defined\n");
 		return -ENODEV;
 	}
 

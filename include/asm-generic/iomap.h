@@ -22,8 +22,8 @@
  * (or the cookie itself, depending on implementation and hw).
  *
  * The generic routines just encode the PIO/MMIO as part of the
- * cookie, and coldly assume that the MMIO IO mappings are not
- * in the low address range. Architectures for which this is not
+ * cookie, and coldly assume that the MMIO IO mappings are yest
+ * in the low address range. Architectures for which this is yest
  * true can't use this generic implementation.
  */
 extern unsigned int ioread8(void __iomem *);
@@ -74,7 +74,7 @@ extern void iowrite64be_hi_lo(u64 val, void __iomem *addr);
  * the assumption that IO and memory agree on a
  * byte order, and CPU byteorder is irrelevant).
  *
- * They do _not_ update the port address. If you
+ * They do _yest_ update the port address. If you
  * want MMIO that copies stuff laid out in MMIO
  * memory across multiple ports, use "memcpy_toio()"
  * and friends.
@@ -94,11 +94,11 @@ extern void ioport_unmap(void __iomem *);
 #endif
 
 #ifndef ARCH_HAS_IOREMAP_WC
-#define ioremap_wc ioremap_nocache
+#define ioremap_wc ioremap_yescache
 #endif
 
 #ifndef ARCH_HAS_IOREMAP_WT
-#define ioremap_wt ioremap_nocache
+#define ioremap_wt ioremap_yescache
 #endif
 
 #ifdef CONFIG_PCI

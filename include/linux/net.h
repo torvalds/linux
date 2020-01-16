@@ -25,8 +25,8 @@
 #include <uapi/linux/net.h>
 
 struct poll_table_struct;
-struct pipe_inode_info;
-struct inode;
+struct pipe_iyesde_info;
+struct iyesde;
 struct file;
 struct net;
 
@@ -106,7 +106,7 @@ struct socket_wq {
  *  @flags: socket flags (%SOCK_NOSPACE, etc)
  *  @ops: protocol specific socket operations
  *  @file: File back pointer for gc
- *  @sk: internal networking protocol agnostic socket representation
+ *  @sk: internal networking protocol agyesstic socket representation
  *  @wq: wait queue for several uses
  */
 struct socket {
@@ -188,7 +188,7 @@ struct proto_ops {
 	ssize_t		(*sendpage)  (struct socket *sock, struct page *page,
 				      int offset, size_t size, int flags);
 	ssize_t 	(*splice_read)(struct socket *sock,  loff_t *ppos,
-				       struct pipe_inode_info *pipe, size_t len, unsigned int flags);
+				       struct pipe_iyesde_info *pipe, size_t len, unsigned int flags);
 	int		(*set_peek_off)(struct sock *sk, int val);
 	int		(*peek_len)(struct socket *sock);
 
@@ -257,8 +257,8 @@ do {								\
 	net_ratelimited_function(pr_crit, fmt, ##__VA_ARGS__)
 #define net_err_ratelimited(fmt, ...)				\
 	net_ratelimited_function(pr_err, fmt, ##__VA_ARGS__)
-#define net_notice_ratelimited(fmt, ...)			\
-	net_ratelimited_function(pr_notice, fmt, ##__VA_ARGS__)
+#define net_yestice_ratelimited(fmt, ...)			\
+	net_ratelimited_function(pr_yestice, fmt, ##__VA_ARGS__)
 #define net_warn_ratelimited(fmt, ...)				\
 	net_ratelimited_function(pr_warn, fmt, ##__VA_ARGS__)
 #define net_info_ratelimited(fmt, ...)				\
@@ -279,7 +279,7 @@ do {									\
 #define net_dbg_ratelimited(fmt, ...)				\
 	do {							\
 		if (0)						\
-			no_printk(KERN_DEBUG pr_fmt(fmt), ##__VA_ARGS__); \
+			yes_printk(KERN_DEBUG pr_fmt(fmt), ##__VA_ARGS__); \
 	} while (0)
 #endif
 

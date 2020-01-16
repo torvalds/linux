@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -55,9 +55,9 @@
 #define QIB_7322_Revision_R_ChipRevMajor_LSB 0x8
 #define QIB_7322_Revision_R_ChipRevMajor_MSB 0xF
 #define QIB_7322_Revision_R_ChipRevMajor_RMASK 0xFF
-#define QIB_7322_Revision_R_ChipRevMinor_LSB 0x0
-#define QIB_7322_Revision_R_ChipRevMinor_MSB 0x7
-#define QIB_7322_Revision_R_ChipRevMinor_RMASK 0xFF
+#define QIB_7322_Revision_R_ChipRevMiyesr_LSB 0x0
+#define QIB_7322_Revision_R_ChipRevMiyesr_MSB 0x7
+#define QIB_7322_Revision_R_ChipRevMiyesr_RMASK 0xFF
 
 #define QIB_7322_Control_OFFS 0x8
 #define QIB_7322_Control_DEF 0x0000000000000000
@@ -865,9 +865,9 @@
 
 #define QIB_7322_HwDiagCtrl_OFFS 0xB0
 #define QIB_7322_HwDiagCtrl_DEF 0x0000000000000000
-#define QIB_7322_HwDiagCtrl_Diagnostic_LSB 0x3F
-#define QIB_7322_HwDiagCtrl_Diagnostic_MSB 0x3F
-#define QIB_7322_HwDiagCtrl_Diagnostic_RMASK 0x1
+#define QIB_7322_HwDiagCtrl_Diagyesstic_LSB 0x3F
+#define QIB_7322_HwDiagCtrl_Diagyesstic_MSB 0x3F
+#define QIB_7322_HwDiagCtrl_Diagyesstic_RMASK 0x1
 #define QIB_7322_HwDiagCtrl_CounterWrEnable_LSB 0x3D
 #define QIB_7322_HwDiagCtrl_CounterWrEnable_MSB 0x3D
 #define QIB_7322_HwDiagCtrl_CounterWrEnable_RMASK 0x1
@@ -1117,9 +1117,9 @@
 #define QIB_7322_ahb_transaction_reg_ahb_req_err_LSB 0x1E
 #define QIB_7322_ahb_transaction_reg_ahb_req_err_MSB 0x1E
 #define QIB_7322_ahb_transaction_reg_ahb_req_err_RMASK 0x1
-#define QIB_7322_ahb_transaction_reg_write_not_read_LSB 0x1B
-#define QIB_7322_ahb_transaction_reg_write_not_read_MSB 0x1B
-#define QIB_7322_ahb_transaction_reg_write_not_read_RMASK 0x1
+#define QIB_7322_ahb_transaction_reg_write_yest_read_LSB 0x1B
+#define QIB_7322_ahb_transaction_reg_write_yest_read_MSB 0x1B
+#define QIB_7322_ahb_transaction_reg_write_yest_read_RMASK 0x1
 #define QIB_7322_ahb_transaction_reg_ahb_address_LSB 0x10
 #define QIB_7322_ahb_transaction_reg_ahb_address_MSB 0x1A
 #define QIB_7322_ahb_transaction_reg_ahb_address_RMASK 0x7FF
@@ -2428,9 +2428,9 @@
 #define QIB_7322_IBNCModeCtrl_0_TSMCode_TS1_LSB 0x8
 #define QIB_7322_IBNCModeCtrl_0_TSMCode_TS1_MSB 0x10
 #define QIB_7322_IBNCModeCtrl_0_TSMCode_TS1_RMASK 0x1FF
-#define QIB_7322_IBNCModeCtrl_0_TSMEnable_ignore_TSM_on_rx_LSB 0x2
-#define QIB_7322_IBNCModeCtrl_0_TSMEnable_ignore_TSM_on_rx_MSB 0x2
-#define QIB_7322_IBNCModeCtrl_0_TSMEnable_ignore_TSM_on_rx_RMASK 0x1
+#define QIB_7322_IBNCModeCtrl_0_TSMEnable_igyesre_TSM_on_rx_LSB 0x2
+#define QIB_7322_IBNCModeCtrl_0_TSMEnable_igyesre_TSM_on_rx_MSB 0x2
+#define QIB_7322_IBNCModeCtrl_0_TSMEnable_igyesre_TSM_on_rx_RMASK 0x1
 #define QIB_7322_IBNCModeCtrl_0_TSMEnable_send_TS2_LSB 0x1
 #define QIB_7322_IBNCModeCtrl_0_TSMEnable_send_TS2_MSB 0x1
 #define QIB_7322_IBNCModeCtrl_0_TSMEnable_send_TS2_RMASK 0x1

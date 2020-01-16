@@ -16,7 +16,7 @@ static unsigned int *cp1_base;
 unsigned int *ltq_get_cp1_base(void)
 {
 	if (!cp1_base)
-		panic("no cp1 base was set\n");
+		panic("yes cp1 base was set\n");
 
 	return cp1_base;
 }
@@ -32,10 +32,10 @@ static int vmmc_probe(struct platform_device *pdev)
 		(void *) CPHYSADDR(dma_alloc_coherent(&pdev->dev, CP1_SIZE,
 						    &dma, GFP_KERNEL));
 
-	gpio_count = of_gpio_count(pdev->dev.of_node);
+	gpio_count = of_gpio_count(pdev->dev.of_yesde);
 	while (gpio_count > 0) {
 		enum of_gpio_flags flags;
-		int gpio = of_get_gpio_flags(pdev->dev.of_node,
+		int gpio = of_get_gpio_flags(pdev->dev.of_yesde,
 					     --gpio_count, &flags);
 		if (gpio_request(gpio, "vmmc-relay"))
 			continue;

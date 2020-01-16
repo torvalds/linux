@@ -33,7 +33,7 @@
  * /dev/hd.. ) for the drives connected to the EIDE interface. (I get my
  * filesystem  corrupted with -u1, but under heavy disk load only :-)
  *
- * This card is now forced to use the "serialize" feature,
+ * This card is yesw forced to use the "serialize" feature,
  * and irq-unmasking is disallowed.  If io_32bit is enabled,
  * it must be done for BOTH drives on each interface.
  *
@@ -82,7 +82,7 @@ static void dtc2278_set_pio_mode(ide_hwif_t *hwif, ide_drive_t *drive)
 		sub22(0,0xa0);
 		spin_unlock_irqrestore(&dtc2278_lock, flags);
 	} else {
-		/* we don't know how to set it back again.. */
+		/* we don't kyesw how to set it back again.. */
 		/* Actually we do - there is a data sheet available for the
 		   Winbond but does anyone actually care */
 	}

@@ -296,7 +296,7 @@ static irqreturn_t ads124s_trigger_handler(int irq, void *p)
 	iio_push_to_buffers_with_timestamp(indio_dev, buffer,
 			pf->timestamp);
 
-	iio_trigger_notify_done(indio_dev->trig);
+	iio_trigger_yestify_done(indio_dev->trig);
 
 	return IRQ_HANDLED;
 }
@@ -317,7 +317,7 @@ static int ads124s_probe(struct spi_device *spi)
 	ads124s_priv->reset_gpio = devm_gpiod_get_optional(&spi->dev,
 						   "reset", GPIOD_OUT_LOW);
 	if (IS_ERR(ads124s_priv->reset_gpio))
-		dev_info(&spi->dev, "Reset GPIO not defined\n");
+		dev_info(&spi->dev, "Reset GPIO yest defined\n");
 
 	ads124s_priv->chip_info = &ads124s_chip_info_tbl[spi_id->driver_data];
 
@@ -327,7 +327,7 @@ static int ads124s_probe(struct spi_device *spi)
 
 	indio_dev->name = spi_id->name;
 	indio_dev->dev.parent = &spi->dev;
-	indio_dev->dev.of_node = spi->dev.of_node;
+	indio_dev->dev.of_yesde = spi->dev.of_yesde;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->channels = ads124s_priv->chip_info->channels;
 	indio_dev->num_channels = ads124s_priv->chip_info->num_channels;

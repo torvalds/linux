@@ -568,7 +568,7 @@ static struct gpio_led tosa_gpio_leds[] = {
 	},
 	{
 		.name			= "tosa:dual:wlan",
-		.default_trigger	= "none",
+		.default_trigger	= "yesne",
 		.gpio			= TOSA_GPIO_WLAN_LED,
 	},
 	{

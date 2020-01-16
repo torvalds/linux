@@ -30,7 +30,7 @@ struct ntc_compensation {
 };
 
 /*
- * Used as index in a zero-terminated array, holes not allowed so
+ * Used as index in a zero-terminated array, holes yest allowed so
  * that NTC_LAST is the first empty array entry.
  */
 enum {
@@ -383,7 +383,7 @@ ntc_thermistor_parse_dt(struct device *dev)
 {
 	struct iio_channel *chan;
 	enum iio_chan_type type;
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 	struct ntc_thermistor_platform_data *pdata;
 	int ret;
 
@@ -414,7 +414,7 @@ ntc_thermistor_parse_dt(struct device *dev)
 
 	if (of_find_property(np, "connected-positive", NULL))
 		pdata->connect = NTC_CONNECTED_POSITIVE;
-	else /* status change should be possible if not always on. */
+	else /* status change should be possible if yest always on. */
 		pdata->connect = NTC_CONNECTED_GROUND;
 
 	pdata->chan = chan;
@@ -661,7 +661,7 @@ static int ntc_thermistor_probe(struct platform_device *pdev)
 
 	if (pdata->read_uv && pdata->read_ohm) {
 		dev_warn(dev,
-			 "Only one of read_uv and read_ohm is needed; ignoring read_uv.\n");
+			 "Only one of read_uv and read_ohm is needed; igyesring read_uv.\n");
 		pdata->read_uv = NULL;
 	}
 
@@ -672,7 +672,7 @@ static int ntc_thermistor_probe(struct platform_device *pdev)
 				 NTC_CONNECTED_POSITIVE) ||
 				(pdata->connect != NTC_CONNECTED_POSITIVE &&
 				 pdata->connect != NTC_CONNECTED_GROUND))) {
-		dev_err(dev, "Required data to use read_uv not supplied.\n");
+		dev_err(dev, "Required data to use read_uv yest supplied.\n");
 		return -EINVAL;
 	}
 
@@ -685,7 +685,7 @@ static int ntc_thermistor_probe(struct platform_device *pdev)
 	data->pdata = pdata;
 
 	if (pdev_id->driver_data >= ARRAY_SIZE(ntc_type)) {
-		dev_err(dev, "Unknown device type: %lu(%s)\n",
+		dev_err(dev, "Unkyeswn device type: %lu(%s)\n",
 				pdev_id->driver_data, pdev_id->name);
 		return -EINVAL;
 	}

@@ -15,7 +15,7 @@
  * hashword(), hashlittle(), hashlittle2(), hashbig(), mix(), and final()
  * are externally useful functions.  Routines to test the hash are included
  * if SELF_TEST is defined.  You can use this free for any purpose.  It's in
- * the public domain.  It has no warranty.
+ * the public domain.  It has yes warranty.
  *
  * Copyright (C) 2009-2010 Jozsef Kadlecsik (kadlec@netfilter.org)
  *

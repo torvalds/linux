@@ -56,7 +56,7 @@ static void syscon_led_set(struct led_classdev *led_cdev,
 static int syscon_led_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 	struct device *parent;
 	struct regmap *map;
 	struct syscon_led *sled;
@@ -65,12 +65,12 @@ static int syscon_led_probe(struct platform_device *pdev)
 
 	parent = dev->parent;
 	if (!parent) {
-		dev_err(dev, "no parent for syscon LED\n");
+		dev_err(dev, "yes parent for syscon LED\n");
 		return -ENODEV;
 	}
-	map = syscon_node_to_regmap(parent->of_node);
+	map = syscon_yesde_to_regmap(parent->of_yesde);
 	if (IS_ERR(map)) {
-		dev_err(dev, "no regmap for syscon LED parent\n");
+		dev_err(dev, "yes regmap for syscon LED parent\n");
 		return PTR_ERR(map);
 	}
 

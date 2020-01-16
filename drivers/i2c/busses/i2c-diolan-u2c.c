@@ -10,7 +10,7 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/slab.h>
@@ -162,7 +162,7 @@ static int diolan_write_cmd(struct i2c_diolan_u2c *dev, bool flush)
 	return 0;
 }
 
-/* Send command (no data) */
+/* Send command (yes data) */
 static int diolan_usb_cmd(struct i2c_diolan_u2c *dev, u8 command, bool flush)
 {
 	dev->obuffer[dev->olen++] = command;
@@ -194,7 +194,7 @@ static int diolan_usb_cmd_data2(struct i2c_diolan_u2c *dev, u8 command, u8 d1,
 /*
  * Flush input queue.
  * If we don't do this at startup and the controller has queued up
- * messages which were not retrieved, it will stop responding
+ * messages which were yest retrieved, it will stop responding
  * at some point.
  */
 static void diolan_flush_input(struct i2c_diolan_u2c *dev)

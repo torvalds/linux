@@ -10,7 +10,7 @@
 #include <linux/types.h>
 #include <linux/buffer_head.h>
 #include <linux/string.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include "nilfs.h"
 #include "mdt.h"
 #include "alloc.h"
@@ -32,19 +32,19 @@ struct nilfs_dat_info {
 	struct nilfs_shadow_map shadow;
 };
 
-static inline struct nilfs_dat_info *NILFS_DAT_I(struct inode *dat)
+static inline struct nilfs_dat_info *NILFS_DAT_I(struct iyesde *dat)
 {
 	return (struct nilfs_dat_info *)NILFS_MDT(dat);
 }
 
-static int nilfs_dat_prepare_entry(struct inode *dat,
+static int nilfs_dat_prepare_entry(struct iyesde *dat,
 				   struct nilfs_palloc_req *req, int create)
 {
 	return nilfs_palloc_get_entry_block(dat, req->pr_entry_nr,
 					    create, &req->pr_entry_bh);
 }
 
-static void nilfs_dat_commit_entry(struct inode *dat,
+static void nilfs_dat_commit_entry(struct iyesde *dat,
 				   struct nilfs_palloc_req *req)
 {
 	mark_buffer_dirty(req->pr_entry_bh);
@@ -52,13 +52,13 @@ static void nilfs_dat_commit_entry(struct inode *dat,
 	brelse(req->pr_entry_bh);
 }
 
-static void nilfs_dat_abort_entry(struct inode *dat,
+static void nilfs_dat_abort_entry(struct iyesde *dat,
 				  struct nilfs_palloc_req *req)
 {
 	brelse(req->pr_entry_bh);
 }
 
-int nilfs_dat_prepare_alloc(struct inode *dat, struct nilfs_palloc_req *req)
+int nilfs_dat_prepare_alloc(struct iyesde *dat, struct nilfs_palloc_req *req)
 {
 	int ret;
 
@@ -73,7 +73,7 @@ int nilfs_dat_prepare_alloc(struct inode *dat, struct nilfs_palloc_req *req)
 	return ret;
 }
 
-void nilfs_dat_commit_alloc(struct inode *dat, struct nilfs_palloc_req *req)
+void nilfs_dat_commit_alloc(struct iyesde *dat, struct nilfs_palloc_req *req)
 {
 	struct nilfs_dat_entry *entry;
 	void *kaddr;
@@ -90,13 +90,13 @@ void nilfs_dat_commit_alloc(struct inode *dat, struct nilfs_palloc_req *req)
 	nilfs_dat_commit_entry(dat, req);
 }
 
-void nilfs_dat_abort_alloc(struct inode *dat, struct nilfs_palloc_req *req)
+void nilfs_dat_abort_alloc(struct iyesde *dat, struct nilfs_palloc_req *req)
 {
 	nilfs_dat_abort_entry(dat, req);
 	nilfs_palloc_abort_alloc_entry(dat, req);
 }
 
-static void nilfs_dat_commit_free(struct inode *dat,
+static void nilfs_dat_commit_free(struct iyesde *dat,
 				  struct nilfs_palloc_req *req)
 {
 	struct nilfs_dat_entry *entry;
@@ -114,7 +114,7 @@ static void nilfs_dat_commit_free(struct inode *dat,
 	nilfs_palloc_commit_free_entry(dat, req);
 }
 
-int nilfs_dat_prepare_start(struct inode *dat, struct nilfs_palloc_req *req)
+int nilfs_dat_prepare_start(struct iyesde *dat, struct nilfs_palloc_req *req)
 {
 	int ret;
 
@@ -123,7 +123,7 @@ int nilfs_dat_prepare_start(struct inode *dat, struct nilfs_palloc_req *req)
 	return ret;
 }
 
-void nilfs_dat_commit_start(struct inode *dat, struct nilfs_palloc_req *req,
+void nilfs_dat_commit_start(struct iyesde *dat, struct nilfs_palloc_req *req,
 			    sector_t blocknr)
 {
 	struct nilfs_dat_entry *entry;
@@ -132,14 +132,14 @@ void nilfs_dat_commit_start(struct inode *dat, struct nilfs_palloc_req *req,
 	kaddr = kmap_atomic(req->pr_entry_bh->b_page);
 	entry = nilfs_palloc_block_get_entry(dat, req->pr_entry_nr,
 					     req->pr_entry_bh, kaddr);
-	entry->de_start = cpu_to_le64(nilfs_mdt_cno(dat));
+	entry->de_start = cpu_to_le64(nilfs_mdt_cyes(dat));
 	entry->de_blocknr = cpu_to_le64(blocknr);
 	kunmap_atomic(kaddr);
 
 	nilfs_dat_commit_entry(dat, req);
 }
 
-int nilfs_dat_prepare_end(struct inode *dat, struct nilfs_palloc_req *req)
+int nilfs_dat_prepare_end(struct iyesde *dat, struct nilfs_palloc_req *req)
 {
 	struct nilfs_dat_entry *entry;
 	sector_t blocknr;
@@ -169,7 +169,7 @@ int nilfs_dat_prepare_end(struct inode *dat, struct nilfs_palloc_req *req)
 	return 0;
 }
 
-void nilfs_dat_commit_end(struct inode *dat, struct nilfs_palloc_req *req,
+void nilfs_dat_commit_end(struct iyesde *dat, struct nilfs_palloc_req *req,
 			  int dead)
 {
 	struct nilfs_dat_entry *entry;
@@ -182,7 +182,7 @@ void nilfs_dat_commit_end(struct inode *dat, struct nilfs_palloc_req *req,
 					     req->pr_entry_bh, kaddr);
 	end = start = le64_to_cpu(entry->de_start);
 	if (!dead) {
-		end = nilfs_mdt_cno(dat);
+		end = nilfs_mdt_cyes(dat);
 		WARN_ON(start > end);
 	}
 	entry->de_end = cpu_to_le64(end);
@@ -195,7 +195,7 @@ void nilfs_dat_commit_end(struct inode *dat, struct nilfs_palloc_req *req,
 		nilfs_dat_commit_entry(dat, req);
 }
 
-void nilfs_dat_abort_end(struct inode *dat, struct nilfs_palloc_req *req)
+void nilfs_dat_abort_end(struct iyesde *dat, struct nilfs_palloc_req *req)
 {
 	struct nilfs_dat_entry *entry;
 	__u64 start;
@@ -209,12 +209,12 @@ void nilfs_dat_abort_end(struct inode *dat, struct nilfs_palloc_req *req)
 	blocknr = le64_to_cpu(entry->de_blocknr);
 	kunmap_atomic(kaddr);
 
-	if (start == nilfs_mdt_cno(dat) && blocknr == 0)
+	if (start == nilfs_mdt_cyes(dat) && blocknr == 0)
 		nilfs_palloc_abort_free_entry(dat, req);
 	nilfs_dat_abort_entry(dat, req);
 }
 
-int nilfs_dat_prepare_update(struct inode *dat,
+int nilfs_dat_prepare_update(struct iyesde *dat,
 			     struct nilfs_palloc_req *oldreq,
 			     struct nilfs_palloc_req *newreq)
 {
@@ -229,7 +229,7 @@ int nilfs_dat_prepare_update(struct inode *dat,
 	return ret;
 }
 
-void nilfs_dat_commit_update(struct inode *dat,
+void nilfs_dat_commit_update(struct iyesde *dat,
 			     struct nilfs_palloc_req *oldreq,
 			     struct nilfs_palloc_req *newreq, int dead)
 {
@@ -237,7 +237,7 @@ void nilfs_dat_commit_update(struct inode *dat,
 	nilfs_dat_commit_alloc(dat, newreq);
 }
 
-void nilfs_dat_abort_update(struct inode *dat,
+void nilfs_dat_abort_update(struct iyesde *dat,
 			    struct nilfs_palloc_req *oldreq,
 			    struct nilfs_palloc_req *newreq)
 {
@@ -247,7 +247,7 @@ void nilfs_dat_abort_update(struct inode *dat,
 
 /**
  * nilfs_dat_mark_dirty -
- * @dat: DAT file inode
+ * @dat: DAT file iyesde
  * @vblocknr: virtual block number
  *
  * Description:
@@ -259,7 +259,7 @@ void nilfs_dat_abort_update(struct inode *dat,
  *
  * %-ENOMEM - Insufficient amount of memory available.
  */
-int nilfs_dat_mark_dirty(struct inode *dat, __u64 vblocknr)
+int nilfs_dat_mark_dirty(struct iyesde *dat, __u64 vblocknr)
 {
 	struct nilfs_palloc_req req;
 	int ret;
@@ -273,7 +273,7 @@ int nilfs_dat_mark_dirty(struct inode *dat, __u64 vblocknr)
 
 /**
  * nilfs_dat_freev - free virtual block numbers
- * @dat: DAT file inode
+ * @dat: DAT file iyesde
  * @vblocknrs: array of virtual block numbers
  * @nitems: number of virtual block numbers
  *
@@ -287,16 +287,16 @@ int nilfs_dat_mark_dirty(struct inode *dat, __u64 vblocknr)
  *
  * %-ENOMEM - Insufficient amount of memory available.
  *
- * %-ENOENT - The virtual block number have not been allocated.
+ * %-ENOENT - The virtual block number have yest been allocated.
  */
-int nilfs_dat_freev(struct inode *dat, __u64 *vblocknrs, size_t nitems)
+int nilfs_dat_freev(struct iyesde *dat, __u64 *vblocknrs, size_t nitems)
 {
 	return nilfs_palloc_freev(dat, vblocknrs, nitems);
 }
 
 /**
  * nilfs_dat_move - change a block number
- * @dat: DAT file inode
+ * @dat: DAT file iyesde
  * @vblocknr: virtual block number
  * @blocknr: block number
  *
@@ -310,7 +310,7 @@ int nilfs_dat_freev(struct inode *dat, __u64 *vblocknrs, size_t nitems)
  *
  * %-ENOMEM - Insufficient amount of memory available.
  */
-int nilfs_dat_move(struct inode *dat, __u64 vblocknr, sector_t blocknr)
+int nilfs_dat_move(struct iyesde *dat, __u64 vblocknr, sector_t blocknr)
 {
 	struct buffer_head *entry_bh;
 	struct nilfs_dat_entry *entry;
@@ -322,7 +322,7 @@ int nilfs_dat_move(struct inode *dat, __u64 vblocknr, sector_t blocknr)
 		return ret;
 
 	/*
-	 * The given disk block number (blocknr) is not yet written to
+	 * The given disk block number (blocknr) is yest yet written to
 	 * the device at this point.
 	 *
 	 * To prevent nilfs_dat_translate() from returning the
@@ -363,7 +363,7 @@ int nilfs_dat_move(struct inode *dat, __u64 vblocknr, sector_t blocknr)
 
 /**
  * nilfs_dat_translate - translate a virtual block number to a block number
- * @dat: DAT file inode
+ * @dat: DAT file iyesde
  * @vblocknr: virtual block number
  * @blocknrp: pointer to a block number
  *
@@ -378,9 +378,9 @@ int nilfs_dat_move(struct inode *dat, __u64 vblocknr, sector_t blocknr)
  *
  * %-ENOMEM - Insufficient amount of memory available.
  *
- * %-ENOENT - A block number associated with @vblocknr does not exist.
+ * %-ENOENT - A block number associated with @vblocknr does yest exist.
  */
-int nilfs_dat_translate(struct inode *dat, __u64 vblocknr, sector_t *blocknrp)
+int nilfs_dat_translate(struct iyesde *dat, __u64 vblocknr, sector_t *blocknrp)
 {
 	struct buffer_head *entry_bh, *bh;
 	struct nilfs_dat_entry *entry;
@@ -416,7 +416,7 @@ int nilfs_dat_translate(struct inode *dat, __u64 vblocknr, sector_t *blocknrp)
 	return ret;
 }
 
-ssize_t nilfs_dat_get_vinfo(struct inode *dat, void *buf, unsigned int visz,
+ssize_t nilfs_dat_get_vinfo(struct iyesde *dat, void *buf, unsigned int visz,
 			    size_t nvi)
 {
 	struct buffer_head *entry_bh;
@@ -456,17 +456,17 @@ ssize_t nilfs_dat_get_vinfo(struct inode *dat, void *buf, unsigned int visz,
 }
 
 /**
- * nilfs_dat_read - read or get dat inode
+ * nilfs_dat_read - read or get dat iyesde
  * @sb: super block instance
  * @entry_size: size of a dat entry
- * @raw_inode: on-disk dat inode
- * @inodep: buffer to store the inode
+ * @raw_iyesde: on-disk dat iyesde
+ * @iyesdep: buffer to store the iyesde
  */
 int nilfs_dat_read(struct super_block *sb, size_t entry_size,
-		   struct nilfs_inode *raw_inode, struct inode **inodep)
+		   struct nilfs_iyesde *raw_iyesde, struct iyesde **iyesdep)
 {
 	static struct lock_class_key dat_lock_key;
-	struct inode *dat;
+	struct iyesde *dat;
 	struct nilfs_dat_info *di;
 	int err;
 
@@ -499,13 +499,13 @@ int nilfs_dat_read(struct super_block *sb, size_t entry_size,
 	nilfs_palloc_setup_cache(dat, &di->palloc_cache);
 	nilfs_mdt_setup_shadow_map(dat, &di->shadow);
 
-	err = nilfs_read_inode_common(dat, raw_inode);
+	err = nilfs_read_iyesde_common(dat, raw_iyesde);
 	if (err)
 		goto failed;
 
-	unlock_new_inode(dat);
+	unlock_new_iyesde(dat);
  out:
-	*inodep = dat;
+	*iyesdep = dat;
 	return 0;
  failed:
 	iget_failed(dat);

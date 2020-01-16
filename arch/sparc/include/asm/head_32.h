@@ -4,13 +4,13 @@
 
 #define KERNBASE        0xf0000000  /* First address the kernel will eventually be */
 
-#define WRITE_PAUSE      nop; nop; nop; /* Have to do this after %wim/%psr chg */
+#define WRITE_PAUSE      yesp; yesp; yesp; /* Have to do this after %wim/%psr chg */
 
 /* Here are some trap goodies */
 
 /* Generic trap entry. */
 #define TRAP_ENTRY(type, label) \
-	rd %psr, %l0; b label; rd %wim, %l3; nop;
+	rd %psr, %l0; b label; rd %wim, %l3; yesp;
 
 /* Data/text faults */
 #define SRMMU_TFAULT rd %psr, %l0; rd %wim, %l3; b srmmu_fault; mov 1, %l7;
@@ -22,7 +22,7 @@
 
 /* This is for traps when we want just skip the instruction which caused it */
 #define SKIP_TRAP(type, name) \
-	jmpl %l2, %g0; rett %l2 + 4; nop; nop;
+	jmpl %l2, %g0; rett %l2 + 4; yesp; yesp;
 
 /* Notice that for the system calls we pull a trick.  We load up a
  * different pointer to the system call vector table in %l7, but call
@@ -40,15 +40,15 @@
 #define BREAKPOINT_TRAP \
 	b breakpoint_trap; \
 	rd %psr,%l0; \
-	nop; \
-	nop;
+	yesp; \
+	yesp;
 
 #ifdef CONFIG_KGDB
 #define KGDB_TRAP(num)                  \
 	mov num, %l7;                   \
 	b kgdb_trap_low;                \
 	rd %psr,%l0;                    \
-	nop;
+	yesp;
 #else
 #define KGDB_TRAP(num) \
 	BAD_TRAP(num)
@@ -56,18 +56,18 @@
 
 /* The Get Condition Codes software trap for userland. */
 #define GETCC_TRAP \
-        b getcc_trap_handler; rd %psr, %l0; nop; nop;
+        b getcc_trap_handler; rd %psr, %l0; yesp; yesp;
 
 /* The Set Condition Codes software trap for userland. */
 #define SETCC_TRAP \
-        b setcc_trap_handler; rd %psr, %l0; nop; nop;
+        b setcc_trap_handler; rd %psr, %l0; yesp; yesp;
 
 /* The Get PSR software trap for userland. */
 #define GETPSR_TRAP \
-	rd %psr, %i0; jmp %l2; rett %l2 + 4; nop;
+	rd %psr, %i0; jmp %l2; rett %l2 + 4; yesp;
 
-/* This is for hard interrupts from level 1-14, 15 is non-maskable (nmi) and
- * gets handled with another macro.
+/* This is for hard interrupts from level 1-14, 15 is yesn-maskable (nmi) and
+ * gets handled with ayesther macro.
  */
 #define TRAP_ENTRY_INTERRUPT(int_level) \
         mov int_level, %l7; rd %psr, %l0; b real_irq_entry; rd %wim, %l3;

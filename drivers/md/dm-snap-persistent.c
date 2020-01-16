@@ -33,9 +33,9 @@
  * of the COW store.  It makes sense therefore, to store the
  * metadata in chunk size blocks.
  *
- * There is no backward or forward compatibility implemented,
+ * There is yes backward or forward compatibility implemented,
  * snapshots with different disk versions than the kernel will
- * not be usable.  It is expected that "lvcreate" will blank out
+ * yest be usable.  It is expected that "lvcreate" will blank out
  * the start of a fresh COW device before calling the snapshot
  * constructor.
  *
@@ -66,13 +66,13 @@ struct disk_header {
 	__le32 magic;
 
 	/*
-	 * Is this snapshot valid.  There is no way of recovering
+	 * Is this snapshot valid.  There is yes way of recovering
 	 * an invalid snapshot.
 	 */
 	__le32 valid;
 
 	/*
-	 * Simple, incrementing version. no backward
+	 * Simple, incrementing version. yes backward
 	 * compatibility.
 	 */
 	__le32 version;
@@ -106,7 +106,7 @@ struct pstore {
 	uint32_t exceptions_per_area;
 
 	/*
-	 * Now that we have an asynchronous kcopyd there is no
+	 * Now that we have an asynchroyesus kcopyd there is yes
 	 * need for large chunk sizes, so it wont hurt to have a
 	 * whole chunks worth of metadata in memory at once.
 	 */
@@ -139,7 +139,7 @@ struct pstore {
 	 * the exception store because chunks can be committed out of
 	 * order.
 	 *
-	 * When merging exceptions, it does not necessarily mean all the
+	 * When merging exceptions, it does yest necessarily mean all the
 	 * chunks here and above are free.  It holds the value it would
 	 * have held if all chunks had been committed in order of
 	 * allocation.  Consequently the value may occasionally be
@@ -240,7 +240,7 @@ static int chunk_io(struct pstore *ps, void *area, chunk_t chunk, int op,
 		.mem.type = DM_IO_VMA,
 		.mem.ptr.vma = area,
 		.client = ps->io_client,
-		.notify.fn = NULL,
+		.yestify.fn = NULL,
 	};
 	struct mdata_req req;
 
@@ -251,7 +251,7 @@ static int chunk_io(struct pstore *ps, void *area, chunk_t chunk, int op,
 	req.io_req = &io_req;
 
 	/*
-	 * Issue the synchronous I/O from a different thread
+	 * Issue the synchroyesus I/O from a different thread
 	 * to avoid generic_make_request recursion.
 	 */
 	INIT_WORK_ONSTACK(&req.work, do_metadata);
@@ -317,7 +317,7 @@ static int read_header(struct pstore *ps, int *new_snapshot)
 
 	/*
 	 * Use default chunk size (or logical_block_size, if larger)
-	 * if none supplied
+	 * if yesne supplied
 	 */
 	if (!ps->store->chunk_size) {
 		ps->store->chunk_size = max(DM_CHUNK_SIZE_DEFAULT_SECTORS,
@@ -464,8 +464,8 @@ static int insert_exceptions(struct pstore *ps, void *ps_area,
 		/*
 		 * If the new_chunk is pointing at the start of
 		 * the COW device, where the first metadata area
-		 * is we know that we've hit the end of the
-		 * exceptions.  Therefore the area is not full.
+		 * is we kyesw that we've hit the end of the
+		 * exceptions.  Therefore the area is yest full.
 		 */
 		if (e.new_chunk == 0LL) {
 			ps->current_committed = i;
@@ -624,7 +624,7 @@ static int persistent_read_metadata(struct dm_exception_store *store,
 		return r;
 
 	/*
-	 * Now we know correct chunk_size, complete the initialisation.
+	 * Now we kyesw correct chunk_size, complete the initialisation.
 	 */
 	ps->exceptions_per_area = (ps->store->chunk_size << SECTOR_SHIFT) /
 				  sizeof(struct disk_exception);
@@ -679,7 +679,7 @@ static int persistent_prepare_exception(struct dm_exception_store *store,
 	struct pstore *ps = get_info(store);
 	sector_t size = get_dev_size(dm_snap_cow(store->snap)->bdev);
 
-	/* Is there enough room ? */
+	/* Is there eyesugh room ? */
 	if (size < ((ps->next_free + 1) * store->chunk_size))
 		return -ENOSPC;
 
@@ -716,7 +716,7 @@ static void persistent_commit_exception(struct dm_exception_store *store,
 	/*
 	 * Add the callback to the back of the array.  This code
 	 * is the only place where the callback array is
-	 * manipulated, and we know that it will never be called
+	 * manipulated, and we kyesw that it will never be called
 	 * multiple times concurrently.
 	 */
 	cb = ps->callbacks + ps->callback_count++;
@@ -724,8 +724,8 @@ static void persistent_commit_exception(struct dm_exception_store *store,
 	cb->context = callback_context;
 
 	/*
-	 * If there are exceptions in flight and we have not yet
-	 * filled this metadata area there's nothing more to do.
+	 * If there are exceptions in flight and we have yest yet
+	 * filled this metadata area there's yesthing more to do.
 	 */
 	if (!atomic_dec_and_test(&ps->pending_count) &&
 	    (ps->current_committed != ps->exceptions_per_area))
@@ -827,12 +827,12 @@ static int persistent_commit_merge(struct dm_exception_store *store,
 
 	/*
 	 * At this stage, only persistent_usage() uses ps->next_free, so
-	 * we make no attempt to keep ps->next_free strictly accurate
+	 * we make yes attempt to keep ps->next_free strictly accurate
 	 * as exceptions may have been committed out-of-order originally.
 	 * Once a snapshot has become merging, we set it to the value it
 	 * would have held had all the exceptions been committed in order.
 	 *
-	 * ps->current_area does not get reduced by prepare_merge() until
+	 * ps->current_area does yest get reduced by prepare_merge() until
 	 * after commit_merge() has removed the nr_merged previous exceptions.
 	 */
 	ps->next_free = area_location(ps, ps->current_area) +

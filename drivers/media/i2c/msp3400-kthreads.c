@@ -2,7 +2,7 @@
 /*
  * Programming the mspx4xx sound processor family
  *
- * (c) 1997-2001 Gerd Knorr <kraxel@bytesex.org>
+ * (c) 1997-2001 Gerd Kyesrr <kraxel@bytesex.org>
  */
 
 
@@ -25,7 +25,7 @@ static struct {
 	char *name;
 	v4l2_std_id std;
 } msp_stdlist[] = {
-	{ 0x0000, 0, 0, "could not detect sound standard", V4L2_STD_ALL },
+	{ 0x0000, 0, 0, "could yest detect sound standard", V4L2_STD_ALL },
 	{ 0x0001, 0, 0, "autodetect start", V4L2_STD_ALL },
 	{ 0x0002, MSP_CARRIER(4.5), MSP_CARRIER(4.72),
 	  "4.5/4.72  M Dual FM-Stereo", V4L2_STD_MN },
@@ -36,7 +36,7 @@ static struct {
 	{ 0x0005, MSP_CARRIER(6.5), MSP_CARRIER(6.7421875),
 	  "6.5/6.74  D/K2 Dual FM-Stereo", V4L2_STD_DK },
 	{ 0x0006, MSP_CARRIER(6.5), MSP_CARRIER(6.5),
-	  "6.5  D/K FM-Mono (HDEV3)", V4L2_STD_DK },
+	  "6.5  D/K FM-Moyes (HDEV3)", V4L2_STD_DK },
 	{ 0x0007, MSP_CARRIER(6.5), MSP_CARRIER(5.7421875),
 	  "6.5/5.74  D/K3 Dual FM-Stereo", V4L2_STD_DK },
 	{ 0x0008, MSP_CARRIER(5.5), MSP_CARRIER(5.85),
@@ -54,13 +54,13 @@ static struct {
 	{ 0x0020, MSP_CARRIER(4.5), MSP_CARRIER(4.5),
 	  "4.5  M BTSC-Stereo", V4L2_STD_MTS },
 	{ 0x0021, MSP_CARRIER(4.5), MSP_CARRIER(4.5),
-	  "4.5  M BTSC-Mono + SAP", V4L2_STD_MTS },
+	  "4.5  M BTSC-Moyes + SAP", V4L2_STD_MTS },
 	{ 0x0030, MSP_CARRIER(4.5), MSP_CARRIER(4.5),
 	  "4.5  M EIA-J Japan Stereo", V4L2_STD_NTSC_M_JP },
 	{ 0x0040, MSP_CARRIER(10.7), MSP_CARRIER(10.7),
 	  "10.7  FM-Stereo Radio", V4L2_STD_ALL },
 	{ 0x0050, MSP_CARRIER(6.5), MSP_CARRIER(6.5),
-	  "6.5  SAT-Mono", V4L2_STD_ALL },
+	  "6.5  SAT-Moyes", V4L2_STD_ALL },
 	{ 0x0051, MSP_CARRIER(7.02), MSP_CARRIER(7.20),
 	  "7.02/7.20  SAT-Stereo", V4L2_STD_ALL },
 	{ 0x0060, MSP_CARRIER(7.2), MSP_CARRIER(7.2),
@@ -93,12 +93,12 @@ static struct msp3400c_init_data_dem {
 		{-8, -8, 4, 6, 78, 107},
 		MSP_CARRIER(10.7), MSP_CARRIER(10.7),
 		0x00d0, 0x0480, 0x0020, 0x3000
-	}, {	/* Terrestrial FM-mono + FM-stereo */
+	}, {	/* Terrestrial FM-moyes + FM-stereo */
 		{3, 18, 27, 48, 66, 72},
 		{3, 18, 27, 48, 66, 72},
 		MSP_CARRIER(5.5), MSP_CARRIER(5.5),
 		0x00d0, 0x0480, 0x0030, 0x3000
-	}, {	/* Sat FM-mono */
+	}, {	/* Sat FM-moyes */
 		{ 1, 9, 14, 24, 33, 37},
 		{ 3, 18, 27, 48, 66, 72},
 		MSP_CARRIER(6.5), MSP_CARRIER(6.5),
@@ -159,7 +159,7 @@ const char *msp_standard_std_name(int std)
 	for (i = 0; msp_stdlist[i].name != NULL; i++)
 		if (msp_stdlist[i].retval == std)
 			return msp_stdlist[i].name;
-	return "unknown";
+	return "unkyeswn";
 }
 
 static v4l2_std_id msp_standard_std(int std)
@@ -228,23 +228,23 @@ void msp3400c_set_mode(struct i2c_client *client, int mode)
 	msp_set_source(client, data->dsp_src);
 	/* set prescales */
 
-	/* volume prescale for SCART (AM mono input) */
+	/* volume prescale for SCART (AM moyes input) */
 	msp_write_dsp(client, 0x000d, 0x1900);
 	msp_write_dsp(client, 0x000e, data->dsp_matrix);
 	if (state->has_nicam) /* nicam prescale */
 		msp_write_dsp(client, 0x0010, 0x5a00);
 }
 
-/* Set audio mode. Note that the pre-'G' models do not support BTSC+SAP,
-   nor do they support stereo BTSC. */
+/* Set audio mode. Note that the pre-'G' models do yest support BTSC+SAP,
+   yesr do they support stereo BTSC. */
 static void msp3400c_set_audmode(struct i2c_client *client)
 {
 	static char *strmode[] = {
-		"mono", "stereo", "lang2", "lang1", "lang1+lang2"
+		"moyes", "stereo", "lang2", "lang1", "lang1+lang2"
 	};
 	struct msp_state *state = to_state(i2c_get_clientdata(client));
 	char *modestr = (state->audmode >= 0 && state->audmode < 5) ?
-		strmode[state->audmode] : "unknown";
+		strmode[state->audmode] : "unkyeswn";
 	int src = 0;	/* channel source: FM/AM, nicam or SCART */
 	int audmode = state->audmode;
 
@@ -253,27 +253,27 @@ static void msp3400c_set_audmode(struct i2c_client *client)
 		 * it's never called
 		 */
 		dev_dbg_lvl(&client->dev, 1, msp_debug,
-			"set_audmode called with mode=%d instead of set_source (ignored)\n",
+			"set_audmode called with mode=%d instead of set_source (igyesred)\n",
 			state->audmode);
 		return;
 	}
 
-	/* Note: for the C and D revs no NTSC stereo + SAP is possible as
-	   the hardware does not support SAP. So the rxsubchans combination
-	   of STEREO | LANG2 does not occur. */
+	/* Note: for the C and D revs yes NTSC stereo + SAP is possible as
+	   the hardware does yest support SAP. So the rxsubchans combination
+	   of STEREO | LANG2 does yest occur. */
 
 	if (state->mode != MSP_MODE_EXTERN) {
-		/* switch to mono if only mono is available */
+		/* switch to moyes if only moyes is available */
 		if (state->rxsubchans == V4L2_TUNER_SUB_MONO)
 			audmode = V4L2_TUNER_MODE_MONO;
 		/* if bilingual */
 		else if (state->rxsubchans & V4L2_TUNER_SUB_LANG2) {
-			/* and mono or stereo, then fallback to lang1 */
+			/* and moyes or stereo, then fallback to lang1 */
 			if (audmode == V4L2_TUNER_MODE_MONO ||
 			    audmode == V4L2_TUNER_MODE_STEREO)
 				audmode = V4L2_TUNER_MODE_LANG1;
 		}
-		/* if stereo, and audmode is not mono, then switch to stereo */
+		/* if stereo, and audmode is yest moyes, then switch to stereo */
 		else if (audmode != V4L2_TUNER_MODE_MONO)
 			audmode = V4L2_TUNER_MODE_STEREO;
 	}
@@ -334,7 +334,7 @@ static void msp3400c_set_audmode(struct i2c_client *client)
 			"FM-Radio set_audmode: %s\n", modestr);
 		break;
 	default:
-		dev_dbg_lvl(&client->dev, 1, msp_debug, "mono set_audmode\n");
+		dev_dbg_lvl(&client->dev, 1, msp_debug, "moyes set_audmode\n");
 		return;
 	}
 
@@ -347,8 +347,8 @@ static void msp3400c_set_audmode(struct i2c_client *client)
 		break;
 	case V4L2_TUNER_MODE_MONO:
 		if (state->mode == MSP_MODE_AM_NICAM) {
-			dev_dbg_lvl(&client->dev, 1, msp_debug, "switching to AM mono\n");
-			/* AM mono decoding is handled by tuner, not MSP chip */
+			dev_dbg_lvl(&client->dev, 1, msp_debug, "switching to AM moyes\n");
+			/* AM moyes decoding is handled by tuner, yest MSP chip */
 			/* SCART switching control register */
 			msp_set_scart(client, SCART_MONO, 0);
 			src = 0x0200;
@@ -375,7 +375,7 @@ static void msp3400c_print_mode(struct i2c_client *client)
 
 	if (state->main == state->second)
 		dev_dbg_lvl(&client->dev, 1, msp_debug,
-			"mono sound carrier: %d.%03d MHz\n",
+			"moyes sound carrier: %d.%03d MHz\n",
 			state->main / 910000, (state->main / 910) % 1000);
 	else
 		dev_dbg_lvl(&client->dev, 1, msp_debug,
@@ -509,9 +509,9 @@ restart:
 			break;
 
 		if (state->radio || MSP_MODE_EXTERN == state->mode) {
-			/* no carrier scan, just unmute */
+			/* yes carrier scan, just unmute */
 			dev_dbg_lvl(&client->dev, 1, msp_debug,
-				"thread: no carrier scan\n");
+				"thread: yes carrier scan\n");
 			state->scan_in_progress = 0;
 			msp_update_volume(state);
 			continue;
@@ -609,7 +609,7 @@ restart:
 				state->nicam_on = 1;
 				state->watch_stereo = 1;
 			} else {
-				goto no_second;
+				goto yes_second;
 			}
 			break;
 		case 2: /* 6.0 */
@@ -628,7 +628,7 @@ restart:
 				state->watch_stereo = 1;
 				state->detected_std = V4L2_STD_DK;
 			} else if (max2 == 0 && (state->v4l2_std & V4L2_STD_SECAM)) {
-				/* L NICAM or AM-mono */
+				/* L NICAM or AM-moyes */
 				state->second = msp3400c_carrier_detect_65[max2].cdo;
 				msp3400c_set_mode(client, MSP_MODE_AM_NICAM);
 				state->watch_stereo = 1;
@@ -641,14 +641,14 @@ restart:
 				state->watch_stereo = 1;
 				state->detected_std = V4L2_STD_DK;
 			} else {
-				goto no_second;
+				goto yes_second;
 			}
 			break;
 		case 0: /* 4.5 */
 			state->detected_std = V4L2_STD_MN;
 			/* fall-through */
 		default:
-no_second:
+yes_second:
 			state->second = msp3400c_carrier_detect_main[max1].cdo;
 			msp3400c_set_mode(client, MSP_MODE_FM_TERRA);
 			break;
@@ -700,9 +700,9 @@ restart:
 			break;
 
 		if (state->mode == MSP_MODE_EXTERN) {
-			/* no carrier scan needed, just unmute */
+			/* yes carrier scan needed, just unmute */
 			dev_dbg_lvl(&client->dev, 1, msp_debug,
-				"thread: no carrier scan\n");
+				"thread: yes carrier scan\n");
 			state->scan_in_progress = 0;
 			msp_update_volume(state);
 			continue;
@@ -712,7 +712,7 @@ restart:
 		state->scan_in_progress = 1;
 		msp_update_volume(state);
 
-		/* start autodetect. Note: autodetect is not supported for
+		/* start autodetect. Note: autodetect is yest supported for
 		   NTSC-M and radio, hence we force the standard in those
 		   cases. */
 		if (state->radio)
@@ -764,7 +764,7 @@ restart:
 			/* autodetection has failed, let backup */
 			dev_dbg_lvl(&client->dev, 1, msp_debug, "autodetection failed, switching to backup standard: %s (0x%04x)\n",
 				msp_stdlist[8].name ?
-					msp_stdlist[8].name : "unknown", val);
+					msp_stdlist[8].name : "unkyeswn", val);
 			state->std = val = 0x0009;
 			msp_write_dem(client, 0x20, val);
 		} else {
@@ -790,13 +790,13 @@ restart:
 			state->watch_stereo = 1;
 			break;
 		case 0x0020: /* BTSC */
-			/* The pre-'G' models only have BTSC-mono */
+			/* The pre-'G' models only have BTSC-moyes */
 			state->mode = MSP_MODE_BTSC;
 			break;
 		case 0x0040: /* FM radio */
 			state->mode = MSP_MODE_FM_RADIO;
 			state->rxsubchans = V4L2_TUNER_SUB_STEREO;
-			/* not needed in theory if we have radio, but
+			/* yest needed in theory if we have radio, but
 			   short programming enables carrier mute */
 			msp3400c_set_mode(client, MSP_MODE_FM_RADIO);
 			msp3400c_set_carrier(client, MSP_CARRIER(10.7),
@@ -842,10 +842,10 @@ restart:
 
 /* ----------------------------------------------------------------------- */
 
-/* msp34xxG + (autoselect no-thread)
+/* msp34xxG + (autoselect yes-thread)
  * this one uses both automatic standard detection and automatic sound
  * select which are available in the newer G versions
- * struct msp: only norm, acb and source are really used in this mode
+ * struct msp: only yesrm, acb and source are really used in this mode
  */
 
 static int msp34xxg_modus(struct i2c_client *client)
@@ -882,7 +882,7 @@ static void msp34xxg_set_source(struct i2c_client *client, u16 reg, int in)
 
 	switch (state->audmode) {
 	case V4L2_TUNER_MODE_MONO:
-		source = 0; /* mono only */
+		source = 0; /* moyes only */
 		matrix = 0x30;
 		break;
 	case V4L2_TUNER_MODE_LANG2:
@@ -940,7 +940,7 @@ static void msp34xxg_reset(struct i2c_client *client)
 	int tuner = (state->route_in >> 3) & 1;
 	int modus;
 
-	/* initialize std to 1 (autodetect) to signal that no standard is
+	/* initialize std to 1 (autodetect) to signal that yes standard is
 	   selected yet. */
 	state->std = 1;
 
@@ -955,7 +955,7 @@ static void msp34xxg_reset(struct i2c_client *client)
 	msp_write_dem(client, 0x30, modus);
 
 	/* write the dsps that may have an influence on
-	   standard/audio autodetection right now */
+	   standard/audio autodetection right yesw */
 	msp34xxg_set_sources(client);
 
 	msp_write_dsp(client, 0x0d, 0x1900); /* scart */
@@ -965,9 +965,9 @@ static void msp34xxg_reset(struct i2c_client *client)
 
 	/* set identification threshold. Personally, I
 	 * I set it to a higher value than the default
-	 * of 0x190 to ignore noisy stereo signals.
+	 * of 0x190 to igyesre yesisy stereo signals.
 	 * this needs tuning. (recommended range 0x00a0-0x03c0)
-	 * 0x7f0 = forced mono mode
+	 * 0x7f0 = forced moyes mode
 	 *
 	 * a2 threshold for stereo/bilingual.
 	 * Note: this register is part of the Manual/Compatibility mode.
@@ -997,9 +997,9 @@ restart:
 			break;
 
 		if (state->mode == MSP_MODE_EXTERN) {
-			/* no carrier scan needed, just unmute */
+			/* yes carrier scan needed, just unmute */
 			dev_dbg_lvl(&client->dev, 1, msp_debug,
-				"thread: no carrier scan\n");
+				"thread: yes carrier scan\n");
 			state->scan_in_progress = 0;
 			msp_update_volume(state);
 			continue;

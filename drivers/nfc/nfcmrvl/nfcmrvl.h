@@ -111,7 +111,7 @@ struct nfcmrvl_private *nfcmrvl_nci_register_dev(enum nfcmrvl_phy phy,
 void nfcmrvl_chip_reset(struct nfcmrvl_private *priv);
 void nfcmrvl_chip_halt(struct nfcmrvl_private *priv);
 
-int nfcmrvl_parse_dt(struct device_node *node,
+int nfcmrvl_parse_dt(struct device_yesde *yesde,
 		     struct nfcmrvl_platform_data *pdata);
 
 #endif

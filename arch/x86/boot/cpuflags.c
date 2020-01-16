@@ -88,7 +88,7 @@ void get_cpuflags(void)
 {
 	u32 max_intel_level, max_amd_level;
 	u32 tfms;
-	u32 ignored;
+	u32 igyesred;
 
 	if (loaded_flags)
 		return;
@@ -103,7 +103,7 @@ void get_cpuflags(void)
 
 		if (max_intel_level >= 0x00000001 &&
 		    max_intel_level <= 0x0000ffff) {
-			cpuid(0x1, &tfms, &ignored, &cpu.flags[4],
+			cpuid(0x1, &tfms, &igyesred, &cpu.flags[4],
 			      &cpu.flags[0]);
 			cpu.level = (tfms >> 8) & 15;
 			cpu.family = cpu.level;
@@ -113,16 +113,16 @@ void get_cpuflags(void)
 		}
 
 		if (max_intel_level >= 0x00000007) {
-			cpuid_count(0x00000007, 0, &ignored, &ignored,
-					&cpu.flags[16], &ignored);
+			cpuid_count(0x00000007, 0, &igyesred, &igyesred,
+					&cpu.flags[16], &igyesred);
 		}
 
-		cpuid(0x80000000, &max_amd_level, &ignored, &ignored,
-		      &ignored);
+		cpuid(0x80000000, &max_amd_level, &igyesred, &igyesred,
+		      &igyesred);
 
 		if (max_amd_level >= 0x80000001 &&
 		    max_amd_level <= 0x8000ffff) {
-			cpuid(0x80000001, &ignored, &ignored, &cpu.flags[6],
+			cpuid(0x80000001, &igyesred, &igyesred, &cpu.flags[6],
 			      &cpu.flags[1]);
 		}
 	}

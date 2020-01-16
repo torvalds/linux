@@ -26,17 +26,17 @@
                 <pro>   is the protocol number for the adapter that
                         supports this drive.  These numbers are
                         logged by 'paride' when the protocol modules
-                        are initialised.  (0 if not given)
+                        are initialised.  (0 if yest given)
 
                 <uni>   for those adapters that support chained
                         devices, this is the unit selector for the
                         chain of devices on the given port.  It should
                         be zero for devices that don't support chaining.
-                        (0 if not given)
+                        (0 if yest given)
 
                 <mod>   this can be -1 to choose the best mode, or one
                         of the mode numbers supported by the adapter.
-                        (-1 if not given)
+                        (-1 if yest given)
 
 		<slv>   ATAPI CD-ROMs can be jumpered to master or slave.
 			Set this to 0 to choose the master drive, 1 to
@@ -62,7 +62,7 @@
 
             verbose     This parameter controls the amount of logging
                         that the driver will do.  Set it to 0 for
-                        normal operation, 1 to see autoprobe progress
+                        yesrmal operation, 1 to see autoprobe progress
                         messages, or 2 to see additional debugging
                         output.  (default 0)
   
@@ -131,7 +131,7 @@ enum {D_PRT, D_PRO, D_UNI, D_MOD, D_SLV, D_DLY};
 
 #include <linux/module.h>
 #include <linux/init.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/fs.h>
 #include <linux/kernel.h>
 #include <linux/delay.h>
@@ -209,7 +209,7 @@ static struct pcd_unit pcd[PCD_UNITS];
 static char pcd_scratch[64];
 static char pcd_buffer[2048];	/* raw block buffer */
 static int pcd_bufblk = -1;	/* block in buffer, in CD units,
-				   -1 for nothing there. See also
+				   -1 for yesthing there. See also
 				   pd_unit.
 				 */
 
@@ -339,7 +339,7 @@ static void pcd_init_units(void)
 		cd->info.capacity = 1;
 		cd->info.mask = 0;
 		disk->major = major;
-		disk->first_minor = unit;
+		disk->first_miyesr = unit;
 		strcpy(disk->disk_name, cd->name);	/* umm... */
 		disk->fops = &pcd_bdops;
 		disk->flags = GENHD_FL_BLOCK_EVENTS_ON_EXCL_WRITE;
@@ -641,7 +641,7 @@ static int pcd_identify(struct pcd_unit *cd, char *id)
 		return -1;
 	if ((pcd_buffer[0] & 0x1f) != 5) {
 		if (verbose)
-			printk("%s: %s is not a CD-ROM\n",
+			printk("%s: %s is yest a CD-ROM\n",
 			       cd->name, cd->drive ? "Slave" : "Master");
 		return -1;
 	}
@@ -689,7 +689,7 @@ static void pcd_probe_capabilities(void)
 		r = pcd_atapi(cd, cmd, 18, buffer, "mode sense capabilities");
 		if (r)
 			continue;
-		/* we should now have the cap page */
+		/* we should yesw have the cap page */
 		if ((buffer[11] & 1) == 0)
 			cd->info.mask |= CDC_CD_R;
 		if ((buffer[11] & 2) == 0)
@@ -721,7 +721,7 @@ static int pcd_detect(void)
 	}
 
 	k = 0;
-	if (pcd_drive_count == 0) { /* nothing spec'd - so autoprobe for 1 */
+	if (pcd_drive_count == 0) { /* yesthing spec'd - so autoprobe for 1 */
 		cd = pcd;
 		if (cd->disk && pi_init(cd->pi, 1, -1, -1, -1, -1, -1,
 			    pcd_buffer, PI_PCD, verbose, cd->name)) {

@@ -3,7 +3,7 @@
  * Copyright (C) 2015 Mans Rullgard <mans@mansr.com>
  *
  * Mostly rewritten, based on driver from Sigma Designs.  Original
- * copyright notice below.
+ * copyright yestice below.
  *
  * Driver for tangox SMP864x/SMP865x/SMP867x/SMP868x builtin Ethernet Mac.
  *
@@ -334,7 +334,7 @@ again:
 
 		/* If a packet arrived after we last checked but
 		 * before writing RX_ITR, the interrupt will be
-		 * delayed, so we retrieve it now.
+		 * delayed, so we retrieve it yesw.
 		 */
 		if (priv->rx_descs[next].report)
 			goto again;
@@ -890,8 +890,8 @@ static int nb8800_dma_stop(struct net_device *dev)
 	/* The rx DMA only stops if it reaches the end of chain.
 	 * To make this happen, we set the EOC flag on all rx
 	 * descriptors, put the device in loopback mode, and send
-	 * a few dummy frames.  The interrupt handler will ignore
-	 * these since NAPI is disabled and no real frames are in
+	 * a few dummy frames.  The interrupt handler will igyesre
+	 * these since NAPI is disabled and yes real frames are in
 	 * the tx queue.
 	 */
 
@@ -955,7 +955,7 @@ static int nb8800_open(struct net_device *dev)
 	nb8800_mac_rx(dev, true);
 	nb8800_mac_tx(dev, true);
 
-	phydev = of_phy_connect(dev, priv->phy_node,
+	phydev = of_phy_connect(dev, priv->phy_yesde,
 				nb8800_link_reconfigure, 0,
 				priv->phy_mode);
 	if (!phydev) {
@@ -1209,12 +1209,12 @@ static int nb8800_hw_init(struct net_device *dev)
 	nb8800_writel(priv, NB8800_RXC_CR, val);
 
 	/* The rx interrupt can fire before the DMA has completed
-	 * unless a small delay is added.  50 us is hopefully enough.
+	 * unless a small delay is added.  50 us is hopefully eyesugh.
 	 */
 	priv->rx_itr_irq = clk_get_rate(priv->clk) / 20000;
 
 	/* In NAPI poll mode we want to disable interrupts, but the
-	 * hardware does not permit this.  Delay 10 ms instead.
+	 * hardware does yest permit this.  Delay 10 ms instead.
 	 */
 	priv->rx_itr_poll = clk_get_rate(priv->clk) / 100;
 
@@ -1371,7 +1371,7 @@ static int nb8800_probe(struct platform_device *pdev)
 	priv = netdev_priv(dev);
 	priv->base = base;
 
-	ret = of_get_phy_mode(pdev->dev.of_node, &priv->phy_mode);
+	ret = of_get_phy_mode(pdev->dev.of_yesde, &priv->phy_mode);
 	if (ret)
 		priv->phy_mode = PHY_INTERFACE_MODE_RGMII;
 
@@ -1408,27 +1408,27 @@ static int nb8800_probe(struct platform_device *pdev)
 		 (unsigned long)res->start);
 	bus->priv = priv;
 
-	ret = of_mdiobus_register(bus, pdev->dev.of_node);
+	ret = of_mdiobus_register(bus, pdev->dev.of_yesde);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to register MII bus\n");
 		goto err_disable_clk;
 	}
 
-	if (of_phy_is_fixed_link(pdev->dev.of_node)) {
-		ret = of_phy_register_fixed_link(pdev->dev.of_node);
+	if (of_phy_is_fixed_link(pdev->dev.of_yesde)) {
+		ret = of_phy_register_fixed_link(pdev->dev.of_yesde);
 		if (ret < 0) {
 			dev_err(&pdev->dev, "bad fixed-link spec\n");
 			goto err_free_bus;
 		}
-		priv->phy_node = of_node_get(pdev->dev.of_node);
+		priv->phy_yesde = of_yesde_get(pdev->dev.of_yesde);
 	}
 
-	if (!priv->phy_node)
-		priv->phy_node = of_parse_phandle(pdev->dev.of_node,
+	if (!priv->phy_yesde)
+		priv->phy_yesde = of_parse_phandle(pdev->dev.of_yesde,
 						  "phy-handle", 0);
 
-	if (!priv->phy_node) {
-		dev_err(&pdev->dev, "no PHY specified\n");
+	if (!priv->phy_yesde) {
+		dev_err(&pdev->dev, "yes PHY specified\n");
 		ret = -ENODEV;
 		goto err_free_bus;
 	}
@@ -1450,7 +1450,7 @@ static int nb8800_probe(struct platform_device *pdev)
 	dev->flags |= IFF_MULTICAST;
 	dev->irq = irq;
 
-	mac = of_get_mac_address(pdev->dev.of_node);
+	mac = of_get_mac_address(pdev->dev.of_yesde);
 	if (!IS_ERR(mac))
 		ether_addr_copy(dev->dev_addr, mac);
 
@@ -1476,10 +1476,10 @@ static int nb8800_probe(struct platform_device *pdev)
 err_free_dma:
 	nb8800_dma_free(dev);
 err_deregister_fixed_link:
-	if (of_phy_is_fixed_link(pdev->dev.of_node))
-		of_phy_deregister_fixed_link(pdev->dev.of_node);
+	if (of_phy_is_fixed_link(pdev->dev.of_yesde))
+		of_phy_deregister_fixed_link(pdev->dev.of_yesde);
 err_free_bus:
-	of_node_put(priv->phy_node);
+	of_yesde_put(priv->phy_yesde);
 	mdiobus_unregister(bus);
 err_disable_clk:
 	clk_disable_unprepare(priv->clk);
@@ -1495,9 +1495,9 @@ static int nb8800_remove(struct platform_device *pdev)
 	struct nb8800_priv *priv = netdev_priv(ndev);
 
 	unregister_netdev(ndev);
-	if (of_phy_is_fixed_link(pdev->dev.of_node))
-		of_phy_deregister_fixed_link(pdev->dev.of_node);
-	of_node_put(priv->phy_node);
+	if (of_phy_is_fixed_link(pdev->dev.of_yesde))
+		of_phy_deregister_fixed_link(pdev->dev.of_yesde);
+	of_yesde_put(priv->phy_yesde);
 
 	mdiobus_unregister(priv->mii_bus);
 

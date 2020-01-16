@@ -44,7 +44,7 @@ Additional Features and Configurations
 ethtool
 -------
 The driver utilizes the ethtool interface for driver configuration and
-diagnostics, as well as displaying statistical information. The latest ethtool
+diagyesstics, as well as displaying statistical information. The latest ethtool
 version is required for this functionality. Download it at:
 
 https://www.kernel.org/pub/software/network/ethtool/

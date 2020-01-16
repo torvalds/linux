@@ -9,8 +9,8 @@
  * Copyright (C) 1999 Silicon Graphics, Inc.
  * Kevin D. Kissell, kevink@mips.com and Carsten Langgaard, carstenl@mips.com
  * Copyright (C) 2002, 2003, 2004, 2005, 2007  Maciej W. Rozycki
- * Copyright (C) 2000, 2001, 2012 MIPS Technologies, Inc.  All rights reserved.
- * Copyright (C) 2014, Imagination Technologies Ltd.
+ * Copyright (C) 2000, 2001, 2012 MIPS Techyeslogies, Inc.  All rights reserved.
+ * Copyright (C) 2014, Imagination Techyeslogies Ltd.
  */
 #include <linux/bitops.h>
 #include <linux/bug.h>
@@ -34,7 +34,7 @@
 #include <linux/kgdb.h>
 #include <linux/kdebug.h>
 #include <linux/kprobes.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/kdb.h>
 #include <linux/irq.h>
 #include <linux/perf_event.h>
@@ -221,7 +221,7 @@ void show_stack(struct task_struct *task, unsigned long *sp)
 	}
 	/*
 	 * show_stack() deals exclusively with kernel mode, so be sure to access
-	 * the stack in the kernel (not user) address space.
+	 * the stack in the kernel (yest user) address space.
 	 */
 	set_fs(KERNEL_DS);
 	show_stacktrace(task, &regs);
@@ -384,14 +384,14 @@ void show_registers(struct pt_regs *regs)
 
 static DEFINE_RAW_SPINLOCK(die_lock);
 
-void __noreturn die(const char *str, struct pt_regs *regs)
+void __yesreturn die(const char *str, struct pt_regs *regs)
 {
 	static int die_counter;
 	int sig = SIGSEGV;
 
 	oops_enter();
 
-	if (notify_die(DIE_OOPS, str, regs, 0, current->thread.trap_nr,
+	if (yestify_die(DIE_OOPS, str, regs, 0, current->thread.trap_nr,
 		       SIGSEGV) == NOTIFY_STOP)
 		sig = 0;
 
@@ -446,7 +446,7 @@ asmlinkage void do_be(struct pt_regs *regs)
 	enum ctx_state prev_state;
 
 	prev_state = exception_enter();
-	/* XXX For now.	 Fixme, this searches the wrong table ...  */
+	/* XXX For yesw.	 Fixme, this searches the wrong table ...  */
 	if (data && !user_mode(regs))
 		fixup = search_dbe_tables(exception_epc(regs));
 
@@ -477,7 +477,7 @@ asmlinkage void do_be(struct pt_regs *regs)
 	printk(KERN_ALERT "%s bus error, epc == %0*lx, ra == %0*lx\n",
 	       data ? "Data" : "Instruction",
 	       field, regs->cp0_epc, field, regs->regs[31]);
-	if (notify_die(DIE_OOPS, "bus error", regs, 0, current->thread.trap_nr,
+	if (yestify_die(DIE_OOPS, "bus error", regs, 0, current->thread.trap_nr,
 		       SIGBUS) == NOTIFY_STOP)
 		goto out;
 
@@ -623,7 +623,7 @@ static int simulate_llsc(struct pt_regs *regs, unsigned int opcode)
 
 /*
  * Simulate trapping 'rdhwr' instructions to provide user accessible
- * registers not implemented in hardware.
+ * registers yest implemented in hardware.
  */
 static int simulate_rdhwr(struct pt_regs *regs, int rd, int rt)
 {
@@ -660,7 +660,7 @@ static int simulate_rdhwr(struct pt_regs *regs, int rd, int rt)
 	}
 }
 
-static int simulate_rdhwr_normal(struct pt_regs *regs, unsigned int opcode)
+static int simulate_rdhwr_yesrmal(struct pt_regs *regs, unsigned int opcode)
 {
 	if ((opcode & OPCODE) == SPEC3 && (opcode & FUNC) == RDHWR) {
 		int rd = (opcode & RD) >> 11;
@@ -778,7 +778,7 @@ static int simulate_fp(struct pt_regs *regs, unsigned int opcode,
 	unsigned long fcr31;
 	int sig;
 
-	/* If it's obviously not an FP instruction, skip it */
+	/* If it's obviously yest an FP instruction, skip it */
 	switch (inst.i_format.opcode) {
 	case cop1_op:
 	case cop1x_op:
@@ -829,7 +829,7 @@ asmlinkage void do_fpe(struct pt_regs *regs, unsigned long fcr31)
 	int sig;
 
 	prev_state = exception_enter();
-	if (notify_die(DIE_FP, "FP exception", regs, 0, current->thread.trap_nr,
+	if (yestify_die(DIE_FP, "FP exception", regs, 0, current->thread.trap_nr,
 		       SIGFPE) == NOTIFY_STOP)
 		goto out;
 
@@ -887,7 +887,7 @@ static void mt_ase_fp_affinity(void)
 	if (mt_fpemul_threshold > 0 &&
 	     ((current->thread.emulated_fp++ > mt_fpemul_threshold))) {
 		/*
-		 * If there's no FPU present, or if the application has already
+		 * If there's yes FPU present, or if the application has already
 		 * restricted the allowed set to exclude any CPUs with FPUs,
 		 * we'll skip the procedure.
 		 */
@@ -926,7 +926,7 @@ void do_trap_or_bp(struct pt_regs *regs, unsigned int code, int si_code,
 		return;
 #endif /* CONFIG_KGDB_LOW_LEVEL_TRAP */
 
-	if (notify_die(DIE_TRAP, str, regs, code, current->thread.trap_nr,
+	if (yestify_die(DIE_TRAP, str, regs, code, current->thread.trap_nr,
 		       SIGTRAP) == NOTIFY_STOP)
 		return;
 
@@ -956,7 +956,7 @@ void do_trap_or_bp(struct pt_regs *regs, unsigned int code, int si_code,
 		 * delay slot of an emulated branch.
 		 *
 		 * Terminate if exception was recognized as a delay slot return
-		 * otherwise handle as normal.
+		 * otherwise handle as yesrmal.
 		 */
 		if (do_dsemulret(regs))
 			return;
@@ -1016,37 +1016,37 @@ asmlinkage void do_bp(struct pt_regs *regs)
 	/*
 	 * There is the ancient bug in the MIPS assemblers that the break
 	 * code starts left to bit 16 instead to bit 6 in the opcode.
-	 * Gas is bug-compatible, but not always, grrr...
+	 * Gas is bug-compatible, but yest always, grrr...
 	 * We handle both cases with a simple heuristics.  --macro
 	 */
 	if (bcode >= (1 << 10))
 		bcode = ((bcode & ((1 << 10) - 1)) << 10) | (bcode >> 10);
 
 	/*
-	 * notify the kprobe handlers, if instruction is likely to
+	 * yestify the kprobe handlers, if instruction is likely to
 	 * pertain to them.
 	 */
 	switch (bcode) {
 	case BRK_UPROBE:
-		if (notify_die(DIE_UPROBE, "uprobe", regs, bcode,
+		if (yestify_die(DIE_UPROBE, "uprobe", regs, bcode,
 			       current->thread.trap_nr, SIGTRAP) == NOTIFY_STOP)
 			goto out;
 		else
 			break;
 	case BRK_UPROBE_XOL:
-		if (notify_die(DIE_UPROBE_XOL, "uprobe_xol", regs, bcode,
+		if (yestify_die(DIE_UPROBE_XOL, "uprobe_xol", regs, bcode,
 			       current->thread.trap_nr, SIGTRAP) == NOTIFY_STOP)
 			goto out;
 		else
 			break;
 	case BRK_KPROBE_BP:
-		if (notify_die(DIE_BREAK, "debug", regs, bcode,
+		if (yestify_die(DIE_BREAK, "debug", regs, bcode,
 			       current->thread.trap_nr, SIGTRAP) == NOTIFY_STOP)
 			goto out;
 		else
 			break;
 	case BRK_KPROBE_SSTEPBP:
-		if (notify_die(DIE_SSTEPBP, "single_step", regs, bcode,
+		if (yestify_die(DIE_SSTEPBP, "single_step", regs, bcode,
 			       current->thread.trap_nr, SIGTRAP) == NOTIFY_STOP)
 			goto out;
 		else
@@ -1133,7 +1133,7 @@ asmlinkage void do_ri(struct pt_regs *regs)
 		case SIGEMT:
 			return;
 		case SIGILL:
-			goto no_r2_instr;
+			goto yes_r2_instr;
 		default:
 			process_fpemu_return(status,
 					     &current->thread.cp0_baduaddr,
@@ -1142,12 +1142,12 @@ asmlinkage void do_ri(struct pt_regs *regs)
 		}
 	}
 
-no_r2_instr:
+yes_r2_instr:
 
 	prev_state = exception_enter();
 	current->thread.trap_nr = (regs->cp0_cause >> 2) & 0x1f;
 
-	if (notify_die(DIE_RI, "RI Fault", regs, 0, current->thread.trap_nr,
+	if (yestify_die(DIE_RI, "RI Fault", regs, 0, current->thread.trap_nr,
 		       SIGILL) == NOTIFY_STOP)
 		goto out;
 
@@ -1164,7 +1164,7 @@ no_r2_instr:
 			status = simulate_llsc(regs, opcode);
 
 		if (status < 0)
-			status = simulate_rdhwr_normal(regs, opcode);
+			status = simulate_rdhwr_yesrmal(regs, opcode);
 
 		if (status < 0)
 			status = simulate_sync(regs, opcode);
@@ -1203,17 +1203,17 @@ out:
  */
 static RAW_NOTIFIER_HEAD(cu2_chain);
 
-int __ref register_cu2_notifier(struct notifier_block *nb)
+int __ref register_cu2_yestifier(struct yestifier_block *nb)
 {
-	return raw_notifier_chain_register(&cu2_chain, nb);
+	return raw_yestifier_chain_register(&cu2_chain, nb);
 }
 
-int cu2_notifier_call_chain(unsigned long val, void *v)
+int cu2_yestifier_call_chain(unsigned long val, void *v)
 {
-	return raw_notifier_call_chain(&cu2_chain, val, v);
+	return raw_yestifier_call_chain(&cu2_chain, val, v);
 }
 
-static int default_cu2_call(struct notifier_block *nfb, unsigned long action,
+static int default_cu2_call(struct yestifier_block *nfb, unsigned long action,
 	void *data)
 {
 	struct pt_regs *regs = data;
@@ -1250,7 +1250,7 @@ static int enable_restore_fp_context(int msa)
 	/*
 	 * This task has formerly used the FP context.
 	 *
-	 * If this thread has no live MSA vector context then we can simply
+	 * If this thread has yes live MSA vector context then we can simply
 	 * restore the scalar FP context. If it has live MSA vector context
 	 * (that is, it has or may have used MSA since last performing a
 	 * function call) then we'll need to restore the vector context. This
@@ -1259,18 +1259,18 @@ static int enable_restore_fp_context(int msa)
 	 * instruction then we'd either have to:
 	 *
 	 *  - Restore the vector context & clobber any registers modified by
-	 *    scalar FP instructions between now & then.
+	 *    scalar FP instructions between yesw & then.
 	 *
 	 * or
 	 *
 	 *  - Not restore the vector context & lose the most significant bits
 	 *    of all vector registers.
 	 *
-	 * Neither of those options is acceptable. We cannot restore the least
-	 * significant bits of the registers now & only restore the most
+	 * Neither of those options is acceptable. We canyest restore the least
+	 * significant bits of the registers yesw & only restore the most
 	 * significant bits later because the most significant bits of any
-	 * vector registers whose aliased FP register is modified now will have
-	 * been zeroed. We'd have no way to know that when restoring the vector
+	 * vector registers whose aliased FP register is modified yesw will have
+	 * been zeroed. We'd have yes way to kyesw that when restoring the vector
 	 * context & thus may load an outdated value for the most significant
 	 * bits of a vector register.
 	 */
@@ -1295,8 +1295,8 @@ static int enable_restore_fp_context(int msa)
 	 * If this is the first time that the task is using MSA and it has
 	 * previously used scalar FP in this time slice then we already nave
 	 * FP context which we shouldn't clobber. We do however need to clear
-	 * the upper 64b of each vector register so that this task has no
-	 * opportunity to see data left behind by another.
+	 * the upper 64b of each vector register so that this task has yes
+	 * opportunity to see data left behind by ayesther.
 	 */
 	prior_msa = test_and_set_thread_flag(TIF_MSA_CTX_LIVE);
 	if (!prior_msa && was_fpu_owner) {
@@ -1313,9 +1313,9 @@ static int enable_restore_fp_context(int msa)
 		_restore_fp(current);
 
 		/*
-		 * The task has not formerly used MSA, so clear the upper 64b
-		 * of each vector register such that it cannot see data left
-		 * behind by another task.
+		 * The task has yest formerly used MSA, so clear the upper 64b
+		 * of each vector register such that it canyest see data left
+		 * behind by ayesther task.
 		 */
 		init_msa_upper();
 	} else {
@@ -1442,7 +1442,7 @@ asmlinkage void do_cpu(struct pt_regs *regs)
 #endif /* CONFIG_MIPS_FP_SUPPORT */
 
 	case 2:
-		raw_notifier_call_chain(&cu2_chain, CU2_EXCEPTION, regs);
+		raw_yestifier_call_chain(&cu2_chain, CU2_EXCEPTION, regs);
 		break;
 	}
 
@@ -1455,7 +1455,7 @@ asmlinkage void do_msa_fpe(struct pt_regs *regs, unsigned int msacsr)
 
 	prev_state = exception_enter();
 	current->thread.trap_nr = (regs->cp0_cause >> 2) & 0x1f;
-	if (notify_die(DIE_MSAFP, "MSA FP exception", regs, 0,
+	if (yestify_die(DIE_MSAFP, "MSA FP exception", regs, 0,
 		       current->thread.trap_nr, SIGFPE) == NOTIFY_STOP)
 		goto out;
 
@@ -1515,7 +1515,7 @@ asmlinkage void do_watch(struct pt_regs *regs)
 
 	/*
 	 * If the current thread has the watch registers loaded, save
-	 * their values and send SIGTRAP.  Otherwise another thread
+	 * their values and send SIGTRAP.  Otherwise ayesther thread
 	 * left the registers set, clear them and continue.
 	 */
 	if (test_tsk_thread_flag(current, TIF_LOAD_WATCH)) {
@@ -1557,7 +1557,7 @@ asmlinkage void do_mcheck(struct pt_regs *regs)
 	 */
 	panic("Caught Machine Check exception - %scaused by multiple "
 	      "matching entries in the TLB.",
-	      (multi_match) ? "" : "not ");
+	      (multi_match) ? "" : "yest ");
 }
 
 asmlinkage void do_mt(struct pt_regs *regs)
@@ -1607,29 +1607,29 @@ asmlinkage void do_dsp(struct pt_regs *regs)
 asmlinkage void do_reserved(struct pt_regs *regs)
 {
 	/*
-	 * Game over - no way to handle this if it ever occurs.	 Most probably
-	 * caused by a new unknown cpu type or after another deadly
+	 * Game over - yes way to handle this if it ever occurs.	 Most probably
+	 * caused by a new unkyeswn cpu type or after ayesther deadly
 	 * hard/software error.
 	 */
 	show_regs(regs);
-	panic("Caught reserved exception %ld - should not happen.",
+	panic("Caught reserved exception %ld - should yest happen.",
 	      (regs->cp0_cause & 0x7f) >> 2);
 }
 
 static int __initdata l1parity = 1;
-static int __init nol1parity(char *s)
+static int __init yesl1parity(char *s)
 {
 	l1parity = 0;
 	return 1;
 }
-__setup("nol1par", nol1parity);
+__setup("yesl1par", yesl1parity);
 static int __initdata l2parity = 1;
-static int __init nol2parity(char *s)
+static int __init yesl2parity(char *s)
 {
 	l2parity = 0;
 	return 1;
 }
-__setup("nol2par", nol2parity);
+__setup("yesl2par", yesl2parity);
 
 /*
  * Some MIPS CPUs can enable/disable for cache parity detection, but do
@@ -1667,7 +1667,7 @@ static inline void parity_protection_init(void)
 		    !(cp0_ectl & ERRCTL_PE)) {
 			/*
 			 * One of L1 or L2 ECC checking isn't supported,
-			 * so we cannot enable either.
+			 * so we canyest enable either.
 			 */
 			l1parity = l2parity = 0;
 		}
@@ -1853,7 +1853,7 @@ asmlinkage void do_ftlb(void)
 	} else {
 		pr_err("FTLB error exception\n");
 	}
-	/* Just print the cacheerr bits for now */
+	/* Just print the cacheerr bits for yesw */
 	cache_parity_error();
 }
 
@@ -1867,7 +1867,7 @@ void ejtag_exception_handler(struct pt_regs *regs)
 	unsigned long depc, old_epc, old_ra;
 	unsigned int debug;
 
-	printk(KERN_DEBUG "SDBBP EJTAG debug exception - not handled yet, just ignored!\n");
+	printk(KERN_DEBUG "SDBBP EJTAG debug exception - yest handled yet, just igyesred!\n");
 	depc = read_c0_depc();
 	debug = read_c0_debug();
 	printk(KERN_DEBUG "c0_depc = %0*lx, DEBUG = %08x\n", field, depc, debug);
@@ -1901,17 +1901,17 @@ void ejtag_exception_handler(struct pt_regs *regs)
  */
 static RAW_NOTIFIER_HEAD(nmi_chain);
 
-int register_nmi_notifier(struct notifier_block *nb)
+int register_nmi_yestifier(struct yestifier_block *nb)
 {
-	return raw_notifier_chain_register(&nmi_chain, nb);
+	return raw_yestifier_chain_register(&nmi_chain, nb);
 }
 
-void __noreturn nmi_exception_handler(struct pt_regs *regs)
+void __yesreturn nmi_exception_handler(struct pt_regs *regs)
 {
 	char str[100];
 
 	nmi_enter();
-	raw_notifier_call_chain(&nmi_chain, 0, regs);
+	raw_yestifier_call_chain(&nmi_chain, 0, regs);
 	bust_spinlocks(1);
 	snprintf(str, 100, "CPU%d NMI taken, CP0_EPC=%lx\n",
 		 smp_processor_id(), regs->cp0_epc);
@@ -1936,7 +1936,7 @@ void __init *set_except_vector(int n, void *addr)
 	/*
 	 * Only the TLB handlers are cache aligned with an even
 	 * address. All other handlers are on an odd address and
-	 * require no modification. Otherwise, MIPS32 mode will
+	 * require yes modification. Otherwise, MIPS32 mode will
 	 * be entered when handling any TLB exceptions. That
 	 * would be bad...since we must stay in microMIPS mode.
 	 */
@@ -1955,11 +1955,11 @@ void __init *set_except_vector(int n, void *addr)
 		unsigned int k0 = 26;
 		if ((handler & jump_mask) == ((ebase + 0x200) & jump_mask)) {
 			uasm_i_j(&buf, handler & ~jump_mask);
-			uasm_i_nop(&buf);
+			uasm_i_yesp(&buf);
 		} else {
 			UASM_i_LA(&buf, k0, handler);
 			uasm_i_jr(&buf, k0);
-			uasm_i_nop(&buf);
+			uasm_i_yesp(&buf);
 		}
 		local_flush_icache_range(ebase + 0x200, (unsigned long)buf);
 	}
@@ -1992,7 +1992,7 @@ static void *set_vi_srs_handler(int n, vi_handler_t addr, int srs)
 	b = (unsigned char *)(ebase + 0x200 + n*VECTORSPACING);
 
 	if (srs >= srssets)
-		panic("Shadow register set %d not supported", srs);
+		panic("Shadow register set %d yest supported", srs);
 
 	if (cpu_has_veic) {
 		if (board_bind_eic_interrupt)
@@ -2005,8 +2005,8 @@ static void *set_vi_srs_handler(int n, vi_handler_t addr, int srs)
 
 	if (srs == 0) {
 		/*
-		 * If no shadow set is selected then use the default handler
-		 * that does normal register saving and standard interrupt exit
+		 * If yes shadow set is selected then use the default handler
+		 * that does yesrmal register saving and standard interrupt exit
 		 */
 		extern char except_vec_vi, except_vec_vi_lui;
 		extern char except_vec_vi_ori, except_vec_vi_end;
@@ -2025,7 +2025,7 @@ static void *set_vi_srs_handler(int n, vi_handler_t addr, int srs)
 		if (handler_len > VECTORSPACING) {
 			/*
 			 * Sigh... panicing won't help as the console
-			 * is probably not configured :(
+			 * is probably yest configured :(
 			 */
 			panic("VECTORSPACING too small");
 		}
@@ -2090,21 +2090,21 @@ int cp0_perfcount_irq;
 EXPORT_SYMBOL_GPL(cp0_perfcount_irq);
 
 /*
- * Fast debug channel IRQ or -1 if not present
+ * Fast debug channel IRQ or -1 if yest present
  */
 int cp0_fdc_irq;
 EXPORT_SYMBOL_GPL(cp0_fdc_irq);
 
-static int noulri;
+static int yesulri;
 
 static int __init ulri_disable(char *s)
 {
 	pr_info("Disabling ulri\n");
-	noulri = 1;
+	yesulri = 1;
 
 	return 1;
 }
-__setup("noulri", ulri_disable);
+__setup("yesulri", ulri_disable);
 
 /* configure STATUS register */
 static void configure_status(void)
@@ -2142,7 +2142,7 @@ static void configure_hwrena(void)
 			  MIPS_HWRENA_CC |
 			  MIPS_HWRENA_CCRES;
 
-	if (!noulri && cpu_has_userlocal)
+	if (!yesulri && cpu_has_userlocal)
 		hwrena |= MIPS_HWRENA_ULR;
 
 	if (hwrena)
@@ -2256,14 +2256,14 @@ void set_uncached_handler(unsigned long offset, void *addr,
 	memcpy((void *)(uncached_ebase + offset), addr, size);
 }
 
-static int __initdata rdhwr_noopt;
-static int __init set_rdhwr_noopt(char *str)
+static int __initdata rdhwr_yesopt;
+static int __init set_rdhwr_yesopt(char *str)
 {
-	rdhwr_noopt = 1;
+	rdhwr_yesopt = 1;
 	return 1;
 }
 
-__setup("rdhwr_noopt", set_rdhwr_noopt);
+__setup("rdhwr_yesopt", set_rdhwr_yesopt);
 
 void __init trap_init(void)
 {
@@ -2389,7 +2389,7 @@ void __init trap_init(void)
 	set_except_vector(EXCCODE_SYS, handle_sys);
 	set_except_vector(EXCCODE_BP, handle_bp);
 
-	if (rdhwr_noopt)
+	if (rdhwr_yesopt)
 		set_except_vector(EXCCODE_RI, handle_ri);
 	else {
 		if (cpu_has_vtag_icache)
@@ -2408,7 +2408,7 @@ void __init trap_init(void)
 	if (board_nmi_handler_setup)
 		board_nmi_handler_setup();
 
-	if (cpu_has_fpu && !cpu_has_nofpuex)
+	if (cpu_has_fpu && !cpu_has_yesfpuex)
 		set_except_vector(EXCCODE_FPE, handle_fpe);
 
 	set_except_vector(MIPS_EXCCODE_TLBPAR, handle_ftlb);
@@ -2444,10 +2444,10 @@ void __init trap_init(void)
 
 	sort_extable(__start___dbe_table, __stop___dbe_table);
 
-	cu2_notifier(default_cu2_call, 0x80000000);	/* Run last  */
+	cu2_yestifier(default_cu2_call, 0x80000000);	/* Run last  */
 }
 
-static int trap_pm_notifier(struct notifier_block *self, unsigned long cmd,
+static int trap_pm_yestifier(struct yestifier_block *self, unsigned long cmd,
 			    void *v)
 {
 	switch (cmd) {
@@ -2466,12 +2466,12 @@ static int trap_pm_notifier(struct notifier_block *self, unsigned long cmd,
 	return NOTIFY_OK;
 }
 
-static struct notifier_block trap_pm_notifier_block = {
-	.notifier_call = trap_pm_notifier,
+static struct yestifier_block trap_pm_yestifier_block = {
+	.yestifier_call = trap_pm_yestifier,
 };
 
 static int __init trap_pm_init(void)
 {
-	return cpu_pm_register_notifier(&trap_pm_notifier_block);
+	return cpu_pm_register_yestifier(&trap_pm_yestifier_block);
 }
 arch_initcall(trap_pm_init);

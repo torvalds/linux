@@ -61,10 +61,10 @@ static inline pgd_t *pgd_alloc(struct mm_struct *mm)
 
 	/*
 	 * Don't scan the PGD for pointers, it contains references to PUDs but
-	 * those references are not full pointers and so can't be recognised by
+	 * those references are yest full pointers and so can't be recognised by
 	 * kmemleak.
 	 */
-	kmemleak_no_scan(pgd);
+	kmemleak_yes_scan(pgd);
 
 	/*
 	 * With hugetlb, we don't clear the second half of the page table.
@@ -99,12 +99,12 @@ static inline pud_t *pud_alloc_one(struct mm_struct *mm, unsigned long addr)
 	pud = kmem_cache_alloc(PGT_CACHE(PUD_CACHE_INDEX),
 			       pgtable_gfp_flags(mm, GFP_KERNEL));
 	/*
-	 * Tell kmemleak to ignore the PUD, that means don't scan it for
+	 * Tell kmemleak to igyesre the PUD, that means don't scan it for
 	 * pointers and don't consider it a leak. PUDs are typically only
-	 * referred to by their PGD, but kmemleak is not able to recognise those
+	 * referred to by their PGD, but kmemleak is yest able to recognise those
 	 * as pointers, leading to false leak reports.
 	 */
-	kmemleak_ignore(pud);
+	kmemleak_igyesre(pud);
 
 	return pud;
 }

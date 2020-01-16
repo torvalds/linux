@@ -13,10 +13,10 @@ be changed often.
 
 .. contents:: :local:
 
-.. note::
+.. yeste::
 
     (1) x86_64's has special implementation for memory hotplug.
-        This text does not describe it.
+        This text does yest describe it.
     (2) This text assumes that sysfs is mounted at ``/sys``.
 
 
@@ -31,8 +31,8 @@ Generally, there are two purposes.
 
 (A) For changing the amount of memory.
     This is to allow a feature like capacity on demand.
-(B) For installing/removing DIMMs or NUMA-nodes physically.
-    This is to exchange DIMMs/NUMA-nodes, reduce power consumption, etc.
+(B) For installing/removing DIMMs or NUMA-yesdes physically.
+    This is to exchange DIMMs/NUMA-yesdes, reduce power consumption, etc.
 
 (A) is required by highly virtualized environments and (B) is required by
 hardware which supports memory power management.
@@ -55,8 +55,8 @@ highly virtualized environments too.
 When memory is hotplugged, the kernel recognizes new memory, makes new memory
 management tables, and makes sysfs files for new memory's operation.
 
-If firmware supports notification of connection of new memory to OS,
-this phase is triggered automatically. ACPI can notify this event. If not,
+If firmware supports yestification of connection of new memory to OS,
+this phase is triggered automatically. ACPI can yestify this event. If yest,
 "probe" operation by system administration is used instead.
 (see :ref:`memory_hotplug_physical_mem`).
 
@@ -109,7 +109,7 @@ config options.
     - Memory hotplug (under ACPI Support menu) (``CONFIG_ACPI_HOTPLUG_MEMORY``)
     - This option can be kernel module.
 
-- As a related configuration, if your box has a feature of NUMA-node hotplug
+- As a related configuration, if your box has a feature of NUMA-yesde hotplug
   via ACPI, then this option is necessary too.
 
     - ACPI0004,PNP0A05 and PNP0A06 Container Driver (under ACPI Support menu)
@@ -131,9 +131,9 @@ is described under ``/sys/devices/system/memory`` as::
 where XXX is the memory block id.
 
 For the memory block covered by the sysfs directory.  It is expected that all
-memory sections in this range are present and no memory holes exist in the
-range. Currently there is no way to determine if there is a memory hole, but
-the existence of one should not affect the hotplug capabilities of the memory
+memory sections in this range are present and yes memory holes exist in the
+range. Currently there is yes way to determine if there is a memory hole, but
+the existence of one should yest affect the hotplug capabilities of the memory
 block.
 
 For example, assume 1GiB memory block size. A device for a memory starting at
@@ -161,12 +161,12 @@ Under each memory block, you can see 5 files:
                     "online_movable", "online", "offline" command
                     which will be performed on all sections in the block.
 ``phys_device``     read-only: designed to show the name of physical memory
-                    device.  This is not well implemented now.
+                    device.  This is yest well implemented yesw.
 ``removable``       read-only: contains an integer value indicating
-                    whether the memory block is removable or not
+                    whether the memory block is removable or yest
                     removable.  A value of 1 indicates that the memory
                     block is removable and a value of 0 indicates that
-                    it is not removable. A memory block is removable only if
+                    it is yest removable. A memory block is removable only if
                     every section in the block is removable.
 ``valid_zones``     read-only: designed to show which zones this memory block
 		    can be onlined to.
@@ -182,20 +182,20 @@ Under each memory block, you can see 5 files:
 		    by online_kernel.
 =================== ============================================================
 
-.. note::
+.. yeste::
 
   These directories/files appear after physical memory hotplug phase.
 
 If CONFIG_NUMA is enabled the memoryXXX/ directories can also be accessed
-via symbolic links located in the ``/sys/devices/system/node/node*`` directories.
+via symbolic links located in the ``/sys/devices/system/yesde/yesde*`` directories.
 
 For example::
 
-	/sys/devices/system/node/node0/memory9 -> ../../memory/memory9
+	/sys/devices/system/yesde/yesde0/memory9 -> ../../memory/memory9
 
 A backlink will also be created::
 
-	/sys/devices/system/memory/memory9/node0 -> ../../node/node0
+	/sys/devices/system/memory/memory9/yesde0 -> ../../yesde/yesde0
 
 .. _memory_hotplug_physical_mem:
 
@@ -208,29 +208,29 @@ Hardware(Firmware) Support
 On x86_64/ia64 platform, memory hotplug by ACPI is supported.
 
 In general, the firmware (ACPI) which supports memory hotplug defines
-memory class object of _HID "PNP0C80". When a notify is asserted to PNP0C80,
+memory class object of _HID "PNP0C80". When a yestify is asserted to PNP0C80,
 Linux's ACPI handler does hot-add memory to the system and calls a hotplug udev
 script. This will be done automatically.
 
-But scripts for memory hotplug are not contained in generic udev package(now).
+But scripts for memory hotplug are yest contained in generic udev package(yesw).
 You may have to write it by yourself or online/offline memory by hand.
 Please see :ref:`memory_hotplug_how_to_online_memory` and
 :ref:`memory_hotplug_how_to_offline_memory`.
 
-If firmware supports NUMA-node hotplug, and defines an object _HID "ACPI0004",
-"PNP0A05", or "PNP0A06", notification is asserted to it, and ACPI handler
+If firmware supports NUMA-yesde hotplug, and defines an object _HID "ACPI0004",
+"PNP0A05", or "PNP0A06", yestification is asserted to it, and ACPI handler
 calls hotplug code for all of objects which are defined in it.
 If memory device is found, memory hotplug code will be called.
 
 Notify memory hot-add event by hand
 -----------------------------------
 
-On some architectures, the firmware may not notify the kernel of a memory
+On some architectures, the firmware may yest yestify the kernel of a memory
 hotplug event.  Therefore, the memory "probe" interface is supported to
-explicitly notify the kernel.  This interface depends on
+explicitly yestify the kernel.  This interface depends on
 CONFIG_ARCH_MEMORY_PROBE and can be configured on powerpc, sh, and x86
 if hotplug is supported, although for x86 this should be handled by ACPI
-notification.
+yestification.
 
 Probe interface is located at::
 
@@ -242,7 +242,7 @@ You can tell the physical address of new memory to the kernel by::
 
 Then, [start_address_of_new_memory, start_address_of_new_memory +
 memory_block_size] memory range is hot-added. In this case, hotplug script is
-not called (in current implementation). You'll have to online memory by
+yest called (in current implementation). You'll have to online memory by
 yourself.  Please see :ref:`memory_hotplug_how_to_online_memory`.
 
 Logical Memory hot-add phase
@@ -265,14 +265,14 @@ To see (online/offline) state of a memory block, read 'state' file::
 How to online memory
 --------------------
 
-When the memory is hot-added, the kernel decides whether or not to "online"
+When the memory is hot-added, the kernel decides whether or yest to "online"
 it according to the policy which can be read from "auto_online_blocks" file::
 
 	% cat /sys/devices/system/memory/auto_online_blocks
 
 The default depends on the CONFIG_MEMORY_HOTPLUG_DEFAULT_ONLINE kernel config
 option. If it is disabled the default is "offline" which means the newly added
-memory is not in a ready-to-use state and you have to "online" the newly added
+memory is yest in a ready-to-use state and you have to "online" the newly added
 memory blocks manually. Automatic onlining can be requested by writing "online"
 to "auto_online_blocks" file::
 
@@ -290,22 +290,22 @@ offlined it is possible to change the individual block's state by writing to the
 
 	% echo online > /sys/devices/system/memory/memoryXXX/state
 
-This onlining will not change the ZONE type of the target memory block,
+This onlining will yest change the ZONE type of the target memory block,
 If the memory block doesn't belong to any zone an appropriate kernel zone
-(usually ZONE_NORMAL) will be used unless movable_node kernel command line
+(usually ZONE_NORMAL) will be used unless movable_yesde kernel command line
 option is specified when ZONE_MOVABLE will be used.
 
 You can explicitly request to associate it with ZONE_MOVABLE by::
 
 	% echo online_movable > /sys/devices/system/memory/memoryXXX/state
 
-.. note:: current limit: this memory block must be adjacent to ZONE_MOVABLE
+.. yeste:: current limit: this memory block must be adjacent to ZONE_MOVABLE
 
 Or you can explicitly request a kernel zone (usually ZONE_NORMAL) by::
 
 	% echo online_kernel > /sys/devices/system/memory/memoryXXX/state
 
-.. note:: current limit: this memory block must be adjacent to ZONE_NORMAL
+.. yeste:: current limit: this memory block must be adjacent to ZONE_NORMAL
 
 An explicit zone onlining can fail (e.g. when the range is already within
 and existing and incompatible zone already).
@@ -323,7 +323,7 @@ Memory offline and ZONE_MOVABLE
 
 Memory offlining is more complicated than memory online. Because memory offline
 has to make the whole memory block be unused, memory offline can fail if
-the memory block includes memory which cannot be freed.
+the memory block includes memory which canyest be freed.
 
 In general, memory offline can use 2 techniques.
 
@@ -331,8 +331,8 @@ In general, memory offline can use 2 techniques.
 (2) migrate all pages in the memory block.
 
 In the current implementation, Linux's memory offline uses method (2), freeing
-all  pages in the memory block by page migration. But not all pages are
-migratable. Under current Linux, migratable pages are anonymous pages and
+all  pages in the memory block by page migration. But yest all pages are
+migratable. Under current Linux, migratable pages are ayesnymous pages and
 page caches. For offlining a memory block by migration, the kernel has to
 guarantee that the memory block contains only migratable pages.
 
@@ -345,16 +345,16 @@ Assume the system has "TOTAL" amount of memory at boot time, this boot option
 creates ZONE_MOVABLE as following.
 
 1) When kernelcore=YYYY boot option is used,
-   Size of memory not for movable pages (not for offline) is YYYY.
+   Size of memory yest for movable pages (yest for offline) is YYYY.
    Size of memory for movable pages (for offline) is TOTAL-YYYY.
 
 2) When movablecore=ZZZZ boot option is used,
-   Size of memory not for movable pages (not for offline) is TOTAL - ZZZZ.
+   Size of memory yest for movable pages (yest for offline) is TOTAL - ZZZZ.
    Size of memory for movable pages (for offline) is ZZZZ.
 
-.. note::
+.. yeste::
 
-   Unfortunately, there is no information to show which memory block belongs
+   Unfortunately, there is yes information to show which memory block belongs
    to ZONE_MOVABLE. This is TBD.
 
 .. _memory_hotplug_how_to_offline_memory:
@@ -369,20 +369,20 @@ in memory onlining::
 
 If offline succeeds, the state of the memory block is changed to be "offline".
 If it fails, some error core (like -EBUSY) will be returned by the kernel.
-Even if a memory block does not belong to ZONE_MOVABLE, you can try to offline
+Even if a memory block does yest belong to ZONE_MOVABLE, you can try to offline
 it.  If it doesn't contain 'unmovable' memory, you'll get success.
 
 A memory block under ZONE_MOVABLE is considered to be able to be offlined
 easily.  But under some busy state, it may return -EBUSY. Even if a memory
-block cannot be offlined due to -EBUSY, you can retry offlining it and may be
-able to offline it (or not). (For example, a page is referred to by some kernel
+block canyest be offlined due to -EBUSY, you can retry offlining it and may be
+able to offline it (or yest). (For example, a page is referred to by some kernel
 internal call and released soon.)
 
 Consideration:
   Memory hotplug's design direction is to make the possibility of memory
   offlining higher and to guarantee unplugging memory under any situation. But
   it needs more work. Returning -EBUSY under some situation may be good because
-  the user can decide to retry more or not by himself. Currently, memory
+  the user can decide to retry more or yest by himself. Currently, memory
   offlining code does some amount of retry with 120 seconds timeout.
 
 Physical memory remove
@@ -390,7 +390,7 @@ Physical memory remove
 
 Need more implementation yet....
  - Notification completion of remove works by OS to firmware.
- - Guard from remove if not yet.
+ - Guard from remove if yest yet.
 
 
 Locking Internals
@@ -402,7 +402,7 @@ the device_hotplug_lock should be held to:
 - synchronize against online/offline requests (e.g. via sysfs). This way, memory
   block devices can only be accessed (.online/.state attributes) by user
   space once memory has been fully added. And when removing memory, we
-  know nobody is in critical sections.
+  kyesw yesbody is in critical sections.
 - synchronize against CPU hotplug and similar (e.g. relevant for ACPI and PPC)
 
 Especially, there is a possible lock inversion that is avoided using

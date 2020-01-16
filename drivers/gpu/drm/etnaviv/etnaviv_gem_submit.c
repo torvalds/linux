@@ -81,7 +81,7 @@ static int submit_lookup_objects(struct etnaviv_gem_submit *submit,
 			submit->bos[i].va = bo->presumed;
 		}
 
-		/* normally use drm_gem_object_lookup(), but for bulk lookup
+		/* yesrmally use drm_gem_object_lookup(), but for bulk lookup
 		 * all under single table_lock just hit object_idr directly:
 		 */
 		obj = idr_find(&file->object_idr, bo->handle);
@@ -160,7 +160,7 @@ fail:
 
 		obj = &submit->bos[contended].obj->base;
 
-		/* we lost out in a seqno race, lock and retry.. */
+		/* we lost out in a seqyes race, lock and retry.. */
 		ret = ww_mutex_lock_slow_interruptible(&obj->resv->lock,
 						       ticket);
 		if (!ret) {
@@ -290,7 +290,7 @@ static int submit_reloc(struct etnaviv_gem_submit *submit, void *stream,
 		}
 
 		if (r->submit_offset % 4) {
-			DRM_ERROR("non-aligned reloc offset: %u\n",
+			DRM_ERROR("yesn-aligned reloc offset: %u\n",
 				  r->submit_offset);
 			return -EINVAL;
 		}
@@ -347,12 +347,12 @@ static int submit_perfmon_validate(struct etnaviv_gem_submit *submit,
 		}
 
 		if (r->flags & ~(ETNA_PM_PROCESS_PRE | ETNA_PM_PROCESS_POST)) {
-			DRM_ERROR("perfmon request: flags are not valid");
+			DRM_ERROR("perfmon request: flags are yest valid");
 			return -EINVAL;
 		}
 
 		if (etnaviv_pm_req_validate(r, exec_state)) {
-			DRM_ERROR("perfmon request: domain or signal not valid");
+			DRM_ERROR("perfmon request: domain or signal yest valid");
 			return -EINVAL;
 		}
 
@@ -406,7 +406,7 @@ static void submit_cleanup(struct kref *kref)
 	if (submit->in_fence)
 		dma_fence_put(submit->in_fence);
 	if (submit->out_fence) {
-		/* first remove from IDR, so fence can not be found anymore */
+		/* first remove from IDR, so fence can yest be found anymore */
 		mutex_lock(&submit->gpu->fence_lock);
 		idr_remove(&submit->gpu->fence_idr, submit->out_fence_id);
 		mutex_unlock(&submit->gpu->fence_lock);
@@ -446,7 +446,7 @@ int etnaviv_ioctl_gem_submit(struct drm_device *dev, void *data,
 		return -ENXIO;
 
 	if (args->stream_size % 4) {
-		DRM_ERROR("non-aligned cmdstream buffer size: %u\n",
+		DRM_ERROR("yesn-aligned cmdstream buffer size: %u\n",
 			  args->stream_size);
 		return -EINVAL;
 	}

@@ -19,7 +19,7 @@
  * details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
+ * along with this program; if yest, write to the Free Software
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  * Send feedback to <colpatch@us.ibm.com>
@@ -31,34 +31,34 @@
 
 /* Other architectures wishing to use this simple topology API should fill
    in the below functions as appropriate in their own <asm/topology.h> file. */
-#ifndef cpu_to_node
-#define cpu_to_node(cpu)	((void)(cpu),0)
+#ifndef cpu_to_yesde
+#define cpu_to_yesde(cpu)	((void)(cpu),0)
 #endif
-#ifndef set_numa_node
-#define set_numa_node(node)
+#ifndef set_numa_yesde
+#define set_numa_yesde(yesde)
 #endif
-#ifndef set_cpu_numa_node
-#define set_cpu_numa_node(cpu, node)
+#ifndef set_cpu_numa_yesde
+#define set_cpu_numa_yesde(cpu, yesde)
 #endif
 #ifndef cpu_to_mem
 #define cpu_to_mem(cpu)		((void)(cpu),0)
 #endif
 
-#ifndef cpumask_of_node
+#ifndef cpumask_of_yesde
   #ifdef CONFIG_NEED_MULTIPLE_NODES
-    #define cpumask_of_node(node)	((node) == 0 ? cpu_online_mask : cpu_none_mask)
+    #define cpumask_of_yesde(yesde)	((yesde) == 0 ? cpu_online_mask : cpu_yesne_mask)
   #else
-    #define cpumask_of_node(node)	((void)node, cpu_online_mask)
+    #define cpumask_of_yesde(yesde)	((void)yesde, cpu_online_mask)
   #endif
 #endif
-#ifndef pcibus_to_node
-#define pcibus_to_node(bus)	((void)(bus), -1)
+#ifndef pcibus_to_yesde
+#define pcibus_to_yesde(bus)	((void)(bus), -1)
 #endif
 
 #ifndef cpumask_of_pcibus
-#define cpumask_of_pcibus(bus)	(pcibus_to_node(bus) == -1 ?		\
+#define cpumask_of_pcibus(bus)	(pcibus_to_yesde(bus) == -1 ?		\
 				 cpu_all_mask :				\
-				 cpumask_of_node(pcibus_to_node(bus)))
+				 cpumask_of_yesde(pcibus_to_yesde(bus)))
 #endif
 
 #endif	/* CONFIG_NUMA */
@@ -66,10 +66,10 @@
 #if !defined(CONFIG_NUMA) || !defined(CONFIG_HAVE_MEMORYLESS_NODES)
 
 #ifndef set_numa_mem
-#define set_numa_mem(node)
+#define set_numa_mem(yesde)
 #endif
 #ifndef set_cpu_numa_mem
-#define set_cpu_numa_mem(cpu, node)
+#define set_cpu_numa_mem(cpu, yesde)
 #endif
 
 #endif	/* !CONFIG_NUMA || !CONFIG_HAVE_MEMORYLESS_NODES */

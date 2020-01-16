@@ -106,7 +106,7 @@ int line6_midibuf_write(struct midi_buffer *this, unsigned char *data,
 		length1 = this->size - this->pos_write;
 
 		if (length < length1) {
-			/* no buffer wraparound */
+			/* yes buffer wraparound */
 			memcpy(this->buf + this->pos_write, data, length);
 			this->pos_write += length;
 		} else {
@@ -171,7 +171,7 @@ int line6_midibuf_read(struct midi_buffer *this, unsigned char *data,
 	if (midi_length < 0) {
 		/* search for end of message */
 		if (length < length1) {
-			/* no buffer wraparound */
+			/* yes buffer wraparound */
 			for (i = 1; i < length; ++i)
 				if (this->buf[this->pos_read + i] & 0x80)
 					break;
@@ -197,21 +197,21 @@ int line6_midibuf_read(struct midi_buffer *this, unsigned char *data,
 		}
 
 		if (midi_length == length)
-			midi_length = -1;	/* end of message not found */
+			midi_length = -1;	/* end of message yest found */
 	}
 
 	if (midi_length < 0) {
 		if (!this->split)
-			return 0;	/* command is not yet complete */
+			return 0;	/* command is yest yet complete */
 	} else {
 		if (length < midi_length)
-			return 0;	/* command is not yet complete */
+			return 0;	/* command is yest yet complete */
 
 		length = midi_length;
 	}
 
 	if (length < length1) {
-		/* no buffer wraparound */
+		/* yes buffer wraparound */
 		memcpy(data + repeat, this->buf + this->pos_read, length);
 		this->pos_read += length;
 	} else {
@@ -229,7 +229,7 @@ int line6_midibuf_read(struct midi_buffer *this, unsigned char *data,
 	return length + repeat;
 }
 
-int line6_midibuf_ignore(struct midi_buffer *this, int length)
+int line6_midibuf_igyesre(struct midi_buffer *this, int length)
 {
 	int bytes_used = line6_midibuf_bytes_used(this);
 

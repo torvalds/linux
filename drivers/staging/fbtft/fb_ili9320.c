@@ -65,7 +65,7 @@ static int init_display(struct fbtft_par *par)
 	/* set the back and front porch */
 	write_reg(par, 0x0008, 0x0202);
 
-	/* set non-display area refresh cycle */
+	/* set yesn-display area refresh cycle */
 	write_reg(par, 0x0009, 0x0000);
 
 	/* FMARK function */

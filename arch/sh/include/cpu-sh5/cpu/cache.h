@@ -76,14 +76,14 @@
 /* Operand Cache */
 #define CACHE_OC_ADDRESS_ARRAY 0x01800000
 
-/* These declarations relate to cache 'synonyms' in the operand cache.  A
-   'synonym' occurs where effective address bits overlap between those used for
+/* These declarations relate to cache 'syyesnyms' in the operand cache.  A
+   'syyesnym' occurs where effective address bits overlap between those used for
    indexing the cache sets and those passed to the MMU for translation.  In the
    case of SH5-101 & SH5-103, only bit 12 is affected for 4k pages. */
 
-#define CACHE_OC_N_SYNBITS  1               /* Number of synonym bits */
+#define CACHE_OC_N_SYNBITS  1               /* Number of syyesnym bits */
 #define CACHE_OC_SYN_SHIFT  12
-/* Mask to select synonym bit(s) */
+/* Mask to select syyesnym bit(s) */
 #define CACHE_OC_SYN_MASK   (((1UL<<CACHE_OC_N_SYNBITS)-1)<<CACHE_OC_SYN_SHIFT)
 
 /*

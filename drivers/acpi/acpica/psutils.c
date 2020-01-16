@@ -108,11 +108,11 @@ union acpi_parse_object *acpi_ps_alloc_op(u16 opcode, u8 *aml)
 
 		/* The generic op (default) is by far the most common (16 to 1) */
 
-		op = acpi_os_acquire_object(acpi_gbl_ps_node_cache);
+		op = acpi_os_acquire_object(acpi_gbl_ps_yesde_cache);
 	} else {
 		/* Extended parseop */
 
-		op = acpi_os_acquire_object(acpi_gbl_ps_node_ext_cache);
+		op = acpi_os_acquire_object(acpi_gbl_ps_yesde_ext_cache);
 	}
 
 	/* Initialize the Op */
@@ -159,9 +159,9 @@ void acpi_ps_free_op(union acpi_parse_object *op)
 	}
 
 	if (op->common.flags & ACPI_PARSEOP_GENERIC) {
-		(void)acpi_os_release_object(acpi_gbl_ps_node_cache, op);
+		(void)acpi_os_release_object(acpi_gbl_ps_yesde_cache, op);
 	} else {
-		(void)acpi_os_release_object(acpi_gbl_ps_node_ext_cache, op);
+		(void)acpi_os_release_object(acpi_gbl_ps_yesde_ext_cache, op);
 	}
 }
 
@@ -187,7 +187,7 @@ u8 acpi_ps_is_leading_char(u32 c)
 u32 acpi_ps_get_name(union acpi_parse_object * op)
 {
 
-	/* The "generic" object has no name associated with it */
+	/* The "generic" object has yes name associated with it */
 
 	if (op->common.flags & ACPI_PARSEOP_GENERIC) {
 		return (0);
@@ -204,7 +204,7 @@ u32 acpi_ps_get_name(union acpi_parse_object * op)
 void acpi_ps_set_name(union acpi_parse_object *op, u32 name)
 {
 
-	/* The "generic" object has no name associated with it */
+	/* The "generic" object has yes name associated with it */
 
 	if (op->common.flags & ACPI_PARSEOP_GENERIC) {
 		return;

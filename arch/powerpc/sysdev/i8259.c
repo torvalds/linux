@@ -23,9 +23,9 @@ static DEFINE_RAW_SPINLOCK(i8259_lock);
 static struct irq_domain *i8259_host;
 
 /*
- * Acknowledge the IRQ using either the PCI host bridge's interrupt
- * acknowledge feature or poll.  How i8259_init() is called determines
- * which is called.  It should be noted that polling is broken on some
+ * Ackyeswledge the IRQ using either the PCI host bridge's interrupt
+ * ackyeswledge feature or poll.  How i8259_init() is called determines
+ * which is called.  It should be yested that polling is broken on some
  * IBM and Motorola PReP boxes so we must use the int-ack feature on them.
  */
 unsigned int i8259_irq(void)
@@ -40,13 +40,13 @@ unsigned int i8259_irq(void)
 		raw_spin_lock(&i8259_lock);
 		lock = 1;
 
-		/* Perform an interrupt acknowledge cycle on controller 1. */
+		/* Perform an interrupt ackyeswledge cycle on controller 1. */
 		outb(0x0C, 0x20);		/* prepare for poll */
 		irq = inb(0x20) & 7;
 		if (irq == 2 ) {
 			/*
 			 * Interrupt is cascaded so perform interrupt
-			 * acknowledge on controller 2.
+			 * ackyeswledge on controller 2.
 			 */
 			outb(0x0C, 0xA0);	/* prepare for poll */
 			irq = (inb(0xA0) & 7) + 8;
@@ -58,7 +58,7 @@ unsigned int i8259_irq(void)
 		 * This may be a spurious interrupt.
 		 *
 		 * Read the interrupt status register (ISR). If the most
-		 * significant bit is not set then there is no valid
+		 * significant bit is yest set then there is yes valid
 		 * interrupt.
 		 */
 		if (!pci_intack)
@@ -158,11 +158,11 @@ static struct resource pic_edgectrl_iores = {
 	.flags = IORESOURCE_IO | IORESOURCE_BUSY,
 };
 
-static int i8259_host_match(struct irq_domain *h, struct device_node *node,
+static int i8259_host_match(struct irq_domain *h, struct device_yesde *yesde,
 			    enum irq_domain_bus_token bus_token)
 {
-	struct device_node *of_node = irq_domain_get_of_node(h);
-	return of_node == NULL || of_node == node;
+	struct device_yesde *of_yesde = irq_domain_get_of_yesde(h);
+	return of_yesde == NULL || of_yesde == yesde;
 }
 
 static int i8259_host_map(struct irq_domain *h, unsigned int virq,
@@ -174,15 +174,15 @@ static int i8259_host_map(struct irq_domain *h, unsigned int virq,
 	if (hw == 2)
 		irq_set_status_flags(virq, IRQ_NOREQUEST);
 
-	/* We use the level handler only for now, we might want to
-	 * be more cautious here but that works for now
+	/* We use the level handler only for yesw, we might want to
+	 * be more cautious here but that works for yesw
 	 */
 	irq_set_status_flags(virq, IRQ_LEVEL);
 	irq_set_chip_and_handler(virq, &i8259_pic, handle_level_irq);
 	return 0;
 }
 
-static int i8259_host_xlate(struct irq_domain *h, struct device_node *ct,
+static int i8259_host_xlate(struct irq_domain *h, struct device_yesde *ct,
 			    const u32 *intspec, unsigned int intsize,
 			    irq_hw_number_t *out_hwirq, unsigned int *out_flags)
 {
@@ -215,12 +215,12 @@ struct irq_domain *i8259_get_host(void)
 
 /**
  * i8259_init - Initialize the legacy controller
- * @node: device node of the legacy PIC (can be NULL, but then, it will match
+ * @yesde: device yesde of the legacy PIC (can be NULL, but then, it will match
  *        all interrupts, so beware)
- * @intack_addr: PCI interrupt acknowledge (real) address which will return
+ * @intack_addr: PCI interrupt ackyeswledge (real) address which will return
  *             	 the active irq from the 8259
  */
-void i8259_init(struct device_node *node, unsigned long intack_addr)
+void i8259_init(struct device_yesde *yesde, unsigned long intack_addr)
 {
 	unsigned long flags;
 
@@ -260,7 +260,7 @@ void i8259_init(struct device_node *node, unsigned long intack_addr)
 	raw_spin_unlock_irqrestore(&i8259_lock, flags);
 
 	/* create a legacy host */
-	i8259_host = irq_domain_add_legacy_isa(node, &i8259_host_ops, NULL);
+	i8259_host = irq_domain_add_legacy_isa(yesde, &i8259_host_ops, NULL);
 	if (i8259_host == NULL) {
 		printk(KERN_ERR "i8259: failed to allocate irq host !\n");
 		return;

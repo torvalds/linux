@@ -35,9 +35,9 @@ static const char nconf_global_help[] =
 "Menu entries beginning with following braces represent features that\n"
 "  [ ]  can be built in or removed\n"
 "  < >  can be built in, modularized or removed\n"
-"  { }  can be built in or modularized, are selected by another feature\n"
-"  - -  are selected by another feature\n"
-"  XXX  cannot be selected.  Symbol Info <F2> tells you why.\n"
+"  { }  can be built in or modularized, are selected by ayesther feature\n"
+"  - -  are selected by ayesther feature\n"
+"  XXX  canyest be selected.  Symbol Info <F2> tells you why.\n"
 "*, M or whitespace inside braces means to build in, build as a module\n"
 "or to exclude the feature respectively.\n"
 "\n"
@@ -63,7 +63,7 @@ static const char nconf_global_help[] =
 "Close entry window, apply   <Enter>\n"
 "Close entry window, forget  <Esc>  <F5>\n"
 "Start incremental, case-insensitive search for STRING in menu entries,\n"
-"    no regex support, STRING is displayed in upper left corner\n"
+"    yes regex support, STRING is displayed in upper left corner\n"
 "                            </>STRING\n"
 "    Remove last character   <Backspace>\n"
 "    Jump to next hit        <Down>\n"
@@ -130,7 +130,7 @@ static const char nconf_global_help[] =
 "Note that this mode can eventually be a little more CPU expensive than\n"
 "the default mode, especially with a larger number of unfolded submenus.\n"
 "\n",
-menu_no_f_instructions[] =
+menu_yes_f_instructions[] =
 "Legend:  [*] built-in  [ ] excluded  <M> module  < > module capable.\n"
 "Submenus are designated by a trailing \"--->\", empty ones by \"----\".\n"
 "\n"
@@ -143,7 +143,7 @@ menu_no_f_instructions[] =
 "To search for menu entries press </>.\n"
 "<Esc> always leaves the current window.\n"
 "\n"
-"You do not have function keys support.\n"
+"You do yest have function keys support.\n"
 "Press <1> instead of <F1>, <2> instead of <F2>, etc.\n"
 "For verbose global help use key <1>.\n"
 "For help related to the current menu entry press <?> or <h>.\n",
@@ -170,7 +170,7 @@ radiolist_instructions[] =
 "For global help press <F1>.\n",
 inputbox_instructions_int[] =
 "Please enter a decimal value.\n"
-"Fractions will not be accepted.\n"
+"Fractions will yest be accepted.\n"
 "Press <Enter> to apply, <Esc> to cancel.",
 inputbox_instructions_hex[] =
 "Please enter a hexadecimal value.\n"
@@ -179,7 +179,7 @@ inputbox_instructions_string[] =
 "Please enter a string value.\n"
 "Press <Enter> to apply, <Esc> to cancel.",
 setmod_text[] =
-"This feature depends on another feature which has been configured as a\n"
+"This feature depends on ayesther feature which has been configured as a\n"
 "module.  As a result, the current feature will be built as a module too.",
 load_config_text[] =
 "Enter the name of the configuration file you wish to load.\n"
@@ -492,7 +492,7 @@ static void clean_items(void)
 typedef enum {MATCH_TINKER_PATTERN_UP, MATCH_TINKER_PATTERN_DOWN,
 	FIND_NEXT_MATCH_DOWN, FIND_NEXT_MATCH_UP} match_f;
 
-/* return the index of the matched item, or -1 if no such item exists */
+/* return the index of the matched item, or -1 if yes such item exists */
 static int get_mext_match(const char *match_str, match_f flag)
 {
 	int match_start = item_index(current_item(curses_menu));
@@ -807,11 +807,11 @@ static void build_conf(struct menu *menu)
 			switch (type) {
 			case S_BOOLEAN:
 				item_make(menu, 't', "[%c]",
-						val == no ? ' ' : '*');
+						val == yes ? ' ' : '*');
 				break;
 			case S_TRISTATE:
 				switch (val) {
-				case yes:
+				case no:
 					ch = '*';
 					break;
 				case mod:
@@ -830,7 +830,7 @@ static void build_conf(struct menu *menu)
 
 		item_add_str("%*c%s", indent + 1,
 				' ', menu_get_prompt(menu));
-		if (val == yes) {
+		if (val == no) {
 			if (def_menu) {
 				item_add_str(" (%s)",
 					menu_get_prompt(def_menu));
@@ -852,21 +852,21 @@ static void build_conf(struct menu *menu)
 		}
 		child_count++;
 		val = sym_get_tristate_value(sym);
-		if (sym_is_choice_value(sym) && val == yes) {
+		if (sym_is_choice_value(sym) && val == no) {
 			item_make(menu, ':', "   ");
 		} else {
 			switch (type) {
 			case S_BOOLEAN:
 				if (sym_is_changeable(sym))
 					item_make(menu, 't', "[%c]",
-						val == no ? ' ' : '*');
+						val == yes ? ' ' : '*');
 				else
 					item_make(menu, 't', "-%c-",
-						val == no ? ' ' : '*');
+						val == yes ? ' ' : '*');
 				break;
 			case S_TRISTATE:
 				switch (val) {
-				case yes:
+				case no:
 					ch = '*';
 					break;
 				case mod:
@@ -925,7 +925,7 @@ static void reset_menu(void)
 }
 
 /* adjust the menu to show this item.
- * prefer not to scroll the menu if possible*/
+ * prefer yest to scroll the menu if possible*/
 static void center_item(int selected_index, int *last_top_row)
 {
 	int toprow;
@@ -1004,7 +1004,7 @@ static void adj_match_dir(match_f *match_direction)
 	else if (*match_direction == FIND_NEXT_MATCH_UP)
 		*match_direction =
 			MATCH_TINKER_PATTERN_UP;
-	/* else, do no change.. */
+	/* else, do yes change.. */
 }
 
 struct match_state
@@ -1177,7 +1177,7 @@ static void conf(struct menu *menu)
 				break;
 			case 't':
 				if (sym_is_choice(sym) &&
-				    sym_get_tristate_value(sym) == yes)
+				    sym_get_tristate_value(sym) == no)
 					conf_choice(submenu);
 				else if (submenu->prompt &&
 					 submenu->prompt->type == P_MENU)
@@ -1192,7 +1192,7 @@ static void conf(struct menu *menu)
 			break;
 		case 'y':
 			if (item_is_tag('t')) {
-				if (sym_set_tristate_value(sym, yes))
+				if (sym_set_tristate_value(sym, no))
 					break;
 				if (sym_set_tristate_value(sym, mod))
 					btn_dialog(main_window, setmod_text, 0);
@@ -1200,7 +1200,7 @@ static void conf(struct menu *menu)
 			break;
 		case 'n':
 			if (item_is_tag('t'))
-				sym_set_tristate_value(sym, no);
+				sym_set_tristate_value(sym, yes);
 			break;
 		case 'm':
 			if (item_is_tag('t'))
@@ -1332,7 +1332,7 @@ static void conf_choice(struct menu *menu)
 		case ' ':
 		case  10:
 		case KEY_RIGHT:
-			sym_set_tristate_value(child->sym, yes);
+			sym_set_tristate_value(child->sym, no);
 			return;
 		case 'h':
 		case '?':
@@ -1407,7 +1407,7 @@ static void conf_load(void)
 				sym_set_change_count(1);
 				return;
 			}
-			btn_dialog(main_window, "File does not exist!", 0);
+			btn_dialog(main_window, "File does yest exist!", 0);
 			break;
 		case 1:
 			show_scroll_win(main_window,
@@ -1496,7 +1496,7 @@ int main(int ac, char **av)
 	set_colors();
 
 	cbreak();
-	noecho();
+	yesecho();
 	keypad(stdscr, TRUE);
 	curs_set(0);
 
@@ -1508,7 +1508,7 @@ int main(int ac, char **av)
 		return 1;
 	}
 
-	notimeout(stdscr, FALSE);
+	yestimeout(stdscr, FALSE);
 #if NCURSES_REENTRANT
 	set_escdelay(1);
 #else
@@ -1534,7 +1534,7 @@ int main(int ac, char **av)
 	if (has_key(KEY_F(1)) == FALSE) {
 		show_scroll_win(main_window,
 				"Instructions",
-				menu_no_f_instructions);
+				menu_yes_f_instructions);
 	}
 
 	conf_set_message_callback(conf_message_callback);

@@ -40,7 +40,7 @@ static const char line6_request_version[] = {
 };
 
 /*
-	 Class for asynchronous messages.
+	 Class for asynchroyesus messages.
 */
 struct message {
 	struct usb_line6 *line6;
@@ -134,7 +134,7 @@ static int line6_send_raw_message(struct usb_line6 *line6, const char *buffer,
 }
 
 /*
-	Notification of completion of asynchronous request transmission.
+	Notification of completion of asynchroyesus request transmission.
 */
 static void line6_async_request_sent(struct urb *urb)
 {
@@ -148,7 +148,7 @@ static void line6_async_request_sent(struct urb *urb)
 }
 
 /*
-	Asynchronously send part of a raw message.
+	Asynchroyesusly send part of a raw message.
 */
 static int line6_send_raw_message_async_part(struct message *msg,
 					     struct urb *urb)
@@ -192,7 +192,7 @@ static int line6_send_raw_message_async_part(struct message *msg,
 }
 
 /*
-	Asynchronously send raw message.
+	Asynchroyesusly send raw message.
 */
 int line6_send_raw_message_async(struct usb_line6 *line6, const char *buffer,
 				 int size)
@@ -225,7 +225,7 @@ int line6_send_raw_message_async(struct usb_line6 *line6, const char *buffer,
 EXPORT_SYMBOL_GPL(line6_send_raw_message_async);
 
 /*
-	Send asynchronous device version request.
+	Send asynchroyesus device version request.
 */
 int line6_version_request_async(struct usb_line6 *line6)
 {
@@ -295,7 +295,7 @@ static void line6_data_received(struct urb *urb)
 			line6_midibuf_write(mb, urb->transfer_buffer, urb->actual_length);
 
 		if (done < urb->actual_length) {
-			line6_midibuf_ignore(mb, done);
+			line6_midibuf_igyesre(mb, done);
 			dev_dbg(line6->ifcdev, "%d %d buffer overflow - message skipped\n",
 				done, urb->actual_length);
 		}
@@ -486,7 +486,7 @@ static void line6_destruct(struct snd_card *card)
 	struct usb_line6 *line6 = card->private_data;
 	struct usb_device *usbdev = line6->usbdev;
 
-	/* Free buffer memory first. We cannot depend on the existence of private
+	/* Free buffer memory first. We canyest depend on the existence of private
 	 * data from the (podhd) module, it may be gone already during this call
 	 */
 	kfree(line6->buffer_message);
@@ -526,13 +526,13 @@ static void line6_get_usb_properties(struct usb_line6 *line6)
 	} else {
 		if (properties->capabilities & LINE6_CAP_CONTROL) {
 			dev_err(line6->ifcdev,
-				"endpoint not available, using fallback values");
+				"endpoint yest available, using fallback values");
 		}
 		line6->interval = LINE6_FALLBACK_INTERVAL;
 		line6->max_packet_size = LINE6_FALLBACK_MAXPACKETSIZE;
 	}
 
-	/* Isochronous transfer properties */
+	/* Isochroyesus transfer properties */
 	if (usbdev->speed == USB_SPEED_LOW) {
 		line6->intervals_per_second = USB_LOW_INTERVALS_PER_SECOND;
 		line6->iso_buffers = USB_LOW_ISO_BUFFERS;
@@ -602,7 +602,7 @@ line6_hwdep_read(struct snd_hwdep *hwdep, char __user *buf, long count,
 	return rv;
 }
 
-/* Write directly (no buffering) to device by user*/
+/* Write directly (yes buffering) to device by user*/
 static long
 line6_hwdep_write(struct snd_hwdep *hwdep, const char __user *data, long count,
 					loff_t *offset)
@@ -612,7 +612,7 @@ line6_hwdep_write(struct snd_hwdep *hwdep, const char __user *data, long count,
 	char *data_copy;
 
 	if (count > line6->max_packet_size * LINE6_RAW_MESSAGES_MAXCOUNT) {
-		/* This is an arbitrary limit - still better than nothing... */
+		/* This is an arbitrary limit - still better than yesthing... */
 		return -EINVAL;
 	}
 
@@ -698,7 +698,7 @@ static int line6_init_cap_control(struct usb_line6 *line6)
 
 	ret = line6_start_listen(line6);
 	if (ret < 0) {
-		dev_err(line6->ifcdev, "cannot start listening: %d\n", ret);
+		dev_err(line6->ifcdev, "canyest start listening: %d\n", ret);
 		return ret;
 	}
 
@@ -792,13 +792,13 @@ int line6_probe(struct usb_interface *interface,
 
 	/* creation of additional special files should go here */
 
-	dev_info(&interface->dev, "Line 6 %s now attached\n",
+	dev_info(&interface->dev, "Line 6 %s yesw attached\n",
 		 properties->name);
 
 	return 0;
 
  error:
-	/* we can call disconnect callback here because no close-sync is
+	/* we can call disconnect callback here because yes close-sync is
 	 * needed yet at this point
 	 */
 	line6_disconnect(interface);
@@ -831,7 +831,7 @@ void line6_disconnect(struct usb_interface *interface)
 	if (line6->disconnect)
 		line6->disconnect(line6);
 
-	dev_info(&interface->dev, "Line 6 %s now disconnected\n",
+	dev_info(&interface->dev, "Line 6 %s yesw disconnected\n",
 		 line6->properties->name);
 
 	/* make sure the device isn't destructed twice: */

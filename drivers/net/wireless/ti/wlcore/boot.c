@@ -4,7 +4,7 @@
  *
  * Copyright (C) 2008-2010 Nokia Corporation
  *
- * Contact: Luciano Coelho <luciano.coelho@nokia.com>
+ * Contact: Luciayes Coelho <luciayes.coelho@yeskia.com>
  */
 
 #include <linux/slab.h>
@@ -97,7 +97,7 @@ static int wlcore_validate_fw_ver(struct wl1271 *wl)
 	/* if the API version is equal... */
 	if (((min_ver[FW_VER_MAJOR] == WLCORE_FW_VER_IGNORE) ||
 	     (min_ver[FW_VER_MAJOR] == fw_ver[FW_VER_MAJOR])) &&
-	    /* ...the minor must be greater or equal */
+	    /* ...the miyesr must be greater or equal */
 	    ((min_ver[FW_VER_MINOR] != WLCORE_FW_VER_IGNORE) &&
 	     (min_ver[FW_VER_MINOR] > fw_ver[FW_VER_MINOR])))
 		goto fail;
@@ -173,7 +173,7 @@ static int wl1271_boot_upload_firmware_chunk(struct wl1271 *wl, void *buf,
 		     fw_data_len, CHUNK_SIZE);
 
 	if ((fw_data_len % 4) != 0) {
-		wl1271_error("firmware length not multiple of four");
+		wl1271_error("firmware length yest multiple of four");
 		return -EIO;
 	}
 
@@ -270,7 +270,7 @@ int wlcore_boot_upload_nvs(struct wl1271 *wl)
 {
 	struct platform_device *pdev = wl->pdev;
 	struct wlcore_platdev_data *pdev_data = dev_get_platdata(&pdev->dev);
-	const char *nvs_name = "unknown";
+	const char *nvs_name = "unkyeswn";
 	size_t nvs_len, burst_len;
 	int i;
 	u32 dest_addr, val;
@@ -302,7 +302,7 @@ int wlcore_boot_upload_nvs(struct wl1271 *wl)
 		if (wl->nvs_len != sizeof(struct wl1271_nvs_file) &&
 		    (wl->nvs_len != WL1271_INI_LEGACY_NVS_FILE_SIZE ||
 		     wl->enable_11a)) {
-			wl1271_error("%s size is not as expected: %zu != %zu",
+			wl1271_error("%s size is yest as expected: %zu != %zu",
 				     nvs_name, wl->nvs_len,
 				     sizeof(struct wl1271_nvs_file));
 			kfree(wl->nvs);
@@ -321,7 +321,7 @@ int wlcore_boot_upload_nvs(struct wl1271 *wl)
 			if (nvs->general_params.dual_mode_select)
 				wl->enable_11a = true;
 		} else {
-			wl1271_error("%s size is not as expected: %zu != %zu",
+			wl1271_error("%s size is yest as expected: %zu != %zu",
 				     nvs_name, wl->nvs_len,
 				     sizeof(struct wl128x_nvs_file));
 			kfree(wl->nvs);
@@ -505,7 +505,7 @@ int wlcore_boot_run_firmware(struct wl1271 *wl)
 	}
 
 	/*
-	 * in case of full asynchronous mode the firmware event must be
+	 * in case of full asynchroyesus mode the firmware event must be
 	 * ready to receive event from the command mailbox
 	 */
 

@@ -22,9 +22,9 @@
  /* PCI SERR reported via ISA port 0x61, bit 7. */
 #define _XEN_NMIREASON_pci_serr     1
 #define XEN_NMIREASON_pci_serr      (1UL << _XEN_NMIREASON_pci_serr)
- /* Unknown hardware-generated NMI. */
-#define _XEN_NMIREASON_unknown      2
-#define XEN_NMIREASON_unknown       (1UL << _XEN_NMIREASON_unknown)
+ /* Unkyeswn hardware-generated NMI. */
+#define _XEN_NMIREASON_unkyeswn      2
+#define XEN_NMIREASON_unkyeswn       (1UL << _XEN_NMIREASON_unkyeswn)
 
 /*
  * long nmi_op(unsigned int cmd, void *arg)

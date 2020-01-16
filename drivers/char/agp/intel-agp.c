@@ -65,7 +65,7 @@ static int intel_815_fetch_size(void)
 	u8 temp;
 
 	/* Intel 815 chipsets have a _weird_ APSIZE register with only
-	 * one non-reserved bit, so mask the others out ... */
+	 * one yesn-reserved bit, so mask the others out ... */
 	pci_read_config_byte(agp_bridge->dev, INTEL_APSIZE, &temp);
 	temp &= (1 << 3);
 
@@ -150,7 +150,7 @@ static int intel_815_configure(void)
 
 	/* attbase - aperture base */
 	/* the Intel 815 chipset spec. says that bits 29-31 in the
-	* ATTBASE register are reserved -> try not to write them */
+	* ATTBASE register are reserved -> try yest to write them */
 	if (agp_bridge->gatt_bus_addr & INTEL_815_ATTBASE_MASK) {
 		dev_emerg(&agp_bridge->dev->dev, "gatt bus addr too high");
 		return -EINVAL;
@@ -179,7 +179,7 @@ static int intel_815_configure(void)
 	pci_write_config_byte(agp_bridge->dev, INTEL_815_APCONT, temp2 | (1 << 1));
 
 	/* clear any possible error conditions */
-	/* Oddness : this chipset seems to have no ERRSTS register ! */
+	/* Oddness : this chipset seems to have yes ERRSTS register ! */
 	return 0;
 }
 
@@ -223,7 +223,7 @@ static int intel_820_configure(void)
 	pci_write_config_dword(agp_bridge->dev, INTEL_AGPCTRL, 0x0000);
 
 	/* global enable aperture access */
-	/* This flag is not accessed through MCHCFG register as in */
+	/* This flag is yest accessed through MCHCFG register as in */
 	/* i850 chipset. */
 	pci_read_config_byte(agp_bridge->dev, INTEL_I820_RDCR, &temp2);
 	pci_write_config_byte(agp_bridge->dev, INTEL_I820_RDCR, temp2 | (1 << 1));
@@ -691,7 +691,7 @@ static const struct agp_bridge_driver intel_7505_driver = {
 };
 
 /* Table to describe Intel GMCH and AGP/PCIE GART drivers.  At least one of
- * driver and gmch_driver must be non-null, and find_gmch will determine
+ * driver and gmch_driver must be yesn-null, and find_gmch will determine
  * which one should be used if a gmch_chip_id is present.
  */
 static const struct intel_agp_driver_description {
@@ -783,7 +783,7 @@ static int agp_intel_probe(struct pci_dev *pdev,
 	}
 
 	/*
-	* If the device has not been properly setup, the following will catch
+	* If the device has yest been properly setup, the following will catch
 	* the problem and should stop the system from crashing.
 	* 20030610 - hamish@zot.org
 	*/

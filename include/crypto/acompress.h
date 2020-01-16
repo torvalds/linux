@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
- * Asynchronous Compression operations
+ * Asynchroyesus Compression operations
  *
  * Copyright (c) 2016, Intel Corporation
  * Authors: Weigang Li <weigang.li@intel.com>
@@ -13,9 +13,9 @@
 #define CRYPTO_ACOMP_ALLOC_OUTPUT	0x00000001
 
 /**
- * struct acomp_req - asynchronous (de)compression request
+ * struct acomp_req - asynchroyesus (de)compression request
  *
- * @base:	Common attributes for asynchronous crypto requests
+ * @base:	Common attributes for asynchroyesus crypto requests
  * @src:	Source Data
  * @dst:	Destination data
  * @slen:	Size of the input buffer
@@ -53,7 +53,7 @@ struct crypto_acomp {
 };
 
 /**
- * struct acomp_alg - asynchronous compression algorithm
+ * struct acomp_alg - asynchroyesus compression algorithm
  *
  * @compress:	Function performs a compress operation
  * @decompress:	Function performs a de-compress operation
@@ -84,9 +84,9 @@ struct acomp_alg {
 };
 
 /**
- * DOC: Asynchronous Compression API
+ * DOC: Asynchroyesus Compression API
  *
- * The Asynchronous Compression API is used with the algorithms of type
+ * The Asynchroyesus Compression API is used with the algorithms of type
  * CRYPTO_ALG_TYPE_ACOMPRESS (listed as type "acomp" in /proc/crypto)
  */
 
@@ -163,7 +163,7 @@ static inline int crypto_has_acomp(const char *alg_name, u32 type, u32 mask)
 }
 
 /**
- * acomp_request_alloc() -- allocates asynchronous (de)compression request
+ * acomp_request_alloc() -- allocates asynchroyesus (de)compression request
  *
  * @tfm:	ACOMPRESS tfm handle allocated with crypto_alloc_acomp()
  *
@@ -172,7 +172,7 @@ static inline int crypto_has_acomp(const char *alg_name, u32 type, u32 mask)
 struct acomp_req *acomp_request_alloc(struct crypto_acomp *tfm);
 
 /**
- * acomp_request_free() -- zeroize and free asynchronous (de)compression
+ * acomp_request_free() -- zeroize and free asynchroyesus (de)compression
  *			   request as well as the output buffer if allocated
  *			   inside the algorithm
  *
@@ -181,9 +181,9 @@ struct acomp_req *acomp_request_alloc(struct crypto_acomp *tfm);
 void acomp_request_free(struct acomp_req *req);
 
 /**
- * acomp_request_set_callback() -- Sets an asynchronous callback
+ * acomp_request_set_callback() -- Sets an asynchroyesus callback
  *
- * Callback will be called when an asynchronous operation on a given
+ * Callback will be called when an asynchroyesus operation on a given
  * request is finished.
  *
  * @req:	request that the callback will be set for
@@ -206,7 +206,7 @@ static inline void acomp_request_set_callback(struct acomp_req *req,
  *
  * Sets parameters required by an acomp operation
  *
- * @req:	asynchronous compress request
+ * @req:	asynchroyesus compress request
  * @src:	pointer to input buffer scatterlist
  * @dst:	pointer to output buffer scatterlist. If this is NULL, the
  *		acomp layer will allocate the output memory
@@ -230,11 +230,11 @@ static inline void acomp_request_set_params(struct acomp_req *req,
 }
 
 /**
- * crypto_acomp_compress() -- Invoke asynchronous compress operation
+ * crypto_acomp_compress() -- Invoke asynchroyesus compress operation
  *
- * Function invokes the asynchronous compress operation
+ * Function invokes the asynchroyesus compress operation
  *
- * @req:	asynchronous compress request
+ * @req:	asynchroyesus compress request
  *
  * Return:	zero on success; error code in case of error
  */
@@ -252,11 +252,11 @@ static inline int crypto_acomp_compress(struct acomp_req *req)
 }
 
 /**
- * crypto_acomp_decompress() -- Invoke asynchronous decompress operation
+ * crypto_acomp_decompress() -- Invoke asynchroyesus decompress operation
  *
- * Function invokes the asynchronous decompress operation
+ * Function invokes the asynchroyesus decompress operation
  *
- * @req:	asynchronous compress request
+ * @req:	asynchroyesus compress request
  *
  * Return:	zero on success; error code in case of error
  */

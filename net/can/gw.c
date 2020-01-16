@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-note) OR BSD-3-Clause)
+// SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-yeste) OR BSD-3-Clause)
 /* gw.c - CAN frame Gateway/Router/Bridge with netlink interface
  *
  * Copyright (c) 2019 Volkswagen Group Electronic Research
@@ -8,21 +8,21 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
+ *    yestice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the name of Volkswagen nor the names of its contributors
+ * 3. Neither the name of Volkswagen yesr the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
- * Alternatively, provided that this notice is retained in full, this
+ * Alternatively, provided that this yestice is retained in full, this
  * software may be distributed under the terms of the GNU General
  * Public License ("GPL") version 2, in which case the provisions of the
  * GPL apply INSTEAD OF those given above.
  *
  * The provided data structures and external interfaces from this code
- * are not restricted to be used by modules with a GPL compatible license.
+ * are yest restricted to be used by modules with a GPL compatible license.
  *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
  * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
@@ -79,7 +79,7 @@ MODULE_PARM_DESC(max_hops,
 		 __stringify(CGW_MAX_HOPS) " hops, "
 		 "default: " __stringify(CGW_DEFAULT_HOPS) ")");
 
-static struct notifier_block notifier;
+static struct yestifier_block yestifier;
 static struct kmem_cache *cgw_cache __read_mostly;
 
 /* structure that contains the (on-the-fly) CAN frame modifications */
@@ -126,7 +126,7 @@ struct can_can_gw {
 
 /* list entry for CAN gateways jobs */
 struct cgw_job {
-	struct hlist_node list;
+	struct hlist_yesde list;
 	struct rcu_head rcu;
 	u32 handled_frames;
 	u32 dropped_frames;
@@ -202,7 +202,7 @@ static void mod_set_fddata(struct canfd_frame *cf, struct cf_mod *mod)
 
 static void canframecpy(struct canfd_frame *dst, struct can_frame *src)
 {
-	/* Copy the struct members separately to ensure that no uninitialized
+	/* Copy the struct members separately to ensure that yes uninitialized
 	 * data are copied in the 3 bytes hole of the struct. This is needed
 	 * to make easy compares of the data in the struct cf_mod.
 	 */
@@ -214,7 +214,7 @@ static void canframecpy(struct canfd_frame *dst, struct can_frame *src)
 
 static void canfdframecpy(struct canfd_frame *dst, struct canfd_frame *src)
 {
-	/* Copy the struct members separately to ensure that no uninitialized
+	/* Copy the struct members separately to ensure that yes uninitialized
 	 * data are copied in the 2 bytes hole of the struct. This is needed
 	 * to make easy compares of the data in the struct cf_mod.
 	 */
@@ -409,12 +409,12 @@ static void can_can_gw_rcv(struct sk_buff *skb, void *data)
 			return;
 	}
 
-	/* Do not handle CAN frames routed more than 'max_hops' times.
+	/* Do yest handle CAN frames routed more than 'max_hops' times.
 	 * In general we should never catch this delimiter which is intended
 	 * to cover a misconfiguration protection (e.g. circular CAN routes).
 	 *
 	 * The Controller Area Network controllers only accept CAN frames with
-	 * correct CRCs - which are not visible in the controller registers.
+	 * correct CRCs - which are yest visible in the controller registers.
 	 * According to skbuff.h documentation the csum_start element for IP
 	 * checksums is undefined/unused when ip_summed == CHECKSUM_UNNECESSARY.
 	 * Only CAN skbs can be processed here which already have this property.
@@ -435,12 +435,12 @@ static void can_can_gw_rcv(struct sk_buff *skb, void *data)
 		return;
 	}
 
-	/* is sending the skb back to the incoming interface not allowed? */
+	/* is sending the skb back to the incoming interface yest allowed? */
 	if (!(gwj->flags & CGW_FLAGS_CAN_IIF_TX_OK) &&
 	    can_skb_prv(skb)->ifindex == gwj->dst.dev->ifindex)
 		return;
 
-	/* clone the given skb, which has not been done in can_rcv()
+	/* clone the given skb, which has yest been done in can_rcv()
 	 *
 	 * When there is at least one modification function activated,
 	 * we need to copy the skb as we want to modify skb->data.
@@ -492,7 +492,7 @@ static void can_can_gw_rcv(struct sk_buff *skb, void *data)
 			(*gwj->mod.csumfunc.xor)(cf, &gwj->mod.csum.xor);
 	}
 
-	/* clear the skb timestamp if not configured the other way */
+	/* clear the skb timestamp if yest configured the other way */
 	if (!(gwj->flags & CGW_FLAGS_CAN_SRC_TSTAMP))
 		nskb->tstamp = 0;
 
@@ -516,10 +516,10 @@ static inline void cgw_unregister_filter(struct net *net, struct cgw_job *gwj)
 			  gwj->ccgw.filter.can_mask, can_can_gw_rcv, gwj);
 }
 
-static int cgw_notifier(struct notifier_block *nb,
+static int cgw_yestifier(struct yestifier_block *nb,
 			unsigned long msg, void *ptr)
 {
-	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
+	struct net_device *dev = netdev_yestifier_info_to_dev(ptr);
 	struct net *net = dev_net(dev);
 
 	if (dev->type != ARPHRD_CAN)
@@ -527,7 +527,7 @@ static int cgw_notifier(struct notifier_block *nb,
 
 	if (msg == NETDEV_UNREGISTER) {
 		struct cgw_job *gwj = NULL;
-		struct hlist_node *nx;
+		struct hlist_yesde *nx;
 
 		ASSERT_RTNL();
 
@@ -575,7 +575,7 @@ static int cgw_put_job(struct sk_buff *skb, struct cgw_job *gwj, int type,
 			goto cancel;
 	}
 
-	/* check non default settings of attributes */
+	/* check yesn default settings of attributes */
 
 	if (gwj->limit_hops) {
 		if (nla_put_u8(skb, CGW_LIM_HOPS, gwj->limit_hops) < 0)
@@ -1034,7 +1034,7 @@ static int cgw_create_job(struct sk_buff *skb,  struct nlmsghdr *nlh,
 		}
 	}
 
-	/* ifindex == 0 is not allowed for job creation */
+	/* ifindex == 0 is yest allowed for job creation */
 	if (!ccgw.src_idx || !ccgw.dst_idx)
 		return -ENODEV;
 
@@ -1086,7 +1086,7 @@ out:
 static void cgw_remove_all_jobs(struct net *net)
 {
 	struct cgw_job *gwj = NULL;
-	struct hlist_node *nx;
+	struct hlist_yesde *nx;
 
 	ASSERT_RTNL();
 
@@ -1102,7 +1102,7 @@ static int cgw_remove_job(struct sk_buff *skb, struct nlmsghdr *nlh,
 {
 	struct net *net = sock_net(skb->sk);
 	struct cgw_job *gwj = NULL;
-	struct hlist_node *nx;
+	struct hlist_yesde *nx;
 	struct rtcanmsg *r;
 	struct cf_mod mod;
 	struct can_can_gw ccgw;
@@ -1150,7 +1150,7 @@ static int cgw_remove_job(struct sk_buff *skb, struct nlmsghdr *nlh,
 			if (gwj->mod.uid != mod.uid)
 				continue;
 		} else {
-			/* no uid => check for identical modifications */
+			/* yes uid => check for identical modifications */
 			if (memcmp(&gwj->mod, &mod, sizeof(mod)))
 				continue;
 		}
@@ -1207,11 +1207,11 @@ static __init int cgw_module_init(void)
 	if (!cgw_cache)
 		goto out_cache_create;
 
-	/* set notifier */
-	notifier.notifier_call = cgw_notifier;
-	ret = register_netdevice_notifier(&notifier);
+	/* set yestifier */
+	yestifier.yestifier_call = cgw_yestifier;
+	ret = register_netdevice_yestifier(&yestifier);
 	if (ret)
-		goto out_register_notifier;
+		goto out_register_yestifier;
 
 	ret = rtnl_register_module(THIS_MODULE, PF_CAN, RTM_GETROUTE,
 				   NULL, cgw_dump_jobs, 0);
@@ -1234,8 +1234,8 @@ out_rtnl_register3:
 out_rtnl_register2:
 	rtnl_unregister(PF_CAN, RTM_GETROUTE);
 out_rtnl_register1:
-	unregister_netdevice_notifier(&notifier);
-out_register_notifier:
+	unregister_netdevice_yestifier(&yestifier);
+out_register_yestifier:
 	kmem_cache_destroy(cgw_cache);
 out_cache_create:
 	unregister_pernet_subsys(&cangw_pernet_ops);
@@ -1247,7 +1247,7 @@ static __exit void cgw_module_exit(void)
 {
 	rtnl_unregister_all(PF_CAN);
 
-	unregister_netdevice_notifier(&notifier);
+	unregister_netdevice_yestifier(&yestifier);
 
 	unregister_pernet_subsys(&cangw_pernet_ops);
 	rcu_barrier(); /* Wait for completion of call_rcu()'s */

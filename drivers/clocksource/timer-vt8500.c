@@ -8,7 +8,7 @@
 
 /*
  * This file is copied and modified from the original timer.c provided by
- * Alexey Charkov. Minor changes have been made for Device Tree Support.
+ * Alexey Charkov. Miyesr changes have been made for Device Tree Support.
  */
 
 #include <linux/io.h>
@@ -30,9 +30,9 @@
 #define TIMER_IER_VAL		0x001c		/* interrupt enable */
 #define TIMER_CTRL_VAL		0x0020
 #define TIMER_AS_VAL		0x0024		/* access status */
-#define TIMER_COUNT_R_ACTIVE	(1 << 5)	/* not ready for read */
-#define TIMER_COUNT_W_ACTIVE	(1 << 4)	/* not ready for write */
-#define TIMER_MATCH_W_ACTIVE	(1 << 0)	/* not ready for write */
+#define TIMER_COUNT_R_ACTIVE	(1 << 5)	/* yest ready for read */
+#define TIMER_COUNT_W_ACTIVE	(1 << 4)	/* yest ready for write */
+#define TIMER_MATCH_W_ACTIVE	(1 << 0)	/* yest ready for write */
 
 #define msecs_to_loops(t) (loops_per_jiffy / 1000 * HZ * t)
 
@@ -108,7 +108,7 @@ static struct irqaction irq = {
 	.dev_id  = &clockevent,
 };
 
-static int __init vt8500_timer_init(struct device_node *np)
+static int __init vt8500_timer_init(struct device_yesde *np)
 {
 	int timer_irq, ret;
 

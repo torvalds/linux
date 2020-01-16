@@ -2,7 +2,7 @@
 /* drivers/net/ethernet/freescale/gianfar.c
  *
  * Gianfar Ethernet Driver
- * This driver is designed for the non-CPM ethernet controllers
+ * This driver is designed for the yesn-CPM ethernet controllers
  * on the 85xx and 83xx family of integrated processors
  * Based on 8260_io/fcc_enet.c
  *
@@ -33,13 +33,13 @@
  *  When a packet is received, the RXF bit in the
  *  IEVENT register is set, triggering an interrupt when the
  *  corresponding bit in the IMASK register is also set (if
- *  interrupt coalescing is active, then the interrupt may not
+ *  interrupt coalescing is active, then the interrupt may yest
  *  happen immediately, but will wait until either a set number
  *  of frames or amount of time have passed).  In NAPI, the
  *  interrupt handler will signal there is work to be done, and
- *  exit. This method will start at the last known empty
+ *  exit. This method will start at the last kyeswn empty
  *  descriptor, and process every subsequent descriptor until there
- *  are none left with data (NAPI will stop after a set number of
+ *  are yesne left with data (NAPI will stop after a set number of
  *  packets to give time to other tasks, but will eventually
  *  process all the packets).  The data arrives inside a
  *  pre-allocated skb, and so after the skb is passed up to the
@@ -62,7 +62,7 @@
 
 #include <linux/kernel.h>
 #include <linux/string.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/unistd.h>
 #include <linux/slab.h>
 #include <linux/interrupt.h>
@@ -488,7 +488,7 @@ static void enable_napi(struct gfar_private *priv)
 	}
 }
 
-static int gfar_parse_group(struct device_node *np,
+static int gfar_parse_group(struct device_yesde *np,
 			    struct gfar_private *priv, const char *model)
 {
 	struct gfar_priv_grp *grp = &priv->gfargrp[priv->num_grps];
@@ -580,13 +580,13 @@ static int gfar_parse_group(struct device_node *np,
 	return 0;
 }
 
-static int gfar_of_group_count(struct device_node *np)
+static int gfar_of_group_count(struct device_yesde *np)
 {
-	struct device_node *child;
+	struct device_yesde *child;
 	int num = 0;
 
-	for_each_available_child_of_node(np, child)
-		if (of_node_name_eq(child, "queue-group"))
+	for_each_available_child_of_yesde(np, child)
+		if (of_yesde_name_eq(child, "queue-group"))
 			num++;
 
 	return num;
@@ -620,7 +620,7 @@ static phy_interface_t gfar_get_interface(struct net_device *dev)
 		else {
 			phy_interface_t interface = priv->interface;
 
-			/* This isn't autodetected right now, so it must
+			/* This isn't autodetected right yesw, so it must
 			 * be set by the device tree or platform code.
 			 */
 			if (interface == PHY_INTERFACE_MODE_RGMII_ID)
@@ -644,8 +644,8 @@ static int gfar_of_init(struct platform_device *ofdev, struct net_device **pdev)
 	phy_interface_t interface;
 	struct net_device *dev = NULL;
 	struct gfar_private *priv = NULL;
-	struct device_node *np = ofdev->dev.of_node;
-	struct device_node *child = NULL;
+	struct device_yesde *np = ofdev->dev.of_yesde;
+	struct device_yesde *child = NULL;
 	u32 stash_len = 0;
 	u32 stash_idx = 0;
 	unsigned int num_tx_qs, num_rx_qs;
@@ -672,7 +672,7 @@ static int gfar_of_init(struct platform_device *ofdev, struct net_device **pdev)
 		if (num_grps == 0 || num_grps > MAXGROUPS) {
 			dev_err(&ofdev->dev, "Invalid # of int groups(%d)\n",
 				num_grps);
-			pr_err("Cannot do alloc_etherdev, aborting\n");
+			pr_err("Canyest do alloc_etherdev, aborting\n");
 			return -EINVAL;
 		}
 
@@ -697,14 +697,14 @@ static int gfar_of_init(struct platform_device *ofdev, struct net_device **pdev)
 	if (num_tx_qs > MAX_TX_QS) {
 		pr_err("num_tx_qs(=%d) greater than MAX_TX_QS(=%d)\n",
 		       num_tx_qs, MAX_TX_QS);
-		pr_err("Cannot do alloc_etherdev, aborting\n");
+		pr_err("Canyest do alloc_etherdev, aborting\n");
 		return -EINVAL;
 	}
 
 	if (num_rx_qs > MAX_RX_QS) {
 		pr_err("num_rx_qs(=%d) greater than MAX_RX_QS(=%d)\n",
 		       num_rx_qs, MAX_RX_QS);
-		pr_err("Cannot do alloc_etherdev, aborting\n");
+		pr_err("Canyest do alloc_etherdev, aborting\n");
 		return -EINVAL;
 	}
 
@@ -747,8 +747,8 @@ static int gfar_of_init(struct platform_device *ofdev, struct net_device **pdev)
 
 	/* Parse and initialize group specific information */
 	if (priv->mode == MQ_MG_MODE) {
-		for_each_available_child_of_node(np, child) {
-			if (!of_node_name_eq(child, "queue-group"))
+		for_each_available_child_of_yesde(np, child) {
+			if (!of_yesde_name_eq(child, "queue-group"))
 				continue;
 
 			err = gfar_parse_group(child, priv, model);
@@ -802,7 +802,7 @@ static int gfar_of_init(struct platform_device *ofdev, struct net_device **pdev)
 				     FSL_GIANFAR_DEV_HAS_TIMER |
 				     FSL_GIANFAR_DEV_HAS_RX_FILER;
 
-	/* Use PHY connection type from the DT node if one is specified there.
+	/* Use PHY connection type from the DT yesde if one is specified there.
 	 * rgmii-id really needs to be specified. Other types can be
 	 * detected by hardware
 	 */
@@ -818,21 +818,21 @@ static int gfar_of_init(struct platform_device *ofdev, struct net_device **pdev)
 	if (of_get_property(np, "fsl,wake-on-filer", NULL))
 		priv->device_flags |= FSL_GIANFAR_DEV_HAS_WAKE_ON_FILER;
 
-	priv->phy_node = of_parse_phandle(np, "phy-handle", 0);
+	priv->phy_yesde = of_parse_phandle(np, "phy-handle", 0);
 
-	/* In the case of a fixed PHY, the DT node associated
-	 * to the PHY is the Ethernet MAC DT node.
+	/* In the case of a fixed PHY, the DT yesde associated
+	 * to the PHY is the Ethernet MAC DT yesde.
 	 */
-	if (!priv->phy_node && of_phy_is_fixed_link(np)) {
+	if (!priv->phy_yesde && of_phy_is_fixed_link(np)) {
 		err = of_phy_register_fixed_link(np);
 		if (err)
 			goto err_grp_init;
 
-		priv->phy_node = of_node_get(np);
+		priv->phy_yesde = of_yesde_get(np);
 	}
 
-	/* Find the TBI PHY.  If it's not there, we don't support SGMII */
-	priv->tbi_node = of_parse_phandle(np, "tbi-handle", 0);
+	/* Find the TBI PHY.  If it's yest there, we don't support SGMII */
+	priv->tbi_yesde = of_parse_phandle(np, "tbi-handle", 0);
 
 	return 0;
 
@@ -901,7 +901,7 @@ static void gfar_init_filer_table(struct gfar_private *priv)
 	rqfar = cluster_entry_per_class(priv, rqfar, RQFPR_IPV4 | RQFPR_UDP);
 	rqfar = cluster_entry_per_class(priv, rqfar, RQFPR_IPV4 | RQFPR_TCP);
 
-	/* cur_filer_idx indicated the first non-masked rule */
+	/* cur_filer_idx indicated the first yesn-masked rule */
 	priv->cur_filer_idx = rqfar;
 
 	/* Rest are masked rules */
@@ -954,13 +954,13 @@ static void gfar_detect_errata(struct gfar_private *priv)
 {
 	struct device *dev = &priv->ofdev->dev;
 
-	/* no plans to fix */
+	/* yes plans to fix */
 	priv->errata |= GFAR_ERRATA_A002;
 
 #ifdef CONFIG_PPC
 	if (pvr_version_is(PVR_VER_E500V1) || pvr_version_is(PVR_VER_E500V2))
 		__gfar_detect_errata_85xx(priv);
-	else /* non-mpc85xx parts, i.e. e300 core based */
+	else /* yesn-mpc85xx parts, i.e. e300 core based */
 		__gfar_detect_errata_83xx(priv);
 #endif
 
@@ -1013,7 +1013,7 @@ static int __gfar_is_rx_idle(struct gfar_private *priv)
 {
 	u32 res;
 
-	/* Normaly TSEC should not hang on GRS commands, so we should
+	/* Normaly TSEC should yest hang on GRS commands, so we should
 	 * actually wait for IEVENT_GRSC flag.
 	 */
 	if (!gfar_has_errata(priv, GFAR_ERRATA_A002))
@@ -1032,7 +1032,7 @@ static int __gfar_is_rx_idle(struct gfar_private *priv)
 }
 
 /* Halt the receive and transmit queues */
-static void gfar_halt_nodisable(struct gfar_private *priv)
+static void gfar_halt_yesdisable(struct gfar_private *priv)
 {
 	struct gfar __iomem *regs = priv->gfargrp[0].regs;
 	u32 tempval;
@@ -1076,7 +1076,7 @@ static void gfar_halt(struct gfar_private *priv)
 
 	mdelay(10);
 
-	gfar_halt_nodisable(priv);
+	gfar_halt_yesdisable(priv);
 
 	/* Disable Rx/Tx DMA */
 	tempval = gfar_read(&regs->maccfg1);
@@ -1218,7 +1218,7 @@ static void gfar_start(struct gfar_private *priv)
 
 	for (i = 0; i < priv->num_grps; i++) {
 		regs = priv->gfargrp[i].regs;
-		/* Clear THLT/RHLT, so that the DMA starts polling now */
+		/* Clear THLT/RHLT, so that the DMA starts polling yesw */
 		gfar_write(&regs->tstat, priv->gfargrp[i].tstat);
 		gfar_write(&regs->rstat, priv->gfargrp[i].rstat);
 	}
@@ -1506,7 +1506,7 @@ static u32 gfar_get_flowctrl_cfg(struct gfar_private *priv)
 	return val;
 }
 
-static noinline void gfar_update_link_state(struct gfar_private *priv)
+static yesinline void gfar_update_link_state(struct gfar_private *priv)
 {
 	struct gfar __iomem *regs = priv->gfargrp[0].regs;
 	struct net_device *ndev = priv->ndev;
@@ -1555,7 +1555,7 @@ static noinline void gfar_update_link_state(struct gfar_private *priv)
 				break;
 			default:
 				netif_warn(priv, link, priv->ndev,
-					   "Ack!  Speed (%d) is not 10/100/1000!\n",
+					   "Ack!  Speed (%d) is yest 10/100/1000!\n",
 					   phydev->speed);
 				break;
 			}
@@ -1619,25 +1619,25 @@ static void adjust_link(struct net_device *dev)
 /* Initialize TBI PHY interface for communicating with the
  * SERDES lynx PHY on the chip.  We communicate with this PHY
  * through the MDIO bus on each controller, treating it as a
- * "normal" PHY at the address found in the TBIPA register.  We assume
+ * "yesrmal" PHY at the address found in the TBIPA register.  We assume
  * that the TBIPA register is valid.  Either the MDIO bus code will set
  * it to a value that doesn't conflict with other PHYs on the bus, or the
- * value doesn't matter, as there are no other PHYs on the bus.
+ * value doesn't matter, as there are yes other PHYs on the bus.
  */
 static void gfar_configure_serdes(struct net_device *dev)
 {
 	struct gfar_private *priv = netdev_priv(dev);
 	struct phy_device *tbiphy;
 
-	if (!priv->tbi_node) {
+	if (!priv->tbi_yesde) {
 		dev_warn(&dev->dev, "error: SGMII mode requires that the "
 				    "device tree specify a tbi-handle\n");
 		return;
 	}
 
-	tbiphy = of_phy_find_device(priv->tbi_node);
+	tbiphy = of_phy_find_device(priv->tbi_yesde);
 	if (!tbiphy) {
-		dev_err(&dev->dev, "error: Could not get TBI device\n");
+		dev_err(&dev->dev, "error: Could yest get TBI device\n");
 		return;
 	}
 
@@ -1688,24 +1688,24 @@ static int init_phy(struct net_device *dev)
 	priv->oldspeed = 0;
 	priv->oldduplex = -1;
 
-	phydev = of_phy_connect(dev, priv->phy_node, &adjust_link, 0,
+	phydev = of_phy_connect(dev, priv->phy_yesde, &adjust_link, 0,
 				interface);
 	if (!phydev) {
-		dev_err(&dev->dev, "could not attach to PHY\n");
+		dev_err(&dev->dev, "could yest attach to PHY\n");
 		return -ENODEV;
 	}
 
 	if (interface == PHY_INTERFACE_MODE_SGMII)
 		gfar_configure_serdes(dev);
 
-	/* Remove any features not supported by the controller */
+	/* Remove any features yest supported by the controller */
 	linkmode_and(phydev->supported, phydev->supported, mask);
 	linkmode_copy(phydev->advertising, phydev->supported);
 
 	/* Add support for flow control */
 	phy_support_asym_pause(phydev);
 
-	/* disable EEE autoneg, EEE not supported by eTSEC */
+	/* disable EEE autoneg, EEE yest supported by eTSEC */
 	memset(&edata, 0, sizeof(struct ethtool_eee));
 	phy_ethtool_set_eee(phydev, &edata);
 
@@ -1770,7 +1770,7 @@ static inline struct txbd8 *next_txbd(struct txbd8 *bdp, struct txbd8 *base,
 	return skip_txbd(bdp, 1, base, ring_size);
 }
 
-/* eTSEC12: csum generation not supported for some fcb offsets */
+/* eTSEC12: csum generation yest supported for some fcb offsets */
 static inline bool gfar_csum_errata_12(struct gfar_private *priv,
 				       unsigned long fcb_addr)
 {
@@ -1852,7 +1852,7 @@ static netdev_tx_t gfar_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	/* check if there is space to queue this packet */
 	if (nr_txbds > tx_queue->num_txbdfree) {
-		/* no space, stop the queue */
+		/* yes space, stop the queue */
 		netif_tx_stop_queue(txq);
 		dev->stats.tx_fifo_errors++;
 		return NETDEV_TX_BUSY;
@@ -1892,7 +1892,7 @@ static netdev_tx_t gfar_start_xmit(struct sk_buff *skb, struct net_device *dev)
 				/* put back a new fcb for vlan/tstamp TOE */
 				fcb = gfar_add_fcb(skb);
 			} else {
-				/* Tx TOE not used */
+				/* Tx TOE yest used */
 				lstatus &= ~(BD_LFLAG(TXBD_TOE));
 				fcb = NULL;
 			}
@@ -2040,7 +2040,7 @@ dma_map_err:
 	return NETDEV_TX_OK;
 }
 
-/* Changes the mac address if the controller is not running. */
+/* Changes the mac address if the controller is yest running. */
 static int gfar_set_mac_address(struct net_device *dev)
 {
 	gfar_set_mac_for_addr(dev, 0, dev->dev_addr);
@@ -2081,9 +2081,9 @@ static void reset_gfar(struct net_device *ndev)
 	clear_bit_unlock(GFAR_RESETTING, &priv->state);
 }
 
-/* gfar_reset_task gets scheduled when a packet has not been
+/* gfar_reset_task gets scheduled when a packet has yest been
  * transmitted after a set amount of time.
- * For now, assume that clearing out all the structures, and
+ * For yesw, assume that clearing out all the structures, and
  * starting over will fix the problem.
  */
 static void gfar_reset_task(struct work_struct *work)
@@ -2293,7 +2293,7 @@ static void count_errors(u32 lstatus, struct net_device *ndev)
 	struct net_device_stats *stats = &ndev->stats;
 	struct gfar_extra_stats *estats = &priv->extra_stats;
 
-	/* If the packet was truncated, none of the other errors matter */
+	/* If the packet was truncated, yesne of the other errors matter */
 	if (lstatus & BD_LFLAG(RXBD_TRUNCATED)) {
 		stats->rx_length_errors++;
 
@@ -2312,7 +2312,7 @@ static void count_errors(u32 lstatus, struct net_device *ndev)
 	}
 	if (lstatus & BD_LFLAG(RXBD_NONOCTET)) {
 		stats->rx_frame_errors++;
-		atomic64_inc(&estats->rx_nonoctet);
+		atomic64_inc(&estats->rx_yesyesctet);
 	}
 	if (lstatus & BD_LFLAG(RXBD_CRCERR)) {
 		atomic64_inc(&estats->rx_crcerr);
@@ -2455,7 +2455,7 @@ static struct sk_buff *gfar_get_next_rxbuff(struct gfar_priv_rx_q *rx_queue,
 		/* reuse the free half of the page */
 		gfar_reuse_rx_page(rx_queue, rxb);
 	} else {
-		/* page cannot be reused, unmap it */
+		/* page canyest be reused, unmap it */
 		dma_unmap_page(rx_queue->dev, rxb->dma,
 			       PAGE_SIZE, DMA_FROM_DEVICE);
 	}
@@ -2469,14 +2469,14 @@ static struct sk_buff *gfar_get_next_rxbuff(struct gfar_priv_rx_q *rx_queue,
 static inline void gfar_rx_checksum(struct sk_buff *skb, struct rxfcb *fcb)
 {
 	/* If valid headers were found, and valid sums
-	 * were verified, then we tell the kernel that no
+	 * were verified, then we tell the kernel that yes
 	 * checksumming is necessary.  Otherwise, it is [FIXME]
 	 */
 	if ((be16_to_cpu(fcb->flags) & RXFCB_CSUM_MASK) ==
 	    (RXFCB_CIP | RXFCB_CTU))
 		skb->ip_summed = CHECKSUM_UNNECESSARY;
 	else
-		skb_checksum_none_assert(skb);
+		skb_checksum_yesne_assert(skb);
 }
 
 /* gfar_process_frame() -- handle one incoming packet if skb isn't NULL. */
@@ -2569,7 +2569,7 @@ static int gfar_clean_rx_ring(struct gfar_priv_rx_q *rx_queue,
 
 		rx_queue->next_to_clean = i;
 
-		/* fetch next buffer if not the last in frame */
+		/* fetch next buffer if yest the last in frame */
 		if (!(lstatus & BD_LFLAG(RXBD_LAST)))
 			continue;
 
@@ -2701,7 +2701,7 @@ static int gfar_poll_rx(struct napi_struct *napi, int budget)
 		budget_per_q = budget/num_act_queues;
 
 	for_each_set_bit(i, &gfargrp->rx_bit_map, priv->num_rx_queues) {
-		/* skip queue if not active */
+		/* skip queue if yest active */
 		if (!(rstat_rxf & (RSTAT_CLEAR_RXF0 >> i)))
 			continue;
 
@@ -2791,7 +2791,7 @@ static irqreturn_t gfar_error(int irq, void *grp_id)
 	/* Clear IEVENT */
 	gfar_write(&regs->ievent, events & IEVENT_ERR_MASK);
 
-	/* Magic Packet is not an error. */
+	/* Magic Packet is yest an error. */
 	if ((priv->device_flags & FSL_GIANFAR_DEV_HAS_MAGIC_PACKET) &&
 	    (events & IEVENT_MAG))
 		events &= ~IEVENT_MAG;
@@ -2872,7 +2872,7 @@ static irqreturn_t gfar_interrupt(int irq, void *grp_id)
 
 #ifdef CONFIG_NET_POLL_CONTROLLER
 /* Polling 'interrupt' - used by things like netconsole to send skbs
- * without having to re-enable interrupts. It's not called while
+ * without having to re-enable interrupts. It's yest called while
  * the interrupt routine is executing.
  */
 static void gfar_netpoll(struct net_device *dev)
@@ -3044,7 +3044,7 @@ static int gfar_close(struct net_device *dev)
 }
 
 /* Clears each of the exact match registers to zero, so they
- * don't interfere with normal reception
+ * don't interfere with yesrmal reception
  */
 static void gfar_clear_exact_match(struct net_device *dev)
 {
@@ -3073,7 +3073,7 @@ static void gfar_set_multi(struct net_device *dev)
 		tempval |= RCTRL_PROM;
 		gfar_write(&regs->rctrl, tempval);
 	} else {
-		/* Set RCTRL to not PROM */
+		/* Set RCTRL to yest PROM */
 		tempval = gfar_read(&regs->rctrl);
 		tempval &= ~(RCTRL_PROM);
 		gfar_write(&regs->rctrl, tempval);
@@ -3157,8 +3157,8 @@ void gfar_mac_reset(struct gfar_private *priv)
 	/* We need to delay at least 3 TX clocks */
 	udelay(3);
 
-	/* the soft reset bit is not self-resetting, so we need to
-	 * clear it before resuming normal operation
+	/* the soft reset bit is yest self-resetting, so we need to
+	 * clear it before resuming yesrmal operation
 	 */
 	gfar_write(&regs->maccfg1, 0);
 
@@ -3227,7 +3227,7 @@ static void gfar_hw_init(struct gfar_private *priv)
 	struct gfar __iomem *regs = priv->gfargrp[0].regs;
 	u32 attrs;
 
-	/* Stop the DMA engine now, in case it was running before
+	/* Stop the DMA engine yesw, in case it was running before
 	 * (The firmware could have used it, and left it running).
 	 */
 	gfar_halt(priv);
@@ -3298,7 +3298,7 @@ static const struct net_device_ops gfar_netdev_ops = {
  */
 static int gfar_probe(struct platform_device *ofdev)
 {
-	struct device_node *np = ofdev->dev.of_node;
+	struct device_yesde *np = ofdev->dev.of_yesde;
 	struct net_device *dev = NULL;
 	struct gfar_private *priv = NULL;
 	int err = 0, i;
@@ -3407,7 +3407,7 @@ static int gfar_probe(struct platform_device *ofdev)
 	err = register_netdev(dev);
 
 	if (err) {
-		pr_err("%s: Cannot register net device, aborting\n", dev->name);
+		pr_err("%s: Canyest register net device, aborting\n", dev->name);
 		goto register_fail;
 	}
 
@@ -3459,8 +3459,8 @@ register_fail:
 	unmap_group_regs(priv);
 	gfar_free_rx_queues(priv);
 	gfar_free_tx_queues(priv);
-	of_node_put(priv->phy_node);
-	of_node_put(priv->tbi_node);
+	of_yesde_put(priv->phy_yesde);
+	of_yesde_put(priv->tbi_yesde);
 	free_gfar_dev(priv);
 	return err;
 }
@@ -3468,10 +3468,10 @@ register_fail:
 static int gfar_remove(struct platform_device *ofdev)
 {
 	struct gfar_private *priv = platform_get_drvdata(ofdev);
-	struct device_node *np = ofdev->dev.of_node;
+	struct device_yesde *np = ofdev->dev.of_yesde;
 
-	of_node_put(priv->phy_node);
-	of_node_put(priv->tbi_node);
+	of_yesde_put(priv->phy_yesde);
+	of_yesde_put(priv->tbi_yesde);
 
 	unregister_netdev(priv->ndev);
 
@@ -3585,7 +3585,7 @@ static void gfar_start_wol_filer(struct gfar_private *priv)
 
 	for (i = 0; i < priv->num_grps; i++) {
 		regs = priv->gfargrp[i].regs;
-		/* Clear RHLT, so that the DMA starts polling now */
+		/* Clear RHLT, so that the DMA starts polling yesw */
 		gfar_write(&regs->rstat, priv->gfargrp[i].rstat);
 		/* enable the Filer General Purpose Interrupt */
 		gfar_write(&regs->imask, IMASK_FGPI);

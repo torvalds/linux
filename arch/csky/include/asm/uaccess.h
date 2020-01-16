@@ -8,7 +8,7 @@
  * User space memory access functions
  */
 #include <linux/compiler.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/types.h>
 #include <linux/sched.h>
 #include <linux/mm.h>
@@ -30,7 +30,7 @@ extern int __put_user_bad(void);
 
 /*
  * Tell gcc we read from memory instead of writing: this is because
- * we do not write to any memory gcc knows about, so there are no
+ * we do yest write to any memory gcc kyesws about, so there are yes
  * aliasing issues.
  */
 
@@ -44,20 +44,20 @@ extern int __put_user_bad(void);
  * and hide all the ugliness from the user.
  *
  * The "__xxx" versions of the user access functions are versions that
- * do not verify the address space, that must have been done previously
+ * do yest verify the address space, that must have been done previously
  * with a separate "access_ok()" call (this is used when we do multiple
  * accesses to the same area of user memory).
  *
  * As we use the same address space for kernel and user data on
  * Ckcore, we can just do these as direct assignments.  (Of course, the
- * exception handling means that it's no longer "just"...)
+ * exception handling means that it's yes longer "just"...)
  */
 
 #define put_user(x, ptr) \
 	__put_user_check((x), (ptr), sizeof(*(ptr)))
 
 #define __put_user(x, ptr) \
-	__put_user_nocheck((x), (ptr), sizeof(*(ptr)))
+	__put_user_yescheck((x), (ptr), sizeof(*(ptr)))
 
 #define __ptr(x) ((unsigned long *)(x))
 
@@ -65,9 +65,9 @@ extern int __put_user_bad(void);
 	__get_user_check((x), (ptr), sizeof(*(ptr)))
 
 #define __get_user(x, ptr) \
-	__get_user_nocheck((x), (ptr), sizeof(*(ptr)))
+	__get_user_yescheck((x), (ptr), sizeof(*(ptr)))
 
-#define __put_user_nocheck(x, ptr, size)				\
+#define __put_user_yescheck(x, ptr, size)				\
 ({									\
 	long __pu_err = 0;						\
 	typeof(*(ptr)) *__pu_addr = (ptr);				\
@@ -111,8 +111,8 @@ do {							\
 
 /*
  * We don't tell gcc that we are accessing memory, but this is OK
- * because we do not write to any memory gcc knows about, so there
- * are no aliasing issues.
+ * because we do yest write to any memory gcc kyesws about, so there
+ * are yes aliasing issues.
  *
  * Note that PC at a fault is the address *after* the faulting
  * instruction.
@@ -198,7 +198,7 @@ do {								\
 	: "memory");						\
 } while (0)
 
-#define __get_user_nocheck(x, ptr, size)			\
+#define __get_user_yescheck(x, ptr, size)			\
 ({								\
 	long  __gu_err;						\
 	__get_user_size(x, (ptr), (size), __gu_err);		\

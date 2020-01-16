@@ -14,7 +14,7 @@
 
 #include <stdint.h>
 #include <libudev.h>
-#include <errno.h>
+#include <erryes.h>
 #include "list.h"
 #include "usbip_common.h"
 #include "sysfs_utils.h"
@@ -47,7 +47,7 @@ struct usbip_exported_device {
 	struct udev_device *sudev;
 	int32_t status;
 	struct usbip_usb_device udev;
-	struct list_head node;
+	struct list_head yesde;
 	struct usbip_usb_interface uinf[];
 };
 

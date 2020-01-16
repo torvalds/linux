@@ -45,10 +45,10 @@ struct clk_omap_reg {
  *			omap4_dpll_regm4xen_round_rate()
  * @last_rounded_lpmode: cache of the last lpmode result of
  *			 omap4_dpll_lpmode_recalc()
- * @max_multiplier: maximum valid non-bypass multiplier value (actual)
+ * @max_multiplier: maximum valid yesn-bypass multiplier value (actual)
  * @last_rounded_n: cache of the last N result of omap2_dpll_round_rate()
- * @min_divider: minimum valid non-bypass divider value (actual)
- * @max_divider: maximum valid non-bypass divider value (actual)
+ * @min_divider: minimum valid yesn-bypass divider value (actual)
+ * @max_divider: maximum valid yesn-bypass divider value (actual)
  * @max_rate: maximum clock rate for the DPLL
  * @modes: possible values of @enable_mask
  * @autoidle_reg: register containing the DPLL autoidle mode bitfield
@@ -70,7 +70,7 @@ struct clk_omap_reg {
  *
  * @freqsel_mask is only used on the OMAP34xx family and AM35xx.
  *
- * XXX Some DPLLs have multiple bypass inputs, so it's not technically
+ * XXX Some DPLLs have multiple bypass inputs, so it's yest technically
  * correct to only have one @clk_bypass pointer.
  *
  * XXX The runtime-variable fields (@last_rounded_rate, @last_rounded_m,
@@ -136,7 +136,7 @@ struct clk_hw_omap_ops {
 
 /**
  * struct clk_hw_omap - OMAP struct clk
- * @node: list_head connecting this clock into the full clock list
+ * @yesde: list_head connecting this clock into the full clock list
  * @enable_reg: register to write to enable the clock (see @enable_bit)
  * @enable_bit: bitshift to write to enable/disable the clock (see @enable_reg)
  * @flags: see "struct clk.flags possibilities" above
@@ -148,7 +148,7 @@ struct clk_hw_omap_ops {
  */
 struct clk_hw_omap {
 	struct clk_hw		hw;
-	struct list_head	node;
+	struct list_head	yesde;
 	unsigned long		fixed_rate;
 	u8			fixed_div;
 	struct clk_omap_reg	enable_reg;
@@ -172,7 +172,7 @@ struct clk_hw_omap {
  *     with 32bit ops, by default OMAP1 uses 16bit ops.
  * CLOCK_IDLE_CONTROL: (OMAP1 only) clock has autoidle support.
  * CLOCK_NO_IDLE_PARENT: (OMAP1 only) when clock is enabled, its parent
- *     clock is put to no-idle mode.
+ *     clock is put to yes-idle mode.
  * ENABLE_ON_INIT: Clock is enabled on init.
  * INVERT_ENABLE: By default, clock enable bit behavior is '1' enable, '0'
  *     disable. This inverts the behavior making '0' enable and '1' disable.
@@ -190,7 +190,7 @@ struct clk_hw_omap {
 #define INVERT_ENABLE		(1 << 4)	/* 0 enables, 1 disables */
 #define CLOCK_CLKOUTX2		(1 << 5)
 
-/* CM_CLKEN_PLL*.EN* bit values - not all are available for every DPLL */
+/* CM_CLKEN_PLL*.EN* bit values - yest all are available for every DPLL */
 #define DPLL_LOW_POWER_STOP	0x1
 #define DPLL_LOW_POWER_BYPASS	0x5
 #define DPLL_LOCKED		0x7
@@ -225,7 +225,7 @@ enum {
  * clk-mux, clk-divider etc.) to provide support for various low-level
  * hadrware interfaces (direct MMIO, regmap etc.), and is initialized
  * by board code. Low-level ops also contain some other platform specific
- * operations not provided directly by clock drivers.
+ * operations yest provided directly by clock drivers.
  */
 struct ti_clk_ll_ops {
 	u32	(*clk_readl)(const struct clk_omap_reg *reg);
@@ -262,7 +262,7 @@ int ti_clk_setup_ll_ops(struct ti_clk_ll_ops *ops);
 
 struct regmap;
 
-int omap2_clk_provider_init(struct device_node *parent, int index,
+int omap2_clk_provider_init(struct device_yesde *parent, int index,
 			    struct regmap *syscon, void __iomem *mem);
 void omap2_clk_legacy_provider_init(int index, void __iomem *mem);
 
@@ -299,8 +299,8 @@ struct ti_clk_features {
 void ti_clk_setup_features(struct ti_clk_features *features);
 const struct ti_clk_features *ti_clk_get_features(void);
 bool ti_clk_is_in_standby(struct clk *clk);
-int omap3_noncore_dpll_save_context(struct clk_hw *hw);
-void omap3_noncore_dpll_restore_context(struct clk_hw *hw);
+int omap3_yesncore_dpll_save_context(struct clk_hw *hw);
+void omap3_yesncore_dpll_restore_context(struct clk_hw *hw);
 
 int omap3_core_dpll_save_context(struct clk_hw *hw);
 void omap3_core_dpll_restore_context(struct clk_hw *hw);

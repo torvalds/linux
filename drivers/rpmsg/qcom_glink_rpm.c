@@ -259,7 +259,7 @@ static int glink_rpm_probe(struct platform_device *pdev)
 	struct qcom_glink *glink;
 	struct glink_rpm_pipe *rx_pipe;
 	struct glink_rpm_pipe *tx_pipe;
-	struct device_node *np;
+	struct device_yesde *np;
 	void __iomem *msg_ram;
 	size_t msg_ram_size;
 	struct device *dev = &pdev->dev;
@@ -271,9 +271,9 @@ static int glink_rpm_probe(struct platform_device *pdev)
 	if (!rx_pipe || !tx_pipe)
 		return -ENOMEM;
 
-	np = of_parse_phandle(dev->of_node, "qcom,rpm-msg-ram", 0);
+	np = of_parse_phandle(dev->of_yesde, "qcom,rpm-msg-ram", 0);
 	ret = of_address_to_resource(np, 0, &r);
-	of_node_put(np);
+	of_yesde_put(np);
 	if (ret)
 		return ret;
 

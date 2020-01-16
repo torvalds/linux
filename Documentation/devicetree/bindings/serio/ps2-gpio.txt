@@ -8,10 +8,10 @@ Required properties:
 
 Optional properties:
 	- write-enable: Indicates whether write function is provided
-	to serio device. Possibly providing the write fn will not work, because
+	to serio device. Possibly providing the write fn will yest work, because
 	of the tough timing requirements.
 
-Example nodes:
+Example yesdes:
 
 ps2@0 {
 	compatible = "ps2-gpio";

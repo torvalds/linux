@@ -60,7 +60,7 @@ static int qt1070_read(struct i2c_client *client, u8 reg)
 	ret = i2c_smbus_read_byte_data(client, reg);
 	if (ret < 0)
 		dev_err(&client->dev,
-			"can not read register, returned %d\n", ret);
+			"can yest read register, returned %d\n", ret);
 
 	return ret;
 }
@@ -72,7 +72,7 @@ static int qt1070_write(struct i2c_client *client, u8 reg, u8 data)
 	ret = i2c_smbus_write_byte_data(client, reg, data);
 	if (ret < 0)
 		dev_err(&client->dev,
-			"can not write register, returned %d\n", ret);
+			"can yest write register, returned %d\n", ret);
 
 	return ret;
 }
@@ -84,14 +84,14 @@ static bool qt1070_identify(struct i2c_client *client)
 	/* Read Chip ID */
 	id = qt1070_read(client, CHIP_ID);
 	if (id != QT1070_CHIP_ID) {
-		dev_err(&client->dev, "ID %d not supported\n", id);
+		dev_err(&client->dev, "ID %d yest supported\n", id);
 		return false;
 	}
 
 	/* Read firmware version */
 	ver = qt1070_read(client, FW_VERSION);
 	if (ver < 0) {
-		dev_err(&client->dev, "could not read the firmware version\n");
+		dev_err(&client->dev, "could yest read the firmware version\n");
 		return false;
 	}
 
@@ -136,7 +136,7 @@ static int qt1070_probe(struct i2c_client *client,
 
 	err = i2c_check_functionality(client->adapter, I2C_FUNC_SMBUS_BYTE);
 	if (!err) {
-		dev_err(&client->dev, "%s adapter not supported\n",
+		dev_err(&client->dev, "%s adapter yest supported\n",
 			dev_driver_string(&client->adapter->dev));
 		return -ENODEV;
 	}

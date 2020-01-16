@@ -13,7 +13,7 @@ Optional properties:
 - interrupts : The CODEC's interrupt output.
 
 - realtek,dmic1-data-pin
-  0: dmic1 is not used
+  0: dmic1 is yest used
   1: using GPIO2 pin as dmic1 data pin
   2: using GPIO5 pin as dmic1 data pin
 

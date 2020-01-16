@@ -140,7 +140,7 @@ int btintel_set_diag(struct hci_dev *hdev, bool enable)
 		err = PTR_ERR(skb);
 		if (err == -ENODATA)
 			goto done;
-		bt_dev_err(hdev, "Changing Intel diagnostic mode failed (%d)",
+		bt_dev_err(hdev, "Changing Intel diagyesstic mode failed (%d)",
 			   err);
 		return err;
 	}
@@ -600,7 +600,7 @@ int btintel_read_boot_params(struct hci_dev *hdev,
 	if (params->status) {
 		bt_dev_err(hdev, "Intel boot parameters command failed (%02x)",
 			   params->status);
-		return -bt_to_errno(params->status);
+		return -bt_to_erryes(params->status);
 	}
 
 	bt_dev_info(hdev, "Device revision is %u",
@@ -720,9 +720,9 @@ void btintel_reset_to_bootloader(struct hci_dev *hdev)
 	 * Intel Reset parameter description:
 	 * reset_type :   0x00 (Soft reset),
 	 *		  0x01 (Hard reset)
-	 * patch_enable : 0x00 (Do not enable),
+	 * patch_enable : 0x00 (Do yest enable),
 	 *		  0x01 (Enable)
-	 * ddc_reload :   0x00 (Do not reload),
+	 * ddc_reload :   0x00 (Do yest reload),
 	 *		  0x01 (Reload)
 	 * boot_option:   0x00 (Current image),
 	 *                0x01 (Specified boot address)

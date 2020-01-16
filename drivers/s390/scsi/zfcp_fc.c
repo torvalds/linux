@@ -29,10 +29,10 @@ static u32 zfcp_fc_rscn_range_mask[] = {
 	[ELS_ADDR_FMT_FAB]		= 0x000000,
 };
 
-static bool no_auto_port_rescan;
-module_param(no_auto_port_rescan, bool, 0600);
-MODULE_PARM_DESC(no_auto_port_rescan,
-		 "no automatic port_rescan (default off)");
+static bool yes_auto_port_rescan;
+module_param(yes_auto_port_rescan, bool, 0600);
+MODULE_PARM_DESC(yes_auto_port_rescan,
+		 "yes automatic port_rescan (default off)");
 
 static unsigned int port_scan_backoff = 500;
 module_param(port_scan_backoff, uint, 0600);
@@ -61,14 +61,14 @@ static void zfcp_fc_port_scan_time(struct zfcp_adapter *adapter)
 
 static void zfcp_fc_port_scan(struct zfcp_adapter *adapter)
 {
-	unsigned long now = jiffies;
+	unsigned long yesw = jiffies;
 	unsigned long next = adapter->next_port_scan;
 	unsigned long delay = 0, max;
 
 	/* delay only needed within waiting period */
-	if (time_before(now, next)) {
-		delay = next - now;
-		/* paranoia: never ever delay scans longer than specified */
+	if (time_before(yesw, next)) {
+		delay = next - yesw;
+		/* parayesia: never ever delay scans longer than specified */
 		max = msecs_to_jiffies(port_scan_ratelimit + port_scan_backoff);
 		delay = min(delay, max);
 	}
@@ -78,7 +78,7 @@ static void zfcp_fc_port_scan(struct zfcp_adapter *adapter)
 
 void zfcp_fc_conditional_port_scan(struct zfcp_adapter *adapter)
 {
-	if (no_auto_port_rescan)
+	if (yes_auto_port_rescan)
 		return;
 
 	zfcp_fc_port_scan(adapter);
@@ -86,7 +86,7 @@ void zfcp_fc_conditional_port_scan(struct zfcp_adapter *adapter)
 
 void zfcp_fc_inverse_conditional_port_scan(struct zfcp_adapter *adapter)
 {
-	if (!no_auto_port_rescan)
+	if (!yes_auto_port_rescan)
 		return;
 
 	zfcp_fc_port_scan(adapter);
@@ -250,17 +250,17 @@ static void zfcp_fc_incoming_rscn(struct zfcp_fsf_req *fsf_req)
 	struct fc_els_rscn *head;
 	struct fc_els_rscn_page *page;
 	u16 i;
-	u16 no_entries;
+	u16 yes_entries;
 	unsigned int afmt;
 
 	head = (struct fc_els_rscn *) status_buffer->payload.data;
 	page = (struct fc_els_rscn_page *) head;
 
 	/* see FC-FS */
-	no_entries = be16_to_cpu(head->rscn_plen) /
+	yes_entries = be16_to_cpu(head->rscn_plen) /
 		sizeof(struct fc_els_rscn_page);
 
-	if (no_entries > 1) {
+	if (yes_entries > 1) {
 		/* handle failed ports */
 		unsigned long flags;
 		struct zfcp_port *port;
@@ -276,7 +276,7 @@ static void zfcp_fc_incoming_rscn(struct zfcp_fsf_req *fsf_req)
 		read_unlock_irqrestore(&adapter->port_list_lock, flags);
 	}
 
-	for (i = 1; i < no_entries; i++) {
+	for (i = 1; i < yes_entries; i++) {
 		/* skip head and start with 1st element */
 		page++;
 		afmt = page->rscn_page_flags & ELS_RSCN_ADDR_FMT_MASK;
@@ -440,7 +440,7 @@ void zfcp_fc_port_did_lookup(struct work_struct *work)
 	set_worker_desc("zgidpn%16llx", port->wwpn); /* < WORKER_DESC_LEN=24 */
 	ret = zfcp_fc_ns_gid_pn(port);
 	if (ret) {
-		/* could not issue gid_pn for some reason */
+		/* could yest issue gid_pn for some reason */
 		zfcp_erp_adapter_reopen(port->adapter, 0, "fcgpn_1");
 		goto out;
 	}
@@ -524,7 +524,7 @@ static void zfcp_fc_adisc_handler(void *data)
 	/* port is good, unblock rport without going through erp */
 	zfcp_scsi_schedule_rport_register(port);
  out:
-	atomic_andnot(ZFCP_STATUS_PORT_LINK_TEST, &port->status);
+	atomic_andyest(ZFCP_STATUS_PORT_LINK_TEST, &port->status);
 	put_device(&port->dev);
 	kmem_cache_free(zfcp_fc_req_cache, fc_req);
 }
@@ -551,10 +551,10 @@ static int zfcp_fc_adisc(struct zfcp_port *port)
 	fc_req->ct_els.handler = zfcp_fc_adisc_handler;
 	fc_req->ct_els.handler_data = fc_req;
 
-	/* acc. to FC-FS, hard_nport_id in ADISC should not be set for ports
+	/* acc. to FC-FS, hard_nport_id in ADISC should yest be set for ports
 	   without FC-AL-2 capability, so we don't set it */
 	fc_req->u.adisc.req.adisc_wwpn = cpu_to_be64(fc_host_port_name(shost));
-	fc_req->u.adisc.req.adisc_wwnn = cpu_to_be64(fc_host_node_name(shost));
+	fc_req->u.adisc.req.adisc_wwnn = cpu_to_be64(fc_host_yesde_name(shost));
 	fc_req->u.adisc.req.adisc_cmd = ELS_ADISC;
 	hton24(fc_req->u.adisc.req.adisc_port_id, fc_host_port_id(shost));
 
@@ -587,8 +587,8 @@ void zfcp_fc_link_test_work(struct work_struct *work)
 	if (retval == 0)
 		return;
 
-	/* send of ADISC was not possible */
-	atomic_andnot(ZFCP_STATUS_PORT_LINK_TEST, &port->status);
+	/* send of ADISC was yest possible */
+	atomic_andyest(ZFCP_STATUS_PORT_LINK_TEST, &port->status);
 	zfcp_erp_port_forced_reopen(port, 0, "fcltwk1");
 
 out:
@@ -699,7 +699,7 @@ static void zfcp_fc_validate_port(struct zfcp_port *port, struct list_head *lh)
 	if (!(atomic_read(&port->status) & ZFCP_STATUS_COMMON_NOESC))
 		return;
 
-	atomic_andnot(ZFCP_STATUS_COMMON_NOESC, &port->status);
+	atomic_andyest(ZFCP_STATUS_COMMON_NOESC, &port->status);
 
 	if ((port->supported_classes != 0) ||
 	    !list_empty(&port->unit_list))
@@ -747,10 +747,10 @@ static int zfcp_fc_eval_gpn_ft(struct zfcp_fc_req *fc_req,
 		last = acc->fp_flags & FC_NS_FID_LAST;
 		d_id = ntoh24(acc->fp_fid);
 
-		/* don't attach ports with a well known address */
+		/* don't attach ports with a well kyeswn address */
 		if (d_id >= FC_FID_WELL_KNOWN_BASE)
 			continue;
-		/* skip the adapter's port and known remote ports */
+		/* skip the adapter's port and kyeswn remote ports */
 		if (be64_to_cpu(acc->fp_wwpn) ==
 		    fc_host_port_name(adapter->scsi_host))
 			continue;
@@ -828,7 +828,7 @@ static int zfcp_fc_gspn(struct zfcp_adapter *adapter,
 			struct zfcp_fc_req *fc_req)
 {
 	DECLARE_COMPLETION_ONSTACK(completion);
-	char devno[] = "DEVNO:";
+	char devyes[] = "DEVNO:";
 	struct zfcp_fsf_ct_els *ct_els = &fc_req->ct_els;
 	struct zfcp_fc_gspn_req *gspn_req = &fc_req->u.gspn.req;
 	struct zfcp_fc_gspn_rsp *gspn_rsp = &fc_req->u.gspn.rsp;
@@ -856,12 +856,12 @@ static int zfcp_fc_gspn(struct zfcp_adapter *adapter,
 		return ct_els->status;
 
 	if (fc_host_port_type(adapter->scsi_host) == FC_PORTTYPE_NPIV &&
-	    !(strstr(gspn_rsp->gspn.fp_name, devno)))
+	    !(strstr(gspn_rsp->gspn.fp_name, devyes)))
 		snprintf(fc_host_symbolic_name(adapter->scsi_host),
 			 FC_SYMBOLIC_NAME_SIZE, "%s%s %s NAME: %s",
-			 gspn_rsp->gspn.fp_name, devno,
+			 gspn_rsp->gspn.fp_name, devyes,
 			 dev_name(&adapter->ccw_device->dev),
-			 init_utsname()->nodename);
+			 init_utsname()->yesdename);
 	else
 		strlcpy(fc_host_symbolic_name(adapter->scsi_host),
 			gspn_rsp->gspn.fp_name, FC_SYMBOLIC_NAME_SIZE);
@@ -1075,7 +1075,7 @@ int zfcp_fc_exec_bsg_job(struct bsg_job *job)
 
 int zfcp_fc_timeout_bsg_job(struct bsg_job *job)
 {
-	/* hardware tracks timeout, reset bsg timeout to not interfere */
+	/* hardware tracks timeout, reset bsg timeout to yest interfere */
 	return -EAGAIN;
 }
 

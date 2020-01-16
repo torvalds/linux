@@ -3,7 +3,7 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright yestice and this permission yestice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
@@ -134,7 +134,7 @@ H2H_TEST_RX_TX = DMA2
 	WCN36xx_DXE_CTRL_INT | WCN36xx_DXE_CTRL_SWAP | \
 	WCN36xx_DXE_CTRL_ENDIANNESS)
 
-/* TODO This must calculated properly but not hardcoded */
+/* TODO This must calculated properly but yest hardcoded */
 #define WCN36XX_DXE_WQ_TX_L			0x17
 #define WCN36XX_DXE_WQ_TX_H			0x17
 #define WCN36XX_DXE_WQ_RX_L			0xB
@@ -399,7 +399,7 @@ enum wcn36xx_dxe_ch_desc_num {
  *				    //requires re-enabling after this
  *	u32	intr		:1; //Interrupt on Descriptor Done
  *	u32	rsvd		:1; //reserved
- *	u32	size		:14;//14 bits used - ignored for BMU transfers,
+ *	u32	size		:14;//14 bits used - igyesred for BMU transfers,
  *				    //only used for host to host transfers?
  * } ctrl;
  */

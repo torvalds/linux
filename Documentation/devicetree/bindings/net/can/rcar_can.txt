@@ -25,7 +25,7 @@ Required properties:
 	      compatible device.
 	      "renesas,rcar-gen3-can" for a generic R-Car Gen3 or RZ/G2
 	      compatible device.
-	      When compatible with the generic version, nodes must list the
+	      When compatible with the generic version, yesdes must list the
 	      SoC-specific version corresponding to the platform first
 	      followed by the generic version.
 
@@ -38,7 +38,7 @@ Required properties:
 
 Required properties for R8A774A1, R8A774C0, R8A7795, R8A7796, R8A77965,
 R8A77990, and R8A77995:
-For the denoted SoCs, "clkp2" can be CANFD clock. This is a div6 clock and can
+For the deyested SoCs, "clkp2" can be CANFD clock. This is a div6 clock and can
 be used by both CAN and CAN FD controller at the same time. It needs to be
 scaled to maximum frequency if any of these controllers use it. This is done
 using the below properties:

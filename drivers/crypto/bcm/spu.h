@@ -167,7 +167,7 @@ struct spu_aead_parms {
  */
 #define SPU_INVALID_ICV  1
 
-/* Indicates no limit to the length of the payload in a SPU message */
+/* Indicates yes limit to the length of the payload in a SPU message */
 #define SPU_MAX_PAYLOAD_INF  0xFFFFFFFF
 
 /* Size of XTS tweak ("i" parameter), in bytes */

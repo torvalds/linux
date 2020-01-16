@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 #ifndef _UAPI_ASM_SOCKET_H
 #define _UAPI_ASM_SOCKET_H
 
@@ -8,7 +8,7 @@
 /* For setsockopt(2) */
 /*
  * Note: we only bother about making the SOL_SOCKET options
- * same as OSF/1, as that's all that "normal" programs are
+ * same as OSF/1, as that's all that "yesrmal" programs are
  * likely to set.  We don't necessarily want to be binary
  * compatible with _everything_. 
  */

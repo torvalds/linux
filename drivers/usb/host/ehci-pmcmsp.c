@@ -107,7 +107,7 @@ static int usb_hcd_msp_map_regs(struct mspusb_device *dev)
 	if (!request_mem_region(res->start, res_len, "mab regs"))
 		return -EBUSY;
 
-	dev->mab_regs = ioremap_nocache(res->start, res_len);
+	dev->mab_regs = ioremap_yescache(res->start, res_len);
 	if (dev->mab_regs == NULL) {
 		retval = -ENOMEM;
 		goto err1;
@@ -124,7 +124,7 @@ static int usb_hcd_msp_map_regs(struct mspusb_device *dev)
 		retval = -EBUSY;
 		goto err2;
 	}
-	dev->usbid_regs = ioremap_nocache(res->start, res_len);
+	dev->usbid_regs = ioremap_yescache(res->start, res_len);
 	if (dev->usbid_regs == NULL) {
 		retval = -ENOMEM;
 		goto err3;
@@ -141,7 +141,7 @@ err1:
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
 	res_len = resource_size(res);
 	release_mem_region(res->start, res_len);
-	dev_err(&pdev->dev, "Failed to map non-EHCI regs.\n");
+	dev_err(&pdev->dev, "Failed to map yesn-EHCI regs.\n");
 	return retval;
 }
 
@@ -178,7 +178,7 @@ int usb_hcd_msp_probe(const struct hc_driver *driver,
 		retval = -EBUSY;
 		goto err1;
 	}
-	hcd->regs = ioremap_nocache(hcd->rsrc_start, hcd->rsrc_len);
+	hcd->regs = ioremap_yescache(hcd->rsrc_start, hcd->rsrc_len);
 	if (!hcd->regs) {
 		pr_debug("ioremap failed");
 		retval = -ENOMEM;
@@ -192,7 +192,7 @@ int usb_hcd_msp_probe(const struct hc_driver *driver,
 		goto err3;
 	}
 
-	/* Map non-EHCI register spaces */
+	/* Map yesn-EHCI register spaces */
 	retval = usb_hcd_msp_map_regs(to_mspusb_device(dev));
 	if (retval != 0)
 		goto err3;
@@ -228,7 +228,7 @@ err1:
  *
  * Reverses the effect of usb_hcd_msp_probe(), first invoking
  * the HCD's stop() method.  It is always called from a thread
- * context, normally "rmmod", "apmd", or something similar.
+ * context, yesrmally "rmmod", "apmd", or something similar.
  *
  * may be called without controller electrically present
  * may be called with controller, bus, and devices active

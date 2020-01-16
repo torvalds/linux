@@ -41,8 +41,8 @@ void baswap(bdaddr_t *dst, const bdaddr_t *src)
 }
 EXPORT_SYMBOL(baswap);
 
-/* Bluetooth error codes to Unix errno mapping */
-int bt_to_errno(__u16 code)
+/* Bluetooth error codes to Unix erryes mapping */
+int bt_to_erryes(__u16 code)
 {
 	switch (code) {
 	case 0:
@@ -133,7 +133,7 @@ int bt_to_errno(__u16 code)
 		return ENOSYS;
 	}
 }
-EXPORT_SYMBOL(bt_to_errno);
+EXPORT_SYMBOL(bt_to_erryes);
 
 void bt_info(const char *format, ...)
 {

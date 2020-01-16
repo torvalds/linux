@@ -188,7 +188,7 @@ struct clk *mtk_clk_register_mux(const struct mtk_mux *mux,
 }
 
 int mtk_clk_register_muxes(const struct mtk_mux *muxes,
-			   int num, struct device_node *node,
+			   int num, struct device_yesde *yesde,
 			   spinlock_t *lock,
 			   struct clk_onecell_data *clk_data)
 {
@@ -196,9 +196,9 @@ int mtk_clk_register_muxes(const struct mtk_mux *muxes,
 	struct clk *clk;
 	int i;
 
-	regmap = syscon_node_to_regmap(node);
+	regmap = syscon_yesde_to_regmap(yesde);
 	if (IS_ERR(regmap)) {
-		pr_err("Cannot find regmap for %pOF: %ld\n", node,
+		pr_err("Canyest find regmap for %pOF: %ld\n", yesde,
 		       PTR_ERR(regmap));
 		return PTR_ERR(regmap);
 	}

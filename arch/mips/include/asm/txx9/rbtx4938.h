@@ -87,8 +87,8 @@
  * IRQ mappings
  */
 
-#define RBTX4938_SOFT_INT0	0	/* not used */
-#define RBTX4938_SOFT_INT1	1	/* not used */
+#define RBTX4938_SOFT_INT0	0	/* yest used */
+#define RBTX4938_SOFT_INT1	1	/* yest used */
 #define RBTX4938_IRC_INT	2
 #define RBTX4938_TIMER_INT	7
 

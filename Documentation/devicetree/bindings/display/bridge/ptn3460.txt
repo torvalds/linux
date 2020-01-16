@@ -17,8 +17,8 @@ Required properties:
 		|   6   |  1600x900  | ChiMei M215HGE   |
 		+-------+------------+------------------+
 
-	- video interfaces: Device node can contain video interface port
-			    nodes for panel according to [1].
+	- video interfaces: Device yesde can contain video interface port
+			    yesdes for panel according to [1].
 
 [1]: Documentation/devicetree/bindings/media/video-interfaces.txt
 

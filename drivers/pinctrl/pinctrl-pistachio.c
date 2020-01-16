@@ -2,7 +2,7 @@
 /*
  * Pistachio SoC pinctrl driver
  *
- * Copyright (C) 2014 Imagination Technologies Ltd.
+ * Copyright (C) 2014 Imagination Techyeslogies Ltd.
  * Copyright (C) 2014 Google, Inc.
  */
 
@@ -908,7 +908,7 @@ static const struct pinctrl_ops pistachio_pinctrl_ops = {
 	.get_groups_count = pistachio_pinctrl_get_groups_count,
 	.get_group_name = pistachio_pinctrl_get_group_name,
 	.get_group_pins = pistachio_pinctrl_get_group_pins,
-	.dt_node_to_map = pinconf_generic_dt_node_to_map_pin,
+	.dt_yesde_to_map = pinconf_generic_dt_yesde_to_map_pin,
 	.dt_free_map = pinctrl_utils_free_map,
 };
 
@@ -956,7 +956,7 @@ static int pistachio_pinmux_enable(struct pinctrl_dev *pctldev,
 				break;
 		}
 		if (i == ARRAY_SIZE(pg->mux_option)) {
-			dev_err(pctl->dev, "Cannot mux pin %u to function %u\n",
+			dev_err(pctl->dev, "Canyest mux pin %u to function %u\n",
 				group, func);
 			return -EINVAL;
 		}
@@ -1051,7 +1051,7 @@ static int pistachio_pinconf_get(struct pinctrl_dev *pctldev, unsigned pin,
 		}
 		break;
 	default:
-		dev_dbg(pctl->dev, "Property %u not supported\n", param);
+		dev_dbg(pctl->dev, "Property %u yest supported\n", param);
 		return -ENOTSUPP;
 	}
 
@@ -1132,7 +1132,7 @@ static int pistachio_pinconf_set(struct pinctrl_dev *pctldev, unsigned pin,
 				break;
 			default:
 				dev_err(pctl->dev,
-					"Drive strength %umA not supported\n",
+					"Drive strength %umA yest supported\n",
 					arg);
 				return -EINVAL;
 			}
@@ -1140,7 +1140,7 @@ static int pistachio_pinconf_set(struct pinctrl_dev *pctldev, unsigned pin,
 			pctl_writel(pctl, val, PADS_DRIVE_STRENGTH_REG(pin));
 			break;
 		default:
-			dev_err(pctl->dev, "Property %u not supported\n",
+			dev_err(pctl->dev, "Property %u yest supported\n",
 				param);
 			return -ENOTSUPP;
 		}
@@ -1344,20 +1344,20 @@ static struct pistachio_gpio_bank pistachio_gpio_banks[] = {
 
 static int pistachio_gpio_register(struct pistachio_pinctrl *pctl)
 {
-	struct device_node *node = pctl->dev->of_node;
+	struct device_yesde *yesde = pctl->dev->of_yesde;
 	struct pistachio_gpio_bank *bank;
 	unsigned int i;
 	int irq, ret = 0;
 
 	for (i = 0; i < pctl->nbanks; i++) {
 		char child_name[sizeof("gpioXX")];
-		struct device_node *child;
+		struct device_yesde *child;
 		struct gpio_irq_chip *girq;
 
 		snprintf(child_name, sizeof(child_name), "gpio%d", i);
-		child = of_get_child_by_name(node, child_name);
+		child = of_get_child_by_name(yesde, child_name);
 		if (!child) {
-			dev_err(pctl->dev, "No node for bank %u\n", i);
+			dev_err(pctl->dev, "No yesde for bank %u\n", i);
 			ret = -ENODEV;
 			goto err;
 		}
@@ -1365,7 +1365,7 @@ static int pistachio_gpio_register(struct pistachio_pinctrl *pctl)
 		if (!of_find_property(child, "gpio-controller", NULL)) {
 			dev_err(pctl->dev,
 				"No gpio-controller property for bank %u\n", i);
-			of_node_put(child);
+			of_yesde_put(child);
 			ret = -ENODEV;
 			goto err;
 		}
@@ -1373,7 +1373,7 @@ static int pistachio_gpio_register(struct pistachio_pinctrl *pctl)
 		irq = irq_of_parse_and_map(child, 0);
 		if (irq < 0) {
 			dev_err(pctl->dev, "No IRQ for bank %u: %d\n", i, irq);
-			of_node_put(child);
+			of_yesde_put(child);
 			ret = irq;
 			goto err;
 		}
@@ -1383,7 +1383,7 @@ static int pistachio_gpio_register(struct pistachio_pinctrl *pctl)
 		bank->base = pctl->base + GPIO_BANK_BASE(i);
 
 		bank->gpio_chip.parent = pctl->dev;
-		bank->gpio_chip.of_node = child;
+		bank->gpio_chip.of_yesde = child;
 
 		girq = &bank->gpio_chip.irq;
 		girq->chip = &bank->irq_chip;

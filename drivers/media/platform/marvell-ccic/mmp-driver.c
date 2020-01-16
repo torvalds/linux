@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Support for the camera device found on Marvell MMP processors; known
+ * Support for the camera device found on Marvell MMP processors; kyeswn
  * to work with the Armada 610 as used in the OLPC 1.75 system.
  *
  * Copyright 2011 Jonathan Corbet <corbet@lwn.net>
@@ -71,7 +71,7 @@ static void mmpcam_remove_device(struct mmp_camera *cam)
 
 /*
  * Platform dev remove passes us a platform_device, and there's
- * no handy unused drvdata to stash a backpointer in.  So just
+ * yes handy unused drvdata to stash a backpointer in.  So just
  * dig it out of our list.
  */
 static struct mmp_camera *mmpcam_find_device(struct platform_device *pdev)
@@ -123,7 +123,7 @@ static void mmpcam_calc_dphy(struct mcam_camera *mcam)
 	 *   (Max T(D_TERM_EN)/Period(DDR)) - 1
 	 *  bit 8 ~ bit 15: HS_SETTLE
 	 *   Time interval during which the HS
-	 *   receiver shall ignore any Data Lane
+	 *   receiver shall igyesre any Data Lane
 	 *   HS transitions.
 	 *   The value has been calibrated on
 	 *   different boards. It seems to work well.
@@ -174,7 +174,7 @@ static void mmpcam_calc_dphy(struct mcam_camera *mcam)
 	 *  termination. The value is calculated similarly with
 	 *  HS Term Enable
 	 * bit 8 ~ bit 15: CK Settle
-	 *  Time interval during which the HS receiver shall ignore
+	 *  Time interval during which the HS receiver shall igyesre
 	 *  any Clock Lane HS transitions.
 	 *  The value is calibrated on the boards.
 	 */
@@ -204,12 +204,12 @@ static void mcam_init_clk(struct mcam_camera *mcam)
 
 	for (i = 0; i < NR_MCAM_CLK; i++) {
 		if (mcam_clks[i] != NULL) {
-			/* Some clks are not necessary on some boards
+			/* Some clks are yest necessary on some boards
 			 * We still try to run even it fails getting clk
 			 */
 			mcam->clk[i] = devm_clk_get(mcam->dev, mcam_clks[i]);
 			if (IS_ERR(mcam->clk[i]))
-				dev_warn(mcam->dev, "Could not get clk: %s\n",
+				dev_warn(mcam->dev, "Could yest get clk: %s\n",
 						mcam_clks[i]);
 		}
 	}
@@ -220,7 +220,7 @@ static int mmpcam_probe(struct platform_device *pdev)
 	struct mmp_camera *cam;
 	struct mcam_camera *mcam;
 	struct resource *res;
-	struct fwnode_handle *ep;
+	struct fwyesde_handle *ep;
 	struct mmp_camera_platform_data *pdata;
 	int ret;
 
@@ -272,17 +272,17 @@ static int mmpcam_probe(struct platform_device *pdev)
 	mcam_init_clk(mcam);
 
 	/*
-	 * Create a match of the sensor against its OF node.
+	 * Create a match of the sensor against its OF yesde.
 	 */
-	ep = fwnode_graph_get_next_endpoint(of_fwnode_handle(pdev->dev.of_node),
+	ep = fwyesde_graph_get_next_endpoint(of_fwyesde_handle(pdev->dev.of_yesde),
 					    NULL);
 	if (!ep)
 		return -ENODEV;
 
 	mcam->asd.match_type = V4L2_ASYNC_MATCH_FWNODE;
-	mcam->asd.match.fwnode = fwnode_graph_get_remote_port_parent(ep);
+	mcam->asd.match.fwyesde = fwyesde_graph_get_remote_port_parent(ep);
 
-	fwnode_handle_put(ep);
+	fwyesde_handle_put(ep);
 
 	/*
 	 * Register the device with the core.
@@ -294,7 +294,7 @@ static int mmpcam_probe(struct platform_device *pdev)
 	/*
 	 * Add OF clock provider.
 	 */
-	ret = of_clk_add_provider(pdev->dev.of_node, of_clk_src_simple_get,
+	ret = of_clk_add_provider(pdev->dev.of_yesde, of_clk_src_simple_get,
 								mcam->mclk);
 	if (ret) {
 		dev_err(&pdev->dev, "can't add DT clock provider\n");
@@ -302,7 +302,7 @@ static int mmpcam_probe(struct platform_device *pdev)
 	}
 
 	/*
-	 * Finally, set up our IRQ now that the core is ready to
+	 * Finally, set up our IRQ yesw that the core is ready to
 	 * deal with it.
 	 */
 	res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
@@ -319,7 +319,7 @@ static int mmpcam_probe(struct platform_device *pdev)
 	}
 
 out:
-	fwnode_handle_put(mcam->asd.match.fwnode);
+	fwyesde_handle_put(mcam->asd.match.fwyesde);
 	mccic_shutdown(mcam);
 
 	return ret;

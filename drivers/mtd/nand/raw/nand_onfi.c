@@ -66,7 +66,7 @@ static int nand_flash_detect_ext_param_page(struct nand_chip *chip,
 
 	/*
 	 * Check the signature.
-	 * Do not strictly follow the ONFI spec, maybe changed in future.
+	 * Do yest strictly follow the ONFI spec, maybe changed in future.
 	 */
 	if (strncmp(ep->sig, "EPPS", 4)) {
 		pr_debug("The signature is invalid.\n");
@@ -82,7 +82,7 @@ static int nand_flash_detect_ext_param_page(struct nand_chip *chip,
 		cursor += s->length * 16;
 	}
 	if (i == ONFI_EXT_SECTION_MAX) {
-		pr_debug("We can not find the ECC section.\n");
+		pr_debug("We can yest find the ECC section.\n");
 		goto ext_out;
 	}
 
@@ -149,7 +149,7 @@ int nand_onfi_detect(struct nand_chip *chip)
 
 	memorg = nanddev_get_memorg(&chip->base);
 
-	/* Try ONFI for unknown chip or LP */
+	/* Try ONFI for unkyeswn chip or LP */
 	ret = nand_readid_op(chip, 0x20, id, sizeof(id));
 	if (ret || strncmp(id, "ONFI", 4))
 		return 0;
@@ -183,7 +183,7 @@ int nand_onfi_detect(struct nand_chip *chip)
 	if (i == 3) {
 		const void *srcbufs[3] = {p, p + 1, p + 2};
 
-		pr_warn("Could not find a valid ONFI parameter page, trying bit-wise majority to recover it\n");
+		pr_warn("Could yest find a valid ONFI parameter page, trying bit-wise majority to recover it\n");
 		nand_bit_wise_majority(srcbufs, ARRAY_SIZE(srcbufs), p,
 				       sizeof(*p));
 
@@ -228,7 +228,7 @@ int nand_onfi_detect(struct nand_chip *chip)
 	mtd->writesize = memorg->pagesize;
 
 	/*
-	 * pages_per_block and blocks_per_lun may not be a power-of-2 size
+	 * pages_per_block and blocks_per_lun may yest be a power-of-2 size
 	 * (don't ask me who thought of this...). MTD assumes that these
 	 * dimensions will be power-of-2, so just truncate the remaining area.
 	 */
@@ -259,9 +259,9 @@ int nand_onfi_detect(struct nand_chip *chip)
 
 		/*
 		 * The nand_flash_detect_ext_param_page() uses the
-		 * Change Read Column command which maybe not supported
+		 * Change Read Column command which maybe yest supported
 		 * by the chip->legacy.cmdfunc. So try to update the
-		 * chip->legacy.cmdfunc now. We do not replace user supplied
+		 * chip->legacy.cmdfunc yesw. We do yest replace user supplied
 		 * command function.
 		 */
 		nand_legacy_adjust_cmdfunc(chip);
@@ -270,7 +270,7 @@ int nand_onfi_detect(struct nand_chip *chip)
 		if (nand_flash_detect_ext_param_page(chip, p))
 			pr_warn("Failed to detect ONFI extended param page\n");
 	} else {
-		pr_warn("Could not retrieve ONFI ECC requirements\n");
+		pr_warn("Could yest retrieve ONFI ECC requirements\n");
 	}
 
 	/* Save some parameters from the parameter page for future use */

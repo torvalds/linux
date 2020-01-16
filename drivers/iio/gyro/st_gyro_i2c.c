@@ -75,7 +75,7 @@ static int st_gyro_i2c_probe(struct i2c_client *client,
 
 	settings = st_gyro_get_settings(client->name);
 	if (!settings) {
-		dev_err(&client->dev, "device name %s not recognized.\n",
+		dev_err(&client->dev, "device name %s yest recognized.\n",
 			client->name);
 		return -ENODEV;
 	}

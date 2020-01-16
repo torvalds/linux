@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -217,7 +217,7 @@ static void submit_channel_request(
 	/* The length include
 	 * the 4 bit header and the 20 bit address
 	 * (that is 3 byte).
-	 * If the requested length is non zero this means
+	 * If the requested length is yesn zero this means
 	 * an addition byte specifying the length is required.
 	 */
 
@@ -304,7 +304,7 @@ static int read_channel_reply(struct dce_aux *engine, uint32_t size,
 		/* First byte was already used to get the command status */
 		--bytes_replied;
 
-		/* Do not overflow buffer */
+		/* Do yest overflow buffer */
 		if (bytes_replied > size)
 			return -1;
 
@@ -352,7 +352,7 @@ static enum aux_channel_operation_result get_channel_status(
 	 * AUX_SW_RX_RECV_NO_DET, AUX_SW_RX_RECV_INVALID_H.
 	 *
 	 * AUX_SW_RX_MIN_COUNT_VIOL is an internal,
-	 * HW debugging bit and should be ignored.
+	 * HW debugging bit and should be igyesred.
 	 */
 	if (value & AUX_SW_STATUS__AUX_SW_DONE_MASK) {
 		if ((value & AUX_SW_STATUS__AUX_SW_RX_TIMEOUT_STATE_MASK) ||
@@ -666,7 +666,7 @@ bool dce_aux_transfer_with_retries(struct ddc_service *ddc,
 					 * DP 1.4, 2.8.2:  AUX Transaction Response/Reply Timeouts
 					 * According to the DP spec there should be 3 retries total
 					 * with a 400us wait inbetween each. Hardware already waits
-					 * for 550us therefore no wait is required here.
+					 * for 550us therefore yes wait is required here.
 					 */
 				}
 			}

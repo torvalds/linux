@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) 2017 Sanechips Technology Co., Ltd.
+ * Copyright (C) 2017 Sanechips Techyeslogy Co., Ltd.
  * Copyright 2017 Linaro Ltd.
  *
  * Author: Baoyou Xie <baoyou.xie@linaro.org>
@@ -565,7 +565,7 @@ static int zx2967_i2c_probe(struct platform_device *pdev)
 	i2c->adap.quirks = &zx2967_i2c_quirks;
 	i2c->adap.nr = pdev->id;
 	i2c->adap.dev.parent = &pdev->dev;
-	i2c->adap.dev.of_node = pdev->dev.of_node;
+	i2c->adap.dev.of_yesde = pdev->dev.of_yesde;
 
 	ret = i2c_add_numbered_adapter(&i2c->adap);
 	if (ret)

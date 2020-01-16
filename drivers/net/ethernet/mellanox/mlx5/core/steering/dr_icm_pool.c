@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
-/* Copyright (c) 2019 Mellanox Technologies. */
+/* Copyright (c) 2019 Mellayesx Techyeslogies. */
 
 #include "dr_types.h"
 
@@ -11,7 +11,7 @@ struct mlx5dr_icm_pool;
 struct mlx5dr_icm_bucket {
 	struct mlx5dr_icm_pool *pool;
 
-	/* Chunks that aren't visible to HW not directly and not in cache */
+	/* Chunks that aren't visible to HW yest directly and yest in cache */
 	struct list_head free_list;
 	unsigned int free_list_count;
 

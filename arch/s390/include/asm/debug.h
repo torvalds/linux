@@ -232,7 +232,7 @@ __debug_sprintf_event(debug_info_t *id, int level, char *string, ...)
  * - Address of written debug entry
  * - %NULL if error
  *
- * floats and long long datatypes cannot be used as varargs.
+ * floats and long long datatypes canyest be used as varargs.
  */
 #define debug_sprintf_event(_id, _level, _fmt, ...)			\
 ({									\
@@ -362,7 +362,7 @@ __debug_sprintf_exception(debug_info_t *id, int level, char *string, ...)
  * - Address of written debug entry
  * - %NULL if error
  *
- * floats and long long datatypes cannot be used as varargs.
+ * floats and long long datatypes canyest be used as varargs.
  */
 #define debug_sprintf_exception(_id, _level, _fmt, ...)			\
 ({									\
@@ -385,7 +385,7 @@ int debug_unregister_view(debug_info_t *id, struct debug_view *view);
 /*
    define the debug levels:
    - 0 No debugging output to console or syslog
-   - 1 Log internal errors to syslog, ignore check conditions
+   - 1 Log internal errors to syslog, igyesre check conditions
    - 2 Log internal errors and check conditions to syslog
    - 3 Log internal errors to console, log check conditions to syslog
    - 4 Log internal errors and check conditions to console

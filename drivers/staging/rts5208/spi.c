@@ -620,7 +620,7 @@ int spi_read_flash(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 		rtsx_add_cmd(chip, CHECK_REG_CMD, SPI_TRANSFER0,
 			     SPI_TRANSFER0_END, SPI_TRANSFER0_END);
 
-		rtsx_send_cmd_no_wait(chip);
+		rtsx_send_cmd_yes_wait(chip);
 
 		retval = rtsx_transfer_data(chip, 0, buf, pagelen, 0,
 					    DMA_FROM_DEVICE, 10000);
@@ -786,7 +786,7 @@ int spi_write_flash(struct scsi_cmnd *srb, struct rtsx_chip *chip)
 			trans_dma_enable(DMA_TO_DEVICE, chip, 256, DMA_256);
 			sf_program(chip, ins, 1, addr, pagelen);
 
-			rtsx_send_cmd_no_wait(chip);
+			rtsx_send_cmd_yes_wait(chip);
 
 			rtsx_stor_access_xfer_buf(buf, pagelen, srb, &index,
 						  &offset, FROM_XFER_BUF);

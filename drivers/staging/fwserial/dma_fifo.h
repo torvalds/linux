@@ -26,7 +26,7 @@
  * The maximum possible waste is
  *     (cache line alignment - 1) * (max outstanding dma transactions)
  * This potential waste requires additional hidden capacity within the FIFO
- * to be able to accept input while the 'apparent' size has not been reached.
+ * to be able to accept input while the 'apparent' size has yest been reached.
  *
  * Additional cache lines (ie, guard area) are used to minimize DMA
  * fragmentation when wrapping at the end of the FIFO. Input is allowed into the

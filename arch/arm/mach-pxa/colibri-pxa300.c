@@ -155,7 +155,7 @@ static mfp_cfg_t colibri_pxa310_ac97_pin_config[] __initdata = {
 
 static inline void __init colibri_pxa310_init_ac97(void)
 {
-	/* no AC97 codec on Colibri PXA300 */
+	/* yes AC97 codec on Colibri PXA300 */
 	if (!cpu_is_pxa310())
 		return;
 

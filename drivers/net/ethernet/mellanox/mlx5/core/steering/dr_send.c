@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
-/* Copyright (c) 2019 Mellanox Technologies. */
+/* Copyright (c) 2019 Mellayesx Techyeslogies. */
 
 #include "dr_types.h"
 
@@ -119,8 +119,8 @@ static struct mlx5dr_qp *dr_create_rc_qp(struct mlx5_core_dev *mdev,
 	if (!dr_qp)
 		return NULL;
 
-	wqp.buf_numa_node = mdev->priv.numa_node;
-	wqp.db_numa_node = mdev->priv.numa_node;
+	wqp.buf_numa_yesde = mdev->priv.numa_yesde;
+	wqp.db_numa_yesde = mdev->priv.numa_yesde;
 
 	dr_qp->rq.pc = 0;
 	dr_qp->rq.cc = 0;
@@ -209,7 +209,7 @@ static void dr_destroy_qp(struct mlx5_core_dev *mdev,
 	kfree(dr_qp);
 }
 
-static void dr_cmd_notify_hw(struct mlx5dr_qp *dr_qp, void *ctrl)
+static void dr_cmd_yestify_hw(struct mlx5dr_qp *dr_qp, void *ctrl)
 {
 	dma_wmb();
 	*dr_qp->wq.sq.db = cpu_to_be32(dr_qp->sq.pc & 0xfffff);
@@ -255,7 +255,7 @@ static void dr_rdma_segments(struct mlx5dr_qp *dr_qp, u64 remote_addr,
 	dr_qp->sq.wqe_head[idx] = dr_qp->sq.pc++;
 
 	if (nreq)
-		dr_cmd_notify_hw(dr_qp, wq_ctrl);
+		dr_cmd_yestify_hw(dr_qp, wq_ctrl);
 }
 
 static void dr_post_send(struct mlx5dr_qp *dr_qp, struct postsend_info *send_info)
@@ -277,7 +277,7 @@ static void dr_post_send(struct mlx5dr_qp *dr_qp, struct postsend_info *send_inf
  *     @ste_info:  ste to be sent with send_list
  *     @send_list: to append into it
  *     @copy_data: if true indicates that the data should be kept because
- *                 it's not backuped any where (like in re-hash).
+ *                 it's yest backuped any where (like in re-hash).
  *                 if false, it lets the data to be updated after
  *                 it was added to the list.
  */
@@ -465,7 +465,7 @@ int mlx5dr_send_postsend_htbl(struct mlx5dr_domain *dmn,
 			u8 *hw_ste = htbl->ste_arr[ste_index + j].hw_ste;
 			u32 ste_off = j * DR_STE_SIZE;
 
-			if (mlx5dr_ste_is_not_valid_entry(hw_ste)) {
+			if (mlx5dr_ste_is_yest_valid_entry(hw_ste)) {
 				memcpy(data + ste_off,
 				       formatted_ste, DR_STE_SIZE);
 			} else {
@@ -710,8 +710,8 @@ static struct mlx5dr_cq *dr_create_cq(struct mlx5_core_dev *mdev,
 	ncqe = roundup_pow_of_two(ncqe);
 	MLX5_SET(cqc, temp_cqc, log_cq_size, ilog2(ncqe));
 
-	wqp.buf_numa_node = mdev->priv.numa_node;
-	wqp.db_numa_node = mdev->priv.numa_node;
+	wqp.buf_numa_yesde = mdev->priv.numa_yesde;
+	wqp.db_numa_yesde = mdev->priv.numa_yesde;
 
 	err = mlx5_cqwq_create(mdev, &wqp, temp_cqc, &cq->wq,
 			       &cq->wq_ctrl);

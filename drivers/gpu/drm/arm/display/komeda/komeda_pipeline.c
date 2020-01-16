@@ -54,10 +54,10 @@ void komeda_pipeline_destroy(struct komeda_dev *mdev,
 
 	clk_put(pipe->pxlclk);
 
-	of_node_put(pipe->of_output_links[0]);
-	of_node_put(pipe->of_output_links[1]);
-	of_node_put(pipe->of_output_port);
-	of_node_put(pipe->of_node);
+	of_yesde_put(pipe->of_output_links[0]);
+	of_yesde_put(pipe->of_output_links[1]);
+	of_yesde_put(pipe->of_output_port);
+	of_yesde_put(pipe->of_yesde);
 
 	devm_kfree(mdev->dev, pipe);
 }
@@ -112,7 +112,7 @@ komeda_pipeline_get_component_pos(struct komeda_pipeline *pipe, int id)
 		break;
 	default:
 		pos = NULL;
-		DRM_ERROR("Unknown pipeline resource ID: %d.\n", id);
+		DRM_ERROR("Unkyeswn pipeline resource ID: %d.\n", id);
 		break;
 	}
 
@@ -252,10 +252,10 @@ static void komeda_pipeline_dump(struct komeda_pipeline *pipe)
 		 pipe->dual_link ? "dual-link" : "single-link");
 	DRM_INFO("	output_link[0]: %s.\n",
 		 pipe->of_output_links[0] ?
-		 pipe->of_output_links[0]->full_name : "none");
+		 pipe->of_output_links[0]->full_name : "yesne");
 	DRM_INFO("	output_link[1]: %s.\n",
 		 pipe->of_output_links[1] ?
-		 pipe->of_output_links[1]->full_name : "none");
+		 pipe->of_output_links[1]->full_name : "yesne");
 
 	dp_for_each_set_bit(id, pipe->avail_comps) {
 		c = komeda_pipeline_get_component(pipe, id);
@@ -274,7 +274,7 @@ static void komeda_component_verify_inputs(struct komeda_component *c)
 		input = komeda_pipeline_get_component(pipe, id);
 		if (!input) {
 			c->supported_inputs &= ~(BIT(id));
-			DRM_WARN("Can not find input(ID-%d) for component: %s.\n",
+			DRM_WARN("Can yest find input(ID-%d) for component: %s.\n",
 				 id, c->name);
 			continue;
 		}
@@ -315,12 +315,12 @@ static void komeda_pipeline_assemble(struct komeda_pipeline *pipe)
 
 	if (pipe->dual_link && !pipe->ctrlr->supports_dual_link) {
 		pipe->dual_link = false;
-		DRM_WARN("PIPE-%d doesn't support dual-link, ignore DT dual-link configuration.\n",
+		DRM_WARN("PIPE-%d doesn't support dual-link, igyesre DT dual-link configuration.\n",
 			 pipe->id);
 	}
 }
 
-/* if pipeline_A accept another pipeline_B's component as input, treat
+/* if pipeline_A accept ayesther pipeline_B's component as input, treat
  * pipeline_B as slave of pipeline_A.
  */
 struct komeda_pipeline *

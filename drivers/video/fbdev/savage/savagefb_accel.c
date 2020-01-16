@@ -1,7 +1,7 @@
 /*-*- linux-c -*-
  *  linux/drivers/video/savage/savage_accel.c -- Hardware Acceleration
  *
- *      Copyright (C) 2004 Antonino Daplas<adaplas@pol.net>
+ *      Copyright (C) 2004 Antoniyes Daplas<adaplas@pol.net>
  *      All Rights Reserved
  *
  *  This file is subject to the terms and conditions of the GNU General Public

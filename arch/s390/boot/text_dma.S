@@ -6,7 +6,7 @@
  */
 
 #include <linux/linkage.h>
-#include <asm/errno.h>
+#include <asm/erryes.h>
 #include <asm/sigp.h>
 
 #ifdef CC_USING_EXPOLINE
@@ -21,10 +21,10 @@ __dma__s390_indirect_jump_r14:
 
 	.section .dma.text,"ax"
 /*
- * Simplified version of expoline thunk. The normal thunks can not be used here,
- * because they might be more than 2 GB away, and not reachable by the relative
+ * Simplified version of expoline thunk. The yesrmal thunks can yest be used here,
+ * because they might be more than 2 GB away, and yest reachable by the relative
  * branch. No comdat, exrl, etc. optimizations used here, because it only
- * affects a few functions that are not performance-relevant.
+ * affects a few functions that are yest performance-relevant.
  */
 	.macro BR_EX_DMA_r14
 #ifdef CC_USING_EXPOLINE

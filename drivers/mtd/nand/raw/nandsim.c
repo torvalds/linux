@@ -19,7 +19,7 @@
 #include <linux/vmalloc.h>
 #include <linux/math64.h>
 #include <linux/slab.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/string.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/rawnand.h>
@@ -138,12 +138,12 @@ MODULE_PARM_DESC(fourth_id_byte, "The fourth byte returned by NAND Flash 'read I
 MODULE_PARM_DESC(access_delay,   "Initial page access delay (microseconds)");
 MODULE_PARM_DESC(programm_delay, "Page programm delay (microseconds");
 MODULE_PARM_DESC(erase_delay,    "Sector erase delay (milliseconds)");
-MODULE_PARM_DESC(output_cycle,   "Word output (from flash) time (nanoseconds)");
-MODULE_PARM_DESC(input_cycle,    "Word input (to flash) time (nanoseconds)");
+MODULE_PARM_DESC(output_cycle,   "Word output (from flash) time (nayesseconds)");
+MODULE_PARM_DESC(input_cycle,    "Word input (to flash) time (nayesseconds)");
 MODULE_PARM_DESC(bus_width,      "Chip's bus width (8- or 16-bit)");
-MODULE_PARM_DESC(do_delays,      "Simulate NAND delays using busy-waits if not zero");
-MODULE_PARM_DESC(log,            "Perform logging if not zero");
-MODULE_PARM_DESC(dbg,            "Output debug information if not zero");
+MODULE_PARM_DESC(do_delays,      "Simulate NAND delays using busy-waits if yest zero");
+MODULE_PARM_DESC(log,            "Perform logging if yest zero");
+MODULE_PARM_DESC(dbg,            "Output debug information if yest zero");
 MODULE_PARM_DESC(parts,          "Partition sizes (in erase blocks) separated by commas");
 /* Page and erase block positions for the following parameters are independent of any partitions */
 MODULE_PARM_DESC(badblocks,      "Erase blocks that are initially marked bad, separated by commas");
@@ -237,7 +237,7 @@ MODULE_PARM_DESC(bch,		 "Enable BCH ecc and set how many bits should "
 /* Previous operation is done, ready to accept new requests */
 #define STATE_READY            0x00000000
 
-/* This state is used to mark that the next state isn't known yet */
+/* This state is used to mark that the next state isn't kyeswn yet */
 #define STATE_UNKNOWN          0x10000000
 
 /* Simulator's actions bit masks */
@@ -296,7 +296,7 @@ struct nandsim {
 	uint32_t state;         /* current chip state */
 	uint32_t nxstate;       /* next expected state */
 
-	uint32_t *op;           /* current operation, NULL operations isn't known yet  */
+	uint32_t *op;           /* current operation, NULL operations isn't kyeswn yet  */
 	uint32_t pstates[NS_MAX_PREVSTATES]; /* previous states */
 	uint16_t npstates;      /* number of previous states saved */
 	uint16_t stateidx;      /* current state index */
@@ -400,7 +400,7 @@ static struct nandsim_operations {
 
 struct weak_block {
 	struct list_head list;
-	unsigned int erase_block_no;
+	unsigned int erase_block_yes;
 	unsigned int max_erases;
 	unsigned int erases_done;
 };
@@ -409,7 +409,7 @@ static LIST_HEAD(weak_blocks);
 
 struct weak_page {
 	struct list_head list;
-	unsigned int page_no;
+	unsigned int page_yes;
 	unsigned int max_writes;
 	unsigned int writes_done;
 };
@@ -418,7 +418,7 @@ static LIST_HEAD(weak_pages);
 
 struct grave_page {
 	struct list_head list;
-	unsigned int page_no;
+	unsigned int page_yes;
 	unsigned int max_reads;
 	unsigned int reads_done;
 };
@@ -511,7 +511,7 @@ static int nandsim_debugfs_create(struct nandsim *dev)
 	dent = debugfs_create_file("nandsim_wear_report", S_IRUSR,
 				   root, dev, &nandsim_fops);
 	if (IS_ERR_OR_NULL(dent)) {
-		NS_ERR("cannot create \"nandsim_wear_report\" debugfs entry\n");
+		NS_ERR("canyest create \"nandsim_wear_report\" debugfs entry\n");
 		return -1;
 	}
 
@@ -534,12 +534,12 @@ static int __init alloc_device(struct nandsim *ns)
 		if (IS_ERR(cfile))
 			return PTR_ERR(cfile);
 		if (!(cfile->f_mode & FMODE_CAN_READ)) {
-			NS_ERR("alloc_device: cache file not readable\n");
+			NS_ERR("alloc_device: cache file yest readable\n");
 			err = -EINVAL;
 			goto err_close;
 		}
 		if (!(cfile->f_mode & FMODE_CAN_WRITE)) {
-			NS_ERR("alloc_device: cache file not writeable\n");
+			NS_ERR("alloc_device: cache file yest writeable\n");
 			err = -EINVAL;
 			goto err_close;
 		}
@@ -657,7 +657,7 @@ static int __init init_nandsim(struct mtd_info *mtd)
 	} else if (ns->geom.pgsz == 4096) {
 		ns->options |= OPT_PAGE4096;
 	} else {
-		NS_ERR("init_nandsim: unknown page size %u\n", ns->geom.pgsz);
+		NS_ERR("init_nandsim: unkyeswn page size %u\n", ns->geom.pgsz);
 		return -EIO;
 	}
 
@@ -769,7 +769,7 @@ static int parse_badblocks(struct nandsim *ns, struct mtd_info *mtd)
 {
 	char *w;
 	int zero_ok;
-	unsigned int erase_block_no;
+	unsigned int erase_block_yes;
 	loff_t offset;
 
 	if (!badblocks)
@@ -777,12 +777,12 @@ static int parse_badblocks(struct nandsim *ns, struct mtd_info *mtd)
 	w = badblocks;
 	do {
 		zero_ok = (*w == '0' ? 1 : 0);
-		erase_block_no = simple_strtoul(w, &w, 0);
-		if (!zero_ok && !erase_block_no) {
+		erase_block_yes = simple_strtoul(w, &w, 0);
+		if (!zero_ok && !erase_block_yes) {
 			NS_ERR("invalid badblocks.\n");
 			return -EINVAL;
 		}
-		offset = (loff_t)erase_block_no * ns->geom.secsz;
+		offset = (loff_t)erase_block_yes * ns->geom.secsz;
 		if (mtd_block_markbad(mtd, offset)) {
 			NS_ERR("invalid badblocks.\n");
 			return -EINVAL;
@@ -797,7 +797,7 @@ static int parse_weakblocks(void)
 {
 	char *w;
 	int zero_ok;
-	unsigned int erase_block_no;
+	unsigned int erase_block_yes;
 	unsigned int max_erases;
 	struct weak_block *wb;
 
@@ -806,8 +806,8 @@ static int parse_weakblocks(void)
 	w = weakblocks;
 	do {
 		zero_ok = (*w == '0' ? 1 : 0);
-		erase_block_no = simple_strtoul(w, &w, 0);
-		if (!zero_ok && !erase_block_no) {
+		erase_block_yes = simple_strtoul(w, &w, 0);
+		if (!zero_ok && !erase_block_yes) {
 			NS_ERR("invalid weakblocks.\n");
 			return -EINVAL;
 		}
@@ -823,19 +823,19 @@ static int parse_weakblocks(void)
 			NS_ERR("unable to allocate memory.\n");
 			return -ENOMEM;
 		}
-		wb->erase_block_no = erase_block_no;
+		wb->erase_block_yes = erase_block_yes;
 		wb->max_erases = max_erases;
 		list_add(&wb->list, &weak_blocks);
 	} while (*w);
 	return 0;
 }
 
-static int erase_error(unsigned int erase_block_no)
+static int erase_error(unsigned int erase_block_yes)
 {
 	struct weak_block *wb;
 
 	list_for_each_entry(wb, &weak_blocks, list)
-		if (wb->erase_block_no == erase_block_no) {
+		if (wb->erase_block_yes == erase_block_yes) {
 			if (wb->erases_done >= wb->max_erases)
 				return 1;
 			wb->erases_done += 1;
@@ -848,7 +848,7 @@ static int parse_weakpages(void)
 {
 	char *w;
 	int zero_ok;
-	unsigned int page_no;
+	unsigned int page_yes;
 	unsigned int max_writes;
 	struct weak_page *wp;
 
@@ -857,8 +857,8 @@ static int parse_weakpages(void)
 	w = weakpages;
 	do {
 		zero_ok = (*w == '0' ? 1 : 0);
-		page_no = simple_strtoul(w, &w, 0);
-		if (!zero_ok && !page_no) {
+		page_yes = simple_strtoul(w, &w, 0);
+		if (!zero_ok && !page_yes) {
 			NS_ERR("invalid weakpages.\n");
 			return -EINVAL;
 		}
@@ -874,19 +874,19 @@ static int parse_weakpages(void)
 			NS_ERR("unable to allocate memory.\n");
 			return -ENOMEM;
 		}
-		wp->page_no = page_no;
+		wp->page_yes = page_yes;
 		wp->max_writes = max_writes;
 		list_add(&wp->list, &weak_pages);
 	} while (*w);
 	return 0;
 }
 
-static int write_error(unsigned int page_no)
+static int write_error(unsigned int page_yes)
 {
 	struct weak_page *wp;
 
 	list_for_each_entry(wp, &weak_pages, list)
-		if (wp->page_no == page_no) {
+		if (wp->page_yes == page_yes) {
 			if (wp->writes_done >= wp->max_writes)
 				return 1;
 			wp->writes_done += 1;
@@ -899,7 +899,7 @@ static int parse_gravepages(void)
 {
 	char *g;
 	int zero_ok;
-	unsigned int page_no;
+	unsigned int page_yes;
 	unsigned int max_reads;
 	struct grave_page *gp;
 
@@ -908,8 +908,8 @@ static int parse_gravepages(void)
 	g = gravepages;
 	do {
 		zero_ok = (*g == '0' ? 1 : 0);
-		page_no = simple_strtoul(g, &g, 0);
-		if (!zero_ok && !page_no) {
+		page_yes = simple_strtoul(g, &g, 0);
+		if (!zero_ok && !page_yes) {
 			NS_ERR("invalid gravepagess.\n");
 			return -EINVAL;
 		}
@@ -925,19 +925,19 @@ static int parse_gravepages(void)
 			NS_ERR("unable to allocate memory.\n");
 			return -ENOMEM;
 		}
-		gp->page_no = page_no;
+		gp->page_yes = page_yes;
 		gp->max_reads = max_reads;
 		list_add(&gp->list, &grave_pages);
 	} while (*g);
 	return 0;
 }
 
-static int read_error(unsigned int page_no)
+static int read_error(unsigned int page_yes)
 {
 	struct grave_page *gp;
 
 	list_for_each_entry(gp, &grave_pages, list)
-		if (gp->page_no == page_no) {
+		if (gp->page_yes == page_yes) {
 			if (gp->reads_done >= gp->max_reads)
 				return 1;
 			gp->reads_done += 1;
@@ -982,7 +982,7 @@ static int setup_wear_reporting(struct mtd_info *mtd)
 	return 0;
 }
 
-static void update_wear(unsigned int erase_block_no)
+static void update_wear(unsigned int erase_block_yes)
 {
 	if (!erase_block_wear)
 		return;
@@ -993,9 +993,9 @@ static void update_wear(unsigned int erase_block_no)
 	 */
 	if (total_wear == 0)
 		NS_ERR("Erase counter total overflow\n");
-	erase_block_wear[erase_block_no] += 1;
-	if (erase_block_wear[erase_block_no] == 0)
-		NS_ERR("Erase counter overflow for erase block %u\n", erase_block_no);
+	erase_block_wear[erase_block_yes] += 1;
+	if (erase_block_wear[erase_block_yes] == 0)
+		NS_ERR("Erase counter overflow for erase block %u\n", erase_block_yes);
 }
 
 /*
@@ -1052,7 +1052,7 @@ static char *get_state_name(uint32_t state)
 			return "STATE_UNKNOWN";
 	}
 
-	NS_ERR("get_state_name: unknown state, BUG\n");
+	NS_ERR("get_state_name: unkyeswn state, BUG\n");
 	return NULL;
 }
 
@@ -1119,7 +1119,7 @@ static uint32_t get_state_by_command(unsigned command)
 			return STATE_CMD_RNDOUTSTART;
 	}
 
-	NS_ERR("get_state_by_command: unknown command, BUG\n");
+	NS_ERR("get_state_by_command: unkyeswn command, BUG\n");
 	return 0;
 }
 
@@ -1162,10 +1162,10 @@ static inline void switch_to_ready_state(struct nandsim *ns, u_char status)
 }
 
 /*
- * If the operation isn't known yet, try to find it in the global array
+ * If the operation isn't kyeswn yet, try to find it in the global array
  * of supported operations.
  *
- * Operation can be unknown because of the following.
+ * Operation can be unkyeswn because of the following.
  *   1. New command was accepted and this is the first call to find the
  *      correspondent states chain. In this case ns->npstates = 0;
  *   2. There are several operations which begin with the same command(s)
@@ -1184,22 +1184,22 @@ static inline void switch_to_ready_state(struct nandsim *ns, u_char status)
  * If there are several matches, the current state is pushed to the
  * ns->pstates.
  *
- * The operation can be unknown only while commands are input to the chip.
- * As soon as address command is accepted, the operation must be known.
+ * The operation can be unkyeswn only while commands are input to the chip.
+ * As soon as address command is accepted, the operation must be kyeswn.
  * In such situation the function is called with 'flag' != 0, and the
  * operation is searched using the following pattern:
  *     ns->pstates[0], ... ns->pstates[ns->npstates], <address input>
  *
  * It is supposed that this pattern must either match one operation or
- * none. There can't be ambiguity in that case.
+ * yesne. There can't be ambiguity in that case.
  *
- * If no matches found, the function does the following:
- *   1. if there are saved states present, try to ignore them and search
- *      again only using the last command. If nothing was found, switch
+ * If yes matches found, the function does the following:
+ *   1. if there are saved states present, try to igyesre them and search
+ *      again only using the last command. If yesthing was found, switch
  *      to the STATE_READY state.
- *   2. if there are no saved states, switch to the STATE_READY state.
+ *   2. if there are yes saved states, switch to the STATE_READY state.
  *
- * RETURNS: -2 - no matched operations found.
+ * RETURNS: -2 - yes matched operations found.
  *          -1 - several matches.
  *           0 - operation is found.
  */
@@ -1213,7 +1213,7 @@ static int find_operation(struct nandsim *ns, uint32_t flag)
 		int found = 1;
 
 		if (!(ns->options & ops[i].reqopts))
-			/* Ignore operations we can't perform */
+			/* Igyesre operations we can't perform */
 			continue;
 
 		if (flag) {
@@ -1245,7 +1245,7 @@ static int find_operation(struct nandsim *ns, uint32_t flag)
 			 * In this case the find_operation function was
 			 * called when address has just began input. But it isn't
 			 * yet fully input and the current state must
-			 * not be one of STATE_ADDR_*, but the STATE_ADDR_*
+			 * yest be one of STATE_ADDR_*, but the STATE_ADDR_*
 			 * state must be the next state (ns->nxstate).
 			 */
 			ns->stateidx = ns->npstates - 1;
@@ -1261,22 +1261,22 @@ static int find_operation(struct nandsim *ns, uint32_t flag)
 	}
 
 	if (opsfound == 0) {
-		/* Nothing was found. Try to ignore previous commands (if any) and search again */
+		/* Nothing was found. Try to igyesre previous commands (if any) and search again */
 		if (ns->npstates != 0) {
-			NS_DBG("find_operation: no operation found, try again with state %s\n",
+			NS_DBG("find_operation: yes operation found, try again with state %s\n",
 					get_state_name(ns->state));
 			ns->npstates = 0;
 			return find_operation(ns, 0);
 
 		}
-		NS_DBG("find_operation: no operations found\n");
+		NS_DBG("find_operation: yes operations found\n");
 		switch_to_ready_state(ns, NS_STATUS_FAILED(ns));
 		return -2;
 	}
 
 	if (flag) {
 		/* This shouldn't happen */
-		NS_DBG("find_operation: BUG, operation must be known if address is input\n");
+		NS_DBG("find_operation: BUG, operation must be kyeswn if address is input\n");
 		return -2;
 	}
 
@@ -1312,7 +1312,7 @@ static int get_pages(struct nandsim *ns, struct file *file, size_t count, loff_t
 		if (page == NULL) {
 			page = find_or_create_page(mapping, index, GFP_NOFS);
 			if (page == NULL) {
-				write_inode_now(mapping->host, 1);
+				write_iyesde_yesw(mapping->host, 1);
 				page = find_or_create_page(mapping, index, GFP_NOFS);
 			}
 			if (page == NULL) {
@@ -1330,14 +1330,14 @@ static ssize_t read_file(struct nandsim *ns, struct file *file, void *buf, size_
 {
 	ssize_t tx;
 	int err;
-	unsigned int noreclaim_flag;
+	unsigned int yesreclaim_flag;
 
 	err = get_pages(ns, file, count, pos);
 	if (err)
 		return err;
-	noreclaim_flag = memalloc_noreclaim_save();
+	yesreclaim_flag = memalloc_yesreclaim_save();
 	tx = kernel_read(file, buf, count, &pos);
-	memalloc_noreclaim_restore(noreclaim_flag);
+	memalloc_yesreclaim_restore(yesreclaim_flag);
 	put_pages(ns);
 	return tx;
 }
@@ -1346,14 +1346,14 @@ static ssize_t write_file(struct nandsim *ns, struct file *file, void *buf, size
 {
 	ssize_t tx;
 	int err;
-	unsigned int noreclaim_flag;
+	unsigned int yesreclaim_flag;
 
 	err = get_pages(ns, file, count, pos);
 	if (err)
 		return err;
-	noreclaim_flag = memalloc_noreclaim_save();
+	yesreclaim_flag = memalloc_yesreclaim_save();
 	tx = kernel_write(file, buf, count, &pos);
-	memalloc_noreclaim_restore(noreclaim_flag);
+	memalloc_yesreclaim_restore(yesreclaim_flag);
 	put_pages(ns);
 	return tx;
 }
@@ -1376,11 +1376,11 @@ static inline u_char *NS_PAGE_BYTE_OFF(struct nandsim *ns)
 
 static int do_read_error(struct nandsim *ns, int num)
 {
-	unsigned int page_no = ns->regs.row;
+	unsigned int page_yes = ns->regs.row;
 
-	if (read_error(page_no)) {
+	if (read_error(page_yes)) {
 		prandom_bytes(ns->buf.byte, num);
-		NS_WARN("simulating read error in page %u\n", page_no);
+		NS_WARN("simulating read error in page %u\n", page_yes);
 		return 1;
 	}
 	return 0;
@@ -1412,7 +1412,7 @@ static void read_page(struct nandsim *ns, int num)
 
 	if (ns->cfile) {
 		if (!test_bit(ns->regs.row, ns->pages_written)) {
-			NS_DBG("read_page: page %d not written\n", ns->regs.row);
+			NS_DBG("read_page: page %d yest written\n", ns->regs.row);
 			memset(ns->buf.byte, 0xFF, num);
 		} else {
 			loff_t pos;
@@ -1435,7 +1435,7 @@ static void read_page(struct nandsim *ns, int num)
 
 	mypage = NS_GET_PAGE(ns);
 	if (mypage->byte == NULL) {
-		NS_DBG("read_page: page %d not allocated\n", ns->regs.row);
+		NS_DBG("read_page: page %d yest allocated\n", ns->regs.row);
 		memset(ns->buf.byte, 0xFF, num);
 	} else {
 		NS_DBG("read_page: page %d allocated, reading from %d\n",
@@ -1556,7 +1556,7 @@ static int do_state_action(struct nandsim *ns, uint32_t action)
 {
 	int num;
 	int busdiv = ns->busw == 8 ? 1 : 2;
-	unsigned int erase_block_no, page_no;
+	unsigned int erase_block_yes, page_yes;
 
 	action &= ACTION_MASK;
 
@@ -1602,7 +1602,7 @@ static int do_state_action(struct nandsim *ns, uint32_t action)
 		 */
 
 		if (ns->lines.wp) {
-			NS_ERR("do_state_action: device is write-protected, ignore sector erase\n");
+			NS_ERR("do_state_action: device is write-protected, igyesre sector erase\n");
 			return -1;
 		}
 
@@ -1616,21 +1616,21 @@ static int do_state_action(struct nandsim *ns, uint32_t action)
 				8 * (ns->geom.pgaddrbytes - ns->geom.secaddrbytes)) | ns->regs.column;
 		ns->regs.column = 0;
 
-		erase_block_no = ns->regs.row >> (ns->geom.secshift - ns->geom.pgshift);
+		erase_block_yes = ns->regs.row >> (ns->geom.secshift - ns->geom.pgshift);
 
 		NS_DBG("do_state_action: erase sector at address %#x, off = %d\n",
 				ns->regs.row, NS_RAW_OFFSET(ns));
-		NS_LOG("erase sector %u\n", erase_block_no);
+		NS_LOG("erase sector %u\n", erase_block_yes);
 
 		erase_sector(ns);
 
 		NS_MDELAY(erase_delay);
 
 		if (erase_block_wear)
-			update_wear(erase_block_no);
+			update_wear(erase_block_yes);
 
-		if (erase_error(erase_block_no)) {
-			NS_WARN("simulating erase failure in erase block %u\n", erase_block_no);
+		if (erase_error(erase_block_yes)) {
+			NS_WARN("simulating erase failure in erase block %u\n", erase_block_yes);
 			return -1;
 		}
 
@@ -1656,7 +1656,7 @@ static int do_state_action(struct nandsim *ns, uint32_t action)
 		if (prog_page(ns, num) == -1)
 			return -1;
 
-		page_no = ns->regs.row;
+		page_yes = ns->regs.row;
 
 		NS_DBG("do_state_action: copy %d bytes from int buf to (%#x, %#x), raw off = %d\n",
 			num, ns->regs.row, ns->regs.column, NS_RAW_OFFSET(ns) + ns->regs.off);
@@ -1665,8 +1665,8 @@ static int do_state_action(struct nandsim *ns, uint32_t action)
 		NS_UDELAY(programm_delay);
 		NS_UDELAY(output_cycle * ns->geom.pgsz / 1000 / busdiv);
 
-		if (write_error(page_no)) {
-			NS_WARN("simulating write failure in page %u\n", page_no);
+		if (write_error(page_yes)) {
+			NS_WARN("simulating write failure in page %u\n", page_yes);
 			return -1;
 		}
 
@@ -1679,7 +1679,7 @@ static int do_state_action(struct nandsim *ns, uint32_t action)
 
 	case ACTION_HALFOFF:
 		if (!(ns->options & OPT_PAGE512_8BIT)) {
-			NS_ERR("do_state_action: BUG! can't skip half of page for non-512"
+			NS_ERR("do_state_action: BUG! can't skip half of page for yesn-512"
 				"byte page size 8x chips\n");
 			return -1;
 		}
@@ -1693,7 +1693,7 @@ static int do_state_action(struct nandsim *ns, uint32_t action)
 		break;
 
 	default:
-		NS_DBG("do_state_action: BUG! unknown action\n");
+		NS_DBG("do_state_action: BUG! unkyeswn action\n");
 	}
 
 	return 0;
@@ -1714,7 +1714,7 @@ static void switch_state(struct nandsim *ns)
 		ns->state = ns->nxstate;
 		ns->nxstate = ns->op[ns->stateidx + 1];
 
-		NS_DBG("switch_state: operation is known, switch to the next state, "
+		NS_DBG("switch_state: operation is kyeswn, switch to the next state, "
 			"state: %s, nxstate: %s\n",
 			get_state_name(ns->state), get_state_name(ns->nxstate));
 
@@ -1726,17 +1726,17 @@ static void switch_state(struct nandsim *ns)
 
 	} else {
 		/*
-		 * We don't yet know which operation we perform.
+		 * We don't yet kyesw which operation we perform.
 		 * Try to identify it.
 		 */
 
 		/*
 		 *  The only event causing the switch_state function to
-		 *  be called with yet unknown operation is new command.
+		 *  be called with yet unkyeswn operation is new command.
 		 */
 		ns->state = get_state_by_command(ns->regs.command);
 
-		NS_DBG("switch_state: operation is unknown, try to find it\n");
+		NS_DBG("switch_state: operation is unkyeswn, try to find it\n");
 
 		if (find_operation(ns, 0) != 0)
 			return;
@@ -1763,7 +1763,7 @@ static void switch_state(struct nandsim *ns)
 		/* In case of data states, see if all bytes were input/output */
 		if ((ns->state & (STATE_DATAIN_MASK | STATE_DATAOUT_MASK))
 			&& ns->regs.count != ns->regs.num) {
-			NS_WARN("switch_state: not all bytes were processed, %d left\n",
+			NS_WARN("switch_state: yest all bytes were processed, %d left\n",
 					ns->regs.num - ns->regs.count);
 			status = NS_STATUS_FAILED(ns);
 		}
@@ -1775,7 +1775,7 @@ static void switch_state(struct nandsim *ns)
 		return;
 	} else if (ns->nxstate & (STATE_DATAIN_MASK | STATE_DATAOUT_MASK)) {
 		/*
-		 * If the next state is data input/output, switch to it now
+		 * If the next state is data input/output, switch to it yesw
 		 */
 
 		ns->state      = ns->nxstate;
@@ -1805,7 +1805,7 @@ static void switch_state(struct nandsim *ns)
 				break;
 
 			default:
-				NS_ERR("switch_state: BUG! unknown data state\n");
+				NS_ERR("switch_state: BUG! unkyeswn data state\n");
 		}
 
 	} else if (ns->nxstate & STATE_ADDR_MASK) {
@@ -1835,7 +1835,7 @@ static void switch_state(struct nandsim *ns)
 				break;
 
 			default:
-				NS_ERR("switch_state: BUG! unknown address state\n");
+				NS_ERR("switch_state: BUG! unkyeswn address state\n");
 		}
 	} else {
 		/*
@@ -1875,7 +1875,7 @@ static u_char ns_nand_read_byte(struct nand_chip *chip)
 
 	/* Check if there is any data in the internal buffer which may be read */
 	if (ns->regs.count == ns->regs.num) {
-		NS_WARN("read_byte: no more data to output, return %#x\n", (uint)outb);
+		NS_WARN("read_byte: yes more data to output, return %#x\n", (uint)outb);
 		return outb;
 	}
 
@@ -1914,11 +1914,11 @@ static void ns_nand_write_byte(struct nand_chip *chip, u_char byte)
 
 	/* Sanity and correctness checks */
 	if (!ns->lines.ce) {
-		NS_ERR("write_byte: chip is disabled, ignore write\n");
+		NS_ERR("write_byte: chip is disabled, igyesre write\n");
 		return;
 	}
 	if (ns->lines.ale && ns->lines.cle) {
-		NS_ERR("write_byte: ALE and CLE pins are high simultaneously, ignore write\n");
+		NS_ERR("write_byte: ALE and CLE pins are high simultaneously, igyesre write\n");
 		return;
 	}
 
@@ -1935,7 +1935,7 @@ static void ns_nand_write_byte(struct nand_chip *chip, u_char byte)
 
 		/* Check that the command byte is correct */
 		if (check_command(byte)) {
-			NS_ERR("write_byte: unknown command %#x\n", (uint)byte);
+			NS_ERR("write_byte: unkyeswn command %#x\n", (uint)byte);
 			return;
 		}
 
@@ -1950,16 +1950,16 @@ static void ns_nand_write_byte(struct nand_chip *chip, u_char byte)
 
 		/* Check if chip is expecting command */
 		if (NS_STATE(ns->nxstate) != STATE_UNKNOWN && !(ns->nxstate & STATE_CMD_MASK)) {
-			/* Do not warn if only 2 id bytes are read */
+			/* Do yest warn if only 2 id bytes are read */
 			if (!(ns->regs.command == NAND_CMD_READID &&
 			    NS_STATE(ns->state) == STATE_DATAOUT_ID && ns->regs.count == 2)) {
 				/*
-				 * We are in situation when something else (not command)
-				 * was expected but command was input. In this case ignore
+				 * We are in situation when something else (yest command)
+				 * was expected but command was input. In this case igyesre
 				 * previous command(s)/state(s) and accept the last one.
 				 */
 				NS_WARN("write_byte: command (%#x) wasn't expected, expected state is %s, "
-					"ignore previous states\n", (uint)byte, get_state_name(ns->nxstate));
+					"igyesre previous states\n", (uint)byte, get_state_name(ns->nxstate));
 			}
 			switch_to_ready_state(ns, NS_STATUS_FAILED(ns));
 		}
@@ -1976,7 +1976,7 @@ static void ns_nand_write_byte(struct nand_chip *chip, u_char byte)
 
 		if (NS_STATE(ns->nxstate) == STATE_UNKNOWN) {
 
-			NS_DBG("write_byte: operation isn't known yet, identify it\n");
+			NS_DBG("write_byte: operation isn't kyeswn yet, identify it\n");
 
 			if (find_operation(ns, 1) < 0)
 				return;
@@ -2012,7 +2012,7 @@ static void ns_nand_write_byte(struct nand_chip *chip, u_char byte)
 
 		/* Check if this is expected byte */
 		if (ns->regs.count == ns->regs.num) {
-			NS_ERR("write_byte: no more address bytes expected\n");
+			NS_ERR("write_byte: yes more address bytes expected\n");
 			switch_to_ready_state(ns, NS_STATUS_FAILED(ns));
 			return;
 		}
@@ -2045,7 +2045,7 @@ static void ns_nand_write_byte(struct nand_chip *chip, u_char byte)
 
 		/* Check if this is expected byte */
 		if (ns->regs.count == ns->regs.num) {
-			NS_WARN("write_byte: %u input bytes has already been accepted, ignore write\n",
+			NS_WARN("write_byte: %u input bytes has already been accepted, igyesre write\n",
 					ns->regs.num);
 			return;
 		}
@@ -2192,9 +2192,9 @@ static int ns_attach_chip(struct nand_chip *chip)
 	eccsteps = nsmtd->writesize / 512;
 	eccbytes = ((bch * 13) + 7) / 8;
 
-	/* Do not bother supporting small page devices */
+	/* Do yest bother supporting small page devices */
 	if (nsmtd->oobsize < 64 || !eccsteps) {
-		NS_ERR("BCH not available on small page devices\n");
+		NS_ERR("BCH yest available on small page devices\n");
 		return -EINVAL;
 	}
 
@@ -2300,7 +2300,7 @@ static int __init ns_init_module(void)
 
 	retval = nand_scan(chip, 1);
 	if (retval) {
-		NS_ERR("Could not scan NAND Simulator device\n");
+		NS_ERR("Could yest scan NAND Simulator device\n");
 		goto error;
 	}
 
@@ -2317,7 +2317,7 @@ static int __init ns_init_module(void)
 			goto err_exit;
 		}
 
-		/* N.B. This relies on nand_scan not doing anything with the size before we change it */
+		/* N.B. This relies on nand_scan yest doing anything with the size before we change it */
 		nsmtd->size = new_size;
 		memorg->eraseblocks_per_lun = 1 << overridesize;
 		targetsize = nanddev_target_size(&chip->base);

@@ -115,13 +115,13 @@
 /*
  * CLKID index values
  *
- * These indices are entirely contrived and do not map onto the hardware.
- * It has now been decided to expose everything by default in the DT header:
+ * These indices are entirely contrived and do yest map onto the hardware.
+ * It has yesw been decided to expose everything by default in the DT header:
  * include/dt-bindings/clock/gxbb-clkc.h. Only the clocks ids we don't want
  * to expose, such as the internal muxes and dividers of composite clocks,
  * will remain defined here.
  */
-/* ID 1 is unused (it was used by the non-existing CLKID_CPUCLK before) */
+/* ID 1 is unused (it was used by the yesn-existing CLKID_CPUCLK before) */
 #define CLKID_MPEG_SEL		  10
 #define CLKID_MPEG_DIV		  11
 #define CLKID_SAR_ADC_DIV	  99

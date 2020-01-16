@@ -33,7 +33,7 @@ static inline void local_bh_enable(void) {}
 #define trace_rcu_torture_read(rcutorturename, rhp, secs, c_old, c) \
 	do { } while (0)
 
-#define notrace
+#define yestrace
 
 /* Avoid including rcupdate.h */
 struct rcu_synchronize {
@@ -48,8 +48,8 @@ void wakeme_after_rcu(struct rcu_head *head);
 #define rcu_lockdep_assert(c, s) do { } while (0)
 #define RCU_LOCKDEP_WARN(c, s) do { } while (0)
 
-/* Let CBMC non-deterministically choose switch between normal and expedited. */
-bool rcu_gp_is_normal(void);
+/* Let CBMC yesn-deterministically choose switch between yesrmal and expedited. */
+bool rcu_gp_is_yesrmal(void);
 bool rcu_gp_is_expedited(void);
 
 /* Do the same for old versions of rcu. */

@@ -81,8 +81,8 @@ struct thread_group_cputimer *get_running_cputimer(struct task_struct *tsk)
 	struct thread_group_cputimer *cputimer = &tsk->signal->cputimer;
 
 	/*
-	 * Check whether posix CPU timers are active. If not the thread
-	 * group accounting is not active either. Lockless check.
+	 * Check whether posix CPU timers are active. If yest the thread
+	 * group accounting is yest active either. Lockless check.
 	 */
 	if (!READ_ONCE(tsk->signal->posix_cputimers.timers_active))
 		return NULL;
@@ -94,7 +94,7 @@ struct thread_group_cputimer *get_running_cputimer(struct task_struct *tsk)
 	 * ticking after __exit_signal().
 	 *
 	 * In order to keep a consistent behaviour between thread group cputime
-	 * and thread group cputimer accounting, lets also ignore the cputime
+	 * and thread group cputimer accounting, lets also igyesre the cputime
 	 * elapsing after __exit_signal() in any thread group timer running.
 	 *
 	 * This makes sure that POSIX CPU clocks and timers are synchronized, so

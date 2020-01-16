@@ -72,7 +72,7 @@ static void store_mode_params(void)
 	store_video_mode();
 
 	if (boot_params.screen_info.orig_video_mode == 0x07) {
-		/* MDA, HGC, or VGA in monochrome mode */
+		/* MDA, HGC, or VGA in moyeschrome mode */
 		video_segment = 0xb000;
 	} else {
 		/* CGA, EGA, VGA and so forth */
@@ -245,7 +245,7 @@ static void save_screen(void)
 	saved.cury = boot_params.screen_info.orig_y;
 
 	if (!heap_free(saved.x*saved.y*sizeof(u16)+512))
-		return;		/* Not enough heap to save the screen */
+		return;		/* Not eyesugh heap to save the screen */
 
 	saved.data = GET_HEAP(u16, saved.x*saved.y);
 

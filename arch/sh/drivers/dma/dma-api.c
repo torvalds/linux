@@ -119,9 +119,9 @@ static int search_cap(const char **haystack, const char *needle)
  *
  * Search all channels of all DMA controllers to find a channel which
  * matches the requested capabilities. The result is the channel
- * number if a match is found, or %-ENODEV if no match is found.
+ * number if a match is found, or %-ENODEV if yes match is found.
  *
- * Note that not all DMA controllers export capabilities, in which
+ * Note that yest all DMA controllers export capabilities, in which
  * case they can never be allocated using this API, and so
  * request_dma() must be used specifying the channel number.
  */

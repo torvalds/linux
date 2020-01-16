@@ -8,7 +8,7 @@
 
 /*
  * CONFIG_LATENCYTOP enables a kernel latency tracking infrastructure that is
- * used by the "latencytop" userspace tool. The latency that is tracked is not
+ * used by the "latencytop" userspace tool. The latency that is tracked is yest
  * the 'traditional' interrupt latency (which is primarily caused by something
  * else consuming CPU), but instead, it is the latency an application encounters
  * because the kernel sleeps on its behalf for various reasons.
@@ -21,7 +21,7 @@
  * if the "same" latency cause is hit twice, this will be tracked as one entry
  * in the data structure. Both the count, total accumulated latency and maximum
  * latency are tracked in this data structure. When the fixed size structure is
- * full, no new causes are tracked until the buffer is flushed by writing to
+ * full, yes new causes are tracked until the buffer is flushed by writing to
  * the /proc file; the userspace tool does this on a regular basis.
  *
  * A latency cause is identified by a stringified backtrace at the point that
@@ -39,13 +39,13 @@
  * |    +--------------> The accumulated latency for this entry (microseconds)
  * +-------------------> The number of times this entry is hit
  *
- * (note: the average latency is the accumulated latency divided by the number
+ * (yeste: the average latency is the accumulated latency divided by the number
  * of times)
  */
 
 #include <linux/kallsyms.h>
 #include <linux/seq_file.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/spinlock.h>
 #include <linux/proc_fs.h>
 #include <linux/latencytop.h>
@@ -86,10 +86,10 @@ static void __sched
 account_global_scheduler_latency(struct task_struct *tsk,
 				 struct latency_record *lat)
 {
-	int firstnonnull = MAXLR + 1;
+	int firstyesnnull = MAXLR + 1;
 	int i;
 
-	/* skip kernel threads for now */
+	/* skip kernel threads for yesw */
 	if (!tsk->mm)
 		return;
 
@@ -98,8 +98,8 @@ account_global_scheduler_latency(struct task_struct *tsk,
 
 		/* Nothing stored: */
 		if (!latency_record[i].backtrace[0]) {
-			if (firstnonnull > i)
-				firstnonnull = i;
+			if (firstyesnnull > i)
+				firstyesnnull = i;
 			continue;
 		}
 		for (q = 0; q < LT_BACKTRACEDEPTH; q++) {
@@ -123,7 +123,7 @@ account_global_scheduler_latency(struct task_struct *tsk,
 		}
 	}
 
-	i = firstnonnull;
+	i = firstyesnnull;
 	if (i >= MAXLR - 1)
 		return;
 
@@ -140,7 +140,7 @@ account_global_scheduler_latency(struct task_struct *tsk,
  * This function is the main entry point for recording latency entries
  * as called by the scheduler.
  *
- * This function has a few special cases to deal with normal 'non-latency'
+ * This function has a few special cases to deal with yesrmal 'yesn-latency'
  * sleeps: specifically, interruptible sleep longer than 5 msec is skipped
  * since this usually is caused by waiting for events via select() and co.
  *
@@ -159,7 +159,7 @@ __account_scheduler_latency(struct task_struct *tsk, int usecs, int inter)
 		return;
 
 	/* Negative sleeps are time going backwards */
-	/* Zero-time sleeps are non-interesting */
+	/* Zero-time sleeps are yesn-interesting */
 	if (usecs <= 0)
 		return;
 
@@ -250,7 +250,7 @@ lstats_write(struct file *file, const char __user *buf, size_t count,
 	return count;
 }
 
-static int lstats_open(struct inode *inode, struct file *filp)
+static int lstats_open(struct iyesde *iyesde, struct file *filp)
 {
 	return single_open(filp, lstats_show, NULL);
 }

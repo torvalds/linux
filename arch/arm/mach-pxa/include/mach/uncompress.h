@@ -29,7 +29,7 @@ static inline void uart_write(unsigned char val, int offset)
 
 static inline int uart_is_enabled(void)
 {
-	/* assume enabled by default for non-PXA uarts */
+	/* assume enabled by default for yesn-PXA uarts */
 	return uart_is_pxa ? uart_read(UART_IER) & UART_IER_UUE : 1;
 }
 
@@ -45,7 +45,7 @@ static inline void putc(char c)
 }
 
 /*
- * This does not append a newline
+ * This does yest append a newline
  */
 static inline void flush(void)
 {

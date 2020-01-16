@@ -39,12 +39,12 @@
  * are met:
  *
  *  * Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  *  * Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
+ *    yestice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
- *  * Neither the name Intel Corporation nor the names of its
+ *  * Neither the name Intel Corporation yesr the names of its
  *    contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
@@ -187,7 +187,7 @@ static void iwl_mvm_power_configure_uapsd(struct iwl_mvm *mvm,
 	bool tid_found = false;
 
 #ifdef CONFIG_IWLWIFI_DEBUGFS
-	/* set advanced pm flag with no uapsd ACs to enable ps-poll */
+	/* set advanced pm flag with yes uapsd ACs to enable ps-poll */
 	if (mvmvif->dbgfs_pm.use_ps_poll) {
 		cmd->flags |= cpu_to_le16(POWER_FLAGS_ADVANCE_PM_ENA_MSK);
 		return;
@@ -204,7 +204,7 @@ static void iwl_mvm_power_configure_uapsd(struct iwl_mvm *mvm,
 
 		cmd->uapsd_ac_flags |= BIT(ac);
 
-		/* QNDP TID - the highest TID with no admission control */
+		/* QNDP TID - the highest TID with yes admission control */
 		if (!tid_found && !mvmvif->queue_params[ac].acm) {
 			tid_found = true;
 			switch (ac) {
@@ -231,8 +231,8 @@ static void iwl_mvm_power_configure_uapsd(struct iwl_mvm *mvm,
 				    BIT(IEEE80211_AC_BE) |
 				    BIT(IEEE80211_AC_BK))) {
 		cmd->flags |= cpu_to_le16(POWER_FLAGS_SNOOZE_ENA_MSK);
-		cmd->snooze_interval = cpu_to_le16(IWL_MVM_PS_SNOOZE_INTERVAL);
-		cmd->snooze_window =
+		cmd->syesoze_interval = cpu_to_le16(IWL_MVM_PS_SNOOZE_INTERVAL);
+		cmd->syesoze_window =
 			(mvm->fwrt.cur_fw_img == IWL_UCODE_WOWLAN) ?
 				cpu_to_le16(IWL_MVM_WOWLAN_PS_SNOOZE_WINDOW) :
 				cpu_to_le16(IWL_MVM_PS_SNOOZE_WINDOW);
@@ -304,7 +304,7 @@ static bool iwl_mvm_power_allow_uapsd(struct iwl_mvm *mvm,
 	 * opportunistic power save. This is due to current FW limitation.
 	 */
 	if (vif->p2p &&
-	    (vif->bss_conf.p2p_noa_attr.oppps_ctwindow &
+	    (vif->bss_conf.p2p_yesa_attr.oppps_ctwindow &
 	    IEEE80211_P2P_OPPPS_ENABLE_BIT))
 		return false;
 
@@ -490,7 +490,7 @@ static void iwl_mvm_power_build_cmd(struct iwl_mvm *mvm,
 	if (mvmvif->dbgfs_pm.mask & MVM_DEBUGFS_PM_LPRX_RSSI_THRESHOLD)
 		cmd->lprx_rssi_threshold = mvmvif->dbgfs_pm.lprx_rssi_threshold;
 	if (mvmvif->dbgfs_pm.mask & MVM_DEBUGFS_PM_SNOOZE_ENABLE) {
-		if (mvmvif->dbgfs_pm.snooze_ena)
+		if (mvmvif->dbgfs_pm.syesoze_ena)
 			cmd->flags |=
 				cpu_to_le16(POWER_FLAGS_SNOOZE_ENA_MSK);
 		else
@@ -567,20 +567,20 @@ static void iwl_mvm_power_uapsd_misbehav_ap_iterator(void *_data, u8 *mac,
 	u8 *ap_sta_id = _data;
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 
-	/* The ap_sta_id is not expected to change during current association
-	 * so no explicit protection is needed
+	/* The ap_sta_id is yest expected to change during current association
+	 * so yes explicit protection is needed
 	 */
 	if (mvmvif->ap_sta_id == *ap_sta_id)
 		memcpy(mvmvif->uapsd_misbehaving_bssid, vif->bss_conf.bssid,
 		       ETH_ALEN);
 }
 
-void iwl_mvm_power_uapsd_misbehaving_ap_notif(struct iwl_mvm *mvm,
+void iwl_mvm_power_uapsd_misbehaving_ap_yestif(struct iwl_mvm *mvm,
 					      struct iwl_rx_cmd_buffer *rxb)
 {
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
-	struct iwl_uapsd_misbehaving_ap_notif *notif = (void *)pkt->data;
-	u8 ap_sta_id = le32_to_cpu(notif->sta_id);
+	struct iwl_uapsd_misbehaving_ap_yestif *yestif = (void *)pkt->data;
+	u8 ap_sta_id = le32_to_cpu(yestif->sta_id);
 
 	ieee80211_iterate_active_interfaces_atomic(
 		mvm->hw, IEEE80211_IFACE_ITER_NORMAL,
@@ -713,7 +713,7 @@ static void iwl_mvm_power_set_pm(struct iwl_mvm *mvm,
 		ap_same_channel = (bss_mvmvif->phy_ctxt->id ==
 				   ap_mvmvif->phy_ctxt->id);
 
-	/* clients are not stand alone: enable PM if DCM */
+	/* clients are yest stand alone: enable PM if DCM */
 	if (!(client_same_channel || ap_same_channel)) {
 		if (vifs->bss_active)
 			bss_mvmvif->pm_enabled = true;
@@ -800,10 +800,10 @@ int iwl_mvm_power_mac_dbgfs_read(struct iwl_mvm *mvm,
 	if (!(cmd.flags & cpu_to_le16(POWER_FLAGS_SNOOZE_ENA_MSK)))
 		return pos;
 
-	pos += scnprintf(buf+pos, bufsz-pos, "snooze_interval = %d\n",
-			 cmd.snooze_interval);
-	pos += scnprintf(buf+pos, bufsz-pos, "snooze_window = %d\n",
-			 cmd.snooze_window);
+	pos += scnprintf(buf+pos, bufsz-pos, "syesoze_interval = %d\n",
+			 cmd.syesoze_interval);
+	pos += scnprintf(buf+pos, bufsz-pos, "syesoze_window = %d\n",
+			 cmd.syesoze_window);
 
 	return pos;
 }

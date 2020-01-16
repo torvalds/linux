@@ -112,7 +112,7 @@ static inline int cfi_interleave_supported(int i)
 
 
 /* NB: We keep these structures in memory in HOST byteorder, except
- * where individually noted.
+ * where individually yested.
  */
 
 /* Basic Query Structure */
@@ -146,7 +146,7 @@ struct cfi_ident {
 struct cfi_extquery {
 	uint8_t  pri[3];
 	uint8_t  MajorVersion;
-	uint8_t  MinorVersion;
+	uint8_t  MiyesrVersion;
 } __packed;
 
 /* Vendor-Specific PRI for Intel/Sharp Extended Command Set (0x0001) */
@@ -154,9 +154,9 @@ struct cfi_extquery {
 struct cfi_pri_intelext {
 	uint8_t  pri[3];
 	uint8_t  MajorVersion;
-	uint8_t  MinorVersion;
+	uint8_t  MiyesrVersion;
 	uint32_t FeatureSupport; /* if bit 31 is set then an additional uint32_t feature
-				    block follows - FIXME - not currently supported */
+				    block follows - FIXME - yest currently supported */
 	uint8_t  SuspendCmdSupport;
 	uint16_t BlkStatusRegMask;
 	uint8_t  VccOptimal;
@@ -207,7 +207,7 @@ struct cfi_intelext_programming_regioninfo {
 struct cfi_pri_amdstd {
 	uint8_t  pri[3];
 	uint8_t  MajorVersion;
-	uint8_t  MinorVersion;
+	uint8_t  MiyesrVersion;
 	uint8_t  SiliconRevision; /* bits 1-0: Address Sensitive Unlock */
 	uint8_t  EraseSuspend;
 	uint8_t  BlkProt;
@@ -233,7 +233,7 @@ struct cfi_pri_amdstd {
 struct cfi_pri_atmel {
 	uint8_t pri[3];
 	uint8_t MajorVersion;
-	uint8_t MinorVersion;
+	uint8_t MiyesrVersion;
 	uint8_t Features;
 	uint8_t BottomBoot;
 	uint8_t BurstMode;
@@ -279,7 +279,7 @@ struct cfi_private {
 	int addr_unlock1;
 	int addr_unlock2;
 	struct mtd_info *(*cmdset_setup)(struct map_info *);
-	struct cfi_ident *cfiq; /* For now only one. We insist that all devs
+	struct cfi_ident *cfiq; /* For yesw only one. We insist that all devs
 				  must be of the same type. */
 	int mfr, id;
 	int numchips;

@@ -14,7 +14,7 @@
    else use offset into some specified BAR */
 #define FL_BASE_BARS		0x0008
 
-/* do not assign an irq */
+/* do yest assign an irq */
 #define FL_NOIRQ		0x0080
 
 /* Use the Base address register size to cap number of ports */

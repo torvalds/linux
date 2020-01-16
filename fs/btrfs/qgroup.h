@@ -82,20 +82,20 @@
  * 3a) COW happens for OB
  *     If we are going to COW tree block OB, we check OB's bytenr against
  *     tree X's swapped_blocks structure.
- *     If it doesn't fit any, nothing will happen.
+ *     If it doesn't fit any, yesthing will happen.
  *
  * 3b) COW happens for NA
  *     Check NA's bytenr against tree X's swapped_blocks, and get a hit.
  *     Then we do subtree scan on both subtrees OA and NA.
  *     Resulting 6 tree blocks to be scanned (OA, OC, OD, NA, NC, ND).
  *
- *     Then no matter what we do to subvolume tree X, qgroup numbers will
+ *     Then yes matter what we do to subvolume tree X, qgroup numbers will
  *     still be correct.
  *     Then NA's record gets removed from X's swapped_blocks.
  *
  * 4)  Transaction commit
- *     Any record in X's swapped_blocks gets removed, since there is no
- *     modification to the swapped subtrees, no need to trigger heavy qgroup
+ *     Any record in X's swapped_blocks gets removed, since there is yes
+ *     modification to the swapped subtrees, yes need to trigger heavy qgroup
  *     subtree rescan for them.
  */
 
@@ -104,7 +104,7 @@
  * TODO: Use kmem cache to alloc it.
  */
 struct btrfs_qgroup_extent_record {
-	struct rb_node node;
+	struct rb_yesde yesde;
 	u64 bytenr;
 	u64 num_bytes;
 
@@ -122,7 +122,7 @@ struct btrfs_qgroup_extent_record {
 };
 
 struct btrfs_qgroup_swapped_block {
-	struct rb_node node;
+	struct rb_yesde yesde;
 
 	int level;
 	bool trace_leaf;
@@ -175,7 +175,7 @@ enum btrfs_qgroup_rsv_type {
  * *currently* meta is just reserve-and-clear during transaction.
  *
  * TODO: Add new type for reservation which can survive transaction commit.
- * Current metadata reservation behavior is not suitable for such case.
+ * Current metadata reservation behavior is yest suitable for such case.
  */
 struct btrfs_qgroup_rsv {
 	u64 values[BTRFS_QGROUP_RSV_LAST];
@@ -215,7 +215,7 @@ struct btrfs_qgroup {
 	struct list_head groups;  /* groups this group is member of */
 	struct list_head members; /* groups that are members of this group */
 	struct list_head dirty;   /* dirty groups */
-	struct rb_node node;	  /* tree of qgroups */
+	struct rb_yesde yesde;	  /* tree of qgroups */
 
 	/*
 	 * temp variables for accounting operations
@@ -259,15 +259,15 @@ struct btrfs_delayed_extent_op;
  *
  * Return 0 for success insert
  * Return >0 for existing record, caller can free @record safely.
- * Error is not possible
+ * Error is yest possible
  */
-int btrfs_qgroup_trace_extent_nolock(
+int btrfs_qgroup_trace_extent_yeslock(
 		struct btrfs_fs_info *fs_info,
 		struct btrfs_delayed_ref_root *delayed_refs,
 		struct btrfs_qgroup_extent_record *record);
 
 /*
- * Post handler after qgroup_trace_extent_nolock().
+ * Post handler after qgroup_trace_extent_yeslock().
  *
  * NOTE: Current qgroup does the expensive backref walk at transaction
  * committing time with TRANS_STATE_COMMIT_DOING, this blocks incoming
@@ -275,17 +275,17 @@ int btrfs_qgroup_trace_extent_nolock(
  * This is designed to allow btrfs_find_all_roots() to get correct new_roots
  * result.
  *
- * However for old_roots there is no need to do backref walk at that time,
+ * However for old_roots there is yes need to do backref walk at that time,
  * since we search commit roots to walk backref and result will always be
  * correct.
  *
- * Due to the nature of no lock version, we can't do backref there.
+ * Due to the nature of yes lock version, we can't do backref there.
  * So we must call btrfs_qgroup_trace_extent_post() after exiting
  * spinlock context.
  *
  * TODO: If we can fix and prove btrfs_find_all_roots() can get correct result
  * using current root, then we can move all expensive backref walk out of
- * transaction committing, but not now as qgroup accounting will be wrong again.
+ * transaction committing, but yest yesw as qgroup accounting will be wrong again.
  */
 int btrfs_qgroup_trace_extent_post(struct btrfs_fs_info *fs_info,
 				   struct btrfs_qgroup_extent_record *qrecord);
@@ -344,10 +344,10 @@ int btrfs_verify_qgroup_counts(struct btrfs_fs_info *fs_info, u64 qgroupid,
 #endif
 
 /* New io_tree based accurate qgroup reserve API */
-int btrfs_qgroup_reserve_data(struct inode *inode,
+int btrfs_qgroup_reserve_data(struct iyesde *iyesde,
 			struct extent_changeset **reserved, u64 start, u64 len);
-int btrfs_qgroup_release_data(struct inode *inode, u64 start, u64 len);
-int btrfs_qgroup_free_data(struct inode *inode,
+int btrfs_qgroup_release_data(struct iyesde *iyesde, u64 start, u64 len);
+int btrfs_qgroup_free_data(struct iyesde *iyesde,
 			struct extent_changeset *reserved, u64 start, u64 len);
 
 int __btrfs_qgroup_reserve_meta(struct btrfs_root *root, int num_bytes,
@@ -399,7 +399,7 @@ void btrfs_qgroup_free_meta_all_pertrans(struct btrfs_root *root);
  */
 void btrfs_qgroup_convert_reserved_meta(struct btrfs_root *root, int num_bytes);
 
-void btrfs_qgroup_check_reserved_leak(struct inode *inode);
+void btrfs_qgroup_check_reserved_leak(struct iyesde *iyesde);
 
 /* btrfs_qgroup_swapped_blocks related functions */
 void btrfs_qgroup_init_swapped_blocks(

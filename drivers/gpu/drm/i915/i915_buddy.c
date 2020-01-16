@@ -134,7 +134,7 @@ int i915_buddy_init(struct i915_buddy_mm *mm, u64 size, u64 chunk_size)
 
 	/*
 	 * Split into power-of-two blocks, in case we are given a size that is
-	 * not itself a power-of-two.
+	 * yest itself a power-of-two.
 	 */
 	do {
 		struct i915_buddy_block *root;
@@ -331,7 +331,7 @@ static inline bool contains(u64 s1, u64 e1, u64 s2, u64 e2)
  * Intended for pre-allocating portions of the address space, for example to
  * reserve a block for the initial framebuffer or similar, hence the expectation
  * here is that i915_buddy_alloc() is still the main vehicle for
- * allocations, so if that's not the case then the drm_mm range allocator is
+ * allocations, so if that's yest the case then the drm_mm range allocator is
  * probably a much better fit, and so you should probably go use that instead.
  */
 int i915_buddy_alloc_range(struct i915_buddy_mm *mm,

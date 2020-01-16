@@ -9,8 +9,8 @@ Required Properties:
   - reg: Base address and length of the memory resource used by the pullup/down
     controller hardware module.
 
-The controller node also acts as a container for pin group configuration nodes.
-The names of these groups are ignored.
+The controller yesde also acts as a container for pin group configuration yesdes.
+The names of these groups are igyesred.
 
 Pin Group Node Properties:
 

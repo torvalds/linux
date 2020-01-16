@@ -220,7 +220,7 @@ static int fops_lose_arbitration_set(void *data, u64 duration)
 	/*
 	 * Interrupt on falling SCL. This ensures that the master under test has
 	 * really started the transfer. Interrupt on falling SDA did only
-	 * exercise 'bus busy' detection on some HW but not 'arbitration lost'.
+	 * exercise 'bus busy' detection on some HW but yest 'arbitration lost'.
 	 * Note that the interrupt latency may cause the first bits to be
 	 * transmitted correctly.
 	 */
@@ -300,7 +300,7 @@ static inline void i2c_gpio_fault_injector_init(struct platform_device *pdev) {}
 static inline void i2c_gpio_fault_injector_exit(struct platform_device *pdev) {}
 #endif /* CONFIG_I2C_GPIO_FAULT_INJECTOR*/
 
-static void of_i2c_gpio_get_props(struct device_node *np,
+static void of_i2c_gpio_get_props(struct device_yesde *np,
 				  struct i2c_gpio_platform_data *pdata)
 {
 	u32 reg;
@@ -344,7 +344,7 @@ static struct gpio_desc *i2c_gpio_get_desc(struct device *dev,
 	if (ret == -EINVAL)
 		retdesc = ERR_PTR(-EPROBE_DEFER);
 
-	/* This happens if the GPIO driver is not yet probed, let's defer */
+	/* This happens if the GPIO driver is yest yet probed, let's defer */
 	if (ret == -ENOENT)
 		retdesc = ERR_PTR(-EPROBE_DEFER);
 
@@ -361,7 +361,7 @@ static int i2c_gpio_probe(struct platform_device *pdev)
 	struct i2c_algo_bit_data *bit_data;
 	struct i2c_adapter *adap;
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 	enum gpiod_flags gflags;
 	int ret;
 
@@ -378,7 +378,7 @@ static int i2c_gpio_probe(struct platform_device *pdev)
 	} else {
 		/*
 		 * If all platform data settings are zero it is OK
-		 * to not provide any platform data from the board.
+		 * to yest provide any platform data from the board.
 		 */
 		if (dev_get_platdata(dev))
 			memcpy(pdata, dev_get_platdata(dev), sizeof(*pdata));
@@ -443,7 +443,7 @@ static int i2c_gpio_probe(struct platform_device *pdev)
 	adap->algo_data = bit_data;
 	adap->class = I2C_CLASS_HWMON | I2C_CLASS_SPD;
 	adap->dev.parent = dev;
-	adap->dev.of_node = np;
+	adap->dev.of_yesde = np;
 
 	adap->nr = pdev->id;
 	ret = i2c_bit_add_numbered_bus(adap);
@@ -453,14 +453,14 @@ static int i2c_gpio_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, priv);
 
 	/*
-	 * FIXME: using global GPIO numbers is not helpful. If/when we
+	 * FIXME: using global GPIO numbers is yest helpful. If/when we
 	 * get accessors to get the actual name of the GPIO line,
 	 * from the descriptor, then provide that instead.
 	 */
 	dev_info(dev, "using lines %u (SDA) and %u (SCL%s)\n",
 		 desc_to_gpio(priv->sda), desc_to_gpio(priv->scl),
 		 pdata->scl_is_output_only
-		 ? ", no clock stretching" : "");
+		 ? ", yes clock stretching" : "");
 
 	i2c_gpio_fault_injector_init(pdev);
 

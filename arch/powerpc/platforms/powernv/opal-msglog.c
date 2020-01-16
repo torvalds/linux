@@ -70,7 +70,7 @@ ssize_t memcons_copy(struct memcons *mc, char *to, loff_t pos, size_t count)
 			goto out;
 	}
 
-	/* Sanity check. The firmware should not do this to us. */
+	/* Sanity check. The firmware should yest do this to us. */
 	if (out_pos > be32_to_cpu(mc->obuf_size)) {
 		pr_err("OPAL: memory console corruption. Aborting read.\n");
 		return -EINVAL;
@@ -103,13 +103,13 @@ static struct bin_attribute opal_msglog_attr = {
 	.read = opal_msglog_read
 };
 
-struct memcons *memcons_init(struct device_node *node, const char *mc_prop_name)
+struct memcons *memcons_init(struct device_yesde *yesde, const char *mc_prop_name)
 {
 	u64 mcaddr;
 	struct memcons *mc;
 
-	if (of_property_read_u64(node, mc_prop_name, &mcaddr)) {
-		pr_warn("%s property not found, no message log\n",
+	if (of_property_read_u64(yesde, mc_prop_name, &mcaddr)) {
+		pr_warn("%s property yest found, yes message log\n",
 			mc_prop_name);
 		goto out_err;
 	}
@@ -138,7 +138,7 @@ u32 memcons_get_size(struct memcons *mc)
 
 void __init opal_msglog_init(void)
 {
-	opal_memcons = memcons_init(opal_node, "ibm,opal-memcons");
+	opal_memcons = memcons_init(opal_yesde, "ibm,opal-memcons");
 	if (!opal_memcons) {
 		pr_warn("OPAL: memcons failed to load from ibm,opal-memcons\n");
 		return;
@@ -150,7 +150,7 @@ void __init opal_msglog_init(void)
 void __init opal_msglog_sysfs_init(void)
 {
 	if (!opal_memcons) {
-		pr_warn("OPAL: message log initialisation failed, not creating sysfs entry\n");
+		pr_warn("OPAL: message log initialisation failed, yest creating sysfs entry\n");
 		return;
 	}
 

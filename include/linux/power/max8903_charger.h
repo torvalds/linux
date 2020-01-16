@@ -13,7 +13,7 @@ struct max8903_pdata {
 	/*
 	 * GPIOs
 	 * cen, chg, flt, dcm and usus are optional.
-	 * dok and uok are not optional depending on the status of
+	 * dok and uok are yest optional depending on the status of
 	 * dc_valid and usb_valid.
 	 */
 	int cen;	/* Charger Enable input */

@@ -9,7 +9,7 @@
 extern const struct ide_disk_ops ide_ata_disk_ops;
 ide_decl_devset(address);
 ide_decl_devset(multcount);
-ide_decl_devset(nowerr);
+ide_decl_devset(yeswerr);
 ide_decl_devset(wcache);
 ide_decl_devset(acoustic);
 

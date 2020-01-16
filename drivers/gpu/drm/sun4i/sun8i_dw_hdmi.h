@@ -201,7 +201,7 @@ encoder_to_sun8i_dw_hdmi(struct drm_encoder *encoder)
 	return container_of(encoder, struct sun8i_dw_hdmi, encoder);
 }
 
-int sun8i_hdmi_phy_probe(struct sun8i_dw_hdmi *hdmi, struct device_node *node);
+int sun8i_hdmi_phy_probe(struct sun8i_dw_hdmi *hdmi, struct device_yesde *yesde);
 void sun8i_hdmi_phy_remove(struct sun8i_dw_hdmi *hdmi);
 
 void sun8i_hdmi_phy_init(struct sun8i_hdmi_phy *phy);

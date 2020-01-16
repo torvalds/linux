@@ -81,7 +81,7 @@ static int qce_handle_queue(struct qce_device *qce,
 	if (req)
 		ret = crypto_enqueue_request(&qce->queue, req);
 
-	/* busy, do not dequeue request */
+	/* busy, do yest dequeue request */
 	if (qce->req) {
 		spin_unlock_irqrestore(&qce->lock, flags);
 		return ret;
@@ -143,22 +143,22 @@ static void qce_async_request_done(struct qce_device *qce, int ret)
 
 static int qce_check_version(struct qce_device *qce)
 {
-	u32 major, minor, step;
+	u32 major, miyesr, step;
 
-	qce_get_version(qce, &major, &minor, &step);
+	qce_get_version(qce, &major, &miyesr, &step);
 
 	/*
-	 * the driver does not support v5 with minor 0 because it has special
+	 * the driver does yest support v5 with miyesr 0 because it has special
 	 * alignment requirements.
 	 */
-	if (major != QCE_MAJOR_VERSION5 || minor == 0)
+	if (major != QCE_MAJOR_VERSION5 || miyesr == 0)
 		return -ENODEV;
 
 	qce->burst_size = QCE_BAM_BURST_SIZE;
 	qce->pipe_pair_id = 1;
 
 	dev_dbg(qce->dev, "Crypto device found, version %d.%d.%d\n",
-		major, minor, step);
+		major, miyesr, step);
 
 	return 0;
 }

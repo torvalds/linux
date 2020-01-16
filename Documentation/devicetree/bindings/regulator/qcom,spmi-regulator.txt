@@ -154,11 +154,11 @@ Qualcomm SPMI Regulators
 - qcom,saw-reg:
 	Usage: optional
 	Value type: <phandle>
-	Description: Reference to syscon node defining the SAW registers.
+	Description: Reference to syscon yesde defining the SAW registers.
 
 
-The regulator node houses sub-nodes for each regulator within the device. Each
-sub-node is identified using the node's name, with valid values listed for each
+The regulator yesde houses sub-yesdes for each regulator within the device. Each
+sub-yesde is identified using the yesde's name, with valid values listed for each
 of the PMICs below.
 
 pm8005:
@@ -187,19 +187,19 @@ pm8994:
 pmi8994:
 	s1, s2, s3, l1
 
-The content of each sub-node is defined by the standard binding for regulators -
+The content of each sub-yesde is defined by the standard binding for regulators -
 see regulator.txt - with additional custom properties described below:
 
 - regulator-initial-mode:
 	Usage: optional
 	Value type: <u32>
 	Description: 2 = Set initial mode to auto mode (automatically select
-		    between HPM and LPM); not available on boost type
+		    between HPM and LPM); yest available on boost type
 		    regulators.
 
 		    1 = Set initial mode to high power mode (HPM), also referred
 		    to as NPM. HPM consumes more ground current than LPM, but
-		    it can source significantly higher load current. HPM is not
+		    it can source significantly higher load current. HPM is yest
 		    available on boost type regulators. For voltage switch type
 		    regulators, HPM implies that over current protection and
 		    soft start are active all the time.
@@ -224,7 +224,7 @@ see regulator.txt - with additional custom properties described below:
 	Value type: <u32>
 	Description: Bit mask specifying which hardware pins should be used to
 		     enable the regulator, if any; supported bits are:
-			0 = ignore all hardware enable signals
+			0 = igyesre all hardware enable signals
 			BIT(0) = follow HW0_EN signal
 			BIT(1) = follow HW1_EN signal
 			BIT(2) = follow HW2_EN signal
@@ -236,7 +236,7 @@ see regulator.txt - with additional custom properties described below:
 	Description: Bit mask specifying which hardware pins should be used to
 		     force the regulator into high power mode, if any;
 		     supported bits are:
-			0 = ignore all hardware enable signals
+			0 = igyesre all hardware enable signals
 			BIT(0) = follow HW0_EN signal
 			BIT(1) = follow HW1_EN signal
 			BIT(2) = follow HW2_EN signal
@@ -256,7 +256,7 @@ see regulator.txt - with additional custom properties described below:
 - qcom,saw-slave:
 	Usage: optional
 	Value type: <boo>
-	Description: SAW controlled gang slave. Will not be configured.
+	Description: SAW controlled gang slave. Will yest be configured.
 
 - qcom,saw-leader:
 	Usage: optional

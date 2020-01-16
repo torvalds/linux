@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Software nodes for the firmware node framework.
+ * Software yesdes for the firmware yesde framework.
  *
  * Copyright (C) 2018, Intel Corporation
  * Author: Heikki Krogerus <heikki.krogerus@linux.intel.com>
@@ -11,81 +11,81 @@
 #include <linux/property.h>
 #include <linux/slab.h>
 
-struct swnode {
+struct swyesde {
 	int id;
 	struct kobject kobj;
-	struct fwnode_handle fwnode;
-	const struct software_node *node;
+	struct fwyesde_handle fwyesde;
+	const struct software_yesde *yesde;
 
 	/* hierarchy */
 	struct ida child_ids;
 	struct list_head entry;
 	struct list_head children;
-	struct swnode *parent;
+	struct swyesde *parent;
 
 	unsigned int allocated:1;
 };
 
-static DEFINE_IDA(swnode_root_ids);
-static struct kset *swnode_kset;
+static DEFINE_IDA(swyesde_root_ids);
+static struct kset *swyesde_kset;
 
-#define kobj_to_swnode(_kobj_) container_of(_kobj_, struct swnode, kobj)
+#define kobj_to_swyesde(_kobj_) container_of(_kobj_, struct swyesde, kobj)
 
-static const struct fwnode_operations software_node_ops;
+static const struct fwyesde_operations software_yesde_ops;
 
-bool is_software_node(const struct fwnode_handle *fwnode)
+bool is_software_yesde(const struct fwyesde_handle *fwyesde)
 {
-	return !IS_ERR_OR_NULL(fwnode) && fwnode->ops == &software_node_ops;
+	return !IS_ERR_OR_NULL(fwyesde) && fwyesde->ops == &software_yesde_ops;
 }
-EXPORT_SYMBOL_GPL(is_software_node);
+EXPORT_SYMBOL_GPL(is_software_yesde);
 
-#define to_swnode(__fwnode)						\
+#define to_swyesde(__fwyesde)						\
 	({								\
-		typeof(__fwnode) __to_swnode_fwnode = __fwnode;		\
+		typeof(__fwyesde) __to_swyesde_fwyesde = __fwyesde;		\
 									\
-		is_software_node(__to_swnode_fwnode) ?			\
-			container_of(__to_swnode_fwnode,		\
-				     struct swnode, fwnode) : NULL;	\
+		is_software_yesde(__to_swyesde_fwyesde) ?			\
+			container_of(__to_swyesde_fwyesde,		\
+				     struct swyesde, fwyesde) : NULL;	\
 	})
 
-static struct swnode *
-software_node_to_swnode(const struct software_node *node)
+static struct swyesde *
+software_yesde_to_swyesde(const struct software_yesde *yesde)
 {
-	struct swnode *swnode = NULL;
+	struct swyesde *swyesde = NULL;
 	struct kobject *k;
 
-	if (!node)
+	if (!yesde)
 		return NULL;
 
-	spin_lock(&swnode_kset->list_lock);
+	spin_lock(&swyesde_kset->list_lock);
 
-	list_for_each_entry(k, &swnode_kset->list, entry) {
-		swnode = kobj_to_swnode(k);
-		if (swnode->node == node)
+	list_for_each_entry(k, &swyesde_kset->list, entry) {
+		swyesde = kobj_to_swyesde(k);
+		if (swyesde->yesde == yesde)
 			break;
-		swnode = NULL;
+		swyesde = NULL;
 	}
 
-	spin_unlock(&swnode_kset->list_lock);
+	spin_unlock(&swyesde_kset->list_lock);
 
-	return swnode;
+	return swyesde;
 }
 
-const struct software_node *to_software_node(const struct fwnode_handle *fwnode)
+const struct software_yesde *to_software_yesde(const struct fwyesde_handle *fwyesde)
 {
-	const struct swnode *swnode = to_swnode(fwnode);
+	const struct swyesde *swyesde = to_swyesde(fwyesde);
 
-	return swnode ? swnode->node : NULL;
+	return swyesde ? swyesde->yesde : NULL;
 }
-EXPORT_SYMBOL_GPL(to_software_node);
+EXPORT_SYMBOL_GPL(to_software_yesde);
 
-struct fwnode_handle *software_node_fwnode(const struct software_node *node)
+struct fwyesde_handle *software_yesde_fwyesde(const struct software_yesde *yesde)
 {
-	struct swnode *swnode = software_node_to_swnode(node);
+	struct swyesde *swyesde = software_yesde_to_swyesde(yesde);
 
-	return swnode ? &swnode->fwnode : NULL;
+	return swyesde ? &swyesde->fwyesde : NULL;
 }
-EXPORT_SYMBOL_GPL(software_node_fwnode);
+EXPORT_SYMBOL_GPL(software_yesde_fwyesde);
 
 /* -------------------------------------------------------------------------- */
 /* property_entry processing */
@@ -349,102 +349,102 @@ void property_entries_free(const struct property_entry *properties)
 EXPORT_SYMBOL_GPL(property_entries_free);
 
 /* -------------------------------------------------------------------------- */
-/* fwnode operations */
+/* fwyesde operations */
 
-static struct fwnode_handle *software_node_get(struct fwnode_handle *fwnode)
+static struct fwyesde_handle *software_yesde_get(struct fwyesde_handle *fwyesde)
 {
-	struct swnode *swnode = to_swnode(fwnode);
+	struct swyesde *swyesde = to_swyesde(fwyesde);
 
-	kobject_get(&swnode->kobj);
+	kobject_get(&swyesde->kobj);
 
-	return &swnode->fwnode;
+	return &swyesde->fwyesde;
 }
 
-static void software_node_put(struct fwnode_handle *fwnode)
+static void software_yesde_put(struct fwyesde_handle *fwyesde)
 {
-	struct swnode *swnode = to_swnode(fwnode);
+	struct swyesde *swyesde = to_swyesde(fwyesde);
 
-	kobject_put(&swnode->kobj);
+	kobject_put(&swyesde->kobj);
 }
 
-static bool software_node_property_present(const struct fwnode_handle *fwnode,
+static bool software_yesde_property_present(const struct fwyesde_handle *fwyesde,
 					   const char *propname)
 {
-	struct swnode *swnode = to_swnode(fwnode);
+	struct swyesde *swyesde = to_swyesde(fwyesde);
 
-	return !!property_entry_get(swnode->node->properties, propname);
+	return !!property_entry_get(swyesde->yesde->properties, propname);
 }
 
-static int software_node_read_int_array(const struct fwnode_handle *fwnode,
+static int software_yesde_read_int_array(const struct fwyesde_handle *fwyesde,
 					const char *propname,
 					unsigned int elem_size, void *val,
 					size_t nval)
 {
-	struct swnode *swnode = to_swnode(fwnode);
+	struct swyesde *swyesde = to_swyesde(fwyesde);
 
-	return property_entry_read_int_array(swnode->node->properties, propname,
+	return property_entry_read_int_array(swyesde->yesde->properties, propname,
 					     elem_size, val, nval);
 }
 
-static int software_node_read_string_array(const struct fwnode_handle *fwnode,
+static int software_yesde_read_string_array(const struct fwyesde_handle *fwyesde,
 					   const char *propname,
 					   const char **val, size_t nval)
 {
-	struct swnode *swnode = to_swnode(fwnode);
+	struct swyesde *swyesde = to_swyesde(fwyesde);
 
-	return property_entry_read_string_array(swnode->node->properties,
+	return property_entry_read_string_array(swyesde->yesde->properties,
 						propname, val, nval);
 }
 
 static const char *
-software_node_get_name(const struct fwnode_handle *fwnode)
+software_yesde_get_name(const struct fwyesde_handle *fwyesde)
 {
-	const struct swnode *swnode = to_swnode(fwnode);
+	const struct swyesde *swyesde = to_swyesde(fwyesde);
 
-	if (!swnode)
+	if (!swyesde)
 		return "(null)";
 
-	return kobject_name(&swnode->kobj);
+	return kobject_name(&swyesde->kobj);
 }
 
 static const char *
-software_node_get_name_prefix(const struct fwnode_handle *fwnode)
+software_yesde_get_name_prefix(const struct fwyesde_handle *fwyesde)
 {
-	struct fwnode_handle *parent;
+	struct fwyesde_handle *parent;
 	const char *prefix;
 
-	parent = fwnode_get_parent(fwnode);
+	parent = fwyesde_get_parent(fwyesde);
 	if (!parent)
 		return "";
 
 	/* Figure out the prefix from the parents. */
-	while (is_software_node(parent))
-		parent = fwnode_get_next_parent(parent);
+	while (is_software_yesde(parent))
+		parent = fwyesde_get_next_parent(parent);
 
-	prefix = fwnode_get_name_prefix(parent);
-	fwnode_handle_put(parent);
+	prefix = fwyesde_get_name_prefix(parent);
+	fwyesde_handle_put(parent);
 
 	/* Guess something if prefix was NULL. */
 	return prefix ?: "/";
 }
 
-static struct fwnode_handle *
-software_node_get_parent(const struct fwnode_handle *fwnode)
+static struct fwyesde_handle *
+software_yesde_get_parent(const struct fwyesde_handle *fwyesde)
 {
-	struct swnode *swnode = to_swnode(fwnode);
+	struct swyesde *swyesde = to_swyesde(fwyesde);
 
-	if (!swnode || !swnode->parent)
+	if (!swyesde || !swyesde->parent)
 		return NULL;
 
-	return fwnode_handle_get(&swnode->parent->fwnode);
+	return fwyesde_handle_get(&swyesde->parent->fwyesde);
 }
 
-static struct fwnode_handle *
-software_node_get_next_child(const struct fwnode_handle *fwnode,
-			     struct fwnode_handle *child)
+static struct fwyesde_handle *
+software_yesde_get_next_child(const struct fwyesde_handle *fwyesde,
+			     struct fwyesde_handle *child)
 {
-	struct swnode *p = to_swnode(fwnode);
-	struct swnode *c = to_swnode(child);
+	struct swyesde *p = to_swyesde(fwyesde);
+	struct swyesde *c = to_swyesde(child);
 
 	if (!p || list_empty(&p->children) ||
 	    (c && list_is_last(&c->entry, &p->children)))
@@ -453,57 +453,57 @@ software_node_get_next_child(const struct fwnode_handle *fwnode,
 	if (c)
 		c = list_next_entry(c, entry);
 	else
-		c = list_first_entry(&p->children, struct swnode, entry);
-	return &c->fwnode;
+		c = list_first_entry(&p->children, struct swyesde, entry);
+	return &c->fwyesde;
 }
 
-static struct fwnode_handle *
-software_node_get_named_child_node(const struct fwnode_handle *fwnode,
+static struct fwyesde_handle *
+software_yesde_get_named_child_yesde(const struct fwyesde_handle *fwyesde,
 				   const char *childname)
 {
-	struct swnode *swnode = to_swnode(fwnode);
-	struct swnode *child;
+	struct swyesde *swyesde = to_swyesde(fwyesde);
+	struct swyesde *child;
 
-	if (!swnode || list_empty(&swnode->children))
+	if (!swyesde || list_empty(&swyesde->children))
 		return NULL;
 
-	list_for_each_entry(child, &swnode->children, entry) {
+	list_for_each_entry(child, &swyesde->children, entry) {
 		if (!strcmp(childname, kobject_name(&child->kobj))) {
 			kobject_get(&child->kobj);
-			return &child->fwnode;
+			return &child->fwyesde;
 		}
 	}
 	return NULL;
 }
 
 static int
-software_node_get_reference_args(const struct fwnode_handle *fwnode,
+software_yesde_get_reference_args(const struct fwyesde_handle *fwyesde,
 				 const char *propname, const char *nargs_prop,
 				 unsigned int nargs, unsigned int index,
-				 struct fwnode_reference_args *args)
+				 struct fwyesde_reference_args *args)
 {
-	struct swnode *swnode = to_swnode(fwnode);
-	const struct software_node_reference *ref;
+	struct swyesde *swyesde = to_swyesde(fwyesde);
+	const struct software_yesde_reference *ref;
 	const struct property_entry *prop;
-	struct fwnode_handle *refnode;
+	struct fwyesde_handle *refyesde;
 	int i;
 
-	if (!swnode || !swnode->node->references)
+	if (!swyesde || !swyesde->yesde->references)
 		return -ENOENT;
 
-	for (ref = swnode->node->references; ref->name; ref++)
+	for (ref = swyesde->yesde->references; ref->name; ref++)
 		if (!strcmp(ref->name, propname))
 			break;
 
 	if (!ref->name || index > (ref->nrefs - 1))
 		return -ENOENT;
 
-	refnode = software_node_fwnode(ref->refs[index].node);
-	if (!refnode)
+	refyesde = software_yesde_fwyesde(ref->refs[index].yesde);
+	if (!refyesde)
 		return -ENOENT;
 
 	if (nargs_prop) {
-		prop = property_entry_get(swnode->node->properties, nargs_prop);
+		prop = property_entry_get(swyesde->yesde->properties, nargs_prop);
 		if (!prop)
 			return -EINVAL;
 
@@ -513,7 +513,7 @@ software_node_get_reference_args(const struct fwnode_handle *fwnode,
 	if (nargs > NR_FWNODE_REFERENCE_ARGS)
 		return -EINVAL;
 
-	args->fwnode = software_node_get(refnode);
+	args->fwyesde = software_yesde_get(refyesde);
 	args->nargs = nargs;
 
 	for (i = 0; i < nargs; i++)
@@ -522,61 +522,61 @@ software_node_get_reference_args(const struct fwnode_handle *fwnode,
 	return 0;
 }
 
-static const struct fwnode_operations software_node_ops = {
-	.get = software_node_get,
-	.put = software_node_put,
-	.property_present = software_node_property_present,
-	.property_read_int_array = software_node_read_int_array,
-	.property_read_string_array = software_node_read_string_array,
-	.get_name = software_node_get_name,
-	.get_name_prefix = software_node_get_name_prefix,
-	.get_parent = software_node_get_parent,
-	.get_next_child_node = software_node_get_next_child,
-	.get_named_child_node = software_node_get_named_child_node,
-	.get_reference_args = software_node_get_reference_args
+static const struct fwyesde_operations software_yesde_ops = {
+	.get = software_yesde_get,
+	.put = software_yesde_put,
+	.property_present = software_yesde_property_present,
+	.property_read_int_array = software_yesde_read_int_array,
+	.property_read_string_array = software_yesde_read_string_array,
+	.get_name = software_yesde_get_name,
+	.get_name_prefix = software_yesde_get_name_prefix,
+	.get_parent = software_yesde_get_parent,
+	.get_next_child_yesde = software_yesde_get_next_child,
+	.get_named_child_yesde = software_yesde_get_named_child_yesde,
+	.get_reference_args = software_yesde_get_reference_args
 };
 
 /* -------------------------------------------------------------------------- */
 
 /**
- * software_node_find_by_name - Find software node by name
- * @parent: Parent of the software node
- * @name: Name of the software node
+ * software_yesde_find_by_name - Find software yesde by name
+ * @parent: Parent of the software yesde
+ * @name: Name of the software yesde
  *
- * The function will find a node that is child of @parent and that is named
- * @name. If no node is found, the function returns NULL.
+ * The function will find a yesde that is child of @parent and that is named
+ * @name. If yes yesde is found, the function returns NULL.
  *
- * NOTE: you will need to drop the reference with fwnode_handle_put() after use.
+ * NOTE: you will need to drop the reference with fwyesde_handle_put() after use.
  */
-const struct software_node *
-software_node_find_by_name(const struct software_node *parent, const char *name)
+const struct software_yesde *
+software_yesde_find_by_name(const struct software_yesde *parent, const char *name)
 {
-	struct swnode *swnode = NULL;
+	struct swyesde *swyesde = NULL;
 	struct kobject *k;
 
 	if (!name)
 		return NULL;
 
-	spin_lock(&swnode_kset->list_lock);
+	spin_lock(&swyesde_kset->list_lock);
 
-	list_for_each_entry(k, &swnode_kset->list, entry) {
-		swnode = kobj_to_swnode(k);
-		if (parent == swnode->node->parent && swnode->node->name &&
-		    !strcmp(name, swnode->node->name)) {
-			kobject_get(&swnode->kobj);
+	list_for_each_entry(k, &swyesde_kset->list, entry) {
+		swyesde = kobj_to_swyesde(k);
+		if (parent == swyesde->yesde->parent && swyesde->yesde->name &&
+		    !strcmp(name, swyesde->yesde->name)) {
+			kobject_get(&swyesde->kobj);
 			break;
 		}
-		swnode = NULL;
+		swyesde = NULL;
 	}
 
-	spin_unlock(&swnode_kset->list_lock);
+	spin_unlock(&swyesde_kset->list_lock);
 
-	return swnode ? swnode->node : NULL;
+	return swyesde ? swyesde->yesde : NULL;
 }
-EXPORT_SYMBOL_GPL(software_node_find_by_name);
+EXPORT_SYMBOL_GPL(software_yesde_find_by_name);
 
 static int
-software_node_register_properties(struct software_node *node,
+software_yesde_register_properties(struct software_yesde *yesde,
 				  const struct property_entry *properties)
 {
 	struct property_entry *props;
@@ -585,226 +585,226 @@ software_node_register_properties(struct software_node *node,
 	if (IS_ERR(props))
 		return PTR_ERR(props);
 
-	node->properties = props;
+	yesde->properties = props;
 
 	return 0;
 }
 
-static void software_node_release(struct kobject *kobj)
+static void software_yesde_release(struct kobject *kobj)
 {
-	struct swnode *swnode = kobj_to_swnode(kobj);
+	struct swyesde *swyesde = kobj_to_swyesde(kobj);
 
-	if (swnode->allocated) {
-		property_entries_free(swnode->node->properties);
-		kfree(swnode->node);
+	if (swyesde->allocated) {
+		property_entries_free(swyesde->yesde->properties);
+		kfree(swyesde->yesde);
 	}
-	ida_destroy(&swnode->child_ids);
-	kfree(swnode);
+	ida_destroy(&swyesde->child_ids);
+	kfree(swyesde);
 }
 
-static struct kobj_type software_node_type = {
-	.release = software_node_release,
+static struct kobj_type software_yesde_type = {
+	.release = software_yesde_release,
 	.sysfs_ops = &kobj_sysfs_ops,
 };
 
-static struct fwnode_handle *
-swnode_register(const struct software_node *node, struct swnode *parent,
+static struct fwyesde_handle *
+swyesde_register(const struct software_yesde *yesde, struct swyesde *parent,
 		unsigned int allocated)
 {
-	struct swnode *swnode;
+	struct swyesde *swyesde;
 	int ret;
 
-	swnode = kzalloc(sizeof(*swnode), GFP_KERNEL);
-	if (!swnode) {
+	swyesde = kzalloc(sizeof(*swyesde), GFP_KERNEL);
+	if (!swyesde) {
 		ret = -ENOMEM;
 		goto out_err;
 	}
 
-	ret = ida_simple_get(parent ? &parent->child_ids : &swnode_root_ids,
+	ret = ida_simple_get(parent ? &parent->child_ids : &swyesde_root_ids,
 			     0, 0, GFP_KERNEL);
 	if (ret < 0) {
-		kfree(swnode);
+		kfree(swyesde);
 		goto out_err;
 	}
 
-	swnode->id = ret;
-	swnode->node = node;
-	swnode->parent = parent;
-	swnode->allocated = allocated;
-	swnode->kobj.kset = swnode_kset;
-	swnode->fwnode.ops = &software_node_ops;
+	swyesde->id = ret;
+	swyesde->yesde = yesde;
+	swyesde->parent = parent;
+	swyesde->allocated = allocated;
+	swyesde->kobj.kset = swyesde_kset;
+	swyesde->fwyesde.ops = &software_yesde_ops;
 
-	ida_init(&swnode->child_ids);
-	INIT_LIST_HEAD(&swnode->entry);
-	INIT_LIST_HEAD(&swnode->children);
+	ida_init(&swyesde->child_ids);
+	INIT_LIST_HEAD(&swyesde->entry);
+	INIT_LIST_HEAD(&swyesde->children);
 
-	if (node->name)
-		ret = kobject_init_and_add(&swnode->kobj, &software_node_type,
+	if (yesde->name)
+		ret = kobject_init_and_add(&swyesde->kobj, &software_yesde_type,
 					   parent ? &parent->kobj : NULL,
-					   "%s", node->name);
+					   "%s", yesde->name);
 	else
-		ret = kobject_init_and_add(&swnode->kobj, &software_node_type,
+		ret = kobject_init_and_add(&swyesde->kobj, &software_yesde_type,
 					   parent ? &parent->kobj : NULL,
-					   "node%d", swnode->id);
+					   "yesde%d", swyesde->id);
 	if (ret) {
-		kobject_put(&swnode->kobj);
+		kobject_put(&swyesde->kobj);
 		return ERR_PTR(ret);
 	}
 
 	if (parent)
-		list_add_tail(&swnode->entry, &parent->children);
+		list_add_tail(&swyesde->entry, &parent->children);
 
-	kobject_uevent(&swnode->kobj, KOBJ_ADD);
-	return &swnode->fwnode;
+	kobject_uevent(&swyesde->kobj, KOBJ_ADD);
+	return &swyesde->fwyesde;
 
 out_err:
 	if (allocated)
-		property_entries_free(node->properties);
+		property_entries_free(yesde->properties);
 	return ERR_PTR(ret);
 }
 
 /**
- * software_node_register_nodes - Register an array of software nodes
- * @nodes: Zero terminated array of software nodes to be registered
+ * software_yesde_register_yesdes - Register an array of software yesdes
+ * @yesdes: Zero terminated array of software yesdes to be registered
  *
- * Register multiple software nodes at once.
+ * Register multiple software yesdes at once.
  */
-int software_node_register_nodes(const struct software_node *nodes)
+int software_yesde_register_yesdes(const struct software_yesde *yesdes)
 {
 	int ret;
 	int i;
 
-	for (i = 0; nodes[i].name; i++) {
-		ret = software_node_register(&nodes[i]);
+	for (i = 0; yesdes[i].name; i++) {
+		ret = software_yesde_register(&yesdes[i]);
 		if (ret) {
-			software_node_unregister_nodes(nodes);
+			software_yesde_unregister_yesdes(yesdes);
 			return ret;
 		}
 	}
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(software_node_register_nodes);
+EXPORT_SYMBOL_GPL(software_yesde_register_yesdes);
 
 /**
- * software_node_unregister_nodes - Unregister an array of software nodes
- * @nodes: Zero terminated array of software nodes to be unregistered
+ * software_yesde_unregister_yesdes - Unregister an array of software yesdes
+ * @yesdes: Zero terminated array of software yesdes to be unregistered
  *
- * Unregister multiple software nodes at once.
+ * Unregister multiple software yesdes at once.
  */
-void software_node_unregister_nodes(const struct software_node *nodes)
+void software_yesde_unregister_yesdes(const struct software_yesde *yesdes)
 {
-	struct swnode *swnode;
+	struct swyesde *swyesde;
 	int i;
 
-	for (i = 0; nodes[i].name; i++) {
-		swnode = software_node_to_swnode(&nodes[i]);
-		if (swnode)
-			fwnode_remove_software_node(&swnode->fwnode);
+	for (i = 0; yesdes[i].name; i++) {
+		swyesde = software_yesde_to_swyesde(&yesdes[i]);
+		if (swyesde)
+			fwyesde_remove_software_yesde(&swyesde->fwyesde);
 	}
 }
-EXPORT_SYMBOL_GPL(software_node_unregister_nodes);
+EXPORT_SYMBOL_GPL(software_yesde_unregister_yesdes);
 
 /**
- * software_node_register - Register static software node
- * @node: The software node to be registered
+ * software_yesde_register - Register static software yesde
+ * @yesde: The software yesde to be registered
  */
-int software_node_register(const struct software_node *node)
+int software_yesde_register(const struct software_yesde *yesde)
 {
-	struct swnode *parent = software_node_to_swnode(node->parent);
+	struct swyesde *parent = software_yesde_to_swyesde(yesde->parent);
 
-	if (software_node_to_swnode(node))
+	if (software_yesde_to_swyesde(yesde))
 		return -EEXIST;
 
-	return PTR_ERR_OR_ZERO(swnode_register(node, parent, 0));
+	return PTR_ERR_OR_ZERO(swyesde_register(yesde, parent, 0));
 }
-EXPORT_SYMBOL_GPL(software_node_register);
+EXPORT_SYMBOL_GPL(software_yesde_register);
 
-struct fwnode_handle *
-fwnode_create_software_node(const struct property_entry *properties,
-			    const struct fwnode_handle *parent)
+struct fwyesde_handle *
+fwyesde_create_software_yesde(const struct property_entry *properties,
+			    const struct fwyesde_handle *parent)
 {
-	struct software_node *node;
-	struct swnode *p = NULL;
+	struct software_yesde *yesde;
+	struct swyesde *p = NULL;
 	int ret;
 
 	if (parent) {
 		if (IS_ERR(parent))
 			return ERR_CAST(parent);
-		if (!is_software_node(parent))
+		if (!is_software_yesde(parent))
 			return ERR_PTR(-EINVAL);
-		p = to_swnode(parent);
+		p = to_swyesde(parent);
 	}
 
-	node = kzalloc(sizeof(*node), GFP_KERNEL);
-	if (!node)
+	yesde = kzalloc(sizeof(*yesde), GFP_KERNEL);
+	if (!yesde)
 		return ERR_PTR(-ENOMEM);
 
-	ret = software_node_register_properties(node, properties);
+	ret = software_yesde_register_properties(yesde, properties);
 	if (ret) {
-		kfree(node);
+		kfree(yesde);
 		return ERR_PTR(ret);
 	}
 
-	node->parent = p ? p->node : NULL;
+	yesde->parent = p ? p->yesde : NULL;
 
-	return swnode_register(node, p, 1);
+	return swyesde_register(yesde, p, 1);
 }
-EXPORT_SYMBOL_GPL(fwnode_create_software_node);
+EXPORT_SYMBOL_GPL(fwyesde_create_software_yesde);
 
-void fwnode_remove_software_node(struct fwnode_handle *fwnode)
+void fwyesde_remove_software_yesde(struct fwyesde_handle *fwyesde)
 {
-	struct swnode *swnode = to_swnode(fwnode);
+	struct swyesde *swyesde = to_swyesde(fwyesde);
 
-	if (!swnode)
+	if (!swyesde)
 		return;
 
-	if (swnode->parent) {
-		ida_simple_remove(&swnode->parent->child_ids, swnode->id);
-		list_del(&swnode->entry);
+	if (swyesde->parent) {
+		ida_simple_remove(&swyesde->parent->child_ids, swyesde->id);
+		list_del(&swyesde->entry);
 	} else {
-		ida_simple_remove(&swnode_root_ids, swnode->id);
+		ida_simple_remove(&swyesde_root_ids, swyesde->id);
 	}
 
-	kobject_put(&swnode->kobj);
+	kobject_put(&swyesde->kobj);
 }
-EXPORT_SYMBOL_GPL(fwnode_remove_software_node);
+EXPORT_SYMBOL_GPL(fwyesde_remove_software_yesde);
 
-int software_node_notify(struct device *dev, unsigned long action)
+int software_yesde_yestify(struct device *dev, unsigned long action)
 {
-	struct fwnode_handle *fwnode = dev_fwnode(dev);
-	struct swnode *swnode;
+	struct fwyesde_handle *fwyesde = dev_fwyesde(dev);
+	struct swyesde *swyesde;
 	int ret;
 
-	if (!fwnode)
+	if (!fwyesde)
 		return 0;
 
-	if (!is_software_node(fwnode))
-		fwnode = fwnode->secondary;
-	if (!is_software_node(fwnode))
+	if (!is_software_yesde(fwyesde))
+		fwyesde = fwyesde->secondary;
+	if (!is_software_yesde(fwyesde))
 		return 0;
 
-	swnode = to_swnode(fwnode);
+	swyesde = to_swyesde(fwyesde);
 
 	switch (action) {
 	case KOBJ_ADD:
-		ret = sysfs_create_link(&dev->kobj, &swnode->kobj,
-					"software_node");
+		ret = sysfs_create_link(&dev->kobj, &swyesde->kobj,
+					"software_yesde");
 		if (ret)
 			break;
 
-		ret = sysfs_create_link(&swnode->kobj, &dev->kobj,
+		ret = sysfs_create_link(&swyesde->kobj, &dev->kobj,
 					dev_name(dev));
 		if (ret) {
-			sysfs_remove_link(&dev->kobj, "software_node");
+			sysfs_remove_link(&dev->kobj, "software_yesde");
 			break;
 		}
-		kobject_get(&swnode->kobj);
+		kobject_get(&swyesde->kobj);
 		break;
 	case KOBJ_REMOVE:
-		sysfs_remove_link(&swnode->kobj, dev_name(dev));
-		sysfs_remove_link(&dev->kobj, "software_node");
-		kobject_put(&swnode->kobj);
+		sysfs_remove_link(&swyesde->kobj, dev_name(dev));
+		sysfs_remove_link(&dev->kobj, "software_yesde");
+		kobject_put(&swyesde->kobj);
 		break;
 	default:
 		break;
@@ -813,18 +813,18 @@ int software_node_notify(struct device *dev, unsigned long action)
 	return 0;
 }
 
-static int __init software_node_init(void)
+static int __init software_yesde_init(void)
 {
-	swnode_kset = kset_create_and_add("software_nodes", NULL, kernel_kobj);
-	if (!swnode_kset)
+	swyesde_kset = kset_create_and_add("software_yesdes", NULL, kernel_kobj);
+	if (!swyesde_kset)
 		return -ENOMEM;
 	return 0;
 }
-postcore_initcall(software_node_init);
+postcore_initcall(software_yesde_init);
 
-static void __exit software_node_exit(void)
+static void __exit software_yesde_exit(void)
 {
-	ida_destroy(&swnode_root_ids);
-	kset_unregister(swnode_kset);
+	ida_destroy(&swyesde_root_ids);
+	kset_unregister(swyesde_kset);
 }
-__exitcall(software_node_exit);
+__exitcall(software_yesde_exit);

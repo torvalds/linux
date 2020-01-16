@@ -256,7 +256,7 @@ static inline void set_din_type(struct cc_hw_desc *pdesc,
  * @addr: DIN address
  * @size: Data size in bytes
  */
-static inline void set_din_no_dma(struct cc_hw_desc *pdesc, u32 addr, u32 size)
+static inline void set_din_yes_dma(struct cc_hw_desc *pdesc, u32 addr, u32 size)
 {
 	pdesc->word[0] = addr;
 	pdesc->word[1] |= FIELD_PREP(WORD1_DIN_SIZE, size);
@@ -283,7 +283,7 @@ static inline void set_cpp_crypto_key(struct cc_hw_desc *pdesc, u8 slot)
 
 /*
  * Set the DIN field of a HW descriptors to SRAM mode.
- * Note: No need to check SRAM alignment since host requests do not use SRAM and
+ * Note: No need to check SRAM alignment since host requests do yest use SRAM and
  * adaptor will enforce alignment check.
  *
  * @pdesc: pointer HW descriptor struct
@@ -314,11 +314,11 @@ static inline void set_din_const(struct cc_hw_desc *pdesc, u32 val, u32 size)
 }
 
 /*
- * Set the DIN not last input data indicator
+ * Set the DIN yest last input data indicator
  *
  * @pdesc: pointer HW descriptor struct
  */
-static inline void set_din_not_last_indication(struct cc_hw_desc *pdesc)
+static inline void set_din_yest_last_indication(struct cc_hw_desc *pdesc)
 {
 	pdesc->word[1] |= FIELD_PREP(WORD1_NOT_LAST, 1);
 }
@@ -390,7 +390,7 @@ static inline void set_dout_mlli(struct cc_hw_desc *pdesc, dma_addr_t addr,
  * @size: Data size in bytes
  * @write_enable: Enables a write operation to a register
  */
-static inline void set_dout_no_dma(struct cc_hw_desc *pdesc, u32 addr,
+static inline void set_dout_yes_dma(struct cc_hw_desc *pdesc, u32 addr,
 				   u32 size, bool write_enable)
 {
 	pdesc->word[2] = addr;
@@ -425,7 +425,7 @@ static inline void set_xor_active(struct cc_hw_desc *pdesc)
  *
  * @pdesc: pointer HW descriptor struct
  */
-static inline void set_aes_not_hash_mode(struct cc_hw_desc *pdesc)
+static inline void set_aes_yest_hash_mode(struct cc_hw_desc *pdesc)
 {
 	pdesc->word[4] |= FIELD_PREP(WORD4_AES_SEL_N_HASH, 1);
 }
@@ -442,7 +442,7 @@ static inline void set_aes_xor_crypto_key(struct cc_hw_desc *pdesc)
 
 /*
  * Set the DOUT field of a HW descriptors to SRAM mode
- * Note: No need to check SRAM alignment since host requests do not use SRAM and
+ * Note: No need to check SRAM alignment since host requests do yest use SRAM and
  * adaptor will enforce alignment check.
  *
  * @pdesc: pointer HW descriptor struct

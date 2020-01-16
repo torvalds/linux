@@ -32,13 +32,13 @@ cleanup() {
     [ -n "$ns" ] && ip netns del $ns 2>/dev/null
 }
 
-# Run test when arp_announce = 2.
-run_arp_announce_test() {
-    echo "run arp_announce test"
+# Run test when arp_anyesunce = 2.
+run_arp_anyesunce_test() {
+    echo "run arp_anyesunce test"
     setup
 
-    sysctl -w net.ipv4.conf.veth0.arp_announce=2
-    ip netns exec "${PEER_NS}" sysctl -w net.ipv4.conf.veth1.arp_announce=2
+    sysctl -w net.ipv4.conf.veth0.arp_anyesunce=2
+    ip netns exec "${PEER_NS}" sysctl -w net.ipv4.conf.veth1.arp_anyesunce=2
     ping -c5 -I veth0 127.25.3.14
     if [ $? -ne 0 ];then
         echo "failed"
@@ -49,13 +49,13 @@ run_arp_announce_test() {
     cleanup
 }
 
-# Run test when arp_ignore = 3.
-run_arp_ignore_test() {
-    echo "run arp_ignore test"
+# Run test when arp_igyesre = 3.
+run_arp_igyesre_test() {
+    echo "run arp_igyesre test"
     setup
 
-    sysctl -w net.ipv4.conf.veth0.arp_ignore=3
-    ip netns exec "${PEER_NS}" sysctl -w net.ipv4.conf.veth1.arp_ignore=3
+    sysctl -w net.ipv4.conf.veth0.arp_igyesre=3
+    ip netns exec "${PEER_NS}" sysctl -w net.ipv4.conf.veth1.arp_igyesre=3
     ping -c5 -I veth0 127.25.3.14
     if [ $? -ne 0 ];then
         echo "failed"
@@ -67,8 +67,8 @@ run_arp_ignore_test() {
 }
 
 run_all_tests() {
-    run_arp_announce_test
-    run_arp_ignore_test
+    run_arp_anyesunce_test
+    run_arp_igyesre_test
 }
 
 run_all_tests

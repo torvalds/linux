@@ -11,7 +11,7 @@
 #include <linux/signal.h>
 #include <linux/sched.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/string.h>
 #include <linux/types.h>
 #include <linux/ptrace.h>
@@ -65,7 +65,7 @@ pgd_alloc(struct mm_struct *mm)
  * BAD_PAGE is the page that is used for page faults when linux
  * is out-of-memory. Older versions of linux just did a
  * do_exit(), but using this instead means there is less risk
- * for a process dying in kernel mode, possibly leaving an inode
+ * for a process dying in kernel mode, possibly leaving an iyesde
  * unused etc..
  *
  * BAD_PAGETABLE is the accompanying page-table: it is initialized
@@ -176,7 +176,7 @@ callback_init(void * kernel_end)
 	   On systems with larger consoles, additional pages will be
 	   allocated as needed during the mapping process.
 
-	   In the case of not SRM, but not CONFIG_ALPHA_LARGE_VMALLOC,
+	   In the case of yest SRM, but yest CONFIG_ALPHA_LARGE_VMALLOC,
 	   we need to allocate the PGD we use for vmalloc before we start
 	   forking other tasks.  */
 

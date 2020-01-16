@@ -39,11 +39,11 @@ config MTD_CMDLINE_PARTS
 	  <mtddef>  := <mtd-id>:<partdef>[,<partdef>]
 	  <partdef> := <size>[@offset][<name>][ro]
 	  <mtd-id>  := unique id used in mapping driver/device
-	  <size>    := standard linux memsize OR "-" to denote all
+	  <size>    := standard linux memsize OR "-" to deyeste all
 	  remaining space
 	  <name>    := (NAME)
 
-	  Due to the way Linux handles the command line, no spaces are
+	  Due to the way Linux handles the command line, yes spaces are
 	  allowed in the partition definition, including mtd id's and partition
 	  names.
 
@@ -64,7 +64,7 @@ config MTD_OF_PARTS
 	help
 	  This provides a open firmware device tree partition parser
 	  which derives the partition map from the children of the
-	  flash memory node, as described in
+	  flash memory yesde, as described in
 	  Documentation/devicetree/bindings/mtd/partition.txt.
 
 config MTD_PARSER_IMAGETAG

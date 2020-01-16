@@ -24,7 +24,7 @@
 static DEFINE_SPINLOCK(cpcmd_lock);
 static char cpcmd_buf[241];
 
-static int diag8_noresponse(int cmdlen)
+static int diag8_yesresponse(int cmdlen)
 {
 	register unsigned long reg2 asm ("2") = (addr_t) cpcmd_buf;
 	register unsigned long reg3 asm ("3") = cmdlen;
@@ -55,7 +55,7 @@ static int diag8_response(int cmdlen, char *response, int *rlen)
 
 /*
  * __cpcmd has some restrictions over cpcmd
- *  - __cpcmd is unlocked and therefore not SMP-safe
+ *  - __cpcmd is unlocked and therefore yest SMP-safe
  */
 int  __cpcmd(const char *cmd, char *response, int rlen, int *response_code)
 {
@@ -75,7 +75,7 @@ int  __cpcmd(const char *cmd, char *response, int rlen, int *response_code)
 		rc = diag8_response(cmdlen, response, &rlen);
 		EBCASC(response, response_len);
         } else {
-		rc = diag8_noresponse(cmdlen);
+		rc = diag8_yesresponse(cmdlen);
         }
 	if (response_code)
 		*response_code = rc;

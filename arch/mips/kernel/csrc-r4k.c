@@ -23,7 +23,7 @@ static struct clocksource clocksource_mips = {
 	.flags		= CLOCK_SOURCE_IS_CONTINUOUS,
 };
 
-static u64 __maybe_unused notrace r4k_read_sched_clock(void)
+static u64 __maybe_unused yestrace r4k_read_sched_clock(void)
 {
 	return read_c0_count();
 }

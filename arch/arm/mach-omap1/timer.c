@@ -104,7 +104,7 @@ static int __init omap1_dm_timer_init(void)
 			break;
 		default:
 			/*
-			 * not supposed to reach here.
+			 * yest supposed to reach here.
 			 * this is to remove warning.
 			 */
 			return -EINVAL;

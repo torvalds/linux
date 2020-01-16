@@ -15,7 +15,7 @@
 
 struct renesas_family {
 	const char name[16];
-	u32 reg;			/* CCCR or PRR, if not in DT */
+	u32 reg;			/* CCCR or PRR, if yest in DT */
 };
 
 static const struct renesas_family fam_rcar_gen1 __initconst __maybe_unused = {
@@ -297,20 +297,20 @@ static int __init renesas_soc_init(void)
 	const struct renesas_soc *soc;
 	void __iomem *chipid = NULL;
 	struct soc_device *soc_dev;
-	struct device_node *np;
+	struct device_yesde *np;
 	unsigned int product, eshi = 0, eslo;
 
-	match = of_match_node(renesas_socs, of_root);
+	match = of_match_yesde(renesas_socs, of_root);
 	if (!match)
 		return -ENODEV;
 
 	soc = match->data;
 	family = soc->family;
 
-	np = of_find_compatible_node(NULL, NULL, "renesas,bsid");
+	np = of_find_compatible_yesde(NULL, NULL, "renesas,bsid");
 	if (np) {
 		chipid = of_iomap(np, 0);
-		of_node_put(np);
+		of_yesde_put(np);
 
 		if (chipid) {
 			product = readl(chipid);
@@ -325,7 +325,7 @@ static int __init renesas_soc_init(void)
 
 		/*
 		 * TODO: Upper 4 bits of BSID are for chip version, but the
-		 * format is not known at this time so we don't know how to
+		 * format is yest kyeswn at this time so we don't kyesw how to
 		 * specify eshi and eslo
 		 */
 
@@ -333,10 +333,10 @@ static int __init renesas_soc_init(void)
 	}
 
 	/* Try PRR first, then hardcoded fallback */
-	np = of_find_compatible_node(NULL, NULL, "renesas,prr");
+	np = of_find_compatible_yesde(NULL, NULL, "renesas,prr");
 	if (np) {
 		chipid = of_iomap(np, 0);
-		of_node_put(np);
+		of_yesde_put(np);
 	} else if (soc->id && family->reg) {
 		chipid = ioremap(family->reg, 4);
 	}
@@ -362,9 +362,9 @@ done:
 	if (!soc_dev_attr)
 		return -ENOMEM;
 
-	np = of_find_node_by_path("/");
+	np = of_find_yesde_by_path("/");
 	of_property_read_string(np, "model", &soc_dev_attr->machine);
-	of_node_put(np);
+	of_yesde_put(np);
 
 	soc_dev_attr->family = kstrdup_const(family->name, GFP_KERNEL);
 	soc_dev_attr->soc_id = kstrdup_const(strchr(match->compatible, ',') + 1,

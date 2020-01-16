@@ -38,7 +38,7 @@ config MISDN_L1OIP
 	    - layer 1 control via network keepalive frames
 	    - direct tunneling of physical interface via IP
 
-	  NOTE: This protocol is called 'Layer 1 over IP' and is not
+	  NOTE: This protocol is called 'Layer 1 over IP' and is yest
 	  compatible with ISDNoIP (Agfeo) or TDMoIP. Protocol description is
 	  provided in the source code.
 

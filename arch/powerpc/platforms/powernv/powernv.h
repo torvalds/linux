@@ -8,7 +8,7 @@ extern void pnv_smp_init(void);
 static inline void pnv_smp_init(void) { }
 #endif
 
-extern void pnv_platform_error_reboot(struct pt_regs *regs, const char *msg) __noreturn;
+extern void pnv_platform_error_reboot(struct pt_regs *regs, const char *msg) __yesreturn;
 
 struct pci_dev;
 
@@ -33,6 +33,6 @@ bool cpu_core_split_required(void);
 struct memcons;
 ssize_t memcons_copy(struct memcons *mc, char *to, loff_t pos, size_t count);
 u32 memcons_get_size(struct memcons *mc);
-struct memcons *memcons_init(struct device_node *node, const char *mc_prop_name);
+struct memcons *memcons_init(struct device_yesde *yesde, const char *mc_prop_name);
 
 #endif /* _POWERNV_H */

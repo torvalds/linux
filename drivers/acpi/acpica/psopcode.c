@@ -73,7 +73,7 @@ ACPI_MODULE_NAME("psopcode")
 	AML_REGION_OP
 	AML_INT_NAMEDFIELD_OP
 
-  Opcodes that have an associated namespace node (AML_NSNODE flag)
+  Opcodes that have an associated namespace yesde (AML_NSNODE flag)
 
 	AML_SCOPE_OP
 	AML_DEVICE_OP
@@ -143,11 +143,11 @@ ACPI_MODULE_NAME("psopcode")
 
  ******************************************************************************/
 /*
- * Master Opcode information table. A summary of everything we know about each
+ * Master Opcode information table. A summary of everything we kyesw about each
  * opcode, all in one place.
  */
 const struct acpi_opcode_info acpi_gbl_aml_op_info[AML_NUM_OPCODES] = {
-/*! [Begin] no source code translation */
+/*! [Begin] yes source code translation */
 /* Index           Name                 Parser Args               Interpreter Args                ObjectType                    Class                      Type                  Flags */
 
 /* 00 */ ACPI_OP("Zero", ARGP_ZERO_OP, ARGI_ZERO_OP, ACPI_TYPE_INTEGER,
@@ -625,5 +625,5 @@ const struct acpi_opcode_info acpi_gbl_aml_op_info[AML_NUM_OPCODES] = {
 			 ACPI_TYPE_STRING, AML_CLASS_ARGUMENT,
 			 AML_TYPE_LITERAL, AML_CONSTANT)
 
-/*! [End] no source code translation !*/
+/*! [End] yes source code translation !*/
 };

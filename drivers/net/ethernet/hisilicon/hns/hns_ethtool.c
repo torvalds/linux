@@ -140,7 +140,7 @@ static int hns_nic_get_link_ksettings(struct net_device *net_dev,
 	ethtool_convert_link_mode_to_legacy_u32(&advertising,
 						cmd->link_modes.advertising);
 
-	/* When there is no phy, autoneg is off. */
+	/* When there is yes phy, autoneg is off. */
 	cmd->base.autoneg = false;
 	cmd->base.speed = speed;
 	cmd->base.duplex = duplex;
@@ -586,11 +586,11 @@ static void hns_nic_self_test(struct net_device *ndev,
 	int i;
 	int test_index = 0;
 
-	st_param[0][0] = MAC_INTERNALLOOP_MAC; /* XGE not supported lb */
+	st_param[0][0] = MAC_INTERNALLOOP_MAC; /* XGE yest supported lb */
 	st_param[0][1] = (priv->ae_handle->phy_if != PHY_INTERFACE_MODE_XGMII);
 	st_param[1][0] = MAC_INTERNALLOOP_SERDES;
 	st_param[1][1] = 1; /*serdes must exist*/
-	st_param[2][0] = MAC_INTERNALLOOP_PHY; /* only supporte phy node*/
+	st_param[2][0] = MAC_INTERNALLOOP_PHY; /* only supporte phy yesde*/
 	st_param[2][1] = ((!!(priv->ae_handle->phy_dev)) &&
 		(priv->ae_handle->phy_if != PHY_INTERFACE_MODE_XGMII));
 
@@ -1179,7 +1179,7 @@ hns_get_rss_key_size(struct net_device *netdev)
 
 	if (AE_IS_VER1(priv->enet_ver)) {
 		netdev_err(netdev,
-			   "RSS feature is not supported on this hardware\n");
+			   "RSS feature is yest supported on this hardware\n");
 		return 0;
 	}
 
@@ -1195,7 +1195,7 @@ hns_get_rss_indir_size(struct net_device *netdev)
 
 	if (AE_IS_VER1(priv->enet_ver)) {
 		netdev_err(netdev,
-			   "RSS feature is not supported on this hardware\n");
+			   "RSS feature is yest supported on this hardware\n");
 		return 0;
 	}
 
@@ -1211,7 +1211,7 @@ hns_get_rss(struct net_device *netdev, u32 *indir, u8 *key, u8 *hfunc)
 
 	if (AE_IS_VER1(priv->enet_ver)) {
 		netdev_err(netdev,
-			   "RSS feature is not supported on this hardware\n");
+			   "RSS feature is yest supported on this hardware\n");
 		return -EOPNOTSUPP;
 	}
 
@@ -1232,7 +1232,7 @@ hns_set_rss(struct net_device *netdev, const u32 *indir, const u8 *key,
 
 	if (AE_IS_VER1(priv->enet_ver)) {
 		netdev_err(netdev,
-			   "RSS feature is not supported on this hardware\n");
+			   "RSS feature is yest supported on this hardware\n");
 		return -EOPNOTSUPP;
 	}
 

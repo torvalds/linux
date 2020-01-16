@@ -103,14 +103,14 @@ static int tsens_register(struct tsens_priv *priv)
 			priv->ops->enable(priv, i);
 	}
 
-	pdev = of_find_device_by_node(priv->dev->of_node);
+	pdev = of_find_device_by_yesde(priv->dev->of_yesde);
 	if (!pdev)
 		return -ENODEV;
 
 	irq = platform_get_irq_byname(pdev, "uplow");
 	if (irq < 0) {
 		ret = irq;
-		/* For old DTs with no IRQ defined */
+		/* For old DTs with yes IRQ defined */
 		if (irq == -ENXIO)
 			ret = 0;
 		goto err_put_device;
@@ -136,20 +136,20 @@ static int tsens_probe(struct platform_device *pdev)
 {
 	int ret, i;
 	struct device *dev;
-	struct device_node *np;
+	struct device_yesde *np;
 	struct tsens_priv *priv;
 	const struct tsens_plat_data *data;
 	const struct of_device_id *id;
 	u32 num_sensors;
 
-	if (pdev->dev.of_node)
+	if (pdev->dev.of_yesde)
 		dev = &pdev->dev;
 	else
 		dev = pdev->dev.parent;
 
-	np = dev->of_node;
+	np = dev->of_yesde;
 
-	id = of_match_node(tsens_table, np);
+	id = of_match_yesde(tsens_table, np);
 	if (id)
 		data = id->data;
 	else

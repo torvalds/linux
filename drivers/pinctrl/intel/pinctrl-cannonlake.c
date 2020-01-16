@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Intel Cannon Lake PCH pinctrl/GPIO driver
+ * Intel Canyesn Lake PCH pinctrl/GPIO driver
  *
  * Copyright (C) 2017, Intel Corporation
  * Authors: Andy Shevchenko <andriy.shevchenko@linux.intel.com>
@@ -34,7 +34,7 @@
 
 #define CNL_COMMUNITY(b, s, e, o, g)			\
 	{						\
-		.barno = (b),				\
+		.baryes = (b),				\
 		.padown_offset = CNL_PAD_OWN,		\
 		.padcfglock_offset = CNL_PADCFGLOCK,	\
 		.hostown_offset = (o),			\
@@ -52,7 +52,7 @@
 #define CNLH_COMMUNITY(b, s, e, g)			\
 	CNL_COMMUNITY(b, s, e, CNL_H_HOSTSW_OWN, g)
 
-/* Cannon Lake-H */
+/* Canyesn Lake-H */
 static const struct pinctrl_pin_desc cnlh_pins[] = {
 	/* GPP_A */
 	PINCTRL_PIN(0, "RCINB"),
@@ -468,7 +468,7 @@ static const struct intel_pinctrl_soc_data cnlh_soc_data = {
 	.ncommunities = ARRAY_SIZE(cnlh_communities),
 };
 
-/* Cannon Lake-LP */
+/* Canyesn Lake-LP */
 static const struct pinctrl_pin_desc cnllp_pins[] = {
 	/* GPP_A */
 	PINCTRL_PIN(0, "RCINB"),
@@ -840,7 +840,7 @@ static INTEL_PINCTRL_PM_OPS(cnl_pinctrl_pm_ops);
 static struct platform_driver cnl_pinctrl_driver = {
 	.probe = intel_pinctrl_probe_by_hid,
 	.driver = {
-		.name = "cannonlake-pinctrl",
+		.name = "canyesnlake-pinctrl",
 		.acpi_match_table = cnl_pinctrl_acpi_match,
 		.pm = &cnl_pinctrl_pm_ops,
 	},
@@ -849,5 +849,5 @@ static struct platform_driver cnl_pinctrl_driver = {
 module_platform_driver(cnl_pinctrl_driver);
 
 MODULE_AUTHOR("Mika Westerberg <mika.westerberg@linux.intel.com>");
-MODULE_DESCRIPTION("Intel Cannon Lake PCH pinctrl/GPIO driver");
+MODULE_DESCRIPTION("Intel Canyesn Lake PCH pinctrl/GPIO driver");
 MODULE_LICENSE("GPL v2");

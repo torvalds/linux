@@ -251,7 +251,7 @@
 					};
 					/*
 					 * This sets up the YCBCR connector pins, i.e. analog video out.
-					 * Set as input with no bias.
+					 * Set as input with yes bias.
 					 */
 					ycbcr {
 						ycbcr_default_mode: ycbcr_default {

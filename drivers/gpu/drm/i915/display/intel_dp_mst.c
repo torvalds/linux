@@ -9,7 +9,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -300,7 +300,7 @@ static void intel_mst_pre_enable_dp(struct intel_encoder *encoder,
 	int ret;
 	u32 temp;
 
-	/* MST encoders are bound to a crtc, not to a connector,
+	/* MST encoders are bound to a crtc, yest to a connector,
 	 * force the mapping here for get_hw_state.
 	 */
 	connector->encoder = encoder;
@@ -550,7 +550,7 @@ static struct drm_connector *intel_dp_add_mst_connector(struct drm_dp_mst_topolo
 
 	/*
 	 * Reuse the prop from the SST connector because we're
-	 * not allowed to create new props after device registration.
+	 * yest allowed to create new props after device registration.
 	 */
 	connector->max_bpc_property =
 		intel_dp->attached_connector->base.max_bpc_property;
@@ -625,7 +625,7 @@ intel_dp_create_fake_mst_encoder(struct intel_digital_port *intel_dig_port, enum
 	 * to figure out which crtcs can drive said connector. What
 	 * should be used instead is the union of possible_crtcs.
 	 * To keep such userspace functioning we must misconfigure
-	 * this to make sure the intersection is not empty :(
+	 * this to make sure the intersection is yest empty :(
 	 */
 	intel_encoder->pipe_mask = ~0;
 
@@ -701,5 +701,5 @@ intel_dp_mst_encoder_cleanup(struct intel_digital_port *intel_dig_port)
 		return;
 
 	drm_dp_mst_topology_mgr_destroy(&intel_dp->mst_mgr);
-	/* encoders will get killed by normal cleanup */
+	/* encoders will get killed by yesrmal cleanup */
 }

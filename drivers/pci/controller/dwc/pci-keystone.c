@@ -6,7 +6,7 @@
  *		http://www.ti.com
  *
  * Author: Murali Karicheri <m-karicheri2@ti.com>
- * Implementation based on pci-exynos.c and pcie-designware.c
+ * Implementation based on pci-exyyess.c and pcie-designware.c
  */
 
 #include <linux/clk.h>
@@ -119,16 +119,16 @@ struct keystone_pcie {
 	/* PCI Device ID */
 	u32			device_id;
 	int			legacy_host_irqs[PCI_NUM_INTX];
-	struct			device_node *legacy_intc_np;
+	struct			device_yesde *legacy_intc_np;
 
 	int			msi_host_irq;
 	int			num_lanes;
 	u32			num_viewport;
 	struct phy		**phy;
 	struct device_link	**link;
-	struct			device_node *msi_intc_np;
+	struct			device_yesde *msi_intc_np;
 	struct irq_domain	*legacy_irq_domain;
-	struct device_node	*np;
+	struct device_yesde	*np;
 
 	/* Application register space */
 	void __iomem		*va_app_base;	/* DT 1st resource */
@@ -588,7 +588,7 @@ static void ks_pcie_msi_irq_handler(struct irq_desc *desc)
 	dev_dbg(dev, "%s, irq %d\n", __func__, irq);
 
 	/*
-	 * The chained irq handler installation would have replaced normal
+	 * The chained irq handler installation would have replaced yesrmal
 	 * interrupt driver handler so we need to take care of mask/unmask and
 	 * ack operation.
 	 */
@@ -633,7 +633,7 @@ static void ks_pcie_legacy_irq_handler(struct irq_desc *desc)
 	dev_dbg(dev, ": Handling legacy irq %d\n", irq);
 
 	/*
-	 * The chained irq handler installation would have replaced normal
+	 * The chained irq handler installation would have replaced yesrmal
 	 * interrupt driver handler so we need to take care of mask/unmask and
 	 * ack operation.
 	 */
@@ -645,8 +645,8 @@ static void ks_pcie_legacy_irq_handler(struct irq_desc *desc)
 static int ks_pcie_config_msi_irq(struct keystone_pcie *ks_pcie)
 {
 	struct device *dev = ks_pcie->pci->dev;
-	struct device_node *np = ks_pcie->np;
-	struct device_node *intc_np;
+	struct device_yesde *np = ks_pcie->np;
+	struct device_yesde *intc_np;
 	struct irq_data *irq_data;
 	int irq_count, irq, ret, i;
 
@@ -657,7 +657,7 @@ static int ks_pcie_config_msi_irq(struct keystone_pcie *ks_pcie)
 	if (!intc_np) {
 		if (ks_pcie->is_am6)
 			return 0;
-		dev_warn(dev, "msi-interrupt-controller node is absent\n");
+		dev_warn(dev, "msi-interrupt-controller yesde is absent\n");
 		return -EINVAL;
 	}
 
@@ -688,11 +688,11 @@ static int ks_pcie_config_msi_irq(struct keystone_pcie *ks_pcie)
 						 ks_pcie);
 	}
 
-	of_node_put(intc_np);
+	of_yesde_put(intc_np);
 	return 0;
 
 err:
-	of_node_put(intc_np);
+	of_yesde_put(intc_np);
 	return ret;
 }
 
@@ -700,19 +700,19 @@ static int ks_pcie_config_legacy_irq(struct keystone_pcie *ks_pcie)
 {
 	struct device *dev = ks_pcie->pci->dev;
 	struct irq_domain *legacy_irq_domain;
-	struct device_node *np = ks_pcie->np;
-	struct device_node *intc_np;
+	struct device_yesde *np = ks_pcie->np;
+	struct device_yesde *intc_np;
 	int irq_count, irq, ret = 0, i;
 
 	intc_np = of_get_child_by_name(np, "legacy-interrupt-controller");
 	if (!intc_np) {
 		/*
 		 * Since legacy interrupts are modeled as edge-interrupts in
-		 * AM6, keep it disabled for now.
+		 * AM6, keep it disabled for yesw.
 		 */
 		if (ks_pcie->is_am6)
 			return 0;
-		dev_warn(dev, "legacy-interrupt-controller node is absent\n");
+		dev_warn(dev, "legacy-interrupt-controller yesde is absent\n");
 		return -EINVAL;
 	}
 
@@ -750,13 +750,13 @@ static int ks_pcie_config_legacy_irq(struct keystone_pcie *ks_pcie)
 		ks_pcie_app_writel(ks_pcie, IRQ_ENABLE_SET(i), INTx_EN);
 
 err:
-	of_node_put(intc_np);
+	of_yesde_put(intc_np);
 	return ret;
 }
 
 #ifdef CONFIG_ARM
 /*
- * When a PCI device does not exist during config cycles, keystone host gets a
+ * When a PCI device does yest exist during config cycles, keystone host gets a
  * bus error instead of returning 0xffffffff. This handler always returns 0
  * for this kind of faults.
  */
@@ -783,7 +783,7 @@ static int __init ks_pcie_init_id(struct keystone_pcie *ks_pcie)
 	struct regmap *devctrl_regs;
 	struct dw_pcie *pci = ks_pcie->pci;
 	struct device *dev = pci->dev;
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 
 	devctrl_regs = syscon_regmap_lookup_by_phandle(np, "ti,syscon-pcie-id");
 	if (IS_ERR(devctrl_regs))
@@ -832,7 +832,7 @@ static int __init ks_pcie_host_init(struct pcie_port *pp)
 	 * "External aborts"
 	 */
 	hook_fault_code(17, ks_pcie_fault, SIGBUS, 0,
-			"Asynchronous external abort");
+			"Asynchroyesus external abort");
 #endif
 
 	ks_pcie_start_link(pci);
@@ -945,7 +945,7 @@ static void ks_pcie_am654_raise_legacy_irq(struct keystone_pcie *ks_pcie)
 			   INT_ENABLE);
 }
 
-static int ks_pcie_am654_raise_irq(struct dw_pcie_ep *ep, u8 func_no,
+static int ks_pcie_am654_raise_irq(struct dw_pcie_ep *ep, u8 func_yes,
 				   enum pci_epc_irq_type type,
 				   u16 interrupt_num)
 {
@@ -957,7 +957,7 @@ static int ks_pcie_am654_raise_irq(struct dw_pcie_ep *ep, u8 func_no,
 		ks_pcie_am654_raise_legacy_irq(ks_pcie);
 		break;
 	case PCI_EPC_IRQ_MSI:
-		dw_pcie_ep_raise_msi_irq(ep, func_no, interrupt_num);
+		dw_pcie_ep_raise_msi_irq(ep, func_yes, interrupt_num);
 		break;
 	default:
 		dev_err(pci->dev, "UNKNOWN IRQ type\n");
@@ -968,7 +968,7 @@ static int ks_pcie_am654_raise_irq(struct dw_pcie_ep *ep, u8 func_no,
 }
 
 static const struct pci_epc_features ks_pcie_am654_epc_features = {
-	.linkup_notifier = false,
+	.linkup_yestifier = false,
 	.msi_capable = true,
 	.msix_capable = false,
 	.reserved_bar = 1 << BAR_0 | 1 << BAR_1,
@@ -1064,7 +1064,7 @@ err_phy:
 
 static int ks_pcie_set_mode(struct device *dev)
 {
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 	struct regmap *syscon;
 	u32 val;
 	u32 mask;
@@ -1089,7 +1089,7 @@ static int ks_pcie_set_mode(struct device *dev)
 static int ks_pcie_am654_set_mode(struct device *dev,
 				  enum dw_pcie_device_mode mode)
 {
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 	struct regmap *syscon;
 	u32 val;
 	u32 mask;
@@ -1186,7 +1186,7 @@ static int __init ks_pcie_probe(struct platform_device *pdev)
 	const struct dw_pcie_host_ops *host_ops;
 	const struct dw_pcie_ep_ops *ep_ops;
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 	const struct ks_pcie_of_data *data;
 	const struct of_device_id *match;
 	enum dw_pcie_device_mode mode;

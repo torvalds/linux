@@ -124,7 +124,7 @@ static void __xsk_rcv_memcpy(struct xdp_umem *umem, u64 addr, void *from_buf,
 	void *to_buf = xdp_umem_get_data(umem, addr);
 
 	addr = xsk_umem_add_offset_to_addr(addr);
-	if (xskq_crosses_non_contig_pg(umem, addr, len + metalen)) {
+	if (xskq_crosses_yesn_contig_pg(umem, addr, len + metalen)) {
 		void *next_pg_addr = umem->pages[(addr >> PAGE_SHIFT) + 1].addr;
 		u64 page_start = addr & ~(PAGE_SIZE - 1);
 		u64 first_len = PAGE_SIZE - (addr - page_start);
@@ -147,7 +147,7 @@ static int __xsk_rcv(struct xdp_sock *xs, struct xdp_buff *xdp, u32 len)
 	int err;
 
 	if (!xskq_peek_addr(xs->umem->fq, &addr, xs->umem) ||
-	    len > xs->umem->chunk_size_nohr - XDP_PACKET_HEADROOM) {
+	    len > xs->umem->chunk_size_yeshr - XDP_PACKET_HEADROOM) {
 		xs->rx_dropped++;
 		return -ENOSPC;
 	}
@@ -235,7 +235,7 @@ int xsk_generic_rcv(struct xdp_sock *xs, struct xdp_buff *xdp)
 	}
 
 	if (!xskq_peek_addr(xs->umem->fq, &addr, xs->umem) ||
-	    len > xs->umem->chunk_size_nohr - XDP_PACKET_HEADROOM) {
+	    len > xs->umem->chunk_size_yeshr - XDP_PACKET_HEADROOM) {
 		err = -ENOSPC;
 		goto out_drop;
 	}
@@ -275,8 +275,8 @@ int __xsk_map_redirect(struct bpf_map *map, struct xdp_buff *xdp,
 	if (err)
 		return err;
 
-	if (!xs->flush_node.prev)
-		list_add(&xs->flush_node, flush_list);
+	if (!xs->flush_yesde.prev)
+		list_add(&xs->flush_yesde, flush_list);
 
 	return 0;
 }
@@ -287,9 +287,9 @@ void __xsk_map_flush(struct bpf_map *map)
 	struct list_head *flush_list = this_cpu_ptr(m->flush_list);
 	struct xdp_sock *xs, *tmp;
 
-	list_for_each_entry_safe(xs, tmp, flush_list, flush_node) {
+	list_for_each_entry_safe(xs, tmp, flush_list, flush_yesde) {
 		xsk_flush(xs);
-		__list_del_clearprev(&xs->flush_node);
+		__list_del_clearprev(&xs->flush_yesde);
 	}
 }
 
@@ -412,9 +412,9 @@ static int xsk_generic_xmit(struct sock *sk)
 
 		err = dev_direct_xmit(skb, xs->queue_id);
 		xskq_discard_desc(xs->tx);
-		/* Ignore NET_XMIT_CN as packet might have been sent */
+		/* Igyesre NET_XMIT_CN as packet might have been sent */
 		if (err == NET_XMIT_DROP || err == NETDEV_TX_BUSY) {
-			/* SKB completed but not sent */
+			/* SKB completed but yest sent */
 			err = -EBUSY;
 			goto out;
 		}
@@ -522,17 +522,17 @@ static struct xsk_map *xsk_get_map_list_entry(struct xdp_sock *xs,
 					      struct xdp_sock ***map_entry)
 {
 	struct xsk_map *map = NULL;
-	struct xsk_map_node *node;
+	struct xsk_map_yesde *yesde;
 
 	*map_entry = NULL;
 
 	spin_lock_bh(&xs->map_list_lock);
-	node = list_first_entry_or_null(&xs->map_list, struct xsk_map_node,
-					node);
-	if (node) {
-		WARN_ON(xsk_map_inc(node->map));
-		map = node->map;
-		*map_entry = node->map_entry;
+	yesde = list_first_entry_or_null(&xs->map_list, struct xsk_map_yesde,
+					yesde);
+	if (yesde) {
+		WARN_ON(xsk_map_inc(yesde->map));
+		map = yesde->map;
+		*map_entry = yesde->map_entry;
 	}
 	spin_unlock_bh(&xs->map_list_lock);
 	return map;
@@ -576,7 +576,7 @@ static int xsk_release(struct socket *sock)
 	net = sock_net(sk);
 
 	mutex_lock(&net->xdp.lock);
-	sk_del_node_init_rcu(sk);
+	sk_del_yesde_init_rcu(sk);
 	mutex_unlock(&net->xdp.lock);
 
 	local_bh_disable();
@@ -680,7 +680,7 @@ static int xsk_bind(struct socket *sock, struct sockaddr *addr, int addr_len)
 
 		if ((flags & XDP_COPY) || (flags & XDP_ZEROCOPY) ||
 		    (flags & XDP_USE_NEED_WAKEUP)) {
-			/* Cannot specify flags for shared sockets. */
+			/* Canyest specify flags for shared sockets. */
 			err = -EINVAL;
 			goto out_unlock;
 		}
@@ -1032,10 +1032,10 @@ static int xsk_mmap(struct file *file, struct socket *sock,
 			       size, vma->vm_page_prot);
 }
 
-static int xsk_notifier(struct notifier_block *this,
+static int xsk_yestifier(struct yestifier_block *this,
 			unsigned long msg, void *ptr)
 {
-	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
+	struct net_device *dev = netdev_yestifier_info_to_dev(ptr);
 	struct net *net = dev_net(dev);
 	struct sock *sk;
 
@@ -1075,20 +1075,20 @@ static const struct proto_ops xsk_proto_ops = {
 	.owner		= THIS_MODULE,
 	.release	= xsk_release,
 	.bind		= xsk_bind,
-	.connect	= sock_no_connect,
-	.socketpair	= sock_no_socketpair,
-	.accept		= sock_no_accept,
-	.getname	= sock_no_getname,
+	.connect	= sock_yes_connect,
+	.socketpair	= sock_yes_socketpair,
+	.accept		= sock_yes_accept,
+	.getname	= sock_yes_getname,
 	.poll		= xsk_poll,
-	.ioctl		= sock_no_ioctl,
-	.listen		= sock_no_listen,
-	.shutdown	= sock_no_shutdown,
+	.ioctl		= sock_yes_ioctl,
+	.listen		= sock_yes_listen,
+	.shutdown	= sock_yes_shutdown,
 	.setsockopt	= xsk_setsockopt,
 	.getsockopt	= xsk_getsockopt,
 	.sendmsg	= xsk_sendmsg,
-	.recvmsg	= sock_no_recvmsg,
+	.recvmsg	= sock_yes_recvmsg,
 	.mmap		= xsk_mmap,
-	.sendpage	= sock_no_sendpage,
+	.sendpage	= sock_yes_sendpage,
 };
 
 static void xsk_destruct(struct sock *sk)
@@ -1144,7 +1144,7 @@ static int xsk_create(struct net *net, struct socket *sock, int protocol,
 	spin_lock_init(&xs->map_list_lock);
 
 	mutex_lock(&net->xdp.lock);
-	sk_add_node_rcu(sk, &net->xdp.list);
+	sk_add_yesde_rcu(sk, &net->xdp.list);
 	mutex_unlock(&net->xdp.lock);
 
 	local_bh_disable();
@@ -1160,8 +1160,8 @@ static const struct net_proto_family xsk_family_ops = {
 	.owner	= THIS_MODULE,
 };
 
-static struct notifier_block xsk_netdev_notifier = {
-	.notifier_call	= xsk_notifier,
+static struct yestifier_block xsk_netdev_yestifier = {
+	.yestifier_call	= xsk_yestifier,
 };
 
 static int __net_init xsk_net_init(struct net *net)
@@ -1185,7 +1185,7 @@ static int __init xsk_init(void)
 {
 	int err;
 
-	err = proto_register(&xsk_proto, 0 /* no slab */);
+	err = proto_register(&xsk_proto, 0 /* yes slab */);
 	if (err)
 		goto out;
 
@@ -1197,7 +1197,7 @@ static int __init xsk_init(void)
 	if (err)
 		goto out_sk;
 
-	err = register_netdevice_notifier(&xsk_netdev_notifier);
+	err = register_netdevice_yestifier(&xsk_netdev_yestifier);
 	if (err)
 		goto out_pernet;
 

@@ -77,7 +77,7 @@ static int rmi_f12_read_sensor_tuning(struct f12_data *f12)
 	item = rmi_get_register_desc_item(&f12->control_reg_desc, 8);
 	if (!item) {
 		dev_err(&fn->dev,
-			"F12 does not have the sensor tuning control register\n");
+			"F12 does yest have the sensor tuning control register\n");
 		return -ENODEV;
 	}
 
@@ -85,7 +85,7 @@ static int rmi_f12_read_sensor_tuning(struct f12_data *f12)
 
 	if (item->reg_size > sizeof(buf)) {
 		dev_err(&fn->dev,
-			"F12 control8 should be no bigger than %zd bytes, not: %ld\n",
+			"F12 control8 should be yes bigger than %zd bytes, yest: %ld\n",
 			sizeof(buf), item->reg_size);
 		return -ENODEV;
 	}
@@ -362,7 +362,7 @@ static int rmi_f12_probe(struct rmi_function *fn)
 
 	f12->has_dribble = !!(buf & BIT(3));
 
-	if (fn->dev.of_node) {
+	if (fn->dev.of_yesde) {
 		ret = rmi_2d_sensor_of_probe(&fn->dev, &f12->sensor_pdata);
 		if (ret)
 			return ret;
@@ -430,8 +430,8 @@ static int rmi_f12_probe(struct rmi_function *fn)
 
 	/*
 	 * Figure out what data is contained in the data registers. HID devices
-	 * may have registers defined, but their data is not reported in the
-	 * HID attention report. Registers which are not reported in the HID
+	 * may have registers defined, but their data is yest reported in the
+	 * HID attention report. Registers which are yest reported in the HID
 	 * attention report check to see if the device is receiving data from
 	 * HID attention reports.
 	 */

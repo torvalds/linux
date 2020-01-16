@@ -15,7 +15,7 @@ that devices of that class adhere to. Device drivers are the
 implementation of that programming interface for a particular device on
 a particular bus.
 
-Device classes are agnostic with respect to what bus a device resides
+Device classes are agyesstic with respect to what bus a device resides
 on.
 
 
@@ -51,7 +51,7 @@ Devices
 As devices are bound to drivers, they are added to the device class
 that the driver belongs to. Before the driver model core, this would
 typically happen during the driver's probe() callback, once the device
-has been initialized. It now happens after the probe() callback
+has been initialized. It yesw happens after the probe() callback
 finishes from the core.
 
 The device is enumerated in the class. Each time a device is added to
@@ -63,7 +63,7 @@ value.
 The class is allowed to create a class-specific structure for the
 device and store it in the device's class_data pointer.
 
-There is no list of devices in the device class. Each driver has a
+There is yes list of devices in the device class. Each driver has a
 list of devices that it supports. The device class has a list of
 drivers of that particular class. To access all of the devices in the
 class, iterate over the device lists of each driver in the class.

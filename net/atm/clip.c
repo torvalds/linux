@@ -6,7 +6,7 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ":%s: " fmt, __func__
 
 #include <linux/string.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/kernel.h> /* for UINT_MAX */
 #include <linux/module.h>
 #include <linux/init.h>
@@ -15,7 +15,7 @@
 #include <linux/wait.h>
 #include <linux/timer.h>
 #include <linux/if_arp.h> /* for some manifest constants */
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/atm.h>
 #include <linux/atmdev.h>
 #include <linux/atmclip.h>
@@ -179,8 +179,8 @@ static int clip_arp_rcv(struct sk_buff *skb)
 }
 
 static const unsigned char llc_oui[] = {
-	0xaa,	/* DSAP: non-ISO */
-	0xaa,	/* SSAP: non-ISO */
+	0xaa,	/* DSAP: yesn-ISO */
+	0xaa,	/* SSAP: yesn-ISO */
 	0x03,	/* Ctrl: Unnumbered Information Command PDU */
 	0x00,	/* OUI: EtherType */
 	0x00,
@@ -238,7 +238,7 @@ static void clip_push(struct atm_vcc *vcc, struct sk_buff *skb)
 }
 
 /*
- * Note: these spinlocks _must_not_ block on non-SMP. The only goal is that
+ * Note: these spinlocks _must_yest_ block on yesn-SMP. The only goal is that
  * clip_pop is atomic with respect to the critical section in clip_start_xmit.
  */
 
@@ -311,7 +311,7 @@ static int clip_constructor(struct net_device *dev, struct neighbour *neigh)
 
 /*
  * We play with the resolve flag: 0 and 1 have the usual meaning, but -1 means
- * to allocate the neighbour entry but not to ask atmarpd for resolution. Also,
+ * to allocate the neighbour entry but yest to ask atmarpd for resolution. Also,
  * don't increment the usage count. This is used to create entries in
  * clip_setentry.
  */
@@ -403,7 +403,7 @@ static netdev_tx_t clip_start_xmit(struct sk_buff *skb,
 	if (!entry->vccs->xoff)
 		netif_start_queue(dev);
 	/* Oh, we just raced with clip_pop. netif_start_queue should be
-	   good enough, because nothing should really be asleep because
+	   good eyesugh, because yesthing should really be asleep because
 	   of the brief netif_stop_queue. If this isn't true or if it
 	   changes, use netif_wake_queue instead. */
 	spin_unlock_irqrestore(&clip_priv->xoff_lock, flags);
@@ -450,7 +450,7 @@ static int clip_setentry(struct atm_vcc *vcc, __be32 ip)
 	struct rtable *rt;
 
 	if (vcc->push != clip_push) {
-		pr_warn("non-CLIP VCC\n");
+		pr_warn("yesn-CLIP VCC\n");
 		return -EBADF;
 	}
 	clip_vcc = CLIP_VCC(vcc);
@@ -498,7 +498,7 @@ static void clip_setup(struct net_device *dev)
 	dev->neigh_priv_len = sizeof(struct atmarp_entry);
 	dev->hard_header_len = RFC1483LLC_LEN;
 	dev->mtu = RFC1626_MTU;
-	dev->tx_queue_len = 100;	/* "normal" queue (packets) */
+	dev->tx_queue_len = 100;	/* "yesrmal" queue (packets) */
 	/* When using a "real" qdisc, the qdisc determines the queue */
 	/* length. tx_queue_len is only used for the default case, */
 	/* without any more elaborate queuing. 100 is a reasonable */
@@ -542,10 +542,10 @@ static int clip_create(int number)
 	return number;
 }
 
-static int clip_device_event(struct notifier_block *this, unsigned long event,
+static int clip_device_event(struct yestifier_block *this, unsigned long event,
 			     void *ptr)
 {
-	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
+	struct net_device *dev = netdev_yestifier_info_to_dev(ptr);
 
 	if (!net_eq(dev_net(dev), &init_net))
 		return NOTIFY_DONE;
@@ -553,7 +553,7 @@ static int clip_device_event(struct notifier_block *this, unsigned long event,
 	if (event == NETDEV_UNREGISTER)
 		return NOTIFY_DONE;
 
-	/* ignore non-CLIP devices */
+	/* igyesre yesn-CLIP devices */
 	if (dev->type != ARPHRD_ATM || dev->netdev_ops != &clip_netdev_ops)
 		return NOTIFY_DONE;
 
@@ -575,11 +575,11 @@ static int clip_device_event(struct notifier_block *this, unsigned long event,
 	return NOTIFY_DONE;
 }
 
-static int clip_inet_event(struct notifier_block *this, unsigned long event,
+static int clip_inet_event(struct yestifier_block *this, unsigned long event,
 			   void *ifa)
 {
 	struct in_device *in_dev;
-	struct netdev_notifier_info info;
+	struct netdev_yestifier_info info;
 
 	in_dev = ((struct in_ifaddr *)ifa)->ifa_dev;
 	/*
@@ -588,18 +588,18 @@ static int clip_inet_event(struct notifier_block *this, unsigned long event,
 	 */
 	if (event != NETDEV_UP)
 		return NOTIFY_DONE;
-	netdev_notifier_info_init(&info, in_dev->dev);
+	netdev_yestifier_info_init(&info, in_dev->dev);
 	return clip_device_event(this, NETDEV_CHANGE, &info);
 }
 
-static struct notifier_block clip_dev_notifier = {
-	.notifier_call = clip_device_event,
+static struct yestifier_block clip_dev_yestifier = {
+	.yestifier_call = clip_device_event,
 };
 
 
 
-static struct notifier_block clip_inet_notifier = {
-	.notifier_call = clip_inet_event,
+static struct yestifier_block clip_inet_yestifier = {
+	.yestifier_call = clip_inet_event,
 };
 
 
@@ -712,7 +712,7 @@ static void svc_addr(struct seq_file *seq, struct sockaddr_atmsvc *addr)
 		if (*addr->sas_addr.prv)
 			seq_putc(seq, '+');
 	} else if (!*addr->sas_addr.prv) {
-		seq_printf(seq, "%s", "(none)");
+		seq_printf(seq, "%s", "(yesne)");
 		return;
 	}
 	if (*addr->sas_addr.prv) {
@@ -730,7 +730,7 @@ static void svc_addr(struct seq_file *seq, struct sockaddr_atmsvc *addr)
 	}
 }
 
-/* This means the neighbour entry has no attached VCC objects. */
+/* This means the neighbour entry has yes attached VCC objects. */
 #define SEQ_NO_VCC_TOKEN	((void *) 2)
 
 static void atmarp_info(struct seq_file *seq, struct neighbour *n,
@@ -865,13 +865,13 @@ static const struct seq_operations arp_seq_ops = {
 };
 #endif
 
-static void atm_clip_exit_noproc(void);
+static void atm_clip_exit_yesproc(void);
 
 static int __init atm_clip_init(void)
 {
 	register_atm_ioctl(&clip_ioctl_ops);
-	register_netdevice_notifier(&clip_dev_notifier);
-	register_inetaddr_notifier(&clip_inet_notifier);
+	register_netdevice_yestifier(&clip_dev_yestifier);
+	register_inetaddr_yestifier(&clip_inet_yestifier);
 
 	timer_setup(&idle_timer, idle_timer_check, 0);
 
@@ -883,7 +883,7 @@ static int __init atm_clip_init(void)
 				sizeof(struct clip_seq_state));
 		if (!p) {
 			pr_err("Unable to initialize /proc/net/atm/arp\n");
-			atm_clip_exit_noproc();
+			atm_clip_exit_yesproc();
 			return -ENOMEM;
 		}
 	}
@@ -892,12 +892,12 @@ static int __init atm_clip_init(void)
 	return 0;
 }
 
-static void atm_clip_exit_noproc(void)
+static void atm_clip_exit_yesproc(void)
 {
 	struct net_device *dev, *next;
 
-	unregister_inetaddr_notifier(&clip_inet_notifier);
-	unregister_netdevice_notifier(&clip_dev_notifier);
+	unregister_inetaddr_yestifier(&clip_inet_yestifier);
+	unregister_netdevice_yestifier(&clip_dev_yestifier);
 
 	deregister_atm_ioctl(&clip_ioctl_ops);
 
@@ -919,7 +919,7 @@ static void __exit atm_clip_exit(void)
 {
 	remove_proc_entry("arp", atm_proc_root);
 
-	atm_clip_exit_noproc();
+	atm_clip_exit_yesproc();
 }
 
 module_init(atm_clip_init);

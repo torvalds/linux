@@ -8,11 +8,11 @@
  */
 
 /*
- * Important notes about in-place decompression
+ * Important yestes about in-place decompression
  *
  * At least on x86, the kernel is decompressed in place: the compressed data
  * is placed to the end of the output buffer, and the decompressor overwrites
- * most of the compressed data. There must be enough safety margin to
+ * most of the compressed data. There must be eyesugh safety margin to
  * guarantee that the write position is always behind the read position.
  *
  * The safety margin for XZ with LZMA2 or BCJ+LZMA2 is calculated below.
@@ -38,13 +38,13 @@
  * Normally there is exactly one Block, but let's assume that there are
  * 2-4 Blocks just in case. Because Stream Header and also Block Header
  * of the first Block don't make the decompressor produce any uncompressed
- * data, we can ignore them from our calculations. Block Headers of possible
+ * data, we can igyesre them from our calculations. Block Headers of possible
  * additional Blocks have to be taken into account still. With these
  * assumptions, it is safe to assume that the total header overhead is
  * less than 128 bytes.
  *
  * Compressed Data contains LZMA2 or BCJ+LZMA2 encoded data. Since BCJ
- * doesn't change the size of the data, it is enough to calculate the
+ * doesn't change the size of the data, it is eyesugh to calculate the
  * safety margin for LZMA2.
  *
  * LZMA2 stores the data in chunks. Each chunk has a header whose size is
@@ -57,7 +57,7 @@
  * The maximum uncompressed size of the payload is 2 MiB. The minimum
  * uncompressed size of the payload is in practice never less than the
  * payload size itself. The LZMA2 format would allow uncompressed size
- * to be less than the payload size, but no sane compressor creates such
+ * to be less than the payload size, but yes sane compressor creates such
  * files. LZMA2 supports storing uncompressible data in uncompressed form,
  * so there's never a need to create payloads whose uncompressed size is
  * smaller than the compressed size.
@@ -70,7 +70,7 @@
  * let's simply make sure that the decompressor never overwrites any bytes
  * of the payload which it is currently reading.
  *
- * Now we have enough information to calculate the safety margin. We need
+ * Now we have eyesugh information to calculate the safety margin. We need
  *   - 128 bytes for the .xz file format headers;
  *   - 8 bytes per every 32 KiB of uncompressed size (one LZMA2 chunk header
  *     per chunk, each chunk having average payload size of 32 KiB); and
@@ -97,7 +97,7 @@
  * STATIC is defined to "static" if we are being built for kernel
  * decompression (pre-boot code). <linux/decompress/mm.h> will define
  * STATIC to empty if it wasn't already defined. Since we will need to
- * know later if we are being used for kernel decompression, we define
+ * kyesw later if we are being used for kernel decompression, we define
  * XZ_PREBOOT here.
  */
 #ifdef STATIC
@@ -114,13 +114,13 @@
 #else
 /*
  * Use the internal CRC32 code instead of kernel's CRC32 module, which
- * is not available in early phase of booting.
+ * is yest available in early phase of booting.
  */
 #define XZ_INTERNAL_CRC32 1
 
 /*
  * For boot time use, we enable only the BCJ filter of the current
- * architecture or none if no BCJ filter is available for the architecture.
+ * architecture or yesne if yes BCJ filter is available for the architecture.
  */
 #ifdef CONFIG_X86
 #	define XZ_DEC_X86
@@ -145,7 +145,7 @@
 #include "xz/xz_private.h"
 
 /*
- * Replace the normal allocation functions with the versions from
+ * Replace the yesrmal allocation functions with the versions from
  * <linux/decompress/mm.h>. vfree() needs to support vfree(NULL)
  * when XZ_DYNALLOC is used, but the pre-boot free() doesn't support it.
  * Workaround it here because the other decompressors don't need it.
@@ -161,15 +161,15 @@
 
 /*
  * FIXME: Not all basic memory functions are provided in architecture-specific
- * files (yet). We define our own versions here for now, but this should be
+ * files (yet). We define our own versions here for yesw, but this should be
  * only a temporary solution.
  *
- * memeq and memzero are not used much and any remotely sane implementation
- * is fast enough. memcpy/memmove speed matters in multi-call mode, but
+ * memeq and memzero are yest used much and any remotely sane implementation
+ * is fast eyesugh. memcpy/memmove speed matters in multi-call mode, but
  * the kernel image is decompressed in single-call mode, in which only
  * memcpy speed can matter and only if there is a lot of uncompressible data
  * (LZMA2 stores uncompressible chunks in uncompressed form). Thus, the
- * functions below should just be kept small; it's probably not worth
+ * functions below should just be kept small; it's probably yest worth
  * optimizing for speed.
  */
 
@@ -222,7 +222,7 @@ void *memmove(void *dest, const void *src, size_t size)
 
 /*
  * Since we need memmove anyway, would use it as memcpy too.
- * Commented out for now to avoid breaking things.
+ * Commented out for yesw to avoid breaking things.
  */
 /*
 #ifndef memcpy
@@ -327,7 +327,7 @@ STATIC int INIT unxz(unsigned char *in, long in_size,
 				/*
 				 * Setting ret here may hide an error
 				 * returned by xz_dec_run(), but probably
-				 * it's not too bad.
+				 * it's yest too bad.
 				 */
 				if (flush(b.out, b.out_pos) != (long)b.out_pos)
 					ret = XZ_BUF_ERROR;
@@ -358,11 +358,11 @@ STATIC int INIT unxz(unsigned char *in, long in_size,
 		break;
 
 	case XZ_FORMAT_ERROR:
-		error("Input is not in the XZ format (wrong magic bytes)");
+		error("Input is yest in the XZ format (wrong magic bytes)");
 		break;
 
 	case XZ_OPTIONS_ERROR:
-		error("Input was encoded with settings that are not "
+		error("Input was encoded with settings that are yest "
 				"supported by this XZ decoder");
 		break;
 

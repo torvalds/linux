@@ -235,7 +235,7 @@ static const struct snd_soc_component_driver soc_component_dev_cs35l32 = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
+	.yesn_legacy_dai_naming	= 1,
 };
 
 /* Current and threshold powerup sequence Pg37 in datasheet */
@@ -266,7 +266,7 @@ static const struct regmap_config cs35l32_regmap = {
 static int cs35l32_handle_of_data(struct i2c_client *i2c_client,
 				    struct cs35l32_platform_data *pdata)
 {
-	struct device_node *np = i2c_client->dev.of_node;
+	struct device_yesde *np = i2c_client->dev.of_yesde;
 	unsigned int val;
 
 	if (of_property_read_u32(np, "cirrus,sdout-share", &val) >= 0)
@@ -373,7 +373,7 @@ static int cs35l32_i2c_probe(struct i2c_client *i2c_client,
 		if (!pdata)
 			return -ENOMEM;
 
-		if (i2c_client->dev.of_node) {
+		if (i2c_client->dev.of_yesde) {
 			ret = cs35l32_handle_of_data(i2c_client,
 						     &cs35l32->pdata);
 			if (ret != 0)

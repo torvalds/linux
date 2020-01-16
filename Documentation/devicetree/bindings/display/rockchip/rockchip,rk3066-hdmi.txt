@@ -15,10 +15,10 @@ Required properties:
 - rockchip,grf:
 	This soc uses GRF regs to switch the HDMI TX input between vop0 and vop1.
 - ports:
-	Contains one port node with two endpoints, numbered 0 and 1,
+	Contains one port yesde with two endpoints, numbered 0 and 1,
 	connected respectively to vop0 and vop1.
-	Contains one port node with one endpoint
-	connected to a hdmi-connector node.
+	Contains one port yesde with one endpoint
+	connected to a hdmi-connector yesde.
 - pinctrl-0, pinctrl-name:
 	Switch the iomux for the HPD/I2C pins to HDMI function.
 
@@ -65,8 +65,8 @@ Example:
 				rockchip,pins = <0 RK_PA0 1 &pcfg_pull_default>;
 			};
 			hdmii2c_xfer: hdmii2c-xfer {
-				rockchip,pins = <0 RK_PA1 1 &pcfg_pull_none>,
-						<0 RK_PA2 1 &pcfg_pull_none>;
+				rockchip,pins = <0 RK_PA1 1 &pcfg_pull_yesne>,
+						<0 RK_PA2 1 &pcfg_pull_yesne>;
 			};
 		};
 };

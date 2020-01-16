@@ -4,7 +4,7 @@
  * Copyright 2002 Hewlett-Packard Company
  *
  * Use consistent with the GNU GPL is permitted,
- * provided that this copyright notice is
+ * provided that this copyright yestice is
  * preserved in its entirety in all copies and derived works.
  *
  * HEWLETT-PACKARD COMPANY MAKES NO WARRANTIES, EXPRESSED OR IMPLIED,

@@ -4,7 +4,7 @@
  *
  *   Permission to use, copy, modify, and/or distribute this software
  *   for any purpose with or without fee is hereby granted, provided
- *   that the above copyright notice and this permission notice appear
+ *   that the above copyright yestice and this permission yestice appear
  *   in all copies.
  *
  *   THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL
@@ -66,9 +66,9 @@ EXPORT_SYMBOL_GPL(qcafrm_create_footer);
  *   following a simple state machine.
  *
  * Return:   QCAFRM_GATHER       No ethernet frame fully received yet.
- *           QCAFRM_NOHEAD       Header expected but not found.
+ *           QCAFRM_NOHEAD       Header expected but yest found.
  *           QCAFRM_INVLEN       Atheros frame length is invalid
- *           QCAFRM_NOTAIL       Footer expected but not found.
+ *           QCAFRM_NOTAIL       Footer expected but yest found.
  *           > 0                 Number of byte in the fully received
  *                               Ethernet frame
  */
@@ -107,7 +107,7 @@ qcafrm_fsm_decode(struct qcafrm_handle *handle, u8 *buf, u16 buf_len, u8 recv_by
 		}
 		break;
 		/* 2 bytes length. */
-		/* Borrow offset field to hold length for now. */
+		/* Borrow offset field to hold length for yesw. */
 	case QCAFRM_WAIT_LEN_BYTE0:
 		handle->offset = recv_byte;
 		handle->state = QCAFRM_WAIT_LEN_BYTE1;

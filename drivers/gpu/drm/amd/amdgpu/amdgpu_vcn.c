@@ -18,7 +18,7 @@
  * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
  * USE OR OTHER DEALINGS IN THE SOFTWARE.
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright yestice and this permission yestice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
  *
@@ -47,7 +47,7 @@
 #define FIRMWARE_PICASSO	"amdgpu/picasso_vcn.bin"
 #define FIRMWARE_RAVEN2		"amdgpu/raven2_vcn.bin"
 #define FIRMWARE_ARCTURUS 	"amdgpu/arcturus_vcn.bin"
-#define FIRMWARE_RENOIR 	"amdgpu/renoir_vcn.bin"
+#define FIRMWARE_RENOIR 	"amdgpu/reyesir_vcn.bin"
 #define FIRMWARE_NAVI10 	"amdgpu/navi10_vcn.bin"
 #define FIRMWARE_NAVI14 	"amdgpu/navi14_vcn.bin"
 #define FIRMWARE_NAVI12 	"amdgpu/navi12_vcn.bin"
@@ -132,31 +132,31 @@ int amdgpu_vcn_sw_init(struct amdgpu_device *adev)
 	hdr = (const struct common_firmware_header *)adev->vcn.fw->data;
 	adev->vcn.fw_version = le32_to_cpu(hdr->ucode_version);
 
-	/* Bit 20-23, it is encode major and non-zero for new naming convention.
-	 * This field is part of version minor and DRM_DISABLED_FLAG in old naming
-	 * convention. Since the l:wq!atest version minor is 0x5B and DRM_DISABLED_FLAG
+	/* Bit 20-23, it is encode major and yesn-zero for new naming convention.
+	 * This field is part of version miyesr and DRM_DISABLED_FLAG in old naming
+	 * convention. Since the l:wq!atest version miyesr is 0x5B and DRM_DISABLED_FLAG
 	 * is zero in old naming convention, this field is always zero so far.
 	 * These four bits are used to tell which naming convention is present.
 	 */
 	fw_check = (le32_to_cpu(hdr->ucode_version) >> 20) & 0xf;
 	if (fw_check) {
-		unsigned int dec_ver, enc_major, enc_minor, vep, fw_rev;
+		unsigned int dec_ver, enc_major, enc_miyesr, vep, fw_rev;
 
 		fw_rev = le32_to_cpu(hdr->ucode_version) & 0xfff;
-		enc_minor = (le32_to_cpu(hdr->ucode_version) >> 12) & 0xff;
+		enc_miyesr = (le32_to_cpu(hdr->ucode_version) >> 12) & 0xff;
 		enc_major = fw_check;
 		dec_ver = (le32_to_cpu(hdr->ucode_version) >> 24) & 0xf;
 		vep = (le32_to_cpu(hdr->ucode_version) >> 28) & 0xf;
 		DRM_INFO("Found VCN firmware Version ENC: %hu.%hu DEC: %hu VEP: %hu Revision: %hu\n",
-			enc_major, enc_minor, dec_ver, vep, fw_rev);
+			enc_major, enc_miyesr, dec_ver, vep, fw_rev);
 	} else {
-		unsigned int version_major, version_minor, family_id;
+		unsigned int version_major, version_miyesr, family_id;
 
 		family_id = le32_to_cpu(hdr->ucode_version) & 0xff;
 		version_major = (le32_to_cpu(hdr->ucode_version) >> 24) & 0xff;
-		version_minor = (le32_to_cpu(hdr->ucode_version) >> 8) & 0xff;
+		version_miyesr = (le32_to_cpu(hdr->ucode_version) >> 8) & 0xff;
 		DRM_INFO("Found VCN firmware Version: %hu.%hu Family ID: %hu\n",
-			version_major, version_minor, family_id);
+			version_major, version_miyesr, family_id);
 	}
 
 	bo_size = AMDGPU_VCN_STACK_SIZE + AMDGPU_VCN_CONTEXT_SIZE;
@@ -430,7 +430,7 @@ static int amdgpu_vcn_dec_send_msg(struct amdgpu_ring *ring,
 	ib->ptr[4] = PACKET0(adev->vcn.internal.cmd, 0);
 	ib->ptr[5] = 0;
 	for (i = 6; i < 16; i += 2) {
-		ib->ptr[i] = PACKET0(adev->vcn.internal.nop, 0);
+		ib->ptr[i] = PACKET0(adev->vcn.internal.yesp, 0);
 		ib->ptr[i+1] = 0;
 	}
 	ib->length_dw = 16;

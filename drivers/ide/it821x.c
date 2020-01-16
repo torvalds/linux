@@ -12,12 +12,12 @@
  *  modes. In pass through mode then it is an IDE controller. In its smart
  *  mode its actually quite a capable hardware raid controller disguised
  *  as an IDE controller. Smart mode only understands DMA read/write and
- *  identify, none of the fancier commands apply. The IT8211 is identical
+ *  identify, yesne of the fancier commands apply. The IT8211 is identical
  *  in other respects but lacks the raid mode.
  *
  *  Errata:
  *  o	Rev 0x10 also requires master/slave hold the same DMA timings and
- *	cannot do ATAPI MWDMA.
+ *	canyest do ATAPI MWDMA.
  *  o	The identify data for raid volumes lacks CHS info (technically ok)
  *	but also fails to set the LBA28 and other bits. We fix these in
  *	the IDE probe quirk code.
@@ -31,7 +31,7 @@
  *  - In smart mode the clocking set up is done by the controller generally
  *    but we must watch the other limits and filter.
  *  - There are a few extra vendor commands that actually talk to the
- *    controller but only work PIO with no IRQ.
+ *    controller but only work PIO with yes IRQ.
  *
  *  Vendor areas of the identify block in smart mode are used for the
  *  timing and policy set up. Each HDD in raid mode also has a serial
@@ -39,22 +39,22 @@
  *  rebuild, get rebuild status.
  *
  *  In Linux the driver supports pass through mode as if the device was
- *  just another IDE controller. If the smart mode is running then
+ *  just ayesther IDE controller. If the smart mode is running then
  *  volumes are managed by the controller firmware and each IDE "disk"
  *  is a raid volume. Even more cute - the controller can do automated
  *  hotplug and rebuild.
  *
  *  The pass through controller itself is a little demented. It has a
  *  flaw that it has a single set of PIO/MWDMA timings per channel so
- *  non UDMA devices restrict each others performance. It also has a
+ *  yesn UDMA devices restrict each others performance. It also has a
  *  single clock source per channel so mixed UDMA100/133 performance
- *  isn't perfect and we have to pick a clock. Thankfully none of this
- *  matters in smart mode. ATAPI DMA is not currently supported.
+ *  isn't perfect and we have to pick a clock. Thankfully yesne of this
+ *  matters in smart mode. ATAPI DMA is yest currently supported.
  *
- *  It seems the smart mode is a win for RAID1/RAID10 but otherwise not.
+ *  It seems the smart mode is a win for RAID1/RAID10 but otherwise yest.
  *
  *  TODO
- *	-	ATAPI UDMA is ok but not MWDMA it seems
+ *	-	ATAPI UDMA is ok but yest MWDMA it seems
  *	-	RAID configuration ioctls
  *	-	Move to libata once it grows up
  */
@@ -92,13 +92,13 @@ struct it821x_dev
 #define MWDMA_OFF	0
 
 /*
- *	We allow users to force the card into non raid mode without
- *	flashing the alternative BIOS. This is also necessary right now
- *	for embedded platforms that cannot run a PC BIOS but are using this
+ *	We allow users to force the card into yesn raid mode without
+ *	flashing the alternative BIOS. This is also necessary right yesw
+ *	for embedded platforms that canyest run a PC BIOS but are using this
  *	device.
  */
 
-static int it8212_noraid;
+static int it8212_yesraid;
 
 /**
  *	it821x_program	-	program the PIO/MWDMA registers
@@ -249,7 +249,7 @@ static void it821x_set_pio_mode(ide_hwif_t *hwif, ide_drive_t *drive)
 
 	/*
 	 * Compute the best PIO mode we can for a given device. We must
-	 * pick a speed that does not cause problems with the other device
+	 * pick a speed that does yest cause problems with the other device
 	 * on the cable.
 	 */
 	if (pair) {
@@ -446,25 +446,25 @@ static void it821x_quirkproc(ide_drive_t *drive)
 
 	if (!itdev->smart) {
 		/*
-		 *	If we are in pass through mode then not much
+		 *	If we are in pass through mode then yest much
 		 *	needs to be done, but we do bother to clear the
 		 *	IRQ mask as we may well be in PIO (eg rev 0x10)
-		 *	for now and we know unmasking is safe on this chipset.
+		 *	for yesw and we kyesw unmasking is safe on this chipset.
 		 */
 		drive->dev_flags |= IDE_DFLAG_UNMASK;
 	} else {
 	/*
 	 *	Perform fixups on smart mode. We need to "lose" some
-	 *	capabilities the firmware lacks but does not filter, and
+	 *	capabilities the firmware lacks but does yest filter, and
 	 *	also patch up some capability bits that it forgets to set
 	 *	in RAID mode.
 	 */
 
 		/* Check for RAID v native */
 		if (strstr((char *)&id[ATA_ID_PROD],
-			   "Integrated Technology Express")) {
+			   "Integrated Techyeslogy Express")) {
 			/* In raid mode the ident block is slightly buggy
-			   We need to set the bits so that the IDE layer knows
+			   We need to set the bits so that the IDE layer kyesws
 			   LBA28. LBA48 and DMA ar valid */
 			id[ATA_ID_CAPABILITY]    |= (3 << 8); /* LBA28, DMA */
 			id[ATA_ID_COMMAND_SET_2] |= 0x0400;   /* LBA48 valid */
@@ -590,7 +590,7 @@ static void init_hwif_it821x(ide_hwif_t *hwif)
 
 static void it8212_disable_raid(struct pci_dev *dev)
 {
-	/* Reset local CPU, and set BIOS not ready */
+	/* Reset local CPU, and set BIOS yest ready */
 	pci_write_config_byte(dev, 0x5E, 0x01);
 
 	/* Set to bypass mode, and reset PCI bus */
@@ -611,7 +611,7 @@ static int init_chipset_it821x(struct pci_dev *dev)
 	static char *mode[2] = { "pass through", "smart" };
 
 	/* Force the card into bypass mode if so requested */
-	if (it8212_noraid) {
+	if (it8212_yesraid) {
 		printk(KERN_INFO DRV_NAME " %s: forcing bypass mode\n",
 			pci_name(dev));
 		it8212_disable_raid(dev);
@@ -707,8 +707,8 @@ static void __exit it821x_ide_exit(void)
 module_init(it821x_ide_init);
 module_exit(it821x_ide_exit);
 
-module_param_named(noraid, it8212_noraid, int, S_IRUGO);
-MODULE_PARM_DESC(noraid, "Force card into bypass mode");
+module_param_named(yesraid, it8212_yesraid, int, S_IRUGO);
+MODULE_PARM_DESC(yesraid, "Force card into bypass mode");
 
 MODULE_AUTHOR("Alan Cox");
 MODULE_DESCRIPTION("PCI driver module for the ITE 821x");

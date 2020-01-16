@@ -107,7 +107,7 @@ struct fsg_lun {
 	unsigned int	prevent_medium_removal:1;
 	unsigned int	registered:1;
 	unsigned int	info_valid:1;
-	unsigned int	nofua:1;
+	unsigned int	yesfua:1;
 
 	u32		sense_data;
 	u32		sense_data_info;
@@ -207,7 +207,7 @@ int fsg_lun_open(struct fsg_lun *curlun, const char *filename);
 int fsg_lun_fsync_sub(struct fsg_lun *curlun);
 void store_cdrom_address(u8 *dest, int msf, u32 addr);
 ssize_t fsg_show_ro(struct fsg_lun *curlun, char *buf);
-ssize_t fsg_show_nofua(struct fsg_lun *curlun, char *buf);
+ssize_t fsg_show_yesfua(struct fsg_lun *curlun, char *buf);
 ssize_t fsg_show_file(struct fsg_lun *curlun, struct rw_semaphore *filesem,
 		      char *buf);
 ssize_t fsg_show_inquiry_string(struct fsg_lun *curlun, char *buf);
@@ -215,7 +215,7 @@ ssize_t fsg_show_cdrom(struct fsg_lun *curlun, char *buf);
 ssize_t fsg_show_removable(struct fsg_lun *curlun, char *buf);
 ssize_t fsg_store_ro(struct fsg_lun *curlun, struct rw_semaphore *filesem,
 		     const char *buf, size_t count);
-ssize_t fsg_store_nofua(struct fsg_lun *curlun, const char *buf, size_t count);
+ssize_t fsg_store_yesfua(struct fsg_lun *curlun, const char *buf, size_t count);
 ssize_t fsg_store_file(struct fsg_lun *curlun, struct rw_semaphore *filesem,
 		       const char *buf, size_t count);
 ssize_t fsg_store_cdrom(struct fsg_lun *curlun, struct rw_semaphore *filesem,

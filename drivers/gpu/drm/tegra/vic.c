@@ -283,7 +283,7 @@ static int vic_load_firmware(struct vic *vic)
 	/*
 	 * In this case we have received an IOVA from the shared domain, so we
 	 * need to make sure to get the physical address so that the DMA API
-	 * knows what memory pages to flush the cache for.
+	 * kyesws what memory pages to flush the cache for.
 	 */
 	if (client->group) {
 		dma_addr_t phys;

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * ltc2485.c - Driver for Linear Technology LTC2485 ADC
+ * ltc2485.c - Driver for Linear Techyeslogy LTC2485 ADC
  *
  * Copyright (C) 2016 Alison Schofield <amsfield22@gmail.com>
  *
@@ -27,7 +27,7 @@ static void ltc2485_wait_conv(struct ltc2485_data *data)
 	const unsigned int conv_time = 147;	/* conversion time ms */
 	unsigned int time_elapsed;
 
-	/* delay if conversion time not passed since last read or write */
+	/* delay if conversion time yest passed since last read or write */
 	time_elapsed = ktime_ms_delta(ktime_get(), data->time_prev);
 
 	if (time_elapsed < conv_time)
@@ -140,5 +140,5 @@ static struct i2c_driver ltc2485_driver = {
 module_i2c_driver(ltc2485_driver);
 
 MODULE_AUTHOR("Alison Schofield <amsfield22@gmail.com>");
-MODULE_DESCRIPTION("Linear Technology LTC2485 ADC driver");
+MODULE_DESCRIPTION("Linear Techyeslogy LTC2485 ADC driver");
 MODULE_LICENSE("GPL v2");

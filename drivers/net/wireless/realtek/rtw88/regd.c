@@ -13,7 +13,7 @@
 	 .txpwr_regd = (_txpwr_regd) \
 	}
 
-/* If country code is not correctly defined in efuse,
+/* If country code is yest correctly defined in efuse,
  * use worldwide country code and txpwr regd.
  */
 static const struct rtw_regulatory rtw_defined_chplan =
@@ -339,7 +339,7 @@ static struct rtw_regulatory rtw_regd_find_reg_by_name(char *alpha2)
 	return rtw_defined_chplan;
 }
 
-static int rtw_regd_notifier_apply(struct rtw_dev *rtwdev,
+static int rtw_regd_yestifier_apply(struct rtw_dev *rtwdev,
 				   struct wiphy *wiphy,
 				   struct regulatory_request *request)
 {
@@ -353,10 +353,10 @@ static int rtw_regd_notifier_apply(struct rtw_dev *rtwdev,
 
 static int
 rtw_regd_init_wiphy(struct rtw_regulatory *reg, struct wiphy *wiphy,
-		    void (*reg_notifier)(struct wiphy *wiphy,
+		    void (*reg_yestifier)(struct wiphy *wiphy,
 					 struct regulatory_request *request))
 {
-	wiphy->reg_notifier = reg_notifier;
+	wiphy->reg_yestifier = reg_yestifier;
 
 	wiphy->regulatory_flags &= ~REGULATORY_CUSTOM_REG;
 	wiphy->regulatory_flags &= ~REGULATORY_STRICT_REG;
@@ -368,7 +368,7 @@ rtw_regd_init_wiphy(struct rtw_regulatory *reg, struct wiphy *wiphy,
 }
 
 int rtw_regd_init(struct rtw_dev *rtwdev,
-		  void (*reg_notifier)(struct wiphy *wiphy,
+		  void (*reg_yestifier)(struct wiphy *wiphy,
 				       struct regulatory_request *request))
 {
 	struct wiphy *wiphy = rtwdev->hw->wiphy;
@@ -377,18 +377,18 @@ int rtw_regd_init(struct rtw_dev *rtwdev,
 		return -EINVAL;
 
 	rtwdev->regd = rtw_regd_find_reg_by_name(rtwdev->efuse.country_code);
-	rtw_regd_init_wiphy(&rtwdev->regd, wiphy, reg_notifier);
+	rtw_regd_init_wiphy(&rtwdev->regd, wiphy, reg_yestifier);
 
 	return 0;
 }
 
-void rtw_regd_notifier(struct wiphy *wiphy, struct regulatory_request *request)
+void rtw_regd_yestifier(struct wiphy *wiphy, struct regulatory_request *request)
 {
 	struct ieee80211_hw *hw = wiphy_to_ieee80211_hw(wiphy);
 	struct rtw_dev *rtwdev = hw->priv;
 	struct rtw_hal *hal = &rtwdev->hal;
 
-	rtw_regd_notifier_apply(rtwdev, wiphy, request);
+	rtw_regd_yestifier_apply(rtwdev, wiphy, request);
 	rtw_dbg(rtwdev, RTW_DBG_REGD,
 		"get alpha2 %c%c from initiator %d, mapping to chplan 0x%x, txregd %d\n",
 		request->alpha2[0], request->alpha2[1], request->initiator,

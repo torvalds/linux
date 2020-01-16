@@ -4,9 +4,9 @@
  *
  * Copyright (C) 2008-2010 Nokia Corporation
  *
- * Written by Henrik Saari <henrik.saari@nokia.com>
- * Updates by Felipe Balbi <felipe.balbi@nokia.com>
- * Input by Jari Vanhala <ext-jari.vanhala@nokia.com>
+ * Written by Henrik Saari <henrik.saari@yeskia.com>
+ * Updates by Felipe Balbi <felipe.balbi@yeskia.com>
+ * Input by Jari Vanhala <ext-jari.vanhala@yeskia.com>
  */
 
 #include <linux/module.h>
@@ -42,7 +42,7 @@ static void vibra_disable_leds(void)
 {
 	u8 reg;
 
-	/* Disable LEDA & LEDB, cannot be used with vibra (PWM) */
+	/* Disable LEDA & LEDB, canyest be used with vibra (PWM) */
 	twl_i2c_read_u8(TWL4030_MODULE_LED, &reg, LEDEN);
 	reg &= ~0x03;
 	twl_i2c_write_u8(TWL4030_MODULE_LED, LEDEN, reg);
@@ -164,16 +164,16 @@ static SIMPLE_DEV_PM_OPS(twl4030_vibra_pm_ops,
 			 twl4030_vibra_suspend, twl4030_vibra_resume);
 
 static bool twl4030_vibra_check_coexist(struct twl4030_vibra_data *pdata,
-			      struct device_node *parent)
+			      struct device_yesde *parent)
 {
-	struct device_node *node;
+	struct device_yesde *yesde;
 
 	if (pdata && pdata->coexist)
 		return true;
 
-	node = of_get_child_by_name(parent, "codec");
-	if (node) {
-		of_node_put(node);
+	yesde = of_get_child_by_name(parent, "codec");
+	if (yesde) {
+		of_yesde_put(yesde);
 		return true;
 	}
 
@@ -183,12 +183,12 @@ static bool twl4030_vibra_check_coexist(struct twl4030_vibra_data *pdata,
 static int twl4030_vibra_probe(struct platform_device *pdev)
 {
 	struct twl4030_vibra_data *pdata = dev_get_platdata(&pdev->dev);
-	struct device_node *twl4030_core_node = pdev->dev.parent->of_node;
+	struct device_yesde *twl4030_core_yesde = pdev->dev.parent->of_yesde;
 	struct vibra_info *info;
 	int ret;
 
-	if (!pdata && !twl4030_core_node) {
-		dev_dbg(&pdev->dev, "platform_data not available\n");
+	if (!pdata && !twl4030_core_yesde) {
+		dev_dbg(&pdev->dev, "platform_data yest available\n");
 		return -EINVAL;
 	}
 
@@ -197,7 +197,7 @@ static int twl4030_vibra_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	info->dev = &pdev->dev;
-	info->coexist = twl4030_vibra_check_coexist(pdata, twl4030_core_node);
+	info->coexist = twl4030_vibra_check_coexist(pdata, twl4030_core_yesde);
 	INIT_WORK(&info->play_work, vibra_play_work);
 
 	info->input_dev = devm_input_allocate_device(&pdev->dev);

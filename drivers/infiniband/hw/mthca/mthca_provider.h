@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2004 Topspin Communications.  All rights reserved.
  * Copyright (c) 2005, 2006 Cisco Systems.  All rights reserved.
- * Copyright (c) 2005 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2005 Mellayesx Techyeslogies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -14,11 +14,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -145,13 +145,13 @@ struct mthca_ah {
  * corresponding table lock.  The pointer from the cq/qp_table to the
  * struct counts as one reference.  This reference also is good for
  * access through the consumer API, so modifying the CQ/QP etc doesn't
- * need to take another reference.  Access to a QP because of a
- * completion being polled does not need a reference either.
+ * need to take ayesther reference.  Access to a QP because of a
+ * completion being polled does yest need a reference either.
  *
  * Finally, each struct mthca_cq/qp has a wait_queue_head_t for the
  * destroy function to sleep on.
  *
- * This means that access from the consumer API requires nothing but
+ * This means that access from the consumer API requires yesthing but
  * taking the struct's lock.
  *
  * Access because of a completion event should go as follows:
@@ -167,11 +167,11 @@ struct mthca_ah {
  * - unlock cq/qp_table lock
  * - wait_event until ref count is zero
  *
- * It is the consumer's responsibilty to make sure that no QP
+ * It is the consumer's responsibilty to make sure that yes QP
  * operations (WQE posting or state modification) are pending when a
  * QP is destroyed.  Also, the consumer must make sure that calls to
  * qp_modify are serialized.  Similarly, the consumer is responsible
- * for ensuring that no CQ resize operations are pending when a CQ
+ * for ensuring that yes CQ resize operations are pending when a CQ
  * is destroyed.
  *
  * Possible optimizations (wait for profile data to see if/where we

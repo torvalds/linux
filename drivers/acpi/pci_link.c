@@ -36,7 +36,7 @@ ACPI_MODULE_NAME("pci_link");
 #define ACPI_PCI_LINK_MAX_POSSIBLE	16
 
 static int acpi_pci_link_add(struct acpi_device *device,
-			     const struct acpi_device_id *not_used);
+			     const struct acpi_device_id *yest_used);
 static void acpi_pci_link_remove(struct acpi_device *device);
 
 static const struct acpi_device_id link_device_ids[] = {
@@ -160,7 +160,7 @@ static int acpi_pci_link_get_possible(struct acpi_pci_link *link)
 	status = acpi_walk_resources(link->device->handle, METHOD_NAME__PRS,
 				     acpi_pci_link_check_possible, link);
 	if (ACPI_FAILURE(status)) {
-		acpi_handle_debug(link->device->handle, "_PRS not present or invalid");
+		acpi_handle_debug(link->device->handle, "_PRS yest present or invalid");
 		return 0;
 	}
 
@@ -185,7 +185,7 @@ static acpi_status acpi_pci_link_check_current(struct acpi_resource *resource,
 			struct acpi_resource_irq *p = &resource->data.irq;
 			if (!p || !p->interrupt_count) {
 				/*
-				 * IRQ descriptors may have no IRQ# bits set,
+				 * IRQ descriptors may have yes IRQ# bits set,
 				 * particularly those those w/ _STA disabled
 				 */
 				ACPI_DEBUG_PRINT((ACPI_DB_INFO,
@@ -236,7 +236,7 @@ static int acpi_pci_link_get_current(struct acpi_pci_link *link)
 
 	link->irq.active = 0;
 
-	/* in practice, status disabled is meaningless, ignore it */
+	/* in practice, status disabled is meaningless, igyesre it */
 	if (acpi_strict) {
 		/* Query _STA, set link->device->status */
 		result = acpi_bus_get_status(link->device);
@@ -328,7 +328,7 @@ static int acpi_pci_link_set(struct acpi_pci_link *link, int irq)
 			resource->res.data.irq.shareable = ACPI_SHARED;
 		resource->res.data.extended_irq.interrupt_count = 1;
 		resource->res.data.extended_irq.interrupts[0] = irq;
-		/* ignore resource_source, it's optional */
+		/* igyesre resource_source, it's optional */
 		break;
 	default:
 		printk(KERN_ERR PREFIX "Invalid Resource_type %d\n", link->irq.resource_type);
@@ -369,7 +369,7 @@ static int acpi_pci_link_set(struct acpi_pci_link *link, int irq)
 	}
 
 	/*
-	 * Is current setting not what we set?
+	 * Is current setting yest what we set?
 	 * set link->irq.active
 	 */
 	if (link->irq.active != irq) {
@@ -399,27 +399,27 @@ static int acpi_pci_link_set(struct acpi_pci_link *link, int irq)
  * "acpi_irq_balance" (default in APIC mode) enables ACPI to use PIC Interrupt
  * Link Devices to move the PIRQs around to minimize sharing.
  * 
- * "acpi_irq_nobalance" (default in PIC mode) tells ACPI not to move any PIC IRQs
+ * "acpi_irq_yesbalance" (default in PIC mode) tells ACPI yest to move any PIC IRQs
  * that the BIOS has already set to active.  This is necessary because
- * ACPI has no automatic means of knowing what ISA IRQs are used.  Note that
+ * ACPI has yes automatic means of kyeswing what ISA IRQs are used.  Note that
  * if the BIOS doesn't set a Link Device active, ACPI needs to program it
- * even if acpi_irq_nobalance is set.
+ * even if acpi_irq_yesbalance is set.
  *
- * A tables of penalties avoids directing PCI interrupts to well known
+ * A tables of penalties avoids directing PCI interrupts to well kyeswn
  * ISA IRQs. Boot params are available to over-ride the default table:
  *
  * List interrupts that are free for PCI use.
  * acpi_irq_pci=n[,m]
  *
- * List interrupts that should not be used for PCI:
+ * List interrupts that should yest be used for PCI:
  * acpi_irq_isa=n[,m]
  *
  * Note that PCI IRQ routers have a list of possible IRQs,
- * which may not include the IRQs this table says are available.
+ * which may yest include the IRQs this table says are available.
  * 
  * Since this heuristic can't tell the difference between a link
- * that no device will attach to, vs. a link which may be shared
- * by multiple active devices -- it is not optimal.
+ * that yes device will attach to, vs. a link which may be shared
+ * by multiple active devices -- it is yest optimal.
  *
  * If interrupt performance is that important, get an IO-APIC system
  * with a pin dedicated to each device.  Or for that matter, an MSI
@@ -469,7 +469,7 @@ static int acpi_irq_pci_sharing_penalty(int irq)
 			penalty += PIRQ_PENALTY_PCI_USING;
 
 		/*
-		 * penalize the IRQs PCI might use, but not as severely.
+		 * penalize the IRQs PCI might use, but yest as severely.
 		 */
 		for (i = 0; i < link->irq.possible_count; i++)
 			if (link->irq.possible[i] == irq)
@@ -551,11 +551,11 @@ static int acpi_pci_link_allocate(struct acpi_pci_link *link)
 			break;
 	}
 	/*
-	 * forget active IRQ that is not in possible list
+	 * forget active IRQ that is yest in possible list
 	 */
 	if (i == link->irq.possible_count) {
 		if (acpi_strict)
-			printk(KERN_WARNING PREFIX "_CRS %d not found"
+			printk(KERN_WARNING PREFIX "_CRS %d yest found"
 				      " in _PRS\n", link->irq.active);
 		link->irq.active = 0;
 	}
@@ -581,7 +581,7 @@ static int acpi_pci_link_allocate(struct acpi_pci_link *link)
 	}
 	if (acpi_irq_get_penalty(irq) >= PIRQ_PENALTY_ISA_ALWAYS) {
 		printk(KERN_ERR PREFIX "No IRQ available for %s [%s]. "
-			    "Try pci=noacpi or acpi=off\n",
+			    "Try pci=yesacpi or acpi=off\n",
 			    acpi_device_name(link->device),
 			    acpi_device_bid(link->device));
 		return -ENODEV;
@@ -590,7 +590,7 @@ static int acpi_pci_link_allocate(struct acpi_pci_link *link)
 	/* Attempt to enable the link device at this IRQ. */
 	if (acpi_pci_link_set(link, irq)) {
 		printk(KERN_ERR PREFIX "Unable to set IRQ for %s [%s]. "
-			    "Try pci=noacpi or acpi=off\n",
+			    "Try pci=yesacpi or acpi=off\n",
 			    acpi_device_name(link->device),
 			    acpi_device_bid(link->device));
 		return -ENODEV;
@@ -720,7 +720,7 @@ int acpi_pci_link_free_irq(acpi_handle handle)
    -------------------------------------------------------------------------- */
 
 static int acpi_pci_link_add(struct acpi_device *device,
-			     const struct acpi_device_id *not_used)
+			     const struct acpi_device_id *yest_used)
 {
 	int result;
 	struct acpi_pci_link *link;
@@ -822,7 +822,7 @@ static int __init acpi_irq_penalty_update(char *str, int used)
 		retval = get_option(&str, &irq);
 
 		if (!retval)
-			break;	/* no number found */
+			break;	/* yes number found */
 
 		/* see if this is a ISA IRQ */
 		if ((irq < 0) || (irq >= ACPI_MAX_ISA_IRQS))
@@ -835,7 +835,7 @@ static int __init acpi_irq_penalty_update(char *str, int used)
 			new_penalty = 0;
 
 		acpi_isa_irq_penalty[irq] = new_penalty;
-		if (retval != 2)	/* no next number */
+		if (retval != 2)	/* yes next number */
 			break;
 	}
 	return 1;
@@ -845,7 +845,7 @@ static int __init acpi_irq_penalty_update(char *str, int used)
  * We'd like PNP to call this routine for the
  * single ISA_USED value for each legacy device.
  * But instead it calls us with each POSSIBLE setting.
- * There is no ISA_POSSIBLE weight, so we simply use
+ * There is yes ISA_POSSIBLE weight, so we simply use
  * the (small) PCI_USING penalty.
  */
 void acpi_penalize_isa_irq(int irq, int active)
@@ -875,7 +875,7 @@ void acpi_penalize_sci_irq(int irq, int trigger, int polarity)
 /*
  * Over-ride default table to reserve additional IRQs for use by ISA
  * e.g. acpi_irq_isa=5
- * Useful for telling ACPI how not to interfere with your ISA sound card.
+ * Useful for telling ACPI how yest to interfere with your ISA sound card.
  */
 static int __init acpi_irq_isa(char *str)
 {
@@ -896,13 +896,13 @@ static int __init acpi_irq_pci(char *str)
 
 __setup("acpi_irq_pci=", acpi_irq_pci);
 
-static int __init acpi_irq_nobalance_set(char *str)
+static int __init acpi_irq_yesbalance_set(char *str)
 {
 	acpi_irq_balance = 0;
 	return 1;
 }
 
-__setup("acpi_irq_nobalance", acpi_irq_nobalance_set);
+__setup("acpi_irq_yesbalance", acpi_irq_yesbalance_set);
 
 static int __init acpi_irq_balance_set(char *str)
 {
@@ -918,11 +918,11 @@ static struct syscore_ops irqrouter_syscore_ops = {
 
 void __init acpi_pci_link_init(void)
 {
-	if (acpi_noirq)
+	if (acpi_yesirq)
 		return;
 
 	if (acpi_irq_balance == -1) {
-		/* no command line switch: enable balancing in IOAPIC mode */
+		/* yes command line switch: enable balancing in IOAPIC mode */
 		if (acpi_irq_model == ACPI_IRQ_MODEL_IOAPIC)
 			acpi_irq_balance = 1;
 		else

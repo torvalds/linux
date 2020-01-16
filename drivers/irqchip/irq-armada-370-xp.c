@@ -88,7 +88,7 @@
  *    At ->map() time, a global interrupt is unmasked at the per-CPU
  *    mask/unmask level. It is therefore unmasked at this level for
  *    the current CPU, running the ->map() code. This allows to have
- *    the interrupt unmasked at this level in non-SMP
+ *    the interrupt unmasked at this level in yesn-SMP
  *    configurations. In SMP configurations, the ->set_affinity()
  *    callback is called, which using the
  *    ARMADA_370_XP_INT_SOURCE_CTL() readjusts the per-CPU mask/unmask
@@ -268,7 +268,7 @@ static const struct irq_domain_ops armada_370_xp_msi_domain_ops = {
 	.free	= armada_370_xp_msi_free,
 };
 
-static int armada_370_xp_msi_init(struct device_node *node,
+static int armada_370_xp_msi_init(struct device_yesde *yesde,
 				  phys_addr_t main_int_phys_base)
 {
 	u32 reg;
@@ -283,7 +283,7 @@ static int armada_370_xp_msi_init(struct device_node *node,
 		return -ENOMEM;
 
 	armada_370_xp_msi_domain =
-		pci_msi_create_irq_domain(of_node_to_fwnode(node),
+		pci_msi_create_irq_domain(of_yesde_to_fwyesde(yesde),
 					  &armada_370_xp_msi_domain_info,
 					  armada_370_xp_msi_inner_domain);
 	if (!armada_370_xp_msi_domain) {
@@ -303,7 +303,7 @@ static int armada_370_xp_msi_init(struct device_node *node,
 	return 0;
 }
 #else
-static inline int armada_370_xp_msi_init(struct device_node *node,
+static inline int armada_370_xp_msi_init(struct device_yesde *yesde,
 					 phys_addr_t main_int_phys_base)
 {
 	return 0;
@@ -518,7 +518,7 @@ static void armada_370_xp_mpic_handle_cascade_irq(struct irq_desc *desc)
 		irqsrc = readl_relaxed(main_int_base +
 				       ARMADA_370_XP_INT_SOURCE_CTL(irqn));
 
-		/* Check if the interrupt is not masked on current CPU.
+		/* Check if the interrupt is yest masked on current CPU.
 		 * Test IRQ (0-1) and FIQ (8-9) mask bits.
 		 */
 		if (!(irqsrc & ARMADA_370_XP_INT_IRQ_FIQ_MASK(cpuid)))
@@ -643,22 +643,22 @@ static struct syscore_ops armada_370_xp_mpic_syscore_ops = {
 	.resume		= armada_370_xp_mpic_resume,
 };
 
-static int __init armada_370_xp_mpic_of_init(struct device_node *node,
-					     struct device_node *parent)
+static int __init armada_370_xp_mpic_of_init(struct device_yesde *yesde,
+					     struct device_yesde *parent)
 {
 	struct resource main_int_res, per_cpu_int_res;
 	int nr_irqs, i;
 	u32 control;
 
-	BUG_ON(of_address_to_resource(node, 0, &main_int_res));
-	BUG_ON(of_address_to_resource(node, 1, &per_cpu_int_res));
+	BUG_ON(of_address_to_resource(yesde, 0, &main_int_res));
+	BUG_ON(of_address_to_resource(yesde, 1, &per_cpu_int_res));
 
 	BUG_ON(!request_mem_region(main_int_res.start,
 				   resource_size(&main_int_res),
-				   node->full_name));
+				   yesde->full_name));
 	BUG_ON(!request_mem_region(per_cpu_int_res.start,
 				   resource_size(&per_cpu_int_res),
-				   node->full_name));
+				   yesde->full_name));
 
 	main_int_base = ioremap(main_int_res.start,
 				resource_size(&main_int_res));
@@ -675,7 +675,7 @@ static int __init armada_370_xp_mpic_of_init(struct device_node *node,
 		writel(i, main_int_base + ARMADA_370_XP_INT_CLEAR_ENABLE_OFFS);
 
 	armada_370_xp_mpic_domain =
-		irq_domain_add_linear(node, nr_irqs,
+		irq_domain_add_linear(yesde, nr_irqs,
 				&armada_370_xp_mpic_irq_ops, NULL);
 	BUG_ON(!armada_370_xp_mpic_domain);
 	irq_domain_update_bus_token(armada_370_xp_mpic_domain, DOMAIN_BUS_WIRED);
@@ -684,21 +684,21 @@ static int __init armada_370_xp_mpic_of_init(struct device_node *node,
 	armada_xp_mpic_perf_init();
 	armada_xp_mpic_smp_cpu_init();
 
-	armada_370_xp_msi_init(node, main_int_res.start);
+	armada_370_xp_msi_init(yesde, main_int_res.start);
 
-	parent_irq = irq_of_parse_and_map(node, 0);
+	parent_irq = irq_of_parse_and_map(yesde, 0);
 	if (parent_irq <= 0) {
 		irq_set_default_host(armada_370_xp_mpic_domain);
 		set_handle_irq(armada_370_xp_handle_irq);
 #ifdef CONFIG_SMP
 		set_smp_cross_call(armada_mpic_send_doorbell);
-		cpuhp_setup_state_nocalls(CPUHP_AP_IRQ_ARMADA_XP_STARTING,
+		cpuhp_setup_state_yescalls(CPUHP_AP_IRQ_ARMADA_XP_STARTING,
 					  "irqchip/armada/ipi:starting",
 					  armada_xp_mpic_starting_cpu, NULL);
 #endif
 	} else {
 #ifdef CONFIG_SMP
-		cpuhp_setup_state_nocalls(CPUHP_AP_IRQ_ARMADA_XP_STARTING,
+		cpuhp_setup_state_yescalls(CPUHP_AP_IRQ_ARMADA_XP_STARTING,
 					  "irqchip/armada/cascade:starting",
 					  mpic_cascaded_starting_cpu, NULL);
 #endif

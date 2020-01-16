@@ -96,7 +96,7 @@ static int roccat_common2_receive_control_status(struct usb_device *usb_dev)
 		default:
 			dev_err(&usb_dev->dev,
 					"roccat_common2_receive_control_status: "
-					"unknown response value 0x%x\n",
+					"unkyeswn response value 0x%x\n",
 					control.value);
 			return -EINVAL;
 		}

@@ -23,10 +23,10 @@
  *
  * Return whether list is empty before adding.
  */
-bool llist_add_batch(struct llist_node *new_first, struct llist_node *new_last,
+bool llist_add_batch(struct llist_yesde *new_first, struct llist_yesde *new_last,
 		     struct llist_head *head)
 {
-	struct llist_node *first;
+	struct llist_yesde *first;
 
 	do {
 		new_last->next = first = READ_ONCE(head->first);
@@ -46,13 +46,13 @@ EXPORT_SYMBOL_GPL(llist_add_batch);
  * Only one llist_del_first user can be used simultaneously with
  * multiple llist_add users without lock.  Because otherwise
  * llist_del_first, llist_add, llist_add (or llist_del_all, llist_add,
- * llist_add) sequence in another user may change @head->first->next,
+ * llist_add) sequence in ayesther user may change @head->first->next,
  * but keep @head->first.  If multiple consumers are needed, please
  * use llist_del_all or use lock between consumers.
  */
-struct llist_node *llist_del_first(struct llist_head *head)
+struct llist_yesde *llist_del_first(struct llist_head *head)
 {
-	struct llist_node *entry, *old_entry, *next;
+	struct llist_yesde *entry, *old_entry, *next;
 
 	entry = smp_load_acquire(&head->first);
 	for (;;) {
@@ -76,12 +76,12 @@ EXPORT_SYMBOL_GPL(llist_del_first);
  * Reverse the order of a chain of llist entries and return the
  * new first entry.
  */
-struct llist_node *llist_reverse_order(struct llist_node *head)
+struct llist_yesde *llist_reverse_order(struct llist_yesde *head)
 {
-	struct llist_node *new_head = NULL;
+	struct llist_yesde *new_head = NULL;
 
 	while (head) {
-		struct llist_node *tmp = head;
+		struct llist_yesde *tmp = head;
 		head = head->next;
 		tmp->next = new_head;
 		new_head = tmp;

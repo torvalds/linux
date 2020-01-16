@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2017, Mellayesx Techyeslogies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -77,7 +77,7 @@ static const char *mlx5_fpga_image_name(enum mlx5_fpga_image image)
 	case MLX5_FPGA_IMAGE_FACTORY:
 		return "factory";
 	default:
-		return "unknown";
+		return "unkyeswn";
 	}
 }
 
@@ -96,7 +96,7 @@ static const char *mlx5_fpga_name(u32 fpga_id)
 		return "MorseQ";
 	}
 
-	snprintf(ret, sizeof(ret), "Unknown %d", fpga_id);
+	snprintf(ret, sizeof(ret), "Unkyeswn %d", fpga_id);
 	return ret;
 }
 
@@ -122,7 +122,7 @@ static int mlx5_fpga_device_load_check(struct mlx5_fpga_device *fdev)
 	mlx5_fpga_info(fdev, "Status %u; Admin image %u; Oper image %u\n",
 		       query.status, query.admin_image, query.oper_image);
 
-	/* for FPGA lookaside projects FPGA load status is not important */
+	/* for FPGA lookaside projects FPGA load status is yest important */
 	if (mlx5_is_fpga_lookaside(MLX5_CAP_FPGA(fdev->mdev, fpga_id)))
 		return 0;
 
@@ -161,14 +161,14 @@ static int mlx5_fpga_device_brb(struct mlx5_fpga_device *fdev)
 
 static int mlx5_fpga_event(struct mlx5_fpga_device *, unsigned long, void *);
 
-static int fpga_err_event(struct notifier_block *nb, unsigned long event, void *eqe)
+static int fpga_err_event(struct yestifier_block *nb, unsigned long event, void *eqe)
 {
 	struct mlx5_fpga_device *fdev = mlx5_nb_cof(nb, struct mlx5_fpga_device, fpga_err_nb);
 
 	return mlx5_fpga_event(fdev, event, eqe);
 }
 
-static int fpga_qp_err_event(struct notifier_block *nb, unsigned long event, void *eqe)
+static int fpga_qp_err_event(struct yestifier_block *nb, unsigned long event, void *eqe)
 {
 	struct mlx5_fpga_device *fdev = mlx5_nb_cof(nb, struct mlx5_fpga_device, fpga_qp_err_nb);
 
@@ -197,7 +197,7 @@ int mlx5_fpga_device_start(struct mlx5_core_dev *mdev)
 	fpga_id = MLX5_CAP_FPGA(fdev->mdev, fpga_id);
 	mlx5_fpga_info(fdev, "FPGA card %s:%u\n", mlx5_fpga_name(fpga_id), fpga_id);
 
-	/* No QPs if FPGA does not participate in net processing */
+	/* No QPs if FPGA does yest participate in net processing */
 	if (mlx5_is_fpga_lookaside(fpga_id))
 		goto out;
 
@@ -222,8 +222,8 @@ int mlx5_fpga_device_start(struct mlx5_core_dev *mdev)
 
 	MLX5_NB_INIT(&fdev->fpga_err_nb, fpga_err_event, FPGA_ERROR);
 	MLX5_NB_INIT(&fdev->fpga_qp_err_nb, fpga_qp_err_event, FPGA_QP_ERROR);
-	mlx5_eq_notifier_register(fdev->mdev, &fdev->fpga_err_nb);
-	mlx5_eq_notifier_register(fdev->mdev, &fdev->fpga_qp_err_nb);
+	mlx5_eq_yestifier_register(fdev->mdev, &fdev->fpga_err_nb);
+	mlx5_eq_yestifier_register(fdev->mdev, &fdev->fpga_qp_err_nb);
 
 	err = mlx5_fpga_conn_device_init(fdev);
 	if (err)
@@ -241,8 +241,8 @@ err_conn_init:
 	mlx5_fpga_conn_device_cleanup(fdev);
 
 err_rsvd_gid:
-	mlx5_eq_notifier_unregister(fdev->mdev, &fdev->fpga_err_nb);
-	mlx5_eq_notifier_unregister(fdev->mdev, &fdev->fpga_qp_err_nb);
+	mlx5_eq_yestifier_unregister(fdev->mdev, &fdev->fpga_err_nb);
+	mlx5_eq_yestifier_unregister(fdev->mdev, &fdev->fpga_qp_err_nb);
 	mlx5_core_unreserve_gids(mdev, max_num_qps);
 out:
 	spin_lock_irqsave(&fdev->state_lock, flags);
@@ -256,7 +256,7 @@ int mlx5_fpga_init(struct mlx5_core_dev *mdev)
 	struct mlx5_fpga_device *fdev = NULL;
 
 	if (!MLX5_CAP_GEN(mdev, fpga)) {
-		mlx5_core_dbg(mdev, "FPGA capability not present\n");
+		mlx5_core_dbg(mdev, "FPGA capability yest present\n");
 		return 0;
 	}
 
@@ -301,8 +301,8 @@ void mlx5_fpga_device_stop(struct mlx5_core_dev *mdev)
 	}
 
 	mlx5_fpga_conn_device_cleanup(fdev);
-	mlx5_eq_notifier_unregister(fdev->mdev, &fdev->fpga_err_nb);
-	mlx5_eq_notifier_unregister(fdev->mdev, &fdev->fpga_qp_err_nb);
+	mlx5_eq_yestifier_unregister(fdev->mdev, &fdev->fpga_err_nb);
+	mlx5_eq_yestifier_unregister(fdev->mdev, &fdev->fpga_qp_err_nb);
 
 	max_num_qps = MLX5_CAP_FPGA(mdev, shell_caps.max_num_qps);
 	mlx5_core_unreserve_gids(mdev, max_num_qps);
@@ -321,14 +321,14 @@ static const char *mlx5_fpga_syndrome_to_string(u8 syndrome)
 {
 	if (syndrome < ARRAY_SIZE(mlx5_fpga_error_strings))
 		return mlx5_fpga_error_strings[syndrome];
-	return "Unknown";
+	return "Unkyeswn";
 }
 
 static const char *mlx5_fpga_qp_syndrome_to_string(u8 syndrome)
 {
 	if (syndrome < ARRAY_SIZE(mlx5_fpga_qp_error_strings))
 		return mlx5_fpga_qp_error_strings[syndrome];
-	return "Unknown";
+	return "Unkyeswn";
 }
 
 static int mlx5_fpga_event(struct mlx5_fpga_device *fdev,

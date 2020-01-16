@@ -55,7 +55,7 @@ struct nvkm_ior_func {
 	} route;
 
 	void (*state)(struct nvkm_ior *, struct nvkm_ior_state *);
-	void (*power)(struct nvkm_ior *, bool normal, bool pu,
+	void (*power)(struct nvkm_ior *, bool yesrmal, bool pu,
 		      bool data, bool vsync, bool hsync);
 	int (*sense)(struct nvkm_ior *, u32 loadval);
 	void (*clock)(struct nvkm_ior *);

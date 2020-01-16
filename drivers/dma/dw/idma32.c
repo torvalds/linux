@@ -3,7 +3,7 @@
 
 #include <linux/bitops.h>
 #include <linux/dmaengine.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/slab.h>
 #include <linux/types.h>
 

@@ -411,7 +411,7 @@ static int acp3x_dma_close(struct snd_soc_component *component,
 		adata->capture_stream = NULL;
 
 	/* Disable ACP irq, when the current stream is being closed and
-	 * another stream is also not active.
+	 * ayesther stream is also yest active.
 	 */
 	if (!adata->play_stream && !adata->capture_stream)
 		rv_writel(0, adata->acp3x_base + mmACP_EXTERNAL_INTR_ENB);
@@ -615,7 +615,7 @@ static int acp3x_audio_probe(struct platform_device *pdev)
 	unsigned int irqflags;
 
 	if (!pdev->dev.platform_data) {
-		dev_err(&pdev->dev, "platform_data not retrieved\n");
+		dev_err(&pdev->dev, "platform_data yest retrieved\n");
 		return -ENODEV;
 	}
 	irqflags = *((unsigned int *)(pdev->dev.platform_data));
@@ -672,7 +672,7 @@ dev_err:
 		dev_err(&pdev->dev, "ACP de-init failed\n");
 	else
 		dev_info(&pdev->dev, "ACP de-initialized\n");
-	/*ignore device status and return driver probe error*/
+	/*igyesre device status and return driver probe error*/
 	return -ENODEV;
 }
 

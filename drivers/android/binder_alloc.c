@@ -68,8 +68,8 @@ static size_t binder_alloc_buffer_size(struct binder_alloc *alloc,
 static void binder_insert_free_buffer(struct binder_alloc *alloc,
 				      struct binder_buffer *new_buffer)
 {
-	struct rb_node **p = &alloc->free_buffers.rb_node;
-	struct rb_node *parent = NULL;
+	struct rb_yesde **p = &alloc->free_buffers.rb_yesde;
+	struct rb_yesde *parent = NULL;
 	struct binder_buffer *buffer;
 	size_t buffer_size;
 	size_t new_buffer_size;
@@ -84,7 +84,7 @@ static void binder_insert_free_buffer(struct binder_alloc *alloc,
 
 	while (*p) {
 		parent = *p;
-		buffer = rb_entry(parent, struct binder_buffer, rb_node);
+		buffer = rb_entry(parent, struct binder_buffer, rb_yesde);
 		BUG_ON(!buffer->free);
 
 		buffer_size = binder_alloc_buffer_size(alloc, buffer);
@@ -94,22 +94,22 @@ static void binder_insert_free_buffer(struct binder_alloc *alloc,
 		else
 			p = &parent->rb_right;
 	}
-	rb_link_node(&new_buffer->rb_node, parent, p);
-	rb_insert_color(&new_buffer->rb_node, &alloc->free_buffers);
+	rb_link_yesde(&new_buffer->rb_yesde, parent, p);
+	rb_insert_color(&new_buffer->rb_yesde, &alloc->free_buffers);
 }
 
 static void binder_insert_allocated_buffer_locked(
 		struct binder_alloc *alloc, struct binder_buffer *new_buffer)
 {
-	struct rb_node **p = &alloc->allocated_buffers.rb_node;
-	struct rb_node *parent = NULL;
+	struct rb_yesde **p = &alloc->allocated_buffers.rb_yesde;
+	struct rb_yesde *parent = NULL;
 	struct binder_buffer *buffer;
 
 	BUG_ON(new_buffer->free);
 
 	while (*p) {
 		parent = *p;
-		buffer = rb_entry(parent, struct binder_buffer, rb_node);
+		buffer = rb_entry(parent, struct binder_buffer, rb_yesde);
 		BUG_ON(buffer->free);
 
 		if (new_buffer->user_data < buffer->user_data)
@@ -119,22 +119,22 @@ static void binder_insert_allocated_buffer_locked(
 		else
 			BUG();
 	}
-	rb_link_node(&new_buffer->rb_node, parent, p);
-	rb_insert_color(&new_buffer->rb_node, &alloc->allocated_buffers);
+	rb_link_yesde(&new_buffer->rb_yesde, parent, p);
+	rb_insert_color(&new_buffer->rb_yesde, &alloc->allocated_buffers);
 }
 
 static struct binder_buffer *binder_alloc_prepare_to_free_locked(
 		struct binder_alloc *alloc,
 		uintptr_t user_ptr)
 {
-	struct rb_node *n = alloc->allocated_buffers.rb_node;
+	struct rb_yesde *n = alloc->allocated_buffers.rb_yesde;
 	struct binder_buffer *buffer;
 	void __user *uptr;
 
 	uptr = (void __user *)user_ptr;
 
 	while (n) {
-		buffer = rb_entry(n, struct binder_buffer, rb_node);
+		buffer = rb_entry(n, struct binder_buffer, rb_yesde);
 		BUG_ON(buffer->free);
 
 		if (uptr < buffer->user_data)
@@ -208,7 +208,7 @@ static int binder_update_page_range(struct binder_alloc *alloc, int allocate,
 		}
 	}
 
-	if (need_mm && mmget_not_zero(alloc->vma_vm_mm))
+	if (need_mm && mmget_yest_zero(alloc->vma_vm_mm))
 		mm = alloc->vma_vm_mm;
 
 	if (mm) {
@@ -218,9 +218,9 @@ static int binder_update_page_range(struct binder_alloc *alloc, int allocate,
 
 	if (!vma && need_mm) {
 		binder_alloc_debug(BINDER_DEBUG_USER_ERROR,
-				   "%d: binder_alloc_buf failed to map pages in userspace, no vma\n",
+				   "%d: binder_alloc_buf failed to map pages in userspace, yes vma\n",
 				   alloc->pid);
-		goto err_no_vma;
+		goto err_yes_vma;
 	}
 
 	for (page_addr = start; page_addr < end; page_addr += PAGE_SIZE) {
@@ -301,7 +301,7 @@ err_page_ptr_cleared:
 		if (page_addr == start)
 			break;
 	}
-err_no_vma:
+err_yes_vma:
 	if (mm) {
 		up_read(&mm->mmap_sem);
 		mmput(mm);
@@ -316,7 +316,7 @@ static inline void binder_alloc_set_vma(struct binder_alloc *alloc,
 	if (vma)
 		alloc->vma_vm_mm = vma->vm_mm;
 	/*
-	 * If we see alloc->vma is not NULL, buffer data structures set up
+	 * If we see alloc->vma is yest NULL, buffer data structures set up
 	 * completely. Look at smp_rmb side binder_alloc_get_vma.
 	 * We also want to guarantee new alloc->vma_vm_mm is always visible
 	 * if alloc->vma is set.
@@ -345,10 +345,10 @@ static struct binder_buffer *binder_alloc_new_buf_locked(
 				size_t extra_buffers_size,
 				int is_async)
 {
-	struct rb_node *n = alloc->free_buffers.rb_node;
+	struct rb_yesde *n = alloc->free_buffers.rb_yesde;
 	struct binder_buffer *buffer;
 	size_t buffer_size;
-	struct rb_node *best_fit = NULL;
+	struct rb_yesde *best_fit = NULL;
 	void __user *has_page_addr;
 	void __user *end_page_addr;
 	size_t size, data_offsets_size;
@@ -356,7 +356,7 @@ static struct binder_buffer *binder_alloc_new_buf_locked(
 
 	if (!binder_alloc_get_vma(alloc)) {
 		binder_alloc_debug(BINDER_DEBUG_USER_ERROR,
-				   "%d: binder_alloc_buf, no vma\n",
+				   "%d: binder_alloc_buf, yes vma\n",
 				   alloc->pid);
 		return ERR_PTR(-ESRCH);
 	}
@@ -380,7 +380,7 @@ static struct binder_buffer *binder_alloc_new_buf_locked(
 	if (is_async &&
 	    alloc->free_async_space < size + sizeof(struct binder_buffer)) {
 		binder_alloc_debug(BINDER_DEBUG_BUFFER_ALLOC,
-			     "%d: binder_alloc_buf size %zd failed, no async space left\n",
+			     "%d: binder_alloc_buf size %zd failed, yes async space left\n",
 			      alloc->pid, size);
 		return ERR_PTR(-ENOSPC);
 	}
@@ -389,7 +389,7 @@ static struct binder_buffer *binder_alloc_new_buf_locked(
 	size = max(size, sizeof(void *));
 
 	while (n) {
-		buffer = rb_entry(n, struct binder_buffer, rb_node);
+		buffer = rb_entry(n, struct binder_buffer, rb_yesde);
 		BUG_ON(!buffer->free);
 		buffer_size = binder_alloc_buffer_size(alloc, buffer);
 
@@ -413,7 +413,7 @@ static struct binder_buffer *binder_alloc_new_buf_locked(
 
 		for (n = rb_first(&alloc->allocated_buffers); n != NULL;
 		     n = rb_next(n)) {
-			buffer = rb_entry(n, struct binder_buffer, rb_node);
+			buffer = rb_entry(n, struct binder_buffer, rb_yesde);
 			buffer_size = binder_alloc_buffer_size(alloc, buffer);
 			allocated_buffers++;
 			total_alloc_size += buffer_size;
@@ -422,7 +422,7 @@ static struct binder_buffer *binder_alloc_new_buf_locked(
 		}
 		for (n = rb_first(&alloc->free_buffers); n != NULL;
 		     n = rb_next(n)) {
-			buffer = rb_entry(n, struct binder_buffer, rb_node);
+			buffer = rb_entry(n, struct binder_buffer, rb_yesde);
 			buffer_size = binder_alloc_buffer_size(alloc, buffer);
 			free_buffers++;
 			total_free_size += buffer_size;
@@ -430,7 +430,7 @@ static struct binder_buffer *binder_alloc_new_buf_locked(
 				largest_free_size = buffer_size;
 		}
 		binder_alloc_debug(BINDER_DEBUG_USER_ERROR,
-				   "%d: binder_alloc_buf size %zd failed, no address space\n",
+				   "%d: binder_alloc_buf size %zd failed, yes address space\n",
 				   alloc->pid, size);
 		binder_alloc_debug(BINDER_DEBUG_USER_ERROR,
 				   "allocated: %zd (num: %zd largest: %zd), free: %zd (num: %zd largest: %zd)\n",
@@ -440,7 +440,7 @@ static struct binder_buffer *binder_alloc_new_buf_locked(
 		return ERR_PTR(-ENOSPC);
 	}
 	if (n == NULL) {
-		buffer = rb_entry(best_fit, struct binder_buffer, rb_node);
+		buffer = rb_entry(best_fit, struct binder_buffer, rb_yesde);
 		buffer_size = binder_alloc_buffer_size(alloc, buffer);
 	}
 
@@ -579,7 +579,7 @@ static void binder_delete_free_buffer(struct binder_alloc *alloc,
 
 	if (to_free) {
 		binder_alloc_debug(BINDER_DEBUG_BUFFER_ALLOC,
-				   "%d: merge free, buffer %pK do not share page with %pK or %pK\n",
+				   "%d: merge free, buffer %pK do yest share page with %pK or %pK\n",
 				   alloc->pid, buffer->user_data,
 				   prev->user_data,
 				   next ? next->user_data : NULL);
@@ -624,13 +624,13 @@ static void binder_free_buf_locked(struct binder_alloc *alloc,
 		(void __user *)(((uintptr_t)
 			  buffer->user_data + buffer_size) & PAGE_MASK));
 
-	rb_erase(&buffer->rb_node, &alloc->allocated_buffers);
+	rb_erase(&buffer->rb_yesde, &alloc->allocated_buffers);
 	buffer->free = 1;
 	if (!list_is_last(&buffer->entry, &alloc->buffers)) {
 		struct binder_buffer *next = binder_buffer_next(buffer);
 
 		if (next->free) {
-			rb_erase(&next->rb_node, &alloc->free_buffers);
+			rb_erase(&next->rb_yesde, &alloc->free_buffers);
 			binder_delete_free_buffer(alloc, next);
 		}
 	}
@@ -639,7 +639,7 @@ static void binder_free_buf_locked(struct binder_alloc *alloc,
 
 		if (prev->free) {
 			binder_delete_free_buffer(alloc, buffer);
-			rb_erase(&prev->rb_node, &alloc->free_buffers);
+			rb_erase(&prev->rb_yesde, &alloc->free_buffers);
 			buffer = prev;
 		}
 	}
@@ -738,7 +738,7 @@ err_already_mapped:
 
 void binder_alloc_deferred_release(struct binder_alloc *alloc)
 {
-	struct rb_node *n;
+	struct rb_yesde *n;
 	int buffers, page_count;
 	struct binder_buffer *buffer;
 
@@ -747,7 +747,7 @@ void binder_alloc_deferred_release(struct binder_alloc *alloc)
 	BUG_ON(alloc->vma);
 
 	while ((n = rb_first(&alloc->allocated_buffers))) {
-		buffer = rb_entry(n, struct binder_buffer, rb_node);
+		buffer = rb_entry(n, struct binder_buffer, rb_yesde);
 
 		/* Transaction should already have been freed */
 		BUG_ON(buffer->transaction);
@@ -819,12 +819,12 @@ static void print_binder_buffer(struct seq_file *m, const char *prefix,
 void binder_alloc_print_allocated(struct seq_file *m,
 				  struct binder_alloc *alloc)
 {
-	struct rb_node *n;
+	struct rb_yesde *n;
 
 	mutex_lock(&alloc->mutex);
 	for (n = rb_first(&alloc->allocated_buffers); n != NULL; n = rb_next(n))
 		print_binder_buffer(m, "  buffer",
-				    rb_entry(n, struct binder_buffer, rb_node));
+				    rb_entry(n, struct binder_buffer, rb_yesde));
 	mutex_unlock(&alloc->mutex);
 }
 
@@ -871,7 +871,7 @@ void binder_alloc_print_pages(struct seq_file *m,
  */
 int binder_alloc_get_allocated_count(struct binder_alloc *alloc)
 {
-	struct rb_node *n;
+	struct rb_yesde *n;
 	int count = 0;
 
 	mutex_lock(&alloc->mutex);
@@ -930,7 +930,7 @@ enum lru_status binder_alloc_free_page(struct list_head *item,
 	page_addr = (uintptr_t)alloc->buffer + index * PAGE_SIZE;
 
 	mm = alloc->vma_vm_mm;
-	if (!mmget_not_zero(mm))
+	if (!mmget_yest_zero(mm))
 		goto err_mmget;
 	if (!down_read_trylock(&mm->mmap_sem))
 		goto err_down_read_mmap_sem_failed;
@@ -1026,7 +1026,7 @@ int binder_alloc_shrinker_init(void)
  * @bytes: bytes to access from offset
  *
  * Check that the @offset/@bytes are within the size of the given
- * @buffer and that the buffer is currently active and not freeable.
+ * @buffer and that the buffer is currently active and yest freeable.
  * Offsets must also be multiples of sizeof(u32). The kernel is
  * allowed to touch the buffer in two cases:
  *
@@ -1058,14 +1058,14 @@ static inline bool check_buffer(struct binder_alloc *alloc,
  * @pgoffp: address to copy final page offset to
  *
  * Lookup the struct page corresponding to the address
- * at @buffer_offset into @buffer->user_data. If @pgoffp is not
+ * at @buffer_offset into @buffer->user_data. If @pgoffp is yest
  * NULL, the byte-offset into the page is written there.
  *
  * The caller is responsible to ensure that the offset points
  * to a valid address within the @buffer and that @buffer is
- * not freeable by the user. Since it can't be freed, we are
+ * yest freeable by the user. Since it can't be freed, we are
  * guaranteed that the corresponding elements of @alloc->pages[]
- * cannot change.
+ * canyest change.
  *
  * Return: struct page
  */

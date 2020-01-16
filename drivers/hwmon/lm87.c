@@ -14,27 +14,27 @@
  * to 8 voltages (including its own power source), up to three temperatures
  * (its own plus up to two external ones) and up to two fans. The default
  * configuration is 6 voltages, two temperatures and two fans (see below).
- * Voltages are scaled internally with ratios such that the nominal value of
+ * Voltages are scaled internally with ratios such that the yesminal value of
  * each voltage correspond to a register value of 192 (which means a
- * resolution of about 0.5% of the nominal value). Temperature values are
+ * resolution of about 0.5% of the yesminal value). Temperature values are
  * reported with a 1 deg resolution and a 3-4 deg accuracy. Complete
  * datasheet can be obtained from National's website at:
  *   http://www.national.com/pf/LM/LM87.html
  *
- * Some functions share pins, so not all functions are available at the same
- * time. Which are depends on the hardware setup. This driver normally
- * assumes that firmware configured the chip correctly. Where this is not
+ * Some functions share pins, so yest all functions are available at the same
+ * time. Which are depends on the hardware setup. This driver yesrmally
+ * assumes that firmware configured the chip correctly. Where this is yest
  * the case, platform code must set the I2C client's platform_data to point
  * to a u8 value to be written to the channel register.
  * For reference, here is the list of exclusive functions:
  *  - in0+in5 (default) or temp3
  *  - fan1 (default) or in6
  *  - fan2 (default) or in7
- *  - VID lines (default) or IRQ lines (not handled by this driver)
+ *  - VID lines (default) or IRQ lines (yest handled by this driver)
  *
  * The LM87 additionally features an analog output, supposedly usable to
  * control the speed of a fan. All new chips use pulse width modulation
- * instead. The LM87 is the only hardware monitoring chipset I know of
+ * instead. The LM87 is the only hardware monitoring chipset I kyesw of
  * which uses amplitude modulation. Be careful when using this feature.
  *
  * This driver also supports the ADM1024, a sensor chip made by Analog
@@ -60,7 +60,7 @@
  * LM87 has three possible addresses: 0x2c, 0x2d and 0x2e.
  */
 
-static const unsigned short normal_i2c[] = { 0x2c, 0x2d, 0x2e, I2C_CLIENT_END };
+static const unsigned short yesrmal_i2c[] = { 0x2c, 0x2d, 0x2e, I2C_CLIENT_END };
 
 /*
  * The LM87 registers
@@ -850,16 +850,16 @@ static int lm87_init_client(struct i2c_client *client)
 {
 	struct lm87_data *data = i2c_get_clientdata(client);
 	int rc;
-	struct device_node *of_node = client->dev.of_node;
+	struct device_yesde *of_yesde = client->dev.of_yesde;
 	u8 val = 0;
 	struct regulator *vcc = NULL;
 
-	if (of_node) {
-		if (of_property_read_bool(of_node, "has-temp3"))
+	if (of_yesde) {
+		if (of_property_read_bool(of_yesde, "has-temp3"))
 			val |= CHAN_TEMP3;
-		if (of_property_read_bool(of_node, "has-in6"))
+		if (of_property_read_bool(of_yesde, "has-in6"))
 			val |= CHAN_NO_FAN(0);
-		if (of_property_read_bool(of_node, "has-in7"))
+		if (of_property_read_bool(of_yesde, "has-in7"))
 			val |= CHAN_NO_FAN(1);
 		vcc = devm_regulator_get_optional(&client->dev, "vcc");
 		if (!IS_ERR(vcc)) {
@@ -997,7 +997,7 @@ static struct i2c_driver lm87_driver = {
 	.probe		= lm87_probe,
 	.id_table	= lm87_id,
 	.detect		= lm87_detect,
-	.address_list	= normal_i2c,
+	.address_list	= yesrmal_i2c,
 };
 
 module_i2c_driver(lm87_driver);

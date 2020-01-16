@@ -308,7 +308,7 @@ static int rtlbt_parse_firmware(struct hci_dev *hdev,
 	}
 
 	if (i >= ARRAY_SIZE(project_id_to_lmp_subver)) {
-		rtl_dev_err(hdev, "unknown project id %d", project_id);
+		rtl_dev_err(hdev, "unkyeswn project id %d", project_id);
 		return -EINVAL;
 	}
 
@@ -568,7 +568,7 @@ struct btrtl_device_info *btrtl_initialize(struct hci_dev *hdev,
 					    hdev->bus);
 
 	if (!btrtl_dev->ic_info) {
-		rtl_dev_info(hdev, "unknown IC info, lmp subver %04x, hci rev %04x, hci ver %04x",
+		rtl_dev_info(hdev, "unkyeswn IC info, lmp subver %04x, hci rev %04x, hci ver %04x",
 			    lmp_subver, hci_rev, hci_ver);
 		return btrtl_dev;
 	}
@@ -582,7 +582,7 @@ struct btrtl_device_info *btrtl_initialize(struct hci_dev *hdev,
 	btrtl_dev->fw_len = rtl_load_file(hdev, btrtl_dev->ic_info->fw_name,
 					  &btrtl_dev->fw_data);
 	if (btrtl_dev->fw_len < 0) {
-		rtl_dev_err(hdev, "firmware file %s not found",
+		rtl_dev_err(hdev, "firmware file %s yest found",
 			    btrtl_dev->ic_info->fw_name);
 		ret = btrtl_dev->fw_len;
 		goto err_free;
@@ -600,7 +600,7 @@ struct btrtl_device_info *btrtl_initialize(struct hci_dev *hdev,
 						   &btrtl_dev->cfg_data);
 		if (btrtl_dev->ic_info->config_needed &&
 		    btrtl_dev->cfg_len <= 0) {
-			rtl_dev_err(hdev, "mandatory config file %s not found",
+			rtl_dev_err(hdev, "mandatory config file %s yest found",
 				    btrtl_dev->ic_info->cfg_name);
 			ret = btrtl_dev->cfg_len;
 			goto err_free;
@@ -620,13 +620,13 @@ int btrtl_download_firmware(struct hci_dev *hdev,
 			    struct btrtl_device_info *btrtl_dev)
 {
 	/* Match a set of subver values that correspond to stock firmware,
-	 * which is not compatible with standard btusb.
+	 * which is yest compatible with standard btusb.
 	 * If matched, upload an alternative firmware that does conform to
 	 * standard btusb. Once that firmware is uploaded, the subver changes
 	 * to a different value.
 	 */
 	if (!btrtl_dev->ic_info) {
-		rtl_dev_info(hdev, "assuming no firmware upload needed");
+		rtl_dev_info(hdev, "assuming yes firmware upload needed");
 		return 0;
 	}
 
@@ -640,7 +640,7 @@ int btrtl_download_firmware(struct hci_dev *hdev,
 	case RTL_ROM_LMP_8822B:
 		return btrtl_setup_rtl8723b(hdev, btrtl_dev);
 	default:
-		rtl_dev_info(hdev, "assuming no firmware upload needed");
+		rtl_dev_info(hdev, "assuming yes firmware upload needed");
 		return 0;
 	}
 }
@@ -737,7 +737,7 @@ int btrtl_get_uart_settings(struct hci_dev *hdev,
 
 	total_data_len = btrtl_dev->cfg_len - sizeof(*config);
 	if (total_data_len <= 0) {
-		rtl_dev_warn(hdev, "no config loaded");
+		rtl_dev_warn(hdev, "yes config loaded");
 		return -EINVAL;
 	}
 
@@ -784,7 +784,7 @@ int btrtl_get_uart_settings(struct hci_dev *hdev,
 	}
 
 	if (!found) {
-		rtl_dev_err(hdev, "no UART config entry found");
+		rtl_dev_err(hdev, "yes UART config entry found");
 		return -ENOENT;
 	}
 

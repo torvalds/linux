@@ -3,7 +3,7 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright yestice and this permission yestice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
@@ -156,7 +156,7 @@ static void hif_usb_mgmt_cb(struct urb *urb)
 		txok = false;
 
 		/*
-		 * If the URBs are being flushed, no need to complete
+		 * If the URBs are being flushed, yes need to complete
 		 * this packet.
 		 */
 		spin_lock_irqsave(&hif_dev->tx.tx_lock, flags);
@@ -273,7 +273,7 @@ static void hif_usb_tx_cb(struct urb *urb)
 		txok = false;
 
 		/*
-		 * If the URBs are being flushed, no need to add this
+		 * If the URBs are being flushed, yes need to add this
 		 * URB to the free list.
 		 */
 		spin_lock(&hif_dev->tx.tx_lock);
@@ -1063,7 +1063,7 @@ static void ath9k_hif_usb_dev_deinit(struct hif_device_usb *hif_dev)
 }
 
 /*
- * If initialization fails or the FW cannot be retrieved,
+ * If initialization fails or the FW canyest be retrieved,
  * detach the device.
  */
 static void ath9k_hif_usb_firmware_fail(struct hif_device_usb *hif_dev)
@@ -1093,19 +1093,19 @@ static int ath9k_hif_request_firmware(struct hif_device_usb *hif_dev,
 
 	if (first) {
 		if (htc_use_dev_fw) {
-			hif_dev->fw_minor_index = FIRMWARE_MINOR_IDX_MAX + 1;
+			hif_dev->fw_miyesr_index = FIRMWARE_MINOR_IDX_MAX + 1;
 			sprintf(index, "%s", "dev");
 		} else {
-			hif_dev->fw_minor_index = FIRMWARE_MINOR_IDX_MAX;
-			sprintf(index, "%d", hif_dev->fw_minor_index);
+			hif_dev->fw_miyesr_index = FIRMWARE_MINOR_IDX_MAX;
+			sprintf(index, "%d", hif_dev->fw_miyesr_index);
 		}
 	} else {
-		hif_dev->fw_minor_index--;
-		sprintf(index, "%d", hif_dev->fw_minor_index);
+		hif_dev->fw_miyesr_index--;
+		sprintf(index, "%d", hif_dev->fw_miyesr_index);
 	}
 
 	/* test for FW 1.3 */
-	if (MAJOR_VERSION_REQ == 1 && hif_dev->fw_minor_index == 3) {
+	if (MAJOR_VERSION_REQ == 1 && hif_dev->fw_miyesr_index == 3) {
 		const char *filename;
 
 		if (IS_AR7010_DEVICE(hif_dev->usb_device_id->driver_info))
@@ -1119,8 +1119,8 @@ static int ath9k_hif_request_firmware(struct hif_device_usb *hif_dev,
 		snprintf(hif_dev->fw_name, sizeof(hif_dev->fw_name),
 			 "%s", filename);
 
-	} else if (hif_dev->fw_minor_index < FIRMWARE_MINOR_IDX_MIN) {
-		dev_err(&hif_dev->udev->dev, "no suitable firmware found!\n");
+	} else if (hif_dev->fw_miyesr_index < FIRMWARE_MINOR_IDX_MIN) {
+		dev_err(&hif_dev->udev->dev, "yes suitable firmware found!\n");
 
 		return -ENOENT;
 	} else {
@@ -1138,7 +1138,7 @@ static int ath9k_hif_request_firmware(struct hif_device_usb *hif_dev,
 			 chip, MAJOR_VERSION_REQ, index);
 	}
 
-	ret = request_firmware_nowait(THIS_MODULE, true, hif_dev->fw_name,
+	ret = request_firmware_yeswait(THIS_MODULE, true, hif_dev->fw_name,
 				      &hif_dev->udev->dev, GFP_KERNEL,
 				      hif_dev, ath9k_hif_usb_firmware_cb);
 	if (ret) {
@@ -1236,7 +1236,7 @@ static int send_eject_command(struct usb_interface *interface)
 	}
 	if (r == -1) {
 		dev_err(&udev->dev,
-			"ath9k_htc: Could not find bulk out endpoint\n");
+			"ath9k_htc: Could yest find bulk out endpoint\n");
 		return -ENODEV;
 	}
 
@@ -1364,7 +1364,7 @@ static int ath9k_hif_usb_suspend(struct usb_interface *interface,
 	struct hif_device_usb *hif_dev = usb_get_intfdata(interface);
 
 	/*
-	 * The device has to be set to FULLSLEEP mode in case no
+	 * The device has to be set to FULLSLEEP mode in case yes
 	 * interface is up.
 	 */
 	if (!(hif_dev->flags & HIF_USB_START))

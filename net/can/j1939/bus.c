@@ -7,7 +7,7 @@
 //                         Oleksij Rempel <kernel@pengutronix.de>
 
 /* bus for j1939 remote devices
- * Since rtnetlink, no real bus is used.
+ * Since rtnetlink, yes real bus is used.
  */
 
 #include <net/sock.h>
@@ -268,7 +268,7 @@ u8 j1939_name_to_addr(struct j1939_priv *priv, name_t name)
 }
 
 /* TX addr/name accounting
- * Transport protocol needs to know if a SA is local or not
+ * Transport protocol needs to kyesw if a SA is local or yest
  * These functions originate from userspace manipulating sockets,
  * so locking is straigforward
  */

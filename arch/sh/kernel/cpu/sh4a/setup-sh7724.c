@@ -4,7 +4,7 @@
  *
  * Copyright (C) 2009 Renesas Solutions Corp.
  *
- * Kuninori Morimoto <morimoto.kuninori@renesas.com>
+ * Kuniyesri Morimoto <morimoto.kuniyesri@renesas.com>
  *
  * Based on SH7723 Setup
  * Copyright (C) 2008  Paul Mundt
@@ -19,7 +19,7 @@
 #include <linux/sh_timer.h>
 #include <linux/sh_intc.h>
 #include <linux/io.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 
 #include <asm/suspend.h>
 #include <asm/clock.h>
@@ -1145,7 +1145,7 @@ static struct {
 	unsigned long spuclk;
 } sh7724_rstandby_state;
 
-static int sh7724_pre_sleep_notifier_call(struct notifier_block *nb,
+static int sh7724_pre_sleep_yestifier_call(struct yestifier_block *nb,
 					  unsigned long flags, void *unused)
 {
 	if (!(flags & SUSP_SH_RSTANDBY))
@@ -1207,7 +1207,7 @@ static int sh7724_pre_sleep_notifier_call(struct notifier_block *nb,
 	return NOTIFY_DONE;
 }
 
-static int sh7724_post_sleep_notifier_call(struct notifier_block *nb,
+static int sh7724_post_sleep_yestifier_call(struct yestifier_block *nb,
 					   unsigned long flags, void *unused)
 {
 	if (!(flags & SUSP_SH_RSTANDBY))
@@ -1265,23 +1265,23 @@ static int sh7724_post_sleep_notifier_call(struct notifier_block *nb,
 	return NOTIFY_DONE;
 }
 
-static struct notifier_block sh7724_pre_sleep_notifier = {
-	.notifier_call = sh7724_pre_sleep_notifier_call,
+static struct yestifier_block sh7724_pre_sleep_yestifier = {
+	.yestifier_call = sh7724_pre_sleep_yestifier_call,
 	.priority = SH_MOBILE_PRE(SH_MOBILE_SLEEP_CPU),
 };
 
-static struct notifier_block sh7724_post_sleep_notifier = {
-	.notifier_call = sh7724_post_sleep_notifier_call,
+static struct yestifier_block sh7724_post_sleep_yestifier = {
+	.yestifier_call = sh7724_post_sleep_yestifier_call,
 	.priority = SH_MOBILE_POST(SH_MOBILE_SLEEP_CPU),
 };
 
 static int __init sh7724_sleep_setup(void)
 {
-	atomic_notifier_chain_register(&sh_mobile_pre_sleep_notifier_list,
-				       &sh7724_pre_sleep_notifier);
+	atomic_yestifier_chain_register(&sh_mobile_pre_sleep_yestifier_list,
+				       &sh7724_pre_sleep_yestifier);
 
-	atomic_notifier_chain_register(&sh_mobile_post_sleep_notifier_list,
-				       &sh7724_post_sleep_notifier);
+	atomic_yestifier_chain_register(&sh_mobile_post_sleep_yestifier_list,
+				       &sh7724_post_sleep_yestifier);
 	return 0;
 }
 arch_initcall(sh7724_sleep_setup);

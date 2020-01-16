@@ -39,10 +39,10 @@ TRACE_EVENT(cpuhp_multi_enter,
 	TP_PROTO(unsigned int cpu,
 		 int target,
 		 int idx,
-		 int (*fun)(unsigned int, struct hlist_node *),
-		 struct hlist_node *node),
+		 int (*fun)(unsigned int, struct hlist_yesde *),
+		 struct hlist_yesde *yesde),
 
-	TP_ARGS(cpu, target, idx, fun, node),
+	TP_ARGS(cpu, target, idx, fun, yesde),
 
 	TP_STRUCT__entry(
 		__field( unsigned int,	cpu		)

@@ -14,7 +14,7 @@ struct hd_geometry;
 struct mtd_info;
 struct mtd_blktrans_ops;
 struct file;
-struct inode;
+struct iyesde;
 
 struct mtd_blktrans_dev {
 	struct mtd_blktrans_ops *tr;
@@ -57,7 +57,7 @@ struct mtd_blktrans_ops {
 	int (*getgeo)(struct mtd_blktrans_dev *dev, struct hd_geometry *geo);
 	int (*flush)(struct mtd_blktrans_dev *dev);
 
-	/* Called with mtd_table_mutex held; no race with add/remove */
+	/* Called with mtd_table_mutex held; yes race with add/remove */
 	int (*open)(struct mtd_blktrans_dev *dev);
 	void (*release)(struct mtd_blktrans_dev *dev);
 

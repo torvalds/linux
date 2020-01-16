@@ -12,7 +12,7 @@
 #include <linux/dma-fence.h>
 #include <linux/gfp.h>
 #include <linux/kref.h>
-#include <linux/notifier.h> /* for NOTIFY_DONE */
+#include <linux/yestifier.h> /* for NOTIFY_DONE */
 #include <linux/wait.h>
 
 struct completion;
@@ -29,17 +29,17 @@ struct i915_sw_fence {
 #define I915_SW_FENCE_PRIVATE_BIT	1 /* available for use by owner */
 #define I915_SW_FENCE_MASK		(~3)
 
-enum i915_sw_fence_notify {
+enum i915_sw_fence_yestify {
 	FENCE_COMPLETE,
 	FENCE_FREE
 };
 
-typedef int (*i915_sw_fence_notify_t)(struct i915_sw_fence *,
-				      enum i915_sw_fence_notify state);
+typedef int (*i915_sw_fence_yestify_t)(struct i915_sw_fence *,
+				      enum i915_sw_fence_yestify state);
 #define __i915_sw_fence_call __aligned(4)
 
 void __i915_sw_fence_init(struct i915_sw_fence *fence,
-			  i915_sw_fence_notify_t fn,
+			  i915_sw_fence_yestify_t fn,
 			  const char *name,
 			  struct lock_class_key *key);
 #ifdef CONFIG_LOCKDEP

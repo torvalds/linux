@@ -1,16 +1,16 @@
 /*
- * Copyright (c) 2016 Mellanox Technologies. All rights reserved.
- * Copyright (c) 2016 Michael Shych <michaels@mellanox.com>
+ * Copyright (c) 2016 Mellayesx Techyeslogies. All rights reserved.
+ * Copyright (c) 2016 Michael Shych <michaels@mellayesx.com>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
  *
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
+ *    yestice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the names of the copyright holders nor the names of its
+ * 3. Neither the names of the copyright holders yesr the names of its
  *    contributors may be used to endorse or promote products derived from
  *    this software without specific prior written permission.
  *
@@ -210,7 +210,7 @@ static int mlxcpld_i2c_check_status(struct mlxcpld_i2c_priv *priv, int *status)
 		if (val & MLXCPLD_LPCI2C_STATUS_NACK)
 			/*
 			 * The slave is unable to accept the data. No such
-			 * slave, command not understood, or unable to accept
+			 * slave, command yest understood, or unable to accept
 			 * any more data.
 			 */
 			*status = MLXCPLD_LPCI2C_NACK_IND;
@@ -232,8 +232,8 @@ static void mlxcpld_i2c_set_transf_data(struct mlxcpld_i2c_priv *priv,
 
 	/*
 	 * All upper layers currently are never use transfer with more than
-	 * 2 messages. Actually, it's also not so relevant in Mellanox systems
-	 * because of HW limitation. Max size of transfer is not more than 32
+	 * 2 messages. Actually, it's also yest so relevant in Mellayesx systems
+	 * because of HW limitation. Max size of transfer is yest more than 32
 	 * or 68 bytes in the current x86 LPCI2C bridge.
 	 */
 	priv->xfer.cmd = msgs[num - 1].flags & I2C_M_RD;
@@ -327,7 +327,7 @@ static int mlxcpld_i2c_wait_for_tc(struct mlxcpld_i2c_priv *priv)
 		/*
 		 * Actual read data len will be always the same as
 		 * requested len. 0xff (line pull-up) will be returned
-		 * if slave has no data to return. Thus don't read
+		 * if slave has yes data to return. Thus don't read
 		 * MLXCPLD_LPCI2C_NUM_DAT_REG reg from CPLD.  Only in case of
 		 * SMBus block read transaction data len can be different,
 		 * check this case.
@@ -420,9 +420,9 @@ static int mlxcpld_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs,
 
 		/*
 		 * Usually it means something serious has happened.
-		 * We can not have unfinished previous transfer
+		 * We can yest have unfinished previous transfer
 		 * so it doesn't make any sense to try to stop it.
-		 * Probably we were not able to recover from the
+		 * Probably we were yest able to recover from the
 		 * previous error.
 		 * The only reasonable thing - is soft reset.
 		 */
@@ -548,7 +548,7 @@ static struct platform_driver mlxcpld_i2c_driver = {
 
 module_platform_driver(mlxcpld_i2c_driver);
 
-MODULE_AUTHOR("Michael Shych <michaels@mellanox.com>");
-MODULE_DESCRIPTION("Mellanox I2C-CPLD controller driver");
+MODULE_AUTHOR("Michael Shych <michaels@mellayesx.com>");
+MODULE_DESCRIPTION("Mellayesx I2C-CPLD controller driver");
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_ALIAS("platform:i2c-mlxcpld");

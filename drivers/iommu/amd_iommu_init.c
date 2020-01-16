@@ -168,7 +168,7 @@ struct amd_iommu *amd_iommus[MAX_IOMMUS];
 /* Number of IOMMUs present in the system */
 static int amd_iommus_present;
 
-/* IOMMUs have a non-present cache? */
+/* IOMMUs have a yesn-present cache? */
 bool amd_iommu_np_cache __read_mostly;
 bool amd_iommu_iotlb_sup __read_mostly = true;
 
@@ -214,7 +214,7 @@ struct irq_remap_table **irq_lookup_table;
 
 /*
  * AMD IOMMU allows up to 2^16 different protection domains. This is a bitmap
- * to know which ones are already in use.
+ * to kyesw which ones are already in use.
  */
 unsigned long *amd_iommu_pd_alloc_bitmap;
 
@@ -434,13 +434,13 @@ static void iommu_disable(struct amd_iommu *iommu)
 static u8 __iomem * __init iommu_map_mmio_space(u64 address, u64 end)
 {
 	if (!request_mem_region(address, end, "amd_iommu")) {
-		pr_err("Can not reserve memory region %llx-%llx for mmio\n",
+		pr_err("Can yest reserve memory region %llx-%llx for mmio\n",
 			address, end);
 		pr_err("This is a BIOS bug. Please contact your hardware vendor\n");
 		return NULL;
 	}
 
-	return (u8 __iomem *)ioremap_nocache(address, end);
+	return (u8 __iomem *)ioremap_yescache(address, end);
 }
 
 static void __init iommu_unmap_mmio_space(struct amd_iommu *iommu)
@@ -591,7 +591,7 @@ static int __init find_last_devid_acpi(struct acpi_table_header *table)
 /*
  * Allocates the command buffer. This buffer is per AMD IOMMU. We can
  * write commands to that buffer later and the IOMMU will execute them
- * asynchronously
+ * asynchroyesusly
  */
 static int __init alloc_command_buffer(struct amd_iommu *iommu)
 {
@@ -888,7 +888,7 @@ static bool copy_device_table(void)
 
 		old_devtb_size = ((entry & ~PAGE_MASK) + 1) << 12;
 		if (old_devtb_size != dev_table_size) {
-			pr_err("The device table size of IOMMU:%d is not expected!\n",
+			pr_err("The device table size of IOMMU:%d is yest expected!\n",
 				iommu->index);
 			return false;
 		}
@@ -902,7 +902,7 @@ static bool copy_device_table(void)
 	old_devtb_phys = __sme_clr(entry) & PAGE_MASK;
 
 	if (old_devtb_phys >= 0x100000000ULL) {
-		pr_err("The address of old device table is above 4G, not trustworthy!\n");
+		pr_err("The address of old device table is above 4G, yest trustworthy!\n");
 		return false;
 	}
 	old_devtb = (sme_active() && is_kdump_kernel())
@@ -1019,7 +1019,7 @@ int __init add_special_device(u8 type, u8 id, u16 *devid, bool cmd_line)
 		if (!(entry->id == id && entry->cmd_line))
 			continue;
 
-		pr_info("Command-line override present for %s id %d - ignoring\n",
+		pr_info("Command-line override present for %s id %d - igyesring\n",
 			type == IVHD_SPECIAL_IOAPIC ? "IOAPIC" : "HPET", id);
 
 		*devid = entry->devid;
@@ -1123,7 +1123,7 @@ static void __init set_device_exclusion_range(u16 devid, struct ivmd_header *m)
 
 	if (iommu) {
 		/*
-		 * We only can configure exclusion ranges per IOMMU, not
+		 * We only can configure exclusion ranges per IOMMU, yest
 		 * per device. But we can enable the exclusion range per
 		 * device. This is done here
 		 */
@@ -1458,7 +1458,7 @@ static void amd_iommu_erratum_746_workaround(struct amd_iommu *iommu)
  * Family15h Model 30h-3fh (IOMMU Mishandles ATS Write Permission)
  * Workaround:
  *     BIOS should enable ATS write permission check by setting
- *     L2_DEBUG_3[AtsIgnoreIWDis](D0F2xF4_x47[0]) = 1b
+ *     L2_DEBUG_3[AtsIgyesreIWDis](D0F2xF4_x47[0]) = 1b
  */
 static void amd_iommu_ats_write_check_workaround(struct amd_iommu *iommu)
 {
@@ -1469,13 +1469,13 @@ static void amd_iommu_ats_write_check_workaround(struct amd_iommu *iommu)
 	    (boot_cpu_data.x86_model > 0x3f))
 		return;
 
-	/* Test L2_DEBUG_3[AtsIgnoreIWDis] == 1 */
+	/* Test L2_DEBUG_3[AtsIgyesreIWDis] == 1 */
 	value = iommu_read_l2(iommu, 0x47);
 
 	if (value & BIT(0))
 		return;
 
-	/* Set L2_DEBUG_3[AtsIgnoreIWDis] = 1 */
+	/* Set L2_DEBUG_3[AtsIgyesreIWDis] = 1 */
 	iommu_write_l2(iommu, 0x47, value | BIT(0));
 
 	pci_info(iommu->dev, "Applying ATS write check workaround\n");
@@ -1558,7 +1558,7 @@ static int __init init_iommu_one(struct amd_iommu *iommu, struct ivhd_header *h)
 	if (translation_pre_enabled(iommu) && !is_kdump_kernel()) {
 		iommu_disable(iommu);
 		clear_translation_pre_enabled(iommu);
-		pr_warn("Translation was enabled for IOMMU:%d but we are not in kdump mode\n",
+		pr_warn("Translation was enabled for IOMMU:%d but we are yest in kdump mode\n",
 			iommu->index);
 	}
 	if (amd_iommu_pre_enabled)
@@ -1573,7 +1573,7 @@ static int __init init_iommu_one(struct amd_iommu *iommu, struct ivhd_header *h)
 		return ret;
 
 	/*
-	 * Make sure IOMMU is not considered to translate itself. The IVRS
+	 * Make sure IOMMU is yest considered to translate itself. The IVRS
 	 * table tells us so, but this is a lie!
 	 */
 	amd_iommu_rlookup_table[iommu->devid] = NULL;
@@ -1790,7 +1790,7 @@ static int __init iommu_init_pci(struct amd_iommu *iommu)
 						    PCI_DEVFN(0, 0));
 
 		/*
-		 * Some rd890 systems may not be fully reconfigured by the
+		 * Some rd890 systems may yest be fully reconfigured by the
 		 * BIOS, so it's necessary for us to store this information so
 		 * it can be reprogrammed on resume
 		 */
@@ -1961,27 +1961,27 @@ static void iommu_update_intcapxt(struct amd_iommu *iommu)
 	writeq(val, iommu->mmio_base + MMIO_INTCAPXT_GALOG_OFFSET);
 }
 
-static void _irq_notifier_notify(struct irq_affinity_notify *notify,
+static void _irq_yestifier_yestify(struct irq_affinity_yestify *yestify,
 				 const cpumask_t *mask)
 {
 	struct amd_iommu *iommu;
 
 	for_each_iommu(iommu) {
-		if (iommu->dev->irq == notify->irq) {
+		if (iommu->dev->irq == yestify->irq) {
 			iommu_update_intcapxt(iommu);
 			break;
 		}
 	}
 }
 
-static void _irq_notifier_release(struct kref *ref)
+static void _irq_yestifier_release(struct kref *ref)
 {
 }
 
 static int iommu_init_intcapxt(struct amd_iommu *iommu)
 {
 	int ret;
-	struct irq_affinity_notify *notify = &iommu->intcapxt_notify;
+	struct irq_affinity_yestify *yestify = &iommu->intcapxt_yestify;
 
 	/**
 	 * IntCapXT requires XTSup=1, which can be inferred
@@ -1991,15 +1991,15 @@ static int iommu_init_intcapxt(struct amd_iommu *iommu)
 		return 0;
 
 	/**
-	 * Also, we need to setup notifier to update the IntCapXT registers
+	 * Also, we need to setup yestifier to update the IntCapXT registers
 	 * whenever the irq affinity is changed from user-space.
 	 */
-	notify->irq = iommu->dev->irq;
-	notify->notify = _irq_notifier_notify,
-	notify->release = _irq_notifier_release,
-	ret = irq_set_affinity_notifier(iommu->dev->irq, notify);
+	yestify->irq = iommu->dev->irq;
+	yestify->yestify = _irq_yestifier_yestify,
+	yestify->release = _irq_yestifier_release,
+	ret = irq_set_affinity_yestifier(iommu->dev->irq, yestify);
 	if (ret) {
-		pr_err("Failed to register irq affinity notifier (devid=%#x, irq %d)\n",
+		pr_err("Failed to register irq affinity yestifier (devid=%#x, irq %d)\n",
 		       iommu->devid, iommu->dev->irq);
 		return ret;
 	}
@@ -2150,7 +2150,7 @@ static int __init init_memory_definitions(struct acpi_table_header *table)
 }
 
 /*
- * Init the device table to not allow DMA access for devices
+ * Init the device table to yest allow DMA access for devices
  */
 static void init_device_table_dma(void)
 {
@@ -2216,13 +2216,13 @@ static void iommu_apply_resume_quirks(struct amd_iommu *iommu)
 	u32 ioc_feature_control;
 	struct pci_dev *pdev = iommu->root_pdev;
 
-	/* RD890 BIOSes may not have completely reconfigured the iommu */
+	/* RD890 BIOSes may yest have completely reconfigured the iommu */
 	if (!is_rd890_iommu(iommu->dev) || !pdev)
 		return;
 
 	/*
 	 * First, we need to ensure that the iommu is enabled. This is
-	 * controlled by a register in the northbridge
+	 * controlled by a register in the yesrthbridge
 	 */
 
 	/* Select Northbridge indirect register 0x75 and enable writing */
@@ -2291,7 +2291,7 @@ static void early_enable_iommu(struct amd_iommu *iommu)
  *
  * Or if in kdump kernel and IOMMUs are all pre-enabled, try to copy
  * the old content of device table entries. Not this case or copy failed,
- * just continue as normal kernel does.
+ * just continue as yesrmal kernel does.
  */
 static void early_enable_iommus(void)
 {
@@ -2437,7 +2437,7 @@ static bool __init check_ioapic_information(void)
 
 	/*
 	 * If we have map overrides on the kernel command line the
-	 * messages in this function might not describe firmware bugs
+	 * messages in this function might yest describe firmware bugs
 	 * anymore - so be careful
 	 */
 	if (cmdline_maps)
@@ -2448,7 +2448,7 @@ static bool __init check_ioapic_information(void)
 
 		devid = get_ioapic_devid(id);
 		if (devid < 0) {
-			pr_err("%s: IOAPIC[%d] not in IVRS table\n",
+			pr_err("%s: IOAPIC[%d] yest in IVRS table\n",
 				fw_bug, id);
 			ret = false;
 		} else if (devid == IOAPIC_SB_DEVID) {
@@ -2509,7 +2509,7 @@ static void __init free_dma_resources(void)
  *		this last pass.
  *
  * After everything is set up the IOMMUs are enabled and the necessary
- * hotplug and suspend notifiers are registered.
+ * hotplug and suspend yestifiers are registered.
  */
 static int __init early_amd_iommu_init(void)
 {
@@ -2590,13 +2590,13 @@ static int __init early_amd_iommu_init(void)
 		amd_iommu_alias_table[i] = i;
 
 	/*
-	 * never allocate domain 0 because its used as the non-allocated and
+	 * never allocate domain 0 because its used as the yesn-allocated and
 	 * error value placeholder
 	 */
 	__set_bit(0, amd_iommu_pd_alloc_bitmap);
 
 	/*
-	 * now the data structures are allocated and basically initialized
+	 * yesw the data structures are allocated and basically initialized
 	 * start the real acpi table scan
 	 */
 	ret = init_iommu_all(ivrs_base);
@@ -2744,11 +2744,11 @@ static int __init state_next(void)
 	case IOMMU_NOT_FOUND:
 	case IOMMU_INIT_ERROR:
 	case IOMMU_CMDLINE_DISABLED:
-		/* Error states => do nothing */
+		/* Error states => do yesthing */
 		ret = -EINVAL;
 		break;
 	default:
-		/* Unknown state */
+		/* Unkyeswn state */
 		BUG();
 	}
 
@@ -2867,7 +2867,7 @@ static bool amd_iommu_sme_check(void)
 	    (boot_cpu_data.microcode <= 0x080011ff))
 		return true;
 
-	pr_notice("IOMMU not currently supported when SME is active\n");
+	pr_yestice("IOMMU yest currently supported when SME is active\n");
 
 	return false;
 }
@@ -2883,7 +2883,7 @@ int __init amd_iommu_detect(void)
 {
 	int ret;
 
-	if (no_iommu || (iommu_detected && !gart_iommu_aperture))
+	if (yes_iommu || (iommu_detected && !gart_iommu_aperture))
 		return -ENODEV;
 
 	if (!amd_iommu_sme_check())
@@ -2957,7 +2957,7 @@ static int __init parse_ivrs_ioapic(char *str)
 	}
 
 	if (early_ioapic_map_size == EARLY_MAP_SIZE) {
-		pr_err("Early IOAPIC map overflow - ignoring ivrs_ioapic%s\n",
+		pr_err("Early IOAPIC map overflow - igyesring ivrs_ioapic%s\n",
 			str);
 		return 1;
 	}
@@ -2987,7 +2987,7 @@ static int __init parse_ivrs_hpet(char *str)
 	}
 
 	if (early_hpet_map_size == EARLY_MAP_SIZE) {
-		pr_err("Early HPET map overflow - ignoring ivrs_hpet%s\n",
+		pr_err("Early HPET map overflow - igyesring ivrs_hpet%s\n",
 			str);
 		return 1;
 	}

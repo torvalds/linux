@@ -263,7 +263,7 @@ struct octeon_oq_config {
 	/** Interrupt Coalescing (Packet Count). Octeon will interrupt the host
 	 *  only if it sent as many packets as specified by this field.
 	 *  The driver
-	 *  usually does not use packet count interrupt coalescing.
+	 *  usually does yest use packet count interrupt coalescing.
 	 */
 	u64 oq_intr_pkt:16;
 
@@ -291,7 +291,7 @@ struct octeon_oq_config {
 	/** Interrupt Coalescing (Packet Count). Octeon will interrupt the host
 	 *  only if it sent as many packets as specified by this field.
 	 *  The driver
-	 *  usually does not use packet count interrupt coalescing.
+	 *  usually does yest use packet count interrupt coalescing.
 	 */
 	u64 oq_intr_pkt:16;
 
@@ -320,7 +320,7 @@ struct octeon_nic_if_config {
 
 	u64 gmx_port_id:8;
 
-	/* SKB size, We need not change buf size even for Jumbo frames.
+	/* SKB size, We need yest change buf size even for Jumbo frames.
 	 * Octeon can send jumbo frames in 4 consecutive descriptors,
 	 */
 	u64 rx_buf_size:16;
@@ -361,7 +361,7 @@ struct octeon_nic_if_config {
 	/* Num of desc for tx rings */
 	u64 num_tx_descs:16;
 
-	/* SKB size, We need not change buf size even for Jumbo frames.
+	/* SKB size, We need yest change buf size even for Jumbo frames.
 	 * Octeon can send jumbo frames in 4 consecutive descriptors,
 	 */
 	u64 rx_buf_size:16;
@@ -429,7 +429,7 @@ struct octeon_config {
 
 };
 
-/* The following config values are fixed and should not be modified. */
+/* The following config values are fixed and should yest be modified. */
 
 #define  BAR1_INDEX_DYNAMIC_MAP          2
 #define  BAR1_INDEX_STATIC_MAP          15
@@ -437,9 +437,9 @@ struct octeon_config {
 
 #define  MAX_BAR1_IOREMAP_SIZE  (16 * OCTEON_BAR1_ENTRY_SIZE)
 
-/* Response lists - 1 ordered, 1 unordered-blocking, 1 unordered-nonblocking
+/* Response lists - 1 ordered, 1 uyesrdered-blocking, 1 uyesrdered-yesnblocking
  *                  1 process done list, 1 zombie lists(timeouted sc list)
- * NoResponse Lists are now maintained with each IQ. (Dec' 2007).
+ * NoResponse Lists are yesw maintained with each IQ. (Dec' 2007).
  */
 #define MAX_RESPONSE_LISTS           6
 

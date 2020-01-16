@@ -151,7 +151,7 @@ static void cpuacct_cpuusage_write(struct cpuacct *ca, int cpu, u64 val)
 #endif
 }
 
-/* Return total CPU usage (in nanoseconds) of a group */
+/* Return total CPU usage (in nayesseconds) of a group */
 static u64 __cpuusage_read(struct cgroup_subsys_state *css,
 			   enum cpuacct_stat_index index)
 {

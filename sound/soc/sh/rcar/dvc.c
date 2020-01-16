@@ -3,7 +3,7 @@
 // Renesas R-Car DVC support
 //
 // Copyright (C) 2014 Renesas Solutions Corp.
-// Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
+// Kuniyesri Morimoto <kuniyesri.morimoto.gx@renesas.com>
 
 /*
  * Playback Volume
@@ -281,7 +281,7 @@ static struct dma_chan *rsnd_dvc_dma_req(struct rsnd_dai_stream *io,
 {
 	struct rsnd_priv *priv = rsnd_mod_to_priv(mod);
 
-	return rsnd_dma_request_channel(rsnd_dvc_of_node(priv),
+	return rsnd_dma_request_channel(rsnd_dvc_of_yesde(priv),
 					mod, "tx");
 }
 
@@ -305,8 +305,8 @@ struct rsnd_mod *rsnd_dvc_mod_get(struct rsnd_priv *priv, int id)
 
 int rsnd_dvc_probe(struct rsnd_priv *priv)
 {
-	struct device_node *node;
-	struct device_node *np;
+	struct device_yesde *yesde;
+	struct device_yesde *np;
 	struct device *dev = rsnd_priv_to_dev(priv);
 	struct rsnd_dvc *dvc;
 	struct clk *clk;
@@ -317,11 +317,11 @@ int rsnd_dvc_probe(struct rsnd_priv *priv)
 	if (rsnd_is_gen1(priv))
 		return 0;
 
-	node = rsnd_dvc_of_node(priv);
-	if (!node)
-		return 0; /* not used is not error */
+	yesde = rsnd_dvc_of_yesde(priv);
+	if (!yesde)
+		return 0; /* yest used is yest error */
 
-	nr = of_get_child_count(node);
+	nr = of_get_child_count(yesde);
 	if (!nr) {
 		ret = -EINVAL;
 		goto rsnd_dvc_probe_done;
@@ -338,7 +338,7 @@ int rsnd_dvc_probe(struct rsnd_priv *priv)
 
 	i = 0;
 	ret = 0;
-	for_each_child_of_node(node, np) {
+	for_each_child_of_yesde(yesde, np) {
 		dvc = rsnd_dvc_get(priv, i);
 
 		snprintf(name, RSND_DVC_NAME_SIZE, "%s.%d",
@@ -347,14 +347,14 @@ int rsnd_dvc_probe(struct rsnd_priv *priv)
 		clk = devm_clk_get(dev, name);
 		if (IS_ERR(clk)) {
 			ret = PTR_ERR(clk);
-			of_node_put(np);
+			of_yesde_put(np);
 			goto rsnd_dvc_probe_done;
 		}
 
 		ret = rsnd_mod_init(priv, rsnd_mod_get(dvc), &rsnd_dvc_ops,
 				    clk, RSND_MOD_DVC, i);
 		if (ret) {
-			of_node_put(np);
+			of_yesde_put(np);
 			goto rsnd_dvc_probe_done;
 		}
 
@@ -362,7 +362,7 @@ int rsnd_dvc_probe(struct rsnd_priv *priv)
 	}
 
 rsnd_dvc_probe_done:
-	of_node_put(node);
+	of_yesde_put(yesde);
 
 	return ret;
 }

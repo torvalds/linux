@@ -37,12 +37,12 @@
  * are met:
  *
  *  * Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  *  * Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
+ *    yestice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
- *  * Neither the name Intel Corporation nor the names of its
+ *  * Neither the name Intel Corporation yesr the names of its
  *    contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
@@ -141,22 +141,22 @@ static void iwl_mvm_quota_iterator(void *_data, u8 *mac,
 	}
 }
 
-static void iwl_mvm_adjust_quota_for_noa(struct iwl_mvm *mvm,
+static void iwl_mvm_adjust_quota_for_yesa(struct iwl_mvm *mvm,
 					 struct iwl_time_quota_cmd *cmd)
 {
 #ifdef CONFIG_NL80211_TESTMODE
 	struct iwl_mvm_vif *mvmvif;
 	int i, phy_id = -1, beacon_int = 0;
 
-	if (!mvm->noa_duration || !mvm->noa_vif)
+	if (!mvm->yesa_duration || !mvm->yesa_vif)
 		return;
 
-	mvmvif = iwl_mvm_vif_from_mac80211(mvm->noa_vif);
+	mvmvif = iwl_mvm_vif_from_mac80211(mvm->yesa_vif);
 	if (!mvmvif->ap_ibss_active)
 		return;
 
 	phy_id = mvmvif->phy_ctxt->id;
-	beacon_int = mvm->noa_vif->bss_conf.beacon_int;
+	beacon_int = mvm->yesa_vif->bss_conf.beacon_int;
 
 	for (i = 0; i < MAX_BINDINGS; i++) {
 		struct iwl_time_quota_data *data =
@@ -169,7 +169,7 @@ static void iwl_mvm_adjust_quota_for_noa(struct iwl_mvm *mvm,
 		if (id != phy_id)
 			continue;
 
-		quota *= (beacon_int - mvm->noa_duration);
+		quota *= (beacon_int - mvm->yesa_duration);
 		quota /= beacon_int;
 
 		IWL_DEBUG_QUOTA(mvm, "quota: adjust for NoA from %d to %d\n",
@@ -185,7 +185,7 @@ int iwl_mvm_update_quotas(struct iwl_mvm *mvm,
 			  struct ieee80211_vif *disabled_vif)
 {
 	struct iwl_time_quota_cmd cmd = {};
-	int i, idx, err, num_active_macs, quota, quota_rem, n_non_lowlat;
+	int i, idx, err, num_active_macs, quota, quota_rem, n_yesn_lowlat;
 	struct iwl_mvm_quota_iterator_data data = {
 		.n_interfaces = {},
 		.colors = { -1, -1, -1, -1 },
@@ -224,26 +224,26 @@ int iwl_mvm_update_quotas(struct iwl_mvm *mvm,
 		num_active_macs += data.n_interfaces[i];
 	}
 
-	n_non_lowlat = num_active_macs;
+	n_yesn_lowlat = num_active_macs;
 
 	if (data.n_low_latency_bindings == 1) {
 		for (i = 0; i < MAX_BINDINGS; i++) {
 			if (data.low_latency[i]) {
-				n_non_lowlat -= data.n_interfaces[i];
+				n_yesn_lowlat -= data.n_interfaces[i];
 				break;
 			}
 		}
 	}
 
-	if (data.n_low_latency_bindings == 1 && n_non_lowlat) {
+	if (data.n_low_latency_bindings == 1 && n_yesn_lowlat) {
 		/*
 		 * Reserve quota for the low latency binding in case that
 		 * there are several data bindings but only a single
 		 * low latency one. Split the rest of the quota equally
 		 * between the other data interfaces.
 		 */
-		quota = (QUOTA_100 - QUOTA_LOWLAT_MIN) / n_non_lowlat;
-		quota_rem = QUOTA_100 - n_non_lowlat * quota -
+		quota = (QUOTA_100 - QUOTA_LOWLAT_MIN) / n_yesn_lowlat;
+		quota_rem = QUOTA_100 - n_yesn_lowlat * quota -
 			    QUOTA_LOWLAT_MIN;
 		IWL_DEBUG_QUOTA(mvm,
 				"quota: low-latency binding active, remaining quota per other binding: %d\n",
@@ -281,7 +281,7 @@ int iwl_mvm_update_quotas(struct iwl_mvm *mvm,
 			qdata->quota =
 				cpu_to_le32(data.dbgfs_min[i] * QUOTA_100 / 100);
 #endif
-		else if (data.n_low_latency_bindings == 1 && n_non_lowlat &&
+		else if (data.n_low_latency_bindings == 1 && n_yesn_lowlat &&
 			 data.low_latency[i])
 			/*
 			 * There is more than one binding, but only one of the
@@ -315,9 +315,9 @@ int iwl_mvm_update_quotas(struct iwl_mvm *mvm,
 		}
 	}
 
-	iwl_mvm_adjust_quota_for_noa(mvm, &cmd);
+	iwl_mvm_adjust_quota_for_yesa(mvm, &cmd);
 
-	/* check that we have non-zero quota for all valid bindings */
+	/* check that we have yesn-zero quota for all valid bindings */
 	for (i = 0; i < MAX_BINDINGS; i++) {
 		qdata = iwl_mvm_quota_cmd_get_quota(mvm, &cmd, i);
 		last_data = iwl_mvm_quota_cmd_get_quota(mvm, last, i);

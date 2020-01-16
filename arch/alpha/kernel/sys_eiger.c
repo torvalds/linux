@@ -91,7 +91,7 @@ eiger_device_interrupt(unsigned long vector)
 	 * OTOH, the accelerator thing doesn't seem to be working
 	 * overly well, so what we'll do instead is try directly
 	 * examining the Master Interrupt Register to see if it's a
-	 * PCI interrupt, and if _not_ then we'll pass it on to the
+	 * PCI interrupt, and if _yest_ then we'll pass it on to the
 	 * ISA handler.
 	 */
 

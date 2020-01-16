@@ -38,7 +38,7 @@
  * @fmt:		the pointer to struct v4l2_pix_format or
  *			struct v4l2_mbus_framefmt
  *
- * Entities must check if colorimetry given by the userspace is valid, if not
+ * Entities must check if colorimetry given by the userspace is valid, if yest
  * then set them as DEFAULT
  */
 #define vimc_colorimetry_clamp(fmt)					\
@@ -80,14 +80,14 @@ struct vimc_pix_map {
  * topology
  *
  * @dev:		a pointer of the device struct of the driver
- * @ent:		the pointer to struct media_entity for the node
- * @process_frame:	callback send a frame to that node
+ * @ent:		the pointer to struct media_entity for the yesde
+ * @process_frame:	callback send a frame to that yesde
  * @vdev_get_format:	callback that returns the current format a pad, used
  *			only when is_media_entity_v4l2_video_device(ent) returns
  *			true
  *
- * Each node of the topology must create a vimc_ent_device struct. Depending on
- * the node it will be of an instance of v4l2_subdev or video_device struct
+ * Each yesde of the topology must create a vimc_ent_device struct. Depending on
+ * the yesde it will be of an instance of v4l2_subdev or video_device struct
  * where both contains a struct media_entity.
  * Those structures should embedded the vimc_ent_device struct through
  * v4l2_set_subdevdata() and video_set_drvdata() respectivaly, allowing the
@@ -125,7 +125,7 @@ struct vimc_device {
  *				configuration for each entity
  *
  * @name			entity name
- * @ved				pointer to vimc_ent_device (a node in the
+ * @ved				pointer to vimc_ent_device (a yesde in the
  *					topology)
  * @add				subdev add hook - initializes and registers
  *					subdev called from vimc-core
@@ -186,12 +186,12 @@ const struct vimc_pix_map *vimc_pix_map_by_code(u32 code);
 const struct vimc_pix_map *vimc_pix_map_by_pixelformat(u32 pixelformat);
 
 /**
- * vimc_ent_sd_register - initialize and register a subdev node
+ * vimc_ent_sd_register - initialize and register a subdev yesde
  *
  * @ved:	the vimc_ent_device struct to be initialize
  * @sd:		the v4l2_subdev struct to be initialize and registered
  * @v4l2_dev:	the v4l2 device to register the v4l2_subdev
- * @name:	name of the sub-device. Please notice that the name must be
+ * @name:	name of the sub-device. Please yestice that the name must be
  *		unique.
  * @function:	media entity function defined by MEDIA_ENT_F_* macros
  * @num_pads:	number of pads to initialize
@@ -201,7 +201,7 @@ const struct vimc_pix_map *vimc_pix_map_by_pixelformat(u32 pixelformat);
  * @sd_ops:	pointer to &struct v4l2_subdev_ops.
  *
  * Helper function initialize and register the struct vimc_ent_device and struct
- * v4l2_subdev which represents a subdev node in the topology
+ * v4l2_subdev which represents a subdev yesde in the topology
  */
 int vimc_ent_sd_register(struct vimc_ent_device *ved,
 			 struct v4l2_subdev *sd,

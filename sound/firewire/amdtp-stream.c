@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Audio and Music Data Transmission Protocol (IEC 61883-6) streams
- * with Common Isochronous Packet (IEC 61883-1) headers
+ * with Common Isochroyesus Packet (IEC 61883-1) headers
  *
  * Copyright (c) Clemens Ladisch <clemens@ladisch.de>
  */
@@ -26,12 +26,12 @@
 
 #define TRANSFER_DELAY_TICKS	0x2e00 /* 479.17 microseconds */
 
-/* isochronous header parameters */
+/* isochroyesus header parameters */
 #define ISO_DATA_LENGTH_SHIFT	16
 #define TAG_NO_CIP_HEADER	0
 #define TAG_CIP			1
 
-/* common isochronous packet header parameters */
+/* common isochroyesus packet header parameters */
 #define CIP_EOH_SHIFT		31
 #define CIP_EOH			(1u << CIP_EOH_SHIFT)
 #define CIP_EOH_MASK		0x80000000
@@ -219,9 +219,9 @@ int amdtp_stream_add_pcm_hw_constraints(struct amdtp_stream *s,
 	// OHCI controller can generate hardware IRQ per isoc packet, the
 	// interval is 125 usec.
 	// However, there are two ways of transmission in IEC 61883-6; blocking
-	// and non-blocking modes. In blocking mode, the sequence of isoc packet
-	// includes 'empty' or 'NODATA' packets which include no event. In
-	// non-blocking mode, the number of events per packet is variable up to
+	// and yesn-blocking modes. In blocking mode, the sequence of isoc packet
+	// includes 'empty' or 'NODATA' packets which include yes event. In
+	// yesn-blocking mode, the number of events per packet is variable up to
 	// the syt interval.
 	// Due to the above protocol design, the minimum PCM frames per
 	// interrupt should be double of the value of syt interval, thus it is
@@ -232,7 +232,7 @@ int amdtp_stream_add_pcm_hw_constraints(struct amdtp_stream *s,
 	if (err < 0)
 		goto end;
 
-	/* Non-Blocking stream has no more constraints */
+	/* Non-Blocking stream has yes more constraints */
 	if (!(s->flags & CIP_BLOCKING))
 		goto end;
 
@@ -265,7 +265,7 @@ EXPORT_SYMBOL(amdtp_stream_add_pcm_hw_constraints);
  * @rate: the sample rate
  * @data_block_quadlets: the size of a data block in quadlet unit
  *
- * The parameters must be set before the stream is started, and must not be
+ * The parameters must be set before the stream is started, and must yest be
  * changed while the stream is running.
  */
 int amdtp_stream_set_parameters(struct amdtp_stream *s, unsigned int rate,
@@ -290,7 +290,7 @@ int amdtp_stream_set_parameters(struct amdtp_stream *s, unsigned int rate,
 					TRANSFER_DELAY_TICKS - TICKS_PER_CYCLE;
 
 		if (s->flags & CIP_BLOCKING) {
-			// additional buffering needed to adjust for no-data
+			// additional buffering needed to adjust for yes-data
 			// packets.
 			s->ctx_data.rx.transfer_delay +=
 				TICKS_PER_SECOND * s->syt_interval / rate;
@@ -305,7 +305,7 @@ EXPORT_SYMBOL(amdtp_stream_set_parameters);
  * amdtp_stream_get_max_payload - get the stream's packet size
  * @s: the AMDTP stream
  *
- * This function must not be called before the stream has been configured
+ * This function must yest be called before the stream has been configured
  * with amdtp_stream_set_parameters().
  */
 unsigned int amdtp_stream_get_max_payload(struct amdtp_stream *s)
@@ -344,7 +344,7 @@ static unsigned int calculate_data_blocks(struct amdtp_stream *s,
 
 	/* Blocking mode. */
 	if (s->flags & CIP_BLOCKING) {
-		/* This module generate empty packet for 'no data'. */
+		/* This module generate empty packet for 'yes data'. */
 		if (syt == CIP_SYT_NO_INFO)
 			data_blocks = 0;
 		else
@@ -495,7 +495,7 @@ static inline int queue_in_packet(struct amdtp_stream *s,
 static void generate_cip_header(struct amdtp_stream *s, __be32 cip_header[2],
 			unsigned int data_block_counter, unsigned int syt)
 {
-	cip_header[0] = cpu_to_be32(READ_ONCE(s->source_node_id_field) |
+	cip_header[0] = cpu_to_be32(READ_ONCE(s->source_yesde_id_field) |
 				(s->data_block_quadlets << CIP_DBS_SHIFT) |
 				((s->sph << CIP_SPH_SHIFT) & CIP_SPH_MASK) |
 				data_block_counter);
@@ -547,7 +547,7 @@ static int check_cip_header(struct amdtp_stream *s, const __be32 *buf,
 
 	/*
 	 * This module supports 'Two-quadlet CIP header with SYT field'.
-	 * For convenience, also check FMT field is AM824 or not.
+	 * For convenience, also check FMT field is AM824 or yest.
 	 */
 	if ((((cip_header[0] & CIP_EOH_MASK) == CIP_EOH) ||
 	     ((cip_header[1] & CIP_EOH_MASK) != CIP_EOH)) &&
@@ -558,7 +558,7 @@ static int check_cip_header(struct amdtp_stream *s, const __be32 *buf,
 		return -EAGAIN;
 	}
 
-	/* Check valid protocol or not. */
+	/* Check valid protocol or yest. */
 	sph = (cip_header[0] & CIP_SPH_MASK) >> CIP_SPH_SHIFT;
 	fmt = (cip_header[1] & CIP_FMT_MASK) >> CIP_FMT_SHIFT;
 	if (sph != s->sph || fmt != s->fmt) {
@@ -686,8 +686,8 @@ static inline u32 increment_cycle_count(u32 cycle, unsigned int addend)
 }
 
 // Align to actual cycle count for the packet which is going to be scheduled.
-// This module queued the same number of isochronous cycle as the size of queue
-// to kip isochronous cycle, therefore it's OK to just increment the cycle by
+// This module queued the same number of isochroyesus cycle as the size of queue
+// to kip isochroyesus cycle, therefore it's OK to just increment the cycle by
 // the size of queue for scheduled cycle.
 static inline u32 compute_it_cycle(const __be32 ctx_header_tstamp,
 				   unsigned int queue_size)
@@ -979,15 +979,15 @@ static void amdtp_stream_master_first_callback(struct fw_iso_context *context,
 /**
  * amdtp_stream_start - start transferring packets
  * @s: the AMDTP stream to start
- * @channel: the isochronous channel on the bus
+ * @channel: the isochroyesus channel on the bus
  * @speed: firewire speed code
  * @d: the AMDTP domain to which the AMDTP stream belongs
  * @is_irq_target: whether isoc context for the AMDTP stream is used to generate
  *		   hardware IRQ.
- * @start_cycle: the isochronous cycle to start the context. Start immediately
+ * @start_cycle: the isochroyesus cycle to start the context. Start immediately
  *		 if negative value is given.
  *
- * The stream cannot be started until it has been configured with
+ * The stream canyest be started until it has been configured with
  * amdtp_stream_set_parameters() and it must be started before any PCM or MIDI
  * device can be started.
  */
@@ -1098,7 +1098,7 @@ static int amdtp_stream_start(struct amdtp_stream *s, int channel, int speed,
 		err = PTR_ERR(s->context);
 		if (err == -EBUSY)
 			dev_err(&s->unit->device,
-				"no free stream on this controller\n");
+				"yes free stream on this controller\n");
 		goto err_buffer;
 	}
 
@@ -1188,14 +1188,14 @@ unsigned long amdtp_domain_stream_pcm_pointer(struct amdtp_domain *d,
 		//
 		// When the software IRQ context was scheduled by software IRQ
 		// context of IT contexts, queued packets were already handled.
-		// Therefore, no need to flush the queue in buffer furthermore.
+		// Therefore, yes need to flush the queue in buffer furthermore.
 		//
 		// When the process context reach here, some packets will be
 		// already queued in the buffer. These packets should be handled
 		// immediately to keep better granularity of PCM pointer.
 		//
 		// Later, the process context will sometimes schedules software
-		// IRQ context of the period_tasklet. Then, no need to flush the
+		// IRQ context of the period_tasklet. Then, yes need to flush the
 		// queue by the same reason as described in the above
 		if (!in_interrupt()) {
 			// Queued packet should be processed without any kernel
@@ -1211,7 +1211,7 @@ unsigned long amdtp_domain_stream_pcm_pointer(struct amdtp_domain *d,
 EXPORT_SYMBOL_GPL(amdtp_domain_stream_pcm_pointer);
 
 /**
- * amdtp_domain_stream_pcm_ack - acknowledge queued PCM frames
+ * amdtp_domain_stream_pcm_ack - ackyeswledge queued PCM frames
  * @d: the AMDTP domain.
  * @s: the AMDTP stream that transfers the PCM frames
  *
@@ -1221,7 +1221,7 @@ int amdtp_domain_stream_pcm_ack(struct amdtp_domain *d, struct amdtp_stream *s)
 {
 	struct amdtp_stream *irq_target = d->irq_target;
 
-	// Process isochronous packets for recent isochronous cycle to handle
+	// Process isochroyesus packets for recent isochroyesus cycle to handle
 	// queued PCM frames.
 	if (irq_target && amdtp_stream_running(irq_target)) {
 		// Queued packet should be processed without any kernel
@@ -1242,8 +1242,8 @@ EXPORT_SYMBOL_GPL(amdtp_domain_stream_pcm_ack);
 void amdtp_stream_update(struct amdtp_stream *s)
 {
 	/* Precomputing. */
-	WRITE_ONCE(s->source_node_id_field,
-                   (fw_parent_device(s->unit)->card->node_id << CIP_SID_SHIFT) & CIP_SID_MASK);
+	WRITE_ONCE(s->source_yesde_id_field,
+                   (fw_parent_device(s->unit)->card->yesde_id << CIP_SID_SHIFT) & CIP_SID_MASK);
 }
 EXPORT_SYMBOL(amdtp_stream_update);
 
@@ -1279,7 +1279,7 @@ static void amdtp_stream_stop(struct amdtp_stream *s)
  * amdtp_stream_pcm_abort - abort the running PCM device
  * @s: the AMDTP stream about to be stopped
  *
- * If the isochronous stream needs to be stopped asynchronously, call this
+ * If the isochroyesus stream needs to be stopped asynchroyesusly, call this
  * function first to stop the PCM device.
  */
 void amdtp_stream_pcm_abort(struct amdtp_stream *s)
@@ -1312,7 +1312,7 @@ EXPORT_SYMBOL_GPL(amdtp_domain_init);
  */
 void amdtp_domain_destroy(struct amdtp_domain *d)
 {
-	// At present nothing to do.
+	// At present yesthing to do.
 	return;
 }
 EXPORT_SYMBOL_GPL(amdtp_domain_destroy);
@@ -1321,7 +1321,7 @@ EXPORT_SYMBOL_GPL(amdtp_domain_destroy);
  * amdtp_domain_add_stream - register isoc context into the domain.
  * @d: the AMDTP domain.
  * @s: the AMDTP stream.
- * @channel: the isochronous channel on the bus.
+ * @channel: the isochroyesus channel on the bus.
  * @speed: firewire speed code.
  */
 int amdtp_domain_add_stream(struct amdtp_domain *d, struct amdtp_stream *s,
@@ -1353,9 +1353,9 @@ static int get_current_cycle_time(struct fw_card *fw_card, int *cur_cycle)
 	// This is a request to local 1394 OHCI controller and expected to
 	// complete without any event waiting.
 	generation = fw_card->generation;
-	smp_rmb();	// node_id vs. generation.
+	smp_rmb();	// yesde_id vs. generation.
 	rcode = fw_run_transaction(fw_card, TCODE_READ_QUADLET_REQUEST,
-				   fw_card->node_id, generation, SCODE_100,
+				   fw_card->yesde_id, generation, SCODE_100,
 				   CSR_REGISTER_BASE + CSR_CYCLE_TIME,
 				   &reg, sizeof(reg));
 	if (rcode != RCODE_COMPLETE)
@@ -1394,7 +1394,7 @@ int amdtp_domain_start(struct amdtp_domain *d, unsigned int ir_delay_cycle)
 		if (err < 0)
 			return err;
 
-		// No need to care overflow in cycle field because of enough
+		// No need to care overflow in cycle field because of eyesugh
 		// width.
 		cycle += ir_delay_cycle;
 

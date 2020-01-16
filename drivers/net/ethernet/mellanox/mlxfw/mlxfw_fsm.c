@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0
-/* Copyright (c) 2017-2019 Mellanox Technologies. All rights reserved */
+/* Copyright (c) 2017-2019 Mellayesx Techyeslogies. All rights reserved */
 
 #define pr_fmt(fmt) "mlxfw: " fmt
 
@@ -22,30 +22,30 @@ static const char * const mlxfw_fsm_state_err_str[] = {
 	[MLXFW_FSM_STATE_ERR_REJECTED_DIGEST_ERR] =
 		"component hash mismatch",
 	[MLXFW_FSM_STATE_ERR_REJECTED_NOT_APPLICABLE] =
-		"component not applicable",
+		"component yest applicable",
 	[MLXFW_FSM_STATE_ERR_REJECTED_UNKNOWN_KEY] =
-		"unknown key",
+		"unkyeswn key",
 	[MLXFW_FSM_STATE_ERR_REJECTED_AUTH_FAILED] =
 		"authentication failed",
 	[MLXFW_FSM_STATE_ERR_REJECTED_UNSIGNED] =
-		"component was not signed",
+		"component was yest signed",
 	[MLXFW_FSM_STATE_ERR_REJECTED_KEY_NOT_APPLICABLE] =
-		"key not applicable",
+		"key yest applicable",
 	[MLXFW_FSM_STATE_ERR_REJECTED_BAD_FORMAT] =
 		"bad format",
 	[MLXFW_FSM_STATE_ERR_BLOCKED_PENDING_RESET] =
 		"pending reset",
 	[MLXFW_FSM_STATE_ERR_MAX] =
-		"unknown error"
+		"unkyeswn error"
 };
 
-static void mlxfw_status_notify(struct mlxfw_dev *mlxfw_dev,
+static void mlxfw_status_yestify(struct mlxfw_dev *mlxfw_dev,
 				const char *msg, const char *comp_name,
 				u32 done_bytes, u32 total_bytes)
 {
-	if (!mlxfw_dev->ops->status_notify)
+	if (!mlxfw_dev->ops->status_yestify)
 		return;
-	mlxfw_dev->ops->status_notify(mlxfw_dev, msg, comp_name,
+	mlxfw_dev->ops->status_yestify(mlxfw_dev, msg, comp_name,
 				      done_bytes, total_bytes);
 }
 
@@ -123,7 +123,7 @@ static int mlxfw_flash_component(struct mlxfw_dev *mlxfw_dev,
 					       comp_align_bits);
 
 	pr_debug("Component update\n");
-	mlxfw_status_notify(mlxfw_dev, "Updating component", comp_name, 0, 0);
+	mlxfw_status_yestify(mlxfw_dev, "Updating component", comp_name, 0, 0);
 	err = mlxfw_dev->ops->fsm_component_update(mlxfw_dev, fwhandle,
 						   comp->index,
 						   comp->data_size);
@@ -136,7 +136,7 @@ static int mlxfw_flash_component(struct mlxfw_dev *mlxfw_dev,
 		goto err_out;
 
 	pr_debug("Component download\n");
-	mlxfw_status_notify(mlxfw_dev, "Downloading component",
+	mlxfw_status_yestify(mlxfw_dev, "Downloading component",
 			    comp_name, 0, comp->data_size);
 	for (offset = 0;
 	     offset < MLXFW_ALIGN_UP(comp->data_size, comp_align_bits);
@@ -149,13 +149,13 @@ static int mlxfw_flash_component(struct mlxfw_dev *mlxfw_dev,
 							 offset);
 		if (err)
 			goto err_out;
-		mlxfw_status_notify(mlxfw_dev, "Downloading component",
+		mlxfw_status_yestify(mlxfw_dev, "Downloading component",
 				    comp_name, offset + block_size,
 				    comp->data_size);
 	}
 
 	pr_debug("Component verify\n");
-	mlxfw_status_notify(mlxfw_dev, "Verifying component", comp_name, 0, 0);
+	mlxfw_status_yestify(mlxfw_dev, "Verifying component", comp_name, 0, 0);
 	err = mlxfw_dev->ops->fsm_component_verify(mlxfw_dev, fwhandle,
 						   comp->index);
 	if (err)
@@ -184,8 +184,8 @@ static int mlxfw_flash_components(struct mlxfw_dev *mlxfw_dev, u32 fwhandle,
 					      mlxfw_dev->psid_size,
 					      &component_count);
 	if (err) {
-		pr_err("Could not find device PSID in MFA2 file\n");
-		NL_SET_ERR_MSG_MOD(extack, "Could not find device PSID in MFA2 file");
+		pr_err("Could yest find device PSID in MFA2 file\n");
+		NL_SET_ERR_MSG_MOD(extack, "Could yest find device PSID in MFA2 file");
 		return err;
 	}
 
@@ -215,8 +215,8 @@ int mlxfw_firmware_flash(struct mlxfw_dev *mlxfw_dev,
 	int err;
 
 	if (!mlxfw_mfa2_check(firmware)) {
-		pr_err("Firmware file is not MFA2\n");
-		NL_SET_ERR_MSG_MOD(extack, "Firmware file is not MFA2");
+		pr_err("Firmware file is yest MFA2\n");
+		NL_SET_ERR_MSG_MOD(extack, "Firmware file is yest MFA2");
 		return -EINVAL;
 	}
 
@@ -225,12 +225,12 @@ int mlxfw_firmware_flash(struct mlxfw_dev *mlxfw_dev,
 		return PTR_ERR(mfa2_file);
 
 	pr_info("Initialize firmware flash process\n");
-	mlxfw_status_notify(mlxfw_dev, "Initializing firmware flash process",
+	mlxfw_status_yestify(mlxfw_dev, "Initializing firmware flash process",
 			    NULL, 0, 0);
 	err = mlxfw_dev->ops->fsm_lock(mlxfw_dev, &fwhandle);
 	if (err) {
-		pr_err("Could not lock the firmware FSM\n");
-		NL_SET_ERR_MSG_MOD(extack, "Could not lock the firmware FSM");
+		pr_err("Could yest lock the firmware FSM\n");
+		NL_SET_ERR_MSG_MOD(extack, "Could yest lock the firmware FSM");
 		goto err_fsm_lock;
 	}
 
@@ -244,11 +244,11 @@ int mlxfw_firmware_flash(struct mlxfw_dev *mlxfw_dev,
 		goto err_flash_components;
 
 	pr_debug("Activate image\n");
-	mlxfw_status_notify(mlxfw_dev, "Activating image", NULL, 0, 0);
+	mlxfw_status_yestify(mlxfw_dev, "Activating image", NULL, 0, 0);
 	err = mlxfw_dev->ops->fsm_activate(mlxfw_dev, fwhandle);
 	if (err) {
-		pr_err("Could not activate the downloaded image\n");
-		NL_SET_ERR_MSG_MOD(extack, "Could not activate the downloaded image");
+		pr_err("Could yest activate the downloaded image\n");
+		NL_SET_ERR_MSG_MOD(extack, "Could yest activate the downloaded image");
 		goto err_fsm_activate;
 	}
 
@@ -261,7 +261,7 @@ int mlxfw_firmware_flash(struct mlxfw_dev *mlxfw_dev,
 	mlxfw_dev->ops->fsm_release(mlxfw_dev, fwhandle);
 
 	pr_info("Firmware flash done.\n");
-	mlxfw_status_notify(mlxfw_dev, "Firmware flash done", NULL, 0, 0);
+	mlxfw_status_yestify(mlxfw_dev, "Firmware flash done", NULL, 0, 0);
 	mlxfw_mfa2_file_fini(mfa2_file);
 	return 0;
 
@@ -277,5 +277,5 @@ err_fsm_lock:
 EXPORT_SYMBOL(mlxfw_firmware_flash);
 
 MODULE_LICENSE("Dual BSD/GPL");
-MODULE_AUTHOR("Yotam Gigi <yotamg@mellanox.com>");
-MODULE_DESCRIPTION("Mellanox firmware flash lib");
+MODULE_AUTHOR("Yotam Gigi <yotamg@mellayesx.com>");
+MODULE_DESCRIPTION("Mellayesx firmware flash lib");

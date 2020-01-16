@@ -116,8 +116,8 @@ static struct pcmcia_driver ssb_host_pcmcia_driver = {
 static int pcmcia_init_failed;
 
 /*
- * These are not module init/exit functions!
- * The module_pcmcia_driver() helper cannot be used here.
+ * These are yest module init/exit functions!
+ * The module_pcmcia_driver() helper canyest be used here.
  */
 int ssb_host_pcmcia_init(void)
 {

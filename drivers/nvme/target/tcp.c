@@ -63,7 +63,7 @@ struct nvmet_tcp_cmd {
 	u32				flags;
 
 	struct list_head		entry;
-	struct llist_node		lentry;
+	struct llist_yesde		lentry;
 
 	/* send state */
 	u32				offset;
@@ -232,7 +232,7 @@ static int nvmet_tcp_verify_hdgst(struct nvmet_tcp_queue *queue,
 	__le32 exp_digest;
 
 	if (unlikely(!(hdr->flags & NVME_TCP_F_HDGST))) {
-		pr_err("queue %d: header digest enabled but no header digest\n",
+		pr_err("queue %d: header digest enabled but yes header digest\n",
 			queue->idx);
 		return -EPROTO;
 	}
@@ -440,18 +440,18 @@ static void nvmet_setup_response_pdu(struct nvmet_tcp_cmd *cmd)
 
 static void nvmet_tcp_process_resp_list(struct nvmet_tcp_queue *queue)
 {
-	struct llist_node *node;
+	struct llist_yesde *yesde;
 
-	node = llist_del_all(&queue->resp_list);
-	if (!node)
+	yesde = llist_del_all(&queue->resp_list);
+	if (!yesde)
 		return;
 
-	while (node) {
-		struct nvmet_tcp_cmd *cmd = llist_entry(node,
+	while (yesde) {
+		struct nvmet_tcp_cmd *cmd = llist_entry(yesde,
 					struct nvmet_tcp_cmd, lentry);
 
 		list_add(&cmd->entry, &queue->resp_send_list);
-		node = node->next;
+		yesde = yesde->next;
 		queue->send_list_len++;
 	}
 }
@@ -1410,7 +1410,7 @@ static int nvmet_tcp_set_queue_sock(struct nvmet_tcp_queue *queue)
 {
 	struct socket *sock = queue->sock;
 	struct inet_sock *inet = inet_sk(sock->sk);
-	struct linger sol = { .l_onoff = 1, .l_linger = 0 };
+	struct linger sol = { .l_oyesff = 1, .l_linger = 0 };
 	int ret;
 
 	ret = kernel_getsockname(sock,
@@ -1576,7 +1576,7 @@ static int nvmet_tcp_add_port(struct nvmet_port *nport)
 		af = AF_INET6;
 		break;
 	default:
-		pr_err("address family %d not supported\n",
+		pr_err("address family %d yest supported\n",
 				nport->disc_addr.adrfam);
 		ret = -EINVAL;
 		goto err_port;

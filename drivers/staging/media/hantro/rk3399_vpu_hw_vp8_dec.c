@@ -423,7 +423,7 @@ static void cfg_parts(struct hantro_ctx *ctx,
 
 /*
  * prediction filter taps
- * normal 6-tap filters
+ * yesrmal 6-tap filters
  */
 static void cfg_tap(struct hantro_ctx *ctx,
 		    const struct v4l2_ctrl_vp8_frame_header *hdr)
@@ -432,7 +432,7 @@ static void cfg_tap(struct hantro_ctx *ctx,
 	int i, j;
 
 	if ((hdr->version & 0x03) != 0)
-		return; /* Tap filter not used. */
+		return; /* Tap filter yest used. */
 
 	for (i = 0; i < 8; i++) {
 		for (j = 0; j < 6; j++) {
@@ -527,7 +527,7 @@ void rk3399_vpu_vp8_dec_run(struct hantro_ctx *ctx)
 	hantro_vp8_prob_update(ctx, hdr);
 
 	/*
-	 * Extensive testing shows that the hardware does not properly
+	 * Extensive testing shows that the hardware does yest properly
 	 * clear the internal state from previous a decoding run. This
 	 * causes corruption in decoded frames for multi-instance use cases.
 	 * A soft reset before programming the registers has been found

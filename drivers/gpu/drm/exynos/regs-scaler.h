@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
-/* drivers/gpu/drm/exynos/regs-scaler.h
+/* drivers/gpu/drm/exyyess/regs-scaler.h
  *
  * Copyright (c) 2017 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com/
@@ -14,12 +14,12 @@
 /* Register part */
 
 /* Global setting */
-#define SCALER_STATUS			0x0	/* no shadow */
+#define SCALER_STATUS			0x0	/* yes shadow */
 #define SCALER_CFG			0x4
 
 /* Interrupt */
-#define SCALER_INT_EN			0x8	/* no shadow */
-#define SCALER_INT_STATUS		0xc	/* no shadow */
+#define SCALER_INT_EN			0x8	/* yes shadow */
+#define SCALER_INT_STATUS		0xc	/* yes shadow */
 
 /* SRC */
 #define SCALER_SRC_CFG			0x10
@@ -92,12 +92,12 @@
 #define SCALER_DITH_CFG			0x250
 
 /* Version Number */
-#define SCALER_VER			0x260	/* no shadow */
+#define SCALER_VER			0x260	/* yes shadow */
 
 /* Cycle count and Timeout */
-#define SCALER_CYCLE_COUNT		0x278	/* no shadow */
-#define SCALER_TIMEOUT_CTRL		0x2c0	/* no shadow */
-#define SCALER_TIMEOUT_CNT		0x2c4	/* no shadow */
+#define SCALER_CYCLE_COUNT		0x278	/* yes shadow */
+#define SCALER_TIMEOUT_CTRL		0x2c0	/* yes shadow */
+#define SCALER_TIMEOUT_CNT		0x2c4	/* yes shadow */
 
 /* Blending */
 #define SCALER_SRC_BLEND_COLOR		0x280
@@ -109,15 +109,15 @@
 #define SCALER_FILL_COLOR		0x290
 
 /* Multiple Command Queue */
-#define SCALER_ADDR_Q_CONFIG		0x2a0	/* no shadow */
-#define SCALER_SRC_ADDR_Q_STATUS	0x2a4	/* no shadow */
-#define SCALER_SRC_ADDR_Q		0x2a8	/* no shadow */
+#define SCALER_ADDR_Q_CONFIG		0x2a0	/* yes shadow */
+#define SCALER_SRC_ADDR_Q_STATUS	0x2a4	/* yes shadow */
+#define SCALER_SRC_ADDR_Q		0x2a8	/* yes shadow */
 
 /* CRC */
-#define SCALER_CRC_COLOR00_10		0x2b0	/* no shadow */
-#define SCALER_CRC_COLOR20_30		0x2b4	/* no shadow */
-#define SCALER_CRC_COLOR01_11		0x2b8	/* no shadow */
-#define SCALER_CRC_COLOR21_31		0x2bc	/* no shadow */
+#define SCALER_CRC_COLOR00_10		0x2b0	/* yes shadow */
+#define SCALER_CRC_COLOR20_30		0x2b4	/* yes shadow */
+#define SCALER_CRC_COLOR01_11		0x2b8	/* yes shadow */
+#define SCALER_CRC_COLOR21_31		0x2bc	/* yes shadow */
 
 /* Shadow Registers */
 #define SCALER_SHADOW_OFFSET		0x1000

@@ -317,7 +317,7 @@ static int ads1015_set_power_state(struct ads1015_data *data, bool on)
 	if (on) {
 		ret = pm_runtime_get_sync(dev);
 		if (ret < 0)
-			pm_runtime_put_noidle(dev);
+			pm_runtime_put_yesidle(dev);
 	} else {
 		pm_runtime_mark_last_busy(dev);
 		ret = pm_runtime_put_autosuspend(dev);
@@ -399,7 +399,7 @@ static irqreturn_t ads1015_trigger_handler(int irq, void *p)
 					   iio_get_time_ns(indio_dev));
 
 err:
-	iio_trigger_notify_done(indio_dev->trig);
+	iio_trigger_yestify_done(indio_dev->trig);
 
 	return IRQ_HANDLED;
 }
@@ -842,21 +842,21 @@ static int ads1015_get_channels_config_of(struct i2c_client *client)
 {
 	struct iio_dev *indio_dev = i2c_get_clientdata(client);
 	struct ads1015_data *data = iio_priv(indio_dev);
-	struct device_node *node;
+	struct device_yesde *yesde;
 
-	if (!client->dev.of_node ||
-	    !of_get_next_child(client->dev.of_node, NULL))
+	if (!client->dev.of_yesde ||
+	    !of_get_next_child(client->dev.of_yesde, NULL))
 		return -EINVAL;
 
-	for_each_child_of_node(client->dev.of_node, node) {
+	for_each_child_of_yesde(client->dev.of_yesde, yesde) {
 		u32 pval;
 		unsigned int channel;
 		unsigned int pga = ADS1015_DEFAULT_PGA;
 		unsigned int data_rate = ADS1015_DEFAULT_DATA_RATE;
 
-		if (of_property_read_u32(node, "reg", &pval)) {
+		if (of_property_read_u32(yesde, "reg", &pval)) {
 			dev_err(&client->dev, "invalid reg on %pOF\n",
-				node);
+				yesde);
 			continue;
 		}
 
@@ -864,27 +864,27 @@ static int ads1015_get_channels_config_of(struct i2c_client *client)
 		if (channel >= ADS1015_CHANNELS) {
 			dev_err(&client->dev,
 				"invalid channel index %d on %pOF\n",
-				channel, node);
+				channel, yesde);
 			continue;
 		}
 
-		if (!of_property_read_u32(node, "ti,gain", &pval)) {
+		if (!of_property_read_u32(yesde, "ti,gain", &pval)) {
 			pga = pval;
 			if (pga > 6) {
 				dev_err(&client->dev, "invalid gain on %pOF\n",
-					node);
-				of_node_put(node);
+					yesde);
+				of_yesde_put(yesde);
 				return -EINVAL;
 			}
 		}
 
-		if (!of_property_read_u32(node, "ti,datarate", &pval)) {
+		if (!of_property_read_u32(yesde, "ti,datarate", &pval)) {
 			data_rate = pval;
 			if (data_rate > 7) {
 				dev_err(&client->dev,
 					"invalid data_rate on %pOF\n",
-					node);
-				of_node_put(node);
+					yesde);
+				of_yesde_put(yesde);
 				return -EINVAL;
 			}
 		}
@@ -949,11 +949,11 @@ static int ads1015_probe(struct i2c_client *client,
 	mutex_init(&data->lock);
 
 	indio_dev->dev.parent = &client->dev;
-	indio_dev->dev.of_node = client->dev.of_node;
+	indio_dev->dev.of_yesde = client->dev.of_yesde;
 	indio_dev->name = ADS1015_DRV_NAME;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 
-	if (client->dev.of_node)
+	if (client->dev.of_yesde)
 		chip = (enum chip_ids)of_device_get_match_data(&client->dev);
 	else
 		chip = id->driver_data;
@@ -1067,7 +1067,7 @@ static int ads1015_remove(struct i2c_client *client)
 
 	pm_runtime_disable(&client->dev);
 	pm_runtime_set_suspended(&client->dev);
-	pm_runtime_put_noidle(&client->dev);
+	pm_runtime_put_yesidle(&client->dev);
 
 	/* power down single shot mode */
 	return ads1015_set_conv_mode(data, ADS1015_SINGLESHOT);

@@ -138,7 +138,7 @@ static int ushc_hw_get_caps(struct ushc_data *ushc)
 
 	version = ushc->caps & USHC_GET_CAPS_VERSION_MASK;
 	if (version != 0x02) {
-		dev_err(&ushc->usb_dev->dev, "controller version %d is not supported\n", version);
+		dev_err(&ushc->usb_dev->dev, "controller version %d is yest supported\n", version);
 		return -EINVAL;
 	}
 
@@ -173,7 +173,7 @@ static void int_callback(struct urb *urb)
 	ushc->last_status = status;
 
 	/*
-	 * Ignore the card interrupt status on interrupt transfers that
+	 * Igyesre the card interrupt status on interrupt transfers that
 	 * were submitted while card interrupts where disabled.
 	 *
 	 * This avoid occasional spurious interrupts when enabling

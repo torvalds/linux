@@ -27,7 +27,7 @@ static void __iomem *wdt_regs;
  */
 static void picoxcell_setup_restart(void)
 {
-	struct device_node *np = of_find_compatible_node(NULL, NULL,
+	struct device_yesde *np = of_find_compatible_yesde(NULL, NULL,
 							 "snps,dw-apb-wdg");
 	if (WARN(!np, "unable to setup watchdog restart"))
 		return;

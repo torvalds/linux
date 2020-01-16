@@ -2,7 +2,7 @@
 /*
  * Copyright (C) 2013 Linaro Limited
  * Author: AKASHI Takahiro <takahiro.akashi@linaro.org>
- * Copyright (C) 2017 Andes Technology Corporation
+ * Copyright (C) 2017 Andes Techyeslogy Corporation
  */
 
 #include <linux/ftrace.h>
@@ -14,11 +14,11 @@ static int ftrace_check_current_call(unsigned long hook_pos,
 				     unsigned int *expected)
 {
 	unsigned int replaced[2];
-	unsigned int nops[2] = {NOP4, NOP4};
+	unsigned int yesps[2] = {NOP4, NOP4};
 
-	/* we expect nops at the hook position */
+	/* we expect yesps at the hook position */
 	if (!expected)
-		expected = nops;
+		expected = yesps;
 
 	/*
 	 * Read the text we want to modify;
@@ -45,13 +45,13 @@ static int __ftrace_modify_call(unsigned long hook_pos, unsigned long target,
 				bool enable)
 {
 	unsigned int call[2];
-	unsigned int nops[2] = {NOP4, NOP4};
+	unsigned int yesps[2] = {NOP4, NOP4};
 	int ret = 0;
 
 	make_call(hook_pos, target, call);
 
 	/* replace the auipc-jalr pair at once */
-	ret = probe_kernel_write((void *)hook_pos, enable ? call : nops,
+	ret = probe_kernel_write((void *)hook_pos, enable ? call : yesps,
 				 MCOUNT_INSN_SIZE);
 	/* return must be -EPERM on write error */
 	if (ret)
@@ -73,7 +73,7 @@ int ftrace_make_call(struct dyn_ftrace *rec, unsigned long addr)
 	return __ftrace_modify_call(rec->ip, addr, true);
 }
 
-int ftrace_make_nop(struct module *mod, struct dyn_ftrace *rec,
+int ftrace_make_yesp(struct module *mod, struct dyn_ftrace *rec,
 		    unsigned long addr)
 {
 	unsigned int call[2];
@@ -137,7 +137,7 @@ void prepare_ftrace_return(unsigned long *parent, unsigned long self_addr,
 		return;
 
 	/*
-	 * We don't suffer access faults, so no extra fault-recovery assembly
+	 * We don't suffer access faults, so yes extra fault-recovery assembly
 	 * is needed here.
 	 */
 	old = *parent;

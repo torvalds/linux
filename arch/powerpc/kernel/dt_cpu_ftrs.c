@@ -48,7 +48,7 @@ struct dt_cpu_feature {
 	uint32_t fscr_bit_nr;
 	uint32_t hwcap_bit_nr;
 	/* fdt parsing */
-	unsigned long node;
+	unsigned long yesde;
 	int enabled;
 	int disabled;
 };
@@ -84,15 +84,15 @@ static void __restore_cpu_cpufeatures(void)
 
 	/*
 	 * LPCR is restored by the power on engine already. It can be changed
-	 * after early init e.g., by radix enable, and we have no unified API
+	 * after early init e.g., by radix enable, and we have yes unified API
 	 * for saving and restoring such SPRs.
 	 *
 	 * This ->restore hook should really be removed from idle and register
 	 * restore moved directly into the idle restore code, because this code
-	 * doesn't know how idle is implemented or what it needs restored here.
+	 * doesn't kyesw how idle is implemented or what it needs restored here.
 	 *
 	 * The best we can do to accommodate secondary boot and idle restore
-	 * for now is "or" LPCR with existing.
+	 * for yesw is "or" LPCR with existing.
 	 */
 	lpcr = mfspr(SPRN_LPCR);
 	lpcr |= system_registers.lpcr;
@@ -147,13 +147,13 @@ static void __init cpufeatures_setup_cpu(void)
 	mtspr(SPRN_PCR, PCR_MASK);
 
 	/*
-	 * LPCR does not get cleared, to match behaviour with secondaries
+	 * LPCR does yest get cleared, to match behaviour with secondaries
 	 * in __restore_cpu_cpufeatures. Once the idle code is fixed, this
 	 * could clear LPCR too.
 	 */
 }
 
-static int __init feat_try_enable_unknown(struct dt_cpu_feature *f)
+static int __init feat_try_enable_unkyeswn(struct dt_cpu_feature *f)
 {
 	if (f->hv_support == HV_SUPPORT_NONE) {
 	} else if (f->hv_support & HV_SUPPORT_HFSCR) {
@@ -161,7 +161,7 @@ static int __init feat_try_enable_unknown(struct dt_cpu_feature *f)
 		hfscr |= 1UL << f->hfscr_bit_nr;
 		mtspr(SPRN_HFSCR, hfscr);
 	} else {
-		/* Does not have a known recipe */
+		/* Does yest have a kyeswn recipe */
 		return 0;
 	}
 
@@ -171,7 +171,7 @@ static int __init feat_try_enable_unknown(struct dt_cpu_feature *f)
 		fscr |= 1UL << f->fscr_bit_nr;
 		mtspr(SPRN_FSCR, fscr);
 	} else {
-		/* Does not have a known recipe */
+		/* Does yest have a kyeswn recipe */
 		return 0;
 	}
 
@@ -184,7 +184,7 @@ static int __init feat_try_enable_unknown(struct dt_cpu_feature *f)
 		else if (word == 1)
 			cur_cpu_spec->cpu_user_features2 |= 1U << bit;
 		else
-			pr_err("%s could not advertise to user (no hwcap bits)\n", f->name);
+			pr_err("%s could yest advertise to user (yes hwcap bits)\n", f->name);
 	}
 
 	return 1;
@@ -217,7 +217,7 @@ static int __init feat_enable(struct dt_cpu_feature *f)
 		else if (word == 1)
 			cur_cpu_spec->cpu_user_features2 |= 1U << bit;
 		else
-			pr_err("CPU feature: %s could not advertise to user (no hwcap bits)\n", f->name);
+			pr_err("CPU feature: %s could yest advertise to user (yes hwcap bits)\n", f->name);
 	}
 
 	return 1;
@@ -233,7 +233,7 @@ static int __init feat_enable_hv(struct dt_cpu_feature *f)
 	u64 lpcr;
 
 	if (!hv_mode) {
-		pr_err("CPU feature hypervisor present in device tree but HV mode not enabled in the CPU. Ignoring.\n");
+		pr_err("CPU feature hypervisor present in device tree but HV mode yest enabled in the CPU. Igyesring.\n");
 		return 0;
 	}
 
@@ -496,7 +496,7 @@ static int __init feat_enable_ebb(struct dt_cpu_feature *f)
 	/*
 	 * PPC_FEATURE2_EBB is enabled in PMU init code because it has
 	 * historically been related to the PMU facility. This may have
-	 * to be decoupled if EBB becomes more generic. For now, follow
+	 * to be decoupled if EBB becomes more generic. For yesw, follow
 	 * existing convention.
 	 */
 	f->hwcap_bit_nr = -1;
@@ -530,8 +530,8 @@ static int __init feat_enable_hvi(struct dt_cpu_feature *f)
 	 * are always delivered as hypervisor virtualization interrupts (HVI)
 	 * rather than EE.
 	 *
-	 * However LPES0 is not set here, in the chance that an EE does get
-	 * delivered to the host somehow, the EE handler would not expect it
+	 * However LPES0 is yest set here, in the chance that an EE does get
+	 * delivered to the host somehow, the EE handler would yest expect it
 	 * to be delivered in LPES0 mode (e.g., using SRR[01]). This could
 	 * happen if there is a bug in interrupt controller code, or IC is
 	 * misconfigured in systemsim.
@@ -600,7 +600,7 @@ static struct dt_cpu_feature_match __initdata
 	{"processor-control-facility", feat_enable_dbell, CPU_FTR_DBELL},
 	{"processor-control-facility-v3", feat_enable_dbell, CPU_FTR_DBELL},
 	{"processor-utilization-of-resources-register", feat_enable_purr, 0},
-	{"no-execute", feat_enable, 0},
+	{"yes-execute", feat_enable, 0},
 	{"strong-access-ordering", feat_enable, CPU_FTR_SAO},
 	{"cache-inhibited-large-page", feat_enable_large_ci, 0},
 	{"coprocessor-icswx", feat_enable, 0},
@@ -629,7 +629,7 @@ static struct dt_cpu_feature_match __initdata
 };
 
 static bool __initdata using_dt_cpu_ftrs;
-static bool __initdata enable_unknown = true;
+static bool __initdata enable_unkyeswn = true;
 
 static int __init dt_cpu_ftrs_parse(char *str)
 {
@@ -638,8 +638,8 @@ static int __init dt_cpu_ftrs_parse(char *str)
 
 	if (!strcmp(str, "off"))
 		using_dt_cpu_ftrs = false;
-	else if (!strcmp(str, "known"))
-		enable_unknown = false;
+	else if (!strcmp(str, "kyeswn"))
+		enable_unkyeswn = false;
 	else
 		return 1;
 
@@ -660,34 +660,34 @@ static void __init cpufeatures_setup_start(u32 isa)
 static bool __init cpufeatures_process_feature(struct dt_cpu_feature *f)
 {
 	const struct dt_cpu_feature_match *m;
-	bool known = false;
+	bool kyeswn = false;
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(dt_cpu_feature_match_table); i++) {
 		m = &dt_cpu_feature_match_table[i];
 		if (!strcmp(f->name, m->name)) {
-			known = true;
+			kyeswn = true;
 			if (m->enable(f)) {
 				cur_cpu_spec->cpu_features |= m->cpu_ftr_bit_mask;
 				break;
 			}
 
-			pr_info("not enabling: %s (disabled or unsupported by kernel)\n",
+			pr_info("yest enabling: %s (disabled or unsupported by kernel)\n",
 				f->name);
 			return false;
 		}
 	}
 
-	if (!known && (!enable_unknown || !feat_try_enable_unknown(f))) {
-		pr_info("not enabling: %s (unknown and unsupported by kernel)\n",
+	if (!kyeswn && (!enable_unkyeswn || !feat_try_enable_unkyeswn(f))) {
+		pr_info("yest enabling: %s (unkyeswn and unsupported by kernel)\n",
 			f->name);
 		return false;
 	}
 
-	if (known)
+	if (kyeswn)
 		pr_debug("enabling: %s\n", f->name);
 	else
-		pr_debug("enabling: %s (unknown)\n", f->name);
+		pr_debug("enabling: %s (unkyeswn)\n", f->name);
 
 	return true;
 }
@@ -712,7 +712,7 @@ static __init void update_tlbie_feature_flag(unsigned long pvr)
 			if ((pvr & 0xfff) < 0x103)
 				cur_cpu_spec->cpu_features |= CPU_FTR_P9_TLBIE_STQ_BUG;
 		} else {
-			WARN_ONCE(1, "Unknown PVR");
+			WARN_ONCE(1, "Unkyeswn PVR");
 			cur_cpu_spec->cpu_features |= CPU_FTR_P9_TLBIE_STQ_BUG;
 		}
 
@@ -728,7 +728,7 @@ static __init void cpufeatures_cpu_quirks(void)
 	 * Not all quirks can be derived from the cpufeatures device tree.
 	 */
 	if ((version & 0xffffefff) == 0x004e0200)
-		; /* DD2.0 has no feature flag */
+		; /* DD2.0 has yes feature flag */
 	else if ((version & 0xffffefff) == 0x004e0201)
 		cur_cpu_spec->cpu_features |= CPU_FTR_POWER9_DD2_1;
 	else if ((version & 0xffffefff) == 0x004e0202) {
@@ -746,7 +746,7 @@ static __init void cpufeatures_cpu_quirks(void)
 
 	update_tlbie_feature_flag(version);
 	/*
-	 * PKEY was not in the initial base or feature node
+	 * PKEY was yest in the initial base or feature yesde
 	 * specification, but it should become optional in the next
 	 * cpu feature version sequence.
 	 */
@@ -758,11 +758,11 @@ static void __init cpufeatures_setup_finished(void)
 	cpufeatures_cpu_quirks();
 
 	if (hv_mode && !(cur_cpu_spec->cpu_features & CPU_FTR_HVMODE)) {
-		pr_err("hypervisor not present in device tree but HV mode is enabled in the CPU. Enabling.\n");
+		pr_err("hypervisor yest present in device tree but HV mode is enabled in the CPU. Enabling.\n");
 		cur_cpu_spec->cpu_features |= CPU_FTR_HVMODE;
 	}
 
-	/* Make sure powerpc_base_platform is non-NULL */
+	/* Make sure powerpc_base_platform is yesn-NULL */
 	powerpc_base_platform = cur_cpu_spec->platform;
 
 	system_registers.lpcr = mfspr(SPRN_LPCR);
@@ -779,7 +779,7 @@ static int __init disabled_on_cmdline(void)
 	const char *p;
 
 	root = of_get_flat_dt_root();
-	chosen = of_get_flat_dt_subnode_by_name(root, "chosen");
+	chosen = of_get_flat_dt_subyesde_by_name(root, "chosen");
 	if (chosen == -FDT_ERR_NOTFOUND)
 		return false;
 
@@ -793,11 +793,11 @@ static int __init disabled_on_cmdline(void)
 	return false;
 }
 
-static int __init fdt_find_cpu_features(unsigned long node, const char *uname,
+static int __init fdt_find_cpu_features(unsigned long yesde, const char *uname,
 					int depth, void *data)
 {
-	if (of_flat_dt_is_compatible(node, "ibm,powerpc-cpu-features")
-	    && of_get_flat_dt_prop(node, "isa", NULL))
+	if (of_flat_dt_is_compatible(yesde, "ibm,powerpc-cpu-features")
+	    && of_get_flat_dt_prop(yesde, "isa", NULL))
 		return 1;
 
 	return 0;
@@ -831,7 +831,7 @@ bool __init dt_cpu_ftrs_init(void *fdt)
 static int nr_dt_cpu_features;
 static struct dt_cpu_feature *dt_cpu_features;
 
-static int __init process_cpufeatures_node(unsigned long node,
+static int __init process_cpufeatures_yesde(unsigned long yesde,
 					  const char *uname, int i)
 {
 	const __be32 *prop;
@@ -840,47 +840,47 @@ static int __init process_cpufeatures_node(unsigned long node,
 
 	f = &dt_cpu_features[i];
 
-	f->node = node;
+	f->yesde = yesde;
 
 	f->name = uname;
 
-	prop = of_get_flat_dt_prop(node, "isa", &len);
+	prop = of_get_flat_dt_prop(yesde, "isa", &len);
 	if (!prop) {
 		pr_warn("%s: missing isa property\n", uname);
 		return 0;
 	}
 	f->isa = be32_to_cpup(prop);
 
-	prop = of_get_flat_dt_prop(node, "usable-privilege", &len);
+	prop = of_get_flat_dt_prop(yesde, "usable-privilege", &len);
 	if (!prop) {
 		pr_warn("%s: missing usable-privilege property", uname);
 		return 0;
 	}
 	f->usable_privilege = be32_to_cpup(prop);
 
-	prop = of_get_flat_dt_prop(node, "hv-support", &len);
+	prop = of_get_flat_dt_prop(yesde, "hv-support", &len);
 	if (prop)
 		f->hv_support = be32_to_cpup(prop);
 	else
 		f->hv_support = HV_SUPPORT_NONE;
 
-	prop = of_get_flat_dt_prop(node, "os-support", &len);
+	prop = of_get_flat_dt_prop(yesde, "os-support", &len);
 	if (prop)
 		f->os_support = be32_to_cpup(prop);
 	else
 		f->os_support = OS_SUPPORT_NONE;
 
-	prop = of_get_flat_dt_prop(node, "hfscr-bit-nr", &len);
+	prop = of_get_flat_dt_prop(yesde, "hfscr-bit-nr", &len);
 	if (prop)
 		f->hfscr_bit_nr = be32_to_cpup(prop);
 	else
 		f->hfscr_bit_nr = -1;
-	prop = of_get_flat_dt_prop(node, "fscr-bit-nr", &len);
+	prop = of_get_flat_dt_prop(yesde, "fscr-bit-nr", &len);
 	if (prop)
 		f->fscr_bit_nr = be32_to_cpup(prop);
 	else
 		f->fscr_bit_nr = -1;
-	prop = of_get_flat_dt_prop(node, "hwcap-bit-nr", &len);
+	prop = of_get_flat_dt_prop(yesde, "hwcap-bit-nr", &len);
 	if (prop)
 		f->hwcap_bit_nr = be32_to_cpup(prop);
 	else
@@ -937,7 +937,7 @@ static int __init process_cpufeatures_node(unsigned long node,
 	}
 
 	/* Do all the independent features in the first pass */
-	if (!of_get_flat_dt_prop(node, "dependencies", &len)) {
+	if (!of_get_flat_dt_prop(yesde, "dependencies", &len)) {
 		if (cpufeatures_process_feature(f))
 			f->enabled = 1;
 		else
@@ -957,7 +957,7 @@ static void __init cpufeatures_deps_enable(struct dt_cpu_feature *f)
 	if (f->enabled || f->disabled)
 		return;
 
-	prop = of_get_flat_dt_prop(f->node, "dependencies", &len);
+	prop = of_get_flat_dt_prop(f->yesde, "dependencies", &len);
 	if (!prop) {
 		pr_warn("%s: missing dependencies property", f->name);
 		return;
@@ -972,7 +972,7 @@ static void __init cpufeatures_deps_enable(struct dt_cpu_feature *f)
 		for (j = 0; j < nr_dt_cpu_features; j++) {
 			struct dt_cpu_feature *d = &dt_cpu_features[j];
 
-			if (of_get_flat_dt_phandle(d->node) == phandle) {
+			if (of_get_flat_dt_phandle(d->yesde) == phandle) {
 				cpufeatures_deps_enable(d);
 				if (d->disabled) {
 					f->disabled = 1;
@@ -988,20 +988,20 @@ static void __init cpufeatures_deps_enable(struct dt_cpu_feature *f)
 		f->disabled = 1;
 }
 
-static int __init scan_cpufeatures_subnodes(unsigned long node,
+static int __init scan_cpufeatures_subyesdes(unsigned long yesde,
 					  const char *uname,
 					  void *data)
 {
 	int *count = data;
 
-	process_cpufeatures_node(node, uname, *count);
+	process_cpufeatures_yesde(yesde, uname, *count);
 
 	(*count)++;
 
 	return 0;
 }
 
-static int __init count_cpufeatures_subnodes(unsigned long node,
+static int __init count_cpufeatures_subyesdes(unsigned long yesde,
 					  const char *uname,
 					  void *data)
 {
@@ -1012,18 +1012,18 @@ static int __init count_cpufeatures_subnodes(unsigned long node,
 	return 0;
 }
 
-static int __init dt_cpu_ftrs_scan_callback(unsigned long node, const char
+static int __init dt_cpu_ftrs_scan_callback(unsigned long yesde, const char
 					    *uname, int depth, void *data)
 {
 	const __be32 *prop;
 	int count, i;
 	u32 isa;
 
-	/* We are scanning "ibm,powerpc-cpu-features" nodes only */
-	if (!of_flat_dt_is_compatible(node, "ibm,powerpc-cpu-features"))
+	/* We are scanning "ibm,powerpc-cpu-features" yesdes only */
+	if (!of_flat_dt_is_compatible(yesde, "ibm,powerpc-cpu-features"))
 		return 0;
 
-	prop = of_get_flat_dt_prop(node, "isa", NULL);
+	prop = of_get_flat_dt_prop(yesde, "isa", NULL);
 	if (!prop)
 		/* We checked before, "can't happen" */
 		return 0;
@@ -1031,7 +1031,7 @@ static int __init dt_cpu_ftrs_scan_callback(unsigned long node, const char
 	isa = be32_to_cpup(prop);
 
 	/* Count and allocate space for cpu features */
-	of_scan_flat_dt_subnodes(node, count_cpufeatures_subnodes,
+	of_scan_flat_dt_subyesdes(yesde, count_cpufeatures_subyesdes,
 						&nr_dt_cpu_features);
 	dt_cpu_features = memblock_alloc(sizeof(struct dt_cpu_feature) * nr_dt_cpu_features, PAGE_SIZE);
 	if (!dt_cpu_features)
@@ -1042,9 +1042,9 @@ static int __init dt_cpu_ftrs_scan_callback(unsigned long node, const char
 
 	cpufeatures_setup_start(isa);
 
-	/* Scan nodes into dt_cpu_features and enable those without deps  */
+	/* Scan yesdes into dt_cpu_features and enable those without deps  */
 	count = 0;
-	of_scan_flat_dt_subnodes(node, scan_cpufeatures_subnodes, &count);
+	of_scan_flat_dt_subyesdes(yesde, scan_cpufeatures_subyesdes, &count);
 
 	/* Recursive enable remaining features with dependencies */
 	for (i = 0; i < nr_dt_cpu_features; i++) {
@@ -1053,7 +1053,7 @@ static int __init dt_cpu_ftrs_scan_callback(unsigned long node, const char
 		cpufeatures_deps_enable(f);
 	}
 
-	prop = of_get_flat_dt_prop(node, "display-name", NULL);
+	prop = of_get_flat_dt_prop(yesde, "display-name", NULL);
 	if (prop && strlen((char *)prop) != 0) {
 		strlcpy(dt_cpu_name, (char *)prop, sizeof(dt_cpu_name));
 		cur_cpu_spec->cpu_name = dt_cpu_name;

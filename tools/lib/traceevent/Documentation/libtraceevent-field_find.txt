@@ -34,7 +34,7 @@ _event_.
 RETURN VALUE
 ------------
 The _tep_find_common_field(), _tep_find_field()_ and _tep_find_any_field()_
-functions return a pointer to the found field, or NULL in case there is no field
+functions return a pointer to the found field, or NULL in case there is yes field
 with the requested name.
 
 EXAMPLE
@@ -55,7 +55,7 @@ void get_htimer_info(struct tep_handle *tep, struct tep_record *record)
 
 	field = tep_find_common_field(event, "common_pid");
 	if (field == NULL) {
-		/* Cannot find "common_pid" field in the event */
+		/* Canyest find "common_pid" field in the event */
 	} else {
 		/* Get pid from the data record */
 		pid = tep_read_number(tep, record->data + field->offset,
@@ -64,7 +64,7 @@ void get_htimer_info(struct tep_handle *tep, struct tep_record *record)
 
 	field = tep_find_field(event, "softexpires");
 	if (field == NULL) {
-		/* Cannot find "softexpires" event specific field in the event */
+		/* Canyest find "softexpires" event specific field in the event */
 	} else {
 		/* Get softexpires parameter from the data record */
 		softexpires = tep_read_number(tep, record->data + field->offset,
@@ -73,7 +73,7 @@ void get_htimer_info(struct tep_handle *tep, struct tep_record *record)
 
 	field = tep_find_any_field(event, "mode");
 	if (field == NULL) {
-		/* Cannot find "mode" field in the event */
+		/* Canyest find "mode" field in the event */
 	} else
 	{
 		/* Get mode parameter from the data record */
@@ -103,7 +103,7 @@ AUTHOR
 [verse]
 --
 *Steven Rostedt* <rostedt@goodmis.org>, author of *libtraceevent*.
-*Tzvetomir Stoyanov* <tz.stoyanov@gmail.com>, author of this man page.
+*Tzvetomir Stoyayesv* <tz.stoyayesv@gmail.com>, author of this man page.
 --
 REPORTING BUGS
 --------------

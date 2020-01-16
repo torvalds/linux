@@ -5,7 +5,7 @@
  *  sst_mfld_dsp.h - Intel SST Driver for audio engine
  *
  *  Copyright (C) 2008-14 Intel Corporation
- *  Authors:	Vinod Koul <vinod.koul@linux.intel.com>
+ *  Authors:	Viyesd Koul <viyesd.koul@linux.intel.com>
  *  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  *
  * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -121,7 +121,7 @@
 #define IPC_IA_BUF_UNDER_RUN_MRFLD 0x0B
 
 /* Mrfld specific defines:
- * For asynchronous messages(INIT_CMPLT, PERIOD_ELAPSED, ASYNC_ERROR)
+ * For asynchroyesus messages(INIT_CMPLT, PERIOD_ELAPSED, ASYNC_ERROR)
  * received from FW, the format is:
  *  - IPC High: pvt_id is set to zero. Always short message.
  *  - msg_id is in lower 16-bits of IPC low payload.
@@ -130,9 +130,9 @@
  */
 #define SST_ASYNC_DRV_ID 0
 
-/* Command Response or Acknowledge message to any IPC message will have
+/* Command Response or Ackyeswledge message to any IPC message will have
  * same message ID and stream ID information which is sent.
- * There is no specific Ack message ID. The data field is used as response
+ * There is yes specific Ack message ID. The data field is used as response
  * meaning.
  */
 enum ackData {
@@ -233,7 +233,7 @@ struct sst_fw_build_info {
 /* Firmware Version info */
 struct snd_sst_fw_version {
 	u8 build;	/* build number*/
-	u8 minor;	/* minor number*/
+	u8 miyesr;	/* miyesr number*/
 	u8 major;	/* major number*/
 	u8 type;	/* build type */
 };
@@ -264,7 +264,7 @@ struct snd_sst_str_type {
 	u8 protected_str;	/* 0=Non DRM, 1=DRM */
 	u8 time_slots;
 	u8 reserved;		/* Reserved */
-	u16 result;		/* Result used for acknowledgment */
+	u16 result;		/* Result used for ackyeswledgment */
 } __packed;
 
 /* Library info structure */
@@ -303,12 +303,12 @@ struct snd_sst_lib_download {
 
 struct snd_sst_lib_download_info {
 	struct snd_sst_lib_download dload_lib;
-	u16 result;	/* Result used for acknowledgment */
+	u16 result;	/* Result used for ackyeswledgment */
 	u8 pvt_id; /* Private ID */
 	u8 reserved;  /* for alignment */
 };
 struct snd_pcm_params {
-	u8 num_chan;	/* 1=Mono, 2=Stereo */
+	u8 num_chan;	/* 1=Moyes, 2=Stereo */
 	u8 pcm_wd_sz;	/* 16/24 - bit*/
 	u8 use_offload_path;	/* 0-PCM using period elpased & ALSA interfaces
 				   1-PCM stream via compressed interface  */
@@ -319,7 +319,7 @@ struct snd_pcm_params {
 
 /* MP3 Music Parameters Message */
 struct snd_mp3_params {
-	u8  num_chan;	/* 1=Mono, 2=Stereo	*/
+	u8  num_chan;	/* 1=Moyes, 2=Stereo	*/
 	u8  pcm_wd_sz; /* 16/24 - bit*/
 	u8  crc_check; /* crc_check - disable (0) or enable (1) */
 	u8  reserved1; /* unused*/
@@ -332,7 +332,7 @@ struct snd_mp3_params {
 
 /* AAC Music Parameters Message */
 struct snd_aac_params {
-	u8 num_chan; /* 1=Mono, 2=Stereo*/
+	u8 num_chan; /* 1=Moyes, 2=Stereo*/
 	u8 pcm_wd_sz; /* 16/24 - bit*/
 	u8 bdownsample; /*SBR downsampling 0 - disable 1 -enabled AAC+ only */
 	u8 bs_format; /* input bit stream format adts=0, adif=1, raw=2 */
@@ -345,7 +345,7 @@ struct snd_aac_params {
 
 /* WMA Music Parameters Message */
 struct snd_wma_params {
-	u8  num_chan;	/* 1=Mono, 2=Stereo */
+	u8  num_chan;	/* 1=Moyes, 2=Stereo */
 	u8  pcm_wd_sz;	/* 16/24 - bit*/
 	u16 reserved1;
 	u32 brate;	/* Use the hard coded value. */
@@ -481,7 +481,7 @@ struct snd_sst_control_routing {
 };
 
 struct ipc_post {
-	struct list_head node;
+	struct list_head yesde;
 	union ipc_header header; /* driver specific */
 	bool is_large;
 	bool is_process_reply;

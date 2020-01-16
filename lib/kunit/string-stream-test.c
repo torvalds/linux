@@ -17,7 +17,7 @@ static void string_stream_test_empty_on_creation(struct kunit *test)
 	KUNIT_EXPECT_TRUE(test, string_stream_is_empty(stream));
 }
 
-static void string_stream_test_not_empty_after_add(struct kunit *test)
+static void string_stream_test_yest_empty_after_add(struct kunit *test)
 {
 	struct string_stream *stream = alloc_string_stream(test, GFP_KERNEL);
 
@@ -40,7 +40,7 @@ static void string_stream_test_get_string(struct kunit *test)
 
 static struct kunit_case string_stream_test_cases[] = {
 	KUNIT_CASE(string_stream_test_empty_on_creation),
-	KUNIT_CASE(string_stream_test_not_empty_after_add),
+	KUNIT_CASE(string_stream_test_yest_empty_after_add),
 	KUNIT_CASE(string_stream_test_get_string),
 	{}
 };

@@ -135,7 +135,7 @@ static int owl_comp_fix_fact_set_rate(struct clk_hw *hw, unsigned long rate,
 	/*
 	 * We must report success but we can do so unconditionally because
 	 * owl_comp_fix_fact_round_rate returns values that ensure this call is
-	 * a nop.
+	 * a yesp.
 	 */
 
 	return 0;

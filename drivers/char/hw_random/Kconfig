@@ -27,7 +27,7 @@ config HW_RANDOM_TIMERIOMEM
 	---help---
 	  This driver provides kernel-side support for a generic Random
 	  Number Generator used by reading a 'dumb' iomem address that
-	  is to be read no faster than, for example, once a second;
+	  is to be read yes faster than, for example, once a second;
 	  the default FPGA bitstream on the TS-7800 has such functionality.
 
 	  To compile this driver as a module, choose M here: the
@@ -265,7 +265,7 @@ config HW_RANDOM_NOMADIK
 	  Generator hardware found on ST-Ericsson SoCs (8815 and 8500).
 
 	  To compile this driver as a module, choose M here: the
-	  module will be called nomadik-rng.
+	  module will be called yesmadik-rng.
 
 	  If unsure, say Y.
 
@@ -427,15 +427,15 @@ config HW_RANDOM_S390
 	  If unsure, say Y.
 
 config HW_RANDOM_EXYNOS
-	tristate "Samsung Exynos True Random Number Generator support"
+	tristate "Samsung Exyyess True Random Number Generator support"
 	depends on ARCH_EXYNOS || COMPILE_TEST
 	default HW_RANDOM
 	---help---
 	  This driver provides support for the True Random Number
-	  Generator available in Exynos SoCs.
+	  Generator available in Exyyess SoCs.
 
 	  To compile this driver as a module, choose M here: the module
-	  will be called exynos-trng.
+	  will be called exyyess-trng.
 
 	  If unsure, say Y.
 
@@ -445,8 +445,8 @@ config HW_RANDOM_OPTEE
 	default HW_RANDOM
 	help
 	  This  driver provides support for OP-TEE based Random Number
-	  Generator on ARM SoCs where hardware entropy sources are not
-	  accessible to normal world (Linux).
+	  Generator on ARM SoCs where hardware entropy sources are yest
+	  accessible to yesrmal world (Linux).
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called optee-rng.
@@ -476,7 +476,7 @@ config UML_RANDOM
 	  attaches itself to the host's /dev/random, supplying as much entropy
 	  as the host has, rather than the small amount the UML gets from its
 	  own drivers.  It registers itself as a standard hardware random number
-	  generator, major 10, minor 183, and the canonical device name is
+	  generator, major 10, miyesr 183, and the cayesnical device name is
 	  /dev/hwrng.
 	  The way to make use of this is to install the rng-tools package
 	  (check your distro, or download from

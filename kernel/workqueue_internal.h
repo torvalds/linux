@@ -17,7 +17,7 @@ struct worker_pool;
 /*
  * The poor guys doing the actual heavy lifting.  All on-duty workers are
  * either serving the manager role, on idle list or on busy hash.  For
- * details on the locking annotation (L, I, X...), refer to workqueue.c.
+ * details on the locking anyestation (L, I, X...), refer to workqueue.c.
  *
  * Only to be used in workqueue and async.
  */
@@ -25,7 +25,7 @@ struct worker {
 	/* on idle list while idle, on busy hash table while busy */
 	union {
 		struct list_head	entry;	/* L: while idle */
-		struct hlist_node	hentry;	/* L: while busy */
+		struct hlist_yesde	hentry;	/* L: while busy */
 	};
 
 	struct work_struct	*current_work;	/* L: work being processed */
@@ -38,8 +38,8 @@ struct worker {
 	struct task_struct	*task;		/* I: worker task */
 	struct worker_pool	*pool;		/* A: the associated pool */
 						/* L: for rescuers */
-	struct list_head	node;		/* A: anchored at pool->workers */
-						/* A: runs through worker->node */
+	struct list_head	yesde;		/* A: anchored at pool->workers */
+						/* A: runs through worker->yesde */
 
 	unsigned long		last_active;	/* L: last active timestamp */
 	unsigned int		flags;		/* X: flags */
@@ -55,7 +55,7 @@ struct worker {
 	/* used only by rescuers to point to the target workqueue */
 	struct workqueue_struct	*rescue_wq;	/* I: the workqueue to rescue */
 
-	/* used by the scheduler to determine a worker's last known identity */
+	/* used by the scheduler to determine a worker's last kyeswn identity */
 	work_func_t		last_func;
 };
 

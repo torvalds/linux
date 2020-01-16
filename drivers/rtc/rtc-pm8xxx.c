@@ -450,7 +450,7 @@ static int pm8xxx_rtc_probe(struct platform_device *pdev)
 	struct pm8xxx_rtc *rtc_dd;
 	const struct of_device_id *match;
 
-	match = of_match_node(pm8xxx_id_table, pdev->dev.of_node);
+	match = of_match_yesde(pm8xxx_id_table, pdev->dev.of_yesde);
 	if (!match)
 		return -ENXIO;
 
@@ -471,7 +471,7 @@ static int pm8xxx_rtc_probe(struct platform_device *pdev)
 	if (rtc_dd->rtc_alarm_irq < 0)
 		return -ENXIO;
 
-	rtc_dd->allow_set_time = of_property_read_bool(pdev->dev.of_node,
+	rtc_dd->allow_set_time = of_property_read_bool(pdev->dev.of_yesde,
 						      "allow-set-time");
 
 	rtc_dd->regs = match->data;

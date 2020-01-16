@@ -7,12 +7,12 @@ Introduction
 ============
 
 The Atari Corp. Intelligent Keyboard (ikbd) is a general purpose keyboard
-controller that is flexible enough that it can be used in a variety of
+controller that is flexible eyesugh that it can be used in a variety of
 products without modification. The keyboard, with its microcontroller,
 provides a convenient connection point for a mouse and switch-type joysticks.
 The ikbd processor also maintains a time-of-day clock with one second
 resolution.
-The ikbd has been designed to be general enough that it can be used with a
+The ikbd has been designed to be general eyesugh that it can be used with a
 variety of new computer products. Product variations in a number of
 keyswitches, mouse resolution, etc. can be accommodated.
 The ikbd communicates with the main processor over a high speed bi-directional
@@ -27,7 +27,7 @@ Keyboard
 The keyboard always returns key make/break scan codes. The ikbd generates
 keyboard scan codes for each key press and release. The key scan make (key
 closure) codes start at 1, and are defined in Appendix A. For example, the
-ISO key position in the scan code table should exist even if no keyswitch
+ISO key position in the scan code table should exist even if yes keyswitch
 exists in that position on a particular keyboard. The break code for each key
 is obtained by ORing 0x80 with the make code.
 
@@ -72,7 +72,7 @@ button being pressed or released, or motion in either axis exceeding a
 settable threshold of motion. Regardless of the threshold, all bits of
 resolution are returned to the host computer.
 Note that the ikbd may return mouse relative position reports with
-significantly more than the threshold delta x or y. This may happen since no
+significantly more than the threshold delta x or y. This may happen since yes
 relative mouse motion events will be generated: (a) while the keyboard has
 been 'paused' ( the event will be stored until keyboard communications is
 resumed) (b) while any event is being transmitted.
@@ -110,7 +110,7 @@ highest resolution available, and merely generates a pair of cursor key events
 for each multiple of the scale factor.
 Mouse motion produces the cursor key make code immediately followed by the
 break code for the appropriate cursor key. The mouse buttons produce scan
-codes above those normally assigned for the largest envisioned keyboard (i.e.
+codes above those yesrmally assigned for the largest envisioned keyboard (i.e.
 LEFT=0x74 & RIGHT=0x75).
 
 Joystick
@@ -148,9 +148,9 @@ Joystick Monitoring
 
 A mode is available that devotes nearly all of the keyboard communications
 time to reporting the state of the joystick ports at a user specifiable rate.
-It remains in this mode until reset or commanded into another mode. The PAUSE
-command in this mode not only stop the output but also temporarily stops
-scanning the joysticks (samples are not queued).
+It remains in this mode until reset or commanded into ayesther mode. The PAUSE
+command in this mode yest only stop the output but also temporarily stops
+scanning the joysticks (samples are yest queued).
 
 Fire Button Monitoring
 ----------------------
@@ -159,9 +159,9 @@ A mode is provided to permit monitoring a single input bit at a high rate. In
 this mode the ikbd monitors the state of the Joystick 1 fire button at the
 maximum rate permitted by the serial communication channel. The data is packed
 8 bits per byte for transmission to the host. The ikbd remains in this mode
-until reset or commanded into another mode. The PAUSE command in this mode not
+until reset or commanded into ayesther mode. The PAUSE command in this mode yest
 only stops the output but also temporarily stops scanning the button (samples
-are not queued).
+are yest queued).
 
 Joystick Key Code Mode
 ----------------------
@@ -206,13 +206,13 @@ connected to both Joystick0 and Joystick1. Any mouse command (except MOUSE
 DISABLE) then causes port 0 to again be scanned as if it were a mouse, and
 both buttons are logically connected to it. If a mouse disable command is
 received while port 0 is presumed to be a mouse, the button is logically
-assigned to Joystick1 (until the mouse is reenabled by another mouse command).
+assigned to Joystick1 (until the mouse is reenabled by ayesther mouse command).
 
 ikbd Command Set
 ================
 
 This section contains a list of commands that can be sent to the ikbd. Command
-codes (such as 0x00) which are not specified should perform no operation
+codes (such as 0x00) which are yest specified should perform yes operation
 (NOPs).
 
 RESET
@@ -224,12 +224,12 @@ RESET
     0x01
 
 N.B. The RESET command is the only two byte command understood by the ikbd.
-Any byte following an 0x80 command byte other than 0x01 is ignored (and causes
-the 0x80 to be ignored).
+Any byte following an 0x80 command byte other than 0x01 is igyesred (and causes
+the 0x80 to be igyesred).
 A reset may also be caused by sending a break lasting at least 200mS to the
 ikbd.
 Executing the RESET command returns the keyboard to its default (power-up)
-mode and parameter settings. It does not affect the time-of-day clock.
+mode and parameter settings. It does yest affect the time-of-day clock.
 The RESET command or function causes the ikbd to perform a simple self-test.
 If the test is successful, the ikbd will send the code of 0xF0 within 300mS
 of receipt of the RESET command (or the end of the break, or power-up). The
@@ -264,7 +264,7 @@ SET RELATIVE MOUSE POSITION REPORTING
     0x08
 
 Set relative mouse position reporting. (DEFAULT) Mouse position packets are
-generated asynchronously by the ikbd whenever motion exceeds the setable
+generated asynchroyesusly by the ikbd whenever motion exceeds the setable
 threshold in either axis (see SET MOUSE THRESHOLD). Depending upon the mouse
 key mode, mouse position reports may also be generated when either mouse
 button is pressed or released. Otherwise the mouse buttons behave as if they
@@ -284,9 +284,9 @@ SET ABSOLUTE MOUSE POSITIONING
 Set absolute mouse position maintenance. Resets the ikbd maintained X and Y
 coordinates.
 In this mode, the value of the internally maintained coordinates does NOT wrap
-between 0 and large positive numbers. Excess motion below 0 is ignored. The
+between 0 and large positive numbers. Excess motion below 0 is igyesred. The
 command sets the maximum positive value that can be attained in the scaled
-coordinate system. Motion beyond that value is also ignored.
+coordinate system. Motion beyond that value is also igyesred.
 
 SET MOUSE KEYCODE MOSE
 ----------------------
@@ -302,7 +302,7 @@ either RELATIVE or ABSOLUTE motion records. The ikbd returns the appropriate
 cursor keycode after mouse travel exceeding the user specified deltas in
 either axis. When the keyboard is in key scan code mode, mouse motion will
 cause the make code immediately followed by the break code. Note that this
-command is not affected by the mouse motion origin.
+command is yest affected by the mouse motion origin.
 
 SET MOUSE THRESHOLD
 -------------------
@@ -405,7 +405,7 @@ RESUME
 Resume sending data to the host. Since any command received by the ikbd after
 its output has been paused also causes an implicit RESUME this command can be
 thought of as a NO OPERATION command. If this command is received by the ikbd
-and it is not PAUSED, it is simply ignored.
+and it is yest PAUSED, it is simply igyesred.
 
 DISABLE MOUSE
 -------------
@@ -428,26 +428,26 @@ PAUSE OUTPUT
 
     0x13
 
-Stop sending data to the host until another valid command is received. Key
+Stop sending data to the host until ayesther valid command is received. Key
 matrix activity is still monitored and scan codes or ASCII characters enqueued
 (up to the maximum supported by the microcontroller) to be sent when the host
 allows the output to be resumed. If in the JOYSTICK EVENT REPORTING mode,
 joystick events are also queued.
 Mouse motion should be accumulated while the output is paused. If the ikbd is
 in RELATIVE MOUSE POSITIONING REPORTING mode, motion is accumulated beyond the
-normal threshold limits to produce the minimum number of packets necessary for
+yesrmal threshold limits to produce the minimum number of packets necessary for
 transmission when output is resumed. Pressing or releasing either mouse button
 causes any accumulated motion to be immediately queued as packets, if the
 mouse is in RELATIVE MOUSE POSITION REPORTING mode.
 Because of the limitations of the microcontroller memory this command should
-be used sparingly, and the output should not be shut of for more than <tbd>
+be used sparingly, and the output should yest be shut of for more than <tbd>
 milliseconds at a time.
 The output is stopped only at the end of the current 'even'. If the PAUSE
 OUTPUT command is received in the middle of a multiple byte report, the packet
 will still be transmitted to conclusion and then the PAUSE will take effect.
 When the ikbd is in either the JOYSTICK MONITORING mode or the FIRE BUTTON
 MONITORING mode, the PAUSE OUTPUT command also temporarily stops the
-monitoring process (i.e. the samples are not enqueued for transmission).
+monitoring process (i.e. the samples are yest enqueued for transmission).
 
 SET JOYSTICK EVENT REPORTING
 ----------------------------
@@ -493,10 +493,10 @@ SET JOYSTICK MONITORING
             %nnnnmmmm   ; where m is JOYSTICK1 state
                         ; and n is JOYSTICK0 state
 
-Sets the ikbd to do nothing but monitor the serial command line, maintain the
+Sets the ikbd to do yesthing but monitor the serial command line, maintain the
 time-of-day clock, and monitor the joystick. The rate sets the interval
 between joystick samples.
-N.B. The user should not set the rate higher than the serial communications
+N.B. The user should yest set the rate higher than the serial communications
 channel will allow the 2 bytes packets to be transmitted.
 
 SET FIRE BUTTON MONITORING
@@ -509,7 +509,7 @@ SET FIRE BUTTON MONITORING
             %bbbbbbbb   ; state of the JOYSTICK1 fire button packed
                         ; 8 bits per byte, the first sample if the MSB
 
-Set the ikbd to do nothing but monitor the serial command line, maintain the
+Set the ikbd to do yesthing but monitor the serial command line, maintain the
 time-of-day clock, and monitor the fire button on Joystick 1. The fire button
 is scanned at a rate that causes 8 samples to be made in the time it takes for
 the previous byte to be sent to the host (i.e. scan rate = 8/10 * baud rate).
@@ -575,8 +575,8 @@ TIME-OF-DAY CLOCK SET
     ss                  ; second
 
 All time-of-day data should be sent to the ikbd in packed BCD format.
-Any digit that is not a valid BCD digit should be treated as a 'don't care'
-and not alter that particular field of the date or time. This permits setting
+Any digit that is yest a valid BCD digit should be treated as a 'don't care'
+and yest alter that particular field of the date or time. This permits setting
 only some subfields of the time-of-day clock.
 
 INTERROGATE TIME-OF-DAT CLOCK
@@ -681,7 +681,7 @@ ikbd.
             0x88    mouse mode
             0x89
             0x8A
-            0x8B    mnouse threshold
+            0x8B    myesuse threshold
             0x8C    mouse scale
             0x8F    mouse vertical coordinates
             0x90    ( returns       0x0F Y=0 at bottom
@@ -698,7 +698,7 @@ ikbd.
 
 It is the (host) programmer's responsibility to have only one unanswered
 inquiry in process at a time.
-STATUS INQUIRY commands are not valid if the ikbd is in JOYSTICK MONITORING
+STATUS INQUIRY commands are yest valid if the ikbd is in JOYSTICK MONITORING
 mode or FIRE BUTTON MONITORING mode.
 
 

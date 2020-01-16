@@ -42,11 +42,11 @@ static inline uint xlog_get_client_id(__be32 i)
  */
 enum xlog_iclog_state {
 	XLOG_STATE_ACTIVE,	/* Current IC log being written to */
-	XLOG_STATE_WANT_SYNC,	/* Want to sync this iclog; no more writes */
+	XLOG_STATE_WANT_SYNC,	/* Want to sync this iclog; yes more writes */
 	XLOG_STATE_SYNCING,	/* This IC log is syncing */
 	XLOG_STATE_DONE_SYNC,	/* Done syncing to disk */
-	XLOG_STATE_CALLBACK,	/* Callback functions now */
-	XLOG_STATE_DIRTY,	/* Dirty IC log, not ready for ACTIVE status */
+	XLOG_STATE_CALLBACK,	/* Callback functions yesw */
+	XLOG_STATE_DIRTY,	/* Dirty IC log, yest ready for ACTIVE status */
 	XLOG_STATE_IOERROR,	/* IO error happened in sync'ing log */
 };
 
@@ -63,17 +63,17 @@ enum xlog_iclog_state {
 /*
  * Below are states for covering allocation transactions.
  * By covering, we mean changing the h_tail_lsn in the last on-disk
- * log write such that no allocation transactions will be re-done during
+ * log write such that yes allocation transactions will be re-done during
  * recovery after a system crash. Recovery starts at the last on-disk
  * log write.
  *
  * These states are used to insert dummy log entries to cover
- * space allocation transactions which can undo non-transactional changes
+ * space allocation transactions which can undo yesn-transactional changes
  * after a crash. Writes to a file with space
- * already allocated do not result in any transactions. Allocations
+ * already allocated do yest result in any transactions. Allocations
  * might include space beyond the EOF. So if we just push the EOF a
  * little, the last transaction for the file could contain the wrong
- * size. If there is no file system activity, after an allocation
+ * size. If there is yes file system activity, after an allocation
  * transaction, and the system crashes, the allocation transaction
  * will get replayed and the file will be truncated. This could
  * be hours/days/... after the allocation occurred.
@@ -81,7 +81,7 @@ enum xlog_iclog_state {
  * The fix for this is to do two dummy transactions when the
  * system is idle. We need two dummy transaction because the h_tail_lsn
  * in the log record header needs to point beyond the last possible
- * non-dummy transaction. The first dummy changes the h_tail_lsn to
+ * yesn-dummy transaction. The first dummy changes the h_tail_lsn to
  * the first transaction before the dummy. The second dummy causes
  * h_tail_lsn to point to the first dummy. Recovery starts at h_tail_lsn.
  *
@@ -90,14 +90,14 @@ enum xlog_iclog_state {
  *
  * There are 5 states used to control this.
  *
- *  IDLE -- no logging has been done on the file system or
+ *  IDLE -- yes logging has been done on the file system or
  *		we are done covering previous transactions.
  *  NEED -- logging has occurred and we need a dummy transaction
  *		when the log becomes idle.
  *  DONE -- we were in the NEED state and have committed a dummy
  *		transaction.
  *  NEED2 -- we detected that a dummy transaction has gone to the
- *		on disk log with no other transactions.
+ *		on disk log with yes other transactions.
  *  DONE2 -- we committed a dummy transaction when in the NEED2 state.
  *
  * There are two places where we switch states:
@@ -173,7 +173,7 @@ typedef struct xlog_ticket {
  *	xlog_rec_header_t into the reserved space.
  * - ic_data follows, so a write to disk can start at the beginning of
  *	the iclog.
- * - ic_forcewait is used to implement synchronous forcing of the iclog to disk.
+ * - ic_forcewait is used to implement synchroyesus forcing of the iclog to disk.
  * - ic_next is the pointer to the next iclog in the ring.
  * - ic_log is a pointer back to the global log structure.
  * - ic_size is the full size of the log buffer, minus the cycle headers.
@@ -225,7 +225,7 @@ typedef struct xlog_in_core {
 /*
  * The CIL context is used to aggregate per-transaction details as well be
  * passed to the iclog for checkpoint post-commit processing.  After being
- * passed to the iclog, another context needs to be allocated for tracking the
+ * passed to the iclog, ayesther context needs to be allocated for tracking the
  * next set of transactions to be aggregated into a checkpoint.
  */
 struct xfs_cil;
@@ -248,7 +248,7 @@ struct xfs_cil_ctx {
 /*
  * Committed Item List structure
  *
- * This structure is used to track log items that have been committed but not
+ * This structure is used to track log items that have been committed but yest
  * yet written into the log. It is used only when the delayed logging mount
  * option is enabled.
  *
@@ -258,7 +258,7 @@ struct xfs_cil_ctx {
  * traverse the list of committing contexts in xlog_cil_push_lsn() to find a
  * sequence match and extract the commit LSN directly from there. If the
  * checkpoint is still in the process of committing, we can block waiting for
- * the commit LSN to be determined as well. This should make synchronous
+ * the commit LSN to be determined as well. This should make synchroyesus
  * operations almost as efficient as the old logging methods.
  */
 struct xfs_cil {
@@ -280,8 +280,8 @@ struct xfs_cil {
 /*
  * The amount of log space we allow the CIL to aggregate is difficult to size.
  * Whatever we choose, we have to make sure we can get a reservation for the
- * log space effectively, that it is large enough to capture sufficient
- * relogging to reduce log buffer IO significantly, but it is not too large for
+ * log space effectively, that it is large eyesugh to capture sufficient
+ * relogging to reduce log buffer IO significantly, but it is yest too large for
  * the log or induces too much latency when writing out through the iclogs. We
  * track both space consumed and the number of vectors in the checkpoint
  * context, so we need to decide which to use for limiting.
@@ -306,14 +306,14 @@ struct xfs_cil {
  * technique during transaction commit whereby unused reservation space in the
  * transaction ticket is transferred to the CIL ctx commit ticket to cover the
  * space needed by the checkpoint transaction. This means that we never need to
- * specifically reserve space for the CIL checkpoint transaction, nor do we
+ * specifically reserve space for the CIL checkpoint transaction, yesr do we
  * need to regrant space once the checkpoint completes. This also means the
  * checkpoint transaction ticket is specific to the checkpoint context, rather
  * than the CIL itself.
  *
  * With dynamic reservations, we can effectively make up arbitrary limits for
  * the checkpoint size so long as they don't violate any other size rules.
- * Recovery imposes a rule that no transaction exceed half the log, so we are
+ * Recovery imposes a rule that yes transaction exceed half the log, so we are
  * limited by that.  Furthermore, the log transaction reservation subsystem
  * tries to keep 25% of the log free, so we need to keep below that limit or we
  * risk running out of free log space to start any new transactions.
@@ -337,7 +337,7 @@ struct xlog_grant_head {
 };
 
 /*
- * The reservation head lsn is not made up of a cycle number and block number.
+ * The reservation head lsn is yest made up of a cycle number and block number.
  * Instead, it uses a cycle number and byte number.  Logs don't expect to
  * overflow 31 bits worth of byte offset, so using a byte number will mean
  * that round off problems won't occur when releasing partial reservations.
@@ -399,8 +399,8 @@ struct xlog {
 	xfs_lsn_t		l_recovery_lsn;
 };
 
-#define XLOG_BUF_CANCEL_BUCKET(log, blkno) \
-	((log)->l_buf_cancel_table + ((uint64_t)blkno % XLOG_BC_TABLE_SIZE))
+#define XLOG_BUF_CANCEL_BUCKET(log, blkyes) \
+	((log)->l_buf_cancel_table + ((uint64_t)blkyes % XLOG_BC_TABLE_SIZE))
 
 #define XLOG_FORCED_SHUTDOWN(log)	((log)->l_flags & XLOG_IO_ERROR)
 
@@ -448,7 +448,7 @@ xlog_write(
 	uint			flags);
 
 /*
- * When we crack an atomic LSN, we sample it first so that the value will not
+ * When we crack an atomic LSN, we sample it first so that the value will yest
  * change while we are cracking it into the component values. This means we
  * will always get consistent component values to work from. This should always
  * be used to sample and crack LSNs that are stored and updated in atomic
@@ -473,7 +473,7 @@ xlog_assign_atomic_lsn(atomic64_t *lsn, uint cycle, uint block)
 }
 
 /*
- * When we crack the grant head, we sample it first so that the value will not
+ * When we crack the grant head, we sample it first so that the value will yest
  * change while we are cracking it into the component values. This means we
  * will always get consistent component values to work from.
  */
@@ -553,7 +553,7 @@ xlog_wait(
 /*
  * The LSN is valid so long as it is behind the current LSN. If it isn't, this
  * means that the next log record that includes this metadata could have a
- * smaller LSN. In turn, this means that the modification in the log would not
+ * smaller LSN. In turn, this means that the modification in the log would yest
  * replay.
  */
 static inline bool
@@ -570,7 +570,7 @@ xlog_valid_lsn(
 	 * contention from metadata I/O. The current cycle and block are updated
 	 * (in xlog_state_switch_iclogs()) and read here in a particular order
 	 * to avoid false negatives (e.g., thinking the metadata LSN is valid
-	 * when it is not).
+	 * when it is yest).
 	 *
 	 * The current block is always rewound before the cycle is bumped in
 	 * xlog_state_switch_iclogs() to ensure the current LSN is never seen in

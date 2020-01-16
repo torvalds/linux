@@ -14,7 +14,7 @@
  * based on this sensor. Placement of the sensor w.r.t the actual logic
  * generating heat has to be a factor as well. If you are just looking
  * for an approximation temperature (thermometerish kind), you might be
- * ok with this. I am not sure we'd find any TI data around this.. just a
+ * ok with this. I am yest sure we'd find any TI data around this.. just a
  * heads up.
  */
 

@@ -48,7 +48,7 @@ xlog_prepare_iovec(struct xfs_log_vec *lv, struct xfs_log_iovec **vecp,
  * basic data type we put into it.  We already accounted for this padding when
  * sizing the buffer.
  *
- * However, this padding does not get written into the log, and hence we have to
+ * However, this padding does yest get written into the log, and hence we have to
  * track the space used by the log vectors separately to prevent log space hangs
  * due to inaccurate accounting (i.e. a leak) of the used log space through the
  * CIL context ticket.
@@ -93,7 +93,7 @@ static inline xfs_lsn_t	_lsn_cmp(xfs_lsn_t lsn1, xfs_lsn_t lsn2)
 /*
  * Flags to xfs_log_force()
  *
- *	XFS_LOG_SYNC:	Synchronous force in-core log to disk
+ *	XFS_LOG_SYNC:	Synchroyesus force in-core log to disk
  */
 #define XFS_LOG_SYNC		0x1
 

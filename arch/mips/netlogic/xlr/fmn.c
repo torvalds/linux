@@ -13,9 +13,9 @@
  * are met:
  *
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
+ *    yestice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
  *
@@ -79,7 +79,7 @@ static irqreturn_t fmn_message_handler(int irq, void *data)
 	nlm_fmn_setup_intr(irq, 0);
 	while (1) {
 		/* 8 bkts per core, [24:31] each bit represents one bucket
-		 * Bit is Zero if bucket is not empty */
+		 * Bit is Zero if bucket is yest empty */
 		bkt_status = (nlm_read_c2_status0() >> 24) & 0xff;
 		if (bkt_status == 0xff)
 			break;
@@ -144,7 +144,7 @@ void xlr_percpu_fmn_init(void)
 	 * For sending FMN messages, we need credits on the destination
 	 * bucket. Program the credits this core has on the 128 possible
 	 * destination buckets.
-	 * We cannot use a loop here, because the the first argument has
+	 * We canyest use a loop here, because the the first argument has
 	 * to be a constant integer value.
 	 */
 	COP2_CC_INIT_CPU_DEST(0, cpu_fmn_info->credit_config);

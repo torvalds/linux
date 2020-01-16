@@ -142,7 +142,7 @@ static const struct reg_default ssm2518_reg_defaults[] = {
 static const DECLARE_TLV_DB_MINMAX_MUTE(ssm2518_vol_tlv, -7125, 2400);
 static const DECLARE_TLV_DB_SCALE(ssm2518_compressor_tlv, -3400, 200, 0);
 static const DECLARE_TLV_DB_SCALE(ssm2518_expander_tlv, -8100, 300, 0);
-static const DECLARE_TLV_DB_SCALE(ssm2518_noise_gate_tlv, -9600, 300, 0);
+static const DECLARE_TLV_DB_SCALE(ssm2518_yesise_gate_tlv, -9600, 300, 0);
 static const DECLARE_TLV_DB_SCALE(ssm2518_post_drc_tlv, -2400, 300, 0);
 
 static const DECLARE_TLV_DB_RANGE(ssm2518_limiter_tlv,
@@ -178,7 +178,7 @@ static SOC_ENUM_SINGLE_DECL(ssm2518_drc_decay_time_enum,
 	SSM2518_REG_DRC_6, 0, ssm2518_drc_peak_detector_release_time_text);
 static SOC_ENUM_SINGLE_DECL(ssm2518_drc_hold_time_enum,
 	SSM2518_REG_DRC_7, 4, ssm2518_drc_hold_time_text);
-static SOC_ENUM_SINGLE_DECL(ssm2518_drc_noise_gate_hold_time_enum,
+static SOC_ENUM_SINGLE_DECL(ssm2518_drc_yesise_gate_hold_time_enum,
 	SSM2518_REG_DRC_7, 0, ssm2518_drc_hold_time_text);
 static SOC_ENUM_SINGLE_DECL(ssm2518_drc_rms_averaging_time_enum,
 	SSM2518_REG_DRC_9, 0, ssm2518_drc_peak_detector_release_time_text);
@@ -206,11 +206,11 @@ static const struct snd_kcontrol_new ssm2518_snd_controls[] = {
 	SOC_SINGLE_TLV("DRC Expander Upper Threshold Volume", SSM2518_REG_DRC_4,
 			4, 15, 1, ssm2518_expander_tlv),
 	SOC_SINGLE_TLV("DRC Noise Gate Threshold Volume",
-			SSM2518_REG_DRC_4, 0, 15, 1, ssm2518_noise_gate_tlv),
+			SSM2518_REG_DRC_4, 0, 15, 1, ssm2518_yesise_gate_tlv),
 	SOC_SINGLE_TLV("DRC Upper Output Threshold Volume",
 			SSM2518_REG_DRC_5, 4, 15, 1, ssm2518_limiter_tlv),
 	SOC_SINGLE_TLV("DRC Lower Output Threshold Volume",
-			SSM2518_REG_DRC_5, 0, 15, 1, ssm2518_noise_gate_tlv),
+			SSM2518_REG_DRC_5, 0, 15, 1, ssm2518_yesise_gate_tlv),
 	SOC_SINGLE_TLV("DRC Post Volume", SSM2518_REG_DRC_8,
 			2, 15, 1, ssm2518_post_drc_tlv),
 
@@ -222,7 +222,7 @@ static const struct snd_kcontrol_new ssm2518_snd_controls[] = {
 	SOC_ENUM("DRC Decay Time", ssm2518_drc_decay_time_enum),
 	SOC_ENUM("DRC Hold Time", ssm2518_drc_hold_time_enum),
 	SOC_ENUM("DRC Noise Gate Hold Time",
-		ssm2518_drc_noise_gate_hold_time_enum),
+		ssm2518_drc_yesise_gate_hold_time_enum),
 	SOC_ENUM("DRC RMS Averaging Time", ssm2518_drc_rms_averaging_time_enum),
 };
 
@@ -720,7 +720,7 @@ static const struct snd_soc_component_driver ssm2518_component_driver = {
 	.num_dapm_routes	= ARRAY_SIZE(ssm2518_routes),
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
+	.yesn_legacy_dai_naming	= 1,
 };
 
 static const struct regmap_config ssm2518_regmap_config = {
@@ -747,8 +747,8 @@ static int ssm2518_i2c_probe(struct i2c_client *i2c,
 
 	if (pdata) {
 		ssm2518->enable_gpio = pdata->enable_gpio;
-	} else if (i2c->dev.of_node) {
-		ssm2518->enable_gpio = of_get_gpio(i2c->dev.of_node, 0);
+	} else if (i2c->dev.of_yesde) {
+		ssm2518->enable_gpio = of_get_gpio(i2c->dev.of_yesde, 0);
 		if (ssm2518->enable_gpio < 0 && ssm2518->enable_gpio != -ENOENT)
 			return ssm2518->enable_gpio;
 	} else {

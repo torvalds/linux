@@ -57,7 +57,7 @@ void vgic_v3_fold_lr_state(struct kvm_vcpu *vcpu)
 
 		/* Notify fds when the guest EOI'ed a level-triggered IRQ */
 		if (lr_signals_eoi_mi(val) && vgic_valid_spi(vcpu->kvm, intid))
-			kvm_notify_acked_irq(vcpu->kvm, 0,
+			kvm_yestify_acked_irq(vcpu->kvm, 0,
 					     intid - VGIC_NR_PRIVATE_IRQS);
 
 		irq = vgic_get_irq(vcpu->kvm, vcpu, intid);
@@ -150,7 +150,7 @@ void vgic_v3_populate_lr(struct kvm_vcpu *vcpu, struct vgic_irq *irq, int lr)
 
 			/*
 			 * Software resampling doesn't work very well
-			 * if we allow P+A, so let's not do that.
+			 * if we allow P+A, so let's yest do that.
 			 */
 			if (irq->active)
 				allow_pending = false;
@@ -280,7 +280,7 @@ void vgic_v3_enable(struct kvm_vcpu *vcpu)
 	vgic_v3->vgic_vmcr = 0;
 
 	/*
-	 * If we are emulating a GICv3, we do it in an non-GICv2-compatible
+	 * If we are emulating a GICv3, we do it in an yesn-GICv2-compatible
 	 * way, so we force SRE to 1 to demonstrate this to the guest.
 	 * Also, we don't support any form of IRQ/FIQ bypass.
 	 * This goes with the spec allowing the value to be RAO/WI.
@@ -507,7 +507,7 @@ int vgic_v3_map_resources(struct kvm *kvm)
 		struct vgic_cpu *vgic_cpu = &vcpu->arch.vgic_cpu;
 
 		if (IS_VGIC_ADDR_UNDEF(vgic_cpu->rd_iodev.base_addr)) {
-			kvm_debug("vcpu %d redistributor base not set\n", c);
+			kvm_debug("vcpu %d redistributor base yest set\n", c);
 			ret = -ENXIO;
 			goto out;
 		}
@@ -586,7 +586,7 @@ int vgic_v3_probe(const struct gic_kvm_info *info)
 
 	/*
 	 * The ListRegs field is 5 bits, but there is a architectural
-	 * maximum of 16 list registers. Just ignore bit 4...
+	 * maximum of 16 list registers. Just igyesre bit 4...
 	 */
 	kvm_vgic_global_state.nr_lr = (ich_vtr_el2 & 0xf) + 1;
 	kvm_vgic_global_state.can_emulate_gicv2 = false;
@@ -600,10 +600,10 @@ int vgic_v3_probe(const struct gic_kvm_info *info)
 	}
 
 	if (!info->vcpu.start) {
-		kvm_info("GICv3: no GICV resource entry\n");
+		kvm_info("GICv3: yes GICV resource entry\n");
 		kvm_vgic_global_state.vcpu_base = 0;
 	} else if (!PAGE_ALIGNED(info->vcpu.start)) {
-		pr_warn("GICV physical address 0x%llx not page aligned\n",
+		pr_warn("GICV physical address 0x%llx yest page aligned\n",
 			(unsigned long long)info->vcpu.start);
 		kvm_vgic_global_state.vcpu_base = 0;
 	} else {
@@ -611,14 +611,14 @@ int vgic_v3_probe(const struct gic_kvm_info *info)
 		kvm_vgic_global_state.can_emulate_gicv2 = true;
 		ret = kvm_register_vgic_device(KVM_DEV_TYPE_ARM_VGIC_V2);
 		if (ret) {
-			kvm_err("Cannot register GICv2 KVM device.\n");
+			kvm_err("Canyest register GICv2 KVM device.\n");
 			return ret;
 		}
 		kvm_info("vgic-v2@%llx\n", info->vcpu.start);
 	}
 	ret = kvm_register_vgic_device(KVM_DEV_TYPE_ARM_VGIC_V3);
 	if (ret) {
-		kvm_err("Cannot register GICv3 KVM device.\n");
+		kvm_err("Canyest register GICv3 KVM device.\n");
 		kvm_unregister_device_ops(KVM_DEV_TYPE_ARM_VGIC_V2);
 		return ret;
 	}

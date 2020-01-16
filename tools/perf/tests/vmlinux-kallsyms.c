@@ -17,7 +17,7 @@
 int test__vmlinux_matches_kallsyms(struct test *test __maybe_unused, int subtest __maybe_unused)
 {
 	int err = -1;
-	struct rb_node *nd;
+	struct rb_yesde *nd;
 	struct symbol *sym;
 	struct map *kallsyms_map, *vmlinux_map, *map;
 	struct machine kallsyms, vmlinux;
@@ -50,8 +50,8 @@ int test__vmlinux_matches_kallsyms(struct test *test __maybe_unused, int subtest
 	 * Step 3:
 	 *
 	 * Load and split /proc/kallsyms into multiple maps, one per module.
-	 * Do not use kcore, as this test was designed before kcore support
-	 * and has parts that only make sense if using the non-kcore code.
+	 * Do yest use kcore, as this test was designed before kcore support
+	 * and has parts that only make sense if using the yesn-kcore code.
 	 * XXX: extend it to stress the kcorre code as well, hint: the list
 	 * of modules extracted from /proc/kcore, in its current form, can't
 	 * be compacted against the list of modules found in the "vmlinux"
@@ -92,7 +92,7 @@ int test__vmlinux_matches_kallsyms(struct test *test __maybe_unused, int subtest
 	 *
 	 * While doing that look if we find the ref reloc symbol, if we find it
 	 * we'll have its ref_reloc_symbol.unrelocated_addr and then
-	 * maps__reloc_vmlinux will notice and set proper ->[un]map_ip routines
+	 * maps__reloc_vmlinux will yestice and set proper ->[un]map_ip routines
 	 * to fixup the symbols.
 	 */
 	if (machine__load_vmlinux_path(&vmlinux) <= 0) {
@@ -112,7 +112,7 @@ int test__vmlinux_matches_kallsyms(struct test *test __maybe_unused, int subtest
 	map__for_each_symbol(vmlinux_map, sym, nd) {
 		struct symbol *pair, *first_pair;
 
-		sym  = rb_entry(nd, struct symbol, rb_node);
+		sym  = rb_entry(nd, struct symbol, rb_yesde);
 
 		if (sym->start == sym->end)
 			continue;
@@ -142,8 +142,8 @@ next_pair:
 						 UM(pair->end));
 
 				/*
-				 * Do not count this as a failure, because we
-				 * could really find a case where it's not
+				 * Do yest count this as a failure, because we
+				 * could really find a case where it's yest
 				 * possible to get proper function end from
 				 * kallsyms.
 				 */
@@ -165,12 +165,12 @@ next_pair:
 			}
 		} else if (mem_start == kallsyms.vmlinux_map->end) {
 			/*
-			 * Ignore aliases to _etext, i.e. to the end of the kernel text area,
+			 * Igyesre aliases to _etext, i.e. to the end of the kernel text area,
 			 * such as __indirect_thunk_end.
 			 */
 			continue;
 		} else {
-			pr_debug("ERR : %#" PRIx64 ": %s not on kallsyms\n",
+			pr_debug("ERR : %#" PRIx64 ": %s yest on kallsyms\n",
 				 mem_start, sym->name);
 		}
 

@@ -378,7 +378,7 @@ static irqreturn_t cyttsp_irq(int irq, void *handle)
 		error = cyttsp_exit_bl_mode(ts);
 		if (error) {
 			dev_err(ts->dev,
-				"Could not return to operational mode, err: %d\n",
+				"Could yest return to operational mode, err: %d\n",
 				error);
 			ts->state = CY_IDLE_STATE;
 		}
@@ -549,7 +549,7 @@ static int cyttsp_parse_properties(struct cyttsp *ts)
 					    ts->bl_keys, CY_NUM_BL_KEYS);
 	if (ret) {
 		dev_err(dev,
-			"bootloader-key property could not be retrieved\n");
+			"bootloader-key property could yest be retrieved\n");
 		return ret;
 	}
 

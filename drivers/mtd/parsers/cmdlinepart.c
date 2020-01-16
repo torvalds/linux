@@ -11,7 +11,7 @@
  * <mtddef>  := <mtd-id>:<partdef>[,<partdef>]
  * <partdef> := <size>[@<offset>][<name>][ro][lk]
  * <mtd-id>  := unique name used in mapping driver/device (mtd->name)
- * <size>    := standard linux memsize OR "-" to denote all remaining space
+ * <size>    := standard linux memsize OR "-" to deyeste all remaining space
  *              size is automatically truncated at end of device
  *              if specified or truncated size is 0 the part is skipped
  * <offset>  := standard linux memsize
@@ -29,10 +29,10 @@
  * Examples:
  *
  * 1 NOR Flash, with 1 single writable partition:
- * edb7312-nor:-
+ * edb7312-yesr:-
  *
  * 1 NOR Flash with 2 partitions, 1 NAND with one
- * edb7312-nor:256k(ARMboot)ro,-(root);edb7312-nand:-(home)
+ * edb7312-yesr:256k(ARMboot)ro,-(root);edb7312-nand:-(home)
  */
 
 #define pr_fmt(fmt)	"mtd: " fmt
@@ -74,7 +74,7 @@ static int cmdline_parsed;
 /*
  * Parse one partition definition for an MTD. Since there can be many
  * comma separated partition definitions, this function calls itself
- * recursively until no more partition definitions are found. Nice side
+ * recursively until yes more partition definitions are found. Nice side
  * effect: the memory to keep the mtd_partition structs and the names
  * is allocated upon the last definition being found. At that point the
  * syntax has been verified ok.
@@ -117,7 +117,7 @@ static struct mtd_partition * newpart(char *s,
 		offset = memparse(s, &s);
 	}
 
-	/* now look for name */
+	/* yesw look for name */
 	if (*s == '(')
 		delim = ')';
 
@@ -127,7 +127,7 @@ static struct mtd_partition * newpart(char *s,
 		name = ++s;
 		p = strchr(name, delim);
 		if (!p) {
-			pr_err("no closing %c found in partition name\n", delim);
+			pr_err("yes closing %c found in partition name\n", delim);
 			return ERR_PTR(-EINVAL);
 		}
 		name_len = p - name;
@@ -155,7 +155,7 @@ static struct mtd_partition * newpart(char *s,
 	/* test if more partitions are following */
 	if (*s == ',') {
 		if (size == SIZE_REMAINING) {
-			pr_err("no partitions allowed after a fill-up partition\n");
+			pr_err("yes partitions allowed after a fill-up partition\n");
 			return ERR_PTR(-EINVAL);
 		}
 		/* more partitions follow, parse them */
@@ -225,7 +225,7 @@ static int mtdpart_setup_real(char *s)
 		/* fetch <mtd-id> */
 		p = strchr(s, ':');
 		if (!p) {
-			pr_err("no mtd-id\n");
+			pr_err("yes mtd-id\n");
 			return -EINVAL;
 		}
 		mtd_id_len = p - mtd_id;
@@ -275,7 +275,7 @@ static int mtdpart_setup_real(char *s)
 		if (*s == 0)
 			break;
 
-		/* does another spec follow? */
+		/* does ayesther spec follow? */
 		if (*s != ';') {
 			pr_err("bad character after partition (%c)\n", *s);
 			return -EINVAL;
@@ -311,7 +311,7 @@ static int parse_cmdline_partitions(struct mtd_info *master,
 
 	/*
 	 * Search for the partition definition matching master->name.
-	 * If master->name is not set, stop at first partition definition.
+	 * If master->name is yest set, stop at first partition definition.
 	 */
 	for (part = partitions; part; part = part->next) {
 		if ((!mtd_id) || (!strcmp(part->mtd_id, mtd_id)))
@@ -358,7 +358,7 @@ static int parse_cmdline_partitions(struct mtd_info *master,
 
 /*
  * This is the handler for our kernel parameter, called from
- * main.c::checksetup(). Note that we can not yet kmalloc() anything,
+ * main.c::checksetup(). Note that we can yest yet kmalloc() anything,
  * so we only save the commandline for later processing.
  *
  * This function needs to be visible for bootloaders.

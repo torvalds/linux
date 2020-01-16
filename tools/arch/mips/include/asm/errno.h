@@ -8,10 +8,10 @@
 #ifndef _ASM_ERRNO_H
 #define _ASM_ERRNO_H
 
-#include <uapi/asm/errno.h>
+#include <uapi/asm/erryes.h>
 
 
-/* The biggest error number defined here or in <linux/errno.h>. */
+/* The biggest error number defined here or in <linux/erryes.h>. */
 #define EMAXERRNO	1133
 
 #endif /* _ASM_ERRNO_H */

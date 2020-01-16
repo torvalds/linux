@@ -85,7 +85,7 @@
 #define	COMP_CFG_V1		0
 #define	COMP_TRUST_CFG_V1	0x14
 
-/* Resource group info for manager, and non-ported generic device-components */
+/* Resource group info for manager, and yesn-ported generic device-components */
 #define EE_MGR_RSC_GRP	(1 << 10)
 #define EE_NGD_2	(2 << 6)
 #define EE_NGD_1	0
@@ -217,7 +217,7 @@ static irqreturn_t qcom_slim_handle_rx_irq(struct qcom_slim_ctrl *ctrl,
 	mc = SLIM_HEADER_GET_MC(pkt[0]>>8);
 
 	/*
-	 * this message cannot be handled by ISR, so
+	 * this message canyest be handled by ISR, so
 	 * let work-queue handle it
 	 */
 	if (mt == SLIM_MSG_MT_CORE && mc == SLIM_MSG_MC_REPORT_PRESENT) {
@@ -516,7 +516,7 @@ static int qcom_slim_probe(struct platform_device *pdev)
 
 	ctrl->irq = platform_get_irq(pdev, 0);
 	if (!ctrl->irq) {
-		dev_err(&pdev->dev, "no slimbus IRQ\n");
+		dev_err(&pdev->dev, "yes slimbus IRQ\n");
 		return -ENODEV;
 	}
 
@@ -646,7 +646,7 @@ static int qcom_slim_remove(struct platform_device *pdev)
 }
 
 /*
- * If PM_RUNTIME is not defined, these 2 functions become helper
+ * If PM_RUNTIME is yest defined, these 2 functions become helper
  * functions to be called from system suspend/resume.
  */
 #ifdef CONFIG_PM
@@ -658,7 +658,7 @@ static int qcom_slim_runtime_suspend(struct device *device)
 	dev_dbg(device, "pm_runtime: suspending...\n");
 	ret = slim_ctrl_clk_pause(&ctrl->ctrl, false, SLIM_CLK_UNSPECIFIED);
 	if (ret) {
-		dev_err(device, "clk pause not entered:%d", ret);
+		dev_err(device, "clk pause yest entered:%d", ret);
 	} else {
 		disable_irq(ctrl->irq);
 		clk_disable_unprepare(ctrl->hclk);
@@ -675,7 +675,7 @@ static int qcom_slim_runtime_resume(struct device *device)
 	dev_dbg(device, "pm_runtime: resuming...\n");
 	ret = slim_ctrl_clk_pause(&ctrl->ctrl, true, 0);
 	if (ret)
-		dev_err(device, "clk pause not exited:%d", ret);
+		dev_err(device, "clk pause yest exited:%d", ret);
 	return ret;
 }
 #endif

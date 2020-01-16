@@ -1162,7 +1162,7 @@ static const u16 pinmux_data[] = {
 #define SH73A0_PIN_O(pin)		SH_PFC_PIN_CFG(pin, __O)
 
 /*
- * Pins not associated with a GPIO port.
+ * Pins yest associated with a GPIO port.
  */
 enum {
 	PORT_ASSIGN_LAST(),
@@ -1441,7 +1441,7 @@ static const struct sh_pfc_pin pinmux_pins[] = {
 	SH73A0_PIN_I_PU(308),
 	SH73A0_PIN_O(309),
 
-	/* Pins not associated with a GPIO port */
+	/* Pins yest associated with a GPIO port */
 	PINMUX_NOGP_ALL(),
 };
 

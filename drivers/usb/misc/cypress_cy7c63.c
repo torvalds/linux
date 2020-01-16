@@ -216,9 +216,9 @@ static int cypress_probe(struct usb_interface *interface,
 	/* save our data pointer in this interface device */
 	usb_set_intfdata(interface, dev);
 
-	/* let the user know that the device is now attached */
+	/* let the user kyesw that the device is yesw attached */
 	dev_info(&interface->dev,
-		 "Cypress CY7C63xxx device now attached\n");
+		 "Cypress CY7C63xxx device yesw attached\n");
 	return 0;
 
 error_mem:
@@ -238,7 +238,7 @@ static void cypress_disconnect(struct usb_interface *interface)
 	usb_put_dev(dev->udev);
 
 	dev_info(&interface->dev,
-		 "Cypress CY7C63xxx device now disconnected\n");
+		 "Cypress CY7C63xxx device yesw disconnected\n");
 
 	kfree(dev);
 }

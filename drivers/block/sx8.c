@@ -72,12 +72,12 @@ MODULE_PARM_DESC(max_queue, "Maximum number of queued commands. (min==1, max==30
 
 #define NEXT_RESP(idx)	((idx + 1) % RMSG_Q_LEN)
 
-/* 0xf is just arbitrary, non-zero noise; this is sorta like poisoning */
+/* 0xf is just arbitrary, yesn-zero yesise; this is sorta like poisoning */
 #define TAG_ENCODE(tag)	(((tag) << 16) | 0xf)
 #define TAG_DECODE(tag)	(((tag) >> 16) & 0x1f)
 #define TAG_VALID(tag)	((((tag) & 0xf) == 0xf) && (TAG_DECODE(tag) < 32))
 
-/* note: prints function name for you */
+/* yeste: prints function name for you */
 #ifdef CARM_DEBUG
 #define DPRINTK(fmt, args...) printk(KERN_ERR "%s: " fmt, __func__, ## args)
 #ifdef CARM_VERBOSE_DEBUG
@@ -190,7 +190,7 @@ enum {
 
 	/* MISC_GET_FW_VER feature bits */
 	FW_VER_4PORT		= (1 << 2), /* 1=4 ports, 0=8 ports */
-	FW_VER_NON_RAID		= (1 << 1), /* 1=non-RAID firmware, 0=RAID */
+	FW_VER_NON_RAID		= (1 << 1), /* 1=yesn-RAID firmware, 0=RAID */
 	FW_VER_ZCR		= (1 << 0), /* zero channel RAID (whatever that is) */
 
 	/* carm_host flags */
@@ -240,7 +240,7 @@ static const char *state_name[] = {
 #endif
 
 struct carm_port {
-	unsigned int			port_no;
+	unsigned int			port_yes;
 	struct gendisk			*disk;
 	struct carm_host		*host;
 
@@ -538,8 +538,8 @@ static int carm_array_info (struct carm_host *host, unsigned int array_idx)
 	       host->state == HST_DEV_SCAN);
 	spin_unlock_irq(&host->lock);
 
-	DPRINTK("blk_execute_rq_nowait, tag == %u\n", rq->tag);
-	blk_execute_rq_nowait(host->oob_q, NULL, rq, true, NULL);
+	DPRINTK("blk_execute_rq_yeswait, tag == %u\n", rq->tag);
+	blk_execute_rq_yeswait(host->oob_q, NULL, rq, true, NULL);
 
 	return 0;
 
@@ -577,8 +577,8 @@ static int carm_send_special (struct carm_host *host, carm_sspc_t func)
 	BUG_ON(rc < 0);
 	crq->msg_bucket = (u32) rc;
 
-	DPRINTK("blk_execute_rq_nowait, tag == %u\n", rq->tag);
-	blk_execute_rq_nowait(host->oob_q, NULL, rq, true, NULL);
+	DPRINTK("blk_execute_rq_yeswait, tag == %u\n", rq->tag);
+	blk_execute_rq_yeswait(host->oob_q, NULL, rq, true, NULL);
 
 	return 0;
 }
@@ -637,7 +637,7 @@ static unsigned int carm_fill_scan_channels(struct carm_host *host,
 	ioc->handle	= cpu_to_le32(TAG_ENCODE(idx));
 	ioc->data_addr	= cpu_to_le32(msg_data);
 
-	/* fill output data area with "no device" default values */
+	/* fill output data area with "yes device" default values */
 	mem += IOC_SCAN_CHAN_OFFSET;
 	memset(mem, IOC_SCAN_CHAN_NODEV, CARM_MAX_PORTS);
 
@@ -755,7 +755,7 @@ static blk_status_t carm_queue_rq(struct blk_mq_hw_ctx *hctx,
 		crq->msg_type = CARM_MSG_READ;
 	}
 
-	msg->id		= port->port_no;
+	msg->id		= port->port_yes;
 	msg->sg_count	= n_elem;
 	msg->sg_type	= SGT_32BIT;
 	msg->handle	= cpu_to_le32(TAG_ENCODE(rq->tag));
@@ -847,10 +847,10 @@ static void carm_handle_array_info(struct carm_host *host,
 	}
 
 	printk(KERN_INFO DRV_NAME "(%s): port %u device %Lu sectors\n",
-	       pci_name(host->pdev), port->port_no,
+	       pci_name(host->pdev), port->port_yes,
 	       (unsigned long long) port->capacity);
 	printk(KERN_INFO DRV_NAME "(%s): port %u device \"%s\"\n",
-	       pci_name(host->pdev), port->port_no, port->name);
+	       pci_name(host->pdev), port->port_yes, port->name);
 
 out:
 	assert(host->state == HST_DEV_SCAN);
@@ -872,7 +872,7 @@ static void carm_handle_scan_chan(struct carm_host *host,
 		goto out;
 	}
 
-	/* TODO: scan and support non-disk devices */
+	/* TODO: scan and support yesn-disk devices */
 	for (i = 0; i < 8; i++)
 		if (msg_data[i] == 0) { /* direct-access device (disk) */
 			host->dev_present |= (1 << i);
@@ -943,7 +943,7 @@ static inline void carm_handle_resp(struct carm_host *host,
 			carm_handle_scan_chan(host, crq, mem, error);
 			goto done;
 		default:
-			/* unknown / invalid response */
+			/* unkyeswn / invalid response */
 			goto err_out;
 		}
 		break;
@@ -971,7 +971,7 @@ static inline void carm_handle_resp(struct carm_host *host,
 			goto done;
 		}
 		default:
-			/* unknown / invalid response */
+			/* unkyeswn / invalid response */
 			goto err_out;
 		}
 		break;
@@ -983,14 +983,14 @@ static inline void carm_handle_resp(struct carm_host *host,
 			carm_handle_array_info(host, crq, mem, error);
 			break;
 		default:
-			/* unknown / invalid response */
+			/* unkyeswn / invalid response */
 			goto err_out;
 		}
 		break;
 	}
 
 	default:
-		/* unknown / invalid response */
+		/* unkyeswn / invalid response */
 		goto err_out;
 	}
 
@@ -1031,7 +1031,7 @@ static inline void carm_handle_responses(struct carm_host *host)
 			resp[idx].status = cpu_to_le32(0xffffffff);
 		}
 
-		/* asynchronous events the hardware throws our way */
+		/* asynchroyesus events the hardware throws our way */
 		else if ((status & 0xff000000) == (1 << 31)) {
 			u8 *evt_type_ptr = (u8 *) &resp[idx];
 			u8 evt_type = *evt_type_ptr;
@@ -1057,7 +1057,7 @@ static irqreturn_t carm_interrupt(int irq, void *__host)
 	unsigned long flags;
 
 	if (!host) {
-		VPRINTK("no host\n");
+		VPRINTK("yes host\n");
 		return IRQ_NONE;
 	}
 
@@ -1069,7 +1069,7 @@ static irqreturn_t carm_interrupt(int irq, void *__host)
 	mask = readl(mmio + CARM_INT_STAT);
 
 	if (mask == 0 || mask == 0xffffffff) {
-		VPRINTK("no work, mask == 0x%x\n", mask);
+		VPRINTK("yes work, mask == 0x%x\n", mask);
 		goto out;
 	}
 
@@ -1077,7 +1077,7 @@ static irqreturn_t carm_interrupt(int irq, void *__host)
 		writel(mask, mmio + CARM_INT_STAT);
 
 	if (unlikely(host->state == HST_INVALID)) {
-		VPRINTK("not initialized yet, mask = 0x%x\n", mask);
+		VPRINTK("yest initialized yet, mask = 0x%x\n", mask);
 		goto out;
 	}
 
@@ -1203,7 +1203,7 @@ static void carm_fsm_task (struct work_struct *work)
 
 	default:
 		/* should never occur */
-		printk(KERN_ERR PFX "BUG: unknown state %d\n", state);
+		printk(KERN_ERR PFX "BUG: unkyeswn state %d\n", state);
 		assert(0);
 		break;
 	}
@@ -1237,7 +1237,7 @@ static int carm_init_wait(void __iomem *mmio, u32 bits, unsigned int test_bit)
 	}
 
 	printk(KERN_ERR PFX "carm_init_wait timeout, bits == 0x%x, test_bit == %s\n",
-	       bits, test_bit ? "yes" : "no");
+	       bits, test_bit ? "no" : "yes");
 	return -EBUSY;
 }
 
@@ -1270,7 +1270,7 @@ static int carm_init_host(struct carm_host *host)
 		writeb(tmp8, mmio + CARM_INITC);
 		readb(mmio + CARM_INITC);	/* flush */
 
-		DPRINTK("snooze...\n");
+		DPRINTK("syesoze...\n");
 		msleep(5000);
 	}
 
@@ -1339,14 +1339,14 @@ static const struct blk_mq_ops carm_mq_ops = {
 	.queue_rq	= carm_queue_rq,
 };
 
-static int carm_init_disk(struct carm_host *host, unsigned int port_no)
+static int carm_init_disk(struct carm_host *host, unsigned int port_yes)
 {
-	struct carm_port *port = &host->port[port_no];
+	struct carm_port *port = &host->port[port_yes];
 	struct gendisk *disk;
 	struct request_queue *q;
 
 	port->host = host;
-	port->port_no = port_no;
+	port->port_yes = port_yes;
 
 	disk = alloc_disk(CARM_MINORS_PER_MAJOR);
 	if (!disk)
@@ -1354,9 +1354,9 @@ static int carm_init_disk(struct carm_host *host, unsigned int port_no)
 
 	port->disk = disk;
 	sprintf(disk->disk_name, DRV_NAME "/%u",
-		(unsigned int)host->id * CARM_MAX_PORTS + port_no);
+		(unsigned int)host->id * CARM_MAX_PORTS + port_yes);
 	disk->major = host->major;
-	disk->first_minor = port_no * CARM_MINORS_PER_MAJOR;
+	disk->first_miyesr = port_yes * CARM_MINORS_PER_MAJOR;
 	disk->fops = &carm_bd_ops;
 	disk->private_data = port;
 
@@ -1372,9 +1372,9 @@ static int carm_init_disk(struct carm_host *host, unsigned int port_no)
 	return 0;
 }
 
-static void carm_free_disk(struct carm_host *host, unsigned int port_no)
+static void carm_free_disk(struct carm_host *host, unsigned int port_yes)
 {
-	struct carm_port *port = &host->port[port_no];
+	struct carm_port *port = &host->port[port_yes];
 	struct gendisk *disk = port->disk;
 
 	if (!disk)
@@ -1462,7 +1462,7 @@ static int carm_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 	host->tag_set.nr_hw_queues = 1;
 	host->tag_set.nr_maps = 1;
 	host->tag_set.queue_depth = max_queue;
-	host->tag_set.numa_node = NUMA_NO_NODE;
+	host->tag_set.numa_yesde = NUMA_NO_NODE;
 	host->tag_set.flags = BLK_MQ_F_SHOULD_MERGE;
 
 	rc = blk_mq_alloc_tag_set(&host->tag_set);
@@ -1561,7 +1561,7 @@ static void carm_remove_one (struct pci_dev *pdev)
 	unsigned int i;
 
 	if (!host) {
-		printk(KERN_ERR PFX "BUG: no host data for PCI(%s)\n",
+		printk(KERN_ERR PFX "BUG: yes host data for PCI(%s)\n",
 		       pci_name(pdev));
 		return;
 	}

@@ -2,7 +2,7 @@
  * Copyright (c) 2004, 2005 Topspin Communications.  All rights reserved.
  * Copyright (c) 2005 Sun Microsystems, Inc. All rights reserved.
  * Copyright (c) 2005, 2006 Cisco Systems.  All rights reserved.
- * Copyright (c) 2005 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2005 Mellayesx Techyeslogies. All rights reserved.
  * Copyright (c) 2004 Voltaire, Inc. All rights reserved.
  *
  * This software is available to you under a choice of one of two
@@ -16,11 +16,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -470,7 +470,7 @@ int mthca_write_mtt(struct mthca_dev *dev, struct mthca_mtt *mtt,
 		    int start_index, u64 *buffer_list, int list_len);
 int mthca_mr_alloc(struct mthca_dev *dev, u32 pd, int buffer_size_shift,
 		   u64 iova, u64 total_size, u32 access, struct mthca_mr *mr);
-int mthca_mr_alloc_notrans(struct mthca_dev *dev, u32 pd,
+int mthca_mr_alloc_yestrans(struct mthca_dev *dev, u32 pd,
 			   u32 access, struct mthca_mr *mr);
 int mthca_mr_alloc_phys(struct mthca_dev *dev, u32 pd,
 			u64 *buffer_list, int buffer_size_shift,
@@ -493,8 +493,8 @@ void mthca_unmap_eq_icm(struct mthca_dev *dev);
 
 int mthca_poll_cq(struct ib_cq *ibcq, int num_entries,
 		  struct ib_wc *entry);
-int mthca_tavor_arm_cq(struct ib_cq *cq, enum ib_cq_notify_flags flags);
-int mthca_arbel_arm_cq(struct ib_cq *cq, enum ib_cq_notify_flags flags);
+int mthca_tavor_arm_cq(struct ib_cq *cq, enum ib_cq_yestify_flags flags);
+int mthca_arbel_arm_cq(struct ib_cq *cq, enum ib_cq_yestify_flags flags);
 int mthca_init_cq(struct mthca_dev *dev, int nent,
 		  struct mthca_ucontext *ctx, u32 pdn,
 		  struct mthca_cq *cq);

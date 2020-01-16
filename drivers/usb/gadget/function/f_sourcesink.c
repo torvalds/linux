@@ -362,13 +362,13 @@ autoconf_fail:
 	/* allocate iso endpoints */
 	ss->iso_in_ep = usb_ep_autoconfig(cdev->gadget, &fs_iso_source_desc);
 	if (!ss->iso_in_ep)
-		goto no_iso;
+		goto yes_iso;
 
 	ss->iso_out_ep = usb_ep_autoconfig(cdev->gadget, &fs_iso_sink_desc);
 	if (!ss->iso_out_ep) {
 		usb_ep_autoconfig_release(ss->iso_in_ep);
 		ss->iso_in_ep = NULL;
-no_iso:
+yes_iso:
 		/*
 		 * We still want to work even if the UDC doesn't have isoc
 		 * endpoints, so null out the alt interface that contains
@@ -388,7 +388,7 @@ no_iso:
 
 	/*
 	 * Fill in the HS isoc descriptors from the module parameters.
-	 * We assume that the user knows what they are doing and won't
+	 * We assume that the user kyesws what they are doing and won't
 	 * give parameters that their UDC doesn't support.
 	 */
 	hs_iso_source_desc.wMaxPacketSize = ss->isoc_maxpacket;
@@ -410,7 +410,7 @@ no_iso:
 
 	/*
 	 * Fill in the SS isoc descriptors from the module parameters.
-	 * We assume that the user knows what they are doing and won't
+	 * We assume that the user kyesws what they are doing and won't
 	 * give parameters that their UDC doesn't support.
 	 */
 	ss_iso_source_desc.wMaxPacketSize = ss->isoc_maxpacket;
@@ -439,8 +439,8 @@ no_iso:
 	    (gadget_is_superspeed(c->cdev->gadget) ? "super" :
 	     (gadget_is_dualspeed(c->cdev->gadget) ? "dual" : "full")),
 			f->name, ss->in_ep->name, ss->out_ep->name,
-			ss->iso_in_ep ? ss->iso_in_ep->name : "<none>",
-			ss->iso_out_ep ? ss->iso_out_ep->name : "<none>");
+			ss->iso_in_ep ? ss->iso_in_ep->name : "<yesne>",
+			ss->iso_out_ep ? ss->iso_out_ep->name : "<yesne>");
 	return 0;
 }
 
@@ -473,7 +473,7 @@ static int check_read_data(struct f_sourcesink *ss, struct usb_request *req)
 	for (i = 0; i < req->actual; i++, buf++) {
 		switch (ss->pattern) {
 
-		/* all-zeroes has no synchronization issues */
+		/* all-zeroes has yes synchronization issues */
 		case 0:
 			if (*buf == 0)
 				continue;
@@ -532,7 +532,7 @@ static void source_sink_complete(struct usb_ep *ep, struct usb_request *req)
 
 	switch (status) {
 
-	case 0:				/* normal completion? */
+	case 0:				/* yesrmal completion? */
 		if (ep == ss->out_ep) {
 			check_read_data(ss, req);
 			if (ss->pattern != 2)
@@ -540,7 +540,7 @@ static void source_sink_complete(struct usb_ep *ep, struct usb_request *req)
 		}
 		break;
 
-	/* this endpoint is normally active while we're configured */
+	/* this endpoint is yesrmally active while we're configured */
 	case -ECONNABORTED:		/* hardware forced ep reset */
 	case -ECONNRESET:		/* request dequeued */
 	case -ESHUTDOWN:		/* disconnect from host */
@@ -552,7 +552,7 @@ static void source_sink_complete(struct usb_ep *ep, struct usb_request *req)
 		return;
 
 	case -EOVERFLOW:		/* buffer overrun on read means that
-					 * we didn't provide a big enough
+					 * we didn't provide a big eyesugh
 					 * buffer.
 					 */
 	default:
@@ -786,7 +786,7 @@ static int sourcesink_setup(struct usb_function *f,
 	 */
 	case 0x5b:	/* control WRITE test -- fill the buffer */
 		if (ctrl->bRequestType != (USB_DIR_OUT|USB_TYPE_VENDOR))
-			goto unknown;
+			goto unkyeswn;
 		if (w_value || w_index)
 			break;
 		/* just read that many bytes into the buffer */
@@ -796,7 +796,7 @@ static int sourcesink_setup(struct usb_function *f,
 		break;
 	case 0x5c:	/* control READ test -- return the buffer */
 		if (ctrl->bRequestType != (USB_DIR_IN|USB_TYPE_VENDOR))
-			goto unknown;
+			goto unkyeswn;
 		if (w_value || w_index)
 			break;
 		/* expect those bytes are still in the buffer; send back */
@@ -806,9 +806,9 @@ static int sourcesink_setup(struct usb_function *f,
 		break;
 
 	default:
-unknown:
+unkyeswn:
 		VDBG(c->cdev,
-			"unknown control req%02x.%02x v%04x i%04x l%d\n",
+			"unkyeswn control req%02x.%02x v%04x i%04x l%d\n",
 			ctrl->bRequestType, ctrl->bRequest,
 			w_value, w_index, w_length);
 	}

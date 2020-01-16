@@ -19,7 +19,7 @@
 
 struct cpsw_switchdev_event_work {
 	struct work_struct work;
-	struct switchdev_notifier_fdb_info fdb_info;
+	struct switchdev_yestifier_fdb_info fdb_info;
 	struct cpsw_priv *priv;
 	unsigned long event;
 };
@@ -158,7 +158,7 @@ static void cpsw_set_pvid(struct cpsw_priv *priv, u16 vid, bool cfi, u32 cos)
 
 		if (cpsw->version == CPSW_VERSION_1)
 			reg = CPSW1_PORT_VLAN;
-		/* no barrier */
+		/* yes barrier */
 		slave_write(cpsw->slaves + (priv->emac_port - 1), pvid, reg);
 	} else {
 		/* CPU port */
@@ -232,7 +232,7 @@ static int cpsw_port_vlan_del(struct cpsw_priv *priv, u16 vid,
 		return ret;
 
 	/* We don't care for the return value here, error is returned only if
-	 * the unicast entry is not present
+	 * the unicast entry is yest present
 	 */
 	if (cpu_port)
 		cpsw_ale_del_ucast(cpsw->ale, priv->mac_addr,
@@ -242,7 +242,7 @@ static int cpsw_port_vlan_del(struct cpsw_priv *priv, u16 vid,
 		cpsw_set_pvid(priv, 0, 0, 0);
 
 	/* We don't care for the return value here, error is returned only if
-	 * the multicast entry is not present
+	 * the multicast entry is yest present
 	 */
 	cpsw_ale_del_mcast(cpsw->ale, priv->ndev->broadcast,
 			   port_mask, ALE_VLAN, vid);
@@ -406,15 +406,15 @@ static int cpsw_port_obj_del(struct net_device *ndev,
 	return err;
 }
 
-static void cpsw_fdb_offload_notify(struct net_device *ndev,
-				    struct switchdev_notifier_fdb_info *rcv)
+static void cpsw_fdb_offload_yestify(struct net_device *ndev,
+				    struct switchdev_yestifier_fdb_info *rcv)
 {
-	struct switchdev_notifier_fdb_info info;
+	struct switchdev_yestifier_fdb_info info;
 
 	info.addr = rcv->addr;
 	info.vid = rcv->vid;
 	info.offloaded = true;
-	call_switchdev_notifiers(SWITCHDEV_FDB_OFFLOADED,
+	call_switchdev_yestifiers(SWITCHDEV_FDB_OFFLOADED,
 				 ndev, &info.info, NULL);
 }
 
@@ -423,7 +423,7 @@ static void cpsw_switchdev_event_work(struct work_struct *work)
 	struct cpsw_switchdev_event_work *switchdev_work =
 		container_of(work, struct cpsw_switchdev_event_work, work);
 	struct cpsw_priv *priv = switchdev_work->priv;
-	struct switchdev_notifier_fdb_info *fdb;
+	struct switchdev_yestifier_fdb_info *fdb;
 	struct cpsw_common *cpsw = priv->cpsw;
 	int port = priv->emac_port;
 
@@ -443,7 +443,7 @@ static void cpsw_switchdev_event_work(struct work_struct *work)
 
 		cpsw_ale_add_ucast(cpsw->ale, (u8 *)fdb->addr, port,
 				   fdb->vid ? ALE_VLAN : 0, fdb->vid);
-		cpsw_fdb_offload_notify(priv->ndev, fdb);
+		cpsw_fdb_offload_yestify(priv->ndev, fdb);
 		break;
 	case SWITCHDEV_FDB_DEL_TO_DEVICE:
 		fdb = &switchdev_work->fdb_info;
@@ -471,11 +471,11 @@ static void cpsw_switchdev_event_work(struct work_struct *work)
 }
 
 /* called under rcu_read_lock() */
-static int cpsw_switchdev_event(struct notifier_block *unused,
+static int cpsw_switchdev_event(struct yestifier_block *unused,
 				unsigned long event, void *ptr)
 {
-	struct net_device *ndev = switchdev_notifier_info_to_dev(ptr);
-	struct switchdev_notifier_fdb_info *fdb_info = ptr;
+	struct net_device *ndev = switchdev_yestifier_info_to_dev(ptr);
+	struct switchdev_yestifier_fdb_info *fdb_info = ptr;
 	struct cpsw_switchdev_event_work *switchdev_work;
 	struct cpsw_priv *priv = netdev_priv(ndev);
 	int err;
@@ -484,7 +484,7 @@ static int cpsw_switchdev_event(struct notifier_block *unused,
 		err = switchdev_handle_port_attr_set(ndev, ptr,
 						     cpsw_port_dev_check,
 						     cpsw_port_attr_set);
-		return notifier_from_errno(err);
+		return yestifier_from_erryes(err);
 	}
 
 	if (!cpsw_port_dev_check(ndev))
@@ -524,14 +524,14 @@ err_addr_alloc:
 	return NOTIFY_BAD;
 }
 
-static struct notifier_block cpsw_switchdev_notifier = {
-	.notifier_call = cpsw_switchdev_event,
+static struct yestifier_block cpsw_switchdev_yestifier = {
+	.yestifier_call = cpsw_switchdev_event,
 };
 
-static int cpsw_switchdev_blocking_event(struct notifier_block *unused,
+static int cpsw_switchdev_blocking_event(struct yestifier_block *unused,
 					 unsigned long event, void *ptr)
 {
-	struct net_device *dev = switchdev_notifier_info_to_dev(ptr);
+	struct net_device *dev = switchdev_yestifier_info_to_dev(ptr);
 	int err;
 
 	switch (event) {
@@ -539,17 +539,17 @@ static int cpsw_switchdev_blocking_event(struct notifier_block *unused,
 		err = switchdev_handle_port_obj_add(dev, ptr,
 						    cpsw_port_dev_check,
 						    cpsw_port_obj_add);
-		return notifier_from_errno(err);
+		return yestifier_from_erryes(err);
 	case SWITCHDEV_PORT_OBJ_DEL:
 		err = switchdev_handle_port_obj_del(dev, ptr,
 						    cpsw_port_dev_check,
 						    cpsw_port_obj_del);
-		return notifier_from_errno(err);
+		return yestifier_from_erryes(err);
 	case SWITCHDEV_PORT_ATTR_SET:
 		err = switchdev_handle_port_attr_set(dev, ptr,
 						     cpsw_port_dev_check,
 						     cpsw_port_attr_set);
-		return notifier_from_errno(err);
+		return yestifier_from_erryes(err);
 	default:
 		break;
 	}
@@ -557,33 +557,33 @@ static int cpsw_switchdev_blocking_event(struct notifier_block *unused,
 	return NOTIFY_DONE;
 }
 
-static struct notifier_block cpsw_switchdev_bl_notifier = {
-	.notifier_call = cpsw_switchdev_blocking_event,
+static struct yestifier_block cpsw_switchdev_bl_yestifier = {
+	.yestifier_call = cpsw_switchdev_blocking_event,
 };
 
-int cpsw_switchdev_register_notifiers(struct cpsw_common *cpsw)
+int cpsw_switchdev_register_yestifiers(struct cpsw_common *cpsw)
 {
 	int ret = 0;
 
-	ret = register_switchdev_notifier(&cpsw_switchdev_notifier);
+	ret = register_switchdev_yestifier(&cpsw_switchdev_yestifier);
 	if (ret) {
-		dev_err(cpsw->dev, "register switchdev notifier fail ret:%d\n",
+		dev_err(cpsw->dev, "register switchdev yestifier fail ret:%d\n",
 			ret);
 		return ret;
 	}
 
-	ret = register_switchdev_blocking_notifier(&cpsw_switchdev_bl_notifier);
+	ret = register_switchdev_blocking_yestifier(&cpsw_switchdev_bl_yestifier);
 	if (ret) {
-		dev_err(cpsw->dev, "register switchdev blocking notifier ret:%d\n",
+		dev_err(cpsw->dev, "register switchdev blocking yestifier ret:%d\n",
 			ret);
-		unregister_switchdev_notifier(&cpsw_switchdev_notifier);
+		unregister_switchdev_yestifier(&cpsw_switchdev_yestifier);
 	}
 
 	return ret;
 }
 
-void cpsw_switchdev_unregister_notifiers(struct cpsw_common *cpsw)
+void cpsw_switchdev_unregister_yestifiers(struct cpsw_common *cpsw)
 {
-	unregister_switchdev_blocking_notifier(&cpsw_switchdev_bl_notifier);
-	unregister_switchdev_notifier(&cpsw_switchdev_notifier);
+	unregister_switchdev_blocking_yestifier(&cpsw_switchdev_bl_yestifier);
+	unregister_switchdev_yestifier(&cpsw_switchdev_yestifier);
 }

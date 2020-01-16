@@ -26,12 +26,12 @@
  * are met:
  *
  * * Redistributions of source code must retain the above copyright
- *   notice, this list of conditions and the following disclaimer.
+ *   yestice, this list of conditions and the following disclaimer.
  * * Redistributions in binary form must reproduce the above copyright
- *   notice, this list of conditions and the following disclaimer in
+ *   yestice, this list of conditions and the following disclaimer in
  *   the documentation and/or other materials provided with the
  *   distribution.
- * * Neither the name of Intel Corporation nor the names of its
+ * * Neither the name of Intel Corporation yesr the names of its
  *   contributors may be used to endorse or promote products derived
  *   from this software without specific prior written permission.
  *
@@ -54,7 +54,7 @@
 #define SCIF_RMA_H
 
 #include <linux/intel-iommu.h>
-#include <linux/mmu_notifier.h>
+#include <linux/mmu_yestifier.h>
 
 #include "../bus/scif_bus.h"
 
@@ -82,17 +82,17 @@
  *	      window from being destroyed while RMAs are in progress.
  * @tc_lock: Synchronizes access to temporary cached windows list
  *	     for SCIF Registration Caching.
- * @mmn_lock: Synchronizes access to the list of MMU notifiers registered
+ * @mmn_lock: Synchronizes access to the list of MMU yestifiers registered
  * @tw_refcount: Keeps track of number of outstanding temporary registered
  *		 windows created by scif_vreadfrom/scif_vwriteto which have
- *		 not been destroyed.
+ *		 yest been destroyed.
  * @tcw_refcount: Same as tw_refcount but for temporary cached windows
  * @tcw_total_pages: Same as tcw_refcount but in terms of pages pinned
- * @mmn_list: MMU notifier so that we can destroy the windows when required
+ * @mmn_list: MMU yestifier so that we can destroy the windows when required
  * @fence_refcount: Keeps track of number of outstanding remote fence
  *		    requests which have been received by the peer.
  * @dma_chan: DMA channel used for all DMA transfers for this endpoint.
- * @async_list_del: Detect asynchronous list entry deletion
+ * @async_list_del: Detect asynchroyesus list entry deletion
  * @vma_list: List of vmas with remote memory mappings
  * @markwq: Wait queue used for scif_fence_mark/scif_fence_wait
 */
@@ -130,7 +130,7 @@ struct scif_fence_info {
 /*
  * struct scif_remote_fence_info - used for tracking remote fence requests
  *
- * @msg: List of SCIF node QP fence messages
+ * @msg: List of SCIF yesde QP fence messages
  * @list: Link to list of remote fence requests
  */
 struct scif_remote_fence_info {
@@ -249,7 +249,7 @@ struct scif_cb_arg {
  * @dma_addr_lookup: Lookup for physical addresses used for DMA
  * @nr_lookup: Number of entries in lookup
  * @mapped_offset: Offset used to map the window by the peer
- * @dma_addr: Array of physical addresses used for Mgmt node & MIC initiated DMA
+ * @dma_addr: Array of physical addresses used for Mgmt yesde & MIC initiated DMA
  * @num_pages: Array specifying number of pages for each physical address
  */
 struct scif_window {
@@ -290,17 +290,17 @@ struct scif_window {
 } __packed;
 
 /*
- * scif_mmu_notif - SCIF mmu notifier information
+ * scif_mmu_yestif - SCIF mmu yestifier information
  *
- * @mmu_notifier ep_mmu_notifier: MMU notifier operations
+ * @mmu_yestifier ep_mmu_yestifier: MMU yestifier operations
  * @tc_reg_list: List of temp registration windows for self
  * @mm: memory descriptor for the task_struct which initiated the RMA
  * @ep: SCIF endpoint
- * @list: link to list of MMU notifier information
+ * @list: link to list of MMU yestifier information
  */
-struct scif_mmu_notif {
+struct scif_mmu_yestif {
 #ifdef CONFIG_MMU_NOTIFIER
-	struct mmu_notifier ep_mmu_notifier;
+	struct mmu_yestifier ep_mmu_yestifier;
 #endif
 	struct list_head tc_reg_list;
 	struct mm_struct *mm;
@@ -339,11 +339,11 @@ int scif_unregister_window(struct scif_window *window);
 void
 scif_destroy_remote_window(struct scif_window *window);
 /* remove valid remote memory mappings from process address space */
-void scif_zap_mmaps(int node);
+void scif_zap_mmaps(int yesde);
 /* Query if any applications have remote memory mappings */
-bool scif_rma_do_apps_have_mmaps(int node);
+bool scif_rma_do_apps_have_mmaps(int yesde);
 /* Cleanup remote registration lists for zombie endpoints */
-void scif_cleanup_rma_for_zombies(int node);
+void scif_cleanup_rma_for_zombies(int yesde);
 /* Reserve a DMA channel for a particular endpoint */
 int scif_reserve_dma_chan(struct scif_endpt *ep);
 /* Setup a DMA mark for an endpoint */
@@ -367,7 +367,7 @@ void scif_recv_wait_resp(struct scif_dev *scifdev, struct scifmsg *msg);
 void scif_recv_sig_local(struct scif_dev *scifdev, struct scifmsg *msg);
 void scif_recv_sig_remote(struct scif_dev *scifdev, struct scifmsg *msg);
 void scif_recv_sig_resp(struct scif_dev *scifdev, struct scifmsg *msg);
-void scif_mmu_notif_handler(struct work_struct *work);
+void scif_mmu_yestif_handler(struct work_struct *work);
 void scif_rma_handle_remote_fences(void);
 void scif_rma_destroy_windows(void);
 void scif_rma_destroy_tcw_invalid(void);

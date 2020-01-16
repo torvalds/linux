@@ -95,7 +95,7 @@ static inline unsigned long phys_addr_mask(void)
  * permission implies read permission. This is the closest we can get..
  *
  * SH-X2 (SH7785) and later parts take this to the opposite end of the extreme,
- * not only supporting separate execute, read, and write bits, but having
+ * yest only supporting separate execute, read, and write bits, but having
  * completely separate permission bits for user and kernel space.
  */
 	 /*xwr*/

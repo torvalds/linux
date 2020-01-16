@@ -16,7 +16,7 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
+ * along with this program; if yest, write to the Free Software
  * Foundation, Inc., 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
  * The full GNU General Public License is included in this distribution
  * in the file called LICENSE.GPL.
@@ -31,12 +31,12 @@
  * are met:
  *
  *   * Redistributions of source code must retain the above copyright
- *     notice, this list of conditions and the following disclaimer.
+ *     yestice, this list of conditions and the following disclaimer.
  *   * Redistributions in binary form must reproduce the above copyright
- *     notice, this list of conditions and the following disclaimer in
+ *     yestice, this list of conditions and the following disclaimer in
  *     the documentation and/or other materials provided with the
  *     distribution.
- *   * Neither the name of Intel Corporation nor the names of its
+ *   * Neither the name of Intel Corporation yesr the names of its
  *     contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission.
  *
@@ -80,13 +80,13 @@ struct sci_user_parameters {
 		 * This field specifies the NOTIFY (ENABLE SPIN UP) primitive
 		 * insertion frequency for this phy index.
 		 */
-		u32 notify_enable_spin_up_insertion_frequency;
+		u32 yestify_enable_spin_up_insertion_frequency;
 
 		/**
 		 * This method specifies the number of transmitted DWORDs within which
 		 * to transmit a single ALIGN primitive.  This value applies regardless
 		 * of what type of device is attached or connection state.  A value of
-		 * 0 indicates that no ALIGN primitives will be inserted.
+		 * 0 indicates that yes ALIGN primitives will be inserted.
 		 */
 		u16 align_insertion_frequency;
 
@@ -116,13 +116,13 @@ struct sci_user_parameters {
 
 	/**
 	 * This field specifies the number of seconds to allow a phy to consume
-	 * power before yielding to another phy.
+	 * power before yielding to ayesther phy.
 	 *
 	 */
 	u8 phy_spin_up_delay_interval;
 
 	/**
-	 * These timer values specifies how long a link will remain open with no
+	 * These timer values specifies how long a link will remain open with yes
 	 * activity in increments of a microsecond, it can be in increments of
 	 * 100 microseconds if the upper most bit is set.
 	 *
@@ -139,11 +139,11 @@ struct sci_user_parameters {
 	u16 ssp_max_occupancy_timeout;
 
 	/**
-	 * This timer value specifies how long a link will remain open with no
+	 * This timer value specifies how long a link will remain open with yes
 	 * outbound traffic in increments of a microsecond.
 	 *
 	 */
-	u8 no_outbound_task_timeout;
+	u8 yes_outbound_task_timeout;
 
 };
 
@@ -162,7 +162,7 @@ struct isci_orom *isci_get_efi_var(struct pci_dev *pdev);
 struct isci_oem_hdr {
 	u8 sig[4];
 	u8 rev_major;
-	u8 rev_minor;
+	u8 rev_miyesr;
 	u16 len;
 	u8 checksum;
 	u8 reserved1;
@@ -195,12 +195,12 @@ struct isci_oem_hdr {
 #define ISCI_ROM_VER_LATEST	ISCI_ROM_VER_1_3
 
 /* Allowed PORT configuration modes APC Automatic PORT configuration mode is
- * defined by the OEM configuration parameters providing no PHY_MASK parameters
- * for any PORT. i.e. There are no phys assigned to any of the ports at start.
+ * defined by the OEM configuration parameters providing yes PHY_MASK parameters
+ * for any PORT. i.e. There are yes phys assigned to any of the ports at start.
  * MPC Manual PORT configuration mode is defined by the OEM configuration
  * parameters providing a PHY_MASK value for any PORT.  It is assumed that any
- * PORT with no PHY_MASK is an invalid port and not all PHYs must be assigned.
- * A PORT_PHY mask that assigns just a single PHY to a port and no other PHYs
+ * PORT with yes PHY_MASK is an invalid port and yest all PHYs must be assigned.
+ * A PORT_PHY mask that assigns just a single PHY to a port and yes other PHYs
  * being assigned is sufficient to declare manual PORT configuration.
  */
 enum sci_port_configuration_mode {

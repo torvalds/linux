@@ -4,7 +4,7 @@
 
 #ifndef __ASSEMBLY__
 
-#include <asm-generic/pgtable-nopud.h>
+#include <asm-generic/pgtable-yespud.h>
 
 struct mm_struct;
 
@@ -27,7 +27,7 @@ typedef struct { pud_t pud; } pmd_t;
  * setup: the pmd is never bad, and a pmd always exists (as it's folded
  * into the pud entry)
  */
-static inline int pud_none(pud_t pud)		{ return 0; }
+static inline int pud_yesne(pud_t pud)		{ return 0; }
 static inline int pud_bad(pud_t pud)		{ return 0; }
 static inline int pud_present(pud_t pud)	{ return 1; }
 static inline void pud_clear(pud_t *pud)	{ }
@@ -54,7 +54,7 @@ static inline pmd_t * pmd_offset(pud_t * pud, unsigned long address)
 
 /*
  * allocating and freeing a pmd is trivial: the 1-entry pmd is
- * inside the pud, so has no extra memory associated with it.
+ * inside the pud, so has yes extra memory associated with it.
  */
 #define pmd_alloc_one(mm, address)		NULL
 static inline void pmd_free(struct mm_struct *mm, pmd_t *pmd)

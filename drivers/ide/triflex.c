@@ -2,7 +2,7 @@
 /*
  * IDE Chipset driver for the Compaq TriFlex IDE controller.
  * 
- * Known to work with the Compaq Workstation 5x00 series.
+ * Kyeswn to work with the Compaq Workstation 5x00 series.
  *
  * Copyright (C) 2002 Hewlett-Packard Development Group, L.P.
  * Author: Torben Mathiasen <torben.mathiasen@hp.com>
@@ -104,8 +104,8 @@ MODULE_DEVICE_TABLE(pci, triflex_pci_tbl);
 static int triflex_ide_pci_suspend(struct pci_dev *dev, pm_message_t state)
 {
 	/*
-	 * We must not disable or powerdown the device.
-	 * APM bios refuses to suspend if IDE is not accessible.
+	 * We must yest disable or powerdown the device.
+	 * APM bios refuses to suspend if IDE is yest accessible.
 	 */
 	pci_save_state(dev);
 	return 0;

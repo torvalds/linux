@@ -695,7 +695,7 @@ static bool phy_config_bb_with_hdr_file(struct ieee80211_hw *hw,
 			if (v1 < 0xcdcdcdcd) {
 				_rtl92ee_config_bb_reg(hw, v1, v2);
 			} else {/*This line is the start line of branch.*/
-				/* to protect READ_NEXT_PAIR not overrun */
+				/* to protect READ_NEXT_PAIR yest overrun */
 				if (i >= len - 2)
 					break;
 
@@ -739,7 +739,7 @@ static bool phy_config_bb_with_hdr_file(struct ieee80211_hw *hw,
 				udelay(1);
 				continue;
 		    } else{/*This line is the start line of branch.*/
-			  /* to protect READ_NEXT_PAIR not overrun */
+			  /* to protect READ_NEXT_PAIR yest overrun */
 				if (i >= len - 2)
 					break;
 
@@ -924,7 +924,7 @@ bool rtl92ee_phy_config_rf_with_headerfile(struct ieee80211_hw  *hw,
 				_rtl92ee_config_rf_radio_a(hw, v1, v2);
 				continue;
 			} else {/*This line is the start line of branch.*/
-				/* to protect READ_NEXT_PAIR not overrun */
+				/* to protect READ_NEXT_PAIR yest overrun */
 				if (i >= len - 2)
 					break;
 
@@ -971,7 +971,7 @@ bool rtl92ee_phy_config_rf_with_headerfile(struct ieee80211_hw  *hw,
 				_rtl92ee_config_rf_radio_b(hw, v1, v2);
 				continue;
 			} else {/*This line is the start line of branch.*/
-				/* to protect READ_NEXT_PAIR not overrun */
+				/* to protect READ_NEXT_PAIR yest overrun */
 				if (i >= len - 2)
 					break;
 
@@ -1650,7 +1650,7 @@ void rtl92ee_phy_scan_operation_backup(struct ieee80211_hw *hw, u8 operation)
 						      (u8 *)&iotype);
 			break;
 		default:
-			pr_err("Unknown Scan Backup operation.\n");
+			pr_err("Unkyeswn Scan Backup operation.\n");
 			break;
 		}
 	}
@@ -1691,7 +1691,7 @@ void rtl92ee_phy_set_bw_mode_callback(struct ieee80211_hw *hw)
 		rtl_write_byte(rtlpriv, REG_RRSR + 2, reg_prsr_rsc);
 		break;
 	default:
-		pr_err("unknown bandwidth: %#X\n",
+		pr_err("unkyeswn bandwidth: %#X\n",
 		       rtlphy->current_chan_bw);
 		break;
 	}
@@ -1716,7 +1716,7 @@ void rtl92ee_phy_set_bw_mode_callback(struct ieee80211_hw *hw)
 			       HAL_PRIME_CHNL_OFFSET_LOWER) ? 2 : 1);
 		break;
 	default:
-		pr_err("unknown bandwidth: %#X\n",
+		pr_err("unkyeswn bandwidth: %#X\n",
 		       rtlphy->current_chan_bw);
 		break;
 	}
@@ -1901,7 +1901,7 @@ static bool _rtl92ee_phy_sw_chnl_step_by_step(struct ieee80211_hw *hw,
 			break;
 		default:
 			RT_TRACE(rtlpriv, COMP_ERR, DBG_LOUD,
-				 "switch case %#x not processed\n",
+				 "switch case %#x yest processed\n",
 				 currentcmd->cmdid);
 			break;
 		}
@@ -1922,7 +1922,7 @@ static bool _rtl92ee_phy_set_sw_chnl_cmdarray(struct swchnlcmd *cmdtable,
 	struct swchnlcmd *pcmd;
 
 	if (cmdtable == NULL) {
-		WARN_ONCE(true, "rtl8192ee: cmdtable cannot be NULL.\n");
+		WARN_ONCE(true, "rtl8192ee: cmdtable canyest be NULL.\n");
 		return false;
 	}
 
@@ -2972,7 +2972,7 @@ bool rtl92ee_phy_set_io_cmd(struct ieee80211_hw *hw, enum io_type iotype)
 			break;
 		default:
 			RT_TRACE(rtlpriv, COMP_ERR, DBG_LOUD,
-				 "switch case %#x not processed\n", iotype);
+				 "switch case %#x yest processed\n", iotype);
 			break;
 		}
 	} while (false);
@@ -3000,7 +3000,7 @@ static void rtl92ee_phy_set_io(struct ieee80211_hw *hw)
 	case IO_CMD_RESUME_DM_BY_SCAN:
 		rtl92ee_dm_write_dig(hw, rtlphy->initgain_backup.xaagccore1);
 		rtl92ee_dm_write_cck_cca_thres(hw, rtlphy->initgain_backup.cca);
-		RT_TRACE(rtlpriv, COMP_CMD, DBG_TRACE , "no set txpower\n");
+		RT_TRACE(rtlpriv, COMP_CMD, DBG_TRACE , "yes set txpower\n");
 		rtl92ee_phy_set_txpower_level(hw, rtlphy->current_channel);
 		break;
 	case IO_CMD_PAUSE_BAND0_DM_BY_SCAN:
@@ -3012,7 +3012,7 @@ static void rtl92ee_phy_set_io(struct ieee80211_hw *hw)
 		break;
 	default:
 		RT_TRACE(rtlpriv, COMP_ERR, DBG_LOUD,
-			 "switch case %#x not processed\n",
+			 "switch case %#x yest processed\n",
 			 rtlphy->current_io_type);
 		break;
 	}
@@ -3159,7 +3159,7 @@ static bool _rtl92ee_phy_set_rf_power_state(struct ieee80211_hw *hw,
 		break;
 	default:
 		RT_TRACE(rtlpriv, COMP_ERR, DBG_LOUD,
-			 "switch case %#x not processed\n", rfpwr_state);
+			 "switch case %#x yest processed\n", rfpwr_state);
 		bresult = false;
 		break;
 	}

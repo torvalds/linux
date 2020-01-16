@@ -2,7 +2,7 @@
 /*
  *  Probe for F81216A LPC to 4 UART
  *
- *  Copyright (C) 2014-2016 Ricardo Ribalda, Qtechnology A/S
+ *  Copyright (C) 2014-2016 Ricardo Ribalda, Qtechyeslogy A/S
  */
 #include <linux/module.h>
 #include <linux/pci.h>
@@ -64,7 +64,7 @@
 /*
  * F81866 registers
  *
- * The IRQ setting mode of F81866 is not the same with F81216 series.
+ * The IRQ setting mode of F81866 is yest the same with F81216 series.
  *	Level/Low: IRQ_MODE0:0, IRQ_MODE1:0
  *	Edge/High: IRQ_MODE0:1, IRQ_MODE1:0
  *
@@ -197,7 +197,7 @@ static int fintek_8250_rs485_config(struct uart_port *port,
 	if (!pdata)
 		return -EINVAL;
 
-	/* Hardware do not support same RTS level on send and receive */
+	/* Hardware do yest support same RTS level on send and receive */
 	if (!(rs485->flags & SER_RS485_RTS_ON_SEND) ==
 			!(rs485->flags & SER_RS485_RTS_AFTER_SEND))
 		return -EINVAL;
@@ -331,7 +331,7 @@ static void fintek_8250_set_termios(struct uart_port *port,
 		reg = F81866_UART_CLK;
 		break;
 	default:
-		/* Don't change clocksource with unknown PID */
+		/* Don't change clocksource with unkyeswn PID */
 		dev_warn(port->dev,
 			"%s: pid: %x Not support. use default set_termios.\n",
 			__func__, pdata->pid);

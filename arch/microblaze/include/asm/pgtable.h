@@ -1,7 +1,7 @@
 /*
  * Copyright (C) 2008-2009 Michal Simek <monstr@monstr.eu>
  * Copyright (C) 2008-2009 PetaLogix
- * Copyright (C) 2006 Atmark Techno, Inc.
+ * Copyright (C) 2006 Atmark Techyes, Inc.
  *
  * This file is subject to the terms and conditions of the GNU General Public
  * License. See the file "COPYING" in the main directory of this archive
@@ -19,22 +19,22 @@ extern int mem_init_done;
 
 #ifndef CONFIG_MMU
 
-#define pgd_present(pgd)	(1) /* pages are always present on non MMU */
-#define pgd_none(pgd)		(0)
+#define pgd_present(pgd)	(1) /* pages are always present on yesn MMU */
+#define pgd_yesne(pgd)		(0)
 #define pgd_bad(pgd)		(0)
 #define pgd_clear(pgdp)
 #define kern_addr_valid(addr)	(1)
 #define	pmd_offset(a, b)	((void *) 0)
 
-#define PAGE_NONE		__pgprot(0) /* these mean nothing to non MMU */
-#define PAGE_SHARED		__pgprot(0) /* these mean nothing to non MMU */
-#define PAGE_COPY		__pgprot(0) /* these mean nothing to non MMU */
-#define PAGE_READONLY		__pgprot(0) /* these mean nothing to non MMU */
-#define PAGE_KERNEL		__pgprot(0) /* these mean nothing to non MMU */
+#define PAGE_NONE		__pgprot(0) /* these mean yesthing to yesn MMU */
+#define PAGE_SHARED		__pgprot(0) /* these mean yesthing to yesn MMU */
+#define PAGE_COPY		__pgprot(0) /* these mean yesthing to yesn MMU */
+#define PAGE_READONLY		__pgprot(0) /* these mean yesthing to yesn MMU */
+#define PAGE_KERNEL		__pgprot(0) /* these mean yesthing to yesn MMU */
 
-#define pgprot_noncached(x)	(x)
-#define pgprot_writecombine	pgprot_noncached
-#define pgprot_device		pgprot_noncached
+#define pgprot_yesncached(x)	(x)
+#define pgprot_writecombine	pgprot_yesncached
+#define pgprot_device		pgprot_yesncached
 
 #define __swp_type(x)		(0)
 #define __swp_offset(x)		(0)
@@ -48,18 +48,18 @@ extern int mem_init_done;
 
 #define arch_enter_lazy_cpu_mode()	do {} while (0)
 
-#define pgprot_noncached_wc(prot)	prot
+#define pgprot_yesncached_wc(prot)	prot
 
 /*
  * All 32bit addresses are effectively valid for vmalloc...
- * Sort of meaningless for non-VM targets.
+ * Sort of meaningless for yesn-VM targets.
  */
 #define	VMALLOC_START	0
 #define	VMALLOC_END	0xffffffff
 
 #else /* CONFIG_MMU */
 
-#include <asm-generic/pgtable-nopmd.h>
+#include <asm-generic/pgtable-yespmd.h>
 
 #ifdef __KERNEL__
 #ifndef __ASSEMBLY__
@@ -77,7 +77,7 @@ extern pte_t *va_to_pte(unsigned long address);
 
 /*
  * The following only work if pte_present() is true.
- * Undefined behaviour if not..
+ * Undefined behaviour if yest..
  */
 
 static inline int pte_special(pte_t pte)	{ return 0; }
@@ -99,11 +99,11 @@ static inline pte_t pte_mkspecial(pte_t pte)	{ return pte; }
 #define _PAGE_CACHE_CTL	(_PAGE_GUARDED | _PAGE_NO_CACHE | \
 							_PAGE_WRITETHRU)
 
-#define pgprot_noncached(prot) \
+#define pgprot_yesncached(prot) \
 			(__pgprot((pgprot_val(prot) & ~_PAGE_CACHE_CTL) | \
 					_PAGE_NO_CACHE | _PAGE_GUARDED))
 
-#define pgprot_noncached_wc(prot) \
+#define pgprot_yesncached_wc(prot) \
 			 (__pgprot((pgprot_val(prot) & ~_PAGE_CACHE_CTL) | \
 							_PAGE_NO_CACHE))
 
@@ -127,11 +127,11 @@ static inline pte_t pte_mkspecial(pte_t pte)	{ return pte; }
  * TLB which is maintained totally under software control. In addition, the
  * instruction side has a hardware-managed, 2,4, or 8-entry, fully-associative
  * TLB which serves as a first level to the shared TLB. These two TLBs are
- * known as the UTLB and ITLB, respectively (see "mmu.h" for definitions).
+ * kyeswn as the UTLB and ITLB, respectively (see "mmu.h" for definitions).
  */
 
 /*
- * The normal case is that PTEs are 32-bits and we have a 1-page
+ * The yesrmal case is that PTEs are 32-bits and we have a 1-page
  * 1024-entry pgdir pointing to 1-page 1024-entry PTE pages.  -- paulus
  *
  */
@@ -226,9 +226,9 @@ static inline pte_t pte_mkspecial(pte_t pte)	{ return pte; }
 
 /*
  * Note: the _PAGE_COHERENT bit automatically gets set in the hardware
- * PTE if CONFIG_SMP is defined (hash_page does this); there is no need
+ * PTE if CONFIG_SMP is defined (hash_page does this); there is yes need
  * to have it in the Linux PTE, and in fact the bit could be reused for
- * another purpose.  -- paulus.
+ * ayesther purpose.  -- paulus.
  */
 #define _PAGE_BASE	(_PAGE_PRESENT | _PAGE_ACCESSED)
 #define _PAGE_WRENABLE	(_PAGE_RW | _PAGE_DIRTY | _PAGE_HWWRITE)
@@ -283,12 +283,12 @@ extern unsigned long empty_zero_page[1024];
 
 #endif /* __ASSEMBLY__ */
 
-#define pte_none(pte)		((pte_val(pte) & ~_PTE_NONE_MASK) == 0)
+#define pte_yesne(pte)		((pte_val(pte) & ~_PTE_NONE_MASK) == 0)
 #define pte_present(pte)	(pte_val(pte) & _PAGE_PRESENT)
 #define pte_clear(mm, addr, ptep) \
 	do { set_pte_at((mm), (addr), (ptep), __pte(0)); } while (0)
 
-#define pmd_none(pmd)		(!pmd_val(pmd))
+#define pmd_yesne(pmd)		(!pmd_val(pmd))
 #define	pmd_bad(pmd)		((pmd_val(pmd) & _PMD_PRESENT) == 0)
 #define	pmd_present(pmd)	((pmd_val(pmd) & _PMD_PRESENT) != 0)
 #define	pmd_clear(pmdp)		do { pmd_val(*(pmdp)) = 0; } while (0)
@@ -305,7 +305,7 @@ extern unsigned long empty_zero_page[1024];
 #ifndef __ASSEMBLY__
 /*
  * The following only work if pte_present() is true.
- * Undefined behaviour if not..
+ * Undefined behaviour if yest..
  */
 static inline int pte_read(pte_t pte)  { return pte_val(pte) & _PAGE_USER; }
 static inline int pte_write(pte_t pte) { return pte_val(pte) & _PAGE_RW; }
@@ -472,7 +472,7 @@ extern pgd_t swapper_pg_dir[PTRS_PER_PGD];
 /*
  * Encode and decode a swap entry.
  * Note that the bits we use in a PTE for representing a swap entry
- * must not include the _PAGE_PRESENT bit, or the _PAGE_HASHPTE bit
+ * must yest include the _PAGE_PRESENT bit, or the _PAGE_HASHPTE bit
  * (if used).  -- paulus
  */
 #define __swp_type(entry)		((entry).val & 0x3f)
@@ -484,8 +484,8 @@ extern pgd_t swapper_pg_dir[PTRS_PER_PGD];
 
 extern unsigned long iopa(unsigned long addr);
 
-/* Values for nocacheflag and cmode */
-/* These are not used by the APUS kernel_map, but prevents
+/* Values for yescacheflag and cmode */
+/* These are yest used by the APUS kernel_map, but prevents
  * compilation errors.
  */
 #define	IOMAP_FULL_CACHING	0
@@ -493,7 +493,7 @@ extern unsigned long iopa(unsigned long addr);
 #define	IOMAP_NOCACHE_NONSER	2
 #define	IOMAP_NO_COPYBACK	3
 
-/* Needs to be defined here and not in linux/mm.h, as it is arch dependent */
+/* Needs to be defined here and yest in linux/mm.h, as it is arch dependent */
 #define kern_addr_valid(addr)	(1)
 
 void do_page_fault(struct pt_regs *regs, unsigned long address,

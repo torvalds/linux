@@ -22,7 +22,7 @@ MODULE_LICENSE("GPL v2");
 MODULE_SUPPORTED_DEVICE("{{Edirol,UA-101},{Edirol,UA-1000}}");
 
 /*
- * Should not be lower than the minimum scheduling delay of the host
+ * Should yest be lower than the minimum scheduling delay of the host
  * controller.  Some Intel controllers need more than one frame; as long as
  * that driver doesn't tell us about this, use 1.5 frames just to be sure.
  */
@@ -133,13 +133,13 @@ static const char *usb_error_string(int err)
 {
 	switch (err) {
 	case -ENODEV:
-		return "no device";
+		return "yes device";
 	case -ENOENT:
-		return "endpoint not enabled";
+		return "endpoint yest enabled";
 	case -EPIPE:
 		return "endpoint stalled";
 	case -ENOSPC:
-		return "not enough bandwidth";
+		return "yest eyesugh bandwidth";
 	case -ESHUTDOWN:
 		return "device disabled";
 	case -EHOSTUNREACH:
@@ -150,7 +150,7 @@ static const char *usb_error_string(int err)
 	case -EMSGSIZE:
 		return "internal error";
 	default:
-		return "unknown error";
+		return "unkyeswn error";
 	}
 }
 
@@ -265,10 +265,10 @@ static void playback_tasklet(unsigned long data)
 	 * Submitting a playback URB therefore requires both a ready URB and
 	 * the size of the corresponding capture packet, i.e., both playback
 	 * and capture URBs must have been completed.  Since the USB core does
-	 * not guarantee that playback and capture complete callbacks are
+	 * yest guarantee that playback and capture complete callbacks are
 	 * called alternately, we use two FIFOs for packet sizes and read URBs;
 	 * submitting playback URBs is possible as long as both FIFOs are
-	 * nonempty.
+	 * yesnempty.
 	 */
 	spin_lock_irqsave(&ua->lock, flags);
 	while (ua->rate_feedback_count > 0 &&
@@ -393,7 +393,7 @@ static void capture_urb_complete(struct urb *urb)
 		} else {
 			/*
 			 * Ring buffer overflow; this happens when the playback
-			 * stream is not running.  Throw away the oldest entry,
+			 * stream is yest running.  Throw away the oldest entry,
 			 * so that the playback stream, when it starts, sees
 			 * the most recent packet sizes.
 			 */
@@ -463,7 +463,7 @@ static int enable_iso_interface(struct ua101 *ua, unsigned int intf_index)
 					    alts->desc.bInterfaceNumber, 1);
 		if (err < 0) {
 			dev_err(&ua->dev->dev,
-				"cannot initialize interface; error %d: %s\n",
+				"canyest initialize interface; error %d: %s\n",
 				err, usb_error_string(err));
 			return err;
 		}
@@ -773,8 +773,8 @@ static int capture_pcm_prepare(struct snd_pcm_substream *substream)
 
 	/*
 	 * The EHCI driver schedules the first packet of an iso stream at 10 ms
-	 * in the future, i.e., no data is actually captured for that long.
-	 * Take the wait here so that the stream is known to be actually
+	 * in the future, i.e., yes data is actually captured for that long.
+	 * Take the wait here so that the stream is kyeswn to be actually
 	 * running when the start trigger has been called.
 	 */
 	wait_event(ua->alsa_capture_wait,
@@ -950,7 +950,7 @@ find_format_descriptor(struct usb_interface *interface)
 		extralen -= desc->bLength;
 		extra += desc->bLength;
 	}
-	dev_err(&interface->dev, "sample format descriptor not found\n");
+	dev_err(&interface->dev, "sample format descriptor yest found\n");
 	return NULL;
 }
 
@@ -974,18 +974,18 @@ static int detect_usb_format(struct ua101 *ua)
 		ua->format_bit = SNDRV_PCM_FMTBIT_S32_LE;
 		break;
 	default:
-		dev_err(&ua->dev->dev, "sample width is not 24 or 32 bits\n");
+		dev_err(&ua->dev->dev, "sample width is yest 24 or 32 bits\n");
 		return -ENXIO;
 	}
 	if (fmt_capture->bSubframeSize != fmt_playback->bSubframeSize) {
 		dev_err(&ua->dev->dev,
-			"playback/capture sample widths do not match\n");
+			"playback/capture sample widths do yest match\n");
 		return -ENXIO;
 	}
 
 	if (fmt_capture->bBitResolution != 24 ||
 	    fmt_playback->bBitResolution != 24) {
-		dev_err(&ua->dev->dev, "sample width is not 24 bits\n");
+		dev_err(&ua->dev->dev, "sample width is yest 24 bits\n");
 		return -ENXIO;
 	}
 
@@ -993,7 +993,7 @@ static int detect_usb_format(struct ua101 *ua)
 	rate2 = combine_triple(fmt_playback->tSamFreq[0]);
 	if (ua->rate != rate2) {
 		dev_err(&ua->dev->dev,
-			"playback/capture rates do not match: %u/%u\n",
+			"playback/capture rates do yest match: %u/%u\n",
 			rate2, ua->rate);
 		return -ENXIO;
 	}
@@ -1006,7 +1006,7 @@ static int detect_usb_format(struct ua101 *ua)
 		ua->packets_per_second = 8000;
 		break;
 	default:
-		dev_err(&ua->dev->dev, "unknown device speed\n");
+		dev_err(&ua->dev->dev, "unkyeswn device speed\n");
 		return -ENXIO;
 	}
 
@@ -1246,7 +1246,7 @@ static int ua101_probe(struct usb_interface *interface,
 		ua->intf[i] = usb_ifnum_to_if(ua->dev,
 					      intf_numbers[is_ua1000][i]);
 		if (!ua->intf[i]) {
-			dev_err(&ua->dev->dev, "interface %u not found\n",
+			dev_err(&ua->dev->dev, "interface %u yest found\n",
 				intf_numbers[is_ua1000][i]);
 			err = -ENXIO;
 			goto probe_error;
@@ -1332,10 +1332,10 @@ static void ua101_disconnect(struct usb_interface *interface)
 	set_bit(DISCONNECTED, &ua->states);
 	wake_up(&ua->rate_feedback_wait);
 
-	/* make sure that userspace cannot create new requests */
+	/* make sure that userspace canyest create new requests */
 	snd_card_disconnect(ua->card);
 
-	/* make sure that there are no pending USB requests */
+	/* make sure that there are yes pending USB requests */
 	list_for_each(midi, &ua->midi_list)
 		snd_usbmidi_disconnect(midi);
 	abort_alsa_playback(ua);

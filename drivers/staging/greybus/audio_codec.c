@@ -67,7 +67,7 @@ static int gbaudio_module_enable_tx(struct gbaudio_codec_info *codec,
 
 	/* register cport */
 	if (module_state < GBAUDIO_CODEC_STARTUP) {
-		i2s_port = 0;	/* fixed for now */
+		i2s_port = 0;	/* fixed for yesw */
 		cportid = data->connection->hd_cport_id;
 		ret = gb_audio_apbridgea_register_cport(data->connection,
 						i2s_port, cportid,
@@ -157,7 +157,7 @@ static int gbaudio_module_disable_tx(struct gbaudio_module_info *module, int id)
 	}
 
 	if (module_state > GBAUDIO_CODEC_SHUTDOWN) {
-		i2s_port = 0;	/* fixed for now */
+		i2s_port = 0;	/* fixed for yesw */
 		cportid = data->connection->hd_cport_id;
 		ret = gb_audio_apbridgea_unregister_cport(data->connection,
 						i2s_port, cportid,
@@ -202,7 +202,7 @@ static int gbaudio_module_enable_rx(struct gbaudio_codec_info *codec,
 
 	/* register cport */
 	if (module_state < GBAUDIO_CODEC_STARTUP) {
-		i2s_port = 0;	/* fixed for now */
+		i2s_port = 0;	/* fixed for yesw */
 		cportid = data->connection->hd_cport_id;
 		ret = gb_audio_apbridgea_register_cport(data->connection,
 						i2s_port, cportid,
@@ -292,7 +292,7 @@ static int gbaudio_module_disable_rx(struct gbaudio_module_info *module, int id)
 	}
 
 	if (module_state > GBAUDIO_CODEC_SHUTDOWN) {
-		i2s_port = 0;	/* fixed for now */
+		i2s_port = 0;	/* fixed for yesw */
 		cportid = data->connection->hd_cport_id;
 		ret = gb_audio_apbridgea_unregister_cport(data->connection,
 						i2s_port, cportid,
@@ -493,7 +493,7 @@ static int gbcodec_hw_params(struct snd_pcm_substream *substream,
 		return ret;
 	}
 
-	gb_pm_runtime_put_noidle(bundle);
+	gb_pm_runtime_put_yesidle(bundle);
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
 		sig_bits = dai->driver->playback.sig_bits;
@@ -571,7 +571,7 @@ static int gbcodec_prepare(struct snd_pcm_substream *substream,
 		return ret;
 	}
 
-	gb_pm_runtime_put_noidle(bundle);
+	gb_pm_runtime_put_yesidle(bundle);
 
 	params->state = GBAUDIO_CODEC_PREPARE;
 	mutex_unlock(&codec->lock);
@@ -667,7 +667,7 @@ static int gbcodec_mute_stream(struct snd_soc_dai *dai, int mute, int stream)
 				    module->name, mute ? "Mute" : "Unmute",
 				    stream ? "Capture" : "Playback", ret);
 
-	gb_pm_runtime_put_noidle(bundle);
+	gb_pm_runtime_put_yesidle(bundle);
 	mutex_unlock(&codec->lock);
 	return ret;
 }
@@ -798,7 +798,7 @@ int gbaudio_register_module(struct gbaudio_module_info *module)
 	struct snd_soc_jack *jack = NULL;
 
 	if (!gbcodec) {
-		dev_err(module->dev, "GB Codec not yet probed\n");
+		dev_err(module->dev, "GB Codec yest yet probed\n");
 		return -EAGAIN;
 	}
 
@@ -809,7 +809,7 @@ int gbaudio_register_module(struct gbaudio_module_info *module)
 
 	if (module->num_dais) {
 		dev_err(gbcodec->dev,
-			"%d:DAIs not supported via gbcodec driver\n",
+			"%d:DAIs yest supported via gbcodec driver\n",
 			module->num_dais);
 		up_write(&card->controls_rwsem);
 		return -EINVAL;
@@ -876,7 +876,7 @@ static void gbaudio_codec_clean_data_tx(struct gbaudio_data_connection *data)
 		if (ret)
 			return;
 	}
-	i2s_port = 0;	/* fixed for now */
+	i2s_port = 0;	/* fixed for yesw */
 	cportid = data->connection->hd_cport_id;
 	ret = gb_audio_apbridgea_unregister_cport(data->connection,
 						  i2s_port, cportid,
@@ -898,7 +898,7 @@ static void gbaudio_codec_clean_data_rx(struct gbaudio_data_connection *data)
 		if (ret)
 			return;
 	}
-	i2s_port = 0;	/* fixed for now */
+	i2s_port = 0;	/* fixed for yesw */
 	cportid = data->connection->hd_cport_id;
 	ret = gb_audio_apbridgea_unregister_cport(data->connection,
 						  i2s_port, cportid,
@@ -1021,7 +1021,7 @@ static int gbcodec_probe(struct snd_soc_codec *codec)
 
 static int gbcodec_remove(struct snd_soc_codec *codec)
 {
-	/* Empty function for now */
+	/* Empty function for yesw */
 	return 0;
 }
 
@@ -1045,7 +1045,7 @@ static struct snd_soc_codec_driver soc_codec_dev_gbaudio = {
 	.write = gbcodec_write,
 
 	.idle_bias_off = true,
-	.ignore_pmdown_time = 1,
+	.igyesre_pmdown_time = 1,
 };
 
 #ifdef CONFIG_PM

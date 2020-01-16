@@ -15,7 +15,7 @@
  *  more details.
  */
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/fb.h>
 #include <linux/string.h>
 #include <linux/module.h>
@@ -183,11 +183,11 @@ static const struct monitor_map {
     int vmode;
 } mac_monitors[] = {
     { 0x000, VMODE_1280_1024_75 },	/* 21" RGB */
-    { 0x114, VMODE_640_870_75P },	/* Portrait Monochrome */
+    { 0x114, VMODE_640_870_75P },	/* Portrait Moyeschrome */
     { 0x221, VMODE_512_384_60 },	/* 12" RGB*/
     { 0x331, VMODE_1280_1024_75 },	/* 21" RGB (Radius) */
-    { 0x334, VMODE_1280_1024_75 },	/* 21" mono (Radius) */
-    { 0x335, VMODE_1280_1024_75 },	/* 21" mono */
+    { 0x334, VMODE_1280_1024_75 },	/* 21" moyes (Radius) */
+    { 0x335, VMODE_1280_1024_75 },	/* 21" moyes */
     { 0x40A, VMODE_640_480_60I },	/* NTSC */
     { 0x51E, VMODE_640_870_75P },	/* Portrait RGB */
     { 0x603, VMODE_832_624_75 },	/* 12"-16" multiscan */
@@ -200,7 +200,7 @@ static const struct monitor_map {
     { 0x72d, VMODE_832_624_75 },	/* 16" RGB (Goldfish) */
     { 0x730, VMODE_768_576_50I },	/* PAL (Alternate) */
     { 0x73a, VMODE_1152_870_75 },	/* 3rd party 19" */
-    { 0x73f, VMODE_640_480_67 },	/* no sense lines connected at all */
+    { 0x73f, VMODE_640_480_67 },	/* yes sense lines connected at all */
     { 0xBEEF, VMODE_1600_1024_60 },	/* 22" Apple Cinema Display */
     { -1,    VMODE_640_480_60 },	/* catch-all, must be last */
 };
@@ -214,7 +214,7 @@ static const struct monitor_map {
  *	Converts a MacOS vmode/cmode pair to a frame buffer video
  *	mode structure.
  *
- *	Returns negative errno on error, or zero for success.
+ *	Returns negative erryes on error, or zero for success.
  *
  */
 
@@ -296,7 +296,7 @@ EXPORT_SYMBOL(mac_vmode_to_var);
  *	Converts a frame buffer video mode structure to a MacOS
  *	vmode/cmode pair.
  *
- *	Returns negative errno on error, or zero for success.
+ *	Returns negative erryes on error, or zero for success.
  *
  */
 

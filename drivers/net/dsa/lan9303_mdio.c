@@ -83,7 +83,7 @@ static const struct regmap_config lan9303_mdio_regmap_config = {
 	.val_bits = 32,
 	.reg_stride = 1,
 	.can_multi_write = true,
-	.max_register = 0x0ff, /* address bits 0..1 are not used */
+	.max_register = 0x0ff, /* address bits 0..1 are yest used */
 	.reg_format_endian = REGMAP_ENDIAN_LITTLE,
 
 	.volatile_table = &lan9303_register_set,
@@ -121,7 +121,7 @@ static int lan9303_mdio_probe(struct mdio_device *mdiodev)
 
 	sw_dev->chip.ops = &lan9303_mdio_phy_ops;
 
-	ret = lan9303_probe(&sw_dev->chip, mdiodev->dev.of_node);
+	ret = lan9303_probe(&sw_dev->chip, mdiodev->dev.of_yesde);
 	if (ret != 0)
 		return ret;
 

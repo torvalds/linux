@@ -19,26 +19,26 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * along with this program.  If yest, see <http://www.gnu.org/licenses/>.
  *
  * This file incorporates work covered by the following copyright and
- * permission notice:
- *     The Synopsys DWC ETHER XGMAC Software Driver and documentation
- *     (hereinafter "Software") is an unsupported proprietary work of Synopsys,
- *     Inc. unless otherwise expressly agreed to in writing between Synopsys
+ * permission yestice:
+ *     The Syyespsys DWC ETHER XGMAC Software Driver and documentation
+ *     (hereinafter "Software") is an unsupported proprietary work of Syyespsys,
+ *     Inc. unless otherwise expressly agreed to in writing between Syyespsys
  *     and you.
  *
  *     The Software IS NOT an item of Licensed Software or Licensed Product
  *     under any End User Software License Agreement or Agreement for Licensed
- *     Product with Synopsys or any supplement thereto.  Permission is hereby
+ *     Product with Syyespsys or any supplement thereto.  Permission is hereby
  *     granted, free of charge, to any person obtaining a copy of this software
- *     annotated with this license and the Software, to deal in the Software
+ *     anyestated with this license and the Software, to deal in the Software
  *     without restriction, including without limitation the rights to use,
  *     copy, modify, merge, publish, distribute, sublicense, and/or sell copies
  *     of the Software, and to permit persons to whom the Software is furnished
  *     to do so, subject to the following conditions:
  *
- *     The above copyright notice and this permission notice shall be included
+ *     The above copyright yestice and this permission yestice shall be included
  *     in all copies or substantial portions of the Software.
  *
  *     THIS SOFTWARE IS BEING DISTRIBUTED BY SYNOPSYS SOLELY ON AN "AS IS"
@@ -62,11 +62,11 @@
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
  *     * Redistributions of source code must retain the above copyright
- *       notice, this list of conditions and the following disclaimer.
+ *       yestice, this list of conditions and the following disclaimer.
  *     * Redistributions in binary form must reproduce the above copyright
- *       notice, this list of conditions and the following disclaimer in the
+ *       yestice, this list of conditions and the following disclaimer in the
  *       documentation and/or other materials provided with the distribution.
- *     * Neither the name of Advanced Micro Devices, Inc. nor the
+ *     * Neither the name of Advanced Micro Devices, Inc. yesr the
  *       names of its contributors may be used to endorse or promote products
  *       derived from this software without specific prior written permission.
  *
@@ -82,23 +82,23 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  * This file incorporates work covered by the following copyright and
- * permission notice:
- *     The Synopsys DWC ETHER XGMAC Software Driver and documentation
- *     (hereinafter "Software") is an unsupported proprietary work of Synopsys,
- *     Inc. unless otherwise expressly agreed to in writing between Synopsys
+ * permission yestice:
+ *     The Syyespsys DWC ETHER XGMAC Software Driver and documentation
+ *     (hereinafter "Software") is an unsupported proprietary work of Syyespsys,
+ *     Inc. unless otherwise expressly agreed to in writing between Syyespsys
  *     and you.
  *
  *     The Software IS NOT an item of Licensed Software or Licensed Product
  *     under any End User Software License Agreement or Agreement for Licensed
- *     Product with Synopsys or any supplement thereto.  Permission is hereby
+ *     Product with Syyespsys or any supplement thereto.  Permission is hereby
  *     granted, free of charge, to any person obtaining a copy of this software
- *     annotated with this license and the Software, to deal in the Software
+ *     anyestated with this license and the Software, to deal in the Software
  *     without restriction, including without limitation the rights to use,
  *     copy, modify, merge, publish, distribute, sublicense, and/or sell copies
  *     of the Software, and to permit persons to whom the Software is furnished
  *     to do so, subject to the following conditions:
  *
- *     The above copyright notice and this permission notice shall be included
+ *     The above copyright yestice and this permission yestice shall be included
  *     in all copies or substantial portions of the Software.
  *
  *     THIS SOFTWARE IS BEING DISTRIBUTED BY SYNOPSYS SOLELY ON AN "AS IS"
@@ -176,7 +176,7 @@
 #define XGBE_DMA_OS_ARCR	0x002b2b2b
 #define XGBE_DMA_OS_AWCR	0x2f2f2f2f
 
-/* DMA cache settings - System, no caches used */
+/* DMA cache settings - System, yes caches used */
 #define XGBE_DMA_SYS_ARCR	0x00303030
 #define XGBE_DMA_SYS_AWCR	0x30303030
 
@@ -297,7 +297,7 @@
 #define XGBE_SGMII_AN_LINK_SPEED_1000	0x08
 #define XGBE_SGMII_AN_LINK_DUPLEX	BIT(4)
 
-/* ECC correctable error notification window (seconds) */
+/* ECC correctable error yestification window (seconds) */
 #define XGBE_ECC_LIMIT			60
 
 /* MDIO port types */
@@ -433,8 +433,8 @@ struct xgbe_ring_data {
 	unsigned int mapped_as_page;
 
 	/* Incomplete receive save location.  If the budget is exhausted
-	 * or the last descriptor (last normal descriptor or a following
-	 * context descriptor) has not been DMA'd yet the current state
+	 * or the last descriptor (last yesrmal descriptor or a following
+	 * context descriptor) has yest been DMA'd yet the current state
 	 * of the receive processing needs to be saved.
 	 */
 	unsigned int state_saved;
@@ -465,7 +465,7 @@ struct xgbe_ring {
 	/* Page allocation for RX buffers */
 	struct xgbe_page_alloc rx_hdr_pa;
 	struct xgbe_page_alloc rx_buf_pa;
-	int node;
+	int yesde;
 
 	/* Ring index values
 	 *  cur   - Tx: index of descriptor to be used for current transfer
@@ -519,7 +519,7 @@ struct xgbe_channel {
 	struct xgbe_ring *tx_ring;
 	struct xgbe_ring *rx_ring;
 
-	int node;
+	int yesde;
 	cpumask_t affinity_mask;
 } ____cacheline_aligned;
 
@@ -836,7 +836,7 @@ struct xgbe_hw_if {
 };
 
 /* This structure represents implementation specific routines for an
- * implementation of a PHY. All routines are required unless noted below.
+ * implementation of a PHY. All routines are required unless yested below.
  *   Optional routines:
  *     an_pre, an_post
  *     kr_training_pre, kr_training_post

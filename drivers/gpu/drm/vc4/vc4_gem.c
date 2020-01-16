@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -77,7 +77,7 @@ vc4_get_hang_state_ioctl(struct drm_device *dev, void *data,
 	int ret = 0;
 
 	if (!vc4->v3d) {
-		DRM_DEBUG("VC4_GET_HANG_STATE with no VC4 V3D probed\n");
+		DRM_DEBUG("VC4_GET_HANG_STATE with yes VC4 V3D probed\n");
 		return -ENODEV;
 	}
 
@@ -89,7 +89,7 @@ vc4_get_hang_state_ioctl(struct drm_device *dev, void *data,
 	}
 	state = &kernel_state->user_state;
 
-	/* If the user's array isn't big enough, just return the
+	/* If the user's array isn't big eyesugh, just return the
 	 * required array size.
 	 */
 	if (get_state->bo_count < state->bo_count) {
@@ -255,9 +255,9 @@ vc4_save_hang_state(struct drm_device *dev)
 	/* We need to turn purgeable BOs into unpurgeable ones so that
 	 * userspace has a chance to dump the hang state before the kernel
 	 * decides to purge those BOs.
-	 * Note that BO consistency at dump time cannot be guaranteed. For
+	 * Note that BO consistency at dump time canyest be guaranteed. For
 	 * example, if the owner of these BOs decides to re-use them or mark
-	 * them purgeable again there's nothing we can do to prevent it.
+	 * them purgeable again there's yesthing we can do to prevent it.
 	 */
 	for (i = 0; i < kernel_state->user_state.bo_count; i++) {
 		struct vc4_bo *bo = to_vc4_bo(kernel_state->bo[i]);
@@ -301,7 +301,7 @@ vc4_reset(struct drm_device *dev)
 
 	vc4_irq_reset(dev);
 
-	/* Rearm the hangcheck -- another job might have been waiting
+	/* Rearm the hangcheck -- ayesther job might have been waiting
 	 * for our hung one to get kicked off, and vc4_irq_reset()
 	 * would have started it.
 	 */
@@ -358,7 +358,7 @@ vc4_hangcheck_elapsed(struct timer_list *t)
 
 	spin_unlock_irqrestore(&vc4->job_lock, irqflags);
 
-	/* We've gone too long with no progress, reset.  This has to
+	/* We've gone too long with yes progress, reset.  This has to
 	 * be done from a work struct, since resetting can sleep and
 	 * this timer hook isn't allowed to.
 	 */
@@ -378,7 +378,7 @@ submit_cl(struct drm_device *dev, uint32_t thread, uint32_t start, uint32_t end)
 }
 
 int
-vc4_wait_for_seqno(struct drm_device *dev, uint64_t seqno, uint64_t timeout_ns,
+vc4_wait_for_seqyes(struct drm_device *dev, uint64_t seqyes, uint64_t timeout_ns,
 		   bool interruptible)
 {
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
@@ -386,7 +386,7 @@ vc4_wait_for_seqno(struct drm_device *dev, uint64_t seqno, uint64_t timeout_ns,
 	unsigned long timeout_expire;
 	DEFINE_WAIT(wait);
 
-	if (vc4->finished_seqno >= seqno)
+	if (vc4->finished_seqyes >= seqyes)
 		return 0;
 
 	if (timeout_ns == 0)
@@ -394,7 +394,7 @@ vc4_wait_for_seqno(struct drm_device *dev, uint64_t seqno, uint64_t timeout_ns,
 
 	timeout_expire = jiffies + nsecs_to_jiffies(timeout_ns);
 
-	trace_vc4_wait_for_seqno_begin(dev, seqno, timeout_ns);
+	trace_vc4_wait_for_seqyes_begin(dev, seqyes, timeout_ns);
 	for (;;) {
 		prepare_to_wait(&vc4->job_wait_queue, &wait,
 				interruptible ? TASK_INTERRUPTIBLE :
@@ -405,7 +405,7 @@ vc4_wait_for_seqno(struct drm_device *dev, uint64_t seqno, uint64_t timeout_ns,
 			break;
 		}
 
-		if (vc4->finished_seqno >= seqno)
+		if (vc4->finished_seqyes >= seqyes)
 			break;
 
 		if (timeout_ns != ~0ull) {
@@ -420,7 +420,7 @@ vc4_wait_for_seqno(struct drm_device *dev, uint64_t seqno, uint64_t timeout_ns,
 	}
 
 	finish_wait(&vc4->job_wait_queue, &wait);
-	trace_vc4_wait_for_seqno_end(dev, seqno);
+	trace_vc4_wait_for_seqyes_end(dev, seqyes);
 
 	return ret;
 }
@@ -432,7 +432,7 @@ vc4_flush_caches(struct drm_device *dev)
 
 	/* Flush the GPU L2 caches.  These caches sit on top of system
 	 * L3 (the 128kb or so shared with the CPU), and are
-	 * non-allocating in the L3.
+	 * yesn-allocating in the L3.
 	 */
 	V3D_WRITE(V3D_L2CACTL,
 		  V3D_L2CACTL_L2CCLR);
@@ -475,7 +475,7 @@ again:
 
 	vc4_flush_caches(dev);
 
-	/* Only start the perfmon if it was not already started by a previous
+	/* Only start the perfmon if it was yest already started by a previous
 	 * job.
 	 */
 	if (exec->perfmon && vc4->active_perfmon != exec->perfmon)
@@ -513,7 +513,7 @@ vc4_submit_next_render_job(struct drm_device *dev)
 
 	/* A previous RCL may have written to one of our textures, and
 	 * our full cache flush at bin time may have occurred before
-	 * that RCL completed.  Flush the texture cache now, but not
+	 * that RCL completed.  Flush the texture cache yesw, but yest
 	 * the instructions or uniforms (since we don't write those
 	 * from an RCL).
 	 */
@@ -534,25 +534,25 @@ vc4_move_job_to_render(struct drm_device *dev, struct vc4_exec_info *exec)
 }
 
 static void
-vc4_update_bo_seqnos(struct vc4_exec_info *exec, uint64_t seqno)
+vc4_update_bo_seqyess(struct vc4_exec_info *exec, uint64_t seqyes)
 {
 	struct vc4_bo *bo;
 	unsigned i;
 
 	for (i = 0; i < exec->bo_count; i++) {
 		bo = to_vc4_bo(&exec->bo[i]->base);
-		bo->seqno = seqno;
+		bo->seqyes = seqyes;
 
 		dma_resv_add_shared_fence(bo->base.base.resv, exec->fence);
 	}
 
 	list_for_each_entry(bo, &exec->unref_list, unref_head) {
-		bo->seqno = seqno;
+		bo->seqyes = seqyes;
 	}
 
 	for (i = 0; i < exec->rcl_write_bo_count; i++) {
 		bo = to_vc4_bo(&exec->rcl_write_bo[i]->base);
-		bo->write_seqno = seqno;
+		bo->write_seqyes = seqyes;
 
 		dma_resv_add_excl_fence(bo->base.base.resv, exec->fence);
 	}
@@ -652,7 +652,7 @@ retry:
 	return 0;
 }
 
-/* Queues a struct vc4_exec_info for execution.  If no job is
+/* Queues a struct vc4_exec_info for execution.  If yes job is
  * currently executing, then submits it.
  *
  * Unlike most GPUs, our hardware only handles one command list at a
@@ -668,7 +668,7 @@ vc4_queue_submit(struct drm_device *dev, struct vc4_exec_info *exec,
 {
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
 	struct vc4_exec_info *renderjob;
-	uint64_t seqno;
+	uint64_t seqyes;
 	unsigned long irqflags;
 	struct vc4_fence *fence;
 
@@ -679,24 +679,24 @@ vc4_queue_submit(struct drm_device *dev, struct vc4_exec_info *exec,
 
 	spin_lock_irqsave(&vc4->job_lock, irqflags);
 
-	seqno = ++vc4->emit_seqno;
-	exec->seqno = seqno;
+	seqyes = ++vc4->emit_seqyes;
+	exec->seqyes = seqyes;
 
 	dma_fence_init(&fence->base, &vc4_fence_ops, &vc4->job_lock,
-		       vc4->dma_fence_context, exec->seqno);
-	fence->seqno = exec->seqno;
+		       vc4->dma_fence_context, exec->seqyes);
+	fence->seqyes = exec->seqyes;
 	exec->fence = &fence->base;
 
 	if (out_sync)
 		drm_syncobj_replace_fence(out_sync, exec->fence);
 
-	vc4_update_bo_seqnos(exec, seqno);
+	vc4_update_bo_seqyess(exec, seqyes);
 
 	vc4_unlock_bo_reservations(dev, exec, acquire_ctx);
 
 	list_add_tail(&exec->head, &vc4->bin_job_list);
 
-	/* If no bin job was executing and if the render job (if any) has the
+	/* If yes bin job was executing and if the render job (if any) has the
 	 * same perfmon as our job attached to it (or if both jobs don't have
 	 * perfmon activated), then kick ours off.  Otherwise, it'll get
 	 * started when the previous job's flush/render done interrupt occurs.
@@ -796,8 +796,8 @@ vc4_cl_lookup_bos(struct drm_device *dev,
 
 fail_dec_usecnt:
 	/* Decrease usecnt on acquired objects.
-	 * We cannot rely on  vc4_complete_exec() to release resources here,
-	 * because vc4_complete_exec() has no information about which BO has
+	 * We canyest rely on  vc4_complete_exec() to release resources here,
+	 * because vc4_complete_exec() has yes information about which BO has
 	 * had its ->usecnt incremented.
 	 * To make things easier we just free everything explicitly and set
 	 * exec->bo to NULL so that vc4_complete_exec() skips the 'BO release'
@@ -931,7 +931,7 @@ vc4_get_bcl(struct drm_device *dev, struct vc4_exec_info *exec)
 	 * IB, or textures, so that pixels are actually written by the
 	 * time we try to read them.
 	 */
-	ret = vc4_wait_for_seqno(dev, exec->bin_dep_seqno, ~0ull, true);
+	ret = vc4_wait_for_seqyes(dev, exec->bin_dep_seqyes, ~0ull, true);
 
 fail:
 	kvfree(temp);
@@ -946,7 +946,7 @@ vc4_complete_exec(struct drm_device *dev, struct vc4_exec_info *exec)
 	unsigned i;
 
 	/* If we got force-completed because of GPU reset rather than
-	 * through our IRQ handler, signal the fence now.
+	 * through our IRQ handler, signal the fence yesw.
 	 */
 	if (exec->fence) {
 		dma_fence_signal(exec->fence);
@@ -991,7 +991,7 @@ void
 vc4_job_handle_completed(struct vc4_dev *vc4)
 {
 	unsigned long irqflags;
-	struct vc4_seqno_cb *cb, *cb_temp;
+	struct vc4_seqyes_cb *cb, *cb_temp;
 
 	spin_lock_irqsave(&vc4->job_lock, irqflags);
 	while (!list_empty(&vc4->job_done_list)) {
@@ -1005,8 +1005,8 @@ vc4_job_handle_completed(struct vc4_dev *vc4)
 		spin_lock_irqsave(&vc4->job_lock, irqflags);
 	}
 
-	list_for_each_entry_safe(cb, cb_temp, &vc4->seqno_cb_list, work.entry) {
-		if (cb->seqno <= vc4->finished_seqno) {
+	list_for_each_entry_safe(cb, cb_temp, &vc4->seqyes_cb_list, work.entry) {
+		if (cb->seqyes <= vc4->finished_seqyes) {
 			list_del_init(&cb->work.entry);
 			schedule_work(&cb->work);
 		}
@@ -1015,28 +1015,28 @@ vc4_job_handle_completed(struct vc4_dev *vc4)
 	spin_unlock_irqrestore(&vc4->job_lock, irqflags);
 }
 
-static void vc4_seqno_cb_work(struct work_struct *work)
+static void vc4_seqyes_cb_work(struct work_struct *work)
 {
-	struct vc4_seqno_cb *cb = container_of(work, struct vc4_seqno_cb, work);
+	struct vc4_seqyes_cb *cb = container_of(work, struct vc4_seqyes_cb, work);
 
 	cb->func(cb);
 }
 
-int vc4_queue_seqno_cb(struct drm_device *dev,
-		       struct vc4_seqno_cb *cb, uint64_t seqno,
-		       void (*func)(struct vc4_seqno_cb *cb))
+int vc4_queue_seqyes_cb(struct drm_device *dev,
+		       struct vc4_seqyes_cb *cb, uint64_t seqyes,
+		       void (*func)(struct vc4_seqyes_cb *cb))
 {
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
 	int ret = 0;
 	unsigned long irqflags;
 
 	cb->func = func;
-	INIT_WORK(&cb->work, vc4_seqno_cb_work);
+	INIT_WORK(&cb->work, vc4_seqyes_cb_work);
 
 	spin_lock_irqsave(&vc4->job_lock, irqflags);
-	if (seqno > vc4->finished_seqno) {
-		cb->seqno = seqno;
-		list_add_tail(&cb->work.entry, &vc4->seqno_cb_list);
+	if (seqyes > vc4->finished_seqyes) {
+		cb->seqyes = seqyes;
+		list_add_tail(&cb->work.entry, &vc4->seqyes_cb_list);
 	} else {
 		schedule_work(&cb->work);
 	}
@@ -1059,12 +1059,12 @@ vc4_job_done_work(struct work_struct *work)
 }
 
 static int
-vc4_wait_for_seqno_ioctl_helper(struct drm_device *dev,
-				uint64_t seqno,
+vc4_wait_for_seqyes_ioctl_helper(struct drm_device *dev,
+				uint64_t seqyes,
 				uint64_t *timeout_ns)
 {
 	unsigned long start = jiffies;
-	int ret = vc4_wait_for_seqno(dev, seqno, *timeout_ns, true);
+	int ret = vc4_wait_for_seqyes(dev, seqyes, *timeout_ns, true);
 
 	if ((ret == -EINTR || ret == -ERESTARTSYS) && *timeout_ns != ~0ull) {
 		uint64_t delta = jiffies_to_nsecs(jiffies - start);
@@ -1077,12 +1077,12 @@ vc4_wait_for_seqno_ioctl_helper(struct drm_device *dev,
 }
 
 int
-vc4_wait_seqno_ioctl(struct drm_device *dev, void *data,
+vc4_wait_seqyes_ioctl(struct drm_device *dev, void *data,
 		     struct drm_file *file_priv)
 {
-	struct drm_vc4_wait_seqno *args = data;
+	struct drm_vc4_wait_seqyes *args = data;
 
-	return vc4_wait_for_seqno_ioctl_helper(dev, args->seqno,
+	return vc4_wait_for_seqyes_ioctl_helper(dev, args->seqyes,
 					       &args->timeout_ns);
 }
 
@@ -1105,7 +1105,7 @@ vc4_wait_bo_ioctl(struct drm_device *dev, void *data,
 	}
 	bo = to_vc4_bo(gem_obj);
 
-	ret = vc4_wait_for_seqno_ioctl_helper(dev, bo->seqno,
+	ret = vc4_wait_for_seqyes_ioctl_helper(dev, bo->seqyes,
 					      &args->timeout_ns);
 
 	drm_gem_object_put_unlocked(gem_obj);
@@ -1138,7 +1138,7 @@ vc4_submit_cl_ioctl(struct drm_device *dev, void *data,
 	int ret = 0;
 
 	if (!vc4->v3d) {
-		DRM_DEBUG("VC4_SUBMIT_CL with no VC4 V3D probed\n");
+		DRM_DEBUG("VC4_SUBMIT_CL with yes VC4 V3D probed\n");
 		return -ENODEV;
 	}
 
@@ -1146,7 +1146,7 @@ vc4_submit_cl_ioctl(struct drm_device *dev, void *data,
 			     VC4_SUBMIT_CL_FIXED_RCL_ORDER |
 			     VC4_SUBMIT_CL_RCL_ORDER_INCREASING_X |
 			     VC4_SUBMIT_CL_RCL_ORDER_INCREASING_Y)) != 0) {
-		DRM_DEBUG("Unknown flags: 0x%02x\n", args->flags);
+		DRM_DEBUG("Unkyeswn flags: 0x%02x\n", args->flags);
 		return -EINVAL;
 	}
 
@@ -1253,8 +1253,8 @@ vc4_submit_cl_ioctl(struct drm_device *dev, void *data,
 	if (ret)
 		goto fail;
 
-	/* Return the seqno for our job. */
-	args->seqno = vc4->emit_seqno;
+	/* Return the seqyes for our job. */
+	args->seqyes = vc4->emit_seqyes;
 
 	return 0;
 
@@ -1274,7 +1274,7 @@ vc4_gem_init(struct drm_device *dev)
 	INIT_LIST_HEAD(&vc4->bin_job_list);
 	INIT_LIST_HEAD(&vc4->render_job_list);
 	INIT_LIST_HEAD(&vc4->job_done_list);
-	INIT_LIST_HEAD(&vc4->seqno_cb_list);
+	INIT_LIST_HEAD(&vc4->seqyes_cb_list);
 	spin_lock_init(&vc4->job_lock);
 
 	INIT_WORK(&vc4->hangcheck.reset_work, vc4_reset_work);
@@ -1296,7 +1296,7 @@ vc4_gem_destroy(struct drm_device *dev)
 	/* Waiting for exec to finish would need to be done before
 	 * unregistering V3D.
 	 */
-	WARN_ON(vc4->emit_seqno != vc4->finished_seqno);
+	WARN_ON(vc4->emit_seqyes != vc4->finished_seqyes);
 
 	/* V3D should already have disabled its interrupt and cleared
 	 * the overflow allocation registers.  Now free the object.
@@ -1339,16 +1339,16 @@ int vc4_gem_madvise_ioctl(struct drm_device *dev, void *data,
 
 	/* Only BOs exposed to userspace can be purged. */
 	if (bo->madv == __VC4_MADV_NOTSUPP) {
-		DRM_DEBUG("madvise not supported on this BO\n");
+		DRM_DEBUG("madvise yest supported on this BO\n");
 		ret = -EINVAL;
 		goto out_put_gem;
 	}
 
 	/* Not sure it's safe to purge imported BOs. Let's just assume it's
-	 * not until proven otherwise.
+	 * yest until proven otherwise.
 	 */
 	if (gem_obj->import_attach) {
-		DRM_DEBUG("madvise not supported on imported BOs\n");
+		DRM_DEBUG("madvise yest supported on imported BOs\n");
 		ret = -EINVAL;
 		goto out_put_gem;
 	}
@@ -1357,15 +1357,15 @@ int vc4_gem_madvise_ioctl(struct drm_device *dev, void *data,
 
 	if (args->madv == VC4_MADV_DONTNEED && bo->madv == VC4_MADV_WILLNEED &&
 	    !refcount_read(&bo->usecnt)) {
-		/* If the BO is about to be marked as purgeable, is not used
-		 * and is not already purgeable or purged, add it to the
+		/* If the BO is about to be marked as purgeable, is yest used
+		 * and is yest already purgeable or purged, add it to the
 		 * purgeable list.
 		 */
 		vc4_bo_add_to_purgeable_pool(bo);
 	} else if (args->madv == VC4_MADV_WILLNEED &&
 		   bo->madv == VC4_MADV_DONTNEED &&
 		   !refcount_read(&bo->usecnt)) {
-		/* The BO has not been purged yet, just remove it from
+		/* The BO has yest been purged yet, just remove it from
 		 * the purgeable list.
 		 */
 		vc4_bo_remove_from_purgeable_pool(bo);
@@ -1374,7 +1374,7 @@ int vc4_gem_madvise_ioctl(struct drm_device *dev, void *data,
 	/* Save the purged state. */
 	args->retained = bo->madv != __VC4_MADV_PURGED;
 
-	/* Update internal madv state only if the bo was not purged. */
+	/* Update internal madv state only if the bo was yest purged. */
 	if (bo->madv != __VC4_MADV_PURGED)
 		bo->madv = args->madv;
 

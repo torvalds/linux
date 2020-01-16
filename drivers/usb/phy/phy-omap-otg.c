@@ -23,8 +23,8 @@ struct otg_device {
 	bool				id;
 	bool				vbus;
 	struct extcon_dev		*extcon;
-	struct notifier_block		vbus_nb;
-	struct notifier_block		id_nb;
+	struct yestifier_block		vbus_nb;
+	struct yestifier_block		id_nb;
 };
 
 #define OMAP_OTG_CTRL		0x0c
@@ -56,11 +56,11 @@ static void omap_otg_set_mode(struct otg_device *otg_dev)
 		/* Set A-session valid. */
 		omap_otg_ctrl(otg_dev, OMAP_OTG_ASESSVLD);
 	else if (!otg_dev->id)
-		/* Set B-session end to indicate no VBUS. */
+		/* Set B-session end to indicate yes VBUS. */
 		omap_otg_ctrl(otg_dev, OMAP_OTG_ID | OMAP_OTG_BSESSEND);
 }
 
-static int omap_otg_id_notifier(struct notifier_block *nb,
+static int omap_otg_id_yestifier(struct yestifier_block *nb,
 				unsigned long event, void *ptr)
 {
 	struct otg_device *otg_dev = container_of(nb, struct otg_device, id_nb);
@@ -71,7 +71,7 @@ static int omap_otg_id_notifier(struct notifier_block *nb,
 	return NOTIFY_DONE;
 }
 
-static int omap_otg_vbus_notifier(struct notifier_block *nb,
+static int omap_otg_vbus_yestifier(struct yestifier_block *nb,
 				  unsigned long event, void *ptr)
 {
 	struct otg_device *otg_dev = container_of(nb, struct otg_device,
@@ -107,15 +107,15 @@ static int omap_otg_probe(struct platform_device *pdev)
 		return PTR_ERR(otg_dev->base);
 
 	otg_dev->extcon = extcon;
-	otg_dev->id_nb.notifier_call = omap_otg_id_notifier;
-	otg_dev->vbus_nb.notifier_call = omap_otg_vbus_notifier;
+	otg_dev->id_nb.yestifier_call = omap_otg_id_yestifier;
+	otg_dev->vbus_nb.yestifier_call = omap_otg_vbus_yestifier;
 
-	ret = devm_extcon_register_notifier(&pdev->dev, extcon,
+	ret = devm_extcon_register_yestifier(&pdev->dev, extcon,
 					EXTCON_USB_HOST, &otg_dev->id_nb);
 	if (ret)
 		return ret;
 
-	ret = devm_extcon_register_notifier(&pdev->dev, extcon,
+	ret = devm_extcon_register_yestifier(&pdev->dev, extcon,
 					EXTCON_USB, &otg_dev->vbus_nb);
 	if (ret) {
 		return ret;

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (c) 2016, Amir Vadai <amir@vadai.me>
- * Copyright (c) 2016, Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2016, Mellayesx Techyeslogies. All rights reserved.
  */
 
 #include <linux/module.h>
@@ -111,7 +111,7 @@ tunnel_key_copy_geneve_opt(const struct nlattr *nla, void *dst, int dst_len,
 		return -ERANGE;
 	}
 	if (data_len % 4) {
-		NL_SET_ERR_MSG(extack, "Tunnel key geneve option data is not a multiple of 4 bytes long");
+		NL_SET_ERR_MSG(extack, "Tunnel key geneve option data is yest a multiple of 4 bytes long");
 		return -ERANGE;
 	}
 
@@ -323,7 +323,7 @@ static int tunnel_key_opts_set(struct nlattr *nla, struct ip_tunnel_info *info,
 		return -EAFNOSUPPORT;
 #endif
 	default:
-		NL_SET_ERR_MSG(extack, "Cannot set tunnel options for unknown tunnel type");
+		NL_SET_ERR_MSG(extack, "Canyest set tunnel options for unkyeswn tunnel type");
 		return -EINVAL;
 	}
 }
@@ -466,7 +466,7 @@ static int tunnel_key_init(struct net *net, struct nlattr *nla,
 		}
 
 		if (!metadata) {
-			NL_SET_ERR_MSG(extack, "Cannot allocate tunnel metadata dst");
+			NL_SET_ERR_MSG(extack, "Canyest allocate tunnel metadata dst");
 			ret = -ENOMEM;
 			goto err_out;
 		}
@@ -488,7 +488,7 @@ static int tunnel_key_init(struct net *net, struct nlattr *nla,
 		metadata->u.tun_info.mode |= IP_TUNNEL_INFO_TX;
 		break;
 	default:
-		NL_SET_ERR_MSG(extack, "Unknown tunnel key action");
+		NL_SET_ERR_MSG(extack, "Unkyeswn tunnel key action");
 		ret = -EINVAL;
 		goto err_out;
 	}
@@ -498,7 +498,7 @@ static int tunnel_key_init(struct net *net, struct nlattr *nla,
 						&act_tunnel_key_ops, bind,
 						act_flags);
 		if (ret) {
-			NL_SET_ERR_MSG(extack, "Cannot create TC IDR");
+			NL_SET_ERR_MSG(extack, "Canyest create TC IDR");
 			goto release_tun_meta;
 		}
 
@@ -519,7 +519,7 @@ static int tunnel_key_init(struct net *net, struct nlattr *nla,
 
 	params_new = kzalloc(sizeof(*params_new), GFP_KERNEL);
 	if (unlikely(!params_new)) {
-		NL_SET_ERR_MSG(extack, "Cannot allocate tunnel key parameters");
+		NL_SET_ERR_MSG(extack, "Canyest allocate tunnel key parameters");
 		ret = -ENOMEM;
 		exists = true;
 		goto put_chain;
@@ -573,7 +573,7 @@ static int tunnel_key_geneve_opts_dump(struct sk_buff *skb,
 	u8 *src = (u8 *)(info + 1);
 	struct nlattr *start;
 
-	start = nla_nest_start_noflag(skb, TCA_TUNNEL_KEY_ENC_OPTS_GENEVE);
+	start = nla_nest_start_yesflag(skb, TCA_TUNNEL_KEY_ENC_OPTS_GENEVE);
 	if (!start)
 		return -EMSGSIZE;
 
@@ -604,7 +604,7 @@ static int tunnel_key_vxlan_opts_dump(struct sk_buff *skb,
 	struct vxlan_metadata *md = (struct vxlan_metadata *)(info + 1);
 	struct nlattr *start;
 
-	start = nla_nest_start_noflag(skb, TCA_TUNNEL_KEY_ENC_OPTS_VXLAN);
+	start = nla_nest_start_yesflag(skb, TCA_TUNNEL_KEY_ENC_OPTS_VXLAN);
 	if (!start)
 		return -EMSGSIZE;
 
@@ -623,7 +623,7 @@ static int tunnel_key_erspan_opts_dump(struct sk_buff *skb,
 	struct erspan_metadata *md = (struct erspan_metadata *)(info + 1);
 	struct nlattr *start;
 
-	start = nla_nest_start_noflag(skb, TCA_TUNNEL_KEY_ENC_OPTS_ERSPAN);
+	start = nla_nest_start_yesflag(skb, TCA_TUNNEL_KEY_ENC_OPTS_ERSPAN);
 	if (!start)
 		return -EMSGSIZE;
 
@@ -657,7 +657,7 @@ static int tunnel_key_opts_dump(struct sk_buff *skb,
 	if (!info->options_len)
 		return 0;
 
-	start = nla_nest_start_noflag(skb, TCA_TUNNEL_KEY_ENC_OPTS);
+	start = nla_nest_start_yesflag(skb, TCA_TUNNEL_KEY_ENC_OPTS);
 	if (!start)
 		return -EMSGSIZE;
 

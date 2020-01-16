@@ -117,7 +117,7 @@ static int mma8450_open(struct input_dev *input)
 	struct i2c_client *c = input_get_drvdata(input);
 	int err;
 
-	/* enable all events from X/Y/Z, no FIFO */
+	/* enable all events from X/Y/Z, yes FIFO */
 	err = mma8450_write(c, MMA8450_XYZ_DATA_CFG, 0x07);
 	if (err)
 		return err;

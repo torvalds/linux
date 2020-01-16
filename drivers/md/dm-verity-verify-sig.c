@@ -75,7 +75,7 @@ int verity_verify_sig_parse_opt_args(struct dm_arg_set *as,
 	const char *sig_key = NULL;
 
 	if (!*argc) {
-		ti->error = DM_VERITY_VERIFY_ERR("Signature key not specified");
+		ti->error = DM_VERITY_VERIFY_ERR("Signature key yest specified");
 		return -EINVAL;
 	}
 

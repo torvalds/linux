@@ -36,7 +36,7 @@ struct kstat {
 	 STATX_ATTR_ENCRYPTED |				\
 	 STATX_ATTR_VERITY				\
 	 )/* Attrs corresponding to FS_*_FL flags */
-	u64		ino;
+	u64		iyes;
 	dev_t		dev;
 	dev_t		rdev;
 	kuid_t		uid;

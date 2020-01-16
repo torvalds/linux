@@ -7,7 +7,7 @@
 
 #include <linux/export.h>
 #include <linux/mm.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/file.h>
 #include <linux/highuid.h>
 #include <linux/fs.h>
@@ -22,49 +22,49 @@
 #include <asm/unistd.h>
 
 /**
- * generic_fillattr - Fill in the basic attributes from the inode struct
- * @inode: Inode to use as the source
+ * generic_fillattr - Fill in the basic attributes from the iyesde struct
+ * @iyesde: Iyesde to use as the source
  * @stat: Where to fill in the attributes
  *
  * Fill in the basic attributes in the kstat structure from data that's to be
- * found on the VFS inode structure.  This is the default if no getattr inode
+ * found on the VFS iyesde structure.  This is the default if yes getattr iyesde
  * operation is supplied.
  */
-void generic_fillattr(struct inode *inode, struct kstat *stat)
+void generic_fillattr(struct iyesde *iyesde, struct kstat *stat)
 {
-	stat->dev = inode->i_sb->s_dev;
-	stat->ino = inode->i_ino;
-	stat->mode = inode->i_mode;
-	stat->nlink = inode->i_nlink;
-	stat->uid = inode->i_uid;
-	stat->gid = inode->i_gid;
-	stat->rdev = inode->i_rdev;
-	stat->size = i_size_read(inode);
-	stat->atime = inode->i_atime;
-	stat->mtime = inode->i_mtime;
-	stat->ctime = inode->i_ctime;
-	stat->blksize = i_blocksize(inode);
-	stat->blocks = inode->i_blocks;
+	stat->dev = iyesde->i_sb->s_dev;
+	stat->iyes = iyesde->i_iyes;
+	stat->mode = iyesde->i_mode;
+	stat->nlink = iyesde->i_nlink;
+	stat->uid = iyesde->i_uid;
+	stat->gid = iyesde->i_gid;
+	stat->rdev = iyesde->i_rdev;
+	stat->size = i_size_read(iyesde);
+	stat->atime = iyesde->i_atime;
+	stat->mtime = iyesde->i_mtime;
+	stat->ctime = iyesde->i_ctime;
+	stat->blksize = i_blocksize(iyesde);
+	stat->blocks = iyesde->i_blocks;
 }
 EXPORT_SYMBOL(generic_fillattr);
 
 /**
- * vfs_getattr_nosec - getattr without security checks
+ * vfs_getattr_yessec - getattr without security checks
  * @path: file to get attributes from
  * @stat: structure to return attributes in
  * @request_mask: STATX_xxx flags indicating what the caller wants
  * @query_flags: Query mode (KSTAT_QUERY_FLAGS)
  *
- * Get attributes without calling security_inode_getattr.
+ * Get attributes without calling security_iyesde_getattr.
  *
  * Currently the only caller other than vfs_getattr is internal to the
- * filehandle lookup code, which uses only the inode number and returns no
+ * filehandle lookup code, which uses only the iyesde number and returns yes
  * attributes to any user.  Any other code probably wants vfs_getattr.
  */
-int vfs_getattr_nosec(const struct path *path, struct kstat *stat,
+int vfs_getattr_yessec(const struct path *path, struct kstat *stat,
 		      u32 request_mask, unsigned int query_flags)
 {
-	struct inode *inode = d_backing_inode(path->dentry);
+	struct iyesde *iyesde = d_backing_iyesde(path->dentry);
 
 	memset(stat, 0, sizeof(*stat));
 	stat->result_mask |= STATX_BASIC_STATS;
@@ -72,19 +72,19 @@ int vfs_getattr_nosec(const struct path *path, struct kstat *stat,
 	query_flags &= KSTAT_QUERY_FLAGS;
 
 	/* allow the fs to override these if it really wants to */
-	if (IS_NOATIME(inode))
+	if (IS_NOATIME(iyesde))
 		stat->result_mask &= ~STATX_ATIME;
-	if (IS_AUTOMOUNT(inode))
+	if (IS_AUTOMOUNT(iyesde))
 		stat->attributes |= STATX_ATTR_AUTOMOUNT;
 
-	if (inode->i_op->getattr)
-		return inode->i_op->getattr(path, stat, request_mask,
+	if (iyesde->i_op->getattr)
+		return iyesde->i_op->getattr(path, stat, request_mask,
 					    query_flags);
 
-	generic_fillattr(inode, stat);
+	generic_fillattr(iyesde, stat);
 	return 0;
 }
-EXPORT_SYMBOL(vfs_getattr_nosec);
+EXPORT_SYMBOL(vfs_getattr_yessec);
 
 /*
  * vfs_getattr - Get the enhanced basic attributes of a file
@@ -101,8 +101,8 @@ EXPORT_SYMBOL(vfs_getattr_nosec);
  * suppress the update by passing AT_STATX_DONT_SYNC.
  *
  * Bits must have been set in request_mask to indicate which attributes the
- * caller wants retrieving.  Any such attribute not requested may be returned
- * anyway, but the value may be approximate, and, if remote, may not have been
+ * caller wants retrieving.  Any such attribute yest requested may be returned
+ * anyway, but the value may be approximate, and, if remote, may yest have been
  * synchronised with the server.
  *
  * 0 will be returned on success, and a -ve error code if unsuccessful.
@@ -112,10 +112,10 @@ int vfs_getattr(const struct path *path, struct kstat *stat,
 {
 	int retval;
 
-	retval = security_inode_getattr(path);
+	retval = security_iyesde_getattr(path);
 	if (retval)
 		return retval;
-	return vfs_getattr_nosec(path, stat, request_mask, query_flags);
+	return vfs_getattr_yessec(path, stat, request_mask, query_flags);
 }
 EXPORT_SYMBOL(vfs_getattr);
 
@@ -222,8 +222,8 @@ static int cp_old_stat(struct kstat *stat, struct __old_kernel_stat __user * sta
 
 	memset(&tmp, 0, sizeof(struct __old_kernel_stat));
 	tmp.st_dev = old_encode_dev(stat->dev);
-	tmp.st_ino = stat->ino;
-	if (sizeof(tmp.st_ino) < sizeof(stat->ino) && tmp.st_ino != stat->ino)
+	tmp.st_iyes = stat->iyes;
+	if (sizeof(tmp.st_iyes) < sizeof(stat->iyes) && tmp.st_iyes != stat->iyes)
 		return -EOVERFLOW;
 	tmp.st_mode = stat->mode;
 	tmp.st_nlink = stat->nlink;
@@ -310,8 +310,8 @@ static int cp_new_stat(struct kstat *stat, struct stat __user *statbuf)
 
 	INIT_STRUCT_STAT_PADDING(tmp);
 	tmp.st_dev = encode_dev(stat->dev);
-	tmp.st_ino = stat->ino;
-	if (sizeof(tmp.st_ino) < sizeof(stat->ino) && tmp.st_ino != stat->ino)
+	tmp.st_iyes = stat->iyes;
+	if (sizeof(tmp.st_iyes) < sizeof(stat->iyes) && tmp.st_iyes != stat->iyes)
 		return -EOVERFLOW;
 	tmp.st_mode = stat->mode;
 	tmp.st_nlink = stat->nlink;
@@ -398,14 +398,14 @@ static int do_readlinkat(int dfd, const char __user *pathname,
 retry:
 	error = user_path_at_empty(dfd, pathname, lookup_flags, &path, &empty);
 	if (!error) {
-		struct inode *inode = d_backing_inode(path.dentry);
+		struct iyesde *iyesde = d_backing_iyesde(path.dentry);
 
 		error = empty ? -ENOENT : -EINVAL;
 		/*
-		 * AFS mountpoints allow readlink(2) but are not symlinks
+		 * AFS mountpoints allow readlink(2) but are yest symlinks
 		 */
-		if (d_is_symlink(path.dentry) || inode->i_op->readlink) {
-			error = security_inode_readlink(path.dentry);
+		if (d_is_symlink(path.dentry) || iyesde->i_op->readlink) {
+			error = security_iyesde_readlink(path.dentry);
 			if (!error) {
 				touch_atime(&path);
 				error = vfs_readlink(path.dentry, buf, bufsiz);
@@ -453,11 +453,11 @@ static long cp_new_stat64(struct kstat *stat, struct stat64 __user *statbuf)
 	tmp.st_dev = huge_encode_dev(stat->dev);
 	tmp.st_rdev = huge_encode_dev(stat->rdev);
 #endif
-	tmp.st_ino = stat->ino;
-	if (sizeof(tmp.st_ino) < sizeof(stat->ino) && tmp.st_ino != stat->ino)
+	tmp.st_iyes = stat->iyes;
+	if (sizeof(tmp.st_iyes) < sizeof(stat->iyes) && tmp.st_iyes != stat->iyes)
 		return -EOVERFLOW;
 #ifdef STAT64_HAS_BROKEN_ST_INO
-	tmp.__st_ino = stat->ino;
+	tmp.__st_iyes = stat->iyes;
 #endif
 	tmp.st_mode = stat->mode;
 	tmp.st_nlink = stat->nlink;
@@ -523,7 +523,7 @@ SYSCALL_DEFINE4(fstatat64, int, dfd, const char __user *, filename,
 }
 #endif /* __ARCH_WANT_STAT64 || __ARCH_WANT_COMPAT_STAT64 */
 
-static noinline_for_stack int
+static yesinline_for_stack int
 cp_statx(const struct kstat *stat, struct statx __user *buffer)
 {
 	struct statx tmp;
@@ -537,7 +537,7 @@ cp_statx(const struct kstat *stat, struct statx __user *buffer)
 	tmp.stx_uid = from_kuid_munged(current_user_ns(), stat->uid);
 	tmp.stx_gid = from_kgid_munged(current_user_ns(), stat->gid);
 	tmp.stx_mode = stat->mode;
-	tmp.stx_ino = stat->ino;
+	tmp.stx_iyes = stat->iyes;
 	tmp.stx_size = stat->size;
 	tmp.stx_blocks = stat->blocks;
 	tmp.stx_attributes_mask = stat->attributes_mask;
@@ -550,9 +550,9 @@ cp_statx(const struct kstat *stat, struct statx __user *buffer)
 	tmp.stx_mtime.tv_sec = stat->mtime.tv_sec;
 	tmp.stx_mtime.tv_nsec = stat->mtime.tv_nsec;
 	tmp.stx_rdev_major = MAJOR(stat->rdev);
-	tmp.stx_rdev_minor = MINOR(stat->rdev);
+	tmp.stx_rdev_miyesr = MINOR(stat->rdev);
 	tmp.stx_dev_major = MAJOR(stat->dev);
-	tmp.stx_dev_minor = MINOR(stat->dev);
+	tmp.stx_dev_miyesr = MINOR(stat->dev);
 
 	return copy_to_user(buffer, &tmp, sizeof(tmp)) ? -EFAULT : 0;
 }
@@ -598,8 +598,8 @@ static int cp_compat_stat(struct kstat *stat, struct compat_stat __user *ubuf)
 
 	memset(&tmp, 0, sizeof(tmp));
 	tmp.st_dev = old_encode_dev(stat->dev);
-	tmp.st_ino = stat->ino;
-	if (sizeof(tmp.st_ino) < sizeof(stat->ino) && tmp.st_ino != stat->ino)
+	tmp.st_iyes = stat->iyes;
+	if (sizeof(tmp.st_iyes) < sizeof(stat->iyes) && tmp.st_iyes != stat->iyes)
 		return -EOVERFLOW;
 	tmp.st_mode = stat->mode;
 	tmp.st_nlink = stat->nlink;
@@ -673,68 +673,68 @@ COMPAT_SYSCALL_DEFINE2(newfstat, unsigned int, fd,
 }
 #endif
 
-/* Caller is here responsible for sufficient locking (ie. inode->i_lock) */
-void __inode_add_bytes(struct inode *inode, loff_t bytes)
+/* Caller is here responsible for sufficient locking (ie. iyesde->i_lock) */
+void __iyesde_add_bytes(struct iyesde *iyesde, loff_t bytes)
 {
-	inode->i_blocks += bytes >> 9;
+	iyesde->i_blocks += bytes >> 9;
 	bytes &= 511;
-	inode->i_bytes += bytes;
-	if (inode->i_bytes >= 512) {
-		inode->i_blocks++;
-		inode->i_bytes -= 512;
+	iyesde->i_bytes += bytes;
+	if (iyesde->i_bytes >= 512) {
+		iyesde->i_blocks++;
+		iyesde->i_bytes -= 512;
 	}
 }
-EXPORT_SYMBOL(__inode_add_bytes);
+EXPORT_SYMBOL(__iyesde_add_bytes);
 
-void inode_add_bytes(struct inode *inode, loff_t bytes)
+void iyesde_add_bytes(struct iyesde *iyesde, loff_t bytes)
 {
-	spin_lock(&inode->i_lock);
-	__inode_add_bytes(inode, bytes);
-	spin_unlock(&inode->i_lock);
+	spin_lock(&iyesde->i_lock);
+	__iyesde_add_bytes(iyesde, bytes);
+	spin_unlock(&iyesde->i_lock);
 }
 
-EXPORT_SYMBOL(inode_add_bytes);
+EXPORT_SYMBOL(iyesde_add_bytes);
 
-void __inode_sub_bytes(struct inode *inode, loff_t bytes)
+void __iyesde_sub_bytes(struct iyesde *iyesde, loff_t bytes)
 {
-	inode->i_blocks -= bytes >> 9;
+	iyesde->i_blocks -= bytes >> 9;
 	bytes &= 511;
-	if (inode->i_bytes < bytes) {
-		inode->i_blocks--;
-		inode->i_bytes += 512;
+	if (iyesde->i_bytes < bytes) {
+		iyesde->i_blocks--;
+		iyesde->i_bytes += 512;
 	}
-	inode->i_bytes -= bytes;
+	iyesde->i_bytes -= bytes;
 }
 
-EXPORT_SYMBOL(__inode_sub_bytes);
+EXPORT_SYMBOL(__iyesde_sub_bytes);
 
-void inode_sub_bytes(struct inode *inode, loff_t bytes)
+void iyesde_sub_bytes(struct iyesde *iyesde, loff_t bytes)
 {
-	spin_lock(&inode->i_lock);
-	__inode_sub_bytes(inode, bytes);
-	spin_unlock(&inode->i_lock);
+	spin_lock(&iyesde->i_lock);
+	__iyesde_sub_bytes(iyesde, bytes);
+	spin_unlock(&iyesde->i_lock);
 }
 
-EXPORT_SYMBOL(inode_sub_bytes);
+EXPORT_SYMBOL(iyesde_sub_bytes);
 
-loff_t inode_get_bytes(struct inode *inode)
+loff_t iyesde_get_bytes(struct iyesde *iyesde)
 {
 	loff_t ret;
 
-	spin_lock(&inode->i_lock);
-	ret = __inode_get_bytes(inode);
-	spin_unlock(&inode->i_lock);
+	spin_lock(&iyesde->i_lock);
+	ret = __iyesde_get_bytes(iyesde);
+	spin_unlock(&iyesde->i_lock);
 	return ret;
 }
 
-EXPORT_SYMBOL(inode_get_bytes);
+EXPORT_SYMBOL(iyesde_get_bytes);
 
-void inode_set_bytes(struct inode *inode, loff_t bytes)
+void iyesde_set_bytes(struct iyesde *iyesde, loff_t bytes)
 {
 	/* Caller is here responsible for sufficient locking
-	 * (ie. inode->i_lock) */
-	inode->i_blocks = bytes >> 9;
-	inode->i_bytes = bytes & 511;
+	 * (ie. iyesde->i_lock) */
+	iyesde->i_blocks = bytes >> 9;
+	iyesde->i_bytes = bytes & 511;
 }
 
-EXPORT_SYMBOL(inode_set_bytes);
+EXPORT_SYMBOL(iyesde_set_bytes);

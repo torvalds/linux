@@ -23,7 +23,7 @@ Specify the bus speed in kHz.
 Available bus frequency settings:
 
   ====   =========
-  0      no change
+  0      yes change
   80     kHz
   100    kHz
   400    kHz

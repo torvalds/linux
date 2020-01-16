@@ -28,7 +28,7 @@ static struct platform_device mrfld_power_btn_dev = {
 	.resource	= mrfld_power_btn_resources,
 };
 
-static int mrfld_power_btn_scu_status_change(struct notifier_block *nb,
+static int mrfld_power_btn_scu_status_change(struct yestifier_block *nb,
 					     unsigned long code, void *data)
 {
 	if (code == SCU_DOWN) {
@@ -39,8 +39,8 @@ static int mrfld_power_btn_scu_status_change(struct notifier_block *nb,
 	return platform_device_register(&mrfld_power_btn_dev);
 }
 
-static struct notifier_block mrfld_power_btn_scu_notifier = {
-	.notifier_call	= mrfld_power_btn_scu_status_change,
+static struct yestifier_block mrfld_power_btn_scu_yestifier = {
+	.yestifier_call	= mrfld_power_btn_scu_status_change,
 };
 
 static int __init register_mrfld_power_btn(void)
@@ -52,7 +52,7 @@ static int __init register_mrfld_power_btn(void)
 	 * We need to be sure that the SCU IPC is ready before
 	 * PMIC power button device can be registered:
 	 */
-	intel_scu_notifier_add(&mrfld_power_btn_scu_notifier);
+	intel_scu_yestifier_add(&mrfld_power_btn_scu_yestifier);
 
 	return 0;
 }

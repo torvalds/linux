@@ -188,7 +188,7 @@ static struct platform_nand_data pnx833x_flash_nand_data = {
 };
 
 /*
- * Set start to be the correct address (PNX8335_NAND_BASE with no 0xb!!),
+ * Set start to be the correct address (PNX8335_NAND_BASE with yes 0xb!!),
  * 12 bytes more seems to be the standard that allows for NAND access.
  */
 static struct resource pnx833x_flash_nand_resource = {

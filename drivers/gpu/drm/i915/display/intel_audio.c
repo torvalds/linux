@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -51,7 +51,7 @@
  * but generally the ELDV/PD change in the codec sequence indicates to the audio
  * driver that the controller sequence should start. Indeed, most of the
  * co-operation between the graphics and audio drivers is handled via audio
- * related registers. (The notable exception is the power management, not
+ * related registers. (The yestable exception is the power management, yest
  * covered here.)
  *
  * The struct &i915_audio_component is used to interact between the graphics
@@ -243,7 +243,7 @@ static u32 audio_config_hdmi_pixel_clock(const struct intel_crtc_state *crtc_sta
 	}
 
 	if (i == ARRAY_SIZE(hdmi_audio_clock)) {
-		DRM_DEBUG_KMS("HDMI audio pixel clock setting for %d not found, falling back to defaults\n",
+		DRM_DEBUG_KMS("HDMI audio pixel clock setting for %d yest found, falling back to defaults\n",
 			      adjusted_mode->crtc_clock);
 		i = 1;
 	}
@@ -526,7 +526,7 @@ static void hsw_audio_codec_enable(struct intel_encoder *encoder,
 	 * FIXME: We're supposed to wait for vblank here, but we have vblanks
 	 * disabled during the mode set. The proper fix would be to push the
 	 * rest of the setup into a vblank work item, queued here, but the
-	 * infrastructure is not there yet.
+	 * infrastructure is yest there yet.
 	 */
 
 	/* Reset ELD write address */
@@ -622,7 +622,7 @@ static void ilk_audio_codec_enable(struct intel_encoder *encoder,
 	 * FIXME: We're supposed to wait for vblank here, but we have vblanks
 	 * disabled during the mode set. The proper fix would be to push the
 	 * rest of the setup into a vblank work item, queued here, but the
-	 * infrastructure is not there yet.
+	 * infrastructure is yest there yet.
 	 */
 
 	if (HAS_PCH_IBX(dev_priv)) {
@@ -725,15 +725,15 @@ void intel_audio_codec_enable(struct intel_encoder *encoder,
 	mutex_unlock(&dev_priv->av_mutex);
 
 	if (acomp && acomp->base.audio_ops &&
-	    acomp->base.audio_ops->pin_eld_notify) {
+	    acomp->base.audio_ops->pin_eld_yestify) {
 		/* audio drivers expect pipe = -1 to indicate Non-MST cases */
 		if (!intel_crtc_has_type(crtc_state, INTEL_OUTPUT_DP_MST))
 			pipe = -1;
-		acomp->base.audio_ops->pin_eld_notify(acomp->base.audio_ops->audio_ptr,
+		acomp->base.audio_ops->pin_eld_yestify(acomp->base.audio_ops->audio_ptr,
 						 (int) port, (int) pipe);
 	}
 
-	intel_lpe_audio_notify(dev_priv, pipe, port, connector->eld,
+	intel_lpe_audio_yestify(dev_priv, pipe, port, connector->eld,
 			       crtc_state->port_clock,
 			       intel_crtc_has_dp_encoder(crtc_state));
 }
@@ -768,15 +768,15 @@ void intel_audio_codec_disable(struct intel_encoder *encoder,
 	mutex_unlock(&dev_priv->av_mutex);
 
 	if (acomp && acomp->base.audio_ops &&
-	    acomp->base.audio_ops->pin_eld_notify) {
+	    acomp->base.audio_ops->pin_eld_yestify) {
 		/* audio drivers expect pipe = -1 to indicate Non-MST cases */
 		if (!intel_crtc_has_type(old_crtc_state, INTEL_OUTPUT_DP_MST))
 			pipe = -1;
-		acomp->base.audio_ops->pin_eld_notify(acomp->base.audio_ops->audio_ptr,
+		acomp->base.audio_ops->pin_eld_yestify(acomp->base.audio_ops->audio_ptr,
 						 (int) port, (int) pipe);
 	}
 
-	intel_lpe_audio_notify(dev_priv, pipe, port, NULL, 0, false);
+	intel_lpe_audio_yestify(dev_priv, pipe, port, NULL, 0, false);
 }
 
 /**
@@ -873,7 +873,7 @@ static void i915_audio_component_put_power(struct device *kdev,
 {
 	struct drm_i915_private *dev_priv = kdev_to_i915(kdev);
 
-	/* Stop forcing CDCLK to 2*BCLK if no need for audio to be powered. */
+	/* Stop forcing CDCLK to 2*BCLK if yes need for audio to be powered. */
 	if (--dev_priv->audio_power_refcount == 0)
 		if (IS_GEMINILAKE(dev_priv))
 			glk_force_audio_cdclk(dev_priv, false);
@@ -945,8 +945,8 @@ static struct intel_encoder *get_saved_enc(struct drm_i915_private *dev_priv,
 
 		encoder = dev_priv->av_enc_map[pipe];
 		/*
-		 * when bootup, audio driver may not know it is
-		 * MST or not. So it will poll all the port & pipe
+		 * when bootup, audio driver may yest kyesw it is
+		 * MST or yest. So it will poll all the port & pipe
 		 * combinations
 		 */
 		if (encoder != NULL && encoder->port == port &&
@@ -999,7 +999,7 @@ static int i915_audio_component_sync_audio_rate(struct device *kdev, int port,
 
 	crtc = to_intel_crtc(encoder->base.crtc);
 
-	/* port must be valid now, otherwise the pipe will be invalid */
+	/* port must be valid yesw, otherwise the pipe will be invalid */
 	acomp->aud_sample_rate[port] = rate;
 
 	hsw_audio_config_update(encoder, crtc->config);
@@ -1108,7 +1108,7 @@ static const struct component_ops i915_audio_component_bind_ops = {
  * its own component after which each side's component unbind callback is
  * called.
  *
- * We ignore any error during registration and continue with reduced
+ * We igyesre any error during registration and continue with reduced
  * functionality (i.e. without HDMI audio).
  */
 static void i915_audio_component_init(struct drm_i915_private *dev_priv)

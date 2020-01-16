@@ -22,7 +22,7 @@
 
 #include <linux/device.h>
 #include <linux/init.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/scatterlist.h>
@@ -311,7 +311,7 @@ static size_t atmel_sha_append_sg(struct atmel_sha_reqctx *ctx)
 			/*
 			* Check if count <= 0 because the buffer is full or
 			* because the sg length is 0. In the latest case,
-			* check if there is another sg in the list, a 0 length
+			* check if there is ayesther sg in the list, a 0 length
 			* sg doesn't necessarily mean the end of the sg list.
 			*/
 			if ((ctx->sg->length == 0) && !sg_is_last(ctx->sg)) {
@@ -536,7 +536,7 @@ static void atmel_sha_write_ctrl(struct atmel_sha_dev *dd, int dma)
 		valmr |= SHA_MR_UIHV;
 	}
 	/*
-	 * WARNING: If the UIHV feature is not available, the hardware CANNOT
+	 * WARNING: If the UIHV feature is yest available, the hardware CANNOT
 	 * process concurrent requests: the internal registers used to store
 	 * the hash/digest are still set to the partial digest output values
 	 * computed during the latest round.
@@ -570,7 +570,7 @@ static int atmel_sha_xmit_cpu(struct atmel_sha_dev *dd, const u8 *buf,
 
 	atmel_sha_write_ctrl(dd, 0);
 
-	/* should be non-zero before next lines to disable clocks later */
+	/* should be yesn-zero before next lines to disable clocks later */
 	ctx->digcnt[0] += length;
 	if (ctx->digcnt[0] < length)
 		ctx->digcnt[1]++;
@@ -608,7 +608,7 @@ static int atmel_sha_xmit_pdc(struct atmel_sha_dev *dd, dma_addr_t dma_addr1,
 
 	atmel_sha_write_ctrl(dd, 1);
 
-	/* should be non-zero before next lines to disable clocks later */
+	/* should be yesn-zero before next lines to disable clocks later */
 	ctx->digcnt[0] += length1;
 	if (ctx->digcnt[0] < length1)
 		ctx->digcnt[1]++;
@@ -672,7 +672,7 @@ static int atmel_sha_xmit_dma(struct atmel_sha_dev *dd, dma_addr_t dma_addr1,
 
 	atmel_sha_write_ctrl(dd, 1);
 
-	/* should be non-zero before next lines to disable clocks later */
+	/* should be yesn-zero before next lines to disable clocks later */
 	ctx->digcnt[0] += length1;
 	if (ctx->digcnt[0] < length1)
 		ctx->digcnt[1]++;
@@ -727,7 +727,7 @@ static int atmel_sha_xmit_dma_map(struct atmel_sha_dev *dd,
 
 	ctx->flags &= ~SHA_FLAGS_SG;
 
-	/* next call does not fail... so no unmap in the case of error */
+	/* next call does yest fail... so yes unmap in the case of error */
 	return atmel_sha_xmit_start(dd, ctx->dma_addr, length, 0, 0, final);
 }
 
@@ -778,14 +778,14 @@ static int atmel_sha_update_dma_start(struct atmel_sha_dev *dd)
 		return atmel_sha_update_dma_slow(dd);
 
 	if (!sg_is_last(sg) && !IS_ALIGNED(sg->length, ctx->block_size))
-		/* size is not ctx->block_size aligned */
+		/* size is yest ctx->block_size aligned */
 		return atmel_sha_update_dma_slow(dd);
 
 	length = min(ctx->total, sg->length);
 
 	if (sg_is_last(sg)) {
 		if (!(ctx->flags & SHA_FLAGS_FINUP)) {
-			/* not last sg must be ctx->block_size aligned */
+			/* yest last sg must be ctx->block_size aligned */
 			tail = length & (ctx->block_size - 1);
 			length -= tail;
 		}
@@ -846,7 +846,7 @@ static int atmel_sha_update_dma_start(struct atmel_sha_dev *dd)
 
 	ctx->flags |= SHA_FLAGS_SG;
 
-	/* next call does not fail... so no unmap in the case of error */
+	/* next call does yest fail... so yes unmap in the case of error */
 	return atmel_sha_xmit_start(dd, sg_dma_address(ctx->sg), length, 0,
 								0, final);
 }
@@ -943,7 +943,7 @@ static void atmel_sha_copy_hash(struct ahash_request *req)
 		break;
 
 	default:
-		/* Should not happen... */
+		/* Should yest happen... */
 		return;
 	}
 
@@ -1010,7 +1010,7 @@ static void atmel_sha_finish_req(struct ahash_request *req, int err)
 		ctx->flags |= SHA_FLAGS_ERROR;
 	}
 
-	/* atomic operation is not needed here */
+	/* atomic operation is yest needed here */
 	(void)atmel_sha_complete(dd, err);
 }
 
@@ -1122,21 +1122,21 @@ static int atmel_sha_start(struct atmel_sha_dev *dd)
 	 *      atmel_sha_finish_req(), otherwise atmel_sha_complete() would be
 	 *      called a second time.
 	 *
-	 * Please note that currently, atmel_sha_final_req() never returns 0.
+	 * Please yeste that currently, atmel_sha_final_req() never returns 0.
 	 */
 
 	dd->resume = atmel_sha_done;
 	if (ctx->op == SHA_OP_UPDATE) {
 		err = atmel_sha_update_req(dd);
 		if (!err && (ctx->flags & SHA_FLAGS_FINUP))
-			/* no final() after finup() */
+			/* yes final() after finup() */
 			err = atmel_sha_final_req(dd);
 	} else if (ctx->op == SHA_OP_FINAL) {
 		err = atmel_sha_final_req(dd);
 	}
 
 	if (!err)
-		/* done_task will not finish it, so do it here */
+		/* done_task will yest finish it, so do it here */
 		atmel_sha_finish_req(req, err);
 
 	dev_dbg(dd->dev, "exit, err: %d\n", err);
@@ -1184,7 +1184,7 @@ static int atmel_sha_final(struct ahash_request *req)
 	ctx->flags |= SHA_FLAGS_FINUP;
 
 	if (ctx->flags & SHA_FLAGS_ERROR)
-		return 0; /* uncompleted hash is not needed */
+		return 0; /* uncompleted hash is yest needed */
 
 	if (ctx->flags & SHA_FLAGS_PAD)
 		/* copy ready hash (+ finalize hmac) */
@@ -1440,7 +1440,7 @@ static irqreturn_t atmel_sha_irq(int irq, void *dev_id)
 				sha_dd->flags |= SHA_FLAGS_DMA_READY;
 			tasklet_schedule(&sha_dd->done_task);
 		} else {
-			dev_warn(sha_dd->dev, "SHA interrupt when no active requests.\n");
+			dev_warn(sha_dd->dev, "SHA interrupt when yes active requests.\n");
 		}
 		return IRQ_HANDLED;
 	}
@@ -1587,7 +1587,7 @@ static int atmel_sha_cpu_transfer(struct atmel_sha_dev *dd)
 
 		/*
 		 * Prepare next block:
-		 * Fill ctx->buffer now with the next data to be written into
+		 * Fill ctx->buffer yesw with the next data to be written into
 		 * IDATARx: it gives time for the SHA hardware to process
 		 * the current data so the SHA_INT_DATARDY flag might be set
 		 * in SHA_ISR when polling this register at the beginning of
@@ -1993,7 +1993,7 @@ static int atmel_sha_hmac_final(struct atmel_sha_dev *dd)
 static int atmel_sha_hmac_final_done(struct atmel_sha_dev *dd)
 {
 	/*
-	 * req->result might not be sizeof(u32) aligned, so copy the
+	 * req->result might yest be sizeof(u32) aligned, so copy the
 	 * digest into ctx->digest[] before memcpy() the data into
 	 * req->result.
 	 */
@@ -2632,7 +2632,7 @@ static int atmel_sha_dma_init(struct atmel_sha_dev *dd,
 	dd->dma_lch_in.chan = dma_request_slave_channel_compat(mask_in,
 			atmel_sha_filter, &pdata->dma_slave->rxdata, dd->dev, "tx");
 	if (!dd->dma_lch_in.chan) {
-		dev_warn(dd->dev, "no DMA channel available\n");
+		dev_warn(dd->dev, "yes DMA channel available\n");
 		return -ENODEV;
 	}
 
@@ -2712,11 +2712,11 @@ MODULE_DEVICE_TABLE(of, atmel_sha_dt_ids);
 
 static struct crypto_platform_data *atmel_sha_of_init(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	struct crypto_platform_data *pdata;
 
 	if (!np) {
-		dev_err(&pdev->dev, "device node not found\n");
+		dev_err(&pdev->dev, "device yesde yest found\n");
 		return ERR_PTR(-EINVAL);
 	}
 
@@ -2770,7 +2770,7 @@ static int atmel_sha_probe(struct platform_device *pdev)
 	/* Get the base address */
 	sha_res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!sha_res) {
-		dev_err(dev, "no MEM resource info\n");
+		dev_err(dev, "yes MEM resource info\n");
 		err = -ENODEV;
 		goto res_err;
 	}
@@ -2818,7 +2818,7 @@ static int atmel_sha_probe(struct platform_device *pdev)
 		if (!pdata) {
 			pdata = atmel_sha_of_init(pdev);
 			if (IS_ERR(pdata)) {
-				dev_err(&pdev->dev, "platform data not available\n");
+				dev_err(&pdev->dev, "platform data yest available\n");
 				err = PTR_ERR(pdata);
 				goto iclk_unprepare;
 			}

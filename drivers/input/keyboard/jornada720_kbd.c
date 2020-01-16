@@ -12,7 +12,7 @@
 		Alex Lange <chicken@handhelds.org>
  */
 #include <linux/device.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/interrupt.h>
 #include <linux/input.h>
 #include <linux/kernel.h>
@@ -59,7 +59,7 @@ static irqreturn_t jornada720_kbd_interrupt(int irq, void *dev_id)
 	/* startup ssp with spinlock */
 	jornada_ssp_start();
 
-	if (jornada_ssp_inout(GETSCANKEYCODE) != TXDUMMY) {
+	if (jornada_ssp_iyesut(GETSCANKEYCODE) != TXDUMMY) {
 		dev_dbg(&pdev->dev,
 			"GetKeycode command failed with ETIMEDOUT, flushed bus\n");
 	} else {

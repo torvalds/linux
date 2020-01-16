@@ -13,7 +13,7 @@
 
 #include <linux/kernel.h>
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/slab.h>
 #include <linux/list.h>
 #include <linux/io.h>
@@ -33,7 +33,7 @@
 #define TD_CNF		0x0200 /* CNF - Must be always 1 */
 #define TD_LSP		0x0100 /* Low-speed transaction */
 #define TD_PID		0x00c0 /* packet id */
-#define TD_RXER		0x0020 /* Rx error or not */
+#define TD_RXER		0x0020 /* Rx error or yest */
 
 #define TD_NAK		0x0010 /* No ack. */
 #define TD_STAL		0x0008 /* Stall received */
@@ -227,7 +227,7 @@ u32 fhci_create_ep(struct fhci_usb *usb, enum fhci_mem_alloc data_mem,
 err:
 	fhci_ep0_free(usb);
 	kfree(ep);
-	fhci_err(usb->fhci, "no memory for the %s\n", err_for);
+	fhci_err(usb->fhci, "yes memory for the %s\n", err_for);
 	return -ENOMEM;
 }
 
@@ -286,7 +286,7 @@ static void fhci_td_transaction_confirm(struct fhci_usb *usb)
 
 	/*
 	 * collect transmitted BDs from the chip. The routine clears all BDs
-	 * with R bit = 0 and the pointer to data buffer is not NULL, that is
+	 * with R bit = 0 and the pointer to data buffer is yest NULL, that is
 	 * BDs which point to the transmitted data buffer
 	 */
 	while (1) {
@@ -317,7 +317,7 @@ static void fhci_td_transaction_confirm(struct fhci_usb *usb)
 
 		pkt = cq_get(&ep->conf_frame_Q);
 		if (!pkt)
-			fhci_err(usb->fhci, "no frame to confirm\n");
+			fhci_err(usb->fhci, "yes frame to confirm\n");
 
 		if (td_status & TD_ERRORS) {
 			if (td_status & TD_RXER) {
@@ -393,7 +393,7 @@ u32 fhci_host_transaction(struct fhci_usb *usb,
 	td_status = in_be16(&td->status);
 
 	if (td_status & TD_R && in_be16(&td->length)) {
-		/* if the TD is not free */
+		/* if the TD is yest free */
 		fhci_usb_enable_interrupt(usb);
 		return -1;
 	}
@@ -479,7 +479,7 @@ void fhci_flush_bds(struct fhci_usb *usb)
 		buf = in_be32(&td->buf_ptr);
 		extra_data = in_be16(&td->extra);
 
-		/* if the TD is not empty - we'll confirm it as Timeout */
+		/* if the TD is yest empty - we'll confirm it as Timeout */
 		if (td_status & TD_R)
 			out_be16(&td->status, (td_status & ~TD_R) | TD_TO);
 		/* if this TD is dummy - let's skip this TD */
@@ -578,7 +578,7 @@ void fhci_tx_conf_interrupt(struct fhci_usb *usb)
 	fhci_td_transaction_confirm(usb);
 
 	/*
-	 * Schedule another transaction to this frame only if we have
+	 * Schedule ayesther transaction to this frame only if we have
 	 * already confirmed all transaction in the frame.
 	 */
 	if (((fhci_get_sof_timer_count(usb) < usb->max_frame_usage) ||

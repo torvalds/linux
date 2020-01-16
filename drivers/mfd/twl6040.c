@@ -83,13 +83,13 @@ static struct reg_sequence twl6040_patch[] = {
 };
 
 
-static bool twl6040_has_vibra(struct device_node *parent)
+static bool twl6040_has_vibra(struct device_yesde *parent)
 {
-	struct device_node *node;
+	struct device_yesde *yesde;
 
-	node = of_get_child_by_name(parent, "vibra");
-	if (node) {
-		of_node_put(node);
+	yesde = of_get_child_by_name(parent, "vibra");
+	if (yesde) {
+		of_yesde_put(yesde);
 		return true;
 	}
 
@@ -399,7 +399,7 @@ int twl6040_set_pll(struct twl6040 *twl6040, int pll_id,
 				break;
 			default:
 				dev_err(twl6040->dev,
-					"freq_out %d not supported\n",
+					"freq_out %d yest supported\n",
 					freq_out);
 				ret = -EINVAL;
 				goto pll_out;
@@ -408,7 +408,7 @@ int twl6040_set_pll(struct twl6040 *twl6040, int pll_id,
 					  lppllctl);
 		}
 
-		/* The PLL in use has not been change, we can exit */
+		/* The PLL in use has yest been change, we can exit */
 		if (twl6040->pll == pll_id)
 			break;
 
@@ -427,7 +427,7 @@ int twl6040_set_pll(struct twl6040 *twl6040, int pll_id,
 			break;
 		default:
 			dev_err(twl6040->dev,
-				"freq_in %d not supported\n", freq_in);
+				"freq_in %d yest supported\n", freq_in);
 			ret = -EINVAL;
 			goto pll_out;
 		}
@@ -438,7 +438,7 @@ int twl6040_set_pll(struct twl6040 *twl6040, int pll_id,
 		/* high-performance PLL can provide only 19.2 MHz */
 		if (freq_out != 19200000) {
 			dev_err(twl6040->dev,
-				"freq_out %d not supported\n", freq_out);
+				"freq_out %d yest supported\n", freq_out);
 			ret = -EINVAL;
 			goto pll_out;
 		}
@@ -469,7 +469,7 @@ int twl6040_set_pll(struct twl6040 *twl6040, int pll_id,
 				break;
 			default:
 				dev_err(twl6040->dev,
-					"freq_in %d not supported\n", freq_in);
+					"freq_in %d yest supported\n", freq_in);
 				ret = -EINVAL;
 				goto pll_out;
 			}
@@ -497,7 +497,7 @@ int twl6040_set_pll(struct twl6040 *twl6040, int pll_id,
 		}
 		break;
 	default:
-		dev_err(twl6040->dev, "unknown pll id %d\n", pll_id);
+		dev_err(twl6040->dev, "unkyeswn pll id %d\n", pll_id);
 		ret = -EINVAL;
 		goto pll_out;
 	}
@@ -563,7 +563,7 @@ static struct resource twl6040_codec_rsrc[] = {
 
 static bool twl6040_readable_reg(struct device *dev, unsigned int reg)
 {
-	/* Register 0 is not readable */
+	/* Register 0 is yest readable */
 	if (!reg)
 		return false;
 	return true;
@@ -636,13 +636,13 @@ static struct regmap_irq_chip twl6040_irq_chip = {
 static int twl6040_probe(struct i2c_client *client,
 			 const struct i2c_device_id *id)
 {
-	struct device_node *node = client->dev.of_node;
+	struct device_yesde *yesde = client->dev.of_yesde;
 	struct twl6040 *twl6040;
 	struct mfd_cell *cell = NULL;
 	int irq, ret, children = 0;
 
-	if (!node) {
-		dev_err(&client->dev, "of node is missing\n");
+	if (!yesde) {
+		dev_err(&client->dev, "of yesde is missing\n");
 		return -EINVAL;
 	}
 
@@ -667,7 +667,7 @@ static int twl6040_probe(struct i2c_client *client,
 	if (IS_ERR(twl6040->clk32k)) {
 		if (PTR_ERR(twl6040->clk32k) == -EPROBE_DEFER)
 			return -EPROBE_DEFER;
-		dev_dbg(&client->dev, "clk32k is not handled\n");
+		dev_dbg(&client->dev, "clk32k is yest handled\n");
 		twl6040->clk32k = NULL;
 	}
 
@@ -675,7 +675,7 @@ static int twl6040_probe(struct i2c_client *client,
 	if (IS_ERR(twl6040->mclk)) {
 		if (PTR_ERR(twl6040->mclk) == -EPROBE_DEFER)
 			return -EPROBE_DEFER;
-		dev_dbg(&client->dev, "mclk is not handled\n");
+		dev_dbg(&client->dev, "mclk is yest handled\n");
 		twl6040->mclk = NULL;
 	}
 
@@ -711,9 +711,9 @@ static int twl6040_probe(struct i2c_client *client,
 		goto gpio_err;
 	}
 
-	/* ERRATA: Automatic power-up is not possible in ES1.0 */
+	/* ERRATA: Automatic power-up is yest possible in ES1.0 */
 	if (twl6040_get_revid(twl6040) > TWL6040_REV_ES1_0)
-		twl6040->audpwron = of_get_named_gpio(node,
+		twl6040->audpwron = of_get_named_gpio(yesde,
 						      "ti,audpwron-gpio", 0);
 	else
 		twl6040->audpwron = -EINVAL;
@@ -768,7 +768,7 @@ static int twl6040_probe(struct i2c_client *client,
 	children++;
 
 	/* Vibra input driver support */
-	if (twl6040_has_vibra(node)) {
+	if (twl6040_has_vibra(yesde)) {
 		irq = regmap_irq_get_virq(twl6040->irq_data, TWL6040_IRQ_VIB);
 
 		cell = &twl6040->cells[children];

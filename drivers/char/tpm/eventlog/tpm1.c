@@ -119,7 +119,7 @@ static void *tpm1_bios_measurements_next(struct seq_file *m, void *v,
 
 	v += sizeof(struct tcpa_event) + converted_event_size;
 
-	/* now check if current entry is valid */
+	/* yesw check if current entry is valid */
 	if ((v + sizeof(struct tcpa_event)) > limit)
 		return NULL;
 

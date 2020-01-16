@@ -1,11 +1,11 @@
 .. Permission is granted to copy, distribute and/or modify this
 .. document under the terms of the GNU Free Documentation License,
 .. Version 1.1 or any later version published by the Free Software
-.. Foundation, with no Invariant Sections, no Front-Cover Texts
-.. and no Back-Cover Texts. A copy of the license is included at
+.. Foundation, with yes Invariant Sections, yes Front-Cover Texts
+.. and yes Back-Cover Texts. A copy of the license is included at
 .. Documentation/media/uapi/fdl-appendix.rst.
 ..
-.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
+.. TODO: replace it to GFDL-1.1-or-later WITH yes-invariant-sections
 
 .. _FE_GET_EVENT:
 
@@ -21,7 +21,7 @@ FE_GET_EVENT
 .. attention:: This ioctl is deprecated.
 
 
-Synopsis
+Syyespsis
 ========
 
 .. c:function:: int  ioctl(int fd, FE_GET_EVENT, struct dvb_frontend_event *ev)
@@ -42,9 +42,9 @@ Description
 ===========
 
 This ioctl call returns a frontend event if available. If an event is
-not available, the behavior depends on whether the device is in blocking
-or non-blocking mode. In the latter case, the call fails immediately
-with errno set to ``EWOULDBLOCK``. In the former case, the call blocks until
+yest available, the behavior depends on whether the device is in blocking
+or yesn-blocking mode. In the latter case, the call fails immediately
+with erryes set to ``EWOULDBLOCK``. In the former case, the call blocks until
 an event becomes available.
 
 
@@ -53,7 +53,7 @@ Return Value
 
 On success 0 is returned.
 
-On error -1 is returned, and the ``errno`` variable is set
+On error -1 is returned, and the ``erryes`` variable is set
 appropriately.
 
 
@@ -66,7 +66,7 @@ appropriately.
 
        -  ``EWOULDBLOCK``
 
-       -  There is no event pending, and the device is in non-blocking mode.
+       -  There is yes event pending, and the device is in yesn-blocking mode.
 
     -  .. row 2
 

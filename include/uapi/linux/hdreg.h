@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 #ifndef _LINUX_HDREG_H
 #define _LINUX_HDREG_H
 
@@ -339,7 +339,7 @@ struct hd_geometry {
 #define HDIO_OBSOLETE_IDENTITY	0x0307	/* OBSOLETE, DO NOT USE: returns 142 bytes */
 #define HDIO_GET_KEEPSETTINGS	0x0308	/* get keep-settings-on-reset flag */
 #define HDIO_GET_32BIT		0x0309	/* get current io_32bit setting */
-#define HDIO_GET_NOWERR		0x030a	/* get ignore-write-error flag */
+#define HDIO_GET_NOWERR		0x030a	/* get igyesre-write-error flag */
 #define HDIO_GET_DMA		0x030b	/* get use-dma flag */
 #define HDIO_GET_NICE		0x030c	/* get nice flags */
 #define HDIO_GET_IDENTITY	0x030d	/* get IDE identification info */
@@ -355,12 +355,12 @@ struct hd_geometry {
 #define HDIO_DRIVE_CMD		0x031f	/* execute a special drive command */
 #define HDIO_DRIVE_CMD_AEB	HDIO_DRIVE_TASK
 
-/* hd/ide ctl's that pass (arg) non-ptr values are numbered 0x032n/0x033n */
+/* hd/ide ctl's that pass (arg) yesn-ptr values are numbered 0x032n/0x033n */
 #define HDIO_SET_MULTCOUNT	0x0321	/* change IDE blockmode */
 #define HDIO_SET_UNMASKINTR	0x0322	/* permit other irqs during I/O */
 #define HDIO_SET_KEEPSETTINGS	0x0323	/* keep ioctl settings on reset */
 #define HDIO_SET_32BIT		0x0324	/* change io_32bit flags */
-#define HDIO_SET_NOWERR		0x0325	/* change ignore-write-error flag */
+#define HDIO_SET_NOWERR		0x0325	/* change igyesre-write-error flag */
 #define HDIO_SET_DMA		0x0326	/* change use-dma flag */
 #define HDIO_SET_PIO_MODE	0x0327	/* reconfig interface to new speed */
 #ifndef __KERNEL__
@@ -407,17 +407,17 @@ struct hd_driveid {
 	unsigned short	vendor0;	/* vendor unique */
 	unsigned short	vendor1;	/* vendor unique */
 	unsigned short	vendor2;	/* Retired vendor unique */
-	unsigned char	serial_no[20];	/* 0 = not_specified */
+	unsigned char	serial_yes[20];	/* 0 = yest_specified */
 	unsigned short	buf_type;	/* Retired */
 	unsigned short	buf_size;	/* Retired, 512 byte increments
-					 * 0 = not_specified
+					 * 0 = yest_specified
 					 */
-	unsigned short	ecc_bytes;	/* for r/w long cmds; 0 = not_specified */
-	unsigned char	fw_rev[8];	/* 0 = not_specified */
-	unsigned char	model[40];	/* 0 = not_specified */
-	unsigned char	max_multsect;	/* 0=not_implemented */
+	unsigned short	ecc_bytes;	/* for r/w long cmds; 0 = yest_specified */
+	unsigned char	fw_rev[8];	/* 0 = yest_specified */
+	unsigned char	model[40];	/* 0 = yest_specified */
+	unsigned char	max_multsect;	/* 0=yest_implemented */
 	unsigned char	vendor3;	/* vendor unique */
-	unsigned short	dword_io;	/* 0=not_implemented; 1=implemented */
+	unsigned short	dword_io;	/* 0=yest_implemented; 1=implemented */
 	unsigned char	vendor4;	/* vendor unique */
 	unsigned char	capability;	/* (upper byte of word 49)
 					 *  3:	IORDYsup
@@ -448,7 +448,7 @@ struct hd_driveid {
 	unsigned short  eide_pio_modes; /* bits 0:mode3 1:mode4 */
 	unsigned short  eide_dma_min;	/* min mword dma cycle time (ns) */
 	unsigned short  eide_dma_time;	/* recommended mword dma cycle time (ns) */
-	unsigned short  eide_pio;       /* min cycle time (ns), no IORDY  */
+	unsigned short  eide_pio;       /* min cycle time (ns), yes IORDY  */
 	unsigned short  eide_pio_iordy; /* min cycle time (ns), with IORDY */
 	unsigned short	words69_70[2];	/* reserved words 69-70
 					 * future command overlap and queuing
@@ -462,7 +462,7 @@ struct hd_driveid {
 					 */
 	unsigned short  words76_79[4];	/* reserved words 76-79 */
 	unsigned short  major_rev_num;	/* (word 80) */
-	unsigned short  minor_rev_num;	/* (word 81) */
+	unsigned short  miyesr_rev_num;	/* (word 81) */
 	unsigned short  command_set_1;	/* (word 82) supported
 					 * 15:	Obsolete
 					 * 14:	NOP command
@@ -598,7 +598,7 @@ struct hd_driveid {
 	unsigned short	word127;	/* (word 127) Feature Set
 					 * Removable Media Notification
 					 * 15:2	reserved
-					 *  1:0	00 = not supported
+					 *  1:0	00 = yest supported
 					 *	01 = supported
 					 *	10 = reserved
 					 *	11 = reserved
@@ -649,11 +649,11 @@ struct hd_driveid {
  * share the same IDE bus.
  */
 #define IDE_NICE_DSC_OVERLAP	(0)	/* per the DSC overlap protocol */
-#define IDE_NICE_ATAPI_OVERLAP	(1)	/* not supported yet */
+#define IDE_NICE_ATAPI_OVERLAP	(1)	/* yest supported yet */
 #define IDE_NICE_1		(3)	/* when probably won't affect us much */
 #ifndef __KERNEL__
 #define IDE_NICE_0		(2)	/* when sure that it won't affect us */
-#define IDE_NICE_2		(4)	/* when we know it's on our expense */
+#define IDE_NICE_2		(4)	/* when we kyesw it's on our expense */
 #endif
 
 #endif	/* _LINUX_HDREG_H */

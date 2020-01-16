@@ -108,7 +108,7 @@ static int clk_divider_enable(struct clk_hw *hw)
 	u32 val;
 
 	if (!div_gate->cached_val) {
-		pr_err("%s: no valid preset rate\n", clk_hw_get_name(hw));
+		pr_err("%s: yes valid preset rate\n", clk_hw_get_name(hw));
 		return -EINVAL;
 	}
 

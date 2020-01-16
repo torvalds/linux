@@ -19,14 +19,14 @@
 #define LP_PARPORT_OFF -2
 #define LP_PARPORT_NONE -1
 
-#define LP_F(minor)	lp_table[(minor)].flags		/* flags for busy, etc. */
-#define LP_CHAR(minor)	lp_table[(minor)].chars		/* busy timeout */
-#define LP_TIME(minor)	lp_table[(minor)].time		/* wait time */
-#define LP_WAIT(minor)	lp_table[(minor)].wait		/* strobe wait */
-#define LP_IRQ(minor)	lp_table[(minor)].dev->port->irq /* interrupt # */
+#define LP_F(miyesr)	lp_table[(miyesr)].flags		/* flags for busy, etc. */
+#define LP_CHAR(miyesr)	lp_table[(miyesr)].chars		/* busy timeout */
+#define LP_TIME(miyesr)	lp_table[(miyesr)].time		/* wait time */
+#define LP_WAIT(miyesr)	lp_table[(miyesr)].wait		/* strobe wait */
+#define LP_IRQ(miyesr)	lp_table[(miyesr)].dev->port->irq /* interrupt # */
 					/* PARPORT_IRQ_NONE means polled */
 #ifdef LP_STATS
-#define LP_STAT(minor)	lp_table[(minor)].stats		/* statistics area */
+#define LP_STAT(miyesr)	lp_table[(miyesr)].stats		/* statistics area */
 #endif
 #define LP_BUFFER_SIZE PAGE_SIZE
 
@@ -77,7 +77,7 @@ struct lp_struct {
 /* 
  * defines for 8255 control port
  * base + 2 
- * accessed with LP_C(minor)
+ * accessed with LP_C(miyesr)
  */
 #define LP_PINTEN	0x10  /* high to read data in or-ed with data out */
 #define LP_PSELECP	0x08  /* inverted output, active low */
@@ -87,7 +87,7 @@ struct lp_struct {
 
 /* 
  * the value written to ports to test existence. PC-style ports will 
- * return the value written. AT-style ports will return 0. so why not
+ * return the value written. AT-style ports will return 0. so why yest
  * make them the same ? 
  */
 #define LP_DUMMY	0x00

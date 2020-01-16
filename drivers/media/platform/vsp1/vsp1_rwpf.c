@@ -73,7 +73,7 @@ static int vsp1_rwpf_set_format(struct v4l2_subdev *subdev,
 		goto done;
 	}
 
-	/* Default to YUV if the requested format is not supported. */
+	/* Default to YUV if the requested format is yest supported. */
 	if (fmt->format.code != MEDIA_BUS_FMT_ARGB8888_1X32 &&
 	    fmt->format.code != MEDIA_BUS_FMT_AHSV8888_1X32 &&
 	    fmt->format.code != MEDIA_BUS_FMT_AYUV8_1X32)

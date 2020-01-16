@@ -369,7 +369,7 @@ static int us5182d_set_power_state(struct us5182d_data *data, bool on)
 	if (on) {
 		ret = pm_runtime_get_sync(&data->client->dev);
 		if (ret < 0)
-			pm_runtime_put_noidle(&data->client->dev);
+			pm_runtime_put_yesidle(&data->client->dev);
 	} else {
 		pm_runtime_mark_last_busy(&data->client->dev);
 		ret = pm_runtime_put_autosuspend(&data->client->dev);
@@ -873,7 +873,7 @@ static int us5182d_probe(struct i2c_client *client,
 		if (ret < 0)
 			return ret;
 	} else
-		dev_warn(&client->dev, "no valid irq found\n");
+		dev_warn(&client->dev, "yes valid irq found\n");
 
 	us5182d_get_platform_data(indio_dev);
 	ret = us5182d_init(indio_dev);

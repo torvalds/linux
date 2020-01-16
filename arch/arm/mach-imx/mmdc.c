@@ -101,7 +101,7 @@ struct mmdc_pmu {
 	unsigned int active_events;
 	struct device *dev;
 	struct perf_event *mmdc_events[MMDC_NUM_COUNTERS];
-	struct hlist_node node;
+	struct hlist_yesde yesde;
 	struct fsl_mmdc_devtype_data *devtype_data;
 };
 
@@ -211,9 +211,9 @@ static u32 mmdc_pmu_read_counter(struct mmdc_pmu *pmu_mmdc, int cfg)
 	return readl(reg);
 }
 
-static int mmdc_pmu_offline_cpu(unsigned int cpu, struct hlist_node *node)
+static int mmdc_pmu_offline_cpu(unsigned int cpu, struct hlist_yesde *yesde)
 {
-	struct mmdc_pmu *pmu_mmdc = hlist_entry_safe(node, struct mmdc_pmu, node);
+	struct mmdc_pmu *pmu_mmdc = hlist_entry_safe(yesde, struct mmdc_pmu, yesde);
 	int target;
 
 	if (!cpumask_test_and_clear_cpu(cpu, &pmu_mmdc->cpu))
@@ -330,7 +330,7 @@ static void mmdc_pmu_event_start(struct perf_event *event, int flags)
 	reg = mmdc_base + MMDC_MADPCR0;
 
 	/*
-	 * hrtimer is required because mmdc does not provide an interrupt so
+	 * hrtimer is required because mmdc does yest provide an interrupt so
 	 * polling is necessary
 	 */
 	hrtimer_start(&pmu_mmdc->hrtimer, mmdc_pmu_timer_period(),
@@ -424,7 +424,7 @@ static enum hrtimer_restart mmdc_pmu_timer_handler(struct hrtimer *hrtimer)
 			hrtimer);
 
 	mmdc_pmu_overflow_handler(pmu_mmdc);
-	hrtimer_forward_now(hrtimer, mmdc_pmu_timer_period());
+	hrtimer_forward_yesw(hrtimer, mmdc_pmu_timer_period());
 
 	return HRTIMER_RESTART;
 }
@@ -460,7 +460,7 @@ static int imx_mmdc_remove(struct platform_device *pdev)
 {
 	struct mmdc_pmu *pmu_mmdc = platform_get_drvdata(pdev);
 
-	cpuhp_state_remove_instance_nocalls(cpuhp_mmdc_state, &pmu_mmdc->node);
+	cpuhp_state_remove_instance_yescalls(cpuhp_mmdc_state, &pmu_mmdc->yesde);
 	perf_pmu_unregister(&pmu_mmdc->pmu);
 	kfree(pmu_mmdc);
 	return 0;
@@ -509,7 +509,7 @@ static int imx_mmdc_perf_init(struct platform_device *pdev, void __iomem *mmdc_b
 	cpumask_set_cpu(raw_smp_processor_id(), &pmu_mmdc->cpu);
 
 	/* Register the pmu instance for cpu hotplug */
-	cpuhp_state_add_instance_nocalls(cpuhp_mmdc_state, &pmu_mmdc->node);
+	cpuhp_state_add_instance_yescalls(cpuhp_mmdc_state, &pmu_mmdc->yesde);
 
 	ret = perf_pmu_register(&(pmu_mmdc->pmu), name, -1);
 	if (ret)
@@ -520,7 +520,7 @@ static int imx_mmdc_perf_init(struct platform_device *pdev, void __iomem *mmdc_b
 
 pmu_register_err:
 	pr_warn("MMDC Perf PMU failed (%d), disabled\n", ret);
-	cpuhp_state_remove_instance_nocalls(cpuhp_mmdc_state, &pmu_mmdc->node);
+	cpuhp_state_remove_instance_yescalls(cpuhp_mmdc_state, &pmu_mmdc->yesde);
 	hrtimer_cancel(&pmu_mmdc->hrtimer);
 pmu_free:
 	kfree(pmu_mmdc);
@@ -534,7 +534,7 @@ pmu_free:
 
 static int imx_mmdc_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	void __iomem *mmdc_base, *reg;
 	struct clk *mmdc_ipg_clk;
 	u32 val;

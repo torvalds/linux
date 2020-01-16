@@ -56,7 +56,7 @@ typedef struct {
 					   bits in lcn bitmap. */
 	LCN mft_lcn;			/* Cluster location of mft data. */
 	LCN mftmirr_lcn;		/* Cluster location of copy of mft. */
-	u64 serial_no;			/* The volume serial number. */
+	u64 serial_yes;			/* The volume serial number. */
 	/* Mount specific NTFS information. */
 	u32 upcase_len;			/* Number of entries in upcase[]. */
 	ntfschar *upcase;		/* The upcase table. */
@@ -79,41 +79,41 @@ typedef struct {
 					   zone. */
 #endif /* NTFS_RW */
 
-	struct inode *mft_ino;		/* The VFS inode of $MFT. */
+	struct iyesde *mft_iyes;		/* The VFS iyesde of $MFT. */
 
-	struct inode *mftbmp_ino;	/* Attribute inode for $MFT/$BITMAP. */
+	struct iyesde *mftbmp_iyes;	/* Attribute iyesde for $MFT/$BITMAP. */
 	struct rw_semaphore mftbmp_lock; /* Lock for serializing accesses to the
 					    mft record bitmap ($MFT/$BITMAP). */
 #ifdef NTFS_RW
-	struct inode *mftmirr_ino;	/* The VFS inode of $MFTMirr. */
+	struct iyesde *mftmirr_iyes;	/* The VFS iyesde of $MFTMirr. */
 	int mftmirr_size;		/* Size of mft mirror in mft records. */
 
-	struct inode *logfile_ino;	/* The VFS inode of $LogFile. */
+	struct iyesde *logfile_iyes;	/* The VFS iyesde of $LogFile. */
 #endif /* NTFS_RW */
 
-	struct inode *lcnbmp_ino;	/* The VFS inode of $Bitmap. */
+	struct iyesde *lcnbmp_iyes;	/* The VFS iyesde of $Bitmap. */
 	struct rw_semaphore lcnbmp_lock; /* Lock for serializing accesses to the
 					    cluster bitmap ($Bitmap/$DATA). */
 
-	struct inode *vol_ino;		/* The VFS inode of $Volume. */
+	struct iyesde *vol_iyes;		/* The VFS iyesde of $Volume. */
 	VOLUME_FLAGS vol_flags;		/* Volume flags. */
 	u8 major_ver;			/* Ntfs major version of volume. */
-	u8 minor_ver;			/* Ntfs minor version of volume. */
+	u8 miyesr_ver;			/* Ntfs miyesr version of volume. */
 
-	struct inode *root_ino;		/* The VFS inode of the root
+	struct iyesde *root_iyes;		/* The VFS iyesde of the root
 					   directory. */
-	struct inode *secure_ino;	/* The VFS inode of $Secure (NTFS3.0+
+	struct iyesde *secure_iyes;	/* The VFS iyesde of $Secure (NTFS3.0+
 					   only, otherwise NULL). */
-	struct inode *extend_ino;	/* The VFS inode of $Extend (NTFS3.0+
+	struct iyesde *extend_iyes;	/* The VFS iyesde of $Extend (NTFS3.0+
 					   only, otherwise NULL). */
 #ifdef NTFS_RW
 	/* $Quota stuff is NTFS3.0+ specific.  Unused/NULL otherwise. */
-	struct inode *quota_ino;	/* The VFS inode of $Quota. */
-	struct inode *quota_q_ino;	/* Attribute inode for $Quota/$Q. */
+	struct iyesde *quota_iyes;	/* The VFS iyesde of $Quota. */
+	struct iyesde *quota_q_iyes;	/* Attribute iyesde for $Quota/$Q. */
 	/* $UsnJrnl stuff is NTFS3.0+ specific.  Unused/NULL otherwise. */
-	struct inode *usnjrnl_ino;	/* The VFS inode of $UsnJrnl. */
-	struct inode *usnjrnl_max_ino;	/* Attribute inode for $UsnJrnl/$Max. */
-	struct inode *usnjrnl_j_ino;	/* Attribute inode for $UsnJrnl/$J. */
+	struct iyesde *usnjrnl_iyes;	/* The VFS iyesde of $UsnJrnl. */
+	struct iyesde *usnjrnl_max_iyes;	/* Attribute iyesde for $UsnJrnl/$Max. */
+	struct iyesde *usnjrnl_j_iyes;	/* Attribute iyesde for $UsnJrnl/$J. */
 #endif /* NTFS_RW */
 	struct nls_table *nls_map;
 } ntfs_volume;

@@ -152,7 +152,7 @@ static void cqhci_dumpregs(struct cqhci_host *cq_host)
  * |link desc-|->|  |----------|
  * |----------|          .
  *      .                .
- *  no. of slots      max-segs
+ *  yes. of slots      max-segs
  *      .           |----------|
  * |----------|
  * The idea here is to create the [task+trans] table and mark & point the
@@ -243,7 +243,7 @@ static void __cqhci_enable(struct cqhci_host *cq_host)
 
 	cqcfg = cqhci_readl(cq_host, CQHCI_CFG);
 
-	/* Configuration must not be changed while enabled */
+	/* Configuration must yest be changed while enabled */
 	if (cqcfg & CQHCI_ENABLE) {
 		cqcfg &= ~CQHCI_ENABLE;
 		cqhci_writel(cq_host, cqcfg, CQHCI_CFG);
@@ -566,7 +566,7 @@ static int cqhci_request(struct mmc_host *mmc, struct mmc_request *mrq)
 	unsigned long flags;
 
 	if (!cq_host->enabled) {
-		pr_err("%s: cqhci: not enabled\n", mmc_hostname(mmc));
+		pr_err("%s: cqhci: yest enabled\n", mmc_hostname(mmc));
 		return -EINVAL;
 	}
 
@@ -615,7 +615,7 @@ static int cqhci_request(struct mmc_host *mmc, struct mmc_request *mrq)
 	wmb();
 	cqhci_writel(cq_host, 1 << tag, CQHCI_TDBR);
 	if (!(cqhci_readl(cq_host, CQHCI_TDBR) & (1 << tag)))
-		pr_debug("%s: cqhci: doorbell not set for tag %d\n",
+		pr_debug("%s: cqhci: doorbell yest set for tag %d\n",
 			 mmc_hostname(mmc), tag);
 out_unlock:
 	spin_unlock_irqrestore(&cq_host->lock, flags);
@@ -627,7 +627,7 @@ out_unlock:
 }
 
 static void cqhci_recovery_needed(struct mmc_host *mmc, struct mmc_request *mrq,
-				  bool notify)
+				  bool yestify)
 {
 	struct cqhci_host *cq_host = mmc->cqe_private;
 
@@ -635,8 +635,8 @@ static void cqhci_recovery_needed(struct mmc_host *mmc, struct mmc_request *mrq,
 		cq_host->recovery_halt = true;
 		pr_debug("%s: cqhci: recovery needed\n", mmc_hostname(mmc));
 		wake_up(&cq_host->wait_queue);
-		if (notify && mrq->recovery_notifier)
-			mrq->recovery_notifier(mrq);
+		if (yestify && mrq->recovery_yestifier)
+			mrq->recovery_yestifier(mrq);
 	}
 }
 
@@ -701,7 +701,7 @@ static void cqhci_error_irq(struct mmc_host *mmc, u32 status, int cmd_error,
 	if (!cq_host->recovery_halt) {
 		/*
 		 * The only way to guarantee forward progress is to mark at
-		 * least one task in error, so if none is indicated, pick one.
+		 * least one task in error, so if yesne is indicated, pick one.
 		 */
 		for (tag = 0; tag < NUM_SLOTS; tag++) {
 			slot = &cq_host->slot[tag];
@@ -987,7 +987,7 @@ static void cqhci_recover_mrqs(struct cqhci_host *cq_host)
 }
 
 /*
- * By now the command and data lines should be unused so there is no reason for
+ * By yesw the command and data lines should be unused so there is yes reason for
  * CQHCI to take a long time to halt, but if it doesn't halt there could be
  * problems clearing tasks, so be generous.
  */
@@ -1013,9 +1013,9 @@ static void cqhci_recovery_finish(struct mmc_host *mmc)
 		ok = false;
 
 	/*
-	 * The specification contradicts itself, by saying that tasks cannot be
-	 * cleared if CQHCI does not halt, but if CQHCI does not halt, it should
-	 * be disabled/re-enabled, but not to disable before clearing tasks.
+	 * The specification contradicts itself, by saying that tasks canyest be
+	 * cleared if CQHCI does yest halt, but if CQHCI does yest halt, it should
+	 * be disabled/re-enabled, but yest to disable before clearing tasks.
 	 * Have a go anyway.
 	 */
 	if (!ok) {
@@ -1025,7 +1025,7 @@ static void cqhci_recovery_finish(struct mmc_host *mmc)
 		cqhci_writel(cq_host, cqcfg, CQHCI_CFG);
 		cqcfg |= CQHCI_ENABLE;
 		cqhci_writel(cq_host, cqcfg, CQHCI_CFG);
-		/* Be sure that there are no tasks */
+		/* Be sure that there are yes tasks */
 		ok = cqhci_halt(mmc, CQHCI_FINISH_HALT_TIMEOUT);
 		if (!cqhci_clear_all_tasks(mmc, CQHCI_CLEAR_TIMEOUT))
 			ok = false;
@@ -1073,7 +1073,7 @@ struct cqhci_host *cqhci_pltfm_init(struct platform_device *pdev)
 	cqhci_memres = platform_get_resource_byname(pdev, IORESOURCE_MEM,
 						   "cqhci_mem");
 	if (!cqhci_memres) {
-		dev_dbg(&pdev->dev, "CMDQ not supported\n");
+		dev_dbg(&pdev->dev, "CMDQ yest supported\n");
 		return ERR_PTR(-EINVAL);
 	}
 
@@ -1098,7 +1098,7 @@ static unsigned int cqhci_ver_major(struct cqhci_host *cq_host)
 	return CQHCI_VER_MAJOR(cqhci_readl(cq_host, CQHCI_VER));
 }
 
-static unsigned int cqhci_ver_minor(struct cqhci_host *cq_host)
+static unsigned int cqhci_ver_miyesr(struct cqhci_host *cq_host)
 {
 	u32 ver = cqhci_readl(cq_host, CQHCI_VER);
 
@@ -1137,14 +1137,14 @@ int cqhci_init(struct cqhci_host *cq_host, struct mmc_host *mmc,
 
 	pr_info("%s: CQHCI version %u.%02u\n",
 		mmc_hostname(mmc), cqhci_ver_major(cq_host),
-		cqhci_ver_minor(cq_host));
+		cqhci_ver_miyesr(cq_host));
 
 	return 0;
 
 out_err:
 	pr_err("%s: CQHCI version %u.%02u failed to initialize, error %d\n",
 	       mmc_hostname(mmc), cqhci_ver_major(cq_host),
-	       cqhci_ver_minor(cq_host), err);
+	       cqhci_ver_miyesr(cq_host), err);
 	return err;
 }
 EXPORT_SYMBOL(cqhci_init);

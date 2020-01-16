@@ -3,10 +3,10 @@
  * OMAP2+ DMA driver
  *
  * Copyright (C) 2003 - 2008 Nokia Corporation
- * Author: Juha Yrjölä <juha.yrjola@nokia.com>
- * DMA channel linking for 1610 by Samuel Ortiz <samuel.ortiz@nokia.com>
+ * Author: Juha Yrjölä <juha.yrjola@yeskia.com>
+ * DMA channel linking for 1610 by Samuel Ortiz <samuel.ortiz@yeskia.com>
  * Graphics DMA and LCD DMA graphics tranformations
- * by Imre Deak <imre.deak@nokia.com>
+ * by Imre Deak <imre.deak@yeskia.com>
  * OMAP2/3 support Copyright (C) 2004-2007 Texas Instruments, Inc.
  * Some functions based on earlier dma-omap.c Copyright (C) 2001 RidgeRun, Inc.
  *
@@ -130,7 +130,7 @@ static unsigned configure_dma_errata(void)
 	 * buffer elements if packing and bursting is enabled. This might
 	 * result in data gets stalled in FIFO at the end of the block.
 	 * Workaround: DMA channels must have BUFFERING_DISABLED bit set to
-	 * guarantee no data will stay in the DMA FIFO in case inter frame
+	 * guarantee yes data will stay in the DMA FIFO in case inter frame
 	 * buffering occurs
 	 *
 	 * II.
@@ -138,7 +138,7 @@ static unsigned configure_dma_errata(void)
 	 * DMA may hang when several channels are used in parallel
 	 * In the following configuration, DMA channel hanging can occur:
 	 * a. Channel i, hardware synchronized, is enabled
-	 * b. Another channel (Channel x), software synchronized, is enabled.
+	 * b. Ayesther channel (Channel x), software synchronized, is enabled.
 	 * c. Channel i is disabled before end of transfer
 	 * d. Channel i is reenabled.
 	 * e. Steps 1 to 4 are repeated a certain number of times.
@@ -155,7 +155,7 @@ static unsigned configure_dma_errata(void)
 	}
 
 	/*
-	 * Erratum ID: i378: OMAP2+: sDMA Channel is not disabled
+	 * Erratum ID: i378: OMAP2+: sDMA Channel is yest disabled
 	 * after a transaction error.
 	 * Workaround: SW should explicitely disable the channel.
 	 */
@@ -163,7 +163,7 @@ static unsigned configure_dma_errata(void)
 		SET_DMA_ERRATA(DMA_ERRATA_i378);
 
 	/*
-	 * Erratum ID: i541: sDMA FIFO draining does not finish
+	 * Erratum ID: i541: sDMA FIFO draining does yest finish
 	 * If sDMA channel is disabled on the fly, sDMA enters standby even
 	 * through FIFO Drain is still in progress
 	 * Workaround: Put sDMA in NoStandby more before a logical channel is
@@ -240,7 +240,7 @@ static int __init omap2_system_dma_init_dev(struct omap_hwmod *oh, void *unused)
 	p.errata = configure_dma_errata();
 
 	if (soc_is_omap24xx()) {
-		/* DMA slave map for drivers not yet converted to DT */
+		/* DMA slave map for drivers yest yet converted to DT */
 		p.slave_map = omap24xx_sdma_dt_map;
 		p.slavecnt = ARRAY_SIZE(omap24xx_sdma_dt_map);
 	}
@@ -257,7 +257,7 @@ static int __init omap2_system_dma_init_dev(struct omap_hwmod *oh, void *unused)
 
 	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!mem) {
-		dev_err(&pdev->dev, "%s: no mem resource\n", __func__);
+		dev_err(&pdev->dev, "%s: yes mem resource\n", __func__);
 		return -EINVAL;
 	}
 

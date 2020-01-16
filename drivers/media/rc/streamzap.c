@@ -7,7 +7,7 @@
  *
  * This driver was based on the work of Greg Wickham and Adrian
  * Dewhurst. It was substantially rewritten to support correct signal
- * gaps and now maintains a delay buffer, which is used to present
+ * gaps and yesw maintains a delay buffer, which is used to present
  * consistent timing behaviour to user space applications. Without the
  * delay buffer an ugly hack would be required in lircd, which can
  * cause sluggish signal decoding in certain situations.
@@ -55,7 +55,7 @@ enum StreamzapDecoderState {
 	PulseSpace,
 	FullPulse,
 	FullSpace,
-	IgnorePulse
+	IgyesrePulse
 };
 
 /* structure to hold our device specific stuff */
@@ -236,7 +236,7 @@ static void streamzap_callback(struct urb *urb)
 			break;
 		case FullPulse:
 			sz_push_full_pulse(sz, sz->buf_in[i]);
-			sz->decoder_state = IgnorePulse;
+			sz->decoder_state = IgyesrePulse;
 			break;
 		case FullSpace:
 			if (sz->buf_in[i] == SZ_TIMEOUT) {
@@ -254,7 +254,7 @@ static void streamzap_callback(struct urb *urb)
 			}
 			sz->decoder_state = PulseSpace;
 			break;
-		case IgnorePulse:
+		case IgyesrePulse:
 			if ((sz->buf_in[i] & SZ_SPACE_MASK) ==
 				SZ_SPACE_MASK) {
 				sz->decoder_state = FullSpace;
@@ -406,7 +406,7 @@ static int streamzap_probe(struct usb_interface *intf,
 	sz->rdev->timeout = ((US_TO_NS(SZ_TIMEOUT * SZ_RESOLUTION) &
 				IR_MAX_DURATION) | 0x03000000);
 	#if 0
-	/* not yet supported, depends on patches from maxim */
+	/* yest yet supported, depends on patches from maxim */
 	/* see also: LIRC_GET_REC_RESOLUTION and LIRC_SET_REC_TIMEOUT */
 	sz->min_timeout = US_TO_NS(SZ_TIMEOUT * SZ_RESOLUTION);
 	sz->max_timeout = US_TO_NS(SZ_TIMEOUT * SZ_RESOLUTION);
@@ -446,10 +446,10 @@ free_sz:
  *
  * Called by the usb core when the device is removed from the system.
  *
- * This routine guarantees that the driver will not submit any more urbs
+ * This routine guarantees that the driver will yest submit any more urbs
  * by clearing dev->usbdev.  It is also supposed to terminate any currently
  * active urbs.  Unfortunately, usb_bulk_msg(), used in streamzap_read(),
- * does not provide any way to do this.
+ * does yest provide any way to do this.
  */
 static void streamzap_disconnect(struct usb_interface *interface)
 {

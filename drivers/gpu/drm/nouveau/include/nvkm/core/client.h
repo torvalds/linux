@@ -10,7 +10,7 @@ struct nvkm_client {
 	u64 device;
 	u32 debug;
 
-	struct nvkm_client_notify *notify[32];
+	struct nvkm_client_yestify *yestify[32];
 	struct rb_root objroot;
 
 	bool super;
@@ -27,18 +27,18 @@ int  nvkm_client_new(const char *name, u64 device, const char *cfg,
 		     struct nvkm_client **);
 struct nvkm_client *nvkm_client_search(struct nvkm_client *, u64 handle);
 
-int nvkm_client_notify_new(struct nvkm_object *, struct nvkm_event *,
+int nvkm_client_yestify_new(struct nvkm_object *, struct nvkm_event *,
 			   void *data, u32 size);
-int nvkm_client_notify_del(struct nvkm_client *, int index);
-int nvkm_client_notify_get(struct nvkm_client *, int index);
-int nvkm_client_notify_put(struct nvkm_client *, int index);
+int nvkm_client_yestify_del(struct nvkm_client *, int index);
+int nvkm_client_yestify_get(struct nvkm_client *, int index);
+int nvkm_client_yestify_put(struct nvkm_client *, int index);
 
 /* logging for client-facing objects */
 #define nvif_printk(o,l,p,f,a...) do {                                         \
 	const struct nvkm_object *_object = (o);                               \
 	const struct nvkm_client *_client = _object->client;                   \
 	if (_client->debug >= NV_DBG_##l)                                      \
-		printk(KERN_##p "nouveau: %s:%08x:%08x: "f, _client->name,     \
+		printk(KERN_##p "yesuveau: %s:%08x:%08x: "f, _client->name,     \
 		       _object->handle, _object->oclass, ##a);                 \
 } while(0)
 #define nvif_fatal(o,f,a...) nvif_printk((o), FATAL, CRIT, f, ##a)

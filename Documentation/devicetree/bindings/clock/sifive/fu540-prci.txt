@@ -7,8 +7,8 @@ Required properties:
 - compatible: Should be "sifive,<chip>-prci".  Only one value is
 	supported: "sifive,fu540-c000-prci"
 - reg: Should describe the PRCI's register target physical address region
-- clocks: Should point to the hfclk device tree node and the rtcclk
-          device tree node.  The RTC clock here is not a time-of-day clock,
+- clocks: Should point to the hfclk device tree yesde and the rtcclk
+          device tree yesde.  The RTC clock here is yest a time-of-day clock,
 	  but is instead a high-stability clock source for system timers
 	  and cycle counters.
 - #clock-cells: Should be <1>
@@ -17,8 +17,8 @@ The clock consumer should specify the desired clock via the clock ID
 macros defined in include/dt-bindings/clock/sifive-fu540-prci.h.
 These macros begin with PRCI_CLK_.
 
-The hfclk and rtcclk nodes are required, and represent physical
-crystals or resonators located on the PCB.  These nodes should be present
+The hfclk and rtcclk yesdes are required, and represent physical
+crystals or resonators located on the PCB.  These yesdes should be present
 underneath /, rather than /soc.
 
 Examples:

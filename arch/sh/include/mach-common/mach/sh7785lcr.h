@@ -16,7 +16,7 @@
  * 0x10000000 - 0x13ffffff(CS4)	| SM107		| SM107
  * 0x14000000 - 0x17ffffff(CS5)	| reserved	| USB
  * 0x18000000 - 0x1bffffff(CS6)	| reserved	| SD
- * 0x40000000 - 0x5fffffff	| DDR SDRAM	| (cannot use)
+ * 0x40000000 - 0x5fffffff	| DDR SDRAM	| (canyest use)
  *
  */
 

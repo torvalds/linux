@@ -287,7 +287,7 @@ static bool mobiveil_pcie_valid_device(struct pci_bus *bus, unsigned int devfn)
 		return false;
 
 	/*
-	 * Do not read more than one device on the bus directly
+	 * Do yest read more than one device on the bus directly
 	 * attached to RC
 	 */
 	if ((bus->primary == pcie->root_bus_nr) && (PCI_SLOT(devfn) > 0))
@@ -395,7 +395,7 @@ static void mobiveil_pcie_isr(struct irq_desc *desc)
 
 		/*
 		 * MSI_STATUS_OFFSET register gets updated to zero
-		 * once we pop not only the MSI data but also address
+		 * once we pop yest only the MSI data but also address
 		 * from MSI hardware FIFO. So keeping these following
 		 * two dummy reads.
 		 */
@@ -423,7 +423,7 @@ static int mobiveil_pcie_parse_dt(struct mobiveil_pcie *pcie)
 {
 	struct device *dev = &pcie->pdev->dev;
 	struct platform_device *pdev = pcie->pdev;
-	struct device_node *node = dev->of_node;
+	struct device_yesde *yesde = dev->of_yesde;
 	struct resource *res;
 
 	/* map config resource */
@@ -449,10 +449,10 @@ static int mobiveil_pcie_parse_dt(struct mobiveil_pcie *pcie)
 		return PTR_ERR(pcie->apb_csr_base);
 
 	/* read the number of windows requested */
-	if (of_property_read_u32(node, "apio-wins", &pcie->apio_wins))
+	if (of_property_read_u32(yesde, "apio-wins", &pcie->apio_wins))
 		pcie->apio_wins = MAX_PIO_WINDOWS;
 
-	if (of_property_read_u32(node, "ppio-wins", &pcie->ppio_wins))
+	if (of_property_read_u32(yesde, "ppio-wins", &pcie->ppio_wins))
 		pcie->ppio_wins = MAX_PIO_WINDOWS;
 
 	pcie->irq = platform_get_irq(pdev, 0);
@@ -548,7 +548,7 @@ static int mobiveil_bringup_link(struct mobiveil_pcie *pcie)
 {
 	int retries;
 
-	/* check if the link is up or not */
+	/* check if the link is up or yest */
 	for (retries = 0; retries < LINK_WAIT_MAX_RETRIES; retries++) {
 		if (mobiveil_pcie_link_up(pcie))
 			return 0;
@@ -623,7 +623,7 @@ static int mobiveil_host_init(struct mobiveil_pcie *pcie)
 
 	/*
 	 * we'll program one outbound window for config reads and
-	 * another default inbound window for all the upstream traffic
+	 * ayesther default inbound window for all the upstream traffic
 	 * rest of the outbound windows will be configured according to
 	 * the "ranges" field defined in device tree
 	 */
@@ -807,7 +807,7 @@ static const struct irq_domain_ops msi_domain_ops = {
 static int mobiveil_allocate_msi_domains(struct mobiveil_pcie *pcie)
 {
 	struct device *dev = &pcie->pdev->dev;
-	struct fwnode_handle *fwnode = of_node_to_fwnode(dev->of_node);
+	struct fwyesde_handle *fwyesde = of_yesde_to_fwyesde(dev->of_yesde);
 	struct mobiveil_msi *msi = &pcie->msi;
 
 	mutex_init(&pcie->msi.lock);
@@ -818,7 +818,7 @@ static int mobiveil_allocate_msi_domains(struct mobiveil_pcie *pcie)
 		return -ENOMEM;
 	}
 
-	msi->msi_domain = pci_msi_create_irq_domain(fwnode,
+	msi->msi_domain = pci_msi_create_irq_domain(fwyesde,
 						    &mobiveil_msi_domain_info,
 						    msi->dev_domain);
 	if (!msi->msi_domain) {
@@ -833,11 +833,11 @@ static int mobiveil_allocate_msi_domains(struct mobiveil_pcie *pcie)
 static int mobiveil_pcie_init_irq_domain(struct mobiveil_pcie *pcie)
 {
 	struct device *dev = &pcie->pdev->dev;
-	struct device_node *node = dev->of_node;
+	struct device_yesde *yesde = dev->of_yesde;
 	int ret;
 
 	/* setup INTx */
-	pcie->intx_domain = irq_domain_add_linear(node, PCI_NUM_INTX,
+	pcie->intx_domain = irq_domain_add_linear(yesde, PCI_NUM_INTX,
 						  &intx_domain_ops, pcie);
 
 	if (!pcie->intx_domain) {
@@ -928,7 +928,7 @@ static int mobiveil_pcie_probe(struct platform_device *pdev)
 	bus = bridge->bus;
 
 	pci_assign_unassigned_bus_resources(bus);
-	list_for_each_entry(child, &bus->children, node)
+	list_for_each_entry(child, &bus->children, yesde)
 		pcie_bus_configure_settings(child);
 	pci_bus_add_devices(bus);
 

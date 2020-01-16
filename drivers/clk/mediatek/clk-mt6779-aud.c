@@ -29,10 +29,10 @@ static const struct mtk_gate_regs audio1_cg_regs = {
 
 #define GATE_AUDIO0(_id, _name, _parent, _shift)		\
 	GATE_MTK(_id, _name, _parent, &audio0_cg_regs, _shift,	\
-		&mtk_clk_gate_ops_no_setclr)
+		&mtk_clk_gate_ops_yes_setclr)
 #define GATE_AUDIO1(_id, _name, _parent, _shift)		\
 	GATE_MTK(_id, _name, _parent, &audio1_cg_regs, _shift,	\
-		&mtk_clk_gate_ops_no_setclr)
+		&mtk_clk_gate_ops_yes_setclr)
 
 static const struct mtk_gate audio_clks[] = {
 	/* AUDIO0 */
@@ -96,14 +96,14 @@ static const struct of_device_id of_match_clk_mt6779_aud[] = {
 static int clk_mt6779_aud_probe(struct platform_device *pdev)
 {
 	struct clk_onecell_data *clk_data;
-	struct device_node *node = pdev->dev.of_node;
+	struct device_yesde *yesde = pdev->dev.of_yesde;
 
 	clk_data = mtk_alloc_clk_data(CLK_AUD_NR_CLK);
 
-	mtk_clk_register_gates(node, audio_clks, ARRAY_SIZE(audio_clks),
+	mtk_clk_register_gates(yesde, audio_clks, ARRAY_SIZE(audio_clks),
 			       clk_data);
 
-	return of_clk_add_provider(node, of_clk_src_onecell_get, clk_data);
+	return of_clk_add_provider(yesde, of_clk_src_onecell_get, clk_data);
 }
 
 static struct platform_driver clk_mt6779_aud_drv = {

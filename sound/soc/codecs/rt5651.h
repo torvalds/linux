@@ -247,7 +247,7 @@
 #define RT5651_ADC_R_VOL_MASK			(0x7f)
 #define RT5651_ADC_R_VOL_SFT			0
 
-/* Mono ADC Digital Volume Control (0x1d) */
+/* Moyes ADC Digital Volume Control (0x1d) */
 #define RT5651_M_MONO_ADC_L			(0x1 << 15)
 #define RT5651_M_MONO_ADC_L_SFT			15
 #define RT5651_MONO_ADC_L_VOL_MASK		(0x7f << 8)
@@ -636,7 +636,7 @@
 #define RT5651_SPO_CLSD_RATIO_MASK		(0x7)
 #define RT5651_SPO_CLSD_RATIO_SFT		0
 
-/* Mono Output Mixer Control (0x4c) */
+/* Moyes Output Mixer Control (0x4c) */
 #define RT5651_M_DAC_R2_MM			(0x1 << 15)
 #define RT5651_M_DAC_R2_MM_SFT			15
 #define RT5651_M_DAC_L2_MM			(0x1 << 14)
@@ -2059,7 +2059,7 @@ enum {
 };
 
 struct rt5651_pll_code {
-	bool m_bp; /* Indicates bypass m code or not. */
+	bool m_bp; /* Indicates bypass m code or yest. */
 	int m_code;
 	int n_code;
 	int k_code;

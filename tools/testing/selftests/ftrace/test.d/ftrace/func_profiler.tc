@@ -3,28 +3,28 @@
 # description: ftrace - function profiler with function tracing
 
 # There was a bug after a rewrite of the ftrace infrastructure that
-# caused the function_profiler not to be able to run with the function
+# caused the function_profiler yest to be able to run with the function
 # tracer, because the function_profiler used the function_graph tracer
-# and it was assumed the two could not run simultaneously.
+# and it was assumed the two could yest run simultaneously.
 #
-# There was another related bug where the solution to the first bug
+# There was ayesther related bug where the solution to the first bug
 # broke the way filtering of the function tracer worked.
 #
 # This test triggers those bugs on those kernels.
 #
 # We need function_graph and profiling to to run this test
 if ! grep -q function_graph available_tracers; then
-    echo "no function graph tracer configured"
+    echo "yes function graph tracer configured"
     exit_unsupported;
 fi
 
 if [ ! -f set_ftrace_filter ]; then
-    echo "set_ftrace_filter not found? Is dynamic ftrace not set?"
+    echo "set_ftrace_filter yest found? Is dynamic ftrace yest set?"
     exit_unsupported
 fi
 
 if [ ! -f function_profile_enabled ]; then
-    echo "function_profile_enabled not found, function profiling enabled?"
+    echo "function_profile_enabled yest found, function profiling enabled?"
     exit_unsupported
 fi
 
@@ -60,7 +60,7 @@ fi
 echo "Make sure schedule was traced"
 if ! grep -e 'schedule' trace > /dev/null; then
 	cat trace
-	fail "can not find schedule in trace"
+	fail "can yest find schedule in trace"
 fi
 
 echo > set_ftrace_filter
@@ -71,7 +71,7 @@ sleep 1
 echo "make sure something other than scheduler is being traced"
 if ! grep -v -e '^#' -e 'schedule' trace > /dev/null; then
 	cat trace
-	fail "no other functions besides schedule was found"
+	fail "yes other functions besides schedule was found"
 fi
 
 exit 0

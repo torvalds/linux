@@ -158,7 +158,7 @@ int __init mx21_clocks_init(unsigned long lref, unsigned long href)
 	return 0;
 }
 
-static void __init mx21_clocks_init_dt(struct device_node *np)
+static void __init mx21_clocks_init_dt(struct device_yesde *np)
 {
 	ccm = of_iomap(np, 0);
 

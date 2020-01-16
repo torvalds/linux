@@ -11,7 +11,7 @@
 #include <linux/sched.h>
 #include <linux/kernel.h>
 #include <linux/signal.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/wait.h>
 #include <linux/ptrace.h>
 #include <linux/unistd.h>
@@ -94,14 +94,14 @@ void do_sigreturn32(struct pt_regs *regs)
 	int err, i;
 	
 	/* Always make any pending restarted system calls return -EINTR */
-	current->restart_block.fn = do_no_restart_syscall;
+	current->restart_block.fn = do_yes_restart_syscall;
 
 	synchronize_user_stack();
 
 	regs->u_regs[UREG_FP] &= 0x00000000ffffffffUL;
 	sf = (struct signal_frame32 __user *) regs->u_regs[UREG_FP];
 
-	/* 1. Make sure we are not getting garbage from the user */
+	/* 1. Make sure we are yest getting garbage from the user */
 	if (invalid_frame_pointer(sf, sizeof(*sf)))
 		goto segv;
 
@@ -183,13 +183,13 @@ asmlinkage void do_rt_sigreturn32(struct pt_regs *regs)
 	int err, i;
 	
 	/* Always make any pending restarted system calls return -EINTR */
-	current->restart_block.fn = do_no_restart_syscall;
+	current->restart_block.fn = do_yes_restart_syscall;
 
 	synchronize_user_stack();
 	regs->u_regs[UREG_FP] &= 0x00000000ffffffffUL;
 	sf = (struct rt_signal_frame32 __user *) regs->u_regs[UREG_FP];
 
-	/* 1. Make sure we are not getting garbage from the user */
+	/* 1. Make sure we are yest getting garbage from the user */
 	if (invalid_frame_pointer(sf, sizeof(*sf)))
 		goto segv;
 
@@ -277,9 +277,9 @@ static void __user *get_sigframe(struct ksignal *ksig, struct pt_regs *regs, uns
 	sp = sigsp(sp, ksig) - framesize;
 
 	/* Always align the stack frame.  This handles two cases.  First,
-	 * sigaltstack need not be mindful of platform specific stack
+	 * sigaltstack need yest be mindful of platform specific stack
 	 * alignment.  Second, if we took this signal because the stack
-	 * is not aligned properly, we'd like to take the signal cleanly
+	 * is yest aligned properly, we'd like to take the signal cleanly
 	 * and report that.
 	 */
 	sp &= ~15UL;
@@ -288,7 +288,7 @@ static void __user *get_sigframe(struct ksignal *ksig, struct pt_regs *regs, uns
 }
 
 /* The I-cache flush instruction only works in the primary ASI, which
- * right now is the nucleus, aka. kernel space.
+ * right yesw is the nucleus, aka. kernel space.
  *
  * Therefore we have to kick the instructions out using the kernel
  * side linear mapping of the physical address backing the user
@@ -306,7 +306,7 @@ static void flush_signal_insns(unsigned long address)
 	wmb();
 
 	/* Disable cross-call reception.  In this way even a very wide
-	 * munmap() on another cpu can't tear down the page table
+	 * munmap() on ayesther cpu can't tear down the page table
 	 * hierarchy from underneath us, since that can't complete
 	 * until the IPI tlb flush returns.
 	 */
@@ -316,13 +316,13 @@ static void flush_signal_insns(unsigned long address)
 				: : "r" (pstate), "i" (PSTATE_IE));
 
 	pgdp = pgd_offset(current->mm, address);
-	if (pgd_none(*pgdp))
+	if (pgd_yesne(*pgdp))
 		goto out_irqs_on;
 	pudp = pud_offset(pgdp, address);
-	if (pud_none(*pudp))
+	if (pud_yesne(*pudp))
 		goto out_irqs_on;
 	pmdp = pmd_offset(pudp, address);
-	if (pmd_none(*pmdp))
+	if (pmd_yesne(*pmdp))
 		goto out_irqs_on;
 
 	ptep = pte_offset_map(pmdp, address);
@@ -333,7 +333,7 @@ static void flush_signal_insns(unsigned long address)
 	paddr = (unsigned long) page_address(pte_page(pte));
 
 	__asm__ __volatile__("flush	%0 + %1"
-			     : /* no outputs */
+			     : /* yes outputs */
 			     : "r" (paddr),
 			       "r" (address & (PAGE_SIZE - 1))
 			     : "memory");
@@ -421,7 +421,7 @@ static int setup_frame32(struct ksignal *ksig, struct pt_regs *regs,
 		err |= __put_user(0, &sf->rwin_save);
 	}
 
-	/* If these change we need to know - assignments to seta relies on these sizes */
+	/* If these change we need to kyesw - assignments to seta relies on these sizes */
 	BUILD_BUG_ON(_NSIG_WORDS != 1);
 	BUILD_BUG_ON(_COMPAT_NSIG_WORDS != 2);
 	seta.sig[1] = (oldset->sig[0] >> 32);
@@ -636,13 +636,13 @@ static inline void syscall_restart32(unsigned long orig_i0, struct pt_regs *regs
 	switch (regs->u_regs[UREG_I0]) {
 	case ERESTART_RESTARTBLOCK:
 	case ERESTARTNOHAND:
-	no_system_call_restart:
+	yes_system_call_restart:
 		regs->u_regs[UREG_I0] = EINTR;
 		regs->tstate |= TSTATE_ICARRY;
 		break;
 	case ERESTARTSYS:
 		if (!(sa->sa_flags & SA_RESTART))
-			goto no_system_call_restart;
+			goto yes_system_call_restart;
 		/* fallthrough */
 	case ERESTARTNOINTR:
 		regs->u_regs[UREG_I0] = orig_i0;
@@ -652,7 +652,7 @@ static inline void syscall_restart32(unsigned long orig_i0, struct pt_regs *regs
 }
 
 /* Note that 'init' is a special process: it doesn't get signals it doesn't
- * want to handle. Thus you cannot kill init even with a SIGKILL even by
+ * want to handle. Thus you canyest kill init even with a SIGKILL even by
  * mistake.
  */
 void do_signal32(struct pt_regs * regs)
@@ -730,7 +730,7 @@ asmlinkage int do_sys32_sigstack(u32 u_ssptr, u32 u_ossptr, unsigned long sp)
 		if (current->sas_ss_sp && on_sig_stack(sp))
 			goto out;
 			
-		/* Since we don't know the extent of the stack, and we don't
+		/* Since we don't kyesw the extent of the stack, and we don't
 		 * track onstack-ness, but rather calculate it, we must
 		 * presume a size.  Ho hum this interface is lossy.
 		 */

@@ -6,7 +6,7 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/smp.h>
 
 #include <asm/smp_plat.h>

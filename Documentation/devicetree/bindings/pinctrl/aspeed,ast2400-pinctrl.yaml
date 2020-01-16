@@ -10,7 +10,7 @@ maintainers:
   - Andrew Jeffery <andrew@aj.id.au>
 
 description: |+
-  The pin controller node should be the child of a syscon node with the
+  The pin controller yesde should be the child of a syscon yesde with the
   required property:
 
   - compatible:     Should be one of the following:

@@ -82,7 +82,7 @@ sclp_tty_close(struct tty_struct *tty, struct file *filp)
  * This routine returns the numbers of characters the tty driver
  * will accept for queuing to be written.  This number is subject
  * to change as output buffers get emptied, or if the output flow
- * control is acted. This is not an exact number because not every
+ * control is acted. This is yest an exact number because yest every
  * character needs the same space in the sccb. The worst case is
  * a string of newlines. Every newline creates a new message which
  * needs 82 bytes.
@@ -182,7 +182,7 @@ static int sclp_tty_write_string(const unsigned char *str, int count, int may_fa
 	overall_written = 0;
 	spin_lock_irqsave(&sclp_tty_lock, flags);
 	do {
-		/* Create a sclp output buffer if none exists yet */
+		/* Create a sclp output buffer if yesne exists yet */
 		if (sclp_ttybuf == NULL) {
 			while (list_empty(&sclp_tty_pages)) {
 				spin_unlock_irqrestore(&sclp_tty_lock, flags);
@@ -277,8 +277,8 @@ sclp_tty_flush_chars(struct tty_struct *tty)
 /*
  * This routine returns the number of characters in the write buffer of the
  * SCLP driver. The provided number includes all characters that are stored
- * in the SCCB (will be written next time the SCLP is not busy) as well as
- * characters in the write buffer (will not be written as long as there is a
+ * in the SCCB (will be written next time the SCLP is yest busy) as well as
+ * characters in the write buffer (will yest be written as long as there is a
  * final line feed missing).
  */
 static int
@@ -337,7 +337,7 @@ sclp_tty_input(unsigned char* buf, unsigned int count)
 		tty_flip_buffer_push(&sclp_port);
 		break;
 	case CTRLCHAR_NONE:
-		/* send (normal) input to line discipline */
+		/* send (yesrmal) input to line discipline */
 		if (count < 2 ||
 		    (strncmp((const char *) buf + count - 2, "^n", 2) &&
 		     strncmp((const char *) buf + count - 2, "\252n", 2))) {
@@ -369,7 +369,7 @@ static int sclp_switch_cases(unsigned char *buf, int count)
 	while (count-- > 0) {
 		/* compare with special character */
 		if (*ip == CASE_DELIMITER) {
-			/* followed by another special character? */
+			/* followed by ayesther special character? */
 			if (count && ip[1] == CASE_DELIMITER) {
 				/*
 				 * ... then put a single copy of the special
@@ -379,14 +379,14 @@ static int sclp_switch_cases(unsigned char *buf, int count)
 				count--;
 			} else
 				/*
-				 * ... special character follower by a normal
+				 * ... special character follower by a yesrmal
 				 * character toggles the case change behaviour
 				 */
 				toggle = ~toggle;
 			/* skip special character */
 			ip++;
 		} else
-			/* not the special character */
+			/* yest the special character */
 			if (toggle)
 				/* but case switching is on */
 				if (sclp_tty_tolower)
@@ -396,7 +396,7 @@ static int sclp_switch_cases(unsigned char *buf, int count)
 					/* switch to lowercase */
 					*op++ = _ebc_tolower[(int) *ip++];
 			else
-				/* no case switching, copy the character */
+				/* yes case switching, copy the character */
 				*op++ = *ip++;
 	}
 	/* return length of reformatted string. */
@@ -553,7 +553,7 @@ sclp_tty_init(void)
 	driver->driver_name = "sclp_line";
 	driver->name = "sclp_line";
 	driver->major = TTY_MAJOR;
-	driver->minor_start = 64;
+	driver->miyesr_start = 64;
 	driver->type = TTY_DRIVER_TYPE_SYSTEM;
 	driver->subtype = SYSTEM_TYPE_TTY;
 	driver->init_termios = tty_std_termios;

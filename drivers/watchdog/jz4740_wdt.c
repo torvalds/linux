@@ -23,10 +23,10 @@
 #define DEFAULT_HEARTBEAT 5
 #define MAX_HEARTBEAT     2048
 
-static bool nowayout = WATCHDOG_NOWAYOUT;
-module_param(nowayout, bool, 0);
-MODULE_PARM_DESC(nowayout,
-		 "Watchdog cannot be stopped once started (default="
+static bool yeswayout = WATCHDOG_NOWAYOUT;
+module_param(yeswayout, bool, 0);
+MODULE_PARM_DESC(yeswayout,
+		 "Watchdog canyest be stopped once started (default="
 		 __MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
 
 static unsigned int heartbeat = DEFAULT_HEARTBEAT;
@@ -149,7 +149,7 @@ static int jz4740_wdt_probe(struct platform_device *pdev)
 
 	drvdata->clk = devm_clk_get(&pdev->dev, "wdt");
 	if (IS_ERR(drvdata->clk)) {
-		dev_err(&pdev->dev, "cannot find WDT clock\n");
+		dev_err(&pdev->dev, "canyest find WDT clock\n");
 		return PTR_ERR(drvdata->clk);
 	}
 
@@ -172,12 +172,12 @@ static int jz4740_wdt_probe(struct platform_device *pdev)
 				    jz4740_wdt->min_timeout,
 				    jz4740_wdt->max_timeout);
 	jz4740_wdt->parent = dev;
-	watchdog_set_nowayout(jz4740_wdt, nowayout);
+	watchdog_set_yeswayout(jz4740_wdt, yeswayout);
 	watchdog_set_drvdata(jz4740_wdt, drvdata);
 
-	drvdata->map = device_node_to_regmap(dev->parent->of_node);
+	drvdata->map = device_yesde_to_regmap(dev->parent->of_yesde);
 	if (!drvdata->map) {
-		dev_err(dev, "regmap not found\n");
+		dev_err(dev, "regmap yest found\n");
 		return -EINVAL;
 	}
 

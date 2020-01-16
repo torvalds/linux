@@ -302,7 +302,7 @@ static int dp83867_verify_rgmii_cfg(struct phy_device *phydev)
 	struct dp83867_private *dp83867 = phydev->priv;
 
 	/* Existing behavior was to use default pin strapping delay in rgmii
-	 * mode, but rgmii should have meant no delay.  Warn existing users.
+	 * mode, but rgmii should have meant yes delay.  Warn existing users.
 	 */
 	if (phydev->interface == PHY_INTERFACE_MODE_RGMII) {
 		const u16 val = phy_read_mmd(phydev, DP83867_DEVADDR,
@@ -344,16 +344,16 @@ static int dp83867_of_init(struct phy_device *phydev)
 {
 	struct dp83867_private *dp83867 = phydev->priv;
 	struct device *dev = &phydev->mdio.dev;
-	struct device_node *of_node = dev->of_node;
+	struct device_yesde *of_yesde = dev->of_yesde;
 	int ret;
 
-	if (!of_node)
+	if (!of_yesde)
 		return -ENODEV;
 
 	/* Optional configuration */
-	ret = of_property_read_u32(of_node, "ti,clk-output-sel",
+	ret = of_property_read_u32(of_yesde, "ti,clk-output-sel",
 				   &dp83867->clk_output_sel);
-	/* If not set, keep default */
+	/* If yest set, keep default */
 	if (!ret) {
 		dp83867->set_clk_output = true;
 		/* Valid values are 0 to DP83867_CLK_O_SEL_REF_CLK or
@@ -367,22 +367,22 @@ static int dp83867_of_init(struct phy_device *phydev)
 		}
 	}
 
-	if (of_property_read_bool(of_node, "ti,max-output-impedance"))
+	if (of_property_read_bool(of_yesde, "ti,max-output-impedance"))
 		dp83867->io_impedance = DP83867_IO_MUX_CFG_IO_IMPEDANCE_MAX;
-	else if (of_property_read_bool(of_node, "ti,min-output-impedance"))
+	else if (of_property_read_bool(of_yesde, "ti,min-output-impedance"))
 		dp83867->io_impedance = DP83867_IO_MUX_CFG_IO_IMPEDANCE_MIN;
 	else
 		dp83867->io_impedance = -1; /* leave at default */
 
-	dp83867->rxctrl_strap_quirk = of_property_read_bool(of_node,
+	dp83867->rxctrl_strap_quirk = of_property_read_bool(of_yesde,
 					"ti,dp83867-rxctrl-strap-quirk");
 
-	dp83867->sgmii_ref_clk_en = of_property_read_bool(of_node,
+	dp83867->sgmii_ref_clk_en = of_property_read_bool(of_yesde,
 					"ti,sgmii-ref-clock-output-enable");
 
 
 	dp83867->rx_id_delay = DP83867_RGMII_RX_CLK_DELAY_INV;
-	ret = of_property_read_u32(of_node, "ti,rx-internal-delay",
+	ret = of_property_read_u32(of_yesde, "ti,rx-internal-delay",
 				   &dp83867->rx_id_delay);
 	if (!ret && dp83867->rx_id_delay > DP83867_RGMII_RX_CLK_DELAY_MAX) {
 		phydev_err(phydev,
@@ -392,7 +392,7 @@ static int dp83867_of_init(struct phy_device *phydev)
 	}
 
 	dp83867->tx_id_delay = DP83867_RGMII_TX_CLK_DELAY_INV;
-	ret = of_property_read_u32(of_node, "ti,tx-internal-delay",
+	ret = of_property_read_u32(of_yesde, "ti,tx-internal-delay",
 				   &dp83867->tx_id_delay);
 	if (!ret && dp83867->tx_id_delay > DP83867_RGMII_TX_CLK_DELAY_MAX) {
 		phydev_err(phydev,
@@ -401,13 +401,13 @@ static int dp83867_of_init(struct phy_device *phydev)
 		return -EINVAL;
 	}
 
-	if (of_property_read_bool(of_node, "enet-phy-lane-swap"))
+	if (of_property_read_bool(of_yesde, "enet-phy-lane-swap"))
 		dp83867->port_mirroring = DP83867_PORT_MIRROING_EN;
 
-	if (of_property_read_bool(of_node, "enet-phy-lane-no-swap"))
+	if (of_property_read_bool(of_yesde, "enet-phy-lane-yes-swap"))
 		dp83867->port_mirroring = DP83867_PORT_MIRROING_DIS;
 
-	ret = of_property_read_u32(of_node, "ti,fifo-depth",
+	ret = of_property_read_u32(of_yesde, "ti,fifo-depth",
 				   &dp83867->fifo_depth);
 	if (ret) {
 		phydev_err(phydev,
@@ -483,7 +483,7 @@ static int dp83867_config_init(struct phy_device *phydev)
 		if (ret)
 			return ret;
 
-		/* If rgmii mode with no internal delay is selected, we do NOT use
+		/* If rgmii mode with yes internal delay is selected, we do NOT use
 		 * aligned mode as one might expect.  Instead we use the PHY's default
 		 * based on pin strapping.  And the "mode 0" default is to *use*
 		 * internal delay with a value of 7 (2.00 ns).
@@ -525,7 +525,7 @@ static int dp83867_config_init(struct phy_device *phydev)
 		/* For support SPEED_10 in SGMII mode
 		 * DP83867_10M_SGMII_RATE_ADAPT bit
 		 * has to be cleared by software. That
-		 * does not affect SPEED_100 and
+		 * does yest affect SPEED_100 and
 		 * SPEED_1000.
 		 */
 		ret = phy_modify_mmd(phydev, DP83867_DEVADDR,
@@ -536,7 +536,7 @@ static int dp83867_config_init(struct phy_device *phydev)
 			return ret;
 
 		/* After reset SGMII Autoneg timer is set to 2us (bits 6 and 5
-		 * are 01). That is not enough to finalize autoneg on some
+		 * are 01). That is yest eyesugh to finalize autoneg on some
 		 * devices. Increase this timer duration to maximum 16ms.
 		 */
 		ret = phy_modify_mmd(phydev, DP83867_DEVADDR,

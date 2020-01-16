@@ -23,7 +23,7 @@
 
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/init.h>
 #include <linux/delay.h>
 #include <linux/netdevice.h>
@@ -95,10 +95,10 @@ static void zorro8390_reset_8390(struct net_device *dev)
 	ei_status.txing = 0;
 	ei_status.dmaing = 0;
 
-	/* This check _should_not_ be necessary, omit eventually. */
+	/* This check _should_yest_ be necessary, omit eventually. */
 	while ((z_readb(NE_BASE + NE_EN0_ISR) & ENISR_RESET) == 0)
 		if (time_after(jiffies, reset_start_time + 2 * HZ / 100)) {
-			netdev_warn(dev, "%s: did not complete\n", __func__);
+			netdev_warn(dev, "%s: did yest complete\n", __func__);
 			break;
 		}
 	z_writeb(ENISR_RESET, NE_BASE + NE_EN0_ISR);	/* Ack intr */
@@ -215,7 +215,7 @@ static void zorro8390_block_output(struct net_device *dev, int count,
 
 	z_writeb(ENISR_RDC, nic_base + NE_EN0_ISR);
 
-	/* Now the normal output. */
+	/* Now the yesrmal output. */
 	z_writeb(count & 0xff, nic_base + NE_EN0_RCNTLO);
 	z_writeb(count >> 8,   nic_base + NE_EN0_RCNTHI);
 	z_writeb(0x00, nic_base + NE_EN0_RSARLO);
@@ -299,7 +299,7 @@ static int zorro8390_init(struct net_device *dev, unsigned long board,
 		0x10, 0x12, 0x14, 0x16, 0x18, 0x1a, 0x1c, 0x1e,
 	};
 
-	/* Reset card. Who knows what dain-bramaged state it was left in. */
+	/* Reset card. Who kyesws what dain-bramaged state it was left in. */
 	{
 		unsigned long reset_start_time = jiffies;
 
@@ -308,7 +308,7 @@ static int zorro8390_init(struct net_device *dev, unsigned long board,
 		while ((z_readb(ioaddr + NE_EN0_ISR) & ENISR_RESET) == 0)
 			if (time_after(jiffies,
 				       reset_start_time + 2 * HZ / 100)) {
-				netdev_warn(dev, "not found (no reset ack)\n");
+				netdev_warn(dev, "yest found (yes reset ack)\n");
 				return -ENODEV;
 			}
 

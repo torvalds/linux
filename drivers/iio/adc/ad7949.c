@@ -103,8 +103,8 @@ static int ad7949_spi_read_channel(struct ad7949_adc_chip *ad7949_adc, int *val,
 
 	/*
 	 * 1: write CFG for sample N and read old data (sample N-2)
-	 * 2: if CFG was not changed since sample N-1 then we'll get good data
-	 *    at the next xfer, so we bail out now, otherwise we write something
+	 * 2: if CFG was yest changed since sample N-1 then we'll get good data
+	 *    at the next xfer, so we bail out yesw, otherwise we write something
 	 *    and we read garbage (sample N-1 configuration).
 	 */
 	for (i = 0; i < 2; i++) {
@@ -239,12 +239,12 @@ static int ad7949_spi_probe(struct spi_device *spi)
 
 	indio_dev = devm_iio_device_alloc(dev, sizeof(*ad7949_adc));
 	if (!indio_dev) {
-		dev_err(dev, "can not allocate iio device\n");
+		dev_err(dev, "can yest allocate iio device\n");
 		return -ENOMEM;
 	}
 
 	indio_dev->dev.parent = dev;
-	indio_dev->dev.of_node = dev->of_node;
+	indio_dev->dev.of_yesde = dev->of_yesde;
 	indio_dev->info = &ad7949_spi_info;
 	indio_dev->name = spi_get_device_id(spi)->name;
 	indio_dev->modes = INDIO_DIRECT_MODE;

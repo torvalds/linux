@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*****************************************************************************
- *Copyright(c) 2009,  RealTEK Technology Inc. All Right Reserved.
+ *Copyright(c) 2009,  RealTEK Techyeslogy Inc. All Right Reserved.
  *
  * Module:	__INC_HAL8723BREG_H
  *
@@ -273,7 +273,7 @@
 /* 	--------------|---------------------- */
 /*                 | */
 /*                TBTT */
-/*  Note: We cannot update beacon content to HW or send any AC packets during the time between Setup and Hold. */
+/*  Note: We canyest update beacon content to HW or send any AC packets during the time between Setup and Hold. */
 /*  Described by Designer Tim and Bruce, 2011-01-14. */
 /*  */
 #define REG_TBTT_PROHIBIT_8723B		0x0540
@@ -394,7 +394,7 @@
 #define	IMR_BCNDERR0_8723B		BIT16	/*  Beacon Queue DMA OK0 */
 #define	IMR_HSISR_IND_ON_INT_8723B	BIT15	/*  HSISR Indicator (HSIMR & HSISR is true, this bit is set to 1) */
 #define	IMR_BCNDMAINT_E_8723B		BIT14	/*  Beacon DMA Interrupt Extension for Win7 */
-#define	IMR_ATIMEND_8723B		BIT12	/*  CTWidnow End or ATIM Window End */
+#define	IMR_ATIMEND_8723B		BIT12	/*  CTWidyesw End or ATIM Window End */
 #define	IMR_C2HCMD_8723B		BIT10	/*  CPU to Host Command INT Status, Write 1 clear */
 #define	IMR_CPWM2_8723B			BIT9	/*  CPU power Mode exchange INT Status, Write 1 clear */
 #define	IMR_CPWM_8723B			BIT8	/*  CPU power Mode exchange INT Status, Write 1 clear */

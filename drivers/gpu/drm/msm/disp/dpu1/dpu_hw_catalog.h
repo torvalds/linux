@@ -279,7 +279,7 @@ struct dpu_qos_lut_tbl {
  *                       supported z order
  * @qseed_type         qseed2 or qseed3 support.
  * @smart_dma_rev      Supported version of SmartDMA feature.
- * @ubwc_version       UBWC feature version (0x0 for not supported)
+ * @ubwc_version       UBWC feature version (0x0 for yest supported)
  * @has_src_split      source split feature status
  * @has_dim_layer      dim layer feature status
  * @has_idle_pc        indicate if idle power collapse feature is supported
@@ -535,7 +535,7 @@ struct dpu_vbif_qos_tbl {
  * @dynamic_ot_rd_tbl  dynamic OT read configuration table
  * @dynamic_ot_wr_tbl  dynamic OT write configuration table
  * @qos_rt_tbl         real-time QoS priority table
- * @qos_nrt_tbl        non-real-time QoS priority table
+ * @qos_nrt_tbl        yesn-real-time QoS priority table
  * @memtype_count      number of defined memtypes
  * @memtype            array of xin memtype definitions
  */
@@ -568,7 +568,7 @@ struct dpu_reg_dma_cfg {
 /**
  * Define CDP use cases
  * @DPU_PERF_CDP_UDAGE_RT: real-time use cases
- * @DPU_PERF_CDP_USAGE_NRT: non real-time use cases such as WFD
+ * @DPU_PERF_CDP_USAGE_NRT: yesn real-time use cases such as WFD
  */
 enum {
 	DPU_PERF_CDP_USAGE_RT,
@@ -591,7 +591,7 @@ struct dpu_perf_cdp_cfg {
  * @max_bw_low         low threshold of maximum bandwidth (kbps)
  * @max_bw_high        high threshold of maximum bandwidth (kbps)
  * @min_core_ib        minimum bandwidth for core (kbps)
- * @min_core_ib        minimum mnoc ib vote in kbps
+ * @min_core_ib        minimum myesc ib vote in kbps
  * @min_llcc_ib        minimum llcc ib vote in kbps
  * @min_dram_ib        minimum dram ib vote in kbps
  * @core_ib_ff         core instantaneous bandwidth fudge factor

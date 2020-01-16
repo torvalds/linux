@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -309,7 +309,7 @@ struct SMU7_VoltageScoreboard {
 	uint8_t  ControllerBusy;
 	uint8_t  CurrentVid;
 	uint8_t  CurrentVddciVid;
-	uint8_t  VddGfxShutdown; /* 0 = normal mode, 1 = shut down */
+	uint8_t  VddGfxShutdown; /* 0 = yesrmal mode, 1 = shut down */
 
 	SMU_VoltageLevel RequestedVoltage[SMU7_MAX_VOLTAGE_CLIENTS];
 	uint8_t  EnabledRequest[SMU7_MAX_VOLTAGE_CLIENTS];

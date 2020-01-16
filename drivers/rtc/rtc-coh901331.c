@@ -61,7 +61,7 @@ static irqreturn_t coh901331_interrupt(int irq, void *data)
 	/*
 	 * Disable the interrupt. This is necessary because
 	 * the RTC lives on a lower-clocked line and will
-	 * not release the IRQ line until after a few (slower)
+	 * yest release the IRQ line until after a few (slower)
 	 * clock cycles. The interrupt will be re-enabled when
 	 * a new alarm is set anyway.
 	 */
@@ -182,7 +182,7 @@ static int __init coh901331_probe(struct platform_device *pdev)
 	rtap->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(rtap->clk)) {
 		ret = PTR_ERR(rtap->clk);
-		dev_err(&pdev->dev, "could not get clock\n");
+		dev_err(&pdev->dev, "could yest get clock\n");
 		return ret;
 	}
 
@@ -196,7 +196,7 @@ static int __init coh901331_probe(struct platform_device *pdev)
 	/* We enable/disable the clock only to assure it works */
 	ret = clk_prepare_enable(rtap->clk);
 	if (ret) {
-		dev_err(&pdev->dev, "could not enable clock\n");
+		dev_err(&pdev->dev, "could yest enable clock\n");
 		return ret;
 	}
 	clk_disable(rtap->clk);
@@ -205,11 +205,11 @@ static int __init coh901331_probe(struct platform_device *pdev)
 
 	ret = rtc_register_device(rtap->rtc);
 	if (ret)
-		goto out_no_rtc;
+		goto out_yes_rtc;
 
 	return 0;
 
- out_no_rtc:
+ out_yes_rtc:
 	clk_unprepare(rtap->clk);
 	return ret;
 }

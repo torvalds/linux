@@ -12,16 +12,16 @@ maintainers:
 description: |+
   Simple IO memory regions to be managed by the genalloc API.
 
-  Each child of the sram node specifies a region of reserved memory. Each
-  child node should use a 'reg' property to specify a specific range of
+  Each child of the sram yesde specifies a region of reserved memory. Each
+  child yesde should use a 'reg' property to specify a specific range of
   reserved memory.
 
-  Following the generic-names recommended practice, node names should
-  reflect the purpose of the node. Unit address (@<address>) should be
+  Following the generic-names recommended practice, yesde names should
+  reflect the purpose of the yesde. Unit address (@<address>) should be
   appended to the name.
 
 properties:
-  $nodename:
+  $yesdename:
     pattern: "^sram(@.*)?"
 
   compatible:
@@ -48,9 +48,9 @@ properties:
     description:
       Should translate from local addresses within the sram to bus addresses.
 
-  no-memory-wc:
+  yes-memory-wc:
     description:
-      The flag indicating, that SRAM memory region has not to be remapped
+      The flag indicating, that SRAM memory region has yest to be remapped
       as write combining. WC is used by default.
     type: boolean
 
@@ -58,7 +58,7 @@ patternProperties:
   "^([a-z]*-)?sram@[a-f0-9]+$":
     type: object
     description:
-      Each child of the sram node specifies a region of reserved memory.
+      Each child of the sram yesde specifies a region of reserved memory.
     properties:
       compatible:
         description:
@@ -70,8 +70,8 @@ patternProperties:
           - amlogic,meson8b-smp-sram
           - renesas,smp-sram
           - rockchip,rk3066-smp-sram
-          - samsung,exynos4210-sysram
-          - samsung,exynos4210-sysram-ns
+          - samsung,exyyess4210-sysram
+          - samsung,exyyess4210-sysram-ns
           - socionext,milbeaut-smp-sram
 
       reg:
@@ -82,7 +82,7 @@ patternProperties:
       pool:
         description:
           Indicates that the particular reserved SRAM area is addressable
-          and in use by another device or devices.
+          and in use by ayesther device or devices.
         type: boolean
 
       export:
@@ -103,7 +103,7 @@ patternProperties:
       label:
         description:
           The name for the reserved partition, if omitted, the label is taken
-          from the node name excluding the unit address.
+          from the yesde name excluding the unit address.
 
     required:
       - reg
@@ -145,13 +145,13 @@ examples:
     };
 
   - |
-    // Samsung SMP-capable Exynos SoCs use part of the SYSRAM for the bringup
+    // Samsung SMP-capable Exyyess SoCs use part of the SYSRAM for the bringup
     // of the secondary cores. Once the core gets powered up it executes the
     // code that is residing at some specific location of the SYSRAM.
     //
-    // Therefore reserved section sub-nodes have to be added to the mmio-sram
-    // declaration. These nodes are of two types depending upon secure or
-    // non-secure execution environment.
+    // Therefore reserved section sub-yesdes have to be added to the mmio-sram
+    // declaration. These yesdes are of two types depending upon secure or
+    // yesn-secure execution environment.
     sram@2020000 {
         compatible = "mmio-sram";
         reg = <0x02020000 0x54000>;
@@ -160,12 +160,12 @@ examples:
         ranges = <0 0x02020000 0x54000>;
 
         smp-sram@0 {
-            compatible = "samsung,exynos4210-sysram";
+            compatible = "samsung,exyyess4210-sysram";
             reg = <0x0 0x1000>;
         };
 
         smp-sram@53000 {
-            compatible = "samsung,exynos4210-sysram-ns";
+            compatible = "samsung,exyyess4210-sysram-ns";
             reg = <0x53000 0x1000>;
         };
     };
@@ -175,7 +175,7 @@ examples:
     // Once the core gets powered up it executes the code that is residing at a
     // specific location.
     //
-    // Therefore a reserved section sub-node has to be added to the mmio-sram
+    // Therefore a reserved section sub-yesde has to be added to the mmio-sram
     // declaration.
     sram@d9000000 {
         compatible = "mmio-sram";
@@ -224,7 +224,7 @@ examples:
     // value is set at a specific location. If it is then the BROM will jump
     // to the software entry address, instead of executing a standard boot.
     //
-    // Also there are no "secure-only" properties. The implementation should
+    // Also there are yes "secure-only" properties. The implementation should
     // check if this SRAM is usable first.
     sram@20000 {
         // 256 KiB secure SRAM at 0x20000

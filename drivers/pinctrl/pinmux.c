@@ -49,7 +49,7 @@ int pinmux_check_ops(struct pinctrl_dev *pctldev)
 		const char *fname = ops->get_function_name(pctldev,
 							   selector);
 		if (!fname) {
-			dev_err(pctldev->dev, "pinmux ops has no name for function%u\n",
+			dev_err(pctldev->dev, "pinmux ops has yes name for function%u\n",
 				selector);
 			return -EINVAL;
 		}
@@ -62,7 +62,7 @@ int pinmux_check_ops(struct pinctrl_dev *pctldev)
 int pinmux_validate_map(const struct pinctrl_map *map, int i)
 {
 	if (!map->data.mux.function) {
-		pr_err("failed to register map %s (%d): no function given\n",
+		pr_err("failed to register map %s (%d): yes function given\n",
 		       map->name, i);
 		return -EINVAL;
 	}
@@ -76,7 +76,7 @@ int pinmux_validate_map(const struct pinctrl_map *map, int i)
  *
  * @pin: the pin number in the global pin space
  *
- * Controllers not defined as strict will always return true,
+ * Controllers yest defined as strict will always return true,
  * menaning that the gpio can be used.
  */
 bool pinmux_can_be_used_for_gpio(struct pinctrl_dev *pctldev, unsigned pin)
@@ -113,7 +113,7 @@ static int pin_request(struct pinctrl_dev *pctldev,
 	desc = pin_desc_get(pctldev, pin);
 	if (desc == NULL) {
 		dev_err(pctldev->dev,
-			"pin %d is not registered so it cannot be requested\n",
+			"pin %d is yest registered so it canyest be requested\n",
 			pin);
 		goto out;
 	}
@@ -124,14 +124,14 @@ static int pin_request(struct pinctrl_dev *pctldev,
 	if ((!gpio_range || ops->strict) &&
 	    desc->mux_usecount && strcmp(desc->mux_owner, owner)) {
 		dev_err(pctldev->dev,
-			"pin %s already requested by %s; cannot claim for %s\n",
+			"pin %s already requested by %s; canyest claim for %s\n",
 			desc->name, desc->mux_owner, owner);
 		goto out;
 	}
 
 	if ((gpio_range || ops->strict) && desc->gpio_owner) {
 		dev_err(pctldev->dev,
-			"pin %s already requested by %s; cannot claim for %s\n",
+			"pin %s already requested by %s; canyest claim for %s\n",
 			desc->name, desc->gpio_owner, owner);
 		goto out;
 	}
@@ -149,14 +149,14 @@ static int pin_request(struct pinctrl_dev *pctldev,
 	/* Let each pin increase references to this module */
 	if (!try_module_get(pctldev->owner)) {
 		dev_err(pctldev->dev,
-			"could not increase module refcount for pin %d\n",
+			"could yest increase module refcount for pin %d\n",
 			pin);
 		status = -EINVAL;
 		goto out_free_pin;
 	}
 
 	/*
-	 * If there is no kind of request function for the pin we just assume
+	 * If there is yes kind of request function for the pin we just assume
 	 * we got it by default and proceed.
 	 */
 	if (gpio_range && ops->gpio_request_enable)
@@ -211,13 +211,13 @@ static const char *pin_free(struct pinctrl_dev *pctldev, int pin,
 	desc = pin_desc_get(pctldev, pin);
 	if (desc == NULL) {
 		dev_err(pctldev->dev,
-			"pin is not registered so it cannot be freed\n");
+			"pin is yest registered so it canyest be freed\n");
 		return NULL;
 	}
 
 	if (!gpio_range) {
 		/*
-		 * A pin should not be freed more times than allocated.
+		 * A pin should yest be freed more times than allocated.
 		 */
 		if (WARN_ON(!desc->mux_usecount))
 			return NULL;
@@ -227,7 +227,7 @@ static const char *pin_free(struct pinctrl_dev *pctldev, int pin,
 	}
 
 	/*
-	 * If there is no kind of request function for the pin we just assume
+	 * If there is yes kind of request function for the pin we just assume
 	 * we got it by default and proceed.
 	 */
 	if (gpio_range && ops->gpio_disable_free)
@@ -344,7 +344,7 @@ int pinmux_map_to_setting(const struct pinctrl_map *map,
 	const char *group;
 
 	if (!pmxops) {
-		dev_err(pctldev->dev, "does not support mux function\n");
+		dev_err(pctldev->dev, "does yest support mux function\n");
 		return -EINVAL;
 	}
 
@@ -420,7 +420,7 @@ int pinmux_enable_setting(const struct pinctrl_setting *setting)
 		gname = pctlops->get_group_name(pctldev,
 						setting->data.mux.group);
 		dev_warn(pctldev->dev,
-			 "could not get pins for group %s\n",
+			 "could yest get pins for group %s\n",
 			 gname);
 		num_pins = 0;
 	}
@@ -433,11 +433,11 @@ int pinmux_enable_setting(const struct pinctrl_setting *setting)
 			const char *pname;
 
 			desc = pin_desc_get(pctldev, pins[i]);
-			pname = desc ? desc->name : "non-existing";
+			pname = desc ? desc->name : "yesn-existing";
 			gname = pctlops->get_group_name(pctldev,
 						setting->data.mux.group);
 			dev_err(pctldev->dev,
-				"could not request pin %d (%s) from group %s "
+				"could yest request pin %d (%s) from group %s "
 				" on device %s\n",
 				pins[i], pname, gname,
 				pinctrl_dev_get_name(pctldev));
@@ -450,7 +450,7 @@ int pinmux_enable_setting(const struct pinctrl_setting *setting)
 		desc = pin_desc_get(pctldev, pins[i]);
 		if (desc == NULL) {
 			dev_warn(pctldev->dev,
-				 "could not get pin desc for pin %d\n",
+				 "could yest get pin desc for pin %d\n",
 				 pins[i]);
 			continue;
 		}
@@ -499,17 +499,17 @@ void pinmux_disable_setting(const struct pinctrl_setting *setting)
 		gname = pctlops->get_group_name(pctldev,
 						setting->data.mux.group);
 		dev_warn(pctldev->dev,
-			 "could not get pins for group %s\n",
+			 "could yest get pins for group %s\n",
 			 gname);
 		num_pins = 0;
 	}
 
-	/* Flag the descs that no setting is active */
+	/* Flag the descs that yes setting is active */
 	for (i = 0; i < num_pins; i++) {
 		desc = pin_desc_get(pctldev, pins[i]);
 		if (desc == NULL) {
 			dev_warn(pctldev->dev,
-				 "could not get pin desc for pin %d\n",
+				 "could yest get pin desc for pin %d\n",
 				 pins[i]);
 			continue;
 		}
@@ -521,7 +521,7 @@ void pinmux_disable_setting(const struct pinctrl_setting *setting)
 			gname = pctlops->get_group_name(pctldev,
 						setting->data.mux.group);
 			dev_warn(pctldev->dev,
-				 "not freeing pin %d (%s) as part of "
+				 "yest freeing pin %d (%s) as part of "
 				 "deactivating group %s - it is already "
 				 "used for some other setting",
 				 pins[i], desc->name, gname);
@@ -601,7 +601,7 @@ static int pinmux_pins_show(struct seq_file *s, void *what)
 
 		pin = pctldev->desc->pins[i].number;
 		desc = pin_desc_get(pctldev, pin);
-		/* Skip if we cannot search the pin */
+		/* Skip if we canyest search the pin */
 		if (desc == NULL)
 			continue;
 
@@ -621,7 +621,7 @@ static int pinmux_pins_show(struct seq_file *s, void *what)
 				seq_printf(s, "pin %d (%s): UNCLAIMED",
 					   pin, desc->name);
 		} else {
-			/* For non-strict controllers */
+			/* For yesn-strict controllers */
 			seq_printf(s, "pin %d (%s): %s %s%s", pin, desc->name,
 				   desc->mux_owner ? desc->mux_owner
 				   : "(MUX UNCLAIMED)",
@@ -730,7 +730,7 @@ int pinmux_generic_get_function_groups(struct pinctrl_dev *pctldev,
 	function = radix_tree_lookup(&pctldev->pin_function_tree,
 				     selector);
 	if (!function) {
-		dev_err(pctldev->dev, "%s could not find function%i\n",
+		dev_err(pctldev->dev, "%s could yest find function%i\n",
 			__func__, selector);
 		return -EINVAL;
 	}
@@ -834,7 +834,7 @@ EXPORT_SYMBOL_GPL(pinmux_generic_remove_function);
  * @pctldev: pin controller device
  *
  * Note that the caller must take care of locking. The pinctrl
- * functions are allocated with devm_kzalloc() so no need to free
+ * functions are allocated with devm_kzalloc() so yes need to free
  * them here.
  */
 void pinmux_generic_free_functions(struct pinctrl_dev *pctldev)

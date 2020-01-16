@@ -18,13 +18,13 @@ struct record_opts;
 struct evlist;
 struct target;
 
-struct bpf_prog_info_node {
+struct bpf_prog_info_yesde {
 	struct bpf_prog_info_linear	*info_linear;
-	struct rb_node			rb_node;
+	struct rb_yesde			rb_yesde;
 };
 
-struct btf_node {
-	struct rb_node	rb_node;
+struct btf_yesde {
+	struct rb_yesde	rb_yesde;
 	u32		id;
 	u32		data_size;
 	char		data[];

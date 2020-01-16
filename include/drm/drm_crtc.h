@@ -11,7 +11,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -54,7 +54,7 @@ struct drm_file;
 struct drm_clip_rect;
 struct drm_printer;
 struct drm_self_refresh_data;
-struct device_node;
+struct device_yesde;
 struct dma_fence;
 struct edid;
 
@@ -92,9 +92,9 @@ struct drm_plane_helper_funcs;
  * drm_atomic_crtc_needs_modeset()
  *
  * WARNING: Transitional helpers (like drm_helper_crtc_mode_set() or
- * drm_helper_crtc_mode_set_base()) do not maintain many of the derived control
- * state like @plane_mask so drivers not converted over to atomic helpers should
- * not rely on these being accurate!
+ * drm_helper_crtc_mode_set_base()) do yest maintain many of the derived control
+ * state like @plane_mask so drivers yest converted over to atomic helpers should
+ * yest rely on these being accurate!
  */
 struct drm_crtc_state {
 	/** @crtc: backpointer to the CRTC */
@@ -109,11 +109,11 @@ struct drm_crtc_state {
 
 	/**
 	 * @active: Whether the CRTC is actively displaying (used for DPMS).
-	 * Implies that @enable is set. The driver must not release any shared
+	 * Implies that @enable is set. The driver must yest release any shared
 	 * resources if @active is set to false but @enable still true, because
 	 * userspace expects that a DPMS ON always succeeds.
 	 *
-	 * Hence drivers must not consult @active in their various
+	 * Hence drivers must yest consult @active in their various
 	 * &drm_mode_config_funcs.atomic_check callback to reject an atomic
 	 * commit. They can consult it to aid in the computation of derived
 	 * hardware state, since even in the DPMS OFF state the display hardware
@@ -171,7 +171,7 @@ struct drm_crtc_state {
 	bool color_mgmt_changed : 1;
 
 	/**
-	 * @no_vblank:
+	 * @yes_vblank:
 	 *
 	 * Reflects the ability of a CRTC to send VBLANK events. This state
 	 * usually depends on the pipeline configuration, and the main usuage
@@ -181,17 +181,17 @@ struct drm_crtc_state {
 	 * events when this part of the pipeline hasn't changed but others had
 	 * or when the CRTC and connectors are being disabled.
 	 *
-	 * __drm_atomic_helper_crtc_duplicate_state() will not reset the value
+	 * __drm_atomic_helper_crtc_duplicate_state() will yest reset the value
 	 * from the current state, the CRTC driver is then responsible for
 	 * updating this field when needed.
 	 *
 	 * Note that the combination of &drm_crtc_state.event == NULL and
-	 * &drm_crtc_state.no_blank == true is valid and usually used when the
+	 * &drm_crtc_state.yes_blank == true is valid and usually used when the
 	 * writeback connector attached to the CRTC has a new job queued. In
 	 * this case the driver will send the VBLANK event on its own when the
 	 * writeback job is complete.
 	 */
-	bool no_vblank : 1;
+	bool yes_vblank : 1;
 
 	/**
 	 * @plane_mask: Bitmask of drm_plane_mask(plane) of planes attached to
@@ -230,8 +230,8 @@ struct drm_crtc_state {
 	 * @mode:
 	 *
 	 * Display timings requested by userspace. The driver should try to
-	 * match the refresh rate as close as possible (but note that it's
-	 * undefined what exactly is close enough, e.g. some of the HDMI modes
+	 * match the refresh rate as close as possible (but yeste that it's
+	 * undefined what exactly is close eyesugh, e.g. some of the HDMI modes
 	 * only differ in less than 1% of the refresh rate). The active width
 	 * and height as observed by userspace for positioning planes must match
 	 * exactly.
@@ -254,7 +254,7 @@ struct drm_crtc_state {
 	 *
 	 * Lookup table for converting framebuffer pixel data before apply the
 	 * color conversion matrix @ctm. See drm_crtc_enable_color_mgmt(). The
-	 * blob (if not NULL) is an array of &struct drm_color_lut.
+	 * blob (if yest NULL) is an array of &struct drm_color_lut.
 	 */
 	struct drm_property_blob *degamma_lut;
 
@@ -262,7 +262,7 @@ struct drm_crtc_state {
 	 * @ctm:
 	 *
 	 * Color transformation matrix. See drm_crtc_enable_color_mgmt(). The
-	 * blob (if not NULL) is a &struct drm_color_ctm.
+	 * blob (if yest NULL) is a &struct drm_color_ctm.
 	 */
 	struct drm_property_blob *ctm;
 
@@ -270,7 +270,7 @@ struct drm_crtc_state {
 	 * @gamma_lut:
 	 *
 	 * Lookup table for converting pixel data after the color conversion
-	 * matrix @ctm.  See drm_crtc_enable_color_mgmt(). The blob (if not
+	 * matrix @ctm.  See drm_crtc_enable_color_mgmt(). The blob (if yest
 	 * NULL) is an array of &struct drm_color_lut.
 	 */
 	struct drm_property_blob *gamma_lut;
@@ -287,7 +287,7 @@ struct drm_crtc_state {
 	 * @async_flip:
 	 *
 	 * This is set when DRM_MODE_PAGE_FLIP_ASYNC is set in the legacy
-	 * PAGE_FLIP IOCTL. It's not wired up for the atomic IOCTL itself yet.
+	 * PAGE_FLIP IOCTL. It's yest wired up for the atomic IOCTL itself yet.
 	 */
 	bool async_flip;
 
@@ -296,17 +296,17 @@ struct drm_crtc_state {
 	 *
 	 * Indicates if variable refresh rate should be enabled for the CRTC.
 	 * Support for the requested vrr state will depend on driver and
-	 * hardware capabiltiy - lacking support is not treated as failure.
+	 * hardware capabiltiy - lacking support is yest treated as failure.
 	 */
 	bool vrr_enabled;
 
 	/**
 	 * @self_refresh_active:
 	 *
-	 * Used by the self refresh helpers to denote when a self refresh
+	 * Used by the self refresh helpers to deyeste when a self refresh
 	 * transition is occurring. This will be set on enable/disable callbacks
 	 * when self refresh is being enabled or disabled. In some cases, it may
-	 * not be desirable to fully shut off the crtc during self refresh.
+	 * yest be desirable to fully shut off the crtc during self refresh.
 	 * CRTC's can inspect this flag and determine the best course of action.
 	 */
 	bool self_refresh_active;
@@ -332,7 +332,7 @@ struct drm_crtc_state {
 	 *    new set of buffers. Again the event can only be sent out after the
 	 *    hardware has stopped scanning out the old buffers.
 	 *
-	 *  - Events for disabled CRTCs are not allowed, and drivers can ignore
+	 *  - Events for disabled CRTCs are yest allowed, and drivers can igyesre
 	 *    that case.
 	 *
 	 * This can be handled by the drm_crtc_send_vblank_event() function,
@@ -353,7 +353,7 @@ struct drm_crtc_state {
 	 * for a detailed discussion of the constraints it needs to be used
 	 * safely.
 	 *
-	 * If the device can't notify of flip completion in a race-free way
+	 * If the device can't yestify of flip completion in a race-free way
 	 * at all, then the event should be armed just after the page flip is
 	 * committed. In the worst case the driver will send the event to
 	 * userspace one frame too late. This doesn't allow for a real atomic
@@ -378,9 +378,9 @@ struct drm_crtc_state {
  * struct drm_crtc_funcs - control CRTCs for a given device
  *
  * The drm_crtc_funcs structure is the central CRTC management structure
- * in the DRM.  Each CRTC controls one or more connectors (note that the name
+ * in the DRM.  Each CRTC controls one or more connectors (yeste that the name
  * CRTC is simply historical, a CRTC may control LVDS, VGA, DVI, TV out, etc.
- * connectors, not just CRTs).
+ * connectors, yest just CRTs).
  *
  * Each driver is responsible for filling out this structure at startup time,
  * in addition to providing other modesetting features, like i2c and DDC
@@ -392,7 +392,7 @@ struct drm_crtc_funcs {
 	 *
 	 * Reset CRTC hardware and software state to off. This function isn't
 	 * called by the core directly, only through drm_mode_config_reset().
-	 * It's not a helper hook only for historical reasons.
+	 * It's yest a helper hook only for historical reasons.
 	 *
 	 * Atomic drivers can use drm_atomic_helper_crtc_reset() to reset
 	 * atomic state using this hook.
@@ -427,7 +427,7 @@ struct drm_crtc_funcs {
 	 * @cursor_set2:
 	 *
 	 * Update the cursor image, including hotspot information. The hotspot
-	 * must not affect the cursor position in CRTC coordinates, but is only
+	 * must yest affect the cursor position in CRTC coordinates, but is only
 	 * meant as a hint for virtualized display hardware to coordinate the
 	 * guests and hosts cursor position. The cursor hotspot is relative to
 	 * the cursor image. Otherwise this works exactly like @cursor_set.
@@ -449,7 +449,7 @@ struct drm_crtc_funcs {
 	/**
 	 * @cursor_move:
 	 *
-	 * Update the cursor position. The cursor does not need to be visible
+	 * Update the cursor position. The cursor does yest need to be visible
 	 * when this hook is called.
 	 *
 	 * This entry point is deprecated, drivers should instead implement
@@ -485,7 +485,7 @@ struct drm_crtc_funcs {
 	 * @destroy:
 	 *
 	 * Clean up CRTC resources. This is only called at driver unload time
-	 * through drm_mode_config_cleanup() since a CRTC cannot be hotplugged
+	 * through drm_mode_config_cleanup() since a CRTC canyest be hotplugged
 	 * in DRM.
 	 */
 	void (*destroy)(struct drm_crtc *crtc);
@@ -517,7 +517,7 @@ struct drm_crtc_funcs {
 	 * vertical blanking, avoiding tearing (except when requested otherwise
 	 * through the DRM_MODE_PAGE_FLIP_ASYNC flag). When an application
 	 * requests a page flip the DRM core verifies that the new frame buffer
-	 * is large enough to be scanned out by the CRTC in the currently
+	 * is large eyesugh to be scanned out by the CRTC in the currently
 	 * configured mode and then calls this hook with a pointer to the new
 	 * frame buffer.
 	 *
@@ -526,7 +526,7 @@ struct drm_crtc_funcs {
 	 * pending rendering from other drivers if the underlying buffer is a
 	 * shared dma-buf.
 	 *
-	 * An application can request to be notified when the page flip has
+	 * An application can request to be yestified when the page flip has
 	 * completed. The drm core will supply a &struct drm_event in the event
 	 * parameter in this case. This can be handled by the
 	 * drm_crtc_send_vblank_event() function, which the driver should call on
@@ -545,8 +545,8 @@ struct drm_crtc_funcs {
 	 * NOTE:
 	 *
 	 * Very early versions of the KMS ABI mandated that the driver must
-	 * block (but not reject) any rendering to the old framebuffer until the
-	 * flip operation has completed and the old framebuffer is no longer
+	 * block (but yest reject) any rendering to the old framebuffer until the
+	 * flip operation has completed and the old framebuffer is yes longer
 	 * visible. This requirement has been lifted, and userspace is instead
 	 * expected to request delivery of an event and wait with recycling old
 	 * buffers until such has been received.
@@ -575,7 +575,7 @@ struct drm_crtc_funcs {
 	 *
 	 * Note that the core code calls drm_crtc_vblank_get before this entry
 	 * point, and will call drm_crtc_vblank_put if this entry point returns
-	 * any non-0 error code. It's the driver's responsibility to call
+	 * any yesn-0 error code. It's the driver's responsibility to call
 	 * drm_crtc_vblank_put after this entry point returns 0, typically when
 	 * the flip completes.
 	 */
@@ -591,8 +591,8 @@ struct drm_crtc_funcs {
 	 * This is the legacy entry point to update a property attached to the
 	 * CRTC.
 	 *
-	 * This callback is optional if the driver does not support any legacy
-	 * driver-private properties. For atomic drivers it is not used because
+	 * This callback is optional if the driver does yest support any legacy
+	 * driver-private properties. For atomic drivers it is yest used because
 	 * property handling is done entirely in the DRM core.
 	 *
 	 * RETURNS:
@@ -607,7 +607,7 @@ struct drm_crtc_funcs {
 	 *
 	 * Duplicate the current atomic state for this CRTC and return it.
 	 * The core and helpers guarantee that any atomic state duplicated with
-	 * this hook and still owned by the caller (i.e. not transferred to the
+	 * this hook and still owned by the caller (i.e. yest transferred to the
 	 * driver by calling &drm_mode_config_funcs.atomic_commit) will be
 	 * cleaned up by calling the @atomic_destroy_state hook in this
 	 * structure.
@@ -652,7 +652,7 @@ struct drm_crtc_funcs {
 	 * Decode a driver-private property value and store the decoded value
 	 * into the passed-in state structure. Since the atomic core decodes all
 	 * standardized properties (even for extensions beyond the core set of
-	 * properties which might not be implemented by all drivers) this
+	 * properties which might yest be implemented by all drivers) this
 	 * requires drivers to subclass the state structure.
 	 *
 	 * Such driver-private properties should really only be implemented for
@@ -660,10 +660,10 @@ struct drm_crtc_funcs {
 	 * standardize atomic extension and decode the properties used to expose
 	 * such an extension in the core.
 	 *
-	 * Do not call this function directly, use
+	 * Do yest call this function directly, use
 	 * drm_atomic_crtc_set_property() instead.
 	 *
-	 * This callback is optional if the driver does not support any
+	 * This callback is optional if the driver does yest support any
 	 * driver-private atomic properties.
 	 *
 	 * NOTE:
@@ -675,7 +675,7 @@ struct drm_crtc_funcs {
 	 * software) or data structures except the passed in @state parameter.
 	 *
 	 * Also since userspace controls in which order properties are set this
-	 * function must not do any input validation (since the state update is
+	 * function must yest do any input validation (since the state update is
 	 * incomplete and hence likely inconsistent). Instead any such input
 	 * validation must be done in the various atomic_check callbacks.
 	 *
@@ -698,10 +698,10 @@ struct drm_crtc_funcs {
 	 * Reads out the decoded driver-private property. This is used to
 	 * implement the GETCRTC IOCTL.
 	 *
-	 * Do not call this function directly, use
+	 * Do yest call this function directly, use
 	 * drm_atomic_crtc_get_property() instead.
 	 *
-	 * This callback is optional if the driver does not support any
+	 * This callback is optional if the driver does yest support any
 	 * driver-private atomic properties.
 	 *
 	 * RETURNS:
@@ -761,7 +761,7 @@ struct drm_crtc_funcs {
 	 * Note that "auto" can depend upon the current modeset configuration,
 	 * e.g. it could pick an encoder or output specific CRC sampling point.
 	 *
-	 * This callback is optional if the driver does not support any CRC
+	 * This callback is optional if the driver does yest support any CRC
 	 * generation functionality.
 	 *
 	 * RETURNS:
@@ -777,7 +777,7 @@ struct drm_crtc_funcs {
 	 * source for CRC and during crc open. Source parameter can be NULL
 	 * while disabling crc source.
 	 *
-	 * This callback is optional if the driver does not support any CRC
+	 * This callback is optional if the driver does yest support any CRC
 	 * generation functionality.
 	 *
 	 * RETURNS:
@@ -796,7 +796,7 @@ struct drm_crtc_funcs {
 	 * callback does the verification on each crc-source before passing it
 	 * to userspace.
 	 *
-	 * This callback is optional if the driver does not support exporting of
+	 * This callback is optional if the driver does yest support exporting of
 	 * possible CRC sources list.
 	 *
 	 * RETURNS:
@@ -815,7 +815,7 @@ struct drm_crtc_funcs {
 	 * If driver subclasses &struct drm_crtc_state, it should implement
 	 * this optional hook for printing additional driver specific state.
 	 *
-	 * Do not call this directly, use drm_atomic_crtc_print_state()
+	 * Do yest call this directly, use drm_atomic_crtc_print_state()
 	 * instead.
 	 */
 	void (*atomic_print_state)(struct drm_printer *p,
@@ -855,7 +855,7 @@ struct drm_crtc_funcs {
 	 *
 	 * Returns:
 	 *
-	 * Zero on success, appropriate errno if the vblank interrupt cannot
+	 * Zero on success, appropriate erryes if the vblank interrupt canyest
 	 * be enabled.
 	 */
 	int (*enable_vblank)(struct drm_crtc *crtc);
@@ -878,13 +878,13 @@ struct drm_crtc_funcs {
 struct drm_crtc {
 	/** @dev: parent DRM device */
 	struct drm_device *dev;
-	/** @port: OF node used by drm_of_find_possible_crtcs(). */
-	struct device_node *port;
+	/** @port: OF yesde used by drm_of_find_possible_crtcs(). */
+	struct device_yesde *port;
 	/**
 	 * @head:
 	 *
 	 * List of all CRTCs on @dev, linked from &drm_mode_config.crtc_list.
-	 * Invariant over the lifetime of @dev and therefore does not need
+	 * Invariant over the lifetime of @dev and therefore does yest need
 	 * locking.
 	 */
 	struct list_head head;
@@ -911,7 +911,7 @@ struct drm_crtc {
 	 * @primary:
 	 * Primary plane for this CRTC. Note that this is only
 	 * relevant for legacy IOCTL, it specifies the plane implicitly used by
-	 * the SETCRTC and PAGE_FLIP IOCTLs. It does not have any significance
+	 * the SETCRTC and PAGE_FLIP IOCTLs. It does yest have any significance
 	 * beyond that.
 	 */
 	struct drm_plane *primary;
@@ -920,7 +920,7 @@ struct drm_crtc {
 	 * @cursor:
 	 * Cursor plane for this CRTC. Note that this is only relevant for
 	 * legacy IOCTL, it specifies the plane implicitly used by the SETCURSOR
-	 * and SETCURSOR2 IOCTLs. It does not have any significance
+	 * and SETCURSOR2 IOCTLs. It does yest have any significance
 	 * beyond that.
 	 */
 	struct drm_plane *cursor;
@@ -934,7 +934,7 @@ struct drm_crtc {
 	/**
 	 * @cursor_x: Current x position of the cursor, used for universal
 	 * cursor planes because the SETCURSOR IOCTL only can update the
-	 * framebuffer without supplying the coordinates. Drivers should not use
+	 * framebuffer without supplying the coordinates. Drivers should yest use
 	 * this directly, atomic drivers should look at &drm_plane_state.crtc_x
 	 * of the cursor plane instead.
 	 */
@@ -942,7 +942,7 @@ struct drm_crtc {
 	/**
 	 * @cursor_y: Current y position of the cursor, used for universal
 	 * cursor planes because the SETCURSOR IOCTL only can update the
-	 * framebuffer without supplying the coordinates. Drivers should not use
+	 * framebuffer without supplying the coordinates. Drivers should yest use
 	 * this directly, atomic drivers should look at &drm_plane_state.crtc_y
 	 * of the cursor plane instead.
 	 */
@@ -974,11 +974,11 @@ struct drm_crtc {
 	 * Programmed mode in hw, after adjustments for encoders, crtc, panel
 	 * scaling etc. Should only be used by legacy drivers, for high
 	 * precision vblank timestamps in
-	 * drm_calc_vbltimestamp_from_scanoutpos().
+	 * drm_calc_vbltimestamp_from_scayesutpos().
 	 *
-	 * Note that atomic drivers should not use this, but instead use
+	 * Note that atomic drivers should yest use this, but instead use
 	 * &drm_crtc_state.adjusted_mode. And for high-precision timestamps
-	 * drm_calc_vbltimestamp_from_scanoutpos() used &drm_vblank_crtc.hwmode,
+	 * drm_calc_vbltimestamp_from_scayesutpos() used &drm_vblank_crtc.hwmode,
 	 * which is filled out by calling drm_calc_timestamping_constants().
 	 */
 	struct drm_display_mode hwmode;
@@ -1026,7 +1026,7 @@ struct drm_crtc {
 	 *
 	 * Current atomic state for this CRTC.
 	 *
-	 * This is protected by @mutex. Note that nonblocking atomic commits
+	 * This is protected by @mutex. Note that yesnblocking atomic commits
 	 * access the current CRTC state without taking locks. Either by going
 	 * through the &struct drm_atomic_state pointers, see
 	 * for_each_oldnew_crtc_in_state(), for_each_old_crtc_in_state() and
@@ -1090,12 +1090,12 @@ struct drm_crtc {
 	 */
 	spinlock_t fence_lock;
 	/**
-	 * @fence_seqno:
+	 * @fence_seqyes:
 	 *
-	 * Seqno variable used as monotonic counter for the fences
+	 * Seqyes variable used as moyestonic counter for the fences
 	 * created on the CRTC's timeline.
 	 */
-	unsigned long fence_seqno;
+	unsigned long fence_seqyes;
 
 	/**
 	 * @timeline_name:
@@ -1182,7 +1182,7 @@ struct drm_crtc *drm_crtc_from_index(struct drm_device *dev, int idx);
  * @id: &drm_mode_object ID
  *
  * This can be used to look up a CRTC from its userspace ID. Only used by
- * drivers for legacy IOCTLs and interface, nowadays extensions to the KMS
+ * drivers for legacy IOCTLs and interface, yeswadays extensions to the KMS
  * userspace interface should be done using &drm_property.
  */
 static inline struct drm_crtc *drm_crtc_find(struct drm_device *dev,

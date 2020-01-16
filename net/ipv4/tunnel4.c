@@ -190,7 +190,7 @@ static int tunnelmpls4_err(struct sk_buff *skb, u32 info)
 static const struct net_protocol tunnel4_protocol = {
 	.handler	=	tunnel4_rcv,
 	.err_handler	=	tunnel4_err,
-	.no_policy	=	1,
+	.yes_policy	=	1,
 	.netns_ok	=	1,
 };
 
@@ -198,7 +198,7 @@ static const struct net_protocol tunnel4_protocol = {
 static const struct net_protocol tunnel64_protocol = {
 	.handler	=	tunnel64_rcv,
 	.err_handler	=	tunnel64_err,
-	.no_policy	=	1,
+	.yes_policy	=	1,
 	.netns_ok	=	1,
 };
 #endif
@@ -207,7 +207,7 @@ static const struct net_protocol tunnel64_protocol = {
 static const struct net_protocol tunnelmpls4_protocol = {
 	.handler	=	tunnelmpls4_rcv,
 	.err_handler	=	tunnelmpls4_err,
-	.no_policy	=	1,
+	.yes_policy	=	1,
 	.netns_ok	=	1,
 };
 #endif

@@ -24,10 +24,10 @@ worst case, page is incompressible and is thus stored "as-is" i.e. in
 uncompressed form). For allocation requests larger than this size, failure
 is returned (see zs_malloc).
 
-Additionally, zs_malloc() does not return a dereferenceable pointer.
+Additionally, zs_malloc() does yest return a dereferenceable pointer.
 Instead, it returns an opaque handle (unsigned long) which encodes actual
 location of the allocated object. The reason for this indirection is that
-zsmalloc does not keep zspages permanently mapped since that would cause
+zsmalloc does yest keep zspages permanently mapped since that would cause
 issues on 32-bit systems where the VA region for kernel space mappings
 is very small. So, before using the allocating memory, the object has to
 be mapped using zs_map_object() to get a usable pointer and subsequently

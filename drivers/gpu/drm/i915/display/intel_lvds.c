@@ -9,7 +9,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -87,7 +87,7 @@ bool intel_lvds_port_enabled(struct drm_i915_private *dev_priv,
 
 	val = I915_READ(lvds_reg);
 
-	/* asserts want to know the pipe even if the port is disabled */
+	/* asserts want to kyesw the pipe even if the port is disabled */
 	if (HAS_PCH_CPT(dev_priv))
 		*pipe = (val & LVDS_PIPE_SEL_MASK_CPT) >> LVDS_PIPE_SEL_SHIFT_CPT;
 	else
@@ -172,7 +172,7 @@ static void intel_lvds_pps_get_hw_state(struct drm_i915_private *dev_priv,
 	val = REG_FIELD_GET(PANEL_POWER_CYCLE_DELAY_MASK, val);
 	/*
 	 * Remove the BSpec specified +1 (100ms) offset that accounts for a
-	 * too short power-cycle delay due to the asynchronous programming of
+	 * too short power-cycle delay due to the asynchroyesus programming of
 	 * the register.
 	 */
 	if (val)
@@ -262,7 +262,7 @@ static void intel_pre_enable_lvds(struct intel_encoder *encoder,
 
 	/*
 	 * Set the B0-B3 data pairs corresponding to whether we're going to
-	 * set the DPLLs for dual-channel mode or not.
+	 * set the DPLLs for dual-channel mode or yest.
 	 */
 	if (lvds_encoder->is_dual_link)
 		temp |= LVDS_B0B3_POWER_UP | LVDS_CLKB_POWER_UP;
@@ -272,14 +272,14 @@ static void intel_pre_enable_lvds(struct intel_encoder *encoder,
 	/*
 	 * It would be nice to set 24 vs 18-bit mode (LVDS_A3_POWER_UP)
 	 * appropriately here, but we need to look more thoroughly into how
-	 * panels behave in the two modes. For now, let's just maintain the
+	 * panels behave in the two modes. For yesw, let's just maintain the
 	 * value we got from the BIOS.
 	 */
 	temp &= ~LVDS_A3_POWER_MASK;
 	temp |= lvds_encoder->a3_power;
 
 	/*
-	 * Set the dithering flag on LVDS as needed, note that there is no
+	 * Set the dithering flag on LVDS as needed, yeste that there is yes
 	 * special lvds dither control bit on pch-split platforms, dithering is
 	 * only controlled through the PIPECONF reg.
 	 */
@@ -496,16 +496,16 @@ static const struct drm_encoder_funcs intel_lvds_enc_funcs = {
 	.destroy = intel_encoder_destroy,
 };
 
-static int intel_no_lvds_dmi_callback(const struct dmi_system_id *id)
+static int intel_yes_lvds_dmi_callback(const struct dmi_system_id *id)
 {
 	DRM_INFO("Skipping LVDS initialization for %s\n", id->ident);
 	return 1;
 }
 
 /* These systems claim to have LVDS, but really don't */
-static const struct dmi_system_id intel_no_lvds[] = {
+static const struct dmi_system_id intel_yes_lvds[] = {
 	{
-		.callback = intel_no_lvds_dmi_callback,
+		.callback = intel_yes_lvds_dmi_callback,
 		.ident = "Apple Mac Mini (Core series)",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Apple"),
@@ -513,7 +513,7 @@ static const struct dmi_system_id intel_no_lvds[] = {
 		},
 	},
 	{
-		.callback = intel_no_lvds_dmi_callback,
+		.callback = intel_yes_lvds_dmi_callback,
 		.ident = "Apple Mac Mini (Core 2 series)",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Apple"),
@@ -521,7 +521,7 @@ static const struct dmi_system_id intel_no_lvds[] = {
 		},
 	},
 	{
-		.callback = intel_no_lvds_dmi_callback,
+		.callback = intel_yes_lvds_dmi_callback,
 		.ident = "MSI IM-945GSE-A",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "MSI"),
@@ -529,7 +529,7 @@ static const struct dmi_system_id intel_no_lvds[] = {
 		},
 	},
 	{
-		.callback = intel_no_lvds_dmi_callback,
+		.callback = intel_yes_lvds_dmi_callback,
 		.ident = "Dell Studio Hybrid",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
@@ -537,7 +537,7 @@ static const struct dmi_system_id intel_no_lvds[] = {
 		},
 	},
 	{
-		.callback = intel_no_lvds_dmi_callback,
+		.callback = intel_yes_lvds_dmi_callback,
 		.ident = "Dell OptiPlex FX170",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
@@ -545,7 +545,7 @@ static const struct dmi_system_id intel_no_lvds[] = {
 		},
 	},
 	{
-		.callback = intel_no_lvds_dmi_callback,
+		.callback = intel_yes_lvds_dmi_callback,
 		.ident = "AOpen Mini PC",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "AOpen"),
@@ -553,7 +553,7 @@ static const struct dmi_system_id intel_no_lvds[] = {
 		},
 	},
 	{
-		.callback = intel_no_lvds_dmi_callback,
+		.callback = intel_yes_lvds_dmi_callback,
 		.ident = "AOpen Mini PC MP915",
 		.matches = {
 			DMI_MATCH(DMI_BOARD_VENDOR, "AOpen"),
@@ -561,7 +561,7 @@ static const struct dmi_system_id intel_no_lvds[] = {
 		},
 	},
 	{
-		.callback = intel_no_lvds_dmi_callback,
+		.callback = intel_yes_lvds_dmi_callback,
 		.ident = "AOpen i915GMm-HFS",
 		.matches = {
 			DMI_MATCH(DMI_BOARD_VENDOR, "AOpen"),
@@ -569,7 +569,7 @@ static const struct dmi_system_id intel_no_lvds[] = {
 		},
 	},
 	{
-		.callback = intel_no_lvds_dmi_callback,
+		.callback = intel_yes_lvds_dmi_callback,
                 .ident = "AOpen i45GMx-I",
                 .matches = {
                         DMI_MATCH(DMI_BOARD_VENDOR, "AOpen"),
@@ -577,14 +577,14 @@ static const struct dmi_system_id intel_no_lvds[] = {
                 },
         },
 	{
-		.callback = intel_no_lvds_dmi_callback,
+		.callback = intel_yes_lvds_dmi_callback,
 		.ident = "Aopen i945GTt-VFA",
 		.matches = {
 			DMI_MATCH(DMI_PRODUCT_VERSION, "AO00001JW"),
 		},
 	},
 	{
-		.callback = intel_no_lvds_dmi_callback,
+		.callback = intel_yes_lvds_dmi_callback,
 		.ident = "Clientron U800",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Clientron"),
@@ -592,7 +592,7 @@ static const struct dmi_system_id intel_no_lvds[] = {
 		},
 	},
 	{
-                .callback = intel_no_lvds_dmi_callback,
+                .callback = intel_yes_lvds_dmi_callback,
                 .ident = "Clientron E830",
                 .matches = {
                         DMI_MATCH(DMI_SYS_VENDOR, "Clientron"),
@@ -600,7 +600,7 @@ static const struct dmi_system_id intel_no_lvds[] = {
                 },
         },
         {
-		.callback = intel_no_lvds_dmi_callback,
+		.callback = intel_yes_lvds_dmi_callback,
 		.ident = "Asus EeeBox PC EB1007",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "ASUSTeK Computer INC."),
@@ -608,7 +608,7 @@ static const struct dmi_system_id intel_no_lvds[] = {
 		},
 	},
 	{
-		.callback = intel_no_lvds_dmi_callback,
+		.callback = intel_yes_lvds_dmi_callback,
 		.ident = "Asus AT5NM10T-I",
 		.matches = {
 			DMI_MATCH(DMI_BOARD_VENDOR, "ASUSTeK Computer INC."),
@@ -616,7 +616,7 @@ static const struct dmi_system_id intel_no_lvds[] = {
 		},
 	},
 	{
-		.callback = intel_no_lvds_dmi_callback,
+		.callback = intel_yes_lvds_dmi_callback,
 		.ident = "Hewlett-Packard HP t5740",
 		.matches = {
 			DMI_MATCH(DMI_BOARD_VENDOR, "Hewlett-Packard"),
@@ -624,7 +624,7 @@ static const struct dmi_system_id intel_no_lvds[] = {
 		},
 	},
 	{
-		.callback = intel_no_lvds_dmi_callback,
+		.callback = intel_yes_lvds_dmi_callback,
 		.ident = "Hewlett-Packard t5745",
 		.matches = {
 			DMI_MATCH(DMI_BOARD_VENDOR, "Hewlett-Packard"),
@@ -632,7 +632,7 @@ static const struct dmi_system_id intel_no_lvds[] = {
 		},
 	},
 	{
-		.callback = intel_no_lvds_dmi_callback,
+		.callback = intel_yes_lvds_dmi_callback,
 		.ident = "Hewlett-Packard st5747",
 		.matches = {
 			DMI_MATCH(DMI_BOARD_VENDOR, "Hewlett-Packard"),
@@ -640,7 +640,7 @@ static const struct dmi_system_id intel_no_lvds[] = {
 		},
 	},
 	{
-		.callback = intel_no_lvds_dmi_callback,
+		.callback = intel_yes_lvds_dmi_callback,
 		.ident = "MSI Wind Box DC500",
 		.matches = {
 			DMI_MATCH(DMI_BOARD_VENDOR, "MICRO-STAR INTERNATIONAL CO., LTD"),
@@ -648,15 +648,15 @@ static const struct dmi_system_id intel_no_lvds[] = {
 		},
 	},
 	{
-		.callback = intel_no_lvds_dmi_callback,
+		.callback = intel_yes_lvds_dmi_callback,
 		.ident = "Gigabyte GA-D525TUD",
 		.matches = {
-			DMI_MATCH(DMI_BOARD_VENDOR, "Gigabyte Technology Co., Ltd."),
+			DMI_MATCH(DMI_BOARD_VENDOR, "Gigabyte Techyeslogy Co., Ltd."),
 			DMI_MATCH(DMI_BOARD_NAME, "D525TUD"),
 		},
 	},
 	{
-		.callback = intel_no_lvds_dmi_callback,
+		.callback = intel_yes_lvds_dmi_callback,
 		.ident = "Supermicro X7SPA-H",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Supermicro"),
@@ -664,7 +664,7 @@ static const struct dmi_system_id intel_no_lvds[] = {
 		},
 	},
 	{
-		.callback = intel_no_lvds_dmi_callback,
+		.callback = intel_yes_lvds_dmi_callback,
 		.ident = "Fujitsu Esprimo Q900",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "FUJITSU"),
@@ -672,7 +672,7 @@ static const struct dmi_system_id intel_no_lvds[] = {
 		},
 	},
 	{
-		.callback = intel_no_lvds_dmi_callback,
+		.callback = intel_yes_lvds_dmi_callback,
 		.ident = "Intel D410PT",
 		.matches = {
 			DMI_MATCH(DMI_BOARD_VENDOR, "Intel"),
@@ -680,7 +680,7 @@ static const struct dmi_system_id intel_no_lvds[] = {
 		},
 	},
 	{
-		.callback = intel_no_lvds_dmi_callback,
+		.callback = intel_yes_lvds_dmi_callback,
 		.ident = "Intel D425KT",
 		.matches = {
 			DMI_MATCH(DMI_BOARD_VENDOR, "Intel"),
@@ -688,7 +688,7 @@ static const struct dmi_system_id intel_no_lvds[] = {
 		},
 	},
 	{
-		.callback = intel_no_lvds_dmi_callback,
+		.callback = intel_yes_lvds_dmi_callback,
 		.ident = "Intel D510MO",
 		.matches = {
 			DMI_MATCH(DMI_BOARD_VENDOR, "Intel"),
@@ -696,7 +696,7 @@ static const struct dmi_system_id intel_no_lvds[] = {
 		},
 	},
 	{
-		.callback = intel_no_lvds_dmi_callback,
+		.callback = intel_yes_lvds_dmi_callback,
 		.ident = "Intel D525MW",
 		.matches = {
 			DMI_MATCH(DMI_BOARD_VENDOR, "Intel"),
@@ -704,7 +704,7 @@ static const struct dmi_system_id intel_no_lvds[] = {
 		},
 	},
 	{
-		.callback = intel_no_lvds_dmi_callback,
+		.callback = intel_yes_lvds_dmi_callback,
 		.ident = "Radiant P845",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Radiant Systems Inc"),
@@ -825,8 +825,8 @@ void intel_lvds_init(struct drm_i915_private *dev_priv)
 	u8 pin;
 	u32 allowed_scalers;
 
-	/* Skip init on machines we know falsely report LVDS */
-	if (dmi_check_system(intel_no_lvds)) {
+	/* Skip init on machines we kyesw falsely report LVDS */
+	if (dmi_check_system(intel_yes_lvds)) {
 		WARN(!dev_priv->vbt.int_lvds_support,
 		     "Useless DMI match. Internal LVDS support disabled by VBT\n");
 		return;
@@ -852,10 +852,10 @@ void intel_lvds_init(struct drm_i915_private *dev_priv)
 	pin = GMBUS_PIN_PANEL;
 	if (!intel_bios_is_lvds_present(dev_priv, &pin)) {
 		if ((lvds & LVDS_PORT_EN) == 0) {
-			DRM_DEBUG_KMS("LVDS is not present in VBT\n");
+			DRM_DEBUG_KMS("LVDS is yest present in VBT\n");
 			return;
 		}
-		DRM_DEBUG_KMS("LVDS is not present in VBT, but enabled anyway\n");
+		DRM_DEBUG_KMS("LVDS is yest present in VBT, but enabled anyway\n");
 	}
 
 	lvds_encoder = kzalloc(sizeof(*lvds_encoder), GFP_KERNEL);
@@ -926,7 +926,7 @@ void intel_lvds_init(struct drm_i915_private *dev_priv)
 	 * 1) check for EDID on DDC
 	 * 2) check for VBT data
 	 * 3) check to see if LVDS is already on
-	 *    if none of the above, no panel
+	 *    if yesne of the above, yes panel
 	 */
 
 	/*

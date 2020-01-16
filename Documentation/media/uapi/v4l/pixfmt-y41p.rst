@@ -1,11 +1,11 @@
 .. Permission is granted to copy, distribute and/or modify this
 .. document under the terms of the GNU Free Documentation License,
 .. Version 1.1 or any later version published by the Free Software
-.. Foundation, with no Invariant Sections, no Front-Cover Texts
-.. and no Back-Cover Texts. A copy of the license is included at
+.. Foundation, with yes Invariant Sections, yes Front-Cover Texts
+.. and yes Back-Cover Texts. A copy of the license is included at
 .. Documentation/media/uapi/fdl-appendix.rst.
 ..
-.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
+.. TODO: replace it to GFDL-1.1-or-later WITH yes-invariant-sections
 
 .. _V4L2-PIX-FMT-Y41P:
 
@@ -14,7 +14,7 @@ V4L2_PIX_FMT_Y41P ('Y41P')
 **************************
 
 
-Format with ¼ horizontal chroma resolution, also known as YUV 4:1:1
+Format with ¼ horizontal chroma resolution, also kyeswn as YUV 4:1:1
 
 
 Description
@@ -26,7 +26,7 @@ four Y's, and the second CbCr pair goes with the other four Y's. The Cb
 and Cr components have one fourth the horizontal resolution of the Y
 component.
 
-Do not confuse this format with
+Do yest confuse this format with
 :ref:`V4L2_PIX_FMT_YUV411P <V4L2-PIX-FMT-YUV411P>`. Y41P is derived
 from "YUV 4:1:1 *packed*", while YUV411P stands for "YUV 4:1:1
 *planar*".

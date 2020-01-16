@@ -92,7 +92,7 @@
 		reg = <0x20>;
 		gpio-controller;
 		#gpio-cells = <2>;
-		/* IRQ not connected */
+		/* IRQ yest connected */
 	};
 
 	rtc@68 {

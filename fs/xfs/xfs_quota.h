@@ -15,12 +15,12 @@
 struct xfs_trans;
 
 /*
- * This check is done typically without holding the inode lock;
+ * This check is done typically without holding the iyesde lock;
  * that may seem racy, but it is harmless in the context that it is used.
- * The inode cannot go inactive as long a reference is kept, and
+ * The iyesde canyest go inactive as long a reference is kept, and
  * therefore if dquot(s) were attached, they'll stay consistent.
- * If, for example, the ownership of the inode changes while
- * we didn't have the inode locked, the appropriate dquot(s) will be
+ * If, for example, the ownership of the iyesde changes while
+ * we didn't have the iyesde locked, the appropriate dquot(s) will be
  * attached atomically.
  */
 #define XFS_NOT_DQATTACHED(mp, ip) \
@@ -68,40 +68,40 @@ struct xfs_dqtrx {
 	int64_t		qt_rtbcount_delta;/* dquot realtime blk changes */
 	int64_t		qt_delrtb_delta;  /* delayed RT blk count changes */
 
-	uint64_t	qt_ino_res;	  /* inode reserved on a dquot */
-	uint64_t	qt_ino_res_used;  /* inodes used from the reservation */
-	int64_t		qt_icount_delta;  /* dquot inode count changes */
+	uint64_t	qt_iyes_res;	  /* iyesde reserved on a dquot */
+	uint64_t	qt_iyes_res_used;  /* iyesdes used from the reservation */
+	int64_t		qt_icount_delta;  /* dquot iyesde count changes */
 };
 
 #ifdef CONFIG_XFS_QUOTA
 extern void xfs_trans_dup_dqinfo(struct xfs_trans *, struct xfs_trans *);
 extern void xfs_trans_free_dqinfo(struct xfs_trans *);
-extern void xfs_trans_mod_dquot_byino(struct xfs_trans *, struct xfs_inode *,
+extern void xfs_trans_mod_dquot_byiyes(struct xfs_trans *, struct xfs_iyesde *,
 		uint, int64_t);
 extern void xfs_trans_apply_dquot_deltas(struct xfs_trans *);
 extern void xfs_trans_unreserve_and_mod_dquots(struct xfs_trans *);
 extern int xfs_trans_reserve_quota_nblks(struct xfs_trans *,
-		struct xfs_inode *, int64_t, long, uint);
+		struct xfs_iyesde *, int64_t, long, uint);
 extern int xfs_trans_reserve_quota_bydquots(struct xfs_trans *,
 		struct xfs_mount *, struct xfs_dquot *,
 		struct xfs_dquot *, struct xfs_dquot *, int64_t, long, uint);
 
-extern int xfs_qm_vop_dqalloc(struct xfs_inode *, xfs_dqid_t, xfs_dqid_t,
+extern int xfs_qm_vop_dqalloc(struct xfs_iyesde *, xfs_dqid_t, xfs_dqid_t,
 		prid_t, uint, struct xfs_dquot **, struct xfs_dquot **,
 		struct xfs_dquot **);
-extern void xfs_qm_vop_create_dqattach(struct xfs_trans *, struct xfs_inode *,
+extern void xfs_qm_vop_create_dqattach(struct xfs_trans *, struct xfs_iyesde *,
 		struct xfs_dquot *, struct xfs_dquot *, struct xfs_dquot *);
-extern int xfs_qm_vop_rename_dqattach(struct xfs_inode **);
+extern int xfs_qm_vop_rename_dqattach(struct xfs_iyesde **);
 extern struct xfs_dquot *xfs_qm_vop_chown(struct xfs_trans *,
-		struct xfs_inode *, struct xfs_dquot **, struct xfs_dquot *);
-extern int xfs_qm_vop_chown_reserve(struct xfs_trans *, struct xfs_inode *,
+		struct xfs_iyesde *, struct xfs_dquot **, struct xfs_dquot *);
+extern int xfs_qm_vop_chown_reserve(struct xfs_trans *, struct xfs_iyesde *,
 		struct xfs_dquot *, struct xfs_dquot *,
 		struct xfs_dquot *, uint);
-extern int xfs_qm_dqattach(struct xfs_inode *);
-extern int xfs_qm_dqattach_locked(struct xfs_inode *ip, bool doalloc);
-extern void xfs_qm_dqdetach(struct xfs_inode *);
+extern int xfs_qm_dqattach(struct xfs_iyesde *);
+extern int xfs_qm_dqattach_locked(struct xfs_iyesde *ip, bool doalloc);
+extern void xfs_qm_dqdetach(struct xfs_iyesde *);
 extern void xfs_qm_dqrele(struct xfs_dquot *);
-extern void xfs_qm_statvfs(struct xfs_inode *, struct kstatfs *);
+extern void xfs_qm_statvfs(struct xfs_iyesde *, struct kstatfs *);
 extern int xfs_qm_newmount(struct xfs_mount *, uint *, uint *);
 extern void xfs_qm_mount_quotas(struct xfs_mount *);
 extern void xfs_qm_unmount(struct xfs_mount *);
@@ -109,7 +109,7 @@ extern void xfs_qm_unmount_quotas(struct xfs_mount *);
 
 #else
 static inline int
-xfs_qm_vop_dqalloc(struct xfs_inode *ip, xfs_dqid_t uid, xfs_dqid_t gid,
+xfs_qm_vop_dqalloc(struct xfs_iyesde *ip, xfs_dqid_t uid, xfs_dqid_t gid,
 		prid_t prid, uint flags, struct xfs_dquot **udqp,
 		struct xfs_dquot **gdqp, struct xfs_dquot **pdqp)
 {
@@ -120,11 +120,11 @@ xfs_qm_vop_dqalloc(struct xfs_inode *ip, xfs_dqid_t uid, xfs_dqid_t gid,
 }
 #define xfs_trans_dup_dqinfo(tp, tp2)
 #define xfs_trans_free_dqinfo(tp)
-#define xfs_trans_mod_dquot_byino(tp, ip, fields, delta)
+#define xfs_trans_mod_dquot_byiyes(tp, ip, fields, delta)
 #define xfs_trans_apply_dquot_deltas(tp)
 #define xfs_trans_unreserve_and_mod_dquots(tp)
 static inline int xfs_trans_reserve_quota_nblks(struct xfs_trans *tp,
-		struct xfs_inode *ip, int64_t nblks, long ninos, uint flags)
+		struct xfs_iyesde *ip, int64_t nblks, long niyess, uint flags)
 {
 	return 0;
 }
@@ -150,8 +150,8 @@ static inline int xfs_trans_reserve_quota_bydquots(struct xfs_trans *tp,
 #define xfs_qm_unmount_quotas(mp)
 #endif /* CONFIG_XFS_QUOTA */
 
-#define xfs_trans_unreserve_quota_nblks(tp, ip, nblks, ninos, flags) \
-	xfs_trans_reserve_quota_nblks(tp, ip, -(nblks), -(ninos), flags)
+#define xfs_trans_unreserve_quota_nblks(tp, ip, nblks, niyess, flags) \
+	xfs_trans_reserve_quota_nblks(tp, ip, -(nblks), -(niyess), flags)
 #define xfs_trans_reserve_quota(tp, mp, ud, gd, pd, nb, ni, f) \
 	xfs_trans_reserve_quota_bydquots(tp, mp, ud, gd, pd, nb, ni, \
 				f | XFS_QMOPT_RES_REGBLKS)

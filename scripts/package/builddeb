@@ -61,7 +61,7 @@ if [ "$ARCH" = "um" ] ; then
 fi
 
 # Not all arches have the same installed path in debian
-# XXX: have each arch Makefile export a variable of the canonical image install
+# XXX: have each arch Makefile export a variable of the cayesnical image install
 # path instead
 case $ARCH in
 um)

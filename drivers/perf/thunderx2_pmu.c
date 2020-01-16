@@ -12,7 +12,7 @@
 
 /* Each ThunderX2(TX2) Socket has a L3C and DMC UNCORE PMU device.
  * Each UNCORE PMU device consists of 4 independent programmable counters.
- * Counters are 32 bit and do not support overflow interrupt,
+ * Counters are 32 bit and do yest support overflow interrupt,
  * they need to be sampled before overflow(i.e, at every 2 seconds).
  */
 
@@ -88,11 +88,11 @@ enum tx2_uncore_type {
  * L3C have 4 32-bit counters and the CCPI2 has 8 64-bit counters.
  */
 struct tx2_uncore_pmu {
-	struct hlist_node hpnode;
+	struct hlist_yesde hpyesde;
 	struct list_head  entry;
 	struct pmu pmu;
 	char *name;
-	int node;
+	int yesde;
 	int cpu;
 	u32 max_counters;
 	u32 counters_mask;
@@ -218,13 +218,13 @@ static struct attribute *dmc_pmu_events_attrs[] = {
 };
 
 TX2_EVENT_ATTR(req_pktsent, CCPI2_EVENT_REQ_PKT_SENT);
-TX2_EVENT_ATTR(snoop_pktsent, CCPI2_EVENT_SNOOP_PKT_SENT);
+TX2_EVENT_ATTR(syesop_pktsent, CCPI2_EVENT_SNOOP_PKT_SENT);
 TX2_EVENT_ATTR(data_pktsent, CCPI2_EVENT_DATA_PKT_SENT);
 TX2_EVENT_ATTR(gic_pktsent, CCPI2_EVENT_GIC_PKT_SENT);
 
 static struct attribute *ccpi2_pmu_events_attrs[] = {
 	&tx2_pmu_event_attr_req_pktsent.attr.attr,
-	&tx2_pmu_event_attr_snoop_pktsent.attr.attr,
+	&tx2_pmu_event_attr_syesop_pktsent.attr.attr,
 	&tx2_pmu_event_attr_data_pktsent.attr.attr,
 	&tx2_pmu_event_attr_gic_pktsent.attr.attr,
 	NULL,
@@ -563,7 +563,7 @@ static bool tx2_uncore_validate_event_group(struct perf_event *event,
 
 	/*
 	 * If the group requires more counters than the HW has,
-	 * it cannot ever be scheduled.
+	 * it canyest ever be scheduled.
 	 */
 	return counters <= max_counters;
 }
@@ -580,8 +580,8 @@ static int tx2_uncore_event_init(struct perf_event *event)
 
 	/*
 	 * SOC PMU counters are shared across all cores.
-	 * Therefore, it does not support per-process mode.
-	 * Also, it does not support event sampling mode.
+	 * Therefore, it does yest support per-process mode.
+	 * Also, it does yest support event sampling mode.
 	 */
 	if (is_sampling_event(event) || event->attach_state & PERF_ATTACH_TASK)
 		return -EINVAL;
@@ -716,7 +716,7 @@ static enum hrtimer_restart tx2_hrtimer_callback(struct hrtimer *timer)
 
 		tx2_uncore_event_update(event);
 	}
-	hrtimer_forward_now(timer, ns_to_ktime(tx2_pmu->hrtimer_interval));
+	hrtimer_forward_yesw(timer, ns_to_ktime(tx2_pmu->hrtimer_interval));
 	return HRTIMER_RESTART;
 }
 
@@ -750,7 +750,7 @@ static int tx2_uncore_pmu_add_dev(struct tx2_uncore_pmu *tx2_pmu)
 {
 	int ret, cpu;
 
-	cpu = cpumask_any_and(cpumask_of_node(tx2_pmu->node),
+	cpu = cpumask_any_and(cpumask_of_yesde(tx2_pmu->yesde),
 			cpu_online_mask);
 
 	tx2_pmu->cpu = cpu;
@@ -771,7 +771,7 @@ static int tx2_uncore_pmu_add_dev(struct tx2_uncore_pmu *tx2_pmu)
 	/* register hotplug callback for the pmu */
 	ret = cpuhp_state_add_instance(
 			CPUHP_AP_PERF_ARM_CAVIUM_TX2_UNCORE_ONLINE,
-			&tx2_pmu->hpnode);
+			&tx2_pmu->hpyesde);
 	if (ret) {
 		dev_err(tx2_pmu->dev, "Error %d registering hotplug", ret);
 		return ret;
@@ -802,7 +802,7 @@ static struct tx2_uncore_pmu *tx2_uncore_pmu_init_dev(struct device *dev,
 		return NULL;
 	}
 
-	list_for_each_entry(rentry, &list, node) {
+	list_for_each_entry(rentry, &list, yesde) {
 		if (resource_type(rentry->res) == IORESOURCE_MEM) {
 			res = *rentry->res;
 			break;
@@ -826,7 +826,7 @@ static struct tx2_uncore_pmu *tx2_uncore_pmu_init_dev(struct device *dev,
 	tx2_pmu->dev = dev;
 	tx2_pmu->type = type;
 	tx2_pmu->base = base;
-	tx2_pmu->node = dev_to_node(dev);
+	tx2_pmu->yesde = dev_to_yesde(dev);
 	INIT_LIST_HEAD(&tx2_pmu->entry);
 
 	switch (tx2_pmu->type) {
@@ -840,7 +840,7 @@ static struct tx2_uncore_pmu *tx2_uncore_pmu_init_dev(struct device *dev,
 		tx2_pmu->hrtimer_callback = tx2_hrtimer_callback;
 		tx2_pmu->attr_groups = l3c_pmu_attr_groups;
 		tx2_pmu->name = devm_kasprintf(dev, GFP_KERNEL,
-				"uncore_l3c_%d", tx2_pmu->node);
+				"uncore_l3c_%d", tx2_pmu->yesde);
 		tx2_pmu->init_cntr_base = init_cntr_base_l3c;
 		tx2_pmu->start_event = uncore_start_event_l3c;
 		tx2_pmu->stop_event = uncore_stop_event_l3c;
@@ -855,7 +855,7 @@ static struct tx2_uncore_pmu *tx2_uncore_pmu_init_dev(struct device *dev,
 		tx2_pmu->hrtimer_callback = tx2_hrtimer_callback;
 		tx2_pmu->attr_groups = dmc_pmu_attr_groups;
 		tx2_pmu->name = devm_kasprintf(dev, GFP_KERNEL,
-				"uncore_dmc_%d", tx2_pmu->node);
+				"uncore_dmc_%d", tx2_pmu->yesde);
 		tx2_pmu->init_cntr_base = init_cntr_base_dmc;
 		tx2_pmu->start_event = uncore_start_event_dmc;
 		tx2_pmu->stop_event = uncore_stop_event_dmc;
@@ -869,7 +869,7 @@ static struct tx2_uncore_pmu *tx2_uncore_pmu_init_dev(struct device *dev,
 		tx2_pmu->events_mask = 0x1ff;
 		tx2_pmu->attr_groups = ccpi2_pmu_attr_groups;
 		tx2_pmu->name = devm_kasprintf(dev, GFP_KERNEL,
-				"uncore_ccpi2_%d", tx2_pmu->node);
+				"uncore_ccpi2_%d", tx2_pmu->yesde);
 		tx2_pmu->init_cntr_base = init_cntr_base_ccpi2;
 		tx2_pmu->start_event = uncore_start_event_ccpi2;
 		tx2_pmu->stop_event = uncore_stop_event_ccpi2;
@@ -913,32 +913,32 @@ static acpi_status tx2_uncore_pmu_add(acpi_handle handle, u32 level,
 }
 
 static int tx2_uncore_pmu_online_cpu(unsigned int cpu,
-		struct hlist_node *hpnode)
+		struct hlist_yesde *hpyesde)
 {
 	struct tx2_uncore_pmu *tx2_pmu;
 
-	tx2_pmu = hlist_entry_safe(hpnode,
-			struct tx2_uncore_pmu, hpnode);
+	tx2_pmu = hlist_entry_safe(hpyesde,
+			struct tx2_uncore_pmu, hpyesde);
 
-	/* Pick this CPU, If there is no CPU/PMU association and both are
-	 * from same node.
+	/* Pick this CPU, If there is yes CPU/PMU association and both are
+	 * from same yesde.
 	 */
 	if ((tx2_pmu->cpu >= nr_cpu_ids) &&
-		(tx2_pmu->node == cpu_to_node(cpu)))
+		(tx2_pmu->yesde == cpu_to_yesde(cpu)))
 		tx2_pmu->cpu = cpu;
 
 	return 0;
 }
 
 static int tx2_uncore_pmu_offline_cpu(unsigned int cpu,
-		struct hlist_node *hpnode)
+		struct hlist_yesde *hpyesde)
 {
 	int new_cpu;
 	struct tx2_uncore_pmu *tx2_pmu;
 	struct cpumask cpu_online_mask_temp;
 
-	tx2_pmu = hlist_entry_safe(hpnode,
-			struct tx2_uncore_pmu, hpnode);
+	tx2_pmu = hlist_entry_safe(hpyesde,
+			struct tx2_uncore_pmu, hpyesde);
 
 	if (cpu != tx2_pmu->cpu)
 		return 0;
@@ -949,7 +949,7 @@ static int tx2_uncore_pmu_offline_cpu(unsigned int cpu,
 	cpumask_copy(&cpu_online_mask_temp, cpu_online_mask);
 	cpumask_clear_cpu(cpu, &cpu_online_mask_temp);
 	new_cpu = cpumask_any_and(
-			cpumask_of_node(tx2_pmu->node),
+			cpumask_of_yesde(tx2_pmu->yesde),
 			&cpu_online_mask_temp);
 
 	tx2_pmu->cpu = new_cpu;
@@ -972,7 +972,7 @@ static int tx2_uncore_probe(struct platform_device *pdev)
 	acpi_handle handle;
 	acpi_status status;
 
-	set_dev_node(dev, acpi_get_node(ACPI_HANDLE(dev)));
+	set_dev_yesde(dev, acpi_get_yesde(ACPI_HANDLE(dev)));
 
 	if (!has_acpi_companion(dev))
 		return -ENODEV;
@@ -990,7 +990,7 @@ static int tx2_uncore_probe(struct platform_device *pdev)
 		return_ACPI_STATUS(status);
 	}
 
-	dev_info(dev, "node%d: pmu uncore registered\n", dev_to_node(dev));
+	dev_info(dev, "yesde%d: pmu uncore registered\n", dev_to_yesde(dev));
 	return 0;
 }
 
@@ -1001,10 +1001,10 @@ static int tx2_uncore_remove(struct platform_device *pdev)
 
 	if (!list_empty(&tx2_pmus)) {
 		list_for_each_entry_safe(tx2_pmu, temp, &tx2_pmus, entry) {
-			if (tx2_pmu->node == dev_to_node(dev)) {
-				cpuhp_state_remove_instance_nocalls(
+			if (tx2_pmu->yesde == dev_to_yesde(dev)) {
+				cpuhp_state_remove_instance_yescalls(
 					CPUHP_AP_PERF_ARM_CAVIUM_TX2_UNCORE_ONLINE,
-					&tx2_pmu->hpnode);
+					&tx2_pmu->hpyesde);
 				perf_pmu_unregister(&tx2_pmu->pmu);
 				list_del(&tx2_pmu->entry);
 			}

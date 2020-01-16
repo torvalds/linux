@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -39,7 +39,7 @@
 #include "intel_reset.h"
 #include "intel_ring.h"
 
-/* Haswell does have the CXT_SIZE register however it does not appear to be
+/* Haswell does have the CXT_SIZE register however it does yest appear to be
  * valid. Now, docs explain in dwords what is in the context object. The full
  * size is 70720 bytes, however, the power context and execlist context will
  * never be saved (power context is stored elsewhere, and execlists don't work
@@ -150,7 +150,7 @@ static const struct engine_info intel_engines[] = {
  * Return: size (in bytes) of an engine class specific context image
  *
  * Note: this size includes the HWSP, which is part of the context image
- * in LRC mode, but does not include the "shared data page" used with
+ * in LRC mode, but does yest include the "shared data page" used with
  * GuC submission. The caller should account for this if using the GuC.
  */
 u32 intel_engine_context_size(struct drm_i915_private *dev_priv, u8 class)
@@ -240,7 +240,7 @@ static u32 __engine_mmio_base(struct drm_i915_private *i915,
 static void __sprint_engine_name(struct intel_engine_cs *engine)
 {
 	/*
-	 * Before we know what the uABI name for this engine will be,
+	 * Before we kyesw what the uABI name for this engine will be,
 	 * we still would like to keep track of this engine in the debug logs.
 	 * We throw in a ' here as a reminder that this isn't its final name.
 	 */
@@ -252,7 +252,7 @@ static void __sprint_engine_name(struct intel_engine_cs *engine)
 void intel_engine_set_hwsp_writemask(struct intel_engine_cs *engine, u32 mask)
 {
 	/*
-	 * Though they added more rings on g4x/ilk, they did not add
+	 * Though they added more rings on g4x/ilk, they did yest add
 	 * per-engine HWSTAM until gen6.
 	 */
 	if (INTEL_GEN(engine->i915) < 6 && engine->class != RENDER_CLASS)
@@ -266,7 +266,7 @@ void intel_engine_set_hwsp_writemask(struct intel_engine_cs *engine, u32 mask)
 
 static void intel_engine_sanitize_mmio(struct intel_engine_cs *engine)
 {
-	/* Mask off all writes into the unknown HWSP */
+	/* Mask off all writes into the unkyeswn HWSP */
 	intel_engine_set_hwsp_writemask(engine, ~0u);
 }
 
@@ -336,7 +336,7 @@ static int intel_engine_setup(struct intel_gt *gt, enum intel_engine_id id)
 
 	seqlock_init(&engine->stats.lock);
 
-	ATOMIC_INIT_NOTIFIER_HEAD(&engine->context_status_notifier);
+	ATOMIC_INIT_NOTIFIER_HEAD(&engine->context_status_yestifier);
 
 	/* Scrub mmio state on takeover */
 	intel_engine_sanitize_mmio(engine);
@@ -409,7 +409,7 @@ void intel_engines_cleanup(struct intel_gt *gt)
  * intel_engines_init_mmio() - allocate and prepare the Engine Command Streamers
  * @gt: pointer to struct intel_gt
  *
- * Return: non-zero if the initialization failed.
+ * Return: yesn-zero if the initialization failed.
  */
 int intel_engines_init_mmio(struct intel_gt *gt)
 {
@@ -463,7 +463,7 @@ cleanup:
  * intel_engines_init() - init the Engine Command Streamers
  * @gt: pointer to struct intel_gt
  *
- * Return: non-zero if the initialization failed.
+ * Return: yesn-zero if the initialization failed.
  */
 int intel_engines_init(struct intel_gt *gt)
 {
@@ -532,9 +532,9 @@ static int pin_ggtt_status_page(struct intel_engine_cs *engine,
 	flags = PIN_GLOBAL;
 	if (!HAS_LLC(engine->i915) && i915_ggtt_has_aperture(engine->gt->ggtt))
 		/*
-		 * On g33, we cannot place HWS above 256MiB, so
+		 * On g33, we canyest place HWS above 256MiB, so
 		 * restrict its pinning to the low mappable arena.
-		 * Though this restriction is not documented for
+		 * Though this restriction is yest documented for
 		 * gen4, gen5, or byt, they also behave similarly
 		 * and hang if the HWS is placed at the top of the
 		 * GTT. To generalise, it appears that all !llc
@@ -560,7 +560,7 @@ static int init_status_page(struct intel_engine_cs *engine)
 	 * Though the HWS register does support 36bit addresses, historically
 	 * we have had hangs and corruption reported due to wild writes if
 	 * the HWS is placed above 4G. We only allow objects to be allocated
-	 * in GFP_DMA32 for i965, and no earlier physical address users had
+	 * in GFP_DMA32 for i965, and yes earlier physical address users had
 	 * access to more than 4G.
 	 */
 	obj = i915_gem_object_create_internal(engine->i915, PAGE_SIZE);
@@ -632,11 +632,11 @@ static int intel_engine_setup_common(struct intel_engine_cs *engine)
 }
 
 /**
- * intel_engines_setup- setup engine state not requiring hw access
+ * intel_engines_setup- setup engine state yest requiring hw access
  * @gt: pointer to struct intel_gt
  *
  * Initializes engine structure members shared between legacy and execlists
- * submission modes which do not require hardware access.
+ * submission modes which do yest require hardware access.
  *
  * Typically done early in the submission mode specific engine setup stage.
  */
@@ -771,7 +771,7 @@ create_kernel_context(struct intel_engine_cs *engine)
 
 	/*
 	 * Give our perma-pinned kernel timelines a separate lockdep class,
-	 * so that we can use them from within the normal user timelines
+	 * so that we can use them from within the yesrmal user timelines
 	 * should we need to inject GPU operations during their request
 	 * construction.
 	 */
@@ -802,7 +802,7 @@ int intel_engine_init_common(struct intel_engine_cs *engine)
 	 * We may need to do things with the shrinker which
 	 * require us to immediately switch back to the default
 	 * context. This can cause a problem as pinning the
-	 * default context also requires GTT space which may not
+	 * default context also requires GTT space which may yest
 	 * be available. To avoid this we always pin the default
 	 * context.
 	 */
@@ -892,10 +892,10 @@ static unsigned long stop_timeout(const struct intel_engine_cs *engine)
 		return 0;
 
 	/*
-	 * If we are doing a normal GPU reset, we can take our time and allow
+	 * If we are doing a yesrmal GPU reset, we can take our time and allow
 	 * the engine to quiesce. We've stopped submission to the engine, and
-	 * if we wait long enough an innocent context should complete and
-	 * leave the engine idle. So they should not be caught unaware by
+	 * if we wait long eyesugh an inyescent context should complete and
+	 * leave the engine idle. So they should yest be caught unaware by
 	 * the forthcoming GPU reset (which usually follows the stop_cs)!
 	 */
 	return READ_ONCE(engine->props.stop_timeout_ms);
@@ -941,7 +941,7 @@ const char *i915_cache_level_str(struct drm_i915_private *i915, int type)
 {
 	switch (type) {
 	case I915_CACHE_NONE: return " uncached";
-	case I915_CACHE_LLC: return HAS_LLC(i915) ? " LLC" : " snooped";
+	case I915_CACHE_LLC: return HAS_LLC(i915) ? " LLC" : " syesoped";
 	case I915_CACHE_L3_LLC: return " L3+LLC";
 	case I915_CACHE_WT: return " WT";
 	default: return "";
@@ -993,7 +993,7 @@ read_subslice_reg(struct intel_engine_cs *engine, int slice, int subslice,
 	return val;
 }
 
-/* NB: please notice the memset */
+/* NB: please yestice the memset */
 void intel_engine_get_instdone(struct intel_engine_cs *engine,
 			       struct intel_instdone *instdone)
 {
@@ -1067,7 +1067,7 @@ static bool ring_is_idle(struct intel_engine_cs *engine)
 	if (!intel_engine_pm_get_if_awake(engine))
 		return true;
 
-	/* First check that no commands are left in the ring */
+	/* First check that yes commands are left in the ring */
 	if ((ENGINE_READ(engine, RING_HEAD) & HEAD_ADDR) !=
 	    (ENGINE_READ(engine, RING_TAIL) & TAIL_ADDR))
 		idle = false;
@@ -1097,7 +1097,7 @@ void intel_engine_flush_submission(struct intel_engine_cs *engine)
 		local_bh_enable();
 	}
 
-	/* Otherwise flush the tasklet if it was running on another cpu */
+	/* Otherwise flush the tasklet if it was running on ayesther cpu */
 	tasklet_unlock_wait(t);
 }
 
@@ -1105,7 +1105,7 @@ void intel_engine_flush_submission(struct intel_engine_cs *engine)
  * intel_engine_is_idle() - Report if the engine has finished process all work
  * @engine: the intel_engine_cs
  *
- * Return true if there are no requests pending, nothing left to be submitted
+ * Return true if there are yes requests pending, yesthing left to be submitted
  * to hardware, and that the engine is idle.
  */
 bool intel_engine_is_idle(struct intel_engine_cs *engine)
@@ -1172,12 +1172,12 @@ bool intel_engine_can_store_dword(struct intel_engine_cs *engine)
 {
 	switch (INTEL_GEN(engine->i915)) {
 	case 2:
-		return false; /* uses physical not virtual addresses */
+		return false; /* uses physical yest virtual addresses */
 	case 3:
-		/* maybe only uses physical not virtual addresses */
+		/* maybe only uses physical yest virtual addresses */
 		return !(IS_I915G(engine->i915) || IS_I915GM(engine->i915));
 	case 4:
-		return !IS_I965G(engine->i915); /* who knows! */
+		return !IS_I965G(engine->i915); /* who kyesws! */
 	case 6:
 		return engine->class != VIDEO_DECODE_CLASS; /* b0rked */
 	default:
@@ -1210,7 +1210,7 @@ static void print_request(struct drm_printer *m,
 
 	drm_printf(m, "%s %llx:%llx%s%s %s @ %dms: %s\n",
 		   prefix,
-		   rq->fence.context, rq->fence.seqno,
+		   rq->fence.context, rq->fence.seqyes,
 		   i915_request_completed(rq) ? "!" :
 		   i915_request_started(rq) ? "*" :
 		   "",
@@ -1259,9 +1259,9 @@ static struct intel_timeline *get_timeline(struct i915_request *rq)
 
 	/*
 	 * Even though we are holding the engine->active.lock here, there
-	 * is no control over the submission queue per-se and we are
+	 * is yes control over the submission queue per-se and we are
 	 * inspecting the active state at a random point in time, with an
-	 * unknown queue. Play safe and make sure the timeline remains valid.
+	 * unkyeswn queue. Play safe and make sure the timeline remains valid.
 	 * (Only being used for pretty printing, one extra kref shouldn't
 	 * cause a camel stampede!)
 	 */
@@ -1347,7 +1347,7 @@ static void intel_engine_print_registers(struct intel_engine_cs *engine,
 		u8 read, write;
 
 		drm_printf(m, "\tExeclist tasklet queued? %s (%s), preempt? %s, timeslice? %s\n",
-			   yesno(test_bit(TASKLET_STATE_SCHED,
+			   noyes(test_bit(TASKLET_STATE_SCHED,
 					  &engine->execlists.tasklet.state)),
 			   enableddisabled(!atomic_read(&engine->execlists.tasklet.count)),
 			   repr_timer(&engine->execlists.preempt),
@@ -1386,10 +1386,10 @@ static void intel_engine_print_registers(struct intel_engine_cs *engine,
 				struct intel_timeline *tl = get_timeline(rq);
 
 				len += snprintf(hdr + len, sizeof(hdr) - len,
-						"ring:{start:%08x, hwsp:%08x, seqno:%08x}, ",
+						"ring:{start:%08x, hwsp:%08x, seqyes:%08x}, ",
 						i915_ggtt_offset(rq->ring->vma),
 						tl ? tl->hwsp_offset : 0,
-						hwsp_seqno(rq));
+						hwsp_seqyes(rq));
 
 				if (tl)
 					intel_timeline_put(tl);
@@ -1402,11 +1402,11 @@ static void intel_engine_print_registers(struct intel_engine_cs *engine,
 			char hdr[80];
 
 			snprintf(hdr, sizeof(hdr),
-				 "\t\tPending[%d] ring:{start:%08x, hwsp:%08x, seqno:%08x}, rq: ",
+				 "\t\tPending[%d] ring:{start:%08x, hwsp:%08x, seqyes:%08x}, rq: ",
 				 (int)(port - execlists->pending),
 				 i915_ggtt_offset(rq->ring->vma),
 				 tl ? tl->hwsp_offset : 0,
-				 hwsp_seqno(rq));
+				 hwsp_seqyes(rq));
 			print_request(m, rq, hdr);
 
 			if (tl)
@@ -1432,8 +1432,8 @@ static void print_request_ring(struct drm_printer *m, struct i915_request *rq)
 	drm_printf(m,
 		   "[head %04x, postfix %04x, tail %04x, batch 0x%08x_%08x]:\n",
 		   rq->head, rq->postfix, rq->tail,
-		   rq->batch ? upper_32_bits(rq->batch->node.start) : ~0u,
-		   rq->batch ? lower_32_bits(rq->batch->node.start) : ~0u);
+		   rq->batch ? upper_32_bits(rq->batch->yesde.start) : ~0u,
+		   rq->batch ? lower_32_bits(rq->batch->yesde.start) : ~0u);
 
 	size = rq->tail - rq->head;
 	if (rq->tail < rq->head)
@@ -1538,7 +1538,7 @@ void intel_engine_dump(struct intel_engine_cs *engine,
 	drm_printf(m, "HWSP:\n");
 	hexdump(m, engine->status_page.addr, PAGE_SIZE);
 
-	drm_printf(m, "Idle? %s\n", yesno(intel_engine_is_idle(engine)));
+	drm_printf(m, "Idle? %s\n", noyes(intel_engine_is_idle(engine)));
 
 	intel_engine_print_breadcrumbs(engine, m);
 }
@@ -1665,12 +1665,12 @@ intel_engine_find_active_request(struct intel_engine_cs *engine)
 
 	/*
 	 * We are called by the error capture, reset and to dump engine
-	 * state at random points in time. In particular, note that neither is
+	 * state at random points in time. In particular, yeste that neither is
 	 * crucially ordered with an interrupt. After a hang, the GPU is dead
-	 * and we assume that no more writes can happen (we waited long enough
+	 * and we assume that yes more writes can happen (we waited long eyesugh
 	 * for all writes that were in transaction to be flushed) - adding an
 	 * extra delay for a recent interrupt is pointless. Hence, we do
-	 * not need an engine->irq_seqno_barrier() before the seqno reads.
+	 * yest need an engine->irq_seqyes_barrier() before the seqyes reads.
 	 * At all other times, we must assume the GPU is still running, but
 	 * we only care about the snapshot of this moment.
 	 */

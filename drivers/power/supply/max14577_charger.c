@@ -184,7 +184,7 @@ static int max14577_get_battery_health(struct max14577_charger *chg, int *val)
 		goto out;
 	}
 
-	/* Not dead, not overvoltage */
+	/* Not dead, yest overvoltage */
 	*val = POWER_SUPPLY_HEALTH_GOOD;
 
 out:
@@ -321,7 +321,7 @@ static int max14577_init_fast_charge(struct max14577_charger *chg,
 /*
  * Sets charger registers to proper and safe default values.
  * Some of these values are equal to defaults in MAX14577E
- * data sheet but there are minor differences.
+ * data sheet but there are miyesr differences.
  */
 static int max14577_charger_reg_init(struct max14577_charger *chg)
 {
@@ -457,11 +457,11 @@ static struct max14577_charger_platform_data *max14577_charger_dt_init(
 		struct platform_device *pdev)
 {
 	struct max14577_charger_platform_data *pdata;
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	int ret;
 
 	if (!np) {
-		dev_err(&pdev->dev, "No charger OF node\n");
+		dev_err(&pdev->dev, "No charger OF yesde\n");
 		return ERR_PTR(-EINVAL);
 	}
 
@@ -472,26 +472,26 @@ static struct max14577_charger_platform_data *max14577_charger_dt_init(
 	ret = of_property_read_u32(np, "maxim,constant-uvolt",
 			&pdata->constant_uvolt);
 	if (ret) {
-		dev_err(&pdev->dev, "Cannot parse maxim,constant-uvolt field from DT\n");
+		dev_err(&pdev->dev, "Canyest parse maxim,constant-uvolt field from DT\n");
 		return ERR_PTR(ret);
 	}
 
 	ret = of_property_read_u32(np, "maxim,fast-charge-uamp",
 			&pdata->fast_charge_uamp);
 	if (ret) {
-		dev_err(&pdev->dev, "Cannot parse maxim,fast-charge-uamp field from DT\n");
+		dev_err(&pdev->dev, "Canyest parse maxim,fast-charge-uamp field from DT\n");
 		return ERR_PTR(ret);
 	}
 
 	ret = of_property_read_u32(np, "maxim,eoc-uamp", &pdata->eoc_uamp);
 	if (ret) {
-		dev_err(&pdev->dev, "Cannot parse maxim,eoc-uamp field from DT\n");
+		dev_err(&pdev->dev, "Canyest parse maxim,eoc-uamp field from DT\n");
 		return ERR_PTR(ret);
 	}
 
 	ret = of_property_read_u32(np, "maxim,ovp-uvolt", &pdata->ovp_uvolt);
 	if (ret) {
-		dev_err(&pdev->dev, "Cannot parse maxim,ovp-uvolt field from DT\n");
+		dev_err(&pdev->dev, "Canyest parse maxim,ovp-uvolt field from DT\n");
 		return ERR_PTR(ret);
 	}
 

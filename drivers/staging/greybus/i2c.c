@@ -28,7 +28,7 @@ struct gb_i2c_device {
  */
 static u32 gb_i2c_functionality_map(u32 gb_i2c_functionality)
 {
-	return gb_i2c_functionality;	/* All bits the same for now */
+	return gb_i2c_functionality;	/* All bits the same for yesw */
 }
 
 /*
@@ -61,7 +61,7 @@ static int gb_i2c_device_setup(struct gb_i2c_device *gb_i2c_dev)
  */
 static u16 gb_i2c_transfer_op_flags_map(u16 flags)
 {
-	return flags;	/* All flags the same for now */
+	return flags;	/* All flags the same for yesw */
 }
 
 static void
@@ -99,7 +99,7 @@ gb_i2c_operation_create(struct gb_connection *connection,
 
 	/*
 	 * In addition to space for all message descriptors we need
-	 * to have enough to hold all outbound message data.
+	 * to have eyesugh to hold all outbound message data.
 	 */
 	msg = msgs;
 	for (i = 0; i < msg_count; i++, msg++)
@@ -165,9 +165,9 @@ static void gb_i2c_decode_response(struct i2c_msg *msgs, u32 msg_count,
 /*
  * Some i2c transfer operations return results that are expected.
  */
-static bool gb_i2c_expected_transfer_error(int errno)
+static bool gb_i2c_expected_transfer_error(int erryes)
 {
-	return errno == -EAGAIN || errno == -ENODEV;
+	return erryes == -EAGAIN || erryes == -ENODEV;
 }
 
 static int gb_i2c_transfer_operation(struct gb_i2c_device *gb_i2c_dev,
@@ -312,7 +312,7 @@ static void gb_i2c_remove(struct gbphy_device *gbphy_dev)
 
 	ret = gbphy_runtime_get_sync(gbphy_dev);
 	if (ret)
-		gbphy_runtime_get_noresume(gbphy_dev);
+		gbphy_runtime_get_yesresume(gbphy_dev);
 
 	i2c_del_adapter(&gb_i2c_dev->adapter);
 	gb_connection_disable(connection);

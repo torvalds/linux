@@ -57,9 +57,9 @@ EXPORT_SYMBOL(__per_cpu_offset);
 /**
  * pcpu_need_numa - determine percpu allocation needs to consider NUMA
  *
- * If NUMA is not configured or there is only one NUMA node available,
- * there is no reason to consider NUMA.  This function determines
- * whether percpu allocation should consider NUMA or not.
+ * If NUMA is yest configured or there is only one NUMA yesde available,
+ * there is yes reason to consider NUMA.  This function determines
+ * whether percpu allocation should consider NUMA or yest.
  *
  * RETURNS:
  * true if NUMA should be considered; otherwise, false.
@@ -71,13 +71,13 @@ static bool __init pcpu_need_numa(void)
 	unsigned int cpu;
 
 	for_each_possible_cpu(cpu) {
-		int node = early_cpu_to_node(cpu);
+		int yesde = early_cpu_to_yesde(cpu);
 
-		if (node_online(node) && NODE_DATA(node) &&
-		    last && last != NODE_DATA(node))
+		if (yesde_online(yesde) && NODE_DATA(yesde) &&
+		    last && last != NODE_DATA(yesde))
 			return true;
 
-		last = NODE_DATA(node);
+		last = NODE_DATA(yesde);
 	}
 #endif
 	return false;
@@ -102,22 +102,22 @@ static void * __init pcpu_alloc_bootmem(unsigned int cpu, unsigned long size,
 {
 	const unsigned long goal = __pa(MAX_DMA_ADDRESS);
 #ifdef CONFIG_NEED_MULTIPLE_NODES
-	int node = early_cpu_to_node(cpu);
+	int yesde = early_cpu_to_yesde(cpu);
 	void *ptr;
 
-	if (!node_online(node) || !NODE_DATA(node)) {
+	if (!yesde_online(yesde) || !NODE_DATA(yesde)) {
 		ptr = memblock_alloc_from(size, align, goal);
-		pr_info("cpu %d has no node %d or node-local memory\n",
-			cpu, node);
+		pr_info("cpu %d has yes yesde %d or yesde-local memory\n",
+			cpu, yesde);
 		pr_debug("per cpu data for cpu%d %lu bytes at %016lx\n",
 			 cpu, size, __pa(ptr));
 	} else {
 		ptr = memblock_alloc_try_nid(size, align, goal,
 					     MEMBLOCK_ALLOC_ACCESSIBLE,
-					     node);
+					     yesde);
 
-		pr_debug("per cpu data for cpu%d %lu bytes on node%d at %016lx\n",
-			 cpu, size, node, __pa(ptr));
+		pr_debug("per cpu data for cpu%d %lu bytes on yesde%d at %016lx\n",
+			 cpu, size, yesde, __pa(ptr));
 	}
 	return ptr;
 #else
@@ -141,7 +141,7 @@ static void __init pcpu_fc_free(void *ptr, size_t size)
 static int __init pcpu_cpu_distance(unsigned int from, unsigned int to)
 {
 #ifdef CONFIG_NEED_MULTIPLE_NODES
-	if (early_cpu_to_node(from) == early_cpu_to_node(to))
+	if (early_cpu_to_yesde(from) == early_cpu_to_yesde(to))
 		return LOCAL_DISTANCE;
 	else
 		return REMOTE_DISTANCE;
@@ -171,13 +171,13 @@ void __init setup_per_cpu_areas(void)
 	unsigned long delta;
 	int rc;
 
-	pr_info("NR_CPUS:%d nr_cpumask_bits:%d nr_cpu_ids:%u nr_node_ids:%u\n",
-		NR_CPUS, nr_cpumask_bits, nr_cpu_ids, nr_node_ids);
+	pr_info("NR_CPUS:%d nr_cpumask_bits:%d nr_cpu_ids:%u nr_yesde_ids:%u\n",
+		NR_CPUS, nr_cpumask_bits, nr_cpu_ids, nr_yesde_ids);
 
 	/*
 	 * Allocate percpu area.  Embedding allocator is our favorite;
 	 * however, on NUMA configurations, it can result in very
-	 * sparse unit mapping and vmalloc area isn't spacious enough
+	 * sparse unit mapping and vmalloc area isn't spacious eyesugh
 	 * on 32bit.  Use page in that case.
 	 */
 #ifdef CONFIG_X86_32
@@ -215,7 +215,7 @@ void __init setup_per_cpu_areas(void)
 					   pcpu_fc_alloc, pcpu_fc_free,
 					   pcpup_populate_pte);
 	if (rc < 0)
-		panic("cannot initialize percpu area (err=%d)", rc);
+		panic("canyest initialize percpu area (err=%d)", rc);
 
 	/* alrighty, percpu areas up and running */
 	delta = (unsigned long)pcpu_base_addr - (unsigned long)__per_cpu_start;
@@ -245,17 +245,17 @@ void __init setup_per_cpu_areas(void)
 			early_per_cpu_map(x86_cpu_to_logical_apicid, cpu);
 #endif
 #ifdef CONFIG_NUMA
-		per_cpu(x86_cpu_to_node_map, cpu) =
-			early_per_cpu_map(x86_cpu_to_node_map, cpu);
+		per_cpu(x86_cpu_to_yesde_map, cpu) =
+			early_per_cpu_map(x86_cpu_to_yesde_map, cpu);
 		/*
-		 * Ensure that the boot cpu numa_node is correct when the boot
-		 * cpu is on a node that doesn't have memory installed.
-		 * Also cpu_up() will call cpu_to_node() for APs when
-		 * MEMORY_HOTPLUG is defined, before per_cpu(numa_node) is set
+		 * Ensure that the boot cpu numa_yesde is correct when the boot
+		 * cpu is on a yesde that doesn't have memory installed.
+		 * Also cpu_up() will call cpu_to_yesde() for APs when
+		 * MEMORY_HOTPLUG is defined, before per_cpu(numa_yesde) is set
 		 * up later with c_init aka intel_init/amd_init.
 		 * So set them all (boot cpu and all APs).
 		 */
-		set_cpu_numa_node(cpu, early_cpu_to_node(cpu));
+		set_cpu_numa_yesde(cpu, early_cpu_to_yesde(cpu));
 #endif
 		/*
 		 * Up to this point, the boot CPU has been using .init.data
@@ -275,11 +275,11 @@ void __init setup_per_cpu_areas(void)
 	early_per_cpu_ptr(x86_cpu_to_logical_apicid) = NULL;
 #endif
 #ifdef CONFIG_NUMA
-	early_per_cpu_ptr(x86_cpu_to_node_map) = NULL;
+	early_per_cpu_ptr(x86_cpu_to_yesde_map) = NULL;
 #endif
 
-	/* Setup node to cpumask map */
-	setup_node_to_cpumask_map();
+	/* Setup yesde to cpumask map */
+	setup_yesde_to_cpumask_map();
 
 	/* Setup cpu initialized, callin, callout masks */
 	setup_cpu_local_masks();

@@ -3,7 +3,7 @@
  * CS2000  --  CIRRUS LOGIC Fractional-N Clock Synthesizer & Clock Multiplier
  *
  * Copyright (C) 2015 Renesas Electronics Corporation
- * Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
+ * Kuniyesri Morimoto <kuniyesri.morimoto.gx@renesas.com>
  */
 #include <linux/clk-provider.h>
 #include <linux/delay.h>
@@ -399,12 +399,12 @@ static int cs2000_clk_get(struct cs2000_priv *priv)
 	struct clk *clk_in, *ref_clk;
 
 	clk_in = devm_clk_get(dev, "clk_in");
-	/* not yet provided */
+	/* yest yet provided */
 	if (IS_ERR(clk_in))
 		return -EPROBE_DEFER;
 
 	ref_clk = devm_clk_get(dev, "ref_clk");
-	/* not yet provided */
+	/* yest yet provided */
 	if (IS_ERR(ref_clk))
 		return -EPROBE_DEFER;
 
@@ -417,7 +417,7 @@ static int cs2000_clk_get(struct cs2000_priv *priv)
 static int cs2000_clk_register(struct cs2000_priv *priv)
 {
 	struct device *dev = priv_to_dev(priv);
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 	struct clk_init_data init;
 	const char *name = np->name;
 	static const char *parent_names[CLK_MAX];
@@ -495,7 +495,7 @@ static int cs2000_remove(struct i2c_client *client)
 {
 	struct cs2000_priv *priv = i2c_get_clientdata(client);
 	struct device *dev = priv_to_dev(priv);
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 
 	of_clk_del_provider(np);
 
@@ -563,5 +563,5 @@ static struct i2c_driver cs2000_driver = {
 module_i2c_driver(cs2000_driver);
 
 MODULE_DESCRIPTION("CS2000-CP driver");
-MODULE_AUTHOR("Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>");
+MODULE_AUTHOR("Kuniyesri Morimoto <kuniyesri.morimoto.gx@renesas.com>");
 MODULE_LICENSE("GPL v2");

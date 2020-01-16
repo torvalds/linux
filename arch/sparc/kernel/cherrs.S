@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 	/* These get patched into the trap table at boot time
-	 * once we know we have a cheetah processor.
+	 * once we kyesw we have a cheetah processor.
 	 */
 	.globl		cheetah_fecc_trap_vector
 	.type		cheetah_fecc_trap_vector,#function
@@ -93,11 +93,11 @@ cheetah_plus_dcpe_trap_vector:
 	membar		#Sync
 	sethi		%hi(do_cheetah_plus_data_parity), %g7
 	jmpl		%g7 + %lo(do_cheetah_plus_data_parity), %g0
-	 nop
-	nop
-	nop
-	nop
-	nop
+	 yesp
+	yesp
+	yesp
+	yesp
+	yesp
 	.size		cheetah_plus_dcpe_trap_vector,.-cheetah_plus_dcpe_trap_vector
 
 	.type		do_cheetah_plus_data_parity,#function
@@ -108,7 +108,7 @@ do_cheetah_plus_data_parity:
 	 rd		%pc, %g7
 #ifdef CONFIG_TRACE_IRQFLAGS
 	call		trace_hardirqs_off
-	 nop
+	 yesp
 #endif
 	mov		0x0, %o0
 	call		cheetah_plus_parity_error
@@ -123,10 +123,10 @@ cheetah_plus_dcpe_trap_vector_tl1:
 	wrpr		PSTATE_IG | PSTATE_PEF | PSTATE_PRIV, %pstate
 	sethi		%hi(do_dcpe_tl1), %g3
 	jmpl		%g3 + %lo(do_dcpe_tl1), %g0
-	 nop
-	nop
-	nop
-	nop
+	 yesp
+	yesp
+	yesp
+	yesp
 	.size		cheetah_plus_dcpe_trap_vector_tl1,.-cheetah_plus_dcpe_trap_vector_tl1
 
 	.globl		cheetah_plus_icpe_trap_vector
@@ -135,11 +135,11 @@ cheetah_plus_icpe_trap_vector:
 	membar		#Sync
 	sethi		%hi(do_cheetah_plus_insn_parity), %g7
 	jmpl		%g7 + %lo(do_cheetah_plus_insn_parity), %g0
-	 nop
-	nop
-	nop
-	nop
-	nop
+	 yesp
+	yesp
+	yesp
+	yesp
+	yesp
 	.size		cheetah_plus_icpe_trap_vector,.-cheetah_plus_icpe_trap_vector
 
 	.type		do_cheetah_plus_insn_parity,#function
@@ -150,7 +150,7 @@ do_cheetah_plus_insn_parity:
 	 rd		%pc, %g7
 #ifdef CONFIG_TRACE_IRQFLAGS
 	call		trace_hardirqs_off
-	 nop
+	 yesp
 #endif
 	mov		0x1, %o0
 	call		cheetah_plus_parity_error
@@ -165,15 +165,15 @@ cheetah_plus_icpe_trap_vector_tl1:
 	wrpr		PSTATE_IG | PSTATE_PEF | PSTATE_PRIV, %pstate
 	sethi		%hi(do_icpe_tl1), %g3
 	jmpl		%g3 + %lo(do_icpe_tl1), %g0
-	 nop
-	nop
-	nop
-	nop
+	 yesp
+	yesp
+	yesp
+	yesp
 	.size		cheetah_plus_icpe_trap_vector_tl1,.-cheetah_plus_icpe_trap_vector_tl1
 
 	/* If we take one of these traps when tl >= 1, then we
 	 * jump to interrupt globals.  If some trap level above us
-	 * was also using interrupt globals, we cannot recover.
+	 * was also using interrupt globals, we canyest recover.
 	 * We may use all interrupt global registers except %g6.
 	 */
 	.globl		do_dcpe_tl1
@@ -190,9 +190,9 @@ do_dcpe_tl1:
 	add		%g2, 1, %g2		! Next trap level
 	cmp		%g2, %g1		! Hit them all yet?
 	ble,pt		%icc, 1b		! Not yet
-	 nop
+	 yesp
 	wrpr		%g1, %tl		! Restore original trap level
-do_dcpe_tl1_nonfatal:	/* Ok we may use interrupt globals safely. */
+do_dcpe_tl1_yesnfatal:	/* Ok we may use interrupt globals safely. */
 	sethi		%hi(dcache_parity_tl1_occurred), %g2
 	lduw		[%g2 + %lo(dcache_parity_tl1_occurred)], %g1
 	add		%g1, 1, %g1
@@ -211,10 +211,10 @@ do_dcpe_tl1_nonfatal:	/* Ok we may use interrupt globals safely. */
 	membar		#Sync
 	subcc		%g3, 8, %g3		! Next 64-bit data word
 	bge,pt		%icc, 2b
-	 nop
+	 yesp
 	subcc		%g1, %g2, %g1		! Next cacheline
 	bge,pt		%icc, 1b
-	 nop
+	 yesp
 	ba,a,pt		%xcc, dcpe_icpe_tl1_common
 
 do_dcpe_tl1_fatal:
@@ -241,9 +241,9 @@ do_icpe_tl1:
 	add		%g2, 1, %g2		! Next trap level
 	cmp		%g2, %g1		! Hit them all yet?
 	ble,pt		%icc, 1b		! Not yet
-	 nop
+	 yesp
 	wrpr		%g1, %tl		! Restore original trap level
-do_icpe_tl1_nonfatal:	/* Ok we may use interrupt globals safely. */
+do_icpe_tl1_yesnfatal:	/* Ok we may use interrupt globals safely. */
 	sethi		%hi(icache_parity_tl1_occurred), %g2
 	lduw		[%g2 + %lo(icache_parity_tl1_occurred)], %g1
 	add		%g1, 1, %g1
@@ -257,7 +257,7 @@ do_icpe_tl1_nonfatal:	/* Ok we may use interrupt globals safely. */
 	membar		#Sync
 	subcc		%g1, %g2, %g1
 	bge,pt		%icc, 1b
-	 nop
+	 yesp
 	ba,a,pt		%xcc, dcpe_icpe_tl1_common
 
 do_icpe_tl1_fatal:
@@ -282,7 +282,7 @@ dcpe_icpe_tl1_common:
 	membar		#Sync
 	subcc		%g1, %g2, %g1
 	bge,pt		%icc, 1b
-	 nop
+	 yesp
 	ldxa		[%g0] ASI_DCU_CONTROL_REG, %g1
 	or		%g1, (DCU_DC | DCU_IC), %g1
 	stxa		%g1, [%g0] ASI_DCU_CONTROL_REG
@@ -322,7 +322,7 @@ __cheetah_log_error:
 	sethi		%hi(cheetah_error_log), %g3
 	ldx		[%g3 + %lo(cheetah_error_log)], %g3
 	brz,pn		%g3, 80f
-	 nop
+	 yesp
 
 	add		%g3, %g2, %g3
 	sllx		%g1, 8, %g1
@@ -332,13 +332,13 @@ __cheetah_log_error:
 	ldx		[%g1 + 0x0], %g7
 	cmp		%g7, -1
 	bne,pn		%xcc, 80f
-	 nop
+	 yesp
 
 	stx		%g4, [%g1 + 0x0]
 	stx		%g5, [%g1 + 0x8]
 	add		%g1, 0x10, %g1
 
-	/* %g1 now points to D-cache logging area */
+	/* %g1 yesw points to D-cache logging area */
 	set		0x3ff8, %g2	/* DC_addr mask		*/
 	and		%g5, %g2, %g2	/* DC_addr bits of AFAR	*/
 	srlx		%g5, 12, %g3
@@ -347,7 +347,7 @@ __cheetah_log_error:
 10:	ldxa		[%g2] ASI_DCACHE_TAG, %g7
 	cmp		%g3, %g7	/* TAG match?		*/
 	bne,pt		%xcc, 13f
-	 nop
+	 yesp
 
 	/* Yep, what we want, capture state. */
 	stx		%g2, [%g1 + 0x20]
@@ -377,11 +377,11 @@ __cheetah_log_error:
 	srlx		%g2, 14, %g7
 	cmp		%g7, 4
 	bl,pt		%xcc, 10b
-	 nop
+	 yesp
 
 	add		%g1, 0x40, %g1
 
-	/* %g1 now points to I-cache logging area */
+	/* %g1 yesw points to I-cache logging area */
 20:	set		0x1fe0, %g2	/* IC_addr mask		*/
 	and		%g5, %g2, %g2	/* IC_addr bits of AFAR	*/
 	sllx		%g2, 1, %g2	/* IC_addr[13:6]==VA[12:5] */
@@ -392,7 +392,7 @@ __cheetah_log_error:
 	andn		%g7, 0xff, %g7
 	cmp		%g3, %g7
 	bne,pt		%xcc, 23f
-	 nop
+	 yesp
 
 	/* Yep, what we want, capture state. */
 	stx		%g2, [%g1 + 0x40]
@@ -427,11 +427,11 @@ __cheetah_log_error:
 	srlx		%g2, 14, %g7
 	cmp		%g7, 4
 	bl,pt		%xcc, 21b
-	 nop
+	 yesp
 
 	add		%g1, 0x70, %g1
 
-	/* %g1 now points to E-cache logging area */
+	/* %g1 yesw points to E-cache logging area */
 30:	andn		%g5, (32 - 1), %g2
 	stx		%g2, [%g1 + 0x20]
 	ldxa		[%g2] ASI_EC_TAG_DATA, %g7
@@ -445,14 +445,14 @@ __cheetah_log_error:
 	cmp		%g3, 0x20
 
 	bl,pt		%xcc, 31b
-	 nop
+	 yesp
 80:
 	rdpr		%tt, %g2
 	cmp		%g2, 0x70
 	be		c_fast_ecc
 	 cmp		%g2, 0x63
 	be		c_cee
-	 nop
+	 yesp
 	ba,a,pt		%xcc, c_deferred
 	.size		__cheetah_log_error,.-__cheetah_log_error
 
@@ -483,7 +483,7 @@ cheetah_fast_ecc:
 	membar		#Sync
 
 	ba,pt		%xcc, __cheetah_log_error
-	 nop
+	 yesp
 	.size		cheetah_fast_ecc,.-cheetah_fast_ecc
 
 	.type		c_fast_ecc,#function
@@ -494,7 +494,7 @@ c_fast_ecc:
 	 rd		%pc, %g7
 #ifdef CONFIG_TRACE_IRQFLAGS
 	call		trace_hardirqs_off
-	 nop
+	 yesp
 #endif
 	mov		%l4, %o1
 	mov		%l5, %o2
@@ -519,7 +519,7 @@ cheetah_cee:
 	membar		#Sync
 
 	ba,pt		%xcc, __cheetah_log_error
-	 nop
+	 yesp
 	.size		cheetah_cee,.-cheetah_cee
 
 	.type		c_cee,#function
@@ -530,7 +530,7 @@ c_cee:
 	 rd		%pc, %g7
 #ifdef CONFIG_TRACE_IRQFLAGS
 	call		trace_hardirqs_off
-	 nop
+	 yesp
 #endif
 	mov		%l4, %o1
 	mov		%l5, %o2
@@ -555,7 +555,7 @@ cheetah_deferred_trap:
 	membar		#Sync
 
 	ba,pt		%xcc, __cheetah_log_error
-	 nop
+	 yesp
 	.size		cheetah_deferred_trap,.-cheetah_deferred_trap
 
 	.type		c_deferred,#function
@@ -566,7 +566,7 @@ c_deferred:
 	 rd		%pc, %g7
 #ifdef CONFIG_TRACE_IRQFLAGS
 	call		trace_hardirqs_off
-	 nop
+	 yesp
 #endif
 	mov		%l4, %o1
 	mov		%l5, %o2

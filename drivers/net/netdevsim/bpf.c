@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Netronome Systems, Inc.
+ * Copyright (C) 2017 Netroyesme Systems, Inc.
  *
  * This software is licensed under the GNU General License Version 2,
  * June 1991 as shown in the file COPYING in the top-level directory of this
@@ -102,7 +102,7 @@ nsim_bpf_offload(struct netdevsim *ns, struct bpf_prog *prog, bool oldprog)
 
 	WARN(!!ns->bpf_offloaded != oldprog,
 	     "bad offload state, expected offload %sto be active",
-	     oldprog ? "" : "not ");
+	     oldprog ? "" : "yest ");
 	ns->bpf_offloaded = prog;
 	ns->bpf_offloaded_id = prog ? prog->aux->id : 0;
 	nsim_prog_set_loaded(prog, true);
@@ -138,8 +138,8 @@ int nsim_bpf_setup_tc_block_cb(enum tc_setup_type type,
 			"netdevsim configured to reject BPF TC offload");
 		return -EOPNOTSUPP;
 	}
-	/* Note: progs without skip_sw will probably not be dev bound */
-	if (prog && !prog->aux->offload && !ns->bpf_tc_non_bound_accept) {
+	/* Note: progs without skip_sw will probably yest be dev bound */
+	if (prog && !prog->aux->offload && !ns->bpf_tc_yesn_bound_accept) {
 		NSIM_EA(cls_bpf->common.extack,
 			"netdevsim configured to reject unbound programs");
 		return -EOPNOTSUPP;
@@ -227,7 +227,7 @@ static int nsim_bpf_create_prog(struct nsim_dev *nsim_dev,
 	state->prog = prog;
 	state->state = "verify";
 
-	/* Program id is not populated yet when we create the state. */
+	/* Program id is yest populated yet when we create the state. */
 	sprintf(name, "%u", nsim_dev->prog_id_gen++);
 	state->ddir = debugfs_create_dir(name, nsim_dev->ddir_bpf_bound_progs);
 	if (IS_ERR_OR_NULL(state->ddir)) {
@@ -308,7 +308,7 @@ nsim_setup_prog_hw_checks(struct netdevsim *ns, struct netdev_bpf *bpf)
 		return 0;
 
 	if (!bpf->prog->aux->offload) {
-		NSIM_EA(bpf->extack, "xdpoffload of non-bound program");
+		NSIM_EA(bpf->extack, "xdpoffload of yesn-bound program");
 		return -EINVAL;
 	}
 	if (!bpf_offload_dev_match(bpf->prog, ns->netdev)) {
@@ -626,8 +626,8 @@ int nsim_bpf_init(struct netdevsim *ns)
 	ns->bpf_tc_accept = true;
 	debugfs_create_bool("bpf_tc_accept", 0600, ddir,
 			    &ns->bpf_tc_accept);
-	debugfs_create_bool("bpf_tc_non_bound_accept", 0600, ddir,
-			    &ns->bpf_tc_non_bound_accept);
+	debugfs_create_bool("bpf_tc_yesn_bound_accept", 0600, ddir,
+			    &ns->bpf_tc_yesn_bound_accept);
 	ns->bpf_xdpdrv_accept = true;
 	debugfs_create_bool("bpf_xdpdrv_accept", 0600, ddir,
 			    &ns->bpf_xdpdrv_accept);

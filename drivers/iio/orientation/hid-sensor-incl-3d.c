@@ -282,7 +282,7 @@ static int incl_3d_parse_report(struct platform_device *pdev,
 				&st->incl[CHANNEL_SCAN_INDEX_X],
 				&st->scale_pre_decml, &st->scale_post_decml);
 
-	/* Set Sensitivity field ids, when there is no individual modifier */
+	/* Set Sensitivity field ids, when there is yes individual modifier */
 	if (st->common_attributes.sensitivity.index < 0) {
 		sensor_hub_input_get_attribute_info(hsdev,
 			HID_FEATURE_REPORT, usage_id,
@@ -426,6 +426,6 @@ static struct platform_driver hid_incl_3d_platform_driver = {
 };
 module_platform_driver(hid_incl_3d_platform_driver);
 
-MODULE_DESCRIPTION("HID Sensor Inclinometer 3D");
+MODULE_DESCRIPTION("HID Sensor Incliyesmeter 3D");
 MODULE_AUTHOR("Srinivas Pandruvada <srinivas.pandruvada@linux.intel.com>");
 MODULE_LICENSE("GPL");

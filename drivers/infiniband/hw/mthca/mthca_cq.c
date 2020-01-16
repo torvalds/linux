@@ -2,7 +2,7 @@
  * Copyright (c) 2004, 2005 Topspin Communications.  All rights reserved.
  * Copyright (c) 2005 Sun Microsystems, Inc. All rights reserved.
  * Copyright (c) 2005, 2006 Cisco Systems, Inc. All rights reserved.
- * Copyright (c) 2005 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2005 Mellayesx Techyeslogies. All rights reserved.
  * Copyright (c) 2004 Voltaire, Inc. All rights reserved.
  *
  * This software is available to you under a choice of one of two
@@ -16,11 +16,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -69,7 +69,7 @@ struct mthca_cq_context {
 	__be32 comp_eqn;
 	__be32 pd;
 	__be32 lkey;
-	__be32 last_notified_index;
+	__be32 last_yestified_index;
 	__be32 solicit_producer_index;
 	__be32 consumer_index;
 	__be32 producer_index;
@@ -198,7 +198,7 @@ static void dump_cqe(struct mthca_dev *dev, void *cqe_ptr)
 }
 
 /*
- * incr is ignored in native Arbel (mem-free) mode, so cq->cons_index
+ * incr is igyesred in native Arbel (mem-free) mode, so cq->cons_index
  * should be correct before calling update_cons_index().
  */
 static inline void update_cons_index(struct mthca_dev *dev, struct mthca_cq *cq,
@@ -281,7 +281,7 @@ void mthca_cq_clean(struct mthca_dev *dev, struct mthca_cq *cq, u32 qpn,
 
 	/*
 	 * First we need to find the current producer index, so we
-	 * know where to start cleaning from.  It doesn't matter if HW
+	 * kyesw where to start cleaning from.  It doesn't matter if HW
 	 * adds new entries after this loop -- the QP we're worried
 	 * about is already in RESET, so the new entries won't come
 	 * from our QP and therefore don't need to be checked.
@@ -513,7 +513,7 @@ static inline int mthca_poll_one(struct mthca_dev *dev,
 
 	if (!*cur_qp || be32_to_cpu(cqe->my_qpn) != (*cur_qp)->qpn) {
 		/*
-		 * We do not have to take the QP table lock here,
+		 * We do yest have to take the QP table lock here,
 		 * because CQs will be locked while QPs are removed
 		 * from the table.
 		 */
@@ -521,7 +521,7 @@ static inline int mthca_poll_one(struct mthca_dev *dev,
 					  be32_to_cpu(cqe->my_qpn) &
 					  (dev->limits.num_qps - 1));
 		if (!*cur_qp) {
-			mthca_warn(dev, "CQ entry for unknown QP %06x\n",
+			mthca_warn(dev, "CQ entry for unkyeswn QP %06x\n",
 				   be32_to_cpu(cqe->my_qpn) & 0xffffff);
 			err = -EINVAL;
 			goto out;
@@ -682,7 +682,7 @@ repoll:
 	/*
 	 * If a CQ resize is in progress and we discovered that the
 	 * old buffer is empty, then peek in the new buffer, and if
-	 * it's not empty, switch to the new buffer and continue
+	 * it's yest empty, switch to the new buffer and continue
 	 * polling there.
 	 */
 	if (unlikely(err == -EAGAIN && cq->resize_buf &&
@@ -720,7 +720,7 @@ repoll:
 	return err == 0 || err == -EAGAIN ? npolled : err;
 }
 
-int mthca_tavor_arm_cq(struct ib_cq *cq, enum ib_cq_notify_flags flags)
+int mthca_tavor_arm_cq(struct ib_cq *cq, enum ib_cq_yestify_flags flags)
 {
 	u32 dbhi = ((flags & IB_CQ_SOLICITED_MASK) == IB_CQ_SOLICITED ?
 		    MTHCA_TAVOR_CQ_DB_REQ_NOT_SOL :
@@ -733,7 +733,7 @@ int mthca_tavor_arm_cq(struct ib_cq *cq, enum ib_cq_notify_flags flags)
 	return 0;
 }
 
-int mthca_arbel_arm_cq(struct ib_cq *ibcq, enum ib_cq_notify_flags flags)
+int mthca_arbel_arm_cq(struct ib_cq *ibcq, enum ib_cq_yestify_flags flags)
 {
 	struct mthca_cq *cq = to_mcq(ibcq);
 	__be32 db_rec[2];

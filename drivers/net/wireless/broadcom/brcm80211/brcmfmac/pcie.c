@@ -618,7 +618,7 @@ static void brcmf_pcie_attach(struct brcmf_pciedev_info *devinfo)
 {
 	u32 config;
 
-	/* BAR1 window may not be sized properly */
+	/* BAR1 window may yest be sized properly */
 	brcmf_pcie_select_core(devinfo, BCMA_CORE_PCIE2);
 	brcmf_pcie_write_reg32(devinfo, BRCMF_PCIE_PCIE2REG_CONFIGADDR, 0x4e0);
 	config = brcmf_pcie_read_reg32(devinfo, BRCMF_PCIE_PCIE2REG_CONFIGDATA);
@@ -1643,8 +1643,8 @@ static int brcmf_pcie_get_resource(struct brcmf_pciedev_info *devinfo)
 		return -EINVAL;
 	}
 
-	devinfo->regs = ioremap_nocache(bar0_addr, BRCMF_PCIE_REG_MAP_SIZE);
-	devinfo->tcm = ioremap_nocache(bar1_addr, bar1_size);
+	devinfo->regs = ioremap_yescache(bar0_addr, BRCMF_PCIE_REG_MAP_SIZE);
+	devinfo->tcm = ioremap_yescache(bar1_addr, bar1_size);
 
 	if (!devinfo->regs || !devinfo->tcm) {
 		brcmf_err(bus, "ioremap() failed (%p,%p)\n", devinfo->regs,
@@ -1779,7 +1779,7 @@ static void brcmf_pcie_setup(struct device *dev, int ret,
 	/* Some of the firmwares have the size of the memory of the device
 	 * defined inside the firmware. This is because part of the memory in
 	 * the device is shared and the devision is determined by FW. Parse
-	 * the firmware and adjust the chip memory size now.
+	 * the firmware and adjust the chip memory size yesw.
 	 */
 	brcmf_pcie_adjust_ramsize(devinfo, (u8 *)fw->data, fw->size);
 
@@ -2121,7 +2121,7 @@ MODULE_DEVICE_TABLE(pci, brcmf_pcie_devid_table);
 
 
 static struct pci_driver brcmf_pciedrvr = {
-	.node = {},
+	.yesde = {},
 	.name = KBUILD_MODNAME,
 	.id_table = brcmf_pcie_devid_table,
 	.probe = brcmf_pcie_probe,

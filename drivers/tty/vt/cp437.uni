@@ -3,7 +3,7 @@
 # Unicode table for IBM Codepage 437.  Note that there are many more
 # substitutions that could be conceived (for example, thick-line
 # graphs probably should be replaced with double-line ones, accented
-# Latin characters should replaced with their nonaccented versions,
+# Latin characters should replaced with their yesnaccented versions,
 # and some upper case Greek characters could be replaced by Latin), however,
 # I have limited myself to the Unicodes used by the kernel ISO 8859-1,
 # DEC VT, and IBM CP 437 tables.
@@ -284,7 +284,7 @@
 0xfc	U+207f
 0xfd	U+00b2
 #
-# Square bullet, non-spacing blank
+# Square bullet, yesn-spacing blank
 # Mapping U+fffd to the square bullet means it is the substitution
 # character
 # 

@@ -56,7 +56,7 @@ static const struct of_device_id psci_idle_state_match[] __initconst = {
 	{ },
 };
 
-static int __init psci_dt_parse_state_node(struct device_node *np, u32 *state)
+static int __init psci_dt_parse_state_yesde(struct device_yesde *np, u32 *state)
 {
 	int err = of_property_read_u32(np, "arm,psci-suspend-param", state);
 
@@ -73,17 +73,17 @@ static int __init psci_dt_parse_state_node(struct device_node *np, u32 *state)
 	return 0;
 }
 
-static int __init psci_dt_cpu_init_idle(struct device_node *cpu_node, int cpu)
+static int __init psci_dt_cpu_init_idle(struct device_yesde *cpu_yesde, int cpu)
 {
 	int i, ret = 0, count = 0;
 	u32 *psci_states;
-	struct device_node *state_node;
+	struct device_yesde *state_yesde;
 
 	/* Count idle states */
-	while ((state_node = of_parse_phandle(cpu_node, "cpu-idle-states",
+	while ((state_yesde = of_parse_phandle(cpu_yesde, "cpu-idle-states",
 					      count))) {
 		count++;
-		of_node_put(state_node);
+		of_yesde_put(state_yesde);
 	}
 
 	if (!count)
@@ -94,9 +94,9 @@ static int __init psci_dt_cpu_init_idle(struct device_node *cpu_node, int cpu)
 		return -ENOMEM;
 
 	for (i = 0; i < count; i++) {
-		state_node = of_parse_phandle(cpu_node, "cpu-idle-states", i);
-		ret = psci_dt_parse_state_node(state_node, &psci_states[i]);
-		of_node_put(state_node);
+		state_yesde = of_parse_phandle(cpu_yesde, "cpu-idle-states", i);
+		ret = psci_dt_parse_state_yesde(state_yesde, &psci_states[i]);
+		of_yesde_put(state_yesde);
 
 		if (ret)
 			goto free_mem;
@@ -115,23 +115,23 @@ free_mem:
 
 static __init int psci_cpu_init_idle(unsigned int cpu)
 {
-	struct device_node *cpu_node;
+	struct device_yesde *cpu_yesde;
 	int ret;
 
 	/*
-	 * If the PSCI cpu_suspend function hook has not been initialized
-	 * idle states must not be enabled, so bail out
+	 * If the PSCI cpu_suspend function hook has yest been initialized
+	 * idle states must yest be enabled, so bail out
 	 */
 	if (!psci_ops.cpu_suspend)
 		return -EOPNOTSUPP;
 
-	cpu_node = of_cpu_device_node_get(cpu);
-	if (!cpu_node)
+	cpu_yesde = of_cpu_device_yesde_get(cpu);
+	if (!cpu_yesde)
 		return -ENODEV;
 
-	ret = psci_dt_cpu_init_idle(cpu_node, cpu);
+	ret = psci_dt_cpu_init_idle(cpu_yesde, cpu);
 
-	of_node_put(cpu_node);
+	of_yesde_put(cpu_yesde);
 
 	return ret;
 }
@@ -139,23 +139,23 @@ static __init int psci_cpu_init_idle(unsigned int cpu)
 static int __init psci_idle_init_cpu(int cpu)
 {
 	struct cpuidle_driver *drv;
-	struct device_node *cpu_node;
+	struct device_yesde *cpu_yesde;
 	const char *enable_method;
 	int ret = 0;
 
-	cpu_node = of_cpu_device_node_get(cpu);
-	if (!cpu_node)
+	cpu_yesde = of_cpu_device_yesde_get(cpu);
+	if (!cpu_yesde)
 		return -ENODEV;
 
 	/*
 	 * Check whether the enable-method for the cpu is PSCI, fail
-	 * if it is not.
+	 * if it is yest.
 	 */
-	enable_method = of_get_property(cpu_node, "enable-method", NULL);
+	enable_method = of_get_property(cpu_yesde, "enable-method", NULL);
 	if (!enable_method || (strcmp(enable_method, "psci")))
 		ret = -ENODEV;
 
-	of_node_put(cpu_node);
+	of_yesde_put(cpu_yesde);
 	if (ret)
 		return ret;
 
@@ -170,8 +170,8 @@ static int __init psci_idle_init_cpu(int cpu)
 	 * by default idle state 0 is the quiescent state reached
 	 * by the cpu by executing the wfi instruction.
 	 *
-	 * If no DT idle states are detected (ret == 0) let the driver
-	 * initialization fail accordingly since there is no reason to
+	 * If yes DT idle states are detected (ret == 0) let the driver
+	 * initialization fail accordingly since there is yes reason to
 	 * initialize the idle driver if only wfi is supported, the
 	 * default archictectural back-end already executes wfi
 	 * on idle entry.

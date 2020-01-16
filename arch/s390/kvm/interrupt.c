@@ -14,7 +14,7 @@
 #include <linux/kvm_host.h>
 #include <linux/hrtimer.h>
 #include <linux/mmu_context.h>
-#include <linux/nospec.h>
+#include <linux/yesspec.h>
 #include <linux/signal.h>
 #include <linux/slab.h>
 #include <linux/bitmap.h>
@@ -105,7 +105,7 @@ static int sca_inject_ext_call(struct kvm_vcpu *vcpu, int src_id)
 	read_unlock(&vcpu->kvm->arch.sca_lock);
 
 	if (rc != expect) {
-		/* another external call is pending */
+		/* ayesther external call is pending */
 		return -EBUSY;
 	}
 	kvm_s390_set_cpuflags(vcpu, CPUSTAT_ECALL_PEND);
@@ -138,7 +138,7 @@ static void sca_clear_ext_call(struct kvm_vcpu *vcpu)
 		rc = cmpxchg(&sigp_ctrl->value, old.value, 0);
 	}
 	read_unlock(&vcpu->kvm->arch.sca_lock);
-	WARN_ON(rc != expect); /* cannot clear? */
+	WARN_ON(rc != expect); /* canyest clear? */
 }
 
 int psw_extint_disabled(struct kvm_vcpu *vcpu)
@@ -176,13 +176,13 @@ static int ckc_interrupts_enabled(struct kvm_vcpu *vcpu)
 
 static int ckc_irq_pending(struct kvm_vcpu *vcpu)
 {
-	const u64 now = kvm_s390_get_tod_clock_fast(vcpu->kvm);
+	const u64 yesw = kvm_s390_get_tod_clock_fast(vcpu->kvm);
 	const u64 ckc = vcpu->arch.sie_block->ckc;
 
 	if (vcpu->arch.sie_block->gcr[0] & CR0_CLOCK_COMPARATOR_SIGN) {
-		if ((s64)ckc >= (s64)now)
+		if ((s64)ckc >= (s64)yesw)
 			return 0;
-	} else if (ckc >= now) {
+	} else if (ckc >= yesw) {
 		return 0;
 	}
 	return ckc_interrupts_enabled(vcpu);
@@ -231,7 +231,7 @@ static inline u8 int_word_to_isc(u32 int_word)
  * @iam: new IAM value to use
  *
  * Change the IAM atomically with the next alert address and the IPM
- * of the GISA if the GISA is not part of the GIB alert list. All three
+ * of the GISA if the GISA is yest part of the GIB alert list. All three
  * fields are located in the first long word of the GISA.
  *
  * Returns: 0 on success
@@ -275,7 +275,7 @@ static inline void gisa_clear_ipm(struct kvm_s390_gisa *gisa)
  *
  * @gi: gisa interrupt struct to work on
  *
- * Atomically restores the interruption alert mask if none of the
+ * Atomically restores the interruption alert mask if yesne of the
  * relevant ISCs are pending and return the IPM.
  *
  * Returns: the relevant pending ISCs
@@ -322,7 +322,7 @@ static inline int gisa_tac_ipm_gisc(struct kvm_s390_gisa *gisa, u32 gisc)
 	return test_and_clear_bit_inv(IPM_BIT_OFFSET + gisc, (unsigned long *) gisa);
 }
 
-static inline unsigned long pending_irqs_no_gisa(struct kvm_vcpu *vcpu)
+static inline unsigned long pending_irqs_yes_gisa(struct kvm_vcpu *vcpu)
 {
 	return vcpu->kvm->arch.float_int.pending_irqs |
 		vcpu->arch.local_int.pending_irqs;
@@ -333,7 +333,7 @@ static inline unsigned long pending_irqs(struct kvm_vcpu *vcpu)
 	struct kvm_s390_gisa_interrupt *gi = &vcpu->kvm->arch.gisa_int;
 	unsigned long pending_mask;
 
-	pending_mask = pending_irqs_no_gisa(vcpu);
+	pending_mask = pending_irqs_yes_gisa(vcpu);
 	if (gi->origin)
 		pending_mask |= gisa_get_ipm(gi->origin) << IRQ_PEND_IO_ISC_7;
 	return pending_mask;
@@ -433,7 +433,7 @@ static void __reset_intercept_indicators(struct kvm_vcpu *vcpu)
 
 static void set_intercept_indicators_io(struct kvm_vcpu *vcpu)
 {
-	if (!(pending_irqs_no_gisa(vcpu) & IRQ_PEND_IO_MASK))
+	if (!(pending_irqs_yes_gisa(vcpu) & IRQ_PEND_IO_MASK))
 		return;
 	if (psw_ioint_disabled(vcpu))
 		kvm_s390_set_cpuflags(vcpu, CPUSTAT_IO_INT);
@@ -443,7 +443,7 @@ static void set_intercept_indicators_io(struct kvm_vcpu *vcpu)
 
 static void set_intercept_indicators_ext(struct kvm_vcpu *vcpu)
 {
-	if (!(pending_irqs_no_gisa(vcpu) & IRQ_PEND_EXT_MASK))
+	if (!(pending_irqs_yes_gisa(vcpu) & IRQ_PEND_EXT_MASK))
 		return;
 	if (psw_extint_disabled(vcpu))
 		kvm_s390_set_cpuflags(vcpu, CPUSTAT_EXT_INT);
@@ -453,7 +453,7 @@ static void set_intercept_indicators_ext(struct kvm_vcpu *vcpu)
 
 static void set_intercept_indicators_mchk(struct kvm_vcpu *vcpu)
 {
-	if (!(pending_irqs_no_gisa(vcpu) & IRQ_PEND_MCHK_MASK))
+	if (!(pending_irqs_yes_gisa(vcpu) & IRQ_PEND_MCHK_MASK))
 		return;
 	if (psw_mchk_disabled(vcpu))
 		vcpu->arch.sie_block->ictl |= ICTL_LPSW;
@@ -467,7 +467,7 @@ static void set_intercept_indicators_stop(struct kvm_vcpu *vcpu)
 		kvm_s390_set_cpuflags(vcpu, CPUSTAT_STOP_INT);
 }
 
-/* Set interception request for non-deliverable interrupts */
+/* Set interception request for yesn-deliverable interrupts */
 static void set_intercept_indicators(struct kvm_vcpu *vcpu)
 {
 	set_intercept_indicators_io(vcpu);
@@ -1091,7 +1091,7 @@ static int __must_check __deliver_io(struct kvm_vcpu *vcpu,
 
 	if (gi->origin && gisa_tac_ipm_gisc(gi->origin, isc)) {
 		/*
-		 * in case an adapter interrupt was not delivered
+		 * in case an adapter interrupt was yest delivered
 		 * in SIE context KVM will handle the delivery
 		 */
 		VCPU_EVENT(vcpu, 4, "%s isc %u", "deliver: I/O (AI/gisa)", isc);
@@ -1110,7 +1110,7 @@ out:
 	return rc;
 }
 
-/* Check whether an external call is pending (deliverable or not) */
+/* Check whether an external call is pending (deliverable or yest) */
 int kvm_s390_ext_call_pending(struct kvm_vcpu *vcpu)
 {
 	struct kvm_s390_local_interrupt *li = &vcpu->arch.local_int;
@@ -1147,16 +1147,16 @@ int kvm_cpu_has_pending_timer(struct kvm_vcpu *vcpu)
 
 static u64 __calculate_sltime(struct kvm_vcpu *vcpu)
 {
-	const u64 now = kvm_s390_get_tod_clock_fast(vcpu->kvm);
+	const u64 yesw = kvm_s390_get_tod_clock_fast(vcpu->kvm);
 	const u64 ckc = vcpu->arch.sie_block->ckc;
 	u64 cputm, sltime = 0;
 
 	if (ckc_interrupts_enabled(vcpu)) {
 		if (vcpu->arch.sie_block->gcr[0] & CR0_CLOCK_COMPARATOR_SIGN) {
-			if ((s64)now < (s64)ckc)
-				sltime = tod_to_ns((s64)ckc - (s64)now);
-		} else if (now < ckc) {
-			sltime = tod_to_ns(ckc - now);
+			if ((s64)yesw < (s64)ckc)
+				sltime = tod_to_ns((s64)ckc - (s64)yesw);
+		} else if (yesw < ckc) {
+			sltime = tod_to_ns(ckc - yesw);
 		}
 		/* already expired */
 		if (!sltime)
@@ -1202,7 +1202,7 @@ int kvm_s390_handle_wait(struct kvm_vcpu *vcpu)
 	    !cpu_timer_interrupts_enabled(vcpu)) {
 		VCPU_EVENT(vcpu, 3, "%s", "enabled wait w/o timer");
 		__set_cpu_idle(vcpu);
-		goto no_timer;
+		goto yes_timer;
 	}
 
 	sltime = __calculate_sltime(vcpu);
@@ -1212,7 +1212,7 @@ int kvm_s390_handle_wait(struct kvm_vcpu *vcpu)
 	__set_cpu_idle(vcpu);
 	hrtimer_start(&vcpu->arch.ckc_timer, sltime, HRTIMER_MODE_REL);
 	VCPU_EVENT(vcpu, 4, "enabled wait: %llu ns", sltime);
-no_timer:
+yes_timer:
 	srcu_read_unlock(&vcpu->kvm->srcu, vcpu->srcu_idx);
 	kvm_vcpu_block(vcpu);
 	__unset_cpu_idle(vcpu);
@@ -1228,7 +1228,7 @@ void kvm_s390_vcpu_wakeup(struct kvm_vcpu *vcpu)
 	kvm_vcpu_wake_up(vcpu);
 
 	/*
-	 * The VCPU might not be sleeping but rather executing VSIE. Let's
+	 * The VCPU might yest be sleeping but rather executing VSIE. Let's
 	 * kick it, so it leaves the SIE to process the request.
 	 */
 	kvm_s390_vsie_kick(vcpu);
@@ -1243,10 +1243,10 @@ enum hrtimer_restart kvm_s390_idle_wakeup(struct hrtimer *timer)
 	sltime = __calculate_sltime(vcpu);
 
 	/*
-	 * If the monotonic clock runs faster than the tod clock we might be
+	 * If the moyestonic clock runs faster than the tod clock we might be
 	 * woken up too early and have to go back to sleep to avoid deadlocks.
 	 */
-	if (sltime && hrtimer_forward_now(timer, ns_to_ktime(sltime)))
+	if (sltime && hrtimer_forward_yesw(timer, ns_to_ktime(sltime)))
 		return HRTIMER_RESTART;
 	kvm_s390_vcpu_wakeup(vcpu);
 	return HRTIMER_NORESTART;
@@ -1336,7 +1336,7 @@ int __must_check kvm_s390_deliver_pending_interrupts(struct kvm_vcpu *vcpu)
 			rc = __deliver_virtio(vcpu);
 			break;
 		default:
-			WARN_ONCE(1, "Unknown pending irq type %ld", irq_type);
+			WARN_ONCE(1, "Unkyeswn pending irq type %ld", irq_type);
 			clear_bit(irq_type, &li->pending_irqs);
 		}
 	}
@@ -1356,7 +1356,7 @@ static int __inject_prog(struct kvm_vcpu *vcpu, struct kvm_s390_irq *irq)
 				   irq->u.pgm.code, 0);
 
 	if (!(irq->u.pgm.flags & KVM_S390_PGM_FLAGS_ILC_VALID)) {
-		/* auto detection if no valid ILC was given */
+		/* auto detection if yes valid ILC was given */
 		irq->u.pgm.flags &= ~KVM_S390_PGM_FLAGS_ILC_MASK;
 		irq->u.pgm.flags |= kvm_s390_get_ilen(vcpu);
 		irq->u.pgm.flags |= KVM_S390_PGM_FLAGS_ILC_VALID;
@@ -1374,7 +1374,7 @@ static int __inject_prog(struct kvm_vcpu *vcpu, struct kvm_s390_irq *irq)
 		li->irq.pgm.code = (li->irq.pgm.code & PGM_PER) |
 				   irq->u.pgm.code;
 		li->irq.pgm.flags = irq->u.pgm.flags;
-		/* only modify non-PER information */
+		/* only modify yesn-PER information */
 		li->irq.pgm.trans_exc_code = irq->u.pgm.trans_exc_code;
 		li->irq.pgm.mon_code = irq->u.pgm.mon_code;
 		li->irq.pgm.data_exc_code = irq->u.pgm.data_exc_code;
@@ -1525,7 +1525,7 @@ static int __inject_mchk(struct kvm_vcpu *vcpu, struct kvm_s390_irq *irq)
 	 * Because repressible machine checks can be indicated along with
 	 * exigent machine checks (PoP, Chapter 11, Interruption action)
 	 * we need to combine cr14, mcic and external damage code.
-	 * Failing storage address and the logout area should not be or'ed
+	 * Failing storage address and the logout area should yest be or'ed
 	 * together, we just indicate the last occurrence of the corresponding
 	 * machine check
 	 */
@@ -1636,9 +1636,9 @@ out:
  * subclasses as designated by the isc mask in cr6 and the schid (if != 0).
  * Take into account the interrupts pending in the interrupt list and in GISA.
  *
- * Note that for a guest that does not enable I/O interrupts
+ * Note that for a guest that does yest enable I/O interrupts
  * but relies on TPI, a flood of classic interrupts may starve
- * out adapter interrupts on the same isc. Linux does not do
+ * out adapter interrupts on the same isc. Linux does yest do
  * that, and it is possible to work around the issue by configuring
  * different iscs for classic and adapter interrupts in the guest,
  * but we may want to revisit this in the future.
@@ -1654,11 +1654,11 @@ struct kvm_s390_interrupt_info *kvm_s390_get_io_int(struct kvm *kvm,
 
 	isc = get_top_gisa_isc(kvm, isc_mask, schid);
 	if (isc < 0)
-		/* no AI in GISA */
+		/* yes AI in GISA */
 		goto out;
 
 	if (!inti)
-		/* AI in GISA but no classical IO int */
+		/* AI in GISA but yes classical IO int */
 		goto gisa_out;
 
 	/* both types of interrupts present */
@@ -1694,9 +1694,9 @@ static int __inject_service(struct kvm *kvm,
 	fi->srv_signal.ext_params |= inti->ext.ext_params & SCCB_EVENT_PENDING;
 	/*
 	 * Early versions of the QEMU s390 bios will inject several
-	 * service interrupts after another without handling a
+	 * service interrupts after ayesther without handling a
 	 * condition code indicating busy.
-	 * We will silently ignore those superfluous sccb values.
+	 * We will silently igyesre those superfluous sccb values.
 	 * A future version of QEMU will take care of serialization
 	 * of servc requests
 	 */
@@ -1903,7 +1903,7 @@ int kvm_s390_inject_vm(struct kvm *kvm,
 	case KVM_S390_MCHK:
 		VM_EVENT(kvm, 3, "inject: machine check mcic 0x%llx",
 			 s390int->parm64);
-		inti->mchk.cr14 = s390int->parm; /* upper bits are not used */
+		inti->mchk.cr14 = s390int->parm; /* upper bits are yest used */
 		inti->mchk.mcic = s390int->parm64;
 		break;
 	case KVM_S390_INT_IO_MIN...KVM_S390_INT_IO_MAX:
@@ -2123,7 +2123,7 @@ static int get_all_floating_irqs(struct kvm *kvm, u8 __user *usrbuf, u64 len)
 			if (n == max_irqs) {
 				/* signal userspace to try again */
 				ret = -ENOMEM;
-				goto out_nolock;
+				goto out_yeslock;
 			}
 			if (gisa_tac_ipm_gisc(gi->origin, i)) {
 				irq = (struct kvm_s390_irq *) &buf[n];
@@ -2171,7 +2171,7 @@ static int get_all_floating_irqs(struct kvm *kvm, u8 __user *usrbuf, u64 len)
 
 out:
 	spin_unlock(&fi->lock);
-out_nolock:
+out_yeslock:
 	if (!ret && n > 0) {
 		if (copy_to_user(usrbuf, buf, sizeof(struct kvm_s390_irq) * n))
 			ret = -EFAULT;
@@ -2300,7 +2300,7 @@ static struct s390_io_adapter *get_io_adapter(struct kvm *kvm, unsigned int id)
 {
 	if (id >= MAX_S390_IO_ADAPTERS)
 		return NULL;
-	id = array_index_nospec(id, MAX_S390_IO_ADAPTERS);
+	id = array_index_yesspec(id, MAX_S390_IO_ADAPTERS);
 	return kvm->arch.adapters[id];
 }
 
@@ -2317,7 +2317,7 @@ static int register_io_adapter(struct kvm_device *dev,
 	if (adapter_info.id >= MAX_S390_IO_ADAPTERS)
 		return -EINVAL;
 
-	adapter_info.id = array_index_nospec(adapter_info.id,
+	adapter_info.id = array_index_yesspec(adapter_info.id,
 					     MAX_S390_IO_ADAPTERS);
 
 	if (dev->kvm->arch.adapters[adapter_info.id] != NULL)
@@ -2611,7 +2611,7 @@ static int flic_set_attr(struct kvm_device *dev, struct kvm_device_attr *attr)
 	case KVM_DEV_FLIC_APF_DISABLE_WAIT:
 		dev->kvm->arch.gmap->pfault_enabled = 0;
 		/*
-		 * Make sure no async faults are in transition when
+		 * Make sure yes async faults are in transition when
 		 * clearing the queues. So we don't need to worry
 		 * about late coming workers.
 		 */
@@ -2748,7 +2748,7 @@ static int adapter_indicators_set(struct kvm *kvm,
 }
 
 /*
- * < 0 - not injected due to error
+ * < 0 - yest injected due to error
  * = 0 - coalesced, summary indicator already active
  * > 0 - injected interrupt
  */
@@ -2786,7 +2786,7 @@ void kvm_s390_reinject_machine_check(struct kvm_vcpu *vcpu,
 	struct kvm_s390_irq irq;
 	struct kvm_s390_mchk_info *mchk;
 	union mci mci;
-	__u64 cr14 = 0;         /* upper bits are not used */
+	__u64 cr14 = 0;         /* upper bits are yest used */
 	int rc;
 
 	mci.val = mcck_info->mcic;
@@ -2993,7 +2993,7 @@ static void __airqs_kick_single_vcpu(struct kvm *kvm, u8 deliverable_mask)
 			continue;
 		deliverable_mask &= (u8)(vcpu->arch.sie_block->gcr[6] >> 24);
 		if (deliverable_mask) {
-			/* lately kicked but not yet running */
+			/* lately kicked but yest yet running */
 			if (test_and_set_bit(vcpu_id, gi->kicked_mask))
 				return;
 			kvm_s390_vcpu_wakeup(vcpu);
@@ -3013,7 +3013,7 @@ static enum hrtimer_restart gisa_vcpu_kicker(struct hrtimer *timer)
 	pending_mask = gisa_get_ipm_or_restore_iam(gi);
 	if (pending_mask) {
 		__airqs_kick_single_vcpu(kvm, pending_mask);
-		hrtimer_forward_now(timer, ns_to_ktime(gi->expires));
+		hrtimer_forward_yesw(timer, ns_to_ktime(gi->expires));
 		return HRTIMER_RESTART;
 	};
 
@@ -3043,7 +3043,7 @@ static void process_gib_alert_list(void)
 		 * Cut off the alert list and store the NONE_GISA_ADDR in the
 		 * alert list origin to avoid further GAL interruptions.
 		 * A new alert list can be build up by millicode in parallel
-		 * for guests not in the yet cut-off alert list. When in the
+		 * for guests yest in the yet cut-off alert list. When in the
 		 * final loop, store the NULL_GISA_ADDR instead. This will re-
 		 * enable GAL interruptions on the host again.
 		 */
@@ -3118,13 +3118,13 @@ void kvm_s390_gisa_destroy(struct kvm *kvm)
  *
  * The function extends the vm specific alert mask to use.
  * The effective IAM mask in the GISA is updated as well
- * in case the GISA is not part of the GIB alert list.
+ * in case the GISA is yest part of the GIB alert list.
  * It will be updated latest when the IAM gets restored
  * by gisa_get_ipm_or_restore_iam().
  *
- * Returns: the nonspecific ISC (NISC) the gib alert mechanism
+ * Returns: the yesnspecific ISC (NISC) the gib alert mechanism
  *          has registered with the channel subsystem.
- *          -ENODEV in case the vm uses no GISA
+ *          -ENODEV in case the vm uses yes GISA
  *          -ERANGE in case the guest ISC is invalid
  */
 int kvm_s390_gisc_register(struct kvm *kvm, u32 gisc)
@@ -3156,15 +3156,15 @@ EXPORT_SYMBOL_GPL(kvm_s390_gisc_register);
  *
  * The function reduces the vm specific alert mask to use.
  * The effective IAM mask in the GISA is updated as well
- * in case the GISA is not part of the GIB alert list.
+ * in case the GISA is yest part of the GIB alert list.
  * It will be updated latest when the IAM gets restored
  * by gisa_get_ipm_or_restore_iam().
  *
- * Returns: the nonspecific ISC (NISC) the gib alert mechanism
+ * Returns: the yesnspecific ISC (NISC) the gib alert mechanism
  *          has registered with the channel subsystem.
- *          -ENODEV in case the vm uses no GISA
+ *          -ENODEV in case the vm uses yes GISA
  *          -ERANGE in case the guest ISC is invalid
- *          -EINVAL in case the guest ISC is not registered
+ *          -EINVAL in case the guest ISC is yest registered
  */
 int kvm_s390_gisc_unregister(struct kvm *kvm, u32 gisc)
 {
@@ -3219,7 +3219,7 @@ int kvm_s390_gib_init(u8 nisc)
 	int rc = 0;
 
 	if (!css_general_characteristics.aiv) {
-		KVM_EVENT(3, "%s", "gib not initialized, no AIV facility");
+		KVM_EVENT(3, "%s", "gib yest initialized, yes AIV facility");
 		goto out;
 	}
 

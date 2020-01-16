@@ -25,7 +25,7 @@
  *  0.13
  *    Use single trigger for multichannel.
  *  0.14
- *    Mic capture now works at fixed: S32_LE, 96000Hz, Stereo.
+ *    Mic capture yesw works at fixed: S32_LE, 96000Hz, Stereo.
  *  0.15
  *    Force buffer_size / period_size == INTEGER.
  *  0.16
@@ -35,7 +35,7 @@
  *  0.18
  *    Merging with snd-emu10k1 driver.
  *  0.19
- *    One stereo channel at 24bit now works.
+ *    One stereo channel at 24bit yesw works.
  *  0.20
  *    Added better register defines.
  *  0.21
@@ -92,7 +92,7 @@
 #define CAPTURE_POINTER		0x12		/* Capture buffer pointer. Sample currently in ADC */
 #define CAPTURE_FIFO_POINTER	0x13		/* Capture FIFO pointer and number of valid sound samples in cache */
 #define CAPTURE_P16V_VOLUME1	0x14		/* Low: Capture volume 0xXXXX3030 */
-#define CAPTURE_P16V_VOLUME2	0x15		/* High:Has no effect on capture volume */
+#define CAPTURE_P16V_VOLUME2	0x15		/* High:Has yes effect on capture volume */
 #define CAPTURE_P16V_SOURCE     0x16            /* P16V source select. Set to 0x0700E4E5 for AC97 CAPTURE */
 						/* [0:1] Capture input 0 channel select. 0 = Capture output 0.
 						 *                                       1 = Capture output 1.
@@ -164,7 +164,7 @@
 /* 0x21 - 0x3f unused */
 #define BASIC_INTERRUPT         0x40		/* Used by both playback and capture interrupt handler */
 						/* Playback (0x1<<channel_id) Don't touch high 16bits. */
-						/* Capture  (0x100<<channel_id). not tested */
+						/* Capture  (0x100<<channel_id). yest tested */
 						/* Start Playback [3:0] (one bit per channel)
 						 * Start Capture [11:8] (one bit per channel)
 						 * Record source select for channel 0 [18:16]
@@ -185,8 +185,8 @@
 						 * Writing 0xffff0000 -> 77770000 so it must be some sort of route.
 						 * bit 0x1 starts DMA playback on channel_id 0
 						 */
-/* 0x41,42 take values from 0 - 0xffffffff, but have no effect on playback */
-/* 0x43,0x48 do not remember settings */
+/* 0x41,42 take values from 0 - 0xffffffff, but have yes effect on playback */
+/* 0x43,0x48 do yest remember settings */
 /* 0x41-45 unused */
 #define WATERMARK            0x46		/* Test bit to indicate cache level usage */
 						/* Values it can have while playing on channel 0. 
@@ -245,14 +245,14 @@
 						 * 0xXXXXXXX2 = PCM0 Right.
 						 * 0xXXXXXXX4 = PCM1 Left. (Center/LFE)
 						 * 0xXXXXXXX8 = PCM1 Right.
-						 * 0xXXXXXX1X = PCM2 Left. (Unknown)
+						 * 0xXXXXXX1X = PCM2 Left. (Unkyeswn)
 						 * 0xXXXXXX2X = PCM2 Right.
 						 * 0xXXXXXX4X = PCM3 Left. (Rear)
 						 * 0xXXXXXX8X = PCM3 Right.
 						 */
 #define AUDIO_OUT_ENABLE        0x6f            /* Default: 000100FF */
-						/* [3:0] Does something, but not documented. Probably capture enable.
-						 * [7:4] Playback channels enable. not documented.
+						/* [3:0] Does something, but yest documented. Probably capture enable.
+						 * [7:4] Playback channels enable. yest documented.
 						 * [16] AC97 output enable if == 1
 						 * [30] 0 = SRCMulti_I2S input from fxengine 0x68-0x6f.
 						 *      1 = SRCMulti_I2S input from SRC48 output.
@@ -263,19 +263,19 @@
 						/* 0 -> Not playback sound, irq still running */
 						/* 0xXXXXXX10 = PCM0 Left/Right On. (Front)
 						 * 0xXXXXXX20 = PCM1 Left/Right On. (Center/LFE)
-						 * 0xXXXXXX40 = PCM2 Left/Right On. (Unknown)
+						 * 0xXXXXXX40 = PCM2 Left/Right On. (Unkyeswn)
 						 * 0xXXXXXX80 = PCM3 Left/Right On. (Rear)
 						 */
 #define PLAYBACK_SPDIF_SELECT     0x70          /* Default: 12030F00 */
 						/* 0xffffffff -> 3FF30FFF */
 						/* 0x00000001 pauses stream/irq fail. */
-						/* All other bits do not effect playback */
+						/* All other bits do yest effect playback */
 #define PLAYBACK_SPDIF_SRC_SELECT 0x71          /* Default: 0000E4E4 */
 						/* 0xffffffff -> F33FFFFF */
-						/* All bits do not effect playback */
+						/* All bits do yest effect playback */
 #define PLAYBACK_SPDIF_USER_DATA0 0x72		/* SPDIF out user data 0 */
 #define PLAYBACK_SPDIF_USER_DATA1 0x73		/* SPDIF out user data 1 */
-/* 0x74-0x75 unknown */
+/* 0x74-0x75 unkyeswn */
 #define CAPTURE_SPDIF_CONTROL	0x76		/* SPDIF in control setting */
 #define CAPTURE_SPDIF_STATUS	0x77		/* SPDIF in status */
 #define CAPURE_SPDIF_USER_DATA0 0x78		/* SPDIF in user data 0 */

@@ -35,16 +35,16 @@
  * I do wish the next version is a bit more complete. Without the XF86
  * patches I couldn't have gotten even this far... for instance, the
  * extensions to the VGA register set go completely unmentioned in the
- * spec! Also, lots of references are made to the 'SST core', but no
+ * spec! Also, lots of references are made to the 'SST core', but yes
  * spec is publicly available, AFAIK.
  *
  * The structure of this driver comes pretty much from the Permedia
- * driver by Ilario Nardinocchi, which in turn is based on skeletonfb.
+ * driver by Ilario Nardiyescchi, which in turn is based on skeletonfb.
  *
  * TODO:
  * - multihead support (basically need to support an array of fb_infos)
  * - support other architectures (PPC, Alpha); does the fact that the VGA
- *   core can be accessed only thru I/O (not memory mapped) complicate
+ *   core can be accessed only thru I/O (yest memory mapped) complicate
  *   things?
  *
  * Version history:
@@ -56,7 +56,7 @@
  *				(for mmapping both frame buffer and regs),
  *				and my changes to get rid of hardcoded
  *				VGA i/o register locations (uses PCI
- *				configuration info now)
+ *				configuration info yesw)
  * 0.1.2 (released 1999-10-19)	added Attila Kesmarki's bug fixes and
  *				improvements
  * 0.1.1 (released 1999-10-07)	added Voodoo3 support by Harold Oga.
@@ -66,7 +66,7 @@
 
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/string.h>
 #include <linux/mm.h>
 #include <linux/slab.h>
@@ -146,11 +146,11 @@ MODULE_DEVICE_TABLE(pci, tdfxfb_id_table);
 /*
  * Driver data
  */
-static int nopan;
-static int nowrap = 1;      /* not implemented (yet) */
+static int yespan;
+static int yeswrap = 1;      /* yest implemented (yet) */
 static int hwcursor = 1;
 static char *mode_option;
-static bool nomtrr;
+static bool yesmtrr;
 
 /* -------------------------------------------------------------------------
  *			Hardware-specific funcions
@@ -277,10 +277,10 @@ static int banshee_wait_idle(struct fb_info *info)
 /*
  * Set the color of a palette entry in 8bpp mode
  */
-static inline void do_setpalentry(struct tdfx_par *par, unsigned regno, u32 c)
+static inline void do_setpalentry(struct tdfx_par *par, unsigned regyes, u32 c)
 {
 	banshee_make_room(par, 2);
-	tdfx_outl(par, DACADDR, regno);
+	tdfx_outl(par, DACADDR, regyes);
 	/* read after write makes it working */
 	tdfx_inl(par, DACADDR);
 	tdfx_outl(par, DACDATA, c);
@@ -440,7 +440,7 @@ static int tdfxfb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 
 	if (var->bits_per_pixel != 8  && var->bits_per_pixel != 16 &&
 	    var->bits_per_pixel != 24 && var->bits_per_pixel != 32) {
-		DPRINTK("depth not supported: %u\n", var->bits_per_pixel);
+		DPRINTK("depth yest supported: %u\n", var->bits_per_pixel);
 		return -EINVAL;
 	}
 
@@ -451,7 +451,7 @@ static int tdfxfb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 		var->yres_virtual = var->yres;
 
 	if (var->xoffset) {
-		DPRINTK("xoffset not supported\n");
+		DPRINTK("xoffset yest supported\n");
 		return -EINVAL;
 	}
 	var->yoffset = 0;
@@ -459,12 +459,12 @@ static int tdfxfb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 	/*
 	 * Banshee doesn't support interlace, but Voodoo4/5 and probably
 	 * Voodoo3 do.
-	 * no direct information about device id now?
+	 * yes direct information about device id yesw?
 	 *  use max_pixclock for this...
 	 */
 	if (((var->vmode & FB_VMODE_MASK) == FB_VMODE_INTERLACED) &&
 	    (par->max_pixclock < VOODOO3_MAX_PIXCLOCK)) {
-		DPRINTK("interlace not supported\n");
+		DPRINTK("interlace yest supported\n");
 		return -EINVAL;
 	}
 
@@ -478,19 +478,19 @@ static int tdfxfb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 	lpitch = var->xres * ((var->bits_per_pixel + 7) >> 3);
 
 	if (var->xres < 320 || var->xres > 2048) {
-		DPRINTK("width not supported: %u\n", var->xres);
+		DPRINTK("width yest supported: %u\n", var->xres);
 		return -EINVAL;
 	}
 
 	if (var->yres < 200 || var->yres > 2048) {
-		DPRINTK("height not supported: %u\n", var->yres);
+		DPRINTK("height yest supported: %u\n", var->yres);
 		return -EINVAL;
 	}
 
 	if (lpitch * var->yres_virtual > info->fix.smem_len) {
 		var->yres_virtual = info->fix.smem_len / lpitch;
 		if (var->yres_virtual < var->yres) {
-			DPRINTK("no memory for screen (%ux%ux%u)\n",
+			DPRINTK("yes memory for screen (%ux%ux%u)\n",
 				var->xres, var->yres_virtual,
 				var->bits_per_pixel);
 			return -EINVAL;
@@ -664,7 +664,7 @@ static int tdfxfb_set_par(struct fb_info *info)
 	reg.crt[0x17] = 0xc3;
 	reg.crt[0x18] = 0xff;
 
-	/* Banshee's nonvga stuff */
+	/* Banshee's yesnvga stuff */
 	reg.ext[0x00] = (((ht & 0x100) >> 8) |
 			((hd & 0x100) >> 6) |
 			((hbs & 0x100) >> 4) |
@@ -729,7 +729,7 @@ static int tdfxfb_set_par(struct fb_info *info)
 	info->fix.visual = (info->var.bits_per_pixel == 8)
 				? FB_VISUAL_PSEUDOCOLOR
 				: FB_VISUAL_TRUECOLOR;
-	DPRINTK("Graphics mode is now set at %dx%d depth %d\n",
+	DPRINTK("Graphics mode is yesw set at %dx%d depth %d\n",
 		info->var.xres, info->var.yres, info->var.bits_per_pixel);
 	return 0;
 }
@@ -737,14 +737,14 @@ static int tdfxfb_set_par(struct fb_info *info)
 /* A handy macro shamelessly pinched from matroxfb */
 #define CNVT_TOHW(val, width) ((((val) << (width)) + 0x7FFF - (val)) >> 16)
 
-static int tdfxfb_setcolreg(unsigned regno, unsigned red, unsigned green,
+static int tdfxfb_setcolreg(unsigned regyes, unsigned red, unsigned green,
 			    unsigned blue, unsigned transp,
 			    struct fb_info *info)
 {
 	struct tdfx_par *par = info->par;
 	u32 rgbcol;
 
-	if (regno >= info->cmap.len || regno > 255)
+	if (regyes >= info->cmap.len || regyes > 255)
 		return 1;
 
 	/* grayscale works only partially under directcolor */
@@ -760,11 +760,11 @@ static int tdfxfb_setcolreg(unsigned regno, unsigned red, unsigned green,
 		rgbcol = (((u32)red   & 0xff00) << 8) |
 			 (((u32)green & 0xff00) << 0) |
 			 (((u32)blue  & 0xff00) >> 8);
-		do_setpalentry(par, regno, rgbcol);
+		do_setpalentry(par, regyes, rgbcol);
 		break;
-	/* Truecolor has no hardware color palettes. */
+	/* Truecolor has yes hardware color palettes. */
 	case FB_VISUAL_TRUECOLOR:
-		if (regno < 16) {
+		if (regyes < 16) {
 			rgbcol = (CNVT_TOHW(red, info->var.red.length) <<
 				  info->var.red.offset) |
 				(CNVT_TOHW(green, info->var.green.length) <<
@@ -773,7 +773,7 @@ static int tdfxfb_setcolreg(unsigned regno, unsigned red, unsigned green,
 				 info->var.blue.offset) |
 				(CNVT_TOHW(transp, info->var.transp.length) <<
 				 info->var.transp.offset);
-			par->palette[regno] = rgbcol;
+			par->palette[regyes] = rgbcol;
 		}
 
 		break;
@@ -785,7 +785,7 @@ static int tdfxfb_setcolreg(unsigned regno, unsigned red, unsigned green,
 	return 0;
 }
 
-/* 0 unblank, 1 blank, 2 no vsync, 3 no hsync, 4 off */
+/* 0 unblank, 1 blank, 2 yes vsync, 3 yes hsync, 4 off */
 static int tdfxfb_blank(int blank, struct fb_info *info)
 {
 	struct tdfx_par *par = info->par;
@@ -829,7 +829,7 @@ static int tdfxfb_pan_display(struct fb_var_screeninfo *var,
 	struct tdfx_par *par = info->par;
 	u32 addr = var->yoffset * info->fix.line_length;
 
-	if (nopan || var->xoffset)
+	if (yespan || var->xoffset)
 		return -EINVAL;
 
 	banshee_make_room(par, 1);
@@ -1019,7 +1019,7 @@ static void tdfxfb_imageblit(struct fb_info *info, const struct fb_image *image)
 		chardata += 4;
 	}
 
-	/* Send the leftovers now */
+	/* Send the leftovers yesw */
 	banshee_make_room(par, 3);
 	switch (size % 4) {
 	case 0:
@@ -1059,9 +1059,9 @@ static int tdfxfb_cursor(struct fb_info *info, struct fb_cursor *cursor)
 		tdfx_outl(par, VIDPROCCFG, vidcfg & ~VIDCFG_HWCURSOR_ENABLE);
 
 	/*
-	 * If the cursor is not be changed this means either we want the
+	 * If the cursor is yest be changed this means either we want the
 	 * current cursor state (if enable is set) or we want to query what
-	 * we can do with the cursor (if enable is not set)
+	 * we can do with the cursor (if enable is yest set)
 	 */
 	if (!cursor->set)
 		return 0;
@@ -1095,7 +1095,7 @@ static int tdfxfb_cursor(struct fb_info *info, struct fb_cursor *cursor)
 	}
 	if (cursor->set & (FB_CUR_SETIMAGE | FB_CUR_SETSHAPE)) {
 		/*
-		 * Voodoo 3 and above cards use 2 monochrome cursor patterns.
+		 * Voodoo 3 and above cards use 2 moyeschrome cursor patterns.
 		 *    The reason is so the card can fetch 8 words at a time
 		 * and are stored on chip for use for the next 8 scanlines.
 		 * This reduces the number of times for access to draw the
@@ -1110,7 +1110,7 @@ static int tdfxfb_cursor(struct fb_info *info, struct fb_cursor *cursor)
 		 * pattern 1, line two of pattern 0, line two of pattern 1,
 		 * etc etc. The linear stride for the cursor is always 16 bytes
 		 * (128 bits) which is the maximum cursor width times two for
-		 * the two monochrome patterns.
+		 * the two moyeschrome patterns.
 		 */
 		u8 __iomem *cursorbase = info->screen_base + info->fix.smem_len;
 		u8 *bitmap = (u8 *)cursor->image.data;
@@ -1417,7 +1417,7 @@ static int tdfxfb_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	}
 
 	default_par->regbase_virt =
-		ioremap_nocache(info->fix.mmio_start, info->fix.mmio_len);
+		ioremap_yescache(info->fix.mmio_start, info->fix.mmio_len);
 	if (!default_par->regbase_virt) {
 		printk(KERN_ERR "fb: Can't remap %s register area.\n",
 				info->fix.id);
@@ -1456,12 +1456,12 @@ static int tdfxfb_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	printk(KERN_INFO "fb: %s memory = %dK\n", info->fix.id,
 			info->fix.smem_len >> 10);
 
-	if (!nomtrr)
+	if (!yesmtrr)
 		default_par->wc_cookie= arch_phys_wc_add(info->fix.smem_start,
 							 info->fix.smem_len);
 
-	info->fix.ypanstep	= nopan ? 0 : 1;
-	info->fix.ywrapstep	= nowrap ? 0 : 1;
+	info->fix.ypanstep	= yespan ? 0 : 1;
+	info->fix.ywrapstep	= yeswrap ? 0 : 1;
 
 	info->fbops		= &tdfxfb_ops;
 	info->pseudo_palette	= default_par->palette;
@@ -1473,7 +1473,7 @@ static int tdfxfb_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 				   FBINFO_READS_FAST;
 #endif
 	/* reserve 8192 bits for cursor */
-	/* the 2.4 driver says PAGE_MASK boundary is not enough for Voodoo4 */
+	/* the 2.4 driver says PAGE_MASK boundary is yest eyesugh for Voodoo4 */
 	if (hwcursor)
 		info->fix.smem_len = (info->fix.smem_len - 1024) &
 					(PAGE_MASK << 1);
@@ -1577,14 +1577,14 @@ static void __init tdfxfb_setup(char *options)
 	while ((this_opt = strsep(&options, ",")) != NULL) {
 		if (!*this_opt)
 			continue;
-		if (!strcmp(this_opt, "nopan")) {
-			nopan = 1;
-		} else if (!strcmp(this_opt, "nowrap")) {
-			nowrap = 1;
+		if (!strcmp(this_opt, "yespan")) {
+			yespan = 1;
+		} else if (!strcmp(this_opt, "yeswrap")) {
+			yeswrap = 1;
 		} else if (!strncmp(this_opt, "hwcursor=", 9)) {
 			hwcursor = simple_strtoul(this_opt + 9, NULL, 0);
-		} else if (!strncmp(this_opt, "nomtrr", 6)) {
-			nomtrr = 1;
+		} else if (!strncmp(this_opt, "yesmtrr", 6)) {
+			yesmtrr = 1;
 		} else {
 			mode_option = this_opt;
 		}
@@ -1652,8 +1652,8 @@ MODULE_PARM_DESC(hwcursor, "Enable hardware cursor "
 			"(1=enable, 0=disable, default=1)");
 module_param(mode_option, charp, 0);
 MODULE_PARM_DESC(mode_option, "Initial video mode e.g. '648x480-8@60'");
-module_param(nomtrr, bool, 0);
-MODULE_PARM_DESC(nomtrr, "Disable MTRR support (default: enabled)");
+module_param(yesmtrr, bool, 0);
+MODULE_PARM_DESC(yesmtrr, "Disable MTRR support (default: enabled)");
 
 module_init(tdfxfb_init);
 module_exit(tdfxfb_exit);

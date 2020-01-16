@@ -181,7 +181,7 @@ int main(int argc, char **argv)
 #else	/* SUPPORTED_ARCH */
 /*
  * This sample is x86-only.  Since kernel samples are compiled with the
- * host toolchain, a non-x86 host will result in using only the main()
+ * host toolchain, a yesn-x86 host will result in using only the main()
  * below.
  */
 int main(void)

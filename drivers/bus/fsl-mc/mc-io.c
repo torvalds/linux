@@ -56,7 +56,7 @@ static void fsl_mc_io_unset_dpmcp(struct fsl_mc_io *mc_io)
  * @mc_portal_phys_addr: physical address of the MC portal to use
  * @mc_portal_size: size in bytes of the MC portal
  * @dpmcp-dev: Pointer to the DPMCP object associated with this MC I/O
- * object or NULL if none.
+ * object or NULL if yesne.
  * @flags: flags for the new MC I/O object
  * @new_mc_io: Area to return pointer to newly created MC I/O object
  *
@@ -97,12 +97,12 @@ int __must_check fsl_create_mc_io(struct device *dev,
 		return -EBUSY;
 	}
 
-	mc_portal_virt_addr = devm_ioremap_nocache(dev,
+	mc_portal_virt_addr = devm_ioremap_yescache(dev,
 						   mc_portal_phys_addr,
 						   mc_portal_size);
 	if (!mc_portal_virt_addr) {
 		dev_err(dev,
-			"devm_ioremap_nocache failed for MC portal %pa\n",
+			"devm_ioremap_yescache failed for MC portal %pa\n",
 			&mc_portal_phys_addr);
 		return -ENXIO;
 	}
@@ -190,11 +190,11 @@ int __must_check fsl_mc_portal_allocate(struct fsl_mc_device *mc_dev,
 
 	if (dpmcp_dev->obj_desc.ver_major < DPMCP_MIN_VER_MAJOR ||
 	    (dpmcp_dev->obj_desc.ver_major == DPMCP_MIN_VER_MAJOR &&
-	     dpmcp_dev->obj_desc.ver_minor < DPMCP_MIN_VER_MINOR)) {
+	     dpmcp_dev->obj_desc.ver_miyesr < DPMCP_MIN_VER_MINOR)) {
 		dev_err(&dpmcp_dev->dev,
-			"ERROR: Version %d.%d of DPMCP not supported.\n",
+			"ERROR: Version %d.%d of DPMCP yest supported.\n",
 			dpmcp_dev->obj_desc.ver_major,
-			dpmcp_dev->obj_desc.ver_minor);
+			dpmcp_dev->obj_desc.ver_miyesr);
 		error = -ENOTSUPP;
 		goto error_cleanup_resource;
 	}

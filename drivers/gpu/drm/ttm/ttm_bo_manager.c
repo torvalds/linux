@@ -12,7 +12,7 @@
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright yestice and this permission yestice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
  *
@@ -48,14 +48,14 @@ struct ttm_range_manager {
 	spinlock_t lock;
 };
 
-static int ttm_bo_man_get_node(struct ttm_mem_type_manager *man,
+static int ttm_bo_man_get_yesde(struct ttm_mem_type_manager *man,
 			       struct ttm_buffer_object *bo,
 			       const struct ttm_place *place,
 			       struct ttm_mem_reg *mem)
 {
 	struct ttm_range_manager *rman = (struct ttm_range_manager *) man->priv;
 	struct drm_mm *mm = &rman->mm;
-	struct drm_mm_node *node;
+	struct drm_mm_yesde *yesde;
 	enum drm_mm_insert_mode mode;
 	unsigned long lpfn;
 	int ret;
@@ -64,8 +64,8 @@ static int ttm_bo_man_get_node(struct ttm_mem_type_manager *man,
 	if (!lpfn)
 		lpfn = man->size;
 
-	node = kzalloc(sizeof(*node), GFP_KERNEL);
-	if (!node)
+	yesde = kzalloc(sizeof(*yesde), GFP_KERNEL);
+	if (!yesde)
 		return -ENOMEM;
 
 	mode = DRM_MM_INSERT_BEST;
@@ -73,34 +73,34 @@ static int ttm_bo_man_get_node(struct ttm_mem_type_manager *man,
 		mode = DRM_MM_INSERT_HIGH;
 
 	spin_lock(&rman->lock);
-	ret = drm_mm_insert_node_in_range(mm, node,
+	ret = drm_mm_insert_yesde_in_range(mm, yesde,
 					  mem->num_pages,
 					  mem->page_alignment, 0,
 					  place->fpfn, lpfn, mode);
 	spin_unlock(&rman->lock);
 
 	if (unlikely(ret)) {
-		kfree(node);
+		kfree(yesde);
 	} else {
-		mem->mm_node = node;
-		mem->start = node->start;
+		mem->mm_yesde = yesde;
+		mem->start = yesde->start;
 	}
 
 	return 0;
 }
 
-static void ttm_bo_man_put_node(struct ttm_mem_type_manager *man,
+static void ttm_bo_man_put_yesde(struct ttm_mem_type_manager *man,
 				struct ttm_mem_reg *mem)
 {
 	struct ttm_range_manager *rman = (struct ttm_range_manager *) man->priv;
 
-	if (mem->mm_node) {
+	if (mem->mm_yesde) {
 		spin_lock(&rman->lock);
-		drm_mm_remove_node(mem->mm_node);
+		drm_mm_remove_yesde(mem->mm_yesde);
 		spin_unlock(&rman->lock);
 
-		kfree(mem->mm_node);
-		mem->mm_node = NULL;
+		kfree(mem->mm_yesde);
+		mem->mm_yesde = NULL;
 	}
 }
 
@@ -149,8 +149,8 @@ static void ttm_bo_man_debug(struct ttm_mem_type_manager *man,
 const struct ttm_mem_type_manager_func ttm_bo_manager_func = {
 	.init = ttm_bo_man_init,
 	.takedown = ttm_bo_man_takedown,
-	.get_node = ttm_bo_man_get_node,
-	.put_node = ttm_bo_man_put_node,
+	.get_yesde = ttm_bo_man_get_yesde,
+	.put_yesde = ttm_bo_man_put_yesde,
 	.debug = ttm_bo_man_debug
 };
 EXPORT_SYMBOL(ttm_bo_manager_func);

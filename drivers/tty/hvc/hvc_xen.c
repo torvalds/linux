@@ -39,7 +39,7 @@ struct xencons_info {
 	unsigned int evtchn;
 	struct hvc_struct *hvc;
 	int irq;
-	int vtermno;
+	int vtermyes;
 	grant_ref_t gntref;
 };
 
@@ -48,7 +48,7 @@ static DEFINE_SPINLOCK(xencons_lock);
 
 /* ------------------------------------------------------------------ */
 
-static struct xencons_info *vtermno_to_xencons(int vtermno)
+static struct xencons_info *vtermyes_to_xencons(int vtermyes)
 {
 	struct xencons_info *entry, *n, *ret = NULL;
 
@@ -56,7 +56,7 @@ static struct xencons_info *vtermno_to_xencons(int vtermno)
 			return NULL;
 
 	list_for_each_entry_safe(entry, n, &xenconsoles, list) {
-		if (entry->vtermno == vtermno) {
+		if (entry->vtermyes == vtermyes) {
 			ret  = entry;
 			break;
 		}
@@ -65,15 +65,15 @@ static struct xencons_info *vtermno_to_xencons(int vtermno)
 	return ret;
 }
 
-static inline int xenbus_devid_to_vtermno(int devid)
+static inline int xenbus_devid_to_vtermyes(int devid)
 {
 	return devid + HVC_COOKIE;
 }
 
-static inline void notify_daemon(struct xencons_info *cons)
+static inline void yestify_daemon(struct xencons_info *cons)
 {
 	/* Use evtchn: this is called early, before irq is set up. */
-	notify_remote_via_evtchn(cons->evtchn);
+	yestify_remote_via_evtchn(cons->evtchn);
 }
 
 static int __write_console(struct xencons_info *xencons,
@@ -95,14 +95,14 @@ static int __write_console(struct xencons_info *xencons,
 	intf->out_prod = prod;
 
 	if (sent)
-		notify_daemon(xencons);
+		yestify_daemon(xencons);
 	return sent;
 }
 
-static int domU_write_console(uint32_t vtermno, const char *data, int len)
+static int domU_write_console(uint32_t vtermyes, const char *data, int len)
 {
 	int ret = len;
-	struct xencons_info *cons = vtermno_to_xencons(vtermno);
+	struct xencons_info *cons = vtermyes_to_xencons(vtermyes);
 	if (cons == NULL)
 		return -EINVAL;
 
@@ -125,12 +125,12 @@ static int domU_write_console(uint32_t vtermno, const char *data, int len)
 	return ret;
 }
 
-static int domU_read_console(uint32_t vtermno, char *buf, int len)
+static int domU_read_console(uint32_t vtermyes, char *buf, int len)
 {
 	struct xencons_interface *intf;
 	XENCONS_RING_IDX cons, prod;
 	int recv = 0;
-	struct xencons_info *xencons = vtermno_to_xencons(vtermno);
+	struct xencons_info *xencons = vtermyes_to_xencons(vtermyes);
 	if (xencons == NULL)
 		return -EINVAL;
 	intf = xencons->intf;
@@ -146,19 +146,19 @@ static int domU_read_console(uint32_t vtermno, char *buf, int len)
 	mb();			/* read ring before consuming */
 	intf->in_cons = cons;
 
-	notify_daemon(xencons);
+	yestify_daemon(xencons);
 	return recv;
 }
 
 static const struct hv_ops domU_hvc_ops = {
 	.get_chars = domU_read_console,
 	.put_chars = domU_write_console,
-	.notifier_add = notifier_add_irq,
-	.notifier_del = notifier_del_irq,
-	.notifier_hangup = notifier_hangup_irq,
+	.yestifier_add = yestifier_add_irq,
+	.yestifier_del = yestifier_del_irq,
+	.yestifier_hangup = yestifier_hangup_irq,
 };
 
-static int dom0_read_console(uint32_t vtermno, char *buf, int len)
+static int dom0_read_console(uint32_t vtermyes, char *buf, int len)
 {
 	return HYPERVISOR_console_io(CONSOLEIO_read, len, buf);
 }
@@ -167,7 +167,7 @@ static int dom0_read_console(uint32_t vtermno, char *buf, int len)
  * Either for a dom0 to write to the system console, or a domU with a
  * debug version of Xen
  */
-static int dom0_write_console(uint32_t vtermno, const char *str, int len)
+static int dom0_write_console(uint32_t vtermyes, const char *str, int len)
 {
 	int rc = HYPERVISOR_console_io(CONSOLEIO_write, len, (char *)str);
 	if (rc < 0)
@@ -179,9 +179,9 @@ static int dom0_write_console(uint32_t vtermno, const char *str, int len)
 static const struct hv_ops dom0_hvc_ops = {
 	.get_chars = dom0_read_console,
 	.put_chars = dom0_write_console,
-	.notifier_add = notifier_add_irq,
-	.notifier_del = notifier_del_irq,
-	.notifier_hangup = notifier_hangup_irq,
+	.yestifier_add = yestifier_add_irq,
+	.yestifier_del = yestifier_del_irq,
+	.yestifier_hangup = yestifier_hangup_irq,
 };
 
 static int xen_hvm_console_init(void)
@@ -194,7 +194,7 @@ static int xen_hvm_console_init(void)
 	if (!xen_hvm_domain())
 		return -ENODEV;
 
-	info = vtermno_to_xencons(HVC_COOKIE);
+	info = vtermyes_to_xencons(HVC_COOKIE);
 	if (!info) {
 		info = kzalloc(sizeof(struct xencons_info), GFP_KERNEL);
 		if (!info)
@@ -221,7 +221,7 @@ static int xen_hvm_console_init(void)
 	info->intf = xen_remap(gfn << XEN_PAGE_SHIFT, XEN_PAGE_SIZE);
 	if (info->intf == NULL)
 		goto err;
-	info->vtermno = HVC_COOKIE;
+	info->vtermyes = HVC_COOKIE;
 
 	spin_lock(&xencons_lock);
 	list_add_tail(&info->list, &xenconsoles);
@@ -233,12 +233,12 @@ err:
 	return -ENODEV;
 }
 
-static int xencons_info_pv_init(struct xencons_info *info, int vtermno)
+static int xencons_info_pv_init(struct xencons_info *info, int vtermyes)
 {
 	info->evtchn = xen_start_info->console.domU.evtchn;
 	/* GFN == MFN for PV guest */
 	info->intf = gfn_to_virt(xen_start_info->console.domU.mfn);
-	info->vtermno = vtermno;
+	info->vtermyes = vtermyes;
 
 	list_add_tail(&info->list, &xenconsoles);
 
@@ -255,7 +255,7 @@ static int xen_pv_console_init(void)
 	if (!xen_start_info->console.domU.evtchn)
 		return -ENODEV;
 
-	info = vtermno_to_xencons(HVC_COOKIE);
+	info = vtermyes_to_xencons(HVC_COOKIE);
 	if (!info) {
 		info = kzalloc(sizeof(struct xencons_info), GFP_KERNEL);
 		if (!info)
@@ -278,7 +278,7 @@ static int xen_initial_domain_console_init(void)
 	if (!xen_initial_domain())
 		return -ENODEV;
 
-	info = vtermno_to_xencons(HVC_COOKIE);
+	info = vtermyes_to_xencons(HVC_COOKIE);
 	if (!info) {
 		info = kzalloc(sizeof(struct xencons_info), GFP_KERNEL);
 		if (!info)
@@ -286,7 +286,7 @@ static int xen_initial_domain_console_init(void)
 	}
 
 	info->irq = bind_virq_to_irq(VIRQ_CONSOLE, 0, false);
-	info->vtermno = HVC_COOKIE;
+	info->vtermyes = HVC_COOKIE;
 
 	spin_lock(&xencons_lock);
 	list_add_tail(&info->list, &xenconsoles);
@@ -310,7 +310,7 @@ static void xen_console_update_evtchn(struct xencons_info *info)
 
 void xen_console_resume(void)
 {
-	struct xencons_info *info = vtermno_to_xencons(HVC_COOKIE);
+	struct xencons_info *info = vtermyes_to_xencons(HVC_COOKIE);
 	if (info != NULL && info->irq) {
 		if (!xen_initial_domain())
 			xen_console_update_evtchn(info);
@@ -339,7 +339,7 @@ static void xencons_free(struct xencons_info *info)
 {
 	free_page((unsigned long)info->intf);
 	info->intf = NULL;
-	info->vtermno = 0;
+	info->vtermyes = 0;
 	kfree(info);
 }
 
@@ -379,8 +379,8 @@ static int xencons_connect_backend(struct xenbus_device *dev,
 	if (irq < 0)
 		return irq;
 	info->irq = irq;
-	devid = dev->nodename[strlen(dev->nodename) - 1] - '0';
-	info->hvc = hvc_alloc(xenbus_devid_to_vtermno(devid),
+	devid = dev->yesdename[strlen(dev->yesdename) - 1] - '0';
+	info->hvc = hvc_alloc(xenbus_devid_to_vtermyes(devid),
 			irq, &domU_hvc_ops, 256);
 	if (IS_ERR(info->hvc))
 		return PTR_ERR(info->hvc);
@@ -400,10 +400,10 @@ static int xencons_connect_backend(struct xenbus_device *dev,
 		xenbus_dev_fatal(dev, ret, "starting transaction");
 		return ret;
 	}
-	ret = xenbus_printf(xbt, dev->nodename, "ring-ref", "%d", ref);
+	ret = xenbus_printf(xbt, dev->yesdename, "ring-ref", "%d", ref);
 	if (ret)
 		goto error_xenbus;
-	ret = xenbus_printf(xbt, dev->nodename, "port", "%u",
+	ret = xenbus_printf(xbt, dev->yesdename, "port", "%u",
 			    evtchn);
 	if (ret)
 		goto error_xenbus;
@@ -430,7 +430,7 @@ static int xencons_probe(struct xenbus_device *dev,
 	int ret, devid;
 	struct xencons_info *info;
 
-	devid = dev->nodename[strlen(dev->nodename) - 1] - '0';
+	devid = dev->yesdename[strlen(dev->yesdename) - 1] - '0';
 	if (devid == 0)
 		return -ENODEV;
 
@@ -439,10 +439,10 @@ static int xencons_probe(struct xenbus_device *dev,
 		return -ENOMEM;
 	dev_set_drvdata(&dev->dev, info);
 	info->xbdev = dev;
-	info->vtermno = xenbus_devid_to_vtermno(devid);
+	info->vtermyes = xenbus_devid_to_vtermyes(devid);
 	info->intf = (void *)__get_free_page(GFP_KERNEL | __GFP_ZERO);
 	if (!info->intf)
-		goto error_nomem;
+		goto error_yesmem;
 
 	ret = xencons_connect_backend(dev, info);
 	if (ret < 0)
@@ -453,7 +453,7 @@ static int xencons_probe(struct xenbus_device *dev,
 
 	return 0;
 
- error_nomem:
+ error_yesmem:
 	ret = -ENOMEM;
 	xenbus_dev_fatal(dev, ret, "allocating device memory");
  error:
@@ -479,7 +479,7 @@ static void xencons_backend_changed(struct xenbus_device *dev,
 	case XenbusStateReconfigured:
 	case XenbusStateInitialising:
 	case XenbusStateInitialised:
-	case XenbusStateUnknown:
+	case XenbusStateUnkyeswn:
 		break;
 
 	case XenbusStateInitWait:
@@ -528,7 +528,7 @@ static int __init xen_hvc_init(void)
 		r = xen_initial_domain_console_init();
 		if (r < 0)
 			return r;
-		info = vtermno_to_xencons(HVC_COOKIE);
+		info = vtermyes_to_xencons(HVC_COOKIE);
 	} else {
 		ops = &domU_hvc_ops;
 		if (xen_hvm_domain())
@@ -538,13 +538,13 @@ static int __init xen_hvc_init(void)
 		if (r < 0)
 			return r;
 
-		info = vtermno_to_xencons(HVC_COOKIE);
+		info = vtermyes_to_xencons(HVC_COOKIE);
 		info->irq = bind_evtchn_to_irq(info->evtchn);
 	}
 	if (info->irq < 0)
 		info->irq = 0; /* NO_IRQ */
 	else
-		irq_set_noprobe(info->irq);
+		irq_set_yesprobe(info->irq);
 
 	info->hvc = hvc_alloc(HVC_COOKIE, info->irq, ops, 256);
 	if (IS_ERR(info->hvc)) {
@@ -593,13 +593,13 @@ static int xen_cons_init(void)
 console_initcall(xen_cons_init);
 
 #ifdef CONFIG_X86
-static void xen_hvm_early_write(uint32_t vtermno, const char *str, int len)
+static void xen_hvm_early_write(uint32_t vtermyes, const char *str, int len)
 {
 	if (xen_cpuid_base())
 		outsb(0xe9, str, len);
 }
 #else
-static void xen_hvm_early_write(uint32_t vtermno, const char *str, int len) { }
+static void xen_hvm_early_write(uint32_t vtermyes, const char *str, int len) { }
 #endif
 
 #ifdef CONFIG_EARLY_PRINTK

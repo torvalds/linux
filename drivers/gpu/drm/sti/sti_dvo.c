@@ -77,7 +77,7 @@ static struct dvo_config rgb_24bit_de_cfg = {
  * @clk: clock for dvo
  * @clk_main_parent: dvo parent clock if main path used
  * @clk_aux_parent: dvo parent clock if aux path used
- * @panel_node: panel node reference from device tree
+ * @panel_yesde: panel yesde reference from device tree
  * @panel: reference to the panel connected to the dvo
  * @enabled: true if dvo is enabled else false
  * @encoder: drm_encoder it is bound
@@ -91,7 +91,7 @@ struct sti_dvo {
 	struct clk *clk;
 	struct clk *clk_main_parent;
 	struct clk *clk_aux_parent;
-	struct device_node *panel_node;
+	struct device_yesde *panel_yesde;
 	struct drm_panel *panel;
 	struct dvo_config *config;
 	bool enabled;
@@ -130,7 +130,7 @@ static int dvo_awg_generate_code(struct sti_dvo *dvo, u8 *ram_size, u32 *ram_cod
 	timing.blanking_level = BLANKING_LEVEL;
 
 	if (config->awg_fwgen_fct(&fw_gen_params, &timing)) {
-		DRM_ERROR("AWG firmware not properly generated\n");
+		DRM_ERROR("AWG firmware yest properly generated\n");
 		return -EINVAL;
 	}
 
@@ -178,8 +178,8 @@ static void dvo_dbg_awg_microcode(struct seq_file *s, void __iomem *reg)
 
 static int dvo_dbg_show(struct seq_file *s, void *data)
 {
-	struct drm_info_node *node = s->private;
-	struct sti_dvo *dvo = (struct sti_dvo *)node->info_ent->data;
+	struct drm_info_yesde *yesde = s->private;
+	struct sti_dvo *dvo = (struct sti_dvo *)yesde->info_ent->data;
 
 	seq_printf(s, "DVO: (vaddr = 0x%p)", dvo->regs);
 	DBGFS_DUMP(DVO_AWG_DIGSYNC_CTRL);
@@ -196,7 +196,7 @@ static struct drm_info_list dvo_debugfs_files[] = {
 	{ "dvo", dvo_dbg_show, 0, NULL },
 };
 
-static int dvo_debugfs_init(struct sti_dvo *dvo, struct drm_minor *minor)
+static int dvo_debugfs_init(struct sti_dvo *dvo, struct drm_miyesr *miyesr)
 {
 	unsigned int i;
 
@@ -205,7 +205,7 @@ static int dvo_debugfs_init(struct sti_dvo *dvo, struct drm_minor *minor)
 
 	return drm_debugfs_create_files(dvo_debugfs_files,
 					ARRAY_SIZE(dvo_debugfs_files),
-					minor->debugfs_root, minor);
+					miyesr->debugfs_root, miyesr);
 }
 
 static void sti_dvo_disable(struct drm_bridge *bridge)
@@ -305,30 +305,30 @@ static void sti_dvo_set_mode(struct drm_bridge *bridge,
 	/* DVO clocks = compositor clock */
 	ret = clk_set_rate(dvo->clk_pix, rate);
 	if (ret < 0) {
-		DRM_ERROR("Cannot set rate (%dHz) for dvo_pix clk\n", rate);
+		DRM_ERROR("Canyest set rate (%dHz) for dvo_pix clk\n", rate);
 		return;
 	}
 
 	ret = clk_set_rate(dvo->clk, rate);
 	if (ret < 0) {
-		DRM_ERROR("Cannot set rate (%dHz) for dvo clk\n", rate);
+		DRM_ERROR("Canyest set rate (%dHz) for dvo clk\n", rate);
 		return;
 	}
 
-	/* For now, we only support 24bit data enable (DE) synchro format */
+	/* For yesw, we only support 24bit data enable (DE) synchro format */
 	dvo->config = &rgb_24bit_de_cfg;
 }
 
-static void sti_dvo_bridge_nope(struct drm_bridge *bridge)
+static void sti_dvo_bridge_yespe(struct drm_bridge *bridge)
 {
-	/* do nothing */
+	/* do yesthing */
 }
 
 static const struct drm_bridge_funcs sti_dvo_bridge_funcs = {
 	.pre_enable = sti_dvo_pre_enable,
-	.enable = sti_dvo_bridge_nope,
+	.enable = sti_dvo_bridge_yespe,
 	.disable = sti_dvo_disable,
-	.post_disable = sti_dvo_bridge_nope,
+	.post_disable = sti_dvo_bridge_yespe,
 	.mode_set = sti_dvo_set_mode,
 };
 
@@ -363,7 +363,7 @@ static int sti_dvo_connector_mode_valid(struct drm_connector *connector,
 			 target, result);
 
 	if ((result < target_min) || (result > target_max)) {
-		DRM_DEBUG_DRIVER("dvo pixclk=%d not supported\n", target);
+		DRM_DEBUG_DRIVER("dvo pixclk=%d yest supported\n", target);
 		return MODE_BAD;
 	}
 
@@ -386,7 +386,7 @@ sti_dvo_connector_detect(struct drm_connector *connector, bool force)
 	DRM_DEBUG_DRIVER("\n");
 
 	if (!dvo->panel) {
-		dvo->panel = of_drm_find_panel(dvo->panel_node);
+		dvo->panel = of_drm_find_panel(dvo->panel_yesde);
 		if (IS_ERR(dvo->panel))
 			dvo->panel = NULL;
 		else
@@ -464,7 +464,7 @@ static int sti_dvo_bind(struct device *dev, struct device *master, void *data)
 
 	bridge->driver_private = dvo;
 	bridge->funcs = &sti_dvo_bridge_funcs;
-	bridge->of_node = dvo->dev.of_node;
+	bridge->of_yesde = dvo->dev.of_yesde;
 	drm_bridge_add(bridge);
 
 	err = drm_bridge_attach(encoder, bridge, NULL);
@@ -517,7 +517,7 @@ static int sti_dvo_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct sti_dvo *dvo;
 	struct resource *res;
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 
 	DRM_INFO("%s\n", __func__);
 
@@ -534,39 +534,39 @@ static int sti_dvo_probe(struct platform_device *pdev)
 		DRM_ERROR("Invalid dvo resource\n");
 		return -ENOMEM;
 	}
-	dvo->regs = devm_ioremap_nocache(dev, res->start,
+	dvo->regs = devm_ioremap_yescache(dev, res->start,
 			resource_size(res));
 	if (!dvo->regs)
 		return -ENOMEM;
 
 	dvo->clk_pix = devm_clk_get(dev, "dvo_pix");
 	if (IS_ERR(dvo->clk_pix)) {
-		DRM_ERROR("Cannot get dvo_pix clock\n");
+		DRM_ERROR("Canyest get dvo_pix clock\n");
 		return PTR_ERR(dvo->clk_pix);
 	}
 
 	dvo->clk = devm_clk_get(dev, "dvo");
 	if (IS_ERR(dvo->clk)) {
-		DRM_ERROR("Cannot get dvo clock\n");
+		DRM_ERROR("Canyest get dvo clock\n");
 		return PTR_ERR(dvo->clk);
 	}
 
 	dvo->clk_main_parent = devm_clk_get(dev, "main_parent");
 	if (IS_ERR(dvo->clk_main_parent)) {
-		DRM_DEBUG_DRIVER("Cannot get main_parent clock\n");
+		DRM_DEBUG_DRIVER("Canyest get main_parent clock\n");
 		dvo->clk_main_parent = NULL;
 	}
 
 	dvo->clk_aux_parent = devm_clk_get(dev, "aux_parent");
 	if (IS_ERR(dvo->clk_aux_parent)) {
-		DRM_DEBUG_DRIVER("Cannot get aux_parent clock\n");
+		DRM_DEBUG_DRIVER("Canyest get aux_parent clock\n");
 		dvo->clk_aux_parent = NULL;
 	}
 
-	dvo->panel_node = of_parse_phandle(np, "sti,panel", 0);
-	if (!dvo->panel_node)
+	dvo->panel_yesde = of_parse_phandle(np, "sti,panel", 0);
+	if (!dvo->panel_yesde)
 		DRM_ERROR("No panel associated to the dvo output\n");
-	of_node_put(dvo->panel_node);
+	of_yesde_put(dvo->panel_yesde);
 
 	platform_set_drvdata(pdev, dvo);
 
@@ -581,7 +581,7 @@ static int sti_dvo_remove(struct platform_device *pdev)
 
 static const struct of_device_id dvo_of_match[] = {
 	{ .compatible = "st,stih407-dvo", },
-	{ /* end node */ }
+	{ /* end yesde */ }
 };
 MODULE_DEVICE_TABLE(of, dvo_of_match);
 

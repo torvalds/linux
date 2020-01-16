@@ -16,7 +16,7 @@
 #undef  __EXTERN_INLINE
 
 #include <linux/signal.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/string.h>
 #include <linux/types.h>
 #include <linux/ptrace.h>
@@ -59,7 +59,7 @@ __load_new_mm_context(struct mm_struct *next_mm)
  * and the problem, and then passes it off to handle_mm_fault().
  *
  * mmcsr:
- *	0 = translation not valid
+ *	0 = translation yest valid
  *	1 = access violation
  *	2 = fault-on-read
  *	3 = fault-on-execute
@@ -93,7 +93,7 @@ do_page_fault(unsigned long address, unsigned long mmcsr,
 
 	/* As of EV6, a load into $31/$f31 is a prefetch, and never faults
 	   (or is suppressed by the PALcode).  Support that for older CPUs
-	   by ignoring such an instruction.  */
+	   by igyesring such an instruction.  */
 	if (cause == 0) {
 		unsigned int insn;
 		__get_user(insn, (unsigned int __user *)regs->pc);
@@ -105,10 +105,10 @@ do_page_fault(unsigned long address, unsigned long mmcsr,
 		}
 	}
 
-	/* If we're in an interrupt context, or have no user context,
-	   we must not take the fault.  */
+	/* If we're in an interrupt context, or have yes user context,
+	   we must yest take the fault.  */
 	if (!mm || faulthandler_disabled())
-		goto no_context;
+		goto yes_context;
 
 #ifdef CONFIG_ALPHA_LARGE_VMALLOC
 	if (address >= TASK_SIZE)
@@ -192,7 +192,7 @@ retry:
 	if (user_mode(regs))
 		goto do_sigsegv;
 
- no_context:
+ yes_context:
 	/* Are we prepared to handle this fault as an exception?  */
 	if ((fixup = search_exception_tables(regs->pc)) != 0) {
 		unsigned long newpc;
@@ -213,7 +213,7 @@ retry:
  out_of_memory:
 	up_read(&mm->mmap_sem);
 	if (!user_mode(regs))
-		goto no_context;
+		goto yes_context;
 	pagefault_out_of_memory();
 	return;
 
@@ -223,7 +223,7 @@ retry:
 	   or user mode.  */
 	force_sig_fault(SIGBUS, BUS_ADRERR, (void __user *) address, 0);
 	if (!user_mode(regs))
-		goto no_context;
+		goto yes_context;
 	return;
 
  do_sigsegv:
@@ -246,7 +246,7 @@ retry:
 			pgd_val(*pgd) = pgd_val(*pgd_k);
 			return;
 		}
-		goto no_context;
+		goto yes_context;
 	}
 #endif
 }

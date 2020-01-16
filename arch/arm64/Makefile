@@ -10,21 +10,21 @@
 #
 # Copyright (C) 1995-2001 by Russell King
 
-LDFLAGS_vmlinux	:=--no-undefined -X
+LDFLAGS_vmlinux	:=--yes-undefined -X
 CPPFLAGS_vmlinux.lds = -DTEXT_OFFSET=$(TEXT_OFFSET)
 GZFLAGS		:=-9
 
 ifeq ($(CONFIG_RELOCATABLE), y)
-# Pass --no-apply-dynamic-relocs to restore pre-binutils-2.27 behaviour
+# Pass --yes-apply-dynamic-relocs to restore pre-binutils-2.27 behaviour
 # for relative relocs, since this leads to better Image compression
 # with the relocation offsets always being zero.
-LDFLAGS_vmlinux		+= -shared -Bsymbolic -z notext -z norelro \
-			$(call ld-option, --no-apply-dynamic-relocs)
+LDFLAGS_vmlinux		+= -shared -Bsymbolic -z yestext -z yesrelro \
+			$(call ld-option, --yes-apply-dynamic-relocs)
 endif
 
 ifeq ($(CONFIG_ARM64_ERRATUM_843419),y)
   ifeq ($(call ld-option, --fix-cortex-a53-843419),)
-$(warning ld does not support --fix-cortex-a53-843419; kernel may be susceptible to erratum)
+$(warning ld does yest support --fix-cortex-a53-843419; kernel may be susceptible to erratum)
   else
 LDFLAGS_vmlinux	+= --fix-cortex-a53-843419
   endif
@@ -35,7 +35,7 @@ lseinstr := $(call as-instr,.arch_extension lse,-DCONFIG_AS_LSE=1)
 
 ifeq ($(CONFIG_ARM64_LSE_ATOMICS), y)
   ifeq ($(lseinstr),)
-$(warning LSE atomics not supported by binutils)
+$(warning LSE atomics yest supported by binutils)
   endif
 endif
 
@@ -46,7 +46,7 @@ cc_has_k_constraint := $(call try-run,echo				\
 	}' | $(CC) -S -x c -o "$$TMP" -,,-DCONFIG_CC_HAS_K_CONSTRAINT=1)
 
 ifeq ($(CONFIG_ARM64), y)
-brokengasinst := $(call as-instr,1:\n.inst 0\n.rept . - 1b\n\nnop\n.endr\n,,-DCONFIG_BROKEN_GAS_INST=1)
+brokengasinst := $(call as-instr,1:\n.inst 0\n.rept . - 1b\n\nyesp\n.endr\n,,-DCONFIG_BROKEN_GAS_INST=1)
 
   ifneq ($(brokengasinst),)
 $(warning Detected assembler with broken .inst; disassembly will be unreliable)
@@ -55,7 +55,7 @@ endif
 
 KBUILD_CFLAGS	+= -mgeneral-regs-only $(lseinstr) $(brokengasinst)	\
 		   $(compat_vdso) $(cc_has_k_constraint)
-KBUILD_CFLAGS	+= -fno-asynchronous-unwind-tables
+KBUILD_CFLAGS	+= -fyes-asynchroyesus-unwind-tables
 KBUILD_CFLAGS	+= $(call cc-disable-warning, psabi)
 KBUILD_AFLAGS	+= $(lseinstr) $(brokengasinst) $(compat_vdso)
 
@@ -76,7 +76,7 @@ ifeq ($(CONFIG_CPU_BIG_ENDIAN), y)
 KBUILD_CPPFLAGS	+= -mbig-endian
 CHECKFLAGS	+= -D__AARCH64EB__
 AS		+= -EB
-# Prefer the baremetal ELF build target, but not all toolchains include
+# Prefer the baremetal ELF build target, but yest all toolchains include
 # it so fall back to the standard linux version if needed.
 KBUILD_LDFLAGS	+= -EB $(call ld-option, -maarch64elfb, -maarch64linuxb)
 UTS_MACHINE	:= aarch64_be
@@ -148,7 +148,7 @@ PHONY += vdso_install
 vdso_install:
 	$(Q)$(MAKE) $(build)=arch/arm64/kernel/vdso $@
 
-# We use MRPROPER_FILES and CLEAN_FILES now
+# We use MRPROPER_FILES and CLEAN_FILES yesw
 archclean:
 	$(Q)$(MAKE) $(clean)=$(boot)
 

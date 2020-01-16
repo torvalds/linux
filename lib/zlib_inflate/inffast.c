@@ -1,6 +1,6 @@
 /* inffast.c -- fast decoding
  * Copyright (C) 1995-2004 Mark Adler
- * For conditions of distribution and use, see copyright notice in zlib.h
+ * For conditions of distribution and use, see copyright yestice in zlib.h
  */
 
 #include <linux/zutil.h>
@@ -16,7 +16,7 @@
    - PowerPC G3 (Adler)
    - MIPS R5000 (Randers-Pehrson)
    Post-increment preferred for:
-   - none
+   - yesne
    No measurable difference:
    - Pentium III (Anderson)
    - M68060 (Nikl)
@@ -50,9 +50,9 @@ get_unaligned16(const unsigned short *p)
 
 /*
    Decode literal, length, and distance codes and write out the resulting
-   literal and match bytes until either not enough input or output is
+   literal and match bytes until either yest eyesugh input or output is
    available, an end-of-block is encountered, or a data error is encountered.
-   When large enough input and output buffers are supplied to inflate(), for
+   When large eyesugh input and output buffers are supplied to inflate(), for
    example, a 16K input buffer and a 64K output buffer, more than 95% of the
    inflate execution time is spent in this routine.
 
@@ -66,7 +66,7 @@ get_unaligned16(const unsigned short *p)
 
    On return, state->mode is one of:
 
-        LEN -- ran out of enough output space or enough available input
+        LEN -- ran out of eyesugh output space or eyesugh available input
         TYPE -- reached end of block code, inflate() to interpret next block
         BAD -- error in block data
 
@@ -75,7 +75,7 @@ get_unaligned16(const unsigned short *p)
     - The maximum input bits used by a length/distance pair is 15 bits for the
       length code, 5 bits for the length extra, 15 bits for the distance code,
       and 13 bits for the distance extra.  This totals 48 bits, or six bytes.
-      Therefore if strm->avail_in >= 6, then there is enough input to avoid
+      Therefore if strm->avail_in >= 6, then there is eyesugh input to avoid
       checking for available input while decoding.
 
     - The maximum bytes that a single length/distance pair can output is 258
@@ -89,14 +89,14 @@ void inflate_fast(z_streamp strm, unsigned start)
 {
     struct inflate_state *state;
     const unsigned char *in;    /* local strm->next_in */
-    const unsigned char *last;  /* while in < last, enough input available */
+    const unsigned char *last;  /* while in < last, eyesugh input available */
     unsigned char *out;         /* local strm->next_out */
     unsigned char *beg;         /* inflate()'s initial strm->next_out */
-    unsigned char *end;         /* while out < end, enough space available */
+    unsigned char *end;         /* while out < end, eyesugh space available */
 #ifdef INFLATE_STRICT
     unsigned dmax;              /* maximum distance from zlib header */
 #endif
-    unsigned wsize;             /* window size or zero if not using window */
+    unsigned wsize;             /* window size or zero if yest using window */
     unsigned whave;             /* valid bytes in the window */
     unsigned write;             /* window write index */
     unsigned char *window;      /* allocated sliding window, if wsize != 0 */
@@ -134,7 +134,7 @@ void inflate_fast(z_streamp strm, unsigned start)
     lmask = (1U << state->lenbits) - 1;
     dmask = (1U << state->distbits) - 1;
 
-    /* decode literals and length/distances until end-of-block or not enough
+    /* decode literals and length/distances until end-of-block or yest eyesugh
        input data or output space */
     do {
         if (bits < 15) {

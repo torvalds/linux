@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -30,13 +30,13 @@
 #include <nvif/event.h>
 
 static int
-nvkm_conn_hpd(struct nvkm_notify *notify)
+nvkm_conn_hpd(struct nvkm_yestify *yestify)
 {
-	struct nvkm_conn *conn = container_of(notify, typeof(*conn), hpd);
+	struct nvkm_conn *conn = container_of(yestify, typeof(*conn), hpd);
 	struct nvkm_disp *disp = conn->disp;
 	struct nvkm_gpio *gpio = disp->engine.subdev.device->gpio;
-	const struct nvkm_gpio_ntfy_rep *line = notify->data;
-	struct nvif_notify_conn_rep_v0 rep;
+	const struct nvkm_gpio_ntfy_rep *line = yestify->data;
+	struct nvif_yestify_conn_rep_v0 rep;
 	int index = conn->index;
 
 	CONN_DBG(conn, "HPD: %d", line->mask);
@@ -54,13 +54,13 @@ nvkm_conn_hpd(struct nvkm_notify *notify)
 void
 nvkm_conn_fini(struct nvkm_conn *conn)
 {
-	nvkm_notify_put(&conn->hpd);
+	nvkm_yestify_put(&conn->hpd);
 }
 
 void
 nvkm_conn_init(struct nvkm_conn *conn)
 {
-	nvkm_notify_get(&conn->hpd);
+	nvkm_yestify_get(&conn->hpd);
 }
 
 void
@@ -68,7 +68,7 @@ nvkm_conn_del(struct nvkm_conn **pconn)
 {
 	struct nvkm_conn *conn = *pconn;
 	if (conn) {
-		nvkm_notify_fini(&conn->hpd);
+		nvkm_yestify_fini(&conn->hpd);
 		kfree(*pconn);
 		*pconn = NULL;
 	}
@@ -93,7 +93,7 @@ nvkm_conn_ctor(struct nvkm_disp *disp, int index, struct nvbios_connE *info,
 
 	if ((info->hpd = ffs(info->hpd))) {
 		if (--info->hpd >= ARRAY_SIZE(hpd)) {
-			CONN_ERR(conn, "hpd %02x unknown", info->hpd);
+			CONN_ERR(conn, "hpd %02x unkyeswn", info->hpd);
 			return;
 		}
 		info->hpd = hpd[info->hpd];
@@ -105,7 +105,7 @@ nvkm_conn_ctor(struct nvkm_disp *disp, int index, struct nvbios_connE *info,
 			return;
 		}
 
-		ret = nvkm_notify_init(NULL, &gpio->event, nvkm_conn_hpd,
+		ret = nvkm_yestify_init(NULL, &gpio->event, nvkm_conn_hpd,
 				       true, &(struct nvkm_gpio_ntfy_req) {
 					.mask = NVKM_GPIO_TOGGLED,
 					.line = func.line,

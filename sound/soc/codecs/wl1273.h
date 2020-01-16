@@ -5,7 +5,7 @@
  * ALSA SoC WL1273 codec driver
  *
  * Copyright (C) Nokia Corporation
- * Author: Matti Aaltonen <matti.j.aaltonen@nokia.com>
+ * Author: Matti Aaltonen <matti.j.aaltonen@yeskia.com>
  */
 
 #ifndef __WL1273_CODEC_H__

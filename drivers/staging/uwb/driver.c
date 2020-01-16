@@ -15,9 +15,9 @@
  *    1. alloc a uwb_rc, zero it
  *    2. call uwb_rc_init() on it to set it up + ops (won't do any
  *       kind of allocation)
- *    3. register (now it is owned by the UWB stack--deregister before
+ *    3. register (yesw it is owned by the UWB stack--deregister before
  *       freeing/destroying).
- *    4. It lives on it's own now (UWB stack handles)--when it
+ *    4. It lives on it's own yesw (UWB stack handles)--when it
  *       disconnects, call unregister()
  *    5. free it.
  *
@@ -50,7 +50,7 @@
  * If a beacon disappears for longer than this, then we consider the
  * device who was represented by that beacon to be gone.
  *
- * ECMA-368[17.2.3, last para] establishes that a device must not
+ * ECMA-368[17.2.3, last para] establishes that a device must yest
  * consider a device to be its neighbour if he doesn't receive a beacon
  * for more than mMaxLostBeacons. mMaxLostBeacons is defined in
  * ECMA-368[17.16] as 3; because we can get only one beacon per

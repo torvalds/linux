@@ -19,7 +19,7 @@
 };
 
 &backlight {
-	/* Jaq panel PWM must be >= 3%, so start non-zero brightness at 8 */
+	/* Jaq panel PWM must be >= 3%, so start yesn-zero brightness at 8 */
 	brightness-levels = <0 8 255>;
 	num-interpolated-steps = <247>;
 };
@@ -275,13 +275,13 @@
 &pinctrl {
 	buck-5v {
 		drv_5v: drv-5v {
-			rockchip,pins = <7 RK_PC5 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <7 RK_PC5 RK_FUNC_GPIO &pcfg_pull_yesne>;
 		};
 	};
 
 	hdmi {
 		vcc50_hdmi_en: vcc50-hdmi-en {
-			rockchip,pins = <5 RK_PC3 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <5 RK_PC3 RK_FUNC_GPIO &pcfg_pull_yesne>;
 		};
 	};
 

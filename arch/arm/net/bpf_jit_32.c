@@ -9,7 +9,7 @@
 #include <linux/bpf.h>
 #include <linux/bitops.h>
 #include <linux/compiler.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/filter.h>
 #include <linux/netdevice.h>
 #include <linux/string.h>
@@ -179,8 +179,8 @@ static const s8 bpf2a32[][2] = {
  * offsets		:	array of eBPF instruction offsets in
  *				JITed code.
  * target		:	final JITed code.
- * epilogue_bytes	:	no of bytes used in epilogue.
- * imm_count		:	no of immediate counts used for global
+ * epilogue_bytes	:	yes of bytes used in epilogue.
+ * imm_count		:	yes of immediate counts used for global
  *				variables.
  * imms			:	array of global variable addresses.
  */
@@ -409,9 +409,9 @@ static inline int bpf2a32_offset(int bpf_to, int bpf_from,
 }
 
 /*
- * Move an immediate that's not an imm8m to a core register.
+ * Move an immediate that's yest an imm8m to a core register.
  */
-static inline void emit_mov_i_no8m(const u8 rd, u32 val, struct jit_ctx *ctx)
+static inline void emit_mov_i_yes8m(const u8 rd, u32 val, struct jit_ctx *ctx)
 {
 #if __LINUX_ARM_ARCH__ < 7
 	emit(ARM_LDR_I(rd, ARM_PC, imm_offset(val, ctx)), ctx);
@@ -429,7 +429,7 @@ static inline void emit_mov_i(const u8 rd, u32 val, struct jit_ctx *ctx)
 	if (imm12 >= 0)
 		emit(ARM_MOV_I(rd, imm12), ctx);
 	else
-		emit_mov_i_no8m(rd, val, ctx);
+		emit_mov_i_yes8m(rd, val, ctx);
 }
 
 static void emit_bx_r(u8 tgt_reg, struct jit_ctx *ctx)
@@ -550,7 +550,7 @@ static const s8 *arm_bpf_get_reg64(const s8 *reg, const s8 *tmp,
 }
 
 /* If a BPF register is on the stack (stk is true), save the register
- * back to the stack.  If the source register is not the same, then
+ * back to the stack.  If the source register is yest the same, then
  * move it into the correct register.
  */
 static void arm_bpf_put_reg32(s8 reg, s8 src, struct jit_ctx *ctx)
@@ -1452,7 +1452,7 @@ static int build_insn(const struct bpf_insn *insn, struct jit_ctx *ctx)
 	case BPF_ALU64 | BPF_DIV | BPF_X:
 	case BPF_ALU64 | BPF_MOD | BPF_K:
 	case BPF_ALU64 | BPF_MOD | BPF_X:
-		goto notyet;
+		goto yestyet;
 	/* dst = dst >> imm */
 	/* dst = dst << imm */
 	case BPF_ALU | BPF_RSH | BPF_K:
@@ -1563,7 +1563,7 @@ emit_bswap_uxt:
 				emit(ARM_EOR_R(rd[0], rd[0], rd[0]), ctx);
 			break;
 		case 64:
-			/* nop */
+			/* yesp */
 			break;
 		}
 exit:
@@ -1608,7 +1608,7 @@ exit:
 	case BPF_STX | BPF_XADD | BPF_W:
 	/* STX XADD: lock *(u64 *)(dst + off) += src */
 	case BPF_STX | BPF_XADD | BPF_DW:
-		goto notyet;
+		goto yestyet;
 	/* STX: *(size *)(dst + off) = src */
 	case BPF_STX | BPF_MEM | BPF_W:
 	case BPF_STX | BPF_MEM | BPF_H:
@@ -1786,11 +1786,11 @@ go_jmp:
 		check_imm24(jmp_offset);
 		emit(ARM_B(jmp_offset), ctx);
 		break;
-notyet:
+yestyet:
 		pr_info_once("*** NOT YET: opcode %02x ***\n", code);
 		return -EFAULT;
 	default:
-		pr_err_once("unknown opcode %02x\n", code);
+		pr_err_once("unkyeswn opcode %02x\n", code);
 		return -EINVAL;
 	}
 
@@ -1865,7 +1865,7 @@ struct bpf_prog *bpf_int_jit_compile(struct bpf_prog *prog)
 	unsigned int image_size;
 	u8 *image_ptr;
 
-	/* If BPF JIT was not enabled then we must fall back to
+	/* If BPF JIT was yest enabled then we must fall back to
 	 * the interpreter.
 	 */
 	if (!prog->jit_requested)
@@ -1903,7 +1903,7 @@ struct bpf_prog *bpf_int_jit_compile(struct bpf_prog *prog)
 	 * Also, calculate random starting pointer/start of JITed code
 	 * which is prefixed by random number of fault instructions.
 	 *
-	 * If the first pass fails then there is no chance of it
+	 * If the first pass fails then there is yes chance of it
 	 * being successful in the second pass, so just fall back
 	 * to the interpreter.
 	 */
@@ -1932,11 +1932,11 @@ struct bpf_prog *bpf_int_jit_compile(struct bpf_prog *prog)
 		}
 	}
 #else
-	/* there's nothing about the epilogue on ARMv7 */
+	/* there's yesthing about the epilogue on ARMv7 */
 	build_epilogue(&ctx);
 #endif
 	/* Now we can get the actual image size of the JITed arm code.
-	 * Currently, we are not considering the THUMB-2 instructions
+	 * Currently, we are yest considering the THUMB-2 instructions
 	 * for jit, although it can decrease the size of the image.
 	 *
 	 * As each arm instruction is of length 32bit, we are translating
@@ -1945,7 +1945,7 @@ struct bpf_prog *bpf_int_jit_compile(struct bpf_prog *prog)
 	 */
 	image_size = sizeof(u32) * ctx.idx;
 
-	/* Now we know the size of the structure to make */
+	/* Now we kyesw the size of the structure to make */
 	header = bpf_jit_binary_alloc(image_size, &image_ptr,
 				      sizeof(u32), jit_fill_hole);
 	/* Not able to allocate memory for the structure then

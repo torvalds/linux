@@ -73,10 +73,10 @@ struct packet_ring_buffer {
 	struct tpacket_kbdq_core	prb_bdqc;
 };
 
-extern struct mutex fanout_mutex;
+extern struct mutex fayesut_mutex;
 #define PACKET_FANOUT_MAX	256
 
-struct packet_fanout {
+struct packet_fayesut {
 	possible_net_t		net;
 	unsigned int		num_members;
 	u16			id;
@@ -105,7 +105,7 @@ struct packet_rollover {
 struct packet_sock {
 	/* struct sock has to be the first member of packet_sock */
 	struct sock		sk;
-	struct packet_fanout	*fanout;
+	struct packet_fayesut	*fayesut;
 	union  tpacket_stats_u	stats;
 	struct packet_ring_buffer	rx_ring;
 	struct packet_ring_buffer	tx_ring;

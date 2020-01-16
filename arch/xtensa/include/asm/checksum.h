@@ -48,7 +48,7 @@ asmlinkage __wsum csum_partial_copy_generic(const void *src, void *dst,
  *	If you use these functions directly please don't forget the access_ok().
  */
 static inline
-__wsum csum_partial_copy_nocheck(const void *src, void *dst,
+__wsum csum_partial_copy_yescheck(const void *src, void *dst,
 					int len, __wsum sum)
 {
 	return csum_partial_copy_generic(src, dst, len, sum, NULL, NULL);
@@ -122,7 +122,7 @@ static __inline__ __sum16 ip_fast_csum(const void *iph, unsigned int ihl)
 	return	csum_fold(sum);
 }
 
-static __inline__ __wsum csum_tcpudp_nofold(__be32 saddr, __be32 daddr,
+static __inline__ __wsum csum_tcpudp_yesfold(__be32 saddr, __be32 daddr,
 					    __u32 len, __u8 proto,
 					    __wsum sum)
 {
@@ -159,7 +159,7 @@ static __inline__ __sum16 csum_tcpudp_magic(__be32 saddr, __be32 daddr,
 					    __u32 len, __u8 proto,
 					    __wsum sum)
 {
-	return csum_fold(csum_tcpudp_nofold(saddr,daddr,len,proto,sum));
+	return csum_fold(csum_tcpudp_yesfold(saddr,daddr,len,proto,sum));
 }
 
 /*

@@ -68,7 +68,7 @@ ENTRY(entry)
 	sub	x1, x2, x1
 
 	/*
-	 * Flush the copied Image to the PoC, and ensure it is not shadowed by
+	 * Flush the copied Image to the PoC, and ensure it is yest shadowed by
 	 * stale icache entries from before relocation.
 	 */
 	bl	__flush_dcache_area
@@ -77,7 +77,7 @@ ENTRY(entry)
 	/*
 	 * Ensure that the rest of this function (in the original Image) is
 	 * visible when the caches are disabled. The I-cache can't have stale
-	 * entries for the VA range of the current image, so no maintenance is
+	 * entries for the VA range of the current image, so yes maintenance is
 	 * necessary.
 	 */
 	adr	x0, entry

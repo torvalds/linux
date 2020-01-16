@@ -57,7 +57,7 @@ void sun4m_cpu_pre_online(void *arg)
 	/* Fix idle thread fields. */
 	__asm__ __volatile__("ld [%0], %%g6\n\t"
 			     : : "r" (&current_set[cpuid])
-			     : "memory" /* paranoid */);
+			     : "memory" /* parayesid */);
 
 	/* Attach to the address space of init_task. */
 	mmgrab(&init_mm);
@@ -80,9 +80,9 @@ int smp4m_boot_one_cpu(int i, struct task_struct *idle)
 {
 	unsigned long *entry = &sun4m_cpu_startup;
 	int timeout;
-	int cpu_node;
+	int cpu_yesde;
 
-	cpu_find_by_mid(i, &cpu_node);
+	cpu_find_by_mid(i, &cpu_yesde);
 	current_set[i] = task_thread_info(idle);
 
 	/* See trampoline.S for details... */
@@ -100,7 +100,7 @@ int smp4m_boot_one_cpu(int i, struct task_struct *idle)
 	/* whirrr, whirrr, whirrrrrrrrr... */
 	printk(KERN_INFO "Starting CPU %d at %p\n", i, entry);
 	local_ops->cache_all();
-	prom_startcpu(cpu_node, &smp_penguin_ctable, 0, (char *)entry);
+	prom_startcpu(cpu_yesde, &smp_penguin_ctable, 0, (char *)entry);
 
 	/* wheee... it's going... */
 	for (timeout = 0; timeout < 10000; timeout++) {

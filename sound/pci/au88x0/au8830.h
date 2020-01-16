@@ -177,7 +177,7 @@
 #define		FIFO_CTRL	0x00000002	/* Allow ctrl. ? */
 #define		FIFO_VALID	0x00000010
 #define 	FIFO_EMPTY	0x00000020
-#define		FIFO_U0		0x00002000	/* Unknown. */
+#define		FIFO_U0		0x00002000	/* Unkyeswn. */
 #define		FIFO_U1		0x00040000
 #define		FIFO_SIZE_BITS 6
 #define		FIFO_SIZE	(1<<(FIFO_SIZE_BITS))	// 0x40
@@ -232,7 +232,7 @@
 #define 	CTRL_GAME_EN	0x00000008
 #define 	CTRL_GAME_PORT	0x00000e00
 #define 	CTRL_IRQ_ENABLE	0x00004000
-#define		CTRL_SPDIF		0x00000000	/* unknown. Please find this value */
+#define		CTRL_SPDIF		0x00000000	/* unkyeswn. Please find this value */
 #define 	CTRL_SPORT		0x00200000
 #define 	CTRL_RST		0x00800000
 #define 	CTRL_UNKNOWN	0x01000000

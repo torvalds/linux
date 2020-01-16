@@ -52,7 +52,7 @@ static void add_preset(struct snd_sf_list *sflist, struct snd_sf_zone *cur);
 static void delete_preset(struct snd_sf_list *sflist, struct snd_sf_zone *zp);
 static struct snd_sf_zone *search_first_zone(struct snd_sf_list *sflist,
 					     int bank, int preset, int key);
-static int search_zones(struct snd_sf_list *sflist, int *notep, int vel,
+static int search_zones(struct snd_sf_list *sflist, int *yestep, int vel,
 			int preset, int bank, struct snd_sf_zone **table,
 			int max_layers, int level);
 static int get_index(int bank, int instr, int key);
@@ -185,7 +185,7 @@ snd_soundfont_load(struct snd_sf_list *sflist, const void __user *data,
 		/* patch must be opened */
 		if (!sflist->currsf) {
 			snd_printk(KERN_ERR "soundfont: remove_info: "
-				   "patch not opened\n");
+				   "patch yest opened\n");
 			rc = -EINVAL;
 		} else {
 			int bank, instr;
@@ -267,7 +267,7 @@ newsf(struct snd_sf_list *sflist, int type, char *name)
 		}
 	}
 
-	/* not found -- create a new one */
+	/* yest found -- create a new one */
 	sf = kzalloc(sizeof(*sf), GFP_KERNEL);
 	if (sf == NULL)
 		return NULL;
@@ -316,7 +316,7 @@ close_patch(struct snd_sf_list *sflist)
 
 }
 
-/* probe sample in the current list -- nothing to be loaded */
+/* probe sample in the current list -- yesthing to be loaded */
 static int
 probe_data(struct snd_sf_list *sflist, int sample_id)
 {
@@ -817,14 +817,14 @@ EXPORT_SYMBOL(snd_sf_linear_to_log);
  * conversion: abscent = log2(MHz / 8176) * 1200
  */
 static int
-freq_to_note(int mhz)
+freq_to_yeste(int mhz)
 {
 	return snd_sf_linear_to_log(mhz, OFFSET_ABSCENT, ABSCENT_RATIO);
 }
 
 /* convert Hz to AWE32 rate offset:
  * sample pitch offset for the specified sample rate
- * rate=44100 is no offset, each 4096 is 1 octave (twice).
+ * rate=44100 is yes offset, each 4096 is 1 octave (twice).
  * eg, when rate is 22050, this offset becomes -4096.
  *
  * conversion: offset = log2(Hz / 44100) * 4096
@@ -942,7 +942,7 @@ load_guspatch(struct snd_sf_list *sflist, const char __user *data,
 	struct snd_soundfont *sf;
 	struct snd_sf_zone *zone;
 	struct snd_sf_sample *smp;
-	int note, sample_id;
+	int yeste, sample_id;
 	int rc;
 
 	if (count < (long)sizeof(patch)) {
@@ -1021,11 +1021,11 @@ load_guspatch(struct snd_sf_list *sflist, const char __user *data,
 
 	zone->v.sample = sample_id; /* the last sample */
 	zone->v.rate_offset = calc_rate_offset(patch.base_freq);
-	note = freq_to_note(patch.base_note);
-	zone->v.root = note / 100;
-	zone->v.tune = -(note % 100);
-	zone->v.low = (freq_to_note(patch.low_note) + 99) / 100;
-	zone->v.high = freq_to_note(patch.high_note) / 100;
+	yeste = freq_to_yeste(patch.base_yeste);
+	zone->v.root = yeste / 100;
+	zone->v.tune = -(yeste % 100);
+	zone->v.low = (freq_to_yeste(patch.low_yeste) + 99) / 100;
+	zone->v.high = freq_to_yeste(patch.high_yeste) / 100;
 	/* panning position; -128 - 127 => 0-127 */
 	zone->v.pan = (patch.panning + 128) / 2;
 #if 0
@@ -1035,7 +1035,7 @@ load_guspatch(struct snd_sf_list *sflist, const char __user *data,
 		   zone->v.root, zone->v.tune, zone->v.low, zone->v.high);
 #endif
 
-	/* detuning is ignored */
+	/* detuning is igyesred */
 	/* 6points volume envelope */
 	if (patch.mode & WAVE_ENVELOPES) {
 		int attack, hold, decay, release;
@@ -1089,7 +1089,7 @@ load_guspatch(struct snd_sf_list *sflist, const char __user *data,
 		zone->v.parm.fm2frq2 = ((patch.vibrato_depth / 6) << 8) | rate;
 	}
 	
-	/* scale_freq, scale_factor, volume, and fractions not implemented */
+	/* scale_freq, scale_factor, volume, and fractions yest implemented */
 
 	if (!(smp->v.mode_flags & SNDRV_SFNT_SAMPLE_SINGLESHOT))
 		zone->v.mode = SNDRV_SFNT_MODE_LOOPING;
@@ -1099,13 +1099,13 @@ load_guspatch(struct snd_sf_list *sflist, const char __user *data,
 	/* append to the tail of the list */
 	/*zone->bank = ctrls[AWE_MD_GUS_BANK];*/
 	zone->bank = 0;
-	zone->instr = patch.instr_no;
+	zone->instr = patch.instr_yes;
 	zone->mapped = 0;
 	zone->v.sf_id = sf->id;
 
 	zone->sample = set_sample(sf, &zone->v);
 
-	/* rebuild preset now */
+	/* rebuild preset yesw */
 	add_preset(sflist, zone);
 
 	return 0;
@@ -1177,7 +1177,7 @@ add_preset(struct snd_sf_list *sflist, struct snd_sf_zone *cur)
 		}
 		/* remove old zones */
 		delete_preset(sflist, zone);
-		zone = NULL; /* do not forget to clear this! */
+		zone = NULL; /* do yest forget to clear this! */
 	}
 
 	/* prepend this zone */
@@ -1212,13 +1212,13 @@ delete_preset(struct snd_sf_list *sflist, struct snd_sf_zone *zp)
 
 /*
  * Search matching zones from preset table.
- * The note can be rewritten by preset mapping (alias).
+ * The yeste can be rewritten by preset mapping (alias).
  * The found zones are stored on 'table' array.  max_layers defines
  * the maximum number of elements in this array.
- * This function returns the number of found zones.  0 if not found.
+ * This function returns the number of found zones.  0 if yest found.
  */
 int
-snd_soundfont_search_zone(struct snd_sf_list *sflist, int *notep, int vel,
+snd_soundfont_search_zone(struct snd_sf_list *sflist, int *yestep, int vel,
 			  int preset, int bank,
 			  int def_preset, int def_bank,
 			  struct snd_sf_zone **table, int max_layers)
@@ -1235,11 +1235,11 @@ snd_soundfont_search_zone(struct snd_sf_list *sflist, int *notep, int vel,
 		spin_unlock_irqrestore(&sflist->lock, flags);
 		return 0;
 	}
-	nvoices = search_zones(sflist, notep, vel, preset, bank,
+	nvoices = search_zones(sflist, yestep, vel, preset, bank,
 			       table, max_layers, 0);
 	if (! nvoices) {
 		if (preset != def_preset || bank != def_bank)
-			nvoices = search_zones(sflist, notep, vel,
+			nvoices = search_zones(sflist, yestep, vel,
 					       def_preset, def_bank,
 					       table, max_layers, 0);
 	}
@@ -1271,17 +1271,17 @@ search_first_zone(struct snd_sf_list *sflist, int bank, int preset, int key)
  * search matching zones from sflist.  can be called recursively.
  */
 static int
-search_zones(struct snd_sf_list *sflist, int *notep, int vel,
+search_zones(struct snd_sf_list *sflist, int *yestep, int vel,
 	     int preset, int bank, struct snd_sf_zone **table,
 	     int max_layers, int level)
 {
 	struct snd_sf_zone *zp;
 	int nvoices;
 
-	zp = search_first_zone(sflist, bank, preset, *notep);
+	zp = search_first_zone(sflist, bank, preset, *yestep);
 	nvoices = 0;
 	for (; zp; zp = zp->next_zone) {
-		if (*notep >= zp->v.low && *notep <= zp->v.high &&
+		if (*yestep >= zp->v.low && *yestep <= zp->v.high &&
 		    vel >= zp->v.vellow && vel <= zp->v.velhigh) {
 			if (zp->mapped) {
 				/* search preset mapping (aliasing) */
@@ -1292,12 +1292,12 @@ search_zones(struct snd_sf_list *sflist, int *notep, int vel,
 				if (level > 5) /* too deep alias level */
 					return 0;
 				if (key < 0)
-					key = *notep;
+					key = *yestep;
 				nvoices = search_zones(sflist, &key, vel,
 						       preset, bank, table,
 						       max_layers, level + 1);
 				if (nvoices > 0)
-					*notep = key;
+					*yestep = key;
 				break;
 			}
 			table[nvoices++] = zp;
@@ -1311,7 +1311,7 @@ search_zones(struct snd_sf_list *sflist, int *notep, int vel,
 
 
 /* calculate the index of preset table:
- * drums are mapped from 128 to 255 according to its note key.
+ * drums are mapped from 128 to 255 according to its yeste key.
  * other instruments are mapped from 0 to 127.
  * if the index is out of range, return -1.
  */

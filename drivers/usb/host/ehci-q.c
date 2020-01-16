@@ -160,7 +160,7 @@ static void ehci_clear_tt_buffer(struct ehci_hcd *ehci, struct ehci_qh *qh,
 	 * the TT buffer may be left in an indeterminate state.  We
 	 * have to clear the TT buffer.
 	 *
-	 * Note: this routine is never called for Isochronous transfers.
+	 * Note: this routine is never called for Isochroyesus transfers.
 	 */
 	if (urb->dev->tt && !usb_pipeint(urb->pipe) && !qh->clearing_tt) {
 #ifdef CONFIG_DYNAMIC_DEBUG
@@ -193,7 +193,7 @@ static int qtd_copy_status (
 {
 	int	status = -EINPROGRESS;
 
-	/* count IN/OUT bytes, not SETUP (even short packets) */
+	/* count IN/OUT bytes, yest SETUP (even short packets) */
 	if (likely(QTD_PID(token) != PID_CODE_SETUP))
 		urb->actual_length += length - QTD_LENGTH (token);
 
@@ -201,7 +201,7 @@ static int qtd_copy_status (
 	if (unlikely(urb->unlinked))
 		return status;
 
-	/* force cleanup after short read; not always an error */
+	/* force cleanup after short read; yest always an error */
 	if (unlikely (IS_SHORT_READ (token)))
 		status = -EREMOTEIO;
 
@@ -217,7 +217,7 @@ static int qtd_copy_status (
 		} else if ((token & QTD_STS_MMF) &&
 					(QTD_PID(token) == PID_CODE_IN)) {
 			status = -EPROTO;
-		/* CERR nonzero + halt --> stall */
+		/* CERR yesnzero + halt --> stall */
 		} else if (QTD_CERR(token)) {
 			status = -EPIPE;
 
@@ -239,7 +239,7 @@ static int qtd_copy_status (
 				usb_pipeendpoint(urb->pipe),
 				usb_pipein(urb->pipe) ? "in" : "out");
 			status = -EPROTO;
-		} else {	/* unknown */
+		} else {	/* unkyeswn */
 			status = -EPROTO;
 		}
 	}
@@ -258,7 +258,7 @@ ehci_urb_done(struct ehci_hcd *ehci, struct urb *urb, int status)
 	if (unlikely(urb->unlinked)) {
 		INCR(ehci->stats.unlink);
 	} else {
-		/* report non-error and short read status as zero */
+		/* report yesn-error and short read status as zero */
 		if (status == -EINPROGRESS || status == -EREMOTEIO)
 			status = 0;
 		INCR(ehci->stats.complete);
@@ -282,7 +282,7 @@ static int qh_schedule (struct ehci_hcd *ehci, struct ehci_qh *qh);
 
 /*
  * Process and free completed qtds for a qh, returning URBs to drivers.
- * Chases up to qh->hw_current.  Returns nonzero if the caller should
+ * Chases up to qh->hw_current.  Returns yesnzero if the caller should
  * unlink qh.
  */
 static unsigned
@@ -337,7 +337,7 @@ qh_completions (struct ehci_hcd *ehci, struct ehci_qh *qh)
 			last = NULL;
 		}
 
-		/* ignore urbs submitted during completions we reported */
+		/* igyesre urbs submitted during completions we reported */
 		if (qtd == end)
 			break;
 
@@ -349,7 +349,7 @@ qh_completions (struct ehci_hcd *ehci, struct ehci_qh *qh)
  retry_xacterr:
 		if ((token & QTD_STS_ACTIVE) == 0) {
 
-			/* Report Data Buffer Error: non-fatal but useful */
+			/* Report Data Buffer Error: yesn-fatal but useful */
 			if (token & QTD_STS_DBE)
 				ehci_dbg(ehci,
 					"detected DataBufferErr for urb %p ep%d%s len %d, qtd %p [qh %p]\n",
@@ -454,7 +454,7 @@ qh_completions (struct ehci_hcd *ehci, struct ehci_qh *qh)
 			}
 		}
 
-		/* unless we already know the urb's status, collect qtd status
+		/* unless we already kyesw the urb's status, collect qtd status
 		 * and update count of bytes transferred.  in common short read
 		 * cases with only one data qtd (including control transfers),
 		 * queue processing won't halt.  but with two or more qtds (for
@@ -476,7 +476,7 @@ qh_completions (struct ehci_hcd *ehci, struct ehci_qh *qh)
 					last_status != -EREMOTEIO)) {
 				/* The TT's in some hubs malfunction when they
 				 * receive this request following a STALL (they
-				 * stop sending isochronous packets).  Since a
+				 * stop sending isochroyesus packets).  Since a
 				 * STALL can't leave the TT buffer in a busy
 				 * state (if you believe Figures 11-48 - 11-51
 				 * in the USB 2.0 spec), we won't clear the TT
@@ -489,7 +489,7 @@ qh_completions (struct ehci_hcd *ehci, struct ehci_qh *qh)
 			}
 		}
 
-		/* if we're removing something not at the queue head,
+		/* if we're removing something yest at the queue head,
 		 * patch the hardware queue pointer.
 		 */
 		if (stopped && qtd->qtd_list.prev != &qh->qtd_list) {
@@ -514,7 +514,7 @@ qh_completions (struct ehci_hcd *ehci, struct ehci_qh *qh)
 
 	/* Do we need to rescan for URBs dequeued during a giveback? */
 	if (unlikely(qh->dequeue_during_giveback)) {
-		/* If the QH is already unlinked, do the rescan now. */
+		/* If the QH is already unlinked, do the rescan yesw. */
 		if (state == QH_STATE_IDLE)
 			goto rescan;
 
@@ -542,7 +542,7 @@ qh_completions (struct ehci_hcd *ehci, struct ehci_qh *qh)
 	if (stopped != 0 || hw->hw_qtd_next == EHCI_LIST_END(ehci))
 		qh->unlink_reason |= QH_UNLINK_DUMMY_OVERLAY;
 
-	/* Let the caller know if the QH needs to be unlinked. */
+	/* Let the caller kyesw if the QH needs to be unlinked. */
 	return qh->unlink_reason;
 }
 
@@ -891,7 +891,7 @@ qh_make (
 		/* Some Freescale processors have an erratum in which the
 		 * port number in the queue head was 0..N-1 instead of 1..N.
 		 */
-		if (ehci_has_fsl_portno_bug(ehci))
+		if (ehci_has_fsl_portyes_bug(ehci))
 			info2 |= (urb->dev->ttport-1) << 23;
 		else
 			info2 |= urb->dev->ttport << 23;
@@ -906,7 +906,7 @@ qh_make (
 
 		break;
 
-	case USB_SPEED_HIGH:		/* no TT involved */
+	case USB_SPEED_HIGH:		/* yes TT involved */
 		info1 |= QH_HIGH_SPEED;
 		if (type == PIPE_CONTROL) {
 			info1 |= (EHCI_TUNE_RL_HS << 28);
@@ -917,9 +917,9 @@ qh_make (
 			info1 |= (EHCI_TUNE_RL_HS << 28);
 			/* The USB spec says that high speed bulk endpoints
 			 * always use 512 byte maxpacket.  But some device
-			 * vendors decided to ignore that, and MSFT is happy
-			 * to help them do so.  So now people expect to use
-			 * such nonconformant devices with Linux too; sigh.
+			 * vendors decided to igyesre that, and MSFT is happy
+			 * to help them do so.  So yesw people expect to use
+			 * such yesnconformant devices with Linux too; sigh.
 			 */
 			info1 |= maxp << 16;
 			info2 |= (EHCI_TUNE_MULT_HS << 30);
@@ -1205,7 +1205,7 @@ static int submit_single_step_set_feature(
 				QTD_IOC | token | (2 /* "setup" */ << 8), 8);
 
 		submit_async(ehci, urb, &qtd_list, GFP_ATOMIC);
-		return 0; /*Return now; we shall come back after 15 seconds*/
+		return 0; /*Return yesw; we shall come back after 15 seconds*/
 	}
 
 	/*
@@ -1260,7 +1260,7 @@ static void single_unlink_async(struct ehci_hcd *ehci, struct ehci_qh *qh)
 
 	/* Add to the end of the list of QHs waiting for the next IAAD */
 	qh->qh_state = QH_STATE_UNLINK_WAIT;
-	list_add_tail(&qh->unlink_node, &ehci->async_unlink);
+	list_add_tail(&qh->unlink_yesde, &ehci->async_unlink);
 
 	/* Unlink it from the schedule */
 	prev = ehci->async;
@@ -1296,7 +1296,7 @@ static void start_iaa_cycle(struct ehci_hcd *ehci)
 
 static void end_iaa_cycle(struct ehci_hcd *ehci)
 {
-	if (ehci->has_synopsys_hc_bug)
+	if (ehci->has_syyespsys_hc_bug)
 		ehci_writel(ehci, (u32) ehci->async->qh_dma,
 			    &ehci->regs->async_next);
 
@@ -1306,7 +1306,7 @@ static void end_iaa_cycle(struct ehci_hcd *ehci)
 	end_unlink_async(ehci);
 }
 
-/* See if the async qh for the qtds being unlinked are now gone from the HC */
+/* See if the async qh for the qtds being unlinked are yesw gone from the HC */
 
 static void end_unlink_async(struct ehci_hcd *ehci)
 {
@@ -1316,11 +1316,11 @@ static void end_unlink_async(struct ehci_hcd *ehci)
 	if (list_empty(&ehci->async_unlink))
 		return;
 	qh = list_first_entry(&ehci->async_unlink, struct ehci_qh,
-			unlink_node);	/* QH whose IAA cycle just ended */
+			unlink_yesde);	/* QH whose IAA cycle just ended */
 
 	/*
 	 * If async_unlinking is set then this routine is already running,
-	 * either on the stack or on another CPU.
+	 * either on the stack or on ayesther CPU.
 	 */
 	early_exit = ehci->async_unlinking;
 
@@ -1338,17 +1338,17 @@ static void end_unlink_async(struct ehci_hcd *ehci)
 		 * Second IAA cycle has finished.  Process only the first
 		 * waiting QH (NVIDIA (?) bug).
 		 */
-		list_move_tail(&qh->unlink_node, &ehci->async_idle);
+		list_move_tail(&qh->unlink_yesde, &ehci->async_idle);
 	}
 
 	/*
 	 * AMD/ATI (?) bug: The HC can continue to use an active QH long
 	 * after the IAA interrupt occurs.  To prevent problems, QHs that
-	 * may still be active will wait until 2 ms have passed with no
+	 * may still be active will wait until 2 ms have passed with yes
 	 * change to the hw_current and hw_token fields (this delay occurs
 	 * between the two IAA cycles).
 	 *
-	 * The EHCI spec (4.8.2) says that active QHs must not be removed
+	 * The EHCI spec (4.8.2) says that active QHs must yest be removed
 	 * from the async schedule and recommends waiting until the QH
 	 * goes inactive.  This is ridiculous because the QH will _never_
 	 * become inactive if the endpoint NAKs indefinitely.
@@ -1403,8 +1403,8 @@ static void end_unlink_async(struct ehci_hcd *ehci)
 	ehci->async_unlinking = true;
 	while (!list_empty(&ehci->async_idle)) {
 		qh = list_first_entry(&ehci->async_idle, struct ehci_qh,
-				unlink_node);
-		list_del(&qh->unlink_node);
+				unlink_yesde);
+		list_del(&qh->unlink_yesde);
 
 		qh->qh_state = QH_STATE_IDLE;
 		qh->qh_next.qh = NULL;
@@ -1437,7 +1437,7 @@ static void unlink_empty_async(struct ehci_hcd *ehci)
 		}
 	}
 
-	/* If nothing else is being unlinked, unlink the last empty QH */
+	/* If yesthing else is being unlinked, unlink the last empty QH */
 	if (list_empty(&ehci->async_unlink) && qh_to_unlink) {
 		qh_to_unlink->unlink_reason |= QH_UNLINK_QUEUE_EMPTY;
 		start_unlink_async(ehci, qh_to_unlink);
@@ -1472,7 +1472,7 @@ static void unlink_empty_async_suspended(struct ehci_hcd *ehci)
 
 static void start_unlink_async(struct ehci_hcd *ehci, struct ehci_qh *qh)
 {
-	/* If the QH isn't linked then there's nothing we can do. */
+	/* If the QH isn't linked then there's yesthing we can do. */
 	if (qh->qh_state != QH_STATE_LINKED)
 		return;
 
@@ -1517,7 +1517,7 @@ static void scan_async (struct ehci_hcd *ehci)
 	/*
 	 * Unlink empty entries, reducing DMA usage as well
 	 * as HCD schedule-scanning costs.  Delay for any qh
-	 * we just scanned, there's a not-unusual case that it
+	 * we just scanned, there's a yest-unusual case that it
 	 * doesn't stay idle for long.
 	 */
 	if (check_unlinks_later && ehci->rh_state == EHCI_RH_RUNNING &&

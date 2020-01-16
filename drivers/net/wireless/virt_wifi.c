@@ -597,10 +597,10 @@ static bool netif_is_virt_wifi_dev(const struct net_device *dev)
 	return rcu_access_pointer(dev->rx_handler) == virt_wifi_rx_handler;
 }
 
-static int virt_wifi_event(struct notifier_block *this, unsigned long event,
+static int virt_wifi_event(struct yestifier_block *this, unsigned long event,
 			   void *ptr)
 {
-	struct net_device *lower_dev = netdev_notifier_info_to_dev(ptr);
+	struct net_device *lower_dev = netdev_yestifier_info_to_dev(ptr);
 	struct virt_wifi_netdev_priv *priv;
 	struct net_device *upper_dev;
 	LIST_HEAD(list_kill);
@@ -624,8 +624,8 @@ static int virt_wifi_event(struct notifier_block *this, unsigned long event,
 	return NOTIFY_DONE;
 }
 
-static struct notifier_block virt_wifi_notifier = {
-	.notifier_call = virt_wifi_event,
+static struct yestifier_block virt_wifi_yestifier = {
+	.yestifier_call = virt_wifi_event,
 };
 
 /* Acquires and releases the rtnl lock. */
@@ -633,17 +633,17 @@ static int __init virt_wifi_init_module(void)
 {
 	int err;
 
-	/* Guaranteed to be locallly-administered and not multicast. */
+	/* Guaranteed to be locallly-administered and yest multicast. */
 	eth_random_addr(fake_router_bssid);
 
-	err = register_netdevice_notifier(&virt_wifi_notifier);
+	err = register_netdevice_yestifier(&virt_wifi_yestifier);
 	if (err)
 		return err;
 
 	err = -ENOMEM;
 	common_wiphy = virt_wifi_make_wiphy();
 	if (!common_wiphy)
-		goto notifier;
+		goto yestifier;
 
 	err = rtnl_link_register(&virt_wifi_link_ops);
 	if (err)
@@ -653,8 +653,8 @@ static int __init virt_wifi_init_module(void)
 
 destroy_wiphy:
 	virt_wifi_destroy_wiphy(common_wiphy);
-notifier:
-	unregister_netdevice_notifier(&virt_wifi_notifier);
+yestifier:
+	unregister_netdevice_yestifier(&virt_wifi_yestifier);
 	return err;
 }
 
@@ -664,7 +664,7 @@ static void __exit virt_wifi_cleanup_module(void)
 	/* Will delete any devices that depend on the wiphy. */
 	rtnl_link_unregister(&virt_wifi_link_ops);
 	virt_wifi_destroy_wiphy(common_wiphy);
-	unregister_netdevice_notifier(&virt_wifi_notifier);
+	unregister_netdevice_yestifier(&virt_wifi_yestifier);
 }
 
 module_init(virt_wifi_init_module);

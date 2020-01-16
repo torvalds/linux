@@ -1,4 +1,4 @@
-/* vim: set ts=8 sw=8 tw=78 ai noexpandtab */
+/* vim: set ts=8 sw=8 tw=78 ai yesexpandtab */
 /* qxl_drv.c -- QXL driver -*- linux-c -*-
  *
  * Copyright 2011 Red Hat, Inc.
@@ -11,7 +11,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -277,7 +277,7 @@ static struct drm_driver qxl_driver = {
 	.desc = DRIVER_DESC,
 	.date = DRIVER_DATE,
 	.major = 0,
-	.minor = 1,
+	.miyesr = 1,
 	.patchlevel = 0,
 };
 

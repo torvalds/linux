@@ -13,7 +13,7 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/mutex.h>
 #include <linux/slab.h>
 #include <linux/of.h>
@@ -28,7 +28,7 @@ unsigned int of_pdt_unique_id __initdata;
 	(p)->unique_id = of_pdt_unique_id++; \
 } while (0)
 
-static char * __init of_pdt_build_full_name(struct device_node *dp)
+static char * __init of_pdt_build_full_name(struct device_yesde *dp)
 {
 	return build_path_component(dp);
 }
@@ -36,9 +36,9 @@ static char * __init of_pdt_build_full_name(struct device_node *dp)
 #else /* CONFIG_SPARC */
 
 static inline void of_pdt_incr_unique_id(void *p) { }
-static inline void irq_trans_init(struct device_node *dp) { }
+static inline void irq_trans_init(struct device_yesde *dp) { }
 
-static char * __init of_pdt_build_full_name(struct device_node *dp)
+static char * __init of_pdt_build_full_name(struct device_yesde *dp)
 {
 	static int failsafe_id = 0; /* for generating unique names on failure */
 	const char *name;
@@ -55,14 +55,14 @@ static char * __init of_pdt_build_full_name(struct device_node *dp)
 
 	name = of_get_property(dp, "name", &len);
 	buf = prom_early_alloc(len + 16);
-	sprintf(buf, "%s@unknown%i", name, failsafe_id++);
+	sprintf(buf, "%s@unkyeswn%i", name, failsafe_id++);
 	pr_err("%s: pkg2path failed; assigning %s\n", __func__, buf);
 	return buf;
 }
 
 #endif /* !CONFIG_SPARC */
 
-static struct property * __init of_pdt_build_one_prop(phandle node, char *prev,
+static struct property * __init of_pdt_build_one_prop(phandle yesde, char *prev,
 					       char *special_name,
 					       void *special_val,
 					       int special_len)
@@ -87,19 +87,19 @@ static struct property * __init of_pdt_build_one_prop(phandle node, char *prev,
 		p->value = prom_early_alloc(special_len);
 		memcpy(p->value, special_val, special_len);
 	} else {
-		err = of_pdt_prom_ops->nextprop(node, prev, p->name);
+		err = of_pdt_prom_ops->nextprop(yesde, prev, p->name);
 		if (err) {
 			tmp = p;
 			return NULL;
 		}
-		p->length = of_pdt_prom_ops->getproplen(node, p->name);
+		p->length = of_pdt_prom_ops->getproplen(yesde, p->name);
 		if (p->length <= 0) {
 			p->length = 0;
 		} else {
 			int len;
 
 			p->value = prom_early_alloc(p->length + 1);
-			len = of_pdt_prom_ops->getproperty(node, p->name,
+			len = of_pdt_prom_ops->getproperty(yesde, p->name,
 					p->value, p->length);
 			if (len <= 0)
 				p->length = 0;
@@ -109,17 +109,17 @@ static struct property * __init of_pdt_build_one_prop(phandle node, char *prev,
 	return p;
 }
 
-static struct property * __init of_pdt_build_prop_list(phandle node)
+static struct property * __init of_pdt_build_prop_list(phandle yesde)
 {
 	struct property *head, *tail;
 
-	head = tail = of_pdt_build_one_prop(node, NULL,
-				     ".node", &node, sizeof(node));
+	head = tail = of_pdt_build_one_prop(yesde, NULL,
+				     ".yesde", &yesde, sizeof(yesde));
 
-	tail->next = of_pdt_build_one_prop(node, NULL, NULL, NULL, 0);
+	tail->next = of_pdt_build_one_prop(yesde, NULL, NULL, NULL, 0);
 	tail = tail->next;
 	while(tail) {
-		tail->next = of_pdt_build_one_prop(node, tail->name,
+		tail->next = of_pdt_build_one_prop(yesde, tail->name,
 					    NULL, NULL, 0);
 		tail = tail->next;
 	}
@@ -127,37 +127,37 @@ static struct property * __init of_pdt_build_prop_list(phandle node)
 	return head;
 }
 
-static char * __init of_pdt_get_one_property(phandle node, const char *name)
+static char * __init of_pdt_get_one_property(phandle yesde, const char *name)
 {
 	char *buf = "<NULL>";
 	int len;
 
-	len = of_pdt_prom_ops->getproplen(node, name);
+	len = of_pdt_prom_ops->getproplen(yesde, name);
 	if (len > 0) {
 		buf = prom_early_alloc(len);
-		len = of_pdt_prom_ops->getproperty(node, name, buf, len);
+		len = of_pdt_prom_ops->getproperty(yesde, name, buf, len);
 	}
 
 	return buf;
 }
 
-static struct device_node * __init of_pdt_create_node(phandle node,
-						    struct device_node *parent)
+static struct device_yesde * __init of_pdt_create_yesde(phandle yesde,
+						    struct device_yesde *parent)
 {
-	struct device_node *dp;
+	struct device_yesde *dp;
 
-	if (!node)
+	if (!yesde)
 		return NULL;
 
 	dp = prom_early_alloc(sizeof(*dp));
-	of_node_init(dp);
+	of_yesde_init(dp);
 	of_pdt_incr_unique_id(dp);
 	dp->parent = parent;
 
-	dp->name = of_pdt_get_one_property(node, "name");
-	dp->phandle = node;
+	dp->name = of_pdt_get_one_property(yesde, "name");
+	dp->phandle = yesde;
 
-	dp->properties = of_pdt_build_prop_list(node);
+	dp->properties = of_pdt_build_prop_list(yesde);
 
 	dp->full_name = of_pdt_build_full_name(dp);
 
@@ -166,14 +166,14 @@ static struct device_node * __init of_pdt_create_node(phandle node,
 	return dp;
 }
 
-static struct device_node * __init of_pdt_build_tree(struct device_node *parent,
-						   phandle node)
+static struct device_yesde * __init of_pdt_build_tree(struct device_yesde *parent,
+						   phandle yesde)
 {
-	struct device_node *ret = NULL, *prev_sibling = NULL;
-	struct device_node *dp;
+	struct device_yesde *ret = NULL, *prev_sibling = NULL;
+	struct device_yesde *dp;
 
 	while (1) {
-		dp = of_pdt_create_node(node, parent);
+		dp = of_pdt_create_yesde(yesde, parent);
 		if (!dp)
 			break;
 
@@ -184,9 +184,9 @@ static struct device_node * __init of_pdt_build_tree(struct device_node *parent,
 			ret = dp;
 		prev_sibling = dp;
 
-		dp->child = of_pdt_build_tree(dp, of_pdt_prom_ops->getchild(node));
+		dp->child = of_pdt_build_tree(dp, of_pdt_prom_ops->getchild(yesde));
 
-		node = of_pdt_prom_ops->getsibling(node);
+		yesde = of_pdt_prom_ops->getsibling(yesde);
 	}
 
 	return ret;
@@ -197,17 +197,17 @@ static void * __init kernel_tree_alloc(u64 size, u64 align)
 	return prom_early_alloc(size);
 }
 
-void __init of_pdt_build_devicetree(phandle root_node, struct of_pdt_ops *ops)
+void __init of_pdt_build_devicetree(phandle root_yesde, struct of_pdt_ops *ops)
 {
 	BUG_ON(!ops);
 	of_pdt_prom_ops = ops;
 
-	of_root = of_pdt_create_node(root_node, NULL);
+	of_root = of_pdt_create_yesde(root_yesde, NULL);
 	of_root->full_name = "/";
 
 	of_root->child = of_pdt_build_tree(of_root,
 				of_pdt_prom_ops->getchild(of_root->phandle));
 
-	/* Get pointer to "/chosen" and "/aliases" nodes for use everywhere */
+	/* Get pointer to "/chosen" and "/aliases" yesdes for use everywhere */
 	of_alias_scan(kernel_tree_alloc);
 }

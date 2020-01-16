@@ -5,7 +5,7 @@
  * Sending one self a signal should always get delivered.
  */
 
-#include <errno.h>
+#include <erryes.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -81,7 +81,7 @@ static int test_signal_tm()
 			continue;
 
 		if (rc || ret) {
-			/* Ret is actually an errno */
+			/* Ret is actually an erryes */
 			printf("TEXASR 0x%016lx, TFIAR 0x%016lx\n",
 					__builtin_get_texasr(), __builtin_get_tfiar());
 			fprintf(stderr, "(%d) Fail reason: %d rc=0x%lx ret=0x%lx\n",

@@ -17,11 +17,11 @@
  *	push	{lr}
  *	bl	__gnu_mcount_nc
  *
- * With these compilers, frame pointers are not necessary.
+ * With these compilers, frame pointers are yest necessary.
  *
  * mcount can be thought of as a function called in the middle of a subroutine
  * call.  As such, it needs to be transparent for both the caller and the
- * callee: the original lr needs to be restored when leaving mcount, and no
+ * callee: the original lr needs to be restored when leaving mcount, and yes
  * registers should be clobbered.  (In the __gnu_mcount_nc implementation, we
  * clobber the ip register.  This is OK because the ARM calling convention
  * allows it to be clobbered in subroutines and doesn't use it to hold
@@ -190,7 +190,7 @@ ftrace_graph_call\suffix:
 .macro mcount_enter
 /*
  * This pad compensates for the push {lr} at the call site.  Note that we are
- * unable to unwind through a function which does not otherwise save its lr.
+ * unable to unwind through a function which does yest otherwise save its lr.
  */
  UNWIND(.pad	#4)
 	stmdb	sp!, {r0-r3, lr}

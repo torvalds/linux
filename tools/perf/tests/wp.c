@@ -177,7 +177,7 @@ static bool wp_ro_supported(void)
 static void wp_ro_skip_msg(void)
 {
 #if defined (__x86_64__) || defined (__i386__)
-	pr_debug("Hardware does not support read only watchpoints.\n");
+	pr_debug("Hardware does yest support read only watchpoints.\n");
 #endif
 }
 
@@ -233,7 +233,7 @@ int test__wp(struct test *test __maybe_unused, int i)
 	return !wp_testcase_table[i].target_func() ? TEST_OK : TEST_FAIL;
 }
 
-/* The s390 so far does not have support for
+/* The s390 so far does yest have support for
  * instruction breakpoint using the perf_event_open() system call.
  */
 bool test__wp_is_supported(void)

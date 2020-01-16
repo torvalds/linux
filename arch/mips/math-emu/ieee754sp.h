@@ -50,7 +50,7 @@ static inline int ieee754sp_finite(union ieee754sp x)
 #define SPXSRSY1() \
 	(ye++, (ym = XSPSRS1(ym)))
 
-/* convert denormal to normalized with extended exponent */
+/* convert deyesrmal to yesrmalized with extended exponent */
 #define SPDNORMx(m,e) \
 	while ((m >> SP_FBITS) == 0) { m <<= 1; e--; }
 #define SPDNORMX	SPDNORMx(xm, xe)

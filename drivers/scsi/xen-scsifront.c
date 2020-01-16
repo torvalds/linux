@@ -16,7 +16,7 @@
  * and to permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -182,7 +182,7 @@ static int scsifront_do_request(struct vscsifrnt_info *info,
 	struct vscsiif_request *ring_req;
 	struct scsi_cmnd *sc = shadow->sc;
 	uint32_t id;
-	int i, notify;
+	int i, yestify;
 
 	if (RING_FULL(&info->ring))
 		return -EBUSY;
@@ -217,9 +217,9 @@ static int scsifront_do_request(struct vscsifrnt_info *info,
 	for (i = 0; i < (shadow->nr_segments & ~VSCSIIF_SG_GRANT); i++)
 		ring_req->seg[i] = shadow->seg[i];
 
-	RING_PUSH_REQUESTS_AND_CHECK_NOTIFY(ring, notify);
-	if (notify)
-		notify_remote_via_irq(info->irq);
+	RING_PUSH_REQUESTS_AND_CHECK_NOTIFY(ring, yestify);
+	if (yestify)
+		yestify_remote_via_irq(info->irq);
 
 	return 0;
 }
@@ -657,7 +657,7 @@ static int scsifront_sdev_configure(struct scsi_device *sdev)
 	int err;
 
 	if (info && current == info->curr) {
-		err = xenbus_printf(XBT_NIL, info->dev->nodename,
+		err = xenbus_printf(XBT_NIL, info->dev->yesdename,
 			      info->dev_state_path, "%d", XenbusStateConnected);
 		if (err) {
 			xenbus_dev_error(info->dev, err,
@@ -675,7 +675,7 @@ static void scsifront_sdev_destroy(struct scsi_device *sdev)
 	int err;
 
 	if (info && current == info->curr) {
-		err = xenbus_printf(XBT_NIL, info->dev->nodename,
+		err = xenbus_printf(XBT_NIL, info->dev->yesdename,
 			      info->dev_state_path, "%d", XenbusStateClosed);
 		if (err)
 			xenbus_dev_error(info->dev, err,
@@ -783,14 +783,14 @@ again:
 	if (err)
 		xenbus_dev_fatal(dev, err, "starting transaction");
 
-	err = xenbus_printf(xbt, dev->nodename, "ring-ref", "%u",
+	err = xenbus_printf(xbt, dev->yesdename, "ring-ref", "%u",
 			    info->ring_ref);
 	if (err) {
 		xenbus_dev_fatal(dev, err, "%s", "writing ring-ref");
 		goto fail;
 	}
 
-	err = xenbus_printf(xbt, dev->nodename, "event-channel", "%u",
+	err = xenbus_printf(xbt, dev->yesdename, "event-channel", "%u",
 			    info->evtchn);
 
 	if (err) {
@@ -847,7 +847,7 @@ static int scsifront_probe(struct xenbus_device *dev,
 	init_waitqueue_head(&info->wq_pause);
 	spin_lock_init(&info->shadow_lock);
 
-	snprintf(name, TASK_COMM_LEN, "vscsiif.%d", host->host_no);
+	snprintf(name, TASK_COMM_LEN, "vscsiif.%d", host->host_yes);
 
 	host->max_id      = VSCSIIF_MAX_TARGET;
 	host->max_channel = 0;
@@ -926,11 +926,11 @@ static int scsifront_remove(struct xenbus_device *dev)
 {
 	struct vscsifrnt_info *info = dev_get_drvdata(&dev->dev);
 
-	pr_debug("%s: %s removed\n", __func__, dev->nodename);
+	pr_debug("%s: %s removed\n", __func__, dev->yesdename);
 
 	mutex_lock(&scsifront_mutex);
 	if (info->host_active) {
-		/* Scsi_host not yet removed */
+		/* Scsi_host yest yet removed */
 		scsi_remove_host(info->host);
 		info->host_active = 0;
 	}
@@ -947,12 +947,12 @@ static void scsifront_disconnect(struct vscsifrnt_info *info)
 	struct xenbus_device *dev = info->dev;
 	struct Scsi_Host *host = info->host;
 
-	pr_debug("%s: %s disconnect\n", __func__, dev->nodename);
+	pr_debug("%s: %s disconnect\n", __func__, dev->yesdename);
 
 	/*
 	 * When this function is executed, all devices of
 	 * Frontend have been deleted.
-	 * Therefore, it need not block I/O before remove_host.
+	 * Therefore, it need yest block I/O before remove_host.
 	 */
 
 	mutex_lock(&scsifront_mutex);
@@ -1014,7 +1014,7 @@ static void scsifront_do_lun_hotplug(struct vscsifrnt_info *info, int op)
 
 			if (scsi_add_device(info->host, chn, tgt, lun)) {
 				dev_err(&dev->dev, "scsi_add_device\n");
-				err = xenbus_printf(XBT_NIL, dev->nodename,
+				err = xenbus_printf(XBT_NIL, dev->yesdename,
 					      info->dev_state_path,
 					      "%d", XenbusStateClosed);
 				if (err)
@@ -1034,7 +1034,7 @@ static void scsifront_do_lun_hotplug(struct vscsifrnt_info *info, int op)
 			break;
 		case VSCSIFRONT_OP_READD_LUN:
 			if (device_state == XenbusStateConnected) {
-				err = xenbus_printf(XBT_NIL, dev->nodename,
+				err = xenbus_printf(XBT_NIL, dev->yesdename,
 					      info->dev_state_path,
 					      "%d", XenbusStateConnected);
 				if (err)
@@ -1069,7 +1069,7 @@ static void scsifront_read_backend_params(struct xenbus_device *dev,
 		dev_info(&dev->dev, "using up to %d SG entries\n", nr_segs);
 	else if (info->pause && nr_segs < host->sg_tablesize)
 		dev_warn(&dev->dev,
-			 "SG entries decreased from %d to %u - device may not work properly anymore\n",
+			 "SG entries decreased from %d to %u - device may yest work properly anymore\n",
 			 host->sg_tablesize, nr_segs);
 
 	host->sg_tablesize = nr_segs;
@@ -1084,7 +1084,7 @@ static void scsifront_backend_changed(struct xenbus_device *dev,
 	pr_debug("%s: %p %u %u\n", __func__, dev, dev->state, backend_state);
 
 	switch (backend_state) {
-	case XenbusStateUnknown:
+	case XenbusStateUnkyeswn:
 	case XenbusStateInitialising:
 	case XenbusStateInitWait:
 	case XenbusStateInitialised:
@@ -1100,7 +1100,7 @@ static void scsifront_backend_changed(struct xenbus_device *dev,
 			return;
 		}
 
-		if (xenbus_read_driver_state(dev->nodename) ==
+		if (xenbus_read_driver_state(dev->yesdename) ==
 		    XenbusStateInitialised)
 			scsifront_do_lun_hotplug(info, VSCSIFRONT_OP_ADD_LUN);
 

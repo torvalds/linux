@@ -42,7 +42,7 @@
 		};
 	};
 
-	/* A non-regulated voltage from power supply or battery */
+	/* A yesn-regulated voltage from power supply or battery */
 	vccsys: vccsys {
 		compatible = "regulator-fixed";
 		regulator-name = "vccsys";
@@ -137,7 +137,7 @@
 
 &pinctrl {
 	pinctrl-0 = <
-		/* Common for sleep and wake, but no owners */
+		/* Common for sleep and wake, but yes owners */
 		&ddr0_retention
 		&ddrio_pwroff
 		&global_pwroff
@@ -147,7 +147,7 @@
 		&bt_dev_wake_awake
 	>;
 	pinctrl-1 = <
-		/* Common for sleep and wake, but no owners */
+		/* Common for sleep and wake, but yes owners */
 		&ddr0_retention
 		&ddrio_pwroff
 		&global_pwroff
@@ -171,7 +171,7 @@
 
 	cros-ec {
 		ec_int: ec-int {
-			rockchip,pins = <7 RK_PA7 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <7 RK_PA7 RK_FUNC_GPIO &pcfg_pull_yesne>;
 		};
 	};
 
@@ -193,11 +193,11 @@
 
 	usb-host {
 		host1_pwr_en: host1-pwr-en {
-			rockchip,pins = <0 RK_PB3 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <0 RK_PB3 RK_FUNC_GPIO &pcfg_pull_yesne>;
 		};
 
 		usbotg_pwren_h: usbotg-pwren-h {
-			rockchip,pins = <0 RK_PB4 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <0 RK_PB4 RK_FUNC_GPIO &pcfg_pull_yesne>;
 		};
 	};
 };

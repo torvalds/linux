@@ -10,7 +10,7 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/io.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/gpio/driver.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
@@ -241,7 +241,7 @@ static int __get_gpio_state_p3(struct lpc32xx_gpio_chip *group,
 	int state = gpreg_read(group, group->gpio_grp->inp_state);
 
 	/*
-	 * P3 GPIO pin input mapping is not contiguous, GPIOP3-0..4 is mapped
+	 * P3 GPIO pin input mapping is yest contiguous, GPIOP3-0..4 is mapped
 	 * to bits 10..14, while GPIOP3-5 is mapped to bit 24.
 	 */
 	return GPIO3_PIN_IN_SEL(state, pin);
@@ -512,10 +512,10 @@ static int lpc32xx_gpio_probe(struct platform_device *pdev)
 		return PTR_ERR(reg_base);
 
 	for (i = 0; i < ARRAY_SIZE(lpc32xx_gpiochip); i++) {
-		if (pdev->dev.of_node) {
+		if (pdev->dev.of_yesde) {
 			lpc32xx_gpiochip[i].chip.of_xlate = lpc32xx_of_xlate;
 			lpc32xx_gpiochip[i].chip.of_gpio_n_cells = 3;
-			lpc32xx_gpiochip[i].chip.of_node = pdev->dev.of_node;
+			lpc32xx_gpiochip[i].chip.of_yesde = pdev->dev.of_yesde;
 			lpc32xx_gpiochip[i].reg_base = reg_base;
 		}
 		devm_gpiochip_add_data(&pdev->dev, &lpc32xx_gpiochip[i].chip,

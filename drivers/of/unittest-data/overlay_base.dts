@@ -5,10 +5,10 @@
 /*
  * Base device tree that overlays will be applied against.
  *
- * Do not add any properties in node "/".
- * Do not add any nodes other than "/testcase-data-2" in node "/".
- * Do not add anything that would result in dtc creating node "/__fixups__".
- * dtc will create nodes "/__symbols__" and "/__local_fixups__".
+ * Do yest add any properties in yesde "/".
+ * Do yest add any yesdes other than "/testcase-data-2" in yesde "/".
+ * Do yest add anything that would result in dtc creating yesde "/__fixups__".
+ * dtc will create yesdes "/__symbols__" and "/__local_fixups__".
  */
 
 / {

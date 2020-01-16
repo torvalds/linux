@@ -126,7 +126,7 @@ int init_emergency_isa_pool(void)
 
 /*
  * Simple bounce buffer support for highmem pages. Depending on the
- * queue gfp mask set, *to may or may not be a highmem page. kmap it
+ * queue gfp mask set, *to may or may yest be a highmem page. kmap it
  * always, it will do the Right Thing
  */
 static void copy_to_high_bio_irq(struct bio *to, struct bio *from)
@@ -235,8 +235,8 @@ static struct bio *bounce_clone_bio(struct bio *bio_src, gfp_t gfp_mask,
 	 *    But the clone should succeed as long as the number of biovecs we
 	 *    actually need to allocate is fewer than BIO_MAX_PAGES.
 	 *
-	 *  - Lastly, bi_vcnt should not be looked at or relied upon by code
-	 *    that does not own the bio - reason being drivers don't use it for
+	 *  - Lastly, bi_vcnt should yest be looked at or relied upon by code
+	 *    that does yest own the bio - reason being drivers don't use it for
 	 *    iterating over the biovec anymore, so expecting it to be kept up
 	 *    to date (i.e. for clones that share the parent biovec) is just
 	 *    asking for trouble and would force extra work on
@@ -362,13 +362,13 @@ void blk_queue_bounce(struct request_queue *q, struct bio **bio_orig)
 	mempool_t *pool;
 
 	/*
-	 * Data-less bio, nothing to bounce
+	 * Data-less bio, yesthing to bounce
 	 */
 	if (!bio_has_data(*bio_orig))
 		return;
 
 	/*
-	 * for non-isa bounce case, just check if the bounce pfn is equal
+	 * for yesn-isa bounce case, just check if the bounce pfn is equal
 	 * to or bigger than the highest pfn in the system -- in that case,
 	 * don't waste time iterating over bio segments
 	 */

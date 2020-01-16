@@ -62,8 +62,8 @@ static const struct mctl g450_controls[] =
 #define G450CTRLS ARRAY_SIZE(g450_controls)
 
 /* Return: positive number: id found
-           -EINVAL:         id not found, return failure
-	   -ENOENT:         id not found, create fake disabled control */
+           -EINVAL:         id yest found, return failure
+	   -ENOENT:         id yest found, create fake disabled control */
 static int get_ctrl_id(__u32 v4l2_id) {
 	int i;
 
@@ -358,7 +358,7 @@ static void computeRegs(struct matrox_fb_info *minfo, struct mavenregs *r,
 	}
 }
 
-static void cve2_init_TVdata(int norm, struct mavenregs* data, const struct output_desc** outd) {
+static void cve2_init_TVdata(int yesrm, struct mavenregs* data, const struct output_desc** outd) {
 	static const struct output_desc paloutd = {
 		.h_vis	   = 52148148,	// ps
 		.h_f_porch =  1407407,	// ps
@@ -383,13 +383,13 @@ static void cve2_init_TVdata(int norm, struct mavenregs* data, const struct outp
 		0x00,
 		0x00,	/* test */
 		0xF9,	/* modified by code (F9 written...) */
-		0x00,	/* ? not written */
+		0x00,	/* ? yest written */
 		0x7E,	/* 08 */
 		0x44,	/* 09 */
 		0x9C,	/* 0A */
 		0x2E,	/* 0B */
 		0x21,	/* 0C */
-		0x00,	/* ? not written */
+		0x00,	/* ? yest written */
 //		0x3F, 0x03, /* 0E-0F */
 		0x3C, 0x03,
 		0x3C, 0x03, /* 10-11 */
@@ -424,7 +424,7 @@ static void cve2_init_TVdata(int norm, struct mavenregs* data, const struct outp
 		0x14,	/* 33 */
 		0x49,	/* 34 */
 		0x00,	/* 35 written multiple times */
-		0x00,	/* 36 not written */
+		0x00,	/* 36 yest written */
 		0xA3,	/* 37 */
 		0xC8,	/* 38 */
 		0x22,	/* 39 */
@@ -432,20 +432,20 @@ static void cve2_init_TVdata(int norm, struct mavenregs* data, const struct outp
 		0x22,	/* 3B */
 		0x3F, 0x03, /* 3C-3D */
 		0x00,	/* 3E written multiple times */
-		0x00,	/* 3F not written */
+		0x00,	/* 3F yest written */
 	} };
 	static const struct mavenregs ntscregs = { {
 		0x21, 0xF0, 0x7C, 0x1F,	/* 00: chroma subcarrier */
 		0x00,
 		0x00,	/* test */
 		0xF9,	/* modified by code (F9 written...) */
-		0x00,	/* ? not written */
+		0x00,	/* ? yest written */
 		0x7E,	/* 08 */
 		0x43,	/* 09 */
 		0x7E,	/* 0A */
 		0x3D,	/* 0B */
 		0x00,	/* 0C */
-		0x00,	/* ? not written */
+		0x00,	/* ? yest written */
 		0x41, 0x00, /* 0E-0F */
 		0x3C, 0x00, /* 10-11 */
 		0x17,	/* 12 */
@@ -479,7 +479,7 @@ static void cve2_init_TVdata(int norm, struct mavenregs* data, const struct outp
 		0x14,	/* 33 */
 		0x02,	/* 34 */
 		0x00,	/* 35 written multiple times */
-		0x00,	/* 36 not written */
+		0x00,	/* 36 yest written */
 		0xA3,	/* 37 */
 		0xC8,	/* 38 */
 		0x15,	/* 39 */
@@ -490,7 +490,7 @@ static void cve2_init_TVdata(int norm, struct mavenregs* data, const struct outp
 		0x00,	/* never written */
 	} };
 
-	if (norm == MATROXFB_OUTPUT_MODE_PAL) {
+	if (yesrm == MATROXFB_OUTPUT_MODE_PAL) {
 		*data = palregs;
 		*outd = &paloutd;
 	} else {

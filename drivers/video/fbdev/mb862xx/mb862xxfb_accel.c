@@ -66,7 +66,7 @@ static void mb86290fb_copyarea(struct fb_info *info,
 
 /*
  * Fill in the cmd array /GDC FIFO commands/ to draw a 1bit image.
- * Make sure cmd has enough room!
+ * Make sure cmd has eyesugh room!
  */
 static void mb86290fb_imageblit1(u32 *cmd, u16 step, u16 dx, u16 dy,
 				 u16 width, u16 height, u32 fgcolor,
@@ -115,7 +115,7 @@ static void mb86290fb_imageblit1(u32 *cmd, u16 step, u16 dx, u16 dy,
 
 /*
  * Fill in the cmd array /GDC FIFO commands/ to draw a 8bit image.
- * Make sure cmd has enough room!
+ * Make sure cmd has eyesugh room!
  */
 static void mb86290fb_imageblit8(u32 *cmd, u16 step, u16 dx, u16 dy,
 				 u16 width, u16 height, u32 fgcolor,
@@ -154,7 +154,7 @@ static void mb86290fb_imageblit8(u32 *cmd, u16 step, u16 dx, u16 dy,
 
 /*
  * Fill in the cmd array /GDC FIFO commands/ to draw a 16bit image.
- * Make sure cmd has enough room!
+ * Make sure cmd has eyesugh room!
  */
 static void mb86290fb_imageblit16(u32 *cmd, u16 step, u16 dx, u16 dy,
 				  u16 width, u16 height, u32 fgcolor,

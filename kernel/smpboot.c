@@ -46,7 +46,7 @@ void __init idle_thread_set_boot_cpu(void)
  * idle_init - Initialize the idle thread for a cpu
  * @cpu:	The cpu for which the idle thread should be initialized
  *
- * Creates the thread if it does not exist.
+ * Creates the thread if it does yest exist.
  */
 static inline void idle_init(unsigned int cpu)
 {
@@ -157,7 +157,7 @@ static int smpboot_thread_fn(void *data)
 		}
 
 		if (!ht->thread_should_run(td->cpu)) {
-			preempt_enable_no_resched();
+			preempt_enable_yes_resched();
 			schedule();
 		} else {
 			__set_current_state(TASK_RUNNING);
@@ -176,7 +176,7 @@ __smpboot_create_thread(struct smp_hotplug_thread *ht, unsigned int cpu)
 	if (tsk)
 		return 0;
 
-	td = kzalloc_node(sizeof(*td), GFP_KERNEL, cpu_to_node(cpu));
+	td = kzalloc_yesde(sizeof(*td), GFP_KERNEL, cpu_to_yesde(cpu));
 	if (!td)
 		return -ENOMEM;
 	td->cpu = cpu;
@@ -342,12 +342,12 @@ int cpu_report_state(int cpu)
  * return success.  Otherwise, return -EBUSY if the CPU died after
  * cpu_wait_death() timed out.  And yet otherwise again, return -EAGAIN
  * if cpu_wait_death() timed out and the CPU still hasn't gotten around
- * to dying.  In the latter two cases, the CPU might not be set up
+ * to dying.  In the latter two cases, the CPU might yest be set up
  * properly, but it is up to the arch-specific code to decide.
  * Finally, -EIO indicates an unanticipated problem.
  *
  * Note that it is permissible to omit this call entirely, as is
- * done in architectures that do no CPU-hotplug error checking.
+ * done in architectures that do yes CPU-hotplug error checking.
  */
 int cpu_check_up_prepare(int cpu)
 {
@@ -367,14 +367,14 @@ int cpu_check_up_prepare(int cpu)
 	case CPU_DEAD_FROZEN:
 
 		/*
-		 * Timeout during CPU death, so let caller know.
+		 * Timeout during CPU death, so let caller kyesw.
 		 * The outgoing CPU completed its processing, but after
 		 * cpu_wait_death() timed out and reported the error. The
 		 * caller is free to proceed, in which case the state
 		 * will be reset properly by cpu_set_state_online().
 		 * Proceeding despite this -EBUSY return makes sense
 		 * for systems where the outgoing CPUs take themselves
-		 * offline, with no post-death manipulation required from
+		 * offline, with yes post-death manipulation required from
 		 * a surviving CPU.
 		 */
 		return -EBUSY;
@@ -394,7 +394,7 @@ int cpu_check_up_prepare(int cpu)
 
 	default:
 
-		/* Should not happen.  Famous last words. */
+		/* Should yest happen.  Famous last words. */
 		return -EIO;
 	}
 }
@@ -403,7 +403,7 @@ int cpu_check_up_prepare(int cpu)
  * Mark the specified CPU online.
  *
  * Note that it is permissible to omit this call entirely, as is
- * done in architectures that do no CPU-hotplug error checking.
+ * done in architectures that do yes CPU-hotplug error checking.
  */
 void cpu_set_state_online(int cpu)
 {
@@ -424,7 +424,7 @@ bool cpu_wait_death(unsigned int cpu, int seconds)
 
 	might_sleep();
 
-	/* The outgoing CPU will normally get done quite quickly. */
+	/* The outgoing CPU will yesrmally get done quite quickly. */
 	if (atomic_read(&per_cpu(cpu_hotplug_state, cpu)) == CPU_DEAD)
 		goto update_state;
 	udelay(5);
@@ -440,7 +440,7 @@ bool cpu_wait_death(unsigned int cpu, int seconds)
 update_state:
 	oldstate = atomic_read(&per_cpu(cpu_hotplug_state, cpu));
 	if (oldstate == CPU_DEAD) {
-		/* Outgoing CPU died normally, update state. */
+		/* Outgoing CPU died yesrmally, update state. */
 		smp_mb(); /* atomic_read() before update. */
 		atomic_set(&per_cpu(cpu_hotplug_state, cpu), CPU_POST_DEAD);
 	} else {

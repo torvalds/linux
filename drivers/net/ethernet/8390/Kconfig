@@ -119,7 +119,7 @@ config NE2K_PCI
 	depends on PCI
 	select CRC32
 	---help---
-	  This driver is for NE2000 compatible PCI cards. It will not work
+	  This driver is for NE2000 compatible PCI cards. It will yest work
 	  with ISA NE2000 cards (they have their own driver, "NE2000/NE1000
 	  support" below). If you have a PCI NE2000 network (Ethernet) card,
 	  say Y here.

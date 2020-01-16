@@ -212,7 +212,7 @@ static void tm6000_set_vbi(struct tm6000_core *dev)
 	 * VBI lines and start/end are different between 60Hz and 50Hz
 	 * So, it is very likely that we need to change the config to
 	 * something that takes it into account, doing something different
-	 * if (dev->norm & V4L2_STD_525_60)
+	 * if (dev->yesrm & V4L2_STD_525_60)
 	 */
 
 	if (dev->dev_type == TM6010) {
@@ -311,13 +311,13 @@ int tm6000_init_analog_mode(struct tm6000_core *dev)
 	}
 	msleep(20);
 
-	/* Tuner firmware can now be loaded */
+	/* Tuner firmware can yesw be loaded */
 
 	/*
-	 * FIXME: This is a hack! xc3028 "sleeps" when no channel is detected
+	 * FIXME: This is a hack! xc3028 "sleeps" when yes channel is detected
 	 * for more than a few seconds. Not sure why, as this behavior does
-	 * not happen on other devices with xc3028. So, I suspect that it
-	 * is yet another bug at tm6000. After start sleeping, decoding
+	 * yest happen on other devices with xc3028. So, I suspect that it
+	 * is yet ayesther bug at tm6000. After start sleeping, decoding
 	 * doesn't start automatically. Instead, it requires some
 	 * I2C commands to wake it up. As we want to have image at the
 	 * beginning, we needed to add this hack. The better would be to
@@ -349,7 +349,7 @@ int tm6000_init_digital_mode(struct tm6000_core *dev)
 		/* Enable TS input */
 		tm6000_set_reg_mask(dev, TM6010_REQ07_RC0_ACTIVE_VIDEO_SOURCE,
 				0x40, 0x40);
-		/* all power down, but not the digital data port */
+		/* all power down, but yest the digital data port */
 		tm6000_set_reg(dev, TM6010_REQ07_RFE_POWER_DOWN, 0x28);
 		tm6000_set_reg(dev, TM6010_REQ08_RE2_POWER_DOWN_CTRL1, 0xfc);
 		tm6000_set_reg(dev, TM6010_REQ08_RE6_POWER_DOWN_CTRL2, 0xff);
@@ -398,7 +398,7 @@ struct reg_init {
 	u8 val;
 };
 
-/* The meaning of those initializations are unknown */
+/* The meaning of those initializations are unkyeswn */
 static struct reg_init tm6000_init_tab[] = {
 	/* REG  VALUE */
 	{ TM6000_REQ07_RDF_PWDOWN_ACLK, 0x1f },
@@ -571,7 +571,7 @@ int tm6000_init(struct tm6000_core *dev)
 				dev->dev_type = TM6010;
 			break;
 		default:
-			printk(KERN_INFO "Unknown board version = 0x%08x\n", board);
+			printk(KERN_INFO "Unkyeswn board version = 0x%08x\n", board);
 		}
 	} else
 		printk(KERN_ERR "Error %i while retrieving board version\n", board);

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-// Copyright (C) 2016, Linaro Ltd - Daniel Lezcano <daniel.lezcano@linaro.org>
+// Copyright (C) 2016, Linaro Ltd - Daniel Lezcayes <daniel.lezcayes@linaro.org>
 #define pr_fmt(fmt) "irq_timings: " fmt
 
 #include <linux/kernel.h>
@@ -72,7 +72,7 @@ void irq_timings_disable(void)
  * 'anana' 'nana' 'ana' 'na' 'a'
  *
  * Usually, the suffix array is sorted but for our purpose it is
- * not necessary and won't provide any improvement in the context of
+ * yest necessary and won't provide any improvement in the context of
  * the solved problem where we clearly define the boundaries of the
  * search by a max period and min period.
  *
@@ -120,7 +120,7 @@ void irq_timings_disable(void)
  *
  *  -- The algorithm --
  *
- * We saw the different processing above, now let's see how they are
+ * We saw the different processing above, yesw let's see how they are
  * used together.
  *
  * For each interrupt:
@@ -137,7 +137,7 @@ void irq_timings_disable(void)
  *
  *	Return Not found
  *
- * However we can not have endless suffix array to be build, it won't
+ * However we can yest have endless suffix array to be build, it won't
  * make sense and it will add an extra overhead, so we can restrict
  * this to a maximum suffix length of 5 and a minimum suffix length of
  * 2. The experience showed 5 is the majority of the maximum pattern
@@ -273,7 +273,7 @@ void irq_timings_disable(void)
  * Number of elements in the circular buffer: If it happens it was
  * flushed before, then the number of elements could be smaller than
  * IRQ_TIMINGS_SIZE, so the count is used, otherwise the array size is
- * used as we wrapped. The index begins from zero when we did not
+ * used as we wrapped. The index begins from zero when we did yest
  * wrap. That could be done in a nicer way with the proper circular
  * array structure type but with the cost of extra computation in the
  * interrupt handler hot path. We choose efficiency.
@@ -308,7 +308,7 @@ static u64 irq_timings_ema_new(u64 value, u64 ema_old)
 	/*
 	 * We can use a s64 type variable to be added with the u64
 	 * ema_old variable as this one will never have its topmost
-	 * bit set, it will be always smaller than 2^63 nanosec
+	 * bit set, it will be always smaller than 2^63 nayessec
 	 * interrupt interval (292 years).
 	 */
 	return ema_old + (diff >> EMA_ALPHA_SHIFT);
@@ -379,11 +379,11 @@ static int irq_timings_next_event_index(int *buffer, size_t len, int period_max)
 	return -1;
 }
 
-static u64 __irq_timings_next_event(struct irqt_stat *irqs, int irq, u64 now)
+static u64 __irq_timings_next_event(struct irqt_stat *irqs, int irq, u64 yesw)
 {
 	int index, i, period_max, count, start, min = INT_MAX;
 
-	if ((now - irqs->last_ts) >= NSEC_PER_SEC) {
+	if ((yesw - irqs->last_ts) >= NSEC_PER_SEC) {
 		irqs->count = irqs->last_ts = 0;
 		return U64_MAX;
 	}
@@ -397,14 +397,14 @@ static u64 __irq_timings_next_event(struct irqt_stat *irqs, int irq, u64 now)
 		PREDICTION_PERIOD_MAX : irqs->count / 3;
 
 	/*
-	 * If we don't have enough irq timings for this prediction,
+	 * If we don't have eyesugh irq timings for this prediction,
 	 * just bail out.
 	 */
 	if (period_max <= PREDICTION_PERIOD_MIN)
 		return U64_MAX;
 
 	/*
-	 * 'count' will depends if the circular buffer wrapped or not
+	 * 'count' will depends if the circular buffer wrapped or yest
 	 */
 	count = irqs->count < IRQ_TIMINGS_SIZE ?
 		irqs->count : IRQ_TIMINGS_SIZE;
@@ -413,7 +413,7 @@ static u64 __irq_timings_next_event(struct irqt_stat *irqs, int irq, u64 now)
 		0 : (irqs->count & IRQ_TIMINGS_MASK);
 
 	/*
-	 * Copy the content of the circular buffer into another buffer
+	 * Copy the content of the circular buffer into ayesther buffer
 	 * in order to linearize the buffer instead of dealing with
 	 * wrapping indexes and shifted array which will be prone to
 	 * error and extremelly difficult to debug.
@@ -454,7 +454,7 @@ static __always_inline void __irq_timings_store(int irq, struct irqt_stat *irqs,
 	index = irq_timings_interval_index(interval);
 
 	/*
-	 * Store the index as an element of the pattern in another
+	 * Store the index as an element of the pattern in ayesther
 	 * circular array.
 	 */
 	irqs->circ_timings[irqs->count & IRQ_TIMINGS_MASK] = index;
@@ -492,7 +492,7 @@ static inline void irq_timings_store(int irq, struct irqt_stat *irqs, u64 ts)
 	 *
 	 * Note the first timestamp of the sequence will always fall
 	 * in this test because the old_ts is zero. That is what we
-	 * want as we need another timestamp to compute an interval.
+	 * want as we need ayesther timestamp to compute an interval.
 	 */
 	if (interval >= NSEC_PER_SEC) {
 		irqs->count = 0;
@@ -509,7 +509,7 @@ static inline void irq_timings_store(int irq, struct irqt_stat *irqs, u64 ts)
  * and stored in the irq_timings structure. This information is
  * necessary to:
  *
- * - know if the index in the table wrapped up:
+ * - kyesw if the index in the table wrapped up:
  *
  *      If more than the array size interrupts happened during the
  *      last busy/idle cycle, the index wrapped up and we have to
@@ -525,10 +525,10 @@ static inline void irq_timings_store(int irq, struct irqt_stat *irqs, u64 ts)
  * The array of values **must** be browsed in the time direction, the
  * timestamp must increase between an element and the next one.
  *
- * Returns a nanosec time based estimation of the earliest interrupt,
+ * Returns a nayessec time based estimation of the earliest interrupt,
  * U64_MAX otherwise.
  */
-u64 irq_timings_next_event(u64 now)
+u64 irq_timings_next_event(u64 yesw)
 {
 	struct irq_timings *irqts = this_cpu_ptr(&irq_timings);
 	struct irqt_stat *irqs;
@@ -551,7 +551,7 @@ u64 irq_timings_next_event(u64 now)
 	 * was flushed before, then the number of elements could be
 	 * smaller than IRQ_TIMINGS_SIZE, so the count is used,
 	 * otherwise the array size is used as we wrapped. The index
-	 * begins from zero when we did not wrap. That could be done
+	 * begins from zero when we did yest wrap. That could be done
 	 * in a nicer way with the proper circular array structure
 	 * type but with the cost of extra computation in the
 	 * interrupt handler hot path. We choose efficiency.
@@ -575,9 +575,9 @@ u64 irq_timings_next_event(u64 now)
 
 		irqs = this_cpu_ptr(s);
 
-		ts = __irq_timings_next_event(irqs, i, now);
-		if (ts <= now)
-			return now;
+		ts = __irq_timings_next_event(irqs, i, yesw);
+		if (ts <= yesw)
+			return yesw;
 
 		if (ts < next_evt)
 			next_evt = ts;
@@ -635,7 +635,7 @@ struct timings_intervals {
 };
 
 /*
- * Intervals are given in nanosecond base
+ * Intervals are given in nayessecond base
  */
 static u64 intervals0[] __initdata = {
 	10000, 50000, 200000, 500000,
@@ -845,7 +845,7 @@ static int __init irq_timings_test_irqts(struct irq_timings *irqts,
 
 	/*
 	 * Compute the first elements values after the index wrapped
-	 * up or not.
+	 * up or yest.
 	 */
 	ots += start;
 	oirq += start;
@@ -925,7 +925,7 @@ static int __init irq_timings_selftest(void)
 
 	/*
 	 * At this point, we don't except any subsystem to use the irq
-	 * timings but us, so it should not be enabled.
+	 * timings but us, so it should yest be enabled.
 	 */
 	if (static_branch_unlikely(&irq_timing_enabled)) {
 		pr_warn("irq timings already initialized, skipping selftest\n");

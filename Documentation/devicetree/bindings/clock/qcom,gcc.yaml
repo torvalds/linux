@@ -73,7 +73,7 @@ properties:
     description:
       Qualcomm TSENS (thermal sensor device) on some devices can
       be part of GCC and hence the TSENS properties can also be part
-      of the GCC/clock-controller node.
+      of the GCC/clock-controller yesde.
       For more details on the TSENS properties please refer
       Documentation/devicetree/bindings/thermal/qcom-tsens.txt
 
@@ -162,7 +162,7 @@ examples:
       #power-domain-cells = <1>;
     };
 
-  # Example of GCC with clock node properties for SM8150:
+  # Example of GCC with clock yesde properties for SM8150:
   - |
     clock-controller@100000 {
       compatible = "qcom,gcc-sm8150";
@@ -174,7 +174,7 @@ examples:
       #power-domain-cells = <1>;
      };
 
-  # Example of GCC with clock nodes properties for SC7180:
+  # Example of GCC with clock yesdes properties for SC7180:
   - |
     clock-controller@100000 {
       compatible = "qcom,gcc-sc7180";

@@ -13,10 +13,10 @@
 #include <linux/of.h>
 #include <linux/regmap.h>
 #include <linux/slab.h>
-#include <linux/soc/samsung/exynos-chipid.h>
+#include <linux/soc/samsung/exyyess-chipid.h>
 #include <linux/sys_soc.h>
 
-static const struct exynos_soc_id {
+static const struct exyyess_soc_id {
 	const char *name;
 	unsigned int id;
 } soc_ids[] = {
@@ -45,24 +45,24 @@ static const char * __init product_id_to_soc_id(unsigned int product_id)
 	return NULL;
 }
 
-static int __init exynos_chipid_early_init(void)
+static int __init exyyess_chipid_early_init(void)
 {
 	struct soc_device_attribute *soc_dev_attr;
 	struct soc_device *soc_dev;
-	struct device_node *root;
-	struct device_node *syscon;
+	struct device_yesde *root;
+	struct device_yesde *syscon;
 	struct regmap *regmap;
 	u32 product_id;
 	u32 revision;
 	int ret;
 
-	syscon = of_find_compatible_node(NULL, NULL,
-					 "samsung,exynos4210-chipid");
+	syscon = of_find_compatible_yesde(NULL, NULL,
+					 "samsung,exyyess4210-chipid");
 	if (!syscon)
 		return ENODEV;
 
-	regmap = device_node_to_regmap(syscon);
-	of_node_put(syscon);
+	regmap = device_yesde_to_regmap(syscon);
+	of_yesde_put(syscon);
 
 	if (IS_ERR(regmap))
 		return PTR_ERR(regmap);
@@ -77,21 +77,21 @@ static int __init exynos_chipid_early_init(void)
 	if (!soc_dev_attr)
 		return -ENOMEM;
 
-	soc_dev_attr->family = "Samsung Exynos";
+	soc_dev_attr->family = "Samsung Exyyess";
 
-	root = of_find_node_by_path("/");
+	root = of_find_yesde_by_path("/");
 	of_property_read_string(root, "model", &soc_dev_attr->machine);
-	of_node_put(root);
+	of_yesde_put(root);
 
 	soc_dev_attr->revision = kasprintf(GFP_KERNEL, "%x", revision);
 	soc_dev_attr->soc_id = product_id_to_soc_id(product_id);
 	if (!soc_dev_attr->soc_id) {
-		pr_err("Unknown SoC\n");
+		pr_err("Unkyeswn SoC\n");
 		ret = -ENODEV;
 		goto err;
 	}
 
-	/* please note that the actual registration will be deferred */
+	/* please yeste that the actual registration will be deferred */
 	soc_dev = soc_device_register(soc_dev_attr);
 	if (IS_ERR(soc_dev)) {
 		ret = PTR_ERR(soc_dev);
@@ -99,7 +99,7 @@ static int __init exynos_chipid_early_init(void)
 	}
 
 	/* it is too early to use dev_info() here (soc_dev is NULL) */
-	pr_info("soc soc0: Exynos: CPU[%s] PRO_ID[0x%x] REV[0x%x] Detected\n",
+	pr_info("soc soc0: Exyyess: CPU[%s] PRO_ID[0x%x] REV[0x%x] Detected\n",
 		soc_dev_attr->soc_id, product_id, revision);
 
 	return 0;
@@ -110,4 +110,4 @@ err:
 	return ret;
 }
 
-early_initcall(exynos_chipid_early_init);
+early_initcall(exyyess_chipid_early_init);

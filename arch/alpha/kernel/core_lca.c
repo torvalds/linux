@@ -59,7 +59,7 @@
 /*
  * Given a bus, device, and function number, compute resulting
  * configuration space address and setup the LCA_IOC_CONF register
- * accordingly.  It is therefore not safe to have concurrent
+ * accordingly.  It is therefore yest safe to have concurrent
  * invocations to configuration space access routines, but there
  * really shouldn't be any need for this.
  *
@@ -272,8 +272,8 @@ lca_init_arch(void)
 	 *   Window 0 is scatter-gather 8MB at 8MB (for isa).
 	 *   Window 1 is direct access 1GB at 1GB.
 	 *
-	 * Note that we do not try to save any of the DMA window CSRs
-	 * before setting them, since we cannot read those CSRs on LCA.
+	 * Note that we do yest try to save any of the DMA window CSRs
+	 * before setting them, since we canyest read those CSRs on LCA.
 	 */
 	hose->sg_isa = iommu_arena_new(hose, 0x00800000, 0x00800000,
 				       SMP_CACHE_BYTES);
@@ -294,7 +294,7 @@ lca_init_arch(void)
 	lca_pci_tbi(hose, 0, -1);
 
 	/*
-	 * Disable PCI parity for now.  The NCR53c810 chip has
+	 * Disable PCI parity for yesw.  The NCR53c810 chip has
 	 * troubles meeting the PCI spec which results in
 	 * data parity errors.
 	 */
@@ -302,7 +302,7 @@ lca_init_arch(void)
 
 	/*
 	 * Finally, set up for restoring the correct HAE if using SRM.
-	 * Again, since we cannot read many of the CSRs on the LCA,
+	 * Again, since we canyest read many of the CSRs on the LCA,
 	 * one of which happens to be the HAE, we save the value that
 	 * the SRM will expect...
 	 */
@@ -324,7 +324,7 @@ lca_init_arch(void)
 #define ESR_CTE		(1UL<< 7)	/* cache-tag error */
 #define ESR_MSE		(1UL<< 9)	/* multiple soft errors */
 #define ESR_MHE		(1UL<<10)	/* multiple hard errors */
-#define ESR_NXM		(1UL<<12)	/* non-existent memory */
+#define ESR_NXM		(1UL<<12)	/* yesn-existent memory */
 
 #define IOC_ERR		(  1<<4)	/* ioc logs an error */
 #define IOC_CMD_SHIFT	0
@@ -353,7 +353,7 @@ mem_error(unsigned long esr, unsigned long ear)
 		printk("    Several other uncorrectable errors occurred.\n");
 	}
 	if (esr & ESR_NXM) {
-		printk("    Attempted to access non-existent memory.\n");
+		printk("    Attempted to access yesn-existent memory.\n");
 	}
 }
 
@@ -361,14 +361,14 @@ static void
 ioc_error(__u32 stat0, __u32 stat1)
 {
 	static const char * const pci_cmd[] = {
-		"Interrupt Acknowledge", "Special", "I/O Read", "I/O Write",
+		"Interrupt Ackyeswledge", "Special", "I/O Read", "I/O Write",
 		"Rsvd 1", "Rsvd 2", "Memory Read", "Memory Write", "Rsvd3",
 		"Rsvd4", "Configuration Read", "Configuration Write",
 		"Memory Read Multiple", "Dual Address", "Memory Read Line",
 		"Memory Write and Invalidate"
 	};
 	static const char * const err_name[] = {
-		"exceeded retry limit", "no device", "bad data parity",
+		"exceeded retry limit", "yes device", "bad data parity",
 		"target abort", "bad address parity", "page table read error",
 		"invalid page", "data error"
 	};
@@ -403,17 +403,17 @@ lca_machine_check(unsigned long vector, unsigned long la_ptr)
 
 	/*
 	 * The first quadword after the common header always seems to
-	 * be the machine check reason---don't know why this isn't
+	 * be the machine check reason---don't kyesw why this isn't
 	 * part of the common header instead.  In the case of a long
 	 * logout frame, the upper 32 bits is the machine check
-	 * revision level, which we ignore for now.
+	 * revision level, which we igyesre for yesw.
 	 */
 	switch ((unsigned int) el.c->code) {
 	case MCHK_K_TPERR:	reason = "tag parity error"; break;
 	case MCHK_K_TCPERR:	reason = "tag control parity error"; break;
-	case MCHK_K_HERR:	reason = "access to non-existent memory"; break;
+	case MCHK_K_HERR:	reason = "access to yesn-existent memory"; break;
 	case MCHK_K_ECC_C:	reason = "correctable ECC error"; break;
-	case MCHK_K_ECC_NC:	reason = "non-correctable ECC error"; break;
+	case MCHK_K_ECC_NC:	reason = "yesn-correctable ECC error"; break;
 	case MCHK_K_CACKSOFT:	reason = "MCHK_K_CACKSOFT"; break;
 	case MCHK_K_BUGCHECK:	reason = "illegal exception in PAL mode"; break;
 	case MCHK_K_OS_BUGCHECK: reason = "callsys in kernel mode"; break;
@@ -423,7 +423,7 @@ lca_machine_check(unsigned long vector, unsigned long la_ptr)
 	case MCHK_K_SIO_IOCHK:	reason = "SIO IOCHK occurred on ISA bus"; break;
 	case MCHK_K_DCSR:	reason = "MCHK_K_DCSR"; break;
 	case MCHK_K_UNKNOWN:
-	default:		reason = "unknown"; break;
+	default:		reason = "unkyeswn"; break;
 	}
 
 	switch (el.c->size) {
@@ -456,7 +456,7 @@ lca_machine_check(unsigned long vector, unsigned long la_ptr)
 		break;
 
 	default:
-		printk(KERN_CRIT "  Unknown errorlog size %d\n", el.c->size);
+		printk(KERN_CRIT "  Unkyeswn errorlog size %d\n", el.c->size);
 	}
 
 	/* Dump the logout area to give all info.  */
@@ -511,7 +511,7 @@ lca_clock_fiddle(int divisor)
 
         pmr_reg = LCA_READ_PMR;
         LCA_SET_PRIMARY_CLOCK(pmr_reg, divisor);
-	/* lca_norm_clock = divisor; */
+	/* lca_yesrm_clock = divisor; */
         LCA_WRITE_PMR(pmr_reg);
         mb();
 }

@@ -12,13 +12,13 @@ Required properties:
   driver strength pad control register address and second bank address must
   be pinmux register address.
 
-Tegra114 adds the following optional properties for pin configuration subnodes:
-- nvidia,enable-input: Integer. Enable the pin's input path. 0: no, 1: yes.
-- nvidia,open-drain: Integer. Enable open drain mode. 0: no, 1: yes.
+Tegra114 adds the following optional properties for pin configuration subyesdes:
+- nvidia,enable-input: Integer. Enable the pin's input path. 0: yes, 1: no.
+- nvidia,open-drain: Integer. Enable open drain mode. 0: yes, 1: no.
 - nvidia,lock: Integer. Lock the pin configuration against further changes
-    until reset. 0: no, 1: yes.
-- nvidia,io-reset: Integer. Reset the IO path. 0: no, 1: yes.
-- nvidia,rcv-sel: Integer. Select VIL/VIH receivers. 0: normal, 1: high.
+    until reset. 0: yes, 1: no.
+- nvidia,io-reset: Integer. Reset the IO path. 0: yes, 1: no.
+- nvidia,rcv-sel: Integer. Select VIL/VIH receivers. 0: yesrmal, 1: high.
 - nvidia,drive-type: Integer. Valid range 0...3.
 
 As with Tegra20 and Terga30, see the Tegra TRM for complete details regarding
@@ -72,7 +72,7 @@ Valid values for pin and group names are:
   drive groups:
 
     These all support nvidia,pull-down-strength, nvidia,pull-up-strength,
-    nvidia,slew-rate-rising, nvidia,slew-rate-falling. Most but not all
+    nvidia,slew-rate-rising, nvidia,slew-rate-falling. Most but yest all
     support nvidia,high-speed-mode, nvidia,schmitt, nvidia,low-power-mode
     and nvidia,drive-type.
 

@@ -399,7 +399,7 @@
 /* The fields in this register are 1 bit per entry in tegra30_ahub_txcif */
 
 /*
- * Terminology:
+ * Termiyeslogy:
  * AHUB: Audio Hub; a cross-bar switch between the audio devices: DMA FIFOs,
  *       I2S controllers, SPDIF controllers, and DAMs.
  * XBAR: The core cross-bar component of the AHUB.
@@ -411,8 +411,8 @@
  * Each TX CIF transmits data into the XBAR. Each RX CIF can receive audio
  * transmitted by a particular TX CIF.
  *
- * This driver is currently very simplistic; many HW features are not
- * exposed; DAMs are not supported, only 16-bit stereo audio is supported,
+ * This driver is currently very simplistic; many HW features are yest
+ * exposed; DAMs are yest supported, only 16-bit stereo audio is supported,
  * etc.
  */
 
@@ -482,7 +482,7 @@ struct tegra30_ahub_cif_conf {
 	unsigned int replicate;
 	unsigned int direction;
 	unsigned int truncate;
-	unsigned int mono_conv;
+	unsigned int moyes_conv;
 };
 
 void tegra30_ahub_set_cif(struct regmap *regmap, unsigned int reg,

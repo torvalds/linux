@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -392,13 +392,13 @@ void dcn20_link_encoder_construct(
 		SIGNAL_TYPE_HDMI_TYPE_A;
 
 	/* For DCE 8.0 and 8.1, by design, UNIPHY is hardwired to DIG_BE.
-	 * SW always assign DIG_FE 1:1 mapped to DIG_FE for non-MST UNIPHY.
-	 * SW assign DIG_FE to non-MST UNIPHY first and MST last. So prefer
+	 * SW always assign DIG_FE 1:1 mapped to DIG_FE for yesn-MST UNIPHY.
+	 * SW assign DIG_FE to yesn-MST UNIPHY first and MST last. So prefer
 	 * DIG is per UNIPHY and used by SST DP, eDP, HDMI, DVI and LVDS.
 	 * Prefer DIG assignment is decided by board design.
 	 * For DCE 8.0, there are only max 6 UNIPHYs, we assume board design
 	 * and VBIOS will filter out 7 UNIPHY for DCE 8.0.
-	 * By this, adding DIGG should not hurt DCE 8.0.
+	 * By this, adding DIGG should yest hurt DCE 8.0.
 	 * This will let DCE 8.1 share DCE 8.0 as much as possible
 	 */
 

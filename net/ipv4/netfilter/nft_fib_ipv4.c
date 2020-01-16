@@ -28,7 +28,7 @@ void nft_fib4_eval_type(const struct nft_expr *expr, struct nft_regs *regs,
 			const struct nft_pktinfo *pkt)
 {
 	const struct nft_fib *priv = nft_expr_priv(expr);
-	int noff = skb_network_offset(pkt->skb);
+	int yesff = skb_network_offset(pkt->skb);
 	u32 *dst = &regs->data[priv->dreg];
 	const struct net_device *dev = NULL;
 	struct iphdr *iph, _iph;
@@ -39,7 +39,7 @@ void nft_fib4_eval_type(const struct nft_expr *expr, struct nft_regs *regs,
 	else if (priv->flags & NFTA_FIB_F_OIF)
 		dev = nft_out(pkt);
 
-	iph = skb_header_pointer(pkt->skb, noff, sizeof(_iph), &_iph);
+	iph = skb_header_pointer(pkt->skb, yesff, sizeof(_iph), &_iph);
 	if (!iph) {
 		regs->verdict.code = NFT_BREAK;
 		return;
@@ -58,7 +58,7 @@ void nft_fib4_eval(const struct nft_expr *expr, struct nft_regs *regs,
 		   const struct nft_pktinfo *pkt)
 {
 	const struct nft_fib *priv = nft_expr_priv(expr);
-	int noff = skb_network_offset(pkt->skb);
+	int yesff = skb_network_offset(pkt->skb);
 	u32 *dest = &regs->data[priv->dreg];
 	struct iphdr *iph, _iph;
 	struct fib_result res;
@@ -70,9 +70,9 @@ void nft_fib4_eval(const struct nft_expr *expr, struct nft_regs *regs,
 	const struct net_device *found;
 
 	/*
-	 * Do not set flowi4_oif, it restricts results (for example, asking
+	 * Do yest set flowi4_oif, it restricts results (for example, asking
 	 * for oif 3 will get RTN_UNICAST result even if the daddr exits
-	 * on another interface.
+	 * on ayesther interface.
 	 *
 	 * Search results for the desired outinterface instead.
 	 */
@@ -89,7 +89,7 @@ void nft_fib4_eval(const struct nft_expr *expr, struct nft_regs *regs,
 		return;
 	}
 
-	iph = skb_header_pointer(pkt->skb, noff, sizeof(_iph), &_iph);
+	iph = skb_header_pointer(pkt->skb, yesff, sizeof(_iph), &_iph);
 	if (!iph) {
 		regs->verdict.code = NFT_BREAK;
 		return;
@@ -124,7 +124,7 @@ void nft_fib4_eval(const struct nft_expr *expr, struct nft_regs *regs,
 	switch (res.type) {
 	case RTN_UNICAST:
 		break;
-	case RTN_LOCAL: /* Should not see RTN_LOCAL here */
+	case RTN_LOCAL: /* Should yest see RTN_LOCAL here */
 		return;
 	default:
 		break;

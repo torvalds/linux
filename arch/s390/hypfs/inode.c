@@ -10,7 +10,7 @@
 #define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
 
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/fs.h>
 #include <linux/fs_context.h>
 #include <linux/fs_parser.h>
@@ -50,10 +50,10 @@ static struct dentry *hypfs_last_dentry;
 static void hypfs_update_update(struct super_block *sb)
 {
 	struct hypfs_sb_info *sb_info = sb->s_fs_info;
-	struct inode *inode = d_inode(sb_info->update_file);
+	struct iyesde *iyesde = d_iyesde(sb_info->update_file);
 
 	sb_info->last_update = ktime_get_seconds();
-	inode->i_atime = inode->i_mtime = inode->i_ctime = current_time(inode);
+	iyesde->i_atime = iyesde->i_mtime = iyesde->i_ctime = current_time(iyesde);
 }
 
 /* directory tree removal functions */
@@ -69,16 +69,16 @@ static void hypfs_remove(struct dentry *dentry)
 	struct dentry *parent;
 
 	parent = dentry->d_parent;
-	inode_lock(d_inode(parent));
+	iyesde_lock(d_iyesde(parent));
 	if (simple_positive(dentry)) {
 		if (d_is_dir(dentry))
-			simple_rmdir(d_inode(parent), dentry);
+			simple_rmdir(d_iyesde(parent), dentry);
 		else
-			simple_unlink(d_inode(parent), dentry);
+			simple_unlink(d_iyesde(parent), dentry);
 	}
 	d_drop(dentry);
 	dput(dentry);
-	inode_unlock(d_inode(parent));
+	iyesde_unlock(d_iyesde(parent));
 }
 
 static void hypfs_delete_tree(struct dentry *root)
@@ -91,13 +91,13 @@ static void hypfs_delete_tree(struct dentry *root)
 	}
 }
 
-static struct inode *hypfs_make_inode(struct super_block *sb, umode_t mode)
+static struct iyesde *hypfs_make_iyesde(struct super_block *sb, umode_t mode)
 {
-	struct inode *ret = new_inode(sb);
+	struct iyesde *ret = new_iyesde(sb);
 
 	if (ret) {
 		struct hypfs_sb_info *hypfs_info = sb->s_fs_info;
-		ret->i_ino = get_next_ino();
+		ret->i_iyes = get_next_iyes();
 		ret->i_mode = mode;
 		ret->i_uid = hypfs_info->uid;
 		ret->i_gid = hypfs_info->gid;
@@ -108,27 +108,27 @@ static struct inode *hypfs_make_inode(struct super_block *sb, umode_t mode)
 	return ret;
 }
 
-static void hypfs_evict_inode(struct inode *inode)
+static void hypfs_evict_iyesde(struct iyesde *iyesde)
 {
-	clear_inode(inode);
-	kfree(inode->i_private);
+	clear_iyesde(iyesde);
+	kfree(iyesde->i_private);
 }
 
-static int hypfs_open(struct inode *inode, struct file *filp)
+static int hypfs_open(struct iyesde *iyesde, struct file *filp)
 {
-	char *data = file_inode(filp)->i_private;
+	char *data = file_iyesde(filp)->i_private;
 	struct hypfs_sb_info *fs_info;
 
 	if (filp->f_mode & FMODE_WRITE) {
-		if (!(inode->i_mode & S_IWUGO))
+		if (!(iyesde->i_mode & S_IWUGO))
 			return -EACCES;
 	}
 	if (filp->f_mode & FMODE_READ) {
-		if (!(inode->i_mode & S_IRUGO))
+		if (!(iyesde->i_mode & S_IRUGO))
 			return -EACCES;
 	}
 
-	fs_info = inode->i_sb->s_fs_info;
+	fs_info = iyesde->i_sb->s_fs_info;
 	if(data) {
 		mutex_lock(&fs_info->lock);
 		filp->private_data = kstrdup(data, GFP_KERNEL);
@@ -138,7 +138,7 @@ static int hypfs_open(struct inode *inode, struct file *filp)
 		}
 		mutex_unlock(&fs_info->lock);
 	}
-	return nonseekable_open(inode, filp);
+	return yesnseekable_open(iyesde, filp);
 }
 
 static ssize_t hypfs_read_iter(struct kiocb *iocb, struct iov_iter *to)
@@ -164,7 +164,7 @@ static ssize_t hypfs_read_iter(struct kiocb *iocb, struct iov_iter *to)
 static ssize_t hypfs_write_iter(struct kiocb *iocb, struct iov_iter *from)
 {
 	int rc;
-	struct super_block *sb = file_inode(iocb->ki_filp)->i_sb;
+	struct super_block *sb = file_iyesde(iocb->ki_filp)->i_sb;
 	struct hypfs_sb_info *fs_info = sb->s_fs_info;
 	size_t count = iov_iter_count(from);
 
@@ -174,7 +174,7 @@ static ssize_t hypfs_write_iter(struct kiocb *iocb, struct iov_iter *from)
 	 * 2. If several processes do updates in parallel and then read the
 	 *    hypfs data, the likelihood of collisions is reduced, if we restrict
 	 *    the minimum update interval. A collision occurs, if during the
-	 *    data gathering of one process another process triggers an update
+	 *    data gathering of one process ayesther process triggers an update
 	 *    If the first process wants to ensure consistent data, it has
 	 *    to restart data collection in this case.
 	 */
@@ -201,7 +201,7 @@ out:
 	return rc;
 }
 
-static int hypfs_release(struct inode *inode, struct file *filp)
+static int hypfs_release(struct iyesde *iyesde, struct file *filp)
 {
 	kfree(filp->private_data);
 	return 0;
@@ -236,13 +236,13 @@ static int hypfs_parse_param(struct fs_context *fc, struct fs_parameter *param)
 	case Opt_uid:
 		uid = make_kuid(current_user_ns(), result.uint_32);
 		if (!uid_valid(uid))
-			return invalf(fc, "Unknown uid");
+			return invalf(fc, "Unkyeswn uid");
 		hypfs_info->uid = uid;
 		break;
 	case Opt_gid:
 		gid = make_kgid(current_user_ns(), result.uint_32);
 		if (!gid_valid(gid))
-			return invalf(fc, "Unknown gid");
+			return invalf(fc, "Unkyeswn gid");
 		hypfs_info->gid = gid;
 		break;
 	}
@@ -261,7 +261,7 @@ static int hypfs_show_options(struct seq_file *s, struct dentry *root)
 static int hypfs_fill_super(struct super_block *sb, struct fs_context *fc)
 {
 	struct hypfs_sb_info *sbi = sb->s_fs_info;
-	struct inode *root_inode;
+	struct iyesde *root_iyesde;
 	struct dentry *root_dentry, *update_file;
 	int rc;
 
@@ -270,12 +270,12 @@ static int hypfs_fill_super(struct super_block *sb, struct fs_context *fc)
 	sb->s_magic = HYPFS_MAGIC;
 	sb->s_op = &hypfs_s_ops;
 
-	root_inode = hypfs_make_inode(sb, S_IFDIR | 0755);
-	if (!root_inode)
+	root_iyesde = hypfs_make_iyesde(sb, S_IFDIR | 0755);
+	if (!root_iyesde)
 		return -ENOMEM;
-	root_inode->i_op = &simple_dir_inode_operations;
-	root_inode->i_fop = &simple_dir_operations;
-	sb->s_root = root_dentry = d_make_root(root_inode);
+	root_iyesde->i_op = &simple_dir_iyesde_operations;
+	root_iyesde->i_fop = &simple_dir_operations;
+	sb->s_root = root_dentry = d_make_root(root_iyesde);
 	if (!root_dentry)
 		return -ENOMEM;
 	if (MACHINE_IS_VM)
@@ -343,37 +343,37 @@ static struct dentry *hypfs_create_file(struct dentry *parent, const char *name,
 					char *data, umode_t mode)
 {
 	struct dentry *dentry;
-	struct inode *inode;
+	struct iyesde *iyesde;
 
-	inode_lock(d_inode(parent));
+	iyesde_lock(d_iyesde(parent));
 	dentry = lookup_one_len(name, parent, strlen(name));
 	if (IS_ERR(dentry)) {
 		dentry = ERR_PTR(-ENOMEM);
 		goto fail;
 	}
-	inode = hypfs_make_inode(parent->d_sb, mode);
-	if (!inode) {
+	iyesde = hypfs_make_iyesde(parent->d_sb, mode);
+	if (!iyesde) {
 		dput(dentry);
 		dentry = ERR_PTR(-ENOMEM);
 		goto fail;
 	}
 	if (S_ISREG(mode)) {
-		inode->i_fop = &hypfs_file_ops;
+		iyesde->i_fop = &hypfs_file_ops;
 		if (data)
-			inode->i_size = strlen(data);
+			iyesde->i_size = strlen(data);
 		else
-			inode->i_size = 0;
+			iyesde->i_size = 0;
 	} else if (S_ISDIR(mode)) {
-		inode->i_op = &simple_dir_inode_operations;
-		inode->i_fop = &simple_dir_operations;
-		inc_nlink(d_inode(parent));
+		iyesde->i_op = &simple_dir_iyesde_operations;
+		iyesde->i_fop = &simple_dir_operations;
+		inc_nlink(d_iyesde(parent));
 	} else
 		BUG();
-	inode->i_private = data;
-	d_instantiate(dentry, inode);
+	iyesde->i_private = data;
+	d_instantiate(dentry, iyesde);
 	dget(dentry);
 fail:
-	inode_unlock(d_inode(parent));
+	iyesde_unlock(d_iyesde(parent));
 	return dentry;
 }
 
@@ -395,8 +395,8 @@ static struct dentry *hypfs_create_update_file(struct dentry *dir)
 	dentry = hypfs_create_file(dir, "update", NULL,
 				   S_IFREG | UPDATE_FILE_MODE);
 	/*
-	 * We do not put the update file on the 'delete' list with
-	 * hypfs_add_dentry(), since it should not be removed when the tree
+	 * We do yest put the update file on the 'delete' list with
+	 * hypfs_add_dentry(), since it should yest be removed when the tree
 	 * is updated.
 	 */
 	return dentry;
@@ -448,7 +448,7 @@ static const struct file_operations hypfs_file_ops = {
 	.release	= hypfs_release,
 	.read_iter	= hypfs_read_iter,
 	.write_iter	= hypfs_write_iter,
-	.llseek		= no_llseek,
+	.llseek		= yes_llseek,
 };
 
 static struct file_system_type hypfs_type = {
@@ -461,7 +461,7 @@ static struct file_system_type hypfs_type = {
 
 static const struct super_operations hypfs_s_ops = {
 	.statfs		= simple_statfs,
-	.evict_inode	= hypfs_evict_inode,
+	.evict_iyesde	= hypfs_evict_iyesde,
 	.show_options	= hypfs_show_options,
 };
 

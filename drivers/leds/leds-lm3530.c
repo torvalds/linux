@@ -283,7 +283,7 @@ static int lm3530_init_registers(struct lm3530_data *drvdata)
 		return ret;
 
 	for (i = 0; i < LM3530_REG_MAX; i++) {
-		/* do not update brightness register when pwm mode */
+		/* do yest update brightness register when pwm mode */
 		if (lm3530_reg[i] == LM3530_BRT_CTRL_REG &&
 		    drvdata->mode == LM3530_BL_MODE_PWM) {
 			if (pwm->pwm_set_intensity)
@@ -424,7 +424,7 @@ static int lm3530_probe(struct i2c_client *client,
 	}
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) {
-		dev_err(&client->dev, "I2C_FUNC_I2C not supported\n");
+		dev_err(&client->dev, "I2C_FUNC_I2C yest supported\n");
 		return -EIO;
 	}
 

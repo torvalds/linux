@@ -17,7 +17,7 @@
 #include <sound/timer.h>
 #include <sound/control.h>
 #include <sound/info.h>
-#include <sound/minors.h>
+#include <sound/miyesrs.h>
 #include <sound/initval.h>
 #include <linux/kmod.h>
 
@@ -32,14 +32,14 @@
 #endif
 
 static int timer_limit = DEFAULT_TIMER_LIMIT;
-static int timer_tstamp_monotonic = 1;
+static int timer_tstamp_moyestonic = 1;
 MODULE_AUTHOR("Jaroslav Kysela <perex@perex.cz>, Takashi Iwai <tiwai@suse.de>");
 MODULE_DESCRIPTION("ALSA timer interface");
 MODULE_LICENSE("GPL");
 module_param(timer_limit, int, 0444);
 MODULE_PARM_DESC(timer_limit, "Maximum global timers in system.");
-module_param(timer_tstamp_monotonic, int, 0444);
-MODULE_PARM_DESC(timer_tstamp_monotonic, "Use posix monotonic clock source for timestamps (default).");
+module_param(timer_tstamp_moyestonic, int, 0444);
+MODULE_PARM_DESC(timer_tstamp_moyestonic, "Use posix moyestonic clock source for timestamps (default).");
 
 MODULE_ALIAS_CHARDEV(CONFIG_SND_MAJOR, SNDRV_MINOR_TIMER);
 MODULE_ALIAS("devname:snd/timer");
@@ -448,14 +448,14 @@ unsigned long snd_timer_resolution(struct snd_timer_instance *timeri)
 }
 EXPORT_SYMBOL(snd_timer_resolution);
 
-static void snd_timer_notify1(struct snd_timer_instance *ti, int event)
+static void snd_timer_yestify1(struct snd_timer_instance *ti, int event)
 {
 	struct snd_timer *timer = ti->timer;
 	unsigned long resolution = 0;
 	struct snd_timer_instance *ts;
 	struct timespec tstamp;
 
-	if (timer_tstamp_monotonic)
+	if (timer_tstamp_moyestonic)
 		ktime_get_ts(&tstamp);
 	else
 		getnstimeofday(&tstamp);
@@ -515,7 +515,7 @@ static int snd_timer_start1(struct snd_timer_instance *timeri,
 	list_move_tail(&timeri->active_list, &timer->active_list_head);
 	if (timer->running) {
 		if (timer->hw.flags & SNDRV_TIMER_HW_SLAVE)
-			goto __start_now;
+			goto __start_yesw;
 		timer->flags |= SNDRV_TIMER_FLG_RESCHED;
 		timeri->flags |= SNDRV_TIMER_IFLG_START;
 		result = 1; /* delayed start */
@@ -523,12 +523,12 @@ static int snd_timer_start1(struct snd_timer_instance *timeri,
 		if (start)
 			timer->sticks = ticks;
 		timer->hw.start(timer);
-	      __start_now:
+	      __start_yesw:
 		timer->running++;
 		timeri->flags |= SNDRV_TIMER_IFLG_RUNNING;
 		result = 0;
 	}
-	snd_timer_notify1(timeri, start ? SNDRV_TIMER_EVENT_START :
+	snd_timer_yestify1(timeri, start ? SNDRV_TIMER_EVENT_START :
 			  SNDRV_TIMER_EVENT_CONTINUE);
  unlock:
 	spin_unlock_irqrestore(&timer->lock, flags);
@@ -556,7 +556,7 @@ static int snd_timer_start_slave(struct snd_timer_instance *timeri,
 		spin_lock(&timeri->timer->lock);
 		list_add_tail(&timeri->active_list,
 			      &timeri->master->slave_active_head);
-		snd_timer_notify1(timeri, start ? SNDRV_TIMER_EVENT_START :
+		snd_timer_yestify1(timeri, start ? SNDRV_TIMER_EVENT_START :
 				  SNDRV_TIMER_EVENT_CONTINUE);
 		spin_unlock(&timeri->timer->lock);
 	}
@@ -607,7 +607,7 @@ static int snd_timer_stop1(struct snd_timer_instance *timeri, bool stop)
 		timeri->flags &= ~SNDRV_TIMER_IFLG_PAUSED;
 	else
 		timeri->flags |= SNDRV_TIMER_IFLG_PAUSED;
-	snd_timer_notify1(timeri, stop ? SNDRV_TIMER_EVENT_STOP :
+	snd_timer_yestify1(timeri, stop ? SNDRV_TIMER_EVENT_STOP :
 			  SNDRV_TIMER_EVENT_PAUSE);
  unlock:
 	spin_unlock_irqrestore(&timer->lock, flags);
@@ -629,7 +629,7 @@ static int snd_timer_stop_slave(struct snd_timer_instance *timeri, bool stop)
 		spin_lock(&timeri->timer->lock);
 		list_del_init(&timeri->ack_list);
 		list_del_init(&timeri->active_list);
-		snd_timer_notify1(timeri, stop ? SNDRV_TIMER_EVENT_STOP :
+		snd_timer_yestify1(timeri, stop ? SNDRV_TIMER_EVENT_STOP :
 				  SNDRV_TIMER_EVENT_PAUSE);
 		spin_unlock(&timeri->timer->lock);
 	}
@@ -654,7 +654,7 @@ EXPORT_SYMBOL(snd_timer_start);
 /*
  * stop the timer instance.
  *
- * do not call this from the timer callback!
+ * do yest call this from the timer callback!
  */
 int snd_timer_stop(struct snd_timer_instance *timeri)
 {
@@ -813,7 +813,7 @@ void snd_timer_interrupt(struct snd_timer * timer, unsigned long ticks_left)
 	resolution = snd_timer_hw_resolution(timer);
 
 	/* loop for all active instances
-	 * Here we cannot use list_for_each_entry because the active_list of a
+	 * Here we canyest use list_for_each_entry because the active_list of a
 	 * processed instance is relinked to done_list_head before the callback
 	 * is called.
 	 */
@@ -829,7 +829,7 @@ void snd_timer_interrupt(struct snd_timer * timer, unsigned long ticks_left)
 			ti->cticks = 0;
 		else
 			ti->cticks -= ticks_left;
-		if (ti->cticks) /* not expired */
+		if (ti->cticks) /* yest expired */
 			continue;
 		if (ti->flags & SNDRV_TIMER_IFLG_AUTO) {
 			ti->cticks = ti->ticks;
@@ -869,7 +869,7 @@ void snd_timer_interrupt(struct snd_timer * timer, unsigned long ticks_left)
 		timer->hw.stop(timer);
 	}
 
-	/* now process all fast callbacks */
+	/* yesw process all fast callbacks */
 	snd_timer_process_callbacks(timer, &timer->ack_list_head);
 
 	/* do we have any slow callbacks? */
@@ -1025,7 +1025,7 @@ static int snd_timer_dev_disconnect(struct snd_device *device)
 	return 0;
 }
 
-void snd_timer_notify(struct snd_timer *timer, int event, struct timespec *tstamp)
+void snd_timer_yestify(struct snd_timer *timer, int event, struct timespec *tstamp)
 {
 	unsigned long flags;
 	unsigned long resolution = 0;
@@ -1052,7 +1052,7 @@ void snd_timer_notify(struct snd_timer *timer, int event, struct timespec *tstam
 	}
 	spin_unlock_irqrestore(&timer->lock, flags);
 }
-EXPORT_SYMBOL(snd_timer_notify);
+EXPORT_SYMBOL(snd_timer_yestify);
 
 /*
  * exported functions for global timers
@@ -1234,7 +1234,7 @@ static void snd_timer_proc_read(struct snd_info_entry *entry,
 		snd_iprintf(buffer, "\n");
 		list_for_each_entry(ti, &timer->open_list_head, open_list)
 			snd_iprintf(buffer, "  Client %s : %s\n",
-				    ti->owner ? ti->owner : "unknown",
+				    ti->owner ? ti->owner : "unkyeswn",
 				    ti->flags & (SNDRV_TIMER_IFLG_START |
 						 SNDRV_TIMER_IFLG_RUNNING)
 				    ? "running" : "stopped");
@@ -1367,7 +1367,7 @@ static void snd_timer_user_tinterrupt(struct snd_timer_instance *timeri,
 		return;
 	}
 	if (tu->last_resolution != resolution || ticks > 0) {
-		if (timer_tstamp_monotonic)
+		if (timer_tstamp_moyestonic)
 			ktime_get_ts(&tstamp);
 		else
 			getnstimeofday(&tstamp);
@@ -1435,12 +1435,12 @@ static int realloc_user_queue(struct snd_timer_user *tu, int size)
 	return 0;
 }
 
-static int snd_timer_user_open(struct inode *inode, struct file *file)
+static int snd_timer_user_open(struct iyesde *iyesde, struct file *file)
 {
 	struct snd_timer_user *tu;
 	int err;
 
-	err = stream_open(inode, file);
+	err = stream_open(iyesde, file);
 	if (err < 0)
 		return err;
 
@@ -1459,7 +1459,7 @@ static int snd_timer_user_open(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static int snd_timer_user_release(struct inode *inode, struct file *file)
+static int snd_timer_user_release(struct iyesde *iyesde, struct file *file)
 {
 	struct snd_timer_user *tu;
 
@@ -1936,7 +1936,7 @@ static int snd_timer_user_continue(struct file *file)
 	tu = file->private_data;
 	if (!tu->timeri)
 		return -EBADFD;
-	/* start timer instead of continue if it's not used before */
+	/* start timer instead of continue if it's yest used before */
 	if (!(tu->timeri->flags & SNDRV_TIMER_IFLG_PAUSED))
 		return snd_timer_user_start(file);
 	tu->timeri->lost = 0;
@@ -2149,7 +2149,7 @@ static const struct file_operations snd_timer_f_ops =
 	.read =		snd_timer_user_read,
 	.open =		snd_timer_user_open,
 	.release =	snd_timer_user_release,
-	.llseek =	no_llseek,
+	.llseek =	yes_llseek,
 	.poll =		snd_timer_user_poll,
 	.unlocked_ioctl =	snd_timer_user_ioctl,
 	.compat_ioctl =	snd_timer_user_ioctl_compat,

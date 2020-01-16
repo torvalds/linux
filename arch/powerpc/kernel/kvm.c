@@ -111,7 +111,7 @@ static void __init kvm_patch_ins_stw(u32 *inst, long addr, u32 rt)
 	kvm_patch_ins(inst, KVM_INST_STW | rt | (addr & 0x0000fffc));
 }
 
-static void __init kvm_patch_ins_nop(u32 *inst)
+static void __init kvm_patch_ins_yesp(u32 *inst)
 {
 	kvm_patch_ins(inst, KVM_INST_NOP);
 }
@@ -418,10 +418,10 @@ static void __init kvm_map_magic_page(void *data)
 static void __init kvm_check_ins(u32 *inst, u32 features)
 {
 	u32 _inst = *inst;
-	u32 inst_no_rt = _inst & ~KVM_MASK_RT;
+	u32 inst_yes_rt = _inst & ~KVM_MASK_RT;
 	u32 inst_rt = _inst & KVM_MASK_RT;
 
-	switch (inst_no_rt) {
+	switch (inst_yes_rt) {
 	/* Loads */
 	case KVM_INST_MFMSR:
 		kvm_patch_ins_ld(inst, magic_var(msr), inst_rt);
@@ -614,7 +614,7 @@ static void __init kvm_check_ins(u32 *inst, u32 features)
 
 	/* Nops */
 	case KVM_INST_TLBSYNC:
-		kvm_patch_ins_nop(inst);
+		kvm_patch_ins_yesp(inst);
 		break;
 
 	/* Rewrites */
@@ -632,7 +632,7 @@ static void __init kvm_check_ins(u32 *inst, u32 features)
 #endif
 	}
 
-	switch (inst_no_rt & ~KVM_MASK_RB) {
+	switch (inst_yes_rt & ~KVM_MASK_RB) {
 #ifdef CONFIG_PPC_BOOK3S_32
 	case KVM_INST_MTSRIN:
 		if (features & KVM_MAGIC_FEAT_SR) {

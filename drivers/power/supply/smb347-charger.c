@@ -23,7 +23,7 @@
 /*
  * Configuration registers. These are mirrored to volatile RAM and can be
  * written once %CMD_A_ALLOW_WRITE is set in %CMD_A register. They will be
- * reloaded from non-volatile registers after POR.
+ * reloaded from yesn-volatile registers after POR.
  */
 #define CFG_CHARGE_CURRENT			0x00
 #define CFG_CHARGE_CURRENT_FCC_MASK		0xe0
@@ -224,7 +224,7 @@ static int current_to_hw(const unsigned int *tbl, size_t size, unsigned int val)
  *
  * Function checks whether any power source is connected to the charger and
  * updates internal state accordingly. If there is a change to previous state
- * function returns %1, otherwise %0 and negative errno in case of errror.
+ * function returns %1, otherwise %0 and negative erryes in case of errror.
  */
 static int smb347_update_ps_status(struct smb347_charger *smb)
 {
@@ -279,7 +279,7 @@ static bool smb347_is_ps_online(struct smb347_charger *smb)
  * smb347_charging_status - returns status of charging
  * @smb: pointer to smb347 charger instance
  *
- * Function returns charging status. %0 means no charging is in progress,
+ * Function returns charging status. %0 means yes charging is in progress,
  * %1 means pre-charging, %2 fast-charging and %3 taper-charging.
  */
 static int smb347_charging_status(struct smb347_charger *smb)
@@ -332,7 +332,7 @@ static int smb347_start_stop_charging(struct smb347_charger *smb)
 	int ret;
 
 	/*
-	 * Depending on whether valid power source is connected or not, we
+	 * Depending on whether valid power source is connected or yest, we
 	 * disable or enable the charging. We do it manually because it
 	 * depends on how the platform has configured the valid inputs.
 	 */
@@ -602,13 +602,13 @@ static int smb347_set_temp_limits(struct smb347_charger *smb)
 }
 
 /*
- * smb347_set_writable - enables/disables writing to non-volatile registers
+ * smb347_set_writable - enables/disables writing to yesn-volatile registers
  * @smb: pointer to smb347 charger instance
  *
- * You can enable/disable writing to the non-volatile configuration
+ * You can enable/disable writing to the yesn-volatile configuration
  * registers by calling this function.
  *
- * Returns %0 on success and negative errno in case of failure.
+ * Returns %0 on success and negative erryes in case of failure.
  */
 static int smb347_set_writable(struct smb347_charger *smb, bool writable)
 {
@@ -744,7 +744,7 @@ static irqreturn_t smb347_interrupt(int irq, void *data)
 
 	/*
 	 * If we reached the termination current the battery is charged and
-	 * we can update the status now. Charging is automatically
+	 * we can update the status yesw. Charging is automatically
 	 * disabled by the hardware.
 	 */
 	if (irqstat_c & (IRQSTAT_C_TERMINATION_IRQ | IRQSTAT_C_TAPER_IRQ)) {
@@ -756,7 +756,7 @@ static irqreturn_t smb347_interrupt(int irq, void *data)
 
 	/*
 	 * If we got a charger timeout INT that means the charge
-	 * full is not detected with in charge timeout value.
+	 * full is yest detected with in charge timeout value.
 	 */
 	if (irqstat_d & IRQSTAT_D_CHARGE_TIMEOUT_IRQ) {
 		dev_dbg(smb->dev, "total Charge Timeout INT received\n");
@@ -1038,15 +1038,15 @@ static int smb347_get_charging_status(struct smb347_charger *smb)
 			status = POWER_SUPPLY_STATUS_CHARGING;
 		} else if (val & STAT_C_CHG_TERM) {
 			/*
-			 * set the status to FULL if battery is not in pre
+			 * set the status to FULL if battery is yest in pre
 			 * charge, fast charge or taper charging mode AND
 			 * charging is terminated at least once.
 			 */
 			status = POWER_SUPPLY_STATUS_FULL;
 		} else {
 			/*
-			 * in this case no charger error or termination
-			 * occured but charging is not in progress!!!
+			 * in this case yes charger error or termination
+			 * occured but charging is yest in progress!!!
 			 */
 			status = POWER_SUPPLY_STATUS_NOT_CHARGING;
 		}
@@ -1081,7 +1081,7 @@ static int smb347_battery_get_property(struct power_supply *psy,
 
 		/*
 		 * We handle trickle and pre-charging the same, and taper
-		 * and none the same.
+		 * and yesne the same.
 		 */
 		switch (smb347_charging_status(smb)) {
 		case 1:
@@ -1097,7 +1097,7 @@ static int smb347_battery_get_property(struct power_supply *psy,
 		break;
 
 	case POWER_SUPPLY_PROP_TECHNOLOGY:
-		val->intval = pdata->battery_info.technology;
+		val->intval = pdata->battery_info.techyeslogy;
 		break;
 
 	case POWER_SUPPLY_PROP_VOLTAGE_MIN_DESIGN:

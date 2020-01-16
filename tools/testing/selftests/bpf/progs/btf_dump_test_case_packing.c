@@ -11,7 +11,7 @@ struct packed_trailing_space {
 	short b;
 } __attribute__((packed));
 
-struct non_packed_trailing_space {
+struct yesn_packed_trailing_space {
 	int a;
 	short b;
 };
@@ -21,7 +21,7 @@ struct packed_fields {
 	int b;
 } __attribute__((packed));
 
-struct non_packed_fields {
+struct yesn_packed_fields {
 	short a;
 	int b;
 };
@@ -42,7 +42,7 @@ union union_is_never_packed {
 	char c: 1;
 };
 
-union union_does_not_need_packing {
+union union_does_yest_need_packing {
 	struct {
 		long int a;
 		int b;
@@ -62,12 +62,12 @@ union jump_code_union {
 
 int f(struct {
 	struct packed_trailing_space _1;
-	struct non_packed_trailing_space _2;
+	struct yesn_packed_trailing_space _2;
 	struct packed_fields _3;
-	struct non_packed_fields _4;
+	struct yesn_packed_fields _4;
 	struct nested_packed _5;
 	union union_is_never_packed _6;
-	union union_does_not_need_packing _7;
+	union union_does_yest_need_packing _7;
 	union jump_code_union _8;
 } *_)
 {

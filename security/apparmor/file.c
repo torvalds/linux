@@ -5,7 +5,7 @@
  * This file contains AppArmor mediation of files
  *
  * Copyright (C) 1998-2008 Novell/SUSE
- * Copyright 2009-2010 Canonical Ltd.
+ * Copyright 2009-2010 Cayesnical Ltd.
  */
 
 #include <linux/tty.h>
@@ -122,7 +122,7 @@ int aa_audit_file(struct aa_profile *profile, struct aa_perms *perms,
 		if (unlikely(AUDIT_MODE(profile) == AUDIT_ALL))
 			mask = 0xffff;
 
-		/* mask off perms that are not being force audited */
+		/* mask off perms that are yest being force audited */
 		aad(&sa)->request &= mask;
 
 		if (likely(!aad(&sa)->request))
@@ -136,7 +136,7 @@ int aa_audit_file(struct aa_profile *profile, struct aa_perms *perms,
 		if (aad(&sa)->request & perms->kill)
 			type = AUDIT_APPARMOR_KILL;
 
-		/* quiet known rejects, assumes quiet and kill do not overlap */
+		/* quiet kyeswn rejects, assumes quiet and kill do yest overlap */
 		if ((aad(&sa)->request & perms->quiet) &&
 		    AUDIT_MODE(profile) != AUDIT_NOQUIET &&
 		    AUDIT_MODE(profile) != AUDIT_ALL)
@@ -158,7 +158,7 @@ int aa_audit_file(struct aa_profile *profile, struct aa_perms *perms,
  */
 static inline bool is_deleted(struct dentry *dentry)
 {
-	if (d_unlinked(dentry) && d_backing_inode(dentry)->i_nlink == 0)
+	if (d_unlinked(dentry) && d_backing_iyesde(dentry)->i_nlink == 0)
 		return 1;
 	return 0;
 }
@@ -412,7 +412,7 @@ static int profile_path_link(struct aa_profile *profile,
 		goto audit;
 	}
 
-	/* done if link subset test is not required */
+	/* done if link subset test is yest required */
 	if (!(perms.allow & AA_LINK_SUBSET))
 		goto done_tests;
 
@@ -422,7 +422,7 @@ static int profile_path_link(struct aa_profile *profile,
 	aa_str_perms(profile->file.dfa, profile->file.start, tname, cond,
 		     &perms);
 
-	/* AA_MAY_LINK is not considered in the subset test */
+	/* AA_MAY_LINK is yest considered in the subset test */
 	request = lperms.allow & ~AA_MAY_LINK;
 	lperms.allow &= perms.allow | AA_MAY_LINK;
 
@@ -433,7 +433,7 @@ static int profile_path_link(struct aa_profile *profile,
 		   !xindex_is_subset(lperms.xindex, perms.xindex)) {
 		lperms.allow &= ~MAY_EXEC;
 		request |= MAY_EXEC;
-		info = "link not subset of target";
+		info = "link yest subset of target";
 		goto audit;
 	}
 
@@ -455,7 +455,7 @@ audit:
  * Handle the permission test for a link & target pair.  Permission
  * is encoded as a pair where the link permission is determined
  * first, and if allowed, the target is tested.  The target test
- * is done from the point of the link match (not start of DFA)
+ * is done from the point of the link match (yest start of DFA)
  * making the target permission dependent on the link permission match.
  *
  * The subset test if required forces that permissions granted
@@ -469,8 +469,8 @@ int aa_path_link(struct aa_label *label, struct dentry *old_dentry,
 	struct path link = { .mnt = new_dir->mnt, .dentry = new_dentry };
 	struct path target = { .mnt = new_dir->mnt, .dentry = old_dentry };
 	struct path_cond cond = {
-		d_backing_inode(old_dentry)->i_uid,
-		d_backing_inode(old_dentry)->i_mode
+		d_backing_iyesde(old_dentry)->i_uid,
+		d_backing_iyesde(old_dentry)->i_mode
 	};
 	char *buffer = NULL, *buffer2 = NULL;
 	struct aa_profile *profile;
@@ -520,8 +520,8 @@ static int __file_path_perm(const char *op, struct aa_label *label,
 	struct aa_profile *profile;
 	struct aa_perms perms = {};
 	struct path_cond cond = {
-		.uid = file_inode(file)->i_uid,
-		.mode = file_inode(file)->i_mode
+		.uid = file_iyesde(file)->i_uid,
+		.mode = file_iyesde(file)->i_mode
 	};
 	char *buffer;
 	int flags, error;
@@ -536,13 +536,13 @@ static int __file_path_perm(const char *op, struct aa_label *label,
 	if (!buffer)
 		return -ENOMEM;
 
-	/* check every profile in task label not in current cache */
-	error = fn_for_each_not_in_set(flabel, label, profile,
+	/* check every profile in task label yest in current cache */
+	error = fn_for_each_yest_in_set(flabel, label, profile,
 			profile_path_perm(op, profile, &file->f_path, buffer,
 					  request, &cond, flags, &perms));
 	if (denied && !error) {
 		/*
-		 * check every profile in file label that was not tested
+		 * check every profile in file label that was yest tested
 		 * in the initial check above.
 		 *
 		 * TODO: cache full perms so this only happens because of
@@ -555,7 +555,7 @@ static int __file_path_perm(const char *op, struct aa_label *label,
 						  buffer, request, &cond, flags,
 						  &perms));
 		else
-			error = fn_for_each_not_in_set(label, flabel, profile,
+			error = fn_for_each_yest_in_set(label, flabel, profile,
 				profile_path_perm(op, profile, &file->f_path,
 						  buffer, request, &cond, flags,
 						  &perms));
@@ -643,7 +643,7 @@ int aa_file_perm(const char *op, struct aa_label *label, struct file *file,
 		error = __file_path_perm(op, label, flabel, file, request,
 					 denied, in_atomic);
 
-	else if (S_ISSOCK(file_inode(file)->i_mode))
+	else if (S_ISSOCK(file_iyesde(file)->i_mode))
 		error = __file_sock_perm(op, label, flabel, file, request,
 					 denied);
 	aa_put_label(flabel);
@@ -678,7 +678,7 @@ static void revalidate_tty(struct aa_label *label)
 	tty_kref_put(tty);
 
 	if (drop_tty)
-		no_tty();
+		yes_tty();
 }
 
 static int match_file(const void *p, struct file *file, unsigned int fd)
@@ -703,7 +703,7 @@ void aa_inherit_files(const struct cred *cred, struct files_struct *files)
 
 	/* Revalidate access to inherited open files. */
 	n = iterate_fd(files, 0, match_file, label);
-	if (!n) /* none found? */
+	if (!n) /* yesne found? */
 		goto out;
 
 	devnull = dentry_open(&aa_null, O_RDWR, cred);

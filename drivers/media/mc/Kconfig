@@ -29,5 +29,5 @@ config MEDIA_CONTROLLER_REQUEST_API
 	  This option enables the Request API for the Media controller and V4L2
 	  interfaces. It is currently needed by a few stateless codec drivers.
 
-	  There is currently no intention to provide API or ABI stability for
+	  There is currently yes intention to provide API or ABI stability for
 	  this new API as of yet.

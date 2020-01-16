@@ -47,9 +47,9 @@ static inline int strcmp(const char *cs, const char *ct)
 	asm ("\n"
 		"1:	move.b	(%0)+,%2\n"	/* get *cs */
 		"	cmp.b	(%1)+,%2\n"	/* compare a byte */
-		"	jne	2f\n"		/* not equal, break out */
+		"	jne	2f\n"		/* yest equal, break out */
 		"	tst.b	%2\n"		/* at end of cs? */
-		"	jne	1b\n"		/* no, keep going */
+		"	jne	1b\n"		/* yes, keep going */
 		"	jra	3f\n"		/* strings are equal */
 		"2:	sub.b	-(%1),%2\n"	/* *cs - *ct */
 		"3:"

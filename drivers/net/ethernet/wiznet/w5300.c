@@ -16,7 +16,7 @@
 #include <linux/ethtool.h>
 #include <linux/skbuff.h>
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/delay.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
@@ -328,8 +328,8 @@ static void w5300_get_regs(struct net_device *ndev,
 	regs->version = 1;
 	for (addr = 0; addr < W5300_REGS_LEN; addr += 2) {
 		switch (addr & 0x23f) {
-		case W5300_S0_TX_FIFO: /* cannot read TX_FIFO */
-		case W5300_S0_RX_FIFO: /* cannot read RX_FIFO */
+		case W5300_S0_TX_FIFO: /* canyest read TX_FIFO */
+		case W5300_S0_RX_FIFO: /* canyest read RX_FIFO */
 			data = 0xffff;
 			break;
 		default:
@@ -605,7 +605,7 @@ static int w5300_probe(struct platform_device *pdev)
 	ndev->watchdog_timeo = HZ;
 	netif_napi_add(ndev, &priv->napi, w5300_napi_poll, 16);
 
-	/* This chip doesn't support VLAN packets with normal MTU,
+	/* This chip doesn't support VLAN packets with yesrmal MTU,
 	 * so disable VLAN for this device.
 	 */
 	ndev->features |= NETIF_F_VLAN_CHALLENGED;

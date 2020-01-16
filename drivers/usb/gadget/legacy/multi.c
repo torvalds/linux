@@ -112,13 +112,13 @@ static unsigned int fsg_num_buffers = CONFIG_USB_GADGET_STORAGE_NUM_BUFFERS;
 
 /*
  * Number of buffers we will use.
- * 2 is usually enough for good buffering pipeline
+ * 2 is usually eyesugh for good buffering pipeline
  */
 #define fsg_num_buffers	CONFIG_USB_GADGET_STORAGE_NUM_BUFFERS
 
 #endif /* CONFIG_USB_GADGET_DEBUG_FILES */
 
-FSG_MODULE_PARAMETERS(/* no prefix */, fsg_mod_data);
+FSG_MODULE_PARAMETERS(/* yes prefix */, fsg_mod_data);
 
 static struct usb_function_instance *fi_acm;
 static struct usb_function_instance *fi_msg;
@@ -305,7 +305,7 @@ static int __ref multi_bind(struct usb_composite_dev *cdev)
 	int status;
 
 	if (!can_support_ecm(cdev->gadget)) {
-		dev_err(&gadget->dev, "controller '%s' not usable\n",
+		dev_err(&gadget->dev, "controller '%s' yest usable\n",
 			gadget->name);
 		return -EINVAL;
 	}
@@ -344,7 +344,7 @@ static int __ref multi_bind(struct usb_composite_dev *cdev)
 	/*
 	 * If both ecm and rndis are selected then:
 	 *	1) rndis borrows the net interface from ecm
-	 *	2) since the interface is shared it must not be bound
+	 *	2) since the interface is shared it must yest be bound
 	 *	twice - in ecm's _and_ rndis' binds, so do it here.
 	 */
 	gether_set_gadget(ecm_opts->net, cdev->gadget);
@@ -372,7 +372,7 @@ static int __ref multi_bind(struct usb_composite_dev *cdev)
 	fsg_config_from_params(&config, &fsg_mod_data, fsg_num_buffers);
 	fsg_opts = fsg_opts_from_func_inst(fi_msg);
 
-	fsg_opts->no_configfs = true;
+	fsg_opts->yes_configfs = true;
 	status = fsg_common_set_num_buffers(fsg_opts->common, fsg_num_buffers);
 	if (status)
 		goto fail2;
@@ -475,7 +475,7 @@ static int multi_unbind(struct usb_composite_dev *cdev)
 }
 
 
-/****************************** Some noise ******************************/
+/****************************** Some yesise ******************************/
 
 
 static struct usb_composite_driver multi_driver = {

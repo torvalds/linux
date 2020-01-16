@@ -25,7 +25,7 @@ h1, h2, .rst-content .toctree-wrapper p.caption, h3, h4, h5, h6, legend {
 }
 
 div[class^="highlight"] pre {
-	font-family: monospace;
+	font-family: moyesspace;
 	color: black;
 	font-size: 100%;
 }
@@ -35,22 +35,22 @@ div[class^="highlight"] pre {
 }
 
 .c {
-	font-style: normal;
+	font-style: yesrmal;
 }
 
 p {
 	font-size: 100%;
 }
 
-/* Interim: Code-blocks with line nos - lines and line numbers don't line up.
+/* Interim: Code-blocks with line yess - lines and line numbers don't line up.
  * see: https://github.com/rtfd/sphinx_rtd_theme/issues/419
  */
 
 div[class^="highlight"] pre {
-    line-height: normal;
+    line-height: yesrmal;
 }
 .rst-content .highlight > pre {
-    line-height: normal;
+    line-height: yesrmal;
 }
 
 /* Keep fields from being strangely far apart due to inheirited table CSS. */
@@ -71,7 +71,7 @@ div[class^="highlight"] pre {
      * tables with tons of columns, which need the full width of the view-port.
      */
 
-    .wy-nav-content{max-width: none; }
+    .wy-nav-content{max-width: yesne; }
 
     /* table:
      *
@@ -80,14 +80,14 @@ div[class^="highlight"] pre {
      *   - align caption "left" ("center" is unsuitable on vast tables)
      */
 
-    .wy-table-responsive table td { white-space: normal; }
+    .wy-table-responsive table td { white-space: yesrmal; }
     .wy-table-responsive { overflow: auto; }
     .rst-content table.docutils caption { text-align: left; font-size: 100%; }
 
     /* captions:
      *
-     *   - captions should have 100% (not 85%) font size
-     *   - hide the permalink symbol as long as link is not hovered
+     *   - captions should have 100% (yest 85%) font size
+     *   - hide the permalink symbol as long as link is yest hovered
      */
 
     .toc-title {
@@ -105,14 +105,14 @@ div[class^="highlight"] pre {
 
     span.menuselection {
 	color: blue;
-	font-family: "Courier New", Courier, monospace
+	font-family: "Courier New", Courier, moyesspace
     }
 
     code.kbd, code.kbd span {
 	color: white;
 	background-color: darkblue;
 	font-weight: bold;
-	font-family: "Courier New", Courier, monospace
+	font-family: "Courier New", Courier, moyesspace
     }
 
     /* fix bottom margin of lists items */
@@ -125,7 +125,7 @@ div[class^="highlight"] pre {
 
     code, .rst-content tt, .rst-content code {
         color: inherit;
-        border: none;
+        border: yesne;
         padding: unset;
         background: inherit;
         font-size: 85%;

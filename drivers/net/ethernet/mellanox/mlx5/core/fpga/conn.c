@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2017 Mellayesx Techyeslogies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -128,7 +128,7 @@ out:
 	return err;
 }
 
-static void mlx5_fpga_conn_notify_hw(struct mlx5_fpga_conn *conn, void *wqe)
+static void mlx5_fpga_conn_yestify_hw(struct mlx5_fpga_conn *conn, void *wqe)
 {
 	/* ensure wqe is visible to device before updating doorbell record */
 	dma_wmb();
@@ -169,7 +169,7 @@ static void mlx5_fpga_conn_post_send(struct mlx5_fpga_conn *conn,
 
 	conn->qp.sq.pc++;
 	conn->qp.sq.bufs[ix] = buf;
-	mlx5_fpga_conn_notify_hw(conn, ctrl);
+	mlx5_fpga_conn_yestify_hw(conn, ctrl);
 }
 
 int mlx5_fpga_conn_send(struct mlx5_fpga_conn *conn,
@@ -442,8 +442,8 @@ static int mlx5_fpga_conn_create_cq(struct mlx5_fpga_conn *conn, int cq_size)
 	cq_size = roundup_pow_of_two(cq_size);
 	MLX5_SET(cqc, temp_cqc, log_cq_size, ilog2(cq_size));
 
-	wqp.buf_numa_node = mdev->priv.numa_node;
-	wqp.db_numa_node  = mdev->priv.numa_node;
+	wqp.buf_numa_yesde = mdev->priv.numa_yesde;
+	wqp.db_numa_yesde  = mdev->priv.numa_yesde;
 
 	err = mlx5_cqwq_create(mdev, &wqp, temp_cqc, &conn->cq.wq,
 			       &conn->cq.wq_ctrl);
@@ -523,8 +523,8 @@ static int mlx5_fpga_conn_create_wq(struct mlx5_fpga_conn *conn, void *qpc)
 	struct mlx5_core_dev *mdev = fdev->mdev;
 	struct mlx5_wq_param wqp;
 
-	wqp.buf_numa_node = mdev->priv.numa_node;
-	wqp.db_numa_node  = mdev->priv.numa_node;
+	wqp.buf_numa_yesde = mdev->priv.numa_yesde;
+	wqp.db_numa_yesde  = mdev->priv.numa_yesde;
 
 	return mlx5_wq_qp_create(mdev, &wqp, qpc, &conn->qp.wq,
 				 &conn->qp.wq_ctrl);

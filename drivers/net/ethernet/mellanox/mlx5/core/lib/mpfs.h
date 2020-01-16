@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Mellanox Technologies, Ltd.  All rights reserved.
+ * Copyright (c) 2017, Mellayesx Techyeslogies, Ltd.  All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -40,12 +40,12 @@
 #define MLX5_L2_ADDR_HASH_SIZE (BIT(BITS_PER_BYTE))
 #define MLX5_L2_ADDR_HASH(addr) (addr[5])
 
-struct l2addr_node {
-	struct hlist_node hlist;
+struct l2addr_yesde {
+	struct hlist_yesde hlist;
 	u8                addr[ETH_ALEN];
 };
 
-#define for_each_l2hash_node(hn, tmp, hash, i) \
+#define for_each_l2hash_yesde(hn, tmp, hash, i) \
 	for (i = 0; i < MLX5_L2_ADDR_HASH_SIZE; i++) \
 		hlist_for_each_entry_safe(hn, tmp, &(hash)[i], hlist)
 
@@ -54,8 +54,8 @@ struct l2addr_node {
 	bool found = false;                                 \
 	type *ptr = NULL;                                   \
 							    \
-	hlist_for_each_entry(ptr, &(hash)[ix], node.hlist)  \
-		if (ether_addr_equal(ptr->node.addr, mac)) {\
+	hlist_for_each_entry(ptr, &(hash)[ix], yesde.hlist)  \
+		if (ether_addr_equal(ptr->yesde.addr, mac)) {\
 			found = true;                       \
 			break;                              \
 		}                                           \
@@ -70,14 +70,14 @@ struct l2addr_node {
 							    \
 	ptr = kzalloc(sizeof(type), gfp);                   \
 	if (ptr) {                                          \
-		ether_addr_copy(ptr->node.addr, mac);       \
-		hlist_add_head(&ptr->node.hlist, &(hash)[ix]);\
+		ether_addr_copy(ptr->yesde.addr, mac);       \
+		hlist_add_head(&ptr->yesde.hlist, &(hash)[ix]);\
 	}                                                   \
 	ptr;                                                \
 })
 
 #define l2addr_hash_del(ptr) ({                             \
-	hlist_del(&(ptr)->node.hlist);                      \
+	hlist_del(&(ptr)->yesde.hlist);                      \
 	kfree(ptr);                                         \
 })
 

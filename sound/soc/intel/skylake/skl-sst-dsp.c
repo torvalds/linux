@@ -331,7 +331,7 @@ irqreturn_t skl_dsp_sst_interrupt(int irq, void *dev_id)
 }
 /*
  * skl_dsp_get_core/skl_dsp_put_core will be called inside DAPM context
- * within the dapm mutex. Hence no separate lock is used.
+ * within the dapm mutex. Hence yes separate lock is used.
  */
 int skl_dsp_get_core(struct sst_dsp *ctx, unsigned int core_id)
 {

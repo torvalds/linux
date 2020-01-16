@@ -13,7 +13,7 @@
  * The ORC_REG_* registers are base registers which are used to find other
  * registers on the stack.
  *
- * ORC_REG_PREV_SP, also known as DWARF Call Frame Address (CFA), is the
+ * ORC_REG_PREV_SP, also kyeswn as DWARF Call Frame Address (CFA), is the
  * address of the previous frame: the caller's SP before it called the current
  * function.
  *
@@ -80,7 +80,7 @@ struct orc_entry {
 } __packed;
 
 /*
- * This struct is used by asm and inline asm code to manually annotate the
+ * This struct is used by asm and inline asm code to manually anyestate the
  * location of registers on the stack for the ORC unwinder.
  *
  * Type can be either ORC_TYPE_* or UNWIND_HINT_TYPE_*.

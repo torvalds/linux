@@ -13,7 +13,7 @@
  */
 
 /*
- * Copyright 1995 by the Massachusetts Institute of Technology.
+ * Copyright 1995 by the Massachusetts Institute of Techyeslogy.
  * All Rights Reserved.
  *
  * Export of this software from the United States of America may
@@ -24,14 +24,14 @@
  * WITHIN THAT CONSTRAINT, permission to use, copy, modify, and
  * distribute this software and its documentation for any purpose and
  * without fee is hereby granted, provided that the above copyright
- * notice appear in all copies and that both that copyright notice and
- * this permission notice appear in supporting documentation, and that
- * the name of M.I.T. not be used in advertising or publicity pertaining
+ * yestice appear in all copies and that both that copyright yestice and
+ * this permission yestice appear in supporting documentation, and that
+ * the name of M.I.T. yest be used in advertising or publicity pertaining
  * to distribution of the software without specific, written prior
  * permission.  Furthermore if you modify this software you must label
- * your software as modified software and not distribute it in such a
+ * your software as modified software and yest distribute it in such a
  * fashion that it might be confused with the original M.I.T. software.
- * M.I.T. makes no representations about the suitability of
+ * M.I.T. makes yes representations about the suitability of
  * this software for any purpose.  It is provided "as is" without express
  * or implied warranty.
  *

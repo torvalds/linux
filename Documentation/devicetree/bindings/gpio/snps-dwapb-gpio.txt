@@ -1,17 +1,17 @@
-* Synopsys DesignWare APB GPIO controller
+* Syyespsys DesignWare APB GPIO controller
 
 Required properties:
 - compatible : Should contain "snps,dw-apb-gpio"
 - reg : Address and length of the register set for the device.
-- #address-cells : should be 1 (for addressing port subnodes).
-- #size-cells : should be 0 (port subnodes).
+- #address-cells : should be 1 (for addressing port subyesdes).
+- #size-cells : should be 0 (port subyesdes).
 
 The GPIO controller has a configurable number of ports, each of which are
-represented as child nodes with the following properties:
+represented as child yesdes with the following properties:
 
 Required properties:
 - compatible : "snps,dw-apb-gpio-port"
-- gpio-controller : Marks the device node as a gpio controller.
+- gpio-controller : Marks the device yesde as a gpio controller.
 - #gpio-cells : Should be two.  The first cell is the pin number and
   the second cell is used to specify the gpio polarity:
       0 = active high

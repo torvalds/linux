@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0 */
-/* Copyright (c) 2015-2018 Mellanox Technologies. All rights reserved */
+/* Copyright (c) 2015-2018 Mellayesx Techyeslogies. All rights reserved */
 
 #ifndef _MLXSW_SPECTRUM_H
 #define _MLXSW_SPECTRUM_H
@@ -13,7 +13,7 @@
 #include <linux/list.h>
 #include <linux/dcbnl.h>
 #include <linux/in6.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/net_namespace.h>
 #include <net/psample.h>
 #include <net/pkt_cls.h>
@@ -164,7 +164,7 @@ struct mlxsw_sp {
 	struct mlxsw_sp_fid_core *fid_core;
 	struct mlxsw_sp_kvdl *kvdl;
 	struct mlxsw_sp_nve *nve;
-	struct notifier_block netdevice_nb;
+	struct yestifier_block netdevice_nb;
 	struct mlxsw_sp_ptp_clock *clock;
 	struct mlxsw_sp_ptp_state *ptp_state;
 
@@ -220,7 +220,7 @@ struct mlxsw_sp_port_vlan {
 	struct mlxsw_sp_fid *fid;
 	u16 vid;
 	struct mlxsw_sp_bridge_port *bridge_port;
-	struct list_head bridge_vlan_node;
+	struct list_head bridge_vlan_yesde;
 };
 
 /* No need an internal lock; At worse - miss a single periodic iteration */
@@ -466,10 +466,10 @@ struct mlxsw_sp_fid *mlxsw_sp_bridge_fid_get(struct mlxsw_sp *mlxsw_sp,
 					     const struct net_device *br_dev,
 					     u16 vid,
 					     struct netlink_ext_ack *extack);
-extern struct notifier_block mlxsw_sp_switchdev_notifier;
+extern struct yestifier_block mlxsw_sp_switchdev_yestifier;
 
 /* spectrum.c */
-void mlxsw_sp_rx_listener_no_mark_func(struct sk_buff *skb,
+void mlxsw_sp_rx_listener_yes_mark_func(struct sk_buff *skb,
 				       u8 local_port, void *priv);
 int mlxsw_sp_port_ets_set(struct mlxsw_sp_port *mlxsw_sp_port,
 			  enum mlxsw_reg_qeec_hr hr, u8 index, u8 next_index,
@@ -540,12 +540,12 @@ int mlxsw_sp_netdevice_router_port_event(struct net_device *dev,
 					 unsigned long event, void *ptr);
 void mlxsw_sp_rif_macvlan_del(struct mlxsw_sp *mlxsw_sp,
 			      const struct net_device *macvlan_dev);
-int mlxsw_sp_inetaddr_valid_event(struct notifier_block *unused,
+int mlxsw_sp_inetaddr_valid_event(struct yestifier_block *unused,
 				  unsigned long event, void *ptr);
-int mlxsw_sp_inet6addr_valid_event(struct notifier_block *unused,
+int mlxsw_sp_inet6addr_valid_event(struct yestifier_block *unused,
 				   unsigned long event, void *ptr);
 int mlxsw_sp_netdevice_vrf_event(struct net_device *l3_dev, unsigned long event,
-				 struct netdev_notifier_changeupper_info *info);
+				 struct netdev_yestifier_changeupper_info *info);
 bool mlxsw_sp_netdev_is_ipip_ol(const struct mlxsw_sp *mlxsw_sp,
 				const struct net_device *dev);
 bool mlxsw_sp_netdev_is_ipip_ul(const struct mlxsw_sp *mlxsw_sp,
@@ -553,12 +553,12 @@ bool mlxsw_sp_netdev_is_ipip_ul(const struct mlxsw_sp *mlxsw_sp,
 int mlxsw_sp_netdevice_ipip_ol_event(struct mlxsw_sp *mlxsw_sp,
 				     struct net_device *l3_dev,
 				     unsigned long event,
-				     struct netdev_notifier_info *info);
+				     struct netdev_yestifier_info *info);
 int
 mlxsw_sp_netdevice_ipip_ul_event(struct mlxsw_sp *mlxsw_sp,
 				 struct net_device *l3_dev,
 				 unsigned long event,
-				 struct netdev_notifier_info *info);
+				 struct netdev_yestifier_info *info);
 void
 mlxsw_sp_port_vlan_router_leave(struct mlxsw_sp_port_vlan *mlxsw_sp_port_vlan);
 void mlxsw_sp_rif_destroy_by_dev(struct mlxsw_sp *mlxsw_sp,

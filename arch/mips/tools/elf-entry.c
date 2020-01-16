@@ -22,7 +22,7 @@
 # define le64toh(x)	bswap_64(x)
 #endif
 
-__attribute__((noreturn))
+__attribute__((yesreturn))
 static void die(const char *msg)
 {
 	fputs(msg, stderr);
@@ -55,7 +55,7 @@ int main(int argc, const char *argv[])
 	}
 
 	if (memcmp(hdr.ehdr32.e_ident, ELFMAG, SELFMAG))
-		die("Input is not an ELF\n");
+		die("Input is yest an ELF\n");
 
 	switch (hdr.ehdr32.e_ident[EI_CLASS]) {
 	case ELFCLASS32:
@@ -70,7 +70,7 @@ int main(int argc, const char *argv[])
 			die("Invalid ELF encoding\n");
 		}
 
-		/* Sign extend to form a canonical address */
+		/* Sign extend to form a cayesnical address */
 		entry = (int64_t)(int32_t)entry;
 		break;
 

@@ -150,12 +150,12 @@ static int tc6387xb_probe(struct platform_device *dev)
 	if (ret >= 0)
 		irq = ret;
 	else
-		goto err_no_irq;
+		goto err_yes_irq;
 
 	clk32k = clk_get(&dev->dev, "CLK_CK32K");
 	if (IS_ERR(clk32k)) {
 		ret = PTR_ERR(clk32k);
-		goto err_no_clk;
+		goto err_yes_clk;
 	}
 
 	rscr = &tc6387xb->rscr;
@@ -193,8 +193,8 @@ err_ioremap:
 	release_resource(&tc6387xb->rscr);
 err_resource:
 	clk_put(clk32k);
-err_no_clk:
-err_no_irq:
+err_yes_clk:
+err_yes_irq:
 	kfree(tc6387xb);
 	return ret;
 }

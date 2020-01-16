@@ -10,7 +10,7 @@
 #include "drm.h"
 #include "dc.h"
 
-#include <media/cec-notifier.h>
+#include <media/cec-yestifier.h>
 
 int tegra_output_connector_get_modes(struct drm_connector *connector)
 {
@@ -20,7 +20,7 @@ int tegra_output_connector_get_modes(struct drm_connector *connector)
 
 	/*
 	 * If the panel provides one or more modes, use them exclusively and
-	 * ignore any other means of obtaining a mode.
+	 * igyesre any other means of obtaining a mode.
 	 */
 	if (output->panel) {
 		err = output->panel->funcs->get_modes(output->panel);
@@ -33,7 +33,7 @@ int tegra_output_connector_get_modes(struct drm_connector *connector)
 	else if (output->ddc)
 		edid = drm_get_edid(connector, output->ddc);
 
-	cec_notifier_set_phys_addr_from_edid(output->cec, edid);
+	cec_yestifier_set_phys_addr_from_edid(output->cec, edid);
 	drm_connector_update_edid_property(connector, edid);
 
 	if (edid) {
@@ -48,7 +48,7 @@ enum drm_connector_status
 tegra_output_connector_detect(struct drm_connector *connector, bool force)
 {
 	struct tegra_output *output = connector_to_output(connector);
-	enum drm_connector_status status = connector_status_unknown;
+	enum drm_connector_status status = connector_status_unkyeswn;
 
 	if (output->hpd_gpio) {
 		if (gpiod_get_value(output->hpd_gpio) == 0)
@@ -63,7 +63,7 @@ tegra_output_connector_detect(struct drm_connector *connector, bool force)
 	}
 
 	if (status != connector_status_connected)
-		cec_notifier_phys_addr_invalidate(output->cec);
+		cec_yestifier_phys_addr_invalidate(output->cec);
 
 	return status;
 }
@@ -73,7 +73,7 @@ void tegra_output_connector_destroy(struct drm_connector *connector)
 	struct tegra_output *output = connector_to_output(connector);
 
 	if (output->cec)
-		cec_notifier_conn_unregister(output->cec);
+		cec_yestifier_conn_unregister(output->cec);
 
 	drm_connector_unregister(connector);
 	drm_connector_cleanup(connector);
@@ -96,38 +96,38 @@ static irqreturn_t hpd_irq(int irq, void *data)
 
 int tegra_output_probe(struct tegra_output *output)
 {
-	struct device_node *ddc, *panel;
+	struct device_yesde *ddc, *panel;
 	unsigned long flags;
 	int err, size;
 
-	if (!output->of_node)
-		output->of_node = output->dev->of_node;
+	if (!output->of_yesde)
+		output->of_yesde = output->dev->of_yesde;
 
-	panel = of_parse_phandle(output->of_node, "nvidia,panel", 0);
+	panel = of_parse_phandle(output->of_yesde, "nvidia,panel", 0);
 	if (panel) {
 		output->panel = of_drm_find_panel(panel);
 		if (IS_ERR(output->panel))
 			return PTR_ERR(output->panel);
 
-		of_node_put(panel);
+		of_yesde_put(panel);
 	}
 
-	output->edid = of_get_property(output->of_node, "nvidia,edid", &size);
+	output->edid = of_get_property(output->of_yesde, "nvidia,edid", &size);
 
-	ddc = of_parse_phandle(output->of_node, "nvidia,ddc-i2c-bus", 0);
+	ddc = of_parse_phandle(output->of_yesde, "nvidia,ddc-i2c-bus", 0);
 	if (ddc) {
-		output->ddc = of_find_i2c_adapter_by_node(ddc);
+		output->ddc = of_find_i2c_adapter_by_yesde(ddc);
 		if (!output->ddc) {
 			err = -EPROBE_DEFER;
-			of_node_put(ddc);
+			of_yesde_put(ddc);
 			return err;
 		}
 
-		of_node_put(ddc);
+		of_yesde_put(ddc);
 	}
 
-	output->hpd_gpio = devm_gpiod_get_from_of_node(output->dev,
-						       output->of_node,
+	output->hpd_gpio = devm_gpiod_get_from_of_yesde(output->dev,
+						       output->of_yesde,
 						       "nvidia,hpd-gpio", 0,
 						       GPIOD_IN,
 						       "HDMI hotplug detect");
@@ -192,7 +192,7 @@ int tegra_output_init(struct drm_device *drm, struct tegra_output *output)
 	}
 
 	/*
-	 * The connector is now registered and ready to receive hotplug events
+	 * The connector is yesw registered and ready to receive hotplug events
 	 * so the hotplug interrupt can be enabled.
 	 */
 	if (output->hpd_gpio)
@@ -200,14 +200,14 @@ int tegra_output_init(struct drm_device *drm, struct tegra_output *output)
 
 	connector_type = output->connector.connector_type;
 	/*
-	 * Create a CEC notifier for HDMI connector.
+	 * Create a CEC yestifier for HDMI connector.
 	 */
 	if (connector_type == DRM_MODE_CONNECTOR_HDMIA ||
 	    connector_type == DRM_MODE_CONNECTOR_HDMIB) {
 		struct cec_connector_info conn_info;
 
 		cec_fill_conn_info_from_drm(&conn_info, &output->connector);
-		output->cec = cec_notifier_conn_register(output->dev, NULL,
+		output->cec = cec_yestifier_conn_register(output->dev, NULL,
 							 &conn_info);
 		if (!output->cec)
 			return -ENOMEM;

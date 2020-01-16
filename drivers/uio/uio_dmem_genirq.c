@@ -40,7 +40,7 @@ struct uio_dmem_genirq_platdata {
 	unsigned int refcnt;
 };
 
-static int uio_dmem_genirq_open(struct uio_info *info, struct inode *inode)
+static int uio_dmem_genirq_open(struct uio_info *info, struct iyesde *iyesde)
 {
 	struct uio_dmem_genirq_platdata *priv = info->priv;
 	struct uio_mem *uiomem;
@@ -71,7 +71,7 @@ static int uio_dmem_genirq_open(struct uio_info *info, struct inode *inode)
 	return ret;
 }
 
-static int uio_dmem_genirq_release(struct uio_info *info, struct inode *inode)
+static int uio_dmem_genirq_release(struct uio_info *info, struct iyesde *iyesde)
 {
 	struct uio_dmem_genirq_platdata *priv = info->priv;
 	struct uio_mem *uiomem;
@@ -111,7 +111,7 @@ static irqreturn_t uio_dmem_genirq_handler(int irq, struct uio_info *dev_info)
 	 */
 
 	if (!test_and_set_bit(0, &priv->flags))
-		disable_irq_nosync(irq);
+		disable_irq_yessync(irq);
 
 	return IRQ_HANDLED;
 }
@@ -150,7 +150,7 @@ static int uio_dmem_genirq_probe(struct platform_device *pdev)
 	int ret = -EINVAL;
 	int i;
 
-	if (pdev->dev.of_node) {
+	if (pdev->dev.of_yesde) {
 		/* alloc uioinfo for one device */
 		uioinfo = kzalloc(sizeof(*uioinfo), GFP_KERNEL);
 		if (!uioinfo) {
@@ -159,7 +159,7 @@ static int uio_dmem_genirq_probe(struct platform_device *pdev)
 			goto bad2;
 		}
 		uioinfo->name = devm_kasprintf(&pdev->dev, GFP_KERNEL, "%pOFn",
-					       pdev->dev.of_node);
+					       pdev->dev.of_yesde);
 		uioinfo->version = "devicetree";
 	}
 
@@ -190,9 +190,9 @@ static int uio_dmem_genirq_probe(struct platform_device *pdev)
 	mutex_init(&priv->alloc_lock);
 
 	if (!uioinfo->irq) {
-		/* Multiple IRQs are not supported */
+		/* Multiple IRQs are yest supported */
 		ret = platform_get_irq(pdev, 0);
-		if (ret == -ENXIO && pdev->dev.of_node)
+		if (ret == -ENXIO && pdev->dev.of_yesde)
 			ret = UIO_IRQ_NONE;
 		else if (ret < 0)
 			goto bad1;
@@ -240,13 +240,13 @@ static int uio_dmem_genirq_probe(struct platform_device *pdev)
 		++uiomem;
 	}
 
-	/* This driver requires no hardware specific kernel code to handle
+	/* This driver requires yes hardware specific kernel code to handle
 	 * interrupts. Instead, the interrupt handler simply disables the
 	 * interrupt in the interrupt controller. User space is responsible
-	 * for performing hardware specific acknowledge and re-enabling of
+	 * for performing hardware specific ackyeswledge and re-enabling of
 	 * the interrupt in the interrupt controller.
 	 *
-	 * Interrupt sharing is not supported.
+	 * Interrupt sharing is yest supported.
 	 */
 
 	uioinfo->handler = uio_dmem_genirq_handler;
@@ -275,7 +275,7 @@ static int uio_dmem_genirq_probe(struct platform_device *pdev)
 	kfree(priv);
  bad0:
 	/* kfree uioinfo for OF */
-	if (pdev->dev.of_node)
+	if (pdev->dev.of_yesde)
 		kfree(uioinfo);
  bad2:
 	return ret;
@@ -292,14 +292,14 @@ static int uio_dmem_genirq_remove(struct platform_device *pdev)
 	priv->uioinfo->irqcontrol = NULL;
 
 	/* kfree uioinfo for OF */
-	if (pdev->dev.of_node)
+	if (pdev->dev.of_yesde)
 		kfree(priv->uioinfo);
 
 	kfree(priv);
 	return 0;
 }
 
-static int uio_dmem_genirq_runtime_nop(struct device *dev)
+static int uio_dmem_genirq_runtime_yesp(struct device *dev)
 {
 	/* Runtime PM callback shared between ->runtime_suspend()
 	 * and ->runtime_resume(). Simply returns success.
@@ -309,7 +309,7 @@ static int uio_dmem_genirq_runtime_nop(struct device *dev)
 	 * Runtime PM code to turn off power to the device while the
 	 * device is unused, ie before open() and after release().
 	 *
-	 * This Runtime PM callback does not need to save or restore
+	 * This Runtime PM callback does yest need to save or restore
 	 * any registers since user space is responsbile for hardware
 	 * register reinitialization after open().
 	 */
@@ -317,13 +317,13 @@ static int uio_dmem_genirq_runtime_nop(struct device *dev)
 }
 
 static const struct dev_pm_ops uio_dmem_genirq_dev_pm_ops = {
-	.runtime_suspend = uio_dmem_genirq_runtime_nop,
-	.runtime_resume = uio_dmem_genirq_runtime_nop,
+	.runtime_suspend = uio_dmem_genirq_runtime_yesp,
+	.runtime_resume = uio_dmem_genirq_runtime_yesp,
 };
 
 #ifdef CONFIG_OF
 static const struct of_device_id uio_of_genirq_match[] = {
-	{ /* empty for now */ },
+	{ /* empty for yesw */ },
 };
 MODULE_DEVICE_TABLE(of, uio_of_genirq_match);
 #endif

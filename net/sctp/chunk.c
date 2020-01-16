@@ -208,8 +208,8 @@ struct sctp_datamsg *sctp_datamsg_from_user(struct sctp_association *asoc,
 	/* Check to see if we have a pending SACK and try to let it be bundled
 	 * with this message.  Do this if we don't have any data queued already.
 	 * To check that, look at out_qlen and retransmit list.
-	 * NOTE: we will not reduce to account for SACK, if the message would
-	 * not have been fragmented.
+	 * NOTE: we will yest reduce to account for SACK, if the message would
+	 * yest have been fragmented.
 	 */
 	if (timer_pending(&asoc->timers[SCTP_EVENT_TIMEOUT_SACK]) &&
 	    asoc->outqueue.out_qlen == 0 &&
@@ -340,7 +340,7 @@ int sctp_chunk_abandoned(struct sctp_chunk *chunk)
 		chunk->msg->abandoned = 1;
 		return 1;
 	}
-	/* PRIO policy is processed by sendmsg, not here */
+	/* PRIO policy is processed by sendmsg, yest here */
 
 	return 0;
 }

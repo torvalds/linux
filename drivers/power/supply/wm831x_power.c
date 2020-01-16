@@ -30,7 +30,7 @@ struct wm831x_power {
 	char battery_name[20];
 	bool have_battery;
 	struct usb_phy *usb_phy;
-	struct notifier_block usb_notify;
+	struct yestifier_block usb_yestify;
 };
 
 static int wm831x_power_check_online(struct wm831x *wm831x, int supply,
@@ -137,12 +137,12 @@ static const unsigned int wm831x_usb_limits[] = {
 	550,
 };
 
-static int wm831x_usb_limit_change(struct notifier_block *nb,
+static int wm831x_usb_limit_change(struct yestifier_block *nb,
 				   unsigned long limit, void *data)
 {
 	struct wm831x_power *wm831x_power = container_of(nb,
 							 struct wm831x_power,
-							 usb_notify);
+							 usb_yestify);
 	unsigned int i, best;
 
 	/* Find the highest supported limit */
@@ -488,7 +488,7 @@ static irqreturn_t wm831x_bat_irq(int irq, void *data)
 
 	dev_dbg(wm831x->dev, "Battery status changed: %d\n", irq);
 
-	/* The battery charger is autonomous so we don't need to do
+	/* The battery charger is autoyesmous so we don't need to do
 	 * anything except kick user space */
 	if (wm831x_power->have_battery)
 		power_supply_changed(wm831x_power->battery);
@@ -520,7 +520,7 @@ static irqreturn_t wm831x_pwr_src_irq(int irq, void *data)
 
 	dev_dbg(wm831x->dev, "Power source changed\n");
 
-	/* Just notify for everything - little harm in overnotifying. */
+	/* Just yestify for everything - little harm in overyestifying. */
 	if (wm831x_power->have_battery)
 		power_supply_changed(wm831x_power->battery);
 	power_supply_changed(wm831x_power->usb);
@@ -560,7 +560,7 @@ static int wm831x_power_probe(struct platform_device *pdev)
 			 "wm831x-usb");
 	}
 
-	/* We ignore configuration failures since we can still read back
+	/* We igyesre configuration failures since we can still read back
 	 * the status without enabling the charger.
 	 */
 	wm831x_config_battery(wm831x);
@@ -649,17 +649,17 @@ static int wm831x_power_probe(struct platform_device *pdev)
 
 	switch (ret) {
 	case 0:
-		power->usb_notify.notifier_call = wm831x_usb_limit_change;
-		ret = usb_register_notifier(power->usb_phy, &power->usb_notify);
+		power->usb_yestify.yestifier_call = wm831x_usb_limit_change;
+		ret = usb_register_yestifier(power->usb_phy, &power->usb_yestify);
 		if (ret) {
-			dev_err(&pdev->dev, "Failed to register notifier: %d\n",
+			dev_err(&pdev->dev, "Failed to register yestifier: %d\n",
 				ret);
 			goto err_bat_irq;
 		}
 		break;
 	case -EINVAL:
 	case -ENODEV:
-		/* ignore missing usb-phy, it's optional */
+		/* igyesre missing usb-phy, it's optional */
 		power->usb_phy = NULL;
 		ret = 0;
 		break;
@@ -702,8 +702,8 @@ static int wm831x_power_remove(struct platform_device *pdev)
 	int irq, i;
 
 	if (wm831x_power->usb_phy) {
-		usb_unregister_notifier(wm831x_power->usb_phy,
-					&wm831x_power->usb_notify);
+		usb_unregister_yestifier(wm831x_power->usb_phy,
+					&wm831x_power->usb_yestify);
 	}
 
 	for (i = 0; i < ARRAY_SIZE(wm831x_bat_irqs); i++) {

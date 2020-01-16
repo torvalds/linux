@@ -29,17 +29,17 @@
  * The read ahead works as follows:
  * On btrfs_reada_add, the root of the tree is inserted into a radix_tree.
  * reada_start_machine will then search for extents to prefetch and trigger
- * some reads. When a read finishes for a node, all contained node/leaf
+ * some reads. When a read finishes for a yesde, all contained yesde/leaf
  * pointers that lie in the given range will also be enqueued. The reads will
  * be triggered in sequential order, thus giving a big win over a naive
  * enumeration. It will also make use of multi-device layouts. Each disk
  * will have its on read pointer and all disks will by utilized in parallel.
- * Also will no two disks read both sides of a mirror simultaneously, as this
+ * Also will yes two disks read both sides of a mirror simultaneously, as this
  * would waste seeking capacity. Instead both disks will read different parts
  * of the filesystem.
  * Any number of readaheads can be started in parallel. The read order will be
- * determined globally, i.e. 2 parallel readaheads will normally finish faster
- * than the 2 started one after another.
+ * determined globally, i.e. 2 parallel readaheads will yesrmally finish faster
+ * than the 2 started one after ayesther.
  */
 
 #define MAX_IN_FLIGHT 6
@@ -111,17 +111,17 @@ static void __readahead_hook(struct btrfs_fs_info *fs_info,
 	spin_unlock(&re->lock);
 
 	/*
-	 * this is the error case, the extent buffer has not been
+	 * this is the error case, the extent buffer has yest been
 	 * read correctly. We won't access anything from it and
 	 * just cleanup our data structures. Effectively this will
-	 * cut the branch below this node from read ahead.
+	 * cut the branch below this yesde from read ahead.
 	 */
 	if (err)
 		goto cleanup;
 
 	/*
 	 * FIXME: currently we just set nritems to 0 if this is a leaf,
-	 * effectively ignoring the content. In a next step we could
+	 * effectively igyesring the content. In a next step we could
 	 * trigger more readahead depending from the content, e.g.
 	 * fetch the checksums for the extents in the leaf.
 	 */
@@ -136,19 +136,19 @@ static void __readahead_hook(struct btrfs_fs_info *fs_info,
 		struct btrfs_key key;
 		struct btrfs_key next_key;
 
-		btrfs_node_key_to_cpu(eb, &key, i);
+		btrfs_yesde_key_to_cpu(eb, &key, i);
 		if (i + 1 < nritems)
-			btrfs_node_key_to_cpu(eb, &next_key, i + 1);
+			btrfs_yesde_key_to_cpu(eb, &next_key, i + 1);
 		else
 			next_key = re->top;
-		bytenr = btrfs_node_blockptr(eb, i);
-		n_gen = btrfs_node_ptr_generation(eb, i);
+		bytenr = btrfs_yesde_blockptr(eb, i);
+		n_gen = btrfs_yesde_ptr_generation(eb, i);
 
 		list_for_each_entry(rec, &list, list) {
 			struct reada_control *rc = rec->rc;
 
 			/*
-			 * if the generation doesn't match, just ignore this
+			 * if the generation doesn't match, just igyesre this
 			 * extctl. This will probably cut off a branch from
 			 * prefetch. Alternatively one could start a new (sub-)
 			 * prefetch for this branch, starting again from root.
@@ -335,15 +335,15 @@ static struct reada_extent *reada_find_extent(struct btrfs_fs_info *fs_info,
 	/*
 	 * map block
 	 */
-	length = fs_info->nodesize;
+	length = fs_info->yesdesize;
 	ret = btrfs_map_block(fs_info, BTRFS_MAP_GET_READ_MIRRORS, logical,
 			&length, &bbio, 0);
-	if (ret || !bbio || length < fs_info->nodesize)
+	if (ret || !bbio || length < fs_info->yesdesize)
 		goto error;
 
 	if (bbio->num_stripes > BTRFS_MAX_MIRRORS) {
 		btrfs_err(fs_info,
-			   "readahead: more than %d copies not supported",
+			   "readahead: more than %d copies yest supported",
 			   BTRFS_MAX_MIRRORS);
 		goto error;
 	}
@@ -354,7 +354,7 @@ static struct reada_extent *reada_find_extent(struct btrfs_fs_info *fs_info,
 
 		dev = bbio->stripes[nzones].dev;
 
-		/* cannot read ahead on missing device. */
+		/* canyest read ahead on missing device. */
 		if (!dev->bdev)
 			continue;
 
@@ -373,11 +373,11 @@ static struct reada_extent *reada_find_extent(struct btrfs_fs_info *fs_info,
 		spin_unlock(&fs_info->reada_lock);
 	}
 	if (re->nzones == 0) {
-		/* not a single zone found, error and out */
+		/* yest a single zone found, error and out */
 		goto error;
 	}
 
-	/* Insert extent in reada tree + all per-device trees, all or nothing */
+	/* Insert extent in reada tree + all per-device trees, all or yesthing */
 	down_read(&fs_info->dev_replace.rwsem);
 	ret = radix_tree_preload(GFP_KERNEL);
 	if (ret) {
@@ -411,7 +411,7 @@ static struct reada_extent *reada_find_extent(struct btrfs_fs_info *fs_info,
 		if (dev == prev_dev) {
 			/*
 			 * in case of DUP, just add the first zone. As both
-			 * are on the same device, there's nothing to gain
+			 * are on the same device, there's yesthing to gain
 			 * from adding both.
 			 * Also, it wouldn't work, as the tree is per device
 			 * and adding would fail with EEXIST
@@ -435,7 +435,7 @@ static struct reada_extent *reada_find_extent(struct btrfs_fs_info *fs_info,
 			while (--nzones >= 0) {
 				dev = re->zones[nzones]->device;
 				BUG_ON(dev == NULL);
-				/* ignore whether the entry was inserted */
+				/* igyesre whether the entry was inserted */
 				radix_tree_delete(&dev->reada_extents, index);
 			}
 			radix_tree_delete(&fs_info->reada_tree, index);
@@ -464,7 +464,7 @@ error:
 		--zone->elems;
 		if (zone->elems == 0) {
 			/*
-			 * no fs_info->reada_lock needed, as this can't be
+			 * yes fs_info->reada_lock needed, as this can't be
 			 * the last ref
 			 */
 			kref_put(&zone->refcnt, reada_zone_release);
@@ -508,7 +508,7 @@ static void reada_extent_put(struct btrfs_fs_info *fs_info,
 		spin_lock(&zone->lock);
 		--zone->elems;
 		if (zone->elems == 0) {
-			/* no fs_info->reada_lock needed, as this can't be
+			/* yes fs_info->reada_lock needed, as this can't be
 			 * the last ref */
 			kref_put(&zone->refcnt, reada_zone_release);
 		}
@@ -707,7 +707,7 @@ static int reada_start_machine_dev(struct btrfs_device *dev)
 		spin_unlock(&fs_info->reada_lock);
 		return 0;
 	}
-	dev->reada_next = re->logical + fs_info->nodesize;
+	dev->reada_next = re->logical + fs_info->yesdesize;
 	re->refcnt++;
 
 	spin_unlock(&fs_info->reada_lock);
@@ -797,8 +797,8 @@ again:
 
 	/*
 	 * If everything is already in the cache, this is effectively single
-	 * threaded. To a) not hold the caller for too long and b) to utilize
-	 * more cores, we broke the loop above after 10000 iterations and now
+	 * threaded. To a) yest hold the caller for too long and b) to utilize
+	 * more cores, we broke the loop above after 10000 iterations and yesw
 	 * enqueue to workers to finish it. This will distribute the load to
 	 * the cores.
 	 */
@@ -816,7 +816,7 @@ static void reada_start_machine(struct btrfs_fs_info *fs_info)
 
 	rmw = kzalloc(sizeof(*rmw), GFP_KERNEL);
 	if (!rmw) {
-		/* FIXME we cannot handle this properly right now */
+		/* FIXME we canyest handle this properly right yesw */
 		BUG();
 	}
 	btrfs_init_work(&rmw->work, reada_start_machine_worker, NULL, NULL);
@@ -871,7 +871,7 @@ static void dump_devs(struct btrfs_fs_info *fs_info, int all)
 			if (ret == 0)
 				break;
 			pr_debug("  re: logical %llu size %u empty %d scheduled %d",
-				re->logical, fs_info->nodesize,
+				re->logical, fs_info->yesdesize,
 				list_empty(&re->extctl), re->scheduled);
 
 			for (i = 0; i < re->nzones; ++i) {
@@ -904,7 +904,7 @@ static void dump_devs(struct btrfs_fs_info *fs_info, int all)
 			continue;
 		}
 		pr_debug("re: logical %llu size %u list empty %d scheduled %d",
-			re->logical, fs_info->nodesize,
+			re->logical, fs_info->yesdesize,
 			list_empty(&re->extctl), re->scheduled);
 		for (i = 0; i < re->nzones; ++i) {
 			pr_cont(" zone %llu-%llu devs",
@@ -932,7 +932,7 @@ struct reada_control *btrfs_reada_add(struct btrfs_root *root,
 	u64 start;
 	u64 generation;
 	int ret;
-	struct extent_buffer *node;
+	struct extent_buffer *yesde;
 	static struct btrfs_key max_key = {
 		.objectid = (u64)-1,
 		.type = (u8)-1,
@@ -951,10 +951,10 @@ struct reada_control *btrfs_reada_add(struct btrfs_root *root,
 	kref_init(&rc->refcnt);
 	kref_get(&rc->refcnt); /* one ref for having elements */
 
-	node = btrfs_root_node(root);
-	start = node->start;
-	generation = btrfs_header_generation(node);
-	free_extent_buffer(node);
+	yesde = btrfs_root_yesde(root);
+	start = yesde->start;
+	generation = btrfs_header_generation(yesde);
+	free_extent_buffer(yesde);
 
 	ret = reada_add_block(rc, start, &max_key, generation);
 	if (ret) {

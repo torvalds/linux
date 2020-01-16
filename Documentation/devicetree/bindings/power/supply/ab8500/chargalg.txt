@@ -1,6 +1,6 @@
 === AB8500 Charging Algorithm Driver ===
 
-The properties below describes the node for chargalg driver.
+The properties below describes the yesde for chargalg driver.
 
 Required Properties:
 - compatible = Shall be: "stericsson,ab8500-chargalg"
@@ -12,5 +12,5 @@ ab8500_chargalg {
 	battery	   = <&ab8500_battery>;
 };
 
-For information on battery specific node, Ref:
+For information on battery specific yesde, Ref:
 Documentation/devicetree/bindings/power/supply/ab8500/fg.txt

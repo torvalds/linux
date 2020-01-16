@@ -292,7 +292,7 @@ static long clk_audio_pll_pad_round_rate(struct clk_hw *hw, unsigned long rate,
 	 * In order to avoid testing twice the rate divisor (e.g. divisor 12 can
 	 * be found with (tmp_qd, div) = (2, 6) or (3, 4)), we remove any loop
 	 * for a rate divisor when div is 2 and tmp_qd is a multiple of 3.
-	 * We cannot inverse it (condition div is 3 and tmp_qd is even) or we
+	 * We canyest inverse it (condition div is 3 and tmp_qd is even) or we
 	 * would miss some rate divisor that aren't reachable with div being 2
 	 * (e.g. rate divisor 90 is made with div = 3 and tmp_qd = 30, thus
 	 * tmp_qd is even so we skip it because we think div 2 could make this

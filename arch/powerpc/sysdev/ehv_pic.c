@@ -155,7 +155,7 @@ static struct irq_chip ehv_pic_direct_eoi_irq_chip = {
 	.irq_set_type	= ehv_pic_set_irq_type,
 };
 
-/* Return an interrupt vector or 0 if no interrupt is pending. */
+/* Return an interrupt vector or 0 if yes interrupt is pending. */
 unsigned int ehv_pic_get_irq(void)
 {
 	int irq;
@@ -167,7 +167,7 @@ unsigned int ehv_pic_get_irq(void)
 	else
 		ev_int_iack(0, &irq); /* legacy mode */
 
-	if (irq == 0xFFFF)    /* 0xFFFF --> no irq is pending */
+	if (irq == 0xFFFF)    /* 0xFFFF --> yes irq is pending */
 		return 0;
 
 	/*
@@ -177,12 +177,12 @@ unsigned int ehv_pic_get_irq(void)
 	return irq_linear_revmap(global_ehv_pic->irqhost, irq);
 }
 
-static int ehv_pic_host_match(struct irq_domain *h, struct device_node *node,
+static int ehv_pic_host_match(struct irq_domain *h, struct device_yesde *yesde,
 			      enum irq_domain_bus_token bus_token)
 {
-	/* Exact match, unless ehv_pic node is NULL */
-	struct device_node *of_node = irq_domain_get_of_node(h);
-	return of_node == NULL || of_node == node;
+	/* Exact match, unless ehv_pic yesde is NULL */
+	struct device_yesde *of_yesde = irq_domain_get_of_yesde(h);
+	return of_yesde == NULL || of_yesde == yesde;
 }
 
 static int ehv_pic_host_map(struct irq_domain *h, unsigned int virq,
@@ -214,7 +214,7 @@ static int ehv_pic_host_map(struct irq_domain *h, unsigned int virq,
 	return 0;
 }
 
-static int ehv_pic_host_xlate(struct irq_domain *h, struct device_node *ct,
+static int ehv_pic_host_xlate(struct irq_domain *h, struct device_yesde *ct,
 			   const u32 *intspec, unsigned int intsize,
 			   irq_hw_number_t *out_hwirq, unsigned int *out_flags)
 
@@ -253,13 +253,13 @@ static const struct irq_domain_ops ehv_pic_host_ops = {
 
 void __init ehv_pic_init(void)
 {
-	struct device_node *np, *np2;
+	struct device_yesde *np, *np2;
 	struct ehv_pic *ehv_pic;
 	int coreint_flag = 1;
 
-	np = of_find_compatible_node(NULL, NULL, "epapr,hv-pic");
+	np = of_find_compatible_yesde(NULL, NULL, "epapr,hv-pic");
 	if (!np) {
-		pr_err("ehv_pic_init: could not find epapr,hv-pic node\n");
+		pr_err("ehv_pic_init: could yest find epapr,hv-pic yesde\n");
 		return;
 	}
 
@@ -268,25 +268,25 @@ void __init ehv_pic_init(void)
 
 	ehv_pic = kzalloc(sizeof(struct ehv_pic), GFP_KERNEL);
 	if (!ehv_pic) {
-		of_node_put(np);
+		of_yesde_put(np);
 		return;
 	}
 
 	ehv_pic->irqhost = irq_domain_add_linear(np, NR_EHV_PIC_INTS,
 						 &ehv_pic_host_ops, ehv_pic);
 	if (!ehv_pic->irqhost) {
-		of_node_put(np);
+		of_yesde_put(np);
 		kfree(ehv_pic);
 		return;
 	}
 
-	np2 = of_find_compatible_node(NULL, NULL, "fsl,hv-mpic-per-cpu");
+	np2 = of_find_compatible_yesde(NULL, NULL, "fsl,hv-mpic-per-cpu");
 	if (np2) {
 		mpic_percpu_base_vaddr = of_iomap(np2, 0);
 		if (!mpic_percpu_base_vaddr)
 			pr_err("ehv_pic_init: of_iomap failed\n");
 
-		of_node_put(np2);
+		of_yesde_put(np2);
 	}
 
 	ehv_pic->hc_irq = ehv_pic_irq_chip;

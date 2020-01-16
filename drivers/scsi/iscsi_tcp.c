@@ -12,7 +12,7 @@
  *
  * Credits:
  *	Christoph Hellwig
- *	FUJITA Tomonori
+ *	FUJITA Tomoyesri
  *	Arne Redlich
  *	Zhenyu Wang
  */
@@ -103,7 +103,7 @@ static int iscsi_sw_tcp_recv(read_descriptor_t *rd_desc, struct sk_buff *skb,
  * @sk: socket
  *
  * If the socket is in CLOSE or CLOSE_WAIT we should
- * not close the connection if there is still some
+ * yest close the connection if there is still some
  * data pending.
  *
  * Must be called with sk_callback_lock.
@@ -149,7 +149,7 @@ static void iscsi_sw_tcp_data_ready(struct sock *sk)
 	iscsi_sw_sk_state_check(sk);
 
 	/* If we had to (atomically) map a highmem page,
-	 * unmap it now. */
+	 * unmap it yesw. */
 	iscsi_tcp_segment_unmap(&tcp_conn->in.segment);
 	read_unlock_bh(&sk->sk_callback_lock);
 }
@@ -239,7 +239,7 @@ iscsi_sw_tcp_conn_restore_callbacks(struct iscsi_conn *conn)
 	sk->sk_data_ready   = tcp_sw_conn->old_data_ready;
 	sk->sk_state_change = tcp_sw_conn->old_state_change;
 	sk->sk_write_space  = tcp_sw_conn->old_write_space;
-	sk->sk_no_check_tx = 0;
+	sk->sk_yes_check_tx = 0;
 	write_unlock_bh(&sk->sk_callback_lock);
 }
 
@@ -316,8 +316,8 @@ static int iscsi_sw_tcp_xmit(struct iscsi_conn *conn)
 	while (1) {
 		rc = iscsi_sw_tcp_xmit_segment(tcp_conn, segment);
 		/*
-		 * We may not have been able to send data because the conn
-		 * is getting stopped. libiscsi will know so propagate err
+		 * We may yest have been able to send data because the conn
+		 * is getting stopped. libiscsi will kyesw so propagate err
 		 * for it to do the right thing.
 		 */
 		if (rc == -EAGAIN)
@@ -347,7 +347,7 @@ static int iscsi_sw_tcp_xmit(struct iscsi_conn *conn)
 error:
 	/* Transmit error. We could initiate error recovery
 	 * here. */
-	ISCSI_SW_TCP_DBG(conn, "Error sending PDU, errno=%d\n", rc);
+	ISCSI_SW_TCP_DBG(conn, "Error sending PDU, erryes=%d\n", rc);
 	iscsi_conn_failure(conn, rc);
 	return -EIO;
 }
@@ -368,18 +368,18 @@ static inline int iscsi_sw_tcp_xmit_qlen(struct iscsi_conn *conn)
 static int iscsi_sw_tcp_pdu_xmit(struct iscsi_task *task)
 {
 	struct iscsi_conn *conn = task->conn;
-	unsigned int noreclaim_flag;
+	unsigned int yesreclaim_flag;
 	struct iscsi_tcp_conn *tcp_conn = conn->dd_data;
 	struct iscsi_sw_tcp_conn *tcp_sw_conn = tcp_conn->dd_data;
 	int rc = 0;
 
 	if (!tcp_sw_conn->sock) {
 		iscsi_conn_printk(KERN_ERR, conn,
-				  "Transport not bound to socket!\n");
+				  "Transport yest bound to socket!\n");
 		return -EINVAL;
 	}
 
-	noreclaim_flag = memalloc_noreclaim_save();
+	yesreclaim_flag = memalloc_yesreclaim_save();
 
 	while (iscsi_sw_tcp_xmit_qlen(conn)) {
 		rc = iscsi_sw_tcp_xmit(conn);
@@ -392,7 +392,7 @@ static int iscsi_sw_tcp_pdu_xmit(struct iscsi_task *task)
 		rc = 0;
 	}
 
-	memalloc_noreclaim_restore(noreclaim_flag);
+	memalloc_yesreclaim_restore(yesreclaim_flag);
 	return rc;
 }
 
@@ -582,7 +582,7 @@ free_tfm:
 	crypto_free_ahash(tfm);
 free_conn:
 	iscsi_conn_printk(KERN_ERR, conn,
-			  "Could not create connection due to crc32c "
+			  "Could yest create connection due to crc32c "
 			  "loading error. Make sure the crc32c "
 			  "module is built as a module or into the "
 			  "kernel\n");
@@ -637,7 +637,7 @@ static void iscsi_sw_tcp_conn_stop(struct iscsi_cls_conn *cls_conn, int flag)
 	struct iscsi_sw_tcp_conn *tcp_sw_conn = tcp_conn->dd_data;
 	struct socket *sock = tcp_sw_conn->sock;
 
-	/* userspace may have goofed up and not bound us */
+	/* userspace may have goofed up and yest bound us */
 	if (!sock)
 		return;
 
@@ -718,7 +718,7 @@ static int iscsi_sw_tcp_conn_set_param(struct iscsi_cls_conn *cls_conn,
 	case ISCSI_PARAM_DATADGST_EN:
 		iscsi_set_param(cls_conn, param, buf, buflen);
 		tcp_sw_conn->sendpage = conn->datadgst_en ?
-			sock_no_sendpage : tcp_sw_conn->sock->ops->sendpage;
+			sock_yes_sendpage : tcp_sw_conn->sock->ops->sendpage;
 		break;
 	case ISCSI_PARAM_MAX_R2T:
 		return iscsi_tcp_set_max_r2t(conn, buf);

@@ -3,24 +3,24 @@ SLIM(Serial Low Power Interchip Media Bus) bus
 SLIMbus is a 2-wire bus, and is used to communicate with peripheral
 components like audio-codec.
 
-Required property for SLIMbus controller node:
+Required property for SLIMbus controller yesde:
 - compatible	- name of SLIMbus controller
 
-Child nodes:
-Every SLIMbus controller node can contain zero or more child nodes
+Child yesdes:
+Every SLIMbus controller yesde can contain zero or more child yesdes
 representing slave devices on the bus. Every SLIMbus slave device is
 uniquely determined by the enumeration address containing 4 fields:
 Manufacturer ID, Product code, Device index, and Instance value for
 the device.
-If child node is not present and it is instantiated after device
+If child yesde is yest present and it is instantiated after device
 discovery (slave device reporting itself present).
 
-In some cases it may be necessary to describe non-probeable device
-details such as non-standard ways of powering up a device. In
-such cases, child nodes for those devices will be present as
+In some cases it may be necessary to describe yesn-probeable device
+details such as yesn-standard ways of powering up a device. In
+such cases, child yesdes for those devices will be present as
 slaves of the SLIMbus controller, as detailed below.
 
-Required property for SLIMbus child node if it is present:
+Required property for SLIMbus child yesde if it is present:
 - reg		- Should be ('Device index', 'Instance ID') from SLIMbus
 		  Enumeration  Address.
 		  Device Index Uniquely identifies multiple Devices within

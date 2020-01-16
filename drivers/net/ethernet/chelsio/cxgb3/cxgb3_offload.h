@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -45,7 +45,7 @@ struct adapter;
 void cxgb3_offload_init(void);
 
 void cxgb3_adapter_ofld(struct adapter *adapter);
-void cxgb3_adapter_unofld(struct adapter *adapter);
+void cxgb3_adapter_uyesfld(struct adapter *adapter);
 int cxgb3_offload_activate(struct adapter *adapter);
 void cxgb3_offload_deactivate(struct adapter *adapter);
 
@@ -64,7 +64,7 @@ void cxgb3_register_client(struct cxgb3_client *client);
 void cxgb3_unregister_client(struct cxgb3_client *client);
 void cxgb3_add_clients(struct t3cdev *tdev);
 void cxgb3_remove_clients(struct t3cdev *tdev);
-void cxgb3_event_notify(struct t3cdev *tdev, u32 event, u32 port);
+void cxgb3_event_yestify(struct t3cdev *tdev, u32 event, u32 port);
 
 typedef int (*cxgb3_cpl_handler_func)(struct t3cdev *dev,
 				      struct sk_buff *skb, void *ctx);
@@ -122,8 +122,8 @@ enum {
 /* Flags for return value of CPL message handlers */
 enum {
 	CPL_RET_BUF_DONE = 1, /* buffer processing done, buffer may be freed */
-	CPL_RET_BAD_MSG = 2,  /* bad CPL message (e.g., unknown opcode) */
-	CPL_RET_UNKNOWN_TID = 4	/* unexpected unknown TID */
+	CPL_RET_BAD_MSG = 2,  /* bad CPL message (e.g., unkyeswn opcode) */
+	CPL_RET_UNKNOWN_TID = 4	/* unexpected unkyeswn TID */
 };
 
 typedef int (*cpl_handler_func)(struct t3cdev *dev, struct sk_buff *skb);
@@ -185,7 +185,7 @@ struct tid_info {
 };
 
 struct t3c_data {
-	struct list_head list_node;
+	struct list_head list_yesde;
 	struct t3cdev *dev;
 	unsigned int tx_max_chunk;	/* max payload for TX_DATA */
 	unsigned int max_wrs;	/* max in-flight WRs per connection */
@@ -197,7 +197,7 @@ struct t3c_data {
 	spinlock_t tid_release_lock;
 	struct work_struct tid_release_task;
 
-	struct sk_buff *nofail_skb;
+	struct sk_buff *yesfail_skb;
 	unsigned int release_list_incomplete;
 };
 

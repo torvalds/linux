@@ -249,7 +249,7 @@ static uint16_t panel_init[] = {
 	SMART_DAT(0x03),
 	SMART_CMD(0x00),
 
-	/* DISPLAY Setting,  262K, fixed(NO scroll), no split screen */
+	/* DISPLAY Setting,  262K, fixed(NO scroll), yes split screen */
 	SMART_CMD(0x07),
 	SMART_DAT(0x40), /* 16/18/19 BPP */
 	SMART_DAT(0x00),

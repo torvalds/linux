@@ -161,7 +161,7 @@ static void xr17v35x_set_divisor(struct uart_port *p, unsigned int baud,
 {
 	serial8250_do_set_divisor(p, baud, quot, quot_frac);
 
-	/* Preserve bits not related to baudrate; DLD[7:4]. */
+	/* Preserve bits yest related to baudrate; DLD[7:4]. */
 	quot_frac |= serial_port_in(p, 0x2) & 0xf0;
 	serial_port_out(p, 0x2, quot_frac);
 }
@@ -545,7 +545,7 @@ static inline void exar_misc_clear(struct exar8250 *priv)
 
 /*
  * These Exar UARTs have an extra interrupt indicator that could fire for a
- * few interrupts that are not presented/cleared through IIR.  One of which is
+ * few interrupts that are yest presented/cleared through IIR.  One of which is
  * a wakeup interrupt when coming out of sleep.  These interrupts are only
  * cleared by reading global INT0 or INT1 registers as interrupts are
  * associated with channel 0. The INT[3:0] registers _are_ accessible from each

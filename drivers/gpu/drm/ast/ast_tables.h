@@ -1,13 +1,13 @@
 /*
- * Copyright (c) 2005 ASPEED Technology Inc.
+ * Copyright (c) 2005 ASPEED Techyeslogy Inc.
  *
  * Permission to use, copy, modify, distribute, and sell this software and its
  * documentation for any purpose is hereby granted without fee, provided that
- * the above copyright notice appear in all copies and that both that
- * copyright notice and this permission notice appear in supporting
- * documentation, and that the name of the authors not be used in
+ * the above copyright yestice appear in all copies and that both that
+ * copyright yestice and this permission yestice appear in supporting
+ * documentation, and that the name of the authors yest be used in
  * advertising or publicity pertaining to distribution of the software without
- * specific, written prior permission.  The authors makes no representations
+ * specific, written prior permission.  The authors makes yes representations
  * about the suitability of this software for any purpose.  It is provided
  * "as is" without express or implied warranty.
  *

@@ -6,7 +6,7 @@
 
 #include <linux/types.h>
 #include <linux/fs.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/delay.h>
 #include <linux/wait.h>		/* for wait_queue */
 #include <linux/init.h>		/* for __init */
@@ -78,7 +78,7 @@ struct st_spk_t {
 	int tty_stopped;
 };
 
-/* now some defines to make these easier to use. */
+/* yesw some defines to make these easier to use. */
 #define spk_shut_up (speakup_console[vc->vc_num]->shut_up)
 #define spk_killed (speakup_console[vc->vc_num]->shut_up & 0x40)
 #define spk_x (speakup_console[vc->vc_num]->reading_x)
@@ -155,12 +155,12 @@ struct spk_io_ops {
 	void (*send_xchar)(char ch);
 	void (*tiocmset)(unsigned int set, unsigned int clear);
 	unsigned char (*synth_in)(void);
-	unsigned char (*synth_in_nowait)(void);
+	unsigned char (*synth_in_yeswait)(void);
 	void (*flush_buffer)(void);
 };
 
 struct spk_synth {
-	struct list_head node;
+	struct list_head yesde;
 
 	const char *name;
 	const char *version;
@@ -199,7 +199,7 @@ struct spk_synth {
 /*
  * module_spk_synth() - Helper macro for registering a speakup driver
  * @__spk_synth: spk_synth struct
- * Helper macro for speakup drivers which do not do anything special in module
+ * Helper macro for speakup drivers which do yest do anything special in module
  * init/exit. This eliminates a lot of boilerplate. Each module may only
  * use this macro once, and calling it replaces module_init() and module_exit()
  */

@@ -5,7 +5,7 @@
  * FPR[fd] = class(FPR[fs])
  *
  * MIPS floating point support
- * Copyright (C) 2015 Imagination Technologies, Ltd.
+ * Copyright (C) 2015 Imagination Techyeslogies, Ltd.
  * Author: Markos Chandras <markos.chandras@imgtec.com>
  */
 
@@ -46,7 +46,7 @@ int ieee754sp_2008class(union ieee754sp x)
 	case IEEE754_CLASS_ZERO:
 		return 0x20 << (xs ? 0 : 4);
 	default:
-		pr_err("Unknown class: %d\n", xc);
+		pr_err("Unkyeswn class: %d\n", xc);
 		return 0;
 	}
 }

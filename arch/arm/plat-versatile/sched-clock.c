@@ -13,7 +13,7 @@
 
 static void __iomem *ctr;
 
-static u64 notrace versatile_read_sched_clock(void)
+static u64 yestrace versatile_read_sched_clock(void)
 {
 	if (ctr)
 		return readl(ctr);

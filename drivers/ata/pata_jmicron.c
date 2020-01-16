@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- *    pata_jmicron.c - JMicron ATA driver for non AHCI mode. This drives the
+ *    pata_jmicron.c - JMicron ATA driver for yesn AHCI mode. This drives the
  *			PATA port of the controller. The SATA ports are
  *			driven by AHCI in the usual configuration although
  *			this driver can handle other setups if we need it.
@@ -45,8 +45,8 @@ static int jmicron_pre_reset(struct ata_link *link, unsigned long deadline)
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
 	u32 control;
 	u32 control5;
-	int port_mask = 1<< (4 * ap->port_no);
-	int port = ap->port_no;
+	int port_mask = 1<< (4 * ap->port_yes);
+	int port = ap->port_yes;
 	port_type port_map[2];
 
 	/* Check if our port is enabled */
@@ -76,7 +76,7 @@ static int jmicron_pre_reset(struct ata_link *link, unsigned long deadline)
 		port = port ^ 1;
 
 	/*
-	 *	Now we know which physical port we are talking about we can
+	 *	Now we kyesw which physical port we are talking about we can
 	 *	actually do our cable checking etc. Thankfully we don't need
 	 *	to do the plumbing for other cases.
 	 */

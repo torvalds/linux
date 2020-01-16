@@ -12,7 +12,7 @@ u"""
     The build for image formats depend on image's source format and output's
     destination format. This extension implement methods to simplify image
     handling from the author's POV. Directives like ``kernel-figure`` implement
-    methods *to* always get the best output-format even if some tools are not
+    methods *to* always get the best output-format even if some tools are yest
     installed. For more details take a look at ``convert_image(...)`` which is
     the core of all conversions.
 
@@ -29,7 +29,7 @@ u"""
 
     Used tools:
 
-    * ``dot(1)``: Graphviz (http://www.graphviz.org). If Graphviz is not
+    * ``dot(1)``: Graphviz (http://www.graphviz.org). If Graphviz is yest
       available, the DOT language is inserted as literal-block.
 
     * SVG to PDF: To generate PDF, you need at least one of this tools:
@@ -51,13 +51,13 @@ import subprocess
 from hashlib import sha1
 import sys
 
-from docutils import nodes
+from docutils import yesdes
 from docutils.statemachine import ViewList
 from docutils.parsers.rst import directives
 from docutils.parsers.rst.directives import images
 import sphinx
 
-from sphinx.util.nodes import clean_astext
+from sphinx.util.yesdes import clean_astext
 from six import iteritems
 
 import kernellog
@@ -70,8 +70,8 @@ else:
     _unicode = unicode
 
 # Get Sphinx version
-major, minor, patch = sphinx.version_info[:3]
-if major == 1 and minor > 3:
+major, miyesr, patch = sphinx.version_info[:3]
+if major == 1 and miyesr > 3:
     # patches.Figure only landed in Sphinx 1.4
     from sphinx.directives.patches import Figure  # pylint: disable=C0413
 else:
@@ -86,7 +86,7 @@ def which(cmd):
     """Searches the ``cmd`` in the ``PATH`` environment.
 
     This *which* searches the PATH for executable ``cmd`` . First match is
-    returned, if nothing is found, ``None` is returned.
+    returned, if yesthing is found, ``None` is returned.
     """
     envpath = os.environ.get('PATH', None) or os.defpath
     for folder in envpath.split(os.pathsep):
@@ -95,14 +95,14 @@ def which(cmd):
             return fname
 
 def mkdir(folder, mode=0o775):
-    if not path.isdir(folder):
+    if yest path.isdir(folder):
         os.makedirs(folder, mode)
 
 def file2literal(fname):
     with open(fname, "r") as src:
         data = src.read()
-        node = nodes.literal_block(data, data)
-    return node
+        yesde = yesdes.literal_block(data, data)
+    return yesde
 
 def isNewer(path1, path2):
     """Returns True if ``path1`` is newer than ``path2``
@@ -113,7 +113,7 @@ def isNewer(path1, path2):
     return (path.exists(path1)
             and os.stat(path1).st_ctime > os.stat(path2).st_ctime)
 
-def pass_handle(self, node):           # pylint: disable=W0613
+def pass_handle(self, yesde):           # pylint: disable=W0613
     pass
 
 # setup conversion tools and sphinx extension
@@ -132,7 +132,7 @@ def setup(app):
 
     # image handling
     app.add_directive("kernel-image",  KernelImage)
-    app.add_node(kernel_image,
+    app.add_yesde(kernel_image,
                  html    = (visit_kernel_image, pass_handle),
                  latex   = (visit_kernel_image, pass_handle),
                  texinfo = (visit_kernel_image, pass_handle),
@@ -141,7 +141,7 @@ def setup(app):
 
     # figure handling
     app.add_directive("kernel-figure", KernelFigure)
-    app.add_node(kernel_figure,
+    app.add_yesde(kernel_figure,
                  html    = (visit_kernel_figure, pass_handle),
                  latex   = (visit_kernel_figure, pass_handle),
                  texinfo = (visit_kernel_figure, pass_handle),
@@ -150,7 +150,7 @@ def setup(app):
 
     # render handling
     app.add_directive('kernel-render', KernelRender)
-    app.add_node(kernel_render,
+    app.add_yesde(kernel_render,
                  html    = (visit_kernel_render, pass_handle),
                  latex   = (visit_kernel_render, pass_handle),
                  texinfo = (visit_kernel_render, pass_handle),
@@ -181,13 +181,13 @@ def setupTools(app):
     if dot_cmd:
         kernellog.verbose(app, "use dot(1) from: " + dot_cmd)
     else:
-        kernellog.warn(app, "dot(1) not found, for better output quality install "
+        kernellog.warn(app, "dot(1) yest found, for better output quality install "
                        "graphviz from http://www.graphviz.org")
     if convert_cmd:
         kernellog.verbose(app, "use convert(1) from: " + convert_cmd)
     else:
         kernellog.warn(app,
-            "convert(1) not found, for SVG to PDF conversion install "
+            "convert(1) yest found, for SVG to PDF conversion install "
             "ImageMagick (https://www.imagemagick.org)")
 
 
@@ -201,8 +201,8 @@ RENDER_MARKUP_EXT = {
     'SVG' : '.svg'
 }
 
-def convert_image(img_node, translator, src_fname=None):
-    """Convert a image node for the builder.
+def convert_image(img_yesde, translator, src_fname=None):
+    """Convert a image yesde for the builder.
 
     Different builder prefer different image formats, e.g. *latex* builder
     prefer PDF while *html* builder prefer SVG format for images.
@@ -212,29 +212,29 @@ def convert_image(img_node, translator, src_fname=None):
     """
     app = translator.builder.app
 
-    fname, in_ext = path.splitext(path.basename(img_node['uri']))
+    fname, in_ext = path.splitext(path.basename(img_yesde['uri']))
     if src_fname is None:
-        src_fname = path.join(translator.builder.srcdir, img_node['uri'])
-        if not path.exists(src_fname):
-            src_fname = path.join(translator.builder.outdir, img_node['uri'])
+        src_fname = path.join(translator.builder.srcdir, img_yesde['uri'])
+        if yest path.exists(src_fname):
+            src_fname = path.join(translator.builder.outdir, img_yesde['uri'])
 
     dst_fname = None
 
     # in kernel builds, use 'make SPHINXOPTS=-v' to see verbose messages
 
-    kernellog.verbose(app, 'assert best format for: ' + img_node['uri'])
+    kernellog.verbose(app, 'assert best format for: ' + img_yesde['uri'])
 
     if in_ext == '.dot':
 
-        if not dot_cmd:
+        if yest dot_cmd:
             kernellog.verbose(app,
-                              "dot from graphviz not available / include DOT raw.")
-            img_node.replace_self(file2literal(src_fname))
+                              "dot from graphviz yest available / include DOT raw.")
+            img_yesde.replace_self(file2literal(src_fname))
 
         elif translator.builder.format == 'latex':
             dst_fname = path.join(translator.builder.outdir, fname + '.pdf')
-            img_node['uri'] = fname + '.pdf'
-            img_node['candidates'] = {'*': fname + '.pdf'}
+            img_yesde['uri'] = fname + '.pdf'
+            img_yesde['candidates'] = {'*': fname + '.pdf'}
 
 
         elif translator.builder.format == 'html':
@@ -242,30 +242,30 @@ def convert_image(img_node, translator, src_fname=None):
                 translator.builder.outdir,
                 translator.builder.imagedir,
                 fname + '.svg')
-            img_node['uri'] = path.join(
+            img_yesde['uri'] = path.join(
                 translator.builder.imgpath, fname + '.svg')
-            img_node['candidates'] = {
+            img_yesde['candidates'] = {
                 '*': path.join(translator.builder.imgpath, fname + '.svg')}
 
         else:
             # all other builder formats will include DOT as raw
-            img_node.replace_self(file2literal(src_fname))
+            img_yesde.replace_self(file2literal(src_fname))
 
     elif in_ext == '.svg':
 
         if translator.builder.format == 'latex':
             if convert_cmd is None:
                 kernellog.verbose(app,
-                                  "no SVG to PDF conversion available / include SVG raw.")
-                img_node.replace_self(file2literal(src_fname))
+                                  "yes SVG to PDF conversion available / include SVG raw.")
+                img_yesde.replace_self(file2literal(src_fname))
             else:
                 dst_fname = path.join(translator.builder.outdir, fname + '.pdf')
-                img_node['uri'] = fname + '.pdf'
-                img_node['candidates'] = {'*': fname + '.pdf'}
+                img_yesde['uri'] = fname + '.pdf'
+                img_yesde['candidates'] = {'*': fname + '.pdf'}
 
     if dst_fname:
-        # the builder needs not to copy one more time, so pop it if exists.
-        translator.builder.images.pop(img_node['uri'], None)
+        # the builder needs yest to copy one more time, so pop it if exists.
+        translator.builder.images.pop(img_yesde['uri'], None)
         _name = dst_fname[len(translator.builder.outdir) + 1:]
 
         if isNewer(dst_fname, src_fname):
@@ -284,8 +284,8 @@ def convert_image(img_node, translator, src_fname=None):
                 kernellog.verbose(app, 'convert SVG to: {out}/' + _name)
                 ok = svg2pdf(app, src_fname, dst_fname)
 
-            if not ok:
-                img_node.replace_self(file2literal(src_fname))
+            if yest ok:
+                img_yesde.replace_self(file2literal(src_fname))
 
 
 def dot2format(app, dot_fname, out_fname):
@@ -335,15 +335,15 @@ def svg2pdf(app, svg_fname, pdf_fname):
 # image handling
 # ---------------------
 
-def visit_kernel_image(self, node):    # pylint: disable=W0613
+def visit_kernel_image(self, yesde):    # pylint: disable=W0613
     """Visitor of the ``kernel_image`` Node.
 
-    Handles the ``image`` child-node with the ``convert_image(...)``.
+    Handles the ``image`` child-yesde with the ``convert_image(...)``.
     """
-    img_node = node[0]
-    convert_image(img_node, self)
+    img_yesde = yesde[0]
+    convert_image(img_yesde, self)
 
-class kernel_image(nodes.image):
+class kernel_image(yesdes.image):
     """Node for ``kernel-image`` directive."""
     pass
 
@@ -351,44 +351,44 @@ class KernelImage(images.Image):
     u"""KernelImage directive
 
     Earns everything from ``.. image::`` directive, except *remote URI* and
-    *glob* pattern. The KernelImage wraps a image node into a
-    kernel_image node. See ``visit_kernel_image``.
+    *glob* pattern. The KernelImage wraps a image yesde into a
+    kernel_image yesde. See ``visit_kernel_image``.
     """
 
     def run(self):
         uri = self.arguments[0]
         if uri.endswith('.*') or uri.find('://') != -1:
             raise self.severe(
-                'Error in "%s: %s": glob pattern and remote images are not allowed'
+                'Error in "%s: %s": glob pattern and remote images are yest allowed'
                 % (self.name, uri))
         result = images.Image.run(self)
-        if len(result) == 2 or isinstance(result[0], nodes.system_message):
+        if len(result) == 2 or isinstance(result[0], yesdes.system_message):
             return result
-        (image_node,) = result
-        # wrap image node into a kernel_image node / see visitors
-        node = kernel_image('', image_node)
-        return [node]
+        (image_yesde,) = result
+        # wrap image yesde into a kernel_image yesde / see visitors
+        yesde = kernel_image('', image_yesde)
+        return [yesde]
 
 # figure handling
 # ---------------------
 
-def visit_kernel_figure(self, node):   # pylint: disable=W0613
+def visit_kernel_figure(self, yesde):   # pylint: disable=W0613
     """Visitor of the ``kernel_figure`` Node.
 
-    Handles the ``image`` child-node with the ``convert_image(...)``.
+    Handles the ``image`` child-yesde with the ``convert_image(...)``.
     """
-    img_node = node[0][0]
-    convert_image(img_node, self)
+    img_yesde = yesde[0][0]
+    convert_image(img_yesde, self)
 
-class kernel_figure(nodes.figure):
+class kernel_figure(yesdes.figure):
     """Node for ``kernel-figure`` directive."""
 
 class KernelFigure(Figure):
     u"""KernelImage directive
 
     Earns everything from ``.. figure::`` directive, except *remote URI* and
-    *glob* pattern.  The KernelFigure wraps a figure node into a kernel_figure
-    node. See ``visit_kernel_figure``.
+    *glob* pattern.  The KernelFigure wraps a figure yesde into a kernel_figure
+    yesde. See ``visit_kernel_figure``.
     """
 
     def run(self):
@@ -396,79 +396,79 @@ class KernelFigure(Figure):
         if uri.endswith('.*') or uri.find('://') != -1:
             raise self.severe(
                 'Error in "%s: %s":'
-                ' glob pattern and remote images are not allowed'
+                ' glob pattern and remote images are yest allowed'
                 % (self.name, uri))
         result = Figure.run(self)
-        if len(result) == 2 or isinstance(result[0], nodes.system_message):
+        if len(result) == 2 or isinstance(result[0], yesdes.system_message):
             return result
-        (figure_node,) = result
-        # wrap figure node into a kernel_figure node / see visitors
-        node = kernel_figure('', figure_node)
-        return [node]
+        (figure_yesde,) = result
+        # wrap figure yesde into a kernel_figure yesde / see visitors
+        yesde = kernel_figure('', figure_yesde)
+        return [yesde]
 
 
 # render handling
 # ---------------------
 
-def visit_kernel_render(self, node):
+def visit_kernel_render(self, yesde):
     """Visitor of the ``kernel_render`` Node.
 
     If rendering tools available, save the markup of the ``literal_block`` child
-    node into a file and replace the ``literal_block`` node with a new created
-    ``image`` node, pointing to the saved markup file. Afterwards, handle the
-    image child-node with the ``convert_image(...)``.
+    yesde into a file and replace the ``literal_block`` yesde with a new created
+    ``image`` yesde, pointing to the saved markup file. Afterwards, handle the
+    image child-yesde with the ``convert_image(...)``.
     """
     app = self.builder.app
-    srclang = node.get('srclang')
+    srclang = yesde.get('srclang')
 
-    kernellog.verbose(app, 'visit kernel-render node lang: "%s"' % (srclang))
+    kernellog.verbose(app, 'visit kernel-render yesde lang: "%s"' % (srclang))
 
     tmp_ext = RENDER_MARKUP_EXT.get(srclang, None)
     if tmp_ext is None:
-        kernellog.warn(app, 'kernel-render: "%s" unknown / include raw.' % (srclang))
+        kernellog.warn(app, 'kernel-render: "%s" unkyeswn / include raw.' % (srclang))
         return
 
-    if not dot_cmd and tmp_ext == '.dot':
-        kernellog.verbose(app, "dot from graphviz not available / include raw.")
+    if yest dot_cmd and tmp_ext == '.dot':
+        kernellog.verbose(app, "dot from graphviz yest available / include raw.")
         return
 
-    literal_block = node[0]
+    literal_block = yesde[0]
 
     code      = literal_block.astext()
-    hashobj   = code.encode('utf-8') #  str(node.attributes)
+    hashobj   = code.encode('utf-8') #  str(yesde.attributes)
     fname     = path.join('%s-%s' % (srclang, sha1(hashobj).hexdigest()))
 
     tmp_fname = path.join(
         self.builder.outdir, self.builder.imagedir, fname + tmp_ext)
 
-    if not path.isfile(tmp_fname):
+    if yest path.isfile(tmp_fname):
         mkdir(path.dirname(tmp_fname))
         with open(tmp_fname, "w") as out:
             out.write(code)
 
-    img_node = nodes.image(node.rawsource, **node.attributes)
-    img_node['uri'] = path.join(self.builder.imgpath, fname + tmp_ext)
-    img_node['candidates'] = {
+    img_yesde = yesdes.image(yesde.rawsource, **yesde.attributes)
+    img_yesde['uri'] = path.join(self.builder.imgpath, fname + tmp_ext)
+    img_yesde['candidates'] = {
         '*': path.join(self.builder.imgpath, fname + tmp_ext)}
 
-    literal_block.replace_self(img_node)
-    convert_image(img_node, self, tmp_fname)
+    literal_block.replace_self(img_yesde)
+    convert_image(img_yesde, self, tmp_fname)
 
 
-class kernel_render(nodes.General, nodes.Inline, nodes.Element):
+class kernel_render(yesdes.General, yesdes.Inline, yesdes.Element):
     """Node for ``kernel-render`` directive."""
     pass
 
 class KernelRender(Figure):
     u"""KernelRender directive
 
-    Render content by external tool.  Has all the options known from the
+    Render content by external tool.  Has all the options kyeswn from the
     *figure*  directive, plus option ``caption``.  If ``caption`` has a
-    value, a figure node with the *caption* is inserted. If not, a image node is
+    value, a figure yesde with the *caption* is inserted. If yest, a image yesde is
     inserted.
 
     The KernelRender directive wraps the text of the directive into a
-    literal_block node and wraps it into a kernel_render node. See
+    literal_block yesde and wraps it into a kernel_render yesde. See
     ``visit_kernel_render``.
     """
     has_content = True
@@ -481,56 +481,56 @@ class KernelRender(Figure):
     option_spec['caption'] = directives.unchanged
 
     def run(self):
-        return [self.build_node()]
+        return [self.build_yesde()]
 
-    def build_node(self):
+    def build_yesde(self):
 
         srclang = self.arguments[0].strip()
-        if srclang not in RENDER_MARKUP_EXT.keys():
+        if srclang yest in RENDER_MARKUP_EXT.keys():
             return [self.state_machine.reporter.warning(
-                'Unknown source language "%s", use one of: %s.' % (
+                'Unkyeswn source language "%s", use one of: %s.' % (
                     srclang, ",".join(RENDER_MARKUP_EXT.keys())),
-                line=self.lineno)]
+                line=self.lineyes)]
 
         code = '\n'.join(self.content)
-        if not code.strip():
+        if yest code.strip():
             return [self.state_machine.reporter.warning(
-                'Ignoring "%s" directive without content.' % (
+                'Igyesring "%s" directive without content.' % (
                     self.name),
-                line=self.lineno)]
+                line=self.lineyes)]
 
-        node = kernel_render()
-        node['alt'] = self.options.get('alt','')
-        node['srclang'] = srclang
-        literal_node = nodes.literal_block(code, code)
-        node += literal_node
+        yesde = kernel_render()
+        yesde['alt'] = self.options.get('alt','')
+        yesde['srclang'] = srclang
+        literal_yesde = yesdes.literal_block(code, code)
+        yesde += literal_yesde
 
         caption = self.options.get('caption')
         if caption:
             # parse caption's content
-            parsed = nodes.Element()
+            parsed = yesdes.Element()
             self.state.nested_parse(
                 ViewList([caption], source=''), self.content_offset, parsed)
-            caption_node = nodes.caption(
+            caption_yesde = yesdes.caption(
                 parsed[0].rawsource, '', *parsed[0].children)
-            caption_node.source = parsed[0].source
-            caption_node.line = parsed[0].line
+            caption_yesde.source = parsed[0].source
+            caption_yesde.line = parsed[0].line
 
-            figure_node = nodes.figure('', node)
+            figure_yesde = yesdes.figure('', yesde)
             for k,v in self.options.items():
-                figure_node[k] = v
-            figure_node += caption_node
+                figure_yesde[k] = v
+            figure_yesde += caption_yesde
 
-            node = figure_node
+            yesde = figure_yesde
 
-        return node
+        return yesde
 
 def add_kernel_figure_to_std_domain(app, doctree):
     """Add kernel-figure anchors to 'std' domain.
 
-    The ``StandardDomain.process_doc(..)`` method does not know how to resolve
-    the caption (label) of ``kernel-figure`` directive (it only knows about
-    standard nodes, e.g. table, figure etc.). Without any additional handling
+    The ``StandardDomain.process_doc(..)`` method does yest kyesw how to resolve
+    the caption (label) of ``kernel-figure`` directive (it only kyesws about
+    standard yesdes, e.g. table, figure etc.). Without any additional handling
     this will result in a 'undefined label' for kernel-figures.
 
     This handle adds labels of kernel-figure to the 'std' domain labels.
@@ -541,15 +541,15 @@ def add_kernel_figure_to_std_domain(app, doctree):
     labels = std.data["labels"]
 
     for name, explicit in iteritems(doctree.nametypes):
-        if not explicit:
+        if yest explicit:
             continue
         labelid = doctree.nameids[name]
         if labelid is None:
             continue
-        node = doctree.ids[labelid]
+        yesde = doctree.ids[labelid]
 
-        if node.tagname == 'kernel_figure':
-            for n in node.next_node():
+        if yesde.tagname == 'kernel_figure':
+            for n in yesde.next_yesde():
                 if n.tagname == 'caption':
                     sectname = clean_astext(n)
                     # add label to std domain

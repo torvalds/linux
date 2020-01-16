@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 /*
  *
  * envctrl.h: Definitions for access to the i2c environment
@@ -7,14 +7,14 @@
  * Copyright (C) 1998  Eddie C. Dost  (ecd@skynet.be)
  * Copyright (C) 2000  Vinh Truong  (vinh.truong@eng.sun.com)
  * VT - Add all ioctl commands and environment status definitions
- * VT - Add application note
+ * VT - Add application yeste
  */
 #ifndef _SPARC64_ENVCTRL_H
 #define _SPARC64_ENVCTRL_H 1
 
 #include <linux/ioctl.h>
 
-/* Application note:
+/* Application yeste:
  *
  * The driver supports 4 operations: open(), close(), ioctl(), read()
  * The device name is /dev/envctrl.
@@ -27,7 +27,7 @@
  *	close(fd);
  *
  * Notice in the case of cpu voltage and temperature, the default is
- * cpu0.  If we need to know the info of cpu1, cpu2, cpu3, we need to
+ * cpu0.  If we need to kyesw the info of cpu1, cpu2, cpu3, we need to
  * pass in cpu number in ioctl() last parameter.  For example, to
  * get the voltage of cpu2:
  *
@@ -65,7 +65,7 @@
 
 /* Read return values for a fan status request.
  * A failure match means either the fan fails or
- * the fan is not connected.  Some boards have optional
+ * the fan is yest connected.  Some boards have optional
  * connectors to connect extra fans.
  *
  * There are maximum 8 monitor fans.  Some are cpu fans
@@ -77,7 +77,7 @@
  *		printf("ioctl fan failed\n");
  *	}
  *	if (read(fd, rslt, 1) <= 0) {
- *		printf("error or fan not monitored\n");
+ *		printf("error or fan yest monitored\n");
  *	} else {
  *		if (rslt[0] == ENVCTRL_ALL_FANS_GOOD) {
  *			printf("all fans good\n");
@@ -85,7 +85,7 @@
  *		printf("all fans bad\n");
  *	} else {
  *		if (rslt[0] & ENVCTRL_FAN0_FAILURE_MASK) {
- *			printf("fan 0 failed or not connected\n");
+ *			printf("fan 0 failed or yest connected\n");
  *	}
  *	......
  */

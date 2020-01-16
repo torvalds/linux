@@ -11,7 +11,7 @@
 #include <linux/kdebug.h>
 #include <linux/kgdb.h>
 
-/* All registers are 4 bytes, for now */
+/* All registers are 4 bytes, for yesw */
 #define GDB_SIZEOF_REG 4
 
 /* The register names are used during printing of the regs;
@@ -75,23 +75,23 @@ const struct kgdb_arch arch_kgdb_ops = {
 	.gdb_bpt_instr = {0x54, 0x00, 0xdb, 0x0c},
 };
 
-char *dbg_get_reg(int regno, void *mem, struct pt_regs *regs)
+char *dbg_get_reg(int regyes, void *mem, struct pt_regs *regs)
 {
-	if (regno >= DBG_MAX_REG_NUM || regno < 0)
+	if (regyes >= DBG_MAX_REG_NUM || regyes < 0)
 		return NULL;
 
 	*((unsigned long *) mem) = *((unsigned long *) ((void *)regs +
-		dbg_reg_def[regno].offset));
+		dbg_reg_def[regyes].offset));
 
-	return dbg_reg_def[regno].name;
+	return dbg_reg_def[regyes].name;
 }
 
-int dbg_set_reg(int regno, void *mem, struct pt_regs *regs)
+int dbg_set_reg(int regyes, void *mem, struct pt_regs *regs)
 {
-	if (regno >= DBG_MAX_REG_NUM || regno < 0)
+	if (regyes >= DBG_MAX_REG_NUM || regyes < 0)
 		return -EINVAL;
 
-	*((unsigned long *) ((void *)regs + dbg_reg_def[regno].offset)) =
+	*((unsigned long *) ((void *)regs + dbg_reg_def[regyes].offset)) =
 		*((unsigned long *) mem);
 
 	return 0;
@@ -123,7 +123,7 @@ void sleeping_thread_to_gdb_regs(unsigned long *gdb_regs,
 /**
  * kgdb_arch_handle_exception - Handle architecture specific GDB packets.
  * @vector: The error vector of the exception that happened.
- * @signo: The signal number of the exception that happened.
+ * @sigyes: The signal number of the exception that happened.
  * @err_code: The error code of the exception that happened.
  * @remcom_in_buffer: The buffer of the packet we have read.
  * @remcom_out_buffer: The buffer of %BUFMAX bytes to write a packet into.
@@ -138,7 +138,7 @@ void sleeping_thread_to_gdb_regs(unsigned long *gdb_regs,
  *
  * Not yet working.
  */
-int kgdb_arch_handle_exception(int vector, int signo, int err_code,
+int kgdb_arch_handle_exception(int vector, int sigyes, int err_code,
 			       char *remcom_in_buffer, char *remcom_out_buffer,
 			       struct pt_regs *linux_regs)
 {
@@ -151,7 +151,7 @@ int kgdb_arch_handle_exception(int vector, int signo, int err_code,
 	return -1;
 }
 
-static int __kgdb_notify(struct die_args *args, unsigned long cmd)
+static int __kgdb_yestify(struct die_args *args, unsigned long cmd)
 {
 	/* cpu roundup */
 	if (atomic_read(&kgdb_active) != -1) {
@@ -170,23 +170,23 @@ static int __kgdb_notify(struct die_args *args, unsigned long cmd)
 }
 
 static int
-kgdb_notify(struct notifier_block *self, unsigned long cmd, void *ptr)
+kgdb_yestify(struct yestifier_block *self, unsigned long cmd, void *ptr)
 {
 	unsigned long flags;
 	int ret;
 
 	local_irq_save(flags);
-	ret = __kgdb_notify(ptr, cmd);
+	ret = __kgdb_yestify(ptr, cmd);
 	local_irq_restore(flags);
 
 	return ret;
 }
 
-static struct notifier_block kgdb_notifier = {
-	.notifier_call = kgdb_notify,
+static struct yestifier_block kgdb_yestifier = {
+	.yestifier_call = kgdb_yestify,
 
 	/*
-	 * Lowest-prio notifier priority, we want to be notified last:
+	 * Lowest-prio yestifier priority, we want to be yestified last:
 	 */
 	.priority = -INT_MAX,
 };
@@ -199,7 +199,7 @@ static struct notifier_block kgdb_notifier = {
  */
 int kgdb_arch_init(void)
 {
-	return register_die_notifier(&kgdb_notifier);
+	return register_die_yestifier(&kgdb_yestifier);
 }
 
 /**
@@ -210,5 +210,5 @@ int kgdb_arch_init(void)
  */
 void kgdb_arch_exit(void)
 {
-	unregister_die_notifier(&kgdb_notifier);
+	unregister_die_yestifier(&kgdb_yestifier);
 }

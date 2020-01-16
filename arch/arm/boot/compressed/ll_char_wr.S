@@ -12,7 +12,7 @@
 
 @ Regs: [] = corruptible
 @       {} = used
-@       () = do not use
+@       () = do yest use
 
 #include <linux/linkage.h>
 #include <asm/assembler.h>

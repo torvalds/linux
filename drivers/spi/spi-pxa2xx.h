@@ -9,7 +9,7 @@
 
 #include <linux/atomic.h>
 #include <linux/dmaengine.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/io.h>
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>

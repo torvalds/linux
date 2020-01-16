@@ -79,7 +79,7 @@ static const struct tmdc_model {
 	char abs;
 	char hats;
 	char btnc[4];
-	char btno[4];
+	char btyes[4];
 	const signed char *axes;
 	const short *buttons;
 } tmdc_models[] = {
@@ -88,7 +88,7 @@ static const struct tmdc_model {
 	{   4, "ThrustMaster Attack Throttle",		  5, 2, { 4, 6 }, { 4, 2 }, tmdc_abs_at, tmdc_btn_at },
 	{   8, "ThrustMaster FragMaster",		  4, 0, { 8, 2 }, { 0, 0 }, tmdc_abs_fm, tmdc_btn_fm },
 	{ 163, "Thrustmaster Fusion GamePad",		  2, 0, { 8, 2 }, { 0, 0 }, tmdc_abs, tmdc_btn_pad },
-	{   0, "Unknown %d-axis, %d-button TM device %d", 0, 0, { 0, 0 }, { 0, 0 }, tmdc_abs, tmdc_btn_joy }
+	{   0, "Unkyeswn %d-axis, %d-button TM device %d", 0, 0, { 0, 0 }, { 0, 0 }, tmdc_abs, tmdc_btn_joy }
 };
 
 
@@ -101,7 +101,7 @@ struct tmdc_port {
 	const short *btn;
 	unsigned char absc;
 	unsigned char btnc[4];
-	unsigned char btno[4];
+	unsigned char btyes[4];
 };
 
 struct tmdc {
@@ -116,7 +116,7 @@ struct tmdc {
 	short *btn[2];
 	unsigned char absc[2];
 	unsigned char btnc[2][4];
-	unsigned char btno[2][4];
+	unsigned char btyes[2][4];
 #endif
 	int reads;
 	int bads;
@@ -207,7 +207,7 @@ static int tmdc_parse_packet(struct tmdc_port *port, unsigned char *data)
 	for (k = l = 0; k < 4; k++) {
 		for (i = 0; i < port->btnc[k]; i++)
 			input_report_key(port->dev, port->btn[i + l],
-				((data[tmdc_byte_d[k]] >> (i + port->btno[k])) & 1));
+				((data[tmdc_byte_d[k]] >> (i + port->btyes[k])) & 1));
 		l += port->btnc[k];
 	}
 
@@ -293,7 +293,7 @@ static int tmdc_setup_port(struct tmdc *tmdc, int idx, unsigned char *data)
 	}
 
 	for (i = 0; i < 4; i++)
-		port->btno[i] = model->btno[i];
+		port->btyes[i] = model->btyes[i];
 
 	snprintf(port->name, sizeof(port->name), model->name,
 		 port->absc, (data[TMDC_BYTE_DEF] & 0xf) << 3, port->mode);

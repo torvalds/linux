@@ -262,7 +262,7 @@ static const struct v4l2_pix_format sxga_mode[] = {
 		.priv = SCALE_1280x1024 | MODE_RAW | MODE_SXGA},
 };
 
-static const struct v4l2_pix_format mono_mode[] = {
+static const struct v4l2_pix_format moyes_mode[] = {
 	{160, 120, V4L2_PIX_FMT_GREY, V4L2_FIELD_NONE,
 		.bytesperline = 160,
 		.sizeimage = 160 * 120,
@@ -970,7 +970,7 @@ static void i2c_w(struct gspca_dev *gspca_dev, const u8 *buffer)
 		}
 		msleep(10);
 	}
-	pr_err("i2c_w reg %02x no response\n", buffer[2]);
+	pr_err("i2c_w reg %02x yes response\n", buffer[2]);
 /*	gspca_dev->usb_err = -EIO;	fixme: may occur */
 }
 
@@ -1260,7 +1260,7 @@ static void mt9m001_init_sensor(struct gspca_dev *gspca_dev)
 		pr_info("MT9M001 color sensor detected\n");
 		break;
 	case 0x8431:
-		pr_info("MT9M001 mono sensor detected\n");
+		pr_info("MT9M001 moyes sensor detected\n");
 		break;
 	default:
 		pr_err("No MT9M001 chip detected, ID = %x\n\n", id);
@@ -1632,8 +1632,8 @@ static int sd_config(struct gspca_dev *gspca_dev,
 		cam->nmodes = ARRAY_SIZE(sxga_mode);
 		break;
 	case SENSOR_MT9M001:
-		cam->cam_mode = mono_mode;
-		cam->nmodes = ARRAY_SIZE(mono_mode);
+		cam->cam_mode = moyes_mode;
+		cam->nmodes = ARRAY_SIZE(moyes_mode);
 		break;
 	case SENSOR_HV7131R:
 		sd->i2c_intf = 0x81;			/* i2c 400 Kb/s */
@@ -1758,7 +1758,7 @@ static int sd_init_controls(struct gspca_dev *gspca_dev)
 	sd->jpegqual = v4l2_ctrl_new_std(hdl, &sd_ctrl_ops,
 			V4L2_CID_JPEG_COMPRESSION_QUALITY, 50, 90, 1, 80);
 	if (hdl->error) {
-		pr_err("Could not initialize controls\n");
+		pr_err("Could yest initialize controls\n");
 		return hdl->error;
 	}
 
@@ -1946,7 +1946,7 @@ static int sd_isoc_init(struct gspca_dev *gspca_dev)
 		intf = usb_ifnum_to_if(gspca_dev->dev, gspca_dev->iface);
 
 		if (intf->num_altsetting != 9) {
-			pr_warn("sn9c20x camera with unknown number of alt settings (%d), please report!\n",
+			pr_warn("sn9c20x camera with unkyeswn number of alt settings (%d), please report!\n",
 				intf->num_altsetting);
 			gspca_dev->alt = intf->num_altsetting;
 			return 0;

@@ -3,12 +3,12 @@
 The bttv driver
 ===============
 
-Release notes for bttv
+Release yestes for bttv
 ----------------------
 
 You'll need at least these config options for bttv:
 
-.. code-block:: none
+.. code-block:: yesne
 
 	CONFIG_I2C=m
 	CONFIG_I2C_ALGOBIT=m
@@ -22,16 +22,16 @@ Make bttv work with your card
 
 Just try "modprobe bttv" and see if that works.
 
-If it doesn't bttv likely could not autodetect your card and needs some
+If it doesn't bttv likely could yest autodetect your card and needs some
 insmod options.  The most important insmod option for bttv is "card=n"
-to select the correct card type.  If you get video but no sound you've
-very likely specified the wrong (or no) card type.  A list of supported
+to select the correct card type.  If you get video but yes sound you've
+very likely specified the wrong (or yes) card type.  A list of supported
 cards is in CARDLIST.bttv
 
 If bttv takes very long to load (happens sometimes with the cheap
-cards which have no tuner), try adding this to your modules.conf:
+cards which have yes tuner), try adding this to your modules.conf:
 
-.. code-block:: none
+.. code-block:: yesne
 
 	options i2c-algo-bit bit_test=1
 
@@ -51,14 +51,14 @@ Autodetecting cards
 bttv uses the PCI Subsystem ID to autodetect the card type.  lspci lists
 the Subsystem ID in the second line, looks like this:
 
-.. code-block:: none
+.. code-block:: yesne
 
 	00:0a.0 Multimedia video controller: Brooktree Corporation Bt878 (rev 02)
 		Subsystem: Hauppauge computer works Inc. WinTV/GO
 		Flags: bus master, medium devsel, latency 32, IRQ 5
 		Memory at e2000000 (32-bit, prefetchable) [size=4K]
 
-only bt878-based cards can have a subsystem ID (which does not mean
+only bt878-based cards can have a subsystem ID (which does yest mean
 that every card really has one).  bt848 cards can't have a Subsystem
 ID and therefore can't be autodetected.  There is a list with the ID's
 in bttv-cards.c (in case you are intrested or want to mail patches
@@ -71,8 +71,8 @@ Still doesn't work?
 I do NOT have a lab with 30+ different grabber boards and a
 PAL/NTSC/SECAM test signal generator at home, so I often can't
 reproduce your problems.  This makes debugging very difficult for me.
-If you have some knowledge and spare time, please try to fix this
-yourself (patches very welcome of course...)  You know: The linux
+If you have some kyeswledge and spare time, please try to fix this
+yourself (patches very welcome of course...)  You kyesw: The linux
 slogan is "Do it yourself".
 
 There is a mailing list at
@@ -100,7 +100,7 @@ This list tends to be outdated because it is updated manually ...
 
 bttv.o
 
-.. code-block:: none
+.. code-block:: yesne
 
 	the bt848/878 (grabber chip) driver
 
@@ -114,7 +114,7 @@ bttv.o
 			2: 35 MHz crystal installed
 
 		triton1=0/1     for Triton1 (+others) compatibility
-		vsfx=0/1	yet another chipset bug compatibility bit
+		vsfx=0/1	yet ayesther chipset bug compatibility bit
 				see README.quirks for details on these two.
 
 		bigendian=n	Set the endianness of the gfx framebuffer.
@@ -134,17 +134,17 @@ bttv.o
 				default is 4.
 		gbufsize=	size of capture buffers. default and
 				maximum value is 0x208000 (~2MB)
-		no_overlay=0	Enable overlay on broken hardware.  There
+		yes_overlay=0	Enable overlay on broken hardware.  There
 				are some chipsets (SIS for example) which
-				are known to have problems with the PCI DMA
+				are kyeswn to have problems with the PCI DMA
 				push used by bttv.  bttv will disable overlay
 				by default on this hardware to avoid crashes.
 				With this insmod option you can override this.
-		no_overlay=1	Disable overlay. It should be used by broken
+		yes_overlay=1	Disable overlay. It should be used by broken
 				hardware that doesn't support PCI2PCI direct
 				transfers.
 		automute=0/1	Automatically mutes the sound if there is
-				no TV signal, on by default.  You might try
+				yes TV signal, on by default.  You might try
 				to disable this if you have bad input signal
 				quality which leading to unwanted sound
 				dropouts.
@@ -154,7 +154,7 @@ bttv.o
 				(meaning 66,67 Kbps). The default is the
 				maximum supported speed by kernel bitbang
 				algorithm. You may use lower numbers, if I2C
-				messages are lost (16 is known to work on
+				messages are lost (16 is kyeswn to work on
 				all supported cards).
 
 		bttv_gpio=0/1
@@ -168,7 +168,7 @@ bttv.o
 
 tuner.o
 
-.. code-block:: none
+.. code-block:: yesne
 
 	The tuner driver.  You need this unless you want to use only
 	with a camera or external tuner ...
@@ -182,7 +182,7 @@ tuner.o
 
 tvaudio.o
 
-.. code-block:: none
+.. code-block:: yesne
 
 	new, experimental module which is supported to provide a single
 	driver for all simple i2c audio control chips (tda/tea*).
@@ -204,7 +204,7 @@ tvaudio.o
 		tda9874a_SIF=1/2	select sound IF input pin (1 or 2)
 					(default is pin 1)
 		tda9874a_AMSEL=0/1	auto-mute select for NICAM (default=0)
-					Please read note 3 below!
+					Please read yeste 3 below!
 		tda9874a_STD=n		select TV sound standard (0..8):
 					0 - A2, B/G
 					1 - A2, M (Korea)
@@ -218,14 +218,14 @@ tvaudio.o
 
 	Note 1: tda9874a supports both tda9874h (old) and tda9874a (new) chips.
 	Note 2: tda9874h/a and tda9875 (which is supported separately by
-	tda9875.o) use the same i2c address so both modules should not be
+	tda9875.o) use the same i2c address so both modules should yest be
 	used at the same time.
 	Note 3: Using tda9874a_AMSEL option depends on your TV card design!
 		AMSEL=0: auto-mute will switch between NICAM sound
-			 and the sound on 1st carrier (i.e. FM mono or AM).
+			 and the sound on 1st carrier (i.e. FM moyes or AM).
 		AMSEL=1: auto-mute will switch between NICAM sound
-			 and the analog mono input (MONOIN pin).
-	If tda9874a decoder on your card has MONOIN pin not connected, then
+			 and the analog moyes input (MONOIN pin).
+	If tda9874a decoder on your card has MONOIN pin yest connected, then
 	use only tda9874_AMSEL=0 or don't specify this option at all.
 	For example:
 	  card=65 (FlyVideo 2000S) - set AMSEL=1 or AMSEL=0
@@ -233,7 +233,7 @@ tvaudio.o
 
 msp3400.o
 
-.. code-block:: none
+.. code-block:: yesne
 
 	The driver for the msp34xx sound processor chips. If you have a
 	stereo card, you probably want to insmod this one.
@@ -254,7 +254,7 @@ msp3400.o
 
 tea6300.o - OBSOLETE (use tvaudio instead)
 
-.. code-block:: none
+.. code-block:: yesne
 
 	The driver for the tea6300 fader chip.  If you have a stereo
 	card and the msp3400.o doesn't work, you might want to try this
@@ -266,10 +266,10 @@ tea6300.o - OBSOLETE (use tvaudio instead)
 
 tda8425.o - OBSOLETE (use tvaudio instead)
 
-.. code-block:: none
+.. code-block:: yesne
 
 	The driver for the tda8425 fader chip.  This driver used to be
-	part of bttv.c, so if your sound used to work but does not
+	part of bttv.c, so if your sound used to work but does yest
 	anymore, try loading this module.
 
 	insmod args:
@@ -277,7 +277,7 @@ tda8425.o - OBSOLETE (use tvaudio instead)
 
 tda985x.o - OBSOLETE (use tvaudio instead)
 
-.. code-block:: none
+.. code-block:: yesne
 
 	The driver for the tda9850/55 audio chips.
 
@@ -299,7 +299,7 @@ has a few hints how you can help to pin down the problem.
 bttv bugs
 ~~~~~~~~~
 
-If some version works and another doesn't it is likely to be a driver
+If some version works and ayesther doesn't it is likely to be a driver
 bug.  It is very helpful if you can tell where exactly it broke
 (i.e. the last working and the first broken version).
 
@@ -320,7 +320,7 @@ state is stuck.
 
 I've seen reports that bttv 0.7.x crashes whereas 0.8.x works rock solid
 for some people.  Thus probably a small buglet left somewhere in bttv
-0.7.x.  I have no idea where exactly, it works stable for me and a lot of
+0.7.x.  I have yes idea where exactly, it works stable for me and a lot of
 other people.  But in case you have problems with the 0.7.x versions you
 can give 0.8.x a try ...
 
@@ -330,11 +330,11 @@ hardware bugs
 
 Some hardware can't deal with PCI-PCI transfers (i.e. grabber => vga).
 Sometimes problems show up with bttv just because of the high load on
-the PCI bus. The bt848/878 chips have a few workarounds for known
+the PCI bus. The bt848/878 chips have a few workarounds for kyeswn
 incompatibilities, see README.quirks.
 
 Some folks report that increasing the pci latency helps too,
-althrought I'm not sure whenever this really fixes the problems or
+althrought I'm yest sure whenever this really fixes the problems or
 only makes it less likely to happen.  Both bttv and btaudio have a
 insmod option to set the PCI latency of the device.
 
@@ -351,9 +351,9 @@ other
 If you use some binary-only yunk (like nvidia module) try to reproduce
 the problem without.
 
-IRQ sharing is known to cause problems in some cases.  It works just
+IRQ sharing is kyeswn to cause problems in some cases.  It works just
 fine in theory and many configurations.  Neverless it might be worth a
-try to shuffle around the PCI cards to give bttv another IRQ or make
+try to shuffle around the PCI cards to give bttv ayesther IRQ or make
 it share the IRQ with some other piece of hardware.  IRQ sharing with
 VGA cards seems to cause trouble sometimes.  I've also seen funny
 effects with bttv sharing the IRQ with the ACPI bridge (and
@@ -370,17 +370,17 @@ The vsfx insmod option does the same for EN_VSFX bit.  If you have
 stability problems you can try if one of these options makes your box
 work solid.
 
-drivers/pci/quirks.c knows about these issues, this way these bits are
-enabled automagically for known-buggy chipsets (look at the kernel
+drivers/pci/quirks.c kyesws about these issues, this way these bits are
+enabled automagically for kyeswn-buggy chipsets (look at the kernel
 messages, bttv tells you).
 
 Normal PCI Mode
 ~~~~~~~~~~~~~~~
 
 The PCI REQ signal is the logical-or of the incoming function requests.
-The inter-nal GNT[0:1] signals are gated asynchronously with GNT and
+The inter-nal GNT[0:1] signals are gated asynchroyesusly with GNT and
 demultiplexed by the audio request signal. Thus the arbiter defaults to
-the video function at power-up and parks there during no requests for
+the video function at power-up and parks there during yes requests for
 bus access. This is desirable since the video will request the bus more
 often. However, the audio will have highest bus access priority. Thus
 the audio will have first access to the bus even when issuing a request
@@ -398,10 +398,10 @@ When using the 430FX PCI, the following rules will ensure
 compatibility:
 
  (1) Deassert REQ at the same time as asserting FRAME.
- (2) Do not reassert REQ to request another bus transaction until after
+ (2) Do yest reassert REQ to request ayesther bus transaction until after
      finish-ing the previous transaction.
 
-Since the individual bus masters do not have direct control of REQ, a
+Since the individual bus masters do yest have direct control of REQ, a
 simple logical-or of video and audio requests would violate the rules.
 Thus, both the arbiter and the initiator contain 430FX compatibility
 mode logic. To enable 430FX mode, set the EN_TBFX bit as indicated in
@@ -410,49 +410,49 @@ Device Control Register on page 104.
 When EN_TBFX is enabled, the arbiter ensures that the two compatibility
 rules are satisfied. Before GNT is asserted by the PCI arbiter, this
 internal arbiter may still logical-or the two requests. However, once
-the GNT is issued, this arbiter must lock in its decision and now route
+the GNT is issued, this arbiter must lock in its decision and yesw route
 only the granted request to the REQ pin. The arbiter decision lock
-happens regardless of the state of FRAME because it does not know when
+happens regardless of the state of FRAME because it does yest kyesw when
 FRAME will be asserted (typically - each initiator will assert FRAME on
 the cycle following GNT). When FRAME is asserted, it is the initiator s
 responsibility to remove its request at the same time. It is the
 arbiters responsibility to allow this request to flow through to REQ and
-not allow the other request to hold REQ asserted. The decision lock may
+yest allow the other request to hold REQ asserted. The decision lock may
 be removed at the end of the transaction: for example, when the bus is
 idle (FRAME and IRDY). The arbiter decision may then continue
-asynchronously until GNT is again asserted.
+asynchroyesusly until GNT is again asserted.
 
 
 Interfacing with Non-PCI 2.1 Compliant Core Logic
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 A small percentage of core logic devices may start a bus transaction
-during the same cycle that GNT is de-asserted. This is non PCI 2.1
+during the same cycle that GNT is de-asserted. This is yesn PCI 2.1
 compliant. To ensure compatibility when using PCs with these PCI
 controllers, the EN_VSFX bit must be enabled (refer to Device Control
-Register on page 104). When in this mode, the arbiter does not pass GNT
+Register on page 104). When in this mode, the arbiter does yest pass GNT
 to the internal functions unless REQ is asserted. This prevents a bus
 transaction from starting the same cycle as GNT is de-asserted. This
-also has the side effect of not being able to take advantage of bus
+also has the side effect of yest being able to take advantage of bus
 parking, thus lowering arbitration performance. The Bt879 drivers must
-query for these non-compliant devices, and set the EN_VSFX bit only if
+query for these yesn-compliant devices, and set the EN_VSFX bit only if
 required.
 
 bttv and sound mini howto
 -------------------------
 
 There are a lot of different bt848/849/878/879 based boards available.
-Making video work often is not a big deal, because this is handled
+Making video work often is yest a big deal, because this is handled
 completely by the bt8xx chip, which is common on all boards.  But
 sound is handled in slightly different ways on each board.
 
 To handle the grabber boards correctly, there is a array tvcards[] in
 bttv-cards.c, which holds the information required for each board.
 Sound will work only, if the correct entry is used (for video it often
-makes no difference).  The bttv driver prints a line to the kernel
+makes yes difference).  The bttv driver prints a line to the kernel
 log, telling which card type is used.  Like this one:
 
-.. code-block:: none
+.. code-block:: yesne
 
 	bttv0: model: BT848(Hauppauge old) [autodetected]
 
@@ -460,7 +460,7 @@ You should verify this is correct.  If it isn't, you have to pass the
 correct board type as insmod argument, "insmod bttv card=2" for
 example.  The file CARDLIST has a list of valid arguments for card.
 If your card isn't listed there, you might check the source code for
-new entries which are not listed yet.  If there isn't one for your
+new entries which are yest listed yet.  If there isn't one for your
 card, you can check if one of the existing entries does work for you
 (just trial and error...).
 
@@ -485,7 +485,7 @@ Below is a do-it-yourself description for you.
 The bt8xx chips have 32 general purpose pins, and registers to control
 these pins.  One register is the output enable register
 (BT848_GPIO_OUT_EN), it says which pins are actively driven by the
-bt848 chip.  Another one is the data register (BT848_GPIO_DATA), where
+bt848 chip.  Ayesther one is the data register (BT848_GPIO_DATA), where
 you can get/set the status if these pins.  They can be used for input
 and output.
 
@@ -496,7 +496,7 @@ receiver chips.  Some boards use the i2c bus instead of the gpio pins
 to connect the mux chip.
 
 As mentioned above, there is a array which holds the required
-information for each known board.  You basically have to create a new
+information for each kyeswn board.  You basically have to create a new
 line for your board.  The important fields are these two:
 
 .. code-block:: c
@@ -525,7 +525,7 @@ card installed, you might to check out if you can read these registers
 values used by the windows driver.  A tool to do this is available
 from ftp://telepresence.dmem.strath.ac.uk/pub/bt848/winutil, but it
 doesn't work with bt878 boards according to some reports I received.
-Another one with bt878 support is available from
+Ayesther one with bt878 support is available from
 http://btwincap.sourceforge.net/Files/btspy2.00.zip
 
 You might also dig around in the \*.ini files of the Windows applications.
@@ -536,7 +536,7 @@ connected at all and then start trial-and-error ...
 Starting with release 0.7.41 bttv has a number of insmod options to
 make the gpio debugging easier:
 
-.. code-block:: none
+.. code-block:: yesne
 
 	bttv_gpio=0/1		enable/disable gpio debug messages
 	gpiomask=n		set the gpiomask value
@@ -547,7 +547,7 @@ make the gpio debugging easier:
 
 The messages printed with bttv_gpio=1 look like this:
 
-.. code-block:: none
+.. code-block:: yesne
 
 	bttv0: gpio: en=00000027, out=00000024 in=00ffffd8 [audio: off]
 
@@ -563,12 +563,12 @@ Other elements of the tvcards array
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 If you are trying to make a new card work you might find it useful to
-know what the other elements in the tvcards array are good for:
+kyesw what the other elements in the tvcards array are good for:
 
-.. code-block:: none
+.. code-block:: yesne
 
 	video_inputs    - # of video inputs the card has
-	audio_inputs    - historical cruft, not used any more.
+	audio_inputs    - historical cruft, yest used any more.
 	tuner           - which input is the tuner
 	svhs            - which input is svhs (all others are labeled composite)
 	muxsel          - video mux, input->registervalue mapping
@@ -577,8 +577,8 @@ know what the other elements in the tvcards array are good for:
 	*_modulename    - hint whenever some card needs this or that audio
 			module loaded to work properly.
 	has_radio	- whenever this TV card has a radio tuner.
-	no_msp34xx	- "1" disables loading of msp3400.o module
-	no_tda9875	- "1" disables loading of tda9875.o module
+	yes_msp34xx	- "1" disables loading of msp3400.o module
+	yes_tda9875	- "1" disables loading of tda9875.o module
 	needs_tvaudio	- set to "1" to load tvaudio.o module
 
 If some config item is specified both from the tvcards array and as
@@ -587,7 +587,7 @@ insmod option, the insmod option takes precedence.
 Cards
 -----
 
-.. note::
+.. yeste::
 
    For a more updated list, please check
    https://linuxtv.org/wiki/index.php/Hardware_Device_Information
@@ -595,7 +595,7 @@ Cards
 Supported cards: Bt848/Bt848a/Bt849/Bt878/Bt879 cards
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-All cards with Bt848/Bt848a/Bt849/Bt878/Bt879 and normal
+All cards with Bt848/Bt848a/Bt849/Bt878/Bt879 and yesrmal
 Composite/S-VHS inputs are supported.  Teletext and Intercast support
 (PAL only) for ALL cards via VBI sample decoding in software.
 
@@ -618,7 +618,7 @@ MV-Delta
 
 http://www.matrix-vision.de/
 
-This card has no tuner but supports all 4 composite (1 shared with an
+This card has yes tuner but supports all 4 composite (1 shared with an
 S-VHS input) of the Bt848A.
 Very nice card if you only have satellite TV but several tuners connected
 to the card via composite.
@@ -635,7 +635,7 @@ Miro/Pinnacle PCTV
   some (all??) come with 2 crystals for PAL/SECAM and NTSC
 - PAL, SECAM or NTSC TV tuner (Philips or TEMIC)
 - MSP34xx sound decoder on add on board
-  decoder is supported but AFAIK does not yet work
+  decoder is supported but AFAIK does yest yet work
   (other sound MUX setting in GPIO port needed??? somebody who fixed this???)
 - 1 tuner, 1 composite and 1 S-VHS input
 - tuner type is autodetected
@@ -671,9 +671,9 @@ e.g.:
 - NTSC:
 
   - TDA5731: VHF, hyperband and UHF mixer/oscillator for TV and VCR 3-band tuners
-  - TSA5518: no datasheet available on Philips site
+  - TSA5518: yes datasheet available on Philips site
 
-- Philips SAA5246 or SAA5284 ( or no) Teletext decoder chip
+- Philips SAA5246 or SAA5284 ( or yes) Teletext decoder chip
   with buffer RAM (e.g. Winbond W24257AS-35: 32Kx8 CMOS static RAM)
   SAA5246 (I2C 0x22) is supported
 
@@ -748,7 +748,7 @@ Identifying:
      - LR37 Rev.C = Flyvideo EZ (Capture only, ZR36120 + SAA7110)
      - LR38 Rev.A1= Flyvideo II EZ (Bt848 capture only)
      - LR50 Rev.Q = Flyvideo 98 (w/eeprom and PCI subsystem ID)
-     - LR50 Rev.W = Flyvideo 98 (no eeprom)
+     - LR50 Rev.W = Flyvideo 98 (yes eeprom)
      - LR51 Rev.E = Flyvideo 98 EZ (capture only)
      - LR90       = Flyvideo 2000 (Bt878)
      - LR90 Flyvideo 2000S (Bt878) w/Stereo TV (Package incl. LR91 daughterboard)
@@ -760,7 +760,7 @@ Identifying:
      - LR138 Rev.C= Flyvideo 2000 (SAA7130)
      - LR138 Flyvideo 3000 (SAA7134) w/Stereo TV
 
-	- These exist in variations w/FM and w/Remote sometimes denoted
+	- These exist in variations w/FM and w/Remote sometimes deyested
 	  by suffixes "FM" and "R".
 
   #) You have a laptop (miniPCI card):
@@ -774,11 +774,11 @@ Identifying:
       - Flyvideo 2000S was probably sold as Flyvideo 3000 in some countries(Europe?).
         The new Flyvideo 2000/3000 are SAA7130/SAA7134 based.
 
-"Flyvideo II" had been the name for the 848 cards, nowadays (in Germany)
+"Flyvideo II" had been the name for the 848 cards, yeswadays (in Germany)
 this name is re-used for LR50 Rev.W.
 
 The Lifeview website mentioned Flyvideo III at some time, but such a card
-has not yet been seen (perhaps it was the german name for LR90 [stereo]).
+has yest yet been seen (perhaps it was the german name for LR90 [stereo]).
 These cards are sold by many OEMs too.
 
 FlyVideo A2 (Elta 8680)= LR90 Rev.F (w/Remote, w/o FM, stereo TV by tda9821) {Germany}
@@ -799,7 +799,7 @@ Typhoon TV card series:
 
 These can be CPH, Flyvideo, Pixelview or KNC1 series.
 Typhoon is the brand of Anubis.
-Model 50680 got re-used, some model no. had different contents over time.
+Model 50680 got re-used, some model yes. had different contents over time.
 
 Models:
 
@@ -808,7 +808,7 @@ Models:
   - 50681 "TV Tuner PCI Pal I" (variant of 50680)
   - 50682 "TView TV/FM Tuner Pal BG"       = Flyvideo 98FM (LR50 Rev.Q)
 
-  .. note::
+  .. yeste::
 
 	 The package has a picture of CPH05x (which would be a real TView)
 
@@ -944,7 +944,7 @@ is wrong. If it doesn't work, send me email.
   use this driver, send an email insult to them, and tell them you won't
   continue buying their hardware unless they support Linux.
 
-- Little thanks to Princeton Technology Corp (http://www.princeton.com.tw)
+- Little thanks to Princeton Techyeslogy Corp (http://www.princeton.com.tw)
   who make the audio attenuator. Their publicly available data-sheet available
   on their web site doesn't include the chip programming information! Hidden
   on their server are the full data-sheets, but don't ask how I found it.
@@ -969,7 +969,7 @@ KNC One
 - TV Station SAT (analog satellite)
 - TV-Station DVB-S
 
-.. note:: newer Cards have saa7134, but model name stayed the same?
+.. yeste:: newer Cards have saa7134, but model name stayed the same?
 
 Provideo
 ~~~~~~~~
@@ -982,7 +982,7 @@ Provideo
    MediaForte TV-Vision PV951,
    Yoko PV951,
    Vivanco Tuner Card PCI Art.-Nr.: 68404,
-   ) now named PV-951T
+   ) yesw named PV-951T
 
 - Surveillance Series:
 
@@ -1068,7 +1068,7 @@ DE hat diverse Treiber fuer diese Modelle (Stand 09/2002):
   - TVPhone (848) mit Philips tuner FR12X6 (w/ FM radio)
   - TVPhone (848) mit Philips tuner FM12X6 (w/ FM radio)
   - TVCapture (848) w/Philips tuner FI12X6
-  - TVCapture (848) non-Philips tuner
+  - TVCapture (848) yesn-Philips tuner
   - TVCapture98 (Bt878)
   - TVPhone98 (Bt878)
   - AVerTV und TVCapture98 w/VCR (Bt 878)
@@ -1108,7 +1108,7 @@ Models:
 - MD9717 = KNC One (Rev D4, saa7134, FM1216 MK2 tuner)
 - MD5044 = KNC One (Rev D4, saa7134, FM1216ME MK3 tuner)
 
-Modular Technologies (www.modulartech.com) UK
+Modular Techyeslogies (www.modulartech.com) UK
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Models:
@@ -1145,14 +1145,14 @@ Technisat
 
 Models:
 
-- Discos ADR PC-Karte ISA (no TV!)
-- Discos ADR PC-Karte PCI (probably no TV?)
+- Discos ADR PC-Karte ISA (yes TV!)
+- Discos ADR PC-Karte PCI (probably yes TV?)
 - Techni-PC-Sat (Sat. analog)
   Rev 1.2 (zr36120, vpx3220, stv0030, saa5246, BSJE3-494A)
 - Mediafocus I (zr36120/zr36125, drp3510, Sat. analog + ADR Radio)
 - Mediafocus II (saa7146, Sat. analog)
 - SatADR Rev 2.1 (saa7146a, saa7113h, stv0056a, msp3400c, drp3510a, BSKE3-307A)
-- SkyStar 1 DVB  (AV7110) = Technotrend Premium
+- SkyStar 1 DVB  (AV7110) = Techyestrend Premium
 - SkyStar 2 DVB  (B2C2) (=Sky2PC)
 
 Siemens
@@ -1252,7 +1252,7 @@ Models:
 - GV-VCP/PCI (capture only)
 - GV-VCP2/PCI (capture only)
 
-Canopus (jp)
+Cayespus (jp)
 ~~~~~~~~~~~~
 
 WinDVR	= Kworld "KW-TVL878RF"
@@ -1284,7 +1284,7 @@ Models:
 
 - iProTV (Card for iMac Mezzanine slot, Bt848+SCSI)
 - ProTV (Bt848)
-- ProTV II = ProTV Stereo (Bt878) ["stereo" means FM stereo, tv is still mono]
+- ProTV II = ProTV Stereo (Bt878) ["stereo" means FM stereo, tv is still moyes]
 
 ATI
 ~~~
@@ -1333,7 +1333,7 @@ Models:
 - Captivator Pro/TV (ISA?)
 - Captivator PCI/VC (Bt848 bundled with camera) (capture only)
 
-Technotrend
+Techyestrend
 ~~~~~~~~~~~~
 
 Models:
@@ -1411,11 +1411,11 @@ Hauppauge
 Models:
 
 - many many WinTV models ...
-- WinTV DVBs = Technotrend Premium 1.3
-- WinTV NOVA = Technotrend Budget 1.1 "S-DVB DATA"
+- WinTV DVBs = Techyestrend Premium 1.3
+- WinTV NOVA = Techyestrend Budget 1.1 "S-DVB DATA"
 - WinTV NOVA-CI "SDVBACI"
-- WinTV Nova USB (=Technotrend USB 1.0)
-- WinTV-Nexus-s (=Technotrend Premium 2.1 or 2.2)
+- WinTV Nova USB (=Techyestrend USB 1.0)
+- WinTV-Nexus-s (=Techyestrend Premium 2.1 or 2.2)
 - WinTV PVR
 - WinTV PVR 250
 - WinTV PVR 450
@@ -1566,7 +1566,7 @@ Kworld (www.kworld.com.tw)
 
 PC TV Station:
 
-- KWORLD KW-TV878R  TV (no radio)
+- KWORLD KW-TV878R  TV (yes radio)
 - KWORLD KW-TV878RF TV (w/ radio)
 - KWORLD KW-TVL878RF (low profile)
 - KWORLD KW-TV713XRF (saa7134)
@@ -1574,9 +1574,9 @@ PC TV Station:
 
  MPEG TV Station (same cards as above plus WinDVR Software MPEG en/decoder)
 
-- KWORLD KW-TV878R -Pro   TV (no Radio)
+- KWORLD KW-TV878R -Pro   TV (yes Radio)
 - KWORLD KW-TV878RF-Pro   TV (w/ Radio)
-- KWORLD KW-TV878R -Ultra TV (no Radio)
+- KWORLD KW-TV878R -Ultra TV (yes Radio)
 - KWORLD KW-TV878RF-Ultra TV (w/ Radio)
 
 JTT/ Justy Corp.(http://www.jtt.ne.jp/)
@@ -1634,9 +1634,9 @@ Satelco www.citycom-gmbh.de, www.satelco.de
 Models:
 
 - TV-FM =KNC1 saa7134
-- Standard PCI (DVB-S) = Technotrend Budget
+- Standard PCI (DVB-S) = Techyestrend Budget
 - Standard PCI (DVB-S) w/ CI
-- Satelco Highend PCI (DVB-S) = Technotrend Premium
+- Satelco Highend PCI (DVB-S) = Techyestrend Premium
 
 
 Sensoray www.sensoray.com
@@ -1656,8 +1656,8 @@ Models:
 - TV Tuner MG9910  -  HBY33A-TVO  CEI + Philips SAA7110 + OKI M548262 + ST STV8438CV
 - Primetime TV (ISA)
 
-  - acquired by Singapore Technologies
-  - now operating as Chartered Semiconductor Manufacturing
+  - acquired by Singapore Techyeslogies
+  - yesw operating as Chartered Semiconductor Manufacturing
   - Manufacturer of video cards is listed as:
 
     - Cogent Electronics Industries [CEI]
@@ -1778,7 +1778,7 @@ Though educated googling found: www.techmakers.com
 Lorenzen www.lorenzen.de
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
-SL DVB-S PCI = Technotrend Budget PCI (su1278 or bsru version)
+SL DVB-S PCI = Techyestrend Budget PCI (su1278 or bsru version)
 
 Origo (.uk) www.origo2000.com
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -1855,7 +1855,7 @@ Chips used at bttv devices
 - NTSC:
 
   - TDA5731: VHF, hyperband and UHF mixer/oscillator for TV and VCR 3-band tuners
-  - TSA5518: no datasheet available on Philips site
+  - TSA5518: yes datasheet available on Philips site
 
 - STB TV pci:
 
@@ -1895,7 +1895,7 @@ Many thanks to:
 
 - MIRO for providing a free PCTV card and detailed information about the
   components on their cards. (E.g. how the tuner type is detected)
-  Without their card I could not have debugged the NTSC mode.
+  Without their card I could yest have debugged the NTSC mode.
 
 - Hauppauge for telling how the sound input is selected and what components
   they do and will use on their radio cards.
@@ -1918,7 +1918,7 @@ Gerd Hoffmann
 
 bigfoot <bigfoot@net-way.net>
 
-Ragnar Hojland Espinosa <ragnar@macula.net>
+Ragnar Hojland Espiyessa <ragnar@macula.net>
   ConferenceTV card
 
 

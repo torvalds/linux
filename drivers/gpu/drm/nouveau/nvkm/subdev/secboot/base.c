@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -36,7 +36,7 @@
  *   can be used if you don't have microcode cryptographically signed by NVIDIA.
  *
  * - Heavy Secure (HS). In this mode, the microprocessor is a black box - it's
- *   not possible to read or write any Falcon internal state or Falcon registers
+ *   yest possible to read or write any Falcon internal state or Falcon registers
  *   from outside the Falcon (for example, from the host system). The only way
  *   to enable this mode is by loading microcode that has been signed by NVIDIA.
  *   (The loading process involves tagging the IMEM block as secure, writing the
@@ -46,13 +46,13 @@
  * - Light Secure (LS). In this mode, the microprocessor has more privileges
  *   than NS but fewer than HS. Some of the microprocessor state is visible to
  *   host software to ease debugging. The only way to enable this mode is by HS
- *   microcode enabling LS mode. Some privileges available to HS mode are not
+ *   microcode enabling LS mode. Some privileges available to HS mode are yest
  *   available here. LS mode is introduced in GM20x.
  *
  * Secure boot consists in temporarily switching a HS-capable falcon (typically
  * PMU) into HS mode in order to validate the LS firmwares of managed falcons,
  * load them, and switch managed falcons into LS mode. Once secure boot
- * completes, no falcon remains in HS mode.
+ * completes, yes falcon remains in HS mode.
  *
  * Secure boot requires a write-protected memory region (WPR) which can only be
  * written by the secure falcon. On dGPU, the driver sets up the WPR region in
@@ -73,7 +73,7 @@
  *    HS mode and setup the WPR region around the LS blob (dGPU) or copies the
  *    LS blob into the WPR region (Tegra).
  *
- * 4) The LS blob is now secure from all external tampering. The HS falcon
+ * 4) The LS blob is yesw secure from all external tampering. The HS falcon
  *    checks the signatures of the LS firmwares and, if valid, switches the
  *    managed falcons to LS mode and makes them ready to run the LS firmware.
  *
@@ -106,7 +106,7 @@ nvkm_secboot_reset(struct nvkm_secboot *sb, unsigned long falcon_mask)
 {
 	/* Unmanaged falcon? */
 	if ((falcon_mask | sb->acr->managed_falcons) != sb->acr->managed_falcons) {
-		nvkm_error(&sb->subdev, "cannot reset unmanaged falcon!\n");
+		nvkm_error(&sb->subdev, "canyest reset unmanaged falcon!\n");
 		return -EINVAL;
 	}
 

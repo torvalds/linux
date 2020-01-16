@@ -14,7 +14,7 @@
 #include <linux/init.h>
 #include <linux/string.h>
 #include <linux/slab.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/dma-mapping.h>
 
 #include "base.h"
@@ -26,7 +26,7 @@ DEFINE_MUTEX(pnp_lock);
 /*
  * ACPI or PNPBIOS should tell us about all platform devices, so we can
  * skip some blind probes.  ISAPNP typically enumerates only plug-in ISA
- * devices, not built-in things like COM ports.
+ * devices, yest built-in things like COM ports.
  */
 int pnp_platform_devices;
 EXPORT_SYMBOL(pnp_platform_devices);
@@ -59,25 +59,25 @@ static void pnp_remove_protocol(struct pnp_protocol *protocol)
 int pnp_register_protocol(struct pnp_protocol *protocol)
 {
 	struct list_head *pos;
-	int nodenum, ret;
+	int yesdenum, ret;
 
 	INIT_LIST_HEAD(&protocol->devices);
 	INIT_LIST_HEAD(&protocol->cards);
-	nodenum = 0;
+	yesdenum = 0;
 
 	mutex_lock(&pnp_lock);
 
 	/* assign the lowest unused number */
 	list_for_each(pos, &pnp_protocols) {
 		struct pnp_protocol *cur = to_pnp_protocol(pos);
-		if (cur->number == nodenum) {
+		if (cur->number == yesdenum) {
 			pos = &pnp_protocols;
-			nodenum++;
+			yesdenum++;
 		}
 	}
 
-	protocol->number = nodenum;
-	dev_set_name(&protocol->dev, "pnp%d", nodenum);
+	protocol->number = yesdenum;
+	dev_set_name(&protocol->dev, "pnp%d", yesdenum);
 
 	list_add_tail(&protocol->protocol_list, &pnp_protocols);
 

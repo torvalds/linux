@@ -66,7 +66,7 @@ die (const char *str, struct pt_regs *regs, long err)
 	if (++die.lock_owner_depth < 3) {
 		printk("%s[%d]: %s %ld [%d]\n",
 		current->comm, task_pid_nr(current), str, err, ++die_counter);
-		if (notify_die(DIE_OOPS, str, regs, err, 255, SIGSEGV)
+		if (yestify_die(DIE_OOPS, str, regs, err, 255, SIGSEGV)
 	            != NOTIFY_STOP)
 			show_regs(regs);
 		else
@@ -103,8 +103,8 @@ __kprobes ia64_bad_break (unsigned long break_num, struct pt_regs *regs)
 	int sig, code;
 
 	switch (break_num) {
-	      case 0: /* unknown error (used by GCC for __builtin_abort()) */
-		if (notify_die(DIE_BREAK, "break 0", regs, break_num, TRAP_BRKPT, SIGTRAP)
+	      case 0: /* unkyeswn error (used by GCC for __builtin_abort()) */
+		if (yestify_die(DIE_BREAK, "break 0", regs, break_num, TRAP_BRKPT, SIGTRAP)
 			       	== NOTIFY_STOP)
 			return;
 		if (die_if_kernel("bugcheck!", regs, break_num))
@@ -168,7 +168,7 @@ __kprobes ia64_bad_break (unsigned long break_num, struct pt_regs *regs)
 		if (break_num < 0x80000) {
 			sig = SIGILL; code = __ILL_BREAK;
 		} else {
-			if (notify_die(DIE_BREAK, "bad break", regs, break_num, TRAP_BRKPT, SIGTRAP)
+			if (yestify_die(DIE_BREAK, "bad break", regs, break_num, TRAP_BRKPT, SIGTRAP)
 					== NOTIFY_STOP)
 				return;
 			sig = SIGTRAP; code = TRAP_BRKPT;
@@ -196,7 +196,7 @@ disabled_fph_fault (struct pt_regs *regs)
 	psr->dfh = 0;
 
 	/*
-	 * Make sure that no other task gets in on this processor
+	 * Make sure that yes other task gets in on this processor
 	 * while we're claiming the FPU
 	 */
 	preempt_disable();
@@ -206,7 +206,7 @@ disabled_fph_fault (struct pt_regs *regs)
 			= (struct task_struct *)ia64_get_kr(IA64_KR_FPU_OWNER);
 
 		if (ia64_is_local_fpu_owner(current)) {
-			preempt_enable_no_resched();
+			preempt_enable_yes_resched();
 			return;
 		}
 
@@ -221,12 +221,12 @@ disabled_fph_fault (struct pt_regs *regs)
 	} else {
 		__ia64_init_fpu();
 		/*
-		 * Set mfh because the state in thread.fph does not match the state in
+		 * Set mfh because the state in thread.fph does yest match the state in
 		 * the fph partition.
 		 */
 		psr->mfh = 1;
 	}
-	preempt_enable_no_resched();
+	preempt_enable_yes_resched();
 }
 
 static inline int
@@ -309,7 +309,7 @@ handle_fpu_swa (int fp_fault, struct pt_regs *regs, unsigned long isr)
 			/*
 			 * Lower 4 bits are used as a count. Upper bits are a sequence
 			 * number that is updated when count is reset. The cmpxchg will
-			 * fail is seqno has changed. This minimizes mutiple cpus
+			 * fail is seqyes has changed. This minimizes mutiple cpus
 			 * resetting the count.
 			 */
 			if (current_jiffies > last.time)
@@ -345,7 +345,7 @@ handle_fpu_swa (int fp_fault, struct pt_regs *regs, unsigned long isr)
 			if (isr & 0x11) {
 				si_code = FPE_FLTINV;
 			} else if (isr & 0x22) {
-				/* denormal operand gets the same si_code as underflow 
+				/* deyesrmal operand gets the same si_code as underflow 
 				* see arch/i386/kernel/traps.c:math_error()  */
 				si_code = FPE_FLTUND;
 			} else if (isr & 0x44) {
@@ -426,9 +426,9 @@ ia64_fault (unsigned long vector, unsigned long isr, unsigned long ifa,
 		"IA-64 Privileged Register fault",
 		"IA-64 Reserved Register/Field fault",
 		"Disabled Instruction Set Transition fault",
-		"Unknown fault 5", "Unknown fault 6", "Unknown fault 7", "Illegal Hazard fault",
-		"Unknown fault 9", "Unknown fault 10", "Unknown fault 11", "Unknown fault 12",
-		"Unknown fault 13", "Unknown fault 14", "Unknown fault 15"
+		"Unkyeswn fault 5", "Unkyeswn fault 6", "Unkyeswn fault 7", "Illegal Hazard fault",
+		"Unkyeswn fault 9", "Unkyeswn fault 10", "Unkyeswn fault 11", "Unkyeswn fault 12",
+		"Unkyeswn fault 13", "Unkyeswn fault 14", "Unkyeswn fault 15"
 	};
 
 	if ((isr & IA64_ISR_NA) && ((isr & IA64_ISR_CODE_MASK) == IA64_ISR_CODE_LFETCH)) {
@@ -463,7 +463,7 @@ ia64_fault (unsigned long vector, unsigned long isr, unsigned long ifa,
 			disabled_fph_fault(&regs);
 			return;
 		}
-		sprintf(buf, "Disabled FPL fault---not supposed to happen!");
+		sprintf(buf, "Disabled FPL fault---yest supposed to happen!");
 		break;
 
 	      case 26: /* NaT Consumption */
@@ -507,7 +507,7 @@ ia64_fault (unsigned long vector, unsigned long isr, unsigned long ifa,
 			/*
 			 * Got a trap in fsys-mode: Taken Branch Trap
 			 * and Single Step trap need special handling;
-			 * Debug trap is ignored (we disable it here
+			 * Debug trap is igyesred (we disable it here
 			 * and re-enable it in the lower-privilege trap).
 			 */
 			if (unlikely(vector == 29)) {
@@ -528,8 +528,8 @@ ia64_fault (unsigned long vector, unsigned long isr, unsigned long ifa,
 			si_code = TRAP_HWBKPT;
 #ifdef CONFIG_ITANIUM
 			/*
-			 * Erratum 10 (IFA may contain incorrect address) now has
-			 * "NoFix" status.  There are no plans for fixing this.
+			 * Erratum 10 (IFA may contain incorrect address) yesw has
+			 * "NoFix" status.  There are yes plans for fixing this.
 			 */
 			if (ia64_psr(&regs)->is == 0)
 			  ifa = regs.cr_iip;
@@ -538,7 +538,7 @@ ia64_fault (unsigned long vector, unsigned long isr, unsigned long ifa,
 		      case 35: si_code = TRAP_BRANCH; ifa = 0; break;
 		      case 36: si_code = TRAP_TRACE; ifa = 0; break;
 		}
-		if (notify_die(DIE_FAULT, "ia64_fault", &regs, vector, si_code, SIGTRAP)
+		if (yestify_die(DIE_FAULT, "ia64_fault", &regs, vector, si_code, SIGTRAP)
 			       	== NOTIFY_STOP)
 			return;
 		force_sig_fault(SIGTRAP, si_code, (void __user *) ifa,

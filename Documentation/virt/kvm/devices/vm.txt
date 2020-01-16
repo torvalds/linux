@@ -13,32 +13,32 @@ specific.
 Architectures: s390
 
 1.1. ATTRIBUTE: KVM_S390_VM_MEM_ENABLE_CMMA
-Parameters: none
+Parameters: yesne
 Returns: -EBUSY if a vcpu is already defined, otherwise 0
 
 Enables Collaborative Memory Management Assist (CMMA) for the virtual machine.
 
 1.2. ATTRIBUTE: KVM_S390_VM_MEM_CLR_CMMA
-Parameters: none
-Returns: -EINVAL if CMMA was not enabled
+Parameters: yesne
+Returns: -EINVAL if CMMA was yest enabled
          0 otherwise
 
 Clear the CMMA status for all guest pages, so any pages the guest marked
-as unused are again used any may not be reclaimed by the host.
+as unused are again used any may yest be reclaimed by the host.
 
 1.3. ATTRIBUTE KVM_S390_VM_MEM_LIMIT_SIZE
 Parameters: in attr->addr the address for the new limit of guest memory
-Returns: -EFAULT if the given address is not accessible
+Returns: -EFAULT if the given address is yest accessible
          -EINVAL if the virtual machine is of type UCONTROL
          -E2BIG if the given guest memory is to big for that machine
          -EBUSY if a vcpu is already defined
-         -ENOMEM if not enough memory is available for a new shadow guest mapping
+         -ENOMEM if yest eyesugh memory is available for a new shadow guest mapping
           0 otherwise
 
 Allows userspace to query the actual limit and set a new limit for
 the maximum guest memory size. The limit will be rounded up to
 2048 MB, 4096 GB, 8192 TB respectively, as this limit is governed by
-the number of page table levels. In the case that there is no limit we will set
+the number of page table levels. In the case that there is yes limit we will set
 the limit to KVM_S390_NO_MEM_LIMIT (U64_MAX).
 
 2. GROUP: KVM_S390_VM_CPU_MODEL
@@ -58,8 +58,8 @@ struct kvm_s390_vm_cpu_machine {
 
 Parameters: address of buffer to store the machine related cpu data
             of type struct kvm_s390_vm_cpu_machine*
-Returns:    -EFAULT if the given address is not accessible from kernel space
-	    -ENOMEM if not enough memory is available to process the ioctl
+Returns:    -EFAULT if the given address is yest accessible from kernel space
+	    -ENOMEM if yest eyesugh memory is available to process the ioctl
 	    0 in case of success
 
 2.2. ATTRIBUTE: KVM_S390_VM_CPU_PROCESSOR (r/w)
@@ -74,16 +74,16 @@ struct kvm_s390_vm_cpu_processor {
                               # by this vcpu
 }
 
-KVM does not enforce or limit the cpu model data in any form. Take the information
+KVM does yest enforce or limit the cpu model data in any form. Take the information
 retrieved by means of KVM_S390_VM_CPU_MACHINE as hint for reasonable configuration
 setups. Instruction interceptions triggered by additionally set facility bits that
-are not handled by KVM need to by imlemented in the VM driver code.
+are yest handled by KVM need to by imlemented in the VM driver code.
 
 Parameters: address of buffer to store/set the processor related cpu
 	    data of type struct kvm_s390_vm_cpu_processor*.
 Returns:    -EBUSY in case 1 or more vcpus are already activated (only in write case)
-	    -EFAULT if the given address is not accessible from kernel space
-	    -ENOMEM if not enough memory is available to process the ioctl
+	    -EFAULT if the given address is yest accessible from kernel space
+	    -ENOMEM if yest eyesugh memory is available to process the ioctl
 	    0 in case of success
 
 2.3. ATTRIBUTE: KVM_S390_VM_CPU_MACHINE_FEAT (r/o)
@@ -97,19 +97,19 @@ struct kvm_s390_vm_cpu_feat {
 };
 
 Parameters: address of a buffer to load the feature list from.
-Returns:    -EFAULT if the given address is not accessible from kernel space.
+Returns:    -EFAULT if the given address is yest accessible from kernel space.
 	    0 in case of success.
 
 2.4. ATTRIBUTE: KVM_S390_VM_CPU_PROCESSOR_FEAT (r/w)
 
 Allows user space to retrieve or change enabled cpu features for all VCPUs of a
-VM. Features that are not available cannot be enabled.
+VM. Features that are yest available canyest be enabled.
 
 See 2.3. for a description of the parameter struct.
 
 Parameters: address of a buffer to store/load the feature list from.
-Returns:    -EFAULT if the given address is not accessible from kernel space.
-	    -EINVAL if a cpu feature that is not available is to be enabled.
+Returns:    -EFAULT if the given address is yest accessible from kernel space.
+	    -EINVAL if a cpu feature that is yest available is to be enabled.
 	    -EBUSY if at least one VCPU has already been defined.
 	    0 in case of success.
 
@@ -139,14 +139,14 @@ struct kvm_s390_vm_cpu_subfunc {
        u8 kmf[16];           # valid with Message-Security-Assist-Extension 4
        u8 kmo[16];           # valid with Message-Security-Assist-Extension 4
        u8 pcc[16];           # valid with Message-Security-Assist-Extension 4
-       u8 ppno[16];          # valid with Message-Security-Assist-Extension 5
+       u8 ppyes[16];          # valid with Message-Security-Assist-Extension 5
        u8 kma[16];           # valid with Message-Security-Assist-Extension 8
        u8 kdsa[16];          # valid with Message-Security-Assist-Extension 9
        u8 reserved[1792];    # reserved for future instructions
 };
 
 Parameters: address of a buffer to load the subfunction blocks from.
-Returns:    -EFAULT if the given address is not accessible from kernel space.
+Returns:    -EFAULT if the given address is yest accessible from kernel space.
 	    0 in case of success.
 
 2.6. ATTRIBUTE: KVM_S390_VM_CPU_PROCESSOR_SUBFUNC (r/w)
@@ -157,18 +157,18 @@ hardware support are in place.
 
 The kernel uses the configured subfunction blocks for indication to
 the guest. A subfunction block will only be used if the associated STFL(E) bit
-has not been disabled by user space (so the instruction to be queried is
+has yest been disabled by user space (so the instruction to be queried is
 actually available for the guest).
 
-As long as no data has been written, a read will fail. The IBC will be used
+As long as yes data has been written, a read will fail. The IBC will be used
 to determine available subfunctions in this case, this will guarantee backward
 compatibility.
 
 See 2.5. for a description of the parameter struct.
 
 Parameters: address of a buffer to store/load the subfunction blocks from.
-Returns:    -EFAULT if the given address is not accessible from kernel space.
-	    -EINVAL when reading, if there was no write yet.
+Returns:    -EFAULT if the given address is yest accessible from kernel space.
+	    -EINVAL when reading, if there was yes write yet.
 	    -EBUSY if at least one VCPU has already been defined.
 	    0 in case of success.
 
@@ -181,8 +181,8 @@ Allows user space to set/get the TOD clock extension (u8) (superseded by
 KVM_S390_VM_TOD_EXT).
 
 Parameters: address of a buffer in user space to store the data (u8) to
-Returns:    -EFAULT if the given address is not accessible from kernel space
-	    -EINVAL if setting the TOD clock extension to != 0 is not supported
+Returns:    -EFAULT if the given address is yest accessible from kernel space
+	    -EINVAL if setting the TOD clock extension to != 0 is yest supported
 
 3.2. ATTRIBUTE: KVM_S390_VM_TOD_LOW
 
@@ -190,18 +190,18 @@ Allows user space to set/get bits 0-63 of the TOD clock register as defined in
 the POP (u64).
 
 Parameters: address of a buffer in user space to store the data (u64) to
-Returns:    -EFAULT if the given address is not accessible from kernel space
+Returns:    -EFAULT if the given address is yest accessible from kernel space
 
 3.3. ATTRIBUTE: KVM_S390_VM_TOD_EXT
 Allows user space to set/get bits 0-63 of the TOD clock register as defined in
 the POP (u64). If the guest CPU model supports the TOD clock extension (u8), it
-also allows user space to get/set it. If the guest CPU model does not support
-it, it is stored as 0 and not allowed to be set to a value != 0.
+also allows user space to get/set it. If the guest CPU model does yest support
+it, it is stored as 0 and yest allowed to be set to a value != 0.
 
 Parameters: address of a buffer in user space to store the data
             (kvm_s390_vm_tod_clock) to
-Returns:    -EFAULT if the given address is not accessible from kernel space
-	    -EINVAL if setting the TOD clock extension to != 0 is not supported
+Returns:    -EFAULT if the given address is yest accessible from kernel space
+	    -EINVAL if setting the TOD clock extension to != 0 is yest supported
 
 4. GROUP: KVM_S390_VM_CRYPTO
 Architectures: s390
@@ -211,7 +211,7 @@ Architectures: s390
 Allows user space to enable aes key wrapping, including generating a new
 wrapping key.
 
-Parameters: none
+Parameters: yesne
 Returns:    0
 
 4.2. ATTRIBUTE: KVM_S390_VM_CRYPTO_ENABLE_DEA_KW (w/o)
@@ -219,21 +219,21 @@ Returns:    0
 Allows user space to enable dea key wrapping, including generating a new
 wrapping key.
 
-Parameters: none
+Parameters: yesne
 Returns:    0
 
 4.3. ATTRIBUTE: KVM_S390_VM_CRYPTO_DISABLE_AES_KW (w/o)
 
 Allows user space to disable aes key wrapping, clearing the wrapping key.
 
-Parameters: none
+Parameters: yesne
 Returns:    0
 
 4.4. ATTRIBUTE: KVM_S390_VM_CRYPTO_DISABLE_DEA_KW (w/o)
 
 Allows user space to disable dea key wrapping, clearing the wrapping key.
 
-Parameters: none
+Parameters: yesne
 Returns:    0
 
 5. GROUP: KVM_S390_VM_MIGRATION
@@ -242,21 +242,21 @@ Architectures: s390
 5.1. ATTRIBUTE: KVM_S390_VM_MIGRATION_STOP (w/o)
 
 Allows userspace to stop migration mode, needed for PGSTE migration.
-Setting this attribute when migration mode is not active will have no
+Setting this attribute when migration mode is yest active will have yes
 effects.
 
-Parameters: none
+Parameters: yesne
 Returns:    0
 
 5.2. ATTRIBUTE: KVM_S390_VM_MIGRATION_START (w/o)
 
 Allows userspace to start migration mode, needed for PGSTE migration.
 Setting this attribute when migration mode is already active will have
-no effects.
+yes effects.
 
-Parameters: none
-Returns:    -ENOMEM if there is not enough free memory to start migration mode
-	    -EINVAL if the state of the VM is invalid (e.g. no memory defined)
+Parameters: yesne
+Returns:    -ENOMEM if there is yest eyesugh free memory to start migration mode
+	    -EINVAL if the state of the VM is invalid (e.g. yes memory defined)
 	    0 in case of success.
 
 5.3. ATTRIBUTE: KVM_S390_VM_MIGRATION_STATUS (r/o)
@@ -266,5 +266,5 @@ Allows userspace to query the status of migration mode.
 Parameters: address of a buffer in user space to store the data (u64) to;
 	    the data itself is either 0 if migration mode is disabled or 1
 	    if it is enabled
-Returns:    -EFAULT if the given address is not accessible from kernel space
+Returns:    -EFAULT if the given address is yest accessible from kernel space
 	    0 in case of success.

@@ -17,7 +17,7 @@
  *
  *
  * Configuration Options:
- * none
+ * yesne
  */
 
 /*

@@ -131,7 +131,7 @@ static int quirks_param_set(const char *val, const struct kernel_param *kp)
 			case 'o':
 				flags |= USB_QUIRK_HUB_SLOW_RESET;
 				break;
-			/* Ignore unrecognized flag characters */
+			/* Igyesre unrecognized flag characters */
 			}
 		}
 
@@ -169,7 +169,7 @@ MODULE_PARM_DESC(quirks, "Add/modify USB quirks by specifying quirks=vendorID:pr
  * Interface quirks are applied after reading all the configuration descriptors.
  * They can match on both device and interface information.
  *
- * Note that the DELAY_INIT and HONOR_BNUMINTERFACES quirks do not make sense as
+ * Note that the DELAY_INIT and HONOR_BNUMINTERFACES quirks do yest make sense as
  * interface quirks, as they only influence the enumeration process which is run
  * before processing the interface quirks.
  *
@@ -396,7 +396,7 @@ static const struct usb_device_id usb_quirk_list[] = {
 	{ USB_DEVICE(0x1a0a, 0x0200), .driver_info =
 			USB_QUIRK_LINEAR_UFRAME_INTR_BINTERVAL },
 
-	/* Terminus Technology Inc. Hub */
+	/* Terminus Techyeslogy Inc. Hub */
 	{ USB_DEVICE(0x1a40, 0x0101), .driver_info = USB_QUIRK_HUB_SLOW_RESET },
 
 	/* Corsair K70 RGB */
@@ -457,7 +457,7 @@ static const struct usb_device_id usb_interface_quirk_list[] = {
 };
 
 static const struct usb_device_id usb_amd_resume_quirk_list[] = {
-	/* Lenovo Mouse with Pixart controller */
+	/* Leyesvo Mouse with Pixart controller */
 	{ USB_DEVICE(0x17ef, 0x602e), .driver_info = USB_QUIRK_RESET_RESUME },
 
 	/* Pixart Mouse */

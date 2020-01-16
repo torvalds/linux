@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * Copyright (c) 2016-2017 Micron Technology, Inc.
+ * Copyright (c) 2016-2017 Micron Techyeslogy, Inc.
  *
  *  Authors:
  *	Peter Pan <peterpandong@micron.com>
@@ -178,7 +178,7 @@ struct spinand_device;
  * @len: ID length
  *
  * struct_spinand_id->data contains all bytes returned after a READ_ID command,
- * including dummy bytes if the chip does not emit ID bytes right after the
+ * including dummy bytes if the chip does yest emit ID bytes right after the
  * READ_ID command. The responsibility to extract real ID bytes is left to
  * struct_manufacurer_ops->detect().
  */
@@ -195,7 +195,7 @@ struct spinand_id {
  *	    the first thing to check in this hook is that the manufacturer ID
  *	    in struct_spinand_device->id matches the manufacturer whose
  *	    ->detect() hook has been called. Should return 1 if there's a
- *	    match, 0 if the manufacturer ID does not match and a negative
+ *	    match, 0 if the manufacturer ID does yest match and a negative
  *	    error code otherwise. When true is returned, the core assumes
  *	    that properties of the NAND chip (spinand->base.memorg and
  *	    spinand->base.eccreq) have been filled
@@ -234,7 +234,7 @@ extern const struct spinand_manufacturer winbond_spinand_manufacturer;
 /**
  * struct spinand_op_variants - SPI NAND operation variants
  * @ops: the list of variants for a given operation
- * @nops: the number of variants
+ * @yesps: the number of variants
  *
  * Some operations like read-from-cache/write-to-cache have several variants
  * depending on the number of IO lines you use to transfer data or address
@@ -244,13 +244,13 @@ extern const struct spinand_manufacturer winbond_spinand_manufacturer;
  */
 struct spinand_op_variants {
 	const struct spi_mem_op *ops;
-	unsigned int nops;
+	unsigned int yesps;
 };
 
 #define SPINAND_OP_VARIANTS(name, ...)					\
 	const struct spinand_op_variants name = {			\
 		.ops = (struct spi_mem_op[]) { __VA_ARGS__ },		\
-		.nops = sizeof((struct spi_mem_op[]){ __VA_ARGS__ }) /	\
+		.yesps = sizeof((struct spi_mem_op[]){ __VA_ARGS__ }) /	\
 			sizeof(struct spi_mem_op),			\
 	}
 
@@ -260,7 +260,7 @@ struct spinand_op_variants {
  * @get_status: get the ECC status. Should return a positive number encoding
  *		the number of corrected bitflips if correction was possible or
  *		-EBADMSG if there are uncorrectable errors. I can also return
- *		other negative error codes if the error is not caused by
+ *		other negative error codes if the error is yest caused by
  *		uncorrectable bitflips
  * @ooblayout: the OOB layout used by the on-die ECC implementation
  */
@@ -439,16 +439,16 @@ spinand_to_nand(struct spinand_device *spinand)
 }
 
 /**
- * spinand_set_of_node - Attach a DT node to a SPI NAND device
+ * spinand_set_of_yesde - Attach a DT yesde to a SPI NAND device
  * @spinand: SPI NAND device
- * @np: DT node
+ * @np: DT yesde
  *
- * Attach a DT node to a SPI NAND device.
+ * Attach a DT yesde to a SPI NAND device.
  */
-static inline void spinand_set_of_node(struct spinand_device *spinand,
-				       struct device_node *np)
+static inline void spinand_set_of_yesde(struct spinand_device *spinand,
+				       struct device_yesde *np)
 {
-	nanddev_set_of_node(&spinand->base, np);
+	nanddev_set_of_yesde(&spinand->base, np);
 }
 
 int spinand_match_and_init(struct spinand_device *dev,

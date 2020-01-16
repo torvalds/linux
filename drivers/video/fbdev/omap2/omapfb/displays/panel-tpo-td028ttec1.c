@@ -3,7 +3,7 @@
  * Toppoly TD028TTEC1 panel support
  *
  * Copyright (C) 2008 Nokia Corporation
- * Author: Tomi Valkeinen <tomi.valkeinen@nokia.com>
+ * Author: Tomi Valkeinen <tomi.valkeinen@yeskia.com>
  *
  * Neo 1973 code (jbt6k74.c):
  * Copyright (C) 2006-2007 by OpenMoko, Inc.
@@ -355,11 +355,11 @@ static struct omap_dss_driver td028ttec1_ops = {
 
 static int td028ttec1_probe_of(struct spi_device *spi)
 {
-	struct device_node *node = spi->dev.of_node;
+	struct device_yesde *yesde = spi->dev.of_yesde;
 	struct panel_drv_data *ddata = dev_get_drvdata(&spi->dev);
 	struct omap_dss_device *in;
 
-	in = omapdss_of_find_source_for_first_ep(node);
+	in = omapdss_of_find_source_for_first_ep(yesde);
 	if (IS_ERR(in)) {
 		dev_err(&spi->dev, "failed to find video source\n");
 		return PTR_ERR(in);
@@ -378,7 +378,7 @@ static int td028ttec1_panel_probe(struct spi_device *spi)
 
 	dev_dbg(&spi->dev, "%s\n", __func__);
 
-	if (!spi->dev.of_node)
+	if (!spi->dev.of_yesde)
 		return -ENODEV;
 
 	spi->bits_per_word = 9;
@@ -445,7 +445,7 @@ static int td028ttec1_panel_remove(struct spi_device *spi)
 
 static const struct of_device_id td028ttec1_of_match[] = {
 	{ .compatible = "omapdss,tpo,td028ttec1", },
-	/* keep to not break older DTB */
+	/* keep to yest break older DTB */
 	{ .compatible = "omapdss,toppoly,td028ttec1", },
 	{},
 };

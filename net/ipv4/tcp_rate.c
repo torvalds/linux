@@ -7,22 +7,22 @@
  *
  * A rate sample records the rate at which the network delivered packets
  * for this flow, calculated over the time interval between the transmission
- * of a data packet and the acknowledgment of that packet.
+ * of a data packet and the ackyeswledgment of that packet.
  *
  * Specifically, over the interval between each transmit and corresponding ACK,
  * the estimator generates a delivery rate sample. Typically it uses the rate
- * at which packets were acknowledged. However, the approach of using only the
- * acknowledgment rate faces a challenge under the prevalent ACK decimation or
+ * at which packets were ackyeswledged. However, the approach of using only the
+ * ackyeswledgment rate faces a challenge under the prevalent ACK decimation or
  * compression: packets can temporarily appear to be delivered much quicker
  * than the bottleneck rate. Since it is physically impossible to do that in a
- * sustained fashion, when the estimator notices that the ACK rate is faster
+ * sustained fashion, when the estimator yestices that the ACK rate is faster
  * than the transmit rate, it uses the latter:
  *
  *    send_rate = #pkts_delivered/(last_snd_time - first_snd_time)
  *    ack_rate  = #pkts_delivered/(last_ack_time - first_ack_time)
  *    bw = min(send_rate, ack_rate)
  *
- * Notice the estimator essentially estimates the goodput, not always the
+ * Notice the estimator essentially estimates the goodput, yest always the
  * network bottleneck link rate when the sending or receiving is limited by
  * other factors like applications or receiver window limits.  The estimator
  * deliberately avoids using the inter-packet spacing approach because that
@@ -30,7 +30,7 @@
  *
  * TCP flows can often be application-limited in request/response workloads.
  * The estimator marks a bandwidth sample as application-limited if there
- * was some moment during the sampled window of packets when there was no data
+ * was some moment during the sampled window of packets when there was yes data
  * ready to send in the write queue.
  */
 
@@ -44,10 +44,10 @@ void tcp_rate_skb_sent(struct sock *sk, struct sk_buff *skb)
 	 /* In general we need to start delivery rate samples from the
 	  * time we received the most recent ACK, to ensure we include
 	  * the full time the network needs to deliver all in-flight
-	  * packets. If there are no packets in flight yet, then we
-	  * know that any ACKs after now indicate that the network was
+	  * packets. If there are yes packets in flight yet, then we
+	  * kyesw that any ACKs after yesw indicate that the network was
 	  * able to deliver those packets completely in the sampling
-	  * interval between now and the next ACK.
+	  * interval between yesw and the next ACK.
 	  *
 	  * Note that we use packets_out instead of tcp_packets_in_flight(tp)
 	  * because the latter is a guess based on RTO and loss-marking
@@ -126,7 +126,7 @@ void tcp_rate_gen(struct sock *sk, u32 delivered, u32 lost,
 
 	rs->acked_sacked = delivered;	/* freshly ACKed or SACKed */
 	rs->losses = lost;		/* freshly marked lost */
-	/* Return an invalid sample if no timing information is available or
+	/* Return an invalid sample if yes timing information is available or
 	 * in recovery from loss with SACK reneging. Rate samples taken during
 	 * a SACK reneging event may overestimate bw by including packets that
 	 * were SACKed before the reneg.
@@ -169,7 +169,7 @@ void tcp_rate_gen(struct sock *sk, u32 delivered, u32 lost,
 		return;
 	}
 
-	/* Record the last non-app-limited or the highest app-limited bw */
+	/* Record the last yesn-app-limited or the highest app-limited bw */
 	if (!rs->is_app_limited ||
 	    ((u64)rs->delivered * tp->rate_interval_us >=
 	     (u64)tp->rate_delivered * rs->interval_us)) {
@@ -188,7 +188,7 @@ void tcp_rate_check_app_limited(struct sock *sk)
 	    tp->write_seq - tp->snd_nxt < tp->mss_cache &&
 	    /* Nothing in sending host's qdisc queues or NIC tx queue. */
 	    sk_wmem_alloc_get(sk) < SKB_TRUESIZE(1) &&
-	    /* We are not limited by CWND. */
+	    /* We are yest limited by CWND. */
 	    tcp_packets_in_flight(tp) < tp->snd_cwnd &&
 	    /* All lost packets have been retransmitted. */
 	    tp->lost_out <= tp->retrans_out)

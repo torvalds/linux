@@ -234,7 +234,7 @@ static void dump_prot(struct pg_state *st, const struct prot_bits *bits, size_t 
 	}
 }
 
-static void note_prot_wx(struct pg_state *st, unsigned long addr)
+static void yeste_prot_wx(struct pg_state *st, unsigned long addr)
 {
 	if (!st->check_wx)
 		return;
@@ -251,7 +251,7 @@ static void note_prot_wx(struct pg_state *st, unsigned long addr)
 	st->wx_pages += (addr - st->start_address) / PAGE_SIZE;
 }
 
-static void note_page(struct pg_state *st, unsigned long addr,
+static void yeste_page(struct pg_state *st, unsigned long addr,
 		      unsigned int level, u64 val, const char *domain)
 {
 	static const char units[] = "KMGTPE";
@@ -269,7 +269,7 @@ static void note_page(struct pg_state *st, unsigned long addr,
 		unsigned long delta;
 
 		if (st->current_prot) {
-			note_prot_wx(st, addr);
+			yeste_prot_wx(st, addr);
 			pt_dump_seq_printf(st->seq, "0x%08lx-0x%08lx   ",
 				   st->start_address, addr);
 
@@ -308,7 +308,7 @@ static void walk_pte(struct pg_state *st, pmd_t *pmd, unsigned long start,
 
 	for (i = 0; i < PTRS_PER_PTE; i++, pte++) {
 		addr = start + i * PAGE_SIZE;
-		note_page(st, addr, 4, pte_val(*pte), domain);
+		yeste_page(st, addr, 4, pte_val(*pte), domain);
 	}
 }
 
@@ -325,7 +325,7 @@ static const char *get_domain_name(pmd_t *pmd)
 	case PMD_DOMAIN(DOMAIN_VECTORS):
 		return "VECTORS";
 	default:
-		return "unknown";
+		return "unkyeswn";
 	}
 #endif
 	return NULL;
@@ -341,8 +341,8 @@ static void walk_pmd(struct pg_state *st, pud_t *pud, unsigned long start)
 	for (i = 0; i < PTRS_PER_PMD; i++, pmd++) {
 		addr = start + i * PMD_SIZE;
 		domain = get_domain_name(pmd);
-		if (pmd_none(*pmd) || pmd_large(*pmd) || !pmd_present(*pmd))
-			note_page(st, addr, 3, pmd_val(*pmd), domain);
+		if (pmd_yesne(*pmd) || pmd_large(*pmd) || !pmd_present(*pmd))
+			yeste_page(st, addr, 3, pmd_val(*pmd), domain);
 		else
 			walk_pte(st, pmd, addr, domain);
 
@@ -350,7 +350,7 @@ static void walk_pmd(struct pg_state *st, pud_t *pud, unsigned long start)
 			addr += SECTION_SIZE;
 			pmd++;
 			domain = get_domain_name(pmd);
-			note_page(st, addr, 3, pmd_val(*pmd), domain);
+			yeste_page(st, addr, 3, pmd_val(*pmd), domain);
 		}
 	}
 }
@@ -363,10 +363,10 @@ static void walk_pud(struct pg_state *st, pgd_t *pgd, unsigned long start)
 
 	for (i = 0; i < PTRS_PER_PUD; i++, pud++) {
 		addr = start + i * PUD_SIZE;
-		if (!pud_none(*pud)) {
+		if (!pud_yesne(*pud)) {
 			walk_pmd(st, pud, addr);
 		} else {
-			note_page(st, addr, 2, pud_val(*pud), NULL);
+			yeste_page(st, addr, 2, pud_val(*pud), NULL);
 		}
 	}
 }
@@ -380,10 +380,10 @@ static void walk_pgd(struct pg_state *st, struct mm_struct *mm,
 
 	for (i = 0; i < PTRS_PER_PGD; i++, pgd++) {
 		addr = start + i * PGDIR_SIZE;
-		if (!pgd_none(*pgd)) {
+		if (!pgd_yesne(*pgd)) {
 			walk_pud(st, pgd, addr);
 		} else {
-			note_page(st, addr, 1, pgd_val(*pgd), NULL);
+			yeste_page(st, addr, 1, pgd_val(*pgd), NULL);
 		}
 	}
 }
@@ -397,7 +397,7 @@ void ptdump_walk_pgd(struct seq_file *m, struct ptdump_info *info)
 	};
 
 	walk_pgd(&st, info->mm, info->base_addr);
-	note_page(&st, 0, 0, 0, NULL);
+	yeste_page(&st, 0, 0, 0, NULL);
 }
 
 static void ptdump_initialize(void)
@@ -435,12 +435,12 @@ void ptdump_check_wx(void)
 	};
 
 	walk_pgd(&st, &init_mm, 0);
-	note_page(&st, 0, 0, 0, NULL);
+	yeste_page(&st, 0, 0, 0, NULL);
 	if (st.wx_pages)
 		pr_warn("Checked W+X mappings: FAILED, %lu W+X pages found\n",
 			st.wx_pages);
 	else
-		pr_info("Checked W+X mappings: passed, no W+X pages found\n");
+		pr_info("Checked W+X mappings: passed, yes W+X pages found\n");
 }
 
 static int ptdump_init(void)

@@ -36,24 +36,24 @@ typedef enum {
 
 /* Slab caches (from super.c). */
 extern struct kmem_cache *ntfs_name_cache;
-extern struct kmem_cache *ntfs_inode_cache;
-extern struct kmem_cache *ntfs_big_inode_cache;
+extern struct kmem_cache *ntfs_iyesde_cache;
+extern struct kmem_cache *ntfs_big_iyesde_cache;
 extern struct kmem_cache *ntfs_attr_ctx_cache;
 extern struct kmem_cache *ntfs_index_ctx_cache;
 
 /* The various operations structs defined throughout the driver files. */
-extern const struct address_space_operations ntfs_normal_aops;
+extern const struct address_space_operations ntfs_yesrmal_aops;
 extern const struct address_space_operations ntfs_compressed_aops;
 extern const struct address_space_operations ntfs_mst_aops;
 
 extern const struct  file_operations ntfs_file_ops;
-extern const struct inode_operations ntfs_file_inode_ops;
+extern const struct iyesde_operations ntfs_file_iyesde_ops;
 
 extern const struct  file_operations ntfs_dir_ops;
-extern const struct inode_operations ntfs_dir_inode_ops;
+extern const struct iyesde_operations ntfs_dir_iyesde_ops;
 
 extern const struct  file_operations ntfs_empty_file_ops;
-extern const struct inode_operations ntfs_empty_inode_ops;
+extern const struct iyesde_operations ntfs_empty_iyesde_ops;
 
 extern const struct export_operations ntfs_export_ops;
 

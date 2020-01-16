@@ -12,7 +12,7 @@
  *
  * NAUTILUS has the following I/O features:
  *
- * a) Driven by AMD 751 aka IRONGATE (northbridge):
+ * a) Driven by AMD 751 aka IRONGATE (yesrthbridge):
  *     4 PCI slots
  *     1 AGP slot
  *
@@ -69,7 +69,7 @@ nautilus_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 	/* Preserve the IRQ set up by the console.  */
 
 	u8 irq;
-	/* UP1500: AGP INTA is actually routed to IRQ 5, not IRQ 10 as
+	/* UP1500: AGP INTA is actually routed to IRQ 5, yest IRQ 10 as
 	   console reports. Check the device id of AGP bridge to distinguish
 	   UP1500 from UP1000/1100. Note: 'pin' is 2 due to bridge swizzle. */
 	if (slot == 1 && pin == 2 &&
@@ -135,7 +135,7 @@ nautilus_machine_check(unsigned long vector, unsigned long la_ptr)
 
 	/* Now for some analysis.  Machine checks fall into two classes --
 	   those picked up by the system, and those picked up by the CPU.
-	   Add to that the two levels of severity - correctable or not.  */
+	   Add to that the two levels of severity - correctable or yest.  */
 
 	if (vector == SCB_Q_SYSMCHK
 	    && ((IRONGATE0->dramms & 0x300) == 0x300)) {

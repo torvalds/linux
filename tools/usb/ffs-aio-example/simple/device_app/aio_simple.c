@@ -3,7 +3,7 @@
  *
  * Anyone is free to copy, modify, publish, use, compile, sell, or
  * distribute this software, either in source code form or as a compiled
- * binary, for any purpose, commercial or non-commercial, and by any
+ * binary, for any purpose, commercial or yesn-commercial, and by any
  * means.
  *
  * In jurisdictions that recognize copyright laws, the author or authors
@@ -28,7 +28,7 @@
 #define _BSD_SOURCE /* for endian.h */
 
 #include <endian.h>
-#include <errno.h>
+#include <erryes.h>
 #include <fcntl.h>
 #include <stdarg.h>
 #include <stdio.h>
@@ -57,8 +57,8 @@ static const struct {
 	__le32 hs_count;
 	struct {
 		struct usb_interface_descriptor intf;
-		struct usb_endpoint_descriptor_no_audio bulk_sink;
-		struct usb_endpoint_descriptor_no_audio bulk_source;
+		struct usb_endpoint_descriptor_yes_audio bulk_sink;
+		struct usb_endpoint_descriptor_yes_audio bulk_source;
 	} __attribute__ ((__packed__)) fs_descs, hs_descs;
 } __attribute__ ((__packed__)) descriptors = {
 	.header = {
@@ -220,7 +220,7 @@ int main(int argc, char *argv[])
 	bool ready;
 
 	if (argc != 2) {
-		printf("ffs directory not specified!\n");
+		printf("ffs directory yest specified!\n");
 		return 1;
 	}
 
@@ -250,7 +250,7 @@ int main(int argc, char *argv[])
 		ep[i] = open(ep_path, O_RDWR);
 		if (ep[i] < 0) {
 			printf("unable to open ep%d: %s\n", i+1,
-			       strerror(errno));
+			       strerror(erryes));
 			return 1;
 		}
 	}
@@ -284,7 +284,7 @@ int main(int argc, char *argv[])
 		ret = select(((ep0 > evfd) ? ep0 : evfd)+1,
 			     &rfds, NULL, NULL, NULL);
 		if (ret < 0) {
-			if (errno == EINTR)
+			if (erryes == EINTR)
 				continue;
 			perror("select");
 			break;
@@ -321,10 +321,10 @@ int main(int argc, char *argv[])
 			}
 		}
 
-		if (!req_in) { /* if IN transfer not requested*/
+		if (!req_in) { /* if IN transfer yest requested*/
 			/* prepare write request */
 			io_prep_pwrite(iocb_in, ep[0], buf_in, BUF_LEN, 0);
-			/* enable eventfd notification */
+			/* enable eventfd yestification */
 			iocb_in->u.c.flags |= IOCB_FLAG_RESFD;
 			iocb_in->u.c.resfd = evfd;
 			/* submit table of requests */
@@ -335,10 +335,10 @@ int main(int argc, char *argv[])
 			} else
 				perror("unable to submit request");
 		}
-		if (!req_out) { /* if OUT transfer not requested */
+		if (!req_out) { /* if OUT transfer yest requested */
 			/* prepare read request */
 			io_prep_pread(iocb_out, ep[1], buf_out, BUF_LEN, 0);
-			/* enable eventfs notification */
+			/* enable eventfs yestification */
 			iocb_out->u.c.flags |= IOCB_FLAG_RESFD;
 			iocb_out->u.c.resfd = evfd;
 			/* submit table of requests */

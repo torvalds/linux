@@ -7,7 +7,7 @@ config JFS_FS
 	  This is a port of IBM's Journaled Filesystem .  More information is
 	  available in the file <file:Documentation/admin-guide/jfs.rst>.
 
-	  If you do not intend to use the JFS filesystem, say N.
+	  If you do yest intend to use the JFS filesystem, say N.
 
 config JFS_POSIX_ACL
 	bool "JFS POSIX Access Control Lists"
@@ -17,7 +17,7 @@ config JFS_POSIX_ACL
 	  Posix Access Control Lists (ACLs) support permissions for users and
 	  groups beyond the owner/group/world scheme.
 
-	  If you don't know what Access Control Lists are, say N
+	  If you don't kyesw what Access Control Lists are, say N
 
 config JFS_SECURITY
 	bool "JFS Security Labels"
@@ -28,7 +28,7 @@ config JFS_SECURITY
 	  enables an extended attribute handler for file security
 	  labels in the jfs filesystem.
 
-	  If you are not using a security module that requires using
+	  If you are yest using a security module that requires using
 	  extended attributes for file security labels, say N.
 
 config JFS_DEBUG
@@ -37,7 +37,7 @@ config JFS_DEBUG
 	help
 	  If you are experiencing any problems with the JFS filesystem, say
 	  Y here.  This will result in additional debugging messages to be
-	  written to the system log.  Under normal circumstances, this
+	  written to the system log.  Under yesrmal circumstances, this
 	  results in very little overhead.
 
 config JFS_STATISTICS

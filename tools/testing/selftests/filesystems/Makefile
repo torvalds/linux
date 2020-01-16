@@ -2,6 +2,6 @@
 
 CFLAGS += -I../../../../usr/include/
 TEST_GEN_PROGS := devpts_pts
-TEST_GEN_PROGS_EXTENDED := dnotify_test
+TEST_GEN_PROGS_EXTENDED := dyestify_test
 
 include ../lib.mk

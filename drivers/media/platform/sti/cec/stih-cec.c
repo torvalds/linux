@@ -14,7 +14,7 @@
 #include <linux/platform_device.h>
 
 #include <media/cec.h>
-#include <media/cec-notifier.h>
+#include <media/cec-yestifier.h>
 
 #define CEC_NAME	"stih-cec"
 
@@ -126,7 +126,7 @@ struct stih_cec {
 	void __iomem		*regs;
 	int			irq;
 	u32			irq_status;
-	struct cec_notifier	*notifier;
+	struct cec_yestifier	*yestifier;
 };
 
 static int stih_cec_adap_enable(struct cec_adapter *adap, bool enable)
@@ -304,7 +304,7 @@ static int stih_cec_probe(struct platform_device *pdev)
 	struct device *hdmi_dev;
 	int ret;
 
-	hdmi_dev = cec_notifier_parse_hdmi_phandle(dev);
+	hdmi_dev = cec_yestifier_parse_hdmi_phandle(dev);
 
 	if (IS_ERR(hdmi_dev))
 		return PTR_ERR(hdmi_dev);
@@ -332,7 +332,7 @@ static int stih_cec_probe(struct platform_device *pdev)
 
 	cec->clk = devm_clk_get(dev, "cec-clk");
 	if (IS_ERR(cec->clk)) {
-		dev_err(dev, "Cannot get cec clock\n");
+		dev_err(dev, "Canyest get cec clock\n");
 		return PTR_ERR(cec->clk);
 	}
 
@@ -344,22 +344,22 @@ static int stih_cec_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	cec->notifier = cec_notifier_cec_adap_register(hdmi_dev, NULL,
+	cec->yestifier = cec_yestifier_cec_adap_register(hdmi_dev, NULL,
 						       cec->adap);
-	if (!cec->notifier) {
+	if (!cec->yestifier) {
 		ret = -ENOMEM;
 		goto err_delete_adapter;
 	}
 
 	ret = cec_register_adapter(cec->adap, &pdev->dev);
 	if (ret)
-		goto err_notifier;
+		goto err_yestifier;
 
 	platform_set_drvdata(pdev, cec);
 	return 0;
 
-err_notifier:
-	cec_notifier_cec_adap_unregister(cec->notifier, cec->adap);
+err_yestifier:
+	cec_yestifier_cec_adap_unregister(cec->yestifier, cec->adap);
 
 err_delete_adapter:
 	cec_delete_adapter(cec->adap);
@@ -370,7 +370,7 @@ static int stih_cec_remove(struct platform_device *pdev)
 {
 	struct stih_cec *cec = platform_get_drvdata(pdev);
 
-	cec_notifier_cec_adap_unregister(cec->notifier, cec->adap);
+	cec_yestifier_cec_adap_unregister(cec->yestifier, cec->adap);
 	cec_unregister_adapter(cec->adap);
 
 	return 0;

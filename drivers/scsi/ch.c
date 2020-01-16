@@ -2,7 +2,7 @@
 /*
  * SCSI Media Changer device driver for Linux 2.6
  *
- *     (c) 1996-2003 Gerd Knorr <kraxel@bytesex.org>
+ *     (c) 1996-2003 Gerd Kyesrr <kraxel@bytesex.org>
  *
  */
 
@@ -15,7 +15,7 @@
 #include <linux/mm.h>
 #include <linux/major.h>
 #include <linux/string.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/interrupt.h>
 #include <linux/blkdev.h>
 #include <linux/completion.h>
@@ -39,7 +39,7 @@
 #define CH_MAX_DEVS     128
 
 MODULE_DESCRIPTION("device driver for scsi media changer devices");
-MODULE_AUTHOR("Gerd Knorr <kraxel@bytesex.org>");
+MODULE_AUTHOR("Gerd Kyesrr <kraxel@bytesex.org>");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS_CHARDEV_MAJOR(SCSI_CHANGER_MAJOR);
 MODULE_ALIAS_SCSI_DEVICE(TYPE_MEDIUM_CHANGER);
@@ -108,7 +108,7 @@ static struct class * ch_sysfs_class;
 typedef struct {
 	struct kref         ref;
 	struct list_head    list;
-	int                 minor;
+	int                 miyesr;
 	char                name[8];
 	struct scsi_device  *device;
 	struct scsi_device  **dt;        /* ptrs to data transfer elements */
@@ -126,35 +126,35 @@ static const struct {
 	unsigned char  sense;
 	unsigned char  asc;
 	unsigned char  ascq;
-	int	       errno;
+	int	       erryes;
 } ch_err[] = {
 /* Just filled in what looks right. Hav'nt checked any standard paper for
-   these errno assignments, so they may be wrong... */
+   these erryes assignments, so they may be wrong... */
 	{
 		.sense  = ILLEGAL_REQUEST,
 		.asc    = 0x21,
 		.ascq   = 0x01,
-		.errno  = EBADSLT, /* Invalid element address */
+		.erryes  = EBADSLT, /* Invalid element address */
 	},{
 		.sense  = ILLEGAL_REQUEST,
 		.asc    = 0x28,
 		.ascq   = 0x01,
-		.errno  = EBADE,   /* Import or export element accessed */
+		.erryes  = EBADE,   /* Import or export element accessed */
 	},{
 		.sense  = ILLEGAL_REQUEST,
 		.asc    = 0x3B,
 		.ascq   = 0x0D,
-		.errno  = EXFULL,  /* Medium destination element full */
+		.erryes  = EXFULL,  /* Medium destination element full */
 	},{
 		.sense  = ILLEGAL_REQUEST,
 		.asc    = 0x3B,
 		.ascq   = 0x0E,
-		.errno  = EBADE,   /* Medium source element empty */
+		.erryes  = EBADE,   /* Medium source element empty */
 	},{
 		.sense  = ILLEGAL_REQUEST,
 		.asc    = 0x20,
 		.ascq   = 0x00,
-		.errno  = EBADRQC, /* Invalid command operation code */
+		.erryes  = EBADRQC, /* Invalid command operation code */
 	},{
 	        /* end of list */
 	}
@@ -162,25 +162,25 @@ static const struct {
 
 /* ------------------------------------------------------------------- */
 
-static int ch_find_errno(struct scsi_sense_hdr *sshdr)
+static int ch_find_erryes(struct scsi_sense_hdr *sshdr)
 {
-	int i,errno = 0;
+	int i,erryes = 0;
 
 	/* Check to see if additional sense information is available */
 	if (scsi_sense_valid(sshdr) &&
 	    sshdr->asc != 0) {
-		for (i = 0; ch_err[i].errno != 0; i++) {
+		for (i = 0; ch_err[i].erryes != 0; i++) {
 			if (ch_err[i].sense == sshdr->sense_key &&
 			    ch_err[i].asc   == sshdr->asc &&
 			    ch_err[i].ascq  == sshdr->ascq) {
-				errno = -ch_err[i].errno;
+				erryes = -ch_err[i].erryes;
 				break;
 			}
 		}
 	}
-	if (errno == 0)
-		errno = -EIO;
-	return errno;
+	if (erryes == 0)
+		erryes = -EIO;
+	return erryes;
 }
 
 static int
@@ -188,14 +188,14 @@ ch_do_scsi(scsi_changer *ch, unsigned char *cmd, int cmd_len,
 	   void *buffer, unsigned buflength,
 	   enum dma_data_direction direction)
 {
-	int errno, retries = 0, timeout, result;
+	int erryes, retries = 0, timeout, result;
 	struct scsi_sense_hdr sshdr;
 
 	timeout = (cmd[0] == INITIALIZE_ELEMENT_STATUS)
 		? timeout_init : timeout_move;
 
  retry:
-	errno = 0;
+	erryes = 0;
 	result = scsi_execute_req(ch->device, cmd, direction, buffer,
 				  buflength, &sshdr, timeout * HZ,
 				  MAX_RETRIES, NULL);
@@ -203,7 +203,7 @@ ch_do_scsi(scsi_changer *ch, unsigned char *cmd, int cmd_len,
 	if (driver_byte(result) == DRIVER_SENSE) {
 		if (debug)
 			scsi_print_sense_hdr(ch->device, ch->name, &sshdr);
-		errno = ch_find_errno(&sshdr);
+		erryes = ch_find_erryes(&sshdr);
 
 		switch(sshdr.sense_key) {
 		case UNIT_ATTENTION:
@@ -213,7 +213,7 @@ ch_do_scsi(scsi_changer *ch, unsigned char *cmd, int cmd_len,
 			break;
 		}
 	}
-	return errno;
+	return erryes;
 }
 
 /* ------------------------------------------------------------------------ */
@@ -265,7 +265,7 @@ ch_read_element_status(scsi_changer *ch, u_int elem, char *data)
 	} else {
 		if (ch->voltags) {
 			ch->voltags = 0;
-			VPRINTK(KERN_INFO, "device has no volume tag support\n");
+			VPRINTK(KERN_INFO, "device has yes volume tag support\n");
 			goto retry;
 		}
 		DPRINTK("READ ELEMENT STATUS for element 0x%x failed\n",elem);
@@ -381,10 +381,10 @@ ch_readconfig(scsi_changer *ch)
 		} else {
 			VPRINTK(KERN_INFO, "dt 0x%x: ",elem+ch->firsts[CHET_DT]);
 			if (data[6] & 0x80) {
-				VPRINTK(KERN_CONT, "not this SCSI bus\n");
+				VPRINTK(KERN_CONT, "yest this SCSI bus\n");
 				ch->dt[elem] = NULL;
 			} else if (0 == (data[6] & 0x30)) {
-				VPRINTK(KERN_CONT, "ID/LUN unknown\n");
+				VPRINTK(KERN_CONT, "ID/LUN unkyeswn\n");
 				ch->dt[elem] = NULL;
 			} else {
 				id  = ch->device->id;
@@ -400,8 +400,8 @@ ch_readconfig(scsi_changer *ch)
 						   ch->device->channel,
 						   id,lun);
 			if (!ch->dt[elem]) {
-				/* should not happen */
-				VPRINTK(KERN_CONT, "Huh? device not found!\n");
+				/* should yest happen */
+				VPRINTK(KERN_CONT, "Huh? device yest found!\n");
 			} else {
 				VPRINTK(KERN_CONT, "name: %8.8s %16.16s %4.4s\n",
 					ch->dt[elem]->vendor,
@@ -574,7 +574,7 @@ static void ch_destroy(struct kref *ref)
 }
 
 static int
-ch_release(struct inode *inode, struct file *file)
+ch_release(struct iyesde *iyesde, struct file *file)
 {
 	scsi_changer *ch = file->private_data;
 
@@ -585,14 +585,14 @@ ch_release(struct inode *inode, struct file *file)
 }
 
 static int
-ch_open(struct inode *inode, struct file *file)
+ch_open(struct iyesde *iyesde, struct file *file)
 {
 	scsi_changer *ch;
-	int minor = iminor(inode);
+	int miyesr = imiyesr(iyesde);
 
 	mutex_lock(&ch_mutex);
 	spin_lock(&ch_index_lock);
-	ch = idr_find(&ch_index_idr, minor);
+	ch = idr_find(&ch_index_idr, miyesr);
 
 	if (NULL == ch || scsi_device_get(ch->device)) {
 		spin_unlock(&ch_index_lock);
@@ -783,7 +783,7 @@ static long ch_ioctl(struct file *file,
 			cge.cge_status = buffer[18];
 			cge.cge_flags = 0;
 			if (buffer[18] & CESTATUS_EXCEPT) {
-				cge.cge_errno = EIO;
+				cge.cge_erryes = EIO;
 			}
 			if (buffer[25] & 0x80) {
 				cge.cge_flags |= CGE_SRC;
@@ -813,7 +813,7 @@ static long ch_ioctl(struct file *file,
 			}
 		} else if (ch->voltags) {
 			ch->voltags = 0;
-			VPRINTK(KERN_INFO, "device has no volume tag support\n");
+			VPRINTK(KERN_INFO, "device has yes volume tag support\n");
 			goto voltag_retry;
 		}
 		kfree(buffer);
@@ -933,15 +933,15 @@ static int ch_probe(struct device *dev)
 		goto free_ch;
 	}
 
-	ch->minor = ret;
-	sprintf(ch->name,"ch%d",ch->minor);
+	ch->miyesr = ret;
+	sprintf(ch->name,"ch%d",ch->miyesr);
 
 	class_dev = device_create(ch_sysfs_class, dev,
-				  MKDEV(SCSI_CHANGER_MAJOR, ch->minor), ch,
+				  MKDEV(SCSI_CHANGER_MAJOR, ch->miyesr), ch,
 				  "s%s", ch->name);
 	if (IS_ERR(class_dev)) {
 		sdev_printk(KERN_WARNING, sd, "ch%d: device_create failed\n",
-			    ch->minor);
+			    ch->miyesr);
 		ret = PTR_ERR(class_dev);
 		goto remove_idr;
 	}
@@ -960,9 +960,9 @@ static int ch_probe(struct device *dev)
 
 	return 0;
 destroy_dev:
-	device_destroy(ch_sysfs_class, MKDEV(SCSI_CHANGER_MAJOR, ch->minor));
+	device_destroy(ch_sysfs_class, MKDEV(SCSI_CHANGER_MAJOR, ch->miyesr));
 remove_idr:
-	idr_remove(&ch_index_idr, ch->minor);
+	idr_remove(&ch_index_idr, ch->miyesr);
 free_ch:
 	kfree(ch);
 	return ret;
@@ -973,10 +973,10 @@ static int ch_remove(struct device *dev)
 	scsi_changer *ch = dev_get_drvdata(dev);
 
 	spin_lock(&ch_index_lock);
-	idr_remove(&ch_index_idr, ch->minor);
+	idr_remove(&ch_index_idr, ch->miyesr);
 	spin_unlock(&ch_index_lock);
 
-	device_destroy(ch_sysfs_class, MKDEV(SCSI_CHANGER_MAJOR,ch->minor));
+	device_destroy(ch_sysfs_class, MKDEV(SCSI_CHANGER_MAJOR,ch->miyesr));
 	kref_put(&ch->ref, ch_destroy);
 	return 0;
 }
@@ -998,7 +998,7 @@ static const struct file_operations changer_fops = {
 #ifdef CONFIG_COMPAT
 	.compat_ioctl	= ch_ioctl_compat,
 #endif
-	.llseek		= noop_llseek,
+	.llseek		= yesop_llseek,
 };
 
 static int __init init_ch_module(void)

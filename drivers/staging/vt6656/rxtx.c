@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
- * Copyright (c) 1996, 2003 VIA Networking Technologies, Inc.
+ * Copyright (c) 1996, 2003 VIA Networking Techyeslogies, Inc.
  * All rights reserved.
  *
  * File: rxtx.c
@@ -967,7 +967,7 @@ int vnt_tx_packet(struct vnt_private *priv, struct sk_buff *skb)
 						IEEE80211_SCTL_SEQ) >> 4;
 
 	tx_buffer->tx_byte_count = cpu_to_le16(tx_bytes);
-	tx_buffer->pkt_no = tx_context->pkt_no;
+	tx_buffer->pkt_yes = tx_context->pkt_yes;
 	tx_buffer->type = 0x00;
 
 	tx_bytes += 4;
@@ -1063,7 +1063,7 @@ static int vnt_beacon_xmit(struct vnt_private *priv, struct sk_buff *skb)
 	count = sizeof(struct vnt_tx_short_buf_head) + skb->len;
 
 	beacon_buffer->tx_byte_count = cpu_to_le16(count);
-	beacon_buffer->pkt_no = context->pkt_no;
+	beacon_buffer->pkt_yes = context->pkt_yes;
 	beacon_buffer->type = 0x01;
 
 	context->type = CONTEXT_BEACON_PACKET;

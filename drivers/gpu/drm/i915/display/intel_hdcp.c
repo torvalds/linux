@@ -174,7 +174,7 @@ static bool hdcp_key_loadable(struct drm_i915_private *dev_priv)
 	mutex_unlock(&power_domains->lock);
 
 	/*
-	 * Another req for hdcp key loadability is enabled state of pll for
+	 * Ayesther req for hdcp key loadability is enabled state of pll for
 	 * cdclk. Without active crtc we wont land here. So we are assuming that
 	 * cdclk is already on.
 	 */
@@ -200,7 +200,7 @@ static int intel_hdcp_load_keys(struct drm_i915_private *dev_priv)
 
 	/*
 	 * On HSW and BDW HW loads the HDCP1.4 Key when Display comes
-	 * out of reset. So if Key is not already loaded, its an error state.
+	 * out of reset. So if Key is yest already loaded, its an error state.
 	 */
 	if (IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv))
 		if (!(I915_READ(HDCP_KEY_STATUS) & HDCP_KEY_LOAD_DONE))
@@ -270,7 +270,7 @@ u32 intel_hdcp_get_repeater_ctl(struct drm_i915_private *dev_priv,
 			return HDCP_TRANSD_REP_PRESENT |
 			       HDCP_TRANSD_SHA1_M0;
 		default:
-			DRM_ERROR("Unknown transcoder %d\n", cpu_transcoder);
+			DRM_ERROR("Unkyeswn transcoder %d\n", cpu_transcoder);
 			return -EINVAL;
 		}
 	}
@@ -287,7 +287,7 @@ u32 intel_hdcp_get_repeater_ctl(struct drm_i915_private *dev_priv,
 	case PORT_E:
 		return HDCP_DDIE_REP_PRESENT | HDCP_DDIE_SHA1_M0;
 	default:
-		DRM_ERROR("Unknown port %d\n", port);
+		DRM_ERROR("Unkyeswn port %d\n", port);
 		return -EINVAL;
 	}
 }
@@ -370,7 +370,7 @@ int intel_hdcp_validate_v_prime(struct intel_connector *connector,
 	}
 
 	/*
-	 * We need to write BINFO/BSTATUS, and M0 now. Depending on how many
+	 * We need to write BINFO/BSTATUS, and M0 yesw. Depending on how many
 	 * bytes are leftover from the last ksv, we might be able to fit them
 	 * all in sha_text (first 2 cases), or we might need to split them up
 	 * into 2 writes (last 2 cases).
@@ -538,7 +538,7 @@ int intel_hdcp_auth_downstream(struct intel_connector *connector)
 	/*
 	 * When repeater reports 0 device count, HDCP1.4 spec allows disabling
 	 * the HDCP encryption. That implies that repeater can't have its own
-	 * display. As there is no consumption of encrypted content in the
+	 * display. As there is yes consumption of encrypted content in the
 	 * repeater with 0 downstream devices, we are failing the
 	 * authentication.
 	 */
@@ -623,14 +623,14 @@ static int intel_hdcp_auth(struct intel_connector *connector)
 	 * Detects whether the display is HDCP capable. Although we check for
 	 * valid Bksv below, the HDCP over DP spec requires that we check
 	 * whether the display supports HDCP before we write An. For HDMI
-	 * displays, this is not necessary.
+	 * displays, this is yest necessary.
 	 */
 	if (shim->hdcp_capable) {
 		ret = shim->hdcp_capable(intel_dig_port, &hdcp_capable);
 		if (ret)
 			return ret;
 		if (!hdcp_capable) {
-			DRM_DEBUG_KMS("Panel is not HDCP capable\n");
+			DRM_DEBUG_KMS("Panel is yest HDCP capable\n");
 			return -EINVAL;
 		}
 	}
@@ -699,9 +699,9 @@ static int intel_hdcp_auth(struct intel_connector *connector)
 	 * some monitors can take longer than this. We'll set the timeout at
 	 * 300ms just to be sure.
 	 *
-	 * On DP, there's an R0_READY bit available but no such bit
+	 * On DP, there's an R0_READY bit available but yes such bit
 	 * exists on HDMI. Since the upper-bound is the same, we'll just do
-	 * the stupid thing instead of polling on one and not the other.
+	 * the stupid thing instead of polling on one and yest the other.
 	 */
 	wait_remaining_ms_from_jiffies(r0_prime_gen_start, 300);
 
@@ -749,7 +749,7 @@ static int intel_hdcp_auth(struct intel_connector *connector)
 	if (repeater_present)
 		return intel_hdcp_auth_downstream(connector);
 
-	DRM_DEBUG_KMS("HDCP is enabled (no repeater present)\n");
+	DRM_DEBUG_KMS("HDCP is enabled (yes repeater present)\n");
 	return 0;
 }
 
@@ -794,7 +794,7 @@ static int _intel_hdcp_enable(struct intel_connector *connector)
 		      connector->base.name, connector->base.base.id);
 
 	if (!hdcp_key_loadable(dev_priv)) {
-		DRM_ERROR("HDCP key Load is not possible\n");
+		DRM_ERROR("HDCP key Load is yest possible\n");
 		return -ENXIO;
 	}
 
@@ -805,7 +805,7 @@ static int _intel_hdcp_enable(struct intel_connector *connector)
 		intel_hdcp_clear_keys(dev_priv);
 	}
 	if (ret) {
-		DRM_ERROR("Could not load HDCP keys, (%d)\n", ret);
+		DRM_ERROR("Could yest load HDCP keys, (%d)\n", ret);
 		return ret;
 	}
 
@@ -954,7 +954,7 @@ static int
 hdcp2_verify_rx_cert_prepare_km(struct intel_connector *connector,
 				struct hdcp2_ake_send_cert *rx_cert,
 				bool *paired,
-				struct hdcp2_ake_no_stored_km *ek_pub_km,
+				struct hdcp2_ake_yes_stored_km *ek_pub_km,
 				size_t *msg_sz)
 {
 	struct hdcp_port_data *data = &connector->hdcp.port_data;
@@ -1215,7 +1215,7 @@ static int hdcp2_authentication_key_exchange(struct intel_connector *connector)
 	union {
 		struct hdcp2_ake_init ake_init;
 		struct hdcp2_ake_send_cert send_cert;
-		struct hdcp2_ake_no_stored_km no_stored_km;
+		struct hdcp2_ake_yes_stored_km yes_stored_km;
 		struct hdcp2_ake_send_hprime send_hprime;
 		struct hdcp2_ake_send_pairing_info pairing_info;
 	} msgs;
@@ -1255,16 +1255,16 @@ static int hdcp2_authentication_key_exchange(struct intel_connector *connector)
 	}
 
 	/*
-	 * Here msgs.no_stored_km will hold msgs corresponding to the km
+	 * Here msgs.yes_stored_km will hold msgs corresponding to the km
 	 * stored also.
 	 */
 	ret = hdcp2_verify_rx_cert_prepare_km(connector, &msgs.send_cert,
 					      &hdcp->is_paired,
-					      &msgs.no_stored_km, &size);
+					      &msgs.yes_stored_km, &size);
 	if (ret < 0)
 		return ret;
 
-	ret = shim->write_2_2_msg(intel_dig_port, &msgs.no_stored_km, size);
+	ret = shim->write_2_2_msg(intel_dig_port, &msgs.yes_stored_km, size);
 	if (ret < 0)
 		return ret;
 
@@ -1366,7 +1366,7 @@ int hdcp2_propagate_stream_management_info(struct intel_connector *connector)
 	msgs.stream_manage.msg_id = HDCP_2_2_REP_STREAM_MANAGE;
 	drm_hdcp_cpu_to_be24(msgs.stream_manage.seq_num_m, hdcp->seq_num_m);
 
-	/* K no of streams is fixed as 1. Stored as big-endian. */
+	/* K yes of streams is fixed as 1. Stored as big-endian. */
 	msgs.stream_manage.k = cpu_to_be16(1);
 
 	/* For HDMI this is forced to be 0x0. For DP SST also this is 0x0. */
@@ -1816,7 +1816,7 @@ enum mei_fw_tc intel_get_mei_fw_tc(enum transcoder cpu_transcoder)
 	switch (cpu_transcoder) {
 	case TRANSCODER_A ... TRANSCODER_D:
 		return (enum mei_fw_tc)(cpu_transcoder | 0x10);
-	default: /* eDP, DSI TRANSCODERS are non HDCP capable */
+	default: /* eDP, DSI TRANSCODERS are yesn HDCP capable */
 		return MEI_INVALID_TRANSCODER;
 	}
 }
@@ -1973,7 +1973,7 @@ int intel_hdcp_enable(struct intel_connector *connector,
 	}
 
 	/*
-	 * When HDCP2.2 fails and Content Type is not Type1, HDCP1.4 will
+	 * When HDCP2.2 fails and Content Type is yest Type1, HDCP1.4 will
 	 * be attempted.
 	 */
 	if (ret && intel_hdcp_capable(connector) &&
@@ -2059,7 +2059,7 @@ void intel_hdcp_atomic_check(struct drm_connector *connector,
 
 	/*
 	 * Nothing to do if the state didn't change, or HDCP was activated since
-	 * the last commit. And also no change in hdcp content type.
+	 * the last commit. And also yes change in hdcp content type.
 	 */
 	if (old_cp == new_cp ||
 	    (old_cp == DRM_MODE_CONTENT_PROTECTION_DESIRED &&

@@ -61,7 +61,7 @@ enum {
 #define ROSE_DEFAULT_T2			180000		/* Default T12 T22 value */
 #define	ROSE_DEFAULT_T3			180000		/* Default T13 T23 value */
 #define	ROSE_DEFAULT_HB			5000		/* Default Holdback value */
-#define	ROSE_DEFAULT_IDLE		0		/* No Activity Timeout - none */
+#define	ROSE_DEFAULT_IDLE		0		/* No Activity Timeout - yesne */
 #define	ROSE_DEFAULT_ROUTING		1		/* Default routing flag */
 #define	ROSE_DEFAULT_FAIL_TIMEOUT	120000		/* Time until link considered usable */
 #define	ROSE_DEFAULT_MAXVC		50		/* Maximum number of VCs per neighbour */
@@ -105,8 +105,8 @@ struct rose_neigh {
 	struct timer_list	ftimer;
 };
 
-struct rose_node {
-	struct rose_node	*next;
+struct rose_yesde {
+	struct rose_yesde	*next;
 	rose_address		address;
 	unsigned short		mask;
 	unsigned char		count;
@@ -134,7 +134,7 @@ struct rose_sock {
 	struct net_device		*device;
 	unsigned int		lci, rand;
 	unsigned char		state, condition, qbitincl, defer;
-	unsigned char		cause, diagnostic;
+	unsigned char		cause, diagyesstic;
 	unsigned short		vs, vr, va, vl;
 	unsigned long		t1, t2, t3, hb, idle;
 #ifdef M_BIT
@@ -155,7 +155,7 @@ extern int  sysctl_rose_restart_request_timeout;
 extern int  sysctl_rose_call_request_timeout;
 extern int  sysctl_rose_reset_request_timeout;
 extern int  sysctl_rose_clear_request_timeout;
-extern int  sysctl_rose_no_activity_timeout;
+extern int  sysctl_rose_yes_activity_timeout;
 extern int  sysctl_rose_ack_hold_back_timeout;
 extern int  sysctl_rose_routing_control;
 extern int  sysctl_rose_link_fail_timeout;
@@ -201,12 +201,12 @@ void rose_enquiry_response(struct sock *);
 /* rose_route.c */
 extern struct rose_neigh *rose_loopback_neigh;
 extern const struct seq_operations rose_neigh_seqops;
-extern const struct seq_operations rose_node_seqops;
+extern const struct seq_operations rose_yesde_seqops;
 extern struct seq_operations rose_route_seqops;
 
 void rose_add_loopback_neigh(void);
-int __must_check rose_add_loopback_node(rose_address *);
-void rose_del_loopback_node(rose_address *);
+int __must_check rose_add_loopback_yesde(rose_address *);
+void rose_del_loopback_yesde(rose_address *);
 void rose_rt_device_down(struct net_device *);
 void rose_link_device_down(struct net_device *);
 struct net_device *rose_dev_first(void);

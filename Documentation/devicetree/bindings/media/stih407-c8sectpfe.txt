@@ -10,7 +10,7 @@ located on an external DVB frontend card connected to SoC TS input pins.
 
 Currently 7 TS input (tsin) channels are supported on the stih407 family SoC.
 
-Required properties (controller (parent) node):
+Required properties (controller (parent) yesde):
 - compatible	: Should be "stih407-c8sectpfe"
 
 - reg		: Address and length of register sets for each device in
@@ -26,22 +26,22 @@ Required properties (controller (parent) node):
 See: Documentation/devicetree/bindings/clock/clock-bindings.txt
 
 - pinctrl-names	: a pinctrl state named tsin%d-serial or tsin%d-parallel (where %d is tsin-num)
-		   must be defined for each tsin child node.
+		   must be defined for each tsin child yesde.
 - pinctrl-0	: phandle referencing pin configuration for this tsin configuration
 See: Documentation/devicetree/bindings/pinctrl/pinctrl-bindings.txt
 
 
-Required properties (tsin (child) node):
+Required properties (tsin (child) yesde):
 
 - tsin-num	: tsin id of the InputBlock (must be between 0 to 6)
-- i2c-bus	: phandle to the I2C bus DT node which the demodulators & tuners on this tsin channel are connected.
+- i2c-bus	: phandle to the I2C bus DT yesde which the demodulators & tuners on this tsin channel are connected.
 - reset-gpios	: reset gpio for this tsin channel.
 
-Optional properties (tsin (child) node):
+Optional properties (tsin (child) yesde):
 
 - invert-ts-clk		: Bool property to control sense of ts input clock (data stored on falling edge of clk).
-- serial-not-parallel	: Bool property to configure input bus width (serial on ts_data<7>).
-- async-not-sync	: Bool property to control if data is received in asynchronous mode
+- serial-yest-parallel	: Bool property to configure input bus width (serial on ts_data<7>).
+- async-yest-sync	: Bool property to control if data is received in asynchroyesus mode
 			   (all bits/bytes with ts_valid or ts_packet asserted are valid).
 
 - dvb-card		: Describes the NIM card connected to this tsin channel.
@@ -72,7 +72,7 @@ Example:
 		/* tsin0 is TSA on NIMA */
 		tsin0: port@0 {
 			tsin-num		= <0>;
-			serial-not-parallel;
+			serial-yest-parallel;
 			i2c-bus			= <&ssc2>;
 			reset-gpios		= <&pio15 4 GPIO_ACTIVE_HIGH>;
 			dvb-card		= <STV0367_TDA18212_NIMA_1>;
@@ -80,7 +80,7 @@ Example:
 
 		tsin3: port@3 {
 			tsin-num		= <3>;
-			serial-not-parallel;
+			serial-yest-parallel;
 			i2c-bus			= <&ssc3>;
 			reset-gpios		= <&pio15 7 GPIO_ACTIVE_HIGH>;
 			dvb-card		= <STV0367_TDA18212_NIMB_1>;

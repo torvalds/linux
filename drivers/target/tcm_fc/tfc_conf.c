@@ -2,7 +2,7 @@
 /*******************************************************************************
  * Filename:  tcm_fc.c
  *
- * This file contains the configfs implementation for TCM_fc fabric node.
+ * This file contains the configfs implementation for TCM_fc fabric yesde.
  * Based on tcm_loop_configfs.c
  *
  * Copyright (c) 2010 Cisco Systems, Inc.
@@ -123,44 +123,44 @@ static ssize_t ft_wwn_store(void *arg, const char *buf, size_t len)
 
 static ssize_t ft_nacl_port_name_show(struct config_item *item, char *page)
 {
-	struct se_node_acl *se_nacl = acl_to_nacl(item);
-	struct ft_node_acl *acl = container_of(se_nacl,
-			struct ft_node_acl, se_node_acl);
+	struct se_yesde_acl *se_nacl = acl_to_nacl(item);
+	struct ft_yesde_acl *acl = container_of(se_nacl,
+			struct ft_yesde_acl, se_yesde_acl);
 
-	return ft_wwn_show(&acl->node_auth.port_name, page);
+	return ft_wwn_show(&acl->yesde_auth.port_name, page);
 }
 
 static ssize_t ft_nacl_port_name_store(struct config_item *item,
 		const char *page, size_t count)
 {
-	struct se_node_acl *se_nacl = acl_to_nacl(item);
-	struct ft_node_acl *acl = container_of(se_nacl,
-			struct ft_node_acl, se_node_acl);
+	struct se_yesde_acl *se_nacl = acl_to_nacl(item);
+	struct ft_yesde_acl *acl = container_of(se_nacl,
+			struct ft_yesde_acl, se_yesde_acl);
 
-	return ft_wwn_store(&acl->node_auth.port_name, page, count);
+	return ft_wwn_store(&acl->yesde_auth.port_name, page, count);
 }
 
-static ssize_t ft_nacl_node_name_show(struct config_item *item,
+static ssize_t ft_nacl_yesde_name_show(struct config_item *item,
 		char *page)
 {
-	struct se_node_acl *se_nacl = acl_to_nacl(item);
-	struct ft_node_acl *acl = container_of(se_nacl,
-			struct ft_node_acl, se_node_acl);
+	struct se_yesde_acl *se_nacl = acl_to_nacl(item);
+	struct ft_yesde_acl *acl = container_of(se_nacl,
+			struct ft_yesde_acl, se_yesde_acl);
 
-	return ft_wwn_show(&acl->node_auth.node_name, page);
+	return ft_wwn_show(&acl->yesde_auth.yesde_name, page);
 }
 
-static ssize_t ft_nacl_node_name_store(struct config_item *item,
+static ssize_t ft_nacl_yesde_name_store(struct config_item *item,
 		const char *page, size_t count)
 {
-	struct se_node_acl *se_nacl = acl_to_nacl(item);
-	struct ft_node_acl *acl = container_of(se_nacl,
-			struct ft_node_acl, se_node_acl);
+	struct se_yesde_acl *se_nacl = acl_to_nacl(item);
+	struct ft_yesde_acl *acl = container_of(se_nacl,
+			struct ft_yesde_acl, se_yesde_acl);
 
-	return ft_wwn_store(&acl->node_auth.node_name, page, count);
+	return ft_wwn_store(&acl->yesde_auth.yesde_name, page, count);
 }
 
-CONFIGFS_ATTR(ft_nacl_, node_name);
+CONFIGFS_ATTR(ft_nacl_, yesde_name);
 CONFIGFS_ATTR(ft_nacl_, port_name);
 
 static ssize_t ft_nacl_tag_show(struct config_item *item,
@@ -172,10 +172,10 @@ static ssize_t ft_nacl_tag_show(struct config_item *item,
 static ssize_t ft_nacl_tag_store(struct config_item *item,
 		const char *page, size_t count)
 {
-	struct se_node_acl *se_nacl = acl_to_nacl(item);
+	struct se_yesde_acl *se_nacl = acl_to_nacl(item);
 	int ret;
 
-	ret = core_tpg_set_initiator_node_tag(se_nacl->se_tpg, se_nacl, page);
+	ret = core_tpg_set_initiator_yesde_tag(se_nacl->se_tpg, se_nacl, page);
 
 	if (ret < 0)
 		return ret;
@@ -186,7 +186,7 @@ CONFIGFS_ATTR(ft_nacl_, tag);
 
 static struct configfs_attribute *ft_nacl_base_attrs[] = {
 	&ft_nacl_attr_port_name,
-	&ft_nacl_attr_node_name,
+	&ft_nacl_attr_yesde_name,
 	&ft_nacl_attr_tag,
 	NULL,
 };
@@ -197,18 +197,18 @@ static struct configfs_attribute *ft_nacl_base_attrs[] = {
 
 /*
  * Add ACL for an initiator.  The ACL is named arbitrarily.
- * The port_name and/or node_name are attributes.
+ * The port_name and/or yesde_name are attributes.
  */
-static int ft_init_nodeacl(struct se_node_acl *nacl, const char *name)
+static int ft_init_yesdeacl(struct se_yesde_acl *nacl, const char *name)
 {
-	struct ft_node_acl *acl =
-		container_of(nacl, struct ft_node_acl, se_node_acl);
+	struct ft_yesde_acl *acl =
+		container_of(nacl, struct ft_yesde_acl, se_yesde_acl);
 	u64 wwpn;
 
 	if (ft_parse_wwn(name, &wwpn, 1) < 0)
 		return -EINVAL;
 
-	acl->node_auth.port_name = wwpn;
+	acl->yesde_auth.port_name = wwpn;
 	return 0;
 }
 
@@ -306,7 +306,7 @@ struct ft_tpg *ft_lport_find_tpg(struct fc_lport *lport)
 {
 	struct ft_lport_wwn *ft_wwn;
 
-	list_for_each_entry(ft_wwn, &ft_wwn_list, ft_wwn_node) {
+	list_for_each_entry(ft_wwn, &ft_wwn_list, ft_wwn_yesde) {
 		if (ft_wwn->wwpn == lport->wwpn)
 			return ft_wwn->tpg;
 	}
@@ -339,14 +339,14 @@ static struct se_wwn *ft_add_wwn(
 	ft_wwn->wwpn = wwpn;
 
 	mutex_lock(&ft_lport_lock);
-	list_for_each_entry(old_ft_wwn, &ft_wwn_list, ft_wwn_node) {
+	list_for_each_entry(old_ft_wwn, &ft_wwn_list, ft_wwn_yesde) {
 		if (old_ft_wwn->wwpn == wwpn) {
 			mutex_unlock(&ft_lport_lock);
 			kfree(ft_wwn);
 			return NULL;
 		}
 	}
-	list_add_tail(&ft_wwn->ft_wwn_node, &ft_wwn_list);
+	list_add_tail(&ft_wwn->ft_wwn_yesde, &ft_wwn_list);
 	ft_format_wwn(ft_wwn->name, sizeof(ft_wwn->name), wwpn);
 	mutex_unlock(&ft_lport_lock);
 
@@ -360,7 +360,7 @@ static void ft_del_wwn(struct se_wwn *wwn)
 
 	pr_debug("del wwn %s\n", ft_wwn->name);
 	mutex_lock(&ft_lport_lock);
-	list_del(&ft_wwn->ft_wwn_node);
+	list_del(&ft_wwn->ft_wwn_yesde);
 	mutex_unlock(&ft_lport_lock);
 
 	kfree(ft_wwn);
@@ -403,7 +403,7 @@ static int ft_check_false(struct se_portal_group *se_tpg)
 	return 0;
 }
 
-static void ft_set_default_node_attr(struct se_node_acl *se_nacl)
+static void ft_set_default_yesde_attr(struct se_yesde_acl *se_nacl)
 {
 }
 
@@ -415,7 +415,7 @@ static u32 ft_tpg_get_inst_index(struct se_portal_group *se_tpg)
 static const struct target_core_fabric_ops ft_fabric_ops = {
 	.module =			THIS_MODULE,
 	.fabric_name =			"fc",
-	.node_acl_size =		sizeof(struct ft_node_acl),
+	.yesde_acl_size =		sizeof(struct ft_yesde_acl),
 	.tpg_get_wwn =			ft_get_fabric_wwn,
 	.tpg_get_tag =			ft_get_tag,
 	.tpg_check_demo_mode =		ft_check_false,
@@ -429,7 +429,7 @@ static const struct target_core_fabric_ops ft_fabric_ops = {
 	.sess_get_index =		ft_sess_get_index,
 	.sess_get_initiator_sid =	NULL,
 	.write_pending =		ft_write_pending,
-	.set_default_node_attributes =	ft_set_default_node_attr,
+	.set_default_yesde_attributes =	ft_set_default_yesde_attr,
 	.get_cmd_state =		ft_get_cmd_state,
 	.queue_data_in =		ft_queue_data_in,
 	.queue_status =			ft_queue_status,
@@ -443,14 +443,14 @@ static const struct target_core_fabric_ops ft_fabric_ops = {
 	.fabric_drop_wwn =		&ft_del_wwn,
 	.fabric_make_tpg =		&ft_add_tpg,
 	.fabric_drop_tpg =		&ft_del_tpg,
-	.fabric_init_nodeacl =		&ft_init_nodeacl,
+	.fabric_init_yesdeacl =		&ft_init_yesdeacl,
 
 	.tfc_wwn_attrs			= ft_wwn_attrs,
 	.tfc_tpg_nacl_base_attrs	= ft_nacl_base_attrs,
 };
 
-static struct notifier_block ft_notifier = {
-	.notifier_call = ft_lport_notify
+static struct yestifier_block ft_yestifier = {
+	.yestifier_call = ft_lport_yestify
 };
 
 static int __init ft_init(void)
@@ -465,7 +465,7 @@ static int __init ft_init(void)
 	if (ret)
 		goto out_unregister_template;
 
-	blocking_notifier_chain_register(&fc_lport_notifier_head, &ft_notifier);
+	blocking_yestifier_chain_register(&fc_lport_yestifier_head, &ft_yestifier);
 	fc_lport_iterate(ft_lport_add, NULL);
 	return 0;
 
@@ -477,8 +477,8 @@ out:
 
 static void __exit ft_exit(void)
 {
-	blocking_notifier_chain_unregister(&fc_lport_notifier_head,
-					   &ft_notifier);
+	blocking_yestifier_chain_unregister(&fc_lport_yestifier_head,
+					   &ft_yestifier);
 	fc_fc4_deregister_provider(FC_TYPE_FCP, &ft_prov);
 	fc_lport_iterate(ft_lport_del, NULL);
 	target_unregister_template(&ft_fabric_ops);

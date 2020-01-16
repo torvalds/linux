@@ -97,7 +97,7 @@
 	   "bne	4b\n\t"							\
 	   "addcc	%0,%0,%0	! shift n1n0 and a 0-bit in lsb\n\t" \
 	   "sub	%1,%2,%1\n\t"						\
-	   "3:	xnor	%0,0,%0\n\t"					\
+	   "3:	xyesr	%0,0,%0\n\t"					\
 	   "! End of inline udiv_qrnnd\n"				\
 	   : "=&r" (q),							\
 	     "=&r" (r)							\

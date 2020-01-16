@@ -40,22 +40,22 @@
 
    At first sight, this redundancy is just a waste of CPU
    resources. But DPI and SPI add the possibility to assign different
-   priorities to GPIs. Look also at note 4 about tunnels below.
+   priorities to GPIs. Look also at yeste 4 about tunnels below.
 
 
    NOTE 3. One complication is the case of tunneled packets.
    We implement it as following: if the first lookup
-   matches a special session with "tunnelhdr" value not zero,
+   matches a special session with "tunnelhdr" value yest zero,
    flowid doesn't contain the true flow ID, but the tunnel ID (1...255).
    In this case, we pull tunnelhdr bytes and restart lookup
    with tunnel ID added to the list of keys. Simple and stupid 8)8)
-   It's enough for PIMREG and IPIP.
+   It's eyesugh for PIMREG and IPIP.
 
 
    NOTE 4. Two GPIs make it possible to parse even GRE packets.
    F.e. DPI can select ETH_P_IP (and necessary flags to make
    tunnelhdr correct) in GRE protocol field and SPI matches
-   GRE key. Is it not nice? 8)8)
+   GRE key. Is it yest nice? 8)8)
 
 
    Well, as result, despite its simplicity, we get a pretty
@@ -238,8 +238,8 @@ static void rsvp_replace(struct tcf_proto *tp, struct rsvp_filter *n, u32 h)
 		}
 	}
 
-	/* Something went wrong if we are trying to replace a non-existant
-	 * node. Mind as well halt instead of silently failing.
+	/* Something went wrong if we are trying to replace a yesn-existant
+	 * yesde. Mind as well halt instead of silently failing.
 	 */
 	BUG_ON(1);
 }
@@ -361,7 +361,7 @@ static int rsvp_delete(struct tcf_proto *tp, void *arg, bool *last,
 				if (s->ht[i])
 					goto out;
 
-			/* OK, session has no flows */
+			/* OK, session has yes flows */
 			sp = &head->ht[h & 0xFF];
 			for (nsp = rtnl_dereference(*sp); nsp;
 			     sp = &nsp->next, nsp = rtnl_dereference(*sp)) {
@@ -703,7 +703,7 @@ static int rsvp_dump(struct net *net, struct tcf_proto *tp, void *fh,
 
 	t->tcm_handle = f->handle;
 
-	nest = nla_nest_start_noflag(skb, TCA_OPTIONS);
+	nest = nla_nest_start_yesflag(skb, TCA_OPTIONS);
 	if (nest == NULL)
 		goto nla_put_failure;
 

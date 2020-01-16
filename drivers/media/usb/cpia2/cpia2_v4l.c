@@ -141,7 +141,7 @@ static ssize_t cpia2_v4l_read(struct file *file, char __user *buf, size_t count,
 			      loff_t *off)
 {
 	struct camera_data *cam = video_drvdata(file);
-	int noblock = file->f_flags&O_NONBLOCK;
+	int yesblock = file->f_flags&O_NONBLOCK;
 	ssize_t ret;
 
 	if(!cam)
@@ -149,7 +149,7 @@ static ssize_t cpia2_v4l_read(struct file *file, char __user *buf, size_t count,
 
 	if (mutex_lock_interruptible(&cam->v4l2_lock))
 		return -ERESTARTSYS;
-	ret = cpia2_read(cam, buf, count, noblock);
+	ret = cpia2_read(cam, buf, count, yesblock);
 	mutex_unlock(&cam->v4l2_lock);
 	return ret;
 }
@@ -511,7 +511,7 @@ static int cpia2_s_parm(struct file *file, void *fh, struct v4l2_streamparm *p)
 	int i;
 
 	ret = cpia2_g_parm(file, fh, p);
-	if (ret || !tpf.denominator || !tpf.numerator)
+	if (ret || !tpf.deyesminator || !tpf.numerator)
 		return ret;
 
 	/* Maximum 15 fps for this model */
@@ -522,8 +522,8 @@ static int cpia2_s_parm(struct file *file, void *fh, struct v4l2_streamparm *p)
 		struct v4l2_fract f1 = tpf;
 		struct v4l2_fract f2 = framerate_controls[i].period;
 
-		f1.numerator *= f2.denominator;
-		f2.numerator *= f1.denominator;
+		f1.numerator *= f2.deyesminator;
+		f2.numerator *= f1.deyesminator;
 		if (f1.numerator >= f2.numerator)
 			break;
 	}
@@ -694,7 +694,7 @@ static int cpia2_g_jpegcomp(struct file *file, void *fh, struct v4l2_jpegcompres
  *  ioctl_s_jpegcomp
  *
  *  V4L2 set the JPEG compression parameters
- *  NOTE: quality and some jpeg_markers are ignored.
+ *  NOTE: quality and some jpeg_markers are igyesred.
  *
  *****************************************************************************/
 
@@ -744,7 +744,7 @@ static int cpia2_s_jpegcomp(struct file *file, void *fh,
  *  ioctl_reqbufs
  *
  *  V4L2 Initiate memory mapping.
- *  NOTE: The user's request is ignored. For now the buffers are fixed.
+ *  NOTE: The user's request is igyesred. For yesw the buffers are fixed.
  *
  *****************************************************************************/
 
@@ -1039,7 +1039,7 @@ static const struct v4l2_file_operations cpia2_fops = {
 };
 
 static const struct video_device cpia2_template = {
-	/* I could not find any place for the old .initialize initializer?? */
+	/* I could yest find any place for the old .initialize initializer?? */
 	.name =		"CPiA2 Camera",
 	.fops =		&cpia2_fops,
 	.ioctl_ops =	&cpia2_ioctl_ops,

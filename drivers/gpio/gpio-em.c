@@ -300,13 +300,13 @@ static int em_gio_probe(struct platform_device *pdev)
 	if (IS_ERR(p->base1))
 		return PTR_ERR(p->base1);
 
-	if (of_property_read_u32(dev->of_node, "ngpios", &ngpios)) {
+	if (of_property_read_u32(dev->of_yesde, "ngpios", &ngpios)) {
 		dev_err(dev, "Missing ngpios OF property\n");
 		return -EINVAL;
 	}
 
 	gpio_chip = &p->gpio_chip;
-	gpio_chip->of_node = dev->of_node;
+	gpio_chip->of_yesde = dev->of_yesde;
 	gpio_chip->direction_input = em_gio_direction_input;
 	gpio_chip->get = em_gio_get;
 	gpio_chip->direction_output = em_gio_direction_output;
@@ -329,10 +329,10 @@ static int em_gio_probe(struct platform_device *pdev)
 	irq_chip->irq_release_resources = em_gio_irq_relres;
 	irq_chip->flags	= IRQCHIP_SKIP_SET_WAKE | IRQCHIP_MASK_ON_SUSPEND;
 
-	p->irq_domain = irq_domain_add_simple(dev->of_node, ngpios, 0,
+	p->irq_domain = irq_domain_add_simple(dev->of_yesde, ngpios, 0,
 					      &em_gio_irq_domain_ops, p);
 	if (!p->irq_domain) {
-		dev_err(dev, "cannot initialize irq domain\n");
+		dev_err(dev, "canyest initialize irq domain\n");
 		return -ENXIO;
 	}
 

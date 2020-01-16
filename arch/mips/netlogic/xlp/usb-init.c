@@ -13,9 +13,9 @@
  * are met:
  *
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
+ *    yestice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
  *
@@ -62,30 +62,30 @@
 
 #define nlm_read_usb_reg(b, r)			nlm_read_reg(b, r)
 #define nlm_write_usb_reg(b, r, v)		nlm_write_reg(b, r, v)
-#define nlm_get_usb_pcibase(node, inst)		\
-	nlm_pcicfg_base(XLP_IO_USB_OFFSET(node, inst))
-#define nlm_get_usb_regbase(node, inst)		\
-	(nlm_get_usb_pcibase(node, inst) + XLP_IO_PCI_HDRSZ)
+#define nlm_get_usb_pcibase(yesde, inst)		\
+	nlm_pcicfg_base(XLP_IO_USB_OFFSET(yesde, inst))
+#define nlm_get_usb_regbase(yesde, inst)		\
+	(nlm_get_usb_pcibase(yesde, inst) + XLP_IO_PCI_HDRSZ)
 
-static void nlm_usb_intr_en(int node, int port)
+static void nlm_usb_intr_en(int yesde, int port)
 {
 	uint32_t val;
 	uint64_t port_addr;
 
-	port_addr = nlm_get_usb_regbase(node, port);
+	port_addr = nlm_get_usb_regbase(yesde, port);
 	val = nlm_read_usb_reg(port_addr, USB_INT_EN);
 	val = USB_CTRL_INTERRUPT_EN  | USB_OHCI_INTERRUPT_EN |
 		USB_OHCI_INTERRUPT1_EN | USB_OHCI_INTERRUPT2_EN;
 	nlm_write_usb_reg(port_addr, USB_INT_EN, val);
 }
 
-static void nlm_usb_hw_reset(int node, int port)
+static void nlm_usb_hw_reset(int yesde, int port)
 {
 	uint64_t port_addr;
 	uint32_t val;
 
 	/* reset USB phy */
-	port_addr = nlm_get_usb_regbase(node, port);
+	port_addr = nlm_get_usb_regbase(yesde, port);
 	val = nlm_read_usb_reg(port_addr, USB_PHY_0);
 	val &= ~(USB_PHY_RESET | USB_PHY_PORT_RESET_0 | USB_PHY_PORT_RESET_1);
 	nlm_write_usb_reg(port_addr, USB_PHY_0, val);

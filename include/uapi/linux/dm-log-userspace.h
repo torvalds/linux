@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: LGPL-2.0+ WITH Linux-syscall-note */
+/* SPDX-License-Identifier: LGPL-2.0+ WITH Linux-syscall-yeste */
 /*
  * Copyright (C) 2006-2009 Red Hat, Inc.
  *
@@ -37,13 +37,13 @@
  * User-space will then wait to receive requests form the kernel, which it
  * will process as described below.  The requests are received in the form,
  * ((struct dm_ulog_request) + (additional data)).  Depending on the request
- * type, there may or may not be 'additional data'.  In the descriptions below,
+ * type, there may or may yest be 'additional data'.  In the descriptions below,
  * you will see 'Payload-to-userspace' and 'Payload-to-kernel'.  The
  * 'Payload-to-userspace' is what the kernel sends in 'additional data' as
  * necessary parameters to complete the request.  The 'Payload-to-kernel' is
  * the 'additional data' returned to the kernel that contains the necessary
  * results of the request.  The 'data_size' field in the dm_ulog_request
- * structure denotes the availability and amount of payload data.
+ * structure deyestes the availability and amount of payload data.
  */
 
 /*
@@ -57,7 +57,7 @@
  *	A NUL-terminated string that is the name of the device that is used
  *	as the backing store for the log data.  'dm_get_device' will be called
  *	on this device.  ('dm_put_device' will be called on this device
- *	automatically after calling DM_ULOG_DTR.)  If there is no device needed
+ *	automatically after calling DM_ULOG_DTR.)  If there is yes device needed
  *	for log data, 'data_size' in the dm_ulog_request struct should be 0.
  *
  * The UUID contained in the dm_ulog_request structure is the reference that
@@ -81,7 +81,7 @@
  *	None.  ('data_size' in the dm_ulog_request struct should be 0.)
  *
  * The UUID contained in the dm_ulog_request structure is all that is
- * necessary to identify the log instance being destroyed.  There is no
+ * necessary to identify the log instance being destroyed.  There is yes
  * payload data.
  *
  * When the request has been processed, user-space must return the
@@ -100,7 +100,7 @@
  *	None.
  *
  * The UUID contained in the dm_ulog_request structure is all that is
- * necessary to identify the log instance being presuspended.  There is no
+ * necessary to identify the log instance being presuspended.  There is yes
  * payload data.
  *
  * When the request has been processed, user-space must return the
@@ -119,7 +119,7 @@
  *	None.
  *
  * The UUID contained in the dm_ulog_request structure is all that is
- * necessary to identify the log instance being postsuspended.  There is no
+ * necessary to identify the log instance being postsuspended.  There is yes
  * payload data.
  *
  * When the request has been processed, user-space must return the
@@ -138,7 +138,7 @@
  *	None.
  *
  * The UUID contained in the dm_ulog_request structure is all that is
- * necessary to identify the log instance being resumed.  There is no
+ * necessary to identify the log instance being resumed.  There is yes
  * payload data.
  *
  * When the request has been processed, user-space must return the
@@ -178,7 +178,7 @@
  * status is being made.
  *
  * When the request has been processed, user-space must return the
- * dm_ulog_request to the kernel - filling the payload with 0 (not clean) or
+ * dm_ulog_request to the kernel - filling the payload with 0 (yest clean) or
  * 1 (clean), setting 'data_size' and 'error' appropriately.
  */
 #define DM_ULOG_IS_CLEAN               7
@@ -194,7 +194,7 @@
  *	__s64 - 1 if in-sync, 0 otherwise
  *
  * Exactly the same as 'is_clean' above, except this time asking "has the
- * region been recovered?" vs. "is the region not being modified?"
+ * region been recovered?" vs. "is the region yest being modified?"
  */
 #define DM_ULOG_IN_SYNC                8
 
@@ -286,7 +286,7 @@
  * Payload-to-userspace:
  *	{
  *		__u64 - region to set sync state on
- *		__s64  - 0 if not-in-sync, 1 if in-sync
+ *		__s64  - 0 if yest-in-sync, 1 if in-sync
  *	}
  * Payload-to-kernel:
  *	None.
@@ -355,7 +355,7 @@
  *	__u64 - region to determine recovery status on
  * Payload-to-kernel:
  *	{
- *		__s64 is_recovering;  -- 0 if no, 1 if yes
+ *		__s64 is_recovering;  -- 0 if yes, 1 if no
  *		__u64 in_sync_hint;  -- lowest region still needing resync
  *	}
  *
@@ -410,7 +410,7 @@ struct dm_ulog_request {
 	 * identifier (uuid) are used to tie a request to a specific
 	 * mirror log.  A single machine log could probably make due with
 	 * just the 'luid', but a cluster-aware log must use the 'uuid' and
-	 * the 'luid'.  The uuid is what is required for node to node
+	 * the 'luid'.  The uuid is what is required for yesde to yesde
 	 * communication concerning a particular log, but the 'luid' helps
 	 * differentiate between logs that are being swapped and have the
 	 * same 'uuid'.  (Think "live" and "inactive" device-mapper tables.)
@@ -424,7 +424,7 @@ struct dm_ulog_request {
 
 	__u32 seq;           /* Sequence number for request */
 	__u32 request_type;  /* DM_ULOG_* defined above */
-	__u32 data_size;     /* How much data (not including this struct) */
+	__u32 data_size;     /* How much data (yest including this struct) */
 
 	char data[0];
 };

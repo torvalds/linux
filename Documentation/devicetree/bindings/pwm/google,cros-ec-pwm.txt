@@ -3,7 +3,7 @@
 Google's ChromeOS EC PWM is a simple PWM attached to the Embedded Controller
 (EC) and controlled via a host-command interface.
 
-An EC PWM node should be only found as a sub-node of the EC node (see
+An EC PWM yesde should be only found as a sub-yesde of the EC yesde (see
 Documentation/devicetree/bindings/mfd/cros-ec.txt).
 
 Required properties:

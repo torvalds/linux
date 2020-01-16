@@ -17,7 +17,7 @@
 #include "util/session.h"
 #include "util/symbol.h"
 #include "util/data.h"
-#include <errno.h>
+#include <erryes.h>
 #include <linux/err.h>
 
 static int sysfs__fprintf_build_id(FILE *fp)
@@ -71,7 +71,7 @@ static int perf_session__list_build_ids(bool force, bool with_hits)
 
 	/*
 	 * We take all buildids when the file contains AUX area tracing data
-	 * because we do not decode the trace because it would take too long.
+	 * because we do yest decode the trace because it would take too long.
 	 */
 	if (!perf_data__is_pipe(&data) &&
 	    perf_header__has_feat(&session->header, HEADER_AUXTRACE))

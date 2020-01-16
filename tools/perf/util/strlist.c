@@ -4,7 +4,7 @@
  */
 
 #include "strlist.h"
-#include <errno.h>
+#include <erryes.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -12,57 +12,57 @@
 #include <linux/zalloc.h>
 
 static
-struct rb_node *strlist__node_new(struct rblist *rblist, const void *entry)
+struct rb_yesde *strlist__yesde_new(struct rblist *rblist, const void *entry)
 {
 	const char *s = entry;
-	struct rb_node *rc = NULL;
+	struct rb_yesde *rc = NULL;
 	struct strlist *strlist = container_of(rblist, struct strlist, rblist);
-	struct str_node *snode = malloc(sizeof(*snode));
+	struct str_yesde *syesde = malloc(sizeof(*syesde));
 
-	if (snode != NULL) {
+	if (syesde != NULL) {
 		if (strlist->dupstr) {
 			s = strdup(s);
 			if (s == NULL)
 				goto out_delete;
 		}
-		snode->s = s;
-		rc = &snode->rb_node;
+		syesde->s = s;
+		rc = &syesde->rb_yesde;
 	}
 
 	return rc;
 
 out_delete:
-	free(snode);
+	free(syesde);
 	return NULL;
 }
 
-static void str_node__delete(struct str_node *snode, bool dupstr)
+static void str_yesde__delete(struct str_yesde *syesde, bool dupstr)
 {
 	if (dupstr)
-		zfree((char **)&snode->s);
-	free(snode);
+		zfree((char **)&syesde->s);
+	free(syesde);
 }
 
 static
-void strlist__node_delete(struct rblist *rblist, struct rb_node *rb_node)
+void strlist__yesde_delete(struct rblist *rblist, struct rb_yesde *rb_yesde)
 {
 	struct strlist *slist = container_of(rblist, struct strlist, rblist);
-	struct str_node *snode = container_of(rb_node, struct str_node, rb_node);
+	struct str_yesde *syesde = container_of(rb_yesde, struct str_yesde, rb_yesde);
 
-	str_node__delete(snode, slist->dupstr);
+	str_yesde__delete(syesde, slist->dupstr);
 }
 
-static int strlist__node_cmp(struct rb_node *rb_node, const void *entry)
+static int strlist__yesde_cmp(struct rb_yesde *rb_yesde, const void *entry)
 {
 	const char *str = entry;
-	struct str_node *snode = container_of(rb_node, struct str_node, rb_node);
+	struct str_yesde *syesde = container_of(rb_yesde, struct str_yesde, rb_yesde);
 
-	return strcmp(snode->s, str);
+	return strcmp(syesde->s, str);
 }
 
 int strlist__add(struct strlist *slist, const char *new_entry)
 {
-	return rblist__add_node(&slist->rblist, new_entry);
+	return rblist__add_yesde(&slist->rblist, new_entry);
 }
 
 int strlist__load(struct strlist *slist, const char *filename)
@@ -72,7 +72,7 @@ int strlist__load(struct strlist *slist, const char *filename)
 	FILE *fp = fopen(filename, "r");
 
 	if (fp == NULL)
-		return -errno;
+		return -erryes;
 
 	while (fgets(entry, sizeof(entry), fp) != NULL) {
 		const size_t len = strlen(entry);
@@ -92,20 +92,20 @@ out:
 	return err;
 }
 
-void strlist__remove(struct strlist *slist, struct str_node *snode)
+void strlist__remove(struct strlist *slist, struct str_yesde *syesde)
 {
-	rblist__remove_node(&slist->rblist, &snode->rb_node);
+	rblist__remove_yesde(&slist->rblist, &syesde->rb_yesde);
 }
 
-struct str_node *strlist__find(struct strlist *slist, const char *entry)
+struct str_yesde *strlist__find(struct strlist *slist, const char *entry)
 {
-	struct str_node *snode = NULL;
-	struct rb_node *rb_node = rblist__find(&slist->rblist, entry);
+	struct str_yesde *syesde = NULL;
+	struct rb_yesde *rb_yesde = rblist__find(&slist->rblist, entry);
 
-	if (rb_node)
-		snode = container_of(rb_node, struct str_node, rb_node);
+	if (rb_yesde)
+		syesde = container_of(rb_yesde, struct str_yesde, rb_yesde);
 
-	return snode;
+	return syesde;
 }
 
 static int strlist__parse_list_entry(struct strlist *slist, const char *s,
@@ -172,9 +172,9 @@ struct strlist *strlist__new(const char *list, const struct strlist_config *conf
 		}
 
 		rblist__init(&slist->rblist);
-		slist->rblist.node_cmp    = strlist__node_cmp;
-		slist->rblist.node_new    = strlist__node_new;
-		slist->rblist.node_delete = strlist__node_delete;
+		slist->rblist.yesde_cmp    = strlist__yesde_cmp;
+		slist->rblist.yesde_new    = strlist__yesde_new;
+		slist->rblist.yesde_delete = strlist__yesde_delete;
 
 		slist->dupstr	 = dupstr;
 		slist->file_only = file_only;
@@ -195,14 +195,14 @@ void strlist__delete(struct strlist *slist)
 		rblist__delete(&slist->rblist);
 }
 
-struct str_node *strlist__entry(const struct strlist *slist, unsigned int idx)
+struct str_yesde *strlist__entry(const struct strlist *slist, unsigned int idx)
 {
-	struct str_node *snode = NULL;
-	struct rb_node *rb_node;
+	struct str_yesde *syesde = NULL;
+	struct rb_yesde *rb_yesde;
 
-	rb_node = rblist__entry(&slist->rblist, idx);
-	if (rb_node)
-		snode = container_of(rb_node, struct str_node, rb_node);
+	rb_yesde = rblist__entry(&slist->rblist, idx);
+	if (rb_yesde)
+		syesde = container_of(rb_yesde, struct str_yesde, rb_yesde);
 
-	return snode;
+	return syesde;
 }

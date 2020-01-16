@@ -11,14 +11,14 @@
 
 #include "dsa_priv.h"
 
-/* This tag length is 4 bytes, older ones were 6 bytes, we do not
+/* This tag length is 4 bytes, older ones were 6 bytes, we do yest
  * handle them
  */
 #define BRCM_TAG_LEN	4
 
 /* Tag is constructed and desconstructed using byte by byte access
  * because the tag is placed after the MAC Source Address, which does
- * not make it 4-bytes aligned, so this might cause unaligned accesses
+ * yest make it 4-bytes aligned, so this might cause unaligned accesses
  * on most systems where this is used.
  */
 
@@ -124,7 +124,7 @@ static struct sk_buff *brcm_tag_rcv_ll(struct sk_buff *skb,
 	if (unlikely((brcm_tag[0] >> BRCM_OPCODE_SHIFT) & BRCM_OPCODE_MASK))
 		return NULL;
 
-	/* We should never see a reserved reason code without knowing how to
+	/* We should never see a reserved reason code without kyeswing how to
 	 * handle it
 	 */
 	if (unlikely(brcm_tag[2] & BRCM_EG_RC_RSVD))

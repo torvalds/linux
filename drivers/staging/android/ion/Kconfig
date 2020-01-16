@@ -8,7 +8,7 @@ menuconfig ION
 	  Choose this option to enable the ION Memory Manager,
 	  used by Android to efficiently allocate buffers
 	  from userspace that can be shared between drivers.
-	  If you're not using Android its probably safe to
+	  If you're yest using Android its probably safe to
 	  say N here.
 
 config ION_SYSTEM_HEAP

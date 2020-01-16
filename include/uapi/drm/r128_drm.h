@@ -13,7 +13,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -186,7 +186,7 @@ typedef struct drm_r128_sarea {
 #define DRM_R128_CCE_STOP   0x02
 #define DRM_R128_CCE_RESET  0x03
 #define DRM_R128_CCE_IDLE   0x04
-/* 0x05 not used */
+/* 0x05 yest used */
 #define DRM_R128_RESET      0x06
 #define DRM_R128_SWAP       0x07
 #define DRM_R128_CLEAR      0x08
@@ -195,7 +195,7 @@ typedef struct drm_r128_sarea {
 #define DRM_R128_BLIT       0x0b
 #define DRM_R128_DEPTH      0x0c
 #define DRM_R128_STIPPLE    0x0d
-/* 0x0e not used */
+/* 0x0e yest used */
 #define DRM_R128_INDIRECT   0x0f
 #define DRM_R128_FULLSCREEN 0x10
 #define DRM_R128_CLEAR2     0x11
@@ -207,7 +207,7 @@ typedef struct drm_r128_sarea {
 #define DRM_IOCTL_R128_CCE_STOP   DRM_IOW( DRM_COMMAND_BASE + DRM_R128_CCE_STOP, drm_r128_cce_stop_t)
 #define DRM_IOCTL_R128_CCE_RESET  DRM_IO(  DRM_COMMAND_BASE + DRM_R128_CCE_RESET)
 #define DRM_IOCTL_R128_CCE_IDLE   DRM_IO(  DRM_COMMAND_BASE + DRM_R128_CCE_IDLE)
-/* 0x05 not used */
+/* 0x05 yest used */
 #define DRM_IOCTL_R128_RESET      DRM_IO(  DRM_COMMAND_BASE + DRM_R128_RESET)
 #define DRM_IOCTL_R128_SWAP       DRM_IO(  DRM_COMMAND_BASE + DRM_R128_SWAP)
 #define DRM_IOCTL_R128_CLEAR      DRM_IOW( DRM_COMMAND_BASE + DRM_R128_CLEAR, drm_r128_clear_t)
@@ -216,7 +216,7 @@ typedef struct drm_r128_sarea {
 #define DRM_IOCTL_R128_BLIT       DRM_IOW( DRM_COMMAND_BASE + DRM_R128_BLIT, drm_r128_blit_t)
 #define DRM_IOCTL_R128_DEPTH      DRM_IOW( DRM_COMMAND_BASE + DRM_R128_DEPTH, drm_r128_depth_t)
 #define DRM_IOCTL_R128_STIPPLE    DRM_IOW( DRM_COMMAND_BASE + DRM_R128_STIPPLE, drm_r128_stipple_t)
-/* 0x0e not used */
+/* 0x0e yest used */
 #define DRM_IOCTL_R128_INDIRECT   DRM_IOWR(DRM_COMMAND_BASE + DRM_R128_INDIRECT, drm_r128_indirect_t)
 #define DRM_IOCTL_R128_FULLSCREEN DRM_IOW( DRM_COMMAND_BASE + DRM_R128_FULLSCREEN, drm_r128_fullscreen_t)
 #define DRM_IOCTL_R128_CLEAR2     DRM_IOW( DRM_COMMAND_BASE + DRM_R128_CLEAR2, drm_r128_clear2_t)

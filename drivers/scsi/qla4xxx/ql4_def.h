@@ -269,7 +269,7 @@ struct mrb {
 };
 
 /*
- * Asynchronous Event Queue structure
+ * Asynchroyesus Event Queue structure
  */
 struct aen {
         uint32_t mbox_sts[MBOX_AEN_REG_COUNT];
@@ -339,7 +339,7 @@ struct ql4_tuple_ddb {
 /*
  * DDB states.
  */
-#define DDB_STATE_DEAD		0	/* We can no longer talk to
+#define DDB_STATE_DEAD		0	/* We can yes longer talk to
 					 * this device */
 #define DDB_STATE_ONLINE	1	/* Device ready to accept
 					 * commands */
@@ -379,7 +379,7 @@ struct qla4_work_evt {
 };
 
 struct ql82xx_hw_data {
-	/* Offsets for flash/nvram access (set to ~0 if not used). */
+	/* Offsets for flash/nvram access (set to ~0 if yest used). */
 	uint32_t flash_conf_off;
 	uint32_t flash_data_off;
 
@@ -611,7 +611,7 @@ struct scsi_qla_host {
 
 	uint16_t req_q_count;
 
-	unsigned long host_no;
+	unsigned long host_yes;
 
 	/* NVRAM registers */
 	struct eeprom_data *nvram;
@@ -814,8 +814,8 @@ struct scsi_qla_host {
 	uint32_t pf_bit;
 	struct qla4_83xx_idc_information idc_info;
 	struct addr_ctrl_blk *saved_acb;
-	int notify_idc_comp;
-	int notify_link_up_comp;
+	int yestify_idc_comp;
+	int yestify_link_up_comp;
 	int idc_extend_tmo;
 	struct completion idc_comp;
 	struct completion link_up_comp;

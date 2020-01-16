@@ -43,7 +43,7 @@ void __init save_bootinfo(const struct bi_record *bi)
 	}
 
 	if (size > sizeof(bootinfo_tmp)) {
-		pr_err("Cannot save %zu bytes of bootinfo\n", size);
+		pr_err("Canyest save %zu bytes of bootinfo\n", size);
 		return;
 	}
 
@@ -55,7 +55,7 @@ void __init save_bootinfo(const struct bi_record *bi)
 static int __init init_bootinfo_procfs(void)
 {
 	/*
-	 * This cannot go into save_bootinfo() because kmalloc and proc don't
+	 * This canyest go into save_bootinfo() because kmalloc and proc don't
 	 * work yet when it is called.
 	 */
 	struct proc_dir_entry *pde;

@@ -30,7 +30,7 @@ static int pci_mmcfg_read(unsigned int seg, unsigned int bus,
 {
 	char __iomem *addr;
 
-	/* Why do we have this when nobody checks it. How about a BUG()!? -AK */
+	/* Why do we have this when yesbody checks it. How about a BUG()!? -AK */
 	if (unlikely((bus > 255) || (devfn > 255) || (reg > 4095))) {
 err:		*value = -1;
 		return -EINVAL;
@@ -64,7 +64,7 @@ static int pci_mmcfg_write(unsigned int seg, unsigned int bus,
 {
 	char __iomem *addr;
 
-	/* Why do we have this when nobody checks it. How about a BUG()!? -AK */
+	/* Why do we have this when yesbody checks it. How about a BUG()!? -AK */
 	if (unlikely((bus > 255) || (devfn > 255) || (reg > 4095)))
 		return -EINVAL;
 
@@ -105,7 +105,7 @@ static void __iomem *mcfg_ioremap(struct pci_mmcfg_region *cfg)
 	start = cfg->address + PCI_MMCFG_BUS_OFFSET(cfg->start_bus);
 	num_buses = cfg->end_bus - cfg->start_bus + 1;
 	size = PCI_MMCFG_BUS_OFFSET(num_buses);
-	addr = ioremap_nocache(start, size);
+	addr = ioremap_yescache(start, size);
 	if (addr)
 		addr -= PCI_MMCFG_BUS_OFFSET(cfg->start_bus);
 	return addr;

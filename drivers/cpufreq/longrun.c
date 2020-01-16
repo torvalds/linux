@@ -91,7 +91,7 @@ static int longrun_set_policy(struct cpufreq_policy *policy)
 	if (pctg_lo > pctg_hi)
 		pctg_lo = pctg_hi;
 
-	/* performance or economy mode */
+	/* performance or ecoyesmy mode */
 	rdmsr(MSR_TMTA_LONGRUN_FLAGS, msr_lo, msr_hi);
 	msr_lo &= 0xFFFFFFFE;
 	switch (policy->policy) {

@@ -240,7 +240,7 @@ static void _dpu_crtc_blend_setup(struct drm_crtc *crtc)
  *  _dpu_crtc_complete_flip - signal pending page_flip events
  * Any pending vblank events are added to the vblank_event_list
  * so that the next vblank interrupt shall signal them.
- * However PAGE_FLIP events are not handled through the vblank_event_list.
+ * However PAGE_FLIP events are yest handled through the vblank_event_list.
  * This API signals any pending PAGE_FLIP events requested through
  * DRM_IOCTL_MODE_PAGE_FLIP and are cached in the dpu_crtc->event.
  * @crtc: Pointer to drm crtc structure
@@ -277,7 +277,7 @@ enum dpu_intf_mode dpu_crtc_get_intf_mode(struct drm_crtc *crtc)
 	 * read crtc->state. However reading crtc->state from atomic check isn't
 	 * allowed (unless you have a good reason, a big comment, and a deep
 	 * understanding of how the atomic/modeset locks work (<- and this is
-	 * probably not possible)). So we'll keep the WARN_ON here for now, but
+	 * probably yest possible)). So we'll keep the WARN_ON here for yesw, but
 	 * really we need to figure out a better way to track our operating mode
 	 */
 	WARN_ON(!drm_modeset_is_locked(&crtc->mutex));
@@ -322,7 +322,7 @@ static void dpu_crtc_frame_event_work(struct kthread_work *work)
 				| DPU_ENCODER_FRAME_EVENT_PANEL_DEAD)) {
 
 		if (atomic_read(&dpu_crtc->frame_pending) < 1) {
-			/* ignore vblank when not pending */
+			/* igyesre vblank when yest pending */
 		} else if (atomic_dec_return(&dpu_crtc->frame_pending) == 0) {
 			/* release bandwidth and other resources */
 			trace_dpu_crtc_frame_event_done(DRMID(crtc),
@@ -465,14 +465,14 @@ static void dpu_crtc_atomic_begin(struct drm_crtc *crtc,
 		spin_unlock_irqrestore(&dev->event_lock, flags);
 	}
 
-	/* encoder will trigger pending mask now */
+	/* encoder will trigger pending mask yesw */
 	drm_for_each_encoder_mask(encoder, crtc->dev, crtc->state->encoder_mask)
 		dpu_encoder_trigger_kickoff_pending(encoder);
 
 	/*
-	 * If no mixers have been allocated in dpu_crtc_atomic_check(),
+	 * If yes mixers have been allocated in dpu_crtc_atomic_check(),
 	 * it means we are trying to flush a CRTC whose state is disabled:
-	 * nothing else needs to be done.
+	 * yesthing else needs to be done.
 	 */
 	if (unlikely(!cstate->num_mixers))
 		return;
@@ -480,10 +480,10 @@ static void dpu_crtc_atomic_begin(struct drm_crtc *crtc,
 	_dpu_crtc_blend_setup(crtc);
 
 	/*
-	 * PP_DONE irq is only used by command mode for now.
+	 * PP_DONE irq is only used by command mode for yesw.
 	 * It is better to request pending before FLUSH and START trigger
-	 * to make sure no pp_done irq missed.
-	 * This is safe because no pp_done will happen before SW trigger
+	 * to make sure yes pp_done irq missed.
+	 * This is safe because yes pp_done will happen before SW trigger
 	 * in command mode.
 	 */
 }
@@ -529,16 +529,16 @@ static void dpu_crtc_atomic_flush(struct drm_crtc *crtc,
 	}
 
 	/*
-	 * If no mixers has been allocated in dpu_crtc_atomic_check(),
+	 * If yes mixers has been allocated in dpu_crtc_atomic_check(),
 	 * it means we are trying to flush a CRTC whose state is disabled:
-	 * nothing else needs to be done.
+	 * yesthing else needs to be done.
 	 */
 	if (unlikely(!cstate->num_mixers))
 		return;
 
 	/*
-	 * For planes without commit update, drm framework will not add
-	 * those planes to current state since hardware update is not
+	 * For planes without commit update, drm framework will yest add
+	 * those planes to current state since hardware update is yest
 	 * required. However, if those planes were power collapsed since
 	 * last commit cycle, driver has to restore the hardware state
 	 * of those planes explicitly here prior to plane flush.
@@ -595,7 +595,7 @@ static int _dpu_crtc_wait_for_frame_done(struct drm_crtc *crtc)
 	int ret, rc = 0;
 
 	if (!atomic_read(&dpu_crtc->frame_pending)) {
-		DPU_DEBUG("no frames pending\n");
+		DPU_DEBUG("yes frames pending\n");
 		return 0;
 	}
 
@@ -619,9 +619,9 @@ void dpu_crtc_commit_kickoff(struct drm_crtc *crtc)
 	struct dpu_crtc_state *cstate = to_dpu_crtc_state(crtc->state);
 
 	/*
-	 * If no mixers has been allocated in dpu_crtc_atomic_check(),
+	 * If yes mixers has been allocated in dpu_crtc_atomic_check(),
 	 * it means we are trying to start a CRTC whose state is disabled:
-	 * nothing else needs to be done.
+	 * yesthing else needs to be done.
 	 */
 	if (unlikely(!cstate->num_mixers))
 		return;
@@ -629,7 +629,7 @@ void dpu_crtc_commit_kickoff(struct drm_crtc *crtc)
 	DPU_ATRACE_BEGIN("crtc_commit");
 
 	/*
-	 * Encoder will flush/start now, unless it has a tx pending. If so, it
+	 * Encoder will flush/start yesw, unless it has a tx pending. If so, it
 	 * may delay and flush at an irq event (e.g. ppdone)
 	 */
 	drm_for_each_encoder_mask(encoder, crtc->dev,
@@ -720,7 +720,7 @@ static void dpu_crtc_disable(struct drm_crtc *crtc,
 	drm_for_each_encoder_mask(encoder, crtc->dev,
 				  old_crtc_state->encoder_mask) {
 		/* in video mode, we hold an extra bandwidth reference
-		 * as we cannot drop bandwidth at frame-done if any
+		 * as we canyest drop bandwidth at frame-done if any
 		 * crtc is being used in video mode.
 		 */
 		if (dpu_encoder_get_intf_mode(encoder) == INTF_MODE_VIDEO)
@@ -788,7 +788,7 @@ static void dpu_crtc_enable(struct drm_crtc *crtc,
 
 	drm_for_each_encoder_mask(encoder, crtc->dev, crtc->state->encoder_mask) {
 		/* in video mode, we hold an extra bandwidth reference
-		 * as we cannot drop bandwidth at frame-done if any
+		 * as we canyest drop bandwidth at frame-done if any
 		 * crtc is being used in video mode.
 		 */
 		if (dpu_encoder_get_intf_mode(encoder) == INTF_MODE_VIDEO)
@@ -883,7 +883,7 @@ static int dpu_crtc_atomic_check(struct drm_crtc *crtc,
 
 		pstates[cnt].dpu_pstate = to_dpu_plane_state(pstate);
 		pstates[cnt].drm_pstate = pstate;
-		pstates[cnt].stage = pstate->normalized_zpos;
+		pstates[cnt].stage = pstate->yesrmalized_zpos;
 		pstates[cnt].pipe_id = dpu_plane_pipe(plane);
 
 		if (pipe_staged[pstates[cnt].pipe_id]) {
@@ -916,7 +916,7 @@ static int dpu_crtc_atomic_check(struct drm_crtc *crtc,
 
 			if (is_dpu_plane_virtual(pipe_staged[i]->plane)) {
 				DPU_ERROR(
-					"r1 only virt plane:%d not supported\n",
+					"r1 only virt plane:%d yest supported\n",
 					pipe_staged[i]->plane->base.id);
 				rc  = -EINVAL;
 				goto end;
@@ -1025,7 +1025,7 @@ static int dpu_crtc_atomic_check(struct drm_crtc *crtc,
 			rc = -EINVAL;
 			goto end;
 		} else if (right_rect.x1 != drm_rect_width(&left_rect)) {
-			DPU_ERROR("non-contiguous coordinates for src split. "
+			DPU_ERROR("yesn-contiguous coordinates for src split. "
 				  "stage: %d left: " DRM_RECT_FMT " right: "
 				  DRM_RECT_FMT "\n", stage,
 				  DRM_RECT_ARG(&left_rect),
@@ -1066,10 +1066,10 @@ int dpu_crtc_vblank(struct drm_crtc *crtc, bool en)
 	 * using encoder mask, we'll ask the encoder to toggle itself iff it's
 	 * currently assigned to our crtc.
 	 *
-	 * Note also that this function cannot be called while crtc is disabled
+	 * Note also that this function canyest be called while crtc is disabled
 	 * since we use drm_crtc_vblank_on/off. So we don't need to worry
 	 * about the assigned crtcs being inconsistent with the current state
-	 * (which means no need to worry about modeset locks).
+	 * (which means yes need to worry about modeset locks).
 	 */
 	list_for_each_entry(enc, &crtc->dev->mode_config.encoder_list, head) {
 		trace_dpu_crtc_vblank_enable(DRMID(crtc), DRMID(enc), en,
@@ -1114,9 +1114,9 @@ static int _dpu_debugfs_status_show(struct seq_file *s, void *data)
 	for (i = 0; i < cstate->num_mixers; ++i) {
 		m = &cstate->mixers[i];
 		if (!m->hw_lm)
-			seq_printf(s, "\tmixer[%d] has no lm\n", i);
+			seq_printf(s, "\tmixer[%d] has yes lm\n", i);
 		else if (!m->lm_ctl)
-			seq_printf(s, "\tmixer[%d] has no ctl\n", i);
+			seq_printf(s, "\tmixer[%d] has yes ctl\n", i);
 		else
 			seq_printf(s, "\tmixer:%d ctl:%d width:%d height:%d\n",
 				m->hw_lm->idx - LM_0, m->lm_ctl->idx - CTL_0,
@@ -1194,15 +1194,15 @@ static int _dpu_debugfs_status_show(struct seq_file *s, void *data)
 	return 0;
 }
 
-static int _dpu_debugfs_status_open(struct inode *inode, struct file *file)
+static int _dpu_debugfs_status_open(struct iyesde *iyesde, struct file *file)
 {
-	return single_open(file, _dpu_debugfs_status_show, inode->i_private);
+	return single_open(file, _dpu_debugfs_status_show, iyesde->i_private);
 }
 
 #define DEFINE_DPU_DEBUGFS_SEQ_FOPS(__prefix)                          \
-static int __prefix ## _open(struct inode *inode, struct file *file)	\
+static int __prefix ## _open(struct iyesde *iyesde, struct file *file)	\
 {									\
-	return single_open(file, __prefix ## _show, inode->i_private);	\
+	return single_open(file, __prefix ## _show, iyesde->i_private);	\
 }									\
 static const struct file_operations __prefix ## _fops = {		\
 	.owner = THIS_MODULE,						\

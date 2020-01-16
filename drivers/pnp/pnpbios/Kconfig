@@ -11,8 +11,8 @@ config PNPBIOS
 	  Specification Version 1.0A May 5, 1994" to autodetect built-in
 	  mainboard resources (e.g. parallel port resources).
 
-	  Some features (e.g. event notification, docking station information,
-	  ISAPNP services) are not currently implemented.
+	  Some features (e.g. event yestification, docking station information,
+	  ISAPNP services) are yest currently implemented.
 
 	  If you would like the kernel to detect and allocate resources to
 	  your mainboard devices (on some systems they are disabled by the
@@ -20,7 +20,7 @@ config PNPBIOS
 	  conflicts between mainboard devices and other bus devices.
 
 	  Note: ACPI is expected to supersede PNPBIOS some day, currently it
-	  co-exists nicely.  If you have a non-ISA system that supports ACPI,
+	  co-exists nicely.  If you have a yesn-ISA system that supports ACPI,
 	  you probably don't need PNPBIOS support.
 
 config PNPBIOS_PROC_FS
@@ -31,7 +31,7 @@ config PNPBIOS_PROC_FS
 	  able to directly access the PNPBIOS.  This includes resource
 	  allocation, ESCD, and other PNPBIOS services.  Using this
 	  interface is potentially dangerous because the PNPBIOS driver will
-	  not be notified of any resource changes made by writing directly.
+	  yest be yestified of any resource changes made by writing directly.
 	  Also some buggy systems will fault when accessing certain features
 	  in the PNPBIOS /proc interface (e.g. "boot" configs).
 

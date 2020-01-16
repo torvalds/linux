@@ -68,7 +68,7 @@ size_t sizeof_namespace_index(struct nvdimm_drvdata *ndd)
 
 	/*
 	 * Per UEFI 2.7, the minimum size of the Label Storage Area is large
-	 * enough to hold 2 index blocks and 2 labels.  The minimum index
+	 * eyesugh to hold 2 index blocks and 2 labels.  The minimum index
 	 * block size is 256 bytes. The label size is 128 for namespaces
 	 * prior to version 1.2 and at minimum 256 for version 1.2 and later.
 	 */
@@ -136,7 +136,7 @@ static int __nd_label_validate(struct nvdimm_drvdata *ndd)
 
 		/* label sizes larger than 128 arrived with v1.2 */
 		version = __le16_to_cpu(nsindex[i]->major) * 100
-			+ __le16_to_cpu(nsindex[i]->minor);
+			+ __le16_to_cpu(nsindex[i]->miyesr);
 		if (version >= 102)
 			labelsize = 1 << (7 + nsindex[i]->labelsize);
 		else
@@ -233,9 +233,9 @@ static int nd_label_validate(struct nvdimm_drvdata *ndd)
 {
 	/*
 	 * In order to probe for and validate namespace index blocks we
-	 * need to know the size of the labels, and we can't trust the
+	 * need to kyesw the size of the labels, and we can't trust the
 	 * size of the labels until we validate the index blocks.
-	 * Resolve this dependency loop by probing for known label
+	 * Resolve this dependency loop by probing for kyeswn label
 	 * sizes, but default to v1.2 256-byte namespace labels if
 	 * discovery fails.
 	 */
@@ -378,7 +378,7 @@ int nd_label_reserve_dpa(struct nvdimm_drvdata *ndd)
 	u32 nslot, slot;
 
 	if (!preamble_current(ndd, &nsindex, &free, &nslot))
-		return 0; /* no label, nothing to reserve */
+		return 0; /* yes label, yesthing to reserve */
 
 	for_each_clear_bit_le(slot, free, nslot) {
 		struct nvdimm *nvdimm = to_nvdimm(ndd->dev);
@@ -474,7 +474,7 @@ int nd_label_data_init(struct nvdimm_drvdata *ndd)
 	if (rc)
 		goto out_err;
 
-	/* Validate index data, if not valid assume all labels are invalid */
+	/* Validate index data, if yest valid assume all labels are invalid */
 	ndd->ns_current = nd_label_validate(ndd);
 	if (ndd->ns_current < 0)
 		return 0;
@@ -668,9 +668,9 @@ static int nd_label_write_index(struct nvdimm_drvdata *ndd, int index, u32 seq,
 	nsindex->nslot = __cpu_to_le32(nslot);
 	nsindex->major = __cpu_to_le16(1);
 	if (sizeof_namespace_label(ndd) < 256)
-		nsindex->minor = __cpu_to_le16(1);
+		nsindex->miyesr = __cpu_to_le16(1);
 	else
-		nsindex->minor = __cpu_to_le16(2);
+		nsindex->miyesr = __cpu_to_le16(2);
 	nsindex->checksum = __cpu_to_le64(0);
 	if (flags & ND_NSINDEX_INIT) {
 		unsigned long *free = (unsigned long *) nsindex->free;
@@ -738,7 +738,7 @@ static const guid_t *to_abstraction_guid(enum nvdimm_claim_class claim_class,
 	else if (claim_class == NVDIMM_CCLASS_UNKNOWN) {
 		/*
 		 * If we're modifying a namespace for which we don't
-		 * know the claim_class, don't touch the existing guid.
+		 * kyesw the claim_class, don't touch the existing guid.
 		 */
 		return target;
 	} else
@@ -923,7 +923,7 @@ static int __blk_label_update(struct nd_region *nd_region,
 
 	/*
 	 * We need to loop over the old resources a few times, which seems a
-	 * bit inefficient, but we need to know that we have the label
+	 * bit inefficient, but we need to kyesw that we have the label
 	 * space before we start mutating the tracking structures.
 	 * Otherwise the recovery method of last resort for userspace is
 	 * disable and re-enable the parent region.
@@ -1059,7 +1059,7 @@ static int __blk_label_update(struct nd_region *nd_region,
 			goto abort;
 	}
 
-	/* free up now unused slots in the new index */
+	/* free up yesw unused slots in the new index */
 	for_each_set_bit(slot, victim_map, victim_map ? nslot : 0) {
 		dev_dbg(ndd->dev, "free: %d\n", slot);
 		nd_label_free_slot(ndd, slot);
@@ -1208,7 +1208,7 @@ static int del_labels(struct nd_mapping *nd_mapping, u8 *uuid)
 	if (!uuid)
 		return 0;
 
-	/* no index || no labels == nothing to delete */
+	/* yes index || yes labels == yesthing to delete */
 	if (!preamble_next(ndd, &nsindex, &free, &nslot))
 		return 0;
 
@@ -1233,7 +1233,7 @@ static int del_labels(struct nd_mapping *nd_mapping, u8 *uuid)
 
 	if (active == 0) {
 		nd_mapping_free_labels(nd_mapping);
-		dev_dbg(ndd->dev, "no more active labels\n");
+		dev_dbg(ndd->dev, "yes more active labels\n");
 	}
 	mutex_unlock(&nd_mapping->lock);
 

@@ -2,7 +2,7 @@
 //
 // nau8822.c  --  NAU8822 ALSA Soc Audio driver
 //
-// Copyright 2017 Nuvoton Technology Crop.
+// Copyright 2017 Nuvoton Techyeslogy Crop.
 //
 // Author: David Lin <ctlin0@nuvoton.com>
 // Co-author: John Hsu <kchsu0@nuvoton.com>
@@ -700,7 +700,7 @@ static int nau8822_config_clkdiv(struct snd_soc_dai *dai, int div, int rate)
 		/* master clock from PLL and enable PLL */
 		if (pll->mclk_scaler != div) {
 			dev_err(component->dev,
-			"master clock prescaler not meet PLL parameters\n");
+			"master clock prescaler yest meet PLL parameters\n");
 			return -EINVAL;
 		}
 		snd_soc_component_update_bits(component,
@@ -1064,7 +1064,7 @@ static const struct snd_soc_component_driver soc_component_dev_nau8822 = {
 	.idle_bias_on			= 1,
 	.use_pmdown_time		= 1,
 	.endianness			= 1,
-	.non_legacy_dai_naming		= 1,
+	.yesn_legacy_dai_naming		= 1,
 };
 
 static const struct regmap_config nau8822_regmap_config = {

@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -37,7 +37,7 @@ u32 cik_gpu_check_soft_reset(struct radeon_device *rdev);
 
 /*
  * sDMA - System DMA
- * Starting with CIK, the GPU has new asynchronous
+ * Starting with CIK, the GPU has new asynchroyesus
  * DMA engines.  These engines are used for compute
  * and gfx.  There are two DMA engines (SDMA0, SDMA1)
  * and each one supports 1 ring buffer used for gfx
@@ -269,9 +269,9 @@ static void cik_sdma_gfx_stop(struct radeon_device *rdev)
 	rdev->ring[R600_RING_TYPE_DMA_INDEX].ready = false;
 	rdev->ring[CAYMAN_RING_TYPE_DMA1_INDEX].ready = false;
 
-	/* FIXME use something else than big hammer but after few days can not
+	/* FIXME use something else than big hammer but after few days can yest
 	 * seem to find good combination so reset SDMA blocks as it seems we
-	 * do not shut them down properly. This fix hibernation and does not
+	 * do yest shut them down properly. This fix hibernation and does yest
 	 * affect suspend to ram.
 	 */
 	WREG32(SRBM_SOFT_RESET, SOFT_RESET_SDMA | SOFT_RESET_SDMA1);
@@ -396,7 +396,7 @@ static int cik_sdma_gfx_resume(struct radeon_device *rdev)
 		WREG32(SDMA0_GFX_RB_RPTR + reg_offset, 0);
 		WREG32(SDMA0_GFX_RB_WPTR + reg_offset, 0);
 
-		/* set the wb address whether it's enabled or not */
+		/* set the wb address whether it's enabled or yest */
 		WREG32(SDMA0_GFX_RB_RPTR_ADDR_HI + reg_offset,
 		       upper_32_bits(rdev->wb.gpu_addr + wb_offset) & 0xFFFFFFFF);
 		WREG32(SDMA0_GFX_RB_RPTR_ADDR_LO + reg_offset,
@@ -457,7 +457,7 @@ static int cik_sdma_rlc_resume(struct radeon_device *rdev)
  * @rdev: radeon_device pointer
  *
  * Loads the sDMA0/1 ucode.
- * Returns 0 for success, -EINVAL if the ucode is not available.
+ * Returns 0 for success, -EINVAL if the ucode is yest available.
  */
 static int cik_sdma_load_microcode(struct radeon_device *rdev)
 {
@@ -770,7 +770,7 @@ int cik_sdma_ib_test(struct radeon_device *rdev, struct radeon_ring *ring)
  * @ring: radeon_ring structure holding ring information
  *
  * Check if the async DMA engine is locked up (CIK).
- * Returns true if the engine appears to be locked up, false if not.
+ * Returns true if the engine appears to be locked up, false if yest.
  */
 bool cik_sdma_is_lockup(struct radeon_device *rdev, struct radeon_ring *ring)
 {
@@ -852,7 +852,7 @@ void cik_sdma_vm_write_pages(struct radeon_device *rdev,
 		if (ndw > 0xFFFFE)
 			ndw = 0xFFFFE;
 
-		/* for non-physically contiguous pages (system) */
+		/* for yesn-physically contiguous pages (system) */
 		ib->ptr[ib->length_dw++] = SDMA_PACKET(SDMA_OPCODE_WRITE,
 			SDMA_WRITE_SUB_OPCODE_LINEAR, 0);
 		ib->ptr[ib->length_dw++] = pe;

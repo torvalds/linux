@@ -18,7 +18,7 @@
 #include <asm/page.h>
 #include <asm/irq.h>
 
-/* We don't need no stinkin' I/O port allocation crap. */
+/* We don't need yes stinkin' I/O port allocation crap. */
 #undef release_region
 #undef request_region
 #define release_region(X, Y)	do { } while(0)
@@ -63,16 +63,16 @@ static struct sun_floppy_ops sun_fdops;
 #define fd_outb(value,port)       sun_fdops.fd_outb(value,port)
 #define fd_enable_dma()           sun_fd_enable_dma()
 #define fd_disable_dma()          sun_fd_disable_dma()
-#define fd_request_dma()          (0) /* nothing... */
-#define fd_free_dma()             /* nothing... */
-#define fd_clear_dma_ff()         /* nothing... */
+#define fd_request_dma()          (0) /* yesthing... */
+#define fd_free_dma()             /* yesthing... */
+#define fd_clear_dma_ff()         /* yesthing... */
 #define fd_set_dma_mode(mode)     sun_fd_set_dma_mode(mode)
 #define fd_set_dma_addr(addr)     sun_fd_set_dma_addr(addr)
 #define fd_set_dma_count(count)   sun_fd_set_dma_count(count)
-#define fd_enable_irq()           /* nothing... */
-#define fd_disable_irq()          /* nothing... */
+#define fd_enable_irq()           /* yesthing... */
+#define fd_disable_irq()          /* yesthing... */
 #define fd_request_irq()          sun_fd_request_irq()
-#define fd_free_irq()             /* nothing... */
+#define fd_free_irq()             /* yesthing... */
 #if 0  /* P3: added by Alain, these cause a MMU corruption. 19960524 XXX */
 #define fd_dma_mem_alloc(size)    ((unsigned long) vmalloc(size))
 #define fd_dma_mem_free(addr,size) (vfree((void *)(addr)))
@@ -84,7 +84,7 @@ static struct sun_floppy_ops sun_fdops;
 #define FLOPPY0_TYPE  4
 #define FLOPPY1_TYPE  0
 
-/* Super paranoid... */
+/* Super parayesid... */
 #undef HAVE_DISABLE_HLT
 
 /* Here is where we catch the floppy driver trying to initialize,
@@ -116,7 +116,7 @@ static unsigned char sun_82072_fd_inb(int port)
 	udelay(5);
 	switch(port & 7) {
 	default:
-		printk("floppy: Asked to read unknown port %d\n", port);
+		printk("floppy: Asked to read unkyeswn port %d\n", port);
 		panic("floppy: Port bolixed.");
 	case 4: /* FD_STATUS */
 		return sun_fdc->status_82072 & ~STATUS_DMA;
@@ -133,7 +133,7 @@ static void sun_82072_fd_outb(unsigned char value, int port)
 	udelay(5);
 	switch(port & 7) {
 	default:
-		printk("floppy: Asked to write to unknown port %d\n", port);
+		printk("floppy: Asked to write to unkyeswn port %d\n", port);
 		panic("floppy: Port bolixed.");
 	case 2: /* FD_DOR */
 		sun_set_dor(value, 0);
@@ -156,7 +156,7 @@ static unsigned char sun_82077_fd_inb(int port)
 	udelay(5);
 	switch(port & 7) {
 	default:
-		printk("floppy: Asked to read unknown port %d\n", port);
+		printk("floppy: Asked to read unkyeswn port %d\n", port);
 		panic("floppy: Port bolixed.");
 	case 0: /* FD_STATUS_0 */
 		return sun_fdc->status1_82077;
@@ -181,7 +181,7 @@ static void sun_82077_fd_outb(unsigned char value, int port)
 	udelay(5);
 	switch(port & 7) {
 	default:
-		printk("floppy: Asked to write to unknown port %d\n", port);
+		printk("floppy: Asked to write to unkyeswn port %d\n", port);
 		panic("floppy: Port bolixed.");
 	case 2: /* FD_DOR */
 		sun_set_dor(value, 1);
@@ -202,21 +202,21 @@ static void sun_82077_fd_outb(unsigned char value, int port)
 	return;
 }
 
-/* For pseudo-dma (Sun floppy drives have no real DMA available to
+/* For pseudo-dma (Sun floppy drives have yes real DMA available to
  * them so we must eat the data fifo bytes directly ourselves) we have
  * three state variables.  doing_pdma tells our inline low-level
  * assembly floppy interrupt entry point whether it should sit and eat
  * bytes from the fifo or just transfer control up to the higher level
- * floppy interrupt c-code.  I tried very hard but I could not get the
+ * floppy interrupt c-code.  I tried very hard but I could yest get the
  * pseudo-dma to work in c-code without getting many overruns and
- * underruns.  If non-zero, doing_pdma encodes the direction of
+ * underruns.  If yesn-zero, doing_pdma encodes the direction of
  * the transfer for debugging.  1=read 2=write
  */
 
 /* Common routines to all controller types on the Sparc. */
 static inline void virtual_dma_init(void)
 {
-	/* nothing... */
+	/* yesthing... */
 }
 
 static inline void sun_fd_disable_dma(void)
@@ -235,7 +235,7 @@ static inline void sun_fd_set_dma_mode(int mode)
 		doing_pdma = 2;
 		break;
 	default:
-		printk("Unknown dma mode %d\n", mode);
+		printk("Unkyeswn dma mode %d\n", mode);
 		panic("floppy: Giving up...");
 	}
 }
@@ -275,11 +275,11 @@ static struct linux_prom_registers fd_regs[2];
 static int sun_floppy_init(void)
 {
 	struct platform_device *op;
-	struct device_node *dp;
+	struct device_yesde *dp;
 	struct resource r;
 	char state[128];
-	phandle fd_node;
-	phandle tnode;
+	phandle fd_yesde;
+	phandle tyesde;
 	int num_regs;
 
 	use_virtual_dma = 1;
@@ -289,28 +289,28 @@ static int sun_floppy_init(void)
 	 */
 	if (sparc_cpu_model != sun4m) {
 		/* We certainly don't have a floppy controller. */
-		goto no_sun_fdc;
+		goto yes_sun_fdc;
 	}
 	/* Well, try to find one. */
-	tnode = prom_getchild(prom_root_node);
-	fd_node = prom_searchsiblings(tnode, "obio");
-	if (fd_node != 0) {
-		tnode = prom_getchild(fd_node);
-		fd_node = prom_searchsiblings(tnode, "SUNW,fdtwo");
+	tyesde = prom_getchild(prom_root_yesde);
+	fd_yesde = prom_searchsiblings(tyesde, "obio");
+	if (fd_yesde != 0) {
+		tyesde = prom_getchild(fd_yesde);
+		fd_yesde = prom_searchsiblings(tyesde, "SUNW,fdtwo");
 	} else {
-		fd_node = prom_searchsiblings(tnode, "fd");
+		fd_yesde = prom_searchsiblings(tyesde, "fd");
 	}
-	if (fd_node == 0) {
-		goto no_sun_fdc;
+	if (fd_yesde == 0) {
+		goto yes_sun_fdc;
 	}
 
-	/* The sun4m lets us know if the controller is actually usable. */
-	if (prom_getproperty(fd_node, "status", state, sizeof(state)) != -1) {
+	/* The sun4m lets us kyesw if the controller is actually usable. */
+	if (prom_getproperty(fd_yesde, "status", state, sizeof(state)) != -1) {
 		if(!strcmp(state, "disabled")) {
-			goto no_sun_fdc;
+			goto yes_sun_fdc;
 		}
 	}
-	num_regs = prom_getproperty(fd_node, "reg", (char *) fd_regs, sizeof(fd_regs));
+	num_regs = prom_getproperty(fd_yesde, "reg", (char *) fd_regs, sizeof(fd_regs));
 	num_regs = (num_regs / sizeof(fd_regs[0]));
 	prom_apply_obio_ranges(fd_regs, num_regs);
 	memset(&r, 0, sizeof(r));
@@ -322,27 +322,27 @@ static int sun_floppy_init(void)
 	 * We try "SUNW,fdtwo" and "fd"
 	 */
 	op = NULL;
-	for_each_node_by_name(dp, "SUNW,fdtwo") {
-		op = of_find_device_by_node(dp);
+	for_each_yesde_by_name(dp, "SUNW,fdtwo") {
+		op = of_find_device_by_yesde(dp);
 		if (op)
 			break;
 	}
 	if (!op) {
-		for_each_node_by_name(dp, "fd") {
-			op = of_find_device_by_node(dp);
+		for_each_yesde_by_name(dp, "fd") {
+			op = of_find_device_by_yesde(dp);
 			if (op)
 				break;
 		}
 	}
 	if (!op)
-		goto no_sun_fdc;
+		goto yes_sun_fdc;
 
 	FLOPPY_IRQ = op->archdata.irqs[0];
 
 	/* Last minute sanity check... */
 	if (sun_fdc->status_82072 == 0xff) {
 		sun_fdc = NULL;
-		goto no_sun_fdc;
+		goto yes_sun_fdc;
 	}
 
 	sun_fdops.fd_inb = sun_82077_fd_inb;
@@ -362,7 +362,7 @@ static int sun_floppy_init(void)
 	allowed_drive_mask = 0x01;
 	return (int) sun_fdc;
 
-no_sun_fdc:
+yes_sun_fdc:
 	return -1;
 }
 

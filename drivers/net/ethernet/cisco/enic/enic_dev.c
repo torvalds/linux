@@ -110,23 +110,23 @@ int enic_dev_del_addr(struct enic *enic, const u8 *addr)
 	return err;
 }
 
-int enic_dev_notify_unset(struct enic *enic)
+int enic_dev_yestify_unset(struct enic *enic)
 {
 	int err;
 
 	spin_lock_bh(&enic->devcmd_lock);
-	err = vnic_dev_notify_unset(enic->vdev);
+	err = vnic_dev_yestify_unset(enic->vdev);
 	spin_unlock_bh(&enic->devcmd_lock);
 
 	return err;
 }
 
-int enic_dev_hang_notify(struct enic *enic)
+int enic_dev_hang_yestify(struct enic *enic)
 {
 	int err;
 
 	spin_lock_bh(&enic->devcmd_lock);
-	err = vnic_dev_hang_notify(enic->vdev);
+	err = vnic_dev_hang_yestify(enic->vdev);
 	spin_unlock_bh(&enic->devcmd_lock);
 
 	return err;
@@ -203,7 +203,7 @@ int enic_vlan_rx_kill_vid(struct net_device *netdev, __be16 proto, u16 vid)
 	return err;
 }
 
-int enic_dev_status_to_errno(int devcmd_status)
+int enic_dev_status_to_erryes(int devcmd_status)
 {
 	switch (devcmd_status) {
 	case ERR_SUCCESS:

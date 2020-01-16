@@ -574,7 +574,7 @@ static __init struct attribute **merge_attr(struct attribute **a,
 __init const struct attribute_group **cpumf_cf_event_group(void)
 {
 	struct attribute **combined, **model, **cfvn, **csvn;
-	struct attribute *none[] = { NULL };
+	struct attribute *yesne[] = { NULL };
 	struct cpumf_ctr_info ci;
 	struct cpuid cpu_id;
 
@@ -588,7 +588,7 @@ __init const struct attribute_group **cpumf_cf_event_group(void)
 		cfvn = cpumcf_fvn3_pmu_event_attr;
 		break;
 	default:
-		cfvn = none;
+		cfvn = yesne;
 	}
 
 	/* Determine version specific crypto set */
@@ -600,7 +600,7 @@ __init const struct attribute_group **cpumf_cf_event_group(void)
 		csvn = cpumcf_svn_6_pmu_event_attr;
 		break;
 	default:
-		csvn = none;
+		csvn = yesne;
 	}
 
 	/* Determine model-specific counter set(s) */
@@ -629,7 +629,7 @@ __init const struct attribute_group **cpumf_cf_event_group(void)
 		model = cpumcf_z14_pmu_event_attr;
 		break;
 	default:
-		model = none;
+		model = yesne;
 		break;
 	}
 

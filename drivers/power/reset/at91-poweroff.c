@@ -45,7 +45,7 @@ enum wakeup_type {
 };
 
 static const char *shdwc_wakeup_modes[] = {
-	[AT91_SHDW_WKMODE0_NONE]	= "none",
+	[AT91_SHDW_WKMODE0_NONE]	= "yesne",
 	[AT91_SHDW_WKMODE0_HIGH]	= "high",
 	[AT91_SHDW_WKMODE0_LOW]		= "low",
 	[AT91_SHDW_WKMODE0_ANYLEVEL]	= "any",
@@ -71,7 +71,7 @@ static void __init at91_wakeup_status(struct platform_device *pdev)
 	else if (reg & AT91_SHDW_RTCWK)
 		reason = "RTC";
 	else
-		reason = "unknown";
+		reason = "unkyeswn";
 
 	dev_info(&pdev->dev, "Wake-Up source: %s\n", reason);
 }
@@ -101,7 +101,7 @@ static void at91_poweroff(void)
 		: "r6");
 }
 
-static int at91_poweroff_get_wakeup_mode(struct device_node *np)
+static int at91_poweroff_get_wakeup_mode(struct device_yesde *np)
 {
 	const char *pm;
 	unsigned int i;
@@ -120,13 +120,13 @@ static int at91_poweroff_get_wakeup_mode(struct device_node *np)
 
 static void at91_poweroff_dt_set_wakeup_mode(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	int wakeup_mode;
 	u32 mode = 0, tmp;
 
 	wakeup_mode = at91_poweroff_get_wakeup_mode(np);
 	if (wakeup_mode < 0) {
-		dev_warn(&pdev->dev, "shdwc unknown wakeup mode\n");
+		dev_warn(&pdev->dev, "shdwc unkyeswn wakeup mode\n");
 		return;
 	}
 
@@ -152,7 +152,7 @@ static void at91_poweroff_dt_set_wakeup_mode(struct platform_device *pdev)
 static int __init at91_poweroff_probe(struct platform_device *pdev)
 {
 	struct resource *res;
-	struct device_node *np;
+	struct device_yesde *np;
 	u32 ddr_type;
 	int ret;
 
@@ -167,19 +167,19 @@ static int __init at91_poweroff_probe(struct platform_device *pdev)
 
 	ret = clk_prepare_enable(at91_shdwc.sclk);
 	if (ret) {
-		dev_err(&pdev->dev, "Could not enable slow clock\n");
+		dev_err(&pdev->dev, "Could yest enable slow clock\n");
 		return ret;
 	}
 
 	at91_wakeup_status(pdev);
 
-	if (pdev->dev.of_node)
+	if (pdev->dev.of_yesde)
 		at91_poweroff_dt_set_wakeup_mode(pdev);
 
-	np = of_find_compatible_node(NULL, NULL, "atmel,sama5d3-ddramc");
+	np = of_find_compatible_yesde(NULL, NULL, "atmel,sama5d3-ddramc");
 	if (np) {
 		at91_shdwc.mpddrc_base = of_iomap(np, 0);
-		of_node_put(np);
+		of_yesde_put(np);
 
 		if (!at91_shdwc.mpddrc_base) {
 			ret = -ENOMEM;

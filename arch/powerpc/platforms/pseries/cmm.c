@@ -8,7 +8,7 @@
 
 #include <linux/ctype.h>
 #include <linux/delay.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/fs.h>
 #include <linux/gfp.h>
 #include <linux/kthread.h>
@@ -71,13 +71,13 @@ module_param_named(oom_kb, oom_kb, uint, 0644);
 MODULE_PARM_DESC(oom_kb, "Amount of memory in kb to free on OOM. "
 		 "[Default=" __stringify(CMM_OOM_KB) "]");
 module_param_named(min_mem_mb, min_mem_mb, ulong, 0644);
-MODULE_PARM_DESC(min_mem_mb, "Minimum amount of memory (in MB) to not balloon. "
+MODULE_PARM_DESC(min_mem_mb, "Minimum amount of memory (in MB) to yest balloon. "
 		 "[Default=" __stringify(CMM_MIN_MEM_MB) "]");
 module_param_named(debug, cmm_debug, uint, 0644);
 MODULE_PARM_DESC(debug, "Enable module debugging logging. Set to 1 to enable. "
 		 "[Default=" __stringify(CMM_DEBUG) "]");
 module_param_named(simulate, simulate, bool, 0444);
-MODULE_PARM_DESC(simulate, "Enable simulation mode (no communication with hw).");
+MODULE_PARM_DESC(simulate, "Enable simulation mode (yes communication with hw).");
 
 #define cmm_dbg(...) if (cmm_debug) { printk(KERN_INFO "cmm: "__VA_ARGS__); }
 
@@ -102,10 +102,10 @@ static long plpar_page_set_loaned(struct page *page)
 		return 0;
 
 	for (i = 0; !rc && i < PAGE_SIZE; i += cmo_page_sz)
-		rc = plpar_hcall_norets(H_PAGE_INIT, H_PAGE_SET_LOANED, vpa + i, 0);
+		rc = plpar_hcall_yesrets(H_PAGE_INIT, H_PAGE_SET_LOANED, vpa + i, 0);
 
 	for (i -= cmo_page_sz; rc && i != 0; i -= cmo_page_sz)
-		plpar_hcall_norets(H_PAGE_INIT, H_PAGE_SET_ACTIVE,
+		plpar_hcall_yesrets(H_PAGE_INIT, H_PAGE_SET_ACTIVE,
 				   vpa + i - cmo_page_sz, 0);
 
 	return rc;
@@ -122,10 +122,10 @@ static long plpar_page_set_active(struct page *page)
 		return 0;
 
 	for (i = 0; !rc && i < PAGE_SIZE; i += cmo_page_sz)
-		rc = plpar_hcall_norets(H_PAGE_INIT, H_PAGE_SET_ACTIVE, vpa + i, 0);
+		rc = plpar_hcall_yesrets(H_PAGE_INIT, H_PAGE_SET_ACTIVE, vpa + i, 0);
 
 	for (i -= cmo_page_sz; rc && i != 0; i -= cmo_page_sz)
-		plpar_hcall_norets(H_PAGE_INIT, H_PAGE_SET_LOANED,
+		plpar_hcall_yesrets(H_PAGE_INIT, H_PAGE_SET_LOANED,
 				   vpa + i - cmo_page_sz, 0);
 
 	return rc;
@@ -136,7 +136,7 @@ static long plpar_page_set_active(struct page *page)
  * @nr:	number of pages to allocate
  *
  * Return value:
- * 	number of pages requested to be allocated which were not
+ * 	number of pages requested to be allocated which were yest
  **/
 static long cmm_alloc_pages(long nr)
 {
@@ -162,7 +162,7 @@ static long cmm_alloc_pages(long nr)
 			break;
 		rc = plpar_page_set_loaned(page);
 		if (rc) {
-			pr_err("%s: Can not set page to loaned. rc=%ld\n", __func__, rc);
+			pr_err("%s: Can yest set page to loaned. rc=%ld\n", __func__, rc);
 			__free_page(page);
 			break;
 		}
@@ -182,7 +182,7 @@ static long cmm_alloc_pages(long nr)
  * @nr:	number of pages to free
  *
  * Return value:
- * 	number of pages requested to be freed which were not
+ * 	number of pages requested to be freed which were yest
  **/
 static long cmm_free_pages(long nr)
 {
@@ -204,15 +204,15 @@ static long cmm_free_pages(long nr)
 }
 
 /**
- * cmm_oom_notify - OOM notifier
- * @self:	notifier block struct
- * @dummy:	not used
+ * cmm_oom_yestify - OOM yestifier
+ * @self:	yestifier block struct
+ * @dummy:	yest used
  * @parm:	returned - number of pages freed
  *
  * Return value:
  * 	NOTIFY_OK
  **/
-static int cmm_oom_notify(struct notifier_block *self,
+static int cmm_oom_yestify(struct yestifier_block *self,
 			  unsigned long dummy, void *parm)
 {
 	unsigned long *freed = parm;
@@ -233,7 +233,7 @@ static int cmm_oom_notify(struct notifier_block *self,
  * Makes hcall to query the current page loan request from the hypervisor.
  *
  * Return value:
- * 	nothing
+ * 	yesthing
  **/
 static void cmm_get_mpp(void)
 {
@@ -279,13 +279,13 @@ static void cmm_get_mpp(void)
 		oom_freed_pages, totalram_pages());
 }
 
-static struct notifier_block cmm_oom_nb = {
-	.notifier_call = cmm_oom_notify
+static struct yestifier_block cmm_oom_nb = {
+	.yestifier_call = cmm_oom_yestify
 };
 
 /**
  * cmm_thread - CMM task thread
- * @dummy:	not used
+ * @dummy:	yest used
  *
  * Return value:
  * 	0
@@ -444,10 +444,10 @@ static void cmm_unregister_sysfs(struct device *dev)
 }
 
 /**
- * cmm_reboot_notifier - Make sure pages are not still marked as "loaned"
+ * cmm_reboot_yestifier - Make sure pages are yest still marked as "loaned"
  *
  **/
-static int cmm_reboot_notifier(struct notifier_block *nb,
+static int cmm_reboot_yestifier(struct yestifier_block *nb,
 			       unsigned long action, void *unused)
 {
 	if (action == SYS_RESTART) {
@@ -459,21 +459,21 @@ static int cmm_reboot_notifier(struct notifier_block *nb,
 	return NOTIFY_DONE;
 }
 
-static struct notifier_block cmm_reboot_nb = {
-	.notifier_call = cmm_reboot_notifier,
+static struct yestifier_block cmm_reboot_nb = {
+	.yestifier_call = cmm_reboot_yestifier,
 };
 
 /**
- * cmm_memory_cb - Handle memory hotplug notifier calls
- * @self:	notifier block struct
+ * cmm_memory_cb - Handle memory hotplug yestifier calls
+ * @self:	yestifier block struct
  * @action:	action to take
- * @arg:	struct memory_notify data for handler
+ * @arg:	struct memory_yestify data for handler
  *
  * Return value:
- *	NOTIFY_OK or notifier error based on subfunction return value
+ *	NOTIFY_OK or yestifier error based on subfunction return value
  *
  **/
-static int cmm_memory_cb(struct notifier_block *self,
+static int cmm_memory_cb(struct yestifier_block *self,
 			unsigned long action, void *arg)
 {
 	int ret = 0;
@@ -494,11 +494,11 @@ static int cmm_memory_cb(struct notifier_block *self,
 		break;
 	}
 
-	return notifier_from_errno(ret);
+	return yestifier_from_erryes(ret);
 }
 
-static struct notifier_block cmm_mem_nb = {
-	.notifier_call = cmm_memory_cb,
+static struct yestifier_block cmm_mem_nb = {
+	.yestifier_call = cmm_memory_cb,
 	.priority = CMM_MEM_HOTPLUG_PRI
 };
 
@@ -513,7 +513,7 @@ static int cmm_init_fs_context(struct fs_context *fc)
 static struct file_system_type balloon_fs = {
 	.name = "ppc-cmm",
 	.init_fs_context = cmm_init_fs_context,
-	.kill_sb = kill_anon_super,
+	.kill_sb = kill_ayesn_super,
 };
 
 static int cmm_migratepage(struct balloon_dev_info *b_dev_info,
@@ -526,13 +526,13 @@ static int cmm_migratepage(struct balloon_dev_info *b_dev_info,
 	 * loan/"inflate" the newpage first.
 	 *
 	 * We might race against the cmm_thread who might discover after our
-	 * loan request that another page is to be unloaned. However, once
+	 * loan request that ayesther page is to be unloaned. However, once
 	 * the cmm_thread runs again later, this error will automatically
 	 * be corrected.
 	 */
 	if (plpar_page_set_loaned(newpage)) {
-		/* Unlikely, but possible. Tell the caller not to retry now. */
-		pr_err_ratelimited("%s: Cannot set page to loaned.", __func__);
+		/* Unlikely, but possible. Tell the caller yest to retry yesw. */
+		pr_err_ratelimited("%s: Canyest set page to loaned.", __func__);
 		return -EBUSY;
 	}
 
@@ -556,7 +556,7 @@ static int cmm_migratepage(struct balloon_dev_info *b_dev_info,
 	spin_unlock_irqrestore(&b_dev_info->pages_lock, flags);
 
 	/*
-	 * activate/"deflate" the old page. We ignore any errors just like the
+	 * activate/"deflate" the old page. We igyesre any errors just like the
 	 * other callers.
 	 */
 	plpar_page_set_active(page);
@@ -581,23 +581,23 @@ static int cmm_balloon_compaction_init(void)
 		return rc;
 	}
 
-	b_dev_info.inode = alloc_anon_inode(balloon_mnt->mnt_sb);
-	if (IS_ERR(b_dev_info.inode)) {
-		rc = PTR_ERR(b_dev_info.inode);
-		b_dev_info.inode = NULL;
+	b_dev_info.iyesde = alloc_ayesn_iyesde(balloon_mnt->mnt_sb);
+	if (IS_ERR(b_dev_info.iyesde)) {
+		rc = PTR_ERR(b_dev_info.iyesde);
+		b_dev_info.iyesde = NULL;
 		kern_unmount(balloon_mnt);
 		balloon_mnt = NULL;
 		return rc;
 	}
 
-	b_dev_info.inode->i_mapping->a_ops = &balloon_aops;
+	b_dev_info.iyesde->i_mapping->a_ops = &balloon_aops;
 	return 0;
 }
 static void cmm_balloon_compaction_deinit(void)
 {
-	if (b_dev_info.inode)
-		iput(b_dev_info.inode);
-	b_dev_info.inode = NULL;
+	if (b_dev_info.iyesde)
+		iput(b_dev_info.iyesde);
+	b_dev_info.iyesde = NULL;
 	kern_unmount(balloon_mnt);
 	balloon_mnt = NULL;
 }
@@ -629,19 +629,19 @@ static int cmm_init(void)
 	if (rc)
 		return rc;
 
-	rc = register_oom_notifier(&cmm_oom_nb);
+	rc = register_oom_yestifier(&cmm_oom_nb);
 	if (rc < 0)
 		goto out_balloon_compaction;
 
-	if ((rc = register_reboot_notifier(&cmm_reboot_nb)))
-		goto out_oom_notifier;
+	if ((rc = register_reboot_yestifier(&cmm_reboot_nb)))
+		goto out_oom_yestifier;
 
 	if ((rc = cmm_sysfs_register(&cmm_dev)))
-		goto out_reboot_notifier;
+		goto out_reboot_yestifier;
 
-	rc = register_memory_notifier(&cmm_mem_nb);
+	rc = register_memory_yestifier(&cmm_mem_nb);
 	if (rc)
-		goto out_unregister_notifier;
+		goto out_unregister_yestifier;
 
 	if (cmm_disabled)
 		return 0;
@@ -649,17 +649,17 @@ static int cmm_init(void)
 	cmm_thread_ptr = kthread_run(cmm_thread, NULL, "cmmthread");
 	if (IS_ERR(cmm_thread_ptr)) {
 		rc = PTR_ERR(cmm_thread_ptr);
-		goto out_unregister_notifier;
+		goto out_unregister_yestifier;
 	}
 
 	return 0;
-out_unregister_notifier:
-	unregister_memory_notifier(&cmm_mem_nb);
+out_unregister_yestifier:
+	unregister_memory_yestifier(&cmm_mem_nb);
 	cmm_unregister_sysfs(&cmm_dev);
-out_reboot_notifier:
-	unregister_reboot_notifier(&cmm_reboot_nb);
-out_oom_notifier:
-	unregister_oom_notifier(&cmm_oom_nb);
+out_reboot_yestifier:
+	unregister_reboot_yestifier(&cmm_reboot_nb);
+out_oom_yestifier:
+	unregister_oom_yestifier(&cmm_oom_nb);
 out_balloon_compaction:
 	cmm_balloon_compaction_deinit();
 	return rc;
@@ -669,15 +669,15 @@ out_balloon_compaction:
  * cmm_exit - Module exit
  *
  * Return value:
- * 	nothing
+ * 	yesthing
  **/
 static void cmm_exit(void)
 {
 	if (cmm_thread_ptr)
 		kthread_stop(cmm_thread_ptr);
-	unregister_oom_notifier(&cmm_oom_nb);
-	unregister_reboot_notifier(&cmm_reboot_nb);
-	unregister_memory_notifier(&cmm_mem_nb);
+	unregister_oom_yestifier(&cmm_oom_nb);
+	unregister_reboot_yestifier(&cmm_reboot_nb);
+	unregister_memory_yestifier(&cmm_mem_nb);
 	cmm_free_pages(atomic_long_read(&loaned_pages));
 	cmm_unregister_sysfs(&cmm_dev);
 	cmm_balloon_compaction_deinit();

@@ -210,7 +210,7 @@ static enum hrtimer_restart cppi41_recheck_tx_req(struct hrtimer *timer)
 	if (!list_empty(&controller->early_tx_list) &&
 	    !hrtimer_is_queued(&controller->early_tx)) {
 		ret = HRTIMER_RESTART;
-		hrtimer_forward_now(&controller->early_tx, 20 * NSEC_PER_USEC);
+		hrtimer_forward_yesw(&controller->early_tx, 20 * NSEC_PER_USEC);
 	}
 
 	spin_unlock_irqrestore(&musb->lock, flags);
@@ -281,12 +281,12 @@ static void cppi41_dma_callback(void *private_data,
 
 	/*
 	 * On AM335x it has been observed that the TX interrupt fires
-	 * too early that means the TXFIFO is not yet empty but the DMA
+	 * too early that means the TXFIFO is yest yet empty but the DMA
 	 * engine says that it is done with the transfer. We don't
 	 * receive a FIFO empty interrupt so the only thing we can do is
 	 * to poll for the bit. On HS it usually takes 2us, on FS around
 	 * 110us - 150us depending on the transfer size.
-	 * We spin on HS (no longer than than 25us and setup a timer on
+	 * We spin on HS (yes longer than than 25us and setup a timer on
 	 * FS to check for the bit and complete the transfer.
 	 */
 	if (is_host_active(musb)) {
@@ -427,7 +427,7 @@ static bool cppi41_configure_channel(struct dma_channel *channel,
 	cppi41_channel->tx_zlp = (cppi41_channel->is_tx && mode) ? 1 : 0;
 
 	/*
-	 * Due to AM335x' Advisory 1.0.13 we are not allowed to transfer more
+	 * Due to AM335x' Advisory 1.0.13 we are yest allowed to transfer more
 	 * than max packet size at a time.
 	 */
 	if (cppi41_channel->is_tx)
@@ -666,7 +666,7 @@ static int cppi41_dma_controller_start(struct cppi41_dma_controller *controller)
 {
 	struct musb *musb = controller->controller.musb;
 	struct device *dev = musb->controller;
-	struct device_node *np = dev->parent->of_node;
+	struct device_yesde *np = dev->parent->of_yesde;
 	struct cppi41_dma_channel *cppi41_channel;
 	int count;
 	int i;
@@ -753,7 +753,7 @@ cppi41_dma_controller_create(struct musb *musb, void __iomem *base)
 	int channel_size;
 	int ret = 0;
 
-	if (!musb->controller->parent->of_node) {
+	if (!musb->controller->parent->of_yesde) {
 		dev_err(musb->controller, "Need DT for the DMA engine.\n");
 		return NULL;
 	}

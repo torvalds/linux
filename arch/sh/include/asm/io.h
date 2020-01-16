@@ -11,9 +11,9 @@
  * and 'string' versions: ins{b,w,l}/outs{b,w,l}
  *
  * While read{b,w,l,q} and write{b,w,l,q} contain memory barriers
- * automatically, there are also __raw versions, which do not.
+ * automatically, there are also __raw versions, which do yest.
  */
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <asm/cache.h>
 #include <asm/addrspace.h>
 #include <asm/machvec.h>
@@ -132,7 +132,7 @@ __BUILD_MEMORY_STRING(__raw_, q, u64)
 #undef CONF_SLOWDOWN_IO
 
 /*
- * On SuperH I/O ports are memory mapped, so we access them using normal
+ * On SuperH I/O ports are memory mapped, so we access them using yesrmal
  * load/store instructions. sh_io_port_base is the virtual address to
  * which all ports are being mapped.
  */
@@ -222,7 +222,7 @@ __BUILD_IOPORT_STRING(q, u64)
 
 #else /* !CONFIG_HAS_IOPORT_MAP */
 
-#include <asm/io_noioport.h>
+#include <asm/io_yesioport.h>
 
 #endif
 
@@ -250,13 +250,13 @@ unsigned long long poke_real_address_q(unsigned long long addr,
 /*
  * On 32-bit SH, we traditionally have the whole physical address space
  * mapped at all times (as MIPS does), so "ioremap()" and "iounmap()" do
- * not need to do anything but place the address in the proper segment.
+ * yest need to do anything but place the address in the proper segment.
  * This is true for P1 and P2 addresses, as well as some P3 ones.
  * However, most of the P3 addresses and newer cores using extended
  * addressing need to map through page tables, so the ioremap()
  * implementation becomes a bit more complicated.
  *
- * See arch/sh/mm/ioremap.c for additional notes on this.
+ * See arch/sh/mm/ioremap.c for additional yestes on this.
  *
  * We cheat a bit and always return uncachable areas until we've fixed
  * the drivers to handle caching properly.
@@ -367,7 +367,7 @@ static inline void ioremap_fixed_init(void) { }
 static inline int iounmap_fixed(void __iomem *addr) { return -EINVAL; }
 #endif
 
-#define ioremap_nocache	ioremap
+#define ioremap_yescache	ioremap
 #define ioremap_uc	ioremap
 
 /*

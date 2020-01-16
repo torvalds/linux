@@ -3,7 +3,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
-#include <errno.h>
+#include <erryes.h>
 #include <sys/msg.h>
 #include <fcntl.h>
 
@@ -20,7 +20,7 @@ struct msg1 {
 #define TEST_STRING "Test sysv5 msg"
 #define MSG_TYPE 1
 
-#define ANOTHER_TEST_STRING "Yet another test sysv5 msg"
+#define ANOTHER_TEST_STRING "Yet ayesther test sysv5 msg"
 #define ANOTHER_MSG_TYPE 26538
 
 struct msgque_data {
@@ -40,20 +40,20 @@ int restore_queue(struct msgque_data *msgque)
 	fd = open("/proc/sys/kernel/msg_next_id", O_WRONLY);
 	if (fd == -1) {
 		printf("Failed to open /proc/sys/kernel/msg_next_id\n");
-		return -errno;
+		return -erryes;
 	}
 	sprintf(buf, "%d", msgque->msq_id);
 
 	ret = write(fd, buf, strlen(buf));
 	if (ret != strlen(buf)) {
 		printf("Failed to write to /proc/sys/kernel/msg_next_id\n");
-		return -errno;
+		return -erryes;
 	}
 
 	id = msgget(msgque->key, msgque->mode | IPC_CREAT | IPC_EXCL);
 	if (id == -1) {
 		printf("Failed to create queue\n");
-		return -errno;
+		return -erryes;
 	}
 
 	if (id != msgque->msq_id) {
@@ -67,7 +67,7 @@ int restore_queue(struct msgque_data *msgque)
 		if (msgsnd(msgque->msq_id, &msgque->messages[i].mtype,
 			   msgque->messages[i].msize, IPC_NOWAIT) != 0) {
 			printf("msgsnd failed (%m)\n");
-			ret = -errno;
+			ret = -erryes;
 			goto destroy;
 		};
 	}
@@ -75,7 +75,7 @@ int restore_queue(struct msgque_data *msgque)
 
 destroy:
 	if (msgctl(id, IPC_RMID, NULL))
-		printf("Failed to destroy queue: %d\n", -errno);
+		printf("Failed to destroy queue: %d\n", -erryes);
 	return ret;
 }
 
@@ -88,10 +88,10 @@ int check_and_destroy_queue(struct msgque_data *msgque)
 		ret = msgrcv(msgque->msq_id, &message.mtype, MAX_MSG_SIZE,
 				0, IPC_NOWAIT);
 		if (ret < 0) {
-			if (errno == ENOMSG)
+			if (erryes == ENOMSG)
 				break;
 			printf("Failed to read IPC message: %m\n");
-			ret = -errno;
+			ret = -erryes;
 			goto err;
 		}
 		if (ret != msgque->messages[cnt].msize) {
@@ -122,8 +122,8 @@ int check_and_destroy_queue(struct msgque_data *msgque)
 	ret = 0;
 err:
 	if (msgctl(msgque->msq_id, IPC_RMID, NULL)) {
-		printf("Failed to destroy queue: %d\n", -errno);
-		return -errno;
+		printf("Failed to destroy queue: %d\n", -erryes);
+		return -erryes;
 	}
 	return ret;
 }
@@ -137,11 +137,11 @@ int dump_queue(struct msgque_data *msgque)
 	for (kern_id = 0; kern_id < 256; kern_id++) {
 		ret = msgctl(kern_id, MSG_STAT, &ds);
 		if (ret < 0) {
-			if (errno == -EINVAL)
+			if (erryes == -EINVAL)
 				continue;
 			printf("Failed to get stats for IPC queue with id %d\n",
 					kern_id);
-			return -errno;
+			return -erryes;
 		}
 
 		if (ret == msgque->msq_id)
@@ -162,8 +162,8 @@ int dump_queue(struct msgque_data *msgque)
 		ret = msgrcv(msgque->msq_id, &msgque->messages[i].mtype,
 				MAX_MSG_SIZE, i, IPC_NOWAIT | MSG_COPY);
 		if (ret < 0) {
-			printf("Failed to copy IPC message: %m (%d)\n", errno);
-			return -errno;
+			printf("Failed to copy IPC message: %m (%d)\n", erryes);
+			return -erryes;
 		}
 		msgque->messages[i].msize = ret;
 	}
@@ -179,7 +179,7 @@ int fill_msgque(struct msgque_data *msgque)
 	if (msgsnd(msgque->msq_id, &msgbuf.mtype, sizeof(TEST_STRING),
 				IPC_NOWAIT) != 0) {
 		printf("First message send failed (%m)\n");
-		return -errno;
+		return -erryes;
 	};
 
 	msgbuf.mtype = ANOTHER_MSG_TYPE;
@@ -187,7 +187,7 @@ int fill_msgque(struct msgque_data *msgque)
 	if (msgsnd(msgque->msq_id, &msgbuf.mtype, sizeof(ANOTHER_TEST_STRING),
 				IPC_NOWAIT) != 0) {
 		printf("Second message send failed (%m)\n");
-		return -errno;
+		return -erryes;
 	};
 	return 0;
 }
@@ -203,13 +203,13 @@ int main(int argc, char **argv)
 
 	msgque.key = ftok(argv[0], 822155650);
 	if (msgque.key == -1) {
-		printf("Can't make key: %d\n", -errno);
+		printf("Can't make key: %d\n", -erryes);
 		return ksft_exit_fail();
 	}
 
 	msgque.msq_id = msgget(msgque.key, IPC_CREAT | IPC_EXCL | 0666);
 	if (msgque.msq_id == -1) {
-		err = -errno;
+		err = -erryes;
 		printf("Can't create queue: %d\n", err);
 		goto err_out;
 	}
@@ -247,7 +247,7 @@ int main(int argc, char **argv)
 
 err_destroy:
 	if (msgctl(msgque.msq_id, IPC_RMID, NULL)) {
-		printf("Failed to destroy queue: %d\n", -errno);
+		printf("Failed to destroy queue: %d\n", -erryes);
 		return ksft_exit_fail();
 	}
 err_out:

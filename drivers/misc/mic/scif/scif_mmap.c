@@ -61,7 +61,7 @@ error:
 
 /*
  * Remove valid remote memory mappings created via scif_mmap(..) from the
- * process address space since the remote node is lost
+ * process address space since the remote yesde is lost
  */
 static void __scif_zap_mmaps(struct scif_endpt *ep)
 {
@@ -84,10 +84,10 @@ static void __scif_zap_mmaps(struct scif_endpt *ep)
 }
 
 /*
- * Traverse the list of endpoints for a particular remote node and
- * zap valid remote memory mappings since the remote node is lost
+ * Traverse the list of endpoints for a particular remote yesde and
+ * zap valid remote memory mappings since the remote yesde is lost
  */
-static void _scif_zap_mmaps(int node, struct list_head *head)
+static void _scif_zap_mmaps(int yesde, struct list_head *head)
 {
 	struct scif_endpt *ep;
 	struct list_head *item;
@@ -95,28 +95,28 @@ static void _scif_zap_mmaps(int node, struct list_head *head)
 	mutex_lock(&scif_info.connlock);
 	list_for_each(item, head) {
 		ep = list_entry(item, struct scif_endpt, list);
-		if (ep->remote_dev->node == node)
+		if (ep->remote_dev->yesde == yesde)
 			__scif_zap_mmaps(ep);
 	}
 	mutex_unlock(&scif_info.connlock);
 }
 
 /*
- * Wrapper for removing remote memory mappings for a particular node. This API
- * is called by peer nodes as part of handling a lost node.
+ * Wrapper for removing remote memory mappings for a particular yesde. This API
+ * is called by peer yesdes as part of handling a lost yesde.
  */
-void scif_zap_mmaps(int node)
+void scif_zap_mmaps(int yesde)
 {
-	_scif_zap_mmaps(node, &scif_info.connected);
-	_scif_zap_mmaps(node, &scif_info.disconnected);
+	_scif_zap_mmaps(yesde, &scif_info.connected);
+	_scif_zap_mmaps(yesde, &scif_info.disconnected);
 }
 
 /*
- * This API is only called while handling a lost node:
- * a) Remote node is dead.
+ * This API is only called while handling a lost yesde:
+ * a) Remote yesde is dead.
  * b) Remote memory mappings have been zapped
  * So we can traverse the remote_reg_list without any locks. Since
- * the window has not yet been unregistered we can drop the ref count
+ * the window has yest yet been unregistered we can drop the ref count
  * and queue it to the cleanup thread.
  */
 static void __scif_cleanup_rma_for_zombies(struct scif_endpt *ep)
@@ -141,7 +141,7 @@ static void __scif_cleanup_rma_for_zombies(struct scif_endpt *ep)
 }
 
 /* Cleanup remote registration lists for zombie endpoints */
-void scif_cleanup_rma_for_zombies(int node)
+void scif_cleanup_rma_for_zombies(int yesde)
 {
 	struct scif_endpt *ep;
 	struct list_head *item;
@@ -149,7 +149,7 @@ void scif_cleanup_rma_for_zombies(int node)
 	mutex_lock(&scif_info.eplock);
 	list_for_each(item, &scif_info.zombie) {
 		ep = list_entry(item, struct scif_endpt, list);
-		if (ep->remote_dev && ep->remote_dev->node == node)
+		if (ep->remote_dev && ep->remote_dev->yesde == yesde)
 			__scif_cleanup_rma_for_zombies(ep);
 	}
 	mutex_unlock(&scif_info.eplock);
@@ -262,7 +262,7 @@ int scif_get_pages(scif_epd_t epd, off_t offset, size_t len,
 		goto error;
 	}
 
-	if (scif_is_mgmt_node() && !scifdev_self(ep->remote_dev)) {
+	if (scif_is_mgmt_yesde() && !scifdev_self(ep->remote_dev)) {
 		/* Allocate virtual address array */
 		((*pages)->va = scif_zalloc(nr_pages * sizeof(void *)));
 		if (!(*pages)->va) {
@@ -281,7 +281,7 @@ int scif_get_pages(scif_epd_t epd, off_t offset, size_t len,
 					       (i * PAGE_SIZE));
 		(*pages)->phys_addr[i] = scif_get_phys((*pages)->phys_addr[i],
 							ep);
-		if (scif_is_mgmt_node() && !scifdev_self(ep->remote_dev))
+		if (scif_is_mgmt_yesde() && !scifdev_self(ep->remote_dev))
 			(*pages)->va[i] =
 				ep->remote_dev->sdev->aper->va +
 				(*pages)->phys_addr[i] -
@@ -325,7 +325,7 @@ int scif_put_pages(struct scif_range *pages)
 	/*
 	 * If the state is SCIFEP_CONNECTED or SCIFEP_DISCONNECTED then the
 	 * callee should be allowed to release references to the pages,
-	 * else the endpoint was not connected in the first place,
+	 * else the endpoint was yest connected in the first place,
 	 * hence the ENOTCONN.
 	 */
 	if (ep->state != SCIFEP_CONNECTED && ep->state != SCIFEP_DISCONNECTED)
@@ -345,8 +345,8 @@ int scif_put_pages(struct scif_range *pages)
 		msg.uop = SCIF_MUNMAP;
 		msg.src = ep->port;
 		msg.payload[0] = window->peer_window;
-		/* No error handling for notification messages */
-		scif_nodeqp_send(ep->remote_dev, &msg);
+		/* No error handling for yestification messages */
+		scif_yesdeqp_send(ep->remote_dev, &msg);
 		/* Destroy this window from the peer's registered AS */
 		scif_destroy_remote_window(window);
 	} else {
@@ -411,7 +411,7 @@ static int scif_rma_list_mmap(struct scif_window *start_window, s64 offset,
 	}
 	/*
 	 * No more failures expected. Bump up the ref count for all
-	 * the windows. Another traversal from start_window required
+	 * the windows. Ayesther traversal from start_window required
 	 * for handling errors encountered across windows during
 	 * remap_pfn_range(..).
 	 */
@@ -475,7 +475,7 @@ static void scif_rma_list_munmap(struct scif_window *start_window,
 			/* Inform the peer about this munmap */
 			msg.payload[0] = window->peer_window;
 			/* No error handling for Notification messages. */
-			scif_nodeqp_send(ep->remote_dev, &msg);
+			scif_yesdeqp_send(ep->remote_dev, &msg);
 			list_del(&window->list);
 			/* Destroy this window from the peer's registered AS */
 			scif_destroy_remote_window(window);
@@ -536,7 +536,7 @@ static void scif_vma_open(struct vm_area_struct *vma)
  * scif_munmap - VMA close driver callback.
  * @vma: VMM memory area.
  * When an area is destroyed, the kernel calls its close operation.
- * Note that there's no usage count associated with VMA's; the area
+ * Note that there's yes usage count associated with VMA's; the area
  * is opened and closed exactly once by each process that uses it.
  */
 static void scif_munmap(struct vm_area_struct *vma)
@@ -652,16 +652,16 @@ int scif_mmap(struct vm_area_struct *vma, scif_epd_t epd)
 		vma->vm_page_prot = pgprot_writecombine(vma->vm_page_prot);
 
 	/*
-	 * VM_DONTCOPY - Do not copy this vma on fork
-	 * VM_DONTEXPAND - Cannot expand with mremap()
+	 * VM_DONTCOPY - Do yest copy this vma on fork
+	 * VM_DONTEXPAND - Canyest expand with mremap()
 	 * VM_RESERVED - Count as reserved_vm like IO
 	 * VM_PFNMAP - Page-ranges managed without "struct page"
 	 * VM_IO - Memory mapped I/O or similar
 	 *
-	 * We do not want to copy this VMA automatically on a fork(),
+	 * We do yest want to copy this VMA automatically on a fork(),
 	 * expand this VMA due to mremap() or swap out these pages since
 	 * the VMA is actually backed by physical pages in the remote
-	 * node's physical memory and not via a struct page.
+	 * yesde's physical memory and yest via a struct page.
 	 */
 	vma->vm_flags |= VM_DONTCOPY | VM_DONTEXPAND | VM_DONTDUMP;
 

@@ -3,7 +3,7 @@
  * This file contains core tag-based KASAN code.
  *
  * Copyright (c) 2018 Google, Inc.
- * Author: Andrey Konovalov <andreyknvl@google.com>
+ * Author: Andrey Koyesvalov <andreyknvl@google.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -57,7 +57,7 @@ void kasan_init_tags(void)
  *
  * Ideally the tags use strong randomness to prevent any attempts to predict
  * them during explicit exploit attempts. But strong randomness is expensive,
- * and we did an intentional trade-off to use a PRNG. This non-atomic RMW
+ * and we did an intentional trade-off to use a PRNG. This yesn-atomic RMW
  * sequence has in fact positive effect, since interrupts that randomly skew
  * PRNG at unpredictable points do only good.
  */
@@ -89,7 +89,7 @@ bool check_memory_region(unsigned long addr, size_t size, bool write,
 	tag = get_tag((const void *)addr);
 
 	/*
-	 * Ignore accesses for pointers tagged with 0xff (native kernel
+	 * Igyesre accesses for pointers tagged with 0xff (native kernel
 	 * pointer tag) to suppress false positives caused by kmap.
 	 *
 	 * Some kernel code was written to account for archs that don't keep
@@ -127,16 +127,16 @@ bool check_memory_region(unsigned long addr, size_t size, bool write,
 }
 
 #define DEFINE_HWASAN_LOAD_STORE(size)					\
-	void __hwasan_load##size##_noabort(unsigned long addr)		\
+	void __hwasan_load##size##_yesabort(unsigned long addr)		\
 	{								\
 		check_memory_region(addr, size, false, _RET_IP_);	\
 	}								\
-	EXPORT_SYMBOL(__hwasan_load##size##_noabort);			\
-	void __hwasan_store##size##_noabort(unsigned long addr)		\
+	EXPORT_SYMBOL(__hwasan_load##size##_yesabort);			\
+	void __hwasan_store##size##_yesabort(unsigned long addr)		\
 	{								\
 		check_memory_region(addr, size, true, _RET_IP_);	\
 	}								\
-	EXPORT_SYMBOL(__hwasan_store##size##_noabort)
+	EXPORT_SYMBOL(__hwasan_store##size##_yesabort)
 
 DEFINE_HWASAN_LOAD_STORE(1);
 DEFINE_HWASAN_LOAD_STORE(2);
@@ -144,17 +144,17 @@ DEFINE_HWASAN_LOAD_STORE(4);
 DEFINE_HWASAN_LOAD_STORE(8);
 DEFINE_HWASAN_LOAD_STORE(16);
 
-void __hwasan_loadN_noabort(unsigned long addr, unsigned long size)
+void __hwasan_loadN_yesabort(unsigned long addr, unsigned long size)
 {
 	check_memory_region(addr, size, false, _RET_IP_);
 }
-EXPORT_SYMBOL(__hwasan_loadN_noabort);
+EXPORT_SYMBOL(__hwasan_loadN_yesabort);
 
-void __hwasan_storeN_noabort(unsigned long addr, unsigned long size)
+void __hwasan_storeN_yesabort(unsigned long addr, unsigned long size)
 {
 	check_memory_region(addr, size, true, _RET_IP_);
 }
-EXPORT_SYMBOL(__hwasan_storeN_noabort);
+EXPORT_SYMBOL(__hwasan_storeN_yesabort);
 
 void __hwasan_tag_memory(unsigned long addr, u8 tag, unsigned long size)
 {

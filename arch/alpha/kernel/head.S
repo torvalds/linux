@@ -15,7 +15,7 @@
 
 __HEAD
 .globl _stext
-	.set noreorder
+	.set yesreorder
 	.globl	__start
 	.ent	__start
 _stext:
@@ -59,7 +59,7 @@ __smp_callin:
 	#
 	# The following two functions are needed for supporting SRM PALcode
 	# on the PC164 (at least), since that PALcode manages the interrupt
-	# masking, and we cannot duplicate the effort without causing problems
+	# masking, and we canyest duplicate the effort without causing problems
 	#
 
 	.align 3

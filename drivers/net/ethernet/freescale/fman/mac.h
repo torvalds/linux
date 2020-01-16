@@ -3,11 +3,11 @@
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
  *     * Redistributions of source code must retain the above copyright
- *	 notice, this list of conditions and the following disclaimer.
+ *	 yestice, this list of conditions and the following disclaimer.
  *     * Redistributions in binary form must reproduce the above copyright
- *	 notice, this list of conditions and the following disclaimer in the
+ *	 yestice, this list of conditions and the following disclaimer in the
  *	 documentation and/or other materials provided with the distribution.
- *     * Neither the name of Freescale Semiconductor nor the
+ *     * Neither the name of Freescale Semiconductor yesr the
  *	 names of its contributors may be used to endorse or promote products
  *	 derived from this software without specific prior written permission.
  *
@@ -51,7 +51,7 @@ struct mac_device {
 	u32			 if_support;
 	struct phy_device	*phy_dev;
 	phy_interface_t		phy_if;
-	struct device_node	*phy_node;
+	struct device_yesde	*phy_yesde;
 
 	bool autoneg_pause;
 	bool rx_pause_req;

@@ -260,7 +260,7 @@ struct gameport_event {
 	enum gameport_event_type type;
 	void *object;
 	struct module *owner;
-	struct list_head node;
+	struct list_head yesde;
 };
 
 static DEFINE_SPINLOCK(gameport_event_lock);	/* protects gameport_event_list */
@@ -275,8 +275,8 @@ static struct gameport_event *gameport_get_event(void)
 
 	if (!list_empty(&gameport_event_list)) {
 		event = list_first_entry(&gameport_event_list,
-					 struct gameport_event, node);
-		list_del_init(&event->node);
+					 struct gameport_event, yesde);
+		list_del_init(&event->yesde);
 	}
 
 	spin_unlock_irqrestore(&gameport_event_lock, flags);
@@ -296,17 +296,17 @@ static void gameport_remove_duplicate_events(struct gameport_event *event)
 
 	spin_lock_irqsave(&gameport_event_lock, flags);
 
-	list_for_each_entry_safe(e, next, &gameport_event_list, node) {
+	list_for_each_entry_safe(e, next, &gameport_event_list, yesde) {
 		if (event->object == e->object) {
 			/*
-			 * If this event is of different type we should not
+			 * If this event is of different type we should yest
 			 * look further - we only suppress duplicate events
 			 * that were sent back-to-back.
 			 */
 			if (event->type != e->type)
 				break;
 
-			list_del_init(&e->node);
+			list_del_init(&e->yesde);
 			gameport_free_event(e);
 		}
 	}
@@ -324,7 +324,7 @@ static void gameport_handle_events(struct work_struct *work)
 	/*
 	 * Note that we handle only one event here to give swsusp
 	 * a chance to freeze kgameportd thread. Gameport events
-	 * should be pretty rare so we are not concerned about
+	 * should be pretty rare so we are yest concerned about
 	 * taking performance hit.
 	 */
 	if ((event = gameport_get_event())) {
@@ -361,11 +361,11 @@ static int gameport_queue_event(void *object, struct module *owner,
 	/*
 	 * Scan event list for the other events for the same gameport port,
 	 * starting with the most recent one. If event is the same we
-	 * do not need add new one. If event is of different type we
-	 * need to add this event and should not look further because
+	 * do yest need add new one. If event is of different type we
+	 * need to add this event and should yest look further because
 	 * we need to preserve sequence of distinct events.
 	 */
-	list_for_each_entry_reverse(event, &gameport_event_list, node) {
+	list_for_each_entry_reverse(event, &gameport_event_list, yesde) {
 		if (event->object == object) {
 			if (event->type == event_type)
 				goto out;
@@ -375,7 +375,7 @@ static int gameport_queue_event(void *object, struct module *owner,
 
 	event = kmalloc(sizeof(struct gameport_event), GFP_ATOMIC);
 	if (!event) {
-		pr_err("Not enough memory to queue event %d\n", event_type);
+		pr_err("Not eyesugh memory to queue event %d\n", event_type);
 		retval = -ENOMEM;
 		goto out;
 	}
@@ -392,7 +392,7 @@ static int gameport_queue_event(void *object, struct module *owner,
 	event->object = object;
 	event->owner = owner;
 
-	list_add_tail(&event->node, &gameport_event_list);
+	list_add_tail(&event->yesde, &gameport_event_list);
 	queue_work(system_long_wq, &gameport_event_work);
 
 out:
@@ -411,9 +411,9 @@ static void gameport_remove_pending_events(void *object)
 
 	spin_lock_irqsave(&gameport_event_lock, flags);
 
-	list_for_each_entry_safe(event, next, &gameport_event_list, node) {
+	list_for_each_entry_safe(event, next, &gameport_event_list, yesde) {
 		if (event->object == object) {
-			list_del_init(&event->node);
+			list_del_init(&event->yesde);
 			gameport_free_event(event);
 		}
 	}
@@ -422,7 +422,7 @@ static void gameport_remove_pending_events(void *object)
 }
 
 /*
- * Destroy child gameport port (if any) that has not been fully registered yet.
+ * Destroy child gameport port (if any) that has yest been fully registered yet.
  *
  * Note that we rely on the fact that port can have only one child and therefore
  * only one child registration request can be pending. Additionally, children
@@ -437,7 +437,7 @@ static struct gameport *gameport_get_pending_child(struct gameport *parent)
 
 	spin_lock_irqsave(&gameport_event_lock, flags);
 
-	list_for_each_entry(event, &gameport_event_list, node) {
+	list_for_each_entry(event, &gameport_event_list, yesde) {
 		if (event->type == GAMEPORT_REGISTER_PORT) {
 			gameport = event->object;
 			if (gameport->parent == parent) {
@@ -473,7 +473,7 @@ static ssize_t drvctl_store(struct device *dev, struct device_attribute *attr, c
 	if (error)
 		return error;
 
-	if (!strncmp(buf, "none", count)) {
+	if (!strncmp(buf, "yesne", count)) {
 		gameport_disconnect_port(gameport);
 	} else if (!strncmp(buf, "reconnect", count)) {
 		gameport_reconnect_port(gameport);
@@ -523,20 +523,20 @@ EXPORT_SYMBOL(gameport_set_phys);
  */
 static void gameport_init_port(struct gameport *gameport)
 {
-	static atomic_t gameport_no = ATOMIC_INIT(-1);
+	static atomic_t gameport_yes = ATOMIC_INIT(-1);
 
 	__module_get(THIS_MODULE);
 
 	mutex_init(&gameport->drv_mutex);
 	device_initialize(&gameport->dev);
 	dev_set_name(&gameport->dev, "gameport%lu",
-			(unsigned long)atomic_inc_return(&gameport_no));
+			(unsigned long)atomic_inc_return(&gameport_yes));
 	gameport->dev.bus = &gameport_bus;
 	gameport->dev.release = gameport_release_port;
 	if (gameport->parent)
 		gameport->dev.parent = &gameport->parent->dev;
 
-	INIT_LIST_HEAD(&gameport->node);
+	INIT_LIST_HEAD(&gameport->yesde);
 	spin_lock_init(&gameport->timer_lock);
 	timer_setup(&gameport->poll_timer, gameport_run_poll_handler, 0);
 }
@@ -556,7 +556,7 @@ static void gameport_add_port(struct gameport *gameport)
 		gameport_measure_speed(gameport) :
 		old_gameport_measure_speed(gameport);
 
-	list_add_tail(&gameport->node, &gameport_list);
+	list_add_tail(&gameport->yesde, &gameport_list);
 
 	if (gameport->io)
 		dev_info(&gameport->dev, "%s is %s, io %#x, speed %dkHz\n",
@@ -594,7 +594,7 @@ static void gameport_destroy_port(struct gameport *gameport)
 	if (device_is_registered(&gameport->dev))
 		device_del(&gameport->dev);
 
-	list_del_init(&gameport->node);
+	list_del_init(&gameport->yesde);
 
 	gameport_remove_pending_events(gameport);
 	put_device(&gameport->dev);
@@ -609,7 +609,7 @@ static void gameport_reconnect_port(struct gameport *gameport)
 		if (!gameport->drv || !gameport->drv->reconnect || gameport->drv->reconnect(gameport)) {
 			gameport_disconnect_port(gameport);
 			gameport_find_driver(gameport);
-			/* Ok, old children are now gone, we are done */
+			/* Ok, old children are yesw gone, we are done */
 			break;
 		}
 		gameport = gameport->child;
@@ -642,14 +642,14 @@ static void gameport_disconnect_port(struct gameport *gameport)
 	}
 
 	/*
-	 * Ok, no children left, now disconnect this port
+	 * Ok, yes children left, yesw disconnect this port
 	 */
 	device_release_driver(&gameport->dev);
 }
 
 /*
  * Submits register request to kgameportd for subsequent execution.
- * Note that port registration is always asynchronous.
+ * Note that port registration is always asynchroyesus.
  */
 void __gameport_register_port(struct gameport *gameport, struct module *owner)
 {
@@ -659,7 +659,7 @@ void __gameport_register_port(struct gameport *gameport, struct module *owner)
 EXPORT_SYMBOL(__gameport_register_port);
 
 /*
- * Synchronously unregisters gameport port.
+ * Synchroyesusly unregisters gameport port.
  */
 void gameport_unregister_port(struct gameport *gameport)
 {
@@ -678,7 +678,7 @@ EXPORT_SYMBOL(gameport_unregister_port);
 static ssize_t description_show(struct device_driver *drv, char *buf)
 {
 	struct gameport_driver *driver = to_gameport_driver(drv);
-	return sprintf(buf, "%s\n", driver->description ? driver->description : "(none)");
+	return sprintf(buf, "%s\n", driver->description ? driver->description : "(yesne)");
 }
 static DRIVER_ATTR_RO(description);
 
@@ -729,7 +729,7 @@ int __gameport_register_driver(struct gameport_driver *drv, struct module *owner
 	 * Temporarily disable automatic binding because probing
 	 * takes long time and we are better off doing it in kgameportd
 	 */
-	drv->ignore = true;
+	drv->igyesre = true;
 
 	error = driver_register(&drv->driver);
 	if (error) {
@@ -739,9 +739,9 @@ int __gameport_register_driver(struct gameport_driver *drv, struct module *owner
 	}
 
 	/*
-	 * Reset ignore flag and let kgameportd bind the driver to free ports
+	 * Reset igyesre flag and let kgameportd bind the driver to free ports
 	 */
-	drv->ignore = false;
+	drv->igyesre = false;
 	error = gameport_queue_event(drv, NULL, GAMEPORT_ATTACH_DRIVER);
 	if (error) {
 		driver_unregister(&drv->driver);
@@ -758,11 +758,11 @@ void gameport_unregister_driver(struct gameport_driver *drv)
 
 	mutex_lock(&gameport_mutex);
 
-	drv->ignore = true;	/* so gameport_find_driver ignores it */
+	drv->igyesre = true;	/* so gameport_find_driver igyesres it */
 	gameport_remove_pending_events(drv);
 
 start_over:
-	list_for_each_entry(gameport, &gameport_list, node) {
+	list_for_each_entry(gameport, &gameport_list, yesde) {
 		if (gameport->drv == drv) {
 			gameport_disconnect_port(gameport);
 			gameport_find_driver(gameport);
@@ -781,7 +781,7 @@ static int gameport_bus_match(struct device *dev, struct device_driver *drv)
 {
 	struct gameport_driver *gameport_drv = to_gameport_driver(drv);
 
-	return !gameport_drv->ignore;
+	return !gameport_drv->igyesre;
 }
 
 static struct bus_type gameport_bus = {
@@ -846,7 +846,7 @@ static void __exit gameport_exit(void)
 	bus_unregister(&gameport_bus);
 
 	/*
-	 * There should not be any outstanding events but work may
+	 * There should yest be any outstanding events but work may
 	 * still be scheduled so simply cancel it.
 	 */
 	cancel_work_sync(&gameport_event_work);

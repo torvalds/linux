@@ -6,7 +6,7 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/module.h>
@@ -144,7 +144,7 @@ int hdpvr_alloc_buffers(struct hdpvr_device *dev, uint count)
 
 		buf = kzalloc(sizeof(struct hdpvr_buffer), GFP_KERNEL);
 		if (!buf) {
-			v4l2_err(&dev->v4l2_dev, "cannot allocate buffer\n");
+			v4l2_err(&dev->v4l2_dev, "canyest allocate buffer\n");
 			goto exit;
 		}
 		buf->dev = dev;
@@ -158,7 +158,7 @@ int hdpvr_alloc_buffers(struct hdpvr_device *dev, uint count)
 					 &urb->transfer_dma);
 		if (!mem) {
 			v4l2_err(&dev->v4l2_dev,
-				 "cannot allocate usb transfer buffer\n");
+				 "canyest allocate usb transfer buffer\n");
 			goto exit_urb_buffer;
 		}
 
@@ -197,7 +197,7 @@ static int hdpvr_submit_buffers(struct hdpvr_device *dev)
 				 buff_list);
 		if (buf->status != BUFSTAT_AVAILABLE) {
 			v4l2_err(&dev->v4l2_dev,
-				 "buffer not marked as available\n");
+				 "buffer yest marked as available\n");
 			ret = -EFAULT;
 			goto err;
 		}
@@ -285,7 +285,7 @@ static int hdpvr_start_streaming(struct hdpvr_device *dev)
 	if (!vidinf.valid) {
 		msleep(250);
 		v4l2_dbg(MSG_INFO, hdpvr_debug, &dev->v4l2_dev,
-				"no video signal at input %d\n", dev->options.video_input);
+				"yes video signal at input %d\n", dev->options.video_input);
 		return -EAGAIN;
 	}
 
@@ -446,7 +446,7 @@ static ssize_t hdpvr_read(struct file *file, char __user *buffer, size_t count,
 		if (buf->status != BUFSTAT_READY &&
 		    dev->status != STATUS_DISCONNECTED) {
 			int err;
-			/* return nonblocking */
+			/* return yesnblocking */
 			if (file->f_flags & O_NONBLOCK) {
 				if (!ret)
 					ret = -EAGAIN;
@@ -550,7 +550,7 @@ static __poll_t hdpvr_poll(struct file *filp, poll_table *wait)
 	mutex_unlock(&dev->io_mutex);
 
 	buf = hdpvr_get_next_buffer(dev);
-	/* only wait if no data is available */
+	/* only wait if yes data is available */
 	if (!buf || buf->status != BUFSTAT_READY) {
 		poll_wait(filp, &dev->wait_data, wait);
 		buf = hdpvr_get_next_buffer(dev);
@@ -797,15 +797,15 @@ static int vidioc_s_input(struct file *file, void *_fh,
 		/*
 		 * Unfortunately gstreamer calls ENUMSTD and bails out if it
 		 * won't find any formats, even though component input is
-		 * selected. This means that we have to leave tvnorms at
-		 * V4L2_STD_ALL. We cannot use the 'legacy' trick since
-		 * tvnorms is set at the device node level and not at the
+		 * selected. This means that we have to leave tvyesrms at
+		 * V4L2_STD_ALL. We canyest use the 'legacy' trick since
+		 * tvyesrms is set at the device yesde level and yest at the
 		 * filehandle level.
 		 *
-		 * Comment this out for now, but if the legacy mode can be
+		 * Comment this out for yesw, but if the legacy mode can be
 		 * removed in the future, then this code should be enabled
 		 * again.
-		dev->video_dev.tvnorms =
+		dev->video_dev.tvyesrms =
 			(index != HDPVR_COMPONENT) ? V4L2_STD_ALL : 0;
 		 */
 	}
@@ -1002,11 +1002,11 @@ static int vidioc_g_fmt_vid_cap(struct file *file, void *_fh,
 	/*
 	 * The original driver would always returns the current detected
 	 * resolution as the format (and EFAULT if it couldn't be detected).
-	 * With the introduction of VIDIOC_QUERY_DV_TIMINGS there is now a
+	 * With the introduction of VIDIOC_QUERY_DV_TIMINGS there is yesw a
 	 * better way of doing this, but to stay compatible with existing
 	 * applications we assume legacy mode every time an application opens
 	 * the device. Only if one of the new DV_TIMINGS ioctls is called
-	 * will the filehandle go into 'normal' mode where g_fmt returns the
+	 * will the filehandle go into 'yesrmal' mode where g_fmt returns the
 	 * last set format.
 	 */
 	if (fh->legacy_mode) {
@@ -1148,7 +1148,7 @@ static const struct video_device hdpvr_video_template = {
 	.fops			= &hdpvr_fops,
 	.release		= hdpvr_device_release,
 	.ioctl_ops		= &hdpvr_ioctl_ops,
-	.tvnorms		= V4L2_STD_ALL,
+	.tvyesrms		= V4L2_STD_ALL,
 	.device_caps		= V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_AUDIO |
 				  V4L2_CAP_READWRITE,
 };
@@ -1221,13 +1221,13 @@ int hdpvr_register_videodev(struct hdpvr_device *dev, struct device *parent,
 	dev->v4l2_dev.ctrl_handler = hdl;
 	if (hdl->error) {
 		res = hdl->error;
-		v4l2_err(&dev->v4l2_dev, "Could not register controls\n");
+		v4l2_err(&dev->v4l2_dev, "Could yest register controls\n");
 		goto error;
 	}
 	v4l2_ctrl_cluster(3, &dev->video_mode);
 	res = v4l2_ctrl_handler_setup(hdl);
 	if (res < 0) {
-		v4l2_err(&dev->v4l2_dev, "Could not setup controls\n");
+		v4l2_err(&dev->v4l2_dev, "Could yest setup controls\n");
 		goto error;
 	}
 

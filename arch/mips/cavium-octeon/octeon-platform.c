@@ -73,22 +73,22 @@ static void octeon2_usb_clocks_start(struct device *dev)
 
 	io_clk_64_to_ns = 64000000000ull / octeon_get_io_clock_rate();
 
-	if (dev->of_node) {
-		struct device_node *uctl_node;
+	if (dev->of_yesde) {
+		struct device_yesde *uctl_yesde;
 		const char *clock_type;
 
-		uctl_node = of_get_parent(dev->of_node);
-		if (!uctl_node) {
-			dev_err(dev, "No UCTL device node\n");
+		uctl_yesde = of_get_parent(dev->of_yesde);
+		if (!uctl_yesde) {
+			dev_err(dev, "No UCTL device yesde\n");
 			goto exit;
 		}
-		i = of_property_read_u32(uctl_node,
+		i = of_property_read_u32(uctl_yesde,
 					 "refclk-frequency", &clock_rate);
 		if (i) {
 			dev_err(dev, "No UCTL \"refclk-frequency\"\n");
 			goto exit;
 		}
-		i = of_property_read_string(uctl_node,
+		i = of_property_read_string(uctl_yesde,
 					    "refclk-type", &clock_type);
 
 		if (!i && strcmp("crystal", clock_type) == 0)
@@ -302,8 +302,8 @@ static void __init octeon_ehci_hw_start(struct device *dev)
 	ehci_ctl.s.l2c_buff_emod = 1; /* Byte swapped. */
 	ehci_ctl.s.l2c_desc_emod = 1; /* Byte swapped. */
 #else
-	ehci_ctl.s.l2c_buff_emod = 0; /* not swapped. */
-	ehci_ctl.s.l2c_desc_emod = 0; /* not swapped. */
+	ehci_ctl.s.l2c_buff_emod = 0; /* yest swapped. */
+	ehci_ctl.s.l2c_desc_emod = 0; /* yest swapped. */
 	ehci_ctl.s.inv_reg_a2 = 1;
 #endif
 	cvmx_write_csr(CVMX_UCTLX_EHCI_CTL(0), ehci_ctl.u64);
@@ -314,15 +314,15 @@ static void __init octeon_ehci_hw_start(struct device *dev)
 static int __init octeon_ehci_device_init(void)
 {
 	struct platform_device *pd;
-	struct device_node *ehci_node;
+	struct device_yesde *ehci_yesde;
 	int ret = 0;
 
-	ehci_node = of_find_node_by_name(NULL, "ehci");
-	if (!ehci_node)
+	ehci_yesde = of_find_yesde_by_name(NULL, "ehci");
+	if (!ehci_yesde)
 		return 0;
 
-	pd = of_find_device_by_node(ehci_node);
-	of_node_put(ehci_node);
+	pd = of_find_device_by_yesde(ehci_yesde);
+	of_yesde_put(ehci_yesde);
 	if (!pd)
 		return 0;
 
@@ -365,8 +365,8 @@ static void __init octeon_ohci_hw_start(struct device *dev)
 	ohci_ctl.s.l2c_buff_emod = 1; /* Byte swapped. */
 	ohci_ctl.s.l2c_desc_emod = 1; /* Byte swapped. */
 #else
-	ohci_ctl.s.l2c_buff_emod = 0; /* not swapped. */
-	ohci_ctl.s.l2c_desc_emod = 0; /* not swapped. */
+	ohci_ctl.s.l2c_buff_emod = 0; /* yest swapped. */
+	ohci_ctl.s.l2c_desc_emod = 0; /* yest swapped. */
 	ohci_ctl.s.inv_reg_a2 = 1;
 #endif
 	cvmx_write_csr(CVMX_UCTLX_OHCI_CTL(0), ohci_ctl.u64);
@@ -377,15 +377,15 @@ static void __init octeon_ohci_hw_start(struct device *dev)
 static int __init octeon_ohci_device_init(void)
 {
 	struct platform_device *pd;
-	struct device_node *ohci_node;
+	struct device_yesde *ohci_yesde;
 	int ret = 0;
 
-	ohci_node = of_find_node_by_name(NULL, "ohci");
-	if (!ohci_node)
+	ohci_yesde = of_find_yesde_by_name(NULL, "ohci");
+	if (!ohci_yesde)
 		return 0;
 
-	pd = of_find_device_by_node(ohci_node);
-	of_node_put(ohci_node);
+	pd = of_find_device_by_yesde(ohci_yesde);
+	of_yesde_put(ohci_yesde);
 	if (!pd)
 		return 0;
 
@@ -492,26 +492,26 @@ static void __init octeon_fdt_set_phy(int eth, int phy_addr)
 		return;
 
 	phandle = be32_to_cpup(phy_handle);
-	phy = fdt_node_offset_by_phandle(initial_boot_params, phandle);
+	phy = fdt_yesde_offset_by_phandle(initial_boot_params, phandle);
 
 	alt_phy_handle = fdt_getprop(initial_boot_params, eth, "cavium,alt-phy-handle", NULL);
 	if (alt_phy_handle) {
 		u32 alt_phandle = be32_to_cpup(alt_phy_handle);
 
-		alt_phy = fdt_node_offset_by_phandle(initial_boot_params, alt_phandle);
+		alt_phy = fdt_yesde_offset_by_phandle(initial_boot_params, alt_phandle);
 	} else {
 		alt_phy = -1;
 	}
 
 	if (phy_addr < 0 || phy < 0) {
 		/* Delete the PHY things */
-		fdt_nop_property(initial_boot_params, eth, "phy-handle");
+		fdt_yesp_property(initial_boot_params, eth, "phy-handle");
 		/* This one may fail */
-		fdt_nop_property(initial_boot_params, eth, "cavium,alt-phy-handle");
+		fdt_yesp_property(initial_boot_params, eth, "cavium,alt-phy-handle");
 		if (phy >= 0)
-			fdt_nop_node(initial_boot_params, phy);
+			fdt_yesp_yesde(initial_boot_params, phy);
 		if (alt_phy >= 0)
-			fdt_nop_node(initial_boot_params, alt_phy);
+			fdt_yesp_yesde(initial_boot_params, alt_phy);
 		return;
 	}
 
@@ -520,11 +520,11 @@ static void __init octeon_fdt_set_phy(int eth, int phy_addr)
 		struct fdt_property *alt_prop;
 		fdt32_t phy_handle_name;
 
-		/* Use the alt phy node instead.*/
+		/* Use the alt phy yesde instead.*/
 		phy_prop = fdt_get_property(initial_boot_params, eth, "phy-handle", NULL);
 		phy_handle_name = phy_prop->nameoff;
-		fdt_nop_node(initial_boot_params, phy);
-		fdt_nop_property(initial_boot_params, eth, "phy-handle");
+		fdt_yesp_yesde(initial_boot_params, phy);
+		fdt_yesp_property(initial_boot_params, eth, "phy-handle");
 		alt_prop = fdt_get_property_w(initial_boot_params, eth, "cavium,alt-phy-handle", NULL);
 		alt_prop->nameoff = phy_handle_name;
 		phy = alt_phy;
@@ -533,7 +533,7 @@ static void __init octeon_fdt_set_phy(int eth, int phy_addr)
 	phy_addr &= 0xff;
 
 	if (octeon_has_88e1145()) {
-		fdt_nop_property(initial_boot_params, phy, "marvell,reg-init");
+		fdt_yesp_property(initial_boot_params, phy, "marvell,reg-init");
 		memset(new_name, 0, sizeof(new_name));
 		strcpy(new_name, "marvell,88e1145");
 		p = fdt_getprop(initial_boot_params, phy, "compatible",
@@ -555,7 +555,7 @@ static void __init octeon_fdt_set_phy(int eth, int phy_addr)
 	if (p && current_len == strlen(new_name))
 		fdt_set_name(initial_boot_params, phy, new_name);
 	else
-		pr_err("Error: could not rename ethernet phy: <%s>", p);
+		pr_err("Error: could yest rename ethernet phy: <%s>", p);
 }
 
 static void __init octeon_fdt_set_mac_addr(int n, u64 *pmac)
@@ -588,19 +588,19 @@ static void __init octeon_fdt_set_mac_addr(int n, u64 *pmac)
 	*pmac = mac + 1;
 }
 
-static void __init octeon_fdt_rm_ethernet(int node)
+static void __init octeon_fdt_rm_ethernet(int yesde)
 {
 	const __be32 *phy_handle;
 
-	phy_handle = fdt_getprop(initial_boot_params, node, "phy-handle", NULL);
+	phy_handle = fdt_getprop(initial_boot_params, yesde, "phy-handle", NULL);
 	if (phy_handle) {
 		u32 ph = be32_to_cpup(phy_handle);
-		int p = fdt_node_offset_by_phandle(initial_boot_params, ph);
+		int p = fdt_yesde_offset_by_phandle(initial_boot_params, ph);
 
 		if (p >= 0)
-			fdt_nop_node(initial_boot_params, p);
+			fdt_yesp_yesde(initial_boot_params, p);
 	}
-	fdt_nop_node(initial_boot_params, node);
+	fdt_yesp_yesde(initial_boot_params, yesde);
 }
 
 static void __init _octeon_rx_tx_delay(int eth, int rx_delay, int tx_delay)
@@ -638,8 +638,8 @@ static void __init octeon_rx_tx_delay(int eth, int iface, int port)
 		}
 		break;
 	}
-	fdt_nop_property(initial_boot_params, eth, "rx-delay");
-	fdt_nop_property(initial_boot_params, eth, "tx-delay");
+	fdt_yesp_property(initial_boot_params, eth, "rx-delay");
+	fdt_yesp_property(initial_boot_params, eth, "tx-delay");
 }
 
 static void __init octeon_fdt_pip_port(int iface, int i, int p, int max)
@@ -651,7 +651,7 @@ static void __init octeon_fdt_pip_port(int iface, int i, int p, int max)
 	int fixed_link;
 
 	snprintf(name_buffer, sizeof(name_buffer), "ethernet@%x", p);
-	eth = fdt_subnode_offset(initial_boot_params, iface, name_buffer);
+	eth = fdt_subyesde_offset(initial_boot_params, iface, name_buffer);
 	if (eth < 0)
 		return;
 	if (p > max) {
@@ -667,11 +667,11 @@ static void __init octeon_fdt_pip_port(int iface, int i, int p, int max)
 	phy_addr = cvmx_helper_board_get_mii_address(ipd_port);
 	octeon_fdt_set_phy(eth, phy_addr);
 
-	fixed_link = fdt_subnode_offset(initial_boot_params, eth, "fixed-link");
+	fixed_link = fdt_subyesde_offset(initial_boot_params, eth, "fixed-link");
 	if (fixed_link < 0)
 		WARN_ON(octeon_has_fixed_link(ipd_port));
 	else if (!octeon_has_fixed_link(ipd_port))
-		fdt_nop_node(initial_boot_params, fixed_link);
+		fdt_yesp_yesde(initial_boot_params, fixed_link);
 	octeon_rx_tx_delay(eth, i, p);
 }
 
@@ -683,7 +683,7 @@ static void __init octeon_fdt_pip_iface(int pip, int idx)
 	int count = 0;
 
 	snprintf(name_buffer, sizeof(name_buffer), "interface@%d", idx);
-	iface = fdt_subnode_offset(initial_boot_params, pip, name_buffer);
+	iface = fdt_subyesde_offset(initial_boot_params, pip, name_buffer);
 	if (iface < 0)
 		return;
 
@@ -742,7 +742,7 @@ void __init octeon_fill_mac_addresses(void)
 		int p;
 
 		snprintf(name_buffer, sizeof(name_buffer), "interface@%d", i);
-		iface = fdt_subnode_offset(initial_boot_params, pip,
+		iface = fdt_subyesde_offset(initial_boot_params, pip,
 					   name_buffer);
 		if (iface < 0)
 			continue;
@@ -751,7 +751,7 @@ void __init octeon_fill_mac_addresses(void)
 
 			snprintf(name_buffer, sizeof(name_buffer),
 				 "ethernet@%x", p);
-			eth = fdt_subnode_offset(initial_boot_params, iface,
+			eth = fdt_subyesde_offset(initial_boot_params, iface,
 						 name_buffer);
 			if (eth < 0)
 				continue;
@@ -777,7 +777,7 @@ int __init octeon_prune_device_tree(void)
 
 	aliases = fdt_path_offset(initial_boot_params, "/aliases");
 	if (aliases < 0) {
-		pr_err("Error: No /aliases node in device tree.");
+		pr_err("Error: No /aliases yesde in device tree.");
 		return -EINVAL;
 	}
 
@@ -805,7 +805,7 @@ int __init octeon_prune_device_tree(void)
 			if (i >= max_port) {
 				pr_debug("Deleting mix%d\n", i);
 				octeon_fdt_rm_ethernet(mgmt);
-				fdt_nop_property(initial_boot_params, aliases,
+				fdt_yesp_property(initial_boot_params, aliases,
 						 name_buffer);
 			} else {
 				int phy_addr = cvmx_helper_board_get_mii_address(CVMX_HELPER_BOARD_MGMT_IPD_PORT + i);
@@ -847,8 +847,8 @@ int __init octeon_prune_device_tree(void)
 				continue;
 			if (i >= max_port) {
 				pr_debug("Deleting twsi%d\n", i);
-				fdt_nop_node(initial_boot_params, i2c);
-				fdt_nop_property(initial_boot_params, aliases,
+				fdt_yesp_yesde(initial_boot_params, i2c);
+				fdt_yesp_property(initial_boot_params, aliases,
 						 name_buffer);
 			}
 		}
@@ -877,8 +877,8 @@ int __init octeon_prune_device_tree(void)
 				continue;
 			if (i >= max_port) {
 				pr_debug("Deleting smi%d\n", i);
-				fdt_nop_node(initial_boot_params, i2c);
-				fdt_nop_property(initial_boot_params, aliases,
+				fdt_yesp_yesde(initial_boot_params, i2c);
+				fdt_yesp_property(initial_boot_params, aliases,
 						 name_buffer);
 			}
 		}
@@ -887,7 +887,7 @@ int __init octeon_prune_device_tree(void)
 	/* Serial */
 	uart_mask = 3;
 
-	/* Right now CN52XX is the only chip with a third uart */
+	/* Right yesw CN52XX is the only chip with a third uart */
 	if (OCTEON_IS_MODEL(OCTEON_CN52XX))
 		uart_mask |= 4; /* uart2 */
 
@@ -911,8 +911,8 @@ int __init octeon_prune_device_tree(void)
 				continue;
 			}
 			pr_debug("Deleting uart%d\n", i);
-			fdt_nop_node(initial_boot_params, uart);
-			fdt_nop_property(initial_boot_params, aliases,
+			fdt_yesp_yesde(initial_boot_params, uart);
+			fdt_yesp_property(initial_boot_params, aliases,
 					 name_buffer);
 		}
 	}
@@ -936,7 +936,7 @@ int __init octeon_prune_device_tree(void)
 
 		base_ptr = 0;
 		if (octeon_bootinfo->major_version == 1
-			&& octeon_bootinfo->minor_version >= 1) {
+			&& octeon_bootinfo->miyesr_version >= 1) {
 			if (octeon_bootinfo->compact_flash_common_base_addr)
 				base_ptr = octeon_bootinfo->compact_flash_common_base_addr;
 		} else {
@@ -944,7 +944,7 @@ int __init octeon_prune_device_tree(void)
 		}
 
 		if (!base_ptr)
-			goto no_cf;
+			goto yes_cf;
 
 		/* Find CS0 region. */
 		for (cs = 0; cs < 8; cs++) {
@@ -959,7 +959,7 @@ int __init octeon_prune_device_tree(void)
 		}
 		if (cs >= 7) {
 			/* cs and cs + 1 are CS0 and CS1, both must be less than 8. */
-			goto no_cf;
+			goto yes_cf;
 		}
 
 		if (!(base_ptr & 0xfffful)) {
@@ -975,12 +975,12 @@ int __init octeon_prune_device_tree(void)
 			region1_base = mio_boot_reg_cfg.s.base << 16;
 			region1_size = (mio_boot_reg_cfg.s.size + 1) << 16;
 			if (!mio_boot_reg_cfg.s.en)
-				goto no_cf;
+				goto yes_cf;
 			is_true_ide = true;
 
 		} else {
-			fdt_nop_property(initial_boot_params, cf, "cavium,true-ide");
-			fdt_nop_property(initial_boot_params, cf, "cavium,dma-engine-handle");
+			fdt_yesp_property(initial_boot_params, cf, "cavium,true-ide");
+			fdt_yesp_property(initial_boot_params, cf, "cavium,dma-engine-handle");
 			if (!is_16bit) {
 				__be32 width = cpu_to_be32(8);
 
@@ -999,10 +999,10 @@ int __init octeon_prune_device_tree(void)
 
 		bootbus = fdt_parent_offset(initial_boot_params, cf);
 		if (bootbus < 0)
-			goto no_cf;
+			goto yes_cf;
 		ranges = fdt_getprop_w(initial_boot_params, bootbus, "ranges", &len);
 		if (!ranges || len < (5 * 8 * sizeof(__be32)))
-			goto no_cf;
+			goto yes_cf;
 
 		ranges[(cs * 5) + 2] = cpu_to_be32(region_base >> 32);
 		ranges[(cs * 5) + 3] = cpu_to_be32(region_base & 0xffffffff);
@@ -1014,8 +1014,8 @@ int __init octeon_prune_device_tree(void)
 			ranges[(cs * 5) + 4] = cpu_to_be32(region1_size);
 		}
 		goto end_cf;
-no_cf:
-		fdt_nop_node(initial_boot_params, cf);
+yes_cf:
+		fdt_yesp_yesde(initial_boot_params, cf);
 
 end_cf:
 		;
@@ -1035,7 +1035,7 @@ end_cf:
 
 		base_ptr = octeon_bootinfo->led_display_base_addr;
 		if (base_ptr == 0)
-			goto no_led;
+			goto yes_led;
 		/* Find CS0 region. */
 		for (cs = 0; cs < 8; cs++) {
 			mio_boot_reg_cfg.u64 = cvmx_read_csr(CVMX_MIO_BOOT_REG_CFGX(cs));
@@ -1047,7 +1047,7 @@ end_cf:
 		}
 
 		if (cs > 7)
-			goto no_led;
+			goto yes_led;
 
 		new_reg[0] = cpu_to_be32(cs);
 		new_reg[1] = cpu_to_be32(0x20);
@@ -1060,18 +1060,18 @@ end_cf:
 
 		bootbus = fdt_parent_offset(initial_boot_params, led);
 		if (bootbus < 0)
-			goto no_led;
+			goto yes_led;
 		ranges = fdt_getprop_w(initial_boot_params, bootbus, "ranges", &len);
 		if (!ranges || len < (5 * 8 * sizeof(__be32)))
-			goto no_led;
+			goto yes_led;
 
 		ranges[(cs * 5) + 2] = cpu_to_be32(region_base >> 32);
 		ranges[(cs * 5) + 3] = cpu_to_be32(region_base & 0xffffffff);
 		ranges[(cs * 5) + 4] = cpu_to_be32(region_size);
 		goto end_led;
 
-no_led:
-		fdt_nop_node(initial_boot_params, led);
+yes_led:
+		fdt_yesp_yesde(initial_boot_params, led);
 end_led:
 		;
 	}
@@ -1086,12 +1086,12 @@ end_led:
 		if (uctl >= 0 && (!OCTEON_IS_MODEL(OCTEON_CN6XXX) ||
 				  octeon_bootinfo->board_type == CVMX_BOARD_TYPE_NIC2E)) {
 			pr_debug("Deleting uctl\n");
-			fdt_nop_node(initial_boot_params, uctl);
-			fdt_nop_property(initial_boot_params, aliases, "uctl");
+			fdt_yesp_yesde(initial_boot_params, uctl);
+			fdt_yesp_property(initial_boot_params, aliases, "uctl");
 		} else if (octeon_bootinfo->board_type == CVMX_BOARD_TYPE_NIC10E ||
 			   octeon_bootinfo->board_type == CVMX_BOARD_TYPE_NIC4E) {
 			/* Missing "refclk-type" defaults to crystal. */
-			fdt_nop_property(initial_boot_params, uctl, "refclk-type");
+			fdt_yesp_property(initial_boot_params, uctl, "refclk-type");
 		}
 	}
 
@@ -1104,8 +1104,8 @@ end_led:
 		if (usbn >= 0 && (current_cpu_type() == CPU_CAVIUM_OCTEON2 ||
 				  !octeon_has_feature(OCTEON_FEATURE_USB))) {
 			pr_debug("Deleting usbn\n");
-			fdt_nop_node(initial_boot_params, usbn);
-			fdt_nop_property(initial_boot_params, aliases, "usbn");
+			fdt_yesp_yesde(initial_boot_params, usbn);
+			fdt_yesp_property(initial_boot_params, aliases, "usbn");
 		} else  {
 			__be32 new_f[1];
 			enum cvmx_helper_board_usb_clock_types c;
@@ -1119,7 +1119,7 @@ end_led:
 				/* Fall through ...*/
 			case USB_CLOCK_TYPE_REF_12:
 				/* Missing "refclk-type" defaults to external. */
-				fdt_nop_property(initial_boot_params, usbn, "refclk-type");
+				fdt_yesp_property(initial_boot_params, usbn, "refclk-type");
 				break;
 			default:
 				break;

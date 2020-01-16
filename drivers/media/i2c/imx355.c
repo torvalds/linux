@@ -9,7 +9,7 @@
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-event.h>
-#include <media/v4l2-fwnode.h>
+#include <media/v4l2-fwyesde.h>
 
 #define IMX355_REG_MODE_SELECT		0x0100
 #define IMX355_MODE_STANDBY		0x00
@@ -1233,7 +1233,7 @@ static int imx355_set_ctrl(struct v4l2_ctrl *ctrl)
 		break;
 	default:
 		ret = -EINVAL;
-		dev_info(&client->dev, "ctrl(id:0x%x,val:0x%x) is not handled",
+		dev_info(&client->dev, "ctrl(id:0x%x,val:0x%x) is yest handled",
 			 ctrl->id, ctrl->val);
 		break;
 	}
@@ -1373,7 +1373,7 @@ imx355_set_pad_format(struct v4l2_subdev *sd,
 		__v4l2_ctrl_s_ctrl(imx355->vblank, vblank_def);
 		h_blank = mode->llp - imx355->cur_mode->width;
 		/*
-		 * Currently hblank is not changeable.
+		 * Currently hblank is yest changeable.
 		 * So FPS control is done only by vblank.
 		 */
 		__v4l2_ctrl_modify_range(imx355->hblank, h_blank,
@@ -1444,7 +1444,7 @@ static int imx355_set_stream(struct v4l2_subdev *sd, int enable)
 	if (enable) {
 		ret = pm_runtime_get_sync(&client->dev);
 		if (ret < 0) {
-			pm_runtime_put_noidle(&client->dev);
+			pm_runtime_put_yesidle(&client->dev);
 			goto err_unlock;
 		}
 
@@ -1462,7 +1462,7 @@ static int imx355_set_stream(struct v4l2_subdev *sd, int enable)
 
 	imx355->streaming = enable;
 
-	/* vflip and hflip cannot change during streaming */
+	/* vflip and hflip canyest change during streaming */
 	__v4l2_ctrl_grab(imx355->vflip, enable);
 	__v4l2_ctrl_grab(imx355->hflip, enable);
 
@@ -1656,22 +1656,22 @@ error:
 static struct imx355_hwcfg *imx355_get_hwcfg(struct device *dev)
 {
 	struct imx355_hwcfg *cfg;
-	struct v4l2_fwnode_endpoint bus_cfg = {
+	struct v4l2_fwyesde_endpoint bus_cfg = {
 		.bus_type = V4L2_MBUS_CSI2_DPHY
 	};
-	struct fwnode_handle *ep;
-	struct fwnode_handle *fwnode = dev_fwnode(dev);
+	struct fwyesde_handle *ep;
+	struct fwyesde_handle *fwyesde = dev_fwyesde(dev);
 	unsigned int i;
 	int ret;
 
-	if (!fwnode)
+	if (!fwyesde)
 		return NULL;
 
-	ep = fwnode_graph_get_next_endpoint(fwnode, NULL);
+	ep = fwyesde_graph_get_next_endpoint(fwyesde, NULL);
 	if (!ep)
 		return NULL;
 
-	ret = v4l2_fwnode_endpoint_alloc_parse(ep, &bus_cfg);
+	ret = v4l2_fwyesde_endpoint_alloc_parse(ep, &bus_cfg);
 	if (ret)
 		goto out_err;
 
@@ -1679,7 +1679,7 @@ static struct imx355_hwcfg *imx355_get_hwcfg(struct device *dev)
 	if (!cfg)
 		goto out_err;
 
-	ret = fwnode_property_read_u32(dev_fwnode(dev), "clock-frequency",
+	ret = fwyesde_property_read_u32(dev_fwyesde(dev), "clock-frequency",
 				       &cfg->ext_clk);
 	if (ret) {
 		dev_err(dev, "can't get clock frequency");
@@ -1688,14 +1688,14 @@ static struct imx355_hwcfg *imx355_get_hwcfg(struct device *dev)
 
 	dev_dbg(dev, "ext clk: %d", cfg->ext_clk);
 	if (cfg->ext_clk != IMX355_EXT_CLK) {
-		dev_err(dev, "external clock %d is not supported",
+		dev_err(dev, "external clock %d is yest supported",
 			cfg->ext_clk);
 		goto out_err;
 	}
 
 	dev_dbg(dev, "num of link freqs: %d", bus_cfg.nr_of_link_frequencies);
 	if (!bus_cfg.nr_of_link_frequencies) {
-		dev_warn(dev, "no link frequencies defined");
+		dev_warn(dev, "yes link frequencies defined");
 		goto out_err;
 	}
 
@@ -1711,13 +1711,13 @@ static struct imx355_hwcfg *imx355_get_hwcfg(struct device *dev)
 		dev_dbg(dev, "link_freq[%d] = %lld", i, cfg->link_freqs[i]);
 	}
 
-	v4l2_fwnode_endpoint_free(&bus_cfg);
-	fwnode_handle_put(ep);
+	v4l2_fwyesde_endpoint_free(&bus_cfg);
+	fwyesde_handle_put(ep);
 	return cfg;
 
 out_err:
-	v4l2_fwnode_endpoint_free(&bus_cfg);
-	fwnode_handle_put(ep);
+	v4l2_fwyesde_endpoint_free(&bus_cfg);
+	fwyesde_handle_put(ep);
 	return NULL;
 }
 
@@ -1759,7 +1759,7 @@ static int imx355_probe(struct i2c_client *client)
 	}
 
 	if (i == imx355->hwcfg->nr_of_link_freqs) {
-		dev_err(&client->dev, "no link frequency supported");
+		dev_err(&client->dev, "yes link frequency supported");
 		ret = -EINVAL;
 		goto error_probe;
 	}

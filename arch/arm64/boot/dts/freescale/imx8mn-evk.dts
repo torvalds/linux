@@ -9,7 +9,7 @@
 #include "imx8mn-evk.dtsi"
 
 / {
-	model = "NXP i.MX8MNano EVK board";
+	model = "NXP i.MX8MNayes EVK board";
 	compatible = "fsl,imx8mn-evk", "fsl,imx8mn";
 };
 

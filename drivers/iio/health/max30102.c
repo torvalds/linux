@@ -2,7 +2,7 @@
 /*
  * max30102.c - Support for MAX30102 heart rate and pulse oximeter sensor
  *
- * Copyright (C) 2017 Matt Ranostay <matt@ranostay.consulting>
+ * Copyright (C) 2017 Matt Rayesstay <matt@rayesstay.consulting>
  *
  * Support for MAX30105 optical particle sensor
  * Copyright (C) 2017 Peter Meerwald-Stadler <pmeerw@pmeerw.net>
@@ -323,13 +323,13 @@ static int max30102_get_current_idx(unsigned int val, int *reg)
 static int max30102_led_init(struct max30102_data *data)
 {
 	struct device *dev = &data->client->dev;
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 	unsigned int val;
 	int reg, ret;
 
 	ret = of_property_read_u32(np, "maxim,red-led-current-microamp", &val);
 	if (ret) {
-		dev_info(dev, "no red-led-current-microamp set\n");
+		dev_info(dev, "yes red-led-current-microamp set\n");
 
 		/* Default to 7 mA RED LED */
 		val = 7000;
@@ -349,7 +349,7 @@ static int max30102_led_init(struct max30102_data *data)
 		ret = of_property_read_u32(np,
 			"maxim,green-led-current-microamp", &val);
 		if (ret) {
-			dev_info(dev, "no green-led-current-microamp set\n");
+			dev_info(dev, "yes green-led-current-microamp set\n");
 
 			/* Default to 7 mA green LED */
 			val = 7000;
@@ -370,7 +370,7 @@ static int max30102_led_init(struct max30102_data *data)
 
 	ret = of_property_read_u32(np, "maxim,ir-led-current-microamp", &val);
 	if (ret) {
-		dev_info(dev, "no ir-led-current-microamp set\n");
+		dev_info(dev, "yes ir-led-current-microamp set\n");
 
 		/* Default to 7 mA IR LED */
 		val = 7000;
@@ -475,8 +475,8 @@ static int max30102_read_raw(struct iio_dev *indio_dev,
 	switch (mask) {
 	case IIO_CHAN_INFO_RAW:
 		/*
-		 * Temperature reading can only be acquired when not in
-		 * shutdown; leave shutdown briefly when buffer not running
+		 * Temperature reading can only be acquired when yest in
+		 * shutdown; leave shutdown briefly when buffer yest running
 		 */
 		mutex_lock(&indio_dev->mlock);
 		if (!iio_buffer_enabled(indio_dev))
@@ -581,7 +581,7 @@ static int max30102_probe(struct i2c_client *client,
 		return ret;
 
 	if (client->irq <= 0) {
-		dev_err(&client->dev, "no valid irq defined\n");
+		dev_err(&client->dev, "yes valid irq defined\n");
 		return -EINVAL;
 	}
 
@@ -633,6 +633,6 @@ static struct i2c_driver max30102_driver = {
 };
 module_i2c_driver(max30102_driver);
 
-MODULE_AUTHOR("Matt Ranostay <matt@ranostay.consulting>");
+MODULE_AUTHOR("Matt Rayesstay <matt@rayesstay.consulting>");
 MODULE_DESCRIPTION("MAX30102 heart rate/pulse oximeter and MAX30105 particle sensor driver");
 MODULE_LICENSE("GPL");

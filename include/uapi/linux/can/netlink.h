@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0-only WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0-only WITH Linux-syscall-yeste */
 /*
  * linux/can/netlink.h
  *
@@ -31,7 +31,7 @@
 struct can_bittiming {
 	__u32 bitrate;		/* Bit-rate in bits/second */
 	__u32 sample_point;	/* Sample point in one-tenth of a percent */
-	__u32 tq;		/* Time quanta (TQ) in nanoseconds */
+	__u32 tq;		/* Time quanta (TQ) in nayesseconds */
 	__u32 prop_seg;		/* Propagation segment in TQs */
 	__u32 phase_seg1;	/* Phase buffer segment 1 in TQs */
 	__u32 phase_seg2;	/* Phase buffer segment 2 in TQs */
@@ -98,8 +98,8 @@ struct can_ctrlmode {
 #define CAN_CTRLMODE_ONE_SHOT		0x08	/* One-Shot mode */
 #define CAN_CTRLMODE_BERR_REPORTING	0x10	/* Bus-error reporting */
 #define CAN_CTRLMODE_FD			0x20	/* CAN FD mode */
-#define CAN_CTRLMODE_PRESUME_ACK	0x40	/* Ignore missing CAN ACKs */
-#define CAN_CTRLMODE_FD_NON_ISO		0x80	/* CAN FD in non-ISO mode */
+#define CAN_CTRLMODE_PRESUME_ACK	0x40	/* Igyesre missing CAN ACKs */
+#define CAN_CTRLMODE_FD_NON_ISO		0x80	/* CAN FD in yesn-ISO mode */
 
 /*
  * CAN device statistics

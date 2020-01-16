@@ -19,10 +19,10 @@
  * allows us to circumvent this restriction by splitting PCI space into
  * two 2GB chunks and mapping only one at a time into processor memory.
  * We use MMU protection domains to trap any attempt to access the bank
- * that is not currently mapped.  (This isn't fully implemented yet.)
+ * that is yest currently mapped.  (This isn't fully implemented yet.)
  */
 #include <linux/module.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/mm.h>
 #include <linux/vmalloc.h>
 #include <linux/io.h>
@@ -130,7 +130,7 @@ void __check_vmalloc_seq(struct mm_struct *mm)
 #if !defined(CONFIG_SMP) && !defined(CONFIG_ARM_LPAE)
 /*
  * Section support is unsafe on SMP - If you iounmap and ioremap a region,
- * the other CPUs will not see this change until their next context switch.
+ * the other CPUs will yest see this change until their next context switch.
  * Meanwhile, (eg) if an interrupt comes in on one of those other CPUs
  * which requires the new ioremap'd region to be referenced, the CPU will
  * reference the _old_ region.
@@ -152,11 +152,11 @@ static void unmap_area_sections(unsigned long virt, unsigned long size)
 	do {
 		pmd_t pmd = *pmdp;
 
-		if (!pmd_none(pmd)) {
+		if (!pmd_yesne(pmd)) {
 			/*
 			 * Clear the PMD from the page table, and
 			 * increment the vmalloc sequence so others
-			 * notice this change.
+			 * yestice this change.
 			 *
 			 * Note: this is still racy on SMP machines.
 			 */
@@ -357,9 +357,9 @@ void __iomem *__arm_ioremap_caller(phys_addr_t phys_addr, size_t size,
  * address space. Needed when the kernel wants to access high addresses
  * directly.
  *
- * NOTE! We need to allow non-page-aligned mappings too: we will obviously
+ * NOTE! We need to allow yesn-page-aligned mappings too: we will obviously
  * have to convert them into an offset in a page-aligned mapping, but the
- * caller shouldn't need to know that small detail.
+ * caller shouldn't need to kyesw that small detail.
  */
 void __iomem *
 __arm_ioremap_pfn(unsigned long pfn, unsigned long offset, size_t size,
@@ -399,7 +399,7 @@ EXPORT_SYMBOL(ioremap_wc);
  * Remap an arbitrary physical address space into the kernel virtual
  * address space as memory. Needed when the kernel wants to execute
  * code in external memory. This is needed for reprogramming source
- * clocks that would affect normal memory for example. Please see
+ * clocks that would affect yesrmal memory for example. Please see
  * CONFIG_GENERIC_ALLOCATOR for allocating external memory.
  */
 void __iomem *
@@ -441,7 +441,7 @@ void __iounmap(volatile void __iomem *io_addr)
 
 		/*
 		 * If this is a section based mapping we need to handle it
-		 * specially as the VM subsystem does not know how to handle
+		 * specially as the VM subsystem does yest kyesw how to handle
 		 * such a beast.
 		 */
 		if (vm && (vm->flags & VM_ARM_SECTION_MAPPING))

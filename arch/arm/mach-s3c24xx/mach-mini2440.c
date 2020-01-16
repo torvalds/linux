@@ -61,7 +61,7 @@
 #define MACH_MINI2440_DM9K_BASE (S3C2410_CS4 + 0x300)
 
 static struct map_desc mini2440_iodesc[] __initdata = {
-	/* nothing to declare, move along */
+	/* yesthing to declare, move along */
 };
 
 #define UCON S3C2410_UCON_DEFAULT
@@ -192,7 +192,7 @@ static struct s3c2410fb_display mini2440_lcd_cfg[] __initdata = {
 #define S3C2410_GPDCON_MASK(x)	(3 << ((x) * 2))
 
 static struct s3c2410fb_mach_info mini2440_fb_info __initdata = {
-	.displays	 = &mini2440_lcd_cfg[0], /* not constant! see init */
+	.displays	 = &mini2440_lcd_cfg[0], /* yest constant! see init */
 	.num_displays	 = 1,
 	.default_display = 0,
 
@@ -266,7 +266,7 @@ static struct mtd_partition mini2440_default_nand_part[] __initdata = {
 	},
 	[2] = {
 		.name	= "kernel",
-		/* 5 megabytes, for a kernel with no modules
+		/* 5 megabytes, for a kernel with yes modules
 		 * or a uImage with a ramdisk attached
 		 */
 		.size	= 0x00500000,
@@ -295,7 +295,7 @@ static struct s3c2410_platform_nand mini2440_nand_info __initdata = {
 	.twrph1		= 15,
 	.nr_sets	= ARRAY_SIZE(mini2440_nand_sets),
 	.sets		= mini2440_nand_sets,
-	.ignore_unset_ecc = 1,
+	.igyesre_unset_ecc = 1,
 	.ecc_mode	= NAND_ECC_HW,
 };
 
@@ -309,7 +309,7 @@ static struct resource mini2440_dm9k_resource[] = {
 };
 
 /*
- * The DM9000 has no eeprom, and it's MAC address is set by
+ * The DM9000 has yes eeprom, and it's MAC address is set by
  * the bootloader before starting the kernel.
  */
 static struct dm9000_plat_data mini2440_dm9k_pdata = {
@@ -375,7 +375,7 @@ static struct gpio_keys_button mini2440_buttons[] = {
 		.active_low	= 1,
 	},
 #if 0
-	/* this pin is also known as TCLK1 and seems to already
+	/* this pin is also kyeswn as TCLK1 and seems to already
 	 * marked as "in use" somehow in the kernel -- possibly wrongly
 	 */
 	{
@@ -614,7 +614,7 @@ static void __init mini2440_parse_features(
 		switch (f) {
 		case '0'...'9':	/* tft screen */
 			if (features->done & FEATURE_SCREEN) {
-				pr_info("MINI2440: '%c' ignored, screen type already set\n",
+				pr_info("MINI2440: '%c' igyesred, screen type already set\n",
 					f);
 			} else {
 				int li = f - '0';
@@ -632,7 +632,7 @@ static void __init mini2440_parse_features(
 			break;
 		case 'b':
 			if (features->done & FEATURE_BACKLIGHT)
-				pr_info("MINI2440: '%c' ignored, backlight already set\n",
+				pr_info("MINI2440: '%c' igyesred, backlight already set\n",
 					f);
 			else {
 				features->optional[features->count++] =
@@ -641,12 +641,12 @@ static void __init mini2440_parse_features(
 			features->done |= FEATURE_BACKLIGHT;
 			break;
 		case 't':
-			pr_info("MINI2440: '%c' ignored, touchscreen not compiled in\n",
+			pr_info("MINI2440: '%c' igyesred, touchscreen yest compiled in\n",
 				f);
 			break;
 		case 'c':
 			if (features->done & FEATURE_CAMERA)
-				pr_info("MINI2440: '%c' ignored, camera already registered\n",
+				pr_info("MINI2440: '%c' igyesred, camera already registered\n",
 					f);
 			else
 				features->optional[features->count++] =

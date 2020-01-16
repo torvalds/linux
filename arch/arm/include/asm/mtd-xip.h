@@ -2,7 +2,7 @@
 /*
  * MTD primitives for XIP support. Architecture specific functions
  *
- * Do not include this file directly. It's included from linux/mtd/xip.h
+ * Do yest include this file directly. It's included from linux/mtd/xip.h
  * 
  * Author:	Nicolas Pitre
  * Created:	Nov 2, 2004
@@ -15,6 +15,6 @@
 #include <mach/mtd-xip.h>
 
 /* fill instruction prefetch */
-#define xip_iprefetch() 	do { asm volatile (".rep 8; nop; .endr"); } while (0)
+#define xip_iprefetch() 	do { asm volatile (".rep 8; yesp; .endr"); } while (0)
 
 #endif /* __ARM_MTD_XIP_H__ */

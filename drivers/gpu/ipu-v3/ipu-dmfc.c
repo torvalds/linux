@@ -5,7 +5,7 @@
  */
 #include <linux/export.h>
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/io.h>
 
 #include <video/imx-ipu-v3.h>

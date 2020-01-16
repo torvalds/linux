@@ -46,7 +46,7 @@
  * Message Sending:
  *   nlmsg_multicast()			multicast message to several groups
  *   nlmsg_unicast()			unicast a message to a single socket
- *   nlmsg_notify()			send notification message
+ *   nlmsg_yestify()			send yestification message
  *
  * Message Length Calculations:
  *   nlmsg_msg_size(payload)		length of message w/o padding
@@ -90,9 +90,9 @@
  *
  * Attribute Construction:
  *   nla_reserve(skb, type, len)	reserve room for an attribute
- *   nla_reserve_nohdr(skb, len)	reserve room for an attribute w/o hdr
+ *   nla_reserve_yeshdr(skb, len)	reserve room for an attribute w/o hdr
  *   nla_put(skb, type, len, data)	add attribute to skb
- *   nla_put_nohdr(skb, len, data)	add attribute w/o hdr
+ *   nla_put_yeshdr(skb, len, data)	add attribute w/o hdr
  *   nla_append(skb, len, data)		append data to skb
  *
  * Attribute Construction for Basic Types:
@@ -244,15 +244,15 @@ enum nla_policy_validation {
  *                         of the generic one in extended ACK.
  *    NLA_NESTED           Points to a nested policy to validate, must also set
  *                         `len' to the max attribute number.
- *                         Note that nla_parse() will validate, but of course not
+ *                         Note that nla_parse() will validate, but of course yest
  *                         parse, the nested sub-policies.
  *    NLA_NESTED_ARRAY     Points to a nested policy to validate, must also set
  *                         `len' to the max attribute number. The difference to
  *                         NLA_NESTED is the structure - NLA_NESTED has the
  *                         nested attributes directly inside, while an array has
- *                         the nested attributes at another level down and the
+ *                         the nested attributes at ayesther level down and the
  *                         attributes directly in the nesting don't matter.
- *    All other            Unused - but note that it's a union
+ *    All other            Unused - but yeste that it's a union
  *
  * Meaning of `min' and `max' fields, use via NLA_POLICY_MIN, NLA_POLICY_MAX
  * and NLA_POLICY_RANGE:
@@ -268,17 +268,17 @@ enum nla_policy_validation {
  *                         maximum and both are used (respectively) to check
  *                         the value of the integer attribute.
  *                         Note that in the interest of code simplicity and
- *                         struct size both limits are s16, so you cannot
+ *                         struct size both limits are s16, so you canyest
  *                         enforce a range that doesn't fall within the range
  *                         of s16 - do that as usual in the code instead.
- *    All other            Unused - but note that it's a union
+ *    All other            Unused - but yeste that it's a union
  *
  * Meaning of `validate' field, use via NLA_POLICY_VALIDATE_FN:
  *    NLA_BINARY           Validation function called for the attribute,
- *                         not compatible with use of the validation_data
+ *                         yest compatible with use of the validation_data
  *                         as in NLA_BITFIELD32, NLA_REJECT, NLA_NESTED and
  *                         NLA_NESTED_ARRAY.
- *    All other            Unused - but note that it's a union
+ *    All other            Unused - but yeste that it's a union
  *
  * Example:
  * static const struct nla_policy my_policy[ATTR_MAX+1] = {
@@ -308,7 +308,7 @@ struct nla_policy {
 		 * Additionally, it means that NLA_UNSPEC is actually NLA_REJECT
 		 * for any types >= this, so need to use NLA_MIN_LEN to get the
 		 * previous pure { .len = xyz } behaviour. The advantage of this
-		 * is that types not specified in the policy will be rejected.
+		 * is that types yest specified in the policy will be rejected.
 		 *
 		 * For completely new families it should be set to 1 so that the
 		 * validation is enforced for all attributes. For existing ones
@@ -380,27 +380,27 @@ struct nla_policy {
  * @nlh: Netlink message header of original request
  * @nl_net: Network namespace
  * @portid: Netlink PORTID of requesting application
- * @skip_notify: Skip netlink notifications to user space
- * @skip_notify_kernel: Skip selected in-kernel notifications
+ * @skip_yestify: Skip netlink yestifications to user space
+ * @skip_yestify_kernel: Skip selected in-kernel yestifications
  */
 struct nl_info {
 	struct nlmsghdr		*nlh;
 	struct net		*nl_net;
 	u32			portid;
-	u8			skip_notify:1,
-				skip_notify_kernel:1;
+	u8			skip_yestify:1,
+				skip_yestify_kernel:1;
 };
 
 /**
  * enum netlink_validation - netlink message/attribute validation levels
- * @NL_VALIDATE_LIBERAL: Old-style "be liberal" validation, not caring about
+ * @NL_VALIDATE_LIBERAL: Old-style "be liberal" validation, yest caring about
  *	extra data at the end of the message, attributes being longer than
- *	they should be, or unknown attributes being present.
+ *	they should be, or unkyeswn attributes being present.
  * @NL_VALIDATE_TRAILING: Reject junk data encountered after attribute parsing.
  * @NL_VALIDATE_MAXTYPE: Reject attributes > max type; Together with _TRAILING
  *	this is equivalent to the old nla_parse_strict()/nlmsg_parse_strict().
  * @NL_VALIDATE_UNSPEC: Reject attributes with NLA_UNSPEC in the policy.
- *	This can safely be set by the kernel when the given policy has no
+ *	This can safely be set by the kernel when the given policy has yes
  *	NLA_UNSPEC anymore, and can thus be used to ensure policy entries
  *	are enforced going forward.
  * @NL_VALIDATE_STRICT_ATTRS: strict attribute policy parsing (e.g.
@@ -428,7 +428,7 @@ enum netlink_validation {
 int netlink_rcv_skb(struct sk_buff *skb,
 		    int (*cb)(struct sk_buff *, struct nlmsghdr *,
 			      struct netlink_ext_ack *));
-int nlmsg_notify(struct sock *sk, struct sk_buff *skb, u32 portid,
+int nlmsg_yestify(struct sock *sk, struct sk_buff *skb, u32 portid,
 		 unsigned int group, int report, gfp_t flags);
 
 int __nla_validate(const struct nlattr *head, int len, int maxtype,
@@ -447,20 +447,20 @@ int nla_strcmp(const struct nlattr *nla, const char *str);
 struct nlattr *__nla_reserve(struct sk_buff *skb, int attrtype, int attrlen);
 struct nlattr *__nla_reserve_64bit(struct sk_buff *skb, int attrtype,
 				   int attrlen, int padattr);
-void *__nla_reserve_nohdr(struct sk_buff *skb, int attrlen);
+void *__nla_reserve_yeshdr(struct sk_buff *skb, int attrlen);
 struct nlattr *nla_reserve(struct sk_buff *skb, int attrtype, int attrlen);
 struct nlattr *nla_reserve_64bit(struct sk_buff *skb, int attrtype,
 				 int attrlen, int padattr);
-void *nla_reserve_nohdr(struct sk_buff *skb, int attrlen);
+void *nla_reserve_yeshdr(struct sk_buff *skb, int attrlen);
 void __nla_put(struct sk_buff *skb, int attrtype, int attrlen,
 	       const void *data);
 void __nla_put_64bit(struct sk_buff *skb, int attrtype, int attrlen,
 		     const void *data, int padattr);
-void __nla_put_nohdr(struct sk_buff *skb, int attrlen, const void *data);
+void __nla_put_yeshdr(struct sk_buff *skb, int attrlen, const void *data);
 int nla_put(struct sk_buff *skb, int attrtype, int attrlen, const void *data);
 int nla_put_64bit(struct sk_buff *skb, int attrtype, int attrlen,
 		  const void *data, int padattr);
-int nla_put_nohdr(struct sk_buff *skb, int attrlen, const void *data);
+int nla_put_yeshdr(struct sk_buff *skb, int attrlen, const void *data);
 int nla_append(struct sk_buff *skb, int attrlen, const void *data);
 
 /**************************************************************************
@@ -468,7 +468,7 @@ int nla_append(struct sk_buff *skb, int attrlen, const void *data);
  **************************************************************************/
 
 /**
- * nlmsg_msg_size - length of netlink message not including padding
+ * nlmsg_msg_size - length of netlink message yest including padding
  * @payload: length of message payload
  */
 static inline int nlmsg_msg_size(int payload)
@@ -600,7 +600,7 @@ static inline int nla_parse(struct nlattr **tb, int maxtype,
  *
  * Parses a stream of attributes and stores a pointer to each attribute in
  * the tb array accessible via the attribute type. Attributes with a type
- * exceeding maxtype will be ignored and attributes from the policy are not
+ * exceeding maxtype will be igyesred and attributes from the policy are yest
  * always strictly validated (only for new attributes).
  *
  * Returns 0 on success or a negative error code.
@@ -626,7 +626,7 @@ static inline int nla_parse_deprecated(struct nlattr **tb, int maxtype,
  * Parses a stream of attributes and stores a pointer to each attribute in
  * the tb array accessible via the attribute type. Attributes with a type
  * exceeding maxtype will be rejected as well as trailing data, but the
- * policy is not completely strictly validated (only for new attributes).
+ * policy is yest completely strictly validated (only for new attributes).
  *
  * Returns 0 on success or a negative error code.
  */
@@ -880,7 +880,7 @@ static inline struct nlmsghdr *nlmsg_put_answer(struct sk_buff *skb,
  * @payload: size of the message payload
  * @flags: the type of memory to allocate.
  *
- * Use NLMSG_DEFAULT_SIZE if the size of the payload isn't known
+ * Use NLMSG_DEFAULT_SIZE if the size of the payload isn't kyeswn
  * and a good default is needed.
  */
 static inline struct sk_buff *nlmsg_new(size_t payload, gfp_t flags)
@@ -1002,7 +1002,7 @@ static inline int nlmsg_unicast(struct sock *sk, struct sk_buff *skb, u32 portid
 	     pos = nlmsg_next(pos, &(rem)))
 
 /**
- * nl_dump_check_consistent - check if sequence is consistent and advertise if not
+ * nl_dump_check_consistent - check if sequence is consistent and advertise if yest
  * @cb: netlink callback structure that stores the sequence number
  * @nlh: netlink message header to write the flag to
  *
@@ -1014,7 +1014,7 @@ static inline int nlmsg_unicast(struct sock *sk, struct sk_buff *skb, u32 portid
  * each message that is generated.
  *
  * Note that due to initialisation concerns, 0 is an invalid sequence number
- * and must not be used by code that uses this functionality.
+ * and must yest be used by code that uses this functionality.
  */
 static inline void
 nl_dump_check_consistent(struct netlink_callback *cb,
@@ -1030,7 +1030,7 @@ nl_dump_check_consistent(struct netlink_callback *cb,
  **************************************************************************/
 
 /**
- * nla_attr_size - length of attribute not including padding
+ * nla_attr_size - length of attribute yest including padding
  * @payload: length of payload
  */
 static inline int nla_attr_size(int payload)
@@ -1669,7 +1669,7 @@ static inline void *nla_memdup(const struct nlattr *src, gfp_t gfp)
 }
 
 /**
- * nla_nest_start_noflag - Start a new level of nested attributes
+ * nla_nest_start_yesflag - Start a new level of nested attributes
  * @skb: socket buffer to add attributes to
  * @attrtype: attribute type of container
  *
@@ -1679,7 +1679,7 @@ static inline void *nla_memdup(const struct nlattr *src, gfp_t gfp)
  *
  * Returns the container attribute or NULL on error
  */
-static inline struct nlattr *nla_nest_start_noflag(struct sk_buff *skb,
+static inline struct nlattr *nla_nest_start_yesflag(struct sk_buff *skb,
 						   int attrtype)
 {
 	struct nlattr *start = (struct nlattr *)skb_tail_pointer(skb);
@@ -1695,14 +1695,14 @@ static inline struct nlattr *nla_nest_start_noflag(struct sk_buff *skb,
  * @skb: socket buffer to add attributes to
  * @attrtype: attribute type of container
  *
- * Unlike nla_nest_start_noflag(), mark the nest attribute with NLA_F_NESTED
+ * Unlike nla_nest_start_yesflag(), mark the nest attribute with NLA_F_NESTED
  * flag. This is the preferred function to use in new code.
  *
  * Returns the container attribute or NULL on error
  */
 static inline struct nlattr *nla_nest_start(struct sk_buff *skb, int attrtype)
 {
-	return nla_nest_start_noflag(skb, attrtype | NLA_F_NESTED);
+	return nla_nest_start_yesflag(skb, attrtype | NLA_F_NESTED);
 }
 
 /**
@@ -1744,7 +1744,7 @@ static inline void nla_nest_cancel(struct sk_buff *skb, struct nlattr *start)
  *
  * Validates all attributes in the nested attribute stream against the
  * specified policy. Attributes with a type exceeding maxtype will be
- * ignored. See documenation of struct nla_policy for more details.
+ * igyesred. See documenation of struct nla_policy for more details.
  *
  * Returns 0 on success or a negative error code.
  */
@@ -1803,7 +1803,7 @@ static inline bool nla_need_padding_for_64bit(struct sk_buff *skb)
  *
  * Conditionally emit a padding netlink attribute in order to make
  * the next attribute we emit have a 64-bit aligned nla_data() area.
- * This will only be done in architectures which do not have
+ * This will only be done in architectures which do yest have
  * CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS defined.
  *
  * Returns zero on success or a negative error code.

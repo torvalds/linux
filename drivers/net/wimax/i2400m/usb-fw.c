@@ -10,12 +10,12 @@
  * are met:
  *
  *   * Redistributions of source code must retain the above copyright
- *     notice, this list of conditions and the following disclaimer.
+ *     yestice, this list of conditions and the following disclaimer.
  *   * Redistributions in binary form must reproduce the above copyright
- *     notice, this list of conditions and the following disclaimer in
+ *     yestice, this list of conditions and the following disclaimer in
  *     the documentation and/or other materials provided with the
  *     distribution.
- *   * Neither the name of Intel Corporation nor the names of its
+ *   * Neither the name of Intel Corporation yesr the names of its
  *     contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission.
  *
@@ -45,7 +45,7 @@
  * See fw.c for the generic description of this procedure.
  *
  * This file implements only the USB specifics. It boils down to how
- * to send a command and waiting for an acknowledgement from the
+ * to send a command and waiting for an ackyeswledgement from the
  * device.
  *
  * This code (and process) is single threaded. It assumes it is the
@@ -57,11 +57,11 @@
  *
  * ACK RECEPTION
  *
- * We just post a URB to the notification endpoint and wait for
+ * We just post a URB to the yestification endpoint and wait for
  * data. We repeat until we get all the data we expect (as indicated
  * by the call from the bus generic code).
  *
- * The data is not read from the bulk in endpoint for boot mode.
+ * The data is yest read from the bulk in endpoint for boot mode.
  *
  * ROADMAP
  *
@@ -70,7 +70,7 @@
  *   i2400mu_tx_bulk_out
  *
  * i2400mu_bus_bm_wait_for_ack
- *   i2400m_notif_submit
+ *   i2400m_yestif_submit
  */
 #include <linux/usb.h>
 #include <linux/gfp.h>
@@ -82,7 +82,7 @@
 
 
 /*
- * Synchronous write to the device
+ * Synchroyesus write to the device
  *
  * Takes care of updating EDC counts and thus, handle device errors.
  */
@@ -118,7 +118,7 @@ retry:
 		/*
 		 * Stall -- maybe the device is choking with our
 		 * requests. Clear it and give it some time. If they
-		 * happen to often, it might be another symptom, so we
+		 * happen to often, it might be ayesther symptom, so we
 		 * reset.
 		 *
 		 * No error handling for usb_clear_halt(0; if it
@@ -138,7 +138,7 @@ retry:
 		/* fall through */
 	case -EINVAL:			/* while removing driver */
 	case -ENODEV:			/* dev disconnect ... */
-	case -ENOENT:			/* just ignore it */
+	case -ENOENT:			/* just igyesre it */
 	case -ESHUTDOWN:		/* and exit */
 	case -ECONNRESET:
 		result = -ESHUTDOWN;
@@ -167,16 +167,16 @@ retry:
 /*
  * Send a boot-mode command over the bulk-out pipe
  *
- * Command can be a raw command, which requires no preparation (and
- * which might not even be following the command format). Checks that
+ * Command can be a raw command, which requires yes preparation (and
+ * which might yest even be following the command format). Checks that
  * the right amount of data was transferred.
  *
- * To satisfy USB requirements (no onstack, vmalloc or in data segment
+ * To satisfy USB requirements (yes onstack, vmalloc or in data segment
  * buffers), we copy the command to i2400m->bm_cmd_buf and send it from
  * there.
  *
  * @flags: pass thru from i2400m_bm_cmd()
- * @return: cmd_size if ok, < 0 errno code on error.
+ * @return: cmd_size if ok, < 0 erryes code on error.
  */
 ssize_t i2400mu_bus_bm_cmd_send(struct i2400m *i2400m,
 				const struct i2400m_bootrom_header *_cmd,
@@ -206,7 +206,7 @@ ssize_t i2400mu_bus_bm_cmd_send(struct i2400m *i2400m,
 	}
 	result = i2400mu_tx_bulk_out(i2400mu, i2400m->bm_cmd_buf, cmd_size);
 	if (result < 0) {
-		dev_err(dev, "boot-mode cmd %d: cannot send: %zd\n",
+		dev_err(dev, "boot-mode cmd %d: canyest send: %zd\n",
 			opcode, result);
 		goto error_cmd_send;
 	}
@@ -226,14 +226,14 @@ error_too_big:
 
 
 static
-void __i2400mu_bm_notif_cb(struct urb *urb)
+void __i2400mu_bm_yestif_cb(struct urb *urb)
 {
 	complete(urb->context);
 }
 
 
 /*
- * submit a read to the notification endpoint
+ * submit a read to the yestification endpoint
  *
  * @i2400m: device descriptor
  * @urb: urb to use
@@ -242,7 +242,7 @@ void __i2400mu_bm_notif_cb(struct urb *urb)
  * Data is always read to i2400m->bm_ack_buf
  */
 static
-int i2400mu_notif_submit(struct i2400mu *i2400mu, struct urb *urb,
+int i2400mu_yestif_submit(struct i2400mu *i2400mu, struct urb *urb,
 			 struct completion *completion)
 {
 	struct i2400m *i2400m = &i2400mu->i2400m;
@@ -250,26 +250,26 @@ int i2400mu_notif_submit(struct i2400mu *i2400mu, struct urb *urb,
 	int pipe;
 
 	epd = usb_get_epd(i2400mu->usb_iface,
-			  i2400mu->endpoint_cfg.notification);
+			  i2400mu->endpoint_cfg.yestification);
 	pipe = usb_rcvintpipe(i2400mu->usb_dev, epd->bEndpointAddress);
 	usb_fill_int_urb(urb, i2400mu->usb_dev, pipe,
 			 i2400m->bm_ack_buf, I2400M_BM_ACK_BUF_SIZE,
-			 __i2400mu_bm_notif_cb, completion,
+			 __i2400mu_bm_yestif_cb, completion,
 			 epd->bInterval);
 	return usb_submit_urb(urb, GFP_KERNEL);
 }
 
 
 /*
- * Read an ack from  the notification endpoint
+ * Read an ack from  the yestification endpoint
  *
  * @i2400m:
  * @_ack: pointer to where to store the read data
  * @ack_size: how many bytes we should read
  *
- * Returns: < 0 errno code on error; otherwise, amount of received bytes.
+ * Returns: < 0 erryes code on error; otherwise, amount of received bytes.
  *
- * Submits a notification read, appends the read data to the given ack
+ * Submits a yestification read, appends the read data to the given ack
  * buffer and then repeats (until @ack_size bytes have been
  * received).
  */
@@ -280,12 +280,12 @@ ssize_t i2400mu_bus_bm_wait_for_ack(struct i2400m *i2400m,
 	ssize_t result = -ENOMEM;
 	struct device *dev = i2400m_dev(i2400m);
 	struct i2400mu *i2400mu = container_of(i2400m, struct i2400mu, i2400m);
-	struct urb notif_urb;
+	struct urb yestif_urb;
 	void *ack = _ack;
 	size_t offset, len;
 	long val;
 	int do_autopm = 1;
-	DECLARE_COMPLETION_ONSTACK(notif_completion);
+	DECLARE_COMPLETION_ONSTACK(yestif_completion);
 
 	d_fnstart(8, dev, "(i2400m %p ack %p size %zu)\n",
 		  i2400m, ack, ack_size);
@@ -295,59 +295,59 @@ ssize_t i2400mu_bus_bm_wait_for_ack(struct i2400m *i2400m,
 		dev_err(dev, "BM-ACK: can't get autopm: %d\n", (int) result);
 		do_autopm = 0;
 	}
-	usb_init_urb(&notif_urb);	/* ready notifications */
-	usb_get_urb(&notif_urb);
+	usb_init_urb(&yestif_urb);	/* ready yestifications */
+	usb_get_urb(&yestif_urb);
 	offset = 0;
 	while (offset < ack_size) {
-		init_completion(&notif_completion);
-		result = i2400mu_notif_submit(i2400mu, &notif_urb,
-					      &notif_completion);
+		init_completion(&yestif_completion);
+		result = i2400mu_yestif_submit(i2400mu, &yestif_urb,
+					      &yestif_completion);
 		if (result < 0)
-			goto error_notif_urb_submit;
+			goto error_yestif_urb_submit;
 		val = wait_for_completion_interruptible_timeout(
-			&notif_completion, HZ);
+			&yestif_completion, HZ);
 		if (val == 0) {
 			result = -ETIMEDOUT;
-			usb_kill_urb(&notif_urb);	/* Timedout */
-			goto error_notif_wait;
+			usb_kill_urb(&yestif_urb);	/* Timedout */
+			goto error_yestif_wait;
 		}
 		if (val == -ERESTARTSYS) {
 			result = -EINTR;		/* Interrupted */
-			usb_kill_urb(&notif_urb);
-			goto error_notif_wait;
+			usb_kill_urb(&yestif_urb);
+			goto error_yestif_wait;
 		}
-		result = notif_urb.status;		/* How was the ack? */
+		result = yestif_urb.status;		/* How was the ack? */
 		switch (result) {
 		case 0:
 			break;
 		case -EINVAL:			/* while removing driver */
 		case -ENODEV:			/* dev disconnect ... */
-		case -ENOENT:			/* just ignore it */
+		case -ENOENT:			/* just igyesre it */
 		case -ESHUTDOWN:		/* and exit */
 		case -ECONNRESET:
 			result = -ESHUTDOWN;
 			goto error_dev_gone;
 		default:				/* any other? */
-			usb_kill_urb(&notif_urb);	/* Timedout */
+			usb_kill_urb(&yestif_urb);	/* Timedout */
 			if (edc_inc(&i2400mu->urb_edc,
 				    EDC_MAX_ERRORS, EDC_ERROR_TIMEFRAME))
 				goto error_exceeded;
 			dev_err(dev, "BM-ACK: URB error %d, "
-				"retrying\n", notif_urb.status);
+				"retrying\n", yestif_urb.status);
 			continue;	/* retry */
 		}
-		if (notif_urb.actual_length == 0) {
+		if (yestif_urb.actual_length == 0) {
 			d_printf(6, dev, "ZLP received, retrying\n");
 			continue;
 		}
 		/* Got data, append it to the buffer */
-		len = min(ack_size - offset, (size_t) notif_urb.actual_length);
+		len = min(ack_size - offset, (size_t) yestif_urb.actual_length);
 		memcpy(ack + offset, i2400m->bm_ack_buf, len);
 		offset += len;
 	}
 	result = offset;
-error_notif_urb_submit:
-error_notif_wait:
+error_yestif_urb_submit:
+error_yestif_wait:
 error_dev_gone:
 out:
 	if (do_autopm)
@@ -357,7 +357,7 @@ out:
 	return result;
 
 error_exceeded:
-	dev_err(dev, "bm: maximum errors in notification URB exceeded; "
+	dev_err(dev, "bm: maximum errors in yestification URB exceeded; "
 		"resetting device\n");
 	usb_queue_reset_device(i2400mu->usb_iface);
 	goto out;

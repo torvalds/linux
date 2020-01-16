@@ -48,8 +48,8 @@ static int mtrr		= 3;	/* enable mtrr by default */
 static bool blank	= 1;	/* enable blanking by default */
 static int ypan		= 1;	/* 0: scroll, 1: ypan, 2: ywrap */
 static bool pmi_setpal	= true; /* use PMI for palette changes */
-static bool nocrtc;		/* ignore CRTC settings */
-static bool noedid;		/* don't try DDC transfers */
+static bool yescrtc;		/* igyesre CRTC settings */
+static bool yesedid;		/* don't try DDC transfers */
 static int vram_remap;		/* set amt. of memory to be used */
 static int vram_total;		/* set total amount of memory */
 static u16 maxclk;		/* maximum pixel clock */
@@ -433,7 +433,7 @@ static int uvesafb_vbe_getinfo(struct uvesafb_ktask *task,
 	}
 
 	if (par->vbe_ib.vbe_version < 0x0200) {
-		pr_err("Sorry, pre-VBE 2.0 cards are not supported\n");
+		pr_err("Sorry, pre-VBE 2.0 cards are yest supported\n");
 		return -EINVAL;
 	}
 
@@ -548,7 +548,7 @@ static int uvesafb_vbe_getmodes(struct uvesafb_ktask *task,
 
 /*
  * The Protected Mode Interface is 32-bit x86 code, so we only run it on
- * x86 and not x86_64.
+ * x86 and yest x86_64.
  */
 #ifdef CONFIG_X86_32
 static int uvesafb_vbe_getpmi(struct uvesafb_ktask *task,
@@ -615,7 +615,7 @@ static int uvesafb_vbe_getedid(struct uvesafb_ktask *task, struct fb_info *info)
 	struct uvesafb_par *par = info->par;
 	int err = 0;
 
-	if (noedid || par->vbe_ib.vbe_version < 0x0300)
+	if (yesedid || par->vbe_ib.vbe_version < 0x0300)
 		return -EINVAL;
 
 	task->t.regs.eax = 0x4f15;
@@ -681,12 +681,12 @@ static void uvesafb_vbe_getmonspecs(struct uvesafb_ktask *task,
 
 	/*
 	 * If we don't get all necessary data from the EDID block,
-	 * mark it as incompatible with the GTF and set nocrtc so
+	 * mark it as incompatible with the GTF and set yescrtc so
 	 * that we always use the default BIOS refresh rate.
 	 */
 	if (uvesafb_vbe_getedid(task, info)) {
 		info->monspecs.gtf = 0;
-		par->nocrtc = 1;
+		par->yescrtc = 1;
 	}
 
 	/* Kernel command line overrides. */
@@ -698,7 +698,7 @@ static void uvesafb_vbe_getmonspecs(struct uvesafb_ktask *task,
 		info->monspecs.hfmax = maxhf * 1000;
 
 	/*
-	 * In case DDC transfers are not supported, the user can provide
+	 * In case DDC transfers are yest supported, the user can provide
 	 * monitor limits manually. Lower limits are set to "safe" values.
 	 */
 	if (info->monspecs.gtf == 0 && maxclk && maxvf && maxhf) {
@@ -706,7 +706,7 @@ static void uvesafb_vbe_getmonspecs(struct uvesafb_ktask *task,
 		info->monspecs.vfmin = 60;
 		info->monspecs.hfmin = 29000;
 		info->monspecs.gtf = 1;
-		par->nocrtc = 0;
+		par->yescrtc = 0;
 	}
 
 	if (info->monspecs.gtf)
@@ -715,7 +715,7 @@ static void uvesafb_vbe_getmonspecs(struct uvesafb_ktask *task,
 			(int)(info->monspecs.hfmax / 1000),
 			(int)(info->monspecs.dclkmax / 1000000));
 	else
-		pr_info("no monitor limits have been set, default refresh rate will be used\n");
+		pr_info("yes monitor limits have been set, default refresh rate will be used\n");
 
 	/* Add VBE modes to the modelist. */
 	for (i = 0; i < par->vbe_modes_cnt; i++) {
@@ -769,7 +769,7 @@ static void uvesafb_vbe_getstatesize(struct uvesafb_ktask *task,
 	err = uvesafb_exec(task);
 
 	if (err || (task->t.regs.eax & 0xffff) != 0x004f) {
-		pr_warn("VBE state buffer size cannot be determined (eax=0x%x, err=%d)\n",
+		pr_warn("VBE state buffer size canyest be determined (eax=0x%x, err=%d)\n",
 			task->t.regs.eax, err);
 		par->vbe_state_size = 0;
 		return;
@@ -796,7 +796,7 @@ static int uvesafb_vbe_init(struct fb_info *info)
 	if (err)
 		goto out;
 
-	par->nocrtc = nocrtc;
+	par->yescrtc = yescrtc;
 #ifdef CONFIG_X86_32
 	par->pmi_setpal = pmi_setpal;
 	par->ypan = ypan;
@@ -804,13 +804,13 @@ static int uvesafb_vbe_init(struct fb_info *info)
 	if (par->pmi_setpal || par->ypan) {
 		if (__supported_pte_mask & _PAGE_NX) {
 			par->pmi_setpal = par->ypan = 0;
-			pr_warn("NX protection is active, better not use the PMI\n");
+			pr_warn("NX protection is active, better yest use the PMI\n");
 		} else {
 			uvesafb_vbe_getpmi(task, par);
 		}
 	}
 #else
-	/* The protected mode interface is not available on non-x86. */
+	/* The protected mode interface is yest available on yesn-x86. */
 	par->pmi_setpal = par->ypan = 0;
 #endif
 
@@ -909,10 +909,10 @@ static int uvesafb_vbe_init_mode(struct fb_info *info)
 
 gotmode:
 	/*
-	 * If we are not VBE3.0+ compliant, we're done -- the BIOS will
-	 * ignore our timings anyway.
+	 * If we are yest VBE3.0+ compliant, we're done -- the BIOS will
+	 * igyesre our timings anyway.
 	 */
-	if (par->vbe_ib.vbe_version < 0x0300 || par->nocrtc)
+	if (par->vbe_ib.vbe_version < 0x0300 || par->yescrtc)
 		fb_get_mode(FB_VSYNCTIMINGS | FB_IGNOREMON, 60,
 					&info->var, info);
 
@@ -951,7 +951,7 @@ static int uvesafb_setpalette(struct uvesafb_pal_entry *entries, int count,
 	else if (par->pmi_setpal) {
 		__asm__ __volatile__(
 		"call *(%%esi)"
-		: /* no return value */
+		: /* yes return value */
 		: "a" (0x4f09),         /* EAX */
 		  "b" (0),              /* EBX */
 		  "c" (count),          /* ECX */
@@ -984,7 +984,7 @@ static int uvesafb_setpalette(struct uvesafb_pal_entry *entries, int count,
 	return err;
 }
 
-static int uvesafb_setcolreg(unsigned regno, unsigned red, unsigned green,
+static int uvesafb_setcolreg(unsigned regyes, unsigned red, unsigned green,
 		unsigned blue, unsigned transp,
 		struct fb_info *info)
 {
@@ -992,7 +992,7 @@ static int uvesafb_setcolreg(unsigned regno, unsigned red, unsigned green,
 	int shift = 16 - dac_width;
 	int err = 0;
 
-	if (regno >= info->cmap.len)
+	if (regyes >= info->cmap.len)
 		return -EINVAL;
 
 	if (info->var.bits_per_pixel == 8) {
@@ -1001,19 +1001,19 @@ static int uvesafb_setcolreg(unsigned regno, unsigned red, unsigned green,
 		entry.blue  = blue  >> shift;
 		entry.pad   = 0;
 
-		err = uvesafb_setpalette(&entry, 1, regno, info);
-	} else if (regno < 16) {
+		err = uvesafb_setpalette(&entry, 1, regyes, info);
+	} else if (regyes < 16) {
 		switch (info->var.bits_per_pixel) {
 		case 16:
 			if (info->var.red.offset == 10) {
 				/* 1:5:5:5 */
-				((u32 *) (info->pseudo_palette))[regno] =
+				((u32 *) (info->pseudo_palette))[regyes] =
 						((red   & 0xf800) >>  1) |
 						((green & 0xf800) >>  6) |
 						((blue  & 0xf800) >> 11);
 			} else {
 				/* 0:5:6:5 */
-				((u32 *) (info->pseudo_palette))[regno] =
+				((u32 *) (info->pseudo_palette))[regyes] =
 						((red   & 0xf800)      ) |
 						((green & 0xfc00) >>  5) |
 						((blue  & 0xf800) >> 11);
@@ -1025,7 +1025,7 @@ static int uvesafb_setcolreg(unsigned regno, unsigned red, unsigned green,
 			red   >>= 8;
 			green >>= 8;
 			blue  >>= 8;
-			((u32 *)(info->pseudo_palette))[regno] =
+			((u32 *)(info->pseudo_palette))[regyes] =
 				(red   << info->var.red.offset)   |
 				(green << info->var.green.offset) |
 				(blue  << info->var.blue.offset);
@@ -1084,13 +1084,13 @@ static int uvesafb_pan_display(struct fb_var_screeninfo *var,
 	offset = (var->yoffset * info->fix.line_length + var->xoffset) / 4;
 
 	/*
-	 * It turns out it's not the best idea to do panning via vm86,
+	 * It turns out it's yest the best idea to do panning via vm86,
 	 * so we only allow it if we have a PMI.
 	 */
 	if (par->pmi_start) {
 		__asm__ __volatile__(
 			"call *(%%edi)"
-			: /* no return value */
+			: /* yes return value */
 			: "a" (0x4f07),         /* EAX */
 			  "b" (0),              /* EBX */
 			  "c" (offset),         /* ECX */
@@ -1237,7 +1237,7 @@ setmode:
 	task->t.regs.eax = 0x4f02;
 	task->t.regs.ebx = mode->mode_id | 0x4000;	/* use LFB */
 
-	if (par->vbe_ib.vbe_version >= 0x0300 && !par->nocrtc &&
+	if (par->vbe_ib.vbe_version >= 0x0300 && !par->yescrtc &&
 	    info->var.pixclock != 0) {
 		task->t.regs.ebx |= 0x0800;		/* use CRTC data */
 		task->t.flags = TF_BUF_ESDI;
@@ -1385,7 +1385,7 @@ static int uvesafb_check_var(struct fb_var_screeninfo *var,
 	uvesafb_setup_var(var, info, mode);
 
 	/*
-	 * Check whether we have remapped enough memory for this mode.
+	 * Check whether we have remapped eyesugh memory for this mode.
 	 * We might be called at an early stage, when we haven't remapped
 	 * any memory yet, in which case we simply skip the check.
 	 */
@@ -1475,7 +1475,7 @@ static void uvesafb_init_info(struct fb_info *info, struct vbe_mode_ib *mode)
 
 	/*
 	 *   size_remap -- the amount of video memory we are going to
-	 *                 use for vesafb.  With modern cards it is no
+	 *                 use for vesafb.  With modern cards it is yes
 	 *                 option to simply use size_total as th
 	 *                 wastes plenty of kernel address space.
 	 */
@@ -1631,16 +1631,16 @@ static ssize_t uvesafb_show_oem_string(struct device *dev,
 
 static DEVICE_ATTR(oem_string, S_IRUGO, uvesafb_show_oem_string, NULL);
 
-static ssize_t uvesafb_show_nocrtc(struct device *dev,
+static ssize_t uvesafb_show_yescrtc(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
 	struct fb_info *info = dev_get_drvdata(dev);
 	struct uvesafb_par *par = info->par;
 
-	return snprintf(buf, PAGE_SIZE, "%d\n", par->nocrtc);
+	return snprintf(buf, PAGE_SIZE, "%d\n", par->yescrtc);
 }
 
-static ssize_t uvesafb_store_nocrtc(struct device *dev,
+static ssize_t uvesafb_store_yescrtc(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct fb_info *info = dev_get_drvdata(dev);
@@ -1648,15 +1648,15 @@ static ssize_t uvesafb_store_nocrtc(struct device *dev,
 
 	if (count > 0) {
 		if (buf[0] == '0')
-			par->nocrtc = 0;
+			par->yescrtc = 0;
 		else
-			par->nocrtc = 1;
+			par->yescrtc = 1;
 	}
 	return count;
 }
 
-static DEVICE_ATTR(nocrtc, S_IRUGO | S_IWUSR, uvesafb_show_nocrtc,
-			uvesafb_store_nocrtc);
+static DEVICE_ATTR(yescrtc, S_IRUGO | S_IWUSR, uvesafb_show_yescrtc,
+			uvesafb_store_yescrtc);
 
 static struct attribute *uvesafb_dev_attrs[] = {
 	&dev_attr_vbe_version.attr,
@@ -1665,7 +1665,7 @@ static struct attribute *uvesafb_dev_attrs[] = {
 	&dev_attr_oem_product_name.attr,
 	&dev_attr_oem_product_rev.attr,
 	&dev_attr_oem_string.attr,
-	&dev_attr_nocrtc.attr,
+	&dev_attr_yescrtc.attr,
 	NULL,
 };
 
@@ -1718,7 +1718,7 @@ static int uvesafb_probe(struct platform_device *dev)
 
 	if (!request_mem_region(info->fix.smem_start, info->fix.smem_len,
 				"uvesafb")) {
-		pr_err("cannot reserve video memory at 0x%lx\n",
+		pr_err("canyest reserve video memory at 0x%lx\n",
 		       info->fix.smem_start);
 		err = -EIO;
 		goto out_reg;
@@ -1728,7 +1728,7 @@ static int uvesafb_probe(struct platform_device *dev)
 	uvesafb_ioremap(info);
 
 	if (!info->screen_base) {
-		pr_err("abort, cannot ioremap 0x%x bytes of video memory at 0x%lx\n",
+		pr_err("abort, canyest ioremap 0x%x bytes of video memory at 0x%lx\n",
 		       info->fix.smem_len, info->fix.smem_start);
 		err = -EIO;
 		goto out_mem;
@@ -1829,13 +1829,13 @@ static int uvesafb_setup(char *options)
 			pmi_setpal = 1;
 		else if (!strncmp(this_opt, "mtrr:", 5))
 			mtrr = simple_strtoul(this_opt+5, NULL, 0);
-		else if (!strcmp(this_opt, "nomtrr"))
+		else if (!strcmp(this_opt, "yesmtrr"))
 			mtrr = 0;
-		else if (!strcmp(this_opt, "nocrtc"))
-			nocrtc = 1;
-		else if (!strcmp(this_opt, "noedid"))
-			noedid = 1;
-		else if (!strcmp(this_opt, "noblank"))
+		else if (!strcmp(this_opt, "yescrtc"))
+			yescrtc = 1;
+		else if (!strcmp(this_opt, "yesedid"))
+			yesedid = 1;
+		else if (!strcmp(this_opt, "yesblank"))
 			blank = 0;
 		else if (!strncmp(this_opt, "vtotal:", 7))
 			vram_total = simple_strtoul(this_opt + 7, NULL, 0);
@@ -1972,11 +1972,11 @@ MODULE_PARM_DESC(mtrr,
 	"Memory Type Range Registers setting. Use 0 to disable.");
 module_param(blank, bool, 0);
 MODULE_PARM_DESC(blank, "Enable hardware blanking");
-module_param(nocrtc, bool, 0);
-MODULE_PARM_DESC(nocrtc, "Ignore CRTC timings when setting modes");
-module_param(noedid, bool, 0);
-MODULE_PARM_DESC(noedid,
-	"Ignore EDID-provided monitor limits when setting modes");
+module_param(yescrtc, bool, 0);
+MODULE_PARM_DESC(yescrtc, "Igyesre CRTC timings when setting modes");
+module_param(yesedid, bool, 0);
+MODULE_PARM_DESC(yesedid,
+	"Igyesre EDID-provided monitor limits when setting modes");
 module_param(vram_remap, uint, 0);
 MODULE_PARM_DESC(vram_remap, "Set amount of video memory to be used [MiB]");
 module_param(vram_total, uint, 0);

@@ -66,7 +66,7 @@ spider_net_ethtool_get_drvinfo(struct net_device *netdev,
 	strlcpy(drvinfo->driver, spider_net_driver_name,
 		sizeof(drvinfo->driver));
 	strlcpy(drvinfo->version, VERSION, sizeof(drvinfo->version));
-	strlcpy(drvinfo->fw_version, "no information",
+	strlcpy(drvinfo->fw_version, "yes information",
 		sizeof(drvinfo->fw_version));
 	strlcpy(drvinfo->bus_info, pci_name(card->pdev),
 		sizeof(drvinfo->bus_info));
@@ -76,7 +76,7 @@ static void
 spider_net_ethtool_get_wol(struct net_device *netdev,
 			   struct ethtool_wolinfo *wolinfo)
 {
-	/* no support for wol */
+	/* yes support for wol */
 	wolinfo->supported = 0;
 	wolinfo->wolopts = 0;
 }

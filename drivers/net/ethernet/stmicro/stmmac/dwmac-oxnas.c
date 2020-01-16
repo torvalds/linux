@@ -133,7 +133,7 @@ static int oxnas_dwmac_probe(struct platform_device *pdev)
 	plat_dat->init = oxnas_dwmac_init;
 	plat_dat->exit = oxnas_dwmac_exit;
 
-	dwmac->regmap = syscon_regmap_lookup_by_phandle(pdev->dev.of_node,
+	dwmac->regmap = syscon_regmap_lookup_by_phandle(pdev->dev.of_yesde,
 							"oxsemi,sys-ctrl");
 	if (IS_ERR(dwmac->regmap)) {
 		dev_err(&pdev->dev, "failed to have sysctrl regmap\n");

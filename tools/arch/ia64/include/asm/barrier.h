@@ -29,10 +29,10 @@
  *   rmb():	Like wmb(), but for reads.
  *   mb():	wmb()/rmb() combo, i.e., all previous memory
  *		accesses are visible before all subsequent
- *		accesses and vice versa.  This is also known as
+ *		accesses and vice versa.  This is also kyeswn as
  *		a "fence."
  *
- * Note: "mb()" and its variants cannot be used as a fence to order
+ * Note: "mb()" and its variants canyest be used as a fence to order
  * accesses to memory mapped I/O registers.  For that, mf.a needs to
  * be used.  However, we don't want to always use mf.a because (a)
  * it's (presumably) much slower than mf and (b) mf.a is supported for

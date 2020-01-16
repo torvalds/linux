@@ -3,10 +3,10 @@
  * Copyright (c) 2013 Samsung Electronics Co., Ltd.
  * Author: Tarek Dakhran <t.dakhran@samsung.com>
  *
- * Common Clock Framework support for Exynos5410 SoC.
+ * Common Clock Framework support for Exyyess5410 SoC.
 */
 
-#include <dt-bindings/clock/exynos5410.h>
+#include <dt-bindings/clock/exyyess5410.h>
 
 #include <linux/clk-provider.h>
 #include <linux/of.h>
@@ -57,7 +57,7 @@
 #define DIV_KFC0		0x28500
 
 /* list of PLLs */
-enum exynos5410_plls {
+enum exyyess5410_plls {
 	apll, cpll, epll, mpll,
 	bpll, kpll,
 	nr_plls                 /* number of PLLs */
@@ -79,11 +79,11 @@ PNAME(bpll_user_p)	= { "fin_pll", "sclk_bpll", };
 PNAME(mpll_bpll_p)	= { "sclk_mpll_muxed", "sclk_bpll_muxed", };
 PNAME(sclk_mpll_bpll_p)	= { "sclk_mpll_bpll", "fin_pll", };
 
-PNAME(group2_p)		= { "fin_pll", "fin_pll", "none", "none",
-			"none", "none", "sclk_mpll_bpll",
-			 "none", "none", "sclk_cpll" };
+PNAME(group2_p)		= { "fin_pll", "fin_pll", "yesne", "yesne",
+			"yesne", "yesne", "sclk_mpll_bpll",
+			 "yesne", "yesne", "sclk_cpll" };
 
-static const struct samsung_mux_clock exynos5410_mux_clks[] __initconst = {
+static const struct samsung_mux_clock exyyess5410_mux_clks[] __initconst = {
 	MUX(0, "mout_apll", apll_p, SRC_CPU, 0, 1),
 	MUX(0, "mout_cpu", mout_cpu_p, SRC_CPU, 16, 1),
 
@@ -118,7 +118,7 @@ static const struct samsung_mux_clock exynos5410_mux_clks[] __initconst = {
 	MUX(0, "mout_aclk400", mpll_bpll_p, SRC_TOP0, 20, 1),
 };
 
-static const struct samsung_div_clock exynos5410_div_clks[] __initconst = {
+static const struct samsung_div_clock exyyess5410_div_clks[] __initconst = {
 	DIV(0, "div_arm", "mout_cpu", DIV_CPU0, 0, 3),
 	DIV(0, "div_arm2", "div_arm", DIV_CPU0, 28, 3),
 
@@ -162,7 +162,7 @@ static const struct samsung_div_clock exynos5410_div_clks[] __initconst = {
 	DIV(0, "aclk400", "mout_aclk400", DIV_TOP0, 24, 3),
 };
 
-static const struct samsung_gate_clock exynos5410_gate_clks[] __initconst = {
+static const struct samsung_gate_clock exyyess5410_gate_clks[] __initconst = {
 	GATE(CLK_SSS, "sss", "aclk266", GATE_IP_G2D, 2, 0, 0),
 	GATE(CLK_MCT, "mct", "aclk66", GATE_IP_PERIS, 18, 0, 0),
 	GATE(CLK_WDT, "wdt", "aclk66", GATE_IP_PERIS, 19, 0, 0),
@@ -223,7 +223,7 @@ static const struct samsung_gate_clock exynos5410_gate_clks[] __initconst = {
 	GATE(CLK_USBD301, "usbd301", "aclk200_fsys", GATE_IP_FSYS, 20, 0, 0),
 };
 
-static const struct samsung_pll_rate_table exynos5410_pll2550x_24mhz_tbl[] __initconst = {
+static const struct samsung_pll_rate_table exyyess5410_pll2550x_24mhz_tbl[] __initconst = {
 	PLL_36XX_RATE(24 * MHZ, 400000000U, 200, 3, 2, 0),
 	PLL_36XX_RATE(24 * MHZ, 333000000U, 111, 2, 2, 0),
 	PLL_36XX_RATE(24 * MHZ, 300000000U, 100, 2, 2, 0),
@@ -236,7 +236,7 @@ static const struct samsung_pll_rate_table exynos5410_pll2550x_24mhz_tbl[] __ini
 	PLL_36XX_RATE(24 * MHZ, 66000000U,  176, 2, 5, 0),
 };
 
-static struct samsung_pll_clock exynos5410_plls[nr_plls] __initdata = {
+static struct samsung_pll_clock exyyess5410_plls[nr_plls] __initdata = {
 	[apll] = PLL(pll_35xx, CLK_FOUT_APLL, "fout_apll", "fin_pll", APLL_LOCK,
 		APLL_CON0, NULL),
 	[cpll] = PLL(pll_35xx, CLK_FOUT_CPLL, "fout_cpll", "fin_pll", CPLL_LOCK,
@@ -252,27 +252,27 @@ static struct samsung_pll_clock exynos5410_plls[nr_plls] __initdata = {
 };
 
 static const struct samsung_cmu_info cmu __initconst = {
-	.pll_clks	= exynos5410_plls,
-	.nr_pll_clks	= ARRAY_SIZE(exynos5410_plls),
-	.mux_clks	= exynos5410_mux_clks,
-	.nr_mux_clks	= ARRAY_SIZE(exynos5410_mux_clks),
-	.div_clks	= exynos5410_div_clks,
-	.nr_div_clks	= ARRAY_SIZE(exynos5410_div_clks),
-	.gate_clks	= exynos5410_gate_clks,
-	.nr_gate_clks	= ARRAY_SIZE(exynos5410_gate_clks),
+	.pll_clks	= exyyess5410_plls,
+	.nr_pll_clks	= ARRAY_SIZE(exyyess5410_plls),
+	.mux_clks	= exyyess5410_mux_clks,
+	.nr_mux_clks	= ARRAY_SIZE(exyyess5410_mux_clks),
+	.div_clks	= exyyess5410_div_clks,
+	.nr_div_clks	= ARRAY_SIZE(exyyess5410_div_clks),
+	.gate_clks	= exyyess5410_gate_clks,
+	.nr_gate_clks	= ARRAY_SIZE(exyyess5410_gate_clks),
 	.nr_clk_ids	= CLK_NR_CLKS,
 };
 
-/* register exynos5410 clocks */
-static void __init exynos5410_clk_init(struct device_node *np)
+/* register exyyess5410 clocks */
+static void __init exyyess5410_clk_init(struct device_yesde *np)
 {
 	struct clk *xxti = of_clk_get(np, 0);
 
 	if (!IS_ERR(xxti) && clk_get_rate(xxti) == 24 * MHZ)
-		exynos5410_plls[epll].rate_table = exynos5410_pll2550x_24mhz_tbl;
+		exyyess5410_plls[epll].rate_table = exyyess5410_pll2550x_24mhz_tbl;
 
 	samsung_cmu_register_one(np, &cmu);
 
-	pr_debug("Exynos5410: clock setup completed.\n");
+	pr_debug("Exyyess5410: clock setup completed.\n");
 }
-CLK_OF_DECLARE(exynos5410_clk, "samsung,exynos5410-clock", exynos5410_clk_init);
+CLK_OF_DECLARE(exyyess5410_clk, "samsung,exyyess5410-clock", exyyess5410_clk_init);

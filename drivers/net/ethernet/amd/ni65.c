@@ -20,7 +20,7 @@
  *   some things are from the 'ni6510-packet-driver for dos by Russ Nelson'
  *   and from the original drivers by D.Becker
  *
- * known problems:
+ * kyeswn problems:
  *   - on some PCI boards (including my own) the card/board/ISA-bridge has
  *     problems with bus master DMA. This results in lotsa overruns.
  *     It may help to '#define RCV_PARANOIA_CHECK' or try to #undef
@@ -37,9 +37,9 @@
  *
  * simple performance test: (486DX-33/Ni6510-EB receives from 486DX4-100/Ni6510-EB)
  *    average: FTP -> 8384421 bytes received in 8.5 seconds
- *           (no RCV_VIA_SKB,no XMT_VIA_SKB,PARANOIA_CHECK,4 XMIT BUFS, 8 RCV_BUFFS)
+ *           (yes RCV_VIA_SKB,yes XMT_VIA_SKB,PARANOIA_CHECK,4 XMIT BUFS, 8 RCV_BUFFS)
  *    peak: FTP -> 8384421 bytes received in 7.5 seconds
- *           (RCV_VIA_SKB,XMT_VIA_SKB,no PARANOIA_CHECK,1(!) XMIT BUF, 16 RCV BUFFS)
+ *           (RCV_VIA_SKB,XMT_VIA_SKB,yes PARANOIA_CHECK,1(!) XMIT BUF, 16 RCV BUFFS)
  */
 
 /*
@@ -47,10 +47,10 @@
  * 96.Sept.29: virt_to_bus stuff added for new memory modell
  * 96.April.29: Added Harald Koenig's Patches (MH)
  * 96.April.13: enhanced error handling .. more tests (MH)
- * 96.April.5/6: a lot of performance tests. Got it stable now (hopefully) (MH)
- * 96.April.1: (no joke ;) .. added EtherBlaster and Module support (MH)
+ * 96.April.5/6: a lot of performance tests. Got it stable yesw (hopefully) (MH)
+ * 96.April.1: (yes joke ;) .. added EtherBlaster and Module support (MH)
  * 96.Feb.19: fixed a few bugs .. cleanups .. tested for 1.3.66 (MH)
- *            hopefully no more 16MB limit
+ *            hopefully yes more 16MB limit
  *
  * 95.Nov.18: multicast tweaked (AC).
  *
@@ -61,7 +61,7 @@
 
 #include <linux/kernel.h>
 #include <linux/string.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/ioport.h>
 #include <linux/slab.h>
 #include <linux/interrupt.h>
@@ -80,7 +80,7 @@
 
 /*
  * the current setting allows an acceptable performance
- * for 'RCV_PARANOIA_CHECK' read the 'known problems' part in
+ * for 'RCV_PARANOIA_CHECK' read the 'kyeswn problems' part in
  * the header of this file
  * 'invert' the defines for max. performance. This may cause DMA problems
  * on some boards (e.g on my ASUS SP3G)
@@ -240,7 +240,7 @@ struct priv
 
 	void *self;
 	int cmdr_addr;
-	int cardno;
+	int cardyes;
 	int features;
 	spinlock_t ring_lock;
 };
@@ -272,7 +272,7 @@ static void ni65_set_performance(struct priv *p)
 {
 	writereg(CSR0_STOP | CSR0_CLRALL,CSR0); /* STOP */
 
-	if( !(cards[p->cardno].config & 0x02) )
+	if( !(cards[p->cardyes].config & 0x02) )
 		return;
 
 	outw(80,PORT+L_ADDRREG);
@@ -295,7 +295,7 @@ static int ni65_open(struct net_device *dev)
 {
 	struct priv *p = dev->ml_priv;
 	int irqval = request_irq(dev->irq, ni65_interrupt,0,
-                        cards[p->cardno].cardname,dev);
+                        cards[p->cardyes].cardname,dev);
 	if (irqval) {
 		printk(KERN_ERR "%s: unable to get IRQ %d (irqval=%d).\n",
 		          dev->name,dev->irq, irqval);
@@ -346,7 +346,7 @@ static void cleanup_card(struct net_device *dev)
 	struct priv *p = dev->ml_priv;
 	disable_dma(dev->dma);
 	free_dma(dev->dma);
-	release_region(dev->base_addr, cards[p->cardno].total_size);
+	release_region(dev->base_addr, cards[p->cardyes].total_size);
 	ni65_free_buffer(p);
 }
 
@@ -356,7 +356,7 @@ static int io;
 static int dma;
 
 /*
- * Probe The Card (not the lance-chip)
+ * Probe The Card (yest the lance-chip)
  */
 struct net_device * __init ni65_probe(int unit)
 {
@@ -452,17 +452,17 @@ static int __init ni65_probe1(struct net_device *dev,int ioaddr)
 	}
 	p = dev->ml_priv;
 	p->cmdr_addr = ioaddr + cards[i].cmd_offset;
-	p->cardno = i;
+	p->cardyes = i;
 	spin_lock_init(&p->ring_lock);
 
-	printk(KERN_INFO "%s: %s found at %#3x, ", dev->name, cards[p->cardno].cardname , ioaddr);
+	printk(KERN_INFO "%s: %s found at %#3x, ", dev->name, cards[p->cardyes].cardname , ioaddr);
 
 	outw(inw(PORT+L_RESET),PORT+L_RESET); /* first: reset the card */
 	if( (j=readreg(CSR0)) != 0x4) {
 		 printk("failed.\n");
 		 printk(KERN_ERR "%s: Can't RESET card: %04x\n", dev->name, j);
 		 ni65_free_buffer(p);
-		 release_region(ioaddr, cards[p->cardno].total_size);
+		 release_region(ioaddr, cards[p->cardyes].total_size);
 		 return -EAGAIN;
 	}
 
@@ -517,7 +517,7 @@ static int __init ni65_probe1(struct net_device *dev,int ioaddr)
 				printk("failed.\n");
 				printk(KERN_ERR "%s: Can't detect DMA channel!\n", dev->name);
 				ni65_free_buffer(p);
-				release_region(ioaddr, cards[p->cardno].total_size);
+				release_region(ioaddr, cards[p->cardyes].total_size);
 				return -EAGAIN;
 			}
 			dev->dma = dmatab[i];
@@ -539,7 +539,7 @@ static int __init ni65_probe1(struct net_device *dev,int ioaddr)
 			{
 				printk("Failed to detect IRQ line!\n");
 				ni65_free_buffer(p);
-				release_region(ioaddr, cards[p->cardno].total_size);
+				release_region(ioaddr, cards[p->cardyes].total_size);
 				return -EAGAIN;
 			}
 			printk("IRQ %d (autodetected).\n",dev->irq);
@@ -548,11 +548,11 @@ static int __init ni65_probe1(struct net_device *dev,int ioaddr)
 			printk("IRQ %d (assigned).\n",dev->irq);
 	}
 
-	if(request_dma(dev->dma, cards[p->cardno].cardname ) != 0)
+	if(request_dma(dev->dma, cards[p->cardyes].cardname ) != 0)
 	{
 		printk(KERN_ERR "%s: Can't request dma-channel %d\n",dev->name,(int) dev->dma);
 		ni65_free_buffer(p);
-		release_region(ioaddr, cards[p->cardno].total_size);
+		release_region(ioaddr, cards[p->cardyes].total_size);
 		return -EAGAIN;
 	}
 
@@ -582,7 +582,7 @@ static void ni65_init_lance(struct priv *p,unsigned char *daddr,int filter,int m
 
 	p->ib.trp = (u32) isa_virt_to_bus(p->tmdhead) | TMDNUMMASK;
 	p->ib.rrp = (u32) isa_virt_to_bus(p->rmdhead) | RMDNUMMASK;
-	writereg(0,CSR3);	/* busmaster/no word-swap */
+	writereg(0,CSR3);	/* busmaster/yes word-swap */
 	pib = (u32) isa_virt_to_bus(&p->ib);
 	writereg(pib & 0xffff,CSR1);
 	writereg(pib >> 16,CSR2);
@@ -613,7 +613,7 @@ static void *ni65_alloc_mem(struct net_device *dev,char *what,int size,int type)
 			return NULL;
 		}
 		skb_reserve(skb,2+16);
-		skb_put(skb,R_BUF_SIZE);	 /* grab the whole space .. (not necessary) */
+		skb_put(skb,R_BUF_SIZE);	 /* grab the whole space .. (yest necessary) */
 		ptr = skb->data;
 	}
 	else {
@@ -805,7 +805,7 @@ static int ni65_lance_reinit(struct net_device *dev)
 	 if( (i=readreg(CSR0) ) != 0x4)
 	 {
 		 printk(KERN_ERR "%s: can't RESET %s card: %04x\n",dev->name,
-							cards[p->cardno].cardname,(int) i);
+							cards[p->cardyes].cardname,(int) i);
 		 flags=claim_dma_lock();
 		 disable_dma(dev->dma);
 		 release_dma_lock(flags);
@@ -993,7 +993,7 @@ static void ni65_xmit_intr(struct net_device *dev,int csr0)
 		{
 #if 0
 			if(tmdp->status2 & XMIT_TDRMASK && debuglevel > 3)
-				printk(KERN_ERR "%s: tdr-problems (e.g. no resistor)\n",dev->name);
+				printk(KERN_ERR "%s: tdr-problems (e.g. yes resistor)\n",dev->name);
 #endif
 		 /* checking some errors */
 			if(tmdp->status2 & XMIT_RTRY)
@@ -1008,7 +1008,7 @@ static void ni65_xmit_intr(struct net_device *dev,int csr0)
 				if(p->features & INIT_RING_BEFORE_START) {
 					tmdp->u.s.status = XMIT_OWN | XMIT_START | XMIT_END;	/* test: resend this frame */
 					ni65_stop_start(dev,p);
-					break;	/* no more Xmit processing .. */
+					break;	/* yes more Xmit processing .. */
 				}
 				else
 				 ni65_stop_start(dev,p);
@@ -1226,9 +1226,9 @@ static struct net_device *dev_ni65;
 module_param_hw(irq, int, irq, 0);
 module_param_hw(io, int, ioport, 0);
 module_param_hw(dma, int, dma, 0);
-MODULE_PARM_DESC(irq, "ni6510 IRQ number (ignored for some cards)");
+MODULE_PARM_DESC(irq, "ni6510 IRQ number (igyesred for some cards)");
 MODULE_PARM_DESC(io, "ni6510 I/O base address");
-MODULE_PARM_DESC(dma, "ni6510 ISA DMA channel (ignored for some cards)");
+MODULE_PARM_DESC(dma, "ni6510 ISA DMA channel (igyesred for some cards)");
 
 int __init init_module(void)
 {

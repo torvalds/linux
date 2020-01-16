@@ -11,7 +11,7 @@
  * Instead, stack depot maintains a hashtable of unique stacktraces. Since alloc
  * and free stacks repeat a lot, we save about 100x space.
  * Stacks are never removed from depot, so we store them contiguously one after
- * another in a contiguos memory allocation.
+ * ayesther in a contiguos memory allocation.
  *
  * Author: Alexander Potapenko <glider@google.com>
  * Copyright (C) 2016 Google, Inc.
@@ -154,7 +154,7 @@ static inline u32 hash_stack(unsigned long *entries, unsigned int size)
 			       STACK_HASH_SEED);
 }
 
-/* Use our own, non-instrumented version of memcmp().
+/* Use our own, yesn-instrumented version of memcmp().
  *
  * We actually don't care about the order, just the equality.
  */

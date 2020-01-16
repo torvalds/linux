@@ -26,7 +26,7 @@
 #include <linux/uprobes.h>
 #include <linux/string.h>
 #include <linux/delay.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/kexec.h>
 #include <linux/sched.h>
 #include <linux/sched/task_stack.h>
@@ -96,7 +96,7 @@ void ist_enter(struct pt_regs *regs)
 		 * We might have interrupted pretty much anything.  In
 		 * fact, if we're a machine check, we can even interrupt
 		 * NMI processing.  We don't want in_nmi() to return true,
-		 * but we need to notify RCU.
+		 * but we need to yestify RCU.
 		 */
 		rcu_nmi_enter();
 	}
@@ -110,45 +110,45 @@ NOKPROBE_SYMBOL(ist_enter);
 
 void ist_exit(struct pt_regs *regs)
 {
-	preempt_enable_no_resched();
+	preempt_enable_yes_resched();
 
 	if (!user_mode(regs))
 		rcu_nmi_exit();
 }
 
 /**
- * ist_begin_non_atomic() - begin a non-atomic section in an IST exception
+ * ist_begin_yesn_atomic() - begin a yesn-atomic section in an IST exception
  * @regs:	regs passed to the IST exception handler
  *
- * IST exception handlers normally cannot schedule.  As a special
+ * IST exception handlers yesrmally canyest schedule.  As a special
  * exception, if the exception interrupted userspace code (i.e.
- * user_mode(regs) would return true) and the exception was not
- * a double fault, it can be safe to schedule.  ist_begin_non_atomic()
- * begins a non-atomic section within an ist_enter()/ist_exit() region.
+ * user_mode(regs) would return true) and the exception was yest
+ * a double fault, it can be safe to schedule.  ist_begin_yesn_atomic()
+ * begins a yesn-atomic section within an ist_enter()/ist_exit() region.
  * Callers are responsible for enabling interrupts themselves inside
- * the non-atomic section, and callers must call ist_end_non_atomic()
+ * the yesn-atomic section, and callers must call ist_end_yesn_atomic()
  * before ist_exit().
  */
-void ist_begin_non_atomic(struct pt_regs *regs)
+void ist_begin_yesn_atomic(struct pt_regs *regs)
 {
 	BUG_ON(!user_mode(regs));
 
 	/*
-	 * Sanity check: we need to be on the normal thread stack.  This
+	 * Sanity check: we need to be on the yesrmal thread stack.  This
 	 * will catch asm bugs and any attempt to use ist_preempt_enable
 	 * from double_fault.
 	 */
 	BUG_ON(!on_thread_stack());
 
-	preempt_enable_no_resched();
+	preempt_enable_yes_resched();
 }
 
 /**
- * ist_end_non_atomic() - begin a non-atomic section in an IST exception
+ * ist_end_yesn_atomic() - begin a yesn-atomic section in an IST exception
  *
- * Ends a non-atomic section started with ist_begin_non_atomic().
+ * Ends a yesn-atomic section started with ist_begin_yesn_atomic().
  */
-void ist_end_non_atomic(void)
+void ist_end_yesn_atomic(void)
 {
 	preempt_disable();
 }
@@ -184,14 +184,14 @@ int fixup_bug(struct pt_regs *regs, int trapnr)
 	return 0;
 }
 
-static nokprobe_inline int
-do_trap_no_signal(struct task_struct *tsk, int trapnr, const char *str,
+static yeskprobe_inline int
+do_trap_yes_signal(struct task_struct *tsk, int trapnr, const char *str,
 		  struct pt_regs *regs,	long error_code)
 {
 	if (v8086_mode(regs)) {
 		/*
 		 * Traps 0, 1, 3, 4, and 5 should be forwarded to vm86.
-		 * On nmi (interrupt 2), do_trap should not be called.
+		 * On nmi (interrupt 2), do_trap should yest be called.
 		 */
 		if (trapnr < X86_TRAP_UD) {
 			if (!handle_vm86_trap((struct kernel_vm86_regs *) regs,
@@ -209,11 +209,11 @@ do_trap_no_signal(struct task_struct *tsk, int trapnr, const char *str,
 
 	/*
 	 * We want error_code and trap_nr set for userspace faults and
-	 * kernelspace faults which result in die(), but not
+	 * kernelspace faults which result in die(), but yest
 	 * kernelspace faults which are fixed up.  die() gives the
-	 * process no chance to handle the signal and notice the
+	 * process yes chance to handle the signal and yestice the
 	 * kernel fault information, so that won't result in polluting
-	 * the information about previously queued, but not yet
+	 * the information about previously queued, but yest yet
 	 * delivered, faults.  See also do_general_protection below.
 	 */
 	tsk->thread.error_code = error_code;
@@ -243,7 +243,7 @@ do_trap(int trapnr, int signr, char *str, struct pt_regs *regs,
 	struct task_struct *tsk = current;
 
 
-	if (!do_trap_no_signal(tsk, trapnr, str, regs, error_code))
+	if (!do_trap_yes_signal(tsk, trapnr, str, regs, error_code))
 		return;
 
 	show_signal(tsk, signr, "trap ", str, regs, error_code);
@@ -262,12 +262,12 @@ static void do_error_trap(struct pt_regs *regs, long error_code, char *str,
 
 	/*
 	 * WARN*()s end up here; fix them up before we call the
-	 * notifier chain.
+	 * yestifier chain.
 	 */
 	if (!user_mode(regs) && fixup_bug(regs, trapnr))
 		return;
 
-	if (notify_die(DIE_TRAP, str, regs, error_code, trapnr, signr) !=
+	if (yestify_die(DIE_TRAP, str, regs, error_code, trapnr, signr) !=
 			NOTIFY_STOP) {
 		cond_local_irq_enable(regs);
 		do_trap(trapnr, signr, str, regs, error_code, sicode, addr);
@@ -286,13 +286,13 @@ DO_ERROR(X86_TRAP_OF,     SIGSEGV,          0, NULL, "overflow",            over
 DO_ERROR(X86_TRAP_UD,     SIGILL,  ILL_ILLOPN,   IP, "invalid opcode",      invalid_op)
 DO_ERROR(X86_TRAP_OLD_MF, SIGFPE,           0, NULL, "coprocessor segment overrun", coprocessor_segment_overrun)
 DO_ERROR(X86_TRAP_TS,     SIGSEGV,          0, NULL, "invalid TSS",         invalid_TSS)
-DO_ERROR(X86_TRAP_NP,     SIGBUS,           0, NULL, "segment not present", segment_not_present)
+DO_ERROR(X86_TRAP_NP,     SIGBUS,           0, NULL, "segment yest present", segment_yest_present)
 DO_ERROR(X86_TRAP_SS,     SIGBUS,           0, NULL, "stack segment",       stack_segment)
 DO_ERROR(X86_TRAP_AC,     SIGBUS,  BUS_ADRALN, NULL, "alignment check",     alignment_check)
 #undef IP
 
 #ifdef CONFIG_VMAP_STACK
-__visible void __noreturn handle_stack_overflow(const char *message,
+__visible void __yesreturn handle_stack_overflow(const char *message,
 						struct pt_regs *regs,
 						unsigned long fault_address)
 {
@@ -310,7 +310,7 @@ __visible void __noreturn handle_stack_overflow(const char *message,
 /*
  * Runs on an IST stack for x86_64 and on a special task stack for x86_32.
  *
- * On x86_64, this is more or less a normal kernel entry.  Notwithstanding the
+ * On x86_64, this is more or less a yesrmal kernel entry.  Notwithstanding the
  * SDM's warnings about double faults being unrecoverable, returning works as
  * expected.  Presumably what the SDM actually means is that the CPU may get
  * the register state wrong on entry, so returning could be a bad idea.
@@ -332,10 +332,10 @@ dotraplinkage void do_double_fault(struct pt_regs *regs, long error_code, unsign
 	extern unsigned char native_irq_return_iret[];
 
 	/*
-	 * If IRET takes a non-IST fault on the espfix64 stack, then we
+	 * If IRET takes a yesn-IST fault on the espfix64 stack, then we
 	 * end up promoting it to a doublefault.  In that case, take
-	 * advantage of the fact that we're not using the normal (TSS.sp0)
-	 * stack right now.  We can write a fake #GP(0) frame at TSS.sp0
+	 * advantage of the fact that we're yest using the yesrmal (TSS.sp0)
+	 * stack right yesw.  We can write a fake #GP(0) frame at TSS.sp0
 	 * and then modify our own IRET frame so that, when we return,
 	 * we land directly at the #GP(0) vector with the stack already
 	 * set up according to its expectations.
@@ -364,7 +364,7 @@ dotraplinkage void do_double_fault(struct pt_regs *regs, long error_code, unsign
 		 * Adjust our frame so that we return straight to the #GP
 		 * vector with the expected RSP value.  This is safe because
 		 * we won't enable interupts or schedule before we invoke
-		 * general_protection, so nothing will clobber the stack
+		 * general_protection, so yesthing will clobber the stack
 		 * frame we just set up.
 		 *
 		 * We will enter general_protection with kernel GSBASE,
@@ -379,7 +379,7 @@ dotraplinkage void do_double_fault(struct pt_regs *regs, long error_code, unsign
 #endif
 
 	ist_enter(regs);
-	notify_die(DIE_TRAP, str, regs, error_code, X86_TRAP_DF, SIGSEGV);
+	yestify_die(DIE_TRAP, str, regs, error_code, X86_TRAP_DF, SIGSEGV);
 
 	tsk->thread.error_code = error_code;
 	tsk->thread.trap_nr = X86_TRAP_DF;
@@ -388,11 +388,11 @@ dotraplinkage void do_double_fault(struct pt_regs *regs, long error_code, unsign
 	/*
 	 * If we overflow the stack into a guard page, the CPU will fail
 	 * to deliver #PF and will send #DF instead.  Similarly, if we
-	 * take any non-IST exception while too close to the bottom of
+	 * take any yesn-IST exception while too close to the bottom of
 	 * the stack, the processor will get a page fault while
 	 * delivering the exception and will generate a double fault.
 	 *
-	 * According to the SDM (footnote in 6.15 under "Interrupt 14 -
+	 * According to the SDM (footyeste in 6.15 under "Interrupt 14 -
 	 * Page-Fault Exception (#PF):
 	 *
 	 *   Processors update CR2 whenever a page fault is detected. If a
@@ -403,20 +403,20 @@ dotraplinkage void do_double_fault(struct pt_regs *regs, long error_code, unsign
 	 *   results in a double fault or occurs during the delivery of a
 	 *   double fault.
 	 *
-	 * The logic below has a small possibility of incorrectly diagnosing
+	 * The logic below has a small possibility of incorrectly diagyessing
 	 * some errors as stack overflows.  For example, if the IDT or GDT
 	 * gets corrupted such that #GP delivery fails due to a bad descriptor
 	 * causing #GP and we hit this condition while CR2 coincidentally
 	 * points to the stack guard page, we'll think we overflowed the
-	 * stack.  Given that we're going to panic one way or another
+	 * stack.  Given that we're going to panic one way or ayesther
 	 * if this happens, this isn't necessarily worth fixing.
 	 *
-	 * If necessary, we could improve the test by only diagnosing
+	 * If necessary, we could improve the test by only diagyessing
 	 * a stack overflow if the saved RSP points within 47 bytes of
 	 * the bottom of the stack: if RSP == tsk_stack + 48 and we
 	 * take an exception, the stack is already aligned and there
-	 * will be enough room SS, RSP, RFLAGS, CS, RIP, and a
-	 * possible error code, so a stack overflow would *not* double
+	 * will be eyesugh room SS, RSP, RFLAGS, CS, RIP, and a
+	 * possible error code, so a stack overflow would *yest* double
 	 * fault.  With any less space left, exception delivery could
 	 * fail, and, as a practical matter, we've overflowed the
 	 * stack even if the actual trigger for the double fault was
@@ -437,7 +437,7 @@ dotraplinkage void do_bounds(struct pt_regs *regs, long error_code)
 	const struct mpx_bndcsr *bndcsr;
 
 	RCU_LOCKDEP_WARN(!rcu_is_watching(), "entry code didn't wake RCU");
-	if (notify_die(DIE_TRAP, "bounds", regs, error_code,
+	if (yestify_die(DIE_TRAP, "bounds", regs, error_code,
 			X86_TRAP_BR, SIGSEGV) == NOTIFY_STOP)
 		return;
 	cond_local_irq_enable(regs);
@@ -446,14 +446,14 @@ dotraplinkage void do_bounds(struct pt_regs *regs, long error_code)
 		die("bounds", regs, error_code);
 
 	if (!cpu_feature_enabled(X86_FEATURE_MPX)) {
-		/* The exception is not from Intel MPX */
+		/* The exception is yest from Intel MPX */
 		goto exit_trap;
 	}
 
 	/*
 	 * We need to look at BNDSTATUS to resolve this exception.
 	 * A NULL here might mean that it is in its 'init state',
-	 * which is all zeros which indicates MPX was not
+	 * which is all zeros which indicates MPX was yest
 	 * responsible for the exception.
 	 */
 	bndcsr = get_xsave_field_ptr(XFEATURE_BNDCSR);
@@ -479,7 +479,7 @@ dotraplinkage void do_bounds(struct pt_regs *regs, long error_code)
 		if (mpx_fault_info(&mpx, regs)) {
 			/*
 			 * We failed to decode the MPX instruction.  Act as if
-			 * the exception was not caused by MPX.
+			 * the exception was yest caused by MPX.
 			 */
 			goto exit_trap;
 		}
@@ -490,7 +490,7 @@ dotraplinkage void do_bounds(struct pt_regs *regs, long error_code)
 		 * allows and application to possibly handle the
 		 * #BR exception itself.
 		 */
-		if (!do_trap_no_signal(tsk, X86_TRAP_BR, "bounds", regs,
+		if (!do_trap_yes_signal(tsk, X86_TRAP_BR, "bounds", regs,
 				       error_code))
 			break;
 
@@ -509,7 +509,7 @@ dotraplinkage void do_bounds(struct pt_regs *regs, long error_code)
 
 exit_trap:
 	/*
-	 * This path out is for all the cases where we could not
+	 * This path out is for all the cases where we could yest
 	 * handle the exception in some way (like allocating a
 	 * table or telling userspace about it.  We will also end
 	 * up here if the kernel has MPX turned off at compile
@@ -549,13 +549,13 @@ do_general_protection(struct pt_regs *regs, long error_code)
 		/*
 		 * To be potentially processing a kprobe fault and to
 		 * trust the result from kprobe_running(), we have to
-		 * be non-preemptible.
+		 * be yesn-preemptible.
 		 */
 		if (!preemptible() && kprobe_running() &&
 		    kprobe_fault_handler(regs, X86_TRAP_GP))
 			return;
 
-		if (notify_die(DIE_GPF, desc, regs, error_code,
+		if (yestify_die(DIE_GPF, desc, regs, error_code,
 			       X86_TRAP_GP, SIGSEGV) != NOTIFY_STOP)
 			die(desc, regs, error_code);
 		return;
@@ -570,12 +570,12 @@ do_general_protection(struct pt_regs *regs, long error_code)
 }
 NOKPROBE_SYMBOL(do_general_protection);
 
-dotraplinkage void notrace do_int3(struct pt_regs *regs, long error_code)
+dotraplinkage void yestrace do_int3(struct pt_regs *regs, long error_code)
 {
 #ifdef CONFIG_DYNAMIC_FTRACE
 	/*
 	 * ftrace must be first, everything else may cause a recursive crash.
-	 * See note by declaration of modifying_ftrace_code in ftrace.c
+	 * See yeste by declaration of modifying_ftrace_code in ftrace.c
 	 */
 	if (unlikely(atomic_read(&modifying_ftrace_code)) &&
 	    ftrace_int3_handler(regs))
@@ -586,7 +586,7 @@ dotraplinkage void notrace do_int3(struct pt_regs *regs, long error_code)
 
 	/*
 	 * Use ist_enter despite the fact that we don't use an IST stack.
-	 * We can be called from a kprobe in non-CONTEXT_KERNEL kernel
+	 * We can be called from a kprobe in yesn-CONTEXT_KERNEL kernel
 	 * mode or even during context tracking state changes.
 	 *
 	 * This means that we can't schedule.  That's okay.
@@ -604,7 +604,7 @@ dotraplinkage void notrace do_int3(struct pt_regs *regs, long error_code)
 		goto exit;
 #endif
 
-	if (notify_die(DIE_INT3, "int3", regs, error_code, X86_TRAP_BP,
+	if (yestify_die(DIE_INT3, "int3", regs, error_code, X86_TRAP_BP,
 			SIGTRAP) == NOTIFY_STOP)
 		goto exit;
 
@@ -620,10 +620,10 @@ NOKPROBE_SYMBOL(do_int3);
 #ifdef CONFIG_X86_64
 /*
  * Help handler running on a per-cpu (IST or entry trampoline) stack
- * to switch to the normal thread stack if the interrupted code was in
+ * to switch to the yesrmal thread stack if the interrupted code was in
  * user mode. The actual stack switch is done in entry_64.S
  */
-asmlinkage __visible notrace struct pt_regs *sync_regs(struct pt_regs *eregs)
+asmlinkage __visible yestrace struct pt_regs *sync_regs(struct pt_regs *eregs)
 {
 	struct pt_regs *regs = (struct pt_regs *)this_cpu_read(cpu_current_top_of_stack) - 1;
 	if (regs != eregs)
@@ -637,7 +637,7 @@ struct bad_iret_stack {
 	struct pt_regs regs;
 };
 
-asmlinkage __visible notrace
+asmlinkage __visible yestrace
 struct bad_iret_stack *fixup_bad_iret(struct bad_iret_stack *s)
 {
 	/*
@@ -669,7 +669,7 @@ static bool is_sysenter_singlestep(struct pt_regs *regs)
 	 * We don't try for precision here.  If we're anywhere in the region of
 	 * code that can be single-stepped in the SYSENTER entry path, then
 	 * assume that this is a useless single-step trap due to SYSENTER
-	 * being invoked with TF set.  (We don't know in advance exactly
+	 * being invoked with TF set.  (We don't kyesw in advance exactly
 	 * which instructions will be hit because BTF could plausibly
 	 * be set.)
 	 */
@@ -687,13 +687,13 @@ static bool is_sysenter_singlestep(struct pt_regs *regs)
 }
 
 /*
- * Our handling of the processor debug registers is non-trivial.
- * We do not clear them on entry and exit from the kernel. Therefore
+ * Our handling of the processor debug registers is yesn-trivial.
+ * We do yest clear them on entry and exit from the kernel. Therefore
  * it is possible to get a watchpoint trap here from inside the kernel.
  * However, the code in ./ptrace.c has ensured that the user can
  * only set watchpoints on userspace addresses. Therefore the in-kernel
  * watchpoint trap can only occur in code which is reading/writing
- * from user space. Such code must not hold kernel locks (since it
+ * from user space. Such code must yest hold kernel locks (since it
  * can equally take a page fault), therefore it is safe to call
  * force_sig_info even though that claims and releases locks.
  *
@@ -756,7 +756,7 @@ dotraplinkage void do_debug(struct pt_regs *regs, long error_code)
 	}
 
 	/*
-	 * If dr6 has no reason to give us about the origin of this trap,
+	 * If dr6 has yes reason to give us about the origin of this trap,
 	 * then it's very likely the result of an icebp/int01 trap.
 	 * User wants a sigtrap for that.
 	 */
@@ -771,12 +771,12 @@ dotraplinkage void do_debug(struct pt_regs *regs, long error_code)
 		goto exit;
 #endif
 
-	if (notify_die(DIE_DEBUG, "debug", regs, (long)&dr6, error_code,
+	if (yestify_die(DIE_DEBUG, "debug", regs, (long)&dr6, error_code,
 							SIGTRAP) == NOTIFY_STOP)
 		goto exit;
 
 	/*
-	 * Let others (NMI) know that the debug stack is in use
+	 * Let others (NMI) kyesw that the debug stack is in use
 	 * as we may switch to the interrupt stack.
 	 */
 	debug_stack_usage_inc();
@@ -795,7 +795,7 @@ dotraplinkage void do_debug(struct pt_regs *regs, long error_code)
 	if (WARN_ON_ONCE((dr6 & DR_STEP) && !user_mode(regs))) {
 		/*
 		 * Historical junk that used to handle SYSENTER single-stepping.
-		 * This should be unreachable now.  If we survive for a while
+		 * This should be unreachable yesw.  If we survive for a while
 		 * without anyone hitting this warning, we'll turn this into
 		 * an oops.
 		 */
@@ -816,7 +816,7 @@ NOKPROBE_SYMBOL(do_debug);
 
 /*
  * Note that we play around with the 'TS' bit in an attempt to get
- * the correct behaviour even in the presence of the asynchronous
+ * the correct behaviour even in the presence of the asynchroyesus
  * IRQ13 behaviour
  */
 static void math_error(struct pt_regs *regs, int error_code, int trapnr)
@@ -836,7 +836,7 @@ static void math_error(struct pt_regs *regs, int error_code, int trapnr)
 		task->thread.error_code = error_code;
 		task->thread.trap_nr = trapnr;
 
-		if (notify_die(DIE_TRAP, str, regs, error_code,
+		if (yestify_die(DIE_TRAP, str, regs, error_code,
 					trapnr, SIGFPE) != NOTIFY_STOP)
 			die(str, regs, error_code);
 		return;
@@ -879,7 +879,7 @@ do_spurious_interrupt_bug(struct pt_regs *regs, long error_code)
 }
 
 dotraplinkage void
-do_device_not_available(struct pt_regs *regs, long error_code)
+do_device_yest_available(struct pt_regs *regs, long error_code)
 {
 	unsigned long cr0 = read_cr0();
 
@@ -897,7 +897,7 @@ do_device_not_available(struct pt_regs *regs, long error_code)
 	}
 #endif
 
-	/* This should not happen. */
+	/* This should yest happen. */
 	if (WARN(cr0 & X86_CR0_TS, "CR0.TS was set")) {
 		/* Try to fix it up and carry on. */
 		write_cr0(cr0 & ~X86_CR0_TS);
@@ -910,7 +910,7 @@ do_device_not_available(struct pt_regs *regs, long error_code)
 		die("unexpected #NM exception", regs, error_code);
 	}
 }
-NOKPROBE_SYMBOL(do_device_not_available);
+NOKPROBE_SYMBOL(do_device_yest_available);
 
 #ifdef CONFIG_X86_32
 dotraplinkage void do_iret_error(struct pt_regs *regs, long error_code)
@@ -918,7 +918,7 @@ dotraplinkage void do_iret_error(struct pt_regs *regs, long error_code)
 	RCU_LOCKDEP_WARN(!rcu_is_watching(), "entry code didn't wake RCU");
 	local_irq_enable();
 
-	if (notify_die(DIE_TRAP, "iret exception", regs, error_code,
+	if (yestify_die(DIE_TRAP, "iret exception", regs, error_code,
 			X86_TRAP_IRET, SIGILL) != NOTIFY_STOP) {
 		do_trap(X86_TRAP_IRET, SIGILL, "iret exception", regs, error_code,
 			ILL_BADSTK, (void __user *)NULL);
@@ -935,7 +935,7 @@ void __init trap_init(void)
 
 	/*
 	 * Set the IDT descriptor to a fixed read-only location, so that the
-	 * "sidt" instruction will not leak the location of the kernel, and
+	 * "sidt" instruction will yest leak the location of the kernel, and
 	 * to defend the IDT against arbitrary memory write vulnerabilities.
 	 * It will be reloaded in cpu_init() */
 	cea_set_pte(CPU_ENTRY_AREA_RO_IDT_VADDR, __pa_symbol(idt_table),

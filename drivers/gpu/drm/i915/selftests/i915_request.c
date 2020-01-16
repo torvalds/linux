@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -118,7 +118,7 @@ static int igt_wait_request(void *arg)
 	}
 
 	if (!i915_request_completed(request)) {
-		pr_err("request not complete after waiting!\n");
+		pr_err("request yest complete after waiting!\n");
 		goto out_request;
 	}
 
@@ -370,7 +370,7 @@ static int __igt_breadcrumbs_smoketest(void *arg)
 
 			pr_err("waiting for %d/%d fences (last %llx:%lld) on %s timed out!\n",
 			       atomic_read(&wait->pending), count,
-			       rq->fence.context, rq->fence.seqno,
+			       rq->fence.context, rq->fence.seqyes,
 			       t->engine->name);
 			GEM_TRACE_DUMP();
 
@@ -385,8 +385,8 @@ static int __igt_breadcrumbs_smoketest(void *arg)
 
 			if (!test_bit(DMA_FENCE_FLAG_SIGNALED_BIT,
 				      &rq->fence.flags)) {
-				pr_err("%llu:%llu was not signaled!\n",
-				       rq->fence.context, rq->fence.seqno);
+				pr_err("%llu:%llu was yest signaled!\n",
+				       rq->fence.context, rq->fence.seqyes);
 				err = -EINVAL;
 			}
 
@@ -518,7 +518,7 @@ int i915_request_mock_selftests(void)
 	return err;
 }
 
-static int live_nop_request(void *arg)
+static int live_yesp_request(void *arg)
 {
 	struct drm_i915_private *i915 = arg;
 	struct intel_engine_cs *engine;
@@ -554,7 +554,7 @@ static int live_nop_request(void *arg)
 				/*
 				 * This space is left intentionally blank.
 				 *
-				 * We do not actually want to perform any
+				 * We do yest actually want to perform any
 				 * action with this request, we just want
 				 * to measure the latency in allocation
 				 * and submission of our breadcrumbs -
@@ -626,7 +626,7 @@ static struct i915_vma *empty_batch(struct drm_i915_private *i915)
 	if (err)
 		goto err;
 
-	/* Force the wait wait now to avoid including it in the benchmark */
+	/* Force the wait wait yesw to avoid including it in the benchmark */
 	err = i915_vma_sync(vma);
 	if (err)
 		goto err_pin;
@@ -652,8 +652,8 @@ empty_request(struct intel_engine_cs *engine,
 		return request;
 
 	err = engine->emit_bb_start(request,
-				    batch->node.start,
-				    batch->node.size,
+				    batch->yesde.start,
+				    batch->yesde.size,
 				    I915_DISPATCH_SECURE);
 	if (err)
 		goto out_request;
@@ -772,14 +772,14 @@ static struct i915_vma *recursive_batch(struct drm_i915_private *i915)
 
 	if (gen >= 8) {
 		*cmd++ = MI_BATCH_BUFFER_START | 1 << 8 | 1;
-		*cmd++ = lower_32_bits(vma->node.start);
-		*cmd++ = upper_32_bits(vma->node.start);
+		*cmd++ = lower_32_bits(vma->yesde.start);
+		*cmd++ = upper_32_bits(vma->yesde.start);
 	} else if (gen >= 6) {
 		*cmd++ = MI_BATCH_BUFFER_START | 1 << 8;
-		*cmd++ = lower_32_bits(vma->node.start);
+		*cmd++ = lower_32_bits(vma->yesde.start);
 	} else {
 		*cmd++ = MI_BATCH_BUFFER_START | MI_BATCH_GTT;
-		*cmd++ = lower_32_bits(vma->node.start);
+		*cmd++ = lower_32_bits(vma->yesde.start);
 	}
 	*cmd++ = MI_BATCH_BUFFER_END; /* terminate early in case of error */
 
@@ -854,8 +854,8 @@ static int live_all_engines(void *arg)
 		}
 
 		err = engine->emit_bb_start(request[idx],
-					    batch->node.start,
-					    batch->node.size,
+					    batch->yesde.start,
+					    batch->yesde.size,
 					    0);
 		GEM_BUG_ON(err);
 		request[idx]->batch = batch;
@@ -982,8 +982,8 @@ static int live_sequential_engines(void *arg)
 		}
 
 		err = engine->emit_bb_start(request[idx],
-					    batch->node.start,
-					    batch->node.size,
+					    batch->yesde.start,
+					    batch->yesde.size,
 					    0);
 		GEM_BUG_ON(err);
 		request[idx]->batch = batch;
@@ -1195,7 +1195,7 @@ max_batches(struct i915_gem_context *ctx, struct intel_engine_cs *engine)
 	 * for the purposes of this test, inexhaustible.
 	 *
 	 * For the global ringbuffer though, we have to be very careful
-	 * that we do not wrap while preventing the execution of requests
+	 * that we do yest wrap while preventing the execution of requests
 	 * with a unsignaled fence.
 	 */
 	if (HAS_EXECLISTS(ctx->i915))
@@ -1364,7 +1364,7 @@ out_rpm:
 int i915_request_live_selftests(struct drm_i915_private *i915)
 {
 	static const struct i915_subtest tests[] = {
-		SUBTEST(live_nop_request),
+		SUBTEST(live_yesp_request),
 		SUBTEST(live_all_engines),
 		SUBTEST(live_sequential_engines),
 		SUBTEST(live_parallel_engines),

@@ -100,12 +100,12 @@ _save_context:
 	REG_L a0, PT_STATUS(sp)
 	/*
 	 * The current load reservation is effectively part of the processor's
-	 * state, in the sense that load reservations cannot be shared between
+	 * state, in the sense that load reservations canyest be shared between
 	 * different hart contexts.  We can't actually save and restore a load
 	 * reservation, so instead here we clear any existing reservation --
 	 * it's always legal for implementations to clear load reservations at
 	 * any point (as long as the forward progress guarantee is kept, but
-	 * we'll ignore that here).
+	 * we'll igyesre that here).
 	 *
 	 * Dangling load reservations can be the result of taking a trap in the
 	 * middle of an LR/SC sequence, but can also be the result of a taken
@@ -164,13 +164,13 @@ ENTRY(handle_exception)
 
 	/*
 	 * Set the scratch register to 0, so that if a recursive exception
-	 * occurs, the exception vector knows it came from the kernel
+	 * occurs, the exception vector kyesws it came from the kernel
 	 */
 	csrw CSR_SCRATCH, x0
 
 	/* Load the global pointer */
 .option push
-.option norelax
+.option yesrelax
 	la gp, __global_pointer$
 .option pop
 
@@ -209,7 +209,7 @@ ENTRY(handle_exception)
 	REG_L t0, 0(t0)
 	jr t0
 1:
-	tail do_trap_unknown
+	tail do_trap_unkyeswn
 
 handle_syscall:
 	 /* save the initial A0 value (needed in signal handlers) */
@@ -231,7 +231,7 @@ check_syscall_nr:
 	/*
 	 * The tracer can change syscall number to valid/invalid value.
 	 * We use syscall_set_nr helper in syscall_trace_enter thus we
-	 * cannot trust the current value in a7 and have to reload from
+	 * canyest trust the current value in a7 and have to reload from
 	 * the current task pt_regs.
 	 */
 	REG_L a7, PT_A7(sp)
@@ -242,7 +242,7 @@ check_syscall_nr:
 	bge a7, t0, 1f
 	/*
 	 * Check if syscall is rejected by tracer or seccomp, i.e., a7 == -1.
-	 * If yes, we pretend it was executed.
+	 * If no, we pretend it was executed.
 	 */
 	li t1, -1
 	beq a7, t1, ret_from_syscall_rejected
@@ -321,12 +321,12 @@ work_pending:
 	la ra, ret_from_exception
 	andi s1, s0, _TIF_NEED_RESCHED
 	bnez s1, work_resched
-work_notifysig:
-	/* Handle pending signals and notify-resume requests */
-	csrs CSR_STATUS, SR_IE /* Enable interrupts for do_notify_resume() */
+work_yestifysig:
+	/* Handle pending signals and yestify-resume requests */
+	csrs CSR_STATUS, SR_IE /* Enable interrupts for do_yestify_resume() */
 	move a0, sp /* pt_regs */
 	move a1, s0 /* current_thread_info->flags */
-	tail do_notify_resume
+	tail do_yestify_resume
 work_resched:
 	tail schedule
 
@@ -414,7 +414,7 @@ ENTRY(__switch_to)
 	sw a3, TASK_TI_CPU(a1)
 	sw a4, TASK_TI_CPU(a0)
 #if TASK_TI != 0
-#error "TASK_TI != 0: tp will contain a 'struct thread_info', not a 'struct task_struct' so get_current() won't work."
+#error "TASK_TI != 0: tp will contain a 'struct thread_info', yest a 'struct task_struct' so get_current() won't work."
 	addi tp, a1, TASK_TI
 #else
 	move tp, a1
@@ -423,7 +423,7 @@ ENTRY(__switch_to)
 ENDPROC(__switch_to)
 
 #ifndef CONFIG_MMU
-#define do_page_fault do_trap_unknown
+#define do_page_fault do_trap_unkyeswn
 #endif
 
 	.section ".rodata"
@@ -439,11 +439,11 @@ ENTRY(excp_vect_table)
 	RISCV_PTR do_trap_store_fault
 	RISCV_PTR do_trap_ecall_u /* system call, gets intercepted */
 	RISCV_PTR do_trap_ecall_s
-	RISCV_PTR do_trap_unknown
+	RISCV_PTR do_trap_unkyeswn
 	RISCV_PTR do_trap_ecall_m
 	RISCV_PTR do_page_fault   /* instruction page fault */
 	RISCV_PTR do_page_fault   /* load page fault */
-	RISCV_PTR do_trap_unknown
+	RISCV_PTR do_trap_unkyeswn
 	RISCV_PTR do_page_fault   /* store page fault */
 excp_vect_table_end:
 END(excp_vect_table)

@@ -36,10 +36,10 @@ config ACENIC_OMIT_TIGON_I
 	depends on ACENIC
 	---help---
 	  Say Y here if you only have Tigon II based AceNICs and want to leave
-	  out support for the older Tigon I based cards which are no longer
-	  being sold (ie. the original Alteon AceNIC and 3Com 3C985 (non B
+	  out support for the older Tigon I based cards which are yes longer
+	  being sold (ie. the original Alteon AceNIC and 3Com 3C985 (yesn B
 	  version)).  This will reduce the size of the driver object by
-	  app. 100KB.  If you are not sure whether your card is a Tigon I or a
+	  app. 100KB.  If you are yest sure whether your card is a Tigon I or a
 	  Tigon II, say N here.
 
 	  The safe and default value for this is N.

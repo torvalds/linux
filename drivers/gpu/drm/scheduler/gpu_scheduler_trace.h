@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -80,7 +80,7 @@ TRACE_EVENT(drm_sched_job_wait_dep,
 			     __field(uint64_t, id)
 			     __field(struct dma_fence *, fence)
 			     __field(uint64_t, ctx)
-			     __field(unsigned, seqno)
+			     __field(unsigned, seqyes)
 			     ),
 
 	    TP_fast_assign(
@@ -88,12 +88,12 @@ TRACE_EVENT(drm_sched_job_wait_dep,
 			   __entry->id = sched_job->id;
 			   __entry->fence = fence;
 			   __entry->ctx = fence->context;
-			   __entry->seqno = fence->seqno;
+			   __entry->seqyes = fence->seqyes;
 			   ),
 	    TP_printk("job ring=%s, id=%llu, depends fence=%p, context=%llu, seq=%u",
 		      __entry->name, __entry->id,
 		      __entry->fence, __entry->ctx,
-		      __entry->seqno)
+		      __entry->seqyes)
 );
 
 #endif

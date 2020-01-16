@@ -8,7 +8,7 @@
 #include <linux/module.h>
 #include <linux/sched/signal.h>
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/cdev.h>
 #include <linux/fs.h>
 #include <linux/device.h>
@@ -97,7 +97,7 @@ struct user_service {
 	struct vchiq_header *msg_queue[MSG_QUEUE_SIZE];
 };
 
-struct bulk_waiter_node {
+struct bulk_waiter_yesde {
 	struct bulk_waiter bulk_waiter;
 	int pid;
 	struct list_head list;
@@ -122,7 +122,7 @@ struct vchiq_instance {
 	struct list_head bulk_waiter_list;
 	struct mutex bulk_waiter_list_mutex;
 
-	struct vchiq_debugfs_node debugfs_node;
+	struct vchiq_debugfs_yesde debugfs_yesde;
 };
 
 struct dump_context {
@@ -186,7 +186,7 @@ enum vchiq_status vchiq_initialise(struct vchiq_instance **instance_out)
 
 	vchiq_log_trace(vchiq_core_log_level, "%s called", __func__);
 
-	/* VideoCore may not be ready due to boot up timing.
+	/* VideoCore may yest be ready due to boot up timing.
 	 * It may never be ready if kernel and firmware are mismatched,so don't
 	 * block forever.
 	 */
@@ -198,7 +198,7 @@ enum vchiq_status vchiq_initialise(struct vchiq_instance **instance_out)
 	}
 	if (i == VCHIQ_INIT_RETRIES) {
 		vchiq_log_error(vchiq_core_log_level,
-			"%s: videocore not initialized\n", __func__);
+			"%s: videocore yest initialized\n", __func__);
 		goto failed;
 	} else if (i > 0) {
 		vchiq_log_warning(vchiq_core_log_level,
@@ -250,7 +250,7 @@ enum vchiq_status vchiq_shutdown(struct vchiq_instance *instance)
 		"%s(%p): returning %d", __func__, instance, status);
 
 	if (status == VCHIQ_SUCCESS) {
-		struct bulk_waiter_node *waiter, *next;
+		struct bulk_waiter_yesde *waiter, *next;
 
 		list_for_each_entry_safe(waiter, next,
 					 &instance->bulk_waiter_list, list) {
@@ -436,7 +436,7 @@ vchiq_blocking_bulk_transfer(unsigned int handle, void *data,
 	struct vchiq_instance *instance;
 	struct vchiq_service *service;
 	enum vchiq_status status;
-	struct bulk_waiter_node *waiter = NULL;
+	struct bulk_waiter_yesde *waiter = NULL;
 
 	service = find_service_by_handle(handle);
 	if (!service)
@@ -462,7 +462,7 @@ vchiq_blocking_bulk_transfer(unsigned int handle, void *data,
 			/* This thread has an outstanding bulk transfer. */
 			if ((bulk->data != data) ||
 				(bulk->size != size)) {
-				/* This is not a retry of the previous one.
+				/* This is yest a retry of the previous one.
 				 * Cancel the signal when the transfer
 				 * completes.
 				 */
@@ -474,7 +474,7 @@ vchiq_blocking_bulk_transfer(unsigned int handle, void *data,
 	}
 
 	if (!waiter) {
-		waiter = kzalloc(sizeof(struct bulk_waiter_node), GFP_KERNEL);
+		waiter = kzalloc(sizeof(struct bulk_waiter_yesde), GFP_KERNEL);
 		if (!waiter) {
 			vchiq_log_error(vchiq_core_log_level,
 				"%s - out of memory", __func__);
@@ -555,7 +555,7 @@ add_completion(struct vchiq_instance *instance, enum vchiq_reason reason,
 
 	if (reason == VCHIQ_SERVICE_CLOSED) {
 		/* Take an extra reference, to be held until
-		   this CLOSED notification is delivered. */
+		   this CLOSED yestification is delivered. */
 		lock_service(user_service->service);
 		if (instance->use_close_delivered)
 			user_service->close_pending = 1;
@@ -625,7 +625,7 @@ service_callback(enum vchiq_reason reason, struct vchiq_header *header,
 			DEBUG_COUNT(MSG_QUEUE_FULL_COUNT);
 			vchiq_log_trace(vchiq_arm_log_level,
 				"service_callback - msg queue full");
-			/* If there is no MESSAGE_AVAILABLE in the completion
+			/* If there is yes MESSAGE_AVAILABLE in the completion
 			** queue, add one
 			*/
 			if ((user_service->message_available_pos -
@@ -851,7 +851,7 @@ vchiq_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		rc = mutex_lock_killable(&instance->state->mutex);
 		if (rc) {
 			vchiq_log_error(vchiq_arm_log_level,
-				"vchiq: connect: could not lock mutex for "
+				"vchiq: connect: could yest lock mutex for "
 				"state %d: %d",
 				instance->state->id, rc);
 			ret = -EINTR;
@@ -864,7 +864,7 @@ vchiq_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			instance->connected = 1;
 		else
 			vchiq_log_error(vchiq_arm_log_level,
-				"vchiq: could not connect: %d", status);
+				"vchiq: could yest connect: %d", status);
 		break;
 
 	case VCHIQ_IOC_CREATE_SERVICE: {
@@ -1040,7 +1040,7 @@ vchiq_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	case VCHIQ_IOC_QUEUE_BULK_TRANSMIT:
 	case VCHIQ_IOC_QUEUE_BULK_RECEIVE: {
 		struct vchiq_queue_bulk_transfer args;
-		struct bulk_waiter_node *waiter = NULL;
+		struct bulk_waiter_yesde *waiter = NULL;
 
 		enum vchiq_bulk_dir dir =
 			(cmd == VCHIQ_IOC_QUEUE_BULK_TRANSMIT) ?
@@ -1059,7 +1059,7 @@ vchiq_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		}
 
 		if (args.mode == VCHIQ_BULK_MODE_BLOCKING) {
-			waiter = kzalloc(sizeof(struct bulk_waiter_node),
+			waiter = kzalloc(sizeof(struct bulk_waiter_yesde),
 				GFP_KERNEL);
 			if (!waiter) {
 				ret = -ENOMEM;
@@ -1079,7 +1079,7 @@ vchiq_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			mutex_unlock(&instance->bulk_waiter_list_mutex);
 			if (!waiter) {
 				vchiq_log_error(vchiq_arm_log_level,
-					"no bulk_waiter found for pid %d",
+					"yes bulk_waiter found for pid %d",
 					current->pid);
 				ret = -ESRCH;
 				break;
@@ -1346,7 +1346,7 @@ vchiq_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		if (!header)
 			ret = -ENOTCONN;
 		else if (header->size <= args.bufsize) {
-			/* Copy to user space if msgbuf is not NULL */
+			/* Copy to user space if msgbuf is yest NULL */
 			if (!args.buf ||
 				(copy_to_user((void __user *)args.buf,
 				header->data,
@@ -1476,7 +1476,7 @@ struct vchiq_service_params32 {
 	int fourcc;
 	compat_uptr_t callback;
 	compat_uptr_t userdata;
-	short version; /* Increment for non-trivial changes */
+	short version; /* Increment for yesn-trivial changes */
 	short version_min; /* Update for incompatible changes */
 };
 
@@ -1730,7 +1730,7 @@ vchiq_compat_ioctl_await_completion(struct file *file,
 	/*
 	 * These are the more complex cases.  Typical applications of this
 	 * ioctl will use a very large count, with a very large msgbufcount.
-	 * Since the native ioctl can asynchronously fill in the returned
+	 * Since the native ioctl can asynchroyesusly fill in the returned
 	 * buffers and the application can in theory begin processing messages
 	 * even before the ioctl returns, a bit of a trick is used here.
 	 *
@@ -1774,18 +1774,18 @@ vchiq_compat_ioctl_await_completion(struct file *file,
 			  (unsigned long)args);
 
 	/*
-	 * An return value of 0 here means that no messages where available
-	 * in the message queue.  In this case the native ioctl does not
+	 * An return value of 0 here means that yes messages where available
+	 * in the message queue.  In this case the native ioctl does yest
 	 * return any data to the application at all.  Not even to update
 	 * msgbufcount.  This functionality needs to be kept here for
 	 * compatibility.
 	 *
-	 * Of course, < 0 means that an error occurred and no data is being
+	 * Of course, < 0 means that an error occurred and yes data is being
 	 * returned.
 	 *
 	 * Since count and msgbufcount was forced to 1, that means
 	 * the only other possible return value is 1. Meaning that 1 message
-	 * was available, so that multiple message case does not need to be
+	 * was available, so that multiple message case does yest need to be
 	 * handled here.
 	 */
 	if (ret <= 0)
@@ -1916,7 +1916,7 @@ vchiq_compat_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 #endif
 
-static int vchiq_open(struct inode *inode, struct file *file)
+static int vchiq_open(struct iyesde *iyesde, struct file *file)
 {
 	struct vchiq_state *state = vchiq_get_state();
 	struct vchiq_instance *instance;
@@ -1925,7 +1925,7 @@ static int vchiq_open(struct inode *inode, struct file *file)
 
 	if (!state) {
 		vchiq_log_error(vchiq_arm_log_level,
-				"vchiq has no connection to VideoCore");
+				"vchiq has yes connection to VideoCore");
 		return -ENOTCONN;
 	}
 
@@ -1949,7 +1949,7 @@ static int vchiq_open(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static int vchiq_release(struct inode *inode, struct file *file)
+static int vchiq_release(struct iyesde *iyesde, struct file *file)
 {
 	struct vchiq_instance *instance = file->private_data;
 	struct vchiq_state *state = vchiq_get_state();
@@ -2045,7 +2045,7 @@ static int vchiq_release(struct inode *inode, struct file *file)
 	vchiq_release_internal(instance->state, NULL);
 
 	{
-		struct bulk_waiter_node *waiter, *next;
+		struct bulk_waiter_yesde *waiter, *next;
 
 		list_for_each_entry_safe(waiter, next,
 					 &instance->bulk_waiter_list, list) {
@@ -2126,7 +2126,7 @@ int vchiq_dump_platform_instances(void *dump_context)
 	int len;
 	int i;
 
-	/* There is no list of instances, so instead scan all services,
+	/* There is yes list of instances, so instead scan all services,
 		marking those that have been dumped. */
 
 	for (i = 0; i < state->unused_service; i++) {
@@ -2264,7 +2264,7 @@ vchiq_videocore_wanted(struct vchiq_state *state)
 	struct vchiq_arm_state *arm_state = vchiq_platform_get_arm_state(state);
 
 	if (!arm_state)
-		/* autosuspend not supported - always return wanted */
+		/* autosuspend yest supported - always return wanted */
 		return 1;
 	else if (arm_state->blocked_count)
 		return 1;
@@ -2275,7 +2275,7 @@ vchiq_videocore_wanted(struct vchiq_state *state)
 		else
 			return vchiq_platform_videocore_wanted(state);
 	else
-		/* non-zero usage count - videocore still required */
+		/* yesn-zero usage count - videocore still required */
 		return 1;
 }
 
@@ -2434,21 +2434,21 @@ vchiq_arm_init_state(struct vchiq_state *state,
 **			resumed, and also if we initiate suspend after a suspend
 **			failure.
 **
-** VC_SUSPEND_IN_PROGRESS - This state is considered the point of no return for
+** VC_SUSPEND_IN_PROGRESS - This state is considered the point of yes return for
 **			suspend - ie from this point on we must try to suspend
 **			before resuming can occur.  We therefore also reset the
 **			resume state machine to VC_RESUME_IDLE in this state.
 **
 ** VC_SUSPEND_SUSPENDED - Suspend has completed successfully. Also call
-**			complete_all on the suspend completion to notify
+**			complete_all on the suspend completion to yestify
 **			anything waiting for suspend to happen.
 **
 ** VC_SUSPEND_REJECTED - Videocore rejected suspend. Videocore will also
-**			initiate resume, so no need to alter resume state.
-**			We call complete_all on the suspend completion to notify
+**			initiate resume, so yes need to alter resume state.
+**			We call complete_all on the suspend completion to yestify
 **			of suspend rejection.
 **
-** VC_SUSPEND_FAILED - We failed to initiate videocore suspend.  We notify the
+** VC_SUSPEND_FAILED - We failed to initiate videocore suspend.  We yestify the
 **			suspend completion and reset the resume state machine.
 **
 ** VC_RESUME_IDLE - Initialise the resume completion at the same time.  The
@@ -2464,7 +2464,7 @@ vchiq_arm_init_state(struct vchiq_state *state,
 **			any threads waiting for resume.	 Also reset the suspend
 **			state machine to it's idle state.
 **
-** VC_RESUME_FAILED - Currently unused - no mechanism to fail resume exists.
+** VC_RESUME_FAILED - Currently unused - yes mechanism to fail resume exists.
 */
 
 void
@@ -2790,8 +2790,8 @@ vchiq_use_internal(struct vchiq_state *state, struct vchiq_service *service,
 
 	write_unlock_bh(&arm_state->susp_res_lock);
 
-	/* Completion is in a done state when we're not suspended, so this won't
-	 * block for the non-suspended case. */
+	/* Completion is in a done state when we're yest suspended, so this won't
+	 * block for the yesn-suspended case. */
 	if (!try_wait_for_completion(&arm_state->vc_resume_complete)) {
 		vchiq_log_info(vchiq_susp_log_level, "%s %s wait for resume",
 			__func__, entity);
@@ -2811,7 +2811,7 @@ vchiq_use_internal(struct vchiq_state *state, struct vchiq_service *service,
 		long ack_cnt = atomic_xchg(&arm_state->ka_use_ack_count, 0);
 
 		while (ack_cnt && (status == VCHIQ_SUCCESS)) {
-			/* Send the use notify to videocore */
+			/* Send the use yestify to videocore */
 			status = vchiq_send_remote_use_active(state);
 			if (status == VCHIQ_SUCCESS)
 				ack_cnt--;
@@ -2863,7 +2863,7 @@ vchiq_release_internal(struct vchiq_state *state, struct vchiq_service *service)
 	if (!vchiq_videocore_wanted(state)) {
 		if (vchiq_platform_use_suspend_timer() &&
 				!arm_state->resume_blocked) {
-			/* Only use the timer if we're not trying to force
+			/* Only use the timer if we're yest trying to force
 			 * suspend (=> resume_blocked) */
 			start_suspend_timer(arm_state);
 		} else {
@@ -2919,10 +2919,10 @@ vchiq_release_service_internal(struct vchiq_service *service)
 	return vchiq_release_internal(service->state, service);
 }
 
-struct vchiq_debugfs_node *
-vchiq_instance_get_debugfs_node(struct vchiq_instance *instance)
+struct vchiq_debugfs_yesde *
+vchiq_instance_get_debugfs_yesde(struct vchiq_instance *instance)
 {
-	return &instance->debugfs_node;
+	return &instance->debugfs_yesde;
 }
 
 int
@@ -3018,8 +3018,8 @@ vchiq_dump_service_use_state(struct vchiq_state *state)
 	struct service_data_struct *service_data;
 	int i, found = 0;
 	/* If there's more than 64 services, only dump ones with
-	 * non-zero counts */
-	int only_nonzero = 0;
+	 * yesn-zero counts */
+	int only_yesnzero = 0;
 	static const char *nz = "<-- preventing suspend";
 
 	enum vc_suspend_status vc_suspend_state;
@@ -3043,7 +3043,7 @@ vchiq_dump_service_use_state(struct vchiq_state *state)
 	vc_use_count = arm_state->videocore_use_count;
 	active_services = state->unused_service;
 	if (active_services > MAX_SERVICES)
-		only_nonzero = 1;
+		only_yesnzero = 1;
 
 	for (i = 0; i < active_services; i++) {
 		struct vchiq_service *service_ptr = state->services[i];
@@ -3051,7 +3051,7 @@ vchiq_dump_service_use_state(struct vchiq_state *state)
 		if (!service_ptr)
 			continue;
 
-		if (only_nonzero && !service_ptr->service_use_count)
+		if (only_yesnzero && !service_ptr->service_use_count)
 			continue;
 
 		if (service_ptr->srvstate == VCHIQ_SRVSTATE_FREE)
@@ -3074,10 +3074,10 @@ vchiq_dump_service_use_state(struct vchiq_state *state)
 		"-- Videcore resume state: %s --",
 		resume_state_names[vc_resume_state + VC_RESUME_NUM_OFFSET]);
 
-	if (only_nonzero)
+	if (only_yesnzero)
 		vchiq_log_warning(vchiq_susp_log_level, "Too many active "
 			"services (%d).  Only dumping up to first %d services "
-			"with non-zero use-count", active_services, found);
+			"with yesn-zero use-count", active_services, found);
 
 	for (i = 0; i < found; i++) {
 		vchiq_log_warning(vchiq_susp_log_level,
@@ -3192,7 +3192,7 @@ vchiq_register_child(struct platform_device *pdev, const char *name)
 
 	child = platform_device_register_full(&pdevinfo);
 	if (IS_ERR(child)) {
-		dev_warn(&pdev->dev, "%s not registered\n", name);
+		dev_warn(&pdev->dev, "%s yest registered\n", name);
 		child = NULL;
 	}
 
@@ -3201,26 +3201,26 @@ vchiq_register_child(struct platform_device *pdev, const char *name)
 
 static int vchiq_probe(struct platform_device *pdev)
 {
-	struct device_node *fw_node;
+	struct device_yesde *fw_yesde;
 	const struct of_device_id *of_id;
 	struct vchiq_drvdata *drvdata;
 	struct device *vchiq_dev;
 	int err;
 
-	of_id = of_match_node(vchiq_of_match, pdev->dev.of_node);
+	of_id = of_match_yesde(vchiq_of_match, pdev->dev.of_yesde);
 	drvdata = (struct vchiq_drvdata *)of_id->data;
 	if (!drvdata)
 		return -EINVAL;
 
-	fw_node = of_find_compatible_node(NULL, NULL,
+	fw_yesde = of_find_compatible_yesde(NULL, NULL,
 					  "raspberrypi,bcm2835-firmware");
-	if (!fw_node) {
-		dev_err(&pdev->dev, "Missing firmware node\n");
+	if (!fw_yesde) {
+		dev_err(&pdev->dev, "Missing firmware yesde\n");
 		return -ENOENT;
 	}
 
-	drvdata->fw = rpi_firmware_get(fw_node);
-	of_node_put(fw_node);
+	drvdata->fw = rpi_firmware_get(fw_yesde);
+	of_yesde_put(fw_yesde);
 	if (!drvdata->fw)
 		return -EPROBE_DEFER;
 
@@ -3261,7 +3261,7 @@ static int vchiq_probe(struct platform_device *pdev)
 failed_device_create:
 	cdev_del(&vchiq_cdev);
 failed_platform_init:
-	vchiq_log_warning(vchiq_arm_log_level, "could not load vchiq");
+	vchiq_log_warning(vchiq_arm_log_level, "could yest load vchiq");
 	return err;
 }
 

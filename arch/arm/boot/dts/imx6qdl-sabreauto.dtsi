@@ -275,7 +275,7 @@
 	flash: m25p80@0 {
 		#address-cells = <1>;
 		#size-cells = <1>;
-		compatible = "st,m25p32", "jedec,spi-nor";
+		compatible = "st,m25p32", "jedec,spi-yesr";
 		spi-max-frequency = <20000000>;
 		reg = <0>;
 	};
@@ -724,7 +724,7 @@
 			>;
 		};
 
-		pinctrl_weim_nor: weimnorgrp {
+		pinctrl_weim_yesr: weimyesrgrp {
 			fsl,pins = <
 				MX6QDL_PAD_EIM_OE__EIM_OE_B		0xb0b1
 				MX6QDL_PAD_EIM_RW__EIM_RW		0xb0b1
@@ -845,11 +845,11 @@
 
 &weim {
 	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_weim_nor &pinctrl_weim_cs0>;
+	pinctrl-0 = <&pinctrl_weim_yesr &pinctrl_weim_cs0>;
 	ranges = <0 0 0x08000000 0x08000000>;
 	status = "disabled"; /* pin conflict with SPI NOR */
 
-	nor@0,0 {
+	yesr@0,0 {
 		compatible = "cfi-flash";
 		reg = <0 0 0x02000000>;
 		#address-cells = <1>;

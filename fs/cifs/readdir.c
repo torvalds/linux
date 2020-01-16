@@ -18,7 +18,7 @@
  *   the GNU Lesser General Public License for more details.
  *
  *   You should have received a copy of the GNU Lesser General Public License
- *   along with this library; if not, write to the Free Software
+ *   along with this library; if yest, write to the Free Software
  *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 #include <linux/fs.h>
@@ -77,7 +77,7 @@ cifs_prime_dcache(struct dentry *parent, struct qstr *name,
 		    struct cifs_fattr *fattr)
 {
 	struct dentry *dentry, *alias;
-	struct inode *inode;
+	struct iyesde *iyesde;
 	struct super_block *sb = parent->d_sb;
 	struct cifs_sb_info *cifs_sb = CIFS_SB(sb);
 	DECLARE_WAIT_QUEUE_HEAD_ONSTACK(wq);
@@ -87,7 +87,7 @@ cifs_prime_dcache(struct dentry *parent, struct qstr *name,
 	dentry = d_hash_and_lookup(parent, name);
 	if (!dentry) {
 		/*
-		 * If we know that the inode will need to be revalidated
+		 * If we kyesw that the iyesde will need to be revalidated
 		 * immediately, then don't create a new dentry for it.
 		 * We'll end up doing an on the wire call either way and
 		 * this spares us an invalidation.
@@ -100,26 +100,26 @@ retry:
 	if (IS_ERR(dentry))
 		return;
 	if (!d_in_lookup(dentry)) {
-		inode = d_inode(dentry);
-		if (inode) {
+		iyesde = d_iyesde(dentry);
+		if (iyesde) {
 			if (d_mountpoint(dentry)) {
 				dput(dentry);
 				return;
 			}
 			/*
-			 * If we're generating inode numbers, then we don't
+			 * If we're generating iyesde numbers, then we don't
 			 * want to clobber the existing one with the one that
 			 * the readdir code created.
 			 */
 			if (!(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_SERVER_INUM))
-				fattr->cf_uniqueid = CIFS_I(inode)->uniqueid;
+				fattr->cf_uniqueid = CIFS_I(iyesde)->uniqueid;
 
-			/* update inode in place
-			 * if both i_ino and i_mode didn't change */
-			if (CIFS_I(inode)->uniqueid == fattr->cf_uniqueid &&
-			    (inode->i_mode & S_IFMT) ==
+			/* update iyesde in place
+			 * if both i_iyes and i_mode didn't change */
+			if (CIFS_I(iyesde)->uniqueid == fattr->cf_uniqueid &&
+			    (iyesde->i_mode & S_IFMT) ==
 			    (fattr->cf_mode & S_IFMT)) {
-				cifs_fattr_to_inode(inode, fattr);
+				cifs_fattr_to_iyesde(iyesde, fattr);
 				dput(dentry);
 				return;
 			}
@@ -128,10 +128,10 @@ retry:
 		dput(dentry);
 		goto retry;
 	} else {
-		inode = cifs_iget(sb, fattr);
-		if (!inode)
-			inode = ERR_PTR(-ENOMEM);
-		alias = d_splice_alias(inode, dentry);
+		iyesde = cifs_iget(sb, fattr);
+		if (!iyesde)
+			iyesde = ERR_PTR(-ENOMEM);
+		alias = d_splice_alias(iyesde, dentry);
 		d_lookup_done(dentry);
 		if (alias && !IS_ERR(alias))
 			dput(alias);
@@ -148,7 +148,7 @@ static bool reparse_file_needs_reval(const struct cifs_fattr *fattr)
 	 * MS-FSCC 2.1.2.1, but let's include them anyway.
 	 *
 	 * Besides, if cf_cifstag is unset (0), then we still need it to be
-	 * revalidated to know exactly what reparse point it is.
+	 * revalidated to kyesw exactly what reparse point it is.
 	 */
 	switch (fattr->cf_cifstag) {
 	case IO_REPARSE_TAG_DFS:
@@ -183,7 +183,7 @@ cifs_fill_common_info(struct cifs_fattr *fattr, struct cifs_sb_info *cifs_sb)
 	if (reparse_file_needs_reval(fattr))
 		fattr->cf_flags |= CIFS_FATTR_NEED_REVAL;
 
-	/* non-unix readdir doesn't provide nlink */
+	/* yesn-unix readdir doesn't provide nlink */
 	fattr->cf_flags |= CIFS_FATTR_UNKNOWN_NLINK;
 
 	if (fattr->cf_cifsattrs & ATTR_READONLY)
@@ -193,7 +193,7 @@ cifs_fill_common_info(struct cifs_fattr *fattr, struct cifs_sb_info *cifs_sb)
 	 * We of course don't get ACL info in FIND_FIRST/NEXT results, so
 	 * mark it for revalidation so that "ls -l" will look right. It might
 	 * be super-slow, but if we don't do this then the ownership of files
-	 * may look wrong since the inodes may not have timed out by the time
+	 * may look wrong since the iyesdes may yest have timed out by the time
 	 * "ls" does a stat() call on them.
 	 */
 	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_CIFS_ACL)
@@ -208,7 +208,7 @@ cifs_fill_common_info(struct cifs_fattr *fattr, struct cifs_sb_info *cifs_sb)
 		} else {
 			/*
 			 * trying to get the type and mode via SFU can be slow,
-			 * so just call those regular files for now, and mark
+			 * so just call those regular files for yesw, and mark
 			 * for reval
 			 */
 			fattr->cf_flags |= CIFS_FATTR_NEED_REVAL;
@@ -354,7 +354,7 @@ initiate_cifs_search(const unsigned int xid, struct file *file)
 
 ffirst_retry:
 	/* test for Unix extensions */
-	/* but now check for them on the share/mount not on the SMB session */
+	/* but yesw check for them on the share/mount yest on the SMB session */
 	/* if (cap_unix(tcon->ses) { */
 	if (tcon->unix_ext)
 		cifsFile->srch_inf.info_level = SMB_FIND_FILE_UNIX;
@@ -363,7 +363,7 @@ ffirst_retry:
 		cifsFile->srch_inf.info_level = SMB_FIND_FILE_INFO_STANDARD;
 	} else if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_SERVER_INUM) {
 		cifsFile->srch_inf.info_level = SMB_FIND_FILE_ID_FULL_DIR_INFO;
-	} else /* not srvinos - BB fixme add check for backlevel? */ {
+	} else /* yest srviyess - BB fixme add check for backlevel? */ {
 		cifsFile->srch_inf.info_level = SMB_FIND_FILE_DIRECTORY_INFO;
 	}
 
@@ -426,7 +426,7 @@ static char *nxt_dir_entry(char *old_entry, char *end_of_smb, int level)
 		new_entry = old_entry + next_offset;
 	}
 	cifs_dbg(FYI, "new entry %p old entry %p\n", new_entry, old_entry);
-	/* validate that new_entry is not past end of SMB */
+	/* validate that new_entry is yest past end of SMB */
 	if (new_entry >= end_of_smb) {
 		cifs_dbg(VFS, "search entry %p began after end of SMB %p old entry %p\n",
 			 new_entry, end_of_smb, old_entry);
@@ -447,7 +447,7 @@ struct cifs_dirent {
 	const char	*name;
 	size_t		namelen;
 	u32		resume_key;
-	u64		ino;
+	u64		iyes;
 };
 
 static void cifs_fill_dirent_unix(struct cifs_dirent *de,
@@ -459,7 +459,7 @@ static void cifs_fill_dirent_unix(struct cifs_dirent *de,
 	else
 		de->namelen = strnlen(de->name, PATH_MAX);
 	de->resume_key = info->ResumeKey;
-	de->ino = le64_to_cpu(info->basic.UniqueId);
+	de->iyes = le64_to_cpu(info->basic.UniqueId);
 }
 
 static void cifs_fill_dirent_dir(struct cifs_dirent *de,
@@ -484,7 +484,7 @@ static void cifs_fill_dirent_search(struct cifs_dirent *de,
 	de->name = &info->FileName[0];
 	de->namelen = le32_to_cpu(info->FileNameLength);
 	de->resume_key = info->FileIndex;
-	de->ino = le64_to_cpu(info->UniqueId);
+	de->iyes = le64_to_cpu(info->UniqueId);
 }
 
 static void cifs_fill_dirent_both(struct cifs_dirent *de,
@@ -499,7 +499,7 @@ static void cifs_fill_dirent_std(struct cifs_dirent *de,
 		const FIND_FILE_STANDARD_INFO *info)
 {
 	de->name = &info->FileName[0];
-	/* one byte length, no endianess conversion */
+	/* one byte length, yes endianess conversion */
 	de->namelen = info->FileNameLength;
 	de->resume_key = info->ResumeKey;
 }
@@ -529,7 +529,7 @@ static int cifs_fill_dirent(struct cifs_dirent *de, const void *info,
 		cifs_fill_dirent_std(de, info);
 		break;
 	default:
-		cifs_dbg(FYI, "Unknown findfirst level %d\n", level);
+		cifs_dbg(FYI, "Unkyeswn findfirst level %d\n", level);
 		return -EINVAL;
 	}
 
@@ -538,7 +538,7 @@ static int cifs_fill_dirent(struct cifs_dirent *de, const void *info,
 
 #define UNICODE_DOT cpu_to_le16(0x2e)
 
-/* return 0 if no match and 1 for . (current directory) and 2 for .. (parent) */
+/* return 0 if yes match and 1 for . (current directory) and 2 for .. (parent) */
 static int cifs_entry_is_dot(struct cifs_dirent *de, bool is_unicode)
 {
 	int rc = 0;
@@ -575,8 +575,8 @@ static int cifs_entry_is_dot(struct cifs_dirent *de, bool is_unicode)
    whether we can use the cached search results from the previous search */
 static int is_dir_changed(struct file *file)
 {
-	struct inode *inode = file_inode(file);
-	struct cifsInodeInfo *cifsInfo = CIFS_I(inode);
+	struct iyesde *iyesde = file_iyesde(file);
+	struct cifsIyesdeInfo *cifsInfo = CIFS_I(iyesde);
 
 	if (cifsInfo->time == 0)
 		return 1; /* directory was changed, perhaps due to unlink */
@@ -604,9 +604,9 @@ static int cifs_save_resume_key(const char *current_entry,
 /*
  * Find the corresponding entry in the search. Note that the SMB server returns
  * search entries for . and .. which complicates logic here if we choose to
- * parse for them and we do not assume that they are located in the findfirst
+ * parse for them and we do yest assume that they are located in the findfirst
  * return buffer. We start counting in the buffer with entry 2 and increment for
- * every entry (do not increment for . or .. entry).
+ * every entry (do yest increment for . or .. entry).
  */
 static int
 find_cifs_entry(const unsigned int xid, struct cifs_tcon *tcon, loff_t pos,
@@ -635,7 +635,7 @@ find_cifs_entry(const unsigned int xid, struct cifs_tcon *tcon, loff_t pos,
 	/*
 	 * If first entry in buf is zero then is first buffer
 	 * in search response data which means it is likely . and ..
-	 * will be in this buffer, although some servers do not return
+	 * will be in this buffer, although some servers do yest return
 	 * . and .. for the root of a drive and for those we need
 	 * to start two entries earlier.
 	 */
@@ -726,12 +726,12 @@ find_cifs_entry(const unsigned int xid, struct cifs_tcon *tcon, loff_t pos,
 		rc = 0;
 		*current_entry = cur_ent;
 	} else {
-		cifs_dbg(FYI, "index not in buffer - could not findnext into it\n");
+		cifs_dbg(FYI, "index yest in buffer - could yest findnext into it\n");
 		return 0;
 	}
 
 	if (pos_in_buf >= cfile->srch_inf.entries_in_buffer) {
-		cifs_dbg(FYI, "can not return entries pos_in_buf beyond last\n");
+		cifs_dbg(FYI, "can yest return entries pos_in_buf beyond last\n");
 		*num_to_ret = 0;
 	} else
 		*num_to_ret = cfile->srch_inf.entries_in_buffer - pos_in_buf;
@@ -744,13 +744,13 @@ static int cifs_filldir(char *find_entry, struct file *file,
 		char *scratch_buf, unsigned int max_len)
 {
 	struct cifsFileInfo *file_info = file->private_data;
-	struct super_block *sb = file_inode(file)->i_sb;
+	struct super_block *sb = file_iyesde(file)->i_sb;
 	struct cifs_sb_info *cifs_sb = CIFS_SB(sb);
 	struct cifs_dirent de = { NULL, };
 	struct cifs_fattr fattr;
 	struct qstr name;
 	int rc = 0;
-	ino_t ino;
+	iyes_t iyes;
 
 	rc = cifs_fill_dirent(&de, find_entry, file_info->srch_inf.info_level,
 			      file_info->srch_inf.unicode);
@@ -807,26 +807,26 @@ static int cifs_filldir(char *find_entry, struct file *file,
 		break;
 	}
 
-	if (de.ino && (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_SERVER_INUM)) {
-		fattr.cf_uniqueid = de.ino;
+	if (de.iyes && (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_SERVER_INUM)) {
+		fattr.cf_uniqueid = de.iyes;
 	} else {
 		fattr.cf_uniqueid = iunique(sb, ROOT_I);
-		cifs_autodisable_serverino(cifs_sb);
+		cifs_autodisable_serveriyes(cifs_sb);
 	}
 
 	if ((cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MF_SYMLINKS) &&
 	    couldbe_mf_symlink(&fattr))
 		/*
 		 * trying to get the type and mode can be slow,
-		 * so just call those regular files for now, and mark
+		 * so just call those regular files for yesw, and mark
 		 * for reval
 		 */
 		fattr.cf_flags |= CIFS_FATTR_NEED_REVAL;
 
 	cifs_prime_dcache(file_dentry(file), &name, &fattr);
 
-	ino = cifs_uniqueid_to_ino_t(fattr.cf_uniqueid);
-	return !dir_emit(ctx, name.name, name.len, ino, fattr.cf_dtype);
+	iyes = cifs_uniqueid_to_iyes_t(fattr.cf_uniqueid);
+	return !dir_emit(ctx, name.name, name.len, iyes, fattr.cf_dtype);
 }
 
 
@@ -847,7 +847,7 @@ int cifs_readdir(struct file *file, struct dir_context *ctx)
 
 	/*
 	 * Ensure FindFirst doesn't fail before doing filldir() for '.' and
-	 * '..'. Otherwise we won't be able to notify VFS in case of failure.
+	 * '..'. Otherwise we won't be able to yestify VFS in case of failure.
 	 */
 	if (file->private_data == NULL) {
 		rc = initiate_cifs_search(xid, file);
@@ -885,7 +885,7 @@ int cifs_readdir(struct file *file, struct dir_context *ctx)
 	} else if (current_entry != NULL) {
 		cifs_dbg(FYI, "entry %lld found\n", ctx->pos);
 	} else {
-		cifs_dbg(FYI, "could not find entry\n");
+		cifs_dbg(FYI, "could yest find entry\n");
 		goto rddir2_exit;
 	}
 	cifs_dbg(FYI, "loop through %d times filling dir for net buf %p\n",

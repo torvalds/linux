@@ -78,7 +78,7 @@ def green(text):
 	return '\033[1;32m' + text + RESET
 
 def print_with_timestamp(message):
-	print('[%s] %s' % (datetime.now().strftime('%H:%M:%S'), message))
+	print('[%s] %s' % (datetime.yesw().strftime('%H:%M:%S'), message))
 
 def format_suite_divider(message):
 	return '======== ' + message + ' ========'
@@ -91,28 +91,28 @@ def print_log(log):
 	for m in log:
 		print_with_timestamp(m)
 
-TAP_ENTRIES = re.compile(r'^(TAP|\t?ok|\t?not ok|\t?[0-9]+\.\.[0-9]+|\t?#).*$')
+TAP_ENTRIES = re.compile(r'^(TAP|\t?ok|\t?yest ok|\t?[0-9]+\.\.[0-9]+|\t?#).*$')
 
-def consume_non_diagnositic(lines: List[str]) -> None:
-	while lines and not TAP_ENTRIES.match(lines[0]):
+def consume_yesn_diagyessitic(lines: List[str]) -> None:
+	while lines and yest TAP_ENTRIES.match(lines[0]):
 		lines.pop(0)
 
-def save_non_diagnositic(lines: List[str], test_case: TestCase) -> None:
-	while lines and not TAP_ENTRIES.match(lines[0]):
+def save_yesn_diagyessitic(lines: List[str], test_case: TestCase) -> None:
+	while lines and yest TAP_ENTRIES.match(lines[0]):
 		test_case.log.append(lines[0])
 		lines.pop(0)
 
 OkNotOkResult = namedtuple('OkNotOkResult', ['is_ok','description', 'text'])
 
-OK_NOT_OK_SUBTEST = re.compile(r'^\t(ok|not ok) [0-9]+ - (.*)$')
+OK_NOT_OK_SUBTEST = re.compile(r'^\t(ok|yest ok) [0-9]+ - (.*)$')
 
-OK_NOT_OK_MODULE = re.compile(r'^(ok|not ok) [0-9]+ - (.*)$')
+OK_NOT_OK_MODULE = re.compile(r'^(ok|yest ok) [0-9]+ - (.*)$')
 
-def parse_ok_not_ok_test_case(lines: List[str],
+def parse_ok_yest_ok_test_case(lines: List[str],
 			      test_case: TestCase,
 			      expecting_test_case: bool) -> bool:
-	save_non_diagnositic(lines, test_case)
-	if not lines:
+	save_yesn_diagyessitic(lines, test_case)
+	if yest lines:
 		if expecting_test_case:
 			test_case.status = TestStatus.TEST_CRASHED
 			return True
@@ -136,9 +136,9 @@ def parse_ok_not_ok_test_case(lines: List[str],
 SUBTEST_DIAGNOSTIC = re.compile(r'^\t# .*?: (.*)$')
 DIAGNOSTIC_CRASH_MESSAGE = 'kunit test case crashed!'
 
-def parse_diagnostic(lines: List[str], test_case: TestCase) -> bool:
-	save_non_diagnositic(lines, test_case)
-	if not lines:
+def parse_diagyesstic(lines: List[str], test_case: TestCase) -> bool:
+	save_yesn_diagyessitic(lines, test_case)
+	if yest lines:
 		return False
 	line = lines[0]
 	match = SUBTEST_DIAGNOSTIC.match(line)
@@ -152,10 +152,10 @@ def parse_diagnostic(lines: List[str], test_case: TestCase) -> bool:
 
 def parse_test_case(lines: List[str], expecting_test_case: bool) -> TestCase:
 	test_case = TestCase()
-	save_non_diagnositic(lines, test_case)
-	while parse_diagnostic(lines, test_case):
+	save_yesn_diagyessitic(lines, test_case)
+	while parse_diagyesstic(lines, test_case):
 		pass
-	if parse_ok_not_ok_test_case(lines, test_case, expecting_test_case):
+	if parse_ok_yest_ok_test_case(lines, test_case, expecting_test_case):
 		return test_case
 	else:
 		return None
@@ -163,8 +163,8 @@ def parse_test_case(lines: List[str], expecting_test_case: bool) -> TestCase:
 SUBTEST_HEADER = re.compile(r'^\t# Subtest: (.*)$')
 
 def parse_subtest_header(lines: List[str]) -> str:
-	consume_non_diagnositic(lines)
-	if not lines:
+	consume_yesn_diagyessitic(lines)
+	if yest lines:
 		return None
 	match = SUBTEST_HEADER.match(lines[0])
 	if match:
@@ -176,7 +176,7 @@ def parse_subtest_header(lines: List[str]) -> str:
 SUBTEST_PLAN = re.compile(r'\t[0-9]+\.\.([0-9]+)')
 
 def parse_subtest_plan(lines: List[str]) -> int:
-	consume_non_diagnositic(lines)
+	consume_yesn_diagyessitic(lines)
 	match = SUBTEST_PLAN.match(lines[0])
 	if match:
 		lines.pop(0)
@@ -196,9 +196,9 @@ def max_status(left: TestStatus, right: TestStatus) -> TestStatus:
 	else:
 		return TestStatus.SUCCESS
 
-def parse_ok_not_ok_test_suite(lines: List[str], test_suite: TestSuite) -> bool:
-	consume_non_diagnositic(lines)
-	if not lines:
+def parse_ok_yest_ok_test_suite(lines: List[str], test_suite: TestSuite) -> bool:
+	consume_yesn_diagyessitic(lines)
+	if yest lines:
 		test_suite.status = TestStatus.TEST_CRASHED
 		return False
 	line = lines[0]
@@ -222,17 +222,17 @@ def bubble_up_test_case_errors(test_suite: TestSuite) -> TestStatus:
 	return max_status(max_test_case_status, test_suite.status)
 
 def parse_test_suite(lines: List[str]) -> TestSuite:
-	if not lines:
+	if yest lines:
 		return None
-	consume_non_diagnositic(lines)
+	consume_yesn_diagyessitic(lines)
 	test_suite = TestSuite()
 	test_suite.status = TestStatus.SUCCESS
 	name = parse_subtest_header(lines)
-	if not name:
+	if yest name:
 		return None
 	test_suite.name = name
 	expected_test_case_num = parse_subtest_plan(lines)
-	if not expected_test_case_num:
+	if yest expected_test_case_num:
 		return None
 	test_case = parse_test_case(lines, expected_test_case_num > 0)
 	expected_test_case_num -= 1
@@ -240,10 +240,10 @@ def parse_test_suite(lines: List[str]) -> TestSuite:
 		test_suite.cases.append(test_case)
 		test_case = parse_test_case(lines, expected_test_case_num > 0)
 		expected_test_case_num -= 1
-	if parse_ok_not_ok_test_suite(lines, test_suite):
+	if parse_ok_yest_ok_test_suite(lines, test_suite):
 		test_suite.status = bubble_up_test_case_errors(test_suite)
 		return test_suite
-	elif not lines:
+	elif yest lines:
 		print_with_timestamp(red('[ERROR] ') + 'ran out of lines before end token')
 		return test_suite
 	else:
@@ -253,7 +253,7 @@ def parse_test_suite(lines: List[str]) -> TestSuite:
 TAP_HEADER = re.compile(r'^TAP version 14$')
 
 def parse_tap_header(lines: List[str]) -> bool:
-	consume_non_diagnositic(lines)
+	consume_yesn_diagyessitic(lines)
 	if TAP_HEADER.match(lines[0]):
 		lines.pop(0)
 		return True
@@ -264,10 +264,10 @@ def bubble_up_suite_errors(test_suite_list: List[TestSuite]) -> TestStatus:
 	return bubble_up_errors(lambda x: x.status, test_suite_list)
 
 def parse_test_result(lines: List[str]) -> TestResult:
-	if not lines:
+	if yest lines:
 		return TestResult(TestStatus.NO_TESTS, [], lines)
-	consume_non_diagnositic(lines)
-	if not parse_tap_header(lines):
+	consume_yesn_diagyessitic(lines)
+	if yest parse_tap_header(lines):
 		return None
 	test_suites = []
 	test_suite = parse_test_suite(lines)

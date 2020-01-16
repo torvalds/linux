@@ -217,7 +217,7 @@ static int v253_open(struct tty_struct *tty)
 	if (!tty->ops->write)
 		return -EINVAL;
 
-	/* Won't work if no codec pointer has been passed by a card driver */
+	/* Won't work if yes codec pointer has been passed by a card driver */
 	if (!tty->disc_data)
 		return -ENODEV;
 
@@ -363,9 +363,9 @@ static int cx20442_component_probe(struct snd_soc_component *component)
 
 		dev_warn(component->dev, "failed to get POR supply (%d)", err);
 		/*
-		 * When running on a non-dt platform and requested regulator
-		 * is not available, regulator_get() never returns
-		 * -EPROBE_DEFER as it is not able to justify if the regulator
+		 * When running on a yesn-dt platform and requested regulator
+		 * is yest available, regulator_get() never returns
+		 * -EPROBE_DEFER as it is yest able to justify if the regulator
 		 * may still appear later.  On the other hand, the board can
 		 * still set full constraints flag at late_initcall in order
 		 * to instruct regulator_get() to return a dummy one if
@@ -419,7 +419,7 @@ static const struct snd_soc_component_driver cx20442_component_dev = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
+	.yesn_legacy_dai_naming	= 1,
 };
 
 static int cx20442_platform_probe(struct platform_device *pdev)

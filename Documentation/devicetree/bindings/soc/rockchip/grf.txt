@@ -4,14 +4,14 @@ The general register file will be used to do static set by software, which
 is composed of many registers for system control.
 
 From RK3368 SoCs, the GRF is divided into two sections,
-- GRF, used for general non-secure system,
+- GRF, used for general yesn-secure system,
 - SGRF, used for general secure system,
 - PMUGRF, used for always on system
 
 On RK3328 SoCs, the GRF adds a section for USB2PHYGRF,
 
 ON RK3308 SoC, the GRF is divided into four sections:
-- GRF, used for general non-secure system,
+- GRF, used for general yesn-secure system,
 - SGRF, used for general secure system,
 - DETECTGRF, used for audio codec system,
 - COREGRF, used for pvtm,

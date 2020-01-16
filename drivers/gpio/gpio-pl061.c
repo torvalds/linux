@@ -9,7 +9,7 @@
  * Data sheet: ARM DDI 0190B, September 2000
  */
 #include <linux/spinlock.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/init.h>
 #include <linux/io.h>
 #include <linux/ioport.h>
@@ -169,7 +169,7 @@ static int pl061_irq_type(struct irq_data *d, unsigned trigger)
 	} else if ((trigger & IRQ_TYPE_EDGE_BOTH) == IRQ_TYPE_EDGE_BOTH) {
 		/* Disable level detection */
 		gpiois &= ~bit;
-		/* Select both edges, setting this makes GPIOEV be ignored */
+		/* Select both edges, setting this makes GPIOEV be igyesred */
 		gpioibe |= bit;
 		irq_set_handler_locked(d, handle_edge_irq);
 		dev_dbg(gc->parent, "line %d: IRQ on both edges\n", offset);
@@ -196,7 +196,7 @@ static int pl061_irq_type(struct irq_data *d, unsigned trigger)
 		gpioibe &= ~bit;
 		gpioiev &= ~bit;
 		irq_set_handler_locked(d, handle_bad_irq);
-		dev_warn(gc->parent, "no trigger selected for line %d\n",
+		dev_warn(gc->parent, "yes trigger selected for line %d\n",
 			 offset);
 	}
 
@@ -261,7 +261,7 @@ static void pl061_irq_unmask(struct irq_data *d)
  *
  * This gets called from the edge IRQ handler to ACK the edge IRQ
  * in the GPIOIC (interrupt-clear) register. For level IRQs this is
- * not needed: these go away when the level signal goes away.
+ * yest needed: these go away when the level signal goes away.
  */
 static void pl061_irq_ack(struct irq_data *d)
 {
@@ -298,7 +298,7 @@ static int pl061_probe(struct amba_device *adev, const struct amba_id *id)
 		return PTR_ERR(pl061->base);
 
 	raw_spin_lock_init(&pl061->lock);
-	if (of_property_read_bool(dev->of_node, "gpio-ranges")) {
+	if (of_property_read_bool(dev->of_yesde, "gpio-ranges")) {
 		pl061->gc.request = gpiochip_generic_request;
 		pl061->gc.free = gpiochip_generic_free;
 	}

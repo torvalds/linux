@@ -17,22 +17,22 @@ static int dsi_get_phy(struct msm_dsi *msm_dsi)
 {
 	struct platform_device *pdev = msm_dsi->pdev;
 	struct platform_device *phy_pdev;
-	struct device_node *phy_node;
+	struct device_yesde *phy_yesde;
 
-	phy_node = of_parse_phandle(pdev->dev.of_node, "phys", 0);
-	if (!phy_node) {
-		DRM_DEV_ERROR(&pdev->dev, "cannot find phy device\n");
+	phy_yesde = of_parse_phandle(pdev->dev.of_yesde, "phys", 0);
+	if (!phy_yesde) {
+		DRM_DEV_ERROR(&pdev->dev, "canyest find phy device\n");
 		return -ENXIO;
 	}
 
-	phy_pdev = of_find_device_by_node(phy_node);
+	phy_pdev = of_find_device_by_yesde(phy_yesde);
 	if (phy_pdev)
 		msm_dsi->phy = platform_get_drvdata(phy_pdev);
 
-	of_node_put(phy_node);
+	of_yesde_put(phy_yesde);
 
 	if (!phy_pdev || !msm_dsi->phy) {
-		DRM_DEV_ERROR(&pdev->dev, "%s: phy driver is not ready\n", __func__);
+		DRM_DEV_ERROR(&pdev->dev, "%s: phy driver is yest ready\n", __func__);
 		return -EPROBE_DEFER;
 	}
 
@@ -111,7 +111,7 @@ static int dsi_bind(struct device *dev, struct device *master, void *data)
 	DBG("");
 	msm_dsi = dsi_init(pdev);
 	if (IS_ERR(msm_dsi)) {
-		/* Don't fail the bind if the dsi port is not connected */
+		/* Don't fail the bind if the dsi port is yest connected */
 		if (PTR_ERR(msm_dsi) == -ENODEV)
 			return 0;
 		else
@@ -249,7 +249,7 @@ int msm_dsi_modeset_init(struct msm_dsi *msm_dsi, struct drm_device *dev,
 
 	return 0;
 fail:
-	/* bridge/connector are normally destroyed by drm: */
+	/* bridge/connector are yesrmally destroyed by drm: */
 	if (msm_dsi->bridge) {
 		msm_dsi_manager_bridge_destroy(msm_dsi->bridge);
 		msm_dsi->bridge = NULL;

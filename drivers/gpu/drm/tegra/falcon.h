@@ -80,7 +80,7 @@ struct falcon_firmware_section {
 };
 
 struct falcon_firmware {
-	/* Firmware after it is read but not loaded */
+	/* Firmware after it is read but yest loaded */
 	const struct firmware *firmware;
 
 	/* Raw firmware data */

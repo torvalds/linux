@@ -16,11 +16,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -70,7 +70,7 @@
 #define QIB_OUI_LSB 40
 
 /*
- * per driver stats, either not device nor port-specific, or
+ * per driver stats, either yest device yesr port-specific, or
  * summed over all of the devices and ports.
  * They are described by name via ipathfs filesystem, so layout
  * and number of elements can change without breaking compatibility.
@@ -81,9 +81,9 @@ struct qlogic_ib_stats {
 	__u64 sps_ints; /* number of interrupts handled */
 	__u64 sps_errints; /* number of error interrupts */
 	__u64 sps_txerrs; /* tx-related packet errors */
-	__u64 sps_rcverrs; /* non-crc rcv packet errors */
+	__u64 sps_rcverrs; /* yesn-crc rcv packet errors */
 	__u64 sps_hwerrs; /* hardware errors reported (parity, etc.) */
-	__u64 sps_nopiobufs; /* no pio bufs avail from kernel */
+	__u64 sps_yespiobufs; /* yes pio bufs avail from kernel */
 	__u64 sps_ctxts; /* number of contexts currently open */
 	__u64 sps_lenerrs; /* number of kernel packets where RHF != LRH len */
 	__u64 sps_buffull;
@@ -141,7 +141,7 @@ struct qib_ctxtdata {
 
 	/*
 	 * number of opens (including slave sub-contexts) on this instance
-	 * (ignoring forks, dup, etc. for now)
+	 * (igyesring forks, dup, etc. for yesw)
 	 */
 	int cnt;
 	/*
@@ -150,11 +150,11 @@ struct qib_ctxtdata {
 	 */
 	/* instead of calculating it */
 	unsigned ctxt;
-	/* local node of context */
-	int node_id;
-	/* non-zero if ctxt is being shared. */
+	/* local yesde of context */
+	int yesde_id;
+	/* yesn-zero if ctxt is being shared. */
 	u16 subctxt_cnt;
-	/* non-zero if ctxt is being shared. */
+	/* yesn-zero if ctxt is being shared. */
 	u16 subctxt_id;
 	/* number of eager TID entries. */
 	u16 rcvegrcnt;
@@ -180,14 +180,14 @@ struct qib_ctxtdata {
 	unsigned long flag;
 	/* next expected TID to check when looking for free */
 	u32 tidcursor;
-	/* WAIT_RCV that timed out, no interrupt */
+	/* WAIT_RCV that timed out, yes interrupt */
 	u32 rcvwait_to;
-	/* WAIT_PIO that timed out, no interrupt */
+	/* WAIT_PIO that timed out, yes interrupt */
 	u32 piowait_to;
-	/* WAIT_RCV already happened, no wait */
-	u32 rcvnowait;
-	/* WAIT_PIO already happened, no wait */
-	u32 pionowait;
+	/* WAIT_RCV already happened, yes wait */
+	u32 rcvyeswait;
+	/* WAIT_PIO already happened, yes wait */
+	u32 pioyeswait;
 	/* total number of polled urgent packets */
 	u32 urgent;
 	/* saved total number of polled urgent packets for poll edge trigger */
@@ -361,8 +361,8 @@ struct qib_verbs_txreq {
  * Possible "operations" for f_sendctrl(ppd, op, var)
  * these are bits so they can be combined, e.g.
  * QIB_SENDCTRL_BUFAVAIL_ENB | QIB_SENDCTRL_ENB
- * Some operations (e.g. DISARM, ABORT) are known to
- * be "one-shot", so do not modify shadow.
+ * Some operations (e.g. DISARM, ABORT) are kyeswn to
+ * be "one-shot", so do yest modify shadow.
  */
 #define QIB_SENDCTRL_DISARM       (0x1000)
 #define QIB_SENDCTRL_DISARM_BUF(bufn) ((bufn) | QIB_SENDCTRL_DISARM)
@@ -428,7 +428,7 @@ struct qib_verbs_txreq {
 #define MAX_NAME_SIZE 64
 
 #ifdef CONFIG_INFINIBAND_QIB_DCA
-struct qib_irq_notify;
+struct qib_irq_yestify;
 #endif
 
 struct qib_msix_entry {
@@ -436,14 +436,14 @@ struct qib_msix_entry {
 #ifdef CONFIG_INFINIBAND_QIB_DCA
 	int dca;
 	int rcv;
-	struct qib_irq_notify *notifier;
+	struct qib_irq_yestify *yestifier;
 #endif
 	cpumask_var_t mask;
 };
 
 /* Below is an opaque struct. Each chip (device) can maintain
- * private data needed for its operation, but not germane to the
- * rest of the driver.  For convenience, we define another that
+ * private data needed for its operation, but yest germane to the
+ * rest of the driver.  For convenience, we define ayesther that
  * is chip-specific, per-port
  */
 struct qib_chip_specific;
@@ -614,7 +614,7 @@ struct qib_pportdata {
 	u32 init_ibmaxlen;
 	/* LID programmed for this instance */
 	u16 lid;
-	/* list of pkeys programmed; 0 if not set */
+	/* list of pkeys programmed; 0 if yest set */
 	u16 pkeys[4];
 	/* LID mask control */
 	u8 lmc;
@@ -635,7 +635,7 @@ struct qib_pportdata {
 	u8 delay_mult;
 
 	/* used to override LED behavior */
-	u8 led_override;  /* Substituted for normal value, if non-zero */
+	u8 led_override;  /* Substituted for yesrmal value, if yesn-zero */
 	u16 led_override_timeoff; /* delta to next timer event */
 	u8 led_override_vals[2]; /* Alternates per blink-frame */
 	u8 led_override_phase; /* Just counts, LSB picks from vals[] */
@@ -679,7 +679,7 @@ struct qib_pportdata {
 	u8 cc_max_table_entries;
 };
 
-/* Observers. Not to be taken lightly, possibly not to ship. */
+/* Observers. Not to be taken lightly, possibly yest to ship. */
 /*
  * If a diag read or write is to (bottom <= offset <= top),
  * the "hoook" is called, allowing, e.g. shadows to be
@@ -701,10 +701,10 @@ struct diag_observer {
 extern int qib_register_observer(struct qib_devdata *dd,
 	const struct diag_observer *op);
 
-/* Only declared here, not defined. Private to diags */
+/* Only declared here, yest defined. Private to diags */
 struct diag_observer_list_elt;
 
-/* device data struct now contains only "general per-device" info.
+/* device data struct yesw contains only "general per-device" info.
  * fields related to a physical IB port are in a qib_pportdata struct,
  * described above) while fields only used by a particular chip-type are in
  * a qib_chipdata struct, whose contents are opaque to this file.
@@ -743,12 +743,12 @@ struct qib_devdata {
 	void __iomem *piobase;
 	/* mem-mapped pointer to base of user chip regs (if using WC PAT) */
 	u64 __iomem *userbase;
-	void __iomem *piovl15base; /* base of VL15 buffers, if not WC */
+	void __iomem *piovl15base; /* base of VL15 buffers, if yest WC */
 	/*
 	 * points to area where PIOavail registers will be DMA'ed.
 	 * Has to be on a page of it's own, because the page will be
 	 * mapped into user program space.  This copy is *ONLY* ever
-	 * written by DMA, not by the driver!  Need a copy per device
+	 * written by DMA, yest by the driver!  Need a copy per device
 	 * when we get to multiple devices
 	 */
 	volatile __le64 *pioavailregs_dma; /* DMA'ed by chip */
@@ -834,7 +834,7 @@ struct qib_devdata {
 	void (*f_writescratch)(struct qib_devdata *, u32);
 	int (*f_tempsense_rd)(struct qib_devdata *, int regnum);
 #ifdef CONFIG_INFINIBAND_QIB_DCA
-	int (*f_notify_dca)(struct qib_devdata *, unsigned long event);
+	int (*f_yestify_dca)(struct qib_devdata *, unsigned long event);
 #endif
 
 	char *boardname; /* human readable board info */
@@ -846,7 +846,7 @@ struct qib_devdata {
 
 	/* number of registers used for pioavail */
 	u32 pioavregs;
-	/* device (not port) flags, basically device capabilities */
+	/* device (yest port) flags, basically device capabilities */
 	u32 flags;
 	/* last buffer for user use */
 	u32 lastctxt_piobuf;
@@ -879,7 +879,7 @@ struct qib_devdata {
 	/* internal debugging stats */
 	u32 maxpkts_call;
 	u32 avgpkts_call;
-	u64 nopiobufs;
+	u64 yespiobufs;
 
 	/* PCI Vendor ID (here for NodeInfo) */
 	u16 vendorid;
@@ -1028,7 +1028,7 @@ struct qib_devdata {
 	u64 rhdrhead_intr_off;
 
 	/*
-	 * ASCII serial number, from flash, large enough for original
+	 * ASCII serial number, from flash, large eyesugh for original
 	 * all digit strings, and longer QLogic serial number format
 	 */
 	u8 serial[16];
@@ -1037,7 +1037,7 @@ struct qib_devdata {
 	u8 lbus_info[32]; /* human readable localbus info */
 	/* chip major rev, from qib_revision */
 	u8 majrev;
-	/* chip minor rev, from qib_revision */
+	/* chip miyesr rev, from qib_revision */
 	u8 minrev;
 
 	/* Misc small ints */
@@ -1075,7 +1075,7 @@ struct qib_devdata {
 	/* high volume overflow errors defered to tasklet */
 	struct tasklet_struct error_tasklet;
 
-	int assigned_node_id; /* NUMA node closest to HCA */
+	int assigned_yesde_id; /* NUMA yesde closest to HCA */
 };
 
 /* hol_state values */
@@ -1103,7 +1103,7 @@ struct qib_filedata {
 	unsigned subctxt;
 	unsigned tidcursor;
 	struct qib_user_sdma_queue *pq;
-	int rec_cpu_num; /* for cpu affinity; -1 if none */
+	int rec_cpu_num; /* for cpu affinity; -1 if yesne */
 };
 
 extern struct xarray qib_dev_table;
@@ -1119,7 +1119,7 @@ void qib_disable_wc(struct qib_devdata *dd);
 int qib_count_units(int *npresentp, int *nupp);
 int qib_count_active_units(void);
 
-int qib_cdev_init(int minor, const char *name,
+int qib_cdev_init(int miyesr, const char *name,
 		  const struct file_operations *fops,
 		  struct cdev **cdevp, struct device **devp);
 void qib_cdev_cleanup(struct cdev **cdevp, struct device **devp);
@@ -1141,7 +1141,7 @@ void qib_chip_cleanup(struct qib_devdata *);
 void qib_chip_done(void);
 
 /* check to see if we have to force ordering for write combining */
-int qib_unordered_wc(void);
+int qib_uyesrdered_wc(void);
 void qib_pio_copy(void __iomem *to, const void *from, size_t count);
 
 void qib_disarm_piobufs(struct qib_devdata *, unsigned, unsigned);
@@ -1170,7 +1170,7 @@ void qib_hol_event(struct timer_list *);
 void qib_disable_after_error(struct qib_devdata *);
 int qib_set_uevent_bits(struct qib_pportdata *, const int);
 
-/* for use in system calls, where we want to know device type, etc. */
+/* for use in system calls, where we want to kyesw device type, etc. */
 #define ctxt_fp(fp) \
 	(((struct qib_filedata *)(fp)->private_data)->rcd)
 #define subctxt_fp(fp) \
@@ -1239,11 +1239,11 @@ static inline struct qib_ibport *to_iport(struct ib_device *ibdev, u8 port)
 #define QIBL_LINKARMED         0x20 /* IB link is ARMED */
 #define QIBL_LINKACTIVE        0x40 /* IB link is ACTIVE */
 /* leave a gap for more IB-link state */
-#define QIBL_IB_AUTONEG_INPROG 0x1000 /* non-IBTA DDR/QDR neg active */
-#define QIBL_IB_AUTONEG_FAILED 0x2000 /* non-IBTA DDR/QDR neg failed */
+#define QIBL_IB_AUTONEG_INPROG 0x1000 /* yesn-IBTA DDR/QDR neg active */
+#define QIBL_IB_AUTONEG_FAILED 0x2000 /* yesn-IBTA DDR/QDR neg failed */
 #define QIBL_IB_LINK_DISABLED  0x4000 /* Linkdown-disable forced,
-				       * Do not try to bring up */
-#define QIBL_IB_FORCE_NOTIFY   0x8000 /* force notify on next ib change */
+				       * Do yest try to bring up */
+#define QIBL_IB_FORCE_NOTIFY   0x8000 /* force yestify on next ib change */
 
 /* IB dword length mask in PBC (lower 11 bits); same for all chips */
 #define QIB_PBC_LENGTH_MASK                     ((1 << 11) - 1)
@@ -1252,7 +1252,7 @@ static inline struct qib_ibport *to_iport(struct ib_device *ibdev, u8 port)
 /* ctxt_flag bit offsets */
 		/* waiting for a packet to arrive */
 #define QIB_CTXT_WAITING_RCV   2
-		/* master has not finished initializing */
+		/* master has yest finished initializing */
 #define QIB_CTXT_MASTER_UNINIT 4
 		/* waiting for an urgent packet to arrive */
 #define QIB_CTXT_WAITING_URG 5
@@ -1284,7 +1284,7 @@ void qib_clear_symerror_on_linkup(struct timer_list *t);
 
 /*
  * Set LED override, only the two LSBs have "public" meaning, but
- * any non-zero value substitutes them for the Link and LinkTrain
+ * any yesn-zero value substitutes them for the Link and LinkTrain
  * LED states.
  */
 #define QIB_LED_PHYS 1 /* Physical (linktraining) GREEN LED */
@@ -1325,19 +1325,19 @@ void __qib_sdma_process_event(struct qib_pportdata *, enum qib_sdma_events);
 void qib_sdma_process_event(struct qib_pportdata *, enum qib_sdma_events);
 
 /*
- * number of words used for protocol header if not set by qib_userinit();
+ * number of words used for protocol header if yest set by qib_userinit();
  */
 #define QIB_DFLT_RCVHDRSIZE 9
 
 /*
  * We need to be able to handle an IB header of at least 24 dwords.
- * We need the rcvhdrq large enough to handle largest IB header, but
+ * We need the rcvhdrq large eyesugh to handle largest IB header, but
  * still have room for a 2KB MTU standard IB packet.
  * Additionally, some processor/memory controller combinations
  * benefit quite strongly from having the DMA'ed data be cacheline
  * aligned and a cacheline multiple, so we set the size to 32 dwords
  * (2 64-byte primary cachelines for pretty much all processors of
- * interest).  The alignment hurts nothing, other than using somewhat
+ * interest).  The alignment hurts yesthing, other than using somewhat
  * more memory.
  */
 #define QIB_RCVHDR_ENTSIZE 32
@@ -1436,7 +1436,7 @@ static inline void qib_flush_wc(void)
 #if defined(CONFIG_X86_64)
 	asm volatile("sfence" : : : "memory");
 #else
-	wmb(); /* no reorder around wc flush */
+	wmb(); /* yes reorder around wc flush */
 #endif
 }
 
@@ -1471,7 +1471,7 @@ extern struct mutex qib_mutex;
 
 /*
  * qib_early_err is used (only!) to print early errors before devdata is
- * allocated, or when dd->pcidev may not be valid, and at the tail end of
+ * allocated, or when dd->pcidev may yest be valid, and at the tail end of
  * cleanup when devdata may have been freed, etc.  qib_dev_porterr is
  * the same as qib_dev_err, but is used when the message really needs
  * the IB port# to be definitive as to what's happening..
@@ -1518,7 +1518,7 @@ void qib_quiesce_qp(struct rvt_qp *qp);
 void qib_flush_qp_waiters(struct rvt_qp *qp);
 int qib_mtu_to_path_mtu(u32 mtu);
 u32 qib_mtu_from_qp(struct rvt_dev_info *rdi, struct rvt_qp *qp, u32 pmtu);
-void qib_notify_error_qp(struct rvt_qp *qp);
+void qib_yestify_error_qp(struct rvt_qp *qp);
 int qib_get_pmtu_from_attr(struct rvt_dev_info *rdi, struct rvt_qp *qp,
 			   struct ib_qp_attr *attr);
 

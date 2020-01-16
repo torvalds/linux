@@ -10,10 +10,10 @@ Additional documentation for F01 can be found at:
 http://www.synaptics.com/sites/default/files/511-000136-01-Rev-E-RMI4-Interfacing-Guide.pdf
 
 Optional Properties:
-- syna,nosleep-mode: If set the device will run at full power without sleeping.
-			nosleep has 3 modes, 0 will not change the default
-			setting, 1 will disable nosleep (allow sleeping),
-			and 2 will enable nosleep (disabling sleep).
+- syna,yessleep-mode: If set the device will run at full power without sleeping.
+			yessleep has 3 modes, 0 will yest change the default
+			setting, 1 will disable yessleep (allow sleeping),
+			and 2 will enable yessleep (disabling sleep).
 - syna,wakeup-threshold: Defines the amplitude of the disturbance to the
 				background capacitance that will cause the
 				device to wake from dozing.
@@ -33,7 +33,7 @@ Example of a RMI4 I2C device with F01:
 
 			rmi4-f01@1 {
 				reg = <0x1>;
-				syna,nosleep-mode = <1>;
+				syna,yessleep-mode = <1>;
 			};
 		};
 	};

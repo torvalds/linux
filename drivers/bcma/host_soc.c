@@ -137,7 +137,7 @@ static void bcma_host_soc_block_write(struct bcma_device *core,
 
 static u32 bcma_host_soc_aread32(struct bcma_device *core, u16 offset)
 {
-	if (WARN_ONCE(!core->io_wrap, "Accessed core has no wrapper/agent\n"))
+	if (WARN_ONCE(!core->io_wrap, "Accessed core has yes wrapper/agent\n"))
 		return ~0;
 	return readl(core->io_wrap + offset);
 }
@@ -145,7 +145,7 @@ static u32 bcma_host_soc_aread32(struct bcma_device *core, u16 offset)
 static void bcma_host_soc_awrite32(struct bcma_device *core, u16 offset,
 				  u32 value)
 {
-	if (WARN_ONCE(!core->io_wrap, "Accessed core has no wrapper/agent\n"))
+	if (WARN_ONCE(!core->io_wrap, "Accessed core has yes wrapper/agent\n"))
 		return;
 	writel(value, core->io_wrap + offset);
 }
@@ -172,7 +172,7 @@ int __init bcma_host_soc_register(struct bcma_soc *soc)
 	/* iomap only first core. We have to read some register on this core
 	 * to scan the bus.
 	 */
-	bus->mmio = ioremap_nocache(BCMA_ADDR_BASE, BCMA_CORE_SIZE * 1);
+	bus->mmio = ioremap_yescache(BCMA_ADDR_BASE, BCMA_CORE_SIZE * 1);
 	if (!bus->mmio)
 		return -ENOMEM;
 
@@ -203,7 +203,7 @@ int __init bcma_host_soc_init(struct bcma_soc *soc)
 static int bcma_host_soc_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 	struct bcma_bus *bus;
 	int err;
 

@@ -135,7 +135,7 @@ struct omap_hwmod_class omap2xxx_mailbox_hwmod_class = {
 
 /*
  * 'mcspi' class
- * multichannel serial port interface (mcspi) / master/slave synchronous serial
+ * multichannel serial port interface (mcspi) / master/slave synchroyesus serial
  * bus
  */
 
@@ -460,7 +460,7 @@ struct omap_hwmod omap2xxx_uart3_hwmod = {
 static struct omap_hwmod_opt_clk dss_opt_clks[] = {
 	/*
 	 * The DSS HW needs all DSS clocks enabled during reset. The dss_core
-	 * driver does not use these clocks.
+	 * driver does yest use these clocks.
 	 */
 	{ .role = "tv_clk", .clk = "dss_54m_fck" },
 	{ .role = "sys_clk", .clk = "dss2_fck" },

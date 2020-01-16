@@ -6,17 +6,17 @@
  *		Sam Lantinga (slouken@cs.ucdavis.edu)  02/01/95
  *
  *	Fixes:
- *		Alan Cox	:	Merged and made usable non modular (its so tiny its silly as
+ *		Alan Cox	:	Merged and made usable yesn modular (its so tiny its silly as
  *					a module taking up 2 pages).
- *		Alan Cox	: 	Fixed bug with 1.3.18 and IPIP not working (now needs to set skb->h.iph)
+ *		Alan Cox	: 	Fixed bug with 1.3.18 and IPIP yest working (yesw needs to set skb->h.iph)
  *					to keep ip_forward happy.
  *		Alan Cox	:	More fixes for 1.3.21, and firewall fix. Maybe this will work soon 8).
  *		Kai Schulte	:	Fixed #defines for IP_FIREWALL->FIREWALL
  *              David Woodhouse :       Perform some basic ICMP handling.
  *                                      IPIP Routing without decapsulation.
  *              Carlos Picoto   :       GRE over IP support
- *		Alexey Kuznetsov:	Reworked. Really, now it is truncated version of ipv4/ip_gre.c.
- *					I do not want to merge them together.
+ *		Alexey Kuznetsov:	Reworked. Really, yesw it is truncated version of ipv4/ip_gre.c.
+ *					I do yest want to merge them together.
  */
 
 /* tunnel.c: an IP tunnel driver
@@ -29,11 +29,11 @@
 
 		-Sam Lantinga	(slouken@cs.ucdavis.edu)  02/01/95
 
-	Minor tweaks:
+	Miyesr tweaks:
 		Cleaned up the code a little and added some pre-1.3.0 tweaks.
-		dev->hard_header/hard_header_len changed to use no headers.
+		dev->hard_header/hard_header_len changed to use yes headers.
 		Comments/bracketing tweaked.
-		Made the tunnels use dev->name not tunnel: when error reporting.
+		Made the tunnels use dev->name yest tunnel: when error reporting.
 		Added tx_dropped stat
 
 		-Alan Cox	(alan@lxorguk.ukuu.org.uk) 21 March 95
@@ -42,13 +42,13 @@
 		Changed to tunnel to destination gateway in addition to the
 			tunnel's pointopoint address
 		Almost completely rewritten
-		Note:  There is currently no firewall or ICMP handling done.
+		Note:  There is currently yes firewall or ICMP handling done.
 
 		-Sam Lantinga	(slouken@cs.ucdavis.edu) 02/13/96
 
 */
 
-/* Things I wish I had known when writing the tunnel driver:
+/* Things I wish I had kyeswn when writing the tunnel driver:
 
 	When the tunnel_xmit() function is called, the skb contains the
 	packet to be sent (plus a great deal of extra info), and dev
@@ -198,13 +198,13 @@ out:
 }
 
 static const struct tnl_ptk_info ipip_tpi = {
-	/* no tunnel info required for ipip. */
+	/* yes tunnel info required for ipip. */
 	.proto = htons(ETH_P_IP),
 };
 
 #if IS_ENABLED(CONFIG_MPLS)
 static const struct tnl_ptk_info mplsip_tpi = {
-	/* no tunnel info required for mplsip. */
+	/* yes tunnel info required for mplsip. */
 	.proto = htons(ETH_P_MPLS_UC),
 };
 #endif

@@ -26,7 +26,7 @@
  * Coprocessor Request Blocks (CRB)s and submit them using the "copy" and
  * "paste" instructions which were introduced in Power9.
  *
- * A Power node can have (upto?) 8 Power chips. There is one instance of
+ * A Power yesde can have (upto?) 8 Power chips. There is one instance of
  * VAS in each Power9 chip. Each instance of VAS has 64K windows or ports,
  * Senders and receivers must each connect to a separate window before they
  * can exchange messages through the switchboard.
@@ -50,7 +50,7 @@
  * are referred to as the UWC BAR for the instance.
  *
  * The two BARs for each instance are defined Power9 MMIO Ranges spreadsheet
- * and available to the kernel in the VAS node's "reg" property in the device
+ * and available to the kernel in the VAS yesde's "reg" property in the device
  * tree:
  *
  *	/proc/device-tree/vasm@.../reg
@@ -72,7 +72,7 @@
  *
  * The hardware paste address for a window is computed using the "paste
  * base address" and "paste win id shift" reg properties in the VAS device
- * tree node using:
+ * tree yesde using:
  *
  *	paste_addr = paste_base + ((winid << paste_win_id_shift))
  *
@@ -270,7 +270,7 @@
 /*
  * Local Notify Scope Control Register. (Receive windows only).
  */
-enum vas_notify_scope {
+enum vas_yestify_scope {
 	VAS_SCOPE_LOCAL,
 	VAS_SCOPE_GROUP,
 	VAS_SCOPE_VECTORED_GROUP,
@@ -289,7 +289,7 @@ enum vas_dma_type {
  * Local Notify Scope Control Register. (Receive windows only).
  * Not applicable to NX receive windows.
  */
-enum vas_notify_after_count {
+enum vas_yestify_after_count {
 	VAS_NOTIFY_AFTER_256 = 0,
 	VAS_NOTIFY_NONE,
 	VAS_NOTIFY_AFTER_2
@@ -305,7 +305,7 @@ enum vas_notify_after_count {
 struct vas_instance {
 	int vas_id;
 	struct ida ida;
-	struct list_head node;
+	struct list_head yesde;
 	struct platform_device *pdev;
 
 	u64 hvwc_bar_start;
@@ -368,24 +368,24 @@ struct vas_winctx {
 	bool fault_win;
 	bool rsvd_txbuf_enable;
 	bool pin_win;
-	bool rej_no_credit;
+	bool rej_yes_credit;
 	bool tx_wcred_mode;
 	bool rx_wcred_mode;
 	bool tx_word_mode;
 	bool rx_word_mode;
 	bool data_stamp;
 	bool xtra_write;
-	bool notify_disable;
+	bool yestify_disable;
 	bool intr_disable;
 	bool fifo_disable;
-	bool notify_early;
-	bool notify_os_intr_reg;
+	bool yestify_early;
+	bool yestify_os_intr_reg;
 
 	int lpid;
-	int pidr;		/* value from SPRN_PID, not linux pid */
-	int lnotify_lpid;
-	int lnotify_pid;
-	int lnotify_tid;
+	int pidr;		/* value from SPRN_PID, yest linux pid */
+	int lyestify_lpid;
+	int lyestify_pid;
+	int lyestify_tid;
 	u32 pswid;
 	int rx_win_id;
 	int fault_win_id;
@@ -394,9 +394,9 @@ struct vas_winctx {
 	u64 irq_port;
 
 	enum vas_dma_type dma_type;
-	enum vas_notify_scope min_scope;
-	enum vas_notify_scope max_scope;
-	enum vas_notify_after_count notify_after_count;
+	enum vas_yestify_scope min_scope;
+	enum vas_yestify_scope max_scope;
+	enum vas_yestify_after_count yestify_after_count;
 };
 
 extern struct mutex vas_mutex;

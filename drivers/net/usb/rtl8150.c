@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- *  Copyright (c) 2002 Petko Manolov (petkan@users.sourceforge.net)
+ *  Copyright (c) 2002 Petko Mayeslov (petkan@users.sourceforge.net)
  */
 
 #include <linux/signal.h>
@@ -15,7 +15,7 @@
 
 /* Version Information */
 #define DRIVER_VERSION "v0.6.2 (2004/08/27)"
-#define DRIVER_AUTHOR "Petko Manolov <petkan@users.sourceforge.net>"
+#define DRIVER_AUTHOR "Petko Mayeslov <petkan@users.sourceforge.net>"
 #define DRIVER_DESC "rtl8150 based usb-ethernet driver"
 
 #define	IDR			0x0120
@@ -276,10 +276,10 @@ static int write_mii_word(rtl8150_t * dev, u8 phy, __u8 indx, u16 reg)
 
 static inline void set_ethernet_addr(rtl8150_t * dev)
 {
-	u8 node_id[6];
+	u8 yesde_id[6];
 
-	get_registers(dev, IDR, sizeof(node_id), node_id);
-	memcpy(dev->netdev->dev_addr, node_id, sizeof(node_id));
+	get_registers(dev, IDR, sizeof(yesde_id), yesde_id);
+	memcpy(dev->netdev->dev_addr, yesde_id, sizeof(yesde_id));
 }
 
 static int rtl8150_set_mac_address(struct net_device *netdev, void *p)

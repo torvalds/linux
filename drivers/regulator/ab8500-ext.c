@@ -109,7 +109,7 @@ static struct regulator_consumer_supply ab8500_vdmic_consumers[] = {
 };
 
 static struct regulator_consumer_supply ab8500_vintcore_consumers[] = {
-	/* SoC core supply, no device */
+	/* SoC core supply, yes device */
 	REGULATOR_SUPPLY("v-intcore", NULL),
 	/* USB Transceiver */
 	REGULATOR_SUPPLY("vddulpivio18", "ab8500-usb.0"),
@@ -247,7 +247,7 @@ static struct ab8500_regulator_reg_init ab8500_reg_init[] = {
 	INIT_REGULATOR_REGISTER(AB8500_VPLLVANAREGU,           0x0f, 0x02),
 	/*
 	 * VrefDDREna               = disabled
-	 * VrefDDRSleepMode         = inactive (no pulldown)
+	 * VrefDDRSleepMode         = inactive (yes pulldown)
 	 */
 	INIT_REGULATOR_REGISTER(AB8500_VREFDDR,                0x03, 0x00),
 	/*
@@ -280,7 +280,7 @@ static struct ab8500_regulator_reg_init ab8500_reg_init[] = {
 	 */
 	INIT_REGULATOR_REGISTER(AB8500_VRF1VAUX3SEL,           0x07, 0x07),
 	/*
-	 * VextSupply12LP           = disabled (no LP)
+	 * VextSupply12LP           = disabled (yes LP)
 	 */
 	INIT_REGULATOR_REGISTER(AB8500_REGUCTRL2SPARE,         0x01, 0x00),
 	/*
@@ -484,9 +484,9 @@ static struct ab8500_regulator_platform_data ab8500_regulator_plat_data = {
  * @update_mask: mask to enable/disable and set mode of regulator
  * @update_val: bits holding the regulator current mode
  * @update_val_hp: bits to set EN pin active (LPn pin deactive)
- *                 normally this means high power mode
+ *                 yesrmally this means high power mode
  * @update_val_lp: bits to set EN pin active and LPn pin active
- *                 normally this means low power mode
+ *                 yesrmally this means low power mode
  * @update_val_hw: bits to set regulator pins in HW control
  *                 SysClkReq pins and logic will choose mode
  */
@@ -642,7 +642,7 @@ static int ab8500_ext_regulator_set_mode(struct regulator_dev *rdev,
 					info->update_mask, regval);
 		if (ret < 0) {
 			dev_err(rdev_get_dev(rdev),
-				"Could not set regulator mode.\n");
+				"Could yest set regulator mode.\n");
 			return ret;
 		}
 

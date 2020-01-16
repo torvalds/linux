@@ -1,17 +1,17 @@
-/* Synopsys DesignWare Core Enterprise Ethernet (XLGMAC) Driver
+/* Syyespsys DesignWare Core Enterprise Ethernet (XLGMAC) Driver
  *
- * Copyright (c) 2017 Synopsys, Inc. (www.synopsys.com)
+ * Copyright (c) 2017 Syyespsys, Inc. (www.syyespsys.com)
  *
  * This program is dual-licensed; you may select either version 2 of
  * the GNU General Public License ("GPL") or BSD license ("BSD").
  *
- * This Synopsys DWC XLGMAC software driver and associated documentation
+ * This Syyespsys DWC XLGMAC software driver and associated documentation
  * (hereinafter the "Software") is an unsupported proprietary work of
- * Synopsys, Inc. unless otherwise expressly agreed to in writing between
- * Synopsys and you. The Software IS NOT an item of Licensed Software or a
+ * Syyespsys, Inc. unless otherwise expressly agreed to in writing between
+ * Syyespsys and you. The Software IS NOT an item of Licensed Software or a
  * Licensed Product under any End User Software License Agreement or
- * Agreement for Licensed Products with Synopsys or any supplement thereto.
- * Synopsys is a registered trademark of Synopsys, Inc. Other names included
+ * Agreement for Licensed Products with Syyespsys or any supplement thereto.
+ * Syyespsys is a registered trademark of Syyespsys, Inc. Other names included
  * in the SOFTWARE may be the trademarks of their respective owners.
  */
 
@@ -165,7 +165,7 @@ static int xlgmac_enable_rx_vlan_filtering(struct xlgmac_pdata *pdata)
 	regval = XLGMAC_SET_REG_BITS(regval, MAC_VLANTR_ETV_POS,
 				     MAC_VLANTR_ETV_LEN, 1);
 	/* In order for the VLAN Hash Table filtering to be effective,
-	 * the VLAN tag identifier in the VLAN Tag Register must not
+	 * the VLAN tag identifier in the VLAN Tag Register must yest
 	 * be zero.  Set the VLAN tag identifier to "1" to enable the
 	 * VLAN Hash Table filtering.  This implies that a VLAN tag of
 	 * 1 will always pass filtering.
@@ -472,7 +472,7 @@ static void xlgmac_prepare_tx_stop(struct xlgmac_pdata *pdata,
 			 DMA_DSRX_TPS_START;
 	}
 
-	/* The Tx engine cannot be stopped if it is actively processing
+	/* The Tx engine canyest be stopped if it is actively processing
 	 * descriptors. Wait for the Tx engine to enter the stopped or
 	 * suspended state.  Don't wait forever though...
 	 */
@@ -576,7 +576,7 @@ static void xlgmac_prepare_rx_stop(struct xlgmac_pdata *pdata,
 	unsigned int rx_status, prxq, rxqsts;
 	unsigned long rx_timeout;
 
-	/* The Rx engine cannot be stopped if it is actively processing
+	/* The Rx engine canyest be stopped if it is actively processing
 	 * packets. Wait for the Rx queue to empty the Rx fifo.  Don't
 	 * wait forever though...
 	 */
@@ -742,7 +742,7 @@ static void xlgmac_dev_xmit(struct xlgmac_channel *channel)
 	 *   No interrupt:
 	 *     - No frame count setting specified (ethtool -C ethX tx-frames 0)
 	 *     - Addition of Tx frame count to the frame count since the
-	 *       last interrupt was set does not exceed the frame count setting
+	 *       last interrupt was set does yest exceed the frame count setting
 	 */
 	ring->coalesce_count += pkt_info->tx_packets;
 	if (!pdata->tx_frames)
@@ -868,7 +868,7 @@ static void xlgmac_dev_xmit(struct xlgmac_channel *channel)
 				TX_NORMAL_DESC3_CTXT_LEN,
 				0);
 
-	/* Set OWN bit if not the first descriptor */
+	/* Set OWN bit if yest the first descriptor */
 	if (cur_index != start_index)
 		dma_desc->desc3 = XLGMAC_SET_REG_BITS_LE(
 					dma_desc->desc3,
@@ -1611,7 +1611,7 @@ static unsigned int xlgmac_calculate_per_queue_fifo(
 	/* Calculate the configured fifo size */
 	q_fifo_size = 1 << (fifo_size + 7);
 
-	/* The configured value may not be the actual amount of fifo RAM */
+	/* The configured value may yest be the actual amount of fifo RAM */
 	q_fifo_size = min_t(unsigned int, XLGMAC_MAX_FIFO, q_fifo_size);
 
 	q_fifo_size = q_fifo_size / queue_count;
@@ -2460,7 +2460,7 @@ static void xlgmac_enable_dma_interrupts(struct xlgmac_pdata *pdata)
 
 		/* Enable following interrupts
 		 *   NIE  - Normal Interrupt Summary Enable
-		 *   AIE  - Abnormal Interrupt Summary Enable
+		 *   AIE  - Abyesrmal Interrupt Summary Enable
 		 *   FBEE - Fatal Bus Error Enable
 		 */
 		dma_ch_ier = XLGMAC_SET_REG_BITS(dma_ch_ier,

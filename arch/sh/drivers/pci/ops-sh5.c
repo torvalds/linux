@@ -4,14 +4,14 @@
  *
  * Copyright (C) 2001 David J. Mckay (david.mckay@st.com)
  * Copyright (C) 2003, 2004 Paul Mundt
- * Copyright (C) 2004 Richard Curnow
+ * Copyright (C) 2004 Richard Curyesw
  */
 #include <linux/kernel.h>
 #include <linux/rwsem.h>
 #include <linux/smp.h>
 #include <linux/interrupt.h>
 #include <linux/init.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/pci.h>
 #include <linux/delay.h>
 #include <linux/types.h>

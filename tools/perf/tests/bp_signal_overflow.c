@@ -30,7 +30,7 @@
 
 static int overflows;
 
-static noinline int test_function(void)
+static yesinline int test_function(void)
 {
 	return time(NULL);
 }

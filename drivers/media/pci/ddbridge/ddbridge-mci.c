@@ -29,7 +29,7 @@ static int mci_reset(struct mci *state)
 	u32 timeout = 40;
 
 	ddblwritel(link, MCI_CONTROL_RESET, MCI_CONTROL);
-	ddblwritel(link, 0, MCI_CONTROL + 4); /* 1= no internal init */
+	ddblwritel(link, 0, MCI_CONTROL + 4); /* 1= yes internal init */
 	msleep(300);
 	ddblwritel(link, 0, MCI_CONTROL);
 

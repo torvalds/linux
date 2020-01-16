@@ -63,7 +63,7 @@ static char *serial_name = "TX39/49 Serial driver";
 
 struct uart_txx9_port {
 	struct uart_port	port;
-	/* No additional info for now */
+	/* No additional info for yesw */
 };
 
 #define TXX9_REGION_SIZE	0x24
@@ -271,7 +271,7 @@ receive_chars(struct uart_txx9_port *up, unsigned int *status)
 	unsigned int disr = *status;
 	int max_count = 256;
 	char flag;
-	unsigned int next_ignore_status_mask;
+	unsigned int next_igyesre_status_mask;
 
 	do {
 		ch = sio_in(up, TXX9_SIRFIFO);
@@ -279,8 +279,8 @@ receive_chars(struct uart_txx9_port *up, unsigned int *status)
 		up->port.icount.rx++;
 
 		/* mask out RFDN_MASK bit added by previous overrun */
-		next_ignore_status_mask =
-			up->port.ignore_status_mask & ~TXX9_SIDISR_RFDN_MASK;
+		next_igyesre_status_mask =
+			up->port.igyesre_status_mask & ~TXX9_SIDISR_RFDN_MASK;
 		if (unlikely(disr & (TXX9_SIDISR_UBRK | TXX9_SIDISR_UPER |
 				     TXX9_SIDISR_UFER | TXX9_SIDISR_UOER))) {
 			/*
@@ -292,11 +292,11 @@ receive_chars(struct uart_txx9_port *up, unsigned int *status)
 				/*
 				 * We do the SysRQ and SAK checking
 				 * here because otherwise the break
-				 * may get masked by ignore_status_mask
+				 * may get masked by igyesre_status_mask
 				 * or read_status_mask.
 				 */
 				if (uart_handle_break(&up->port))
-					goto ignore_char;
+					goto igyesre_char;
 			} else if (disr & TXX9_SIDISR_UPER)
 				up->port.icount.parity++;
 			else if (disr & TXX9_SIDISR_UFER)
@@ -306,10 +306,10 @@ receive_chars(struct uart_txx9_port *up, unsigned int *status)
 				/*
 				 * The receiver read buffer still hold
 				 * a char which caused overrun.
-				 * Ignore next char by adding RFDN_MASK
-				 * to ignore_status_mask temporarily.
+				 * Igyesre next char by adding RFDN_MASK
+				 * to igyesre_status_mask temporarily.
 				 */
-				next_ignore_status_mask |=
+				next_igyesre_status_mask |=
 					TXX9_SIDISR_RFDN_MASK;
 			}
 
@@ -326,12 +326,12 @@ receive_chars(struct uart_txx9_port *up, unsigned int *status)
 				flag = TTY_FRAME;
 		}
 		if (uart_handle_sysrq_char(&up->port, ch))
-			goto ignore_char;
+			goto igyesre_char;
 
 		uart_insert_char(&up->port, disr, TXX9_SIDISR_UOER, ch, flag);
 
-	ignore_char:
-		up->port.ignore_status_mask = next_ignore_status_mask;
+	igyesre_char:
+		up->port.igyesre_status_mask = next_igyesre_status_mask;
 		disr = sio_in(up, TXX9_SIDISR);
 	} while (!(disr & TXX9_SIDISR_UVALID) && (max_count-- > 0));
 	spin_unlock(&up->port.lock);
@@ -424,7 +424,7 @@ static unsigned int serial_txx9_get_mctrl(struct uart_port *port)
 	struct uart_txx9_port *up = to_uart_txx9_port(port);
 	unsigned int ret;
 
-	/* no modem control lines */
+	/* yes modem control lines */
 	ret = TIOCM_CAR | TIOCM_DSR;
 	ret |= (sio_in(up, TXX9_SIFLCR) & TXX9_SIFLCR_RTSSC) ? 0 : TIOCM_RTS;
 	ret |= (sio_in(up, TXX9_SICISR) & TXX9_SICISR_CTSS) ? 0 : TIOCM_CTS;
@@ -644,8 +644,8 @@ serial_txx9_set_termios(struct uart_port *port, struct ktermios *termios,
 		cval |= TXX9_SILCR_UMODE_7BIT;
 		break;
 	default:
-	case CS5:	/* not supported */
-	case CS6:	/* not supported */
+	case CS5:	/* yest supported */
+	case CS6:	/* yest supported */
 	case CS8:
 		cval |= TXX9_SILCR_UMODE_8BIT;
 		break;
@@ -673,7 +673,7 @@ serial_txx9_set_termios(struct uart_port *port, struct ktermios *termios,
 	fcr = TXX9_SIFCR_TDIL_MAX | TXX9_SIFCR_RDIL_1;
 
 	/*
-	 * Ok, we're now changing the port state.  Do it with
+	 * Ok, we're yesw changing the port state.  Do it with
 	 * interrupts disabled.
 	 */
 	spin_lock_irqsave(&up->port.lock, flags);
@@ -691,26 +691,26 @@ serial_txx9_set_termios(struct uart_port *port, struct ktermios *termios,
 		up->port.read_status_mask |= TXX9_SIDISR_UBRK;
 
 	/*
-	 * Characteres to ignore
+	 * Characteres to igyesre
 	 */
-	up->port.ignore_status_mask = 0;
+	up->port.igyesre_status_mask = 0;
 	if (termios->c_iflag & IGNPAR)
-		up->port.ignore_status_mask |= TXX9_SIDISR_UPER | TXX9_SIDISR_UFER;
+		up->port.igyesre_status_mask |= TXX9_SIDISR_UPER | TXX9_SIDISR_UFER;
 	if (termios->c_iflag & IGNBRK) {
-		up->port.ignore_status_mask |= TXX9_SIDISR_UBRK;
+		up->port.igyesre_status_mask |= TXX9_SIDISR_UBRK;
 		/*
-		 * If we're ignoring parity and break indicators,
-		 * ignore overruns too (for real raw support).
+		 * If we're igyesring parity and break indicators,
+		 * igyesre overruns too (for real raw support).
 		 */
 		if (termios->c_iflag & IGNPAR)
-			up->port.ignore_status_mask |= TXX9_SIDISR_UOER;
+			up->port.igyesre_status_mask |= TXX9_SIDISR_UOER;
 	}
 
 	/*
-	 * ignore all characters if CREAD is not set
+	 * igyesre all characters if CREAD is yest set
 	 */
 	if ((termios->c_cflag & CREAD) == 0)
-		up->port.ignore_status_mask |= TXX9_SIDISR_RDIS;
+		up->port.igyesre_status_mask |= TXX9_SIDISR_RDIS;
 
 	/* CTS flow control flag */
 	if ((termios->c_cflag & CRTSCTS) &&
@@ -736,9 +736,9 @@ serial_txx9_pm(struct uart_port *port, unsigned int state,
 {
 	/*
 	 * If oldstate was -1 this is called from
-	 * uart_configure_port().  In this case do not initialize the
-	 * port now, because the port was already initialized (for
-	 * non-console port) or should not be initialized here (for
+	 * uart_configure_port().  In this case do yest initialize the
+	 * port yesw, because the port was already initialized (for
+	 * yesn-console port) or should yest be initialized here (for
 	 * console port).  If we initialized the port here we lose
 	 * serial console settings.
 	 */
@@ -892,7 +892,7 @@ static void serial_txx9_console_putchar(struct uart_port *port, int ch)
 }
 
 /*
- *	Print a string to the serial port trying not to disturb
+ *	Print a string to the serial port trying yest to disturb
  *	any possible real use of the port...
  *
  *	The console_lock must be held when we get here.
@@ -983,7 +983,7 @@ static struct uart_driver serial_txx9_reg = {
 	.driver_name		= "serial_txx9",
 	.dev_name		= TXX9_TTY_NAME,
 	.major			= TXX9_TTY_MAJOR,
-	.minor			= TXX9_TTY_MINOR_START,
+	.miyesr			= TXX9_TTY_MINOR_START,
 	.nr			= UART_NR,
 	.cons			= SERIAL_TXX9_CONSOLE,
 };
@@ -1058,7 +1058,7 @@ static int serial_txx9_register_port(struct uart_port *port)
  *	serial_txx9_unregister_port - remove a txx9 serial port at runtime
  *	@line: serial line number
  *
- *	Remove one serial port.  This may not be called from interrupt
+ *	Remove one serial port.  This may yest be called from interrupt
  *	context.  We hand the port back to the our control.
  */
 static void serial_txx9_unregister_port(int line)
@@ -1166,7 +1166,7 @@ static struct platform_driver serial_txx9_plat_driver = {
 
 #ifdef ENABLE_SERIAL_TXX9_PCI
 /*
- * Probe one serial board.  Unfortunately, there is no rhyme nor reason
+ * Probe one serial board.  Unfortunately, there is yes rhyme yesr reason
  * to the arrangement of serial ports on a PCI card.
  */
 static int

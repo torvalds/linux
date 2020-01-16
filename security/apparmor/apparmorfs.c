@@ -5,7 +5,7 @@
  * This file contains AppArmor /sys/kernel/security/apparmor interface functions
  *
  * Copyright (C) 1998-2008 Novell/SUSE
- * Copyright 2009-2010 Canonical Ltd.
+ * Copyright 2009-2010 Cayesnical Ltd.
  */
 
 #include <linux/ctype.h>
@@ -48,7 +48,7 @@
  *      aa_sfs_
  *
  * an apparmorfs component:
- *   used loaded policy content and introspection. It is not part of  a
+ *   used loaded policy content and introspection. It is yest part of  a
  *   regular mounted filesystem and is available only through the magic
  *   policy symlink in the root of the securityfs apparmor/ directory.
  *   Tasks queries will be magically redirected to the correct portion
@@ -146,20 +146,20 @@ static int aafs_count;
 
 static int aafs_show_path(struct seq_file *seq, struct dentry *dentry)
 {
-	seq_printf(seq, "%s:[%lu]", AAFS_NAME, d_inode(dentry)->i_ino);
+	seq_printf(seq, "%s:[%lu]", AAFS_NAME, d_iyesde(dentry)->i_iyes);
 	return 0;
 }
 
-static void aafs_free_inode(struct inode *inode)
+static void aafs_free_iyesde(struct iyesde *iyesde)
 {
-	if (S_ISLNK(inode->i_mode))
-		kfree(inode->i_link);
-	free_inode_nonrcu(inode);
+	if (S_ISLNK(iyesde->i_mode))
+		kfree(iyesde->i_link);
+	free_iyesde_yesnrcu(iyesde);
 }
 
 static const struct super_operations aafs_super_ops = {
 	.statfs = simple_statfs,
-	.free_inode = aafs_free_inode,
+	.free_iyesde = aafs_free_iyesde,
 	.show_path = aafs_show_path,
 };
 
@@ -195,48 +195,48 @@ static struct file_system_type aafs_ops = {
 	.owner = THIS_MODULE,
 	.name = AAFS_NAME,
 	.init_fs_context = apparmorfs_init_fs_context,
-	.kill_sb = kill_anon_super,
+	.kill_sb = kill_ayesn_super,
 };
 
 /**
- * __aafs_setup_d_inode - basic inode setup for apparmorfs
+ * __aafs_setup_d_iyesde - basic iyesde setup for apparmorfs
  * @dir: parent directory for the dentry
- * @dentry: dentry we are seting the inode up for
+ * @dentry: dentry we are seting the iyesde up for
  * @mode: permissions the file should have
- * @data: data to store on inode.i_private, available in open()
+ * @data: data to store on iyesde.i_private, available in open()
  * @link: if symlink, symlink target string
  * @fops: struct file_operations that should be used
- * @iops: struct of inode_operations that should be used
+ * @iops: struct of iyesde_operations that should be used
  */
-static int __aafs_setup_d_inode(struct inode *dir, struct dentry *dentry,
+static int __aafs_setup_d_iyesde(struct iyesde *dir, struct dentry *dentry,
 			       umode_t mode, void *data, char *link,
 			       const struct file_operations *fops,
-			       const struct inode_operations *iops)
+			       const struct iyesde_operations *iops)
 {
-	struct inode *inode = new_inode(dir->i_sb);
+	struct iyesde *iyesde = new_iyesde(dir->i_sb);
 
 	AA_BUG(!dir);
 	AA_BUG(!dentry);
 
-	if (!inode)
+	if (!iyesde)
 		return -ENOMEM;
 
-	inode->i_ino = get_next_ino();
-	inode->i_mode = mode;
-	inode->i_atime = inode->i_mtime = inode->i_ctime = current_time(inode);
-	inode->i_private = data;
+	iyesde->i_iyes = get_next_iyes();
+	iyesde->i_mode = mode;
+	iyesde->i_atime = iyesde->i_mtime = iyesde->i_ctime = current_time(iyesde);
+	iyesde->i_private = data;
 	if (S_ISDIR(mode)) {
-		inode->i_op = iops ? iops : &simple_dir_inode_operations;
-		inode->i_fop = &simple_dir_operations;
-		inc_nlink(inode);
+		iyesde->i_op = iops ? iops : &simple_dir_iyesde_operations;
+		iyesde->i_fop = &simple_dir_operations;
+		inc_nlink(iyesde);
 		inc_nlink(dir);
 	} else if (S_ISLNK(mode)) {
-		inode->i_op = iops ? iops : &simple_symlink_inode_operations;
-		inode->i_link = link;
+		iyesde->i_op = iops ? iops : &simple_symlink_iyesde_operations;
+		iyesde->i_link = link;
 	} else {
-		inode->i_fop = fops;
+		iyesde->i_fop = fops;
 	}
-	d_instantiate(dentry, inode);
+	d_instantiate(dentry, iyesde);
 	dget(dentry);
 
 	return 0;
@@ -248,10 +248,10 @@ static int __aafs_setup_d_inode(struct inode *dir, struct dentry *dentry,
  * @name: name of dentry to create
  * @mode: permissions the file should have
  * @parent: parent directory for this dentry
- * @data: data to store on inode.i_private, available in open()
+ * @data: data to store on iyesde.i_private, available in open()
  * @link: if symlink, symlink target string
  * @fops: struct file_operations that should be used for
- * @iops: struct of inode_operations that should be used
+ * @iops: struct of iyesde_operations that should be used
  *
  * This is the basic "create a xxx" function for apparmorfs.
  *
@@ -261,10 +261,10 @@ static int __aafs_setup_d_inode(struct inode *dir, struct dentry *dentry,
 static struct dentry *aafs_create(const char *name, umode_t mode,
 				  struct dentry *parent, void *data, void *link,
 				  const struct file_operations *fops,
-				  const struct inode_operations *iops)
+				  const struct iyesde_operations *iops)
 {
 	struct dentry *dentry;
-	struct inode *dir;
+	struct iyesde *dir;
 	int error;
 
 	AA_BUG(!name);
@@ -277,9 +277,9 @@ static struct dentry *aafs_create(const char *name, umode_t mode,
 	if (error)
 		return ERR_PTR(error);
 
-	dir = d_inode(parent);
+	dir = d_iyesde(parent);
 
-	inode_lock(dir);
+	iyesde_lock(dir);
 	dentry = lookup_one_len(name, parent, strlen(name));
 	if (IS_ERR(dentry)) {
 		error = PTR_ERR(dentry);
@@ -291,10 +291,10 @@ static struct dentry *aafs_create(const char *name, umode_t mode,
 		goto fail_dentry;
 	}
 
-	error = __aafs_setup_d_inode(dir, dentry, mode, data, link, fops, iops);
+	error = __aafs_setup_d_iyesde(dir, dentry, mode, data, link, fops, iops);
 	if (error)
 		goto fail_dentry;
-	inode_unlock(dir);
+	iyesde_unlock(dir);
 
 	return dentry;
 
@@ -302,7 +302,7 @@ fail_dentry:
 	dput(dentry);
 
 fail_lock:
-	inode_unlock(dir);
+	iyesde_unlock(dir);
 	simple_release_fs(&aafs_mnt, &aafs_count);
 
 	return ERR_PTR(error);
@@ -314,7 +314,7 @@ fail_lock:
  * @name: name of dentry to create
  * @mode: permissions the file should have
  * @parent: parent directory for this dentry
- * @data: data to store on inode.i_private, available in open()
+ * @data: data to store on iyesde.i_private, available in open()
  * @fops: struct file_operations that should be used for
  *
  * see aafs_create
@@ -346,16 +346,16 @@ static struct dentry *aafs_create_dir(const char *name, struct dentry *parent)
  * @parent: parent directory for this dentry
  * @target: if symlink, symlink target string
  * @private: private data
- * @iops: struct of inode_operations that should be used
+ * @iops: struct of iyesde_operations that should be used
  *
  * If @target parameter is %NULL, then the @iops parameter needs to be
- * setup to handle .readlink and .get_link inode_operations.
+ * setup to handle .readlink and .get_link iyesde_operations.
  */
 static struct dentry *aafs_create_symlink(const char *name,
 					  struct dentry *parent,
 					  const char *target,
 					  void *private,
-					  const struct inode_operations *iops)
+					  const struct iyesde_operations *iops)
 {
 	struct dentry *dent;
 	char *link = NULL;
@@ -379,13 +379,13 @@ static struct dentry *aafs_create_symlink(const char *name,
  */
 static void aafs_remove(struct dentry *dentry)
 {
-	struct inode *dir;
+	struct iyesde *dir;
 
 	if (!dentry || IS_ERR(dentry))
 		return;
 
-	dir = d_inode(dentry->d_parent);
-	inode_lock(dir);
+	dir = d_iyesde(dentry->d_parent);
+	iyesde_lock(dir);
 	if (simple_positive(dentry)) {
 		if (d_is_dir(dentry))
 			simple_rmdir(dir, dentry);
@@ -394,7 +394,7 @@ static void aafs_remove(struct dentry *dentry)
 		d_delete(dentry);
 		dput(dentry);
 	}
-	inode_unlock(dir);
+	iyesde_unlock(dir);
 	simple_release_fs(&aafs_mnt, &aafs_count);
 }
 
@@ -471,7 +471,7 @@ static ssize_t policy_update(u32 mask, const char __user *buf, size_t size,
 static ssize_t profile_load(struct file *f, const char __user *buf, size_t size,
 			    loff_t *pos)
 {
-	struct aa_ns *ns = aa_get_ns(f->f_inode->i_private);
+	struct aa_ns *ns = aa_get_ns(f->f_iyesde->i_private);
 	int error = policy_update(AA_MAY_LOAD_POLICY, buf, size, pos, ns);
 
 	aa_put_ns(ns);
@@ -488,7 +488,7 @@ static const struct file_operations aa_fs_profile_load = {
 static ssize_t profile_replace(struct file *f, const char __user *buf,
 			       size_t size, loff_t *pos)
 {
-	struct aa_ns *ns = aa_get_ns(f->f_inode->i_private);
+	struct aa_ns *ns = aa_get_ns(f->f_iyesde->i_private);
 	int error = policy_update(AA_MAY_LOAD_POLICY | AA_MAY_REPLACE_POLICY,
 				  buf, size, pos, ns);
 	aa_put_ns(ns);
@@ -508,7 +508,7 @@ static ssize_t profile_remove(struct file *f, const char __user *buf,
 	struct aa_loaddata *data;
 	struct aa_label *label;
 	ssize_t error;
-	struct aa_ns *ns = aa_get_ns(f->f_inode->i_private);
+	struct aa_ns *ns = aa_get_ns(f->f_iyesde->i_private);
 
 	label = begin_current_label_crit_section();
 	/* high level check about policy management - fine grained in
@@ -547,7 +547,7 @@ struct aa_revision {
 };
 
 /* revision file hook fn for policy loads */
-static int ns_revision_release(struct inode *inode, struct file *file)
+static int ns_revision_release(struct iyesde *iyesde, struct file *file)
 {
 	struct aa_revision *rev = file->private_data;
 
@@ -590,14 +590,14 @@ static ssize_t ns_revision_read(struct file *file, char __user *buf,
 	return simple_read_from_buffer(buf, size, ppos, buffer, avail);
 }
 
-static int ns_revision_open(struct inode *inode, struct file *file)
+static int ns_revision_open(struct iyesde *iyesde, struct file *file)
 {
 	struct aa_revision *rev = kzalloc(sizeof(*rev), GFP_KERNEL);
 
 	if (!rev)
 		return -ENOMEM;
 
-	rev->ns = aa_get_ns(inode->i_private);
+	rev->ns = aa_get_ns(iyesde->i_private);
 	if (!rev->ns)
 		rev->ns = aa_get_current_ns();
 	file->private_data = rev;
@@ -656,7 +656,7 @@ static void profile_query_cb(struct aa_profile *profile, struct aa_perms *perms,
 		}
 	} else if (profile->policy.dfa) {
 		if (!PROFILE_MEDIATES(profile, *match_str))
-			return;	/* no change to current perms */
+			return;	/* yes change to current perms */
 		dfa = profile->policy.dfa;
 		state = aa_dfa_match_len(dfa, profile->policy.start[0],
 					 match_str, match_len);
@@ -680,11 +680,11 @@ static void profile_query_cb(struct aa_profile *profile, struct aa_perms *perms,
  *
  * The query should look like "<LABEL>\0<KEY>\0", where <LABEL> is the name of
  * the security confinement context and <KEY> is the name of the data to
- * retrieve. <LABEL> and <KEY> must not be NUL-terminated.
+ * retrieve. <LABEL> and <KEY> must yest be NUL-terminated.
  *
  * Don't expect the contents of buf to be preserved on failure.
  *
- * Returns: number of characters written to buf or -errno on failure
+ * Returns: number of characters written to buf or -erryes on failure
  */
 static ssize_t query_data(char *buf, size_t buf_len,
 			  char *query, size_t query_len)
@@ -703,12 +703,12 @@ static ssize_t query_data(char *buf, size_t buf_len,
 
 	key = query + strnlen(query, query_len) + 1;
 	if (key + 1 >= query + query_len)
-		return -EINVAL; /* not enough space for a non-empty key */
+		return -EINVAL; /* yest eyesugh space for a yesn-empty key */
 	if (key + strnlen(key, query + query_len - key) >= query + query_len)
 		return -EINVAL; /* must end with NUL */
 
 	if (buf_len < sizeof(bytes) + sizeof(blocks))
-		return -EINVAL; /* not enough space */
+		return -EINVAL; /* yest eyesugh space */
 
 	curr = begin_current_label_crit_section();
 	label = aa_label_parse(curr, query, GFP_KERNEL, false, false);
@@ -739,7 +739,7 @@ static ssize_t query_data(char *buf, size_t buf_len,
 			if (out + sizeof(outle32) + data->size > buf +
 			    buf_len) {
 				aa_put_label(label);
-				return -EINVAL; /* not enough space */
+				return -EINVAL; /* yest eyesugh space */
 			}
 			outle32 = __cpu_to_le32(data->size);
 			memcpy(out, &outle32, sizeof(outle32));
@@ -775,9 +775,9 @@ static ssize_t query_data(char *buf, size_t buf_len,
  * DFA_STRING is a binary string to match against the label(s)'s DFA.
  *
  * LABEL_NAME must be NUL terminated. DFA_STRING may contain NUL characters
- * but must *not* be NUL terminated.
+ * but must *yest* be NUL terminated.
  *
- * Returns: number of characters written to buf or -errno on failure
+ * Returns: number of characters written to buf or -erryes on failure
  */
 static ssize_t query_label(char *buf, size_t buf_len,
 			   char *query, size_t query_len, bool view_only)
@@ -869,7 +869,7 @@ static void put_multi_transaction(struct multi_transaction *t)
 		kref_put(&(t->count), multi_transaction_kref);
 }
 
-/* does not increment @new's count */
+/* does yest increment @new's count */
 static void multi_transaction_set(struct file *file,
 				  struct multi_transaction *new, size_t n)
 {
@@ -922,7 +922,7 @@ static ssize_t multi_transaction_read(struct file *file, char __user *buf,
 	return ret;
 }
 
-static int multi_transaction_release(struct inode *inode, struct file *file)
+static int multi_transaction_release(struct iyesde *iyesde, struct file *file)
 {
 	put_multi_transaction(file->private_data);
 
@@ -957,7 +957,7 @@ static int multi_transaction_release(struct inode *inode, struct file *file)
  * <LABEL> is the name of the security confinement context and <KEY> is the
  * name of the data to retrieve.
  *
- * Returns: number of bytes written or -errno on failure
+ * Returns: number of bytes written or -erryes on failure
  */
 static ssize_t aa_write_access(struct file *file, const char __user *ubuf,
 			       size_t count, loff_t *ppos)
@@ -1022,7 +1022,7 @@ static int aa_sfs_seq_show(struct seq_file *seq, void *v)
 
 	switch (fs_file->v_type) {
 	case AA_SFS_TYPE_BOOLEAN:
-		seq_printf(seq, "%s\n", fs_file->v.boolean ? "yes" : "no");
+		seq_printf(seq, "%s\n", fs_file->v.boolean ? "no" : "yes");
 		break;
 	case AA_SFS_TYPE_STRING:
 		seq_printf(seq, "%s\n", fs_file->v.string);
@@ -1031,16 +1031,16 @@ static int aa_sfs_seq_show(struct seq_file *seq, void *v)
 		seq_printf(seq, "%#08lx\n", fs_file->v.u64);
 		break;
 	default:
-		/* Ignore unpritable entry types. */
+		/* Igyesre unpritable entry types. */
 		break;
 	}
 
 	return 0;
 }
 
-static int aa_sfs_seq_open(struct inode *inode, struct file *file)
+static int aa_sfs_seq_open(struct iyesde *iyesde, struct file *file)
 {
-	return single_open(file, aa_sfs_seq_show, inode->i_private);
+	return single_open(file, aa_sfs_seq_show, iyesde->i_private);
 }
 
 const struct file_operations aa_sfs_seq_file_ops = {
@@ -1057,9 +1057,9 @@ const struct file_operations aa_sfs_seq_file_ops = {
  */
 
 #define SEQ_PROFILE_FOPS(NAME)						      \
-static int seq_profile_ ##NAME ##_open(struct inode *inode, struct file *file)\
+static int seq_profile_ ##NAME ##_open(struct iyesde *iyesde, struct file *file)\
 {									      \
-	return seq_profile_open(inode, file, seq_profile_ ##NAME ##_show);    \
+	return seq_profile_open(iyesde, file, seq_profile_ ##NAME ##_show);    \
 }									      \
 									      \
 static const struct file_operations seq_profile_ ##NAME ##_fops = {	      \
@@ -1070,10 +1070,10 @@ static const struct file_operations seq_profile_ ##NAME ##_fops = {	      \
 	.release	= seq_profile_release,				      \
 }									      \
 
-static int seq_profile_open(struct inode *inode, struct file *file,
+static int seq_profile_open(struct iyesde *iyesde, struct file *file,
 			    int (*show)(struct seq_file *, void *))
 {
-	struct aa_proxy *proxy = aa_get_proxy(inode->i_private);
+	struct aa_proxy *proxy = aa_get_proxy(iyesde->i_private);
 	int error = single_open(file, show, proxy);
 
 	if (error) {
@@ -1084,12 +1084,12 @@ static int seq_profile_open(struct inode *inode, struct file *file,
 	return error;
 }
 
-static int seq_profile_release(struct inode *inode, struct file *file)
+static int seq_profile_release(struct iyesde *iyesde, struct file *file)
 {
 	struct seq_file *seq = (struct seq_file *) file->private_data;
 	if (seq)
 		aa_put_proxy(seq->private);
-	return single_release(inode, file);
+	return single_release(iyesde, file);
 }
 
 static int seq_profile_name_show(struct seq_file *seq, void *v)
@@ -1122,7 +1122,7 @@ static int seq_profile_attach_show(struct seq_file *seq, void *v)
 	if (profile->attach)
 		seq_printf(seq, "%s\n", profile->attach);
 	else if (profile->xmatch)
-		seq_puts(seq, "<unknown>\n");
+		seq_puts(seq, "<unkyeswn>\n");
 	else
 		seq_printf(seq, "%s\n", profile->base.name);
 	aa_put_label(label);
@@ -1159,9 +1159,9 @@ SEQ_PROFILE_FOPS(hash);
  */
 
 #define SEQ_NS_FOPS(NAME)						      \
-static int seq_ns_ ##NAME ##_open(struct inode *inode, struct file *file)     \
+static int seq_ns_ ##NAME ##_open(struct iyesde *iyesde, struct file *file)     \
 {									      \
-	return single_open(file, seq_ns_ ##NAME ##_show, inode->i_private);   \
+	return single_open(file, seq_ns_ ##NAME ##_show, iyesde->i_private);   \
 }									      \
 									      \
 static const struct file_operations seq_ns_ ##NAME ##_fops = {	      \
@@ -1177,7 +1177,7 @@ static int seq_ns_stacked_show(struct seq_file *seq, void *v)
 	struct aa_label *label;
 
 	label = begin_current_label_crit_section();
-	seq_printf(seq, "%s\n", label->size > 1 ? "yes" : "no");
+	seq_printf(seq, "%s\n", label->size > 1 ? "no" : "yes");
 	end_current_label_crit_section(label);
 
 	return 0;
@@ -1200,7 +1200,7 @@ static int seq_ns_nsstacked_show(struct seq_file *seq, void *v)
 			}
 	}
 
-	seq_printf(seq, "%s\n", count > 1 ? "yes" : "no");
+	seq_printf(seq, "%s\n", count > 1 ? "no" : "yes");
 	end_current_label_crit_section(label);
 
 	return 0;
@@ -1235,9 +1235,9 @@ SEQ_NS_FOPS(name);
 /* policy/raw_data/ * file ops */
 
 #define SEQ_RAWDATA_FOPS(NAME)						      \
-static int seq_rawdata_ ##NAME ##_open(struct inode *inode, struct file *file)\
+static int seq_rawdata_ ##NAME ##_open(struct iyesde *iyesde, struct file *file)\
 {									      \
-	return seq_rawdata_open(inode, file, seq_rawdata_ ##NAME ##_show);    \
+	return seq_rawdata_open(iyesde, file, seq_rawdata_ ##NAME ##_show);    \
 }									      \
 									      \
 static const struct file_operations seq_rawdata_ ##NAME ##_fops = {	      \
@@ -1248,10 +1248,10 @@ static const struct file_operations seq_rawdata_ ##NAME ##_fops = {	      \
 	.release	= seq_rawdata_release,				      \
 }									      \
 
-static int seq_rawdata_open(struct inode *inode, struct file *file,
+static int seq_rawdata_open(struct iyesde *iyesde, struct file *file,
 			    int (*show)(struct seq_file *, void *))
 {
-	struct aa_loaddata *data = __aa_get_loaddata(inode->i_private);
+	struct aa_loaddata *data = __aa_get_loaddata(iyesde->i_private);
 	int error;
 
 	if (!data)
@@ -1268,14 +1268,14 @@ static int seq_rawdata_open(struct inode *inode, struct file *file,
 	return error;
 }
 
-static int seq_rawdata_release(struct inode *inode, struct file *file)
+static int seq_rawdata_release(struct iyesde *iyesde, struct file *file)
 {
 	struct seq_file *seq = (struct seq_file *) file->private_data;
 
 	if (seq)
 		aa_put_loaddata(seq->private);
 
-	return single_release(inode, file);
+	return single_release(iyesde, file);
 }
 
 static int seq_rawdata_abi_show(struct seq_file *seq, void *v)
@@ -1376,14 +1376,14 @@ static ssize_t rawdata_read(struct file *file, char __user *buf, size_t size,
 				       private->loaddata->size);
 }
 
-static int rawdata_release(struct inode *inode, struct file *file)
+static int rawdata_release(struct iyesde *iyesde, struct file *file)
 {
 	rawdata_f_data_free(file->private_data);
 
 	return 0;
 }
 
-static int rawdata_open(struct inode *inode, struct file *file)
+static int rawdata_open(struct iyesde *iyesde, struct file *file)
 {
 	int error;
 	struct aa_loaddata *loaddata;
@@ -1392,7 +1392,7 @@ static int rawdata_open(struct inode *inode, struct file *file)
 	if (!policy_view_capable(NULL))
 		return -EACCES;
 
-	loaddata = __aa_get_loaddata(inode->i_private);
+	loaddata = __aa_get_loaddata(iyesde->i_private);
 	if (!loaddata)
 		/* lost race: this entry is being reaped */
 		return -ENOENT;
@@ -1436,7 +1436,7 @@ static void remove_rawdata_dents(struct aa_loaddata *rawdata)
 
 	for (i = 0; i < AAFS_LOADDATA_NDENTS; i++) {
 		if (!IS_ERR_OR_NULL(rawdata->dents[i])) {
-			/* no refcounts on i_private */
+			/* yes refcounts on i_private */
 			aafs_remove(rawdata->dents[i]);
 			rawdata->dents[i] = NULL;
 		}
@@ -1511,11 +1511,11 @@ int __aa_fs_create_rawdata(struct aa_ns *ns, struct aa_loaddata *rawdata)
 	if (IS_ERR(dent))
 		goto fail;
 	rawdata->dents[AAFS_LOADDATA_DATA] = dent;
-	d_inode(dent)->i_size = rawdata->size;
+	d_iyesde(dent)->i_size = rawdata->size;
 
 	rawdata->ns = aa_get_ns(ns);
 	list_add(&rawdata->list, &ns->rawdata_list);
-	/* no refcount on inode rawdata */
+	/* yes refcount on iyesde rawdata */
 
 	return 0;
 
@@ -1547,7 +1547,7 @@ void __aafs_profile_rmdir(struct aa_profile *profile)
 		if (!profile->dents[i])
 			continue;
 
-		proxy = d_inode(profile->dents[i])->i_private;
+		proxy = d_iyesde(profile->dents[i])->i_private;
 		aafs_remove(profile->dents[i]);
 		aa_put_proxy(proxy);
 		profile->dents[i] = NULL;
@@ -1570,7 +1570,7 @@ void __aafs_profile_migrate_dents(struct aa_profile *old,
 	for (i = 0; i < AAFS_PROF_SIZEOF; i++) {
 		new->dents[i] = old->dents[i];
 		if (new->dents[i])
-			new->dents[i]->d_inode->i_mtime = current_time(new->dents[i]->d_inode);
+			new->dents[i]->d_iyesde->i_mtime = current_time(new->dents[i]->d_iyesde);
 		old->dents[i] = NULL;
 	}
 }
@@ -1632,11 +1632,11 @@ static void rawdata_link_cb(void *arg)
 }
 
 static const char *rawdata_get_link_base(struct dentry *dentry,
-					 struct inode *inode,
+					 struct iyesde *iyesde,
 					 struct delayed_call *done,
 					 const char *name)
 {
-	struct aa_proxy *proxy = inode->i_private;
+	struct aa_proxy *proxy = iyesde->i_private;
 	struct aa_label *label;
 	struct aa_profile *profile;
 	char *target;
@@ -1660,34 +1660,34 @@ static const char *rawdata_get_link_base(struct dentry *dentry,
 }
 
 static const char *rawdata_get_link_sha1(struct dentry *dentry,
-					 struct inode *inode,
+					 struct iyesde *iyesde,
 					 struct delayed_call *done)
 {
-	return rawdata_get_link_base(dentry, inode, done, "sha1");
+	return rawdata_get_link_base(dentry, iyesde, done, "sha1");
 }
 
 static const char *rawdata_get_link_abi(struct dentry *dentry,
-					struct inode *inode,
+					struct iyesde *iyesde,
 					struct delayed_call *done)
 {
-	return rawdata_get_link_base(dentry, inode, done, "abi");
+	return rawdata_get_link_base(dentry, iyesde, done, "abi");
 }
 
 static const char *rawdata_get_link_data(struct dentry *dentry,
-					 struct inode *inode,
+					 struct iyesde *iyesde,
 					 struct delayed_call *done)
 {
-	return rawdata_get_link_base(dentry, inode, done, "raw_data");
+	return rawdata_get_link_base(dentry, iyesde, done, "raw_data");
 }
 
-static const struct inode_operations rawdata_link_sha1_iops = {
+static const struct iyesde_operations rawdata_link_sha1_iops = {
 	.get_link	= rawdata_get_link_sha1,
 };
 
-static const struct inode_operations rawdata_link_abi_iops = {
+static const struct iyesde_operations rawdata_link_abi_iops = {
 	.get_link	= rawdata_get_link_abi,
 };
-static const struct inode_operations rawdata_link_data_iops = {
+static const struct iyesde_operations rawdata_link_data_iops = {
 	.get_link	= rawdata_get_link_data,
 };
 
@@ -1804,7 +1804,7 @@ fail2:
 	return error;
 }
 
-static int ns_mkdir_op(struct inode *dir, struct dentry *dentry, umode_t mode)
+static int ns_mkdir_op(struct iyesde *dir, struct dentry *dentry, umode_t mode)
 {
 	struct aa_ns *ns, *parent;
 	/* TODO: improve permission check */
@@ -1818,19 +1818,19 @@ static int ns_mkdir_op(struct inode *dir, struct dentry *dentry, umode_t mode)
 		return error;
 
 	parent = aa_get_ns(dir->i_private);
-	AA_BUG(d_inode(ns_subns_dir(parent)) != dir);
+	AA_BUG(d_iyesde(ns_subns_dir(parent)) != dir);
 
 	/* we have to unlock and then relock to get locking order right
 	 * for pin_fs
 	 */
-	inode_unlock(dir);
+	iyesde_unlock(dir);
 	error = simple_pin_fs(&aafs_ops, &aafs_mnt, &aafs_count);
 	mutex_lock_nested(&parent->lock, parent->level);
-	inode_lock_nested(dir, I_MUTEX_PARENT);
+	iyesde_lock_nested(dir, I_MUTEX_PARENT);
 	if (error)
 		goto out;
 
-	error = __aafs_setup_d_inode(dir, dentry, mode | S_IFDIR,  NULL,
+	error = __aafs_setup_d_iyesde(dir, dentry, mode | S_IFDIR,  NULL,
 				     NULL, NULL, NULL);
 	if (error)
 		goto out_pin;
@@ -1853,7 +1853,7 @@ out:
 	return error;
 }
 
-static int ns_rmdir_op(struct inode *dir, struct dentry *dentry)
+static int ns_rmdir_op(struct iyesde *dir, struct dentry *dentry)
 {
 	struct aa_ns *ns, *parent;
 	/* TODO: improve permission check */
@@ -1871,8 +1871,8 @@ static int ns_rmdir_op(struct inode *dir, struct dentry *dentry)
 	 * from the apparmor dir. It is up to the apparmor ns locking
 	 * to avoid races.
 	 */
-	inode_unlock(dir);
-	inode_unlock(dentry->d_inode);
+	iyesde_unlock(dir);
+	iyesde_unlock(dentry->d_iyesde);
 
 	mutex_lock_nested(&parent->lock, parent->level);
 	ns = aa_get_ns(__aa_findn_ns(&parent->sub_ns, dentry->d_name.name,
@@ -1888,14 +1888,14 @@ static int ns_rmdir_op(struct inode *dir, struct dentry *dentry)
 
 out:
 	mutex_unlock(&parent->lock);
-	inode_lock_nested(dir, I_MUTEX_PARENT);
-	inode_lock(dentry->d_inode);
+	iyesde_lock_nested(dir, I_MUTEX_PARENT);
+	iyesde_lock(dentry->d_iyesde);
 	aa_put_ns(parent);
 
 	return error;
 }
 
-static const struct inode_operations ns_dir_inode_operations = {
+static const struct iyesde_operations ns_dir_iyesde_operations = {
 	.lookup		= simple_lookup,
 	.mkdir		= ns_mkdir_op,
 	.rmdir		= ns_rmdir_op,
@@ -1937,23 +1937,23 @@ void __aafs_ns_rmdir(struct aa_ns *ns)
 	__aa_fs_list_remove_rawdata(ns);
 
 	if (ns_subns_dir(ns)) {
-		sub = d_inode(ns_subns_dir(ns))->i_private;
+		sub = d_iyesde(ns_subns_dir(ns))->i_private;
 		aa_put_ns(sub);
 	}
 	if (ns_subload(ns)) {
-		sub = d_inode(ns_subload(ns))->i_private;
+		sub = d_iyesde(ns_subload(ns))->i_private;
 		aa_put_ns(sub);
 	}
 	if (ns_subreplace(ns)) {
-		sub = d_inode(ns_subreplace(ns))->i_private;
+		sub = d_iyesde(ns_subreplace(ns))->i_private;
 		aa_put_ns(sub);
 	}
 	if (ns_subremove(ns)) {
-		sub = d_inode(ns_subremove(ns))->i_private;
+		sub = d_iyesde(ns_subremove(ns))->i_private;
 		aa_put_ns(sub);
 	}
 	if (ns_subrevision(ns)) {
-		sub = d_inode(ns_subrevision(ns))->i_private;
+		sub = d_iyesde(ns_subrevision(ns))->i_private;
 		aa_put_ns(sub);
 	}
 
@@ -2011,7 +2011,7 @@ static int __aafs_ns_mkdir_entries(struct aa_ns *ns, struct dentry *dir)
 
 	  /* use create_dentry so we can supply private data */
 	dent = aafs_create("namespaces", S_IFDIR | 0755, dir, ns, NULL, NULL,
-			   &ns_dir_inode_operations);
+			   &ns_dir_iyesde_operations);
 	if (IS_ERR(dent))
 		return PTR_ERR(dent);
 	aa_get_ns(ns);
@@ -2090,7 +2090,7 @@ fail2:
  *
  * Returns: next namespace or NULL if at last namespace under @root
  * Requires: ns->parent->lock to be held
- * NOTE: will not unlock root->lock
+ * NOTE: will yest unlock root->lock
  */
 static struct aa_ns *__next_ns(struct aa_ns *root, struct aa_ns *ns)
 {
@@ -2128,7 +2128,7 @@ static struct aa_ns *__next_ns(struct aa_ns *root, struct aa_ns *ns)
  * @root: namespace that is root of profiles being displayed (NOT NULL)
  * @ns: namespace to start in   (NOT NULL)
  *
- * Returns: unrefcounted profile or NULL if no profile
+ * Returns: unrefcounted profile or NULL if yes profile
  * Requires: profile->ns.lock to be held
  */
 static struct aa_profile *__first_profile(struct aa_ns *root,
@@ -2178,7 +2178,7 @@ static struct aa_profile *__next_profile(struct aa_profile *p)
 					    mutex_is_locked(&parent->ns->lock));
 	}
 
-	/* is next another profile in the namespace */
+	/* is next ayesther profile in the namespace */
 	p = list_next_entry(p, base.list);
 	if (!list_entry_is_head(p, &ns->base.profiles, base.list))
 		return p;
@@ -2209,7 +2209,7 @@ static struct aa_profile *next_profile(struct aa_ns *root,
  * @f: seq_file to fill
  * @pos: current position
  *
- * Returns: first profile under current namespace or NULL if none found
+ * Returns: first profile under current namespace or NULL if yesne found
  *
  * acquires first ns->lock
  */
@@ -2237,7 +2237,7 @@ static void *p_start(struct seq_file *f, loff_t *pos)
  * @p: profile previously returned
  * @pos: current position
  *
- * Returns: next profile after @p or NULL if none
+ * Returns: next profile after @p or NULL if yesne
  *
  * may acquire/release locks in namespace tree as necessary
  */
@@ -2296,7 +2296,7 @@ static const struct seq_operations aa_sfs_profiles_op = {
 	.show = seq_show_profile,
 };
 
-static int profiles_open(struct inode *inode, struct file *file)
+static int profiles_open(struct iyesde *iyesde, struct file *file)
 {
 	if (!policy_view_capable(NULL))
 		return -EACCES;
@@ -2304,9 +2304,9 @@ static int profiles_open(struct inode *inode, struct file *file)
 	return seq_open(file, &aa_sfs_profiles_op);
 }
 
-static int profiles_release(struct inode *inode, struct file *file)
+static int profiles_release(struct iyesde *iyesde, struct file *file)
 {
-	return seq_release(inode, file);
+	return seq_release(iyesde, file);
 }
 
 static const struct file_operations aa_sfs_profiles_fops = {
@@ -2527,31 +2527,31 @@ static int aa_mk_null_file(struct dentry *parent)
 {
 	struct vfsmount *mount = NULL;
 	struct dentry *dentry;
-	struct inode *inode;
+	struct iyesde *iyesde;
 	int count = 0;
 	int error = simple_pin_fs(parent->d_sb->s_type, &mount, &count);
 
 	if (error)
 		return error;
 
-	inode_lock(d_inode(parent));
+	iyesde_lock(d_iyesde(parent));
 	dentry = lookup_one_len(NULL_FILE_NAME, parent, strlen(NULL_FILE_NAME));
 	if (IS_ERR(dentry)) {
 		error = PTR_ERR(dentry);
 		goto out;
 	}
-	inode = new_inode(parent->d_inode->i_sb);
-	if (!inode) {
+	iyesde = new_iyesde(parent->d_iyesde->i_sb);
+	if (!iyesde) {
 		error = -ENOMEM;
 		goto out1;
 	}
 
-	inode->i_ino = get_next_ino();
-	inode->i_mode = S_IFCHR | S_IRUGO | S_IWUGO;
-	inode->i_atime = inode->i_mtime = inode->i_ctime = current_time(inode);
-	init_special_inode(inode, S_IFCHR | S_IRUGO | S_IWUGO,
+	iyesde->i_iyes = get_next_iyes();
+	iyesde->i_mode = S_IFCHR | S_IRUGO | S_IWUGO;
+	iyesde->i_atime = iyesde->i_mtime = iyesde->i_ctime = current_time(iyesde);
+	init_special_iyesde(iyesde, S_IFCHR | S_IRUGO | S_IWUGO,
 			   MKDEV(MEM_MAJOR, 3));
-	d_instantiate(dentry, inode);
+	d_instantiate(dentry, iyesde);
 	aa_null.dentry = dget(dentry);
 	aa_null.mnt = mntget(mount);
 
@@ -2560,7 +2560,7 @@ static int aa_mk_null_file(struct dentry *parent)
 out1:
 	dput(dentry);
 out:
-	inode_unlock(d_inode(parent));
+	iyesde_unlock(d_iyesde(parent));
 	simple_release_fs(&mount, &count);
 	return error;
 }
@@ -2568,7 +2568,7 @@ out:
 
 
 static const char *policy_get_link(struct dentry *dentry,
-				   struct inode *inode,
+				   struct iyesde *iyesde,
 				   struct delayed_call *done)
 {
 	struct aa_ns *ns;
@@ -2592,7 +2592,7 @@ static int policy_readlink(struct dentry *dentry, char __user *buffer,
 	int res;
 
 	res = snprintf(name, sizeof(name), "%s:[%lu]", AAFS_NAME,
-		       d_inode(dentry)->i_ino);
+		       d_iyesde(dentry)->i_iyes);
 	if (res > 0 && res < sizeof(name))
 		res = readlink_copy(buffer, buflen, name);
 	else
@@ -2601,7 +2601,7 @@ static int policy_readlink(struct dentry *dentry, char __user *buffer,
 	return res;
 }
 
-static const struct inode_operations policy_link_iops = {
+static const struct iyesde_operations policy_link_iops = {
 	.readlink	= policy_readlink,
 	.get_link	= policy_get_link,
 };

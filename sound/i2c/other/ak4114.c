@@ -134,7 +134,7 @@ static void ak4114_init_regs(struct ak4114 *chip)
 		reg_write(chip, reg, chip->regmap[reg]);
 	for (reg = 0; reg < 5; reg++)
 		reg_write(chip, reg + AK4114_REG_TXCSB0, chip->txcsb[reg]);
-	/* release powerdown, everything is initialized now */
+	/* release powerdown, everything is initialized yesw */
 	reg_write(chip, AK4114_REG_PWRDN, old | AK4114_RST | AK4114_PWN);
 }
 
@@ -188,7 +188,7 @@ static int snd_ak4114_in_error_get(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
-#define snd_ak4114_in_bit_info		snd_ctl_boolean_mono_info
+#define snd_ak4114_in_bit_info		snd_ctl_boolean_moyes_info
 
 static int snd_ak4114_in_bit_get(struct snd_kcontrol *kcontrol,
 				 struct snd_ctl_elem_value *ucontrol)
@@ -494,8 +494,8 @@ int snd_ak4114_build(struct ak4114 *ak4114,
 }
 EXPORT_SYMBOL(snd_ak4114_build);
 
-/* notify kcontrols if any parameters are changed */
-static void ak4114_notify(struct ak4114 *ak4114,
+/* yestify kcontrols if any parameters are changed */
+static void ak4114_yestify(struct ak4114 *ak4114,
 			  unsigned char rcs0, unsigned char rcs1,
 			  unsigned char c0, unsigned char c1)
 {
@@ -503,41 +503,41 @@ static void ak4114_notify(struct ak4114 *ak4114,
 		return;
 
 	if (rcs0 & AK4114_PAR)
-		snd_ctl_notify(ak4114->card, SNDRV_CTL_EVENT_MASK_VALUE,
+		snd_ctl_yestify(ak4114->card, SNDRV_CTL_EVENT_MASK_VALUE,
 			       &ak4114->kctls[0]->id);
 	if (rcs0 & AK4114_V)
-		snd_ctl_notify(ak4114->card, SNDRV_CTL_EVENT_MASK_VALUE,
+		snd_ctl_yestify(ak4114->card, SNDRV_CTL_EVENT_MASK_VALUE,
 			       &ak4114->kctls[1]->id);
 	if (rcs1 & AK4114_CCRC)
-		snd_ctl_notify(ak4114->card, SNDRV_CTL_EVENT_MASK_VALUE,
+		snd_ctl_yestify(ak4114->card, SNDRV_CTL_EVENT_MASK_VALUE,
 			       &ak4114->kctls[2]->id);
 	if (rcs1 & AK4114_QCRC)
-		snd_ctl_notify(ak4114->card, SNDRV_CTL_EVENT_MASK_VALUE,
+		snd_ctl_yestify(ak4114->card, SNDRV_CTL_EVENT_MASK_VALUE,
 			       &ak4114->kctls[3]->id);
 
 	/* rate change */
 	if (c1 & 0xf0)
-		snd_ctl_notify(ak4114->card, SNDRV_CTL_EVENT_MASK_VALUE,
+		snd_ctl_yestify(ak4114->card, SNDRV_CTL_EVENT_MASK_VALUE,
 			       &ak4114->kctls[4]->id);
 
 	if ((c0 & AK4114_PEM) | (c0 & AK4114_CINT))
-		snd_ctl_notify(ak4114->card, SNDRV_CTL_EVENT_MASK_VALUE,
+		snd_ctl_yestify(ak4114->card, SNDRV_CTL_EVENT_MASK_VALUE,
 			       &ak4114->kctls[9]->id);
 	if (c0 & AK4114_QINT)
-		snd_ctl_notify(ak4114->card, SNDRV_CTL_EVENT_MASK_VALUE,
+		snd_ctl_yestify(ak4114->card, SNDRV_CTL_EVENT_MASK_VALUE,
 			       &ak4114->kctls[10]->id);
 
 	if (c0 & AK4114_AUDION)
-		snd_ctl_notify(ak4114->card, SNDRV_CTL_EVENT_MASK_VALUE,
+		snd_ctl_yestify(ak4114->card, SNDRV_CTL_EVENT_MASK_VALUE,
 			       &ak4114->kctls[11]->id);
 	if (c0 & AK4114_AUTO)
-		snd_ctl_notify(ak4114->card, SNDRV_CTL_EVENT_MASK_VALUE,
+		snd_ctl_yestify(ak4114->card, SNDRV_CTL_EVENT_MASK_VALUE,
 			       &ak4114->kctls[12]->id);
 	if (c0 & AK4114_DTSCD)
-		snd_ctl_notify(ak4114->card, SNDRV_CTL_EVENT_MASK_VALUE,
+		snd_ctl_yestify(ak4114->card, SNDRV_CTL_EVENT_MASK_VALUE,
 			       &ak4114->kctls[13]->id);
 	if (c0 & AK4114_UNLCK)
-		snd_ctl_notify(ak4114->card, SNDRV_CTL_EVENT_MASK_VALUE,
+		snd_ctl_yestify(ak4114->card, SNDRV_CTL_EVENT_MASK_VALUE,
 			       &ak4114->kctls[14]->id);
 }
 
@@ -578,7 +578,7 @@ int snd_ak4114_check_rate_and_errors(struct ak4114 *ak4114, unsigned int flags)
 	ak4114->rcs1 = rcs1;
 	spin_unlock_irqrestore(&ak4114->lock, _flags);
 
-	ak4114_notify(ak4114, rcs0, rcs1, c0, c1);
+	ak4114_yestify(ak4114, rcs0, rcs1, c0, c1);
 	if (ak4114->change_callback && (c0 | c1) != 0)
 		ak4114->change_callback(ak4114, c0, c1);
 

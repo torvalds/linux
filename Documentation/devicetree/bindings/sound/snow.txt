@@ -1,21 +1,21 @@
-Audio Binding for Snow boards
+Audio Binding for Syesw boards
 
 Required properties:
 - compatible : Can be one of the following,
-			"google,snow-audio-max98090" or
-			"google,snow-audio-max98091" or
-			"google,snow-audio-max98095"
+			"google,syesw-audio-max98090" or
+			"google,syesw-audio-max98091" or
+			"google,syesw-audio-max98095"
 - samsung,i2s-controller (deprecated): The phandle of the Samsung I2S controller
 - samsung,audio-codec (deprecated): The phandle of the audio codec
 
-Required sub-nodes:
+Required sub-yesdes:
 
- - 'cpu' subnode with a 'sound-dai' property containing the phandle of the I2S
+ - 'cpu' subyesde with a 'sound-dai' property containing the phandle of the I2S
     controller
- - 'codec' subnode with a 'sound-dai' property containing list of phandles
-    to the CODEC nodes, first entry must be the phandle of the MAX98090,
+ - 'codec' subyesde with a 'sound-dai' property containing list of phandles
+    to the CODEC yesdes, first entry must be the phandle of the MAX98090,
     MAX98091 or MAX98095 CODEC (exact device type is indicated by the compatible
-    string) and the second entry must be the phandle of the HDMI IP block node
+    string) and the second entry must be the phandle of the HDMI IP block yesde
 
 Optional:
 - samsung,model: The name of the sound-card
@@ -23,9 +23,9 @@ Optional:
 Example:
 
 sound {
-		compatible = "google,snow-audio-max98095";
+		compatible = "google,syesw-audio-max98095";
 
-		samsung,model = "Snow-I2S-MAX98095";
+		samsung,model = "Syesw-I2S-MAX98095";
 		samsung,i2s-controller = <&i2s0>;
 		samsung,audio-codec = <&max98095>;
 };

@@ -15,7 +15,7 @@ description: |
   describe watchdog devices in a device tree.
 
 properties:
-  $nodename:
+  $yesdename:
     pattern: "^watchdog(@.*|-[0-9a-f])?$"
 
   timeout-sec:

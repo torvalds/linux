@@ -53,7 +53,7 @@ static unsigned char cougar_mapping[][2] = {
 	{ COUGAR_KEY_G4,   KEY_F16 },
 	{ COUGAR_KEY_G5,   KEY_F17 },
 	{ COUGAR_KEY_LOCK, KEY_SCREENLOCK },
-/* The following keys are handled by the hardware itself, so no special
+/* The following keys are handled by the hardware itself, so yes special
  * treatment is required:
 	{ COUGAR_KEY_FN, KEY_RESERVED },
 	{ COUGAR_KEY_MR, KEY_RESERVED },
@@ -97,7 +97,7 @@ static void cougar_fix_g6_mapping(void)
 			return;
 		}
 	}
-	pr_warn("cougar: no mappings defined for G6/spacebar");
+	pr_warn("cougar: yes mappings defined for G6/spacebar");
 }
 
 /*
@@ -154,7 +154,7 @@ static void cougar_remove_shared_data(void *resource)
 
 /*
  * Bind the device group's shared data to this cougar struct.
- * If no shared data exists for this group, create and initialize it.
+ * If yes shared data exists for this group, create and initialize it.
  */
 static int cougar_bind_shared_data(struct hid_device *hdev,
 				   struct cougar *cougar)
@@ -283,7 +283,7 @@ static int cougar_raw_event(struct hid_device *hdev, struct hid_report *report,
 	}
 	/* Avoid warnings on the same unmapped key twice */
 	if (action != 0)
-		hid_warn(hdev, "unmapped special key code %0x: ignoring\n", code);
+		hid_warn(hdev, "unmapped special key code %0x: igyesring\n", code);
 	return -EPERM;
 }
 

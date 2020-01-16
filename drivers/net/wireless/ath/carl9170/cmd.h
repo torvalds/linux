@@ -17,16 +17,16 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; see the file COPYING.  If not, see
+ * along with this program; see the file COPYING.  If yest, see
  * http://www.gnu.org/licenses/.
  *
  * This file incorporates work covered by the following copyright and
- * permission notice:
+ * permission yestice:
  *    Copyright (c) 2007-2008 Atheros Communications, Inc.
  *
  *    Permission to use, copy, modify, and/or distribute this software for any
  *    purpose with or without fee is hereby granted, provided that the above
- *    copyright notice and this permission notice appear in all copies.
+ *    copyright yestice and this permission yestice appear in all copies.
  *
  *    THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  *    WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
@@ -77,7 +77,7 @@ struct carl9170_cmd *carl9170_cmd_buf(struct ar9170 *ar,
  * Macros to facilitate writing multiple registers in a single
  * write-combining USB command. Note that when the first group
  * fails the whole thing will fail without any others attempted,
- * but you won't know which write in the group failed.
+ * but you won't kyesw which write in the group failed.
  */
 #define carl9170_regwrite_begin(ar)					\
 do {									\

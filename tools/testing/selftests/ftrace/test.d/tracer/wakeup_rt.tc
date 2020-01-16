@@ -3,12 +3,12 @@
 # description: Test wakeup RT tracer
 
 if ! which chrt ; then
-  echo "chrt is not found. This test requires chrt command."
+  echo "chrt is yest found. This test requires chrt command."
   exit_unresolved
 fi
 
 if ! grep -wq "wakeup_rt" available_tracers ; then
-  echo "wakeup_rt tracer is not supported"
+  echo "wakeup_rt tracer is yest supported"
   exit_unsupported
 fi
 

@@ -33,7 +33,7 @@ struct ipv6_devconf {
 	__s32		accept_ra_defrtr;
 	__s32		accept_ra_min_hop_limit;
 	__s32		accept_ra_pinfo;
-	__s32		ignore_routes_with_linkdown;
+	__s32		igyesre_routes_with_linkdown;
 #ifdef CONFIG_IPV6_ROUTER_PREF
 	__s32		accept_ra_rtr_pref;
 	__s32		rtr_probe_interval;
@@ -56,7 +56,7 @@ struct ipv6_devconf {
 	__s32		drop_unicast_in_l2_multicast;
 	__s32		accept_dad;
 	__s32		force_tllao;
-	__s32           ndisc_notify;
+	__s32           ndisc_yestify;
 	__s32		suppress_frag_ndisc;
 	__s32		accept_ra_mtu;
 	__s32		drop_unsolicited_na;
@@ -166,7 +166,7 @@ static inline bool inet6_is_jumbogram(const struct sk_buff *skb)
 	return !!(IP6CB(skb)->flags & IP6SKB_JUMBOGRAM);
 }
 
-/* can not be used in TCP layer after tcp_v6_fill_cb */
+/* can yest be used in TCP layer after tcp_v6_fill_cb */
 static inline int inet6_sdif(const struct sk_buff *skb)
 {
 #if IS_ENABLED(CONFIG_NET_L3_MASTER_DEV)
@@ -176,7 +176,7 @@ static inline int inet6_sdif(const struct sk_buff *skb)
 	return 0;
 }
 
-/* can not be used in TCP layer after tcp_v6_fill_cb */
+/* can yest be used in TCP layer after tcp_v6_fill_cb */
 static inline bool inet6_exact_dif_match(struct net *net, struct sk_buff *skb)
 {
 #if defined(CONFIG_NET_L3_MASTER_DEV)

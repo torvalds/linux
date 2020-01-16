@@ -12,11 +12,11 @@
 KASAN_SANITIZE			:= n
 OBJECT_FILES_NON_STANDARD	:= y
 
-# Kernel does not boot with kcov instrumentation here.
+# Kernel does yest boot with kcov instrumentation here.
 # One of the problems observed was insertion of __sanitizer_cov_trace_pc()
 # callback into middle of per-cpu data enabling code. Thus the callback observed
 # inconsistent state and crashed. We are interested mostly in syscall coverage,
-# so boot code is not interesting anyway.
+# so boot code is yest interesting anyway.
 KCOV_INSTRUMENT		:= n
 
 # If you want to preset the SVGA mode, uncomment the next line and
@@ -82,7 +82,7 @@ $(obj)/bzImage: $(obj)/setup.bin $(obj)/vmlinux.bin $(obj)/tools/build FORCE
 	$(call if_changed,image)
 	@$(kecho) 'Kernel: $@ is ready' ' (#'`cat .version`')'
 
-OBJCOPYFLAGS_vmlinux.bin := -O binary -R .note -R .comment -S
+OBJCOPYFLAGS_vmlinux.bin := -O binary -R .yeste -R .comment -S
 $(obj)/vmlinux.bin: $(obj)/compressed/vmlinux FORCE
 	$(call if_changed,objcopy)
 

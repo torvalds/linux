@@ -65,7 +65,7 @@ enum dvb_dmx_state {
  *
  * @filter:		Section filter as defined by &struct dmx_section_filter.
  * @maskandmode:	logical ``and`` bit mask.
- * @maskandnotmode:	logical ``and not`` bit mask.
+ * @maskandyestmode:	logical ``and yest`` bit mask.
  * @doneq:		flag that indicates when a filter is ready.
  * @next:		pointer to the next section filter.
  * @feed:		&struct dvb_demux_feed pointer.
@@ -78,7 +78,7 @@ enum dvb_dmx_state {
 struct dvb_demux_filter {
 	struct dmx_section_filter filter;
 	u8 maskandmode[DMX_MAX_FILTER_SIZE];
-	u8 maskandnotmode[DMX_MAX_FILTER_SIZE];
+	u8 maskandyestmode[DMX_MAX_FILTER_SIZE];
 	bool doneq;
 
 	struct dvb_demux_filter *next;
@@ -177,10 +177,10 @@ struct dvb_demux_feed {
  *			it is routed to an A/V decoder, when a new TS packet
  *			is received.
  *			Used only on av7110-av.c.
- * @check_crc32:	callback routine to check CRC. If not initialized,
+ * @check_crc32:	callback routine to check CRC. If yest initialized,
  *			dvb_demux will use an internal one.
  * @memcopy:		callback routine to memcopy received data.
- *			If not initialized, dvb_demux will default to memcpy().
+ *			If yest initialized, dvb_demux will default to memcpy().
  * @users:		counter for the number of demux opened file descriptors.
  *			Currently, it is limited to 10 users.
  * @filter:		pointer to &struct dvb_demux_filter.
@@ -272,7 +272,7 @@ int dvb_dmx_init(struct dvb_demux *demux);
  * @demux: &struct dvb_demux to be released.
  *
  * The DVB core internally allocates data at @demux. This routine
- * releases those data. Please notice that the struct itelf is not
+ * releases those data. Please yestice that the struct itelf is yest
  * released, as it can be embedded on other structs.
  */
 void dvb_dmx_release(struct dvb_demux *demux);
@@ -306,7 +306,7 @@ void dvb_dmx_swfilter_packets(struct dvb_demux *demux, const u8 *buf,
  * If a DVB packet doesn't start with 0x47, it will seek for the first
  * byte that starts with 0x47.
  *
- * Use this routine if the DVB demux fill buffers that may not start with
+ * Use this routine if the DVB demux fill buffers that may yest start with
  * a packet start mark (0x47).
  *
  * NOTE: The @buf size should have size equal to ``count * 188``.
@@ -324,7 +324,7 @@ void dvb_dmx_swfilter(struct dvb_demux *demux, const u8 *buf, size_t count);
  * If a DVB packet doesn't start with 0x47, it will seek for the first
  * byte that starts with 0x47.
  *
- * Use this routine if the DVB demux fill buffers that may not start with
+ * Use this routine if the DVB demux fill buffers that may yest start with
  * a packet start mark (0x47).
  *
  * NOTE: The @buf size should have size equal to ``count * 204``.

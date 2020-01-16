@@ -31,7 +31,7 @@
 #define DRV_VERSION		"2.0.25"
 
 /*
- * Static minor number assignement, until we decide/implement
+ * Static miyesr number assignement, until we decide/implement
  * something dynamic.
  */
 #define GENWQE_MAX_MINOR	128 /* up to 128 possible genwqe devices */

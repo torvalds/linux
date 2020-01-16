@@ -123,7 +123,7 @@ static int lm3697_brightness_set(struct led_classdev *led_cdev,
 		ret = regmap_update_bits(led->priv->regmap, LM3697_CTRL_ENABLE,
 					 ctrl_en_val, ~ctrl_en_val);
 		if (ret) {
-			dev_err(&led->priv->client->dev, "Cannot write ctrl register\n");
+			dev_err(&led->priv->client->dev, "Canyest write ctrl register\n");
 			goto brightness_out;
 		}
 
@@ -132,7 +132,7 @@ static int lm3697_brightness_set(struct led_classdev *led_cdev,
 		ret = ti_lmu_common_set_brightness(&led->lmu_data, brt_val);
 		if (ret) {
 			dev_err(&led->priv->client->dev,
-				"Cannot write brightness\n");
+				"Canyest write brightness\n");
 			goto brightness_out;
 		}
 
@@ -142,7 +142,7 @@ static int lm3697_brightness_set(struct led_classdev *led_cdev,
 						 ctrl_en_val, ctrl_en_val);
 			if (ret) {
 				dev_err(&led->priv->client->dev,
-					"Cannot enable the device\n");
+					"Canyest enable the device\n");
 				goto brightness_out;
 			}
 
@@ -165,20 +165,20 @@ static int lm3697_init(struct lm3697 *priv)
 	} else {
 		ret = regmap_write(priv->regmap, LM3697_RESET, LM3697_SW_RESET);
 		if (ret) {
-			dev_err(&priv->client->dev, "Cannot reset the device\n");
+			dev_err(&priv->client->dev, "Canyest reset the device\n");
 			goto out;
 		}
 	}
 
 	ret = regmap_write(priv->regmap, LM3697_CTRL_ENABLE, 0x0);
 	if (ret) {
-		dev_err(&priv->client->dev, "Cannot write ctrl enable\n");
+		dev_err(&priv->client->dev, "Canyest write ctrl enable\n");
 		goto out;
 	}
 
 	ret = regmap_write(priv->regmap, LM3697_OUTPUT_CONFIG, priv->bank_cfg);
 	if (ret)
-		dev_err(&priv->client->dev, "Cannot write OUTPUT config\n");
+		dev_err(&priv->client->dev, "Canyest write OUTPUT config\n");
 
 	for (i = 0; i < LM3697_MAX_CONTROL_BANKS; i++) {
 		led = &priv->leds[i];
@@ -192,7 +192,7 @@ out:
 
 static int lm3697_probe_dt(struct lm3697 *priv)
 {
-	struct fwnode_handle *child = NULL;
+	struct fwyesde_handle *child = NULL;
 	struct lm3697_led *led;
 	const char *name;
 	int control_bank;
@@ -213,18 +213,18 @@ static int lm3697_probe_dt(struct lm3697 *priv)
 	if (IS_ERR(priv->regulator))
 		priv->regulator = NULL;
 
-	device_for_each_child_node(priv->dev, child) {
-		ret = fwnode_property_read_u32(child, "reg", &control_bank);
+	device_for_each_child_yesde(priv->dev, child) {
+		ret = fwyesde_property_read_u32(child, "reg", &control_bank);
 		if (ret) {
 			dev_err(&priv->client->dev, "reg property missing\n");
-			fwnode_handle_put(child);
+			fwyesde_handle_put(child);
 			goto child_out;
 		}
 
 		if (control_bank > LM3697_CONTROL_B) {
 			dev_err(&priv->client->dev, "reg property is invalid\n");
 			ret = -EINVAL;
-			fwnode_handle_put(child);
+			fwyesde_handle_put(child);
 			goto child_out;
 		}
 
@@ -244,18 +244,18 @@ static int lm3697_probe_dt(struct lm3697 *priv)
 		led->lmu_data.lsb_brightness_reg = LM3697_CTRL_A_BRT_LSB +
 						   led->control_bank * 2;
 
-		led->num_leds = fwnode_property_count_u32(child, "led-sources");
+		led->num_leds = fwyesde_property_count_u32(child, "led-sources");
 		if (led->num_leds > LM3697_MAX_LED_STRINGS) {
 			dev_err(&priv->client->dev, "To many LED strings defined\n");
 			continue;
 		}
 
-		ret = fwnode_property_read_u32_array(child, "led-sources",
+		ret = fwyesde_property_read_u32_array(child, "led-sources",
 						    led->hvled_strings,
 						    led->num_leds);
 		if (ret) {
 			dev_err(&priv->client->dev, "led-sources property missing\n");
-			fwnode_handle_put(child);
+			fwyesde_handle_put(child);
 			goto child_out;
 		}
 
@@ -268,10 +268,10 @@ static int lm3697_probe_dt(struct lm3697 *priv)
 		if (ret)
 			dev_warn(&priv->client->dev, "runtime-ramp properties missing\n");
 
-		fwnode_property_read_string(child, "linux,default-trigger",
+		fwyesde_property_read_string(child, "linux,default-trigger",
 					    &led->led_dev.default_trigger);
 
-		ret = fwnode_property_read_string(child, "label", &name);
+		ret = fwyesde_property_read_string(child, "label", &name);
 		if (ret)
 			snprintf(led->label, sizeof(led->label),
 				"%s::", priv->client->name);
@@ -288,7 +288,7 @@ static int lm3697_probe_dt(struct lm3697 *priv)
 		if (ret) {
 			dev_err(&priv->client->dev, "led register err: %d\n",
 				ret);
-			fwnode_handle_put(child);
+			fwyesde_handle_put(child);
 			goto child_out;
 		}
 
@@ -306,9 +306,9 @@ static int lm3697_probe(struct i2c_client *client,
 	int count;
 	int ret;
 
-	count = device_get_child_node_count(&client->dev);
+	count = device_get_child_yesde_count(&client->dev);
 	if (!count) {
-		dev_err(&client->dev, "LEDs are not defined in device tree!");
+		dev_err(&client->dev, "LEDs are yest defined in device tree!");
 		return -ENODEV;
 	}
 

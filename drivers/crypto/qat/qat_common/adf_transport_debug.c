@@ -23,12 +23,12 @@
   are met:
 
     * Redistributions of source code must retain the above copyright
-      notice, this list of conditions and the following disclaimer.
+      yestice, this list of conditions and the following disclaimer.
     * Redistributions in binary form must reproduce the above copyright
-      notice, this list of conditions and the following disclaimer in
+      yestice, this list of conditions and the following disclaimer in
       the documentation and/or other materials provided with the
       distribution.
-    * Neither the name of Intel Corporation nor the names of its
+    * Neither the name of Intel Corporation yesr the names of its
       contributors may be used to endorse or promote products derived
       from this software without specific prior written permission.
 
@@ -128,14 +128,14 @@ static const struct seq_operations adf_ring_sops = {
 	.show = adf_ring_show
 };
 
-static int adf_ring_open(struct inode *inode, struct file *file)
+static int adf_ring_open(struct iyesde *iyesde, struct file *file)
 {
 	int ret = seq_open(file, &adf_ring_sops);
 
 	if (!ret) {
 		struct seq_file *seq_f = file->private_data;
 
-		seq_f->private = inode->i_private;
+		seq_f->private = iyesde->i_private;
 	}
 	return ret;
 }
@@ -239,14 +239,14 @@ static const struct seq_operations adf_bank_sops = {
 	.show = adf_bank_show
 };
 
-static int adf_bank_open(struct inode *inode, struct file *file)
+static int adf_bank_open(struct iyesde *iyesde, struct file *file)
 {
 	int ret = seq_open(file, &adf_bank_sops);
 
 	if (!ret) {
 		struct seq_file *seq_f = file->private_data;
 
-		seq_f->private = inode->i_private;
+		seq_f->private = iyesde->i_private;
 	}
 	return ret;
 }

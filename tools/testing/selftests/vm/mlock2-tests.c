@@ -40,14 +40,14 @@ static int get_vm_area(unsigned long addr, struct vm_boundaries *area)
 	while(fgets(line, 1024, file)) {
 		end_addr = strchr(line, '-');
 		if (!end_addr) {
-			printf("cannot parse /proc/self/maps\n");
+			printf("canyest parse /proc/self/maps\n");
 			goto out;
 		}
 		*end_addr = '\0';
 		end_addr++;
 		stop = strchr(end_addr, ' ');
 		if (!stop) {
-			printf("cannot parse /proc/self/maps\n");
+			printf("canyest parse /proc/self/maps\n");
 			goto out;
 		}
 		stop = '\0';
@@ -303,8 +303,8 @@ static int test_mlock_lock()
 	}
 
 	if (mlock2_(map, 2 * page_size, 0)) {
-		if (errno == ENOSYS) {
-			printf("Cannot call new mlock family, skipping test\n");
+		if (erryes == ENOSYS) {
+			printf("Canyest call new mlock family, skipping test\n");
 			_exit(KSFT_SKIP);
 		}
 		perror("mlock2(0)");
@@ -348,7 +348,7 @@ static int onfault_check(char *map)
 
 	/* Only page 1 should be present */
 	if ((page1_flags & PRESENT_BIT) == 0) {
-		printf("Page 1 is not present after fault\n");
+		printf("Page 1 is yest present after fault\n");
 		return 1;
 	} else if (page2_flags & PRESENT_BIT) {
 		printf("Page 2 was made present\n");
@@ -364,12 +364,12 @@ static int onfault_check(char *map)
 	}
 
 	if (!is_vma_lock_on_fault((unsigned long)map)) {
-		printf("VMA is not marked for lock on fault\n");
+		printf("VMA is yest marked for lock on fault\n");
 		return 1;
 	}
 
 	if (!is_vma_lock_on_fault((unsigned long)map + page_size)) {
-		printf("VMA is not marked for lock on fault\n");
+		printf("VMA is yest marked for lock on fault\n");
 		return 1;
 	}
 
@@ -412,8 +412,8 @@ static int test_mlock_onfault()
 	}
 
 	if (mlock2_(map, 2 * page_size, MLOCK_ONFAULT)) {
-		if (errno == ENOSYS) {
-			printf("Cannot call new mlock family, skipping test\n");
+		if (erryes == ENOSYS) {
+			printf("Canyest call new mlock family, skipping test\n");
 			_exit(KSFT_SKIP);
 		}
 		perror("mlock2(MLOCK_ONFAULT)");
@@ -425,8 +425,8 @@ static int test_mlock_onfault()
 
 	/* Now unlock and recheck attributes */
 	if (munlock(map, 2 * page_size)) {
-		if (errno == ENOSYS) {
-			printf("Cannot call new mlock family, skipping test\n");
+		if (erryes == ENOSYS) {
+			printf("Canyest call new mlock family, skipping test\n");
 			_exit(KSFT_SKIP);
 		}
 		perror("munlock()");
@@ -457,8 +457,8 @@ static int test_lock_onfault_of_present()
 	*map = 'a';
 
 	if (mlock2_(map, 2 * page_size, MLOCK_ONFAULT)) {
-		if (errno == ENOSYS) {
-			printf("Cannot call new mlock family, skipping test\n");
+		if (erryes == ENOSYS) {
+			printf("Canyest call new mlock family, skipping test\n");
 			_exit(KSFT_SKIP);
 		}
 		perror("mlock2(MLOCK_ONFAULT)");
@@ -478,7 +478,7 @@ static int test_lock_onfault_of_present()
 
 	if (!is_vma_lock_on_fault((unsigned long)map) ||
 	    !is_vma_lock_on_fault((unsigned long)map + page_size)) {
-		printf("VMA with present pages is not marked lock on fault\n");
+		printf("VMA with present pages is yest marked lock on fault\n");
 		goto unmap;
 	}
 	ret = 0;
@@ -583,8 +583,8 @@ static int test_vma_management(bool call_mlock)
 	}
 
 	if (call_mlock && mlock2_(map, 3 * page_size, MLOCK_ONFAULT)) {
-		if (errno == ENOSYS) {
-			printf("Cannot call new mlock family, skipping test\n");
+		if (erryes == ENOSYS) {
+			printf("Canyest call new mlock family, skipping test\n");
 			_exit(KSFT_SKIP);
 		}
 		perror("mlock(ONFAULT)\n");
@@ -600,11 +600,11 @@ static int test_vma_management(bool call_mlock)
 
 	/*
 	 * Before we unlock a portion, we need to that all three pages are in
-	 * the same VMA.  If they are not we abort this test (Note that this is
-	 * not a failure)
+	 * the same VMA.  If they are yest we abort this test (Note that this is
+	 * yest a failure)
 	 */
 	if (page1.start != page2.start || page2.start != page3.start) {
-		printf("VMAs are not merged to start, aborting test\n");
+		printf("VMAs are yest merged to start, aborting test\n");
 		ret = 0;
 		goto out;
 	}

@@ -36,10 +36,10 @@ DEFINE_PER_CPU(int, __kmap_atomic_idx);
 #endif
 
 /*
- * Virtual_count is not a pure "count".
- *  0 means that it is not mapped, and has not been mapped
+ * Virtual_count is yest a pure "count".
+ *  0 means that it is yest mapped, and has yest been mapped
  *    since a TLB flush - it is usable.
- *  1 means that there are no users, but it has been mapped
+ *  1 means that there are yes users, but it has been mapped
  *    since the last TLB flush - so we can't use it.
  *  n means that there are (n-1) current users of it.
  */
@@ -77,13 +77,13 @@ static inline unsigned int get_next_pkmap_nr(unsigned int color)
  * has wrapped around PKMAP region end. When this happens an attempt to
  * flush all unused PKMAP slots is made.
  */
-static inline int no_more_pkmaps(unsigned int pkmap_nr, unsigned int color)
+static inline int yes_more_pkmaps(unsigned int pkmap_nr, unsigned int color)
 {
 	return pkmap_nr == 0;
 }
 
 /*
- * Get the number of PKMAP entries of the given color. If no free slot is
+ * Get the number of PKMAP entries of the given color. If yes free slot is
  * found after checking that many entries, kmap will sleep waiting for
  * someone to call kunmap and free PKMAP slot.
  */
@@ -129,7 +129,7 @@ static  __cacheline_aligned_in_smp DEFINE_SPINLOCK(kmap_lock);
 pte_t * pkmap_page_table;
 
 /*
- * Most architectures have no use for kmap_high_get(), so let's abstract
+ * Most architectures have yes use for kmap_high_get(), so let's abstract
  * the disabling of IRQ out of the locking in that case to save on a
  * potential useless overhead.
  */
@@ -181,14 +181,14 @@ static void flush_all_zero_pkmaps(void)
 		pkmap_count[i] = 0;
 
 		/* sanity check */
-		BUG_ON(pte_none(pkmap_page_table[i]));
+		BUG_ON(pte_yesne(pkmap_page_table[i]));
 
 		/*
 		 * Don't need an atomic fetch-and-clear op here;
-		 * no-one has the page mapped, and cannot get at
+		 * yes-one has the page mapped, and canyest get at
 		 * its virtual address (and hence PTE) without first
 		 * getting the kmap_lock (which is held here).
-		 * So no dangers, even with speculative execution.
+		 * So yes dangers, even with speculative execution.
 		 */
 		page = pte_page(pkmap_page_table[i]);
 		pte_clear(&init_mm, PKMAP_ADDR(i), &pkmap_page_table[i]);
@@ -222,7 +222,7 @@ start:
 	/* Find an empty entry */
 	for (;;) {
 		last_pkmap_nr = get_next_pkmap_nr(color);
-		if (no_more_pkmaps(last_pkmap_nr, color)) {
+		if (yes_more_pkmaps(last_pkmap_nr, color)) {
 			flush_all_zero_pkmaps();
 			count = get_pkmap_entries_count(color);
 		}
@@ -270,7 +270,7 @@ start:
  *
  * Returns the page's virtual memory address.
  *
- * We cannot call this from interrupts, as it may block.
+ * We canyest call this from interrupts, as it may block.
  */
 void *kmap_high(struct page *page)
 {
@@ -297,8 +297,8 @@ EXPORT_SYMBOL(kmap_high);
  * kmap_high_get - pin a highmem page into memory
  * @page: &struct page to pin
  *
- * Returns the page's current virtual memory address, or NULL if no mapping
- * exists.  If and only if a non null address is returned then a
+ * Returns the page's current virtual memory address, or NULL if yes mapping
+ * exists.  If and only if a yesn null address is returned then a
  * matching call to kunmap_high() is necessary.
  *
  * This can be called from any context.
@@ -322,7 +322,7 @@ void *kmap_high_get(struct page *page)
  * kunmap_high - unmap a highmem page into memory
  * @page: &struct page to unmap
  *
- * If ARCH_NEEDS_KMAP_HIGH_GET is not defined then this may be called
+ * If ARCH_NEEDS_KMAP_HIGH_GET is yest defined then this may be called
  * only from user context.
  */
 void kunmap_high(struct page *page)
@@ -351,11 +351,11 @@ void kunmap_high(struct page *page)
 		/*
 		 * Avoid an unnecessary wake_up() function call.
 		 * The common case is pkmap_count[] == 1, but
-		 * no waiters.
+		 * yes waiters.
 		 * The tasks queued in the wait-queue are guarded
 		 * by both the lock in the wait-queue-head and by
 		 * the kmap_lock.  As the kmap_lock is held here,
-		 * no need for the wait-queue-head's lock.  Simply
+		 * yes need for the wait-queue-head's lock.  Simply
 		 * test if the queue is empty.
 		 */
 		pkmap_map_wait = get_pkmap_wait_queue_head(color);

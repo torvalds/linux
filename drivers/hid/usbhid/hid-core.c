@@ -57,9 +57,9 @@ static unsigned int hid_kbpoll_interval;
 module_param_named(kbpoll, hid_kbpoll_interval, uint, 0644);
 MODULE_PARM_DESC(kbpoll, "Polling interval of keyboards");
 
-static unsigned int ignoreled;
-module_param_named(ignoreled, ignoreled, uint, 0644);
-MODULE_PARM_DESC(ignoreled, "Autosuspend with active leds");
+static unsigned int igyesreled;
+module_param_named(igyesreled, igyesreled, uint, 0644);
+MODULE_PARM_DESC(igyesreled, "Autosuspend with active leds");
 
 /* Quirks specified at module load time */
 static char *quirks_param[MAX_USBHID_BOOT_QUIRKS];
@@ -210,11 +210,11 @@ static int usbhid_restart_out_queue(struct usbhid_device *usbhid)
 		 * occur if/when resume drains the queue.
 		 */
 		if (test_bit(HID_SUSPENDED, &usbhid->iofl)) {
-			usb_autopm_put_interface_no_suspend(usbhid->intf);
+			usb_autopm_put_interface_yes_suspend(usbhid->intf);
 			return r;
 		}
 
-		/* Asynchronously flush queue. */
+		/* Asynchroyesusly flush queue. */
 		set_bit(HID_OUT_RUNNING, &usbhid->iofl);
 		if (hid_submit_out(hid)) {
 			clear_bit(HID_OUT_RUNNING, &usbhid->iofl);
@@ -249,11 +249,11 @@ static int usbhid_restart_ctrl_queue(struct usbhid_device *usbhid)
 		 * occur if/when resume drains the queue.
 		 */
 		if (test_bit(HID_SUSPENDED, &usbhid->iofl)) {
-			usb_autopm_put_interface_no_suspend(usbhid->intf);
+			usb_autopm_put_interface_yes_suspend(usbhid->intf);
 			return r;
 		}
 
-		/* Asynchronously flush queue. */
+		/* Asynchroyesusly flush queue. */
 		set_bit(HID_CTRL_RUNNING, &usbhid->iofl);
 		if (hid_submit_ctrl(hid)) {
 			clear_bit(HID_CTRL_RUNNING, &usbhid->iofl);
@@ -493,7 +493,7 @@ static void hid_ctrl(struct urb *urb)
 	case -EPROTO:		/* protocol error or unplug */
 	case -ECONNRESET:	/* unlink */
 	case -ENOENT:
-	case -EPIPE:		/* report not available */
+	case -EPIPE:		/* report yest available */
 		break;
 	default:		/* error */
 		hid_warn(urb->dev, "ctrl urb status %d received\n", status);
@@ -553,7 +553,7 @@ static void __usbhid_submit_report(struct hid_device *hid, struct hid_report *re
 		} else if (time_after(jiffies, usbhid->last_out + HZ * 5)) {
 
 			/* Prevent autosuspend following the unlink */
-			usb_autopm_get_interface_no_resume(usbhid->intf);
+			usb_autopm_get_interface_yes_resume(usbhid->intf);
 
 			/*
 			 * Prevent resubmission in case the URB completes
@@ -604,7 +604,7 @@ static void __usbhid_submit_report(struct hid_device *hid, struct hid_report *re
 	} else if (time_after(jiffies, usbhid->last_ctrl + HZ * 5)) {
 
 		/* Prevent autosuspend following the unlink */
-		usb_autopm_get_interface_no_resume(usbhid->intf);
+		usb_autopm_get_interface_yes_resume(usbhid->intf);
 
 		/*
 		 * Prevent resubmission in case the URB completes
@@ -705,7 +705,7 @@ static int usbhid_open(struct hid_device *hid)
 			hid_io_error(hid);
 			res = 0;
 		} else {
-			/* no use opening if resources are insufficient */
+			/* yes use opening if resources are insufficient */
 			res = -EBUSY;
 			clear_bit(HID_OPENED, &usbhid->iofl);
 			clear_bit(HID_IN_POLLING, &usbhid->iofl);
@@ -716,7 +716,7 @@ static int usbhid_open(struct hid_device *hid)
 	usb_autopm_put_interface(usbhid->intf);
 
 	/*
-	 * In case events are generated while nobody was listening,
+	 * In case events are generated while yesbody was listening,
 	 * some are released when the device is re-opened.
 	 * Wait 50 msec for the queue to empty before allowing events
 	 * to go through hid.
@@ -734,7 +734,7 @@ static void usbhid_close(struct hid_device *hid)
 
 	/*
 	 * Make sure we don't restart data acquisition due to
-	 * a resumption we no longer care about by avoiding racing
+	 * a resumption we yes longer care about by avoiding racing
 	 * with hid_start_in().
 	 */
 	spin_lock_irq(&usbhid->lock);
@@ -786,7 +786,7 @@ void usbhid_init_reports(struct hid_device *hid)
 }
 
 /*
- * Reset LEDs which BIOS might have left on. For now, just NumLock (0x01).
+ * Reset LEDs which BIOS might have left on. For yesw, just NumLock (0x01).
  */
 static int hid_find_field_early(struct hid_device *hid, unsigned int page,
     unsigned int hid_code, struct hid_field **pfield)
@@ -996,7 +996,7 @@ static int usbhid_parse(struct hid_device *hid)
 	if (usb_get_extra_descriptor(interface, HID_DT_HID, &hdesc) &&
 	    (!interface->desc.bNumEndpoints ||
 	     usb_get_extra_descriptor(&interface->endpoint[0], HID_DT_HID, &hdesc))) {
-		dbg_hid("class descriptor not present\n");
+		dbg_hid("class descriptor yest present\n");
 		return -ENODEV;
 	}
 
@@ -1485,8 +1485,8 @@ static int hid_post_reset(struct usb_interface *intf)
 
 	/* Fetch and examine the HID report descriptor. If this
 	 * has changed, then rebind. Since usbcore's check of the
-	 * configuration descriptors passed, we already know that
-	 * the size of the HID report descriptor has not changed.
+	 * configuration descriptors passed, we already kyesw that
+	 * the size of the HID report descriptor has yest changed.
 	 */
 	rdesc = kmalloc(hid->dev_rsize, GFP_KERNEL);
 	if (!rdesc)
@@ -1507,7 +1507,7 @@ static int hid_post_reset(struct usb_interface *intf)
 		return -EPERM;
 	}
 
-	/* No need to do another reset or clear a halted endpoint */
+	/* No need to do ayesther reset or clear a halted endpoint */
 	spin_lock_irq(&usbhid->lock);
 	clear_bit(HID_RESET_PENDING, &usbhid->iofl);
 	clear_bit(HID_CLEAR_HALT, &usbhid->iofl);
@@ -1546,7 +1546,7 @@ static int hid_suspend(struct usb_interface *intf, pm_message_t message)
 		    && !test_bit(HID_OUT_RUNNING, &usbhid->iofl)
 		    && !test_bit(HID_CTRL_RUNNING, &usbhid->iofl)
 		    && !test_bit(HID_KEYS_PRESSED, &usbhid->iofl)
-		    && (!ledcount || ignoreled))
+		    && (!ledcount || igyesreled))
 		{
 			set_bit(HID_SUSPENDED, &usbhid->iofl);
 			spin_unlock_irq(&usbhid->lock);
@@ -1639,9 +1639,9 @@ static struct usb_driver hid_driver = {
 	.supports_autosuspend = 1,
 };
 
-struct usb_interface *usbhid_find_interface(int minor)
+struct usb_interface *usbhid_find_interface(int miyesr)
 {
-	return usb_find_interface(&hid_driver, minor);
+	return usb_find_interface(&hid_driver, miyesr);
 }
 
 static int __init hid_init(void)

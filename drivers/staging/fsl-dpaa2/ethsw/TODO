@@ -8,6 +8,6 @@ need to be kept in sync with binary interface changes in MC
 * cleanup
 
 NOTE: At least first three of the above are required before getting the
-DPAA2 Ethernet Switch driver out of staging. Another requirement is that
+DPAA2 Ethernet Switch driver out of staging. Ayesther requirement is that
 dpio driver is moved to drivers/soc (this is required for I/O).
 

@@ -236,9 +236,9 @@ static void tnetd7300_set_clock(u32 shift, struct tnetd7300_clock *clock,
 
 static void __init tnetd7300_init_clocks(void)
 {
-	u32 *bootcr = (u32 *)ioremap_nocache(AR7_REGS_DCL, 4);
+	u32 *bootcr = (u32 *)ioremap_yescache(AR7_REGS_DCL, 4);
 	struct tnetd7300_clocks *clocks =
-					ioremap_nocache(UR8_REGS_CLOCKS,
+					ioremap_yescache(UR8_REGS_CLOCKS,
 					sizeof(struct tnetd7300_clocks));
 
 	bus_clk.rate = tnetd7300_get_clock(BUS_PLL_SOURCE_SHIFT,
@@ -271,7 +271,7 @@ static void tnetd7200_set_clock(int base, struct tnetd7200_clock *clock,
 	writel((mul - 1) & 0xF, &clock->mul);
 
 	while (readl(&clock->status) & 0x1)
-		; /* nop */
+		; /* yesp */
 
 	writel(DIVISOR_ENABLE_MASK | ((postdiv - 1) & 0x1F), &clock->postdiv);
 
@@ -279,7 +279,7 @@ static void tnetd7200_set_clock(int base, struct tnetd7200_clock *clock,
 	writel(readl(&clock->cmd) | 1, &clock->cmd);
 
 	while (readl(&clock->status) & 0x1)
-		; /* nop */
+		; /* yesp */
 
 	writel(DIVISOR_ENABLE_MASK | ((postdiv2 - 1) & 0x1F), &clock->postdiv2);
 
@@ -287,7 +287,7 @@ static void tnetd7200_set_clock(int base, struct tnetd7200_clock *clock,
 	writel(readl(&clock->cmd) | 1, &clock->cmd);
 
 	while (readl(&clock->status) & 0x1)
-		; /* nop */
+		; /* yesp */
 
 	writel(readl(&clock->ctrl) | 1, &clock->ctrl);
 }
@@ -320,9 +320,9 @@ static int tnetd7200_get_clock_base(int clock_id, u32 *bootcr)
 
 static void __init tnetd7200_init_clocks(void)
 {
-	u32 *bootcr = (u32 *)ioremap_nocache(AR7_REGS_DCL, 4);
+	u32 *bootcr = (u32 *)ioremap_yescache(AR7_REGS_DCL, 4);
 	struct tnetd7200_clocks *clocks =
-					ioremap_nocache(AR7_REGS_CLOCKS,
+					ioremap_yescache(AR7_REGS_CLOCKS,
 					sizeof(struct tnetd7200_clocks));
 	int cpu_base, cpu_mul, cpu_prediv, cpu_postdiv;
 	int dsp_base, dsp_mul, dsp_prediv, dsp_postdiv;
@@ -464,7 +464,7 @@ void __init ar7_init_clocks(void)
 	vbus_clk.rate = bus_clk.rate / 2;
 }
 
-/* dummy functions, should not be called */
+/* dummy functions, should yest be called */
 long clk_round_rate(struct clk *clk, unsigned long rate)
 {
 	WARN_ON(clk);

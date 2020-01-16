@@ -24,10 +24,10 @@
 # without warranty of any kind. You are solely responsible for
 # determining the appropriateness of using and distributing
 # the program and assume all risks associated with your exercise
-# of rights with respect to the program, including but not limited
+# of rights with respect to the program, including but yest limited
 # to infringement of third party rights, the risks and costs of
 # program errors, damage to or loss of data, programs or equipment,
-# and unavailability or interruption of operations. Under no
+# and unavailability or interruption of operations. Under yes
 # circumstances will the contributor of this Program be liable for
 # any damages of any kind arising from your use or distribution of
 # this program.
@@ -40,14 +40,14 @@ config SCSI_UFSHCD
 	select NLS
 	---help---
 	This selects the support for UFS devices in Linux, say Y and make
-	  sure that you know the name of your UFS host adapter (the card
+	  sure that you kyesw the name of your UFS host adapter (the card
 	  inside your computer that "speaks" the UFS protocol, also
 	  called UFS Host Controller), because you will be asked for it.
 	  The module will be called ufshcd.
 
 	  To compile this driver as a module, choose M here and read
 	  <file:Documentation/scsi/ufs.txt>.
-	  However, do not compile this as a module if your root file system
+	  However, do yest compile this as a module if your root file system
 	  (the one containing the directory /) is located on a UFS device.
 
 config SCSI_UFSHCD_PCI
@@ -65,7 +65,7 @@ config SCSI_UFS_DWC_TC_PCI
 	tristate "DesignWare pci support using a G210 Test Chip"
 	depends on SCSI_UFSHCD_PCI
 	---help---
-	  Synopsys Test Chip is a PHY for prototyping purposes.
+	  Syyespsys Test Chip is a PHY for prototyping purposes.
 
 	  If unsure, say N.
 
@@ -92,7 +92,7 @@ config SCSI_UFS_DWC_TC_PLATFORM
 	tristate "DesignWare platform support using a G210 Test Chip"
 	depends on SCSI_UFSHCD_PLATFORM
 	---help---
-	  Synopsys Test Chip is a PHY for prototyping purposes.
+	  Syyespsys Test Chip is a PHY for prototyping purposes.
 
 	  If unsure, say N.
 
@@ -143,7 +143,7 @@ config SCSI_UFS_TI_J721E
 	  If unsure, say N.
 
 config SCSI_UFS_BSG
-	bool "Universal Flash Storage BSG device node"
+	bool "Universal Flash Storage BSG device yesde"
 	depends on SCSI_UFSHCD
 	select BLK_DEV_BSGLIB
 	help
@@ -152,11 +152,11 @@ config SCSI_UFS_BSG
 	  consumer electronic devices.
 	  A UFS controller communicates with a UFS device by exchanging
 	  UFS Protocol Information Units (UPIUs).
-	  UPIUs can not only be used as a transport layer for the SCSI protocol
+	  UPIUs can yest only be used as a transport layer for the SCSI protocol
 	  but are also used by the UFS native command set.
 	  This transport driver supports exchanging UFS protocol information units
 	  with a UFS device. See also the ufshcd driver, which is a SCSI driver
 	  that supports UFS devices.
 
-	  Select this if you need a bsg device node for your UFS controller.
+	  Select this if you need a bsg device yesde for your UFS controller.
 	  If unsure, say N.

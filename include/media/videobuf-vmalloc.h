@@ -3,8 +3,8 @@
  * helper functions for vmalloc capture buffers
  *
  * The functions expect the hardware being able to scatter gather
- * (i.e. the buffers are not linear in physical memory, but fragmented
- * into PAGE_SIZE chunks).  They also assume the driver does not need
+ * (i.e. the buffers are yest linear in physical memory, but fragmented
+ * into PAGE_SIZE chunks).  They also assume the driver does yest need
  * to touch the video data.
  *
  * (c) 2007 Mauro Carvalho Chehab, <mchehab@kernel.org>

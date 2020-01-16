@@ -178,7 +178,7 @@ struct madera_enum {
 extern const unsigned int madera_ana_tlv[];
 extern const unsigned int madera_eq_tlv[];
 extern const unsigned int madera_digital_tlv[];
-extern const unsigned int madera_noise_tlv[];
+extern const unsigned int madera_yesise_tlv[];
 extern const unsigned int madera_ng_tlv[];
 
 extern const unsigned int madera_mixer_tlv[];
@@ -421,7 +421,7 @@ int madera_core_free(struct madera_priv *priv);
 int madera_init_overheat(struct madera_priv *priv);
 int madera_free_overheat(struct madera_priv *priv);
 int madera_init_inputs(struct snd_soc_component *component);
-int madera_init_outputs(struct snd_soc_component *component, int n_mono_routes);
+int madera_init_outputs(struct snd_soc_component *component, int n_moyes_routes);
 int madera_init_bus_error_irq(struct madera_priv *priv, int dsp_num,
 			      irq_handler_t handler);
 void madera_free_bus_error_irq(struct madera_priv *priv, int dsp_num);
@@ -432,23 +432,23 @@ int madera_set_output_mode(struct snd_soc_component *component, int output,
 			   bool differential);
 
 /* Following functions are for use by machine drivers */
-static inline int madera_register_notifier(struct snd_soc_component *component,
-					   struct notifier_block *nb)
+static inline int madera_register_yestifier(struct snd_soc_component *component,
+					   struct yestifier_block *nb)
 {
 	struct madera_priv *priv = snd_soc_component_get_drvdata(component);
 	struct madera *madera = priv->madera;
 
-	return blocking_notifier_chain_register(&madera->notifier, nb);
+	return blocking_yestifier_chain_register(&madera->yestifier, nb);
 }
 
 static inline int
-madera_unregister_notifier(struct snd_soc_component *component,
-			   struct notifier_block *nb)
+madera_unregister_yestifier(struct snd_soc_component *component,
+			   struct yestifier_block *nb)
 {
 	struct madera_priv *priv = snd_soc_component_get_drvdata(component);
 	struct madera *madera = priv->madera;
 
-	return blocking_notifier_chain_unregister(&madera->notifier, nb);
+	return blocking_yestifier_chain_unregister(&madera->yestifier, nb);
 }
 
 #endif

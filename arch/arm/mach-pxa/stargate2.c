@@ -113,7 +113,7 @@ static unsigned long sg2_im2_unified_pin_config[] __initdata = {
 	GPIO44_BTUART_CTS,
 	GPIO45_BTUART_RTS,
 
-	/* STUART  - IM2 via debug board not sure on SG2*/
+	/* STUART  - IM2 via debug board yest sure on SG2*/
 	GPIO46_STUART_RXD,
 	GPIO47_STUART_TXD,
 
@@ -168,16 +168,16 @@ enum stargate2_ldos{
 	vcc_pxa_usim, /* Reference voltage for certain gpios */
 	vcc_pxa_mem,
 	vcc_pxa_flash,
-	vcc_pxa_core, /*Dc-Dc buck not yet supported */
+	vcc_pxa_core, /*Dc-Dc buck yest yet supported */
 	vcc_lcd,
 	vcc_bb,
-	vcc_bbio, /*not sure!*/
+	vcc_bbio, /*yest sure!*/
 	vcc_io, /* cc2420 802.15.4 radio and pxa vcc_io ?*/
 };
 
 /* The values of the various regulator constraints are obviously dependent
  * on exactly what is wired to each ldo.  Unfortunately this information is
- * not generally available.  More information has been requested from Xbow.
+ * yest generally available.  More information has been requested from Xbow.
  */
 static struct regulator_init_data stargate2_ldo_init_data[] = {
 	[vcc_bbio] = {
@@ -422,14 +422,14 @@ static void __init imote2_stargate2_init(void)
 
 #ifdef CONFIG_MACH_INTELMOTE2
 /* As the the imote2 doesn't currently have a conventional SD slot
- * there is no option to hotplug cards, making all this rather simple
+ * there is yes option to hotplug cards, making all this rather simple
  */
 static int imote2_mci_get_ro(struct device *dev)
 {
 	return 0;
 }
 
-/* Rather simple case as hotplugging not possible */
+/* Rather simple case as hotplugging yest possible */
 static struct pxamci_platform_data imote2_mci_platform_data = {
 	.ocr_mask = MMC_VDD_32_33 | MMC_VDD_33_34, /* default anyway */
 	.get_ro = imote2_mci_get_ro,
@@ -644,7 +644,7 @@ static unsigned long stargate2_pin_config[] __initdata = {
 	GPIO82_GPIO, /* Reset */
 	GPIO53_GPIO, /* SG2_S0_GPIO_DETECT */
 
-	/* MMC not shared with imote2 */
+	/* MMC yest shared with imote2 */
 	GPIO90_GPIO, /* nSD detect */
 	GPIO89_GPIO, /* SD_POWER_ENABLE */
 
@@ -802,12 +802,12 @@ static int stargate2_reset_bluetooth(void)
 	int err;
 	err = gpio_request(SG2_BT_RESET, "SG2_BT_RESET");
 	if (err) {
-		printk(KERN_ERR "Could not get gpio for bluetooth reset\n");
+		printk(KERN_ERR "Could yest get gpio for bluetooth reset\n");
 		return err;
 	}
 	gpio_direction_output(SG2_BT_RESET, 1);
 	mdelay(5);
-	/* now reset it - 5 msec minimum */
+	/* yesw reset it - 5 msec minimum */
 	gpio_set_value(SG2_BT_RESET, 0);
 	mdelay(10);
 	gpio_set_value(SG2_BT_RESET, 1);

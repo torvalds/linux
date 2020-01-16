@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -27,25 +27,25 @@
 struct drm_file *mock_file(struct drm_i915_private *i915)
 {
 	struct file *filp;
-	struct inode *inode;
+	struct iyesde *iyesde;
 	struct drm_file *file;
 	int err;
 
-	inode = kzalloc(sizeof(*inode), GFP_KERNEL);
-	if (!inode) {
+	iyesde = kzalloc(sizeof(*iyesde), GFP_KERNEL);
+	if (!iyesde) {
 		err = -ENOMEM;
 		goto err;
 	}
 
-	inode->i_rdev = i915->drm.primary->index;
+	iyesde->i_rdev = i915->drm.primary->index;
 
 	filp = kzalloc(sizeof(*filp), GFP_KERNEL);
 	if (!filp) {
 		err = -ENOMEM;
-		goto err_inode;
+		goto err_iyesde;
 	}
 
-	err = drm_open(inode, filp);
+	err = drm_open(iyesde, filp);
 	if (err)
 		goto err_filp;
 
@@ -54,13 +54,13 @@ struct drm_file *mock_file(struct drm_i915_private *i915)
 	file->authenticated = true;
 
 	kfree(filp);
-	kfree(inode);
+	kfree(iyesde);
 	return file;
 
 err_filp:
 	kfree(filp);
-err_inode:
-	kfree(inode);
+err_iyesde:
+	kfree(iyesde);
 err:
 	return ERR_PTR(err);
 }

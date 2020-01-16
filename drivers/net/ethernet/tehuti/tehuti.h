@@ -149,7 +149,7 @@ struct fifo {
 	u16 memsz;		/* memory size allocated for fifo */
 	u16 size_mask;
 	u16 pktsz;		/* skb packet size to allocate */
-	u16 rcvno;		/* number of buffers that come from this RXF */
+	u16 rcvyes;		/* number of buffers that come from this RXF */
 };
 
 struct txf_fifo {
@@ -258,7 +258,7 @@ struct bdx_priv {
 	int tx_level;
 #ifdef BDX_DELAY_WPTR
 	int tx_update_mark;
-	int tx_noupd;
+	int tx_yesupd;
 #endif
 	spinlock_t tx_lock;	/* NETIF_F_LLTX mode */
 

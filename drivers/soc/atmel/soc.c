@@ -154,21 +154,21 @@ static const struct at91_soc __initconst socs[] = {
 
 static int __init at91_get_cidr_exid_from_dbgu(u32 *cidr, u32 *exid)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 	void __iomem *regs;
 
-	np = of_find_compatible_node(NULL, NULL, "atmel,at91rm9200-dbgu");
+	np = of_find_compatible_yesde(NULL, NULL, "atmel,at91rm9200-dbgu");
 	if (!np)
-		np = of_find_compatible_node(NULL, NULL,
+		np = of_find_compatible_yesde(NULL, NULL,
 					     "atmel,at91sam9260-dbgu");
 	if (!np)
 		return -ENODEV;
 
 	regs = of_iomap(np, 0);
-	of_node_put(np);
+	of_yesde_put(np);
 
 	if (!regs) {
-		pr_warn("Could not map DBGU iomem range");
+		pr_warn("Could yest map DBGU iomem range");
 		return -ENXIO;
 	}
 
@@ -182,18 +182,18 @@ static int __init at91_get_cidr_exid_from_dbgu(u32 *cidr, u32 *exid)
 
 static int __init at91_get_cidr_exid_from_chipid(u32 *cidr, u32 *exid)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 	void __iomem *regs;
 
-	np = of_find_compatible_node(NULL, NULL, "atmel,sama5d2-chipid");
+	np = of_find_compatible_yesde(NULL, NULL, "atmel,sama5d2-chipid");
 	if (!np)
 		return -ENODEV;
 
 	regs = of_iomap(np, 0);
-	of_node_put(np);
+	of_yesde_put(np);
 
 	if (!regs) {
-		pr_warn("Could not map DBGU iomem range");
+		pr_warn("Could yest map DBGU iomem range");
 		return -ENXIO;
 	}
 
@@ -214,7 +214,7 @@ struct soc_device * __init at91_soc_init(const struct at91_soc *socs)
 	int ret;
 
 	/*
-	 * With SAMA5D2 and later SoCs, CIDR and EXID registers are no more
+	 * With SAMA5D2 and later SoCs, CIDR and EXID registers are yes more
 	 * in the dbgu device but in the chipid device whose purpose is only
 	 * to expose these two registers.
 	 */
@@ -223,7 +223,7 @@ struct soc_device * __init at91_soc_init(const struct at91_soc *socs)
 		ret = at91_get_cidr_exid_from_chipid(&cidr, &exid);
 	if (ret) {
 		if (ret == -ENODEV)
-			pr_warn("Could not find identification node");
+			pr_warn("Could yest find identification yesde");
 		return NULL;
 	}
 
@@ -236,7 +236,7 @@ struct soc_device * __init at91_soc_init(const struct at91_soc *socs)
 	}
 
 	if (!soc->name) {
-		pr_warn("Could not find matching SoC description\n");
+		pr_warn("Could yest find matching SoC description\n");
 		return NULL;
 	}
 
@@ -252,7 +252,7 @@ struct soc_device * __init at91_soc_init(const struct at91_soc *socs)
 	if (IS_ERR(soc_dev)) {
 		kfree(soc_dev_attr->revision);
 		kfree(soc_dev_attr);
-		pr_warn("Could not register SoC device\n");
+		pr_warn("Could yest register SoC device\n");
 		return NULL;
 	}
 

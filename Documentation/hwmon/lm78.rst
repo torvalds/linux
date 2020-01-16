@@ -34,7 +34,7 @@ Description
 This driver implements support for the National Semiconductor LM78, LM78-J
 and LM79. They are described as 'Microprocessor System Hardware Monitors'.
 
-There is almost no difference between the three supported chips. Functionally,
+There is almost yes difference between the three supported chips. Functionally,
 the LM78 and LM78-J are exactly identical. The LM79 has one more VID line,
 which is used to report the lower voltages newer Pentium processors use.
 From here on, LM7* means either of these three types.
@@ -57,7 +57,7 @@ the readings more range or accuracy. Not all RPM values can accurately be
 represented, so some rounding is done. With a divider of 2, the lowest
 representable value is around 2600 RPM.
 
-Voltage sensors (also known as IN sensors) report their values in volts.
+Voltage sensors (also kyeswn as IN sensors) report their values in volts.
 An alarm is triggered if the voltage has crossed a programmable minimum
 or maximum limit. Note that minimum in this case always means 'closest to
 zero'; this is important for negative voltage measurements. All voltage
@@ -77,4 +77,4 @@ than 1.5 seconds since the last update). This means that you can easily
 miss once-only alarms.
 
 The LM7* only updates its values each 1.5 seconds; reading it more often
-will do no harm, but will return 'old' values.
+will do yes harm, but will return 'old' values.

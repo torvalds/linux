@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Samsung's Exynos5250 based Arndale board device tree source
+ * Samsung's Exyyess5250 based Arndale board device tree source
  *
  * Copyright (c) 2013 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com
@@ -12,11 +12,11 @@
 #include <dt-bindings/input/input.h>
 #include <dt-bindings/clock/samsung,s2mps11.h>
 #include <dt-bindings/sound/samsung-i2s.h>
-#include "exynos5250.dtsi"
+#include "exyyess5250.dtsi"
 
 / {
 	model = "Insignal Arndale evaluation board based on EXYNOS5250";
-	compatible = "insignal,arndale", "samsung,exynos5250", "samsung,exynos5";
+	compatible = "insignal,arndale", "samsung,exyyess5250", "samsung,exyyess5";
 
 	memory@40000000 {
 		device_type = "memory";
@@ -553,7 +553,7 @@
 	samsung,i2c-slave-addr = <0x38>;
 
 	sata_phy_i2c:sata-phy@38 {
-		compatible = "samsung,exynos-sataphy-i2c";
+		compatible = "samsung,exyyess-sataphy-i2c";
 		reg = <0x38>;
 	};
 };
@@ -624,12 +624,12 @@
 
 &sata_phy {
 	status = "okay";
-	samsung,exynos-sataphy-i2c-phandle = <&sata_phy_i2c>;
+	samsung,exyyess-sataphy-i2c-phandle = <&sata_phy_i2c>;
 };
 
 &soc {
 	/*
-	 * For unknown reasons HDMI-DDC does not work with Exynos I2C
+	 * For unkyeswn reasons HDMI-DDC does yest work with Exyyess I2C
 	 * controllers. Lets use software I2C over GPIO pins as a workaround.
 	 */
 	i2c_ddc: i2c-gpio {

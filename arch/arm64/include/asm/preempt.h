@@ -67,7 +67,7 @@ static inline bool __preempt_count_dec_and_test(void)
 	 * If we wrote back all zeroes, then we're preemptible and in
 	 * need of a reschedule. Otherwise, we need to reload the
 	 * preempt_count in case the need_resched flag was cleared by an
-	 * interrupt occurring between the non-atomic READ_ONCE/WRITE_ONCE
+	 * interrupt occurring between the yesn-atomic READ_ONCE/WRITE_ONCE
 	 * pair.
 	 */
 	return !pc || !READ_ONCE(ti->preempt_count);
@@ -82,8 +82,8 @@ static inline bool should_resched(int preempt_offset)
 #ifdef CONFIG_PREEMPT
 void preempt_schedule(void);
 #define __preempt_schedule() preempt_schedule()
-void preempt_schedule_notrace(void);
-#define __preempt_schedule_notrace() preempt_schedule_notrace()
+void preempt_schedule_yestrace(void);
+#define __preempt_schedule_yestrace() preempt_schedule_yestrace()
 #endif /* CONFIG_PREEMPT */
 
 #endif /* __ASM_PREEMPT_H */

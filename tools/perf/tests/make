@@ -2,7 +2,7 @@ include ../scripts/Makefile.include
 
 ifndef MK
 ifeq ($(MAKECMDGOALS),)
-# no target specified, trigger the whole suite
+# yes target specified, trigger the whole suite
 all:
 	@echo "Testing Makefile";      $(MAKE) -sf tests/make MK=Makefile
 	@echo "Testing Makefile.perf"; $(MAKE) -sf tests/make MK=Makefile.perf SET_PARALLEL=1 SET_O=1
@@ -63,26 +63,26 @@ has = $(shell which $1 2>/dev/null)
 make_clean_all      := clean all
 make_python_perf_so := python/perf.so
 make_debug          := DEBUG=1
-make_no_libperl     := NO_LIBPERL=1
-make_no_libpython   := NO_LIBPYTHON=1
-make_no_scripts     := NO_LIBPYTHON=1 NO_LIBPERL=1
-make_no_newt        := NO_NEWT=1
-make_no_slang       := NO_SLANG=1
-make_no_gtk2        := NO_GTK2=1
-make_no_ui          := NO_NEWT=1 NO_SLANG=1 NO_GTK2=1
-make_no_demangle    := NO_DEMANGLE=1
-make_no_libelf      := NO_LIBELF=1
-make_no_libunwind   := NO_LIBUNWIND=1
-make_no_libdw_dwarf_unwind := NO_LIBDW_DWARF_UNWIND=1
-make_no_backtrace   := NO_BACKTRACE=1
-make_no_libnuma     := NO_LIBNUMA=1
-make_no_libaudit    := NO_LIBAUDIT=1
-make_no_libbionic   := NO_LIBBIONIC=1
-make_no_auxtrace    := NO_AUXTRACE=1
-make_no_libbpf	    := NO_LIBBPF=1
-make_no_libcrypto   := NO_LIBCRYPTO=1
+make_yes_libperl     := NO_LIBPERL=1
+make_yes_libpython   := NO_LIBPYTHON=1
+make_yes_scripts     := NO_LIBPYTHON=1 NO_LIBPERL=1
+make_yes_newt        := NO_NEWT=1
+make_yes_slang       := NO_SLANG=1
+make_yes_gtk2        := NO_GTK2=1
+make_yes_ui          := NO_NEWT=1 NO_SLANG=1 NO_GTK2=1
+make_yes_demangle    := NO_DEMANGLE=1
+make_yes_libelf      := NO_LIBELF=1
+make_yes_libunwind   := NO_LIBUNWIND=1
+make_yes_libdw_dwarf_unwind := NO_LIBDW_DWARF_UNWIND=1
+make_yes_backtrace   := NO_BACKTRACE=1
+make_yes_libnuma     := NO_LIBNUMA=1
+make_yes_libaudit    := NO_LIBAUDIT=1
+make_yes_libbionic   := NO_LIBBIONIC=1
+make_yes_auxtrace    := NO_AUXTRACE=1
+make_yes_libbpf	    := NO_LIBBPF=1
+make_yes_libcrypto   := NO_LIBCRYPTO=1
 make_with_babeltrace:= LIBBABELTRACE=1
-make_no_sdt	    := NO_SDT=1
+make_yes_sdt	    := NO_SDT=1
 make_with_clangllvm := LIBCLANGLLVM=1
 make_tags           := tags
 make_cscope         := cscope
@@ -123,23 +123,23 @@ MAKE_F := $(MAKE) -f $(MK)
 endif
 run += make_python_perf_so
 run += make_debug
-run += make_no_libperl
-run += make_no_libpython
-run += make_no_scripts
-run += make_no_newt
-run += make_no_slang
-run += make_no_gtk2
-run += make_no_ui
-run += make_no_demangle
-run += make_no_libelf
-run += make_no_libunwind
-run += make_no_libdw_dwarf_unwind
-run += make_no_backtrace
-run += make_no_libnuma
-run += make_no_libaudit
-run += make_no_libbionic
-run += make_no_auxtrace
-run += make_no_libbpf
+run += make_yes_libperl
+run += make_yes_libpython
+run += make_yes_scripts
+run += make_yes_newt
+run += make_yes_slang
+run += make_yes_gtk2
+run += make_yes_ui
+run += make_yes_demangle
+run += make_yes_libelf
+run += make_yes_libunwind
+run += make_yes_libdw_dwarf_unwind
+run += make_yes_backtrace
+run += make_yes_libnuma
+run += make_yes_libaudit
+run += make_yes_libbionic
+run += make_yes_auxtrace
+run += make_yes_libbpf
 run += make_with_babeltrace
 run += make_with_clangllvm
 run += make_help
@@ -234,23 +234,23 @@ test_make_install_prefix_O :=  $(call test_dest_files,$(installed_files_all_pref
 test_make_install_prefix_slash   := $(test_make_install_prefix)
 test_make_install_prefix_slash_O := $(test_make_install_prefix_O)
 
-# FIXME nothing gets installed
+# FIXME yesthing gets installed
 test_make_install_man    := test -f $$TMP_DEST/share/man/man1/perf.1
 test_make_install_man_O  := $(test_make_install_man)
 
-# FIXME nothing gets installed
+# FIXME yesthing gets installed
 test_make_install_doc    := $(test_ok)
 test_make_install_doc_O  := $(test_ok)
 
-# FIXME nothing gets installed
+# FIXME yesthing gets installed
 test_make_install_html   := $(test_ok)
 test_make_install_html_O := $(test_ok)
 
-# FIXME nothing gets installed
+# FIXME yesthing gets installed
 test_make_install_info   := $(test_ok)
 test_make_install_info_O := $(test_ok)
 
-# FIXME nothing gets installed
+# FIXME yesthing gets installed
 test_make_install_pdf    := $(test_ok)
 test_make_install_pdf_O  := $(test_ok)
 
@@ -279,7 +279,7 @@ d := $(info run   $(run))
 d := $(info run_O $(run_O))
 endif
 
-MAKEFLAGS := --no-print-directory
+MAKEFLAGS := --yes-print-directory
 
 clean := @(cd $(PERF); $(MAKE_F) -s $(O_OPT) clean >/dev/null && $(MAKE) -s $(O_OPT) -C ../build clean >/dev/null)
 
@@ -362,7 +362,7 @@ $(foreach t,$(run) $(run_O),$(eval \
 		$(FEATURES_DUMP_FILE))))
 
 # Append 'FEATURES_DUMP=' option to all test cases. For example:
-# make_no_libbpf: NO_LIBBPF=1  --> NO_LIBBPF=1 FEATURES_DUMP=/a/b/BUILD_TEST_FEATURE_DUMP
+# make_yes_libbpf: NO_LIBBPF=1  --> NO_LIBBPF=1 FEATURES_DUMP=/a/b/BUILD_TEST_FEATURE_DUMP
 # make_static: LDFLAGS=-static --> LDFLAGS=-static FEATURES_DUMP=/a/b/BUILD_TEST_FEATURE_DUMP_STATIC
 $(foreach t,$(run),$(if $(findstring make_static,$(t)),\
 			$(eval $(t) := $($(t)) FEATURES_DUMP=$(FEATURES_DUMP_FILE_STATIC)),\

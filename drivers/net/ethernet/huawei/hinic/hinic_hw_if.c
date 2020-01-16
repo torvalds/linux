@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Huawei HiNIC PCI Express Linux driver
- * Copyright(c) 2017 Huawei Technologies Co., Ltd
+ * Copyright(c) 2017 Huawei Techyeslogies Co., Ltd
  */
 
 #include <linux/pci.h>
 #include <linux/device.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/io.h>
 #include <linux/types.h>
 #include <linux/bitops.h>
@@ -190,7 +190,7 @@ static int hwif_ready(struct hinic_hwif *hwif)
 	attr1  = hinic_hwif_read_reg(hwif, addr);
 
 	if (!HINIC_FA1_GET(attr1, INIT_STATUS)) {
-		dev_err(&pdev->dev, "hwif status is not ready\n");
+		dev_err(&pdev->dev, "hwif status is yest ready\n");
 		return -EFAULT;
 	}
 
@@ -268,12 +268,12 @@ static void set_ppf(struct hinic_hwif *hwif)
  * @st: PCIE TLP steering tag
  * @at: PCIE TLP AT field
  * @ph: PCIE TLP Processing Hint field
- * @no_snooping: PCIE TLP No snooping
+ * @yes_syesoping: PCIE TLP No syesoping
  * @tph_en: PCIE TLP Processing Hint Enable
  **/
 static void set_dma_attr(struct hinic_hwif *hwif, u32 entry_idx,
 			 u8 st, u8 at, u8 ph,
-			 enum hinic_pcie_nosnoop no_snooping,
+			 enum hinic_pcie_yessyesop yes_syesoping,
 			 enum hinic_pcie_tph tph_en)
 {
 	u32 addr, val, dma_attr_entry;
@@ -291,7 +291,7 @@ static void set_dma_attr(struct hinic_hwif *hwif, u32 entry_idx,
 	dma_attr_entry = HINIC_DMA_ATTR_SET(st, ST)                     |
 			 HINIC_DMA_ATTR_SET(at, AT)                     |
 			 HINIC_DMA_ATTR_SET(ph, PH)                     |
-			 HINIC_DMA_ATTR_SET(no_snooping, NO_SNOOPING)   |
+			 HINIC_DMA_ATTR_SET(yes_syesoping, NO_SNOOPING)   |
 			 HINIC_DMA_ATTR_SET(tph_en, TPH_EN);
 
 	val |= dma_attr_entry;
@@ -337,7 +337,7 @@ int hinic_init_hwif(struct hinic_hwif *hwif, struct pci_dev *pdev)
 
 	err = hwif_ready(hwif);
 	if (err) {
-		dev_err(&pdev->dev, "HW interface is not ready\n");
+		dev_err(&pdev->dev, "HW interface is yest ready\n");
 		goto err_hwif_ready;
 	}
 

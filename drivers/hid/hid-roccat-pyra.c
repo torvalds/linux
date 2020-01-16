@@ -10,7 +10,7 @@
 
 /*
  * Roccat Pyra is a mobile gamer mouse which comes in wired and wireless
- * variant. Wireless variant is not tested.
+ * variant. Wireless variant is yest tested.
  * Userland tools can be found at http://sourceforge.net/projects/roccat
  */
 
@@ -268,7 +268,7 @@ static ssize_t pyra_sysfs_write_settings(struct file *fp,
 	roccat_report.type = PYRA_MOUSE_EVENT_BUTTON_TYPE_PROFILE_2;
 	roccat_report.value = settings->startup_profile + 1;
 	roccat_report.key = 0;
-	roccat_report_event(pyra->chrdev_minor,
+	roccat_report_event(pyra->chrdev_miyesr,
 			(uint8_t const *)&roccat_report);
 
 	mutex_unlock(&pyra->pyra_lock);
@@ -418,7 +418,7 @@ static int pyra_init_specials(struct hid_device *hdev)
 		if (retval < 0) {
 			hid_err(hdev, "couldn't init char dev\n");
 		} else {
-			pyra->chrdev_minor = retval;
+			pyra->chrdev_miyesr = retval;
 			pyra->roccat_claimed = 1;
 		}
 	} else {
@@ -440,7 +440,7 @@ static void pyra_remove_specials(struct hid_device *hdev)
 			== USB_INTERFACE_PROTOCOL_MOUSE) {
 		pyra = hid_get_drvdata(hdev);
 		if (pyra->roccat_claimed)
-			roccat_disconnect(pyra->chrdev_minor);
+			roccat_disconnect(pyra->chrdev_miyesr);
 		kfree(hid_get_drvdata(hdev));
 	}
 }
@@ -517,7 +517,7 @@ static void pyra_report_to_chrdev(struct pyra_device const *pyra,
 		roccat_report.type = button_event->type;
 		roccat_report.value = button_event->data1;
 		roccat_report.key = 0;
-		roccat_report_event(pyra->chrdev_minor,
+		roccat_report_event(pyra->chrdev_miyesr,
 				(uint8_t const *)&roccat_report);
 		break;
 	case PYRA_MOUSE_EVENT_BUTTON_TYPE_MACRO:
@@ -531,7 +531,7 @@ static void pyra_report_to_chrdev(struct pyra_device const *pyra,
 			 * Keeping this behaviour.
 			 */
 			roccat_report.value = pyra->actual_profile + 1;
-			roccat_report_event(pyra->chrdev_minor,
+			roccat_report_event(pyra->chrdev_miyesr,
 					(uint8_t const *)&roccat_report);
 		}
 		break;

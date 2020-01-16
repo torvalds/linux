@@ -15,12 +15,12 @@ description: |
 
   On a significant proportion of boards, the manufacturer has stored
   some data on NVMEM, for the OS to be able to retrieve these
-  information and act upon it. Obviously, the OS has to know about
+  information and act upon it. Obviously, the OS has to kyesw about
   where to retrieve these data from, and where they are stored on the
   storage device.
 
 properties:
-  $nodename:
+  $yesdename:
     pattern: "^(eeprom|efuse|nvram)(@.*|-[0-9a-f])*$"
 
   "#address-cells":

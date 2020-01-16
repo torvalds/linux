@@ -109,7 +109,7 @@ static int sharpsl_nand_probe(struct platform_device *pdev)
 	struct sharpsl_nand_platform_data *data = dev_get_platdata(&pdev->dev);
 
 	if (!data) {
-		dev_err(&pdev->dev, "no platform data!\n");
+		dev_err(&pdev->dev, "yes platform data!\n");
 		return -EINVAL;
 	}
 
@@ -120,7 +120,7 @@ static int sharpsl_nand_probe(struct platform_device *pdev)
 
 	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!r) {
-		dev_err(&pdev->dev, "no io memory resource defined!\n");
+		dev_err(&pdev->dev, "yes io memory resource defined!\n");
 		err = -ENODEV;
 		goto err_get_res;
 	}

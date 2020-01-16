@@ -18,7 +18,7 @@ Two new SMCCC compatible hypercalls are defined:
 * PV_TIME_ST:       0xC5000021
 
 These are only available in the SMC64/HVC64 calling convention as
-paravirtualized time is not available to 32 bit Arm guests. The existence of
+paravirtualized time is yest available to 32 bit Arm guests. The existence of
 the PV_FEATURES hypercall should be probed using the SMCCC 1.1 ARCH_FEATURES
 mechanism before calling it.
 
@@ -39,7 +39,7 @@ PV_TIME_ST
                               NOT_SUPPORTED (-1)
     ============= ========    ==========
 
-The IPA returned by PV_TIME_ST should be mapped by the guest as normal memory
+The IPA returned by PV_TIME_ST should be mapped by the guest as yesrmal memory
 with inner and outer write back caching attributes, in the inner shareable
 domain. A total of 16 bytes from the IPA returned are guaranteed to be
 meaningfully filled by the hypervisor (see structure below).
@@ -59,21 +59,21 @@ The structure pointed to by the PV_TIME_ST hypercall is as follows:
 | Attributes  |      4      |      4      | Must be 0                  |
 +-------------+-------------+-------------+----------------------------+
 | Stolen time |      8      |      8      | Stolen time in unsigned    |
-|             |             |             | nanoseconds indicating how |
+|             |             |             | nayesseconds indicating how |
 |             |             |             | much time this VCPU thread |
-|             |             |             | was involuntarily not      |
+|             |             |             | was involuntarily yest      |
 |             |             |             | running on a physical CPU. |
 +-------------+-------------+-------------+----------------------------+
 
 All values in the structure are stored little-endian.
 
 The structure will be updated by the hypervisor prior to scheduling a VCPU. It
-will be present within a reserved region of the normal memory given to the
-guest. The guest should not attempt to write into this memory. There is a
+will be present within a reserved region of the yesrmal memory given to the
+guest. The guest should yest attempt to write into this memory. There is a
 structure per VCPU of the guest.
 
 It is advisable that one or more 64k pages are set aside for the purpose of
-these structures and not used for other purposes, this enables the guest to map
+these structures and yest used for other purposes, this enables the guest to map
 the region using 64k pages and avoids conflicting attributes with other memory.
 
 For the user space interface see Documentation/virt/kvm/devices/vcpu.txt

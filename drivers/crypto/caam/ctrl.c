@@ -26,7 +26,7 @@ EXPORT_SYMBOL(caam_dpaa2);
 #endif
 
 /*
- * Descriptor to instantiate RNG State Handle 0 in normal mode and
+ * Descriptor to instantiate RNG State Handle 0 in yesrmal mode and
  * load the JDKEK, TDKEK and TDSK registers
  */
 static void build_instantiation_desc(u32 *desc, int handle, int do_sk)
@@ -38,7 +38,7 @@ static void build_instantiation_desc(u32 *desc, int handle, int do_sk)
 	op_flags = OP_TYPE_CLASS1_ALG | OP_ALG_ALGSEL_RNG |
 			(handle << OP_ALG_AAI_SHIFT) | OP_ALG_AS_INIT;
 
-	/* INIT RNG in non-test mode */
+	/* INIT RNG in yesn-test mode */
 	append_operation(desc, op_flags);
 
 	if (!handle && do_sk) {
@@ -78,11 +78,11 @@ static void build_deinstantiation_desc(u32 *desc, int handle)
 
 /*
  * run_descriptor_deco0 - runs a descriptor on DECO0, under direct control of
- *			  the software (no JR/QI used).
+ *			  the software (yes JR/QI used).
  * @ctrldev - pointer to device
  * @status - descriptor status, after being run
  *
- * Return: - 0 if no error occurred
+ * Return: - 0 if yes error occurred
  *	   - -ENODEV if the DECO couldn't be acquired
  *	   - -EAGAIN if an error occurred while executing the descriptor
  */
@@ -183,8 +183,8 @@ static inline int run_descriptor_deco0(struct device *ctrldev, u32 *desc,
  *			for the RNG4 state handles which exist in
  *			the RNG4 block: 1 if it's been instantiated
  *
- * Return: - 0 if no error occurred
- *	   - -ENOMEM if there isn't enough memory to allocate the descriptor
+ * Return: - 0 if yes error occurred
+ *	   - -ENOMEM if there isn't eyesugh memory to allocate the descriptor
  *	   - -ENODEV if DECO0 couldn't be acquired
  *	   - -EAGAIN if an error occurred when executing the descriptor
  */
@@ -254,11 +254,11 @@ static void devm_deinstantiate_rng(void *data)
  *	      Caution: this can be done only once; if the keys need to be
  *	      regenerated, a POR is required
  *
- * Return: - 0 if no error occurred
- *	   - -ENOMEM if there isn't enough memory to allocate the descriptor
+ * Return: - 0 if yes error occurred
+ *	   - -ENOMEM if there isn't eyesugh memory to allocate the descriptor
  *	   - -ENODEV if DECO0 couldn't be acquired
  *	   - -EAGAIN if an error occurred when executing the descriptor
- *	      f.i. there was a RNG hardware error due to not "good enough"
+ *	      f.i. there was a RNG hardware error due to yest "good eyesugh"
  *	      entropy being aquired.
  */
 static int instantiate_rng(struct device *ctrldev, int state_handle_mask,
@@ -289,7 +289,7 @@ static int instantiate_rng(struct device *ctrldev, int state_handle_mask,
 		ret = run_descriptor_deco0(ctrldev, desc, &status);
 
 		/*
-		 * If ret is not 0, or descriptor status is not 0, then
+		 * If ret is yest 0, or descriptor status is yest 0, then
 		 * something went wrong. No need to try the next state
 		 * handle (if available), bail out here.
 		 * Also, if for some reason, the State Handle didn't get
@@ -342,7 +342,7 @@ static void kick_trng(struct platform_device *pdev, int ent_delay)
 	clrsetbits_32(&r4tst->rtmctl, 0, RTMCTL_PRGM);
 
 	/*
-	 * Performance-wise, it does not make sense to
+	 * Performance-wise, it does yest make sense to
 	 * set the delay to a value that is lower
 	 * than the last one that worked (i.e. the state handles
 	 * were instantiated properly. Thus, instead of wasting
@@ -418,18 +418,18 @@ static int caam_get_era_from_hw(struct caam_ctrl __iomem *ctrl)
  * caam_get_era() - Return the ERA of the SEC on SoC, based
  * on "sec-era" optional property in the DTS. This property is updated
  * by u-boot.
- * In case this property is not passed an attempt to retrieve the CAAM
+ * In case this property is yest passed an attempt to retrieve the CAAM
  * era via register reads will be made.
  **/
 static int caam_get_era(struct caam_ctrl __iomem *ctrl)
 {
-	struct device_node *caam_node;
+	struct device_yesde *caam_yesde;
 	int ret;
 	u32 prop;
 
-	caam_node = of_find_compatible_node(NULL, NULL, "fsl,sec-v4.0");
-	ret = of_property_read_u32(caam_node, "fsl,sec-era", &prop);
-	of_node_put(caam_node);
+	caam_yesde = of_find_compatible_yesde(NULL, NULL, "fsl,sec-v4.0");
+	ret = of_property_read_u32(caam_yesde, "fsl,sec-era", &prop);
+	of_yesde_put(caam_yesde);
 
 	if (!ret)
 		return prop;
@@ -439,7 +439,7 @@ static int caam_get_era(struct caam_ctrl __iomem *ctrl)
 
 /*
  * ERRATA: imx6 devices (imx6D, imx6Q, imx6DL, imx6S, imx6DP and imx6QP)
- * have an issue wherein AXI bus transactions may not occur in the correct
+ * have an issue wherein AXI bus transactions may yest occur in the correct
  * order. This isn't a problem running single descriptors, but can be if
  * running multiple concurrent descriptors. Reworking the driver to throttle
  * to single requests is impractical, thus the workaround is to limit the AXI
@@ -563,7 +563,7 @@ static int caam_probe(struct platform_device *pdev)
 	u64 caam_id;
 	const struct soc_device_attribute *imx_soc_match;
 	struct device *dev;
-	struct device_node *nprop, *np;
+	struct device_yesde *nprop, *np;
 	struct caam_ctrl __iomem *ctrl;
 	struct caam_drv_private *ctrlpriv;
 #ifdef CONFIG_DEBUG_FS
@@ -581,7 +581,7 @@ static int caam_probe(struct platform_device *pdev)
 
 	dev = &pdev->dev;
 	dev_set_drvdata(dev, ctrlpriv);
-	nprop = pdev->dev.of_node;
+	nprop = pdev->dev.of_yesde;
 
 	imx_soc_match = soc_device_match(caam_imx_soc_table);
 	caam_imx = (bool)imx_soc_match;
@@ -666,9 +666,9 @@ static int caam_probe(struct platform_device *pdev)
 	 * In case of SoCs with Management Complex, MC f/w performs
 	 * the configuration.
 	 */
-	np = of_find_compatible_node(NULL, NULL, "fsl,qoriq-mc");
+	np = of_find_compatible_yesde(NULL, NULL, "fsl,qoriq-mc");
 	ctrlpriv->mc_en = !!np;
-	of_node_put(np);
+	of_yesde_put(np);
 
 	if (!ctrlpriv->mc_en)
 		clrsetbits_32(&ctrl->mcr, MCFGR_AWCACHE_MASK | MCFGR_LONG_PTR,
@@ -748,7 +748,7 @@ static int caam_probe(struct platform_device *pdev)
 	}
 
 	ring = 0;
-	for_each_available_child_of_node(nprop, np)
+	for_each_available_child_of_yesde(nprop, np)
 		if (of_device_is_compatible(np, "fsl,sec-v4.0-job-ring") ||
 		    of_device_is_compatible(np, "fsl,sec4.0-job-ring")) {
 			ctrlpriv->jr[ring] = (struct caam_job_ring __iomem __force *)
@@ -760,9 +760,9 @@ static int caam_probe(struct platform_device *pdev)
 			ring++;
 		}
 
-	/* If no QI and no rings specified, quit and go home */
+	/* If yes QI and yes rings specified, quit and go home */
 	if ((!ctrlpriv->qi_present) && (!ctrlpriv->total_jobrs)) {
-		dev_err(dev, "no queues configured, terminating\n");
+		dev_err(dev, "yes queues configured, terminating\n");
 		return -ENOMEM;
 	}
 
@@ -774,7 +774,7 @@ static int caam_probe(struct platform_device *pdev)
 			   CHA_VER_VID_SHIFT;
 
 	/*
-	 * If SEC has RNG version >= 4 and RNG state handle has not been
+	 * If SEC has RNG version >= 4 and RNG state handle has yest been
 	 * already instantiated, do RNG instantiation
 	 * In case of SoCs with Management Complex, RNG is managed by MC f/w.
 	 */
@@ -798,7 +798,7 @@ static int caam_probe(struct platform_device *pdev)
 			 * (e.g. u-boot) then it is assumed that the entropy
 			 * parameters are properly set and thus the function
 			 * setting these (kick_trng(...)) is skipped.
-			 * Also, if a handle was instantiated, do not change
+			 * Also, if a handle was instantiated, do yest change
 			 * the TRNG parameters.
 			 */
 			if (!(ctrlpriv->rng4_sh_init || inst_handles)) {
@@ -883,7 +883,7 @@ static int caam_probe(struct platform_device *pdev)
 			    ctrlpriv->ctl, &perfmon->status,
 			    &caam_fops_u32_ro);
 
-	/* Internal covering keys (useful in non-secure mode only) */
+	/* Internal covering keys (useful in yesn-secure mode only) */
 	ctrlpriv->ctl_kek_wrap.data = (__force void *)&ctrlpriv->ctrl->kek[0];
 	ctrlpriv->ctl_kek_wrap.size = KEK_KEY_SIZE * sizeof(u32);
 	debugfs_create_blob("kek", S_IRUSR | S_IRGRP | S_IROTH, ctrlpriv->ctl,

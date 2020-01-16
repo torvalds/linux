@@ -77,7 +77,7 @@ int phy_create_lookup(struct phy *phy, const char *con_id, const char *dev_id)
 	pl->phy = phy;
 
 	mutex_lock(&phy_provider_mutex);
-	list_add_tail(&pl->node, &phys);
+	list_add_tail(&pl->yesde, &phys);
 	mutex_unlock(&phy_provider_mutex);
 
 	return 0;
@@ -101,10 +101,10 @@ void phy_remove_lookup(struct phy *phy, const char *con_id, const char *dev_id)
 		return;
 
 	mutex_lock(&phy_provider_mutex);
-	list_for_each_entry(pl, &phys, node)
+	list_for_each_entry(pl, &phys, yesde)
 		if (pl->phy == phy && !strcmp(pl->dev_id, dev_id) &&
 		    !strcmp(pl->con_id, con_id)) {
-			list_del(&pl->node);
+			list_del(&pl->yesde);
 			kfree(pl);
 			break;
 		}
@@ -118,7 +118,7 @@ static struct phy *phy_find(struct device *dev, const char *con_id)
 	struct phy_lookup *p, *pl = NULL;
 
 	mutex_lock(&phy_provider_mutex);
-	list_for_each_entry(p, &phys, node)
+	list_for_each_entry(p, &phys, yesde)
 		if (!strcmp(p->dev_id, dev_id) && !strcmp(p->con_id, con_id)) {
 			pl = p;
 			break;
@@ -128,17 +128,17 @@ static struct phy *phy_find(struct device *dev, const char *con_id)
 	return pl ? pl->phy : ERR_PTR(-ENODEV);
 }
 
-static struct phy_provider *of_phy_provider_lookup(struct device_node *node)
+static struct phy_provider *of_phy_provider_lookup(struct device_yesde *yesde)
 {
 	struct phy_provider *phy_provider;
-	struct device_node *child;
+	struct device_yesde *child;
 
 	list_for_each_entry(phy_provider, &phy_provider_list, list) {
-		if (phy_provider->dev->of_node == node)
+		if (phy_provider->dev->of_yesde == yesde)
 			return phy_provider;
 
-		for_each_child_of_node(phy_provider->children, child)
-			if (child == node)
+		for_each_child_of_yesde(phy_provider->children, child)
+			if (child == yesde)
 				return phy_provider;
 	}
 
@@ -157,7 +157,7 @@ int phy_pm_runtime_get(struct phy *phy)
 
 	ret = pm_runtime_get(&phy->dev);
 	if (ret < 0 && ret != -EINPROGRESS)
-		pm_runtime_put_noidle(&phy->dev);
+		pm_runtime_put_yesidle(&phy->dev);
 
 	return ret;
 }
@@ -399,7 +399,7 @@ EXPORT_SYMBOL_GPL(phy_reset);
  * @phy: the phy returned by phy_get()
  *
  * Used to calibrate phy hardware, typically by adjusting some parameters in
- * runtime, which are otherwise lost after host controller reset and cannot
+ * runtime, which are otherwise lost after host controller reset and canyest
  * be applied in phy_init() or phy_power_on().
  *
  * Returns: 0 if successful, an negative error code otherwise
@@ -458,8 +458,8 @@ EXPORT_SYMBOL_GPL(phy_configure);
  * Used to check that the current set of parameters can be handled by
  * the phy. Implementations are free to tune the parameters passed as
  * arguments if needed by some implementation detail or
- * constraints. It will not change any actual configuration of the
- * PHY, so calling it as many times as deemed fit will have no side
+ * constraints. It will yest change any actual configuration of the
+ * PHY, so calling it as many times as deemed fit will have yes side
  * effect.
  *
  * Returns: 0 if successful, an negative error code otherwise
@@ -485,16 +485,16 @@ EXPORT_SYMBOL_GPL(phy_validate);
 
 /**
  * _of_phy_get() - lookup and obtain a reference to a phy by phandle
- * @np: device_node for which to get the phy
+ * @np: device_yesde for which to get the phy
  * @index: the index of the phy
  *
  * Returns the phy associated with the given phandle value,
- * after getting a refcount to it or -ENODEV if there is no such phy or
+ * after getting a refcount to it or -ENODEV if there is yes such phy or
  * -EPROBE_DEFER if there is a phandle to the phy, but the device is
- * not yet loaded. This function uses of_xlate call back function provided
+ * yest yet loaded. This function uses of_xlate call back function provided
  * while registering the phy_provider to find the phy instance.
  */
-static struct phy *_of_phy_get(struct device_node *np, int index)
+static struct phy *_of_phy_get(struct device_yesde *np, int index)
 {
 	int ret;
 	struct phy_provider *phy_provider;
@@ -506,8 +506,8 @@ static struct phy *_of_phy_get(struct device_node *np, int index)
 	if (ret)
 		return ERR_PTR(-ENODEV);
 
-	/* This phy type handled by the usb-phy subsystem for now */
-	if (of_device_is_compatible(args.np, "usb-nop-xceiv"))
+	/* This phy type handled by the usb-phy subsystem for yesw */
+	if (of_device_is_compatible(args.np, "usb-yesp-xceiv"))
 		return ERR_PTR(-ENODEV);
 
 	mutex_lock(&phy_provider_mutex);
@@ -530,21 +530,21 @@ out_put_module:
 
 out_unlock:
 	mutex_unlock(&phy_provider_mutex);
-	of_node_put(args.np);
+	of_yesde_put(args.np);
 
 	return phy;
 }
 
 /**
- * of_phy_get() - lookup and obtain a reference to a phy using a device_node.
- * @np: device_node for which to get the phy
+ * of_phy_get() - lookup and obtain a reference to a phy using a device_yesde.
+ * @np: device_yesde for which to get the phy
  * @con_id: name of the phy from device's point of view
  *
  * Returns the phy driver, after getting a refcount to it; or
- * -ENODEV if there is no such phy. The caller is responsible for
+ * -ENODEV if there is yes such phy. The caller is responsible for
  * calling phy_put() to release that count.
  */
-struct phy *of_phy_get(struct device_node *np, const char *con_id)
+struct phy *of_phy_get(struct device_yesde *np, const char *con_id)
 {
 	struct phy *phy = NULL;
 	int index = 0;
@@ -609,7 +609,7 @@ EXPORT_SYMBOL_GPL(devm_phy_put);
 /**
  * of_phy_simple_xlate() - returns the phy instance from phy provider
  * @dev: the PHY provider device
- * @args: of_phandle_args (not used here)
+ * @args: of_phandle_args (yest used here)
  *
  * Intended to be used by phy provider for the common case where #phy-cells is
  * 0. For other cases where #phy-cells is greater than '0', the phy provider
@@ -625,7 +625,7 @@ struct phy *of_phy_simple_xlate(struct device *dev, struct of_phandle_args
 	class_dev_iter_init(&iter, phy_class, NULL, NULL);
 	while ((dev = class_dev_iter_next(&iter))) {
 		phy = to_phy(dev);
-		if (args->np != phy->dev.of_node)
+		if (args->np != phy->dev.of_yesde)
 			continue;
 
 		class_dev_iter_exit(&iter);
@@ -641,10 +641,10 @@ EXPORT_SYMBOL_GPL(of_phy_simple_xlate);
  * phy_get() - lookup and obtain a reference to a phy.
  * @dev: device that requests this phy
  * @string: the phy name as given in the dt data or the name of the controller
- * port for non-dt case
+ * port for yesn-dt case
  *
  * Returns the phy driver, after getting a refcount to it; or
- * -ENODEV if there is no such phy.  The caller is responsible for
+ * -ENODEV if there is yes such phy.  The caller is responsible for
  * calling phy_put() to release that count.
  */
 struct phy *phy_get(struct device *dev, const char *string)
@@ -657,10 +657,10 @@ struct phy *phy_get(struct device *dev, const char *string)
 		return ERR_PTR(-EINVAL);
 	}
 
-	if (dev->of_node) {
-		index = of_property_match_string(dev->of_node, "phy-names",
+	if (dev->of_yesde) {
+		index = of_property_match_string(dev->of_yesde, "phy-names",
 			string);
-		phy = _of_phy_get(dev->of_node, index);
+		phy = _of_phy_get(dev->of_yesde, index);
 	} else {
 		phy = phy_find(dev, string);
 	}
@@ -680,10 +680,10 @@ EXPORT_SYMBOL_GPL(phy_get);
  * phy_optional_get() - lookup and obtain a reference to an optional phy.
  * @dev: device that requests this phy
  * @string: the phy name as given in the dt data or the name of the controller
- * port for non-dt case
+ * port for yesn-dt case
  *
  * Returns the phy driver, after getting a refcount to it; or
- * NULL if there is no such phy.  The caller is responsible for
+ * NULL if there is yes such phy.  The caller is responsible for
  * calling phy_put() to release that count.
  */
 struct phy *phy_optional_get(struct device *dev, const char *string)
@@ -701,7 +701,7 @@ EXPORT_SYMBOL_GPL(phy_optional_get);
  * devm_phy_get() - lookup and obtain a reference to a phy.
  * @dev: device that requests this phy
  * @string: the phy name as given in the dt data or phy device name
- * for non-dt case
+ * for yesn-dt case
  *
  * Gets the phy using phy_get(), and associates a device with it using
  * devres. On driver detach, release function is invoked on the devres data,
@@ -731,13 +731,13 @@ EXPORT_SYMBOL_GPL(devm_phy_get);
  * devm_phy_optional_get() - lookup and obtain a reference to an optional phy.
  * @dev: device that requests this phy
  * @string: the phy name as given in the dt data or phy device name
- * for non-dt case
+ * for yesn-dt case
  *
  * Gets the phy using phy_get(), and associates a device with it using
  * devres. On driver detach, release function is invoked on the devres
  * data, then, devres data is freed. This differs to devm_phy_get() in
- * that if the phy does not exist, it is not considered an error and
- * -ENODEV will not be returned. Instead the NULL phy is returned,
+ * that if the phy does yest exist, it is yest considered an error and
+ * -ENODEV will yest be returned. Instead the NULL phy is returned,
  * which can be passed to all other phy consumer calls.
  */
 struct phy *devm_phy_optional_get(struct device *dev, const char *string)
@@ -754,14 +754,14 @@ EXPORT_SYMBOL_GPL(devm_phy_optional_get);
 /**
  * devm_of_phy_get() - lookup and obtain a reference to a phy.
  * @dev: device that requests this phy
- * @np: node containing the phy
+ * @np: yesde containing the phy
  * @con_id: name of the phy from device's point of view
  *
  * Gets the phy using of_phy_get(), and associates a device with it using
  * devres. On driver detach, release function is invoked on the devres data,
  * then, devres data is freed.
  */
-struct phy *devm_of_phy_get(struct device *dev, struct device_node *np,
+struct phy *devm_of_phy_get(struct device *dev, struct device_yesde *np,
 			    const char *con_id)
 {
 	struct phy **ptr, *phy;
@@ -785,7 +785,7 @@ EXPORT_SYMBOL_GPL(devm_of_phy_get);
 /**
  * devm_of_phy_get_by_index() - lookup and obtain a reference to a phy by index.
  * @dev: device that requests this phy
- * @np: node containing the phy
+ * @np: yesde containing the phy
  * @index: index of the phy
  *
  * Gets the phy using _of_phy_get(), then gets a refcount to it,
@@ -794,7 +794,7 @@ EXPORT_SYMBOL_GPL(devm_of_phy_get);
  * then, devres data is freed.
  *
  */
-struct phy *devm_of_phy_get_by_index(struct device *dev, struct device_node *np,
+struct phy *devm_of_phy_get_by_index(struct device *dev, struct device_yesde *np,
 				     int index)
 {
 	struct phy **ptr, *phy;
@@ -826,12 +826,12 @@ EXPORT_SYMBOL_GPL(devm_of_phy_get_by_index);
 /**
  * phy_create() - create a new phy
  * @dev: device that is creating the new phy
- * @node: device node of the phy
+ * @yesde: device yesde of the phy
  * @ops: function pointers for performing phy operations
  *
  * Called to create a phy using phy framework.
  */
-struct phy *phy_create(struct device *dev, struct device_node *node,
+struct phy *phy_create(struct device *dev, struct device_yesde *yesde,
 		       const struct phy_ops *ops)
 {
 	int ret;
@@ -857,7 +857,7 @@ struct phy *phy_create(struct device *dev, struct device_node *node,
 
 	phy->dev.class = phy_class;
 	phy->dev.parent = dev;
-	phy->dev.of_node = node ?: dev->of_node;
+	phy->dev.of_yesde = yesde ?: dev->of_yesde;
 	phy->id = id;
 	phy->ops = ops;
 
@@ -881,7 +881,7 @@ struct phy *phy_create(struct device *dev, struct device_node *node,
 
 	if (pm_runtime_enabled(dev)) {
 		pm_runtime_enable(&phy->dev);
-		pm_runtime_no_callbacks(&phy->dev);
+		pm_runtime_yes_callbacks(&phy->dev);
 	}
 
 	return phy;
@@ -899,7 +899,7 @@ EXPORT_SYMBOL_GPL(phy_create);
 /**
  * devm_phy_create() - create a new phy
  * @dev: device that is creating the new phy
- * @node: device node of the phy
+ * @yesde: device yesde of the phy
  * @ops: function pointers for performing phy operations
  *
  * Creates a new PHY device adding it to the PHY class.
@@ -907,7 +907,7 @@ EXPORT_SYMBOL_GPL(phy_create);
  * On driver detach, release function is invoked on the devres data,
  * then, devres data is freed.
  */
-struct phy *devm_phy_create(struct device *dev, struct device_node *node,
+struct phy *devm_phy_create(struct device *dev, struct device_yesde *yesde,
 			    const struct phy_ops *ops)
 {
 	struct phy **ptr, *phy;
@@ -916,7 +916,7 @@ struct phy *devm_phy_create(struct device *dev, struct device_node *node,
 	if (!ptr)
 		return ERR_PTR(-ENOMEM);
 
-	phy = phy_create(dev, node, ops);
+	phy = phy_create(dev, yesde, ops);
 	if (!IS_ERR(phy)) {
 		*ptr = phy;
 		devres_add(dev, ptr);
@@ -961,7 +961,7 @@ EXPORT_SYMBOL_GPL(devm_phy_destroy);
 /**
  * __of_phy_provider_register() - create/register phy provider with the framework
  * @dev: struct device of the phy provider
- * @children: device node containing children (if different from dev->of_node)
+ * @children: device yesde containing children (if different from dev->of_yesde)
  * @owner: the module owner containing of_xlate
  * @of_xlate: function pointer to obtain phy instance from phy provider
  *
@@ -970,42 +970,42 @@ EXPORT_SYMBOL_GPL(devm_phy_destroy);
  * phy provider.
  *
  * If the PHY provider doesn't nest children directly but uses a separate
- * child node to contain the individual children, the @children parameter
- * can be used to override the default. If NULL, the default (dev->of_node)
- * will be used. If non-NULL, the device node must be a child (or further
- * descendant) of dev->of_node. Otherwise an ERR_PTR()-encoded -EINVAL
+ * child yesde to contain the individual children, the @children parameter
+ * can be used to override the default. If NULL, the default (dev->of_yesde)
+ * will be used. If yesn-NULL, the device yesde must be a child (or further
+ * descendant) of dev->of_yesde. Otherwise an ERR_PTR()-encoded -EINVAL
  * error code is returned.
  */
 struct phy_provider *__of_phy_provider_register(struct device *dev,
-	struct device_node *children, struct module *owner,
+	struct device_yesde *children, struct module *owner,
 	struct phy * (*of_xlate)(struct device *dev,
 				 struct of_phandle_args *args))
 {
 	struct phy_provider *phy_provider;
 
 	/*
-	 * If specified, the device node containing the children must itself
-	 * be the provider's device node or a child (or further descendant)
+	 * If specified, the device yesde containing the children must itself
+	 * be the provider's device yesde or a child (or further descendant)
 	 * thereof.
 	 */
 	if (children) {
-		struct device_node *parent = of_node_get(children), *next;
+		struct device_yesde *parent = of_yesde_get(children), *next;
 
 		while (parent) {
-			if (parent == dev->of_node)
+			if (parent == dev->of_yesde)
 				break;
 
 			next = of_get_parent(parent);
-			of_node_put(parent);
+			of_yesde_put(parent);
 			parent = next;
 		}
 
 		if (!parent)
 			return ERR_PTR(-EINVAL);
 
-		of_node_put(parent);
+		of_yesde_put(parent);
 	} else {
-		children = dev->of_node;
+		children = dev->of_yesde;
 	}
 
 	phy_provider = kzalloc(sizeof(*phy_provider), GFP_KERNEL);
@@ -1013,7 +1013,7 @@ struct phy_provider *__of_phy_provider_register(struct device *dev,
 		return ERR_PTR(-ENOMEM);
 
 	phy_provider->dev = dev;
-	phy_provider->children = of_node_get(children);
+	phy_provider->children = of_yesde_get(children);
 	phy_provider->owner = owner;
 	phy_provider->of_xlate = of_xlate;
 
@@ -1039,7 +1039,7 @@ EXPORT_SYMBOL_GPL(__of_phy_provider_register);
  * on the devres data, then, devres data is freed.
  */
 struct phy_provider *__devm_of_phy_provider_register(struct device *dev,
-	struct device_node *children, struct module *owner,
+	struct device_yesde *children, struct module *owner,
 	struct phy * (*of_xlate)(struct device *dev,
 				 struct of_phandle_args *args))
 {
@@ -1075,7 +1075,7 @@ void of_phy_provider_unregister(struct phy_provider *phy_provider)
 
 	mutex_lock(&phy_provider_mutex);
 	list_del(&phy_provider->list);
-	of_node_put(phy_provider->children);
+	of_yesde_put(phy_provider->children);
 	kfree(phy_provider);
 	mutex_unlock(&phy_provider_mutex);
 }

@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- *  Faraday Technology FTRTC010 driver
+ *  Faraday Techyeslogy FTRTC010 driver
  *
- *  Copyright (C) 2009 Janos Laube <janos.dev@gmail.com>
+ *  Copyright (C) 2009 Jayess Laube <jayess.dev@gmail.com>
  *
  * Original code for older kernel 2.6.15 are from Stormlinksemi
- * first update from Janos Laube for > 2.6.29 kernels
+ * first update from Jayess Laube for > 2.6.29 kernels
  *
  * checkpatch fixes and usage of rtc-lib code
  * Hans Ulli Kroll <ulli.kroll@googlemail.com>
@@ -122,7 +122,7 @@ static int ftrtc010_rtc_probe(struct platform_device *pdev)
 
 	rtc->pclk = devm_clk_get(dev, "PCLK");
 	if (IS_ERR(rtc->pclk)) {
-		dev_err(dev, "could not get PCLK\n");
+		dev_err(dev, "could yest get PCLK\n");
 	} else {
 		ret = clk_prepare_enable(rtc->pclk);
 		if (ret) {
@@ -132,7 +132,7 @@ static int ftrtc010_rtc_probe(struct platform_device *pdev)
 	}
 	rtc->extclk = devm_clk_get(dev, "EXTCLK");
 	if (IS_ERR(rtc->extclk)) {
-		dev_err(dev, "could not get EXTCLK\n");
+		dev_err(dev, "could yest get EXTCLK\n");
 	} else {
 		ret = clk_prepare_enable(rtc->extclk);
 		if (ret) {

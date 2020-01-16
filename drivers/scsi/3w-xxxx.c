@@ -29,7 +29,7 @@
    MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE. Each Recipient is    
    solely responsible for determining the appropriateness of using and       
    distributing the Program and assumes all risks associated with its        
-   exercise of rights under this Agreement, including but not limited to     
+   exercise of rights under this Agreement, including but yest limited to     
    the risks and costs of program errors, damage to or loss of data,         
    programs or equipment, and unavailability or interruption of operations.  
 
@@ -43,7 +43,7 @@
    HEREUNDER, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGES             
 
    You should have received a copy of the GNU General Public License         
-   along with this program; if not, write to the Free Software               
+   along with this program; if yest, write to the Free Software               
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA 
 
    Bugs/Comments/Suggestions should be mailed to:                            
@@ -54,12 +54,12 @@
    History
    -------
    0.1.000 -     Initial release.
-   0.4.000 -     Added support for Asynchronous Event Notification through
+   0.4.000 -     Added support for Asynchroyesus Event Notification through
                  ioctls for 3DM.
    1.0.000 -     Added DPO & FUA bit support for WRITE_10 & WRITE_6 cdb
                  to disable drive write-cache before writes.
-   1.1.000 -     Fixed performance bug with DPO & FUA not existing for WRITE_6.
-   1.2.000 -     Added support for clean shutdown notification/feature table.
+   1.1.000 -     Fixed performance bug with DPO & FUA yest existing for WRITE_6.
+   1.2.000 -     Added support for clean shutdown yestification/feature table.
    1.02.00.001 - Added support for full command packet posts through ioctls
                  for 3DM.
                  Bug fix so hot spare drives don't show up.
@@ -68,7 +68,7 @@
    08/21/00    - release previously allocated resources on failure at
                  tw_allocate_memory (acme)
    1.02.00.003 - Fix tw_interrupt() to report error to scsi layer when
-                 controller status is non-zero.
+                 controller status is yesn-zero.
                  Added handling of request_sense opcode.
                  Fix possible null pointer dereference in 
                  tw_reset_device_extension()
@@ -138,7 +138,7 @@
                  Improve handling of errors in tw_interrupt().
                  Add handling/clearing of controller queue error.
                  Empty stale responses before draining aen queue.
-                 Fix tw_scsi_eh_abort() to not reset on every io abort.
+                 Fix tw_scsi_eh_abort() to yest reset on every io abort.
                  Set can_queue in SHT to 255 to prevent hang from AEN.
    1.02.00.022 - Fix possible null pointer dereference in tw_scsi_release().
    1.02.00.023 - Fix bug in tw_aen_drain_queue() where unit # was always zero.
@@ -150,9 +150,9 @@
    1.02.00.026 - Fix possible infinite retry bug with power glitch induced
                  drive timeouts.
                  Cleanup some AEN severity levels.
-   1.02.00.027 - Add drive not supported AEN code for SATA controllers.
-                 Remove spurious unknown ioctl error message.
-   1.02.00.028 - Fix bug where multiple controllers with no units were the
+   1.02.00.027 - Add drive yest supported AEN code for SATA controllers.
+                 Remove spurious unkyeswn ioctl error message.
+   1.02.00.028 - Fix bug where multiple controllers with yes units were the
                  same card number.
                  Fix bug where cards were being shut down more than once.
    1.02.00.029 - Add missing pci_free_consistent() in tw_allocate_memory().
@@ -164,28 +164,28 @@
                  Add support for cache mode page.
                  Add support for synchronize cache opcode.
    1.02.00.032 - Fix small multicard rollcall bug.
-                 Make driver stay loaded with no units for hot add/swap.
+                 Make driver stay loaded with yes units for hot add/swap.
                  Add support for "twe" character device for ioctls.
                  Clean up request_id queueing code.
                  Fix tw_scsi_queue() spinlocks.
-   1.02.00.033 - Fix tw_aen_complete() to not queue 'queue empty' AEN's.
-                 Initialize queues correctly when loading with no valid units.
+   1.02.00.033 - Fix tw_aen_complete() to yest queue 'queue empty' AEN's.
+                 Initialize queues correctly when loading with yes valid units.
    1.02.00.034 - Fix tw_decode_bits() to handle multiple errors.
                  Add support for user configurable cmd_per_lun.
                  Add support for sht->slave_configure().
    1.02.00.035 - Improve tw_allocate_memory() memory allocation.
                  Fix tw_chrdev_ioctl() to sleep correctly.
    1.02.00.036 - Increase character ioctl timeout to 60 seconds.
-   1.02.00.037 - Fix tw_ioctl() to handle all non-data ATA passthru cmds
+   1.02.00.037 - Fix tw_ioctl() to handle all yesn-data ATA passthru cmds
                  for 'smartmontools' support.
-   1.26.00.038 - Roll driver minor version to 26 to denote kernel 2.6.
+   1.26.00.038 - Roll driver miyesr version to 26 to deyeste kernel 2.6.
                  Add support for cmds_per_lun module parameter.
    1.26.00.039 - Fix bug in tw_chrdev_ioctl() polling code.
                  Fix data_buffer_length usage in tw_chrdev_ioctl().
                  Update contact information.
    1.26.02.000 - Convert driver to pci_driver format.
    1.26.02.001 - Increase max ioctl buffer size to 512 sectors.
-                 Make tw_scsi_queue() return 0 for 'Unknown scsi opcode'.
+                 Make tw_scsi_queue() return 0 for 'Unkyeswn scsi opcode'.
                  Fix tw_remove() to free irq handler/unregister_chrdev()
                  before shutting down card.
                  Change to new 'change_queue_depth' api.
@@ -201,7 +201,7 @@
 #include <linux/spinlock.h>
 #include <linux/interrupt.h>
 #include <linux/moduleparam.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/types.h>
 #include <linux/delay.h>
 #include <linux/gfp.h>
@@ -259,7 +259,7 @@ static int tw_decode_bits(TW_Device_Extension *tw_dev, u32 status_reg_value, int
 	dprintk(KERN_WARNING "3w-xxxx: tw_decode_bits()\n");
 
 	if (print_host)
-		sprintf(host, " scsi%d:", tw_dev->host->host_no);
+		sprintf(host, " scsi%d:", tw_dev->host->host_yes);
 	else
 		host[0] = '\0';
 
@@ -406,7 +406,7 @@ static int tw_decode_sense(TW_Device_Extension *tw_dev, int request_id, int fill
         dprintk(KERN_WARNING "3w-xxxx: tw_decode_sense()\n");
 	command = (TW_Command *)tw_dev->command_packet_virtual_address[request_id];
 
-	printk(KERN_WARNING "3w-xxxx: scsi%d: Command failed: status = 0x%x, flags = 0x%x, unit #%d.\n", tw_dev->host->host_no, command->status, command->flags, TW_UNIT_OUT(command->unit__hostid));
+	printk(KERN_WARNING "3w-xxxx: scsi%d: Command failed: status = 0x%x, flags = 0x%x, unit #%d.\n", tw_dev->host->host_yes, command->status, command->flags, TW_UNIT_OUT(command->unit__hostid));
 
 	/* Attempt to return intelligent sense information */
 	if (fill_sense) {
@@ -430,12 +430,12 @@ static int tw_decode_sense(TW_Device_Extension *tw_dev, int request_id, int fill
 					tw_dev->srb[request_id]->sense_buffer[13] = tw_sense_table[i][3];
 
 					tw_dev->srb[request_id]->result = (DID_OK << 16) | (CHECK_CONDITION << 1);
-					return TW_ISR_DONT_RESULT; /* Special case for isr to not over-write result */
+					return TW_ISR_DONT_RESULT; /* Special case for isr to yest over-write result */
 				}
 			}
 		}
 
-		/* If no table match, error so we get a reset */
+		/* If yes table match, error so we get a reset */
 		return 1;
 	}
 
@@ -621,18 +621,18 @@ static int tw_aen_complete(TW_Device_Extension *tw_dev, int request_id)
 
 	/* Print some useful info when certain aen codes come out */
 	if (aen == 0x0ff) {
-		printk(KERN_WARNING "3w-xxxx: scsi%d: AEN: INFO: AEN queue overflow.\n", tw_dev->host->host_no);
+		printk(KERN_WARNING "3w-xxxx: scsi%d: AEN: INFO: AEN queue overflow.\n", tw_dev->host->host_yes);
 	} else {
 		table_max = ARRAY_SIZE(tw_aen_string);
 		if ((aen & 0x0ff) < table_max) {
 			if ((tw_aen_string[aen & 0xff][strlen(tw_aen_string[aen & 0xff])-1]) == '#') {
-				printk(KERN_WARNING "3w-xxxx: scsi%d: AEN: %s%d.\n", tw_dev->host->host_no, tw_aen_string[aen & 0xff], aen >> 8);
+				printk(KERN_WARNING "3w-xxxx: scsi%d: AEN: %s%d.\n", tw_dev->host->host_yes, tw_aen_string[aen & 0xff], aen >> 8);
 			} else {
 				if (aen != 0x0) 
-					printk(KERN_WARNING "3w-xxxx: scsi%d: AEN: %s.\n", tw_dev->host->host_no, tw_aen_string[aen & 0xff]);
+					printk(KERN_WARNING "3w-xxxx: scsi%d: AEN: %s.\n", tw_dev->host->host_yes, tw_aen_string[aen & 0xff]);
 			}
 		} else {
-			printk(KERN_WARNING "3w-xxxx: scsi%d: Received AEN %d.\n", tw_dev->host->host_no, aen);
+			printk(KERN_WARNING "3w-xxxx: scsi%d: Received AEN %d.\n", tw_dev->host->host_yes, aen);
 		}
 	}
 	if (aen != TW_AEN_QUEUE_EMPTY) {
@@ -655,7 +655,7 @@ static int tw_aen_complete(TW_Device_Extension *tw_dev, int request_id)
 
 		error = tw_aen_read_queue(tw_dev, request_id);
 		if (error) {
-			printk(KERN_WARNING "3w-xxxx: scsi%d: Error completing AEN.\n", tw_dev->host->host_no);
+			printk(KERN_WARNING "3w-xxxx: scsi%d: Error completing AEN.\n", tw_dev->host->host_yes);
 			tw_dev->state[request_id] = TW_S_COMPLETED;
 			tw_state_request_finish(tw_dev, request_id);
 		}
@@ -753,7 +753,7 @@ static int tw_aen_drain_queue(TW_Device_Extension *tw_dev)
 					tw_decode_sense(tw_dev, request_id, 0);
 					return 1;
 				} else {
-					/* We know this is a 3w-1x00, and doesn't support aen's */
+					/* We kyesw this is a 3w-1x00, and doesn't support aen's */
 					return 0;
 				}
 			}
@@ -878,12 +878,12 @@ static long tw_chrdev_ioctl(struct file *file, unsigned int cmd, unsigned long a
 	unsigned long flags;
 	unsigned int data_buffer_length = 0;
 	unsigned long data_buffer_length_adjusted = 0;
-	struct inode *inode = file_inode(file);
+	struct iyesde *iyesde = file_iyesde(file);
 	unsigned long *cpu_addr;
 	long timeout;
 	TW_New_Ioctl *tw_ioctl;
 	TW_Passthru *passthru;
-	TW_Device_Extension *tw_dev = tw_device_extension_list[iminor(inode)];
+	TW_Device_Extension *tw_dev = tw_device_extension_list[imiyesr(iyesde)];
 	int retval = -EFAULT;
 	void __user *argp = (void __user *)arg;
 
@@ -991,10 +991,10 @@ static long tw_chrdev_ioctl(struct file *file, unsigned int cmd, unsigned long a
 			/* We timed out, and didn't get an interrupt */
 			if (tw_dev->chrdev_request_id != TW_IOCTL_CHRDEV_FREE) {
 				/* Now we need to reset the board */
-				printk(KERN_WARNING "3w-xxxx: scsi%d: Character ioctl (0x%x) timed out, resetting card.\n", tw_dev->host->host_no, cmd);
+				printk(KERN_WARNING "3w-xxxx: scsi%d: Character ioctl (0x%x) timed out, resetting card.\n", tw_dev->host->host_yes, cmd);
 				retval = -EIO;
 				if (tw_reset_device_extension(tw_dev)) {
-					printk(KERN_WARNING "3w-xxxx: tw_chrdev_ioctl(): Reset failed for card %d.\n", tw_dev->host->host_no);
+					printk(KERN_WARNING "3w-xxxx: tw_chrdev_ioctl(): Reset failed for card %d.\n", tw_dev->host->host_yes);
 				}
 				goto out2;
 			}
@@ -1029,17 +1029,17 @@ out:
 
 /* This function handles open for the character device */
 /* NOTE that this function races with remove. */
-static int tw_chrdev_open(struct inode *inode, struct file *file)
+static int tw_chrdev_open(struct iyesde *iyesde, struct file *file)
 {
-	unsigned int minor_number;
+	unsigned int miyesr_number;
 
 	dprintk(KERN_WARNING "3w-xxxx: tw_ioctl_open()\n");
 
 	if (!capable(CAP_SYS_ADMIN))
 		return -EACCES;
 
-	minor_number = iminor(inode);
-	if (minor_number >= tw_device_extension_count)
+	miyesr_number = imiyesr(iyesde);
+	if (miyesr_number >= tw_device_extension_count)
 		return -ENODEV;
 
 	return 0;
@@ -1052,7 +1052,7 @@ static const struct file_operations tw_fops = {
 	.compat_ioctl   = compat_ptr_ioctl,
 	.open		= tw_chrdev_open,
 	.release	= NULL,
-	.llseek		= noop_llseek,
+	.llseek		= yesop_llseek,
 };
 
 /* This function will free up device extension resources */
@@ -1211,14 +1211,14 @@ static int tw_reset_sequence(TW_Device_Extension *tw_dev)
 
 		error = tw_aen_drain_queue(tw_dev);
 		if (error) {
-			printk(KERN_WARNING "3w-xxxx: scsi%d: AEN drain failed, retrying.\n", tw_dev->host->host_no);
+			printk(KERN_WARNING "3w-xxxx: scsi%d: AEN drain failed, retrying.\n", tw_dev->host->host_yes);
 			tries++;
 			continue;
 		}
 
 		/* Check for controller errors */
 		if (tw_check_errors(tw_dev)) {
-			printk(KERN_WARNING "3w-xxxx: scsi%d: Controller errors found, retrying.\n", tw_dev->host->host_no);
+			printk(KERN_WARNING "3w-xxxx: scsi%d: Controller errors found, retrying.\n", tw_dev->host->host_yes);
 			tries++;
 			continue;
 		}
@@ -1228,13 +1228,13 @@ static int tw_reset_sequence(TW_Device_Extension *tw_dev)
 	}
 
 	if (tries >= TW_MAX_RESET_TRIES) {
-		printk(KERN_WARNING "3w-xxxx: scsi%d: Controller errors, card not responding, check all cabling.\n", tw_dev->host->host_no);
+		printk(KERN_WARNING "3w-xxxx: scsi%d: Controller errors, card yest responding, check all cabling.\n", tw_dev->host->host_yes);
 		return 1;
 	}
 
 	error = tw_initconnection(tw_dev, TW_INIT_MESSAGE_CREDITS);
 	if (error) {
-		printk(KERN_WARNING "3w-xxxx: scsi%d: Connection initialization failed.\n", tw_dev->host->host_no);
+		printk(KERN_WARNING "3w-xxxx: scsi%d: Connection initialization failed.\n", tw_dev->host->host_yes);
 		return 1;
 	}
 
@@ -1326,7 +1326,7 @@ static int tw_reset_device_extension(TW_Device_Extension *tw_dev)
 	spin_unlock_irqrestore(tw_dev->host->host_lock, flags);
 
 	if (tw_reset_sequence(tw_dev)) {
-		printk(KERN_WARNING "3w-xxxx: scsi%d: Reset sequence failed.\n", tw_dev->host->host_no);
+		printk(KERN_WARNING "3w-xxxx: scsi%d: Reset sequence failed.\n", tw_dev->host->host_yes);
 		return 1;
 	}
 
@@ -1379,12 +1379,12 @@ static int tw_scsi_eh_reset(struct scsi_cmnd *SCpnt)
 		"WARNING: Command (0x%x) timed out, resetting card.\n",
 		SCpnt->cmnd[0]);
 
-	/* Make sure we are not issuing an ioctl or resetting from ioctl */
+	/* Make sure we are yest issuing an ioctl or resetting from ioctl */
 	mutex_lock(&tw_dev->ioctl_lock);
 
 	/* Now reset the card and some of the device extension data */
 	if (tw_reset_device_extension(tw_dev)) {
-		printk(KERN_WARNING "3w-xxxx: scsi%d: Reset failed.\n", tw_dev->host->host_no);
+		printk(KERN_WARNING "3w-xxxx: scsi%d: Reset failed.\n", tw_dev->host->host_yes);
 		goto out;
 	}
 
@@ -1578,7 +1578,7 @@ static int tw_scsiop_mode_sense_complete(TW_Device_Extension *tw_dev, int reques
 	request_buffer[0] = 0xf;        /* mode data length */
 	request_buffer[1] = 0;          /* default medium type */
 	request_buffer[2] = 0x10;       /* dpo/fua support on */
-	request_buffer[3] = 0;          /* no block descriptors */
+	request_buffer[3] = 0;          /* yes block descriptors */
 	request_buffer[4] = 0x8;        /* caching page */
 	request_buffer[5] = 0xa;        /* page length */
 	if (*flags & 0x1)
@@ -1976,7 +1976,7 @@ static int tw_scsi_queue_lck(struct scsi_cmnd *SCpnt, void (*done)(struct scsi_c
 			printk(KERN_WARNING "3w-xxxx: SCSI_IOCTL_SEND_COMMAND deprecated, please update your 3ware tools.\n");
 			break;
 		default:
-			printk(KERN_NOTICE "3w-xxxx: scsi%d: Unknown scsi opcode: 0x%x\n", tw_dev->host->host_no, *command);
+			printk(KERN_NOTICE "3w-xxxx: scsi%d: Unkyeswn scsi opcode: 0x%x\n", tw_dev->host->host_yes, *command);
 			tw_dev->state[request_id] = TW_S_COMPLETED;
 			tw_state_request_finish(tw_dev, request_id);
 			SCpnt->result = (DRIVER_SENSE << 24) | SAM_STAT_CHECK_CONDITION;
@@ -2045,7 +2045,7 @@ static irqreturn_t tw_interrupt(int irq, void *dev_instance)
 		tw_state_request_start(tw_dev, &request_id);
 		error = tw_aen_read_queue(tw_dev, request_id);
 		if (error) {
-			printk(KERN_WARNING "3w-xxxx: scsi%d: Error reading aen queue.\n", tw_dev->host->host_no);
+			printk(KERN_WARNING "3w-xxxx: scsi%d: Error reading aen queue.\n", tw_dev->host->host_yes);
 			tw_dev->state[request_id] = TW_S_COMPLETED;
 			tw_state_request_finish(tw_dev, request_id);
 		}
@@ -2057,7 +2057,7 @@ static irqreturn_t tw_interrupt(int irq, void *dev_instance)
 		while (tw_dev->pending_request_count > 0) {
 			request_id = tw_dev->pending_queue[tw_dev->pending_head];
 			if (tw_dev->state[request_id] != TW_S_PENDING) {
-				printk(KERN_WARNING "3w-xxxx: scsi%d: Found request id that wasn't pending.\n", tw_dev->host->host_no);
+				printk(KERN_WARNING "3w-xxxx: scsi%d: Found request id that wasn't pending.\n", tw_dev->host->host_yes);
 				break;
 			}
 			if (tw_post_command_packet(tw_dev, request_id)==0) {
@@ -2072,7 +2072,7 @@ static irqreturn_t tw_interrupt(int irq, void *dev_instance)
 				break;
 			}
 		}
-		/* If there are no more pending requests, we mask command interrupt */
+		/* If there are yes more pending requests, we mask command interrupt */
 		if (tw_dev->pending_request_count == 0) 
 			TW_MASK_COMMAND_INTERRUPT(tw_dev);
 	}
@@ -2100,7 +2100,7 @@ static irqreturn_t tw_interrupt(int irq, void *dev_instance)
 			/* Check for correct state */
 			if (tw_dev->state[request_id] != TW_S_POSTED) {
 				if (tw_dev->srb[request_id] != NULL) {
-					printk(KERN_WARNING "3w-xxxx: scsi%d: Received a request id that wasn't posted.\n", tw_dev->host->host_no);
+					printk(KERN_WARNING "3w-xxxx: scsi%d: Received a request id that wasn't posted.\n", tw_dev->host->host_yes);
 					error = 1;
 				}
 			}
@@ -2114,7 +2114,7 @@ static irqreturn_t tw_interrupt(int irq, void *dev_instance)
 				if (request_id != tw_dev->chrdev_request_id) {
 					retval = tw_aen_complete(tw_dev, request_id);
 					if (retval) {
-						printk(KERN_WARNING "3w-xxxx: scsi%d: Error completing aen.\n", tw_dev->host->host_no);
+						printk(KERN_WARNING "3w-xxxx: scsi%d: Error completing aen.\n", tw_dev->host->host_yes);
 					}
 				} else {
 					tw_dev->chrdev_request_id = TW_IOCTL_CHRDEV_FREE;
@@ -2154,7 +2154,7 @@ static irqreturn_t tw_interrupt(int irq, void *dev_instance)
 					error = 1;
 				}
 
-				/* If no error command was a success */
+				/* If yes error command was a success */
 				if (error == 0) {
 					tw_dev->srb[request_id]->result = (DID_OK << 16);
 				}
@@ -2201,7 +2201,7 @@ static void __tw_shutdown(TW_Device_Extension *tw_dev)
 	/* Free up the IRQ */
 	free_irq(tw_dev->tw_pci_dev->irq, tw_dev);
 
-	printk(KERN_WARNING "3w-xxxx: Shutting down host %d.\n", tw_dev->host->host_no);
+	printk(KERN_WARNING "3w-xxxx: Shutting down host %d.\n", tw_dev->host->host_yes);
 
 	/* Tell the card we are shutting down */
 	if (tw_initconnection(tw_dev, 1)) {
@@ -2247,7 +2247,7 @@ static struct scsi_host_template driver_template = {
 	.cmd_per_lun		= TW_MAX_CMDS_PER_LUN,	
 	.shost_attrs		= tw_host_attrs,
 	.emulated		= 1,
-	.no_write_same		= 1,
+	.yes_write_same		= 1,
 };
 
 /* This function will probe and initialize a card */
@@ -2328,7 +2328,7 @@ static int tw_probe(struct pci_dev *pdev, const struct pci_device_id *dev_id)
 
 	pci_set_drvdata(pdev, host);
 
-	printk(KERN_WARNING "3w-xxxx: scsi%d: Found a 3ware Storage Controller at 0x%x, IRQ: %d.\n", host->host_no, tw_dev->base_addr, pdev->irq);
+	printk(KERN_WARNING "3w-xxxx: scsi%d: Found a 3ware Storage Controller at 0x%x, IRQ: %d.\n", host->host_yes, tw_dev->base_addr, pdev->irq);
 
 	/* Now setup the interrupt handler */
 	retval = request_irq(pdev->irq, tw_interrupt, IRQF_SHARED, "3w-xxxx", tw_dev);

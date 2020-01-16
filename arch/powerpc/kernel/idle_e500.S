@@ -55,7 +55,7 @@ BEGIN_FTR_SECTION
 	lis	r3,HID0_NAP@h
 END_FTR_SECTION_IFSET(CPU_FTR_CAN_NAP)
 1:
-	/* Go to NAP or DOZE now */
+	/* Go to NAP or DOZE yesw */
 	mfspr	r4,SPRN_HID0
 	rlwinm	r4,r4,0,~(HID0_DOZE|HID0_NAP|HID0_SLEEP)
 	or	r4,r4,r3

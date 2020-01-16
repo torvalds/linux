@@ -5,7 +5,7 @@
 */
 #include <linux/kernel.h>
 #include <linux/string.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/device.h>
@@ -58,7 +58,7 @@ static void *kmalloc_parameter(unsigned int size)
 	return p->val;
 }
 
-/* Does nothing if parameter wasn't kmalloced above. */
+/* Does yesthing if parameter wasn't kmalloced above. */
 static void maybe_kfree_parameter(void *param)
 {
 	struct kmalloced_param *p;
@@ -104,7 +104,7 @@ static bool param_check_unsafe(const struct kernel_param *kp)
 		return false;
 
 	if (kp->flags & KERNEL_PARAM_FL_UNSAFE) {
-		pr_notice("Setting dangerous option %s - tainting kernel\n",
+		pr_yestice("Setting dangerous option %s - tainting kernel\n",
 			  kp->name);
 		add_taint(TAINT_USER, LOCKDEP_STILL_OK);
 	}
@@ -120,7 +120,7 @@ static int parse_one(char *param,
 		     s16 min_level,
 		     s16 max_level,
 		     void *arg,
-		     int (*handle_unknown)(char *param, char *val,
+		     int (*handle_unkyeswn)(char *param, char *val,
 				     const char *doing, void *arg))
 {
 	unsigned int i;
@@ -148,12 +148,12 @@ static int parse_one(char *param,
 		}
 	}
 
-	if (handle_unknown) {
+	if (handle_unkyeswn) {
 		pr_debug("doing %s: %s='%s'\n", doing, param, val);
-		return handle_unknown(param, val, doing, arg);
+		return handle_unkyeswn(param, val, doing, arg);
 	}
 
-	pr_debug("Unknown argument '%s'\n", param);
+	pr_debug("Unkyeswn argument '%s'\n", param);
 	return -ENOENT;
 }
 
@@ -165,7 +165,7 @@ char *parse_args(const char *doing,
 		 s16 min_level,
 		 s16 max_level,
 		 void *arg,
-		 int (*unknown)(char *param, char *val,
+		 int (*unkyeswn)(char *param, char *val,
 				const char *doing, void *arg))
 {
 	char *param, *val, *err = NULL;
@@ -186,7 +186,7 @@ char *parse_args(const char *doing,
 			return err ?: args;
 		irq_was_disabled = irqs_disabled();
 		ret = parse_one(param, val, doing, params, num,
-				min_level, max_level, arg, unknown);
+				min_level, max_level, arg, unkyeswn);
 		if (irq_was_disabled && !irqs_disabled())
 			pr_warn("%s: option '%s' enabled irq's!\n",
 				doing, param);
@@ -195,7 +195,7 @@ char *parse_args(const char *doing,
 		case 0:
 			continue;
 		case -ENOENT:
-			pr_err("%s: Unknown parameter `%s'\n", doing, param);
+			pr_err("%s: Unkyeswn parameter `%s'\n", doing, param);
 			break;
 		case -ENOSPC:
 			pr_err("%s: `%s' too large for parameter `%s'\n",
@@ -297,7 +297,7 @@ EXPORT_SYMBOL(param_set_bool);
 
 int param_get_bool(char *buffer, const struct kernel_param *kp)
 {
-	/* Y and N chosen as being relatively non-coder friendly */
+	/* Y and N chosen as being relatively yesn-coder friendly */
 	return sprintf(buffer, "%c\n", *(bool *)kp->arg ? 'Y' : 'N');
 }
 EXPORT_SYMBOL(param_get_bool);
@@ -650,7 +650,7 @@ static __modinit int add_sysfs_param(struct module_kobject *mk,
 	sysfs_attr_init(&mk->mp->attrs[mk->mp->num].mattr.attr);
 	mk->mp->attrs[mk->mp->num].param = kp;
 	mk->mp->attrs[mk->mp->num].mattr.show = param_attr_show;
-	/* Do not allow runtime DAC changes to make param writable. */
+	/* Do yest allow runtime DAC changes to make param writable. */
 	if ((kp->perm & (S_IWUSR | S_IWGRP | S_IWOTH)) != 0)
 		mk->mp->attrs[mk->mp->num].mattr.store = param_attr_store;
 	else
@@ -723,7 +723,7 @@ void module_param_sysfs_remove(struct module *mod)
 {
 	if (mod->mkobj.mp) {
 		sysfs_remove_group(&mod->mkobj.kobj, &mod->mkobj.mp->grp);
-		/* We are positive that no one is using any param
+		/* We are positive that yes one is using any param
 		 * attrs at this point.  Deallocate immediately. */
 		free_module_param_attrs(&mod->mkobj);
 	}
@@ -789,7 +789,7 @@ static void __init kernel_add_sysfs_param(const char *name,
 	if (mk->mp)
 		sysfs_remove_group(&mk->kobj, &mk->mp->grp);
 
-	/* These should not fail at boot. */
+	/* These should yest fail at boot. */
 	err = add_sysfs_param(mk, kparam, kparam->name + name_skip);
 	BUG_ON(err);
 	err = sysfs_create_group(&mk->kobj, &mk->mp->grp);

@@ -75,7 +75,7 @@ static void etm4_os_lock(struct etmv4_drvdata *drvdata)
 
 static bool etm4_arch_supported(u8 arch)
 {
-	/* Mask out the minor version number */
+	/* Mask out the miyesr version number */
 	switch (arch & 0xf0) {
 	case ETM_ARCH_V4:
 		break;
@@ -128,7 +128,7 @@ static int etm4_enable_hw(struct etmv4_drvdata *drvdata)
 
 	writel_relaxed(config->pe_sel, drvdata->base + TRCPROCSELR);
 	writel_relaxed(config->cfg, drvdata->base + TRCCONFIGR);
-	/* nothing specific implemented */
+	/* yesthing specific implemented */
 	writel_relaxed(0x0, drvdata->base + TRCAUXCTLR);
 	writel_relaxed(config->eventctrl0, drvdata->base + TRCEVENTCTL0R);
 	writel_relaxed(config->eventctrl1, drvdata->base + TRCEVENTCTL1R);
@@ -266,7 +266,7 @@ static int etm4_config_timestamp_event(struct etmv4_drvdata *drvdata)
 
 	/* All the counters have been configured already, bail out */
 	if (ctridx == drvdata->nr_cntr) {
-		pr_debug("%s: no available counter found\n", __func__);
+		pr_debug("%s: yes available counter found\n", __func__);
 		ret = -ENOSPC;
 		goto out;
 	}
@@ -282,7 +282,7 @@ static int etm4_config_timestamp_event(struct etmv4_drvdata *drvdata)
 			break;
 
 	if (rselector == drvdata->nr_resource * 2) {
-		pr_debug("%s: no available resource selector found\n",
+		pr_debug("%s: yes available resource selector found\n",
 			 __func__);
 		ret = -ENOSPC;
 		goto out;
@@ -476,7 +476,7 @@ static void etm4_disable_hw(void *info)
 
 	CS_UNLOCK(drvdata->base);
 
-	/* power can be removed from the trace unit now */
+	/* power can be removed from the trace unit yesw */
 	control = readl_relaxed(drvdata->base + TRCPDCR);
 	control &= ~TRCPDCR_PU;
 	writel_relaxed(control, drvdata->base + TRCPDCR);
@@ -572,7 +572,7 @@ static void etm4_disable(struct coresight_device *csdev,
 	struct etmv4_drvdata *drvdata = dev_get_drvdata(csdev->dev.parent);
 
 	/*
-	 * For as long as the tracer isn't disabled another entity can't
+	 * For as long as the tracer isn't disabled ayesther entity can't
 	 * change its status.  As such we can read the status here without
 	 * fearing it will change under us.
 	 */
@@ -663,7 +663,7 @@ static void etm4_init_arch_data(void *info)
 	/* base architecture of trace unit */
 	etmidr1 = readl_relaxed(drvdata->base + TRCIDR1);
 	/*
-	 * TRCARCHMIN, bits[7:4] architecture the minor version number
+	 * TRCARCHMIN, bits[7:4] architecture the miyesr version number
 	 * TRCARCHMAJ, bits[11:8] architecture major versin number
 	 */
 	drvdata->arch = BMVAL(etmidr1, 4, 11);
@@ -718,9 +718,9 @@ static void etm4_init_arch_data(void *info)
 
 	/* NOOVERFLOW, bit[31] is trace overflow prevention supported */
 	if (BMVAL(etmidr3, 31, 31))
-		drvdata->nooverflow = true;
+		drvdata->yesoverflow = true;
 	else
-		drvdata->nooverflow = false;
+		drvdata->yesoverflow = false;
 
 	/* number of resources trace unit supports */
 	etmidr4 = readl_relaxed(drvdata->base + TRCIDR4);
@@ -807,7 +807,7 @@ static u64 etm4_get_ns_access_type(struct etmv4_config *config)
 	 *   Bit[15] Never implemented
 	 */
 	if (!is_kernel_in_hyp_mode()) {
-		/* Stay away from hypervisor mode for non-VHE */
+		/* Stay away from hypervisor mode for yesn-VHE */
 		access_type =  ETM_EXLEVEL_NS_HYP;
 		if (config->mode & ETM_MODE_EXCL_KERN)
 			access_type |= ETM_EXLEVEL_NS_OS;
@@ -989,7 +989,7 @@ static int etm4_set_event_filters(struct etmv4_drvdata *drvdata,
 	perf_event_addr_filters_sync(event);
 
 	/*
-	 * If there are no filters to deal with simply go ahead with
+	 * If there are yes filters to deal with simply go ahead with
 	 * the default filter, i.e the entire address range.
 	 */
 	if (!filters->nr_filters)
@@ -1075,7 +1075,7 @@ void etm4_config_trace_mode(struct etmv4_config *config)
 	/* excluding kernel AND user space doesn't make sense */
 	WARN_ON_ONCE(mode == (ETM_MODE_EXCL_KERN | ETM_MODE_EXCL_USER));
 
-	/* nothing to do if neither flags are set */
+	/* yesthing to do if neither flags are set */
 	if (!(mode & ETM_MODE_EXCL_KERN) && !(mode & ETM_MODE_EXCL_USER))
 		return;
 
@@ -1247,7 +1247,7 @@ static int etm4_cpu_save(struct etmv4_drvdata *drvdata)
 	drvdata->state_needs_restore = true;
 
 	/*
-	 * Power can be removed from the trace unit now. We do this to
+	 * Power can be removed from the trace unit yesw. We do this to
 	 * potentially save power on systems that respect the TRCPDCR_PU
 	 * despite requesting software to save/restore state.
 	 */
@@ -1359,7 +1359,7 @@ static void etm4_cpu_restore(struct etmv4_drvdata *drvdata)
 	CS_LOCK(drvdata->base);
 }
 
-static int etm4_cpu_pm_notify(struct notifier_block *nb, unsigned long cmd,
+static int etm4_cpu_pm_yestify(struct yestifier_block *nb, unsigned long cmd,
 			      void *v)
 {
 	struct etmv4_drvdata *drvdata;
@@ -1396,18 +1396,18 @@ static int etm4_cpu_pm_notify(struct notifier_block *nb, unsigned long cmd,
 	return NOTIFY_OK;
 }
 
-static struct notifier_block etm4_cpu_pm_nb = {
-	.notifier_call = etm4_cpu_pm_notify,
+static struct yestifier_block etm4_cpu_pm_nb = {
+	.yestifier_call = etm4_cpu_pm_yestify,
 };
 
 static int etm4_cpu_pm_register(void)
 {
-	return cpu_pm_register_notifier(&etm4_cpu_pm_nb);
+	return cpu_pm_register_yestifier(&etm4_cpu_pm_nb);
 }
 
 static void etm4_cpu_pm_unregister(void)
 {
-	cpu_pm_unregister_notifier(&etm4_cpu_pm_nb);
+	cpu_pm_unregister_yestifier(&etm4_cpu_pm_nb);
 }
 #else
 static int etm4_cpu_pm_register(void) { return 0; }
@@ -1466,10 +1466,10 @@ static int etm4_probe(struct amba_device *adev, const struct amba_id *id)
 		dev_err(dev, "ETM arch init failed\n");
 
 	if (!etm4_count++) {
-		cpuhp_setup_state_nocalls_cpuslocked(CPUHP_AP_ARM_CORESIGHT_STARTING,
+		cpuhp_setup_state_yescalls_cpuslocked(CPUHP_AP_ARM_CORESIGHT_STARTING,
 						     "arm/coresight4:starting",
 						     etm4_starting_cpu, etm4_dying_cpu);
-		ret = cpuhp_setup_state_nocalls_cpuslocked(CPUHP_AP_ONLINE_DYN,
+		ret = cpuhp_setup_state_yescalls_cpuslocked(CPUHP_AP_ONLINE_DYN,
 							   "arm/coresight4:online",
 							   etm4_online_cpu, NULL);
 		if (ret < 0)
@@ -1531,9 +1531,9 @@ err_arch_supported:
 	if (--etm4_count == 0) {
 		etm4_cpu_pm_unregister();
 
-		cpuhp_remove_state_nocalls(CPUHP_AP_ARM_CORESIGHT_STARTING);
+		cpuhp_remove_state_yescalls(CPUHP_AP_ARM_CORESIGHT_STARTING);
 		if (hp_online)
-			cpuhp_remove_state_nocalls(hp_online);
+			cpuhp_remove_state_yescalls(hp_online);
 	}
 	return ret;
 }

@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *	- Redistributions of source code must retain the above
- *	  copyright notice, this list of conditions and the following
+ *	  copyright yestice, this list of conditions and the following
  *	  disclaimer.
  *
  *	- Redistributions in binary form must reproduce the above
- *	  copyright notice, this list of conditions and the following
+ *	  copyright yestice, this list of conditions and the following
  *	  disclaimer in the documentation and/or other materials
  *	  provided with the distribution.
  *
@@ -87,7 +87,7 @@ enum {
 };
 
 /* base qkey for use in sriov tunnel-qp/proxy-qp communication.
- * These qkeys must not be allowed for general use. This is a 64k range,
+ * These qkeys must yest be allowed for general use. This is a 64k range,
  * and to test for violation, we use the mask (protect against future chg).
  */
 #define MLX4_RESERVED_QKEY_BASE  (0xFFFF0000)
@@ -241,7 +241,7 @@ enum {
 /* bit enums for an 8-bit flags field indicating special use
  * QPs which require special handling in qp_reserve_range.
  * Currently, this only includes QPs used by the ETH interface,
- * where we expect to use blueflame.  These QPs must not have
+ * where we expect to use blueflame.  These QPs must yest have
  * bits 6 and 7 set in their qp number.
  *
  * This enum may use only bits 0..7.
@@ -509,9 +509,9 @@ struct mlx4_rate_limit_caps {
 	u16	max_val;
 };
 
-static inline u64 mlx4_fw_ver(u64 major, u64 minor, u64 subminor)
+static inline u64 mlx4_fw_ver(u64 major, u64 miyesr, u64 submiyesr)
 {
-	return (major << 32) | (minor << 16) | subminor;
+	return (major << 32) | (miyesr << 16) | submiyesr;
 }
 
 struct mlx4_phys_caps {
@@ -757,8 +757,8 @@ struct mlx4_cq {
 		void (*comp)(struct mlx4_cq *);
 		void		*priv;
 	} tasklet_ctx;
-	int		reset_notify_added;
-	struct list_head	reset_notify;
+	int		reset_yestify_added;
+	struct list_head	reset_yestify;
 	u8			usage;
 };
 
@@ -893,7 +893,7 @@ struct mlx4_dev {
 	u8			rev_id;
 	u8			port_random_macs;
 	char			board_id[MLX4_BOARD_ID_LEN];
-	int			numa_node;
+	int			numa_yesde;
 	int			oper_log_mgm_entry_size;
 	u64			regid_promisc_array[MLX4_MAX_PORTS + 1];
 	u64			regid_allmulti_array[MLX4_MAX_PORTS + 1];
@@ -992,7 +992,7 @@ struct mlx4_eqe {
 
 struct mlx4_init_port_param {
 	int			set_guid0;
-	int			set_node_guid;
+	int			set_yesde_guid;
 	int			set_si_guid;
 	u16			mtu;
 	int			port_width_cap;
@@ -1000,7 +1000,7 @@ struct mlx4_init_port_param {
 	u16			max_gid;
 	u16			max_pkey;
 	u64			guid0;
-	u64			node_guid;
+	u64			yesde_guid;
 	u64			si_guid;
 };
 
@@ -1106,7 +1106,7 @@ void mlx4_xrcd_free(struct mlx4_dev *dev, u32 xrcdn);
 
 int mlx4_uar_alloc(struct mlx4_dev *dev, struct mlx4_uar *uar);
 void mlx4_uar_free(struct mlx4_dev *dev, struct mlx4_uar *uar);
-int mlx4_bf_alloc(struct mlx4_dev *dev, struct mlx4_bf *bf, int node);
+int mlx4_bf_alloc(struct mlx4_dev *dev, struct mlx4_bf *bf, int yesde);
 void mlx4_bf_free(struct mlx4_dev *dev, struct mlx4_bf *bf);
 
 int mlx4_mtt_init(struct mlx4_dev *dev, int npages, int page_shift,
@@ -1399,7 +1399,7 @@ int mlx4_SET_PORT_qpn_calc(struct mlx4_dev *dev, u8 port, u32 base_qpn,
 			   u8 promisc);
 int mlx4_SET_PORT_BEACON(struct mlx4_dev *dev, u8 port, u16 time);
 int mlx4_SET_PORT_fcs_check(struct mlx4_dev *dev, u8 port,
-			    u8 ignore_fcs_value);
+			    u8 igyesre_fcs_value);
 int mlx4_SET_PORT_VXLAN(struct mlx4_dev *dev, u8 port, u8 steering, int enable);
 int set_phv_bit(struct mlx4_dev *dev, u8 port, int new_val);
 int get_phv_bit(struct mlx4_dev *dev, u8 port, int *phv);
@@ -1472,8 +1472,8 @@ int mlx4_gen_port_state_change_eqe(struct mlx4_dev *dev, int slave, u8 port, u8 
 enum slave_port_state mlx4_get_slave_port_state(struct mlx4_dev *dev, int slave, u8 port);
 int set_and_calc_slave_port_state(struct mlx4_dev *dev, int slave, u8 port, int event, enum slave_port_gen_event *gen_event);
 
-void mlx4_put_slave_node_guid(struct mlx4_dev *dev, int slave, __be64 guid);
-__be64 mlx4_get_slave_node_guid(struct mlx4_dev *dev, int slave);
+void mlx4_put_slave_yesde_guid(struct mlx4_dev *dev, int slave, __be64 guid);
+__be64 mlx4_get_slave_yesde_guid(struct mlx4_dev *dev, int slave);
 
 int mlx4_get_slave_from_roce_gid(struct mlx4_dev *dev, int port, u8 *gid,
 				 int *slave_id);

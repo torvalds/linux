@@ -42,7 +42,7 @@
 **   - release resources on failure in init_module
 **
 ** 1.57 -> 1.57b - Jean II
-**   - fix spinlocks, SMP is now working !
+**   - fix spinlocks, SMP is yesw working !
 **
 ** 1.56 -> 1.57
 **   - updates for new PCI interface for 2.1 kernels
@@ -88,7 +88,7 @@
 #include <linux/kernel.h>
 #include <linux/sched.h>
 #include <linux/string.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/ioport.h>
 #include <linux/interrupt.h>
 #include <linux/eisa.h>
@@ -276,7 +276,7 @@ static inline u_int pdl_map_data(struct hp100_private *lp, void *data)
 			      MAX_ETHER_SIZE, PCI_DMA_FROMDEVICE);
 }
 
-/* TODO: This function should not really be needed in a good design... */
+/* TODO: This function should yest really be needed in a good design... */
 static void wait(void)
 {
 	mdelay(1);
@@ -285,7 +285,7 @@ static void wait(void)
 /*
  *  probe functions
  *  These functions should - if possible - avoid doing write operations
- *  since this could cause problems when the card is not installed.
+ *  since this could cause problems when the card is yest installed.
  */
 
 /*
@@ -465,7 +465,7 @@ static int hp100_probe1(struct net_device *dev, int ioaddr, u_char bus,
 	else if (chip == HP100_CHIPID_LASSEN)
 		printk("hp100: %s: Lassen Chip detected.\n", dev->name);
 	else
-		printk("hp100: %s: Warning: Unknown CASCADE chip (id=0x%.4x).\n", dev->name, chip);
+		printk("hp100: %s: Warning: Unkyeswn CASCADE chip (id=0x%.4x).\n", dev->name, chip);
 #endif
 
 	dev->base_addr = ioaddr;
@@ -520,7 +520,7 @@ static int hp100_probe1(struct net_device *dev, int ioaddr, u_char bus,
 	hp100_outw(local_mode | HP100_SET_LB | HP100_SET_HB, OPTION_LSW);
 #endif
 
-	/* hp100_mode value maybe used in future by another card */
+	/* hp100_mode value maybe used in future by ayesther card */
 	local_mode = hp100_mode;
 	if (local_mode < 1 || local_mode > 4)
 		local_mode = 1;	/* default */
@@ -562,7 +562,7 @@ static int hp100_probe1(struct net_device *dev, int ioaddr, u_char bus,
 			/* Conversion to new PCI API :
 			 * I don't have the doc, but I assume that the card
 			 * can map the full 32bit address space.
-			 * Also, we can have EISA Busmaster cards (not tested),
+			 * Also, we can have EISA Busmaster cards (yest tested),
 			 * so beware !!! - Jean II */
 			if((bus == HP100_BUS_PCI) &&
 			   (pci_set_dma_mask(pci_dev, DMA_BIT_MASK(32)))) {
@@ -574,7 +574,7 @@ static int hp100_probe1(struct net_device *dev, int ioaddr, u_char bus,
 		} else {
 		busmasterfail:
 #ifdef HP100_DEBUG
-			printk("hp100: %s: Card not configured for BM or BM not supported with this card.\n", dev->name);
+			printk("hp100: %s: Card yest configured for BM or BM yest supported with this card.\n", dev->name);
 			printk("hp100: %s: Trying shared memory mode.\n", dev->name);
 #endif
 			/* In this case, try shared memory mode */
@@ -607,9 +607,9 @@ static int hp100_probe1(struct net_device *dev, int ioaddr, u_char bus,
 			local_mode = 3;	/* Use programmed i/o */
 		}
 
-		/* We do not need access to shared memory in busmaster mode */
+		/* We do yest need access to shared memory in busmaster mode */
 		/* However in slave mode we need to remap high (>1GB) card memory  */
-		if (local_mode != 1) {	/* = not busmaster */
+		if (local_mode != 1) {	/* = yest busmaster */
 			/* We try with smaller memory sizes, if ioremap fails */
 			for (virt_memory_size = memory_size; virt_memory_size > 16383; virt_memory_size >>= 1) {
 				if ((mem_ptr_virt = ioremap((u_long) mem_ptr_phys, virt_memory_size)) == NULL) {
@@ -692,18 +692,18 @@ static int hp100_probe1(struct net_device *dev, int ioaddr, u_char bus,
 
 	/* If busmaster mode is wanted, a dma-capable memory area is needed for
 	 * the rx and tx PDLs
-	 * PCI cards can access the whole PC memory. Therefore GFP_DMA is not
+	 * PCI cards can access the whole PC memory. Therefore GFP_DMA is yest
 	 * needed for the allocation of the memory area.
 	 */
 
-	/* TODO: We do not need this with old cards, where PDLs are stored
+	/* TODO: We do yest need this with old cards, where PDLs are stored
 	 * in the cards shared memory area. But currently, busmaster has been
 	 * implemented/tested only with the lassen chip anyway... */
 	if (lp->mode == 1) {	/* busmaster */
 		dma_addr_t page_baddr;
 		/* Get physically continuous memory for TX & RX PDLs    */
 		/* Conversion to new PCI API :
-		 * Pages are always aligned and zeroed, no need to it ourself.
+		 * Pages are always aligned and zeroed, yes need to it ourself.
 		 * Doc says should be OK for EISA bus as well - Jean II */
 		lp->page_vaddr_algn = pci_alloc_consistent(lp->pci_dev, MAX_RINGSIZE, &page_baddr);
 		if (!lp->page_vaddr_algn) {
@@ -721,7 +721,7 @@ static int hp100_probe1(struct net_device *dev, int ioaddr, u_char bus,
 	}
 
 	/* Initialise the card. */
-	/* (I'm not really sure if it's a good idea to do this during probing, but
+	/* (I'm yest really sure if it's a good idea to do this during probing, but
 	 * like this it's assured that the lan connection type can be sensed
 	 * correctly)
 	 */
@@ -855,7 +855,7 @@ static void hp100_hwinit(struct net_device *dev)
 
 	/* Re-check if adapter is still at same i/o location      */
 	/* (If the base i/o in eeprom has been changed but the    */
-	/* registers had not been changed, a reload of the eeprom */
+	/* registers had yest been changed, a reload of the eeprom */
 	/* would move the adapter to the address stored in eeprom */
 
 	/* TODO: Code to implement. */
@@ -965,14 +965,14 @@ static void hp100_mmuinit(struct net_device *dev)
 		if ((lp->chip == HP100_CHIPID_RAINIER) || (lp->chip == HP100_CHIPID_SHASTA))
 			hp100_orb(HP100_BM_PAGE_CK, BM);
 		hp100_orb(HP100_BM_MASTER, BM);
-	} else {		/* not busmaster */
+	} else {		/* yest busmaster */
 
 		hp100_page(HW_MAP);
 		hp100_andb(~HP100_BM_MASTER, BM);
 	}
 
 	/*
-	 * Divide card memory into regions for Rx, Tx and, if non-ETR chip, PDLs
+	 * Divide card memory into regions for Rx, Tx and, if yesn-ETR chip, PDLs
 	 */
 	hp100_page(MMU_CFG);
 	if (lp->mode == 1) {	/* only needed for Busmaster */
@@ -986,7 +986,7 @@ static void hp100_mmuinit(struct net_device *dev)
 			 * Each pdl is 508 bytes long. (63 frags * 4 bytes for address and
 			 * 4 bytes for header). We will leave NUM_RXPDLS * 508 (rounded
 			 * to the next higher 1k boundary) bytes for the rx-pdl's
-			 * Note: For non-etr chips the transmit stop register must be
+			 * Note: For yesn-etr chips the transmit stop register must be
 			 * programmed on a 1k boundary, i.e. bits 9:0 must be zero.
 			 */
 			pdl_stop = lp->memory_size;
@@ -1157,12 +1157,12 @@ static void hp100_init_pdls(struct net_device *dev)
 #endif
 
 	if (!lp->page_vaddr_algn)
-		printk("hp100: %s: Warning: lp->page_vaddr_algn not initialised!\n", dev->name);
+		printk("hp100: %s: Warning: lp->page_vaddr_algn yest initialised!\n", dev->name);
 	else {
 		/* pageptr shall point into the DMA accessible memory region  */
 		/* we use this pointer to status the upper limit of allocated */
 		/* memory in the allocated page. */
-		/* note: align the pointers to the pci cache line size */
+		/* yeste: align the pointers to the pci cache line size */
 		memset(lp->page_vaddr_algn, 0, MAX_RINGSIZE);	/* Zero  Rx/Tx ring page */
 		pageptr = lp->page_vaddr_algn;
 
@@ -1210,7 +1210,7 @@ static int hp100_init_rxpdl(struct net_device *dev,
 	 * We use the 4 bytes _before_ the PDH in the pdl memory area to
 	 * store this information. (PDH is at offset 0x04)
 	 */
-	/* Note that pdlptr+1 and not pdlptr is the pointer to the PDH */
+	/* Note that pdlptr+1 and yest pdlptr is the pointer to the PDH */
 
 	*(pdlptr + 2) = (u_int) virt_to_whatever(dev, pdlptr);	/* Address Frag 1 */
 	*(pdlptr + 3) = 4;	/* Length  Frag 1 */
@@ -1299,7 +1299,7 @@ static int hp100_build_rx_pdl(hp100_ring_t * ringptr,
 		return 1;
 	}
 	/* else: */
-	/* alloc_skb failed (no memory) -> still can receive the header
+	/* alloc_skb failed (yes memory) -> still can receive the header
 	 * fragment into PDL memory. make PDL safe by clearing msgptr and
 	 * making the PDL only 1 fragment (i.e. the 4 byte packet status)
 	 */
@@ -1386,10 +1386,10 @@ static void hp100_BM_shutdown(struct net_device *dev)
 	hp100_page(MAC_CTRL);
 	hp100_andb(~(HP100_RX_EN | HP100_TX_EN), MAC_CFG_1);	/* stop rx/tx */
 
-	/* If cascade MMU is not already in reset */
+	/* If cascade MMU is yest already in reset */
 	if (0 != (hp100_inw(OPTION_LSW) & HP100_HW_RST)) {
 		/* Wait 1.3ms (10Mb max packet time) to ensure MAC is idle so
-		 * MMU pointers will not be reset out from underneath
+		 * MMU pointers will yest be reset out from underneath
 		 */
 		hp100_page(MAC_CTRL);
 		for (time = 0; time < 5000; time++) {
@@ -1409,12 +1409,12 @@ static void hp100_BM_shutdown(struct net_device *dev)
 			}
 		} else {	/* Shasta or Rainier Shutdown/Reset */
 			/* To ensure all bus master inloading activity has ceased,
-			 * wait for no Rx PDAs or no Rx packets on card.
+			 * wait for yes Rx PDAs or yes Rx packets on card.
 			 */
 			hp100_page(PERFORMANCE);
 			/* 100 ms timeout */
 			for (time = 0; time < 10000; time++) {
-				/* RX_PDL: PDLs not executed. */
+				/* RX_PDL: PDLs yest executed. */
 				/* RX_PKT_CNT: RX'd packets on card. */
 				if ((hp100_inb(RX_PDL) == 0) && (hp100_inb(RX_PKT_CNT) == 0))
 					break;
@@ -1424,7 +1424,7 @@ static void hp100_BM_shutdown(struct net_device *dev)
 				printk("hp100: %s: BM shutdown error.\n", dev->name);
 
 			/* To ensure all bus master outloading activity has ceased,
-			 * wait until the Tx PDA count goes to zero or no more Tx space
+			 * wait until the Tx PDA count goes to zero or yes more Tx space
 			 * available in the Tx region of the card.
 			 */
 			/* 100 ms timeout */
@@ -1437,23 +1437,23 @@ static void hp100_BM_shutdown(struct net_device *dev)
 			/* Disable Busmaster mode */
 			hp100_page(HW_MAP);
 			hp100_andb(~HP100_BM_MASTER, BM);
-		}	/* end of shutdown procedure for non-etr parts */
+		}	/* end of shutdown procedure for yesn-etr parts */
 
 		hp100_cascade_reset(dev, 1);
 	}
 	hp100_page(PERFORMANCE);
 	/* hp100_outw( HP100_BM_READ | HP100_BM_WRITE | HP100_RESET_HB, OPTION_LSW ); */
-	/* Busmaster mode should be shut down now. */
+	/* Busmaster mode should be shut down yesw. */
 }
 
 static int hp100_check_lan(struct net_device *dev)
 {
 	struct hp100_private *lp = netdev_priv(dev);
 
-	if (lp->lan_type < 0) {	/* no LAN type detected yet? */
+	if (lp->lan_type < 0) {	/* yes LAN type detected yet? */
 		hp100_stop_interface(dev);
 		if ((lp->lan_type = hp100_sense_lan(dev)) < 0) {
-			printk("hp100: %s: no connection found - check wire\n", dev->name);
+			printk("hp100: %s: yes connection found - check wire\n", dev->name);
 			hp100_start_interface(dev);	/* 10Mb/s RX packets maybe handled */
 			return -EIO;
 		}
@@ -1494,7 +1494,7 @@ static netdev_tx_t hp100_start_xmit_bm(struct sk_buff *skb,
 #ifdef HP100_DEBUG
 		printk("hp100: %s: start_xmit_bm: No TX PDL available.\n", dev->name);
 #endif
-		/* not waited long enough since last tx? */
+		/* yest waited long eyesugh since last tx? */
 		if (time_before(jiffies, dev_trans_start(dev) + HZ))
 			goto drop;
 
@@ -1639,13 +1639,13 @@ static netdev_tx_t hp100_start_xmit(struct sk_buff *skb,
 	if (hp100_check_lan(dev))
 		goto drop;
 
-	/* If there is not enough free memory on the card... */
+	/* If there is yest eyesugh free memory on the card... */
 	i = hp100_inl(TX_MEM_FREE) & 0x7fffffff;
 	if (!(((i / 2) - 539) > (skb->len + 16) && (hp100_inb(TX_PKT_CNT) < 255))) {
 #ifdef HP100_DEBUG
 		printk("hp100: %s: start_xmit: tx free mem = 0x%x\n", dev->name, i);
 #endif
-		/* not waited long enough since last failed tx try? */
+		/* yest waited long eyesugh since last failed tx try? */
 		if (time_before(jiffies, dev_trans_start(dev) + HZ)) {
 #ifdef HP100_DEBUG
 			printk("hp100: %s: trans_start timing problem\n",
@@ -1748,8 +1748,8 @@ drop:
 /*
  * Receive Function (Non-Busmaster mode)
  * Called when an "Receive Packet" interrupt occurs, i.e. the receive
- * packet counter is non-zero.
- * For non-busmaster, this function does the whole work of transferring
+ * packet counter is yesn-zero.
+ * For yesn-busmaster, this function does the whole work of transferring
  * the packet to the host memory and then up to higher layers via skb
  * and netif_rx.
  */
@@ -1769,7 +1769,7 @@ static void hp100_rx(struct net_device *dev)
 
 	/* First get indication of received lan packet */
 	/* RX_PKT_CND indicates the number of packets which have been fully */
-	/* received onto the card but have not been fully transferred of the card */
+	/* received onto the card but have yest been fully transferred of the card */
 	packets = hp100_inb(RX_PKT_CNT);
 #ifdef HP100_DEBUG_RX
 	if (packets > 1)
@@ -1802,7 +1802,7 @@ static void hp100_rx(struct net_device *dev)
 
 		/* Now we allocate the skb and transfer the data into it. */
 		skb = netdev_alloc_skb(dev, pkt_len + 2);
-		if (skb == NULL) {	/* Not enough memory->drop packet */
+		if (skb == NULL) {	/* Not eyesugh memory->drop packet */
 #ifdef HP100_DEBUG
 			printk("hp100: %s: rx: couldn't allocate a sk_buff of size %d\n",
 					     dev->name, pkt_len);
@@ -1870,7 +1870,7 @@ static void hp100_rx_bm(struct net_device *dev)
 
 #ifdef HP100_DEBUG
 	if (0 == lp->rxrcommit) {
-		printk("hp100: %s: rx_bm called although no PDLs were committed to adapter?\n", dev->name);
+		printk("hp100: %s: rx_bm called although yes PDLs were committed to adapter?\n", dev->name);
 		return;
 	} else
 		/* RX_PKT_CNT states how many PDLs are currently formatted and available to
@@ -2105,7 +2105,7 @@ static void hp100_set_multicast_list(struct net_device *dev)
 		memset(&lp->hash_bytes, 0xff, 8);
 #endif
 	} else {
-		lp->mac2_mode = HP100_MAC2MODE3;	/* normal mode = get packets for me */
+		lp->mac2_mode = HP100_MAC2MODE3;	/* yesrmal mode = get packets for me */
 		lp->mac1_mode = HP100_MAC1MODE3;	/* and broadcasts */
 		memset(&lp->hash_bytes, 0x00, 8);
 	}
@@ -2215,27 +2215,27 @@ static irqreturn_t hp100_interrupt(int irq, void *dev_id)
 
 	/*
 	 * RX_PDL_FILL_COMPL is set whenever a RX_PDL has been executed. A RX_PDL
-	 * is considered executed whenever the RX_PDL data structure is no longer
+	 * is considered executed whenever the RX_PDL data structure is yes longer
 	 * needed.
 	 */
 	if (val & HP100_RX_PDL_FILL_COMPL) {
 		if (lp->mode == 1)
 			hp100_rx_bm(dev);
 		else {
-			printk("hp100: %s: rx_pdl_fill_compl interrupt although not busmaster?\n", dev->name);
+			printk("hp100: %s: rx_pdl_fill_compl interrupt although yest busmaster?\n", dev->name);
 		}
 	}
 
 	/*
 	 * The RX_PACKET interrupt is set, when the receive packet counter is
-	 * non zero. We use this interrupt for receiving in slave mode. In
-	 * busmaster mode, we use it to make sure we did not miss any rx_pdl_fill
-	 * interrupts. If rx_pdl_fill_compl is not set and rx_packet is set, then
+	 * yesn zero. We use this interrupt for receiving in slave mode. In
+	 * busmaster mode, we use it to make sure we did yest miss any rx_pdl_fill
+	 * interrupts. If rx_pdl_fill_compl is yest set and rx_packet is set, then
 	 * we somehow have missed a rx_pdl_fill_compl interrupt.
 	 */
 
-	if (val & HP100_RX_PACKET) {	/* Receive Packet Counter is non zero */
-		if (lp->mode != 1)	/* non busmaster */
+	if (val & HP100_RX_PACKET) {	/* Receive Packet Counter is yesn zero */
+		if (lp->mode != 1)	/* yesn busmaster */
 			hp100_rx(dev);
 		else if (!(val & HP100_RX_PDL_FILL_COMPL)) {
 			/* Shouldn't happen - maybe we missed a RX_PDL_FILL Interrupt?  */
@@ -2244,15 +2244,15 @@ static irqreturn_t hp100_interrupt(int irq, void *dev_id)
 	}
 
 	/*
-	 * Ack. that we have noticed the interrupt and thereby allow next one.
-	 * Note that this is now done after the slave rx function, since first
-	 * acknowledging and then setting ADV_NXT_PKT caused an extra interrupt
+	 * Ack. that we have yesticed the interrupt and thereby allow next one.
+	 * Note that this is yesw done after the slave rx function, since first
+	 * ackyeswledging and then setting ADV_NXT_PKT caused an extra interrupt
 	 * on the J2573.
 	 */
 	hp100_outw(val, IRQ_STATUS);
 
 	/*
-	 * RX_ERROR is set when a packet is dropped due to no memory resources on
+	 * RX_ERROR is set when a packet is dropped due to yes memory resources on
 	 * the card or when a RCV_ERR occurs.
 	 * TX_ERROR is set when a TX_ABORT condition occurs in the MAC->exists
 	 * only in the 802.3 MAC and happens when 16 collisions occur during a TX
@@ -2269,7 +2269,7 @@ static irqreturn_t hp100_interrupt(int irq, void *dev_id)
 	}
 
 	/*
-	 * RX_PDA_ZERO is set when the PDA count goes from non-zero to zero.
+	 * RX_PDA_ZERO is set when the PDA count goes from yesn-zero to zero.
 	 */
 	if ((lp->mode == 1) && (val & (HP100_RX_PDA_ZERO)))
 		hp100_rxfill(dev);
@@ -2320,8 +2320,8 @@ static void hp100_start_interface(struct net_device *dev)
 
 	spin_lock_irqsave(&lp->lock, flags);
 
-	/* Ensure the adapter does not want to request an interrupt when */
-	/* enabling the IRQ line to be active on the bus (i.e. not tri-stated) */
+	/* Ensure the adapter does yest want to request an interrupt when */
+	/* enabling the IRQ line to be active on the bus (i.e. yest tri-stated) */
 	hp100_page(PERFORMANCE);
 	hp100_outw(0xfefe, IRQ_MASK);	/* mask off all ints */
 	hp100_outw(0xffff, IRQ_STATUS);	/* ack all IRQs */
@@ -2425,7 +2425,7 @@ static void hp100_load_eeprom(struct net_device *dev, u_short probe_ioaddr)
 /*  Sense connection status.
  *  return values: LAN_10  - Connected to 10Mbit/s network
  *                 LAN_100 - Connected to 100Mbit/s network
- *                 LAN_ERR - not connected or 100Mbit/s Hub down
+ *                 LAN_ERR - yest connected or 100Mbit/s Hub down
  */
 static int hp100_sense_lan(struct net_device *dev)
 {
@@ -2451,7 +2451,7 @@ static int hp100_sense_lan(struct net_device *dev)
 
 	if (val_10 & HP100_AUI_ST) {	/* have we BNC or AUI onboard? */
 		/*
-		 * This can be overriden by dos utility, so if this has no effect,
+		 * This can be overriden by dos utility, so if this has yes effect,
 		 * perhaps you need to download that utility from HP and set card
 		 * back to "auto detect".
 		 */
@@ -2496,7 +2496,7 @@ static int hp100_down_vg_link(struct net_device *dev)
 			schedule_timeout_interruptible(1);
 	} while (time_after(time, jiffies));
 
-	if (time_after_eq(jiffies, time))	/* no signal->no logout */
+	if (time_after_eq(jiffies, time))	/* yes signal->yes logout */
 		return 0;
 
 	/* Drop the VG Link by clearing the link up cmd and load addr. */
@@ -2515,10 +2515,10 @@ static int hp100_down_vg_link(struct net_device *dev)
 
 #ifdef HP100_DEBUG
 	if (time_after_eq(jiffies, time))
-		printk("hp100: %s: down_vg_link: Link does not go down?\n", dev->name);
+		printk("hp100: %s: down_vg_link: Link does yest go down?\n", dev->name);
 #endif
 
-	/* To prevent condition where Rev 1 VG MAC and old hubs do not complete */
+	/* To prevent condition where Rev 1 VG MAC and old hubs do yest complete */
 	/* logout under traffic (even though all the status bits are cleared),  */
 	/* do this workaround to get the Rev 1 MAC in its idle state */
 	if (lp->chip == HP100_CHIPID_LASSEN) {
@@ -2531,7 +2531,7 @@ static int hp100_down_vg_link(struct net_device *dev)
 	}
 
 	/* New: For lassen, switch to 10 Mbps mac briefly to clear training ACK */
-	/* to get the VG mac to full reset. This is not req.d with later chips */
+	/* to get the VG mac to full reset. This is yest req.d with later chips */
 	/* Note: It will take the between 1 and 2 seconds for the VG mac to be */
 	/* selected again! This will be left to the connect hub function to */
 	/* perform if desired.  */
@@ -2604,7 +2604,7 @@ static int hp100_login_to_vg_hub(struct net_device *dev, u_short force_relogin)
 		printk("hp100: %s: Start training\n", dev->name);
 #endif
 
-		/* Ensure VG Reset bit is 1 (i.e., do not reset) */
+		/* Ensure VG Reset bit is 1 (i.e., do yest reset) */
 		hp100_orb(HP100_VG_RESET, VG_LAN_CFG_1);
 
 		/* If Lassen AND auto-select-mode AND VG tones were sensed on */
@@ -2666,7 +2666,7 @@ static int hp100_login_to_vg_hub(struct net_device *dev, u_short force_relogin)
 
 		if (time_after_eq(jiffies, time)) {
 #ifdef HP100_DEBUG_TRAINING
-			printk("hp100: %s: Link cable status not ok? Training aborted.\n", dev->name);
+			printk("hp100: %s: Link cable status yest ok? Training aborted.\n", dev->name);
 #endif
 		} else {
 #ifdef HP100_DEBUG_TRAINING
@@ -2702,11 +2702,11 @@ static int hp100_login_to_vg_hub(struct net_device *dev, u_short force_relogin)
 			}
 #endif
 		} else {
-			/* If LINK_UP_ST is not set, login was not successful */
+			/* If LINK_UP_ST is yest set, login was yest successful */
 			printk("hp100: %s: Problem logging into the HUB.\n", dev->name);
 			if (lp->chip == HP100_CHIPID_LASSEN) {
 				/* Check allowed Register to find out why there is a problem. */
-				val = hp100_inw(TRAIN_ALLOW);	/* won't work on non-ETR card */
+				val = hp100_inw(TRAIN_ALLOW);	/* won't work on yesn-ETR card */
 #ifdef HP100_DEBUG_TRAINING
 				printk("hp100: %s: MAC Configuration requested: 0x%04x, HUB allowed: 0x%04x\n", dev->name, hp100_inw(TRAIN_REQUEST), val);
 #endif
@@ -2741,7 +2741,7 @@ static int hp100_login_to_vg_hub(struct net_device *dev, u_short force_relogin)
 			return -EIO;
 		}
 	}
-	/* no forced relogin & already link there->no training. */
+	/* yes forced relogin & already link there->yes training. */
 	return -EIO;
 }
 
@@ -2888,7 +2888,7 @@ static int hp100_pci_probe(struct pci_dev *pdev,
 	pci_read_config_word(pdev, PCI_COMMAND, &pci_command);
 	if (!(pci_command & PCI_COMMAND_IO)) {
 #ifdef HP100_DEBUG
-		printk("hp100: %s: PCI I/O Bit has not been set. Setting...\n", dev->name);
+		printk("hp100: %s: PCI I/O Bit has yest been set. Setting...\n", dev->name);
 #endif
 		pci_command |= PCI_COMMAND_IO;
 		pci_write_config_word(pdev, PCI_COMMAND, pci_command);
@@ -2896,7 +2896,7 @@ static int hp100_pci_probe(struct pci_dev *pdev,
 
 	if (!(pci_command & PCI_COMMAND_MASTER)) {
 #ifdef HP100_DEBUG
-		printk("hp100: %s: PCI Master Bit has not been set. Setting...\n", dev->name);
+		printk("hp100: %s: PCI Master Bit has yest been set. Setting...\n", dev->name);
 #endif
 		pci_command |= PCI_COMMAND_MASTER;
 		pci_write_config_word(pdev, PCI_COMMAND, pci_command);

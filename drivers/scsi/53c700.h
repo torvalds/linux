@@ -15,7 +15,7 @@
 #include <scsi/scsi_device.h>
 #include <scsi/scsi_cmnd.h>
 
-/* Turn on for general debugging---too verbose for normal use */
+/* Turn on for general debugging---too verbose for yesrmal use */
 #undef	NCR_700_DEBUG
 /* Debug the tag queues, checking hash queue allocation and deallocation
  * and search for duplicate tags */
@@ -79,7 +79,7 @@ struct NCR_700_SG_List {
 
 struct NCR_700_Device_Parameters {
 	/* space for creating a request sense command. Really, except
-	 * for the annoying SCSI-2 requirement for LUN information in
+	 * for the anyesying SCSI-2 requirement for LUN information in
 	 * cmnd[1], this could be in static storage */
 	unsigned char cmnd[MAX_COMMAND_SIZE];
 	__u8	depth;
@@ -89,7 +89,7 @@ struct NCR_700_Device_Parameters {
 
 /* The SYNC negotiation sequence looks like:
  * 
- * If DEV_NEGOTIATED_SYNC not set, tack and SDTR message on to the
+ * If DEV_NEGOTIATED_SYNC yest set, tack and SDTR message on to the
  * initial identify for the device and set DEV_BEGIN_SYNC_NEGOTIATION
  * If we get an SDTR reply, work out the SXFER parameters, squirrel
  * them away here, clear DEV_BEGIN_SYNC_NEGOTIATION and set
@@ -189,7 +189,7 @@ struct NCR_700_command_slot {
 	/* if this command is a pci_single mapping, holds the dma address
 	 * for later unmapping in the done routine */
 	dma_addr_t	dma_handle;
-	/* historical remnant, now used to link free commands */
+	/* historical remnant, yesw used to link free commands */
 	struct NCR_700_command_slot *ITL_forw;
 };
 
@@ -207,7 +207,7 @@ struct NCR_700_Host_Parameters {
 	 * little endian on this platform (which is big endian) */
 	__u32	force_le_on_be:1;
 #endif
-	__u32	chip710:1;	/* set if really a 710 not 700 */
+	__u32	chip710:1;	/* set if really a 710 yest 700 */
 	__u32	burst_length:4;	/* set to 0 to disable 710 bursting */
 
 	/* NOTHING BELOW HERE NEEDS ALTERING */
@@ -413,7 +413,7 @@ struct NCR_700_Host_Parameters {
 #define DSPS_REG                        0x30
 
 /* Parameters to begin SDTR negotiations.  Empirically, I find that
- * the 53c700-66 cannot handle an offset >8, so don't change this  */
+ * the 53c700-66 canyest handle an offset >8, so don't change this  */
 #define NCR_700_MAX_OFFSET	8
 /* Was hoping the max offset would be greater for the 710, but
  * empirically it seems to be 8 also */

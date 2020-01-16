@@ -446,7 +446,7 @@
 
 			/*
 			 * As a special exception to the "order by
-			 * register address" rule, the eth0 node is
+			 * register address" rule, the eth0 yesde is
 			 * placed here to ensure that it gets
 			 * registered as the first interface, since
 			 * the network subsystem doesn't allow naming
@@ -661,7 +661,7 @@
 			#address-cells = <1>;
 			#size-cells = <1>;
 			clocks = <&gateclk 13>;
-			no-memory-wc;
+			yes-memory-wc;
 			status = "disabled";
 		};
 

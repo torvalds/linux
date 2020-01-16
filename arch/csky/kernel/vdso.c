@@ -24,17 +24,17 @@ static int __init init_vdso(void)
 
 	vdso_page = alloc_page(GFP_KERNEL);
 	if (!vdso_page)
-		panic("Cannot allocate vdso");
+		panic("Canyest allocate vdso");
 
 	vdso = vmap(&vdso_page, 1, 0, PAGE_KERNEL);
 	if (!vdso)
-		panic("Cannot map vdso");
+		panic("Canyest map vdso");
 
 	clear_page(vdso);
 
 	err = setup_vdso_page(vdso->rt_signal_retcode);
 	if (err)
-		panic("Cannot set signal return code, err: %x.", err);
+		panic("Canyest set signal return code, err: %x.", err);
 
 	dcache_wb_range((unsigned long)vdso, (unsigned long)vdso + 16);
 

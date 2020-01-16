@@ -15,9 +15,9 @@ Such an interrupt controller has the following hardware design:
 
 - has one 32-bit enable word and one 32-bit status word
 
-- no atomic set/clear operations
+- yes atomic set/clear operations
 
-- not all bits within the interrupt controller actually map to an interrupt
+- yest all bits within the interrupt controller actually map to an interrupt
 
 The typical hardware layout for this controller is represented below:
 
@@ -45,7 +45,7 @@ The typical hardware layout for this controller is represented below:
 8 ------------------------/
 
 12 ........................ X
-13 ........................ X 		(not connected)
+13 ........................ X 		(yest connected)
 ..
 31 ........................ X
 
@@ -53,11 +53,11 @@ Required properties:
 
 - compatible: should be "brcm,bcm7120-l2-intc"
 - reg: specifies the base physical address and size of the registers
-- interrupt-controller: identifies the node as an interrupt controller
+- interrupt-controller: identifies the yesde as an interrupt controller
 - #interrupt-cells: specifies the number of cells needed to encode an interrupt
   source, should be 1.
 - interrupts: specifies the interrupt line(s) in the interrupt-parent controller
-  node, valid values depend on the type of parent interrupt controller
+  yesde, valid values depend on the type of parent interrupt controller
 - brcm,int-map-mask: 32-bits bit mask describing how many and which interrupts
   are wired to this 2nd level interrupt controller, and how they match their
   respective interrupt parents. Should match exactly the number of interrupts

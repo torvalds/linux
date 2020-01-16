@@ -5,7 +5,7 @@
  */
 
 #include <linux/delay.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/input.h>
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
@@ -50,17 +50,17 @@ struct pm8941_pwrkey {
 	struct input_dev *input;
 
 	unsigned int revision;
-	struct notifier_block reboot_notifier;
+	struct yestifier_block reboot_yestifier;
 
 	u32 code;
 	const struct pm8941_data *data;
 };
 
-static int pm8941_reboot_notify(struct notifier_block *nb,
+static int pm8941_reboot_yestify(struct yestifier_block *nb,
 				unsigned long code, void *unused)
 {
 	struct pm8941_pwrkey *pwrkey = container_of(nb, struct pm8941_pwrkey,
-						    reboot_notifier);
+						    reboot_yestifier);
 	unsigned int enable_reg;
 	unsigned int reset_type;
 	int error;
@@ -164,7 +164,7 @@ static int pm8941_pwrkey_probe(struct platform_device *pdev)
 	u32 req_delay;
 	int error;
 
-	if (of_property_read_u32(pdev->dev.of_node, "debounce", &req_delay))
+	if (of_property_read_u32(pdev->dev.of_yesde, "debounce", &req_delay))
 		req_delay = 15625;
 
 	if (req_delay > 2000000 || req_delay == 0) {
@@ -172,7 +172,7 @@ static int pm8941_pwrkey_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	pull_up = of_property_read_bool(pdev->dev.of_node, "bias-pull-up");
+	pull_up = of_property_read_bool(pdev->dev.of_yesde, "bias-pull-up");
 
 	pwrkey = devm_kzalloc(&pdev->dev, sizeof(*pwrkey), GFP_KERNEL);
 	if (!pwrkey)
@@ -186,7 +186,7 @@ static int pm8941_pwrkey_probe(struct platform_device *pdev)
 	if (!pwrkey->regmap) {
 		/*
 		 * We failed to get regmap for parent. Let's see if we are
-		 * a child of pon node and read regmap and reg from its
+		 * a child of pon yesde and read regmap and reg from its
 		 * parent.
 		 */
 		pwrkey->regmap = dev_get_regmap(parent->parent, NULL);
@@ -195,10 +195,10 @@ static int pm8941_pwrkey_probe(struct platform_device *pdev)
 			return -ENODEV;
 		}
 
-		error = of_property_read_u32(parent->of_node,
+		error = of_property_read_u32(parent->of_yesde,
 					     "reg", &pwrkey->baseaddr);
 	} else {
-		error = of_property_read_u32(pdev->dev.of_node, "reg",
+		error = of_property_read_u32(pdev->dev.of_yesde, "reg",
 					     &pwrkey->baseaddr);
 	}
 	if (error)
@@ -215,11 +215,11 @@ static int pm8941_pwrkey_probe(struct platform_device *pdev)
 		return error;
 	}
 
-	error = of_property_read_u32(pdev->dev.of_node, "linux,code",
+	error = of_property_read_u32(pdev->dev.of_yesde, "linux,code",
 				     &pwrkey->code);
 	if (error) {
 		dev_dbg(&pdev->dev,
-			"no linux,code assuming power (%d)\n", error);
+			"yes linux,code assuming power (%d)\n", error);
 		pwrkey->code = KEY_POWER;
 	}
 
@@ -271,10 +271,10 @@ static int pm8941_pwrkey_probe(struct platform_device *pdev)
 		return error;
 	}
 
-	pwrkey->reboot_notifier.notifier_call = pm8941_reboot_notify,
-	error = register_reboot_notifier(&pwrkey->reboot_notifier);
+	pwrkey->reboot_yestifier.yestifier_call = pm8941_reboot_yestify,
+	error = register_reboot_yestifier(&pwrkey->reboot_yestifier);
 	if (error) {
-		dev_err(&pdev->dev, "failed to register reboot notifier: %d\n",
+		dev_err(&pdev->dev, "failed to register reboot yestifier: %d\n",
 			error);
 		return error;
 	}
@@ -289,7 +289,7 @@ static int pm8941_pwrkey_remove(struct platform_device *pdev)
 {
 	struct pm8941_pwrkey *pwrkey = platform_get_drvdata(pdev);
 
-	unregister_reboot_notifier(&pwrkey->reboot_notifier);
+	unregister_reboot_yestifier(&pwrkey->reboot_yestifier);
 
 	return 0;
 }

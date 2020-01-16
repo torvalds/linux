@@ -14,7 +14,7 @@ from the simplification of a new card support and the capability of the wide
 sample rates support through ASRC.
 
 Note: The card is initially designed for those sound cards who use AC'97, I2S
-      and PCM DAI formats. However, it'll be also possible to support those non
+      and PCM DAI formats. However, it'll be also possible to support those yesn
       AC'97/I2S/PCM type sound cards, such as S/PDIF audio and HDMI audio, as
       long as the driver has been properly upgraded.
 
@@ -62,7 +62,7 @@ Required properties:
 
 Optional properties:
 
-  - audio-asrc		: The phandle of ASRC. It can be absent if there's no
+  - audio-asrc		: The phandle of ASRC. It can be absent if there's yes
 			  need to add ASRC support via DPCM.
 
 Optional unless SSI is selected as a CPU DAI:

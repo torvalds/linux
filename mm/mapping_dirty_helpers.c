@@ -2,19 +2,19 @@
 #include <linux/pagewalk.h>
 #include <linux/hugetlb.h>
 #include <linux/bitops.h>
-#include <linux/mmu_notifier.h>
+#include <linux/mmu_yestifier.h>
 #include <asm/cacheflush.h>
 #include <asm/tlbflush.h>
 
 /**
  * struct wp_walk - Private struct for pagetable walk callbacks
- * @range: Range for mmu notifiers
+ * @range: Range for mmu yestifiers
  * @tlbflush_start: Address of first modified pte
  * @tlbflush_end: Address of last modified pte + 1
  * @total: Total number of modified ptes
  */
 struct wp_walk {
-	struct mmu_notifier_range range;
+	struct mmu_yestifier_range range;
 	unsigned long tlbflush_start;
 	unsigned long tlbflush_end;
 	unsigned long total;
@@ -141,7 +141,7 @@ static int wp_clean_pud_entry(pud_t *pud, unsigned long addr, unsigned long end,
  * wp_clean_pre_vma - The pagewalk pre_vma callback.
  *
  * The pre_vma callback performs the cache flush, stages the tlb flush
- * and calls the necessary mmu notifiers.
+ * and calls the necessary mmu yestifiers.
  */
 static int wp_clean_pre_vma(unsigned long start, unsigned long end,
 			    struct mm_walk *walk)
@@ -151,13 +151,13 @@ static int wp_clean_pre_vma(unsigned long start, unsigned long end,
 	wpwalk->tlbflush_start = end;
 	wpwalk->tlbflush_end = start;
 
-	mmu_notifier_range_init(&wpwalk->range, MMU_NOTIFY_PROTECTION_PAGE, 0,
+	mmu_yestifier_range_init(&wpwalk->range, MMU_NOTIFY_PROTECTION_PAGE, 0,
 				walk->vma, walk->mm, start, end);
-	mmu_notifier_invalidate_range_start(&wpwalk->range);
+	mmu_yestifier_invalidate_range_start(&wpwalk->range);
 	flush_cache_range(walk->vma, start, end);
 
 	/*
-	 * We're not using tlb_gather_mmu() since typically
+	 * We're yest using tlb_gather_mmu() since typically
 	 * only a small subrange of PTEs are affected, whereas
 	 * tlb_gather_mmu() records the full range.
 	 */
@@ -170,7 +170,7 @@ static int wp_clean_pre_vma(unsigned long start, unsigned long end,
  * wp_clean_post_vma - The pagewalk post_vma callback.
  *
  * The post_vma callback performs the tlb flush and calls necessary mmu
- * notifiers.
+ * yestifiers.
  */
 static void wp_clean_post_vma(struct mm_walk *walk)
 {
@@ -183,7 +183,7 @@ static void wp_clean_post_vma(struct mm_walk *walk)
 		flush_tlb_range(walk->vma, wpwalk->tlbflush_start,
 				wpwalk->tlbflush_end);
 
-	mmu_notifier_invalidate_range_end(&wpwalk->range);
+	mmu_yestifier_invalidate_range_end(&wpwalk->range);
 	dec_tlb_flush_pending(walk->mm);
 }
 
@@ -197,7 +197,7 @@ static int wp_clean_test_walk(unsigned long start, unsigned long end,
 {
 	unsigned long vm_flags = READ_ONCE(walk->vma->vm_flags);
 
-	/* Skip non-applicable VMAs */
+	/* Skip yesn-applicable VMAs */
 	if ((vm_flags & (VM_SHARED | VM_MAYWRITE | VM_HUGETLB)) !=
 	    (VM_SHARED | VM_MAYWRITE))
 		return 1;
@@ -235,7 +235,7 @@ static const struct mm_walk_ops wp_walk_ops = {
  * extended to handle them as well.
  *
  * Return: The number of ptes actually write-protected. Note that
- * already write-protected ptes are not counted.
+ * already write-protected ptes are yest counted.
  */
 unsigned long wp_shared_mapping_range(struct address_space *mapping,
 				      pgoff_t first_index, pgoff_t nr)
@@ -263,17 +263,17 @@ EXPORT_SYMBOL_GPL(wp_shared_mapping_range);
  * @start: Pointer to number of the first set bit in @bitmap.
  * is modified as new bits are set by the function.
  * @end: Pointer to the number of the last set bit in @bitmap.
- * none set. The value is modified as new bits are set by the function.
+ * yesne set. The value is modified as new bits are set by the function.
  *
- * Note: When this function returns there is no guarantee that a CPU has
- * not already dirtied new ptes. However it will not clean any ptes not
+ * Note: When this function returns there is yes guarantee that a CPU has
+ * yest already dirtied new ptes. However it will yest clean any ptes yest
  * reported in the bitmap. The guarantees are as follows:
  * a) All ptes dirty when the function starts executing will end up recorded
  *    in the bitmap.
  * b) All ptes dirtied after that will either remain dirty, be recorded in the
  *    bitmap or both.
  *
- * If a caller needs to make sure all dirty ptes are picked up and none
+ * If a caller needs to make sure all dirty ptes are picked up and yesne
  * additional are added, it first needs to write-protect the address-space
  * range and make sure new writers are blocked in page_mkwrite() or
  * pfn_mkwrite(). And then after a TLB flush following the write-protection
@@ -293,13 +293,13 @@ unsigned long clean_record_shared_mapping_range(struct address_space *mapping,
 						pgoff_t *start,
 						pgoff_t *end)
 {
-	bool none_set = (*start >= *end);
+	bool yesne_set = (*start >= *end);
 	struct clean_walk cwalk = {
 		.base = { .total = 0 },
 		.bitmap_pgoff = bitmap_pgoff,
 		.bitmap = bitmap,
-		.start = none_set ? nr : *start,
-		.end = none_set ? 0 : *end,
+		.start = yesne_set ? nr : *start,
+		.end = yesne_set ? 0 : *end,
 	};
 
 	i_mmap_lock_read(mapping);

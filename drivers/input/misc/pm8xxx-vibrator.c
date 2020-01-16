@@ -2,7 +2,7 @@
 /* Copyright (c) 2010-2011, Code Aurora Forum. All rights reserved.
  */
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/input.h>
 #include <linux/kernel.h>
 #include <linux/module.h>

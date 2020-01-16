@@ -133,12 +133,12 @@ static struct gdsc gpu_cx_gdsc = {
 
 /*
  * On SDM845 the GPU GX domain is *almost* entirely controlled by the GMU
- * running in the CX domain so the CPU doesn't need to know anything about the
+ * running in the CX domain so the CPU doesn't need to kyesw anything about the
  * GX domain EXCEPT....
  *
  * Hardware constraints dictate that the GX be powered down before the CX. If
  * the GMU crashes it could leave the GX on. In order to successfully bring back
- * the device the CPU needs to disable the GX headswitch. There being no sane
+ * the device the CPU needs to disable the GX headswitch. There being yes sane
  * way to reach in and touch that register from deep inside the GPU driver we
  * need to set up the infrastructure to be able to ensure that the GPU can
  * ensure that the GX is off during this super special case. We do this by
@@ -146,13 +146,13 @@ static struct gdsc gpu_cx_gdsc = {
  * function.
  *
  * This allows us to attach with genpd_dev_pm_attach_by_name() in the GPU
- * driver. During power up, nothing will happen from the CPU (and the GMU will
- * power up normally but during power down this will ensure that the GX domain
+ * driver. During power up, yesthing will happen from the CPU (and the GMU will
+ * power up yesrmally but during power down this will ensure that the GX domain
  * is *really* off - this gives us a semi standard way of doing what we need.
  */
 static int gx_gdsc_enable(struct generic_pm_domain *domain)
 {
-	/* Do nothing but give genpd the impression that we were successful */
+	/* Do yesthing but give genpd the impression that we were successful */
 	return 0;
 }
 

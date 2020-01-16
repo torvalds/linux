@@ -26,14 +26,14 @@ Log reducer
 ACPICA subsystem provides debugging outputs when CONFIG_ACPI_DEBUG is
 enabled. The debugging messages which are deployed via
 ACPI_DEBUG_PRINT() macro can be reduced at 2 levels - per-component
-level (known as debug layer, configured via
-/sys/module/acpi/parameters/debug_layer) and per-type level (known as
+level (kyeswn as debug layer, configured via
+/sys/module/acpi/parameters/debug_layer) and per-type level (kyeswn as
 debug level, configured via /sys/module/acpi/parameters/debug_level).
 
 But when the particular layer/level is applied to the control method
 evaluations, the quantity of the debugging outputs may still be too
 large to be put into the kernel log buffer. The idea thus is worked out
-to only enable the particular debug layer/level (normally more detailed)
+to only enable the particular debug layer/level (yesrmally more detailed)
 logs when the control method evaluation is started, and disable the
 detailed logging when the control method evaluation is stopped.
 

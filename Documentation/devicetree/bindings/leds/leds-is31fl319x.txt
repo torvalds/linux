@@ -17,14 +17,14 @@ Optional properties:
 	Valid values: 0 - 21, step by 3 (rounded down)
 	Default: 0
 
-Each led is represented as a sub-node of the issi,is31fl319x device.
-There can be less leds subnodes than the chip can support but not more.
+Each led is represented as a sub-yesde of the issi,is31fl319x device.
+There can be less leds subyesdes than the chip can support but yest more.
 
-Required led sub-node properties:
+Required led sub-yesde properties:
 - reg : number of LED line
 	Valid values: 1 - number of leds supported by the chip variant.
 
-Optional led sub-node properties:
+Optional led sub-yesde properties:
 - label : see Documentation/devicetree/bindings/leds/common.txt.
 - linux,default-trigger :
 	see Documentation/devicetree/bindings/leds/common.txt.
@@ -34,7 +34,7 @@ Optional led sub-node properties:
 	Note: a driver will take the lowest of all led limits since the
 	chip has a single global setting. The lowest value will be chosen
 	due to the PWM specificity, where lower brightness is achieved
-	by reducing the dury-cycle of pulses and not the current, which
+	by reducing the dury-cycle of pulses and yest the current, which
 	will always have its peak value equal to led-max-microamp.
 
 Examples:

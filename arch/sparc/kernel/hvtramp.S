@@ -65,7 +65,7 @@ hv_cpu_startup:
 	ta		HV_FAST_TRAP
 
 	brnz,pn		%o0, 80f
-	 nop
+	 yesp
 
 	add		%l1, 1, %l1
 	cmp		%l1, %l2
@@ -77,7 +77,7 @@ hv_cpu_startup:
 	ta		HV_FAST_TRAP
 
 	brnz,pn		%o0, 80f
-	 nop
+	 yesp
 
 	wrpr		%g0, (PSTATE_PRIV | PSTATE_PEF), %pstate
 
@@ -89,7 +89,7 @@ hv_cpu_startup:
 	ta		HV_FAST_TRAP
 
 	ba,pt		%xcc, 80f
-	 nop
+	 yesp
 
 1:
 	wr		%g0, 0, %fprs
@@ -112,12 +112,12 @@ hv_cpu_startup:
 	add		%g6, %g5, %sp
 
 	call		init_irqwork_curcpu
-	 nop
+	 yesp
 	call		hard_smp_processor_id
-	 nop
+	 yesp
 
 	call		sun4v_register_mondo_queues
-	 nop
+	 yesp
 
 	call		init_cur_cpu_trap
 	 mov		%g6, %o0
@@ -125,13 +125,13 @@ hv_cpu_startup:
 	wrpr		%g0, (PSTATE_PRIV | PSTATE_PEF | PSTATE_IE), %pstate
 
 	call		smp_callin
-	 nop
+	 yesp
 
 	call		cpu_panic
-	 nop
+	 yesp
 
 80:	ba,pt		%xcc, 80b
-	 nop
+	 yesp
 
 	.align		8
 hv_cpu_startup_end:

@@ -10,7 +10,7 @@ struct fixed_phy_status {
 	int asym_pause;
 };
 
-struct device_node;
+struct device_yesde;
 struct gpio_desc;
 
 #if IS_ENABLED(CONFIG_FIXED_PHY)
@@ -19,7 +19,7 @@ extern int fixed_phy_add(unsigned int irq, int phy_id,
 			 struct fixed_phy_status *status);
 extern struct phy_device *fixed_phy_register(unsigned int irq,
 					     struct fixed_phy_status *status,
-					     struct device_node *np);
+					     struct device_yesde *np);
 
 extern struct phy_device *
 fixed_phy_register_with_gpiod(unsigned int irq,
@@ -38,7 +38,7 @@ static inline int fixed_phy_add(unsigned int irq, int phy_id,
 }
 static inline struct phy_device *fixed_phy_register(unsigned int irq,
 						struct fixed_phy_status *status,
-						struct device_node *np)
+						struct device_yesde *np)
 {
 	return ERR_PTR(-ENODEV);
 }

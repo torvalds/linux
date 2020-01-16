@@ -368,7 +368,7 @@ static int cpcap_usb_init_irq(struct platform_device *pdev,
 					  IRQF_SHARED,
 					  name, ddata);
 	if (error) {
-		dev_err(ddata->dev, "could not get irq %s: %i\n",
+		dev_err(ddata->dev, "could yest get irq %s: %i\n",
 			name, error);
 
 		return error;
@@ -477,7 +477,7 @@ static int cpcap_usb_set_usb_mode(struct cpcap_phy_ddata *ddata)
 	if (ddata->pins_utmi) {
 		error = pinctrl_select_state(ddata->pins, ddata->pins_utmi);
 		if (error) {
-			dev_err(ddata->dev, "could not set usb mode: %i\n",
+			dev_err(ddata->dev, "could yest set usb mode: %i\n",
 				error);
 
 			return error;
@@ -521,7 +521,7 @@ static int cpcap_usb_init_optional_pins(struct cpcap_phy_ddata *ddata)
 {
 	ddata->pins = devm_pinctrl_get(ddata->dev);
 	if (IS_ERR(ddata->pins)) {
-		dev_info(ddata->dev, "default pins not configured: %ld\n",
+		dev_info(ddata->dev, "default pins yest configured: %ld\n",
 			 PTR_ERR(ddata->pins));
 		ddata->pins = NULL;
 
@@ -530,19 +530,19 @@ static int cpcap_usb_init_optional_pins(struct cpcap_phy_ddata *ddata)
 
 	ddata->pins_ulpi = pinctrl_lookup_state(ddata->pins, "ulpi");
 	if (IS_ERR(ddata->pins_ulpi)) {
-		dev_info(ddata->dev, "ulpi pins not configured\n");
+		dev_info(ddata->dev, "ulpi pins yest configured\n");
 		ddata->pins_ulpi = NULL;
 	}
 
 	ddata->pins_utmi = pinctrl_lookup_state(ddata->pins, "utmi");
 	if (IS_ERR(ddata->pins_utmi)) {
-		dev_info(ddata->dev, "utmi pins not configured\n");
+		dev_info(ddata->dev, "utmi pins yest configured\n");
 		ddata->pins_utmi = NULL;
 	}
 
 	ddata->pins_uart = pinctrl_lookup_state(ddata->pins, "uart");
 	if (IS_ERR(ddata->pins_uart)) {
-		dev_info(ddata->dev, "uart pins not configured\n");
+		dev_info(ddata->dev, "uart pins yest configured\n");
 		ddata->pins_uart = NULL;
 	}
 
@@ -560,7 +560,7 @@ static void cpcap_usb_init_optional_gpios(struct cpcap_phy_ddata *ddata)
 		ddata->gpio[i] = devm_gpiod_get_index(ddata->dev, "mode",
 						      i, GPIOD_OUT_HIGH);
 		if (IS_ERR(ddata->gpio[i])) {
-			dev_info(ddata->dev, "no mode change GPIO%i: %li\n",
+			dev_info(ddata->dev, "yes mode change GPIO%i: %li\n",
 				 i, PTR_ERR(ddata->gpio[i]));
 			ddata->gpio[i] = NULL;
 		}
@@ -595,7 +595,7 @@ static int cpcap_usb_init_iio(struct cpcap_phy_ddata *ddata)
 	return 0;
 
 out_err:
-	dev_err(ddata->dev, "could not initialize VBUS or ID IIO: %i\n",
+	dev_err(ddata->dev, "could yest initialize VBUS or ID IIO: %i\n",
 		error);
 
 	return error;
@@ -701,7 +701,7 @@ static int cpcap_usb_phy_remove(struct platform_device *pdev)
 	atomic_set(&ddata->active, 0);
 	error = cpcap_usb_set_uart_mode(ddata);
 	if (error)
-		dev_err(ddata->dev, "could not set UART mode\n");
+		dev_err(ddata->dev, "could yest set UART mode\n");
 
 	cpcap_usb_try_musb_mailbox(ddata, MUSB_VBUS_OFF);
 

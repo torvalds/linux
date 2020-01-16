@@ -10,7 +10,7 @@
  *	Copyright (c) by Phil Poole 2013
  *
  *	ALSA SoC I2S (McBSP) Audio Layer for TI DAVINCI processor
- *      Vladimir Barinov, <vbarinov@embeddedalley.com>
+ *      Vladimir Bariyesv, <vbariyesv@embeddedalley.com>
  *	Copyright (C) 2007 MontaVista Software, Inc., <source@mvista.com>
  *
  *	OMAP ALSA SoC DAI driver using McBSP port
@@ -171,7 +171,7 @@ static void bcm2835_i2s_clear_fifos(struct bcm2835_i2s_dev *dev,
 	regmap_read(dev->i2s_regmap, BCM2835_I2S_CS_A_REG, &csreg);
 	i2s_active_state = csreg & (BCM2835_I2S_RXON | BCM2835_I2S_TXON);
 
-	/* Start clock if not running */
+	/* Start clock if yest running */
 	clk_was_prepared = dev->clk_prepared;
 	if (!clk_was_prepared)
 		bcm2835_i2s_start_clock(dev);
@@ -189,7 +189,7 @@ static void bcm2835_i2s_clear_fifos(struct bcm2835_i2s_dev *dev,
 
 	/*
 	 * Toggle the SYNC flag. After 2 PCM clock cycles it can be read back
-	 * FIXME: This does not seem to work for slave mode!
+	 * FIXME: This does yest seem to work for slave mode!
 	 */
 	regmap_read(dev->i2s_regmap, BCM2835_I2S_CS_A_REG, &syncval);
 	syncval &= BCM2835_I2S_SYNC;
@@ -207,7 +207,7 @@ static void bcm2835_i2s_clear_fifos(struct bcm2835_i2s_dev *dev,
 	if (!timeout)
 		dev_err(dev->dev, "I2S SYNC error!\n");
 
-	/* Stop clock if it was not running before */
+	/* Stop clock if it was yest running before */
 	if (!clk_was_prepared)
 		bcm2835_i2s_stop_clock(dev);
 
@@ -509,7 +509,7 @@ static int bcm2835_i2s_hw_params(struct snd_pcm_substream *substream,
 
 	/*
 	 * Set format for both streams.
-	 * We cannot set another frame length
+	 * We canyest set ayesther frame length
 	 * (and therefore word length) anyway,
 	 * so the format will be the same.
 	 */
@@ -527,7 +527,7 @@ static int bcm2835_i2s_hw_params(struct snd_pcm_substream *substream,
 	if (data_length <= 16) {
 		/*
 		 * Use frame packed mode (2 channels per 32 bit word)
-		 * We cannot set another frame length in the second stream
+		 * We canyest set ayesther frame length in the second stream
 		 * (and therefore word length) anyway,
 		 * so the format will be the same.
 		 */
@@ -545,7 +545,7 @@ static int bcm2835_i2s_hw_params(struct snd_pcm_substream *substream,
 	if (!frame_sync_master)
 		mode |= BCM2835_I2S_FSM;
 
-	/* CLKI selects normal clocking mode, sampling on rising edge */
+	/* CLKI selects yesrmal clocking mode, sampling on rising edge */
         switch (dev->fmt & SND_SOC_DAIFMT_INV_MASK) {
 	case SND_SOC_DAIFMT_NB_NF:
 	case SND_SOC_DAIFMT_NB_IF:
@@ -622,7 +622,7 @@ static int bcm2835_i2s_prepare(struct snd_pcm_substream *substream,
 
 	/*
 	 * Clear both FIFOs if the one that should be started
-	 * is not empty at the moment. This should only happen
+	 * is yest empty at the moment. This should only happen
 	 * after overrun. Otherwise, hw_params would have cleared
 	 * the FIFO.
 	 */
@@ -652,7 +652,7 @@ static void bcm2835_i2s_stop(struct bcm2835_i2s_dev *dev,
 	regmap_update_bits(dev->i2s_regmap,
 			BCM2835_I2S_CS_A_REG, mask, 0);
 
-	/* Stop also the clock when not SND_SOC_DAIFMT_CONT */
+	/* Stop also the clock when yest SND_SOC_DAIFMT_CONT */
 	if (!dai->active && !(dev->fmt & SND_SOC_DAIFMT_CONT))
 		bcm2835_i2s_stop_clock(dev);
 }
@@ -732,7 +732,7 @@ static void bcm2835_i2s_shutdown(struct snd_pcm_substream *substream,
 
 	/*
 	 * Stopping clock is necessary, because stop does
-	 * not stop the clock when SND_SOC_DAIFMT_CONT
+	 * yest stop the clock when SND_SOC_DAIFMT_CONT
 	 */
 	bcm2835_i2s_stop_clock(dev);
 }
@@ -841,7 +841,7 @@ static int bcm2835_i2s_probe(struct platform_device *pdev)
 	dev->clk_prepared = false;
 	dev->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(dev->clk)) {
-		dev_err(&pdev->dev, "could not get clk: %ld\n",
+		dev_err(&pdev->dev, "could yest get clk: %ld\n",
 			PTR_ERR(dev->clk));
 		return PTR_ERR(dev->clk);
 	}
@@ -857,9 +857,9 @@ static int bcm2835_i2s_probe(struct platform_device *pdev)
 		return PTR_ERR(dev->i2s_regmap);
 
 	/* Set the DMA address - we have to parse DT ourselves */
-	addr = of_get_address(pdev->dev.of_node, 0, NULL, NULL);
+	addr = of_get_address(pdev->dev.of_yesde, 0, NULL, NULL);
 	if (!addr) {
-		dev_err(&pdev->dev, "could not get DMA-register address\n");
+		dev_err(&pdev->dev, "could yest get DMA-register address\n");
 		return -EINVAL;
 	}
 	dma_base = be32_to_cpup(addr);
@@ -896,13 +896,13 @@ static int bcm2835_i2s_probe(struct platform_device *pdev)
 	ret = devm_snd_soc_register_component(&pdev->dev,
 			&bcm2835_i2s_component, &bcm2835_i2s_dai, 1);
 	if (ret) {
-		dev_err(&pdev->dev, "Could not register DAI: %d\n", ret);
+		dev_err(&pdev->dev, "Could yest register DAI: %d\n", ret);
 		return ret;
 	}
 
 	ret = devm_snd_dmaengine_pcm_register(&pdev->dev, NULL, 0);
 	if (ret) {
-		dev_err(&pdev->dev, "Could not register PCM: %d\n", ret);
+		dev_err(&pdev->dev, "Could yest register PCM: %d\n", ret);
 		return ret;
 	}
 

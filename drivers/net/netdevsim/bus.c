@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
-/* Copyright (C) 2017 Netronome Systems, Inc.
- * Copyright (C) 2019 Mellanox Technologies. All rights reserved
+/* Copyright (C) 2017 Netroyesme Systems, Inc.
+ * Copyright (C) 2019 Mellayesx Techyeslogies. All rights reserved
  */
 
 #include <linux/device.h>

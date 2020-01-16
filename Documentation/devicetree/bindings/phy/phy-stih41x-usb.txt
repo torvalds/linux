@@ -6,7 +6,7 @@ STMicroelectronics.
 
 Required properties:
 - compatible	: should be "st,stih416-usb-phy" or "st,stih415-usb-phy"
-- st,syscfg	: should be a phandle of the syscfg node
+- st,syscfg	: should be a phandle of the syscfg yesde
 - clock-names	: must contain "osc_phy"
 - clocks	: must contain an entry for each name in clock-names.
 See: Documentation/devicetree/bindings/clock/clock-bindings.txt

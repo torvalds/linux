@@ -78,7 +78,7 @@ static int platform_clock_control(struct snd_soc_dapm_widget *w,
 		codec_dai = snd_soc_card_get_codec_dai(card, CHT_CODEC_DAI2);
 
 	if (!codec_dai) {
-		dev_err(card->dev, "Codec dai not found; Unable to set platform clock\n");
+		dev_err(card->dev, "Codec dai yest found; Unable to set platform clock\n");
 		return -EIO;
 	}
 
@@ -86,7 +86,7 @@ static int platform_clock_control(struct snd_soc_dapm_widget *w,
 		ret = clk_prepare_enable(ctx->mclk);
 		if (ret < 0) {
 			dev_err(card->dev,
-				"could not configure MCLK state");
+				"could yest configure MCLK state");
 			return ret;
 		}
 	} else {
@@ -315,12 +315,12 @@ static int cht_codec_init(struct snd_soc_pcm_runtime *runtime)
 
 	/*
 	 * The firmware might enable the clock at
-	 * boot (this information may or may not
+	 * boot (this information may or may yest
 	 * be reflected in the enable clock register).
 	 * To change the rate we must disable the clock
 	 * first to cover these cases. Due to common
-	 * clock framework restrictions that do not allow
-	 * to disable a clock that has not been enabled,
+	 * clock framework restrictions that do yest allow
+	 * to disable a clock that has yest been enabled,
 	 * we need to enable the clock first.
 	 */
 	ret = clk_prepare_enable(ctx->mclk);
@@ -357,7 +357,7 @@ static int cht_codec_fixup(struct snd_soc_pcm_runtime *rtd,
 		/*
 		 * Default mode for SSP configuration is TDM 4 slot, override config
 		 * with explicit setting to I2S 2ch 16-bit. The word length is set with
-		 * dai_set_tdm_slot() since there is no other API exposed
+		 * dai_set_tdm_slot() since there is yes other API exposed
 		 */
 		ret = snd_soc_dai_set_fmt(rtd->cpu_dai,
 					SND_SOC_DAIFMT_I2S     |
@@ -447,7 +447,7 @@ static struct snd_soc_dai_link cht_dailink[] = {
 	[MERR_DPCM_AUDIO] = {
 		.name = "Audio Port",
 		.stream_name = "Audio",
-		.nonatomic = true,
+		.yesnatomic = true,
 		.dynamic = 1,
 		.dpcm_playback = 1,
 		.dpcm_capture = 1,
@@ -457,7 +457,7 @@ static struct snd_soc_dai_link cht_dailink[] = {
 	[MERR_DPCM_DEEP_BUFFER] = {
 		.name = "Deep-Buffer Audio Port",
 		.stream_name = "Deep-Buffer Audio",
-		.nonatomic = true,
+		.yesnatomic = true,
 		.dynamic = 1,
 		.dpcm_playback = 1,
 		.ops = &cht_aif1_ops,
@@ -468,10 +468,10 @@ static struct snd_soc_dai_link cht_dailink[] = {
 	{
 		.name = "SSP2-Codec",
 		.id = 0,
-		.no_pcm = 1,
+		.yes_pcm = 1,
 		.init = cht_codec_init,
 		.be_hw_params_fixup = cht_codec_fixup,
-		.nonatomic = true,
+		.yesnatomic = true,
 		.dpcm_playback = 1,
 		.dpcm_capture = 1,
 		.ops = &cht_be_ssp2_ops,
@@ -520,7 +520,7 @@ static char cht_rt5645_cpu_dai_name[10]; /*  = "ssp[0|2]-port" */
 
 struct acpi_chan_package {   /* ACPICA seems to require 64 bit integers */
 	u64 aif_value;       /* 1: AIF1, 2: AIF2 */
-	u64 mclock_value;    /* usually 25MHz (0x17d7940), ignored */
+	u64 mclock_value;    /* usually 25MHz (0x17d7940), igyesred */
 };
 
 static int snd_cht_mc_probe(struct platform_device *pdev)
@@ -594,8 +594,8 @@ static int snd_cht_mc_probe(struct platform_device *pdev)
 		 * Baytrail CR platforms may have CHAN package in BIOS, try
 		 * to find relevant routing quirk based as done on Windows
 		 * platforms. We have to read the information directly from the
-		 * BIOS, at this stage the card is not created and the links
-		 * with the codec driver/pdata are non-existent
+		 * BIOS, at this stage the card is yest created and the links
+		 * with the codec driver/pdata are yesn-existent
 		 */
 
 		struct acpi_chan_package chan_package;
@@ -625,13 +625,13 @@ static int snd_cht_mc_probe(struct platform_device *pdev)
 				dev_info(&pdev->dev, "BIOS Routing: AIF2 connected\n");
 				cht_rt5645_quirk |= CHT_RT5645_SSP0_AIF2;
 			} else {
-				dev_info(&pdev->dev, "BIOS Routing isn't valid, ignored\n");
+				dev_info(&pdev->dev, "BIOS Routing isn't valid, igyesred\n");
 				pkg_found = false;
 			}
 		}
 
 		if (!pkg_found) {
-			/* no BIOS indications, assume SSP0-AIF2 connection */
+			/* yes BIOS indications, assume SSP0-AIF2 connection */
 			cht_rt5645_quirk |= CHT_RT5645_SSP0_AIF2;
 		}
 	}

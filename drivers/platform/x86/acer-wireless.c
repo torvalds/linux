@@ -18,13 +18,13 @@ static const struct acpi_device_id acer_wireless_acpi_ids[] = {
 };
 MODULE_DEVICE_TABLE(acpi, acer_wireless_acpi_ids);
 
-static void acer_wireless_notify(struct acpi_device *adev, u32 event)
+static void acer_wireless_yestify(struct acpi_device *adev, u32 event)
 {
 	struct input_dev *idev = acpi_driver_data(adev);
 
 	dev_dbg(&adev->dev, "event=%#x\n", event);
 	if (event != 0x80) {
-		dev_notice(&adev->dev, "Unknown SMKB event: %#x\n", event);
+		dev_yestice(&adev->dev, "Unkyeswn SMKB event: %#x\n", event);
 		return;
 	}
 	input_report_key(idev, KEY_RFKILL, 1);
@@ -58,7 +58,7 @@ static struct acpi_driver acer_wireless_driver = {
 	.ids = acer_wireless_acpi_ids,
 	.ops = {
 		.add = acer_wireless_add,
-		.notify = acer_wireless_notify,
+		.yestify = acer_wireless_yestify,
 	},
 };
 module_acpi_driver(acer_wireless_driver);

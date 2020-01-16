@@ -333,7 +333,7 @@ static u32 sh_msiof_spi_get_dtdl_and_syncdl(struct sh_msiof_spi_priv *p)
 
 	/* check if the sum of DTDL and SYNCDL becomes an integer value  */
 	if ((p->info->dtdl + p->info->syncdl) % 100) {
-		dev_warn(&p->pdev->dev, "the sum of DTDL/SYNCDL is not good\n");
+		dev_warn(&p->pdev->dev, "the sum of DTDL/SYNCDL is yest good\n");
 		return 0;
 	}
 
@@ -773,7 +773,7 @@ static int sh_msiof_dma_once(struct sh_msiof_spi_priv *p, const void *tx,
 					DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
 		if (!desc_tx) {
 			ret = -EAGAIN;
-			goto no_dma_tx;
+			goto yes_dma_tx;
 		}
 
 		desc_tx->callback = sh_msiof_dma_complete;
@@ -781,7 +781,7 @@ static int sh_msiof_dma_once(struct sh_msiof_spi_priv *p, const void *tx,
 		cookie = dmaengine_submit(desc_tx);
 		if (dma_submit_error(cookie)) {
 			ret = cookie;
-			goto no_dma_tx;
+			goto yes_dma_tx;
 		}
 	}
 
@@ -853,7 +853,7 @@ stop_reset:
 stop_dma:
 	if (tx)
 		dmaengine_terminate_all(p->ctlr->dma_tx);
-no_dma_tx:
+yes_dma_tx:
 	if (rx)
 		dmaengine_terminate_all(p->ctlr->dma_rx);
 	sh_msiof_write(p, IER, 0);
@@ -862,7 +862,7 @@ no_dma_tx:
 
 static void copy_bswap32(u32 *dst, const u32 *src, unsigned int words)
 {
-	/* src or dst can be unaligned, but not both */
+	/* src or dst can be unaligned, but yest both */
 	if ((unsigned long)src & 3) {
 		while (words--) {
 			*dst++ = swab32(get_unaligned(src));
@@ -881,7 +881,7 @@ static void copy_bswap32(u32 *dst, const u32 *src, unsigned int words)
 
 static void copy_wswap32(u32 *dst, const u32 *src, unsigned int words)
 {
-	/* src or dst can be unaligned, but not both */
+	/* src or dst can be unaligned, but yest both */
 	if ((unsigned long)src & 3) {
 		while (words--) {
 			*dst++ = swahw32(get_unaligned(src));
@@ -954,7 +954,7 @@ static int sh_msiof_transfer_one(struct spi_controller *ctlr,
 		ret = sh_msiof_dma_once(p, tx_buf, rx_buf, l);
 		if (ret == -EAGAIN) {
 			dev_warn_once(&p->pdev->dev,
-				"DMA not available, falling back to PIO\n");
+				"DMA yest available, falling back to PIO\n");
 			break;
 		}
 		if (ret)
@@ -1093,7 +1093,7 @@ MODULE_DEVICE_TABLE(of, sh_msiof_match);
 static struct sh_msiof_spi_info *sh_msiof_spi_parse_dt(struct device *dev)
 {
 	struct sh_msiof_spi_info *info;
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 	u32 num_cs = 1;
 
 	info = devm_kzalloc(dev, sizeof(struct sh_msiof_spi_info), GFP_KERNEL);
@@ -1213,7 +1213,7 @@ static int sh_msiof_request_dma(struct sh_msiof_spi_priv *p)
 	struct spi_controller *ctlr;
 	struct device *tx_dev, *rx_dev;
 
-	if (dev->of_node) {
+	if (dev->of_yesde) {
 		/* In the OF case we will get the slave IDs from the DT */
 		dma_tx_id = 0;
 		dma_rx_id = 0;
@@ -1221,7 +1221,7 @@ static int sh_msiof_request_dma(struct sh_msiof_spi_priv *p)
 		dma_tx_id = info->dma_tx_id;
 		dma_rx_id = info->dma_rx_id;
 	} else {
-		/* The driver assumes no error */
+		/* The driver assumes yes error */
 		return 0;
 	}
 
@@ -1338,7 +1338,7 @@ static int sh_msiof_spi_probe(struct platform_device *pdev)
 
 	p->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(p->clk)) {
-		dev_err(&pdev->dev, "cannot get clock\n");
+		dev_err(&pdev->dev, "canyest get clock\n");
 		ret = PTR_ERR(p->clk);
 		goto err1;
 	}
@@ -1384,7 +1384,7 @@ static int sh_msiof_spi_probe(struct platform_device *pdev)
 	ctlr->mode_bits |= SPI_LSB_FIRST | SPI_3WIRE;
 	ctlr->flags = chipdata->ctlr_flags;
 	ctlr->bus_num = pdev->id;
-	ctlr->dev.of_node = pdev->dev.of_node;
+	ctlr->dev.of_yesde = pdev->dev.of_yesde;
 	ctlr->setup = sh_msiof_spi_setup;
 	ctlr->prepare_message = sh_msiof_prepare_message;
 	ctlr->slave_abort = sh_msiof_slave_abort;
@@ -1395,7 +1395,7 @@ static int sh_msiof_spi_probe(struct platform_device *pdev)
 
 	ret = sh_msiof_request_dma(p);
 	if (ret < 0)
-		dev_warn(&pdev->dev, "DMA not available, using PIO\n");
+		dev_warn(&pdev->dev, "DMA yest available, using PIO\n");
 
 	ret = devm_spi_register_controller(&pdev->dev, ctlr);
 	if (ret < 0) {

@@ -34,11 +34,11 @@ struct sample {
 	double time;
 };
 
-static time_t mono_raw_base;
-static time_t mono_base;
+static time_t moyes_raw_base;
+static time_t moyes_base;
 static long user_hz;
 static double precision;
-static double mono_freq_offset;
+static double moyes_freq_offset;
 
 static double diff_timespec(struct timespec *ts1, struct timespec *ts2)
 {
@@ -56,9 +56,9 @@ static double get_sample(struct sample *sample)
 		clock_gettime(CLOCK_MONOTONIC, &ts2);
 		clock_gettime(CLOCK_MONOTONIC_RAW, &ts3);
 
-		ts1.tv_sec -= mono_raw_base;
-		ts2.tv_sec -= mono_base;
-		ts3.tv_sec -= mono_raw_base;
+		ts1.tv_sec -= moyes_raw_base;
+		ts2.tv_sec -= moyes_base;
+		ts3.tv_sec -= moyes_raw_base;
 
 		delay = diff_timespec(&ts3, &ts1);
 		if (delay <= 1e-9) {
@@ -171,19 +171,19 @@ static int run_test(int calibration, double freq_base, double freq_step)
 
 	if (calibration) {
 		regress(samples, SAMPLES, &intercept, &slope, &stddev1, &max1);
-		mono_freq_offset = slope;
+		moyes_freq_offset = slope;
 		printf("CLOCK_MONOTONIC_RAW frequency offset: %11.3f ppm\n",
-		       1e6 * mono_freq_offset);
+		       1e6 * moyes_freq_offset);
 		return 0;
 	}
 
 	regress(samples, SAMPLES / 2, &intercept, &slope, &stddev1, &max1);
-	freq_error1 = slope * (1.0 - mono_freq_offset) - mono_freq_offset -
+	freq_error1 = slope * (1.0 - moyes_freq_offset) - moyes_freq_offset -
 			freq_base;
 
 	regress(samples + SAMPLES / 2, SAMPLES / 2, &intercept, &slope,
 		&stddev2, &max2);
-	freq_error2 = slope * (1.0 - mono_freq_offset) - mono_freq_offset -
+	freq_error2 = slope * (1.0 - moyes_freq_offset) - moyes_freq_offset -
 			freq_base;
 
 	printf("%6.0f %+10.3f %6.0f %7.0f %+10.3f %6.0f %7.0f\t",
@@ -210,14 +210,14 @@ static void init_test(void)
 		ksft_exit_fail();
 	}
 
-	mono_raw_base = ts.tv_sec;
+	moyes_raw_base = ts.tv_sec;
 
 	if (clock_gettime(CLOCK_MONOTONIC, &ts)) {
 		perror("[FAIL] clock_gettime(CLOCK_MONOTONIC)");
 		ksft_exit_fail();
 	}
 
-	mono_base = ts.tv_sec;
+	moyes_base = ts.tv_sec;
 
 	user_hz = sysconf(_SC_CLK_TCK);
 

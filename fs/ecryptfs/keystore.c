@@ -44,7 +44,7 @@ static int process_request_key_err(long err_code)
 		rc = -EINVAL;
 		break;
 	default:
-		ecryptfs_printk(KERN_WARNING, "Unknown error code: "
+		ecryptfs_printk(KERN_WARNING, "Unkyeswn error code: "
 				"[0x%.16lx]\n", err_code);
 		rc = -EINVAL;
 	}
@@ -76,7 +76,7 @@ static int process_find_global_auth_tok_for_sig_err(int err_code)
  *        address; zero on error
  * @length_size: The number of bytes occupied by the encoded length
  *
- * Returns zero on success; non-zero on error
+ * Returns zero on success; yesn-zero on error
  */
 int ecryptfs_parse_packet_length(unsigned char *data, size_t *size,
 				 size_t *length_size)
@@ -96,7 +96,7 @@ int ecryptfs_parse_packet_length(unsigned char *data, size_t *size,
 		(*length_size) = 2;
 	} else if (data[0] == 255) {
 		/* If support is added, adjust ECRYPTFS_MAX_PKT_LEN_SIZE */
-		ecryptfs_printk(KERN_ERR, "Five-byte packet length not "
+		ecryptfs_printk(KERN_ERR, "Five-byte packet length yest "
 				"supported\n");
 		rc = -EINVAL;
 		goto out;
@@ -117,7 +117,7 @@ out:
  * @packet_size_length: The number of bytes used to encode the packet
  *                      length is written to this address.
  *
- * Returns zero on success; non-zero on error.
+ * Returns zero on success; yesn-zero on error.
  */
 int ecryptfs_write_packet_length(char *dest, size_t size,
 				 size_t *packet_size_length)
@@ -172,7 +172,7 @@ write_tag_64_packet(char *signature, struct ecryptfs_session_key *session_key,
 					  &packet_size_len);
 	if (rc) {
 		ecryptfs_printk(KERN_ERR, "Error generating tag 64 packet "
-				"header; cannot generate packet length\n");
+				"header; canyest generate packet length\n");
 		goto out;
 	}
 	i += packet_size_len;
@@ -183,7 +183,7 @@ write_tag_64_packet(char *signature, struct ecryptfs_session_key *session_key,
 					  &packet_size_len);
 	if (rc) {
 		ecryptfs_printk(KERN_ERR, "Error generating tag 64 packet "
-				"header; cannot generate packet length\n");
+				"header; canyest generate packet length\n");
 		goto out;
 	}
 	i += packet_size_len;
@@ -227,7 +227,7 @@ parse_tag_65_packet(struct ecryptfs_session_key *session_key, u8 *cipher_code,
 		goto out;
 	}
 	if (data[i++]) {
-		ecryptfs_printk(KERN_ERR, "Status indicator has non-zero value "
+		ecryptfs_printk(KERN_ERR, "Status indicator has yesn-zero value "
 				"[%d]\n", data[i-1]);
 		rc = -EIO;
 		goto out;
@@ -247,7 +247,7 @@ parse_tag_65_packet(struct ecryptfs_session_key *session_key, u8 *cipher_code,
 	}
 	if (m_size < 3) {
 		ecryptfs_printk(KERN_ERR,
-				"The decrypted key is not long enough to "
+				"The decrypted key is yest long eyesugh to "
 				"include a cipher code and checksum\n");
 		rc = -EIO;
 		goto out;
@@ -315,7 +315,7 @@ write_tag_66_packet(char *signature, u8 cipher_code,
 					  &packet_size_len);
 	if (rc) {
 		ecryptfs_printk(KERN_ERR, "Error generating tag 66 packet "
-				"header; cannot generate packet length\n");
+				"header; canyest generate packet length\n");
 		goto out;
 	}
 	i += packet_size_len;
@@ -326,7 +326,7 @@ write_tag_66_packet(char *signature, u8 cipher_code,
 					  &packet_size_len);
 	if (rc) {
 		ecryptfs_printk(KERN_ERR, "Error generating tag 66 packet "
-				"header; cannot generate packet length\n");
+				"header; canyest generate packet length\n");
 		goto out;
 	}
 	i += packet_size_len;
@@ -376,7 +376,7 @@ parse_tag_67_packet(struct ecryptfs_key_record *key_rec,
 	}
 	if (data[i++]) {
 		rc = -EIO;
-		printk(KERN_ERR "%s: Status indicator has non zero "
+		printk(KERN_ERR "%s: Status indicator has yesn zero "
 		       "value [%d]\n", __func__, data[i-1]);
 
 		goto out;
@@ -412,16 +412,16 @@ out:
  * ecryptfs_verify_version
  * @version: The version number to confirm
  *
- * Returns zero on good version; non-zero otherwise
+ * Returns zero on good version; yesn-zero otherwise
  */
 static int ecryptfs_verify_version(u16 version)
 {
 	int rc = 0;
 	unsigned char major;
-	unsigned char minor;
+	unsigned char miyesr;
 
 	major = ((version >> 8) & 0xFF);
-	minor = (version & 0xFF);
+	miyesr = (version & 0xFF);
 	if (major != ECRYPTFS_VERSION_MAJOR) {
 		ecryptfs_printk(KERN_ERR, "Major version number mismatch. "
 				"Expected [%d]; got [%d]\n",
@@ -429,10 +429,10 @@ static int ecryptfs_verify_version(u16 version)
 		rc = -EINVAL;
 		goto out;
 	}
-	if (minor != ECRYPTFS_VERSION_MINOR) {
-		ecryptfs_printk(KERN_ERR, "Minor version number mismatch. "
+	if (miyesr != ECRYPTFS_VERSION_MINOR) {
+		ecryptfs_printk(KERN_ERR, "Miyesr version number mismatch. "
 				"Expected [%d]; got [%d]\n",
-				ECRYPTFS_VERSION_MINOR, minor);
+				ECRYPTFS_VERSION_MINOR, miyesr);
 		rc = -EINVAL;
 		goto out;
 	}
@@ -464,7 +464,7 @@ ecryptfs_verify_auth_tok_from_key(struct key *auth_tok_key,
 	if (ecryptfs_verify_version((*auth_tok)->version)) {
 		printk(KERN_ERR "Data structure version mismatch. Userspace "
 		       "tools must match eCryptfs kernel module with major "
-		       "version [%d] and minor version [%d]\n",
+		       "version [%d] and miyesr version [%d]\n",
 		       ECRYPTFS_VERSION_MAJOR, ECRYPTFS_VERSION_MINOR);
 		rc = -EINVAL;
 		goto out;
@@ -536,18 +536,18 @@ out:
 
 /**
  * ecryptfs_find_auth_tok_for_sig
- * @auth_tok: Set to the matching auth_tok; NULL if not found
- * @crypt_stat: inode crypt_stat crypto context
+ * @auth_tok: Set to the matching auth_tok; NULL if yest found
+ * @crypt_stat: iyesde crypt_stat crypto context
  * @sig: Sig of auth_tok to find
  *
- * For now, this function simply looks at the registered auth_tok's
+ * For yesw, this function simply looks at the registered auth_tok's
  * linked off the mount_crypt_stat, so all the auth_toks that can be
  * used must be registered at mount time. This function could
  * potentially try a lot harder to find auth_tok's (e.g., by calling
  * out to ecryptfsd to dynamically retrieve an auth_tok object) so
- * that static registration of auth_tok's will no longer be necessary.
+ * that static registration of auth_tok's will yes longer be necessary.
  *
- * Returns zero on no error; non-zero on error
+ * Returns zero on yes error; yesn-zero on error
  */
 static int
 ecryptfs_find_auth_tok_for_sig(
@@ -563,7 +563,7 @@ ecryptfs_find_auth_tok_for_sig(
 	if (rc == -ENOENT) {
 		/* if the flag ECRYPTFS_GLOBAL_MOUNT_AUTH_TOK_ONLY is set in the
 		 * mount_crypt_stat structure, we prevent to use auth toks that
-		 * are not inserted through the ecryptfs_add_global_auth_tok
+		 * are yest inserted through the ecryptfs_add_global_auth_tok
 		 * function.
 		 */
 		if (mount_crypt_stat->flags
@@ -709,7 +709,7 @@ ecryptfs_write_tag_70_packet(char *dest, size_t *remaining_bytes,
 					  &s->packet_size_len);
 	if (rc) {
 		printk(KERN_ERR "%s: Error generating tag 70 packet "
-		       "header; cannot generate packet length; rc = [%d]\n",
+		       "header; canyest generate packet length; rc = [%d]\n",
 		       __func__, rc);
 		goto out_free_unlock;
 	}
@@ -885,7 +885,7 @@ struct ecryptfs_parse_tag_70_packet_silly_stack {
  * @max_packet_size: The maximum legal size of the packet to be parsed
  *                   from @data
  *
- * Returns zero on success; non-zero otherwise
+ * Returns zero on success; yesn-zero otherwise
  */
 int
 ecryptfs_parse_tag_70_packet(char **filename, size_t *filename_size,
@@ -1053,7 +1053,7 @@ ecryptfs_parse_tag_70_packet(char **filename, size_t *filename_size,
 	       s->decrypted_filename[s->i] != '\0')
 		s->i++;
 	if (s->i == s->block_aligned_filename_size) {
-		printk(KERN_WARNING "%s: Invalid tag 70 packet; could not "
+		printk(KERN_WARNING "%s: Invalid tag 70 packet; could yest "
 		       "find valid separator between random characters and "
 		       "the filename\n", __func__);
 		rc = -EINVAL;
@@ -1107,7 +1107,7 @@ ecryptfs_get_auth_tok_sig(char **sig, struct ecryptfs_auth_tok *auth_tok)
 		(*sig) = auth_tok->token.private_key.signature;
 		break;
 	default:
-		printk(KERN_ERR "Cannot get sig for auth_tok of type [%d]\n",
+		printk(KERN_ERR "Canyest get sig for auth_tok of type [%d]\n",
 		       auth_tok->token_type);
 		rc = -EINVAL;
 	}
@@ -1119,7 +1119,7 @@ ecryptfs_get_auth_tok_sig(char **sig, struct ecryptfs_auth_tok *auth_tok)
  * @auth_tok: The key authentication token used to decrypt the session key
  * @crypt_stat: The cryptographic context
  *
- * Returns zero on success; non-zero error otherwise.
+ * Returns zero on success; yesn-zero error otherwise.
  */
 static int
 decrypt_pki_encrypted_session_key(struct ecryptfs_auth_tok *auth_tok,
@@ -1217,7 +1217,7 @@ struct kmem_cache *ecryptfs_auth_tok_list_item_cache;
  *               into this memory location; zero on error.
  * @max_packet_size: The maximum allowable packet size
  *
- * Returns zero on success; non-zero on error.
+ * Returns zero on success; yesn-zero on error.
  */
 static int
 parse_tag_1_packet(struct ecryptfs_crypt_stat *crypt_stat,
@@ -1286,7 +1286,7 @@ parse_tag_1_packet(struct ecryptfs_crypt_stat *crypt_stat,
 		goto out_free;
 	}
 	if (unlikely(data[(*packet_size)++] != 0x03)) {
-		printk(KERN_WARNING "Unknown version number [%d]\n",
+		printk(KERN_WARNING "Unkyeswn version number [%d]\n",
 		       data[(*packet_size) - 1]);
 		rc = -EINVAL;
 		goto out_free;
@@ -1294,8 +1294,8 @@ parse_tag_1_packet(struct ecryptfs_crypt_stat *crypt_stat,
 	ecryptfs_to_hex((*new_auth_tok)->token.private_key.signature,
 			&data[(*packet_size)], ECRYPTFS_SIG_SIZE);
 	*packet_size += ECRYPTFS_SIG_SIZE;
-	/* This byte is skipped because the kernel does not need to
-	 * know which public key encryption algorithm was used */
+	/* This byte is skipped because the kernel does yest need to
+	 * kyesw which public key encryption algorithm was used */
 	(*packet_size)++;
 	(*new_auth_tok)->session_key.encrypted_key_size =
 		body_size - (ECRYPTFS_SIG_SIZE + 2);
@@ -1349,7 +1349,7 @@ out:
  *               into this memory location; zero on error.
  * @max_packet_size: maximum number of bytes to parse
  *
- * Returns zero on success; non-zero on error.
+ * Returns zero on success; yesn-zero on error.
  */
 static int
 parse_tag_3_packet(struct ecryptfs_crypt_stat *crypt_stat,
@@ -1429,7 +1429,7 @@ parse_tag_3_packet(struct ecryptfs_crypt_stat *crypt_stat,
 		goto out_free;
 	}
 	if (unlikely(data[(*packet_size)++] != 0x04)) {
-		printk(KERN_WARNING "Unknown version number [%d]\n",
+		printk(KERN_WARNING "Unkyeswn version number [%d]\n",
 		       data[(*packet_size) - 1]);
 		rc = -EINVAL;
 		goto out_free;
@@ -1523,7 +1523,7 @@ out:
  *               into this memory location; zero on error
  * @max_packet_size: maximum number of bytes to parse
  *
- * Returns zero on success; non-zero on error.
+ * Returns zero on success; yesn-zero on error.
  */
 static int
 parse_tag_11_packet(unsigned char *data, unsigned char *contents,
@@ -1594,7 +1594,7 @@ parse_tag_11_packet(unsigned char *data, unsigned char *contents,
 		rc = -EINVAL;
 		goto out;
 	}
-	(*packet_size) += 12; /* Ignore filename and modification date */
+	(*packet_size) += 12; /* Igyesre filename and modification date */
 	memcpy(contents, &data[(*packet_size)], (*tag_11_contents_size));
 	(*packet_size) += (*tag_11_contents_size);
 out:
@@ -1615,7 +1615,7 @@ int ecryptfs_keyring_auth_tok_for_sig(struct key **auth_tok_key,
 	if (IS_ERR(*auth_tok_key)) {
 		(*auth_tok_key) = ecryptfs_get_encrypted_key(sig);
 		if (IS_ERR(*auth_tok_key)) {
-			printk(KERN_ERR "Could not find key with description: [%s]\n",
+			printk(KERN_ERR "Could yest find key with description: [%s]\n",
 			      sig);
 			rc = process_request_key_err(PTR_ERR(*auth_tok_key));
 			(*auth_tok_key) = NULL;
@@ -1639,7 +1639,7 @@ out:
  * @auth_tok: The passphrase authentication token to use to encrypt the FEK
  * @crypt_stat: The cryptographic context
  *
- * Returns zero on success; non-zero error otherwise
+ * Returns zero on success; yesn-zero error otherwise
  */
 static int
 decrypt_passphrase_encrypted_session_key(struct ecryptfs_auth_tok *auth_tok,
@@ -1746,7 +1746,7 @@ out:
  * is available to decrypt the session key.
  *
  * Returns Zero if a valid authentication token was retrieved and
- * processed; negative value for file not encrypted or for error
+ * processed; negative value for file yest encrypted or for error
  * conditions.
  */
 int ecryptfs_parse_packet_set(struct ecryptfs_crypt_stat *crypt_stat,
@@ -1837,7 +1837,7 @@ int ecryptfs_parse_packet_set(struct ecryptfs_crypt_stat *crypt_stat,
 			break;
 		case ECRYPTFS_TAG_11_PACKET_TYPE:
 			ecryptfs_printk(KERN_WARNING, "Invalid packet set "
-					"(Tag 11 not allowed by itself)\n");
+					"(Tag 11 yest allowed by itself)\n");
 			rc = -EIO;
 			goto out_wipe_list;
 		default:
@@ -1848,8 +1848,8 @@ int ecryptfs_parse_packet_set(struct ecryptfs_crypt_stat *crypt_stat,
 		}
 	}
 	if (list_empty(&auth_tok_list)) {
-		printk(KERN_ERR "The lower file appears to be a non-encrypted "
-		       "eCryptfs file; this is not supported in this version "
+		printk(KERN_ERR "The lower file appears to be a yesn-encrypted "
+		       "eCryptfs file; this is yest supported in this version "
 		       "of the eCryptfs kernel module\n");
 		rc = -EINVAL;
 		goto out;
@@ -1888,7 +1888,7 @@ find_next_matching_auth_tok:
 		}
 	}
 	if (!found_auth_tok) {
-		ecryptfs_printk(KERN_ERR, "Could not find a usable "
+		ecryptfs_printk(KERN_ERR, "Could yest find a usable "
 				"authentication token\n");
 		rc = -EIO;
 		goto out_wipe_list;
@@ -2012,7 +2012,7 @@ out:
  * @packet_size: This function will write the number of bytes that end
  *               up constituting the packet; set to zero on error
  *
- * Returns zero on success; non-zero on error.
+ * Returns zero on success; yesn-zero on error.
  */
 static int
 write_tag_1_packet(char *dest, size_t *remaining_bytes,
@@ -2077,7 +2077,7 @@ encrypted_session_key_set:
 					  &packet_size_length);
 	if (rc) {
 		ecryptfs_printk(KERN_ERR, "Error generating tag 1 packet "
-				"header; cannot generate packet length\n");
+				"header; canyest generate packet length\n");
 		goto out;
 	}
 	(*packet_size) += packet_size_length;
@@ -2104,7 +2104,7 @@ out:
  * @contents_length: Number of bytes in contents
  * @packet_length: Length of the Tag 11 packet written; zero on error
  *
- * Returns zero on success; non-zero on error.
+ * Returns zero on success; yesn-zero on error.
  */
 static int
 write_tag_11_packet(char *dest, size_t *remaining_bytes, char *contents,
@@ -2136,7 +2136,7 @@ write_tag_11_packet(char *dest, size_t *remaining_bytes, char *contents,
 					  (max_packet_size - 4),
 					  &packet_size_length);
 	if (rc) {
-		printk(KERN_ERR "Error generating tag 11 packet header; cannot "
+		printk(KERN_ERR "Error generating tag 11 packet header; canyest "
 		       "generate packet length. rc = [%d]\n", rc);
 		goto out;
 	}
@@ -2167,7 +2167,7 @@ write_tag_11_packet(char *dest, size_t *remaining_bytes, char *contents,
  * @packet_size: This function will write the number of bytes that end
  *               up constituting the packet; set to zero on error
  *
- * Returns zero on success; non-zero on error.
+ * Returns zero on success; yesn-zero on error.
  */
 static int
 write_tag_3_packet(char *dest, size_t *remaining_bytes,
@@ -2343,7 +2343,7 @@ encrypted_session_key_set:
 					  (max_packet_size - 4),
 					  &packet_size_length);
 	if (rc) {
-		printk(KERN_ERR "Error generating tag 3 packet header; cannot "
+		printk(KERN_ERR "Error generating tag 3 packet header; canyest "
 		       "generate packet length. rc = [%d]\n", rc);
 		goto out;
 	}
@@ -2392,7 +2392,7 @@ struct kmem_cache *ecryptfs_key_record_cache;
  * Generates a key packet set and writes it to the virtual address
  * passed in.
  *
- * Returns zero on success; non-zero on error.
+ * Returns zero on success; yesn-zero on error.
  */
 int
 ecryptfs_generate_key_packet_set(char *dest_base,

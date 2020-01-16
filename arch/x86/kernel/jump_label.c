@@ -27,7 +27,7 @@ union jump_code_union {
 static void bug_at(unsigned char *ip, int line)
 {
 	/*
-	 * The location is not an op that we were expecting.
+	 * The location is yest an op that we were expecting.
 	 * Something went wrong. Crash the box, as something could be
 	 * corrupting the kernel.
 	 */
@@ -40,8 +40,8 @@ static void __jump_label_set_jump_code(struct jump_entry *entry,
 				       union jump_code_union *code,
 				       int init)
 {
-	const unsigned char default_nop[] = { STATIC_KEY_INIT_NOP };
-	const unsigned char *ideal_nop = ideal_nops[NOP_ATOMIC5];
+	const unsigned char default_yesp[] = { STATIC_KEY_INIT_NOP };
+	const unsigned char *ideal_yesp = ideal_yesps[NOP_ATOMIC5];
 	const void *expect;
 	int line;
 
@@ -50,9 +50,9 @@ static void __jump_label_set_jump_code(struct jump_entry *entry,
 		       (jump_entry_code(entry) + JUMP_LABEL_NOP_SIZE);
 
 	if (init) {
-		expect = default_nop; line = __LINE__;
+		expect = default_yesp; line = __LINE__;
 	} else if (type == JUMP_LABEL_JMP) {
-		expect = ideal_nop; line = __LINE__;
+		expect = ideal_yesp; line = __LINE__;
 	} else {
 		expect = code->code; line = __LINE__;
 	}
@@ -61,7 +61,7 @@ static void __jump_label_set_jump_code(struct jump_entry *entry,
 		bug_at((void *)jump_entry_code(entry), line);
 
 	if (type == JUMP_LABEL_NOP)
-		memcpy(code, ideal_nop, JUMP_LABEL_NOP_SIZE);
+		memcpy(code, ideal_yesp, JUMP_LABEL_NOP_SIZE);
 }
 
 static void __ref __jump_label_transform(struct jump_entry *entry,
@@ -74,14 +74,14 @@ static void __ref __jump_label_transform(struct jump_entry *entry,
 
 	/*
 	 * As long as only a single processor is running and the code is still
-	 * not marked as RO, text_poke_early() can be used; Checking that
+	 * yest marked as RO, text_poke_early() can be used; Checking that
 	 * system_state is SYSTEM_BOOTING guarantees it. It will be set to
 	 * SYSTEM_SCHEDULING before other cores are awaken and before the
 	 * code is write-protected.
 	 *
-	 * At the time the change is being done, just ignore whether we
-	 * are doing nop -> jump or jump -> nop transition, and assume
-	 * always nop being the 'currently valid' instruction
+	 * At the time the change is being done, just igyesre whether we
+	 * are doing yesp -> jump or jump -> yesp transition, and assume
+	 * always yesp being the 'currently valid' instruction
 	 */
 	if (init || system_state == SYSTEM_BOOTING) {
 		text_poke_early((void *)jump_entry_code(entry), &code,
@@ -112,7 +112,7 @@ bool arch_jump_label_transform_queue(struct jump_entry *entry,
 
 	if (system_state == SYSTEM_BOOTING) {
 		/*
-		 * Fallback to the non-batching mode.
+		 * Fallback to the yesn-batching mode.
 		 */
 		arch_jump_label_transform(entry, type);
 		return true;
@@ -134,7 +134,7 @@ bool arch_jump_label_transform_queue(struct jump_entry *entry,
 	 * to be sorted. We can survive an unsorted list by rejecting the entry,
 	 * forcing the generic jump_label code to apply the queue. Warning once,
 	 * to raise the attention to the case of an unsorted entry that is
-	 * better not happen, because, in the worst case we will perform in the
+	 * better yest happen, because, in the worst case we will perform in the
 	 * same way as we do without batching - with some more overhead.
 	 */
 	if (tp_vec_nr > 0) {
@@ -178,16 +178,16 @@ __init_or_module void arch_jump_label_transform_static(struct jump_entry *entry,
 {
 	/*
 	 * This function is called at boot up and when modules are
-	 * first loaded. Check if the default nop, the one that is
-	 * inserted at compile time, is the ideal nop. If it is, then
-	 * we do not need to update the nop, and we can leave it as is.
-	 * If it is not, then we need to update the nop to the ideal nop.
+	 * first loaded. Check if the default yesp, the one that is
+	 * inserted at compile time, is the ideal yesp. If it is, then
+	 * we do yest need to update the yesp, and we can leave it as is.
+	 * If it is yest, then we need to update the yesp to the ideal yesp.
 	 */
 	if (jlstate == JL_STATE_START) {
-		const unsigned char default_nop[] = { STATIC_KEY_INIT_NOP };
-		const unsigned char *ideal_nop = ideal_nops[NOP_ATOMIC5];
+		const unsigned char default_yesp[] = { STATIC_KEY_INIT_NOP };
+		const unsigned char *ideal_yesp = ideal_yesps[NOP_ATOMIC5];
 
-		if (memcmp(ideal_nop, default_nop, 5) != 0)
+		if (memcmp(ideal_yesp, default_yesp, 5) != 0)
 			jlstate = JL_STATE_UPDATE;
 		else
 			jlstate = JL_STATE_NO_UPDATE;

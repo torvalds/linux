@@ -14,7 +14,7 @@
  * 512GB, each entry representing 1GB. Since we are limited to 4GB input
  * address range, only 4 entries in the PGD are used.
  *
- * There are enough spare bits in a page table entry for the kernel specific
+ * There are eyesugh spare bits in a page table entry for the kernel specific
  * state.
  */
 #define PTRS_PER_PTE		512
@@ -89,14 +89,14 @@
  * AttrIndx[2:0] encoding (mapping attributes defined in the MAIR* registers).
  */
 #define L_PTE_MT_UNCACHED	(_AT(pteval_t, 0) << 2)	/* strongly ordered */
-#define L_PTE_MT_BUFFERABLE	(_AT(pteval_t, 1) << 2)	/* normal non-cacheable */
-#define L_PTE_MT_WRITETHROUGH	(_AT(pteval_t, 2) << 2)	/* normal inner write-through */
-#define L_PTE_MT_WRITEBACK	(_AT(pteval_t, 3) << 2)	/* normal inner write-back */
-#define L_PTE_MT_WRITEALLOC	(_AT(pteval_t, 7) << 2)	/* normal inner write-alloc */
+#define L_PTE_MT_BUFFERABLE	(_AT(pteval_t, 1) << 2)	/* yesrmal yesn-cacheable */
+#define L_PTE_MT_WRITETHROUGH	(_AT(pteval_t, 2) << 2)	/* yesrmal inner write-through */
+#define L_PTE_MT_WRITEBACK	(_AT(pteval_t, 3) << 2)	/* yesrmal inner write-back */
+#define L_PTE_MT_WRITEALLOC	(_AT(pteval_t, 7) << 2)	/* yesrmal inner write-alloc */
 #define L_PTE_MT_DEV_SHARED	(_AT(pteval_t, 4) << 2)	/* device */
 #define L_PTE_MT_DEV_NONSHARED	(_AT(pteval_t, 4) << 2)	/* device */
-#define L_PTE_MT_DEV_WC		(_AT(pteval_t, 1) << 2)	/* normal non-cacheable */
-#define L_PTE_MT_DEV_CACHED	(_AT(pteval_t, 3) << 2)	/* normal inner write-back */
+#define L_PTE_MT_DEV_WC		(_AT(pteval_t, 1) << 2)	/* yesrmal yesn-cacheable */
+#define L_PTE_MT_DEV_CACHED	(_AT(pteval_t, 3) << 2)	/* yesrmal inner write-back */
 #define L_PTE_MT_MASK		(_AT(pteval_t, 7) << 2)
 
 /*
@@ -108,8 +108,8 @@
  * 2nd stage PTE definitions for LPAE.
  */
 #define L_PTE_S2_MT_UNCACHED		(_AT(pteval_t, 0x0) << 2) /* strongly ordered */
-#define L_PTE_S2_MT_WRITETHROUGH	(_AT(pteval_t, 0xa) << 2) /* normal inner write-through */
-#define L_PTE_S2_MT_WRITEBACK		(_AT(pteval_t, 0xf) << 2) /* normal inner write-back */
+#define L_PTE_S2_MT_WRITETHROUGH	(_AT(pteval_t, 0xa) << 2) /* yesrmal inner write-through */
+#define L_PTE_S2_MT_WRITEBACK		(_AT(pteval_t, 0xf) << 2) /* yesrmal inner write-back */
 #define L_PTE_S2_MT_DEV_SHARED		(_AT(pteval_t, 0x1) << 2) /* device */
 #define L_PTE_S2_MT_MASK		(_AT(pteval_t, 0xf) << 2)
 
@@ -126,7 +126,7 @@
 
 #ifndef __ASSEMBLY__
 
-#define pud_none(pud)		(!pud_val(pud))
+#define pud_yesne(pud)		(!pud_val(pud))
 #define pud_bad(pud)		(!(pud_val(pud) & 2))
 #define pud_present(pud)	(pud_val(pud))
 #define pmd_table(pmd)		((pmd_val(pmd) & PMD_TYPE_MASK) == \
@@ -175,9 +175,9 @@ static inline pmd_t *pmd_offset(pud_t *pud, unsigned long addr)
 
 /*
  * For 3 levels of paging the PTE_EXT_NG bit will be set for user address ptes
- * that are written to a page table but not for ptes created with mk_pte.
+ * that are written to a page table but yest for ptes created with mk_pte.
  *
- * In hugetlb_no_page, a new huge pte (new_pte) is generated and passed to
+ * In hugetlb_yes_page, a new huge pte (new_pte) is generated and passed to
  * hugetlb_cow, where it is compared with an entry in a page table.
  * This comparison test fails erroneously leading ultimately to a memory leak.
  *
@@ -239,8 +239,8 @@ PMD_BIT_FUNC(mkyoung,   |= PMD_SECT_AF);
 /* No hardware dirty/accessed bits -- generic_pmdp_establish() fits */
 #define pmdp_establish generic_pmdp_establish
 
-/* represent a notpresent pmd by faulting entry, this is used by pmdp_invalidate */
-static inline pmd_t pmd_mknotpresent(pmd_t pmd)
+/* represent a yestpresent pmd by faulting entry, this is used by pmdp_invalidate */
+static inline pmd_t pmd_mkyestpresent(pmd_t pmd)
 {
 	return __pmd(pmd_val(pmd) & ~L_PMD_SECT_VALID);
 }

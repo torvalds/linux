@@ -1,11 +1,11 @@
 .. Permission is granted to copy, distribute and/or modify this
 .. document under the terms of the GNU Free Documentation License,
 .. Version 1.1 or any later version published by the Free Software
-.. Foundation, with no Invariant Sections, no Front-Cover Texts
-.. and no Back-Cover Texts. A copy of the license is included at
+.. Foundation, with yes Invariant Sections, yes Front-Cover Texts
+.. and yes Back-Cover Texts. A copy of the license is included at
 .. Documentation/media/uapi/fdl-appendix.rst.
 ..
-.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
+.. TODO: replace it to GFDL-1.1-or-later WITH yes-invariant-sections
 
 .. _frontend-properties:
 
@@ -15,7 +15,7 @@ Property types
 
 Tuning into a Digital TV physical channel and starting decoding it
 requires changing a set of parameters, in order to control the tuner,
-the demodulator, the Linear Low-noise Amplifier (LNA) and to set the
+the demodulator, the Linear Low-yesise Amplifier (LNA) and to set the
 antenna subsystem via Satellite Equipment Control - SEC (on satellite
 systems). The actual parameters are specific to each particular digital
 TV standards, and may change as the digital TV specs evolves.
@@ -23,8 +23,8 @@ TV standards, and may change as the digital TV specs evolves.
 In the past (up to DVB API version 3 - DVBv3), the strategy used was to have a
 union with the parameters needed to tune for DVB-S, DVB-C, DVB-T and
 ATSC delivery systems grouped there. The problem is that, as the second
-generation standards appeared, the size of such union was not big
-enough to group the structs that would be required for those new
+generation standards appeared, the size of such union was yest big
+eyesugh to group the structs that would be required for those new
 standards. Also, extending it would break userspace.
 
 So, the legacy union/struct based approach was deprecated, in favor
@@ -38,13 +38,13 @@ With one single ioctl, is possible to get/set up to 64 properties.
 This section describes the new and recommended way to set the frontend,
 with supports all digital TV delivery systems.
 
-.. note::
+.. yeste::
 
    1. On Linux DVB API version 3, setting a frontend was done via
       struct :c:type:`dvb_frontend_parameters`.
 
    2. Don't use DVB API version 3 calls on hardware with supports
-      newer standards. Such API provides no support or a very limited
+      newer standards. Such API provides yes support or a very limited
       support to new standards and/or new hardware.
 
    3. Nowadays, most frontends support multiple delivery systems.

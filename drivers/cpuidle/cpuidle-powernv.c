@@ -11,7 +11,7 @@
 #include <linux/moduleparam.h>
 #include <linux/cpuidle.h>
 #include <linux/cpu.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/clockchips.h>
 #include <linux/of.h>
 #include <linux/slab.h>
@@ -43,17 +43,17 @@ struct stop_psscr_table {
 
 static struct stop_psscr_table stop_psscr_table[CPUIDLE_STATE_MAX] __read_mostly;
 
-static u64 default_snooze_timeout __read_mostly;
-static bool snooze_timeout_en __read_mostly;
+static u64 default_syesoze_timeout __read_mostly;
+static bool syesoze_timeout_en __read_mostly;
 
-static u64 get_snooze_timeout(struct cpuidle_device *dev,
+static u64 get_syesoze_timeout(struct cpuidle_device *dev,
 			      struct cpuidle_driver *drv,
 			      int index)
 {
 	int i;
 
-	if (unlikely(!snooze_timeout_en))
-		return default_snooze_timeout;
+	if (unlikely(!syesoze_timeout_en))
+		return default_syesoze_timeout;
 
 	for (i = index + 1; i < drv->state_count; i++) {
 		if (dev->states_usage[i].disable)
@@ -62,26 +62,26 @@ static u64 get_snooze_timeout(struct cpuidle_device *dev,
 		return drv->states[i].target_residency * tb_ticks_per_usec;
 	}
 
-	return default_snooze_timeout;
+	return default_syesoze_timeout;
 }
 
-static int snooze_loop(struct cpuidle_device *dev,
+static int syesoze_loop(struct cpuidle_device *dev,
 			struct cpuidle_driver *drv,
 			int index)
 {
-	u64 snooze_exit_time;
+	u64 syesoze_exit_time;
 
 	set_thread_flag(TIF_POLLING_NRFLAG);
 
 	local_irq_enable();
 
-	snooze_exit_time = get_tb() + get_snooze_timeout(dev, drv, index);
+	syesoze_exit_time = get_tb() + get_syesoze_timeout(dev, drv, index);
 	ppc64_runlatch_off();
 	HMT_very_low();
 	while (!need_resched()) {
-		if (likely(snooze_timeout_en) && get_tb() > snooze_exit_time) {
+		if (likely(syesoze_timeout_en) && get_tb() > syesoze_exit_time) {
 			/*
-			 * Task has not woken up but we are exiting the polling
+			 * Task has yest woken up but we are exiting the polling
 			 * loop anyway. Require a barrier after polling is
 			 * cleared to order subsequent test of need_resched().
 			 */
@@ -122,7 +122,7 @@ static int fastsleep_loop(struct cpuidle_device *dev,
 		return index;
 
 	new_lpcr = old_lpcr;
-	/* Do not exit powersave upon decrementer as we've setup the timer
+	/* Do yest exit powersave upon decrementer as we've setup the timer
 	 * offload.
 	 */
 	new_lpcr &= ~LPCR_PECE1;
@@ -150,12 +150,12 @@ static int stop_loop(struct cpuidle_device *dev,
  * States for dedicated partition case.
  */
 static struct cpuidle_state powernv_states[CPUIDLE_STATE_MAX] = {
-	{ /* Snooze */
-		.name = "snooze",
-		.desc = "snooze",
+	{ /* Syesoze */
+		.name = "syesoze",
+		.desc = "syesoze",
 		.exit_latency = 0,
 		.target_residency = 0,
-		.enter = snooze_loop },
+		.enter = syesoze_loop },
 };
 
 static int powernv_cpuidle_cpu_online(unsigned int cpu)
@@ -193,7 +193,7 @@ static int powernv_cpuidle_driver_init(void)
 	drv->state_count = 0;
 
 	for (idle_state = 0; idle_state < max_idle_state; ++idle_state) {
-		/* Is the state not enabled? */
+		/* Is the state yest enabled? */
 		if (cpuidle_state_table[idle_state].enter == NULL)
 			continue;
 
@@ -205,15 +205,15 @@ static int powernv_cpuidle_driver_init(void)
 
 	/*
 	 * On the PowerNV platform cpu_present may be less than cpu_possible in
-	 * cases when firmware detects the CPU, but it is not available to the
-	 * OS.  If CONFIG_HOTPLUG_CPU=n, then such CPUs are not hotplugable at
-	 * run time and hence cpu_devices are not created for those CPUs by the
+	 * cases when firmware detects the CPU, but it is yest available to the
+	 * OS.  If CONFIG_HOTPLUG_CPU=n, then such CPUs are yest hotplugable at
+	 * run time and hence cpu_devices are yest created for those CPUs by the
 	 * generic topology_init().
 	 *
 	 * drv->cpumask defaults to cpu_possible_mask in
 	 * __cpuidle_driver_init().  This breaks cpuidle on PowerNV where
-	 * cpu_devices are not created for CPUs in cpu_possible_mask that
-	 * cannot be hot-added later at run time.
+	 * cpu_devices are yest created for CPUs in cpu_possible_mask that
+	 * canyest be hot-added later at run time.
 	 *
 	 * Trying cpuidle_register_device() on a CPU without a cpu_device is
 	 * incorrect, so pass a correct CPU mask to the generic cpuidle driver.
@@ -261,16 +261,16 @@ static inline int validate_dt_prop_sizes(const char *prop1, int prop1_len,
 extern u32 pnv_get_supported_cpuidle_states(void);
 static int powernv_add_idle_states(void)
 {
-	int nr_idle_states = 1; /* Snooze */
+	int nr_idle_states = 1; /* Syesoze */
 	int dt_idle_states;
 	u32 has_stop_states = 0;
 	int i;
 	u32 supported_flags = pnv_get_supported_cpuidle_states();
 
 
-	/* Currently we have snooze statically defined */
+	/* Currently we have syesoze statically defined */
 	if (nr_pnv_idle_states <= 0) {
-		pr_warn("cpuidle-powernv : Only Snooze is available\n");
+		pr_warn("cpuidle-powernv : Only Syesoze is available\n");
 		goto out;
 	}
 
@@ -278,7 +278,7 @@ static int powernv_add_idle_states(void)
 	dt_idle_states = nr_pnv_idle_states;
 
 	/*
-	 * Since snooze is used as first idle state, max idle states allowed is
+	 * Since syesoze is used as first idle state, max idle states allowed is
 	 * CPUIDLE_STATE_MAX -1
 	 */
 	if (nr_pnv_idle_states > CPUIDLE_STATE_MAX - 1) {
@@ -378,9 +378,9 @@ static int powernv_idle_probe(void)
 		cpuidle_state_table = powernv_states;
 		/* Device tree can indicate more idle states */
 		max_idle_state = powernv_add_idle_states();
-		default_snooze_timeout = TICK_USEC * tb_ticks_per_usec;
+		default_syesoze_timeout = TICK_USEC * tb_ticks_per_usec;
 		if (max_idle_state > 1)
-			snooze_timeout_en = true;
+			syesoze_timeout_en = true;
  	} else
  		return -ENODEV;
 
@@ -402,11 +402,11 @@ static int __init powernv_processor_idle_init(void)
 		return retval;
 	}
 
-	retval = cpuhp_setup_state_nocalls(CPUHP_AP_ONLINE_DYN,
+	retval = cpuhp_setup_state_yescalls(CPUHP_AP_ONLINE_DYN,
 					   "cpuidle/powernv:online",
 					   powernv_cpuidle_cpu_online, NULL);
 	WARN_ON(retval < 0);
-	retval = cpuhp_setup_state_nocalls(CPUHP_CPUIDLE_DEAD,
+	retval = cpuhp_setup_state_yescalls(CPUHP_CPUIDLE_DEAD,
 					   "cpuidle/powernv:dead", NULL,
 					   powernv_cpuidle_cpu_dead);
 	WARN_ON(retval < 0);

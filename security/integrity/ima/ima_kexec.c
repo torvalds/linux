@@ -53,7 +53,7 @@ static int ima_dump_measurement_list(unsigned long *buffer_size, void **buffer,
 	 * (eg. version, buffer size, number of measurements)
 	 */
 	khdr.buffer_size = file.count;
-	if (ima_canonical_fmt) {
+	if (ima_cayesnical_fmt) {
 		khdr.version = cpu_to_le16(khdr.version);
 		khdr.count = cpu_to_le64(khdr.count);
 		khdr.buffer_size = cpu_to_le64(khdr.buffer_size);
@@ -110,7 +110,7 @@ void ima_add_kexec_buffer(struct kimage *image)
 	ima_dump_measurement_list(&kexec_buffer_size, &kexec_buffer,
 				  kexec_segment_size);
 	if (!kexec_buffer) {
-		pr_err("Not enough memory for the kexec measurement buffer.\n");
+		pr_err("Not eyesugh memory for the kexec measurement buffer.\n");
 		return;
 	}
 
@@ -155,7 +155,7 @@ void ima_load_kexec_buffer(void)
 		ima_free_kexec_buffer();
 		break;
 	case -ENOTSUPP:
-		pr_debug("Restoring the measurement list not supported\n");
+		pr_debug("Restoring the measurement list yest supported\n");
 		break;
 	case -ENOENT:
 		pr_debug("No measurement list to restore\n");

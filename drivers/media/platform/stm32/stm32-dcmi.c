@@ -32,7 +32,7 @@
 #include <media/v4l2-dev.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-event.h>
-#include <media/v4l2-fwnode.h>
+#include <media/v4l2-fwyesde.h>
 #include <media/v4l2-image-sizes.h>
 #include <media/v4l2-ioctl.h>
 #include <media/v4l2-rect.h>
@@ -102,7 +102,7 @@ enum state {
 struct dcmi_graph_entity {
 	struct v4l2_async_subdev asd;
 
-	struct device_node *remote_node;
+	struct device_yesde *remote_yesde;
 	struct v4l2_subdev *source;
 };
 
@@ -138,7 +138,7 @@ struct stm32_dcmi {
 
 	struct v4l2_device		v4l2_dev;
 	struct video_device		*vdev;
-	struct v4l2_async_notifier	notifier;
+	struct v4l2_async_yestifier	yestifier;
 	struct dcmi_graph_entity	entity;
 	struct v4l2_format		fmt;
 	struct v4l2_rect		crop;
@@ -156,7 +156,7 @@ struct stm32_dcmi {
 	struct mutex			lock;
 	struct vb2_queue		queue;
 
-	struct v4l2_fwnode_bus_parallel	bus;
+	struct v4l2_fwyesde_bus_parallel	bus;
 	struct completion		complete;
 	struct clk			*mclk;
 	enum state			state;
@@ -175,9 +175,9 @@ struct stm32_dcmi {
 	struct media_pipeline		pipeline;
 };
 
-static inline struct stm32_dcmi *notifier_to_dcmi(struct v4l2_async_notifier *n)
+static inline struct stm32_dcmi *yestifier_to_dcmi(struct v4l2_async_yestifier *n)
 {
-	return container_of(n, struct stm32_dcmi, notifier);
+	return container_of(n, struct stm32_dcmi, yestifier);
 }
 
 static inline u32 reg_read(void __iomem *base, u32 reg)
@@ -290,11 +290,11 @@ static void dcmi_dma_callback(void *param)
 
 		/* Restart capture */
 		if (dcmi_restart_capture(dcmi))
-			dev_err(dcmi->dev, "%s: Cannot restart capture on DMA complete\n",
+			dev_err(dcmi->dev, "%s: Canyest restart capture on DMA complete\n",
 				__func__);
 		return;
 	default:
-		dev_err(dcmi->dev, "%s: Received unknown status\n", __func__);
+		dev_err(dcmi->dev, "%s: Received unkyeswn status\n", __func__);
 		break;
 	}
 
@@ -342,7 +342,7 @@ static int dcmi_start_dma(struct stm32_dcmi *dcmi,
 		return -EINVAL;
 	}
 
-	/* Set completion callback routine for notification */
+	/* Set completion callback routine for yestification */
 	desc->callback = dcmi_dma_callback;
 	desc->callback_param = dcmi;
 
@@ -431,7 +431,7 @@ static void dcmi_process_jpeg(struct stm32_dcmi *dcmi)
 		dcmi_buffer_done(dcmi, buf, buf->size - state.residue, 0);
 	} else {
 		dcmi->errors_count++;
-		dev_err(dcmi->dev, "%s: Cannot get JPEG size from DMA\n",
+		dev_err(dcmi->dev, "%s: Canyest get JPEG size from DMA\n",
 			__func__);
 		/* Return JPEG buffer to V4L2 in ERROR state */
 		dcmi_buffer_done(dcmi, buf, 0, -EIO);
@@ -442,7 +442,7 @@ static void dcmi_process_jpeg(struct stm32_dcmi *dcmi)
 
 	/* Restart capture */
 	if (dcmi_restart_capture(dcmi))
-		dev_err(dcmi->dev, "%s: Cannot restart capture on JPEG received\n",
+		dev_err(dcmi->dev, "%s: Canyest restart capture on JPEG received\n",
 			__func__);
 }
 
@@ -500,7 +500,7 @@ static int dcmi_queue_setup(struct vb2_queue *vq,
 
 	size = dcmi->fmt.fmt.pix.sizeimage;
 
-	/* Make sure the image size is large enough */
+	/* Make sure the image size is large eyesugh */
 	if (*nplanes)
 		return sizes[0] < size ? -EINVAL : 0;
 
@@ -533,7 +533,7 @@ static int dcmi_buf_prepare(struct vb2_buffer *vb)
 	size = dcmi->fmt.fmt.pix.sizeimage;
 
 	if (vb2_plane_size(vb, 0) < size) {
-		dev_err(dcmi->dev, "%s data will not fit into plane (%lu < %lu)\n",
+		dev_err(dcmi->dev, "%s data will yest fit into plane (%lu < %lu)\n",
 			__func__, vb2_plane_size(vb, 0), size);
 		return -EINVAL;
 	}
@@ -576,7 +576,7 @@ static void dcmi_buf_queue(struct vb2_buffer *vb)
 
 		spin_unlock_irq(&dcmi->irqlock);
 		if (dcmi_start_capture(dcmi, buf))
-			dev_err(dcmi->dev, "%s: Cannot restart capture on overflow or error\n",
+			dev_err(dcmi->dev, "%s: Canyest restart capture on overflow or error\n",
 				__func__);
 		return;
 	}
@@ -589,7 +589,7 @@ static struct media_entity *dcmi_find_source(struct stm32_dcmi *dcmi)
 	struct media_entity *entity = &dcmi->vdev->entity;
 	struct media_pad *pad;
 
-	/* Walk searching for entity having no sink */
+	/* Walk searching for entity having yes sink */
 	while (1) {
 		pad = &entity->pads[0];
 		if (!(pad->flags & MEDIA_PAD_FL_SINK))
@@ -725,13 +725,13 @@ static void dcmi_pipeline_stop(struct stm32_dcmi *dcmi)
 static int dcmi_start_streaming(struct vb2_queue *vq, unsigned int count)
 {
 	struct stm32_dcmi *dcmi = vb2_get_drv_priv(vq);
-	struct dcmi_buf *buf, *node;
+	struct dcmi_buf *buf, *yesde;
 	u32 val = 0;
 	int ret;
 
 	ret = pm_runtime_get_sync(dcmi->dev);
 	if (ret < 0) {
-		dev_err(dcmi->dev, "%s: Failed to start streaming, cannot get sync (%d)\n",
+		dev_err(dcmi->dev, "%s: Failed to start streaming, canyest get sync (%d)\n",
 			__func__, ret);
 		goto err_release_buffers;
 	}
@@ -816,7 +816,7 @@ static int dcmi_start_streaming(struct vb2_queue *vq, unsigned int count)
 	spin_unlock_irq(&dcmi->irqlock);
 	ret = dcmi_start_capture(dcmi, buf);
 	if (ret) {
-		dev_err(dcmi->dev, "%s: Start streaming failed, cannot start capture\n",
+		dev_err(dcmi->dev, "%s: Start streaming failed, canyest start capture\n",
 			__func__);
 		goto err_pipeline_stop;
 	}
@@ -844,7 +844,7 @@ err_release_buffers:
 	 * Return all buffers to vb2 in QUEUED state.
 	 * This will give ownership back to userspace
 	 */
-	list_for_each_entry_safe(buf, node, &dcmi->buffers, list) {
+	list_for_each_entry_safe(buf, yesde, &dcmi->buffers, list) {
 		list_del_init(&buf->list);
 		vb2_buffer_done(&buf->vb.vb2_buf, VB2_BUF_STATE_QUEUED);
 	}
@@ -857,7 +857,7 @@ err_release_buffers:
 static void dcmi_stop_streaming(struct vb2_queue *vq)
 {
 	struct stm32_dcmi *dcmi = vb2_get_drv_priv(vq);
-	struct dcmi_buf *buf, *node;
+	struct dcmi_buf *buf, *yesde;
 
 	dcmi_pipeline_stop(dcmi);
 
@@ -872,7 +872,7 @@ static void dcmi_stop_streaming(struct vb2_queue *vq)
 	reg_clear(dcmi->regs, DCMI_CR, CR_ENABLE);
 
 	/* Return all queued buffers to vb2 in ERROR state */
-	list_for_each_entry_safe(buf, node, &dcmi->buffers, list) {
+	list_for_each_entry_safe(buf, yesde, &dcmi->buffers, list) {
 		list_del_init(&buf->list);
 		vb2_buffer_done(&buf->vb.vb2_buf, VB2_BUF_STATE_ERROR);
 	}
@@ -1195,7 +1195,7 @@ static int dcmi_get_sensor_bounds(struct stm32_dcmi *dcmi,
 		return ret;
 
 	/*
-	 * If selection is not implemented,
+	 * If selection is yest implemented,
 	 * fallback by enumerating sensor frame sizes
 	 * and take the largest one
 	 */
@@ -1221,7 +1221,7 @@ static int dcmi_get_sensor_bounds(struct stm32_dcmi *dcmi,
 	}
 
 	/*
-	 * If frame sizes enumeration is not implemented,
+	 * If frame sizes enumeration is yest implemented,
 	 * fallback by getting current sensor frame size
 	 */
 	ret = dcmi_get_sensor_format(dcmi, &pix);
@@ -1428,7 +1428,7 @@ static int dcmi_enum_frameintervals(struct file *file, void *fh,
 
 static const struct of_device_id stm32_dcmi_of_match[] = {
 	{ .compatible = "st,stm32-dcmi"},
-	{ /* end node */ },
+	{ /* end yesde */ },
 };
 MODULE_DEVICE_TABLE(of, stm32_dcmi_of_match);
 
@@ -1623,7 +1623,7 @@ static int dcmi_formats_init(struct stm32_dcmi *dcmi)
 					num_fmts, sizeof(struct dcmi_format *),
 					GFP_KERNEL);
 	if (!dcmi->sd_formats) {
-		dev_err(dcmi->dev, "Could not allocate memory\n");
+		dev_err(dcmi->dev, "Could yest allocate memory\n");
 		return -ENOMEM;
 	}
 
@@ -1659,7 +1659,7 @@ static int dcmi_framesizes_init(struct stm32_dcmi *dcmi)
 					   sizeof(struct dcmi_framesize),
 					   GFP_KERNEL);
 	if (!dcmi->sd_framesizes) {
-		dev_err(dcmi->dev, "Could not allocate memory\n");
+		dev_err(dcmi->dev, "Could yest allocate memory\n");
 		return -ENOMEM;
 	}
 
@@ -1679,9 +1679,9 @@ static int dcmi_framesizes_init(struct stm32_dcmi *dcmi)
 	return 0;
 }
 
-static int dcmi_graph_notify_complete(struct v4l2_async_notifier *notifier)
+static int dcmi_graph_yestify_complete(struct v4l2_async_yestifier *yestifier)
 {
-	struct stm32_dcmi *dcmi = notifier_to_dcmi(notifier);
+	struct stm32_dcmi *dcmi = yestifier_to_dcmi(yestifier);
 	int ret;
 
 	/*
@@ -1692,7 +1692,7 @@ static int dcmi_graph_notify_complete(struct v4l2_async_notifier *notifier)
 	dcmi->entity.source =
 		media_entity_to_v4l2_subdev(dcmi_find_source(dcmi));
 	if (!dcmi->entity.source) {
-		dev_err(dcmi->dev, "Source subdevice not found\n");
+		dev_err(dcmi->dev, "Source subdevice yest found\n");
 		return -ENODEV;
 	}
 
@@ -1706,42 +1706,42 @@ static int dcmi_graph_notify_complete(struct v4l2_async_notifier *notifier)
 
 	ret = dcmi_framesizes_init(dcmi);
 	if (ret) {
-		dev_err(dcmi->dev, "Could not initialize framesizes\n");
+		dev_err(dcmi->dev, "Could yest initialize framesizes\n");
 		return ret;
 	}
 
 	ret = dcmi_get_sensor_bounds(dcmi, &dcmi->sd_bounds);
 	if (ret) {
-		dev_err(dcmi->dev, "Could not get sensor bounds\n");
+		dev_err(dcmi->dev, "Could yest get sensor bounds\n");
 		return ret;
 	}
 
 	ret = dcmi_set_default_fmt(dcmi);
 	if (ret) {
-		dev_err(dcmi->dev, "Could not set default format\n");
+		dev_err(dcmi->dev, "Could yest set default format\n");
 		return ret;
 	}
 
 	return 0;
 }
 
-static void dcmi_graph_notify_unbind(struct v4l2_async_notifier *notifier,
+static void dcmi_graph_yestify_unbind(struct v4l2_async_yestifier *yestifier,
 				     struct v4l2_subdev *sd,
 				     struct v4l2_async_subdev *asd)
 {
-	struct stm32_dcmi *dcmi = notifier_to_dcmi(notifier);
+	struct stm32_dcmi *dcmi = yestifier_to_dcmi(yestifier);
 
-	dev_dbg(dcmi->dev, "Removing %s\n", video_device_node_name(dcmi->vdev));
+	dev_dbg(dcmi->dev, "Removing %s\n", video_device_yesde_name(dcmi->vdev));
 
-	/* Checks internally if vdev has been init or not */
+	/* Checks internally if vdev has been init or yest */
 	video_unregister_device(dcmi->vdev);
 }
 
-static int dcmi_graph_notify_bound(struct v4l2_async_notifier *notifier,
+static int dcmi_graph_yestify_bound(struct v4l2_async_yestifier *yestifier,
 				   struct v4l2_subdev *subdev,
 				   struct v4l2_async_subdev *asd)
 {
-	struct stm32_dcmi *dcmi = notifier_to_dcmi(notifier);
+	struct stm32_dcmi *dcmi = yestifier_to_dcmi(yestifier);
 	unsigned int ret;
 	int src_pad;
 
@@ -1751,8 +1751,8 @@ static int dcmi_graph_notify_bound(struct v4l2_async_notifier *notifier,
 	 * Link this sub-device to DCMI, it could be
 	 * a parallel camera sensor or a bridge
 	 */
-	src_pad = media_entity_get_fwnode_pad(&subdev->entity,
-					      subdev->fwnode,
+	src_pad = media_entity_get_fwyesde_pad(&subdev->entity,
+					      subdev->fwyesde,
 					      MEDIA_PAD_FL_SOURCE);
 
 	ret = media_create_pad_link(&subdev->entity, src_pad,
@@ -1763,36 +1763,36 @@ static int dcmi_graph_notify_bound(struct v4l2_async_notifier *notifier,
 		dev_err(dcmi->dev, "Failed to create media pad link with subdev \"%s\"\n",
 			subdev->name);
 	else
-		dev_dbg(dcmi->dev, "DCMI is now linked to \"%s\"\n",
+		dev_dbg(dcmi->dev, "DCMI is yesw linked to \"%s\"\n",
 			subdev->name);
 
 	return ret;
 }
 
-static const struct v4l2_async_notifier_operations dcmi_graph_notify_ops = {
-	.bound = dcmi_graph_notify_bound,
-	.unbind = dcmi_graph_notify_unbind,
-	.complete = dcmi_graph_notify_complete,
+static const struct v4l2_async_yestifier_operations dcmi_graph_yestify_ops = {
+	.bound = dcmi_graph_yestify_bound,
+	.unbind = dcmi_graph_yestify_unbind,
+	.complete = dcmi_graph_yestify_complete,
 };
 
-static int dcmi_graph_parse(struct stm32_dcmi *dcmi, struct device_node *node)
+static int dcmi_graph_parse(struct stm32_dcmi *dcmi, struct device_yesde *yesde)
 {
-	struct device_node *ep = NULL;
-	struct device_node *remote;
+	struct device_yesde *ep = NULL;
+	struct device_yesde *remote;
 
-	ep = of_graph_get_next_endpoint(node, ep);
+	ep = of_graph_get_next_endpoint(yesde, ep);
 	if (!ep)
 		return -EINVAL;
 
 	remote = of_graph_get_remote_port_parent(ep);
-	of_node_put(ep);
+	of_yesde_put(ep);
 	if (!remote)
 		return -EINVAL;
 
-	/* Remote node to connect */
-	dcmi->entity.remote_node = remote;
+	/* Remote yesde to connect */
+	dcmi->entity.remote_yesde = remote;
 	dcmi->entity.asd.match_type = V4L2_ASYNC_MATCH_FWNODE;
-	dcmi->entity.asd.match.fwnode = of_fwnode_handle(remote);
+	dcmi->entity.asd.match.fwyesde = of_fwyesde_handle(remote);
 	return 0;
 }
 
@@ -1800,29 +1800,29 @@ static int dcmi_graph_init(struct stm32_dcmi *dcmi)
 {
 	int ret;
 
-	/* Parse the graph to extract a list of subdevice DT nodes. */
-	ret = dcmi_graph_parse(dcmi, dcmi->dev->of_node);
+	/* Parse the graph to extract a list of subdevice DT yesdes. */
+	ret = dcmi_graph_parse(dcmi, dcmi->dev->of_yesde);
 	if (ret < 0) {
 		dev_err(dcmi->dev, "Failed to parse graph\n");
 		return ret;
 	}
 
-	v4l2_async_notifier_init(&dcmi->notifier);
+	v4l2_async_yestifier_init(&dcmi->yestifier);
 
-	ret = v4l2_async_notifier_add_subdev(&dcmi->notifier,
+	ret = v4l2_async_yestifier_add_subdev(&dcmi->yestifier,
 					     &dcmi->entity.asd);
 	if (ret) {
-		dev_err(dcmi->dev, "Failed to add subdev notifier\n");
-		of_node_put(dcmi->entity.remote_node);
+		dev_err(dcmi->dev, "Failed to add subdev yestifier\n");
+		of_yesde_put(dcmi->entity.remote_yesde);
 		return ret;
 	}
 
-	dcmi->notifier.ops = &dcmi_graph_notify_ops;
+	dcmi->yestifier.ops = &dcmi_graph_yestify_ops;
 
-	ret = v4l2_async_notifier_register(&dcmi->v4l2_dev, &dcmi->notifier);
+	ret = v4l2_async_yestifier_register(&dcmi->v4l2_dev, &dcmi->yestifier);
 	if (ret < 0) {
-		dev_err(dcmi->dev, "Failed to register notifier\n");
-		v4l2_async_notifier_cleanup(&dcmi->notifier);
+		dev_err(dcmi->dev, "Failed to register yestifier\n");
+		v4l2_async_yestifier_cleanup(&dcmi->yestifier);
 		return ret;
 	}
 
@@ -1831,9 +1831,9 @@ static int dcmi_graph_init(struct stm32_dcmi *dcmi)
 
 static int dcmi_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	const struct of_device_id *match = NULL;
-	struct v4l2_fwnode_endpoint ep = { .bus_type = 0 };
+	struct v4l2_fwyesde_endpoint ep = { .bus_type = 0 };
 	struct stm32_dcmi *dcmi;
 	struct vb2_queue *q;
 	struct dma_chan *chan;
@@ -1843,7 +1843,7 @@ static int dcmi_probe(struct platform_device *pdev)
 
 	match = of_match_device(of_match_ptr(stm32_dcmi_of_match), &pdev->dev);
 	if (!match) {
-		dev_err(&pdev->dev, "Could not find a match in devicetree\n");
+		dev_err(&pdev->dev, "Could yest find a match in devicetree\n");
 		return -ENODEV;
 	}
 
@@ -1853,26 +1853,26 @@ static int dcmi_probe(struct platform_device *pdev)
 
 	dcmi->rstc = devm_reset_control_get_exclusive(&pdev->dev, NULL);
 	if (IS_ERR(dcmi->rstc)) {
-		dev_err(&pdev->dev, "Could not get reset control\n");
+		dev_err(&pdev->dev, "Could yest get reset control\n");
 		return PTR_ERR(dcmi->rstc);
 	}
 
 	/* Get bus characteristics from devicetree */
 	np = of_graph_get_next_endpoint(np, NULL);
 	if (!np) {
-		dev_err(&pdev->dev, "Could not find the endpoint\n");
+		dev_err(&pdev->dev, "Could yest find the endpoint\n");
 		return -ENODEV;
 	}
 
-	ret = v4l2_fwnode_endpoint_parse(of_fwnode_handle(np), &ep);
-	of_node_put(np);
+	ret = v4l2_fwyesde_endpoint_parse(of_fwyesde_handle(np), &ep);
+	of_yesde_put(np);
 	if (ret) {
-		dev_err(&pdev->dev, "Could not parse the endpoint\n");
+		dev_err(&pdev->dev, "Could yest parse the endpoint\n");
 		return ret;
 	}
 
 	if (ep.bus_type == V4L2_MBUS_CSI2_DPHY) {
-		dev_err(&pdev->dev, "CSI bus not supported\n");
+		dev_err(&pdev->dev, "CSI bus yest supported\n");
 		return -ENODEV;
 	}
 	dcmi->bus.flags = ep.bus.parallel.flags;
@@ -1885,13 +1885,13 @@ static int dcmi_probe(struct platform_device *pdev)
 
 	dcmi->res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!dcmi->res) {
-		dev_err(&pdev->dev, "Could not get resource\n");
+		dev_err(&pdev->dev, "Could yest get resource\n");
 		return -ENODEV;
 	}
 
 	dcmi->regs = devm_ioremap_resource(&pdev->dev, dcmi->res);
 	if (IS_ERR(dcmi->regs)) {
-		dev_err(&pdev->dev, "Could not map registers\n");
+		dev_err(&pdev->dev, "Could yest map registers\n");
 		return PTR_ERR(dcmi->regs);
 	}
 
@@ -1949,7 +1949,7 @@ static int dcmi_probe(struct platform_device *pdev)
 		goto err_device_unregister;
 	}
 
-	/* Video node */
+	/* Video yesde */
 	dcmi->vdev->fops = &dcmi_fops;
 	dcmi->vdev->v4l2_dev = &dcmi->v4l2_dev;
 	dcmi->vdev->queue = &dcmi->queue;
@@ -1978,7 +1978,7 @@ static int dcmi_probe(struct platform_device *pdev)
 	}
 
 	dev_dbg(dcmi->dev, "Device registered as %s\n",
-		video_device_node_name(dcmi->vdev));
+		video_device_yesde_name(dcmi->vdev));
 
 	/* Buffer queue */
 	q->type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
@@ -2026,7 +2026,7 @@ static int dcmi_probe(struct platform_device *pdev)
 	return 0;
 
 err_cleanup:
-	v4l2_async_notifier_cleanup(&dcmi->notifier);
+	v4l2_async_yestifier_cleanup(&dcmi->yestifier);
 err_media_entity_cleanup:
 	media_entity_cleanup(&dcmi->vdev->entity);
 err_device_release:
@@ -2046,8 +2046,8 @@ static int dcmi_remove(struct platform_device *pdev)
 
 	pm_runtime_disable(&pdev->dev);
 
-	v4l2_async_notifier_unregister(&dcmi->notifier);
-	v4l2_async_notifier_cleanup(&dcmi->notifier);
+	v4l2_async_yestifier_unregister(&dcmi->yestifier);
+	v4l2_async_yestifier_cleanup(&dcmi->yestifier);
 	media_entity_cleanup(&dcmi->vdev->entity);
 	v4l2_device_unregister(&dcmi->v4l2_dev);
 	media_device_cleanup(&dcmi->mdev);

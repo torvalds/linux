@@ -2,7 +2,7 @@
 
 The ADV7604 and ADV7611/12 are multiformat video decoders with an integrated
 HDMI receiver. The ADV7604 has four multiplexed HDMI inputs and one analog
-input, and the ADV7611 has one HDMI input and no analog input. The 7612 is
+input, and the ADV7611 has one HDMI input and yes analog input. The 7612 is
 similar to the 7611 but has 2 HDMI inputs.
 
 These device tree bindings support the ADV7611/12 only at the moment.
@@ -17,15 +17,15 @@ Required Properties:
     The ADV76xx has up to thirteen 256-byte maps that can be accessed via the
     main I2C ports. Each map has it own I2C address and acts as a standard
     slave device on the I2C bus. The main address is mandatory, others are
-    optional and revert to defaults if not specified.
+    optional and revert to defaults if yest specified.
 
   - hpd-gpios: References to the GPIOs that control the HDMI hot-plug
     detection pins, one per HDMI input. The active flag indicates the GPIO
     level that enables hot-plug detection.
 
-The device node must contain one 'port' child node per device input and output
+The device yesde must contain one 'port' child yesde per device input and output
 port, in accordance with the video interface bindings defined in
-Documentation/devicetree/bindings/media/video-interfaces.txt. The port nodes
+Documentation/devicetree/bindings/media/video-interfaces.txt. The port yesdes
 are numbered as follows.
 
   Port			ADV7611    ADV7612
@@ -33,14 +33,14 @@ are numbered as follows.
   HDMI			0             0, 1
   Digital output	1                2
 
-The digital output port node must contain at least one endpoint.
+The digital output port yesde must contain at least one endpoint.
 
 Optional Properties:
 
   - reset-gpios: Reference to the GPIO connected to the device's reset pin.
   - default-input: Select which input is selected after reset.
   - reg-names : Names of maps with programmable addresses.
-		It can contain any map needing a non-default address.
+		It can contain any map needing a yesn-default address.
 		Possible maps names are :
 		  "main", "avlink", "cec", "infoframe", "esdp", "dpp", "afe",
 		  "rep", "edid", "hdmi", "test", "cp", "vdp"
@@ -54,7 +54,7 @@ Optional Endpoint Properties:
   - vsync-active: Vertical synchronization polarity. Defaults to active low.
   - pclk-sample: Pixel clock polarity. Defaults to output on the falling edge.
 
-  If none of hsync-active, vsync-active and pclk-sample is specified the
+  If yesne of hsync-active, vsync-active and pclk-sample is specified the
   endpoint will use embedded BT.656 synchronization.
 
 Example:

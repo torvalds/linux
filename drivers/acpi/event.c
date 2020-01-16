@@ -22,10 +22,10 @@
 #define _COMPONENT		ACPI_SYSTEM_COMPONENT
 ACPI_MODULE_NAME("event");
 
-/* ACPI notifier chain */
+/* ACPI yestifier chain */
 static BLOCKING_NOTIFIER_HEAD(acpi_chain_head);
 
-int acpi_notifier_call_chain(struct acpi_device *dev, u32 type, u32 data)
+int acpi_yestifier_call_chain(struct acpi_device *dev, u32 type, u32 data)
 {
 	struct acpi_bus_event event;
 
@@ -33,22 +33,22 @@ int acpi_notifier_call_chain(struct acpi_device *dev, u32 type, u32 data)
 	strcpy(event.bus_id, dev->pnp.bus_id);
 	event.type = type;
 	event.data = data;
-	return (blocking_notifier_call_chain(&acpi_chain_head, 0, (void *)&event)
+	return (blocking_yestifier_call_chain(&acpi_chain_head, 0, (void *)&event)
                         == NOTIFY_BAD) ? -EINVAL : 0;
 }
-EXPORT_SYMBOL(acpi_notifier_call_chain);
+EXPORT_SYMBOL(acpi_yestifier_call_chain);
 
-int register_acpi_notifier(struct notifier_block *nb)
+int register_acpi_yestifier(struct yestifier_block *nb)
 {
-	return blocking_notifier_chain_register(&acpi_chain_head, nb);
+	return blocking_yestifier_chain_register(&acpi_chain_head, nb);
 }
-EXPORT_SYMBOL(register_acpi_notifier);
+EXPORT_SYMBOL(register_acpi_yestifier);
 
-int unregister_acpi_notifier(struct notifier_block *nb)
+int unregister_acpi_yestifier(struct yestifier_block *nb)
 {
-	return blocking_notifier_chain_unregister(&acpi_chain_head, nb);
+	return blocking_yestifier_chain_unregister(&acpi_chain_head, nb);
 }
-EXPORT_SYMBOL(unregister_acpi_notifier);
+EXPORT_SYMBOL(unregister_acpi_yestifier);
 
 #ifdef CONFIG_NET
 static unsigned int acpi_event_seqnum;
@@ -70,7 +70,7 @@ enum {
 /* commands supported by the acpi_genl_family */
 enum {
 	ACPI_GENL_CMD_UNSPEC,
-	ACPI_GENL_CMD_EVENT,	/* kernel->user notifications for ACPI events */
+	ACPI_GENL_CMD_EVENT,	/* kernel->user yestifications for ACPI events */
 	__ACPI_GENL_CMD_MAX,
 };
 #define ACPI_GENL_CMD_MAX (__ACPI_GENL_CMD_MAX - 1)

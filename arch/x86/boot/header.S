@@ -131,7 +131,7 @@ optional_header:
 	.word	0x20b 				# PE32+ format
 #endif
 	.byte	0x02				# MajorLinkerVersion
-	.byte	0x14				# MinorLinkerVersion
+	.byte	0x14				# MiyesrLinkerVersion
 
 	# Filled in by build.c
 	.long	0				# SizeOfCode
@@ -156,11 +156,11 @@ extra_header_fields:
 	.long	0x20				# SectionAlignment
 	.long	0x20				# FileAlignment
 	.word	0				# MajorOperatingSystemVersion
-	.word	0				# MinorOperatingSystemVersion
+	.word	0				# MiyesrOperatingSystemVersion
 	.word	0				# MajorImageVersion
-	.word	0				# MinorImageVersion
+	.word	0				# MiyesrImageVersion
 	.word	0				# MajorSubsystemVersion
-	.word	0				# MinorSubsystemVersion
+	.word	0				# MiyesrSubsystemVersion
 	.long	0				# Win32VersionValue
 
 	#
@@ -312,7 +312,7 @@ start_sys_seg:	.word	SYSSEG		# obsolete and meaningless, but just
 					# change it.
 
 type_of_loader:	.byte	0		# 0 means ancient bootloader, newer
-					# bootloaders know to change this.
+					# bootloaders kyesw to change this.
 					# See Documentation/x86/boot.rst for
 					# assigned ids
 
@@ -320,11 +320,11 @@ type_of_loader:	.byte	0		# 0 means ancient bootloader, newer
 loadflags:
 		.byte	LOADED_HIGH	# The kernel is to be loaded high
 
-setup_move_size: .word  0x8000		# size to move, when setup is not
+setup_move_size: .word  0x8000		# size to move, when setup is yest
 					# loaded at 0x90000. We will move setup
 					# to 0x90000 then just before jumping
 					# into the kernel. However, only the
-					# loader knows how much data behind
+					# loader kyesws how much data behind
 					# us also needs to be loaded.
 
 code32_start:				# here loaders can put a different
@@ -353,7 +353,7 @@ ext_loader_type:
 		.byte	0		# Extended boot loader type
 
 cmd_line_ptr:	.long	0		# (Header version 0x0202 or later)
-					# If nonzero, a 32-bit pointer
+					# If yesnzero, a 32-bit pointer
 					# to the kernel command line.
 					# The command line should be
 					# located between the start of
@@ -361,7 +361,7 @@ cmd_line_ptr:	.long	0		# (Header version 0x0202 or later)
 					# memory (0xa0000), or it may
 					# get overwritten before it
 					# gets read.  If this field is
-					# used, there is no longer
+					# used, there is yes longer
 					# anything magical about the
 					# 0x90000 segment; the setup
 					# can be located anywhere in
@@ -436,7 +436,7 @@ cmdline_size:   .long   COMMAND_LINE_SIZE-1     #length of the command line,
                                                 #version 2.06
 
 hardware_subarch:	.long 0			# subarchitecture, added with 2.07
-						# default to 0 for normal x86 PC
+						# default to 0 for yesrmal x86 PC
 
 hardware_subarch_data:	.quad 0
 
@@ -508,7 +508,7 @@ pref_address:		.quad LOAD_PHYSICAL_ADDR	# preferred load addr
 # 32764 bytes and then all of the rest of the bytes representing the very
 # very last byte.
 #
-# All of which is enough to compute an amount of extra data that is required
+# All of which is eyesugh to compute an amount of extra data that is required
 # to be safe.  To avoid problems at the block level allocating 5 extra bytes
 # per 32767 bytes of data is sufficient.  To avoid problems internal to a
 # block adding an extra 32767 bytes (the worst case uncompressed block size)
@@ -523,7 +523,7 @@ pref_address:		.quad LOAD_PHYSICAL_ADDR	# preferred load addr
 # Adding 32768 instead of 32767 just makes for round numbers.
 #
 # Above analysis is for decompressing gzip compressed kernel only. Up to
-# now 6 different decompressor are supported all together. And among them
+# yesw 6 different decompressor are supported all together. And among them
 # xz stores data in chunks and has maximum chunk of 64K. Hence safety
 # margin should be updated to cover all decompressors so that we don't
 # need to deal with each of them separately. Please check
@@ -531,9 +531,9 @@ pref_address:		.quad LOAD_PHYSICAL_ADDR	# preferred load addr
 #
 # extra_bytes = (uncompressed_size >> 12) + 65536 + 128
 #
-# LZ4 is even worse: data that cannot be further compressed grows by 0.4%,
+# LZ4 is even worse: data that canyest be further compressed grows by 0.4%,
 # or one byte per 256 bytes. OTOH, we can safely get rid of the +128 as
-# the size-dependent part now grows so fast.
+# the size-dependent part yesw grows so fast.
 #
 # extra_bytes = (uncompressed_size >> 8) + 65536
 
@@ -600,12 +600,12 @@ start_of_setup:
 2:	# Now %dx should point to the end of our stack space
 	andw	$~3, %dx	# dword align (might as well...)
 	jnz	3f
-	movw	$0xfffc, %dx	# Make sure we're not zero
+	movw	$0xfffc, %dx	# Make sure we're yest zero
 3:	movw	%ax, %ss
 	movzwl	%dx, %esp	# Clear upper half of %esp
 	sti			# Now we should have a working stack
 
-# We will have entered with %cs = %ds+0x20, normalize %cs so
+# We will have entered with %cs = %ds+0x20, yesrmalize %cs so
 # it is on par with the other segments.
 	pushw	%ds
 	pushw	$6f
@@ -624,7 +624,7 @@ start_of_setup:
 	shrw	$2, %cx
 	rep; stosl
 
-# Jump to C code (should not return)
+# Jump to C code (should yest return)
 	calll	main
 
 # Setup corrupt somehow...

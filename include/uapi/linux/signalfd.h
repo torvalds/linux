@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 /*
  *  include/linux/signalfd.h
  *
@@ -18,8 +18,8 @@
 #define SFD_NONBLOCK O_NONBLOCK
 
 struct signalfd_siginfo {
-	__u32 ssi_signo;
-	__s32 ssi_errno;
+	__u32 ssi_sigyes;
+	__s32 ssi_erryes;
 	__s32 ssi_code;
 	__u32 ssi_pid;
 	__u32 ssi_uid;
@@ -27,7 +27,7 @@ struct signalfd_siginfo {
 	__u32 ssi_tid;
 	__u32 ssi_band;
 	__u32 ssi_overrun;
-	__u32 ssi_trapno;
+	__u32 ssi_trapyes;
 	__s32 ssi_status;
 	__s32 ssi_int;
 	__u64 ssi_ptr;

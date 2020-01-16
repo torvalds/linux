@@ -63,7 +63,7 @@ __percpu_##name##_case_##sz(void *ptr, unsigned long val)		\
 	"	cbnz	%w[loop], 1b",					\
 	/* LSE atomics */						\
 		#op_lse "\t%" #w "[val], %[ptr]\n"			\
-		__nops(3))						\
+		__yesps(3))						\
 	: [loop] "=&r" (loop), [tmp] "=&r" (tmp),			\
 	  [ptr] "+Q"(*(u##sz *)ptr)					\
 	: [val] "r" ((u##sz)(val)));					\
@@ -85,7 +85,7 @@ __percpu_##name##_return_case_##sz(void *ptr, unsigned long val)	\
 	/* LSE atomics */						\
 		#op_lse "\t%" #w "[val], %" #w "[ret], %[ptr]\n"	\
 		#op_llsc "\t%" #w "[ret], %" #w "[ret], %" #w "[val]\n"	\
-		__nops(2))						\
+		__yesps(2))						\
 	: [loop] "=&r" (loop), [ret] "=&r" (ret),			\
 	  [ptr] "+Q"(*(u##sz *)ptr)					\
 	: [val] "r" ((u##sz)(val)));					\
@@ -110,7 +110,7 @@ PERCPU_RW_OPS(16)
 PERCPU_RW_OPS(32)
 PERCPU_RW_OPS(64)
 PERCPU_OP(add, add, stadd)
-PERCPU_OP(andnot, bic, stclr)
+PERCPU_OP(andyest, bic, stclr)
 PERCPU_OP(or, orr, stset)
 PERCPU_RET_OP(add, add, ldadd)
 
@@ -129,27 +129,27 @@ PERCPU_RET_OP(add, add, ldadd)
 #define this_cpu_cmpxchg_double_8(ptr1, ptr2, o1, o2, n1, n2)		\
 ({									\
 	int __ret;							\
-	preempt_disable_notrace();					\
+	preempt_disable_yestrace();					\
 	__ret = cmpxchg_double_local(	raw_cpu_ptr(&(ptr1)),		\
 					raw_cpu_ptr(&(ptr2)),		\
 					o1, o2, n1, n2);		\
-	preempt_enable_notrace();					\
+	preempt_enable_yestrace();					\
 	__ret;								\
 })
 
 #define _pcp_protect(op, pcp, ...)					\
 ({									\
-	preempt_disable_notrace();					\
+	preempt_disable_yestrace();					\
 	op(raw_cpu_ptr(&(pcp)), __VA_ARGS__);				\
-	preempt_enable_notrace();					\
+	preempt_enable_yestrace();					\
 })
 
 #define _pcp_protect_return(op, pcp, args...)				\
 ({									\
 	typeof(pcp) __retval;						\
-	preempt_disable_notrace();					\
+	preempt_disable_yestrace();					\
 	__retval = (typeof(pcp))op(raw_cpu_ptr(&(pcp)), ##args);	\
-	preempt_enable_notrace();					\
+	preempt_enable_yestrace();					\
 	__retval;							\
 })
 
@@ -190,13 +190,13 @@ PERCPU_RET_OP(add, add, ldadd)
 	_pcp_protect_return(__percpu_add_return_case_64, pcp, val)
 
 #define this_cpu_and_1(pcp, val)	\
-	_pcp_protect(__percpu_andnot_case_8, pcp, ~val)
+	_pcp_protect(__percpu_andyest_case_8, pcp, ~val)
 #define this_cpu_and_2(pcp, val)	\
-	_pcp_protect(__percpu_andnot_case_16, pcp, ~val)
+	_pcp_protect(__percpu_andyest_case_16, pcp, ~val)
 #define this_cpu_and_4(pcp, val)	\
-	_pcp_protect(__percpu_andnot_case_32, pcp, ~val)
+	_pcp_protect(__percpu_andyest_case_32, pcp, ~val)
 #define this_cpu_and_8(pcp, val)	\
-	_pcp_protect(__percpu_andnot_case_64, pcp, ~val)
+	_pcp_protect(__percpu_andyest_case_64, pcp, ~val)
 
 #define this_cpu_or_1(pcp, val)		\
 	_pcp_protect(__percpu_or_case_8, pcp, val)

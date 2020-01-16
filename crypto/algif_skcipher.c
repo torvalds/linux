@@ -10,7 +10,7 @@
  *
  * The kernel maintains two SGLs, the TX SGL and the RX SGL. The TX SGL is
  * filled by user space with the data submitted via sendpage/sendmsg. Filling
- * up the TX SGL does not cause a crypto operation -- the data will only be
+ * up the TX SGL does yest cause a crypto operation -- the data will only be
  * tracked by the kernel. Upon receipt of one recvmsg call, the caller must
  * provide a buffer which is tracked with the RX SGL.
  *
@@ -48,7 +48,7 @@ static int skcipher_sendmsg(struct socket *sock, struct msghdr *msg,
 }
 
 static int _skcipher_recvmsg(struct socket *sock, struct msghdr *msg,
-			     size_t ignored, int flags)
+			     size_t igyesred, int flags)
 {
 	struct sock *sk = sock->sk;
 	struct alg_sock *ask = alg_sk(sk);
@@ -132,7 +132,7 @@ static int _skcipher_recvmsg(struct socket *sock, struct msghdr *msg,
 
 		sock_put(sk);
 	} else {
-		/* Synchronous operation */
+		/* Synchroyesus operation */
 		skcipher_request_set_callback(&areq->cra_u.skcipher_req,
 					      CRYPTO_TFM_REQ_MAY_SLEEP |
 					      CRYPTO_TFM_REQ_MAY_BACKLOG,
@@ -151,14 +151,14 @@ free:
 }
 
 static int skcipher_recvmsg(struct socket *sock, struct msghdr *msg,
-			    size_t ignored, int flags)
+			    size_t igyesred, int flags)
 {
 	struct sock *sk = sock->sk;
 	int ret = 0;
 
 	lock_sock(sk);
 	while (msg_data_left(msg)) {
-		int err = _skcipher_recvmsg(sock, msg, ignored, flags);
+		int err = _skcipher_recvmsg(sock, msg, igyesred, flags);
 
 		/*
 		 * This error covers -EIOCBQUEUED which implies that we can
@@ -166,7 +166,7 @@ static int skcipher_recvmsg(struct socket *sock, struct msghdr *msg,
 		 * multiple AIO requests in parallel, he must make multiple
 		 * separate AIO calls.
 		 *
-		 * Also return the error if no data has been processed so far.
+		 * Also return the error if yes data has been processed so far.
 		 */
 		if (err <= 0) {
 			if (err == -EIOCBQUEUED || !ret)
@@ -186,17 +186,17 @@ out:
 static struct proto_ops algif_skcipher_ops = {
 	.family		=	PF_ALG,
 
-	.connect	=	sock_no_connect,
-	.socketpair	=	sock_no_socketpair,
-	.getname	=	sock_no_getname,
-	.ioctl		=	sock_no_ioctl,
-	.listen		=	sock_no_listen,
-	.shutdown	=	sock_no_shutdown,
-	.getsockopt	=	sock_no_getsockopt,
-	.mmap		=	sock_no_mmap,
-	.bind		=	sock_no_bind,
-	.accept		=	sock_no_accept,
-	.setsockopt	=	sock_no_setsockopt,
+	.connect	=	sock_yes_connect,
+	.socketpair	=	sock_yes_socketpair,
+	.getname	=	sock_yes_getname,
+	.ioctl		=	sock_yes_ioctl,
+	.listen		=	sock_yes_listen,
+	.shutdown	=	sock_yes_shutdown,
+	.getsockopt	=	sock_yes_getsockopt,
+	.mmap		=	sock_yes_mmap,
+	.bind		=	sock_yes_bind,
+	.accept		=	sock_yes_accept,
+	.setsockopt	=	sock_yes_setsockopt,
 
 	.release	=	af_alg_release,
 	.sendmsg	=	skcipher_sendmsg,
@@ -243,7 +243,7 @@ unlock_child:
 	return err;
 }
 
-static int skcipher_sendmsg_nokey(struct socket *sock, struct msghdr *msg,
+static int skcipher_sendmsg_yeskey(struct socket *sock, struct msghdr *msg,
 				  size_t size)
 {
 	int err;
@@ -255,7 +255,7 @@ static int skcipher_sendmsg_nokey(struct socket *sock, struct msghdr *msg,
 	return skcipher_sendmsg(sock, msg, size);
 }
 
-static ssize_t skcipher_sendpage_nokey(struct socket *sock, struct page *page,
+static ssize_t skcipher_sendpage_yeskey(struct socket *sock, struct page *page,
 				       int offset, size_t size, int flags)
 {
 	int err;
@@ -267,8 +267,8 @@ static ssize_t skcipher_sendpage_nokey(struct socket *sock, struct page *page,
 	return af_alg_sendpage(sock, page, offset, size, flags);
 }
 
-static int skcipher_recvmsg_nokey(struct socket *sock, struct msghdr *msg,
-				  size_t ignored, int flags)
+static int skcipher_recvmsg_yeskey(struct socket *sock, struct msghdr *msg,
+				  size_t igyesred, int flags)
 {
 	int err;
 
@@ -276,28 +276,28 @@ static int skcipher_recvmsg_nokey(struct socket *sock, struct msghdr *msg,
 	if (err)
 		return err;
 
-	return skcipher_recvmsg(sock, msg, ignored, flags);
+	return skcipher_recvmsg(sock, msg, igyesred, flags);
 }
 
-static struct proto_ops algif_skcipher_ops_nokey = {
+static struct proto_ops algif_skcipher_ops_yeskey = {
 	.family		=	PF_ALG,
 
-	.connect	=	sock_no_connect,
-	.socketpair	=	sock_no_socketpair,
-	.getname	=	sock_no_getname,
-	.ioctl		=	sock_no_ioctl,
-	.listen		=	sock_no_listen,
-	.shutdown	=	sock_no_shutdown,
-	.getsockopt	=	sock_no_getsockopt,
-	.mmap		=	sock_no_mmap,
-	.bind		=	sock_no_bind,
-	.accept		=	sock_no_accept,
-	.setsockopt	=	sock_no_setsockopt,
+	.connect	=	sock_yes_connect,
+	.socketpair	=	sock_yes_socketpair,
+	.getname	=	sock_yes_getname,
+	.ioctl		=	sock_yes_ioctl,
+	.listen		=	sock_yes_listen,
+	.shutdown	=	sock_yes_shutdown,
+	.getsockopt	=	sock_yes_getsockopt,
+	.mmap		=	sock_yes_mmap,
+	.bind		=	sock_yes_bind,
+	.accept		=	sock_yes_accept,
+	.setsockopt	=	sock_yes_setsockopt,
 
 	.release	=	af_alg_release,
-	.sendmsg	=	skcipher_sendmsg_nokey,
-	.sendpage	=	skcipher_sendpage_nokey,
-	.recvmsg	=	skcipher_recvmsg_nokey,
+	.sendmsg	=	skcipher_sendmsg_yeskey,
+	.sendpage	=	skcipher_sendpage_yeskey,
+	.recvmsg	=	skcipher_recvmsg_yeskey,
 	.poll		=	af_alg_poll,
 };
 
@@ -330,7 +330,7 @@ static void skcipher_sock_destruct(struct sock *sk)
 	af_alg_release_parent(sk);
 }
 
-static int skcipher_accept_parent_nokey(void *private, struct sock *sk)
+static int skcipher_accept_parent_yeskey(void *private, struct sock *sk)
 {
 	struct af_alg_ctx *ctx;
 	struct alg_sock *ask = alg_sk(sk);
@@ -373,7 +373,7 @@ static int skcipher_accept_parent(void *private, struct sock *sk)
 	if (crypto_skcipher_get_flags(tfm) & CRYPTO_TFM_NEED_KEY)
 		return -ENOKEY;
 
-	return skcipher_accept_parent_nokey(private, sk);
+	return skcipher_accept_parent_yeskey(private, sk);
 }
 
 static const struct af_alg_type algif_type_skcipher = {
@@ -381,9 +381,9 @@ static const struct af_alg_type algif_type_skcipher = {
 	.release	=	skcipher_release,
 	.setkey		=	skcipher_setkey,
 	.accept		=	skcipher_accept_parent,
-	.accept_nokey	=	skcipher_accept_parent_nokey,
+	.accept_yeskey	=	skcipher_accept_parent_yeskey,
 	.ops		=	&algif_skcipher_ops,
-	.ops_nokey	=	&algif_skcipher_ops_nokey,
+	.ops_yeskey	=	&algif_skcipher_ops_yeskey,
 	.name		=	"skcipher",
 	.owner		=	THIS_MODULE
 };

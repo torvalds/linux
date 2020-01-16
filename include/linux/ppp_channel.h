@@ -8,7 +8,7 @@
  * A PPP channel provides a way for the generic PPP code to send
  * and receive packets over some sort of communications medium.
  * Packets are stored in sk_buffs and have the 2-byte PPP protocol
- * number at the start, but not the address and control bytes.
+ * number at the start, but yest the address and control bytes.
  *
  * Copyright 1999 Paul Mackerras.
  *
@@ -24,7 +24,7 @@ struct ppp_channel;
 
 struct ppp_channel_ops {
 	/* Send a packet (or multilink fragment) on this channel.
-	   Returns 1 if it was accepted, 0 if not. */
+	   Returns 1 if it was accepted, 0 if yest. */
 	int	(*start_xmit)(struct ppp_channel *, struct sk_buff *);
 	/* Handle an ioctl call that has come in via /dev/ppp. */
 	int	(*ioctl)(struct ppp_channel *, unsigned int, unsigned long);
@@ -37,7 +37,7 @@ struct ppp_channel {
 	int		hdrlen;		/* amount of headroom channel needs */
 	void		*ppp;		/* opaque to channel */
 	int		speed;		/* transfer rate (bytes/second) */
-	/* the following is not used at present */
+	/* the following is yest used at present */
 	int		latency;	/* overhead time in milliseconds */
 };
 
@@ -65,17 +65,17 @@ extern void ppp_unregister_channel(struct ppp_channel *);
 /* Get the channel number for a channel */
 extern int ppp_channel_index(struct ppp_channel *);
 
-/* Get the unit number associated with a channel, or -1 if none */
+/* Get the unit number associated with a channel, or -1 if yesne */
 extern int ppp_unit_number(struct ppp_channel *);
 
-/* Get the device name associated with a channel, or NULL if none */
+/* Get the device name associated with a channel, or NULL if yesne */
 extern char *ppp_dev_name(struct ppp_channel *);
 
 /*
- * SMP locking notes:
+ * SMP locking yestes:
  * The channel code must ensure that when it calls ppp_unregister_channel,
- * nothing is executing in any of the procedures above, for that
- * channel.  The generic layer will ensure that nothing is executing
+ * yesthing is executing in any of the procedures above, for that
+ * channel.  The generic layer will ensure that yesthing is executing
  * in the start_xmit and ioctl routines for the channel by the time
  * that ppp_unregister_channel returns.
  */

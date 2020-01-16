@@ -3,7 +3,7 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright yestice and this permission yestice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
@@ -334,7 +334,7 @@ enum ath9k_hw_hang_checks {
 struct ath9k_ops_config {
 	int dma_beacon_response_time;
 	int sw_beacon_response_time;
-	bool cwm_ignore_extcca;
+	bool cwm_igyesre_extcca;
 	u32 pcie_waen;
 	u8 analog_shiftreg;
 	u32 ofdm_trig_low;
@@ -450,7 +450,7 @@ struct ath9k_channel {
 	struct ieee80211_channel *chan;
 	u16 channel;
 	u16 channelFlags;
-	s16 noisefloor;
+	s16 yesisefloor;
 };
 
 #define CHANNEL_5GHZ		BIT(0)
@@ -754,7 +754,7 @@ struct ath_hw_ops {
 struct ath_nf_limits {
 	s16 max;
 	s16 min;
-	s16 nominal;
+	s16 yesminal;
 	s16 cal[AR5416_MAX_CHAINS];
 	s16 pwr[AR5416_MAX_CHAINS];
 };
@@ -769,7 +769,7 @@ enum ath_cal_list {
 #define AH_USE_EEPROM   0x1
 #define AH_UNPLUGGED    0x2 /* The card has been physically removed. */
 #define AH_FASTCC       0x4
-#define AH_NO_EEP_SWAP  0x8 /* Do not swap EEPROM data */
+#define AH_NO_EEP_SWAP  0x8 /* Do yest swap EEPROM data */
 
 struct ath_hw {
 	struct ath_ops reg_ops;
@@ -814,7 +814,7 @@ struct ath_hw {
 	enum nl80211_iftype opmode;
 	enum ath9k_power_mode power_mode;
 
-	s8 noise;
+	s8 yesise;
 	struct ath9k_hw_cal_data *caldata;
 	struct ath9k_pacal_info pacal_info;
 	struct ar5416Stats stats;
@@ -877,7 +877,7 @@ struct ath_hw {
 	/* Accessed by the lower level driver */
 	struct ath_hw_ops ops;
 
-	/* Used to program the radio on non single-chip devices */
+	/* Used to program the radio on yesn single-chip devices */
 	u32 *analogBank6Data;
 
 	int coverage_class;
@@ -956,7 +956,7 @@ struct ath_hw {
 	u8 paprd_gain_table_index[PAPRD_GAIN_TABLE_ENTRIES];
 	/*
 	 * Store the permanent value of Reg 0x4004in WARegVal
-	 * so we dont have to R/M/W. We should not be reading
+	 * so we dont have to R/M/W. We should yest be reading
 	 * this register when in sleep states.
 	 */
 	u32 WARegVal;

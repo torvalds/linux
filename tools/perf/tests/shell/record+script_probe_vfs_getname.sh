@@ -11,7 +11,7 @@
 
 . $(dirname $0)/lib/probe.sh
 
-skip_if_no_perf_probe || exit 2
+skip_if_yes_perf_probe || exit 2
 
 . $(dirname $0)/lib/probe_vfs_getname.sh
 
@@ -29,7 +29,7 @@ perf_script_filenames() {
 	egrep " +touch +[0-9]+ +\[[0-9]+\] +[0-9]+\.[0-9]+: +probe:vfs_getname: +\([[:xdigit:]]+\) +pathname=\"${file}\""
 }
 
-add_probe_vfs_getname || skip_if_no_debuginfo
+add_probe_vfs_getname || skip_if_yes_debuginfo
 err=$?
 if [ $err -ne 0 ] ; then
 	exit $err

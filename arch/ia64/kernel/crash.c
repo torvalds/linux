@@ -52,12 +52,12 @@ crash_save_this_cpu(void)
 	dst[46] = (unsigned long)ia64_rse_skip_regs((unsigned long *)dst[46],
 			sof - sol);
 
-	buf = (u64 *) per_cpu_ptr(crash_notes, cpu);
+	buf = (u64 *) per_cpu_ptr(crash_yestes, cpu);
 	if (!buf)
 		return;
-	buf = append_elf_note(buf, KEXEC_CORE_NOTE_NAME, NT_PRSTATUS, prstatus,
+	buf = append_elf_yeste(buf, KEXEC_CORE_NOTE_NAME, NT_PRSTATUS, prstatus,
 			sizeof(*prstatus));
-	final_note(buf);
+	final_yeste(buf);
 }
 
 #ifdef CONFIG_SMP
@@ -111,11 +111,11 @@ machine_crash_shutdown(struct pt_regs *pt)
 	 * - One might be a monarch, but INIT rendezvous will fail since
 	 *   at least this cpu already have INIT masked so it never join
 	 *   to the rendezvous.  In this case, all slaves and monarch will
-	 *   be frozen soon with no wait since the INIT rendezvous is skipped
+	 *   be frozen soon with yes wait since the INIT rendezvous is skipped
 	 *   by kdump_in_progress.
 	 */
 	kdump_smp_send_stop();
-	/* not all cpu response to IPI, send INIT to freeze them */
+	/* yest all cpu response to IPI, send INIT to freeze them */
 	if (kdump_wait_cpu_freeze()) {
 		kdump_smp_send_init();
 		/* wait again, don't go ahead if possible */
@@ -153,9 +153,9 @@ kdump_cpu_freeze(struct unw_frame_info *info, void *arg)
 }
 
 static int
-kdump_init_notifier(struct notifier_block *self, unsigned long val, void *data)
+kdump_init_yestifier(struct yestifier_block *self, unsigned long val, void *data)
 {
-	struct ia64_mca_notify_die *nd;
+	struct ia64_mca_yestify_die *nd;
 	struct die_args *args = data;
 
 	if (atomic_read(&kdump_in_progress)) {
@@ -178,7 +178,7 @@ kdump_init_notifier(struct notifier_block *self, unsigned long val, void *data)
 	if (!ia64_kimage) {
 		if (val == DIE_INIT_MONARCH_LEAVE)
 			ia64_mca_printk(KERN_NOTICE
-					"%s: kdump not configured\n",
+					"%s: kdump yest configured\n",
 					__func__);
 		return NOTIFY_DONE;
 	}
@@ -188,7 +188,7 @@ kdump_init_notifier(struct notifier_block *self, unsigned long val, void *data)
 	    val != DIE_MCA_MONARCH_LEAVE)
 		return NOTIFY_DONE;
 
-	nd = (struct ia64_mca_notify_die *)args->err;
+	nd = (struct ia64_mca_yestify_die *)args->err;
 
 	switch (val) {
 	case DIE_INIT_MONARCH_PROCESS:
@@ -247,13 +247,13 @@ static struct ctl_table sys_table[] = {
 static int
 machine_crash_setup(void)
 {
-	/* be notified before default_monarch_init_process */
-	static struct notifier_block kdump_init_notifier_nb = {
-		.notifier_call = kdump_init_notifier,
+	/* be yestified before default_monarch_init_process */
+	static struct yestifier_block kdump_init_yestifier_nb = {
+		.yestifier_call = kdump_init_yestifier,
 		.priority = 1,
 	};
 	int ret;
-	if((ret = register_die_notifier(&kdump_init_notifier_nb)) != 0)
+	if((ret = register_die_yestifier(&kdump_init_yestifier_nb)) != 0)
 		return ret;
 #ifdef CONFIG_SYSCTL
 	register_sysctl_table(sys_table);

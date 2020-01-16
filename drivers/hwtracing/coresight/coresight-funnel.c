@@ -108,7 +108,7 @@ static void dynamic_funnel_disable_hw(struct funnel_drvdata *drvdata,
 	functl &= ~(1 << inport);
 	writel_relaxed(functl, drvdata->base + FUNNEL_FUNCTL);
 
-	/* Disclaim the device if none of the slaves are now active */
+	/* Disclaim the device if yesne of the slaves are yesw active */
 	if (!(functl & FUNNEL_ENSx_MASK))
 		coresight_disclaim_device_unlocked(drvdata->base);
 
@@ -211,8 +211,8 @@ static int funnel_probe(struct device *dev, struct resource *res)
 	struct funnel_drvdata *drvdata;
 	struct coresight_desc desc = { 0 };
 
-	if (is_of_node(dev_fwnode(dev)) &&
-	    of_device_is_compatible(dev->of_node, "arm,coresight-funnel"))
+	if (is_of_yesde(dev_fwyesde(dev)) &&
+	    of_device_is_compatible(dev->of_yesde, "arm,coresight-funnel"))
 		dev_warn_once(dev, "Uses OBSOLETE CoreSight funnel binding\n");
 
 	desc.name = coresight_alloc_device_name(&funnel_devs, dev);
@@ -304,15 +304,15 @@ static int static_funnel_probe(struct platform_device *pdev)
 {
 	int ret;
 
-	pm_runtime_get_noresume(&pdev->dev);
+	pm_runtime_get_yesresume(&pdev->dev);
 	pm_runtime_set_active(&pdev->dev);
 	pm_runtime_enable(&pdev->dev);
 
-	/* Static funnel do not have programming base */
+	/* Static funnel do yest have programming base */
 	ret = funnel_probe(&pdev->dev, NULL);
 
 	if (ret) {
-		pm_runtime_put_noidle(&pdev->dev);
+		pm_runtime_put_yesidle(&pdev->dev);
 		pm_runtime_disable(&pdev->dev);
 	}
 

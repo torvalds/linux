@@ -3,13 +3,13 @@
  * n_tty.c --- implements the N_TTY line discipline.
  *
  * This code used to be in tty_io.c, but things are getting hairy
- * enough that it made sense to split things off.  (The N_TTY
+ * eyesugh that it made sense to split things off.  (The N_TTY
  * processing has changed so much that it's hardly recognizable,
  * anyway...)
  *
  * Note that the open routine for N_TTY is guaranteed never to return
  * an error.  This is because Linux will fall back to setting a line
- * to N_TTY if it can not switch to any other line discipline.
+ * to N_TTY if it can yest switch to any other line discipline.
  *
  * Written by Theodore Ts'o, Copyright 1994.
  *
@@ -30,7 +30,7 @@
 
 #include <linux/types.h>
 #include <linux/major.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/signal.h>
 #include <linux/fcntl.h>
 #include <linux/sched.h>
@@ -61,13 +61,13 @@
  * unthrottling the TTY driver.  These watermarks are used for
  * controlling the space in the read buffer.
  */
-#define TTY_THRESHOLD_THROTTLE		128 /* now based on remaining room */
+#define TTY_THRESHOLD_THROTTLE		128 /* yesw based on remaining room */
 #define TTY_THRESHOLD_UNTHROTTLE	128
 
 /*
  * Special byte codes used in the echo buffer to represent operations
  * or special handling of characters.  Bytes in the echo buffer that
- * are not part of such special blocks are treated as normal character
+ * are yest part of such special blocks are treated as yesrmal character
  * codes.
  */
 #define ECHO_OP_START 0xff
@@ -91,7 +91,7 @@ struct n_tty_data {
 	/* producer-published */
 	size_t read_head;
 	size_t commit_head;
-	size_t canon_head;
+	size_t cayesn_head;
 	size_t echo_head;
 	size_t echo_commit;
 	size_t echo_mark;
@@ -101,11 +101,11 @@ struct n_tty_data {
 	unsigned long overrun_time;
 	int num_overrun;
 
-	/* non-atomic */
-	bool no_room;
+	/* yesn-atomic */
+	bool yes_room;
 
 	/* must hold exclusive termios_rwsem to reset these */
-	unsigned char lnext:1, erasing:1, raw:1, real_raw:1, icanon:1;
+	unsigned char lnext:1, erasing:1, raw:1, real_raw:1, icayesn:1;
 	unsigned char push:1;
 
 	/* shared by producer and consumer */
@@ -119,7 +119,7 @@ struct n_tty_data {
 
 	/* protected by output lock */
 	unsigned int column;
-	unsigned int canon_column;
+	unsigned int cayesn_column;
 	size_t echo_tail;
 
 	struct mutex atomic_read_lock;
@@ -154,13 +154,13 @@ static inline unsigned char *echo_buf_addr(struct n_tty_data *ldata, size_t i)
 	return &ldata->echo_buf[i & (N_TTY_BUF_SIZE - 1)];
 }
 
-/* If we are not echoing the data, perhaps this is a secret so erase it */
+/* If we are yest echoing the data, perhaps this is a secret so erase it */
 static void zero_buffer(struct tty_struct *tty, u8 *buffer, int size)
 {
-	bool icanon = !!L_ICANON(tty);
-	bool no_echo = !L_ECHO(tty);
+	bool icayesn = !!L_ICANON(tty);
+	bool yes_echo = !L_ECHO(tty);
 
-	if (icanon && no_echo)
+	if (icayesn && yes_echo)
 		memset(buffer, 0x00, size);
 }
 
@@ -198,7 +198,7 @@ static int tty_copy_to_user(struct tty_struct *tty, void __user *to,
  *	Caller holds exclusive termios_rwsem
  *	   or
  *	n_tty_read()/consumer path:
- *		holds non-exclusive termios_rwsem
+ *		holds yesn-exclusive termios_rwsem
  */
 
 static void n_tty_kick_worker(struct tty_struct *tty)
@@ -206,8 +206,8 @@ static void n_tty_kick_worker(struct tty_struct *tty)
 	struct n_tty_data *ldata = tty->disc_data;
 
 	/* Did the input worker stop? Restart it */
-	if (unlikely(ldata->no_room)) {
-		ldata->no_room = 0;
+	if (unlikely(ldata->yes_room)) {
+		ldata->yes_room = 0;
 
 		WARN_RATELIMIT(tty->port->itty == NULL,
 				"scheduling with invalid itty\n");
@@ -226,15 +226,15 @@ static ssize_t chars_in_buffer(struct tty_struct *tty)
 	struct n_tty_data *ldata = tty->disc_data;
 	ssize_t n = 0;
 
-	if (!ldata->icanon)
+	if (!ldata->icayesn)
 		n = ldata->commit_head - ldata->read_tail;
 	else
-		n = ldata->canon_head - ldata->read_tail;
+		n = ldata->cayesn_head - ldata->read_tail;
 	return n;
 }
 
 /**
- *	n_tty_write_wakeup	-	asynchronous I/O notifier
+ *	n_tty_write_wakeup	-	asynchroyesus I/O yestifier
  *	@tty: tty device
  *
  *	Required for the ptys, serial driver etc. since processes
@@ -253,11 +253,11 @@ static void n_tty_check_throttle(struct tty_struct *tty)
 	struct n_tty_data *ldata = tty->disc_data;
 
 	/*
-	 * Check the remaining room for the input canonicalization
+	 * Check the remaining room for the input cayesnicalization
 	 * mode.  We don't want to throttle the driver if we're in
-	 * canonical mode and don't have a newline yet!
+	 * cayesnical mode and don't have a newline yet!
 	 */
-	if (ldata->icanon && ldata->canon_head == ldata->read_tail)
+	if (ldata->icayesn && ldata->cayesn_head == ldata->read_tail)
 		return;
 
 	while (1) {
@@ -282,11 +282,11 @@ static void n_tty_check_unthrottle(struct tty_struct *tty)
 		return;
 	}
 
-	/* If there is enough space in the read buffer now, let the
-	 * low-level driver know. We use chars_in_buffer() to
-	 * check the buffer, as it now knows about canonical mode.
+	/* If there is eyesugh space in the read buffer yesw, let the
+	 * low-level driver kyesw. We use chars_in_buffer() to
+	 * check the buffer, as it yesw kyesws about cayesnical mode.
 	 * Otherwise, if the driver is throttled and the line is
-	 * longer than TTY_THRESHOLD_UNTHROTTLE in canonical mode,
+	 * longer than TTY_THRESHOLD_UNTHROTTLE in cayesnical mode,
 	 * we won't get any more characters.
 	 */
 
@@ -311,7 +311,7 @@ static void n_tty_check_unthrottle(struct tty_struct *tty)
  *	Add a character to the tty read_buf queue.
  *
  *	n_tty_receive_buf()/producer path:
- *		caller holds non-exclusive termios_rwsem
+ *		caller holds yesn-exclusive termios_rwsem
  */
 
 static inline void put_tty_queue(unsigned char c, struct n_tty_data *ldata)
@@ -328,12 +328,12 @@ static inline void put_tty_queue(unsigned char c, struct n_tty_data *ldata)
  *	Called from n_tty_open() and n_tty_flush_buffer().
  *
  *	Locking: caller holds exclusive termios_rwsem
- *		 (or locking is not required)
+ *		 (or locking is yest required)
  */
 
 static void reset_buffer_flags(struct n_tty_data *ldata)
 {
-	ldata->read_head = ldata->canon_head = ldata->read_tail = 0;
+	ldata->read_head = ldata->cayesn_head = ldata->read_tail = 0;
 	ldata->commit_head = 0;
 	ldata->line_start = 0;
 
@@ -417,12 +417,12 @@ static inline int is_continuation(unsigned char c, struct tty_struct *tty)
  *	doing OPOST processing and putting the results in the
  *	tty driver's write buffer.
  *
- *	Note that Linux currently ignores TABDLY, CRDLY, VTDLY, FFDLY
+ *	Note that Linux currently igyesres TABDLY, CRDLY, VTDLY, FFDLY
  *	and NLDLY.  They simply aren't relevant in the world today.
  *	If you ever need them, add them here.
  *
  *	Returns the number of bytes of buffer space used or -1 if
- *	no space left.
+ *	yes space left.
  *
  *	Locking: should be called under the output_lock to protect
  *		 the column state and space left in the buffer
@@ -443,11 +443,11 @@ static int do_output_char(unsigned char c, struct tty_struct *tty, int space)
 		if (O_ONLCR(tty)) {
 			if (space < 2)
 				return -1;
-			ldata->canon_column = ldata->column = 0;
+			ldata->cayesn_column = ldata->column = 0;
 			tty->ops->write(tty, "\r\n", 2);
 			return 2;
 		}
-		ldata->canon_column = ldata->column;
+		ldata->cayesn_column = ldata->column;
 		break;
 	case '\r':
 		if (O_ONOCR(tty) && ldata->column == 0)
@@ -455,10 +455,10 @@ static int do_output_char(unsigned char c, struct tty_struct *tty, int space)
 		if (O_OCRNL(tty)) {
 			c = '\n';
 			if (O_ONLRET(tty))
-				ldata->canon_column = ldata->column = 0;
+				ldata->cayesn_column = ldata->column = 0;
 			break;
 		}
-		ldata->canon_column = ldata->column = 0;
+		ldata->cayesn_column = ldata->column = 0;
 		break;
 	case '\t':
 		spaces = 8 - (ldata->column & 7);
@@ -531,7 +531,7 @@ static int process_output(unsigned char c, struct tty_struct *tty)
  *
  *	This path is used to speed up block console writes, among other
  *	things when processing blocks of output data. It handles only
- *	the simple cases normally found and helps to generate blocks of
+ *	the simple cases yesrmally found and helps to generate blocks of
  *	symbols for the console driver and thus improve performance.
  *
  *	Locking: output_lock to protect column state and space left
@@ -566,14 +566,14 @@ static ssize_t process_output_block(struct tty_struct *tty,
 				ldata->column = 0;
 			if (O_ONLCR(tty))
 				goto break_out;
-			ldata->canon_column = ldata->column;
+			ldata->cayesn_column = ldata->column;
 			break;
 		case '\r':
 			if (O_ONOCR(tty) && ldata->column == 0)
 				goto break_out;
 			if (O_OCRNL(tty))
 				goto break_out;
-			ldata->canon_column = ldata->column = 0;
+			ldata->cayesn_column = ldata->column = 0;
 			break;
 		case '\t':
 			goto break_out;
@@ -618,7 +618,7 @@ break_out:
  *
  *	A circular fifo buffer is used so that the most recent characters
  *	are prioritized.  Also, when control characters are echoed with a
- *	prefixed "^", the pair is treated atomically and thus not separated.
+ *	prefixed "^", the pair is treated atomically and thus yest separated.
  *
  *	Locking: callers must hold output_lock
  */
@@ -637,7 +637,7 @@ static size_t __process_echoes(struct tty_struct *tty)
 		c = echo_buf(ldata, tail);
 		if (c == ECHO_OP_START) {
 			unsigned char op;
-			int no_space_left = 0;
+			int yes_space_left = 0;
 
 			/*
 			 * Since add_echo_byte() is called without holding
@@ -645,7 +645,7 @@ static size_t __process_echoes(struct tty_struct *tty)
 			 * operation.
 			 */
 			if (MASK(ldata->echo_commit) == MASK(tail + 1))
-				goto not_yet_stored;
+				goto yest_yet_stored;
 			/*
 			 * If the buffer byte is the start of a multi-byte
 			 * operation, get the next byte, which is either the
@@ -658,7 +658,7 @@ static size_t __process_echoes(struct tty_struct *tty)
 
 			case ECHO_OP_ERASE_TAB:
 				if (MASK(ldata->echo_commit) == MASK(tail + 2))
-					goto not_yet_stored;
+					goto yest_yet_stored;
 				num_chars = echo_buf(ldata, tail + 2);
 
 				/*
@@ -668,15 +668,15 @@ static size_t __process_echoes(struct tty_struct *tty)
 				 * used by other characters within the tab
 				 * area.  If this (modulo 8) count is from
 				 * the start of input rather than from a
-				 * previous tab, we offset by canon column.
-				 * Otherwise, tab spacing is normal.
+				 * previous tab, we offset by cayesn column.
+				 * Otherwise, tab spacing is yesrmal.
 				 */
 				if (!(num_chars & 0x80))
-					num_chars += ldata->canon_column;
+					num_chars += ldata->cayesn_column;
 				num_bs = 8 - (num_chars & 7);
 
 				if (num_bs > space) {
-					no_space_left = 1;
+					yes_space_left = 1;
 					break;
 				}
 				space -= num_bs;
@@ -689,7 +689,7 @@ static size_t __process_echoes(struct tty_struct *tty)
 				break;
 
 			case ECHO_OP_SET_CANON_COL:
-				ldata->canon_column = ldata->column;
+				ldata->cayesn_column = ldata->column;
 				tail += 2;
 				break;
 
@@ -702,7 +702,7 @@ static size_t __process_echoes(struct tty_struct *tty)
 			case ECHO_OP_START:
 				/* This is an escaped echo op start code */
 				if (!space) {
-					no_space_left = 1;
+					yes_space_left = 1;
 					break;
 				}
 				tty_put_char(tty, ECHO_OP_START);
@@ -713,16 +713,16 @@ static size_t __process_echoes(struct tty_struct *tty)
 
 			default:
 				/*
-				 * If the op is not a special byte code,
+				 * If the op is yest a special byte code,
 				 * it is a ctrl char tagged to be echoed
 				 * as "^X" (where X is the letter
 				 * representing the control char).
 				 * Note that we must ensure there is
-				 * enough space for the whole ctrl pair.
+				 * eyesugh space for the whole ctrl pair.
 				 *
 				 */
 				if (space < 2) {
-					no_space_left = 1;
+					yes_space_left = 1;
 					break;
 				}
 				tty_put_char(tty, '^');
@@ -732,7 +732,7 @@ static size_t __process_echoes(struct tty_struct *tty)
 				tail += 2;
 			}
 
-			if (no_space_left)
+			if (yes_space_left)
 				break;
 		} else {
 			if (O_OPOST(tty)) {
@@ -751,7 +751,7 @@ static size_t __process_echoes(struct tty_struct *tty)
 	}
 
 	/* If the echo buffer is nearly full (so that the possibility exists
-	 * of echo overrun before the next commit), then discard enough
+	 * of echo overrun before the next commit), then discard eyesugh
 	 * data at the tail to prevent a subsequent overrun */
 	while (ldata->echo_commit > tail &&
 	       ldata->echo_commit - tail >= ECHO_DISCARD_WATERMARK) {
@@ -764,7 +764,7 @@ static size_t __process_echoes(struct tty_struct *tty)
 			tail++;
 	}
 
- not_yet_stored:
+ yest_yet_stored:
 	ldata->echo_tail = tail;
 	return old_space - space;
 }
@@ -781,7 +781,7 @@ static void commit_echoes(struct tty_struct *tty)
 	old = ldata->echo_commit - ldata->echo_tail;
 
 	/* Process committed echoes if the accumulated # of bytes
-	 * is over the threshold (and try again each time another
+	 * is over the threshold (and try again each time ayesther
 	 * block is accumulated) */
 	nr = head - ldata->echo_tail;
 	if (nr < ECHO_COMMIT_WATERMARK ||
@@ -859,14 +859,14 @@ static void echo_move_back_col(struct n_tty_data *ldata)
 }
 
 /**
- *	echo_set_canon_col	-	add operation to set the canon column
+ *	echo_set_cayesn_col	-	add operation to set the cayesn column
  *	@ldata: n_tty data
  *
- *	Add an operation to the echo buffer to set the canon column
+ *	Add an operation to the echo buffer to set the cayesn column
  *	to the current column.
  */
 
-static void echo_set_canon_col(struct n_tty_data *ldata)
+static void echo_set_cayesn_col(struct n_tty_data *ldata)
 {
 	add_echo_byte(ECHO_OP_START, ldata);
 	add_echo_byte(ECHO_OP_SET_CANON_COL, ldata);
@@ -880,10 +880,10 @@ static void echo_set_canon_col(struct n_tty_data *ldata)
  *
  *	Add an operation to the echo buffer to erase a tab.
  *
- *	Called by the eraser function, which knows how many character
+ *	Called by the eraser function, which kyesws how many character
  *	columns have been used since either a previous tab or the start
  *	of input.  This information will be used later, along with
- *	canon column (if applicable), to go back the correct number
+ *	cayesn column (if applicable), to go back the correct number
  *	of columns.
  */
 
@@ -893,7 +893,7 @@ static void echo_erase_tab(unsigned int num_chars, int after_tab,
 	add_echo_byte(ECHO_OP_START, ldata);
 	add_echo_byte(ECHO_OP_ERASE_TAB, ldata);
 
-	/* We only need to know this modulo 8 (tab spacing) */
+	/* We only need to kyesw this modulo 8 (tab spacing) */
 	num_chars &= 7;
 
 	/* Set the high bit as a flag if num_chars is after a previous tab */
@@ -911,7 +911,7 @@ static void echo_erase_tab(unsigned int num_chars, int after_tab,
  *	Echo user input back onto the screen. This must be called only when
  *	L_ECHO(tty) is true. Called from the driver receive_buf path.
  *
- *	This variant does not treat control characters specially.
+ *	This variant does yest treat control characters specially.
  */
 
 static void echo_char_raw(unsigned char c, struct n_tty_data *ldata)
@@ -973,7 +973,7 @@ static inline void finish_erasing(struct n_tty_data *ldata)
  *	of UTF-8 multibyte symbols.
  *
  *	n_tty_receive_buf()/producer path:
- *		caller holds non-exclusive termios_rwsem
+ *		caller holds yesn-exclusive termios_rwsem
  */
 
 static void eraser(unsigned char c, struct tty_struct *tty)
@@ -984,7 +984,7 @@ static void eraser(unsigned char c, struct tty_struct *tty)
 	size_t cnt;
 	int seen_alnums;
 
-	if (ldata->read_head == ldata->canon_head) {
+	if (ldata->read_head == ldata->cayesn_head) {
 		/* process_output('\a', tty); */ /* what do you think? */
 		return;
 	}
@@ -994,11 +994,11 @@ static void eraser(unsigned char c, struct tty_struct *tty)
 		kill_type = WERASE;
 	else {
 		if (!L_ECHO(tty)) {
-			ldata->read_head = ldata->canon_head;
+			ldata->read_head = ldata->cayesn_head;
 			return;
 		}
 		if (!L_ECHOK(tty) || !L_ECHOKE(tty) || !L_ECHOE(tty)) {
-			ldata->read_head = ldata->canon_head;
+			ldata->read_head = ldata->cayesn_head;
 			finish_erasing(ldata);
 			echo_char(KILL_CHAR(tty), tty);
 			/* Add a newline if ECHOK is on and ECHOKE is off. */
@@ -1010,7 +1010,7 @@ static void eraser(unsigned char c, struct tty_struct *tty)
 	}
 
 	seen_alnums = 0;
-	while (MASK(ldata->read_head) != MASK(ldata->canon_head)) {
+	while (MASK(ldata->read_head) != MASK(ldata->cayesn_head)) {
 		head = ldata->read_head;
 
 		/* erase a single possibly multibyte character */
@@ -1018,9 +1018,9 @@ static void eraser(unsigned char c, struct tty_struct *tty)
 			head--;
 			c = read_buf(ldata, head);
 		} while (is_continuation(c, tty) &&
-			 MASK(head) != MASK(ldata->canon_head));
+			 MASK(head) != MASK(ldata->cayesn_head));
 
-		/* do not partially erase */
+		/* do yest partially erase */
 		if (is_continuation(c, tty))
 			break;
 
@@ -1060,7 +1060,7 @@ static void eraser(unsigned char c, struct tty_struct *tty)
 				 * This info is used to go back the correct
 				 * number of columns.
 				 */
-				while (MASK(tail) != MASK(ldata->canon_head)) {
+				while (MASK(tail) != MASK(ldata->cayesn_head)) {
 					tail--;
 					c = read_buf(ldata, tail);
 					if (c == '\t') {
@@ -1090,7 +1090,7 @@ static void eraser(unsigned char c, struct tty_struct *tty)
 		if (kill_type == ERASE)
 			break;
 	}
-	if (ldata->read_head == ldata->canon_head && L_ECHO(tty))
+	if (ldata->read_head == ldata->cayesn_head && L_ECHO(tty))
 		finish_erasing(ldata);
 }
 
@@ -1144,7 +1144,7 @@ static void isig(int sig, struct tty_struct *tty)
 		/* clear input buffer */
 		reset_buffer_flags(tty->disc_data);
 
-		/* notify pty master of flush */
+		/* yestify pty master of flush */
 		if (tty->link)
 			n_tty_packet_mode_flush(tty);
 
@@ -1161,7 +1161,7 @@ static void isig(int sig, struct tty_struct *tty)
  *	can cause a variety of events depending upon the termios settings.
  *
  *	n_tty_receive_buf()/producer path:
- *		caller holds non-exclusive termios_rwsem
+ *		caller holds yesn-exclusive termios_rwsem
  *
  *	Note: may get exclusive termios_rwsem if flushing input buffer
  */
@@ -1191,7 +1191,7 @@ static void n_tty_receive_break(struct tty_struct *tty)
  *	driver has flagged this the bits that were missed are gone
  *	forever.
  *
- *	Called from the receive_buf path so single threaded. Does not
+ *	Called from the receive_buf path so single threaded. Does yest
  *	need locking as num_overrun and overrun_time are function
  *	private.
  */
@@ -1210,7 +1210,7 @@ static void n_tty_receive_overrun(struct tty_struct *tty)
 }
 
 /**
- *	n_tty_receive_parity_error	-	error notifier
+ *	n_tty_receive_parity_error	-	error yestifier
  *	@tty: terminal device
  *	@c: character
  *
@@ -1218,7 +1218,7 @@ static void n_tty_receive_overrun(struct tty_struct *tty)
  *	the error case if necessary.
  *
  *	n_tty_receive_buf()/producer path:
- *		caller holds non-exclusive termios_rwsem
+ *		caller holds yesn-exclusive termios_rwsem
  */
 static void n_tty_receive_parity_error(struct tty_struct *tty, unsigned char c)
 {
@@ -1261,8 +1261,8 @@ n_tty_receive_signal_char(struct tty_struct *tty, int signal, unsigned char c)
  *	driver above.
  *
  *	n_tty_receive_buf()/producer path:
- *		caller holds non-exclusive termios_rwsem
- *		publishes canon_head if canonical mode is active
+ *		caller holds yesn-exclusive termios_rwsem
+ *		publishes cayesn_head if cayesnical mode is active
  *
  *	Returns 1 if LNEXT was received, else returns 0
  */
@@ -1310,7 +1310,7 @@ n_tty_receive_char_special(struct tty_struct *tty, unsigned char c)
 	} else if (c == '\n' && I_INLCR(tty))
 		c = '\r';
 
-	if (ldata->icanon) {
+	if (ldata->icayesn) {
 		if (c == ERASE_CHAR(tty) || c == KILL_CHAR(tty) ||
 		    (c == WERASE_CHAR(tty) && L_IEXTEN(tty))) {
 			eraser(c, tty);
@@ -1330,7 +1330,7 @@ n_tty_receive_char_special(struct tty_struct *tty, unsigned char c)
 			return 1;
 		}
 		if (c == REPRINT_CHAR(tty) && L_ECHO(tty) && L_IEXTEN(tty)) {
-			size_t tail = ldata->canon_head;
+			size_t tail = ldata->cayesn_head;
 
 			finish_erasing(ldata);
 			echo_char(c, tty);
@@ -1359,9 +1359,9 @@ n_tty_receive_char_special(struct tty_struct *tty, unsigned char c)
 			 * XXX are EOL_CHAR and EOL2_CHAR echoed?!?
 			 */
 			if (L_ECHO(tty)) {
-				/* Record the column of first canon char. */
-				if (ldata->canon_head == ldata->read_head)
-					echo_set_canon_col(ldata);
+				/* Record the column of first cayesn char. */
+				if (ldata->cayesn_head == ldata->read_head)
+					echo_set_cayesn_col(ldata);
 				echo_char(c, tty);
 				commit_echoes(tty);
 			}
@@ -1375,7 +1375,7 @@ n_tty_receive_char_special(struct tty_struct *tty, unsigned char c)
 handle_newline:
 			set_bit(ldata->read_head & (N_TTY_BUF_SIZE - 1), ldata->read_flags);
 			put_tty_queue(c, ldata);
-			smp_store_release(&ldata->canon_head, ldata->read_head);
+			smp_store_release(&ldata->cayesn_head, ldata->read_head);
 			kill_fasync(&tty->fasync, SIGIO, POLL_IN);
 			wake_up_interruptible_poll(&tty->read_wait, EPOLLIN);
 			return 0;
@@ -1387,9 +1387,9 @@ handle_newline:
 		if (c == '\n')
 			echo_char_raw('\n', ldata);
 		else {
-			/* Record the column of first canon char. */
-			if (ldata->canon_head == ldata->read_head)
-				echo_set_canon_col(ldata);
+			/* Record the column of first cayesn char. */
+			if (ldata->cayesn_head == ldata->read_head)
+				echo_set_cayesn_col(ldata);
 			echo_char(c, tty);
 		}
 		commit_echoes(tty);
@@ -1414,9 +1414,9 @@ n_tty_receive_char_inline(struct tty_struct *tty, unsigned char c)
 	}
 	if (L_ECHO(tty)) {
 		finish_erasing(ldata);
-		/* Record the column of first canon char. */
-		if (ldata->canon_head == ldata->read_head)
-			echo_set_canon_col(ldata);
+		/* Record the column of first cayesn char. */
+		if (ldata->cayesn_head == ldata->read_head)
+			echo_set_cayesn_col(ldata);
 		echo_char(c, tty);
 		commit_echoes(tty);
 	}
@@ -1442,9 +1442,9 @@ n_tty_receive_char_fast(struct tty_struct *tty, unsigned char c)
 	}
 	if (L_ECHO(tty)) {
 		finish_erasing(ldata);
-		/* Record the column of first canon char. */
-		if (ldata->canon_head == ldata->read_head)
-			echo_set_canon_col(ldata);
+		/* Record the column of first cayesn char. */
+		if (ldata->cayesn_head == ldata->read_head)
+			echo_set_cayesn_col(ldata);
 		echo_char(c, tty);
 		commit_echoes(tty);
 	}
@@ -1486,7 +1486,7 @@ n_tty_receive_char_flagged(struct tty_struct *tty, unsigned char c, char flag)
 		n_tty_receive_overrun(tty);
 		break;
 	default:
-		tty_err(tty, "unknown flag %d\n", flag);
+		tty_err(tty, "unkyeswn flag %d\n", flag);
 		break;
 	}
 }
@@ -1650,7 +1650,7 @@ static void __receive_buf(struct tty_struct *tty, const unsigned char *cp,
 			tty->ops->flush_chars(tty);
 	}
 
-	if (ldata->icanon && !L_EXTPROC(tty))
+	if (ldata->icayesn && !L_EXTPROC(tty))
 		return;
 
 	/* publish read_head to consumer */
@@ -1671,29 +1671,29 @@ static void __receive_buf(struct tty_struct *tty, const unsigned char *cp,
  *
  *	Called by the terminal driver when a block of characters has
  *	been received. This function must be called from soft contexts
- *	not from interrupt context. The driver is responsible for making
+ *	yest from interrupt context. The driver is responsible for making
  *	calls one at a time and in order (or using flush_to_ldisc)
  *
  *	Returns the # of input chars from @cp which were processed.
  *
- *	In canonical mode, the maximum line length is 4096 chars (including
+ *	In cayesnical mode, the maximum line length is 4096 chars (including
  *	the line termination char); lines longer than 4096 chars are
  *	truncated. After 4095 chars, input data is still processed but
- *	not stored. Overflow processing ensures the tty can always
+ *	yest stored. Overflow processing ensures the tty can always
  *	receive more input until at least one line can be read.
  *
- *	In non-canonical mode, the read buffer will only accept 4095 chars;
+ *	In yesn-cayesnical mode, the read buffer will only accept 4095 chars;
  *	this provides the necessary space for a newline char if the input
- *	mode is switched to canonical.
+ *	mode is switched to cayesnical.
  *
  *	Note it is possible for the read buffer to _contain_ 4096 chars
- *	in non-canonical mode: the read buffer could already contain the
- *	maximum canon line of 4096 chars when the mode is switched to
- *	non-canonical.
+ *	in yesn-cayesnical mode: the read buffer could already contain the
+ *	maximum cayesn line of 4096 chars when the mode is switched to
+ *	yesn-cayesnical.
  *
  *	n_tty_receive_buf()/producer path:
- *		claims non-exclusive termios_rwsem
- *		publishes commit_head or canon_head
+ *		claims yesn-exclusive termios_rwsem
+ *		publishes commit_head or cayesn_head
  */
 static int
 n_tty_receive_buf_common(struct tty_struct *tty, const unsigned char *cp,
@@ -1709,14 +1709,14 @@ n_tty_receive_buf_common(struct tty_struct *tty, const unsigned char *cp,
 		 * When PARMRK is set, each input char may take up to 3 chars
 		 * in the read buf; reduce the buffer space avail by 3x
 		 *
-		 * If we are doing input canonicalization, and there are no
+		 * If we are doing input cayesnicalization, and there are yes
 		 * pending newlines, let characters through without limit, so
 		 * that erase characters will be handled.  Other excess
 		 * characters will be beeped.
 		 *
 		 * paired with store in *_copy_from_read_buf() -- guarantees
 		 * the consumer has loaded the data in read_buf up to the new
-		 * read_tail (so this producer will not overwrite unread data)
+		 * read_tail (so this producer will yest overwrite unread data)
 		 */
 		size_t tail = smp_load_acquire(&ldata->read_tail);
 
@@ -1725,11 +1725,11 @@ n_tty_receive_buf_common(struct tty_struct *tty, const unsigned char *cp,
 			room = (room + 2) / 3;
 		room--;
 		if (room <= 0) {
-			overflow = ldata->icanon && ldata->canon_head == tail;
+			overflow = ldata->icayesn && ldata->cayesn_head == tail;
 			if (overflow && room < 0)
 				ldata->read_head--;
 			room = overflow;
-			ldata->no_room = flow && !room;
+			ldata->yes_room = flow && !room;
 		} else
 			overflow = 0;
 
@@ -1737,7 +1737,7 @@ n_tty_receive_buf_common(struct tty_struct *tty, const unsigned char *cp,
 		if (!n)
 			break;
 
-		/* ignore parity errors if handling overflow */
+		/* igyesre parity errors if handling overflow */
 		if (!overflow || !fp || *fp != TTY_PARITY)
 			__receive_buf(tty, cp, fp, n);
 
@@ -1783,9 +1783,9 @@ static int n_tty_receive_buf2(struct tty_struct *tty, const unsigned char *cp,
  *	@old: previous data
  *
  *	Called by the tty layer when the user changes termios flags so
- *	that the line discipline can plan ahead. This function cannot sleep
+ *	that the line discipline can plan ahead. This function canyest sleep
  *	and is protected from re-entry by the tty layer. The user is
- *	guaranteed that this function will not be re-entered or in progress
+ *	guaranteed that this function will yest be re-entered or in progress
  *	when the ldisc is closed.
  *
  *	Locking: Caller holds tty->termios_rwsem
@@ -1799,12 +1799,12 @@ static void n_tty_set_termios(struct tty_struct *tty, struct ktermios *old)
 		bitmap_zero(ldata->read_flags, N_TTY_BUF_SIZE);
 		ldata->line_start = ldata->read_tail;
 		if (!L_ICANON(tty) || !read_cnt(ldata)) {
-			ldata->canon_head = ldata->read_tail;
+			ldata->cayesn_head = ldata->read_tail;
 			ldata->push = 0;
 		} else {
 			set_bit((ldata->read_head - 1) & (N_TTY_BUF_SIZE - 1),
 				ldata->read_flags);
-			ldata->canon_head = ldata->read_head;
+			ldata->cayesn_head = ldata->read_head;
 			ldata->push = 1;
 		}
 		ldata->commit_head = ldata->read_head;
@@ -1812,7 +1812,7 @@ static void n_tty_set_termios(struct tty_struct *tty, struct ktermios *old)
 		ldata->lnext = 0;
 	}
 
-	ldata->icanon = (L_ICANON(tty) != 0);
+	ldata->icayesn = (L_ICANON(tty) != 0);
 
 	if (I_ISTRIP(tty) || I_IUCLC(tty) || I_IGNCR(tty) ||
 	    I_ICRNL(tty) || I_INLCR(tty) || L_ICANON(tty) ||
@@ -1881,7 +1881,7 @@ static void n_tty_set_termios(struct tty_struct *tty, struct ktermios *old)
  *
  *	Called from the terminal layer when this line discipline is
  *	being shut down, either because of a close or becsuse of a
- *	discipline change. The function will not be called while other
+ *	discipline change. The function will yest be called while other
  *	ldisc methods are in progress.
  */
 
@@ -1901,7 +1901,7 @@ static void n_tty_close(struct tty_struct *tty)
  *	@tty: terminal to open
  *
  *	Called when this line discipline is being attached to the
- *	terminal device. Can sleep. Called serialized so that no
+ *	terminal device. Can sleep. Called serialized so that yes
  *	other events will occur in parallel. No further open will occur
  *	until a close.
  */
@@ -1933,8 +1933,8 @@ static inline int input_available_p(struct tty_struct *tty, int poll)
 	struct n_tty_data *ldata = tty->disc_data;
 	int amt = poll && !TIME_CHAR(tty) && MIN_CHAR(tty) ? MIN_CHAR(tty) : 1;
 
-	if (ldata->icanon && !L_EXTPROC(tty))
-		return ldata->canon_head != ldata->read_tail;
+	if (ldata->icayesn && !L_EXTPROC(tty))
+		return ldata->cayesn_head != ldata->read_tail;
 	else
 		return ldata->commit_head - ldata->read_tail >= amt;
 }
@@ -1955,7 +1955,7 @@ static inline int input_available_p(struct tty_struct *tty, int poll)
  *	Called under the ldata->atomic_read_lock sem
  *
  *	n_tty_read()/consumer path:
- *		caller holds non-exclusive termios_rwsem
+ *		caller holds yesn-exclusive termios_rwsem
  *		read_tail published
  */
 
@@ -1983,7 +1983,7 @@ static int copy_from_read_buf(struct tty_struct *tty,
 		zero_buffer(tty, from, n);
 		smp_store_release(&ldata->read_tail, ldata->read_tail + n);
 		/* Turn single EOF into zero-length read */
-		if (L_EXTPROC(tty) && ldata->icanon && is_eof &&
+		if (L_EXTPROC(tty) && ldata->icayesn && is_eof &&
 		    (head == ldata->read_tail))
 			n = 0;
 		*b += n;
@@ -1993,7 +1993,7 @@ static int copy_from_read_buf(struct tty_struct *tty,
 }
 
 /**
- *	canon_copy_from_read_buf	-	copy read data in canonical mode
+ *	cayesn_copy_from_read_buf	-	copy read data in cayesnical mode
  *	@tty: terminal device
  *	@b: user data
  *	@nr: size of data
@@ -2002,20 +2002,20 @@ static int copy_from_read_buf(struct tty_struct *tty,
  *	it copies one line of input up to and including the line-delimiting
  *	character into the user-space buffer.
  *
- *	NB: When termios is changed from non-canonical to canonical mode and
+ *	NB: When termios is changed from yesn-cayesnical to cayesnical mode and
  *	the read buffer contains data, n_tty_set_termios() simulates an EOF
  *	push (as if C-d were input) _without_ the DISABLED_CHAR in the buffer.
  *	This causes data already processed as input to be immediately available
- *	as input although a newline has not been received.
+ *	as input although a newline has yest been received.
  *
  *	Called under the atomic_read_lock mutex
  *
  *	n_tty_read()/consumer path:
- *		caller holds non-exclusive termios_rwsem
+ *		caller holds yesn-exclusive termios_rwsem
  *		read_tail published
  */
 
-static int canon_copy_from_read_buf(struct tty_struct *tty,
+static int cayesn_copy_from_read_buf(struct tty_struct *tty,
 				    unsigned char __user **b,
 				    size_t *nr)
 {
@@ -2029,7 +2029,7 @@ static int canon_copy_from_read_buf(struct tty_struct *tty,
 	if (!*nr)
 		return 0;
 
-	n = min(*nr + 1, smp_load_acquire(&ldata->canon_head) - ldata->read_tail);
+	n = min(*nr + 1, smp_load_acquire(&ldata->cayesn_head) - ldata->read_tail);
 
 	tail = ldata->read_tail & (N_TTY_BUF_SIZE - 1);
 	size = min_t(size_t, tail + n, N_TTY_BUF_SIZE);
@@ -2100,7 +2100,7 @@ static int job_control(struct tty_struct *tty, struct file *file)
 {
 	/* Job control check -- must be done at start and after
 	   every sleep (POSIX.1 7.1.1.4). */
-	/* NOTE: not yet done after every sleep pending a thorough
+	/* NOTE: yest yet done after every sleep pending a thorough
 	   check of the logic of this change. -- jlc */
 	/* don't stop on /dev/console */
 	if (file->f_op->write == redirected_tty_write)
@@ -2118,14 +2118,14 @@ static int job_control(struct tty_struct *tty, struct file *file)
  *	@nr: size of I/O
  *
  *	Perform reads for the line discipline. We are guaranteed that the
- *	line discipline will not be closed under us but we may get multiple
+ *	line discipline will yest be closed under us but we may get multiple
  *	parallel readers and must handle this ourselves. We may also get
  *	a hangup. Always called in user context, may sleep.
  *
  *	This code must be sure never to sleep through a hangup.
  *
  *	n_tty_read()/consumer path:
- *		claims non-exclusive termios_rwsem
+ *		claims yesn-exclusive termios_rwsem
  *		publishes read_tail
  */
 
@@ -2161,7 +2161,7 @@ static ssize_t n_tty_read(struct tty_struct *tty, struct file *file,
 
 	minimum = time = 0;
 	timeout = MAX_SCHEDULE_TIMEOUT;
-	if (!ldata->icanon) {
+	if (!ldata->icayesn) {
 		minimum = MIN_CHAR(tty);
 		if (minimum) {
 			time = (HZ / 10) * TIME_CHAR(tty);
@@ -2213,7 +2213,7 @@ static ssize_t n_tty_read(struct tty_struct *tty, struct file *file,
 					break;
 				if (!timeout)
 					break;
-				if (tty_io_nonblock(tty, file)) {
+				if (tty_io_yesnblock(tty, file)) {
 					retval = -EAGAIN;
 					break;
 				}
@@ -2231,8 +2231,8 @@ static ssize_t n_tty_read(struct tty_struct *tty, struct file *file,
 			}
 		}
 
-		if (ldata->icanon && !L_EXTPROC(tty)) {
-			retval = canon_copy_from_read_buf(tty, &b, &nr);
+		if (ldata->icayesn && !L_EXTPROC(tty)) {
+			retval = cayesn_copy_from_read_buf(tty, &b, &nr);
 			if (retval)
 				break;
 		} else {
@@ -2284,7 +2284,7 @@ static ssize_t n_tty_read(struct tty_struct *tty, struct file *file,
  *	@nr: size of I/O
  *
  *	Write function of the terminal device.  This is serialized with
- *	respect to other write callers but not to termios changes, reads
+ *	respect to other write callers but yest to termios changes, reads
  *	and other such events.  Since the receive code will echo characters,
  *	thus calling driver write methods, the output_lock is used in
  *	the output processing functions called here as well as in the
@@ -2294,7 +2294,7 @@ static ssize_t n_tty_read(struct tty_struct *tty, struct file *file,
  *	This code must be sure never to sleep through a hangup.
  *
  *	Locking: output_lock to protect column state and space left
- *		 (note that the process_output*() functions take this
+ *		 (yeste that the process_output*() functions take this
  *		  lock themselves)
  */
 
@@ -2367,7 +2367,7 @@ static ssize_t n_tty_write(struct tty_struct *tty, struct file *file,
 		}
 		if (!nr)
 			break;
-		if (tty_io_nonblock(tty, file)) {
+		if (tty_io_yesnblock(tty, file)) {
 			retval = -EAGAIN;
 			break;
 		}
@@ -2392,7 +2392,7 @@ break_out:
  *	@wait: poll table
  *
  *	Called when the line discipline is asked to poll() for data or
- *	for special events. This code is not serialized with respect to
+ *	for special events. This code is yest serialized with respect to
  *	other events save open/close.
  *
  *	This code must be sure never to sleep through a hangup.
@@ -2426,13 +2426,13 @@ static __poll_t n_tty_poll(struct tty_struct *tty, struct file *file,
 	return mask;
 }
 
-static unsigned long inq_canon(struct n_tty_data *ldata)
+static unsigned long inq_cayesn(struct n_tty_data *ldata)
 {
 	size_t nr, head, tail;
 
-	if (ldata->canon_head == ldata->read_tail)
+	if (ldata->cayesn_head == ldata->read_tail)
 		return 0;
-	head = ldata->canon_head;
+	head = ldata->cayesn_head;
 	tail = ldata->read_tail;
 	nr = head - tail;
 	/* Skip EOF-chars.. */
@@ -2457,7 +2457,7 @@ static int n_tty_ioctl(struct tty_struct *tty, struct file *file,
 	case TIOCINQ:
 		down_write(&tty->termios_rwsem);
 		if (L_ICANON(tty) && !L_EXTPROC(tty))
-			retval = inq_canon(ldata);
+			retval = inq_cayesn(ldata);
 		else
 			retval = read_cnt(ldata);
 		up_write(&tty->termios_rwsem);

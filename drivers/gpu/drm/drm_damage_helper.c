@@ -12,7 +12,7 @@
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright yestice and this permission yestice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
  *
@@ -42,14 +42,14 @@
  * the framebuffer attached to the plane. In current context damage is the area
  * of plane framebuffer that has changed since last plane update (also called
  * page-flip), irrespective of whether currently attached framebuffer is same as
- * framebuffer attached during last plane update or not.
+ * framebuffer attached during last plane update or yest.
  *
  * FB_DAMAGE_CLIPS is a hint to kernel which could be helpful for some drivers
  * to optimize internally especially for virtual devices where each framebuffer
  * change needs to be transmitted over network, usb, etc.
  *
  * Since FB_DAMAGE_CLIPS is a hint so it is an optional property. User-space can
- * ignore damage clips property and in that case driver will do a full plane
+ * igyesre damage clips property and in that case driver will do a full plane
  * update. In case damage clips are provided then it is guaranteed that the area
  * inside damage clips will be updated to plane. For efficiency driver can do
  * full update or can update more than specified in damage clips. Since driver
@@ -60,9 +60,9 @@
  *
  * FB_DAMAGE_CLIPS is a blob property with the layout of blob data is simply an
  * array of &drm_mode_rect. Unlike plane &drm_plane_state.src coordinates,
- * damage clips are not in 16.16 fixed point. Similar to plane src in
- * framebuffer, damage clips cannot be negative. In damage clip, x1/y1 are
- * inclusive and x2/y2 are exclusive. While kernel does not error for overlapped
+ * damage clips are yest in 16.16 fixed point. Similar to plane src in
+ * framebuffer, damage clips canyest be negative. In damage clip, x1/y1 are
+ * inclusive and x2/y2 are exclusive. While kernel does yest error for overlapped
  * damage clips, it is strongly discouraged.
  *
  * Drivers that are interested in damage interface for plane should enable
@@ -141,8 +141,8 @@ EXPORT_SYMBOL(drm_atomic_helper_check_plane_damage);
  * drm_atomic_helper_dirtyfb - Helper for dirtyfb.
  * @fb: DRM framebuffer.
  * @file_priv: Drm file for the ioctl call.
- * @flags: Dirty fb annotate flags.
- * @color: Color for annotate fill.
+ * @flags: Dirty fb anyestate flags.
+ * @color: Color for anyestate fill.
  * @clips: Dirty region.
  * @num_clips: Count of clip in clips.
  *
@@ -155,7 +155,7 @@ EXPORT_SYMBOL(drm_atomic_helper_check_plane_damage);
  * to rate-limit userspace and make sure its rendering doesn't get ahead of
  * uploading new data too much.
  *
- * Return: Zero on success, negative errno on failure.
+ * Return: Zero on success, negative erryes on failure.
  */
 int drm_atomic_helper_dirtyfb(struct drm_framebuffer *fb,
 			      struct drm_file *file_priv, unsigned int flags,
@@ -170,7 +170,7 @@ int drm_atomic_helper_dirtyfb(struct drm_framebuffer *fb,
 	int ret = 0;
 
 	/*
-	 * When called from ioctl, we are interruptable, but not when called
+	 * When called from ioctl, we are interruptable, but yest when called
 	 * internally (ie. defio worker)
 	 */
 	drm_modeset_acquire_init(&ctx,
@@ -262,12 +262,12 @@ EXPORT_SYMBOL(drm_atomic_helper_dirtyfb);
  *
  * Initialize an iterator, which clips plane damage
  * &drm_plane_state.fb_damage_clips to plane &drm_plane_state.src. This iterator
- * returns full plane src in case damage is not present because either
+ * returns full plane src in case damage is yest present because either
  * user-space didn't sent or driver discarded it (it want to do full plane
  * update). Currently this iterator returns full plane src in case plane src
  * changed but that can be changed in future to return damage.
  *
- * For the case when plane is not visible or plane update should not happen the
+ * For the case when plane is yest visible or plane update should yest happen the
  * first call to iter_next will return false. Note that this helper use clipped
  * &drm_plane_state.src, so driver calling this helper should have called
  * drm_atomic_helper_check_plane_state() earlier.
@@ -312,7 +312,7 @@ EXPORT_SYMBOL(drm_atomic_helper_damage_iter_init);
  *
  * Return: True if the output is valid, false if reached the end.
  *
- * If the first call to iterator next returns false then it means no need to
+ * If the first call to iterator next returns false then it means yes need to
  * update the plane.
  */
 bool

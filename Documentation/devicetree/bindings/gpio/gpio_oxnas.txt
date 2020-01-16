@@ -12,7 +12,7 @@ Required properties:
    defined in <dt-bindings/gpio/gpio.h>:
       0 = GPIO_ACTIVE_HIGH
       1 = GPIO_ACTIVE_LOW
- - interrupt-controller: Marks the device node as an interrupt controller.
+ - interrupt-controller: Marks the device yesde as an interrupt controller.
  - #interrupt-cells: Two. The first cell is the GPIO number and second cell
    is used to specify the trigger type as defined in
    <dt-bindings/interrupt-controller/irq.h>:

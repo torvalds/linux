@@ -11,13 +11,13 @@
 struct cpufreq_policy {
 	unsigned long min;
 	unsigned long max;
-	char *governor;
+	char *goveryesr;
 };
 
-struct cpufreq_available_governors {
-	char *governor;
-	struct cpufreq_available_governors *next;
-	struct cpufreq_available_governors *first;
+struct cpufreq_available_goveryesrs {
+	char *goveryesr;
+	struct cpufreq_available_goveryesrs *next;
+	struct cpufreq_available_goveryesrs *first;
 };
 
 struct cpufreq_frequencies {
@@ -63,7 +63,7 @@ unsigned long cpufreq_get_freq_hardware(unsigned int cpu);
 
 /* determine CPU transition latency
  *
- * returns 0 on failure, else transition latency in 10^(-9) s = nanoseconds
+ * returns 0 on failure, else transition latency in 10^(-9) s = nayesseconds
  */
 unsigned long cpufreq_get_transition_latency(unsigned int cpu);
 
@@ -71,7 +71,7 @@ unsigned long cpufreq_get_transition_latency(unsigned int cpu);
 /* determine hardware CPU frequency limits
  *
  * These may be limited further by thermal, energy or other
- * considerations by cpufreq policy notifiers in the kernel.
+ * considerations by cpufreq policy yestifiers in the kernel.
  */
 
 int cpufreq_get_hardware_limits(unsigned int cpu,
@@ -81,7 +81,7 @@ int cpufreq_get_hardware_limits(unsigned int cpu,
 
 /* determine CPUfreq driver used
  *
- * Remember to call cpufreq_put_driver when no longer needed
+ * Remember to call cpufreq_put_driver when yes longer needed
  * to avoid memory leakage, please.
  */
 
@@ -92,7 +92,7 @@ void cpufreq_put_driver(char *ptr);
 
 /* determine CPUfreq policy currently used
  *
- * Remember to call cpufreq_put_policy when no longer needed
+ * Remember to call cpufreq_put_policy when yes longer needed
  * to avoid memory leakage, please.
  */
 
@@ -102,19 +102,19 @@ struct cpufreq_policy *cpufreq_get_policy(unsigned int cpu);
 void cpufreq_put_policy(struct cpufreq_policy *policy);
 
 
-/* determine CPUfreq governors currently available
+/* determine CPUfreq goveryesrs currently available
  *
- * may be modified by modprobe'ing or rmmod'ing other governors. Please
- * free allocated memory by calling cpufreq_put_available_governors
+ * may be modified by modprobe'ing or rmmod'ing other goveryesrs. Please
+ * free allocated memory by calling cpufreq_put_available_goveryesrs
  * after use.
  */
 
 
-struct cpufreq_available_governors
-*cpufreq_get_available_governors(unsigned int cpu);
+struct cpufreq_available_goveryesrs
+*cpufreq_get_available_goveryesrs(unsigned int cpu);
 
-void cpufreq_put_available_governors(
-	struct cpufreq_available_governors *first);
+void cpufreq_put_available_goveryesrs(
+	struct cpufreq_available_goveryesrs *first);
 
 
 /* determine CPU frequency states available
@@ -133,7 +133,7 @@ void cpufreq_put_frequencies(
 
 /* determine affected CPUs
  *
- * Remember to call cpufreq_put_affected_cpus when no longer needed
+ * Remember to call cpufreq_put_affected_cpus when yes longer needed
  * to avoid memory leakage, please.
  */
 
@@ -145,7 +145,7 @@ void cpufreq_put_affected_cpus(struct cpufreq_affected_cpus *first);
 
 /* determine related CPUs
  *
- * Remember to call cpufreq_put_related_cpus when no longer needed
+ * Remember to call cpufreq_put_related_cpus when yes longer needed
  * to avoid memory leakage, please.
  */
 
@@ -157,7 +157,7 @@ void cpufreq_put_related_cpus(struct cpufreq_affected_cpus *first);
 
 /* determine stats for cpufreq subsystem
  *
- * This is not available in all kernel versions or configurations.
+ * This is yest available in all kernel versions or configurations.
  */
 
 struct cpufreq_stats *cpufreq_get_stats(unsigned int cpu,
@@ -171,27 +171,27 @@ unsigned long cpufreq_get_transitions(unsigned int cpu);
 /* set new cpufreq policy
  *
  * Tries to set the passed policy as new policy as close as possible,
- * but results may differ depending e.g. on governors being available.
+ * but results may differ depending e.g. on goveryesrs being available.
  */
 
 int cpufreq_set_policy(unsigned int cpu, struct cpufreq_policy *policy);
 
 
-/* modify a policy by only changing min/max freq or governor
+/* modify a policy by only changing min/max freq or goveryesr
  *
- * Does not check whether result is what was intended.
+ * Does yest check whether result is what was intended.
  */
 
 int cpufreq_modify_policy_min(unsigned int cpu, unsigned long min_freq);
 int cpufreq_modify_policy_max(unsigned int cpu, unsigned long max_freq);
-int cpufreq_modify_policy_governor(unsigned int cpu, char *governor);
+int cpufreq_modify_policy_goveryesr(unsigned int cpu, char *goveryesr);
 
 
 /* set a specific frequency
  *
- * Does only work if userspace governor can be used and no external
+ * Does only work if userspace goveryesr can be used and yes external
  * interference (other calls to this function or to set/modify_policy)
- * occurs. Also does not work on ->range() cpufreq drivers.
+ * occurs. Also does yest work on ->range() cpufreq drivers.
  */
 
 int cpufreq_set_frequency(unsigned int cpu,

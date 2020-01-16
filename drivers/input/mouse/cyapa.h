@@ -16,7 +16,7 @@
 #include <linux/firmware.h>
 
 /* APA trackpad firmware generation number. */
-#define CYAPA_GEN_UNKNOWN   0x00   /* unknown protocol. */
+#define CYAPA_GEN_UNKNOWN   0x00   /* unkyeswn protocol. */
 #define CYAPA_GEN3   0x03   /* support MT-protocol B with tracking ID. */
 #define CYAPA_GEN5   0x05   /* support TrueTouch GEN5 trackpad device. */
 #define CYAPA_GEN6   0x06   /* support TrueTouch GEN6 trackpad device. */
@@ -160,7 +160,7 @@
 
 #define AUTOSUSPEND_DELAY   2000 /* unit : ms */
 
-#define BTN_ONLY_MODE_NAME   "buttononly"
+#define BTN_ONLY_MODE_NAME   "buttoyesnly"
 #define OFF_MODE_NAME        "off"
 
 /* Common macros for PIP interface. */
@@ -331,7 +331,7 @@ struct gen6_interval_setting {
 struct cyapa {
 	enum cyapa_state state;
 	u8 status[BL_STATUS_SIZE];
-	bool operational; /* true: ready for data reporting; false: not. */
+	bool operational; /* true: ready for data reporting; false: yest. */
 
 	struct regulator *vcc;
 	struct i2c_client *client;
@@ -353,7 +353,7 @@ struct cyapa {
 	char product_id[16];
 	u8 platform_ver;  /* Platform version. */
 	u8 fw_maj_ver;  /* Firmware major version. */
-	u8 fw_min_ver;  /* Firmware minor version. */
+	u8 fw_min_ver;  /* Firmware miyesr version. */
 	u8 btn_capability;
 	u8 gen;
 	int max_abs_x;

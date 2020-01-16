@@ -3,7 +3,7 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright yestice and this permission yestice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
@@ -41,7 +41,7 @@
 
 #define AR_MCI_TX_CTRL                                  0x1810
 /*
- * 0 = no division,
+ * 0 = yes division,
  * 1 = divide by 2,
  * 2 = divide by 4,
  * 3 = divide by 8

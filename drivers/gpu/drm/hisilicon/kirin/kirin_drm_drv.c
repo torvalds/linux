@@ -41,18 +41,18 @@ static int kirin_drm_crtc_init(struct drm_device *dev, struct drm_crtc *crtc,
 			       struct drm_plane *plane,
 			       const struct kirin_drm_data *driver_data)
 {
-	struct device_node *port;
+	struct device_yesde *port;
 	int ret;
 
 	/* set crtc port so that
 	 * drm_of_find_possible_crtcs call works
 	 */
-	port = of_get_child_by_name(dev->dev->of_node, "port");
+	port = of_get_child_by_name(dev->dev->of_yesde, "port");
 	if (!port) {
-		DRM_ERROR("no port node found in %pOF\n", dev->dev->of_node);
+		DRM_ERROR("yes port yesde found in %pOF\n", dev->dev->of_yesde);
 		return -EINVAL;
 	}
-	of_node_put(port);
+	of_yesde_put(port);
 	crtc->port = port;
 
 	ret = drm_crtc_init_with_planes(dev, crtc, plane, NULL,
@@ -207,7 +207,7 @@ err_mode_config_cleanup:
 
 static int compare_of(struct device *dev, void *data)
 {
-	return dev->of_node == data;
+	return dev->of_yesde == data;
 }
 
 static int kirin_drm_kms_cleanup(struct drm_device *dev)
@@ -315,16 +315,16 @@ static const struct component_master_ops kirin_drm_ops = {
 static int kirin_drm_platform_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 	struct component_match *match = NULL;
-	struct device_node *remote;
+	struct device_yesde *remote;
 
-	remote = of_graph_get_remote_node(np, 0, 0);
+	remote = of_graph_get_remote_yesde(np, 0, 0);
 	if (!remote)
 		return -ENODEV;
 
 	drm_of_component_match_add(dev, &match, compare_of, remote);
-	of_node_put(remote);
+	of_yesde_put(remote);
 
 	return component_master_add_with_match(dev, &kirin_drm_ops, match);
 }
@@ -339,7 +339,7 @@ static const struct of_device_id kirin_drm_dt_ids[] = {
 	{ .compatible = "hisilicon,hi6220-ade",
 	  .data = &ade_driver_data,
 	},
-	{ /* end node */ },
+	{ /* end yesde */ },
 };
 MODULE_DEVICE_TABLE(of, kirin_drm_dt_ids);
 

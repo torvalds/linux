@@ -75,7 +75,7 @@
 #	define	UDC_DS_CHG_IE		(1 << 3)
 #	define	UDC_EP0_IE		(1 << 0)
 #define	UDC_DMA_IRQ_EN			(UDC_BASE + 0x2C)	/* DMA irq enable */
-	/* rx/tx dma channels numbered 1-3 not 0-2 */
+	/* rx/tx dma channels numbered 1-3 yest 0-2 */
 #	define	UDC_TX_DONE_IE(n)	(1 << (4 * (n) - 2))
 #	define	UDC_RX_CNT_IE(n)	(1 << (4 * (n) - 3))
 #	define	UDC_RX_EOT_IE(n)	(1 << (4 * (n) - 4))
@@ -104,7 +104,7 @@
 #define	UDC_TXDMA_CFG			(UDC_BASE + 0x44)	/* 3 eps for TX DMA */
 #define	UDC_DATA_DMA			(UDC_BASE + 0x48)	/* rx/tx fifo addr */
 
-/* rx/tx dma control, numbering channels 1-3 not 0-2 */
+/* rx/tx dma control, numbering channels 1-3 yest 0-2 */
 #define	UDC_TXDMA(chan)			(UDC_BASE + 0x50 - 4 + 4 * (chan))
 #	define UDC_TXN_EOT		(1 << 15)	/* bytes vs packets */
 #	define UDC_TXN_START		(1 << 14)	/* start transfer */

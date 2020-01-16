@@ -3,7 +3,7 @@
 
 #include <linux/bpf.h>
 #include <linux/filter.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/file.h>
 #include <linux/net.h>
 #include <linux/workqueue.h>
@@ -50,7 +50,7 @@ static struct bpf_map *sock_map_alloc(union bpf_attr *attr)
 
 	stab->sks = bpf_map_area_alloc(stab->map.max_entries *
 				       sizeof(struct sock *),
-				       stab->map.numa_node);
+				       stab->map.numa_yesde);
 	if (stab->sks)
 		return &stab->map;
 	err = -ENOMEM;
@@ -151,10 +151,10 @@ static int sock_map_link(struct bpf_map *map, struct sk_psock_progs *progs,
 	skb_parser = READ_ONCE(progs->skb_parser);
 	skb_progs = skb_parser && skb_verdict;
 	if (skb_progs) {
-		skb_verdict = bpf_prog_inc_not_zero(skb_verdict);
+		skb_verdict = bpf_prog_inc_yest_zero(skb_verdict);
 		if (IS_ERR(skb_verdict))
 			return PTR_ERR(skb_verdict);
-		skb_parser = bpf_prog_inc_not_zero(skb_parser);
+		skb_parser = bpf_prog_inc_yest_zero(skb_parser);
 		if (IS_ERR(skb_parser)) {
 			bpf_prog_put(skb_verdict);
 			return PTR_ERR(skb_parser);
@@ -163,7 +163,7 @@ static int sock_map_link(struct bpf_map *map, struct sk_psock_progs *progs,
 
 	msg_parser = READ_ONCE(progs->msg_parser);
 	if (msg_parser) {
-		msg_parser = bpf_prog_inc_not_zero(msg_parser);
+		msg_parser = bpf_prog_inc_yest_zero(msg_parser);
 		if (IS_ERR(msg_parser)) {
 			ret = PTR_ERR(msg_parser);
 			goto out;
@@ -184,7 +184,7 @@ static int sock_map_link(struct bpf_map *map, struct sk_psock_progs *progs,
 			goto out_progs;
 		}
 	} else {
-		psock = sk_psock_init(sk, map->numa_node);
+		psock = sk_psock_init(sk, map->numa_yesde);
 		if (!psock) {
 			ret = -ENOMEM;
 			goto out_progs;
@@ -504,14 +504,14 @@ const struct bpf_map_ops sock_map_ops = {
 	.map_delete_elem	= sock_map_delete_elem,
 	.map_lookup_elem	= sock_map_lookup,
 	.map_release_uref	= sock_map_release_progs,
-	.map_check_btf		= map_check_no_btf,
+	.map_check_btf		= map_check_yes_btf,
 };
 
 struct bpf_htab_elem {
 	struct rcu_head rcu;
 	u32 hash;
 	struct sock *sk;
-	struct hlist_node node;
+	struct hlist_yesde yesde;
 	u8 key[0];
 };
 
@@ -546,7 +546,7 @@ sock_hash_lookup_elem_raw(struct hlist_head *head, u32 hash, void *key,
 {
 	struct bpf_htab_elem *elem;
 
-	hlist_for_each_entry_rcu(elem, head, node) {
+	hlist_for_each_entry_rcu(elem, head, yesde) {
 		if (elem->hash == hash &&
 		    !memcmp(&elem->key, key, key_size))
 			return elem;
@@ -596,7 +596,7 @@ static void sock_hash_delete_from_link(struct bpf_map *map, struct sock *sk,
 	elem_probe = sock_hash_lookup_elem_raw(&bucket->head, elem->hash,
 					       elem->key, map->key_size);
 	if (elem_probe && elem_probe == elem) {
-		hlist_del_rcu(&elem->node);
+		hlist_del_rcu(&elem->yesde);
 		sock_map_unref(elem->sk, elem);
 		sock_hash_free_elem(htab, elem);
 	}
@@ -617,7 +617,7 @@ static int sock_hash_delete_elem(struct bpf_map *map, void *key)
 	raw_spin_lock_bh(&bucket->lock);
 	elem = sock_hash_lookup_elem_raw(&bucket->head, hash, key, key_size);
 	if (elem) {
-		hlist_del_rcu(&elem->node);
+		hlist_del_rcu(&elem->yesde);
 		sock_map_unref(elem->sk, elem);
 		sock_hash_free_elem(htab, elem);
 		ret = 0;
@@ -640,8 +640,8 @@ static struct bpf_htab_elem *sock_hash_alloc_elem(struct bpf_htab *htab,
 		}
 	}
 
-	new = kmalloc_node(htab->elem_size, GFP_ATOMIC | __GFP_NOWARN,
-			   htab->map.numa_node);
+	new = kmalloc_yesde(htab->elem_size, GFP_ATOMIC | __GFP_NOWARN,
+			   htab->map.numa_yesde);
 	if (!new) {
 		atomic_dec(&htab->count);
 		return ERR_PTR(-ENOMEM);
@@ -704,9 +704,9 @@ static int sock_hash_update_common(struct bpf_map *map, void *key,
 	/* Add new element to the head of the list, so that
 	 * concurrent search will find it before old elem.
 	 */
-	hlist_add_head_rcu(&elem_new->node, &bucket->head);
+	hlist_add_head_rcu(&elem_new->yesde, &bucket->head);
 	if (elem) {
-		hlist_del_rcu(&elem->node);
+		hlist_del_rcu(&elem->yesde);
 		sock_map_unref(elem->sk, elem);
 		sock_hash_free_elem(htab, elem);
 	}
@@ -767,8 +767,8 @@ static int sock_hash_get_next_key(struct bpf_map *map, void *key,
 	if (!elem)
 		goto find_first_elem;
 
-	elem_next = hlist_entry_safe(rcu_dereference_raw(hlist_next_rcu(&elem->node)),
-				     struct bpf_htab_elem, node);
+	elem_next = hlist_entry_safe(rcu_dereference_raw(hlist_next_rcu(&elem->yesde)),
+				     struct bpf_htab_elem, yesde);
 	if (elem_next) {
 		memcpy(key_next, elem_next->key, key_size);
 		return 0;
@@ -780,7 +780,7 @@ find_first_elem:
 	for (; i < htab->buckets_num; i++) {
 		head = &sock_hash_select_bucket(htab, i)->head;
 		elem_next = hlist_entry_safe(rcu_dereference_raw(hlist_first_rcu(head)),
-					     struct bpf_htab_elem, node);
+					     struct bpf_htab_elem, yesde);
 		if (elem_next) {
 			memcpy(key_next, elem_next->key, key_size);
 			return 0;
@@ -830,7 +830,7 @@ static struct bpf_map *sock_hash_alloc(union bpf_attr *attr)
 
 	htab->buckets = bpf_map_area_alloc(htab->buckets_num *
 					   sizeof(struct bpf_htab_bucket),
-					   htab->map.numa_node);
+					   htab->map.numa_yesde);
 	if (!htab->buckets) {
 		err = -ENOMEM;
 		goto free_htab;
@@ -852,7 +852,7 @@ static void sock_hash_free(struct bpf_map *map)
 	struct bpf_htab *htab = container_of(map, struct bpf_htab, map);
 	struct bpf_htab_bucket *bucket;
 	struct bpf_htab_elem *elem;
-	struct hlist_node *node;
+	struct hlist_yesde *yesde;
 	int i;
 
 	synchronize_rcu();
@@ -860,8 +860,8 @@ static void sock_hash_free(struct bpf_map *map)
 	for (i = 0; i < htab->buckets_num; i++) {
 		bucket = sock_hash_select_bucket(htab, i);
 		raw_spin_lock_bh(&bucket->lock);
-		hlist_for_each_entry_safe(elem, node, &bucket->head, node) {
-			hlist_del_rcu(&elem->node);
+		hlist_for_each_entry_safe(elem, yesde, &bucket->head, yesde) {
+			hlist_del_rcu(&elem->yesde);
 			sock_map_unref(elem->sk, elem);
 		}
 		raw_spin_unlock_bh(&bucket->lock);
@@ -953,7 +953,7 @@ const struct bpf_map_ops sock_hash_ops = {
 	.map_delete_elem	= sock_hash_delete_elem,
 	.map_lookup_elem	= sock_map_lookup,
 	.map_release_uref	= sock_hash_release_progs,
-	.map_check_btf		= map_check_no_btf,
+	.map_check_btf		= map_check_yes_btf,
 };
 
 static struct sk_psock_progs *sock_map_progs(struct bpf_map *map)

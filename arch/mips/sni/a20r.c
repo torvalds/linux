@@ -150,8 +150,8 @@ static u32 a20r_ack_hwint(void)
 	write_c0_status(status | 0x00010000);
 	asm volatile(
 	"	.set	push			\n"
-	"	.set	noat			\n"
-	"	.set	noreorder		\n"
+	"	.set	yesat			\n"
+	"	.set	yesreorder		\n"
 	"	lw	$1, 0(%0)		\n"
 	"	sb	$0, 0(%1)		\n"
 	"	sync				\n"
@@ -160,12 +160,12 @@ static u32 a20r_ack_hwint(void)
 	"	ori	%1, $1, 2		\n"
 	"	.align	8			\n"
 	"1:					\n"
-	"	nop				\n"
+	"	yesp				\n"
 	"	sw	%1, 0(%0)		\n"
 	"	sync				\n"
 	"	li	%1, 0x20		\n"
 	"2:					\n"
-	"	nop				\n"
+	"	yesp				\n"
 	"	bnez	%1,2b			\n"
 	"	addiu	%1, -1			\n"
 	"	sw	$1, 0(%0)		\n"
@@ -227,7 +227,7 @@ void __init sni_a20r_irq_init(void)
 
 void sni_a20r_init(void)
 {
-	/* FIXME, remove if not needed */
+	/* FIXME, remove if yest needed */
 }
 
 static int __init snirm_a20r_setup_devinit(void)

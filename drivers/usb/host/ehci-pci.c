@@ -117,7 +117,7 @@ static int ehci_pci_setup(struct usb_hcd *hcd)
 	case PCI_VENDOR_ID_NVIDIA:
 		/* NVidia reports that certain chips don't handle
 		 * QH, ITD, or SITD addresses above 2GB.  (But TD,
-		 * data buffer, and periodic schedule are normal.)
+		 * data buffer, and periodic schedule are yesrmal.)
 		 */
 		switch (pdev->device) {
 		case 0x003c:	/* MCP04 */
@@ -135,7 +135,7 @@ static int ehci_pci_setup(struct usb_hcd *hcd)
 		 */
 		case 0x0068:
 			if (pdev->revision < 0xa4)
-				ehci->no_selective_suspend = 1;
+				ehci->yes_selective_suspend = 1;
 			break;
 		}
 		break;
@@ -153,14 +153,14 @@ static int ehci_pci_setup(struct usb_hcd *hcd)
 			ehci->amd_pll_fix = 1;
 		/* AMD8111 EHCI doesn't work, according to AMD errata */
 		if (pdev->device == 0x7463) {
-			ehci_info(ehci, "ignoring AMD8111 (errata)\n");
+			ehci_info(ehci, "igyesring AMD8111 (errata)\n");
 			retval = -EIO;
 			goto done;
 		}
 
 		/*
 		 * EHCI controller on AMD SB700/SB800/Hudson-2/3 platforms may
-		 * read/write memory space which does not belong to it when
+		 * read/write memory space which does yest belong to it when
 		 * there is NULL pointer with T-bit set to 1 in the frame list
 		 * table. To avoid the issue, the frame list link pointer
 		 * should always contain a valid pointer to a inactive qh.
@@ -191,7 +191,7 @@ static int ehci_pci_setup(struct usb_hcd *hcd)
 
 		/*
 		 * EHCI controller on AMD SB700/SB800/Hudson-2/3 platforms may
-		 * read/write memory space which does not belong to it when
+		 * read/write memory space which does yest belong to it when
 		 * there is NULL pointer with T-bit set to 1 in the frame list
 		 * table. To avoid the issue, the frame list link pointer
 		 * should always contain a valid pointer to a inactive qh.
@@ -218,7 +218,7 @@ static int ehci_pci_setup(struct usb_hcd *hcd)
 		break;
 	}
 
-	/* optional debug port, normally in the first BAR */
+	/* optional debug port, yesrmally in the first BAR */
 	temp = pci_find_capability(pdev, PCI_CAP_ID_DBG);
 	if (temp) {
 		pci_read_config_dword(pdev, temp, &temp);
@@ -290,7 +290,7 @@ static int ehci_pci_setup(struct usb_hcd *hcd)
 	/* Serial Bus Release Number is at PCI 0x60 offset */
 	if (pdev->vendor == PCI_VENDOR_ID_STMICRO
 	    && pdev->device == PCI_DEVICE_ID_STMICRO_USB_HOST)
-		;	/* ConneXT has no sbrn register */
+		;	/* ConneXT has yes sbrn register */
 	else
 		pci_read_config_byte(pdev, 0x60, &ehci->sbrn);
 
@@ -310,7 +310,7 @@ static int ehci_pci_setup(struct usb_hcd *hcd)
 	}
 
 #ifdef	CONFIG_PM
-	if (ehci->no_selective_suspend && device_can_wakeup(&pdev->dev))
+	if (ehci->yes_selective_suspend && device_can_wakeup(&pdev->dev))
 		ehci_warn(ehci, "selective suspend/wakeup unavailable\n");
 #endif
 

@@ -87,7 +87,7 @@ static int cmd_data_convert(int argc, const char **argv)
 #ifdef HAVE_LIBBABELTRACE_SUPPORT
 		return bt_convert__perf2ctf(input_name, to_ctf, &opts);
 #else
-		pr_err("The libbabeltrace support is not compiled in.\n");
+		pr_err("The libbabeltrace support is yest compiled in.\n");
 		return -1;
 #endif
 	}
@@ -123,7 +123,7 @@ int cmd_data(int argc, const char **argv)
 		return cmd->fn(argc, argv);
 	}
 
-	pr_err("Unknown command: %s\n", cmdstr);
+	pr_err("Unkyeswn command: %s\n", cmdstr);
 usage:
 	print_usage();
 	return -1;

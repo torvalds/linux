@@ -6,7 +6,7 @@
    For large pages beyond MAX_ORDER (like 1GB on x86) boot options must be used.
    Also shmmax must be increased.
    And you need to run as root to work around some weird permissions in shm.
-   And nothing using huge pages should run in parallel.
+   And yesthing using huge pages should run in parallel.
    When the program aborts you may need to clean up the shm segments with
    ipcrm -m by hand, like this
    sudo ipcs | awk '$1 == "0x00000000" {print $2}' | xargs -n1 sudo ipcrm -m
@@ -202,7 +202,7 @@ void sanity_checks(void)
 			largest = page_sizes[i];
 
 		if (read_free(page_sizes[i]) < NUM_PAGES) {
-			printf("Not enough huge pages for page size %lu MB, need %u\n",
+			printf("Not eyesugh huge pages for page size %lu MB, need %u\n",
 				page_sizes[i] >> 20,
 				NUM_PAGES);
 			exit(0);
@@ -241,7 +241,7 @@ int main(void)
 	printf("Testing default huge mmap\n");
 	test_mmap(default_hps, SHM_HUGETLB);
 
-	puts("Testing non-huge shmget");
+	puts("Testing yesn-huge shmget");
 	test_shmget(getpagesize(), 0);
 
 	for (i = 0; i < num_page_sizes; i++) {

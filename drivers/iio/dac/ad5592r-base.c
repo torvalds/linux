@@ -517,20 +517,20 @@ static int ad5592r_alloc_channels(struct ad5592r_state *st)
 		 num_channels = st->num_channels;
 	struct iio_dev *iio_dev = iio_priv_to_dev(st);
 	struct iio_chan_spec *channels;
-	struct fwnode_handle *child;
+	struct fwyesde_handle *child;
 	u32 reg, tmp;
 	int ret;
 
-	device_for_each_child_node(st->dev, child) {
-		ret = fwnode_property_read_u32(child, "reg", &reg);
+	device_for_each_child_yesde(st->dev, child) {
+		ret = fwyesde_property_read_u32(child, "reg", &reg);
 		if (ret || reg >= ARRAY_SIZE(st->channel_modes))
 			continue;
 
-		ret = fwnode_property_read_u32(child, "adi,mode", &tmp);
+		ret = fwyesde_property_read_u32(child, "adi,mode", &tmp);
 		if (!ret)
 			st->channel_modes[reg] = tmp;
 
-		fwnode_property_read_u32(child, "adi,off-state", &tmp);
+		fwyesde_property_read_u32(child, "adi,off-state", &tmp);
 		if (!ret)
 			st->channel_offstate[reg] = tmp;
 	}
@@ -611,7 +611,7 @@ int ad5592r_probe(struct device *dev, const char *name,
 
 	st->reg = devm_regulator_get_optional(dev, "vref");
 	if (IS_ERR(st->reg)) {
-		if ((PTR_ERR(st->reg) != -ENODEV) && dev->of_node)
+		if ((PTR_ERR(st->reg) != -ENODEV) && dev->of_yesde)
 			return PTR_ERR(st->reg);
 
 		st->reg = NULL;

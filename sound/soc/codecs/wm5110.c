@@ -213,7 +213,7 @@ static int wm5110_adsp_power_ev(struct snd_soc_dapm_widget *w,
 	return wm_adsp_early_event(w, kcontrol, event);
 }
 
-static const struct reg_sequence wm5110_no_dre_left_enable[] = {
+static const struct reg_sequence wm5110_yes_dre_left_enable[] = {
 	{ 0x3024, 0xE410 },
 	{ 0x3025, 0x0056 },
 	{ 0x301B, 0x0224 },
@@ -249,7 +249,7 @@ static const struct reg_sequence wm5110_dre_left_enable[] = {
 	{ 0x3039, 0x0B00 },
 };
 
-static const struct reg_sequence wm5110_no_dre_right_enable[] = {
+static const struct reg_sequence wm5110_yes_dre_right_enable[] = {
 	{ 0x3074, 0xE414 },
 	{ 0x3075, 0x0056 },
 	{ 0x306B, 0x0224 },
@@ -300,8 +300,8 @@ static int wm5110_hp_pre_enable(struct snd_soc_dapm_widget *w)
 			wseq = wm5110_dre_left_enable;
 			nregs = ARRAY_SIZE(wm5110_dre_left_enable);
 		} else {
-			wseq = wm5110_no_dre_left_enable;
-			nregs = ARRAY_SIZE(wm5110_no_dre_left_enable);
+			wseq = wm5110_yes_dre_left_enable;
+			nregs = ARRAY_SIZE(wm5110_yes_dre_left_enable);
 			priv->out_up_delay += 10;
 		}
 		break;
@@ -310,8 +310,8 @@ static int wm5110_hp_pre_enable(struct snd_soc_dapm_widget *w)
 			wseq = wm5110_dre_right_enable;
 			nregs = ARRAY_SIZE(wm5110_dre_right_enable);
 		} else {
-			wseq = wm5110_no_dre_right_enable;
-			nregs = ARRAY_SIZE(wm5110_no_dre_right_enable);
+			wseq = wm5110_yes_dre_right_enable;
+			nregs = ARRAY_SIZE(wm5110_yes_dre_right_enable);
 			priv->out_up_delay += 10;
 		}
 		break;
@@ -582,7 +582,7 @@ static int wm5110_in_ev(struct snd_soc_dapm_widget *w,
 static DECLARE_TLV_DB_SCALE(ana_tlv, 0, 100, 0);
 static DECLARE_TLV_DB_SCALE(eq_tlv, -1200, 100, 0);
 static DECLARE_TLV_DB_SCALE(digital_tlv, -6400, 50, 0);
-static DECLARE_TLV_DB_SCALE(noise_tlv, -13200, 600, 0);
+static DECLARE_TLV_DB_SCALE(yesise_tlv, -13200, 600, 0);
 static DECLARE_TLV_DB_SCALE(ng_tlv, -10200, 600, 0);
 
 #define WM5110_NG_SRC(name, base) \
@@ -803,7 +803,7 @@ ARIZONA_MIXER_CONTROLS("Mic", ARIZONA_MICMIX_INPUT_1_SOURCE),
 ARIZONA_MIXER_CONTROLS("Noise", ARIZONA_NOISEMIX_INPUT_1_SOURCE),
 
 SOC_SINGLE_TLV("Noise Generator Volume", ARIZONA_COMFORT_NOISE_GENERATOR,
-	       ARIZONA_NOISE_GEN_GAIN_SHIFT, 0x16, 0, noise_tlv),
+	       ARIZONA_NOISE_GEN_GAIN_SHIFT, 0x16, 0, yesise_tlv),
 
 ARIZONA_MIXER_CONTROLS("HPOUT1L", ARIZONA_OUT1LMIX_INPUT_1_SOURCE),
 ARIZONA_MIXER_CONTROLS("HPOUT1R", ARIZONA_OUT1RMIX_INPUT_1_SOURCE),
@@ -2273,7 +2273,7 @@ static irqreturn_t wm5110_adsp2_irq(int irq, void *data)
 			serviced++;
 		if (ret == WM_ADSP_COMPR_VOICE_TRIGGER) {
 			info.core = i;
-			arizona_call_notifiers(arizona,
+			arizona_call_yestifiers(arizona,
 					       ARIZONA_NOTIFY_VOICE_TRIGGER,
 					       &info);
 		}
@@ -2302,7 +2302,7 @@ static int wm5110_component_probe(struct snd_soc_component *component)
 		return ret;
 
 	arizona_init_gpio(component);
-	arizona_init_mono(component);
+	arizona_init_moyes(component);
 
 	for (i = 0; i < WM5110_NUM_ADSP; ++i) {
 		ret = wm_adsp2_component_probe(&priv->core.adsp[i], component);
@@ -2380,7 +2380,7 @@ static const struct snd_soc_component_driver soc_component_dev_wm5110 = {
 	.num_dapm_routes	= ARRAY_SIZE(wm5110_dapm_routes),
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
+	.yesn_legacy_dai_naming	= 1,
 };
 
 static int wm5110_probe(struct platform_device *pdev)

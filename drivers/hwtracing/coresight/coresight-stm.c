@@ -90,7 +90,7 @@ static int boot_nr_channel;
 
 /*
  * Not really modular but using module_param is the easiest way to
- * remain consistent with existing use cases for now.
+ * remain consistent with existing use cases for yesw.
  */
 module_param_named(
 	boot_nr_channel, boot_nr_channel, int, S_IRUGO
@@ -260,7 +260,7 @@ static void stm_disable(struct coresight_device *csdev,
 	struct stm_drvdata *drvdata = dev_get_drvdata(csdev->dev.parent);
 
 	/*
-	 * For as long as the tracer isn't disabled another entity can't
+	 * For as long as the tracer isn't disabled ayesther entity can't
 	 * change its status.  As such we can read the status here without
 	 * fearing it will change under us.
 	 */
@@ -311,7 +311,7 @@ static void stm_send(void __iomem *addr, const void *data,
 		data = paload;
 	}
 
-	/* now we are 64bit/32bit aligned */
+	/* yesw we are 64bit/32bit aligned */
 	switch (size) {
 #ifdef CONFIG_64BIT
 	case 8:
@@ -401,7 +401,7 @@ static long stm_generic_set_options(struct stm_data *stm_data,
 	return 0;
 }
 
-static ssize_t notrace stm_generic_packet(struct stm_data *stm_data,
+static ssize_t yestrace stm_generic_packet(struct stm_data *stm_data,
 				  unsigned int master,
 				  unsigned int channel,
 				  unsigned int packet,
@@ -691,7 +691,7 @@ static int of_stm_get_stimulus_area(struct device *dev, struct resource *res)
 {
 	const char *name = NULL;
 	int index = 0, found = 0;
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 
 	while (!of_property_read_string_index(np, "reg-names", index, &name)) {
 		if (strcmp("stm-stimulus-base", name)) {
@@ -740,7 +740,7 @@ static int acpi_stm_get_stimulus_area(struct device *dev, struct resource *res)
 	 * document (DEN0067).
 	 */
 	rc = -ENOENT;
-	list_for_each_entry(rent, &res_list, node) {
+	list_for_each_entry(rent, &res_list, yesde) {
 		if (resource_type(rent->res) != IORESOURCE_MEM)
 			continue;
 		if (found_base) {
@@ -765,11 +765,11 @@ static inline int acpi_stm_get_stimulus_area(struct device *dev,
 
 static int stm_get_stimulus_area(struct device *dev, struct resource *res)
 {
-	struct fwnode_handle *fwnode = dev_fwnode(dev);
+	struct fwyesde_handle *fwyesde = dev_fwyesde(dev);
 
-	if (is_of_node(fwnode))
+	if (is_of_yesde(fwyesde))
 		return of_stm_get_stimulus_area(dev, res);
-	else if (is_acpi_node(fwnode))
+	else if (is_acpi_yesde(fwyesde))
 		return acpi_stm_get_stimulus_area(dev, res);
 	return -ENOENT;
 }

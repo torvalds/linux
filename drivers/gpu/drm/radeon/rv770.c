@@ -10,7 +10,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -815,7 +815,7 @@ void rv770_page_flip(struct radeon_device *rdev, int crtc_id, u64 crtc_base, boo
 	tmp |= AVIVO_D1GRPH_UPDATE_LOCK;
 	WREG32(AVIVO_D1GRPH_UPDATE + radeon_crtc->crtc_offset, tmp);
 
-	/* update the scanout addresses */
+	/* update the scayesut addresses */
 	WREG32(AVIVO_D1GRPH_FLIP_CONTROL + radeon_crtc->crtc_offset,
 	       async ? AVIVO_D1GRPH_SURFACE_UPDATE_H_RETRACE_EN : 0);
 	if (radeon_crtc->crtc_id) {
@@ -836,7 +836,7 @@ void rv770_page_flip(struct radeon_device *rdev, int crtc_id, u64 crtc_base, boo
 			break;
 		udelay(1);
 	}
-	DRM_DEBUG("Update pending now high. Unlocking vupdate_lock.\n");
+	DRM_DEBUG("Update pending yesw high. Unlocking vupdate_lock.\n");
 
 	/* Unlock the lock, so double-buffering can take place inside vblank */
 	tmp &= ~AVIVO_D1GRPH_UPDATE_LOCK;
@@ -1493,7 +1493,7 @@ static void rv770_gpu_init(struct radeon_device *rdev)
 		      GS_PRIO(2) |
 		      ES_PRIO(3));
 	if (rdev->family == CHIP_RV710)
-		/* no vertex cache */
+		/* yes vertex cache */
 		sq_config &= ~VC_ENABLE;
 
 	WREG32(SQ_CONFIG, sq_config);
@@ -1699,7 +1699,7 @@ static void rv770_uvd_init(struct radeon_device *rdev)
 		dev_err(rdev->dev, "failed UVD (%d) init.\n", r);
 		/*
 		 * At this point rdev->uvd.vcpu_bo is NULL which trickles down
-		 * to early fails uvd_v2_2_resume() and thus nothing happens
+		 * to early fails uvd_v2_2_resume() and thus yesthing happens
 		 * there. So it is pointless to try to go through that code
 		 * hence why we disable uvd here.
 		 */
@@ -1857,7 +1857,7 @@ int rv770_resume(struct radeon_device *rdev)
 {
 	int r;
 
-	/* Do not reset GPU before posting, on rv770 hw unlike on r500 hw,
+	/* Do yest reset GPU before posting, on rv770 hw unlike on r500 hw,
 	 * posting will perform necessary task to bring back GPU into good
 	 * shape.
 	 */
@@ -1901,7 +1901,7 @@ int rv770_suspend(struct radeon_device *rdev)
 
 /* Plan is to move initialization in that function and use
  * helper function so that radeon_device_init pretty much
- * do nothing more than calling asic specific function. This
+ * do yesthing more than calling asic specific function. This
  * should also allow to remove a bunch of callback function
  * like vram_info.
  */
@@ -1925,10 +1925,10 @@ int rv770_init(struct radeon_device *rdev)
 	/* Post card if necessary */
 	if (!radeon_card_posted(rdev)) {
 		if (!rdev->bios) {
-			dev_err(rdev->dev, "Card not posted and no BIOS - ignoring\n");
+			dev_err(rdev->dev, "Card yest posted and yes BIOS - igyesring\n");
 			return -EINVAL;
 		}
-		DRM_INFO("GPU not posted. posting now...\n");
+		DRM_INFO("GPU yest posted. posting yesw...\n");
 		atom_asic_init(rdev->mode_info.atom_context);
 	}
 	/* init golden registers */

@@ -23,7 +23,7 @@
 
 struct irq_work {
 	atomic_t flags;
-	struct llist_node llnode;
+	struct llist_yesde llyesde;
 	void (*func)(struct irq_work *);
 };
 

@@ -4,7 +4,7 @@
 #define __Q6DSP_ERR_NO_H__
 #include <linux/kernel.h>
 
-/* Success. The operation completed with no errors. */
+/* Success. The operation completed with yes errors. */
 #define ADSP_EOK          0x00000000
 /* General failure. */
 #define ADSP_EFAILED      0x00000001
@@ -24,11 +24,11 @@
 #define ADSP_EHANDLE      0x00000008
 /* Operation is already processed. */
 #define ADSP_EALREADY     0x00000009
-/* Operation is not ready to be processed. */
+/* Operation is yest ready to be processed. */
 #define ADSP_ENOTREADY    0x0000000A
 /* Operation is pending completion. */
 #define ADSP_EPENDING     0x0000000B
-/* Operation could not be accepted or processed. */
+/* Operation could yest be accepted or processed. */
 #define ADSP_EBUSY        0x0000000C
 /* Operation aborted due to an error. */
 #define ADSP_EABORTED     0x0000000D
@@ -38,13 +38,13 @@
 #define ADSP_ECONTINUE    0x0000000F
 /* Operation requests immediate intervention to complete. */
 #define ADSP_EIMMEDIATE   0x00000010
-/* Operation is not implemented. */
+/* Operation is yest implemented. */
 #define ADSP_ENOTIMPL     0x00000011
 /* Operation needs more data or resources. */
 #define ADSP_ENEEDMORE    0x00000012
-/* Operation does not have memory. */
+/* Operation does yest have memory. */
 #define ADSP_ENOMEMORY    0x00000014
-/* Item does not exist. */
+/* Item does yest exist. */
 #define ADSP_ENOTEXIST    0x00000015
 /* Max count for adsp error code sent to HLOS*/
 

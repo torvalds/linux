@@ -19,7 +19,7 @@ compatible: "renesas,pcie-r8a7743" for the R8A7743 SoC;
 	    "renesas,pcie-rcar-gen3" for a generic R-Car Gen3 or
 				     RZ/G2 compatible device.
 
-	    When compatible with the generic version, nodes must list the
+	    When compatible with the generic version, yesdes must list the
 	    SoC-specific version corresponding to the platform first
 	    followed by the generic version.
 

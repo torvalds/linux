@@ -5,7 +5,7 @@
  *
  * For defining functions/data for within the EDAC_CORE module only
  *
- * written by doug thompson <norsk5@xmission.h>
+ * written by doug thompson <yesrsk5@xmission.h>
  */
 
 #ifndef	__EDAC_MODULE_H__
@@ -71,7 +71,7 @@ extern void *edac_align_ptr(void **p, unsigned size, int n_elems);
 #ifdef CONFIG_EDAC_DEBUG
 void edac_debugfs_init(void);
 void edac_debugfs_exit(void);
-void edac_create_debugfs_nodes(struct mem_ctl_info *mci);
+void edac_create_debugfs_yesdes(struct mem_ctl_info *mci);
 struct dentry *edac_debugfs_create_dir(const char *dirname);
 struct dentry *
 edac_debugfs_create_dir_at(const char *dirname, struct dentry *parent);
@@ -87,7 +87,7 @@ void edac_debugfs_create_x32(const char *name, umode_t mode,
 #else
 static inline void edac_debugfs_init(void)					{ }
 static inline void edac_debugfs_exit(void)					{ }
-static inline void edac_create_debugfs_nodes(struct mem_ctl_info *mci)		{ }
+static inline void edac_create_debugfs_yesdes(struct mem_ctl_info *mci)		{ }
 static inline struct dentry *edac_debugfs_create_dir(const char *dirname)	{ return NULL; }
 static inline struct dentry *
 edac_debugfs_create_dir_at(const char *dirname, struct dentry *parent)		{ return NULL; }

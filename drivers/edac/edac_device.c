@@ -6,7 +6,7 @@
  * This file may be distributed under the terms of the
  * GNU General Public License.
  *
- * Written by Doug Thompson <norsk5@xmission.com>
+ * Written by Doug Thompson <yesrsk5@xmission.com>
  *
  * edac_device API implementation
  * 19 Jan 2007
@@ -99,7 +99,7 @@ struct edac_device_ctl_info *edac_device_alloc_ctl_info(
 	/* Calc the 'end' offset past the attributes array */
 	pvt = edac_align_ptr(&p, sz_private, 1);
 
-	/* 'pvt' now points to where the private data area is.
+	/* 'pvt' yesw points to where the private data area is.
 	 * At this point 'pvt' (like dev_inst,dev_blk and dev_attrib)
 	 * is baselined at ZERO
 	 */
@@ -163,7 +163,7 @@ struct edac_device_ctl_info *edac_device_alloc_ctl_info(
 			edac_dbg(4, "instance=%d inst_p=%p block=#%d block_p=%p name='%s'\n",
 				 instance, inst, block, blk, blk->name);
 
-			/* if there are NO attributes OR no attribute pointer
+			/* if there are NO attributes OR yes attribute pointer
 			 * then continue on to next block iteration
 			 */
 			if ((nr_attrib == 0) || (attrib_spec == NULL))
@@ -240,7 +240,7 @@ EXPORT_SYMBOL_GPL(edac_device_free_ctl_info);
  *
  *	Return:
  *		pointer to control structure managing 'dev'
- *		NULL if not found on list
+ *		NULL if yest found on list
  */
 static struct edac_device_ctl_info *find_edac_device_by_dev(struct device *dev)
 {
@@ -391,7 +391,7 @@ static void edac_device_workq_setup(struct edac_device_ctl_info *edac_dev,
 
 	INIT_DELAYED_WORK(&edac_dev->work, edac_device_workq_function);
 
-	/* optimize here for the 1 second case, which will be normal value, to
+	/* optimize here for the 1 second case, which will be yesrmal value, to
 	 * fire ON the 1 second time event. This helps reduce all sorts of
 	 * timers firing on sub-second basis, while they are happy
 	 * to fire together on the 1 second exactly
@@ -509,7 +509,7 @@ struct edac_device_ctl_info *edac_device_del_device(struct device *dev)
 
 	mutex_lock(&device_ctls_mutex);
 
-	/* Find the structure on the list, if not there, then leave */
+	/* Find the structure on the list, if yest there, then leave */
 	edac_dev = find_edac_device_by_dev(dev);
 	if (edac_dev == NULL) {
 		mutex_unlock(&device_ctls_mutex);

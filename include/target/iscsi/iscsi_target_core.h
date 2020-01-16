@@ -27,7 +27,7 @@ struct sock;
 #define ISCSI_TX_THREAD_NAME		"iscsi_ttx"
 #define ISCSI_IQN_LEN			224
 
-/* struct iscsi_node_attrib sanity values */
+/* struct iscsi_yesde_attrib sanity values */
 #define NA_DATAOUT_TIMEOUT		3
 #define NA_DATAOUT_TIMEOUT_MAX		60
 #define NA_DATAOUT_TIMEOUT_MIX		2
@@ -57,7 +57,7 @@ struct sock;
 #define TA_DEFAULT_CMDSN_DEPTH_MAX	512
 #define TA_DEFAULT_CMDSN_DEPTH_MIN	1
 #define TA_CACHE_DYNAMIC_ACLS		0
-/* Enabled by default in demo mode (generic_node_acls=1) */
+/* Enabled by default in demo mode (generic_yesde_acls=1) */
 #define TA_DEMO_MODE_WRITE_PROTECT	1
 /* Disabled by default in production mode w/ explict ACLs */
 #define TA_PROD_MODE_WRITE_PROTECT	0
@@ -71,8 +71,8 @@ struct sock;
 #define TA_DEFAULT_TPG_ENABLED_SENDTARGETS 1
 /*
  * Used to control the sending of keys with optional to respond state bit,
- * as a workaround for non RFC compliant initiators,that do not propose,
- * nor respond to specific keys required for login to complete.
+ * as a workaround for yesn RFC compliant initiators,that do yest propose,
+ * yesr respond to specific keys required for login to complete.
  *
  * See iscsi_check_proposer_for_optional_reply() for more details.
  */
@@ -229,7 +229,7 @@ enum dataout_action_ret_table {
 	DATAOUT_WITHIN_COMMAND_RECOVERY = 3,
 };
 
-/* Used for struct iscsi_node_auth->naf_flags */
+/* Used for struct iscsi_yesde_auth->naf_flags */
 enum naf_flags_table {
 	NAF_USERID_SET			= 0x01,
 	NAF_PASSWORD_SET		= 0x02,
@@ -329,7 +329,7 @@ struct iscsi_datain_req {
 	u32			next_burst_len;
 	u32			read_data_done;
 	u32			seq_send_order;
-	struct list_head	cmd_datain_node;
+	struct list_head	cmd_datain_yesde;
 } ____cacheline_aligned;
 
 struct iscsi_ooo_cmdsn {
@@ -405,7 +405,7 @@ struct iscsi_cmd {
 	u32			data_sn;
 	/* R2TSN Counter */
 	u32			r2t_sn;
-	/* Last DataSN acknowledged via DataAck SNACK */
+	/* Last DataSN ackyeswledged via DataAck SNACK */
 	u32			acked_data_sn;
 	/* Used for echoing NOPOUT ping data */
 	u32			buf_ptr_size;
@@ -431,7 +431,7 @@ struct iscsi_cmd {
 	/* Number of struct iscsi_seq in struct iscsi_cmd->seq_list */
 	u32			seq_count;
 	/* Current struct iscsi_seq in struct iscsi_cmd->seq_list */
-	u32			seq_no;
+	u32			seq_yes;
 	/* Lowest offset in current DataOUT sequence */
 	u32			seq_start_offset;
 	/* Highest offset in current DataOUT sequence */
@@ -494,7 +494,7 @@ struct iscsi_cmd {
 	/* Session the command is part of,  used for connection recovery */
 	struct iscsi_session	*sess;
 	/* list_head for connection list */
-	struct list_head	i_conn_node;
+	struct list_head	i_conn_yesde;
 	/* The TCM I/O descriptor that is accessed via container_of() */
 	struct se_cmd		se_cmd;
 	/* Sense buffer that will be mapped into outgoing status */
@@ -526,9 +526,9 @@ struct iscsi_conn {
 	u8			conn_state;
 	u8			conn_logout_reason;
 	u8			network_transport;
-	enum iscsi_timer_flags_table nopin_timer_flags;
-	enum iscsi_timer_flags_table nopin_response_timer_flags;
-	/* Used to know what thread encountered a transport failure */
+	enum iscsi_timer_flags_table yespin_timer_flags;
+	enum iscsi_timer_flags_table yespin_response_timer_flags;
+	/* Used to kyesw what thread encountered a transport failure */
 	u8			which_thread;
 	/* connection id assigned by the Initiator */
 	u16			cid;
@@ -573,15 +573,15 @@ struct iscsi_conn {
 	unsigned long		login_flags;
 	struct delayed_work	login_work;
 	struct iscsi_login	*login;
-	struct timer_list	nopin_timer;
-	struct timer_list	nopin_response_timer;
+	struct timer_list	yespin_timer;
+	struct timer_list	yespin_response_timer;
 	struct timer_list	transport_timer;
 	struct task_struct	*login_kworker;
 	/* Spinlock used for add/deleting cmd's from conn_cmd_list */
 	spinlock_t		cmd_lock;
 	spinlock_t		conn_usage_lock;
 	spinlock_t		immed_queue_lock;
-	spinlock_t		nopin_timer_lock;
+	spinlock_t		yespin_timer_lock;
 	spinlock_t		response_queue_lock;
 	spinlock_t		state_lock;
 	/* libcrypto RX and TX contexts for crc32c */
@@ -722,23 +722,23 @@ struct iscsi_login {
 	struct iscsi_np *np;
 } ____cacheline_aligned;
 
-struct iscsi_node_attrib {
+struct iscsi_yesde_attrib {
 	u32			dataout_timeout;
 	u32			dataout_timeout_retries;
 	u32			default_erl;
-	u32			nopin_timeout;
-	u32			nopin_response_timeout;
+	u32			yespin_timeout;
+	u32			yespin_response_timeout;
 	u32			random_datain_pdu_offsets;
 	u32			random_datain_seq_offsets;
 	u32			random_r2t_offsets;
 	u32			tmr_cold_reset;
 	u32			tmr_warm_reset;
-	struct iscsi_node_acl *nacl;
+	struct iscsi_yesde_acl *nacl;
 };
 
 struct se_dev_entry_s;
 
-struct iscsi_node_auth {
+struct iscsi_yesde_auth {
 	enum naf_flags_table	naf_flags;
 	int			authenticate_target;
 	/* Used for iscsit_global->discovery_auth,
@@ -754,23 +754,23 @@ struct iscsi_node_auth {
 
 #include "iscsi_target_stat.h"
 
-struct iscsi_node_stat_grps {
+struct iscsi_yesde_stat_grps {
 	struct config_group	iscsi_sess_stats_group;
 	struct config_group	iscsi_conn_stats_group;
 };
 
-struct iscsi_node_acl {
-	struct se_node_acl	se_node_acl;
-	struct iscsi_node_attrib node_attrib;
-	struct iscsi_node_auth	node_auth;
-	struct iscsi_node_stat_grps node_stat_grps;
+struct iscsi_yesde_acl {
+	struct se_yesde_acl	se_yesde_acl;
+	struct iscsi_yesde_attrib yesde_attrib;
+	struct iscsi_yesde_auth	yesde_auth;
+	struct iscsi_yesde_stat_grps yesde_stat_grps;
 };
 
 struct iscsi_tpg_attrib {
 	u32			authentication;
 	u32			login_timeout;
 	u32			netif_timeout;
-	u32			generate_node_acls;
+	u32			generate_yesde_acls;
 	u32			cache_dynamic_acls;
 	u32			default_cmdsn_depth;
 	u32			demo_mode_write_protect;
@@ -839,7 +839,7 @@ struct iscsi_portal_group {
 	struct mutex		tpg_access_lock;
 	struct semaphore	np_login_sem;
 	struct iscsi_tpg_attrib	tpg_attrib;
-	struct iscsi_node_auth	tpg_demo_auth;
+	struct iscsi_yesde_auth	tpg_demo_auth;
 	/* Pointer to default list of iSCSI parameters for TPG */
 	struct iscsi_param_list	*param_list;
 	struct iscsi_tiqn	*tpg_tiqn;
@@ -888,7 +888,7 @@ struct iscsit_global {
 	unsigned long		*ts_bitmap;
 	spinlock_t		ts_bitmap_lock;
 	/* Used for iSCSI discovery session authentication */
-	struct iscsi_node_acl	discovery_acl;
+	struct iscsi_yesde_acl	discovery_acl;
 	struct iscsi_portal_group	*discovery_tpg;
 };
 

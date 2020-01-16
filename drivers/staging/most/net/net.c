@@ -2,7 +2,7 @@
 /*
  * net.c - Networking component for Mostcore
  *
- * Copyright (C) 2015, Microchip Technology Germany II GmbH & Co. KG
+ * Copyright (C) 2015, Microchip Techyeslogy Germany II GmbH & Co. KG
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -379,7 +379,7 @@ static int comp_disconnect_channel(struct most_interface *iface,
 		spin_unlock_irqrestore(&list_lock, flags);
 
 		/*
-		 * do not call most_stop_channel() here, because channels are
+		 * do yest call most_stop_channel() here, because channels are
 		 * going to be closed in ndo_stop() after unregister_netdev()
 		 */
 		unregister_netdev(nd->dev);
@@ -455,7 +455,7 @@ static int comp_rx_data(struct mbo *mbo)
 
 	if (!skb) {
 		dev->stats.rx_dropped++;
-		pr_err_once("drop packet: no memory for skb\n");
+		pr_err_once("drop packet: yes memory for skb\n");
 		goto out;
 	}
 

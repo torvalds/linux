@@ -19,7 +19,7 @@
  * sensor delivers X and Y axis data depending on how the Twiddler is held.
  * Additional information can be found at http://www.handykey.com.
  *
- * This driver does not use the Twiddler for its intended purpose, i.e. as
+ * This driver does yest use the Twiddler for its intended purpose, i.e. as
  * a chording keyboard, but as a joystick: pressing and releasing a button
  * immediately sends a corresponding button event, and tilting it generates
  * corresponding ABS_X and ABS_Y events. This turns the Twiddler into a game
@@ -133,7 +133,7 @@ static irqreturn_t twidjoy_interrupt(struct serio *serio, unsigned char data, un
 	if ((data & 0x80) == 0)
 		twidjoy->idx = 0;	/* this byte starts a new packet */
 	else if (twidjoy->idx == 0)
-		return IRQ_HANDLED;	/* wrong MSB -- ignore this byte */
+		return IRQ_HANDLED;	/* wrong MSB -- igyesre this byte */
 
 	if (twidjoy->idx < TWIDJOY_MAX_LENGTH)
 		twidjoy->data[twidjoy->idx++] = data;

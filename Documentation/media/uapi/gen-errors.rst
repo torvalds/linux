@@ -1,11 +1,11 @@
 .. Permission is granted to copy, distribute and/or modify this
 .. document under the terms of the GNU Free Documentation License,
 .. Version 1.1 or any later version published by the Free Software
-.. Foundation, with no Invariant Sections, no Front-Cover Texts
-.. and no Back-Cover Texts. A copy of the license is included at
+.. Foundation, with yes Invariant Sections, yes Front-Cover Texts
+.. and yes Back-Cover Texts. A copy of the license is included at
 .. Documentation/media/uapi/fdl-appendix.rst.
 ..
-.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
+.. TODO: replace it to GFDL-1.1-or-later WITH yes-invariant-sections
 
 .. _gen_errors:
 
@@ -30,11 +30,11 @@ Generic Error Codes
 	  can't perform it. This could happen for example in case where
 	  device is sleeping and ioctl is performed to query statistics. It
 	  is also returned when the ioctl would need to wait for an event,
-	  but the device was opened in non-blocking mode.
+	  but the device was opened in yesn-blocking mode.
 
     -  -  ``EBADF``
 
-       -  The file descriptor is not a valid.
+       -  The file descriptor is yest a valid.
 
     -  -  ``EBUSY``
 
@@ -42,7 +42,7 @@ Generic Error Codes
 	  typically return while device is streaming, and an ioctl tried to
 	  change something that would affect the stream, or would require
 	  the usage of a hardware resource that was already allocated. The
-	  ioctl must not be retried without performing another action to fix
+	  ioctl must yest be retried without performing ayesther action to fix
 	  the problem first (typically: stop the stream before retrying).
 
     -  -  ``EFAULT``
@@ -58,17 +58,17 @@ Generic Error Codes
 
     -  -  ``ENODEV``
 
-       -  Device not found or was removed.
+       -  Device yest found or was removed.
 
     -  -  ``ENOMEM``
 
-       -  There's not enough memory to handle the desired operation.
+       -  There's yest eyesugh memory to handle the desired operation.
 
     -  -  ``ENOTTY``
 
-       -  The ioctl is not supported by the driver, actually meaning that
-	  the required functionality is not available, or the file
-	  descriptor is not for a media device.
+       -  The ioctl is yest supported by the driver, actually meaning that
+	  the required functionality is yest available, or the file
+	  descriptor is yest for a media device.
 
     -  -  ``ENOSPC``
 
@@ -92,9 +92,9 @@ Generic Error Codes
        -  No device corresponding to this device special file exists.
 
 
-.. note::
+.. yeste::
 
-  #. This list is not exhaustive; ioctls may return other error codes.
+  #. This list is yest exhaustive; ioctls may return other error codes.
      Since errors may have side effects such as a driver reset,
      applications should abort on unexpected errors, or otherwise
      assume that the device is in a bad state.

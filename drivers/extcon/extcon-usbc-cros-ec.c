@@ -7,7 +7,7 @@
 #include <linux/extcon-provider.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/of.h>
 #include <linux/platform_data/cros_ec_commands.h>
 #include <linux/platform_data/cros_ec_proto.h>
@@ -23,7 +23,7 @@ struct cros_ec_extcon_info {
 
 	struct cros_ec_device *ec;
 
-	struct notifier_block notifier;
+	struct yestifier_block yestifier;
 
 	unsigned int dr; /* data role */
 	bool pr; /* power role (true if VBUS enabled) */
@@ -138,7 +138,7 @@ static int cros_ec_usb_get_pd_mux_state(struct cros_ec_extcon_info *info)
  * @info: pointer to struct cros_ec_extcon_info
  * @polarity: pointer to cable polarity (return value)
  *
- * Return: role info on success, -ENOTCONN if no cable is connected, <0 on
+ * Return: role info on success, -ENOTCONN if yes cable is connected, <0 on
  * failure.
  */
 static int cros_ec_usb_get_role(struct cros_ec_extcon_info *info,
@@ -289,8 +289,8 @@ static int extcon_cros_ec_detect_cable(struct cros_ec_extcon_info *info,
 	}
 
 	/*
-	 * When there is no USB host (e.g. USB PD charger),
-	 * we are not really a UFP for the AP.
+	 * When there is yes USB host (e.g. USB PD charger),
+	 * we are yest really a UFP for the AP.
 	 */
 	if (dr == DR_DEVICE &&
 	    cros_ec_usb_power_type_is_wall_wart(power_type, role))
@@ -359,15 +359,15 @@ static int extcon_cros_ec_detect_cable(struct cros_ec_extcon_info *info,
 	return 0;
 }
 
-static int extcon_cros_ec_event(struct notifier_block *nb,
+static int extcon_cros_ec_event(struct yestifier_block *nb,
 				unsigned long queued_during_suspend,
-				void *_notify)
+				void *_yestify)
 {
 	struct cros_ec_extcon_info *info;
 	struct cros_ec_device *ec;
 	u32 host_event;
 
-	info = container_of(nb, struct cros_ec_extcon_info, notifier);
+	info = container_of(nb, struct cros_ec_extcon_info, yestifier);
 	ec = info->ec;
 
 	host_event = cros_ec_get_host_event(ec);
@@ -385,7 +385,7 @@ static int extcon_cros_ec_probe(struct platform_device *pdev)
 	struct cros_ec_extcon_info *info;
 	struct cros_ec_device *ec = dev_get_drvdata(pdev->dev.parent);
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 	int numports, ret;
 
 	info = devm_kzalloc(dev, sizeof(*info), GFP_KERNEL);
@@ -457,11 +457,11 @@ static int extcon_cros_ec_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, info);
 
 	/* Get PD events from the EC */
-	info->notifier.notifier_call = extcon_cros_ec_event;
-	ret = blocking_notifier_chain_register(&info->ec->event_notifier,
-					       &info->notifier);
+	info->yestifier.yestifier_call = extcon_cros_ec_event;
+	ret = blocking_yestifier_chain_register(&info->ec->event_yestifier,
+					       &info->yestifier);
 	if (ret < 0) {
-		dev_err(dev, "failed to register notifier\n");
+		dev_err(dev, "failed to register yestifier\n");
 		return ret;
 	}
 
@@ -469,14 +469,14 @@ static int extcon_cros_ec_probe(struct platform_device *pdev)
 	ret = extcon_cros_ec_detect_cable(info, true);
 	if (ret < 0) {
 		dev_err(dev, "failed to detect initial cable state\n");
-		goto unregister_notifier;
+		goto unregister_yestifier;
 	}
 
 	return 0;
 
-unregister_notifier:
-	blocking_notifier_chain_unregister(&info->ec->event_notifier,
-					   &info->notifier);
+unregister_yestifier:
+	blocking_yestifier_chain_unregister(&info->ec->event_yestifier,
+					   &info->yestifier);
 	return ret;
 }
 
@@ -484,8 +484,8 @@ static int extcon_cros_ec_remove(struct platform_device *pdev)
 {
 	struct cros_ec_extcon_info *info = platform_get_drvdata(pdev);
 
-	blocking_notifier_chain_unregister(&info->ec->event_notifier,
-					   &info->notifier);
+	blocking_yestifier_chain_unregister(&info->ec->event_yestifier,
+					   &info->yestifier);
 
 	return 0;
 }

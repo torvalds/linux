@@ -508,7 +508,7 @@ static int palmas_smps_set_ramp_delay(struct regulator_dev *rdev,
 	unsigned int reg = 0;
 	int ret;
 
-	/* SMPS3 and SMPS7 do not have tstep_addr setting */
+	/* SMPS3 and SMPS7 do yest have tstep_addr setting */
 	switch (id) {
 	case PALMAS_REG_SMPS3:
 	case PALMAS_REG_SMPS7:
@@ -906,7 +906,7 @@ static int palmas_ldo_registration(struct palmas_pmic *pmic,
 			reg_init = NULL;
 
 		rinfo = &ddata->palmas_regs_info[id];
-		/* Miss out regulators which are not available due
+		/* Miss out regulators which are yest available due
 		 * to alternate functions.
 		 */
 
@@ -934,7 +934,7 @@ static int palmas_ldo_registration(struct palmas_pmic *pmic,
 							      rinfo->ctrl_addr);
 			desc->enable_mask = PALMAS_LDO1_CTRL_MODE_ACTIVE;
 
-			/* Check if LDO8 is in tracking mode or not */
+			/* Check if LDO8 is in tracking mode or yest */
 			if (pdata && (id == PALMAS_REG_LDO8) &&
 			    pdata->enable_ldo8_tracking) {
 				palmas_enable_ldo8_track(pmic->palmas);
@@ -976,7 +976,7 @@ static int palmas_ldo_registration(struct palmas_pmic *pmic,
 			config.init_data = NULL;
 
 		desc->supply_name = rinfo->sname;
-		config.of_node = ddata->palmas_matches[id].of_node;
+		config.of_yesde = ddata->palmas_matches[id].of_yesde;
 
 		rdev = devm_regulator_register(pmic->dev, desc, &config);
 		if (IS_ERR(rdev)) {
@@ -1023,7 +1023,7 @@ static int tps65917_ldo_registration(struct palmas_pmic *pmic,
 		else
 			reg_init = NULL;
 
-		/* Miss out regulators which are not available due
+		/* Miss out regulators which are yest available due
 		 * to alternate functions.
 		 */
 		rinfo = &ddata->palmas_regs_info[id];
@@ -1083,7 +1083,7 @@ static int tps65917_ldo_registration(struct palmas_pmic *pmic,
 			config.init_data = NULL;
 
 		desc->supply_name = rinfo->sname;
-		config.of_node = ddata->palmas_matches[id].of_node;
+		config.of_yesde = ddata->palmas_matches[id].of_yesde;
 
 		rdev = devm_regulator_register(pmic->dev, desc, &config);
 		if (IS_ERR(rdev)) {
@@ -1129,7 +1129,7 @@ static int palmas_smps_registration(struct palmas_pmic *pmic,
 		bool ramp_delay_support = false;
 
 		/*
-		 * Miss out regulators which are not available due
+		 * Miss out regulators which are yest available due
 		 * to slaving configurations.
 		 */
 		switch (id) {
@@ -1268,7 +1268,7 @@ static int palmas_smps_registration(struct palmas_pmic *pmic,
 			config.init_data = NULL;
 
 		desc->supply_name = rinfo->sname;
-		config.of_node = ddata->palmas_matches[id].of_node;
+		config.of_yesde = ddata->palmas_matches[id].of_yesde;
 
 		rdev = devm_regulator_register(pmic->dev, desc, &config);
 		if (IS_ERR(rdev)) {
@@ -1297,7 +1297,7 @@ static int tps65917_smps_registration(struct palmas_pmic *pmic,
 
 	for (id = ddata->smps_start; id <= ddata->smps_end; id++) {
 		/*
-		 * Miss out regulators which are not available due
+		 * Miss out regulators which are yest available due
 		 * to slaving configurations.
 		 */
 		desc = &pmic->desc[id];
@@ -1372,7 +1372,7 @@ static int tps65917_smps_registration(struct palmas_pmic *pmic,
 			config.init_data = NULL;
 
 		desc->supply_name = rinfo->sname;
-		config.of_node = ddata->palmas_matches[id].of_node;
+		config.of_yesde = ddata->palmas_matches[id].of_yesde;
 
 		rdev = devm_regulator_register(pmic->dev, desc, &config);
 		if (IS_ERR(rdev)) {
@@ -1464,23 +1464,23 @@ static struct palmas_pmic_driver_data tps65917_ddata = {
 };
 
 static int palmas_dt_to_pdata(struct device *dev,
-			      struct device_node *node,
+			      struct device_yesde *yesde,
 			      struct palmas_pmic_platform_data *pdata,
 			      struct palmas_pmic_driver_data *ddata)
 {
-	struct device_node *regulators;
+	struct device_yesde *regulators;
 	u32 prop;
 	int idx, ret;
 
-	regulators = of_get_child_by_name(node, "regulators");
+	regulators = of_get_child_by_name(yesde, "regulators");
 	if (!regulators) {
-		dev_info(dev, "regulator node not found\n");
+		dev_info(dev, "regulator yesde yest found\n");
 		return 0;
 	}
 
 	ret = of_regulator_match(dev, regulators, ddata->palmas_matches,
 				 ddata->max_reg);
-	of_node_put(regulators);
+	of_yesde_put(regulators);
 	if (ret < 0) {
 		dev_err(dev, "Error parsing regulator init data: %d\n", ret);
 		return 0;
@@ -1489,10 +1489,10 @@ static int palmas_dt_to_pdata(struct device *dev,
 	for (idx = 0; idx < ddata->max_reg; idx++) {
 		struct of_regulator_match *match;
 		struct palmas_reg_init *rinit;
-		struct device_node *np;
+		struct device_yesde *np;
 
 		match = &ddata->palmas_matches[idx];
-		np = match->of_node;
+		np = match->of_yesde;
 
 		if (!match->init_data || !np)
 			continue;
@@ -1506,11 +1506,11 @@ static int palmas_dt_to_pdata(struct device *dev,
 
 		rinit->warm_reset = of_property_read_bool(np, "ti,warm-reset");
 		ret = of_property_read_u32(np, "ti,roof-floor", &prop);
-		/* EINVAL: Property not found */
+		/* EINVAL: Property yest found */
 		if (ret != -EINVAL) {
 			int econtrol;
 
-			/* use default value, when no value is specified */
+			/* use default value, when yes value is specified */
 			econtrol = PALMAS_EXT_CONTROL_NSLEEP;
 			if (!ret) {
 				switch (prop) {
@@ -1547,7 +1547,7 @@ static int palmas_dt_to_pdata(struct device *dev,
 						np, "ti,enable-ldo8-tracking");
 	}
 
-	pdata->ldo6_vibrator = of_property_read_bool(node, "ti,ldo6-vibrator");
+	pdata->ldo6_vibrator = of_property_read_bool(yesde, "ti,ldo6-vibrator");
 
 	return 0;
 }
@@ -1596,7 +1596,7 @@ static int palmas_regulators_probe(struct platform_device *pdev)
 {
 	struct palmas *palmas = dev_get_drvdata(pdev->dev.parent);
 	struct palmas_pmic_platform_data *pdata = dev_get_platdata(&pdev->dev);
-	struct device_node *node = pdev->dev.of_node;
+	struct device_yesde *yesde = pdev->dev.of_yesde;
 	struct palmas_pmic_driver_data *driver_data;
 	struct regulator_config config = { };
 	struct palmas_pmic *pmic;
@@ -1619,7 +1619,7 @@ static int palmas_regulators_probe(struct platform_device *pdev)
 	if (!pmic)
 		return -ENOMEM;
 
-	if (of_device_is_compatible(node, "ti,tps659038-pmic")) {
+	if (of_device_is_compatible(yesde, "ti,tps659038-pmic")) {
 		palmas_generic_regs_info[PALMAS_REG_REGEN2].ctrl_addr =
 							TPS659038_REGEN2_CTRL;
 		palmas_ddata.has_regen3 = false;
@@ -1631,7 +1631,7 @@ static int palmas_regulators_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, pmic);
 	pmic->palmas->pmic_ddata = driver_data;
 
-	ret = palmas_dt_to_pdata(&pdev->dev, node, pdata, driver_data);
+	ret = palmas_dt_to_pdata(&pdev->dev, yesde, pdata, driver_data);
 	if (ret)
 		return ret;
 

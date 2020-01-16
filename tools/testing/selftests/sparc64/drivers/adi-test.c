@@ -5,7 +5,7 @@
  * Author: Tom Hromatka <tom.hromatka@oracle.com>
  */
 #include <linux/kernel.h>
-#include <errno.h>
+#include <erryes.h>
 #include <fcntl.h>
 #include <stdarg.h>
 #include <stdio.h>
@@ -145,8 +145,8 @@ static int build_memory_map(void)
 	fp = fopen("/proc/iomem", "r");
 	if (!fp) {
 		fprintf(stderr, "/proc/iomem: error %d: %s\n",
-			errno, strerror(errno));
-		return -errno;
+			erryes, strerror(erryes));
+		return -erryes;
 	}
 
 	while (fgets(line, sizeof(line), fp) != 0) {
@@ -191,7 +191,7 @@ static int read_adi(int fd, unsigned char *buf, int buf_sz)
 		ret = read(fd, buf + bytes_read, buf_sz - bytes_read);
 		RDTICK(end);
 		if (ret < 0)
-			return -errno;
+			return -erryes;
 
 		elapsed_time += end - start;
 		update_stats(&read_stats, elapsed_time, buf_sz);
@@ -219,7 +219,7 @@ static int pread_adi(int fd, unsigned char *buf,
 			    cur_offset);
 		RDTICK(end);
 		if (ret < 0)
-			return -errno;
+			return -erryes;
 
 		elapsed_time += end - start;
 		update_stats(&pread_stats, elapsed_time, buf_sz);
@@ -247,7 +247,7 @@ static int write_adi(int fd, const unsigned char * const buf, int buf_sz)
 		ret = write(fd, buf + bytes_written, buf_sz - bytes_written);
 		RDTICK(end);
 		if (ret < 0)
-			return -errno;
+			return -erryes;
 
 		elapsed_time += (end - start);
 		update_stats(&write_stats, elapsed_time, buf_sz);
@@ -276,8 +276,8 @@ static int pwrite_adi(int fd, const unsigned char * const buf,
 		RDTICK(end);
 		if (ret < 0) {
 			fprintf(stderr, "pwrite(): error %d: %s\n",
-				errno, strerror(errno));
-			return -errno;
+				erryes, strerror(erryes));
+			return -erryes;
 		}
 
 		elapsed_time += (end - start);
@@ -485,7 +485,7 @@ static int test4_lseek(int fd)
 
 	/* seek to the current offset.  this should return EINVAL */
 	offset_out = seek_adi(fd, offset_in, SEEK_SET);
-	if (offset_out < 0 && errno == EINVAL)
+	if (offset_out < 0 && erryes == EINVAL)
 		DEBUG_PRINT_L2(
 			"\tSEEK_SET failed as designed. Not an error\n");
 	else {
@@ -691,8 +691,8 @@ int main(int argc, char *argv[])
 	fd = open("/dev/adi", O_RDWR);
 	if (fd < 0) {
 		fprintf(stderr, "open: error %d: %s\n",
-			errno, strerror(errno));
-		return -errno;
+			erryes, strerror(erryes));
+		return -erryes;
 	}
 
 	for (test = 0; test < TEST_COUNT; test++) {
@@ -715,7 +715,7 @@ int main(int argc, char *argv[])
 		ksft_exit_pass();
 
 	/* it's impossible to get here, but the compiler throws a warning
-	 * about control reaching the end of non-void function.  bah.
+	 * about control reaching the end of yesn-void function.  bah.
 	 */
 	return 0;
 }

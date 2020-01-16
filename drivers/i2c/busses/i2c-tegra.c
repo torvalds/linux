@@ -139,7 +139,7 @@
  * msg_end_type: The bus control which need to be send at end of transfer.
  * @MSG_END_STOP: Send stop pulse at end of transfer.
  * @MSG_END_REPEAT_START: Send repeat start at end of transfer.
- * @MSG_END_CONTINUE: The following on message is coming and so do not send
+ * @MSG_END_CONTINUE: The following on message is coming and so do yest send
  *		stop or repeat start.
  */
 enum msg_end_type {
@@ -160,13 +160,13 @@ enum msg_end_type {
  *		configuration.
  * @clk_divisor_hs_mode: Clock divisor in HS mode.
  * @clk_divisor_std_mode: Clock divisor in standard mode. It is
- *		applicable if there is no fast clock source i.e. single clock
+ *		applicable if there is yes fast clock source i.e. single clock
  *		source.
  * @clk_divisor_fast_mode: Clock divisor in fast mode. It is
- *		applicable if there is no fast clock source i.e. single clock
+ *		applicable if there is yes fast clock source i.e. single clock
  *		source.
  * @clk_divisor_fast_plus_mode: Clock divisor in fast mode plus. It is
- *		applicable if there is no fast clock source (i.e. single
+ *		applicable if there is yes fast clock source (i.e. single
  *		clock source).
  * @has_multi_master_mode: The I2C controller supports running in single-master
  *		or multi-master mode.
@@ -175,10 +175,10 @@ enum msg_end_type {
  * @has_mst_fifo: The I2C controller contains the new MST FIFO interface that
  *		provides additional features and allows for longer messages to
  *		be transferred in one go.
- * @quirks: i2c adapter quirks for limiting write/read transfer size and not
+ * @quirks: i2c adapter quirks for limiting write/read transfer size and yest
  *		allowing 0 length transfers.
  * @supports_bus_clear: Bus Clear support to recover from bus hang during
- *		SDA stuck low from device for some unknown reasons.
+ *		SDA stuck low from device for some unkyeswn reasons.
  * @has_apb_dma: Support of APBDMA on corresponding Tegra chip.
  * @tlow_std_mode: Low period of the clock in standard mode.
  * @thigh_std_mode: High period of the clock in standard mode.
@@ -230,15 +230,15 @@ struct tegra_i2c_hw_feature {
  * @base_phys: physical base address of the I2C controller
  * @cont_id: I2C controller ID, used for packet header
  * @irq: IRQ number of transfer complete interrupt
- * @irq_disabled: used to track whether or not the interrupt is enabled
+ * @irq_disabled: used to track whether or yest the interrupt is enabled
  * @is_dvc: identifies the DVC I2C controller, has a different register layout
- * @msg_complete: transfer completion notifier
+ * @msg_complete: transfer completion yestifier
  * @msg_err: error code for completed message
  * @msg_buf: pointer to current message data
  * @msg_buf_remaining: size of unsent data in the message buffer
  * @msg_read: identifies read transfers
  * @bus_clk_rate: current I2C bus clock rate
- * @clk_divisor_non_hs_mode: clock divider for non-high-speed modes
+ * @clk_divisor_yesn_hs_mode: clock divider for yesn-high-speed modes
  * @is_multimaster_mode: track if I2C controller is in multi-master mode
  * @xfer_lock: lock to serialize transfer submission and processing
  * @tx_dma_chan: DMA transmit channel
@@ -247,7 +247,7 @@ struct tegra_i2c_hw_feature {
  * @dma_buf: pointer to allocated DMA buffer
  * @dma_buf_size: DMA buffer size
  * @is_curr_dma_xfer: indicates active DMA transfer
- * @dma_complete: DMA completion notifier
+ * @dma_complete: DMA completion yestifier
  */
 struct tegra_i2c_dev {
 	struct device *dev;
@@ -268,7 +268,7 @@ struct tegra_i2c_dev {
 	size_t msg_buf_remaining;
 	int msg_read;
 	u32 bus_clk_rate;
-	u16 clk_divisor_non_hs_mode;
+	u16 clk_divisor_yesn_hs_mode;
 	bool is_multimaster_mode;
 	/* xfer_lock: lock to serialize transfer submission and processing */
 	spinlock_t xfer_lock;
@@ -409,7 +409,7 @@ static int tegra_i2c_init_dma(struct tegra_i2c_dev *i2c_dev)
 		return 0;
 
 	if (!IS_ENABLED(CONFIG_TEGRA20_APB_DMA)) {
-		dev_dbg(i2c_dev->dev, "Support for APB DMA not enabled!\n");
+		dev_dbg(i2c_dev->dev, "Support for APB DMA yest enabled!\n");
 		return 0;
 	}
 
@@ -444,7 +444,7 @@ static int tegra_i2c_init_dma(struct tegra_i2c_dev *i2c_dev)
 err_out:
 	tegra_i2c_release_dma(i2c_dev);
 	if (err != -EPROBE_DEFER) {
-		dev_err(i2c_dev->dev, "cannot use DMA: %d\n", err);
+		dev_err(i2c_dev->dev, "canyest use DMA: %d\n", err);
 		dev_err(i2c_dev->dev, "falling back to PIO\n");
 		return 0;
 	}
@@ -507,7 +507,7 @@ static int tegra_i2c_empty_rx_fifo(struct tegra_i2c_dev *i2c_dev)
 			I2C_FIFO_STATUS_RX_SHIFT;
 	}
 
-	/* Rounds down to not include partial word at the end of buf */
+	/* Rounds down to yest include partial word at the end of buf */
 	words_to_transfer = buf_remaining / BYTES_PER_FIFO_WORD;
 	if (words_to_transfer > rx_fifo_avail)
 		words_to_transfer = rx_fifo_avail;
@@ -524,7 +524,7 @@ static int tegra_i2c_empty_rx_fifo(struct tegra_i2c_dev *i2c_dev)
 	 */
 	if (rx_fifo_avail > 0 && buf_remaining > 0) {
 		/*
-		 * buf_remaining > 3 check not needed as rx_fifo_avail == 0
+		 * buf_remaining > 3 check yest needed as rx_fifo_avail == 0
 		 * when (words_to_transfer was > rx_fifo_avail) earlier
 		 * in this function.
 		 */
@@ -563,7 +563,7 @@ static int tegra_i2c_fill_tx_fifo(struct tegra_i2c_dev *i2c_dev)
 			I2C_FIFO_STATUS_TX_SHIFT;
 	}
 
-	/* Rounds down to not include partial word at the end of buf */
+	/* Rounds down to yest include partial word at the end of buf */
 	words_to_transfer = buf_remaining / BYTES_PER_FIFO_WORD;
 
 	/* It's very common to have < 4 bytes, so optimize that case. */
@@ -575,7 +575,7 @@ static int tegra_i2c_fill_tx_fifo(struct tegra_i2c_dev *i2c_dev)
 		 * Update state before writing to FIFO.  If this casues us
 		 * to finish writing all bytes (AKA buf_remaining goes to 0) we
 		 * have a potential for an interrupt (PACKET_XFER_COMPLETE is
-		 * not maskable).  We need to make sure that the isr sees
+		 * yest maskable).  We need to make sure that the isr sees
 		 * buf_remaining as 0 and doesn't call us back re-entrantly.
 		 */
 		buf_remaining -= words_to_transfer * BYTES_PER_FIFO_WORD;
@@ -597,9 +597,9 @@ static int tegra_i2c_fill_tx_fifo(struct tegra_i2c_dev *i2c_dev)
 	 */
 	if (tx_fifo_avail > 0 && buf_remaining > 0) {
 		/*
-		 * buf_remaining > 3 check not needed as tx_fifo_avail == 0
+		 * buf_remaining > 3 check yest needed as tx_fifo_avail == 0
 		 * when (words_to_transfer was > tx_fifo_avail) earlier
-		 * in this function for non-zero words_to_transfer.
+		 * in this function for yesn-zero words_to_transfer.
 		 */
 		memcpy(&val, buf, buf_remaining);
 		val = le32_to_cpu(val);
@@ -731,7 +731,7 @@ static int tegra_i2c_init(struct tegra_i2c_dev *i2c_dev, bool clk_reinit)
 
 	/* Make sure clock divisor programmed correctly */
 	clk_divisor = i2c_dev->hw->clk_divisor_hs_mode;
-	clk_divisor |= i2c_dev->clk_divisor_non_hs_mode <<
+	clk_divisor |= i2c_dev->clk_divisor_yesn_hs_mode <<
 					I2C_CLK_DIVISOR_STD_FAST_MODE_SHIFT;
 	i2c_writel(i2c_dev, clk_divisor, I2C_CLK_DIVISOR);
 
@@ -752,7 +752,7 @@ static int tegra_i2c_init(struct tegra_i2c_dev *i2c_dev, bool clk_reinit)
 	}
 
 	/*
-	 * configure setup and hold times only when tsu_thd is non-zero.
+	 * configure setup and hold times only when tsu_thd is yesn-zero.
 	 * otherwise, preserve the chip default values
 	 */
 	if (i2c_dev->hw->has_interface_timing_reg && tsu_thd)
@@ -760,7 +760,7 @@ static int tegra_i2c_init(struct tegra_i2c_dev *i2c_dev, bool clk_reinit)
 
 	if (!clk_reinit) {
 		clk_multiplier = (tlow + thigh + 2);
-		clk_multiplier *= (i2c_dev->clk_divisor_non_hs_mode + 1);
+		clk_multiplier *= (i2c_dev->clk_divisor_yesn_hs_mode + 1);
 		err = clk_set_rate(i2c_dev->div_clk,
 				   i2c_dev->bus_clk_rate * clk_multiplier);
 		if (err) {
@@ -834,7 +834,7 @@ static irqreturn_t tegra_i2c_isr(int irq, void *dev_id)
 		i2c_dev->msg_err |= I2C_ERR_UNKNOWN_INTERRUPT;
 
 		if (!i2c_dev->irq_disabled) {
-			disable_irq_nosync(i2c_dev->irq);
+			disable_irq_yessync(i2c_dev->irq);
 			i2c_dev->irq_disabled = true;
 		}
 		goto err;
@@ -861,7 +861,7 @@ static irqreturn_t tegra_i2c_isr(int irq, void *dev_id)
 			if (tegra_i2c_empty_rx_fifo(i2c_dev)) {
 				/*
 				 * Overflow error condition: message fully sent,
-				 * with no XFER_COMPLETE interrupt but hardware
+				 * with yes XFER_COMPLETE interrupt but hardware
 				 * asks to transfer more.
 				 */
 				i2c_dev->msg_err |= I2C_ERR_RX_BUFFER_OVERFLOW;
@@ -1283,7 +1283,7 @@ static u32 tegra_i2c_func(struct i2c_adapter *adap)
 
 static void tegra_i2c_parse_dt(struct tegra_i2c_dev *i2c_dev)
 {
-	struct device_node *np = i2c_dev->dev->of_node;
+	struct device_yesde *np = i2c_dev->dev->of_yesde;
 	int ret;
 	bool multi_mode;
 
@@ -1525,7 +1525,7 @@ static int tegra_i2c_probe(struct platform_device *pdev)
 
 	res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
 	if (!res) {
-		dev_err(&pdev->dev, "no irq resource\n");
+		dev_err(&pdev->dev, "yes irq resource\n");
 		return -EINVAL;
 	}
 	irq = res->start;
@@ -1561,7 +1561,7 @@ static int tegra_i2c_probe(struct platform_device *pdev)
 	tegra_i2c_parse_dt(i2c_dev);
 
 	i2c_dev->hw = of_device_get_match_data(&pdev->dev);
-	i2c_dev->is_dvc = of_device_is_compatible(pdev->dev.of_node,
+	i2c_dev->is_dvc = of_device_is_compatible(pdev->dev.of_yesde,
 						  "nvidia,tegra20-i2c-dvc");
 	i2c_dev->adapter.quirks = i2c_dev->hw->quirks;
 	i2c_dev->dma_buf_size = i2c_dev->adapter.quirks->max_write_len +
@@ -1591,14 +1591,14 @@ static int tegra_i2c_probe(struct platform_device *pdev)
 
 	if (i2c_dev->bus_clk_rate > I2C_FAST_MODE &&
 	    i2c_dev->bus_clk_rate <= I2C_FAST_PLUS_MODE)
-		i2c_dev->clk_divisor_non_hs_mode =
+		i2c_dev->clk_divisor_yesn_hs_mode =
 				i2c_dev->hw->clk_divisor_fast_plus_mode;
 	else if (i2c_dev->bus_clk_rate > I2C_STANDARD_MODE &&
 		 i2c_dev->bus_clk_rate <= I2C_FAST_MODE)
-		i2c_dev->clk_divisor_non_hs_mode =
+		i2c_dev->clk_divisor_yesn_hs_mode =
 				i2c_dev->hw->clk_divisor_fast_mode;
 	else
-		i2c_dev->clk_divisor_non_hs_mode =
+		i2c_dev->clk_divisor_yesn_hs_mode =
 				i2c_dev->hw->clk_divisor_std_mode;
 
 	ret = clk_prepare(i2c_dev->div_clk);
@@ -1654,7 +1654,7 @@ static int tegra_i2c_probe(struct platform_device *pdev)
 		sizeof(i2c_dev->adapter.name));
 	i2c_dev->adapter.dev.parent = &pdev->dev;
 	i2c_dev->adapter.nr = pdev->id;
-	i2c_dev->adapter.dev.of_node = pdev->dev.of_node;
+	i2c_dev->adapter.dev.of_yesde = pdev->dev.of_yesde;
 
 	ret = i2c_add_numbered_adapter(&i2c_dev->adapter);
 	if (ret)

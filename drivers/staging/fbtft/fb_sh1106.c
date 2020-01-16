@@ -18,7 +18,7 @@
 #define WIDTH		128
 #define HEIGHT		64
 
-/* Init sequence based on the Adafruit SSD1306 Arduino library */
+/* Init sequence based on the Adafruit SSD1306 Arduiyes library */
 static int init_display(struct fbtft_par *par)
 {
 	if (!par->info->var.xres || par->info->var.xres > WIDTH ||
@@ -29,7 +29,7 @@ static int init_display(struct fbtft_par *par)
 	}
 
 	if (par->info->var.rotate) {
-		dev_err(par->info->device, "Display rotation not supported\n");
+		dev_err(par->info->device, "Display rotation yest supported\n");
 		return -EINVAL;
 	}
 
@@ -174,7 +174,7 @@ static struct fbtft_display display = {
 	},
 };
 
-FBTFT_REGISTER_DRIVER(DRVNAME, "sinowealth,sh1106", &display);
+FBTFT_REGISTER_DRIVER(DRVNAME, "siyeswealth,sh1106", &display);
 
 MODULE_ALIAS("spi:" DRVNAME);
 MODULE_ALIAS("platform:" DRVNAME);

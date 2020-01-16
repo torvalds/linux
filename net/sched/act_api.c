@@ -8,7 +8,7 @@
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/slab.h>
 #include <linux/skbuff.h>
 #include <linux/init.h>
@@ -96,7 +96,7 @@ EXPORT_SYMBOL(tcf_action_set_ctrlact);
 /* XXX: For standalone actions, we don't need a RCU grace period either, because
  * actions are always connected to filters and filters are already destroyed in
  * RCU callbacks, so after a RCU grace period actions are already disconnected
- * from filters. Readers later can not find us.
+ * from filters. Readers later can yest find us.
  */
 static void free_tcf(struct tc_action *p)
 {
@@ -239,7 +239,7 @@ static int tcf_dump_walker(struct tcf_idrinfo *idrinfo, struct sk_buff *skb,
 			       (unsigned long)p->tcfa_tm.lastuse))
 			continue;
 
-		nest = nla_nest_start_noflag(skb, n_i);
+		nest = nla_nest_start_yesflag(skb, n_i);
 		if (!nest) {
 			index--;
 			goto nla_put_failure;
@@ -297,7 +297,7 @@ static int tcf_del_walker(struct tcf_idrinfo *idrinfo, struct sk_buff *skb,
 	unsigned long id = 1;
 	unsigned long tmp;
 
-	nest = nla_nest_start_noflag(skb, 0);
+	nest = nla_nest_start_yesflag(skb, 0);
 	if (nest == NULL)
 		goto nla_put_failure;
 	if (nla_put_string(skb, TCA_KIND, ops->kind))
@@ -338,8 +338,8 @@ int tcf_generic_walker(struct tc_action_net *tn, struct sk_buff *skb,
 	} else if (type == RTM_GETACTION) {
 		return tcf_dump_walker(idrinfo, skb, cb);
 	} else {
-		WARN(1, "tcf_generic_walker: unknown command %d\n", type);
-		NL_SET_ERR_MSG(extack, "tcf_generic_walker: unknown command");
+		WARN(1, "tcf_generic_walker: unkyeswn command %d\n", type);
+		NL_SET_ERR_MSG(extack, "tcf_generic_walker: unkyeswn command");
 		return -EINVAL;
 	}
 }
@@ -476,7 +476,7 @@ void tcf_idr_insert(struct tc_action_net *tn, struct tc_action *a)
 }
 EXPORT_SYMBOL(tcf_idr_insert);
 
-/* Cleanup idr index that was allocated but not initialized. */
+/* Cleanup idr index that was allocated but yest initialized. */
 
 void tcf_idr_cleanup(struct tc_action_net *tn, u32 index)
 {
@@ -507,8 +507,8 @@ again:
 	if (*index) {
 		p = idr_find(&idrinfo->action_idr, *index);
 		if (IS_ERR(p)) {
-			/* This means that another process allocated
-			 * index but did not assign the pointer yet.
+			/* This means that ayesther process allocated
+			 * index but did yest assign the pointer yet.
 			 */
 			mutex_unlock(&idrinfo->lock);
 			goto again;
@@ -795,7 +795,7 @@ tcf_action_dump_1(struct sk_buff *skb, struct tc_action *a, int bind, int ref)
 			goto nla_put_failure;
 	}
 
-	nest = nla_nest_start_noflag(skb, TCA_OPTIONS);
+	nest = nla_nest_start_yesflag(skb, TCA_OPTIONS);
 	if (nest == NULL)
 		goto nla_put_failure;
 	err = tcf_action_dump_old(skb, a, bind, ref);
@@ -819,7 +819,7 @@ int tcf_action_dump(struct sk_buff *skb, struct tc_action *actions[],
 
 	for (i = 0; i < TCA_ACT_MAX_PRIO && actions[i]; i++) {
 		a = actions[i];
-		nest = nla_nest_start_noflag(skb, i + 1);
+		nest = nla_nest_start_yesflag(skb, i + 1);
 		if (nest == NULL)
 			goto nla_put_failure;
 		err = tcf_action_dump_1(skb, a, bind, ref);
@@ -954,7 +954,7 @@ struct tc_action *tcf_action_init_1(struct net *net, struct tcf_proto *tp,
 
 	/* module count goes up only when brand new policy is created
 	 * if it exists and is only bound to in a_o->init() then
-	 * ACT_P_CREATED is not returned (a zero is).
+	 * ACT_P_CREATED is yest returned (a zero is).
 	 */
 	if (err != ACT_P_CREATED)
 		module_put(a_o->owner);
@@ -1102,7 +1102,7 @@ static int tca_get_fill(struct sk_buff *skb, struct tc_action *actions[],
 	t->tca__pad1 = 0;
 	t->tca__pad2 = 0;
 
-	nest = nla_nest_start_noflag(skb, TCA_ACT_TAB);
+	nest = nla_nest_start_yesflag(skb, TCA_ACT_TAB);
 	if (!nest)
 		goto out_nlmsg_trim;
 
@@ -1120,7 +1120,7 @@ out_nlmsg_trim:
 }
 
 static int
-tcf_get_notify(struct net *net, u32 portid, struct nlmsghdr *n,
+tcf_get_yestify(struct net *net, u32 portid, struct nlmsghdr *n,
 	       struct tc_action *actions[], int event,
 	       struct netlink_ext_ack *extack)
 {
@@ -1165,12 +1165,12 @@ static struct tc_action *tcf_action_get_1(struct net *net, struct nlattr *nla,
 	err = -EINVAL;
 	ops = tc_lookup_action(tb[TCA_ACT_KIND]);
 	if (!ops) { /* could happen in batch of actions */
-		NL_SET_ERR_MSG(extack, "Specified TC action kind not found");
+		NL_SET_ERR_MSG(extack, "Specified TC action kind yest found");
 		goto err_out;
 	}
 	err = -ENOENT;
 	if (ops->lookup(net, &a, index) == 0) {
-		NL_SET_ERR_MSG(extack, "TC action with specified index not found");
+		NL_SET_ERR_MSG(extack, "TC action with specified index yest found");
 		goto err_mod;
 	}
 
@@ -1212,15 +1212,15 @@ static int tca_action_flush(struct net *net, struct nlattr *nla,
 	err = -EINVAL;
 	kind = tb[TCA_ACT_KIND];
 	ops = tc_lookup_action(kind);
-	if (!ops) { /*some idjot trying to flush unknown action */
-		NL_SET_ERR_MSG(extack, "Cannot flush unknown TC action");
+	if (!ops) { /*some idjot trying to flush unkyeswn action */
+		NL_SET_ERR_MSG(extack, "Canyest flush unkyeswn TC action");
 		goto err_out;
 	}
 
 	nlh = nlmsg_put(skb, portid, n->nlmsg_seq, RTM_DELACTION,
 			sizeof(*t), 0);
 	if (!nlh) {
-		NL_SET_ERR_MSG(extack, "Failed to create TC action flush notification");
+		NL_SET_ERR_MSG(extack, "Failed to create TC action flush yestification");
 		goto out_module_put;
 	}
 	t = nlmsg_data(nlh);
@@ -1228,7 +1228,7 @@ static int tca_action_flush(struct net *net, struct nlattr *nla,
 	t->tca__pad1 = 0;
 	t->tca__pad2 = 0;
 
-	nest = nla_nest_start_noflag(skb, TCA_ACT_TAB);
+	nest = nla_nest_start_yesflag(skb, TCA_ACT_TAB);
 	if (!nest) {
 		NL_SET_ERR_MSG(extack, "Failed to add new netlink message");
 		goto out_module_put;
@@ -1250,7 +1250,7 @@ static int tca_action_flush(struct net *net, struct nlattr *nla,
 	if (err > 0)
 		return 0;
 	if (err < 0)
-		NL_SET_ERR_MSG(extack, "Failed to send TC action flush notification");
+		NL_SET_ERR_MSG(extack, "Failed to send TC action flush yestification");
 
 	return err;
 
@@ -1281,7 +1281,7 @@ static int tcf_action_delete(struct net *net, struct tc_action *actions[])
 		} else  {
 			int ret;
 
-			/* now do the delete */
+			/* yesw do the delete */
 			ret = tcf_idr_delete_index(idrinfo, act_index);
 			if (ret < 0)
 				return ret;
@@ -1291,7 +1291,7 @@ static int tcf_action_delete(struct net *net, struct tc_action *actions[])
 }
 
 static int
-tcf_del_notify(struct net *net, struct nlmsghdr *n, struct tc_action *actions[],
+tcf_del_yestify(struct net *net, struct nlmsghdr *n, struct tc_action *actions[],
 	       u32 portid, size_t attr_size, struct netlink_ext_ack *extack)
 {
 	int ret;
@@ -1309,7 +1309,7 @@ tcf_del_notify(struct net *net, struct nlmsghdr *n, struct tc_action *actions[],
 		return -EINVAL;
 	}
 
-	/* now do the delete */
+	/* yesw do the delete */
 	ret = tcf_action_delete(net, actions);
 	if (ret < 0) {
 		NL_SET_ERR_MSG(extack, "Failed to delete TC action");
@@ -1360,9 +1360,9 @@ tca_action_gd(struct net *net, struct nlattr *nla, struct nlmsghdr *n,
 	attr_size = tcf_action_full_attrs_size(attr_size);
 
 	if (event == RTM_GETACTION)
-		ret = tcf_get_notify(net, portid, n, actions, event, extack);
+		ret = tcf_get_yestify(net, portid, n, actions, event, extack);
 	else { /* delete */
-		ret = tcf_del_notify(net, n, actions, portid, attr_size, extack);
+		ret = tcf_del_yestify(net, n, actions, portid, attr_size, extack);
 		if (ret)
 			goto err;
 		return 0;
@@ -1373,7 +1373,7 @@ err:
 }
 
 static int
-tcf_add_notify(struct net *net, struct nlmsghdr *n, struct tc_action *actions[],
+tcf_add_yestify(struct net *net, struct nlmsghdr *n, struct tc_action *actions[],
 	       u32 portid, size_t attr_size, struct netlink_ext_ack *extack)
 {
 	struct sk_buff *skb;
@@ -1415,7 +1415,7 @@ static int tcf_action_add(struct net *net, struct nlattr *nla,
 
 	if (ret < 0)
 		return ret;
-	ret = tcf_add_notify(net, n, actions, portid, attr_size, extack);
+	ret = tcf_add_yestify(net, n, actions, portid, attr_size, extack);
 	if (ovr)
 		tcf_action_put_many(actions);
 
@@ -1561,7 +1561,7 @@ static int tc_dump_action(struct sk_buff *skb, struct netlink_callback *cb)
 	if (!count_attr)
 		goto out_module_put;
 
-	nest = nla_nest_start_noflag(skb, TCA_ACT_TAB);
+	nest = nla_nest_start_yesflag(skb, TCA_ACT_TAB);
 	if (nest == NULL)
 		goto out_module_put;
 

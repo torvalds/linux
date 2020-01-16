@@ -27,7 +27,7 @@ struct pipe_buffer {
 };
 
 /**
- *	struct pipe_inode_info - a linux kernel pipe
+ *	struct pipe_iyesde_info - a linux kernel pipe
  *	@mutex: mutex protecting the whole thing
  *	@wait: reader/writer wait point in case of empty/full pipe
  *	@head: The point of buffer production
@@ -45,7 +45,7 @@ struct pipe_buffer {
  *	@bufs: the circular array of pipe buffers
  *	@user: the user who created this pipe
  **/
-struct pipe_inode_info {
+struct pipe_iyesde_info {
 	struct mutex mutex;
 	wait_queue_head_t wait;
 	unsigned int head;
@@ -82,28 +82,28 @@ struct pipe_buf_operations {
 	 * hook. Returns 0 for good, or a negative error value in case of
 	 * error.
 	 */
-	int (*confirm)(struct pipe_inode_info *, struct pipe_buffer *);
+	int (*confirm)(struct pipe_iyesde_info *, struct pipe_buffer *);
 
 	/*
 	 * When the contents of this pipe buffer has been completely
 	 * consumed by a reader, ->release() is called.
 	 */
-	void (*release)(struct pipe_inode_info *, struct pipe_buffer *);
+	void (*release)(struct pipe_iyesde_info *, struct pipe_buffer *);
 
 	/*
 	 * Attempt to take ownership of the pipe buffer and its contents.
 	 * ->steal() returns 0 for success, in which case the contents
-	 * of the pipe (the buf->page) is locked and now completely owned
+	 * of the pipe (the buf->page) is locked and yesw completely owned
 	 * by the caller. The page may then be transferred to a different
 	 * mapping, the most often used case is insertion into different
 	 * file address space cache.
 	 */
-	int (*steal)(struct pipe_inode_info *, struct pipe_buffer *);
+	int (*steal)(struct pipe_iyesde_info *, struct pipe_buffer *);
 
 	/*
 	 * Get a reference to the pipe buffer.
 	 */
-	bool (*get)(struct pipe_inode_info *, struct pipe_buffer *);
+	bool (*get)(struct pipe_iyesde_info *, struct pipe_buffer *);
 };
 
 /**
@@ -145,7 +145,7 @@ static inline bool pipe_full(unsigned int head, unsigned int tail,
  * @pipe: The pipe info structure
  */
 static inline unsigned int pipe_space_for_user(unsigned int head, unsigned int tail,
-					       struct pipe_inode_info *pipe)
+					       struct pipe_iyesde_info *pipe)
 {
 	unsigned int p_occupancy, p_space;
 
@@ -165,7 +165,7 @@ static inline unsigned int pipe_space_for_user(unsigned int head, unsigned int t
  *
  * Return: %true if the reference was successfully obtained.
  */
-static inline __must_check bool pipe_buf_get(struct pipe_inode_info *pipe,
+static inline __must_check bool pipe_buf_get(struct pipe_iyesde_info *pipe,
 				struct pipe_buffer *buf)
 {
 	return buf->ops->get(pipe, buf);
@@ -176,7 +176,7 @@ static inline __must_check bool pipe_buf_get(struct pipe_inode_info *pipe,
  * @pipe:	the pipe that the buffer belongs to
  * @buf:	the buffer to put a reference to
  */
-static inline void pipe_buf_release(struct pipe_inode_info *pipe,
+static inline void pipe_buf_release(struct pipe_iyesde_info *pipe,
 				    struct pipe_buffer *buf)
 {
 	const struct pipe_buf_operations *ops = buf->ops;
@@ -190,7 +190,7 @@ static inline void pipe_buf_release(struct pipe_inode_info *pipe,
  * @pipe:	the pipe that the buffer belongs to
  * @buf:	the buffer to confirm
  */
-static inline int pipe_buf_confirm(struct pipe_inode_info *pipe,
+static inline int pipe_buf_confirm(struct pipe_iyesde_info *pipe,
 				   struct pipe_buffer *buf)
 {
 	return buf->ops->confirm(pipe, buf);
@@ -201,7 +201,7 @@ static inline int pipe_buf_confirm(struct pipe_inode_info *pipe,
  * @pipe:	the pipe that the buffer belongs to
  * @buf:	the buffer to attempt to steal
  */
-static inline int pipe_buf_steal(struct pipe_inode_info *pipe,
+static inline int pipe_buf_steal(struct pipe_iyesde_info *pipe,
 				 struct pipe_buffer *buf)
 {
 	return buf->ops->steal(pipe, buf);
@@ -212,33 +212,33 @@ static inline int pipe_buf_steal(struct pipe_inode_info *pipe,
 #define PIPE_SIZE		PAGE_SIZE
 
 /* Pipe lock and unlock operations */
-void pipe_lock(struct pipe_inode_info *);
-void pipe_unlock(struct pipe_inode_info *);
-void pipe_double_lock(struct pipe_inode_info *, struct pipe_inode_info *);
+void pipe_lock(struct pipe_iyesde_info *);
+void pipe_unlock(struct pipe_iyesde_info *);
+void pipe_double_lock(struct pipe_iyesde_info *, struct pipe_iyesde_info *);
 
 extern unsigned int pipe_max_size;
 extern unsigned long pipe_user_pages_hard;
 extern unsigned long pipe_user_pages_soft;
 
-/* Drop the inode semaphore and wait for a pipe event, atomically */
-void pipe_wait(struct pipe_inode_info *pipe);
+/* Drop the iyesde semaphore and wait for a pipe event, atomically */
+void pipe_wait(struct pipe_iyesde_info *pipe);
 
-struct pipe_inode_info *alloc_pipe_info(void);
-void free_pipe_info(struct pipe_inode_info *);
+struct pipe_iyesde_info *alloc_pipe_info(void);
+void free_pipe_info(struct pipe_iyesde_info *);
 
 /* Generic pipe buffer ops functions */
-bool generic_pipe_buf_get(struct pipe_inode_info *, struct pipe_buffer *);
-int generic_pipe_buf_confirm(struct pipe_inode_info *, struct pipe_buffer *);
-int generic_pipe_buf_steal(struct pipe_inode_info *, struct pipe_buffer *);
-int generic_pipe_buf_nosteal(struct pipe_inode_info *, struct pipe_buffer *);
-void generic_pipe_buf_release(struct pipe_inode_info *, struct pipe_buffer *);
+bool generic_pipe_buf_get(struct pipe_iyesde_info *, struct pipe_buffer *);
+int generic_pipe_buf_confirm(struct pipe_iyesde_info *, struct pipe_buffer *);
+int generic_pipe_buf_steal(struct pipe_iyesde_info *, struct pipe_buffer *);
+int generic_pipe_buf_yessteal(struct pipe_iyesde_info *, struct pipe_buffer *);
+void generic_pipe_buf_release(struct pipe_iyesde_info *, struct pipe_buffer *);
 void pipe_buf_mark_unmergeable(struct pipe_buffer *buf);
 
-extern const struct pipe_buf_operations nosteal_pipe_buf_ops;
+extern const struct pipe_buf_operations yessteal_pipe_buf_ops;
 
 /* for F_SETPIPE_SZ and F_GETPIPE_SZ */
 long pipe_fcntl(struct file *, unsigned int, unsigned long arg);
-struct pipe_inode_info *get_pipe_info(struct file *file);
+struct pipe_iyesde_info *get_pipe_info(struct file *file);
 
 int create_pipe_files(struct file **, int);
 unsigned int round_pipe_size(unsigned long size);

@@ -24,18 +24,18 @@
  *
  * The macro can be used as __tlbi(op) or __tlbi(op, arg), depending
  * on whether a particular TLBI operation takes an argument or
- * not. The macros handles invoking the asm with or without the
+ * yest. The macros handles invoking the asm with or without the
  * register argument as appropriate.
  */
 #define __TLBI_0(op, arg) asm ("tlbi " #op "\n"				       \
-		   ALTERNATIVE("nop\n			nop",		       \
+		   ALTERNATIVE("yesp\n			yesp",		       \
 			       "dsb ish\n		tlbi " #op,	       \
 			       ARM64_WORKAROUND_REPEAT_TLBI,		       \
 			       CONFIG_ARM64_WORKAROUND_REPEAT_TLBI)	       \
 			    : : )
 
 #define __TLBI_1(op, arg) asm ("tlbi " #op ", %0\n"			       \
-		   ALTERNATIVE("nop\n			nop",		       \
+		   ALTERNATIVE("yesp\n			yesp",		       \
 			       "dsb ish\n		tlbi " #op ", %0",     \
 			       ARM64_WORKAROUND_REPEAT_TLBI,		       \
 			       CONFIG_ARM64_WORKAROUND_REPEAT_TLBI)	       \
@@ -95,18 +95,18 @@
  *	flush_tlb_kernel_range(start, end)
  *		Same as flush_tlb_range(..., start, end), but applies to
  * 		kernel mappings rather than a particular user address space.
- *		Whilst not explicitly documented, this function is used when
+ *		Whilst yest explicitly documented, this function is used when
  *		unmapping pages from vmalloc/io space.
  *
  *	flush_tlb_page(vma, addr)
  *		Invalidate a single user mapping for address 'addr' in the
  *		address space corresponding to 'vma->mm'.  Note that this
  *		operation only invalidates a single, last-level page-table
- *		entry and therefore does not affect any walk-caches.
+ *		entry and therefore does yest affect any walk-caches.
  *
  *
  *	Next, we have some undocumented invalidation routines that you probably
- *	don't want to call unless you know what you're doing:
+ *	don't want to call unless you kyesw what you're doing:
  *
  *	local_flush_tlb_all()
  *		Same as flush_tlb_all(), but only applies to the calling CPU.
@@ -154,7 +154,7 @@ static inline void flush_tlb_mm(struct mm_struct *mm)
 	dsb(ish);
 }
 
-static inline void flush_tlb_page_nosync(struct vm_area_struct *vma,
+static inline void flush_tlb_page_yessync(struct vm_area_struct *vma,
 					 unsigned long uaddr)
 {
 	unsigned long addr = __TLBI_VADDR(uaddr, ASID(vma->vm_mm));
@@ -167,12 +167,12 @@ static inline void flush_tlb_page_nosync(struct vm_area_struct *vma,
 static inline void flush_tlb_page(struct vm_area_struct *vma,
 				  unsigned long uaddr)
 {
-	flush_tlb_page_nosync(vma, uaddr);
+	flush_tlb_page_yessync(vma, uaddr);
 	dsb(ish);
 }
 
 /*
- * This is meant to avoid soft lock-ups on large TLB flushing ranges and not
+ * This is meant to avoid soft lock-ups on large TLB flushing ranges and yest
  * necessarily a performance improvement.
  */
 #define MAX_TLBI_OPS	PTRS_PER_PTE
@@ -215,7 +215,7 @@ static inline void flush_tlb_range(struct vm_area_struct *vma,
 				   unsigned long start, unsigned long end)
 {
 	/*
-	 * We cannot use leaf-only invalidation here, since we may be invalidating
+	 * We canyest use leaf-only invalidation here, since we may be invalidating
 	 * table entries as part of collapsing hugepages or moving page tables.
 	 */
 	__flush_tlb_range(vma, start, end, PAGE_SIZE, false);

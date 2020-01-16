@@ -9,8 +9,8 @@
  * of the GNU General Public License, incorporated herein by reference.
  *
  * As all Linux supported cards Champ2, Ergo and Metro2/4 use the same
- * DPRAM interface and layout with only minor differences all related
- * stuff is done here, not in separate modules.
+ * DPRAM interface and layout with only miyesr differences all related
+ * stuff is done here, yest in separate modules.
  *
  */
 
@@ -32,7 +32,7 @@
 /* The cards interrupt handler. Called from system */
 /***************************************************/
 static irqreturn_t
-ergo_interrupt(int intno, void *dev_id)
+ergo_interrupt(int intyes, void *dev_id)
 {
 	hysdn_card *card = dev_id;	/* parameter from irq */
 	tErgDpram *dpr;
@@ -44,11 +44,11 @@ ergo_interrupt(int intno, void *dev_id)
 	if (!card->irq_enabled)
 		return IRQ_NONE;		/* other device interrupting or irq switched off */
 
-	spin_lock_irqsave(&card->hysdn_lock, flags); /* no further irqs allowed */
+	spin_lock_irqsave(&card->hysdn_lock, flags); /* yes further irqs allowed */
 
 	if (!(bytein(card->iobase + PCI9050_INTR_REG) & PCI9050_INTR_REG_STAT1)) {
 		spin_unlock_irqrestore(&card->hysdn_lock, flags);	/* restore old state */
-		return IRQ_NONE;		/* no interrupt requested by E1 */
+		return IRQ_NONE;		/* yes interrupt requested by E1 */
 	}
 	/* clear any pending ints on the board */
 	dpr = card->dpram;
@@ -88,10 +88,10 @@ ergo_irq_bh(struct work_struct *ugli_api)
 		spin_unlock_irqrestore(&card->hysdn_lock, flags);	/* hardware currently unavailable */
 		return;
 	}
-	card->hw_lock = 1;	/* we now lock the hardware */
+	card->hw_lock = 1;	/* we yesw lock the hardware */
 
 	do {
-		again = 0;	/* assume loop not to be repeated */
+		again = 0;	/* assume loop yest to be repeated */
 
 		if (!dpr->ToHyFlag) {
 			/* we are able to send a buffer */
@@ -115,7 +115,7 @@ ergo_irq_bh(struct work_struct *ugli_api)
 			dpr->ToPcInt = 1;	/* interrupt to E1 for all cards */
 		} else
 			card->hw_lock = 0;	/* free hardware again */
-	} while (again);	/* until nothing more to do */
+	} while (again);	/* until yesthing more to do */
 
 	spin_unlock_irqrestore(&card->hysdn_lock, flags);
 }				/* ergo_irq_bh */
@@ -141,7 +141,7 @@ ergo_stopcard(hysdn_card *card)
 	card->irq_enabled = 0;
 	byteout(card->iobase + PCI9050_USER_IO, PCI9050_E1_RESET);	/* reset E1 processor */
 	card->state = CARD_STATE_UNUSED;
-	card->err_log_state = ERRLOG_STATE_OFF;		/* currently no log active */
+	card->err_log_state = ERRLOG_STATE_OFF;		/* currently yes log active */
 
 	spin_unlock_irqrestore(&card->hysdn_lock, flags);
 }				/* ergo_stopcard */
@@ -163,7 +163,7 @@ ergo_set_errlog_state(hysdn_card *card, int on)
 	if (((card->err_log_state == ERRLOG_STATE_OFF) && !on) ||
 	    ((card->err_log_state == ERRLOG_STATE_ON) && on)) {
 		spin_unlock_irqrestore(&card->hysdn_lock, flags);
-		return;		/* nothing to do */
+		return;		/* yesthing to do */
 	}
 	if (on)
 		card->err_log_state = ERRLOG_STATE_START;	/* request start */
@@ -233,7 +233,7 @@ ergo_writebootimg(struct HYSDN_CARD *card, unsigned char *buf,
 	/* if low words (offs = 2) have been written, clear the rest of the DPRAM, */
 	/* flush the PCI-write-buffer and take the E1 out of reset */
 	if (offs) {
-		memset(card->dpram, 0, ERG_DPRAM_FILL_SIZE);	/* fill the DPRAM still not cleared */
+		memset(card->dpram, 0, ERG_DPRAM_FILL_SIZE);	/* fill the DPRAM still yest cleared */
 		dpram = card->dpram;	/* get pointer to dpram structure */
 		dpram->ToHyNoDpramErrLog = 0xFF;	/* write a dpram register */
 		while (!dpram->ToHyNoDpramErrLog);	/* reread volatile register to flush PCI */
@@ -245,7 +245,7 @@ ergo_writebootimg(struct HYSDN_CARD *card, unsigned char *buf,
 
 		if (((tDpramBootSpooler *) card->dpram)->Len != DPRAM_SPOOLER_DATA_SIZE) {
 			if (card->debug_flags & LOG_POF_CARD)
-				hysdn_addlog(card, "ERGO: write bootldr no answer");
+				hysdn_addlog(card, "ERGO: write bootldr yes answer");
 			return (-ERR_BOOTIMG_FAIL);
 		}
 	}			/* start_boot_img */
@@ -288,25 +288,25 @@ ergo_writebootseq(struct HYSDN_CARD *card, unsigned char *buf, int len)
 		if (!i) {
 			if (card->debug_flags & LOG_POF_CARD)
 				hysdn_addlog(card, "ERGO: write boot seq timeout");
-			return (-ERR_BOOTSEQ_FAIL);	/* value not stable -> timeout */
+			return (-ERR_BOOTSEQ_FAIL);	/* value yest stable -> timeout */
 		}
 		if ((nr_write = tmp_rdptr - wr_mirror - 1) < 0)
-			nr_write += buflen;	/* now we got number of free bytes - 1 in buffer */
+			nr_write += buflen;	/* yesw we got number of free bytes - 1 in buffer */
 
 		if (!nr_write)
-			continue;	/* no free bytes in buffer */
+			continue;	/* yes free bytes in buffer */
 
 		if (nr_write > len)
 			nr_write = len;		/* limit if last few bytes */
 		i = 0x1000;	/* reset timeout value */
 
-		/* now we know how much bytes we may put in the puffer */
+		/* yesw we kyesw how much bytes we may put in the puffer */
 		len -= nr_write;	/* we savely could adjust len before output */
 		while (nr_write--) {
 			*(dst + wr_mirror) = *buf++;	/* output one byte */
 			if (++wr_mirror >= buflen)
 				wr_mirror = 0;
-			sp->WrPtr = wr_mirror;	/* announce the next byte to E1 */
+			sp->WrPtr = wr_mirror;	/* anyesunce the next byte to E1 */
 		}		/* while (nr_write) */
 
 	}			/* while (len) */
@@ -351,7 +351,7 @@ ergo_waitpofready(struct HYSDN_CARD *card)
 				hysdn_addlog(card, "ERGO: pof boot success");
 			spin_lock_irqsave(&card->hysdn_lock, flags);
 
-			card->state = CARD_STATE_RUN;	/* now card is running */
+			card->state = CARD_STATE_RUN;	/* yesw card is running */
 			/* enable the cards interrupt */
 			byteout(card->iobase + PCI9050_INTR_REG,
 				bytein(card->iobase + PCI9050_INTR_REG) |
@@ -395,7 +395,7 @@ ergo_waitpofready(struct HYSDN_CARD *card)
 static void
 ergo_releasehardware(hysdn_card *card)
 {
-	ergo_stopcard(card);	/* first stop the card if not already done */
+	ergo_stopcard(card);	/* first stop the card if yest already done */
 	free_irq(card->irq, card);	/* release interrupt */
 	release_region(card->iobase + PCI9050_INTR_REG, 1);	/* release all io ports */
 	release_region(card->iobase + PCI9050_USER_IO, 1);
@@ -405,7 +405,7 @@ ergo_releasehardware(hysdn_card *card)
 
 
 /*********************************************************************************/
-/* acquire the needed hardware ports and map dpram. If an error occurs a nonzero */
+/* acquire the needed hardware ports and map dpram. If an error occurs a yesnzero */
 /* value is returned.                                                            */
 /* Use only during module init.                                                  */
 /*********************************************************************************/
@@ -430,7 +430,7 @@ ergo_inithardware(hysdn_card *card)
 		ergo_releasehardware(card); /* return the acquired hardware */
 		return (-1);
 	}
-	/* success, now setup the function pointers */
+	/* success, yesw setup the function pointers */
 	card->stopcard = ergo_stopcard;
 	card->releasehardware = ergo_releasehardware;
 	card->testram = ergo_testram;

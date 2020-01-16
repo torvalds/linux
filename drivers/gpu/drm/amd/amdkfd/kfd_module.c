@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -56,7 +56,7 @@ static int kfd_init(void)
 	if (err < 0)
 		goto err_create_wq;
 
-	/* Ignore the return value, so that we can continue
+	/* Igyesre the return value, so that we can continue
 	 * to init the KFD, even if procfs isn't craated
 	 */
 	kfd_procfs_init();

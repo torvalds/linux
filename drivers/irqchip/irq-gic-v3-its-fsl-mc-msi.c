@@ -68,12 +68,12 @@ static const struct of_device_id its_device_id[] = {
 
 static int __init its_fsl_mc_msi_init(void)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 	struct irq_domain *parent;
 	struct irq_domain *mc_msi_domain;
 
-	for (np = of_find_matching_node(NULL, its_device_id); np;
-	     np = of_find_matching_node(np, its_device_id)) {
+	for (np = of_find_matching_yesde(NULL, its_device_id); np;
+	     np = of_find_matching_yesde(np, its_device_id)) {
 		if (!of_device_is_available(np))
 			continue;
 		if (!of_property_read_bool(np, "msi-controller"))
@@ -86,7 +86,7 @@ static int __init its_fsl_mc_msi_init(void)
 		}
 
 		mc_msi_domain = fsl_mc_msi_create_irq_domain(
-						 of_node_to_fwnode(np),
+						 of_yesde_to_fwyesde(np),
 						 &its_fsl_mc_msi_domain_info,
 						 parent);
 		if (!mc_msi_domain) {

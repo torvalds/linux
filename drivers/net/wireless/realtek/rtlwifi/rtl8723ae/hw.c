@@ -123,7 +123,7 @@ void rtl8723e_get_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val)
 		break;
 	default:
 		RT_TRACE(rtlpriv, COMP_ERR, DBG_LOUD,
-			 "switch case %#x not processed\n", variable);
+			 "switch case %#x yest processed\n", variable);
 		break;
 	}
 }
@@ -252,7 +252,7 @@ void rtl8723e_set_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val)
 			break;
 		}
 	case HW_VAR_AMPDU_FACTOR:{
-			u8 regtoset_normal[4] = { 0x41, 0xa8, 0x72, 0xb9 };
+			u8 regtoset_yesrmal[4] = { 0x41, 0xa8, 0x72, 0xb9 };
 			u8 regtoset_bt[4] = {0x31, 0x74, 0x42, 0x97};
 			u8 factor_toset;
 			u8 *p_regtoset = NULL;
@@ -263,7 +263,7 @@ void rtl8723e_set_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val)
 				BT_CSR_BC4))
 				p_regtoset = regtoset_bt;
 			else
-				p_regtoset = regtoset_normal;
+				p_regtoset = regtoset_yesrmal;
 
 			factor_toset = *((u8 *)val);
 			if (factor_toset <= 3) {
@@ -346,7 +346,7 @@ void rtl8723e_set_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val)
 					break;
 				default:
 					RT_TRACE(rtlpriv, COMP_ERR, DBG_LOUD,
-						 "switch case %#x not processed\n",
+						 "switch case %#x yest processed\n",
 						 e_aci);
 					break;
 				}
@@ -527,7 +527,7 @@ void rtl8723e_set_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val)
 		}
 	default:
 		RT_TRACE(rtlpriv, COMP_ERR, DBG_LOUD,
-			 "switch case %#x not processed\n", variable);
+			 "switch case %#x yest processed\n", variable);
 		break;
 	}
 }
@@ -885,7 +885,7 @@ void rtl8723e_enable_hw_security_config(struct ieee80211_hw *hw)
 
 	if (rtlpriv->cfg->mod_params->sw_crypto || rtlpriv->sec.use_sw_sec) {
 		RT_TRACE(rtlpriv, COMP_SEC, DBG_DMESG,
-			 "not open hw encryption\n");
+			 "yest open hw encryption\n");
 		return;
 	}
 
@@ -943,7 +943,7 @@ int rtl8723e_hw_init(struct ieee80211_hw *hw)
 	err = rtl8723_download_fw(hw, false, FW_8723A_POLLING_TIMEOUT_COUNT);
 	if (err) {
 		RT_TRACE(rtlpriv, COMP_ERR, DBG_WARNING,
-			 "Failed to download FW. Init HW without FW now..\n");
+			 "Failed to download FW. Init HW without FW yesw..\n");
 		err = 1;
 		goto exit;
 	}
@@ -1081,7 +1081,7 @@ static enum version_8723e _rtl8723e_read_chip_version(struct ieee80211_hw *hw)
 			 "Chip Version ID: VERSION_NORMAL_UMC_CHIP_8723_1T1R_B_CUT.\n");
 		break;
 	default:
-		pr_err("Chip Version ID: Unknown. Bug?\n");
+		pr_err("Chip Version ID: Unkyeswn. Bug?\n");
 		break;
 	}
 
@@ -1130,7 +1130,7 @@ static int _rtl8723e_set_media_status(struct ieee80211_hw *hw,
 			"Set Network type to AP!\n");
 		break;
 	default:
-		pr_err("Network type %d not support!\n", type);
+		pr_err("Network type %d yest support!\n", type);
 		return 1;
 		break;
 	}
@@ -1139,7 +1139,7 @@ static int _rtl8723e_set_media_status(struct ieee80211_hw *hw,
 	 * MSR_ADHOC == Link in ad hoc network;
 	 * Therefore, check link state is necessary.
 	 *
-	 * MSR_AP == AP mode; link state is not cared here.
+	 * MSR_AP == AP mode; link state is yest cared here.
 	 */
 	if (mode != MSR_AP &&
 	    rtlpriv->mac80211.link_state < MAC80211_LINKED) {
@@ -1592,7 +1592,7 @@ static void _rtl8723e_read_txpower_info_from_hwpg(struct ieee80211_hw *hw,
 	rtlefuse->eeprom_thermalmeter = (tempval & 0x1f);
 
 	if (rtlefuse->eeprom_thermalmeter == 0x1f || autoload_fail)
-		rtlefuse->apk_thermalmeterignore = true;
+		rtlefuse->apk_thermalmeterigyesre = true;
 
 	rtlefuse->thermalmeter[0] = rtlefuse->eeprom_thermalmeter;
 	RTPRINT(rtlpriv, FINIT, INIT_TXPOWER,
@@ -2199,7 +2199,7 @@ void rtl8723e_set_key(struct ieee80211_hw *hw, u32 key_index,
 			break;
 		default:
 			RT_TRACE(rtlpriv, COMP_ERR, DBG_LOUD,
-				 "switch case %#x not processed\n", enc_algo);
+				 "switch case %#x yest processed\n", enc_algo);
 			enc_algo = CAM_TKIP;
 			break;
 		}
@@ -2216,7 +2216,7 @@ void rtl8723e_set_key(struct ieee80211_hw *hw, u32 key_index,
 					entry_id =
 					  rtl_cam_get_free_entry(hw, p_macaddr);
 					if (entry_id >=  TOTAL_CAM_ENTRY) {
-						pr_err("Can not find free hw security cam entry\n");
+						pr_err("Can yest find free hw security cam entry\n");
 						return;
 					}
 				} else {
@@ -2295,7 +2295,7 @@ static void rtl8723e_bt_var_init(struct ieee80211_hw *hw)
 	if (rtlpriv->btcoexist.bt_coexistence) {
 		rtlpriv->btcoexist.bt_busy_traffic = false;
 		rtlpriv->btcoexist.bt_traffic_mode_set = false;
-		rtlpriv->btcoexist.bt_non_traffic_mode_set = false;
+		rtlpriv->btcoexist.bt_yesn_traffic_mode_set = false;
 
 		rtlpriv->btcoexist.cstate = 0;
 		rtlpriv->btcoexist.previous_state = 0;
@@ -2334,7 +2334,7 @@ static void rtl8723e_bt_var_init(struct ieee80211_hw *hw)
 			break;
 		default:
 			RT_TRACE(rtlpriv, COMP_BT_COEXIST, DBG_TRACE,
-				 "BlueTooth BT_CoexistType = Unknown\n");
+				 "BlueTooth BT_CoexistType = Unkyeswn\n");
 			break;
 		}
 		RT_TRACE(rtlpriv, COMP_BT_COEXIST, DBG_TRACE,

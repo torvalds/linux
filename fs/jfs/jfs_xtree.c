@@ -14,7 +14,7 @@
 #include "jfs_filsys.h"
 #include "jfs_metapage.h"
 #include "jfs_dmap.h"
-#include "jfs_dinode.h"
+#include "jfs_diyesde.h"
 #include "jfs_superblock.h"
 #include "jfs_debug.h"
 
@@ -101,28 +101,28 @@ static struct {
 /*
  * forward references
  */
-static int xtSearch(struct inode *ip, s64 xoff, s64 *next, int *cmpp,
+static int xtSearch(struct iyesde *ip, s64 xoff, s64 *next, int *cmpp,
 		    struct btstack * btstack, int flag);
 
 static int xtSplitUp(tid_t tid,
-		     struct inode *ip,
+		     struct iyesde *ip,
 		     struct xtsplit * split, struct btstack * btstack);
 
-static int xtSplitPage(tid_t tid, struct inode *ip, struct xtsplit * split,
+static int xtSplitPage(tid_t tid, struct iyesde *ip, struct xtsplit * split,
 		       struct metapage ** rmpp, s64 * rbnp);
 
-static int xtSplitRoot(tid_t tid, struct inode *ip,
+static int xtSplitRoot(tid_t tid, struct iyesde *ip,
 		       struct xtsplit * split, struct metapage ** rmpp);
 
 #ifdef _STILL_TO_PORT
-static int xtDeleteUp(tid_t tid, struct inode *ip, struct metapage * fmp,
+static int xtDeleteUp(tid_t tid, struct iyesde *ip, struct metapage * fmp,
 		      xtpage_t * fp, struct btstack * btstack);
 
-static int xtSearchNode(struct inode *ip,
+static int xtSearchNode(struct iyesde *ip,
 			xad_t * xad,
 			int *cmpp, struct btstack * btstack, int flag);
 
-static int xtRelink(tid_t tid, struct inode *ip, xtpage_t * fp);
+static int xtRelink(tid_t tid, struct iyesde *ip, xtpage_t * fp);
 #endif				/*  _STILL_TO_PORT */
 
 /*
@@ -130,8 +130,8 @@ static int xtRelink(tid_t tid, struct inode *ip, xtpage_t * fp);
  *
  * function: map a single page into a physical extent;
  */
-int xtLookup(struct inode *ip, s64 lstart,
-	     s64 llen, int *pflag, s64 * paddr, s32 * plen, int no_check)
+int xtLookup(struct iyesde *ip, s64 lstart,
+	     s64 llen, int *pflag, s64 * paddr, s32 * plen, int yes_check)
 {
 	int rc = 0;
 	struct btstack btstack;
@@ -148,7 +148,7 @@ int xtLookup(struct inode *ip, s64 lstart,
 	*paddr = 0;
 	*plen = llen;
 
-	if (!no_check) {
+	if (!yes_check) {
 		/* is lookup offset beyond eof ? */
 		size = ((u64) ip->i_size + (JFS_SBI(ip->i_sb)->bsize - 1)) >>
 		    JFS_SBI(ip->i_sb)->l2bsize;
@@ -176,7 +176,7 @@ int xtLookup(struct inode *ip, s64 lstart,
 
 	/* is xad found covering start of logical extent ?
 	 * lstart is a page start address,
-	 * i.e., lstart cannot start in a hole;
+	 * i.e., lstart canyest start in a hole;
 	 */
 	if (cmp) {
 		if (next)
@@ -223,10 +223,10 @@ int xtLookup(struct inode *ip, s64 lstart,
  *	*cmpp is set to result of comparison with the entry returned.
  *	the page containing the entry is pinned at exit.
  */
-static int xtSearch(struct inode *ip, s64 xoff,	s64 *nextp,
+static int xtSearch(struct iyesde *ip, s64 xoff,	s64 *nextp,
 		    int *cmpp, struct btstack * btstack, int flag)
 {
-	struct jfs_inode_info *jfs_ip = JFS_IP(ip);
+	struct jfs_iyesde_info *jfs_ip = JFS_IP(ip);
 	int rc = 0;
 	int cmp = 1;		/* init for empty page */
 	s64 bn;			/* block number */
@@ -251,7 +251,7 @@ static int xtSearch(struct inode *ip, s64 xoff,	s64 *nextp,
 	 * between two consecutive entries of <Ki, Pi> and <Kj, Pj> of
 	 * internal page, child page Pi contains entry with k, Ki <= K < Kj.
 	 *
-	 * if entry with search key K is not found
+	 * if entry with search key K is yest found
 	 * internal page search find the entry with largest key Ki
 	 * less than K which point to the child page to search;
 	 * leaf page search find the entry with smallest key Kj
@@ -271,7 +271,7 @@ static int xtSearch(struct inode *ip, s64 xoff,	s64 *nextp,
 		 * access entry in target leaf page:
 		 * once search narrowed down into the target leaf,
 		 * key must either match an entry in the leaf or
-		 * key entry does not exist in the tree;
+		 * key entry does yest exist in the tree;
 		 */
 //fastSearch:
 		if ((jfs_ip->btorder & BT_SEQUENTIAL) &&
@@ -319,7 +319,7 @@ static int xtSearch(struct inode *ip, s64 xoff,	s64 *nextp,
 				}
 
 				/* (index == p->header.nextindex);
-				 * miss: key entry does not exist in
+				 * miss: key entry does yest exist in
 				 * the target leaf/tree
 				 */
 				*cmpp = 1;
@@ -358,7 +358,7 @@ static int xtSearch(struct inode *ip, s64 xoff,	s64 *nextp,
 			return 0;
 		}
 
-		/* well, ... full search now */
+		/* well, ... full search yesw */
 	      binarySearch:
 		lim = le16_to_cpu(p->header.nextindex) - XTENTRYSTART;
 
@@ -468,9 +468,9 @@ static int xtSearch(struct inode *ip, s64 xoff,	s64 *nextp,
 		}
 
 		/*
-		 * search miss - non-leaf page:
+		 * search miss - yesn-leaf page:
 		 *
-		 * if base is non-zero, decrement base by one to get the parent
+		 * if base is yesn-zero, decrement base by one to get the parent
 		 * entry of the child page to search.
 		 */
 		index = base ? base - 1 : base;
@@ -522,7 +522,7 @@ static int xtSearch(struct inode *ip, s64 xoff,	s64 *nextp,
  * return:
  */
 int xtInsert(tid_t tid,		/* transaction id */
-	     struct inode *ip, int xflag, s64 xoff, s32 xlen, s64 * xaddrp,
+	     struct iyesde *ip, int xflag, s64 xoff, s32 xlen, s64 * xaddrp,
 	     int flag)
 {
 	int rc = 0;
@@ -636,7 +636,7 @@ int xtInsert(tid_t tid,		/* transaction id */
 	/* advance next available entry index */
 	le16_add_cpu(&p->header.nextindex, 1);
 
-	/* Don't log it if there are no links to the file */
+	/* Don't log it if there are yes links to the file */
 	if (!test_cflag(COMMIT_Nolink, ip)) {
 		tlck = txLock(tid, ip, mp, tlckXTREE | tlckGROW);
 		xtlck = (struct xtlock *) & tlck->lock;
@@ -673,7 +673,7 @@ int xtInsert(tid_t tid,		/* transaction id */
  */
 static int
 xtSplitUp(tid_t tid,
-	  struct inode *ip, struct xtsplit * split, struct btstack * btstack)
+	  struct iyesde *ip, struct xtsplit * split, struct btstack * btstack)
 {
 	int rc = 0;
 	struct metapage *smp;
@@ -698,7 +698,7 @@ xtSplitUp(tid_t tid,
 	smp = split->mp;
 	sp = XT_PAGE(ip, smp);
 
-	/* is inode xtree root extension/inline EA area free ? */
+	/* is iyesde xtree root extension/inline EA area free ? */
 	if ((sp->header.flag & BT_ROOT) && (!S_ISDIR(ip->i_mode)) &&
 	    (le16_to_cpu(sp->header.maxentry) < XTROOTMAXSLOT) &&
 	    (JFS_IP(ip)->mode2 & INLINEEA)) {
@@ -727,7 +727,7 @@ xtSplitUp(tid_t tid,
 		/* advance next available entry index */
 		le16_add_cpu(&sp->header.nextindex, 1);
 
-		/* Don't log it if there are no links to the file */
+		/* Don't log it if there are yes links to the file */
 		if (!test_cflag(COMMIT_Nolink, ip)) {
 			tlck = txLock(tid, ip, smp, tlckXTREE | tlckGROW);
 			xtlck = (struct xtlock *) & tlck->lock;
@@ -865,7 +865,7 @@ xtSplitUp(tid_t tid,
 			/* keep new child page <rp> pinned */
 		}
 		/*
-		 * parent page is not full - insert in parent page
+		 * parent page is yest full - insert in parent page
 		 */
 		else {
 			/*
@@ -896,7 +896,7 @@ xtSplitUp(tid_t tid,
 			/* advance next available entry index. */
 			le16_add_cpu(&sp->header.nextindex, 1);
 
-			/* Don't log it if there are no links to the file */
+			/* Don't log it if there are yes links to the file */
 			if (!test_cflag(COMMIT_Nolink, ip)) {
 				tlck = txLock(tid, ip, smp,
 					      tlckXTREE | tlckGROW);
@@ -927,13 +927,13 @@ xtSplitUp(tid_t tid,
  *	xtSplitPage()
  *
  * function:
- *	split a full non-root page into
+ *	split a full yesn-root page into
  *	original/split/left page and new right page
  *	i.e., the original/split page remains as left page.
  *
  * parameter:
  *	int		tid,
- *	struct inode	*ip,
+ *	struct iyesde	*ip,
  *	struct xtsplit	*split,
  *	struct metapage	**rmpp,
  *	u64		*rbnp,
@@ -942,7 +942,7 @@ xtSplitUp(tid_t tid,
  *	Pointer to page in which to insert or NULL on error.
  */
 static int
-xtSplitPage(tid_t tid, struct inode *ip,
+xtSplitPage(tid_t tid, struct iyesde *ip,
 	    struct xtsplit * split, struct metapage ** rmpp, s64 * rbnp)
 {
 	int rc = 0;
@@ -1002,7 +1002,7 @@ xtSplitPage(tid_t tid, struct inode *ip,
 	rp->header.nextindex = cpu_to_le16(XTENTRYSTART);
 
 	BT_MARK_DIRTY(smp, ip);
-	/* Don't log it if there are no links to the file */
+	/* Don't log it if there are yes links to the file */
 	if (!test_cflag(COMMIT_Nolink, ip)) {
 		/*
 		 * acquire a transaction lock on the new right page;
@@ -1033,11 +1033,11 @@ xtSplitPage(tid_t tid, struct inode *ip,
 	 * if splitting the last page on a level because of appending
 	 * a entry to it (skip is maxentry), it's likely that the access is
 	 * sequential. adding an empty page on the side of the level is less
-	 * work and can push the fill factor much higher than normal.
-	 * if we're wrong it's no big deal -  we will do the split the right
+	 * work and can push the fill factor much higher than yesrmal.
+	 * if we're wrong it's yes big deal -  we will do the split the right
 	 * way next time.
 	 * (it may look like it's equally easy to do a similar hack for
-	 * reverse sorted data, that is, split the tree left, but it's not.
+	 * reverse sorted data, that is, split the tree left, but it's yest.
 	 * Be my guest.)
 	 */
 	if (nextbn == 0 && skip == le16_to_cpu(sp->header.maxentry)) {
@@ -1066,7 +1066,7 @@ xtSplitPage(tid_t tid, struct inode *ip,
 	}
 
 	/*
-	 *	non-sequential insert (at possibly middle page)
+	 *	yesn-sequential insert (at possibly middle page)
 	 */
 
 	/*
@@ -1194,14 +1194,14 @@ xtSplitPage(tid_t tid, struct inode *ip,
  * function:
  *	split the full root page into original/root/split page and new
  *	right page
- *	i.e., root remains fixed in tree anchor (inode) and the root is
+ *	i.e., root remains fixed in tree anchor (iyesde) and the root is
  *	copied to a single new right child page since root page <<
- *	non-root page, and the split root page contains a single entry
+ *	yesn-root page, and the split root page contains a single entry
  *	for the new right child page.
  *
  * parameter:
  *	int		tid,
- *	struct inode	*ip,
+ *	struct iyesde	*ip,
  *	struct xtsplit	*split,
  *	struct metapage	**rmpp)
  *
@@ -1210,7 +1210,7 @@ xtSplitPage(tid_t tid, struct inode *ip,
  */
 static int
 xtSplitRoot(tid_t tid,
-	    struct inode *ip, struct xtsplit * split, struct metapage ** rmpp)
+	    struct iyesde *ip, struct xtsplit * split, struct metapage ** rmpp)
 {
 	xtpage_t *sp;
 	struct metapage *rmp;
@@ -1275,7 +1275,7 @@ xtSplitRoot(tid_t tid,
 
 	/*
 	 * insert the new entry into the new right/child page
-	 * (skip index in the new right page will not change)
+	 * (skip index in the new right page will yest change)
 	 */
 	skip = split->index;
 	/* if insert into middle, shift right remaining entries */
@@ -1305,7 +1305,7 @@ xtSplitRoot(tid_t tid,
 	 * at any level of the tree to be less than any search key.
 	 */
 	/*
-	 * acquire a transaction lock on the root page (in-memory inode);
+	 * acquire a transaction lock on the root page (in-memory iyesde);
 	 *
 	 * action: root split;
 	 */
@@ -1339,13 +1339,13 @@ xtSplitRoot(tid_t tid,
  *
  * function: extend in-place;
  *
- * note: existing extent may or may not have been committed.
+ * yeste: existing extent may or may yest have been committed.
  * caller is responsible for pager buffer cache update, and
  * working block allocation map update;
  * update pmap: alloc whole extended extent;
  */
 int xtExtend(tid_t tid,		/* transaction id */
-	     struct inode *ip, s64 xoff,	/* delta extent offset */
+	     struct iyesde *ip, s64 xoff,	/* delta extent offset */
 	     s32 xlen,		/* delta extent length */
 	     int flag)
 {
@@ -1373,7 +1373,7 @@ int xtExtend(tid_t tid,		/* transaction id */
 
 	if (cmp != 0) {
 		XT_PUTPAGE(mp);
-		jfs_error(ip->i_sb, "xtSearch did not find extent\n");
+		jfs_error(ip->i_sb, "xtSearch did yest find extent\n");
 		return -EIO;
 	}
 
@@ -1381,7 +1381,7 @@ int xtExtend(tid_t tid,		/* transaction id */
 	xad = &p->xad[index];
 	if ((offsetXAD(xad) + lengthXAD(xad)) != xoff) {
 		XT_PUTPAGE(mp);
-		jfs_error(ip->i_sb, "extension is not contiguous\n");
+		jfs_error(ip->i_sb, "extension is yest contiguous\n");
 		return -EIO;
 	}
 
@@ -1433,7 +1433,7 @@ int xtExtend(tid_t tid,		/* transaction id */
 			return rc;
 		/*
 		 * if leaf root has been split, original root has been
-		 * copied to new child page, i.e., original entry now
+		 * copied to new child page, i.e., original entry yesw
 		 * resides on the new child page;
 		 */
 		if (p->header.flag & BT_INTERNAL) {
@@ -1501,13 +1501,13 @@ int xtExtend(tid_t tid,		/* transaction id */
  *	(split offset >= start offset of tail extent), and
  *	relocate and extend the split tail half;
  *
- * note: existing extent may or may not have been committed.
+ * yeste: existing extent may or may yest have been committed.
  * caller is responsible for pager buffer cache update, and
  * working block allocation map update;
  * update pmap: free old split tail extent, alloc new extent;
  */
 int xtTailgate(tid_t tid,		/* transaction id */
-	       struct inode *ip, s64 xoff,	/* split/new extent offset */
+	       struct iyesde *ip, s64 xoff,	/* split/new extent offset */
 	       s32 xlen,	/* new extent length */
 	       s64 xaddr,	/* new extent address */
 	       int flag)
@@ -1548,7 +1548,7 @@ printf("xtTailgate: nxoff:0x%lx nxlen:0x%x nxaddr:0x%lx\n",
 	nextindex = le16_to_cpu(p->header.nextindex);
 	if (index != nextindex - 1) {
 		XT_PUTPAGE(mp);
-		jfs_error(ip->i_sb, "the entry found is not the last entry\n");
+		jfs_error(ip->i_sb, "the entry found is yest the last entry\n");
 		return -EIO;
 	}
 
@@ -1598,7 +1598,7 @@ printf("xtTailgate: xoff:0x%lx xlen:0x%x xaddr:0x%lx\n",
 			return rc;
 		/*
 		 * if leaf root has been split, original root has been
-		 * copied to new child page, i.e., original entry now
+		 * copied to new child page, i.e., original entry yesw
 		 * resides on the new child page;
 		 */
 		if (p->header.flag & BT_INTERNAL) {
@@ -1681,7 +1681,7 @@ printf("xtTailgate: xoff:0x%lx xlen:0x%x xaddr:0x%lx\n",
  *
  * function: update XAD;
  *
- *	update extent for allocated_but_not_recorded or
+ *	update extent for allocated_but_yest_recorded or
  *	compressed extent;
  *
  * parameter:
@@ -1689,7 +1689,7 @@ printf("xtTailgate: xoff:0x%lx xlen:0x%x xaddr:0x%lx\n",
  *		logical extent of the specified XAD must be completely
  *		contained by an existing XAD;
  */
-int xtUpdate(tid_t tid, struct inode *ip, xad_t * nxad)
+int xtUpdate(tid_t tid, struct iyesde *ip, xad_t * nxad)
 {				/* new XAD */
 	int rc = 0;
 	int cmp;
@@ -1721,7 +1721,7 @@ int xtUpdate(tid_t tid, struct inode *ip, xad_t * nxad)
 
 	if (cmp != 0) {
 		XT_PUTPAGE(mp);
-		jfs_error(ip->i_sb, "Could not find extent\n");
+		jfs_error(ip->i_sb, "Could yest find extent\n");
 		return -EIO;
 	}
 
@@ -1745,7 +1745,7 @@ int xtUpdate(tid_t tid, struct inode *ip, xad_t * nxad)
 	    (nxoff + nxlen > xoff + xlen)) {
 		XT_PUTPAGE(mp);
 		jfs_error(ip->i_sb,
-			  "nXAD in not completely contained within XAD\n");
+			  "nXAD in yest completely contained within XAD\n");
 		return -EIO;
 	}
 
@@ -1796,7 +1796,7 @@ int xtUpdate(tid_t tid, struct inode *ip, xad_t * nxad)
 
 		/* If we just merged two extents together, need to make sure the
 		 * right extent gets logged.  If the left one is marked XAD_NEW,
-		 * then we know it will be logged.  Otherwise, mark as
+		 * then we kyesw it will be logged.  Otherwise, mark as
 		 * XAD_EXTENDED
 		 */
 		if (!(lxad->flag & XAD_NEW))
@@ -1868,7 +1868,7 @@ int xtUpdate(tid_t tid, struct inode *ip, xad_t * nxad)
 
 		/* If we just merged two extents together, need to make sure
 		 * the left extent gets logged.  If the right one is marked
-		 * XAD_NEW, then we know it will be logged.  Otherwise, mark as
+		 * XAD_NEW, then we kyesw it will be logged.  Otherwise, mark as
 		 * XAD_EXTENDED
 		 */
 		if (!(rxad->flag & XAD_NEW))
@@ -1907,7 +1907,7 @@ int xtUpdate(tid_t tid, struct inode *ip, xad_t * nxad)
 	 *   |-lXAD-|
 	 */
       updateRight:		/* (xoff < nxoff) */
-	/* truncate old XAD as lXAD:not_recorded */
+	/* truncate old XAD as lXAD:yest_recorded */
 	xad = &p->xad[index];
 	XADlength(xad, nxoff - xoff);
 
@@ -1931,7 +1931,7 @@ int xtUpdate(tid_t tid, struct inode *ip, xad_t * nxad)
 			return rc;
 		/*
 		 * if leaf root has been split, original root has been
-		 * copied to new child page, i.e., original entry now
+		 * copied to new child page, i.e., original entry yesw
 		 * resides on the new child page;
 		 */
 		if (p->header.flag & BT_INTERNAL) {
@@ -2059,7 +2059,7 @@ int xtUpdate(tid_t tid, struct inode *ip, xad_t * nxad)
 	*xad = *nxad;
 	xad->flag = xflag & ~XAD_NOTRECORDED;
 
-	/* insert rXAD:not_recorded */
+	/* insert rXAD:yest_recorded */
 	xoff = xoff + nxlen;
 	xlen = xlen - nxlen;
 	xaddr = xaddr + nxlen;
@@ -2085,7 +2085,7 @@ printf("xtUpdate.updateLeft.split p:0x%p\n", p);
 
 		/*
 		 * if leaf root has been split, original root has been
-		 * copied to new child page, i.e., original entry now
+		 * copied to new child page, i.e., original entry yesw
 		 * resides on the new child page;
 		 */
 		if (p->header.flag & BT_INTERNAL) {
@@ -2154,7 +2154,7 @@ printf("xtUpdate.updateLeft.split p:0x%p\n", p);
  * return:
  */
 int xtAppend(tid_t tid,		/* transaction id */
-	     struct inode *ip, int xflag, s64 xoff, s32 maxblocks,
+	     struct iyesde *ip, int xflag, s64 xoff, s32 maxblocks,
 	     s32 * xlenp,	/* (in/out) */
 	     s64 * xaddrp,	/* (in/out) */
 	     int flag)
@@ -2319,11 +2319,11 @@ int xtAppend(tid_t tid,		/* transaction id */
  * parameter:
  *
  * return:
- *	ENOENT: if the entry is not found.
+ *	ENOENT: if the entry is yest found.
  *
  * exception:
  */
-int xtDelete(tid_t tid, struct inode *ip, s64 xoff, s32 xlen, int flag)
+int xtDelete(tid_t tid, struct iyesde *ip, s64 xoff, s32 xlen, int flag)
 {
 	int rc = 0;
 	struct btstack btstack;
@@ -2394,7 +2394,7 @@ int xtDelete(tid_t tid, struct inode *ip, s64 xoff, s32 xlen, int flag)
  * return:
  */
 static int
-xtDeleteUp(tid_t tid, struct inode *ip,
+xtDeleteUp(tid_t tid, struct iyesde *ip,
 	   struct metapage * fmp, xtpage_t * fp, struct btstack * btstack)
 {
 	int rc = 0;
@@ -2422,7 +2422,7 @@ xtDeleteUp(tid_t tid, struct inode *ip,
 	}
 
 	/*
-	 * free non-root leaf page
+	 * free yesn-root leaf page
 	 */
 	if ((rc = xtRelink(tid, ip, fp))) {
 		XT_PUTPAGE(fmp);
@@ -2443,7 +2443,7 @@ xtDeleteUp(tid_t tid, struct inode *ip,
 	 * If the delete from the parent page makes it empty,
 	 * continue all the way up the tree.
 	 * stop if the root page is reached (which is never deleted) or
-	 * if the entry deletion does not empty the page.
+	 * if the entry deletion does yest empty the page.
 	 */
 	while ((parent = BT_POP(btstack)) != NULL) {
 		/* get/pin the parent page <sp> */
@@ -2537,13 +2537,13 @@ xtDeleteUp(tid_t tid, struct inode *ip,
  * FUNCTION:	relocate xtpage or data extent of regular file;
  *		This function is mainly used by defragfs utility.
  *
- * NOTE:	This routine does not have the logic to handle
+ * NOTE:	This routine does yest have the logic to handle
  *		uncommitted allocated extent. The caller should call
  *		txCommit() to commit all the allocation before call
  *		this routine.
  */
 int
-xtRelocate(tid_t tid, struct inode * ip, xad_t * oxad,	/* old XAD */
+xtRelocate(tid_t tid, struct iyesde * ip, xad_t * oxad,	/* old XAD */
 	   s64 nxaddr,		/* new xaddr */
 	   int xtype)
 {				/* extent type: XTPAGE or DATAEXT */
@@ -2559,7 +2559,7 @@ xtRelocate(tid_t tid, struct inode * ip, xad_t * oxad,	/* old XAD */
 	int xlen;
 	s64 oxaddr, sxaddr, dxaddr, nextbn, prevbn;
 	cbuf_t *cp;
-	s64 offset, nbytes, nbrd, pno;
+	s64 offset, nbytes, nbrd, pyes;
 	int nb, npages, nblks;
 	s64 bn;
 	int cmp;
@@ -2630,8 +2630,8 @@ xtRelocate(tid_t tid, struct inode * ip, xad_t * oxad,	/* old XAD */
 	 *	2. relocate the extent
 	 */
 	if (xtype == DATAEXT) {
-		/* if the extent is allocated-but-not-recorded
-		 * there is no real data to be moved in this extent,
+		/* if the extent is allocated-but-yest-recorded
+		 * there is yes real data to be moved in this extent,
 		 */
 		if (xad->flag & XAD_NOTRECORDED)
 			goto out;
@@ -2659,7 +2659,7 @@ xtRelocate(tid_t tid, struct inode * ip, xad_t * oxad,	/* old XAD */
 		offset = xoff << JFS_SBI(ip->i_sb)->l2bsize;
 		assert((offset & CM_OFFSET) == 0);
 		nbytes = xlen << JFS_SBI(ip->i_sb)->l2bsize;
-		pno = offset >> CM_L2BSIZE;
+		pyes = offset >> CM_L2BSIZE;
 		npages = (nbytes + (CM_BSIZE - 1)) >> CM_L2BSIZE;
 /*
 		npages = ((offset + nbytes - 1) >> CM_L2BSIZE) -
@@ -2670,7 +2670,7 @@ xtRelocate(tid_t tid, struct inode * ip, xad_t * oxad,	/* old XAD */
 
 		/* process the request one cache buffer at a time */
 		for (nbrd = 0; nbrd < nbytes; nbrd += nb,
-		     offset += nb, pno++, npages--) {
+		     offset += nb, pyes++, npages--) {
 			/* compute page size */
 			nb = min(nbytes - nbrd, CM_BSIZE);
 
@@ -2683,7 +2683,7 @@ xtRelocate(tid_t tid, struct inode * ip, xad_t * oxad,	/* old XAD */
 
 			/* bind buffer with the new extent address */
 			nblks = nb >> JFS_IP(ip->i_sb)->l2bsize;
-			cmSetXD(ip, cp, pno, dxaddr, nblks);
+			cmSetXD(ip, cp, pyes, dxaddr, nblks);
 
 			/* release the cbuf, mark it as modified */
 			cmPut(cp, true);
@@ -2767,9 +2767,9 @@ xtRelocate(tid_t tid, struct inode * ip, xad_t * oxad,	/* old XAD */
 		 * update of bmap for the allocation of destination extent
 		 * of the target xtpage itself:
 		 * update of bmap for the extents covered by xad entries in
-		 * the target xtpage is not necessary since they are not
+		 * the target xtpage is yest necessary since they are yest
 		 * updated;
-		 * if not committed before this relocation,
+		 * if yest committed before this relocation,
 		 * target page may contain XAD_NEW entries which must
 		 * be scanned for bmap update (logredo() always
 		 * scan xtpage REDOPAGE image for bmap update);
@@ -2817,7 +2817,7 @@ xtRelocate(tid_t tid, struct inode * ip, xad_t * oxad,	/* old XAD */
 	 * filter and will also update bmap for free of the source
 	 * xtpage), and update bmap for free of the source xtpage;
 	 * N.B. We use tlckMAP instead of tlkcXTREE because there
-	 *      is no buffer associated with this lock since the buffer
+	 *      is yes buffer associated with this lock since the buffer
 	 *      has been redirected to the target location.
 	 */
 	else			/* (xtype == XTPAGE) */
@@ -2875,7 +2875,7 @@ xtRelocate(tid_t tid, struct inode * ip, xad_t * oxad,	/* old XAD */
  *	*cmpp is set to result of comparison with the entry returned.
  *	the page containing the entry is pinned at exit.
  */
-static int xtSearchNode(struct inode *ip, xad_t * xad,	/* required XAD entry */
+static int xtSearchNode(struct iyesde *ip, xad_t * xad,	/* required XAD entry */
 			int *cmpp, struct btstack * btstack, int flag)
 {
 	int rc = 0;
@@ -2901,7 +2901,7 @@ static int xtSearchNode(struct inode *ip, xad_t * xad,	/* required XAD entry */
 	 * between two consecutive entries of <Ki, Pi> and <Kj, Pj> of
 	 * internal page, child page Pi contains entry with k, Ki <= K < Kj.
 	 *
-	 * if entry with search key K is not found
+	 * if entry with search key K is yest found
 	 * internal page search find the entry with largest key Ki
 	 * less than K which point to the child page to search;
 	 * leaf page search find the entry with smallest key Kj
@@ -2960,11 +2960,11 @@ static int xtSearchNode(struct inode *ip, xad_t * xad,	/* required XAD entry */
 		}
 
 		/*
-		 *	search miss - non-leaf page:
+		 *	search miss - yesn-leaf page:
 		 *
 		 * base is the smallest index with key (Kj) greater than
 		 * search key (K) and may be zero or maxentry index.
-		 * if base is non-zero, decrement base by one to get the parent
+		 * if base is yesn-zero, decrement base by one to get the parent
 		 * entry of the child page to search.
 		 */
 		index = base ? base - 1 : base;
@@ -2990,12 +2990,12 @@ static int xtSearchNode(struct inode *ip, xad_t * xad,	/* required XAD entry */
  *
  * Parameter:
  *	int		tid,
- *	struct inode	*ip,
+ *	struct iyesde	*ip,
  *	xtpage_t	*p)
  *
  * returns:
  */
-static int xtRelink(tid_t tid, struct inode *ip, xtpage_t * p)
+static int xtRelink(tid_t tid, struct iyesde *ip, xtpage_t * p)
 {
 	int rc = 0;
 	struct metapage *mp;
@@ -3055,9 +3055,9 @@ static int xtRelink(tid_t tid, struct inode *ip, xtpage_t * p)
 /*
  *	xtInitRoot()
  *
- * initialize file root (inline in inode)
+ * initialize file root (inline in iyesde)
  */
-void xtInitRoot(tid_t tid, struct inode *ip)
+void xtInitRoot(tid_t tid, struct iyesde *ip)
 {
 	xtpage_t *p;
 
@@ -3092,7 +3092,7 @@ void xtInitRoot(tid_t tid, struct inode *ip)
  * and tlocks which we would be guaranteed without a deadlock.  Without
  * this, a partial fix is to limit number of metadata pages we will lock
  * in a single transaction.  Currently we will truncate the file so that
- * no more than 50 leaf pages will be locked.  The caller of xtTruncate
+ * yes more than 50 leaf pages will be locked.  The caller of xtTruncate
  * will be responsible for ensuring that the current transaction gets
  * committed, and that subsequent transactions are created to truncate
  * the file further if needed.
@@ -3110,15 +3110,15 @@ void xtInitRoot(tid_t tid, struct inode *ip)
  *
  * parameter:
  *	int		tid,
- *	struct inode	*ip,
+ *	struct iyesde	*ip,
  *	s64		newsize,
  *	int		type)	{PWMAP, PMAP, WMAP; DELETE, TRUNCATE}
  *
  * return:
  *
- * note:
+ * yeste:
  *	PWMAP:
- *	 1. truncate (non-COMMIT_NOLINK file)
+ *	 1. truncate (yesn-COMMIT_NOLINK file)
  *	    by jfs_truncate() or jfs_open(O_TRUNC):
  *	    xtree is updated;
  *	 2. truncate index table of directory when last entry removed
@@ -3133,11 +3133,11 @@ void xtInitRoot(tid_t tid, struct inode *ip)
  *	 map update directly at truncation time;
  *
  *	if (DELETE)
- *		no LOG_NOREDOPAGE is required (NOREDOFILE is sufficient);
+ *		yes LOG_NOREDOPAGE is required (NOREDOFILE is sufficient);
  *	else if (TRUNCATE)
  *		must write LOG_NOREDOPAGE for deleted index page;
  *
- * pages may already have been tlocked by anonymous transactions
+ * pages may already have been tlocked by ayesnymous transactions
  * during file growth (i.e., write) before truncation;
  *
  * except last truncated entry, deleted entries remains as is
@@ -3146,7 +3146,7 @@ void xtInitRoot(tid_t tid, struct inode *ip)
  * info but delay free of pages;
  *
  */
-s64 xtTruncate(tid_t tid, struct inode *ip, s64 newsize, int flag)
+s64 xtTruncate(tid_t tid, struct iyesde *ip, s64 newsize, int flag)
 {
 	int rc = 0;
 	s64 teof;
@@ -3188,7 +3188,7 @@ s64 xtTruncate(tid_t tid, struct inode *ip, s64 newsize, int flag)
 	}
 
 	/*
-	 * if the newsize is not an integral number of pages,
+	 * if the newsize is yest an integral number of pages,
 	 * the file between newsize and next page boundary will
 	 * be cleared.
 	 * if truncating into a file hole, it will cause
@@ -3221,7 +3221,7 @@ s64 xtTruncate(tid_t tid, struct inode *ip, s64 newsize, int flag)
 	/*
 	 * start with root
 	 *
-	 * root resides in the inode
+	 * root resides in the iyesde
 	 */
 	bn = 0;
 
@@ -3474,7 +3474,7 @@ s64 xtTruncate(tid_t tid, struct inode *ip, s64 newsize, int flag)
 	index = parent->index;
 
 	/*
-	 * child page was not empty:
+	 * child page was yest empty:
 	 */
 	if (freed == 0) {
 		/* has any entry deleted from parent ? */
@@ -3690,19 +3690,19 @@ s64 xtTruncate(tid_t tid, struct inode *ip, s64 newsize, int flag)
  *
  * parameter:
  *	tid_t		tid,
- *	struct inode	*ip,
+ *	struct iyesde	*ip,
  *	s64		committed_size)
  *
  * return: new committed size
  *
- * note:
+ * yeste:
  *
  *	To avoid deadlock by holding too many transaction locks, the
  *	truncation may be broken up into multiple transactions.
  *	The committed_size keeps track of part of the file has been
  *	freed from the pmaps.
  */
-s64 xtTruncate_pmap(tid_t tid, struct inode *ip, s64 committed_size)
+s64 xtTruncate_pmap(tid_t tid, struct iyesde *ip, s64 committed_size)
 {
 	s64 bn;
 	struct btstack btstack;
@@ -3737,14 +3737,14 @@ s64 xtTruncate_pmap(tid_t tid, struct inode *ip, s64 committed_size)
 
 		if (cmp != 0) {
 			XT_PUTPAGE(mp);
-			jfs_error(ip->i_sb, "did not find extent\n");
+			jfs_error(ip->i_sb, "did yest find extent\n");
 			return -EIO;
 		}
 	} else {
 		/*
 		 * start with root
 		 *
-		 * root resides in the inode
+		 * root resides in the iyesde
 		 */
 		bn = 0;
 

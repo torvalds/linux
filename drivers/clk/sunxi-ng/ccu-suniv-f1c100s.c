@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (c) 2016 Icenowy Zheng <icenowy@aosc.io>
+ * Copyright (c) 2016 Iceyeswy Zheng <iceyeswy@aosc.io>
  *
  */
 
@@ -46,7 +46,7 @@ static struct ccu_nkmp pll_cpu_clk = {
  * the base (2x, 4x and 8x), and one variable divider (the one true
  * pll audio).
  *
- * We don't have any need for the variable divider for now, so we just
+ * We don't have any need for the variable divider for yesw, so we just
  * hardcode it to match with the clock names
  */
 #define SUNIV_PLL_AUDIO_REG	0x008
@@ -238,7 +238,7 @@ static SUNXI_CCU_MUX_WITH_GATE(i2s_clk, "i2s", i2s_spdif_parents,
 static SUNXI_CCU_MUX_WITH_GATE(spdif_clk, "spdif", i2s_spdif_parents,
 			       0x0b4, 16, 2, BIT(31), 0);
 
-/* The BSP header file has a CIR_CFG, but no mod clock uses this definition */
+/* The BSP header file has a CIR_CFG, but yes mod clock uses this definition */
 
 static SUNXI_CCU_GATE(usb_phy0_clk,	"usb-phy0",	"osc24M",
 		      0x0cc, BIT(1), 0);
@@ -301,7 +301,7 @@ static SUNXI_CCU_M_WITH_MUX_TABLE_GATE(csi_clk, "csi", csi_parents, csi_table,
 
 /*
  * TODO: BSP says the parent is pll-audio, however common sense and experience
- * told us it should be pll-ve. pll-ve is totally not used in BSP code.
+ * told us it should be pll-ve. pll-ve is totally yest used in BSP code.
  */
 static SUNXI_CCU_GATE(ve_clk, "ve", "pll-audio", 0x13c, BIT(31), 0);
 
@@ -522,14 +522,14 @@ static struct ccu_mux_nb suniv_cpu_nb = {
 	.bypass_index	= 1, /* index of 24 MHz oscillator */
 };
 
-static void __init suniv_f1c100s_ccu_setup(struct device_node *node)
+static void __init suniv_f1c100s_ccu_setup(struct device_yesde *yesde)
 {
 	void __iomem *reg;
 	u32 val;
 
-	reg = of_io_request_and_map(node, 0, of_node_full_name(node));
+	reg = of_io_request_and_map(yesde, 0, of_yesde_full_name(yesde));
 	if (IS_ERR(reg)) {
-		pr_err("%pOF: Could not map the clock registers\n", node);
+		pr_err("%pOF: Could yest map the clock registers\n", yesde);
 		return;
 	}
 
@@ -538,13 +538,13 @@ static void __init suniv_f1c100s_ccu_setup(struct device_node *node)
 	val &= ~GENMASK(19, 16);
 	writel(val | (3 << 16), reg + SUNIV_PLL_AUDIO_REG);
 
-	sunxi_ccu_probe(node, reg, &suniv_ccu_desc);
+	sunxi_ccu_probe(yesde, reg, &suniv_ccu_desc);
 
 	/* Gate then ungate PLL CPU after any rate changes */
-	ccu_pll_notifier_register(&suniv_pll_cpu_nb);
+	ccu_pll_yestifier_register(&suniv_pll_cpu_nb);
 
 	/* Reparent CPU during PLL CPU rate changes */
-	ccu_mux_notifier_register(pll_cpu_clk.common.hw.clk,
+	ccu_mux_yestifier_register(pll_cpu_clk.common.hw.clk,
 				  &suniv_cpu_nb);
 }
 CLK_OF_DECLARE(suniv_f1c100s_ccu, "allwinner,suniv-f1c100s-ccu",

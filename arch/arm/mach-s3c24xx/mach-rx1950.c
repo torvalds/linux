@@ -162,7 +162,7 @@ static struct platform_device power_supply = {
 	.num_resources		= ARRAY_SIZE(power_supply_resources),
 };
 
-static const struct s3c_adc_bat_thresh bat_lut_noac[] = {
+static const struct s3c_adc_bat_thresh bat_lut_yesac[] = {
 	{ .volt = 4100, .cur = 156, .level = 100},
 	{ .volt = 4050, .cur = 156, .level = 95},
 	{ .volt = 4025, .cur = 141, .level = 90},
@@ -333,8 +333,8 @@ static struct s3c_adc_bat_pdata rx1950_bat_cfg = {
 	.enable_charger = rx1950_enable_charger,
 	.disable_charger = rx1950_disable_charger,
 	.gpio_charge_finished = S3C2410_GPF(3),
-	.lut_noac = bat_lut_noac,
-	.lut_noac_cnt = ARRAY_SIZE(bat_lut_noac),
+	.lut_yesac = bat_lut_yesac,
+	.lut_yesac_cnt = ARRAY_SIZE(bat_lut_yesac),
 	.lut_acin = bat_lut_acin,
 	.lut_acin_cnt = ARRAY_SIZE(bat_lut_acin),
 	.volt_channel = 0,
@@ -514,7 +514,7 @@ static void rx1950_backlight_exit(struct device *dev)
 }
 
 
-static int rx1950_backlight_notify(struct device *dev, int brightness)
+static int rx1950_backlight_yestify(struct device *dev, int brightness)
 {
 	if (!brightness) {
 		rx1950_bl_power(0);
@@ -531,7 +531,7 @@ static struct platform_pwm_backlight_data rx1950_backlight_data = {
 	.dft_brightness = 4,
 	.enable_gpio = -1,
 	.init = rx1950_backlight_init,
-	.notify = rx1950_backlight_notify,
+	.yestify = rx1950_backlight_yestify,
 	.exit = rx1950_backlight_exit,
 };
 

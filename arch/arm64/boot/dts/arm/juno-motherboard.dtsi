@@ -1,5 +1,5 @@
 /*
- * ARM Juno Platform motherboard peripherals
+ * ARM Juyes Platform motherboard peripherals
  *
  * Copyright (c) 2013-2014 ARM Ltd
  *
@@ -13,28 +13,28 @@
 			compatible = "fixed-clock";
 			#clock-cells = <0>;
 			clock-frequency = <24000000>;
-			clock-output-names = "juno_mb:clk24mhz";
+			clock-output-names = "juyes_mb:clk24mhz";
 		};
 
 		mb_clk25mhz: clk25mhz {
 			compatible = "fixed-clock";
 			#clock-cells = <0>;
 			clock-frequency = <25000000>;
-			clock-output-names = "juno_mb:clk25mhz";
+			clock-output-names = "juyes_mb:clk25mhz";
 		};
 
 		v2m_refclk1mhz: refclk1mhz {
 			compatible = "fixed-clock";
 			#clock-cells = <0>;
 			clock-frequency = <1000000>;
-			clock-output-names = "juno_mb:refclk1mhz";
+			clock-output-names = "juyes_mb:refclk1mhz";
 		};
 
 		v2m_refclk32khz: refclk32khz {
 			compatible = "fixed-clock";
 			#clock-cells = <0>;
 			clock-frequency = <32768>;
-			clock-output-names = "juno_mb:refclk32khz";
+			clock-output-names = "juyes_mb:refclk32khz";
 		};
 
 		motherboard {
@@ -43,7 +43,7 @@
 			#size-cells = <1>;
 			#interrupt-cells = <1>;
 			ranges;
-			model = "V2M-Juno";
+			model = "V2M-Juyes";
 			arm,hbi = <0x252>;
 			arm,vexpress,site = <0>;
 			arm,v2m-memory-map = "rs1";

@@ -134,7 +134,7 @@ static int pcf8574_kp_probe(struct i2c_client *client, const struct i2c_device_i
 				   IRQF_TRIGGER_LOW | IRQF_ONESHOT,
 				   DRV_NAME, lp);
 	if (ret) {
-		dev_err(&client->dev, "IRQ %d is not free\n", client->irq);
+		dev_err(&client->dev, "IRQ %d is yest free\n", client->irq);
 		goto fail_free_device;
 	}
 

@@ -382,7 +382,7 @@ u32 spum_nsp_ctx_max_payload(enum spu_cipher_alg cipher_alg,
  * length.
  * @spu_hdr:	Start of SPU header
  *
- * Assumes just MH, EMH, BD (no SCTX, BDESC. Works for response frames.
+ * Assumes just MH, EMH, BD (yes SCTX, BDESC. Works for response frames.
  *
  * Return: payload length in bytes
  */
@@ -521,7 +521,7 @@ u32 spum_assoc_resp_len(enum spu_cipher_mode cipher_mode,
  * @cipher_mode:  cipher mode
  * @iv_ctr_len:   initialization vector length in bytes
  *
- * In Linux ~4.2 and later, the assoc_data sg includes the IV. So no need
+ * In Linux ~4.2 and later, the assoc_data sg includes the IV. So yes need
  * to include the IV as a separate field in the SPU request msg.
  *
  * Return: Length of AEAD IV in bytes
@@ -536,7 +536,7 @@ u8 spum_aead_ivlen(enum spu_cipher_mode cipher_mode, u16 iv_len)
  * @src_sent:  The number of bytes in the current request that have already
  *             been sent to the SPU to be hashed.
  *
- * We do not use HASH_TYPE_FULL for requests that fit in a single SPU message.
+ * We do yest use HASH_TYPE_FULL for requests that fit in a single SPU message.
  * Using FULL causes failures (such as when the string to be hashed is empty).
  * For similar reasons, we never use HASH_TYPE_FIN. Instead, submit messages
  * as INIT or UPDT and do the hash padding in sw.
@@ -585,7 +585,7 @@ u32 spum_digest_size(u32 alg_digest_size, enum hash_alg alg,
  * @hash_parms:   Parameters related to hash algorithm
  * @aead_parms:   Parameters related to AEAD operation
  * @data_size:    Length of data to be encrypted or authenticated. If AEAD, does
- *		  not include length of AAD.
+ *		  yest include length of AAD.
 
  * Return: the length of the SPU header in bytes. 0 if an error occurs.
  */
@@ -673,7 +673,7 @@ u32 spum_create_request(u8 *spu_hdr,
 	memset(ptr, 0, sizeof(struct SPUHEADER));
 
 	/* format master header word */
-	/* Do not set the next bit even though the datasheet says to */
+	/* Do yest set the next bit even though the datasheet says to */
 	spuh = (struct SPUHEADER *)ptr;
 	ptr += sizeof(struct SPUHEADER);
 	buf_len += sizeof(struct SPUHEADER);
@@ -749,7 +749,7 @@ u32 spum_create_request(u8 *spu_hdr,
 		}
 
 		/*
-		 * if encrypting then set IV size, use SCTX IV unless no IV
+		 * if encrypting then set IV size, use SCTX IV unless yes IV
 		 * given here
 		 */
 		if (cipher_parms->iv_buf && cipher_parms->iv_len) {
@@ -778,7 +778,7 @@ u32 spum_create_request(u8 *spu_hdr,
 		auth_len = cipher_offset + aead_parms->data_pad_len;
 	}
 
-	/* write in the total sctx length now that we know it */
+	/* write in the total sctx length yesw that we kyesw it */
 	protocol_bits |= sctx_words;
 
 	/* Endian adjust the SCTX */
@@ -795,7 +795,7 @@ u32 spum_create_request(u8 *spu_hdr,
 	bdesc->length_crypto = cpu_to_be16(cipher_len);
 
 	/*
-	 * CCM in SPU-M requires that ICV not be in same 32-bit word as data or
+	 * CCM in SPU-M requires that ICV yest be in same 32-bit word as data or
 	 * padding.  So account for padding as necessary.
 	 */
 	if (cipher_parms->mode == CIPHER_MODE_CCM)
@@ -807,7 +807,7 @@ u32 spum_create_request(u8 *spu_hdr,
 	ptr += sizeof(struct BDESC_HEADER);
 	buf_len += sizeof(struct BDESC_HEADER);
 
-	/* === no MFM section === */
+	/* === yes MFM section === */
 
 	/* === create the BD section === */
 
@@ -856,7 +856,7 @@ u16 spum_cipher_req_init(u8 *spu_hdr, struct spu_cipher_parms *cipher_parms)
 	ptr += sizeof(struct SPUHEADER);
 
 	/* format master header word */
-	/* Do not set the next bit even though the datasheet says to */
+	/* Do yest set the next bit even though the datasheet says to */
 	spuh = (struct SPUHEADER *)spu_hdr;
 
 	spuh->mh.op_code = SPU_CRYPTO_OPERATION_GENERIC;
@@ -873,7 +873,7 @@ u16 spum_cipher_req_init(u8 *spu_hdr, struct spu_cipher_parms *cipher_parms)
 		}
 
 		/*
-		 * if encrypting then set IV size, use SCTX IV unless no IV
+		 * if encrypting then set IV size, use SCTX IV unless yes IV
 		 * given here
 		 */
 		if (cipher_parms->iv_len) {
@@ -893,7 +893,7 @@ u16 spum_cipher_req_init(u8 *spu_hdr, struct spu_cipher_parms *cipher_parms)
 	if (cipher_parms->alg && cipher_parms->key_len)
 		memcpy(spuh + 1, cipher_parms->key_buf, cipher_parms->key_len);
 
-	/* write in the total sctx length now that we know it */
+	/* write in the total sctx length yesw that we kyesw it */
 	protocol_bits |= sctx_words;
 
 	/* Endian adjust the SCTX */
@@ -925,7 +925,7 @@ u16 spum_cipher_req_init(u8 *spu_hdr, struct spu_cipher_parms *cipher_parms)
  * Assumes much of the header was already filled in at setkey() time in
  * spum_cipher_req_init().
  * spum_cipher_req_init() fills in the encryption key. For RC4, when submitting
- * a request for a non-first chunk, we use the 260-byte SUPDT field from the
+ * a request for a yesn-first chunk, we use the 260-byte SUPDT field from the
  * previous response as the key. update_key is true for this case. Unused in all
  * other cases.
  */
@@ -969,7 +969,7 @@ void spum_cipher_req_finish(u8 *spu_hdr,
 	flow_log(" data_size: %u\n", data_size);
 
 	/* format master header word */
-	/* Do not set the next bit even though the datasheet says to */
+	/* Do yest set the next bit even though the datasheet says to */
 	spuh = (struct SPUHEADER *)spu_hdr;
 
 	/* cipher_bits was initialized at setkey time */
@@ -981,7 +981,7 @@ void spum_cipher_req_finish(u8 *spu_hdr,
 	else
 		cipher_bits &= ~CIPHER_INBOUND;
 
-	/* update encryption key for RC4 on non-first chunk */
+	/* update encryption key for RC4 on yesn-first chunk */
 	if (update_key) {
 		spuh->sa.cipher_flags |=
 			cipher_parms->type << CIPHER_TYPE_SHIFT;
@@ -1011,7 +1011,7 @@ void spum_cipher_req_finish(u8 *spu_hdr,
 	bdesc->offset_icv = 0;
 	bdesc->offset_iv = 0;
 
-	/* === no MFM section === */
+	/* === yes MFM section === */
 
 	/* === create the BD section === */
 	/* add the BD header */
@@ -1185,17 +1185,17 @@ void spum_ccm_update_iv(unsigned int digestsize,
 	 * | 7 | 6 | 5 | 4 | 3 | 2 | 1 | 0 | Bits 7 - 0  |    Bits 7 - 0    |
 	 * | 0 |Ad?|(M - 2) / 2|   L - 1   |    Nonce    | Plaintext Length |
 	 *
-	 * Ad? = 1 if AAD present, 0 if not present
+	 * Ad? = 1 if AAD present, 0 if yest present
 	 * M = size of auth field, 8, 12, or 16 bytes (SPU-M) -or-
 	 *                         4, 6, 8, 10, 12, 14, 16 bytes (SPU2)
 	 * L = Size of Plaintext Length field; Nonce size = 15 - L
 	 *
 	 * It appears that the crypto API already expects the L-1 portion
 	 * to be set in the first byte of the IV, which implicitly determines
-	 * the nonce size, and also fills in the nonce.  But the other bits
+	 * the yesnce size, and also fills in the yesnce.  But the other bits
 	 * in byte 0 as well as the plaintext length need to be filled in.
 	 *
-	 * In rfc4309/esp mode, L is not already in the supplied IV and
+	 * In rfc4309/esp mode, L is yest already in the supplied IV and
 	 * we need to fill it in, as well as move the IV data to be after
 	 * the salt
 	 */

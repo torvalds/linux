@@ -253,7 +253,7 @@ static int asd_init_sata_pm_port_ddb(struct domain_device *dev)
 		return ddb;
 
 	asd_set_ddb_type(dev);
-	flags = (dev->sata_dev.port_no << 4) | PM_PORT_SET;
+	flags = (dev->sata_dev.port_yes << 4) | PM_PORT_SET;
 	asd_ddbsite_write_byte(asd_ha, ddb, PM_PORT_FLAGS, flags);
 	asd_ddbsite_write_word(asd_ha, ddb, SISTER_DDB, 0xFFFF);
 	asd_ddbsite_write_word(asd_ha, ddb, ATA_CMD_SCBPTR, 0xFFFF);
@@ -262,7 +262,7 @@ static int asd_init_sata_pm_port_ddb(struct domain_device *dev)
 	parent_ddb = (int) (unsigned long) dev->parent->lldd_dev;
 	asd_ddbsite_write_word(asd_ha, ddb, PARENT_DDB, parent_ddb);
 	pmtable_ddb = asd_ddbsite_read_word(asd_ha, parent_ddb, SISTER_DDB);
-	asd_ddbsite_write_word(asd_ha, pmtable_ddb, dev->sata_dev.port_no,ddb);
+	asd_ddbsite_write_word(asd_ha, pmtable_ddb, dev->sata_dev.port_yes,ddb);
 
 	if (asd_ddbsite_read_byte(asd_ha, ddb, NUM_SATA_TAGS) > 0) {
 		i = asd_init_sata_tag_ddb(dev);

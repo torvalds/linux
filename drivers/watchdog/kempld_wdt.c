@@ -95,10 +95,10 @@ MODULE_PARM_DESC(pretimeout,
 	"Watchdog pretimeout in seconds. (>=0, default="
 	__MODULE_STRING(DEFAULT_PRETIMEOUT) ")");
 
-static bool nowayout = WATCHDOG_NOWAYOUT;
-module_param(nowayout, bool, 0);
-MODULE_PARM_DESC(nowayout,
-	"Watchdog cannot be stopped once started (default="
+static bool yeswayout = WATCHDOG_NOWAYOUT;
+module_param(yeswayout, bool, 0);
+MODULE_PARM_DESC(yeswayout,
+	"Watchdog canyest be stopped once started (default="
 	__MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
 
 static int kempld_wdt_set_stage_action(struct kempld_wdt_data *wdt_data,
@@ -454,20 +454,20 @@ static int kempld_wdt_probe(struct platform_device *pdev)
 	status = kempld_read8(pld, KEMPLD_WDT_CFG);
 	kempld_release_mutex(pld);
 
-	/* Enable nowayout if watchdog is already locked */
+	/* Enable yeswayout if watchdog is already locked */
 	if (status & (KEMPLD_WDT_CFG_ENABLE_LOCK |
 			KEMPLD_WDT_CFG_GLOBAL_LOCK)) {
-		if (!nowayout)
+		if (!yeswayout)
 			dev_warn(dev,
-				 "Forcing nowayout - watchdog lock enabled!\n");
-		nowayout = true;
+				 "Forcing yeswayout - watchdog lock enabled!\n");
+		yeswayout = true;
 	}
 
 	wdd->info = &kempld_wdt_info;
 	wdd->ops = &kempld_wdt_ops;
 
 	watchdog_set_drvdata(wdd, wdt_data);
-	watchdog_set_nowayout(wdd, nowayout);
+	watchdog_set_yeswayout(wdd, yeswayout);
 
 	ret = kempld_wdt_probe_stages(wdd);
 	if (ret)

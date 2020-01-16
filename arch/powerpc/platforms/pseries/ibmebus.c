@@ -15,10 +15,10 @@
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
  *
- * Redistributions of source code must retain the above copyright notice, this
+ * Redistributions of source code must retain the above copyright yestice, this
  * list of conditions and the following disclaimer.
  *
- * Redistributions in binary form must reproduce the above copyright notice,
+ * Redistributions in binary form must reproduce the above copyright yestice,
  * this list of conditions and the following disclaimer in the documentation
  * and/or other materials
  * provided with the distribution.
@@ -149,16 +149,16 @@ static const struct dma_map_ops ibmebus_dma_ops = {
 
 static int ibmebus_match_path(struct device *dev, const void *data)
 {
-	struct device_node *dn = to_platform_device(dev)->dev.of_node;
-	return (of_find_node_by_path(data) == dn);
+	struct device_yesde *dn = to_platform_device(dev)->dev.of_yesde;
+	return (of_find_yesde_by_path(data) == dn);
 }
 
-static int ibmebus_match_node(struct device *dev, const void *data)
+static int ibmebus_match_yesde(struct device *dev, const void *data)
 {
-	return to_platform_device(dev)->dev.of_node == data;
+	return to_platform_device(dev)->dev.of_yesde == data;
 }
 
-static int ibmebus_create_device(struct device_node *dn)
+static int ibmebus_create_device(struct device_yesde *dn)
 {
 	struct platform_device *dev;
 	int ret;
@@ -178,18 +178,18 @@ static int ibmebus_create_device(struct device_node *dn)
 
 static int ibmebus_create_devices(const struct of_device_id *matches)
 {
-	struct device_node *root, *child;
+	struct device_yesde *root, *child;
 	struct device *dev;
 	int ret = 0;
 
-	root = of_find_node_by_path("/");
+	root = of_find_yesde_by_path("/");
 
-	for_each_child_of_node(root, child) {
-		if (!of_match_node(matches, child))
+	for_each_child_of_yesde(root, child) {
+		if (!of_match_yesde(matches, child))
 			continue;
 
 		dev = bus_find_device(&ibmebus_bus_type, NULL, child,
-				      ibmebus_match_node);
+				      ibmebus_match_yesde);
 		if (dev) {
 			put_device(dev);
 			continue;
@@ -199,18 +199,18 @@ static int ibmebus_create_devices(const struct of_device_id *matches)
 		if (ret) {
 			printk(KERN_ERR "%s: failed to create device (%i)",
 			       __func__, ret);
-			of_node_put(child);
+			of_yesde_put(child);
 			break;
 		}
 	}
 
-	of_node_put(root);
+	of_yesde_put(root);
 	return ret;
 }
 
 int ibmebus_register_driver(struct platform_driver *drv)
 {
-	/* If the driver uses devices that ibmebus doesn't know, add them */
+	/* If the driver uses devices that ibmebus doesn't kyesw, add them */
 	ibmebus_create_devices(drv->driver.of_match_table);
 
 	drv->driver.bus = &ibmebus_bus_type;
@@ -263,7 +263,7 @@ static char *ibmebus_chomp(const char *in, size_t count)
 
 static ssize_t probe_store(struct bus_type *bus, const char *buf, size_t count)
 {
-	struct device_node *dn = NULL;
+	struct device_yesde *dn = NULL;
 	struct device *dev;
 	char *path;
 	ssize_t rc = 0;
@@ -282,11 +282,11 @@ static ssize_t probe_store(struct bus_type *bus, const char *buf, size_t count)
 		goto out;
 	}
 
-	if ((dn = of_find_node_by_path(path))) {
+	if ((dn = of_find_yesde_by_path(path))) {
 		rc = ibmebus_create_device(dn);
-		of_node_put(dn);
+		of_yesde_put(dn);
 	} else {
-		printk(KERN_WARNING "%s: no such device node: %s\n",
+		printk(KERN_WARNING "%s: yes such device yesde: %s\n",
 		       __func__, path);
 		rc = -ENODEV;
 	}
@@ -316,7 +316,7 @@ static ssize_t remove_store(struct bus_type *bus, const char *buf, size_t count)
 		kfree(path);
 		return count;
 	} else {
-		printk(KERN_WARNING "%s: %s not on the bus\n",
+		printk(KERN_WARNING "%s: %s yest on the bus\n",
 		       __func__, path);
 
 		kfree(path);
@@ -392,7 +392,7 @@ static ssize_t devspec_show(struct device *dev,
 	struct platform_device *ofdev;
 
 	ofdev = to_platform_device(dev);
-	return sprintf(buf, "%pOF\n", ofdev->dev.of_node);
+	return sprintf(buf, "%pOF\n", ofdev->dev.of_yesde);
 }
 static DEVICE_ATTR_RO(devspec);
 
@@ -402,7 +402,7 @@ static ssize_t name_show(struct device *dev,
 	struct platform_device *ofdev;
 
 	ofdev = to_platform_device(dev);
-	return sprintf(buf, "%pOFn\n", ofdev->dev.of_node);
+	return sprintf(buf, "%pOFn\n", ofdev->dev.of_yesde);
 }
 static DEVICE_ATTR_RO(name);
 

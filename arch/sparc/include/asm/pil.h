@@ -5,7 +5,7 @@
 /* To avoid some locking problems, we hard allocate certain PILs
  * for SMP cross call messages that must do a etrap/rtrap.
  *
- * A local_irq_disable() does not block the cross call delivery, so
+ * A local_irq_disable() does yest block the cross call delivery, so
  * when SMP locking is an issue we reschedule the event into a PIL
  * interrupt which is blocked by local_irq_disable().
  *

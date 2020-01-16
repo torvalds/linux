@@ -15,11 +15,11 @@
 struct intel_engine_cs *
 intel_engine_lookup_user(struct drm_i915_private *i915, u8 class, u8 instance)
 {
-	struct rb_node *p = i915->uabi_engines.rb_node;
+	struct rb_yesde *p = i915->uabi_engines.rb_yesde;
 
 	while (p) {
 		struct intel_engine_cs *it =
-			rb_entry(p, typeof(*it), uabi_node);
+			rb_entry(p, typeof(*it), uabi_yesde);
 
 		if (class < it->uabi_class)
 			p = p->rb_left;
@@ -37,7 +37,7 @@ intel_engine_lookup_user(struct drm_i915_private *i915, u8 class, u8 instance)
 
 void intel_engine_add_user(struct intel_engine_cs *engine)
 {
-	llist_add((struct llist_node *)&engine->uabi_node,
+	llist_add((struct llist_yesde *)&engine->uabi_yesde,
 		  (struct llist_head *)&engine->i915->uabi_engines);
 }
 
@@ -51,9 +51,9 @@ static const u8 uabi_classes[] = {
 static int engine_cmp(void *priv, struct list_head *A, struct list_head *B)
 {
 	const struct intel_engine_cs *a =
-		container_of((struct rb_node *)A, typeof(*a), uabi_node);
+		container_of((struct rb_yesde *)A, typeof(*a), uabi_yesde);
 	const struct intel_engine_cs *b =
-		container_of((struct rb_node *)B, typeof(*b), uabi_node);
+		container_of((struct rb_yesde *)B, typeof(*b), uabi_yesde);
 
 	if (uabi_classes[a->class] < uabi_classes[b->class])
 		return -1;
@@ -68,7 +68,7 @@ static int engine_cmp(void *priv, struct list_head *A, struct list_head *B)
 	return 0;
 }
 
-static struct llist_node *get_engines(struct drm_i915_private *i915)
+static struct llist_yesde *get_engines(struct drm_i915_private *i915)
 {
 	return llist_del_all((struct llist_head *)&i915->uabi_engines);
 }
@@ -76,13 +76,13 @@ static struct llist_node *get_engines(struct drm_i915_private *i915)
 static void sort_engines(struct drm_i915_private *i915,
 			 struct list_head *engines)
 {
-	struct llist_node *pos, *next;
+	struct llist_yesde *pos, *next;
 
 	llist_for_each_safe(pos, next, get_engines(i915)) {
 		struct intel_engine_cs *engine =
-			container_of((struct rb_node *)pos, typeof(*engine),
-				     uabi_node);
-		list_add((struct list_head *)&engine->uabi_node, engines);
+			container_of((struct rb_yesde *)pos, typeof(*engine),
+				     uabi_yesde);
+		list_add((struct list_head *)&engine->uabi_yesde, engines);
 	}
 	list_sort(NULL, engines, engine_cmp);
 }
@@ -187,17 +187,17 @@ void intel_engines_driver_register(struct drm_i915_private *i915)
 	struct legacy_ring ring = {};
 	u8 uabi_instances[4] = {};
 	struct list_head *it, *next;
-	struct rb_node **p, *prev;
+	struct rb_yesde **p, *prev;
 	LIST_HEAD(engines);
 
 	sort_engines(i915, &engines);
 
 	prev = NULL;
-	p = &i915->uabi_engines.rb_node;
+	p = &i915->uabi_engines.rb_yesde;
 	list_for_each_safe(it, next, &engines) {
 		struct intel_engine_cs *engine =
-			container_of((struct rb_node *)it, typeof(*engine),
-				     uabi_node);
+			container_of((struct rb_yesde *)it, typeof(*engine),
+				     uabi_yesde);
 		char old[sizeof(engine->name)];
 
 		GEM_BUG_ON(engine->class >= ARRAY_SIZE(uabi_classes));
@@ -213,8 +213,8 @@ void intel_engines_driver_register(struct drm_i915_private *i915)
 			  engine->uabi_instance);
 		DRM_DEBUG_DRIVER("renamed %s to %s\n", old, engine->name);
 
-		rb_link_node(&engine->uabi_node, prev, p);
-		rb_insert_color(&engine->uabi_node, &i915->uabi_engines);
+		rb_link_yesde(&engine->uabi_yesde, prev, p);
+		rb_insert_color(&engine->uabi_yesde, &i915->uabi_engines);
 
 		GEM_BUG_ON(intel_engine_lookup_user(i915,
 						    engine->uabi_class,
@@ -223,7 +223,7 @@ void intel_engines_driver_register(struct drm_i915_private *i915)
 		/* Fix up the mapping to match default execbuf::user_map[] */
 		add_legacy_ring(&ring, engine);
 
-		prev = &engine->uabi_node;
+		prev = &engine->uabi_yesde;
 		p = &prev->rb_right;
 	}
 
@@ -239,7 +239,7 @@ void intel_engines_driver_register(struct drm_i915_private *i915)
 				engine = intel_engine_lookup_user(i915,
 								  class, inst);
 				if (!engine) {
-					pr_err("UABI engine not found for { class:%d, instance:%d }\n",
+					pr_err("UABI engine yest found for { class:%d, instance:%d }\n",
 					       class, inst);
 					errors++;
 					continue;

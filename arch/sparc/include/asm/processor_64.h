@@ -14,8 +14,8 @@
 #include <asm/page.h>
 
 /*
- * User lives in his very own context, and cannot reference us. Note
- * that TASK_SIZE is a misnomer, it really gives maximum user virtual
+ * User lives in his very own context, and canyest reference us. Note
+ * that TASK_SIZE is a misyesmer, it really gives maximum user virtual
  * address that the kernel will allocate out.
  *
  * XXX No longer using virtual page tables, kill this upper limit...
@@ -52,7 +52,7 @@ typedef struct {
 } mm_segment_t;
 
 /* The Sparc processor specific thread struct. */
-/* XXX This should die, everything can go into thread_info now. */
+/* XXX This should die, everything can go into thread_info yesw. */
 struct thread_struct {
 #ifdef CONFIG_DEBUG_SPINLOCK
 	/* How many spinlocks held by this thread.
@@ -208,14 +208,14 @@ unsigned long get_wchan(struct task_struct *task);
 				     ".section	.pause_3insn_patch,\"ax\"\n\t"\
 				     ".word	99b\n\t"		\
 				     "wr	%%g0, 128, %%asr27\n\t"	\
-				     "nop\n\t"				\
-				     "nop\n\t"				\
+				     "yesp\n\t"				\
+				     "yesp\n\t"				\
 				     ".previous"			\
 				     ::: "memory")
 #endif
 
 /* Prefetch support.  This is tuned for UltraSPARC-III and later.
- * UltraSPARC-I will treat these as nops, and UltraSPARC-II has
+ * UltraSPARC-I will treat these as yesps, and UltraSPARC-II has
  * a shallower prefetch queue than later chips.
  */
 #define ARCH_HAS_PREFETCH
@@ -224,14 +224,14 @@ unsigned long get_wchan(struct task_struct *task);
 
 static inline void prefetch(const void *x)
 {
-	/* We do not use the read prefetch mnemonic because that
+	/* We do yest use the read prefetch mnemonic because that
 	 * prefetches into the prefetch-cache which only is accessible
 	 * by floating point operations in UltraSPARC-III and later.
 	 * By contrast, "#one_write" prefetches into the L2 cache
 	 * in shared state.
 	 */
 	__asm__ __volatile__("prefetch [%0], #one_write"
-			     : /* no outputs */
+			     : /* yes outputs */
 			     : "r" (x));
 }
 
@@ -242,7 +242,7 @@ static inline void prefetchw(const void *x)
 	 * L2 cache in "owned" state.
 	 */
 	__asm__ __volatile__("prefetch [%0], #n_writes"
-			     : /* no outputs */
+			     : /* yes outputs */
 			     : "r" (x));
 }
 

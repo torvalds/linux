@@ -2,7 +2,7 @@
  *  linux/drivers/scsi/esas2r/esas2r_io.c
  *      For use with ATTO ExpressSAS R6xx SAS/SATA RAID controllers
  *
- *  Copyright (c) 2001-2013 ATTO Technology, Inc.
+ *  Copyright (c) 2001-2013 ATTO Techyeslogy, Inc.
  *  (mailto:linuxdrivers@attotech.com)mpt3sas/mpt3sas_trigger_diag.
  *
  * This program is free software; you can redistribute it and/or
@@ -22,7 +22,7 @@
  * MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE. Each Recipient is
  * solely responsible for determining the appropriateness of using and
  * distributing the Program and assumes all risks associated with its
- * exercise of rights under this Agreement, including but not limited to
+ * exercise of rights under this Agreement, including but yest limited to
  * the risks and costs of program errors, damage to or loss of data,
  * programs or equipment, and unavailability or interruption of operations.
  *
@@ -36,7 +36,7 @@
  * HEREUNDER, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGES
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
+ * along with this program; if yest, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301,
  * USA.
  */
@@ -204,7 +204,7 @@ bool esas2r_build_sg_list_sge(struct esas2r_adapter *a,
 		if (unlikely(len > sgc->length))
 			len = sgc->length;
 
-another_entry:
+ayesther_entry:
 		/* limit to a round number less than the maximum length */
 		if (len > SGE_LEN_MAX) {
 			/*
@@ -224,7 +224,7 @@ another_entry:
 			struct esas2r_mem_desc *sgl;
 
 			/*
-			 * If no SGls are available, return failure.  The
+			 * If yes SGls are available, return failure.  The
 			 * caller can call us later with the current context
 			 * to pick up here.
 			 */
@@ -320,7 +320,7 @@ another_entry:
 			addr += len;
 			len = rem;
 			rem = 0;
-			goto another_entry;
+			goto ayesther_entry;
 		}
 	}
 
@@ -339,7 +339,7 @@ another_entry:
 		u16 reqsize;
 
 		/*
-		 * The entire VDA request was not used so lets
+		 * The entire VDA request was yest used so lets
 		 * set the size of the VDA request to be DMA'd
 		 */
 		reqsize =
@@ -390,7 +390,7 @@ static bool esas2r_build_prd_iblk(struct esas2r_adapter *a,
 		if (unlikely(len > sgc->length))
 			len = sgc->length;
 
-another_entry:
+ayesther_entry:
 		/* Limit to a round number less than the maximum length */
 
 		if (len > PRD_LEN_MAX) {
@@ -432,7 +432,7 @@ another_entry:
 			if (sgc->sge.prd.chain) {
 				/*
 				 * Fill # of entries of current SGL in previous
-				 * chain the length of this current SGL may not
+				 * chain the length of this current SGL may yest
 				 * full.
 				 */
 
@@ -441,7 +441,7 @@ another_entry:
 			}
 
 			/*
-			 * If no SGls are available, return failure.  The
+			 * If yes SGls are available, return failure.  The
 			 * caller can call us later with the current context
 			 * to pick up here.
 			 */
@@ -487,7 +487,7 @@ another_entry:
 		sgc->sge.prd.curr->ctl_len = cpu_to_le32(PRD_DATA | len);
 		sgc->sge.prd.curr->address = cpu_to_le64(addr);
 
-		/* Used another element.  Point to the next one */
+		/* Used ayesther element.  Point to the next one */
 
 		sgc->sge.prd.curr++;
 
@@ -505,7 +505,7 @@ another_entry:
 			addr += len;
 			len = rem;
 			rem = 0;
-			goto another_entry;
+			goto ayesther_entry;
 		}
 	}
 
@@ -675,7 +675,7 @@ static void esas2r_handle_pending_reset(struct esas2r_adapter *a, u32 currtime)
 		 */
 		esas2r_local_reset_adapter(a);
 	} else {
-		/* We can now see if the firmware is ready */
+		/* We can yesw see if the firmware is ready */
 		u32 doorbell;
 
 		doorbell = esas2r_read_register_dword(a, MU_DOORBELL_OUT);
@@ -758,7 +758,7 @@ void esas2r_timer_tick(struct esas2r_adapter *a)
 /*
  * Send the specified task management function to the target and LUN
  * specified in rqaux.  in addition, immediately abort any commands that
- * are queued but not sent to the device according to the rules specified
+ * are queued but yest sent to the device according to the rules specified
  * by the task management function.
  */
 bool esas2r_send_task_mgmt(struct esas2r_adapter *a,
@@ -790,7 +790,7 @@ bool esas2r_send_task_mgmt(struct esas2r_adapter *a,
 			if (rq->req_stat == RS_PENDING) {
 				/*
 				 * The request is pending or waiting.  We can
-				 * safelycomplete the request now.
+				 * safelycomplete the request yesw.
 				 */
 				if (esas2r_ioreq_aborted(a, rq, RS_ABORTED))
 					list_add_tail(&rq->comp_list,
@@ -863,7 +863,7 @@ bool esas2r_ioreq_aborted(struct esas2r_adapter *a, struct esas2r_request *rq,
 	list_del_init(&rq->req_list);
 	if (rq->timeout > RQ_MAX_TIMEOUT) {
 		/*
-		 * The request timed out, but we could not abort it because a
+		 * The request timed out, but we could yest abort it because a
 		 * chip reset occurred.  Return busy status.
 		 */
 		rq->req_stat = RS_BUSY;

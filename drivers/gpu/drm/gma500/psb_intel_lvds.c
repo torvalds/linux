@@ -387,7 +387,7 @@ bool psb_intel_lvds_mode_fixup(struct drm_encoder *encoder,
 			    head) {
 		if (tmp_encoder != encoder
 		    && tmp_encoder->crtc == encoder->crtc) {
-			pr_err("Can't enable LVDS and another encoder on the same pipe\n");
+			pr_err("Can't enable LVDS and ayesther encoder on the same pipe\n");
 			return false;
 		}
 	}
@@ -467,7 +467,7 @@ static void psb_intel_lvds_mode_set(struct drm_encoder *encoder,
 	 */
 
 	/*
-	 * Enable automatic panel scaling so that non-native modes fill the
+	 * Enable automatic panel scaling so that yesn-native modes fill the
 	 * screen.  Should be enabled before the pipe is enabled, according to
 	 * register description and PRM.
 	 */
@@ -723,9 +723,9 @@ void psb_intel_lvds_init(struct drm_device *dev,
 	 * 1) check for EDID on DDC
 	 * 2) check for VBT data
 	 * 3) check to see if LVDS is already on
-	 *    if none of the above, no panel
+	 *    if yesne of the above, yes panel
 	 * 4) make sure lid is open
-	 *    if closed, act like it's not there for now
+	 *    if closed, act like it's yest there for yesw
 	 */
 
 	/* Set up the DDC bus. */
@@ -786,7 +786,7 @@ void psb_intel_lvds_init(struct drm_device *dev,
 
 	/* If we still don't have a mode after all that, give up. */
 	if (!mode_dev->panel_fixed_mode) {
-		dev_err(dev->dev, "Found no modes on the lvds, ignoring the LVDS\n");
+		dev_err(dev->dev, "Found yes modes on the lvds, igyesring the LVDS\n");
 		goto failed_find;
 	}
 

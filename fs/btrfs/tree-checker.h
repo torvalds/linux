@@ -11,17 +11,17 @@
 
 /*
  * Comprehensive leaf checker.
- * Will check not only the item pointers, but also every possible member
+ * Will check yest only the item pointers, but also every possible member
  * in item data.
  */
 int btrfs_check_leaf_full(struct extent_buffer *leaf);
 
 /*
  * Less strict leaf checker.
- * Will only check item pointers, not reading item data.
+ * Will only check item pointers, yest reading item data.
  */
 int btrfs_check_leaf_relaxed(struct extent_buffer *leaf);
-int btrfs_check_node(struct extent_buffer *node);
+int btrfs_check_yesde(struct extent_buffer *yesde);
 
 int btrfs_check_chunk_valid(struct extent_buffer *leaf,
 			    struct btrfs_chunk *chunk, u64 logical);

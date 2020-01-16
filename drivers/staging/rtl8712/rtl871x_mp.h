@@ -95,7 +95,7 @@ struct mp_priv {
 	struct wlan_network mp_network;
 	unsigned char network_macaddr[6];
 	/*Testing Flag*/
-	u32 mode;/*0 for normal type packet,
+	u32 mode;/*0 for yesrmal type packet,
 		  * 1 for loopback packet (16bytes TXCMD)
 		  */
 	sint prev_fw_state;

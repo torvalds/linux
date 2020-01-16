@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-2.0
-# Kernel does not boot with instrumentation of tlb.c and mem_encrypt*.c
+# Kernel does yest boot with instrumentation of tlb.c and mem_encrypt*.c
 KCOV_INSTRUMENT_tlb.o			:= n
 KCOV_INSTRUMENT_mem_encrypt.o		:= n
 KCOV_INSTRUMENT_mem_encrypt_identity.o	:= n
@@ -15,11 +15,11 @@ endif
 obj-y	:=  init.o init_$(BITS).o fault.o ioremap.o extable.o pageattr.o mmap.o \
 	    pat.o pgtable.o physaddr.o setup_nx.o tlb.o cpu_entry_area.o maccess.o
 
-# Make sure __phys_addr has no stackprotector
-nostackp := $(call cc-option, -fno-stack-protector)
-CFLAGS_physaddr.o		:= $(nostackp)
-CFLAGS_setup_nx.o		:= $(nostackp)
-CFLAGS_mem_encrypt_identity.o	:= $(nostackp)
+# Make sure __phys_addr has yes stackprotector
+yesstackp := $(call cc-option, -fyes-stack-protector)
+CFLAGS_physaddr.o		:= $(yesstackp)
+CFLAGS_setup_nx.o		:= $(yesstackp)
+CFLAGS_mem_encrypt_identity.o	:= $(yesstackp)
 
 CFLAGS_fault.o := -I $(srctree)/$(src)/../include/asm/trace
 

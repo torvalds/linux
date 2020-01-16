@@ -63,7 +63,7 @@ struct nvram_parser {
  * is_nvram_char() - check if char is a valid one for NVRAM entry
  *
  * It accepts all printable ASCII chars except for '#' which opens a comment.
- * Please note that ' ' (space) while accepted is not a valid key name char.
+ * Please yeste that ' ' (space) while accepted is yest a valid key name char.
  */
 static bool is_nvram_char(char c)
 {
@@ -95,7 +95,7 @@ static enum nvram_parser_state brcmf_nvram_handle_idle(struct nvram_parser *nvp)
 		nvp->entry = nvp->pos;
 		return KEY;
 	}
-	brcmf_dbg(INFO, "warning: ln=%d:col=%d: ignoring invalid character\n",
+	brcmf_dbg(INFO, "warning: ln=%d:col=%d: igyesring invalid character\n",
 		  nvp->line, nvp->column);
 proceed:
 	nvp->column++;
@@ -110,7 +110,7 @@ static enum nvram_parser_state brcmf_nvram_handle_key(struct nvram_parser *nvp)
 
 	c = nvp->data[nvp->pos];
 	if (c == '=') {
-		/* ignore RAW1 by treating as comment */
+		/* igyesre RAW1 by treating as comment */
 		if (strncmp(&nvp->data[nvp->entry], "RAW1", 4) == 0)
 			st = COMMENT;
 		else
@@ -437,11 +437,11 @@ static void brcmf_fw_request_done(const struct firmware *fw, void *ctx);
 
 #ifdef CONFIG_EFI
 /* In some cases the EFI-var stored nvram contains "ccode=ALL" or "ccode=XV"
- * to specify "worldwide" compatible settings, but these 2 ccode-s do not work
- * properly. "ccode=ALL" causes channels 12 and 13 to not be available,
- * "ccode=XV" causes all 5GHz channels to not be available. So we replace both
+ * to specify "worldwide" compatible settings, but these 2 ccode-s do yest work
+ * properly. "ccode=ALL" causes channels 12 and 13 to yest be available,
+ * "ccode=XV" causes all 5GHz channels to yest be available. So we replace both
  * with "ccode=X2" which allows channels 12+13 and 5Ghz channels in
- * no-Initiate-Radiation mode. This means that we will never send on these
+ * yes-Initiate-Radiation mode. This means that we will never send on these
  * channels without first having received valid wifi traffic on the channel.
  */
 static void brcmf_fw_fix_efi_nvram_ccode(char *data, unsigned long data_len)
@@ -574,7 +574,7 @@ static int brcmf_fw_complete_request(const struct firmware *fw,
 	struct brcmf_fw_item *cur = &fwctx->req->items[fwctx->curpos];
 	int ret = 0;
 
-	brcmf_dbg(TRACE, "firmware %s %sfound\n", cur->path, fw ? "" : "not ");
+	brcmf_dbg(TRACE, "firmware %s %sfound\n", cur->path, fw ? "" : "yest ");
 
 	switch (cur->type) {
 	case BRCMF_FW_TYPE_NVRAM:
@@ -588,7 +588,7 @@ static int brcmf_fw_complete_request(const struct firmware *fw,
 		break;
 	default:
 		/* something fishy here so bail out early */
-		brcmf_err("unknown fw type: %d\n", cur->type);
+		brcmf_err("unkyeswn fw type: %d\n", cur->type);
 		release_firmware(fw);
 		ret = -EINVAL;
 	}
@@ -679,7 +679,7 @@ int brcmf_fw_get_firmwares(struct device *dev, struct brcmf_fw_request *req,
 	fwctx->req = req;
 	fwctx->done = fw_cb;
 
-	ret = request_firmware_nowait(THIS_MODULE, true, first->path,
+	ret = request_firmware_yeswait(THIS_MODULE, true, first->path,
 				      fwctx->dev, GFP_KERNEL, fwctx,
 				      brcmf_fw_request_done);
 	if (ret < 0)
@@ -710,7 +710,7 @@ brcmf_fw_alloc_request(u32 chip, u32 chiprev,
 	brcmf_chip_name(chip, chiprev, chipname, sizeof(chipname));
 
 	if (i == table_size) {
-		brcmf_err("Unknown chip %s\n", chipname);
+		brcmf_err("Unkyeswn chip %s\n", chipname);
 		return NULL;
 	}
 

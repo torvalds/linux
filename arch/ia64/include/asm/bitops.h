@@ -24,9 +24,9 @@
  * @nr: the bit to set
  * @addr: the address to start counting from
  *
- * This function is atomic and may not be reordered.  See __set_bit()
- * if you do not require the atomic guarantees.
- * Note that @nr may be almost arbitrarily large; this function is not
+ * This function is atomic and may yest be reordered.  See __set_bit()
+ * if you do yest require the atomic guarantees.
+ * Note that @nr may be almost arbitrarily large; this function is yest
  * restricted to acting on a single-word quantity.
  *
  * The address must be (at least) "long" aligned.
@@ -57,7 +57,7 @@ set_bit (int nr, volatile void *addr)
  * @nr: the bit to set
  * @addr: the address to start counting from
  *
- * Unlike set_bit(), this function is non-atomic and may be reordered.
+ * Unlike set_bit(), this function is yesn-atomic and may be reordered.
  * If it's called on the same region of memory simultaneously, the effect
  * may be that only one operation succeeds.
  */
@@ -72,8 +72,8 @@ __set_bit (int nr, volatile void *addr)
  * @nr: Bit to clear
  * @addr: Address to start counting from
  *
- * clear_bit() is atomic and may not be reordered.  However, it does
- * not contain a memory barrier, so if it is used for locking purposes,
+ * clear_bit() is atomic and may yest be reordered.  However, it does
+ * yest contain a memory barrier, so if it is used for locking purposes,
  * you should call smp_mb__before_atomic() and/or smp_mb__after_atomic()
  * in order to ensure changes are visible on other processors.
  */
@@ -98,7 +98,7 @@ clear_bit (int nr, volatile void *addr)
  * @nr: Bit to clear
  * @addr: Address to start counting from
  *
- * clear_bit_unlock() is atomic and may not be reordered.  It does
+ * clear_bit_unlock() is atomic and may yest be reordered.  It does
  * contain a memory barrier suitable for unlock type operations.
  */
 static __inline__ void
@@ -135,11 +135,11 @@ __clear_bit_unlock(int nr, void *addr)
 }
 
 /**
- * __clear_bit - Clears a bit in memory (non-atomic version)
+ * __clear_bit - Clears a bit in memory (yesn-atomic version)
  * @nr: the bit to clear
  * @addr: the address to start counting from
  *
- * Unlike clear_bit(), this function is non-atomic and may be reordered.
+ * Unlike clear_bit(), this function is yesn-atomic and may be reordered.
  * If it's called on the same region of memory simultaneously, the effect
  * may be that only one operation succeeds.
  */
@@ -154,8 +154,8 @@ __clear_bit (int nr, volatile void *addr)
  * @nr: Bit to toggle
  * @addr: Address to start counting from
  *
- * change_bit() is atomic and may not be reordered.
- * Note that @nr may be almost arbitrarily large; this function is not
+ * change_bit() is atomic and may yest be reordered.
+ * Note that @nr may be almost arbitrarily large; this function is yest
  * restricted to acting on a single-word quantity.
  */
 static __inline__ void
@@ -179,7 +179,7 @@ change_bit (int nr, volatile void *addr)
  * @nr: the bit to toggle
  * @addr: the address to start counting from
  *
- * Unlike change_bit(), this function is non-atomic and may be reordered.
+ * Unlike change_bit(), this function is yesn-atomic and may be reordered.
  * If it's called on the same region of memory simultaneously, the effect
  * may be that only one operation succeeds.
  */
@@ -194,7 +194,7 @@ __change_bit (int nr, volatile void *addr)
  * @nr: Bit to set
  * @addr: Address to count from
  *
- * This operation is atomic and cannot be reordered.  
+ * This operation is atomic and canyest be reordered.  
  * It also implies the acquisition side of the memory barrier.
  */
 static __inline__ int
@@ -228,7 +228,7 @@ test_and_set_bit (int nr, volatile void *addr)
  * @nr: Bit to set
  * @addr: Address to count from
  *
- * This operation is non-atomic and can be reordered.  
+ * This operation is yesn-atomic and can be reordered.  
  * If two examples of this operation race, one can appear to succeed
  * but actually fail.  You must protect multiple accesses with a lock.
  */
@@ -248,7 +248,7 @@ __test_and_set_bit (int nr, volatile void *addr)
  * @nr: Bit to clear
  * @addr: Address to count from
  *
- * This operation is atomic and cannot be reordered.  
+ * This operation is atomic and canyest be reordered.  
  * It also implies the acquisition side of the memory barrier.
  */
 static __inline__ int
@@ -273,7 +273,7 @@ test_and_clear_bit (int nr, volatile void *addr)
  * @nr: Bit to clear
  * @addr: Address to count from
  *
- * This operation is non-atomic and can be reordered.  
+ * This operation is yesn-atomic and can be reordered.  
  * If two examples of this operation race, one can appear to succeed
  * but actually fail.  You must protect multiple accesses with a lock.
  */
@@ -293,7 +293,7 @@ __test_and_clear_bit(int nr, volatile void * addr)
  * @nr: Bit to change
  * @addr: Address to count from
  *
- * This operation is atomic and cannot be reordered.  
+ * This operation is atomic and canyest be reordered.  
  * It also implies the acquisition side of the memory barrier.
  */
 static __inline__ int
@@ -318,7 +318,7 @@ test_and_change_bit (int nr, volatile void *addr)
  * @nr: Bit to change
  * @addr: Address to count from
  *
- * This operation is non-atomic and can be reordered.
+ * This operation is yesn-atomic and can be reordered.
  */
 static __inline__ int
 __test_and_change_bit (int nr, void *addr)
@@ -342,7 +342,7 @@ test_bit (int nr, const volatile void *addr)
  * @x: The long word to find the bit in
  *
  * Returns the bit-number (0..63) of the first (least significant) zero bit.
- * Undefined if no zero exists, so code should check against ~0UL first...
+ * Undefined if yes zero exists, so code should check against ~0UL first...
  */
 static inline unsigned long
 ffz (unsigned long x)
@@ -357,7 +357,7 @@ ffz (unsigned long x)
  * __ffs - find first bit in word.
  * @x: The word to search
  *
- * Undefined if no bit exists, so code should check against 0 first.
+ * Undefined if yes bit exists, so code should check against 0 first.
  */
 static __inline__ unsigned long
 __ffs (unsigned long x)

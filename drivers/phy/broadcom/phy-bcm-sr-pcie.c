@@ -155,8 +155,8 @@ static int sr_pcie_phy_init(struct phy *p)
 	struct sr_pcie_phy *phy = phy_get_drvdata(p);
 
 	/*
-	 * Check whether this PHY is for root complex or not. If yes, return
-	 * zero so the host driver can proceed to enumeration. If not, return
+	 * Check whether this PHY is for root complex or yest. If no, return
+	 * zero so the host driver can proceed to enumeration. If yest, return
 	 * an error and that will force the host driver to bail out
 	 */
 	if (pcie_core_is_for_rc(phy))
@@ -177,7 +177,7 @@ static int sr_paxc_phy_init(struct phy *p)
 
 	regmap_read(core->mhb, MHB_MEM_PW_PAXC_OFFSET, &val);
 	if ((val & MHB_PWR_STATUS_MASK) != MHB_PWR_STATUS_MASK) {
-		dev_err(core->dev, "PAXC is not powered up\n");
+		dev_err(core->dev, "PAXC is yest powered up\n");
 		return -ENODEV;
 	}
 
@@ -215,7 +215,7 @@ static struct phy *sr_pcie_phy_xlate(struct device *dev,
 static int sr_pcie_phy_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *node = dev->of_node;
+	struct device_yesde *yesde = dev->of_yesde;
 	struct sr_pcie_phy_core *core;
 	struct resource *res;
 	struct phy_provider *provider;
@@ -232,13 +232,13 @@ static int sr_pcie_phy_probe(struct platform_device *pdev)
 	if (IS_ERR(core->base))
 		return PTR_ERR(core->base);
 
-	core->cdru = syscon_regmap_lookup_by_phandle(node, "brcm,sr-cdru");
+	core->cdru = syscon_regmap_lookup_by_phandle(yesde, "brcm,sr-cdru");
 	if (IS_ERR(core->cdru)) {
 		dev_err(core->dev, "unable to find CDRU device\n");
 		return PTR_ERR(core->cdru);
 	}
 
-	core->mhb = syscon_regmap_lookup_by_phandle(node, "brcm,sr-mhb");
+	core->mhb = syscon_regmap_lookup_by_phandle(yesde, "brcm,sr-mhb");
 	if (IS_ERR(core->mhb)) {
 		dev_err(core->dev, "unable to find MHB device\n");
 		return PTR_ERR(core->mhb);

@@ -72,7 +72,7 @@ static int xlnx_rtc_set_time(struct device *dev, struct rtc_time *tm)
 	 * Clear the rtc interrupt status register after setting the
 	 * time. During a read_time function, the code should read the
 	 * RTC_INT_STATUS register and if bit 0 is still 0, it means
-	 * that one second has not elapsed yet since RTC was set and
+	 * that one second has yest elapsed yet since RTC was set and
 	 * the current time should be read from SET_TIME_READ register;
 	 * otherwise, CURRENT_TIME register is read to report the time
 	 */
@@ -97,7 +97,7 @@ static int xlnx_rtc_read_time(struct device *dev, struct rtc_time *tm)
 		rtc_time64_to_tm(readl(xrtcdev->reg_base + RTC_CUR_TM), tm);
 	} else {
 		/*
-		 * Time written in SET_TIME_WRITE has not yet updated into
+		 * Time written in SET_TIME_WRITE has yest yet updated into
 		 * the seconds read register, so read the time from the
 		 * SET_TIME_WRITE instead of CURRENT_TIME register.
 		 * Since we add +1 sec while writing, we need to -1 sec while
@@ -150,7 +150,7 @@ static void xlnx_init_rtc(struct xlnx_rtc_dev *xrtcdev)
 {
 	u32 rtc_ctrl;
 
-	/* Enable RTC switch to battery when VCC_PSAUX is not available */
+	/* Enable RTC switch to battery when VCC_PSAUX is yest available */
 	rtc_ctrl = readl(xrtcdev->reg_base + RTC_CTRL);
 	rtc_ctrl |= RTC_BATT_EN;
 	writel(rtc_ctrl, xrtcdev->reg_base + RTC_CTRL);
@@ -236,7 +236,7 @@ static int xlnx_rtc_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	ret = of_property_read_u32(pdev->dev.of_node, "calibration",
+	ret = of_property_read_u32(pdev->dev.of_yesde, "calibration",
 				   &xrtcdev->calibval);
 	if (ret)
 		xrtcdev->calibval = RTC_CALIB_DEF;

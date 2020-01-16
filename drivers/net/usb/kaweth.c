@@ -11,7 +11,7 @@
  *     Original author: The Zapman <zapman@interlan.net>
  *     Inspired by, and much credit goes to Michael Rothwell
  *     <rothwell@interlan.net> for the test equipment, help, and patience
- *     Based off of (and with thanks to) Petko Manolov's pegaus.c driver.
+ *     Based off of (and with thanks to) Petko Mayeslov's pegaus.c driver.
  *     Also many thanks to Joel Silverman and Ed Surprenant at Kawasaki
  *     for providing the firmware and driver resources.
  *
@@ -21,7 +21,7 @@
  * Develop test procedures for USB net interfaces
  * Run test procedures
  * Fix bugs from previous two steps
- * Snoop other OSs for any tricks we're not doing
+ * Syesop other OSs for any tricks we're yest doing
  * Reduce arbitrary timeouts
  * Smart multicast support
  * Temporary MAC change support
@@ -137,7 +137,7 @@ static const struct usb_device_id usb_klsi_table[] = {
 	{ USB_DEVICE(0x085a, 0x0008) }, /* PortGear Ethernet Adapter */
 	{ USB_DEVICE(0x085a, 0x0009) }, /* PortGear Ethernet Adapter */
 	{ USB_DEVICE(0x087d, 0x5704) }, /* Jaton USB Ethernet Device Adapter */
-	{ USB_DEVICE(0x0951, 0x0008) }, /* Kingston Technology USB Ethernet Adapter */
+	{ USB_DEVICE(0x0951, 0x0008) }, /* Kingston Techyeslogy USB Ethernet Adapter */
 	{ USB_DEVICE(0x095a, 0x3003) }, /* Portsmith Express Ethernet Adapter */
 	{ USB_DEVICE(0x10bd, 0x1427) }, /* ASANTE USB To Ethernet Adapter */
 	{ USB_DEVICE(0x1342, 0x0204) }, /* Mobility USB-Ethernet Adapter */
@@ -666,7 +666,7 @@ static int kaweth_open(struct net_device *net)
 
 	res = usb_autopm_get_interface(kaweth->intf);
 	if (res) {
-		dev_err(&kaweth->intf->dev, "Interface cannot be resumed.\n");
+		dev_err(&kaweth->intf->dev, "Interface canyest be resumed.\n");
 		return -EIO;
 	}
 	res = kaweth_resubmit_rx_urb(kaweth, GFP_KERNEL);
@@ -788,7 +788,7 @@ static netdev_tx_t kaweth_start_xmit(struct sk_buff *skb,
 		goto skip;
 	}
 
-	/* We now decide whether we can put our special header into the sk_buff */
+	/* We yesw decide whether we can put our special header into the sk_buff */
 	if (skb_cow_head(skb, 2)) {
 		net->stats.tx_errors++;
 		netif_start_queue(net);
@@ -998,7 +998,7 @@ static int kaweth_probe(
 	kaweth_reset(kaweth);
 
 	/*
-	 * If high byte of bcdDevice is nonzero, firmware is already
+	 * If high byte of bcdDevice is yesnzero, firmware is already
 	 * downloaded. Don't try to do it again, or we'll hang the device.
 	 */
 
@@ -1054,7 +1054,7 @@ static int kaweth_probe(
 			goto err_fw;
 		}
 
-		/* Device will now disappear for a moment...  */
+		/* Device will yesw disappear for a moment...  */
 		dev_info(dev, "Firmware loaded.  I'll be back...\n");
 err_fw:
 		free_page((unsigned long)kaweth->firmware_buf);
@@ -1065,7 +1065,7 @@ err_fw:
 	result = kaweth_read_configuration(kaweth);
 
 	if(result < 0) {
-		dev_err(dev, "Error reading configuration (%d), no net device created\n", result);
+		dev_err(dev, "Error reading configuration (%d), yes net device created\n", result);
 		goto err_free_netdev;
 	}
 
@@ -1077,7 +1077,7 @@ err_fw:
 	if(!memcmp(&kaweth->configuration.hw_addr,
                    &bcast_addr,
 		   sizeof(bcast_addr))) {
-		dev_err(dev, "Firmware not functioning properly, no net device created\n");
+		dev_err(dev, "Firmware yest functioning properly, yes net device created\n");
 		goto err_free_netdev;
 	}
 
@@ -1177,7 +1177,7 @@ static void kaweth_disconnect(struct usb_interface *intf)
 
 	usb_set_intfdata(intf, NULL);
 	if (!kaweth) {
-		dev_warn(&intf->dev, "unregistering non-existent device\n");
+		dev_warn(&intf->dev, "unregistering yesn-existent device\n");
 		return;
 	}
 	netdev = kaweth->net;

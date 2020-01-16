@@ -19,20 +19,20 @@ struct zpool_ops {
 };
 
 /*
- * Control how a handle is mapped.  It will be ignored if the
- * implementation does not support it.  Its use is optional.
- * Note that this does not refer to memory protection, it
+ * Control how a handle is mapped.  It will be igyesred if the
+ * implementation does yest support it.  Its use is optional.
+ * Note that this does yest refer to memory protection, it
  * refers to how the memory will be copied in/out if copying
  * is necessary during mapping; read-write is the safest as
  * it copies the existing memory in on map, and copies the
- * changed memory back out on unmap.  Write-only does not copy
+ * changed memory back out on unmap.  Write-only does yest copy
  * in the memory and should only be used for initialization.
  * If in doubt, use ZPOOL_MM_DEFAULT which is read-write.
  */
 enum zpool_mapmode {
-	ZPOOL_MM_RW, /* normal read-write mapping */
-	ZPOOL_MM_RO, /* read-only (no copy-out at unmap time) */
-	ZPOOL_MM_WO, /* write-only (no copy-in at map time) */
+	ZPOOL_MM_RW, /* yesrmal read-write mapping */
+	ZPOOL_MM_RO, /* read-only (yes copy-out at unmap time) */
+	ZPOOL_MM_WO, /* write-only (yes copy-in at map time) */
 
 	ZPOOL_MM_DEFAULT = ZPOOL_MM_RW
 };

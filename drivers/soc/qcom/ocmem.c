@@ -157,7 +157,7 @@ static unsigned long device_address(struct ocmem *ocmem,
 {
 	WARN_ON(client != OCMEM_GRAPHICS);
 
-	/* TODO: gpu uses phys_to_offset, but others do not.. */
+	/* TODO: gpu uses phys_to_offset, but others do yest.. */
 	return phys_to_offset(ocmem, addr);
 }
 
@@ -188,17 +188,17 @@ static void update_range(struct ocmem *ocmem, struct ocmem_buf *buf,
 struct ocmem *of_get_ocmem(struct device *dev)
 {
 	struct platform_device *pdev;
-	struct device_node *devnode;
+	struct device_yesde *devyesde;
 
-	devnode = of_parse_phandle(dev->of_node, "sram", 0);
-	if (!devnode || !devnode->parent) {
-		dev_err(dev, "Cannot look up sram phandle\n");
+	devyesde = of_parse_phandle(dev->of_yesde, "sram", 0);
+	if (!devyesde || !devyesde->parent) {
+		dev_err(dev, "Canyest look up sram phandle\n");
 		return ERR_PTR(-ENODEV);
 	}
 
-	pdev = of_find_device_by_node(devnode->parent);
+	pdev = of_find_device_by_yesde(devyesde->parent);
 	if (!pdev) {
-		dev_err(dev, "Cannot find device node %s\n", devnode->name);
+		dev_err(dev, "Canyest find device yesde %s\n", devyesde->name);
 		return ERR_PTR(-EPROBE_DEFER);
 	}
 
@@ -238,7 +238,7 @@ struct ocmem_buf *ocmem_allocate(struct ocmem *ocmem, enum ocmem_client client,
 		ret = qcom_scm_ocmem_lock(QCOM_SCM_OCMEM_GRAPHICS_ID,
 					  buf->offset, buf->len, WIDE_MODE);
 		if (ret) {
-			dev_err(ocmem->dev, "could not lock: %d\n", ret);
+			dev_err(ocmem->dev, "could yest lock: %d\n", ret);
 			ret = -EINVAL;
 			goto err_kfree;
 		}
@@ -277,7 +277,7 @@ void ocmem_free(struct ocmem *ocmem, enum ocmem_client client,
 		ret = qcom_scm_ocmem_unlock(QCOM_SCM_OCMEM_GRAPHICS_ID,
 					    buf->offset, buf->len);
 		if (ret)
-			dev_err(ocmem->dev, "could not unlock: %d\n", ret);
+			dev_err(ocmem->dev, "could yest unlock: %d\n", ret);
 	} else {
 		ocmem_write(ocmem, OCMEM_REG_GFX_MPU_START, 0x0);
 		ocmem_write(ocmem, OCMEM_REG_GFX_MPU_END, 0x0);
@@ -325,11 +325,11 @@ static int ocmem_dev_probe(struct platform_device *pdev)
 	ocmem->memory = platform_get_resource_byname(pdev, IORESOURCE_MEM,
 						     "mem");
 	if (!ocmem->memory) {
-		dev_err(dev, "Could not get mem region\n");
+		dev_err(dev, "Could yest get mem region\n");
 		return -ENXIO;
 	}
 
-	/* The core clock is synchronous with graphics */
+	/* The core clock is synchroyesus with graphics */
 	WARN_ON(clk_set_rate(ocmem_clks[OCMEM_CLK_CORE_IDX].clk, 1000) < 0);
 
 	ret = clk_bulk_prepare_enable(ARRAY_SIZE(ocmem_clks), ocmem_clks);
@@ -342,7 +342,7 @@ static int ocmem_dev_probe(struct platform_device *pdev)
 		dev_dbg(dev, "configuring scm\n");
 		ret = qcom_scm_restore_sec_cfg(QCOM_SCM_OCMEM_DEV_ID, 0);
 		if (ret) {
-			dev_err(dev, "Could not enable secure configuration\n");
+			dev_err(dev, "Could yest enable secure configuration\n");
 			goto err_clk_disable;
 		}
 	}
@@ -357,7 +357,7 @@ static int ocmem_dev_probe(struct platform_device *pdev)
 
 	dev_info(dev, "%u ports, %u regions, %u macros, %sinterleaved\n",
 		 ocmem->num_ports, ocmem->config->num_regions,
-		 ocmem->num_macros, ocmem->interleaved ? "" : "not ");
+		 ocmem->num_macros, ocmem->interleaved ? "" : "yest ");
 
 	ocmem->regions = devm_kcalloc(dev, ocmem->config->num_regions,
 				      sizeof(struct ocmem_region), GFP_KERNEL);

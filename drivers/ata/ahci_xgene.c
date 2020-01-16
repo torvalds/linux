@@ -7,7 +7,7 @@
  *         Tuan Phan <tphan@apm.com>
  *         Suman Tripathi <stripathi@apm.com>
  *
- * NOTE: PM support is not currently available.
+ * NOTE: PM support is yest currently available.
  */
 #include <linux/acpi.h>
 #include <linux/module.h>
@@ -65,7 +65,7 @@
 /* SATA host controller AXI CSR */
 #define INT_SLV_TMOMASK			0x00000010
 
-/* SATA diagnostic CSR */
+/* SATA diagyesstic CSR */
 #define CFG_MEM_RAM_SHUTDOWN		0x00000070
 #define BLOCK_MEM_RDY			0x00000074
 
@@ -174,7 +174,7 @@ static int xgene_ahci_restart_engine(struct ata_port *ap)
  * xgene_ahci_qc_issue - Issue commands to the device
  * @qc: Command to issue
  *
- * Due to Hardware errata for IDENTIFY DEVICE command, the controller cannot
+ * Due to Hardware errata for IDENTIFY DEVICE command, the controller canyest
  * clear the BSY bit after receiving the PIO setup FIS. This results in the dma
  * state machine goes into the CMFatalErrorUpdate state and locks up. By
  * restarting the dma engine, it removes the controller out of lock up state.
@@ -199,22 +199,22 @@ static unsigned int xgene_ahci_qc_issue(struct ata_queued_cmd *qc)
 	 * Write the pmp value to PxFBS.DEV
 	 * for case of Port Mulitplier.
 	 */
-	if (ctx->class[ap->port_no] == ATA_DEV_PMP) {
+	if (ctx->class[ap->port_yes] == ATA_DEV_PMP) {
 		port_fbs = readl(port_mmio + PORT_FBS);
 		port_fbs &= ~PORT_FBS_DEV_MASK;
 		port_fbs |= qc->dev->link->pmp << PORT_FBS_DEV_OFFSET;
 		writel(port_fbs, port_mmio + PORT_FBS);
 	}
 
-	if (unlikely((ctx->last_cmd[ap->port_no] == ATA_CMD_ID_ATA) ||
-	    (ctx->last_cmd[ap->port_no] == ATA_CMD_PACKET) ||
-	    (ctx->last_cmd[ap->port_no] == ATA_CMD_SMART)))
+	if (unlikely((ctx->last_cmd[ap->port_yes] == ATA_CMD_ID_ATA) ||
+	    (ctx->last_cmd[ap->port_yes] == ATA_CMD_PACKET) ||
+	    (ctx->last_cmd[ap->port_yes] == ATA_CMD_SMART)))
 		xgene_ahci_restart_engine(ap);
 
 	rc = ahci_qc_issue(qc);
 
 	/* Save the last command issued */
-	ctx->last_cmd[ap->port_no] = qc->tf.command;
+	ctx->last_cmd[ap->port_yes] = qc->tf.command;
 
 	return rc;
 }
@@ -234,7 +234,7 @@ static bool xgene_ahci_is_memram_inited(struct xgene_ahci_context *ctx)
  * @id: data buffer
  *
  * This custom read ID function is required due to the fact that the HW
- * does not support DEVSLP.
+ * does yest support DEVSLP.
  */
 static unsigned int xgene_ahci_read_id(struct ata_device *dev,
 				       struct ata_taskfile *tf, u16 *id)
@@ -254,7 +254,7 @@ static unsigned int xgene_ahci_read_id(struct ata_device *dev,
 	 * bit4: In-order sata delivery supported
 	 * bit3: DIPM requests supported
 	 * bit2: DMA Setup FIS Auto-Activate optimization supported
-	 * bit1: DMA Setup FIX non-Zero buffer offsets supported
+	 * bit1: DMA Setup FIX yesn-Zero buffer offsets supported
 	 * bit0: Reserved
 	 *
 	 * Clear reserved bit 8 (DEVSLP bit) as we don't support DEVSLP
@@ -320,11 +320,11 @@ static void xgene_ahci_set_phy_cfg(struct xgene_ahci_context *ctx, int channel)
  * Alg Part 1:
  * 1. Start the PHY at Gen3 speed (default setting)
  * 2. Issue the COMRESET
- * 3. If no link, go to Alg Part 3
+ * 3. If yes link, go to Alg Part 3
  * 4. If link up, determine if the negotiated speed matches the PHY
  *    configured speed
  * 5. If they matched, go to Alg Part 2
- * 6. If they do not matched and first time, configure the PHY for the linked
+ * 6. If they do yest matched and first time, configure the PHY for the linked
  *    up disk speed and repeat step 2
  * 7. Go to Alg Part 2
  *
@@ -520,10 +520,10 @@ softreset_retry:
 	rc = ahci_do_softreset(link, class, pmp,
 			       deadline, ahci_check_ready);
 
-	ctx->class[ap->port_no] = *class;
+	ctx->class[ap->port_yes] = *class;
 	if (*class != ATA_DEV_PMP) {
 		/*
-		 * Retry for normal drives without
+		 * Retry for yesrmal drives without
 		 * setting PxFBS.DEV field with pmp value.
 		 */
 		if (retry--) {
@@ -554,7 +554,7 @@ softreset_retry:
  *    traverse the rest of port's PORT_IRQ_STAT register
  *    to check if an interrupt is triggered at that point else
  *    go to step 6.
- * 5. If PORT_IRQ_STAT register of rest ports is not equal to zero
+ * 5. If PORT_IRQ_STAT register of rest ports is yest equal to zero
  *    then update the state of HOST_IRQ_STAT saved in step 1.
  * 6. Handle port interrupts.
  * 7. Exit
@@ -764,7 +764,7 @@ static int xgene_ahci_probe(struct platform_device *pdev)
 	if (IS_ERR(ctx->csr_core))
 		return PTR_ERR(ctx->csr_core);
 
-	/* Retrieve the IP diagnostic resource */
+	/* Retrieve the IP diagyesstic resource */
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 2);
 	ctx->csr_diag = devm_ioremap_resource(dev, res);
 	if (IS_ERR(ctx->csr_diag))
@@ -799,7 +799,7 @@ static int xgene_ahci_probe(struct platform_device *pdev)
 
 		acpi_id = acpi_match_device(xgene_ahci_acpi_match, &pdev->dev);
 		if (!acpi_id) {
-			dev_warn(&pdev->dev, "No node entry in ACPI table. Assume version1\n");
+			dev_warn(&pdev->dev, "No yesde entry in ACPI table. Assume version1\n");
 			version = XGENE_AHCI_V1;
 		} else if (acpi_id->driver_data) {
 			version = (enum xgene_ahci_version) acpi_id->driver_data;

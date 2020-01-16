@@ -4,7 +4,7 @@
  * Based on code by Randy Vinson <rvinson@mvista.com>,
  * which was based on the m41t00.c by Mark Greer <mgreer@mvista.com>.
  *
- * Copyright (C) 2014 Rose Technology
+ * Copyright (C) 2014 Rose Techyeslogy
  * Copyright (C) 2006-2007 Freescale Semiconductor
  *
  * 2005 (c) MontaVista Software, Inc. This file is licensed under
@@ -187,7 +187,7 @@ static int ds1374_read_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct ds1374 *ds1374 = i2c_get_clientdata(client);
-	u32 now, cur_alarm;
+	u32 yesw, cur_alarm;
 	int cr, sr;
 	int ret = 0;
 
@@ -204,7 +204,7 @@ static int ds1374_read_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 	if (ret < 0)
 		goto out;
 
-	ret = ds1374_read_rtc(client, &now, DS1374_REG_TOD0, 4);
+	ret = ds1374_read_rtc(client, &yesw, DS1374_REG_TOD0, 4);
 	if (ret)
 		goto out;
 
@@ -212,7 +212,7 @@ static int ds1374_read_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 	if (ret)
 		goto out;
 
-	rtc_time_to_tm(now + cur_alarm, &alarm->time);
+	rtc_time_to_tm(yesw + cur_alarm, &alarm->time);
 	alarm->enabled = !!(cr & DS1374_REG_CR_WACE);
 	alarm->pending = !!(sr & DS1374_REG_SR_AF);
 
@@ -225,7 +225,7 @@ static int ds1374_set_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct ds1374 *ds1374 = i2c_get_clientdata(client);
-	struct rtc_time now;
+	struct rtc_time yesw;
 	unsigned long new_alarm, itime;
 	int cr;
 	int ret = 0;
@@ -233,17 +233,17 @@ static int ds1374_set_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 	if (client->irq <= 0)
 		return -EINVAL;
 
-	ret = ds1374_read_time(dev, &now);
+	ret = ds1374_read_time(dev, &yesw);
 	if (ret < 0)
 		return ret;
 
 	rtc_tm_to_time(&alarm->time, &new_alarm);
-	rtc_tm_to_time(&now, &itime);
+	rtc_tm_to_time(&yesw, &itime);
 
 	/* This can happen due to races, in addition to dates that are
 	 * truly in the past.  To avoid requiring the caller to check for
 	 * races, dates in the past are assumed to be in the recent past
-	 * (i.e. not something that we'd rather the caller know about via
+	 * (i.e. yest something that we'd rather the caller kyesw about via
 	 * an error), and the alarm is set to go off as soon as possible.
 	 */
 	if (time_before_eq(new_alarm, itime))
@@ -287,7 +287,7 @@ static irqreturn_t ds1374_irq(int irq, void *dev_id)
 	struct i2c_client *client = dev_id;
 	struct ds1374 *ds1374 = i2c_get_clientdata(client);
 
-	disable_irq_nosync(irq);
+	disable_irq_yessync(irq);
 	schedule_work(&ds1374->work);
 	return IRQ_HANDLED;
 }
@@ -451,11 +451,11 @@ static void ds1374_wdt_disable(void)
 /*
  * Watchdog device is opened, and watchdog starts running.
  */
-static int ds1374_wdt_open(struct inode *inode, struct file *file)
+static int ds1374_wdt_open(struct iyesde *iyesde, struct file *file)
 {
 	struct ds1374 *ds1374 = i2c_get_clientdata(save_client);
 
-	if (MINOR(inode->i_rdev) == WATCHDOG_MINOR) {
+	if (MINOR(iyesde->i_rdev) == WATCHDOG_MINOR) {
 		mutex_lock(&ds1374->mutex);
 		if (test_and_set_bit(0, &wdt_is_open)) {
 			mutex_unlock(&ds1374->mutex);
@@ -466,7 +466,7 @@ static int ds1374_wdt_open(struct inode *inode, struct file *file)
 		 */
 		wdt_is_open = 1;
 		mutex_unlock(&ds1374->mutex);
-		return stream_open(inode, file);
+		return stream_open(iyesde, file);
 	}
 	return -ENODEV;
 }
@@ -474,9 +474,9 @@ static int ds1374_wdt_open(struct inode *inode, struct file *file)
 /*
  * Close the watchdog device.
  */
-static int ds1374_wdt_release(struct inode *inode, struct file *file)
+static int ds1374_wdt_release(struct iyesde *iyesde, struct file *file)
 {
-	if (MINOR(inode->i_rdev) == WATCHDOG_MINOR)
+	if (MINOR(iyesde->i_rdev) == WATCHDOG_MINOR)
 		clear_bit(0, &wdt_is_open);
 
 	return 0;
@@ -572,7 +572,7 @@ static long ds1374_wdt_unlocked_ioctl(struct file *file, unsigned int cmd,
 	return ret;
 }
 
-static int ds1374_wdt_notify_sys(struct notifier_block *this,
+static int ds1374_wdt_yestify_sys(struct yestifier_block *this,
 			unsigned long code, void *unused)
 {
 	if (code == SYS_DOWN || code == SYS_HALT)
@@ -589,17 +589,17 @@ static const struct file_operations ds1374_wdt_fops = {
 	.write			= ds1374_wdt_write,
 	.open                   = ds1374_wdt_open,
 	.release                = ds1374_wdt_release,
-	.llseek			= no_llseek,
+	.llseek			= yes_llseek,
 };
 
 static struct miscdevice ds1374_miscdev = {
-	.minor          = WATCHDOG_MINOR,
+	.miyesr          = WATCHDOG_MINOR,
 	.name           = "watchdog",
 	.fops           = &ds1374_wdt_fops,
 };
 
-static struct notifier_block ds1374_wdt_notifier = {
-	.notifier_call = ds1374_wdt_notify_sys,
+static struct yestifier_block ds1374_wdt_yestifier = {
+	.yestifier_call = ds1374_wdt_yestify_sys,
 };
 
 #endif /*CONFIG_RTC_DRV_DS1374_WDT*/
@@ -653,7 +653,7 @@ static int ds1374_probe(struct i2c_client *client,
 	ret = misc_register(&ds1374_miscdev);
 	if (ret)
 		return ret;
-	ret = register_reboot_notifier(&ds1374_wdt_notifier);
+	ret = register_reboot_yestifier(&ds1374_wdt_yestifier);
 	if (ret) {
 		misc_deregister(&ds1374_miscdev);
 		return ret;
@@ -670,7 +670,7 @@ static int ds1374_remove(struct i2c_client *client)
 #ifdef CONFIG_RTC_DRV_DS1374_WDT
 	misc_deregister(&ds1374_miscdev);
 	ds1374_miscdev.parent = NULL;
-	unregister_reboot_notifier(&ds1374_wdt_notifier);
+	unregister_reboot_yestifier(&ds1374_wdt_yestifier);
 #endif
 
 	if (client->irq > 0) {

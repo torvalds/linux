@@ -152,7 +152,7 @@ static int sun6i_prcm_probe(struct platform_device *pdev)
 	struct resource *res;
 	int ret;
 
-	match = of_match_node(sun6i_prcm_dt_ids, pdev->dev.of_node);
+	match = of_match_yesde(sun6i_prcm_dt_ids, pdev->dev.of_yesde);
 	if (!match)
 		return -EINVAL;
 
@@ -160,7 +160,7 @@ static int sun6i_prcm_probe(struct platform_device *pdev)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {
-		dev_err(&pdev->dev, "no prcm memory region provided\n");
+		dev_err(&pdev->dev, "yes prcm memory region provided\n");
 		return -ENOENT;
 	}
 

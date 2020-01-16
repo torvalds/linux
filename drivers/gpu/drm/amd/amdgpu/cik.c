@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -955,7 +955,7 @@ static bool cik_read_bios_from_rom(struct amdgpu_device *adev,
 	/* set rom index to 0 */
 	WREG32(mmSMC_IND_INDEX_0, ixROM_INDEX);
 	WREG32(mmSMC_IND_DATA_0, 0);
-	/* set index to data for continous read */
+	/* set index to data for contiyesus read */
 	WREG32(mmSMC_IND_INDEX_0, ixROM_DATA);
 	for (i = 0; i < length_dw; i++)
 		dw_ptr[i] = RREG32(mmSMC_IND_DATA_0);
@@ -1482,7 +1482,7 @@ static void cik_pcie_gen3_enable(struct amdgpu_device *adev)
 		return;
 
 	if (adev->pm.pcie_gen_mask & CAIL_PCIE_LINK_SPEED_SUPPORT_GEN3) {
-		/* re-try equalization if gen3 is not already enabled */
+		/* re-try equalization if gen3 is yest already enabled */
 		if (current_data_rate != 2) {
 			u16 bridge_cfg, gpu_cfg;
 			u16 bridge_cfg2, gpu_cfg2;
@@ -1841,7 +1841,7 @@ static void cik_get_pcie_usage(struct amdgpu_device *adev, uint64_t *count0,
 	int tmp;
 
 	/* This reports 0 on APUs, so return to avoid writing/reading registers
-	 * that may or may not be different from their GPU counterparts
+	 * that may or may yest be different from their GPU counterparts
 	 */
 	if (adev->flags & AMD_IS_APU)
 		return;
@@ -2061,7 +2061,7 @@ static int cik_common_early_init(void *handle)
 			adev->external_rev_id = adev->rev_id + 0xa1;
 		break;
 	default:
-		/* FIXME: not supported yet */
+		/* FIXME: yest supported yet */
 		return -EINVAL;
 	}
 
@@ -2160,7 +2160,7 @@ static const struct amdgpu_ip_block_version cik_common_ip_block =
 {
 	.type = AMD_IP_BLOCK_TYPE_COMMON,
 	.major = 1,
-	.minor = 0,
+	.miyesr = 0,
 	.rev = 0,
 	.funcs = &cik_common_ip_funcs,
 };
@@ -2245,7 +2245,7 @@ int cik_set_ip_blocks(struct amdgpu_device *adev)
 		amdgpu_device_ip_block_add(adev, &vce_v2_0_ip_block);
 		break;
 	default:
-		/* FIXME: not supported yet */
+		/* FIXME: yest supported yet */
 		return -EINVAL;
 	}
 	return 0;

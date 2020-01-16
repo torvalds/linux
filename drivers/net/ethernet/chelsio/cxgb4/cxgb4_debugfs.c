@@ -14,11 +14,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -194,12 +194,12 @@ static int cim_la_show_pc_t6(struct seq_file *seq, void *v, int idx)
 	return 0;
 }
 
-static int cim_la_open(struct inode *inode, struct file *file)
+static int cim_la_open(struct iyesde *iyesde, struct file *file)
 {
 	int ret;
 	unsigned int cfg;
 	struct seq_tab *p;
-	struct adapter *adap = inode->i_private;
+	struct adapter *adap = iyesde->i_private;
 
 	ret = t4_cim_read(adap, UP_UP_DBG_LA_CFG_A, 1, &cfg);
 	if (ret)
@@ -222,7 +222,7 @@ static int cim_la_open(struct inode *inode, struct file *file)
 
 	ret = t4_cim_read_la(adap, (u32 *)p->data, NULL);
 	if (ret)
-		seq_release_private(inode, file);
+		seq_release_private(iyesde, file);
 	return ret;
 }
 
@@ -254,10 +254,10 @@ static int cim_pif_la_show(struct seq_file *seq, void *v, int idx)
 	return 0;
 }
 
-static int cim_pif_la_open(struct inode *inode, struct file *file)
+static int cim_pif_la_open(struct iyesde *iyesde, struct file *file)
 {
 	struct seq_tab *p;
-	struct adapter *adap = inode->i_private;
+	struct adapter *adap = iyesde->i_private;
 
 	p = seq_open_tab(file, 2 * CIM_PIFLA_SIZE, 6 * sizeof(u32), 1,
 			 cim_pif_la_show);
@@ -300,10 +300,10 @@ static int cim_ma_la_show(struct seq_file *seq, void *v, int idx)
 	return 0;
 }
 
-static int cim_ma_la_open(struct inode *inode, struct file *file)
+static int cim_ma_la_open(struct iyesde *iyesde, struct file *file)
 {
 	struct seq_tab *p;
-	struct adapter *adap = inode->i_private;
+	struct adapter *adap = iyesde->i_private;
 
 	p = seq_open_tab(file, 2 * CIM_MALA_SIZE, 5 * sizeof(u32), 1,
 			 cim_ma_la_show);
@@ -389,12 +389,12 @@ static int cimq_show(struct seq_file *seq, void *v, int idx)
 	return 0;
 }
 
-static int cim_ibq_open(struct inode *inode, struct file *file)
+static int cim_ibq_open(struct iyesde *iyesde, struct file *file)
 {
 	int ret;
 	struct seq_tab *p;
-	unsigned int qid = (uintptr_t)inode->i_private & 7;
-	struct adapter *adap = inode->i_private - qid;
+	unsigned int qid = (uintptr_t)iyesde->i_private & 7;
+	struct adapter *adap = iyesde->i_private - qid;
 
 	p = seq_open_tab(file, CIM_IBQ_SIZE, 4 * sizeof(u32), 0, cimq_show);
 	if (!p)
@@ -402,7 +402,7 @@ static int cim_ibq_open(struct inode *inode, struct file *file)
 
 	ret = t4_read_cim_ibq(adap, qid, (u32 *)p->data, CIM_IBQ_SIZE * 4);
 	if (ret < 0)
-		seq_release_private(inode, file);
+		seq_release_private(iyesde, file);
 	else
 		ret = 0;
 	return ret;
@@ -416,12 +416,12 @@ static const struct file_operations cim_ibq_fops = {
 	.release = seq_release_private
 };
 
-static int cim_obq_open(struct inode *inode, struct file *file)
+static int cim_obq_open(struct iyesde *iyesde, struct file *file)
 {
 	int ret;
 	struct seq_tab *p;
-	unsigned int qid = (uintptr_t)inode->i_private & 7;
-	struct adapter *adap = inode->i_private - qid;
+	unsigned int qid = (uintptr_t)iyesde->i_private & 7;
+	struct adapter *adap = iyesde->i_private - qid;
 
 	p = seq_open_tab(file, 6 * CIM_OBQ_SIZE, 4 * sizeof(u32), 0, cimq_show);
 	if (!p)
@@ -429,7 +429,7 @@ static int cim_obq_open(struct inode *inode, struct file *file)
 
 	ret = t4_read_cim_obq(adap, qid, (u32 *)p->data, 6 * CIM_OBQ_SIZE * 4);
 	if (ret < 0) {
-		seq_release_private(inode, file);
+		seq_release_private(iyesde, file);
 	} else {
 		seq_tab_trim(p, ret / 4);
 		ret = 0;
@@ -636,10 +636,10 @@ static int tp_la_show3(struct seq_file *seq, void *v, int idx)
 	return 0;
 }
 
-static int tp_la_open(struct inode *inode, struct file *file)
+static int tp_la_open(struct iyesde *iyesde, struct file *file)
 {
 	struct seq_tab *p;
-	struct adapter *adap = inode->i_private;
+	struct adapter *adap = iyesde->i_private;
 
 	switch (DBGLAMODE_G(t4_read_reg(adap, TP_DBG_LA_CONFIG_A))) {
 	case 2:
@@ -667,7 +667,7 @@ static ssize_t tp_la_write(struct file *file, const char __user *buf,
 	char s[32];
 	unsigned long val;
 	size_t size = min(sizeof(s) - 1, count);
-	struct adapter *adap = file_inode(file)->i_private;
+	struct adapter *adap = file_iyesde(file)->i_private;
 
 	if (copy_from_user(s, buf, size))
 		return -EFAULT;
@@ -705,10 +705,10 @@ static int ulprx_la_show(struct seq_file *seq, void *v, int idx)
 	return 0;
 }
 
-static int ulprx_la_open(struct inode *inode, struct file *file)
+static int ulprx_la_open(struct iyesde *iyesde, struct file *file)
 {
 	struct seq_tab *p;
-	struct adapter *adap = inode->i_private;
+	struct adapter *adap = iyesde->i_private;
 
 	p = seq_open_tab(file, ULPRX_LA_SIZE, 8 * sizeof(u32), 1,
 			 ulprx_la_show);
@@ -768,7 +768,7 @@ static int pm_stats_show(struct seq_file *seq, void *v)
 
 	if (CHELSIO_CHIP_VERSION(adap->params.chip) > CHELSIO_T5) {
 		/* In T5 the granularity of the total wait is too fine.
-		 * It is not useful as it reaches the max value too fast.
+		 * It is yest useful as it reaches the max value too fast.
 		 * Hence display this Input FIFO wait for T6 onwards.
 		 */
 		seq_printf(seq, "%13s %10s  %20s\n",
@@ -778,7 +778,7 @@ static int pm_stats_show(struct seq_file *seq, void *v)
 		seq_printf(seq, "Rx FIFO wait  %10u  %20llu\n",
 			   rx_cnt[i], rx_cyc[i]);
 
-		/* Skip index 6 as there is nothing useful ihere */
+		/* Skip index 6 as there is yesthing useful ihere */
 		i += 2;
 
 		/* At index 7, a new stat for read latency (count, total wait)
@@ -794,15 +794,15 @@ static int pm_stats_show(struct seq_file *seq, void *v)
 	return 0;
 }
 
-static int pm_stats_open(struct inode *inode, struct file *file)
+static int pm_stats_open(struct iyesde *iyesde, struct file *file)
 {
-	return single_open(file, pm_stats_show, inode->i_private);
+	return single_open(file, pm_stats_show, iyesde->i_private);
 }
 
 static ssize_t pm_stats_clear(struct file *file, const char __user *buf,
 			      size_t count, loff_t *pos)
 {
-	struct adapter *adap = file_inode(file)->i_private;
+	struct adapter *adap = file_iyesde(file)->i_private;
 
 	t4_write_reg(adap, PM_RX_STAT_CONFIG_A, 0);
 	t4_write_reg(adap, PM_TX_STAT_CONFIG_A, 0);
@@ -1016,7 +1016,7 @@ static int devlog_show(struct seq_file *seq, void *v)
 		 * eventually have to put a format interpreter in here ...
 		 */
 		seq_printf(seq, "%10d  %15llu  %8s  %8s  ",
-			   be32_to_cpu(e->seqno),
+			   be32_to_cpu(e->seqyes),
 			   be64_to_cpu(e->timestamp),
 			   (e->level < ARRAY_SIZE(devlog_level_strings)
 			    ? devlog_level_strings[e->level]
@@ -1078,16 +1078,16 @@ static const struct seq_operations devlog_seq_ops = {
 /* Set up for reading the firmware's device log.  We read the entire log here
  * and then display it incrementally in devlog_show().
  */
-static int devlog_open(struct inode *inode, struct file *file)
+static int devlog_open(struct iyesde *iyesde, struct file *file)
 {
-	struct adapter *adap = inode->i_private;
+	struct adapter *adap = iyesde->i_private;
 	struct devlog_params *dparams = &adap->params.devlog;
 	struct devlog_info *dinfo;
 	unsigned int index;
-	u32 fseqno;
+	u32 fseqyes;
 	int ret;
 
-	/* If we don't know where the log is we can't do anything.
+	/* If we don't kyesw where the log is we can't do anything.
 	 */
 	if (dparams->start == 0)
 		return -ENXIO;
@@ -1110,23 +1110,23 @@ static int devlog_open(struct inode *inode, struct file *file)
 			   T4_MEMORY_READ);
 	spin_unlock(&adap->win0_lock);
 	if (ret) {
-		seq_release_private(inode, file);
+		seq_release_private(iyesde, file);
 		return ret;
 	}
 
 	/* Find the earliest (lowest Sequence Number) log entry in the
 	 * circular Device Log.
 	 */
-	for (fseqno = ~((u32)0), index = 0; index < dinfo->nentries; index++) {
+	for (fseqyes = ~((u32)0), index = 0; index < dinfo->nentries; index++) {
 		struct fw_devlog_e *e = &dinfo->log[index];
-		__u32 seqno;
+		__u32 seqyes;
 
 		if (e->timestamp == 0)
 			continue;
 
-		seqno = be32_to_cpu(e->seqno);
-		if (seqno < fseqno) {
-			fseqno = seqno;
+		seqyes = be32_to_cpu(e->seqyes);
+		if (seqyes < fseqyes) {
+			fseqyes = seqyes;
 			dinfo->first = index;
 		}
 	}
@@ -1145,7 +1145,7 @@ static const struct file_operations devlog_fops = {
  *
  * Note that we don't do any locking when dumping the Firmware Mailbox Log so
  * it's possible that we can catch things during a log update and therefore
- * see partially corrupted log entries.  But it's probably Good Enough(tm).
+ * see partially corrupted log entries.  But it's probably Good Eyesugh(tm).
  * If we ever decide that we want to make sure that we're dumping a coherent
  * log, we'd need to perform locking in the mailbox logging and in
  * mboxlog_open() where we'd need to grab the entire mailbox log in one go
@@ -1176,7 +1176,7 @@ static int mboxlog_show(struct seq_file *seq, void *v)
 		return 0;
 
 	seq_printf(seq, "%10u  %15llu  %5d  %5d",
-		   entry->seqno, entry->timestamp,
+		   entry->seqyes, entry->timestamp,
 		   entry->access, entry->execute);
 	for (i = 0; i < MBOX_LEN / 8; i++) {
 		u64 flit = entry->cmd[i];
@@ -1219,14 +1219,14 @@ static const struct seq_operations mboxlog_seq_ops = {
 	.show  = mboxlog_show
 };
 
-static int mboxlog_open(struct inode *inode, struct file *file)
+static int mboxlog_open(struct iyesde *iyesde, struct file *file)
 {
 	int res = seq_open(file, &mboxlog_seq_ops);
 
 	if (!res) {
 		struct seq_file *seq = file->private_data;
 
-		seq->private = inode->i_private;
+		seq->private = iyesde->i_private;
 	}
 	return res;
 }
@@ -1241,8 +1241,8 @@ static const struct file_operations mboxlog_fops = {
 
 static int mbox_show(struct seq_file *seq, void *v)
 {
-	static const char * const owner[] = { "none", "FW", "driver",
-					      "unknown", "<unread>" };
+	static const char * const owner[] = { "yesne", "FW", "driver",
+					      "unkyeswn", "<unread>" };
 
 	int i;
 	unsigned int mbox = (uintptr_t)seq->private & 7;
@@ -1251,7 +1251,7 @@ static int mbox_show(struct seq_file *seq, void *v)
 
 	/* For T4 we don't have a shadow copy of the Mailbox Control register.
 	 * And since reading that real register causes a side effect of
-	 * granting ownership, we're best of simply not reading it at all.
+	 * granting ownership, we're best of simply yest reading it at all.
 	 */
 	if (is_t4(adap->params.chip)) {
 		i = 4; /* index of "<unread>" */
@@ -1270,9 +1270,9 @@ static int mbox_show(struct seq_file *seq, void *v)
 	return 0;
 }
 
-static int mbox_open(struct inode *inode, struct file *file)
+static int mbox_open(struct iyesde *iyesde, struct file *file)
 {
-	return single_open(file, mbox_show, inode->i_private);
+	return single_open(file, mbox_show, iyesde->i_private);
 }
 
 static ssize_t mbox_write(struct file *file, const char __user *buf,
@@ -1281,7 +1281,7 @@ static ssize_t mbox_write(struct file *file, const char __user *buf,
 	int i;
 	char c = '\n', s[256];
 	unsigned long long data[8];
-	const struct inode *ino;
+	const struct iyesde *iyes;
 	unsigned int mbox;
 	struct adapter *adap;
 	void __iomem *addr;
@@ -1298,9 +1298,9 @@ static ssize_t mbox_write(struct file *file, const char __user *buf,
 		   &data[7], &c) < 8 || c != '\n')
 		return -EINVAL;
 
-	ino = file_inode(file);
-	mbox = (uintptr_t)ino->i_private & 7;
-	adap = ino->i_private - mbox;
+	iyes = file_iyesde(file);
+	mbox = (uintptr_t)iyes->i_private & 7;
+	adap = iyes->i_private - mbox;
 	addr = adap->regs + PF_REG(mbox, CIM_PF_MAILBOX_DATA_A);
 	ctrl = addr + MBOX_LEN;
 
@@ -1344,7 +1344,7 @@ static int mps_trc_show(struct seq_file *seq, void *v)
 		i = adap->chan_map[tp.port & 3];
 		if (i >= MAX_NPORTS) {
 			dev_err(adap->pdev_dev, "tracer %u is assigned "
-				"to non-existing port\n", trcidx);
+				"to yesn-existing port\n", trcidx);
 			return -EINVAL;
 		}
 		seq_printf(seq, "tracer is capturing %s %s, ",
@@ -1355,7 +1355,7 @@ static int mps_trc_show(struct seq_file *seq, void *v)
 	seq_printf(seq, "snap length: %u, min length: %u\n", tp.snap_len,
 		   tp.min_len);
 	seq_printf(seq, "packets captured %smatch filter\n",
-		   tp.invert ? "do not " : "");
+		   tp.invert ? "do yest " : "");
 
 	if (tp.skip_ofst) {
 		seq_puts(seq, "filter pattern: ");
@@ -1377,9 +1377,9 @@ static int mps_trc_show(struct seq_file *seq, void *v)
 	return 0;
 }
 
-static int mps_trc_open(struct inode *inode, struct file *file)
+static int mps_trc_open(struct iyesde *iyesde, struct file *file)
 {
-	return single_open(file, mps_trc_show, inode->i_private);
+	return single_open(file, mps_trc_show, iyesde->i_private);
 }
 
 static unsigned int xdigit2int(unsigned char c)
@@ -1397,7 +1397,7 @@ static unsigned int xdigit2int(unsigned char c)
  *
  * to disable tracing, or
  *
- * interface qid=<qid no> [snaplen=<val>] [minlen=<val>] [not] [<pattern>]...
+ * interface qid=<qid yes> [snaplen=<val>] [minlen=<val>] [yest] [<pattern>]...
  *
  * where interface is one of rxN, txN, or loopbackN, N = 0..3, qid can be one
  * of the NIC's response qid obtained from sge_qinfo and pattern has the form
@@ -1414,15 +1414,15 @@ static ssize_t mps_trc_write(struct file *file, const char __user *buf,
 	int i, enable, ret;
 	u32 *data, *mask;
 	struct trace_params tp;
-	const struct inode *ino;
+	const struct iyesde *iyes;
 	unsigned int trcidx;
 	char *s, *p, *word, *end;
 	struct adapter *adap;
 	u32 j;
 
-	ino = file_inode(file);
-	trcidx = (uintptr_t)ino->i_private & 3;
-	adap = ino->i_private - trcidx;
+	iyes = file_iyesde(file);
+	trcidx = (uintptr_t)iyes->i_private & 3;
+	adap = iyes->i_private - trcidx;
 
 	/* Don't accept input more than 1K, can't be anything valid except lots
 	 * of whitespace.  Well, use less.
@@ -1508,7 +1508,7 @@ inval:				count = -EINVAL;
 			tp.min_len = j;
 			continue;
 		}
-		if (!strcmp(word, "not")) {
+		if (!strcmp(word, "yest")) {
 			tp.invert = !tp.invert;
 			continue;
 		}
@@ -1568,7 +1568,7 @@ inval:				count = -EINVAL;
 			}
 			if (i != j)                 /* mask shorter than data */
 				goto inval;
-		} else {                            /* no mask, use all 1s */
+		} else {                            /* yes mask, use all 1s */
 			for ( ; i - j >= 8; j += 8)
 				*mask++ = 0xffffffff;
 			if (i % 8)
@@ -1620,7 +1620,7 @@ static ssize_t flash_read(struct file *file, char __user *buf, size_t count,
 			  loff_t *ppos)
 {
 	loff_t pos = *ppos;
-	loff_t avail = file_inode(file)->i_size;
+	loff_t avail = file_iyesde(file)->i_size;
 	struct adapter *adap = file->private_data;
 
 	if (pos < 0)
@@ -1923,14 +1923,14 @@ static const struct seq_operations mps_tcam_seq_ops = {
 	.show  = mps_tcam_show
 };
 
-static int mps_tcam_open(struct inode *inode, struct file *file)
+static int mps_tcam_open(struct iyesde *iyesde, struct file *file)
 {
 	int res = seq_open(file, &mps_tcam_seq_ops);
 
 	if (!res) {
 		struct seq_file *seq = file->private_data;
 
-		seq->private = inode->i_private;
+		seq->private = iyesde->i_private;
 	}
 	return res;
 }
@@ -1952,7 +1952,7 @@ static int sensors_show(struct seq_file *seq, void *v)
 	int ret;
 
 	/* Note that if the sensors haven't been initialized and turned on
-	 * we'll get values of 0, so treat those as "<unknown>" ...
+	 * we'll get values of 0, so treat those as "<unkyeswn>" ...
 	 */
 	param[0] = (FW_PARAMS_MNEM_V(FW_PARAMS_MNEM_DEV) |
 		    FW_PARAMS_PARAM_X_V(FW_PARAMS_PARAM_DEV_DIAG) |
@@ -1964,12 +1964,12 @@ static int sensors_show(struct seq_file *seq, void *v)
 			      param, val);
 
 	if (ret < 0 || val[0] == 0)
-		seq_puts(seq, "Temperature: <unknown>\n");
+		seq_puts(seq, "Temperature: <unkyeswn>\n");
 	else
 		seq_printf(seq, "Temperature: %dC\n", val[0]);
 
 	if (ret < 0 || val[1] == 0)
-		seq_puts(seq, "Core VDD:    <unknown>\n");
+		seq_puts(seq, "Core VDD:    <unkyeswn>\n");
 	else
 		seq_printf(seq, "Core VDD:    %dmV\n", val[1]);
 
@@ -1994,9 +1994,9 @@ static int rss_show(struct seq_file *seq, void *v, int idx)
 	return 0;
 }
 
-static int rss_open(struct inode *inode, struct file *file)
+static int rss_open(struct iyesde *iyesde, struct file *file)
 {
-	struct adapter *adap = inode->i_private;
+	struct adapter *adap = iyesde->i_private;
 	int ret, nentries;
 	struct seq_tab *p;
 
@@ -2007,7 +2007,7 @@ static int rss_open(struct inode *inode, struct file *file)
 
 	ret = t4_read_rss(adap, (u16 *)p->data);
 	if (ret)
-		seq_release_private(inode, file);
+		seq_release_private(iyesde, file);
 
 	return ret;
 }
@@ -2023,15 +2023,15 @@ static const struct file_operations rss_debugfs_fops = {
 /* RSS Configuration.
  */
 
-/* Small utility function to return the strings "yes" or "no" if the supplied
- * argument is non-zero.
+/* Small utility function to return the strings "no" or "yes" if the supplied
+ * argument is yesn-zero.
  */
-static const char *yesno(int x)
+static const char *noyes(int x)
 {
-	static const char *yes = "yes";
 	static const char *no = "no";
+	static const char *yes = "yes";
 
-	return x ? yes : no;
+	return x ? no : yes;
 }
 
 static int rss_config_show(struct seq_file *seq, void *v)
@@ -2047,51 +2047,51 @@ static int rss_config_show(struct seq_file *seq, void *v)
 
 	rssconf = t4_read_reg(adapter, TP_RSS_CONFIG_A);
 	seq_printf(seq, "TP_RSS_CONFIG: %#x\n", rssconf);
-	seq_printf(seq, "  Tnl4TupEnIpv6: %3s\n", yesno(rssconf &
+	seq_printf(seq, "  Tnl4TupEnIpv6: %3s\n", noyes(rssconf &
 							TNL4TUPENIPV6_F));
-	seq_printf(seq, "  Tnl2TupEnIpv6: %3s\n", yesno(rssconf &
+	seq_printf(seq, "  Tnl2TupEnIpv6: %3s\n", noyes(rssconf &
 							TNL2TUPENIPV6_F));
-	seq_printf(seq, "  Tnl4TupEnIpv4: %3s\n", yesno(rssconf &
+	seq_printf(seq, "  Tnl4TupEnIpv4: %3s\n", noyes(rssconf &
 							TNL4TUPENIPV4_F));
-	seq_printf(seq, "  Tnl2TupEnIpv4: %3s\n", yesno(rssconf &
+	seq_printf(seq, "  Tnl2TupEnIpv4: %3s\n", noyes(rssconf &
 							TNL2TUPENIPV4_F));
-	seq_printf(seq, "  TnlTcpSel:     %3s\n", yesno(rssconf & TNLTCPSEL_F));
-	seq_printf(seq, "  TnlIp6Sel:     %3s\n", yesno(rssconf & TNLIP6SEL_F));
-	seq_printf(seq, "  TnlVrtSel:     %3s\n", yesno(rssconf & TNLVRTSEL_F));
-	seq_printf(seq, "  TnlMapEn:      %3s\n", yesno(rssconf & TNLMAPEN_F));
-	seq_printf(seq, "  OfdHashSave:   %3s\n", yesno(rssconf &
+	seq_printf(seq, "  TnlTcpSel:     %3s\n", noyes(rssconf & TNLTCPSEL_F));
+	seq_printf(seq, "  TnlIp6Sel:     %3s\n", noyes(rssconf & TNLIP6SEL_F));
+	seq_printf(seq, "  TnlVrtSel:     %3s\n", noyes(rssconf & TNLVRTSEL_F));
+	seq_printf(seq, "  TnlMapEn:      %3s\n", noyes(rssconf & TNLMAPEN_F));
+	seq_printf(seq, "  OfdHashSave:   %3s\n", noyes(rssconf &
 							OFDHASHSAVE_F));
-	seq_printf(seq, "  OfdVrtSel:     %3s\n", yesno(rssconf & OFDVRTSEL_F));
-	seq_printf(seq, "  OfdMapEn:      %3s\n", yesno(rssconf & OFDMAPEN_F));
-	seq_printf(seq, "  OfdLkpEn:      %3s\n", yesno(rssconf & OFDLKPEN_F));
-	seq_printf(seq, "  Syn4TupEnIpv6: %3s\n", yesno(rssconf &
+	seq_printf(seq, "  OfdVrtSel:     %3s\n", noyes(rssconf & OFDVRTSEL_F));
+	seq_printf(seq, "  OfdMapEn:      %3s\n", noyes(rssconf & OFDMAPEN_F));
+	seq_printf(seq, "  OfdLkpEn:      %3s\n", noyes(rssconf & OFDLKPEN_F));
+	seq_printf(seq, "  Syn4TupEnIpv6: %3s\n", noyes(rssconf &
 							SYN4TUPENIPV6_F));
-	seq_printf(seq, "  Syn2TupEnIpv6: %3s\n", yesno(rssconf &
+	seq_printf(seq, "  Syn2TupEnIpv6: %3s\n", noyes(rssconf &
 							SYN2TUPENIPV6_F));
-	seq_printf(seq, "  Syn4TupEnIpv4: %3s\n", yesno(rssconf &
+	seq_printf(seq, "  Syn4TupEnIpv4: %3s\n", noyes(rssconf &
 							SYN4TUPENIPV4_F));
-	seq_printf(seq, "  Syn2TupEnIpv4: %3s\n", yesno(rssconf &
+	seq_printf(seq, "  Syn2TupEnIpv4: %3s\n", noyes(rssconf &
 							SYN2TUPENIPV4_F));
-	seq_printf(seq, "  Syn4TupEnIpv6: %3s\n", yesno(rssconf &
+	seq_printf(seq, "  Syn4TupEnIpv6: %3s\n", noyes(rssconf &
 							SYN4TUPENIPV6_F));
-	seq_printf(seq, "  SynIp6Sel:     %3s\n", yesno(rssconf & SYNIP6SEL_F));
-	seq_printf(seq, "  SynVrt6Sel:    %3s\n", yesno(rssconf & SYNVRTSEL_F));
-	seq_printf(seq, "  SynMapEn:      %3s\n", yesno(rssconf & SYNMAPEN_F));
-	seq_printf(seq, "  SynLkpEn:      %3s\n", yesno(rssconf & SYNLKPEN_F));
-	seq_printf(seq, "  ChnEn:         %3s\n", yesno(rssconf &
+	seq_printf(seq, "  SynIp6Sel:     %3s\n", noyes(rssconf & SYNIP6SEL_F));
+	seq_printf(seq, "  SynVrt6Sel:    %3s\n", noyes(rssconf & SYNVRTSEL_F));
+	seq_printf(seq, "  SynMapEn:      %3s\n", noyes(rssconf & SYNMAPEN_F));
+	seq_printf(seq, "  SynLkpEn:      %3s\n", noyes(rssconf & SYNLKPEN_F));
+	seq_printf(seq, "  ChnEn:         %3s\n", noyes(rssconf &
 							CHANNELENABLE_F));
-	seq_printf(seq, "  PrtEn:         %3s\n", yesno(rssconf &
+	seq_printf(seq, "  PrtEn:         %3s\n", noyes(rssconf &
 							PORTENABLE_F));
-	seq_printf(seq, "  TnlAllLkp:     %3s\n", yesno(rssconf &
+	seq_printf(seq, "  TnlAllLkp:     %3s\n", noyes(rssconf &
 							TNLALLLOOKUP_F));
-	seq_printf(seq, "  VrtEn:         %3s\n", yesno(rssconf &
+	seq_printf(seq, "  VrtEn:         %3s\n", noyes(rssconf &
 							VIRTENABLE_F));
-	seq_printf(seq, "  CngEn:         %3s\n", yesno(rssconf &
+	seq_printf(seq, "  CngEn:         %3s\n", noyes(rssconf &
 							CONGESTIONENABLE_F));
-	seq_printf(seq, "  HashToeplitz:  %3s\n", yesno(rssconf &
+	seq_printf(seq, "  HashToeplitz:  %3s\n", noyes(rssconf &
 							HASHTOEPLITZ_F));
-	seq_printf(seq, "  Udp4En:        %3s\n", yesno(rssconf & UDPENABLE_F));
-	seq_printf(seq, "  Disable:       %3s\n", yesno(rssconf & DISABLE_F));
+	seq_printf(seq, "  Udp4En:        %3s\n", noyes(rssconf & UDPENABLE_F));
+	seq_printf(seq, "  Disable:       %3s\n", noyes(rssconf & DISABLE_F));
 
 	seq_puts(seq, "\n");
 
@@ -2101,18 +2101,18 @@ static int rss_config_show(struct seq_file *seq, void *v)
 	seq_printf(seq, "  MaskFilter:    %3d\n", MASKFILTER_G(rssconf));
 	if (CHELSIO_CHIP_VERSION(adapter->params.chip) > CHELSIO_T5) {
 		seq_printf(seq, "  HashAll:     %3s\n",
-			   yesno(rssconf & HASHALL_F));
+			   noyes(rssconf & HASHALL_F));
 		seq_printf(seq, "  HashEth:     %3s\n",
-			   yesno(rssconf & HASHETH_F));
+			   noyes(rssconf & HASHETH_F));
 	}
-	seq_printf(seq, "  UseWireCh:     %3s\n", yesno(rssconf & USEWIRECH_F));
+	seq_printf(seq, "  UseWireCh:     %3s\n", noyes(rssconf & USEWIRECH_F));
 
 	seq_puts(seq, "\n");
 
 	rssconf = t4_read_reg(adapter, TP_RSS_CONFIG_OFD_A);
 	seq_printf(seq, "TP_RSS_CONFIG_OFD: %#x\n", rssconf);
 	seq_printf(seq, "  MaskSize:      %3d\n", MASKSIZE_G(rssconf));
-	seq_printf(seq, "  RRCplMapEn:    %3s\n", yesno(rssconf &
+	seq_printf(seq, "  RRCplMapEn:    %3s\n", noyes(rssconf &
 							RRCPLMAPEN_F));
 	seq_printf(seq, "  RRCplQueWidth: %3d\n", RRCPLQUEWIDTH_G(rssconf));
 
@@ -2121,7 +2121,7 @@ static int rss_config_show(struct seq_file *seq, void *v)
 	rssconf = t4_read_reg(adapter, TP_RSS_CONFIG_SYN_A);
 	seq_printf(seq, "TP_RSS_CONFIG_SYN: %#x\n", rssconf);
 	seq_printf(seq, "  MaskSize:      %3d\n", MASKSIZE_G(rssconf));
-	seq_printf(seq, "  UseWireCh:     %3s\n", yesno(rssconf & USEWIRECH_F));
+	seq_printf(seq, "  UseWireCh:     %3s\n", noyes(rssconf & USEWIRECH_F));
 
 	seq_puts(seq, "\n");
 
@@ -2131,15 +2131,15 @@ static int rss_config_show(struct seq_file *seq, void *v)
 		seq_printf(seq, "  KeyWrAddrX:     %3d\n",
 			   KEYWRADDRX_G(rssconf));
 		seq_printf(seq, "  KeyExtend:      %3s\n",
-			   yesno(rssconf & KEYEXTEND_F));
+			   noyes(rssconf & KEYEXTEND_F));
 	}
-	seq_printf(seq, "  VfRdRg:        %3s\n", yesno(rssconf & VFRDRG_F));
-	seq_printf(seq, "  VfRdEn:        %3s\n", yesno(rssconf & VFRDEN_F));
-	seq_printf(seq, "  VfPerrEn:      %3s\n", yesno(rssconf & VFPERREN_F));
-	seq_printf(seq, "  KeyPerrEn:     %3s\n", yesno(rssconf & KEYPERREN_F));
-	seq_printf(seq, "  DisVfVlan:     %3s\n", yesno(rssconf &
+	seq_printf(seq, "  VfRdRg:        %3s\n", noyes(rssconf & VFRDRG_F));
+	seq_printf(seq, "  VfRdEn:        %3s\n", noyes(rssconf & VFRDEN_F));
+	seq_printf(seq, "  VfPerrEn:      %3s\n", noyes(rssconf & VFPERREN_F));
+	seq_printf(seq, "  KeyPerrEn:     %3s\n", noyes(rssconf & KEYPERREN_F));
+	seq_printf(seq, "  DisVfVlan:     %3s\n", noyes(rssconf &
 							DISABLEVLAN_F));
-	seq_printf(seq, "  EnUpSwt:       %3s\n", yesno(rssconf & ENABLEUP0_F));
+	seq_printf(seq, "  EnUpSwt:       %3s\n", noyes(rssconf & ENABLEUP0_F));
 	seq_printf(seq, "  HashDelay:     %3d\n", HASHDELAY_G(rssconf));
 	if (CHELSIO_CHIP_VERSION(adapter->params.chip) <= CHELSIO_T5)
 		seq_printf(seq, "  VfWrAddr:      %3d\n", VFWRADDR_G(rssconf));
@@ -2147,36 +2147,36 @@ static int rss_config_show(struct seq_file *seq, void *v)
 		seq_printf(seq, "  VfWrAddr:      %3d\n",
 			   T6_VFWRADDR_G(rssconf));
 	seq_printf(seq, "  KeyMode:       %s\n", keymode[KEYMODE_G(rssconf)]);
-	seq_printf(seq, "  VfWrEn:        %3s\n", yesno(rssconf & VFWREN_F));
-	seq_printf(seq, "  KeyWrEn:       %3s\n", yesno(rssconf & KEYWREN_F));
+	seq_printf(seq, "  VfWrEn:        %3s\n", noyes(rssconf & VFWREN_F));
+	seq_printf(seq, "  KeyWrEn:       %3s\n", noyes(rssconf & KEYWREN_F));
 	seq_printf(seq, "  KeyWrAddr:     %3d\n", KEYWRADDR_G(rssconf));
 
 	seq_puts(seq, "\n");
 
 	rssconf = t4_read_reg(adapter, TP_RSS_CONFIG_CNG_A);
 	seq_printf(seq, "TP_RSS_CONFIG_CNG: %#x\n", rssconf);
-	seq_printf(seq, "  ChnCount3:     %3s\n", yesno(rssconf & CHNCOUNT3_F));
-	seq_printf(seq, "  ChnCount2:     %3s\n", yesno(rssconf & CHNCOUNT2_F));
-	seq_printf(seq, "  ChnCount1:     %3s\n", yesno(rssconf & CHNCOUNT1_F));
-	seq_printf(seq, "  ChnCount0:     %3s\n", yesno(rssconf & CHNCOUNT0_F));
-	seq_printf(seq, "  ChnUndFlow3:   %3s\n", yesno(rssconf &
+	seq_printf(seq, "  ChnCount3:     %3s\n", noyes(rssconf & CHNCOUNT3_F));
+	seq_printf(seq, "  ChnCount2:     %3s\n", noyes(rssconf & CHNCOUNT2_F));
+	seq_printf(seq, "  ChnCount1:     %3s\n", noyes(rssconf & CHNCOUNT1_F));
+	seq_printf(seq, "  ChnCount0:     %3s\n", noyes(rssconf & CHNCOUNT0_F));
+	seq_printf(seq, "  ChnUndFlow3:   %3s\n", noyes(rssconf &
 							CHNUNDFLOW3_F));
-	seq_printf(seq, "  ChnUndFlow2:   %3s\n", yesno(rssconf &
+	seq_printf(seq, "  ChnUndFlow2:   %3s\n", noyes(rssconf &
 							CHNUNDFLOW2_F));
-	seq_printf(seq, "  ChnUndFlow1:   %3s\n", yesno(rssconf &
+	seq_printf(seq, "  ChnUndFlow1:   %3s\n", noyes(rssconf &
 							CHNUNDFLOW1_F));
-	seq_printf(seq, "  ChnUndFlow0:   %3s\n", yesno(rssconf &
+	seq_printf(seq, "  ChnUndFlow0:   %3s\n", noyes(rssconf &
 							CHNUNDFLOW0_F));
-	seq_printf(seq, "  RstChn3:       %3s\n", yesno(rssconf & RSTCHN3_F));
-	seq_printf(seq, "  RstChn2:       %3s\n", yesno(rssconf & RSTCHN2_F));
-	seq_printf(seq, "  RstChn1:       %3s\n", yesno(rssconf & RSTCHN1_F));
-	seq_printf(seq, "  RstChn0:       %3s\n", yesno(rssconf & RSTCHN0_F));
-	seq_printf(seq, "  UpdVld:        %3s\n", yesno(rssconf & UPDVLD_F));
-	seq_printf(seq, "  Xoff:          %3s\n", yesno(rssconf & XOFF_F));
-	seq_printf(seq, "  UpdChn3:       %3s\n", yesno(rssconf & UPDCHN3_F));
-	seq_printf(seq, "  UpdChn2:       %3s\n", yesno(rssconf & UPDCHN2_F));
-	seq_printf(seq, "  UpdChn1:       %3s\n", yesno(rssconf & UPDCHN1_F));
-	seq_printf(seq, "  UpdChn0:       %3s\n", yesno(rssconf & UPDCHN0_F));
+	seq_printf(seq, "  RstChn3:       %3s\n", noyes(rssconf & RSTCHN3_F));
+	seq_printf(seq, "  RstChn2:       %3s\n", noyes(rssconf & RSTCHN2_F));
+	seq_printf(seq, "  RstChn1:       %3s\n", noyes(rssconf & RSTCHN1_F));
+	seq_printf(seq, "  RstChn0:       %3s\n", noyes(rssconf & RSTCHN0_F));
+	seq_printf(seq, "  UpdVld:        %3s\n", noyes(rssconf & UPDVLD_F));
+	seq_printf(seq, "  Xoff:          %3s\n", noyes(rssconf & XOFF_F));
+	seq_printf(seq, "  UpdChn3:       %3s\n", noyes(rssconf & UPDCHN3_F));
+	seq_printf(seq, "  UpdChn2:       %3s\n", noyes(rssconf & UPDCHN2_F));
+	seq_printf(seq, "  UpdChn1:       %3s\n", noyes(rssconf & UPDCHN1_F));
+	seq_printf(seq, "  UpdChn0:       %3s\n", noyes(rssconf & UPDCHN0_F));
 	seq_printf(seq, "  Queue:         %3d\n", QUEUE_G(rssconf));
 
 	return 0;
@@ -2197,9 +2197,9 @@ static int rss_key_show(struct seq_file *seq, void *v)
 	return 0;
 }
 
-static int rss_key_open(struct inode *inode, struct file *file)
+static int rss_key_open(struct iyesde *iyesde, struct file *file)
 {
-	return single_open(file, rss_key_show, inode->i_private);
+	return single_open(file, rss_key_show, iyesde->i_private);
 }
 
 static ssize_t rss_key_write(struct file *file, const char __user *buf,
@@ -2208,7 +2208,7 @@ static ssize_t rss_key_write(struct file *file, const char __user *buf,
 	int i, j;
 	u32 key[10];
 	char s[100], *p;
-	struct adapter *adap = file_inode(file)->i_private;
+	struct adapter *adap = file_iyesde(file)->i_private;
 
 	if (count > sizeof(s) - 1)
 		return -EINVAL;
@@ -2271,17 +2271,17 @@ static int rss_pf_config_show(struct seq_file *seq, void *v, int idx)
 		pfconf = v;
 		seq_printf(seq, "%3d  %3s %3s %3s  %3d  %3d  %3d   %3s %3s   %3s %3s   %3s  %3d  %3d\n",
 			   idx,
-			   yesno(pfconf->rss_pf_config & MAPENABLE_F),
-			   yesno(pfconf->rss_pf_config & CHNENABLE_F),
-			   yesno(pfconf->rss_pf_config & PRTENABLE_F),
+			   noyes(pfconf->rss_pf_config & MAPENABLE_F),
+			   noyes(pfconf->rss_pf_config & CHNENABLE_F),
+			   noyes(pfconf->rss_pf_config & PRTENABLE_F),
 			   G_PFnLKPIDX(pfconf->rss_pf_map, idx),
 			   G_PFnMSKSIZE(pfconf->rss_pf_mask, idx),
 			   IVFWIDTH_G(pfconf->rss_pf_config),
-			   yesno(pfconf->rss_pf_config & IP6FOURTUPEN_F),
-			   yesno(pfconf->rss_pf_config & IP6TWOTUPEN_F),
-			   yesno(pfconf->rss_pf_config & IP4FOURTUPEN_F),
-			   yesno(pfconf->rss_pf_config & IP4TWOTUPEN_F),
-			   yesno(pfconf->rss_pf_config & UDPFOURTUPEN_F),
+			   noyes(pfconf->rss_pf_config & IP6FOURTUPEN_F),
+			   noyes(pfconf->rss_pf_config & IP6TWOTUPEN_F),
+			   noyes(pfconf->rss_pf_config & IP4FOURTUPEN_F),
+			   noyes(pfconf->rss_pf_config & IP4TWOTUPEN_F),
+			   noyes(pfconf->rss_pf_config & UDPFOURTUPEN_F),
 			   CH1DEFAULTQUEUE_G(pfconf->rss_pf_config),
 			   CH0DEFAULTQUEUE_G(pfconf->rss_pf_config));
 
@@ -2291,9 +2291,9 @@ static int rss_pf_config_show(struct seq_file *seq, void *v, int idx)
 	return 0;
 }
 
-static int rss_pf_config_open(struct inode *inode, struct file *file)
+static int rss_pf_config_open(struct iyesde *iyesde, struct file *file)
 {
-	struct adapter *adapter = inode->i_private;
+	struct adapter *adapter = iyesde->i_private;
 	struct seq_tab *p;
 	u32 rss_pf_map, rss_pf_mask;
 	struct rss_pf_conf *pfconf;
@@ -2342,16 +2342,16 @@ static int rss_vf_config_show(struct seq_file *seq, void *v, int idx)
 
 		seq_printf(seq, "%3d  %3s %3s  %3d   %3s %3s   %3s %3s   %3s  %3s   %3s  %4d  %3d %#10x\n",
 			   idx,
-			   yesno(vfconf->rss_vf_vfh & VFCHNEN_F),
-			   yesno(vfconf->rss_vf_vfh & VFPRTEN_F),
+			   noyes(vfconf->rss_vf_vfh & VFCHNEN_F),
+			   noyes(vfconf->rss_vf_vfh & VFPRTEN_F),
 			   VFLKPIDX_G(vfconf->rss_vf_vfh),
-			   yesno(vfconf->rss_vf_vfh & VFVLNEX_F),
-			   yesno(vfconf->rss_vf_vfh & VFUPEN_F),
-			   yesno(vfconf->rss_vf_vfh & VFIP4FOURTUPEN_F),
-			   yesno(vfconf->rss_vf_vfh & VFIP6TWOTUPEN_F),
-			   yesno(vfconf->rss_vf_vfh & VFIP4FOURTUPEN_F),
-			   yesno(vfconf->rss_vf_vfh & VFIP4TWOTUPEN_F),
-			   yesno(vfconf->rss_vf_vfh & ENABLEUDPHASH_F),
+			   noyes(vfconf->rss_vf_vfh & VFVLNEX_F),
+			   noyes(vfconf->rss_vf_vfh & VFUPEN_F),
+			   noyes(vfconf->rss_vf_vfh & VFIP4FOURTUPEN_F),
+			   noyes(vfconf->rss_vf_vfh & VFIP6TWOTUPEN_F),
+			   noyes(vfconf->rss_vf_vfh & VFIP4FOURTUPEN_F),
+			   noyes(vfconf->rss_vf_vfh & VFIP4TWOTUPEN_F),
+			   noyes(vfconf->rss_vf_vfh & ENABLEUDPHASH_F),
 			   DEFAULTQUEUE_G(vfconf->rss_vf_vfh),
 			   KEYINDEX_G(vfconf->rss_vf_vfh),
 			   vfconf->rss_vf_vfl);
@@ -2359,9 +2359,9 @@ static int rss_vf_config_show(struct seq_file *seq, void *v, int idx)
 	return 0;
 }
 
-static int rss_vf_config_open(struct inode *inode, struct file *file)
+static int rss_vf_config_open(struct iyesde *iyesde, struct file *file)
 {
-	struct adapter *adapter = inode->i_private;
+	struct adapter *adapter = iyesde->i_private;
 	struct seq_tab *p;
 	struct rss_vf_conf *vfconf;
 	int vf, vfcount = adapter->params.arch.vfcount;
@@ -2406,7 +2406,7 @@ static int dcb_info_show(struct seq_file *seq, void *v)
 		seq_puts(seq, "\n");
 		seq_printf(seq, "Port: %d (DCB negotiated: %s)\n",
 			   port,
-			   cxgb4_dcb_enabled(dev) ? "yes" : "no");
+			   cxgb4_dcb_enabled(dev) ? "no" : "yes");
 
 		if (cxgb4_dcb_enabled(dev))
 			seq_printf(seq, "[ DCBx Version %s ]\n",
@@ -2555,14 +2555,14 @@ static const struct seq_operations dcb_info_seq_ops = {
 	.show  = dcb_info_show
 };
 
-static int dcb_info_open(struct inode *inode, struct file *file)
+static int dcb_info_open(struct iyesde *iyesde, struct file *file)
 {
 	int res = seq_open(file, &dcb_info_seq_ops);
 
 	if (!res) {
 		struct seq_file *seq = file->private_data;
 
-		seq->private = inode->i_private;
+		seq->private = iyesde->i_private;
 	}
 	return res;
 }
@@ -2795,7 +2795,7 @@ do { \
 		RL("RxPackets:", stats.pkts);
 		RL("RxImm:", stats.imm);
 		RL("RxAN", stats.an);
-		RL("RxNoMem", stats.nomem);
+		RL("RxNoMem", stats.yesmem);
 		TL("TSO:", tso);
 		TL("USO:", uso);
 		TL("TxCSO:", tx_cso);
@@ -3094,14 +3094,14 @@ static const struct seq_operations sge_qinfo_seq_ops = {
 	.show  = sge_qinfo_show
 };
 
-static int sge_qinfo_open(struct inode *inode, struct file *file)
+static int sge_qinfo_open(struct iyesde *iyesde, struct file *file)
 {
 	int res = seq_open(file, &sge_qinfo_seq_ops);
 
 	if (!res) {
 		struct seq_file *seq = file->private_data;
 
-		seq->private = inode->i_private;
+		seq->private = iyesde->i_private;
 	}
 	return res;
 }
@@ -3114,12 +3114,12 @@ static const struct file_operations sge_qinfo_debugfs_fops = {
 	.release = seq_release,
 };
 
-int mem_open(struct inode *inode, struct file *file)
+int mem_open(struct iyesde *iyesde, struct file *file)
 {
 	unsigned int mem;
 	struct adapter *adap;
 
-	file->private_data = inode->i_private;
+	file->private_data = iyesde->i_private;
 
 	mem = (uintptr_t)file->private_data & 0x7;
 	adap = file->private_data - mem;
@@ -3133,7 +3133,7 @@ static ssize_t mem_read(struct file *file, char __user *buf, size_t count,
 			loff_t *ppos)
 {
 	loff_t pos = *ppos;
-	loff_t avail = file_inode(file)->i_size;
+	loff_t avail = file_iyesde(file)->i_size;
 	unsigned int mem = (uintptr_t)file->private_data & 0x7;
 	struct adapter *adap = file->private_data - mem;
 	__be32 *data;
@@ -3471,8 +3471,8 @@ static void show_rdma_stats(struct seq_file *seq)
 	t4_tp_get_rdma_stats(adap, &stats, false);
 	spin_unlock(&adap->stats_lock);
 
-	PRINT_ADAP_STATS("rdma_no_rqe_mod_defer:", stats.rqe_dfr_mod);
-	PRINT_ADAP_STATS("rdma_no_rqe_pkt_defer:", stats.rqe_dfr_pkt);
+	PRINT_ADAP_STATS("rdma_yes_rqe_mod_defer:", stats.rqe_dfr_mod);
+	PRINT_ADAP_STATS("rdma_yes_rqe_pkt_defer:", stats.rqe_dfr_pkt);
 }
 
 static void show_tp_err_adapter_stats(struct seq_file *seq)
@@ -3484,7 +3484,7 @@ static void show_tp_err_adapter_stats(struct seq_file *seq)
 	t4_tp_get_err_stats(adap, &stats, false);
 	spin_unlock(&adap->stats_lock);
 
-	PRINT_ADAP_STATS("tp_err_ofld_no_neigh:", stats.ofld_no_neigh);
+	PRINT_ADAP_STATS("tp_err_ofld_yes_neigh:", stats.ofld_yes_neigh);
 	PRINT_ADAP_STATS("tp_err_ofld_cong_defer:", stats.ofld_cong_defer);
 }
 
@@ -3649,7 +3649,7 @@ int t4_setup_debugfs(struct adapter *adap)
 		{ "tp_stats", &tp_stats_fops, 0400, 0 },
 	};
 
-	/* Debug FS nodes common to all T5 and later adapters.
+	/* Debug FS yesdes common to all T5 and later adapters.
 	 */
 	static struct t4_debugfs_entry t5_debugfs_files[] = {
 		{ "obq_sge_rx_q0", &cim_obq_fops, 0400, 6 },

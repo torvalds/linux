@@ -19,7 +19,7 @@
 /*
  * Note: If the comment begins with a quoted string, that string is used
  * in /proc/cpuinfo instead of the macro name.  If the string is "",
- * this feature bit is not displayed in /proc/cpuinfo at all.
+ * this feature bit is yest displayed in /proc/cpuinfo at all.
  *
  * When adding new features here that depend on other features,
  * please update the table in kernel/cpu/cpuid-deps.c as well.
@@ -51,7 +51,7 @@
 #define X86_FEATURE_FXSR		( 0*32+24) /* FXSAVE/FXRSTOR, CR4.OSFXSR */
 #define X86_FEATURE_XMM			( 0*32+25) /* "sse" */
 #define X86_FEATURE_XMM2		( 0*32+26) /* "sse2" */
-#define X86_FEATURE_SELFSNOOP		( 0*32+27) /* "ss" CPU self snoop */
+#define X86_FEATURE_SELFSNOOP		( 0*32+27) /* "ss" CPU self syesop */
 #define X86_FEATURE_HT			( 0*32+28) /* Hyper-Threading */
 #define X86_FEATURE_ACC			( 0*32+29) /* "tm" Automatic clock control */
 #define X86_FEATURE_IA64		( 0*32+30) /* IA-64 processor */
@@ -78,7 +78,7 @@
 /* Other features, Linux-defined mapping, word 3 */
 /* This range is used for feature bits which conflict or are synthesized */
 #define X86_FEATURE_CXMMX		( 3*32+ 0) /* Cyrix MMX extensions */
-#define X86_FEATURE_K6_MTRR		( 3*32+ 1) /* AMD K6 nonstandard MTRRs */
+#define X86_FEATURE_K6_MTRR		( 3*32+ 1) /* AMD K6 yesnstandard MTRRs */
 #define X86_FEATURE_CYRIX_ARR		( 3*32+ 2) /* Cyrix ARRs (= MTRRs) */
 #define X86_FEATURE_CENTAUR_MCR		( 3*32+ 3) /* Centaur MCRs (= MTRRs) */
 
@@ -101,14 +101,14 @@
 #define X86_FEATURE_NOPL		( 3*32+20) /* The NOPL (0F 1F) instructions */
 #define X86_FEATURE_ALWAYS		( 3*32+21) /* "" Always-present feature */
 #define X86_FEATURE_XTOPOLOGY		( 3*32+22) /* CPU topology enum extensions */
-#define X86_FEATURE_TSC_RELIABLE	( 3*32+23) /* TSC is known to be reliable */
-#define X86_FEATURE_NONSTOP_TSC		( 3*32+24) /* TSC does not stop in C states */
+#define X86_FEATURE_TSC_RELIABLE	( 3*32+23) /* TSC is kyeswn to be reliable */
+#define X86_FEATURE_NONSTOP_TSC		( 3*32+24) /* TSC does yest stop in C states */
 #define X86_FEATURE_CPUID		( 3*32+25) /* CPU has CPUID instruction itself */
 #define X86_FEATURE_EXTD_APICID		( 3*32+26) /* Extended APICID (8 bits) */
-#define X86_FEATURE_AMD_DCM		( 3*32+27) /* AMD multi-node processor */
+#define X86_FEATURE_AMD_DCM		( 3*32+27) /* AMD multi-yesde processor */
 #define X86_FEATURE_APERFMPERF		( 3*32+28) /* P-State hardware coordination feedback capability (APERF/MPERF MSRs) */
 #define X86_FEATURE_NONSTOP_TSC_S3	( 3*32+30) /* TSC doesn't stop in S3 state */
-#define X86_FEATURE_TSC_KNOWN_FREQ	( 3*32+31) /* TSC has known frequency */
+#define X86_FEATURE_TSC_KNOWN_FREQ	( 3*32+31) /* TSC has kyeswn frequency */
 
 /* Intel-defined CPU features, CPUID level 0x00000001 (ECX), word 4 */
 #define X86_FEATURE_XMM3		( 4*32+ 0) /* "pni" SSE-3 */
@@ -157,7 +157,7 @@
 
 /* More extended AMD flags: CPUID level 0x80000001, ECX, word 6 */
 #define X86_FEATURE_LAHF_LM		( 6*32+ 0) /* LAHF/SAHF in long mode */
-#define X86_FEATURE_CMP_LEGACY		( 6*32+ 1) /* If yes HyperThreading not valid */
+#define X86_FEATURE_CMP_LEGACY		( 6*32+ 1) /* If no HyperThreading yest valid */
 #define X86_FEATURE_SVM			( 6*32+ 2) /* Secure Virtual Machine */
 #define X86_FEATURE_EXTAPIC		( 6*32+ 3) /* Extended APIC space */
 #define X86_FEATURE_CR8_LEGACY		( 6*32+ 4) /* CR8 in 32-bit mode */
@@ -193,8 +193,8 @@
 #define X86_FEATURE_CPUID_FAULT		( 7*32+ 1) /* Intel CPUID faulting */
 #define X86_FEATURE_CPB			( 7*32+ 2) /* AMD Core Performance Boost */
 #define X86_FEATURE_EPB			( 7*32+ 3) /* IA32_ENERGY_PERF_BIAS support */
-#define X86_FEATURE_CAT_L3		( 7*32+ 4) /* Cache Allocation Technology L3 */
-#define X86_FEATURE_CAT_L2		( 7*32+ 5) /* Cache Allocation Technology L2 */
+#define X86_FEATURE_CAT_L3		( 7*32+ 4) /* Cache Allocation Techyeslogy L3 */
+#define X86_FEATURE_CAT_L2		( 7*32+ 5) /* Cache Allocation Techyeslogy L2 */
 #define X86_FEATURE_CDP_L3		( 7*32+ 6) /* Code and Data Prioritization L3 */
 #define X86_FEATURE_INVPCID_SINGLE	( 7*32+ 7) /* Effectively INVPCID && CR4.PCIDE=1 */
 #define X86_FEATURE_HW_PSTATE		( 7*32+ 8) /* AMD HW-PState */
@@ -249,7 +249,7 @@
 #define X86_FEATURE_CQM			( 9*32+12) /* Cache QoS Monitoring */
 #define X86_FEATURE_ZERO_FCS_FDS	( 9*32+13) /* "" Zero out FPU CS and FPU DS */
 #define X86_FEATURE_MPX			( 9*32+14) /* Memory Protection Extension */
-#define X86_FEATURE_RDT_A		( 9*32+15) /* Resource Director Technology Allocation */
+#define X86_FEATURE_RDT_A		( 9*32+15) /* Resource Director Techyeslogy Allocation */
 #define X86_FEATURE_AVX512F		( 9*32+16) /* AVX-512 Foundation */
 #define X86_FEATURE_AVX512DQ		( 9*32+17) /* AVX-512 DQ (Double/Quad granular) Instructions */
 #define X86_FEATURE_RDSEED		( 9*32+18) /* RDSEED instruction */

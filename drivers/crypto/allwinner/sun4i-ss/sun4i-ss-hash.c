@@ -152,7 +152,7 @@ int sun4i_hash_import_sha1(struct ahash_request *areq, const void *in)
  * Could be used for both SHA1 and MD5
  * Write data by step of 32bits and put then in the SS.
  *
- * Since we cannot leave partial data and hash state in the engine,
+ * Since we canyest leave partial data and hash state in the engine,
  * we need to get the hash state at the end of this function.
  * We can get the hash state every 64 bytes
  *
@@ -162,7 +162,7 @@ int sun4i_hash_import_sha1(struct ahash_request *areq, const void *in)
  * So at the begin of update()
  * if op->len + areq->nbytes < 64
  * => all data will be written to wait buffer (op->buf) and end=0
- * if not, write all data from op->buf to the device and position end to
+ * if yest, write all data from op->buf to the device and position end to
  * complete to 64bytes
  *
  * example 1:
@@ -177,7 +177,7 @@ static int sun4i_hash(struct ahash_request *areq)
 {
 	/*
 	 * i is the total bytes read from SGs, to be compared to areq->nbytes
-	 * i is important because we cannot rely on SG length since the sum of
+	 * i is important because we canyest rely on SG length since the sum of
 	 * SG->length could be greater than areq->nbytes
 	 *
 	 * end is the position when we need to stop writing to the device,
@@ -208,7 +208,7 @@ static int sun4i_hash(struct ahash_request *areq)
 
 	/* protect against overflow */
 	if (unlikely(areq->nbytes > UINT_MAX - op->len)) {
-		dev_err(ss->dev, "Cannot process too large request\n");
+		dev_err(ss->dev, "Canyest process too large request\n");
 		return -EINVAL;
 	}
 
@@ -275,7 +275,7 @@ static int sun4i_hash(struct ahash_request *areq)
 		/*
 		 * we need to linearize in two case:
 		 * - the buffer is already used
-		 * - the SG does not have enough byte remaining ( < 4)
+		 * - the SG does yest have eyesugh byte remaining ( < 4)
 		 */
 		if (op->len || (mi.length - in_i) < 4) {
 			/*
@@ -351,7 +351,7 @@ static int sun4i_hash(struct ahash_request *areq)
 	/*
 	 * End of data process
 	 * Now if we have the flag final go to finalize part
-	 * If not, store the partial hash
+	 * If yest, store the partial hash
 	 */
 	if (op->flags & SS_HASH_FINAL)
 		goto hash_final;
@@ -390,10 +390,10 @@ static int sun4i_hash(struct ahash_request *areq)
  * If we have some remaining bytes, we write them.
  * Then ask the SS for finalizing the hashing operation
  *
- * I do not check RX FIFO size in this function since the size is 32
+ * I do yest check RX FIFO size in this function since the size is 32
  * after each enabling and this function neither write more than 32 words.
- * If we come from the update part, we cannot have more than
- * 3 remaining bytes to write and SS is fast enough to not care about it.
+ * If we come from the update part, we canyest have more than
+ * 3 remaining bytes to write and SS is fast eyesugh to yest care about it.
  */
 
 hash_final:

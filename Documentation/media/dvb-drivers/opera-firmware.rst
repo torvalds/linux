@@ -15,7 +15,7 @@ from the windriver disk into this directory.
 
 Then run:
 
-.. code-block:: none
+.. code-block:: yesne
 
 	scripts/get_dvb_firmware opera1
 

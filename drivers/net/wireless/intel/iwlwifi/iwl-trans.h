@@ -39,12 +39,12 @@
  * are met:
  *
  *  * Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  *  * Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
+ *    yestice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
- *  * Neither the name Intel Corporation nor the names of its
+ *  * Neither the name Intel Corporation yesr the names of its
  *    contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
@@ -84,7 +84,7 @@
  * The transport layer is the layer that deals with the HW directly. It provides
  * an abstraction of the underlying HW to the upper layer. The transport layer
  * doesn't provide any policy, algorithm or anything of this kind, but only
- * mechanisms to make the HW do something. It is not completely stateless but
+ * mechanisms to make the HW do something. It is yest completely stateless but
  * close to it.
  * We will have an implementation for each different supported bus.
  */
@@ -126,7 +126,7 @@ struct iwl_rx_packet {
 	 * size and some flags.
 	 * Bit fields:
 	 * 31:    flag flush RB request
-	 * 30:    flag ignore TC (terminal counter) request
+	 * 30:    flag igyesre TC (terminal counter) request
 	 * 29:    flag fast IRQ request
 	 * 28-27: Reserved
 	 * 26:    RADA enabled
@@ -207,14 +207,14 @@ struct iwl_device_cmd {
  * @IWL_HCMD_DFL_NOCOPY: By default, the command is copied to the host command's
  *	ring. The transport layer doesn't map the command's buffer to DMA, but
  *	rather copies it to a previously allocated DMA buffer. This flag tells
- *	the transport layer not to copy the command, but to map the existing
+ *	the transport layer yest to copy the command, but to map the existing
  *	buffer (that is passed in) instead. This saves the memcpy and allows
  *	commands that are bigger than the fixed buffer to be submitted.
- *	Note that a TFD entry after a NOCOPY one cannot be a normal copied one.
+ *	Note that a TFD entry after a NOCOPY one canyest be a yesrmal copied one.
  * @IWL_HCMD_DFL_DUP: Only valid without NOCOPY, duplicate the memory for this
  *	chunk internally and free it again after the command completes. This
  *	can (currently) be used only once per command.
- *	Note that a TFD entry after a DUP one cannot be a normal copied one.
+ *	Note that a TFD entry after a DUP one canyest be a yesrmal copied one.
  */
 enum iwl_hcmd_dataflag {
 	IWL_HCMD_DFL_NOCOPY	= BIT(0),
@@ -324,7 +324,7 @@ enum iwl_d3_status {
  * @STATUS_FW_ERROR: the fw is in error state
  * @STATUS_TRANS_GOING_IDLE: shutting down the trans, only special commands
  *	are sent
- * @STATUS_TRANS_IDLE: the trans is idle - general commands are not to be sent
+ * @STATUS_TRANS_IDLE: the trans is idle - general commands are yest to be sent
  * @STATUS_TRANS_DEAD: trans is dead - avoid any read/write operation
  */
 enum iwl_trans_status {
@@ -382,11 +382,11 @@ struct iwl_hcmd_arr {
  *	Must be set before start_fw.
  * @cmd_fifo: the fifo for host commands
  * @cmd_q_wdg_timeout: the timeout of the watchdog timer for the command queue.
- * @no_reclaim_cmds: Some devices erroneously don't set the
- *	SEQ_RX_FRAME bit on some notifications, this is the
- *	list of such notifications to filter. Max length is
+ * @yes_reclaim_cmds: Some devices erroneously don't set the
+ *	SEQ_RX_FRAME bit on some yestifications, this is the
+ *	list of such yestifications to filter. Max length is
  *	%MAX_NO_RECLAIM_CMDS.
- * @n_no_reclaim_cmds: # of commands in list
+ * @n_yes_reclaim_cmds: # of commands in list
  * @rx_buf_size: RX buffer size needed for A-MSDUs
  *	if unset 4k will be the RX buffer size
  * @bc_table_dword: set to true if the BC table expects the byte count to be
@@ -405,8 +405,8 @@ struct iwl_trans_config {
 	u8 cmd_queue;
 	u8 cmd_fifo;
 	unsigned int cmd_q_wdg_timeout;
-	const u8 *no_reclaim_cmds;
-	unsigned int n_no_reclaim_cmds;
+	const u8 *yes_reclaim_cmds;
+	unsigned int n_yes_reclaim_cmds;
 
 	enum iwl_amsdu_size rx_buf_size;
 	bool bc_table_dword;
@@ -459,24 +459,24 @@ struct iwl_trans_rxq_dma_data {
  * @start_fw: allocates and inits all the resources for the transport
  *	layer. Also kick a fw image.
  *	May sleep
- * @fw_alive: called when the fw sends alive notification. If the fw provides
+ * @fw_alive: called when the fw sends alive yestification. If the fw provides
  *	the SCD base address in SRAM, then provide it here, or 0 otherwise.
  *	May sleep
  * @stop_device: stops the whole device (embedded CPU put to reset) and stops
  *	the HW. From that point on, the HW will be stopped but will still issue
  *	an interrupt if the HW RF kill switch is triggered.
- *	This callback must do the right thing and not crash even if %start_hw()
- *	was called but not &start_fw(). May sleep.
+ *	This callback must do the right thing and yest crash even if %start_hw()
+ *	was called but yest &start_fw(). May sleep.
  * @d3_suspend: put the device into the correct mode for WoWLAN during
- *	suspend. This is optional, if not implemented WoWLAN will not be
+ *	suspend. This is optional, if yest implemented WoWLAN will yest be
  *	supported. This callback may sleep.
  * @d3_resume: resume the device after WoWLAN, enabling the opmode to
- *	talk to the WoWLAN image to get its status. This is optional, if not
- *	implemented WoWLAN will not be supported. This callback may sleep.
+ *	talk to the WoWLAN image to get its status. This is optional, if yest
+ *	implemented WoWLAN will yest be supported. This callback may sleep.
  * @send_cmd:send a host command. Must return -ERFKILL if RFkill is asserted.
  *	If RFkill is asserted in the middle of a SYNC host command, it must
  *	return -ERFKILL straight away.
- *	May sleep only if CMD_ASYNC is not set
+ *	May sleep only if CMD_ASYNC is yest set
  * @tx: send an skb. The transport relies on the op_mode to zero the
  *	the ieee80211_tx_info->driver_data. If the MPDU is an A-MSDU, all
  *	the CSUM will be taken care of (TCP CSUM and IP header in case of
@@ -487,8 +487,8 @@ struct iwl_trans_rxq_dma_data {
  *	Must be atomic
  * @txq_enable: setup a queue. To setup an AC queue, use the
  *	iwl_trans_ac_txq_enable wrapper. fw_alive must have been called before
- *	this one. The op_mode must not configure the HCMD queue. The scheduler
- *	configuration may be %NULL, in which case the hardware will not be
+ *	this one. The op_mode must yest configure the HCMD queue. The scheduler
+ *	configuration may be %NULL, in which case the hardware will yest be
  *	configured. If true is returned, the operation mode needs to increment
  *	the sequence number of the packets routed to this queue because of a
  *	hardware scheduler bug. May sleep.
@@ -516,8 +516,8 @@ struct iwl_trans_rxq_dma_data {
  *	the op_mode. May be called several times before start_fw, can't be
  *	called after that.
  * @set_pmi: set the power pmi state
- * @grab_nic_access: wake the NIC to be able to access non-HBUS regs.
- *	Sleeping is not allowed between grab_nic_access and
+ * @grab_nic_access: wake the NIC to be able to access yesn-HBUS regs.
+ *	Sleeping is yest allowed between grab_nic_access and
  *	release_nic_access.
  * @release_nic_access: let the NIC go to sleep. The "flags" parameter
  *	must be the same one that was sent before to the grab_nic_access.
@@ -603,7 +603,7 @@ struct iwl_trans_ops {
 /**
  * enum iwl_trans_state - state of the transport layer
  *
- * @IWL_TRANS_NO_FW: no fw has sent an alive response
+ * @IWL_TRANS_NO_FW: yes fw has sent an alive response
  * @IWL_TRANS_FW_ALIVE: a fw has sent an alive response
  */
 enum iwl_trans_state {
@@ -629,7 +629,7 @@ enum iwl_trans_state {
  *		specific events (e.g. magic-packet received or scan
  *		results found);
  *
- * These terms reflect the power modes in the firmware and are not to
+ * These terms reflect the power modes in the firmware and are yest to
  * be confused with the physical device power state.
  */
 
@@ -652,7 +652,7 @@ enum iwl_plat_pm_mode {
 
 /**
  * enum iwl_ini_cfg_state
- * @IWL_INI_CFG_STATE_NOT_LOADED: no debug cfg was given
+ * @IWL_INI_CFG_STATE_NOT_LOADED: yes debug cfg was given
  * @IWL_INI_CFG_STATE_LOADED: debug cfg was found and loaded
  * @IWL_INI_CFG_STATE_CORRUPTED: debug cfg was found and some of the TLVs
  *	are corrupted. The rest of the debug TLVs will still be used

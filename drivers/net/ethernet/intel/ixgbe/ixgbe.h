@@ -96,10 +96,10 @@ static inline int ixgbe_skb_pad(void)
 {
 	int rx_buf_len;
 
-	/* If a 2K buffer cannot handle a standard Ethernet frame then
+	/* If a 2K buffer canyest handle a standard Ethernet frame then
 	 * optimize padding for a 3K buffer instead of a 1.5K buffer.
 	 *
-	 * For a 3K buffer we need to add enough padding to allow for
+	 * For a 3K buffer we need to add eyesugh padding to allow for
 	 * tailroom due to NET_IP_ALIGN possibly shifting us out of
 	 * cache-line alignment.
 	 */
@@ -124,7 +124,7 @@ static inline int ixgbe_skb_pad(void)
  * reserve 64 more, and skb_shared_info adds an additional 320 bytes more,
  * this adds up to 448 bytes of extra data.
  *
- * Since netdev_alloc_skb now allocates a page fragment we can use a value
+ * Since netdev_alloc_skb yesw allocates a page fragment we can use a value
  * of 256 and the resultant skb will have a truesize of 960 or less.
  */
 #define IXGBE_RX_HDR_SIZE IXGBE_RXBUFFER_256
@@ -174,7 +174,7 @@ struct vf_data_storage {
 	u16 num_vf_mc_hashes;
 	bool clear_to_send;
 	bool pf_set_mac;
-	u16 pf_vlan; /* When set, guest VLAN config not allowed. */
+	u16 pf_vlan; /* When set, guest VLAN config yest allowed. */
 	u16 pf_qos;
 	u16 tx_rate;
 	u8 spoofchk_enabled;
@@ -253,7 +253,7 @@ struct ixgbe_tx_queue_stats {
 struct ixgbe_rx_queue_stats {
 	u64 rsc_count;
 	u64 rsc_flush;
-	u64 non_eop_descs;
+	u64 yesn_eop_descs;
 	u64 alloc_rx_page;
 	u64 alloc_rx_page_failed;
 	u64 alloc_rx_buff_failed;
@@ -354,7 +354,7 @@ struct ixgbe_ring {
 	struct zero_copy_allocator zca; /* ZC allocator anchor */
 	u16 ring_idx;		/* {rx,tx,xdp}_ring back reference idx */
 	u16 rx_buf_len;
-} ____cacheline_internodealigned_in_smp;
+} ____cacheline_interyesdealigned_in_smp;
 
 enum ixgbe_ring_f_enum {
 	RING_F_NONE = 0,
@@ -385,7 +385,7 @@ struct ixgbe_ring_feature {
 	u16 indices;	/* current value of indices */
 	u16 mask;	/* Mask used for feature to ring mapping */
 	u16 offset;	/* offset to start of feature */
-} ____cacheline_internodealigned_in_smp;
+} ____cacheline_interyesdealigned_in_smp;
 
 #define IXGBE_82599_VMDQ_8Q_MASK 0x78
 #define IXGBE_82599_VMDQ_4Q_MASK 0x7C
@@ -457,12 +457,12 @@ struct ixgbe_q_vector {
 
 	struct napi_struct napi;
 	cpumask_t affinity_mask;
-	int numa_node;
+	int numa_yesde;
 	struct rcu_head rcu;	/* to avoid race with update stats on free */
 	char name[IFNAMSIZ + 9];
 
 	/* for dynamic allocation of rings associated with this q_vector */
-	struct ixgbe_ring ring[0] ____cacheline_internodealigned_in_smp;
+	struct ixgbe_ring ring[0] ____cacheline_interyesdealigned_in_smp;
 };
 
 #ifdef CONFIG_IXGBE_HWMON
@@ -647,10 +647,10 @@ struct ixgbe_adapter {
 	int num_rx_pools;		/* == num_rx_queues in 82598 */
 	int num_rx_queues_per_pool;	/* 1 if 82598, can be many if 82599 */
 	u64 hw_csum_rx_error;
-	u64 hw_rx_no_dma_resources;
+	u64 hw_rx_yes_dma_resources;
 	u64 rsc_total_count;
 	u64 rsc_total_flush;
-	u64 non_eop_descs;
+	u64 yesn_eop_descs;
 	u32 alloc_rx_page;
 	u32 alloc_rx_page_failed;
 	u32 alloc_rx_buff_failed;
@@ -762,7 +762,7 @@ struct ixgbe_adapter {
 	unsigned long tables;
 
 /* maximum number of RETA entries among all devices supported by ixgbe
- * driver: currently it's x550 device in non-SRIOV mode
+ * driver: currently it's x550 device in yesn-SRIOV mode
  */
 #define IXGBE_MAX_RETA_ENTRIES 512
 	u8 rss_indir_tbl[IXGBE_MAX_RETA_ENTRIES];
@@ -792,7 +792,7 @@ static inline u8 ixgbe_max_rss_indices(struct ixgbe_adapter *adapter)
 }
 
 struct ixgbe_fdir_filter {
-	struct hlist_node fdir_node;
+	struct hlist_yesde fdir_yesde;
 	union ixgbe_atr_input filter;
 	u16 sw_idx;
 	u64 action;

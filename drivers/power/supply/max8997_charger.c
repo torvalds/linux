@@ -22,7 +22,7 @@ struct charger_data {
 static enum power_supply_property max8997_battery_props[] = {
 	POWER_SUPPLY_PROP_STATUS, /* "FULL" or "NOT FULL" only. */
 	POWER_SUPPLY_PROP_PRESENT, /* the presence of battery */
-	POWER_SUPPLY_PROP_ONLINE, /* charger is active or not */
+	POWER_SUPPLY_PROP_ONLINE, /* charger is active or yest */
 };
 
 /* Note that the charger control is done by a current regulator "CHARGER" */
@@ -100,7 +100,7 @@ static int max8997_battery_probe(struct platform_device *pdev)
 		ret = max8997_update_reg(iodev->i2c,
 				MAX8997_REG_MBCCTRL5, val, 0xf);
 		if (ret < 0) {
-			dev_err(&pdev->dev, "Cannot use i2c bus.\n");
+			dev_err(&pdev->dev, "Canyest use i2c bus.\n");
 			return ret;
 		}
 	}
@@ -128,7 +128,7 @@ static int max8997_battery_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 	if (ret < 0) {
-		dev_err(&pdev->dev, "Cannot use i2c bus.\n");
+		dev_err(&pdev->dev, "Canyest use i2c bus.\n");
 		return ret;
 	}
 

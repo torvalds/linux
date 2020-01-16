@@ -171,8 +171,8 @@
 /*
  * the local APIC register structure, memory mapped. Not terribly well
  * tested, but we might eventually use this one in the future - the
- * problem why we cannot use it right now is the P5 APIC, it has an
- * errata which cannot take 8-bit reads and writes, only 32-bit ones ...
+ * problem why we canyest use it right yesw is the P5 APIC, it has an
+ * errata which canyest take 8-bit reads and writes, only 32-bit ones ...
  */
 #define u32 unsigned int
 

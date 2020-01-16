@@ -16,7 +16,7 @@
  * SOFTWARE.
  */
 #include <linux/string.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/pci.h>
 #include <linux/interrupt.h>
 #include <scsi/libfc.h>
@@ -133,7 +133,7 @@ static irqreturn_t fnic_isr_msix_wq_copy(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-static irqreturn_t fnic_isr_msix_err_notify(int irq, void *data)
+static irqreturn_t fnic_isr_msix_err_yestify(int irq, void *data)
 {
 	struct fnic *fnic = data;
 
@@ -204,9 +204,9 @@ int fnic_request_intr(struct fnic *fnic)
 		fnic->msix[FNIC_MSIX_WQ_COPY].devid = fnic;
 
 		sprintf(fnic->msix[FNIC_MSIX_ERR_NOTIFY].devname,
-			"%.11s-err-notify", fnic->name);
+			"%.11s-err-yestify", fnic->name);
 		fnic->msix[FNIC_MSIX_ERR_NOTIFY].isr =
-			fnic_isr_msix_err_notify;
+			fnic_isr_msix_err_yestify;
 		fnic->msix[FNIC_MSIX_ERR_NOTIFY].devid = fnic;
 
 		for (i = 0; i < ARRAY_SIZE(fnic->msix); i++) {
@@ -245,7 +245,7 @@ int fnic_set_intr_mode(struct fnic *fnic)
 	 * Try MSI-X first
 	 *
 	 * We need n RQs, m WQs, o Copy WQs, n+m+o CQs, and n+m+o+1 INTRs
-	 * (last INTR is used for WQ/RQ errors and notification area)
+	 * (last INTR is used for WQ/RQ errors and yestification area)
 	 */
 	if (fnic->rq_count >= n &&
 	    fnic->raw_wq_count >= m &&
@@ -300,7 +300,7 @@ int fnic_set_intr_mode(struct fnic *fnic)
 	 * Next try INTx
 	 * We need 1 RQ, 1 WQ, 1 WQ_COPY, 3 CQs, and 3 INTRs
 	 * 1 INTR is used for all 3 queues, 1 INTR for queue errors
-	 * 1 INTR for notification area
+	 * 1 INTR for yestification area
 	 */
 
 	if (fnic->rq_count >= 1 &&

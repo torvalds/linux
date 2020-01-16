@@ -41,7 +41,7 @@ int valid_phys_addr_range(phys_addr_t addr, size_t size)
 }
 
 /*
- * Do not allow /dev/mem mappings beyond the supported physical range.
+ * Do yest allow /dev/mem mappings beyond the supported physical range.
  */
 int valid_mmap_phys_addr_range(unsigned long pfn, size_t size)
 {

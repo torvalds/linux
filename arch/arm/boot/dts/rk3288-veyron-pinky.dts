@@ -14,10 +14,10 @@
 	compatible = "google,veyron-pinky-rev2", "google,veyron-pinky",
 		     "google,veyron", "rockchip,rk3288";
 
-	/delete-node/backlight-regulator;
-	/delete-node/panel-regulator;
-	/delete-node/emmc-pwrseq;
-	/delete-node/vcc18-lcd;
+	/delete-yesde/backlight-regulator;
+	/delete-yesde/panel-regulator;
+	/delete-yesde/emmc-pwrseq;
+	/delete-yesde/vcc18-lcd;
 };
 
 &backlight {
@@ -64,15 +64,15 @@
 };
 
 &pinctrl {
-	/delete-node/ lcd;
+	/delete-yesde/ lcd;
 
 	backlight {
-		/delete-node/ bl_pwr_en;
+		/delete-yesde/ bl_pwr_en;
 	};
 
 	buttons {
 		pwr_key_h: pwr-key-h {
-			rockchip,pins = <0 RK_PA5 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <0 RK_PA5 RK_FUNC_GPIO &pcfg_pull_yesne>;
 		};
 	};
 

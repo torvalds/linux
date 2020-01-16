@@ -185,7 +185,7 @@ static int param_set_trace_method_name(const char *val,
 	}
 
 	/*
-	 * It's not safe to update acpi_gbl_trace_method_name without
+	 * It's yest safe to update acpi_gbl_trace_method_name without
 	 * having the tracer stopped, so we save the original tracer
 	 * state and disable it.
 	 */
@@ -330,7 +330,7 @@ struct acpi_table_attr {
 	char name[ACPI_NAMESEG_SIZE];
 	int instance;
 	char filename[ACPI_NAMESEG_SIZE+ACPI_INST_SIZE];
-	struct list_head node;
+	struct list_head yesde;
 };
 
 struct acpi_data_attr {
@@ -370,7 +370,7 @@ static int acpi_table_attr_init(struct kobject *tables_obj,
 	sysfs_attr_init(&table_attr->attr.attr);
 	ACPI_COPY_NAMESEG(table_attr->name, table_header->signature);
 
-	list_for_each_entry(attr, &acpi_table_attr_list, node) {
+	list_for_each_entry(attr, &acpi_table_attr_list, yesde) {
 		if (ACPI_COMPARE_NAMESEG(table_attr->name, attr->name))
 			if (table_attr->instance < attr->instance)
 				table_attr->instance = attr->instance;
@@ -416,14 +416,14 @@ acpi_status acpi_sysfs_table_handler(u32 event, void *table, void *context)
 			kfree(table_attr);
 			return AE_ERROR;
 		}
-		list_add_tail(&table_attr->node, &acpi_table_attr_list);
+		list_add_tail(&table_attr->yesde, &acpi_table_attr_list);
 		break;
 	case ACPI_TABLE_EVENT_LOAD:
 	case ACPI_TABLE_EVENT_UNLOAD:
 	case ACPI_TABLE_EVENT_UNINSTALL:
 		/*
-		 * we do not need to do anything right now
-		 * because the table is not deleted from the
+		 * we do yest need to do anything right yesw
+		 * because the table is yest deleted from the
 		 * global table list when unloading it.
 		 */
 		break;
@@ -536,7 +536,7 @@ static int acpi_tables_sysfs_init(void)
 			kfree(table_attr);
 			return ret;
 		}
-		list_add_tail(&table_attr->node, &acpi_table_attr_list);
+		list_add_tail(&table_attr->yesde, &acpi_table_attr_list);
 		acpi_table_data_init(table_header);
 	}
 
@@ -559,11 +559,11 @@ err:
  */
 
 u32 acpi_irq_handled;
-u32 acpi_irq_not_handled;
+u32 acpi_irq_yest_handled;
 
 #define COUNT_GPE 0
 #define COUNT_SCI 1		/* acpi_irq_handled */
-#define COUNT_SCI_NOT 2		/* acpi_irq_not_handled */
+#define COUNT_SCI_NOT 2		/* acpi_irq_yest_handled */
 #define COUNT_ERROR 3		/* other */
 #define NUM_COUNTERS_EXTRA 4
 
@@ -685,7 +685,7 @@ static ssize_t counter_show(struct kobject *kobj,
 	all_counters[num_gpes + ACPI_NUM_FIXED_EVENTS + COUNT_SCI].count =
 	    acpi_irq_handled;
 	all_counters[num_gpes + ACPI_NUM_FIXED_EVENTS + COUNT_SCI_NOT].count =
-	    acpi_irq_not_handled;
+	    acpi_irq_yest_handled;
 	all_counters[num_gpes + ACPI_NUM_FIXED_EVENTS + COUNT_GPE].count =
 	    acpi_gpe_count;
 	size = sprintf(buf, "%8u", all_counters[index].count);
@@ -746,7 +746,7 @@ static ssize_t counter_set(struct kobject *kobj,
 			all_counters[i].count = 0;
 		acpi_gpe_count = 0;
 		acpi_irq_handled = 0;
-		acpi_irq_not_handled = 0;
+		acpi_irq_yest_handled = 0;
 		goto end;
 	}
 
@@ -757,7 +757,7 @@ static ssize_t counter_set(struct kobject *kobj,
 
 	if (!(status & ACPI_EVENT_FLAG_HAS_HANDLER)) {
 		printk(KERN_WARNING PREFIX
-		       "Can not change Invalid GPE/Fixed Event status\n");
+		       "Can yest change Invalid GPE/Fixed Event status\n");
 		return -EINVAL;
 	}
 
@@ -807,9 +807,9 @@ end:
  * A Quirk Mechanism for GPE Flooding Prevention:
  *
  * Quirks may be needed to prevent GPE flooding on a specific GPE. The
- * flooding typically cannot be detected and automatically prevented by
+ * flooding typically canyest be detected and automatically prevented by
  * ACPI_GPE_DISPATCH_NONE check because there is a _Lxx/_Exx prepared in
- * the AML tables. This normally indicates a feature gap in Linux, thus
+ * the AML tables. This yesrmally indicates a feature gap in Linux, thus
  * instead of providing endless quirk tables, we provide a boot parameter
  * for those who want this quirk. For example, if the users want to prevent
  * the GPE flooding for GPE 00, they need to specify the following boot
@@ -900,7 +900,7 @@ void acpi_irq_stats_init(void)
 		else if (i == num_gpes + ACPI_NUM_FIXED_EVENTS + COUNT_SCI)
 			sprintf(buffer, "sci");
 		else if (i == num_gpes + ACPI_NUM_FIXED_EVENTS + COUNT_SCI_NOT)
-			sprintf(buffer, "sci_not");
+			sprintf(buffer, "sci_yest");
 		else if (i == num_gpes + ACPI_NUM_FIXED_EVENTS + COUNT_ERROR)
 			sprintf(buffer, "error");
 		else
@@ -1021,7 +1021,7 @@ static ssize_t force_remove_store(struct kobject *kobj,
 		return ret;
 
 	if (val) {
-		pr_err("Enabling force_remove is not supported anymore. Please report to linux-acpi@vger.kernel.org if you depend on this functionality\n");
+		pr_err("Enabling force_remove is yest supported anymore. Please report to linux-acpi@vger.kernel.org if you depend on this functionality\n");
 		return -EINVAL;
 	}
 	return size;

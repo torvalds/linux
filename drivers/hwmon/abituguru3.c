@@ -52,13 +52,13 @@
 /*
  * Timeouts / Retries, if these turn out to need a lot of fiddling we could
  * convert them to params. Determined by trial and error. I assume this is
- * cpu-speed independent, since the ISA-bus and not the CPU should be the
+ * cpu-speed independent, since the ISA-bus and yest the CPU should be the
  * bottleneck.
  */
 #define ABIT_UGURU3_WAIT_TIMEOUT		250
 /*
  * Normally the 0xAC at the end of synchronize() is reported after the
- * first read, but sometimes not and we need to poll
+ * first read, but sometimes yest and we need to poll
  */
 #define ABIT_UGURU3_SYNCHRONIZE_TIMEOUT		5
 /* utility macros */
@@ -97,7 +97,7 @@
 
 /*
  * All the macros below are named identical to the openguru2 program
- * reverse engineered by Louis Kruger, hence the names might not be 100%
+ * reverse engineered by Louis Kruger, hence the names might yest be 100%
  * logical. I could come up with better names, but I prefer keeping the names
  * identical so that this driver can be compared with his work more easily.
  */
@@ -174,7 +174,7 @@ struct abituguru3_data {
 	u8 value[48];
 
 	/*
-	 * Settings of all 48 sensors, note in and temp sensors (the first 32
+	 * Settings of all 48 sensors, yeste in and temp sensors (the first 32
 	 * sensors) have 3 bytes of settings, while fans only have 2 bytes,
 	 * for convenience we use 3 bytes for all sensors
 	 */
@@ -184,7 +184,7 @@ struct abituguru3_data {
 
 /* Constants */
 static const struct abituguru3_motherboard_info abituguru3_motherboards[] = {
-	{ 0x000C, { NULL } /* Unknown, need DMI string */, {
+	{ 0x000C, { NULL } /* Unkyeswn, need DMI string */, {
 		{ "CPU Core",		 0, 0, 10, 1, 0 },
 		{ "DDR",		 1, 0, 10, 1, 0 },
 		{ "DDR VTT",		 2, 0, 10, 1, 0 },
@@ -256,7 +256,7 @@ static const struct abituguru3_motherboard_info abituguru3_motherboards[] = {
 		{ "SYS Fan",		34, 2, 60, 1, 0 },
 		{ NULL, 0, 0, 0, 0, 0 } }
 	},
-	{ 0x000F, { NULL } /* Unknown, need DMI string */, {
+	{ 0x000F, { NULL } /* Unkyeswn, need DMI string */, {
 
 		{ "CPU Core",		 0, 0, 10, 1, 0 },
 		{ "DDR",		 1, 0, 10, 1, 0 },
@@ -399,7 +399,7 @@ static const struct abituguru3_motherboard_info abituguru3_motherboards[] = {
 		{ "SYS Fan",		34, 2, 60, 1, 0 },
 		{ NULL, 0, 0, 0, 0, 0 } }
 	},
-	{ 0x0015, { NULL } /* Unknown, need DMI string */, {
+	{ 0x0015, { NULL } /* Unkyeswn, need DMI string */, {
 		{ "CPU Core",		 0, 0, 10, 1, 0 },
 		{ "DDR",		 1, 0, 20, 1, 0 },
 		{ "DDR VTT",		 2, 0, 10, 1, 0 },
@@ -451,7 +451,7 @@ static const struct abituguru3_motherboard_info abituguru3_motherboards[] = {
 		{ "OTES1 Fan",		38, 2, 60, 1, 0 },
 		{ NULL, 0, 0, 0, 0, 0 } }
 	},
-	{ 0x0017, { NULL } /* Unknown, need DMI string */, {
+	{ 0x0017, { NULL } /* Unkyeswn, need DMI string */, {
 		{ "CPU Core",		 0, 0, 10, 1, 0 },
 		{ "DDR2",		 1, 0, 20, 1, 0 },
 		{ "DDR2 VTT",		 2, 0, 10, 1, 0 },
@@ -558,7 +558,7 @@ static const struct abituguru3_motherboard_info abituguru3_motherboards[] = {
 		{ "AUX4 Fan",		37, 2, 60, 1, 0 },
 		{ NULL, 0, 0, 0, 0, 0 } }
 	},
-	{ 0x001B, { NULL } /* Unknown, need DMI string */, {
+	{ 0x001B, { NULL } /* Unkyeswn, need DMI string */, {
 		{ "CPU Core",		 0, 0, 10, 1, 0 },
 		{ "DDR3",		 1, 0, 20, 1, 0 },
 		{ "DDR3 VTT",		 2, 0, 10, 1, 0 },
@@ -720,7 +720,7 @@ static int abituguru3_synchronize(struct abituguru3_data *data)
 	while ((x = inb(data->addr + ABIT_UGURU3_CMD)) != 0xAC) {
 		timeout--;
 		if (timeout == 0) {
-			ABIT_UGURU3_DEBUG("synchronize timeout cmd does not "
+			ABIT_UGURU3_DEBUG("synchronize timeout cmd does yest "
 				"hold 0xAC after synchronize, cmd: 0x%02x\n",
 				x);
 			return -EIO;
@@ -835,7 +835,7 @@ static ssize_t show_value(struct device *dev,
 
 	sensor = &data->sensors[attr->index];
 
-	/* are we reading a setting, or is this a normal read? */
+	/* are we reading a setting, or is this a yesrmal read? */
 	if (attr->nr)
 		value = data->settings[sensor->port][attr->nr];
 	else
@@ -957,7 +957,7 @@ static struct sensor_device_attribute_2 abituguru3_sysfs_attr[] = {
 
 static int abituguru3_probe(struct platform_device *pdev)
 {
-	const int no_sysfs_attr[3] = { 10, 8, 7 };
+	const int yes_sysfs_attr[3] = { 10, 8, 7 };
 	int sensor_index[3] = { 0, 1, 1 };
 	struct abituguru3_data *data;
 	int i, j, type, used, sysfs_names_free, sysfs_attr_i, res = -ENODEV;
@@ -990,7 +990,7 @@ static int abituguru3_probe(struct platform_device *pdev)
 		if (abituguru3_motherboards[i].id == id)
 			break;
 	if (!abituguru3_motherboards[i].id) {
-		pr_err("error unknown motherboard ID: %04X. %s\n",
+		pr_err("error unkyeswn motherboard ID: %04X. %s\n",
 		       (unsigned int)id, report_this);
 		goto abituguru3_probe_error;
 	}
@@ -1011,7 +1011,7 @@ static int abituguru3_probe(struct platform_device *pdev)
 			goto abituguru3_probe_error;
 		}
 		type = data->sensors[i].type;
-		for (j = 0; j < no_sysfs_attr[type]; j++) {
+		for (j = 0; j < yes_sysfs_attr[type]; j++) {
 			used = snprintf(sysfs_filename, sysfs_names_free,
 				abituguru3_sysfs_templ[type][j].dev_attr.attr.
 				name, sensor_index[type]) + 1;
@@ -1132,7 +1132,7 @@ static int abituguru3_suspend(struct device *dev)
 {
 	struct abituguru3_data *data = dev_get_drvdata(dev);
 	/*
-	 * make sure all communications with the uguru3 are done and no new
+	 * make sure all communications with the uguru3 are done and yes new
 	 * ones are started
 	 */
 	mutex_lock(&data->update_lock);
@@ -1210,7 +1210,7 @@ static int __init abituguru3_detect(void)
 	/*
 	 * See if there is an uguru3 there. An idle uGuru3 will hold 0x00 or
 	 * 0x08 at DATA and 0xAC at CMD. Sometimes the uGuru3 will hold 0x05
-	 * or 0x55 at CMD instead, why is unknown.
+	 * or 0x55 at CMD instead, why is unkyeswn.
 	 */
 	u8 data_val = inb_p(ABIT_UGURU3_BASE + ABIT_UGURU3_DATA);
 	u8 cmd_val = inb_p(ABIT_UGURU3_BASE + ABIT_UGURU3_CMD);
@@ -1219,7 +1219,7 @@ static int __init abituguru3_detect(void)
 			 (cmd_val == 0x55)))
 		return 0;
 
-	ABIT_UGURU3_DEBUG("no Abit uGuru3 found, data = 0x%02X, cmd = "
+	ABIT_UGURU3_DEBUG("yes Abit uGuru3 found, data = 0x%02X, cmd = "
 		"0x%02X\n", (unsigned int)data_val, (unsigned int)cmd_val);
 
 	if (force) {
@@ -1244,7 +1244,7 @@ static int __init abituguru3_init(void)
 		return err;
 
 	/*
-	 * Fall back to manual detection if there was no exact
+	 * Fall back to manual detection if there was yes exact
 	 * board name match, or force was specified.
 	 */
 	if (err > 0) {
@@ -1252,7 +1252,7 @@ static int __init abituguru3_init(void)
 		if (err)
 			return err;
 
-		pr_warn("this motherboard was not detected using DMI. "
+		pr_warn("this motherboard was yest detected using DMI. "
 			"Please send the output of \"dmidecode\" to the abituguru3 maintainer (see MAINTAINERS)\n");
 	}
 

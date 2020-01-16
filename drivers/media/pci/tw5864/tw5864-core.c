@@ -34,10 +34,10 @@ MODULE_LICENSE("GPL");
  *
  * This driver was developed by Bluecherry LLC by deducing behaviour of
  * original manufacturer's driver, from both source code and execution traces.
- * It is known that there are some artifacts on output video with this driver:
- *  - on all known hardware samples: random pixels of wrong color (mostly
+ * It is kyeswn that there are some artifacts on output video with this driver:
+ *  - on all kyeswn hardware samples: random pixels of wrong color (mostly
  *    white, red or blue) appearing and disappearing on sequences of P-frames;
- *  - on some hardware samples (known with H.264 core version e006:2800):
+ *  - on some hardware samples (kyeswn with H.264 core version e006:2800):
  *    total madness on P-frames: blocks of wrong luminance; blocks of wrong
  *    colors "creeping" across the picture.
  * There is a workaround for both issues: avoid P-frames by setting GOP size
@@ -45,11 +45,11 @@ MODULE_LICENSE("GPL");
  *
  * v4l2-ctl --device /dev/videoX --set-ctrl=video_gop_size=1
  *
- * These issues are not decoding errors; all produced H.264 streams are decoded
- * properly. Streams without P-frames don't have these artifacts so it's not
- * analog-to-digital conversion issues nor internal memory errors; we conclude
+ * These issues are yest decoding errors; all produced H.264 streams are decoded
+ * properly. Streams without P-frames don't have these artifacts so it's yest
+ * analog-to-digital conversion issues yesr internal memory errors; we conclude
  * it's internal H.264 encoder issues.
- * We cannot even check the original driver's behaviour because it has never
+ * We canyest even check the original driver's behaviour because it has never
  * worked properly at all in our development environment. So these issues may
  * be actually related to firmware or hardware. However it may be that there's
  * just some more register settings missing in the driver which would please
@@ -113,7 +113,7 @@ static irqreturn_t tw5864_isr(int irq, void *dev_id)
 		tw5864_timer_isr(dev);
 
 	if (!(status & (TW5864_INTR_TIMER | TW5864_INTR_VLC_DONE))) {
-		dev_dbg(&dev->pci->dev, "Unknown interrupt, status 0x%08X\n",
+		dev_dbg(&dev->pci->dev, "Unkyeswn interrupt, status 0x%08X\n",
 			status);
 	}
 
@@ -140,8 +140,8 @@ static void tw5864_h264_isr(struct tw5864_dev *dev)
 		cur_frame->checksum = tw_readl(TW5864_VLC_CRC_REG);
 		cur_frame->input = input;
 		cur_frame->timestamp = ktime_get_ns();
-		cur_frame->seqno = input->frame_seqno;
-		cur_frame->gop_seqno = input->frame_gop_seqno;
+		cur_frame->seqyes = input->frame_seqyes;
+		cur_frame->gop_seqyes = input->frame_gop_seqyes;
 
 		dev->h264_buf_w_index = next_frame_index;
 		tasklet_schedule(&dev->tasklet);
@@ -149,10 +149,10 @@ static void tw5864_h264_isr(struct tw5864_dev *dev)
 		cur_frame = next_frame;
 
 		spin_lock(&input->slock);
-		input->frame_seqno++;
-		input->frame_gop_seqno++;
-		if (input->frame_gop_seqno >= input->gop)
-			input->frame_gop_seqno = 0;
+		input->frame_seqyes++;
+		input->frame_gop_seqyes++;
+		if (input->frame_gop_seqyes >= input->gop)
+			input->frame_gop_seqyes = 0;
 		spin_unlock(&input->slock);
 	} else {
 		dev_err(&dev->pci->dev,
@@ -264,14 +264,14 @@ static int tw5864_initdev(struct pci_dev *pci_dev,
 
 	err = pci_set_dma_mask(pci_dev, DMA_BIT_MASK(32));
 	if (err) {
-		dev_err(&dev->pci->dev, "32 bit PCI DMA is not supported\n");
+		dev_err(&dev->pci->dev, "32 bit PCI DMA is yest supported\n");
 		goto disable_pci;
 	}
 
 	/* get mmio */
 	err = pci_request_regions(pci_dev, dev->name);
 	if (err) {
-		dev_err(&dev->pci->dev, "Cannot request regions for MMIO\n");
+		dev_err(&dev->pci->dev, "Canyest request regions for MMIO\n");
 		goto disable_pci;
 	}
 	dev->mmio = pci_ioremap_bar(pci_dev, 0);
@@ -301,7 +301,7 @@ static int tw5864_initdev(struct pci_dev *pci_dev,
 		goto fini_video;
 	}
 
-	dev_info(&pci_dev->dev, "Note: there are known video quality issues. For details\n");
+	dev_info(&pci_dev->dev, "Note: there are kyeswn video quality issues. For details\n");
 	dev_info(&pci_dev->dev, "see the comment in drivers/media/pci/tw5864/tw5864-core.c.\n");
 
 	return 0;

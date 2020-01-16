@@ -10,7 +10,7 @@
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright yestice and this permission yestice (including the
  * next paragraph) shall be included in all copies or substantial
  * portions of the Software.
  *
@@ -25,13 +25,13 @@
  */
 
 #include <drm/drm_crtc_helper.h>
-#include "nouveau_drv.h"
-#include "nouveau_encoder.h"
-#include "nouveau_crtc.h"
+#include "yesuveau_drv.h"
+#include "yesuveau_encoder.h"
+#include "yesuveau_crtc.h"
 #include "hw.h"
 #include "tvnv17.h"
 
-const char * const nv17_tv_norm_names[NUM_TV_NORMS] = {
+const char * const nv17_tv_yesrm_names[NUM_TV_NORMS] = {
 	[TV_NORM_PAL] = "PAL",
 	[TV_NORM_PAL_M] = "PAL-M",
 	[TV_NORM_PAL_N] = "PAL-N",
@@ -48,7 +48,7 @@ const char * const nv17_tv_norm_names[NUM_TV_NORMS] = {
 
 /* TV standard specific parameters */
 
-struct nv17_tv_norm_params nv17_tv_norms[NUM_TV_NORMS] = {
+struct nv17_tv_yesrm_params nv17_tv_yesrms[NUM_TV_NORMS] = {
 	[TV_NORM_PAL] = { TV_ENC_MODE, {
 			.tv_enc_mode = { 720, 576, 50000, {
 					0x2a, 0x9, 0x8a, 0xcb, 0x0, 0x0, 0xb, 0x18,
@@ -220,9 +220,9 @@ struct nv17_tv_norm_params nv17_tv_norms[NUM_TV_NORMS] = {
  * through the registers at NV_PTV_HFILTER and NV_PTV_VFILTER, they
  * control the horizontal and vertical stage respectively, there is
  * also NV_PTV_HFILTER2 the blob fills identically to NV_PTV_HFILTER,
- * but they seem to do nothing. A rough guess might be that they could
+ * but they seem to do yesthing. A rough guess might be that they could
  * be used to independently control the filtering of each interlaced
- * field, but I don't know how they are enabled. The whole filtering
+ * field, but I don't kyesw how they are enabled. The whole filtering
  * process seems to be disabled with bits 26:27 of PTV_200, but we
  * aren't doing that.
  *
@@ -315,7 +315,7 @@ static struct filter_params{
 static void tv_setup_filter(struct drm_encoder *encoder)
 {
 	struct nv17_tv_encoder *tv_enc = to_tv_enc(encoder);
-	struct nv17_tv_norm_params *tv_norm = get_tv_norm(encoder);
+	struct nv17_tv_yesrm_params *tv_yesrm = get_tv_yesrm(encoder);
 	struct drm_display_mode *mode = &encoder->crtc->mode;
 	uint32_t (*filters[])[4][7] = {&tv_enc->state.hfilter,
 				       &tv_enc->state.vfilter};
@@ -325,8 +325,8 @@ static void tv_setup_filter(struct drm_encoder *encoder)
 	uint64_t rs[] = {mode->hdisplay * id3,
 			 mode->vdisplay * id3};
 
-	do_div(rs[0], overscan * tv_norm->tv_enc_mode.hdisplay);
-	do_div(rs[1], overscan * tv_norm->tv_enc_mode.vdisplay);
+	do_div(rs[0], overscan * tv_yesrm->tv_enc_mode.hdisplay);
+	do_div(rs[1], overscan * tv_yesrm->tv_enc_mode.vdisplay);
 
 	for (k = 0; k < 2; k++) {
 		rs[k] = max((int64_t)rs[k], id2);
@@ -473,7 +473,7 @@ void nv17_tv_update_properties(struct drm_encoder *encoder)
 	struct drm_device *dev = encoder->dev;
 	struct nv17_tv_encoder *tv_enc = to_tv_enc(encoder);
 	struct nv17_tv_state *regs = &tv_enc->state;
-	struct nv17_tv_norm_params *tv_norm = get_tv_norm(encoder);
+	struct nv17_tv_yesrm_params *tv_yesrm = get_tv_yesrm(encoder);
 	int subconnector = tv_enc->select_subconnector ?
 						tv_enc->select_subconnector :
 						tv_enc->subconnector;
@@ -510,9 +510,9 @@ void nv17_tv_update_properties(struct drm_encoder *encoder)
 		break;
 	}
 
-	regs->tv_enc[0x20] = interpolate(0, tv_norm->tv_enc_mode.tv_enc[0x20],
+	regs->tv_enc[0x20] = interpolate(0, tv_yesrm->tv_enc_mode.tv_enc[0x20],
 					 255, tv_enc->saturation);
-	regs->tv_enc[0x22] = interpolate(0, tv_norm->tv_enc_mode.tv_enc[0x22],
+	regs->tv_enc[0x22] = interpolate(0, tv_yesrm->tv_enc_mode.tv_enc[0x22],
 					 255, tv_enc->saturation);
 	regs->tv_enc[0x25] = tv_enc->hue * 255 / 100;
 
@@ -543,11 +543,11 @@ void nv17_ctv_update_rescaler(struct drm_encoder *encoder)
 {
 	struct drm_device *dev = encoder->dev;
 	struct nv17_tv_encoder *tv_enc = to_tv_enc(encoder);
-	int head = nouveau_crtc(encoder->crtc)->index;
+	int head = yesuveau_crtc(encoder->crtc)->index;
 	struct nv04_crtc_reg *regs = &nv04_display(dev)->mode_reg.crtc_reg[head];
 	struct drm_display_mode *crtc_mode = &encoder->crtc->mode;
 	struct drm_display_mode *output_mode =
-		&get_tv_norm(encoder)->ctv_enc_mode.mode;
+		&get_tv_yesrm(encoder)->ctv_enc_mode.mode;
 	int overscan, hmargin, vmargin, hratio, vratio;
 
 	/* The rescaler doesn't do the right thing for interlaced modes. */

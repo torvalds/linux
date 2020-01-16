@@ -18,9 +18,9 @@ Android binderfs can be mounted with::
   mount -t binder binder /dev/binderfs
 
 at which point a new instance of binderfs will show up at ``/dev/binderfs``.
-In a fresh instance of binderfs no binder devices will be present.  There will
+In a fresh instance of binderfs yes binder devices will be present.  There will
 only be a ``binder-control`` device which serves as the request handler for
-binderfs. Mounting another binderfs instance at a different location will
+binderfs. Mounting ayesther binderfs instance at a different location will
 create a new and separate instance from all other binderfs mounts.  This is
 identical to the behavior of e.g. ``devpts`` and ``tmpfs``. The Android
 binderfs filesystem can be mounted in user namespaces.
@@ -39,10 +39,10 @@ Allocating binder Devices
 .. _ioctl: http://man7.org/linux/man-pages/man2/ioctl.2.html
 
 To allocate a new binder device in a binderfs instance a request needs to be
-sent through the ``binder-control`` device node.  A request is sent in the form
+sent through the ``binder-control`` device yesde.  A request is sent in the form
 of an `ioctl() <ioctl_>`_.
 
-What a program needs to do is to open the ``binder-control`` device node and
+What a program needs to do is to open the ``binder-control`` device yesde and
 send a ``BINDER_CTL_ADD`` request to the kernel.  Users of binderfs need to
 tell the kernel which name the new binder device should get.  By default a name
 can only contain up to ``BINDERFS_MAX_NAME`` chars including the terminating
@@ -50,7 +50,7 @@ zero byte.
 
 Once the request is made via an `ioctl() <ioctl_>`_ passing a ``struct
 binder_device`` with the name to the kernel it will allocate a new binder
-device and return the major and minor number of the new device in the struct
+device and return the major and miyesr number of the new device in the struct
 (This is necessary because binderfs allocates a major device number
 dynamically.).  After the `ioctl() <ioctl_>`_ returns there will be a new
 binder device located under /dev/binderfs with the chosen name.
@@ -63,6 +63,6 @@ Deleting binder Devices
 
 Binderfs binder devices can be deleted via `unlink() <unlink_>`_.  This means
 that the `rm() <rm_>`_ tool can be used to delete them. Note that the
-``binder-control`` device cannot be deleted since this would make the binderfs
+``binder-control`` device canyest be deleted since this would make the binderfs
 instance unuseable.  The ``binder-control`` device will be deleted when the
 binderfs instance is unmounted and all references to it have been dropped.

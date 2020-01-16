@@ -3,7 +3,7 @@
 #define __LINUX_IOASID_H
 
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 
 #define INVALID_IOASID ((ioasid_t)-1)
 typedef unsigned int ioasid_t;
@@ -19,7 +19,7 @@ struct ioasid_set {
  *
  * @alloc:	helper function to allocate IOASID
  * @free:	helper function to free IOASID
- * @list:	for tracking ops that share helper functions but not data
+ * @list:	for tracking ops that share helper functions but yest data
  * @pdata:	data belong to the allocator, provided when calling alloc()
  */
 struct ioasid_allocator_ops {

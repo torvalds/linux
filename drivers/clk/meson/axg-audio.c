@@ -1212,7 +1212,7 @@ static struct clk_hw_onecell_data sm1_audio_hw_onecell_data = {
 /* Convenience table to populate regmap in .probe()
  * Note that this table is shared between both AXG and G12A,
  * with spdifout_b clocks being exclusive to G12A. Since those
- * clocks are not declared within the AXG onecell table, we do not
+ * clocks are yest declared within the AXG onecell table, we do yest
  * feel the need to have separate AXG/G12A regmap tables.
  */
 static struct clk_regmap *const axg_clk_regmaps[] = {
@@ -1688,7 +1688,7 @@ static int axg_audio_clkc_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	/* Stop here if there is no reset */
+	/* Stop here if there is yes reset */
 	if (!data->reset_num)
 		return 0;
 
@@ -1700,7 +1700,7 @@ static int axg_audio_clkc_probe(struct platform_device *pdev)
 	rst->offset = data->reset_offset;
 	rst->rstc.nr_resets = data->reset_num;
 	rst->rstc.ops = &axg_audio_rstc_ops;
-	rst->rstc.of_node = dev->of_node;
+	rst->rstc.of_yesde = dev->of_yesde;
 	rst->rstc.owner = THIS_MODULE;
 
 	return devm_reset_controller_register(dev, &rst->rstc);

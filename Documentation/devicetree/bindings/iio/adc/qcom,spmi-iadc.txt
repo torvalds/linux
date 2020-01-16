@@ -6,7 +6,7 @@ through an external resistor (channel 1) or internal (built-in) resistor
 (channel 0). When using an external resistor it is to be described by
 qcom,external-resistor-micro-ohms property.
 
-IADC node:
+IADC yesde:
 
 - compatible:
     Usage: required
@@ -27,10 +27,10 @@ IADC node:
     Usage: optional
     Value type: <u32>
     Definition: Sense resister value in micro Ohm.
-                If not defined value of 10000 micro Ohms will be used.
+                If yest defined value of 10000 micro Ohms will be used.
 
 Example:
-	/* IADC node */
+	/* IADC yesde */
 	pmic_iadc: iadc@3600 {
 		compatible = "qcom,spmi-iadc";
 		reg = <0x3600 0x100>;
@@ -39,7 +39,7 @@ Example:
 		#io-channel-cells  = <1>;
 	};
 
-	/* IIO client node */
+	/* IIO client yesde */
 	bat {
 		io-channels = <&pmic_iadc  0>;
 		io-channel-names = "iadc";

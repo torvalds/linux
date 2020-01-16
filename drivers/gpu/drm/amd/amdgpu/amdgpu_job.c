@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -249,7 +249,7 @@ static struct dma_fence *amdgpu_job_run(struct drm_sched_job *sched_job)
 }
 
 #define to_drm_sched_job(sched_job)		\
-		container_of((sched_job), struct drm_sched_job, queue_node)
+		container_of((sched_job), struct drm_sched_job, queue_yesde)
 
 void amdgpu_job_stop_all_jobs_on_sched(struct drm_gpu_scheduler *sched)
 {
@@ -257,7 +257,7 @@ void amdgpu_job_stop_all_jobs_on_sched(struct drm_gpu_scheduler *sched)
 	struct drm_sched_entity *s_entity = NULL;
 	int i;
 
-	/* Signal all jobs not yet scheduled */
+	/* Signal all jobs yest yet scheduled */
 	for (i = DRM_SCHED_PRIORITY_MAX - 1; i >= DRM_SCHED_PRIORITY_MIN; i--) {
 		struct drm_sched_rq *rq = &sched->sched_rq[i];
 
@@ -278,7 +278,7 @@ void amdgpu_job_stop_all_jobs_on_sched(struct drm_gpu_scheduler *sched)
 	}
 
 	/* Signal all jobs already scheduled to HW */
-	list_for_each_entry(s_job, &sched->ring_mirror_list, node) {
+	list_for_each_entry(s_job, &sched->ring_mirror_list, yesde) {
 		struct drm_sched_fence *s_fence = s_job->s_fence;
 
 		dma_fence_set_error(&s_fence->finished, -EHWPOISON);

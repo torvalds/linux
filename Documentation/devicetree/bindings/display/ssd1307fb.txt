@@ -2,7 +2,7 @@
 
 Required properties:
   - compatible: Should be "solomon,<chip>fb-<bus>". The only supported bus for
-    now is i2c, and the supported chips are ssd1305, ssd1306, ssd1307 and
+    yesw is i2c, and the supported chips are ssd1305, ssd1306, ssd1307 and
     ssd1309.
   - reg: Should contain address of the controller on the I2C bus. Most likely
          0x3c or 0x3d
@@ -17,7 +17,7 @@ Optional properties:
   - reset-gpios: The GPIO used to reset the OLED display, if available. See
                  Documentation/devicetree/bindings/gpio/gpio.txt for details.
   - vbat-supply: The supply for VBAT
-  - solomon,segment-no-remap: Display needs normal (non-inverted) data column
+  - solomon,segment-yes-remap: Display needs yesrmal (yesn-inverted) data column
                               to segment mapping
   - solomon,com-seq: Display uses sequential COM pin configuration
   - solomon,com-lrremap: Display uses left-right COM pin remap

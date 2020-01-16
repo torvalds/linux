@@ -13,7 +13,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -35,7 +35,7 @@
 struct videomode;
 
 /*
- * Note on terminology:  here, for brevity and convenience, we refer to connector
+ * Note on termiyeslogy:  here, for brevity and convenience, we refer to connector
  * control chips as 'CRTCs'.  They can control any type of connector, VGA, LVDS,
  * DVI, etc.  And 'screen' refers to the whole of the visible display, which
  * may span multiple monitors (and therefore multiple CRTC and connector
@@ -50,15 +50,15 @@ struct videomode;
  * @MODE_H_ILLEGAL: mode has illegal horizontal timings
  * @MODE_V_ILLEGAL: mode has illegal horizontal timings
  * @MODE_BAD_WIDTH: requires an unsupported linepitch
- * @MODE_NOMODE: no mode with a matching name
- * @MODE_NO_INTERLACE: interlaced mode not supported
- * @MODE_NO_DBLESCAN: doublescan mode not supported
- * @MODE_NO_VSCAN: multiscan mode not supported
+ * @MODE_NOMODE: yes mode with a matching name
+ * @MODE_NO_INTERLACE: interlaced mode yest supported
+ * @MODE_NO_DBLESCAN: doublescan mode yest supported
+ * @MODE_NO_VSCAN: multiscan mode yest supported
  * @MODE_MEM: insufficient video memory
  * @MODE_VIRTUAL_X: mode width too large for specified virtual size
  * @MODE_VIRTUAL_Y: mode height too large for specified virtual size
  * @MODE_MEM_VIRT: insufficient video memory given virtual size
- * @MODE_NOCLOCK: no fixed clock available
+ * @MODE_NOCLOCK: yes fixed clock available
  * @MODE_CLOCK_HIGH: clock required is too high
  * @MODE_CLOCK_LOW: clock required is too low
  * @MODE_CLOCK_RANGE: clock/mode isn't in a ClockRange
@@ -79,13 +79,13 @@ struct videomode;
  * @MODE_ONE_HEIGHT: only one height is supported
  * @MODE_ONE_SIZE: only one resolution is supported
  * @MODE_NO_REDUCED: monitor doesn't accept reduced blanking
- * @MODE_NO_STEREO: stereo modes not supported
- * @MODE_NO_420: ycbcr 420 modes not supported
+ * @MODE_NO_STEREO: stereo modes yest supported
+ * @MODE_NO_420: ycbcr 420 modes yest supported
  * @MODE_STALE: mode has become stale
  * @MODE_BAD: unspecified reason
  * @MODE_ERROR: error condition
  *
- * This enum is used to filter out modes not supported by the driver/hardware
+ * This enum is used to filter out modes yest supported by the driver/hardware
  * combination.
  */
 enum drm_mode_status {
@@ -213,7 +213,7 @@ enum drm_mode_status {
  *     <-------------------------------- [hv]total ----------------------------->*
  *
  * This structure contains two copies of timings. First are the plain timings,
- * which specify the logical mode, as it would be for a progressive 1:1 scanout
+ * which specify the logical mode, as it would be for a progressive 1:1 scayesut
  * at the refresh rate userspace can observe through vblank timestamps. Then
  * there's the hardware timings, which are corrected for interlacing,
  * double-clocking and similar things. They are provided as a convenience, and
@@ -239,7 +239,7 @@ struct drm_display_mode {
 	/**
 	 * @status:
 	 *
-	 * Status of the mode, used to filter out modes not supported by the
+	 * Status of the mode, used to filter out modes yest supported by the
 	 * hardware. See enum &drm_mode_status.
 	 */
 	enum drm_mode_status status;
@@ -260,7 +260,7 @@ struct drm_display_mode {
 	 *
 	 * Plus a big list of flags which shouldn't be used at all, but are
 	 * still around since these flags are also used in the userspace ABI.
-	 * We no longer accept modes with these types though:
+	 * We yes longer accept modes with these types though:
 	 *
 	 *  - DRM_MODE_TYPE_BUILTIN: Meant for hard-coded modes, unused.
 	 *    Use DRM_MODE_TYPE_DRIVER instead.
@@ -302,7 +302,7 @@ struct drm_display_mode {
 	 *  - DRM_MODE_FLAG_CSYNC: mode uses composite sync.
 	 *  - DRM_MODE_FLAG_PCSYNC: composite sync is active high.
 	 *  - DRM_MODE_FLAG_NCSYNC: composite sync is active low.
-	 *  - DRM_MODE_FLAG_HSKEW: hskew provided (not used?).
+	 *  - DRM_MODE_FLAG_HSKEW: hskew provided (yest used?).
 	 *  - DRM_MODE_FLAG_BCAST: <deprecated>
 	 *  - DRM_MODE_FLAG_PIXMUX: <deprecated>
 	 *  - DRM_MODE_FLAG_DBLCLK: double-clocked mode.
@@ -310,7 +310,7 @@ struct drm_display_mode {
 	 *
 	 * Additionally there's flags to specify how 3D modes are packed:
 	 *
-	 *  - DRM_MODE_FLAG_3D_NONE: normal, non-3D mode.
+	 *  - DRM_MODE_FLAG_3D_NONE: yesrmal, yesn-3D mode.
 	 *  - DRM_MODE_FLAG_3D_FRAME_PACKING: 2 full frames for left and right.
 	 *  - DRM_MODE_FLAG_3D_FIELD_ALTERNATIVE: interleaved like fields.
 	 *  - DRM_MODE_FLAG_3D_LINE_ALTERNATIVE: interleaved lines.
@@ -420,9 +420,9 @@ struct drm_display_mode {
 	 * struct list_head for modes to be exposed to the userspace.
 	 * This is to maintain a list of exposed modes while preparing
 	 * user-mode's list in drm_mode_getconnector ioctl. The purpose of this
-	 * list_head only lies in the ioctl function, and is not expected to be
+	 * list_head only lies in the ioctl function, and is yest expected to be
 	 * used outside the function.
-	 * Once used, the stale pointers are not reset, but left as it is, to
+	 * Once used, the stale pointers are yest reset, but left as it is, to
 	 * avoid overhead of protecting it by mode_config.mutex.
 	 */
 	struct list_head export_head;
@@ -451,7 +451,7 @@ struct drm_display_mode {
  *
  * Returns:
  * True if the mode is one of the stereo modes (like side-by-side), false if
- * not.
+ * yest.
  */
 static inline bool drm_mode_is_stereo(const struct drm_display_mode *mode)
 {
@@ -495,7 +495,7 @@ void drm_display_mode_from_videomode(const struct videomode *vm,
 void drm_display_mode_to_videomode(const struct drm_display_mode *dmode,
 				   struct videomode *vm);
 void drm_bus_flags_from_videomode(const struct videomode *vm, u32 *bus_flags);
-int of_get_drm_display_mode(struct device_node *np,
+int of_get_drm_display_mode(struct device_yesde *np,
 			    struct drm_display_mode *dmode, u32 *bus_flags,
 			    int index);
 
@@ -516,9 +516,9 @@ bool drm_mode_match(const struct drm_display_mode *mode1,
 		    unsigned int match_flags);
 bool drm_mode_equal(const struct drm_display_mode *mode1,
 		    const struct drm_display_mode *mode2);
-bool drm_mode_equal_no_clocks(const struct drm_display_mode *mode1,
+bool drm_mode_equal_yes_clocks(const struct drm_display_mode *mode1,
 			      const struct drm_display_mode *mode2);
-bool drm_mode_equal_no_clocks_no_stereo(const struct drm_display_mode *mode1,
+bool drm_mode_equal_yes_clocks_yes_stereo(const struct drm_display_mode *mode1,
 					const struct drm_display_mode *mode2);
 
 /* for use by the crtc helper probe functions */

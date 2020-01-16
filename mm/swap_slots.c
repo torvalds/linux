@@ -9,12 +9,12 @@
  *
  * We allocate the swap slots from the global pool and put
  * it into local per cpu caches.  This has the advantage
- * of no needing to acquire the swap_info lock every time
+ * of yes needing to acquire the swap_info lock every time
  * we need a new slot.
  *
  * There is also opportunity to simply return the slot
  * to local caches without needing to acquire swap_info
- * lock.  We do not reuse the returned slots directly but
+ * lock.  We do yest reuse the returned slots directly but
  * move them back to the global pool in a batch.  This
  * allows the slots to coaellesce and reduce fragmentation.
  *
@@ -66,7 +66,7 @@ static void reactivate_swap_slots_cache(void)
 	mutex_unlock(&swap_slots_cache_mutex);
 }
 
-/* Must not be called with cpu hot plug lock */
+/* Must yest be called with cpu hot plug lock */
 void disable_swap_slots_cache_lock(void)
 {
 	mutex_lock(&swap_slots_cache_enable_mutex);
@@ -149,7 +149,7 @@ static int alloc_swap_slot_cache(unsigned int cpu)
 	cache->n_ret = 0;
 	/*
 	 * We initialized alloc_lock and free_lock earlier.  We use
-	 * !cache->slots or !cache->slots_ret to know if it is safe to acquire
+	 * !cache->slots or !cache->slots_ret to kyesw if it is safe to acquire
 	 * the corresponding lock and use the cache.  Memory barrier below
 	 * ensures the assumption.
 	 */
@@ -205,14 +205,14 @@ static void __drain_swap_slots_cache(unsigned int type)
 
 	/*
 	 * This function is called during
-	 *	1) swapoff, when we have to make sure no
+	 *	1) swapoff, when we have to make sure yes
 	 *	   left over slots are in cache when we remove
 	 *	   a swap device;
 	 *      2) disabling of swap slot cache, when we run low
 	 *	   on swap slots when allocating memory and need
 	 *	   to return swap slots to global pool.
 	 *
-	 * We cannot acquire cpu hot plug lock here as
+	 * We canyest acquire cpu hot plug lock here as
 	 * this function can be invoked in the cpu
 	 * hot plug path:
 	 * cpu_up -> lock cpu_hotplug -> cpu hotplug state callback
@@ -220,11 +220,11 @@ static void __drain_swap_slots_cache(unsigned int type)
 	 *   -> drain_swap_slots_cache
 	 *
 	 * Hence the loop over current online cpu below could miss cpu that
-	 * is being brought online but not yet marked as online.
-	 * That is okay as we do not schedule and run anything on a
-	 * cpu before it has been marked online. Hence, we will not
+	 * is being brought online but yest yet marked as online.
+	 * That is okay as we do yest schedule and run anything on a
+	 * cpu before it has been marked online. Hence, we will yest
 	 * fill any swap slots in slots cache of such cpu.
-	 * There are no slots on such cpu that need to be drained.
+	 * There are yes slots on such cpu that need to be drained.
 	 */
 	for_each_online_cpu(cpu)
 		drain_slots_cache_cpu(cpu, type, false);
@@ -326,8 +326,8 @@ swp_entry_t get_swap_page(struct page *page)
 	 * accesses to the per-CPU data structure are protected by the
 	 * mutex cache->alloc_lock.
 	 *
-	 * The alloc path here does not touch cache->slots_ret
-	 * so cache->free_lock is not taken.
+	 * The alloc path here does yest touch cache->slots_ret
+	 * so cache->free_lock is yest taken.
 	 */
 	cache = raw_cpu_ptr(&swp_slots);
 

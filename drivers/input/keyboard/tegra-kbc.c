@@ -163,7 +163,7 @@ static void tegra_kbc_report_keys(struct tegra_kbc *kbc)
 
 			scancodes[num_down] = scancode;
 			keycodes[num_down] = kbc->keycode[scancode];
-			/* If driver uses Fn map, do not report the Fn key. */
+			/* If driver uses Fn map, do yest report the Fn key. */
 			if ((keycodes[num_down] == KEY_FN) && kbc->use_fn_map)
 				fn_keypress = true;
 			else
@@ -177,7 +177,7 @@ static void tegra_kbc_report_keys(struct tegra_kbc *kbc)
 	 * Matrix keyboard designs are prone to keyboard ghosting.
 	 * Ghosting occurs if there are 3 keys such that -
 	 * any 2 of the 3 keys share a row, and any 2 of them share a column.
-	 * If so ignore the key presses for this iteration.
+	 * If so igyesre the key presses for this iteration.
 	 */
 	if (kbc->use_ghost_filter && num_down >= 3) {
 		for (i = 0; i < num_down; i++) {
@@ -212,7 +212,7 @@ static void tegra_kbc_report_keys(struct tegra_kbc *kbc)
 		}
 	}
 
-	/* Ignore the key presses for this iteration? */
+	/* Igyesre the key presses for this iteration? */
 	if (key_in_same_col && key_in_same_row)
 		return;
 
@@ -254,7 +254,7 @@ static void tegra_kbc_keypress_timer(struct timer_list *t)
 		tegra_kbc_report_keys(kbc);
 
 		/*
-		 * If more than one keys are pressed we need not wait
+		 * If more than one keys are pressed we need yest wait
 		 * for the repoll delay.
 		 */
 		dly = (val == 1) ? kbc->repoll_dly : 1;
@@ -311,7 +311,7 @@ static void tegra_kbc_setup_wakekeys(struct tegra_kbc *kbc, bool filter)
 	int i;
 	unsigned int rst_val;
 
-	/* Either mask all keys or none. */
+	/* Either mask all keys or yesne. */
 	rst_val = (filter && !kbc->wakeup) ? ~0 : 0;
 
 	for (i = 0; i < kbc->hw_support->max_rows; i++)
@@ -488,7 +488,7 @@ static bool tegra_kbc_check_pin_cfg(const struct tegra_kbc *kbc,
 
 static int tegra_kbc_parse_dt(struct tegra_kbc *kbc)
 {
-	struct device_node *np = kbc->dev->of_node;
+	struct device_yesde *np = kbc->dev->of_yesde;
 	u32 prop;
 	int i;
 	u32 num_rows = 0;
@@ -512,13 +512,13 @@ static int tegra_kbc_parse_dt(struct tegra_kbc *kbc)
 		kbc->wakeup = true;
 
 	if (!of_get_property(np, "nvidia,kbc-row-pins", &proplen)) {
-		dev_err(kbc->dev, "property nvidia,kbc-row-pins not found\n");
+		dev_err(kbc->dev, "property nvidia,kbc-row-pins yest found\n");
 		return -ENOENT;
 	}
 	num_rows = proplen / sizeof(u32);
 
 	if (!of_get_property(np, "nvidia,kbc-col-pins", &proplen)) {
-		dev_err(kbc->dev, "property nvidia,kbc-col-pins not found\n");
+		dev_err(kbc->dev, "property nvidia,kbc-col-pins yest found\n");
 		return -ENOENT;
 	}
 	num_cols = proplen / sizeof(u32);
@@ -536,31 +536,31 @@ static int tegra_kbc_parse_dt(struct tegra_kbc *kbc)
 	}
 
 	if (!of_get_property(np, "linux,keymap", &proplen)) {
-		dev_err(kbc->dev, "property linux,keymap not found\n");
+		dev_err(kbc->dev, "property linux,keymap yest found\n");
 		return -ENOENT;
 	}
 
 	if (!num_rows || !num_cols || ((num_rows + num_cols) > KBC_MAX_GPIO)) {
 		dev_err(kbc->dev,
-			"keypad rows/columns not properly specified\n");
+			"keypad rows/columns yest properly specified\n");
 		return -EINVAL;
 	}
 
-	/* Set all pins as non-configured */
+	/* Set all pins as yesn-configured */
 	for (i = 0; i < kbc->num_rows_and_columns; i++)
 		kbc->pin_cfg[i].type = PIN_CFG_IGNORE;
 
 	ret = of_property_read_u32_array(np, "nvidia,kbc-row-pins",
 				rows_cfg, num_rows);
 	if (ret < 0) {
-		dev_err(kbc->dev, "Rows configurations are not proper\n");
+		dev_err(kbc->dev, "Rows configurations are yest proper\n");
 		return -EINVAL;
 	}
 
 	ret = of_property_read_u32_array(np, "nvidia,kbc-col-pins",
 				cols_cfg, num_cols);
 	if (ret < 0) {
-		dev_err(kbc->dev, "Cols configurations are not proper\n");
+		dev_err(kbc->dev, "Cols configurations are yest proper\n");
 		return -EINVAL;
 	}
 

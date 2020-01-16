@@ -6,7 +6,7 @@
  * This map driver is used to allocate "placeholder" MTD
  * devices on systems that have socketed/removable media.
  * Use of this driver as a fallback preserves the expected
- * registration of MTD device nodes regardless of probe outcome.
+ * registration of MTD device yesdes regardless of probe outcome.
  * A usage example is as follows:
  *
  *		my_dev[i] = do_map_probe("cfi", &my_map[i]);
@@ -21,7 +21,7 @@
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/slab.h>
 #include <linux/init.h>
 #include <linux/mtd/mtd.h>
@@ -86,12 +86,12 @@ static int map_absent_erase(struct mtd_info *mtd, struct erase_info *instr)
 
 static void map_absent_sync(struct mtd_info *mtd)
 {
-	/* nop */
+	/* yesp */
 }
 
 static void map_absent_destroy(struct mtd_info *mtd)
 {
-	/* nop */
+	/* yesp */
 }
 
 static int __init map_absent_init(void)

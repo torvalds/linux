@@ -408,7 +408,7 @@ enum intel_msic_block {
 /**
  * struct intel_msic_platform_data - platform data for the MSIC driver
  * @irq: array of interrupt numbers, one per device. If @irq is set to %0
- *	 for a given block, the corresponding platform device is not
+ *	 for a given block, the corresponding platform device is yest
  *	 created. For devices which don't have an interrupt, use %0xff
  *	 (this is same as in SFI spec).
  * @gpio: platform data for the MSIC GPIO driver

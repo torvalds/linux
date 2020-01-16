@@ -1,11 +1,11 @@
 .. Permission is granted to copy, distribute and/or modify this
 .. document under the terms of the GNU Free Documentation License,
 .. Version 1.1 or any later version published by the Free Software
-.. Foundation, with no Invariant Sections, no Front-Cover Texts
-.. and no Back-Cover Texts. A copy of the license is included at
+.. Foundation, with yes Invariant Sections, yes Front-Cover Texts
+.. and yes Back-Cover Texts. A copy of the license is included at
 .. Documentation/media/uapi/fdl-appendix.rst.
 ..
-.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
+.. TODO: replace it to GFDL-1.1-or-later WITH yes-invariant-sections
 
 .. _lirc_set_send_duty_cycle:
 
@@ -19,7 +19,7 @@ Name
 LIRC_SET_SEND_DUTY_CYCLE - Set the duty cycle of the carrier signal for
 IR transmit.
 
-Synopsis
+Syyespsis
 ========
 
 .. c:function:: int ioctl( int fd, LIRC_SET_SEND_DUTY_CYCLE, __u32 *duty_cycle)
@@ -41,7 +41,7 @@ Description
 
 Get/set the duty cycle of the carrier signal for IR transmit.
 
-Currently, no special meaning is defined for 0 or 100, but this
+Currently, yes special meaning is defined for 0 or 100, but this
 could be used to switch off carrier generation in the future, so
 these values should be reserved.
 
@@ -49,6 +49,6 @@ these values should be reserved.
 Return Value
 ============
 
-On success 0 is returned, on error -1 and the ``errno`` variable is set
+On success 0 is returned, on error -1 and the ``erryes`` variable is set
 appropriately. The generic error codes are described at the
 :ref:`Generic Error Codes <gen-errors>` chapter.

@@ -33,7 +33,7 @@ static DEFINE_SPINLOCK(opti621_lock);
 
 /* Write value to register reg, base of register
  * is at reg_base (0x1f0 primary, 0x170 secondary,
- * if not changed by PCI configuration).
+ * if yest changed by PCI configuration).
  * This is from setupvic.exe program.
  */
 static void write_reg(u8 value, int reg)
@@ -47,7 +47,7 @@ static void write_reg(u8 value, int reg)
 
 /* Read value from register reg, base of register
  * is at reg_base (0x1f0 primary, 0x170 secondary,
- * if not changed by PCI configuration).
+ * if yest changed by PCI configuration).
  * This is from setupvic.exe program.
  */
 static u8 read_reg(int reg)
@@ -97,9 +97,9 @@ static void opti621_set_pio_mode(ide_hwif_t *hwif, ide_drive_t *drive)
 	outb(0xc0, reg_base + CNTRL_REG);
 	/* hmm, setupvic.exe does this ;-) */
 	outb(0xff, reg_base + 5);
-	/* if reads 0xff, adapter not exist? */
+	/* if reads 0xff, adapter yest exist? */
 	(void)inb(reg_base + CNTRL_REG);
-	/* if reads 0xc0, no interface exist? */
+	/* if reads 0xc0, yes interface exist? */
 	read_reg(CNTRL_REG);
 
 	/* check CLK speed */

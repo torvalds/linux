@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Quota code necessary even when VFS quota support is not compiled
+ * Quota code necessary even when VFS quota support is yest compiled
  * into the kernel.  The interesting stuff is over in dquot.c, here
  * we have symbols for initial quotactl(2) handling, the sysctl(2)
  * variables, etc - things needed even when quota support disabled.
@@ -18,13 +18,13 @@
 #include <linux/quotaops.h>
 #include <linux/types.h>
 #include <linux/writeback.h>
-#include <linux/nospec.h>
+#include <linux/yesspec.h>
 
 static int check_quotactl_permission(struct super_block *sb, int type, int cmd,
 				     qid_t id)
 {
 	switch (cmd) {
-	/* these commands do not require any special privilegues */
+	/* these commands do yest require any special privilegues */
 	case Q_GETFMT:
 	case Q_SYNC:
 	case Q_GETINFO:
@@ -129,7 +129,7 @@ static int quota_getinfo(struct super_block *sb, int type, void __user *addr)
 		return -ESRCH;
 	memset(&uinfo, 0, sizeof(uinfo));
 	uinfo.dqi_bgrace = tstate->spc_timelimit;
-	uinfo.dqi_igrace = tstate->ino_timelimit;
+	uinfo.dqi_igrace = tstate->iyes_timelimit;
 	if (tstate->flags & QCI_SYSFILE)
 		uinfo.dqi_flags |= DQF_SYS_FILE;
 	if (tstate->flags & QCI_ROOT_SQUASH)
@@ -164,7 +164,7 @@ static int quota_setinfo(struct super_block *sb, int type, void __user *addr)
 		qinfo.i_fieldmask |= QC_SPC_TIMER;
 	}
 	if (info.dqi_valid & IIF_IGRACE) {
-		qinfo.i_ino_timelimit = info.dqi_igrace;
+		qinfo.i_iyes_timelimit = info.dqi_igrace;
 		qinfo.i_fieldmask |= QC_INO_TIMER;
 	}
 	return sb->s_qcop->set_info(sb, type, &qinfo);
@@ -186,11 +186,11 @@ static void copy_to_if_dqblk(struct if_dqblk *dst, struct qc_dqblk *src)
 	dst->dqb_bhardlimit = stoqb(src->d_spc_hardlimit);
 	dst->dqb_bsoftlimit = stoqb(src->d_spc_softlimit);
 	dst->dqb_curspace = src->d_space;
-	dst->dqb_ihardlimit = src->d_ino_hardlimit;
-	dst->dqb_isoftlimit = src->d_ino_softlimit;
-	dst->dqb_curinodes = src->d_ino_count;
+	dst->dqb_ihardlimit = src->d_iyes_hardlimit;
+	dst->dqb_isoftlimit = src->d_iyes_softlimit;
+	dst->dqb_curiyesdes = src->d_iyes_count;
 	dst->dqb_btime = src->d_spc_timer;
-	dst->dqb_itime = src->d_ino_timer;
+	dst->dqb_itime = src->d_iyes_timer;
 	dst->dqb_valid = QIF_ALL;
 }
 
@@ -249,11 +249,11 @@ static void copy_from_if_dqblk(struct qc_dqblk *dst, struct if_dqblk *src)
 	dst->d_spc_hardlimit = qbtos(src->dqb_bhardlimit);
 	dst->d_spc_softlimit = qbtos(src->dqb_bsoftlimit);
 	dst->d_space = src->dqb_curspace;
-	dst->d_ino_hardlimit = src->dqb_ihardlimit;
-	dst->d_ino_softlimit = src->dqb_isoftlimit;
-	dst->d_ino_count = src->dqb_curinodes;
+	dst->d_iyes_hardlimit = src->dqb_ihardlimit;
+	dst->d_iyes_softlimit = src->dqb_isoftlimit;
+	dst->d_iyes_count = src->dqb_curiyesdes;
 	dst->d_spc_timer = src->dqb_btime;
-	dst->d_ino_timer = src->dqb_itime;
+	dst->d_iyes_timer = src->dqb_itime;
 
 	dst->d_fieldmask = 0;
 	if (src->dqb_valid & QIF_BLIMITS)
@@ -349,30 +349,30 @@ static int quota_getstate(struct super_block *sb, int type,
 	fqs->qs_incoredqs = state.s_incoredqs;
 
 	fqs->qs_btimelimit = state.s_state[type].spc_timelimit;
-	fqs->qs_itimelimit = state.s_state[type].ino_timelimit;
+	fqs->qs_itimelimit = state.s_state[type].iyes_timelimit;
 	fqs->qs_rtbtimelimit = state.s_state[type].rt_spc_timelimit;
 	fqs->qs_bwarnlimit = state.s_state[type].spc_warnlimit;
-	fqs->qs_iwarnlimit = state.s_state[type].ino_warnlimit;
+	fqs->qs_iwarnlimit = state.s_state[type].iyes_warnlimit;
 
-	/* Inodes may be allocated even if inactive; copy out if present */
-	if (state.s_state[USRQUOTA].ino) {
-		fqs->qs_uquota.qfs_ino = state.s_state[USRQUOTA].ino;
+	/* Iyesdes may be allocated even if inactive; copy out if present */
+	if (state.s_state[USRQUOTA].iyes) {
+		fqs->qs_uquota.qfs_iyes = state.s_state[USRQUOTA].iyes;
 		fqs->qs_uquota.qfs_nblks = state.s_state[USRQUOTA].blocks;
 		fqs->qs_uquota.qfs_nextents = state.s_state[USRQUOTA].nextents;
 	}
-	if (state.s_state[GRPQUOTA].ino) {
-		fqs->qs_gquota.qfs_ino = state.s_state[GRPQUOTA].ino;
+	if (state.s_state[GRPQUOTA].iyes) {
+		fqs->qs_gquota.qfs_iyes = state.s_state[GRPQUOTA].iyes;
 		fqs->qs_gquota.qfs_nblks = state.s_state[GRPQUOTA].blocks;
 		fqs->qs_gquota.qfs_nextents = state.s_state[GRPQUOTA].nextents;
 	}
-	if (state.s_state[PRJQUOTA].ino) {
+	if (state.s_state[PRJQUOTA].iyes) {
 		/*
 		 * Q_XGETQSTAT doesn't have room for both group and project
 		 * quotas.  So, allow the project quota values to be copied out
-		 * only if there is no group quota information available.
+		 * only if there is yes group quota information available.
 		 */
 		if (!(state.s_state[GRPQUOTA].flags & QCI_ACCT_ENABLED)) {
-			fqs->qs_gquota.qfs_ino = state.s_state[PRJQUOTA].ino;
+			fqs->qs_gquota.qfs_iyes = state.s_state[PRJQUOTA].iyes;
 			fqs->qs_gquota.qfs_nblks =
 					state.s_state[PRJQUOTA].blocks;
 			fqs->qs_gquota.qfs_nextents =
@@ -415,24 +415,24 @@ static int quota_getstatev(struct super_block *sb, int type,
 	fqs->qs_incoredqs = state.s_incoredqs;
 
 	fqs->qs_btimelimit = state.s_state[type].spc_timelimit;
-	fqs->qs_itimelimit = state.s_state[type].ino_timelimit;
+	fqs->qs_itimelimit = state.s_state[type].iyes_timelimit;
 	fqs->qs_rtbtimelimit = state.s_state[type].rt_spc_timelimit;
 	fqs->qs_bwarnlimit = state.s_state[type].spc_warnlimit;
-	fqs->qs_iwarnlimit = state.s_state[type].ino_warnlimit;
+	fqs->qs_iwarnlimit = state.s_state[type].iyes_warnlimit;
 
-	/* Inodes may be allocated even if inactive; copy out if present */
-	if (state.s_state[USRQUOTA].ino) {
-		fqs->qs_uquota.qfs_ino = state.s_state[USRQUOTA].ino;
+	/* Iyesdes may be allocated even if inactive; copy out if present */
+	if (state.s_state[USRQUOTA].iyes) {
+		fqs->qs_uquota.qfs_iyes = state.s_state[USRQUOTA].iyes;
 		fqs->qs_uquota.qfs_nblks = state.s_state[USRQUOTA].blocks;
 		fqs->qs_uquota.qfs_nextents = state.s_state[USRQUOTA].nextents;
 	}
-	if (state.s_state[GRPQUOTA].ino) {
-		fqs->qs_gquota.qfs_ino = state.s_state[GRPQUOTA].ino;
+	if (state.s_state[GRPQUOTA].iyes) {
+		fqs->qs_gquota.qfs_iyes = state.s_state[GRPQUOTA].iyes;
 		fqs->qs_gquota.qfs_nblks = state.s_state[GRPQUOTA].blocks;
 		fqs->qs_gquota.qfs_nextents = state.s_state[GRPQUOTA].nextents;
 	}
-	if (state.s_state[PRJQUOTA].ino) {
-		fqs->qs_pquota.qfs_ino = state.s_state[PRJQUOTA].ino;
+	if (state.s_state[PRJQUOTA].iyes) {
+		fqs->qs_pquota.qfs_iyes = state.s_state[PRJQUOTA].iyes;
 		fqs->qs_pquota.qfs_nblks = state.s_state[PRJQUOTA].blocks;
 		fqs->qs_pquota.qfs_nextents = state.s_state[PRJQUOTA].nextents;
 	}
@@ -465,7 +465,7 @@ static int quota_getxstatev(struct super_block *sb, int type, void __user *addr)
 }
 
 /*
- * XFS defines BBTOB and BTOBB macros inside fs/xfs/ and we cannot move them
+ * XFS defines BBTOB and BTOBB macros inside fs/xfs/ and we canyest move them
  * out of there as xfsprogs rely on definitions being in that header file. So
  * just define same functions here for quota purposes.
  */
@@ -485,13 +485,13 @@ static void copy_from_xfs_dqblk(struct qc_dqblk *dst, struct fs_disk_quota *src)
 {
 	dst->d_spc_hardlimit = quota_bbtob(src->d_blk_hardlimit);
 	dst->d_spc_softlimit = quota_bbtob(src->d_blk_softlimit);
-	dst->d_ino_hardlimit = src->d_ino_hardlimit;
-	dst->d_ino_softlimit = src->d_ino_softlimit;
+	dst->d_iyes_hardlimit = src->d_iyes_hardlimit;
+	dst->d_iyes_softlimit = src->d_iyes_softlimit;
 	dst->d_space = quota_bbtob(src->d_bcount);
-	dst->d_ino_count = src->d_icount;
-	dst->d_ino_timer = src->d_itimer;
+	dst->d_iyes_count = src->d_icount;
+	dst->d_iyes_timer = src->d_itimer;
 	dst->d_spc_timer = src->d_btimer;
-	dst->d_ino_warns = src->d_iwarns;
+	dst->d_iyes_warns = src->d_iwarns;
 	dst->d_spc_warns = src->d_bwarns;
 	dst->d_rt_spc_hardlimit = quota_bbtob(src->d_rtb_hardlimit);
 	dst->d_rt_spc_softlimit = quota_bbtob(src->d_rtb_softlimit);
@@ -536,9 +536,9 @@ static void copy_qcinfo_from_xfs_dqblk(struct qc_info *dst,
 {
 	memset(dst, 0, sizeof(*dst));
 	dst->i_spc_timelimit = src->d_btimer;
-	dst->i_ino_timelimit = src->d_itimer;
+	dst->i_iyes_timelimit = src->d_itimer;
 	dst->i_rt_spc_timelimit = src->d_rtbtimer;
-	dst->i_ino_warnlimit = src->d_iwarns;
+	dst->i_iyes_warnlimit = src->d_iwarns;
 	dst->i_spc_warnlimit = src->d_bwarns;
 	dst->i_rt_spc_warnlimit = src->d_rtbwarns;
 	if (src->d_fieldmask & FS_DQ_BWARNS)
@@ -602,13 +602,13 @@ static void copy_to_xfs_dqblk(struct fs_disk_quota *dst, struct qc_dqblk *src,
 		dst->d_flags = FS_GROUP_QUOTA;
 	dst->d_blk_hardlimit = quota_btobb(src->d_spc_hardlimit);
 	dst->d_blk_softlimit = quota_btobb(src->d_spc_softlimit);
-	dst->d_ino_hardlimit = src->d_ino_hardlimit;
-	dst->d_ino_softlimit = src->d_ino_softlimit;
+	dst->d_iyes_hardlimit = src->d_iyes_hardlimit;
+	dst->d_iyes_softlimit = src->d_iyes_softlimit;
 	dst->d_bcount = quota_btobb(src->d_space);
-	dst->d_icount = src->d_ino_count;
-	dst->d_itimer = src->d_ino_timer;
+	dst->d_icount = src->d_iyes_count;
+	dst->d_itimer = src->d_iyes_timer;
 	dst->d_btimer = src->d_spc_timer;
-	dst->d_iwarns = src->d_ino_warns;
+	dst->d_iwarns = src->d_iyes_warns;
 	dst->d_bwarns = src->d_spc_warns;
 	dst->d_rtb_hardlimit = quota_btobb(src->d_rt_spc_hardlimit);
 	dst->d_rtb_softlimit = quota_btobb(src->d_rt_spc_softlimit);
@@ -684,10 +684,10 @@ static int do_quotactl(struct super_block *sb, int type, int cmd, qid_t id,
 {
 	int ret;
 
-	type = array_index_nospec(type, MAXQUOTAS);
+	type = array_index_yesspec(type, MAXQUOTAS);
 	/*
-	 * Quota not supported on this fs? Check this before s_quota_types
-	 * since they needn't be set if quota is not supported at all.
+	 * Quota yest supported on this fs? Check this before s_quota_types
+	 * since they needn't be set if quota is yest supported at all.
 	 */
 	if (!sb->s_qcop)
 		return -ENOSYS;
@@ -738,7 +738,7 @@ static int do_quotactl(struct super_block *sb, int type, int cmd, qid_t id,
 	case Q_XQUOTASYNC:
 		if (sb_rdonly(sb))
 			return -EROFS;
-		/* XFS quotas are fully coherent now, making this call a noop */
+		/* XFS quotas are fully coherent yesw, making this call a yesop */
 		return 0;
 	default:
 		return -EINVAL;
@@ -751,7 +751,7 @@ static int do_quotactl(struct super_block *sb, int type, int cmd, qid_t id,
 static int quotactl_cmd_write(int cmd)
 {
 	/*
-	 * We cannot allow Q_GETQUOTA and Q_GETNEXTQUOTA without write access
+	 * We canyest allow Q_GETQUOTA and Q_GETNEXTQUOTA without write access
 	 * as dquot_acquire() may allocate space for new structure and OCFS2
 	 * needs to increment on-disk use count.
 	 */
@@ -771,7 +771,7 @@ static int quotactl_cmd_write(int cmd)
 #endif /* CONFIG_BLOCK */
 
 /* Return true if quotactl command is manipulating quota on/off state */
-static bool quotactl_cmd_onoff(int cmd)
+static bool quotactl_cmd_oyesff(int cmd)
 {
 	return (cmd == Q_QUOTAON) || (cmd == Q_QUOTAOFF) ||
 		 (cmd == Q_XQUOTAON) || (cmd == Q_XQUOTAOFF);
@@ -794,7 +794,7 @@ static struct super_block *quotactl_block(const char __user *special, int cmd)
 	putname(tmp);
 	if (IS_ERR(bdev))
 		return ERR_CAST(bdev);
-	if (quotactl_cmd_onoff(cmd))
+	if (quotactl_cmd_oyesff(cmd))
 		sb = get_super_exclusive_thawed(bdev);
 	else if (quotactl_cmd_write(cmd))
 		sb = get_super_thawed(bdev);
@@ -862,7 +862,7 @@ int kernel_quotactl(unsigned int cmd, const char __user *special,
 
 	ret = do_quotactl(sb, type, cmds, id, addr, pathp);
 
-	if (!quotactl_cmd_onoff(cmds))
+	if (!quotactl_cmd_oyesff(cmds))
 		drop_super(sb);
 	else
 		drop_super_exclusive(sb);

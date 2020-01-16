@@ -6,10 +6,10 @@
 #include <sys/mman.h>
 #include <unistd.h>
 #include <stdio.h>
-#include <errno.h>
+#include <erryes.h>
 #include <poll.h>
 #include <stdlib.h>
-#include <sys/inotify.h>
+#include <sys/iyestify.h>
 #include <string.h>
 #include <sys/wait.h>
 
@@ -49,7 +49,7 @@ static int cg_check_frozen(const char *cgroup, bool frozen)
 /*
  * Freeze the given cgroup.
  */
-static int cg_freeze_nowait(const char *cgroup, bool freeze)
+static int cg_freeze_yeswait(const char *cgroup, bool freeze)
 {
 	return cg_write(cgroup, "cgroup.freeze", freeze ? "1" : "0");
 }
@@ -61,16 +61,16 @@ static int cg_prepare_for_wait(const char *cgroup)
 {
 	int fd, ret = -1;
 
-	fd = inotify_init1(0);
+	fd = iyestify_init1(0);
 	if (fd == -1) {
-		debug("Error: inotify_init1() failed\n");
+		debug("Error: iyestify_init1() failed\n");
 		return fd;
 	}
 
-	ret = inotify_add_watch(fd, cg_control(cgroup, "cgroup.events"),
+	ret = iyestify_add_watch(fd, cg_control(cgroup, "cgroup.events"),
 				IN_MODIFY);
 	if (ret == -1) {
-		debug("Error: inotify_add_watch() failed\n");
+		debug("Error: iyestify_add_watch() failed\n");
 		close(fd);
 		fd = -1;
 	}
@@ -79,7 +79,7 @@ static int cg_prepare_for_wait(const char *cgroup)
 }
 
 /*
- * Wait for an event. If there are no events for 10 seconds,
+ * Wait for an event. If there are yes events for 10 seconds,
  * treat this an error.
  */
 static int cg_wait_for(int fd)
@@ -94,7 +94,7 @@ static int cg_wait_for(int fd)
 		ret = poll(&fds, 1, 10000);
 
 		if (ret == -1) {
-			if (errno == EINTR)
+			if (erryes == EINTR)
 				continue;
 			debug("Error: poll() failed\n");
 			break;
@@ -111,7 +111,7 @@ static int cg_wait_for(int fd)
 
 /*
  * Attach a task to the given cgroup and wait for a cgroup frozen event.
- * All transient events (e.g. populated) are ignored.
+ * All transient events (e.g. populated) are igyesred.
  */
 static int cg_enter_and_wait_for_frozen(const char *cgroup, int pid,
 					bool frozen)
@@ -143,8 +143,8 @@ out:
 }
 
 /*
- * Freeze the given cgroup and wait for the inotify signal.
- * If there are no events in 10 seconds, treat this as an error.
+ * Freeze the given cgroup and wait for the iyestify signal.
+ * If there are yes events in 10 seconds, treat this as an error.
  * Then check that the cgroup is in the desired state.
  */
 static int cg_freeze_wait(const char *cgroup, bool freeze)
@@ -155,9 +155,9 @@ static int cg_freeze_wait(const char *cgroup, bool freeze)
 	if (fd < 0)
 		return fd;
 
-	ret = cg_freeze_nowait(cgroup, freeze);
+	ret = cg_freeze_yeswait(cgroup, freeze);
 	if (ret) {
-		debug("Error: cg_freeze_nowait() failed\n");
+		debug("Error: cg_freeze_yeswait() failed\n");
 		goto out;
 	}
 
@@ -204,7 +204,7 @@ static int test_cgfreezer_simple(const char *root)
 		goto cleanup;
 
 	for (i = 0; i < 100; i++)
-		cg_run_nowait(cgroup, child_fn, NULL);
+		cg_run_yeswait(cgroup, child_fn, NULL);
 
 	if (cg_wait_for_proc_count(cgroup, 100))
 		goto cleanup;
@@ -292,11 +292,11 @@ static int test_cgfreezer_tree(const char *root)
 		if (cg_create(cgroup[i]))
 			goto cleanup;
 
-	cg_run_nowait(cgroup[2], child_fn, NULL);
-	cg_run_nowait(cgroup[7], child_fn, NULL);
-	cg_run_nowait(cgroup[9], child_fn, NULL);
-	cg_run_nowait(cgroup[9], child_fn, NULL);
-	cg_run_nowait(cgroup[9], child_fn, NULL);
+	cg_run_yeswait(cgroup[2], child_fn, NULL);
+	cg_run_yeswait(cgroup[7], child_fn, NULL);
+	cg_run_yeswait(cgroup[9], child_fn, NULL);
+	cg_run_yeswait(cgroup[9], child_fn, NULL);
+	cg_run_yeswait(cgroup[9], child_fn, NULL);
 
 	/*
 	 * Wait until all child processes will enter
@@ -327,7 +327,7 @@ static int test_cgfreezer_tree(const char *root)
 		goto cleanup;
 
 	/*
-	 * Check that A and E are not frozen.
+	 * Check that A and E are yest frozen.
 	 */
 	if (cg_check_frozen(cgroup[0], false))
 		goto cleanup;
@@ -350,13 +350,13 @@ static int test_cgfreezer_tree(const char *root)
 	/*
 	 * Unfreeze B, F and G
 	 */
-	if (cg_freeze_nowait(cgroup[1], false))
+	if (cg_freeze_yeswait(cgroup[1], false))
 		goto cleanup;
 
-	if (cg_freeze_nowait(cgroup[5], false))
+	if (cg_freeze_yeswait(cgroup[5], false))
 		goto cleanup;
 
-	if (cg_freeze_nowait(cgroup[6], false))
+	if (cg_freeze_yeswait(cgroup[6], false))
 		goto cleanup;
 
 	/*
@@ -369,7 +369,7 @@ static int test_cgfreezer_tree(const char *root)
 		goto cleanup;
 
 	/*
-	 * Unfreeze A. Check that A, C and K are not frozen.
+	 * Unfreeze A. Check that A, C and K are yest frozen.
 	 */
 	if (cg_freeze_wait(cgroup[0], false))
 		goto cleanup;
@@ -426,7 +426,7 @@ static int test_cgfreezer_forkbomb(const char *root)
 	if (cg_create(cgroup))
 		goto cleanup;
 
-	cg_run_nowait(cgroup, forkbomb_fn, NULL);
+	cg_run_yeswait(cgroup, forkbomb_fn, NULL);
 
 	usleep(100000);
 
@@ -476,7 +476,7 @@ static int test_cgfreezer_mkdir(const char *root)
 	if (cg_create(child))
 		goto cleanup;
 
-	pid = cg_run_nowait(child, child_fn, NULL);
+	pid = cg_run_yeswait(child, child_fn, NULL);
 	if (pid < 0)
 		goto cleanup;
 
@@ -582,7 +582,7 @@ static int test_cgfreezer_migrate(const char *root)
 	if (cg_create(cgroup[1]))
 		goto cleanup;
 
-	pid = cg_run_nowait(cgroup[0], child_fn, NULL);
+	pid = cg_run_yeswait(cgroup[0], child_fn, NULL);
 	if (pid < 0)
 		goto cleanup;
 
@@ -651,7 +651,7 @@ static int test_cgfreezer_ptrace(const char *root)
 	if (cg_create(cgroup))
 		goto cleanup;
 
-	pid = cg_run_nowait(cgroup, child_fn, NULL);
+	pid = cg_run_yeswait(cgroup, child_fn, NULL);
 	if (pid < 0)
 		goto cleanup;
 
@@ -731,7 +731,7 @@ static int test_cgfreezer_stopped(const char *root)
 	if (cg_create(cgroup))
 		goto cleanup;
 
-	pid = cg_run_nowait(cgroup, child_fn, NULL);
+	pid = cg_run_yeswait(cgroup, child_fn, NULL);
 
 	if (cg_wait_for_proc_count(cgroup, 1))
 		goto cleanup;
@@ -776,7 +776,7 @@ static int test_cgfreezer_ptraced(const char *root)
 	if (cg_create(cgroup))
 		goto cleanup;
 
-	pid = cg_run_nowait(cgroup, child_fn, NULL);
+	pid = cg_run_yeswait(cgroup, child_fn, NULL);
 
 	if (cg_wait_for_proc_count(cgroup, 1))
 		goto cleanup;
@@ -844,7 +844,7 @@ static int test_cgfreezer_vfork(const char *root)
 	if (cg_create(cgroup))
 		goto cleanup;
 
-	cg_run_nowait(cgroup, vfork_fn, NULL);
+	cg_run_yeswait(cgroup, vfork_fn, NULL);
 
 	if (cg_wait_for_proc_count(cgroup, 2))
 		goto cleanup;

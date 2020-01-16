@@ -28,7 +28,7 @@
 #include "dectypes.h"
 
 static const char *dec_system_strings[] = {
-	[MACH_DSUNKNOWN]	"unknown DECstation",
+	[MACH_DSUNKNOWN]	"unkyeswn DECstation",
 	[MACH_DS23100]		"DECstation 2100/3100",
 	[MACH_DS5100]		"DECsystem 5100",
 	[MACH_DS5000_200]	"DECstation 5000/200",
@@ -60,7 +60,7 @@ const char *get_system_type(void)
 /*
  * Setup essential system-specific memory addresses.  We need them
  * early.  Semantically the functions belong to prom/init.c, but they
- * are compact enough we want them inlined. --macro
+ * are compact eyesugh we want them inlined. --macro
  */
 volatile u8 *dec_rtc_base;
 
@@ -135,7 +135,7 @@ void __init prom_identify_arch(u32 magic)
 	dec_etc = dec_sysid & 0xff;
 
 	/*
-	 * FIXME: This may not be an exhaustive list of DECStations/Servers!
+	 * FIXME: This may yest be an exhaustive list of DECStations/Servers!
 	 * Put all model-specific initialisation calls here.
 	 */
 	switch (dec_systype) {

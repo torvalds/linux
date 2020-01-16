@@ -57,7 +57,7 @@ typedef enum {
 struct flchip {
 	unsigned long start; /* Offset within the map */
 	//	unsigned long len;
-	/* We omit len for now, because when we group them together
+	/* We omit len for yesw, because when we group them together
 	   we insist that they're all of the same size, and the chip size
 	   is held in the next level up. If we get more versatile later,
 	   it'll make it a damn sight harder to find which chip we want from

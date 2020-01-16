@@ -74,7 +74,7 @@ struct tm6000_board {
 
 static struct tm6000_board tm6000_boards[] = {
 	[TM6000_BOARD_UNKNOWN] = {
-		.name         = "Unknown tm6000 video grabber",
+		.name         = "Unkyeswn tm6000 video grabber",
 		.caps = {
 			.has_tuner	= 1,
 			.has_eeprom	= 1,
@@ -787,7 +787,7 @@ int tm6000_cards_setup(struct tm6000_core *dev)
 	/*
 	 * Board-specific initialization sequence. Handles all GPIO
 	 * initialization sequences that are board-specific.
-	 * Up to now, all found devices use GPIO1 and GPIO4 at the same way.
+	 * Up to yesw, all found devices use GPIO1 and GPIO4 at the same way.
 	 * Probably, they're all based on some reference device. Due to that,
 	 * there's a common routine at the end to handle those GPIO's. Devices
 	 * that use different pinups or init sequences can just return at
@@ -875,7 +875,7 @@ int tm6000_cards_setup(struct tm6000_core *dev)
 			}
 		}
 	} else {
-		printk(KERN_ERR "Tuner reset is not configured\n");
+		printk(KERN_ERR "Tuner reset is yest configured\n");
 		return -1;
 	}
 
@@ -961,7 +961,7 @@ static void tm6000_config_tuner(struct tm6000_core *dev)
 		}
 		break;
 	default:
-		printk(KERN_INFO "Unknown tuner type. Tuner is not configured.\n");
+		printk(KERN_INFO "Unkyeswn tuner type. Tuner is yest configured.\n");
 		break;
 	}
 }
@@ -1029,7 +1029,7 @@ static void use_alternative_detection_method(struct tm6000_core *dev)
 		}
 	}
 	if (model < 0) {
-		printk(KERN_INFO "Device has eeprom but is currently unknown\n");
+		printk(KERN_INFO "Device has eeprom but is currently unkyeswn\n");
 		return;
 	}
 
@@ -1099,13 +1099,13 @@ static int tm6000_init_dev(struct tm6000_core *dev)
 	/* Default values for STD and resolutions */
 	dev->width = 720;
 	dev->height = 480;
-	dev->norm = V4L2_STD_NTSC_M;
+	dev->yesrm = V4L2_STD_NTSC_M;
 
 	/* Configure tuner */
 	tm6000_config_tuner(dev);
 
 	/* Set video standard */
-	v4l2_device_call_all(&dev->v4l2_dev, 0, video, s_std, dev->norm);
+	v4l2_device_call_all(&dev->v4l2_dev, 0, video, s_std, dev->yesrm);
 
 	/* Set tuner frequency - also loads firmware on xc2028/xc3028 */
 	f.tuner = 0;
@@ -1211,7 +1211,7 @@ static int tm6000_usb_probe(struct usb_interface *interface,
 		dev->model = card[nr];
 
 	dev->udev = usbdev;
-	dev->devno = nr;
+	dev->devyes = nr;
 
 	switch (usbdev->speed) {
 	case USB_SPEED_LOW:
@@ -1225,7 +1225,7 @@ static int tm6000_usb_probe(struct usb_interface *interface,
 		speed = "480";
 		break;
 	default:
-		speed = "unknown";
+		speed = "unkyeswn";
 	}
 
 	/* Get endpoints */
@@ -1299,7 +1299,7 @@ static int tm6000_usb_probe(struct usb_interface *interface,
 
 /* check if the the device has the iso in endpoint at the correct place */
 	if (!dev->isoc_in.endp) {
-		printk(KERN_ERR "tm6000: probing error: no IN ISOC endpoint!\n");
+		printk(KERN_ERR "tm6000: probing error: yes IN ISOC endpoint!\n");
 		rc = -ENODEV;
 		goto free_device;
 	}
@@ -1379,7 +1379,7 @@ static void tm6000_usb_disconnect(struct usb_interface *interface)
 	tm6000_close_extension(dev);
 	tm6000_remove_from_devlist(dev);
 
-	clear_bit(dev->devno, &tm6000_devused);
+	clear_bit(dev->devyes, &tm6000_devused);
 	kfree(dev);
 }
 

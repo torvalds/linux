@@ -51,7 +51,7 @@ enum cm_event_types {
  * @wq: the workqueue to control charger according to the state of
  *	charger cable. If charger cable is attached, enable charger.
  *	But if charger cable is detached, disable charger.
- * @nb: the notifier block to receive changed state from EXTCON
+ * @nb: the yestifier block to receive changed state from EXTCON
  *	(External Connector) when charger cable is attached/detached.
  * @attached: the state of charger cable.
  *	true: the charger cable is attached
@@ -66,7 +66,7 @@ struct charger_cable {
 	/* The charger-manager use Extcon framework */
 	struct extcon_specific_cable_nb extcon_dev;
 	struct work_struct wq;
-	struct notifier_block nb;
+	struct yestifier_block nb;
 
 	/* The state of charger cable */
 	bool attached;
@@ -88,7 +88,7 @@ struct charger_cable {
  * @regulator_name: the name of regulator for using charger.
  * @consumer: the regulator consumer for the charger.
  * @externally_control:
- *	Set if the charger-manager cannot control charger,
+ *	Set if the charger-manager canyest control charger,
  *	the charger will be maintained with disabled state.
  * @cables:
  *	the array of charger cables to enable/disable charger
@@ -249,10 +249,10 @@ struct charger_manager {
 };
 
 #ifdef CONFIG_CHARGER_MANAGER
-extern void cm_notify_event(struct power_supply *psy,
+extern void cm_yestify_event(struct power_supply *psy,
 				enum cm_event_types type, char *msg);
 #else
-static inline void cm_notify_event(struct power_supply *psy,
+static inline void cm_yestify_event(struct power_supply *psy,
 				enum cm_event_types type, char *msg) { }
 #endif
 #endif /* _CHARGER_MANAGER_H */

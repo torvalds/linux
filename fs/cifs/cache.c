@@ -15,7 +15,7 @@
  *   the GNU Lesser General Public License for more details.
  *
  *   You should have received a copy of the GNU Lesser General Public License
- *   along with this library; if not, write to the Free Software
+ *   along with this library; if yest, write to the Free Software
  *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 #include "fscache.h"
@@ -69,7 +69,7 @@ char *extract_sharename(const char *treename)
 	/* skip double chars at the beginning */
 	src = treename + 2;
 
-	/* share name is always preceded by '\\' now */
+	/* share name is always preceded by '\\' yesw */
 	delim = strchr(src, '\\');
 	if (!delim)
 		return ERR_PTR(-EINVAL);
@@ -115,23 +115,23 @@ const struct fscache_cookie_def cifs_fscache_super_index_def = {
 };
 
 static enum
-fscache_checkaux cifs_fscache_inode_check_aux(void *cookie_netfs_data,
+fscache_checkaux cifs_fscache_iyesde_check_aux(void *cookie_netfs_data,
 					      const void *data,
 					      uint16_t datalen,
 					      loff_t object_size)
 {
-	struct cifs_fscache_inode_auxdata auxdata;
-	struct cifsInodeInfo *cifsi = cookie_netfs_data;
+	struct cifs_fscache_iyesde_auxdata auxdata;
+	struct cifsIyesdeInfo *cifsi = cookie_netfs_data;
 
 	if (datalen != sizeof(auxdata))
 		return FSCACHE_CHECKAUX_OBSOLETE;
 
 	memset(&auxdata, 0, sizeof(auxdata));
 	auxdata.eof = cifsi->server_eof;
-	auxdata.last_write_time_sec = cifsi->vfs_inode.i_mtime.tv_sec;
-	auxdata.last_change_time_sec = cifsi->vfs_inode.i_ctime.tv_sec;
-	auxdata.last_write_time_nsec = cifsi->vfs_inode.i_mtime.tv_nsec;
-	auxdata.last_change_time_nsec = cifsi->vfs_inode.i_ctime.tv_nsec;
+	auxdata.last_write_time_sec = cifsi->vfs_iyesde.i_mtime.tv_sec;
+	auxdata.last_change_time_sec = cifsi->vfs_iyesde.i_ctime.tv_sec;
+	auxdata.last_write_time_nsec = cifsi->vfs_iyesde.i_mtime.tv_nsec;
+	auxdata.last_change_time_nsec = cifsi->vfs_iyesde.i_ctime.tv_nsec;
 
 	if (memcmp(data, &auxdata, datalen) != 0)
 		return FSCACHE_CHECKAUX_OBSOLETE;
@@ -139,8 +139,8 @@ fscache_checkaux cifs_fscache_inode_check_aux(void *cookie_netfs_data,
 	return FSCACHE_CHECKAUX_OKAY;
 }
 
-const struct fscache_cookie_def cifs_fscache_inode_object_def = {
+const struct fscache_cookie_def cifs_fscache_iyesde_object_def = {
 	.name		= "CIFS.uniqueid",
 	.type		= FSCACHE_COOKIE_TYPE_DATAFILE,
-	.check_aux	= cifs_fscache_inode_check_aux,
+	.check_aux	= cifs_fscache_iyesde_check_aux,
 };

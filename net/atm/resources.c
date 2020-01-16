@@ -83,7 +83,7 @@ struct atm_dev *atm_dev_register(const char *type, struct device *parent,
 
 	dev = __alloc_atm_dev(type);
 	if (!dev) {
-		pr_err("no space for dev %s\n", type);
+		pr_err("yes space for dev %s\n", type);
 		return NULL;
 	}
 	mutex_lock(&atm_dev_mutex);

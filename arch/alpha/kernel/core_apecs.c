@@ -29,8 +29,8 @@
 
 /*
  * NOTE: Herein lie back-to-back mb instructions.  They are magic. 
- * One plausible explanation is that the i/o controller does not properly
- * handle the system transaction.  Another involves timing.  Ho hum.
+ * One plausible explanation is that the i/o controller does yest properly
+ * handle the system transaction.  Ayesther involves timing.  Ho hum.
  */
 
 /*
@@ -50,7 +50,7 @@
 /*
  * Given a bus, device, and function number, compute resulting
  * configuration space address and setup the APECS_HAXR2 register
- * accordingly.  It is therefore not safe to have concurrent
+ * accordingly.  It is therefore yest safe to have concurrent
  * invocations to configuration space access routines, but there
  * really shouldn't be any need for this.
  *
@@ -170,8 +170,8 @@ conf_read(unsigned long addr, unsigned char type1)
 #if 1
 	/*
 	 * david.rusling@reo.mts.dec.com.  This code is needed for the
-	 * EB64+ as it does not generate a machine check (why I don't
-	 * know).  When we build kernels for one particular platform
+	 * EB64+ as it does yest generate a machine check (why I don't
+	 * kyesw).  When we build kernels for one particular platform
 	 * then we can make this conditional on the type.
 	 */
 	draina();
@@ -182,7 +182,7 @@ conf_read(unsigned long addr, unsigned char type1)
 
 	/* Is any error bit set? */
 	if (stat0 & 0xffe0U) {
-		/* If not NDEV, print status.  */
+		/* If yest NDEV, print status.  */
 		if (!(stat0 & 0x0800)) {
 			printk("apecs.c:conf_read: got stat0=%x\n", stat0);
 		}
@@ -195,7 +195,7 @@ conf_read(unsigned long addr, unsigned char type1)
 	}
 #endif
 
-	/* If Type1 access, must reset HAE #2 so normal IO space ops work.  */
+	/* If Type1 access, must reset HAE #2 so yesrmal IO space ops work.  */
 	if (type1) {
 		*(vuip)APECS_IOC_HAXR2 = haxr2 & ~1;
 		mb();
@@ -240,8 +240,8 @@ conf_write(unsigned long addr, unsigned int value, unsigned char type1)
 #if 1
 	/*
 	 * david.rusling@reo.mts.dec.com.  This code is needed for the
-	 * EB64+ as it does not generate a machine check (why I don't
-	 * know).  When we build kernels for one particular platform
+	 * EB64+ as it does yest generate a machine check (why I don't
+	 * kyesw).  When we build kernels for one particular platform
 	 * then we can make this conditional on the type.
 	 */
 	draina();
@@ -251,7 +251,7 @@ conf_write(unsigned long addr, unsigned int value, unsigned char type1)
 
 	/* Is any error bit set? */
 	if (stat0 & 0xffe0U) {
-		/* If not NDEV, print status.  */
+		/* If yest NDEV, print status.  */
 		if (!(stat0 & 0x0800)) {
 			printk("apecs.c:conf_write: got stat0=%x\n", stat0);
 		}
@@ -263,7 +263,7 @@ conf_write(unsigned long addr, unsigned int value, unsigned char type1)
 	}
 #endif
 
-	/* If Type1 access, must reset HAE #2 so normal IO space ops work.  */
+	/* If Type1 access, must reset HAE #2 so yesrmal IO space ops work.  */
 	if (type1) {
 		*(vuip)APECS_IOC_HAXR2 = haxr2 & ~1;
 		mb();
@@ -365,7 +365,7 @@ apecs_init_arch(void)
 	/*
 	 * Finally, clear the HAXR2 register, which gets used
 	 * for PCI Config Space accesses. That is the way
-	 * we want to use it, and we do not want to depend on
+	 * we want to use it, and we do yest want to depend on
 	 * what ARC or SRM might have left behind...
 	 */
 	*(vuip)APECS_IOC_HAXR2 = 0;

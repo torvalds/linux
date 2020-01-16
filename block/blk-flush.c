@@ -12,12 +12,12 @@
  * If a request doesn't have data, only REQ_PREFLUSH makes sense, which
  * indicates a simple flush request.  If there is data, REQ_PREFLUSH indicates
  * that the device cache should be flushed before the data is executed, and
- * REQ_FUA means that the data must be on non-volatile media on request
+ * REQ_FUA means that the data must be on yesn-volatile media on request
  * completion.
  *
  * If the device doesn't have writeback cache, PREFLUSH and FUA don't make any
- * difference.  The requests are either completed immediately if there's no data
- * or executed as normal requests otherwise.
+ * difference.  The requests are either completed immediately if there's yes data
+ * or executed as yesrmal requests otherwise.
  *
  * If the device has writeback cache and supports FUA, REQ_PREFLUSH is
  * translated to PREFLUSH but REQ_FUA is passed down directly with DATA.
@@ -43,7 +43,7 @@
  *     This avoids issuing separate POSTFLUSHes for requests which shared
  *     PREFLUSH.
  *
- * C3. The second condition is ignored if there is a request which has
+ * C3. The second condition is igyesred if there is a request which has
  *     waited longer than FLUSH_PENDING_TIMEOUT.  This is to avoid
  *     starvation in the unlikely case where there are continuous stream of
  *     FUA (without PREFLUSH) requests.
@@ -54,7 +54,7 @@
  * Note that a sequenced PREFLUSH/FUA request with DATA is completed twice.
  * Once while executing DATA and again after the whole sequence is
  * complete.  The first completion updates the contained bio but doesn't
- * finish it so that the bio submitter is notified only after the whole
+ * finish it so that the bio submitter is yestified only after the whole
  * sequence is complete.  This is implemented by testing RQF_FLUSH_SEQ in
  * req_bio_endio().
  *
@@ -127,7 +127,7 @@ static void blk_flush_restore_request(struct request *rq)
 	 */
 	rq->bio = rq->biotail;
 
-	/* make @rq a normal request */
+	/* make @rq a yesrmal request */
 	rq->rq_flags &= ~RQF_FLUSH_SEQ;
 	rq->end_io = rq->flush.saved_end_io;
 }
@@ -200,7 +200,7 @@ static void blk_flush_complete_seq(struct request *rq,
 		 * @rq was previously adjusted by blk_insert_flush() for
 		 * flush sequencing and may already have gone through the
 		 * flush data request completion path.  Restore @rq for
-		 * normal completion and end it.
+		 * yesrmal completion and end it.
 		 */
 		BUG_ON(!list_empty(&rq->queuelist));
 		list_del_init(&rq->flush.list);
@@ -310,7 +310,7 @@ static void blk_kick_flush(struct request_queue *q, struct blk_flush_queue *fq,
 	blk_rq_init(q, flush_rq);
 
 	/*
-	 * In case of none scheduler, borrow tag from the first request
+	 * In case of yesne scheduler, borrow tag from the first request
 	 * since they can't be in flight at the same time. And acquire
 	 * the tag's ownership for flush req.
 	 *
@@ -378,7 +378,7 @@ void blk_insert_flush(struct request *rq)
 	struct blk_flush_queue *fq = blk_get_flush_queue(q, rq->mq_ctx);
 
 	/*
-	 * @policy now records what operations need to be done.  Adjust
+	 * @policy yesw records what operations need to be done.  Adjust
 	 * REQ_PREFLUSH and FUA for the driver.
 	 */
 	rq->cmd_flags &= ~REQ_PREFLUSH;
@@ -394,7 +394,7 @@ void blk_insert_flush(struct request *rq)
 
 	/*
 	 * An empty flush handed down from a stacking driver may
-	 * translate into nothing if the underlying device does not
+	 * translate into yesthing if the underlying device does yest
 	 * advertise a write-back cache.  In this case, simply
 	 * complete the request.
 	 */
@@ -406,9 +406,9 @@ void blk_insert_flush(struct request *rq)
 	BUG_ON(rq->bio != rq->biotail); /*assumes zero or single bio rq */
 
 	/*
-	 * If there's data but flush is not necessary, the request can be
+	 * If there's data but flush is yest necessary, the request can be
 	 * processed directly without going through flush machinery.  Queue
-	 * for normal execution.
+	 * for yesrmal execution.
 	 */
 	if ((policy & REQ_FSEQ_DATA) &&
 	    !(policy & (REQ_FSEQ_PREFLUSH | REQ_FSEQ_POSTFLUSH))) {
@@ -458,7 +458,7 @@ int blkdev_issue_flush(struct block_device *bdev, gfp_t gfp_mask,
 		return -ENXIO;
 
 	/*
-	 * some block devices may not have their queue correctly set up here
+	 * some block devices may yest have their queue correctly set up here
 	 * (e.g. loop device without a backing file) and so issuing a flush
 	 * here will panic. Ensure there is a request function before issuing
 	 * the flush.
@@ -474,7 +474,7 @@ int blkdev_issue_flush(struct block_device *bdev, gfp_t gfp_mask,
 
 	/*
 	 * The driver must store the error location in ->bi_sector, if
-	 * it supports it. For non-stacked drivers, this should be
+	 * it supports it. For yesn-stacked drivers, this should be
 	 * copied from blk_rq_pos(rq).
 	 */
 	if (error_sector)
@@ -486,19 +486,19 @@ int blkdev_issue_flush(struct block_device *bdev, gfp_t gfp_mask,
 EXPORT_SYMBOL(blkdev_issue_flush);
 
 struct blk_flush_queue *blk_alloc_flush_queue(struct request_queue *q,
-		int node, int cmd_size, gfp_t flags)
+		int yesde, int cmd_size, gfp_t flags)
 {
 	struct blk_flush_queue *fq;
 	int rq_sz = sizeof(struct request);
 
-	fq = kzalloc_node(sizeof(*fq), flags, node);
+	fq = kzalloc_yesde(sizeof(*fq), flags, yesde);
 	if (!fq)
 		goto fail;
 
 	spin_lock_init(&fq->mq_flush_lock);
 
 	rq_sz = round_up(rq_sz + cmd_size, cache_line_size());
-	fq->flush_rq = kzalloc_node(rq_sz, flags, node);
+	fq->flush_rq = kzalloc_yesde(rq_sz, flags, yesde);
 	if (!fq->flush_rq)
 		goto fail_rq;
 

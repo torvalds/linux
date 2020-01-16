@@ -60,7 +60,7 @@ struct cros_ec_codec_priv {
 	bool wov_burst_read;
 	struct snd_pcm_substream *wov_substream;
 	struct delayed_work wov_copy_work;
-	struct notifier_block wov_notifier;
+	struct yestifier_block wov_yestifier;
 };
 
 static int ec_codec_capable(struct cros_ec_codec_priv *priv, uint8_t cap)
@@ -432,7 +432,7 @@ static void *wov_map_shm(struct cros_ec_codec_priv *priv,
 				r.phys_addr + priv->ec_shm_addr, r.len);
 	case EC_CODEC_SHM_TYPE_SYSTEM_RAM:
 		if (r.phys_addr) {
-			dev_err(priv->dev, "unknown status\n");
+			dev_err(priv->dev, "unkyeswn status\n");
 			return NULL;
 		}
 
@@ -579,7 +579,7 @@ static int wov_read_audio_shm(struct cros_ec_codec_priv *priv)
 	}
 
 	if (!r.len)
-		dev_dbg(priv->dev, "no data, sleep\n");
+		dev_dbg(priv->dev, "yes data, sleep\n");
 	else
 		wov_queue_enqueue(priv, priv->wov_audio_shm_p + r.offset, r.len,
 			priv->wov_audio_shm_type == EC_CODEC_SHM_TYPE_EC_RAM);
@@ -605,7 +605,7 @@ static int wov_read_audio(struct cros_ec_codec_priv *priv)
 		}
 
 		if (!r.len) {
-			dev_dbg(priv->dev, "no data, sleep\n");
+			dev_dbg(priv->dev, "yes data, sleep\n");
 			priv->wov_burst_read = false;
 			break;
 		}
@@ -625,7 +625,7 @@ static void wov_copy_work(struct work_struct *w)
 
 	mutex_lock(&priv->wov_dma_lock);
 	if (!priv->wov_substream) {
-		dev_warn(priv->dev, "no pcm substream\n");
+		dev_warn(priv->dev, "yes pcm substream\n");
 		goto leave;
 	}
 
@@ -690,7 +690,7 @@ static int wov_set_lang_shm(struct cros_ec_codec_priv *priv,
 	int ret;
 
 	if (size > priv->wov_lang_shm_len) {
-		dev_err(priv->dev, "no enough SHM size: %d\n",
+		dev_err(priv->dev, "yes eyesugh SHM size: %d\n",
 			priv->wov_lang_shm_len);
 		return -EIO;
 	}
@@ -788,7 +788,7 @@ static int wov_hotword_model_put(struct snd_kcontrol *kcontrol,
 		goto leave;
 
 	if (memcmp(digest, r.hash, SHA256_DIGEST_SIZE) == 0) {
-		dev_dbg(priv->dev, "not updated");
+		dev_dbg(priv->dev, "yest updated");
 		goto leave;
 	}
 
@@ -820,11 +820,11 @@ static struct snd_soc_dai_driver wov_dai_driver = {
 	},
 };
 
-static int wov_host_event(struct notifier_block *nb,
-			  unsigned long queued_during_suspend, void *notify)
+static int wov_host_event(struct yestifier_block *nb,
+			  unsigned long queued_during_suspend, void *yestify)
 {
 	struct cros_ec_codec_priv *priv =
-		container_of(nb, struct cros_ec_codec_priv, wov_notifier);
+		container_of(nb, struct cros_ec_codec_priv, wov_yestifier);
 	u32 host_event;
 
 	dev_dbg(priv->dev, "%s\n", __func__);
@@ -847,9 +847,9 @@ static int wov_probe(struct snd_soc_component *component)
 	mutex_init(&priv->wov_dma_lock);
 	INIT_DELAYED_WORK(&priv->wov_copy_work, wov_copy_work);
 
-	priv->wov_notifier.notifier_call = wov_host_event;
-	ret = blocking_notifier_chain_register(
-			&priv->ec_device->event_notifier, &priv->wov_notifier);
+	priv->wov_yestifier.yestifier_call = wov_host_event;
+	ret = blocking_yestifier_chain_register(
+			&priv->ec_device->event_yestifier, &priv->wov_yestifier);
 	if (ret)
 		return ret;
 
@@ -879,8 +879,8 @@ static void wov_remove(struct snd_soc_component *component)
 	struct cros_ec_codec_priv *priv =
 		snd_soc_component_get_drvdata(component);
 
-	blocking_notifier_chain_unregister(
-			&priv->ec_device->event_notifier, &priv->wov_notifier);
+	blocking_yestifier_chain_unregister(
+			&priv->ec_device->event_yestifier, &priv->wov_yestifier);
 }
 
 static int wov_pcm_open(struct snd_soc_component *component,
@@ -976,7 +976,7 @@ static int cros_ec_codec_platform_probe(struct platform_device *pdev)
 	struct ec_response_ec_codec_get_capabilities r;
 	int ret;
 #ifdef CONFIG_OF
-	struct device_node *node;
+	struct device_yesde *yesde;
 	struct resource res;
 	u64 ec_shm_size;
 	const __be32 *regaddr_p;
@@ -987,7 +987,7 @@ static int cros_ec_codec_platform_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 #ifdef CONFIG_OF
-	regaddr_p = of_get_address(dev->of_node, 0, &ec_shm_size, NULL);
+	regaddr_p = of_get_address(dev->of_yesde, 0, &ec_shm_size, NULL);
 	if (regaddr_p) {
 		priv->ec_shm_addr = of_read_number(regaddr_p, 2);
 		priv->ec_shm_len = ec_shm_size;
@@ -996,9 +996,9 @@ static int cros_ec_codec_platform_probe(struct platform_device *pdev)
 			priv->ec_shm_addr, priv->ec_shm_len);
 	}
 
-	node = of_parse_phandle(dev->of_node, "memory-region", 0);
-	if (node) {
-		ret = of_address_to_resource(node, 0, &res);
+	yesde = of_parse_phandle(dev->of_yesde, "memory-region", 0);
+	if (yesde) {
+		ret = of_address_to_resource(yesde, 0, &res);
 		if (!ret) {
 			priv->ap_shm_phys_addr = res.start;
 			priv->ap_shm_len = resource_size(&res);

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Copyright 1998-2008 VIA Technologies, Inc. All Rights Reserved.
+ * Copyright 1998-2008 VIA Techyeslogies, Inc. All Rights Reserved.
  * Copyright 2001-2008 S3 Graphics, Inc. All Rights Reserved.
 
  */
@@ -415,7 +415,7 @@ void viafb_dvi_enable(void)
 			  in the secondary diplay path */
 			via_write_reg_mask(VIACR, 0x91, 0x00, 0x20);
 
-		/*fix DVI cannot enable on EPIA-M board */
+		/*fix DVI canyest enable on EPIA-M board */
 		if (viafb_platform_epia_dvi == 1) {
 			viafb_write_reg_mask(CR91, VIACR, 0x1f, 0x1f);
 			viafb_write_reg_mask(CR88, VIACR, 0x00, BIT6 + BIT0);

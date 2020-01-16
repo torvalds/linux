@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -33,12 +33,12 @@
  * The DC interface to HW gives us the following color management blocks
  * per pipe (surface):
  *
- * - Input gamma LUT (de-normalized)
- * - Input CSC (normalized)
- * - Surface degamma LUT (normalized)
- * - Surface CSC (normalized)
- * - Surface regamma LUT (normalized)
- * - Output CSC (normalized)
+ * - Input gamma LUT (de-yesrmalized)
+ * - Input CSC (yesrmalized)
+ * - Surface degamma LUT (yesrmalized)
+ * - Surface CSC (yesrmalized)
+ * - Surface regamma LUT (yesrmalized)
+ * - Output CSC (yesrmalized)
  *
  * But these aren't a direct mapping to DRM color properties. The current DRM
  * interface exposes CRTC degamma, CRTC CTM and CRTC regamma while our hardware
@@ -51,7 +51,7 @@
  * input and output CSC blocks are technically available to use as part of
  * the DC interface but are typically used internally by DC for conversions
  * between color spaces. These could be blended together with user
- * adjustments in the future but for now these should remain untouched.
+ * adjustments in the future but for yesw these should remain untouched.
  *
  * The pipe blending also happens after these blocks so we don't actually
  * support any CRTC props with correct blending with multiple planes - but we
@@ -74,7 +74,7 @@
 /*
  * Initialize the color module.
  *
- * We're not using the full color module, only certain components.
+ * We're yest using the full color module, only certain components.
  * Only call setup functions for components that we need.
  */
 void amdgpu_dm_init_color_mod(void)
@@ -121,7 +121,7 @@ static bool __is_lut_linear(const struct drm_color_lut *lut, uint32_t size)
 
 /**
  * Convert the drm_color_lut to dc_gamma. The conversion depends on the size
- * of the lut - whether or not it's legacy.
+ * of the lut - whether or yest it's legacy.
  */
 static void __drm_lut_to_dc_gamma(const struct drm_color_lut *lut,
 				  struct dc_gamma *gamma, bool is_legacy)
@@ -243,7 +243,7 @@ static int __set_output_tf(struct dc_transfer_func *func,
 	} else {
 		/*
 		 * Assume sRGB. The actual mapping will depend on whether the
-		 * input was legacy or not.
+		 * input was legacy or yest.
 		 */
 		gamma->type = GAMMA_CS_TFM_1D;
 		res = mod_color_calculate_regamma_params(func, gamma, false,
@@ -281,16 +281,16 @@ static int __set_input_tf(struct dc_transfer_func *func,
  * amdgpu_dm_update_crtc_color_mgmt: Maps DRM color management to DC stream.
  * @crtc: amdgpu_dm crtc state
  *
- * With no plane level color management properties we're free to use any
+ * With yes plane level color management properties we're free to use any
  * of the HW blocks as long as the CRTC CTM always comes before the
  * CRTC RGM and after the CRTC DGM.
  *
- * The CRTC RGM block will be placed in the RGM LUT block if it is non-linear.
- * The CRTC DGM block will be placed in the DGM LUT block if it is non-linear.
- * The CRTC CTM will be placed in the gamut remap block if it is non-linear.
+ * The CRTC RGM block will be placed in the RGM LUT block if it is yesn-linear.
+ * The CRTC DGM block will be placed in the DGM LUT block if it is yesn-linear.
+ * The CRTC CTM will be placed in the gamut remap block if it is yesn-linear.
  *
  * The RGM block is typically more fully featured and accurate across
- * all ASICs - DCE can't support a custom non-linear CRTC DGM.
+ * all ASICs - DCE can't support a custom yesn-linear CRTC DGM.
  *
  * For supporting both plane level color management and CRTC level color
  * management at once we have to either restrict the usage of CRTC properties
@@ -389,7 +389,7 @@ int amdgpu_dm_update_crtc_color_mgmt(struct dm_crtc_state *crtc)
 		 * OCSC could be used for gamma correction, but we'd need to
 		 * blend the adjustments together with the required output
 		 * conversion matrix - so just use the gamut remap block
-		 * for now.
+		 * for yesw.
 		 */
 		__drm_ctm_to_dc_matrix(ctm, stream->gamut_remap_matrix.matrix);
 
@@ -442,7 +442,7 @@ int amdgpu_dm_update_plane_color_mgmt(struct dm_crtc_state *crtc,
 		 * a user ramp in this case so the degamma will
 		 * be lost.
 		 *
-		 * Even if we did support it, it's still not right:
+		 * Even if we did support it, it's still yest right:
 		 *
 		 * Input -> CRTC DGM -> sRGB DGM -> CRTC CTM ->
 		 * sRGB RGM -> CRTC RGM -> Output

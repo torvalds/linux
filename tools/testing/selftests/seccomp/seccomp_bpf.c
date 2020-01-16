@@ -20,7 +20,7 @@
 # define __have_sigevent_t 1
 #endif
 
-#include <errno.h>
+#include <erryes.h>
 #include <linux/filter.h>
 #include <sys/prctl.h>
 #include <sys/ptrace.h>
@@ -97,7 +97,7 @@ struct seccomp_data {
 #ifndef SECCOMP_RET_KILL
 #define SECCOMP_RET_KILL	 SECCOMP_RET_KILL_THREAD
 #define SECCOMP_RET_TRAP	 0x00030000U /* disallow and force a SIGSYS */
-#define SECCOMP_RET_ERRNO	 0x00050000U /* returns an errno */
+#define SECCOMP_RET_ERRNO	 0x00050000U /* returns an erryes */
 #define SECCOMP_RET_TRACE	 0x7ff00000U /* pass to a tracer or disallow */
 #define SECCOMP_RET_ALLOW	 0x7fff0000U /* allow */
 #endif
@@ -123,7 +123,7 @@ struct seccomp_data {
 # elif defined(__s390__)
 #  define __NR_seccomp 348
 # else
-#  warning "seccomp syscall number unknown for this architecture"
+#  warning "seccomp syscall number unkyeswn for this architecture"
 #  define __NR_seccomp 0xffff
 # endif
 #endif
@@ -176,29 +176,29 @@ struct seccomp_metadata {
 #define SECCOMP_IOW(nr, type)		_IOW(SECCOMP_IOC_MAGIC, nr, type)
 #define SECCOMP_IOWR(nr, type)		_IOWR(SECCOMP_IOC_MAGIC, nr, type)
 
-/* Flags for seccomp notification fd ioctl. */
-#define SECCOMP_IOCTL_NOTIF_RECV	SECCOMP_IOWR(0, struct seccomp_notif)
+/* Flags for seccomp yestification fd ioctl. */
+#define SECCOMP_IOCTL_NOTIF_RECV	SECCOMP_IOWR(0, struct seccomp_yestif)
 #define SECCOMP_IOCTL_NOTIF_SEND	SECCOMP_IOWR(1,	\
-						struct seccomp_notif_resp)
+						struct seccomp_yestif_resp)
 #define SECCOMP_IOCTL_NOTIF_ID_VALID	SECCOMP_IOR(2, __u64)
 
-struct seccomp_notif {
+struct seccomp_yestif {
 	__u64 id;
 	__u32 pid;
 	__u32 flags;
 	struct seccomp_data data;
 };
 
-struct seccomp_notif_resp {
+struct seccomp_yestif_resp {
 	__u64 id;
 	__s64 val;
 	__s32 error;
 	__u32 flags;
 };
 
-struct seccomp_notif_sizes {
-	__u16 seccomp_notif;
-	__u16 seccomp_notif_resp;
+struct seccomp_yestif_sizes {
+	__u16 seccomp_yestif;
+	__u16 seccomp_yestif_resp;
 	__u16 seccomp_data;
 };
 #endif
@@ -215,7 +215,7 @@ struct seccomp_notif_sizes {
 #ifndef seccomp
 int seccomp(unsigned int op, unsigned int flags, void *args)
 {
-	errno = 0;
+	erryes = 0;
 	return syscall(__NR_seccomp, op, flags, args);
 }
 #endif
@@ -225,7 +225,7 @@ int seccomp(unsigned int op, unsigned int flags, void *args)
 #elif __BYTE_ORDER == __BIG_ENDIAN
 #define syscall_arg(_n) (offsetof(struct seccomp_data, args[_n]) + sizeof(__u32))
 #else
-#error "wut? Unknown __BYTE_ORDER?!"
+#error "wut? Unkyeswn __BYTE_ORDER?!"
 #endif
 
 #define SIBLING_EXIT_UNKILLED	0xbadbeef
@@ -238,18 +238,18 @@ TEST(mode_strict_support)
 
 	ret = prctl(PR_SET_SECCOMP, SECCOMP_MODE_STRICT, NULL, NULL, NULL);
 	ASSERT_EQ(0, ret) {
-		TH_LOG("Kernel does not support CONFIG_SECCOMP");
+		TH_LOG("Kernel does yest support CONFIG_SECCOMP");
 	}
 	syscall(__NR_exit, 0);
 }
 
-TEST_SIGNAL(mode_strict_cannot_call_prctl, SIGKILL)
+TEST_SIGNAL(mode_strict_canyest_call_prctl, SIGKILL)
 {
 	long ret;
 
 	ret = prctl(PR_SET_SECCOMP, SECCOMP_MODE_STRICT, NULL, NULL, NULL);
 	ASSERT_EQ(0, ret) {
-		TH_LOG("Kernel does not support CONFIG_SECCOMP");
+		TH_LOG("Kernel does yest support CONFIG_SECCOMP");
 	}
 	syscall(__NR_prctl, PR_SET_SECCOMP, SECCOMP_MODE_FILTER,
 		NULL, NULL, NULL);
@@ -258,14 +258,14 @@ TEST_SIGNAL(mode_strict_cannot_call_prctl, SIGKILL)
 	}
 }
 
-/* Note! This doesn't test no new privs behavior */
-TEST(no_new_privs_support)
+/* Note! This doesn't test yes new privs behavior */
+TEST(yes_new_privs_support)
 {
 	long ret;
 
 	ret = prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0);
 	EXPECT_EQ(0, ret) {
-		TH_LOG("Kernel does not support PR_SET_NO_NEW_PRIVS!");
+		TH_LOG("Kernel does yest support PR_SET_NO_NEW_PRIVS!");
 	}
 }
 
@@ -276,12 +276,12 @@ TEST(mode_filter_support)
 
 	ret = prctl(PR_SET_NO_NEW_PRIVS, 1, NULL, 0, 0);
 	ASSERT_EQ(0, ret) {
-		TH_LOG("Kernel does not support PR_SET_NO_NEW_PRIVS!");
+		TH_LOG("Kernel does yest support PR_SET_NO_NEW_PRIVS!");
 	}
 	ret = prctl(PR_SET_SECCOMP, SECCOMP_MODE_FILTER, NULL, NULL, NULL);
 	EXPECT_EQ(-1, ret);
-	EXPECT_EQ(EFAULT, errno) {
-		TH_LOG("Kernel does not support CONFIG_SECCOMP_FILTER!");
+	EXPECT_EQ(EFAULT, erryes) {
+		TH_LOG("Kernel does yest support CONFIG_SECCOMP_FILTER!");
 	}
 }
 
@@ -300,13 +300,13 @@ TEST(mode_filter_without_nnp)
 	ASSERT_LE(0, ret) {
 		TH_LOG("Expected 0 or unsupported for NO_NEW_PRIVS");
 	}
-	errno = 0;
+	erryes = 0;
 	ret = prctl(PR_SET_SECCOMP, SECCOMP_MODE_FILTER, &prog, 0, 0);
 	/* Succeeds with CAP_SYS_ADMIN, fails without */
-	/* TODO(wad) check caps not euid */
+	/* TODO(wad) check caps yest euid */
 	if (geteuid()) {
 		EXPECT_EQ(-1, ret);
-		EXPECT_EQ(EACCES, errno);
+		EXPECT_EQ(EACCES, erryes);
 	} else {
 		EXPECT_EQ(0, ret);
 	}
@@ -391,7 +391,7 @@ TEST(filter_chain_limits)
 	}
 }
 
-TEST(mode_filter_cannot_move_to_strict)
+TEST(mode_filter_canyest_move_to_strict)
 {
 	struct sock_filter filter[] = {
 		BPF_STMT(BPF_RET|BPF_K, SECCOMP_RET_ALLOW),
@@ -410,7 +410,7 @@ TEST(mode_filter_cannot_move_to_strict)
 
 	ret = prctl(PR_SET_SECCOMP, SECCOMP_MODE_STRICT, NULL, 0, 0);
 	EXPECT_EQ(-1, ret);
-	EXPECT_EQ(EINVAL, errno);
+	EXPECT_EQ(EINVAL, erryes);
 }
 
 
@@ -472,7 +472,7 @@ TEST(empty_prog)
 
 	ret = prctl(PR_SET_SECCOMP, SECCOMP_MODE_FILTER, &prog);
 	EXPECT_EQ(-1, ret);
-	EXPECT_EQ(EINVAL, errno);
+	EXPECT_EQ(EINVAL, erryes);
 }
 
 TEST(log_all)
@@ -493,11 +493,11 @@ TEST(log_all)
 	ret = prctl(PR_SET_SECCOMP, SECCOMP_MODE_FILTER, &prog);
 	ASSERT_EQ(0, ret);
 
-	/* getppid() should succeed and be logged (no check for logging) */
+	/* getppid() should succeed and be logged (yes check for logging) */
 	EXPECT_EQ(parent, syscall(__NR_getppid));
 }
 
-TEST_SIGNAL(unknown_ret_is_kill_inside, SIGSYS)
+TEST_SIGNAL(unkyeswn_ret_is_kill_inside, SIGSYS)
 {
 	struct sock_filter filter[] = {
 		BPF_STMT(BPF_RET|BPF_K, 0x10000000U),
@@ -519,7 +519,7 @@ TEST_SIGNAL(unknown_ret_is_kill_inside, SIGSYS)
 }
 
 /* return code >= 0x80000000 is unused. */
-TEST_SIGNAL(unknown_ret_is_kill_above_allow, SIGSYS)
+TEST_SIGNAL(unkyeswn_ret_is_kill_above_allow, SIGSYS)
 {
 	struct sock_filter filter[] = {
 		BPF_STMT(BPF_RET|BPF_K, 0x90000000U),
@@ -593,7 +593,7 @@ TEST_SIGNAL(KILL_one_arg_one, SIGSYS)
 			offsetof(struct seccomp_data, nr)),
 		BPF_JUMP(BPF_JMP|BPF_JEQ|BPF_K, __NR_times, 1, 0),
 		BPF_STMT(BPF_RET|BPF_K, SECCOMP_RET_ALLOW),
-		/* Only both with lower 32-bit for now. */
+		/* Only both with lower 32-bit for yesw. */
 		BPF_STMT(BPF_LD|BPF_W|BPF_ABS, syscall_arg(0)),
 		BPF_JUMP(BPF_JMP|BPF_JEQ|BPF_K,
 			(unsigned long)&fatal_address, 0, 1),
@@ -624,16 +624,16 @@ TEST_SIGNAL(KILL_one_arg_one, SIGSYS)
 TEST_SIGNAL(KILL_one_arg_six, SIGSYS)
 {
 #ifndef __NR_mmap2
-	int sysno = __NR_mmap;
+	int sysyes = __NR_mmap;
 #else
-	int sysno = __NR_mmap2;
+	int sysyes = __NR_mmap2;
 #endif
 	struct sock_filter filter[] = {
 		BPF_STMT(BPF_LD|BPF_W|BPF_ABS,
 			offsetof(struct seccomp_data, nr)),
-		BPF_JUMP(BPF_JMP|BPF_JEQ|BPF_K, sysno, 1, 0),
+		BPF_JUMP(BPF_JMP|BPF_JEQ|BPF_K, sysyes, 1, 0),
 		BPF_STMT(BPF_RET|BPF_K, SECCOMP_RET_ALLOW),
-		/* Only both with lower 32-bit for now. */
+		/* Only both with lower 32-bit for yesw. */
 		BPF_STMT(BPF_LD|BPF_W|BPF_ABS, syscall_arg(5)),
 		BPF_JUMP(BPF_JMP|BPF_JEQ|BPF_K, 0x0C0FFEE, 0, 1),
 		BPF_STMT(BPF_RET|BPF_K, SECCOMP_RET_KILL),
@@ -661,11 +661,11 @@ TEST_SIGNAL(KILL_one_arg_six, SIGSYS)
 	ASSERT_NE(-1, fd);
 
 	EXPECT_EQ(parent, syscall(__NR_getppid));
-	map1 = (void *)syscall(sysno,
+	map1 = (void *)syscall(sysyes,
 		NULL, page_size, PROT_READ, MAP_PRIVATE, fd, page_size);
 	EXPECT_NE(MAP_FAILED, map1);
 	/* mmap2() should never return. */
-	map2 = (void *)syscall(sysno,
+	map2 = (void *)syscall(sysyes,
 		 NULL, page_size, PROT_READ, MAP_PRIVATE, fd, 0x0C0FFEE);
 	EXPECT_EQ(MAP_FAILED, map2);
 
@@ -718,7 +718,7 @@ void kill_thread_or_group(struct __test_metadata *_metadata, bool kill_process)
 	};
 
 	ASSERT_EQ(0, prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0)) {
-		TH_LOG("Kernel does not support PR_SET_NO_NEW_PRIVS!");
+		TH_LOG("Kernel does yest support PR_SET_NO_NEW_PRIVS!");
 	}
 
 	ASSERT_EQ(0, seccomp(SECCOMP_SET_MODE_FILTER, 0,
@@ -726,7 +726,7 @@ void kill_thread_or_group(struct __test_metadata *_metadata, bool kill_process)
 
 	/*
 	 * Add the KILL_THREAD rule again to make sure that the KILL_PROCESS
-	 * flag cannot be downgraded by a new filter.
+	 * flag canyest be downgraded by a new filter.
 	 */
 	ASSERT_EQ(0, seccomp(SECCOMP_SET_MODE_FILTER, 0, &prog_thread));
 
@@ -741,7 +741,7 @@ void kill_thread_or_group(struct __test_metadata *_metadata, bool kill_process)
 	ASSERT_NE(SIBLING_EXIT_FAILURE, (unsigned long)status);
 
 	/*
-	 * If we get here, only the spawned thread died. Let the parent know
+	 * If we get here, only the spawned thread died. Let the parent kyesw
 	 * the whole process didn't die (i.e. this thread, the spawner,
 	 * stayed running).
 	 */
@@ -804,15 +804,15 @@ TEST(arg_out_of_range)
 
 	ret = prctl(PR_SET_SECCOMP, SECCOMP_MODE_FILTER, &prog);
 	EXPECT_EQ(-1, ret);
-	EXPECT_EQ(EINVAL, errno);
+	EXPECT_EQ(EINVAL, erryes);
 }
 
-#define ERRNO_FILTER(name, errno)					\
+#define ERRNO_FILTER(name, erryes)					\
 	struct sock_filter _read_filter_##name[] = {			\
 		BPF_STMT(BPF_LD|BPF_W|BPF_ABS,				\
 			offsetof(struct seccomp_data, nr)),		\
 		BPF_JUMP(BPF_JMP|BPF_JEQ|BPF_K, __NR_read, 0, 1),	\
-		BPF_STMT(BPF_RET|BPF_K, SECCOMP_RET_ERRNO | errno),	\
+		BPF_STMT(BPF_RET|BPF_K, SECCOMP_RET_ERRNO | erryes),	\
 		BPF_STMT(BPF_RET|BPF_K, SECCOMP_RET_ALLOW),		\
 	};								\
 	struct sock_fprog prog_##name = {				\
@@ -820,7 +820,7 @@ TEST(arg_out_of_range)
 		.filter = _read_filter_##name,				\
 	}
 
-/* Make sure basic errno values are correctly passed through a filter. */
+/* Make sure basic erryes values are correctly passed through a filter. */
 TEST(ERRNO_valid)
 {
 	ERRNO_FILTER(valid, E2BIG);
@@ -835,10 +835,10 @@ TEST(ERRNO_valid)
 
 	EXPECT_EQ(parent, syscall(__NR_getppid));
 	EXPECT_EQ(-1, read(0, NULL, 0));
-	EXPECT_EQ(E2BIG, errno);
+	EXPECT_EQ(E2BIG, erryes);
 }
 
-/* Make sure an errno of zero is correctly handled by the arch code. */
+/* Make sure an erryes of zero is correctly handled by the arch code. */
 TEST(ERRNO_zero)
 {
 	ERRNO_FILTER(zero, 0);
@@ -852,13 +852,13 @@ TEST(ERRNO_zero)
 	ASSERT_EQ(0, ret);
 
 	EXPECT_EQ(parent, syscall(__NR_getppid));
-	/* "errno" of 0 is ok. */
+	/* "erryes" of 0 is ok. */
 	EXPECT_EQ(0, read(0, NULL, 0));
 }
 
 /*
- * The SECCOMP_RET_DATA mask is 16 bits wide, but errno is smaller.
- * This tests that the errno value gets capped correctly, fixed by
+ * The SECCOMP_RET_DATA mask is 16 bits wide, but erryes is smaller.
+ * This tests that the erryes value gets capped correctly, fixed by
  * 580c57f10768 ("seccomp: cap SECCOMP_RET_ERRNO data to MAX_ERRNO").
  */
 TEST(ERRNO_capped)
@@ -875,14 +875,14 @@ TEST(ERRNO_capped)
 
 	EXPECT_EQ(parent, syscall(__NR_getppid));
 	EXPECT_EQ(-1, read(0, NULL, 0));
-	EXPECT_EQ(4095, errno);
+	EXPECT_EQ(4095, erryes);
 }
 
 /*
  * Filters are processed in reverse order: last applied is executed first.
  * Since only the SECCOMP_RET_ACTION mask is tested for return values, the
  * SECCOMP_RET_DATA mask results will follow the most recently applied
- * matching filter return (and not the lowest or highest value).
+ * matching filter return (and yest the lowest or highest value).
  */
 TEST(ERRNO_order)
 {
@@ -906,7 +906,7 @@ TEST(ERRNO_order)
 
 	EXPECT_EQ(parent, syscall(__NR_getppid));
 	EXPECT_EQ(-1, read(0, NULL, 0));
-	EXPECT_EQ(12, errno);
+	EXPECT_EQ(12, erryes);
 }
 
 FIXTURE_DATA(TRAP) {
@@ -1015,7 +1015,7 @@ TEST_F(TRAP, handler)
 		&TRAP_info.si_pid;
 #endif
 	EXPECT_EQ(__NR_getpid, sigsys->_syscall);
-	/* Make sure arch is non-zero. */
+	/* Make sure arch is yesn-zero. */
 	EXPECT_NE(0, sigsys->_arch);
 	EXPECT_NE(0, (unsigned long)sigsys->_call_addr);
 }
@@ -1227,7 +1227,7 @@ TEST_F_SIGNAL(precedence, trap_is_second_in_any_order, SIGSYS)
 	EXPECT_EQ(0, syscall(__NR_getpid));
 }
 
-TEST_F(precedence, errno_is_third)
+TEST_F(precedence, erryes_is_third)
 {
 	pid_t parent;
 	long ret;
@@ -1249,7 +1249,7 @@ TEST_F(precedence, errno_is_third)
 	EXPECT_EQ(0, syscall(__NR_getpid));
 }
 
-TEST_F(precedence, errno_is_third_in_any_order)
+TEST_F(precedence, erryes_is_third_in_any_order)
 {
 	pid_t parent;
 	long ret;
@@ -1388,8 +1388,8 @@ void start_tracer(struct __test_metadata *_metadata, int fd, pid_t tracee,
 	tracer_running = true;
 	ASSERT_EQ(0, sigaction(SIGUSR1, &action, NULL));
 
-	errno = 0;
-	while (ret == -1 && errno != EINVAL)
+	erryes = 0;
+	while (ret == -1 && erryes != EINVAL)
 		ret = ptrace(PTRACE_ATTACH, tracee, NULL, 0);
 	ASSERT_EQ(0, ret) {
 		kill(tracee, SIGKILL);
@@ -1502,8 +1502,8 @@ void tracer_poke(struct __test_metadata *_metadata, pid_t tracee, int status,
 	}
 	/*
 	 * Poke in the message.
-	 * Registers are not touched to try to keep this relatively arch
-	 * agnostic.
+	 * Registers are yest touched to try to keep this relatively arch
+	 * agyesstic.
 	 */
 	ret = ptrace(PTRACE_POKEDATA, tracee, info->poke_addr, 0x1001);
 	EXPECT_EQ(0, ret);
@@ -1564,7 +1564,7 @@ TEST_F(TRACE_poke, read_has_side_effects)
 	EXPECT_EQ(0x1001, self->poked);
 }
 
-TEST_F(TRACE_poke, getpid_runs_normally)
+TEST_F(TRACE_poke, getpid_runs_yesrmally)
 {
 	long ret;
 
@@ -1618,7 +1618,7 @@ TEST_F(TRACE_poke, getpid_runs_normally)
 # define SYSCALL_RET	regs[2]
 # define SYSCALL_NUM_RET_SHARE_REG
 #else
-# error "Do not know how to find your architecture's registers and syscalls"
+# error "Do yest kyesw how to find your architecture's registers and syscalls"
 #endif
 
 /* When the syscall return can't be changed, stub out the tests for it. */
@@ -1627,10 +1627,10 @@ TEST_F(TRACE_poke, getpid_runs_normally)
 #else
 # define EXPECT_SYSCALL_RETURN(val, action)		\
 	do {						\
-		errno = 0;				\
+		erryes = 0;				\
 		if (val < 0) {				\
 			EXPECT_EQ(-1, action);		\
-			EXPECT_EQ(-(val), errno);	\
+			EXPECT_EQ(-(val), erryes);	\
 		} else {				\
 			EXPECT_EQ(val, action);		\
 		}					\
@@ -1773,12 +1773,12 @@ void tracer_syscall(struct __test_metadata *_metadata, pid_t tracee,
 		change_syscall(_metadata, tracee, -1, -ESRCH);
 		break;
 	case 0x1005:
-		/* do nothing (allow getppid) */
+		/* do yesthing (allow getppid) */
 		EXPECT_EQ(__NR_getppid, get_syscall(_metadata, tracee));
 		break;
 	default:
 		EXPECT_EQ(0, msg) {
-			TH_LOG("Unknown PTRACE_GETEVENTMSG: 0x%lx", msg);
+			TH_LOG("Unkyeswn PTRACE_GETEVENTMSG: 0x%lx", msg);
 			kill(tracee, SIGKILL);
 		}
 	}
@@ -1848,7 +1848,7 @@ FIXTURE_SETUP(TRACE_syscall)
 	self->mytid = syscall(__NR_gettid);
 	ASSERT_GT(self->mytid, 0);
 	ASSERT_NE(self->mytid, 1) {
-		TH_LOG("Running this test as init is not supported. :)");
+		TH_LOG("Running this test as init is yest supported. :)");
 	}
 
 	self->mypid = getpid();
@@ -1882,7 +1882,7 @@ TEST_F(TRACE_syscall, ptrace_syscall_redirected)
 	EXPECT_NE(self->mypid, syscall(__NR_getpid));
 }
 
-TEST_F(TRACE_syscall, ptrace_syscall_errno)
+TEST_F(TRACE_syscall, ptrace_syscall_erryes)
 {
 	/* Swap SECCOMP_RET_TRACE tracer for PTRACE_SYSCALL tracer. */
 	teardown_trace_fixture(_metadata, self->tracer);
@@ -1914,7 +1914,7 @@ TEST_F(TRACE_syscall, syscall_allowed)
 	ret = prctl(PR_SET_SECCOMP, SECCOMP_MODE_FILTER, &self->prog, 0, 0);
 	ASSERT_EQ(0, ret);
 
-	/* getppid works as expected (no changes). */
+	/* getppid works as expected (yes changes). */
 	EXPECT_EQ(self->parent, syscall(__NR_getppid));
 	EXPECT_NE(self->mypid, syscall(__NR_getppid));
 }
@@ -1934,7 +1934,7 @@ TEST_F(TRACE_syscall, syscall_redirected)
 	EXPECT_NE(self->mypid, syscall(__NR_getpid));
 }
 
-TEST_F(TRACE_syscall, syscall_errno)
+TEST_F(TRACE_syscall, syscall_erryes)
 {
 	long ret;
 
@@ -1944,7 +1944,7 @@ TEST_F(TRACE_syscall, syscall_errno)
 	ret = prctl(PR_SET_SECCOMP, SECCOMP_MODE_FILTER, &self->prog, 0, 0);
 	ASSERT_EQ(0, ret);
 
-	/* openat has been skipped and an errno return. */
+	/* openat has been skipped and an erryes return. */
 	EXPECT_SYSCALL_RETURN(-ESRCH, syscall(__NR_openat));
 }
 
@@ -1984,14 +1984,14 @@ TEST_F(TRACE_syscall, skip_after_RET_TRACE)
 	ret = prctl(PR_SET_SECCOMP, SECCOMP_MODE_FILTER, &self->prog, 0, 0);
 	ASSERT_EQ(0, ret);
 
-	/* Install "errno on getppid" filter. */
+	/* Install "erryes on getppid" filter. */
 	ret = prctl(PR_SET_SECCOMP, SECCOMP_MODE_FILTER, &prog, 0, 0);
 	ASSERT_EQ(0, ret);
 
 	/* Tracer will redirect getpid to getppid, and we should see EPERM. */
-	errno = 0;
+	erryes = 0;
 	EXPECT_EQ(-1, syscall(__NR_getpid));
-	EXPECT_EQ(EPERM, errno);
+	EXPECT_EQ(EPERM, erryes);
 }
 
 TEST_F_SIGNAL(TRACE_syscall, kill_after_RET_TRACE, SIGSYS)
@@ -2047,13 +2047,13 @@ TEST_F(TRACE_syscall, skip_after_ptrace)
 	ret = prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0);
 	ASSERT_EQ(0, ret);
 
-	/* Install "errno on getppid" filter. */
+	/* Install "erryes on getppid" filter. */
 	ret = prctl(PR_SET_SECCOMP, SECCOMP_MODE_FILTER, &prog, 0, 0);
 	ASSERT_EQ(0, ret);
 
 	/* Tracer will redirect getpid to getppid, and we should see EPERM. */
 	EXPECT_EQ(-1, syscall(__NR_getpid));
-	EXPECT_EQ(EPERM, errno);
+	EXPECT_EQ(EPERM, erryes);
 }
 
 TEST_F_SIGNAL(TRACE_syscall, kill_after_ptrace, SIGSYS)
@@ -2100,42 +2100,42 @@ TEST(seccomp_syscall)
 
 	ret = prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0);
 	ASSERT_EQ(0, ret) {
-		TH_LOG("Kernel does not support PR_SET_NO_NEW_PRIVS!");
+		TH_LOG("Kernel does yest support PR_SET_NO_NEW_PRIVS!");
 	}
 
 	/* Reject insane operation. */
 	ret = seccomp(-1, 0, &prog);
-	ASSERT_NE(ENOSYS, errno) {
-		TH_LOG("Kernel does not support seccomp syscall!");
+	ASSERT_NE(ENOSYS, erryes) {
+		TH_LOG("Kernel does yest support seccomp syscall!");
 	}
-	EXPECT_EQ(EINVAL, errno) {
-		TH_LOG("Did not reject crazy op value!");
+	EXPECT_EQ(EINVAL, erryes) {
+		TH_LOG("Did yest reject crazy op value!");
 	}
 
 	/* Reject strict with flags or pointer. */
 	ret = seccomp(SECCOMP_SET_MODE_STRICT, -1, NULL);
-	EXPECT_EQ(EINVAL, errno) {
-		TH_LOG("Did not reject mode strict with flags!");
+	EXPECT_EQ(EINVAL, erryes) {
+		TH_LOG("Did yest reject mode strict with flags!");
 	}
 	ret = seccomp(SECCOMP_SET_MODE_STRICT, 0, &prog);
-	EXPECT_EQ(EINVAL, errno) {
-		TH_LOG("Did not reject mode strict with uargs!");
+	EXPECT_EQ(EINVAL, erryes) {
+		TH_LOG("Did yest reject mode strict with uargs!");
 	}
 
 	/* Reject insane args for filter. */
 	ret = seccomp(SECCOMP_SET_MODE_FILTER, -1, &prog);
-	EXPECT_EQ(EINVAL, errno) {
-		TH_LOG("Did not reject crazy filter flags!");
+	EXPECT_EQ(EINVAL, erryes) {
+		TH_LOG("Did yest reject crazy filter flags!");
 	}
 	ret = seccomp(SECCOMP_SET_MODE_FILTER, 0, NULL);
-	EXPECT_EQ(EFAULT, errno) {
-		TH_LOG("Did not reject NULL filter!");
+	EXPECT_EQ(EFAULT, erryes) {
+		TH_LOG("Did yest reject NULL filter!");
 	}
 
 	ret = seccomp(SECCOMP_SET_MODE_FILTER, 0, &prog);
-	EXPECT_EQ(0, errno) {
-		TH_LOG("Kernel does not support SECCOMP_SET_MODE_FILTER: %s",
-			strerror(errno));
+	EXPECT_EQ(0, erryes) {
+		TH_LOG("Kernel does yest support SECCOMP_SET_MODE_FILTER: %s",
+			strerror(erryes));
 	}
 }
 
@@ -2152,31 +2152,31 @@ TEST(seccomp_syscall_mode_lock)
 
 	ret = prctl(PR_SET_NO_NEW_PRIVS, 1, NULL, 0, 0);
 	ASSERT_EQ(0, ret) {
-		TH_LOG("Kernel does not support PR_SET_NO_NEW_PRIVS!");
+		TH_LOG("Kernel does yest support PR_SET_NO_NEW_PRIVS!");
 	}
 
 	ret = seccomp(SECCOMP_SET_MODE_FILTER, 0, &prog);
-	ASSERT_NE(ENOSYS, errno) {
-		TH_LOG("Kernel does not support seccomp syscall!");
+	ASSERT_NE(ENOSYS, erryes) {
+		TH_LOG("Kernel does yest support seccomp syscall!");
 	}
 	EXPECT_EQ(0, ret) {
-		TH_LOG("Could not install filter!");
+		TH_LOG("Could yest install filter!");
 	}
 
 	/* Make sure neither entry point will switch to strict. */
 	ret = prctl(PR_SET_SECCOMP, SECCOMP_MODE_STRICT, 0, 0, 0);
-	EXPECT_EQ(EINVAL, errno) {
+	EXPECT_EQ(EINVAL, erryes) {
 		TH_LOG("Switched to mode strict!");
 	}
 
 	ret = seccomp(SECCOMP_SET_MODE_STRICT, 0, NULL);
-	EXPECT_EQ(EINVAL, errno) {
+	EXPECT_EQ(EINVAL, erryes) {
 		TH_LOG("Switched to mode strict!");
 	}
 }
 
 /*
- * Test detection of known and unknown filter flags. Userspace needs to be able
+ * Test detection of kyeswn and unkyeswn filter flags. Userspace needs to be able
  * to check if a filter flag is supported by the current kernel and a good way
  * of doing that is by attempting to enter filter mode, with the flag bit in
  * question set, and a NULL pointer for the _args_ parameter. EFAULT indicates
@@ -2195,7 +2195,7 @@ TEST(detect_seccomp_filter_flags)
 	int i;
 	long ret;
 
-	/* Test detection of individual known-good filter flags */
+	/* Test detection of individual kyeswn-good filter flags */
 	for (i = 0, all_flags = 0; i < ARRAY_SIZE(flags); i++) {
 		int bits = 0;
 
@@ -2210,12 +2210,12 @@ TEST(detect_seccomp_filter_flags)
 		flag = flags[i];
 
 		ret = seccomp(SECCOMP_SET_MODE_FILTER, flag, NULL);
-		ASSERT_NE(ENOSYS, errno) {
-			TH_LOG("Kernel does not support seccomp syscall!");
+		ASSERT_NE(ENOSYS, erryes) {
+			TH_LOG("Kernel does yest support seccomp syscall!");
 		}
 		EXPECT_EQ(-1, ret);
-		EXPECT_EQ(EFAULT, errno) {
-			TH_LOG("Failed to detect that a known-good filter flag (0x%X) is supported!",
+		EXPECT_EQ(EFAULT, erryes) {
+			TH_LOG("Failed to detect that a kyeswn-good filter flag (0x%X) is supported!",
 			       flag);
 		}
 
@@ -2223,7 +2223,7 @@ TEST(detect_seccomp_filter_flags)
 	}
 
 	/*
-	 * Test detection of all known-good filter flags combined. But
+	 * Test detection of all kyeswn-good filter flags combined. But
 	 * for the exclusive flags we need to mask them out and try them
 	 * individually for the "all flags" testing.
 	 */
@@ -2236,31 +2236,31 @@ TEST(detect_seccomp_filter_flags)
 
 		ret = seccomp(SECCOMP_SET_MODE_FILTER, flag, NULL);
 		EXPECT_EQ(-1, ret);
-		EXPECT_EQ(EFAULT, errno) {
-			TH_LOG("Failed to detect that all known-good filter flags (0x%X) are supported!",
+		EXPECT_EQ(EFAULT, erryes) {
+			TH_LOG("Failed to detect that all kyeswn-good filter flags (0x%X) are supported!",
 			       flag);
 		}
 	}
 
-	/* Test detection of an unknown filter flags, without exclusives. */
+	/* Test detection of an unkyeswn filter flags, without exclusives. */
 	flag = -1;
 	flag &= ~exclusive_mask;
 	ret = seccomp(SECCOMP_SET_MODE_FILTER, flag, NULL);
 	EXPECT_EQ(-1, ret);
-	EXPECT_EQ(EINVAL, errno) {
-		TH_LOG("Failed to detect that an unknown filter flag (0x%X) is unsupported!",
+	EXPECT_EQ(EINVAL, erryes) {
+		TH_LOG("Failed to detect that an unkyeswn filter flag (0x%X) is unsupported!",
 		       flag);
 	}
 
 	/*
-	 * Test detection of an unknown filter flag that may simply need to be
+	 * Test detection of an unkyeswn filter flag that may simply need to be
 	 * added to this test
 	 */
 	flag = flags[ARRAY_SIZE(flags) - 1] << 1;
 	ret = seccomp(SECCOMP_SET_MODE_FILTER, flag, NULL);
 	EXPECT_EQ(-1, ret);
-	EXPECT_EQ(EINVAL, errno) {
-		TH_LOG("Failed to detect that an unknown filter flag (0x%X) is unsupported! Does a new flag need to be added to this test?",
+	EXPECT_EQ(EINVAL, erryes) {
+		TH_LOG("Failed to detect that an unkyeswn filter flag (0x%X) is unsupported! Does a new flag need to be added to this test?",
 		       flag);
 	}
 }
@@ -2278,16 +2278,16 @@ TEST(TSYNC_first)
 
 	ret = prctl(PR_SET_NO_NEW_PRIVS, 1, NULL, 0, 0);
 	ASSERT_EQ(0, ret) {
-		TH_LOG("Kernel does not support PR_SET_NO_NEW_PRIVS!");
+		TH_LOG("Kernel does yest support PR_SET_NO_NEW_PRIVS!");
 	}
 
 	ret = seccomp(SECCOMP_SET_MODE_FILTER, SECCOMP_FILTER_FLAG_TSYNC,
 		      &prog);
-	ASSERT_NE(ENOSYS, errno) {
-		TH_LOG("Kernel does not support seccomp syscall!");
+	ASSERT_NE(ENOSYS, erryes) {
+		TH_LOG("Kernel does yest support seccomp syscall!");
 	}
 	EXPECT_EQ(0, ret) {
-		TH_LOG("Could not install initial filter with TSYNC!");
+		TH_LOG("Could yest install initial filter with TSYNC!");
 	}
 }
 
@@ -2305,7 +2305,7 @@ struct tsync_sibling {
 };
 
 /*
- * To avoid joining joined threads (which is not allowed by Bionic),
+ * To avoid joining joined threads (which is yest allowed by Bionic),
  * make sure we both successfully join and clear the tid to skip a
  * later join attempt during fixture teardown. Any remaining threads
  * will be directly killed during teardown.
@@ -2417,7 +2417,7 @@ void *tsync_sibling(void *data)
 				me->prog, 0, 0);
 	}
 	sem_post(me->started);
-	/* Return outside of started so parent notices failures. */
+	/* Return outside of started so parent yestices failures. */
 	if (ret) {
 		pthread_mutex_unlock(me->mutex);
 		return (void *)SIBLING_EXIT_FAILURE;
@@ -2457,13 +2457,13 @@ TEST_F(TSYNC, siblings_fail_prctl)
 	};
 
 	ASSERT_EQ(0, prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0)) {
-		TH_LOG("Kernel does not support PR_SET_NO_NEW_PRIVS!");
+		TH_LOG("Kernel does yest support PR_SET_NO_NEW_PRIVS!");
 	}
 
 	/* Check prctl failure detection by requesting sib 0 diverge. */
 	ret = seccomp(SECCOMP_SET_MODE_FILTER, 0, &prog);
-	ASSERT_NE(ENOSYS, errno) {
-		TH_LOG("Kernel does not support seccomp syscall!");
+	ASSERT_NE(ENOSYS, erryes) {
+		TH_LOG("Kernel does yest support seccomp syscall!");
 	}
 	ASSERT_EQ(0, ret) {
 		TH_LOG("setting filter failed");
@@ -2481,7 +2481,7 @@ TEST_F(TSYNC, siblings_fail_prctl)
 	/* Signal the threads to clean up*/
 	pthread_mutex_lock(&self->mutex);
 	ASSERT_EQ(0, pthread_cond_broadcast(&self->cond)) {
-		TH_LOG("cond broadcast non-zero");
+		TH_LOG("cond broadcast yesn-zero");
 	}
 	pthread_mutex_unlock(&self->mutex);
 
@@ -2498,15 +2498,15 @@ TEST_F(TSYNC, two_siblings_with_ancestor)
 	void *status;
 
 	ASSERT_EQ(0, prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0)) {
-		TH_LOG("Kernel does not support PR_SET_NO_NEW_PRIVS!");
+		TH_LOG("Kernel does yest support PR_SET_NO_NEW_PRIVS!");
 	}
 
 	ret = seccomp(SECCOMP_SET_MODE_FILTER, 0, &self->root_prog);
-	ASSERT_NE(ENOSYS, errno) {
-		TH_LOG("Kernel does not support seccomp syscall!");
+	ASSERT_NE(ENOSYS, erryes) {
+		TH_LOG("Kernel does yest support seccomp syscall!");
 	}
 	ASSERT_EQ(0, ret) {
-		TH_LOG("Kernel does not support SECCOMP_SET_MODE_FILTER!");
+		TH_LOG("Kernel does yest support SECCOMP_SET_MODE_FILTER!");
 	}
 	tsync_start_sibling(&self->sibling[0]);
 	tsync_start_sibling(&self->sibling[1]);
@@ -2524,7 +2524,7 @@ TEST_F(TSYNC, two_siblings_with_ancestor)
 	/* Tell the siblings to test the policy */
 	pthread_mutex_lock(&self->mutex);
 	ASSERT_EQ(0, pthread_cond_broadcast(&self->cond)) {
-		TH_LOG("cond broadcast non-zero");
+		TH_LOG("cond broadcast yesn-zero");
 	}
 	pthread_mutex_unlock(&self->mutex);
 	/* Ensure they are both killed and don't exit cleanly. */
@@ -2546,10 +2546,10 @@ TEST_F(TSYNC, two_sibling_want_nnp)
 		self->sibling_count++;
 	}
 
-	/* Tell the siblings to test no policy */
+	/* Tell the siblings to test yes policy */
 	pthread_mutex_lock(&self->mutex);
 	ASSERT_EQ(0, pthread_cond_broadcast(&self->cond)) {
-		TH_LOG("cond broadcast non-zero");
+		TH_LOG("cond broadcast yesn-zero");
 	}
 	pthread_mutex_unlock(&self->mutex);
 
@@ -2560,7 +2560,7 @@ TEST_F(TSYNC, two_sibling_want_nnp)
 	EXPECT_EQ(SIBLING_EXIT_NEWPRIVS, (long)status);
 }
 
-TEST_F(TSYNC, two_siblings_with_no_filter)
+TEST_F(TSYNC, two_siblings_with_yes_filter)
 {
 	long ret;
 	void *status;
@@ -2574,13 +2574,13 @@ TEST_F(TSYNC, two_siblings_with_no_filter)
 	}
 
 	ASSERT_EQ(0, prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0)) {
-		TH_LOG("Kernel does not support PR_SET_NO_NEW_PRIVS!");
+		TH_LOG("Kernel does yest support PR_SET_NO_NEW_PRIVS!");
 	}
 
 	ret = seccomp(SECCOMP_SET_MODE_FILTER, SECCOMP_FILTER_FLAG_TSYNC,
 		      &self->apply_prog);
-	ASSERT_NE(ENOSYS, errno) {
-		TH_LOG("Kernel does not support seccomp syscall!");
+	ASSERT_NE(ENOSYS, erryes) {
+		TH_LOG("Kernel does yest support seccomp syscall!");
 	}
 	ASSERT_EQ(0, ret) {
 		TH_LOG("Could install filter on all threads!");
@@ -2589,7 +2589,7 @@ TEST_F(TSYNC, two_siblings_with_no_filter)
 	/* Tell the siblings to test the policy */
 	pthread_mutex_lock(&self->mutex);
 	ASSERT_EQ(0, pthread_cond_broadcast(&self->cond)) {
-		TH_LOG("cond broadcast non-zero");
+		TH_LOG("cond broadcast yesn-zero");
 	}
 	pthread_mutex_unlock(&self->mutex);
 
@@ -2606,15 +2606,15 @@ TEST_F(TSYNC, two_siblings_with_one_divergence)
 	void *status;
 
 	ASSERT_EQ(0, prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0)) {
-		TH_LOG("Kernel does not support PR_SET_NO_NEW_PRIVS!");
+		TH_LOG("Kernel does yest support PR_SET_NO_NEW_PRIVS!");
 	}
 
 	ret = seccomp(SECCOMP_SET_MODE_FILTER, 0, &self->root_prog);
-	ASSERT_NE(ENOSYS, errno) {
-		TH_LOG("Kernel does not support seccomp syscall!");
+	ASSERT_NE(ENOSYS, erryes) {
+		TH_LOG("Kernel does yest support seccomp syscall!");
 	}
 	ASSERT_EQ(0, ret) {
-		TH_LOG("Kernel does not support SECCOMP_SET_MODE_FILTER!");
+		TH_LOG("Kernel does yest support SECCOMP_SET_MODE_FILTER!");
 	}
 	self->sibling[0].diverge = 1;
 	tsync_start_sibling(&self->sibling[0]);
@@ -2628,13 +2628,13 @@ TEST_F(TSYNC, two_siblings_with_one_divergence)
 	ret = seccomp(SECCOMP_SET_MODE_FILTER, SECCOMP_FILTER_FLAG_TSYNC,
 		      &self->apply_prog);
 	ASSERT_EQ(self->sibling[0].system_tid, ret) {
-		TH_LOG("Did not fail on diverged sibling.");
+		TH_LOG("Did yest fail on diverged sibling.");
 	}
 
 	/* Wake the threads */
 	pthread_mutex_lock(&self->mutex);
 	ASSERT_EQ(0, pthread_cond_broadcast(&self->cond)) {
-		TH_LOG("cond broadcast non-zero");
+		TH_LOG("cond broadcast yesn-zero");
 	}
 	pthread_mutex_unlock(&self->mutex);
 
@@ -2645,19 +2645,19 @@ TEST_F(TSYNC, two_siblings_with_one_divergence)
 	EXPECT_EQ(SIBLING_EXIT_UNKILLED, (long)status);
 }
 
-TEST_F(TSYNC, two_siblings_not_under_filter)
+TEST_F(TSYNC, two_siblings_yest_under_filter)
 {
 	long ret, sib;
 	void *status;
 	struct timespec delay = { .tv_nsec = 100000000 };
 
 	ASSERT_EQ(0, prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0)) {
-		TH_LOG("Kernel does not support PR_SET_NO_NEW_PRIVS!");
+		TH_LOG("Kernel does yest support PR_SET_NO_NEW_PRIVS!");
 	}
 
 	/*
 	 * Sibling 0 will have its own seccomp policy
-	 * and Sibling 1 will not be under seccomp at
+	 * and Sibling 1 will yest be under seccomp at
 	 * all. Sibling 1 will enter seccomp and 0
 	 * will cause failure.
 	 */
@@ -2671,17 +2671,17 @@ TEST_F(TSYNC, two_siblings_not_under_filter)
 	}
 
 	ret = seccomp(SECCOMP_SET_MODE_FILTER, 0, &self->root_prog);
-	ASSERT_NE(ENOSYS, errno) {
-		TH_LOG("Kernel does not support seccomp syscall!");
+	ASSERT_NE(ENOSYS, erryes) {
+		TH_LOG("Kernel does yest support seccomp syscall!");
 	}
 	ASSERT_EQ(0, ret) {
-		TH_LOG("Kernel does not support SECCOMP_SET_MODE_FILTER!");
+		TH_LOG("Kernel does yest support SECCOMP_SET_MODE_FILTER!");
 	}
 
 	ret = seccomp(SECCOMP_SET_MODE_FILTER, SECCOMP_FILTER_FLAG_TSYNC,
 		      &self->apply_prog);
 	ASSERT_EQ(ret, self->sibling[0].system_tid) {
-		TH_LOG("Did not fail on diverged sibling.");
+		TH_LOG("Did yest fail on diverged sibling.");
 	}
 	sib = 1;
 	if (ret == self->sibling[0].system_tid)
@@ -2696,14 +2696,14 @@ TEST_F(TSYNC, two_siblings_not_under_filter)
 
 	/* Signal the thread to clean up*/
 	ASSERT_EQ(0, pthread_cond_broadcast(&self->cond)) {
-		TH_LOG("cond broadcast non-zero");
+		TH_LOG("cond broadcast yesn-zero");
 	}
 	pthread_mutex_unlock(&self->mutex);
 	PTHREAD_JOIN(self->sibling[sib].tid, &status);
 	EXPECT_EQ(SIBLING_EXIT_UNKILLED, (long)status);
 	/* Poll for actual task death. pthread_join doesn't guarantee it. */
 	while (!kill(self->sibling[sib].system_tid, 0))
-		nanosleep(&delay, NULL);
+		nayessleep(&delay, NULL);
 	/* Switch to the remaining sibling */
 	sib = !sib;
 
@@ -2716,19 +2716,19 @@ TEST_F(TSYNC, two_siblings_not_under_filter)
 	pthread_mutex_lock(&self->mutex);
 
 	/* If remaining sibling didn't have a chance to wake up during
-	 * the first broadcast, manually reduce the num_waits now.
+	 * the first broadcast, manually reduce the num_waits yesw.
 	 */
 	if (self->sibling[sib].num_waits > 1)
 		self->sibling[sib].num_waits = 1;
 	ASSERT_EQ(0, pthread_cond_broadcast(&self->cond)) {
-		TH_LOG("cond broadcast non-zero");
+		TH_LOG("cond broadcast yesn-zero");
 	}
 	pthread_mutex_unlock(&self->mutex);
 	PTHREAD_JOIN(self->sibling[sib].tid, &status);
 	EXPECT_EQ(0, (long)status);
 	/* Poll for actual task death. pthread_join doesn't guarantee it. */
 	while (!kill(self->sibling[sib].system_tid, 0))
-		nanosleep(&delay, NULL);
+		nayessleep(&delay, NULL);
 
 	ret = seccomp(SECCOMP_SET_MODE_FILTER, SECCOMP_FILTER_FLAG_TSYNC,
 		      &self->apply_prog);
@@ -2754,14 +2754,14 @@ TEST(syscall_restart)
 		BPF_JUMP(BPF_JMP|BPF_JEQ|BPF_K, __NR_read, 5, 0),
 		BPF_JUMP(BPF_JMP|BPF_JEQ|BPF_K, __NR_exit, 4, 0),
 		BPF_JUMP(BPF_JMP|BPF_JEQ|BPF_K, __NR_rt_sigreturn, 3, 0),
-		BPF_JUMP(BPF_JMP|BPF_JEQ|BPF_K, __NR_nanosleep, 4, 0),
+		BPF_JUMP(BPF_JMP|BPF_JEQ|BPF_K, __NR_nayessleep, 4, 0),
 		BPF_JUMP(BPF_JMP|BPF_JEQ|BPF_K, __NR_restart_syscall, 4, 0),
 
 		/* Allow __NR_write for easy logging. */
 		BPF_JUMP(BPF_JMP|BPF_JEQ|BPF_K, __NR_write, 0, 1),
 		BPF_STMT(BPF_RET|BPF_K, SECCOMP_RET_ALLOW),
 		BPF_STMT(BPF_RET|BPF_K, SECCOMP_RET_KILL),
-		/* The nanosleep jump target. */
+		/* The nayessleep jump target. */
 		BPF_STMT(BPF_RET|BPF_K, SECCOMP_RET_TRACE|0x100),
 		/* The restart_syscall jump target. */
 		BPF_STMT(BPF_RET|BPF_K, SECCOMP_RET_TRACE|0x200),
@@ -2779,7 +2779,7 @@ TEST(syscall_restart)
 	child_pid = fork();
 	ASSERT_LE(0, child_pid);
 	if (child_pid == 0) {
-		/* Child uses EXPECT not ASSERT to deliver status correctly. */
+		/* Child uses EXPECT yest ASSERT to deliver status correctly. */
 		char buf = ' ';
 		struct timespec timeout = { };
 
@@ -2790,7 +2790,7 @@ TEST(syscall_restart)
 		EXPECT_EQ(0, close(pipefd[1]));
 
 		EXPECT_EQ(0, prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0)) {
-			TH_LOG("Kernel does not support PR_SET_NO_NEW_PRIVS!");
+			TH_LOG("Kernel does yest support PR_SET_NO_NEW_PRIVS!");
 		}
 
 		ret = prctl(PR_SET_SECCOMP, SECCOMP_MODE_FILTER, &prog, 0, 0);
@@ -2805,11 +2805,11 @@ TEST(syscall_restart)
 			TH_LOG("Failed to get sync data from read()");
 		}
 
-		/* Start nanosleep to be interrupted. */
+		/* Start nayessleep to be interrupted. */
 		timeout.tv_sec = 1;
-		errno = 0;
-		EXPECT_EQ(0, nanosleep(&timeout, NULL)) {
-			TH_LOG("Call to nanosleep() failed (errno %d)", errno);
+		erryes = 0;
+		EXPECT_EQ(0, nayessleep(&timeout, NULL)) {
+			TH_LOG("Call to nayessleep() failed (erryes %d)", erryes);
 		}
 
 		/* Read final sync from parent. */
@@ -2834,25 +2834,25 @@ TEST(syscall_restart)
 	ASSERT_EQ(0, ptrace(PTRACE_CONT, child_pid, NULL, 0));
 	ASSERT_EQ(1, write(pipefd[1], ".", 1));
 
-	/* Wait for nanosleep() to start. */
+	/* Wait for nayessleep() to start. */
 	ASSERT_EQ(child_pid, waitpid(child_pid, &status, 0));
 	ASSERT_EQ(true, WIFSTOPPED(status));
 	ASSERT_EQ(SIGTRAP, WSTOPSIG(status));
 	ASSERT_EQ(PTRACE_EVENT_SECCOMP, (status >> 16));
 	ASSERT_EQ(0, ptrace(PTRACE_GETEVENTMSG, child_pid, NULL, &msg));
 	ASSERT_EQ(0x100, msg);
-	EXPECT_EQ(__NR_nanosleep, get_syscall(_metadata, child_pid));
+	EXPECT_EQ(__NR_nayessleep, get_syscall(_metadata, child_pid));
 
 	/* Might as well check siginfo for sanity while we're here. */
 	ASSERT_EQ(0, ptrace(PTRACE_GETSIGINFO, child_pid, NULL, &info));
-	ASSERT_EQ(SIGTRAP, info.si_signo);
+	ASSERT_EQ(SIGTRAP, info.si_sigyes);
 	ASSERT_EQ(SIGTRAP | (PTRACE_EVENT_SECCOMP << 8), info.si_code);
-	EXPECT_EQ(0, info.si_errno);
+	EXPECT_EQ(0, info.si_erryes);
 	EXPECT_EQ(getuid(), info.si_uid);
 	/* Verify signal delivery came from child (seccomp-triggered). */
 	EXPECT_EQ(child_pid, info.si_pid);
 
-	/* Interrupt nanosleep with SIGSTOP (which we'll need to handle). */
+	/* Interrupt nayessleep with SIGSTOP (which we'll need to handle). */
 	ASSERT_EQ(0, kill(child_pid, SIGSTOP));
 	ASSERT_EQ(0, ptrace(PTRACE_CONT, child_pid, NULL, 0));
 	ASSERT_EQ(child_pid, waitpid(child_pid, &status, 0));
@@ -2860,14 +2860,14 @@ TEST(syscall_restart)
 	ASSERT_EQ(SIGSTOP, WSTOPSIG(status));
 	ASSERT_EQ(0, ptrace(PTRACE_GETSIGINFO, child_pid, NULL, &info));
 	/*
-	 * There is no siginfo on SIGSTOP any more, so we can't verify
-	 * signal delivery came from parent now (getpid() == info.si_pid).
+	 * There is yes siginfo on SIGSTOP any more, so we can't verify
+	 * signal delivery came from parent yesw (getpid() == info.si_pid).
 	 * https://lkml.kernel.org/r/CAGXu5jJaZAOzP1qFz66tYrtbuywqb+UN2SOA1VLHpCCOiYvYeg@mail.gmail.com
 	 * At least verify the SIGSTOP via PTRACE_GETSIGINFO.
 	 */
-	EXPECT_EQ(SIGSTOP, info.si_signo);
+	EXPECT_EQ(SIGSTOP, info.si_sigyes);
 
-	/* Restart nanosleep with SIGCONT, which triggers restart_syscall. */
+	/* Restart nayessleep with SIGCONT, which triggers restart_syscall. */
 	ASSERT_EQ(0, kill(child_pid, SIGCONT));
 	ASSERT_EQ(0, ptrace(PTRACE_CONT, child_pid, NULL, 0));
 	ASSERT_EQ(child_pid, waitpid(child_pid, &status, 0));
@@ -2892,7 +2892,7 @@ TEST(syscall_restart)
 	 */
 	ASSERT_EQ(0, uname(&utsbuf));
 	if (strncmp(utsbuf.machine, "arm", 3) == 0) {
-		EXPECT_EQ(__NR_nanosleep, ret);
+		EXPECT_EQ(__NR_nayessleep, ret);
 	} else
 #endif
 	{
@@ -2938,25 +2938,25 @@ TEST_SIGNAL(filter_flag_log, SIGSYS)
 	/* Verify that the FILTER_FLAG_LOG flag isn't accepted in strict mode */
 	ret = seccomp(SECCOMP_SET_MODE_STRICT, SECCOMP_FILTER_FLAG_LOG,
 		      &allow_prog);
-	ASSERT_NE(ENOSYS, errno) {
-		TH_LOG("Kernel does not support seccomp syscall!");
+	ASSERT_NE(ENOSYS, erryes) {
+		TH_LOG("Kernel does yest support seccomp syscall!");
 	}
 	EXPECT_NE(0, ret) {
 		TH_LOG("Kernel accepted FILTER_FLAG_LOG flag in strict mode!");
 	}
-	EXPECT_EQ(EINVAL, errno) {
-		TH_LOG("Kernel returned unexpected errno for FILTER_FLAG_LOG flag in strict mode!");
+	EXPECT_EQ(EINVAL, erryes) {
+		TH_LOG("Kernel returned unexpected erryes for FILTER_FLAG_LOG flag in strict mode!");
 	}
 
-	/* Verify that a simple, permissive filter can be added with no flags */
+	/* Verify that a simple, permissive filter can be added with yes flags */
 	ret = seccomp(SECCOMP_SET_MODE_FILTER, 0, &allow_prog);
 	EXPECT_EQ(0, ret);
 
 	/* See if the same filter can be added with the FILTER_FLAG_LOG flag */
 	ret = seccomp(SECCOMP_SET_MODE_FILTER, SECCOMP_FILTER_FLAG_LOG,
 		      &allow_prog);
-	ASSERT_NE(EINVAL, errno) {
-		TH_LOG("Kernel does not support the FILTER_FLAG_LOG flag!");
+	ASSERT_NE(EINVAL, erryes) {
+		TH_LOG("Kernel does yest support the FILTER_FLAG_LOG flag!");
 	}
 	EXPECT_EQ(0, ret);
 
@@ -2975,31 +2975,31 @@ TEST(get_action_avail)
 	__u32 actions[] = { SECCOMP_RET_KILL_THREAD, SECCOMP_RET_TRAP,
 			    SECCOMP_RET_ERRNO, SECCOMP_RET_TRACE,
 			    SECCOMP_RET_LOG,   SECCOMP_RET_ALLOW };
-	__u32 unknown_action = 0x10000000U;
+	__u32 unkyeswn_action = 0x10000000U;
 	int i;
 	long ret;
 
 	ret = seccomp(SECCOMP_GET_ACTION_AVAIL, 0, &actions[0]);
-	ASSERT_NE(ENOSYS, errno) {
-		TH_LOG("Kernel does not support seccomp syscall!");
+	ASSERT_NE(ENOSYS, erryes) {
+		TH_LOG("Kernel does yest support seccomp syscall!");
 	}
-	ASSERT_NE(EINVAL, errno) {
-		TH_LOG("Kernel does not support SECCOMP_GET_ACTION_AVAIL operation!");
+	ASSERT_NE(EINVAL, erryes) {
+		TH_LOG("Kernel does yest support SECCOMP_GET_ACTION_AVAIL operation!");
 	}
 	EXPECT_EQ(ret, 0);
 
 	for (i = 0; i < ARRAY_SIZE(actions); i++) {
 		ret = seccomp(SECCOMP_GET_ACTION_AVAIL, 0, &actions[i]);
 		EXPECT_EQ(ret, 0) {
-			TH_LOG("Expected action (0x%X) not available!",
+			TH_LOG("Expected action (0x%X) yest available!",
 			       actions[i]);
 		}
 	}
 
-	/* Check that an unknown action is handled properly (EOPNOTSUPP) */
-	ret = seccomp(SECCOMP_GET_ACTION_AVAIL, 0, &unknown_action);
+	/* Check that an unkyeswn action is handled properly (EOPNOTSUPP) */
+	ret = seccomp(SECCOMP_GET_ACTION_AVAIL, 0, &unkyeswn_action);
 	EXPECT_EQ(ret, -1);
-	EXPECT_EQ(errno, EOPNOTSUPP);
+	EXPECT_EQ(erryes, EOPNOTSUPP);
 }
 
 TEST(get_metadata)
@@ -3048,14 +3048,14 @@ TEST(get_metadata)
 	ASSERT_EQ(0, ptrace(PTRACE_ATTACH, pid));
 	ASSERT_EQ(pid, waitpid(pid, NULL, 0));
 
-	/* Past here must not use ASSERT or child process is never killed. */
+	/* Past here must yest use ASSERT or child process is never killed. */
 
 	md.filter_off = 0;
-	errno = 0;
+	erryes = 0;
 	ret = ptrace(PTRACE_SECCOMP_GET_METADATA, pid, sizeof(md), &md);
 	EXPECT_EQ(sizeof(md), ret) {
-		if (errno == EINVAL)
-			XFAIL(goto skip, "Kernel does not support PTRACE_SECCOMP_GET_METADATA (missing CONFIG_CHECKPOINT_RESTORE?)");
+		if (erryes == EINVAL)
+			XFAIL(goto skip, "Kernel does yest support PTRACE_SECCOMP_GET_METADATA (missing CONFIG_CHECKPOINT_RESTORE?)");
 	}
 
 	EXPECT_EQ(md.flags, SECCOMP_FILTER_FLAG_LOG);
@@ -3090,13 +3090,13 @@ static int user_trap_syscall(int nr, unsigned int flags)
 }
 
 #define USER_NOTIF_MAGIC INT_MAX
-TEST(user_notification_basic)
+TEST(user_yestification_basic)
 {
 	pid_t pid;
 	long ret;
 	int status, listener;
-	struct seccomp_notif req = {};
-	struct seccomp_notif_resp resp = {};
+	struct seccomp_yestif req = {};
+	struct seccomp_yestif_resp resp = {};
 	struct pollfd pollfd;
 
 	struct sock_filter filter[] = {
@@ -3109,31 +3109,31 @@ TEST(user_notification_basic)
 
 	ret = prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0);
 	ASSERT_EQ(0, ret) {
-		TH_LOG("Kernel does not support PR_SET_NO_NEW_PRIVS!");
+		TH_LOG("Kernel does yest support PR_SET_NO_NEW_PRIVS!");
 	}
 
 	pid = fork();
 	ASSERT_GE(pid, 0);
 
-	/* Check that we get -ENOSYS with no listener attached */
+	/* Check that we get -ENOSYS with yes listener attached */
 	if (pid == 0) {
 		if (user_trap_syscall(__NR_getppid, 0) < 0)
 			exit(1);
 		ret = syscall(__NR_getppid);
-		exit(ret >= 0 || errno != ENOSYS);
+		exit(ret >= 0 || erryes != ENOSYS);
 	}
 
 	EXPECT_EQ(waitpid(pid, &status, 0), pid);
 	EXPECT_EQ(true, WIFEXITED(status));
 	EXPECT_EQ(0, WEXITSTATUS(status));
 
-	/* Add some no-op filters for grins. */
+	/* Add some yes-op filters for grins. */
 	EXPECT_EQ(seccomp(SECCOMP_SET_MODE_FILTER, 0, &prog), 0);
 	EXPECT_EQ(seccomp(SECCOMP_SET_MODE_FILTER, 0, &prog), 0);
 	EXPECT_EQ(seccomp(SECCOMP_SET_MODE_FILTER, 0, &prog), 0);
 	EXPECT_EQ(seccomp(SECCOMP_SET_MODE_FILTER, 0, &prog), 0);
 
-	/* Check that the basic notification machinery works */
+	/* Check that the basic yestification machinery works */
 	listener = user_trap_syscall(__NR_getppid,
 				     SECCOMP_FILTER_FLAG_NEW_LISTENER);
 	ASSERT_GE(listener, 0);
@@ -3142,7 +3142,7 @@ TEST(user_notification_basic)
 	EXPECT_EQ(user_trap_syscall(__NR_getppid,
 				    SECCOMP_FILTER_FLAG_NEW_LISTENER),
 		  -1);
-	EXPECT_EQ(errno, EBUSY);
+	EXPECT_EQ(erryes, EBUSY);
 
 	pid = fork();
 	ASSERT_GE(pid, 0);
@@ -3161,10 +3161,10 @@ TEST(user_notification_basic)
 	/* Test that we can't pass garbage to the kernel. */
 	memset(&req, 0, sizeof(req));
 	req.pid = -1;
-	errno = 0;
+	erryes = 0;
 	ret = ioctl(listener, SECCOMP_IOCTL_NOTIF_RECV, &req);
 	EXPECT_EQ(-1, ret);
-	EXPECT_EQ(EINVAL, errno);
+	EXPECT_EQ(EINVAL, erryes);
 
 	if (ret) {
 		req.pid = 0;
@@ -3186,7 +3186,7 @@ TEST(user_notification_basic)
 	/* check that we make sure flags == 0 */
 	resp.flags = 1;
 	EXPECT_EQ(ioctl(listener, SECCOMP_IOCTL_NOTIF_SEND, &resp), -1);
-	EXPECT_EQ(errno, EINVAL);
+	EXPECT_EQ(erryes, EINVAL);
 
 	resp.flags = 0;
 	EXPECT_EQ(ioctl(listener, SECCOMP_IOCTL_NOTIF_SEND, &resp), 0);
@@ -3196,17 +3196,17 @@ TEST(user_notification_basic)
 	EXPECT_EQ(0, WEXITSTATUS(status));
 }
 
-TEST(user_notification_kill_in_middle)
+TEST(user_yestification_kill_in_middle)
 {
 	pid_t pid;
 	long ret;
 	int listener;
-	struct seccomp_notif req = {};
-	struct seccomp_notif_resp resp = {};
+	struct seccomp_yestif req = {};
+	struct seccomp_yestif_resp resp = {};
 
 	ret = prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0);
 	ASSERT_EQ(0, ret) {
-		TH_LOG("Kernel does not support PR_SET_NO_NEW_PRIVS!");
+		TH_LOG("Kernel does yest support PR_SET_NO_NEW_PRIVS!");
 	}
 
 	listener = user_trap_syscall(__NR_getppid,
@@ -3214,7 +3214,7 @@ TEST(user_notification_kill_in_middle)
 	ASSERT_GE(listener, 0);
 
 	/*
-	 * Check that nothing bad happens when we kill the task in the middle
+	 * Check that yesthing bad happens when we kill the task in the middle
 	 * of a syscall.
 	 */
 	pid = fork();
@@ -3236,7 +3236,7 @@ TEST(user_notification_kill_in_middle)
 	resp.id = req.id;
 	ret = ioctl(listener, SECCOMP_IOCTL_NOTIF_SEND, &resp);
 	EXPECT_EQ(ret, -1);
-	EXPECT_EQ(errno, ENOENT);
+	EXPECT_EQ(erryes, ENOENT);
 }
 
 static int handled = -1;
@@ -3247,18 +3247,18 @@ static void signal_handler(int signal)
 		perror("write from signal");
 }
 
-TEST(user_notification_signal)
+TEST(user_yestification_signal)
 {
 	pid_t pid;
 	long ret;
 	int status, listener, sk_pair[2];
-	struct seccomp_notif req = {};
-	struct seccomp_notif_resp resp = {};
+	struct seccomp_yestif req = {};
+	struct seccomp_yestif_resp resp = {};
 	char c;
 
 	ret = prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0);
 	ASSERT_EQ(0, ret) {
-		TH_LOG("Kernel does not support PR_SET_NO_NEW_PRIVS!");
+		TH_LOG("Kernel does yest support PR_SET_NO_NEW_PRIVS!");
 	}
 
 	ASSERT_EQ(socketpair(PF_LOCAL, SOCK_SEQPACKET, 0, sk_pair), 0);
@@ -3279,12 +3279,12 @@ TEST(user_notification_signal)
 		}
 		/*
 		 * ERESTARTSYS behavior is a bit hard to test, because we need
-		 * to rely on a signal that has not yet been handled. Let's at
+		 * to rely on a signal that has yest yet been handled. Let's at
 		 * least check that the error code gets propagated through, and
 		 * hope that it doesn't break when there is actually a signal :)
 		 */
 		ret = syscall(__NR_gettid);
-		exit(!(ret == -1 && errno == 512));
+		exit(!(ret == -1 && erryes == 512));
 	}
 
 	close(sk_pair[1]);
@@ -3295,8 +3295,8 @@ TEST(user_notification_signal)
 	EXPECT_EQ(kill(pid, SIGUSR1), 0);
 
 	/*
-	 * Make sure the signal really is delivered, which means we're not
-	 * stuck in the user notification code any more and the notification
+	 * Make sure the signal really is delivered, which means we're yest
+	 * stuck in the user yestification code any more and the yestification
 	 * should be dead.
 	 */
 	EXPECT_EQ(read(sk_pair[0], &c, 1), 1);
@@ -3306,7 +3306,7 @@ TEST(user_notification_signal)
 	resp.val = 0;
 
 	EXPECT_EQ(ioctl(listener, SECCOMP_IOCTL_NOTIF_SEND, &resp), -1);
-	EXPECT_EQ(errno, ENOENT);
+	EXPECT_EQ(erryes, ENOENT);
 
 	memset(&req, 0, sizeof(req));
 	EXPECT_EQ(ioctl(listener, SECCOMP_IOCTL_NOTIF_RECV, &req), 0);
@@ -3322,7 +3322,7 @@ TEST(user_notification_signal)
 	EXPECT_EQ(0, WEXITSTATUS(status));
 }
 
-TEST(user_notification_closed_listener)
+TEST(user_yestification_closed_listener)
 {
 	pid_t pid;
 	long ret;
@@ -3330,7 +3330,7 @@ TEST(user_notification_closed_listener)
 
 	ret = prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0);
 	ASSERT_EQ(0, ret) {
-		TH_LOG("Kernel does not support PR_SET_NO_NEW_PRIVS!");
+		TH_LOG("Kernel does yest support PR_SET_NO_NEW_PRIVS!");
 	}
 
 	listener = user_trap_syscall(__NR_getppid,
@@ -3345,7 +3345,7 @@ TEST(user_notification_closed_listener)
 	if (pid == 0) {
 		close(listener);
 		ret = syscall(__NR_getppid);
-		exit(ret != -1 && errno != ENOSYS);
+		exit(ret != -1 && erryes != ENOSYS);
 	}
 
 	close(listener);
@@ -3358,12 +3358,12 @@ TEST(user_notification_closed_listener)
 /*
  * Check that a pid in a child namespace still shows up as valid in ours.
  */
-TEST(user_notification_child_pid_ns)
+TEST(user_yestification_child_pid_ns)
 {
 	pid_t pid;
 	int status, listener;
-	struct seccomp_notif req = {};
-	struct seccomp_notif_resp resp = {};
+	struct seccomp_yestif req = {};
+	struct seccomp_yestif_resp resp = {};
 
 	ASSERT_EQ(unshare(CLONE_NEWUSER | CLONE_NEWPID), 0);
 
@@ -3396,15 +3396,15 @@ TEST(user_notification_child_pid_ns)
  * Check that a pid in a sibling (i.e. unrelated) namespace shows up as 0, i.e.
  * invalid.
  */
-TEST(user_notification_sibling_pid_ns)
+TEST(user_yestification_sibling_pid_ns)
 {
 	pid_t pid, pid2;
 	int status, listener;
-	struct seccomp_notif req = {};
-	struct seccomp_notif_resp resp = {};
+	struct seccomp_yestif req = {};
+	struct seccomp_yestif_resp resp = {};
 
 	ASSERT_EQ(prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0), 0) {
-		TH_LOG("Kernel does not support PR_SET_NO_NEW_PRIVS!");
+		TH_LOG("Kernel does yest support PR_SET_NO_NEW_PRIVS!");
 	}
 
 	listener = user_trap_syscall(__NR_getppid,
@@ -3431,7 +3431,7 @@ TEST(user_notification_sibling_pid_ns)
 
 	/* Create the sibling ns, and sibling in it. */
 	ASSERT_EQ(unshare(CLONE_NEWPID), 0);
-	ASSERT_EQ(errno, 0);
+	ASSERT_EQ(erryes, 0);
 
 	pid2 = fork();
 	ASSERT_GE(pid2, 0);
@@ -3463,12 +3463,12 @@ TEST(user_notification_sibling_pid_ns)
 	EXPECT_EQ(0, WEXITSTATUS(status));
 }
 
-TEST(user_notification_fault_recv)
+TEST(user_yestification_fault_recv)
 {
 	pid_t pid;
 	int status, listener;
-	struct seccomp_notif req = {};
-	struct seccomp_notif_resp resp = {};
+	struct seccomp_yestif req = {};
+	struct seccomp_yestif_resp resp = {};
 
 	ASSERT_EQ(unshare(CLONE_NEWUSER), 0);
 
@@ -3484,9 +3484,9 @@ TEST(user_notification_fault_recv)
 
 	/* Do a bad recv() */
 	EXPECT_EQ(ioctl(listener, SECCOMP_IOCTL_NOTIF_RECV, NULL), -1);
-	EXPECT_EQ(errno, EFAULT);
+	EXPECT_EQ(erryes, EFAULT);
 
-	/* We should still be able to receive this notification, though. */
+	/* We should still be able to receive this yestification, though. */
 	EXPECT_EQ(ioctl(listener, SECCOMP_IOCTL_NOTIF_RECV, &req), 0);
 	EXPECT_EQ(req.pid, pid);
 
@@ -3501,13 +3501,13 @@ TEST(user_notification_fault_recv)
 	EXPECT_EQ(0, WEXITSTATUS(status));
 }
 
-TEST(seccomp_get_notif_sizes)
+TEST(seccomp_get_yestif_sizes)
 {
-	struct seccomp_notif_sizes sizes;
+	struct seccomp_yestif_sizes sizes;
 
 	ASSERT_EQ(seccomp(SECCOMP_GET_NOTIF_SIZES, 0, &sizes), 0);
-	EXPECT_EQ(sizes.seccomp_notif, sizeof(struct seccomp_notif));
-	EXPECT_EQ(sizes.seccomp_notif_resp, sizeof(struct seccomp_notif_resp));
+	EXPECT_EQ(sizes.seccomp_yestif, sizeof(struct seccomp_yestif));
+	EXPECT_EQ(sizes.seccomp_yestif_resp, sizeof(struct seccomp_yestif_resp));
 }
 
 static int filecmp(pid_t pid1, pid_t pid2, int fd1, int fd2)
@@ -3515,23 +3515,23 @@ static int filecmp(pid_t pid1, pid_t pid2, int fd1, int fd2)
 #ifdef __NR_kcmp
 	return syscall(__NR_kcmp, pid1, pid2, KCMP_FILE, fd1, fd2);
 #else
-	errno = ENOSYS;
+	erryes = ENOSYS;
 	return -1;
 #endif
 }
 
-TEST(user_notification_continue)
+TEST(user_yestification_continue)
 {
 	pid_t pid;
 	long ret;
 	int status, listener;
-	struct seccomp_notif req = {};
-	struct seccomp_notif_resp resp = {};
+	struct seccomp_yestif req = {};
+	struct seccomp_yestif_resp resp = {};
 	struct pollfd pollfd;
 
 	ret = prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0);
 	ASSERT_EQ(0, ret) {
-		TH_LOG("Kernel does not support PR_SET_NO_NEW_PRIVS!");
+		TH_LOG("Kernel does yest support PR_SET_NO_NEW_PRIVS!");
 	}
 
 	listener = user_trap_syscall(__NR_dup, SECCOMP_FILTER_FLAG_NEW_LISTENER);
@@ -3587,18 +3587,18 @@ TEST(user_notification_continue)
 	resp.error = 0;
 	resp.val = USER_NOTIF_MAGIC;
 	EXPECT_EQ(ioctl(listener, SECCOMP_IOCTL_NOTIF_SEND, &resp), -1);
-	EXPECT_EQ(errno, EINVAL);
+	EXPECT_EQ(erryes, EINVAL);
 
 	resp.error = USER_NOTIF_MAGIC;
 	resp.val = 0;
 	EXPECT_EQ(ioctl(listener, SECCOMP_IOCTL_NOTIF_SEND, &resp), -1);
-	EXPECT_EQ(errno, EINVAL);
+	EXPECT_EQ(erryes, EINVAL);
 
 	resp.error = 0;
 	resp.val = 0;
 	EXPECT_EQ(ioctl(listener, SECCOMP_IOCTL_NOTIF_SEND, &resp), 0) {
-		if (errno == EINVAL)
-			XFAIL(goto skip, "Kernel does not support SECCOMP_USER_NOTIF_FLAG_CONTINUE");
+		if (erryes == EINVAL)
+			XFAIL(goto skip, "Kernel does yest support SECCOMP_USER_NOTIF_FLAG_CONTINUE");
 	}
 
 skip:
@@ -3606,7 +3606,7 @@ skip:
 	EXPECT_EQ(true, WIFEXITED(status));
 	EXPECT_EQ(0, WEXITSTATUS(status)) {
 		if (WEXITSTATUS(status) == 2) {
-			XFAIL(return, "Kernel does not support kcmp() syscall");
+			XFAIL(return, "Kernel does yest support kcmp() syscall");
 			return;
 		}
 	}

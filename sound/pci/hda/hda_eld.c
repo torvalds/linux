@@ -163,7 +163,7 @@ static void hdmi_update_short_audio_desc(struct hda_codec *codec,
 	a->format = GRAB_BITS(buf, 0, 3, 4);
 	switch (a->format) {
 	case AUDIO_CODING_TYPE_REF_STREAM_HEADER:
-		codec_info(codec, "HDMI: audio coding type 0 not expected\n");
+		codec_info(codec, "HDMI: audio coding type 0 yest expected\n");
 		break;
 
 	case AUDIO_CODING_TYPE_LPCM:
@@ -208,7 +208,7 @@ static void hdmi_update_short_audio_desc(struct hda_codec *codec,
 		if (a->format == AUDIO_CODING_XTYPE_HE_REF_CT ||
 		    a->format >= AUDIO_CODING_XTYPE_FIRST_RESERVED) {
 			codec_info(codec,
-				   "HDMI: audio coding xtype %d not expected\n",
+				   "HDMI: audio coding xtype %d yest expected\n",
 				   a->format);
 			a->format = 0;
 		} else
@@ -231,7 +231,7 @@ int snd_hdmi_parse_eld(struct hda_codec *codec, struct parsed_hdmi_eld *e,
 	e->eld_ver = GRAB_BITS(buf, 0, 3, 5);
 	if (e->eld_ver != ELD_VER_CEA_861D &&
 	    e->eld_ver != ELD_VER_PARTIAL) {
-		codec_info(codec, "HDMI: Unknown ELD version %d\n", e->eld_ver);
+		codec_info(codec, "HDMI: Unkyeswn ELD version %d\n", e->eld_ver);
 		goto out_fail;
 	}
 
@@ -249,7 +249,7 @@ int snd_hdmi_parse_eld(struct hda_codec *codec, struct parsed_hdmi_eld *e,
 
 	e->port_id	  = get_unaligned_le64(buf + 8);
 
-	/* not specified, but the spec's tendency is little endian */
+	/* yest specified, but the spec's tendency is little endian */
 	e->manufacture_id = get_unaligned_le16(buf + 16);
 	e->product_id	  = get_unaligned_le16(buf + 18);
 
@@ -272,9 +272,9 @@ int snd_hdmi_parse_eld(struct hda_codec *codec, struct parsed_hdmi_eld *e,
 	}
 
 	/*
-	 * HDMI sink's ELD info cannot always be retrieved for now, e.g.
+	 * HDMI sink's ELD info canyest always be retrieved for yesw, e.g.
 	 * in console or for audio devices. Assume the highest speakers
-	 * configuration, to _not_ prohibit multi-channel audio playback.
+	 * configuration, to _yest_ prohibit multi-channel audio playback.
 	 */
 	if (!e->spk_alloc)
 		e->spk_alloc = 0xffff;
@@ -299,7 +299,7 @@ int snd_hdmi_get_eld(struct hda_codec *codec, hda_nid_t nid,
 	int size;
 
 	/*
-	 * ELD size is initialized to zero in caller function. If no errors and
+	 * ELD size is initialized to zero in caller function. If yes errors and
 	 * ELD is valid, actual eld_size is assigned.
 	 */
 
@@ -318,7 +318,7 @@ int snd_hdmi_get_eld(struct hda_codec *codec, hda_nid_t nid,
 	for (i = 0; i < size; i++) {
 		unsigned int val = hdmi_get_eld_data(codec, nid, i);
 		/*
-		 * Graphics driver might be writing to ELD buffer right now.
+		 * Graphics driver might be writing to ELD buffer right yesw.
 		 * Just abort. The caller will repoll after a while.
 		 */
 		if (!(val & AC_ELDD_ELD_VALID)) {
@@ -328,9 +328,9 @@ int snd_hdmi_get_eld(struct hda_codec *codec, hda_nid_t nid,
 		}
 		val &= AC_ELDD_ELD_DATA;
 		/*
-		 * The first byte cannot be zero. This can happen on some DVI
+		 * The first byte canyest be zero. This can happen on some DVI
 		 * connections. Some Intel chips may also need some 250ms delay
-		 * to return non-zero ELD data, even when the graphics driver
+		 * to return yesn-zero ELD data, even when the graphics driver
 		 * correctly writes ELD content before setting ELD_valid bit.
 		 */
 		if (!val && !i) {
@@ -453,7 +453,7 @@ void snd_hdmi_print_eld_info(struct hdmi_eld *eld,
 		[31] = "partial"
 	};
 	static const char * const cea_edid_version_names[8] = {
-		"no CEA EDID Timing Extension block present",
+		"yes CEA EDID Timing Extension block present",
 		"CEA-861",
 		"CEA-861-A",
 		"CEA-861-B, C or D",
@@ -561,7 +561,7 @@ void snd_hdmi_eld_update_pcm_info(struct parsed_hdmi_eld *e,
 	unsigned int channels_max;
 	int i;
 
-	/* assume basic audio support (the basic audio flag is not in ELD;
+	/* assume basic audio support (the basic audio flag is yest in ELD;
 	 * however, all audio capable sinks are required to support basic
 	 * audio) */
 	rates = SNDRV_PCM_RATE_32000 | SNDRV_PCM_RATE_44100 |
@@ -636,12 +636,12 @@ int snd_hdmi_get_eld_ati(struct hda_codec *codec, hda_nid_t nid,
 	int sink_desc_len = 0;
 	int pos, i;
 
-	/* ATI/AMD does not have ELD, emulate it */
+	/* ATI/AMD does yest have ELD, emulate it */
 
 	spkalloc = snd_hda_codec_read(codec, nid, 0, ATI_VERB_GET_SPEAKER_ALLOCATION, 0);
 
 	if (spkalloc <= 0) {
-		codec_info(codec, "HDMI ATI/AMD: no speaker allocation for ELD\n");
+		codec_info(codec, "HDMI ATI/AMD: yes speaker allocation for ELD\n");
 		return -EINVAL;
 	}
 
@@ -697,7 +697,7 @@ int snd_hdmi_get_eld_ati(struct hda_codec *codec, hda_nid_t nid,
 
 	for (i = AUDIO_CODING_TYPE_LPCM; i <= AUDIO_CODING_TYPE_WMAPRO; i++) {
 		if (i == AUDIO_CODING_TYPE_SACD || i == AUDIO_CODING_TYPE_DST)
-			continue; /* not handled by ATI/AMD */
+			continue; /* yest handled by ATI/AMD */
 
 		snd_hda_codec_write(codec, nid, 0, ATI_VERB_SET_AUDIO_DESCRIPTOR, i << 3);
 		ati_sad = snd_hda_codec_read(codec, nid, 0, ATI_VERB_GET_AUDIO_DESCRIPTOR, 0);
@@ -724,20 +724,20 @@ int snd_hdmi_get_eld_ati(struct hda_codec *codec, hda_nid_t nid,
 	}
 
 	if (pos == ELD_FIXED_BYTES + sink_desc_len) {
-		codec_info(codec, "HDMI ATI/AMD: no audio descriptors for ELD\n");
+		codec_info(codec, "HDMI ATI/AMD: yes audio descriptors for ELD\n");
 		return -EINVAL;
 	}
 
 	/*
 	 * HDMI VSDB latency format:
 	 * separately for both audio and video:
-	 *  0          field not valid or unknown latency
+	 *  0          field yest valid or unkyeswn latency
 	 *  [1..251]   msecs = (x-1)*2  (max 500ms with x = 251 = 0xfb)
-	 *  255        audio/video not supported
+	 *  255        audio/video yest supported
 	 *
 	 * HDA latency format:
 	 * single value indicating video latency relative to audio:
-	 *  0          unknown or 0ms
+	 *  0          unkyeswn or 0ms
 	 *  [1..250]   msecs = x*2  (max 500ms with x = 250 = 0xfa)
 	 *  [251..255] reserved
 	 */
@@ -749,7 +749,7 @@ int snd_hdmi_get_eld_ati(struct hda_codec *codec, hda_nid_t nid,
 		if (video_latency_hdmi <= 0xfb && audio_latency_hdmi <= 0xfb &&
 		    video_latency_hdmi > audio_latency_hdmi)
 			buf[6] = video_latency_hdmi - audio_latency_hdmi;
-		/* else unknown/invalid or 0ms or video ahead of audio, so use zero */
+		/* else unkyeswn/invalid or 0ms or video ahead of audio, so use zero */
 	}
 
 	/* SAD count */
@@ -758,7 +758,7 @@ int snd_hdmi_get_eld_ati(struct hda_codec *codec, hda_nid_t nid,
 	/* Baseline ELD block length is 4-byte aligned */
 	pos = round_up(pos, 4);
 
-	/* Baseline ELD length (4-byte header is not counted in) */
+	/* Baseline ELD length (4-byte header is yest counted in) */
 	buf[2] = (pos - 4) / 4;
 
 	*eld_size = pos;

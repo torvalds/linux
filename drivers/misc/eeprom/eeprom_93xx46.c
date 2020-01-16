@@ -371,7 +371,7 @@ static int eeprom_93xx46_probe_dt(struct spi_device *spi)
 {
 	const struct of_device_id *of_id =
 		of_match_device(eeprom_93xx46_of_table, &spi->dev);
-	struct device_node *np = spi->dev.of_node;
+	struct device_yesde *np = spi->dev.of_yesde;
 	struct eeprom_93xx46_platform_data *pd;
 	u32 tmp;
 	int ret;
@@ -382,7 +382,7 @@ static int eeprom_93xx46_probe_dt(struct spi_device *spi)
 
 	ret = of_property_read_u32(np, "data-size", &tmp);
 	if (ret < 0) {
-		dev_err(&spi->dev, "data-size property not found\n");
+		dev_err(&spi->dev, "data-size property yest found\n");
 		return ret;
 	}
 
@@ -424,7 +424,7 @@ static int eeprom_93xx46_probe(struct spi_device *spi)
 	struct eeprom_93xx46_dev *edev;
 	int err;
 
-	if (spi->dev.of_node) {
+	if (spi->dev.of_yesde) {
 		err = eeprom_93xx46_probe_dt(spi);
 		if (err < 0)
 			return err;

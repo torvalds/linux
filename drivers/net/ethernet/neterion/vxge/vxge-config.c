@@ -2,7 +2,7 @@
  * This software may be used and distributed according to the terms of
  * the GNU General Public License (GPL), incorporated herein by reference.
  * Drivers based on or derived from this code fall under the GPL and must
- * retain the authorship, copyright and license notice.  This file is not
+ * retain the authorship, copyright and license yestice.  This file is yest
  * a complete program and may only be used when the entire operating
  * system is licensed under the GPL.
  * See the file COPYING in this distribution for more information.
@@ -13,7 +13,7 @@
  ******************************************************************************/
 #include <linux/vmalloc.h>
 #include <linux/etherdevice.h>
-#include <linux/io-64-nonatomic-lo-hi.h>
+#include <linux/io-64-yesnatomic-lo-hi.h>
 #include <linux/pci.h>
 #include <linux/slab.h>
 
@@ -56,7 +56,7 @@ int vxge_hw_vpath_wait_receive_idle(struct __vxge_hw_device *hldev, u32 vp_id)
 
 	vxge_hw_vpath_set_zero_rx_frm_len(vp_reg);
 
-	/* Check that the ring controller for this vpath has enough free RxDs
+	/* Check that the ring controller for this vpath has eyesugh free RxDs
 	 * to send frames to the host.  This is done by reading the
 	 * PRC_RXD_DOORBELL_VPn register and comparing the read value to the
 	 * RXD_SPAT value for the vpath.
@@ -74,7 +74,7 @@ int vxge_hw_vpath_wait_receive_idle(struct __vxge_hw_device *hldev, u32 vp_id)
 		rxd_count = readq(&vp_reg->prc_rxd_doorbell);
 
 		/* Check that the ring controller for this vpath does
-		 * not have any frame in its pipeline.
+		 * yest have any frame in its pipeline.
 		 */
 		val64 = readq(&vp_reg->frm_in_progress_cnt);
 		if ((rxd_count <= rxd_spat) || (val64 > 0))
@@ -113,7 +113,7 @@ void vxge_hw_device_wait_receive_idle(struct __vxge_hw_device *hldev)
 /*
  * __vxge_hw_device_register_poll
  * Will poll certain register for specified amount of time.
- * Will poll until masked bit is not cleared.
+ * Will poll until masked bit is yest cleared.
  */
 static enum vxge_hw_status
 __vxge_hw_device_register_poll(void __iomem *reg, u64 mask, u32 max_millis)
@@ -187,7 +187,7 @@ vxge_hw_vpath_fw_api(struct __vxge_hw_virtualpath *vpath, u32 action,
 	/* The __vxge_hw_device_register_poll can udelay for a significant
 	 * amount of time, blocking other process from the CPU.  If it delays
 	 * for ~5secs, a NMI error can occur.  A way around this is to give up
-	 * the processor via msleep, but this is not allowed is under lock.
+	 * the processor via msleep, but this is yest allowed is under lock.
 	 * So, only allow it to sleep for ~4secs if open.  Otherwise, delay for
 	 * 1sec and sleep for 10ms until the firmware operation has completed
 	 * or timed-out.
@@ -220,7 +220,7 @@ out:
 
 enum vxge_hw_status
 vxge_hw_upgrade_read_version(struct __vxge_hw_device *hldev, u32 *major,
-			     u32 *minor, u32 *build)
+			     u32 *miyesr, u32 *build)
 {
 	u64 data0 = 0, data1 = 0, steer_ctrl = 0;
 	struct __vxge_hw_virtualpath *vpath;
@@ -237,7 +237,7 @@ vxge_hw_upgrade_read_version(struct __vxge_hw_device *hldev, u32 *major,
 		return status;
 
 	*major = VXGE_HW_RTS_ACCESS_STEER_DATA0_GET_FW_VER_MAJOR(data0);
-	*minor = VXGE_HW_RTS_ACCESS_STEER_DATA0_GET_FW_VER_MINOR(data0);
+	*miyesr = VXGE_HW_RTS_ACCESS_STEER_DATA0_GET_FW_VER_MINOR(data0);
 	*build = VXGE_HW_RTS_ACCESS_STEER_DATA0_GET_FW_VER_BUILD(data0);
 
 	return status;
@@ -348,17 +348,17 @@ vxge_update_fw_image(struct __vxge_hw_device *hldev, const u8 *fwdata, int size)
 				break;
 			case VXGE_HW_FW_UPGRADE_ERR_GENERIC_ERROR_UNKNOWN:
 				printk(KERN_ERR
-				       "generic error. Unknown error type\n");
+				       "generic error. Unkyeswn error type\n");
 				break;
 			default:
-				printk(KERN_ERR "Unknown error of type %d\n",
+				printk(KERN_ERR "Unkyeswn error of type %d\n",
 				       sec_code);
 				break;
 			}
 			status = VXGE_HW_FAIL;
 			goto out;
 		default:
-			printk(KERN_ERR "Unknown FW error: %d\n", ret_code);
+			printk(KERN_ERR "Unkyeswn FW error: %d\n", ret_code);
 			status = VXGE_HW_FAIL;
 			goto out;
 		}
@@ -682,7 +682,7 @@ __vxge_hw_device_access_rights_get(u32 host_type, u32 func_id)
 }
 /*
  * __vxge_hw_device_is_privilaged
- * This routine checks if the device function is privilaged or not
+ * This routine checks if the device function is privilaged or yest
  */
 
 enum vxge_hw_status
@@ -830,13 +830,13 @@ __vxge_hw_vpath_fw_ver_get(struct __vxge_hw_virtualpath *vpath,
 
 	fw_version->major =
 	    (u32) VXGE_HW_RTS_ACCESS_STEER_DATA0_GET_FW_VER_MAJOR(data0);
-	fw_version->minor =
+	fw_version->miyesr =
 	    (u32) VXGE_HW_RTS_ACCESS_STEER_DATA0_GET_FW_VER_MINOR(data0);
 	fw_version->build =
 	    (u32) VXGE_HW_RTS_ACCESS_STEER_DATA0_GET_FW_VER_BUILD(data0);
 
 	snprintf(fw_version->version, VXGE_HW_FW_STRLEN, "%d.%d.%d",
-		 fw_version->major, fw_version->minor, fw_version->build);
+		 fw_version->major, fw_version->miyesr, fw_version->build);
 
 	flash_date->day =
 	    (u32) VXGE_HW_RTS_ACCESS_STEER_DATA1_GET_FLASH_VER_DAY(data1);
@@ -850,13 +850,13 @@ __vxge_hw_vpath_fw_ver_get(struct __vxge_hw_virtualpath *vpath,
 
 	flash_version->major =
 	    (u32) VXGE_HW_RTS_ACCESS_STEER_DATA1_GET_FLASH_VER_MAJOR(data1);
-	flash_version->minor =
+	flash_version->miyesr =
 	    (u32) VXGE_HW_RTS_ACCESS_STEER_DATA1_GET_FLASH_VER_MINOR(data1);
 	flash_version->build =
 	    (u32) VXGE_HW_RTS_ACCESS_STEER_DATA1_GET_FLASH_VER_BUILD(data1);
 
 	snprintf(flash_version->version, VXGE_HW_FW_STRLEN, "%d.%d.%d",
-		 flash_version->major, flash_version->minor,
+		 flash_version->major, flash_version->miyesr,
 		 flash_version->build);
 
 exit:
@@ -2604,7 +2604,7 @@ exit:
  * vxge_hw_mempool_create
  * This function will create memory pool object. Pool may grow but will
  * never shrink. Pool consists of number of dynamically allocated blocks
- * with size enough to hold %items_initial number of items. Memory is
+ * with size eyesugh to hold %items_initial number of items. Memory is
  * DMA-able but client must map/unmap before interoperating with the device.
  */
 static struct vxge_hw_mempool *
@@ -2952,7 +2952,7 @@ vxge_hw_device_config_default_get(struct vxge_hw_device_config *device_config)
 		device_config->vp_config[i].fifo.intr =
 				VXGE_HW_FIFO_QUEUE_INTR_DEFAULT;
 
-		device_config->vp_config[i].fifo.no_snoop_bits =
+		device_config->vp_config[i].fifo.yes_syesop_bits =
 				VXGE_HW_FIFO_NO_SNOOP_DEFAULT;
 		device_config->vp_config[i].tti.intr_enable =
 				VXGE_HW_TIM_INTR_DEFAULT;
@@ -3469,7 +3469,7 @@ __vxge_hw_fifo_create(struct __vxge_hw_vpath_handle *vp,
 	}
 
 	vpath->fifoh = fifo;
-	fifo->nofl_db = vpath->nofl_db;
+	fifo->yesfl_db = vpath->yesfl_db;
 
 	fifo->vp_id = vpath->vp_id;
 	fifo->vp_reg = vpath->vp_reg;
@@ -3485,7 +3485,7 @@ __vxge_hw_fifo_create(struct __vxge_hw_vpath_handle *vp,
 	if (fifo->config->intr)
 		fifo->interrupt_type = VXGE_HW_FIFO_TXD_INT_TYPE_PER_LIST;
 
-	fifo->no_snoop_bits = config->no_snoop_bits;
+	fifo->yes_syesop_bits = config->yes_syesop_bits;
 
 	/*
 	 * FIFO memory management strategy:
@@ -4158,9 +4158,9 @@ __vxge_hw_vpath_kdfc_configure(struct __vxge_hw_device *hldev, u32 vp_id)
 
 	if (vpath->vp_config->fifo.enable == VXGE_HW_FIFO_ENABLE) {
 
-		vpath->max_nofl_db = vpath->max_kdfc_db;
+		vpath->max_yesfl_db = vpath->max_kdfc_db;
 
-		if (vpath->max_nofl_db <
+		if (vpath->max_yesfl_db <
 			((vpath->vp_config->fifo.memblock_size /
 			(vpath->vp_config->fifo.max_frags *
 			sizeof(struct vxge_hw_fifo_txd))) *
@@ -4169,7 +4169,7 @@ __vxge_hw_vpath_kdfc_configure(struct __vxge_hw_device *hldev, u32 vp_id)
 			return VXGE_HW_BADCFG_FIFO_BLOCKS;
 		}
 		val64 = VXGE_HW_KDFC_FIFO_TRPL_PARTITION_LENGTH_0(
-				(vpath->max_nofl_db*2)-1);
+				(vpath->max_yesfl_db*2)-1);
 	}
 
 	writeq(val64, &vp_reg->kdfc_fifo_trpl_partition);
@@ -4194,8 +4194,8 @@ __vxge_hw_vpath_kdfc_configure(struct __vxge_hw_device *hldev, u32 vp_id)
 	wmb();
 	vpath_stride = readq(&hldev->toc_reg->toc_kdfc_vpath_stride);
 
-	vpath->nofl_db =
-		(struct __vxge_hw_non_offload_db_wrapper __iomem *)
+	vpath->yesfl_db =
+		(struct __vxge_hw_yesn_offload_db_wrapper __iomem *)
 		(hldev->kdfc + (vp_id *
 		VXGE_HW_TOC_KDFC_VPATH_STRIDE_GET_TOC_KDFC_VPATH_STRIDE(
 					vpath_stride)));
@@ -4611,7 +4611,7 @@ static void __vxge_hw_vp_terminate(struct __vxge_hw_device *hldev, u32 vp_id)
 		vpath->hldev->tim_int_mask1, vpath->vp_id);
 	hldev->stats.hw_dev_info_stats.vpath_info[vpath->vp_id] = NULL;
 
-	/* If the whole struct __vxge_hw_virtualpath is zeroed, nothing will
+	/* If the whole struct __vxge_hw_virtualpath is zeroed, yesthing will
 	 * work after the interface is brought down.
 	 */
 	spin_lock(&vpath->lock);
@@ -4619,11 +4619,11 @@ static void __vxge_hw_vp_terminate(struct __vxge_hw_device *hldev, u32 vp_id)
 	spin_unlock(&vpath->lock);
 
 	vpath->vpmgmt_reg = NULL;
-	vpath->nofl_db = NULL;
+	vpath->yesfl_db = NULL;
 	vpath->max_mtu = 0;
 	vpath->vsport_number = 0;
 	vpath->max_kdfc_db = 0;
-	vpath->max_nofl_db = 0;
+	vpath->max_yesfl_db = 0;
 	vpath->ringh = NULL;
 	vpath->fifoh = NULL;
 	memset(&vpath->vpath_handles, 0, sizeof(struct list_head));
@@ -4789,7 +4789,7 @@ __vxge_hw_blockpool_block_allocate(struct __vxge_hw_device *devh, u32 size)
  * vxge_hw_vpath_open - Open a virtual path on a given adapter
  * This function is used to open access to virtual path of an
  * adapter for offload, GRO operations. This function returns
- * synchronously.
+ * synchroyesusly.
  */
 enum vxge_hw_status
 vxge_hw_vpath_open(struct __vxge_hw_device *hldev,

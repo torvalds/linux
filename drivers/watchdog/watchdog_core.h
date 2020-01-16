@@ -17,9 +17,9 @@
  *	  Satyam Sharma <satyam@infradead.org>
  *	  Randy Dunlap <randy.dunlap@oracle.com>
  *
- *	Neither Alan Cox, CymruNet Ltd., Wim Van Sebroeck nor Iguana vzw.
- *	admit liability nor provide warranty for any of this software.
- *	This material is provided "AS-IS" and at no charge.
+ *	Neither Alan Cox, CymruNet Ltd., Wim Van Sebroeck yesr Iguana vzw.
+ *	admit liability yesr provide warranty for any of this software.
+ *	This material is provided "AS-IS" and at yes charge.
  */
 
 #define MAX_DOGS	32	/* Maximum number of watchdog devices */

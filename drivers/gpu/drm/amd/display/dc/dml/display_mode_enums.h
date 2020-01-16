@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -41,8 +41,8 @@ enum source_format_class {
 	dm_422_8 = 6,
 	dm_422_10 = 7,
 	dm_444_8 = 8,
-	dm_mono_8 = dm_444_8,
-	dm_mono_16 = dm_444_16,
+	dm_moyes_8 = dm_444_8,
+	dm_moyes_16 = dm_444_16,
 	dm_rgbe = 9,
 	dm_rgbe_alpha = 10,
 };
@@ -93,7 +93,7 @@ enum lb_depth {
 	dm_lb_19 = 5
 };
 enum voltage_state {
-	dm_vmin = 0, dm_vmid = 1, dm_vnom = 2, dm_vmax = 3
+	dm_vmin = 0, dm_vmid = 1, dm_vyesm = 2, dm_vmax = 3
 };
 enum source_macro_tile_size {
 	dm_4k_tile = 0, dm_64k_tile = 1, dm_256k_tile = 2
@@ -123,7 +123,7 @@ enum self_refresh_affinity {
 	dm_try_to_allow_self_refresh_and_mclk_switch,
 	dm_allow_self_refresh_and_mclk_switch,
 	dm_allow_self_refresh,
-	dm_neither_self_refresh_nor_mclk_switch
+	dm_neither_self_refresh_yesr_mclk_switch
 };
 
 enum dm_validation_status {
@@ -156,8 +156,8 @@ enum dm_validation_status {
 };
 
 enum writeback_config {
-	dm_normal,
-	dm_whole_buffer_for_single_stream_no_interleave,
+	dm_yesrmal,
+	dm_whole_buffer_for_single_stream_yes_interleave,
 	dm_whole_buffer_for_single_stream_interleave,
 };
 

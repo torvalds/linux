@@ -8,7 +8,7 @@
 #include <asm/unaligned.h>
 #include <linux/completion.h>
 #include <linux/device.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/iio/buffer.h>
 #include <linux/iio/iio.h>
 #include <linux/iio/trigger_consumer.h>
@@ -122,7 +122,7 @@ static irqreturn_t pms7003_trigger_handler(int irq, void *p)
 	iio_push_to_buffers_with_timestamp(indio_dev, data,
 					   iio_get_time_ns(indio_dev));
 err:
-	iio_trigger_notify_done(indio_dev->trig);
+	iio_trigger_yestify_done(indio_dev->trig);
 
 	return IRQ_HANDLED;
 }

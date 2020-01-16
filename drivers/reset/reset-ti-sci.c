@@ -63,7 +63,7 @@ struct ti_sci_reset_data {
  * The mechanism itself is a read-modify-write procedure, the current device
  * reset register is read using a TI SCI device operation, the new value is
  * set or un-set using the reset's mask, and the new reset value written by
- * using another TI SCI device operation.
+ * using ayesther TI SCI device operation.
  *
  * Return: 0 for successful request, else a corresponding error value
  */
@@ -146,7 +146,7 @@ static int ti_sci_reset_deassert(struct reset_controller_dev *rcdev,
  * status of the specific reset is extracted and returned using this reset's
  * reset mask.
  *
- * Return: 0 if reset is deasserted, or a non-zero value if reset is asserted
+ * Return: 0 if reset is deasserted, or a yesn-zero value if reset is asserted
  */
 static int ti_sci_reset_status(struct reset_controller_dev *rcdev,
 			       unsigned long id)
@@ -181,7 +181,7 @@ static const struct reset_control_ops ti_sci_reset_ops = {
  * @reset_spec: OF reset argument specifier
  *
  * This function performs the translation of the reset argument specifier
- * values defined in a reset consumer device node. The function allocates a
+ * values defined in a reset consumer device yesde. The function allocates a
  * reset control structure for that device reset, and will be used by the
  * driver for performing any reset functions on that reset. An idr structure
  * is allocated and used to map to the reset control structure. This idr
@@ -219,7 +219,7 @@ static int ti_sci_reset_probe(struct platform_device *pdev)
 {
 	struct ti_sci_reset_data *data;
 
-	if (!pdev->dev.of_node)
+	if (!pdev->dev.of_yesde)
 		return -ENODEV;
 
 	data = devm_kzalloc(&pdev->dev, sizeof(*data), GFP_KERNEL);
@@ -232,7 +232,7 @@ static int ti_sci_reset_probe(struct platform_device *pdev)
 
 	data->rcdev.ops = &ti_sci_reset_ops;
 	data->rcdev.owner = THIS_MODULE;
-	data->rcdev.of_node = pdev->dev.of_node;
+	data->rcdev.of_yesde = pdev->dev.of_yesde;
 	data->rcdev.of_reset_n_cells = 2;
 	data->rcdev.of_xlate = ti_sci_reset_of_xlate;
 	data->dev = &pdev->dev;

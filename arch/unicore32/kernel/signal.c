@@ -6,7 +6,7 @@
  *
  * Copyright (C) 2001-2010 GUAN Xue-tao
  */
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/signal.h>
 #include <linux/personality.h>
 #include <linux/uaccess.h>
@@ -102,12 +102,12 @@ asmlinkage int __sys_rt_sigreturn(struct pt_regs *regs)
 	struct rt_sigframe __user *frame;
 
 	/* Always make any pending restarted system calls return -EINTR */
-	current->restart_block.fn = do_no_restart_syscall;
+	current->restart_block.fn = do_yes_restart_syscall;
 
 	/*
 	 * Since we stacked the signal on a 64-bit boundary,
 	 * then 'sp' should be word aligned here.  If it's
-	 * not, then the user is trying to mess with us.
+	 * yest, then the user is trying to mess with us.
 	 */
 	if (regs->UCreg_sp & 7)
 		goto badframe;
@@ -169,8 +169,8 @@ static int setup_sigframe(struct sigframe __user *sf, struct pt_regs *regs,
 	err |= __put_user(regs->UCreg_pc, &sf->uc.uc_mcontext.regs.UCreg_pc);
 	err |= __put_user(regs->UCreg_asr, &sf->uc.uc_mcontext.regs.UCreg_asr);
 
-	err |= __put_user(current->thread.trap_no,
-			&sf->uc.uc_mcontext.trap_no);
+	err |= __put_user(current->thread.trap_yes,
+			&sf->uc.uc_mcontext.trap_yes);
 	err |= __put_user(current->thread.error_code,
 			&sf->uc.uc_mcontext.error_code);
 	err |= __put_user(current->thread.address,
@@ -245,7 +245,7 @@ static int setup_frame(struct ksignal *ksig, sigset_t *set,
 		return 1;
 
 	/*
-	 * Set uc.uc_flags to a value which sc.trap_no would never have.
+	 * Set uc.uc_flags to a value which sc.trap_yes would never have.
 	 */
 	err |= __put_user(0x5ac3c35a, &frame->uc.uc_flags);
 
@@ -344,7 +344,7 @@ static void handle_signal(struct ksignal *ksig, struct pt_regs *regs,
 
 /*
  * Note that 'init' is a special process: it doesn't get signals it doesn't
- * want to handle. Thus you cannot kill init even with a SIGKILL even by
+ * want to handle. Thus you canyest kill init even with a SIGKILL even by
  * mistake.
  *
  * Note that we go through the signals twice: once to check the signals that
@@ -392,13 +392,13 @@ static void do_signal(struct pt_regs *regs, int syscall)
 			setup_syscall_restart(regs);
 		}
 	}
-	/* If there's no signal to deliver, we just put the saved
+	/* If there's yes signal to deliver, we just put the saved
 	 * sigmask back.
 	 */
 	restore_saved_sigmask();
 }
 
-asmlinkage void do_notify_resume(struct pt_regs *regs,
+asmlinkage void do_yestify_resume(struct pt_regs *regs,
 		unsigned int thread_flags, int syscall)
 {
 	if (thread_flags & _TIF_SIGPENDING)
@@ -406,7 +406,7 @@ asmlinkage void do_notify_resume(struct pt_regs *regs,
 
 	if (thread_flags & _TIF_NOTIFY_RESUME) {
 		clear_thread_flag(TIF_NOTIFY_RESUME);
-		tracehook_notify_resume(regs);
+		tracehook_yestify_resume(regs);
 	}
 }
 
@@ -420,5 +420,5 @@ void __init early_signal_init(void)
 			sigreturn_codes, sizeof(sigreturn_codes));
 	memcpy((void *)kuser_vecpage_to_vectors(KERN_RESTART_CODE),
 			syscall_restart_code, sizeof(syscall_restart_code));
-	/* Need not to flush icache, since early_trap_init will do it last. */
+	/* Need yest to flush icache, since early_trap_init will do it last. */
 }

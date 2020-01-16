@@ -10,7 +10,7 @@ Required properties:
 
 Required properties for virtio-iommu:
 
-- #iommu-cells:	When the node corresponds to a virtio-iommu device, it is
+- #iommu-cells:	When the yesde corresponds to a virtio-iommu device, it is
 		linked to DMA masters using the "iommus" or "iommu-map"
 		properties [1][2]. #iommu-cells specifies the size of the
 		"iommus" property. For virtio-iommu #iommu-cells must be
@@ -20,8 +20,8 @@ Optional properties:
 
 - iommus:	If the device accesses memory through an IOMMU, it should
 		have an "iommus" property [1]. Since virtio-iommu itself
-		does not access memory through an IOMMU, the "virtio,mmio"
-		node cannot have both an "#iommu-cells" and an "iommus"
+		does yest access memory through an IOMMU, the "virtio,mmio"
+		yesde canyest have both an "#iommu-cells" and an "iommus"
 		property.
 
 Example:

@@ -34,8 +34,8 @@
 #define  MAX_ORD_REQS_TO_PROCESS   4096
 
 /** Head of a response list. There are several response lists in the
- *  system. One for each response order- Unordered, ordered
- *  and 1 for noresponse entries on each instruction queue.
+ *  system. One for each response order- Uyesrdered, ordered
+ *  and 1 for yesresponse entries on each instruction queue.
  */
 struct octeon_response_list {
 	/** List structure to add delete pending entries to */
@@ -73,7 +73,7 @@ enum {
  *   ---------------------------------
  *   Error codes are 32-bit wide. The upper 16-bits, called Major Error Number,
  *   are reserved to identify the group to which the error code belongs. The
- *   lower 16-bits, called Minor Error Number, carry the actual code.
+ *   lower 16-bits, called Miyesr Error Number, carry the actual code.
  *
  *   So error codes are (MAJOR NUMBER << 16)| MINOR_NUMBER.
  */
@@ -83,7 +83,7 @@ enum {
 /*------   Error codes used by firmware (bits 15..0 set by firmware */
 #define FIRMWARE_MAJOR_ERROR_CODE         0x0001
 
-/**  A value of 0x00000000 indicates no error i.e. success */
+/**  A value of 0x00000000 indicates yes error i.e. success */
 #define DRIVER_ERROR_NONE                 0x00000000
 
 #define DRIVER_ERROR_REQ_PENDING          0x00000001
@@ -95,7 +95,7 @@ enum {
 #define DRIVER_ERROR_REQ_FAILED           0x000000ff
 
 /** Status for a request.
- * If a request is not queued to Octeon by the driver, the driver returns
+ * If a request is yest queued to Octeon by the driver, the driver returns
  * an error condition that's describe by one of the OCTEON_REQ_ERR_* value
  * below. If the request is successfully queued, the driver will return
  * a OCTEON_REQUEST_PENDING status. OCTEON_REQUEST_TIMEOUT and

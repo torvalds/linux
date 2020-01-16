@@ -84,17 +84,17 @@ struct devbus {
 };
 
 static int get_timing_param_ps(struct devbus *devbus,
-			       struct device_node *node,
+			       struct device_yesde *yesde,
 			       const char *name,
 			       u32 *ticks)
 {
 	u32 time_ps;
 	int err;
 
-	err = of_property_read_u32(node, name, &time_ps);
+	err = of_property_read_u32(yesde, name, &time_ps);
 	if (err < 0) {
-		dev_err(devbus->dev, "%pOF has no '%s' property\n",
-			node, name);
+		dev_err(devbus->dev, "%pOF has yes '%s' property\n",
+			yesde, name);
 		return err;
 	}
 
@@ -106,17 +106,17 @@ static int get_timing_param_ps(struct devbus *devbus,
 }
 
 static int devbus_get_timing_params(struct devbus *devbus,
-				    struct device_node *node,
+				    struct device_yesde *yesde,
 				    struct devbus_read_params *r,
 				    struct devbus_write_params *w)
 {
 	int err;
 
-	err = of_property_read_u32(node, "devbus,bus-width", &r->bus_width);
+	err = of_property_read_u32(yesde, "devbus,bus-width", &r->bus_width);
 	if (err < 0) {
 		dev_err(devbus->dev,
-			"%pOF has no 'devbus,bus-width' property\n",
-			node);
+			"%pOF has yes 'devbus,bus-width' property\n",
+			yesde);
 		return err;
 	}
 
@@ -133,58 +133,58 @@ static int devbus_get_timing_params(struct devbus *devbus,
 		return -EINVAL;
 	}
 
-	err = get_timing_param_ps(devbus, node, "devbus,badr-skew-ps",
+	err = get_timing_param_ps(devbus, yesde, "devbus,badr-skew-ps",
 				 &r->badr_skew);
 	if (err < 0)
 		return err;
 
-	err = get_timing_param_ps(devbus, node, "devbus,turn-off-ps",
+	err = get_timing_param_ps(devbus, yesde, "devbus,turn-off-ps",
 				 &r->turn_off);
 	if (err < 0)
 		return err;
 
-	err = get_timing_param_ps(devbus, node, "devbus,acc-first-ps",
+	err = get_timing_param_ps(devbus, yesde, "devbus,acc-first-ps",
 				 &r->acc_first);
 	if (err < 0)
 		return err;
 
-	err = get_timing_param_ps(devbus, node, "devbus,acc-next-ps",
+	err = get_timing_param_ps(devbus, yesde, "devbus,acc-next-ps",
 				 &r->acc_next);
 	if (err < 0)
 		return err;
 
-	if (of_device_is_compatible(devbus->dev->of_node, "marvell,mvebu-devbus")) {
-		err = get_timing_param_ps(devbus, node, "devbus,rd-setup-ps",
+	if (of_device_is_compatible(devbus->dev->of_yesde, "marvell,mvebu-devbus")) {
+		err = get_timing_param_ps(devbus, yesde, "devbus,rd-setup-ps",
 					  &r->rd_setup);
 		if (err < 0)
 			return err;
 
-		err = get_timing_param_ps(devbus, node, "devbus,rd-hold-ps",
+		err = get_timing_param_ps(devbus, yesde, "devbus,rd-hold-ps",
 					  &r->rd_hold);
 		if (err < 0)
 			return err;
 
-		err = of_property_read_u32(node, "devbus,sync-enable",
+		err = of_property_read_u32(yesde, "devbus,sync-enable",
 					   &w->sync_enable);
 		if (err < 0) {
 			dev_err(devbus->dev,
-				"%pOF has no 'devbus,sync-enable' property\n",
-				node);
+				"%pOF has yes 'devbus,sync-enable' property\n",
+				yesde);
 			return err;
 		}
 	}
 
-	err = get_timing_param_ps(devbus, node, "devbus,ale-wr-ps",
+	err = get_timing_param_ps(devbus, yesde, "devbus,ale-wr-ps",
 				 &w->ale_wr);
 	if (err < 0)
 		return err;
 
-	err = get_timing_param_ps(devbus, node, "devbus,wr-low-ps",
+	err = get_timing_param_ps(devbus, yesde, "devbus,wr-low-ps",
 				 &w->wr_low);
 	if (err < 0)
 		return err;
 
-	err = get_timing_param_ps(devbus, node, "devbus,wr-high-ps",
+	err = get_timing_param_ps(devbus, yesde, "devbus,wr-high-ps",
 				 &w->wr_high);
 	if (err < 0)
 		return err;
@@ -193,7 +193,7 @@ static int devbus_get_timing_params(struct devbus *devbus,
 }
 
 static void devbus_orion_set_timing_params(struct devbus *devbus,
-					  struct device_node *node,
+					  struct device_yesde *yesde,
 					  struct devbus_read_params *r,
 					  struct devbus_write_params *w)
 {
@@ -202,7 +202,7 @@ static void devbus_orion_set_timing_params(struct devbus *devbus,
 	/*
 	 * The hardware designers found it would be a good idea to
 	 * split most of the values in the register into two fields:
-	 * one containing all the low-order bits, and another one
+	 * one containing all the low-order bits, and ayesther one
 	 * containing just the high-order bit. For all of those
 	 * fields, we have to split the value into these two parts.
 	 */
@@ -226,7 +226,7 @@ static void devbus_orion_set_timing_params(struct devbus *devbus,
 }
 
 static void devbus_armada_set_timing_params(struct devbus *devbus,
-					   struct device_node *node,
+					   struct device_yesde *yesde,
 					   struct devbus_read_params *r,
 					   struct devbus_write_params *w)
 {
@@ -263,7 +263,7 @@ static void devbus_armada_set_timing_params(struct devbus *devbus,
 static int mvebu_devbus_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *node = pdev->dev.of_node;
+	struct device_yesde *yesde = pdev->dev.of_yesde;
 	struct devbus_read_params r;
 	struct devbus_write_params w;
 	struct devbus *devbus;
@@ -298,17 +298,17 @@ static int mvebu_devbus_probe(struct platform_device *pdev)
 	dev_dbg(devbus->dev, "Setting timing parameter, tick is %lu ps\n",
 		devbus->tick_ps);
 
-	if (!of_property_read_bool(node, "devbus,keep-config")) {
-		/* Read the Device Tree node */
-		err = devbus_get_timing_params(devbus, node, &r, &w);
+	if (!of_property_read_bool(yesde, "devbus,keep-config")) {
+		/* Read the Device Tree yesde */
+		err = devbus_get_timing_params(devbus, yesde, &r, &w);
 		if (err < 0)
 			return err;
 
 		/* Set the new timing parameters */
-		if (of_device_is_compatible(node, "marvell,orion-devbus"))
-			devbus_orion_set_timing_params(devbus, node, &r, &w);
+		if (of_device_is_compatible(yesde, "marvell,orion-devbus"))
+			devbus_orion_set_timing_params(devbus, yesde, &r, &w);
 		else
-			devbus_armada_set_timing_params(devbus, node, &r, &w);
+			devbus_armada_set_timing_params(devbus, yesde, &r, &w);
 	}
 
 	/*
@@ -316,7 +316,7 @@ static int mvebu_devbus_probe(struct platform_device *pdev)
 	 * guarantee that the child will be probed after the timing
 	 * parameters for the bus are written.
 	 */
-	err = of_platform_populate(node, NULL, NULL, dev);
+	err = of_platform_populate(yesde, NULL, NULL, dev);
 	if (err < 0)
 		return err;
 

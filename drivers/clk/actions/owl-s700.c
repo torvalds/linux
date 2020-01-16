@@ -95,9 +95,9 @@ static OWL_PLL_NO_PARENT(clk_cvbs_pll, "cvbs_pll", CMU_CVBSPLL, 0, 8, 0, 8, 27, 
 static OWL_PLL_NO_PARENT(clk_audio_pll,  "audio_pll", CMU_AUDIOPLL, 0, 4, 0, 1, 0, 0, clk_audio_pll_table, CLK_IGNORE_UNUSED);
 static OWL_PLL_NO_PARENT(clk_ethernet_pll, "ethernet_pll", CMU_ETHERNETPLL, 500000000, 0, 0, 0, 0, 0, NULL, CLK_IGNORE_UNUSED);
 
-static const char *cpu_clk_mux_p[] = {"losc", "hosc", "core_pll", "noc1_clk_div"};
+static const char *cpu_clk_mux_p[] = {"losc", "hosc", "core_pll", "yesc1_clk_div"};
 static const char *dev_clk_p[] = { "hosc", "dev_pll"};
-static const char *noc_clk_mux_p[] = { "dev_clk", "display_pll", "nand_pll", "ddr_pll", "cvbs_pll"};
+static const char *yesc_clk_mux_p[] = { "dev_clk", "display_pll", "nand_pll", "ddr_pll", "cvbs_pll"};
 
 static const char *csi_clk_mux_p[] = { "display_pll", "dev_clk"};
 static const char *de_clk_mux_p[] = { "display_pll", "dev_clk"};
@@ -114,9 +114,9 @@ static const char *sensor_clk_mux_p[] = { "hosc", "si"};
 /* mux clocks */
 static OWL_MUX(clk_cpu, "cpu_clk", cpu_clk_mux_p,  CMU_BUSCLK, 0, 2, CLK_SET_RATE_PARENT);
 static OWL_MUX(clk_dev, "dev_clk", dev_clk_p, CMU_DEVPLL, 12, 1, CLK_SET_RATE_PARENT);
-static OWL_MUX(clk_noc0_clk_mux, "noc0_clk_mux", noc_clk_mux_p, CMU_BUSCLK, 4, 3, CLK_SET_RATE_PARENT);
-static OWL_MUX(clk_noc1_clk_mux, "noc1_clk_mux", noc_clk_mux_p, CMU_BUSCLK1, 4, 3, CLK_SET_RATE_PARENT);
-static OWL_MUX(clk_hp_clk_mux, "hp_clk_mux", noc_clk_mux_p, CMU_BUSCLK1, 8, 3, CLK_SET_RATE_PARENT);
+static OWL_MUX(clk_yesc0_clk_mux, "yesc0_clk_mux", yesc_clk_mux_p, CMU_BUSCLK, 4, 3, CLK_SET_RATE_PARENT);
+static OWL_MUX(clk_yesc1_clk_mux, "yesc1_clk_mux", yesc_clk_mux_p, CMU_BUSCLK1, 4, 3, CLK_SET_RATE_PARENT);
+static OWL_MUX(clk_hp_clk_mux, "hp_clk_mux", yesc_clk_mux_p, CMU_BUSCLK1, 8, 3, CLK_SET_RATE_PARENT);
 
 static struct clk_factor_table sd_factor_table[] = {
 	/* bit0 ~ 4 */
@@ -165,9 +165,9 @@ static struct clk_div_table rmii_div_table[] = {
 };
 
 /* divider clocks */
-static OWL_DIVIDER(clk_noc0, "noc0_clk", "noc0_clk_mux", CMU_BUSCLK, 16, 2, NULL, 0, 0);
-static OWL_DIVIDER(clk_noc1, "noc1_clk", "noc1_clk_mux", CMU_BUSCLK1, 16, 2, NULL, 0, 0);
-static OWL_DIVIDER(clk_noc1_clk_div, "noc1_clk_div", "noc1_clk", CMU_BUSCLK1, 20, 1, NULL, 0, 0);
+static OWL_DIVIDER(clk_yesc0, "yesc0_clk", "yesc0_clk_mux", CMU_BUSCLK, 16, 2, NULL, 0, 0);
+static OWL_DIVIDER(clk_yesc1, "yesc1_clk", "yesc1_clk_mux", CMU_BUSCLK1, 16, 2, NULL, 0, 0);
+static OWL_DIVIDER(clk_yesc1_clk_div, "yesc1_clk_div", "yesc1_clk", CMU_BUSCLK1, 20, 1, NULL, 0, 0);
 static OWL_DIVIDER(clk_hp_clk_div, "hp_clk_div", "hp_clk_mux", CMU_BUSCLK1, 12, 2, NULL, 0, 0);
 static OWL_DIVIDER(clk_ahb, "ahb_clk", "hp_clk_div", CMU_BUSCLK1, 2, 2, NULL, 0, 0);
 static OWL_DIVIDER(clk_apb, "apb_clk", "ahb_clk", CMU_BUSCLK1, 14, 2, NULL, 0, 0);
@@ -418,13 +418,13 @@ static struct owl_clk_common *s700_clks[] = {
 	&clk_ahb.common,
 	&clk_apb.common,
 	&clk_dmac.common,
-	&clk_noc0_clk_mux.common,
-	&clk_noc1_clk_mux.common,
+	&clk_yesc0_clk_mux.common,
+	&clk_yesc1_clk_mux.common,
 	&clk_hp_clk_mux.common,
 	&clk_hp_clk_div.common,
-	&clk_noc1_clk_div.common,
-	&clk_noc0.common,
-	&clk_noc1.common,
+	&clk_yesc1_clk_div.common,
+	&clk_yesc0.common,
+	&clk_yesc1.common,
 	&clk_sensor_src.common,
 	&clk_gpio.common,
 	&clk_timer.common,
@@ -501,13 +501,13 @@ static struct clk_hw_onecell_data s700_hw_clks = {
 			[CLK_AHB]				= &clk_ahb.common.hw,
 			[CLK_APB]				= &clk_apb.common.hw,
 			[CLK_DMAC]				= &clk_dmac.common.hw,
-			[CLK_NOC0_CLK_MUX]			= &clk_noc0_clk_mux.common.hw,
-			[CLK_NOC1_CLK_MUX]			= &clk_noc1_clk_mux.common.hw,
+			[CLK_NOC0_CLK_MUX]			= &clk_yesc0_clk_mux.common.hw,
+			[CLK_NOC1_CLK_MUX]			= &clk_yesc1_clk_mux.common.hw,
 			[CLK_HP_CLK_MUX]			= &clk_hp_clk_mux.common.hw,
 			[CLK_HP_CLK_DIV]			= &clk_hp_clk_div.common.hw,
-			[CLK_NOC1_CLK_DIV]			= &clk_noc1_clk_div.common.hw,
-			[CLK_NOC0]				= &clk_noc0.common.hw,
-			[CLK_NOC1]				= &clk_noc1.common.hw,
+			[CLK_NOC1_CLK_DIV]			= &clk_yesc1_clk_div.common.hw,
+			[CLK_NOC0]				= &clk_yesc0.common.hw,
+			[CLK_NOC1]				= &clk_yesc1.common.hw,
 			[CLK_SENOR_SRC]				= &clk_sensor_src.common.hw,
 			[CLK_GPIO]				= &clk_gpio.common.hw,
 			[CLK_TIMER]				= &clk_timer.common.hw,
@@ -624,7 +624,7 @@ static int s700_clk_probe(struct platform_device *pdev)
 	if (!reset)
 		return -ENOMEM;
 
-	reset->rcdev.of_node = pdev->dev.of_node;
+	reset->rcdev.of_yesde = pdev->dev.of_yesde;
 	reset->rcdev.ops = &owl_reset_ops;
 	reset->rcdev.nr_resets = desc->num_resets;
 	reset->reset_map = desc->resets;

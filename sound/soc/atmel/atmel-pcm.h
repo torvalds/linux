@@ -8,8 +8,8 @@
  * Authors: Sedji Gaouaou <sedji.gaouaou@atmel.com>
  *
  * Based on at91-pcm. by:
- * Frank Mandarino <fmandarino@endrelia.com>
- * Copyright 2006 Endrelia Technologies Inc.
+ * Frank Mandariyes <fmandariyes@endrelia.com>
+ * Copyright 2006 Endrelia Techyeslogies Inc.
  *
  * Based on pxa2xx-pcm.c by:
  *
@@ -52,7 +52,7 @@ struct atmel_ssc_mask {
  * PDC DMA operation.  All fields except dma_intr_handler() are initialized
  * by the interface.  The dma_intr_handler() pointer is set by the PCM
  * driver and called by the interface SSC interrupt handler if it is
- * non-NULL.
+ * yesn-NULL.
  */
 struct atmel_pcm_dma_params {
 	char *name;			/* stream identifier */

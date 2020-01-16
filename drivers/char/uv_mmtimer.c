@@ -14,7 +14,7 @@
 #include <linux/ioctl.h>
 #include <linux/module.h>
 #include <linux/init.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/mm.h>
 #include <linux/fs.h>
 #include <linux/mmtimer.h>
@@ -51,7 +51,7 @@ static const struct file_operations uv_mmtimer_fops = {
 	.owner = THIS_MODULE,
 	.mmap =	uv_mmtimer_mmap,
 	.unlocked_ioctl = uv_mmtimer_ioctl,
-	.llseek = noop_llseek,
+	.llseek = yesop_llseek,
 };
 
 /**
@@ -157,7 +157,7 @@ static int uv_mmtimer_mmap(struct file *file, struct vm_area_struct *vma)
 	if (PAGE_SIZE > (1 << 16))
 		return -ENOSYS;
 
-	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
+	vma->vm_page_prot = pgprot_yesncached(vma->vm_page_prot);
 
 	uv_mmtimer_addr = UV_LOCAL_MMR_BASE | UVH_RTC;
 	uv_mmtimer_addr &= ~(PAGE_SIZE - 1);

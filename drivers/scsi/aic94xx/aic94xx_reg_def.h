@@ -7,7 +7,7 @@
  * Copyright (C) 2005 Luben Tuikov <luben_tuikov@adaptec.com>
  *
  * Luben Tuikov: Some register value updates to make it work with the window
- * agnostic register r/w functions.  Some register corrections, sizes,
+ * agyesstic register r/w functions.  Some register corrections, sizes,
  * etc.
  *
  * $Id: //depot/aic94xx/aic94xx_reg_def.h#27 $
@@ -1737,8 +1737,8 @@
 #define PCIC_PM_CSR		0x5C
 
 #define		PWR_STATE_D0		0
-#define		PWR_STATE_D1		1	/* not supported */
-#define		PWR_STATE_D2		2 	/* not supported */
+#define		PWR_STATE_D1		1	/* yest supported */
+#define		PWR_STATE_D2		2 	/* yest supported */
 #define		PWR_STATE_D3		3
 
 #define PCIC_BASE1	0x6C	/* internal use only */
@@ -1963,7 +1963,7 @@
  * byte memory.  It is dword accessible and has byte parity
  * protection. The CSEQ accesses it in 32 byte windows, either as mode
  * dependent or mode independent memory. Each mode has 96 bytes,
- * (three 32 byte pages 0-2, not contiguous), leaving 128 bytes of
+ * (three 32 byte pages 0-2, yest contiguous), leaving 128 bytes of
  * Mode Independent memory (four 32 byte pages 3-7). Note that mode
  * dependent scratch memory, Mode 8, page 0-3 overlaps mode
  * independent scratch memory, pages 0-3.
@@ -2166,7 +2166,7 @@
 #define LmSEQ_OPCODE_TO_CSEQ(LinkNum)	(LmSCRATCH(LinkNum) + 0x000B)
 #define LmSEQ_DATA_TO_CSEQ(LinkNum)	(LmSCRATCH(LinkNum) + 0x000C)
 
-/* Mode dependent scratch page 0 macros for mode 0 (non-common) */
+/* Mode dependent scratch page 0 macros for mode 0 (yesn-common) */
 /* Absolute offsets */
 #define LmSEQ_FIRST_INV_DDB_SITE(LinkNum)	(LmSCRATCH(LinkNum) + 0x000E)
 #define LmSEQ_EMPTY_TRANS_CTX(LinkNum)		(LmSCRATCH(LinkNum) + 0x0010)
@@ -2179,7 +2179,7 @@
 #define LmSEQ_LAST_LOADED_SGE(LinkNum)		(LmSCRATCH(LinkNum) + 0x001D)
 #define LmSEQ_SAVE_SCBPTR(LinkNum)		(LmSCRATCH(LinkNum) + 0x001E)
 
-/* Mode dependent scratch page 0 macros for mode 1 (non-common) */
+/* Mode dependent scratch page 0 macros for mode 1 (yesn-common) */
 /* Absolute offsets */
 #define LmSEQ_Q_XMIT_HEAD(LinkNum)		(LmSCRATCH(LinkNum) + 0x008E)
 #define LmSEQ_M1_EMPTY_TRANS_CTX(LinkNum)	(LmSCRATCH(LinkNum) + 0x0090)
@@ -2190,7 +2190,7 @@
 #define LmSEQ_M1_LAST_LOADED_SGE(LinkNum)	(LmSCRATCH(LinkNum) + 0x009D)
 #define LmSEQ_M1_SAVE_SCBPTR(LinkNum)		(LmSCRATCH(LinkNum) + 0x009E)
 
-/* Mode dependent scratch page 0 macros for mode 2 (non-common) */
+/* Mode dependent scratch page 0 macros for mode 2 (yesn-common) */
 #define LmSEQ_PORT_COUNTER(LinkNum)		(LmSCRATCH(LinkNum) + 0x010E)
 #define LmSEQ_PM_TABLE_PTR(LinkNum)		(LmSCRATCH(LinkNum) + 0x0110)
 #define LmSEQ_SATA_INTERLOCK_TMR_SAVE(LinkNum)	(LmSCRATCH(LinkNum) + 0x0112)
@@ -2198,7 +2198,7 @@
 #define LmSEQ_COPY_SMP_CONN_TAG(LinkNum)	(LmSCRATCH(LinkNum) + 0x0116)
 #define LmSEQ_P0M2_OFFS1AH(LinkNum)		(LmSCRATCH(LinkNum) + 0x011A)
 
-/* Mode dependent scratch page 0 macros for modes 4/5 (non-common) */
+/* Mode dependent scratch page 0 macros for modes 4/5 (yesn-common) */
 /* Absolute offsets */
 #define LmSEQ_SAVED_OOB_STATUS(LinkNum)		(LmSCRATCH(LinkNum) + 0x006E)
 #define LmSEQ_SAVED_OOB_MODE(LinkNum)		(LmSCRATCH(LinkNum) + 0x006F)

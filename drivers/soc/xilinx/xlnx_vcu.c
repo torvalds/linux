@@ -8,7 +8,7 @@
  */
 #include <linux/clk.h>
 #include <linux/device.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/io.h>
 #include <linux/module.h>
 #include <linux/of_platform.h>
@@ -286,7 +286,7 @@ static void xvcu_write_field_reg(void __iomem *iomem, int offset,
  * Errors in following cases
  *    - When mcu or clock clock get from logicoreIP is 0
  *    - When VCU PLL DIV related bits value other than 1
- *    - When proper data not found for given data
+ *    - When proper data yest found for given data
  *    - When sis570_1 clocksource related operation failed
  *
  * Return:	Returns status, either success or error+reason
@@ -480,8 +480,8 @@ static int xvcu_set_pll(struct xvcu_device *xvcu)
 		}
 	} while (!time_after(jiffies, timeout));
 
-	/* PLL is not locked even after the timeout of the 2sec */
-	dev_err(xvcu->dev, "PLL is not locked\n");
+	/* PLL is yest locked even after the timeout of the 2sec */
+	dev_err(xvcu->dev, "PLL is yest locked\n");
 	return -ETIMEDOUT;
 }
 
@@ -511,7 +511,7 @@ static int xvcu_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	xvcu->vcu_slcr_ba = devm_ioremap_nocache(&pdev->dev, res->start,
+	xvcu->vcu_slcr_ba = devm_ioremap_yescache(&pdev->dev, res->start,
 						 resource_size(res));
 	if (!xvcu->vcu_slcr_ba) {
 		dev_err(&pdev->dev, "vcu_slcr register mapping failed.\n");
@@ -524,7 +524,7 @@ static int xvcu_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	xvcu->logicore_reg_ba = devm_ioremap_nocache(&pdev->dev, res->start,
+	xvcu->logicore_reg_ba = devm_ioremap_yescache(&pdev->dev, res->start,
 						     resource_size(res));
 	if (!xvcu->logicore_reg_ba) {
 		dev_err(&pdev->dev, "logicore register mapping failed.\n");
@@ -533,13 +533,13 @@ static int xvcu_probe(struct platform_device *pdev)
 
 	xvcu->aclk = devm_clk_get(&pdev->dev, "aclk");
 	if (IS_ERR(xvcu->aclk)) {
-		dev_err(&pdev->dev, "Could not get aclk clock\n");
+		dev_err(&pdev->dev, "Could yest get aclk clock\n");
 		return PTR_ERR(xvcu->aclk);
 	}
 
 	xvcu->pll_ref = devm_clk_get(&pdev->dev, "pll_ref");
 	if (IS_ERR(xvcu->pll_ref)) {
-		dev_err(&pdev->dev, "Could not get pll_ref clock\n");
+		dev_err(&pdev->dev, "Could yest get pll_ref clock\n");
 		return PTR_ERR(xvcu->pll_ref);
 	}
 

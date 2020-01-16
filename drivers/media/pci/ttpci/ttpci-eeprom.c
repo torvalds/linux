@@ -5,7 +5,7 @@
     use by dvb_net.c
 
     This card appear to have the 24C16 write protect held to ground,
-    thus permitting normal read/write operation. Theoretically it
+    thus permitting yesrmal read/write operation. Theoretically it
     would be possible to write routines to burn a different (encoded)
     MAC address into the EEPROM.
 
@@ -19,7 +19,7 @@
 
 */
 
-#include <asm/errno.h>
+#include <asm/erryes.h>
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/string.h>
@@ -133,7 +133,7 @@ int ttpci_eeprom_parse_mac(struct i2c_adapter *adapter, u8 *proposed_mac)
 	ret = ttpci_eeprom_read_encodedMAC(adapter, encodedMAC);
 
 	if (ret != 0) {		/* Will only be -ENODEV */
-		dprintk("Couldn't read from EEPROM: not there?\n");
+		dprintk("Couldn't read from EEPROM: yest there?\n");
 		eth_zero_addr(proposed_mac);
 		return ret;
 	}
@@ -156,4 +156,4 @@ EXPORT_SYMBOL(ttpci_eeprom_parse_mac);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Ralph Metzler, Marcus Metzler, others");
-MODULE_DESCRIPTION("Decode dvb_net MAC address from EEPROM of PCI DVB cards made by Siemens, Technotrend, Hauppauge");
+MODULE_DESCRIPTION("Decode dvb_net MAC address from EEPROM of PCI DVB cards made by Siemens, Techyestrend, Hauppauge");

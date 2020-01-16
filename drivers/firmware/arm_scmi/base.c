@@ -234,7 +234,7 @@ int scmi_base_protocol_init(struct scmi_handle *h)
 		return -ENOMEM;
 
 	rev->major_ver = PROTOCOL_REV_MAJOR(version),
-	rev->minor_ver = PROTOCOL_REV_MINOR(version);
+	rev->miyesr_ver = PROTOCOL_REV_MINOR(version);
 
 	scmi_base_attributes_get(handle);
 	scmi_base_vendor_id_get(handle, false);
@@ -244,7 +244,7 @@ int scmi_base_protocol_init(struct scmi_handle *h)
 	scmi_setup_protocol_implemented(handle, prot_imp);
 
 	dev_info(dev, "SCMI Protocol v%d.%d '%s:%s' Firmware version 0x%x\n",
-		 rev->major_ver, rev->minor_ver, rev->vendor_id,
+		 rev->major_ver, rev->miyesr_ver, rev->vendor_id,
 		 rev->sub_vendor_id, rev->impl_ver);
 	dev_dbg(dev, "Found %d protocol(s) %d agent(s)\n", rev->num_protocols,
 		rev->num_agents);

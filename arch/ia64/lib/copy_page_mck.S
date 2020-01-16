@@ -9,16 +9,16 @@
  *	in0:	address of target page
  *	in1:	address of source page
  * Output:
- *	no return value
+ *	yes return value
  *
  * General idea:
  *	- use regular loads and stores to prefetch data to avoid consuming M-slot just for
  *	  lfetches => good for in-cache performance
- *	- avoid l2 bank-conflicts by not storing into the same 16-byte bank within a single
+ *	- avoid l2 bank-conflicts by yest storing into the same 16-byte bank within a single
  *	  cycle
  *
  * Principle of operation:
- *	First, note that L1 has a line-size of 64 bytes and L2 a line-size of 128 bytes.
+ *	First, yeste that L1 has a line-size of 64 bytes and L2 a line-size of 128 bytes.
  *	To avoid secondary misses in L2, we prefetch both source and destination with a line-size
  *	of 128 bytes.  When both of these lines are in the L2 and the first half of the
  *	source line is in L1, we start copying the remaining words.  The second half of the
@@ -28,7 +28,7 @@
  *	We use a software-pipelined loop to control the overall operation.  The pipeline
  *	has 2*PREFETCH_DIST+K stages.  The first PREFETCH_DIST stages are used for prefetching
  *	source cache-lines.  The second PREFETCH_DIST stages are used for prefetching destination
- *	cache-lines, the last K stages are used to copy the cache-line words not copied by
+ *	cache-lines, the last K stages are used to copy the cache-line words yest copied by
  *	the prefetches.  The four relevant points in the pipelined are called A, B, C, D:
  *	p[A] is TRUE if a source-line should be prefetched, p[B] is TRUE if a destination-line
  *	should be prefetched, p[C] is TRUE if the second half of an L2 line should be brought
@@ -39,7 +39,7 @@
  *
  *	As a secondary optimization, the first 2*PREFETCH_DIST iterations are implemented
  *	as the separate .prefetch_loop.  Logically, this loop performs exactly like the
- *	main-loop (.line_copy), but has all known-to-be-predicated-off instructions removed,
+ *	main-loop (.line_copy), but has all kyeswn-to-be-predicated-off instructions removed,
  *	so that each loop iteration is faster (again, good for cached case).
  *
  *	When reading the code, it helps to keep the following picture in mind:
@@ -126,8 +126,8 @@ GLOBAL_ENTRY(copy_page)
 	add dst0 = 8, in0			// first t1 dst
 	add dst1 = 3*8, in0			// first t3 dst
 	mov t1 = (PAGE_SIZE/128) - (2*PREFETCH_DIST) - 1
-	nop.m 0
-	nop.i 0
+	yesp.m 0
+	yesp.i 0
 	;;
 	// same as .line_copy loop, but with all predicated-off instructions removed:
 .prefetch_loop:

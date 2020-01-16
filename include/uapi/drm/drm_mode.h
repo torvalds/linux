@@ -12,7 +12,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -84,7 +84,7 @@ extern "C" {
 #define DRM_MODE_FLAG_CLKDIV2			(1<<13)
  /*
   * When adding a new stereo mode don't forget to adjust DRM_MODE_FLAGS_3D_MAX
-  * (define not exposed to user space).
+  * (define yest exposed to user space).
   */
 #define DRM_MODE_FLAG_3D_MASK			(0x1f<<14)
 #define  DRM_MODE_FLAG_3D_NONE		(0<<14)
@@ -148,8 +148,8 @@ extern "C" {
 /* Scaling mode options */
 #define DRM_MODE_SCALE_NONE		0 /* Unmodified timing (display or
 					     software can still scale) */
-#define DRM_MODE_SCALE_FULLSCREEN	1 /* Full screen, ignore aspect */
-#define DRM_MODE_SCALE_CENTER		2 /* Centered, no scaling */
+#define DRM_MODE_SCALE_FULLSCREEN	1 /* Full screen, igyesre aspect */
+#define DRM_MODE_SCALE_CENTER		2 /* Centered, yes scaling */
 #define DRM_MODE_SCALE_ASPECT		3 /* Full screen, preserve aspect */
 
 /* Dithering mode options */
@@ -333,7 +333,7 @@ struct drm_mode_get_encoder {
 /* Try to match DRM_MODE_CONNECTOR_X as closely as possible. */
 enum drm_mode_subconnector {
 	DRM_MODE_SUBCONNECTOR_Automatic = 0,
-	DRM_MODE_SUBCONNECTOR_Unknown = 0,
+	DRM_MODE_SUBCONNECTOR_Unkyeswn = 0,
 	DRM_MODE_SUBCONNECTOR_DVID = 3,
 	DRM_MODE_SUBCONNECTOR_DVIA = 4,
 	DRM_MODE_SUBCONNECTOR_Composite = 5,
@@ -342,7 +342,7 @@ enum drm_mode_subconnector {
 	DRM_MODE_SUBCONNECTOR_SCART = 9,
 };
 
-#define DRM_MODE_CONNECTOR_Unknown	0
+#define DRM_MODE_CONNECTOR_Unkyeswn	0
 #define DRM_MODE_CONNECTOR_VGA		1
 #define DRM_MODE_CONNECTOR_DVII		2
 #define DRM_MODE_CONNECTOR_DVID		3
@@ -387,14 +387,14 @@ struct drm_mode_get_connector {
 	__u32 pad;
 };
 
-#define DRM_MODE_PROP_PENDING	(1<<0) /* deprecated, do not use */
+#define DRM_MODE_PROP_PENDING	(1<<0) /* deprecated, do yest use */
 #define DRM_MODE_PROP_RANGE	(1<<1)
 #define DRM_MODE_PROP_IMMUTABLE	(1<<2)
 #define DRM_MODE_PROP_ENUM	(1<<3) /* enumerated type with text strings */
 #define DRM_MODE_PROP_BLOB	(1<<4)
 #define DRM_MODE_PROP_BITMASK	(1<<5) /* bitmask of enumerated types */
 
-/* non-extended types: legacy bitmask, one bit per type: */
+/* yesn-extended types: legacy bitmask, one bit per type: */
 #define DRM_MODE_PROP_LEGACY_TYPE  ( \
 		DRM_MODE_PROP_RANGE | \
 		DRM_MODE_PROP_ENUM | \
@@ -410,7 +410,7 @@ struct drm_mode_get_connector {
 #define DRM_MODE_PROP_SIGNED_RANGE	DRM_MODE_PROP_TYPE(2)
 
 /* the PROP_ATOMIC flag is used to hide properties from userspace that
- * is not aware of atomic properties.  This is mostly to work around
+ * is yest aware of atomic properties.  This is mostly to work around
  * older userspace (DDX drivers) that read/write each prop they find,
  * witout being aware that this could be triggering a lengthy modeset.
  */
@@ -430,7 +430,7 @@ struct drm_mode_get_property {
 	char name[DRM_PROP_NAME_LEN];
 
 	__u32 count_values;
-	/* This is only used to count enum values, not blobs. The _blobs is
+	/* This is only used to count enum values, yest blobs. The _blobs is
 	 * simply because of a historical reason, i.e. backwards compat. */
 	__u32 count_enum_blobs;
 };
@@ -505,14 +505,14 @@ struct drm_mode_fb_cmd2 {
 	 *
 	 * So it would consist of Y as offsets[0] and UV as
 	 * offsets[1].  Note that offsets[0] will generally
-	 * be 0 (but this is not required).
+	 * be 0 (but this is yest required).
 	 *
 	 * To accommodate tiled, compressed, etc formats, a
 	 * modifier can be specified.  The default value of zero
 	 * indicates "native" format as specified by the fourcc.
 	 * Vendor specific modifier token.  Note that even though
 	 * it looks like we have a modifier per-plane, we in fact
-	 * do not. The modifier for each plane must be identical.
+	 * do yest. The modifier for each plane must be identical.
 	 * Thus all combinations of different data layouts for
 	 * multi plane formats must be enumerated as separate
 	 * modifiers.
@@ -532,7 +532,7 @@ struct drm_mode_fb_cmd2 {
 /*
  * Mark a region of a framebuffer as dirty.
  *
- * Some hardware does not automatically update display contents
+ * Some hardware does yest automatically update display contents
  * as a hardware or software draw to a framebuffer. This ioctl
  * allows userspace to tell the kernel and the hardware what
  * regions of the framebuffer have changed.
@@ -542,7 +542,7 @@ struct drm_mode_fb_cmd2 {
  * may also delay and/or coalesce several calls to dirty into a
  * single update.
  *
- * Userspace may annotate the updates, the annotates are a
+ * Userspace may anyestate the updates, the anyestates are a
  * promise made by the caller that the change is either a copy
  * of pixels or a fill of a single color in the region specified.
  *
@@ -624,7 +624,7 @@ struct drm_mode_crtc_lut {
 struct drm_color_ctm {
 	/*
 	 * Conversion matrix in S31.32 sign-magnitude
-	 * (not two's complement!) format.
+	 * (yest two's complement!) format.
 	 */
 	__u64 matrix[9];
 };
@@ -754,7 +754,7 @@ struct hdr_output_metadata {
  * returned as the user_data field in the vblank event struct.
  *
  * Flag DRM_MODE_PAGE_FLIP_ASYNC requests that the flip happen
- * 'as soon as possible', meaning that it not delay waiting for vblank.
+ * 'as soon as possible', meaning that it yest delay waiting for vblank.
  * This may cause tearing on the screen.
  *
  * The reserved field must be zero.
@@ -776,9 +776,9 @@ struct drm_mode_crtc_page_flip {
  *
  * The sequence field must be zero unless either of the
  * DRM_MODE_PAGE_FLIP_TARGET_ABSOLUTE/RELATIVE flags is specified. When
- * the ABSOLUTE flag is specified, the sequence field denotes the absolute
+ * the ABSOLUTE flag is specified, the sequence field deyestes the absolute
  * vblank sequence when the flip should take effect. When the RELATIVE
- * flag is specified, the sequence field denotes the relative (to the
+ * flag is specified, the sequence field deyestes the relative (to the
  * current one when the ioctl is called) vblank sequence when the flip
  * should take effect. NOTE: DRM_IOCTL_WAIT_VBLANK must still be used to
  * make sure the vblank sequence before the target one has passed before
@@ -796,7 +796,7 @@ struct drm_mode_crtc_page_flip_target {
 	__u64 user_data;
 };
 
-/* create a dumb scanout buffer */
+/* create a dumb scayesut buffer */
 struct drm_mode_create_dumb {
 	__u32 height;
 	__u32 width;
@@ -808,7 +808,7 @@ struct drm_mode_create_dumb {
 	__u64 size;
 };
 
-/* set up for mmap of a dumb scanout buffer */
+/* set up for mmap of a dumb scayesut buffer */
 struct drm_mode_map_dumb {
 	/** Handle for the object being mapped. */
 	__u32 handle;
@@ -931,7 +931,7 @@ struct drm_mode_destroy_blob {
  * @flags: flags for new FD.
  * @lessee_id: unique identifier for lessee.
  * @fd: file descriptor to new drm_master file.
- * Lease mode resources, creating another drm_master.
+ * Lease mode resources, creating ayesther drm_master.
  */
 struct drm_mode_create_lease {
 	/** Pointer to array of object ids (__u32) */

@@ -71,7 +71,7 @@ struct visorhba_devdata {
 	bool serverchangingstate;
 	unsigned long long acquire_failed_cnt;
 	unsigned long long interrupts_rcvd;
-	unsigned long long interrupts_notme;
+	unsigned long long interrupts_yestme;
 	unsigned long long interrupts_disabled;
 	u64 __iomem *flags_addr;
 	atomic_t interrupt_rcvd;
@@ -104,7 +104,7 @@ struct visorhba_devices_open {
  *
  * Starts a thread for the device.
  *
- * Return: The task_struct * denoting the thread on success,
+ * Return: The task_struct * deyesting the thread on success,
  *	   or NULL on failure
  */
 static struct task_struct *visor_thread_start(int (*threadfn)(void *),
@@ -206,7 +206,7 @@ static void *del_scsipending_ent(struct visorhba_devdata *devdata, int del)
  * @ent:   Entry that stores the cmdrsp
  *
  * Each scsipending entry has a cmdrsp in it. The cmdrsp is only valid
- * if the "sent" field is not NULL.
+ * if the "sent" field is yest NULL.
  *
  * Return: A pointer to the cmdrsp, NULL on failure
  */
@@ -265,9 +265,9 @@ static void setup_scsitaskmgmt_handles(struct idr *idrtable, spinlock_t *lock,
 {
 	/* specify the event that has to be triggered when this */
 	/* cmd is complete */
-	cmdrsp->scsitaskmgmt.notify_handle =
+	cmdrsp->scsitaskmgmt.yestify_handle =
 		simple_idr_get(idrtable, event, lock);
-	cmdrsp->scsitaskmgmt.notifyresult_handle =
+	cmdrsp->scsitaskmgmt.yestifyresult_handle =
 		simple_idr_get(idrtable, result, lock);
 }
 
@@ -280,10 +280,10 @@ static void setup_scsitaskmgmt_handles(struct idr *idrtable, spinlock_t *lock,
 static void cleanup_scsitaskmgmt_handles(struct idr *idrtable,
 					 struct uiscmdrsp *cmdrsp)
 {
-	if (cmdrsp->scsitaskmgmt.notify_handle)
-		idr_remove(idrtable, cmdrsp->scsitaskmgmt.notify_handle);
-	if (cmdrsp->scsitaskmgmt.notifyresult_handle)
-		idr_remove(idrtable, cmdrsp->scsitaskmgmt.notifyresult_handle);
+	if (cmdrsp->scsitaskmgmt.yestify_handle)
+		idr_remove(idrtable, cmdrsp->scsitaskmgmt.yestify_handle);
+	if (cmdrsp->scsitaskmgmt.yestifyresult_handle)
+		idr_remove(idrtable, cmdrsp->scsitaskmgmt.yestifyresult_handle);
 }
 
 /*
@@ -295,7 +295,7 @@ static void cleanup_scsitaskmgmt_handles(struct idr *idrtable,
  * Create a cmdrsp packet and send it to the Serivce Partition
  * that will service this request.
  *
- * Return: Int representing whether command was queued successfully or not
+ * Return: Int representing whether command was queued successfully or yest
  */
 static int forward_taskmgmt_command(enum task_mgmt_types tasktype,
 				    struct scsi_device *scsidev)
@@ -303,8 +303,8 @@ static int forward_taskmgmt_command(enum task_mgmt_types tasktype,
 	struct uiscmdrsp *cmdrsp;
 	struct visorhba_devdata *devdata =
 		(struct visorhba_devdata *)scsidev->host->hostdata;
-	int notifyresult = 0xffff;
-	wait_queue_head_t notifyevent;
+	int yestifyresult = 0xffff;
+	wait_queue_head_t yestifyevent;
 	int scsicmd_id = 0;
 
 	if (devdata->serverdown || devdata->serverchangingstate)
@@ -317,12 +317,12 @@ static int forward_taskmgmt_command(enum task_mgmt_types tasktype,
 
 	cmdrsp = get_scsipending_cmdrsp(devdata, scsicmd_id);
 
-	init_waitqueue_head(&notifyevent);
+	init_waitqueue_head(&yestifyevent);
 
 	/* issue TASK_MGMT_ABORT_TASK */
 	cmdrsp->cmdtype = CMD_SCSITASKMGMT_TYPE;
 	setup_scsitaskmgmt_handles(&devdata->idr, &devdata->privlock, cmdrsp,
-				   &notifyevent, &notifyresult);
+				   &yestifyevent, &yestifyresult);
 
 	/* save destination */
 	cmdrsp->scsitaskmgmt.tasktype = tasktype;
@@ -341,19 +341,19 @@ static int forward_taskmgmt_command(enum task_mgmt_types tasktype,
 	/* It can take the Service Partition up to 35 seconds to complete
 	 * an IO in some cases, so wait 45 seconds and error out
 	 */
-	if (!wait_event_timeout(notifyevent, notifyresult != 0xffff,
+	if (!wait_event_timeout(yestifyevent, yestifyresult != 0xffff,
 				msecs_to_jiffies(45000)))
 		goto err_del_scsipending_ent;
 
 	dev_dbg(&scsidev->sdev_gendev,
 		"visorhba: taskmgmt type=%d success; result=0x%x\n",
-		 tasktype, notifyresult);
+		 tasktype, yestifyresult);
 	cleanup_scsitaskmgmt_handles(&devdata->idr, cmdrsp);
 	return SUCCESS;
 
 err_del_scsipending_ent:
 	dev_dbg(&scsidev->sdev_gendev,
-		"visorhba: taskmgmt type=%d not executed\n", tasktype);
+		"visorhba: taskmgmt type=%d yest executed\n", tasktype);
 	del_scsipending_ent(devdata, scsicmd_id);
 	cleanup_scsitaskmgmt_handles(&devdata->idr, cmdrsp);
 	return FAILED;
@@ -664,8 +664,8 @@ static int info_debugfs_show(struct seq_file *seq, void *v)
 	seq_printf(seq, "interrupts_rcvd = %llu\n", devdata->interrupts_rcvd);
 	seq_printf(seq, "interrupts_disabled = %llu\n",
 		   devdata->interrupts_disabled);
-	seq_printf(seq, "interrupts_notme = %llu\n",
-		   devdata->interrupts_notme);
+	seq_printf(seq, "interrupts_yestme = %llu\n",
+		   devdata->interrupts_yestme);
 	seq_printf(seq, "flags_addr = %p\n", devdata->flags_addr);
 	if (devdata->flags_addr) {
 		u64 phys_flags_addr =
@@ -695,18 +695,18 @@ static void complete_taskmgmt_command(struct idr *idrtable,
 				      struct uiscmdrsp *cmdrsp, int result)
 {
 	wait_queue_head_t *wq =
-		idr_find(idrtable, cmdrsp->scsitaskmgmt.notify_handle);
+		idr_find(idrtable, cmdrsp->scsitaskmgmt.yestify_handle);
 	int *scsi_result_ptr =
-		idr_find(idrtable, cmdrsp->scsitaskmgmt.notifyresult_handle);
+		idr_find(idrtable, cmdrsp->scsitaskmgmt.yestifyresult_handle);
 	if (unlikely(!(wq && scsi_result_ptr))) {
-		pr_err("visorhba: no completion context; cmd will time out\n");
+		pr_err("visorhba: yes completion context; cmd will time out\n");
 		return;
 	}
 
 	/* copy the result of the taskmgmt and
 	 * wake up the error handler that is waiting for this
 	 */
-	pr_debug("visorhba: notifying initiator with result=0x%x\n", result);
+	pr_debug("visorhba: yestifying initiator with result=0x%x\n", result);
 	*scsi_result_ptr = result;
 	wake_up_all(wq);
 }
@@ -761,7 +761,7 @@ static void visorhba_serverdown_complete(struct visorhba_devdata *devdata)
 }
 
 /*
- * visorhba_serverdown - Got notified that the IOVM is down
+ * visorhba_serverdown - Got yestified that the IOVM is down
  * @devdata: Visorhba that is being serviced by downed IOVM
  *
  * Something happened to the IOVM, return immediately and
@@ -785,7 +785,7 @@ static int visorhba_serverdown(struct visorhba_devdata *devdata)
  * @cmdrsp:  Response from IOVM
  * @scsicmd: Command issued
  *
- * Don't log errors for disk-not-present inquiries.
+ * Don't log errors for disk-yest-present inquiries.
  */
 static void do_scsi_linuxstat(struct uiscmdrsp *cmdrsp,
 			      struct scsi_cmnd *scsicmd)
@@ -796,7 +796,7 @@ static void do_scsi_linuxstat(struct uiscmdrsp *cmdrsp,
 	scsidev = scsicmd->device;
 	memcpy(scsicmd->sense_buffer, cmdrsp->scsi.sensebuf, MAX_SENSE_SIZE);
 
-	/* Do not log errors for disk-not-present inquiries */
+	/* Do yest log errors for disk-yest-present inquiries */
 	if (cmdrsp->scsi.cmnd[0] == INQUIRY &&
 	    (host_byte(cmdrsp->scsi.linuxstat) == DID_NO_CONNECT) &&
 	    cmdrsp->scsi.addlstat == ADDL_SEL_TIMEOUT)
@@ -809,7 +809,7 @@ static void do_scsi_linuxstat(struct uiscmdrsp *cmdrsp,
 	}
 }
 
-static int set_no_disk_inquiry_result(unsigned char *buf, size_t len,
+static int set_yes_disk_inquiry_result(unsigned char *buf, size_t len,
 				      bool is_lun0)
 {
 	if (len < NO_DISK_INQUIRY_RESULT_LEN)
@@ -828,13 +828,13 @@ static int set_no_disk_inquiry_result(unsigned char *buf, size_t len,
 }
 
 /*
- * do_scsi_nolinuxstat - Scsi command didn't have linuxstat
+ * do_scsi_yeslinuxstat - Scsi command didn't have linuxstat
  * @cmdrsp:  Response from IOVM
  * @scsicmd: Command issued
  *
- * Handle response when no linuxstat was returned.
+ * Handle response when yes linuxstat was returned.
  */
-static void do_scsi_nolinuxstat(struct uiscmdrsp *cmdrsp,
+static void do_scsi_yeslinuxstat(struct uiscmdrsp *cmdrsp,
 				struct scsi_cmnd *scsicmd)
 {
 	struct scsi_device *scsidev;
@@ -849,7 +849,7 @@ static void do_scsi_nolinuxstat(struct uiscmdrsp *cmdrsp,
 	scsidev = scsicmd->device;
 	if (cmdrsp->scsi.cmnd[0] == INQUIRY &&
 	    cmdrsp->scsi.bufflen >= MIN_INQUIRY_RESULT_LEN) {
-		if (cmdrsp->scsi.no_disk_result == 0)
+		if (cmdrsp->scsi.yes_disk_result == 0)
 			return;
 
 		buf = kzalloc(36, GFP_KERNEL);
@@ -861,7 +861,7 @@ static void do_scsi_nolinuxstat(struct uiscmdrsp *cmdrsp,
 		 * a disk there so we'll present a processor
 		 * there.
 		 */
-		set_no_disk_inquiry_result(buf, (size_t)cmdrsp->scsi.bufflen,
+		set_yes_disk_inquiry_result(buf, (size_t)cmdrsp->scsi.bufflen,
 					   scsidev->lun == 0);
 
 		if (scsi_sg_count(scsicmd) == 0) {
@@ -905,7 +905,7 @@ static void complete_scsi_command(struct uiscmdrsp *cmdrsp,
 	if (cmdrsp->scsi.linuxstat)
 		do_scsi_linuxstat(cmdrsp, scsicmd);
 	else
-		do_scsi_nolinuxstat(cmdrsp, scsicmd);
+		do_scsi_yeslinuxstat(cmdrsp, scsicmd);
 
 	scsicmd->scsi_done(scsicmd);
 }
@@ -946,8 +946,8 @@ static void drain_queue(struct uiscmdrsp *cmdrsp,
 						  cmdrsp->scsitaskmgmt.result);
 		} else if (cmdrsp->cmdtype == CMD_NOTIFYGUEST_TYPE)
 			dev_err_once(&devdata->dev->device,
-				     "ignoring unsupported NOTIFYGUEST\n");
-		/* cmdrsp is now available for re-use */
+				     "igyesring unsupported NOTIFYGUEST\n");
+		/* cmdrsp is yesw available for re-use */
 	}
 }
 

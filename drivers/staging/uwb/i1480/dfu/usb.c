@@ -86,9 +86,9 @@ void i1480_usb_destroy(struct i1480_usb *i1480_usb)
  *          Address where to write the data buffer to.
  * @buffer: Buffer to the data
  * @size:   Size of the buffer [has to be < 512].
- * @returns: 0 if ok, < 0 errno code on error.
+ * @returns: 0 if ok, < 0 erryes code on error.
  *
- * Data buffers to USB cannot be on the stack or in vmalloc'ed areas,
+ * Data buffers to USB canyest be on the stack or in vmalloc'ed areas,
  * so we copy it to the local i1480 buffer before proceeding. In any
  * case, we have a max size we can send.
  */
@@ -126,7 +126,7 @@ int i1480_usb_write(struct i1480 *i1480, u32 memory_address,
  * @memory_address:
  *         Address where to read from.
  * @size:  Size to read. Smaller than or equal to 512.
- * @returns: >= 0 number of bytes written if ok, < 0 errno code on error.
+ * @returns: >= 0 number of bytes written if ok, < 0 erryes code on error.
  *
  * NOTE: if the memory address or block is incorrect, you might get a
  *       stall or a different memory read. Caller has to verify the
@@ -176,7 +176,7 @@ out:
 
 
 /**
- * Callback for reads on the notification/event endpoint
+ * Callback for reads on the yestification/event endpoint
  *
  * Just enables the completion read handler.
  */
@@ -190,14 +190,14 @@ void i1480_usb_neep_cb(struct urb *urb)
 	case 0:
 		break;
 	case -ECONNRESET:	/* Not an error, but a controlled situation; */
-	case -ENOENT:		/* (we killed the URB)...so, no broadcast */
-		dev_dbg(dev, "NEEP: reset/noent %d\n", urb->status);
+	case -ENOENT:		/* (we killed the URB)...so, yes broadcast */
+		dev_dbg(dev, "NEEP: reset/yesent %d\n", urb->status);
 		break;
 	case -ESHUTDOWN:	/* going away! */
 		dev_dbg(dev, "NEEP: down %d\n", urb->status);
 		break;
 	default:
-		dev_err(dev, "NEEP: unknown status %d\n", urb->status);
+		dev_err(dev, "NEEP: unkyeswn status %d\n", urb->status);
 		break;
 	}
 	i1480->evt_result = urb->actual_length;
@@ -209,8 +209,8 @@ void i1480_usb_neep_cb(struct urb *urb)
 /**
  * Wait for the MAC FW to initialize
  *
- * MAC FW sends a 0xfd/0101/00 notification to EP1 when done
- * initializing. Get that notification into i1480->evt_buf; upper layer
+ * MAC FW sends a 0xfd/0101/00 yestification to EP1 when done
+ * initializing. Get that yestification into i1480->evt_buf; upper layer
  * will verify it.
  *
  * Set i1480->evt_result with the result of getting the event or its
@@ -235,7 +235,7 @@ int i1480_usb_wait_init_done(struct i1480 *i1480)
 			 i1480_usb_neep_cb, i1480, epd->bInterval);
 	result = usb_submit_urb(i1480_usb->neep_urb, GFP_KERNEL);
 	if (result < 0) {
-		dev_err(dev, "init done: cannot submit NEEP read: %d\n",
+		dev_err(dev, "init done: canyest submit NEEP read: %d\n",
 			result);
 		goto error_submit;
 	}
@@ -268,7 +268,7 @@ error_submit:
  * @reply_size: Expected size back (including RCEB); the reply buffer
  *              is assumed to be as big as this.
  * @returns:    >= 0 size of the returned event data if ok,
- *              < 0 errno code on error.
+ *              < 0 erryes code on error.
  *
  * Arms the NE handle, issues the command to the device and checks the
  * basics of the reply event.
@@ -281,10 +281,10 @@ int i1480_usb_cmd(struct i1480 *i1480, const char *cmd_name, size_t cmd_size)
 	struct i1480_usb *i1480_usb = container_of(i1480, struct i1480_usb, i1480);
 	struct usb_endpoint_descriptor *epd;
 	struct uwb_rccb *cmd = i1480->cmd_buf;
-	u8 iface_no;
+	u8 iface_yes;
 
-	/* Post a read on the notification & event endpoint */
-	iface_no = i1480_usb->usb_iface->cur_altsetting->desc.bInterfaceNumber;
+	/* Post a read on the yestification & event endpoint */
+	iface_yes = i1480_usb->usb_iface->cur_altsetting->desc.bInterfaceNumber;
 	epd = &i1480_usb->usb_iface->cur_altsetting->endpoint[0].desc;
 	usb_fill_int_urb(
 		i1480_usb->neep_urb, i1480_usb->usb_dev,
@@ -293,7 +293,7 @@ int i1480_usb_cmd(struct i1480 *i1480, const char *cmd_name, size_t cmd_size)
 		i1480_usb_neep_cb, i1480, epd->bInterval);
 	result = usb_submit_urb(i1480_usb->neep_urb, GFP_KERNEL);
 	if (result < 0) {
-		dev_err(dev, "%s: cannot submit NEEP read: %d\n",
+		dev_err(dev, "%s: canyest submit NEEP read: %d\n",
 			cmd_name, result);
 		goto error_submit_ep1;
 	}
@@ -302,7 +302,7 @@ int i1480_usb_cmd(struct i1480 *i1480, const char *cmd_name, size_t cmd_size)
 		i1480_usb->usb_dev, usb_sndctrlpipe(i1480_usb->usb_dev, 0),
 		WA_EXEC_RC_CMD,
 		USB_DIR_OUT | USB_RECIP_INTERFACE | USB_TYPE_CLASS,
-		0, iface_no,
+		0, iface_yes,
 		cmd, cmd_size,
 		100 /* FIXME: this is totally arbitrary */);
 	if (result < 0) {
@@ -335,7 +335,7 @@ int i1480_usb_probe(struct usb_interface *iface, const struct usb_device_id *id)
 
 	result = -ENODEV;
 	if (iface->cur_altsetting->desc.bInterfaceNumber != 0) {
-		dev_dbg(dev, "not attaching to iface %d\n",
+		dev_dbg(dev, "yest attaching to iface %d\n",
 			iface->cur_altsetting->desc.bInterfaceNumber);
 		goto error;
 	}
@@ -364,7 +364,7 @@ int i1480_usb_probe(struct usb_interface *iface, const struct usb_device_id *id)
 	i1480->buf_size = 512;
 	i1480->cmd_buf = kmalloc_array(2, i1480->buf_size, GFP_KERNEL);
 	if (i1480->cmd_buf == NULL) {
-		dev_err(dev, "Cannot allocate transfer buffers\n");
+		dev_err(dev, "Canyest allocate transfer buffers\n");
 		result = -ENOMEM;
 		goto error_buf_alloc;
 	}
@@ -372,7 +372,7 @@ int i1480_usb_probe(struct usb_interface *iface, const struct usb_device_id *id)
 
 	result = i1480_usb_create(i1480_usb, iface);
 	if (result < 0) {
-		dev_err(dev, "Cannot create instance: %d\n", result);
+		dev_err(dev, "Canyest create instance: %d\n", result);
 		goto error_create;
 	}
 

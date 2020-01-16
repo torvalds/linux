@@ -481,7 +481,7 @@ static int rvin_enum_input(struct file *file, void *priv,
 		i->std = 0;
 	} else {
 		i->capabilities = V4L2_IN_CAP_STD;
-		i->std = vin->vdev.tvnorms;
+		i->std = vin->vdev.tvyesrms;
 	}
 
 	strscpy(i->name, "Camera", sizeof(i->name));
@@ -899,19 +899,19 @@ void rvin_v4l2_unregister(struct rvin_dev *vin)
 		return;
 
 	v4l2_info(&vin->v4l2_dev, "Removing %s\n",
-		  video_device_node_name(&vin->vdev));
+		  video_device_yesde_name(&vin->vdev));
 
-	/* Checks internally if vdev have been init or not */
+	/* Checks internally if vdev have been init or yest */
 	video_unregister_device(&vin->vdev);
 }
 
-static void rvin_notify(struct v4l2_subdev *sd,
-			unsigned int notification, void *arg)
+static void rvin_yestify(struct v4l2_subdev *sd,
+			unsigned int yestification, void *arg)
 {
 	struct rvin_dev *vin =
 		container_of(sd->v4l2_dev, struct rvin_dev, v4l2_dev);
 
-	switch (notification) {
+	switch (yestification) {
 	case V4L2_DEVICE_NOTIFY_EVENT:
 		v4l2_event_queue(&vin->vdev, arg);
 		break;
@@ -925,9 +925,9 @@ int rvin_v4l2_register(struct rvin_dev *vin)
 	struct video_device *vdev = &vin->vdev;
 	int ret;
 
-	vin->v4l2_dev.notify = rvin_notify;
+	vin->v4l2_dev.yestify = rvin_yestify;
 
-	/* video node */
+	/* video yesde */
 	vdev->v4l2_dev = &vin->v4l2_dev;
 	vdev->queue = &vin->queue;
 	snprintf(vdev->name, sizeof(vdev->name), "VIN%u output", vin->id);
@@ -962,7 +962,7 @@ int rvin_v4l2_register(struct rvin_dev *vin)
 	video_set_drvdata(&vin->vdev, vin);
 
 	v4l2_info(&vin->v4l2_dev, "Device registered as %s\n",
-		  video_device_node_name(&vin->vdev));
+		  video_device_yesde_name(&vin->vdev));
 
 	return ret;
 }

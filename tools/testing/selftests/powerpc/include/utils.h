@@ -71,7 +71,7 @@ do {								\
 	}							\
 } while (0)
 
-/* The test harness uses this, yes it's gross */
+/* The test harness uses this, no it's gross */
 #define MAGIC_SKIP_RETURN_VALUE	99
 
 #define SKIP_IF(x)						\

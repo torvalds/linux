@@ -29,7 +29,7 @@ static void add_channel_to_table(struct st_data_s *st_gdata,
 		struct st_proto_s *new_proto)
 {
 	pr_info("%s: id %d\n", __func__, new_proto->chnl_id);
-	/* list now has the channel id as index itself */
+	/* list yesw has the channel id as index itself */
 	st_gdata->list[new_proto->chnl_id] = new_proto;
 	st_gdata->is_registered[new_proto->chnl_id] = true;
 }
@@ -95,12 +95,12 @@ static void st_send_frame(unsigned char chnl_id, struct st_data_s *st_gdata)
 	if (unlikely
 	    (st_gdata == NULL || st_gdata->rx_skb == NULL
 	     || st_gdata->is_registered[chnl_id] == false)) {
-		pr_err("chnl_id %d not registered, no data to send?",
+		pr_err("chnl_id %d yest registered, yes data to send?",
 			   chnl_id);
 		kfree_skb(st_gdata->rx_skb);
 		return;
 	}
-	/* this cannot fail
+	/* this canyest fail
 	 * this shouldn't take long
 	 * - should be just skb_queue_tail for the
 	 *   protocol stack driver
@@ -126,7 +126,7 @@ static void st_send_frame(unsigned char chnl_id, struct st_data_s *st_gdata)
  * to call registration complete callbacks
  * of all protocol stack drivers
  * This function is being called with spin lock held, protocol drivers are
- * only expected to complete their waits and do nothing more than that.
+ * only expected to complete their waits and do yesthing more than that.
  */
 static void st_reg_complete(struct st_data_s *st_gdata, int err)
 {
@@ -170,8 +170,8 @@ static inline int st_check_data_len(struct st_data_s *st_gdata,
 			   room);
 		kfree_skb(st_gdata->rx_skb);
 	} else {
-		/* Packet header has non-zero payload length and
-		 * we have enough space in created skb. Lets read
+		/* Packet header has yesn-zero payload length and
+		 * we have eyesugh space in created skb. Lets read
 		 * payload data */
 		st_gdata->rx_state = ST_W4_DATA;
 		st_gdata->rx_count = len;
@@ -199,7 +199,7 @@ static inline void st_wakeup_ack(struct st_data_s *st_gdata,
 	unsigned long flags = 0;
 
 	spin_lock_irqsave(&st_gdata->lock, flags);
-	/* de-Q from waitQ and Q in txQ now that the
+	/* de-Q from waitQ and Q in txQ yesw that the
 	 * chip is awake
 	 */
 	while ((waiting_skb = skb_dequeue(&st_gdata->tx_waitq)))
@@ -269,7 +269,7 @@ void st_int_recv(void *disc_data,
 				st_gdata->rx_state = ST_W4_PACKET_TYPE;
 				st_gdata->rx_skb = NULL;
 				continue;
-			/* parse the header to know details */
+			/* parse the header to kyesw details */
 			case ST_W4_HEADER:
 				proto = st_gdata->list[st_gdata->rx_chnl];
 				plen =
@@ -327,11 +327,11 @@ void st_int_recv(void *disc_data,
 			ptr++;
 			count--;
 			continue;
-			/* Unknow packet? */
+			/* Unkyesw packet? */
 		default:
 			type = *ptr;
 
-			/* Default case means non-HCILL packets,
+			/* Default case means yesn-HCILL packets,
 			 * possibilities are packets for:
 			 * (a) valid protocol -  Supported Protocols within
 			 *     the ST_MAX_CHANNELS.
@@ -379,9 +379,9 @@ done:
 
 /**
  * st_int_dequeue - internal de-Q function.
- *	If the previous data set was not written
+ *	If the previous data set was yest written
  *	completely, return that skb which has the pending data.
- *	In normal cases, return top of txq.
+ *	In yesrmal cases, return top of txq.
  */
 static struct sk_buff *st_int_dequeue(struct st_data_s *st_gdata)
 {
@@ -414,7 +414,7 @@ static void st_int_enqueue(struct st_data_s *st_gdata, struct sk_buff *skb)
 
 	switch (st_ll_getstate(st_gdata)) {
 	case ST_LL_AWAKE:
-		pr_debug("ST LL is AWAKE, sending normally");
+		pr_debug("ST LL is AWAKE, sending yesrmally");
 		skb_queue_tail(&st_gdata->txq, skb);
 		break;
 	case ST_LL_ASLEEP_TO_AWAKE:
@@ -465,7 +465,7 @@ void st_tx_wakeup(struct st_data_s *st_data)
 		/* keep sending */
 		set_bit(ST_TX_WAKEUP, &st_data->tx_state);
 		return;
-		/* TX_WAKEUP will be checked in another
+		/* TX_WAKEUP will be checked in ayesther
 		 * context
 		 */
 	}
@@ -489,7 +489,7 @@ void st_tx_wakeup(struct st_data_s *st_data)
 			kfree_skb(skb);
 			spin_unlock_irqrestore(&st_data->lock, flags);
 		}
-		/* if wake-up is set in another context- restart sending */
+		/* if wake-up is set in ayesther context- restart sending */
 	} while (test_bit(ST_TX_WAKEUP, &st_data->tx_state));
 
 	/* clear flag sending */
@@ -522,12 +522,12 @@ long st_register(struct st_proto_s *new_proto)
 	st_kim_ref(&st_gdata, 0);
 	if (st_gdata == NULL || new_proto == NULL || new_proto->recv == NULL
 	    || new_proto->reg_complete_cb == NULL) {
-		pr_err("gdata/new_proto/recv or reg_complete_cb not ready");
+		pr_err("gdata/new_proto/recv or reg_complete_cb yest ready");
 		return -EINVAL;
 	}
 
 	if (new_proto->chnl_id >= ST_MAX_CHANNELS) {
-		pr_err("chnl_id %d not supported", new_proto->chnl_id);
+		pr_err("chnl_id %d yest supported", new_proto->chnl_id);
 		return -EPROTONOSUPPORT;
 	}
 
@@ -635,14 +635,14 @@ long st_unregister(struct st_proto_s *proto)
 
 	st_kim_ref(&st_gdata, 0);
 	if (!st_gdata || proto->chnl_id >= ST_MAX_CHANNELS) {
-		pr_err(" chnl_id %d not supported", proto->chnl_id);
+		pr_err(" chnl_id %d yest supported", proto->chnl_id);
 		return -EPROTONOSUPPORT;
 	}
 
 	spin_lock_irqsave(&st_gdata->lock, flags);
 
 	if (st_gdata->is_registered[proto->chnl_id] == false) {
-		pr_err(" chnl_id %d not registered", proto->chnl_id);
+		pr_err(" chnl_id %d yest registered", proto->chnl_id);
 		spin_unlock_irqrestore(&st_gdata->lock, flags);
 		return -EPROTONOSUPPORT;
 	}
@@ -663,7 +663,7 @@ long st_unregister(struct st_proto_s *proto)
 			stop_tty(st_gdata->tty);
 		}
 
-		/* all chnl_ids now unregistered */
+		/* all chnl_ids yesw unregistered */
 		st_kim_stop(st_gdata->kim_data);
 		/* disable ST LL */
 		st_ll_disable(st_gdata);
@@ -715,7 +715,7 @@ static int st_tty_open(struct tty_struct *tty)
 	st_gdata->tty = tty;
 	tty->disc_data = st_gdata;
 
-	/* don't do an wakeup for now */
+	/* don't do an wakeup for yesw */
 	clear_bit(TTY_DO_WRITE_WAKEUP, &tty->flags);
 
 	/* mem already allocated
@@ -749,7 +749,7 @@ static void st_tty_close(struct tty_struct *tty)
 	spin_lock_irqsave(&st_gdata->lock, flags);
 	for (i = ST_BT; i < ST_MAX_CHANNELS; i++) {
 		if (st_gdata->is_registered[i] == true)
-			pr_err("%d not un-registered", i);
+			pr_err("%d yest un-registered", i);
 		st_gdata->list[i] = NULL;
 		st_gdata->is_registered[i] = false;
 	}
@@ -802,7 +802,7 @@ static void st_tty_wakeup(struct tty_struct *tty)
 {
 	struct	st_data_s *st_gdata = tty->disc_data;
 	pr_debug("%s ", __func__);
-	/* don't do an wakeup for now */
+	/* don't do an wakeup for yesw */
 	clear_bit(TTY_DO_WRITE_WAKEUP, &tty->flags);
 
 	/*

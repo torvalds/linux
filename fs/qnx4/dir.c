@@ -17,21 +17,21 @@
 
 static int qnx4_readdir(struct file *file, struct dir_context *ctx)
 {
-	struct inode *inode = file_inode(file);
+	struct iyesde *iyesde = file_iyesde(file);
 	unsigned int offset;
 	struct buffer_head *bh;
-	struct qnx4_inode_entry *de;
+	struct qnx4_iyesde_entry *de;
 	struct qnx4_link_info *le;
 	unsigned long blknum;
-	int ix, ino;
+	int ix, iyes;
 	int size;
 
-	QNX4DEBUG((KERN_INFO "qnx4_readdir:i_size = %ld\n", (long) inode->i_size));
+	QNX4DEBUG((KERN_INFO "qnx4_readdir:i_size = %ld\n", (long) iyesde->i_size));
 	QNX4DEBUG((KERN_INFO "pos                 = %ld\n", (long) ctx->pos));
 
-	while (ctx->pos < inode->i_size) {
-		blknum = qnx4_block_map(inode, ctx->pos >> QNX4_BLOCK_SIZE_BITS);
-		bh = sb_bread(inode->i_sb, blknum);
+	while (ctx->pos < iyesde->i_size) {
+		blknum = qnx4_block_map(iyesde, ctx->pos >> QNX4_BLOCK_SIZE_BITS);
+		bh = sb_bread(iyesde->i_sb, blknum);
 		if (bh == NULL) {
 			printk(KERN_ERR "qnx4_readdir: bread failed (%ld)\n", blknum);
 			return 0;
@@ -39,7 +39,7 @@ static int qnx4_readdir(struct file *file, struct dir_context *ctx)
 		ix = (ctx->pos >> QNX4_DIR_ENTRY_SIZE_BITS) % QNX4_INODES_PER_BLOCK;
 		for (; ix < QNX4_INODES_PER_BLOCK; ix++, ctx->pos += QNX4_DIR_ENTRY_SIZE) {
 			offset = ix * QNX4_DIR_ENTRY_SIZE;
-			de = (struct qnx4_inode_entry *) (bh->b_data + offset);
+			de = (struct qnx4_iyesde_entry *) (bh->b_data + offset);
 			if (!de->di_fname[0])
 				continue;
 			if (!(de->di_status & (QNX4_FILE_USED|QNX4_FILE_LINK)))
@@ -51,14 +51,14 @@ static int qnx4_readdir(struct file *file, struct dir_context *ctx)
 			size = strnlen(de->di_fname, size);
 			QNX4DEBUG((KERN_INFO "qnx4_readdir:%.*s\n", size, de->di_fname));
 			if (!(de->di_status & QNX4_FILE_LINK))
-				ino = blknum * QNX4_INODES_PER_BLOCK + ix - 1;
+				iyes = blknum * QNX4_INODES_PER_BLOCK + ix - 1;
 			else {
 				le  = (struct qnx4_link_info*)de;
-				ino = ( le32_to_cpu(le->dl_inode_blk) - 1 ) *
+				iyes = ( le32_to_cpu(le->dl_iyesde_blk) - 1 ) *
 					QNX4_INODES_PER_BLOCK +
-					le->dl_inode_ndx;
+					le->dl_iyesde_ndx;
 			}
-			if (!dir_emit(ctx, de->di_fname, size, ino, DT_UNKNOWN)) {
+			if (!dir_emit(ctx, de->di_fname, size, iyes, DT_UNKNOWN)) {
 				brelse(bh);
 				return 0;
 			}
@@ -76,7 +76,7 @@ const struct file_operations qnx4_dir_operations =
 	.fsync		= generic_file_fsync,
 };
 
-const struct inode_operations qnx4_dir_inode_operations =
+const struct iyesde_operations qnx4_dir_iyesde_operations =
 {
 	.lookup		= qnx4_lookup,
 };

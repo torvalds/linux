@@ -195,7 +195,7 @@ static const struct mtk_pin_desc mt7629_pins[] = {
 
 /* List all groups consisting of these pins dedicated to the enablement of
  * certain hardware block and the corresponding mode for all of the pins.
- * The hardware probably has multiple combinations of these pinouts.
+ * The hardware probably has multiple combinations of these piyesuts.
  */
 
 /* LED for EPHY */
@@ -305,8 +305,8 @@ static int mt7629_snfi_pins[] = { 62, 63, 64, 65, 66, 67 };
 static int mt7629_snfi_funcs[] = { 2, 2, 2, 2, 2, 2 };
 
 /* SPI NOR */
-static int mt7629_snor_pins[] = { 62, 63, 64, 65, 66, 67 };
-static int mt7629_snor_funcs[] = { 1, 1, 1, 1, 1, 1 };
+static int mt7629_syesr_pins[] = { 62, 63, 64, 65, 66, 67 };
+static int mt7629_syesr_funcs[] = { 1, 1, 1, 1, 1, 1 };
 
 static const struct group_desc mt7629_groups[] = {
 	PINCTRL_PIN_GROUP("ephy_leds", mt7629_ephy_leds),
@@ -350,7 +350,7 @@ static const struct group_desc mt7629_groups[] = {
 	PINCTRL_PIN_GROUP("wf0_5g", mt7629_wf0_5g),
 	PINCTRL_PIN_GROUP("wf0_2g", mt7629_wf0_2g),
 	PINCTRL_PIN_GROUP("snfi", mt7629_snfi),
-	PINCTRL_PIN_GROUP("spi_nor", mt7629_snor),
+	PINCTRL_PIN_GROUP("spi_yesr", mt7629_syesr),
 };
 
 /* Joint those groups owning the same capability in user point of view which
@@ -382,7 +382,7 @@ static const char *mt7629_uart_groups[] = { "uart1_0_txd_rxd",
 					    "uart0_txd_rxd", };
 static const char *mt7629_wdt_groups[] = { "watchdog", };
 static const char *mt7629_wifi_groups[] = { "wf0_5g", "wf0_2g", };
-static const char *mt7629_flash_groups[] = { "snfi", "spi_nor" };
+static const char *mt7629_flash_groups[] = { "snfi", "spi_yesr" };
 
 static const struct function_desc mt7629_functions[] = {
 	{"eth",	mt7629_ethernet_groups, ARRAY_SIZE(mt7629_ethernet_groups)},

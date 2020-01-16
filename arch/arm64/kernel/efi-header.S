@@ -23,7 +23,7 @@ coff_header:
 optional_header:
 	.short	PE_OPT_MAGIC_PE32PLUS			// PE32+ format
 	.byte	0x02					// MajorLinkerVersion
-	.byte	0x14					// MinorLinkerVersion
+	.byte	0x14					// MiyesrLinkerVersion
 	.long	__initdata_begin - efi_header_end	// SizeOfCode
 	.long	__pecoff_data_size			// SizeOfInitializedData
 	.long	0					// SizeOfUninitializedData
@@ -35,11 +35,11 @@ extra_header_fields:
 	.long	SZ_4K					// SectionAlignment
 	.long	PECOFF_FILE_ALIGNMENT			// FileAlignment
 	.short	0					// MajorOperatingSystemVersion
-	.short	0					// MinorOperatingSystemVersion
+	.short	0					// MiyesrOperatingSystemVersion
 	.short	0					// MajorImageVersion
-	.short	0					// MinorImageVersion
+	.short	0					// MiyesrImageVersion
 	.short	0					// MajorSubsystemVersion
-	.short	0					// MinorSubsystemVersion
+	.short	0					// MiyesrSubsystemVersion
 	.long	0					// Win32VersionValue
 
 	.long	_end - _head				// SizeOfImage
@@ -104,7 +104,7 @@ section_table:
 	/*
 	 * The debug table is referenced via its Relative Virtual Address (RVA),
 	 * which is only defined for those parts of the image that are covered
-	 * by a section declaration. Since this header is not covered by any
+	 * by a section declaration. Since this header is yest covered by any
 	 * section, the debug table must be emitted elsewhere. So stick it in
 	 * the .init.rodata section instead.
 	 *
@@ -119,7 +119,7 @@ efi_debug_table:
 	.long	0					// Characteristics
 	.long	0					// TimeDateStamp
 	.short	0					// MajorVersion
-	.short	0					// MinorVersion
+	.short	0					// MiyesrVersion
 	.long	IMAGE_DEBUG_TYPE_CODEVIEW		// Type
 	.long	efi_debug_entry_size			// SizeOfData
 	.long	0					// RVA
@@ -131,9 +131,9 @@ efi_debug_table:
 efi_debug_entry:
 	// EFI_IMAGE_DEBUG_CODEVIEW_NB10_ENTRY
 	.ascii	"NB10"					// Signature
-	.long	0					// Unknown
-	.long	0					// Unknown2
-	.long	0					// Unknown3
+	.long	0					// Unkyeswn
+	.long	0					// Unkyeswn2
+	.long	0					// Unkyeswn3
 
 	.asciz	VMLINUX_PATH
 

@@ -7,8 +7,8 @@
 
 #include <trace/events/ext4.h>
 
-/* Just increment the non-pointer handle value */
-static handle_t *ext4_get_nojournal(void)
+/* Just increment the yesn-pointer handle value */
+static handle_t *ext4_get_yesjournal(void)
 {
 	handle_t *handle = current->journal_info;
 	unsigned long ref_cnt = (unsigned long)handle;
@@ -23,8 +23,8 @@ static handle_t *ext4_get_nojournal(void)
 }
 
 
-/* Decrement the non-pointer handle value */
-static void ext4_put_nojournal(handle_t *handle)
+/* Decrement the yesn-pointer handle value */
+static void ext4_put_yesjournal(handle_t *handle)
 {
 	unsigned long ref_cnt = (unsigned long)handle;
 
@@ -79,7 +79,7 @@ handle_t *__ext4_journal_start_sb(struct super_block *sb, unsigned int line,
 
 	journal = EXT4_SB(sb)->s_journal;
 	if (!journal)
-		return ext4_get_nojournal();
+		return ext4_get_yesjournal();
 	return jbd2__journal_start(journal, blocks, rsv_blocks, revoke_creds,
 				   GFP_NOFS, type, line);
 }
@@ -91,7 +91,7 @@ int __ext4_journal_stop(const char *where, unsigned int line, handle_t *handle)
 	int rc;
 
 	if (!ext4_handle_valid(handle)) {
-		ext4_put_nojournal(handle);
+		ext4_put_yesjournal(handle);
 		return 0;
 	}
 
@@ -118,7 +118,7 @@ handle_t *__ext4_journal_start_reserved(handle_t *handle, unsigned int line,
 	int err;
 
 	if (!ext4_handle_valid(handle))
-		return ext4_get_nojournal();
+		return ext4_get_yesjournal();
 
 	sb = handle->h_journal->j_private;
 	trace_ext4_journal_start_reserved(sb,
@@ -198,38 +198,38 @@ int __ext4_journal_get_write_access(const char *where, unsigned int line,
  * but there may still be a record of it in the journal, and that record
  * still needs to be revoked.
  *
- * If the handle isn't valid we're not journaling, but we still need to
+ * If the handle isn't valid we're yest journaling, but we still need to
  * call into ext4_journal_revoke() to put the buffer head.
  */
 int __ext4_forget(const char *where, unsigned int line, handle_t *handle,
-		  int is_metadata, struct inode *inode,
+		  int is_metadata, struct iyesde *iyesde,
 		  struct buffer_head *bh, ext4_fsblk_t blocknr)
 {
 	int err;
 
 	might_sleep();
 
-	trace_ext4_forget(inode, is_metadata, blocknr);
+	trace_ext4_forget(iyesde, is_metadata, blocknr);
 	BUFFER_TRACE(bh, "enter");
 
 	jbd_debug(4, "forgetting bh %p: is_metadata = %d, mode %o, "
 		  "data mode %x\n",
-		  bh, is_metadata, inode->i_mode,
-		  test_opt(inode->i_sb, DATA_FLAGS));
+		  bh, is_metadata, iyesde->i_mode,
+		  test_opt(iyesde->i_sb, DATA_FLAGS));
 
-	/* In the no journal case, we can just do a bforget and return */
+	/* In the yes journal case, we can just do a bforget and return */
 	if (!ext4_handle_valid(handle)) {
 		bforget(bh);
 		return 0;
 	}
 
 	/* Never use the revoke function if we are doing full data
-	 * journaling: there is no need to, and a V1 superblock won't
+	 * journaling: there is yes need to, and a V1 superblock won't
 	 * support it.  Otherwise, only skip the revoke on un-journaled
 	 * data blocks. */
 
-	if (test_opt(inode->i_sb, DATA_FLAGS) == EXT4_MOUNT_JOURNAL_DATA ||
-	    (!is_metadata && !ext4_should_journal_data(inode))) {
+	if (test_opt(iyesde->i_sb, DATA_FLAGS) == EXT4_MOUNT_JOURNAL_DATA ||
+	    (!is_metadata && !ext4_should_journal_data(iyesde))) {
 		if (bh) {
 			BUFFER_TRACE(bh, "call jbd2_journal_forget");
 			err = jbd2_journal_forget(handle, bh);
@@ -242,14 +242,14 @@ int __ext4_forget(const char *where, unsigned int line, handle_t *handle,
 	}
 
 	/*
-	 * data!=journal && (is_metadata || should_journal_data(inode))
+	 * data!=journal && (is_metadata || should_journal_data(iyesde))
 	 */
 	BUFFER_TRACE(bh, "call jbd2_journal_revoke");
 	err = jbd2_journal_revoke(handle, blocknr, bh);
 	if (err) {
 		ext4_journal_abort_handle(where, line, __func__,
 					  bh, handle, err);
-		__ext4_abort(inode->i_sb, where, line,
+		__ext4_abort(iyesde->i_sb, where, line,
 			   "error %d when attempting revoke", err);
 	}
 	BUFFER_TRACE(bh, "exit");
@@ -271,7 +271,7 @@ int __ext4_journal_get_create_access(const char *where, unsigned int line,
 }
 
 int __ext4_handle_dirty_metadata(const char *where, unsigned int line,
-				 handle_t *handle, struct inode *inode,
+				 handle_t *handle, struct iyesde *iyesde,
 				 struct buffer_head *bh)
 {
 	int err = 0;
@@ -286,41 +286,41 @@ int __ext4_handle_dirty_metadata(const char *where, unsigned int line,
 		if (!is_handle_aborted(handle) && WARN_ON_ONCE(err)) {
 			ext4_journal_abort_handle(where, line, __func__, bh,
 						  handle, err);
-			if (inode == NULL) {
+			if (iyesde == NULL) {
 				pr_err("EXT4: jbd2_journal_dirty_metadata "
 				       "failed: handle type %u started at "
 				       "line %u, credits %u/%u, errcode %d",
 				       handle->h_type,
-				       handle->h_line_no,
+				       handle->h_line_yes,
 				       handle->h_requested_credits,
 				       jbd2_handle_buffer_credits(handle), err);
 				return err;
 			}
-			ext4_error_inode(inode, where, line,
+			ext4_error_iyesde(iyesde, where, line,
 					 bh->b_blocknr,
 					 "journal_dirty_metadata failed: "
 					 "handle type %u started at line %u, "
 					 "credits %u/%u, errcode %d",
 					 handle->h_type,
-					 handle->h_line_no,
+					 handle->h_line_yes,
 					 handle->h_requested_credits,
 					 jbd2_handle_buffer_credits(handle),
 					 err);
 		}
 	} else {
-		if (inode)
-			mark_buffer_dirty_inode(bh, inode);
+		if (iyesde)
+			mark_buffer_dirty_iyesde(bh, iyesde);
 		else
 			mark_buffer_dirty(bh);
-		if (inode && inode_needs_sync(inode)) {
+		if (iyesde && iyesde_needs_sync(iyesde)) {
 			sync_dirty_buffer(bh);
 			if (buffer_req(bh) && !buffer_uptodate(bh)) {
 				struct ext4_super_block *es;
 
-				es = EXT4_SB(inode->i_sb)->s_es;
+				es = EXT4_SB(iyesde->i_sb)->s_es;
 				es->s_last_error_block =
 					cpu_to_le64(bh->b_blocknr);
-				ext4_error_inode(inode, where, line,
+				ext4_error_iyesde(iyesde, where, line,
 						 bh->b_blocknr,
 					"IO error syncing itable block");
 				err = -EIO;

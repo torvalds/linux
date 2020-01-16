@@ -84,7 +84,7 @@
 	pinctrl-0 = <&pinctrl_adc1>;
 	vref-supply = <&reg_adc1_vref_3v3>;
 	/*
-	 * driver can not separate a specific channel so we request 4 channels
+	 * driver can yest separate a specific channel so we request 4 channels
 	 * here - we need only the fourth channel
 	 */
 	num-channels = <4>;
@@ -219,7 +219,7 @@
 	pinctrl-1 = <&pinctrl_usdhc1_100mhz>;
 	pinctrl-2 = <&pinctrl_usdhc1_200mhz>;
 	cd-gpios = <&gpio1 19 GPIO_ACTIVE_LOW>;
-	no-1-8-v;
+	yes-1-8-v;
 	keep-power-in-suspend;
 	wakeup-source;
 	status = "disabled";

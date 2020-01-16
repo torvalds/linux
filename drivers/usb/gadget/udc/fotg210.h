@@ -2,7 +2,7 @@
 /*
  * Faraday FOTG210 USB OTG controller
  *
- * Copyright (C) 2013 Faraday Technology Corporation
+ * Copyright (C) 2013 Faraday Techyeslogy Corporation
  * Author: Yuan-Hsin Chen <yhchen@faraday-tech.com>
  */
 

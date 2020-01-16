@@ -23,7 +23,7 @@
 	};
 
 	chosen {
-		bootargs = "ignore_loglevel";
+		bootargs = "igyesre_loglevel";
 		stdout-path = "serial0:115200n8";
 	};
 
@@ -76,7 +76,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&eth0_pins>;
 	status = "okay";
-	renesas,no-ether-link;
+	renesas,yes-ether-link;
 	phy-handle = <&phy0>;
 	phy0: ethernet-phy@0 {
 		reg = <0>;
@@ -87,7 +87,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&eth1_pins>;
 	status = "okay";
-	renesas,no-ether-link;
+	renesas,yes-ether-link;
 	phy-handle = <&phy1>;
 	phy1: ethernet-phy@1 {
 		reg = <0>;

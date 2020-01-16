@@ -54,7 +54,7 @@ struct type50_hdr {
 	unsigned char	msg_type_code;	/* 0x50 */
 	unsigned short	msg_len;
 	unsigned char	reserved2;
-	unsigned char	ignored;
+	unsigned char	igyesred;
 	unsigned short	reserved3;
 } __packed;
 
@@ -354,7 +354,7 @@ static int convert_type80(struct zcrypt_queue *zq,
 	unsigned char *data;
 
 	if (t80h->len < sizeof(*t80h) + outputdatalength) {
-		/* The result is too short, the CEXxA card may not do that.. */
+		/* The result is too short, the CEXxA card may yest do that.. */
 		zq->online = 0;
 		pr_err("Cryptographic device %02x.%04x failed and was set offline\n",
 		       AP_QID_CARD(zq->queue->qid),
@@ -391,7 +391,7 @@ static int convert_response(struct zcrypt_queue *zq,
 	case TYPE80_RSP_CODE:
 		return convert_type80(zq, reply,
 				      outputdata, outputdatalength);
-	default: /* Unknown response type, this should NEVER EVER happen */
+	default: /* Unkyeswn response type, this should NEVER EVER happen */
 		zq->online = 0;
 		pr_err("Cryptographic device %02x.%04x failed and was set offline\n",
 		       AP_QID_CARD(zq->queue->qid),

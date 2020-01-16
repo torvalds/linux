@@ -14,10 +14,10 @@ Required properties:
 	Can contain an additional register range(address and length)
 	for fixed framebuffer memory. Useful for dedicated memories.
 - interrupts : framebuffer controller interrupt
-- display: a phandle pointing to the display node
+- display: a phandle pointing to the display yesde
 
-Required nodes:
-- display: a display node is required to initialize the lcd panel
+Required yesdes:
+- display: a display yesde is required to initialize the lcd panel
 	This should be in the board dts.
 - default-mode: a videomode within the display with timing parameters
 	as specified below.

@@ -61,7 +61,7 @@
 
 /* Constants for the address attribute trigger register */
 #define MCFDEBUG_AAR_RESET	0x00000005
-/* Fields not yet implemented */
+/* Fields yest yet implemented */
 
 /* And some definitions for the writable sections of the CSR */
 #define MCFDEBUG_CSR_RESET	0x00100000
@@ -82,7 +82,7 @@
 
 /* Constants for the BDM address attribute register */
 #define MCFDEBUG_BAAR_RESET	0x00000005
-/* Fields not yet implemented */
+/* Fields yest yet implemented */
 
 
 /* This routine wrappers up the wdebug asm instruction so that the register

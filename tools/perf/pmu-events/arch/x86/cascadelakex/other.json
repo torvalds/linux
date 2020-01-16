@@ -455,12 +455,12 @@
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Counts number of cache lines that are dropped and not written back to L3 as they are deemed to be less likely to be reused shortly",
+        "BriefDescription": "Counts number of cache lines that are dropped and yest written back to L3 as they are deemed to be less likely to be reused shortly",
         "Counter": "0,1,2,3",
         "CounterHTOff": "0,1,2,3,4,5,6,7",
         "EventCode": "0xFE",
         "EventName": "IDI_MISC.WB_DOWNGRADE",
-        "PublicDescription": "Counts number of cache lines that are dropped and not written back to L3 as they are deemed to be less likely to be reused shortly.",
+        "PublicDescription": "Counts number of cache lines that are dropped and yest written back to L3 as they are deemed to be less likely to be reused shortly.",
         "SampleAfterValue": "100003",
         "UMask": "0x4"
     },
@@ -2472,7 +2472,7 @@
         "CounterHTOff": "0,1,2,3,4,5,6,7",
         "EventCode": "0x28",
         "EventName": "CORE_POWER.LVL0_TURBO_LICENSE",
-        "PublicDescription": "Core cycles where the core was running with power-delivery for baseline license level 0.  This includes non-AVX codes, SSE, AVX 128-bit, and low-current AVX 256-bit codes.",
+        "PublicDescription": "Core cycles where the core was running with power-delivery for baseline license level 0.  This includes yesn-AVX codes, SSE, AVX 128-bit, and low-current AVX 256-bit codes.",
         "SampleAfterValue": "200003",
         "UMask": "0x7"
     },
@@ -2851,7 +2851,7 @@
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Counts demand data reads hit in the L3 and sibling core snoops are not needed as either the core-valid bit is not set or the shared line is present in multiple cores.",
+        "BriefDescription": "Counts demand data reads hit in the L3 and sibling core syesops are yest needed as either the core-valid bit is yest set or the shared line is present in multiple cores.",
         "Counter": "0,1,2,3",
         "CounterHTOff": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
@@ -4352,7 +4352,7 @@
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Counts all demand data writes (RFOs) hit in the L3 and sibling core snoops are not needed as either the core-valid bit is not set or the shared line is present in multiple cores.",
+        "BriefDescription": "Counts all demand data writes (RFOs) hit in the L3 and sibling core syesops are yest needed as either the core-valid bit is yest set or the shared line is present in multiple cores.",
         "Counter": "0,1,2,3",
         "CounterHTOff": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
@@ -5489,7 +5489,7 @@
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Counts all prefetch (that bring data to L2) RFOs hit in the L3 and sibling core snoops are not needed as either the core-valid bit is not set or the shared line is present in multiple cores.",
+        "BriefDescription": "Counts all prefetch (that bring data to L2) RFOs hit in the L3 and sibling core syesops are yest needed as either the core-valid bit is yest set or the shared line is present in multiple cores.",
         "Counter": "0,1,2,3",
         "CounterHTOff": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
@@ -5957,7 +5957,7 @@
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Counts all prefetch (that bring data to LLC only) RFOs hit in the L3 and sibling core snoops are not needed as either the core-valid bit is not set or the shared line is present in multiple cores.",
+        "BriefDescription": "Counts all prefetch (that bring data to LLC only) RFOs hit in the L3 and sibling core syesops are yest needed as either the core-valid bit is yest set or the shared line is present in multiple cores.",
         "Counter": "0,1,2,3",
         "CounterHTOff": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
@@ -6568,7 +6568,7 @@
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Counts all demand code reads hit in the L3 and sibling core snoops are not needed as either the core-valid bit is not set or the shared line is present in multiple cores.",
+        "BriefDescription": "Counts all demand code reads hit in the L3 and sibling core syesops are yest needed as either the core-valid bit is yest set or the shared line is present in multiple cores.",
         "Counter": "0,1,2,3",
         "CounterHTOff": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
@@ -6763,7 +6763,7 @@
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Counts any other requests hit in the L3 and sibling core snoops are not needed as either the core-valid bit is not set or the shared line is present in multiple cores.",
+        "BriefDescription": "Counts any other requests hit in the L3 and sibling core syesops are yest needed as either the core-valid bit is yest set or the shared line is present in multiple cores.",
         "Counter": "0,1,2,3",
         "CounterHTOff": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
@@ -7188,7 +7188,7 @@
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Counts all prefetch (that bring data to LLC only) data reads hit in the L3 and sibling core snoops are not needed as either the core-valid bit is not set or the shared line is present in multiple cores.",
+        "BriefDescription": "Counts all prefetch (that bring data to LLC only) data reads hit in the L3 and sibling core syesops are yest needed as either the core-valid bit is yest set or the shared line is present in multiple cores.",
         "Counter": "0,1,2,3",
         "CounterHTOff": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
@@ -7858,7 +7858,7 @@
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Counts prefetch (that bring data to L2) data reads hit in the L3 and sibling core snoops are not needed as either the core-valid bit is not set or the shared line is present in multiple cores.",
+        "BriefDescription": "Counts prefetch (that bring data to L2) data reads hit in the L3 and sibling core syesops are yest needed as either the core-valid bit is yest set or the shared line is present in multiple cores.",
         "Counter": "0,1,2,3",
         "CounterHTOff": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
@@ -8131,7 +8131,7 @@
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Counts L1 data cache hardware prefetch requests and software prefetch requests hit in the L3 and sibling core snoops are not needed as either the core-valid bit is not set or the shared line is present in multiple cores.",
+        "BriefDescription": "Counts L1 data cache hardware prefetch requests and software prefetch requests hit in the L3 and sibling core syesops are yest needed as either the core-valid bit is yest set or the shared line is present in multiple cores.",
         "Counter": "0,1,2,3",
         "CounterHTOff": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",

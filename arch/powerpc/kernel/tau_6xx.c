@@ -12,7 +12,7 @@
  * life in portables, and add a 'performance/watt' metric somewhere in /proc
  */
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/jiffies.h>
 #include <linux/kernel.h>
 #include <linux/param.h>
@@ -112,7 +112,7 @@ static void TAUupdate(int cpu)
 	printk("grew = %d\n", tau[cpu].grew);
 #endif
 
-#ifndef CONFIG_TAU_INT /* tau_timeout will do this if not using interrupts */
+#ifndef CONFIG_TAU_INT /* tau_timeout will do this if yest using interrupts */
 	set_thresholds(cpu);
 #endif
 
@@ -176,7 +176,7 @@ static void tau_timeout(void * info)
 	/*
 	 * Do the enable every time, since otherwise a bunch of (relatively)
 	 * complex sleep code needs to be added. One mtspr every time
-	 * tau_timeout is called is probably not a big deal.
+	 * tau_timeout is called is probably yest a big deal.
 	 *
 	 * Enable thermal sensor and set up sample interval timer
 	 * need 20 us to do the compare.. until a nice 'cpu_speed' function
@@ -226,7 +226,7 @@ static int __init TAU_init(void)
 	 * all have it --BenH
 	 */
 	if (!cpu_has_feature(CPU_FTR_TAU)) {
-		printk("Thermal assist unit not available\n");
+		printk("Thermal assist unit yest available\n");
 		tau_initialized = 0;
 		return 1;
 	}

@@ -60,7 +60,7 @@ int pblk_rl_gc_may_insert(struct pblk_rl *rl, int nr_entries)
 	int rb_gc_cnt = atomic_read(&rl->rb_gc_cnt);
 	int rb_user_active;
 
-	/* If there is no user I/O let GC take over space on the write buffer */
+	/* If there is yes user I/O let GC take over space on the write buffer */
 	rb_user_active = READ_ONCE(rl->rb_user_active);
 	return (!(rb_gc_cnt >= rl->rb_gc_max && rb_user_active));
 }

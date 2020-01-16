@@ -2,7 +2,7 @@
 /*
  * IIO multiplexer driver
  *
- * Copyright (C) 2017 Axentia Technologies AB
+ * Copyright (C) 2017 Axentia Techyeslogies AB
  *
  * Author: Peter Rosin <peda@axentia.se>
  */
@@ -337,7 +337,7 @@ static int mux_configure_channel(struct device *dev, struct mux *mux,
 static int mux_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	struct iio_dev *indio_dev;
 	struct iio_channel *parent;
 	struct mux *mux;
@@ -372,7 +372,7 @@ static int mux_probe(struct platform_device *pdev)
 			children++;
 	}
 	if (children <= 0) {
-		dev_err(dev, "not even a single child\n");
+		dev_err(dev, "yest even a single child\n");
 		return -EINVAL;
 	}
 

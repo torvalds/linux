@@ -14,7 +14,7 @@ Required properties:
     - "pix" for the LCDIF block clock
     - (MX6SX-only) "axi", "disp_axi" for the bus interface clock
 
-Required sub-nodes:
+Required sub-yesdes:
   - port: The connection to an encoder chip.
 
 Example:
@@ -42,15 +42,15 @@ Required properties:
 		Should be "fsl,imx28-lcdif" for i.MX28.
 - reg:		Address and length of the register set for LCDIF
 - interrupts:	Should contain LCDIF interrupts
-- display:	phandle to display node (see below for details)
+- display:	phandle to display yesde (see below for details)
 
-* display node
+* display yesde
 
 Required properties:
 - bits-per-pixel:	<16> for RGB565, <32> for RGB888/666.
 - bus-width:		number of data lines.  Could be <8>, <16>, <18> or <24>.
 
-Required sub-node:
+Required sub-yesde:
 - display-timings:	Refer to binding doc display-timing.txt for details.
 
 Examples:

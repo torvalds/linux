@@ -4,12 +4,12 @@
  *	      http://www.samsung.com/
  * Author: Sylwester Nawrocki <s.nawrocki@samsung.com>
  *
- * Samsung Exynos SoC Adaptive Supply Voltage support
+ * Samsung Exyyess SoC Adaptive Supply Voltage support
  */
 
 #include <linux/cpu.h>
 #include <linux/device.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/init.h>
 #include <linux/mfd/syscon.h>
 #include <linux/module.h>
@@ -18,23 +18,23 @@
 #include <linux/platform_device.h>
 #include <linux/pm_opp.h>
 #include <linux/regmap.h>
-#include <linux/soc/samsung/exynos-chipid.h>
+#include <linux/soc/samsung/exyyess-chipid.h>
 
-#include "exynos-asv.h"
-#include "exynos5422-asv.h"
+#include "exyyess-asv.h"
+#include "exyyess5422-asv.h"
 
 #define MHZ 1000000U
 
-static int exynos_asv_update_cpu_opps(struct exynos_asv *asv,
+static int exyyess_asv_update_cpu_opps(struct exyyess_asv *asv,
 				      struct device *cpu)
 {
-	struct exynos_asv_subsys *subsys = NULL;
+	struct exyyess_asv_subsys *subsys = NULL;
 	struct dev_pm_opp *opp;
 	unsigned int opp_freq;
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(asv->subsys); i++) {
-		if (of_device_is_compatible(cpu->of_node,
+		if (of_device_is_compatible(cpu->of_yesde,
 					    asv->subsys[i].cpu_dt_compat)) {
 			subsys = &asv->subsys[i];
 			break;
@@ -47,7 +47,7 @@ static int exynos_asv_update_cpu_opps(struct exynos_asv *asv,
 		unsigned int new_volt, volt;
 		int ret;
 
-		opp_freq = exynos_asv_opp_get_frequency(subsys, i);
+		opp_freq = exyyess_asv_opp_get_frequency(subsys, i);
 
 		opp = dev_pm_opp_find_freq_exact(cpu, opp_freq * MHZ, true);
 		if (IS_ERR(opp)) {
@@ -79,7 +79,7 @@ static int exynos_asv_update_cpu_opps(struct exynos_asv *asv,
 	return 0;
 }
 
-static int exynos_asv_update_opps(struct exynos_asv *asv)
+static int exyyess_asv_update_opps(struct exyyess_asv *asv)
 {
 	struct opp_table *last_opp_table = NULL;
 	struct device *cpu;
@@ -99,7 +99,7 @@ static int exynos_asv_update_opps(struct exynos_asv *asv)
 		if (!last_opp_table || opp_table != last_opp_table) {
 			last_opp_table = opp_table;
 
-			ret = exynos_asv_update_cpu_opps(asv, cpu);
+			ret = exyyess_asv_update_cpu_opps(asv, cpu);
 			if (ret < 0)
 				dev_err(asv->dev, "Couldn't udate OPPs for cpu%d\n",
 					cpuid);
@@ -111,10 +111,10 @@ static int exynos_asv_update_opps(struct exynos_asv *asv)
 	return	0;
 }
 
-static int exynos_asv_probe(struct platform_device *pdev)
+static int exyyess_asv_probe(struct platform_device *pdev)
 {
-	int (*probe_func)(struct exynos_asv *asv);
-	struct exynos_asv *asv;
+	int (*probe_func)(struct exyyess_asv *asv);
+	struct exyyess_asv *asv;
 	struct device *cpu_dev;
 	u32 product_id = 0;
 	int ret, i;
@@ -128,9 +128,9 @@ static int exynos_asv_probe(struct platform_device *pdev)
 	if (!asv)
 		return -ENOMEM;
 
-	asv->chipid_regmap = device_node_to_regmap(pdev->dev.of_node);
+	asv->chipid_regmap = device_yesde_to_regmap(pdev->dev.of_yesde);
 	if (IS_ERR(asv->chipid_regmap)) {
-		dev_err(&pdev->dev, "Could not find syscon regmap\n");
+		dev_err(&pdev->dev, "Could yest find syscon regmap\n");
 		return PTR_ERR(asv->chipid_regmap);
 	}
 
@@ -138,13 +138,13 @@ static int exynos_asv_probe(struct platform_device *pdev)
 
 	switch (product_id & EXYNOS_MASK) {
 	case 0xE5422000:
-		probe_func = exynos5422_asv_init;
+		probe_func = exyyess5422_asv_init;
 		break;
 	default:
 		return -ENODEV;
 	}
 
-	ret = of_property_read_u32(pdev->dev.of_node, "samsung,asv-bin",
+	ret = of_property_read_u32(pdev->dev.of_yesde, "samsung,asv-bin",
 				   &asv->of_bin);
 	if (ret < 0)
 		asv->of_bin = -EINVAL;
@@ -159,19 +159,19 @@ static int exynos_asv_probe(struct platform_device *pdev)
 	if (ret < 0)
 		return ret;
 
-	return exynos_asv_update_opps(asv);
+	return exyyess_asv_update_opps(asv);
 }
 
-static const struct of_device_id exynos_asv_of_device_ids[] = {
-	{ .compatible = "samsung,exynos4210-chipid" },
+static const struct of_device_id exyyess_asv_of_device_ids[] = {
+	{ .compatible = "samsung,exyyess4210-chipid" },
 	{}
 };
 
-static struct platform_driver exynos_asv_driver = {
+static struct platform_driver exyyess_asv_driver = {
 	.driver = {
-		.name = "exynos-asv",
-		.of_match_table = exynos_asv_of_device_ids,
+		.name = "exyyess-asv",
+		.of_match_table = exyyess_asv_of_device_ids,
 	},
-	.probe	= exynos_asv_probe,
+	.probe	= exyyess_asv_probe,
 };
-module_platform_driver(exynos_asv_driver);
+module_platform_driver(exyyess_asv_driver);

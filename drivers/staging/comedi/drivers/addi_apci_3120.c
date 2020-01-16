@@ -461,7 +461,7 @@ static void apci3120_interrupt_dma(struct comedi_device *dev,
 		dmabuf = &devpriv->dmabuf[devpriv->cur_dmabuf];
 		apci3120_init_dma(dev, dmabuf);
 	} else {
-		/* restart DMA if not using double buffering */
+		/* restart DMA if yest using double buffering */
 		apci3120_init_dma(dev, dmabuf);
 	}
 }
@@ -481,7 +481,7 @@ static irqreturn_t apci3120_interrupt(int irq, void *d)
 
 	if (!(status & APCI3120_STATUS_INT_MASK) &&
 	    !(int_amcc & ANY_S593X_INT)) {
-		dev_err(dev->class_dev, "IRQ from unknown source\n");
+		dev_err(dev->class_dev, "IRQ from unkyeswn source\n");
 		return IRQ_NONE;
 	}
 
@@ -512,7 +512,7 @@ static irqreturn_t apci3120_interrupt(int irq, void *d)
 	if (status & APCI3120_STATUS_TIMER2_INT) {
 		/*
 		 * for safety...
-		 * timer2 interrupts are not enabled in the driver
+		 * timer2 interrupts are yest enabled in the driver
 		 */
 		apci3120_clr_timer2_interrupt(dev);
 	}

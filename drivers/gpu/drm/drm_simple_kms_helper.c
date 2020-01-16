@@ -20,7 +20,7 @@
  * hardware.
  *
  * drm_simple_display_pipe_init() initializes a simple display pipeline
- * which has only one full-screen scanout buffer feeding one output. The
+ * which has only one full-screen scayesut buffer feeding one output. The
  * pipeline is represented by &struct drm_simple_display_pipe and binds
  * together &drm_plane, &drm_crtc and &drm_encoder structures into one fixed
  * entity. Some flexibility for code reuse is provided through a separately

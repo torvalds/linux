@@ -321,7 +321,7 @@ static int mtk_aes_xmit(struct mtk_cryp *cryp, struct mtk_aes_rec *aes)
 	/* Pointer to current result descriptor */
 	ring->res_prev = res;
 
-	/* Prepare enough space for authenticated tag */
+	/* Prepare eyesugh space for authenticated tag */
 	if (aes->flags & AES_FLAGS_GCM)
 		res->hdr += AES_BLOCK_SIZE;
 
@@ -447,7 +447,7 @@ static void mtk_aes_info_init(struct mtk_cryp *cryp, struct mtk_aes_rec *aes,
 		info->tfm[1] = AES_TFM_CFB128;
 		break;
 	default:
-		/* Should not happen... */
+		/* Should yest happen... */
 		return;
 	}
 
@@ -979,7 +979,7 @@ static int mtk_aes_gcm_crypt(struct aead_request *req, u64 mode)
 	/* Compute text length. */
 	gctx->textlen = req->cryptlen - (enc ? 0 : gctx->authsize);
 
-	/* Empty messages are not supported yet */
+	/* Empty messages are yest supported yet */
 	if (!gctx->textlen && !req->assoclen)
 		return -EINVAL;
 
@@ -1171,7 +1171,7 @@ static irqreturn_t mtk_aes_irq(int irq, void *dev_id)
 
 		tasklet_schedule(&aes->done_task);
 	} else {
-		dev_warn(cryp->dev, "AES interrupt when no active requests.\n");
+		dev_warn(cryp->dev, "AES interrupt when yes active requests.\n");
 	}
 	return IRQ_HANDLED;
 }

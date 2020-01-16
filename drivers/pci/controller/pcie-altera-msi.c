@@ -173,7 +173,7 @@ static const struct irq_domain_ops msi_domain_ops = {
 
 static int altera_allocate_domains(struct altera_msi *msi)
 {
-	struct fwnode_handle *fwnode = of_node_to_fwnode(msi->pdev->dev.of_node);
+	struct fwyesde_handle *fwyesde = of_yesde_to_fwyesde(msi->pdev->dev.of_yesde);
 
 	msi->inner_domain = irq_domain_add_linear(NULL, msi->num_of_vectors,
 					     &msi_domain_ops, msi);
@@ -182,7 +182,7 @@ static int altera_allocate_domains(struct altera_msi *msi)
 		return -ENOMEM;
 	}
 
-	msi->msi_domain = pci_msi_create_irq_domain(fwnode,
+	msi->msi_domain = pci_msi_create_irq_domain(fwyesde,
 				&altera_msi_domain_info, msi->inner_domain);
 	if (!msi->msi_domain) {
 		dev_err(&msi->pdev->dev, "failed to create MSI domain\n");
@@ -216,7 +216,7 @@ static int altera_msi_remove(struct platform_device *pdev)
 static int altera_msi_probe(struct platform_device *pdev)
 {
 	struct altera_msi *msi;
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	struct resource *res;
 	int ret;
 

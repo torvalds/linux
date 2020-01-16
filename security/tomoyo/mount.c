@@ -112,12 +112,12 @@ static int tomoyo_mount_acl(struct tomoyo_request_info *r,
 
 	/* Compare fs name. */
 	if (type == tomoyo_mounts[TOMOYO_MOUNT_REMOUNT]) {
-		/* dev_name is ignored. */
+		/* dev_name is igyesred. */
 	} else if (type == tomoyo_mounts[TOMOYO_MOUNT_MAKE_UNBINDABLE] ||
 		   type == tomoyo_mounts[TOMOYO_MOUNT_MAKE_PRIVATE] ||
 		   type == tomoyo_mounts[TOMOYO_MOUNT_MAKE_SLAVE] ||
 		   type == tomoyo_mounts[TOMOYO_MOUNT_MAKE_SHARED]) {
-		/* dev_name is ignored. */
+		/* dev_name is igyesred. */
 	} else if (type == tomoyo_mounts[TOMOYO_MOUNT_BIND] ||
 		   type == tomoyo_mounts[TOMOYO_MOUNT_MOVE]) {
 		need_dev = -1; /* dev_name is a directory */
@@ -144,7 +144,7 @@ static int tomoyo_mount_acl(struct tomoyo_request_info *r,
 			goto out;
 		}
 	} else {
-		/* Map dev_name to "<NULL>" if no dev_name given. */
+		/* Map dev_name to "<NULL>" if yes dev_name given. */
 		if (!dev_name)
 			dev_name = "<NULL>";
 		requested_dev_name = tomoyo_encode(dev_name);

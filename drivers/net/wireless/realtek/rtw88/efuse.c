@@ -32,7 +32,7 @@ static void switch_efuse_bank(struct rtw_dev *rtwdev)
  *   block[2:0]   0 1111   block[6:3]   word_en[3:0]   byte0  byte1
  * | header 1 (optional) |          header 2         |    word N    |
  *
- * word_en: 4 bits each word. 0 -> write; 1 -> not write
+ * word_en: 4 bits each word. 0 -> write; 1 -> yest write
  * N: 1~4, depends on word_en
  */
 static int rtw_dump_logical_efuse_map(struct rtw_dev *rtwdev, u8 *phy_map,

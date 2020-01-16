@@ -12,7 +12,7 @@ SYNOPSIS
 DESCRIPTION
 -----------
 
-With no options and no COMMAND given, the synopsis of the 'perf'
+With yes options and yes COMMAND given, the syyespsis of the 'perf'
 command and a list of the most commonly used perf commands are printed
 on the standard output.
 

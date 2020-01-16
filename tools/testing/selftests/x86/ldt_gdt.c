@@ -12,7 +12,7 @@
 #include <setjmp.h>
 #include <stdlib.h>
 #include <string.h>
-#include <errno.h>
+#include <erryes.h>
 #include <unistd.h>
 #include <sys/syscall.h>
 #include <asm/ldt.h>
@@ -157,9 +157,9 @@ static bool install_valid_mode(const struct user_desc *d, uint32_t ar,
 			      &desc, sizeof(desc));
 
 		if (ret < -1)
-			errno = -ret;
+			erryes = -ret;
 
-		if (ret != 0 && errno == ENOSYS) {
+		if (ret != 0 && erryes == ENOSYS) {
 			printf("[OK]\tmodify_ldt returned -ENOSYS\n");
 			return false;
 		}
@@ -175,7 +175,7 @@ static bool install_valid_mode(const struct user_desc *d, uint32_t ar,
 		if (desc.seg_32bit) {
 			printf("[FAIL]\tUnexpected %s failure %d\n",
 			       ldt ? "modify_ldt" : "set_thread_area",
-			       errno);
+			       erryes);
 			nerrs++;
 			return false;
 		} else {
@@ -191,7 +191,7 @@ static bool install_valid(const struct user_desc *desc, uint32_t ar)
 	bool ret = install_valid_mode(desc, ar, false, true);
 
 	if (desc->contents <= 1 && desc->seg_32bit &&
-	    !desc->seg_not_present) {
+	    !desc->seg_yest_present) {
 		/* Should work in the GDT, too. */
 		install_valid_mode(desc, ar, false, false);
 	}
@@ -204,15 +204,15 @@ static void install_invalid(const struct user_desc *desc, bool oldmode)
 	int ret = syscall(SYS_modify_ldt, oldmode ? 1 : 0x11,
 			  desc, sizeof(*desc));
 	if (ret < -1)
-		errno = -ret;
+		erryes = -ret;
 	if (ret == 0) {
 		check_invalid_segment(desc->entry_number, 1);
-	} else if (errno == ENOSYS) {
+	} else if (erryes == ENOSYS) {
 		printf("[OK]\tmodify_ldt returned -ENOSYS\n");
 	} else {
 		if (desc->seg_32bit) {
 			printf("[FAIL]\tUnexpected modify_ldt failure %d\n",
-			       errno);
+			       erryes);
 			nerrs++;
 		} else {
 			printf("[OK]\tmodify_ldt rejected 16 bit segment\n");
@@ -225,7 +225,7 @@ static int safe_modify_ldt(int func, struct user_desc *ptr,
 {
 	int ret = syscall(SYS_modify_ldt, 0x11, ptr, bytecount);
 	if (ret < -1)
-		errno = -ret;
+		erryes = -ret;
 	return ret;
 }
 
@@ -234,10 +234,10 @@ static void fail_install(struct user_desc *desc)
 	if (safe_modify_ldt(0x11, desc, sizeof(*desc)) == 0) {
 		printf("[FAIL]\tmodify_ldt accepted a bad descriptor\n");
 		nerrs++;
-	} else if (errno == ENOSYS) {
+	} else if (erryes == ENOSYS) {
 		printf("[OK]\tmodify_ldt returned -ENOSYS\n");
 	} else {
-		printf("[OK]\tmodify_ldt failure %d\n", errno);
+		printf("[OK]\tmodify_ldt failure %d\n", erryes);
 	}
 }
 
@@ -248,10 +248,10 @@ static void do_simple_tests(void)
 		.base_addr       = 0,
 		.limit           = 10,
 		.seg_32bit       = 1,
-		.contents        = 2, /* Code, not conforming */
+		.contents        = 2, /* Code, yest conforming */
 		.read_exec_only  = 0,
 		.limit_in_pages  = 0,
-		.seg_not_present = 0,
+		.seg_yest_present = 0,
 		.useable         = 0
 	};
 	install_valid(&desc, AR_DPL3 | AR_TYPE_XRCODE | AR_S | AR_P | AR_DB);
@@ -276,7 +276,7 @@ static void do_simple_tests(void)
 	install_valid(&desc, AR_DPL3 | AR_TYPE_XRCODE |
 		      AR_S | AR_P | AR_DB | AR_G | AR_AVL);
 
-	desc.seg_not_present = 1;
+	desc.seg_yest_present = 1;
 	install_valid(&desc, AR_DPL3 | AR_TYPE_XRCODE |
 		      AR_S | AR_DB | AR_G | AR_AVL);
 
@@ -369,7 +369,7 @@ static void do_simple_tests(void)
 		}
 		printf("[DONE]\tSize test\n");
 	} else {
-		printf("[SKIP]\tSkipping fork and size tests because we have no LDT\n");
+		printf("[SKIP]\tSkipping fork and size tests because we have yes LDT\n");
 	}
 
 	/* Test entry_number too high. */
@@ -380,15 +380,15 @@ static void do_simple_tests(void)
 	memset(&desc, 0, sizeof(desc));
 	install_valid(&desc, AR_DPL3 | AR_TYPE_RWDATA | AR_S | AR_P);
 
-	desc.seg_not_present = 1;
+	desc.seg_yest_present = 1;
 	install_valid(&desc, AR_DPL3 | AR_TYPE_RWDATA | AR_S);
 
-	desc.seg_not_present = 0;
+	desc.seg_yest_present = 0;
 	desc.read_exec_only = 1;
 	install_valid(&desc, AR_DPL3 | AR_TYPE_RODATA | AR_S | AR_P);
 
 	desc.read_exec_only = 0;
-	desc.seg_not_present = 1;
+	desc.seg_yest_present = 1;
 	install_valid(&desc, AR_DPL3 | AR_TYPE_RWDATA | AR_S);
 
 	desc.read_exec_only = 1;
@@ -402,7 +402,7 @@ static void do_simple_tests(void)
 	desc.base_addr = 0;
 	install_invalid(&desc, false);
 
-	desc.seg_not_present = 0;
+	desc.seg_yest_present = 0;
 	desc.seg_32bit = 1;
 	desc.read_exec_only = 0;
 	desc.limit = 0xfffff;
@@ -537,14 +537,14 @@ static void do_multicpu_tests(void)
 	CPU_ZERO(&cpuset);
 	CPU_SET(1, &cpuset);
 	if (sched_setaffinity(0, sizeof(cpuset), &cpuset) != 0) {
-		printf("[SKIP]\tCannot set affinity to CPU 1\n");
+		printf("[SKIP]\tCanyest set affinity to CPU 1\n");
 		return;
 	}
 
 	CPU_ZERO(&cpuset);
 	CPU_SET(0, &cpuset);
 	if (sched_setaffinity(0, sizeof(cpuset), &cpuset) != 0) {
-		printf("[SKIP]\tCannot set affinity to CPU 0\n");
+		printf("[SKIP]\tCanyest set affinity to CPU 0\n");
 		return;
 	}
 
@@ -577,12 +577,12 @@ static void do_multicpu_tests(void)
 			.contents        = 0, /* Data */
 			.read_exec_only  = 0,
 			.limit_in_pages  = 1,
-			.seg_not_present = 0,
+			.seg_yest_present = 0,
 			.useable         = 0
 		};
 
 		if (safe_modify_ldt(0x11, &desc, sizeof(desc)) != 0) {
-			if (errno != ENOSYS)
+			if (erryes != ENOSYS)
 				err(1, "modify_ldt");
 			printf("[SKIP]\tmodify_ldt unavailable\n");
 			break;
@@ -601,7 +601,7 @@ static void do_multicpu_tests(void)
 			;
 
 		/*
-		 * On success, modify_ldt will segfault us synchronously,
+		 * On success, modify_ldt will segfault us synchroyesusly,
 		 * and we'll escape via siglongjmp.
 		 */
 
@@ -643,10 +643,10 @@ static void do_exec_test(void)
 		.base_addr       = 0,
 		.limit           = 42,
 		.seg_32bit       = 1,
-		.contents        = 2, /* Code, not conforming */
+		.contents        = 2, /* Code, yest conforming */
 		.read_exec_only  = 0,
 		.limit_in_pages  = 0,
-		.seg_not_present = 0,
+		.seg_yest_present = 0,
 		.useable         = 0
 	};
 	install_valid(&desc, AR_DPL3 | AR_TYPE_XRCODE | AR_S | AR_P | AR_DB);
@@ -654,7 +654,7 @@ static void do_exec_test(void)
 	pid_t child = fork();
 	if (child == 0) {
 		execl("/proc/self/exe", "ldt_gdt_test_exec", NULL);
-		printf("[FAIL]\tCould not exec self\n");
+		printf("[FAIL]\tCould yest exec self\n");
 		exit(1);	/* exec failed */
 	} else {
 		int status;
@@ -708,7 +708,7 @@ static void setup_low_user_desc(void)
 	low_user_desc->contents		= 0; /* Data, grow-up*/
 	low_user_desc->read_exec_only	= 0;
 	low_user_desc->limit_in_pages	= 1;
-	low_user_desc->seg_not_present	= 0;
+	low_user_desc->seg_yest_present	= 0;
 	low_user_desc->useable		= 0;
 
 	if (invoke_set_thread_area() == 0) {
@@ -721,7 +721,7 @@ static void setup_low_user_desc(void)
 	low_user_desc_clear = low_user_desc + 1;
 	low_user_desc_clear->entry_number = gdt_entry_num;
 	low_user_desc_clear->read_exec_only = 1;
-	low_user_desc_clear->seg_not_present = 1;
+	low_user_desc_clear->seg_yest_present = 1;
 }
 
 static void test_gdt_invalidation(void)

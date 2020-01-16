@@ -12,7 +12,7 @@ register which control the iommu port is at each larb's register base. But
 for generation 1, the register is at smi ao base(smi always on register
 base). Besides that, the smi async clock should be prepared and enabled for
 SMI generation 1 to transform the smi clock into emi clock domain, but that is
-not needed for SMI generation 2.
+yest needed for SMI generation 2.
 
 Required properties:
 - compatible : must be one of :
@@ -30,7 +30,7 @@ Required properties:
 	    the register.
   - "smi" : It's the clock for transfer data and command.
 	    They may be the same if both source clocks are the same.
-  - "async" : asynchronous clock, it help transform the smi clock into the emi
+  - "async" : asynchroyesus clock, it help transform the smi clock into the emi
 	      clock domain, this clock is only needed by generation 1 smi HW.
   and these 2 option clocks for generation 2 smi HW:
   - "gals0": the path0 clock of GALS(Global Async Local Sync).

@@ -21,8 +21,8 @@
 #define UNIPHIER_GPIO_PORT_DIR		0x4	/* direction (1:in, 0:out) */
 #define UNIPHIER_GPIO_IRQ_EN		0x90	/* irq enable */
 #define UNIPHIER_GPIO_IRQ_MODE		0x94	/* irq mode (1: both edge) */
-#define UNIPHIER_GPIO_IRQ_FLT_EN	0x98	/* noise filter enable */
-#define UNIPHIER_GPIO_IRQ_FLT_CYC	0x9c	/* noise filter clock cycle */
+#define UNIPHIER_GPIO_IRQ_FLT_EN	0x98	/* yesise filter enable */
+#define UNIPHIER_GPIO_IRQ_FLT_CYC	0x9c	/* yesise filter clock cycle */
 
 struct uniphier_gpio_priv {
 	struct gpio_chip chip;
@@ -40,7 +40,7 @@ static unsigned int uniphier_gpio_bank_to_reg(unsigned int bank)
 	reg = (bank + 1) * 8;
 
 	/*
-	 * Unfortunately, the GPIO port registers are not contiguous because
+	 * Unfortunately, the GPIO port registers are yest contiguous because
 	 * offset 0x90-0x9f is used for IRQ.  Add 0x10 when crossing the region.
 	 */
 	if (reg >= UNIPHIER_GPIO_IRQ_EN)
@@ -165,7 +165,7 @@ static int uniphier_gpio_to_irq(struct gpio_chip *chip, unsigned int offset)
 	if (offset < UNIPHIER_GPIO_IRQ_OFFSET)
 		return -ENXIO;
 
-	fwspec.fwnode = of_node_to_fwnode(chip->parent->of_node);
+	fwspec.fwyesde = of_yesde_to_fwyesde(chip->parent->of_yesde);
 	fwspec.param_count = 2;
 	fwspec.param[0] = offset - UNIPHIER_GPIO_IRQ_OFFSET;
 	/*
@@ -209,7 +209,7 @@ static int uniphier_gpio_irq_set_type(struct irq_data *data, unsigned int type)
 	}
 
 	uniphier_gpio_reg_update(priv, UNIPHIER_GPIO_IRQ_MODE, mask, val);
-	/* To enable both edge detection, the noise filter must be enabled. */
+	/* To enable both edge detection, the yesise filter must be enabled. */
 	uniphier_gpio_reg_update(priv, UNIPHIER_GPIO_IRQ_FLT_EN, mask, val);
 
 	return irq_chip_set_type_parent(data, type);
@@ -218,7 +218,7 @@ static int uniphier_gpio_irq_set_type(struct irq_data *data, unsigned int type)
 static int uniphier_gpio_irq_get_parent_hwirq(struct uniphier_gpio_priv *priv,
 					      unsigned int hwirq)
 {
-	struct device_node *np = priv->chip.parent->of_node;
+	struct device_yesde *np = priv->chip.parent->of_yesde;
 	const __be32 *range;
 	u32 base, parent_base, size;
 	int len;
@@ -277,7 +277,7 @@ static int uniphier_gpio_irq_domain_alloc(struct irq_domain *domain,
 		return ret;
 
 	/* parent is UniPhier AIDET */
-	parent_fwspec.fwnode = domain->parent->fwnode;
+	parent_fwspec.fwyesde = domain->parent->fwyesde;
 	parent_fwspec.param_count = 2;
 	parent_fwspec.param[0] = ret;
 	parent_fwspec.param[1] = (type == IRQ_TYPE_EDGE_BOTH) ?
@@ -320,10 +320,10 @@ static const struct irq_domain_ops uniphier_gpio_irq_domain_ops = {
 static void uniphier_gpio_hw_init(struct uniphier_gpio_priv *priv)
 {
 	/*
-	 * Due to the hardware design, the noise filter must be enabled to
+	 * Due to the hardware design, the yesise filter must be enabled to
 	 * detect both edge interrupts.  This filter is intended to remove the
-	 * noise from the irq lines.  It does not work for GPIO input, so GPIO
-	 * debounce is not supported.  Unfortunately, the filter period is
+	 * yesise from the irq lines.  It does yest work for GPIO input, so GPIO
+	 * debounce is yest supported.  Unfortunately, the filter period is
 	 * shared among all irq lines.  Just choose a sensible period here.
 	 */
 	writel(0xff, priv->regs + UNIPHIER_GPIO_IRQ_FLT_CYC);
@@ -337,7 +337,7 @@ static unsigned int uniphier_gpio_get_nbanks(unsigned int ngpio)
 static int uniphier_gpio_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *parent_np;
+	struct device_yesde *parent_np;
 	struct irq_domain *parent_domain;
 	struct uniphier_gpio_priv *priv;
 	struct gpio_chip *chip;
@@ -346,16 +346,16 @@ static int uniphier_gpio_probe(struct platform_device *pdev)
 	u32 ngpios;
 	int ret;
 
-	parent_np = of_irq_find_parent(dev->of_node);
+	parent_np = of_irq_find_parent(dev->of_yesde);
 	if (!parent_np)
 		return -ENXIO;
 
 	parent_domain = irq_find_host(parent_np);
-	of_node_put(parent_np);
+	of_yesde_put(parent_np);
 	if (!parent_domain)
 		return -EPROBE_DEFER;
 
-	ret = of_property_read_u32(dev->of_node, "ngpios", &ngpios);
+	ret = of_property_read_u32(dev->of_yesde, "ngpios", &ngpios);
 	if (ret)
 		return ret;
 
@@ -403,7 +403,7 @@ static int uniphier_gpio_probe(struct platform_device *pdev)
 	priv->domain = irq_domain_create_hierarchy(
 					parent_domain, 0,
 					UNIPHIER_GPIO_IRQ_MAX_NUM,
-					of_node_to_fwnode(dev->of_node),
+					of_yesde_to_fwyesde(dev->of_yesde),
 					&uniphier_gpio_irq_domain_ops, priv);
 	if (!priv->domain)
 		return -ENOMEM;

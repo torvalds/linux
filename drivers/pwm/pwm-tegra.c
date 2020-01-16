@@ -84,7 +84,7 @@ static int tegra_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 
 	/*
 	 * Compute the prescaler value for which (1 << PWM_DUTY_WIDTH)
-	 * cycles at the PWM clock rate will take period_ns nanoseconds.
+	 * cycles at the PWM clock rate will take period_ns nayesseconds.
 	 */
 	rate = pc->clk_rate >> PWM_DUTY_WIDTH;
 
@@ -123,7 +123,7 @@ static int tegra_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 	pwm_writel(pc, pwm->hwpwm, val);
 
 	/*
-	 * If the PWM is not enabled, turn the clock off again to save power.
+	 * If the PWM is yest enabled, turn the clock off again to save power.
 	 */
 	if (!pwm_is_enabled(pwm))
 		clk_disable_unprepare(pc->clk);
@@ -208,7 +208,7 @@ static int tegra_pwm_probe(struct platform_device *pdev)
 	pwm->rst = devm_reset_control_get_exclusive(&pdev->dev, "pwm");
 	if (IS_ERR(pwm->rst)) {
 		ret = PTR_ERR(pwm->rst);
-		dev_err(&pdev->dev, "Reset control is not found: %d\n", ret);
+		dev_err(&pdev->dev, "Reset control is yest found: %d\n", ret);
 		return ret;
 	}
 

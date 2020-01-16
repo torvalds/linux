@@ -179,7 +179,7 @@ struct rc_map *rc_map_get(const char *name);
 #define RC_MAP_DELOCK_61959              "rc-delock-61959"
 #define RC_MAP_DIB0700_NEC_TABLE         "rc-dib0700-nec"
 #define RC_MAP_DIB0700_RC5_TABLE         "rc-dib0700-rc5"
-#define RC_MAP_DIGITALNOW_TINYTWIN       "rc-digitalnow-tinytwin"
+#define RC_MAP_DIGITALNOW_TINYTWIN       "rc-digitalyesw-tinytwin"
 #define RC_MAP_DIGITTRADE                "rc-digittrade"
 #define RC_MAP_DM1105_NEC                "rc-dm1105-nec"
 #define RC_MAP_DNTV_LIVE_DVB_T           "rc-dntv-live-dvb-t"
@@ -229,7 +229,7 @@ struct rc_map *rc_map_get(const char *name);
 #define RC_MAP_MSI_TVANYWHERE_PLUS       "rc-msi-tvanywhere-plus"
 #define RC_MAP_NEBULA                    "rc-nebula"
 #define RC_MAP_NEC_TERRATEC_CINERGY_XS   "rc-nec-terratec-cinergy-xs"
-#define RC_MAP_NORWOOD                   "rc-norwood"
+#define RC_MAP_NORWOOD                   "rc-yesrwood"
 #define RC_MAP_NPGTECH                   "rc-npgtech"
 #define RC_MAP_ODROID                    "rc-odroid"
 #define RC_MAP_PCTV_SEDNA                "rc-pctv-sedna"
@@ -283,7 +283,7 @@ struct rc_map *rc_map_get(const char *name);
 #define RC_MAP_ZX_IRDEC                  "rc-zx-irdec"
 
 /*
- * Please, do not just append newer Remote Controller names at the end.
+ * Please, do yest just append newer Remote Controller names at the end.
  * The names should be ordered in alphabetical order
  */
 

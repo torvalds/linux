@@ -84,7 +84,7 @@ Properties:
 	Definition: Name for the RSC. The name would be used in trace logs.
 
 Drivers that want to use the RSC to communicate with RPMH must specify their
-bindings as child nodes of the RSC controllers they wish to communicate with.
+bindings as child yesdes of the RSC controllers they wish to communicate with.
 
 Example 1:
 

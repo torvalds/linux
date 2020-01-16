@@ -21,7 +21,7 @@
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/idr.h>
 #include <linux/list.h>
 #include <linux/proc_fs.h>
@@ -41,7 +41,7 @@
 
 
 /* The driver for your USB chip needs to support ep0 OUT to work with
- * RNDIS, plus all three CDC Ethernet endpoints (interrupt not optional).
+ * RNDIS, plus all three CDC Ethernet endpoints (interrupt yest optional).
  *
  * Windows hosts need an INF file like Documentation/usb/linux.inf
  * and will be happier if you provide the host_addr module parameter.
@@ -146,7 +146,7 @@ static const u32 oid_supported_list[] = {
 	 * confusing and/or ambiguous in this context.  (That is, more
 	 * so than their specs for the other OIDs.)
 	 *
-	 * FIXME someone who knows what these should do, please
+	 * FIXME someone who kyesws what these should do, please
 	 * implement them!
 	 */
 
@@ -470,7 +470,7 @@ static int gen_ndis_query_resp(struct rndis_params *params, u32 OID, u8 *buf,
 		break;
 
 	default:
-		pr_warn("%s: query unknown OID 0x%08X\n", __func__, OID);
+		pr_warn("%s: query unkyeswn OID 0x%08X\n", __func__, OID);
 	}
 	if (retval < 0)
 		length = 0;
@@ -508,7 +508,7 @@ static int gen_ndis_set_resp(struct rndis_params *params, u32 OID,
 	case RNDIS_OID_GEN_CURRENT_PACKET_FILTER:
 
 		/* these NDIS_PACKET_TYPE_* bitflags are shared with
-		 * cdc_filter; it's not RNDIS-specific
+		 * cdc_filter; it's yest RNDIS-specific
 		 * NDIS_PACKET_TYPE_x == USB_CDC_PACKET_TYPE_x for x in:
 		 *	PROMISCUOUS, DIRECTED,
 		 *	MULTICAST, ALL_MULTICAST, BROADCAST
@@ -535,13 +535,13 @@ static int gen_ndis_set_resp(struct rndis_params *params, u32 OID,
 		break;
 
 	case RNDIS_OID_802_3_MULTICAST_LIST:
-		/* I think we can ignore this */
+		/* I think we can igyesre this */
 		pr_debug("%s: RNDIS_OID_802_3_MULTICAST_LIST\n", __func__);
 		retval = 0;
 		break;
 
 	default:
-		pr_warn("%s: set unknown OID 0x%08X, size %d\n",
+		pr_warn("%s: set unkyeswn OID 0x%08X, size %d\n",
 			__func__, OID, buf_len);
 	}
 
@@ -571,7 +571,7 @@ static int rndis_init_response(struct rndis_params *params,
 	resp->RequestID = buf->RequestID; /* Still LE in msg buffer */
 	resp->Status = cpu_to_le32(RNDIS_STATUS_SUCCESS);
 	resp->MajorVersion = cpu_to_le32(RNDIS_MAJOR_VERSION);
-	resp->MinorVersion = cpu_to_le32(RNDIS_MINOR_VERSION);
+	resp->MiyesrVersion = cpu_to_le32(RNDIS_MINOR_VERSION);
 	resp->DeviceFlags = cpu_to_le32(RNDIS_DF_CONNECTIONLESS);
 	resp->Medium = cpu_to_le32(RNDIS_MEDIUM_802_3);
 	resp->MaxPacketsPerTransfer = cpu_to_le32(1);
@@ -600,7 +600,7 @@ static int rndis_query_response(struct rndis_params *params,
 
 	/*
 	 * we need more memory:
-	 * gen_ndis_query_resp expects enough space for
+	 * gen_ndis_query_resp expects eyesugh space for
 	 * rndis_query_cmplt_type followed by data.
 	 * oid_supported_list is the largest data reply
 	 */
@@ -618,7 +618,7 @@ static int rndis_query_response(struct rndis_params *params,
 					+ 8 + (u8 *)buf,
 			le32_to_cpu(buf->InformationBufferLength),
 			r)) {
-		/* OID not supported */
+		/* OID yest supported */
 		resp->Status = cpu_to_le32(RNDIS_STATUS_NOT_SUPPORTED);
 		resp->MessageLength = cpu_to_le32(sizeof *resp);
 		resp->InformationBufferLength = cpu_to_le32(0);
@@ -801,7 +801,7 @@ int rndis_msg_parser(struct rndis_params *params, u8 *buf)
 
 	/* NOTE: RNDIS is *EXTREMELY* chatty ... Windows constantly polls for
 	 * rx/tx statistics and link status, in addition to KEEPALIVE traffic
-	 * and normal HC level polling to see if there's any IN traffic.
+	 * and yesrmal HC level polling to see if there's any IN traffic.
 	 */
 
 	/* For USB: responses may take up to 10 seconds */
@@ -849,7 +849,7 @@ int rndis_msg_parser(struct rndis_params *params, u8 *buf)
 		 * In one case those messages seemed to relate to the host
 		 * suspending itself.
 		 */
-		pr_warn("%s: unknown RNDIS message 0x%08X len %d\n",
+		pr_warn("%s: unkyeswn RNDIS message 0x%08X len %d\n",
 			__func__, MsgType, MsgLength);
 		/* Garbled message can be huge, so limit what we display */
 		if (MsgLength > 16)
@@ -1117,7 +1117,7 @@ static int rndis_proc_show(struct seq_file *m, void *v)
 static ssize_t rndis_proc_write(struct file *file, const char __user *buffer,
 				size_t count, loff_t *ppos)
 {
-	rndis_params *p = PDE_DATA(file_inode(file));
+	rndis_params *p = PDE_DATA(file_iyesde(file));
 	u32 speed = 0;
 	int i, fl_speed = 0;
 
@@ -1149,7 +1149,7 @@ static ssize_t rndis_proc_write(struct file *file, const char __user *buffer,
 			break;
 		default:
 			if (fl_speed) p->speed = speed;
-			else pr_debug("%c is not valid\n", c);
+			else pr_debug("%c is yest valid\n", c);
 			break;
 		}
 
@@ -1159,9 +1159,9 @@ static ssize_t rndis_proc_write(struct file *file, const char __user *buffer,
 	return count;
 }
 
-static int rndis_proc_open(struct inode *inode, struct file *file)
+static int rndis_proc_open(struct iyesde *iyesde, struct file *file)
 {
-	return single_open(file, rndis_proc_show, PDE_DATA(inode));
+	return single_open(file, rndis_proc_show, PDE_DATA(iyesde));
 }
 
 static const struct file_operations rndis_proc_fops = {

@@ -71,7 +71,7 @@ struct kprobe_ctlblk {
 	struct prev_kprobe prev_kprobe;
 };
 
-extern int kprobe_exceptions_notify(struct notifier_block *self,
+extern int kprobe_exceptions_yestify(struct yestifier_block *self,
 				    unsigned long val, void *data);
 
 #endif /* CONFIG_KPROBES */

@@ -35,7 +35,7 @@ static const char *realview_arch_str(u32 id)
 	case 0x05:
 		return "Multi-layer AXI";
 	default:
-		return "Unknown";
+		return "Unkyeswn";
 	}
 }
 
@@ -84,7 +84,7 @@ static int realview_soc_probe(struct platform_device *pdev)
 	struct regmap *syscon_regmap;
 	struct soc_device *soc_dev;
 	struct soc_device_attribute *soc_dev_attr;
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	int ret;
 
 	syscon_regmap = syscon_regmap_lookup_by_phandle(np, "regmap");

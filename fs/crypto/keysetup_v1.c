@@ -34,9 +34,9 @@ static DEFINE_SPINLOCK(fscrypt_direct_keys_lock);
 
 /*
  * v1 key derivation function.  This generates the derived key by encrypting the
- * master key with AES-128-ECB using the nonce as the AES key.  This provides a
- * unique derived key with sufficient entropy for each inode.  However, it's
- * nonstandard, non-extensible, doesn't evenly distribute the entropy from the
+ * master key with AES-128-ECB using the yesnce as the AES key.  This provides a
+ * unique derived key with sufficient entropy for each iyesde.  However, it's
+ * yesnstandard, yesn-extensible, doesn't evenly distribute the entropy from the
  * master key, and is trivially reversible: an attacker who compromises a
  * derived key can "decrypt" it to get back to the master key, then derive any
  * other key.  For all new code, use HKDF instead.
@@ -45,7 +45,7 @@ static DEFINE_SPINLOCK(fscrypt_direct_keys_lock);
  * key is longer, then only the first 'derived_keysize' bytes are used.
  */
 static int derive_key_aes(const u8 *master_key,
-			  const u8 nonce[FS_KEY_DERIVATION_NONCE_SIZE],
+			  const u8 yesnce[FS_KEY_DERIVATION_NONCE_SIZE],
 			  u8 *derived_key, unsigned int derived_keysize)
 {
 	int res = 0;
@@ -68,7 +68,7 @@ static int derive_key_aes(const u8 *master_key,
 	skcipher_request_set_callback(req,
 			CRYPTO_TFM_REQ_MAY_BACKLOG | CRYPTO_TFM_REQ_MAY_SLEEP,
 			crypto_req_done, &wait);
-	res = crypto_skcipher_setkey(tfm, nonce, FS_KEY_DERIVATION_NONCE_SIZE);
+	res = crypto_skcipher_setkey(tfm, yesnce, FS_KEY_DERIVATION_NONCE_SIZE);
 	if (res < 0)
 		goto out;
 
@@ -143,7 +143,7 @@ invalid:
 
 /* Master key referenced by DIRECT_KEY policy */
 struct fscrypt_direct_key {
-	struct hlist_node		dk_node;
+	struct hlist_yesde		dk_yesde;
 	refcount_t			dk_refcount;
 	const struct fscrypt_mode	*dk_mode;
 	struct crypto_skcipher		*dk_ctfm;
@@ -163,7 +163,7 @@ void fscrypt_put_direct_key(struct fscrypt_direct_key *dk)
 {
 	if (!refcount_dec_and_lock(&dk->dk_refcount, &fscrypt_direct_keys_lock))
 		return;
-	hash_del(&dk->dk_node);
+	hash_del(&dk->dk_yesde);
 	spin_unlock(&fscrypt_direct_keys_lock);
 
 	free_direct_key(dk);
@@ -171,8 +171,8 @@ void fscrypt_put_direct_key(struct fscrypt_direct_key *dk)
 
 /*
  * Find/insert the given key into the fscrypt_direct_keys table.  If found, it
- * is returned with elevated refcount, and 'to_insert' is freed if non-NULL.  If
- * not found, 'to_insert' is inserted and returned if it's non-NULL; otherwise
+ * is returned with elevated refcount, and 'to_insert' is freed if yesn-NULL.  If
+ * yest found, 'to_insert' is inserted and returned if it's yesn-NULL; otherwise
  * NULL is returned.
  */
 static struct fscrypt_direct_key *
@@ -193,7 +193,7 @@ find_or_insert_direct_key(struct fscrypt_direct_key *to_insert,
 	       sizeof(hash_key));
 
 	spin_lock(&fscrypt_direct_keys_lock);
-	hash_for_each_possible(fscrypt_direct_keys, dk, dk_node, hash_key) {
+	hash_for_each_possible(fscrypt_direct_keys, dk, dk_yesde, hash_key) {
 		if (memcmp(ci->ci_policy.v1.master_key_descriptor,
 			   dk->dk_descriptor, FSCRYPT_KEY_DESCRIPTOR_SIZE) != 0)
 			continue;
@@ -208,7 +208,7 @@ find_or_insert_direct_key(struct fscrypt_direct_key *to_insert,
 		return dk;
 	}
 	if (to_insert)
-		hash_add(fscrypt_direct_keys, &to_insert->dk_node, hash_key);
+		hash_add(fscrypt_direct_keys, &to_insert->dk_yesde, hash_key);
 	spin_unlock(&fscrypt_direct_keys_lock);
 	return to_insert;
 }
@@ -232,7 +232,7 @@ fscrypt_get_direct_key(const struct fscrypt_info *ci, const u8 *raw_key)
 	refcount_set(&dk->dk_refcount, 1);
 	dk->dk_mode = ci->ci_mode;
 	dk->dk_ctfm = fscrypt_allocate_skcipher(ci->ci_mode, raw_key,
-						ci->ci_inode);
+						ci->ci_iyesde);
 	if (IS_ERR(dk->dk_ctfm)) {
 		err = PTR_ERR(dk->dk_ctfm);
 		dk->dk_ctfm = NULL;
@@ -257,16 +257,16 @@ static int setup_v1_file_key_direct(struct fscrypt_info *ci,
 	struct fscrypt_direct_key *dk;
 
 	if (!fscrypt_mode_supports_direct_key(mode)) {
-		fscrypt_warn(ci->ci_inode,
-			     "Direct key mode not allowed with %s",
+		fscrypt_warn(ci->ci_iyesde,
+			     "Direct key mode yest allowed with %s",
 			     mode->friendly_name);
 		return -EINVAL;
 	}
 
 	if (ci->ci_policy.v1.contents_encryption_mode !=
 	    ci->ci_policy.v1.filenames_encryption_mode) {
-		fscrypt_warn(ci->ci_inode,
-			     "Direct key mode not allowed with different contents and filenames modes");
+		fscrypt_warn(ci->ci_iyesde,
+			     "Direct key mode yest allowed with different contents and filenames modes");
 		return -EINVAL;
 	}
 
@@ -286,14 +286,14 @@ static int setup_v1_file_key_derived(struct fscrypt_info *ci,
 	int err;
 
 	/*
-	 * This cannot be a stack buffer because it will be passed to the
+	 * This canyest be a stack buffer because it will be passed to the
 	 * scatterlist crypto API during derive_key_aes().
 	 */
 	derived_key = kmalloc(ci->ci_mode->keysize, GFP_NOFS);
 	if (!derived_key)
 		return -ENOMEM;
 
-	err = derive_key_aes(raw_master_key, ci->ci_nonce,
+	err = derive_key_aes(raw_master_key, ci->ci_yesnce,
 			     derived_key, ci->ci_mode->keysize);
 	if (err)
 		goto out;
@@ -321,8 +321,8 @@ int fscrypt_setup_v1_file_key_via_subscribed_keyrings(struct fscrypt_info *ci)
 	key = find_and_lock_process_key(FSCRYPT_KEY_DESC_PREFIX,
 					ci->ci_policy.v1.master_key_descriptor,
 					ci->ci_mode->keysize, &payload);
-	if (key == ERR_PTR(-ENOKEY) && ci->ci_inode->i_sb->s_cop->key_prefix) {
-		key = find_and_lock_process_key(ci->ci_inode->i_sb->s_cop->key_prefix,
+	if (key == ERR_PTR(-ENOKEY) && ci->ci_iyesde->i_sb->s_cop->key_prefix) {
+		key = find_and_lock_process_key(ci->ci_iyesde->i_sb->s_cop->key_prefix,
 						ci->ci_policy.v1.master_key_descriptor,
 						ci->ci_mode->keysize, &payload);
 	}

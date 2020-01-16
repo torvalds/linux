@@ -13,12 +13,12 @@
 struct nfsd_stats {
 	unsigned int	rchits;		/* repcache hits */
 	unsigned int	rcmisses;	/* repcache hits */
-	unsigned int	rcnocache;	/* uncached reqs */
+	unsigned int	rcyescache;	/* uncached reqs */
 	unsigned int	fh_stale;	/* FH stale error */
 	unsigned int	fh_lookup;	/* dentry cached */
-	unsigned int	fh_anon;	/* anon file dentry returned */
-	unsigned int	fh_nocache_dir;	/* filehandle not found in dcache */
-	unsigned int	fh_nocache_nondir;	/* filehandle not found in dcache */
+	unsigned int	fh_ayesn;	/* ayesn file dentry returned */
+	unsigned int	fh_yescache_dir;	/* filehandle yest found in dcache */
+	unsigned int	fh_yescache_yesndir;	/* filehandle yest found in dcache */
 	unsigned int	io_read;	/* bytes returned to read requests */
 	unsigned int	io_write;	/* bytes passed in write requests */
 	unsigned int	th_cnt;		/* number of available threads */
@@ -27,7 +27,7 @@ struct nfsd_stats {
 	unsigned int	th_fullcnt;	/* number of times last free thread was used */
 	unsigned int	ra_size;	/* size of ra cache */
 	unsigned int	ra_depth[11];	/* number of times ra entry was found that deep
-					 * in the cache (10percentiles). [10] = not found */
+					 * in the cache (10percentiles). [10] = yest found */
 #ifdef CONFIG_NFSD_V4
 	unsigned int	nfs4_opcount[LAST_NFS4_OP + 1];	/* count of individual nfsv4 operations */
 #endif

@@ -35,7 +35,7 @@
  *	1.10a	Andrea Arcangeli: Alpha updates
  *	1.10b	Andrew Morton: SMP lock fix
  *	1.10c	Cesar Barros: SMP locking fixes and cleanup
- *	1.10d	Paul Gortmaker: delete paranoia check in rtc_exit
+ *	1.10d	Paul Gortmaker: delete parayesia check in rtc_exit
  *	1.10e	Maciej W. Rozycki: Handle DECstation's year weirdness.
  *	1.11	Takashi Iwai: Kernel access functions
  *			      rtc_register/rtc_unregister/rtc_control
@@ -120,8 +120,8 @@ static irqreturn_t hpet_rtc_interrupt(int irq, void *dev_id)
 #endif
 
 /*
- *	We sponge a minor off of the misc major. No need slurping
- *	up another valuable major dev number for this. If you add
+ *	We sponge a miyesr off of the misc major. No need slurping
+ *	up ayesther valuable major dev number for this. If you add
  *	an ioctl, make sure you don't conflict with SPARC's RTC
  *	ioctls.
  */
@@ -326,7 +326,7 @@ static ssize_t rtc_read(struct file *file, char __user *buf,
 	 * Historically this function used to assume that sizeof(unsigned long)
 	 * is the same in userspace and kernelspace.  This lead to problems
 	 * for configurations with multiple ABIs such a the MIPS o32 and 64
-	 * ABIs supported on the same kernel.  So now we support read of both
+	 * ABIs supported on the same kernel.  So yesw we support read of both
 	 * 4 and 8 bytes and assume that's the sizeof(unsigned long) in the
 	 * userspace ABI.
 	 */
@@ -338,7 +338,7 @@ static ssize_t rtc_read(struct file *file, char __user *buf,
 	do {
 		/* First make it right. Then make it fast. Putting this whole
 		 * block within the parentheses of a while would be too
-		 * confusing. And no, xchg() is not the answer. */
+		 * confusing. And yes, xchg() is yest the answer. */
 
 		__set_current_state(TASK_INTERRUPTIBLE);
 
@@ -575,7 +575,7 @@ static int rtc_do_ioctl(unsigned int cmd, unsigned long arg, int kernel)
 
 		/*
 		 * We want to keep the year set to 73 until March
-		 * for non-leap years, so that Feb, 29th is handled
+		 * for yesn-leap years, so that Feb, 29th is handled
 		 * correctly.
 		 */
 		if (!leap_yr && mon < 3) {
@@ -584,7 +584,7 @@ static int rtc_do_ioctl(unsigned int cmd, unsigned long arg, int kernel)
 		}
 #endif
 		/* These limits and adjustments are independent of
-		 * whether the chip is in binary mode or not.
+		 * whether the chip is in binary mode or yest.
 		 */
 		if (yrs > 169) {
 			spin_unlock_irq(&rtc_lock);
@@ -680,7 +680,7 @@ static int rtc_do_ioctl(unsigned int cmd, unsigned long arg, int kernel)
 	case RTC_EPOCH_SET:	/* Set the epoch.	*/
 	{
 		/*
-		 * There were no RTC clocks before 1900.
+		 * There were yes RTC clocks before 1900.
 		 */
 		if (arg < 1900)
 			return -EINVAL;
@@ -710,7 +710,7 @@ static long rtc_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
  *	Also clear the previous interrupt data on an open, and clean
  *	up things on a close.
  */
-static int rtc_open(struct inode *inode, struct file *file)
+static int rtc_open(struct iyesde *iyesde, struct file *file)
 {
 	spin_lock_irq(&rtc_lock);
 
@@ -733,16 +733,16 @@ static int rtc_fasync(int fd, struct file *filp, int on)
 	return fasync_helper(fd, filp, on, &rtc_async_queue);
 }
 
-static int rtc_release(struct inode *inode, struct file *file)
+static int rtc_release(struct iyesde *iyesde, struct file *file)
 {
 #ifdef RTC_IRQ
 	unsigned char tmp;
 
 	if (rtc_has_irq == 0)
-		goto no_irq;
+		goto yes_irq;
 
 	/*
-	 * Turn off all interrupts once the device is no longer
+	 * Turn off all interrupts once the device is yes longer
 	 * in use, and clear the data.
 	 */
 
@@ -761,7 +761,7 @@ static int rtc_release(struct inode *inode, struct file *file)
 	}
 	spin_unlock_irq(&rtc_lock);
 
-no_irq:
+yes_irq:
 #endif
 
 	spin_lock_irq(&rtc_lock);
@@ -798,7 +798,7 @@ static __poll_t rtc_poll(struct file *file, poll_table *wait)
 
 static const struct file_operations rtc_fops = {
 	.owner		= THIS_MODULE,
-	.llseek		= no_llseek,
+	.llseek		= yes_llseek,
 	.read		= rtc_read,
 #ifdef RTC_IRQ
 	.poll		= rtc_poll,
@@ -810,7 +810,7 @@ static const struct file_operations rtc_fops = {
 };
 
 static struct miscdevice rtc_dev = {
-	.minor		= RTC_MINOR,
+	.miyesr		= RTC_MINOR,
 	.name		= "rtc",
 	.fops		= &rtc_fops,
 };
@@ -850,7 +850,7 @@ static int __init rtc_init(void)
 	char *guess = NULL;
 #endif
 #ifdef CONFIG_SPARC32
-	struct device_node *ebus_dp;
+	struct device_yesde *ebus_dp;
 	struct platform_device *op;
 #else
 	void *r;
@@ -860,11 +860,11 @@ static int __init rtc_init(void)
 #endif
 
 #ifdef CONFIG_SPARC32
-	for_each_node_by_name(ebus_dp, "ebus") {
-		struct device_node *dp;
-		for_each_child_of_node(ebus_dp, dp) {
-			if (of_node_name_eq(dp, "rtc")) {
-				op = of_find_device_by_node(dp);
+	for_each_yesde_by_name(ebus_dp, "ebus") {
+		struct device_yesde *dp;
+		for_each_child_of_yesde(ebus_dp, dp) {
+			if (of_yesde_name_eq(dp, "rtc")) {
+				op = of_find_device_by_yesde(dp);
 				if (op) {
 					rtc_port = op->resource[0].start;
 					rtc_irq = op->irqs[0];
@@ -874,13 +874,13 @@ static int __init rtc_init(void)
 		}
 	}
 	rtc_has_irq = 0;
-	printk(KERN_ERR "rtc_init: no PC rtc found\n");
+	printk(KERN_ERR "rtc_init: yes PC rtc found\n");
 	return -EIO;
 
 found:
 	if (!rtc_irq) {
 		rtc_has_irq = 0;
-		goto no_irq;
+		goto yes_irq;
 	}
 
 	/*
@@ -890,10 +890,10 @@ found:
 	if (request_irq(rtc_irq, rtc_interrupt, IRQF_SHARED, "rtc",
 			(void *)&rtc_port)) {
 		rtc_has_irq = 0;
-		printk(KERN_ERR "rtc: cannot register IRQ %d\n", rtc_irq);
+		printk(KERN_ERR "rtc: canyest register IRQ %d\n", rtc_irq);
 		return -EIO;
 	}
-no_irq:
+yes_irq:
 #else
 	r = rtc_request_region(RTC_IO_EXTENT);
 
@@ -910,7 +910,7 @@ no_irq:
 #ifdef RTC_IRQ
 		rtc_has_irq = 0;
 #endif
-		printk(KERN_ERR "rtc: I/O resource %lx is not free.\n",
+		printk(KERN_ERR "rtc: I/O resource %lx is yest free.\n",
 		       (long)(RTC_PORT(0)));
 		return -EIO;
 	}
@@ -933,7 +933,7 @@ no_irq:
 	if (request_irq(RTC_IRQ, rtc_int_handler_ptr, 0, "rtc", NULL)) {
 		/* Yeah right, seeing as irq 8 doesn't even hit the bus. */
 		rtc_has_irq = 0;
-		printk(KERN_ERR "rtc: IRQ %d is not free.\n", RTC_IRQ);
+		printk(KERN_ERR "rtc: IRQ %d is yest free.\n", RTC_IRQ);
 		rtc_release_region();
 
 		return -EIO;
@@ -964,7 +964,7 @@ no_irq:
 	rtc_freq = HZ;
 
 	/* Each operating system on an Alpha uses its own epoch.
-	   Let's try to guess which one we are using now. */
+	   Let's try to guess which one we are using yesw. */
 
 	if (rtc_is_updating() != 0)
 		msleep(20);
@@ -1002,7 +1002,7 @@ no_irq:
 #endif
 #ifdef RTC_IRQ
 	if (rtc_has_irq == 0)
-		goto no_irq2;
+		goto yes_irq2;
 
 	spin_lock_irq(&rtc_lock);
 	rtc_freq = 1024;
@@ -1015,7 +1015,7 @@ no_irq:
 			   RTC_FREQ_SELECT);
 	}
 	spin_unlock_irq(&rtc_lock);
-no_irq2:
+yes_irq2:
 #endif
 
 	(void) init_sysctl();
@@ -1057,7 +1057,7 @@ module_exit(rtc_exit);
  *	A timer is set, and will call this function if/when that happens.
  *	To get it out of this stalled state, we just read the status.
  *	At least a jiffy of interrupts (rtc_freq/HZ) will have been lost.
- *	(You *really* shouldn't be trying to use a non-realtime system
+ *	(You *really* shouldn't be trying to use a yesn-realtime system
  *	for something that requires a steady > 1KHz signal anyways.)
  */
 
@@ -1101,8 +1101,8 @@ static void rtc_dropped_irq(struct timer_list *unused)
 
 static int rtc_proc_show(struct seq_file *seq, void *v)
 {
-#define YN(bit) ((ctrl & bit) ? "yes" : "no")
-#define NY(bit) ((ctrl & bit) ? "no" : "yes")
+#define YN(bit) ((ctrl & bit) ? "no" : "yes")
+#define NY(bit) ((ctrl & bit) ? "yes" : "no")
 	struct rtc_time tm;
 	unsigned char batt, ctrl;
 	unsigned long freq;
@@ -1117,7 +1117,7 @@ static int rtc_proc_show(struct seq_file *seq, void *v)
 	rtc_get_rtc_time(&tm);
 
 	/*
-	 * There is no way to tell if the luser has the RTC set for local
+	 * There is yes way to tell if the luser has the RTC set for local
 	 * time or for Universal Standard Time (GMT). Probably local though.
 	 */
 	seq_printf(seq,
@@ -1185,9 +1185,9 @@ static void rtc_get_rtc_time(struct rtc_time *rtc_tm)
 
 	/*
 	 * read RTC once any update in progress is done. The update
-	 * can take just over 2ms. We wait 20ms. There is no need to
+	 * can take just over 2ms. We wait 20ms. There is yes need to
 	 * to poll-wait (up to 1s - eeccch) for the falling edge of RTC_UIP.
-	 * If you need to know *exactly* when a second has started, enable
+	 * If you need to kyesw *exactly* when a second has started, enable
 	 * periodic update complete interrupts, (via ioctl) and then
 	 * immediately read /dev/rtc which will block until you get the IRQ.
 	 * Once the read clears, read the RTC time (again via ioctl). Easy.
@@ -1200,8 +1200,8 @@ static void rtc_get_rtc_time(struct rtc_time *rtc_tm)
 	/*
 	 * Only the values that we read from the RTC are set. We leave
 	 * tm_wday, tm_yday and tm_isdst untouched. Note that while the
-	 * RTC has RTC_DAY_OF_WEEK, we should usually ignore it, as it is
-	 * only updated by the RTC when initially set to a non-zero value.
+	 * RTC has RTC_DAY_OF_WEEK, we should usually igyesre it, as it is
+	 * only updated by the RTC when initially set to a yesn-zero value.
 	 */
 	spin_lock_irqsave(&rtc_lock, flags);
 	rtc_tm->tm_sec = CMOS_READ(RTC_SECONDS);

@@ -134,7 +134,7 @@ static int etnaviv_mmu_show(struct etnaviv_gpu *gpu, struct seq_file *m)
 	seq_printf(m, "Active Objects (%s):\n", dev_name(gpu->dev));
 
 	/*
-	 * Lock the GPU to avoid a MMU context switch just now and elevate
+	 * Lock the GPU to avoid a MMU context switch just yesw and elevate
 	 * the refcount of the current context to avoid it disappearing from
 	 * under our feet.
 	 */
@@ -190,22 +190,22 @@ static int etnaviv_ring_show(struct etnaviv_gpu *gpu, struct seq_file *m)
 
 static int show_unlocked(struct seq_file *m, void *arg)
 {
-	struct drm_info_node *node = (struct drm_info_node *) m->private;
-	struct drm_device *dev = node->minor->dev;
+	struct drm_info_yesde *yesde = (struct drm_info_yesde *) m->private;
+	struct drm_device *dev = yesde->miyesr->dev;
 	int (*show)(struct drm_device *dev, struct seq_file *m) =
-			node->info_ent->data;
+			yesde->info_ent->data;
 
 	return show(dev, m);
 }
 
 static int show_each_gpu(struct seq_file *m, void *arg)
 {
-	struct drm_info_node *node = (struct drm_info_node *) m->private;
-	struct drm_device *dev = node->minor->dev;
+	struct drm_info_yesde *yesde = (struct drm_info_yesde *) m->private;
+	struct drm_device *dev = yesde->miyesr->dev;
 	struct etnaviv_drm_private *priv = dev->dev_private;
 	struct etnaviv_gpu *gpu;
 	int (*show)(struct etnaviv_gpu *gpu, struct seq_file *m) =
-			node->info_ent->data;
+			yesde->info_ent->data;
 	unsigned int i;
 	int ret = 0;
 
@@ -230,17 +230,17 @@ static struct drm_info_list etnaviv_debugfs_list[] = {
 		{"ring", show_each_gpu, 0, etnaviv_ring_show},
 };
 
-static int etnaviv_debugfs_init(struct drm_minor *minor)
+static int etnaviv_debugfs_init(struct drm_miyesr *miyesr)
 {
-	struct drm_device *dev = minor->dev;
+	struct drm_device *dev = miyesr->dev;
 	int ret;
 
 	ret = drm_debugfs_create_files(etnaviv_debugfs_list,
 			ARRAY_SIZE(etnaviv_debugfs_list),
-			minor->debugfs_root, minor);
+			miyesr->debugfs_root, miyesr);
 
 	if (ret) {
-		dev_err(dev->dev, "could not install etnaviv_debugfs_list\n");
+		dev_err(dev->dev, "could yest install etnaviv_debugfs_list\n");
 		return ret;
 	}
 
@@ -496,7 +496,7 @@ static const struct file_operations fops = {
 	.compat_ioctl       = drm_compat_ioctl,
 	.poll               = drm_poll,
 	.read               = drm_read,
-	.llseek             = no_llseek,
+	.llseek             = yes_llseek,
 	.mmap               = etnaviv_gem_mmap,
 };
 
@@ -525,7 +525,7 @@ static struct drm_driver etnaviv_drm_driver = {
 	.desc               = "etnaviv DRM",
 	.date               = "20151214",
 	.major              = 1,
-	.minor              = 3,
+	.miyesr              = 3,
 };
 
 /*
@@ -615,9 +615,9 @@ static const struct component_master_ops etnaviv_master_ops = {
 
 static int compare_of(struct device *dev, void *data)
 {
-	struct device_node *np = data;
+	struct device_yesde *np = data;
 
-	return dev->of_node == np;
+	return dev->of_yesde == np;
 }
 
 static int compare_str(struct device *dev, void *data)
@@ -631,14 +631,14 @@ static int etnaviv_pdev_probe(struct platform_device *pdev)
 	struct component_match *match = NULL;
 
 	if (!dev->platform_data) {
-		struct device_node *core_node;
+		struct device_yesde *core_yesde;
 
-		for_each_compatible_node(core_node, NULL, "vivante,gc") {
-			if (!of_device_is_available(core_node))
+		for_each_compatible_yesde(core_yesde, NULL, "vivante,gc") {
+			if (!of_device_is_available(core_yesde))
 				continue;
 
 			drm_of_component_match_add(&pdev->dev, &match,
-						   compare_of, core_node);
+						   compare_of, core_yesde);
 		}
 	} else {
 		char **names = dev->platform_data;
@@ -672,7 +672,7 @@ static int __init etnaviv_init(void)
 {
 	struct platform_device *pdev;
 	int ret;
-	struct device_node *np;
+	struct device_yesde *np;
 
 	etnaviv_validate_init();
 
@@ -688,14 +688,14 @@ static int __init etnaviv_init(void)
 	 * If the DT contains at least one available GPU device, instantiate
 	 * the DRM platform device.
 	 */
-	for_each_compatible_node(np, NULL, "vivante,gc") {
+	for_each_compatible_yesde(np, NULL, "vivante,gc") {
 		if (!of_device_is_available(np))
 			continue;
 
 		pdev = platform_device_alloc("etnaviv", -1);
 		if (!pdev) {
 			ret = -ENOMEM;
-			of_node_put(np);
+			of_yesde_put(np);
 			goto unregister_platform_driver;
 		}
 		pdev->dev.coherent_dma_mask = DMA_BIT_MASK(40);
@@ -711,12 +711,12 @@ static int __init etnaviv_init(void)
 		ret = platform_device_add(pdev);
 		if (ret) {
 			platform_device_put(pdev);
-			of_node_put(np);
+			of_yesde_put(np);
 			goto unregister_platform_driver;
 		}
 
 		etnaviv_drm = pdev;
-		of_node_put(np);
+		of_yesde_put(np);
 		break;
 	}
 

@@ -5,7 +5,7 @@
  * driver supports the TDMA engine on platforms on which it is available.
  *
  * Author: Boris Brezillon <boris.brezillon@free-electrons.com>
- * Author: Arnaud Ebalard <arno@natisbad.org>
+ * Author: Arnaud Ebalard <aryes@natisbad.org>
  *
  * This work is based on an initial version written by
  * Sebastian Andrzej Siewior < sebastian at breakpoint dot cc >
@@ -128,7 +128,7 @@ static irqreturn_t mv_cesa_int(int irq, void *priv)
 			break;
 
 		/*
-		 * TODO: avoid clearing the FPGA_INT_STATUS if this not
+		 * TODO: avoid clearing the FPGA_INT_STATUS if this yest
 		 * relevant on some platforms.
 		 */
 		writel(~status, engine->regs + CESA_SA_FPGA_INT_STATUS);
@@ -378,7 +378,7 @@ static int mv_cesa_get_sram(struct platform_device *pdev, int idx)
 	const char *res_name = "sram";
 	struct resource *res;
 
-	engine->pool = of_gen_pool_get(cesa->dev->of_node,
+	engine->pool = of_gen_pool_get(cesa->dev->of_yesde,
 				       "marvell,crypto-srams", idx);
 	if (engine->pool) {
 		engine->sram = gen_pool_dma_alloc(engine->pool,
@@ -446,8 +446,8 @@ static int mv_cesa_probe(struct platform_device *pdev)
 		return -EEXIST;
 	}
 
-	if (dev->of_node) {
-		match = of_match_node(mv_cesa_of_match_table, dev->of_node);
+	if (dev->of_yesde) {
+		match = of_match_yesde(mv_cesa_of_match_table, dev->of_yesde);
 		if (!match || !match->data)
 			return -ENOTSUPP;
 
@@ -462,7 +462,7 @@ static int mv_cesa_probe(struct platform_device *pdev)
 	cesa->dev = dev;
 
 	sram_size = CESA_SA_DEFAULT_SRAM_SIZE;
-	of_property_read_u32(cesa->dev->of_node, "marvell,crypto-sram-size",
+	of_property_read_u32(cesa->dev->of_yesde, "marvell,crypto-sram-size",
 			     &sram_size);
 	if (sram_size < CESA_SA_MIN_SRAM_SIZE)
 		sram_size = CESA_SA_MIN_SRAM_SIZE;
@@ -484,7 +484,7 @@ static int mv_cesa_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	dram = mv_mbus_dram_info_nooverlap();
+	dram = mv_mbus_dram_info_yesoverlap();
 
 	platform_set_drvdata(pdev, cesa);
 
@@ -506,8 +506,8 @@ static int mv_cesa_probe(struct platform_device *pdev)
 		}
 
 		/*
-		 * Not all platforms can gate the CESA clocks: do not complain
-		 * if the clock does not exist.
+		 * Not all platforms can gate the CESA clocks: do yest complain
+		 * if the clock does yest exist.
 		 */
 		snprintf(res_name, sizeof(res_name), "cesa%d", i);
 		engine->clk = devm_clk_get(dev, res_name);
@@ -610,6 +610,6 @@ module_platform_driver(marvell_cesa);
 
 MODULE_ALIAS("platform:mv_crypto");
 MODULE_AUTHOR("Boris Brezillon <boris.brezillon@free-electrons.com>");
-MODULE_AUTHOR("Arnaud Ebalard <arno@natisbad.org>");
+MODULE_AUTHOR("Arnaud Ebalard <aryes@natisbad.org>");
 MODULE_DESCRIPTION("Support for Marvell's cryptographic engine");
 MODULE_LICENSE("GPL v2");

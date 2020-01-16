@@ -221,7 +221,7 @@ int r8712_update_attrib(struct _adapter *padapter, _pkt *pkt,
 		memcpy(pattrib->ra, pattrib->dst, ETH_ALEN);
 		memcpy(pattrib->ta, get_bssid(pmlmepriv), ETH_ALEN);
 	} else if (check_fwstate(pmlmepriv, WIFI_MP_STATE)) {
-		/*firstly, filter packet not belongs to mp*/
+		/*firstly, filter packet yest belongs to mp*/
 		if (pattrib->ether_type != 0x8712)
 			return -EINVAL;
 		/* for mp storing the txcmd per packet,
@@ -281,7 +281,7 @@ int r8712_update_attrib(struct _adapter *padapter, _pkt *pkt,
 	if (psta) {
 		pattrib->psta = psta;
 	} else {
-		/* if we cannot get psta => drrp the pkt */
+		/* if we canyest get psta => drrp the pkt */
 		return -ENOMEM;
 	}
 
@@ -771,7 +771,7 @@ void r8712_free_xmitbuf(struct xmit_priv *pxmitpriv, struct xmit_buf *pxmitbuf)
  * 1. OS_TXENTRY
  * 2. RXENTRY (rx_thread or RX_ISR/RX_CallBack)
  *
- * If we turn on USE_RXTHREAD, then, no need for critical section.
+ * If we turn on USE_RXTHREAD, then, yes need for critical section.
  * Otherwise, we must use _enter/_exit critical to protect free_xmit_queue...
  *
  * Must be very very cautious...
@@ -1006,9 +1006,9 @@ void xmitframe_xmitbuf_attach(struct xmit_frame *pxmitframe,
 }
 
 /*
- * tx_action == 0 == no frames to transmit
+ * tx_action == 0 == yes frames to transmit
  * tx_action > 0 ==> we have frames to transmit
- * tx_action < 0 ==> we have frames to transmit, but TXFF is not even enough
+ * tx_action < 0 ==> we have frames to transmit, but TXFF is yest even eyesugh
  *						 to transmit 1 frame.
  */
 

@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -34,7 +34,7 @@
 #include "vega20_ppt.h"
 #include "arcturus_ppt.h"
 #include "navi10_ppt.h"
-#include "renoir_ppt.h"
+#include "reyesir_ppt.h"
 
 #undef __SMU_DUMMY_MAP
 #define __SMU_DUMMY_MAP(type)	#type
@@ -45,7 +45,7 @@ static const char* __smu_message_names[] = {
 const char *smu_get_message_name(struct smu_context *smu, enum smu_message_type type)
 {
 	if (type < 0 || type >= SMU_MSG_MAX_COUNT)
-		return "unknown smu message";
+		return "unkyeswn smu message";
 	return __smu_message_names[type];
 }
 
@@ -58,7 +58,7 @@ static const char* __smu_feature_names[] = {
 const char *smu_get_feature_name(struct smu_context *smu, enum smu_feature_mask feature)
 {
 	if (feature < 0 || feature >= SMU_FEATURE_COUNT)
-		return "unknown smu feature";
+		return "unkyeswn smu feature";
 	return __smu_feature_names[feature];
 }
 
@@ -143,7 +143,7 @@ static int smu_feature_update_enable_state(struct smu_context *smu,
 		bitmap_or(feature->enabled, feature->enabled,
 				(unsigned long *)(&feature_mask), SMU_FEATURE_MAX);
 	else
-		bitmap_andnot(feature->enabled, feature->enabled,
+		bitmap_andyest(feature->enabled, feature->enabled,
 				(unsigned long *)(&feature_mask), SMU_FEATURE_MAX);
 	mutex_unlock(&feature->mutex);
 
@@ -344,7 +344,7 @@ int smu_get_dpm_freq_by_index(struct smu_context *smu, enum smu_clk_type clk_typ
 		return ret;
 
 	/* BIT31:  0 - Fine grained DPM, 1 - Dicrete DPM
-	 * now, we un-support it */
+	 * yesw, we un-support it */
 	*value = param & 0x7fffffff;
 
 	return ret;
@@ -390,7 +390,7 @@ bool smu_clk_dpm_is_enabled(struct smu_context *smu, enum smu_clk_type clk_type)
  * @block_type: the IP block to power gate/ungate
  * @gate:       to power gate if true, ungate otherwise
  *
- * This API uses no smu->mutex lock protection due to:
+ * This API uses yes smu->mutex lock protection due to:
  * 1. It is either called by other IP block(gfx/sdma/vcn/uvd/vce).
  *    This is guarded to be race condition free by the caller.
  * 2. Or get called on user setting request of power_dpm_force_performance_level.
@@ -428,7 +428,7 @@ int smu_get_power_num_states(struct smu_context *smu,
 	if (!state_info)
 		return -EINVAL;
 
-	/* not support power state */
+	/* yest support power state */
 	memset(state_info, 0, sizeof(struct pp_states_info));
 	state_info->nums = 1;
 	state_info->states[0] = POWER_STATE_TYPE_DEFAULT;
@@ -575,7 +575,7 @@ int smu_sys_set_pp_table(struct smu_context *smu,  void *buf, size_t size)
 	if (!smu->pm_enabled)
 		return -EINVAL;
 	if (header->usStructureSize != size) {
-		pr_err("pp table size not matched !\n");
+		pr_err("pp table size yest matched !\n");
 		return -EIO;
 	}
 
@@ -738,11 +738,11 @@ static int smu_set_funcs(struct amdgpu_device *adev)
 	case CHIP_ARCTURUS:
 		adev->pm.pp_feature &= ~PP_GFXOFF_MASK;
 		arcturus_set_ppt_funcs(smu);
-		/* OD is not supported on Arcturus */
+		/* OD is yest supported on Arcturus */
 		smu->od_enabled =false;
 		break;
 	case CHIP_RENOIR:
-		renoir_set_ppt_funcs(smu);
+		reyesir_set_ppt_funcs(smu);
 		break;
 	default:
 		return -EINVAL;
@@ -1024,7 +1024,7 @@ static int smu_smc_table_hw_init(struct smu_context *smu,
 
 		/*
 		 * check if the format_revision in vbios is up to pptable header
-		 * version, and the structure size is not 0.
+		 * version, and the structure size is yest 0.
 		 */
 		ret = smu_check_pptable(smu);
 		if (ret)
@@ -1079,7 +1079,7 @@ static int smu_smc_table_hw_init(struct smu_context *smu,
 		return ret;
 
 	if (adev->asic_type != CHIP_ARCTURUS) {
-		ret = smu_notify_display_change(smu);
+		ret = smu_yestify_display_change(smu);
 		if (ret)
 			return ret;
 
@@ -1144,7 +1144,7 @@ static int smu_smc_table_hw_init(struct smu_context *smu,
  * @smu: amdgpu_device pointer
  *
  * This memory pool will be used for SMC use and msg SetSystemVirtualDramAddr
- * and DramLogSetDramAddr can notify it changed.
+ * and DramLogSetDramAddr can yestify it changed.
  *
  * Returns 0 on success, error on failure.
  */
@@ -1219,7 +1219,7 @@ static int smu_start_smc_engine(struct smu_context *smu)
 	if (smu->ppt_funcs->check_fw_status) {
 		ret = smu->ppt_funcs->check_fw_status(smu);
 		if (ret)
-			pr_err("SMC is not ready\n");
+			pr_err("SMC is yest ready\n");
 	}
 
 	return ret;
@@ -1233,7 +1233,7 @@ static int smu_hw_init(void *handle)
 
 	ret = smu_start_smc_engine(smu);
 	if (ret) {
-		pr_err("SMU is not ready yet!\n");
+		pr_err("SMU is yest ready yet!\n");
 		return ret;
 	}
 
@@ -1259,10 +1259,10 @@ static int smu_hw_init(void *handle)
 		goto failed;
 
 	/*
-	 * Use msg SetSystemVirtualDramAddr and DramLogSetDramAddr can notify
+	 * Use msg SetSystemVirtualDramAddr and DramLogSetDramAddr can yestify
 	 * pool location.
 	 */
-	ret = smu_notify_memory_pool_location(smu);
+	ret = smu_yestify_memory_pool_location(smu);
 	if (ret)
 		goto failed;
 
@@ -1406,7 +1406,7 @@ static int smu_resume(void *handle)
 
 	ret = smu_start_smc_engine(smu);
 	if (ret) {
-		pr_err("SMU is not ready yet!\n");
+		pr_err("SMU is yest ready yet!\n");
 		goto failed;
 	}
 
@@ -1449,7 +1449,7 @@ int smu_display_configuration_change(struct smu_context *smu,
 		smu->ppt_funcs->set_deep_sleep_dcefclk(smu,
 				display_config->min_dcef_deep_sleep_set_clk / 100);
 
-	for (index = 0; index < display_config->num_path_including_non_display; index++) {
+	for (index = 0; index < display_config->num_path_including_yesn_display; index++) {
 		if (display_config->displays[index].controller_id != 0)
 			num_of_active_display++;
 	}
@@ -1482,7 +1482,7 @@ static int smu_get_clock_info(struct smu_context *smu,
 
 	clk_info->min_mem_clk = level.memory_clock;
 	clk_info->min_eng_clk = level.core_clock;
-	clk_info->min_bus_bandwidth = level.non_local_mem_freq * level.non_local_mem_width;
+	clk_info->min_bus_bandwidth = level.yesn_local_mem_freq * level.yesn_local_mem_width;
 
 	ret = smu_get_perf_level(smu, designation, &level);
 	if (ret)
@@ -1490,7 +1490,7 @@ static int smu_get_clock_info(struct smu_context *smu,
 
 	clk_info->min_mem_clk = level.memory_clock;
 	clk_info->min_eng_clk = level.core_clock;
-	clk_info->min_bus_bandwidth = level.non_local_mem_freq * level.non_local_mem_width;
+	clk_info->min_bus_bandwidth = level.yesn_local_mem_freq * level.yesn_local_mem_width;
 
 	return 0;
 }
@@ -1664,9 +1664,9 @@ int smu_adjust_power_state_dynamic(struct smu_context *smu,
 	}
 
 	if (!skip_display_settings) {
-		ret = smu_notify_smc_dispaly_config(smu);
+		ret = smu_yestify_smc_dispaly_config(smu);
 		if (ret) {
-			pr_err("Failed to notify smc display config!");
+			pr_err("Failed to yestify smc display config!");
 			return ret;
 		}
 	}
@@ -1851,7 +1851,7 @@ int smu_set_mp1_state(struct smu_context *smu,
 	int ret;
 
 	/*
-	 * The SMC is not fully ready. That may be
+	 * The SMC is yest fully ready. That may be
 	 * expected as the IP may be masked.
 	 * So, just return without error.
 	 */
@@ -1876,7 +1876,7 @@ int smu_set_mp1_state(struct smu_context *smu,
 		return 0;
 	}
 
-	/* some asics may not support those messages */
+	/* some asics may yest support those messages */
 	if (smu_msg_get_index(smu, msg) < 0) {
 		mutex_unlock(&smu->mutex);
 		return 0;
@@ -1897,7 +1897,7 @@ int smu_set_df_cstate(struct smu_context *smu,
 	int ret = 0;
 
 	/*
-	 * The SMC is not fully ready. That may be
+	 * The SMC is yest fully ready. That may be
 	 * expected as the IP may be masked.
 	 * So, just return without error.
 	 */
@@ -1980,7 +1980,7 @@ const struct amdgpu_ip_block_version smu_v11_0_ip_block =
 {
 	.type = AMD_IP_BLOCK_TYPE_SMC,
 	.major = 11,
-	.minor = 0,
+	.miyesr = 0,
 	.rev = 0,
 	.funcs = &smu_ip_funcs,
 };
@@ -1989,7 +1989,7 @@ const struct amdgpu_ip_block_version smu_v12_0_ip_block =
 {
 	.type = AMD_IP_BLOCK_TYPE_SMC,
 	.major = 12,
-	.minor = 0,
+	.miyesr = 0,
 	.rev = 0,
 	.funcs = &smu_ip_funcs,
 };
@@ -2383,14 +2383,14 @@ int smu_display_disable_memory_clock_switch(struct smu_context *smu, bool disabl
 	return ret;
 }
 
-int smu_notify_smu_enable_pwe(struct smu_context *smu)
+int smu_yestify_smu_enable_pwe(struct smu_context *smu)
 {
 	int ret = 0;
 
 	mutex_lock(&smu->mutex);
 
-	if (smu->ppt_funcs->notify_smu_enable_pwe)
-		ret = smu->ppt_funcs->notify_smu_enable_pwe(smu);
+	if (smu->ppt_funcs->yestify_smu_enable_pwe)
+		ret = smu->ppt_funcs->yestify_smu_enable_pwe(smu);
 
 	mutex_unlock(&smu->mutex);
 

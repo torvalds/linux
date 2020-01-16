@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
- *  HID driver for ViewSonic devices not fully compliant with HID standard
+ *  HID driver for ViewSonic devices yest fully compliant with HID standard
  *
  *  Copyright (c) 2017 Nikolai Kondrashov
  */

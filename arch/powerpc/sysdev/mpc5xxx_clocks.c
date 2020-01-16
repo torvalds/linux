@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: GPL-2.0
 /**
  * 	mpc5xxx_get_bus_frequency - Find the bus frequency for a device
- * 	@node:	device node
+ * 	@yesde:	device yesde
  *
  * 	Returns bus frequency (IPS on MPC512x, IPB on MPC52xx),
- * 	or 0 if the bus frequency cannot be found.
+ * 	or 0 if the bus frequency canyest be found.
  */
 
 #include <linux/kernel.h>
@@ -12,19 +12,19 @@
 #include <linux/export.h>
 #include <asm/mpc5xxx.h>
 
-unsigned long mpc5xxx_get_bus_frequency(struct device_node *node)
+unsigned long mpc5xxx_get_bus_frequency(struct device_yesde *yesde)
 {
 	const unsigned int *p_bus_freq = NULL;
 
-	of_node_get(node);
-	while (node) {
-		p_bus_freq = of_get_property(node, "bus-frequency", NULL);
+	of_yesde_get(yesde);
+	while (yesde) {
+		p_bus_freq = of_get_property(yesde, "bus-frequency", NULL);
 		if (p_bus_freq)
 			break;
 
-		node = of_get_next_parent(node);
+		yesde = of_get_next_parent(yesde);
 	}
-	of_node_put(node);
+	of_yesde_put(yesde);
 
 	return p_bus_freq ? *p_bus_freq : 0;
 }

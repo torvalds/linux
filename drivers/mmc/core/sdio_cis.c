@@ -27,7 +27,7 @@ static int cistpl_vers_1(struct mmc_card *card, struct sdio_func *func,
 	char **buffer, *string;
 
 	/* Find all null-terminated (including zero length) strings in
-	   the TPLLV1_INFO field. Trailing garbage is ignored. */
+	   the TPLLV1_INFO field. Trailing garbage is igyesred. */
 	buf += 2;
 	size -= 2;
 
@@ -122,7 +122,7 @@ static int cis_tpl_parse(struct mmc_card *card, struct sdio_func *func,
 			if (tpl->parse)
 				ret = tpl->parse(card, func, buf, size);
 			else
-				ret = -EILSEQ;	/* known tuple, not parsed */
+				ret = -EILSEQ;	/* kyeswn tuple, yest parsed */
 		} else {
 			/* invalid tuple */
 			ret = -EINVAL;
@@ -132,7 +132,7 @@ static int cis_tpl_parse(struct mmc_card *card, struct sdio_func *func,
 			       mmc_hostname(card->host), tpl_descr, code, size);
 		}
 	} else {
-		/* unknown tuple */
+		/* unkyeswn tuple */
 		ret = -ENOENT;
 	}
 
@@ -194,9 +194,9 @@ static int cistpl_funce_func(struct mmc_card *card, struct sdio_func *func,
 }
 
 /*
- * Known TPLFE_TYPEs table for CISTPL_FUNCE tuples.
+ * Kyeswn TPLFE_TYPEs table for CISTPL_FUNCE tuples.
  *
- * Note that, unlike PCMCIA, CISTPL_FUNCE tuples are not parsed depending
+ * Note that, unlike PCMCIA, CISTPL_FUNCE tuples are yest parsed depending
  * on the TPLFID_FUNCTION value of the previous CISTPL_FUNCID as on SDIO
  * TPLFID_FUNCTION is always hardcoded to 0x0C.
  */
@@ -218,7 +218,7 @@ static int cistpl_funce(struct mmc_card *card, struct sdio_func *func,
 			     buf[0], buf, size);
 }
 
-/* Known TPL_CODEs table for CIS tuples */
+/* Kyeswn TPL_CODEs table for CIS tuples */
 static const struct cis_tpl cis_tpl_list[] = {
 	{	0x15,	3,	cistpl_vers_1		},
 	{	0x20,	4,	cistpl_manfid		},
@@ -272,7 +272,7 @@ static int sdio_read_cis(struct mmc_card *card, struct sdio_func *func)
 		if (tpl_code == 0xff)
 			break;
 
-		/* null entries have no link field or data */
+		/* null entries have yes link field or data */
 		if (tpl_code == 0x00)
 			continue;
 
@@ -305,7 +305,7 @@ static int sdio_read_cis(struct mmc_card *card, struct sdio_func *func)
 				    tpl_code, this->data, tpl_link);
 		if (ret == -EILSEQ || ret == -ENOENT) {
 			/*
-			 * The tuple is unknown or known but not parsed.
+			 * The tuple is unkyeswn or kyeswn but yest parsed.
 			 * Queue the tuple for the function driver.
 			 */
 			this->next = NULL;
@@ -315,8 +315,8 @@ static int sdio_read_cis(struct mmc_card *card, struct sdio_func *func)
 			prev = &this->next;
 
 			if (ret == -ENOENT) {
-				/* warn about unknown tuples */
-				pr_warn_ratelimited("%s: queuing unknown"
+				/* warn about unkyeswn tuples */
+				pr_warn_ratelimited("%s: queuing unkyeswn"
 				       " CIS tuple 0x%02x (%u bytes)\n",
 				       mmc_hostname(card->host),
 				       tpl_code, tpl_link);
@@ -328,7 +328,7 @@ static int sdio_read_cis(struct mmc_card *card, struct sdio_func *func)
 			/*
 			 * We don't need the tuple anymore if it was
 			 * successfully parsed by the SDIO core or if it is
-			 * not going to be queued for a driver.
+			 * yest going to be queued for a driver.
 			 */
 			kfree(this);
 		}
@@ -337,7 +337,7 @@ static int sdio_read_cis(struct mmc_card *card, struct sdio_func *func)
 	} while (!ret);
 
 	/*
-	 * Link in all unknown tuples found in the common CIS so that
+	 * Link in all unkyeswn tuples found in the common CIS so that
 	 * drivers don't have to go digging in two places.
 	 */
 	if (func)
@@ -407,7 +407,7 @@ void sdio_free_func_cis(struct sdio_func *func)
 	func->tuples = NULL;
 
 	/*
-	 * We have now removed the link to the tuples in the
+	 * We have yesw removed the link to the tuples in the
 	 * card structure, so remove the reference.
 	 */
 	put_device(&func->card->dev);

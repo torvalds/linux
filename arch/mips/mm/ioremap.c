@@ -33,7 +33,7 @@ static inline void remap_area_pte(pte_t * pte, unsigned long address,
 	BUG_ON(address >= end);
 	pfn = phys_addr >> PAGE_SHIFT;
 	do {
-		if (!pte_none(*pte)) {
+		if (!pte_yesne(*pte)) {
 			printk("remap_area_pte: page already exists\n");
 			BUG();
 		}
@@ -118,7 +118,7 @@ static int __ioremap_check_ram(unsigned long start_pfn, unsigned long nr_pages,
 }
 
 /*
- * Generic mapping function (not visible outside):
+ * Generic mapping function (yest visible outside):
  */
 
 /*
@@ -126,9 +126,9 @@ static int __ioremap_check_ram(unsigned long start_pfn, unsigned long nr_pages,
  * address space. Needed when the kernel wants to access high addresses
  * directly.
  *
- * NOTE! We need to allow non-page-aligned mappings too: we will obviously
+ * NOTE! We need to allow yesn-page-aligned mappings too: we will obviously
  * have to convert them into an offset in a page-aligned mapping, but the
- * caller shouldn't need to know that small detail.
+ * caller shouldn't need to kyesw that small detail.
  */
 
 #define IS_LOW512(addr) (!((phys_addr_t)(addr) & (phys_addr_t) ~0x1fffffffULL))

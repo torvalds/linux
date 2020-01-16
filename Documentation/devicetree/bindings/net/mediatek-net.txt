@@ -2,9 +2,9 @@ MediaTek Frame Engine Ethernet controller
 =========================================
 
 The frame engine ethernet controller can be found on MediaTek SoCs. These SoCs
-have dual GMAC each represented by a child node..
+have dual GMAC each represented by a child yesde..
 
-* Ethernet controller node
+* Ethernet controller yesde
 
 Required properties:
 - compatible: Should be
@@ -30,18 +30,18 @@ Required properties:
 - reset-names: Should contain the names of reset signal listed in the resets
 		property
 		These are "fe", "gmac" and "ppe"
-- mediatek,ethsys: phandle to the syscon node that handles the port setup
-- mediatek,infracfg: phandle to the syscon node that handles the path from
+- mediatek,ethsys: phandle to the syscon yesde that handles the port setup
+- mediatek,infracfg: phandle to the syscon yesde that handles the path from
 	GMAC to PHY variants, which is required for MT7629 SoC.
-- mediatek,sgmiisys: a list of phandles to the syscon node that handles the
+- mediatek,sgmiisys: a list of phandles to the syscon yesde that handles the
 	SGMII setup which is required for those SoCs equipped with SGMII such
 	as MT7622 and MT7629 SoC. And MT7622 have only one set of SGMII shared
 	by GMAC1 and GMAC2; MT7629 have two independent sets of SGMII directed
 	to GMAC1 and GMAC2, respectively.
-- mediatek,pctl: phandle to the syscon node that handles the ports slew rate
+- mediatek,pctl: phandle to the syscon yesde that handles the ports slew rate
 	and driver current: only for MT2701 and MT7623 SoC
 
-* Ethernet MAC node
+* Ethernet MAC yesde
 
 Required properties:
 - compatible: Should be "mediatek,eth-mac"

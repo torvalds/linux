@@ -8,7 +8,7 @@
 #include <linux/kernel.h>
 #include <linux/mm.h>
 #include <linux/pci.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/atm.h>
 #include <linux/atmdev.h>
 #include <linux/sonet.h>
@@ -32,8 +32,8 @@
 #include "eni.h"
 
 #if !defined(__i386__) && !defined(__x86_64__)
-#ifndef ioremap_nocache
-#define ioremap_nocache(X,Y) ioremap(X,Y)
+#ifndef ioremap_yescache
+#define ioremap_yescache(X,Y) ioremap(X,Y)
 #endif 
 #endif
 
@@ -41,9 +41,9 @@
  * TODO:
  *
  * Show stoppers
- *  none
+ *  yesne
  *
- * Minor
+ * Miyesr
  *  - OAM support
  *  - fix bugs listed below
  */
@@ -57,7 +57,7 @@
  *   (RX: should be maxSDU+maxdelay*rate
  *    TX: should be maxSDU+min(maxSDU,maxdelay*rate) )
  * - doesn't support OAM cells
- * - eni_put_free may hang if not putting memory fragments that _complete_
+ * - eni_put_free may hang if yest putting memory fragments that _complete_
  *   2^n block (never happens in real life, though)
  */
 
@@ -136,7 +136,7 @@ static void event_dump(void)
 
 
 /*
- * NExx   must not be equal at end
+ * NExx   must yest be equal at end
  * EExx   may be equal at end
  * xxPJOK verify validity of pointer jumps
  * xxPMOK operating on a circular buffer of "c" words
@@ -530,7 +530,7 @@ static int rx_aal0(struct atm_vcc *vcc)
 		atomic_inc(&vcc->stats->rx_err);
 	}
 	else {
-		length = ATM_CELL_SIZE-1; /* no HEC */
+		length = ATM_CELL_SIZE-1; /* yes HEC */
 	}
 	skb = length ? atm_alloc_charge(vcc,length,GFP_ATOMIC) : NULL;
 	if (!skb) {
@@ -637,7 +637,7 @@ static inline int rx_vcc(struct atm_vcc *vcc)
 	writel(readl(vci_dsc) & ~MID_VCI_IN_SERVICE,vci_dsc);
 	/*
 	 * If new data has arrived between evaluating the while condition and
-	 * clearing IN_SERVICE, we wouldn't be notified until additional data
+	 * clearing IN_SERVICE, we wouldn't be yestified until additional data
 	 * follows. So we have to loop again to be sure.
 	 */
 	EVENT("rx_vcc(3)\n",0,0);
@@ -692,10 +692,10 @@ static void get_service(struct atm_dev *dev)
 		eni_dev->serv_read = (eni_dev->serv_read+1) & (NR_SERVICE-1);
 		vcc = eni_dev->rx_map[vci & 1023];
 		if (!vcc) {
-			printk(KERN_CRIT DEV_LABEL "(itf %d): VCI %ld not "
+			printk(KERN_CRIT DEV_LABEL "(itf %d): VCI %ld yest "
 			    "found\n",dev->number,vci);
 			continue; /* nasty but we try to go on anyway */
-			/* @@@ nope, doesn't work */
+			/* @@@ yespe, doesn't work */
 		}
 		EVENT("getting from service\n",0,0);
 		if (ENI_VCC(vcc)->next != ENI_VCC_NOS) {
@@ -738,9 +738,9 @@ static void dequeue_rx(struct atm_dev *dev)
 		skb = skb_dequeue(&eni_dev->rx_queue);
 		if (!skb) {
 			if (first) {
-				DPRINTK(DEV_LABEL "(itf %d): RX but not "
+				DPRINTK(DEV_LABEL "(itf %d): RX but yest "
 				    "rxing\n",dev->number);
-				EVENT("nothing to dequeue\n",0,0);
+				EVENT("yesthing to dequeue\n",0,0);
 			}
 			break;
 		}
@@ -829,7 +829,7 @@ static int open_rx_second(struct atm_vcc *vcc)
 	if (eni_dev->rx_map[vcc->vci])
 		printk(KERN_CRIT DEV_LABEL "(itf %d): BUG - VCI %d already "
 		    "in use\n",vcc->dev->number,vcc->vci);
-	eni_dev->rx_map[vcc->vci] = vcc; /* now it counts */
+	eni_dev->rx_map[vcc->vci] = vcc; /* yesw it counts */
 	writel(((vcc->qos.aal != ATM_AAL5 ? MID_MODE_RAW : MID_MODE_AAL5) <<
 	    MID_VCI_MODE_SHIFT) | MID_VCI_PTI_MODE |
 	    (((eni_vcc->recv-eni_dev->ram) >> (MID_LOC_SKIP+2)) <<
@@ -1061,13 +1061,13 @@ static enum enq_res do_tx(struct sk_buff *skb)
 		}
 	}
 #endif
-#if 0 /* should work now */
+#if 0 /* should work yesw */
 	if ((unsigned long) skb->data & 3)
 		printk(KERN_ERR DEV_LABEL "(itf %d): VCI %d has mis-aligned "
 		    "TX data\n",vcc->dev->number,vcc->vci);
 #endif
 	/*
-	 * Potential future IP speedup: make hard_header big enough to put
+	 * Potential future IP speedup: make hard_header big eyesugh to put
 	 * segmentation descriptor directly into PDU. Saves: 4 slave writes,
 	 * 1 DMA xfer & 2 DMA'ed bytes (protocol layering is for wimps :-)
 	 */
@@ -1173,7 +1173,7 @@ DPRINTK("doing direct send\n"); /* @@@ well, this doesn't work anyway */
 	ENI_PRV_SIZE(skb) = size;
 	ENI_VCC(vcc)->txing += size;
 	tx->tx_pos = (tx->tx_pos+size) & (tx->words-1);
-	DPRINTK("dma_wr set to %d, tx_pos is now %ld\n",dma_wr,tx->tx_pos);
+	DPRINTK("dma_wr set to %d, tx_pos is yesw %ld\n",dma_wr,tx->tx_pos);
 	eni_out(dma_wr,MID_DMA_WR_TX);
 	skb_queue_tail(&eni_dev->tx_queue,skb);
 	queued++;
@@ -1385,7 +1385,7 @@ static int open_tx_first(struct atm_vcc *vcc)
 
 static int open_tx_second(struct atm_vcc *vcc)
 {
-	return 0; /* nothing to do */
+	return 0; /* yesthing to do */
 }
 
 
@@ -1501,7 +1501,7 @@ static irqreturn_t eni_int(int irq,void *dev_id)
 	reason = eni_in(MID_ISA);
 	DPRINTK(DEV_LABEL ": int 0x%lx\n",(unsigned long) reason);
 	/*
-	 * Must handle these two right now, because reading ISA doesn't clear
+	 * Must handle these two right yesw, because reading ISA doesn't clear
 	 * them, so they re-occur and we never make it to the tasklet. Since
 	 * they're rare, we don't mind the occasional invocation of eni_tasklet
 	 * with eni_dev->events == 0.
@@ -1725,7 +1725,7 @@ static int eni_do_init(struct atm_dev *dev)
 	}
 	printk(KERN_NOTICE DEV_LABEL "(itf %d): rev.%d,base=0x%lx,irq=%d,",
 	    dev->number,pci_dev->revision,real_base,eni_dev->irq);
-	if (!(base = ioremap_nocache(real_base,MAP_MAX_SIZE))) {
+	if (!(base = ioremap_yescache(real_base,MAP_MAX_SIZE))) {
 		printk("\n");
 		printk(KERN_ERR DEV_LABEL "(itf %d): can't set up page "
 		    "mapping\n",dev->number);
@@ -1733,7 +1733,7 @@ static int eni_do_init(struct atm_dev *dev)
 	}
 	eni_dev->ioaddr = base;
 	eni_dev->base_diff = real_base - (unsigned long) base;
-	/* id may not be present in ASIC Tonga boards - check this @@@ */
+	/* id may yest be present in ASIC Tonga boards - check this @@@ */
 	if (!eni_dev->asic) {
 		eprom = (base+EPROM_SIZE-sizeof(struct midway_eprom));
 		if (readl(&eprom->magic) != ENI155_MAGIC) {
@@ -1763,9 +1763,9 @@ static int eni_do_init(struct atm_dev *dev)
 		if (readl(eni_dev->ram+i) != i) break;
 	eni_dev->mem = i;
 	memset_io(eni_dev->ram,0,eni_dev->mem);
-	/* TODO: should shrink allocation now */
+	/* TODO: should shrink allocation yesw */
 	printk("mem=%dkB (",eni_dev->mem >> 10);
-	/* TODO: check for non-SUNI, check for TAXI ? */
+	/* TODO: check for yesn-SUNI, check for TAXI ? */
 	if (!(eni_in(MID_RES_ID_MCON) & 0x200) != !eni_dev->asic) {
 		printk(")\n");
 		printk(KERN_ERR DEV_LABEL "(itf %d): ERROR - wrong id 0x%x\n",
@@ -2100,7 +2100,7 @@ static unsigned char eni_phy_get(struct atm_dev *dev,unsigned long addr)
 static int eni_proc_read(struct atm_dev *dev,loff_t *pos,char *page)
 {
 	struct sock *s;
-	static const char *signal[] = { "LOST","unknown","okay" };
+	static const char *signal[] = { "LOST","unkyeswn","okay" };
 	struct eni_dev *eni_dev = ENI_DEV(dev);
 	struct atm_vcc *vcc;
 	int left,i;
@@ -2116,7 +2116,7 @@ static int eni_proc_read(struct atm_dev *dev,loff_t *pos,char *page)
     !defined(CONFIG_ATM_ENI_BURST_TX_8W) && \
     !defined(CONFIG_ATM_ENI_BURST_TX_4W) && \
     !defined(CONFIG_ATM_ENI_BURST_TX_2W)
-		    " none"
+		    " yesne"
 #endif
 #ifdef CONFIG_ATM_ENI_BURST_TX_16W
 		    " 16W"
@@ -2135,7 +2135,7 @@ static int eni_proc_read(struct atm_dev *dev,loff_t *pos,char *page)
     !defined(CONFIG_ATM_ENI_BURST_RX_8W) && \
     !defined(CONFIG_ATM_ENI_BURST_RX_4W) && \
     !defined(CONFIG_ATM_ENI_BURST_RX_2W)
-		    " none"
+		    " yesne"
 #endif
 #ifdef CONFIG_ATM_ENI_BURST_RX_16W
 		    " 16W"
@@ -2334,6 +2334,6 @@ static int __init eni_init(void)
 
 
 module_init(eni_init);
-/* @@@ since exit routine not defined, this module can not be unloaded */
+/* @@@ since exit routine yest defined, this module can yest be unloaded */
 
 MODULE_LICENSE("GPL");

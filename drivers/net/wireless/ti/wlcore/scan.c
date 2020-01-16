@@ -4,7 +4,7 @@
  *
  * Copyright (C) 2009-2010 Nokia Corporation
  *
- * Contact: Luciano Coelho <luciano.coelho@nokia.com>
+ * Contact: Luciayes Coelho <luciayes.coelho@yeskia.com>
  */
 
 #include <linux/ieee80211.h>
@@ -55,7 +55,7 @@ void wl1271_scan_complete_work(struct work_struct *work)
 
 	ret = pm_runtime_get_sync(wl->dev);
 	if (ret < 0) {
-		pm_runtime_put_noidle(wl->dev);
+		pm_runtime_put_yesidle(wl->dev);
 		goto out;
 	}
 
@@ -185,7 +185,7 @@ wlcore_scan_get_channels(struct wl1271 *wl,
 		if ((req_channels[i]->band == band) &&
 		    !(flags & IEEE80211_CHAN_DISABLED) &&
 		    (!!(flags & IEEE80211_CHAN_RADAR) == radar) &&
-		    /* if radar is set, we ignore the passive flag */
+		    /* if radar is set, we igyesre the passive flag */
 		    (radar ||
 		     !!(flags & IEEE80211_CHAN_NO_IR) == passive)) {
 			if (flags & IEEE80211_CHAN_RADAR) {
@@ -311,7 +311,7 @@ wlcore_set_scan_chan_params(struct wl1271 *wl,
 					 &n_pactive_ch,
 					 scan_type);
 
-	/* 802.11j channels are not supported yet */
+	/* 802.11j channels are yest supported yet */
 	cfg->passive[2] = 0;
 	cfg->active[2] = 0;
 
@@ -384,7 +384,7 @@ wlcore_scan_sched_scan_ssid_list(struct wl1271 *wl,
 		if (sets[i].ssid.ssid_len > 0)
 			n_match_ssids++;
 
-	/* No filter, no ssids or only bcast ssid */
+	/* No filter, yes ssids or only bcast ssid */
 	if (!n_match_ssids &&
 	    (!req->n_ssids ||
 	     (req->n_ssids == 1 && req->ssids[0].ssid_len == 0))) {
@@ -416,7 +416,7 @@ wlcore_scan_sched_scan_ssid_list(struct wl1271 *wl,
 
 		/* Add all SSIDs from the filters */
 		for (i = 0; i < req->n_match_sets; i++) {
-			/* ignore sets without SSIDs */
+			/* igyesre sets without SSIDs */
 			if (!sets[i].ssid.ssid_len)
 				continue;
 

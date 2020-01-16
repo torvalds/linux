@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and /or other materials
  *        provided with the distribution.
  *
@@ -447,7 +447,7 @@ struct iscsi_r2t_hdr {
 };
 
 /* iSCSI NOP-out PDU header */
-struct iscsi_nop_out_hdr {
+struct iscsi_yesp_out_hdr {
 	__le16 reserved1;
 	u8 flags_attr;
 #define ISCSI_NOP_OUT_HDR_RSRV_MASK	0x7F
@@ -468,7 +468,7 @@ struct iscsi_nop_out_hdr {
 };
 
 /* iSCSI NOP-in PDU header */
-struct iscsi_nop_in_hdr {
+struct iscsi_yesp_in_hdr {
 	__le16 reserved0;
 	u8 flags_attr;
 #define ISCSI_NOP_IN_HDR_RSRV_MASK	0x7F
@@ -681,7 +681,7 @@ struct iscsi_reject_hdr {
 	__le32 reserved3[2];
 };
 
-/* iSCSI Asynchronous Message PDU header */
+/* iSCSI Asynchroyesus Message PDU header */
 struct iscsi_async_msg_hdr {
 	__le16 reserved0;
 	u8 flags_attr;
@@ -720,8 +720,8 @@ union iscsi_task_hdr {
 	struct iscsi_data_out_hdr data_out;
 	struct iscsi_data_in_hdr data_in;
 	struct iscsi_r2t_hdr r2t;
-	struct iscsi_nop_out_hdr nop_out;
-	struct iscsi_nop_in_hdr nop_in;
+	struct iscsi_yesp_out_hdr yesp_out;
+	struct iscsi_yesp_in_hdr yesp_in;
 	struct iscsi_login_response_hdr login_response;
 	struct iscsi_logout_response_hdr logout_response;
 	struct iscsi_text_request_hdr text_request;
@@ -1426,7 +1426,7 @@ struct iscsi_xhqe {
 
 /* Per PF iSCSI receive path statistics - mStorm RAM structure */
 struct mstorm_iscsi_stats_drv {
-	struct regpair iscsi_rx_dropped_pdus_task_not_valid;
+	struct regpair iscsi_rx_dropped_pdus_task_yest_valid;
 	struct regpair iscsi_rx_dup_ack_cnt;
 };
 

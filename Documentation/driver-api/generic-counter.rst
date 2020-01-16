@@ -65,7 +65,7 @@ count data. The Generic Counter interface provides the following
 available action modes:
 
 * None:
-  Signal does not trigger the count function. In Pulse-Direction count
+  Signal does yest trigger the count function. In Pulse-Direction count
   function mode, this Signal is evaluated as Direction.
 
 * Rising Edge:
@@ -163,7 +163,7 @@ behavior is aptly represented by respective Count, Signal, and Synapse
 components: a rising edge condition triggers an increase function on an
 accumulating count datum.
 
-A counter device is not limited to a single Signal; in fact, in theory
+A counter device is yest limited to a single Signal; in fact, in theory
 many Signals may be associated with even a single Count. For example, a
 quadrature encoder counter device can keep track of position based on
 the states of two input lines::
@@ -190,7 +190,7 @@ represent this hardware behavior and functionality.
 
 Signals associated with the same Count can have differing Synapse action
 mode conditions. For example, a quadrature encoder counter device
-operating in a non-quadrature Pulse-Direction mode could have one input
+operating in a yesn-quadrature Pulse-Direction mode could have one input
 line dedicated for movement and a second input line dedicated for
 direction::
 
@@ -207,16 +207,16 @@ direction::
         +---------------------------+
 
 Only Signal A triggers the "Pulse-Direction" update function, but the
-instantaneous state of Signal B is still required in order to know the
+instantaneous state of Signal B is still required in order to kyesw the
 direction so that the position data may be properly updated. Ultimately,
 both Signals are associated with the same Count via two respective
 Synapses, but only one Synapse has an active action mode condition which
 triggers the respective count function while the other is left with a
 "None" condition action mode to indicate its respective Signal's
-availability for state evaluation despite its non-triggering mode.
+availability for state evaluation despite its yesn-triggering mode.
 
 Keep in mind that the Signal, Synapse, and Count are abstract
-representations which do not need to be closely married to their
+representations which do yest need to be closely married to their
 respective physical sources. This allows the user of a counter to
 divorce themselves from the nuances of physical components (such as
 whether an input line is differential or single-ended) and instead focus
@@ -306,8 +306,8 @@ Determining the type of extension to create is a matter of scope.
   /sys/bus/counter/devices/counterX/countY/enable
 
 * Device extensions are attributes that expose information/control
-  non-specific to a particular Count or Signal. This is where you would
-  put your global features or other miscellanous functionality.
+  yesn-specific to a particular Count or Signal. This is where you would
+  put your global features or other miscellayesus functionality.
 
   For example, if your device has an overtemp sensor, you can report the
   chip overheated via a device extension called "error_overtemp":

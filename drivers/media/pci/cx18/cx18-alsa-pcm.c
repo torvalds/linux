@@ -56,7 +56,7 @@ static const struct snd_pcm_hardware snd_cx18_hw_capture = {
 	.periods_max = 98,		/* 12544, */
 };
 
-void cx18_alsa_announce_pcm_data(struct snd_cx18_card *cxsc, u8 *pcm_data,
+void cx18_alsa_anyesunce_pcm_data(struct snd_cx18_card *cxsc, u8 *pcm_data,
 				 size_t num_bytes)
 {
 	struct snd_pcm_substream *substream;
@@ -66,7 +66,7 @@ void cx18_alsa_announce_pcm_data(struct snd_cx18_card *cxsc, u8 *pcm_data,
 	int period_elapsed = 0;
 	int length;
 
-	dprintk("cx18 alsa announce ptr=%p data=%p num_bytes=%zu\n", cxsc,
+	dprintk("cx18 alsa anyesunce ptr=%p data=%p num_bytes=%zu\n", cxsc,
 		pcm_data, num_bytes);
 
 	substream = cxsc->capture_pcm_substream;
@@ -94,7 +94,7 @@ void cx18_alsa_announce_pcm_data(struct snd_cx18_card *cxsc, u8 *pcm_data,
 	}
 
 	if (runtime->dma_area == NULL) {
-		dprintk("dma area was NULL - ignoring\n");
+		dprintk("dma area was NULL - igyesring\n");
 		return;
 	}
 
@@ -170,7 +170,7 @@ static int snd_cx18_pcm_capture_open(struct snd_pcm_substream *substream)
 	cxsc->capture_pcm_substream = substream;
 	runtime->private_data = cx;
 
-	cx->pcm_announce_callback = cx18_alsa_announce_pcm_data;
+	cx->pcm_anyesunce_callback = cx18_alsa_anyesunce_pcm_data;
 
 	/* Not currently streaming, so start it up */
 	set_bit(CX18_F_S_STREAMING, &s->s_flags);
@@ -195,7 +195,7 @@ static int snd_cx18_pcm_capture_close(struct snd_pcm_substream *substream)
 
 	cx18_release_stream(s);
 
-	cx->pcm_announce_callback = NULL;
+	cx->pcm_anyesunce_callback = NULL;
 	snd_cx18_unlock(cxsc);
 
 	return 0;

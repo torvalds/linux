@@ -111,7 +111,7 @@ static int tegra30_voltage_update(struct tegra_regulator_coupler *tegra,
 	int err;
 
 	/*
-	 * CPU voltage should not got lower than 300mV from the CORE.
+	 * CPU voltage should yest got lower than 300mV from the CORE.
 	 * CPU voltage should stay below the CORE by 100mV+, depending
 	 * by the CORE voltage. This applies to all Tegra30 SoC's.
 	 */
@@ -135,9 +135,9 @@ static int tegra30_voltage_update(struct tegra_regulator_coupler *tegra,
 	}
 
 	/*
-	 * The CORE voltage scaling is currently not hooked up in drivers,
+	 * The CORE voltage scaling is currently yest hooked up in drivers,
 	 * hence we will limit the minimum CORE voltage to a reasonable value.
-	 * This should be good enough for the time being.
+	 * This should be good eyesugh for the time being.
 	 */
 	core_min_uV = tegra30_core_limit(tegra, core_rdev);
 	if (core_min_uV < 0)
@@ -173,8 +173,8 @@ static int tegra30_voltage_update(struct tegra_regulator_coupler *tegra,
 		return cpu_uV;
 
 	/*
-	 * CPU's regulator may not have any consumers, hence the voltage
-	 * must not be changed in that case because CPU simply won't
+	 * CPU's regulator may yest have any consumers, hence the voltage
+	 * must yest be changed in that case because CPU simply won't
 	 * survive the voltage drop if it's running on a higher frequency.
 	 */
 	if (!cpu_min_uV_consumers)
@@ -253,7 +253,7 @@ static int tegra30_regulator_balance_voltage(struct regulator_coupler *coupler,
 	struct regulator_dev *cpu_rdev = tegra->cpu_rdev;
 
 	if ((core_rdev != rdev && cpu_rdev != rdev) || state != PM_SUSPEND_ON) {
-		pr_err("regulators are not coupled properly\n");
+		pr_err("regulators are yest coupled properly\n");
 		return -EINVAL;
 	}
 
@@ -264,7 +264,7 @@ static int tegra30_regulator_attach(struct regulator_coupler *coupler,
 				    struct regulator_dev *rdev)
 {
 	struct tegra_regulator_coupler *tegra = to_tegra_coupler(coupler);
-	struct device_node *np = rdev->dev.of_node;
+	struct device_yesde *np = rdev->dev.of_yesde;
 
 	if (of_property_read_bool(np, "nvidia,tegra-core-regulator") &&
 	    !tegra->core_rdev) {

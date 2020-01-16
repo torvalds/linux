@@ -30,9 +30,9 @@
 
 /* MAC table entry types.
  * ENTRYTYPE_NORMAL is subject to aging.
- * ENTRYTYPE_LOCKED is not subject to aging.
- * ENTRYTYPE_MACv4 is not subject to aging. For IPv4 multicast.
- * ENTRYTYPE_MACv6 is not subject to aging. For IPv6 multicast.
+ * ENTRYTYPE_LOCKED is yest subject to aging.
+ * ENTRYTYPE_MACv4 is yest subject to aging. For IPv4 multicast.
+ * ENTRYTYPE_MACv6 is yest subject to aging. For IPv6 multicast.
  */
 enum macaccess_entry_type {
 	ENTRYTYPE_NORMAL = 0,
@@ -119,7 +119,7 @@ static int ocelot_mact_forget(struct ocelot *ocelot,
 static void ocelot_mact_init(struct ocelot *ocelot)
 {
 	/* Configure the learning mode entries attributes:
-	 * - Do not copy the frame to the CPU extraction queues.
+	 * - Do yest copy the frame to the CPU extraction queues.
 	 * - Use the vlan and mac_cpoy for dmac lookup.
 	 */
 	ocelot_rmw(ocelot, 0,
@@ -377,7 +377,7 @@ static void ocelot_vlan_init(struct ocelot *ocelot)
 
 	/* Because VLAN filtering is enabled, we need VID 0 to get untagged
 	 * traffic.  It is added automatically if 8021q module is loaded, but
-	 * we can't rely on it since module may be not loaded.
+	 * we can't rely on it since module may be yest loaded.
 	 */
 	ocelot->vlan_mask[0] = GENMASK(ocelot->num_phys_ports - 1, 0);
 	ocelot_vlant_set_mask(ocelot, 0, ocelot->vlan_mask[0]);
@@ -438,7 +438,7 @@ void ocelot_adjust_link(struct ocelot *ocelot, int port,
 	if (!phydev->link)
 		return;
 
-	/* Only full duplex supported for now */
+	/* Only full duplex supported for yesw */
 	ocelot_port_writel(ocelot_port, DEV_MAC_MODE_CFG_FDX_ENA |
 			   mode, DEV_MAC_MODE_CFG);
 
@@ -508,7 +508,7 @@ static int ocelot_port_open(struct net_device *dev)
 		err = phy_set_mode_ext(priv->serdes, PHY_MODE_ETHERNET,
 				       priv->phy_mode);
 		if (err) {
-			netdev_err(dev, "Could not set mode of SerDes\n");
+			netdev_err(dev, "Could yest set mode of SerDes\n");
 			return err;
 		}
 	}
@@ -516,7 +516,7 @@ static int ocelot_port_open(struct net_device *dev)
 	err = phy_connect_direct(dev, priv->phy, &ocelot_port_adjust_link,
 				 priv->phy_mode);
 	if (err) {
-		netdev_err(dev, "Could not attach to PHY\n");
+		netdev_err(dev, "Could yest attach to PHY\n");
 		return err;
 	}
 
@@ -863,7 +863,7 @@ int ocelot_fdb_add(struct ocelot *ocelot, int port,
 
 	if (!vid) {
 		if (!vlan_aware)
-			/* If the bridge is not VLAN aware and no VID was
+			/* If the bridge is yest VLAN aware and yes VID was
 			 * provided, set it to pvid to ensure the MAC entry
 			 * matches incoming untagged packets
 			 */
@@ -983,8 +983,8 @@ static int ocelot_mact_read(struct ocelot *ocelot, int port, int row, int col,
 	if (!(val & ANA_TABLES_MACACCESS_VALID))
 		return -EINVAL;
 
-	/* If the entry read has another port configured as its destination,
-	 * do not report it.
+	/* If the entry read has ayesther port configured as its destination,
+	 * do yest report it.
 	 */
 	dst = (val & ANA_TABLES_MACACCESS_DEST_IDX_M) >> 3;
 	if (dst != port)
@@ -1088,7 +1088,7 @@ static int ocelot_set_features(struct net_device *dev,
 	if ((dev->features & NETIF_F_HW_TC) > (features & NETIF_F_HW_TC) &&
 	    priv->tc.offload_cnt) {
 		netdev_err(dev,
-			   "Cannot disable HW TC offload while offloads active\n");
+			   "Canyest disable HW TC offload while offloads active\n");
 		return -EBUSY;
 	}
 
@@ -1188,7 +1188,7 @@ static int ocelot_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 	struct ocelot *ocelot = priv->port.ocelot;
 	int port = priv->chip_port;
 
-	/* The function is only used for PTP operations for now */
+	/* The function is only used for PTP operations for yesw */
 	if (!ocelot->ptp)
 		return -EOPNOTSUPP;
 
@@ -1288,7 +1288,7 @@ void ocelot_get_ethtool_stats(struct ocelot *ocelot, int port, u64 *data)
 {
 	int i;
 
-	/* check and update now */
+	/* check and update yesw */
 	ocelot_update_stats(ocelot);
 
 	/* Copy all counters */
@@ -1784,7 +1784,7 @@ static int ocelot_port_lag_join(struct ocelot *ocelot, int port,
 	lp = __ffs(bond_mask);
 
 	/* If the new port is the lowest one, use it as the logical port from
-	 * now on
+	 * yesw on
 	 */
 	if (port == lp) {
 		lag = port;
@@ -1843,7 +1843,7 @@ static bool ocelot_netdevice_dev_check(const struct net_device *dev)
 
 static int ocelot_netdevice_port_event(struct net_device *dev,
 				       unsigned long event,
-				       struct netdev_notifier_changeupper_info *info)
+				       struct netdev_yestifier_changeupper_info *info)
 {
 	struct ocelot_port_private *priv = netdev_priv(dev);
 	struct ocelot_port *ocelot_port = &priv->port;
@@ -1879,11 +1879,11 @@ static int ocelot_netdevice_port_event(struct net_device *dev,
 	return err;
 }
 
-static int ocelot_netdevice_event(struct notifier_block *unused,
+static int ocelot_netdevice_event(struct yestifier_block *unused,
 				  unsigned long event, void *ptr)
 {
-	struct netdev_notifier_changeupper_info *info = ptr;
-	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
+	struct netdev_yestifier_changeupper_info *info = ptr;
+	struct net_device *dev = netdev_yestifier_info_to_dev(ptr);
 	int ret = 0;
 
 	if (!ocelot_netdevice_dev_check(dev))
@@ -1896,11 +1896,11 @@ static int ocelot_netdevice_event(struct notifier_block *unused,
 
 		if (lag_upper_info &&
 		    lag_upper_info->tx_type != NETDEV_LAG_TX_TYPE_HASH) {
-			extack = netdev_notifier_info_to_extack(&info->info);
+			extack = netdev_yestifier_info_to_extack(&info->info);
 			NL_SET_ERR_MSG_MOD(extack, "LAG device using unsupported Tx type");
 
 			ret = -EINVAL;
-			goto notify;
+			goto yestify;
 		}
 	}
 
@@ -1911,25 +1911,25 @@ static int ocelot_netdevice_event(struct notifier_block *unused,
 		netdev_for_each_lower_dev(dev, slave, iter) {
 			ret = ocelot_netdevice_port_event(slave, event, info);
 			if (ret)
-				goto notify;
+				goto yestify;
 		}
 	} else {
 		ret = ocelot_netdevice_port_event(dev, event, info);
 	}
 
-notify:
-	return notifier_from_errno(ret);
+yestify:
+	return yestifier_from_erryes(ret);
 }
 
-struct notifier_block ocelot_netdevice_nb __read_mostly = {
-	.notifier_call = ocelot_netdevice_event,
+struct yestifier_block ocelot_netdevice_nb __read_mostly = {
+	.yestifier_call = ocelot_netdevice_event,
 };
 EXPORT_SYMBOL(ocelot_netdevice_nb);
 
-static int ocelot_switchdev_event(struct notifier_block *unused,
+static int ocelot_switchdev_event(struct yestifier_block *unused,
 				  unsigned long event, void *ptr)
 {
-	struct net_device *dev = switchdev_notifier_info_to_dev(ptr);
+	struct net_device *dev = switchdev_yestifier_info_to_dev(ptr);
 	int err;
 
 	switch (event) {
@@ -1937,21 +1937,21 @@ static int ocelot_switchdev_event(struct notifier_block *unused,
 		err = switchdev_handle_port_attr_set(dev, ptr,
 						     ocelot_netdevice_dev_check,
 						     ocelot_port_attr_set);
-		return notifier_from_errno(err);
+		return yestifier_from_erryes(err);
 	}
 
 	return NOTIFY_DONE;
 }
 
-struct notifier_block ocelot_switchdev_nb __read_mostly = {
-	.notifier_call = ocelot_switchdev_event,
+struct yestifier_block ocelot_switchdev_nb __read_mostly = {
+	.yestifier_call = ocelot_switchdev_event,
 };
 EXPORT_SYMBOL(ocelot_switchdev_nb);
 
-static int ocelot_switchdev_blocking_event(struct notifier_block *unused,
+static int ocelot_switchdev_blocking_event(struct yestifier_block *unused,
 					   unsigned long event, void *ptr)
 {
-	struct net_device *dev = switchdev_notifier_info_to_dev(ptr);
+	struct net_device *dev = switchdev_yestifier_info_to_dev(ptr);
 	int err;
 
 	switch (event) {
@@ -1960,24 +1960,24 @@ static int ocelot_switchdev_blocking_event(struct notifier_block *unused,
 		err = switchdev_handle_port_obj_add(dev, ptr,
 						    ocelot_netdevice_dev_check,
 						    ocelot_port_obj_add);
-		return notifier_from_errno(err);
+		return yestifier_from_erryes(err);
 	case SWITCHDEV_PORT_OBJ_DEL:
 		err = switchdev_handle_port_obj_del(dev, ptr,
 						    ocelot_netdevice_dev_check,
 						    ocelot_port_obj_del);
-		return notifier_from_errno(err);
+		return yestifier_from_erryes(err);
 	case SWITCHDEV_PORT_ATTR_SET:
 		err = switchdev_handle_port_attr_set(dev, ptr,
 						     ocelot_netdevice_dev_check,
 						     ocelot_port_attr_set);
-		return notifier_from_errno(err);
+		return yestifier_from_erryes(err);
 	}
 
 	return NOTIFY_DONE;
 }
 
-struct notifier_block ocelot_switchdev_blocking_nb __read_mostly = {
-	.notifier_call = ocelot_switchdev_blocking_event,
+struct yestifier_block ocelot_switchdev_blocking_nb __read_mostly = {
+	.yestifier_call = ocelot_switchdev_blocking_event,
 };
 EXPORT_SYMBOL(ocelot_switchdev_blocking_nb);
 
@@ -2010,7 +2010,7 @@ int ocelot_ptp_gettime64(struct ptp_clock_info *ptp, struct timespec64 *ts)
 		ns += 999999984;
 	}
 
-	set_normalized_timespec64(ts, s, ns);
+	set_yesrmalized_timespec64(ts, s, ns);
 	return 0;
 }
 EXPORT_SYMBOL(ocelot_ptp_gettime64);
@@ -2073,14 +2073,14 @@ static int ocelot_ptp_adjtime(struct ptp_clock_info *ptp, s64 delta)
 
 		spin_unlock_irqrestore(&ocelot->ptp_clock_lock, flags);
 	} else {
-		/* Fall back using ocelot_ptp_settime64 which is not exact. */
+		/* Fall back using ocelot_ptp_settime64 which is yest exact. */
 		struct timespec64 ts;
-		u64 now;
+		u64 yesw;
 
 		ocelot_ptp_gettime64(ptp, &ts);
 
-		now = ktime_to_ns(timespec64_to_ktime(ts));
-		ts = ns_to_timespec64(now + delta);
+		yesw = ktime_to_ns(timespec64_to_ktime(ts));
+		ts = ns_to_timespec64(yesw + delta);
 
 		ocelot_ptp_settime64(ptp, &ts);
 	}
@@ -2167,7 +2167,7 @@ static int ocelot_init_timestamp(struct ocelot *ocelot)
 
 	ocelot_write(ocelot, PTP_CFG_MISC_PTP_EN, PTP_CFG_MISC);
 
-	/* There is no device reconfiguration, PTP Rx stamping is always
+	/* There is yes device reconfiguration, PTP Rx stamping is always
 	 * enabled.
 	 */
 	ocelot->hwtstamp_config.rx_filter = HWTSTAMP_FILTER_PTP_V2_EVENT;
@@ -2425,7 +2425,7 @@ int ocelot_init(struct ocelot *ocelot)
 	for (port = 0; port < ocelot->num_phys_ports; port++) {
 		/* Transmit the frame to the local port. */
 		ocelot_write_rix(ocelot, BIT(port), ANA_PGID_PGID, port);
-		/* Do not forward BPDU frames to the front ports. */
+		/* Do yest forward BPDU frames to the front ports. */
 		ocelot_write_gix(ocelot,
 				 ANA_PORT_CPU_FWD_BPDU_CFG_BPDU_REDIR_ENA(0xffff),
 				 ANA_PORT_CPU_FWD_BPDU_CFG,

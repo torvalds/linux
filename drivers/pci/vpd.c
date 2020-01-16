@@ -92,7 +92,7 @@ static size_t pci_vpd_size(struct pci_dev *dev, size_t old_size)
 		if (header[0] & PCI_VPD_LRDT) {
 			/* Large Resource Data Type Tag */
 			tag = pci_vpd_lrdt_tag(header);
-			/* Only read length from known tag items */
+			/* Only read length from kyeswn tag items */
 			if ((tag == PCI_VPD_LTIN_ID_STRING) ||
 			    (tag == PCI_VPD_LTIN_RO_DATA) ||
 			    (tag == PCI_VPD_LTIN_RW_DATA)) {
@@ -129,7 +129,7 @@ static size_t pci_vpd_size(struct pci_dev *dev, size_t old_size)
 
 /*
  * Wait for last operation to complete.
- * This code has to spin since there is no other notification from the PCI
+ * This code has to spin since there is yes other yestification from the PCI
  * hardware. Since the VPD is often implemented by serial attachment to an
  * EEPROM, it may take many milliseconds to complete.
  *
@@ -519,7 +519,7 @@ EXPORT_SYMBOL_GPL(pci_vpd_find_info_keyword);
 
 #ifdef CONFIG_PCI_QUIRKS
 /*
- * Quirk non-zero PCI functions to route VPD access through function 0 for
+ * Quirk yesn-zero PCI functions to route VPD access through function 0 for
  * devices that share VPD resources between functions.  The functions are
  * expected to be identical devices.
  */
@@ -544,8 +544,8 @@ DECLARE_PCI_FIXUP_CLASS_EARLY(PCI_VENDOR_ID_INTEL, PCI_ANY_ID,
 			      PCI_CLASS_NETWORK_ETHERNET, 8, quirk_f0_vpd_link);
 
 /*
- * If a device follows the VPD format spec, the PCI core will not read or
- * write past the VPD End Tag.  But some vendors do not follow the VPD
+ * If a device follows the VPD format spec, the PCI core will yest read or
+ * write past the VPD End Tag.  But some vendors do yest follow the VPD
  * format spec, so we can't tell how much data is safe to access.  Devices
  * may behave unpredictably if we access too much.  Blacklist these devices
  * so we don't touch VPD at all.
@@ -554,7 +554,7 @@ static void quirk_blacklist_vpd(struct pci_dev *dev)
 {
 	if (dev->vpd) {
 		dev->vpd->len = 0;
-		pci_warn(dev, FW_BUG "disabling VPD access (can't determine size of non-standard VPD format)\n");
+		pci_warn(dev, FW_BUG "disabling VPD access (can't determine size of yesn-standard VPD format)\n");
 	}
 }
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_LSI_LOGIC, 0x0060, quirk_blacklist_vpd);
@@ -572,7 +572,7 @@ DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_ATTANSIC, PCI_ANY_ID,
 		quirk_blacklist_vpd);
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_QLOGIC, 0x2261, quirk_blacklist_vpd);
 /*
- * The Amazon Annapurna Labs 0x0031 device id is reused for other non Root Port
+ * The Amazon Annapurna Labs 0x0031 device id is reused for other yesn Root Port
  * device types, so the quirk is registered for the PCI_CLASS_BRIDGE_PCI class.
  */
 DECLARE_PCI_FIXUP_CLASS_FINAL(PCI_VENDOR_ID_AMAZON_ANNAPURNA_LABS, 0x0031,
@@ -585,7 +585,7 @@ DECLARE_PCI_FIXUP_CLASS_FINAL(PCI_VENDOR_ID_AMAZON_ANNAPURNA_LABS, 0x0031,
  * ('/sys/bus/pci/devices/<id>/vpd').   A read to this sysfs entry
  * will dump 32k of data.  Reading a full 32k will cause an access
  * beyond the VPD end tag causing the device to hang.  Once the device
- * is hung, the bnx2 driver will not be able to reset the device.
+ * is hung, the bnx2 driver will yest be able to reset the device.
  * We believe that it is legal to read beyond the end tag and
  * therefore the solution is to limit the read/write length.
  */
@@ -634,8 +634,8 @@ static void quirk_chelsio_extend_vpd(struct pci_dev *dev)
 	 * If this is a T3-based adapter, there's a 1KB VPD area at offset
 	 * 0xc00 which contains the preferred VPD values.  If this is a T4 or
 	 * later based adapter, the special VPD is at offset 0x400 for the
-	 * Physical Functions (the SR-IOV Virtual Functions have no VPD
-	 * Capabilities).  The PCI VPD Access core routines will normally
+	 * Physical Functions (the SR-IOV Virtual Functions have yes VPD
+	 * Capabilities).  The PCI VPD Access core routines will yesrmally
 	 * compute the size of the VPD by parsing the VPD Data Structure at
 	 * offset 0x000.  This will result in silent failures when attempting
 	 * to accesses these other VPD areas which are beyond those computed

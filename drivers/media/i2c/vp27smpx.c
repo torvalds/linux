@@ -68,7 +68,7 @@ static int vp27smpx_s_radio(struct v4l2_subdev *sd)
 	return 0;
 }
 
-static int vp27smpx_s_std(struct v4l2_subdev *sd, v4l2_std_id norm)
+static int vp27smpx_s_std(struct v4l2_subdev *sd, v4l2_std_id yesrm)
 {
 	struct vp27smpx_state *state = to_state(sd);
 

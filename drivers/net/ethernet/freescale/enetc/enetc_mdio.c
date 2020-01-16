@@ -133,7 +133,7 @@ int enetc_mdio_read(struct mii_bus *bus, int phy_id, int regnum)
 	if (ret)
 		return ret;
 
-	/* return all Fs if nothing was there */
+	/* return all Fs if yesthing was there */
 	if (enetc_mdio_rd(hw, MDIO_CFG) & MDIO_CFG_RD_ER) {
 		dev_dbg(&bus->dev,
 			"Error while reading PHY%d reg at %d.%hhu\n",
@@ -150,7 +150,7 @@ int enetc_mdio_probe(struct enetc_pf *pf)
 {
 	struct device *dev = &pf->si->pdev->dev;
 	struct enetc_mdio_priv *mdio_priv;
-	struct device_node *np;
+	struct device_yesde *np;
 	struct mii_bus *bus;
 	int err;
 
@@ -166,20 +166,20 @@ int enetc_mdio_probe(struct enetc_pf *pf)
 	mdio_priv->hw = &pf->si->hw;
 	snprintf(bus->id, MII_BUS_ID_SIZE, "%s", dev_name(dev));
 
-	np = of_get_child_by_name(dev->of_node, "mdio");
+	np = of_get_child_by_name(dev->of_yesde, "mdio");
 	if (!np) {
-		dev_err(dev, "MDIO node missing\n");
+		dev_err(dev, "MDIO yesde missing\n");
 		return -EINVAL;
 	}
 
 	err = of_mdiobus_register(bus, np);
 	if (err) {
-		of_node_put(np);
-		dev_err(dev, "cannot register MDIO bus\n");
+		of_yesde_put(np);
+		dev_err(dev, "canyest register MDIO bus\n");
 		return err;
 	}
 
-	of_node_put(np);
+	of_yesde_put(np);
 	pf->mdio = bus;
 
 	return 0;

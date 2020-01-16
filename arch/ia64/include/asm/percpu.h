@@ -34,7 +34,7 @@ extern void *per_cpu_init(void);
 
 /*
  * Be extremely careful when taking the address of this variable!  Due to virtual
- * remapping, it is different from the canonical address returned by this_cpu_ptr(&var)!
+ * remapping, it is different from the cayesnical address returned by this_cpu_ptr(&var)!
  * On the positive side, using __ia64_per_cpu_var() instead of this_cpu_ptr() is slightly
  * more efficient.
  */

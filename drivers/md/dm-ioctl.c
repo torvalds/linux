@@ -92,7 +92,7 @@ static void dm_hash_exit(void)
 
 /*-----------------------------------------------------------------
  * Hash function:
- * We're not really concerned with the str hash function being
+ * We're yest really concerned with the str hash function being
  * fast since it's only used by the ioctl interface.
  *---------------------------------------------------------------*/
 static unsigned int hash_str(const char *str)
@@ -317,7 +317,7 @@ retry:
 
 			/*
 			 * Some mapped devices may be using other mapped
-			 * devices, so repeat until we make no further
+			 * devices, so repeat until we make yes further
 			 * progress.  If a new mapped device is created
 			 * here it will also get removed.
 			 */
@@ -409,7 +409,7 @@ static struct mapped_device *dm_hash_rename(struct dm_ioctl *param,
 	 */
 	hc = __get_name_cell(param->name);
 	if (!hc) {
-		DMWARN("Unable to rename non-existent device, %s to %s%s",
+		DMWARN("Unable to rename yesn-existent device, %s to %s%s",
 		       param->name, change_uuid ? "uuid " : "", new);
 		up_write(&_hash_lock);
 		kfree(new_data);
@@ -535,7 +535,7 @@ static int list_devices(struct file *filp, struct dm_ioctl *param, size_t param_
 	}
 	param->data_size = param->data_start + needed;
 
-	nl->dev = 0;	/* Flags no data */
+	nl->dev = 0;	/* Flags yes data */
 
 	/*
 	 * Now loop through filling out the names.
@@ -675,7 +675,7 @@ static int check_name(const char *name)
 }
 
 /*
- * On successful return, the caller must not attempt to acquire
+ * On successful return, the caller must yest attempt to acquire
  * _hash_lock without first calling dm_put_live_table, because dm_table_destroy
  * waits for this dm_put_live_table and could be called under this lock.
  */
@@ -879,7 +879,7 @@ static int dev_remove(struct file *filp, struct dm_ioctl *param, size_t param_si
 	md = hc->md;
 
 	/*
-	 * Ensure the device is not open and nothing further can open it.
+	 * Ensure the device is yest open and yesthing further can open it.
 	 */
 	r = dm_lock_for_deletion(md, !!(param->flags & DM_DEFERRED_REMOVE), false);
 	if (r) {
@@ -1087,7 +1087,7 @@ static int do_resume(struct dm_ioctl *param)
 	}
 
 	/*
-	 * Since dm_swap_table synchronizes RCU, nobody should be in
+	 * Since dm_swap_table synchronizes RCU, yesbody should be in
 	 * read-side critical section already.
 	 */
 	if (old_map)
@@ -1219,7 +1219,7 @@ static int dev_wait(struct file *filp, struct dm_ioctl *param, size_t param_size
 		return -ENXIO;
 
 	/*
-	 * Wait for a notification event
+	 * Wait for a yestification event
 	 */
 	if (dm_wait_event(md, param->event_nr)) {
 		r = -ERESTARTSYS;
@@ -1227,7 +1227,7 @@ static int dev_wait(struct file *filp, struct dm_ioctl *param, size_t param_size
 	}
 
 	/*
-	 * The userland program is going to want to know what
+	 * The userland program is going to want to kyesw what
 	 * changed to trigger the event, so we may as well tell
 	 * him and save an ioctl.
 	 */
@@ -1290,7 +1290,7 @@ static int populate_table(struct dm_table *table,
 	char *target_params;
 
 	if (!param->target_count) {
-		DMWARN("populate_table: no targets specified");
+		DMWARN("populate_table: yes targets specified");
 		return -EINVAL;
 	}
 
@@ -1469,7 +1469,7 @@ static void retrieve_deps(struct dm_table *table,
 		count++;
 
 	/*
-	 * Check we have enough space.
+	 * Check we have eyesugh space.
 	 */
 	needed = sizeof(*deps) + (sizeof(*deps->dev) * count);
 	if (len < needed) {
@@ -1548,7 +1548,7 @@ static int message_for_md(struct mapped_device *md, unsigned argc, char **argv,
 	int r;
 
 	if (**argv != '@')
-		return 2; /* no '@' prefix, deliver to target */
+		return 2; /* yes '@' prefix, deliver to target */
 
 	if (!strcasecmp(argv[0], "@cancel_deferred_remove")) {
 		if (argc != 1) {
@@ -1623,7 +1623,7 @@ static int target_message(struct file *filp, struct dm_ioctl *param, size_t para
 	} else if (ti->type->message)
 		r = ti->type->message(ti, argc, argv, result, maxlen);
 	else {
-		DMWARN("Target type does not support messages");
+		DMWARN("Target type does yest support messages");
 		r = -EINVAL;
 	}
 
@@ -1651,7 +1651,7 @@ static int target_message(struct file *filp, struct dm_ioctl *param, size_t para
 /*
  * The ioctl parameter block consists of two parts, a dm_ioctl struct
  * followed by a data buffer.  This flag is set if the second part,
- * which has a variable size, is not used by the function processing
+ * which has a variable size, is yest used by the function processing
  * the ioctl.
  */
 #define IOCTL_FLAGS_NO_PARAMS		1
@@ -1751,7 +1751,7 @@ static int copy_params(struct dm_ioctl __user *user, struct dm_ioctl *param_kern
 	struct dm_ioctl *dmi;
 	int secure_data;
 	const size_t minimum_data_size = offsetof(struct dm_ioctl, data);
-	unsigned noio_flag;
+	unsigned yesio_flag;
 
 	if (copy_from_user(param_kernel, user, minimum_data_size))
 		return -EFAULT;
@@ -1775,9 +1775,9 @@ static int copy_params(struct dm_ioctl __user *user, struct dm_ioctl *param_kern
 	 * Use kmalloc() rather than vmalloc() when we can.
 	 */
 	dmi = NULL;
-	noio_flag = memalloc_noio_save();
+	yesio_flag = memalloc_yesio_save();
 	dmi = kvmalloc(param_kernel->data_size, GFP_KERNEL | __GFP_HIGH);
-	memalloc_noio_restore(noio_flag);
+	memalloc_yesio_restore(yesio_flag);
 
 	if (!dmi) {
 		if (secure_data && clear_user(user, param_kernel->data_size))
@@ -1794,7 +1794,7 @@ static int copy_params(struct dm_ioctl __user *user, struct dm_ioctl *param_kern
 			   param_kernel->data_size - minimum_data_size))
 		goto bad;
 data_copied:
-	/* Wipe the user buffer so we do not return it to userspace */
+	/* Wipe the user buffer so we do yest return it to userspace */
 	if (secure_data && clear_user(user, param_kernel->data_size))
 		goto bad;
 
@@ -1815,7 +1815,7 @@ static int validate_params(uint cmd, struct dm_ioctl *param)
 	param->flags &= ~DM_SECURE_DATA_FLAG;
 	param->flags &= ~DM_DATA_OUT_FLAG;
 
-	/* Ignores parameters */
+	/* Igyesres parameters */
 	if (cmd == DM_REMOVE_ALL_CMD ||
 	    cmd == DM_LIST_DEVICES_CMD ||
 	    cmd == DM_LIST_VERSIONS_CMD)
@@ -1823,7 +1823,7 @@ static int validate_params(uint cmd, struct dm_ioctl *param)
 
 	if (cmd == DM_DEV_CREATE_CMD) {
 		if (!*param->name) {
-			DMWARN("name not supplied when creating device");
+			DMWARN("name yest supplied when creating device");
 			return -EINVAL;
 		}
 	} else if (*param->uuid && *param->name) {
@@ -1874,7 +1874,7 @@ static int ctl_ioctl(struct file *file, uint command, struct dm_ioctl __user *us
 
 	fn = lookup_ioctl(cmd, &ioctl_flags);
 	if (!fn) {
-		DMWARN("dm_ctl_ioctl: unknown command 0x%x", command);
+		DMWARN("dm_ctl_ioctl: unkyeswn command 0x%x", command);
 		return -ENOTTY;
 	}
 
@@ -1926,12 +1926,12 @@ static long dm_compat_ctl_ioctl(struct file *file, uint command, ulong u)
 #define dm_compat_ctl_ioctl NULL
 #endif
 
-static int dm_open(struct inode *inode, struct file *filp)
+static int dm_open(struct iyesde *iyesde, struct file *filp)
 {
 	int r;
 	struct dm_file *priv;
 
-	r = nonseekable_open(inode, filp);
+	r = yesnseekable_open(iyesde, filp);
 	if (unlikely(r))
 		return r;
 
@@ -1944,7 +1944,7 @@ static int dm_open(struct inode *inode, struct file *filp)
 	return 0;
 }
 
-static int dm_release(struct inode *inode, struct file *filp)
+static int dm_release(struct iyesde *iyesde, struct file *filp)
 {
 	kfree(filp->private_data);
 	return 0;
@@ -1970,13 +1970,13 @@ static const struct file_operations _ctl_fops = {
 	.unlocked_ioctl	 = dm_ctl_ioctl,
 	.compat_ioctl = dm_compat_ctl_ioctl,
 	.owner	 = THIS_MODULE,
-	.llseek  = noop_llseek,
+	.llseek  = yesop_llseek,
 };
 
 static struct miscdevice _dm_misc = {
-	.minor		= MAPPER_CTRL_MINOR,
+	.miyesr		= MAPPER_CTRL_MINOR,
 	.name  		= DM_NAME,
-	.nodename	= DM_DIR "/" DM_CONTROL_NODE,
+	.yesdename	= DM_DIR "/" DM_CONTROL_NODE,
 	.fops  		= &_ctl_fops
 };
 
@@ -2017,7 +2017,7 @@ void dm_interface_exit(void)
  * dm_copy_name_and_uuid - Copy mapped device name & uuid into supplied buffers
  * @md: Pointer to mapped_device
  * @name: Buffer (size DM_NAME_LEN) for name
- * @uuid: Buffer (size DM_UUID_LEN) for uuid or empty string if uuid not defined
+ * @uuid: Buffer (size DM_UUID_LEN) for uuid or empty string if uuid yest defined
  */
 int dm_copy_name_and_uuid(struct mapped_device *md, char *name, char *uuid)
 {
@@ -2056,12 +2056,12 @@ out:
  * target.
  *
  * Instead of having the struct dm_target_spec and the parameters for every
- * target embedded at the end of struct dm_ioctl (as performed in a normal
+ * target embedded at the end of struct dm_ioctl (as performed in a yesrmal
  * ioctl), pass them as arguments, so the caller doesn't need to serialize them.
  * The size of the spec_array and target_params_array is given by
  * @dmi->target_count.
  * This function is supposed to be called in early boot, so locking mechanisms
- * to protect against concurrent loads are not required.
+ * to protect against concurrent loads are yest required.
  */
 int __init dm_early_create(struct dm_ioctl *dmi,
 			   struct dm_target_spec **spec_array,

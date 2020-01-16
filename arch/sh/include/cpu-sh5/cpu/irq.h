@@ -10,19 +10,19 @@
 
 
 /*
- * Encoded IRQs are not considered worth to be supported.
- * Main reason is that there's no per-encoded-interrupt
+ * Encoded IRQs are yest considered worth to be supported.
+ * Main reason is that there's yes per-encoded-interrupt
  * enable/disable mechanism (as there was in SH3/4).
  * An all enabled/all disabled is worth only if there's
  * a cascaded IC to disable/enable/ack on. Until such
- * IC is available there's no such support.
+ * IC is available there's yes such support.
  *
  * Presumably Encoded IRQs may use extra IRQs beyond 64,
  * below. Some logic must be added to cope with IRQ_IRL?
  * in an exclusive way.
  *
  * Priorities are set at Platform level, when IRQ_IRL0-3
- * are set to 0 Encoding is allowed. Otherwise it's not
+ * are set to 0 Encoding is allowed. Otherwise it's yest
  * allowed.
  */
 

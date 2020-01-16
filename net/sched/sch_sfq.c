@@ -11,7 +11,7 @@
 #include <linux/jiffies.h>
 #include <linux/string.h>
 #include <linux/in.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/init.h>
 #include <linux/skbuff.h>
 #include <linux/siphash.h>
@@ -39,8 +39,8 @@
 	Queuing using Deficit Round Robin", Proc. SIGCOMM 95.
 
 
-	This is not the thing that is usually called (W)FQ nowadays.
-	It does not use any timestamp mechanism, but instead
+	This is yest the thing that is usually called (W)FQ yeswadays.
+	It does yest use any timestamp mechanism, but instead
 	processes queues in round-robin order.
 
 	ADVANTAGE:
@@ -49,12 +49,12 @@
 
 	DRAWBACKS:
 
-	- "Stochastic" -> It is not 100% fair.
+	- "Stochastic" -> It is yest 100% fair.
 	When hash collisions occur, several flows are considered as one.
 
 	- "Round-robin" -> It introduces larger delays than virtual clock
-	based schemes, and should not be used for isolating interactive
-	traffic	from non-interactive. It means, that this scheduler
+	based schemes, and should yest be used for isolating interactive
+	traffic	from yesn-interactive. It means, that this scheduler
 	should be used as leaf of CBQ or P3, which put interactive traffic
 	to higher priority band.
 
@@ -69,7 +69,7 @@
 	- max 65408 flows,
 	- number of hash buckets to 65536.
 
-	It is easy to increase these values, but not in flight.  */
+	It is easy to increase these values, but yest in flight.  */
 
 #define SFQ_MAX_DEPTH		127 /* max number of packets per flow */
 #define SFQ_DEFAULT_FLOWS	128
@@ -78,7 +78,7 @@
 #define SFQ_DEFAULT_HASH_DIVISOR 1024
 
 /* We use 16 bits to store allot, and want to handle packets up to 64K
- * Scale allot by 8 (1<<3) so that no overflow occurs.
+ * Scale allot by 8 (1<<3) so that yes overflow occurs.
  */
 #define SFQ_ALLOT_SHIFT		3
 #define SFQ_ALLOT_SIZE(X)	DIV_ROUND_UP(X, 1 << SFQ_ALLOT_SHIFT)
@@ -376,7 +376,7 @@ sfq_enqueue(struct sk_buff *skb, struct Qdisc *sch, struct sk_buff **to_free)
 		goto enqueue;
 	}
 	if (q->red_parms) {
-		slot->vars.qavg = red_calc_qavg_no_idle_time(q->red_parms,
+		slot->vars.qavg = red_calc_qavg_yes_idle_time(q->red_parms,
 							&slot->vars,
 							slot->backlog);
 		switch (red_action(q->red_parms,
@@ -388,7 +388,7 @@ sfq_enqueue(struct sk_buff *skb, struct Qdisc *sch, struct sk_buff **to_free)
 		case RED_PROB_MARK:
 			qdisc_qstats_overlimit(sch);
 			if (sfq_prob_mark(q)) {
-				/* We know we have at least one packet in queue */
+				/* We kyesw we have at least one packet in queue */
 				if (sfq_headdrop(q) &&
 				    INET_ECN_set_ce(slot->skblist_next)) {
 					q->stats.prob_mark_head++;
@@ -405,7 +405,7 @@ sfq_enqueue(struct sk_buff *skb, struct Qdisc *sch, struct sk_buff **to_free)
 		case RED_HARD_MARK:
 			qdisc_qstats_overlimit(sch);
 			if (sfq_hard_mark(q)) {
-				/* We know we have at least one packet in queue */
+				/* We kyesw we have at least one packet in queue */
 				if (sfq_headdrop(q) &&
 				    INET_ECN_set_ce(slot->skblist_next)) {
 					q->stats.forced_mark_head++;
@@ -426,7 +426,7 @@ congestion_drop:
 		if (!sfq_headdrop(q))
 			return qdisc_drop(skb, sch, to_free);
 
-		/* We know we have at least one packet in queue */
+		/* We kyesw we have at least one packet in queue */
 		head = slot_dequeue_head(slot);
 		delta = qdisc_pkt_len(head) - qdisc_pkt_len(skb);
 		sch->qstats.backlog -= delta;
@@ -471,7 +471,7 @@ enqueue:
 		return NET_XMIT_CN;
 	}
 
-	/* As we dropped a packet, better let upper stack know this */
+	/* As we dropped a packet, better let upper stack kyesw this */
 	qdisc_tree_reduce_backlog(sch, 1, dropped);
 	return NET_XMIT_SUCCESS;
 }
@@ -507,7 +507,7 @@ next_slot:
 		q->ht[slot->hash] = SFQ_EMPTY_SLOT;
 		next_a = slot->next;
 		if (a == next_a) {
-			q->tail = NULL; /* no more active slots */
+			q->tail = NULL; /* yes more active slots */
 			return skb;
 		}
 		q->tail->next = next_a;

@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Read-Copy Update mechanism for mutual exclusion (tree-based version)
- * Internal non-public definitions.
+ * Internal yesn-public definitions.
  *
  * Copyright IBM Corporation, 2008
  *
@@ -17,7 +17,7 @@
 #include <linux/seqlock.h>
 #include <linux/swait.h>
 #include <linux/stop_machine.h>
-#include <linux/rcu_node_tree.h>
+#include <linux/rcu_yesde_tree.h>
 
 #include "rcu_segcblist.h"
 
@@ -36,20 +36,20 @@ struct rcu_exp_work {
 #define RCU_KTHREAD_MAX      4
 
 /*
- * Definition for node within the RCU grace-period-detection hierarchy.
+ * Definition for yesde within the RCU grace-period-detection hierarchy.
  */
-struct rcu_node {
-	raw_spinlock_t __private lock;	/* Root rcu_node's lock protects */
+struct rcu_yesde {
+	raw_spinlock_t __private lock;	/* Root rcu_yesde's lock protects */
 					/*  some rcu_state fields as well as */
 					/*  following. */
 	unsigned long gp_seq;	/* Track rsp->rcu_gp_seq. */
 	unsigned long gp_seq_needed; /* Track furthest future GP request. */
-	unsigned long completedqs; /* All QSes done for this node. */
+	unsigned long completedqs; /* All QSes done for this yesde. */
 	unsigned long qsmask;	/* CPUs or groups that need to switch in */
 				/*  order for current grace period to proceed.*/
-				/*  In leaf rcu_node, each bit corresponds to */
+				/*  In leaf rcu_yesde, each bit corresponds to */
 				/*  an rcu_data structure, otherwise, each */
-				/*  bit corresponds to a child rcu_node */
+				/*  bit corresponds to a child rcu_yesde */
 				/*  structure. */
 	unsigned long rcu_gp_init_mask;	/* Mask of offline CPUs at GP init. */
 	unsigned long qsmaskinit;
@@ -79,8 +79,8 @@ struct rcu_node {
 	bool	wait_blkd_tasks;/* Necessary to wait for blocked tasks to */
 				/*  exit RCU read-side critical sections */
 				/*  before propagating offline up the */
-				/*  rcu_node tree? */
-	struct rcu_node *parent;
+				/*  rcu_yesde tree? */
+	struct rcu_yesde *parent;
 	struct list_head blkd_tasks;
 				/* Tasks blocked in RCU read-side critical */
 				/*  section.  Tasks are placed at the head */
@@ -88,58 +88,58 @@ struct rcu_node {
 	struct list_head *gp_tasks;
 				/* Pointer to the first task blocking the */
 				/*  current grace period, or NULL if there */
-				/*  is no such task. */
+				/*  is yes such task. */
 	struct list_head *exp_tasks;
 				/* Pointer to the first task blocking the */
 				/*  current expedited grace period, or NULL */
-				/*  if there is no such task.  If there */
-				/*  is no current expedited grace period, */
-				/*  then there can cannot be any such task. */
+				/*  if there is yes such task.  If there */
+				/*  is yes current expedited grace period, */
+				/*  then there can canyest be any such task. */
 	struct list_head *boost_tasks;
 				/* Pointer to first task that needs to be */
-				/*  priority boosted, or NULL if no priority */
-				/*  boosting is needed for this rcu_node */
-				/*  structure.  If there are no tasks */
-				/*  queued on this rcu_node structure that */
+				/*  priority boosted, or NULL if yes priority */
+				/*  boosting is needed for this rcu_yesde */
+				/*  structure.  If there are yes tasks */
+				/*  queued on this rcu_yesde structure that */
 				/*  are blocking the current grace period, */
-				/*  there can be no such task. */
+				/*  there can be yes such task. */
 	struct rt_mutex boost_mtx;
 				/* Used only for the priority-boosting */
-				/*  side effect, not as a lock. */
+				/*  side effect, yest as a lock. */
 	unsigned long boost_time;
 				/* When to start boosting (jiffies). */
 	struct task_struct *boost_kthread_task;
 				/* kthread that takes care of priority */
-				/*  boosting for this rcu_node structure. */
+				/*  boosting for this rcu_yesde structure. */
 	unsigned int boost_kthread_status;
 				/* State of boost_kthread_task for tracing. */
 #ifdef CONFIG_RCU_NOCB_CPU
-	struct swait_queue_head nocb_gp_wq[2];
-				/* Place for rcu_nocb_kthread() to wait GP. */
+	struct swait_queue_head yescb_gp_wq[2];
+				/* Place for rcu_yescb_kthread() to wait GP. */
 #endif /* #ifdef CONFIG_RCU_NOCB_CPU */
-	raw_spinlock_t fqslock ____cacheline_internodealigned_in_smp;
+	raw_spinlock_t fqslock ____cacheline_interyesdealigned_in_smp;
 
-	spinlock_t exp_lock ____cacheline_internodealigned_in_smp;
+	spinlock_t exp_lock ____cacheline_interyesdealigned_in_smp;
 	unsigned long exp_seq_rq;
 	wait_queue_head_t exp_wq[4];
 	struct rcu_exp_work rew;
 	bool exp_need_flush;	/* Need to flush workitem? */
-} ____cacheline_internodealigned_in_smp;
+} ____cacheline_interyesdealigned_in_smp;
 
 /*
- * Bitmasks in an rcu_node cover the interval [grplo, grphi] of CPU IDs, and
+ * Bitmasks in an rcu_yesde cover the interval [grplo, grphi] of CPU IDs, and
  * are indexed relative to this interval rather than the global CPU ID space.
- * This generates the bit for a CPU in node-local masks.
+ * This generates the bit for a CPU in yesde-local masks.
  */
-#define leaf_node_cpu_bit(rnp, cpu) (BIT((cpu) - (rnp)->grplo))
+#define leaf_yesde_cpu_bit(rnp, cpu) (BIT((cpu) - (rnp)->grplo))
 
 /*
  * Union to allow "aggregate OR" operation on the need for a quiescent
- * state by the normal and expedited grace periods.
+ * state by the yesrmal and expedited grace periods.
  */
-union rcu_noqs {
+union rcu_yesqs {
 	struct {
-		u8 norm;
+		u8 yesrm;
 		u8 exp;
 	} b; /* Bits. */
 	u16 s; /* Set of bits, aggregate OR here. */
@@ -150,12 +150,12 @@ struct rcu_data {
 	/* 1) quiescent-state and grace-period handling : */
 	unsigned long	gp_seq;		/* Track rsp->rcu_gp_seq counter. */
 	unsigned long	gp_seq_needed;	/* Track furthest future GP request. */
-	union rcu_noqs	cpu_no_qs;	/* No QSes yet for this CPU. */
+	union rcu_yesqs	cpu_yes_qs;	/* No QSes yet for this CPU. */
 	bool		core_needs_qs;	/* Core waits for quiesc state. */
-	bool		beenonline;	/* CPU online at least once. */
+	bool		beeyesnline;	/* CPU online at least once. */
 	bool		gpwrap;		/* Possible ->gp_seq wrap. */
 	bool		exp_deferred_qs; /* This CPU awaiting a deferred QS? */
-	struct rcu_node *mynode;	/* This CPU's leaf of hierarchy */
+	struct rcu_yesde *myyesde;	/* This CPU's leaf of hierarchy */
 	unsigned long grpmask;		/* Mask to apply to leaf qsmask. */
 	unsigned long	ticks_this_gp;	/* The number of scheduling-clock */
 					/*  ticks this CPU has handled */
@@ -186,7 +186,7 @@ struct rcu_data {
 	bool all_lazy;			/* All CPU's CBs lazy at idle start? */
 	unsigned long last_accelerate;	/* Last jiffy CBs were accelerated. */
 	unsigned long last_advance_all;	/* Last jiffy CBs were all advanced. */
-	int tick_nohz_enabled_snap;	/* Previously seen value from sysfs. */
+	int tick_yeshz_enabled_snap;	/* Previously seen value from sysfs. */
 #endif /* #ifdef CONFIG_RCU_FAST_NO_HZ */
 
 	/* 4) rcu_barrier(), OOM callbacks, and expediting. */
@@ -195,37 +195,37 @@ struct rcu_data {
 
 	/* 5) Callback offloading. */
 #ifdef CONFIG_RCU_NOCB_CPU
-	struct swait_queue_head nocb_cb_wq; /* For nocb kthreads to sleep on. */
-	struct task_struct *nocb_gp_kthread;
-	raw_spinlock_t nocb_lock;	/* Guard following pair of fields. */
-	atomic_t nocb_lock_contended;	/* Contention experienced. */
-	int nocb_defer_wakeup;		/* Defer wakeup of nocb_kthread. */
-	struct timer_list nocb_timer;	/* Enforce finite deferral. */
-	unsigned long nocb_gp_adv_time;	/* Last call_rcu() CB adv (jiffies). */
+	struct swait_queue_head yescb_cb_wq; /* For yescb kthreads to sleep on. */
+	struct task_struct *yescb_gp_kthread;
+	raw_spinlock_t yescb_lock;	/* Guard following pair of fields. */
+	atomic_t yescb_lock_contended;	/* Contention experienced. */
+	int yescb_defer_wakeup;		/* Defer wakeup of yescb_kthread. */
+	struct timer_list yescb_timer;	/* Enforce finite deferral. */
+	unsigned long yescb_gp_adv_time;	/* Last call_rcu() CB adv (jiffies). */
 
 	/* The following fields are used by call_rcu, hence own cacheline. */
-	raw_spinlock_t nocb_bypass_lock ____cacheline_internodealigned_in_smp;
-	struct rcu_cblist nocb_bypass;	/* Lock-contention-bypass CB list. */
-	unsigned long nocb_bypass_first; /* Time (jiffies) of first enqueue. */
-	unsigned long nocb_nobypass_last; /* Last ->cblist enqueue (jiffies). */
-	int nocb_nobypass_count;	/* # ->cblist enqueues at ^^^ time. */
+	raw_spinlock_t yescb_bypass_lock ____cacheline_interyesdealigned_in_smp;
+	struct rcu_cblist yescb_bypass;	/* Lock-contention-bypass CB list. */
+	unsigned long yescb_bypass_first; /* Time (jiffies) of first enqueue. */
+	unsigned long yescb_yesbypass_last; /* Last ->cblist enqueue (jiffies). */
+	int yescb_yesbypass_count;	/* # ->cblist enqueues at ^^^ time. */
 
 	/* The following fields are used by GP kthread, hence own cacheline. */
-	raw_spinlock_t nocb_gp_lock ____cacheline_internodealigned_in_smp;
-	struct timer_list nocb_bypass_timer; /* Force nocb_bypass flush. */
-	u8 nocb_gp_sleep;		/* Is the nocb GP thread asleep? */
-	u8 nocb_gp_bypass;		/* Found a bypass on last scan? */
-	u8 nocb_gp_gp;			/* GP to wait for on last scan? */
-	unsigned long nocb_gp_seq;	/*  If so, ->gp_seq to wait for. */
-	unsigned long nocb_gp_loops;	/* # passes through wait code. */
-	struct swait_queue_head nocb_gp_wq; /* For nocb kthreads to sleep on. */
-	bool nocb_cb_sleep;		/* Is the nocb CB thread asleep? */
-	struct task_struct *nocb_cb_kthread;
-	struct rcu_data *nocb_next_cb_rdp;
+	raw_spinlock_t yescb_gp_lock ____cacheline_interyesdealigned_in_smp;
+	struct timer_list yescb_bypass_timer; /* Force yescb_bypass flush. */
+	u8 yescb_gp_sleep;		/* Is the yescb GP thread asleep? */
+	u8 yescb_gp_bypass;		/* Found a bypass on last scan? */
+	u8 yescb_gp_gp;			/* GP to wait for on last scan? */
+	unsigned long yescb_gp_seq;	/*  If so, ->gp_seq to wait for. */
+	unsigned long yescb_gp_loops;	/* # passes through wait code. */
+	struct swait_queue_head yescb_gp_wq; /* For yescb kthreads to sleep on. */
+	bool yescb_cb_sleep;		/* Is the yescb CB thread asleep? */
+	struct task_struct *yescb_cb_kthread;
+	struct rcu_data *yescb_next_cb_rdp;
 					/* Next rcu_data in wakeup chain. */
 
 	/* The following fields are used by CB kthread, hence new cacheline. */
-	struct rcu_data *nocb_gp_rdp ____cacheline_internodealigned_in_smp;
+	struct rcu_data *yescb_gp_rdp ____cacheline_interyesdealigned_in_smp;
 					/* GP rdp takes GP-end wakeups. */
 #endif /* #ifdef CONFIG_RCU_NOCB_CPU */
 
@@ -235,10 +235,10 @@ struct rcu_data {
 	unsigned int rcu_cpu_kthread_status;
 	char rcu_cpu_has_work;
 
-	/* 7) Diagnostic data, including RCU CPU stall warnings. */
+	/* 7) Diagyesstic data, including RCU CPU stall warnings. */
 	unsigned int softirq_snap;	/* Snapshot of softirq activity. */
-	/* ->rcu_iw* fields protected by leaf rcu_node ->lock. */
-	struct irq_work rcu_iw;		/* Check for non-irq activity. */
+	/* ->rcu_iw* fields protected by leaf rcu_yesde ->lock. */
+	struct irq_work rcu_iw;		/* Check for yesn-irq activity. */
 	bool rcu_iw_pending;		/* Is ->rcu_iw pending? */
 	unsigned long rcu_iw_gp_seq;	/* ->gp_seq associated with ->rcu_iw. */
 	unsigned long rcu_ofl_gp_seq;	/* ->gp_seq at last offline. */
@@ -250,7 +250,7 @@ struct rcu_data {
 	int cpu;
 };
 
-/* Values for nocb_defer_wakeup field in struct rcu_data. */
+/* Values for yescb_defer_wakeup field in struct rcu_data. */
 #define RCU_NOCB_WAKE_NOT	0
 #define RCU_NOCB_WAKE		1
 #define RCU_NOCB_WAKE_FORCE	2
@@ -279,25 +279,25 @@ do {									\
 } while (0)
 
 /*
- * RCU global state, including node hierarchy.  This hierarchy is
+ * RCU global state, including yesde hierarchy.  This hierarchy is
  * represented in "heap" form in a dense array.  The root (first level)
- * of the hierarchy is in ->node[0] (referenced by ->level[0]), the second
- * level in ->node[1] through ->node[m] (->node[1] referenced by ->level[1]),
- * and the third level in ->node[m+1] and following (->node[m+1] referenced
+ * of the hierarchy is in ->yesde[0] (referenced by ->level[0]), the second
+ * level in ->yesde[1] through ->yesde[m] (->yesde[1] referenced by ->level[1]),
+ * and the third level in ->yesde[m+1] and following (->yesde[m+1] referenced
  * by ->level[2]).  The number of levels is determined by the number of
  * CPUs and by CONFIG_RCU_FANOUT.  Small systems will have a "hierarchy"
- * consisting of a single rcu_node.
+ * consisting of a single rcu_yesde.
  */
 struct rcu_state {
-	struct rcu_node node[NUM_RCU_NODES];	/* Hierarchy. */
-	struct rcu_node *level[RCU_NUM_LVLS + 1];
+	struct rcu_yesde yesde[NUM_RCU_NODES];	/* Hierarchy. */
+	struct rcu_yesde *level[RCU_NUM_LVLS + 1];
 						/* Hierarchy levels (+1 to */
 						/*  shut bogus gcc warning) */
 	int ncpus;				/* # CPUs seen so far. */
 
-	/* The following fields are guarded by the root rcu_node's lock. */
+	/* The following fields are guarded by the root rcu_yesde's lock. */
 
-	u8	boost ____cacheline_internodealigned_in_smp;
+	u8	boost ____cacheline_interyesdealigned_in_smp;
 						/* Subject to priority boost. */
 	unsigned long gp_seq;			/* Grace-period sequence #. */
 	struct task_struct *gp_kthread;		/* Task for grace periods. */
@@ -307,7 +307,7 @@ struct rcu_state {
 	unsigned long gp_wake_time;		/* Last GP kthread wake. */
 	unsigned long gp_wake_seq;		/* ->gp_seq at ^^^. */
 
-	/* End of fields guarded by root rcu_node's lock. */
+	/* End of fields guarded by root rcu_yesde's lock. */
 
 	struct mutex barrier_mutex;		/* Guards barrier fields. */
 	atomic_t barrier_cpu_count;		/* # CPUs waiting on. */
@@ -348,7 +348,7 @@ struct rcu_state {
 	const char *name;			/* Name of structure. */
 	char abbr;				/* Abbreviated name. */
 
-	raw_spinlock_t ofl_lock ____cacheline_internodealigned_in_smp;
+	raw_spinlock_t ofl_lock ____cacheline_interyesdealigned_in_smp;
 						/* Synchronize offline with */
 						/*  GP pre-initialization. */
 };
@@ -358,7 +358,7 @@ struct rcu_state {
 #define RCU_GP_FLAG_FQS  0x2	/* Need grace-period quiescent-state forcing. */
 
 /* Values for rcu_state structure's gp_state field. */
-#define RCU_GP_IDLE	 0	/* Initial state and no GP in progress. */
+#define RCU_GP_IDLE	 0	/* Initial state and yes GP in progress. */
 #define RCU_GP_WAIT_GPS  1	/* Wait for grace-period start. */
 #define RCU_GP_DONE_GPS  2	/* Wait done for grace-period start. */
 #define RCU_GP_ONOFF     3	/* Grace-period initialization hotplug. */
@@ -406,64 +406,64 @@ static const char *tp_rcu_varname __used __tracepoint_string = rcu_name;
 int rcu_dynticks_snap(struct rcu_data *rdp);
 
 /* Forward declarations for tree_plugin.h */
-static void rcu_bootup_announce(void);
+static void rcu_bootup_anyesunce(void);
 static void rcu_qs(void);
-static int rcu_preempt_blocked_readers_cgp(struct rcu_node *rnp);
+static int rcu_preempt_blocked_readers_cgp(struct rcu_yesde *rnp);
 #ifdef CONFIG_HOTPLUG_CPU
-static bool rcu_preempt_has_tasks(struct rcu_node *rnp);
+static bool rcu_preempt_has_tasks(struct rcu_yesde *rnp);
 #endif /* #ifdef CONFIG_HOTPLUG_CPU */
-static int rcu_print_task_exp_stall(struct rcu_node *rnp);
-static void rcu_preempt_check_blocked_tasks(struct rcu_node *rnp);
+static int rcu_print_task_exp_stall(struct rcu_yesde *rnp);
+static void rcu_preempt_check_blocked_tasks(struct rcu_yesde *rnp);
 static void rcu_flavor_sched_clock_irq(int user);
 void call_rcu(struct rcu_head *head, rcu_callback_t func);
-static void dump_blkd_tasks(struct rcu_node *rnp, int ncheck);
-static void rcu_initiate_boost(struct rcu_node *rnp, unsigned long flags);
-static void rcu_preempt_boost_start_gp(struct rcu_node *rnp);
+static void dump_blkd_tasks(struct rcu_yesde *rnp, int ncheck);
+static void rcu_initiate_boost(struct rcu_yesde *rnp, unsigned long flags);
+static void rcu_preempt_boost_start_gp(struct rcu_yesde *rnp);
 static bool rcu_is_callbacks_kthread(void);
 static void rcu_cpu_kthread_setup(unsigned int cpu);
 static void __init rcu_spawn_boost_kthreads(void);
 static void rcu_prepare_kthreads(int cpu);
 static void rcu_cleanup_after_idle(void);
 static void rcu_prepare_for_idle(void);
-static bool rcu_preempt_has_tasks(struct rcu_node *rnp);
+static bool rcu_preempt_has_tasks(struct rcu_yesde *rnp);
 static bool rcu_preempt_need_deferred_qs(struct task_struct *t);
 static void rcu_preempt_deferred_qs(struct task_struct *t);
 static void zero_cpu_stall_ticks(struct rcu_data *rdp);
-static struct swait_queue_head *rcu_nocb_gp_get(struct rcu_node *rnp);
-static void rcu_nocb_gp_cleanup(struct swait_queue_head *sq);
-static void rcu_init_one_nocb(struct rcu_node *rnp);
-static bool rcu_nocb_flush_bypass(struct rcu_data *rdp, struct rcu_head *rhp,
+static struct swait_queue_head *rcu_yescb_gp_get(struct rcu_yesde *rnp);
+static void rcu_yescb_gp_cleanup(struct swait_queue_head *sq);
+static void rcu_init_one_yescb(struct rcu_yesde *rnp);
+static bool rcu_yescb_flush_bypass(struct rcu_data *rdp, struct rcu_head *rhp,
 				  unsigned long j);
-static bool rcu_nocb_try_bypass(struct rcu_data *rdp, struct rcu_head *rhp,
+static bool rcu_yescb_try_bypass(struct rcu_data *rdp, struct rcu_head *rhp,
 				bool *was_alldone, unsigned long flags);
-static void __call_rcu_nocb_wake(struct rcu_data *rdp, bool was_empty,
+static void __call_rcu_yescb_wake(struct rcu_data *rdp, bool was_empty,
 				 unsigned long flags);
-static int rcu_nocb_need_deferred_wakeup(struct rcu_data *rdp);
-static void do_nocb_deferred_wakeup(struct rcu_data *rdp);
-static void rcu_boot_init_nocb_percpu_data(struct rcu_data *rdp);
-static void rcu_spawn_cpu_nocb_kthread(int cpu);
-static void __init rcu_spawn_nocb_kthreads(void);
-static void show_rcu_nocb_state(struct rcu_data *rdp);
-static void rcu_nocb_lock(struct rcu_data *rdp);
-static void rcu_nocb_unlock(struct rcu_data *rdp);
-static void rcu_nocb_unlock_irqrestore(struct rcu_data *rdp,
+static int rcu_yescb_need_deferred_wakeup(struct rcu_data *rdp);
+static void do_yescb_deferred_wakeup(struct rcu_data *rdp);
+static void rcu_boot_init_yescb_percpu_data(struct rcu_data *rdp);
+static void rcu_spawn_cpu_yescb_kthread(int cpu);
+static void __init rcu_spawn_yescb_kthreads(void);
+static void show_rcu_yescb_state(struct rcu_data *rdp);
+static void rcu_yescb_lock(struct rcu_data *rdp);
+static void rcu_yescb_unlock(struct rcu_data *rdp);
+static void rcu_yescb_unlock_irqrestore(struct rcu_data *rdp,
 				       unsigned long flags);
 static void rcu_lockdep_assert_cblist_protected(struct rcu_data *rdp);
 #ifdef CONFIG_RCU_NOCB_CPU
-static void __init rcu_organize_nocb_kthreads(void);
-#define rcu_nocb_lock_irqsave(rdp, flags)				\
+static void __init rcu_organize_yescb_kthreads(void);
+#define rcu_yescb_lock_irqsave(rdp, flags)				\
 do {									\
 	if (!rcu_segcblist_is_offloaded(&(rdp)->cblist))		\
 		local_irq_save(flags);					\
 	else								\
-		raw_spin_lock_irqsave(&(rdp)->nocb_lock, (flags));	\
+		raw_spin_lock_irqsave(&(rdp)->yescb_lock, (flags));	\
 } while (0)
 #else /* #ifdef CONFIG_RCU_NOCB_CPU */
-#define rcu_nocb_lock_irqsave(rdp, flags) local_irq_save(flags)
+#define rcu_yescb_lock_irqsave(rdp, flags) local_irq_save(flags)
 #endif /* #else #ifdef CONFIG_RCU_NOCB_CPU */
 
 static void rcu_bind_gp_kthread(void);
-static bool rcu_nohz_full_cpu(void);
+static bool rcu_yeshz_full_cpu(void);
 static void rcu_dynticks_task_enter(void);
 static void rcu_dynticks_task_exit(void);
 
@@ -471,5 +471,5 @@ static void rcu_dynticks_task_exit(void);
 static void record_gp_stall_check_time(void);
 static void rcu_iw_handler(struct irq_work *iwp);
 static void check_cpu_stall(struct rcu_data *rdp);
-static void rcu_check_gp_start_stall(struct rcu_node *rnp, struct rcu_data *rdp,
+static void rcu_check_gp_start_stall(struct rcu_yesde *rnp, struct rcu_data *rdp,
 				     const unsigned long gpssdelay);

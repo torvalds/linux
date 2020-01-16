@@ -153,7 +153,7 @@ static int bma150_write_byte(struct i2c_client *client, u8 reg, u8 val)
 
 	/* As per specification, disable irq in between register writes */
 	if (client->irq)
-		disable_irq_nosync(client->irq);
+		disable_irq_yessync(client->irq);
 
 	ret = i2c_smbus_write_byte_data(client, reg, val);
 

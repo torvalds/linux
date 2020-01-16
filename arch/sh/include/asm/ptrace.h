@@ -88,7 +88,7 @@ static inline unsigned long regs_get_register(struct pt_regs *regs,
  * @addr:	address which is checked.
  *
  * regs_within_kernel_stack() checks @addr is within the kernel stack page(s).
- * If @addr is within the kernel stack, it returns true. If not, returns false.
+ * If @addr is within the kernel stack, it returns true. If yest, returns false.
  */
 static inline int regs_within_kernel_stack(struct pt_regs *regs,
 					   unsigned long addr)

@@ -4,7 +4,7 @@
  * device driver for philips saa7134 based TV cards
  * video4linux video interface
  *
- * (c) 2001,02 Gerd Knorr <kraxel@bytesex.org> [SuSE Labs]
+ * (c) 2001,02 Gerd Kyesrr <kraxel@bytesex.org> [SuSE Labs]
  */
 
 #include "saa7134.h"
@@ -187,7 +187,7 @@ int saa7134_ts_init_hw(struct saa7134_dev *dev)
 {
 	/* deactivate TS softreset */
 	saa_writeb(SAA7134_TS_SERIAL1, 0x00);
-	/* TSSOP high active, TSVAL high active, TSLOCK ignored */
+	/* TSSOP high active, TSVAL high active, TSLOCK igyesred */
 	saa_writeb(SAA7134_TS_PARALLEL, 0x6c);
 	saa_writeb(SAA7134_TS_PARALLEL_SERIAL, (TS_PACKET_SIZE-1));
 	saa_writeb(SAA7134_TS_DMA0, ((dev->ts.nr_packets-1)&0xff));
@@ -274,7 +274,7 @@ int saa7134_ts_start(struct saa7134_dev *dev)
 	saa_writeb(SAA7134_TS_SERIAL1, 0x00);
 	saa_writeb(SAA7134_TS_SERIAL1, 0x01);
 
-	/* TS clock non-inverted */
+	/* TS clock yesn-inverted */
 	saa_writeb(SAA7134_TS_SERIAL1, 0x00);
 
 	/* Start TS stream */

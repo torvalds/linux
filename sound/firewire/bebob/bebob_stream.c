@@ -19,7 +19,7 @@
  * to start transmitting stream. An example is 'M-Audio Firewire 410'.
  */
 
-/* 128 is an arbitrary length but it seems to be enough */
+/* 128 is an arbitrary length but it seems to be eyesugh */
 #define FORMAT_MAXIMUM_LENGTH 128
 
 const unsigned int snd_bebob_rate_table[SND_BEBOB_STRM_FMT_ENTRIES] = {
@@ -171,7 +171,7 @@ int snd_bebob_stream_get_clock_src(struct snd_bebob *bebob,
 	}
 
 	/*
-	 * If there are no input plugs, all of fields are 0xff.
+	 * If there are yes input plugs, all of fields are 0xff.
 	 * Here check the first field. This field is used for direction.
 	 */
 	if (input[0] == 0xff) {
@@ -207,7 +207,7 @@ int snd_bebob_stream_get_clock_src(struct snd_bebob *bebob,
 			} else {
 				/*
 				 * This source comes from iPCR[1-29]. This
-				 * means that the synchronization stream is not
+				 * means that the synchronization stream is yest
 				 * the Audio/MIDI compound stream.
 				 */
 				*src = SND_BEBOB_CLOCK_TYPE_EXTERNAL;
@@ -226,7 +226,7 @@ int snd_bebob_stream_get_clock_src(struct snd_bebob *bebob,
 
 			if (type == AVC_BRIDGECO_PLUG_TYPE_DIG) {
 				/*
-				 * SPDIF/ADAT or sometimes (not always) word
+				 * SPDIF/ADAT or sometimes (yest always) word
 				 * clock.
 				 */
 				*src = SND_BEBOB_CLOCK_TYPE_EXTERNAL;
@@ -262,7 +262,7 @@ static int map_data_channels(struct snd_bebob *bebob, struct amdtp_stream *s)
 	int err;
 
 	/*
-	 * The length of return value of this command cannot be expected. Here
+	 * The length of return value of this command canyest be expected. Here
 	 * use the maximum length of FCP.
 	 */
 	buf = kzalloc(256, GFP_KERNEL);
@@ -465,7 +465,7 @@ static int init_stream(struct snd_bebob *bebob, struct amdtp_stream *stream)
 	if (stream == &bebob->tx_stream) {
 		// BeBoB v3 transfers packets with these qurks:
 		//  - In the beginning of streaming, the value of dbc is
-		//    incremented even if no data blocks are transferred.
+		//    incremented even if yes data blocks are transferred.
 		//  - The value of dbc is reset suddenly.
 		if (bebob->version > 2)
 			bebob->tx_stream.flags |= CIP_EMPTY_HAS_WRONG_DBC |
@@ -609,7 +609,7 @@ int snd_bebob_stream_start_duplex(struct snd_bebob *bebob)
 {
 	int err;
 
-	// Need no substreams.
+	// Need yes substreams.
 	if (bebob->substreams_counter == 0)
 		return -EIO;
 
@@ -671,7 +671,7 @@ int snd_bebob_stream_start_duplex(struct snd_bebob *bebob)
 
 		// NOTE:
 		// The firmware customized by M-Audio uses these commands to
-		// start transmitting stream. This is not usual way.
+		// start transmitting stream. This is yest usual way.
 		if (bebob->maudio_special_quirk) {
 			err = bebob->spec->rate->set(bebob, curr_rate);
 			if (err < 0) {
@@ -785,7 +785,7 @@ parse_stream_formation(u8 *buf, unsigned int len,
 		/* Don't care */
 		case 0xff:
 		default:
-			return -ENOSYS;	/* not supported */
+			return -ENOSYS;	/* yest supported */
 		}
 	}
 

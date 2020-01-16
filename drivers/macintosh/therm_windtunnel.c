@@ -29,7 +29,7 @@
 
 #include <linux/types.h>
 #include <linux/module.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/kernel.h>
 #include <linux/delay.h>
 #include <linux/sched.h>
@@ -503,14 +503,14 @@ static int __init
 g4fan_init( void )
 {
 	const struct apple_thermal_info *info;
-	struct device_node *np;
+	struct device_yesde *np;
 
 	mutex_init(&x.lock);
 
-	if( !(np=of_find_node_by_name(NULL, "power-mgt")) )
+	if( !(np=of_find_yesde_by_name(NULL, "power-mgt")) )
 		return -ENODEV;
 	info = of_get_property(np, "thermal-info", NULL);
-	of_node_put(np);
+	of_yesde_put(np);
 
 	if( !info || !of_machine_is_compatible("PowerMac3,6") )
 		return -ENODEV;
@@ -519,10 +519,10 @@ g4fan_init( void )
 		printk(KERN_ERR "therm_windtunnel: unsupported thermal design %d\n", info->id );
 		return -ENODEV;
 	}
-	if( !(np=of_find_node_by_name(NULL, "fan")) )
+	if( !(np=of_find_yesde_by_name(NULL, "fan")) )
 		return -ENODEV;
 	x.of_dev = of_platform_device_create(np, "temperature", NULL);
-	of_node_put( np );
+	of_yesde_put( np );
 
 	if( !x.of_dev ) {
 		printk(KERN_ERR "Can't register fan controller!\n");

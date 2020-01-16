@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -27,11 +27,11 @@
 
 #include "qxl_drv.h"
 
-static inline int qxl_bo_reserve(struct qxl_bo *bo, bool no_wait)
+static inline int qxl_bo_reserve(struct qxl_bo *bo, bool yes_wait)
 {
 	int r;
 
-	r = ttm_bo_reserve(&bo->tbo, true, no_wait, NULL);
+	r = ttm_bo_reserve(&bo->tbo, true, yes_wait, NULL);
 	if (unlikely(r != 0)) {
 		if (r != -ERESTARTSYS) {
 			struct drm_device *ddev = bo->tbo.base.dev;
@@ -60,15 +60,15 @@ static inline unsigned long qxl_bo_size(struct qxl_bo *bo)
 
 static inline u64 qxl_bo_mmap_offset(struct qxl_bo *bo)
 {
-	return drm_vma_node_offset_addr(&bo->tbo.base.vma_node);
+	return drm_vma_yesde_offset_addr(&bo->tbo.base.vma_yesde);
 }
 
 static inline int qxl_bo_wait(struct qxl_bo *bo, u32 *mem_type,
-			      bool no_wait)
+			      bool yes_wait)
 {
 	int r;
 
-	r = ttm_bo_reserve(&bo->tbo, true, no_wait, NULL);
+	r = ttm_bo_reserve(&bo->tbo, true, yes_wait, NULL);
 	if (unlikely(r != 0)) {
 		if (r != -ERESTARTSYS) {
 			struct drm_device *ddev = bo->tbo.base.dev;
@@ -81,7 +81,7 @@ static inline int qxl_bo_wait(struct qxl_bo *bo, u32 *mem_type,
 	if (mem_type)
 		*mem_type = bo->tbo.mem.mem_type;
 
-	r = ttm_bo_wait(&bo->tbo, true, no_wait);
+	r = ttm_bo_wait(&bo->tbo, true, yes_wait);
 	ttm_bo_unreserve(&bo->tbo);
 	return r;
 }

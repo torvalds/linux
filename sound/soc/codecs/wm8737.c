@@ -391,7 +391,7 @@ static int wm8737_set_dai_sysclk(struct snd_soc_dai *codec_dai,
 		}
 	}
 
-	dev_err(component->dev, "MCLK rate %dHz not supported\n", freq);
+	dev_err(component->dev, "MCLK rate %dHz yest supported\n", freq);
 
 	return -EINVAL;
 }
@@ -526,7 +526,7 @@ static struct snd_soc_dai_driver wm8737_dai = {
 	.name = "wm8737",
 	.capture = {
 		.stream_name = "Capture",
-		.channels_min = 2,  /* Mono modes not yet supported */
+		.channels_min = 2,  /* Moyes modes yest yet supported */
 		.channels_max = 2,
 		.rates = WM8737_RATES,
 		.formats = WM8737_FORMATS,
@@ -583,7 +583,7 @@ static const struct snd_soc_component_driver soc_component_dev_wm8737 = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
+	.yesn_legacy_dai_naming	= 1,
 };
 
 static const struct of_device_id wm8737_of_match[] = {

@@ -8,7 +8,7 @@
 
 #include <stdio.h>
 #include <unistd.h>
-#include <errno.h>
+#include <erryes.h>
 #include <string.h>
 #include <sys/socket.h>
 #include <sys/wait.h>
@@ -46,7 +46,7 @@ static void etap_change(int op, unsigned char *addr, unsigned char *netmask,
 	CATCH_EINTR(n = write(fd, &change, sizeof(change)));
 	if (n != sizeof(change)) {
 		printk(UM_KERN_ERR "etap_change - request failed, err = %d\n",
-		       errno);
+		       erryes);
 		return;
 	}
 
@@ -98,7 +98,7 @@ static int etap_tramp(char *dev, char *gate, int control_me,
 	char gate_buf[sizeof("nnn.nnn.nnn.nnn\0")];
 	char *setup_args[] = { "uml_net", version_buf, "ethertap", dev,
 			       data_fd_buf, gate_buf, NULL };
-	char *nosetup_args[] = { "uml_net", version_buf, "ethertap",
+	char *yessetup_args[] = { "uml_net", version_buf, "ethertap",
 				 dev, data_fd_buf, NULL };
 	char **args, c;
 
@@ -108,7 +108,7 @@ static int etap_tramp(char *dev, char *gate, int control_me,
 		strncpy(gate_buf, gate, 15);
 		args = setup_args;
 	}
-	else args = nosetup_args;
+	else args = yessetup_args;
 
 	err = 0;
 	pe_data.control_remote = control_remote;
@@ -122,7 +122,7 @@ static int etap_tramp(char *dev, char *gate, int control_me,
 	close(control_remote);
 	CATCH_EINTR(n = read(control_me, &c, sizeof(c)));
 	if (n != sizeof(c)) {
-		err = -errno;
+		err = -erryes;
 		printk(UM_KERN_ERR "etap_tramp : read of status failed, "
 		       "err = %d\n", -err);
 		return err;
@@ -146,17 +146,17 @@ static int etap_open(void *data)
 
 	err = socketpair(AF_UNIX, SOCK_DGRAM, 0, data_fds);
 	if (err) {
-		err = -errno;
+		err = -erryes;
 		printk(UM_KERN_ERR "etap_open - data socketpair failed - "
-		       "err = %d\n", errno);
+		       "err = %d\n", erryes);
 		return err;
 	}
 
 	err = socketpair(AF_UNIX, SOCK_STREAM, 0, control_fds);
 	if (err) {
-		err = -errno;
+		err = -erryes;
 		printk(UM_KERN_ERR "etap_open - control socketpair failed - "
-		       "err = %d\n", errno);
+		       "err = %d\n", erryes);
 		goto out_close_data;
 	}
 
@@ -202,11 +202,11 @@ static void etap_close(int fd, void *data)
 
 	if (shutdown(pri->data_fd, SHUT_RDWR) < 0)
 		printk(UM_KERN_ERR "etap_close - shutdown data socket failed, "
-		       "errno = %d\n", errno);
+		       "erryes = %d\n", erryes);
 
 	if (shutdown(pri->control_fd, SHUT_RDWR) < 0)
 		printk(UM_KERN_ERR "etap_close - shutdown control socket "
-		       "failed, errno = %d\n", errno);
+		       "failed, erryes = %d\n", erryes);
 
 	close(pri->data_fd);
 	pri->data_fd = -1;

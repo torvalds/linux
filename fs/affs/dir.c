@@ -29,7 +29,7 @@ const struct file_operations affs_dir_operations = {
 /*
  * directories can handle most operations...
  */
-const struct inode_operations affs_dir_inode_operations = {
+const struct iyesde_operations affs_dir_iyesde_operations = {
 	.create		= affs_create,
 	.lookup		= affs_lookup,
 	.link		= affs_link,
@@ -38,14 +38,14 @@ const struct inode_operations affs_dir_inode_operations = {
 	.mkdir		= affs_mkdir,
 	.rmdir		= affs_rmdir,
 	.rename		= affs_rename2,
-	.setattr	= affs_notify_change,
+	.setattr	= affs_yestify_change,
 };
 
 static int
 affs_readdir(struct file *file, struct dir_context *ctx)
 {
-	struct inode		*inode = file_inode(file);
-	struct super_block	*sb = inode->i_sb;
+	struct iyesde		*iyesde = file_iyesde(file);
+	struct super_block	*sb = iyesde->i_sb;
 	struct buffer_head	*dir_bh = NULL;
 	struct buffer_head	*fh_bh = NULL;
 	unsigned char		*name;
@@ -53,10 +53,10 @@ affs_readdir(struct file *file, struct dir_context *ctx)
 	u32			 i;
 	int			 hash_pos;
 	int			 chain_pos;
-	u32			 ino;
+	u32			 iyes;
 	int			 error = 0;
 
-	pr_debug("%s(ino=%lu,f_pos=%llx)\n", __func__, inode->i_ino, ctx->pos);
+	pr_debug("%s(iyes=%lu,f_pos=%llx)\n", __func__, iyesde->i_iyes, ctx->pos);
 
 	if (ctx->pos < 2) {
 		file->private_data = (void *)0;
@@ -64,7 +64,7 @@ affs_readdir(struct file *file, struct dir_context *ctx)
 			return 0;
 	}
 
-	affs_lock_dir(inode);
+	affs_lock_dir(iyesde);
 	chain_pos = (ctx->pos - 2) & 0xffff;
 	hash_pos  = (ctx->pos - 2) >> 16;
 	if (chain_pos == 0xffff) {
@@ -73,72 +73,72 @@ affs_readdir(struct file *file, struct dir_context *ctx)
 		hash_pos++;
 		ctx->pos = ((hash_pos << 16) | chain_pos) + 2;
 	}
-	dir_bh = affs_bread(sb, inode->i_ino);
+	dir_bh = affs_bread(sb, iyesde->i_iyes);
 	if (!dir_bh)
 		goto out_unlock_dir;
 
 	/* If the directory hasn't changed since the last call to readdir(),
 	 * we can jump directly to where we left off.
 	 */
-	ino = (u32)(long)file->private_data;
-	if (ino && inode_eq_iversion(inode, file->f_version)) {
-		pr_debug("readdir() left off=%d\n", ino);
+	iyes = (u32)(long)file->private_data;
+	if (iyes && iyesde_eq_iversion(iyesde, file->f_version)) {
+		pr_debug("readdir() left off=%d\n", iyes);
 		goto inside;
 	}
 
-	ino = be32_to_cpu(AFFS_HEAD(dir_bh)->table[hash_pos]);
-	for (i = 0; ino && i < chain_pos; i++) {
-		fh_bh = affs_bread(sb, ino);
+	iyes = be32_to_cpu(AFFS_HEAD(dir_bh)->table[hash_pos]);
+	for (i = 0; iyes && i < chain_pos; i++) {
+		fh_bh = affs_bread(sb, iyes);
 		if (!fh_bh) {
-			affs_error(sb, "readdir","Cannot read block %d", i);
+			affs_error(sb, "readdir","Canyest read block %d", i);
 			error = -EIO;
 			goto out_brelse_dir;
 		}
-		ino = be32_to_cpu(AFFS_TAIL(sb, fh_bh)->hash_chain);
+		iyes = be32_to_cpu(AFFS_TAIL(sb, fh_bh)->hash_chain);
 		affs_brelse(fh_bh);
 		fh_bh = NULL;
 	}
-	if (ino)
+	if (iyes)
 		goto inside;
 	hash_pos++;
 
 	for (; hash_pos < AFFS_SB(sb)->s_hashsize; hash_pos++) {
-		ino = be32_to_cpu(AFFS_HEAD(dir_bh)->table[hash_pos]);
-		if (!ino)
+		iyes = be32_to_cpu(AFFS_HEAD(dir_bh)->table[hash_pos]);
+		if (!iyes)
 			continue;
 		ctx->pos = (hash_pos << 16) + 2;
 inside:
 		do {
-			fh_bh = affs_bread(sb, ino);
+			fh_bh = affs_bread(sb, iyes);
 			if (!fh_bh) {
 				affs_error(sb, "readdir",
-					   "Cannot read block %d", ino);
+					   "Canyest read block %d", iyes);
 				break;
 			}
 
 			namelen = min(AFFS_TAIL(sb, fh_bh)->name[0],
 				      (u8)AFFSNAMEMAX);
 			name = AFFS_TAIL(sb, fh_bh)->name + 1;
-			pr_debug("readdir(): dir_emit(\"%.*s\", ino=%u), hash=%d, f_pos=%llx\n",
-				 namelen, name, ino, hash_pos, ctx->pos);
+			pr_debug("readdir(): dir_emit(\"%.*s\", iyes=%u), hash=%d, f_pos=%llx\n",
+				 namelen, name, iyes, hash_pos, ctx->pos);
 
-			if (!dir_emit(ctx, name, namelen, ino, DT_UNKNOWN))
+			if (!dir_emit(ctx, name, namelen, iyes, DT_UNKNOWN))
 				goto done;
 			ctx->pos++;
-			ino = be32_to_cpu(AFFS_TAIL(sb, fh_bh)->hash_chain);
+			iyes = be32_to_cpu(AFFS_TAIL(sb, fh_bh)->hash_chain);
 			affs_brelse(fh_bh);
 			fh_bh = NULL;
-		} while (ino);
+		} while (iyes);
 	}
 done:
-	file->f_version = inode_query_iversion(inode);
-	file->private_data = (void *)(long)ino;
+	file->f_version = iyesde_query_iversion(iyesde);
+	file->private_data = (void *)(long)iyes;
 	affs_brelse(fh_bh);
 
 out_brelse_dir:
 	affs_brelse(dir_bh);
 
 out_unlock_dir:
-	affs_unlock_dir(inode);
+	affs_unlock_dir(iyesde);
 	return error;
 }

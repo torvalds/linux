@@ -98,7 +98,7 @@ static inline int dia250(void *iob, int cmd)
 
 /* Initialize block I/O to DIAG device using the specified blocksize and
  * block offset. On success, return zero and set end_block to contain the
- * number of blocks on the device minus the specified offset. Return non-zero
+ * number of blocks on the device minus the specified offset. Return yesn-zero
  * otherwise. */
 static inline int
 mdsk_init_io(struct dasd_device *device, unsigned int blocksize,
@@ -110,7 +110,7 @@ mdsk_init_io(struct dasd_device *device, unsigned int blocksize,
 
 	memset(iib, 0, sizeof (struct dasd_diag_init_io));
 
-	iib->dev_nr = private->dev_id.devno;
+	iib->dev_nr = private->dev_id.devyes;
 	iib->block_size = blocksize;
 	iib->offset = offset;
 	iib->flaga = DASD_DIAG_FLAGA_DEFAULT;
@@ -123,7 +123,7 @@ mdsk_init_io(struct dasd_device *device, unsigned int blocksize,
 	return rc;
 }
 
-/* Remove block I/O environment for device. Return zero on success, non-zero
+/* Remove block I/O environment for device. Return zero on success, yesn-zero
  * otherwise. */
 static inline int
 mdsk_term_io(struct dasd_device * device)
@@ -133,7 +133,7 @@ mdsk_term_io(struct dasd_device * device)
 	int rc;
 
 	memset(iib, 0, sizeof (struct dasd_diag_init_io));
-	iib->dev_nr = private->dev_id.devno;
+	iib->dev_nr = private->dev_id.devyes;
 	rc = dia250(iib, TERM_BIO);
 	return rc;
 }
@@ -158,7 +158,7 @@ dasd_diag_erp(struct dasd_device *device)
 			dev_name(&device->cdev->dev), rc);
 }
 
-/* Start a given request at the device. Return zero on success, non-zero
+/* Start a given request at the device. Return zero on success, yesn-zero
  * otherwise. */
 static int
 dasd_start_diag(struct dasd_ccw_req * cqr)
@@ -171,14 +171,14 @@ dasd_start_diag(struct dasd_ccw_req * cqr)
 	device = cqr->startdev;
 	if (cqr->retries < 0) {
 		DBF_DEV_EVENT(DBF_ERR, device, "DIAG start_IO: request %p "
-			    "- no retry left)", cqr);
+			    "- yes retry left)", cqr);
 		cqr->status = DASD_CQR_ERROR;
 		return -EIO;
 	}
 	private = device->private;
 	dreq = cqr->data;
 
-	private->iob.dev_nr = private->dev_id.devno;
+	private->iob.dev_nr = private->dev_id.devyes;
 	private->iob.key = 0;
 	private->iob.flags = DASD_DIAG_RWFLAG_ASYNC;
 	private->iob.block_count = dreq->block_count;
@@ -192,14 +192,14 @@ dasd_start_diag(struct dasd_ccw_req * cqr)
 
 	rc = dia250(&private->iob, RW_BIO);
 	switch (rc) {
-	case 0: /* Synchronous I/O finished successfully */
+	case 0: /* Synchroyesus I/O finished successfully */
 		cqr->stopclk = get_tod_clock();
 		cqr->status = DASD_CQR_SUCCESS;
 		/* Indicate to calling function that only a dasd_schedule_bh()
-		   and no timer is needed */
+		   and yes timer is needed */
                 rc = -EACCES;
 		break;
-	case 8: /* Asynchronous I/O was started */
+	case 8: /* Asynchroyesus I/O was started */
 		cqr->status = DASD_CQR_IN_IO;
 		rc = 0;
 		break;
@@ -251,7 +251,7 @@ static void dasd_ext_handler(struct ext_code ext_code,
 		return;
 	}
 	inc_irq_stat(IRQEXT_DSD);
-	if (!ip) {		/* no intparm: unsolicited interrupt */
+	if (!ip) {		/* yes intparm: unsolicited interrupt */
 		DBF_EVENT(DBF_NOTICE, "%s", "caught unsolicited "
 			      "interrupt");
 		return;
@@ -311,7 +311,7 @@ static void dasd_ext_handler(struct ext_code ext_code,
 }
 
 /* Check whether device can be controlled by DIAG discipline. Return zero on
- * success, non-zero otherwise. */
+ * success, yesn-zero otherwise. */
 static int
 dasd_diag_check_device(struct dasd_device *device)
 {
@@ -338,7 +338,7 @@ dasd_diag_check_device(struct dasd_device *device)
 	block = dasd_alloc_block();
 	if (IS_ERR(block)) {
 		DBF_DEV_EVENT(DBF_WARNING, device, "%s",
-			    "could not allocate dasd block structure");
+			    "could yest allocate dasd block structure");
 		device->private = NULL;
 		kfree(private);
 		return PTR_ERR(block);
@@ -348,7 +348,7 @@ dasd_diag_check_device(struct dasd_device *device)
 
 	/* Read Device Characteristics */
 	rdc_data = &private->rdc_data;
-	rdc_data->dev_nr = private->dev_id.devno;
+	rdc_data->dev_nr = private->dev_id.devyes;
 	rdc_data->rdc_len = sizeof (struct dasd_diag_characteristics);
 
 	rc = diag210((struct diag210 *) rdc_data);
@@ -371,7 +371,7 @@ dasd_diag_check_device(struct dasd_device *device)
 		private->pt_block = 2;
 		break;
 	default:
-		pr_warn("%s: Device type %d is not supported in DIAG mode\n",
+		pr_warn("%s: Device type %d is yest supported in DIAG mode\n",
 			dev_name(&device->cdev->dev),
 			private->rdc_data.vdev_class);
 		rc = -EOPNOTSUPP;
@@ -407,7 +407,7 @@ dasd_diag_check_device(struct dasd_device *device)
 		memset(&private->iob, 0, sizeof (struct dasd_diag_rw_io));
 		private->iob.dev_nr = rdc_data->dev_nr;
 		private->iob.key = 0;
-		private->iob.flags = 0;	/* do synchronous io */
+		private->iob.flags = 0;	/* do synchroyesus io */
 		private->iob.block_count = 1;
 		private->iob.interrupt_params = 0;
 		private->iob.bio_list = &bio;
@@ -469,7 +469,7 @@ out:
 	return rc;
 }
 
-/* Fill in virtual disk geometry for device. Return zero on success, non-zero
+/* Fill in virtual disk geometry for device. Return zero on success, yesn-zero
  * otherwise. */
 static int
 dasd_diag_fill_geometry(struct dasd_block *block, struct hd_geometry *geo)
@@ -530,7 +530,7 @@ static struct dasd_ccw_req *dasd_diag_build_cp(struct dasd_device *memdev,
 			return ERR_PTR(-EINVAL);
 		count += bv.bv_len >> (block->s2b_shift + 9);
 	}
-	/* Paranoia. */
+	/* Parayesia. */
 	if (count != last_rec - first_rec + 1)
 		return ERR_PTR(-EINVAL);
 	/* Build the request */
@@ -559,7 +559,7 @@ static struct dasd_ccw_req *dasd_diag_build_cp(struct dasd_device *memdev,
 	}
 	cqr->retries = memdev->default_retries;
 	cqr->buildclk = get_tod_clock();
-	if (blk_noretry_request(req) ||
+	if (blk_yesretry_request(req) ||
 	    block->base->features & DASD_FEATURE_FAILFAST)
 		set_bit(DASD_CQR_FLAGS_FAILFAST, &cqr->flags);
 	cqr->startdev = memdev;
@@ -570,7 +570,7 @@ static struct dasd_ccw_req *dasd_diag_build_cp(struct dasd_device *memdev,
 	return cqr;
 }
 
-/* Release DASD request. Return non-zero if request was successful, zero
+/* Release DASD request. Return yesn-zero if request was successful, zero
  * otherwise. */
 static int
 dasd_diag_free_cp(struct dasd_ccw_req *cqr, struct request *req)
@@ -612,7 +612,7 @@ dasd_diag_dump_sense(struct dasd_device *device, struct dasd_ccw_req * req,
 		     struct irb *stat)
 {
 	DBF_DEV_EVENT(DBF_WARNING, device, "%s",
-		    "dump sense not available for DIAG data");
+		    "dump sense yest available for DIAG data");
 }
 
 /*
@@ -658,7 +658,7 @@ static int __init
 dasd_diag_init(void)
 {
 	if (!MACHINE_IS_VM) {
-		pr_info("Discipline %s cannot be used without z/VM\n",
+		pr_info("Discipline %s canyest be used without z/VM\n",
 			dasd_diag_discipline.name);
 		return -ENODEV;
 	}

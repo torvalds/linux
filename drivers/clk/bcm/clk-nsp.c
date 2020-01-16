@@ -36,9 +36,9 @@
 #define ENABLE_VAL(o, es, hs, bs) { .offset = o, .enable_shift = es, \
 	.hold_shift = hs, .bypass_shift = bs }
 
-static void __init nsp_armpll_init(struct device_node *node)
+static void __init nsp_armpll_init(struct device_yesde *yesde)
 {
-	iproc_armpll_setup(node);
+	iproc_armpll_setup(yesde);
 }
 CLK_OF_DECLARE(nsp_armpll, "brcm,nsp-armpll", nsp_armpll_init);
 
@@ -92,9 +92,9 @@ static const struct iproc_clk_ctrl genpll_clk[] = {
 	},
 };
 
-static void __init nsp_genpll_clk_init(struct device_node *node)
+static void __init nsp_genpll_clk_init(struct device_yesde *yesde)
 {
-	iproc_pll_clk_setup(node, &genpll, NULL, 0, genpll_clk,
+	iproc_pll_clk_setup(yesde, &genpll, NULL, 0, genpll_clk,
 			    ARRAY_SIZE(genpll_clk));
 }
 CLK_OF_DECLARE(nsp_genpll_clk, "brcm,nsp-genpll", nsp_genpll_clk_init);
@@ -131,9 +131,9 @@ static const struct iproc_clk_ctrl lcpll0_clk[] = {
 	},
 };
 
-static void __init nsp_lcpll0_clk_init(struct device_node *node)
+static void __init nsp_lcpll0_clk_init(struct device_yesde *yesde)
 {
-	iproc_pll_clk_setup(node, &lcpll0, NULL, 0, lcpll0_clk,
+	iproc_pll_clk_setup(yesde, &lcpll0, NULL, 0, lcpll0_clk,
 			    ARRAY_SIZE(lcpll0_clk));
 }
 CLK_OF_DECLARE(nsp_lcpll0_clk, "brcm,nsp-lcpll0", nsp_lcpll0_clk_init);

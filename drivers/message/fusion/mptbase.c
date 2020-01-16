@@ -3,7 +3,7 @@
  *      This is the Fusion MPT base driver which supports multiple
  *      (SCSI + LAN) specialized protocol drivers.
  *      For use with LSI PCI chip/adapter(s)
- *      running LSI Fusion MPT (Message Passing Technology) firmware.
+ *      running LSI Fusion MPT (Message Passing Techyeslogy) firmware.
  *
  *  Copyright (c) 1999-2008 LSI Corporation
  *  (mailto:DL-MPTFusionLinux@lsi.com)
@@ -27,7 +27,7 @@
     MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE. Each Recipient is
     solely responsible for determining the appropriateness of using and
     distributing the Program and assumes all risks associated with its
-    exercise of rights under this Agreement, including but not limited to
+    exercise of rights under this Agreement, including but yest limited to
     the risks and costs of program errors, damage to or loss of data,
     programs or equipment, and unavailability or interruption of operations.
 
@@ -41,14 +41,14 @@
     HEREUNDER, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGES
 
     You should have received a copy of the GNU General Public License
-    along with this program; if not, write to the Free Software
+    along with this program; if yest, write to the Free Software
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
 
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/init.h>
 #include <linux/seq_file.h>
 #include <linux/slab.h>
@@ -175,8 +175,8 @@ static int	SendIocInit(MPT_ADAPTER *ioc, int sleepFlag);
 static int	SendPortEnable(MPT_ADAPTER *ioc, int portnum, int sleepFlag);
 static int	mpt_do_upload(MPT_ADAPTER *ioc, int sleepFlag);
 static int	mpt_downloadboot(MPT_ADAPTER *ioc, MpiFwHeader_t *pFwHeader, int sleepFlag);
-static int	mpt_diag_reset(MPT_ADAPTER *ioc, int ignore, int sleepFlag);
-static int	KickStart(MPT_ADAPTER *ioc, int ignore, int sleepFlag);
+static int	mpt_diag_reset(MPT_ADAPTER *ioc, int igyesre, int sleepFlag);
+static int	KickStart(MPT_ADAPTER *ioc, int igyesre, int sleepFlag);
 static int	SendIocReset(MPT_ADAPTER *ioc, u8 reset_type, int sleepFlag);
 static int	PrimeIocFifos(MPT_ADAPTER *ioc);
 static int	WaitForDoorbellAck(MPT_ADAPTER *ioc, int howlong, int sleepFlag);
@@ -370,7 +370,7 @@ mpt_fault_reset_work(struct work_struct *work)
 
 	ioc_raw_state = mpt_GetIocState(ioc, 0);
 	if ((ioc_raw_state & MPI_IOC_STATE_MASK) == MPI_IOC_STATE_MASK) {
-		printk(MYIOC_s_INFO_FMT "%s: IOC is non-operational !!!!\n",
+		printk(MYIOC_s_INFO_FMT "%s: IOC is yesn-operational !!!!\n",
 		    ioc->name, __func__);
 
 		/*
@@ -463,7 +463,7 @@ mpt_turbo_reply(MPT_ADAPTER *ioc, u32 pa)
 		 *  after lan_reply says "freeme"
 		 *  Fix sort of combined with an optimization here;
 		 *  added explicit check for case where lan_reply
-		 *  was just returning 1 and doing nothing else.
+		 *  was just returning 1 and doing yesthing else.
 		 *  For this case skip the callback, but set up
 		 *  proper mf value first here:-)
 		 */
@@ -512,7 +512,7 @@ mpt_reply(MPT_ADAPTER *ioc, u32 pa)
 	u32 reply_dma_low;
 	u16 ioc_stat;
 
-	/* non-TURBO reply!  Hmmm, something may be up...
+	/* yesn-TURBO reply!  Hmmm, something may be up...
 	 *  Newest turbo reply mechanism; get address
 	 *  via left shift 1 (get rid of MPI_ADDRESS_REPLY_A_BIT)!
 	 */
@@ -530,7 +530,7 @@ mpt_reply(MPT_ADAPTER *ioc, u32 pa)
 	cb_idx = mr->u.frame.hwhdr.msgctxu.fld.cb_idx;
 	mf = MPT_INDEX_2_MFPTR(ioc, req_idx);
 
-	dmfprintk(ioc, printk(MYIOC_s_DEBUG_FMT "Got non-TURBO reply=%p req_idx=%x cb_idx=%x Function=%x\n",
+	dmfprintk(ioc, printk(MYIOC_s_DEBUG_FMT "Got yesn-TURBO reply=%p req_idx=%x cb_idx=%x Function=%x\n",
 			ioc->name, mr, req_idx, cb_idx, mr->u.hdr.Function));
 	DBG_DUMP_REPLY_FRAME(ioc, (u32 *)mr);
 
@@ -562,7 +562,7 @@ mpt_reply(MPT_ADAPTER *ioc, u32 pa)
 	freeme = MptCallbacks[cb_idx](ioc, mf, mr);
 
  out:
-	/*  Flush (non-TURBO) reply with a WRITE!  */
+	/*  Flush (yesn-TURBO) reply with a WRITE!  */
 	CHIPREG_WRITE32(&ioc->chip->ReplyFifo, pa);
 
 	if (freeme)
@@ -573,7 +573,7 @@ mpt_reply(MPT_ADAPTER *ioc, u32 pa)
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
 /**
  *	mpt_interrupt - MPT adapter (IOC) specific interrupt handler.
- *	@irq: irq number (not used)
+ *	@irq: irq number (yest used)
  *	@bus_id: bus identifier cookie == pointer to MPT_ADAPTER structure
  *
  *	This routine is registered via the request_irq() kernel API call,
@@ -689,7 +689,7 @@ mptbase_reply(MPT_ADAPTER *ioc, MPT_FRAME_HDR *req, MPT_FRAME_HDR *reply)
  *	use any IOC resources, such as obtaining request frames.
  *
  *	NOTES: The SCSI protocol driver currently calls this routine thrice
- *	in order to register separate callbacks; one for "normal" SCSI IO;
+ *	in order to register separate callbacks; one for "yesrmal" SCSI IO;
  *	one for MptScsiTaskMgmt requests; one for Scan/DV requests.
  *
  *	Returns u8 valued "handle" in the range (and S.O.D. order)
@@ -749,7 +749,7 @@ mpt_deregister(u8 cb_idx)
  *	@ev_cbfunc: callback function
  *
  *	This routine can be called by one or more protocol-specific drivers
- *	if/when they choose to be notified of MPT events.
+ *	if/when they choose to be yestified of MPT events.
  *
  *	Returns 0 for success.
  */
@@ -769,7 +769,7 @@ mpt_event_register(u8 cb_idx, MPT_EVHANDLER ev_cbfunc)
  *	@cb_idx: previously registered callback handle
  *
  *	Each protocol-specific driver should call this routine
- *	when it does not (or can no longer) handle events,
+ *	when it does yest (or can yes longer) handle events,
  *	or when its module is unloaded.
  */
 void
@@ -788,7 +788,7 @@ mpt_event_deregister(u8 cb_idx)
  *	@reset_func: reset function
  *
  *	This routine can be called by one or more protocol-specific drivers
- *	if/when they choose to be notified of IOC resets.
+ *	if/when they choose to be yestified of IOC resets.
  *
  *	Returns 0 for success.
  */
@@ -808,7 +808,7 @@ mpt_reset_register(u8 cb_idx, MPT_RESETHANDLER reset_func)
  *	@cb_idx: previously registered callback handle
  *
  *	Each protocol-specific driver should call this routine
- *	when it does not (or can no longer) handle IOC reset handling,
+ *	when it does yest (or can yes longer) handle IOC reset handling,
  *	or when its module is unloaded.
  */
 void
@@ -882,8 +882,8 @@ mpt_device_driver_deregister(u8 cb_idx)
  *	Obtain an MPT request frame from the pool (of 1024) that are
  *	allocated per MPT adapter.
  *
- *	Returns pointer to a MPT request frame or %NULL if none are available
- *	or IOC is not active.
+ *	Returns pointer to a MPT request frame or %NULL if yesne are available
+ *	or IOC is yest active.
  */
 MPT_FRAME_HDR*
 mpt_get_msg_frame(u8 cb_idx, MPT_ADAPTER *ioc)
@@ -900,7 +900,7 @@ mpt_get_msg_frame(u8 cb_idx, MPT_ADAPTER *ioc)
 		    "returning NULL!\n", ioc->name);
 #endif
 
-	/* If interrupts are not attached, do not return a request frame */
+	/* If interrupts are yest attached, do yest return a request frame */
 	if (!ioc->active)
 		return NULL;
 
@@ -1030,7 +1030,7 @@ mpt_free_msg_frame(MPT_ADAPTER *ioc, MPT_FRAME_HDR *mf)
 	spin_lock_irqsave(&ioc->FreeQlock, flags);
 	if (cpu_to_le32(mf->u.frame.linkage.arg1) == 0xdeadbeaf)
 		goto out;
-	/* signature to know if this mf is freed */
+	/* signature to kyesw if this mf is freed */
 	mf->u.frame.linkage.arg1 = cpu_to_le32(0xdeadbeaf);
 	list_add(&mf->u.frame.linkage.list, &ioc->FreeQ);
 #ifdef MFCNT
@@ -1178,7 +1178,7 @@ mpt_add_chain_64bit(void *pAddr, u8 next, u16 length, dma_addr_t dma_addr)
  *	NOTE: It is the callers responsibility to byte-swap fields in the
  *	request which are greater than 1 byte in size.
  *
- *	Returns 0 for success, non-zero for failure.
+ *	Returns 0 for success, yesn-zero for failure.
  */
 int
 mpt_send_handshake_request(u8 cb_idx, MPT_ADAPTER *ioc, int reqBytes, u32 *req, int sleepFlag)
@@ -1187,7 +1187,7 @@ mpt_send_handshake_request(u8 cb_idx, MPT_ADAPTER *ioc, int reqBytes, u32 *req, 
 	u8	*req_as_bytes;
 	int	 ii;
 
-	/* State is known to be good upon entering
+	/* State is kyeswn to be good upon entering
 	 * this function so issue the bus reset
 	 * request.
 	 */
@@ -1204,7 +1204,7 @@ mpt_send_handshake_request(u8 cb_idx, MPT_ADAPTER *ioc, int reqBytes, u32 *req, 
 		mf->u.frame.hwhdr.msgctxu.fld.cb_idx = cb_idx;
 	}
 
-	/* Make sure there are no doorbells */
+	/* Make sure there are yes doorbells */
 	CHIPREG_WRITE32(&ioc->chip->IntStatus, 0);
 
 	CHIPREG_WRITE32(&ioc->chip->Doorbell,
@@ -1250,7 +1250,7 @@ mpt_send_handshake_request(u8 cb_idx, MPT_ADAPTER *ioc, int reqBytes, u32 *req, 
 	else
 		r = -4;
 
-	/* Make sure there are no doorbells */
+	/* Make sure there are yes doorbells */
 	CHIPREG_WRITE32(&ioc->chip->IntStatus, 0);
 
 	return r;
@@ -1272,7 +1272,7 @@ mpt_send_handshake_request(u8 cb_idx, MPT_ADAPTER *ioc, int reqBytes, u32 *req, 
  * 2h Disable Access { MPI_DB_HPBAC_DISABLE_ACCESS }
  * 3h Free Buffer { MPI_DB_HPBAC_FREE_BUFFER }
  *
- * Returns 0 for success, non-zero for failure.
+ * Returns 0 for success, yesn-zero for failure.
  */
 
 static int
@@ -1306,7 +1306,7 @@ mpt_host_page_access_control(MPT_ADAPTER *ioc, u8 access_control_value, int slee
  *	@ioc_init: Pointer to ioc init config page
  *
  *	If we already allocated memory in past, then resend the same pointer.
- *	Returns 0 for success, non-zero for failure.
+ *	Returns 0 for success, yesn-zero for failure.
  */
 static int
 mpt_host_page_alloc(MPT_ADAPTER *ioc, pIOCInit_t ioc_init)
@@ -1323,7 +1323,7 @@ mpt_host_page_alloc(MPT_ADAPTER *ioc, pIOCInit_t ioc_init)
 		if(!host_page_buffer_sz)
 			return 0; /* fw doesn't need any host buffers */
 
-		/* spin till we get enough memory */
+		/* spin till we get eyesugh memory */
 		while(host_page_buffer_sz > 0) {
 
 			if((ioc->HostPageBuffer = pci_alloc_consistent(
@@ -1375,7 +1375,7 @@ mpt_host_page_alloc(MPT_ADAPTER *ioc, pIOCInit_t ioc_init)
  *	adapter structure.
  *
  *	Returns iocid and sets iocpp if iocid is found.
- *	Returns -1 if iocid is not found.
+ *	Returns -1 if iocid is yest found.
  */
 int
 mpt_verify_adapter(int iocid, MPT_ADAPTER **iocpp)
@@ -1682,7 +1682,7 @@ mpt_mapresources(MPT_ADAPTER *ioc)
 				": 32 BIT PCI BUS DMA ADDRESSING SUPPORTED\n",
 				ioc->name));
 		} else {
-			printk(MYIOC_s_WARN_FMT "no suitable DMA mask for %s\n",
+			printk(MYIOC_s_WARN_FMT "yes suitable DMA mask for %s\n",
 			    ioc->name, pci_name(pdev));
 			goto out_pci_release_region;
 		}
@@ -1695,7 +1695,7 @@ mpt_mapresources(MPT_ADAPTER *ioc)
 				": 32 BIT PCI BUS DMA ADDRESSING SUPPORTED\n",
 				ioc->name));
 		} else {
-			printk(MYIOC_s_WARN_FMT "no suitable DMA mask for %s\n",
+			printk(MYIOC_s_WARN_FMT "yes suitable DMA mask for %s\n",
 			    ioc->name, pci_name(pdev));
 			goto out_pci_release_region;
 		}
@@ -1764,7 +1764,7 @@ out_pci_disable_device:
  *	This routine also pre-fetches the LAN MAC address of a Fibre Channel
  *	MPT adapter.
  *
- *	Returns 0 for success, non-zero for failure.
+ *	Returns 0 for success, yesn-zero for failure.
  *
  *	TODO: Add support for polled controllers
  */
@@ -2230,13 +2230,13 @@ mpt_resume(struct pci_dev *pdev)
 	 * Upon returning to the D0 state, the contents of the doorbell will be
 	 * stale data, and this will incorrectly signal to the host driver that
 	 * the firmware is ready to process mpt commands.   The workaround is
-	 * to issue a diagnostic reset.
+	 * to issue a diagyesstic reset.
 	 */
 	if (ioc->bus_type == SAS && (pdev->device ==
 	    MPI_MANUFACTPAGE_DEVID_SAS1068E || pdev->device ==
 	    MPI_MANUFACTPAGE_DEVID_SAS1064E)) {
 		if (KickStart(ioc, 1, CAN_SLEEP) < 0) {
-			printk(MYIOC_s_WARN_FMT "pci-resume: Cannot recover\n",
+			printk(MYIOC_s_WARN_FMT "pci-resume: Canyest recover\n",
 			    ioc->name);
 			goto out;
 		}
@@ -2247,7 +2247,7 @@ mpt_resume(struct pci_dev *pdev)
 	recovery_state = mpt_do_ioc_recovery(ioc, MPT_HOSTEVENT_IOC_BRINGUP,
 						 CAN_SLEEP);
 	if (recovery_state != 0)
-		printk(MYIOC_s_WARN_FMT "pci-resume: Cannot recover, "
+		printk(MYIOC_s_WARN_FMT "pci-resume: Canyest recover, "
 		    "error:[%x]\n", ioc->name, recovery_state);
 	else
 		printk(MYIOC_s_INFO_FMT
@@ -2412,9 +2412,9 @@ mpt_do_ioc_recovery(MPT_ADAPTER *ioc, u32 reason, int sleepFlag)
 	}
 
 	/*
-	 * Device is reset now. It must have de-asserted the interrupt line
+	 * Device is reset yesw. It must have de-asserted the interrupt line
 	 * (if it was asserted) and it should be safe to register for the
-	 * interrupt now.
+	 * interrupt yesw.
 	 */
 	if ((ret == 0) && (reason == MPT_HOSTEVENT_IOC_BRINGUP)) {
 		ioc->pci_irq = -1;
@@ -2486,7 +2486,7 @@ mpt_do_ioc_recovery(MPT_ADAPTER *ioc, u32 reason, int sleepFlag)
 			ddlprintk(ioc, printk(MYIOC_s_DEBUG_FMT
 			    "firmware upload required!\n", ioc->name));
 
-			/* Controller is not operational, cannot do upload
+			/* Controller is yest operational, canyest do upload
 			 */
 			if (ret == 0) {
 				rc = mpt_do_upload(ioc, sleepFlag);
@@ -2494,7 +2494,7 @@ mpt_do_ioc_recovery(MPT_ADAPTER *ioc, u32 reason, int sleepFlag)
 					if (ioc->alt_ioc && ioc->alt_ioc->cached_fw) {
 						/*
 						 * Maintain only one pointer to FW memory
-						 * so there will not be two attempt to
+						 * so there will yest be two attempt to
 						 * downloadboot onboard dual function
 						 * chips (mpt_adapter_disable,
 						 * mpt_diag_reset)
@@ -2667,7 +2667,7 @@ mpt_detect_bound_ports(MPT_ADAPTER *ioc, struct pci_dev *pdev)
 	list_for_each_entry(ioc_srch, &ioc_list, list) {
 		struct pci_dev *_pcidev = ioc_srch->pcidev;
 		if (_pcidev == peer) {
-			/* Paranoia checks */
+			/* Parayesia checks */
 			if (ioc->alt_ioc != NULL) {
 				printk(MYIOC_s_WARN_FMT
 				    "Oops, already bound (%s <==> %s)!\n",
@@ -2713,7 +2713,7 @@ mpt_adapter_disable(MPT_ADAPTER *ioc)
 	}
 
 	/*
-	 * Put the controller into ready state (if its not already)
+	 * Put the controller into ready state (if its yest already)
 	 */
 	if (mpt_GetIocState(ioc, 1) != MPI_IOC_STATE_READY) {
 		if (!SendIocReset(ioc, MPI_FUNCTION_IOC_MESSAGE_UNIT_RESET,
@@ -2970,7 +2970,7 @@ MakeIocReady(MPT_ADAPTER *ioc, int force, int sleepFlag)
 
 		/* Check WhoInit.
 		 * If PCI Peer, exit.
-		 * Else, if no fault conditions are present, issue a MessageUnitReset
+		 * Else, if yes fault conditions are present, issue a MessageUnitReset
 		 * Else, fall through to KickStart case
 		 */
 		whoinit = (ioc_state & MPI_DOORBELL_WHO_INIT_MASK) >> MPI_DOORBELL_WHO_INIT_SHIFT;
@@ -3011,7 +3011,7 @@ MakeIocReady(MPT_ADAPTER *ioc, int force, int sleepFlag)
 		} else if (ioc_state == MPI_IOC_STATE_RESET) {
 			/*
 			 *  Something is wrong.  Try to get IOC back
-			 *  to a known state.
+			 *  to a kyeswn state.
 			 */
 			if ((r = SendIocReset(ioc, MPI_FUNCTION_IO_UNIT_RESET, sleepFlag)) != 0) {
 				printk(MYIOC_s_ERR_FMT "IO unit reset failed!\n", ioc->name);
@@ -3074,7 +3074,7 @@ mpt_GetIocState(MPT_ADAPTER *ioc, int cooked)
  *	@sleepFlag: Specifies whether the process can sleep
  *	@reason: If recovery, only update facts.
  *
- *	Returns 0 for success, non-zero for failure.
+ *	Returns 0 for success, yesn-zero for failure.
  */
 static int
 GetIocFacts(MPT_ADAPTER *ioc, int sleepFlag, int reason)
@@ -3102,7 +3102,7 @@ GetIocFacts(MPT_ADAPTER *ioc, int sleepFlag, int reason)
 	reply_sz = sizeof(*facts);
 	memset(facts, 0, reply_sz);
 
-	/* Request area (get_facts on the stack right now!) */
+	/* Request area (get_facts on the stack right yesw!) */
 	req_sz = sizeof(get_facts);
 	memset(&get_facts, 0, req_sz);
 
@@ -3113,7 +3113,7 @@ GetIocFacts(MPT_ADAPTER *ioc, int sleepFlag, int reason)
 	    "Sending get IocFacts request req_sz=%d reply_sz=%d\n",
 	    ioc->name, req_sz, reply_sz));
 
-	/* No non-zero fields in the get_facts request are greater than
+	/* No yesn-zero fields in the get_facts request are greater than
 	 * 1 byte in size, so we can just fire it off as is.
 	 */
 	r = mpt_handshake_req_reply_wait(ioc, req_sz, (u32*)&get_facts,
@@ -3132,7 +3132,7 @@ GetIocFacts(MPT_ADAPTER *ioc, int sleepFlag, int reason)
 	if (facts->MsgLength > offsetof(IOCFactsReply_t, RequestFrameSize)/sizeof(u32)) {
 		if (reason == MPT_HOSTEVENT_IOC_BRINGUP) {
 			/*
-			 * If not been here, done that, save off first WhoInit value
+			 * If yest been here, done that, save off first WhoInit value
 			 */
 			if (ioc->FirstWhoInit == WHOINIT_UNKNOWN)
 				ioc->FirstWhoInit = facts->WhoInit;
@@ -3151,8 +3151,8 @@ GetIocFacts(MPT_ADAPTER *ioc, int sleepFlag, int reason)
 
 		/*
 		 * FC f/w version changed between 1.1 and 1.2
-		 *	Old: u16{Major(4),Minor(4),SubMinor(8)}
-		 *	New: u32{Major(8),Minor(8),Unit(8),Dev(8)}
+		 *	Old: u16{Major(4),Miyesr(4),SubMiyesr(8)}
+		 *	New: u32{Major(8),Miyesr(8),Unit(8),Dev(8)}
 		 */
 		if (facts->MsgVersion < MPI_VERSION_01_02) {
 			/*
@@ -3249,7 +3249,7 @@ GetIocFacts(MPT_ADAPTER *ioc, int sleepFlag, int reason)
  *	@portnum: Port number
  *	@sleepFlag: Specifies whether the process can sleep
  *
- *	Returns 0 for success, non-zero for failure.
+ *	Returns 0 for success, yesn-zero for failure.
  */
 static int
 GetPortFacts(MPT_ADAPTER *ioc, int portnum, int sleepFlag)
@@ -3274,7 +3274,7 @@ GetPortFacts(MPT_ADAPTER *ioc, int portnum, int sleepFlag)
 	reply_sz = sizeof(*pfacts);
 	memset(pfacts, 0, reply_sz);
 
-	/* Request area (get_pfacts on the stack right now!) */
+	/* Request area (get_pfacts on the stack right yesw!) */
 	req_sz = sizeof(get_pfacts);
 	memset(&get_pfacts, 0, req_sz);
 
@@ -3285,7 +3285,7 @@ GetPortFacts(MPT_ADAPTER *ioc, int portnum, int sleepFlag)
 	dinitprintk(ioc, printk(MYIOC_s_DEBUG_FMT "Sending get PortFacts(%d) request\n",
 			ioc->name, portnum));
 
-	/* No non-zero fields in the get_pfacts request are greater than
+	/* No yesn-zero fields in the get_pfacts request are greater than
 	 * 1 byte in size, so we can just fire it off as is.
 	 */
 	ii = mpt_handshake_req_reply_wait(ioc, req_sz, (u32*)&get_pfacts,
@@ -3332,7 +3332,7 @@ GetPortFacts(MPT_ADAPTER *ioc, int portnum, int sleepFlag)
  *
  *	Send IOCInit followed by PortEnable to bring IOC to OPERATIONAL state.
  *
- *	Returns 0 for success, non-zero for failure.
+ *	Returns 0 for success, yesn-zero for failure.
  */
 static int
 SendIocInit(MPT_ADAPTER *ioc, int sleepFlag)
@@ -3351,7 +3351,7 @@ SendIocInit(MPT_ADAPTER *ioc, int sleepFlag)
 	ioc_init.Function = MPI_FUNCTION_IOC_INIT;
 
 	/* If we are in a recovery mode and we uploaded the FW image,
-	 * then this pointer is not NULL. Skip the upload a second time.
+	 * then this pointer is yest NULL. Skip the upload a second time.
 	 * Set this flag if cached_fw set for either IOC.
 	 */
 	if (ioc->facts.Flags & MPI_IOCFACTS_FLAGS_FW_DOWNLOAD_BOOT)
@@ -3456,7 +3456,7 @@ SendIocInit(MPT_ADAPTER *ioc, int sleepFlag)
  *
  *	Send PortEnable to bring IOC to OPERATIONAL state.
  *
- *	Returns 0 for success, non-zero for failure.
+ *	Returns 0 for success, yesn-zero for failure.
  */
 static int
 SendPortEnable(MPT_ADAPTER *ioc, int portnum, int sleepFlag)
@@ -3505,7 +3505,7 @@ SendPortEnable(MPT_ADAPTER *ioc, int portnum, int sleepFlag)
  *	If memory has already been allocated, the same (cached) value
  *	is returned.
  *
- *	Return 0 if successful, or non-zero for failure
+ *	Return 0 if successful, or yesn-zero for failure
  **/
 int
 mpt_alloc_fw_memory(MPT_ADAPTER *ioc, int size)
@@ -3698,7 +3698,7 @@ mpt_downloadboot(MPT_ADAPTER *ioc, MpiFwHeader_t *pFwHeader, int sleepFlag)
 	CHIPREG_WRITE32(&ioc->chip->WriteSequence, MPI_WRSEQ_4TH_KEY_VALUE);
 	CHIPREG_WRITE32(&ioc->chip->WriteSequence, MPI_WRSEQ_5TH_KEY_VALUE);
 
-	CHIPREG_WRITE32(&ioc->chip->Diagnostic, (MPI_DIAG_PREVENT_IOC_BOOT | MPI_DIAG_DISABLE_ARM));
+	CHIPREG_WRITE32(&ioc->chip->Diagyesstic, (MPI_DIAG_PREVENT_IOC_BOOT | MPI_DIAG_DISABLE_ARM));
 
 	/* wait 1 msec */
 	if (sleepFlag == CAN_SLEEP) {
@@ -3707,11 +3707,11 @@ mpt_downloadboot(MPT_ADAPTER *ioc, MpiFwHeader_t *pFwHeader, int sleepFlag)
 		mdelay (1);
 	}
 
-	diag0val = CHIPREG_READ32(&ioc->chip->Diagnostic);
-	CHIPREG_WRITE32(&ioc->chip->Diagnostic, diag0val | MPI_DIAG_RESET_ADAPTER);
+	diag0val = CHIPREG_READ32(&ioc->chip->Diagyesstic);
+	CHIPREG_WRITE32(&ioc->chip->Diagyesstic, diag0val | MPI_DIAG_RESET_ADAPTER);
 
 	for (count = 0; count < 30; count ++) {
-		diag0val = CHIPREG_READ32(&ioc->chip->Diagnostic);
+		diag0val = CHIPREG_READ32(&ioc->chip->Diagyesstic);
 		if (!(diag0val & MPI_DIAG_RESET_ADAPTER)) {
 			ddlprintk(ioc, printk(MYIOC_s_DEBUG_FMT "RESET_ADAPTER cleared, count=%d\n",
 				ioc->name, count));
@@ -3740,7 +3740,7 @@ mpt_downloadboot(MPT_ADAPTER *ioc, MpiFwHeader_t *pFwHeader, int sleepFlag)
 	CHIPREG_WRITE32(&ioc->chip->WriteSequence, MPI_WRSEQ_5TH_KEY_VALUE);
 
 	/* Set the DiagRwEn and Disable ARM bits */
-	CHIPREG_WRITE32(&ioc->chip->Diagnostic, (MPI_DIAG_RW_ENABLE | MPI_DIAG_DISABLE_ARM));
+	CHIPREG_WRITE32(&ioc->chip->Diagyesstic, (MPI_DIAG_RW_ENABLE | MPI_DIAG_DISABLE_ARM));
 
 	fwSize = (pFwHeader->ImageSize + 3)/4;
 	ptrFw = (u32 *) pFwHeader;
@@ -3803,8 +3803,8 @@ mpt_downloadboot(MPT_ADAPTER *ioc, MpiFwHeader_t *pFwHeader, int sleepFlag)
 		CHIPREG_PIO_WRITE32(&ioc->pio_chip->DiagRwData, diagRwData);
 
 	} else /* if((ioc->bus_type == SAS) || (ioc->bus_type == FC)) */ {
-		diag0val = CHIPREG_READ32(&ioc->chip->Diagnostic);
-		CHIPREG_WRITE32(&ioc->chip->Diagnostic, diag0val |
+		diag0val = CHIPREG_READ32(&ioc->chip->Diagyesstic);
+		CHIPREG_WRITE32(&ioc->chip->Diagyesstic, diag0val |
 		    MPI_DIAG_CLEAR_FLASH_BAD_SIG);
 
 		/* wait 1 msec */
@@ -3818,14 +3818,14 @@ mpt_downloadboot(MPT_ADAPTER *ioc, MpiFwHeader_t *pFwHeader, int sleepFlag)
 	if (ioc->errata_flag_1064)
 		pci_disable_io_access(ioc->pcidev);
 
-	diag0val = CHIPREG_READ32(&ioc->chip->Diagnostic);
+	diag0val = CHIPREG_READ32(&ioc->chip->Diagyesstic);
 	ddlprintk(ioc, printk(MYIOC_s_DEBUG_FMT "downloadboot diag0val=%x, "
 		"turning off PREVENT_IOC_BOOT, DISABLE_ARM, RW_ENABLE\n",
 		ioc->name, diag0val));
 	diag0val &= ~(MPI_DIAG_PREVENT_IOC_BOOT | MPI_DIAG_DISABLE_ARM | MPI_DIAG_RW_ENABLE);
-	ddlprintk(ioc, printk(MYIOC_s_DEBUG_FMT "downloadboot now diag0val=%x\n",
+	ddlprintk(ioc, printk(MYIOC_s_DEBUG_FMT "downloadboot yesw diag0val=%x\n",
 		ioc->name, diag0val));
-	CHIPREG_WRITE32(&ioc->chip->Diagnostic, diag0val);
+	CHIPREG_WRITE32(&ioc->chip->Diagyesstic, diag0val);
 
 	/* Write 0xFF to reset the sequencer */
 	CHIPREG_WRITE32(&ioc->chip->WriteSequence, 0xFF);
@@ -3877,11 +3877,11 @@ mpt_downloadboot(MPT_ADAPTER *ioc, MpiFwHeader_t *pFwHeader, int sleepFlag)
  *	@force: Force hard reset
  *	@sleepFlag: Specifies whether the process can sleep
  *
- *	This routine places MPT adapter in diagnostic mode via the
+ *	This routine places MPT adapter in diagyesstic mode via the
  *	WriteSequence register, and then performs a hard reset of adapter
- *	via the Diagnostic register.
+ *	via the Diagyesstic register.
  *
- *	Inputs:   sleepflag - CAN_SLEEP (non-interrupt thread)
+ *	Inputs:   sleepflag - CAN_SLEEP (yesn-interrupt thread)
  *			or NO_SLEEP (interrupt thread, use mdelay)
  *		  force - 1 if doorbell active, board fault state
  *				board operational, IOC_RECOVERY or
@@ -3890,10 +3890,10 @@ mpt_downloadboot(MPT_ADAPTER *ioc, MpiFwHeader_t *pFwHeader, int sleepFlag)
  *
  *	Returns:
  *		 1 - hard reset, READY
- *		 0 - no reset due to History bit, READY
- *		-1 - no reset due to History bit but not READY
+ *		 0 - yes reset due to History bit, READY
+ *		-1 - yes reset due to History bit but yest READY
  *		     OR reset but failed to come READY
- *		-2 - no reset, could not enter DIAG mode
+ *		-2 - yes reset, could yest enter DIAG mode
  *		-3 - reset but bad FW bit
  */
 static int
@@ -3921,7 +3921,7 @@ KickStart(MPT_ADAPTER *ioc, int force, int sleepFlag)
 	if (hard_reset_done < 0)
 		return hard_reset_done;
 
-	dinitprintk(ioc, printk(MYIOC_s_DEBUG_FMT "Diagnostic reset successful!\n",
+	dinitprintk(ioc, printk(MYIOC_s_DEBUG_FMT "Diagyesstic reset successful!\n",
 		ioc->name));
 
 	cntdn = ((sleepFlag == CAN_SLEEP) ? HZ : 1000) * 2;	/* 2 seconds */
@@ -3948,23 +3948,23 @@ KickStart(MPT_ADAPTER *ioc, int force, int sleepFlag)
 /**
  *	mpt_diag_reset - Perform hard reset of the adapter.
  *	@ioc: Pointer to MPT_ADAPTER structure
- *	@ignore: Set if to honor and clear to ignore
+ *	@igyesre: Set if to hoyesr and clear to igyesre
  *		the reset history bit
- *	@sleepFlag: CAN_SLEEP if called in a non-interrupt thread,
+ *	@sleepFlag: CAN_SLEEP if called in a yesn-interrupt thread,
  *		else set to NO_SLEEP (use mdelay instead)
  *
- *	This routine places the adapter in diagnostic mode via the
+ *	This routine places the adapter in diagyesstic mode via the
  *	WriteSequence register and then performs a hard reset of adapter
- *	via the Diagnostic register. Adapter should be in ready state
+ *	via the Diagyesstic register. Adapter should be in ready state
  *	upon successful completion.
  *
  *	Returns:  1  hard reset successful
- *		  0  no reset performed because reset history bit set
- *		 -2  enabling diagnostic mode failed
- *		 -3  diagnostic reset failed
+ *		  0  yes reset performed because reset history bit set
+ *		 -2  enabling diagyesstic mode failed
+ *		 -3  diagyesstic reset failed
  */
 static int
-mpt_diag_reset(MPT_ADAPTER *ioc, int ignore, int sleepFlag)
+mpt_diag_reset(MPT_ADAPTER *ioc, int igyesre, int sleepFlag)
 {
 	u32 diag0val;
 	u32 doorbell;
@@ -3979,7 +3979,7 @@ mpt_diag_reset(MPT_ADAPTER *ioc, int ignore, int sleepFlag)
 
 	if (ioc->pcidev->device == MPI_MANUFACTPAGE_DEVID_SAS1078) {
 
-		if (!ignore)
+		if (!igyesre)
 			return 0;
 
 		drsprintk(ioc, printk(MYIOC_s_WARN_FMT "%s: Doorbell=%p; 1078 reset "
@@ -3994,7 +3994,7 @@ mpt_diag_reset(MPT_ADAPTER *ioc, int ignore, int sleepFlag)
 		/*
 		 * Call each currently registered protocol IOC reset handler
 		 * with pre-reset indication.
-		 * NOTE: If we're doing _IOC_BRINGUP, there can be no
+		 * NOTE: If we're doing _IOC_BRINGUP, there can be yes
 		 * MptResetHandlers[] registered yet.
 		 */
 		for (cb_idx = MPT_MAX_PROTOCOL_DRIVERS-1; cb_idx; cb_idx--) {
@@ -4025,23 +4025,23 @@ mpt_diag_reset(MPT_ADAPTER *ioc, int ignore, int sleepFlag)
 		return -1;
 	}
 
-	/* Use "Diagnostic reset" method! (only thing available!) */
-	diag0val = CHIPREG_READ32(&ioc->chip->Diagnostic);
+	/* Use "Diagyesstic reset" method! (only thing available!) */
+	diag0val = CHIPREG_READ32(&ioc->chip->Diagyesstic);
 
 	if (ioc->debug_level & MPT_DEBUG) {
 		if (ioc->alt_ioc)
-			diag1val = CHIPREG_READ32(&ioc->alt_ioc->chip->Diagnostic);
+			diag1val = CHIPREG_READ32(&ioc->alt_ioc->chip->Diagyesstic);
 		dprintk(ioc, printk(MYIOC_s_DEBUG_FMT "DbG1: diag0=%08x, diag1=%08x\n",
 			ioc->name, diag0val, diag1val));
 	}
 
-	/* Do the reset if we are told to ignore the reset history
+	/* Do the reset if we are told to igyesre the reset history
 	 * or if the reset history is 0
 	 */
-	if (ignore || !(diag0val & MPI_DIAG_RESET_HISTORY)) {
+	if (igyesre || !(diag0val & MPI_DIAG_RESET_HISTORY)) {
 		while ((diag0val & MPI_DIAG_DRWE) == 0) {
 			/* Write magic sequence to WriteSequence register
-			 * Loop until in diagnostic mode
+			 * Loop until in diagyesstic mode
 			 */
 			CHIPREG_WRITE32(&ioc->chip->WriteSequence, 0xFF);
 			CHIPREG_WRITE32(&ioc->chip->WriteSequence, MPI_WRSEQ_1ST_KEY_VALUE);
@@ -4059,13 +4059,13 @@ mpt_diag_reset(MPT_ADAPTER *ioc, int ignore, int sleepFlag)
 
 			count++;
 			if (count > 20) {
-				printk(MYIOC_s_ERR_FMT "Enable Diagnostic mode FAILED! (%02xh)\n",
+				printk(MYIOC_s_ERR_FMT "Enable Diagyesstic mode FAILED! (%02xh)\n",
 						ioc->name, diag0val);
 				return -2;
 
 			}
 
-			diag0val = CHIPREG_READ32(&ioc->chip->Diagnostic);
+			diag0val = CHIPREG_READ32(&ioc->chip->Diagyesstic);
 
 			dprintk(ioc, printk(MYIOC_s_DEBUG_FMT "Wrote magic DiagWriteEn sequence (%x)\n",
 					ioc->name, diag0val));
@@ -4073,7 +4073,7 @@ mpt_diag_reset(MPT_ADAPTER *ioc, int ignore, int sleepFlag)
 
 		if (ioc->debug_level & MPT_DEBUG) {
 			if (ioc->alt_ioc)
-				diag1val = CHIPREG_READ32(&ioc->alt_ioc->chip->Diagnostic);
+				diag1val = CHIPREG_READ32(&ioc->alt_ioc->chip->Diagyesstic);
 			dprintk(ioc, printk(MYIOC_s_DEBUG_FMT "DbG2: diag0=%08x, diag1=%08x\n",
 				ioc->name, diag0val, diag1val));
 		}
@@ -4081,22 +4081,22 @@ mpt_diag_reset(MPT_ADAPTER *ioc, int ignore, int sleepFlag)
 		 * Disable the ARM (Bug fix)
 		 *
 		 */
-		CHIPREG_WRITE32(&ioc->chip->Diagnostic, diag0val | MPI_DIAG_DISABLE_ARM);
+		CHIPREG_WRITE32(&ioc->chip->Diagyesstic, diag0val | MPI_DIAG_DISABLE_ARM);
 		mdelay(1);
 
 		/*
-		 * Now hit the reset bit in the Diagnostic register
+		 * Now hit the reset bit in the Diagyesstic register
 		 * (THE BIG HAMMER!) (Clears DRWE bit).
 		 */
-		CHIPREG_WRITE32(&ioc->chip->Diagnostic, diag0val | MPI_DIAG_RESET_ADAPTER);
+		CHIPREG_WRITE32(&ioc->chip->Diagyesstic, diag0val | MPI_DIAG_RESET_ADAPTER);
 		hard_reset_done = 1;
-		dprintk(ioc, printk(MYIOC_s_DEBUG_FMT "Diagnostic reset performed\n",
+		dprintk(ioc, printk(MYIOC_s_DEBUG_FMT "Diagyesstic reset performed\n",
 				ioc->name));
 
 		/*
 		 * Call each currently registered protocol IOC reset handler
 		 * with pre-reset indication.
-		 * NOTE: If we're doing _IOC_BRINGUP, there can be no
+		 * NOTE: If we're doing _IOC_BRINGUP, there can be yes
 		 * MptResetHandlers[] registered yet.
 		 */
 		for (cb_idx = MPT_MAX_PROTOCOL_DRIVERS-1; cb_idx; cb_idx--) {
@@ -4122,7 +4122,7 @@ mpt_diag_reset(MPT_ADAPTER *ioc, int ignore, int sleepFlag)
 			 * case.  _diag_reset will return < 0
 			 */
 			for (count = 0; count < 30; count ++) {
-				diag0val = CHIPREG_READ32(&ioc->chip->Diagnostic);
+				diag0val = CHIPREG_READ32(&ioc->chip->Diagyesstic);
 				if (!(diag0val & MPI_DIAG_RESET_ADAPTER)) {
 					break;
 				}
@@ -4145,7 +4145,7 @@ mpt_diag_reset(MPT_ADAPTER *ioc, int ignore, int sleepFlag)
 			/* Wait for FW to reload and for board
 			 * to go to the READY state.
 			 * Maximum wait is 60 seconds.
-			 * If fail, no error will check again
+			 * If fail, yes error will check again
 			 * with calling program.
 			 */
 			for (count = 0; count < 60; count ++) {
@@ -4175,22 +4175,22 @@ mpt_diag_reset(MPT_ADAPTER *ioc, int ignore, int sleepFlag)
 		}
 	}
 
-	diag0val = CHIPREG_READ32(&ioc->chip->Diagnostic);
+	diag0val = CHIPREG_READ32(&ioc->chip->Diagyesstic);
 	if (ioc->debug_level & MPT_DEBUG) {
 		if (ioc->alt_ioc)
-			diag1val = CHIPREG_READ32(&ioc->alt_ioc->chip->Diagnostic);
+			diag1val = CHIPREG_READ32(&ioc->alt_ioc->chip->Diagyesstic);
 		dprintk(ioc, printk(MYIOC_s_DEBUG_FMT "DbG3: diag0=%08x, diag1=%08x\n",
 			ioc->name, diag0val, diag1val));
 	}
 
 	/* Clear RESET_HISTORY bit!  Place board in the
-	 * diagnostic mode to update the diag register.
+	 * diagyesstic mode to update the diag register.
 	 */
-	diag0val = CHIPREG_READ32(&ioc->chip->Diagnostic);
+	diag0val = CHIPREG_READ32(&ioc->chip->Diagyesstic);
 	count = 0;
 	while ((diag0val & MPI_DIAG_DRWE) == 0) {
 		/* Write magic sequence to WriteSequence register
-		 * Loop until in diagnostic mode
+		 * Loop until in diagyesstic mode
 		 */
 		CHIPREG_WRITE32(&ioc->chip->WriteSequence, 0xFF);
 		CHIPREG_WRITE32(&ioc->chip->WriteSequence, MPI_WRSEQ_1ST_KEY_VALUE);
@@ -4208,42 +4208,42 @@ mpt_diag_reset(MPT_ADAPTER *ioc, int ignore, int sleepFlag)
 
 		count++;
 		if (count > 20) {
-			printk(MYIOC_s_ERR_FMT "Enable Diagnostic mode FAILED! (%02xh)\n",
+			printk(MYIOC_s_ERR_FMT "Enable Diagyesstic mode FAILED! (%02xh)\n",
 					ioc->name, diag0val);
 			break;
 		}
-		diag0val = CHIPREG_READ32(&ioc->chip->Diagnostic);
+		diag0val = CHIPREG_READ32(&ioc->chip->Diagyesstic);
 	}
 	diag0val &= ~MPI_DIAG_RESET_HISTORY;
-	CHIPREG_WRITE32(&ioc->chip->Diagnostic, diag0val);
-	diag0val = CHIPREG_READ32(&ioc->chip->Diagnostic);
+	CHIPREG_WRITE32(&ioc->chip->Diagyesstic, diag0val);
+	diag0val = CHIPREG_READ32(&ioc->chip->Diagyesstic);
 	if (diag0val & MPI_DIAG_RESET_HISTORY) {
 		printk(MYIOC_s_WARN_FMT "ResetHistory bit failed to clear!\n",
 				ioc->name);
 	}
 
-	/* Disable Diagnostic Mode
+	/* Disable Diagyesstic Mode
 	 */
 	CHIPREG_WRITE32(&ioc->chip->WriteSequence, 0xFFFFFFFF);
 
 	/* Check FW reload status flags.
 	 */
-	diag0val = CHIPREG_READ32(&ioc->chip->Diagnostic);
+	diag0val = CHIPREG_READ32(&ioc->chip->Diagyesstic);
 	if (diag0val & (MPI_DIAG_FLASH_BAD_SIG | MPI_DIAG_RESET_ADAPTER | MPI_DIAG_DISABLE_ARM)) {
-		printk(MYIOC_s_ERR_FMT "Diagnostic reset FAILED! (%02xh)\n",
+		printk(MYIOC_s_ERR_FMT "Diagyesstic reset FAILED! (%02xh)\n",
 				ioc->name, diag0val);
 		return -3;
 	}
 
 	if (ioc->debug_level & MPT_DEBUG) {
 		if (ioc->alt_ioc)
-			diag1val = CHIPREG_READ32(&ioc->alt_ioc->chip->Diagnostic);
+			diag1val = CHIPREG_READ32(&ioc->alt_ioc->chip->Diagyesstic);
 		dprintk(ioc, printk(MYIOC_s_DEBUG_FMT "DbG4: diag0=%08x, diag1=%08x\n",
 			ioc->name, diag0val, diag1val));
 	}
 
 	/*
-	 * Reset flag that says we've enabled event notification
+	 * Reset flag that says we've enabled event yestification
 	 */
 	ioc->facts.EventState = 0;
 
@@ -4263,7 +4263,7 @@ mpt_diag_reset(MPT_ADAPTER *ioc, int ignore, int sleepFlag)
  *
  *	Send IOCReset request to the MPT adapter.
  *
- *	Returns 0 for success, non-zero for failure.
+ *	Returns 0 for success, yesn-zero for failure.
  */
 static int
 SendIocReset(MPT_ADAPTER *ioc, u8 reset_type, int sleepFlag)
@@ -4360,7 +4360,7 @@ initChainBuffers(MPT_ADAPTER *ioc)
 	 * then multiply the maximum number of simultaneous cmds
 	 *
 	 * num_sge = num sge in request frame + last chain buffer
-	 * scale = num sge per chain buffer if no chain element
+	 * scale = num sge per chain buffer if yes chain element
 	 */
 	scale = ioc->req_sz / ioc->SGE_size;
 	if (ioc->sg_addr_size == sizeof(u64))
@@ -4430,7 +4430,7 @@ initChainBuffers(MPT_ADAPTER *ioc)
  *	pools (if necessary), and primes the IOC reply FIFO with
  *	reply frames.
  *
- *	Returns 0 for success, non-zero for failure.
+ *	Returns 0 for success, yesn-zero for failure.
  */
 static int
 PrimeIocFifos(MPT_ADAPTER *ioc)
@@ -4654,7 +4654,7 @@ out_fail:
  *	callers responsibility to byte-swap response fields which are
  *	greater than 1 byte in size.
  *
- *	Returns 0 for success, non-zero for failure.
+ *	Returns 0 for success, yesn-zero for failure.
  */
 static int
 mpt_handshake_req_reply_wait(MPT_ADAPTER *ioc, int reqBytes, u32 *req,
@@ -4672,7 +4672,7 @@ mpt_handshake_req_reply_wait(MPT_ADAPTER *ioc, int reqBytes, u32 *req,
 	mptReply->MsgLength = 0;
 
 	/*
-	 * Make sure there are no doorbells (WRITE 0 to IntStatus reg),
+	 * Make sure there are yes doorbells (WRITE 0 to IntStatus reg),
 	 * then tell IOC that we want to handshake a request of N words.
 	 * (WRITE u32val to Doorbell reg).
 	 */
@@ -4696,7 +4696,7 @@ mpt_handshake_req_reply_wait(MPT_ADAPTER *ioc, int reqBytes, u32 *req,
 
 	/*
 	 * Clear doorbell int (WRITE 0 to IntStatus reg),
-	 * then wait for IOC to ACKnowledge that it's ready for
+	 * then wait for IOC to ACKyeswledge that it's ready for
 	 * our handshake request.
 	 */
 	CHIPREG_WRITE32(&ioc->chip->IntStatus, 0);
@@ -4751,13 +4751,13 @@ mpt_handshake_req_reply_wait(MPT_ADAPTER *ioc, int reqBytes, u32 *req,
 
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
 /**
- *	WaitForDoorbellAck - Wait for IOC doorbell handshake acknowledge
+ *	WaitForDoorbellAck - Wait for IOC doorbell handshake ackyeswledge
  *	@ioc: Pointer to MPT_ADAPTER structure
  *	@howlong: How long to wait (in seconds)
  *	@sleepFlag: Specifies whether the process can sleep
  *
  *	This routine waits (up to ~2 seconds max) for IOC doorbell
- *	handshake ACKnowledge, indicated by the IOP_DOORBELL_STATUS
+ *	handshake ACKyeswledge, indicated by the IOP_DOORBELL_STATUS
  *	bit in its IntStatus register being clear.
  *
  *	Returns a negative value on failure, else wait loop count.
@@ -4857,7 +4857,7 @@ WaitForDoorbellInt(MPT_ADAPTER *ioc, int howlong, int sleepFlag)
  *	@sleepFlag: Specifies whether the process can sleep
  *
  *	This routine polls the IOC for a handshake reply, 16 bits at a time.
- *	Reply is cached to IOC private area large enough to hold a maximum
+ *	Reply is cached to IOC private area large eyesugh to hold a maximum
  *	of 128 bytes of reply data.
  *
  *	Returns a negative value on failure, else size of reply in WORDS.
@@ -4896,7 +4896,7 @@ WaitForDoorbellReply(MPT_ADAPTER *ioc, int howlong, int sleepFlag)
 			failcnt ? " - MISSING DOORBELL HANDSHAKE!" : ""));
 
 	/*
-	 * If no error (and IOC said MsgLength is > 0), piece together
+	 * If yes error (and IOC said MsgLength is > 0), piece together
 	 * reply 16 bits at a time.
 	 */
 	for (u16cnt=2; !failcnt && u16cnt < (2 * mptReply->MsgLength); u16cnt++) {
@@ -4941,10 +4941,10 @@ WaitForDoorbellReply(MPT_ADAPTER *ioc, int howlong, int sleepFlag)
  *	@ioc: Pointer to MPT_ADAPTER structure
  *
  *	Return: 0 for success
- *	-ENOMEM if no memory available
- *		-EPERM if not allowed due to ISR context
- *		-EAGAIN if no msg frames currently available
- *		-EFAULT for non-successful reply or no reply (timeout)
+ *	-ENOMEM if yes memory available
+ *		-EPERM if yest allowed due to ISR context
+ *		-EAGAIN if yes msg frames currently available
+ *		-EFAULT for yesn-successful reply or yes reply (timeout)
  */
 static int
 GetLanConfigPages(MPT_ADAPTER *ioc)
@@ -5053,12 +5053,12 @@ GetLanConfigPages(MPT_ADAPTER *ioc)
  *	@persist_opcode: see below
  *
  *	MPI_SAS_OP_CLEAR_NOT_PRESENT - Free all persist TargetID mappings for
- *		devices not currently present.
+ *		devices yest currently present.
  *	MPI_SAS_OP_CLEAR_ALL_PERSISTENT - Clear al persist TargetID mappings
  *
- *	NOTE: Don't use not this function during interrupt time.
+ *	NOTE: Don't use yest this function during interrupt time.
  *
- *	Returns 0 for success, non-zero error
+ *	Returns 0 for success, yesn-zero error
  */
 
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
@@ -5078,7 +5078,7 @@ mptbase_sas_persist_operation(MPT_ADAPTER *ioc, u8 persist_opcode)
 	memset(ioc->mptbase_cmds.reply, 0 , MPT_DEFAULT_FRAME_SIZE);
 	INITIALIZE_MGMT_STATUS(ioc->mptbase_cmds.status)
 
-	/* insure garbage is not sent to fw */
+	/* insure garbage is yest sent to fw */
 	switch(persist_opcode) {
 
 	case MPI_SAS_OP_CLEAR_NOT_PRESENT:
@@ -5096,7 +5096,7 @@ mptbase_sas_persist_operation(MPT_ADAPTER *ioc, u8 persist_opcode)
 	/* Get a MF for this command.
 	 */
 	if ((mf = mpt_get_msg_frame(mpt_base_index, ioc)) == NULL) {
-		printk(KERN_DEBUG "%s: no msg frames!\n", __func__);
+		printk(KERN_DEBUG "%s: yes msg frames!\n", __func__);
 		ret = -1;
 		goto out;
         }
@@ -5199,7 +5199,7 @@ mptbase_raid_process_event_data(MPT_ADAPTER *ioc,
 		break;
 
 	case MPI_EVENT_RAID_RC_VOLUME_STATUS_CHANGED:
-		printk(MYIOC_s_INFO_FMT "  volume is now %s%s%s%s\n",
+		printk(MYIOC_s_INFO_FMT "  volume is yesw %s%s%s%s\n",
 			ioc->name,
 			state == MPI_RAIDVOL0_STATUS_STATE_OPTIMAL
 			 ? "optimal"
@@ -5207,7 +5207,7 @@ mptbase_raid_process_event_data(MPT_ADAPTER *ioc,
 			  ? "degraded"
 			  : state == MPI_RAIDVOL0_STATUS_STATE_FAILED
 			   ? "failed"
-			   : "state unknown",
+			   : "state unkyeswn",
 			flags & MPI_RAIDVOL0_STATUS_FLAG_ENABLED
 			 ? ", enabled" : "",
 			flags & MPI_RAIDVOL0_STATUS_FLAG_QUIESCED
@@ -5237,14 +5237,14 @@ mptbase_raid_process_event_data(MPT_ADAPTER *ioc,
 		break;
 
 	case MPI_EVENT_RAID_RC_PHYSDISK_STATUS_CHANGED:
-		printk(MYIOC_s_INFO_FMT "  PhysDisk is now %s%s%s\n",
+		printk(MYIOC_s_INFO_FMT "  PhysDisk is yesw %s%s%s\n",
 			ioc->name,
 			state == MPI_PHYSDISK0_STATUS_ONLINE
 			 ? "online"
 			 : state == MPI_PHYSDISK0_STATUS_MISSING
 			  ? "missing"
 			  : state == MPI_PHYSDISK0_STATUS_NOT_COMPATIBLE
-			   ? "not compatible"
+			   ? "yest compatible"
 			   : state == MPI_PHYSDISK0_STATUS_FAILED
 			    ? "failed"
 			    : state == MPI_PHYSDISK0_STATUS_INITIALIZING
@@ -5255,7 +5255,7 @@ mptbase_raid_process_event_data(MPT_ADAPTER *ioc,
 			       ? "failed requested"
 			       : state == MPI_PHYSDISK0_STATUS_OTHER_OFFLINE
 			        ? "offline"
-			        : "state unknown",
+			        : "state unkyeswn",
 			flags & MPI_PHYSDISK0_STATUS_FLAG_OUT_OF_SYNC
 			 ? ", out of sync" : "",
 			flags & MPI_PHYSDISK0_STATUS_FLAG_QUIESCED
@@ -5285,10 +5285,10 @@ mptbase_raid_process_event_data(MPT_ADAPTER *ioc,
  *	@ioc: Pointer to MPT_ADAPTER structure
  *
  *	Returns: 0 for success
- *	-ENOMEM if no memory available
- *		-EPERM if not allowed due to ISR context
- *		-EAGAIN if no msg frames currently available
- *		-EFAULT for non-successful reply or no reply (timeout)
+ *	-ENOMEM if yes memory available
+ *		-EPERM if yest allowed due to ISR context
+ *		-EAGAIN if yes msg frames currently available
+ *		-EFAULT for yesn-successful reply or yes reply (timeout)
  */
 static int
 GetIoUnitPage2(MPT_ADAPTER *ioc)
@@ -5344,7 +5344,7 @@ GetIoUnitPage2(MPT_ADAPTER *ioc)
  *	@portnum: IOC port number
  *
  *	Return: -EFAULT if read of config page header fails
- *			or if no nvram
+ *			or if yes nvram
  *	If read of SCSI Port Page 0 fails,
  *		NVRAM = MPT_HOST_NVRAM_INVALID  (0xFFFFFFFF)
  *		Adapter settings: async, narrow
@@ -5427,9 +5427,9 @@ mpt_GetScsiPortSettings(MPT_ADAPTER *ioc, int portnum)
 				pPP0->PhysicalInterface = le32_to_cpu(pPP0->PhysicalInterface);
 
 				if ( (pPP0->Capabilities & MPI_SCSIPORTPAGE0_CAP_QAS) == 0 ) {
-					ioc->spi_data.noQas |= MPT_TARGET_NO_NEGO_QAS;
+					ioc->spi_data.yesQas |= MPT_TARGET_NO_NEGO_QAS;
 					ddvprintk(ioc, printk(MYIOC_s_DEBUG_FMT
-						"noQas due to Capabilities=%x\n",
+						"yesQas due to Capabilities=%x\n",
 						ioc->name, pPP0->Capabilities));
 				}
 				ioc->spi_data.maxBusWidth = pPP0->Capabilities & MPI_SCSIPORTPAGE0_CAP_WIDE ? 1 : 0;
@@ -5725,7 +5725,7 @@ mpt_inactive_raid_volumes(MPT_ADAPTER *ioc, u8 channel, u8 id)
  *
  *	Return:
  *	0 on success
- *	-EFAULT if read of config page header fails or data pointer not NULL
+ *	-EFAULT if read of config page header fails or data pointer yest NULL
  *	-ENOMEM if pci_alloc failed
  **/
 int
@@ -5861,7 +5861,7 @@ EXPORT_SYMBOL(mpt_raid_phys_disk_get_num_paths);
  *
  *	Return:
  *	0 on success
- *	-EFAULT if read of config page header fails or data pointer not NULL
+ *	-EFAULT if read of config page header fails or data pointer yest NULL
  *	-ENOMEM if pci_alloc failed
  **/
 int
@@ -5949,7 +5949,7 @@ EXPORT_SYMBOL(mpt_raid_phys_disk_pg1);
  *
  *	Return:
  *	0 on success
- *	-EFAULT if read of config page header fails or data pointer not NULL
+ *	-EFAULT if read of config page header fails or data pointer yest NULL
  *	-ENOMEM if pci_alloc failed
  **/
 int
@@ -6305,7 +6305,7 @@ SendEventAck(MPT_ADAPTER *ioc, EventNotificationReply_t *evnp)
 	EventAck_t	*pAck;
 
 	if ((pAck = (EventAck_t *) mpt_get_msg_frame(mpt_base_index, ioc)) == NULL) {
-		dfailprintk(ioc, printk(MYIOC_s_WARN_FMT "%s, no msg frames!!\n",
+		dfailprintk(ioc, printk(MYIOC_s_WARN_FMT "%s, yes msg frames!!\n",
 		    ioc->name, __func__));
 		return -1;
 	}
@@ -6335,9 +6335,9 @@ SendEventAck(MPT_ADAPTER *ioc, EventNotificationReply_t *evnp)
  *		Page header is updated.
  *
  *	Returns 0 for success
- *	-EPERM if not allowed due to ISR context
- *	-EAGAIN if no msg frames currently available
- *	-EFAULT for non-successful reply or no reply (timeout)
+ *	-EPERM if yest allowed due to ISR context
+ *	-EAGAIN if yes msg frames currently available
+ *	-EFAULT for yesn-successful reply or yes reply (timeout)
  */
 int
 mpt_config(MPT_ADAPTER *ioc, CONFIGPARMS *pCfg)
@@ -6362,7 +6362,7 @@ mpt_config(MPT_ADAPTER *ioc, CONFIGPARMS *pCfg)
 	 */
 	in_isr = in_interrupt();
 	if (in_isr) {
-		dcprintk(ioc, printk(MYIOC_s_WARN_FMT "Config request not allowed in ISR context!\n",
+		dcprintk(ioc, printk(MYIOC_s_WARN_FMT "Config request yest allowed in ISR context!\n",
 				ioc->name));
 		return -EPERM;
     }
@@ -6377,11 +6377,11 @@ mpt_config(MPT_ADAPTER *ioc, CONFIGPARMS *pCfg)
 	}
 	spin_unlock_irqrestore(&ioc->taskmgmt_lock, flags);
 
-	/* don't send if no chance of success */
+	/* don't send if yes chance of success */
 	if (!ioc->active ||
 	    mpt_GetIocState(ioc, 1) != MPI_IOC_STATE_OPERATIONAL) {
 		dfailprintk(ioc, printk(MYIOC_s_DEBUG_FMT
-		    "%s: ioc not operational, %d, %xh\n",
+		    "%s: ioc yest operational, %d, %xh\n",
 		    ioc->name, __func__, ioc->active,
 		    mpt_GetIocState(ioc, 0)));
 		return -EFAULT;
@@ -6397,7 +6397,7 @@ mpt_config(MPT_ADAPTER *ioc, CONFIGPARMS *pCfg)
 	 */
 	if ((mf = mpt_get_msg_frame(mpt_base_index, ioc)) == NULL) {
 		dcprintk(ioc, printk(MYIOC_s_WARN_FMT
-		"mpt_config: no msg frames!\n", ioc->name));
+		"mpt_config: yes msg frames!\n", ioc->name));
 		ret = -EAGAIN;
 		goto out;
 	}
@@ -6408,7 +6408,7 @@ mpt_config(MPT_ADAPTER *ioc, CONFIGPARMS *pCfg)
 	pReq->ChainOffset = 0;
 	pReq->Function = MPI_FUNCTION_CONFIG;
 
-	/* Assume page type is not extended and clear "reserved" fields. */
+	/* Assume page type is yest extended and clear "reserved" fields. */
 	pReq->ExtPageLength = 0;
 	pReq->ExtPageType = 0;
 	pReq->MsgFlags = 0;
@@ -6588,7 +6588,7 @@ mpt_ioc_reset(MPT_ADAPTER *ioc, int reset_phase)
 		break;
 	}
 
-	return 1;		/* currently means nothing really */
+	return 1;		/* currently means yesthing really */
 }
 
 
@@ -6601,7 +6601,7 @@ mpt_ioc_reset(MPT_ADAPTER *ioc, int reset_phase)
 /**
  *	procmpt_create - Create %MPT_PROCFS_MPTBASEDIR entries.
  *
- *	Returns 0 for success, non-zero for failure.
+ *	Returns 0 for success, yesn-zero for failure.
  */
 static int
 procmpt_create(void)
@@ -6621,7 +6621,7 @@ procmpt_create(void)
 /**
  *	procmpt_destroy - Tear down %MPT_PROCFS_MPTBASEDIR entries.
  *
- *	Returns 0 for success, non-zero for failure.
+ *	Returns 0 for success, yesn-zero for failure.
  */
 static void
 procmpt_destroy(void)
@@ -6877,7 +6877,7 @@ static void seq_mpt_print_ioc_summary(MPT_ADAPTER *ioc, struct seq_file *m, int 
  *
  *	Returns 0 for SUCCESS or -1 if FAILED.
  *
- *	If -1 is return, then it was not possible to set the flags
+ *	If -1 is return, then it was yest possible to set the flags
  **/
 int
 mpt_set_taskmgmt_in_progress_flag(MPT_ADAPTER *ioc)
@@ -6961,7 +6961,7 @@ EXPORT_SYMBOL(mpt_halt_firmware);
  *
  *	Message Unit Reset - instructs the IOC to reset the Reply Post and
  *	Free FIFO's. All the Message Frames on Reply Free FIFO are discarded.
- *	All posted buffers are freed, and event notification is turned off.
+ *	All posted buffers are freed, and event yestification is turned off.
  *	IOC doesn't reply to any outstanding request. This will transfer IOC
  *	to READY state.
  **/
@@ -7067,7 +7067,7 @@ mpt_SoftResetHandler(MPT_ADAPTER *ioc, int sleepFlag)
 		ioc->hard_resets++;
 
 	/*
-	 * At this point, we know soft reset succeeded.
+	 * At this point, we kyesw soft reset succeeded.
 	 */
 
 	ioc->active = 1;
@@ -7131,7 +7131,7 @@ EXPORT_SYMBOL(mpt_Soft_Hard_ResetHandler);
  *	If TaskMgmt fails, returns associated SCSI request.
  *
  *	Remark: _HardResetHandler can be invoked from an interrupt thread (timer)
- *	or a non-interrupt thread.  In the former, must not call schedule().
+ *	or a yesn-interrupt thread.  In the former, must yest call schedule().
  *
  *	Note: A return of -1 is a FATAL error case, as it means a
  *	FW reload/initialization failed.
@@ -7180,9 +7180,9 @@ mpt_HardResetHandler(MPT_ADAPTER *ioc, int sleepFlag)
 
 
 	/* The SCSI driver needs to adjust timeouts on all current
-	 * commands prior to the diagnostic reset being issued.
-	 * Prevents timeouts occurring during a diagnostic reset...very bad.
-	 * For all other protocol drivers, this is a no-op.
+	 * commands prior to the diagyesstic reset being issued.
+	 * Prevents timeouts occurring during a diagyesstic reset...very bad.
+	 * For all other protocol drivers, this is a yes-op.
 	 */
 	for (cb_idx = MPT_MAX_PROTOCOL_DRIVERS-1; cb_idx; cb_idx--) {
 		if (MptResetHandlers[cb_idx]) {
@@ -7197,7 +7197,7 @@ mpt_HardResetHandler(MPT_ADAPTER *ioc, int sleepFlag)
 	rc = mpt_do_ioc_recovery(ioc, MPT_HOSTEVENT_IOC_RECOVER, sleepFlag);
 	if (rc != 0) {
 		printk(KERN_WARNING MYNAM
-		       ": WARNING - (%d) Cannot recover %s, doorbell=0x%08x\n",
+		       ": WARNING - (%d) Canyest recover %s, doorbell=0x%08x\n",
 		       rc, ioc->name, mpt_GetIocState(ioc, 0));
 	} else {
 		if (ioc->hard_resets < -1)
@@ -7399,7 +7399,7 @@ mpt_display_event_info(MPT_ADAPTER *ioc, EventNotificationReply_t *pEventReply)
 			break;
 		default:
 			snprintf(evStr, EVENT_DESCR_STR_SZ,
-			    "SAS Device Status Change: Unknown: "
+			    "SAS Device Status Change: Unkyeswn: "
 			    "id=%d channel=%d", id, channel);
 			break;
 		}
@@ -7435,7 +7435,7 @@ mpt_display_event_info(MPT_ADAPTER *ioc, EventNotificationReply_t *pEventReply)
 		case MPI_EVENT_SAS_PLS_LR_RATE_UNKNOWN:
 			snprintf(evStr, EVENT_DESCR_STR_SZ,
 			   "SAS PHY Link Status: Phy=%d:"
-			   " Rate Unknown",PhyNumber);
+			   " Rate Unkyeswn",PhyNumber);
 			break;
 		case MPI_EVENT_SAS_PLS_LR_RATE_PHY_DISABLED:
 			snprintf(evStr, EVENT_DESCR_STR_SZ,
@@ -7661,7 +7661,7 @@ mpt_display_event_info(MPT_ADAPTER *ioc, EventNotificationReply_t *pEventReply)
 	 *  MPT base "custom" events may be added here...
 	 */
 	default:
-		ds = "Unknown";
+		ds = "Unkyeswn";
 		break;
 	}
 	if (ds)
@@ -7703,7 +7703,7 @@ ProcessEventNotification(MPT_ADAPTER *ioc, EventNotificationReply_t *pEventReply
 	u8 event;
 
 	/*
-	 *  Do platform normalization of values
+	 *  Do platform yesrmalization of values
 	 */
 	event = le32_to_cpu(pEventReply->Event) & 0xFF;
 	evDataLen = le16_to_cpu(pEventReply->EventDataLength);
@@ -7804,7 +7804,7 @@ ProcessEventNotification(MPT_ADAPTER *ioc, EventNotificationReply_t *pEventReply
 static void
 mpt_fc_log_info(MPT_ADAPTER *ioc, u32 log_info)
 {
-	char *desc = "unknown";
+	char *desc = "unkyeswn";
 
 	switch (log_info & 0xFF000000) {
 	case MPI_IOCLOGINFO_FC_INIT_BASE:
@@ -7849,11 +7849,11 @@ static void
 mpt_spi_log_info(MPT_ADAPTER *ioc, u32 log_info)
 {
 	u32 info = log_info & 0x00FF0000;
-	char *desc = "unknown";
+	char *desc = "unkyeswn";
 
 	switch (info) {
 	case 0x00010000:
-		desc = "bug! MID not found";
+		desc = "bug! MID yest found";
 		break;
 
 	case 0x00020000:
@@ -8025,13 +8025,13 @@ mpt_spi_log_info(MPT_ADAPTER *ioc, u32 log_info)
 		NULL,						/* 2Fh */
 		"Compatibility Error: IR Disabled",		/* 30h */
 		"Compatibility Error: Inquiry Command Failed",	/* 31h */
-		"Compatibility Error: Device not Direct Access "
+		"Compatibility Error: Device yest Direct Access "
 		    "Device ",					/* 32h */
 		"Compatibility Error: Removable Device Found",	/* 33h */
-		"Compatibility Error: Device SCSI Version not "
+		"Compatibility Error: Device SCSI Version yest "
 		    "2 or Higher", 				/* 34h */
 		"Compatibility Error: SATA Device, 48 BIT LBA "
-		    "not Supported", 				/* 35h */
+		    "yest Supported", 				/* 35h */
 		"Compatibility Error: Device doesn't have "
 		    "512 Byte Block Sizes", 			/* 36h */
 		"Compatibility Error: Volume Type Check Failed", /* 37h */
@@ -8040,7 +8040,7 @@ mpt_spi_log_info(MPT_ADAPTER *ioc, u32 log_info)
 		"Compatibility Error: Disk Drive too Small for "
 		    "use in Volume", 				/* 39h */
 		"Compatibility Error: Phys Disk for Create "
-		    "Volume not Found", 			/* 3Ah */
+		    "Volume yest Found", 			/* 3Ah */
 		"Compatibility Error: Too Many or too Few "
 		    "Disks for Volume Type", 			/* 3Bh */
 		"Compatibility Error: Disk stripe Sizes "
@@ -8154,7 +8154,7 @@ mpt_iocstatus_info_config(MPT_ADAPTER *ioc, u32 ioc_status, MPT_FRAME_HDR *mf)
 		page_type = pReq->Header.PageType;
 
 	/*
-	 * ignore invalid page messages for GET_NEXT_HANDLE
+	 * igyesre invalid page messages for GET_NEXT_HANDLE
 	 */
 	form = le32_to_cpu(pReq->PageAddress);
 	if (ioc_status == MPI_IOCSTATUS_CONFIG_INVALID_PAGE) {
@@ -8329,7 +8329,7 @@ mpt_iocstatus_info(MPT_ADAPTER *ioc, u32 ioc_status, MPT_FRAME_HDR *mf)
 		break;
 
 	case MPI_IOCSTATUS_TARGET_STS_DATA_NOT_SENT: /* 0x006B */
-		desc = "Target: STS Data not Sent";
+		desc = "Target: STS Data yest Sent";
 		break;
 
 	case MPI_IOCSTATUS_TARGET_DATA_OFFSET_ERROR: /* 0x006D */
@@ -8381,7 +8381,7 @@ mpt_iocstatus_info(MPT_ADAPTER *ioc, u32 ioc_status, MPT_FRAME_HDR *mf)
 /****************************************************************************/
 
 	case MPI_IOCSTATUS_LAN_DEVICE_NOT_FOUND: /* 0x0080 */
-		desc = "LAN: Device not Found";
+		desc = "LAN: Device yest Found";
 		break;
 
 	case MPI_IOCSTATUS_LAN_DEVICE_FAILURE: /* 0x0081 */
@@ -8472,7 +8472,7 @@ EXPORT_SYMBOL(mpt_raid_phys_disk_pg0);
 /**
  *	fusion_init - Fusion MPT base driver initialization routine.
  *
- *	Returns 0 for success, non-zero for failure.
+ *	Returns 0 for success, yesn-zero for failure.
  */
 static int __init
 fusion_init(void)

@@ -11,7 +11,7 @@ Optional properties:
 	- wakeup-delay-ms: Delay (in ms) after enabling the DMIC
 	- modeswitch-delay-ms: Delay (in ms) to complete DMIC mode switch
 
-Example node:
+Example yesde:
 
 	dmic_codec: dmic@0 {
 		compatible = "dmic-codec";

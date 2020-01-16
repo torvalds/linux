@@ -86,7 +86,7 @@ extern int smp_hw_index[];
  * asm-offsets.h by kbuild to get the current processor ID.
  *
  * This also needs to be safeguarded when building asm-offsets.s because at
- * that time _TASK_CPU is not defined yet. It could have been guarded by
+ * that time _TASK_CPU is yest defined yet. It could have been guarded by
  * _TASK_CPU itself, but we want the build to fail if _TASK_CPU is missing
  * when building something else than asm-offsets.s
  */
@@ -245,7 +245,7 @@ extern void arch_send_call_function_ipi_mask(const struct cpumask *mask);
 extern void generic_secondary_smp_init(void);
 extern void generic_secondary_thread_init(void);
 extern unsigned long __secondary_hold_spinloop;
-extern unsigned long __secondary_hold_acknowledge;
+extern unsigned long __secondary_hold_ackyeswledge;
 extern char __secondary_hold;
 extern unsigned int booting_thread_hwid;
 

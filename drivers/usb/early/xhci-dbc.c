@@ -48,7 +48,7 @@ static void __iomem * __init xdbc_map_pci_mmio(u32 bus, u32 dev, u32 func)
 	write_pci_config(bus, dev, func, PCI_BASE_ADDRESS_0, val);
 
 	if (val == 0xffffffff || sz == 0xffffffff) {
-		pr_notice("invalid mmio bar\n");
+		pr_yestice("invalid mmio bar\n");
 		return NULL;
 	}
 
@@ -70,7 +70,7 @@ static void __iomem * __init xdbc_map_pci_mmio(u32 bus, u32 dev, u32 func)
 	sz64 &= mask64;
 
 	if (!sz64) {
-		pr_notice("invalid mmio address\n");
+		pr_yestice("invalid mmio address\n");
 		return NULL;
 	}
 
@@ -160,7 +160,7 @@ static void __init xdbc_bios_handoff(void)
 		timeout = handshake(xdbc.xhci_base + offset, XHCI_HC_BIOS_OWNED, 0, 5000, 10);
 
 		if (timeout) {
-			pr_notice("failed to hand over xHCI control from BIOS\n");
+			pr_yestice("failed to hand over xHCI control from BIOS\n");
 			writel(val & ~XHCI_HC_BIOS_OWNED, xdbc.xhci_base + offset);
 		}
 	}
@@ -454,7 +454,7 @@ static int xdbc_start(void)
 
 	xdbc.port_number = DCST_DEBUG_PORT(status);
 
-	xdbc_trace("DbC is running now, control 0x%08x port ID %d\n",
+	xdbc_trace("DbC is running yesw, control 0x%08x port ID %d\n",
 		   readl(&xdbc.xdbc_reg->control), xdbc.port_number);
 
 	return 0;
@@ -478,7 +478,7 @@ static int xdbc_bulk_transfer(void *data, int size, bool read)
 	    (!read && (xdbc.flags & XDBC_FLAGS_OUT_STALL)) ||
 	    (read && (xdbc.flags & XDBC_FLAGS_IN_STALL))) {
 
-		xdbc_trace("connection not ready, flags %08x\n", xdbc.flags);
+		xdbc_trace("connection yest ready, flags %08x\n", xdbc.flags);
 		return -EIO;
 	}
 
@@ -616,12 +616,12 @@ int __init early_xdbc_parse_parameter(char *s)
 	if (*s && kstrtoul(s, 0, &dbgp_num))
 		dbgp_num = 0;
 
-	pr_notice("dbgp_num: %lu\n", dbgp_num);
+	pr_yestice("dbgp_num: %lu\n", dbgp_num);
 
 	/* Locate the host controller: */
 	ret = xdbc_find_dbgp(dbgp_num, &bus, &dev, &func);
 	if (ret) {
-		pr_notice("failed to locate xhci host\n");
+		pr_yestice("failed to locate xhci host\n");
 		return -ENODEV;
 	}
 
@@ -639,7 +639,7 @@ int __init early_xdbc_parse_parameter(char *s)
 	/* Locate DbC registers: */
 	offset = xhci_find_next_ext_cap(xdbc.xhci_base, 0, XHCI_EXT_CAPS_DEBUG);
 	if (!offset) {
-		pr_notice("xhci host doesn't support debug capability\n");
+		pr_yestice("xhci host doesn't support debug capability\n");
 		early_iounmap(xdbc.xhci_base, xdbc.xhci_length);
 		xdbc.xhci_base = NULL;
 		xdbc.xhci_length = 0;
@@ -664,7 +664,7 @@ int __init early_xdbc_setup_hardware(void)
 
 	ret = xdbc_early_setup();
 	if (ret) {
-		pr_notice("failed to setup the connection to host\n");
+		pr_yestice("failed to setup the connection to host\n");
 
 		xdbc_free_ring(&xdbc.evt_ring);
 		xdbc_free_ring(&xdbc.out_ring);
@@ -857,7 +857,7 @@ retry:
 
 	if (xdbc.flags & XDBC_FLAGS_OUT_PROCESS) {
 		raw_spin_unlock_irqrestore(&xdbc.lock, flags);
-		xdbc_trace("previous transfer not completed yet\n");
+		xdbc_trace("previous transfer yest completed yet\n");
 
 		return -ETIMEDOUT;
 	}
@@ -967,11 +967,11 @@ static int __init xdbc_init(void)
 	 */
 	if (early_xdbc_console.index == -1 ||
 	    (early_xdbc_console.flags & CON_BOOT)) {
-		xdbc_trace("hardware not used anymore\n");
+		xdbc_trace("hardware yest used anymore\n");
 		goto free_and_quit;
 	}
 
-	base = ioremap_nocache(xdbc.xhci_start, xdbc.xhci_length);
+	base = ioremap_yescache(xdbc.xhci_start, xdbc.xhci_length);
 	if (!base) {
 		xdbc_trace("failed to remap the io address\n");
 		ret = -ENOMEM;

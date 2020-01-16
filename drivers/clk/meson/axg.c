@@ -81,7 +81,7 @@ static struct clk_regmap axg_fixed_pll = {
 		.num_parents = 1,
 		/*
 		 * This clock won't ever change at runtime so
-		 * CLK_SET_RATE_PARENT is not required
+		 * CLK_SET_RATE_PARENT is yest required
 		 */
 	},
 };

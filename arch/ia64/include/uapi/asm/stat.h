@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 #ifndef _ASM_IA64_STAT_H
 #define _ASM_IA64_STAT_H
 
@@ -9,7 +9,7 @@
 
 struct stat {
 	unsigned long	st_dev;
-	unsigned long	st_ino;
+	unsigned long	st_iyes;
 	unsigned long	st_nlink;
 	unsigned int	st_mode;
 	unsigned int	st_uid;
@@ -32,7 +32,7 @@ struct stat {
 
 struct ia64_oldstat {
 	unsigned int	st_dev;
-	unsigned int	st_ino;
+	unsigned int	st_iyes;
 	unsigned int	st_mode;
 	unsigned int	st_nlink;
 	unsigned int	st_uid;

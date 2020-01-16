@@ -4,7 +4,7 @@
  *
  * Copyright (C) 2001
  * Brad Boyer (flar@allandria.com)
- * (C) 2003 Ardis Technologies <roman@ardistech.com>
+ * (C) 2003 Ardis Techyeslogies <roman@ardistech.com>
  *
  */
 
@@ -18,35 +18,35 @@
 #include <linux/vfs.h>
 #include <linux/nls.h>
 
-static struct inode *hfsplus_alloc_inode(struct super_block *sb);
-static void hfsplus_free_inode(struct inode *inode);
+static struct iyesde *hfsplus_alloc_iyesde(struct super_block *sb);
+static void hfsplus_free_iyesde(struct iyesde *iyesde);
 
 #include "hfsplus_fs.h"
 #include "xattr.h"
 
-static int hfsplus_system_read_inode(struct inode *inode)
+static int hfsplus_system_read_iyesde(struct iyesde *iyesde)
 {
-	struct hfsplus_vh *vhdr = HFSPLUS_SB(inode->i_sb)->s_vhdr;
+	struct hfsplus_vh *vhdr = HFSPLUS_SB(iyesde->i_sb)->s_vhdr;
 
-	switch (inode->i_ino) {
+	switch (iyesde->i_iyes) {
 	case HFSPLUS_EXT_CNID:
-		hfsplus_inode_read_fork(inode, &vhdr->ext_file);
-		inode->i_mapping->a_ops = &hfsplus_btree_aops;
+		hfsplus_iyesde_read_fork(iyesde, &vhdr->ext_file);
+		iyesde->i_mapping->a_ops = &hfsplus_btree_aops;
 		break;
 	case HFSPLUS_CAT_CNID:
-		hfsplus_inode_read_fork(inode, &vhdr->cat_file);
-		inode->i_mapping->a_ops = &hfsplus_btree_aops;
+		hfsplus_iyesde_read_fork(iyesde, &vhdr->cat_file);
+		iyesde->i_mapping->a_ops = &hfsplus_btree_aops;
 		break;
 	case HFSPLUS_ALLOC_CNID:
-		hfsplus_inode_read_fork(inode, &vhdr->alloc_file);
-		inode->i_mapping->a_ops = &hfsplus_aops;
+		hfsplus_iyesde_read_fork(iyesde, &vhdr->alloc_file);
+		iyesde->i_mapping->a_ops = &hfsplus_aops;
 		break;
 	case HFSPLUS_START_CNID:
-		hfsplus_inode_read_fork(inode, &vhdr->start_file);
+		hfsplus_iyesde_read_fork(iyesde, &vhdr->start_file);
 		break;
 	case HFSPLUS_ATTR_CNID:
-		hfsplus_inode_read_fork(inode, &vhdr->attr_file);
-		inode->i_mapping->a_ops = &hfsplus_btree_aops;
+		hfsplus_iyesde_read_fork(iyesde, &vhdr->attr_file);
+		iyesde->i_mapping->a_ops = &hfsplus_btree_aops;
 		break;
 	default:
 		return -EIO;
@@ -55,56 +55,56 @@ static int hfsplus_system_read_inode(struct inode *inode)
 	return 0;
 }
 
-struct inode *hfsplus_iget(struct super_block *sb, unsigned long ino)
+struct iyesde *hfsplus_iget(struct super_block *sb, unsigned long iyes)
 {
 	struct hfs_find_data fd;
-	struct inode *inode;
+	struct iyesde *iyesde;
 	int err;
 
-	inode = iget_locked(sb, ino);
-	if (!inode)
+	iyesde = iget_locked(sb, iyes);
+	if (!iyesde)
 		return ERR_PTR(-ENOMEM);
-	if (!(inode->i_state & I_NEW))
-		return inode;
+	if (!(iyesde->i_state & I_NEW))
+		return iyesde;
 
-	INIT_LIST_HEAD(&HFSPLUS_I(inode)->open_dir_list);
-	spin_lock_init(&HFSPLUS_I(inode)->open_dir_lock);
-	mutex_init(&HFSPLUS_I(inode)->extents_lock);
-	HFSPLUS_I(inode)->flags = 0;
-	HFSPLUS_I(inode)->extent_state = 0;
-	HFSPLUS_I(inode)->rsrc_inode = NULL;
-	atomic_set(&HFSPLUS_I(inode)->opencnt, 0);
+	INIT_LIST_HEAD(&HFSPLUS_I(iyesde)->open_dir_list);
+	spin_lock_init(&HFSPLUS_I(iyesde)->open_dir_lock);
+	mutex_init(&HFSPLUS_I(iyesde)->extents_lock);
+	HFSPLUS_I(iyesde)->flags = 0;
+	HFSPLUS_I(iyesde)->extent_state = 0;
+	HFSPLUS_I(iyesde)->rsrc_iyesde = NULL;
+	atomic_set(&HFSPLUS_I(iyesde)->opencnt, 0);
 
-	if (inode->i_ino >= HFSPLUS_FIRSTUSER_CNID ||
-	    inode->i_ino == HFSPLUS_ROOT_CNID) {
-		err = hfs_find_init(HFSPLUS_SB(inode->i_sb)->cat_tree, &fd);
+	if (iyesde->i_iyes >= HFSPLUS_FIRSTUSER_CNID ||
+	    iyesde->i_iyes == HFSPLUS_ROOT_CNID) {
+		err = hfs_find_init(HFSPLUS_SB(iyesde->i_sb)->cat_tree, &fd);
 		if (!err) {
-			err = hfsplus_find_cat(inode->i_sb, inode->i_ino, &fd);
+			err = hfsplus_find_cat(iyesde->i_sb, iyesde->i_iyes, &fd);
 			if (!err)
-				err = hfsplus_cat_read_inode(inode, &fd);
+				err = hfsplus_cat_read_iyesde(iyesde, &fd);
 			hfs_find_exit(&fd);
 		}
 	} else {
-		err = hfsplus_system_read_inode(inode);
+		err = hfsplus_system_read_iyesde(iyesde);
 	}
 
 	if (err) {
-		iget_failed(inode);
+		iget_failed(iyesde);
 		return ERR_PTR(err);
 	}
 
-	unlock_new_inode(inode);
-	return inode;
+	unlock_new_iyesde(iyesde);
+	return iyesde;
 }
 
-static int hfsplus_system_write_inode(struct inode *inode)
+static int hfsplus_system_write_iyesde(struct iyesde *iyesde)
 {
-	struct hfsplus_sb_info *sbi = HFSPLUS_SB(inode->i_sb);
+	struct hfsplus_sb_info *sbi = HFSPLUS_SB(iyesde->i_sb);
 	struct hfsplus_vh *vhdr = sbi->s_vhdr;
 	struct hfsplus_fork_raw *fork;
 	struct hfs_btree *tree = NULL;
 
-	switch (inode->i_ino) {
+	switch (iyesde->i_iyes) {
 	case HFSPLUS_EXT_CNID:
 		fork = &vhdr->ext_file;
 		tree = sbi->ext_tree;
@@ -127,49 +127,49 @@ static int hfsplus_system_write_inode(struct inode *inode)
 		return -EIO;
 	}
 
-	if (fork->total_size != cpu_to_be64(inode->i_size)) {
+	if (fork->total_size != cpu_to_be64(iyesde->i_size)) {
 		set_bit(HFSPLUS_SB_WRITEBACKUP, &sbi->flags);
-		hfsplus_mark_mdb_dirty(inode->i_sb);
+		hfsplus_mark_mdb_dirty(iyesde->i_sb);
 	}
-	hfsplus_inode_write_fork(inode, fork);
+	hfsplus_iyesde_write_fork(iyesde, fork);
 	if (tree) {
 		int err = hfs_btree_write(tree);
 
 		if (err) {
-			pr_err("b-tree write err: %d, ino %lu\n",
-			       err, inode->i_ino);
+			pr_err("b-tree write err: %d, iyes %lu\n",
+			       err, iyesde->i_iyes);
 			return err;
 		}
 	}
 	return 0;
 }
 
-static int hfsplus_write_inode(struct inode *inode,
+static int hfsplus_write_iyesde(struct iyesde *iyesde,
 		struct writeback_control *wbc)
 {
 	int err;
 
-	hfs_dbg(INODE, "hfsplus_write_inode: %lu\n", inode->i_ino);
+	hfs_dbg(INODE, "hfsplus_write_iyesde: %lu\n", iyesde->i_iyes);
 
-	err = hfsplus_ext_write_extent(inode);
+	err = hfsplus_ext_write_extent(iyesde);
 	if (err)
 		return err;
 
-	if (inode->i_ino >= HFSPLUS_FIRSTUSER_CNID ||
-	    inode->i_ino == HFSPLUS_ROOT_CNID)
-		return hfsplus_cat_write_inode(inode);
+	if (iyesde->i_iyes >= HFSPLUS_FIRSTUSER_CNID ||
+	    iyesde->i_iyes == HFSPLUS_ROOT_CNID)
+		return hfsplus_cat_write_iyesde(iyesde);
 	else
-		return hfsplus_system_write_inode(inode);
+		return hfsplus_system_write_iyesde(iyesde);
 }
 
-static void hfsplus_evict_inode(struct inode *inode)
+static void hfsplus_evict_iyesde(struct iyesde *iyesde)
 {
-	hfs_dbg(INODE, "hfsplus_evict_inode: %lu\n", inode->i_ino);
-	truncate_inode_pages_final(&inode->i_data);
-	clear_inode(inode);
-	if (HFSPLUS_IS_RSRC(inode)) {
-		HFSPLUS_I(HFSPLUS_I(inode)->rsrc_inode)->rsrc_inode = NULL;
-		iput(HFSPLUS_I(inode)->rsrc_inode);
+	hfs_dbg(INODE, "hfsplus_evict_iyesde: %lu\n", iyesde->i_iyes);
+	truncate_iyesde_pages_final(&iyesde->i_data);
+	clear_iyesde(iyesde);
+	if (HFSPLUS_IS_RSRC(iyesde)) {
+		HFSPLUS_I(HFSPLUS_I(iyesde)->rsrc_iyesde)->rsrc_iyesde = NULL;
+		iput(HFSPLUS_I(iyesde)->rsrc_iyesde);
 	}
 }
 
@@ -186,20 +186,20 @@ static int hfsplus_sync_fs(struct super_block *sb, int wait)
 	hfs_dbg(SUPER, "hfsplus_sync_fs\n");
 
 	/*
-	 * Explicitly write out the special metadata inodes.
+	 * Explicitly write out the special metadata iyesdes.
 	 *
-	 * While these special inodes are marked as hashed and written
+	 * While these special iyesdes are marked as hashed and written
 	 * out peridocically by the flusher threads we redirty them
-	 * during writeout of normal inodes, and thus the life lock
+	 * during writeout of yesrmal iyesdes, and thus the life lock
 	 * prevents us from getting the latest state to disk.
 	 */
-	error = filemap_write_and_wait(sbi->cat_tree->inode->i_mapping);
-	error2 = filemap_write_and_wait(sbi->ext_tree->inode->i_mapping);
+	error = filemap_write_and_wait(sbi->cat_tree->iyesde->i_mapping);
+	error2 = filemap_write_and_wait(sbi->ext_tree->iyesde->i_mapping);
 	if (!error)
 		error = error2;
 	if (sbi->attr_tree) {
 		error2 =
-		    filemap_write_and_wait(sbi->attr_tree->inode->i_mapping);
+		    filemap_write_and_wait(sbi->attr_tree->iyesde->i_mapping);
 		if (!error)
 			error = error2;
 	}
@@ -288,7 +288,7 @@ static void hfsplus_put_super(struct super_block *sb)
 	if (!sb_rdonly(sb) && sbi->s_vhdr) {
 		struct hfsplus_vh *vhdr = sbi->s_vhdr;
 
-		vhdr->modify_date = hfsp_now2mt();
+		vhdr->modify_date = hfsp_yesw2mt();
 		vhdr->attributes |= cpu_to_be32(HFSPLUS_VOL_UNMNT);
 		vhdr->attributes &= cpu_to_be32(~HFSPLUS_VOL_INCNSTNT);
 
@@ -340,11 +340,11 @@ static int hfsplus_remount(struct super_block *sb, int *flags, char *data)
 			return -EINVAL;
 
 		if (!(vhdr->attributes & cpu_to_be32(HFSPLUS_VOL_UNMNT))) {
-			pr_warn("filesystem was not cleanly unmounted, running fsck.hfsplus is recommended.  leaving read-only.\n");
+			pr_warn("filesystem was yest cleanly unmounted, running fsck.hfsplus is recommended.  leaving read-only.\n");
 			sb->s_flags |= SB_RDONLY;
 			*flags |= SB_RDONLY;
 		} else if (force) {
-			/* nothing */
+			/* yesthing */
 		} else if (vhdr->attributes &
 				cpu_to_be32(HFSPLUS_VOL_SOFTLOCK)) {
 			pr_warn("filesystem is marked locked, leaving read-only.\n");
@@ -361,10 +361,10 @@ static int hfsplus_remount(struct super_block *sb, int *flags, char *data)
 }
 
 static const struct super_operations hfsplus_sops = {
-	.alloc_inode	= hfsplus_alloc_inode,
-	.free_inode	= hfsplus_free_inode,
-	.write_inode	= hfsplus_write_inode,
-	.evict_inode	= hfsplus_evict_inode,
+	.alloc_iyesde	= hfsplus_alloc_iyesde,
+	.free_iyesde	= hfsplus_free_iyesde,
+	.write_iyesde	= hfsplus_write_iyesde,
+	.evict_iyesde	= hfsplus_evict_iyesde,
 	.put_super	= hfsplus_put_super,
 	.sync_fs	= hfsplus_sync_fs,
 	.statfs		= hfsplus_statfs,
@@ -378,7 +378,7 @@ static int hfsplus_fill_super(struct super_block *sb, void *data, int silent)
 	struct hfsplus_sb_info *sbi;
 	hfsplus_cat_entry entry;
 	struct hfs_find_data fd;
-	struct inode *root, *inode;
+	struct iyesde *root, *iyesde;
 	struct qstr str;
 	struct nls_table *nls = NULL;
 	u64 last_fs_block, last_fs_page;
@@ -455,16 +455,16 @@ static int hfsplus_fill_super(struct super_block *sb, void *data, int silent)
 	sb->s_maxbytes = MAX_LFS_FILESIZE;
 
 	if (!(vhdr->attributes & cpu_to_be32(HFSPLUS_VOL_UNMNT))) {
-		pr_warn("Filesystem was not cleanly unmounted, running fsck.hfsplus is recommended.  mounting read-only.\n");
+		pr_warn("Filesystem was yest cleanly unmounted, running fsck.hfsplus is recommended.  mounting read-only.\n");
 		sb->s_flags |= SB_RDONLY;
 	} else if (test_and_clear_bit(HFSPLUS_SB_FORCE, &sbi->flags)) {
-		/* nothing */
+		/* yesthing */
 	} else if (vhdr->attributes & cpu_to_be32(HFSPLUS_VOL_SOFTLOCK)) {
 		pr_warn("Filesystem is marked locked, mounting read-only.\n");
 		sb->s_flags |= SB_RDONLY;
 	} else if ((vhdr->attributes & cpu_to_be32(HFSPLUS_VOL_JOURNALED)) &&
 			!sb_rdonly(sb)) {
-		pr_warn("write access to a journaled filesystem is not supported, use the force option at your own risk, mounting read-only.\n");
+		pr_warn("write access to a journaled filesystem is yest supported, use the force option at your own risk, mounting read-only.\n");
 		sb->s_flags |= SB_RDONLY;
 	}
 
@@ -492,13 +492,13 @@ static int hfsplus_fill_super(struct super_block *sb, void *data, int silent)
 	}
 	sb->s_xattr = hfsplus_xattr_handlers;
 
-	inode = hfsplus_iget(sb, HFSPLUS_ALLOC_CNID);
-	if (IS_ERR(inode)) {
+	iyesde = hfsplus_iget(sb, HFSPLUS_ALLOC_CNID);
+	if (IS_ERR(iyesde)) {
 		pr_err("failed to load allocation file\n");
-		err = PTR_ERR(inode);
+		err = PTR_ERR(iyesde);
 		goto out_close_attr_tree;
 	}
-	sbi->alloc_file = inode;
+	sbi->alloc_file = iyesde;
 
 	/* Load the root directory */
 	root = hfsplus_iget(sb, HFSPLUS_ROOT_CNID);
@@ -529,12 +529,12 @@ static int hfsplus_fill_super(struct super_block *sb, void *data, int silent)
 			err = -EINVAL;
 			goto out_put_root;
 		}
-		inode = hfsplus_iget(sb, be32_to_cpu(entry.folder.id));
-		if (IS_ERR(inode)) {
-			err = PTR_ERR(inode);
+		iyesde = hfsplus_iget(sb, be32_to_cpu(entry.folder.id));
+		if (IS_ERR(iyesde)) {
+			err = PTR_ERR(iyesde);
 			goto out_put_root;
 		}
-		sbi->hidden_dir = inode;
+		sbi->hidden_dir = iyesde;
 	} else
 		hfs_find_exit(&fd);
 
@@ -544,7 +544,7 @@ static int hfsplus_fill_super(struct super_block *sb, void *data, int silent)
 		 * all three are registered with Apple for our use
 		 */
 		vhdr->last_mount_vers = cpu_to_be32(HFSP_MOUNT_VERSION);
-		vhdr->modify_date = hfsp_now2mt();
+		vhdr->modify_date = hfsp_yesw2mt();
 		be32_add_cpu(&vhdr->write_count, 1);
 		vhdr->attributes &= cpu_to_be32(~HFSPLUS_VOL_UNMNT);
 		vhdr->attributes |= cpu_to_be32(HFSPLUS_VOL_INCNSTNT);
@@ -552,13 +552,13 @@ static int hfsplus_fill_super(struct super_block *sb, void *data, int silent)
 
 		if (!sbi->hidden_dir) {
 			mutex_lock(&sbi->vh_mutex);
-			sbi->hidden_dir = hfsplus_new_inode(sb, root, S_IFDIR);
+			sbi->hidden_dir = hfsplus_new_iyesde(sb, root, S_IFDIR);
 			if (!sbi->hidden_dir) {
 				mutex_unlock(&sbi->vh_mutex);
 				err = -ENOMEM;
 				goto out_put_root;
 			}
-			err = hfsplus_create_cat(sbi->hidden_dir->i_ino, root,
+			err = hfsplus_create_cat(sbi->hidden_dir->i_iyes, root,
 						 &str, sbi->hidden_dir);
 			if (err) {
 				mutex_unlock(&sbi->vh_mutex);
@@ -568,20 +568,20 @@ static int hfsplus_fill_super(struct super_block *sb, void *data, int silent)
 			err = hfsplus_init_security(sbi->hidden_dir,
 							root, &str);
 			if (err == -EOPNOTSUPP)
-				err = 0; /* Operation is not supported. */
+				err = 0; /* Operation is yest supported. */
 			else if (err) {
 				/*
 				 * Try to delete anyway without
 				 * error analysis.
 				 */
-				hfsplus_delete_cat(sbi->hidden_dir->i_ino,
+				hfsplus_delete_cat(sbi->hidden_dir->i_iyes,
 							root, &str);
 				mutex_unlock(&sbi->vh_mutex);
 				goto out_put_hidden_dir;
 			}
 
 			mutex_unlock(&sbi->vh_mutex);
-			hfsplus_mark_inode_dirty(sbi->hidden_dir,
+			hfsplus_mark_iyesde_dirty(sbi->hidden_dir,
 						 HFSPLUS_I_CAT_DIRTY);
 		}
 	}
@@ -619,22 +619,22 @@ MODULE_AUTHOR("Brad Boyer");
 MODULE_DESCRIPTION("Extended Macintosh Filesystem");
 MODULE_LICENSE("GPL");
 
-static struct kmem_cache *hfsplus_inode_cachep;
+static struct kmem_cache *hfsplus_iyesde_cachep;
 
-static struct inode *hfsplus_alloc_inode(struct super_block *sb)
+static struct iyesde *hfsplus_alloc_iyesde(struct super_block *sb)
 {
-	struct hfsplus_inode_info *i;
+	struct hfsplus_iyesde_info *i;
 
-	i = kmem_cache_alloc(hfsplus_inode_cachep, GFP_KERNEL);
-	return i ? &i->vfs_inode : NULL;
+	i = kmem_cache_alloc(hfsplus_iyesde_cachep, GFP_KERNEL);
+	return i ? &i->vfs_iyesde : NULL;
 }
 
-static void hfsplus_free_inode(struct inode *inode)
+static void hfsplus_free_iyesde(struct iyesde *iyesde)
 {
-	kmem_cache_free(hfsplus_inode_cachep, HFSPLUS_I(inode));
+	kmem_cache_free(hfsplus_iyesde_cachep, HFSPLUS_I(iyesde));
 }
 
-#define HFSPLUS_INODE_SIZE	sizeof(struct hfsplus_inode_info)
+#define HFSPLUS_INODE_SIZE	sizeof(struct hfsplus_iyesde_info)
 
 static struct dentry *hfsplus_mount(struct file_system_type *fs_type,
 			  int flags, const char *dev_name, void *data)
@@ -653,23 +653,23 @@ MODULE_ALIAS_FS("hfsplus");
 
 static void hfsplus_init_once(void *p)
 {
-	struct hfsplus_inode_info *i = p;
+	struct hfsplus_iyesde_info *i = p;
 
-	inode_init_once(&i->vfs_inode);
+	iyesde_init_once(&i->vfs_iyesde);
 }
 
 static int __init init_hfsplus_fs(void)
 {
 	int err;
 
-	hfsplus_inode_cachep = kmem_cache_create("hfsplus_icache",
+	hfsplus_iyesde_cachep = kmem_cache_create("hfsplus_icache",
 		HFSPLUS_INODE_SIZE, 0, SLAB_HWCACHE_ALIGN|SLAB_ACCOUNT,
 		hfsplus_init_once);
-	if (!hfsplus_inode_cachep)
+	if (!hfsplus_iyesde_cachep)
 		return -ENOMEM;
 	err = hfsplus_create_attr_tree_cache();
 	if (err)
-		goto destroy_inode_cache;
+		goto destroy_iyesde_cache;
 	err = register_filesystem(&hfsplus_fs_type);
 	if (err)
 		goto destroy_attr_tree_cache;
@@ -678,8 +678,8 @@ static int __init init_hfsplus_fs(void)
 destroy_attr_tree_cache:
 	hfsplus_destroy_attr_tree_cache();
 
-destroy_inode_cache:
-	kmem_cache_destroy(hfsplus_inode_cachep);
+destroy_iyesde_cache:
+	kmem_cache_destroy(hfsplus_iyesde_cachep);
 
 	return err;
 }
@@ -689,12 +689,12 @@ static void __exit exit_hfsplus_fs(void)
 	unregister_filesystem(&hfsplus_fs_type);
 
 	/*
-	 * Make sure all delayed rcu free inodes are flushed before we
+	 * Make sure all delayed rcu free iyesdes are flushed before we
 	 * destroy cache.
 	 */
 	rcu_barrier();
 	hfsplus_destroy_attr_tree_cache();
-	kmem_cache_destroy(hfsplus_inode_cachep);
+	kmem_cache_destroy(hfsplus_iyesde_cachep);
 }
 
 module_init(init_hfsplus_fs)

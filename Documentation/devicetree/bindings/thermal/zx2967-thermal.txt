@@ -10,7 +10,7 @@ Required Properties:
 	       "apb" for the apb clock.
 - #thermal-sensor-cells: must be 0.
 
-Please note: slope coefficient defined in thermal-zones section need to be
+Please yeste: slope coefficient defined in thermal-zones section need to be
 multiplied by 1000.
 
 Example for tempsensor:

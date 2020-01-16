@@ -116,7 +116,7 @@ static int l4f00242t03_lcd_power_set(struct lcd_device *ld, int power)
 
 	if (power <= FB_BLANK_NORMAL) {
 		if (priv->lcd_state <= FB_BLANK_NORMAL) {
-			/* Do nothing, the LCD is running */
+			/* Do yesthing, the LCD is running */
 		} else if (priv->lcd_state < FB_BLANK_POWERDOWN) {
 			dev_dbg(&spi->dev, "Resuming LCD\n");
 
@@ -138,7 +138,7 @@ static int l4f00242t03_lcd_power_set(struct lcd_device *ld, int power)
 			msleep(60);
 			spi_write(spi, (const u8 *)&slpin, sizeof(u16));
 		} else if (priv->lcd_state < FB_BLANK_POWERDOWN) {
-			/* Do nothing, the LCD is already in standby */
+			/* Do yesthing, the LCD is already in standby */
 		} else {
 			/* priv->lcd_state == FB_BLANK_POWERDOWN */
 			l4f00242t03_lcd_init(spi);

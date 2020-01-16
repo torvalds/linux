@@ -5,10 +5,10 @@
  *
  *  card ID's and external interfaces of the bttv driver
  *  basically stuff needed by other drivers (i2c, lirc, ...)
- *  and is supported not to change much over time.
+ *  and is supported yest to change much over time.
  *
  *  Copyright (C) 1996,97 Ralph Metzler (rjkm@thp.uni-koeln.de)
- *  (c) 1999,2000 Gerd Knorr <kraxel@goldbach.in-berlin.de>
+ *  (c) 1999,2000 Gerd Kyesrr <kraxel@goldbach.in-berlin.de>
  *
  */
 
@@ -240,19 +240,19 @@ struct tvcard {
 #define PLL_14   3
 
 	/* i2c audio flags */
-	unsigned int no_msp34xx:1;
-	unsigned int no_tda7432:1;
+	unsigned int yes_msp34xx:1;
+	unsigned int yes_tda7432:1;
 	unsigned int msp34xx_alt:1;
-	/* Note: currently no card definition needs to mark the presence
+	/* Note: currently yes card definition needs to mark the presence
 	   of a RDS saa6588 chip. If this is ever needed, then add a new
 	   'has_saa6588' bit here. */
 
-	unsigned int no_video:1; /* video pci function is unused */
+	unsigned int yes_video:1; /* video pci function is unused */
 	unsigned int has_dvb:1;
 	unsigned int has_remote:1;
 	unsigned int has_radio:1;
 	unsigned int has_dig_in:1; /* Has digital input (always last input) */
-	unsigned int no_gpioirq:1;
+	unsigned int yes_gpioirq:1;
 };
 
 extern struct tvcard bttv_tvcards[];
@@ -262,7 +262,7 @@ extern struct tvcard bttv_tvcards[];
  * arguments (1 to 16).  It will pack each argument into a word two bits at a
  * time.  It can't be a function because it needs to be compile time constant to
  * initialize structures.  Since each argument must fit in two bits, it's ok
- * that they are changed to octal.  One should not use hex number, macros, or
+ * that they are changed to octal.  One should yest use hex number, macros, or
  * anything else with this macro.  Just use plain integers from 0 to 3.
  */
 #define _MUXSELf(a)		0##a << 30
@@ -290,7 +290,7 @@ extern void bttv_init_tuner(struct bttv *btv);
 
 /* card-specific functions */
 extern void tea5757_set_freq(struct bttv *btv, unsigned short freq);
-extern u32 bttv_tda9880_setnorm(struct bttv *btv, u32 gpiobits);
+extern u32 bttv_tda9880_setyesrm(struct bttv *btv, u32 gpiobits);
 
 /* extra tweaks for some chipsets */
 extern void bttv_check_chipset(void);
@@ -348,12 +348,12 @@ int bttv_sub_register(struct bttv_sub_driver *drv, char *wanted);
 int bttv_sub_unregister(struct bttv_sub_driver *drv);
 
 /* gpio access functions */
-void bttv_gpio_inout(struct bttv_core *core, u32 mask, u32 outbits);
+void bttv_gpio_iyesut(struct bttv_core *core, u32 mask, u32 outbits);
 u32 bttv_gpio_read(struct bttv_core *core);
 void bttv_gpio_write(struct bttv_core *core, u32 value);
 void bttv_gpio_bits(struct bttv_core *core, u32 mask, u32 bits);
 
-#define gpio_inout(mask,bits)  bttv_gpio_inout(&btv->c, mask, bits)
+#define gpio_iyesut(mask,bits)  bttv_gpio_iyesut(&btv->c, mask, bits)
 #define gpio_read()            bttv_gpio_read(&btv->c)
 #define gpio_write(value)      bttv_gpio_write(&btv->c, value)
 #define gpio_bits(mask,bits)   bttv_gpio_bits(&btv->c, mask, bits)

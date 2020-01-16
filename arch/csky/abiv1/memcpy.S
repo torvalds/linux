@@ -27,11 +27,11 @@ ENTRY(memcpy)
 	mov	r6, r2
 	andi	r6, 3
 	cmpnei	r6, 0
-	jbt	.L_dest_not_aligned
+	jbt	.L_dest_yest_aligned
 	mov	r6, r3
 	andi	r6, 3
 	cmpnei	r6, 0
-	jbt	.L_dest_aligned_but_src_not_aligned
+	jbt	.L_dest_aligned_but_src_yest_aligned
 .L0:
 	cmplti	r4, 16
 	jbt	.L_aligned_and_len_less_16bytes
@@ -85,10 +85,10 @@ ENTRY(memcpy)
 	rts
 
 /*
- * If dest is not aligned, just copying some bytes makes the dest align.
+ * If dest is yest aligned, just copying some bytes makes the dest align.
  * Afther that, we judge whether the src is aligned.
  */
-.L_dest_not_aligned:
+.L_dest_yest_aligned:
 	mov	r5, r3
 	rsub	r5, r5, r7
 	abs	r5, r5
@@ -116,7 +116,7 @@ ENTRY(memcpy)
 	jbf	.L0
 
 /* Judge the number of misaligned, 1, 2, 3? */
-.L_dest_aligned_but_src_not_aligned:
+.L_dest_aligned_but_src_yest_aligned:
 	mov	r5, r3
 	rsub	r5, r5, r7
 	abs	r5, r5
@@ -127,11 +127,11 @@ ENTRY(memcpy)
 	ldw	r1, (r3, 0)
 	addi	r3, 4
 	cmpnei	r6, 2
-	bf	.L_dest_aligned_but_src_not_aligned_2bytes
+	bf	.L_dest_aligned_but_src_yest_aligned_2bytes
 	cmpnei	r6, 3
-	bf	.L_dest_aligned_but_src_not_aligned_3bytes
+	bf	.L_dest_aligned_but_src_yest_aligned_3bytes
 
-.L_dest_aligned_but_src_not_aligned_1byte:
+.L_dest_aligned_but_src_yest_aligned_1byte:
 	mov	r5, r7
 	sub	r5, r3
 	cmphs	r5, r4
@@ -204,7 +204,7 @@ ENTRY(memcpy)
 	subi	r3, 3
 	br	.L_copy_by_byte
 
-.L_dest_aligned_but_src_not_aligned_2bytes:
+.L_dest_aligned_but_src_yest_aligned_2bytes:
 	cmplti	r4, 16
 	bf	.L21
 .L20:
@@ -277,7 +277,7 @@ ENTRY(memcpy)
 	br	.L_copy_by_byte
 
 
-.L_dest_aligned_but_src_not_aligned_3bytes:
+.L_dest_aligned_but_src_yest_aligned_3bytes:
 	cmplti	r4, 16
 	bf	.L31
 .L30:

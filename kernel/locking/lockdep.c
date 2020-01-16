@@ -16,11 +16,11 @@
  * - circular lock dependencies
  * - hardirq/softirq safe/unsafe locking bugs
  *
- * Bugs are reported even if the current locking scenario does not cause
+ * Bugs are reported even if the current locking scenario does yest cause
  * any deadlock at this point.
  *
  * I.e. if anytime in the past two locks were taken in a different order,
- * even if it happened for another task, even if those were different
+ * even if it happened for ayesther task, even if those were different
  * locks (but of the same class as this lock), this code will detect it.
  *
  * Thanks to Arjan van de Ven for coming up with the initial idea of
@@ -91,7 +91,7 @@ static int graph_lock(void)
 {
 	arch_spin_lock(&lockdep_lock);
 	/*
-	 * Make sure that if another CPU detected a bug while
+	 * Make sure that if ayesther CPU detected a bug while
 	 * walking the graph we dont change it (while the other
 	 * CPU is busy printing out stuff with the graph lock
 	 * dropped already)
@@ -110,7 +110,7 @@ static inline int graph_unlock(void)
 	if (debug_locks && !arch_spin_is_locked(&lockdep_lock)) {
 		/*
 		 * The lockdep graph lock isn't locked while we expect it to
-		 * be, we're confused now, bye!
+		 * be, we're confused yesw, bye!
 		 */
 		return DEBUG_LOCKS_WARN_ON(1);
 	}
@@ -324,7 +324,7 @@ struct pending_free {
  *
  * @rcu_head:  Used to schedule an RCU callback for freeing data structures.
  * @index:     Index of @pf to which freed data structures are added.
- * @scheduled: Whether or not an RCU callback has been scheduled.
+ * @scheduled: Whether or yest an RCU callback has been scheduled.
  * @pf:        Array with information about data structures about to be freed.
  */
 static struct delayed_free {
@@ -372,7 +372,7 @@ static inline u64 iterate_chain_key(u64 key, u32 idx)
 
 void lockdep_init_task(struct task_struct *task)
 {
-	task->lockdep_depth = 0; /* no locks held yet */
+	task->lockdep_depth = 0; /* yes locks held yet */
 	task->curr_chain_key = INITIAL_CHAIN_KEY;
 	task->lockdep_recursion = 0;
 }
@@ -457,7 +457,7 @@ unsigned long nr_stack_trace_entries;
  * @entries:	Actual stack backtrace.
  */
 struct lock_trace {
-	struct hlist_node	hash_entry;
+	struct hlist_yesde	hash_entry;
 	u32			hash;
 	u32			nr_entries;
 	unsigned long		entries[0] __aligned(sizeof(unsigned long));
@@ -592,7 +592,7 @@ static inline unsigned long lock_flag(enum lock_usage_bit bit)
 static char get_usage_char(struct lock_class *class, enum lock_usage_bit bit)
 {
 	/*
-	 * The usage character defaults to '.' (i.e., irqs disabled and not in
+	 * The usage character defaults to '.' (i.e., irqs disabled and yest in
 	 * irq context), which is the safest usage category.
 	 */
 	char c = '.';
@@ -601,7 +601,7 @@ static char get_usage_char(struct lock_class *class, enum lock_usage_bit bit)
 	 * The order of the following usage checks matters, which will
 	 * result in the outcome character as follows:
 	 *
-	 * - '+': irq is enabled and not in irq context
+	 * - '+': irq is enabled and yest in irq context
 	 * - '-': in irq context and irq is disabled
 	 * - '?': in irq context and irq is enabled
 	 */
@@ -675,8 +675,8 @@ static void print_lock(struct held_lock *hlock)
 	 * We can be called locklessly through debug_show_all_locks() so be
 	 * extra careful, the hlock might have been released and cleared.
 	 *
-	 * If this indeed happens, lets pretend it does not hurt to continue
-	 * to print the lock unless the hlock class_idx does not point to a
+	 * If this indeed happens, lets pretend it does yest hurt to continue
+	 * to print the lock unless the hlock class_idx does yest point to a
 	 * registered class. The rationale here is: since we don't attempt
 	 * to distinguish whether we are in this situation, if it just
 	 * happened we can't count on class_idx to tell either.
@@ -698,13 +698,13 @@ static void lockdep_print_held_locks(struct task_struct *p)
 	int i, depth = READ_ONCE(p->lockdep_depth);
 
 	if (!depth)
-		printk("no locks held by %s/%d.\n", p->comm, task_pid_nr(p));
+		printk("yes locks held by %s/%d.\n", p->comm, task_pid_nr(p));
 	else
 		printk("%d lock%s held by %s/%d:\n", depth,
 		       depth > 1 ? "s" : "", p->comm, task_pid_nr(p));
 	/*
-	 * It's not reliable to print a task's held locks if it's not sleeping
-	 * and it's not the current task.
+	 * It's yest reliable to print a task's held locks if it's yest sleeping
+	 * and it's yest the current task.
 	 */
 	if (p->state == TASK_RUNNING && p != current)
 		return;
@@ -806,7 +806,7 @@ look_up_lock_class(const struct lockdep_map *lock, unsigned int subclass)
 	}
 
 	/*
-	 * If it is not initialised then it has never been locked,
+	 * If it is yest initialised then it has never been locked,
 	 * so it won't be present in the hash table.
 	 */
 	if (unlikely(!lock->key))
@@ -838,7 +838,7 @@ look_up_lock_class(const struct lockdep_map *lock, unsigned int subclass)
 			 * on some memory? We're most confused.
 			 */
 			WARN_ON_ONCE(class->name != lock->name &&
-				     lock->key != &__lockdep_no_validate__);
+				     lock->key != &__lockdep_yes_validate__);
 			return class;
 		}
 	}
@@ -847,9 +847,9 @@ look_up_lock_class(const struct lockdep_map *lock, unsigned int subclass)
 }
 
 /*
- * Static locks do not have their class-keys yet - for them the key is
+ * Static locks do yest have their class-keys yet - for them the key is
  * the lock object itself. If the lock is in the per cpu area, the
- * canonical address of the lock (per cpu offset removed) is used.
+ * cayesnical address of the lock (per cpu offset removed) is used.
  */
 static bool assign_lock_key(struct lockdep_map *lock)
 {
@@ -858,9 +858,9 @@ static bool assign_lock_key(struct lockdep_map *lock)
 #ifdef __KERNEL__
 	/*
 	 * lockdep_free_key_range() assumes that struct lock_class_key
-	 * objects do not overlap. Since we use the address of lock
+	 * objects do yest overlap. Since we use the address of lock
 	 * objects as class key for static objects, check whether the
-	 * size of lock_class_key objects does not exceed the size of
+	 * size of lock_class_key objects does yest exceed the size of
 	 * the smallest lock object.
 	 */
 	BUILD_BUG_ON(sizeof(struct lock_class_key) > sizeof(raw_spinlock_t));
@@ -875,8 +875,8 @@ static bool assign_lock_key(struct lockdep_map *lock)
 	else {
 		/* Debug-check: all keys must be persistent! */
 		debug_locks_off();
-		pr_err("INFO: trying to register non-static key.\n");
-		pr_err("the code is fine but needs lockdep annotation.\n");
+		pr_err("INFO: trying to register yesn-static key.\n");
+		pr_err("the code is fine but needs lockdep anyestation.\n");
 		pr_err("turning off the locking correctness validator.\n");
 		dump_stack();
 		return false;
@@ -991,7 +991,7 @@ static bool __check_data_structures(void)
 		if (!in_list(&class->lock_entry, &all_lock_classes) &&
 		    !in_list(&class->lock_entry, &free_lock_classes) &&
 		    !in_any_zapped_class_list(class)) {
-			printk(KERN_INFO "class %px/%s is not in any class list\n",
+			printk(KERN_INFO "class %px/%s is yest in any class list\n",
 			       class, class->name ? : "(?)");
 			return false;
 		}
@@ -1022,7 +1022,7 @@ static bool __check_data_structures(void)
 	for_each_set_bit(i, list_entries_in_use, ARRAY_SIZE(list_entries)) {
 		e = list_entries + i;
 		if (!in_any_class_list(&e->entry)) {
-			printk(KERN_INFO "list entry %d is not in any class list; class %s <> %s\n",
+			printk(KERN_INFO "list entry %d is yest in any class list; class %s <> %s\n",
 			       (unsigned int)(e - list_entries),
 			       e->class->name ? : "(?)",
 			       e->links_to->name ? : "(?)");
@@ -1031,7 +1031,7 @@ static bool __check_data_structures(void)
 	}
 
 	/*
-	 * Check whether all list entries that are not in use do not occur in
+	 * Check whether all list entries that are yest in use do yest occur in
 	 * a class lock list.
 	 */
 	for_each_clear_bit(i, list_entries_in_use, ARRAY_SIZE(list_entries)) {
@@ -1169,7 +1169,7 @@ static bool is_dynamic_key(const struct lock_class_key *key)
 }
 
 /*
- * Register a lock's class in the hash-table, if the class is not present
+ * Register a lock's class in the hash-table, if the class is yest present
  * yet. Otherwise we look it up. We cache the result in the lock object
  * itself, so actual lookup of the hash should be once per lock object.
  */
@@ -1201,7 +1201,7 @@ register_lock_class(struct lockdep_map *lock, unsigned int subclass, int force)
 	}
 	/*
 	 * We have to do the hash-walk again, to avoid races
-	 * with another CPU:
+	 * with ayesther CPU:
 	 */
 	hlist_for_each_entry_rcu(class, hash_head, hash_entry) {
 		if (class->key == key)
@@ -1307,7 +1307,7 @@ static int add_lock_to_list(struct lock_class *this,
 {
 	struct lock_list *entry;
 	/*
-	 * Lock not present yet - get a new dependency struct and
+	 * Lock yest present yet - get a new dependency struct and
 	 * add it to the list:
 	 */
 	entry = alloc_list_entry();
@@ -1337,7 +1337,7 @@ static int add_lock_to_list(struct lock_class *this,
 /*
  * The circular_queue and helpers are used to implement graph
  * breadth-first search (BFS) algorithm, by which we can determine
- * whether there is a path from a lock to another. In deadlock checks,
+ * whether there is a path from a lock to ayesther. In deadlock checks,
  * a path from the next lock to be acquired to a previous held lock
  * indicates that adding the <prev> -> <next> lock dependency will
  * produce a circle in the graph. Breadth-first search instead of
@@ -1383,7 +1383,7 @@ static inline int __cq_enqueue(struct circular_queue *cq, struct lock_list *elem
 
 /*
  * Dequeue an element from the circular_queue, return a lock_list if
- * the queue is not empty, or NULL if otherwise.
+ * the queue is yest empty, or NULL if otherwise.
  */
 static inline struct lock_list * __cq_dequeue(struct circular_queue *cq)
 {
@@ -1548,7 +1548,7 @@ static void print_lock_trace(const struct lock_trace *trace,
  * Print a dependency chain entry (this is only done when a deadlock
  * has been detected):
  */
-static noinline void
+static yesinline void
 print_circular_bug_entry(struct lock_list *target, int depth)
 {
 	if (debug_locks_silent)
@@ -1576,7 +1576,7 @@ print_circular_lock_scenario(struct held_lock *src,
 	 *
 	 * But if there is a chain instead, where the safe lock takes
 	 * an intermediate lock (middle_class) where this lock is
-	 * not the same as the safe lock, then the lock chain is
+	 * yest the same as the safe lock, then the lock chain is
 	 * used to describe the problem. Otherwise we would need
 	 * to show a different CPU case for each link in the chain
 	 * from the safe_class lock to the unsafe_class lock.
@@ -1613,7 +1613,7 @@ print_circular_lock_scenario(struct held_lock *src,
  * When a circular dependency is detected, print the
  * header first:
  */
-static noinline void
+static yesinline void
 print_circular_bug_header(struct lock_list *entry, unsigned int depth,
 			struct held_lock *check_src,
 			struct held_lock *check_tgt)
@@ -1646,7 +1646,7 @@ static inline int class_equal(struct lock_list *entry, void *data)
 	return entry->class == data;
 }
 
-static noinline void print_circular_bug(struct lock_list *this,
+static yesinline void print_circular_bug(struct lock_list *this,
 					struct lock_list *target,
 					struct held_lock *check_src,
 					struct held_lock *check_tgt)
@@ -1675,7 +1675,7 @@ static noinline void print_circular_bug(struct lock_list *this,
 		parent = get_lock_parent(parent);
 	}
 
-	printk("\nother info that might help us debug this:\n\n");
+	printk("\yesther info that might help us debug this:\n\n");
 	print_circular_lock_scenario(check_src, check_tgt,
 				     first_parent);
 
@@ -1685,7 +1685,7 @@ static noinline void print_circular_bug(struct lock_list *this,
 	dump_stack();
 }
 
-static noinline void print_bfs_bug(int ret)
+static yesinline void print_bfs_bug(int ret)
 {
 	if (!debug_locks_off_graph_unlock())
 		return;
@@ -1696,7 +1696,7 @@ static noinline void print_bfs_bug(int ret)
 	WARN(1, "lockdep bfs error:%d\n", ret);
 }
 
-static int noop_count(struct lock_list *entry, void *data)
+static int yesop_count(struct lock_list *entry, void *data)
 {
 	(*(unsigned long *)data)++;
 	return 0;
@@ -1707,7 +1707,7 @@ static unsigned long __lockdep_count_forward_deps(struct lock_list *this)
 	unsigned long  count = 0;
 	struct lock_list *uninitialized_var(target_entry);
 
-	__bfs_forwards(this, (void *)&count, noop_count, &target_entry);
+	__bfs_forwards(this, (void *)&count, yesop_count, &target_entry);
 
 	return count;
 }
@@ -1733,7 +1733,7 @@ static unsigned long __lockdep_count_backward_deps(struct lock_list *this)
 	unsigned long  count = 0;
 	struct lock_list *uninitialized_var(target_entry);
 
-	__bfs_backwards(this, (void *)&count, noop_count, &target_entry);
+	__bfs_backwards(this, (void *)&count, yesop_count, &target_entry);
 
 	return count;
 }
@@ -1757,9 +1757,9 @@ unsigned long lockdep_count_backward_deps(struct lock_class *class)
 
 /*
  * Check that the dependency graph starting at <src> can lead to
- * <target> or not. Print an error and return 0 if it does.
+ * <target> or yest. Print an error and return 0 if it does.
  */
-static noinline int
+static yesinline int
 check_path(struct lock_class *target, struct lock_list *src_entry,
 	   struct lock_list **target_entry)
 {
@@ -1775,14 +1775,14 @@ check_path(struct lock_class *target, struct lock_list *src_entry,
 }
 
 /*
- * Prove that the dependency graph starting at <src> can not
+ * Prove that the dependency graph starting at <src> can yest
  * lead to <target>. If it can, there is a circle when adding
  * <target> -> <src> dependency.
  *
  * Print an error and return 0 if it does.
  */
-static noinline int
-check_noncircular(struct held_lock *src, struct held_lock *target,
+static yesinline int
+check_yesncircular(struct held_lock *src, struct held_lock *target,
 		  struct lock_trace **const trace)
 {
 	int ret;
@@ -1801,7 +1801,7 @@ check_noncircular(struct held_lock *src, struct held_lock *target,
 			/*
 			 * If save_trace fails here, the printing might
 			 * trigger a WARN but because of the !nr_entries it
-			 * should not do bad things.
+			 * should yest do bad things.
 			 */
 			*trace = save_trace();
 		}
@@ -1815,12 +1815,12 @@ check_noncircular(struct held_lock *src, struct held_lock *target,
 #ifdef CONFIG_LOCKDEP_SMALL
 /*
  * Check that the dependency graph starting at <src> can lead to
- * <target> or not. If it can, <src> -> <target> dependency is already
+ * <target> or yest. If it can, <src> -> <target> dependency is already
  * in the graph.
  *
- * Print an error and return 2 if it does or 1 if it does not.
+ * Print an error and return 2 if it does or 1 if it does yest.
  */
-static noinline int
+static yesinline int
 check_redundant(struct held_lock *src, struct held_lock *target)
 {
 	int ret;
@@ -1865,10 +1865,10 @@ static inline int usage_match(struct lock_list *entry, void *mask)
 }
 
 /*
- * Find a node in the forwards-direction dependency sub-graph starting
+ * Find a yesde in the forwards-direction dependency sub-graph starting
  * at @root->class that matches @bit.
  *
- * Return 0 if such a node exists in the subgraph, and put that node
+ * Return 0 if such a yesde exists in the subgraph, and put that yesde
  * into *@target_entry.
  *
  * Return 1 otherwise and keep *@target_entry unchanged.
@@ -1888,10 +1888,10 @@ find_usage_forwards(struct lock_list *root, unsigned long usage_mask,
 }
 
 /*
- * Find a node in the backwards-direction dependency sub-graph starting
+ * Find a yesde in the backwards-direction dependency sub-graph starting
  * at @root->class that matches @bit.
  *
- * Return 0 if such a node exists in the subgraph, and put that node
+ * Return 0 if such a yesde exists in the subgraph, and put that yesde
  * into *@target_entry.
  *
  * Return 1 otherwise and keep *@target_entry unchanged.
@@ -1986,7 +1986,7 @@ print_irq_lock_scenario(struct lock_list *safe_entry,
 	 *
 	 * But if there is a chain instead, where the safe lock takes
 	 * an intermediate lock (middle_class) where this lock is
-	 * not the same as the safe lock, then the lock chain is
+	 * yest the same as the safe lock, then the lock chain is
 	 * used to describe the problem. Otherwise we would need
 	 * to show a different CPU case for each link in the chain
 	 * from the safe_class lock to the unsafe_class lock.
@@ -2072,7 +2072,7 @@ print_bad_irq_dependency(struct task_struct *curr,
 
 	print_lock_trace(forwards_entry->class->usage_traces[bit2], 1);
 
-	pr_warn("\nother info that might help us debug this:\n\n");
+	pr_warn("\yesther info that might help us debug this:\n\n");
 	print_irq_lock_scenario(backwards_entry, forwards_entry,
 				hlock_class(prev), hlock_class(next));
 
@@ -2146,7 +2146,7 @@ static int exclusive_bit(int new_bit)
  *
  * Similarly, bitnr1 == 0 becomes bitnr1 == 1 by adding 2, or shifting left 2.
  *
- * So split the mask (note that LOCKF_ENABLED_IRQ_ALL|LOCKF_USED_IN_IRQ_ALL is
+ * So split the mask (yeste that LOCKF_ENABLED_IRQ_ALL|LOCKF_USED_IN_IRQ_ALL is
  * all bits set) and recompose with bitnr1 flipped.
  */
 static unsigned long invert_dir_mask(unsigned long mask)
@@ -2216,7 +2216,7 @@ static int find_exclusive_match(unsigned long mask,
 }
 
 /*
- * Prove that the new dependency does not connect a hardirq-safe(-read)
+ * Prove that the new dependency does yest connect a hardirq-safe(-read)
  * lock with a hardirq-unsafe lock - to achieve this we search
  * the backwards-subgraph starting at <prev>, and the
  * forwards-subgraph starting at <next>:
@@ -2342,7 +2342,7 @@ print_deadlock_scenario(struct held_lock *nxt, struct held_lock *prv)
 	__print_lock_name(next);
 	printk(KERN_CONT ");\n");
 	printk("\n *** DEADLOCK ***\n\n");
-	printk(" May be due to missing lock nesting notation\n\n");
+	printk(" May be due to missing lock nesting yestation\n\n");
 }
 
 static void
@@ -2363,7 +2363,7 @@ print_deadlock_bug(struct task_struct *curr, struct held_lock *prev,
 	pr_warn("\nbut task is already holding lock:\n");
 	print_lock(prev);
 
-	pr_warn("\nother info that might help us debug this:\n");
+	pr_warn("\yesther info that might help us debug this:\n");
 	print_deadlock_scenario(next, prev);
 	lockdep_print_held_locks(curr);
 
@@ -2374,7 +2374,7 @@ print_deadlock_bug(struct task_struct *curr, struct held_lock *prev,
 /*
  * Check whether we are holding such a class already.
  *
- * (Note that this has to be done separately, because the graph cannot
+ * (Note that this has to be done separately, because the graph canyest
  * detect such classes of deadlocks.)
  *
  * Returns: 0 on deadlock detected, 1 on OK, 2 on recursive read
@@ -2449,7 +2449,7 @@ check_prev_add(struct task_struct *curr, struct held_lock *prev,
 		/*
 		 * The warning statements below may trigger a use-after-free
 		 * of the class name. It is better to trigger a use-after free
-		 * and to have the class name most of the time instead of not
+		 * and to have the class name most of the time instead of yest
 		 * having the class name available.
 		 */
 		WARN_ONCE(!debug_locks_silent && !hlock_class(prev)->key,
@@ -2464,16 +2464,16 @@ check_prev_add(struct task_struct *curr, struct held_lock *prev,
 	}
 
 	/*
-	 * Prove that the new <prev> -> <next> dependency would not
+	 * Prove that the new <prev> -> <next> dependency would yest
 	 * create a circular dependency in the graph. (We do this by
 	 * a breadth-first search into the graph starting at <next>,
 	 * and check whether we can reach <prev>.)
 	 *
 	 * The search is limited by the size of the circular queue (i.e.,
-	 * MAX_CIRCULAR_QUEUE_SIZE) which keeps track of a breadth of nodes
+	 * MAX_CIRCULAR_QUEUE_SIZE) which keeps track of a breadth of yesdes
 	 * in the graph whose neighbours are to be checked.
 	 */
-	ret = check_noncircular(next, prev, trace);
+	ret = check_yesncircular(next, prev, trace);
 	if (unlikely(ret <= 0))
 		return 0;
 
@@ -2544,7 +2544,7 @@ check_prev_add(struct task_struct *curr, struct held_lock *prev,
 /*
  * Add the dependency to all directly-previous locks that are 'relevant'.
  * The ones that are relevant are (in increasing distance from curr):
- * all consecutive trylock entries and the final non-trylock entry - or
+ * all consecutive trylock entries and the final yesn-trylock entry - or
  * the end of this context's lock-chain - whichever comes first.
  */
 static int
@@ -2557,7 +2557,7 @@ check_prevs_add(struct task_struct *curr, struct held_lock *next)
 	/*
 	 * Debugging checks.
 	 *
-	 * Depth must not be zero for a non-head lock:
+	 * Depth must yest be zero for a yesn-head lock:
 	 */
 	if (!depth)
 		goto out_bug;
@@ -2574,7 +2574,7 @@ check_prevs_add(struct task_struct *curr, struct held_lock *next)
 		hlock = curr->held_locks + depth - 1;
 
 		/*
-		 * Only non-recursive-read entries get new dependencies
+		 * Only yesn-recursive-read entries get new dependencies
 		 * added:
 		 */
 		if (hlock->read != 2 && hlock->check) {
@@ -2584,8 +2584,8 @@ check_prevs_add(struct task_struct *curr, struct held_lock *next)
 				return 0;
 
 			/*
-			 * Stop after the first non-trylock entry,
-			 * as non-trylock entries have added their
+			 * Stop after the first yesn-trylock entry,
+			 * as yesn-trylock entries have added their
 			 * own direct dependencies already, so this
 			 * lock is connected to them indirectly:
 			 */
@@ -2600,7 +2600,7 @@ check_prevs_add(struct task_struct *curr, struct held_lock *next)
 		if (!depth)
 			break;
 		/*
-		 * Stop the search if we cross into another context:
+		 * Stop the search if we cross into ayesther context:
 		 */
 		if (curr->held_locks[depth].irq_context !=
 				curr->held_locks[depth-1].irq_context)
@@ -2726,11 +2726,11 @@ static void print_collision(struct task_struct *curr,
 
 /*
  * Checks whether the chain and the current held locks are consistent
- * in depth and also in content. If they are not it most likely means
+ * in depth and also in content. If they are yest it most likely means
  * that there was a collision during the calculation of the chain_key.
- * Returns: 0 not passed, 1 passed
+ * Returns: 0 yest passed, 1 passed
  */
-static int check_no_collision(struct task_struct *curr,
+static int check_yes_collision(struct task_struct *curr,
 			struct held_lock *hlock,
 			struct lock_chain *chain)
 {
@@ -2758,7 +2758,7 @@ static int check_no_collision(struct task_struct *curr,
 
 /*
  * Given an index that is >= -1, return the index of the next lock chain.
- * Return -2 if there is no next lock chain.
+ * Return -2 if there is yes next lock chain.
  */
 long lockdep_next_lockchain(long i)
 {
@@ -2868,7 +2868,7 @@ static inline struct lock_chain *lookup_chain_cache(u64 chain_key)
 }
 
 /*
- * If the key is not present yet in dependency chain cache then
+ * If the key is yest present yet in dependency chain cache then
  * add it and return 1 - in this case the new dependency chain is
  * validated. If the key is already hashed, return 0.
  * (On return with 1 graph_lock is held.)
@@ -2882,7 +2882,7 @@ static inline int lookup_chain_cache_add(struct task_struct *curr,
 
 	if (chain) {
 cache_hit:
-		if (!check_no_collision(curr, hlock, chain))
+		if (!check_yes_collision(curr, hlock, chain))
 			return 0;
 
 		if (very_verbose(class)) {
@@ -2924,7 +2924,7 @@ static int validate_chain(struct task_struct *curr,
 {
 	/*
 	 * Trylock needs to maintain the stack of held locks, but it
-	 * does not add new dependencies, because trylock can be done
+	 * does yest add new dependencies, because trylock can be done
 	 * in any order.
 	 *
 	 * We look up the chain_key and do the O(N^2) check and update of
@@ -2964,8 +2964,8 @@ static int validate_chain(struct task_struct *curr,
 		if (ret == 2)
 			hlock->read = 2;
 		/*
-		 * Add dependency only if this lock is not the head
-		 * of the chain, and if it's not a secondary read-lock:
+		 * Add dependency only if this lock is yest the head
+		 * of the chain, and if it's yest a secondary read-lock:
 		 */
 		if (!chain_head && ret != 2) {
 			if (!check_prevs_add(curr, hlock))
@@ -3092,7 +3092,7 @@ print_usage_bug(struct task_struct *curr, struct held_lock *this,
 	print_lock_trace(hlock_class(this)->usage_traces[prev_bit], 1);
 
 	print_irqtrace_events(curr);
-	pr_warn("\nother info that might help us debug this:\n");
+	pr_warn("\yesther info that might help us debug this:\n");
 	print_usage_bug_scenario(this);
 
 	lockdep_print_held_locks(curr);
@@ -3141,13 +3141,13 @@ print_irq_inversion_bug(struct task_struct *curr,
 		curr->comm, task_pid_nr(curr));
 	print_lock(this);
 	if (forwards)
-		pr_warn("but this lock took another, %s-unsafe lock in the past:\n", irqclass);
+		pr_warn("but this lock took ayesther, %s-unsafe lock in the past:\n", irqclass);
 	else
-		pr_warn("but this lock was taken by another, %s-safe lock in the past:\n", irqclass);
+		pr_warn("but this lock was taken by ayesther, %s-safe lock in the past:\n", irqclass);
 	print_lock_name(other->class);
 	pr_warn("\n\nand interrupts could create inverse lock ordering between them.\n\n");
 
-	pr_warn("\nother info that might help us debug this:\n");
+	pr_warn("\yesther info that might help us debug this:\n");
 
 	/* Find a middle lock (if one exists) */
 	depth = get_lock_depth(other);
@@ -3181,7 +3181,7 @@ print_irq_inversion_bug(struct task_struct *curr,
 
 /*
  * Prove that in the forwards-direction subgraph starting at <this>
- * there is no lock matching <mask>:
+ * there is yes lock matching <mask>:
  */
 static int
 check_usage_forwards(struct task_struct *curr, struct held_lock *this,
@@ -3208,7 +3208,7 @@ check_usage_forwards(struct task_struct *curr, struct held_lock *this,
 
 /*
  * Prove that in the backwards-direction subgraph starting at <this>
- * there is no lock matching <mask>:
+ * there is yes lock matching <mask>:
  */
 static int
 check_usage_backwards(struct task_struct *curr, struct held_lock *this,
@@ -3293,17 +3293,17 @@ mark_lock_irq(struct task_struct *curr, struct held_lock *this,
 	int dir = new_bit & LOCK_USAGE_DIR_MASK;
 
 	/*
-	 * mark USED_IN has to look forwards -- to ensure no dependency
+	 * mark USED_IN has to look forwards -- to ensure yes dependency
 	 * has ENABLED state, which would allow recursion deadlocks.
 	 *
-	 * mark ENABLED has to look backwards -- to ensure no dependee
+	 * mark ENABLED has to look backwards -- to ensure yes dependee
 	 * has USED_IN state, which, again, would allow  recursion deadlocks.
 	 */
 	check_usage_f usage = dir ?
 		check_usage_backwards : check_usage_forwards;
 
 	/*
-	 * Validate that this particular lock does not have conflicting
+	 * Validate that this particular lock does yest have conflicting
 	 * usage states.
 	 */
 	if (!valid_state(curr, this, new_bit, excl_bit))
@@ -3401,9 +3401,9 @@ void lockdep_hardirqs_on(unsigned long ip)
 
 	if (unlikely(current->hardirqs_enabled)) {
 		/*
-		 * Neither irq nor preemption are disabled here
+		 * Neither irq yesr preemption are disabled here
 		 * so this is racy by nature but losing one hit
-		 * in a stat is not a big deal.
+		 * in a stat is yest a big deal.
 		 */
 		__debug_atomic_inc(redundant_hardirqs_on);
 		return;
@@ -3545,7 +3545,7 @@ mark_usage(struct task_struct *curr, struct held_lock *hlock, int check)
 		goto lock_used;
 
 	/*
-	 * If non-trylock use in a hardirq or softirq context, then
+	 * If yesn-trylock use in a hardirq or softirq context, then
 	 * mark the lock as used in these contexts:
 	 */
 	if (!hlock->trylock) {
@@ -3613,7 +3613,7 @@ static int separate_irq_context(struct task_struct *curr,
 
 		prev_hlock = curr->held_locks + depth-1;
 		/*
-		 * If we cross into another context, reset the
+		 * If we cross into ayesther context, reset the
 		 * hash key (this also prevents the checking and the
 		 * adding of the dependency to 'prev'):
 		 */
@@ -3637,8 +3637,8 @@ static int mark_lock(struct task_struct *curr, struct held_lock *this,
 	}
 
 	/*
-	 * If already set then do not dirty the cacheline,
-	 * nor do any checks:
+	 * If already set then do yest dirty the cacheline,
+	 * yesr do any checks:
 	 */
 	if (likely(hlock_class(this)->usage_mask & new_mask))
 		return 1;
@@ -3720,7 +3720,7 @@ void lockdep_init_map(struct lockdep_map *lock, const char *name,
 #endif
 
 	/*
-	 * Can't be having no nameless bastards around this place!
+	 * Can't be having yes nameless bastards around this place!
 	 */
 	if (DEBUG_LOCKS_WARN_ON(!name)) {
 		lock->name = "NULL";
@@ -3730,7 +3730,7 @@ void lockdep_init_map(struct lockdep_map *lock, const char *name,
 	lock->name = name;
 
 	/*
-	 * No key, no joy, we need to hash something.
+	 * No key, yes joy, we need to hash something.
 	 */
 	if (DEBUG_LOCKS_WARN_ON(!key))
 		return;
@@ -3740,7 +3740,7 @@ void lockdep_init_map(struct lockdep_map *lock, const char *name,
 	 */
 	if (!static_obj(key) && !is_dynamic_key(key)) {
 		if (debug_locks)
-			printk(KERN_ERR "BUG: key %px has not been registered!\n", key);
+			printk(KERN_ERR "BUG: key %px has yest been registered!\n", key);
 		DEBUG_LOCKS_WARN_ON(1);
 		return;
 	}
@@ -3764,11 +3764,11 @@ void lockdep_init_map(struct lockdep_map *lock, const char *name,
 }
 EXPORT_SYMBOL_GPL(lockdep_init_map);
 
-struct lock_class_key __lockdep_no_validate__;
-EXPORT_SYMBOL_GPL(__lockdep_no_validate__);
+struct lock_class_key __lockdep_yes_validate__;
+EXPORT_SYMBOL_GPL(__lockdep_yes_validate__);
 
 static void
-print_lock_nested_lock_not_held(struct task_struct *curr,
+print_lock_nested_lock_yest_held(struct task_struct *curr,
 				struct held_lock *hlock,
 				unsigned long ip)
 {
@@ -3779,20 +3779,20 @@ print_lock_nested_lock_not_held(struct task_struct *curr,
 
 	pr_warn("\n");
 	pr_warn("==================================\n");
-	pr_warn("WARNING: Nested lock was not taken\n");
+	pr_warn("WARNING: Nested lock was yest taken\n");
 	print_kernel_ident();
 	pr_warn("----------------------------------\n");
 
 	pr_warn("%s/%d is trying to lock:\n", curr->comm, task_pid_nr(curr));
 	print_lock(hlock);
 
-	pr_warn("\nbut this task is not holding:\n");
+	pr_warn("\nbut this task is yest holding:\n");
 	pr_warn("%s\n", hlock->nest_lock->name);
 
 	pr_warn("\nstack backtrace:\n");
 	dump_stack();
 
-	pr_warn("\nother info that might help us debug this:\n");
+	pr_warn("\yesther info that might help us debug this:\n");
 	lockdep_print_held_locks(curr);
 
 	pr_warn("\nstack backtrace:\n");
@@ -3825,7 +3825,7 @@ static int __lock_acquire(struct lockdep_map *lock, unsigned int subclass,
 	if (unlikely(!debug_locks))
 		return 0;
 
-	if (!prove_locking || lock->key == &__lockdep_no_validate__)
+	if (!prove_locking || lock->key == &__lockdep_yes_validate__)
 		check = 0;
 
 	if (subclass < NR_LOCKDEP_CACHING_CLASSES)
@@ -3884,7 +3884,7 @@ static int __lock_acquire(struct lockdep_map *lock, unsigned int subclass,
 
 	hlock = curr->held_locks + depth;
 	/*
-	 * Plain impossible, we just registered it and checked it weren't no
+	 * Plain impossible, we just registered it and checked it weren't yes
 	 * NULL like.. I bet this mushroom I ate was good!
 	 */
 	if (DEBUG_LOCKS_WARN_ON(!class))
@@ -3917,7 +3917,7 @@ static int __lock_acquire(struct lockdep_map *lock, unsigned int subclass,
 	 * results.
 	 *
 	 * The 'key ID' is what is the most compact key value to drive
-	 * the hash, not class->key.
+	 * the hash, yest class->key.
 	 */
 	/*
 	 * Whoops, we did it again.. class_idx is invalid.
@@ -3928,7 +3928,7 @@ static int __lock_acquire(struct lockdep_map *lock, unsigned int subclass,
 	chain_key = curr->curr_chain_key;
 	if (!depth) {
 		/*
-		 * How can we have a chain hash when we ain't got no keys?!
+		 * How can we have a chain hash when we ain't got yes keys?!
 		 */
 		if (DEBUG_LOCKS_WARN_ON(chain_key != INITIAL_CHAIN_KEY))
 			return 0;
@@ -3943,7 +3943,7 @@ static int __lock_acquire(struct lockdep_map *lock, unsigned int subclass,
 	chain_key = iterate_chain_key(chain_key, class_idx);
 
 	if (nest_lock && !__lock_is_held(nest_lock, -1)) {
-		print_lock_nested_lock_not_held(curr, hlock, ip);
+		print_lock_nested_lock_yest_held(curr, hlock, ip);
 		return 0;
 	}
 
@@ -4000,8 +4000,8 @@ static void print_unlock_imbalance_bug(struct task_struct *curr,
 	print_lockdep_cache(lock);
 	pr_cont(") at:\n");
 	print_ip_sym(ip);
-	pr_warn("but there are no more locks to release!\n");
-	pr_warn("\nother info that might help us debug this:\n");
+	pr_warn("but there are yes more locks to release!\n");
+	pr_warn("\yesther info that might help us debug this:\n");
 	lockdep_print_held_locks(curr);
 
 	pr_warn("\nstack backtrace:\n");
@@ -4023,14 +4023,14 @@ static int match_held_lock(const struct held_lock *hlock,
 		/*
 		 * If look_up_lock_class() failed to find a class, we're trying
 		 * to test if we hold a lock that has never yet been acquired.
-		 * Clearly if the lock hasn't been acquired _ever_, we're not
+		 * Clearly if the lock hasn't been acquired _ever_, we're yest
 		 * holding it either, so report failure.
 		 */
 		if (!class)
 			return 0;
 
 		/*
-		 * References, but not a lock we're actually ref-counting?
+		 * References, but yest a lock we're actually ref-counting?
 		 * State got messed up, follow the sites that change ->references
 		 * and try to make sense of it.
 		 */
@@ -4044,7 +4044,7 @@ static int match_held_lock(const struct held_lock *hlock,
 	return 0;
 }
 
-/* @depth must not be zero */
+/* @depth must yest be zero */
 static struct held_lock *find_held_lock(struct task_struct *curr,
 					struct lockdep_map *lock,
 					unsigned int depth, int *idx)
@@ -4063,7 +4063,7 @@ static struct held_lock *find_held_lock(struct task_struct *curr,
 	     i >= 0;
 	     i--, prev_hlock = hlock--) {
 		/*
-		 * We must not cross into another context:
+		 * We must yest cross into ayesther context:
 		 */
 		if (prev_hlock->irq_context != hlock->irq_context) {
 			ret = NULL;
@@ -4129,7 +4129,7 @@ __lock_set_class(struct lockdep_map *lock, const char *name,
 	depth = curr->lockdep_depth;
 	/*
 	 * This function is about (re)setting the class of a held lock,
-	 * yet we're not actually holding any locks. Naughty user!
+	 * yet we're yest actually holding any locks. Naughty user!
 	 */
 	if (DEBUG_LOCKS_WARN_ON(!depth))
 		return 0;
@@ -4151,7 +4151,7 @@ __lock_set_class(struct lockdep_map *lock, const char *name,
 		return 0;
 
 	/*
-	 * I took it apart and put it back together again, except now I have
+	 * I took it apart and put it back together again, except yesw I have
 	 * these 'spare' parts.. where shall I put them.
 	 */
 	if (DEBUG_LOCKS_WARN_ON(curr->lockdep_depth != depth - merged))
@@ -4172,7 +4172,7 @@ static int __lock_downgrade(struct lockdep_map *lock, unsigned long ip)
 	depth = curr->lockdep_depth;
 	/*
 	 * This function is about (re)setting the class of a held lock,
-	 * yet we're not actually holding any locks. Naughty user!
+	 * yet we're yest actually holding any locks. Naughty user!
 	 */
 	if (DEBUG_LOCKS_WARN_ON(!depth))
 		return 0;
@@ -4198,7 +4198,7 @@ static int __lock_downgrade(struct lockdep_map *lock, unsigned long ip)
 		return 0;
 
 	/*
-	 * I took it apart and put it back together again, except now I have
+	 * I took it apart and put it back together again, except yesw I have
 	 * these 'spare' parts.. where shall I put them.
 	 */
 	if (DEBUG_LOCKS_WARN_ON(curr->lockdep_depth != depth))
@@ -4280,8 +4280,8 @@ __lock_release(struct lockdep_map *lock, unsigned long ip)
 		return 0;
 
 	/*
-	 * We had N bottles of beer on the wall, we drank one, but now
-	 * there's not N-1 bottles of beer left on the wall...
+	 * We had N bottles of beer on the wall, we drank one, but yesw
+	 * there's yest N-1 bottles of beer left on the wall...
 	 * Pouring two of the bottles together is acceptable.
 	 */
 	DEBUG_LOCKS_WARN_ON(curr->lockdep_depth != depth - merged);
@@ -4294,7 +4294,7 @@ __lock_release(struct lockdep_map *lock, unsigned long ip)
 	return 0;
 }
 
-static nokprobe_inline
+static yeskprobe_inline
 int __lock_is_held(const struct lockdep_map *lock, int read)
 {
 	struct task_struct *curr = current;
@@ -4328,7 +4328,7 @@ static struct pin_cookie __lock_pin_lock(struct lockdep_map *lock)
 
 		if (match_held_lock(hlock, lock)) {
 			/*
-			 * Grab 16bits of randomness; this is sufficient to not
+			 * Grab 16bits of randomness; this is sufficient to yest
 			 * be guessable and still allows some pin nesting in
 			 * our u32 pin_count.
 			 */
@@ -4400,18 +4400,18 @@ static void check_flags(unsigned long flags)
 
 	if (irqs_disabled_flags(flags)) {
 		if (DEBUG_LOCKS_WARN_ON(current->hardirqs_enabled)) {
-			printk("possible reason: unannotated irqs-off.\n");
+			printk("possible reason: unanyestated irqs-off.\n");
 		}
 	} else {
 		if (DEBUG_LOCKS_WARN_ON(!current->hardirqs_enabled)) {
-			printk("possible reason: unannotated irqs-on.\n");
+			printk("possible reason: unanyestated irqs-on.\n");
 		}
 	}
 
 	/*
 	 * We dont accurately track softirq state in e.g.
 	 * hardirq contexts (such as on 4KSTACKS), so only
-	 * check if not in hardirq contexts:
+	 * check if yest in hardirq contexts:
 	 */
 	if (!hardirq_count()) {
 		if (softirq_count()) {
@@ -4465,7 +4465,7 @@ void lock_downgrade(struct lockdep_map *lock, unsigned long ip)
 EXPORT_SYMBOL_GPL(lock_downgrade);
 
 /*
- * We are not always called with irqs disabled - do that here,
+ * We are yest always called with irqs disabled - do that here,
  * and also avoid lockdep recursion:
  */
 void lock_acquire(struct lockdep_map *lock, unsigned int subclass,
@@ -4602,8 +4602,8 @@ static void print_lock_contention_bug(struct task_struct *curr,
 	print_lockdep_cache(lock);
 	pr_cont(") at:\n");
 	print_ip_sym(ip);
-	pr_warn("but there are no locks held!\n");
-	pr_warn("\nother info that might help us debug this:\n");
+	pr_warn("but there are yes locks held!\n");
+	pr_warn("\yesther info that might help us debug this:\n");
 	lockdep_print_held_locks(curr);
 
 	pr_warn("\nstack backtrace:\n");
@@ -4621,7 +4621,7 @@ __lock_contended(struct lockdep_map *lock, unsigned long ip)
 
 	depth = curr->lockdep_depth;
 	/*
-	 * Whee, we contended on this lock, except it seems we're not
+	 * Whee, we contended on this lock, except it seems we're yest
 	 * actually trying to acquire anything much at all..
 	 */
 	if (DEBUG_LOCKS_WARN_ON(!depth))
@@ -4658,7 +4658,7 @@ __lock_acquired(struct lockdep_map *lock, unsigned long ip)
 	struct held_lock *hlock;
 	struct lock_class_stats *stats;
 	unsigned int depth;
-	u64 now, waittime = 0;
+	u64 yesw, waittime = 0;
 	int i, cpu;
 
 	depth = curr->lockdep_depth;
@@ -4680,9 +4680,9 @@ __lock_acquired(struct lockdep_map *lock, unsigned long ip)
 
 	cpu = smp_processor_id();
 	if (hlock->waittime_stamp) {
-		now = lockstat_clock();
-		waittime = now - hlock->waittime_stamp;
-		hlock->holdtime_stamp = now;
+		yesw = lockstat_clock();
+		waittime = yesw - hlock->waittime_stamp;
+		hlock->holdtime_stamp = yesw;
 	}
 
 	trace_lock_acquired(lock, ip);
@@ -4788,7 +4788,7 @@ static void remove_class_from_lock_chain(struct pending_free *pf,
 		 */
 		goto recalc;
 	}
-	/* Since the chain has not been modified, return. */
+	/* Since the chain has yest been modified, return. */
 	return;
 
 recalc:
@@ -4910,7 +4910,7 @@ static struct pending_free *get_pending_free(void)
 static void free_zapped_rcu(struct rcu_head *cb);
 
 /*
- * Schedule an RCU callback if no RCU callback is pending. Must be called with
+ * Schedule an RCU callback if yes RCU callback is pending. Must be called with
  * the graph lock held.
  */
 static void call_rcu_zapped(struct pending_free *pf)
@@ -4944,7 +4944,7 @@ static void __free_zapped_classes(struct pending_free *pf)
 	list_splice_init(&pf->zapped, &free_lock_classes);
 
 #ifdef CONFIG_PROVE_LOCKING
-	bitmap_andnot(lock_chains_in_use, lock_chains_in_use,
+	bitmap_andyest(lock_chains_in_use, lock_chains_in_use,
 		      pf->lock_chains_being_freed, ARRAY_SIZE(lock_chains));
 	bitmap_clear(pf->lock_chains_being_freed, 0, ARRAY_SIZE(lock_chains));
 #endif
@@ -5007,7 +5007,7 @@ static void __lockdep_free_key_range(struct pending_free *pf, void *start,
  * freed; and possibly re-used by other modules.
  *
  * We will have had one synchronize_rcu() before getting here, so we're
- * guaranteed nobody will look up these exact classes -- they're properly dead
+ * guaranteed yesbody will look up these exact classes -- they're properly dead
  * but still allocated.
  */
 static void lockdep_free_key_range_reg(void *start, unsigned long size)
@@ -5035,8 +5035,8 @@ static void lockdep_free_key_range_reg(void *start, unsigned long size)
 }
 
 /*
- * Free all lockdep keys in the range [start, start+size). Does not sleep.
- * Ignores debug_locks. Must only be used by the lockdep selftests.
+ * Free all lockdep keys in the range [start, start+size). Does yest sleep.
+ * Igyesres debug_locks. Must only be used by the lockdep selftests.
  */
 static void lockdep_free_key_range_imm(void *start, unsigned long size)
 {
@@ -5085,7 +5085,7 @@ static bool lock_class_cache_is_registered(struct lockdep_map *lock)
 	return false;
 }
 
-/* The caller must hold the graph lock. Does not sleep. */
+/* The caller must hold the graph lock. Does yest sleep. */
 static void __lockdep_reset_lock(struct pending_free *pf,
 				 struct lockdep_map *lock)
 {
@@ -5136,7 +5136,7 @@ out_irq:
 }
 
 /*
- * Reset a lock. Does not sleep. Ignores debug_locks. Must only be used by the
+ * Reset a lock. Does yest sleep. Igyesres debug_locks. Must only be used by the
  * lockdep selftests.
  */
 static void lockdep_reset_lock_imm(struct lockdep_map *lock)
@@ -5262,7 +5262,7 @@ print_freed_lock_bug(struct task_struct *curr, const void *mem_from,
 	dump_stack();
 }
 
-static inline int not_in_range(const void* mem_from, unsigned long mem_len,
+static inline int yest_in_range(const void* mem_from, unsigned long mem_len,
 				const void* lock_from, unsigned long lock_len)
 {
 	return lock_from + lock_len <= mem_from ||
@@ -5274,7 +5274,7 @@ static inline int not_in_range(const void* mem_from, unsigned long mem_len,
  * is destroyed or reinitialized - this code checks whether there is
  * any held lock in the memory range of <from> to <to>:
  */
-void debug_check_no_locks_freed(const void *mem_from, unsigned long mem_len)
+void debug_check_yes_locks_freed(const void *mem_from, unsigned long mem_len)
 {
 	struct task_struct *curr = current;
 	struct held_lock *hlock;
@@ -5288,7 +5288,7 @@ void debug_check_no_locks_freed(const void *mem_from, unsigned long mem_len)
 	for (i = 0; i < curr->lockdep_depth; i++) {
 		hlock = curr->held_locks + i;
 
-		if (not_in_range(mem_from, mem_len, hlock->instance,
+		if (yest_in_range(mem_from, mem_len, hlock->instance,
 					sizeof(*hlock->instance)))
 			continue;
 
@@ -5297,7 +5297,7 @@ void debug_check_no_locks_freed(const void *mem_from, unsigned long mem_len)
 	}
 	raw_local_irq_restore(flags);
 }
-EXPORT_SYMBOL_GPL(debug_check_no_locks_freed);
+EXPORT_SYMBOL_GPL(debug_check_yes_locks_freed);
 
 static void print_held_locks_bug(void)
 {
@@ -5317,12 +5317,12 @@ static void print_held_locks_bug(void)
 	dump_stack();
 }
 
-void debug_check_no_locks_held(void)
+void debug_check_yes_locks_held(void)
 {
 	if (unlikely(current->lockdep_depth > 0))
 		print_held_locks_bug();
 }
-EXPORT_SYMBOL_GPL(debug_check_no_locks_held);
+EXPORT_SYMBOL_GPL(debug_check_yes_locks_held);
 
 #ifdef __KERNEL__
 void debug_show_all_locks(void)
@@ -5353,7 +5353,7 @@ EXPORT_SYMBOL_GPL(debug_show_all_locks);
 
 /*
  * Careful: only use this function if you are sure that
- * the task cannot run in parallel!
+ * the task canyest run in parallel!
  */
 void debug_show_held_locks(struct task_struct *task)
 {
@@ -5400,7 +5400,7 @@ void lockdep_rcu_suspicious(const char *file, const int line, const char *s)
 	print_kernel_ident();
 	pr_warn("-----------------------------\n");
 	pr_warn("%s:%d %s!\n", file, line, s);
-	pr_warn("\nother info that might help us debug this:\n\n");
+	pr_warn("\yesther info that might help us debug this:\n\n");
 	pr_warn("\n%srcu_scheduler_active = %d, debug_locks = %d\n",
 	       !rcu_lockdep_current_cpu_online()
 			? "RCU used illegally from offline CPU!\n"
@@ -5413,14 +5413,14 @@ void lockdep_rcu_suspicious(const char *file, const int line, const char *s)
 	 * If a CPU is in the RCU-free window in idle (ie: in the section
 	 * between rcu_idle_enter() and rcu_idle_exit(), then RCU
 	 * considers that CPU to be in an "extended quiescent state",
-	 * which means that RCU will be completely ignoring that CPU.
-	 * Therefore, rcu_read_lock() and friends have absolutely no
+	 * which means that RCU will be completely igyesring that CPU.
+	 * Therefore, rcu_read_lock() and friends have absolutely yes
 	 * effect on a CPU running in that state. In other words, even if
 	 * such an RCU-idle CPU has called rcu_read_lock(), RCU might well
-	 * delete data structures out from under it.  RCU really has no
+	 * delete data structures out from under it.  RCU really has yes
 	 * choice here: we need to keep an RCU-free window in idle where
 	 * the CPU may possibly enter into low power mode. This way we can
-	 * notice an extended quiescent state to other CPUs that started a grace
+	 * yestice an extended quiescent state to other CPUs that started a grace
 	 * period. Otherwise we would delay any grace period as long as we run
 	 * in the idle task.
 	 *

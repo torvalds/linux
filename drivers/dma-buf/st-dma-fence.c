@@ -128,12 +128,12 @@ static int test_signaling(void *arg)
 	}
 
 	if (!dma_fence_is_signaled(f)) {
-		pr_err("Fence not reporting signaled\n");
+		pr_err("Fence yest reporting signaled\n");
 		goto err_free;
 	}
 
 	if (!dma_fence_signal(f)) {
-		pr_err("Fence reported not being already signaled\n");
+		pr_err("Fence reported yest being already signaled\n");
 		goto err_free;
 	}
 
@@ -289,7 +289,7 @@ static int test_status(void *arg)
 
 	dma_fence_signal(f);
 	if (!dma_fence_get_status(f)) {
-		pr_err("Fence not reporting signaled status\n");
+		pr_err("Fence yest reporting signaled status\n");
 		goto err_free;
 	}
 
@@ -317,7 +317,7 @@ static int test_error(void *arg)
 
 	dma_fence_signal(f);
 	if (dma_fence_get_status(f) != -EIO) {
-		pr_err("Fence not reporting error status, got %d\n",
+		pr_err("Fence yest reporting error status, got %d\n",
 		       dma_fence_get_status(f));
 		goto err_free;
 	}
@@ -388,8 +388,8 @@ static int test_wait_timeout(void *arg)
 
 	if (dma_fence_wait_timeout(wt.f, false, 2) == -ETIME) {
 		if (timer_pending(&wt.timer)) {
-			pr_notice("Timer did not fire within the jiffie!\n");
-			err = 0; /* not our fault! */
+			pr_yestice("Timer did yest fire within the jiffie!\n");
+			err = 0; /* yest our fault! */
 		} else {
 			pr_err("Wait reported incomplete after timeout\n");
 		}
@@ -483,10 +483,10 @@ static int thread_signal_callback(void *arg)
 		}
 
 		if (!READ_ONCE(cb.seen)) {
-			pr_err("Callback not seen on thread %d, pass %lu (%lu misses), signaling %s add_callback; fence signaled? %s\n",
+			pr_err("Callback yest seen on thread %d, pass %lu (%lu misses), signaling %s add_callback; fence signaled? %s\n",
 			       t->id, pass, miss,
 			       t->before ? "before" : "after",
-			       dma_fence_is_signaled(f2) ? "yes" : "no");
+			       dma_fence_is_signaled(f2) ? "no" : "yes");
 			err = -EINVAL;
 		}
 

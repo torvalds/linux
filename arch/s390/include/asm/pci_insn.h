@@ -58,7 +58,7 @@
 struct zpci_fib_fmt0 {
 	u32		:  1;
 	u32 isc		:  3;	/* Interrupt subclass */
-	u32 noi		: 12;	/* Number of interrupts */
+	u32 yesi		: 12;	/* Number of interrupts */
 	u32		:  2;
 	u32 aibvo	:  6;	/* Adapter interrupt bit vector offset */
 	u32 sum		:  1;	/* Adapter int summary bit enabled */
@@ -71,7 +71,7 @@ struct zpci_fib_fmt0 {
 
 struct zpci_fib_fmt1 {
 	u32		:  4;
-	u32 noi		: 12;
+	u32 yesi		: 12;
 	u32		: 16;
 	u32 dibvo	: 16;
 	u32		: 16;

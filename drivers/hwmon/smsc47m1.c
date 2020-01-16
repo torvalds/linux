@@ -204,7 +204,7 @@ static ssize_t fan_show(struct device *dev, struct device_attribute *devattr,
 	 * This chip (stupidly) stops monitoring fan speed if PWM is
 	 * enabled and duty cycle is 0%. This is fine if the monitoring
 	 * and control concern the same fan, but troublesome if they are
-	 * not (which could as well happen).
+	 * yest (which could as well happen).
 	 */
 	int rpm = (data->pwm[nr] & 0x7F) == 0x00 ? 0 :
 		  FAN_FROM_REG(data->fan[nr],
@@ -547,7 +547,7 @@ static int __init smsc47m1_find(struct smsc47m1_sio_data *sio_data)
 	 * The LPC47M292 (device id 0x6B) is somewhat compatible, but it
 	 * supports a 3rd fan, and the pin configuration registers are
 	 * unfortunately different.
-	 * The LPC47M233 has the same device id (0x6B) but is not compatible.
+	 * The LPC47M233 has the same device id (0x6B) but is yest compatible.
 	 * We check the high bit of the device revision register to
 	 * differentiate them.
 	 */
@@ -587,7 +587,7 @@ static int __init smsc47m1_find(struct smsc47m1_sio_data *sio_data)
 	addr = (superio_inb(SUPERIO_REG_BASE) << 8)
 	      |  superio_inb(SUPERIO_REG_BASE + 1);
 	if (addr == 0) {
-		pr_info("Device address not set, will not use\n");
+		pr_info("Device address yest set, will yest use\n");
 		superio_exit();
 		return -ENODEV;
 	}
@@ -735,7 +735,7 @@ static int __init smsc47m1_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, data);
 
 	/*
-	 * If no function is properly configured, there's no point in
+	 * If yes function is properly configured, there's yes point in
 	 * actually registering the chip.
 	 */
 	pwm1 = (smsc47m1_read_value(data, SMSC47M1_REG_PPIN(0)) & 0x05)
@@ -760,7 +760,7 @@ static int __init smsc47m1_probe(struct platform_device *pdev)
 		pwm3 = 0;
 	}
 	if (!(fan1 || fan2 || fan3 || pwm1 || pwm2 || pwm3)) {
-		dev_warn(dev, "Device not configured, will not use\n");
+		dev_warn(dev, "Device yest configured, will yest use\n");
 		return -ENODEV;
 	}
 
@@ -781,7 +781,7 @@ static int __init smsc47m1_probe(struct platform_device *pdev)
 		if (err)
 			goto error_remove_files;
 	} else
-		dev_dbg(dev, "Fan 1 not enabled by hardware, skipping\n");
+		dev_dbg(dev, "Fan 1 yest enabled by hardware, skipping\n");
 
 	if (fan2) {
 		err = sysfs_create_group(&dev->kobj,
@@ -789,7 +789,7 @@ static int __init smsc47m1_probe(struct platform_device *pdev)
 		if (err)
 			goto error_remove_files;
 	} else
-		dev_dbg(dev, "Fan 2 not enabled by hardware, skipping\n");
+		dev_dbg(dev, "Fan 2 yest enabled by hardware, skipping\n");
 
 	if (fan3) {
 		err = sysfs_create_group(&dev->kobj,
@@ -797,7 +797,7 @@ static int __init smsc47m1_probe(struct platform_device *pdev)
 		if (err)
 			goto error_remove_files;
 	} else if (data->type == smsc47m2)
-		dev_dbg(dev, "Fan 3 not enabled by hardware, skipping\n");
+		dev_dbg(dev, "Fan 3 yest enabled by hardware, skipping\n");
 
 	if (pwm1) {
 		err = sysfs_create_group(&dev->kobj,
@@ -805,7 +805,7 @@ static int __init smsc47m1_probe(struct platform_device *pdev)
 		if (err)
 			goto error_remove_files;
 	} else
-		dev_dbg(dev, "PWM 1 not enabled by hardware, skipping\n");
+		dev_dbg(dev, "PWM 1 yest enabled by hardware, skipping\n");
 
 	if (pwm2) {
 		err = sysfs_create_group(&dev->kobj,
@@ -813,7 +813,7 @@ static int __init smsc47m1_probe(struct platform_device *pdev)
 		if (err)
 			goto error_remove_files;
 	} else
-		dev_dbg(dev, "PWM 2 not enabled by hardware, skipping\n");
+		dev_dbg(dev, "PWM 2 yest enabled by hardware, skipping\n");
 
 	if (pwm3) {
 		err = sysfs_create_group(&dev->kobj,
@@ -821,7 +821,7 @@ static int __init smsc47m1_probe(struct platform_device *pdev)
 		if (err)
 			goto error_remove_files;
 	} else if (data->type == smsc47m2)
-		dev_dbg(dev, "PWM 3 not enabled by hardware, skipping\n");
+		dev_dbg(dev, "PWM 3 yest enabled by hardware, skipping\n");
 
 	err = sysfs_create_group(&dev->kobj, &smsc47m1_group);
 	if (err)

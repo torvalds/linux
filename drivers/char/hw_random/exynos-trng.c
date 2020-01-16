@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * RNG driver for Exynos TRNGs
+ * RNG driver for Exyyess TRNGs
  *
  * Author: Łukasz Stelmach <l.stelmach@samsung.com>
  *
  * Copyright 2017 (c) Samsung Electronics Software, Inc.
  *
- * Based on the Exynos PRNG driver drivers/crypto/exynos-rng by
+ * Based on the Exyyess PRNG driver drivers/crypto/exyyess-rng by
  * Krzysztof Kozłowski <krzk@kernel.org>
  */
 
@@ -45,22 +45,22 @@
 #define EXYNOS_TRNG_CLOCK_RATE     (500000)
 
 
-struct exynos_trng_dev {
+struct exyyess_trng_dev {
 	struct device    *dev;
 	void __iomem     *mem;
 	struct clk       *clk;
 	struct hwrng rng;
 };
 
-static int exynos_trng_do_read(struct hwrng *rng, void *data, size_t max,
+static int exyyess_trng_do_read(struct hwrng *rng, void *data, size_t max,
 			       bool wait)
 {
-	struct exynos_trng_dev *trng;
+	struct exyyess_trng_dev *trng;
 	int val;
 
 	max = min_t(size_t, max, (EXYNOS_TRNG_FIFO_LEN * 4));
 
-	trng = (struct exynos_trng_dev *)rng->priv;
+	trng = (struct exyyess_trng_dev *)rng->priv;
 
 	writel_relaxed(max * 8, trng->mem + EXYNOS_TRNG_FIFO_CTRL);
 	val = readl_poll_timeout(trng->mem + EXYNOS_TRNG_FIFO_CTRL, val,
@@ -73,9 +73,9 @@ static int exynos_trng_do_read(struct hwrng *rng, void *data, size_t max,
 	return max;
 }
 
-static int exynos_trng_init(struct hwrng *rng)
+static int exyyess_trng_init(struct hwrng *rng)
 {
-	struct exynos_trng_dev *trng = (struct exynos_trng_dev *)rng->priv;
+	struct exyyess_trng_dev *trng = (struct exyyess_trng_dev *)rng->priv;
 	unsigned long sss_rate;
 	u32 val;
 
@@ -106,9 +106,9 @@ static int exynos_trng_init(struct hwrng *rng)
 	return 0;
 }
 
-static int exynos_trng_probe(struct platform_device *pdev)
+static int exyyess_trng_probe(struct platform_device *pdev)
 {
-	struct exynos_trng_dev *trng;
+	struct exyyess_trng_dev *trng;
 	int ret = -ENOMEM;
 
 	trng = devm_kzalloc(&pdev->dev, sizeof(*trng), GFP_KERNEL);
@@ -120,8 +120,8 @@ static int exynos_trng_probe(struct platform_device *pdev)
 	if (!trng->rng.name)
 		return ret;
 
-	trng->rng.init = exynos_trng_init;
-	trng->rng.read = exynos_trng_do_read;
+	trng->rng.init = exyyess_trng_init;
+	trng->rng.read = exyyess_trng_do_read;
 	trng->rng.priv = (unsigned long) trng;
 
 	platform_set_drvdata(pdev, trng);
@@ -134,30 +134,30 @@ static int exynos_trng_probe(struct platform_device *pdev)
 	pm_runtime_enable(&pdev->dev);
 	ret = pm_runtime_get_sync(&pdev->dev);
 	if (ret < 0) {
-		dev_err(&pdev->dev, "Could not get runtime PM.\n");
+		dev_err(&pdev->dev, "Could yest get runtime PM.\n");
 		goto err_pm_get;
 	}
 
 	trng->clk = devm_clk_get(&pdev->dev, "secss");
 	if (IS_ERR(trng->clk)) {
 		ret = PTR_ERR(trng->clk);
-		dev_err(&pdev->dev, "Could not get clock.\n");
+		dev_err(&pdev->dev, "Could yest get clock.\n");
 		goto err_clock;
 	}
 
 	ret = clk_prepare_enable(trng->clk);
 	if (ret) {
-		dev_err(&pdev->dev, "Could not enable the clk.\n");
+		dev_err(&pdev->dev, "Could yest enable the clk.\n");
 		goto err_clock;
 	}
 
 	ret = devm_hwrng_register(&pdev->dev, &trng->rng);
 	if (ret) {
-		dev_err(&pdev->dev, "Could not register hwrng device.\n");
+		dev_err(&pdev->dev, "Could yest register hwrng device.\n");
 		goto err_register;
 	}
 
-	dev_info(&pdev->dev, "Exynos True Random Number Generator.\n");
+	dev_info(&pdev->dev, "Exyyess True Random Number Generator.\n");
 
 	return 0;
 
@@ -173,9 +173,9 @@ err_pm_get:
 	return ret;
 }
 
-static int exynos_trng_remove(struct platform_device *pdev)
+static int exyyess_trng_remove(struct platform_device *pdev)
 {
-	struct exynos_trng_dev *trng =  platform_get_drvdata(pdev);
+	struct exyyess_trng_dev *trng =  platform_get_drvdata(pdev);
 
 	clk_disable_unprepare(trng->clk);
 
@@ -185,49 +185,49 @@ static int exynos_trng_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static int __maybe_unused exynos_trng_suspend(struct device *dev)
+static int __maybe_unused exyyess_trng_suspend(struct device *dev)
 {
 	pm_runtime_put_sync(dev);
 
 	return 0;
 }
 
-static int __maybe_unused exynos_trng_resume(struct device *dev)
+static int __maybe_unused exyyess_trng_resume(struct device *dev)
 {
 	int ret;
 
 	ret = pm_runtime_get_sync(dev);
 	if (ret < 0) {
-		dev_err(dev, "Could not get runtime PM.\n");
-		pm_runtime_put_noidle(dev);
+		dev_err(dev, "Could yest get runtime PM.\n");
+		pm_runtime_put_yesidle(dev);
 		return ret;
 	}
 
 	return 0;
 }
 
-static SIMPLE_DEV_PM_OPS(exynos_trng_pm_ops, exynos_trng_suspend,
-			 exynos_trng_resume);
+static SIMPLE_DEV_PM_OPS(exyyess_trng_pm_ops, exyyess_trng_suspend,
+			 exyyess_trng_resume);
 
-static const struct of_device_id exynos_trng_dt_match[] = {
+static const struct of_device_id exyyess_trng_dt_match[] = {
 	{
-		.compatible = "samsung,exynos5250-trng",
+		.compatible = "samsung,exyyess5250-trng",
 	},
 	{ },
 };
-MODULE_DEVICE_TABLE(of, exynos_trng_dt_match);
+MODULE_DEVICE_TABLE(of, exyyess_trng_dt_match);
 
-static struct platform_driver exynos_trng_driver = {
+static struct platform_driver exyyess_trng_driver = {
 	.driver = {
-		.name = "exynos-trng",
-		.pm = &exynos_trng_pm_ops,
-		.of_match_table = exynos_trng_dt_match,
+		.name = "exyyess-trng",
+		.pm = &exyyess_trng_pm_ops,
+		.of_match_table = exyyess_trng_dt_match,
 	},
-	.probe = exynos_trng_probe,
-	.remove = exynos_trng_remove,
+	.probe = exyyess_trng_probe,
+	.remove = exyyess_trng_remove,
 };
 
-module_platform_driver(exynos_trng_driver);
+module_platform_driver(exyyess_trng_driver);
 MODULE_AUTHOR("Łukasz Stelmach");
-MODULE_DESCRIPTION("H/W TRNG driver for Exynos chips");
+MODULE_DESCRIPTION("H/W TRNG driver for Exyyess chips");
 MODULE_LICENSE("GPL v2");

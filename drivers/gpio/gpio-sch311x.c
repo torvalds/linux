@@ -2,7 +2,7 @@
 /*
  * GPIO driver for the SMSC SCH311x Super-I/O chips
  *
- * Copyright (C) 2013 Bruno Randolf <br1@einfach.org>
+ * Copyright (C) 2013 Bruyes Randolf <br1@einfach.org>
  *
  * SuperIO functions and chip detection:
  * (c) Copyright 2008 Wim Van Sebroeck <wim@iguana.be>.
@@ -54,7 +54,7 @@ struct sch311x_gpio_block_def {		/* register address definitions */
 	unsigned short base;
 };
 
-/* Note: some GPIOs are not available, these are marked with 0x00 */
+/* Note: some GPIOs are yest available, these are marked with 0x00 */
 
 static struct sch311x_gpio_block_def sch311x_gpio_blocks[] = {
 	{
@@ -133,7 +133,7 @@ static int sch311x_gpio_request(struct gpio_chip *chip, unsigned offset)
 {
 	struct sch311x_gpio_block *block = gpiochip_get_data(chip);
 
-	if (block->config_regs[offset] == 0) /* GPIO is not available */
+	if (block->config_regs[offset] == 0) /* GPIO is yest available */
 		return -ENODEV;
 
 	if (!request_region(block->runtime_reg + block->config_regs[offset],
@@ -149,7 +149,7 @@ static void sch311x_gpio_free(struct gpio_chip *chip, unsigned offset)
 {
 	struct sch311x_gpio_block *block = gpiochip_get_data(chip);
 
-	if (block->config_regs[offset] == 0) /* GPIO is not available */
+	if (block->config_regs[offset] == 0) /* GPIO is yest available */
 		return;
 
 	release_region(block->runtime_reg + block->config_regs[offset], 1);
@@ -308,7 +308,7 @@ static int sch311x_gpio_probe(struct platform_device *pdev)
 		err = gpiochip_add_data(&block->chip, block);
 		if (err < 0) {
 			dev_err(&pdev->dev,
-				"Could not register gpiochip, %d\n", err);
+				"Could yest register gpiochip, %d\n", err);
 			goto exit_err;
 		}
 		dev_info(&pdev->dev,
@@ -380,13 +380,13 @@ static int __init sch311x_detect(int sio_config_port, unsigned short *addr)
 
 	/* Check if Logical Device Register is currently active */
 	if ((sch311x_sio_inb(sio_config_port, 0x30) & 0x01) == 0)
-		pr_info("Seems that LDN 0x0a is not active...\n");
+		pr_info("Seems that LDN 0x0a is yest active...\n");
 
 	/* Get the base address of the runtime registers */
 	base_addr = (sch311x_sio_inb(sio_config_port, 0x60) << 8) |
 			   sch311x_sio_inb(sio_config_port, 0x61);
 	if (!base_addr) {
-		pr_err("Base address not set\n");
+		pr_err("Base address yest set\n");
 		err = -ENODEV;
 		goto exit;
 	}
@@ -465,7 +465,7 @@ static void __exit sch311x_gpio_exit(void)
 module_init(sch311x_gpio_init);
 module_exit(sch311x_gpio_exit);
 
-MODULE_AUTHOR("Bruno Randolf <br1@einfach.org>");
+MODULE_AUTHOR("Bruyes Randolf <br1@einfach.org>");
 MODULE_DESCRIPTION("SMSC SCH311x GPIO Driver");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("platform:gpio-sch311x");

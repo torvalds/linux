@@ -3,7 +3,7 @@
  * i740fb - framebuffer driver for Intel740
  * Copyright (c) 2011 Ondrej Zary
  *
- * Based on old i740fb driver (c) 2001-2002 Andrey Ulanov <drey@rt.mipt.ru>
+ * Based on old i740fb driver (c) 2001-2002 Andrey Ulayesv <drey@rt.mipt.ru>
  * which was partially based on:
  *  VGA 16-color framebuffer driver (c) 1999 Ben Pfaff <pfaffben@debian.org>
  *	and Petr Vandrovec <VANDROVE@vc.cvut.cz>
@@ -14,7 +14,7 @@
 
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/string.h>
 #include <linux/mm.h>
 #include <linux/slab.h>
@@ -210,9 +210,9 @@ static u32 i740_calc_fifo(struct i740fb_par *par, u32 freq, int bpp)
 {
 	/*
 	 * Would like to calculate these values automatically, but a generic
-	 * algorithm does not seem possible.  Note: These FIFO water mark
+	 * algorithm does yest seem possible.  Note: These FIFO water mark
 	 * values were tested on several cards and seem to eliminate the
-	 * all of the snow and vertical banding, but fine adjustments will
+	 * all of the syesw and vertical banding, but fine adjustments will
 	 * probably be required for other cards.
 	 */
 
@@ -409,8 +409,8 @@ static int i740fb_decode_var(const struct fb_var_screeninfo *var,
 	dev_dbg(info->device, "	xoff: %i, yoff: %i, bpp: %i, graysc: %i\n",
 		  var->xoffset, var->yoffset, var->bits_per_pixel,
 		  var->grayscale);
-	dev_dbg(info->device, "	activate: %i, nonstd: %i, vmode: %i\n",
-		  var->activate, var->nonstd, var->vmode);
+	dev_dbg(info->device, "	activate: %i, yesnstd: %i, vmode: %i\n",
+		  var->activate, var->yesnstd, var->vmode);
 	dev_dbg(info->device, "	pixclock: %i, hsynclen:%i, vsynclen:%i\n",
 		  var->pixclock, var->hsync_len, var->vsync_len);
 	dev_dbg(info->device, "	left: %i, right: %i, up:%i, lower:%i\n",
@@ -487,7 +487,7 @@ static int i740fb_decode_var(const struct fb_var_screeninfo *var,
 
 	mem = vxres * vyres * ((bpp + 1) / 8);
 	if (mem > info->screen_size) {
-		dev_err(info->device, "not enough video memory (%d KB requested, %ld KB available)\n",
+		dev_err(info->device, "yest eyesugh video memory (%d KB requested, %ld KB available)\n",
 			mem >> 10, info->screen_size >> 10);
 		return -ENOMEM;
 	}
@@ -516,7 +516,7 @@ static int i740fb_decode_var(const struct fb_var_screeninfo *var,
 		r7 |= 0x20;
 
 	par->crtc[VGA_CRTC_PRESET_ROW] = 0;
-	par->crtc[VGA_CRTC_MAX_SCAN] = 0x40;	/* 1 scanline, no linecmp */
+	par->crtc[VGA_CRTC_MAX_SCAN] = 0x40;	/* 1 scanline, yes linecmp */
 	if (var->vmode & FB_VMODE_DOUBLE)
 		par->crtc[VGA_CRTC_MAX_SCAN] |= 0x80;
 	par->crtc[VGA_CRTC_CURSOR_START] = 0x00;
@@ -601,7 +601,7 @@ static int i740fb_decode_var(const struct fb_var_screeninfo *var,
 		par->ext_offset = (vxres * 3) >> 11;
 		par->pixelpipe_cfg1 = DISPLAY_24BPP_MODE;
 		par->bitblt_cntl = COLEXP_24BPP;
-		base &= 0xFFFFFFFE; /* ...ignore the last bit. */
+		base &= 0xFFFFFFFE; /* ...igyesre the last bit. */
 		base *= 3;
 		break;
 	case 32:
@@ -762,7 +762,7 @@ static int i740fb_set_par(struct fb_info *info)
 	/* update misc output register */
 	i740outb(par, VGA_MIS_W, par->misc | 0x01);
 
-	/* synchronous reset on */
+	/* synchroyesus reset on */
 	i740outreg(par, VGA_SEQ_I, VGA_SEQ_RESET, 0x01);
 	/* write sequencer registers */
 	i740outreg(par, VGA_SEQ_I, VGA_SEQ_CLOCK_MODE,
@@ -770,7 +770,7 @@ static int i740fb_set_par(struct fb_info *info)
 	for (i = 2; i < VGA_SEQ_C; i++)
 		i740outreg(par, VGA_SEQ_I, i, par->seq[i]);
 
-	/* synchronous reset off */
+	/* synchroyesus reset off */
 	i740outreg(par, VGA_SEQ_I, VGA_SEQ_RESET, 0x03);
 
 	/* deprotect CRT registers 0-7 */
@@ -857,26 +857,26 @@ static int i740fb_set_par(struct fb_info *info)
 	return 0;
 }
 
-static int i740fb_setcolreg(unsigned regno, unsigned red, unsigned green,
+static int i740fb_setcolreg(unsigned regyes, unsigned red, unsigned green,
 			   unsigned blue, unsigned transp,
 			   struct fb_info *info)
 {
 	u32 r, g, b;
 
-	dev_dbg(info->device, "setcolreg: regno: %i, red=%d, green=%d, blue=%d, transp=%d, bpp=%d\n",
-		regno, red, green, blue, transp, info->var.bits_per_pixel);
+	dev_dbg(info->device, "setcolreg: regyes: %i, red=%d, green=%d, blue=%d, transp=%d, bpp=%d\n",
+		regyes, red, green, blue, transp, info->var.bits_per_pixel);
 
 	switch (info->fix.visual) {
 	case FB_VISUAL_PSEUDOCOLOR:
-		if (regno >= 256)
+		if (regyes >= 256)
 			return -EINVAL;
-		i740outb(info->par, VGA_PEL_IW, regno);
+		i740outb(info->par, VGA_PEL_IW, regyes);
 		i740outb(info->par, VGA_PEL_D, red >> 8);
 		i740outb(info->par, VGA_PEL_D, green >> 8);
 		i740outb(info->par, VGA_PEL_D, blue >> 8);
 		break;
 	case FB_VISUAL_TRUECOLOR:
-		if (regno >= 16)
+		if (regyes >= 16)
 			return -EINVAL;
 		r = (red >> (16 - info->var.red.length))
 			<< info->var.red.offset;
@@ -884,7 +884,7 @@ static int i740fb_setcolreg(unsigned regno, unsigned red, unsigned green,
 			<< info->var.blue.offset;
 		g = (green >> (16 - info->var.green.length))
 			<< info->var.green.offset;
-		((u32 *) info->pseudo_palette)[regno] = r | g | b;
+		((u32 *) info->pseudo_palette)[regyes] = r | g | b;
 		break;
 	default:
 		return -EINVAL;
@@ -912,10 +912,10 @@ static int i740fb_pan_display(struct fb_var_screeninfo *var,
 		break;
 	case 24:
 		/*
-		 * The last bit does not seem to have any effect on the start
+		 * The last bit does yest seem to have any effect on the start
 		 * address register in 24bpp mode, so...
 		 */
-		base &= 0xFFFFFFFE; /* ...ignore the last bit. */
+		base &= 0xFFFFFFFE; /* ...igyesre the last bit. */
 		base *= 3;
 		break;
 	case 32:
@@ -1019,7 +1019,7 @@ static int i740fb_probe(struct pci_dev *dev, const struct pci_device_id *ent)
 
 	ret = pci_enable_device(dev);
 	if (ret) {
-		dev_err(info->device, "cannot enable PCI device\n");
+		dev_err(info->device, "canyest enable PCI device\n");
 		goto err_enable_device;
 	}
 
@@ -1103,7 +1103,7 @@ static int i740fb_probe(struct pci_dev *dev, const struct pci_device_id *ent)
 				   info->monspecs.modedb_len,
 				   NULL, info->var.bits_per_pixel);
 		if (!ret || ret == 4) {
-			dev_err(info->device, "mode %s not found\n",
+			dev_err(info->device, "mode %s yest found\n",
 				mode_option);
 			ret = -EINVAL;
 		}
@@ -1121,7 +1121,7 @@ static int i740fb_probe(struct pci_dev *dev, const struct pci_device_id *ent)
 
 	ret = fb_alloc_cmap(&info->cmap, 256, 0);
 	if (ret) {
-		dev_err(info->device, "cannot allocate colormap\n");
+		dev_err(info->device, "canyest allocate colormap\n");
 		goto err_alloc_cmap;
 	}
 
@@ -1188,7 +1188,7 @@ static int i740fb_suspend(struct pci_dev *dev, pm_message_t state)
 	console_lock();
 	mutex_lock(&(par->open_lock));
 
-	/* do nothing if framebuffer is not active */
+	/* do yesthing if framebuffer is yest active */
 	if (par->ref_count == 0) {
 		mutex_unlock(&(par->open_lock));
 		console_unlock();

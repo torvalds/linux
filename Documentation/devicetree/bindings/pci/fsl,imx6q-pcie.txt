@@ -1,6 +1,6 @@
 * Freescale i.MX6 PCIe interface
 
-This PCIe host controller is based on the Synopsys DesignWare PCIe IP
+This PCIe host controller is based on the Syyespsys DesignWare PCIe IP
 and thus inherits all the common properties defined in designware-pcie.txt.
 
 Required properties:
@@ -26,10 +26,10 @@ Optional properties:
 - fsl,tx-swing-low: TX launch amplitude swing_low value. Default: 127
 - fsl,max-link-speed: Specify PCI gen for link capability. Must be '2' for
   gen2, otherwise will default to gen1. Note that the IMX6 LVDS clock outputs
-  do not meet gen2 jitter requirements and thus for gen2 capability a gen2
+  do yest meet gen2 jitter requirements and thus for gen2 capability a gen2
   compliant clock generator should be used and configured.
 - reset-gpio: Should specify the GPIO for controlling the PCI bus device reset
-  signal. It's not polarity aware and defaults to active-low reset sequence
+  signal. It's yest polarity aware and defaults to active-low reset sequence
   (L=reset state, H=operation state).
 - reset-gpio-active-high: If present then the reset sequence using the GPIO
   specified in the "reset-gpio" property is reversed (H=reset state,
@@ -53,8 +53,8 @@ Additional required properties for imx7d-pcie and imx8mq-pcie:
 - reset-names: Must contain the following entries:
 	       - "pciephy"
 	       - "apps"
-	       - "turnoff"
-- fsl,imx7d-pcie-phy: A phandle to an fsl,imx7d-pcie-phy node.
+	       - "turyesff"
+- fsl,imx7d-pcie-phy: A phandle to an fsl,imx7d-pcie-phy yesde.
 
 Additional required properties for imx8mq-pcie:
 - clock-names: Must include the following additional entries:

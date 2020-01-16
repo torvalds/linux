@@ -350,7 +350,7 @@ bool i40e_check_asq_alive(struct i40e_hw *hw)
  * @unloading: is the driver unloading itself
  *
  * Tell the Firmware that we're shutting down the AdminQ and whether
- * or not the driver is unloading as well.
+ * or yest the driver is unloading as well.
  **/
 i40e_status i40e_aq_queue_shutdown(struct i40e_hw *hw,
 					     bool unloading)
@@ -541,9 +541,9 @@ i40e_status i40e_aq_set_rss_key(struct i40e_hw *hw,
  *
  * Typical work flow:
  *
- * IF NOT i40e_ptype_lookup[ptype].known
+ * IF NOT i40e_ptype_lookup[ptype].kyeswn
  * THEN
- *      Packet is unknown
+ *      Packet is unkyeswn
  * ELSE IF i40e_ptype_lookup[ptype].outer_ip == I40E_RX_PTYPE_OUTER_IP
  *      Use the rest of the fields to look at the tunnels, inner protocols, etc
  * ELSE
@@ -898,7 +898,7 @@ struct i40e_rx_ptype_decoded i40e_ptype_lookup[] = {
  * @hw: pointer to hardware structure
  *
  * This assigns the MAC type and PHY code and inits the NVM.
- * Does not touch the hardware. This function must be called prior to any
+ * Does yest touch the hardware. This function must be called prior to any
  * other function in the shared code. The i40e_hw structure should be
  * memset to 0 prior to calling this function.  The following fields in
  * hw structure should be filled in prior to calling this function:
@@ -1313,7 +1313,7 @@ i40e_status i40e_pf_reset(struct i40e_hw *hw)
  * @hw: pointer to the hw struct
  *
  * Clear queues and interrupts, typically called at init time,
- * but after the capabilities have been found so we know how many
+ * but after the capabilities have been found so we kyesw how many
  * queues and msix vectors have been allocated.
  **/
 void i40e_clear_hw(struct i40e_hw *hw)
@@ -1431,7 +1431,7 @@ void i40e_clear_pxe_mode(struct i40e_hw *hw)
  * @hw: pointer to the hw struct
  * @idx: index into GPIO registers
  *
- * returns: 0 if no match, otherwise the value of the GPIO_CTL register
+ * returns: 0 if yes match, otherwise the value of the GPIO_CTL register
  */
 static u32 i40e_led_is_mine(struct i40e_hw *hw, int idx)
 {
@@ -1445,8 +1445,8 @@ static u32 i40e_led_is_mine(struct i40e_hw *hw, int idx)
 	port = (gpio_val & I40E_GLGEN_GPIO_CTL_PRT_NUM_MASK) >>
 		I40E_GLGEN_GPIO_CTL_PRT_NUM_SHIFT;
 
-	/* if PRT_NUM_NA is 1 then this LED is not port specific, OR
-	 * if it is not our port then ignore
+	/* if PRT_NUM_NA is 1 then this LED is yest port specific, OR
+	 * if it is yest our port then igyesre
 	 */
 	if ((gpio_val & I40E_GLGEN_GPIO_CTL_PRT_NUM_NA_MASK) ||
 	    (port != hw->port))
@@ -1540,7 +1540,7 @@ void i40e_led_set(struct i40e_hw *hw, u32 mode, bool blink)
 				     I40E_GLGEN_GPIO_CTL_PIN_FUNC_MASK);
 		}
 		gpio_val &= ~I40E_GLGEN_GPIO_CTL_LED_MODE_MASK;
-		/* this & is a bit of paranoia, but serves as a range check */
+		/* this & is a bit of parayesia, but serves as a range check */
 		gpio_val |= ((mode << I40E_GLGEN_GPIO_CTL_LED_MODE_SHIFT) &
 			     I40E_GLGEN_GPIO_CTL_LED_MODE_MASK);
 
@@ -1641,7 +1641,7 @@ i40e_status i40e_aq_get_phy_capabilities(struct i40e_hw *hw,
  *
  * Set the various PHY configuration parameters
  * supported on the Port.One or more of the Set PHY config parameters may be
- * ignored in an MFP mode as the PF may not have the privilege to set some
+ * igyesred in an MFP mode as the PF may yest have the privilege to set some
  * of the PHY Config parameters. This status will be indicated by the
  * command response.
  **/
@@ -1667,7 +1667,7 @@ enum i40e_status_code i40e_aq_set_phy_config(struct i40e_hw *hw,
 	return status;
 }
 
-static noinline_for_stack enum i40e_status_code
+static yesinline_for_stack enum i40e_status_code
 i40e_set_fc_status(struct i40e_hw *hw,
 		   struct i40e_aq_get_phy_abilities_resp *abilities,
 		   bool atomic_restart)
@@ -2463,18 +2463,18 @@ enum i40e_status_code i40e_aq_set_switch_config(struct i40e_hw *hw,
  * i40e_aq_get_firmware_version
  * @hw: pointer to the hw struct
  * @fw_major_version: firmware major version
- * @fw_minor_version: firmware minor version
+ * @fw_miyesr_version: firmware miyesr version
  * @fw_build: firmware build number
  * @api_major_version: major queue version
- * @api_minor_version: minor queue version
+ * @api_miyesr_version: miyesr queue version
  * @cmd_details: pointer to command details structure or NULL
  *
  * Get the firmware version from the admin queue commands
  **/
 i40e_status i40e_aq_get_firmware_version(struct i40e_hw *hw,
-				u16 *fw_major_version, u16 *fw_minor_version,
+				u16 *fw_major_version, u16 *fw_miyesr_version,
 				u32 *fw_build,
-				u16 *api_major_version, u16 *api_minor_version,
+				u16 *api_major_version, u16 *api_miyesr_version,
 				struct i40e_asq_cmd_details *cmd_details)
 {
 	struct i40e_aq_desc desc;
@@ -2489,14 +2489,14 @@ i40e_status i40e_aq_get_firmware_version(struct i40e_hw *hw,
 	if (!status) {
 		if (fw_major_version)
 			*fw_major_version = le16_to_cpu(resp->fw_major);
-		if (fw_minor_version)
-			*fw_minor_version = le16_to_cpu(resp->fw_minor);
+		if (fw_miyesr_version)
+			*fw_miyesr_version = le16_to_cpu(resp->fw_miyesr);
 		if (fw_build)
 			*fw_build = le32_to_cpu(resp->fw_build);
 		if (api_major_version)
 			*api_major_version = le16_to_cpu(resp->api_major);
-		if (api_minor_version)
-			*api_minor_version = le16_to_cpu(resp->api_minor);
+		if (api_miyesr_version)
+			*api_miyesr_version = le16_to_cpu(resp->api_miyesr);
 	}
 
 	return status;
@@ -2505,7 +2505,7 @@ i40e_status i40e_aq_get_firmware_version(struct i40e_hw *hw,
 /**
  * i40e_aq_send_driver_version
  * @hw: pointer to the hw struct
- * @dv: driver's major, minor version
+ * @dv: driver's major, miyesr version
  * @cmd_details: pointer to command details structure or NULL
  *
  * Send the driver version to the firmware
@@ -2527,7 +2527,7 @@ i40e_status i40e_aq_send_driver_version(struct i40e_hw *hw,
 
 	desc.flags |= cpu_to_le16(I40E_AQ_FLAG_BUF | I40E_AQ_FLAG_RD);
 	cmd->driver_major_ver = dv->major_version;
-	cmd->driver_minor_ver = dv->minor_version;
+	cmd->driver_miyesr_ver = dv->miyesr_version;
 	cmd->driver_build_ver = dv->build_version;
 	cmd->driver_subbuild_ver = dv->subbuild_version;
 
@@ -2573,7 +2573,7 @@ i40e_status i40e_get_link_status(struct i40e_hw *hw, bool *link_up)
  * i40e_updatelink_status - update status of the HW network link
  * @hw: pointer to the hw struct
  **/
-noinline_for_stack i40e_status i40e_update_link_info(struct i40e_hw *hw)
+yesinline_for_stack i40e_status i40e_update_link_info(struct i40e_hw *hw)
 {
 	struct i40e_aq_get_phy_abilities_resp abilities;
 	i40e_status status = 0;
@@ -2675,7 +2675,7 @@ i40e_status i40e_aq_add_veb(struct i40e_hw *hw, u16 uplink_seid,
  * @floating: set to true if the VEB is floating
  * @statistic_index: index of the stats counter block for this VEB
  * @vebs_used: number of VEB's used by function
- * @vebs_free: total VEB's not reserved by any function
+ * @vebs_free: total VEB's yest reserved by any function
  * @cmd_details: pointer to command details structure or NULL
  *
  * This retrieves the parameters for a particular VEB, specified by
@@ -2932,7 +2932,7 @@ i40e_status i40e_aq_delete_mirrorrule(struct i40e_hw *hw, u16 sw_seid,
 	if (rule_type == I40E_AQC_MIRROR_RULE_TYPE_VLAN) {
 		/* count and mr_list shall be valid for rule_type INGRESS VLAN
 		 * mirroring. For other rule_type, count and rule_type should
-		 * not matter.
+		 * yest matter.
 		 */
 		if (count == 0 || !mr_list)
 			return I40E_ERR_PARAM;
@@ -3391,12 +3391,12 @@ static void i40e_parse_discover_capabilities(struct i40e_hw *hw, void *buff,
 		i40e_debug(hw, I40E_DEBUG_ALL, "device is FCoE capable\n");
 
 	/* Software override ensuring FCoE is disabled if npar or mfp
-	 * mode because it is not supported in these modes.
+	 * mode because it is yest supported in these modes.
 	 */
 	if (p->npar_enable || p->flex10_enable)
 		p->fcoe = false;
 
-	/* count the enabled ports (aka the "not disabled" ports) */
+	/* count the enabled ports (aka the "yest disabled" ports) */
 	hw->num_ports = 0;
 	for (i = 0; i < 4; i++) {
 		u32 port_cfg_reg = I40E_PRTGEN_CNF + (4 * i);
@@ -3415,7 +3415,7 @@ static void i40e_parse_discover_capabilities(struct i40e_hw *hw, void *buff,
 	 * needed in order to check if we are dealing with OCP card.
 	 * Those cards have 4 PFs at minimum, so using PRTGEN_CNF for counting
 	 * physical ports results in wrong partition id calculation and thus
-	 * not supporting WoL.
+	 * yest supporting WoL.
 	 */
 	if (hw->mac.type == I40E_MAC_X722) {
 		if (!i40e_acquire_nvm(hw, I40E_RESOURCE_READ)) {
@@ -3694,7 +3694,7 @@ i40e_aq_restore_lldp(struct i40e_hw *hw, u8 *setting, bool restore,
 
 	if (!(hw->flags & I40E_HW_FLAG_FW_LLDP_PERSISTENT)) {
 		i40e_debug(hw, I40E_DEBUG_ALL,
-			   "Restore LLDP not supported by current FW version.\n");
+			   "Restore LLDP yest supported by current FW version.\n");
 		return I40E_ERR_DEVICE_NOT_SUPPORTED;
 	}
 
@@ -3739,7 +3739,7 @@ i40e_status i40e_aq_stop_lldp(struct i40e_hw *hw, bool shutdown_agent,
 			cmd->command |= I40E_AQ_LLDP_AGENT_STOP_PERSIST;
 		else
 			i40e_debug(hw, I40E_DEBUG_ALL,
-				   "Persistent Stop LLDP not supported by current FW version.\n");
+				   "Persistent Stop LLDP yest supported by current FW version.\n");
 	}
 
 	status = i40e_asq_send_command(hw, &desc, NULL, 0, cmd_details);
@@ -3774,7 +3774,7 @@ i40e_status i40e_aq_start_lldp(struct i40e_hw *hw, bool persist,
 			cmd->command |= I40E_AQ_LLDP_AGENT_START_PERSIST;
 		else
 			i40e_debug(hw, I40E_DEBUG_ALL,
-				   "Persistent Start LLDP not supported by current FW version.\n");
+				   "Persistent Start LLDP yest supported by current FW version.\n");
 	}
 
 	status = i40e_asq_send_command(hw, &desc, NULL, 0, cmd_details);
@@ -4263,7 +4263,7 @@ static i40e_status i40e_validate_filter_settings(struct i40e_hw *hw,
 		return I40E_ERR_PARAM;
 	}
 
-	/* FCHSIZE + FCDSIZE should not be greater than PMFCOEFMAX */
+	/* FCHSIZE + FCDSIZE should yest be greater than PMFCOEFMAX */
 	val = rd32(hw, I40E_GLHMC_FCOEFMAX);
 	fcoe_fmax = (val & I40E_GLHMC_FCOEFMAX_PMFCOEFMAX_MASK)
 		     >> I40E_GLHMC_FCOEFMAX_PMFCOEFMAX_SHIFT;
@@ -4434,7 +4434,7 @@ void i40e_add_filter_to_drop_tx_flow_control_frames(struct i40e_hw *hw,
  *
  * Read one or two dwords from alternate structure. Fields are indicated
  * by 'reg_addr0' and 'reg_addr1' register numbers. If 'reg_val1' pointer
- * is not passed then only register at 'reg_addr0' is read.
+ * is yest passed then only register at 'reg_addr0' is read.
  *
  **/
 static i40e_status i40e_aq_alternate_read(struct i40e_hw *hw,
@@ -4510,7 +4510,7 @@ void i40e_set_pci_config_data(struct i40e_hw *hw, u16 link_status)
 		hw->bus.width = i40e_bus_width_pcie_x8;
 		break;
 	default:
-		hw->bus.width = i40e_bus_width_unknown;
+		hw->bus.width = i40e_bus_width_unkyeswn;
 		break;
 	}
 
@@ -4525,7 +4525,7 @@ void i40e_set_pci_config_data(struct i40e_hw *hw, u16 link_status)
 		hw->bus.speed = i40e_bus_speed_8000;
 		break;
 	default:
-		hw->bus.speed = i40e_bus_speed_unknown;
+		hw->bus.speed = i40e_bus_speed_unkyeswn;
 		break;
 	}
 }
@@ -5178,7 +5178,7 @@ i40e_status i40e_led_get_phy(struct i40e_hw *hw, u16 *led_addr,
  * @hw: pointer to the HW structure
  * @on: true or false
  * @led_addr: address of led register to use
- * @mode: original val plus bit for set or ignore
+ * @mode: original val plus bit for set or igyesre
  *
  * Set led's on or off when controlled by the PHY
  *
@@ -5368,7 +5368,7 @@ static void i40e_mdio_if_number_selection(struct i40e_hw *hw, bool set_mdio,
 				I40E_AQ_PHY_REG_ACCESS_MDIO_IF_NUMBER_MASK);
 		else
 			i40e_debug(hw, I40E_DEBUG_PHY,
-				   "MDIO I/F number selection not supported by current FW version.\n");
+				   "MDIO I/F number selection yest supported by current FW version.\n");
 	}
 }
 
@@ -5384,7 +5384,7 @@ static void i40e_mdio_if_number_selection(struct i40e_hw *hw, bool set_mdio,
  * @cmd_details: pointer to command details structure or NULL
  *
  * Write the external PHY register.
- * NOTE: In common cases MDIO I/F number should not be changed, thats why you
+ * NOTE: In common cases MDIO I/F number should yest be changed, thats why you
  * may use simple wrapper i40e_aq_set_phy_register.
  **/
 enum i40e_status_code i40e_aq_set_phy_register_ext(struct i40e_hw *hw,
@@ -5428,7 +5428,7 @@ enum i40e_status_code i40e_aq_set_phy_register_ext(struct i40e_hw *hw,
  * @cmd_details: pointer to command details structure or NULL
  *
  * Read the external PHY register.
- * NOTE: In common cases MDIO I/F number should not be changed, thats why you
+ * NOTE: In common cases MDIO I/F number should yest be changed, thats why you
  * may use simple wrapper i40e_aq_get_phy_register.
  **/
 enum i40e_status_code i40e_aq_get_phy_register_ext(struct i40e_hw *hw,
@@ -5769,7 +5769,7 @@ i40e_write_profile(struct i40e_hw *hw, struct i40e_profile_segment *profile,
 			sec->section.type = SECTION_TYPE_RB_AQ;
 		}
 
-		/* Skip any non-mmio sections */
+		/* Skip any yesn-mmio sections */
 		if (sec->section.type != SECTION_TYPE_MMIO)
 			continue;
 
@@ -5820,7 +5820,7 @@ i40e_rollback_profile(struct i40e_hw *hw, struct i40e_profile_segment *profile,
 		sec_off = sec_tbl->section_offset[i];
 		sec = I40E_SECTION_HEADER(profile, sec_off);
 
-		/* Skip any non-rollback sections */
+		/* Skip any yesn-rollback sections */
 		if (sec->section.type != SECTION_TYPE_RB_MMIO)
 			continue;
 
@@ -5959,7 +5959,7 @@ i40e_aq_add_cloud_filters_bb(struct i40e_hw *hw, u16 seid,
 			   I40E_AQC_ADD_CLOUD_TNL_TYPE_SHIFT;
 
 		/* Due to hardware eccentricities, the VNI for Geneve is shifted
-		 * one more byte further than normally used for Tenant ID in
+		 * one more byte further than yesrmally used for Tenant ID in
 		 * other tunnel types.
 		 */
 		if (tnl_type == I40E_AQC_ADD_CLOUD_TNL_TYPE_GENEVE) {
@@ -6053,7 +6053,7 @@ i40e_aq_rem_cloud_filters_bb(struct i40e_hw *hw, u16 seid,
 			   I40E_AQC_ADD_CLOUD_TNL_TYPE_SHIFT;
 
 		/* Due to hardware eccentricities, the VNI for Geneve is shifted
-		 * one more byte further than normally used for Tenant ID in
+		 * one more byte further than yesrmally used for Tenant ID in
 		 * other tunnel types.
 		 */
 		if (tnl_type == I40E_AQC_ADD_CLOUD_TNL_TYPE_GENEVE) {

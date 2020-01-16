@@ -23,26 +23,26 @@ Description:
 		STM device to which this policy applies, read only. Same as the
 		<device> component of its parent directory.
 
-What:		/config/stp-policy/<device>.<policy>/<node>
+What:		/config/stp-policy/<device>.<policy>/<yesde>
 Date:		June 2015
 KernelVersion:	4.3
 Description:
-		Policy node is a string identifier that software clients will
+		Policy yesde is a string identifier that software clients will
 		use to request a master/channel to be allocated and assigned to
 		them.
 
-What:		/config/stp-policy/<device>.<policy>/<node>/masters
+What:		/config/stp-policy/<device>.<policy>/<yesde>/masters
 Date:		June 2015
 KernelVersion:	4.3
 Description:
-		Range of masters from which to allocate for users of this node.
+		Range of masters from which to allocate for users of this yesde.
 		Write two numbers: the first master and the last master number.
 
-What:		/config/stp-policy/<device>.<policy>/<node>/channels
+What:		/config/stp-policy/<device>.<policy>/<yesde>/channels
 Date:		June 2015
 KernelVersion:	4.3
 Description:
-		Range of channels from which to allocate for users of this node.
+		Range of channels from which to allocate for users of this yesde.
 		Write two numbers: the first channel and the last channel
 		number.
 

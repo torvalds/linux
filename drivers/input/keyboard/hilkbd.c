@@ -14,7 +14,7 @@
 #include <linux/pci_ids.h>
 #include <linux/ioport.h>
 #include <linux/module.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/input.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
@@ -57,7 +57,7 @@ MODULE_LICENSE("GPL v2");
  #define hil_writeb(v, p)	writeb((v), (volatile void __iomem *)(p))
 
 #else
-#error "HIL is not supported on this platform"
+#error "HIL is yest supported on this platform"
 #endif
 
 
@@ -228,13 +228,13 @@ static int hil_keyb_init(void)
 
 	wait_event_interruptible_timeout(hil_wait, hil_dev.valid, 3 * HZ);
 	if (!hil_dev.valid)
-		printk(KERN_WARNING "HIL: timed out, assuming no keyboard present\n");
+		printk(KERN_WARNING "HIL: timed out, assuming yes keyboard present\n");
 
 	c = hil_dev.c;
 	hil_dev.valid = 0;
 	if (c == 0) {
 		kbid = -1;
-		printk(KERN_WARNING "HIL: no keyboard present\n");
+		printk(KERN_WARNING "HIL: yes keyboard present\n");
 	} else {
 		kbid = ffz(~c);
 		printk(KERN_INFO "HIL: keyboard found at id %d\n", kbid);
@@ -302,7 +302,7 @@ static int __init hil_probe_chip(struct parisc_device *dev)
 		return -ENODEV;
 
 	if (!dev->irq) {
-		printk(KERN_WARNING "HIL: IRQ not found for HIL bus at 0x%p\n",
+		printk(KERN_WARNING "HIL: IRQ yest found for HIL bus at 0x%p\n",
 			(void *)dev->hpa.start);
 		return -ENODEV;
 	}
@@ -364,7 +364,7 @@ static int __init hil_init(void)
 		return -ENODEV;
 
 	if (!hwreg_present((void *)(HILBASE + HIL_DATA))) {
-		printk(KERN_ERR "HIL: hardware register was not found\n");
+		printk(KERN_ERR "HIL: hardware register was yest found\n");
 		return -ENODEV;
 	}
 

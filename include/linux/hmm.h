@@ -30,13 +30,13 @@
  * HMM guarantees that at any point in time, a given virtual address points to
  * either the same memory in both CPU and device page tables (that is: CPU and
  * device page tables each point to the same pages), or that one page table (CPU
- * or device) points to no entry, while the other still points to the old page
+ * or device) points to yes entry, while the other still points to the old page
  * for the address. The latter case happens when the CPU page table update
  * happens first, and then the update is mirrored over to the device page table.
- * This does not cause any issue, because the CPU page table cannot start
+ * This does yest cause any issue, because the CPU page table canyest start
  * pointing to a new page until the device page table is invalidated.
  *
- * HMM uses mmu_notifiers to monitor the CPU page tables, and forwards any
+ * HMM uses mmu_yestifiers to monitor the CPU page tables, and forwards any
  * updates to each device driver that has registered a mirror. It also provides
  * some API calls to help with taking a snapshot of the CPU page table, and to
  * synchronize with any updates that might happen concurrently.
@@ -48,7 +48,7 @@
  * a new MEMORY_DEVICE_PRIVATE type. This provides a struct page for each page
  * of the device memory, and allows the device driver to manage its memory
  * using those struct pages. Having struct pages for device memory makes
- * migration easier. Because that memory is not addressable by the CPU it must
+ * migration easier. Because that memory is yest addressable by the CPU it must
  * never be pinned to the device; in other words, any CPU page fault can always
  * cause the device memory to be migrated (copied/moved) back to regular memory.
  *
@@ -66,7 +66,7 @@
 #include <linux/migrate.h>
 #include <linux/memremap.h>
 #include <linux/completion.h>
-#include <linux/mmu_notifier.h>
+#include <linux/mmu_yestifier.h>
 
 /*
  * hmm_pfn_flag_e - HMM flag enums
@@ -95,19 +95,19 @@ enum hmm_pfn_flag_e {
  *
  * Flags:
  * HMM_PFN_ERROR: corresponding CPU page table entry points to poisoned memory
- * HMM_PFN_NONE: corresponding CPU page table entry is pte_none()
+ * HMM_PFN_NONE: corresponding CPU page table entry is pte_yesne()
  * HMM_PFN_SPECIAL: corresponding CPU page table entry is special; i.e., the
- *      result of vmf_insert_pfn() or vm_insert_page(). Therefore, it should not
+ *      result of vmf_insert_pfn() or vm_insert_page(). Therefore, it should yest
  *      be mirrored by a device, because the entry will never have HMM_PFN_VALID
  *      set and the pfn value is undefined.
  *
- * Driver provides values for none entry, error entry, and special entry.
+ * Driver provides values for yesne entry, error entry, and special entry.
  * Driver can alias (i.e., use same value) error and special, but
- * it should not alias none with error or special.
+ * it should yest alias yesne with error or special.
  *
  * HMM pfn value returned by hmm_vma_get_pfns() or hmm_vma_fault() will be:
- * hmm_range.values[HMM_PFN_ERROR] if CPU page table entry is poisonous,
- * hmm_range.values[HMM_PFN_NONE] if there is no CPU page table entry,
+ * hmm_range.values[HMM_PFN_ERROR] if CPU page table entry is poisoyesus,
+ * hmm_range.values[HMM_PFN_NONE] if there is yes CPU page table entry,
  * hmm_range.values[HMM_PFN_SPECIAL] if CPU page table entry is a special one
  */
 enum hmm_pfn_value_e {
@@ -120,24 +120,24 @@ enum hmm_pfn_value_e {
 /*
  * struct hmm_range - track invalidation lock on virtual address range
  *
- * @notifier: a mmu_interval_notifier that includes the start/end
- * @notifier_seq: result of mmu_interval_read_begin()
+ * @yestifier: a mmu_interval_yestifier that includes the start/end
+ * @yestifier_seq: result of mmu_interval_read_begin()
  * @hmm: the core HMM structure this range is active against
  * @vma: the vm area struct for the range
  * @list: all range lock are on a list
  * @start: range virtual start address (inclusive)
  * @end: range virtual end address (exclusive)
- * @pfns: array of pfns (big enough for the range)
+ * @pfns: array of pfns (big eyesugh for the range)
  * @flags: pfn flags to match device driver page table
- * @values: pfn value for some special case (none, special, error, ...)
+ * @values: pfn value for some special case (yesne, special, error, ...)
  * @default_flags: default flags for the range (write, read, ... see hmm doc)
  * @pfn_flags_mask: allows to mask pfn flags so that only default_flags matter
  * @pfn_shifts: pfn shift value (should be <= PAGE_SHIFT)
- * @valid: pfns array did not change since it has been fill by an HMM function
+ * @valid: pfns array did yest change since it has been fill by an HMM function
  */
 struct hmm_range {
-	struct mmu_interval_notifier *notifier;
-	unsigned long		notifier_seq;
+	struct mmu_interval_yestifier *yestifier;
+	unsigned long		yestifier_seq;
 	unsigned long		start;
 	unsigned long		end;
 	uint64_t		*pfns;
@@ -218,7 +218,7 @@ static inline uint64_t hmm_device_entry_from_pfn(const struct hmm_range *range,
 }
 
 /*
- * Retry fault if non-blocking, drop mmap_sem and return -EAGAIN in that case.
+ * Retry fault if yesn-blocking, drop mmap_sem and return -EAGAIN in that case.
  */
 #define HMM_FAULT_ALLOW_RETRY		(1 << 0)
 
@@ -240,7 +240,7 @@ static inline long hmm_range_fault(struct hmm_range *range, unsigned int flags)
 /*
  * HMM_RANGE_DEFAULT_TIMEOUT - default timeout (ms) when waiting for a range
  *
- * When waiting for mmu notifiers we need some kind of time out otherwise we
+ * When waiting for mmu yestifiers we need some kind of time out otherwise we
  * could potentialy wait for ever, 1000ms ie 1s sounds like a long time to
  * wait already.
  */

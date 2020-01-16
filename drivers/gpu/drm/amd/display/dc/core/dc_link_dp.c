@@ -439,7 +439,7 @@ static void find_max_drive_settings(
 	}
 
 	/* make sure the requested settings are
-	 * not higher than maximum settings*/
+	 * yest higher than maximum settings*/
 	if (max_requested.VOLTAGE_SWING > VOLTAGE_SWING_MAX_LEVEL)
 		max_requested.VOLTAGE_SWING = VOLTAGE_SWING_MAX_LEVEL;
 
@@ -557,7 +557,7 @@ static void get_lane_status_and_drive_settings(
 	/*Note: for postcursor2, read adjusted
 	 * postcursor2 settings from*/
 	/*DpcdAddress_AdjustRequestPostCursor2 =
-	 *0x020C (not implemented yet)*/
+	 *0x020C (yest implemented yet)*/
 
 	/* we find the maximum of the requested settings across all lanes*/
 	/* and set this maximum for all lanes*/
@@ -912,7 +912,7 @@ static enum link_training_result perform_clock_recovery_sequence(
 
 	if (retry_count >= LINK_TRAINING_MAX_CR_RETRY) {
 		ASSERT(0);
-		DC_LOG_ERROR("%s: Link Training Error, could not get CR after %d tries. Possibly voltage swing issue",
+		DC_LOG_ERROR("%s: Link Training Error, could yest get CR after %d tries. Possibly voltage swing issue",
 			__func__,
 			LINK_TRAINING_MAX_CR_RETRY);
 
@@ -929,7 +929,7 @@ static inline enum link_training_result perform_link_training_int(
 	union lane_count_set lane_count_set = { {0} };
 	union dpcd_training_pattern dpcd_pattern = { {0} };
 
-	/* 3. set training not in progress*/
+	/* 3. set training yest in progress*/
 	dpcd_pattern.v1_4.TRAINING_PATTERN_SET = DPCD_TRAINING_PATTERN_VIDEOIDLE;
 	dpcd_set_training_pattern(link, dpcd_pattern);
 
@@ -986,9 +986,9 @@ static void initialize_training_settings(
 	else
 		lt_settings->link_settings.lane_count = link_setting->lane_count;
 
-	/*@todo[vdevulap] move SS to LS, should not be handled by displaypath*/
+	/*@todo[vdevulap] move SS to LS, should yest be handled by displaypath*/
 
-	/* TODO hard coded to SS for now
+	/* TODO hard coded to SS for yesw
 	 * lt_settings.link_settings.link_spread =
 	 * dal_display_path_is_ss_supported(
 	 * path_mode->display_path) ?
@@ -1059,8 +1059,8 @@ static void print_status_message(
 	const struct link_training_settings *lt_settings,
 	enum link_training_result status)
 {
-	char *link_rate = "Unknown";
-	char *lt_result = "Unknown";
+	char *link_rate = "Unkyeswn";
+	char *lt_result = "Unkyeswn";
 	char *lt_spread = "Disabled";
 
 	switch (lt_settings->link_settings.link_rate) {
@@ -1265,8 +1265,8 @@ static enum clock_source_id get_clock_source_id(struct dc_link *link)
 		dp_cs_id = dp_cs->id;
 	} else {
 		/*
-		 * dp clock source is not initialized for some reason.
-		 * Should not happen, CLOCK_SOURCE_ID_EXTERNAL will be used
+		 * dp clock source is yest initialized for some reason.
+		 * Should yest happen, CLOCK_SOURCE_ID_EXTERNAL will be used
 		 */
 		ASSERT(dp_cs);
 	}
@@ -1299,7 +1299,7 @@ static void set_dp_mst_mode(struct dc_link *link, bool mst_enable)
 bool dc_link_dp_sync_lt_begin(struct dc_link *link)
 {
 	/* Begin Sync LT. During this time,
-	 * DPCD:600h must not be powered down.
+	 * DPCD:600h must yest be powered down.
 	 */
 	link->sync_lt_in_progress = true;
 
@@ -1433,9 +1433,9 @@ static enum dc_status read_hpd_rx_irq_data(
 	static enum dc_status retval;
 
 	/* The HW reads 16 bytes from 200h on HPD,
-	 * but if we get an AUX_DEFER, the HW cannot retry
+	 * but if we get an AUX_DEFER, the HW canyest retry
 	 * and this causes the CTS tests 4.3.2.1 - 3.2.4 to
-	 * fail, so we now explicitly read 6 bytes which is
+	 * fail, so we yesw explicitly read 6 bytes which is
 	 * the req from the above mentioned test cases.
 	 *
 	 * For DP 1.4 we need to read those from 2002h range.
@@ -1543,7 +1543,7 @@ static bool hpd_rx_irq_check_link_loss_status(
 
 bool dp_verify_link_cap(
 	struct dc_link *link,
-	struct dc_link_settings *known_limit_link_setting,
+	struct dc_link_settings *kyeswn_limit_link_setting,
 	int *fail_count)
 {
 	struct dc_link_settings max_link_cap = {0};
@@ -1558,7 +1558,7 @@ bool dp_verify_link_cap(
 	union hpd_irq_data irq_data;
 
 	if (link->dc->debug.skip_detection_link_training) {
-		link->verified_link_cap = *known_limit_link_setting;
+		link->verified_link_cap = *kyeswn_limit_link_setting;
 		return true;
 	}
 
@@ -1582,7 +1582,7 @@ bool dp_verify_link_cap(
 	 * supported by both sink and ASIC.
 	 */
 	initial_link_settings = get_common_supported_link_settings(
-			*known_limit_link_setting,
+			*kyeswn_limit_link_setting,
 			max_link_cap);
 	cur_link_setting = initial_link_settings;
 	do {
@@ -1620,7 +1620,7 @@ bool dp_verify_link_cap(
 						&irq_data))
 					(*fail_count)++;
 		}
-		/* always disable the link before trying another
+		/* always disable the link before trying ayesther
 		 * setting or before returning we'll enable it later
 		 * based on the actual mode we're driving
 		 */
@@ -1629,7 +1629,7 @@ bool dp_verify_link_cap(
 			initial_link_settings, cur, status));
 
 	/* Link Training failed for all Link Settings
-	 *  (Lane Count is still unknown)
+	 *  (Lane Count is still unkyeswn)
 	 */
 	if (!success) {
 		/* If all LT fails for all settings,
@@ -1648,7 +1648,7 @@ bool dp_verify_link_cap(
 
 bool dp_verify_link_cap_with_retries(
 	struct dc_link *link,
-	struct dc_link_settings *known_limit_link_setting,
+	struct dc_link_settings *kyeswn_limit_link_setting,
 	int attempts)
 {
 	uint8_t i = 0;
@@ -1656,11 +1656,11 @@ bool dp_verify_link_cap_with_retries(
 
 	for (i = 0; i < attempts; i++) {
 		int fail_count = 0;
-		enum dc_connection_type type = dc_connection_none;
+		enum dc_connection_type type = dc_connection_yesne;
 
 		memset(&link->verified_link_cap, 0,
 				sizeof(struct dc_link_settings));
-		if (!dc_link_detect_sink(link, &type) || type == dc_connection_none) {
+		if (!dc_link_detect_sink(link, &type) || type == dc_connection_yesne) {
 			link->verified_link_cap.lane_count = LANE_COUNT_ONE;
 			link->verified_link_cap.link_rate = LINK_RATE_LOW;
 			link->verified_link_cap.link_spread = LINK_SPREAD_DISABLED;
@@ -1802,7 +1802,7 @@ static enum dc_link_rate increase_link_rate(enum dc_link_rate link_rate)
  * return value:
  *			true - link setting could be set
  *			false - has reached minimum setting
- *					and no further fallback could be done
+ *					and yes further fallback could be done
  */
 static bool decide_fallback_link_setting(
 		struct dc_link_settings initial_link_settings,
@@ -1910,10 +1910,10 @@ bool dp_validate_mode_timing(
 		/* remember the biggest mode here, during
 		 * initial link training (to get
 		 * verified_link_cap), LS sends event about
-		 * cannot train at reported cap to upper
+		 * canyest train at reported cap to upper
 		 * layer and upper layer will re-enumerate modes.
-		 * this is not necessary if the lower
-		 * verified_link_cap is enough to drive
+		 * this is yest necessary if the lower
+		 * verified_link_cap is eyesugh to drive
 		 * all the modes */
 
 		/* TODO: DYNAMIC_VALIDATION needs to be implemented */
@@ -2027,7 +2027,7 @@ void decide_link_settings(struct dc_stream_state *stream,
 
 	link = stream->link;
 
-	/* if preferred is specified through AMDDP, use it, if it's enough
+	/* if preferred is specified through AMDDP, use it, if it's eyesugh
 	 * to drive the mode
 	 */
 	if (link->preferred_link_setting.lane_count !=
@@ -2038,7 +2038,7 @@ void decide_link_settings(struct dc_stream_state *stream,
 		return;
 	}
 
-	/* MST doesn't perform link training for now
+	/* MST doesn't perform link training for yesw
 	 * TODO: add MST specific link training routine
 	 */
 	if (stream->signal == SIGNAL_TYPE_DISPLAY_PORT_MST) {
@@ -2063,9 +2063,9 @@ static bool allow_hpd_rx_irq(const struct dc_link *link)
 {
 	/*
 	 * Don't handle RX IRQ unless one of following is met:
-	 * 1) The link is established (cur_link_settings != unknown)
+	 * 1) The link is established (cur_link_settings != unkyeswn)
 	 * 2) We kicked off MST detection
-	 * 3) We know we're dealing with an active dongle
+	 * 3) We kyesw we're dealing with an active dongle
 	 */
 
 	if ((link->cur_link_settings.lane_count != LANE_COUNT_UNKNOWN) ||
@@ -2110,7 +2110,7 @@ static bool handle_hpd_irq_psr_sink(struct dc_link *link)
 
 		if (psr_error_status.bits.LINK_CRC_ERROR ||
 				psr_error_status.bits.RFB_STORAGE_ERROR) {
-			/* Acknowledge and clear error bits */
+			/* Ackyeswledge and clear error bits */
 			dm_helpers_dp_write_dpcd(
 				link->ctx,
 				link,
@@ -2274,7 +2274,7 @@ static void dp_test_send_phy_test_pattern(struct dc_link *link)
 	 * by DP SI test equipment automatically.
 	 * PHY test pattern request is generated by equipment via HPD interrupt.
 	 * HPD needs to be active all the time. HPD should be active
-	 * all the time. Do not touch it.
+	 * all the time. Do yest touch it.
 	 * forward request to DS
 	 */
 	dc_link_dp_set_test_pattern(
@@ -2355,7 +2355,7 @@ static void handle_automated_test(struct dc_link *link)
 			&test_response.raw,
 			sizeof(test_response));
 		dp_test_send_link_training(link);
-		/* no acknowledge request is needed again */
+		/* yes ackyeswledge request is needed again */
 		test_response.bits.ACK = 0;
 	}
 	if (test_request.bits.LINK_TEST_PATTRN) {
@@ -2367,7 +2367,7 @@ static void handle_automated_test(struct dc_link *link)
 		test_response.bits.ACK = 1;
 	}
 
-	/* send request acknowledgment */
+	/* send request ackyeswledgment */
 	if (test_response.bits.ACK)
 		core_link_write_dpcd(
 			link,
@@ -2434,7 +2434,7 @@ bool dc_link_handle_hpd_rx_irq(struct dc_link *link, union hpd_irq_data *out_hpd
 		return true;
 
 	/* If PSR-related error handled, Main link may be off,
-	 * so do not handle as a normal sink status change interrupt.
+	 * so do yest handle as a yesrmal sink status change interrupt.
 	 */
 
 	if (hpd_irq_dpcd_data.bytes.device_service_irq.bits.UP_REQ_MSG_RDY)
@@ -2444,7 +2444,7 @@ bool dc_link_handle_hpd_rx_irq(struct dc_link *link, union hpd_irq_data *out_hpd
 	if (hpd_irq_dpcd_data.bytes.device_service_irq.bits.DOWN_REP_MSG_RDY)
 		return false;
 
-	/* For now we only handle 'Downstream port status' case.
+	/* For yesw we only handle 'Downstream port status' case.
 	 * If we got sink count changed it means
 	 * Downstream port status changed,
 	 * then DM should call DC to do the detection. */
@@ -2484,7 +2484,7 @@ bool dc_link_handle_hpd_rx_irq(struct dc_link *link, union hpd_irq_data *out_hpd
 	 * 1. Link Loss - ie Re-train the Link
 	 * 2. MST sideband message
 	 * 3. Automated Test - ie. Internal Commit
-	 * 4. CP (copy protection) - (not interesting for DM???)
+	 * 4. CP (copy protection) - (yest interesting for DM???)
 	 * 5. DRR
 	 * 6. Downstream Port status changed
 	 * -ie. Detect - this the only one
@@ -2600,7 +2600,7 @@ static void get_active_converter_info(
 		link->dpcd_caps.dongle_type = DISPLAY_DONGLE_DP_VGA_CONVERTER;
 		break;
 	case DOWNSTREAM_DVI_HDMI_DP_PLUS_PLUS:
-		/* At this point we don't know is it DVI or HDMI or DP++,
+		/* At this point we don't kyesw is it DVI or HDMI or DP++,
 		 * assume DVI.*/
 		link->dpcd_caps.dongle_type = DISPLAY_DONGLE_DP_DVI_CONVERTER;
 		break;
@@ -2958,8 +2958,8 @@ bool detect_dp_sink_caps(struct dc_link *link)
 	return retrieve_link_cap(link);
 
 	/* dc init_hw has power encoder using default
-	 * signal for connector. For native DP, no
-	 * need to power up encoder again. If not native
+	 * signal for connector. For native DP, yes
+	 * need to power up encoder again. If yest native
 	 * DP, hw_init may need check signal or power up
 	 * encoder here.
 	 */
@@ -2969,7 +2969,7 @@ bool detect_dp_sink_caps(struct dc_link *link)
 enum dc_link_rate linkRateInKHzToLinkRateMultiplier(uint32_t link_rate_in_khz)
 {
 	enum dc_link_rate link_rate;
-	// LinkRate is normally stored as a multiplier of 0.27 Gbps per lane. Do the translation.
+	// LinkRate is yesrmally stored as a multiplier of 0.27 Gbps per lane. Do the translation.
 	switch (link_rate_in_khz) {
 	case 1620000:
 		link_rate = LINK_RATE_LOW;		// Rate_1 (RBR)		- 1.62 Gbps/Lane
@@ -3420,7 +3420,7 @@ void dp_set_panel_mode(struct dc_link *link, enum dp_panel_mode panel_mode)
 enum dp_panel_mode dp_get_panel_mode(struct dc_link *link)
 {
 	/* We need to explicitly check that connector
-	 * is not DP. Some Travis_VGA get reported
+	 * is yest DP. Some Travis_VGA get reported
 	 * by video bios as DP.
 	 */
 	if (link->connector_signal != SIGNAL_TYPE_DISPLAY_PORT) {
@@ -3428,7 +3428,7 @@ enum dp_panel_mode dp_get_panel_mode(struct dc_link *link)
 		switch (link->dpcd_caps.branch_dev_id) {
 		case DP_BRANCH_DEVICE_ID_0022B9:
 			/* alternate scrambler reset is required for Travis
-			 * for the case when external chip does not
+			 * for the case when external chip does yest
 			 * provide sink device id, alternate scrambler
 			 * scheme will  be overriden later by querying
 			 * Encoder features
@@ -3444,7 +3444,7 @@ enum dp_panel_mode dp_get_panel_mode(struct dc_link *link)
 			break;
 		case DP_BRANCH_DEVICE_ID_00001A:
 			/* alternate scrambler reset is required for Travis
-			 * for the case when external chip does not provide
+			 * for the case when external chip does yest provide
 			 * sink device id, alternate scrambler scheme will
 			 * be overriden later by querying Encoder feature
 			 */
@@ -3474,7 +3474,7 @@ void dp_set_fec_ready(struct dc_link *link, bool ready)
 	/* FEC has to be "set ready" before the link training.
 	 * The policy is to always train with FEC
 	 * if the sink supports it and leave it enabled on link.
-	 * If FEC is not supported, disable it.
+	 * If FEC is yest supported, disable it.
 	 */
 	struct link_encoder *link_enc = link->link_enc;
 	uint8_t fec_config = 0;
@@ -3495,7 +3495,7 @@ void dp_set_fec_ready(struct dc_link *link, bool ready)
 				link->fec_state = dc_link_fec_ready;
 			} else {
 				link->link_enc->funcs->fec_set_ready(link->link_enc, false);
-				link->fec_state = dc_link_fec_not_ready;
+				link->fec_state = dc_link_fec_yest_ready;
 				dm_error("dpcd write failed to set fec_ready");
 			}
 		} else if (link->fec_state == dc_link_fec_ready) {
@@ -3506,7 +3506,7 @@ void dp_set_fec_ready(struct dc_link *link, bool ready)
 					sizeof(fec_config));
 			link->link_enc->funcs->fec_set_ready(
 					link->link_enc, false);
-			link->fec_state = dc_link_fec_not_ready;
+			link->fec_state = dc_link_fec_yest_ready;
 		}
 	}
 }

@@ -181,7 +181,7 @@ int ufs_qcom_phy_init_clks(struct ufs_qcom_phy *phy_common)
 {
 	int err;
 
-	if (of_device_is_compatible(phy_common->dev->of_node,
+	if (of_device_is_compatible(phy_common->dev->of_yesde,
 				"qcom,msm8996-ufs-phy-qmp-14nm"))
 		goto skip_txrx_clk;
 
@@ -202,7 +202,7 @@ skip_txrx_clk:
 		goto out;
 
 	/*
-	 * "ref_clk_parent" is optional hence don't abort init if it's not
+	 * "ref_clk_parent" is optional hence don't abort init if it's yest
 	 * found.
 	 */
 	__ufs_qcom_phy_clk_get(phy_common->dev, "ref_clk_parent",
@@ -232,9 +232,9 @@ static int ufs_qcom_phy_init_vreg(struct device *dev,
 		goto out;
 	}
 
-	if (dev->of_node) {
+	if (dev->of_yesde) {
 		snprintf(prop_name, MAX_PROP_NAME, "%s-max-microamp", name);
-		err = of_property_read_u32(dev->of_node,
+		err = of_property_read_u32(dev->of_yesde,
 					prop_name, &vreg->max_uA);
 		if (err && err != -EINVAL) {
 			dev_err(dev, "%s: failed to read %s\n",
@@ -411,7 +411,7 @@ static int ufs_qcom_phy_disable_vreg(struct device *dev,
 	ret = regulator_disable(vreg->reg);
 
 	if (!ret) {
-		/* ignore errors on applying disable config */
+		/* igyesre errors on applying disable config */
 		ufs_qcom_phy_cfg_vreg(dev, vreg, false);
 		vreg->enabled = false;
 	} else {
@@ -479,7 +479,7 @@ static int ufs_qcom_phy_start_serdes(struct ufs_qcom_phy *ufs_qcom_phy)
 	int ret = 0;
 
 	if (!ufs_qcom_phy->phy_spec_ops->start_serdes) {
-		dev_err(ufs_qcom_phy->dev, "%s: start_serdes() callback is not supported\n",
+		dev_err(ufs_qcom_phy->dev, "%s: start_serdes() callback is yest supported\n",
 			__func__);
 		ret = -ENOTSUPP;
 	} else {
@@ -495,7 +495,7 @@ int ufs_qcom_phy_set_tx_lane_enable(struct phy *generic_phy, u32 tx_lanes)
 	int ret = 0;
 
 	if (!ufs_qcom_phy->phy_spec_ops->set_tx_lane_enable) {
-		dev_err(ufs_qcom_phy->dev, "%s: set_tx_lane_enable() callback is not supported\n",
+		dev_err(ufs_qcom_phy->dev, "%s: set_tx_lane_enable() callback is yest supported\n",
 			__func__);
 		ret = -ENOTSUPP;
 	} else {
@@ -508,12 +508,12 @@ int ufs_qcom_phy_set_tx_lane_enable(struct phy *generic_phy, u32 tx_lanes)
 EXPORT_SYMBOL_GPL(ufs_qcom_phy_set_tx_lane_enable);
 
 void ufs_qcom_phy_save_controller_version(struct phy *generic_phy,
-					  u8 major, u16 minor, u16 step)
+					  u8 major, u16 miyesr, u16 step)
 {
 	struct ufs_qcom_phy *ufs_qcom_phy = get_ufs_qcom_phy(generic_phy);
 
 	ufs_qcom_phy->host_ctrl_rev_major = major;
-	ufs_qcom_phy->host_ctrl_rev_minor = minor;
+	ufs_qcom_phy->host_ctrl_rev_miyesr = miyesr;
 	ufs_qcom_phy->host_ctrl_rev_step = step;
 }
 EXPORT_SYMBOL_GPL(ufs_qcom_phy_save_controller_version);
@@ -521,7 +521,7 @@ EXPORT_SYMBOL_GPL(ufs_qcom_phy_save_controller_version);
 static int ufs_qcom_phy_is_pcs_ready(struct ufs_qcom_phy *ufs_qcom_phy)
 {
 	if (!ufs_qcom_phy->phy_spec_ops->is_physical_coding_sublayer_ready) {
-		dev_err(ufs_qcom_phy->dev, "%s: is_physical_coding_sublayer_ready() callback is not supported\n",
+		dev_err(ufs_qcom_phy->dev, "%s: is_physical_coding_sublayer_ready() callback is yest supported\n",
 			__func__);
 		return -ENOTSUPP;
 	}

@@ -24,7 +24,7 @@
  * @QLINK_MSG_TYPE_CMDRSP: Message is carrying data of a response to a command.
  *	Sent from wireless HW to driver in reply to previously issued command.
  * @QLINK_MSG_TYPE_EVENT: Data for an event originated in wireless hardware and
- *	sent asynchronously to driver.
+ *	sent asynchroyesusly to driver.
  */
 enum qlink_msg_type {
 	QLINK_MSG_TYPE_CMD	= 1,
@@ -181,7 +181,7 @@ struct qlink_auth_encr {
 	u8 auth_type;
 	u8 privacy;
 	u8 control_port;
-	u8 control_port_no_encrypt;
+	u8 control_port_yes_encrypt;
 	u8 rsvd[2];
 } __packed;
 
@@ -215,7 +215,7 @@ struct qlink_sta_info_state {
  *	info on each channel, HT/VHT capabilities, supported rates etc.
  *	This command is generic to a specified MAC, interface index must be set
  *	to QLINK_VIFID_RSVD in command header.
- * @QLINK_CMD_REG_NOTIFY: notify device about regulatory domain change. This
+ * @QLINK_CMD_REG_NOTIFY: yestify device about regulatory domain change. This
  *	command is supported only if device reports QLINK_HW_SUPPORTS_REG_UPDATE
  *	capability.
  * @QLINK_CMD_START_CAC: start radar detection procedure on a specified channel.
@@ -274,9 +274,9 @@ enum qlink_cmd_type {
  * @seq_num: sequence number of command message, used for matching with
  *	response message.
  * @macid: index of physical radio device the command is destined to or
- *	QLINK_MACID_RSVD if not applicable.
+ *	QLINK_MACID_RSVD if yest applicable.
  * @vifid: index of virtual wireless interface on specified @macid the command
- *	is destined to or QLINK_VIFID_RSVD if not applicable.
+ *	is destined to or QLINK_VIFID_RSVD if yest applicable.
  */
 struct qlink_cmd {
 	struct qlink_msg_header mhdr;
@@ -332,7 +332,7 @@ struct qlink_cmd_mgmt_frame_register {
 } __packed;
 
 /**
- * @QLINK_FRAME_TX_FLAG_8023: frame has a 802.3 header; if not set, frame
+ * @QLINK_FRAME_TX_FLAG_8023: frame has a 802.3 header; if yest set, frame
  *	is a 802.11 encapsulated.
  */
 enum qlink_frame_tx_flags {
@@ -465,8 +465,8 @@ enum qlink_sta_connect_flags {
  *
  * @bssid: BSSID of the BSS to connect to.
  * @bssid_hint: recommended AP BSSID for initial connection to the BSS or
- *	00:00:00:00:00:00 if not specified.
- * @prev_bssid: previous BSSID, if specified (not 00:00:00:00:00:00) indicates
+ *	00:00:00:00:00:00 if yest specified.
+ * @prev_bssid: previous BSSID, if specified (yest 00:00:00:00:00:00) indicates
  *	a request to reassociate.
  * @bg_scan_period: period of background scan.
  * @flags: one of &enum qlink_sta_connect_flags.
@@ -588,7 +588,7 @@ enum qlink_user_reg_hint_type {
 };
 
 /**
- * struct qlink_cmd_reg_notify - data for QLINK_CMD_REG_NOTIFY command
+ * struct qlink_cmd_reg_yestify - data for QLINK_CMD_REG_NOTIFY command
  *
  * @alpha2: the ISO / IEC 3166 alpha2 country code.
  * @initiator: which entity sent the request, one of &enum qlink_reg_initiator.
@@ -598,9 +598,9 @@ enum qlink_user_reg_hint_type {
  *	payload.
  * @slave_radar: whether slave device should enable radar detection.
  * @dfs_region: one of &enum qlink_dfs_regions.
- * @info: variable portion of regulatory notifier callback.
+ * @info: variable portion of regulatory yestifier callback.
  */
-struct qlink_cmd_reg_notify {
+struct qlink_cmd_reg_yestify {
 	struct qlink_cmd chdr;
 	u8 alpha2[2];
 	u8 initiator;
@@ -705,7 +705,7 @@ struct qlink_acl_data {
 /**
  * enum qlink_pm_mode - Power Management mode
  *
- * @QLINK_PM_OFF: normal mode, no power saving enabled
+ * @QLINK_PM_OFF: yesrmal mode, yes power saving enabled
  * @QLINK_PM_AUTO_STANDBY: enable auto power save mode
  */
 enum qlink_pm_mode {
@@ -837,9 +837,9 @@ enum qlink_cmd_result {
  *	response message.
  * @result: result of the command execution, one of &enum qlink_cmd_result.
  * @macid: index of physical radio device the response is sent from or
- *	QLINK_MACID_RSVD if not applicable.
+ *	QLINK_MACID_RSVD if yest applicable.
  * @vifid: index of virtual wireless interface on specified @macid the response
- *	is sent from or QLINK_VIFID_RSVD if not applicable.
+ *	is sent from or QLINK_VIFID_RSVD if yest applicable.
  */
 struct qlink_resp {
 	struct qlink_msg_header mhdr;
@@ -1017,7 +1017,7 @@ struct qlink_resp_channel_get {
 /**
  * struct qlink_resp_txpwr - response for QLINK_CMD_TXPWR command
  *
- * This response is intended for QLINK_TXPWR_GET operation and does not
+ * This response is intended for QLINK_TXPWR_GET operation and does yest
  * contain any meaningful information in case of QLINK_TXPWR_SET operation.
  *
  * @txpwr: current transmit power setting, in mBm
@@ -1052,9 +1052,9 @@ enum qlink_event_type {
  * @mhdr: Common QLINK message header.
  * @event_id: Specifies specific event ID, one of &enum qlink_event_type.
  * @macid: index of physical radio device the event was generated on or
- *	QLINK_MACID_RSVD if not applicable.
+ *	QLINK_MACID_RSVD if yest applicable.
  * @vifid: index of virtual wireless interface on specified @macid the event
- *	was generated on or QLINK_VIFID_RSVD if not applicable.
+ *	was generated on or QLINK_VIFID_RSVD if yest applicable.
  */
 struct qlink_event {
 	struct qlink_msg_header mhdr;
@@ -1152,12 +1152,12 @@ struct qlink_event_rxmgmt {
  * @freq: Center frequency of the channel where BSS for which the scan result
  *	event was generated was discovered.
  * @capab: capabilities field.
- * @bintval: beacon interval announced by discovered BSS.
+ * @bintval: beacon interval anyesunced by discovered BSS.
  * @sig_dbm: signal strength in dBm.
- * @bssid: BSSID announced by discovered BSS.
- * @ssid_len: length of SSID announced by BSS.
- * @ssid: SSID announced by discovered BSS.
- * @payload: IEs that are announced by discovered BSS in its MGMt frames.
+ * @bssid: BSSID anyesunced by discovered BSS.
+ * @ssid_len: length of SSID anyesunced by BSS.
+ * @ssid: SSID anyesunced by discovered BSS.
+ * @payload: IEs that are anyesunced by discovered BSS in its MGMt frames.
  */
 struct qlink_event_scan_result {
 	struct qlink_event ehdr;
@@ -1220,7 +1220,7 @@ struct qlink_event_radar {
 /**
  * struct qlink_event_external_auth - data for QLINK_EVENT_EXTERNAL_AUTH event
  *
- * @ssid: SSID announced by BSS
+ * @ssid: SSID anyesunced by BSS
  * @ssid_len: SSID length
  * @bssid: BSSID of the BSS to connect to
  * @akm_suite: AKM suite for external authentication
@@ -1506,7 +1506,7 @@ struct qlink_chan_stats {
 	__le32 cca_rx;
 	__le32 cca_busy;
 	__le32 cca_try;
-	s8 chan_noise;
+	s8 chan_yesise;
 } __packed;
 
 /**
@@ -1602,7 +1602,7 @@ struct qlink_sta_stats {
 	__le16 plid;
 	u8 local_pm;
 	u8 peer_pm;
-	u8 nonpeer_pm;
+	u8 yesnpeer_pm;
 	u8 rx_beacon_signal_avg;
 	u8 plink_state;
 	u8 signal;

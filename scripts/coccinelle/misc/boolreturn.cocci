@@ -3,7 +3,7 @@
 /// true/false instead of 1/0.
 //
 // Confidence: High
-// Options: --no-includes --include-headers
+// Options: --yes-includes --include-headers
 
 virtual patch
 virtual report

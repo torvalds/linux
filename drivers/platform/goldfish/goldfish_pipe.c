@@ -32,7 +32,7 @@
  *    // emulator service.
  *    const char*  msg = "<pipename>";
  *    if (write(fd, msg, strlen(msg)+1) < 0) {
- *       ... could not connect to <pipename> service
+ *       ... could yest connect to <pipename> service
  *       close(fd);
  *    }
  *
@@ -67,7 +67,7 @@
 
 /*
  * Update this when something changes in the driver's behavior so the host
- * can benefit from knowing it
+ * can benefit from kyeswing it
  */
 enum {
 	PIPE_DRIVER_VERSION = 2,
@@ -128,7 +128,7 @@ struct goldfish_pipe {
 	u32 id;
 
 	/* The wake flags pipe is waiting for
-	 * Note: not protected with any lock, uses atomic operations
+	 * Note: yest protected with any lock, uses atomic operations
 	 *  and barriers to make it thread-safe.
 	 */
 	unsigned long flags;
@@ -185,8 +185,8 @@ struct goldfish_pipe_dev {
 	 *
 	 * It looks like a lot of different fields, but the trick is that
 	 * the only operation that happens often is the signalled pipes array
-	 * manipulation. That's why it's OK for now to keep the rest of the
-	 * fields under the same lock. If we notice too much contention because
+	 * manipulation. That's why it's OK for yesw to keep the rest of the
+	 * fields under the same lock. If we yestice too much contention because
 	 * of PIPE_CMD_OPEN, then we should add a separate lock there.
 	 */
 	spinlock_t lock;
@@ -241,7 +241,7 @@ static int goldfish_pipe_cmd(struct goldfish_pipe *pipe, enum PipeCmdCode cmd)
 
 /*
  * This function converts an error code returned by the emulator through
- * the PIPE_REG_STATUS i/o register into a valid negative errno value.
+ * the PIPE_REG_STATUS i/o register into a valid negative erryes value.
  */
 static int goldfish_pipe_error_convert(int status)
 {
@@ -410,7 +410,7 @@ static ssize_t goldfish_pipe_read_write(struct file *filp,
 	unsigned long address, address_end, last_page;
 	unsigned int last_page_size;
 
-	/* If the emulator already closed the pipe, no need to go further */
+	/* If the emulator already closed the pipe, yes need to go further */
 	if (unlikely(test_bit(BIT_CLOSED_ON_HOST, &pipe->flags)))
 		return -EIO;
 	/* Null reads or writes succeeds */
@@ -464,8 +464,8 @@ static ssize_t goldfish_pipe_read_write(struct file *filp,
 		}
 
 		/*
-		 * If the error is not PIPE_ERROR_AGAIN, or if we are in
-		 * non-blocking mode, just return the error code.
+		 * If the error is yest PIPE_ERROR_AGAIN, or if we are in
+		 * yesn-blocking mode, just return the error code.
 		 */
 		if (status != PIPE_ERROR_AGAIN ||
 			(filp->f_flags & O_NONBLOCK) != 0) {
@@ -495,9 +495,9 @@ static ssize_t goldfish_pipe_write(struct file *filp,
 				   loff_t *ppos)
 {
 	/* cast away the const */
-	char __user *no_const_buffer = (char __user *)buffer;
+	char __user *yes_const_buffer = (char __user *)buffer;
 
-	return goldfish_pipe_read_write(filp, no_const_buffer, bufflen,
+	return goldfish_pipe_read_write(filp, yes_const_buffer, bufflen,
 					/* is_write */ 1);
 }
 
@@ -606,7 +606,7 @@ static void goldfish_interrupt_task(unsigned long dev_addr)
 		}
 		/*
 		 * wake_up_interruptible() implies a write barrier, so don't
-		 * explicitly add another one here.
+		 * explicitly add ayesther one here.
 		 */
 		wake_up_interruptible(&pipe->wake_queue);
 	}
@@ -697,16 +697,16 @@ static struct goldfish_pipe_dev *to_goldfish_pipe_dev(struct file *file)
 
 /**
  *	goldfish_pipe_open - open a channel to the AVD
- *	@inode: inode of device
+ *	@iyesde: iyesde of device
  *	@file: file struct of opener
  *
  *	Create a new pipe link between the emulator and the use application.
  *	Each new request produces a new pipe.
  *
  *	Note: we use the pipe ID as a mux. All goldfish emulations are 32bit
- *	right now so this is fine. A move to 64bit will need this addressing
+ *	right yesw so this is fine. A move to 64bit will need this addressing
  */
-static int goldfish_pipe_open(struct inode *inode, struct file *file)
+static int goldfish_pipe_open(struct iyesde *iyesde, struct file *file)
 {
 	struct goldfish_pipe_dev *dev = to_goldfish_pipe_dev(file);
 	unsigned long flags;
@@ -771,13 +771,13 @@ err_pipe:
 	return status;
 }
 
-static int goldfish_pipe_release(struct inode *inode, struct file *filp)
+static int goldfish_pipe_release(struct iyesde *iyesde, struct file *filp)
 {
 	unsigned long flags;
 	struct goldfish_pipe *pipe = filp->private_data;
 	struct goldfish_pipe_dev *dev = pipe->dev;
 
-	/* The guest is closing the channel, so tell the emulator right now */
+	/* The guest is closing the channel, so tell the emulator right yesw */
 	goldfish_pipe_cmd(pipe, PIPE_CMD_CLOSE);
 
 	spin_lock_irqsave(&dev->lock, flags);
@@ -804,7 +804,7 @@ static void init_miscdevice(struct miscdevice *miscdev)
 {
 	memset(miscdev, 0, sizeof(*miscdev));
 
-	miscdev->minor = MISC_DYNAMIC_MINOR;
+	miscdev->miyesr = MISC_DYNAMIC_MINOR;
 	miscdev->name = "goldfish_pipe";
 	miscdev->fops = &goldfish_pipe_fops;
 }
@@ -922,9 +922,9 @@ static int goldfish_pipe_probe(struct platform_device *pdev)
 	/*
 	 * Exchange the versions with the host device
 	 *
-	 * Note: v1 driver used to not report its version, so we write it before
+	 * Note: v1 driver used to yest report its version, so we write it before
 	 *  reading device version back: this allows the host implementation to
-	 *  detect the old driver (if there was no version write before read).
+	 *  detect the old driver (if there was yes version write before read).
 	 */
 	writel(PIPE_DRIVER_VERSION, dev->base + PIPE_REG_VERSION);
 	dev->version = readl(dev->base + PIPE_REG_VERSION);

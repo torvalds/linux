@@ -29,7 +29,7 @@ kapi:	$(kapi-hdrs-y) $(gen-y)
 
 uapi:	$(uapi-hdrs-y)
 
-# Create output directory if not already present
+# Create output directory if yest already present
 _dummy := $(shell [ -d '$(kapi)' ] || mkdir -p '$(kapi)') \
           $(shell [ -d '$(uapi)' ] || mkdir -p '$(uapi)')
 

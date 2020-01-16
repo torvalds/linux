@@ -1,12 +1,12 @@
 * SPI NOR flash: ST M25Pxx (and similar) serial flash chips
 
 Required properties:
-- #address-cells, #size-cells : Must be present if the device has sub-nodes
+- #address-cells, #size-cells : Must be present if the device has sub-yesdes
   representing partitions.
 - compatible : May include a device-specific string consisting of the
                manufacturer and name of the chip. A list of supported chip
                names follows.
-               Must also include "jedec,spi-nor" for any SPI NOR flash that can
+               Must also include "jedec,spi-yesr" for any SPI NOR flash that can
                be identified by the JEDEC READ ID opcode (0x9F).
 
                Supported chip names:
@@ -48,25 +48,25 @@ Required properties:
                  w25q256
 
                The following chip names have been used historically to
-               designate quirky versions of flash chips that do not support the
+               designate quirky versions of flash chips that do yest support the
                JEDEC READ ID opcode (0x9F):
-                 m25p05-nonjedec
-                 m25p10-nonjedec
-                 m25p20-nonjedec
-                 m25p40-nonjedec
-                 m25p80-nonjedec
-                 m25p16-nonjedec
-                 m25p32-nonjedec
-                 m25p64-nonjedec
-                 m25p128-nonjedec
+                 m25p05-yesnjedec
+                 m25p10-yesnjedec
+                 m25p20-yesnjedec
+                 m25p40-yesnjedec
+                 m25p80-yesnjedec
+                 m25p16-yesnjedec
+                 m25p32-yesnjedec
+                 m25p64-yesnjedec
+                 m25p128-yesnjedec
 
 - reg : Chip-Select number
 - spi-max-frequency : Maximum frequency of the SPI bus the chip can operate at
 
 Optional properties:
 - m25p,fast-read : Use the "fast read" opcode to read data from the chip instead
-                   of the usual "read" opcode. This opcode is not supported by
-                   all chips and support for it can not be detected at runtime.
+                   of the usual "read" opcode. This opcode is yest supported by
+                   all chips and support for it can yest be detected at runtime.
                    Refer to your chips' datasheet to check if this is supported
                    by your chip.
 - broken-flash-reset : Some flash devices utilize stateful addressing modes
@@ -75,16 +75,16 @@ Optional properties:
 		   have a standardized software reset command, and because some
 		   systems don't toggle the flash RESET# pin upon system reset
 		   (if the pin even exists at all), there are systems which
-		   cannot reboot properly if the flash is left in the "wrong"
+		   canyest reboot properly if the flash is left in the "wrong"
 		   state. This boolean flag can be used on such systems, to
-		   denote the absence of a reliable reset mechanism.
+		   deyeste the absence of a reliable reset mechanism.
 
 Example:
 
 	flash: m25p80@0 {
 		#address-cells = <1>;
 		#size-cells = <1>;
-		compatible = "spansion,m25p80", "jedec,spi-nor";
+		compatible = "spansion,m25p80", "jedec,spi-yesr";
 		reg = <0>;
 		spi-max-frequency = <40000000>;
 		m25p,fast-read;

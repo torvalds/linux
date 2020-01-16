@@ -9,7 +9,7 @@ Required properties:
 
 Optional properties:
 - xlnx,num-ss-bits	 : Number of chip selects used.
-- xlnx,num-transfer-bits : Number of bits per transfer. This will be 8 if not specified
+- xlnx,num-transfer-bits : Number of bits per transfer. This will be 8 if yest specified
 
 Example:
 	axi_quad_spi@41e00000 {

@@ -166,7 +166,7 @@ int skl_platform_unregister(struct device *dev);
 int skl_platform_register(struct device *dev);
 
 struct nhlt_specific_cfg *skl_get_ep_blob(struct skl_dev *skl, u32 instance,
-					u8 link_type, u8 s_fmt, u8 no_ch,
+					u8 link_type, u8 s_fmt, u8 yes_ch,
 					u32 s_rate, u8 dirn, u8 dev_type);
 
 int skl_nhlt_update_topology_bin(struct skl_dev *skl);
@@ -183,7 +183,7 @@ void skl_nhlt_remove_sysfs(struct skl_dev *skl);
 void skl_get_clks(struct skl_dev *skl, struct skl_ssp_clk *ssp_clks);
 struct skl_clk_parent_src *skl_get_parent_clk(u8 clk_id);
 int skl_dsp_set_dma_control(struct skl_dev *skl, u32 *caps,
-				u32 caps_size, u32 node_id);
+				u32 caps_size, u32 yesde_id);
 
 struct skl_module_cfg;
 

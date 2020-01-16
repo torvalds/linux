@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Huawei HiNIC PCI Express Linux driver
- * Copyright(c) 2017 Huawei Technologies Co., Ltd
+ * Copyright(c) 2017 Huawei Techyeslogies Co., Ltd
  */
 
 #include <linux/kernel.h>
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/pci.h>
 #include <linux/device.h>
 #include <linux/slab.h>
@@ -138,7 +138,7 @@ static int chain_busy(struct hinic_api_cmd_chain *chain)
 		break;
 
 	default:
-		dev_err(&pdev->dev, "Unknown API CMD Chain type\n");
+		dev_err(&pdev->dev, "Unkyeswn API CMD Chain type\n");
 		break;
 	}
 
@@ -193,15 +193,15 @@ static void prepare_cell_ctrl(u64 *cell_ctrl, u16 data_size)
 /**
  * prepare_api_cmd - prepare API CMD command
  * @chain: chain for the command
- * @dest: destination node on the card that will receive the command
+ * @dest: destination yesde on the card that will receive the command
  * @cmd: command data
  * @cmd_size: the command size
  **/
 static void prepare_api_cmd(struct hinic_api_cmd_chain *chain,
-			    enum hinic_node_id dest,
+			    enum hinic_yesde_id dest,
 			    void *cmd, u16 cmd_size)
 {
-	struct hinic_api_cmd_cell *cell = chain->curr_node;
+	struct hinic_api_cmd_cell *cell = chain->curr_yesde;
 	struct hinic_api_cmd_cell_ctxt *cell_ctxt;
 	struct hinic_hwif *hwif = chain->hwif;
 	struct pci_dev *pdev = hwif->pdev;
@@ -216,7 +216,7 @@ static void prepare_api_cmd(struct hinic_api_cmd_chain *chain,
 		break;
 
 	default:
-		dev_err(&pdev->dev, "unknown Chain type\n");
+		dev_err(&pdev->dev, "unkyeswn Chain type\n");
 		return;
 	}
 
@@ -235,20 +235,20 @@ static void prepare_api_cmd(struct hinic_api_cmd_chain *chain,
 /**
  * prepare_cell - prepare cell ctrl and cmd in the current cell
  * @chain: chain for the command
- * @dest: destination node on the card that will receive the command
+ * @dest: destination yesde on the card that will receive the command
  * @cmd: command data
  * @cmd_size: the command size
  *
  * Return 0 - Success, negative - Failure
  **/
 static void prepare_cell(struct hinic_api_cmd_chain *chain,
-			 enum  hinic_node_id dest,
+			 enum  hinic_yesde_id dest,
 			 void *cmd, u16 cmd_size)
 {
-	struct hinic_api_cmd_cell *curr_node = chain->curr_node;
+	struct hinic_api_cmd_cell *curr_yesde = chain->curr_yesde;
 	u16 data_size = get_cell_data_size(chain->chain_type);
 
-	prepare_cell_ctrl(&curr_node->ctrl, data_size);
+	prepare_cell_ctrl(&curr_yesde->ctrl, data_size);
 	prepare_api_cmd(chain, dest, cmd, cmd_size);
 }
 
@@ -281,7 +281,7 @@ static void api_cmd_status_update(struct hinic_api_cmd_chain *chain)
 
 	chain_type = HINIC_API_CMD_STATUS_HEADER_GET(status_header, CHAIN_ID);
 	if (chain_type >= HINIC_API_CMD_MAX) {
-		dev_err(&pdev->dev, "unknown API CMD Chain %d\n", chain_type);
+		dev_err(&pdev->dev, "unkyeswn API CMD Chain %d\n", chain_type);
 		return;
 	}
 
@@ -337,7 +337,7 @@ static int wait_for_api_cmd_completion(struct hinic_api_cmd_chain *chain)
 		break;
 
 	default:
-		dev_err(&pdev->dev, "unknown API CMD Chain type\n");
+		dev_err(&pdev->dev, "unkyeswn API CMD Chain type\n");
 		err = -EINVAL;
 		break;
 	}
@@ -348,14 +348,14 @@ static int wait_for_api_cmd_completion(struct hinic_api_cmd_chain *chain)
 /**
  * api_cmd - API CMD command
  * @chain: chain for the command
- * @dest: destination node on the card that will receive the command
+ * @dest: destination yesde on the card that will receive the command
  * @cmd: command data
  * @size: the command size
  *
  * Return 0 - Success, negative - Failure
  **/
 static int api_cmd(struct hinic_api_cmd_chain *chain,
-		   enum hinic_node_id dest, u8 *cmd, u16 cmd_size)
+		   enum hinic_yesde_id dest, u8 *cmd, u16 cmd_size)
 {
 	struct hinic_api_cmd_cell_ctxt *ctxt;
 	int err;
@@ -375,7 +375,7 @@ static int api_cmd(struct hinic_api_cmd_chain *chain,
 
 	ctxt = &chain->cell_ctxt[chain->prod_idx];
 
-	chain->curr_node = ctxt->cell_vaddr;
+	chain->curr_yesde = ctxt->cell_vaddr;
 
 	err = wait_for_api_cmd_completion(chain);
 
@@ -386,14 +386,14 @@ static int api_cmd(struct hinic_api_cmd_chain *chain,
 /**
  * hinic_api_cmd_write - Write API CMD command
  * @chain: chain for write command
- * @dest: destination node on the card that will receive the command
+ * @dest: destination yesde on the card that will receive the command
  * @cmd: command data
  * @size: the command size
  *
  * Return 0 - Success, negative - Failure
  **/
 int hinic_api_cmd_write(struct hinic_api_cmd_chain *chain,
-			enum hinic_node_id dest, u8 *cmd, u16 size)
+			enum hinic_yesde_id dest, u8 *cmd, u16 size)
 {
 	/* Verify the chain type */
 	if (chain->chain_type == HINIC_API_CMD_WRITE_TO_MGMT_CPU)
@@ -637,47 +637,47 @@ static int alloc_cmd_buf(struct hinic_api_cmd_chain *chain,
  * api_cmd_create_cell - create API CMD cell for specific chain
  * @chain: the API CMD specific chain to create its cell
  * @cell_idx: the index of the cell to create
- * @pre_node: previous cell
- * @node_vaddr: the returned virt addr of the cell
+ * @pre_yesde: previous cell
+ * @yesde_vaddr: the returned virt addr of the cell
  *
  * Return 0 - Success, negative - Failure
  **/
 static int api_cmd_create_cell(struct hinic_api_cmd_chain *chain,
 			       int cell_idx,
-			       struct hinic_api_cmd_cell *pre_node,
-			       struct hinic_api_cmd_cell **node_vaddr)
+			       struct hinic_api_cmd_cell *pre_yesde,
+			       struct hinic_api_cmd_cell **yesde_vaddr)
 {
 	struct hinic_api_cmd_cell_ctxt *cell_ctxt;
 	struct hinic_hwif *hwif = chain->hwif;
 	struct pci_dev *pdev = hwif->pdev;
-	struct hinic_api_cmd_cell *node;
-	dma_addr_t node_paddr;
+	struct hinic_api_cmd_cell *yesde;
+	dma_addr_t yesde_paddr;
 	int err;
 
-	node = dma_alloc_coherent(&pdev->dev, chain->cell_size, &node_paddr,
+	yesde = dma_alloc_coherent(&pdev->dev, chain->cell_size, &yesde_paddr,
 				  GFP_KERNEL);
-	if (!node) {
+	if (!yesde) {
 		dev_err(&pdev->dev, "Failed to allocate dma API CMD cell\n");
 		return -ENOMEM;
 	}
 
-	node->read.hw_wb_resp_paddr = 0;
+	yesde->read.hw_wb_resp_paddr = 0;
 
 	cell_ctxt = &chain->cell_ctxt[cell_idx];
-	cell_ctxt->cell_vaddr = node;
-	cell_ctxt->cell_paddr = node_paddr;
+	cell_ctxt->cell_vaddr = yesde;
+	cell_ctxt->cell_paddr = yesde_paddr;
 
-	if (!pre_node) {
-		chain->head_cell_paddr = node_paddr;
-		chain->head_node = node;
+	if (!pre_yesde) {
+		chain->head_cell_paddr = yesde_paddr;
+		chain->head_yesde = yesde;
 	} else {
 		/* The data in the HW should be in Big Endian Format */
-		pre_node->next_cell_paddr = cpu_to_be64(node_paddr);
+		pre_yesde->next_cell_paddr = cpu_to_be64(yesde_paddr);
 	}
 
 	switch (chain->chain_type) {
 	case HINIC_API_CMD_WRITE_TO_MGMT_CPU:
-		err = alloc_cmd_buf(chain, node, cell_idx);
+		err = alloc_cmd_buf(chain, yesde, cell_idx);
 		if (err) {
 			dev_err(&pdev->dev, "Failed to allocate cmd buffer\n");
 			goto err_alloc_cmd_buf;
@@ -690,11 +690,11 @@ static int api_cmd_create_cell(struct hinic_api_cmd_chain *chain,
 		goto err_alloc_cmd_buf;
 	}
 
-	*node_vaddr = node;
+	*yesde_vaddr = yesde;
 	return 0;
 
 err_alloc_cmd_buf:
-	dma_free_coherent(&pdev->dev, chain->cell_size, node, node_paddr);
+	dma_free_coherent(&pdev->dev, chain->cell_size, yesde, yesde_paddr);
 	return err;
 }
 
@@ -709,15 +709,15 @@ static void api_cmd_destroy_cell(struct hinic_api_cmd_chain *chain,
 	struct hinic_api_cmd_cell_ctxt *cell_ctxt;
 	struct hinic_hwif *hwif = chain->hwif;
 	struct pci_dev *pdev = hwif->pdev;
-	struct hinic_api_cmd_cell *node;
-	dma_addr_t node_paddr;
-	size_t node_size;
+	struct hinic_api_cmd_cell *yesde;
+	dma_addr_t yesde_paddr;
+	size_t yesde_size;
 
 	cell_ctxt = &chain->cell_ctxt[cell_idx];
 
-	node = cell_ctxt->cell_vaddr;
-	node_paddr = cell_ctxt->cell_paddr;
-	node_size = chain->cell_size;
+	yesde = cell_ctxt->cell_vaddr;
+	yesde_paddr = cell_ctxt->cell_paddr;
+	yesde_size = chain->cell_size;
 
 	if (cell_ctxt->api_cmd_vaddr) {
 		switch (chain->chain_type) {
@@ -729,8 +729,8 @@ static void api_cmd_destroy_cell(struct hinic_api_cmd_chain *chain,
 			break;
 		}
 
-		dma_free_coherent(&pdev->dev, node_size, node,
-				  node_paddr);
+		dma_free_coherent(&pdev->dev, yesde_size, yesde,
+				  yesde_paddr);
 	}
 }
 
@@ -756,26 +756,26 @@ static void api_cmd_destroy_cells(struct hinic_api_cmd_chain *chain,
  **/
 static int api_cmd_create_cells(struct hinic_api_cmd_chain *chain)
 {
-	struct hinic_api_cmd_cell *node = NULL, *pre_node = NULL;
+	struct hinic_api_cmd_cell *yesde = NULL, *pre_yesde = NULL;
 	struct hinic_hwif *hwif = chain->hwif;
 	struct pci_dev *pdev = hwif->pdev;
 	int err, cell_idx;
 
 	for (cell_idx = 0; cell_idx < chain->num_cells; cell_idx++) {
-		err = api_cmd_create_cell(chain, cell_idx, pre_node, &node);
+		err = api_cmd_create_cell(chain, cell_idx, pre_yesde, &yesde);
 		if (err) {
 			dev_err(&pdev->dev, "Failed to create API CMD cell\n");
 			goto err_create_cell;
 		}
 
-		pre_node = node;
+		pre_yesde = yesde;
 	}
 
-	/* set the Final node to point on the start */
-	node->next_cell_paddr = cpu_to_be64(chain->head_cell_paddr);
+	/* set the Final yesde to point on the start */
+	yesde->next_cell_paddr = cpu_to_be64(chain->head_cell_paddr);
 
-	/* set the current node to be the head */
-	chain->curr_node = chain->head_node;
+	/* set the current yesde to be the head */
+	chain->curr_yesde = chain->head_yesde;
 	return 0;
 
 err_create_cell:

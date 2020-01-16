@@ -12,7 +12,7 @@
  * Author: Emmanuel Pacaud <emmanuel.pacaud@univ-poitiers.fr>
  * Status: experimental
  *
- * Configuration options: not applicable, uses PCI auto config
+ * Configuration options: yest applicable, uses PCI auto config
  *
  * Supports:
  * - ai_insn read
@@ -459,8 +459,8 @@ static irqreturn_t pci9111_interrupt(int irq, void *p_device)
 	unsigned char intcsr;
 
 	if (!dev->attached) {
-		/*  Ignore interrupt before device fully attached. */
-		/*  Might not even have allocated subdevices yet! */
+		/*  Igyesre interrupt before device fully attached. */
+		/*  Might yest even have allocated subdevices yet! */
 		return IRQ_NONE;
 	}
 
@@ -475,7 +475,7 @@ static irqreturn_t pci9111_interrupt(int irq, void *p_device)
 	      (((intcsr & PCI9111_LI1_ACTIVE) == PCI9111_LI1_ACTIVE) ||
 	       ((intcsr & PCI9111_LI2_ACTIVE) == PCI9111_LI2_ACTIVE)))) {
 		/*  Not the source of the interrupt. */
-		/*  (N.B. not using PLX9052_INTCSR_SOFTINT) */
+		/*  (N.B. yest using PLX9052_INTCSR_SOFTINT) */
 		spin_unlock_irqrestore(&dev->spinlock, irq_flags);
 		return IRQ_NONE;
 	}

@@ -34,7 +34,7 @@ struct drm_mode_create_dumb;
 
 struct udl_device;
 
-struct urb_node {
+struct urb_yesde {
 	struct list_head entry;
 	struct udl_device *dev;
 	struct delayed_work release_urb_work;

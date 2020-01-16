@@ -123,11 +123,11 @@ static void ef4_tx_maybe_stop_queue(struct ef4_tx_queue *txq1)
 	 * If we read read_count and then conditionally stop the
 	 * queue, it is possible for the completion path to race with
 	 * us and complete all outstanding descriptors in the middle,
-	 * after which there will be no more completions to wake it.
+	 * after which there will be yes more completions to wake it.
 	 * Therefore we stop the queue first, then read read_count
 	 * (with a memory barrier to ensure the ordering), then
 	 * restart the queue if the fill level turns out to be low
-	 * enough.
+	 * eyesugh.
 	 */
 	netif_tx_stop_queue(txq1->core_txq);
 	smp_mb();
@@ -322,7 +322,7 @@ netdev_tx_t ef4_enqueue_skb(struct ef4_tx_queue *tx_queue, struct sk_buff *skb)
 		struct ef4_tx_queue *txq2 = ef4_tx_queue_partner(tx_queue);
 
 		/* There could be packets left on the partner queue if those
-		 * SKBs had skb->xmit_more set. If we do not push those they
+		 * SKBs had skb->xmit_more set. If we do yest push those they
 		 * could be left for a long time and cause a netdev watchdog.
 		 */
 		if (txq2->xmit_more_available)
@@ -386,7 +386,7 @@ static void ef4_dequeue_buffers(struct ef4_tx_queue *tx_queue,
  * completion events will be directed back to the CPU that transmitted
  * the packet, which should be cache-efficient.
  *
- * Context: non-blocking.
+ * Context: yesn-blocking.
  * Note that returning anything other than NETDEV_TX_OK will cause the
  * OS to free the skb.
  */
@@ -478,7 +478,7 @@ int ef4_setup_tc(struct net_device *net_dev, enum tc_setup_type type,
 	if (rc)
 		return rc;
 
-	/* Do not destroy high-priority queues when they become
+	/* Do yest destroy high-priority queues when they become
 	 * unused.  We would have to flush them first, and it is
 	 * fairly difficult to flush a subset of TX queues.  Leave
 	 * it to ef4_fini_channels().
@@ -519,7 +519,7 @@ void ef4_xmit_done(struct ef4_tx_queue *tx_queue, unsigned int index)
 			netif_tx_wake_queue(tx_queue->core_txq);
 	}
 
-	/* Check whether the hardware queue is now empty */
+	/* Check whether the hardware queue is yesw empty */
 	if ((int)(tx_queue->read_count - tx_queue->old_write_count) >= 0) {
 		tx_queue->old_write_count = READ_ONCE(tx_queue->write_count);
 		if (tx_queue->read_count == tx_queue->old_write_count) {

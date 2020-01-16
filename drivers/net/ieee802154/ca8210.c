@@ -4,7 +4,7 @@
  * All rights reserved.
  *
  * This code is dual-licensed under both GPLv2 and 3-clause BSD. What follows is
- * the license notice for both respectively.
+ * the license yestice for both respectively.
  *
  *******************************************************************************
  *
@@ -23,14 +23,14 @@
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
  *
- * 1. Redistributions of source code must retain the above copyright notice,
+ * 1. Redistributions of source code must retain the above copyright yestice,
  * this list of conditions and the following disclaimer.
  *
- * 2. Redistributions in binary form must reproduce the above copyright notice,
+ * 2. Redistributions in binary form must reproduce the above copyright yestice,
  * this list of conditions and the following disclaimer in the documentation
  * and/or other materials provided with the distribution.
  *
- * 3. Neither the name of the copyright holder nor the names of its contributors
+ * 3. Neither the name of the copyright holder yesr the names of its contributors
  * may be used to endorse or promote products derived from this software without
  * specific prior written permission.
  *
@@ -83,7 +83,7 @@
 
 /* spi constants */
 #define CA8210_SPI_BUF_SIZE 256
-#define CA8210_SYNC_TIMEOUT 1000     /* Timeout for synchronous commands [ms] */
+#define CA8210_SYNC_TIMEOUT 1000     /* Timeout for synchroyesus commands [ms] */
 
 /* test interface constants */
 #define CA8210_TEST_INT_FILE_NAME "ca8210_test"
@@ -229,7 +229,7 @@
 /* SPI command IDs */
 /* bit indicating a confirm or indication from slave to master */
 #define SPI_S2M                            (0x20)
-/* bit indicating a synchronous message */
+/* bit indicating a synchroyesus message */
 #define SPI_SYN                            (0x40)
 
 /* SPI command definitions */
@@ -340,16 +340,16 @@ struct ca8210_test {
  * @last_dsn:               sequence number of last data packet received, for
  *                           resend detection
  * @test:                   test interface data section for this instance
- * @async_tx_pending:       true if an asynchronous transmission was started and
- *                           is not complete
+ * @async_tx_pending:       true if an asynchroyesus transmission was started and
+ *                           is yest complete
  * @sync_command_response:  pointer to buffer to fill with sync response
- * @ca8210_is_awake:        nonzero if ca8210 is initialised, ready for comms
- * @sync_down:              counts number of downstream synchronous commands
- * @sync_up:                counts number of upstream synchronous commands
+ * @ca8210_is_awake:        yesnzero if ca8210 is initialised, ready for comms
+ * @sync_down:              counts number of downstream synchroyesus commands
+ * @sync_up:                counts number of upstream synchroyesus commands
  * @spi_transfer_complete   completion object for a single spi_transfer
- * @sync_exchange_complete  completion object for a complete synchronous API
+ * @sync_exchange_complete  completion object for a complete synchroyesus API
  *                           exchange
- * @promiscuous             whether the ca8210 is in promiscuous mode or not
+ * @promiscuous             whether the ca8210 is in promiscuous mode or yest
  * @retries:                records how many times the current pending spi
  *                           transfer has been retried
  */
@@ -407,7 +407,7 @@ struct ca8210_platform_data {
 
 /**
  * struct fulladdr - full MAC addressing information structure
- * @mode:    address mode (none, short, extended)
+ * @mode:    address mode (yesne, short, extended)
  * @pan_id:  16-bit LE pan id
  * @address: LE address, variable length as specified by mode
  *
@@ -774,54 +774,54 @@ static void ca8210_rx_done(struct cas_control *cas_ctl)
 			queue_work(priv->mlme_workqueue, &mlme_reset_wpc->work);
 		}
 	} else if (buf[0] == SPI_HWME_WAKEUP_INDICATION) {
-		dev_notice(
+		dev_yestice(
 			&priv->spi->dev,
 			"Wakeup indication received, reason:\n"
 		);
 		switch (buf[2]) {
 		case 0:
-			dev_notice(
+			dev_yestice(
 				&priv->spi->dev,
 				"Transceiver woken up from Power Up / System Reset\n"
 			);
 			break;
 		case 1:
-			dev_notice(
+			dev_yestice(
 				&priv->spi->dev,
 				"Watchdog Timer Time-Out\n"
 			);
 			break;
 		case 2:
-			dev_notice(
+			dev_yestice(
 				&priv->spi->dev,
 				"Transceiver woken up from Power-Off by Sleep Timer Time-Out\n");
 			break;
 		case 3:
-			dev_notice(
+			dev_yestice(
 				&priv->spi->dev,
 				"Transceiver woken up from Power-Off by GPIO Activity\n"
 			);
 			break;
 		case 4:
-			dev_notice(
+			dev_yestice(
 				&priv->spi->dev,
 				"Transceiver woken up from Standby by Sleep Timer Time-Out\n"
 			);
 			break;
 		case 5:
-			dev_notice(
+			dev_yestice(
 				&priv->spi->dev,
 				"Transceiver woken up from Standby by GPIO Activity\n"
 			);
 			break;
 		case 6:
-			dev_notice(
+			dev_yestice(
 				&priv->spi->dev,
 				"Sleep-Timer Time-Out in Active Mode\n"
 			);
 			break;
 		default:
-			dev_warn(&priv->spi->dev, "Wakeup reason unknown\n");
+			dev_warn(&priv->spi->dev, "Wakeup reason unkyeswn\n");
 			break;
 		}
 		complete(&priv->ca8210_is_awake);
@@ -973,11 +973,11 @@ static int ca8210_spi_transfer(
  * ca8210_spi_exchange() - Exchange API/SAP commands with the radio
  * @buf:         Octet array of command being sent downstream
  * @len:         length of buf
- * @response:    buffer for storing synchronous response
+ * @response:    buffer for storing synchroyesus response
  * @device_ref:  spi_device pointer for ca8210
  *
  * Effectively calls ca8210_spi_transfer to write buf[] to the spi, then for
- * synchronous commands waits for the corresponding response to be read from
+ * synchroyesus commands waits for the corresponding response to be read from
  * the spi before returning. The response is written to the response parameter.
  *
  * Return: 0 or linux error code
@@ -1043,7 +1043,7 @@ static int ca8210_spi_exchange(
 	} else if (wait_remaining == 0) {
 		dev_err(
 			&spi->dev,
-			"Synchronous confirm timeout\n"
+			"Synchroyesus confirm timeout\n"
 		);
 		status = -ETIME;
 	}
@@ -1060,7 +1060,7 @@ cleanup:
  *
  * This function is called when the irq line from the ca8210 is asserted,
  * signifying that the ca8210 has a message to send upstream to us. Starts the
- * asynchronous spi read.
+ * asynchroyesus spi read.
  *
  * Return: irq return code
  */
@@ -1132,7 +1132,7 @@ static u8 tdme_setsfr_request_sync(
 	if (response.command_id != SPI_TDME_SETSFR_CONFIRM) {
 		dev_crit(
 			&spi->dev,
-			"sync response to SPI_TDME_SETSFR_REQUEST was not SPI_TDME_SETSFR_CONFIRM, it was %d\n",
+			"sync response to SPI_TDME_SETSFR_REQUEST was yest SPI_TDME_SETSFR_CONFIRM, it was %d\n",
 			response.command_id
 		);
 		return MAC_SYSTEM_ERROR;
@@ -1271,7 +1271,7 @@ static u8 tdme_channelinit(u8 channel, void *device_ref)
 }
 
 /**
- * tdme_checkpibattribute() - Checks Attribute Values that are not checked in
+ * tdme_checkpibattribute() - Checks Attribute Values that are yest checked in
  *                            MAC
  * @pib_attribute:        Attribute Number
  * @pib_attribute_length: Attribute length
@@ -1376,7 +1376,7 @@ static u8 tdme_checkpibattribute(
  * @device_ref: Nondescript pointer to target device
  *
  * Normalised to 802.15.4 Definition (6-bit, signed):
- * Bit 7-6: not used
+ * Bit 7-6: yest used
  * Bit 5-0: tx power (-32 - +31 dB)
  *
  * Return: 802.15.4 status code of api calls
@@ -1594,7 +1594,7 @@ static u8 mlme_set_request_sync(
 	u8 status;
 	struct mac_message command, response;
 
-	/* pre-check the validity of pib_attribute values that are not checked
+	/* pre-check the validity of pib_attribute values that are yest checked
 	 * in MAC
 	 */
 	if (tdme_checkpibattribute(
@@ -1735,7 +1735,7 @@ static u8 hwme_get_request_sync(
 /* Network driver operation */
 
 /**
- * ca8210_async_xmit_complete() - Called to announce that an asynchronous
+ * ca8210_async_xmit_complete() - Called to anyesunce that an asynchroyesus
  *                                transmission has finished
  * @hw:          ieee802154_hw of ca8210 that has finished exchange
  * @msduhandle:  Identifier of transmission that has completed
@@ -1906,7 +1906,7 @@ static int ca8210_net_rx(struct ieee802154_hw *hw, u8 *command, size_t len)
 		if (command[26] == priv->last_dsn) {
 			dev_dbg(
 				&priv->spi->dev,
-				"DSN %d resend received, ignoring...\n",
+				"DSN %d resend received, igyesring...\n",
 				command[26]
 			);
 			spin_unlock_irqrestore(&priv->lock, flags);
@@ -1993,7 +1993,7 @@ static int ca8210_start(struct ieee802154_hw *hw)
 	struct ca8210_priv *priv = hw->priv;
 
 	priv->last_dsn = -1;
-	/* Turn receiver on when idle for now just to test rx */
+	/* Turn receiver on when idle for yesw just to test rx */
 	rx_on_when_idle = 1;
 	status = mlme_set_request_sync(
 		MAC_RX_ON_WHEN_IDLE,
@@ -2039,7 +2039,7 @@ static void ca8210_stop(struct ieee802154_hw *hw)
 }
 
 /**
- * ca8210_xmit_async() - Asynchronously transmits a given socket buffer using
+ * ca8210_xmit_async() - Asynchroyesusly transmits a given socket buffer using
  *                       the ca8210
  * @hw:   ieee802154_hw of ca8210 to transmit from
  * @skb:  Socket buffer to transmit
@@ -2119,7 +2119,7 @@ static int ca8210_set_channel(
  * @filt:     Filtering parameters
  * @changed:  Bitmap representing which parameters to change
  *
- * Effectively just sets the actual addressing information identifying this node
+ * Effectively just sets the actual addressing information identifying this yesde
  * as all filtering is performed by the ca8210 as detailed in the IEEE 802.15.4
  * 2006 specification.
  *
@@ -2333,7 +2333,7 @@ static int ca8210_set_csma_params(
  * @hw:       ieee802154_hw of target ca8210
  * @retries:  Number of retries
  *
- * Sets the number of times to retry a transmission if no acknowledgment was
+ * Sets the number of times to retry a transmission if yes ackyeswledgment was
  * was received from the other end when one was requested.
  *
  * Return: 0 or linux error code
@@ -2403,14 +2403,14 @@ static const struct ieee802154_ops ca8210_phy_ops = {
 
 /**
  * ca8210_test_int_open() - Opens the test interface to the userspace
- * @inodp:  inode representation of file interface
+ * @iyesdp:  iyesde representation of file interface
  * @filp:   file interface
  *
  * Return: 0 or linux error code
  */
-static int ca8210_test_int_open(struct inode *inodp, struct file *filp)
+static int ca8210_test_int_open(struct iyesde *iyesdp, struct file *filp)
 {
-	struct ca8210_priv *priv = inodp->i_private;
+	struct ca8210_priv *priv = iyesdp->i_private;
 
 	filp->private_data = priv;
 	return 0;
@@ -2507,7 +2507,7 @@ static ssize_t ca8210_test_int_user_write(
 	if (ret) {
 		dev_err(
 			&priv->spi->dev,
-			"%d bytes could not be copied from userspace\n",
+			"%d bytes could yest be copied from userspace\n",
 			ret
 		);
 		return -EIO;
@@ -2515,7 +2515,7 @@ static ssize_t ca8210_test_int_user_write(
 	if (len != command[1] + 2) {
 		dev_err(
 			&priv->spi->dev,
-			"write len does not match packet length field\n"
+			"write len does yest match packet length field\n"
 		);
 		return -EBADE;
 	}
@@ -2548,11 +2548,11 @@ static ssize_t ca8210_test_int_user_write(
  *                               message from the ca8210 drivers
  * @filp:  file interface
  * @buf:   Buffer to write message to
- * @len:   length of message to read (ignored)
+ * @len:   length of message to read (igyesred)
  * @offp:  file offset
  *
  * If the O_NONBLOCK flag was set when opening the file then this function will
- * not block, i.e. it will return if the fifo is empty. Otherwise the function
+ * yest block, i.e. it will return if the fifo is empty. Otherwise the function
  * will block, i.e. wait until new data arrives.
  *
  * Return: number of bytes read
@@ -2567,7 +2567,7 @@ static ssize_t ca8210_test_int_user_read(
 	int i, cmdlen;
 	struct ca8210_priv *priv = filp->private_data;
 	unsigned char *fifo_buffer;
-	unsigned long bytes_not_copied;
+	unsigned long bytes_yest_copied;
 
 	if (filp->f_flags & O_NONBLOCK) {
 		/* Non-blocking mode */
@@ -2589,14 +2589,14 @@ static ssize_t ca8210_test_int_user_read(
 		return 0;
 	}
 	cmdlen = fifo_buffer[1];
-	bytes_not_copied = cmdlen + 2;
+	bytes_yest_copied = cmdlen + 2;
 
-	bytes_not_copied = copy_to_user(buf, fifo_buffer, bytes_not_copied);
-	if (bytes_not_copied > 0) {
+	bytes_yest_copied = copy_to_user(buf, fifo_buffer, bytes_yest_copied);
+	if (bytes_yest_copied > 0) {
 		dev_err(
 			&priv->spi->dev,
-			"%lu bytes could not be copied to user space!\n",
-			bytes_not_copied
+			"%lu bytes could yest be copied to user space!\n",
+			bytes_yest_copied
 		);
 	}
 
@@ -2690,16 +2690,16 @@ static int ca8210_get_platform_data(
 {
 	int ret = 0;
 
-	if (!spi_device->dev.of_node)
+	if (!spi_device->dev.of_yesde)
 		return -EINVAL;
 
 	pdata->extclockenable = of_property_read_bool(
-		spi_device->dev.of_node,
+		spi_device->dev.of_yesde,
 		"extclock-enable"
 	);
 	if (pdata->extclockenable) {
 		ret = of_property_read_u32(
-			spi_device->dev.of_node,
+			spi_device->dev.of_yesde,
 			"extclock-freq",
 			&pdata->extclockfreq
 		);
@@ -2707,7 +2707,7 @@ static int ca8210_get_platform_data(
 			return ret;
 
 		ret = of_property_read_u32(
-			spi_device->dev.of_node,
+			spi_device->dev.of_yesde,
 			"extclock-gpio",
 			&pdata->extclockgpio
 		);
@@ -2777,7 +2777,7 @@ static int ca8210_config_extern_clk(
  */
 static int ca8210_register_ext_clock(struct spi_device *spi)
 {
-	struct device_node *np = spi->dev.of_node;
+	struct device_yesde *np = spi->dev.of_yesde;
 	struct ca8210_priv *priv = spi_get_drvdata(spi);
 	struct ca8210_platform_data *pdata = spi->dev.platform_data;
 	int ret = 0;
@@ -2823,7 +2823,7 @@ static void ca8210_unregister_ext_clock(struct spi_device *spi)
 	if (!priv->clk)
 		return
 
-	of_clk_del_provider(spi->dev.of_node);
+	of_clk_del_provider(spi->dev.of_yesde);
 	clk_unregister(priv->clk);
 	dev_info(&spi->dev, "External clock unregistered\n");
 }
@@ -2840,7 +2840,7 @@ static int ca8210_reset_init(struct spi_device *spi)
 	struct ca8210_platform_data *pdata = spi->dev.platform_data;
 
 	pdata->gpio_reset = of_get_named_gpio(
-		spi->dev.of_node,
+		spi->dev.of_yesde,
 		"reset-gpio",
 		0
 	);
@@ -2849,7 +2849,7 @@ static int ca8210_reset_init(struct spi_device *spi)
 	if (ret < 0) {
 		dev_crit(
 			&spi->dev,
-			"Reset GPIO %d did not set to output mode\n",
+			"Reset GPIO %d did yest set to output mode\n",
 			pdata->gpio_reset
 		);
 	}
@@ -2869,7 +2869,7 @@ static int ca8210_interrupt_init(struct spi_device *spi)
 	struct ca8210_platform_data *pdata = spi->dev.platform_data;
 
 	pdata->gpio_irq = of_get_named_gpio(
-		spi->dev.of_node,
+		spi->dev.of_yesde,
 		"irq-gpio",
 		0
 	);
@@ -2878,7 +2878,7 @@ static int ca8210_interrupt_init(struct spi_device *spi)
 	if (pdata->irq_id < 0) {
 		dev_crit(
 			&spi->dev,
-			"Could not get irq for gpio pin %d\n",
+			"Could yest get irq for gpio pin %d\n",
 			pdata->gpio_irq
 		);
 		gpio_free(pdata->gpio_irq);
@@ -3002,25 +3002,25 @@ static void ca8210_hw_setup(struct ieee802154_hw *ca8210_hw)
 static int ca8210_test_interface_init(struct ca8210_priv *priv)
 {
 	struct ca8210_test *test = &priv->test;
-	char node_name[32];
+	char yesde_name[32];
 
 	snprintf(
-		node_name,
-		sizeof(node_name),
+		yesde_name,
+		sizeof(yesde_name),
 		"ca8210@%d_%d",
 		priv->spi->master->bus_num,
 		priv->spi->chip_select
 	);
 
 	test->ca8210_dfs_spi_int = debugfs_create_file(
-		node_name,
+		yesde_name,
 		0600, /* S_IRUSR | S_IWUSR */
 		NULL,
 		priv,
 		&test_int_fops
 	);
 
-	debugfs_create_symlink("ca8210", NULL, node_name);
+	debugfs_create_symlink("ca8210", NULL, yesde_name);
 	init_waitqueue_head(&test->readq);
 	return kfifo_alloc(
 		&test->up_fifo,

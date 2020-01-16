@@ -4,7 +4,7 @@
  *
  * Copyright (C) 2000, 2001  Paolo Alberelli
  * Copyright (C) 2003 - 2008  Paul Mundt
- * Copyright (C) 2004  Richard Curnow
+ * Copyright (C) 2004  Richard Curyesw
  */
 #include <linux/rwsem.h>
 #include <linux/sched.h>
@@ -12,7 +12,7 @@
 #include <linux/smp.h>
 #include <linux/kernel.h>
 #include <linux/signal.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/wait.h>
 #include <linux/personality.h>
 #include <linux/ptrace.h>
@@ -43,7 +43,7 @@ handle_signal(struct ksignal *ksig, struct pt_regs *regs);
 static inline void
 handle_syscall_restart(struct pt_regs *regs, struct sigaction *sa)
 {
-	/* If we're not from a syscall, bail out */
+	/* If we're yest from a syscall, bail out */
 	if (regs->syscall_nr < 0)
 		return;
 
@@ -51,13 +51,13 @@ handle_syscall_restart(struct pt_regs *regs, struct sigaction *sa)
 	switch (regs->regs[REG_RET]) {
 		case -ERESTART_RESTARTBLOCK:
 		case -ERESTARTNOHAND:
-		no_system_call_restart:
+		yes_system_call_restart:
 			regs->regs[REG_RET] = -EINTR;
 			break;
 
 		case -ERESTARTSYS:
 			if (!(sa->sa_flags & SA_RESTART))
-				goto no_system_call_restart;
+				goto yes_system_call_restart;
 		/* fallthrough */
 		case -ERESTARTNOINTR:
 			/* Decode syscall # */
@@ -69,7 +69,7 @@ handle_syscall_restart(struct pt_regs *regs, struct sigaction *sa)
 
 /*
  * Note that 'init' is a special process: it doesn't get signals it doesn't
- * want to handle. Thus you cannot kill init even with a SIGKILL even by
+ * want to handle. Thus you canyest kill init even with a SIGKILL even by
  * mistake.
  *
  * Note that we go through the signals twice: once to check the signals that
@@ -99,7 +99,7 @@ static void do_signal(struct pt_regs *regs)
 
 	/* Did we come from a system call? */
 	if (regs->syscall_nr >= 0) {
-		/* Restart the system call - no handlers present */
+		/* Restart the system call - yes handlers present */
 		switch (regs->regs[REG_RET]) {
 		case -ERESTARTNOHAND:
 		case -ERESTARTSYS:
@@ -257,7 +257,7 @@ asmlinkage int sys_sigreturn(unsigned long r2, unsigned long r3,
 	long long ret;
 
 	/* Always make any pending restarted system calls return -EINTR */
-	current->restart_block.fn = do_no_restart_syscall;
+	current->restart_block.fn = do_yes_restart_syscall;
 
 	if (!access_ok(frame, sizeof(*frame)))
 		goto badframe;
@@ -291,7 +291,7 @@ asmlinkage int sys_rt_sigreturn(unsigned long r2, unsigned long r3,
 	long long ret;
 
 	/* Always make any pending restarted system calls return -EINTR */
-	current->restart_block.fn = do_no_restart_syscall;
+	current->restart_block.fn = do_yes_restart_syscall;
 
 	if (!access_ok(frame, sizeof(*frame)))
 		goto badframe;
@@ -555,13 +555,13 @@ handle_signal(struct ksignal *ksig, struct pt_regs *regs)
 	signal_setup_done(ret, ksig, test_thread_flag(TIF_SINGLESTEP));
 }
 
-asmlinkage void do_notify_resume(struct pt_regs *regs, unsigned long thread_info_flags)
+asmlinkage void do_yestify_resume(struct pt_regs *regs, unsigned long thread_info_flags)
 {
 	if (thread_info_flags & _TIF_SIGPENDING)
 		do_signal(regs);
 
 	if (thread_info_flags & _TIF_NOTIFY_RESUME) {
 		clear_thread_flag(TIF_NOTIFY_RESUME);
-		tracehook_notify_resume(regs);
+		tracehook_yestify_resume(regs);
 	}
 }

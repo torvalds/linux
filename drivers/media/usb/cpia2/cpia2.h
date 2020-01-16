@@ -369,7 +369,7 @@ struct camera_data {
 	u8 flush;
 	struct v4l2_fh *stream_fh;
 	u8 mmapped;
-	int streaming;		/* 0 = no, 1 = yes */
+	int streaming;		/* 0 = yes, 1 = no */
 	int xfer_mode;		/* XFER_BULK or XFER_ISOC */
 	struct camera_params params;	/* camera settings */
 
@@ -434,7 +434,7 @@ int cpia2_init_camera(struct camera_data *cam);
 int cpia2_allocate_buffers(struct camera_data *cam);
 void cpia2_free_buffers(struct camera_data *cam);
 long cpia2_read(struct camera_data *cam,
-		char __user *buf, unsigned long count, int noblock);
+		char __user *buf, unsigned long count, int yesblock);
 __poll_t cpia2_poll(struct camera_data *cam,
 			struct file *filp, poll_table *wait);
 int cpia2_remap_buffer(struct camera_data *cam, struct vm_area_struct *vma);
@@ -468,7 +468,7 @@ int cpia2_usb_change_streaming_alternate(struct camera_data *cam,
 #define ERR(fmt,args...) ALOG(KERN_ERR "cpia2: "fmt,##args)
 #define DBG(fmn,args...) do {} while(0)
 #endif
-/* No function or lineno, for shorter lines */
+/* No function or lineyes, for shorter lines */
 #define KINFO(fmt, args...) printk(KERN_INFO fmt,##args)
 
 #endif

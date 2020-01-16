@@ -2,7 +2,7 @@
 /*
  * v4l2 device driver for cx2388x based TV cards
  *
- * (c) 2003,04 Gerd Knorr <kraxel@bytesex.org> [SUSE Labs]
+ * (c) 2003,04 Gerd Kyesrr <kraxel@bytesex.org> [SUSE Labs]
  */
 
 #ifndef CX88_H
@@ -83,16 +83,16 @@ enum cx8802_board_access {
 };
 
 /* ----------------------------------------------------------- */
-/* tv norms                                                    */
+/* tv yesrms                                                    */
 
-static inline unsigned int norm_maxw(v4l2_std_id norm)
+static inline unsigned int yesrm_maxw(v4l2_std_id yesrm)
 {
 	return 720;
 }
 
-static inline unsigned int norm_maxh(v4l2_std_id norm)
+static inline unsigned int yesrm_maxh(v4l2_std_id yesrm)
 {
-	return (norm & V4L2_STD_525_60) ? 480 : 576;
+	return (yesrm & V4L2_STD_525_60) ? 480 : 576;
 }
 
 /* ----------------------------------------------------------- */
@@ -374,7 +374,7 @@ struct cx88_core {
 
 	/* state info */
 	struct task_struct         *kthread;
-	v4l2_std_id                tvnorm;
+	v4l2_std_id                tvyesrm;
 	unsigned int		   width, height;
 	unsigned int		   field;
 	enum cx88_tvaudio          tvaudio;
@@ -638,7 +638,7 @@ void cx88_sram_channel_dump(struct cx88_core *core,
 
 int cx88_set_scale(struct cx88_core *core, unsigned int width,
 		   unsigned int height, enum v4l2_field field);
-int cx88_set_tvnorm(struct cx88_core *core, v4l2_std_id norm);
+int cx88_set_tvyesrm(struct cx88_core *core, v4l2_std_id yesrm);
 
 void cx88_vdev_init(struct cx88_core *core,
 		    struct pci_dev *pci,

@@ -14,8 +14,8 @@
 
 /*
  * If a p?d_bad entry is found while walking page tables, report
- * the error, before resetting entry to p?d_none.  Usually (but
- * very seldom) called out from the p?d_none_or_clear_bad macros.
+ * the error, before resetting entry to p?d_yesne.  Usually (but
+ * very seldom) called out from the p?d_yesne_or_clear_bad macros.
  */
 
 void pgd_clear_bad(pgd_t *pgd)
@@ -54,11 +54,11 @@ void pmd_clear_bad(pmd_t *pmd)
 #ifndef __HAVE_ARCH_PTEP_SET_ACCESS_FLAGS
 /*
  * Only sets the access flags (dirty, accessed), as well as write 
- * permission. Furthermore, we know it always gets set to a "more
+ * permission. Furthermore, we kyesw it always gets set to a "more
  * permissive" setting, which allows most architectures to optimize
  * this. We return whether the PTE actually changed, which in turn
  * instructs the caller to do things like update__mmu_cache.  This
- * used to be done in the caller, but sparc needs minor faults to
+ * used to be done in the caller, but sparc needs miyesr faults to
  * force that call on sun4c so we changed this macro slightly
  */
 int ptep_set_access_flags(struct vm_area_struct *vma,
@@ -173,7 +173,7 @@ void pgtable_trans_huge_deposit(struct mm_struct *mm, pmd_t *pmdp,
 #endif
 
 #ifndef __HAVE_ARCH_PGTABLE_WITHDRAW
-/* no "address" argument so destroys page coloring of some arch */
+/* yes "address" argument so destroys page coloring of some arch */
 pgtable_t pgtable_trans_huge_withdraw(struct mm_struct *mm, pmd_t *pmdp)
 {
 	pgtable_t pgtable;
@@ -194,7 +194,7 @@ pgtable_t pgtable_trans_huge_withdraw(struct mm_struct *mm, pmd_t *pmdp)
 pmd_t pmdp_invalidate(struct vm_area_struct *vma, unsigned long address,
 		     pmd_t *pmdp)
 {
-	pmd_t old = pmdp_establish(vma, address, pmdp, pmd_mknotpresent(*pmdp));
+	pmd_t old = pmdp_establish(vma, address, pmdp, pmd_mkyestpresent(*pmdp));
 	flush_pmd_tlb_range(vma, address, address + HPAGE_PMD_SIZE);
 	return old;
 }
@@ -214,7 +214,7 @@ pmd_t pmdp_collapse_flush(struct vm_area_struct *vma, unsigned long address,
 	VM_BUG_ON(pmd_trans_huge(*pmdp));
 	pmd = pmdp_huge_get_and_clear(vma->vm_mm, address, pmdp);
 
-	/* collapse entails shooting down ptes not pmd */
+	/* collapse entails shooting down ptes yest pmd */
 	flush_tlb_range(vma, address, address + HPAGE_PMD_SIZE);
 	return pmd;
 }

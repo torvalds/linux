@@ -102,7 +102,7 @@ static int horus3a_enter_power_save(struct horus3a_priv *priv)
 	horus3a_write_reg(priv, 0x2a, 0x19);
 	/* VCO calibration disable */
 	horus3a_write_reg(priv, 0x1c, 0x00);
-	/* Power save setting (xtal is not stopped) */
+	/* Power save setting (xtal is yest stopped) */
 	data[0] = 0xC0;
 	/* LNA is Disabled */
 	data[1] = 0xA7;

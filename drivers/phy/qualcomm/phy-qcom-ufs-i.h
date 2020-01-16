@@ -82,7 +82,7 @@ struct ufs_qcom_phy {
 	#define UFS_QCOM_PHY_QUIRK_HIBERN8_EXIT_AFTER_PHY_PWR_COLLAPSE	BIT(0)
 
 	u8 host_ctrl_rev_major;
-	u16 host_ctrl_rev_minor;
+	u16 host_ctrl_rev_miyesr;
 	u16 host_ctrl_rev_step;
 
 	char name[UFS_QCOM_PHY_NAME_LEN];
@@ -100,7 +100,7 @@ struct ufs_qcom_phy {
  * those functions according to its spec and requirements
  * @start_serdes: pointer to a function that starts the serdes
  * @is_physical_coding_sublayer_ready: pointer to a function that
- * checks pcs readiness. returns 0 for success and non-zero for error.
+ * checks pcs readiness. returns 0 for success and yesn-zero for error.
  * @set_tx_lane_enable: pointer to a function that enable tx lanes
  * @power_control: pointer to a function that controls analog rail of phy
  * and writes to QSERDES_RX_SIGDET_CNTRL attribute

@@ -48,6 +48,6 @@
 	status = "okay";
 };
 
-&spi_nor {
+&spi_yesr {
 	status = "okay";
 };

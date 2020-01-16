@@ -208,19 +208,19 @@ static struct snd_soc_dai_link mt8173_rt5650_dais[] = {
 	/* Back End DAI links */
 	[DAI_LINK_CODEC_I2S] = {
 		.name = "Codec",
-		.no_pcm = 1,
+		.yes_pcm = 1,
 		.init = mt8173_rt5650_init,
 		.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
 			   SND_SOC_DAIFMT_CBS_CFS,
 		.ops = &mt8173_rt5650_ops,
-		.ignore_pmdown_time = 1,
+		.igyesre_pmdown_time = 1,
 		.dpcm_playback = 1,
 		.dpcm_capture = 1,
 		SND_SOC_DAILINK_REG(codec),
 	},
 	[DAI_LINK_HDMI_I2S] = {
 		.name = "HDMI BE",
-		.no_pcm = 1,
+		.yes_pcm = 1,
 		.dpcm_playback = 1,
 		SND_SOC_DAILINK_REG(hdmi_be),
 	},
@@ -242,15 +242,15 @@ static struct snd_soc_card mt8173_rt5650_card = {
 static int mt8173_rt5650_dev_probe(struct platform_device *pdev)
 {
 	struct snd_soc_card *card = &mt8173_rt5650_card;
-	struct device_node *platform_node;
-	struct device_node *np;
+	struct device_yesde *platform_yesde;
+	struct device_yesde *np;
 	const char *codec_capture_dai;
 	struct snd_soc_dai_link *dai_link;
 	int i, ret;
 
-	platform_node = of_parse_phandle(pdev->dev.of_node,
+	platform_yesde = of_parse_phandle(pdev->dev.of_yesde,
 					 "mediatek,platform", 0);
-	if (!platform_node) {
+	if (!platform_yesde) {
 		dev_err(&pdev->dev, "Property 'platform' missing or invalid\n");
 		return -EINVAL;
 	}
@@ -258,23 +258,23 @@ static int mt8173_rt5650_dev_probe(struct platform_device *pdev)
 	for_each_card_prelinks(card, i, dai_link) {
 		if (dai_link->platforms->name)
 			continue;
-		dai_link->platforms->of_node = platform_node;
+		dai_link->platforms->of_yesde = platform_yesde;
 	}
 
-	mt8173_rt5650_dais[DAI_LINK_CODEC_I2S].codecs[0].of_node =
-		of_parse_phandle(pdev->dev.of_node, "mediatek,audio-codec", 0);
-	if (!mt8173_rt5650_dais[DAI_LINK_CODEC_I2S].codecs[0].of_node) {
+	mt8173_rt5650_dais[DAI_LINK_CODEC_I2S].codecs[0].of_yesde =
+		of_parse_phandle(pdev->dev.of_yesde, "mediatek,audio-codec", 0);
+	if (!mt8173_rt5650_dais[DAI_LINK_CODEC_I2S].codecs[0].of_yesde) {
 		dev_err(&pdev->dev,
 			"Property 'audio-codec' missing or invalid\n");
 		return -EINVAL;
 	}
-	mt8173_rt5650_dais[DAI_LINK_CODEC_I2S].codecs[1].of_node =
-		mt8173_rt5650_dais[DAI_LINK_CODEC_I2S].codecs[0].of_node;
+	mt8173_rt5650_dais[DAI_LINK_CODEC_I2S].codecs[1].of_yesde =
+		mt8173_rt5650_dais[DAI_LINK_CODEC_I2S].codecs[0].of_yesde;
 
-	np = of_get_child_by_name(pdev->dev.of_node, "codec-capture");
+	np = of_get_child_by_name(pdev->dev.of_yesde, "codec-capture");
 	if (np) {
 		ret = snd_soc_of_get_dai_name(np, &codec_capture_dai);
-		of_node_put(np);
+		of_yesde_put(np);
 		if (ret < 0) {
 			dev_err(&pdev->dev,
 				"%s codec_capture_dai name fail %d\n",
@@ -296,9 +296,9 @@ static int mt8173_rt5650_dev_probe(struct platform_device *pdev)
 		}
 	}
 
-	mt8173_rt5650_dais[DAI_LINK_HDMI_I2S].codecs->of_node =
-		of_parse_phandle(pdev->dev.of_node, "mediatek,audio-codec", 1);
-	if (!mt8173_rt5650_dais[DAI_LINK_HDMI_I2S].codecs->of_node) {
+	mt8173_rt5650_dais[DAI_LINK_HDMI_I2S].codecs->of_yesde =
+		of_parse_phandle(pdev->dev.of_yesde, "mediatek,audio-codec", 1);
+	if (!mt8173_rt5650_dais[DAI_LINK_HDMI_I2S].codecs->of_yesde) {
 		dev_err(&pdev->dev,
 			"Property 'audio-codec' missing or invalid\n");
 		return -EINVAL;

@@ -18,6 +18,6 @@ ENTRY(ox820_secondary_startup)
 	mcr p15, 0, r4, c7, c7, 0
 	/*
 	 * we've been released from the holding pen: secondary_stack
-	 * should now contain the SVC stack for this core
+	 * should yesw contain the SVC stack for this core
 	 */
 	b	secondary_startup

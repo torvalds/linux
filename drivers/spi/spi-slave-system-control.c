@@ -78,7 +78,7 @@ static void spi_slave_system_control_complete(void *arg)
 		break;
 
 	default:
-		dev_warn(&priv->spi->dev, "Unknown command 0x%x\n", cmd);
+		dev_warn(&priv->spi->dev, "Unkyeswn command 0x%x\n", cmd);
 		break;
 	}
 

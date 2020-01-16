@@ -205,7 +205,7 @@ struct eeh_pe *eeh_pe_next(struct eeh_pe *pe, struct eeh_pe *root)
  *
  * The function is used to traverse the specified PE and its
  * child PEs. The traversing is to be terminated once the
- * callback returns something other than NULL, or no more PEs
+ * callback returns something other than NULL, or yes more PEs
  * to be traversed.
  */
 void *eeh_pe_traverse(struct eeh_pe *root,
@@ -260,7 +260,7 @@ void eeh_pe_dev_traverse(struct eeh_pe *root,
  * indicates which type of address should be used.
  */
 struct eeh_pe_get_flag {
-	int pe_no;
+	int pe_yes;
 	int config_addr;
 };
 
@@ -274,14 +274,14 @@ static void *__eeh_pe_get(struct eeh_pe *pe, void *flag)
 
 	/*
 	 * We prefer PE address. For most cases, we should
-	 * have non-zero PE address
+	 * have yesn-zero PE address
 	 */
 	if (eeh_has_flag(EEH_VALID_PE_ZERO)) {
-		if (tmp->pe_no == pe->addr)
+		if (tmp->pe_yes == pe->addr)
 			return pe;
 	} else {
-		if (tmp->pe_no &&
-		    (tmp->pe_no == pe->addr))
+		if (tmp->pe_yes &&
+		    (tmp->pe_yes == pe->addr))
 			return pe;
 	}
 
@@ -296,21 +296,21 @@ static void *__eeh_pe_get(struct eeh_pe *pe, void *flag)
 /**
  * eeh_pe_get - Search PE based on the given address
  * @phb: PCI controller
- * @pe_no: PE number
+ * @pe_yes: PE number
  * @config_addr: Config address
  *
  * Search the corresponding PE based on the specified address which
  * is included in the eeh device. The function is used to check if
  * the associated PE has been created against the PE address. It's
- * notable that the PE address has 2 format: traditional PE address
+ * yestable that the PE address has 2 format: traditional PE address
  * which is composed of PCI bus/device/function number, or unified
  * PE address.
  */
 struct eeh_pe *eeh_pe_get(struct pci_controller *phb,
-		int pe_no, int config_addr)
+		int pe_yes, int config_addr)
 {
 	struct eeh_pe *root = eeh_phb_pe_get(phb);
-	struct eeh_pe_get_flag tmp = { pe_no, config_addr };
+	struct eeh_pe_get_flag tmp = { pe_yes, config_addr };
 	struct eeh_pe *pe;
 
 	pe = eeh_pe_traverse(root, __eeh_pe_get, &tmp);
@@ -368,7 +368,7 @@ int eeh_add_to_parent_pe(struct eeh_dev *edev)
 {
 	struct eeh_pe *pe, *parent;
 	struct pci_dn *pdn = eeh_dev_to_pdn(edev);
-	int config_addr = (pdn->busno << 8) | (pdn->devfn);
+	int config_addr = (pdn->busyes << 8) | (pdn->devfn);
 
 	/* Check if the PE number is valid */
 	if (!eeh_has_flag(EEH_VALID_PE_ZERO) && !edev->pe_config_addr) {
@@ -377,7 +377,7 @@ int eeh_add_to_parent_pe(struct eeh_dev *edev)
 	}
 
 	/*
-	 * Search the PE has been existing or not according
+	 * Search the PE has been existing or yest according
 	 * to the PE address. If that has been existing, the
 	 * PE should be composed of PCI bus and its subordinate
 	 * components.
@@ -485,7 +485,7 @@ int eeh_rmv_from_parent_pe(struct eeh_dev *edev)
 
 	/*
 	 * Check if the parent PE includes any EEH devices.
-	 * If not, we should delete that. Also, we should
+	 * If yest, we should delete that. Also, we should
 	 * delete the parent PE if it doesn't have associated
 	 * child PEs and EEH devices.
 	 */
@@ -665,7 +665,7 @@ void eeh_pe_state_clear(struct eeh_pe *root, int state, bool include_passed)
 		/*
 		 * Special treatment on clearing isolated state. Clear
 		 * check count since last isolation and put all affected
-		 * devices to normal state.
+		 * devices to yesrmal state.
 		 */
 		if (!(state & EEH_PE_ISOLATED))
 			continue;
@@ -676,7 +676,7 @@ void eeh_pe_state_clear(struct eeh_pe *root, int state, bool include_passed)
 			if (!pdev)
 				continue;
 
-			pdev->error_state = pci_channel_io_normal;
+			pdev->error_state = pci_channel_io_yesrmal;
 		}
 
 		/* Unblock PCI config access if required */
@@ -692,8 +692,8 @@ void eeh_pe_state_clear(struct eeh_pe *root, int state, bool include_passed)
  * the PCI-CFG registers have been restored for the parent
  * bridge.
  *
- * Don't use normal PCI-CFG accessors, which probably has been
- * blocked on normal path during the stage. So we need utilize
+ * Don't use yesrmal PCI-CFG accessors, which probably has been
+ * blocked on yesrmal path during the stage. So we need utilize
  * eeh operations, which is always permitted.
  */
 static void eeh_bridge_check_link(struct eeh_dev *edev)
@@ -761,7 +761,7 @@ static void eeh_bridge_check_link(struct eeh_dev *edev)
 		eeh_edev_dbg(edev, "Link up (%s)\n",
 			 (val & PCI_EXP_LNKSTA_CLS_2_5GB) ? "2.5GB" : "5GB");
 	else
-		eeh_edev_dbg(edev, "Link not ready (0x%04x)\n", val);
+		eeh_edev_dbg(edev, "Link yest ready (0x%04x)\n", val);
 }
 
 #define BYTE_SWAP(OFF)	(8*((OFF)/4)+3-(OFF))
@@ -839,7 +839,7 @@ static void eeh_restore_device_bars(struct eeh_dev *edev)
  *
  * Loads the PCI configuration space base address registers,
  * the expansion ROM base address, the latency timer, and etc.
- * from the saved values in the device node.
+ * from the saved values in the device yesde.
  */
 static void eeh_restore_one_device_bars(struct eeh_dev *edev, void *flag)
 {
@@ -876,18 +876,18 @@ void eeh_pe_restore_bars(struct eeh_pe *pe)
  * @pe: EEH PE
  *
  * Retrieve the location code of the given PE. If the primary PE bus
- * is root bus, we will grab location code from PHB device tree node
- * or root port. Otherwise, the upstream bridge's device tree node
+ * is root bus, we will grab location code from PHB device tree yesde
+ * or root port. Otherwise, the upstream bridge's device tree yesde
  * of the primary PE bus will be checked for the location code.
  */
 const char *eeh_pe_loc_get(struct eeh_pe *pe)
 {
 	struct pci_bus *bus = eeh_pe_bus_get(pe);
-	struct device_node *dn;
+	struct device_yesde *dn;
 	const char *loc = NULL;
 
 	while (bus) {
-		dn = pci_bus_to_OF_node(bus);
+		dn = pci_bus_to_OF_yesde(bus);
 		if (!dn) {
 			bus = bus->parent;
 			continue;

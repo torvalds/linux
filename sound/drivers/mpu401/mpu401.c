@@ -75,7 +75,7 @@ static int snd_mpu401_create(struct device *devptr, int dev,
 	err = snd_mpu401_uart_new(card, 0, MPU401_HW_MPU401, port[dev], 0,
 				  irq[dev], NULL);
 	if (err < 0) {
-		printk(KERN_ERR "MPU401 not detected at 0x%lx\n", port[dev]);
+		printk(KERN_ERR "MPU401 yest detected at 0x%lx\n", port[dev]);
 		goto _err;
 	}
 
@@ -145,7 +145,7 @@ static int snd_mpu401_pnp(int dev, struct pnp_dev *device,
 {
 	if (!pnp_port_valid(device, 0) ||
 	    pnp_port_flags(device, 0) & IORESOURCE_DISABLED) {
-		snd_printk(KERN_ERR "no PnP port\n");
+		snd_printk(KERN_ERR "yes PnP port\n");
 		return -ENODEV;
 	}
 	if (pnp_port_len(device, 0) < IO_EXTENT) {
@@ -158,7 +158,7 @@ static int snd_mpu401_pnp(int dev, struct pnp_dev *device,
 
 	if (!pnp_irq_valid(device, 0) ||
 	    pnp_irq_flags(device, 0) & IORESOURCE_DISABLED) {
-		snd_printk(KERN_WARNING "no PnP irq, using polling\n");
+		snd_printk(KERN_WARNING "yes PnP irq, using polling\n");
 		irq[dev] = -1;
 	} else {
 		irq[dev] = pnp_irq(device, 0);
@@ -255,7 +255,7 @@ static int __init alsa_card_mpu401_init(void)
 
 	if (!snd_mpu401_devices) {
 #ifdef MODULE
-		printk(KERN_ERR "MPU-401 device not found or device busy\n");
+		printk(KERN_ERR "MPU-401 device yest found or device busy\n");
 #endif
 		snd_mpu401_unregister_all();
 		return -ENODEV;

@@ -23,7 +23,7 @@
 #include <media/v4l2-async.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-mc.h>
-#include <media/v4l2-fwnode.h>
+#include <media/v4l2-fwyesde.h>
 
 #include "camss.h"
 
@@ -344,7 +344,7 @@ void camss_disable_clocks(int nclocks, struct camss_clock *clock)
  * camss_find_sensor - Find a linked media entity which represents a sensor
  * @entity: Media entity to start searching from
  *
- * Return a pointer to sensor media entity or NULL if not found
+ * Return a pointer to sensor media entity or NULL if yest found
  */
 struct media_entity *camss_find_sensor(struct media_entity *entity)
 {
@@ -416,23 +416,23 @@ void camss_pm_domain_off(struct camss *camss, int id)
 }
 
 /*
- * camss_of_parse_endpoint_node - Parse port endpoint node
+ * camss_of_parse_endpoint_yesde - Parse port endpoint yesde
  * @dev: Device
- * @node: Device node to be parsed
- * @csd: Parsed data from port endpoint node
+ * @yesde: Device yesde to be parsed
+ * @csd: Parsed data from port endpoint yesde
  *
  * Return 0 on success or a negative error code on failure
  */
-static int camss_of_parse_endpoint_node(struct device *dev,
-					struct device_node *node,
+static int camss_of_parse_endpoint_yesde(struct device *dev,
+					struct device_yesde *yesde,
 					struct camss_async_subdev *csd)
 {
 	struct csiphy_lanes_cfg *lncfg = &csd->interface.csi2.lane_cfg;
-	struct v4l2_fwnode_bus_mipi_csi2 *mipi_csi2;
-	struct v4l2_fwnode_endpoint vep = { { 0 } };
+	struct v4l2_fwyesde_bus_mipi_csi2 *mipi_csi2;
+	struct v4l2_fwyesde_endpoint vep = { { 0 } };
 	unsigned int i;
 
-	v4l2_fwnode_endpoint_parse(of_fwnode_handle(node), &vep);
+	v4l2_fwyesde_endpoint_parse(of_fwyesde_handle(yesde), &vep);
 
 	csd->interface.csiphy_id = vep.base.port;
 
@@ -456,37 +456,37 @@ static int camss_of_parse_endpoint_node(struct device *dev,
 }
 
 /*
- * camss_of_parse_ports - Parse ports node
+ * camss_of_parse_ports - Parse ports yesde
  * @dev: Device
- * @notifier: v4l2_device notifier data
+ * @yestifier: v4l2_device yestifier data
  *
- * Return number of "port" nodes found in "ports" node
+ * Return number of "port" yesdes found in "ports" yesde
  */
 static int camss_of_parse_ports(struct camss *camss)
 {
 	struct device *dev = camss->dev;
-	struct device_node *node = NULL;
-	struct device_node *remote = NULL;
+	struct device_yesde *yesde = NULL;
+	struct device_yesde *remote = NULL;
 	int ret, num_subdevs = 0;
 
-	for_each_endpoint_of_node(dev->of_node, node) {
+	for_each_endpoint_of_yesde(dev->of_yesde, yesde) {
 		struct camss_async_subdev *csd;
 		struct v4l2_async_subdev *asd;
 
-		if (!of_device_is_available(node))
+		if (!of_device_is_available(yesde))
 			continue;
 
-		remote = of_graph_get_remote_port_parent(node);
+		remote = of_graph_get_remote_port_parent(yesde);
 		if (!remote) {
-			dev_err(dev, "Cannot get remote parent\n");
+			dev_err(dev, "Canyest get remote parent\n");
 			ret = -EINVAL;
 			goto err_cleanup;
 		}
 
-		asd = v4l2_async_notifier_add_fwnode_subdev(
-			&camss->notifier, of_fwnode_handle(remote),
+		asd = v4l2_async_yestifier_add_fwyesde_subdev(
+			&camss->yestifier, of_fwyesde_handle(remote),
 			sizeof(*csd));
-		of_node_put(remote);
+		of_yesde_put(remote);
 		if (IS_ERR(asd)) {
 			ret = PTR_ERR(asd);
 			goto err_cleanup;
@@ -494,7 +494,7 @@ static int camss_of_parse_ports(struct camss *camss)
 
 		csd = container_of(asd, struct camss_async_subdev, asd);
 
-		ret = camss_of_parse_endpoint_node(dev, node, csd);
+		ret = camss_of_parse_endpoint_yesde(dev, yesde, csd);
 		if (ret < 0)
 			goto err_cleanup;
 
@@ -504,8 +504,8 @@ static int camss_of_parse_ports(struct camss *camss)
 	return num_subdevs;
 
 err_cleanup:
-	v4l2_async_notifier_cleanup(&camss->notifier);
-	of_node_put(node);
+	v4l2_async_yestifier_cleanup(&camss->yestifier);
+	of_yesde_put(yesde);
 	return ret;
 }
 
@@ -581,7 +581,7 @@ static int camss_init_subdevices(struct camss *camss)
 }
 
 /*
- * camss_register_entities - Register subdev nodes and create links
+ * camss_register_entities - Register subdev yesdes and create links
  * @camss: CAMSS device
  *
  * Return 0 on success or a negative error code on failure
@@ -713,7 +713,7 @@ err_reg_csiphy:
 }
 
 /*
- * camss_unregister_entities - Unregister subdev nodes
+ * camss_unregister_entities - Unregister subdev yesdes
  * @camss: CAMSS device
  *
  * Return 0 on success or a negative error code on failure
@@ -734,11 +734,11 @@ static void camss_unregister_entities(struct camss *camss)
 		msm_vfe_unregister_entities(&camss->vfe[i]);
 }
 
-static int camss_subdev_notifier_bound(struct v4l2_async_notifier *async,
+static int camss_subdev_yestifier_bound(struct v4l2_async_yestifier *async,
 				       struct v4l2_subdev *subdev,
 				       struct v4l2_async_subdev *asd)
 {
-	struct camss *camss = container_of(async, struct camss, notifier);
+	struct camss *camss = container_of(async, struct camss, yestifier);
 	struct camss_async_subdev *csd =
 		container_of(asd, struct camss_async_subdev, asd);
 	u8 id = csd->interface.csiphy_id;
@@ -750,9 +750,9 @@ static int camss_subdev_notifier_bound(struct v4l2_async_notifier *async,
 	return 0;
 }
 
-static int camss_subdev_notifier_complete(struct v4l2_async_notifier *async)
+static int camss_subdev_yestifier_complete(struct v4l2_async_yestifier *async)
 {
-	struct camss *camss = container_of(async, struct camss, notifier);
+	struct camss *camss = container_of(async, struct camss, yestifier);
 	struct v4l2_device *v4l2_dev = &camss->v4l2_dev;
 	struct v4l2_subdev *sd;
 	int ret;
@@ -787,20 +787,20 @@ static int camss_subdev_notifier_complete(struct v4l2_async_notifier *async)
 		}
 	}
 
-	ret = v4l2_device_register_subdev_nodes(&camss->v4l2_dev);
+	ret = v4l2_device_register_subdev_yesdes(&camss->v4l2_dev);
 	if (ret < 0)
 		return ret;
 
 	return media_device_register(&camss->media_dev);
 }
 
-static const struct v4l2_async_notifier_operations camss_subdev_notifier_ops = {
-	.bound = camss_subdev_notifier_bound,
-	.complete = camss_subdev_notifier_complete,
+static const struct v4l2_async_yestifier_operations camss_subdev_yestifier_ops = {
+	.bound = camss_subdev_yestifier_bound,
+	.complete = camss_subdev_yestifier_complete,
 };
 
 static const struct media_device_ops camss_media_ops = {
-	.link_notify = v4l2_pipeline_link_notify,
+	.link_yestify = v4l2_pipeline_link_yestify,
 };
 
 /*
@@ -823,12 +823,12 @@ static int camss_probe(struct platform_device *pdev)
 	camss->dev = dev;
 	platform_set_drvdata(pdev, camss);
 
-	if (of_device_is_compatible(dev->of_node, "qcom,msm8916-camss")) {
+	if (of_device_is_compatible(dev->of_yesde, "qcom,msm8916-camss")) {
 		camss->version = CAMSS_8x16;
 		camss->csiphy_num = 2;
 		camss->csid_num = 2;
 		camss->vfe_num = 1;
-	} else if (of_device_is_compatible(dev->of_node,
+	} else if (of_device_is_compatible(dev->of_yesde,
 					   "qcom,msm8996-camss")) {
 		camss->version = CAMSS_8x96;
 		camss->csiphy_num = 3;
@@ -853,7 +853,7 @@ static int camss_probe(struct platform_device *pdev)
 	if (!camss->vfe)
 		return -ENOMEM;
 
-	v4l2_async_notifier_init(&camss->notifier);
+	v4l2_async_yestifier_init(&camss->yestifier);
 
 	num_subdevs = camss_of_parse_ports(camss);
 	if (num_subdevs < 0)
@@ -885,20 +885,20 @@ static int camss_probe(struct platform_device *pdev)
 		goto err_register_entities;
 
 	if (num_subdevs) {
-		camss->notifier.ops = &camss_subdev_notifier_ops;
+		camss->yestifier.ops = &camss_subdev_yestifier_ops;
 
-		ret = v4l2_async_notifier_register(&camss->v4l2_dev,
-						   &camss->notifier);
+		ret = v4l2_async_yestifier_register(&camss->v4l2_dev,
+						   &camss->yestifier);
 		if (ret) {
 			dev_err(dev,
-				"Failed to register async subdev nodes: %d\n",
+				"Failed to register async subdev yesdes: %d\n",
 				ret);
 			goto err_register_subdevs;
 		}
 	} else {
-		ret = v4l2_device_register_subdev_nodes(&camss->v4l2_dev);
+		ret = v4l2_device_register_subdev_yesdes(&camss->v4l2_dev);
 		if (ret < 0) {
-			dev_err(dev, "Failed to register subdev nodes: %d\n",
+			dev_err(dev, "Failed to register subdev yesdes: %d\n",
 				ret);
 			goto err_register_subdevs;
 		}
@@ -935,7 +935,7 @@ err_register_subdevs:
 err_register_entities:
 	v4l2_device_unregister(&camss->v4l2_dev);
 err_cleanup:
-	v4l2_async_notifier_cleanup(&camss->notifier);
+	v4l2_async_yestifier_cleanup(&camss->yestifier);
 
 	return ret;
 }
@@ -971,8 +971,8 @@ static int camss_remove(struct platform_device *pdev)
 	for (i = 0; i < camss->vfe_num; i++)
 		msm_vfe_stop_streaming(&camss->vfe[i]);
 
-	v4l2_async_notifier_unregister(&camss->notifier);
-	v4l2_async_notifier_cleanup(&camss->notifier);
+	v4l2_async_yestifier_unregister(&camss->yestifier);
+	v4l2_async_yestifier_cleanup(&camss->yestifier);
 	camss_unregister_entities(camss);
 
 	if (atomic_read(&camss->ref_count) == 0)

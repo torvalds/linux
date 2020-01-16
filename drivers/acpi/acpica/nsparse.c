@@ -23,7 +23,7 @@ ACPI_MODULE_NAME("nsparse")
  * FUNCTION:    ns_execute_table
  *
  * PARAMETERS:  table_desc      - An ACPI table descriptor for table to parse
- *              start_node      - Where to enter the table into the namespace
+ *              start_yesde      - Where to enter the table into the namespace
  *
  * RETURN:      Status
  *
@@ -41,7 +41,7 @@ ACPI_MODULE_NAME("nsparse")
  *
  ******************************************************************************/
 acpi_status
-acpi_ns_execute_table(u32 table_index, struct acpi_namespace_node *start_node)
+acpi_ns_execute_table(u32 table_index, struct acpi_namespace_yesde *start_yesde)
 {
 	acpi_status status;
 	struct acpi_table_header *table;
@@ -98,10 +98,10 @@ acpi_ns_execute_table(u32 table_index, struct acpi_namespace_node *start_node)
 	method_obj->method.info_flags |= ACPI_METHOD_MODULE_LEVEL;
 
 	info->pass_number = ACPI_IMODE_EXECUTE;
-	info->node = start_node;
+	info->yesde = start_yesde;
 	info->obj_desc = method_obj;
-	info->node_flags = info->node->flags;
-	info->full_pathname = acpi_ns_get_normalized_pathname(info->node, TRUE);
+	info->yesde_flags = info->yesde->flags;
+	info->full_pathname = acpi_ns_get_yesrmalized_pathname(info->yesde, TRUE);
 	if (!info->full_pathname) {
 		status = AE_NO_MEMORY;
 		goto cleanup;
@@ -147,7 +147,7 @@ cleanup:
 acpi_status
 acpi_ns_one_complete_parse(u32 pass_number,
 			   u32 table_index,
-			   struct acpi_namespace_node *start_node)
+			   struct acpi_namespace_yesde *start_yesde)
 {
 	union acpi_parse_object *parse_root;
 	acpi_status status;
@@ -208,11 +208,11 @@ acpi_ns_one_complete_parse(u32 pass_number,
 		walk_state->namespace_override = TRUE;
 	}
 
-	/* start_node is the default location to load the table */
+	/* start_yesde is the default location to load the table */
 
-	if (start_node && start_node != acpi_gbl_root_node) {
+	if (start_yesde && start_yesde != acpi_gbl_root_yesde) {
 		status =
-		    acpi_ds_scope_stack_push(start_node, ACPI_TYPE_METHOD,
+		    acpi_ds_scope_stack_push(start_yesde, ACPI_TYPE_METHOD,
 					     walk_state);
 		if (ACPI_FAILURE(status)) {
 			acpi_ds_delete_walk_state(walk_state);
@@ -238,7 +238,7 @@ cleanup:
  * FUNCTION:    acpi_ns_parse_table
  *
  * PARAMETERS:  table_desc      - An ACPI table descriptor for table to parse
- *              start_node      - Where to enter the table into the namespace
+ *              start_yesde      - Where to enter the table into the namespace
  *
  * RETURN:      Status
  *
@@ -247,7 +247,7 @@ cleanup:
  ******************************************************************************/
 
 acpi_status
-acpi_ns_parse_table(u32 table_index, struct acpi_namespace_node *start_node)
+acpi_ns_parse_table(u32 table_index, struct acpi_namespace_yesde *start_yesde)
 {
 	acpi_status status;
 
@@ -265,7 +265,7 @@ acpi_ns_parse_table(u32 table_index, struct acpi_namespace_node *start_node)
 			      "%s: **** Start table execution pass\n",
 			      ACPI_GET_FUNCTION_NAME));
 
-	status = acpi_ns_execute_table(table_index, start_node);
+	status = acpi_ns_execute_table(table_index, start_yesde);
 
 	return_ACPI_STATUS(status);
 }

@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: GPL-2.0
 // Copyright (C) 2012 ARM Limited
-// Copyright (C) 2005-2017 Andes Technology Corporation
+// Copyright (C) 2005-2017 Andes Techyeslogy Corporation
 
 #include <linux/cache.h>
 #include <linux/clocksource.h>
 #include <linux/elf.h>
 #include <linux/err.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/gfp.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
@@ -35,7 +35,7 @@ struct timer_info_t timer_info = {
 /*
  * The vDSO data page.
  */
-static struct page *no_pages[] = { NULL };
+static struct page *yes_pages[] = { NULL };
 
 static union {
 	struct vdso_data data;
@@ -45,14 +45,14 @@ struct vdso_data *vdso_data = &vdso_data_store.data;
 static struct vm_special_mapping vdso_spec[2] __ro_after_init = {
 	{
 	 .name = "[vvar]",
-	 .pages = no_pages,
+	 .pages = yes_pages,
 	 },
 	{
 	 .name = "[vdso]",
 	 },
 };
 
-static void get_timer_node_info(void)
+static void get_timer_yesde_info(void)
 {
 	timer_mapping_base = timer_info.mapping_base;
 	vdso_data->cycle_count_offset =
@@ -67,11 +67,11 @@ static int __init vdso_init(void)
 	struct page **vdso_pagelist;
 
 	if (memcmp(vdso_start, "\177ELF", 4)) {
-		pr_err("vDSO is not a valid ELF object!\n");
+		pr_err("vDSO is yest a valid ELF object!\n");
 		return -EINVAL;
 	}
 	/* Creat a timer io mapping to get clock cycles counter */
-	get_timer_node_info();
+	get_timer_yesde_info();
 
 	vdso_pages = (vdso_end - vdso_start) >> PAGE_SHIFT;
 	pr_info("vdso: %ld pages (%ld code @ %p, %ld data @ %p)\n",
@@ -209,17 +209,17 @@ static void vdso_write_end(struct vdso_data *vdata)
 void update_vsyscall(struct timekeeper *tk)
 {
 	vdso_write_begin(vdso_data);
-	vdso_data->cs_mask = tk->tkr_mono.mask;
-	vdso_data->cs_mult = tk->tkr_mono.mult;
-	vdso_data->cs_shift = tk->tkr_mono.shift;
-	vdso_data->cs_cycle_last = tk->tkr_mono.cycle_last;
-	vdso_data->wtm_clock_sec = tk->wall_to_monotonic.tv_sec;
-	vdso_data->wtm_clock_nsec = tk->wall_to_monotonic.tv_nsec;
+	vdso_data->cs_mask = tk->tkr_moyes.mask;
+	vdso_data->cs_mult = tk->tkr_moyes.mult;
+	vdso_data->cs_shift = tk->tkr_moyes.shift;
+	vdso_data->cs_cycle_last = tk->tkr_moyes.cycle_last;
+	vdso_data->wtm_clock_sec = tk->wall_to_moyestonic.tv_sec;
+	vdso_data->wtm_clock_nsec = tk->wall_to_moyestonic.tv_nsec;
 	vdso_data->xtime_clock_sec = tk->xtime_sec;
-	vdso_data->xtime_clock_nsec = tk->tkr_mono.xtime_nsec;
+	vdso_data->xtime_clock_nsec = tk->tkr_moyes.xtime_nsec;
 	vdso_data->xtime_coarse_sec = tk->xtime_sec;
-	vdso_data->xtime_coarse_nsec = tk->tkr_mono.xtime_nsec >>
-	    tk->tkr_mono.shift;
+	vdso_data->xtime_coarse_nsec = tk->tkr_moyes.xtime_nsec >>
+	    tk->tkr_moyes.shift;
 	vdso_data->hrtimer_res = hrtimer_resolution;
 	vdso_write_end(vdso_data);
 }

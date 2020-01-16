@@ -9,7 +9,7 @@
 #include <linux/component.h>
 #include <linux/device.h>
 #include <linux/dma-mapping.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/export.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
@@ -161,7 +161,7 @@ static void ipu_disable_vblank(struct drm_crtc *crtc)
 {
 	struct ipu_crtc *ipu_crtc = to_ipu_crtc(crtc);
 
-	disable_irq_nosync(ipu_crtc->irq);
+	disable_irq_yessync(ipu_crtc->irq);
 }
 
 static const struct drm_crtc_funcs ipu_crtc_funcs = {
@@ -260,7 +260,7 @@ static void ipu_crtc_atomic_flush(struct drm_crtc *crtc,
 	spin_unlock_irq(&crtc->dev->event_lock);
 }
 
-static void ipu_crtc_mode_set_nofb(struct drm_crtc *crtc)
+static void ipu_crtc_mode_set_yesfb(struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
 	struct drm_encoder *encoder;
@@ -315,7 +315,7 @@ static void ipu_crtc_mode_set_nofb(struct drm_crtc *crtc)
 
 static const struct drm_crtc_helper_funcs ipu_helper_funcs = {
 	.mode_fixup = ipu_crtc_mode_fixup,
-	.mode_set_nofb = ipu_crtc_mode_set_nofb,
+	.mode_set_yesfb = ipu_crtc_mode_set_yesfb,
 	.atomic_check = ipu_crtc_atomic_check,
 	.atomic_begin = ipu_crtc_atomic_begin,
 	.atomic_flush = ipu_crtc_atomic_flush,
@@ -380,7 +380,7 @@ static int ipu_crtc_init(struct ipu_crtc *ipu_crtc,
 		goto err_put_resources;
 	}
 
-	crtc->port = pdata->of_node;
+	crtc->port = pdata->of_yesde;
 	drm_crtc_helper_add(crtc, &ipu_helper_funcs);
 	drm_crtc_init_with_planes(drm, crtc, &ipu_crtc->plane[0]->base, NULL,
 				  &ipu_crtc_funcs, NULL);

@@ -8,7 +8,7 @@
 static int my3126_reset(struct cphy *cphy, int wait)
 {
 	/*
-	 * This can be done through registers.  It is not required since
+	 * This can be done through registers.  It is yest required since
 	 * a full chip reset is used.
 	 */
 	return 0;

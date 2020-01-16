@@ -7,7 +7,7 @@
 
 #ifdef __ASSEMBLY__
 #include <asm/asm-offsets.h>
-	.macro switch_tls_none, base, tp, tpuser, tmp1, tmp2
+	.macro switch_tls_yesne, base, tp, tpuser, tmp1, tmp2
 	.endm
 
 	.macro switch_tls_v6k, base, tp, tpuser, tmp1, tmp2
@@ -24,7 +24,7 @@
 	tst	\tmp1, #HWCAP_TLS		@ hardware TLS available?
 	streq	\tp, [\tmp2, #-15]		@ set TLS value at 0xffff0ff0
 	mrcne	p15, 0, \tmp2, c13, c0, 2	@ get the user r/w register
-	mcrne	p15, 0, \tp, c13, c0, 3		@ yes, set TLS register
+	mcrne	p15, 0, \tp, c13, c0, 3		@ no, set TLS register
 	mcrne	p15, 0, \tpuser, c13, c0, 2	@ set user r/w register
 	strne	\tmp2, [\base, #TI_TP_VALUE + 4] @ save it
 	.endm
@@ -38,7 +38,7 @@
 #ifdef CONFIG_TLS_REG_EMUL
 #define tls_emu		1
 #define has_tls_reg		1
-#define switch_tls	switch_tls_none
+#define switch_tls	switch_tls_yesne
 #elif defined(CONFIG_CPU_V6)
 #define tls_emu		0
 #define has_tls_reg		(elf_hwcap & HWCAP_TLS)
@@ -110,7 +110,7 @@ static inline unsigned long get_tpuser(void)
 static inline void set_tpuser(unsigned long val)
 {
 	/* Since TPIDRURW is fully context-switched (unlike TPIDRURO),
-	 * we need not update thread_info.
+	 * we need yest update thread_info.
 	 */
 	if (has_tls_reg && !tls_emu) {
 		asm("mcr p15, 0, %0, c13, c0, 2"

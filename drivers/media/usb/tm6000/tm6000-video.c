@@ -8,7 +8,7 @@
 
 #include <linux/module.h>
 #include <linux/delay.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/fs.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
@@ -68,11 +68,11 @@ static struct tm6000_fmt format[] = {
  * ------------------------------------------------------------------
  */
 
-#define norm_maxw(a) 720
-#define norm_maxh(a) 576
+#define yesrm_maxw(a) 720
+#define yesrm_maxh(a) 576
 
-#define norm_minw(a) norm_maxw(a)
-#define norm_minh(a) norm_maxh(a)
+#define yesrm_minw(a) yesrm_maxw(a)
+#define yesrm_minh(a) yesrm_maxh(a)
 
 /*
  * video-buf generic routine to get the next available buffer
@@ -93,7 +93,7 @@ static inline void get_next_buf(struct tm6000_dmaqueue *dma_q,
 }
 
 /*
- * Announces that a buffer were filled and request the next
+ * Anyesunces that a buffer were filled and request the next
  */
 static inline void buffer_filled(struct tm6000_core *dev,
 				 struct tm6000_dmaqueue *dma_q,
@@ -190,7 +190,7 @@ static int copy_streams(u8 *data, unsigned long len,
 					if ((dev->isoc_ctl.vfield != field) &&
 						(field == 1)) {
 						/*
-						 * Announces that a new buffer
+						 * Anyesunces that a new buffer
 						 * were filled
 						 */
 						buffer_filled(dev, dma_q, vbuf);
@@ -260,7 +260,7 @@ static int copy_streams(u8 *data, unsigned long len,
 		}
 		if (ptr + pktsize > endp) {
 			/*
-			 * End of URB packet, but cmd processing is not
+			 * End of URB packet, but cmd processing is yest
 			 * complete. Preserve the state for a next packet
 			 */
 			dev->isoc_ctl.pos = pos + cpysize;
@@ -305,7 +305,7 @@ static int copy_multiplexed(u8 *ptr, unsigned long len,
 		len -= cpysize;
 		if (pos >= buf->vb.size) {
 			pos = 0;
-			/* Announces that a new buffer were filled */
+			/* Anyesunces that a new buffer were filled */
 			buffer_filled(dev, dma_q, buf);
 			dprintk(dev, V4L2_DEBUG_ISOC, "new buffer filled\n");
 			get_next_buf(dma_q, &buf);
@@ -325,20 +325,20 @@ static int copy_multiplexed(u8 *ptr, unsigned long len,
 static inline void print_err_status(struct tm6000_core *dev,
 				     int packet, int status)
 {
-	char *errmsg = "Unknown";
+	char *errmsg = "Unkyeswn";
 
 	switch (status) {
 	case -ENOENT:
-		errmsg = "unlinked synchronously";
+		errmsg = "unlinked synchroyesusly";
 		break;
 	case -ECONNRESET:
-		errmsg = "unlinked asynchronously";
+		errmsg = "unlinked asynchroyesusly";
 		break;
 	case -ENOSR:
 		errmsg = "Buffer error (overrun)";
 		break;
 	case -EPIPE:
-		errmsg = "Stalled (device not responding)";
+		errmsg = "Stalled (device yest responding)";
 		break;
 	case -EOVERFLOW:
 		errmsg = "Babble (bad cable?)";
@@ -350,7 +350,7 @@ static inline void print_err_status(struct tm6000_core *dev,
 		errmsg = "CRC/Timeout (could be anything)";
 		break;
 	case -ETIME:
-		errmsg = "Device does not respond";
+		errmsg = "Device does yest respond";
 		break;
 	}
 	if (packet < 0) {
@@ -601,7 +601,7 @@ static int tm6000_prepare_isoc(struct tm6000_core *dev)
 
 
 	if (tm6000_alloc_urb_buffers(dev) < 0) {
-		tm6000_err("cannot allocate memory for urb buffers\n");
+		tm6000_err("canyest allocate memory for urb buffers\n");
 
 		/* call free, as some buffers might have been allocated */
 		tm6000_free_urb_buffers(dev);
@@ -940,7 +940,7 @@ static int vidioc_try_fmt_vid_cap(struct file *file, void *priv,
 	return 0;
 }
 
-/*FIXME: This seems to be generic enough to be at videodev2 */
+/*FIXME: This seems to be generic eyesugh to be at videodev2 */
 static int vidioc_s_fmt_vid_cap(struct file *file, void *priv,
 					struct v4l2_format *f)
 {
@@ -1026,13 +1026,13 @@ static int vidioc_streamoff(struct file *file, void *priv, enum v4l2_buf_type i)
 	return 0;
 }
 
-static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id norm)
+static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id yesrm)
 {
 	int rc = 0;
 	struct tm6000_fh *fh = priv;
 	struct tm6000_core *dev = fh->dev;
 
-	dev->norm = norm;
+	dev->yesrm = yesrm;
 	rc = tm6000_init_analog_mode(dev);
 
 	fh->width  = dev->width;
@@ -1041,17 +1041,17 @@ static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id norm)
 	if (rc < 0)
 		return rc;
 
-	v4l2_device_call_all(&dev->v4l2_dev, 0, video, s_std, dev->norm);
+	v4l2_device_call_all(&dev->v4l2_dev, 0, video, s_std, dev->yesrm);
 
 	return 0;
 }
 
-static int vidioc_g_std(struct file *file, void *priv, v4l2_std_id *norm)
+static int vidioc_g_std(struct file *file, void *priv, v4l2_std_id *yesrm)
 {
 	struct tm6000_fh *fh = priv;
 	struct tm6000_core *dev = fh->dev;
 
-	*norm = dev->norm;
+	*yesrm = dev->yesrm;
 	return 0;
 }
 
@@ -1113,7 +1113,7 @@ static int vidioc_s_input(struct file *file, void *priv, unsigned int i)
 
 	dev->input = i;
 
-	rc = vidioc_s_std(file, priv, dev->norm);
+	rc = vidioc_s_std(file, priv, dev->yesrm);
 
 	return rc;
 }
@@ -1297,7 +1297,7 @@ static int __tm6000_open(struct file *file)
 	int radio = 0;
 
 	dprintk(dev, V4L2_DEBUG_OPEN, "tm6000: open called (dev=%s)\n",
-		video_device_node_name(vdev));
+		video_device_yesde_name(vdev));
 
 	switch (vdev->vfl_type) {
 	case VFL_TYPE_GRABBER:
@@ -1317,7 +1317,7 @@ static int __tm6000_open(struct file *file)
 	dev->users++;
 
 	dprintk(dev, V4L2_DEBUG_OPEN, "open dev=%s type=%s users=%d\n",
-		video_device_node_name(vdev), v4l2_type_names[type],
+		video_device_yesde_name(vdev), v4l2_type_names[type],
 		dev->users);
 
 	/* allocate + initialize per filehandle data */
@@ -1463,7 +1463,7 @@ static int tm6000_release(struct file *file)
 	struct video_device    *vdev = video_devdata(file);
 
 	dprintk(dev, V4L2_DEBUG_OPEN, "tm6000: close called (dev=%s, users=%d)\n",
-		video_device_node_name(vdev), dev->users);
+		video_device_yesde_name(vdev), dev->users);
 
 	mutex_lock(&dev->lock);
 	dev->users--;
@@ -1552,7 +1552,7 @@ static struct video_device tm6000_template = {
 	.fops           = &tm6000_fops,
 	.ioctl_ops      = &video_ioctl_ops,
 	.release	= video_device_release_empty,
-	.tvnorms        = TM6000_STD,
+	.tvyesrms        = TM6000_STD,
 };
 
 static const struct v4l2_file_operations radio_fops = {
@@ -1648,7 +1648,7 @@ int tm6000_v4l2_register(struct tm6000_core *dev)
 	}
 
 	printk(KERN_INFO "%s: registered device %s\n",
-	       dev->name, video_device_node_name(&dev->vfd));
+	       dev->name, video_device_yesde_name(&dev->vfd));
 
 	if (dev->caps.has_radio) {
 		vdev_init(dev, &dev->radio_dev, &tm6000_radio_template,
@@ -1664,7 +1664,7 @@ int tm6000_v4l2_register(struct tm6000_core *dev)
 		}
 
 		printk(KERN_INFO "%s: registered device %s\n",
-		       dev->name, video_device_node_name(&dev->radio_dev));
+		       dev->name, video_device_yesde_name(&dev->radio_dev));
 	}
 
 	printk(KERN_INFO "Trident TVMaster TM5600/TM6000/TM6010 USB2 board (Load status: %d)\n", ret);
@@ -1682,7 +1682,7 @@ int tm6000_v4l2_unregister(struct tm6000_core *dev)
 {
 	video_unregister_device(&dev->vfd);
 
-	/* if URB buffers are still allocated free them now */
+	/* if URB buffers are still allocated free them yesw */
 	tm6000_free_urb_buffers(dev);
 
 	video_unregister_device(&dev->radio_dev);

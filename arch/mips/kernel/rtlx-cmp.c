@@ -3,8 +3,8 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  *
- * Copyright (C) 2005 MIPS Technologies, Inc.  All rights reserved.
- * Copyright (C) 2013 Imagination Technologies Ltd.
+ * Copyright (C) 2005 MIPS Techyeslogies, Inc.  All rights reserved.
+ * Copyright (C) 2013 Imagination Techyeslogies Ltd.
  */
 #include <linux/device.h>
 #include <linux/fs.h>
@@ -50,12 +50,12 @@ int __init rtlx_module_init(void)
 	int i, err;
 
 	if (!cpu_has_mipsmt) {
-		pr_warn("VPE loader: not a MIPS MT capable processor\n");
+		pr_warn("VPE loader: yest a MIPS MT capable processor\n");
 		return -ENODEV;
 	}
 
 	if (num_possible_cpus() - aprp_cpu_index() < 1) {
-		pr_warn("No TCs reserved for AP/SP, not initializing RTLX.\n"
+		pr_warn("No TCs reserved for AP/SP, yest initializing RTLX.\n"
 			"Pass maxcpus=<n> argument as kernel argument\n");
 
 		return -ENODEV;
@@ -85,15 +85,15 @@ int __init rtlx_module_init(void)
 		}
 	}
 
-	/* set up notifiers */
-	rtlx_notify.start = rtlx_starting;
-	rtlx_notify.stop = rtlx_stopping;
-	vpe_notify(aprp_cpu_index(), &rtlx_notify);
+	/* set up yestifiers */
+	rtlx_yestify.start = rtlx_starting;
+	rtlx_yestify.stop = rtlx_stopping;
+	vpe_yestify(aprp_cpu_index(), &rtlx_yestify);
 
 	if (cpu_has_vint) {
 		aprp_hook = rtlx_interrupt;
 	} else {
-		pr_err("APRP RTLX init on non-vectored-interrupt processor\n");
+		pr_err("APRP RTLX init on yesn-vectored-interrupt processor\n");
 		err = -ENODEV;
 		goto out_class;
 	}

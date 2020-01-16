@@ -47,7 +47,7 @@ enum gdsc_status {
 	GDSC_ON
 };
 
-/* Returns 1 if GDSC status is status, 0 if not, and < 0 on error */
+/* Returns 1 if GDSC status is status, 0 if yest, and < 0 on error */
 static int gdsc_check_status(struct gdsc *sc, enum gdsc_status status)
 {
 	unsigned int reg;
@@ -120,8 +120,8 @@ static int gdsc_toggle_logic(struct gdsc *sc, enum gdsc_status status)
 	if ((sc->flags & VOTABLE) && status == GDSC_OFF) {
 		/*
 		 * Add a short delay here to ensure that an enable
-		 * right after it was disabled does not put it in an
-		 * unknown state
+		 * right after it was disabled does yest put it in an
+		 * unkyeswn state
 		 */
 		udelay(TIMEOUT_US);
 		return 0;
@@ -133,7 +133,7 @@ static int gdsc_toggle_logic(struct gdsc *sc, enum gdsc_status status)
 		 * after it receives a power on/off request from a master.
 		 * The controller then takes around 8 xo cycles to start its
 		 * internal state machine and update the status bit. During
-		 * this time, the status bit does not reflect the true status
+		 * this time, the status bit does yest reflect the true status
 		 * of the core.
 		 * Add a delay of 1 us between writing to the SW_COLLAPSE bit
 		 * and polling the status bit.
@@ -233,7 +233,7 @@ static int gdsc_enable(struct generic_pm_domain *domain)
 	 * If clocks to this power domain were already on, they will take an
 	 * additional 4 clock cycles to re-enable after the power domain is
 	 * enabled. Delay to account for this. A delay is also needed to ensure
-	 * clocks are not enabled within 400ns of enabling power to the
+	 * clocks are yest enabled within 400ns of enabling power to the
 	 * memories.
 	 */
 	udelay(1);
@@ -331,7 +331,7 @@ static int gdsc_init(struct gdsc *sc)
 	if ((sc->flags & VOTABLE) && on)
 		gdsc_enable(&sc->pd);
 
-	/* If ALWAYS_ON GDSCs are not ON, turn them ON */
+	/* If ALWAYS_ON GDSCs are yest ON, turn them ON */
 	if (sc->flags & ALWAYS_ON) {
 		if (!on)
 			gdsc_enable(&sc->pd);
@@ -391,7 +391,7 @@ int gdsc_register(struct gdsc_desc *desc,
 			pm_genpd_add_subdomain(scs[i]->parent, &scs[i]->pd);
 	}
 
-	return of_genpd_add_provider_onecell(dev->of_node, data);
+	return of_genpd_add_provider_onecell(dev->of_yesde, data);
 }
 
 void gdsc_unregister(struct gdsc_desc *desc)
@@ -408,5 +408,5 @@ void gdsc_unregister(struct gdsc_desc *desc)
 		if (scs[i]->parent)
 			pm_genpd_remove_subdomain(scs[i]->parent, &scs[i]->pd);
 	}
-	of_genpd_del_provider(dev->of_node);
+	of_genpd_del_provider(dev->of_yesde);
 }

@@ -44,7 +44,7 @@
  * When one SDP charger connector was reported, we should also report
  * the USB connector, which means EXTCON_CHG_USB_SDP should always
  * appear together with EXTCON_USB. The same as ACA charger connector,
- * EXTCON_CHG_USB_ACA would normally appear with EXTCON_USB_HOST.
+ * EXTCON_CHG_USB_ACA would yesrmally appear with EXTCON_USB_HOST.
  *
  * The EXTCON_CHG_USB_SLOW connector can provide at least 500mA of
  * current at 5V. The EXTCON_CHG_USB_FAST connector can provide at
@@ -111,8 +111,8 @@
  * @default:	0 (low)
  * - EXTCON_PROP_USB_TYPEC_POLARITY
  * @type:	integer (intval)
- * @value:	0 (normal) or 1 (flip)
- * @default:	0 (normal)
+ * @value:	0 (yesrmal) or 1 (flip)
+ * @default:	0 (yesrmal)
  * - EXTCON_PROP_USB_SS (SuperSpeed)
  * @type:       integer (intval)
  * @value:      0 (USB/USB2) or 1 (USB3)
@@ -142,8 +142,8 @@
  *
  * - EXTCON_PROP_DISP_HPD (Hot Plug Detect)
  * @type:       integer (intval)
- * @value:      0 (no hpd) or 1 (hpd)
- * @default:    0 (no hpd)
+ * @value:      0 (yes hpd) or 1 (hpd)
+ * @default:    0 (yes hpd)
  *
  */
 #define EXTCON_PROP_DISP_HPD		150
@@ -188,41 +188,41 @@ extern int extcon_get_property_capability(struct extcon_dev *edev,
 				unsigned int id, unsigned int prop);
 
 /*
- * Following APIs register the notifier block in order to detect
+ * Following APIs register the yestifier block in order to detect
  * the change of both state and property value for each external connector.
  *
- * extcon_register_notifier(*edev, id, *nb) : Register a notifier block
+ * extcon_register_yestifier(*edev, id, *nb) : Register a yestifier block
  *			for specific external connector of the extcon.
- * extcon_register_notifier_all(*edev, *nb) : Register a notifier block
+ * extcon_register_yestifier_all(*edev, *nb) : Register a yestifier block
  *			for all supported external connectors of the extcon.
  */
-extern int extcon_register_notifier(struct extcon_dev *edev, unsigned int id,
-				struct notifier_block *nb);
-extern int extcon_unregister_notifier(struct extcon_dev *edev, unsigned int id,
-				struct notifier_block *nb);
-extern int devm_extcon_register_notifier(struct device *dev,
+extern int extcon_register_yestifier(struct extcon_dev *edev, unsigned int id,
+				struct yestifier_block *nb);
+extern int extcon_unregister_yestifier(struct extcon_dev *edev, unsigned int id,
+				struct yestifier_block *nb);
+extern int devm_extcon_register_yestifier(struct device *dev,
 				struct extcon_dev *edev, unsigned int id,
-				struct notifier_block *nb);
-extern void devm_extcon_unregister_notifier(struct device *dev,
+				struct yestifier_block *nb);
+extern void devm_extcon_unregister_yestifier(struct device *dev,
 				struct extcon_dev *edev, unsigned int id,
-				struct notifier_block *nb);
+				struct yestifier_block *nb);
 
-extern int extcon_register_notifier_all(struct extcon_dev *edev,
-				struct notifier_block *nb);
-extern int extcon_unregister_notifier_all(struct extcon_dev *edev,
-				struct notifier_block *nb);
-extern int devm_extcon_register_notifier_all(struct device *dev,
+extern int extcon_register_yestifier_all(struct extcon_dev *edev,
+				struct yestifier_block *nb);
+extern int extcon_unregister_yestifier_all(struct extcon_dev *edev,
+				struct yestifier_block *nb);
+extern int devm_extcon_register_yestifier_all(struct device *dev,
 				struct extcon_dev *edev,
-				struct notifier_block *nb);
-extern void devm_extcon_unregister_notifier_all(struct device *dev,
+				struct yestifier_block *nb);
+extern void devm_extcon_unregister_yestifier_all(struct device *dev,
 				struct extcon_dev *edev,
-				struct notifier_block *nb);
+				struct yestifier_block *nb);
 
 /*
  * Following APIs get the extcon_dev from devicetree or by through extcon name.
  */
 extern struct extcon_dev *extcon_get_extcon_dev(const char *extcon_name);
-extern struct extcon_dev *extcon_find_edev_by_node(struct device_node *node);
+extern struct extcon_dev *extcon_find_edev_by_yesde(struct device_yesde *yesde);
 extern struct extcon_dev *extcon_get_edev_by_phandle(struct device *dev,
 						     int index);
 
@@ -248,35 +248,35 @@ static inline int extcon_get_property_capability(struct extcon_dev *edev,
 	return 0;
 }
 
-static inline int extcon_register_notifier(struct extcon_dev *edev,
-				unsigned int id, struct notifier_block *nb)
+static inline int extcon_register_yestifier(struct extcon_dev *edev,
+				unsigned int id, struct yestifier_block *nb)
 {
 	return 0;
 }
 
-static inline int extcon_unregister_notifier(struct extcon_dev *edev,
-				unsigned int id, struct notifier_block *nb)
+static inline int extcon_unregister_yestifier(struct extcon_dev *edev,
+				unsigned int id, struct yestifier_block *nb)
 {
 	return 0;
 }
 
-static inline int devm_extcon_register_notifier(struct device *dev,
+static inline int devm_extcon_register_yestifier(struct device *dev,
 				struct extcon_dev *edev, unsigned int id,
-				struct notifier_block *nb)
+				struct yestifier_block *nb)
 {
 	return -ENOSYS;
 }
 
-static inline  void devm_extcon_unregister_notifier(struct device *dev,
+static inline  void devm_extcon_unregister_yestifier(struct device *dev,
 				struct extcon_dev *edev, unsigned int id,
-				struct notifier_block *nb) { }
+				struct yestifier_block *nb) { }
 
 static inline struct extcon_dev *extcon_get_extcon_dev(const char *extcon_name)
 {
 	return ERR_PTR(-ENODEV);
 }
 
-static inline struct extcon_dev *extcon_find_edev_by_node(struct device_node *node)
+static inline struct extcon_dev *extcon_find_edev_by_yesde(struct device_yesde *yesde)
 {
 	return ERR_PTR(-ENODEV);
 }
@@ -293,7 +293,7 @@ static inline struct extcon_dev *extcon_get_edev_by_phandle(struct device *dev,
  * definition to prevent the build break.
  */
 struct extcon_specific_cable_nb {
-       struct notifier_block *user_nb;
+       struct yestifier_block *user_nb;
        int cable_index;
        struct extcon_dev *edev;
        unsigned long previous_value;
@@ -301,7 +301,7 @@ struct extcon_specific_cable_nb {
 
 static inline int extcon_register_interest(struct extcon_specific_cable_nb *obj,
 				const char *extcon_name, const char *cable_name,
-				struct notifier_block *nb)
+				struct yestifier_block *nb)
 {
 	return -EINVAL;
 }

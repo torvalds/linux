@@ -5,7 +5,7 @@
 #define _GNU_SOURCE
 #include <stdio.h>
 #include <unistd.h>
-#include <errno.h>
+#include <erryes.h>
 #include <string.h>
 #include <assert.h>
 #include <sched.h>
@@ -111,8 +111,8 @@ static int map_subset(int map0, int map1)
 		assert(!bpf_map_lookup_elem(map1, &next_key, value1));
 		ret = bpf_map_lookup_elem(map0, &next_key, value0);
 		if (ret) {
-			printf("key:%llu not found from map. %s(%d)\n",
-			       next_key, strerror(errno), errno);
+			printf("key:%llu yest found from map. %s(%d)\n",
+			       next_key, strerror(erryes), erryes);
 			return 0;
 		}
 		if (value0[0] != value1[0]) {
@@ -188,31 +188,31 @@ static void test_lru_sanity0(int map_type, int map_flags)
 	/* BPF_NOEXIST means: add new element if it doesn't exist */
 	assert(bpf_map_update_elem(lru_map_fd, &key, value, BPF_NOEXIST) == -1
 	       /* key=1 already exists */
-	       && errno == EEXIST);
+	       && erryes == EEXIST);
 
 	assert(bpf_map_update_elem(lru_map_fd, &key, value, -1) == -1 &&
-	       errno == EINVAL);
+	       erryes == EINVAL);
 
 	/* insert key=2 element */
 
-	/* check that key=2 is not found */
+	/* check that key=2 is yest found */
 	key = 2;
 	assert(bpf_map_lookup_elem(lru_map_fd, &key, value) == -1 &&
-	       errno == ENOENT);
+	       erryes == ENOENT);
 
 	/* BPF_EXIST means: update existing element */
 	assert(bpf_map_update_elem(lru_map_fd, &key, value, BPF_EXIST) == -1 &&
-	       /* key=2 is not there */
-	       errno == ENOENT);
+	       /* key=2 is yest there */
+	       erryes == ENOENT);
 
 	assert(!bpf_map_update_elem(lru_map_fd, &key, value, BPF_NOEXIST));
 
 	/* insert key=3 element */
 
-	/* check that key=3 is not found */
+	/* check that key=3 is yest found */
 	key = 3;
 	assert(bpf_map_lookup_elem(lru_map_fd, &key, value) == -1 &&
-	       errno == ENOENT);
+	       erryes == ENOENT);
 
 	/* check that key=1 can be found and mark the ref bit to
 	 * stop LRU from removing key=1
@@ -229,7 +229,7 @@ static void test_lru_sanity0(int map_type, int map_flags)
 	/* key=2 has been removed from the LRU */
 	key = 2;
 	assert(bpf_map_lookup_elem(lru_map_fd, &key, value) == -1 &&
-	       errno == ENOENT);
+	       erryes == ENOENT);
 
 	assert(map_equal(lru_map_fd, expected_map_fd));
 
@@ -319,7 +319,7 @@ static void test_lru_sanity1(int map_type, int map_flags, unsigned int tgt_free)
  * Insert 1+tgt_free*3/2 to tgt_free*5/2
  *   => Key 1+tgt_free to tgt_free*3/2
  *      will be removed from LRU because it has never
- *      been lookup and ref bit is not set
+ *      been lookup and ref bit is yest set
  */
 static void test_lru_sanity2(int map_type, int map_flags, unsigned int tgt_free)
 {
@@ -357,13 +357,13 @@ static void test_lru_sanity2(int map_type, int map_flags, unsigned int tgt_free)
 		assert(!bpf_map_update_elem(lru_map_fd, &key, value,
 					    BPF_NOEXIST));
 
-	/* Any bpf_map_update_elem will require to acquire a new node
+	/* Any bpf_map_update_elem will require to acquire a new yesde
 	 * from LRU first.
 	 *
-	 * The local list is running out of free nodes.
+	 * The local list is running out of free yesdes.
 	 * It gets from the global LRU list which tries to
 	 * shrink the inactive list to get tgt_free
-	 * number of free nodes.
+	 * number of free yesdes.
 	 *
 	 * Hence, the oldest key 1 to tgt_free/2
 	 * are removed from the LRU list.
@@ -385,7 +385,7 @@ static void test_lru_sanity2(int map_type, int map_flags, unsigned int tgt_free)
 	value[0] = 4321;
 	for (key = 1; key < end_key; key++) {
 		assert(bpf_map_lookup_elem(lru_map_fd, &key, value) == -1 &&
-		       errno == ENOENT);
+		       erryes == ENOENT);
 		assert(!bpf_map_update_elem(lru_map_fd, &key, value,
 					    BPF_NOEXIST));
 		assert(!bpf_map_lookup_elem_with_ref_bit(lru_map_fd, key, value));
@@ -399,7 +399,7 @@ static void test_lru_sanity2(int map_type, int map_flags, unsigned int tgt_free)
 	/* Insert 1+tgt_free to tgt_free*3/2 */
 	end_key = 1 + tgt_free + batch_size;
 	for (key = 1 + tgt_free; key < end_key; key++)
-		/* These newly added but not referenced keys will be
+		/* These newly added but yest referenced keys will be
 		 * gone during the next LRU shrink.
 		 */
 		assert(!bpf_map_update_elem(lru_map_fd, &key, value,
@@ -564,9 +564,9 @@ static void do_test_lru_sanity5(unsigned long long last_key, int map_fd)
 	assert(!bpf_map_update_elem(map_fd, &key, value, BPF_NOEXIST));
 	assert(!bpf_map_lookup_elem_with_ref_bit(map_fd, key, value));
 
-	/* Cannot find the last key because it was removed by LRU */
+	/* Canyest find the last key because it was removed by LRU */
 	assert(bpf_map_lookup_elem(map_fd, &last_key, value) == -1 &&
-	       errno == ENOENT);
+	       erryes == ENOENT);
 }
 
 /* Test map with only one element */
@@ -716,28 +716,28 @@ static void test_lru_sanity7(int map_type, int map_flags)
 	/* BPF_NOEXIST means: add new element if it doesn't exist */
 	assert(bpf_map_update_elem(lru_map_fd, &key, value, BPF_NOEXIST) == -1
 	       /* key=1 already exists */
-	       && errno == EEXIST);
+	       && erryes == EEXIST);
 
 	/* insert key=2 element */
 
-	/* check that key=2 is not found */
+	/* check that key=2 is yest found */
 	key = 2;
 	assert(bpf_map_lookup_elem(lru_map_fd, &key, value) == -1 &&
-	       errno == ENOENT);
+	       erryes == ENOENT);
 
 	/* BPF_EXIST means: update existing element */
 	assert(bpf_map_update_elem(lru_map_fd, &key, value, BPF_EXIST) == -1 &&
-	       /* key=2 is not there */
-	       errno == ENOENT);
+	       /* key=2 is yest there */
+	       erryes == ENOENT);
 
 	assert(!bpf_map_update_elem(lru_map_fd, &key, value, BPF_NOEXIST));
 
 	/* insert key=3 element */
 
-	/* check that key=3 is not found */
+	/* check that key=3 is yest found */
 	key = 3;
 	assert(bpf_map_lookup_elem(lru_map_fd, &key, value) == -1 &&
-	       errno == ENOENT);
+	       erryes == ENOENT);
 
 	/* check that key=1 can be found and mark the ref bit to
 	 * stop LRU from removing key=1
@@ -746,7 +746,7 @@ static void test_lru_sanity7(int map_type, int map_flags)
 	assert(!bpf_map_lookup_elem_with_ref_bit(lru_map_fd, key, value));
 	assert(value[0] == 1234);
 
-	/* check that key=2 can be found and do _not_ mark ref bit.
+	/* check that key=2 can be found and do _yest_ mark ref bit.
 	 * this will be evicted on next update.
 	 */
 	key = 2;
@@ -761,7 +761,7 @@ static void test_lru_sanity7(int map_type, int map_flags)
 	/* key=2 has been removed from the LRU */
 	key = 2;
 	assert(bpf_map_lookup_elem(lru_map_fd, &key, value) == -1 &&
-	       errno == ENOENT);
+	       erryes == ENOENT);
 
 	assert(map_equal(lru_map_fd, expected_map_fd));
 
@@ -810,19 +810,19 @@ static void test_lru_sanity8(int map_type, int map_flags)
 	/* BPF_NOEXIST means: add new element if it doesn't exist */
 	assert(bpf_map_update_elem(lru_map_fd, &key, value, BPF_NOEXIST) == -1
 	       /* key=1 already exists */
-	       && errno == EEXIST);
+	       && erryes == EEXIST);
 
 	/* insert key=2 element */
 
-	/* check that key=2 is not found */
+	/* check that key=2 is yest found */
 	key = 2;
 	assert(bpf_map_lookup_elem(lru_map_fd, &key, value) == -1 &&
-	       errno == ENOENT);
+	       erryes == ENOENT);
 
 	/* BPF_EXIST means: update existing element */
 	assert(bpf_map_update_elem(lru_map_fd, &key, value, BPF_EXIST) == -1 &&
-	       /* key=2 is not there */
-	       errno == ENOENT);
+	       /* key=2 is yest there */
+	       erryes == ENOENT);
 
 	assert(!bpf_map_update_elem(lru_map_fd, &key, value, BPF_NOEXIST));
 	assert(!bpf_map_update_elem(expected_map_fd, &key, value,
@@ -830,12 +830,12 @@ static void test_lru_sanity8(int map_type, int map_flags)
 
 	/* insert key=3 element */
 
-	/* check that key=3 is not found */
+	/* check that key=3 is yest found */
 	key = 3;
 	assert(bpf_map_lookup_elem(lru_map_fd, &key, value) == -1 &&
-	       errno == ENOENT);
+	       erryes == ENOENT);
 
-	/* check that key=1 can be found and do _not_ mark ref bit.
+	/* check that key=1 can be found and do _yest_ mark ref bit.
 	 * this will be evicted on next update.
 	 */
 	key = 1;
@@ -857,7 +857,7 @@ static void test_lru_sanity8(int map_type, int map_flags)
 	/* key=1 has been removed from the LRU */
 	key = 1;
 	assert(bpf_map_lookup_elem(lru_map_fd, &key, value) == -1 &&
-	       errno == ENOENT);
+	       erryes == ENOENT);
 
 	assert(map_equal(lru_map_fd, expected_map_fd));
 

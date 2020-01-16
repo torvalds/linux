@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 #ifndef _ASM_GENERIC_FCNTL_H
 #define _ASM_GENERIC_FCNTL_H
 
@@ -7,7 +7,7 @@
 /*
  * FMODE_EXEC is 0x20
  * FMODE_NONOTIFY is 0x4000000
- * These cannot be used by userspace O_* until internal and external open
+ * These canyest be used by userspace O_* until internal and external open
  * flags are split.
  * -Eric Paris
  */
@@ -21,16 +21,16 @@
 #define O_WRONLY	00000001
 #define O_RDWR		00000002
 #ifndef O_CREAT
-#define O_CREAT		00000100	/* not fcntl */
+#define O_CREAT		00000100	/* yest fcntl */
 #endif
 #ifndef O_EXCL
-#define O_EXCL		00000200	/* not fcntl */
+#define O_EXCL		00000200	/* yest fcntl */
 #endif
 #ifndef O_NOCTTY
-#define O_NOCTTY	00000400	/* not fcntl */
+#define O_NOCTTY	00000400	/* yest fcntl */
 #endif
 #ifndef O_TRUNC
-#define O_TRUNC		00001000	/* not fcntl */
+#define O_TRUNC		00001000	/* yest fcntl */
 #endif
 #ifndef O_APPEND
 #define O_APPEND	00002000
@@ -66,13 +66,13 @@
 /*
  * Before Linux 2.6.33 only O_DSYNC semantics were implemented, but using
  * the O_SYNC flag.  We continue to use the existing numerical value
- * for O_DSYNC semantics now, but using the correct symbolic name for it.
+ * for O_DSYNC semantics yesw, but using the correct symbolic name for it.
  * This new value is used to request true Posix O_SYNC semantics.  It is
  * defined in this strange way to make sure applications compiled against
  * new headers get at least O_DSYNC semantics on older kernels.
  *
  * This has the nice side-effect that we can simply test for O_DSYNC
- * wherever we do not care if O_DSYNC or O_SYNC is used.
+ * wherever we do yest care if O_DSYNC or O_SYNC is used.
  *
  * Note: __O_SYNC must never be used directly.
  */
@@ -137,10 +137,10 @@
  * Open File Description Locks
  *
  * Usually record locks held by a process are released on *any* close and are
- * not inherited across a fork().
+ * yest inherited across a fork().
  *
  * These cmd values will set locks that conflict with process-associated
- * record  locks, but are "owned" by the open file description, not the
+ * record  locks, but are "owned" by the open file description, yest the
  * process. This means that they are inherited across fork() like BSD (flock)
  * locks, and they are only released automatically when the last reference to
  * the the open file against which they were acquired is put.

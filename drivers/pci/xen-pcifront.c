@@ -68,8 +68,8 @@ static inline void pcifront_init_sd(struct pcifront_sd *sd,
 				    unsigned int domain, unsigned int bus,
 				    struct pcifront_device *pdev)
 {
-	/* Because we do not expose that information via XenBus. */
-	sd->sd.node = first_online_node;
+	/* Because we do yest expose that information via XenBus. */
+	sd->sd.yesde = first_online_yesde;
 	sd->sd.domain = domain;
 	sd->pdev = pdev;
 }
@@ -80,26 +80,26 @@ static struct pcifront_device *pcifront_dev;
 static int verbose_request;
 module_param(verbose_request, int, 0644);
 
-static int errno_to_pcibios_err(int errno)
+static int erryes_to_pcibios_err(int erryes)
 {
-	switch (errno) {
+	switch (erryes) {
 	case XEN_PCI_ERR_success:
 		return PCIBIOS_SUCCESSFUL;
 
-	case XEN_PCI_ERR_dev_not_found:
+	case XEN_PCI_ERR_dev_yest_found:
 		return PCIBIOS_DEVICE_NOT_FOUND;
 
 	case XEN_PCI_ERR_invalid_offset:
 	case XEN_PCI_ERR_op_failed:
 		return PCIBIOS_BAD_REGISTER_NUMBER;
 
-	case XEN_PCI_ERR_not_implemented:
+	case XEN_PCI_ERR_yest_implemented:
 		return PCIBIOS_FUNC_NOT_SUPPORTED;
 
 	case XEN_PCI_ERR_access_denied:
 		return PCIBIOS_SET_FAILED;
 	}
-	return errno;
+	return erryes;
 }
 
 static inline void schedule_pcifront_aer_op(struct pcifront_device *pdev)
@@ -127,7 +127,7 @@ static int do_pci_op(struct pcifront_device *pdev, struct xen_pci_op *op)
 	/* Go */
 	wmb();
 	set_bit(_XEN_PCIF_active, (unsigned long *)&pdev->sh_info->flags);
-	notify_remote_via_evtchn(port);
+	yestify_remote_via_evtchn(port);
 
 	/*
 	 * We set a poll timeout of 3 seconds but give up on return after
@@ -146,10 +146,10 @@ static int do_pci_op(struct pcifront_device *pdev, struct xen_pci_op *op)
 		ns = ktime_get_ns();
 		if (ns > ns_timeout) {
 			dev_err(&pdev->xdev->dev,
-				"pciback not responding!!!\n");
+				"pciback yest responding!!!\n");
 			clear_bit(_XEN_PCIF_active,
 				  (unsigned long *)&pdev->sh_info->flags);
-			err = XEN_PCI_ERR_dev_not_found;
+			err = XEN_PCI_ERR_dev_yest_found;
 			goto out;
 		}
 	}
@@ -210,7 +210,7 @@ static int pcifront_bus_read(struct pci_bus *bus, unsigned int devfn,
 		*val = 0;
 	}
 
-	return errno_to_pcibios_err(err);
+	return erryes_to_pcibios_err(err);
 }
 
 /* Access to this function is spinlocked in drivers/pci/access.c */
@@ -236,7 +236,7 @@ static int pcifront_bus_write(struct pci_bus *bus, unsigned int devfn,
 			 pci_domain_nr(bus), bus->number,
 			 PCI_SLOT(devfn), PCI_FUNC(devfn), where, size, val);
 
-	return errno_to_pcibios_err(do_pci_op(pdev, &op));
+	return erryes_to_pcibios_err(do_pci_op(pdev, &op));
 }
 
 static struct pci_ops pcifront_bus_ops = {
@@ -361,13 +361,13 @@ static void pci_frontend_disable_msi(struct pci_dev *dev)
 	struct pcifront_device *pdev = pcifront_get_pdev(sd);
 
 	err = do_pci_op(pdev, &op);
-	if (err == XEN_PCI_ERR_dev_not_found) {
+	if (err == XEN_PCI_ERR_dev_yest_found) {
 		/* XXX No response from backend, what shall we do? */
-		pr_info("get no response from backend for disable MSI\n");
+		pr_info("get yes response from backend for disable MSI\n");
 		return;
 	}
 	if (err)
-		/* how can pciback notify us fail? */
+		/* how can pciback yestify us fail? */
 		pr_info("get fake response from backend\n");
 }
 
@@ -403,7 +403,7 @@ static int pcifront_claim_resource(struct pci_dev *dev, void *data)
 			dev_info(&pdev->xdev->dev, "claiming resource %s/%d\n",
 				pci_name(dev), i);
 			if (pci_claim_resource(dev, i)) {
-				dev_err(&pdev->xdev->dev, "Could not claim resource %s/%d! "
+				dev_err(&pdev->xdev->dev, "Could yest claim resource %s/%d! "
 					"Device offline. Try using e820_host=1 in the guest config.\n",
 					pci_name(dev), i);
 			}
@@ -427,7 +427,7 @@ static int pcifront_scan_bus(struct pcifront_device *pdev,
 	for (devfn = 0; devfn < 0x100; devfn++) {
 		d = pci_get_slot(b, devfn);
 		if (d) {
-			/* Device is already known. */
+			/* Device is already kyeswn. */
 			pci_dev_put(d);
 			continue;
 		}
@@ -459,7 +459,7 @@ static int pcifront_scan_root(struct pcifront_device *pdev,
 #ifndef CONFIG_PCI_DOMAINS
 	if (domain != 0) {
 		dev_err(&pdev->xdev->dev,
-			"PCI Root in non-zero PCI Domain! domain=%d\n", domain);
+			"PCI Root in yesn-zero PCI Domain! domain=%d\n", domain);
 		dev_err(&pdev->xdev->dev,
 			"Please compile with CONFIG_PCI_DOMAINS\n");
 		err = -EINVAL;
@@ -498,14 +498,14 @@ static int pcifront_scan_root(struct pcifront_device *pdev,
 
 	list_add(&bus_entry->list, &pdev->root_buses);
 
-	/* pci_scan_root_bus skips devices which do not have a
+	/* pci_scan_root_bus skips devices which do yest have a
 	* devfn==0. The pcifront_scan_bus enumerates all devfn. */
 	err = pcifront_scan_bus(pdev, domain, bus, b);
 
 	/* Claim resources before going "live" with our devices */
 	pci_walk_bus(b, pcifront_claim_resource, pdev);
 
-	/* Create SysFS and notify udev of the devices. Aka: "going live" */
+	/* Create SysFS and yestify udev of the devices. Aka: "going live" */
 	pci_bus_add_devices(b);
 
 	pci_unlock_rescan_remove();
@@ -527,7 +527,7 @@ static int pcifront_rescan_root(struct pcifront_device *pdev,
 #ifndef CONFIG_PCI_DOMAINS
 	if (domain != 0) {
 		dev_err(&pdev->xdev->dev,
-			"PCI Root in non-zero PCI Domain! domain=%d\n", domain);
+			"PCI Root in yesn-zero PCI Domain! domain=%d\n", domain);
 		dev_err(&pdev->xdev->dev,
 			"Please compile with CONFIG_PCI_DOMAINS\n");
 		return -EINVAL;
@@ -539,7 +539,7 @@ static int pcifront_rescan_root(struct pcifront_device *pdev,
 
 	b = pci_find_bus(domain, bus);
 	if (!b)
-		/* If the bus is unknown, create it. */
+		/* If the bus is unkyeswn, create it. */
 		return pcifront_scan_root(pdev, domain, bus);
 
 	err = pcifront_scan_bus(pdev, domain, bus, b);
@@ -547,7 +547,7 @@ static int pcifront_rescan_root(struct pcifront_device *pdev,
 	/* Claim resources before going "live" with our devices */
 	pci_walk_bus(b, pcifront_claim_resource, pdev);
 
-	/* Create SysFS and notify udev of the devices. Aka: "going live" */
+	/* Create SysFS and yestify udev of the devices. Aka: "going live" */
 	pci_bus_add_devices(b);
 
 	return err;
@@ -668,7 +668,7 @@ static void pcifront_do_aer(struct work_struct *data)
 	/* Post the operation to the guest. */
 	wmb();
 	clear_bit(_XEN_PCIB_active, (unsigned long *)&pdev->sh_info->flags);
-	notify_remote_via_evtchn(pdev->evtchn);
+	yestify_remote_via_evtchn(pdev->evtchn);
 
 	/*in case of we lost an aer request in four lines time_window*/
 	smp_mb__before_atomic();
@@ -702,7 +702,7 @@ static int pcifront_connect_and_init_dma(struct pcifront_device *pdev)
 	if (!err && !swiotlb_nr_tbl()) {
 		err = pci_xen_swiotlb_init_late();
 		if (err)
-			dev_err(&pdev->xdev->dev, "Could not setup SWIOTLB!\n");
+			dev_err(&pdev->xdev->dev, "Could yest setup SWIOTLB!\n");
 	}
 	return err;
 }
@@ -816,13 +816,13 @@ do_publish:
 		goto out;
 	}
 
-	err = xenbus_printf(trans, pdev->xdev->nodename,
+	err = xenbus_printf(trans, pdev->xdev->yesdename,
 			    "pci-op-ref", "%u", pdev->gnt_ref);
 	if (!err)
-		err = xenbus_printf(trans, pdev->xdev->nodename,
+		err = xenbus_printf(trans, pdev->xdev->yesdename,
 				    "event-channel", "%u", pdev->evtchn);
 	if (!err)
-		err = xenbus_printf(trans, pdev->xdev->nodename,
+		err = xenbus_printf(trans, pdev->xdev->yesdename,
 				    "magic", XEN_PCI_MAGIC);
 
 	if (err) {
@@ -859,7 +859,7 @@ static int pcifront_try_connect(struct pcifront_device *pdev)
 
 
 	/* Only connect once */
-	if (xenbus_read_driver_state(pdev->xdev->nodename) !=
+	if (xenbus_read_driver_state(pdev->xdev->yesdename) !=
 	    XenbusStateInitialised)
 		goto out;
 
@@ -928,7 +928,7 @@ static int pcifront_try_disconnect(struct pcifront_device *pdev)
 	enum xenbus_state prev_state;
 
 
-	prev_state = xenbus_read_driver_state(pdev->xdev->nodename);
+	prev_state = xenbus_read_driver_state(pdev->xdev->yesdename);
 
 	if (prev_state >= XenbusStateClosing)
 		goto out;
@@ -952,7 +952,7 @@ static int pcifront_attach_devices(struct pcifront_device *pdev)
 	unsigned int domain, bus;
 	char str[64];
 
-	if (xenbus_read_driver_state(pdev->xdev->nodename) !=
+	if (xenbus_read_driver_state(pdev->xdev->yesdename) !=
 	    XenbusStateReconfiguring)
 		goto out;
 
@@ -1016,7 +1016,7 @@ static int pcifront_detach_devices(struct pcifront_device *pdev)
 	struct pci_dev *pci_dev;
 	char str[64];
 
-	if (xenbus_read_driver_state(pdev->xdev->nodename) !=
+	if (xenbus_read_driver_state(pdev->xdev->yesdename) !=
 	    XenbusStateConnected)
 		goto out;
 
@@ -1039,7 +1039,7 @@ static int pcifront_detach_devices(struct pcifront_device *pdev)
 			goto out;
 		}
 		state = xenbus_read_unsigned(pdev->xdev->otherend, str,
-					     XenbusStateUnknown);
+					     XenbusStateUnkyeswn);
 
 		if (state != XenbusStateClosing)
 			continue;
@@ -1064,7 +1064,7 @@ static int pcifront_detach_devices(struct pcifront_device *pdev)
 				PCI_DEVFN(slot, func));
 		if (!pci_dev) {
 			dev_dbg(&pdev->xdev->dev,
-				"Cannot get PCI device %04x:%02x:%02x.%d\n",
+				"Canyest get PCI device %04x:%02x:%02x.%d\n",
 				domain, bus, slot, func);
 			continue;
 		}
@@ -1090,7 +1090,7 @@ static void __ref pcifront_backend_changed(struct xenbus_device *xdev,
 	struct pcifront_device *pdev = dev_get_drvdata(&xdev->dev);
 
 	switch (be_state) {
-	case XenbusStateUnknown:
+	case XenbusStateUnkyeswn:
 	case XenbusStateInitialising:
 	case XenbusStateInitWait:
 	case XenbusStateInitialised:

@@ -2,7 +2,7 @@ Linux version 5.1.0-rc7-00061-g04652f1cb4aa0 (brendanhiggins@mactruck.svl.corp.g
 Built 1 zonelists, mobility grouping on.  Total pages: 69906
 Kernel command line: mem=256M root=98:0
 Dentry cache hash table entries: 65536 (order: 7, 524288 bytes)
-Inode-cache hash table entries: 32768 (order: 6, 262144 bytes)
+Iyesde-cache hash table entries: 32768 (order: 6, 262144 bytes)
 Memory: 254468K/283500K available (1734K kernel code, 489K rwdata, 396K rodata, 85K init, 216K bss, 29032K reserved, 0K cma-reserved)
 SLUB: HWalign=64, Order=0-3, MinObjects=0, CPUs=1, Nodes=1
 NR_IRQS: 15

@@ -9,13 +9,13 @@ struct context_tracking {
 	/*
 	 * When active is false, probes are unset in order
 	 * to minimize overhead: TIF flags are cleared
-	 * and calls to user_enter/exit are ignored. This
+	 * and calls to user_enter/exit are igyesred. This
 	 * may be further optimized using static keys.
 	 */
 	bool active;
 	int recursion;
 	enum ctx_state {
-		CONTEXT_DISABLED = -1,	/* returned by ct_state() if unknown */
+		CONTEXT_DISABLED = -1,	/* returned by ct_state() if unkyeswn */
 		CONTEXT_KERNEL = 0,
 		CONTEXT_USER,
 		CONTEXT_GUEST,

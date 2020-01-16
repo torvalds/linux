@@ -115,7 +115,7 @@ acpi_status ACPI_INIT_FUNCTION acpi_enable_subsystem(u32 flags)
 
 	/*
 	 * The early initialization phase is complete. The namespace is loaded,
-	 * and we can now support address spaces other than Memory, I/O, and
+	 * and we can yesw support address spaces other than Memory, I/O, and
 	 * PCI_Config.
 	 */
 	acpi_gbl_early_initialization = FALSE;
@@ -144,7 +144,7 @@ acpi_status ACPI_INIT_FUNCTION acpi_enable_subsystem(u32 flags)
 	if (!(flags & ACPI_NO_FACS_INIT)) {
 		status = acpi_tb_initialize_facs();
 		if (ACPI_FAILURE(status)) {
-			ACPI_WARNING((AE_INFO, "Could not map the FACS table"));
+			ACPI_WARNING((AE_INFO, "Could yest map the FACS table"));
 			return_ACPI_STATUS(status);
 		}
 	}
@@ -158,7 +158,7 @@ acpi_status ACPI_INIT_FUNCTION acpi_enable_subsystem(u32 flags)
 	 * any method execution!
 	 *
 	 * Note2: Fixed events are initialized and enabled here. GPEs are
-	 * initialized, but cannot be enabled until after the hardware is
+	 * initialized, but canyest be enabled until after the hardware is
 	 * completely initialized (SCI and global_lock activated) and the various
 	 * initialization control methods are run (_REG, _STA, _INI) on the
 	 * entire namespace.
@@ -213,7 +213,7 @@ acpi_status ACPI_INIT_FUNCTION acpi_initialize_objects(u32 flags)
 
 #ifdef ACPI_OBSOLETE_BEHAVIOR
 	/*
-	 * 05/2019: Removed, initialization now happens at both object
+	 * 05/2019: Removed, initialization yesw happens at both object
 	 * creation and table load time
 	 */
 
@@ -245,7 +245,7 @@ acpi_status ACPI_INIT_FUNCTION acpi_initialize_objects(u32 flags)
 	/*
 	 * Empty the caches (delete the cached objects) on the assumption that
 	 * the table load filled them up more than they will be at runtime --
-	 * thus wasting non-paged memory.
+	 * thus wasting yesn-paged memory.
 	 */
 	status = acpi_purge_cached_objects();
 

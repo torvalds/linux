@@ -44,7 +44,7 @@ EXPORT_SYMBOL(acpi_disabled);
 
 #define PREFIX			"ACPI: "
 
-int acpi_noirq;				/* skip ACPI IRQ initialization */
+int acpi_yesirq;				/* skip ACPI IRQ initialization */
 int acpi_pci_disabled;		/* skip ACPI PCI scan and IRQ initialization */
 EXPORT_SYMBOL(acpi_pci_disabled);
 
@@ -150,7 +150,7 @@ static int __init acpi_parse_madt(struct acpi_table_header *table)
  * acpi_register_lapic - register a local apic and generates a logic cpu number
  * @id: local apic id to register
  * @acpiid: ACPI id to register
- * @enabled: this cpu is enabled or not
+ * @enabled: this cpu is enabled or yest
  *
  * Returns the logic cpu number which maps to the local apic
  */
@@ -199,7 +199,7 @@ acpi_parse_x2apic(union acpi_subtable_headers *header, const unsigned long end)
 	apic_id = processor->local_apic_id;
 	enabled = processor->lapic_flags & ACPI_MADT_ENABLED;
 
-	/* Ignore invalid ID */
+	/* Igyesre invalid ID */
 	if (apic_id == 0xffffffff)
 		return 0;
 
@@ -207,18 +207,18 @@ acpi_parse_x2apic(union acpi_subtable_headers *header, const unsigned long end)
 	 * We need to register disabled CPU as well to permit
 	 * counting disabled CPUs. This allows us to size
 	 * cpus_possible_map more accurately, to permit
-	 * to not preallocating memory for all NR_CPUS
+	 * to yest preallocating memory for all NR_CPUS
 	 * when we use CPU hotplug.
 	 */
 	if (!apic->apic_id_valid(apic_id)) {
 		if (enabled)
-			pr_warn(PREFIX "x2apic entry ignored\n");
+			pr_warn(PREFIX "x2apic entry igyesred\n");
 		return 0;
 	}
 
 	acpi_register_lapic(apic_id, processor->uid, enabled);
 #else
-	printk(KERN_WARNING PREFIX "x2apic entry ignored\n");
+	printk(KERN_WARNING PREFIX "x2apic entry igyesred\n");
 #endif
 
 	return 0;
@@ -236,7 +236,7 @@ acpi_parse_lapic(union acpi_subtable_headers * header, const unsigned long end)
 
 	acpi_table_print_madt_entry(&header->common);
 
-	/* Ignore invalid ID */
+	/* Igyesre invalid ID */
 	if (processor->id == 0xff)
 		return 0;
 
@@ -244,7 +244,7 @@ acpi_parse_lapic(union acpi_subtable_headers * header, const unsigned long end)
 	 * We need to register disabled CPU as well to permit
 	 * counting disabled CPUs. This allows us to size
 	 * cpus_possible_map more accurately, to permit
-	 * to not preallocating memory for all NR_CPUS
+	 * to yest preallocating memory for all NR_CPUS
 	 * when we use CPU hotplug.
 	 */
 	acpi_register_lapic(processor->id,	/* APIC ID */
@@ -305,7 +305,7 @@ acpi_parse_x2apic_nmi(union acpi_subtable_headers *header,
 	acpi_table_print_madt_entry(&header->common);
 
 	if (x2apic_nmi->lint != 1)
-		printk(KERN_WARNING PREFIX "NMI not connected to LINT 1!\n");
+		printk(KERN_WARNING PREFIX "NMI yest connected to LINT 1!\n");
 
 	return 0;
 }
@@ -323,7 +323,7 @@ acpi_parse_lapic_nmi(union acpi_subtable_headers * header, const unsigned long e
 	acpi_table_print_madt_entry(&header->common);
 
 	if (lapic_nmi->lint != 1)
-		printk(KERN_WARNING PREFIX "NMI not connected to LINT 1!\n");
+		printk(KERN_WARNING PREFIX "NMI yest connected to LINT 1!\n");
 
 	return 0;
 }
@@ -513,7 +513,7 @@ acpi_parse_int_src_ovr(union acpi_subtable_headers * header,
 
 	if (intsrc->source_irq == 0) {
 		if (acpi_skip_timer_override) {
-			printk(PREFIX "BIOS IRQ0 override ignored.\n");
+			printk(PREFIX "BIOS IRQ0 override igyesred.\n");
 			return 0;
 		}
 
@@ -556,7 +556,7 @@ acpi_parse_nmi_src(union acpi_subtable_headers * header, const unsigned long end
  *
  * use ELCR to set PIC-mode trigger type for SCI
  *
- * If a PIC-mode SCI is not recognized or gives spurious IRQ7's
+ * If a PIC-mode SCI is yest recognized or gives spurious IRQ7's
  * it may require Edge Trigger -- use "acpi_sci=edge"
  *
  * Port 0x4d0-4d1 are ECLR1 and ECLR2, the Edge/Level Control Registers
@@ -578,7 +578,7 @@ void __init acpi_pic_sci_set_trigger(unsigned int irq, u16 trigger)
 	 * since we will set it correctly as we enable the PCI irq
 	 * routing.
 	 */
-	new = acpi_noirq ? old : 0;
+	new = acpi_yesirq ? old : 0;
 
 	/*
 	 * Update SCI information in the ELCR, it isn't in the PCI
@@ -656,13 +656,13 @@ static int acpi_register_gsi_ioapic(struct device *dev, u32 gsi,
 {
 	int irq = gsi;
 #ifdef CONFIG_X86_IO_APIC
-	int node;
+	int yesde;
 	struct irq_alloc_info info;
 
-	node = dev ? dev_to_node(dev) : NUMA_NO_NODE;
+	yesde = dev ? dev_to_yesde(dev) : NUMA_NO_NODE;
 	trigger = trigger == ACPI_EDGE_SENSITIVE ? 0 : 1;
 	polarity = polarity == ACPI_ACTIVE_HIGH ? 0 : 1;
-	ioapic_set_alloc_attr(&info, node, trigger, polarity);
+	ioapic_set_alloc_attr(&info, yesde, trigger, polarity);
 
 	mutex_lock(&acpi_ioapic_lock);
 	irq = mp_map_gsi_to_irq(gsi, IOAPIC_MAP_ALLOC, &info);
@@ -732,15 +732,15 @@ static void __init acpi_set_irq_model_ioapic(void)
 #ifdef CONFIG_ACPI_HOTPLUG_CPU
 #include <acpi/processor.h>
 
-static int acpi_map_cpu2node(acpi_handle handle, int cpu, int physid)
+static int acpi_map_cpu2yesde(acpi_handle handle, int cpu, int physid)
 {
 #ifdef CONFIG_ACPI_NUMA
 	int nid;
 
-	nid = acpi_get_node(handle);
+	nid = acpi_get_yesde(handle);
 	if (nid != NUMA_NO_NODE) {
-		set_apicid_to_node(physid, nid);
-		numa_set_node(cpu, nid);
+		set_apicid_to_yesde(physid, nid);
+		numa_set_yesde(cpu, nid);
 	}
 #endif
 	return 0;
@@ -758,7 +758,7 @@ int acpi_map_cpu(acpi_handle handle, phys_cpuid_t physid, u32 acpi_id,
 	}
 
 	acpi_processor_set_pdc(handle);
-	acpi_map_cpu2node(handle, cpu, physid);
+	acpi_map_cpu2yesde(handle, cpu, physid);
 
 	*pcpu = cpu;
 	return 0;
@@ -768,7 +768,7 @@ EXPORT_SYMBOL(acpi_map_cpu);
 int acpi_unmap_cpu(int cpu)
 {
 #ifdef CONFIG_ACPI_NUMA
-	set_apicid_to_node(per_cpu(x86_cpu_to_apicid, cpu), NUMA_NO_NODE);
+	set_apicid_to_yesde(per_cpu(x86_cpu_to_apicid, cpu), NUMA_NO_NODE);
 #endif
 
 	per_cpu(x86_cpu_to_apicid, cpu) = -1;
@@ -878,7 +878,7 @@ static int __init acpi_parse_hpet(struct acpi_table_header *table)
 	hpet_blockid = hpet_tbl->sequence;
 
 	/*
-	 * Some broken BIOSes advertise HPET at 0x0. We really do not
+	 * Some broken BIOSes advertise HPET at 0x0. We really do yest
 	 * want to allocate a resource there.
 	 */
 	if (!hpet_address) {
@@ -891,7 +891,7 @@ static int __init acpi_parse_hpet(struct acpi_table_header *table)
 	/*
 	 * Some even more broken BIOSes advertise HPET at
 	 * 0xfed0000000000000 instead of 0xfed00000. Fix it up and add
-	 * some noise:
+	 * some yesise:
 	 */
 	if (hpet_address == 0xfed0000000000000UL) {
 		if (!hpet_force_user) {
@@ -954,7 +954,7 @@ late_initcall(hpet_insert_resource);
 static int __init acpi_parse_fadt(struct acpi_table_header *table)
 {
 	if (!(acpi_gbl_FADT.boot_flags & ACPI_FADT_LEGACY_DEVICES)) {
-		pr_debug("ACPI: no legacy devices present\n");
+		pr_debug("ACPI: yes legacy devices present\n");
 		x86_platform.legacy.devices.pnpbios = 0;
 	}
 
@@ -966,13 +966,13 @@ static int __init acpi_parse_fadt(struct acpi_table_header *table)
 	}
 
 	if (acpi_gbl_FADT.boot_flags & ACPI_FADT_NO_CMOS_RTC) {
-		pr_debug("ACPI: not registering RTC platform device\n");
+		pr_debug("ACPI: yest registering RTC platform device\n");
 		x86_platform.legacy.rtc = 0;
 	}
 
 	if (acpi_gbl_FADT.boot_flags & ACPI_FADT_NO_VGA) {
-		pr_debug("ACPI: probing for VGA not safe\n");
-		x86_platform.legacy.no_vga = 1;
+		pr_debug("ACPI: probing for VGA yest safe\n");
+		x86_platform.legacy.yes_vga = 1;
 	}
 
 #ifdef CONFIG_X86_PM_TIMER
@@ -1099,7 +1099,7 @@ static void __init mp_config_acpi_legacy_irqs(void)
 	 */
 	mp_bus_id_to_type[MP_ISA_BUS] = MP_BUS_ISA;
 #endif
-	set_bit(MP_ISA_BUS, mp_bus_not_pci);
+	set_bit(MP_ISA_BUS, mp_bus_yest_pci);
 	pr_debug("Bus #%d is ISA (nIRQs: %d)\n", MP_ISA_BUS, nr_legacy_irqs());
 
 	/*
@@ -1168,18 +1168,18 @@ static int __init acpi_parse_madt_ioapic_entries(void)
 	 * If MPS is present, it will handle them,
 	 * otherwise the system will stay in PIC mode
 	 */
-	if (acpi_disabled || acpi_noirq)
+	if (acpi_disabled || acpi_yesirq)
 		return -ENODEV;
 
 	if (!boot_cpu_has(X86_FEATURE_APIC))
 		return -ENODEV;
 
 	/*
-	 * if "noapic" boot option, don't look for IO-APICs
+	 * if "yesapic" boot option, don't look for IO-APICs
 	 */
 	if (skip_ioapic_setup) {
 		printk(KERN_INFO PREFIX "Skipping IOAPIC probe "
-		       "due to 'noapic' option.\n");
+		       "due to 'yesapic' option.\n");
 		return -ENODEV;
 	}
 
@@ -1203,15 +1203,15 @@ static int __init acpi_parse_madt_ioapic_entries(void)
 	}
 
 	/*
-	 * If BIOS did not supply an INT_SRC_OVR for the SCI
+	 * If BIOS did yest supply an INT_SRC_OVR for the SCI
 	 * pretend we got one so we can set the SCI flags.
-	 * But ignore setting up SCI on hardware reduced platforms.
+	 * But igyesre setting up SCI on hardware reduced platforms.
 	 */
 	if (acpi_sci_override_gsi == INVALID_ACPI_IRQ && !acpi_gbl_reduced_hardware)
 		acpi_sci_ioapic_setup(acpi_gbl_FADT.sci_interrupt, 0, 0,
 				      acpi_gbl_FADT.sci_interrupt);
 
-	/* Fill in identity legacy mappings where no override */
+	/* Fill in identity legacy mappings where yes override */
 	mp_config_acpi_legacy_irqs();
 
 	count = acpi_table_parse_madt(ACPI_MADT_TYPE_NMI_SOURCE,
@@ -1294,7 +1294,7 @@ static void __init acpi_process_madt(void)
 		}
 	} else {
 		/*
- 		 * ACPI found no MADT, and so ACPI wants UP PIC mode.
+ 		 * ACPI found yes MADT, and so ACPI wants UP PIC mode.
  		 * In the event an MPS table was found, forget it.
  		 * Boot with "acpi=off" to use MPS on such a system.
  		 */
@@ -1322,9 +1322,9 @@ static void __init acpi_process_madt(void)
 static int __init disable_acpi_irq(const struct dmi_system_id *d)
 {
 	if (!acpi_force) {
-		printk(KERN_NOTICE "%s detected: force use of acpi=noirq\n",
+		printk(KERN_NOTICE "%s detected: force use of acpi=yesirq\n",
 		       d->ident);
-		acpi_noirq_set();
+		acpi_yesirq_set();
 	}
 	return 0;
 }
@@ -1332,7 +1332,7 @@ static int __init disable_acpi_irq(const struct dmi_system_id *d)
 static int __init disable_acpi_pci(const struct dmi_system_id *d)
 {
 	if (!acpi_force) {
-		printk(KERN_NOTICE "%s detected: force use of pci=noacpi\n",
+		printk(KERN_NOTICE "%s detected: force use of pci=yesacpi\n",
 		       d->ident);
 		acpi_disable_pci();
 	}
@@ -1352,12 +1352,12 @@ static int __init dmi_disable_acpi(const struct dmi_system_id *d)
 }
 
 /*
- * Force ignoring BIOS IRQ0 override
+ * Force igyesring BIOS IRQ0 override
  */
-static int __init dmi_ignore_irq0_timer_override(const struct dmi_system_id *d)
+static int __init dmi_igyesre_irq0_timer_override(const struct dmi_system_id *d)
 {
 	if (!acpi_skip_timer_override) {
-		pr_notice("%s detected: Ignoring BIOS IRQ0 override\n",
+		pr_yestice("%s detected: Igyesring BIOS IRQ0 override\n",
 			d->ident);
 		acpi_skip_timer_override = 1;
 	}
@@ -1366,7 +1366,7 @@ static int __init dmi_ignore_irq0_timer_override(const struct dmi_system_id *d)
 
 /*
  * ACPI offers an alternative platform interface model that removes
- * ACPI hardware requirements for platforms that do not implement
+ * ACPI hardware requirements for platforms that do yest implement
  * the PC Architecture.
  *
  * We initialize the Hardware-reduced ACPI model here:
@@ -1377,8 +1377,8 @@ void __init acpi_generic_reduced_hw_init(void)
 	 * Override x86_init functions and bypass legacy PIC in
 	 * hardware reduced ACPI mode.
 	 */
-	x86_init.timers.timer_init	= x86_init_noop;
-	x86_init.irqs.pre_vector_init	= x86_init_noop;
+	x86_init.timers.timer_init	= x86_init_yesop;
+	x86_init.irqs.pre_vector_init	= x86_init_yesop;
 	legacy_pic			= &null_legacy_pic;
 }
 
@@ -1475,11 +1475,11 @@ static const struct dmi_system_id acpi_dmi_table_late[] __initconst = {
 	 * is enabled.  This input is incorrectly designated the
 	 * ISA IRQ 0 via an interrupt source override even though
 	 * it is wired to the output of the master 8259A and INTIN0
-	 * is not connected at all.  Force ignoring BIOS IRQ0
+	 * is yest connected at all.  Force igyesring BIOS IRQ0
 	 * override in that cases.
 	 */
 	{
-	 .callback = dmi_ignore_irq0_timer_override,
+	 .callback = dmi_igyesre_irq0_timer_override,
 	 .ident = "HP nx6115 laptop",
 	 .matches = {
 		     DMI_MATCH(DMI_SYS_VENDOR, "Hewlett-Packard"),
@@ -1487,7 +1487,7 @@ static const struct dmi_system_id acpi_dmi_table_late[] __initconst = {
 		     },
 	 },
 	{
-	 .callback = dmi_ignore_irq0_timer_override,
+	 .callback = dmi_igyesre_irq0_timer_override,
 	 .ident = "HP NX6125 laptop",
 	 .matches = {
 		     DMI_MATCH(DMI_SYS_VENDOR, "Hewlett-Packard"),
@@ -1495,7 +1495,7 @@ static const struct dmi_system_id acpi_dmi_table_late[] __initconst = {
 		     },
 	 },
 	{
-	 .callback = dmi_ignore_irq0_timer_override,
+	 .callback = dmi_igyesre_irq0_timer_override,
 	 .ident = "HP NX6325 laptop",
 	 .matches = {
 		     DMI_MATCH(DMI_SYS_VENDOR, "Hewlett-Packard"),
@@ -1503,7 +1503,7 @@ static const struct dmi_system_id acpi_dmi_table_late[] __initconst = {
 		     },
 	 },
 	{
-	 .callback = dmi_ignore_irq0_timer_override,
+	 .callback = dmi_igyesre_irq0_timer_override,
 	 .ident = "HP 6715b laptop",
 	 .matches = {
 		     DMI_MATCH(DMI_SYS_VENDOR, "Hewlett-Packard"),
@@ -1511,7 +1511,7 @@ static const struct dmi_system_id acpi_dmi_table_late[] __initconst = {
 		     },
 	 },
 	{
-	 .callback = dmi_ignore_irq0_timer_override,
+	 .callback = dmi_igyesre_irq0_timer_override,
 	 .ident = "FUJITSU SIEMENS",
 	 .matches = {
 		     DMI_MATCH(DMI_SYS_VENDOR, "FUJITSU SIEMENS"),
@@ -1622,10 +1622,10 @@ int __init acpi_boot_init(void)
 	if (IS_ENABLED(CONFIG_ACPI_BGRT))
 		acpi_table_parse(ACPI_SIG_BGRT, acpi_parse_bgrt);
 
-	if (!acpi_noirq)
+	if (!acpi_yesirq)
 		x86_init.pci.init = pci_acpi_init;
 
-	/* Do not enable ACPI SPCR console by default */
+	/* Do yest enable ACPI SPCR console by default */
 	acpi_parse_spcr(earlycon_acpi_spcr_enable, false);
 	return 0;
 }
@@ -1650,18 +1650,18 @@ static int __init parse_acpi(char *arg)
 	}
 	/* acpi=rsdt use RSDT instead of XSDT */
 	else if (strcmp(arg, "rsdt") == 0) {
-		acpi_gbl_do_not_use_xsdt = TRUE;
+		acpi_gbl_do_yest_use_xsdt = TRUE;
 	}
-	/* "acpi=noirq" disables ACPI interrupt routing */
-	else if (strcmp(arg, "noirq") == 0) {
-		acpi_noirq_set();
+	/* "acpi=yesirq" disables ACPI interrupt routing */
+	else if (strcmp(arg, "yesirq") == 0) {
+		acpi_yesirq_set();
 	}
 	/* "acpi=copy_dsdt" copys DSDT */
 	else if (strcmp(arg, "copy_dsdt") == 0) {
 		acpi_gbl_copy_dsdt_locally = 1;
 	}
-	/* "acpi=nocmcff" disables FF mode for corrected errors */
-	else if (strcmp(arg, "nocmcff") == 0) {
+	/* "acpi=yescmcff" disables FF mode for corrected errors */
+	else if (strcmp(arg, "yescmcff") == 0) {
 		acpi_disable_cmcff = 1;
 	} else {
 		/* Core will printk when we return error. */
@@ -1674,7 +1674,7 @@ early_param("acpi", parse_acpi);
 /* FIXME: Using pci= for an ACPI parameter is a travesty. */
 static int __init parse_pci(char *arg)
 {
-	if (arg && strcmp(arg, "noacpi") == 0)
+	if (arg && strcmp(arg, "yesacpi") == 0)
 		acpi_disable_pci();
 	return 0;
 }
@@ -1683,10 +1683,10 @@ early_param("pci", parse_pci);
 int __init acpi_mps_check(void)
 {
 #if defined(CONFIG_X86_LOCAL_APIC) && !defined(CONFIG_X86_MPPARSE)
-/* mptable code is not built-in*/
-	if (acpi_disabled || acpi_noirq) {
-		printk(KERN_WARNING "MPS support code is not built-in.\n"
-		       "Using acpi=off or acpi=noirq or pci=noacpi "
+/* mptable code is yest built-in*/
+	if (acpi_disabled || acpi_yesirq) {
+		printk(KERN_WARNING "MPS support code is yest built-in.\n"
+		       "Using acpi=off or acpi=yesirq or pci=yesacpi "
 		       "may have problem\n");
 		return 1;
 	}

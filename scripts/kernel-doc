@@ -54,7 +54,7 @@ Documentation/doc-guide/kernel-doc.rst for the documentation comment syntax.
 Output format selection (mutually exclusive):
   -man			Output troff manual page format. This is the default.
   -rst			Output reStructuredText format.
-  -none			Do not output documentation, only warnings.
+  -yesne			Do yest output documentation, only warnings.
 
 Output selection (mutually exclusive):
   -export		Only output documentation for symbols that have been
@@ -65,14 +65,14 @@ Output selection (mutually exclusive):
                         in any input FILE or -export-file FILE.
   -function NAME	Only output documentation for the given function(s)
 			or DOC: section title(s). All other functions and DOC:
-			sections are ignored. May be specified multiple times.
-  -nofunction NAME	Do NOT output documentation for the given function(s);
+			sections are igyesred. May be specified multiple times.
+  -yesfunction NAME	Do NOT output documentation for the given function(s);
 			only output documentation for the other functions and
 			DOC: sections. May be specified multiple times.
 
 Output selection modifiers:
-  -no-doc-sections	Do not output DOC: sections.
-  -enable-lineno        Enable output of #define LINENO lines. Only works with
+  -yes-doc-sections	Do yest output DOC: sections.
+  -enable-lineyes        Enable output of #define LINENO lines. Only works with
                         reStructuredText format.
   -export-file FILE     Specify an additional FILE in which to look for
                         EXPORT_SYMBOL() and EXPORT_SYMBOL_GPL(). To be used with
@@ -126,7 +126,7 @@ EOF
 # Besides functions you can also write documentation for structs, unions,
 # enums and typedefs. Instead of the function name you must write the name
 # of the declaration;  the struct/union/enum/typedef must always precede
-# the name. Nesting of declarations is not supported.
+# the name. Nesting of declarations is yest supported.
 # Use the argument mechanism to document members or constants.
 # e.g.
 # /**
@@ -173,7 +173,7 @@ EOF
 # should document the "Context:" of the function, e.g. whether the functions
 # can be called form interrupts. Unlike other sections you can end it with an
 # empty line.
-# A non-void function should have a "Return:" section describing the return
+# A yesn-void function should have a "Return:" section describing the return
 # value(s).
 # Example-sections should contain the string EXAMPLE so that they are marked
 # appropriately in DocBook.
@@ -206,7 +206,7 @@ EOF
 
 my $errors = 0;
 my $warnings = 0;
-my $anon_struct_union = 0;
+my $ayesn_struct_union = 0;
 
 # match expressions used to find embedded type information
 my $type_constant = '\b``([^\`]+)``\b';
@@ -271,8 +271,8 @@ my $dohighlight = "";
 my $verbose = 0;
 my $output_mode = "rst";
 my $output_preformatted = 0;
-my $no_doc_sections = 0;
-my $enable_lineno = 0;
+my $yes_doc_sections = 0;
+my $enable_lineyes = 0;
 my @highlights = @highlights_rst;
 my $blankline = $blankline_rst;
 my $modulename = "Kernel API";
@@ -282,10 +282,10 @@ use constant {
     OUTPUT_INCLUDE      => 1, # output only specified symbols
     OUTPUT_EXCLUDE      => 2, # output everything except specified symbols
     OUTPUT_EXPORTED     => 3, # output exported symbols
-    OUTPUT_INTERNAL     => 4, # output non-exported symbols
+    OUTPUT_INTERNAL     => 4, # output yesn-exported symbols
 };
 my $output_selection = OUTPUT_ALL;
-my $show_not_found = 0;	# No longer used
+my $show_yest_found = 0;	# No longer used
 
 my @export_file_list;
 
@@ -304,7 +304,7 @@ my $man_date = ('January', 'February', 'March', 'April', 'May', 'June',
 
 # Essentially these are globals.
 # They probably want to be tidied up, made more localised or something.
-# CAVEAT EMPTOR!  Some of the others I localised may not want to be, which
+# CAVEAT EMPTOR!  Some of the others I localised may yest want to be, which
 # could cause "use of undefined value" or other bugs.
 my ($function, %function_table, %parametertypes, $declaration_purpose);
 my $declaration_start_line;
@@ -316,7 +316,7 @@ if (defined($ENV{'KBUILD_VERBOSE'})) {
 }
 
 # Generated docbook code is inserted in a template at a point where
-# docbook v3.1 requires a non-zero sequence of RefEntry's; see:
+# docbook v3.1 requires a yesn-zero sequence of RefEntry's; see:
 # http://www.oasis-open.org/docbook/documentation/reference/html/refentry.html
 # We keep track of number of generated entries and generate a dummy
 # if needs be to ensure the expanded template can be postprocessed
@@ -327,7 +327,7 @@ my $lineprefix="";
 
 # Parser states
 use constant {
-    STATE_NORMAL        => 0, # normal code
+    STATE_NORMAL        => 0, # yesrmal code
     STATE_NAME          => 1, # looking for function name
     STATE_BODY_MAYBE    => 2, # body - or maybe more description
     STATE_BODY          => 3, # the body of the comment
@@ -341,13 +341,13 @@ my $leading_space;
 
 # Inline documentation state
 use constant {
-    STATE_INLINE_NA     => 0, # not applicable ($state != STATE_INLINE)
+    STATE_INLINE_NA     => 0, # yest applicable ($state != STATE_INLINE)
     STATE_INLINE_NAME   => 1, # looking for member name (@foo:)
     STATE_INLINE_TEXT   => 2, # looking for member documentation
     STATE_INLINE_END    => 3, # done
     STATE_INLINE_ERROR  => 4, # error - Comment without header was found.
-                              # Spit a warning as it's not
-                              # proper kernel-doc and ignore the rest.
+                              # Spit a warning as it's yest
+                              # proper kernel-doc and igyesre the rest.
 };
 my $inline_doc_state;
 
@@ -362,7 +362,7 @@ my $doc_com_body = '\s*\* ?';
 my $doc_decl = $doc_com . '(\w+)';
 # @params and a strictly limited set of supported section names
 my $doc_sect = $doc_com .
-    '\s*(\@[.\w]+|\@\.\.\.|description|context|returns?|notes?|examples?)\s*:(.*)';
+    '\s*(\@[.\w]+|\@\.\.\.|description|context|returns?|yestes?|examples?)\s*:(.*)';
 my $doc_content = $doc_com_body . '(.*)';
 my $doc_block = $doc_com . 'DOC:\s*(.*)?';
 my $doc_inline_start = '^\s*/\*\*\s*$';
@@ -383,7 +383,7 @@ my $struct_actual;
 my $contents = "";
 my $new_start_line = 0;
 
-# the canonical section names. see also $doc_sect above.
+# the cayesnical section names. see also $doc_sect above.
 my $section_default = "Description";	# default section
 my $section_intro = "Introduction";
 my $section = $section_default;
@@ -405,22 +405,22 @@ while ($ARGV[0] =~ m/^--?(.*)/) {
 	$output_mode = "rst";
 	@highlights = @highlights_rst;
 	$blankline = $blankline_rst;
-    } elsif ($cmd eq "none") {
-	$output_mode = "none";
-    } elsif ($cmd eq "module") { # not needed for XML, inherits from calling document
+    } elsif ($cmd eq "yesne") {
+	$output_mode = "yesne";
+    } elsif ($cmd eq "module") { # yest needed for XML, inherits from calling document
 	$modulename = shift @ARGV;
     } elsif ($cmd eq "function") { # to only output specific functions
 	$output_selection = OUTPUT_INCLUDE;
 	$function = shift @ARGV;
 	$function_table{$function} = 1;
-    } elsif ($cmd eq "nofunction") { # output all except specific functions
+    } elsif ($cmd eq "yesfunction") { # output all except specific functions
 	$output_selection = OUTPUT_EXCLUDE;
 	$function = shift @ARGV;
 	$function_table{$function} = 1;
     } elsif ($cmd eq "export") { # only exported symbols
 	$output_selection = OUTPUT_EXPORTED;
 	%function_table = ();
-    } elsif ($cmd eq "internal") { # only non-exported symbols
+    } elsif ($cmd eq "internal") { # only yesn-exported symbols
 	$output_selection = OUTPUT_INTERNAL;
 	%function_table = ();
     } elsif ($cmd eq "export-file") {
@@ -430,14 +430,14 @@ while ($ARGV[0] =~ m/^--?(.*)/) {
 	$verbose = 1;
     } elsif (($cmd eq "h") || ($cmd eq "help")) {
 	usage();
-    } elsif ($cmd eq 'no-doc-sections') {
-	    $no_doc_sections = 1;
-    } elsif ($cmd eq 'enable-lineno') {
-	    $enable_lineno = 1;
-    } elsif ($cmd eq 'show-not-found') {
-	$show_not_found = 1;  # A no-op but don't fail
+    } elsif ($cmd eq 'yes-doc-sections') {
+	    $yes_doc_sections = 1;
+    } elsif ($cmd eq 'enable-lineyes') {
+	    $enable_lineyes = 1;
+    } elsif ($cmd eq 'show-yest-found') {
+	$show_yest_found = 1;  # A yes-op but don't fail
     } else {
-	# Unknown argument
+	# Unkyeswn argument
         usage();
     }
 }
@@ -446,7 +446,7 @@ while ($ARGV[0] =~ m/^--?(.*)/) {
 
 # get kernel version from env
 sub get_kernel_version() {
-    my $version = 'unknown kernel version';
+    my $version = 'unkyeswn kernel version';
 
     if (defined($ENV{'KERNELVERSION'})) {
 	$version = $ENV{'KERNELVERSION'};
@@ -455,10 +455,10 @@ sub get_kernel_version() {
 }
 
 #
-sub print_lineno {
-    my $lineno = shift;
-    if ($enable_lineno && defined($lineno)) {
-        print "#define LINENO " . $lineno . "\n";
+sub print_lineyes {
+    my $lineyes = shift;
+    if ($enable_lineyes && defined($lineyes)) {
+        print "#define LINENO " . $lineyes . "\n";
     }
 }
 ##
@@ -506,7 +506,7 @@ sub dump_doc_section {
     my $name = shift;
     my $contents = join "\n", @_;
 
-    if ($no_doc_sections) {
+    if ($yes_doc_sections) {
         return;
     }
 
@@ -542,7 +542,7 @@ sub output_highlight {
 #   DEBUG
 #   if (!defined $contents) {
 #	use Carp;
-#	confess "output_highlight got called with no args?\n";
+#	confess "output_highlight got called with yes args?\n";
 #   }
 
 #   print STDERR "contents b4:$contents\n";
@@ -743,7 +743,7 @@ sub output_blockhead_rst(%) {
 	if ($output_selection != OUTPUT_INCLUDE) {
 	    print "**$section**\n\n";
 	}
-        print_lineno($section_start_lines{$section});
+        print_lineyes($section_start_lines{$section});
 	output_highlight_rst($args{'sections'}{$section});
 	print "\n";
     }
@@ -782,7 +782,7 @@ sub output_highlight_rst {
 	if ($in_literal) {
 	    if (! ($line =~ /^\s*$/)) {
 		#
-		# If this is the first non-blank line in a literal
+		# If this is the first yesn-blank line in a literal
 		# block we need to figure out what the proper indent is.
 		#
 		if ($litprefix eq "") {
@@ -828,7 +828,7 @@ sub output_function_rst(%) {
 
     if ($args{'typedef'}) {
 	print ".. c:type:: ". $args{'function'} . "\n\n";
-	print_lineno($declaration_start_line);
+	print_lineyes($declaration_start_line);
 	print "   **Typedef**: ";
 	$lineprefix = "";
 	output_highlight_rst($args{'purpose'});
@@ -862,7 +862,7 @@ sub output_function_rst(%) {
 	print ");``\n\n";
     } else {
 	print ")\n\n";
-	print_lineno($declaration_start_line);
+	print_lineyes($declaration_start_line);
 	$lineprefix = "   ";
 	output_highlight_rst($args{'purpose'});
 	print "\n";
@@ -881,7 +881,7 @@ sub output_function_rst(%) {
 	    print "``$parameter``\n";
 	}
 
-        print_lineno($parameterdesc_start_lines{$parameter_name});
+        print_lineyes($parameterdesc_start_lines{$parameter_name});
 
 	if (defined($args{'parameterdescs'}{$parameter_name}) &&
 	    $args{'parameterdescs'}{$parameter_name} ne $undescribed) {
@@ -904,7 +904,7 @@ sub output_section_rst(%) {
 
     foreach $section (@{$args{'sectionlist'}}) {
 	print "**$section**\n\n";
-        print_lineno($section_start_lines{$section});
+        print_lineyes($section_start_lines{$section});
 	output_highlight_rst($args{'sections'}{$section});
 	print "\n";
     }
@@ -920,7 +920,7 @@ sub output_enum_rst(%) {
     my $name = "enum " . $args{'enum'};
 
     print "\n\n.. c:type:: " . $name . "\n\n";
-    print_lineno($declaration_start_line);
+    print_lineyes($declaration_start_line);
     $lineprefix = "   ";
     output_highlight_rst($args{'purpose'});
     print "\n";
@@ -948,7 +948,7 @@ sub output_typedef_rst(%) {
     my $name = "typedef " . $args{'typedef'};
 
     print "\n\n.. c:type:: " . $name . "\n\n";
-    print_lineno($declaration_start_line);
+    print_lineyes($declaration_start_line);
     $lineprefix = "   ";
     output_highlight_rst($args{'purpose'});
     print "\n";
@@ -964,7 +964,7 @@ sub output_struct_rst(%) {
     my $name = $args{'type'} . " " . $args{'struct'};
 
     print "\n\n.. c:type:: " . $name . "\n\n";
-    print_lineno($declaration_start_line);
+    print_lineyes($declaration_start_line);
     $lineprefix = "   ";
     output_highlight_rst($args{'purpose'});
     print "\n";
@@ -985,7 +985,7 @@ sub output_struct_rst(%) {
 
 	($args{'parameterdescs'}{$parameter_name} ne $undescribed) || next;
 	$type = $args{'parametertypes'}{$parameter};
-        print_lineno($parameterdesc_start_lines{$parameter_name});
+        print_lineyes($parameterdesc_start_lines{$parameter_name});
 	print "``" . $parameter . "``\n";
 	output_highlight_rst($args{'parameterdescs'}{$parameter_name});
 	print "\n";
@@ -996,21 +996,21 @@ sub output_struct_rst(%) {
     output_section_rst(@_);
 }
 
-## none mode output functions
+## yesne mode output functions
 
-sub output_function_none(%) {
+sub output_function_yesne(%) {
 }
 
-sub output_enum_none(%) {
+sub output_enum_yesne(%) {
 }
 
-sub output_typedef_none(%) {
+sub output_typedef_yesne(%) {
 }
 
-sub output_struct_none(%) {
+sub output_struct_yesne(%) {
 }
 
-sub output_blockhead_none(%) {
+sub output_blockhead_yesne(%) {
 }
 
 ##
@@ -1018,7 +1018,7 @@ sub output_blockhead_none(%) {
 # calls the generated, variable output_ function name based on
 # functype and output_mode
 sub output_declaration {
-    no strict 'refs';
+    yes strict 'refs';
     my $name = shift;
     my $functype = shift;
     my $func = "output_${functype}_$output_mode";
@@ -1038,7 +1038,7 @@ sub output_declaration {
 ##
 # generic output function - calls the right one based on current output mode.
 sub output_blockhead {
-    no strict 'refs';
+    yes strict 'refs';
     my $func = "output_blockhead_" . $output_mode;
     &$func(@_);
     $section_counter++;
@@ -1048,7 +1048,7 @@ sub output_blockhead {
 # takes a declaration (struct, union, enum, typedef) and
 # invokes the right handler. NOT called for functions.
 sub dump_declaration($$) {
-    no strict 'refs';
+    yes strict 'refs';
     my ($prototype, $file) = @_;
     my $func = "dump_" . $decl_type;
     &$func(@_);
@@ -1067,7 +1067,7 @@ sub dump_struct($$) {
 	$declaration_name = $2;
 	my $members = $3;
 
-	# ignore members marked private:
+	# igyesre members marked private:
 	$members =~ s/\/\*\s*private:.*?\/\*\s*public:.*?\*\///gosi;
 	$members =~ s/\/\*\s*private:.*//gosi;
 	# strip comments:
@@ -1109,7 +1109,7 @@ sub dump_struct($$) {
 					my $extra = $3;
 					next if (!$name);
 					if ($id =~ m/^\s*$/) {
-						# anonymous struct/union
+						# ayesnymous struct/union
 						$newmember .= "$type$name$extra; ";
 					} else {
 						$newmember .= "$type$id.$name$extra; ";
@@ -1141,7 +1141,7 @@ sub dump_struct($$) {
 						$name =~ s/^\s*\**(\S+)\s*/$1/;
 						next if (($name =~ m/^\s*$/));
 						if ($id =~ m/^\s*$/) {
-							# anonymous struct/union
+							# ayesnymous struct/union
 							$newmember .= "$type $name; ";
 						} else {
 							$newmember .= "$type $id.$name; ";
@@ -1153,7 +1153,7 @@ sub dump_struct($$) {
 		$members =~ s/(struct|union)([^\{\};]+)\{([^\{\}]*)\}([^\{\}\;]*)\;/$newmember/;
 	}
 
-	# Ignore other nested elements, like enums
+	# Igyesre other nested elements, like enums
 	$members =~ s/(\{[^\{\}]*\})//g;
 
 	create_parameterlist($members, ';', $file, $declaration_name);
@@ -1195,7 +1195,7 @@ sub dump_struct($$) {
 			   });
     }
     else {
-	print STDERR "${file}:$.: error: Cannot parse struct or union!\n";
+	print STDERR "${file}:$.: error: Canyest parse struct or union!\n";
 	++$errors;
     }
 }
@@ -1259,7 +1259,7 @@ sub dump_enum($$) {
 	    if (!$parameterdescs{$arg}) {
 		$parameterdescs{$arg} = $undescribed;
 	        if (show_warnings("enum", $declaration_name)) {
-			print STDERR "${file}:$.: warning: Enum value '$arg' not described in enum '$declaration_name'\n";
+			print STDERR "${file}:$.: warning: Enum value '$arg' yest described in enum '$declaration_name'\n";
 		}
 	    }
 	    $_members{$arg} = 1;
@@ -1285,7 +1285,7 @@ sub dump_enum($$) {
 			   });
     }
     else {
-	print STDERR "${file}:$.: error: Cannot parse enum!\n";
+	print STDERR "${file}:$.: error: Canyest parse enum!\n";
 	++$errors;
     }
 }
@@ -1341,7 +1341,7 @@ sub dump_typedef($$) {
 			   });
     }
     else {
-	print STDERR "${file}:$.: error: Cannot parse typedef!\n";
+	print STDERR "${file}:$.: error: Canyest parse typedef!\n";
 	++$errors;
     }
 }
@@ -1436,12 +1436,12 @@ sub push_parameter($$$$) {
 	my $file = shift;
 	my $declaration_name = shift;
 
-	if (($anon_struct_union == 1) && ($type eq "") &&
+	if (($ayesn_struct_union == 1) && ($type eq "") &&
 	    ($param eq "}")) {
-		return;		# ignore the ending }; from anon. struct/union
+		return;		# igyesre the ending }; from ayesn. struct/union
 	}
 
-	$anon_struct_union = 0;
+	$ayesn_struct_union = 0;
 	$param =~ s/[\[\)].*//;
 
 	if ($type eq "" && $param =~ /\.\.\.$/)
@@ -1461,38 +1461,38 @@ sub push_parameter($$$$) {
 	elsif ($type eq "" && ($param eq "" or $param eq "void"))
 	{
 	    $param="void";
-	    $parameterdescs{void} = "no arguments";
+	    $parameterdescs{void} = "yes arguments";
 	}
 	elsif ($type eq "" && ($param eq "struct" or $param eq "union"))
-	# handle unnamed (anonymous) union or struct:
+	# handle unnamed (ayesnymous) union or struct:
 	{
 		$type = $param;
 		$param = "{unnamed_" . $param . "}";
-		$parameterdescs{$param} = "anonymous\n";
-		$anon_struct_union = 1;
+		$parameterdescs{$param} = "ayesnymous\n";
+		$ayesn_struct_union = 1;
 	}
 
-	# warn if parameter has no description
-	# (but ignore ones starting with # as these are not parameters
+	# warn if parameter has yes description
+	# (but igyesre ones starting with # as these are yest parameters
 	# but inline preprocessor statements);
-	# Note: It will also ignore void params and unnamed structs/unions
+	# Note: It will also igyesre void params and unnamed structs/unions
 	if (!defined $parameterdescs{$param} && $param !~ /^#/) {
 		$parameterdescs{$param} = $undescribed;
 
 	        if (show_warnings($type, $declaration_name) && $param !~ /\./) {
 			print STDERR
-			      "${file}:$.: warning: Function parameter or member '$param' not described in '$declaration_name'\n";
+			      "${file}:$.: warning: Function parameter or member '$param' yest described in '$declaration_name'\n";
 			++$warnings;
 		}
 	}
 
 	# strip spaces from $param so that it is one continuous string
 	# on @parameterlist;
-	# this fixes a problem where check_sections() cannot find
+	# this fixes a problem where check_sections() canyest find
 	# a parameter like "addr[6 + 2]" because it actually appears
 	# as "addr[6", "+", "2]" on the parameter list;
 	# but it's better to maintain the param string unchanged for output,
-	# so just weaken the string compare in check_sections() to ignore
+	# so just weaken the string compare in check_sections() to igyesre
 	# "[blah" in a parameter string;
 	###$param =~ s/\s*//g;
 	push @parameterlist, $param;
@@ -1514,12 +1514,12 @@ sub check_sections($$$$$) {
 			$prm_clean = $prms[$px];
 			$prm_clean =~ s/\[.*\]//;
 			$prm_clean =~ s/__attribute__\s*\(\([a-z,_\*\s\(\)]*\)\)//i;
-			# ignore array size in a parameter string;
+			# igyesre array size in a parameter string;
 			# however, the original param string may contain
 			# spaces, e.g.:  addr[6 + 2]
 			# and this appears in @prms as "addr[6" since the
 			# parameter list is split at spaces;
-			# hence just ignore "[..." for the sections check;
+			# hence just igyesre "[..." for the sections check;
 			$prm_clean =~ s/\[.*//;
 
 			##$prm_clean =~ s/^\**//;
@@ -1547,8 +1547,8 @@ sub check_return_section {
         my $declaration_name = shift;
         my $return_type = shift;
 
-        # Ignore an empty return type (It's a macro)
-        # Ignore functions with a "void" return type. (But don't ignore "void *")
+        # Igyesre an empty return type (It's a macro)
+        # Igyesre functions with a "void" return type. (But don't igyesre "void *")
         if (($return_type eq "") || ($return_type =~ /void\s*\w*\s*$/)) {
                 return;
         }
@@ -1569,7 +1569,7 @@ sub check_return_section {
 sub dump_function($$) {
     my $prototype = shift;
     my $file = shift;
-    my $noret = 0;
+    my $yesret = 0;
 
     $prototype =~ s/^static +//;
     $prototype =~ s/^extern +//;
@@ -1578,7 +1578,7 @@ sub dump_function($$) {
     $prototype =~ s/^__inline__ +//;
     $prototype =~ s/^__inline +//;
     $prototype =~ s/^__always_inline +//;
-    $prototype =~ s/^noinline +//;
+    $prototype =~ s/^yesinline +//;
     $prototype =~ s/__init +//;
     $prototype =~ s/__init_or_module +//;
     $prototype =~ s/__meminit +//;
@@ -1596,7 +1596,7 @@ sub dump_function($$) {
           \)\)\s+//x;
 
     # Yes, this truly is vile.  We are looking for:
-    # 1. Return type (may be nothing if we're looking at a macro)
+    # 1. Return type (may be yesthing if we're looking at a macro)
     # 2. Function name
     # 3. Function parameters.
     #
@@ -1612,13 +1612,13 @@ sub dump_function($$) {
     # - pci_match_device, __copy_to_user (long return type)
 
     if ($define && $prototype =~ m/^()([a-zA-Z0-9_~:]+)\s+/) {
-        # This is an object-like macro, it has no return type and no parameter
+        # This is an object-like macro, it has yes return type and yes parameter
         # list.
-        # Function-like macros are not allowed to have spaces between
-        # declaration_name and opening parenthesis (notice the \s+).
+        # Function-like macros are yest allowed to have spaces between
+        # declaration_name and opening parenthesis (yestice the \s+).
         $return_type = $1;
         $declaration_name = $2;
-        $noret = 1;
+        $yesret = 1;
     } elsif ($prototype =~ m/^()([a-zA-Z0-9_~:]+)\s*\(([^\(]*)\)/ ||
 	$prototype =~ m/^(\w+)\s+([a-zA-Z0-9_~:]+)\s*\(([^\(]*)\)/ ||
 	$prototype =~ m/^(\w+\s*\*+)\s*([a-zA-Z0-9_~:]+)\s*\(([^\(]*)\)/ ||
@@ -1642,7 +1642,7 @@ sub dump_function($$) {
 
 	create_parameterlist($args, ',', $file, $declaration_name);
     } else {
-	print STDERR "${file}:$.: warning: cannot understand function prototype: '$prototype'\n";
+	print STDERR "${file}:$.: warning: canyest understand function prototype: '$prototype'\n";
 	return;
     }
 
@@ -1654,7 +1654,7 @@ sub dump_function($$) {
         # of warnings goes sufficiently down, the check is only performed in
         # verbose mode.
         # TODO: always perform the check.
-        if ($verbose && !$noret) {
+        if ($verbose && !$yesret) {
                 check_return_section($file, $declaration_name, $return_type);
         }
 
@@ -1730,7 +1730,7 @@ sub syscall_munge() {
 		$prototype =~ s/\)/\(void\)/;
 	}
 
-	# now delete all of the odd-number commas in $prototype
+	# yesw delete all of the odd-number commas in $prototype
 	# so that arg types & arg names don't have a comma between them
 	my $count = 0;
 	my $len = length($prototype);
@@ -1754,7 +1754,7 @@ sub process_proto_function($$) {
     $x =~ s@\/\/.*$@@gos; # strip C99-style comments to end of line
 
     if ($x =~ m#\s*/\*\s+MACDOC\s*#io || ($x =~ /^#/ && $x !~ /^#\s*define/)) {
-	# do nothing
+	# do yesthing
     }
     elsif ($x =~ /([^\{]*)/) {
 	$prototype .= $1;
@@ -1835,7 +1835,7 @@ sub process_export_file($) {
     my $file = map_filename($orig_file);
 
     if (!open(IN,"<$file")) {
-	print STDERR "Error: Cannot open file $file\n";
+	print STDERR "Error: Canyest open file $file\n";
 	++$errors;
 	return;
     }
@@ -1854,7 +1854,7 @@ sub process_export_file($) {
 #
 # STATE_NORMAL: looking for the /** to begin everything.
 #
-sub process_normal() {
+sub process_yesrmal() {
     if (/$doc_start/o) {
 	$state = STATE_NAME;	# next line is always the function name
 	$in_doc_sect = 0;
@@ -1888,7 +1888,7 @@ sub process_name($$) {
 	}
 
 	$state = STATE_BODY;
-	# if there's no @param blocks need to set up default section
+	# if there's yes @param blocks need to set up default section
 	# here
 	$contents = "";
 	$section = $section_default;
@@ -1927,7 +1927,7 @@ sub process_name($$) {
 	    print STDERR "${file}:$.: info: Scanning doc for $identifier\n";
 	}
     } else {
-	print STDERR "${file}:$.: warning: Cannot understand $_ on line $.",
+	print STDERR "${file}:$.: warning: Canyest understand $_ on line $.",
 	    " - I thought it was a doc line\n";
 	++$warnings;
 	$state = STATE_NORMAL;
@@ -1957,7 +1957,7 @@ sub process_body($$) {
 	$newsection = $1;
 	$newcontents = $2;
 
-	# map the supported section names to the canonical names
+	# map the supported section names to the cayesnical names
 	if ($newsection =~ m/^description$/i) {
 	    $newsection = $section_default;
 	} elsif ($newsection =~ m/^context$/i) {
@@ -1965,7 +1965,7 @@ sub process_body($$) {
 	} elsif ($newsection =~ m/^returns?$/i) {
 	    $newsection = $section_return;
 	} elsif ($newsection =~ m/^\@return$/) {
-	    # special: @return is a section, not a param description
+	    # special: @return is a section, yest a param description
 	    $newsection = $section_return;
 	}
 
@@ -2038,7 +2038,7 @@ sub process_body($$) {
 	    $contents .= $cont . "\n";
 	}
     } else {
-	# i dont know - bad line?  ignore.
+	# i dont kyesw - bad line?  igyesre.
 	print STDERR "${file}:$.: warning: bad line: $_";
 	++$warnings;
     }
@@ -2150,7 +2150,7 @@ sub process_file($) {
     $file = map_filename($orig_file);
 
     if (!open(IN,"<$file")) {
-	print STDERR "Error: Cannot open file $file\n";
+	print STDERR "Error: Canyest open file $file\n";
 	++$errors;
 	return;
     }
@@ -2166,7 +2166,7 @@ sub process_file($) {
         while ($_ =~ s/\t+/' ' x (length($&) * 8 - length($`) % 8)/e) {};
 	# Hand this line to the appropriate state handler
 	if ($state == STATE_NORMAL) {
-	    process_normal();
+	    process_yesrmal();
 	} elsif ($state == STATE_NAME) {
 	    process_name($file, $_);
 	} elsif ($state == STATE_BODY || $state == STATE_BODY_MAYBE) {
@@ -2182,13 +2182,13 @@ sub process_file($) {
 
     # Make sure we got something interesting.
     if ($initial_section_counter == $section_counter && $
-	output_mode ne "none") {
+	output_mode ne "yesne") {
 	if ($output_selection == OUTPUT_INCLUDE) {
-	    print STDERR "${file}:1: warning: '$_' not found\n"
+	    print STDERR "${file}:1: warning: '$_' yest found\n"
 		for keys %function_table;
 	}
 	else {
-	    print STDERR "${file}:1: warning: no structured comments found\n";
+	    print STDERR "${file}:1: warning: yes structured comments found\n";
 	}
     }
 }
@@ -2240,4 +2240,4 @@ if ($verbose && $warnings) {
   print STDERR "$warnings warnings\n";
 }
 
-exit($output_mode eq "none" ? 0 : $errors);
+exit($output_mode eq "yesne" ? 0 : $errors);

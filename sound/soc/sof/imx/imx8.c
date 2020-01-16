@@ -182,8 +182,8 @@ static int imx8_probe(struct snd_sof_dev *sdev)
 {
 	struct platform_device *pdev =
 		container_of(sdev->dev, struct platform_device, dev);
-	struct device_node *np = pdev->dev.of_node;
-	struct device_node *res_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
+	struct device_yesde *res_yesde;
 	struct resource *mmio;
 	struct imx8_priv *priv;
 	struct resource res;
@@ -203,7 +203,7 @@ static int imx8_probe(struct snd_sof_dev *sdev)
 	priv->num_domains = of_count_phandle_with_args(np, "power-domains",
 						       "#power-domain-cells");
 	if (priv->num_domains < 0) {
-		dev_err(sdev->dev, "no power-domains property in %pOF\n", np);
+		dev_err(sdev->dev, "yes power-domains property in %pOF\n", np);
 		return priv->num_domains;
 	}
 
@@ -236,7 +236,7 @@ static int imx8_probe(struct snd_sof_dev *sdev)
 
 	ret = imx_scu_get_handle(&priv->sc_ipc);
 	if (ret) {
-		dev_err(sdev->dev, "Cannot obtain SCU handle (err = %d)\n",
+		dev_err(sdev->dev, "Canyest obtain SCU handle (err = %d)\n",
 			ret);
 		goto exit_unroll_pm;
 	}
@@ -251,7 +251,7 @@ static int imx8_probe(struct snd_sof_dev *sdev)
 
 	priv->dsp_ipc = dev_get_drvdata(&priv->ipc_dev->dev);
 	if (!priv->dsp_ipc) {
-		/* DSP IPC driver not probed yet, try later */
+		/* DSP IPC driver yest probed yet, try later */
 		ret = -EPROBE_DEFER;
 		dev_err(sdev->dev, "Failed to get drvdata\n");
 		goto exit_pdev_unregister;
@@ -280,14 +280,14 @@ static int imx8_probe(struct snd_sof_dev *sdev)
 	}
 	sdev->mmio_bar = SOF_FW_BLK_TYPE_IRAM;
 
-	res_node = of_parse_phandle(np, "memory-region", 0);
-	if (!res_node) {
-		dev_err(&pdev->dev, "failed to get memory region node\n");
+	res_yesde = of_parse_phandle(np, "memory-region", 0);
+	if (!res_yesde) {
+		dev_err(&pdev->dev, "failed to get memory region yesde\n");
 		ret = -ENODEV;
 		goto exit_pdev_unregister;
 	}
 
-	ret = of_address_to_resource(res_node, 0, &res);
+	ret = of_address_to_resource(res_yesde, 0, &res);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to get reserved region address\n");
 		goto exit_pdev_unregister;

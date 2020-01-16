@@ -10,7 +10,7 @@
 
 static void gve_rx_remove_from_block(struct gve_priv *priv, int queue_idx)
 {
-	struct gve_notify_block *block =
+	struct gve_yestify_block *block =
 			&priv->ntfy_blocks[gve_rx_idx_to_ntfy(priv, queue_idx)];
 
 	block->rx = NULL;
@@ -87,7 +87,7 @@ static int gve_prefill_rx_pages(struct gve_rx_ring *rx)
 static void gve_rx_add_to_block(struct gve_priv *priv, int queue_idx)
 {
 	u32 ntfy_idx = gve_rx_idx_to_ntfy(priv, queue_idx);
-	struct gve_notify_block *block = &priv->ntfy_blocks[ntfy_idx];
+	struct gve_yestify_block *block = &priv->ntfy_blocks[ntfy_idx];
 	struct gve_rx_ring *rx = &priv->rx[queue_idx];
 
 	block->rx = rx;
@@ -158,7 +158,7 @@ static int gve_rx_alloc_ring(struct gve_priv *priv, int idx)
 	}
 	rx->mask = slots - 1;
 	rx->cnt = 0;
-	rx->desc.seqno = 1;
+	rx->desc.seqyes = 1;
 	gve_rx_add_to_block(priv, idx);
 
 	return 0;
@@ -322,7 +322,7 @@ static bool gve_rx(struct gve_rx_ring *rx, struct gve_rx_desc *rx_desc,
 			gve_rx_flip_buff(page_info, &rx->data.data_ring[idx]);
 		} else if (pagecount >= 2) {
 			/* We have previously passed the other half of this
-			 * page up the stack, but it has not yet been freed.
+			 * page up the stack, but it has yest yet been freed.
 			 */
 			skb = gve_rx_copy(dev, napi, page_info, len);
 		} else {
@@ -355,7 +355,7 @@ have_skb:
 		skb_set_hash(skb, be32_to_cpu(rx_desc->rss_hash),
 			     gve_rss_type(rx_desc->flags_seq));
 
-	if (skb_is_nonlinear(skb))
+	if (skb_is_yesnlinear(skb))
 		napi_gro_frags(napi);
 	else
 		napi_gro_receive(napi, skb);
@@ -372,10 +372,10 @@ static bool gve_rx_work_pending(struct gve_rx_ring *rx)
 	desc = rx->desc.desc_ring + next_idx;
 
 	flags_seq = desc->flags_seq;
-	/* Make sure we have synchronized the seq no with the device */
+	/* Make sure we have synchronized the seq yes with the device */
 	smp_rmb();
 
-	return (GVE_SEQNO(flags_seq) == rx->desc.seqno);
+	return (GVE_SEQNO(flags_seq) == rx->desc.seqyes);
 }
 
 bool gve_clean_rx_done(struct gve_rx_ring *rx, int budget,
@@ -389,22 +389,22 @@ bool gve_clean_rx_done(struct gve_rx_ring *rx, int budget,
 	u64 bytes = 0;
 
 	desc = rx->desc.desc_ring + idx;
-	while ((GVE_SEQNO(desc->flags_seq) == rx->desc.seqno) &&
+	while ((GVE_SEQNO(desc->flags_seq) == rx->desc.seqyes) &&
 	       work_done < budget) {
 		netif_info(priv, rx_status, priv->dev,
 			   "[%d] idx=%d desc=%p desc->flags_seq=0x%x\n",
 			   rx->q_num, idx, desc, desc->flags_seq);
 		netif_info(priv, rx_status, priv->dev,
-			   "[%d] seqno=%d rx->desc.seqno=%d\n",
+			   "[%d] seqyes=%d rx->desc.seqyes=%d\n",
 			   rx->q_num, GVE_SEQNO(desc->flags_seq),
-			   rx->desc.seqno);
+			   rx->desc.seqyes);
 		bytes += be16_to_cpu(desc->len) - GVE_RX_PAD;
 		if (!gve_rx(rx, desc, feat, idx))
 			gve_schedule_reset(priv);
 		cnt++;
 		idx = cnt & rx->mask;
 		desc = rx->desc.desc_ring + idx;
-		rx->desc.seqno = gve_next_seqno(rx->desc.seqno);
+		rx->desc.seqyes = gve_next_seqyes(rx->desc.seqyes);
 		work_done++;
 	}
 
@@ -422,7 +422,7 @@ bool gve_clean_rx_done(struct gve_rx_ring *rx, int budget,
 	return gve_rx_work_pending(rx);
 }
 
-bool gve_rx_poll(struct gve_notify_block *block, int budget)
+bool gve_rx_poll(struct gve_yestify_block *block, int budget)
 {
 	struct gve_rx_ring *rx = block->rx;
 	netdev_features_t feat;

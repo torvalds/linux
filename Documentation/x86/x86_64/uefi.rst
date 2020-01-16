@@ -1,12 +1,12 @@
 .. SPDX-License-Identifier: GPL-2.0
 
 =====================================
-General note on [U]EFI x86_64 support
+General yeste on [U]EFI x86_64 support
 =====================================
 
-The nomenclature EFI and UEFI are used interchangeably in this document.
+The yesmenclature EFI and UEFI are used interchangeably in this document.
 
-Although the tools below are _not_ needed for building the kernel,
+Although the tools below are _yest_ needed for building the kernel,
 the needed bootloader support and associated tools for x86_64 platforms
 with EFI firmware and specifications are listed below.
 
@@ -45,12 +45,12 @@ Mechanics
   kernel command line parameters to turn off some or all EFI runtime
   services.
 
-	noefi
+	yesefi
 		turn off all EFI runtime services
 	reboot_type=k
 		turn off EFI reboot runtime service
 
-- If the EFI memory map has additional entries not in the E820 map,
+- If the EFI memory map has additional entries yest in the E820 map,
   you can include those entries in the kernels memory map of available
   physical RAM by using the following kernel command line parameter.
 

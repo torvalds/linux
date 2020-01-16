@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -116,7 +116,7 @@ struct protection_properties {
 		struct hdcp_protection_message *message_info);
 };
 
-static const struct protection_properties non_supported_protection = {
+static const struct protection_properties yesn_supported_protection = {
 	.supported = false
 };
 
@@ -132,7 +132,7 @@ static bool hdmi_14_process_transaction(
 	uint8_t offset = hdcp_i2c_offsets[message_info->msg_id];
 	struct i2c_payload i2c_payloads[] = {
 		{ true, 0, 1, &offset },
-		/* actual hdcp payload, will be filled later, zeroed for now*/
+		/* actual hdcp payload, will be filled later, zeroed for yesw*/
 		{ 0 }
 	};
 
@@ -234,7 +234,7 @@ static bool dpcd_access_helper(
 	/* Read KSV, need repeatedly handle */
 	if (dpcd_addr == 0x6802c) {
 		if (length % HDCP14_KSV_SIZE) {
-			DC_LOG_ERROR("%s: KsvFifo Size(%d) is not a multiple of HDCP14_KSV_SIZE(%d)\n",
+			DC_LOG_ERROR("%s: KsvFifo Size(%d) is yest a multiple of HDCP14_KSV_SIZE(%d)\n",
 				__func__,
 				length,
 				HDCP14_KSV_SIZE);

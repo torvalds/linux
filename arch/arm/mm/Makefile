@@ -9,7 +9,7 @@ obj-$(CONFIG_MMU)		+= fault-armv.o flush.o idmap.o ioremap.o \
 				   mmap.o pgd.o mmu.o pageattr.o
 
 ifneq ($(CONFIG_MMU),y)
-obj-y				+= nommu.o
+obj-y				+= yesmmu.o
 obj-$(CONFIG_ARM_MPU)		+= pmsa-v7.o pmsa-v8.o
 endif
 
@@ -23,7 +23,7 @@ obj-$(CONFIG_HIGHMEM)		+= highmem.o
 obj-$(CONFIG_HUGETLB_PAGE)	+= hugetlbpage.o
 obj-$(CONFIG_ARM_PV_FIXUP)	+= pv-fixup-asm.o
 
-obj-$(CONFIG_CPU_ABRT_NOMMU)	+= abort-nommu.o
+obj-$(CONFIG_CPU_ABRT_NOMMU)	+= abort-yesmmu.o
 obj-$(CONFIG_CPU_ABRT_EV4)	+= abort-ev4.o
 obj-$(CONFIG_CPU_ABRT_EV4T)	+= abort-ev4t.o
 obj-$(CONFIG_CPU_ABRT_LV4T)	+= abort-lv4t.o
@@ -45,7 +45,7 @@ obj-$(CONFIG_CPU_CACHE_V4WB)	+= cache-v4wb.o
 obj-$(CONFIG_CPU_CACHE_V6)	+= cache-v6.o
 obj-$(CONFIG_CPU_CACHE_V7)	+= cache-v7.o
 obj-$(CONFIG_CPU_CACHE_FA)	+= cache-fa.o
-obj-$(CONFIG_CPU_CACHE_NOP)	+= cache-nop.o
+obj-$(CONFIG_CPU_CACHE_NOP)	+= cache-yesp.o
 obj-$(CONFIG_CPU_CACHE_V7M)	+= cache-v7m.o
 
 AFLAGS_cache-v6.o	:=-Wa,-march=armv6

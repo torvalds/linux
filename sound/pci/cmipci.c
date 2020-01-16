@@ -4,7 +4,7 @@
  * Copyright (c) 2000 by Takashi Iwai <tiwai@suse.de>
  */
  
-/* Does not work. Warning may block system in capture mode */
+/* Does yest work. Warning may block system in capture mode */
 /* #define USE_VAR48KRATE */
 
 #include <linux/io.h>
@@ -238,7 +238,7 @@ MODULE_PARM_DESC(joystick_port, "Joystick port address.");
 #define CM_MUTECH1		0x00000040	/* mute PCI ch1 to DAC */
 #define CM_FLINKOFF		0x00000020	/* force modem link detection off, model 037 */
 #define CM_MIDSMP		0x00000010	/* 1/2 interpolation at front end DAC */
-#define CM_UPDDMA_MASK		0x0000000C	/* TDMA position update notification */
+#define CM_UPDDMA_MASK		0x0000000C	/* TDMA position update yestification */
 #define CM_UPDDMA_2048		0x00000000
 #define CM_UPDDMA_1024		0x00000004
 #define CM_UPDDMA_512		0x00000008
@@ -266,7 +266,7 @@ MODULE_PARM_DESC(joystick_port, "Joystick port address.");
 #define CM_REG_SB16_ADDR	0x23
 
 #define CM_REFFREQ_XIN		(315*1000*1000)/22	/* 14.31818 Mhz reference clock frequency pin XIN */
-#define CM_ADCMULT_XIN		512			/* Guessed (487 best for 44.1kHz, not for 88/176kHz) */
+#define CM_ADCMULT_XIN		512			/* Guessed (487 best for 44.1kHz, yest for 88/176kHz) */
 #define CM_TOLERANCE_RATE	0.001			/* Tolerance sample rate pitch (1000ppm) */
 #define CM_MAXIMUM_RATE		80000000		/* Note more than 80MHz */
 
@@ -346,7 +346,7 @@ MODULE_PARM_DESC(joystick_port, "Joystick port address.");
 #define CM_VADMIC3		0x01	/* Mic record boost */
 
 /*
- * CMI-8338 spec ver 0.5 (this is not valid for CMI-8738):
+ * CMI-8338 spec ver 0.5 (this is yest valid for CMI-8738):
  * the 8 registers 0xf8 - 0xff are used for programming m/n counter by the PLL
  * unit (readonly?).
  */
@@ -437,7 +437,7 @@ static const struct cmipci_mixer_auto_switches cm_saved_mixer[] = {
 	{"PCM Playback Switch", 0},
 	{"IEC958 Output Switch", 1},
 	{"IEC958 Mix Analog", 0},
-	// {"IEC958 Out To DAC", 1}, // no longer used
+	// {"IEC958 Out To DAC", 1}, // yes longer used
 	{"IEC958 Loop", 0},
 };
 #define CM_SAVED_MIXERS		ARRAY_SIZE(cm_saved_mixer)
@@ -603,7 +603,7 @@ static unsigned int snd_cmipci_rate_freq(unsigned int rate)
 #ifdef USE_VAR48KRATE
 /*
  * Determine PLL values for frequency setup, maybe the CMI8338 (CMI8738???)
- * does it this way .. maybe not.  Never get any information from C-Media about
+ * does it this way .. maybe yest.  Never get any information from C-Media about
  * that <werner@suse.de>.
  */
 static int snd_cmipci_pll_rmn(unsigned int rate, unsigned int adcmult, int *r, int *m, int *n)
@@ -783,7 +783,7 @@ static int snd_cmipci_pcm_prepare(struct cmipci *cm, struct cmipci_pcm *rec,
 	if (runtime->channels > 1)
 		rec->fmt |= 0x01;
 	if (rec->is_dac && set_dac_channels(cm, rec, runtime->channels) < 0) {
-		dev_dbg(cm->card->dev, "cannot set dac channels\n");
+		dev_dbg(cm->card->dev, "canyest set dac channels\n");
 		return -EINVAL;
 	}
 
@@ -1143,7 +1143,7 @@ static int save_mixer_state(struct cmipci *cm)
 					event |= SNDRV_CTL_EVENT_MASK_VALUE;
 				}
 				ctl->vd[0].access |= SNDRV_CTL_ELEM_ACCESS_INACTIVE;
-				snd_ctl_notify(cm->card, event, &ctl->id);
+				snd_ctl_yestify(cm->card, event, &ctl->id);
 			}
 		}
 		kfree(val);
@@ -1164,7 +1164,7 @@ static void restore_mixer_state(struct cmipci *cm)
 		if (!val)
 			return;
 		cm->mixer_insensitive = 0; /* at first clear this;
-					      otherwise the changes will be ignored */
+					      otherwise the changes will be igyesred */
 		for (i = 0; i < CM_SAVED_MIXERS; i++) {
 			struct snd_kcontrol *ctl = cm->mixer_res_ctl[i];
 			if (ctl) {
@@ -1179,7 +1179,7 @@ static void restore_mixer_state(struct cmipci *cm)
 					ctl->put(ctl, val);
 					event |= SNDRV_CTL_EVENT_MASK_VALUE;
 				}
-				snd_ctl_notify(cm->card, event, &ctl->id);
+				snd_ctl_yestify(cm->card, event, &ctl->id);
 			}
 		}
 		kfree(val);
@@ -1197,7 +1197,7 @@ static void setup_ac3(struct cmipci *cm, struct snd_pcm_substream *subs, int do_
 	
 		if (cm->can_ac3_hw) {
 			/* SPD24SEL for 037, 0x02 */
-			/* SPD24SEL for 039, 0x20, but cannot be set */
+			/* SPD24SEL for 039, 0x20, but canyest be set */
 			snd_cmipci_set_bit(cm, CM_REG_CHFORMAT, CM_SPD24SEL);
 			snd_cmipci_clear_bit(cm, CM_REG_MISC_CTRL, CM_SPD32SEL);
 		} else { /* can_ac3_sw */
@@ -1437,7 +1437,7 @@ static irqreturn_t snd_cmipci_interrupt(int irq, void *dev_id)
 	if (!(status & CM_INTR))
 		return IRQ_NONE;
 
-	/* acknowledge interrupt */
+	/* ackyeswledge interrupt */
 	spin_lock(&cm->reg_lock);
 	if (status & CM_CHINT0)
 		mask |= CM_CH0_INT_EN;
@@ -1602,7 +1602,7 @@ static int open_device_check(struct cmipci *cm, int mode, struct snd_pcm_substre
 	/* FIXME: a file should wait until the device becomes free
 	 * when it's opened on blocking mode.  however, since the current
 	 * pcm framework doesn't pass file pointer before actually opened,
-	 * we can't know whether blocking mode or not in open callback..
+	 * we can't kyesw whether blocking mode or yest in open callback..
 	 */
 	mutex_lock(&cm->open_mutex);
 	if (cm->opened[ch]) {
@@ -2270,7 +2270,7 @@ static int snd_cmipci_put_native_mixer_sensitive(struct snd_kcontrol *kcontrol,
 {
 	struct cmipci *cm = snd_kcontrol_chip(kcontrol);
 	if (cm->mixer_insensitive) {
-		/* ignored */
+		/* igyesred */
 		return 0;
 	}
 	return snd_cmipci_put_native_mixer(kcontrol, ucontrol);
@@ -2325,11 +2325,11 @@ struct cmipci_switch_args {
 	unsigned int mask_on;	/* mask bits to turn on */
 	unsigned int is_byte: 1;		/* byte access? */
 	unsigned int ac3_sensitive: 1;	/* access forbidden during
-					 * non-audio operation?
+					 * yesn-audio operation?
 					 */
 };
 
-#define snd_cmipci_uswitch_info		snd_ctl_boolean_mono_info
+#define snd_cmipci_uswitch_info		snd_ctl_boolean_moyes_info
 
 static int _snd_cmipci_uswitch_get(struct snd_kcontrol *kcontrol,
 				   struct snd_ctl_elem_value *ucontrol,
@@ -2373,7 +2373,7 @@ static int _snd_cmipci_uswitch_put(struct snd_kcontrol *kcontrol,
 
 	spin_lock_irq(&cm->reg_lock);
 	if (args->ac3_sensitive && cm->mixer_insensitive) {
-		/* ignored */
+		/* igyesred */
 		spin_unlock_irq(&cm->reg_lock);
 		return 0;
 	}
@@ -2446,7 +2446,7 @@ DEFINE_SWITCH_ARG(exchange_dac, CM_REG_MISC_CTRL, CM_XCHGDAC, CM_XCHGDAC, 0, 0);
 DEFINE_BIT_SWITCH_ARG(fourch, CM_REG_MISC_CTRL, CM_N4SPK3D, 0, 0);
 // DEFINE_BIT_SWITCH_ARG(line_rear, CM_REG_MIXER1, CM_REAR2LIN, 1, 0);
 // DEFINE_BIT_SWITCH_ARG(line_bass, CM_REG_LEGACY_CTRL, CM_CENTR2LIN|CM_BASE2LIN, 0, 0);
-// DEFINE_BIT_SWITCH_ARG(joystick, CM_REG_FUNCTRL1, CM_JYSTK_EN, 0, 0); /* now module option */
+// DEFINE_BIT_SWITCH_ARG(joystick, CM_REG_FUNCTRL1, CM_JYSTK_EN, 0, 0); /* yesw module option */
 DEFINE_SWITCH_ARG(modem, CM_REG_MISC_CTRL, CM_FLINKON|CM_FLINKOFF, CM_FLINKON, 0, 0);
 
 #define DEFINE_SWITCH(sname, stype, sarg) \
@@ -2599,8 +2599,8 @@ static struct snd_kcontrol_new snd_cmipci_mixer_switches[] = {
 	},
 };
 
-/* for non-multichannel chips */
-static struct snd_kcontrol_new snd_cmipci_nomulti_switch =
+/* for yesn-multichannel chips */
+static struct snd_kcontrol_new snd_cmipci_yesmulti_switch =
 DEFINE_MIXER_SWITCH("Exchange DAC", exchange_dac);
 
 /* only for CM8738 */
@@ -2670,7 +2670,7 @@ static int snd_cmipci_mixer_new(struct cmipci *cm, int pcm_spdif_device)
 	spin_unlock_irq(&cm->reg_lock);
 
 	for (idx = 0; idx < ARRAY_SIZE(snd_cmipci_mixers); idx++) {
-		if (cm->chip_version == 68) {	// 8768 has no PCM volume
+		if (cm->chip_version == 68) {	// 8768 has yes PCM volume
 			if (!strcmp(snd_cmipci_mixers[idx].name,
 				"PCM Playback Volume"))
 				continue;
@@ -2687,7 +2687,7 @@ static int snd_cmipci_mixer_new(struct cmipci *cm, int pcm_spdif_device)
 			return err;
 	}
 	if (! cm->can_multi_ch) {
-		err = snd_ctl_add(cm->card, snd_ctl_new1(&snd_cmipci_nomulti_switch, cm));
+		err = snd_ctl_add(cm->card, snd_ctl_new1(&snd_cmipci_yesmulti_switch, cm));
 		if (err < 0)
 			return err;
 	}
@@ -2731,7 +2731,7 @@ static int snd_cmipci_mixer_new(struct cmipci *cm, int pcm_spdif_device)
 	/* card switches */
 	/*
 	 * newer chips don't have the register bits to force modem link
-	 * detection; the bit that was FLINKON now mutes CH1
+	 * detection; the bit that was FLINKON yesw mutes CH1
 	 */
 	if (cm->chip_version < 39) {
 		err = snd_ctl_add(cm->card,
@@ -2868,13 +2868,13 @@ static int snd_cmipci_create_gameport(struct cmipci *cm, int dev)
 	}
 
 	if (!r) {
-		dev_warn(cm->card->dev, "cannot reserve joystick ports\n");
+		dev_warn(cm->card->dev, "canyest reserve joystick ports\n");
 		return -EBUSY;
 	}
 
 	cm->gameport = gp = gameport_allocate_port();
 	if (!gp) {
-		dev_err(cm->card->dev, "cannot allocate memory for gameport\n");
+		dev_err(cm->card->dev, "canyest allocate memory for gameport\n");
 		release_and_free_resource(r);
 		return -ENOMEM;
 	}
@@ -2975,13 +2975,13 @@ static int snd_cmipci_create_fm(struct cmipci *cm, long fm_port)
 		if (snd_opl3_create(cm->card, iosynth, iosynth + 2,
 				    OPL3_HW_OPL3, 0, &opl3) < 0) {
 			dev_err(cm->card->dev,
-				"no OPL device at %#lx, skipping...\n",
+				"yes OPL device at %#lx, skipping...\n",
 				iosynth);
 			goto disable_fm;
 		}
 	}
 	if ((err = snd_opl3_hwdep_new(opl3, 0, 1, NULL)) < 0) {
-		dev_err(cm->card->dev, "cannot create OPL3 hwdep\n");
+		dev_err(cm->card->dev, "canyest create OPL3 hwdep\n");
 		return err;
 	}
 	return 0;
@@ -3173,7 +3173,7 @@ static int snd_cmipci_create(struct snd_card *card, struct pci_dev *pci,
 			snd_cmipci_set_bit(cm, CM_REG_FUNCTRL1, CM_UART_EN);
 			if (inb(iomidi + 1) == 0xff) {
 				dev_err(cm->card->dev,
-					"cannot enable MPU-401 port at %#lx\n",
+					"canyest enable MPU-401 port at %#lx\n",
 					iomidi);
 				snd_cmipci_clear_bit(cm, CM_REG_FUNCTRL1,
 						     CM_UART_EN);
@@ -3219,7 +3219,7 @@ static int snd_cmipci_create(struct snd_card *card, struct pci_dev *pci,
 					       MPU401_INFO_IRQ_HOOK,
 					       -1, &cm->rmidi)) < 0) {
 			dev_err(cm->card->dev,
-				"no UART401 device at 0x%lx\n", iomidi);
+				"yes UART401 device at 0x%lx\n", iomidi);
 		}
 	}
 

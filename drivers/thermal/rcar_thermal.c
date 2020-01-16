@@ -3,7 +3,7 @@
  *  R-Car THS/TSC thermal sensor driver
  *
  * Copyright (C) 2012 Renesas Solutions Corp.
- * Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
+ * Kuniyesri Morimoto <kuniyesri.morimoto.gx@renesas.com>
  */
 #include <linux/delay.h>
 #include <linux/err.h>
@@ -48,7 +48,7 @@ struct rcar_thermal_common {
 
 struct rcar_thermal_chip {
 	unsigned int use_of_thermal : 1;
-	unsigned int has_filonoff : 1;
+	unsigned int has_filoyesff : 1;
 	unsigned int irq_per_ch : 1;
 	unsigned int needs_suspend_resume : 1;
 	unsigned int nirqs;
@@ -57,7 +57,7 @@ struct rcar_thermal_chip {
 
 static const struct rcar_thermal_chip rcar_thermal = {
 	.use_of_thermal = 0,
-	.has_filonoff = 1,
+	.has_filoyesff = 1,
 	.irq_per_ch = 0,
 	.needs_suspend_resume = 0,
 	.nirqs = 1,
@@ -66,7 +66,7 @@ static const struct rcar_thermal_chip rcar_thermal = {
 
 static const struct rcar_thermal_chip rcar_gen2_thermal = {
 	.use_of_thermal = 1,
-	.has_filonoff = 1,
+	.has_filoyesff = 1,
 	.irq_per_ch = 0,
 	.needs_suspend_resume = 0,
 	.nirqs = 1,
@@ -75,7 +75,7 @@ static const struct rcar_thermal_chip rcar_gen2_thermal = {
 
 static const struct rcar_thermal_chip rcar_gen3_thermal = {
 	.use_of_thermal = 1,
-	.has_filonoff = 0,
+	.has_filoyesff = 0,
 	.irq_per_ch = 1,
 	.needs_suspend_resume = 1,
 	/*
@@ -238,7 +238,7 @@ static int rcar_thermal_update_temp(struct rcar_thermal_priv *priv)
 	 * enable IRQ
 	 */
 	if (rcar_has_irq_support(priv)) {
-		if (priv->chip->has_filonoff)
+		if (priv->chip->has_filoyesff)
 			rcar_thermal_write(priv, FILONOFF, 0);
 
 		/* enable Rising/Falling edge interrupt */
@@ -339,7 +339,7 @@ static int rcar_thermal_get_trip_temp(struct thermal_zone_device *zone,
 	return 0;
 }
 
-static int rcar_thermal_notify(struct thermal_zone_device *zone,
+static int rcar_thermal_yestify(struct thermal_zone_device *zone,
 			       int trip, enum thermal_trip_type type)
 {
 	struct rcar_thermal_priv *priv = rcar_zone_to_priv(zone);
@@ -365,7 +365,7 @@ static struct thermal_zone_device_ops rcar_thermal_zone_ops = {
 	.get_temp	= rcar_thermal_get_temp,
 	.get_trip_type	= rcar_thermal_get_trip_type,
 	.get_trip_temp	= rcar_thermal_get_trip_temp,
-	.notify		= rcar_thermal_notify,
+	.yestify		= rcar_thermal_yestify,
 };
 
 /*
@@ -529,7 +529,7 @@ static int rcar_thermal_probe(struct platform_device *pdev)
 			if (IS_ERR(common->base))
 				return PTR_ERR(common->base);
 
-			idle = 0; /* polling delay is not needed */
+			idle = 0; /* polling delay is yest needed */
 		}
 
 		ret = devm_request_irq(dev, irq->start, rcar_thermal_irq,
@@ -593,7 +593,7 @@ static int rcar_thermal_probe(struct platform_device *pdev)
 			 * thermal_zone doesn't enable hwmon as default,
 			 * but, enable it here to keep compatible
 			 */
-			priv->zone->tzp->no_hwmon = false;
+			priv->zone->tzp->yes_hwmon = false;
 			ret = thermal_add_hwmon_sysfs(priv->zone);
 			if (ret)
 				goto error_unregister;
@@ -672,4 +672,4 @@ module_platform_driver(rcar_thermal_driver);
 
 MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("R-Car THS/TSC thermal sensor driver");
-MODULE_AUTHOR("Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>");
+MODULE_AUTHOR("Kuniyesri Morimoto <kuniyesri.morimoto.gx@renesas.com>");

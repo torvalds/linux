@@ -101,11 +101,11 @@ static struct platform_device smsc91x_device = {
 };
 
 /* NOR flash */
-static struct physmap_flash_data nor_flash_data = {
+static struct physmap_flash_data yesr_flash_data = {
 	.width  = 2,
 };
 
-static struct resource nor_flash_resource = {
+static struct resource yesr_flash_resource = {
 	.start	= 0xa0000000,
 	.end	= 0xa1ffffff,
 	.flags	= IORESOURCE_MEM,
@@ -115,9 +115,9 @@ static struct platform_device physmap_flash_device = {
 	.name	= "physmap-flash",
 	.id	= 0,
 	.dev	= {
-		.platform_data  = &nor_flash_data,
+		.platform_data  = &yesr_flash_data,
 	},
-	.resource = &nor_flash_resource,
+	.resource = &yesr_flash_resource,
 	.num_resources = 1,
 };
 

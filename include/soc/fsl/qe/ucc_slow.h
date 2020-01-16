@@ -60,7 +60,7 @@
 #define R_LG	0x00200000	/* Break received */
 #define R_BR	0x00200000	/* Frame length violation */
 #define R_NO	0x00100000	/* Rx Non Octet Aligned Packet */
-#define R_FR	0x00100000	/* Framing Error (no stop bit) character
+#define R_FR	0x00100000	/* Framing Error (yes stop bit) character
 				   received */
 #define R_PR	0x00080000	/* Parity Error character received */
 #define R_AB	0x00080000	/* Frame Aborted */
@@ -133,7 +133,7 @@ enum ucc_slow_rx_decoding_method {
 	UCC_SLOW_RECEIVER_DECODING_METHOD_RENC_NRZI = 0x00000800
 };
 
-/* UCC Slow Diagnostic mode (DIAG)
+/* UCC Slow Diagyesstic mode (DIAG)
 */
 enum ucc_slow_diag_mode {
 	UCC_SLOW_DIAG_MODE_NORMAL = 0x00000000,

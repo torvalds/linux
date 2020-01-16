@@ -31,13 +31,13 @@
 
 struct smt_sid {
 	u_char	sid_oem[2] ;			/* implementation spec. */
-	struct fddi_addr sid_node ;		/* node address */
+	struct fddi_addr sid_yesde ;		/* yesde address */
 } ;
 
 typedef u_char	t_station_id[8] ;
 
 /*
- * note on alignment :
+ * yeste on alignment :
  * sizeof(struct smt_header) = 32
  * all parameters are long aligned
  * if struct smt_header starts at offset 0, all longs are aligned correctly
@@ -68,7 +68,7 @@ _packed struct smt_header {
 /*
  * type codes
  */
-#define SMT_ANNOUNCE	0x01		/* announcement */
+#define SMT_ANNOUNCE	0x01		/* anyesuncement */
 #define SMT_REQUEST	0x02		/* request */
 #define SMT_REPLY	0x03		/* reply */
 
@@ -119,7 +119,7 @@ struct smt_para {
 struct smt_p_una {
 	struct smt_para	para ;		/* generic parameter header */
 	u_short	una_pad ;
-	struct fddi_addr una_node ;	/* node address, zero if unknown */
+	struct fddi_addr una_yesde ;	/* yesde address, zero if unkyeswn */
 } ;
 
 /*
@@ -128,14 +128,14 @@ struct smt_p_una {
 #define SMT_P_SDE	0x0002		/* station descriptor */
 #define SWAP_SMT_P_SDE	"1111"
 
-#define SMT_SDE_STATION		0	/* end node */
+#define SMT_SDE_STATION		0	/* end yesde */
 #define SMT_SDE_CONCENTRATOR	1	/* concentrator */
 
 struct smt_p_sde {
 	struct smt_para	para ;		/* generic parameter header */
 	u_char	sde_type ;		/* station type */
 	u_char	sde_mac_count ;		/* number of MACs */
-	u_char	sde_non_master ;	/* number of A,B or S ports */
+	u_char	sde_yesn_master ;	/* number of A,B or S ports */
 	u_char	sde_master ;		/* number of S ports on conc. */
 } ;
 
@@ -157,7 +157,7 @@ struct smt_p_state {
 #define SMT_ST_TWISTED_B	(1<<3)	/* B-B connection, twisted ring */
 #define SMT_ST_ROOTED_S		(1<<4)	/* rooted station */
 #define SMT_ST_SRF		(1<<5)	/* SRF protocol supported */
-#define SMT_ST_SYNC_SERVICE	(1<<6)	/* use synchronous bandwidth */
+#define SMT_ST_SYNC_SERVICE	(1<<6)	/* use synchroyesus bandwidth */
 
 #define SMT_ST_MY_DUPA		(1<<0)	/* my station detected dupl. */
 #define SMT_ST_UNA_DUPA		(1<<1)	/* my UNA detected duplicate */
@@ -192,7 +192,7 @@ struct smt_p_policy {
 #define SWAP_SMT_P_LATENCY	"ssss"
 
 /*
- * note: latency has two phy entries by definition
+ * yeste: latency has two phy entries by definition
  * for a SAS, the 2nd one is null
  */
 struct smt_p_latency {
@@ -213,8 +213,8 @@ struct smt_p_neighbor {
 	struct smt_para	para ;		/* generic parameter header */
 	u_short	nb_mib_index ;		/* MIB index */
 	u_short	nb_mac_index ;		/* n+1 .. n+m, m = #MACs, n = #PHYs */
-	struct fddi_addr nb_una ;	/* UNA , 0 for unknown */
-	struct fddi_addr nb_dna ;	/* DNA , 0 for unknown */
+	struct fddi_addr nb_una ;	/* UNA , 0 for unkyeswn */
+	struct fddi_addr nb_dna ;	/* DNA , 0 for unkyeswn */
 } ;
 
 /*
@@ -238,7 +238,7 @@ struct smt_phy_rec {
 	u_char	phy_type ;		/* A/B/S/M */
 	u_char	phy_connect_state ;	/* disabled/connecting/active */
 	u_char	phy_remote_type ;	/* A/B/S/M */
-	u_char	phy_remote_mac ;	/* none/remote */
+	u_char	phy_remote_mac ;	/* yesne/remote */
 	u_short	phy_resource_idx ;	/* 1 .. n */
 } ;
 
@@ -320,16 +320,16 @@ struct smt_p_mac_counter {
 } ;
 
 /*
- * P0C : MAC frame not copied counter
+ * P0C : MAC frame yest copied counter
  */
-#define SMT_P_MAC_FNC	0x000c		/* MAC frame not copied counter */
+#define SMT_P_MAC_FNC	0x000c		/* MAC frame yest copied counter */
 #define SWAP_SMT_P_MAC_FNC	"ssl"
 
 struct smt_p_mac_fnc {
 	struct smt_para	para ;		/* generic parameter header */
 	u_short	nc_mib_index ;		/* MIB index */
 	u_short	nc_index ;		/* mac index */
-	u_int	nc_counter ;		/* not copied counter */
+	u_int	nc_counter ;		/* yest copied counter */
 } ;
 
 
@@ -404,14 +404,14 @@ struct smt_p_reason {
 	struct smt_para	para ;		/* generic parameter header */
 	u_int	rdf_reason ;		/* CLASS/VERSION */
 } ;
-#define SMT_RDF_CLASS	0x00000001	/* class not supported */
-#define SMT_RDF_VERSION	0x00000002	/* version not supported */
+#define SMT_RDF_CLASS	0x00000001	/* class yest supported */
+#define SMT_RDF_VERSION	0x00000002	/* version yest supported */
 #define SMT_RDF_SUCCESS	0x00000003	/* success (PMF) */
 #define SMT_RDF_BADSET	0x00000004	/* bad set count (PMF) */
 #define SMT_RDF_ILLEGAL 0x00000005	/* read only (PMF) */
-#define SMT_RDF_NOPARAM	0x6		/* parameter not supported (PMF) */
+#define SMT_RDF_NOPARAM	0x6		/* parameter yest supported (PMF) */
 #define SMT_RDF_RANGE	0x8		/* out of range */
-#define SMT_RDF_AUTHOR	0x9		/* not autohorized */
+#define SMT_RDF_AUTHOR	0x9		/* yest autohorized */
 #define SMT_RDF_LENGTH	0x0a		/* length error */
 #define SMT_RDF_TOOLONG	0x0b		/* length error */
 #define SMT_RDF_SBA	0x0d		/* SBA denied */
@@ -453,7 +453,7 @@ struct smt_p_0015 {
 	u_int		res_type ;	/* recsource type */
 } ;
 
-#define	SYNC_BW		0x00000001L	/* Synchronous Bandwidth */
+#define	SYNC_BW		0x00000001L	/* Synchroyesus Bandwidth */
 
 /*
  * P16 : SBA Command
@@ -544,7 +544,7 @@ struct smt_p_001d {
 
 /*
  * P20 0B : frame status capabilities
- * NOTE: not in swap table, is used by smt.c AND PMF table
+ * NOTE: yest in swap table, is used by smt.c AND PMF table
  */
 #define SMT_P_FSC	0x200b
 /* #define SWAP_SMT_P_FSC	"ssss" */
@@ -557,7 +557,7 @@ struct smt_p_fsc {
 	u_short	fsc_value ;		/* FSC_TYPE[0-2] */
 } ;
 
-#define FSC_TYPE0	0		/* "normal" node (A/C handling) */
+#define FSC_TYPE0	0		/* "yesrmal" yesde (A/C handling) */
 #define FSC_TYPE1	1		/* Special A/C indicator forwarding */
 #define FSC_TYPE2	2		/* Special A/C indicator forwarding */
 
@@ -567,7 +567,7 @@ struct smt_p_fsc {
 #define SMT_P_AUTHOR	0x0021
 
 /*
- * notification parameters
+ * yestification parameters
  */
 #define SWAP_SMT_P1048	"ll"
 struct smt_p_1048 {
@@ -601,9 +601,9 @@ struct smt_p_208d {
 #define SWAP_SMT_P208E	"4llll"
 struct smt_p_208e {
 	u_int			p208e_flag ;
-	u_int			p208e_not_copied ;
+	u_int			p208e_yest_copied ;
 	u_int			p208e_copied ;
-	u_int			p208e_not_copied_ratio ;
+	u_int			p208e_yest_copied_ratio ;
 } ;
 
 #define SWAP_SMT_P208F	"4ll6666s6"
@@ -757,7 +757,7 @@ struct smt_sif_operation {
 	struct smt_p_timestamp	ts ;		/* time stamp */
 	struct smt_p_mac_status	status ;	/* mac status */
 	struct smt_p_mac_counter mc ;		/* MAC counter */
-	struct smt_p_mac_fnc 	fnc ;		/* MAC frame not copied */
+	struct smt_p_mac_fnc 	fnc ;		/* MAC frame yest copied */
 	struct smp_p_manufacturer man ;		/* manufacturer field */
 	struct smp_p_user	user ;		/* user field */
 #ifdef	OPT_PMF

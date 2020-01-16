@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 /* mm/ashmem.c
  *
- * Anonymous Shared Memory Subsystem, ashmem
+ * Ayesnymous Shared Memory Subsystem, ashmem
  *
  * Copyright (C) 2008 Google, Inc.
  *
@@ -31,7 +31,7 @@
 #define ASHMEM_FULL_NAME_LEN (ASHMEM_NAME_LEN + ASHMEM_NAME_PREFIX_LEN)
 
 /**
- * struct ashmem_area - The anonymous shared memory area
+ * struct ashmem_area - The ayesnymous shared memory area
  * @name:		The optional name in /proc/pid/maps
  * @unpinned_list:	The list of all ashmem areas
  * @file:		The shmem-based backing file
@@ -55,7 +55,7 @@ struct ashmem_area {
  * struct ashmem_range - A range of unpinned/evictable pages
  * @lru:	         The entry in the LRU list
  * @unpinned:	         The entry in its area's unpinned list
- * @asma:	         The associated anonymous shared memory area.
+ * @asma:	         The associated ayesnymous shared memory area.
  * @pgstart:	         The starting page (inclusive)
  * @pgend:	         The ending page (inclusive)
  * @purged:	         The purge status (ASHMEM_NOT or ASHMEM_WAS_PURGED)
@@ -210,7 +210,7 @@ static void range_del(struct ashmem_range *range)
  * @start:	    The starting byte of the new range
  * @end:	    The ending byte of the new range
  *
- * This does not modify the data inside the existing range in any way - It
+ * This does yest modify the data inside the existing range in any way - It
  * simply shrinks the boundaries of the range.
  *
  * Theoretically, with a little tweaking, this could eventually be changed
@@ -229,21 +229,21 @@ static inline void range_shrink(struct ashmem_range *range,
 }
 
 /**
- * ashmem_open() - Opens an Anonymous Shared Memory structure
- * @inode:	   The backing file's index node(?)
+ * ashmem_open() - Opens an Ayesnymous Shared Memory structure
+ * @iyesde:	   The backing file's index yesde(?)
  * @file:	   The backing file
  *
- * Please note that the ashmem_area is not returned by this function - It is
+ * Please yeste that the ashmem_area is yest returned by this function - It is
  * instead written to "file->private_data".
  *
- * Return: 0 if successful, or another code if unsuccessful.
+ * Return: 0 if successful, or ayesther code if unsuccessful.
  */
-static int ashmem_open(struct inode *inode, struct file *file)
+static int ashmem_open(struct iyesde *iyesde, struct file *file)
 {
 	struct ashmem_area *asma;
 	int ret;
 
-	ret = generic_file_open(inode, file);
+	ret = generic_file_open(iyesde, file);
 	if (ret)
 		return ret;
 
@@ -260,14 +260,14 @@ static int ashmem_open(struct inode *inode, struct file *file)
 }
 
 /**
- * ashmem_release() - Releases an Anonymous Shared Memory structure
- * @ignored:	      The backing file's Index Node(?) - It is ignored here.
+ * ashmem_release() - Releases an Ayesnymous Shared Memory structure
+ * @igyesred:	      The backing file's Index Node(?) - It is igyesred here.
  * @file:	      The backing file
  *
  * Return: 0 if successful. If it is anything else, go have a coffee and
  * try again.
  */
-static int ashmem_release(struct inode *ignored, struct file *file)
+static int ashmem_release(struct iyesde *igyesred, struct file *file)
 {
 	struct ashmem_area *asma = file->private_data;
 	struct ashmem_range *range, *next;
@@ -291,7 +291,7 @@ static ssize_t ashmem_read_iter(struct kiocb *iocb, struct iov_iter *iter)
 
 	mutex_lock(&ashmem_mutex);
 
-	/* If size is not set, or set to 0, always return EOF. */
+	/* If size is yest set, or set to 0, always return EOF. */
 	if (asma->size == 0)
 		goto out_unlock;
 
@@ -302,7 +302,7 @@ static ssize_t ashmem_read_iter(struct kiocb *iocb, struct iov_iter *iter)
 
 	/*
 	 * asma and asma->file are used outside the lock here.  We assume
-	 * once asma->file is set it will never be changed, and will not
+	 * once asma->file is set it will never be changed, and will yest
 	 * be destroyed until all references to the file are dropped and
 	 * ashmem_release is called.
 	 */
@@ -407,7 +407,7 @@ static int ashmem_mmap(struct file *file, struct vm_area_struct *vma)
 			goto out;
 		}
 	} else {
-		vma_set_anonymous(vma);
+		vma_set_ayesnymous(vma);
 	}
 
 	if (vma->vm_file)
@@ -426,7 +426,7 @@ out:
  *
  * 'gfp_mask' is the mask of the allocation that got us into this mess.
  *
- * Return value is the number of objects freed or -1 if we cannot
+ * Return value is the number of objects freed or -1 if we canyest
  * proceed without risk of deadlock (due to gfp_mask).
  *
  * We approximate LRU via least-recently-unpinned, jettisoning unpinned partial
@@ -479,9 +479,9 @@ static unsigned long
 ashmem_shrink_count(struct shrinker *shrink, struct shrink_control *sc)
 {
 	/*
-	 * note that lru_count is count of pages on the lru, not a count of
+	 * yeste that lru_count is count of pages on the lru, yest a count of
 	 * objects on the list. This means the scan function needs to return the
-	 * number of pages freed, not the number of objects scanned.
+	 * number of pages freed, yest the number of objects scanned.
 	 */
 	return lru_count;
 }
@@ -502,7 +502,7 @@ static int set_prot_mask(struct ashmem_area *asma, unsigned long prot)
 
 	mutex_lock(&ashmem_mutex);
 
-	/* the user can only remove, not add, protection bits */
+	/* the user can only remove, yest add, protection bits */
 	if ((asma->prot_mask & prot) != prot) {
 		ret = -EINVAL;
 		goto out;
@@ -527,11 +527,11 @@ static int set_name(struct ashmem_area *asma, void __user *name)
 
 	/*
 	 * Holding the ashmem_mutex while doing a copy_from_user might cause
-	 * an data abort which would try to access mmap_sem. If another
+	 * an data abort which would try to access mmap_sem. If ayesther
 	 * thread has invoked ashmem_mmap then it will be holding the
 	 * semaphore and will be waiting for ashmem_mutex, there by leading to
 	 * deadlock. We'll release the mutex and take the name to a local
-	 * variable that does not need protection and later copy the local
+	 * variable that does yest need protection and later copy the local
 	 * variable to the structure member with lock held.
 	 */
 	len = strncpy_from_user(local_name, name, ASHMEM_NAME_LEN);
@@ -540,7 +540,7 @@ static int set_name(struct ashmem_area *asma, void __user *name)
 	if (len == ASHMEM_NAME_LEN)
 		local_name[ASHMEM_NAME_LEN - 1] = '\0';
 	mutex_lock(&ashmem_mutex);
-	/* cannot change an existing mapping's name */
+	/* canyest change an existing mapping's name */
 	if (asma->file)
 		ret = -EINVAL;
 	else
@@ -566,7 +566,7 @@ static int get_name(struct ashmem_area *asma, void __user *name)
 	if (asma->name[ASHMEM_NAME_PREFIX_LEN] != '\0') {
 		/*
 		 * Copying only `len', instead of ASHMEM_NAME_LEN, bytes
-		 * prevents us from revealing one user's stack to another.
+		 * prevents us from revealing one user's stack to ayesther.
 		 */
 		len = strlen(asma->name + ASHMEM_NAME_PREFIX_LEN) + 1;
 		memcpy(local_name, asma->name + ASHMEM_NAME_PREFIX_LEN, len);
@@ -587,7 +587,7 @@ static int get_name(struct ashmem_area *asma, void __user *name)
 
 /*
  * ashmem_pin - pin the given ashmem region, returning whether it was
- * previously purged (ASHMEM_WAS_PURGED) or not (ASHMEM_NOT_PURGED).
+ * previously purged (ASHMEM_WAS_PURGED) or yest (ASHMEM_NOT_PURGED).
  *
  * Caller must hold ashmem_mutex.
  */
@@ -848,7 +848,7 @@ static void ashmem_show_fdinfo(struct seq_file *m, struct file *file)
 	mutex_lock(&ashmem_mutex);
 
 	if (asma->file)
-		seq_printf(m, "inode:\t%ld\n", file_inode(asma->file)->i_ino);
+		seq_printf(m, "iyesde:\t%ld\n", file_iyesde(asma->file)->i_iyes);
 
 	if (asma->name[ASHMEM_NAME_PREFIX_LEN] != '\0')
 		seq_printf(m, "name:\t%s\n",
@@ -874,7 +874,7 @@ static const struct file_operations ashmem_fops = {
 };
 
 static struct miscdevice ashmem_misc = {
-	.minor = MISC_DYNAMIC_MINOR,
+	.miyesr = MISC_DYNAMIC_MINOR,
 	.name = "ashmem",
 	.fops = &ashmem_fops,
 };

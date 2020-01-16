@@ -56,7 +56,7 @@ extern const char *acpi_gbl_ptyp_decode[];
 
 /*
  * For the iASL compiler case, the output is redirected to stderr so that
- * any of the various ACPI errors and warnings do not appear in the output
+ * any of the various ACPI errors and warnings do yest appear in the output
  * files, for either the compiler or disassembler portions of the tool.
  */
 #ifdef ACPI_ASL_COMPILER
@@ -72,7 +72,7 @@ extern const char *acpi_gbl_ptyp_decode[];
 
 #else
 /*
- * non-iASL case - no redirection, nothing to do
+ * yesn-iASL case - yes redirection, yesthing to do
  */
 #define ACPI_MSG_REDIRECT_BEGIN
 #define ACPI_MSG_REDIRECT_END
@@ -158,7 +158,7 @@ u8 acpi_ut_valid_name_char(char character, u32 position);
 void acpi_ut_check_and_repair_ascii(u8 *name, char *repaired_name, u32 count);
 
 /*
- * utnonansi - Non-ANSI C library functions
+ * utyesnansi - Non-ANSI C library functions
  */
 void acpi_ut_strupr(char *src_string);
 
@@ -203,12 +203,12 @@ const char *acpi_ut_get_mutex_name(u32 mutex_id);
 
 #if defined(ACPI_DEBUG_OUTPUT) || defined(ACPI_DEBUGGER)
 
-const char *acpi_ut_get_notify_name(u32 notify_value, acpi_object_type type);
+const char *acpi_ut_get_yestify_name(u32 yestify_value, acpi_object_type type);
 #endif
 
 const char *acpi_ut_get_type_name(acpi_object_type type);
 
-const char *acpi_ut_get_node_name(void *object);
+const char *acpi_ut_get_yesde_name(void *object);
 
 const char *acpi_ut_get_descriptor_name(void *object);
 
@@ -362,21 +362,21 @@ void acpi_ut_delete_internal_object_list(union acpi_operand_object **obj_list);
  * uteval - object evaluation
  */
 acpi_status
-acpi_ut_evaluate_object(struct acpi_namespace_node *prefix_node,
+acpi_ut_evaluate_object(struct acpi_namespace_yesde *prefix_yesde,
 			const char *path,
 			u32 expected_return_btypes,
 			union acpi_operand_object **return_desc);
 
 acpi_status
 acpi_ut_evaluate_numeric_object(const char *object_name,
-				struct acpi_namespace_node *device_node,
+				struct acpi_namespace_yesde *device_yesde,
 				u64 *value);
 
 acpi_status
-acpi_ut_execute_STA(struct acpi_namespace_node *device_node, u32 *status_flags);
+acpi_ut_execute_STA(struct acpi_namespace_yesde *device_yesde, u32 *status_flags);
 
 acpi_status
-acpi_ut_execute_power_methods(struct acpi_namespace_node *device_node,
+acpi_ut_execute_power_methods(struct acpi_namespace_yesde *device_yesde,
 			      const char **method_names,
 			      u8 method_count, u8 *out_values);
 
@@ -384,19 +384,19 @@ acpi_ut_execute_power_methods(struct acpi_namespace_node *device_node,
  * utids - device ID support
  */
 acpi_status
-acpi_ut_execute_HID(struct acpi_namespace_node *device_node,
+acpi_ut_execute_HID(struct acpi_namespace_yesde *device_yesde,
 		    struct acpi_pnp_device_id ** return_id);
 
 acpi_status
-acpi_ut_execute_UID(struct acpi_namespace_node *device_node,
+acpi_ut_execute_UID(struct acpi_namespace_yesde *device_yesde,
 		    struct acpi_pnp_device_id ** return_id);
 
 acpi_status
-acpi_ut_execute_CID(struct acpi_namespace_node *device_node,
+acpi_ut_execute_CID(struct acpi_namespace_yesde *device_yesde,
 		    struct acpi_pnp_device_id_list ** return_cid_list);
 
 acpi_status
-acpi_ut_execute_CLS(struct acpi_namespace_node *device_node,
+acpi_ut_execute_CLS(struct acpi_namespace_yesde *device_yesde,
 		    struct acpi_pnp_device_id **return_id);
 
 /*
@@ -560,7 +560,7 @@ void acpi_ut_set_integer_width(u8 revision);
 #ifdef ACPI_DEBUG_OUTPUT
 void
 acpi_ut_display_init_pathname(u8 type,
-			      struct acpi_namespace_node *obj_handle,
+			      struct acpi_namespace_yesde *obj_handle,
 			      const char *path);
 #endif
 
@@ -672,11 +672,11 @@ acpi_ut_create_list(const char *list_name,
 acpi_status
 acpi_ut_add_address_range(acpi_adr_space_type space_id,
 			  acpi_physical_address address,
-			  u32 length, struct acpi_namespace_node *region_node);
+			  u32 length, struct acpi_namespace_yesde *region_yesde);
 
 void
 acpi_ut_remove_address_range(acpi_adr_space_type space_id,
-			     struct acpi_namespace_node *region_node);
+			     struct acpi_namespace_yesde *region_yesde);
 
 u32
 acpi_ut_check_address_range(acpi_adr_space_type space_id,
@@ -692,21 +692,21 @@ void ACPI_INTERNAL_VAR_XFACE
 acpi_ut_predefined_warning(const char *module_name,
 			   u32 line_number,
 			   char *pathname,
-			   u16 node_flags, const char *format, ...);
+			   u16 yesde_flags, const char *format, ...);
 
 ACPI_PRINTF_LIKE(5)
 void ACPI_INTERNAL_VAR_XFACE
 acpi_ut_predefined_info(const char *module_name,
 			u32 line_number,
 			char *pathname,
-			u16 node_flags, const char *format, ...);
+			u16 yesde_flags, const char *format, ...);
 
 ACPI_PRINTF_LIKE(5)
 void ACPI_INTERNAL_VAR_XFACE
 acpi_ut_predefined_bios_error(const char *module_name,
 			      u32 line_number,
 			      char *pathname,
-			      u16 node_flags, const char *format, ...);
+			      u16 yesde_flags, const char *format, ...);
 
 void
 acpi_ut_prefixed_namespace_error(const char *module_name,
@@ -719,7 +719,7 @@ void
 acpi_ut_method_error(const char *module_name,
 		     u32 line_number,
 		     const char *message,
-		     struct acpi_namespace_node *node,
+		     struct acpi_namespace_yesde *yesde,
 		     const char *path, acpi_status lookup_status);
 
 /*

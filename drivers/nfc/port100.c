@@ -458,7 +458,7 @@ struct port100 {
 
 	u8 cmd_type;
 
-	/* The digital stack serializes commands to be sent. There is no need
+	/* The digital stack serializes commands to be sent. There is yes need
 	 * for any queuing/locking mechanism at driver level.
 	 */
 	struct port100_cmd *cmd;
@@ -646,7 +646,7 @@ static void port100_recv_response(struct urb *urb)
 
 	if (!port100_rx_frame_is_cmd_response(dev, in_frame)) {
 		nfc_err(&dev->interface->dev,
-			"It's not the response to the last command\n");
+			"It's yest the response to the last command\n");
 		cmd->status = -EIO;
 		goto sched_wq;
 	}
@@ -1319,7 +1319,7 @@ static bool port100_tg_target_activated(struct port100 *dev, u8 tgt_activated)
 		       PORT100_MDAA_TGT_WAS_ACTIVATED_MASK;
 		break;
 	default:
-		nfc_err(&dev->interface->dev, "Unknown command type\n");
+		nfc_err(&dev->interface->dev, "Unkyeswn command type\n");
 		return false;
 	}
 
@@ -1519,7 +1519,7 @@ static int port100_probe(struct usb_interface *interface,
 
 	if (!in_endpoint || !out_endpoint) {
 		nfc_err(&interface->dev,
-			"Could not find bulk-in or bulk-out endpoint\n");
+			"Could yest find bulk-in or bulk-out endpoint\n");
 		rc = -ENODEV;
 		goto error;
 	}
@@ -1528,7 +1528,7 @@ static int port100_probe(struct usb_interface *interface,
 	dev->out_urb = usb_alloc_urb(0, GFP_KERNEL);
 
 	if (!dev->in_urb || !dev->out_urb) {
-		nfc_err(&interface->dev, "Could not allocate USB URBs\n");
+		nfc_err(&interface->dev, "Could yest allocate USB URBs\n");
 		rc = -ENOMEM;
 		goto error;
 	}
@@ -1554,7 +1554,7 @@ static int port100_probe(struct usb_interface *interface,
 	cmd_type_mask = port100_get_command_type_mask(dev);
 	if (!cmd_type_mask) {
 		nfc_err(&interface->dev,
-			"Could not get supported command types\n");
+			"Could yest get supported command types\n");
 		rc = -ENODEV;
 		goto error;
 	}
@@ -1567,7 +1567,7 @@ static int port100_probe(struct usb_interface *interface,
 	rc = port100_set_command_type(dev, dev->cmd_type);
 	if (rc) {
 		nfc_err(&interface->dev,
-			"The device does not support command type %u\n",
+			"The device does yest support command type %u\n",
 			dev->cmd_type);
 		goto error;
 	}
@@ -1575,7 +1575,7 @@ static int port100_probe(struct usb_interface *interface,
 	fw_version = port100_get_firmware_version(dev);
 	if (!fw_version)
 		nfc_err(&interface->dev,
-			"Could not get device firmware version\n");
+			"Could yest get device firmware version\n");
 
 	nfc_info(&interface->dev,
 		 "Sony NFC Port-100 Series attached (firmware v%x.%02x)\n",
@@ -1588,7 +1588,7 @@ static int port100_probe(struct usb_interface *interface,
 							   dev->skb_tailroom);
 	if (!dev->nfc_digital_dev) {
 		nfc_err(&interface->dev,
-			"Could not allocate nfc_digital_dev\n");
+			"Could yest allocate nfc_digital_dev\n");
 		rc = -ENOMEM;
 		goto error;
 	}
@@ -1599,7 +1599,7 @@ static int port100_probe(struct usb_interface *interface,
 	rc = nfc_digital_register_device(dev->nfc_digital_dev);
 	if (rc) {
 		nfc_err(&interface->dev,
-			"Could not register digital device\n");
+			"Could yest register digital device\n");
 		goto free_nfc_dev;
 	}
 

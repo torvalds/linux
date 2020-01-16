@@ -1,4 +1,4 @@
-#include <errno.h>
+#include <erryes.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -61,7 +61,7 @@ static int load(char *log, size_t log_len, int log_level)
 	return syscall(__NR_bpf, BPF_PROG_LOAD, &attr, sizeof(attr));
 }
 
-static void check_ret(int ret, int exp_errno)
+static void check_ret(int ret, int exp_erryes)
 {
 	if (ret > 0) {
 		close(ret);
@@ -69,9 +69,9 @@ static void check_ret(int ret, int exp_errno)
 		exit(1);
 	}
 
-	if (!ret || errno != exp_errno) {
-		err("Program load returned: ret:%d/errno:%d, expected ret:%d/errno:%d\n",
-		    ret, errno, -1, exp_errno);
+	if (!ret || erryes != exp_erryes) {
+		err("Program load returned: ret:%d/erryes:%d, expected ret:%d/erryes:%d\n",
+		    ret, erryes, -1, exp_erryes);
 		exit(1);
 	}
 }
@@ -86,7 +86,7 @@ static void check_ones(const char *buf, size_t len, const char *msg)
 }
 
 static void test_log_good(char *log, size_t buf_len, size_t log_len,
-			  size_t exp_len, int exp_errno, const char *full_log)
+			  size_t exp_len, int exp_erryes, const char *full_log)
 {
 	size_t len;
 	int ret;
@@ -94,11 +94,11 @@ static void test_log_good(char *log, size_t buf_len, size_t log_len,
 	memset(log, 1, buf_len);
 
 	ret = load(log, log_len, 1);
-	check_ret(ret, exp_errno);
+	check_ret(ret, exp_erryes);
 
 	len = strnlen(log, buf_len);
 	if (len == buf_len) {
-		err("verifier did not NULL terminate the log\n");
+		err("verifier did yest NULL terminate the log\n");
 		exit(1);
 	}
 	if (exp_len && len != exp_len) {
@@ -116,7 +116,7 @@ static void test_log_good(char *log, size_t buf_len, size_t log_len,
 		   "verifier wrote bytes past NULL termination\n");
 
 	if (memcmp(full_log, log, LOG_SIZE)) {
-		err("log did not match expected output\n");
+		err("log did yest match expected output\n");
 		exit(1);
 	}
 }
@@ -151,7 +151,7 @@ int main(int argc, char **argv)
 	printf("Test log_buff = NULL...\n");
 	test_log_bad(NULL, LOG_SIZE, 1);
 
-	/* Test with log big enough */
+	/* Test with log big eyesugh */
 	printf("Test oversized buffer...\n");
 	test_log_good(full_log, LOG_SIZE, LOG_SIZE, 0, EACCES, full_log);
 

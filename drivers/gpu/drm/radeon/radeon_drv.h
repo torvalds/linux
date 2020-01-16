@@ -11,7 +11,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -61,7 +61,7 @@
  *     - Add r200 function to init ioctl
  *     - Add 'scalar2' instruction to cmdbuf
  * 1.6 - Add static GART memory manager
- *       Add irq handler (won't be turned on unless X server knows to)
+ *       Add irq handler (won't be turned on unless X server kyesws to)
  *       Add irq ioctls and irq_active getparam.
  *       Add wait command for cmdbuf ioctl
  *       Add GART offset query for getparam

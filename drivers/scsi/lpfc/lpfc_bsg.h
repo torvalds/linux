@@ -111,7 +111,7 @@ struct get_mgmt_rev {
 /* the MgmtRevInfo structure */
 struct MgmtRevInfo {
 	uint32_t a_Major;
-	uint32_t a_Minor;
+	uint32_t a_Miyesr;
 };
 
 struct get_mgmt_rev_reply {
@@ -143,9 +143,9 @@ struct menlo_response {
 /*
  * macros and data structures for handling sli-config mailbox command
  * pass-through support, this header file is shared between user and
- * kernel spaces, note the set of macros are duplicates from lpfc_hw4.h,
+ * kernel spaces, yeste the set of macros are duplicates from lpfc_hw4.h,
  * with macro names prefixed with bsg_, as the macros defined in
- * lpfc_hw4.h are not accessible from user space.
+ * lpfc_hw4.h are yest accessible from user space.
  */
 
 /* Macros to deal with bit fields. Each bit field must have 3 #defines
@@ -189,7 +189,7 @@ struct menlo_response {
  *
  * -- SLI_CONFIG EMB=0, carrying MSEs, will carry subcommands without
  *    carrying HBD.
- * -- SLI_CONFIG EMB=1, not carrying MSE, will carry subcommands with or
+ * -- SLI_CONFIG EMB=1, yest carrying MSE, will carry subcommands with or
  *    without carrying HBDs.
  */
 

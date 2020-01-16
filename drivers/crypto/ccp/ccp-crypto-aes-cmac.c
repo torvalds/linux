@@ -101,7 +101,7 @@ static int ccp_do_cmac_update(struct ahash_request *req, unsigned int nbytes,
 
 	sg_init_one(&rctx->iv_sg, rctx->iv, sizeof(rctx->iv));
 
-	/* Build the data scatterlist table - allocate enough entries for all
+	/* Build the data scatterlist table - allocate eyesugh entries for all
 	 * possible data pieces (buffer, input data, padding)
 	 */
 	sg_count = (nbytes) ? sg_nents(req->src) + 2 : 2;
@@ -230,7 +230,7 @@ static int ccp_aes_cmac_export(struct ahash_request *req, void *out)
 	state.buf_count = rctx->buf_count;
 	memcpy(state.buf, rctx->buf, sizeof(state.buf));
 
-	/* 'out' may not be aligned so memcpy from local variable */
+	/* 'out' may yest be aligned so memcpy from local variable */
 	memcpy(out, &state, sizeof(state));
 
 	return 0;
@@ -241,7 +241,7 @@ static int ccp_aes_cmac_import(struct ahash_request *req, const void *in)
 	struct ccp_aes_cmac_req_ctx *rctx = ahash_request_ctx(req);
 	struct ccp_aes_cmac_exp_ctx state;
 
-	/* 'in' may not be aligned so memcpy to local variable */
+	/* 'in' may yest be aligned so memcpy to local variable */
 	memcpy(&state, in, sizeof(state));
 
 	memset(rctx, 0, sizeof(*rctx));

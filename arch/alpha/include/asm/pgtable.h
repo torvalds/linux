@@ -2,7 +2,7 @@
 #ifndef _ALPHA_PGTABLE_H
 #define _ALPHA_PGTABLE_H
 
-#include <asm-generic/pgtable-nopud.h>
+#include <asm-generic/pgtable-yespud.h>
 
 /*
  * This file contains the functions and defines necessary to modify and use
@@ -83,7 +83,7 @@ struct vm_area_struct;
  * KWE/UWE bits with both handling dirty and accessed.
  *
  * Note that the kernel uses the accessed bit just to check whether to page
- * out a page or not, so it doesn't have to be exact anyway.
+ * out a page or yest, so it doesn't have to be exact anyway.
  */
 
 #define __DIRTY_BITS	(_PAGE_DIRTY | _PAGE_KWE | _PAGE_UWE)
@@ -95,7 +95,7 @@ struct vm_area_struct;
 #define _PAGE_CHG_MASK	(_PFN_MASK | __DIRTY_BITS | __ACCESS_BITS)
 
 /*
- * All the normal masks have the "page accessed" bits on, as any time they are used,
+ * All the yesrmal masks have the "page accessed" bits on, as any time they are used,
  * the page is accessed. They are cleared only by the page-out routines
  */
 #define PAGE_NONE	__pgprot(_PAGE_VALID | __ACCESS_BITS | _PAGE_FOR | _PAGE_FOW | _PAGE_FOE)
@@ -112,7 +112,7 @@ struct vm_area_struct;
 /*
  * The hardware can handle write-only mappings, but as the Alpha
  * architecture does byte-wide writes with a read-modify-write
- * sequence, it's not practical to have write-without-read privs.
+ * sequence, it's yest practical to have write-without-read privs.
  * Thus the "-w- -> rw-" and "-wx -> rwx" mapping here (and in
  * arch/alpha/mm/fault.c)
  */
@@ -136,10 +136,10 @@ struct vm_area_struct;
 #define __S111	_PAGE_S(0)
 
 /*
- * pgprot_noncached() is only for infiniband pci support, and a real
+ * pgprot_yesncached() is only for infiniband pci support, and a real
  * implementation for RAM would be more complicated.
  */
-#define pgprot_noncached(prot)	(prot)
+#define pgprot_yesncached(prot)	(prot)
 
 /*
  * BAD_PAGETABLE is used when we need a bogus page-table, while
@@ -178,9 +178,9 @@ extern unsigned long __zero_page(void);
  * This is extremely confusing until you realize that this is actually
  * just working around a userspace bug.  The X server was intending to
  * provide the physical address but instead provided the KSEG address.
- * Or tried to, except it's not representable.
+ * Or tried to, except it's yest representable.
  * 
- * On Tsunami there's nothing meaningful at 0x40000000000, so this is
+ * On Tsunami there's yesthing meaningful at 0x40000000000, so this is
  * a safe thing to do.  Come the first core logic that does put something
  * in this area -- memory or whathaveyou -- then this hack will have
  * to go away.  So be prepared!
@@ -244,26 +244,26 @@ pmd_page_vaddr(pmd_t pmd)
 extern inline unsigned long pud_page_vaddr(pud_t pgd)
 { return PAGE_OFFSET + ((pud_val(pgd) & _PFN_MASK) >> (32-PAGE_SHIFT)); }
 
-extern inline int pte_none(pte_t pte)		{ return !pte_val(pte); }
+extern inline int pte_yesne(pte_t pte)		{ return !pte_val(pte); }
 extern inline int pte_present(pte_t pte)	{ return pte_val(pte) & _PAGE_VALID; }
 extern inline void pte_clear(struct mm_struct *mm, unsigned long addr, pte_t *ptep)
 {
 	pte_val(*ptep) = 0;
 }
 
-extern inline int pmd_none(pmd_t pmd)		{ return !pmd_val(pmd); }
+extern inline int pmd_yesne(pmd_t pmd)		{ return !pmd_val(pmd); }
 extern inline int pmd_bad(pmd_t pmd)		{ return (pmd_val(pmd) & ~_PFN_MASK) != _PAGE_TABLE; }
 extern inline int pmd_present(pmd_t pmd)	{ return pmd_val(pmd) & _PAGE_VALID; }
 extern inline void pmd_clear(pmd_t * pmdp)	{ pmd_val(*pmdp) = 0; }
 
-extern inline int pud_none(pud_t pud)		{ return !pud_val(pud); }
+extern inline int pud_yesne(pud_t pud)		{ return !pud_val(pud); }
 extern inline int pud_bad(pud_t pud)		{ return (pud_val(pud) & ~_PFN_MASK) != _PAGE_TABLE; }
 extern inline int pud_present(pud_t pud)	{ return pud_val(pud) & _PAGE_VALID; }
 extern inline void pud_clear(pud_t * pudp)	{ pud_val(*pudp) = 0; }
 
 /*
  * The following only work if pte_present() is true.
- * Undefined behaviour if not..
+ * Undefined behaviour if yest..
  */
 extern inline int pte_write(pte_t pte)		{ return !(pte_val(pte) & _PAGE_FOW); }
 extern inline int pte_dirty(pte_t pte)		{ return pte_val(pte) & _PAGE_DIRTY; }
@@ -292,12 +292,12 @@ extern inline pte_t pte_mkspecial(pte_t pte)	{ return pte; }
  * order the load of *dir (the pointer in the top level page table) with any
  * subsequent load of the returned pmd_t *ret (ret is data dependent on *dir).
  *
- * If this ordering is not enforced, the CPU might load an older value of
+ * If this ordering is yest enforced, the CPU might load an older value of
  * *ret, which may be uninitialized data. See mm/memory.c:__pte_alloc for
  * more details.
  *
  * Note that we never change the mm->pgd pointer after the task is running, so
- * pgd_offset does not require such a barrier.
+ * pgd_offset does yest require such a barrier.
  */
 
 /* Find an entry in the second-level page table.. */

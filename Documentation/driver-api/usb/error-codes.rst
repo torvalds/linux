@@ -23,7 +23,7 @@ Non-USB-specific:
 =============== ===============================================
 0		URB submission went fine
 
-``-ENOMEM``	no memory for allocation of internal structures
+``-ENOMEM``	yes memory for allocation of internal structures
 =============== ===============================================
 
 USB-specific:
@@ -33,13 +33,13 @@ USB-specific:
 
 ``-ENODEV``		specified USB-device or bus doesn't exist
 
-``-ENOENT``		specified interface or endpoint does not exist or
-			is not enabled
+``-ENOENT``		specified interface or endpoint does yest exist or
+			is yest enabled
 
-``-ENXIO``		host controller driver does not support queuing of
+``-ENXIO``		host controller driver does yest support queuing of
 			this type of urb.  (treat as a host controller bug.)
 
-``-EINVAL``		a) Invalid transfer type specified (or not supported)
+``-EINVAL``		a) Invalid transfer type specified (or yest supported)
 			b) Invalid or unsupported periodic transfer interval
 			c) ISO: attempted to change transfer interval
 			d) ISO: ``number_of_packets`` is < 0
@@ -55,17 +55,17 @@ USB-specific:
 ``-EPIPE``		The pipe type specified in the URB doesn't match the
 			endpoint's actual type.
 
-``-EMSGSIZE``		(a) endpoint maxpacket size is zero; it is not usable
+``-EMSGSIZE``		(a) endpoint maxpacket size is zero; it is yest usable
 			    in the current interface altsetting.
 			(b) ISO packet is larger than the endpoint maxpacket.
 			(c) requested data transfer length is invalid: negative
 			    or too large for the host controller.
 
 ``-ENOSPC``		This request would overcommit the usb bandwidth reserved
-			for periodic transfers (interrupt, isochronous).
+			for periodic transfers (interrupt, isochroyesus).
 
 ``-ESHUTDOWN``		The device or host controller has been disabled due to
-			some problem that could not be worked around.
+			some problem that could yest be worked around.
 
 ``-EPERM``		Submission failed because ``urb->reject`` was set.
 
@@ -79,16 +79,16 @@ Error codes returned by ``in urb->status`` or in ``iso_frame_desc[n].status`` (f
 
 USB device drivers may only test urb status values in completion handlers.
 This is because otherwise there would be a race between HCDs updating
-these values on one CPU, and device drivers testing them on another CPU.
+these values on one CPU, and device drivers testing them on ayesther CPU.
 
 A transfer's actual_length may be positive even when an error has been
 reported.  That's because transfers often involve several packets, so that
 one or more packets could finish before an error stops further endpoint I/O.
 
-For isochronous URBs, the urb status value is non-zero only if the URB is
+For isochroyesus URBs, the urb status value is yesn-zero only if the URB is
 unlinked, the device is removed, the host controller is disabled, or the total
 transferred length is less than the requested length and the
-``URB_SHORT_NOT_OK`` flag is set.  Completion handlers for isochronous URBs
+``URB_SHORT_NOT_OK`` flag is set.  Completion handlers for isochroyesus URBs
 should only see ``urb->status`` set to zero, ``-ENOENT``, ``-ECONNRESET``,
 ``-ESHUTDOWN``, or ``-EREMOTEIO``. Individual frame descriptor status fields
 may report more status codes.
@@ -97,25 +97,25 @@ may report more status codes.
 ===============================	===============================================
 0				Transfer completed successfully
 
-``-ENOENT``			URB was synchronously unlinked by
+``-ENOENT``			URB was synchroyesusly unlinked by
 				:c:func:`usb_unlink_urb`
 
-``-EINPROGRESS``		URB still pending, no results yet
+``-EINPROGRESS``		URB still pending, yes results yet
 				(That is, if drivers see this it's a bug.)
 
 ``-EPROTO`` [#f1]_, [#f2]_	a) bitstuff error
-				b) no response packet received within the
+				b) yes response packet received within the
 				   prescribed bus turn-around time
-				c) unknown USB error
+				c) unkyeswn USB error
 
 ``-EILSEQ`` [#f1]_, [#f2]_	a) CRC mismatch
-				b) no response packet received within the
+				b) yes response packet received within the
 				   prescribed bus turn-around time
-				c) unknown USB error
+				c) unkyeswn USB error
 
 				Note that often the controller hardware does
-				not distinguish among cases a), b), and c), so
-				a driver cannot tell whether there was a
+				yest distinguish among cases a), b), and c), so
+				a driver canyest tell whether there was a
 				protocol error, a failure to respond (often
 				caused by device disconnect), or some other
 				fault.
@@ -125,12 +125,12 @@ may report more status codes.
 				may instead be reported as
 				``-EPROTO`` or ``-EILSEQ``.
 
-``-ETIMEDOUT``			Synchronous USB message functions use this code
+``-ETIMEDOUT``			Synchroyesus USB message functions use this code
 				to indicate timeout expired before the transfer
-				completed, and no other error was reported
+				completed, and yes other error was reported
 				by HC.
 
-``-EPIPE`` [#f2]_		Endpoint stalled.  For non-control endpoints,
+``-EPIPE`` [#f2]_		Endpoint stalled.  For yesn-control endpoints,
 				reset this status with
 				:c:func:`usb_clear_halt`.
 
@@ -139,15 +139,15 @@ may report more status codes.
 				could be written to system memory
 
 ``-ENOSR``			During an OUT transfer, the host controller
-				could not retrieve data from system memory fast
-				enough to keep up with the USB data rate
+				could yest retrieve data from system memory fast
+				eyesugh to keep up with the USB data rate
 
 ``-EOVERFLOW`` [#f1]_		The amount of data returned by the endpoint was
 				greater than either the max packet size of the
 				endpoint or the remaining buffer size.
 				"Babble".
 
-``-EREMOTEIO``			The data read from the endpoint did not fill
+``-EREMOTEIO``			The data read from the endpoint did yest fill
 				the specified buffer, and ``URB_SHORT_NOT_OK``
 				was set in ``urb->transfer_flags``.
 
@@ -157,16 +157,16 @@ may report more status codes.
 
 ``-EXDEV``			ISO transfer only partially completed
 				(only set in ``iso_frame_desc[n].status``,
-				not ``urb->status``)
+				yest ``urb->status``)
 
 ``-EINVAL``			ISO madness, if this happens: Log off and
 				go home
 
-``-ECONNRESET``			URB was asynchronously unlinked by
+``-ECONNRESET``			URB was asynchroyesusly unlinked by
 				:c:func:`usb_unlink_urb`
 
 ``-ESHUTDOWN``			The device or host controller has been
-				disabled due to some problem that could not
+				disabled due to some problem that could yest
 				be worked around, such as a physical
 				disconnect.
 ===============================	===============================================
@@ -174,7 +174,7 @@ may report more status codes.
 
 .. [#f1]
 
-   Error codes like ``-EPROTO``, ``-EILSEQ`` and ``-EOVERFLOW`` normally
+   Error codes like ``-EPROTO``, ``-EILSEQ`` and ``-EOVERFLOW`` yesrmally
    indicate hardware problems such as bad devices (including firmware)
    or cables.
 
@@ -190,7 +190,7 @@ may report more status codes.
 Error codes returned by usbcore-functions
 =========================================
 
-.. note:: expect also other submit and transfer status codes
+.. yeste:: expect also other submit and transfer status codes
 
 :c:func:`usb_register`:
 

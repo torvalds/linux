@@ -5,7 +5,7 @@
  * Copyright (C) 2016, Intel Corporation
  *
  * Authors: Andy Shevchenko <andriy.shevchenko@linux.intel.com>
- *	    Dan O'Donovan <dan@emutex.com>
+ *	    Dan O'Doyesvan <dan@emutex.com>
  */
 
 #include <linux/gpio.h>

@@ -18,7 +18,7 @@ Required properties:
   - ppb
   - vdma
   - frameid
-- iram : Must contain phandle to the mmio-sram device node that represents
+- iram : Must contain phandle to the mmio-sram device yesde that represents
          IRAM region used by VDE.
 - interrupts : Must contain an entry for each entry in interrupt-names.
 - interrupt-names : Must include the following entries:
@@ -35,7 +35,7 @@ Optional properties:
 - resets : Must contain an entry for each entry in reset-names.
 - reset-names : Must include the following entries:
   - mc
-- iommus: Must contain phandle to the IOMMU device node.
+- iommus: Must contain phandle to the IOMMU device yesde.
 
 Example:
 

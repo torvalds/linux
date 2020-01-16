@@ -155,7 +155,7 @@ static const expansioncard_ops_t pata_icside_ops_arcin_v6 = {
  *
  * Similar to the BM-DMA, but we use the RiscPCs IOMD DMA controllers.
  * There is only one DMA controller per card, which means that only
- * one drive can be accessed at one time.  NOTE! We do not enforce that
+ * one drive can be accessed at one time.  NOTE! We do yest enforce that
  * here, but we rely on the main IDE driver spotting that both
  * interfaces use the same IRQ, which should guarantee this.
  */
@@ -214,7 +214,7 @@ static void pata_icside_set_dmamode(struct ata_port *ap, struct ata_device *adev
 	ata_dev_info(adev, "timings: act %dns rec %dns cyc %dns (%c)\n",
 		     t.active, t.recover, t.cycle, iomd_type);
 
-	state->port[ap->port_no].speed[adev->devno] = cycle;
+	state->port[ap->port_yes].speed[adev->devyes] = cycle;
 }
 
 static void pata_icside_bmdma_setup(struct ata_queued_cmd *qc)
@@ -232,9 +232,9 @@ static void pata_icside_bmdma_setup(struct ata_queued_cmd *qc)
 	/*
 	 * Route the DMA signals to the correct interface
 	 */
-	writeb(state->port[ap->port_no].port_sel, state->ioc_base);
+	writeb(state->port[ap->port_yes].port_sel, state->ioc_base);
 
-	set_dma_speed(state->dma, state->port[ap->port_no].speed[qc->dev->devno]);
+	set_dma_speed(state->dma, state->port[ap->port_yes].speed[qc->dev->devyes]);
 	set_dma_sg(state->dma, qc->sg, qc->n_elem);
 	set_dma_mode(state->dma, write ? DMA_MODE_WRITE : DMA_MODE_READ);
 
@@ -267,7 +267,7 @@ static u8 pata_icside_bmdma_status(struct ata_port *ap)
 	struct pata_icside_state *state = ap->host->private_data;
 	void __iomem *irq_port;
 
-	irq_port = state->irq_port + (ap->port_no ? ICS_ARCIN_V6_INTRSTAT_2 :
+	irq_port = state->irq_port + (ap->port_yes ? ICS_ARCIN_V6_INTRSTAT_2 :
 						    ICS_ARCIN_V6_INTRSTAT_1);
 
 	return readb(irq_port) & 1 ? ATA_DMA_INTR : 0;
@@ -307,7 +307,7 @@ static void pata_icside_postreset(struct ata_link *link, unsigned int *classes)
 	if (classes[0] != ATA_DEV_NONE || classes[1] != ATA_DEV_NONE)
 		return ata_sff_postreset(link, classes);
 
-	state->port[ap->port_no].disabled = 1;
+	state->port[ap->port_yes].disabled = 1;
 
 	if (state->type == ICS_TYPE_V6) {
 		/*
@@ -316,15 +316,15 @@ static void pata_icside_postreset(struct ata_link *link, unsigned int *classes)
 		 * interrupt line.
 		 */
 		void __iomem *irq_port = state->irq_port +
-				(ap->port_no ? ICS_ARCIN_V6_INTROFFSET_2 : ICS_ARCIN_V6_INTROFFSET_1);
+				(ap->port_yes ? ICS_ARCIN_V6_INTROFFSET_2 : ICS_ARCIN_V6_INTROFFSET_1);
 		readb(irq_port);
 	}
 }
 
 static struct ata_port_operations pata_icside_port_ops = {
 	.inherits		= &ata_bmdma_port_ops,
-	/* no need to build any PRD tables for DMA */
-	.qc_prep		= ata_noop_qc_prep,
+	/* yes need to build any PRD tables for DMA */
+	.qc_prep		= ata_yesop_qc_prep,
 	.sff_data_xfer		= ata_sff_data_xfer32,
 	.bmdma_setup		= pata_icside_bmdma_setup,
 	.bmdma_start		= pata_icside_bmdma_start,
@@ -532,7 +532,7 @@ static int pata_icside_probe(struct expansion_card *ec,
 		break;
 
 	default:
-		dev_warn(&ec->dev, "unknown interface type\n");
+		dev_warn(&ec->dev, "unkyeswn interface type\n");
 		ret = -ENODEV;
 		break;
 	}

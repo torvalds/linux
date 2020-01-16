@@ -25,12 +25,12 @@ memory ordering in general and for atomic operations specifically.
 Relevant types of memory ordering
 =================================
 
-.. note:: The following section only covers some of the memory
+.. yeste:: The following section only covers some of the memory
    ordering types that are relevant for the atomics and reference
    counters and used through this document. For a much broader picture
    please consult memory-barriers.txt document.
 
-In the absence of any memory ordering guarantees (i.e. fully unordered)
+In the absence of any memory ordering guarantees (i.e. fully uyesrdered)
 atomics & refcounters only provide atomicity and
 program order (po) relation (on the same CPU). It guarantees that
 each ``atomic_*()`` and ``refcount_*()`` operation is atomic and instructions
@@ -65,15 +65,15 @@ A control dependency (on success) for refcounters guarantees that
 if a reference for an object was successfully obtained (reference
 counter increment or addition happened, function returned true),
 then further stores are ordered against this operation.
-Control dependency on stores are not implemented using any explicit
-barriers, but rely on CPU not to speculate on stores. This is only
-a single CPU relation and provides no guarantees for other CPUs.
+Control dependency on stores are yest implemented using any explicit
+barriers, but rely on CPU yest to speculate on stores. This is only
+a single CPU relation and provides yes guarantees for other CPUs.
 
 
 Comparison of functions
 =======================
 
-case 1) - non-"Read/Modify/Write" (RMW) ops
+case 1) - yesn-"Read/Modify/Write" (RMW) ops
 -------------------------------------------
 
 Function changes:
@@ -83,10 +83,10 @@ Function changes:
 
 Memory ordering guarantee changes:
 
- * none (both fully unordered)
+ * yesne (both fully uyesrdered)
 
 
-case 2) - increment-based ops that return no value
+case 2) - increment-based ops that return yes value
 --------------------------------------------------
 
 Function changes:
@@ -96,9 +96,9 @@ Function changes:
 
 Memory ordering guarantee changes:
 
- * none (both fully unordered)
+ * yesne (both fully uyesrdered)
 
-case 3) - decrement-based RMW ops that return no value
+case 3) - decrement-based RMW ops that return yes value
 ------------------------------------------------------
 
 Function changes:
@@ -107,7 +107,7 @@ Function changes:
 
 Memory ordering guarantee changes:
 
- * fully unordered --> RELEASE ordering
+ * fully uyesrdered --> RELEASE ordering
 
 
 case 4) - increment-based RMW ops that return a value
@@ -115,14 +115,14 @@ case 4) - increment-based RMW ops that return a value
 
 Function changes:
 
- * atomic_inc_not_zero() --> refcount_inc_not_zero()
- * no atomic counterpart --> refcount_add_not_zero()
+ * atomic_inc_yest_zero() --> refcount_inc_yest_zero()
+ * yes atomic counterpart --> refcount_add_yest_zero()
 
 Memory ordering guarantees changes:
 
  * fully ordered --> control dependency on success for stores
 
-.. note:: We really assume here that necessary ordering is provided as a
+.. yeste:: We really assume here that necessary ordering is provided as a
    result of obtaining pointer to the object!
 
 
@@ -144,14 +144,14 @@ case 6) other decrement-based RMW ops that return a value
 
 Function changes:
 
- * no atomic counterpart --> refcount_dec_if_one()
- * ``atomic_add_unless(&var, -1, 1)`` --> ``refcount_dec_not_one(&var)``
+ * yes atomic counterpart --> refcount_dec_if_one()
+ * ``atomic_add_unless(&var, -1, 1)`` --> ``refcount_dec_yest_one(&var)``
 
 Memory ordering guarantees changes:
 
  * fully ordered --> RELEASE ordering + control dependency
 
-.. note:: atomic_add_unless() only provides full order on success.
+.. yeste:: atomic_add_unless() only provides full order on success.
 
 
 case 7) - lock-based RMW

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) 2017 Sanechips Technology Co., Ltd.
+ * Copyright (C) 2017 Sanechips Techyeslogy Co., Ltd.
  * Copyright 2017 Linaro Ltd.
  */
 
@@ -204,7 +204,7 @@ static const struct pinctrl_pin_desc zx296718_pins[] = {
 	AON_PIN(I2C3_SCL, TOP_REG2, 18, 2, 0x48, 0,
 		AON_MUX(0x0, "ANMI"),		/* anmi */
 		AON_MUX(0x1, "AGPIO"),		/* agpio29 */
-		AON_MUX(0x2, "nonAON"),		/* pin0 */
+		AON_MUX(0x2, "yesnAON"),		/* pin0 */
 		AON_MUX(0x3, "EXT_INT"),	/* int4 */
 		TOP_MUX(0x0, "I2C3"),		/* scl */
 		TOP_MUX(0x1, "SPI2"),		/* txd */
@@ -212,7 +212,7 @@ static const struct pinctrl_pin_desc zx296718_pins[] = {
 	AON_PIN(I2C3_SDA, TOP_REG2, 20, 2, 0x48, 9,
 		AON_MUX(0x0, "WD"),		/* rst_b */
 		AON_MUX(0x1, "AGPIO"),		/* agpio30 */
-		AON_MUX(0x2, "nonAON"),		/* pin1 */
+		AON_MUX(0x2, "yesnAON"),		/* pin1 */
 		AON_MUX(0x3, "EXT_INT"),	/* int5 */
 		TOP_MUX(0x0, "I2C3"),		/* sda */
 		TOP_MUX(0x1, "SPI2"),		/* rxd */
@@ -222,82 +222,82 @@ static const struct pinctrl_pin_desc zx296718_pins[] = {
 	AON_PIN(SEC_EN, TOP_REG3, 5, 1, 0x50, 0,
 		AON_MUX(0x0, "SEC"),		/* en */
 		AON_MUX(0x1, "AGPIO"),		/* agpio28 */
-		AON_MUX(0x2, "nonAON"),		/* pin3 */
+		AON_MUX(0x2, "yesnAON"),		/* pin3 */
 		AON_MUX(0x3, "EXT_INT"),	/* int7 */
 		TOP_MUX(0x0, "I2C2"),		/* sda */
 		TOP_MUX(0x1, "SPI2")),		/* cs */
 	AON_PIN(UART0_RXD, 0, 0, 0, 0x50, 9,
 		AON_MUX(0x0, "UART0"),		/* rxd */
 		AON_MUX(0x1, "AGPIO"),		/* agpio20 */
-		AON_MUX(0x2, "nonAON")),	/* pin34 */
+		AON_MUX(0x2, "yesnAON")),	/* pin34 */
 	AON_PIN(UART0_TXD, 0, 0, 0, 0x50, 18,
 		AON_MUX(0x0, "UART0"),		/* txd */
 		AON_MUX(0x1, "AGPIO"),		/* agpio21 */
-		AON_MUX(0x2, "nonAON")),	/* pin32 */
+		AON_MUX(0x2, "yesnAON")),	/* pin32 */
 	AON_PIN(IR_IN, 0, 0, 0, 0x64, 0,
 		AON_MUX(0x0, "IR"),		/* in */
 		AON_MUX(0x1, "AGPIO"),		/* agpio0 */
-		AON_MUX(0x2, "nonAON")),	/* pin27 */
+		AON_MUX(0x2, "yesnAON")),	/* pin27 */
 	AON_PIN(SPI0_CLK, TOP_REG3, 16, 1, 0x64, 9,
 		AON_MUX(0x0, "EXT_INT"),	/* int0 */
 		AON_MUX(0x1, "AGPIO"),		/* agpio23 */
-		AON_MUX(0x2, "nonAON"),		/* pin5 */
+		AON_MUX(0x2, "yesnAON"),		/* pin5 */
 		AON_MUX(0x3, "PCU"),		/* test6 */
 		TOP_MUX(0x0, "SPI0"),		/* clk */
 		TOP_MUX(0x1, "ISP")),		/* flash_trig */
 	AON_PIN(SPI0_CS, TOP_REG3, 17, 1, 0x64, 18,
 		AON_MUX(0x0, "EXT_INT"),	/* int1 */
 		AON_MUX(0x1, "AGPIO"),		/* agpio24 */
-		AON_MUX(0x2, "nonAON"),		/* pin6 */
+		AON_MUX(0x2, "yesnAON"),		/* pin6 */
 		AON_MUX(0x3, "PCU"),		/* test0 */
 		TOP_MUX(0x0, "SPI0"),		/* cs */
 		TOP_MUX(0x1, "ISP")),		/* prelight_trig */
 	AON_PIN(SPI0_TXD, TOP_REG3, 18, 1, 0x68, 0,
 		AON_MUX(0x0, "EXT_INT"),	/* int2 */
 		AON_MUX(0x1, "AGPIO"),		/* agpio25 */
-		AON_MUX(0x2, "nonAON"),		/* pin7 */
+		AON_MUX(0x2, "yesnAON"),		/* pin7 */
 		AON_MUX(0x3, "PCU"),		/* test1 */
 		TOP_MUX(0x0, "SPI0"),		/* txd */
 		TOP_MUX(0x1, "ISP")),		/* shutter_trig */
 	AON_PIN(SPI0_RXD, TOP_REG3, 19, 1, 0x68, 9,
 		AON_MUX(0x0, "EXT_INT"),	/* int3 */
 		AON_MUX(0x1, "AGPIO"),		/* agpio26 */
-		AON_MUX(0x2, "nonAON"),		/* pin8 */
+		AON_MUX(0x2, "yesnAON"),		/* pin8 */
 		AON_MUX(0x3, "PCU"),		/* test2 */
 		TOP_MUX(0x0, "SPI0"),		/* rxd */
 		TOP_MUX(0x1, "ISP")),		/* shutter_open */
 	AON_PIN(KEY_COL0, TOP_REG3, 20, 1, 0x68, 18,
 		AON_MUX(0x0, "KEY"),		/* col0 */
 		AON_MUX(0x1, "AGPIO"),		/* agpio5 */
-		AON_MUX(0x2, "nonAON"),		/* pin9 */
+		AON_MUX(0x2, "yesnAON"),		/* pin9 */
 		AON_MUX(0x3, "PCU"),		/* test3 */
 		TOP_MUX(0x0, "UART3"),		/* rxd */
 		TOP_MUX(0x1, "I2S0")),		/* din1 */
 	AON_PIN(KEY_COL1, TOP_REG3, 21, 2, 0x6c, 0,
 		AON_MUX(0x0, "KEY"),		/* col1 */
 		AON_MUX(0x1, "AGPIO"),		/* agpio6 */
-		AON_MUX(0x2, "nonAON"),		/* pin10 */
+		AON_MUX(0x2, "yesnAON"),		/* pin10 */
 		TOP_MUX(0x0, "UART3"),		/* txd */
 		TOP_MUX(0x1, "I2S0"),		/* din2 */
 		TOP_MUX(0x2, "VGA")),		/* scl */
 	AON_PIN(KEY_COL2, TOP_REG3, 23, 2, 0x6c, 9,
 		AON_MUX(0x0, "KEY"),		/* col2 */
 		AON_MUX(0x1, "AGPIO"),		/* agpio7 */
-		AON_MUX(0x2, "nonAON"),		/* pin11 */
+		AON_MUX(0x2, "yesnAON"),		/* pin11 */
 		TOP_MUX(0x0, "PWM"),		/* out1 */
 		TOP_MUX(0x1, "I2S0"),		/* din3 */
 		TOP_MUX(0x2, "VGA")),		/* sda */
 	AON_PIN(KEY_ROW0, 0, 0, 0, 0x6c, 18,
 		AON_MUX(0x0, "KEY"),		/* row0 */
 		AON_MUX(0x1, "AGPIO"),		/* agpio8 */
-		AON_MUX(0x2, "nonAON"),		/* pin33 */
+		AON_MUX(0x2, "yesnAON"),		/* pin33 */
 		AON_MUX(0x3, "WD")),		/* rst_b */
 
 	/* aon_pmm_reg_1 */
 	AON_PIN(KEY_ROW1, TOP_REG3, 25, 2, 0x70, 0,
 		AON_MUX(0x0, "KEY"),		/* row1 */
 		AON_MUX(0x1, "AGPIO"),		/* agpio9 */
-		AON_MUX(0x2, "nonAON"),		/* pin12 */
+		AON_MUX(0x2, "yesnAON"),		/* pin12 */
 		TOP_MUX(0x0, "LCD"),		/* port0 lcd_te */
 		TOP_MUX(0x1, "I2S0"),		/* dout2 */
 		TOP_MUX(0x2, "PWM"),		/* out2 */
@@ -305,7 +305,7 @@ static const struct pinctrl_pin_desc zx296718_pins[] = {
 	AON_PIN(KEY_ROW2, TOP_REG3, 27, 2, 0x70, 9,
 		AON_MUX(0x0, "KEY"),		/* row2 */
 		AON_MUX(0x1, "AGPIO"),		/* agpio10 */
-		AON_MUX(0x2, "nonAON"),		/* pin13 */
+		AON_MUX(0x2, "yesnAON"),		/* pin13 */
 		TOP_MUX(0x0, "LCD"),		/* port1 lcd_te */
 		TOP_MUX(0x1, "I2S0"),		/* dout3 */
 		TOP_MUX(0x2, "PWM"),		/* out3 */
@@ -313,64 +313,64 @@ static const struct pinctrl_pin_desc zx296718_pins[] = {
 	AON_PIN(HDMI_SCL, TOP_REG3, 29, 1, 0x70, 18,
 		AON_MUX(0x0, "PCU"),		/* test7 */
 		AON_MUX(0x1, "AGPIO"),		/* agpio3 */
-		AON_MUX(0x2, "nonAON"),		/* pin14 */
+		AON_MUX(0x2, "yesnAON"),		/* pin14 */
 		TOP_MUX(0x0, "HDMI"),		/* scl */
 		TOP_MUX(0x1, "UART3")),		/* rxd */
 	AON_PIN(HDMI_SDA, TOP_REG3, 30, 1, 0x74, 0,
 		AON_MUX(0x0, "PCU"),		/* test8 */
 		AON_MUX(0x1, "AGPIO"),		/* agpio4 */
-		AON_MUX(0x2, "nonAON"),		/* pin15 */
+		AON_MUX(0x2, "yesnAON"),		/* pin15 */
 		TOP_MUX(0x0, "HDMI"),		/* sda */
 		TOP_MUX(0x1, "UART3")),		/* txd */
 	AON_PIN(JTAG_TCK, TOP_REG7, 3, 1, 0x78, 18,
 		AON_MUX(0x0, "JTAG"),		/* tck */
 		AON_MUX(0x1, "AGPIO"),		/* agpio11 */
-		AON_MUX(0x2, "nonAON"),		/* pin22 */
+		AON_MUX(0x2, "yesnAON"),		/* pin22 */
 		AON_MUX(0x3, "EXT_INT"),	/* int4 */
 		TOP_MUX(0x0, "SPI4"),		/* clk */
 		TOP_MUX(0x1, "UART1")),		/* rxd */
 	AON_PIN(JTAG_TRSTN, TOP_REG7, 4, 1, 0xac, 0,
 		AON_MUX(0x0, "JTAG"),		/* trstn */
 		AON_MUX(0x1, "AGPIO"),		/* agpio12 */
-		AON_MUX(0x2, "nonAON"),		/* pin23 */
+		AON_MUX(0x2, "yesnAON"),		/* pin23 */
 		AON_MUX(0x3, "EXT_INT"),	/* int5 */
 		TOP_MUX(0x0, "SPI4"),		/* cs */
 		TOP_MUX(0x1, "UART1")),		/* txd */
 	AON_PIN(JTAG_TMS, TOP_REG7, 5, 1, 0xac, 9,
 		AON_MUX(0x0, "JTAG"),		/* tms */
 		AON_MUX(0x1, "AGPIO"),		/* agpio13 */
-		AON_MUX(0x2, "nonAON"),		/* pin24 */
+		AON_MUX(0x2, "yesnAON"),		/* pin24 */
 		AON_MUX(0x3, "EXT_INT"),	/* int6 */
 		TOP_MUX(0x0, "SPI4"),		/* txd */
 		TOP_MUX(0x1, "UART2")),		/* rxd */
 	AON_PIN(JTAG_TDI, TOP_REG7, 6, 1, 0xac, 18,
 		AON_MUX(0x0, "JTAG"),		/* tdi */
 		AON_MUX(0x1, "AGPIO"),		/* agpio14 */
-		AON_MUX(0x2, "nonAON"),		/* pin25 */
+		AON_MUX(0x2, "yesnAON"),		/* pin25 */
 		AON_MUX(0x3, "EXT_INT"),	/* int7 */
 		TOP_MUX(0x0, "SPI4"),		/* rxd */
 		TOP_MUX(0x1, "UART2")),		/* txd */
 	AON_PIN(JTAG_TDO, 0, 0, 0, 0xb0, 0,
 		AON_MUX(0x0, "JTAG"),		/* tdo */
 		AON_MUX(0x1, "AGPIO"),		/* agpio15 */
-		AON_MUX(0x2, "nonAON")),	/* pin26 */
+		AON_MUX(0x2, "yesnAON")),	/* pin26 */
 	AON_PIN(I2C0_SCL, 0, 0, 0, 0xb0, 9,
 		AON_MUX(0x0, "I2C0"),		/* scl */
 		AON_MUX(0x1, "AGPIO"),		/* agpio16 */
-		AON_MUX(0x2, "nonAON")),	/* pin28 */
+		AON_MUX(0x2, "yesnAON")),	/* pin28 */
 	AON_PIN(I2C0_SDA, 0, 0, 0, 0xb0, 18,
 		AON_MUX(0x0, "I2C0"),		/* sda */
 		AON_MUX(0x1, "AGPIO"),		/* agpio17 */
-		AON_MUX(0x2, "nonAON")),	/* pin29 */
+		AON_MUX(0x2, "yesnAON")),	/* pin29 */
 	AON_PIN(I2C1_SCL, TOP_REG8, 4, 1, 0xb4, 0,
 		AON_MUX(0x0, "I2C1"),		/* scl */
 		AON_MUX(0x1, "AGPIO"),		/* agpio18 */
-		AON_MUX(0x2, "nonAON"),		/* pin30 */
+		AON_MUX(0x2, "yesnAON"),		/* pin30 */
 		TOP_MUX(0x0, "LCD")),		/* port0 lcd_te */
 	AON_PIN(I2C1_SDA, TOP_REG8, 5, 1, 0xb4, 9,
 		AON_MUX(0x0, "I2C1"),		/* sda */
 		AON_MUX(0x1, "AGPIO"),		/* agpio19 */
-		AON_MUX(0x2, "nonAON"),		/* pin31 */
+		AON_MUX(0x2, "yesnAON"),		/* pin31 */
 		TOP_MUX(0x0, "LCD")),		/* port1 lcd_te */
 	ZX_RESERVED(AON_RESERVED2),
 	ZX_RESERVED(AON_RESERVED3),
@@ -380,7 +380,7 @@ static const struct pinctrl_pin_desc zx296718_pins[] = {
 	AON_PIN(SPI1_CLK, TOP_REG2, 6, 3, 0x40, 9,
 		AON_MUX(0x0, "EXT_INT"),	/* int0 */
 		AON_MUX(0x1, "PCU"),		/* test12 */
-		AON_MUX(0x2, "nonAON"),		/* pin39 */
+		AON_MUX(0x2, "yesnAON"),		/* pin39 */
 		TOP_MUX(0x0, "SPI1"),		/* clk */
 		TOP_MUX(0x1, "PCM"),		/* clk */
 		TOP_MUX(0x2, "BGPIO"),		/* gpio35 */
@@ -390,7 +390,7 @@ static const struct pinctrl_pin_desc zx296718_pins[] = {
 	AON_PIN(SPI1_CS, TOP_REG2, 9, 3, 0x40, 18,
 		AON_MUX(0x0, "EXT_INT"),	/* int1 */
 		AON_MUX(0x1, "PCU"),		/* test13 */
-		AON_MUX(0x2, "nonAON"),		/* pin40 */
+		AON_MUX(0x2, "yesnAON"),		/* pin40 */
 		TOP_MUX(0x0, "SPI1"),		/* cs */
 		TOP_MUX(0x1, "PCM"),		/* fs */
 		TOP_MUX(0x2, "BGPIO"),		/* gpio36 */
@@ -400,7 +400,7 @@ static const struct pinctrl_pin_desc zx296718_pins[] = {
 	AON_PIN(SPI1_TXD, TOP_REG2, 12, 3, 0x44, 0,
 		AON_MUX(0x0, "EXT_INT"),	/* int2 */
 		AON_MUX(0x1, "PCU"),		/* test14 */
-		AON_MUX(0x2, "nonAON"),		/* pin41 */
+		AON_MUX(0x2, "yesnAON"),		/* pin41 */
 		TOP_MUX(0x0, "SPI1"),		/* txd */
 		TOP_MUX(0x1, "PCM"),		/* txd */
 		TOP_MUX(0x2, "BGPIO"),		/* gpio37 */
@@ -410,7 +410,7 @@ static const struct pinctrl_pin_desc zx296718_pins[] = {
 	AON_PIN(SPI1_RXD, TOP_REG2, 15, 3, 0x44, 9,
 		AON_MUX(0x0, "EXT_INT"),	/* int3 */
 		AON_MUX(0x1, "PCU"),		/* test15 */
-		AON_MUX(0x2, "nonAON"),		/* pin42 */
+		AON_MUX(0x2, "yesnAON"),		/* pin42 */
 		TOP_MUX(0x0, "SPI1"),		/* rxd */
 		TOP_MUX(0x1, "PCM"),		/* rxd */
 		TOP_MUX(0x2, "BGPIO"),		/* gpio38 */
@@ -422,7 +422,7 @@ static const struct pinctrl_pin_desc zx296718_pins[] = {
 	AON_PIN(AUDIO_DET, TOP_REG3, 3, 2, 0x48, 18,
 		AON_MUX(0x0, "PCU"),		/* test4 */
 		AON_MUX(0x1, "AGPIO"),		/* agpio27 */
-		AON_MUX(0x2, "nonAON"),		/* pin2 */
+		AON_MUX(0x2, "yesnAON"),		/* pin2 */
 		AON_MUX(0x3, "EXT_INT"),	/* int16 */
 		TOP_MUX(0x0, "AUDIO"),		/* detect */
 		TOP_MUX(0x1, "I2C2"),		/* scl */
@@ -430,38 +430,38 @@ static const struct pinctrl_pin_desc zx296718_pins[] = {
 	AON_PIN(SPDIF_OUT, TOP_REG3, 14, 2, 0x78, 9,
 		AON_MUX(0x0, "PCU"),		/* test5 */
 		AON_MUX(0x1, "AGPIO"),		/* agpio22 */
-		AON_MUX(0x2, "nonAON"),		/* pin4 */
+		AON_MUX(0x2, "yesnAON"),		/* pin4 */
 		TOP_MUX(0x0, "SPDIF"),		/* out */
 		TOP_MUX(0x1, "PWM"),		/* out0 */
 		TOP_MUX(0x2, "ISP")),		/* fl_trig */
 	AON_PIN(HDMI_CEC, 0, 0, 0, 0x74, 9,
 		AON_MUX(0x0, "PCU"),		/* test9 */
 		AON_MUX(0x1, "AGPIO"),		/* agpio1 */
-		AON_MUX(0x2, "nonAON")),	/* pin16 */
+		AON_MUX(0x2, "yesnAON")),	/* pin16 */
 	AON_PIN(HDMI_HPD, 0, 0, 0, 0x74, 18,
 		AON_MUX(0x0, "PCU"),		/* test10 */
 		AON_MUX(0x1, "AGPIO"),		/* agpio2 */
-		AON_MUX(0x2, "nonAON")),	/* pin17 */
+		AON_MUX(0x2, "yesnAON")),	/* pin17 */
 	AON_PIN(GMAC_25M_OUT, 0, 0, 0, 0x78, 0,
 		AON_MUX(0x0, "PCU"),		/* test11 */
 		AON_MUX(0x1, "AGPIO"),		/* agpio31 */
-		AON_MUX(0x2, "nonAON")),	/* pin43 */
+		AON_MUX(0x2, "yesnAON")),	/* pin43 */
 	AON_PIN(BOOT_SEL0, 0, 0, 0, 0xc0, 9,
 		AON_MUX(0x0, "BOOT"),		/* sel0 */
 		AON_MUX(0x1, "AGPIO"),		/* agpio18 */
-		AON_MUX(0x2, "nonAON")),	/* pin18 */
+		AON_MUX(0x2, "yesnAON")),	/* pin18 */
 	AON_PIN(BOOT_SEL1, 0, 0, 0, 0xc0, 18,
 		AON_MUX(0x0, "BOOT"),		/* sel1 */
 		AON_MUX(0x1, "AGPIO"),		/* agpio19 */
-		AON_MUX(0x2, "nonAON")),	/* pin19 */
+		AON_MUX(0x2, "yesnAON")),	/* pin19 */
 	AON_PIN(BOOT_SEL2, 0, 0, 0, 0xc4, 0,
 		AON_MUX(0x0, "BOOT"),		/* sel2 */
 		AON_MUX(0x1, "AGPIO"),		/* agpio20 */
-		AON_MUX(0x2, "nonAON")),	/* pin20 */
+		AON_MUX(0x2, "yesnAON")),	/* pin20 */
 	AON_PIN(DEEP_SLEEP_OUT_N, 0, 0, 0, 0xc4, 9,
 		AON_MUX(0x0, "DEEPSLP"),	/* deep sleep out_n */
 		AON_MUX(0x1, "AGPIO"),		/* agpio21 */
-		AON_MUX(0x2, "nonAON")),	/* pin21 */
+		AON_MUX(0x2, "yesnAON")),	/* pin21 */
 	ZX_RESERVED(AON_RESERVED7),
 
 	/* top_pmm_reg_0 */

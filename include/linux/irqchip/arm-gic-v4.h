@@ -17,7 +17,7 @@ struct its_vpe;
 
 /* Embedded in kvm.arch */
 struct its_vm {
-	struct fwnode_handle	*fwnode;
+	struct fwyesde_handle	*fwyesde;
 	struct irq_domain	*domain;
 	struct page		*vprop_page;
 	struct its_vpe		**vpes;
@@ -61,8 +61,8 @@ struct its_vpe {
  * it complements.  To be used as the vcpu_info passed to
  * irq_set_vcpu_affinity().
  *
- * @vm:		Pointer to the GICv4 notion of a VM
- * @vpe:	Pointer to the GICv4 notion of a virtual CPU (VPE)
+ * @vm:		Pointer to the GICv4 yestion of a VM
+ * @vpe:	Pointer to the GICv4 yestion of a virtual CPU (VPE)
  * @vintid:	Virtual LPI number
  * @properties:	Priority and enable bits (as written in the prop table)
  * @db_enabled:	Is the VPE doorbell to be generated?

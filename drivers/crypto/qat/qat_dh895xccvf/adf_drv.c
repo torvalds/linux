@@ -23,12 +23,12 @@
   are met:
 
     * Redistributions of source code must retain the above copyright
-      notice, this list of conditions and the following disclaimer.
+      yestice, this list of conditions and the following disclaimer.
     * Redistributions in binary form must reproduce the above copyright
-      notice, this list of conditions and the following disclaimer in
+      yestice, this list of conditions and the following disclaimer in
       the documentation and/or other materials provided with the
       distribution.
-    * Neither the name of Intel Corporation nor the names of its
+    * Neither the name of Intel Corporation yesr the names of its
       contributors may be used to endorse or promote products derived
       from this software without specific prior written permission.
 
@@ -51,7 +51,7 @@
 #include <linux/types.h>
 #include <linux/fs.h>
 #include <linux/slab.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/device.h>
 #include <linux/dma-mapping.h>
 #include <linux/platform_device.h>
@@ -136,8 +136,8 @@ static int adf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		return -ENODEV;
 	}
 
-	accel_dev = kzalloc_node(sizeof(*accel_dev), GFP_KERNEL,
-				 dev_to_node(&pdev->dev));
+	accel_dev = kzalloc_yesde(sizeof(*accel_dev), GFP_KERNEL,
+				 dev_to_yesde(&pdev->dev));
 	if (!accel_dev)
 		return -ENOMEM;
 
@@ -156,8 +156,8 @@ static int adf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	accel_dev->owner = THIS_MODULE;
 	/* Allocate and configure device configuration structure */
-	hw_data = kzalloc_node(sizeof(*hw_data), GFP_KERNEL,
-			       dev_to_node(&pdev->dev));
+	hw_data = kzalloc_yesde(sizeof(*hw_data), GFP_KERNEL,
+			       dev_to_yesde(&pdev->dev));
 	if (!hw_data) {
 		ret = -ENOMEM;
 		goto out_err;
@@ -296,5 +296,5 @@ module_exit(adfdrv_release);
 
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_AUTHOR("Intel");
-MODULE_DESCRIPTION("Intel(R) QuickAssist Technology");
+MODULE_DESCRIPTION("Intel(R) QuickAssist Techyeslogy");
 MODULE_VERSION(ADF_DRV_VERSION);

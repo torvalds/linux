@@ -10,7 +10,7 @@
 
 #include <linux/linkage.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/interrupt.h>
 #include <asm/pil.h>
 #include <asm/ptrace.h>
@@ -34,31 +34,31 @@
 
 /* The largest number of unique interrupt sources we support.
  * If this needs to ever be larger than 255, you need to change
- * the type of ino_bucket->irq as appropriate.
+ * the type of iyes_bucket->irq as appropriate.
  *
- * ino_bucket->irq allocation is made during {sun4v_,}build_irq().
+ * iyes_bucket->irq allocation is made during {sun4v_,}build_irq().
  */
 #define NR_IRQS		(2048)
 
 void irq_install_pre_handler(int irq,
 			     void (*func)(unsigned int, void *, void *),
 			     void *arg1, void *arg2);
-#define irq_canonicalize(irq)	(irq)
-unsigned int build_irq(int inofixup, unsigned long iclr, unsigned long imap);
-unsigned int sun4v_build_irq(u32 devhandle, unsigned int devino);
-unsigned int sun4v_build_virq(u32 devhandle, unsigned int devino);
+#define irq_cayesnicalize(irq)	(irq)
+unsigned int build_irq(int iyesfixup, unsigned long iclr, unsigned long imap);
+unsigned int sun4v_build_irq(u32 devhandle, unsigned int deviyes);
+unsigned int sun4v_build_virq(u32 devhandle, unsigned int deviyes);
 unsigned int sun4v_build_msi(u32 devhandle, unsigned int *irq_p,
-			     unsigned int msi_devino_start,
-			     unsigned int msi_devino_end);
+			     unsigned int msi_deviyes_start,
+			     unsigned int msi_deviyes_end);
 void sun4v_destroy_msi(unsigned int irq);
 unsigned int sun4u_build_msi(u32 portid, unsigned int *irq_p,
-			     unsigned int msi_devino_start,
-			     unsigned int msi_devino_end,
+			     unsigned int msi_deviyes_start,
+			     unsigned int msi_deviyes_end,
 			     unsigned long imap_base,
 			     unsigned long iclr_base);
 void sun4u_destroy_msi(unsigned int irq);
 
-unsigned int irq_alloc(unsigned int dev_handle, unsigned int dev_ino);
+unsigned int irq_alloc(unsigned int dev_handle, unsigned int dev_iyes);
 void irq_free(unsigned int irq);
 
 void __init init_IRQ(void);

@@ -189,11 +189,11 @@ static struct mxc_usbh_platform_data usbh2_pdata __initdata = {
  * NOR flash
  */
 
-static struct physmap_flash_data nor_flash_data = {
+static struct physmap_flash_data yesr_flash_data = {
 	.width  = 2,
 };
 
-static struct resource nor_flash_resource = {
+static struct resource yesr_flash_resource = {
 	.start  = 0xa0000000,
 	.end    = 0xa1ffffff,
 	.flags  = IORESOURCE_MEM,
@@ -203,9 +203,9 @@ static struct platform_device physmap_flash_device = {
 	.name   = "physmap-flash",
 	.id     = 0,
 	.dev    = {
-		.platform_data  = &nor_flash_data,
+		.platform_data  = &yesr_flash_data,
 	},
-	.resource = &nor_flash_resource,
+	.resource = &yesr_flash_resource,
 	.num_resources = 1,
 };
 
@@ -276,7 +276,7 @@ static void __init mx31lite_late(void)
 	/* SMSC9117 IRQ pin */
 	ret = gpio_request(IOMUX_TO_GPIO(MX31_PIN_SFS6), "sms9117-irq");
 	if (ret)
-		pr_warn("could not get LAN irq gpio\n");
+		pr_warn("could yest get LAN irq gpio\n");
 	else {
 		gpio_direction_input(IOMUX_TO_GPIO(MX31_PIN_SFS6));
 		smsc911x_resources[1].start =

@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -312,7 +312,7 @@ int intel_vgpu_restore_inhibit_context(struct intel_vgpu *vgpu,
 	if (ret)
 		goto out;
 
-	/* no MOCS register in context except render engine */
+	/* yes MOCS register in context except render engine */
 	if (req->engine->id != RCS0)
 		goto out;
 
@@ -505,7 +505,7 @@ static void switch_mmio(struct intel_vgpu *pre,
 			s = &next->submission;
 			/*
 			 * No need to restore the mmio which is in context state
-			 * image if it's not inhibit context, it will restore
+			 * image if it's yest inhibit context, it will restore
 			 * itself.
 			 */
 			if (mmio->in_context &&

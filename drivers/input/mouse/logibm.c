@@ -125,7 +125,7 @@ static int __init logibm_init(void)
 
 	logibm_dev = input_allocate_device();
 	if (!logibm_dev) {
-		printk(KERN_ERR "logibm.c: Not enough memory for input device\n");
+		printk(KERN_ERR "logibm.c: Not eyesugh memory for input device\n");
 		err = -ENOMEM;
 		goto err_release_region;
 	}

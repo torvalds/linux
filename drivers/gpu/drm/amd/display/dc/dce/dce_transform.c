@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -402,7 +402,7 @@ static void dce_transform_set_scaler(
 /*****************************************************************************
  * set_clamp
  *
- * @param depth : bit depth to set the clamp to (should match denorm)
+ * @param depth : bit depth to set the clamp to (should match deyesrm)
  *
  * @brief
  *     Programs clamp according to panel bit depth.
@@ -612,7 +612,7 @@ static void set_dither(
  *     Programs the DCP bit depth reduction registers (Clamp, Round/Truncate,
  *      Dither) for dce
  *
- * @param depth : bit depth to set the clamp to (should match denorm)
+ * @param depth : bit depth to set the clamp to (should match deyesrm)
  *
  ******************************************************************************/
 static void program_bit_depth_reduction(
@@ -675,7 +675,7 @@ static int dce_transform_get_max_num_of_supported_lines(
 	ASSERT(pixel_width);
 
 	/* Find number of pixels that can fit into a single LB entry and
-	 * take floor of the value since we cannot store a single pixel
+	 * take floor of the value since we canyest store a single pixel
 	 * across multiple entries. */
 	switch (depth) {
 	case LB_PIXEL_DEPTH_18BPP:
@@ -710,38 +710,38 @@ static int dce_transform_get_max_num_of_supported_lines(
 	return (max_pixels_supports / pixel_width);
 }
 
-static void set_denormalization(
+static void set_deyesrmalization(
 	struct dce_transform *xfm_dce,
 	enum dc_color_depth depth)
 {
-	int denorm_mode = 0;
+	int deyesrm_mode = 0;
 
 	switch (depth) {
 	case COLOR_DEPTH_666:
 		/* 63/64 for 6 bit output color depth */
-		denorm_mode = 1;
+		deyesrm_mode = 1;
 		break;
 	case COLOR_DEPTH_888:
 		/* Unity for 8 bit output color depth
 		 * because prescale is disabled by default */
-		denorm_mode = 0;
+		deyesrm_mode = 0;
 		break;
 	case COLOR_DEPTH_101010:
 		/* 1023/1024 for 10 bit output color depth */
-		denorm_mode = 3;
+		deyesrm_mode = 3;
 		break;
 	case COLOR_DEPTH_121212:
 		/* 4095/4096 for 12 bit output color depth */
-		denorm_mode = 5;
+		deyesrm_mode = 5;
 		break;
 	case COLOR_DEPTH_141414:
 	case COLOR_DEPTH_161616:
 	default:
-		/* not valid used case! */
+		/* yest valid used case! */
 		break;
 	}
 
-	REG_SET(DENORM_CONTROL, 0, DENORM_MODE, denorm_mode);
+	REG_SET(DENORM_CONTROL, 0, DENORM_MODE, deyesrm_mode);
 }
 
 static void dce_transform_set_pixel_storage_depth(
@@ -782,7 +782,7 @@ static void dce_transform_set_pixel_storage_depth(
 		break;
 	}
 
-	set_denormalization(xfm_dce, color_depth);
+	set_deyesrmalization(xfm_dce, color_depth);
 	program_bit_depth_reduction(xfm_dce, color_depth, bit_depth_params);
 
 	REG_UPDATE_2(LB_DATA_FORMAT,
@@ -792,7 +792,7 @@ static void dce_transform_set_pixel_storage_depth(
 	if (!(xfm_dce->lb_pixel_depth_supported & depth)) {
 		/*we should use unsupported capabilities
 		 *  unless it is required by w/a*/
-		DC_LOG_WARNING("%s: Capability not supported",
+		DC_LOG_WARNING("%s: Capability yest supported",
 			__func__);
 	}
 }
@@ -836,7 +836,7 @@ static void program_gamut_remap(
  *  @return
  *     void
  *
- *  @note calculate and apply color temperature adjustment to in Rgb color space
+ *  @yeste calculate and apply color temperature adjustment to in Rgb color space
  *
  *  @see
  *
@@ -912,12 +912,12 @@ bool dce_transform_get_optimal_number_of_taps(
 
 	/*
 	 * Set taps according to this policy (in this order)
-	 * - Use 1 for no scaling
+	 * - Use 1 for yes scaling
 	 * - Use input taps
 	 * - Use 4 and reduce as required by line buffer size
 	 * - Decide chroma taps if chroma is scaled
 	 *
-	 * Ignore input chroma taps. Decide based on non-chroma
+	 * Igyesre input chroma taps. Decide based on yesn-chroma
 	 */
 	scl_data->taps.h_taps = decide_taps(scl_data->ratios.horz, in_taps->h_taps, false);
 	scl_data->taps.v_taps = decide_taps(scl_data->ratios.vert, in_taps->v_taps, false);
@@ -1085,7 +1085,7 @@ void dce110_opp_set_csc_adjustment(
 	program_color_matrix(
 			xfm_dce, tbl_entry, GRPH_COLOR_MATRIX_SW);
 
-	/*  We did everything ,now program DxOUTPUT_CSC_CONTROL */
+	/*  We did everything ,yesw program DxOUTPUT_CSC_CONTROL */
 	configure_graphics_mode(xfm_dce, config, GRAPHICS_CSC_ADJUST_TYPE_SW,
 			tbl_entry->color_space);
 }
@@ -1100,14 +1100,14 @@ void dce110_opp_set_csc_default(
 
 	if (default_adjust->force_hw_default == false) {
 		const struct out_csc_color_matrix *elm;
-		/* currently parameter not in use */
+		/* currently parameter yest in use */
 		enum grph_color_adjust_option option =
 			GRPH_COLOR_MATRIX_HW_DEFAULT;
 		uint32_t i;
 		/*
 		 * HW default false we program locally defined matrix
 		 * HW default true  we use predefined hw matrix and we
-		 * do not need to program matrix
+		 * do yest need to program matrix
 		 * OEM wants the HW default via runtime parameter.
 		 */
 		option = GRPH_COLOR_MATRIX_SW;
@@ -1126,7 +1126,7 @@ void dce110_opp_set_csc_default(
 
 	/* configure the what we programmed :
 	 * 1. Default values from this file
-	 * 2. Use hardware default from ROM_A and we do not need to program
+	 * 2. Use hardware default from ROM_A and we do yest need to program
 	 * matrix */
 
 	configure_graphics_mode(xfm_dce, config,
@@ -1172,7 +1172,7 @@ static void program_pwl(struct dce_transform *xfm_dce,
 	}
 
 	if (counter == max_tries) {
-		DC_LOG_WARNING("%s: regamma lut was not powered on "
+		DC_LOG_WARNING("%s: regamma lut was yest powered on "
 				"in a timely manner,"
 				" programming still proceeds\n",
 				__func__);

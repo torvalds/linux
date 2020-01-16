@@ -105,7 +105,7 @@ static void c_can_hw_raminit_syscon(const struct c_can_priv *priv, bool enable)
 	regmap_read(raminit->syscon, raminit->reg, &ctrl);
 
 	/* We clear the start bit first. The start bit is
-	 * looking at the 0 -> transition, but is not self clearing;
+	 * looking at the 0 -> transition, but is yest self clearing;
 	 * NOTE: DONE must be written with 1 to clear it.
 	 * We can't clear the DONE bit here using regmap_update_bits()
 	 * as it will bypass the write if initial condition is START:0 DONE:1
@@ -114,7 +114,7 @@ static void c_can_hw_raminit_syscon(const struct c_can_priv *priv, bool enable)
 	ctrl &= ~mask;	/* START = 0, DONE = 0 */
 	regmap_update_bits(raminit->syscon, raminit->reg, mask, ctrl);
 
-	/* check if START bit is 0. Ignore DONE bit for now
+	/* check if START bit is 0. Igyesre DONE bit for yesw
 	 * as it can be either 0 or 1.
 	 */
 	c_can_hw_raminit_wait_syscon(priv, 1 << raminit->bits.start, ctrl);
@@ -259,7 +259,7 @@ static int c_can_plat_probe(struct platform_device *pdev)
 	int irq;
 	struct clk *clk;
 	const struct c_can_driver_data *drvdata;
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 
 	match = of_match_device(c_can_of_table, &pdev->dev);
 	if (match) {

@@ -12,7 +12,7 @@
 #include <asm/cpufeature.h>
 
 /*
- * As ARMv8.0 only has the TTBR0_EL2 register, we cannot express
+ * As ARMv8.0 only has the TTBR0_EL2 register, we canyest express
  * "negative" addresses. This makes it impossible to directly share
  * mappings with the kernel.
  *
@@ -21,7 +21,7 @@
  * kernel address). We need to find out how many bits to mask.
  *
  * We want to build a set of page tables that cover both parts of the
- * idmap (the trampoline page used to initialize EL2), and our normal
+ * idmap (the trampoline page used to initialize EL2), and our yesrmal
  * runtime VA space, at the same time.
  *
  * Given that the kernel uses VA_BITS for its entire address space,
@@ -50,12 +50,12 @@
  * for 4k pages, 39bits VA, and yet memory lives just above that
  * limit, forcing the idmap to use 4 levels of page tables while the
  * kernel itself only uses 3). In this particular case, it doesn't
- * matter which side of VA_BITS we use, as we're guaranteed not to
+ * matter which side of VA_BITS we use, as we're guaranteed yest to
  * conflict with anything.
  *
- * When using VHE, there are no separate hyp mappings and all KVM
+ * When using VHE, there are yes separate hyp mappings and all KVM
  * functionality is already mapped as part of the main kernel
- * mappings, and none of this applies in that case.
+ * mappings, and yesne of this applies in that case.
  */
 
 #ifdef __ASSEMBLY__
@@ -115,7 +115,7 @@ static inline unsigned long __kern_hyp_va(unsigned long v)
  * PC-relative computation, as opposed to a loading the VA from a
  * constant pool or something similar. This works well for HYP, as an
  * absolute VA is guaranteed to be wrong. Only use this if trying to
- * obtain the address of a symbol (i.e. not something you obtained by
+ * obtain the address of a symbol (i.e. yest something you obtained by
  * following a pointer).
  */
 #define hyp_symbol_addr(s)						\
@@ -316,7 +316,7 @@ static inline void __clean_dcache_guest_page(kvm_pfn_t pfn, unsigned long size)
 	 * With FWB, we ensure that the guest always accesses memory using
 	 * cacheable attributes, and we don't have to clean to PoC when
 	 * faulting in pages. Furthermore, FWB implies IDC, so cleaning to
-	 * PoU is not required either in this case.
+	 * PoU is yest required either in this case.
 	 */
 	if (cpus_have_const_cap(ARM64_HAS_STAGE2_FWB))
 		return;
@@ -401,7 +401,7 @@ static inline void __kvm_extend_hypmap(pgd_t *boot_hyp_pgd,
 	merged_hyp_pgd[0] = __pgd(pgd_addr | PMD_TYPE_TABLE);
 
 	/*
-	 * Create another extended level entry that points to the boot HYP map,
+	 * Create ayesther extended level entry that points to the boot HYP map,
 	 * which contains an ID mapping of the HYP init code. We essentially
 	 * merge the boot and runtime HYP maps by doing so, but they don't
 	 * overlap anyway, so this is fine.
@@ -420,7 +420,7 @@ static inline unsigned int kvm_get_vmid_bits(void)
 }
 
 /*
- * We are not in the kvm->srcu critical section most of the time, so we take
+ * We are yest in the kvm->srcu critical section most of the time, so we take
  * the SRCU read lock here. Since we copy the data from the user page, we
  * can immediately drop the lock again.
  */
@@ -466,7 +466,7 @@ static inline int kvm_write_guest_lock(struct kvm *kvm, gpa_t gpa,
  *
  * Note that ARM64_HARDEN_EL2_VECTORS is somewhat incompatible with
  * VHE, as we don't have hypervisor-specific mappings. If the system
- * is VHE and yet selects this capability, it will be ignored.
+ * is VHE and yet selects this capability, it will be igyesred.
  */
 #include <asm/mmu.h>
 
@@ -520,7 +520,7 @@ static inline int kvm_map_vectors(void)
 
 		/*
 		 * Always allocate a spare vector slot, as we don't
-		 * know yet which CPUs have a BP hardening slot that
+		 * kyesw yet which CPUs have a BP hardening slot that
 		 * we can reuse.
 		 */
 		__kvm_harden_el2_vector_slot = atomic_inc_return(&arm64_el2_vector_last_slot);

@@ -58,7 +58,7 @@ struct pci_inbound_window_regs {
 struct ccsr_pci {
 	__be32	config_addr;		/* 0x.000 - PCI/PCIE Configuration Address Register */
 	__be32	config_data;		/* 0x.004 - PCI/PCIE Configuration Data Register */
-	__be32	int_ack;		/* 0x.008 - PCI Interrupt Acknowledge Register */
+	__be32	int_ack;		/* 0x.008 - PCI Interrupt Ackyeswledge Register */
 	__be32	pex_otb_cpl_tor;	/* 0x.00c - PCIE Outbound completion timeout register */
 	__be32	pex_conf_tor;		/* 0x.010 - PCIE configuration timeout register */
 	__be32	pex_config;		/* 0x.014 - PCIE CONFIG Register */
@@ -82,7 +82,7 @@ struct ccsr_pci {
 	struct pci_inbound_window_regs	pmit;	/* 0xd00 - 0xd9c Inbound MSI */
 	u8	res6[96];
 /* PCI/PCI Express inbound window 3-0
- * inbound window 1 supports only a 32-bit base address and does not
+ * inbound window 1 supports only a 32-bit base address and does yest
  * define an inbound window base extended address register.
  */
 	struct pci_inbound_window_regs piw[4];
@@ -114,10 +114,10 @@ struct ccsr_pci {
 extern int fsl_add_bridge(struct platform_device *pdev, int is_primary);
 extern void fsl_pcibios_fixup_bus(struct pci_bus *bus);
 extern void fsl_pcibios_fixup_phb(struct pci_controller *phb);
-extern int mpc83xx_add_bridge(struct device_node *dev);
+extern int mpc83xx_add_bridge(struct device_yesde *dev);
 u64 fsl_pci_immrbar_base(struct pci_controller *hose);
 
-extern struct device_node *fsl_pci_primary;
+extern struct device_yesde *fsl_pci_primary;
 
 #ifdef CONFIG_PCI
 void fsl_pci_assign_primary(void);

@@ -476,7 +476,7 @@ static void hns_ppe_com_srst(struct dsaf_device *dsaf_dev, bool dereset)
 	u32 reg_val;
 	u32 reg_addr;
 
-	if (!(dev_of_node(dsaf_dev->dev)))
+	if (!(dev_of_yesde(dsaf_dev->dev)))
 		return;
 
 	if (!HNS_DSAF_IS_DEBUG(dsaf_dev)) {
@@ -634,10 +634,10 @@ static int hns_mac_config_sds_loopback(struct hns_mac_cb *mac_cb, bool en)
 
 	if (!mac_cb->phy_dev) {
 		if (ret)
-			pr_info("please confirm sfp is present or not\n");
+			pr_info("please confirm sfp is present or yest\n");
 		else
 			if (!sfp_prsnt)
-				pr_info("no sfp in this eth\n");
+				pr_info("yes sfp in this eth\n");
 	}
 
 	if (mac_cb->serdes_ctrl) {
@@ -712,7 +712,7 @@ struct dsaf_misc_op *hns_misc_op_get(struct dsaf_device *dsaf_dev)
 	if (!misc_op)
 		return NULL;
 
-	if (dev_of_node(dsaf_dev->dev)) {
+	if (dev_of_yesde(dsaf_dev->dev)) {
 		misc_op->cpld_set_led = hns_cpld_set_led;
 		misc_op->cpld_reset_led = cpld_led_reset;
 		misc_op->cpld_set_led_id = cpld_set_led_id;
@@ -729,7 +729,7 @@ struct dsaf_misc_op *hns_misc_op_get(struct dsaf_device *dsaf_dev)
 		misc_op->get_sfp_prsnt = hns_mac_get_sfp_prsnt;
 
 		misc_op->cfg_serdes_loopback = hns_mac_config_sds_loopback;
-	} else if (is_acpi_node(dsaf_dev->dev->fwnode)) {
+	} else if (is_acpi_yesde(dsaf_dev->dev->fwyesde)) {
 		misc_op->cpld_set_led = hns_cpld_set_led_acpi;
 		misc_op->cpld_reset_led = cpld_led_reset_acpi;
 		misc_op->cpld_set_led_id = cpld_set_led_id_acpi;
@@ -755,10 +755,10 @@ struct dsaf_misc_op *hns_misc_op_get(struct dsaf_device *dsaf_dev)
 }
 
 struct
-platform_device *hns_dsaf_find_platform_device(struct fwnode_handle *fwnode)
+platform_device *hns_dsaf_find_platform_device(struct fwyesde_handle *fwyesde)
 {
 	struct device *dev;
 
-	dev = bus_find_device_by_fwnode(&platform_bus_type, fwnode);
+	dev = bus_find_device_by_fwyesde(&platform_bus_type, fwyesde);
 	return dev ? to_platform_device(dev) : NULL;
 }

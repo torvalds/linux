@@ -31,10 +31,10 @@ MODULE_PARM_DESC(timeout,
 	"Watchdog timeout in seconds. default="
 				__MODULE_STRING(WATCHDOG_TIMEOUT) ".");
 
-static bool nowayout = WATCHDOG_NOWAYOUT;
-module_param(nowayout, bool, 0);
-MODULE_PARM_DESC(nowayout,
-	"Watchdog cannot be stopped once started (default="
+static bool yeswayout = WATCHDOG_NOWAYOUT;
+module_param(yeswayout, bool, 0);
+MODULE_PARM_DESC(yeswayout,
+	"Watchdog canyest be stopped once started (default="
 				__MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
 
 static int ux500_wdt_start(struct watchdog_device *wdd)
@@ -97,7 +97,7 @@ static int ux500_wdt_probe(struct platform_device *pdev)
 	}
 
 	ux500_wdt.parent = dev;
-	watchdog_set_nowayout(&ux500_wdt, nowayout);
+	watchdog_set_yeswayout(&ux500_wdt, yeswayout);
 
 	/* disable auto off on sleep */
 	prcmu_config_a9wdog(PRCMU_WDOG_CPU1, false);

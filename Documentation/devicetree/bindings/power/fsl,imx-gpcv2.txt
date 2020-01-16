@@ -15,10 +15,10 @@ Required properties:
 
 - interrupts: Should contain GPC interrupt request 1
 
-Power domains contained within GPC node are generic power domain
+Power domains contained within GPC yesde are generic power domain
 providers, documented in
 Documentation/devicetree/bindings/power/power-domain.yaml, which are
-described as subnodes of the power gating controller 'pgc' node,
+described as subyesdes of the power gating controller 'pgc' yesde,
 which, in turn, is expected to contain the following:
 
 Required properties:
@@ -64,7 +64,7 @@ Specifying power domain for IP modules
 ======================================
 
 IP cores belonging to a power domain should contain a 'power-domains'
-property that is a phandle for PGC node representing the domain.
+property that is a phandle for PGC yesde representing the domain.
 
 Example of a device that is part of the PCIE_PHY power domain:
 

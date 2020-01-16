@@ -4,7 +4,7 @@
 #define _BCACHE_UTIL_H
 
 #include <linux/blkdev.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/kernel.h>
 #include <linux/sched/clock.h>
 #include <linux/llist.h>
@@ -235,9 +235,9 @@ do {									\
 
 /*
  * Simple array based allocator - preallocates a number of elements and you can
- * never allocate more than that, also has no locking.
+ * never allocate more than that, also has yes locking.
  *
- * Handy because if you know you only need a fixed number of elements you don't
+ * Handy because if you kyesw you only need a fixed number of elements you don't
  * have to worry about memory allocation failure, and sometimes a mempool isn't
  * what you want.
  *
@@ -367,7 +367,7 @@ int bch_parse_uuid(const char *s, char *uuid);
 struct time_stats {
 	spinlock_t	lock;
 	/*
-	 * all fields are in nanoseconds, averages are ewmas stored left shifted
+	 * all fields are in nayesseconds, averages are ewmas stored left shifted
 	 * by 8
 	 */
 	uint64_t	max_duration;
@@ -435,7 +435,7 @@ read_attribute(name ## _last_ ## frequency_units)
 })
 
 struct bch_ratelimit {
-	/* Next time we want to do some work, in nanoseconds */
+	/* Next time we want to do some work, in nayesseconds */
 	uint64_t		next;
 
 	/*
@@ -470,7 +470,7 @@ uint64_t bch_next_delay(struct bch_ratelimit *d, uint64_t done);
 #define RB_INSERT(root, new, member, cmp)				\
 ({									\
 	__label__ dup;							\
-	struct rb_node **n = &(root)->rb_node, *parent = NULL;		\
+	struct rb_yesde **n = &(root)->rb_yesde, *parent = NULL;		\
 	typeof(new) this;						\
 	int res, ret = -1;						\
 									\
@@ -485,7 +485,7 @@ uint64_t bch_next_delay(struct bch_ratelimit *d, uint64_t done);
 			: &(*n)->rb_right;				\
 	}								\
 									\
-	rb_link_node(&(new)->member, parent, n);			\
+	rb_link_yesde(&(new)->member, parent, n);			\
 	rb_insert_color(&(new)->member, root);				\
 	ret = 0;							\
 dup:									\
@@ -494,7 +494,7 @@ dup:									\
 
 #define RB_SEARCH(root, search, member, cmp)				\
 ({									\
-	struct rb_node *n = (root)->rb_node;				\
+	struct rb_yesde *n = (root)->rb_yesde;				\
 	typeof(&(search)) this, ret = NULL;				\
 	int res;							\
 									\
@@ -514,7 +514,7 @@ dup:									\
 
 #define RB_GREATER(root, search, member, cmp)				\
 ({									\
-	struct rb_node *n = (root)->rb_node;				\
+	struct rb_yesde *n = (root)->rb_yesde;				\
 	typeof(&(search)) this, ret = NULL;				\
 	int res;							\
 									\
@@ -588,6 +588,6 @@ int bch_bio_alloc_pages(struct bio *bio, gfp_t gfp_mask);
 
 static inline sector_t bdev_sectors(struct block_device *bdev)
 {
-	return bdev->bd_inode->i_size >> 9;
+	return bdev->bd_iyesde->i_size >> 9;
 }
 #endif /* _BCACHE_UTIL_H */

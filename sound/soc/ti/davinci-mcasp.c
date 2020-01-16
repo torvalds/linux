@@ -173,7 +173,7 @@ static void mcasp_set_ctl_reg(struct davinci_mcasp *mcasp, u32 ctl_reg, u32 val)
 		printk(KERN_ERR "GBLCTL write error\n");
 }
 
-static bool mcasp_is_synchronous(struct davinci_mcasp *mcasp)
+static bool mcasp_is_synchroyesus(struct davinci_mcasp *mcasp)
 {
 	u32 rxfmctl = mcasp_get_reg(mcasp, DAVINCI_MCASP_RXFMCTL_REG);
 	u32 aclkxctl = mcasp_get_reg(mcasp, DAVINCI_MCASP_ACLKXCTL_REG);
@@ -219,10 +219,10 @@ static void mcasp_start_rx(struct davinci_mcasp *mcasp)
 	mcasp_set_ctl_reg(mcasp, DAVINCI_MCASP_GBLCTLR_REG, RXCLKRST);
 	/*
 	 * When ASYNC == 0 the transmit and receive sections operate
-	 * synchronously from the transmit clock and frame sync. We need to make
+	 * synchroyesusly from the transmit clock and frame sync. We need to make
 	 * sure that the TX signlas are enabled when starting reception.
 	 */
-	if (mcasp_is_synchronous(mcasp)) {
+	if (mcasp_is_synchroyesus(mcasp)) {
 		mcasp_set_ctl_reg(mcasp, DAVINCI_MCASP_GBLCTLX_REG, TXHCLKRST);
 		mcasp_set_ctl_reg(mcasp, DAVINCI_MCASP_GBLCTLX_REG, TXCLKRST);
 		mcasp_set_clk_pdir(mcasp, true);
@@ -235,7 +235,7 @@ static void mcasp_start_rx(struct davinci_mcasp *mcasp)
 	mcasp_set_ctl_reg(mcasp, DAVINCI_MCASP_GBLCTLR_REG, RXSMRST);
 	/* Release Frame Sync generator */
 	mcasp_set_ctl_reg(mcasp, DAVINCI_MCASP_GBLCTLR_REG, RXFSRST);
-	if (mcasp_is_synchronous(mcasp))
+	if (mcasp_is_synchroyesus(mcasp))
 		mcasp_set_ctl_reg(mcasp, DAVINCI_MCASP_GBLCTLX_REG, TXFSRST);
 
 	/* enable receive IRQs */
@@ -298,10 +298,10 @@ static void mcasp_stop_rx(struct davinci_mcasp *mcasp)
 		       mcasp->irq_request[SNDRV_PCM_STREAM_CAPTURE]);
 
 	/*
-	 * In synchronous mode stop the TX clocks if no other stream is
+	 * In synchroyesus mode stop the TX clocks if yes other stream is
 	 * running
 	 */
-	if (mcasp_is_synchronous(mcasp) && !mcasp->streams) {
+	if (mcasp_is_synchroyesus(mcasp) && !mcasp->streams) {
 		mcasp_set_clk_pdir(mcasp, false);
 		mcasp_set_reg(mcasp, DAVINCI_MCASP_GBLCTLX_REG, 0);
 	}
@@ -325,10 +325,10 @@ static void mcasp_stop_tx(struct davinci_mcasp *mcasp)
 		       mcasp->irq_request[SNDRV_PCM_STREAM_PLAYBACK]);
 
 	/*
-	 * In synchronous mode keep TX clocks running if the capture stream is
+	 * In synchroyesus mode keep TX clocks running if the capture stream is
 	 * still running.
 	 */
-	if (mcasp_is_synchronous(mcasp) && mcasp->streams)
+	if (mcasp_is_synchroyesus(mcasp) && mcasp->streams)
 		val =  TXHCLKRST | TXCLKRST | TXFSRST;
 	else
 		mcasp_set_clk_pdir(mcasp, false);
@@ -638,7 +638,7 @@ static int __davinci_mcasp_set_clkdiv(struct davinci_mcasp *mcasp, int div_id,
 		mcasp->slot_width = div / mcasp->tdm_slots;
 		if (div % mcasp->tdm_slots)
 			dev_warn(mcasp->dev,
-				 "%s(): BCLK/LRCLK %d is not divisible by %d tdm slots",
+				 "%s(): BCLK/LRCLK %d is yest divisible by %d tdm slots",
 				 __func__, div, mcasp->tdm_slots);
 		break;
 
@@ -777,7 +777,7 @@ static int davinci_config_channel_size(struct davinci_mcasp *mcasp,
 	 * left aligned formats: rotate w/ sample_width
 	 *
 	 * RX rotation:
-	 * right aligned formats: no rotation needed
+	 * right aligned formats: yes rotation needed
 	 * left aligned formats: rotate w/ (slot_width - sample_width)
 	 */
 	if ((mcasp->dai_fmt & SND_SOC_DAIFMT_FORMAT_MASK) ==
@@ -882,7 +882,7 @@ static int mcasp_common_hw_param(struct davinci_mcasp *mcasp, int stream,
 		return -EINVAL;
 	}
 
-	/* AFIFO is not in use */
+	/* AFIFO is yest in use */
 	if (!numevt) {
 		/* Configure the burst size for platform drivers */
 		if (active_serializers > 1) {
@@ -990,11 +990,11 @@ static int mcasp_i2s_hw_param(struct davinci_mcasp *mcasp, int stream,
 		mcasp_mod_bits(mcasp, DAVINCI_MCASP_RXFMCTL_REG,
 			       FSRMOD(total_slots), FSRMOD(0x1FF));
 		/*
-		 * If McASP is set to be TX/RX synchronous and the playback is
-		 * not running already we need to configure the TX slots in
+		 * If McASP is set to be TX/RX synchroyesus and the playback is
+		 * yest running already we need to configure the TX slots in
 		 * order to have correct FSX on the bus
 		 */
-		if (mcasp_is_synchronous(mcasp) && !mcasp->channels)
+		if (mcasp_is_synchroyesus(mcasp) && !mcasp->channels)
 			mcasp_mod_bits(mcasp, DAVINCI_MCASP_TXFMCTL_REG,
 				       FSXMOD(total_slots), FSXMOD(0x1FF));
 	}
@@ -1205,7 +1205,7 @@ static int davinci_mcasp_hw_params(struct snd_pcm_substream *substream,
 		return ret;
 
 	/*
-	 * If mcasp is BCLK master, and a BCLK divider was not provided by
+	 * If mcasp is BCLK master, and a BCLK divider was yest provided by
 	 * the machine driver, we need to calculate the ratio.
 	 */
 	if (mcasp->bclk_master && mcasp->bclk_div == 0 && mcasp->sysclk_freq) {
@@ -1278,7 +1278,7 @@ static int davinci_mcasp_hw_rule_slot_width(struct snd_pcm_hw_params *params,
 	struct snd_mask nfmt;
 	int i, slot_width;
 
-	snd_mask_none(&nfmt);
+	snd_mask_yesne(&nfmt);
 	slot_width = rd->mcasp->slot_width;
 
 	for (i = 0; i <= SNDRV_PCM_FORMAT_LAST; i++) {
@@ -1300,7 +1300,7 @@ static int davinci_mcasp_hw_rule_format_width(struct snd_pcm_hw_params *params,
 	struct snd_mask nfmt;
 	int i, format_width;
 
-	snd_mask_none(&nfmt);
+	snd_mask_yesne(&nfmt);
 	format_width = rd->mcasp->max_format_width;
 
 	for (i = 0; i <= SNDRV_PCM_FORMAT_LAST; i++) {
@@ -1381,7 +1381,7 @@ static int davinci_mcasp_hw_rule_format(struct snd_pcm_hw_params *params,
 	int slots = rd->mcasp->tdm_slots;
 	int i, count = 0;
 
-	snd_mask_none(&nfmt);
+	snd_mask_yesne(&nfmt);
 
 	for (i = 0; i <= SNDRV_PCM_FORMAT_LAST; i++) {
 		if (snd_mask_test(fmt, i)) {
@@ -1438,7 +1438,7 @@ static int davinci_mcasp_startup(struct snd_pcm_substream *substream,
 	int i, dir, ret;
 	int tdm_slots = mcasp->tdm_slots;
 
-	/* Do not allow more then one stream per direction */
+	/* Do yest allow more then one stream per direction */
 	if (mcasp->substreams[substream->stream])
 		return -EBUSY;
 
@@ -1683,15 +1683,15 @@ MODULE_DEVICE_TABLE(of, mcasp_dt_ids);
 
 static int mcasp_reparent_fck(struct platform_device *pdev)
 {
-	struct device_node *node = pdev->dev.of_node;
+	struct device_yesde *yesde = pdev->dev.of_yesde;
 	struct clk *gfclk, *parent_clk;
 	const char *parent_name;
 	int ret;
 
-	if (!node)
+	if (!yesde)
 		return 0;
 
-	parent_name = of_get_property(node, "fck_parent", NULL);
+	parent_name = of_get_property(yesde, "fck_parent", NULL);
 	if (!parent_name)
 		return 0;
 
@@ -1726,7 +1726,7 @@ err1:
 static struct davinci_mcasp_pdata *davinci_mcasp_set_pdata_from_of(
 						struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	struct davinci_mcasp_pdata *pdata = NULL;
 	const struct of_device_id *match =
 			of_match_device(mcasp_dt_ids, &pdev->dev);
@@ -1750,7 +1750,7 @@ static struct davinci_mcasp_pdata *davinci_mcasp_set_pdata_from_of(
 	} else {
 		/* control shouldn't reach here. something is wrong */
 		ret = -EINVAL;
-		goto nodata;
+		goto yesdata;
 	}
 
 	ret = of_property_read_u32(np, "op-mode", &val);
@@ -1763,7 +1763,7 @@ static struct davinci_mcasp_pdata *davinci_mcasp_set_pdata_from_of(
 			dev_err(&pdev->dev,
 				"tdm-slots must be in rage [2-32]\n");
 			ret = -EINVAL;
-			goto nodata;
+			goto yesdata;
 		}
 
 		pdata->tdm_slots = val;
@@ -1777,7 +1777,7 @@ static struct davinci_mcasp_pdata *davinci_mcasp_set_pdata_from_of(
 						 GFP_KERNEL);
 		if (!of_serial_dir) {
 			ret = -ENOMEM;
-			goto nodata;
+			goto yesdata;
 		}
 
 		for (i = 0; i < val; i++)
@@ -1789,25 +1789,25 @@ static struct davinci_mcasp_pdata *davinci_mcasp_set_pdata_from_of(
 
 	ret = of_property_match_string(np, "dma-names", "tx");
 	if (ret < 0)
-		goto nodata;
+		goto yesdata;
 
 	ret = of_parse_phandle_with_args(np, "dmas", "#dma-cells", ret,
 					 &dma_spec);
 	if (ret < 0)
-		goto nodata;
+		goto yesdata;
 
 	pdata->tx_dma_channel = dma_spec.args[0];
 
-	/* RX is not valid in DIT mode */
+	/* RX is yest valid in DIT mode */
 	if (pdata->op_mode != DAVINCI_MCASP_DIT_MODE) {
 		ret = of_property_match_string(np, "dma-names", "rx");
 		if (ret < 0)
-			goto nodata;
+			goto yesdata;
 
 		ret = of_parse_phandle_with_args(np, "dmas", "#dma-cells", ret,
 						 &dma_spec);
 		if (ret < 0)
-			goto nodata;
+			goto yesdata;
 
 		pdata->rx_dma_channel = dma_spec.args[0];
 	}
@@ -1842,7 +1842,7 @@ static struct davinci_mcasp_pdata *davinci_mcasp_set_pdata_from_of(
 
 	return  pdata;
 
-nodata:
+yesdata:
 	if (ret < 0) {
 		dev_err(&pdev->dev, "Error populating platform data, err %d\n",
 			ret);
@@ -1863,7 +1863,7 @@ static int davinci_mcasp_get_dma_type(struct davinci_mcasp *mcasp)
 	const char *tmp;
 	int ret = PCM_EDMA;
 
-	if (!mcasp->dev->of_node)
+	if (!mcasp->dev->of_yesde)
 		return PCM_EDMA;
 
 	tmp = mcasp->dma_data[SNDRV_PCM_STREAM_PLAYBACK].filter_data;
@@ -1878,11 +1878,11 @@ static int davinci_mcasp_get_dma_type(struct davinci_mcasp *mcasp)
 	if (WARN_ON(!chan->device || !chan->device->dev))
 		return -EINVAL;
 
-	if (chan->device->dev->of_node)
-		ret = of_property_read_string(chan->device->dev->of_node,
+	if (chan->device->dev->of_yesde)
+		ret = of_property_read_string(chan->device->dev->of_yesde,
 					      "compatible", &tmp);
 	else
-		dev_dbg(mcasp->dev, "DMA controller has no of-node\n");
+		dev_dbg(mcasp->dev, "DMA controller has yes of-yesde\n");
 
 	dma_release_channel(chan);
 	if (ret)
@@ -1952,7 +1952,7 @@ static int davinci_mcasp_gpio_request(struct gpio_chip *chip, unsigned offset)
 		return -EBUSY;
 	}
 
-	/* Do not change the PIN yet */
+	/* Do yest change the PIN yet */
 
 	return pm_runtime_get_sync(mcasp->dev);
 }
@@ -2062,14 +2062,14 @@ static const struct gpio_chip davinci_mcasp_template_chip = {
 
 static int davinci_mcasp_init_gpiochip(struct davinci_mcasp *mcasp)
 {
-	if (!of_property_read_bool(mcasp->dev->of_node, "gpio-controller"))
+	if (!of_property_read_bool(mcasp->dev->of_yesde, "gpio-controller"))
 		return 0;
 
 	mcasp->gpio_chip = davinci_mcasp_template_chip;
 	mcasp->gpio_chip.label = dev_name(mcasp->dev);
 	mcasp->gpio_chip.parent = mcasp->dev;
 #ifdef CONFIG_OF_GPIO
-	mcasp->gpio_chip.of_node = mcasp->dev->of_node;
+	mcasp->gpio_chip.of_yesde = mcasp->dev->of_yesde;
 #endif
 
 	return devm_gpiochip_add_data(mcasp->dev, &mcasp->gpio_chip, mcasp);
@@ -2084,7 +2084,7 @@ static inline int davinci_mcasp_init_gpiochip(struct davinci_mcasp *mcasp)
 
 static int davinci_mcasp_get_dt_params(struct davinci_mcasp *mcasp)
 {
-	struct device_node *np = mcasp->dev->of_node;
+	struct device_yesde *np = mcasp->dev->of_yesde;
 	int ret;
 	u32 val;
 
@@ -2109,7 +2109,7 @@ static int davinci_mcasp_probe(struct platform_device *pdev)
 	int irq;
 	int ret;
 
-	if (!pdev->dev.platform_data && !pdev->dev.of_node) {
+	if (!pdev->dev.platform_data && !pdev->dev.of_yesde) {
 		dev_err(&pdev->dev, "No platform data supplied\n");
 		return -EINVAL;
 	}
@@ -2121,17 +2121,17 @@ static int davinci_mcasp_probe(struct platform_device *pdev)
 
 	pdata = davinci_mcasp_set_pdata_from_of(pdev);
 	if (!pdata) {
-		dev_err(&pdev->dev, "no platform data\n");
+		dev_err(&pdev->dev, "yes platform data\n");
 		return -EINVAL;
 	}
 
 	mem = platform_get_resource_byname(pdev, IORESOURCE_MEM, "mpu");
 	if (!mem) {
 		dev_warn(mcasp->dev,
-			 "\"mpu\" mem resource not found, using index 0\n");
+			 "\"mpu\" mem resource yest found, using index 0\n");
 		mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 		if (!mem) {
-			dev_err(&pdev->dev, "no mem resource?\n");
+			dev_err(&pdev->dev, "yes mem resource?\n");
 			return -ENODEV;
 		}
 	}
@@ -2252,13 +2252,13 @@ static int davinci_mcasp_probe(struct platform_device *pdev)
 	else
 		*dma = pdata->tx_dma_channel;
 
-	/* dmaengine filter data for DT and non-DT boot */
-	if (pdev->dev.of_node)
+	/* dmaengine filter data for DT and yesn-DT boot */
+	if (pdev->dev.of_yesde)
 		dma_data->filter_data = "tx";
 	else
 		dma_data->filter_data = dma;
 
-	/* RX is not valid in DIT mode */
+	/* RX is yest valid in DIT mode */
 	if (mcasp->op_mode != DAVINCI_MCASP_DIT_MODE) {
 		dma_data = &mcasp->dma_data[SNDRV_PCM_STREAM_CAPTURE];
 		if (dat)
@@ -2274,8 +2274,8 @@ static int davinci_mcasp_probe(struct platform_device *pdev)
 		else
 			*dma = pdata->rx_dma_channel;
 
-		/* dmaengine filter data for DT and non-DT boot */
-		if (pdev->dev.of_node)
+		/* dmaengine filter data for DT and yesn-DT boot */
+		if (pdev->dev.of_yesde)
 			dma_data->filter_data = "rx";
 		else
 			dma_data->filter_data = dma;
@@ -2289,8 +2289,8 @@ static int davinci_mcasp_probe(struct platform_device *pdev)
 		mcasp->fifo_base = DAVINCI_MCASP_V3_AFIFO_BASE;
 	}
 
-	/* Allocate memory for long enough list for all possible
-	 * scenarios. Maximum number tdm slots is 32 and there cannot
+	/* Allocate memory for long eyesugh list for all possible
+	 * scenarios. Maximum number tdm slots is 32 and there canyest
 	 * be more serializers than given in the configuration.  The
 	 * serializer directions could be taken into account, but it
 	 * would make code much more complex and save only couple of

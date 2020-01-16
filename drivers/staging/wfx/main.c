@@ -8,7 +8,7 @@
  * Copyright (c) 2008 Nokia Corporation and/or its subsidiary(-ies).
  * Copyright (c) 2007-2009, Christian Lamparter <chunkeey@web.de>
  * Copyright (c) 2006, Michael Wu <flamingice@sourmilk.net>
- * Copyright (c) 2004-2006 Jean-Baptiste Note <jbnote@gmail.com>, et al.
+ * Copyright (c) 2004-2006 Jean-Baptiste Note <jbyeste@gmail.com>, et al.
  */
 #include <linux/module.h>
 #include <linux/of.h>
@@ -42,7 +42,7 @@ MODULE_LICENSE("GPL");
 
 static int gpio_wakeup = -2;
 module_param(gpio_wakeup, int, 0644);
-MODULE_PARM_DESC(gpio_wakeup, "gpio number for wakeup. -1 for none.");
+MODULE_PARM_DESC(gpio_wakeup, "gpio number for wakeup. -1 for yesne.");
 
 #define RATETAB_ENT(_rate, _rateid, _flags) { \
 	.bitrate  = (_rate),   \
@@ -137,7 +137,7 @@ static const struct ieee80211_ops wfx_ops = {
 	.hw_scan		= wfx_hw_scan,
 	.sta_add		= wfx_sta_add,
 	.sta_remove		= wfx_sta_remove,
-	.sta_notify		= wfx_sta_notify,
+	.sta_yestify		= wfx_sta_yestify,
 	.set_tim		= wfx_set_tim,
 	.set_key		= wfx_set_key,
 	.set_rts_threshold	= wfx_set_rts_threshold,
@@ -153,13 +153,13 @@ static const struct ieee80211_ops wfx_ops = {
 	.unassign_vif_chanctx	= wfx_unassign_vif_chanctx,
 };
 
-bool wfx_api_older_than(struct wfx_dev *wdev, int major, int minor)
+bool wfx_api_older_than(struct wfx_dev *wdev, int major, int miyesr)
 {
 	if (wdev->hw_caps.api_version_major < major)
 		return true;
 	if (wdev->hw_caps.api_version_major > major)
 		return false;
-	if (wdev->hw_caps.api_version_minor < minor)
+	if (wdev->hw_caps.api_version_miyesr < miyesr)
 		return true;
 	return false;
 }
@@ -184,7 +184,7 @@ struct gpio_desc *wfx_get_gpio(struct device *dev, int override,
 	}
 	if (IS_ERR(ret) || !ret) {
 		if (!ret || PTR_ERR(ret) == -ENOENT)
-			dev_warn(dev, "gpio %s is not defined\n", label);
+			dev_warn(dev, "gpio %s is yest defined\n", label);
 		else
 			dev_warn(dev,
 				 "error while requesting gpio %s\n", label);
@@ -232,7 +232,7 @@ int wfx_send_pds(struct wfx_dev *wdev, unsigned char *buf, size_t len)
 				return ret;
 			}
 			if (ret) {
-				dev_err(wdev->dev, "PDS bytes %d to %d: chip returned an unknown error\n", start, i);
+				dev_err(wdev->dev, "PDS bytes %d to %d: chip returned an unkyeswn error\n", start, i);
 				return -EIO;
 			}
 			buf[i] = ',';
@@ -315,7 +315,7 @@ struct wfx_dev *wfx_init_common(struct device *dev,
 	wdev->hwbus_ops = hwbus_ops;
 	wdev->hwbus_priv = hwbus_priv;
 	memcpy(&wdev->pdata, pdata, sizeof(*pdata));
-	of_property_read_string(dev->of_node, "config-file",
+	of_property_read_string(dev->of_yesde, "config-file",
 				&wdev->pdata.file_pds);
 	wdev->pdata.gpio_wakeup = wfx_get_gpio(dev, gpio_wakeup, "wakeup");
 	wfx_sl_fill_pdata(dev, &wdev->pdata);
@@ -344,7 +344,7 @@ int wfx_probe(struct wfx_dev *wdev)
 	const void *macaddr;
 	struct gpio_desc *gpio_saved;
 
-	// During first part of boot, gpio_wakeup cannot yet been used. So
+	// During first part of boot, gpio_wakeup canyest yet been used. So
 	// prevent bh() to touch it.
 	gpio_saved = wdev->pdata.gpio_wakeup;
 	wdev->pdata.gpio_wakeup = NULL;
@@ -369,16 +369,16 @@ int wfx_probe(struct wfx_dev *wdev)
 
 	// FIXME: fill wiphy::hw_version
 	dev_info(wdev->dev, "started firmware %d.%d.%d \"%s\" (API: %d.%d, keyset: %02X, caps: 0x%.8X)\n",
-		 wdev->hw_caps.firmware_major, wdev->hw_caps.firmware_minor,
+		 wdev->hw_caps.firmware_major, wdev->hw_caps.firmware_miyesr,
 		 wdev->hw_caps.firmware_build, wdev->hw_caps.firmware_label,
 		 wdev->hw_caps.api_version_major,
-		 wdev->hw_caps.api_version_minor,
+		 wdev->hw_caps.api_version_miyesr,
 		 wdev->keyset, *((u32 *) &wdev->hw_caps.capabilities));
 	snprintf(wdev->hw->wiphy->fw_version,
 		 sizeof(wdev->hw->wiphy->fw_version),
 		 "%d.%d.%d",
 		 wdev->hw_caps.firmware_major,
-		 wdev->hw_caps.firmware_minor,
+		 wdev->hw_caps.firmware_miyesr,
 		 wdev->hw_caps.firmware_build);
 
 	if (wfx_api_older_than(wdev, 1, 0)) {
@@ -425,7 +425,7 @@ int wfx_probe(struct wfx_dev *wdev)
 
 	for (i = 0; i < ARRAY_SIZE(wdev->addresses); i++) {
 		eth_zero_addr(wdev->addresses[i].addr);
-		macaddr = of_get_mac_address(wdev->dev->of_node);
+		macaddr = of_get_mac_address(wdev->dev->of_yesde);
 		if (!IS_ERR_OR_NULL(macaddr)) {
 			ether_addr_copy(wdev->addresses[i].addr, macaddr);
 			wdev->addresses[i].addr[ETH_ALEN - 1] += i;

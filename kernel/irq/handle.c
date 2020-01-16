@@ -41,19 +41,19 @@ EXPORT_SYMBOL_GPL(handle_bad_irq);
 /*
  * Special, empty irq handler:
  */
-irqreturn_t no_action(int cpl, void *dev_id)
+irqreturn_t yes_action(int cpl, void *dev_id)
 {
 	return IRQ_NONE;
 }
-EXPORT_SYMBOL_GPL(no_action);
+EXPORT_SYMBOL_GPL(yes_action);
 
-static void warn_no_thread(unsigned int irq, struct irqaction *action)
+static void warn_yes_thread(unsigned int irq, struct irqaction *action)
 {
 	if (test_and_set_bit(IRQTF_WARNED, &action->thread_flags))
 		return;
 
 	printk(KERN_WARNING "IRQ %d device %s returned IRQ_WAKE_THREAD "
-	       "but no thread function available.", irq, action->name);
+	       "but yes thread function available.", irq, action->name);
 }
 
 void __irq_wake_thread(struct irq_desc *desc, struct irqaction *action)
@@ -61,14 +61,14 @@ void __irq_wake_thread(struct irq_desc *desc, struct irqaction *action)
 	/*
 	 * In case the thread crashed and was killed we just pretend that
 	 * we handled the interrupt. The hardirq handler has disabled the
-	 * device interrupt, so no irq storm is lurking.
+	 * device interrupt, so yes irq storm is lurking.
 	 */
 	if (action->thread->flags & PF_EXITING)
 		return;
 
 	/*
 	 * Wake up the handler thread for this action. If the
-	 * RUNTHREAD bit is already set, nothing to do.
+	 * RUNTHREAD bit is already set, yesthing to do.
 	 */
 	if (test_and_set_bit(IRQTF_RUNTHREAD, &action->thread_flags))
 		return;
@@ -116,7 +116,7 @@ void __irq_wake_thread(struct irq_desc *desc, struct irqaction *action)
 	 * or we are waiting in the flow handler for desc->lock to be
 	 * released before we reach this point. The thread also checks
 	 * IRQTF_RUNTHREAD under desc->lock. If set it leaves
-	 * threads_oneshot untouched and runs the thread another time.
+	 * threads_oneshot untouched and runs the thread ayesther time.
 	 */
 	desc->threads_oneshot |= action->thread_mask;
 
@@ -157,10 +157,10 @@ irqreturn_t __handle_irq_event_percpu(struct irq_desc *desc, unsigned int *flags
 		case IRQ_WAKE_THREAD:
 			/*
 			 * Catch drivers which return WAKE_THREAD but
-			 * did not set up a thread function
+			 * did yest set up a thread function
 			 */
 			if (unlikely(!action->thread_fn)) {
-				warn_no_thread(irq, action);
+				warn_yes_thread(irq, action);
 				break;
 			}
 
@@ -190,8 +190,8 @@ irqreturn_t handle_irq_event_percpu(struct irq_desc *desc)
 
 	add_interrupt_randomness(desc->irq_data.irq, flags);
 
-	if (!noirqdebug)
-		note_interrupt(desc, retval);
+	if (!yesirqdebug)
+		yeste_interrupt(desc, retval);
 	return retval;
 }
 

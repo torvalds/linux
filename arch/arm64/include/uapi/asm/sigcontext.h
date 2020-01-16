@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 /*
  * Copyright (C) 2012 ARM Ltd.
  *
@@ -12,7 +12,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * along with this program.  If yest, see <http://www.gnu.org/licenses/>.
  */
 #ifndef _UAPI__ASM_SIGCONTEXT_H
 #define _UAPI__ASM_SIGCONTEXT_H
@@ -38,7 +38,7 @@ struct sigcontext {
 
 /*
  * Allocation of __reserved[]:
- * (Note: records do not necessarily occur in the order shown here.)
+ * (Note: records do yest necessarily occur in the order shown here.)
  *
  *	size		description
  *
@@ -51,10 +51,10 @@ struct sigcontext {
  *	0x510		(reserved for future allocation)
  *
  * New records that can exceed this space need to be opt-in for userspace, so
- * that an expanded signal frame is not generated unexpectedly.  The mechanism
+ * that an expanded signal frame is yest generated unexpectedly.  The mechanism
  * for opting in will depend on the extension that generates each new record.
  * The above table documents the maximum set and sizes of records than can be
- * generated when userspace does not opt in for any such extension.
+ * generated when userspace does yest opt in for any such extension.
  */
 
 /*
@@ -101,12 +101,12 @@ struct esr_context {
  * Note:
  *
  * 1) fpsimd_context, esr_context and extra_context must be placed in
- * sigcontext.__reserved[] if present.  They cannot be placed in the
+ * sigcontext.__reserved[] if present.  They canyest be placed in the
  * extra space.  Any other record can be placed either in the extra
  * space or in sigcontext.__reserved[], unless otherwise specified in
  * this file.
  *
- * 2) There must not be more than one extra_context.
+ * 2) There must yest be more than one extra_context.
  *
  * 3) If extra_context is present, it must be followed immediately in
  * sigcontext.__reserved[] by the terminating null _aarch64_ctx.
@@ -147,7 +147,7 @@ struct sve_context {
  * (16 quadwords).
  *
  * See linux/Documentation/arm64/sve.rst for a description of the VL/VQ
- * terminology.
+ * termiyeslogy.
  */
 #define SVE_VQ_BYTES		__SVE_VQ_BYTES	/* bytes per quadword */
 
@@ -172,22 +172,22 @@ struct sve_context {
  *
  * If sve_context.head.size <
  *	SVE_SIG_CONTEXT_SIZE(sve_vq_from_vl(sve_context.vl)),
- * the SVE registers were not live for the thread and no register data
- * is included: in this case, the SVE_SIG_*() macros should not be
+ * the SVE registers were yest live for the thread and yes register data
+ * is included: in this case, the SVE_SIG_*() macros should yest be
  * used except for this check.
  *
  * The same convention applies when returning from a signal: a caller
  * will need to remove or resize the sve_context block if it wants to
- * make the SVE registers live when they were previously non-live or
+ * make the SVE registers live when they were previously yesn-live or
  * vice-versa.  This may require the the caller to allocate fresh
  * memory and/or move other context blocks in the signal frame.
  *
- * Changing the vector length during signal return is not permitted:
+ * Changing the vector length during signal return is yest permitted:
  * sve_context.vl must equal the thread's current vector length when
  * doing a sigreturn.
  *
  *
- * Note: for all these macros, the "vq" argument denotes the SVE
+ * Note: for all these macros, the "vq" argument deyestes the SVE
  * vector length in quadwords (i.e., units of 128 bits).
  *
  * The correct way to obtain vq is to use sve_vq_from_vl(vl).  The

@@ -3,7 +3,7 @@
 // Renesas R-Car Audio DMAC support
 //
 // Copyright (C) 2015 Renesas Electronics Corp.
-// Copyright (c) 2015 Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
+// Copyright (c) 2015 Kuniyesri Morimoto <kuniyesri.morimoto.gx@renesas.com>
 
 #include <linux/delay.h>
 #include <linux/of_dma.h>
@@ -236,21 +236,21 @@ static int rsnd_dmaen_start(struct rsnd_mod *mod,
 	return 0;
 }
 
-struct dma_chan *rsnd_dma_request_channel(struct device_node *of_node,
+struct dma_chan *rsnd_dma_request_channel(struct device_yesde *of_yesde,
 					  struct rsnd_mod *mod, char *name)
 {
 	struct dma_chan *chan = NULL;
-	struct device_node *np;
+	struct device_yesde *np;
 	int i = 0;
 
-	for_each_child_of_node(of_node, np) {
+	for_each_child_of_yesde(of_yesde, np) {
 		if (i == rsnd_mod_id_raw(mod) && (!chan))
 			chan = of_dma_request_slave_channel(np, name);
 		i++;
 	}
 
-	/* It should call of_node_put(), since, it is rsnd_xxx_of_node() */
-	of_node_put(of_node);
+	/* It should call of_yesde_put(), since, it is rsnd_xxx_of_yesde() */
+	of_yesde_put(of_yesde);
 
 	return chan;
 }
@@ -397,9 +397,9 @@ static u32 rsnd_dmapp_get_id(struct rsnd_dai_stream *io,
 	if ((!entry) || (size <= id)) {
 		struct device *dev = rsnd_priv_to_dev(rsnd_io_to_priv(io));
 
-		dev_err(dev, "unknown connection (%s)\n", rsnd_mod_name(mod));
+		dev_err(dev, "unkyeswn connection (%s)\n", rsnd_mod_name(mod));
 
-		/* use non-prohibited SRS number as error */
+		/* use yesn-prohibited SRS number as error */
 		return 0x00; /* SSI00 */
 	}
 
@@ -665,12 +665,12 @@ static void rsnd_dma_of_path(struct rsnd_mod *this,
 	 * But, we need to keep compatibility for old version.
 	 *
 	 * If it has "rcar_sound.ssiu", it will be used.
-	 * If not, "rcar_sound.ssi" will be used.
+	 * If yest, "rcar_sound.ssi" will be used.
 	 * see
 	 *	rsnd_ssiu_dma_req()
 	 *	rsnd_ssi_dma_req()
 	 */
-	if (rsnd_ssiu_of_node(priv)) {
+	if (rsnd_ssiu_of_yesde(priv)) {
 		struct rsnd_mod *ssiu = rsnd_io_to_mod_ssiu(io);
 
 		/* use SSIU */

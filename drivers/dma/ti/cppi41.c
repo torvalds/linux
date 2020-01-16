@@ -101,7 +101,7 @@ struct cppi41_channel {
 	unsigned td_seen:1;
 	unsigned td_desc_seen:1;
 
-	struct list_head node;		/* Node for pending list */
+	struct list_head yesde;		/* Node for pending list */
 };
 
 struct cppi41_desc {
@@ -317,9 +317,9 @@ static irqreturn_t cppi41_irq(int irq, void *data)
 			u32 mask;
 			/* set corresponding bit for completetion Q 93 */
 			mask = 1 << QMGR_PENDING_BIT_Q(first_completion_queue);
-			/* not set all bits for queues less than Q 93 */
+			/* yest set all bits for queues less than Q 93 */
 			mask--;
-			/* now invert and keep only Q 93+ set */
+			/* yesw invert and keep only Q 93+ set */
 			val &= ~mask;
 		}
 
@@ -378,7 +378,7 @@ static int cppi41_dma_alloc_chan_resources(struct dma_chan *chan)
 	if (error < 0) {
 		dev_err(cdd->ddev.dev, "%s pm runtime get: %i\n",
 			__func__, error);
-		pm_runtime_put_noidle(cdd->ddev.dev);
+		pm_runtime_put_yesidle(cdd->ddev.dev);
 
 		return error;
 	}
@@ -404,7 +404,7 @@ static void cppi41_dma_free_chan_resources(struct dma_chan *chan)
 
 	error = pm_runtime_get_sync(cdd->ddev.dev);
 	if (error < 0) {
-		pm_runtime_put_noidle(cdd->ddev.dev);
+		pm_runtime_put_yesidle(cdd->ddev.dev);
 
 		return;
 	}
@@ -481,9 +481,9 @@ static void cppi41_run_queue(struct cppi41_dd *cdd)
 {
 	struct cppi41_channel *c, *_c;
 
-	list_for_each_entry_safe(c, _c, &cdd->pending, node) {
+	list_for_each_entry_safe(c, _c, &cdd->pending, yesde) {
 		push_desc_queue(c);
-		list_del(&c->node);
+		list_del(&c->yesde);
 	}
 }
 
@@ -496,7 +496,7 @@ static void cppi41_dma_issue_pending(struct dma_chan *chan)
 
 	error = pm_runtime_get(cdd->ddev.dev);
 	if ((error != -EINPROGRESS) && error < 0) {
-		pm_runtime_put_noidle(cdd->ddev.dev);
+		pm_runtime_put_yesidle(cdd->ddev.dev);
 		dev_err(cdd->ddev.dev, "Failed to pm_runtime_get: %i\n",
 			error);
 
@@ -504,7 +504,7 @@ static void cppi41_dma_issue_pending(struct dma_chan *chan)
 	}
 
 	spin_lock_irqsave(&cdd->lock, flags);
-	list_add_tail(&c->node, &cdd->pending);
+	list_add_tail(&c->yesde, &cdd->pending);
 	if (!cdd->is_suspended)
 		cppi41_run_queue(cdd);
 	spin_unlock_irqrestore(&cdd->lock, flags);
@@ -595,13 +595,13 @@ static struct dma_async_tx_descriptor *cppi41_dma_prep_slave_sg(
 
 	error = pm_runtime_get(cdd->ddev.dev);
 	if (error < 0) {
-		pm_runtime_put_noidle(cdd->ddev.dev);
+		pm_runtime_put_yesidle(cdd->ddev.dev);
 
 		return NULL;
 	}
 
 	if (cdd->is_suspended)
-		goto err_out_not_ready;
+		goto err_out_yest_ready;
 
 	d = c->desc;
 	for_each_sg(sgl, sg, sg_len, i) {
@@ -626,7 +626,7 @@ static struct dma_async_tx_descriptor *cppi41_dma_prep_slave_sg(
 
 	txd = &c->txd;
 
-err_out_not_ready:
+err_out_yest_ready:
 	pm_runtime_mark_last_busy(cdd->ddev.dev);
 	pm_runtime_put_autosuspend(cdd->ddev.dev);
 
@@ -700,7 +700,7 @@ static int cppi41_tear_down_chan(struct cppi41_channel *c)
 	/*
 	 * If the TX descriptor / channel is in use, the caller needs to poke
 	 * his TD bit multiple times. After that he hardware releases the
-	 * transfer descriptor followed by TD descriptor. Waiting seems not to
+	 * transfer descriptor followed by TD descriptor. Waiting seems yest to
 	 * cause any difference.
 	 * RX seems to be thrown out right away. However once the TearDown
 	 * descriptor gets through we are done. If we have seens the transfer
@@ -751,10 +751,10 @@ static int cppi41_stop_chan(struct dma_chan *chan)
 		 * cppi41_dma_issue_pending() is called after
 		 * cppi41_runtime_suspend() is called
 		 */
-		list_for_each_entry_safe(cc, _ct, &cdd->pending, node) {
+		list_for_each_entry_safe(cc, _ct, &cdd->pending, yesde) {
 			if (cc != c)
 				continue;
-			list_del(&cc->node);
+			list_del(&cc->yesde);
 			break;
 		}
 		return 0;
@@ -805,7 +805,7 @@ static int cppi41_add_chans(struct device *dev, struct cppi41_dd *cdd)
 		cchan->desc_phys = cdd->descs_phys;
 		cchan->desc_phys += i * sizeof(struct cppi41_desc);
 		cchan->chan.device = &cdd->ddev;
-		list_add_tail(&cchan->chan.device_node, &cdd->ddev.channels);
+		list_add_tail(&cchan->chan.device_yesde, &cdd->ddev.channels);
 	}
 	cdd->first_td_desc = n_chans;
 
@@ -1023,7 +1023,7 @@ static const struct cppi_glue_infos *get_glue_info(struct device *dev)
 {
 	const struct of_device_id *of_id;
 
-	of_id = of_match_node(cppi41_dma_ids, dev->of_node);
+	of_id = of_match_yesde(cppi41_dma_ids, dev->of_yesde);
 	if (!of_id)
 		return NULL;
 	return of_id->data;
@@ -1067,7 +1067,7 @@ static int cppi41_dma_probe(struct platform_device *pdev)
 	INIT_LIST_HEAD(&cdd->ddev.channels);
 	cpp41_dma_info.dma_cap = cdd->ddev.cap_mask;
 
-	index = of_property_match_string(dev->of_node,
+	index = of_property_match_string(dev->of_yesde,
 					 "reg-names", "controller");
 	if (index < 0)
 		return index;
@@ -1105,7 +1105,7 @@ static int cppi41_dma_probe(struct platform_device *pdev)
 	cdd->qmgr_num_pend = glue_info->qmgr_num_pend;
 	cdd->first_completion_queue = glue_info->first_completion_queue;
 
-	ret = of_property_read_u32(dev->of_node,
+	ret = of_property_read_u32(dev->of_yesde,
 				   "#dma-channels", &cdd->n_chans);
 	if (ret)
 		goto err_get_n_chans;
@@ -1118,7 +1118,7 @@ static int cppi41_dma_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_chans;
 
-	irq = irq_of_parse_and_map(dev->of_node, 0);
+	irq = irq_of_parse_and_map(dev->of_yesde, 0);
 	if (!irq) {
 		ret = -EINVAL;
 		goto err_chans;
@@ -1134,7 +1134,7 @@ static int cppi41_dma_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_chans;
 
-	ret = of_dma_controller_register(dev->of_node,
+	ret = of_dma_controller_register(dev->of_yesde,
 			cppi41_dma_xlate, &cpp41_dma_info);
 	if (ret)
 		goto err_of;
@@ -1163,9 +1163,9 @@ static int cppi41_dma_remove(struct platform_device *pdev)
 
 	error = pm_runtime_get_sync(&pdev->dev);
 	if (error < 0)
-		dev_err(&pdev->dev, "%s could not pm_runtime_get: %i\n",
+		dev_err(&pdev->dev, "%s could yest pm_runtime_get: %i\n",
 			__func__, error);
-	of_dma_controller_free(pdev->dev.of_node);
+	of_dma_controller_free(pdev->dev.of_yesde);
 	dma_async_device_unregister(&cdd->ddev);
 
 	devm_free_irq(&pdev->dev, cdd->irq, cdd);
@@ -1195,7 +1195,7 @@ static int __maybe_unused cppi41_resume(struct device *dev)
 	for (i = 0; i < DESCS_AREAS; i++)
 		cppi_writel(cdd->descs_phys, cdd->qmgr_mem + QMGR_MEMBASE(i));
 
-	list_for_each_entry(c, &cdd->ddev.channels, chan.device_node)
+	list_for_each_entry(c, &cdd->ddev.channels, chan.device_yesde)
 		if (!c->is_tx)
 			cppi_writel(c->q_num, c->gcr_reg + RXHPCRA0);
 

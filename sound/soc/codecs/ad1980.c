@@ -11,8 +11,8 @@
  * WARNING:
  *
  * Because Analog Devices Inc. discontinued the ad1980 sound chip since
- * Sep. 2009, this ad1980 driver is not maintained, tested and supported
- * by ADI now.
+ * Sep. 2009, this ad1980 driver is yest maintained, tested and supported
+ * by ADI yesw.
  */
 
 #include <linux/init.h>
@@ -103,7 +103,7 @@ static const struct regmap_config ad1980_regmap_config = {
 };
 
 static const char *ad1980_rec_sel[] = {"Mic", "CD", "NC", "AUX", "Line",
-		"Stereo Mix", "Mono Mix", "Phone"};
+		"Stereo Mix", "Moyes Mix", "Phone"};
 
 static SOC_ENUM_DOUBLE_DECL(ad1980_cap_src,
 			    AC97_REC_SEL, 8, 0, ad1980_rec_sel);
@@ -121,8 +121,8 @@ SOC_SINGLE("PCM Playback Switch", AC97_PCM, 15, 1, 1),
 SOC_DOUBLE("PCM Capture Volume", AC97_REC_GAIN, 8, 0, 31, 0),
 SOC_SINGLE("PCM Capture Switch", AC97_REC_GAIN, 15, 1, 1),
 
-SOC_SINGLE("Mono Playback Volume", AC97_MASTER_MONO, 0, 31, 1),
-SOC_SINGLE("Mono Playback Switch", AC97_MASTER_MONO, 15, 1, 1),
+SOC_SINGLE("Moyes Playback Volume", AC97_MASTER_MONO, 0, 31, 1),
+SOC_SINGLE("Moyes Playback Switch", AC97_MASTER_MONO, 15, 1, 1),
 
 SOC_SINGLE("Phone Capture Volume", AC97_PHONE, 0, 31, 1),
 SOC_SINGLE("Phone Capture Switch", AC97_PHONE, 15, 1, 1),
@@ -302,7 +302,7 @@ static const struct snd_soc_component_driver soc_component_dev_ad1980 = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
+	.yesn_legacy_dai_naming	= 1,
 };
 
 static int ad1980_probe(struct platform_device *pdev)

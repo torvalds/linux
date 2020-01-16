@@ -63,7 +63,7 @@ struct dln2_rx_context {
 	/* completion used to wait for a response */
 	struct completion done;
 
-	/* if non-NULL the URB contains the response */
+	/* if yesn-NULL the URB contains the response */
 	struct urb *urb;
 
 	/* if true then this context is used to wait for a response */
@@ -181,7 +181,7 @@ void dln2_unregister_event_cb(struct platform_device *pdev, u16 id)
 EXPORT_SYMBOL(dln2_unregister_event_cb);
 
 /*
- * Returns true if a valid transfer slot is found. In this case the URB must not
+ * Returns true if a valid transfer slot is found. In this case the URB must yest
  * be resubmitted immediately in dln2_rx as we need the data when dln2_transfer
  * is woke up. It will be resubmitted there.
  */
@@ -253,7 +253,7 @@ static void dln2_rx(struct urb *urb)
 		dev_dbg(dev, "urb shutting down with status %d\n", urb->status);
 		return;
 	default:
-		dev_dbg(dev, "nonzero urb status received %d\n", urb->status);
+		dev_dbg(dev, "yesnzero urb status received %d\n", urb->status);
 		goto out;
 	}
 
@@ -470,7 +470,7 @@ static int _dln2_transfer(struct dln2_dev *dln2, u16 handle, u16 cmd,
 		goto out_free_rx_slot;
 	}
 
-	/* if we got here we know that the response header has been checked */
+	/* if we got here we kyesw that the response header has been checked */
 	rsp = rxc->urb->transfer_buffer;
 	size = le16_to_cpu(rsp->hdr.size);
 
@@ -537,7 +537,7 @@ static int dln2_check_hw(struct dln2_dev *dln2)
 		return -EREMOTEIO;
 
 	if (le32_to_cpu(hw_type) != DLN2_HW_ID) {
-		dev_err(&dln2->interface->dev, "Device ID 0x%x not supported\n",
+		dev_err(&dln2->interface->dev, "Device ID 0x%x yest supported\n",
 			le32_to_cpu(hw_type));
 		return -ENODEV;
 	}
@@ -545,21 +545,21 @@ static int dln2_check_hw(struct dln2_dev *dln2)
 	return 0;
 }
 
-static int dln2_print_serialno(struct dln2_dev *dln2)
+static int dln2_print_serialyes(struct dln2_dev *dln2)
 {
 	int ret;
-	__le32 serial_no;
-	int len = sizeof(serial_no);
+	__le32 serial_yes;
+	int len = sizeof(serial_yes);
 	struct device *dev = &dln2->interface->dev;
 
 	ret = _dln2_transfer(dln2, DLN2_HANDLE_CTRL, CMD_GET_DEVICE_SN, NULL, 0,
-			     &serial_no, &len);
+			     &serial_yes, &len);
 	if (ret < 0)
 		return ret;
-	if (len < sizeof(serial_no))
+	if (len < sizeof(serial_yes))
 		return -EREMOTEIO;
 
-	dev_info(dev, "Diolan DLN2 serial %u\n", le32_to_cpu(serial_no));
+	dev_info(dev, "Diolan DLN2 serial %u\n", le32_to_cpu(serial_yes));
 
 	return 0;
 }
@@ -572,7 +572,7 @@ static int dln2_hw_init(struct dln2_dev *dln2)
 	if (ret < 0)
 		return ret;
 
-	return dln2_print_serialno(dln2);
+	return dln2_print_serialyes(dln2);
 }
 
 static void dln2_free_rx_urbs(struct dln2_dev *dln2)

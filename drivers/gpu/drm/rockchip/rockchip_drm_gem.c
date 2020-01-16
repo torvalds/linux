@@ -23,7 +23,7 @@ static int rockchip_gem_iommu_map(struct rockchip_gem_object *rk_obj)
 	ssize_t ret;
 
 	mutex_lock(&private->mm_lock);
-	ret = drm_mm_insert_node_generic(&private->mm, &rk_obj->mm,
+	ret = drm_mm_insert_yesde_generic(&private->mm, &rk_obj->mm,
 					 rk_obj->base.size, PAGE_SIZE,
 					 0, 0);
 	mutex_unlock(&private->mm_lock);
@@ -41,16 +41,16 @@ static int rockchip_gem_iommu_map(struct rockchip_gem_object *rk_obj)
 		DRM_ERROR("failed to map buffer: size=%zd request_size=%zd\n",
 			  ret, rk_obj->base.size);
 		ret = -ENOMEM;
-		goto err_remove_node;
+		goto err_remove_yesde;
 	}
 
 	rk_obj->size = ret;
 
 	return 0;
 
-err_remove_node:
+err_remove_yesde:
 	mutex_lock(&private->mm_lock);
-	drm_mm_remove_node(&rk_obj->mm);
+	drm_mm_remove_yesde(&rk_obj->mm);
 	mutex_unlock(&private->mm_lock);
 
 	return ret;
@@ -65,7 +65,7 @@ static int rockchip_gem_iommu_unmap(struct rockchip_gem_object *rk_obj)
 
 	mutex_lock(&private->mm_lock);
 
-	drm_mm_remove_node(&rk_obj->mm);
+	drm_mm_remove_yesde(&rk_obj->mm);
 
 	mutex_unlock(&private->mm_lock);
 
@@ -95,7 +95,7 @@ static int rockchip_gem_get_pages(struct rockchip_gem_object *rk_obj)
 	 * to flush the pages associated with it.
 	 *
 	 * TODO: Replace this by drm_clflush_sg() once it can be implemented
-	 * without relying on symbols that are not exported.
+	 * without relying on symbols that are yest exported.
 	 */
 	for_each_sg(rk_obj->sgt->sgl, s, rk_obj->sgt->nents, i)
 		sg_dma_address(s) = sg_phys(s);
@@ -390,7 +390,7 @@ rockchip_gem_create_with_handle(struct drm_file *file_priv,
 	if (ret)
 		goto err_handle_create;
 
-	/* drop reference from allocate - handle holds it now. */
+	/* drop reference from allocate - handle holds it yesw. */
 	drm_gem_object_put_unlocked(obj);
 
 	return rk_obj;

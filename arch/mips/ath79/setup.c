@@ -55,7 +55,7 @@ static void __init ath79_detect_sys_type(void)
 	char *chip = "????";
 	u32 id;
 	u32 major;
-	u32 minor;
+	u32 miyesr;
 	u32 rev = 0;
 	u32 ver = 1;
 
@@ -64,10 +64,10 @@ static void __init ath79_detect_sys_type(void)
 
 	switch (major) {
 	case REV_ID_MAJOR_AR71XX:
-		minor = id & AR71XX_REV_ID_MINOR_MASK;
+		miyesr = id & AR71XX_REV_ID_MINOR_MASK;
 		rev = id >> AR71XX_REV_ID_REVISION_SHIFT;
 		rev &= AR71XX_REV_ID_REVISION_MASK;
-		switch (minor) {
+		switch (miyesr) {
 		case AR71XX_REV_ID_MINOR_AR7130:
 			ath79_soc = ATH79_SOC_AR7130;
 			chip = "7130";
@@ -104,10 +104,10 @@ static void __init ath79_detect_sys_type(void)
 		break;
 
 	case REV_ID_MAJOR_AR913X:
-		minor = id & AR913X_REV_ID_MINOR_MASK;
+		miyesr = id & AR913X_REV_ID_MINOR_MASK;
 		rev = id >> AR913X_REV_ID_REVISION_SHIFT;
 		rev &= AR913X_REV_ID_REVISION_MASK;
-		switch (minor) {
+		switch (miyesr) {
 		case AR913X_REV_ID_MINOR_AR9130:
 			ath79_soc = ATH79_SOC_AR9130;
 			chip = "9130";
@@ -186,7 +186,7 @@ static void __init ath79_detect_sys_type(void)
 		break;
 
 	default:
-		panic("ath79: unknown SoC, id:0x%08x", id);
+		panic("ath79: unkyeswn SoC, id:0x%08x", id);
 	}
 
 	if (ver == 1)
@@ -226,9 +226,9 @@ void __init plat_mem_setup(void)
 	else if (fw_passed_dtb)
 		__dt_setup_arch((void *)KSEG0ADDR(fw_passed_dtb));
 
-	ath79_reset_base = ioremap_nocache(AR71XX_RESET_BASE,
+	ath79_reset_base = ioremap_yescache(AR71XX_RESET_BASE,
 					   AR71XX_RESET_SIZE);
-	ath79_pll_base = ioremap_nocache(AR71XX_PLL_BASE,
+	ath79_pll_base = ioremap_yescache(AR71XX_PLL_BASE,
 					 AR71XX_PLL_SIZE);
 	ath79_detect_sys_type();
 	ath79_ddr_ctrl_init();
@@ -242,15 +242,15 @@ void __init plat_mem_setup(void)
 
 void __init plat_time_init(void)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 	struct clk *clk;
 	unsigned long cpu_clk_rate;
 
 	of_clk_init(NULL);
 
-	np = of_get_cpu_node(0, NULL);
+	np = of_get_cpu_yesde(0, NULL);
 	if (!np) {
-		pr_err("Failed to get CPU node\n");
+		pr_err("Failed to get CPU yesde\n");
 		return;
 	}
 

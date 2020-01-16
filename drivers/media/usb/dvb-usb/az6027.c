@@ -266,8 +266,8 @@ static struct stb0899_config az6027_stb0899_config = {
 	.lo_clk			= 76500000,
 	.hi_clk			= 99000000,
 
-	.esno_ave		= STB0899_DVBS2_ESNO_AVE,
-	.esno_quant		= STB0899_DVBS2_ESNO_QUANT,
+	.esyes_ave		= STB0899_DVBS2_ESNO_AVE,
+	.esyes_quant		= STB0899_DVBS2_ESNO_QUANT,
 	.avframes_coarse	= STB0899_DVBS2_AVFRAMES_COARSE,
 	.avframes_fine		= STB0899_DVBS2_AVFRAMES_FINE,
 	.miss_threshold		= STB0899_DVBS2_MISS_THRESHOLD,
@@ -360,7 +360,7 @@ static int az6027_usb_out_op(struct dvb_usb_device *d,
 	}
 }
 
-static int az6027_streaming_ctrl(struct dvb_usb_adapter *adap, int onoff)
+static int az6027_streaming_ctrl(struct dvb_usb_adapter *adap, int oyesff)
 {
 	int ret;
 	u8 req;
@@ -368,10 +368,10 @@ static int az6027_streaming_ctrl(struct dvb_usb_adapter *adap, int onoff)
 	u16 index;
 	int blen;
 
-	deb_info("%s %d", __func__, onoff);
+	deb_info("%s %d", __func__, oyesff);
 
 	req = 0xBC;
-	value = onoff;
+	value = oyesff;
 	index = 0;
 	blen = 0;
 
@@ -388,16 +388,16 @@ static struct rc_map_table rc_map_az6027_table[] = {
 	{ 0x02, KEY_2 },
 };
 
-/* remote control stuff (does not work with my box) */
+/* remote control stuff (does yest work with my box) */
 static int az6027_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
 {
 	return 0;
 }
 
 /*
-int az6027_power_ctrl(struct dvb_usb_device *d, int onoff)
+int az6027_power_ctrl(struct dvb_usb_device *d, int oyesff)
 {
-	u8 v = onoff;
+	u8 v = oyesff;
 	return az6027_usb_out_op(d,0xBC,v,3,NULL,1);
 }
 */
@@ -757,7 +757,7 @@ static int az6027_ci_init(struct dvb_usb_adapter *a)
 				  0, /* flags */
 				  1);/* n_slots */
 	if (ret != 0) {
-		err("Cannot initialize CI: Error %d.", ret);
+		err("Canyest initialize CI: Error %d.", ret);
 		memset(&state->ca, 0, sizeof(state->ca));
 		return ret;
 	}
@@ -879,7 +879,7 @@ static int az6027_frontend_reset(struct dvb_usb_adapter *adap)
 	return 0;
 }
 
-static int az6027_frontend_tsbypass(struct dvb_usb_adapter *adap, int onoff)
+static int az6027_frontend_tsbypass(struct dvb_usb_adapter *adap, int oyesff)
 {
 	int ret;
 	u8 req;
@@ -889,7 +889,7 @@ static int az6027_frontend_tsbypass(struct dvb_usb_adapter *adap, int onoff)
 
 	/* TS passthrough */
 	req = 0xC7;
-	value = onoff;
+	value = oyesff;
 	index = 0;
 	blen = 0;
 
@@ -919,7 +919,7 @@ static int az6027_frontend_attach(struct dvb_usb_adapter *adap)
 			adap->fe_adap[0].fe = NULL;
 		}
 	} else
-		warn("no front-end attached\n");
+		warn("yes front-end attached\n");
 
 	az6027_frontend_tsbypass(adap, 0);
 
@@ -967,7 +967,7 @@ static int az6027_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg msg[], int n
 	}
 
 	if (num > 2)
-		warn("more than 2 i2c messages at a time is not handled yet. TODO.");
+		warn("more than 2 i2c messages at a time is yest handled yet. TODO.");
 
 	for (i = 0; i < num; i++) {
 
@@ -1097,7 +1097,7 @@ static struct dvb_usb_device_properties az6027_properties = {
 	.caps = DVB_USB_IS_AN_I2C_ADAPTER,
 	.usb_ctrl = CYPRESS_FX2,
 	.firmware            = "dvb-usb-az6027-03.fw",
-	.no_reconnect        = 1,
+	.yes_reconnect        = 1,
 
 	.size_of_priv     = sizeof(struct az6027_device_state),
 	.identify_state		= az6027_identify_state,

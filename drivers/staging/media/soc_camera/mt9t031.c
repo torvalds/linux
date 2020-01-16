@@ -19,8 +19,8 @@
 #include <media/v4l2-ctrls.h>
 
 /*
- * ATTENTION: this driver still cannot be used outside of the soc-camera
- * framework because of its PM implementation, using the video_device node.
+ * ATTENTION: this driver still canyest be used outside of the soc-camera
+ * framework because of its PM implementation, using the video_device yesde.
  * If hardware becomes available for testing, alternative PM approaches shall
  * be considered and tested.
  */
@@ -147,7 +147,7 @@ static int mt9t031_idle(struct i2c_client *client)
 {
 	int ret;
 
-	/* Disable chip output, synchronous option update */
+	/* Disable chip output, synchroyesus option update */
 	ret = reg_write(client, MT9T031_RESET, 1);
 	if (ret >= 0)
 		ret = reg_write(client, MT9T031_RESET, 0);
@@ -163,7 +163,7 @@ static int mt9t031_s_stream(struct v4l2_subdev *sd, int enable)
 	int ret;
 
 	if (enable)
-		/* Switch to master "normal" mode */
+		/* Switch to master "yesrmal" mode */
 		ret = reg_set(client, MT9T031_OUTPUT_CONTROL, 2);
 	else
 		/* Stop sensor readout */
@@ -543,7 +543,7 @@ static int mt9t031_s_ctrl(struct v4l2_ctrl *ctrl)
 
 /*
  * Power Management:
- * This function does nothing for now but must be present for pm to work
+ * This function does yesthing for yesw but must be present for pm to work
  */
 static int mt9t031_runtime_suspend(struct device *dev)
 {
@@ -552,7 +552,7 @@ static int mt9t031_runtime_suspend(struct device *dev)
 
 /*
  * Power Management:
- * COLUMN_ADDRESS_MODE and ROW_ADDRESS_MODE are not rewritten if unchanged
+ * COLUMN_ADDRESS_MODE and ROW_ADDRESS_MODE are yest rewritten if unchanged
  * they are however changed at reset if the platform hook is present
  * thus we rewrite them with the values stored by the driver
  */

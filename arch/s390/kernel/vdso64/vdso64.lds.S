@@ -23,7 +23,7 @@ SECTIONS
 	.gnu.version_d	: { *(.gnu.version_d) }
 	.gnu.version_r	: { *(.gnu.version_r) }
 
-	.note		: { *(.note.*) }		:text	:note
+	.yeste		: { *(.yeste.*) }		:text	:yeste
 
 	. = ALIGN(16);
 	.text		: {
@@ -98,7 +98,7 @@ SECTIONS
 	PROVIDE(_vdso_data = .);
 
 	/DISCARD/	: {
-		*(.note.GNU-stack)
+		*(.yeste.GNU-stack)
 		*(.branch_lt)
 		*(.data .data.* .gnu.linkonce.d.* .sdata*)
 		*(.bss .sbss .dynbss .dynsbss)
@@ -106,7 +106,7 @@ SECTIONS
 }
 
 /*
- * Very old versions of ld do not recognize this name token; use the constant.
+ * Very old versions of ld do yest recognize this name token; use the constant.
  */
 #define PT_GNU_EH_FRAME	0x6474e550
 
@@ -118,7 +118,7 @@ PHDRS
 {
 	text		PT_LOAD FILEHDR PHDRS FLAGS(5);	/* PF_R|PF_X */
 	dynamic		PT_DYNAMIC FLAGS(4);		/* PF_R */
-	note		PT_NOTE FLAGS(4);		/* PF_R */
+	yeste		PT_NOTE FLAGS(4);		/* PF_R */
 	eh_frame_hdr	PT_GNU_EH_FRAME;
 }
 

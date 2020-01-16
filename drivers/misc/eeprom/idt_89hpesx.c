@@ -16,7 +16,7 @@
  *   more details.
  *
  *   You should have received a copy of the GNU General Public License along
- *   with this program; if not, it can be found <http://www.gnu.org/licenses/>.
+ *   with this program; if yest, it can be found <http://www.gnu.org/licenses/>.
  *
  *   The full GNU General Public License is included in this distribution in
  *   the file called "COPYING".
@@ -46,14 +46,14 @@
  * SMBus of switches. Using that interface this the driver creates a simple
  * binary sysfs-file in the device directory:
  * /sys/bus/i2c/devices/<bus>-<devaddr>/eeprom
- * In case if read-only flag is specified in the dts-node of device desription,
- * User-space applications won't be able to write to the EEPROM sysfs-node.
+ * In case if read-only flag is specified in the dts-yesde of device desription,
+ * User-space applications won't be able to write to the EEPROM sysfs-yesde.
  *    Additionally IDT 89HPESx SMBus interface has an ability to write/read
  * data of device CSRs. This driver exposes debugf-file to perform simple IO
  * operations using that ability for just basic debug purpose. Particularly
  * next file is created in the specific debugfs-directory:
  * /sys/kernel/debug/idt_csr/
- * Format of the debugfs-node is:
+ * Format of the debugfs-yesde is:
  * $ cat /sys/kernel/debug/idt_csr/<bus>-<devaddr>/<devname>;
  * <CSR address>:<CSR value>
  * So reading the content of the file gives current CSR address and it value.
@@ -201,7 +201,7 @@ struct idt_csr_seq {
  * @EEPROM_OP_WRITE:	EEPROM write operation
  * @EEPROM_OP_READ:	EEPROM read operation
  * @EEPROM_USA:		Use specified address of EEPROM
- * @EEPROM_NAERR:	EEPROM device is not ready to respond
+ * @EEPROM_NAERR:	EEPROM device is yest ready to respond
  * @EEPROM_LAERR:	EEPROM arbitration loss error
  * @EEPROM_MSS:		EEPROM misplace start & stop bits error
  * @EEPROM_WR_CNT:	Bytes count to perform write operation
@@ -743,7 +743,7 @@ static int idt_eeprom_read(struct idt_89hpesx_dev *pdev, u16 memaddr, u16 len,
 /*
  * idt_csr_write() - CSR write operation
  * @pdev:	Pointer to the driver data
- * @csraddr:	CSR address (with no two LS bits)
+ * @csraddr:	CSR address (with yes two LS bits)
  * @data:	Data to be written to CSR
  */
 static int idt_csr_write(struct idt_89hpesx_dev *pdev, u16 csraddr,
@@ -809,7 +809,7 @@ err_mutex_unlock:
 /*
  * idt_csr_read() - CSR read operation
  * @pdev:	Pointer to the driver data
- * @csraddr:	CSR address (with no two LS bits)
+ * @csraddr:	CSR address (with yes two LS bits)
  * @data:	Data to be written to CSR
  */
 static int idt_csr_read(struct idt_89hpesx_dev *pdev, u16 csraddr, u32 *data)
@@ -864,14 +864,14 @@ err_mutex_unlock:
 }
 
 /*===========================================================================
- *                          Sysfs/debugfs-nodes IO-operations
+ *                          Sysfs/debugfs-yesdes IO-operations
  *===========================================================================
  */
 
 /*
- * eeprom_write() - EEPROM sysfs-node write callback
- * @filep:	Pointer to the file system node
- * @kobj:	Pointer to the kernel object related to the sysfs-node
+ * eeprom_write() - EEPROM sysfs-yesde write callback
+ * @filep:	Pointer to the file system yesde
+ * @kobj:	Pointer to the kernel object related to the sysfs-yesde
  * @attr:	Attributes of the file
  * @buf:	Buffer to write data to
  * @off:	Offset at which data should be written to
@@ -893,9 +893,9 @@ static ssize_t eeprom_write(struct file *filp, struct kobject *kobj,
 }
 
 /*
- * eeprom_read() - EEPROM sysfs-node read callback
- * @filep:	Pointer to the file system node
- * @kobj:	Pointer to the kernel object related to the sysfs-node
+ * eeprom_read() - EEPROM sysfs-yesde read callback
+ * @filep:	Pointer to the file system yesde
+ * @kobj:	Pointer to the kernel object related to the sysfs-yesde
  * @attr:	Attributes of the file
  * @buf:	Buffer to write data to
  * @off:	Offset at which data should be written to
@@ -917,7 +917,7 @@ static ssize_t eeprom_read(struct file *filp, struct kobject *kobj,
 }
 
 /*
- * idt_dbgfs_csr_write() - CSR debugfs-node write callback
+ * idt_dbgfs_csr_write() - CSR debugfs-yesde write callback
  * @filep:	Pointer to the file system file descriptor
  * @buf:	Buffer to read data from
  * @count:	Size of the buffer
@@ -956,8 +956,8 @@ static ssize_t idt_dbgfs_csr_write(struct file *filep, const char __user *ubuf,
 	/*
 	 * If there is colon passed then new CSR value should be parsed as
 	 * well, so allocate buffer for CSR address substring.
-	 * If no colon is found, then string must have just one number with
-	 * no new CSR value
+	 * If yes colon is found, then string must have just one number with
+	 * yes new CSR value
 	 */
 	if (colon_ch != NULL) {
 		csraddr_len = colon_ch - buf;
@@ -1016,7 +1016,7 @@ free_buf:
 }
 
 /*
- * idt_dbgfs_csr_read() - CSR debugfs-node read callback
+ * idt_dbgfs_csr_read() - CSR debugfs-yesde read callback
  * @filep:	Pointer to the file system file descriptor
  * @buf:	Buffer to write data to
  * @count:	Size of the buffer
@@ -1050,15 +1050,15 @@ static ssize_t idt_dbgfs_csr_read(struct file *filep, char __user *ubuf,
 }
 
 /*
- * eeprom_attribute - EEPROM sysfs-node attributes
+ * eeprom_attribute - EEPROM sysfs-yesde attributes
  *
- * NOTE Size will be changed in compliance with OF node. EEPROM attribute will
- * be read-only as well if the corresponding flag is specified in OF node.
+ * NOTE Size will be changed in compliance with OF yesde. EEPROM attribute will
+ * be read-only as well if the corresponding flag is specified in OF yesde.
  */
 static BIN_ATTR_RW(eeprom, EEPROM_DEF_SIZE);
 
 /*
- * csr_dbgfs_ops - CSR debugfs-node read/write operations
+ * csr_dbgfs_ops - CSR debugfs-yesde read/write operations
  */
 static const struct file_operations csr_dbgfs_ops = {
 	.owner = THIS_MODULE,
@@ -1088,16 +1088,16 @@ static void idt_set_defval(struct idt_89hpesx_dev *pdev)
 static const struct i2c_device_id ee_ids[];
 
 /*
- * idt_ee_match_id() - check whether the node belongs to compatible EEPROMs
+ * idt_ee_match_id() - check whether the yesde belongs to compatible EEPROMs
  */
-static const struct i2c_device_id *idt_ee_match_id(struct fwnode_handle *fwnode)
+static const struct i2c_device_id *idt_ee_match_id(struct fwyesde_handle *fwyesde)
 {
 	const struct i2c_device_id *id = ee_ids;
 	const char *compatible, *p;
 	char devname[I2C_NAME_SIZE];
 	int ret;
 
-	ret = fwnode_property_read_string(fwnode, "compatible", &compatible);
+	ret = fwyesde_property_read_string(fwyesde, "compatible", &compatible);
 	if (ret)
 		return NULL;
 
@@ -1119,13 +1119,13 @@ static const struct i2c_device_id *idt_ee_match_id(struct fwnode_handle *fwnode)
 static void idt_get_fw_data(struct idt_89hpesx_dev *pdev)
 {
 	struct device *dev = &pdev->client->dev;
-	struct fwnode_handle *fwnode;
+	struct fwyesde_handle *fwyesde;
 	const struct i2c_device_id *ee_id = NULL;
 	u32 eeprom_addr;
 	int ret;
 
-	device_for_each_child_node(dev, fwnode) {
-		ee_id = idt_ee_match_id(fwnode);
+	device_for_each_child_yesde(dev, fwyesde) {
+		ee_id = idt_ee_match_id(fwyesde);
 		if (!ee_id) {
 			dev_warn(dev, "Skip unsupported EEPROM device");
 			continue;
@@ -1133,9 +1133,9 @@ static void idt_get_fw_data(struct idt_89hpesx_dev *pdev)
 			break;
 	}
 
-	/* If there is no fwnode EEPROM device, then set zero size */
+	/* If there is yes fwyesde EEPROM device, then set zero size */
 	if (!ee_id) {
-		dev_warn(dev, "No fwnode, EEPROM access disabled");
+		dev_warn(dev, "No fwyesde, EEPROM access disabled");
 		idt_set_defval(pdev);
 		return;
 	}
@@ -1144,7 +1144,7 @@ static void idt_get_fw_data(struct idt_89hpesx_dev *pdev)
 	pdev->eesize = (u32)ee_id->driver_data;
 
 	/* Get custom EEPROM address from 'reg' attribute */
-	ret = fwnode_property_read_u32(fwnode, "reg", &eeprom_addr);
+	ret = fwyesde_property_read_u32(fwyesde, "reg", &eeprom_addr);
 	if (ret || (eeprom_addr == 0)) {
 		dev_warn(dev, "No EEPROM reg found, use default address 0x%x",
 			 EEPROM_DEF_ADDR);
@@ -1156,9 +1156,9 @@ static void idt_get_fw_data(struct idt_89hpesx_dev *pdev)
 	}
 
 	/* Check EEPROM 'read-only' flag */
-	if (fwnode_property_read_bool(fwnode, "read-only"))
+	if (fwyesde_property_read_bool(fwyesde, "read-only"))
 		pdev->eero = true;
-	else /* if (!fwnode_property_read_bool(node, "read-only")) */
+	else /* if (!fwyesde_property_read_bool(yesde, "read-only")) */
 		pdev->eero = false;
 
 	dev_info(dev, "EEPROM of %d bytes found by 0x%x",
@@ -1183,7 +1183,7 @@ static struct idt_89hpesx_dev *idt_create_pdev(struct i2c_client *client)
 	pdev->client = client;
 	i2c_set_clientdata(client, pdev);
 
-	/* Read firmware nodes information */
+	/* Read firmware yesdes information */
 	idt_get_fw_data(pdev);
 
 	/* Initialize basic CSR CMD field - use full DWORD-sized r/w ops */
@@ -1240,7 +1240,7 @@ static int idt_set_smbus_ops(struct idt_89hpesx_dev *pdev)
 					   I2C_FUNC_SMBUS_READ_BYTE_DATA)) {
 		pdev->smb_read = idt_smb_read_byte;
 		dev_warn(dev, "Use slow byte SMBus read op");
-	} else /* no supported smbus read operations */ {
+	} else /* yes supported smbus read operations */ {
 		dev_err(dev, "No supported SMBus read op");
 		return -EPFNOSUPPORT;
 	}
@@ -1264,7 +1264,7 @@ static int idt_set_smbus_ops(struct idt_89hpesx_dev *pdev)
 					   I2C_FUNC_SMBUS_WRITE_BYTE_DATA)) {
 		pdev->smb_write = idt_smb_write_byte;
 		dev_warn(dev, "Use slow byte SMBus write op");
-	} else /* no supported smbus write operations */ {
+	} else /* yes supported smbus write operations */ {
 		dev_err(dev, "No supported SMBus write op");
 		return -EPFNOSUPPORT;
 	}
@@ -1338,7 +1338,7 @@ static int idt_create_sysfs_files(struct idt_89hpesx_dev *pdev)
 	pdev->ee_file->size = pdev->eesize;
 	ret = sysfs_create_bin_file(&dev->kobj, pdev->ee_file);
 	if (ret != 0) {
-		dev_err(dev, "Failed to create EEPROM sysfs-node");
+		dev_err(dev, "Failed to create EEPROM sysfs-yesde");
 		return ret;
 	}
 
@@ -1386,7 +1386,7 @@ static void idt_create_dbgfs_files(struct idt_89hpesx_dev *pdev)
  */
 static void idt_remove_dbgfs_files(struct idt_89hpesx_dev *pdev)
 {
-	/* Remove CSR directory and it sysfs-node */
+	/* Remove CSR directory and it sysfs-yesde */
 	debugfs_remove_recursive(pdev->csr_dir);
 }
 

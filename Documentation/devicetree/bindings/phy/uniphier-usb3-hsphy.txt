@@ -34,7 +34,7 @@ Optional properties:
 	each nvmem-cells.
 	All of the 3 parameters associated with the following names are
 	required for each port, if any one is omitted, the trimming data
-	of the port will not be set at all.
+	of the port will yest be set at all.
     "rterm", "sel_t", "hs_i" - Each cell name for phy parameters
 
 Refer to phy/phy-bindings.txt for the generic PHY binding properties.

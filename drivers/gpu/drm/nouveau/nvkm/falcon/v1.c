@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -45,8 +45,8 @@ nvkm_falcon_v1_load_imem(struct nvkm_falcon *falcon, void *data, u32 start,
 	}
 
 	/*
-	 * If size is not a multiple of 4, mask the last work to ensure garbage
-	 * does not get written
+	 * If size is yest a multiple of 4, mask the last work to ensure garbage
+	 * does yest get written
 	 */
 	if (rem) {
 		u32 extra = ((u32 *)data)[i];
@@ -78,8 +78,8 @@ nvkm_falcon_v1_load_emem(struct nvkm_falcon *falcon, void *data, u32 start,
 		nvkm_falcon_wr32(falcon, 0xac4 + (port * 8), ((u32 *)data)[i]);
 
 	/*
-	 * If size is not a multiple of 4, mask the last word to ensure garbage
-	 * does not get written
+	 * If size is yest a multiple of 4, mask the last word to ensure garbage
+	 * does yest get written
 	 */
 	if (rem) {
 		u32 extra = ((u32 *)data)[i];
@@ -110,8 +110,8 @@ nvkm_falcon_v1_load_dmem(struct nvkm_falcon *falcon, void *data, u32 start,
 		nvkm_falcon_wr32(falcon, 0x1c4 + (port * 8), ((u32 *)data)[i]);
 
 	/*
-	 * If size is not a multiple of 4, mask the last word to ensure garbage
-	 * does not get written
+	 * If size is yest a multiple of 4, mask the last word to ensure garbage
+	 * does yest get written
 	 */
 	if (rem) {
 		u32 extra = ((u32 *)data)[i];
@@ -135,8 +135,8 @@ nvkm_falcon_v1_read_emem(struct nvkm_falcon *falcon, u32 start, u32 size,
 		((u32 *)data)[i] = nvkm_falcon_rd32(falcon, 0xac4 + (port * 8));
 
 	/*
-	 * If size is not a multiple of 4, mask the last word to ensure garbage
-	 * does not get read
+	 * If size is yest a multiple of 4, mask the last word to ensure garbage
+	 * does yest get read
 	 */
 	if (rem) {
 		u32 extra = nvkm_falcon_rd32(falcon, 0xac4 + (port * 8));
@@ -166,8 +166,8 @@ nvkm_falcon_v1_read_dmem(struct nvkm_falcon *falcon, u32 start, u32 size,
 		((u32 *)data)[i] = nvkm_falcon_rd32(falcon, 0x1c4 + (port * 8));
 
 	/*
-	 * If size is not a multiple of 4, mask the last word to ensure garbage
-	 * does not get read
+	 * If size is yest a multiple of 4, mask the last word to ensure garbage
+	 * does yest get read
 	 */
 	if (rem) {
 		u32 extra = nvkm_falcon_rd32(falcon, 0x1c4 + (port * 8));

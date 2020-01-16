@@ -10,7 +10,7 @@ The AXP223 PMIC shares most of its behaviour with the AXP221 but has slight
 variations such as the former being able to set the VBUS power supply max
 current to 100mA, unlike the latter.
 
-This node is a subnode of the axp20x PMIC.
+This yesde is a subyesde of the axp20x PMIC.
 
 Example:
 

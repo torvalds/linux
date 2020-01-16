@@ -53,7 +53,7 @@ int prism2_sta_deauth(local_info_t *local, u16 reason);
 int prism2_wds_add(local_info_t *local, u8 *remote_addr,
 		   int rtnl_locked);
 int prism2_wds_del(local_info_t *local, u8 *remote_addr,
-		   int rtnl_locked, int do_not_remove);
+		   int rtnl_locked, int do_yest_remove);
 
 
 /* hostap_ap.c */

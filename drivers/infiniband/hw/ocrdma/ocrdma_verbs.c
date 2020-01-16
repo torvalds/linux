@@ -13,11 +13,11 @@
  * modification, are permitted provided that the following conditions
  * are met:
  *
- * - Redistributions of source code must retain the above copyright notice,
+ * - Redistributions of source code must retain the above copyright yestice,
  *   this list of conditions and the following disclaimer.
  *
  * - Redistributions in binary form must reproduce the above copyright
- *   notice, this list of conditions and the following disclaimer in
+ *   yestice, this list of conditions and the following disclaimer in
  *   the documentation and/or other materials provided with the distribution.
  *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
@@ -258,13 +258,13 @@ static u16 _ocrdma_pd_mgr_get_bitmap(struct ocrdma_dev *dev, bool dpp_pool)
 		if (dev->pd_mgr->pd_dpp_count > dev->pd_mgr->pd_dpp_thrsh)
 			dev->pd_mgr->pd_dpp_thrsh = dev->pd_mgr->pd_dpp_count;
 	} else {
-		pd_bitmap = dev->pd_mgr->pd_norm_bitmap;
+		pd_bitmap = dev->pd_mgr->pd_yesrm_bitmap;
 		pd_bitmap_idx = find_first_zero_bit(pd_bitmap,
-						    dev->pd_mgr->max_normal_pd);
-		__set_bit(pd_bitmap_idx, dev->pd_mgr->pd_norm_bitmap);
-		dev->pd_mgr->pd_norm_count++;
-		if (dev->pd_mgr->pd_norm_count > dev->pd_mgr->pd_norm_thrsh)
-			dev->pd_mgr->pd_norm_thrsh = dev->pd_mgr->pd_norm_count;
+						    dev->pd_mgr->max_yesrmal_pd);
+		__set_bit(pd_bitmap_idx, dev->pd_mgr->pd_yesrm_bitmap);
+		dev->pd_mgr->pd_yesrm_count++;
+		if (dev->pd_mgr->pd_yesrm_count > dev->pd_mgr->pd_yesrm_thrsh)
+			dev->pd_mgr->pd_yesrm_thrsh = dev->pd_mgr->pd_yesrm_count;
 	}
 	return pd_bitmap_idx;
 }
@@ -276,7 +276,7 @@ static int _ocrdma_pd_mgr_put_bitmap(struct ocrdma_dev *dev, u16 pd_id,
 	u16 pd_bit_index;
 
 	pd_count = dpp_pool ? dev->pd_mgr->pd_dpp_count :
-			      dev->pd_mgr->pd_norm_count;
+			      dev->pd_mgr->pd_yesrm_count;
 	if (pd_count == 0)
 		return -EINVAL;
 
@@ -289,12 +289,12 @@ static int _ocrdma_pd_mgr_put_bitmap(struct ocrdma_dev *dev, u16 pd_id,
 			dev->pd_mgr->pd_dpp_count--;
 		}
 	} else {
-		pd_bit_index = pd_id - dev->pd_mgr->pd_norm_start;
-		if (pd_bit_index >= dev->pd_mgr->max_normal_pd) {
+		pd_bit_index = pd_id - dev->pd_mgr->pd_yesrm_start;
+		if (pd_bit_index >= dev->pd_mgr->max_yesrmal_pd) {
 			return -EINVAL;
 		} else {
-			__clear_bit(pd_bit_index, dev->pd_mgr->pd_norm_bitmap);
-			dev->pd_mgr->pd_norm_count--;
+			__clear_bit(pd_bit_index, dev->pd_mgr->pd_yesrm_bitmap);
+			dev->pd_mgr->pd_yesrm_count--;
 		}
 	}
 
@@ -319,23 +319,23 @@ static int ocrdma_get_pd_num(struct ocrdma_dev *dev, struct ocrdma_pd *pd)
 
 	mutex_lock(&dev->dev_lock);
 	if (pd->dpp_enabled) {
-		/* try allocating DPP PD, if not available then normal PD */
+		/* try allocating DPP PD, if yest available then yesrmal PD */
 		if (dev->pd_mgr->pd_dpp_count < dev->pd_mgr->max_dpp_pd) {
 			pd_idx = _ocrdma_pd_mgr_get_bitmap(dev, true);
 			pd->id = dev->pd_mgr->pd_dpp_start + pd_idx;
 			pd->dpp_page = dev->pd_mgr->dpp_page_index + pd_idx;
-		} else if (dev->pd_mgr->pd_norm_count <
-			   dev->pd_mgr->max_normal_pd) {
+		} else if (dev->pd_mgr->pd_yesrm_count <
+			   dev->pd_mgr->max_yesrmal_pd) {
 			pd_idx = _ocrdma_pd_mgr_get_bitmap(dev, false);
-			pd->id = dev->pd_mgr->pd_norm_start + pd_idx;
+			pd->id = dev->pd_mgr->pd_yesrm_start + pd_idx;
 			pd->dpp_enabled = false;
 		} else {
 			status = -EINVAL;
 		}
 	} else {
-		if (dev->pd_mgr->pd_norm_count < dev->pd_mgr->max_normal_pd) {
+		if (dev->pd_mgr->pd_yesrm_count < dev->pd_mgr->max_yesrmal_pd) {
 			pd_idx = _ocrdma_pd_mgr_get_bitmap(dev, false);
-			pd->id = dev->pd_mgr->pd_norm_start + pd_idx;
+			pd->id = dev->pd_mgr->pd_yesrm_start + pd_idx;
 		} else {
 			status = -EINVAL;
 		}
@@ -348,8 +348,8 @@ static int ocrdma_get_pd_num(struct ocrdma_dev *dev, struct ocrdma_pd *pd)
  * NOTE:
  *
  * ocrdma_ucontext must be used here because this function is also
- * called from ocrdma_alloc_ucontext where ib_udata does not have
- * valid ib_ucontext pointer. ib_uverbs_get_context does not call
+ * called from ocrdma_alloc_ucontext where ib_udata does yest have
+ * valid ib_ucontext pointer. ib_uverbs_get_context does yest call
  * uobj_{alloc|get_xxx} helpers which are used to store the
  * ib_ucontext in uverbs_attr_bundle wrapping the ib_udata. so
  * ib_udata does NOT imply valid ib_ucontext here!
@@ -558,7 +558,7 @@ int ocrdma_mmap(struct ib_ucontext *context, struct vm_area_struct *vma)
 		if (vma->vm_flags & VM_READ)
 			return -EPERM;
 
-		vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
+		vma->vm_page_prot = pgprot_yesncached(vma->vm_page_prot);
 		status = io_remap_pfn_range(vma, vma->vm_start, vma->vm_pgoff,
 					    len, vma->vm_page_prot);
 	} else if (dev->nic_info.dpp_unmapped_len &&
@@ -924,7 +924,7 @@ int ocrdma_dereg_mr(struct ib_mr *ib_mr, struct ib_udata *udata)
 
 	/* Don't stop cleanup, in case FW is unresponsive */
 	if (dev->mqe_ctx.fw_error_state) {
-		pr_err("%s(%d) fw not responding.\n",
+		pr_err("%s(%d) fw yest responding.\n",
 		       __func__, dev->id);
 	}
 	return 0;
@@ -1150,7 +1150,7 @@ static int ocrdma_check_qp_params(struct ib_pd *ibpd, struct ocrdma_dev *dev,
 		       __func__, dev->id, dev->attr.max_recv_sge);
 		return -EINVAL;
 	}
-	/* unprivileged user space cannot create special QP */
+	/* unprivileged user space canyest create special QP */
 	if (udata && attrs->qp_type == IB_QPT_GSI) {
 		pr_err
 		    ("%s(%d) Userspace can't create special QPs of type=0x%x\n",
@@ -1163,11 +1163,11 @@ static int ocrdma_check_qp_params(struct ib_pd *ibpd, struct ocrdma_dev *dev,
 		       __func__, dev->id);
 		return -EINVAL;
 	}
-	/* verify consumer QPs are not trying to use GSI QP's CQ */
+	/* verify consumer QPs are yest trying to use GSI QP's CQ */
 	if ((attrs->qp_type != IB_QPT_GSI) && (dev->gsi_qp_created)) {
 		if ((dev->gsi_sqcq == get_ocrdma_cq(attrs->send_cq)) ||
 			(dev->gsi_rqcq == get_ocrdma_cq(attrs->recv_cq))) {
-			pr_err("%s(%d) Consumer QP cannot use GSI CQs.\n",
+			pr_err("%s(%d) Consumer QP canyest use GSI CQs.\n",
 				__func__, dev->id);
 			return -EINVAL;
 		}
@@ -1384,7 +1384,7 @@ int _ocrdma_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 	if (attr_mask & IB_QP_STATE)
 		status = ocrdma_qp_state_change(qp, attr->qp_state, &old_qps);
 	/* if new and previous states are same hw doesn't need to
-	 * know about it.
+	 * kyesw about it.
 	 */
 	if (status < 0)
 		return status;
@@ -1539,7 +1539,7 @@ int ocrdma_query_qp(struct ib_qp *ibqp,
 	    params.max_ord_ird >> OCRDMA_QP_PARAMS_MAX_ORD_SHIFT;
 	qp_attr->max_rd_atomic =
 	    params.max_ord_ird & OCRDMA_QP_PARAMS_MAX_IRD_MASK;
-	qp_attr->en_sqd_async_notify = (params.max_sge_recv_flags &
+	qp_attr->en_sqd_async_yestify = (params.max_sge_recv_flags &
 				OCRDMA_QP_PARAMS_FLAGS_SQD_ASYNC) ? 1 : 0;
 	/* Sync driver QP state with FW */
 	ocrdma_qp_state_change(qp, qp_attr->qp_state, NULL);
@@ -1645,7 +1645,7 @@ static void ocrdma_discard_cqes(struct ocrdma_qp *qp, struct ocrdma_cq *cq)
 				ocrdma_hwq_inc_tail(&qp->rq);
 			}
 		}
-		/* mark cqe discarded so that it is not picked up later
+		/* mark cqe discarded so that it is yest picked up later
 		 * in the poll_cq().
 		 */
 		discard_cnt += 1;
@@ -2529,7 +2529,7 @@ static bool ocrdma_poll_err_scqe(struct ocrdma_qp *qp,
 	if (status < OCRDMA_MAX_CQE_ERR)
 		atomic_inc(&dev->cqe_err_stats[status]);
 
-	/* when hw sq is empty, but rq is not empty, so we continue
+	/* when hw sq is empty, but rq is yest empty, so we continue
 	 * to keep the cqe in order to get the cq event again.
 	 */
 	if (is_hw_sq_empty(qp) && !is_hw_rq_empty(qp)) {
@@ -2551,7 +2551,7 @@ static bool ocrdma_poll_err_scqe(struct ocrdma_qp *qp,
 			expand = false;
 		}
 	} else if (is_hw_sq_empty(qp)) {
-		/* Do nothing */
+		/* Do yesthing */
 		expand = false;
 		*polled = false;
 		*stop = false;
@@ -2571,7 +2571,7 @@ static bool ocrdma_poll_success_scqe(struct ocrdma_qp *qp,
 	u32 wqe_idx;
 
 	if (!qp->wqe_wr_id_tbl[tail].signaled) {
-		*polled = false;    /* WC cannot be consumed yet */
+		*polled = false;    /* WC canyest be consumed yet */
 	} else {
 		ibwc->status = IB_WC_SUCCESS;
 		ibwc->wc_flags = 0;
@@ -2661,7 +2661,7 @@ static bool ocrdma_poll_err_rcqe(struct ocrdma_qp *qp, struct ocrdma_cqe *cqe,
 	if (status < OCRDMA_MAX_CQE_ERR)
 		atomic_inc(&dev->cqe_err_stats[status]);
 
-	/* when hw_rq is empty, but wq is not empty, so continue
+	/* when hw_rq is empty, but wq is yest empty, so continue
 	 * to keep the cqe to get the cq event again.
 	 */
 	if (is_hw_rq_empty(qp) && !is_hw_sq_empty(qp)) {
@@ -2675,7 +2675,7 @@ static bool ocrdma_poll_err_rcqe(struct ocrdma_qp *qp, struct ocrdma_cqe *cqe,
 			expand = false;
 		}
 	} else if (is_hw_rq_empty(qp)) {
-		/* Do nothing */
+		/* Do yesthing */
 		expand = false;
 		*polled = false;
 		*stop = false;
@@ -2773,11 +2773,11 @@ static int ocrdma_poll_hwcq(struct ocrdma_cq *cq, int num_entries,
 	cur_getp = cq->getp;
 	while (num_entries) {
 		cqe = cq->va + cur_getp;
-		/* check whether valid cqe or not */
+		/* check whether valid cqe or yest */
 		if (!is_cqe_valid(cq, cqe))
 			break;
 		qpn = (le32_to_cpu(cqe->cmn.qpn) & OCRDMA_CQE_QPN_MASK);
-		/* ignore discarded cqe */
+		/* igyesre discarded cqe */
 		if (qpn == 0)
 			goto skip_cqe;
 		qp = dev->qp_tbl[qpn];
@@ -2880,7 +2880,7 @@ int ocrdma_poll_cq(struct ib_cq *ibcq, int num_entries, struct ib_wc *wc)
 	return num_os_cqe;
 }
 
-int ocrdma_arm_cq(struct ib_cq *ibcq, enum ib_cq_notify_flags cq_flags)
+int ocrdma_arm_cq(struct ib_cq *ibcq, enum ib_cq_yestify_flags cq_flags)
 {
 	struct ocrdma_cq *cq = get_ocrdma_cq(ibcq);
 	struct ocrdma_dev *dev = get_ocrdma_dev(ibcq->device);

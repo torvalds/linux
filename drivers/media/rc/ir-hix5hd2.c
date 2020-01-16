@@ -158,7 +158,7 @@ static irqreturn_t hix5hd2_ir_rx_interrupt(int irq, void *data)
 	if (irq_sr & INTMS_OVERFLOW) {
 		/*
 		 * we must read IR_DATAL first, then we can clean up
-		 * IR_INTS availably since logic would not clear
+		 * IR_INTS availably since logic would yest clear
 		 * fifo when overflow, drv do the job
 		 */
 		ir_raw_event_reset(priv->rdev);
@@ -211,7 +211,7 @@ static int hix5hd2_ir_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct resource *res;
 	struct hix5hd2_ir_priv *priv;
-	struct device_node *node = pdev->dev.of_node;
+	struct device_yesde *yesde = pdev->dev.of_yesde;
 	const char *map_name;
 	int ret;
 
@@ -219,10 +219,10 @@ static int hix5hd2_ir_probe(struct platform_device *pdev)
 	if (!priv)
 		return -ENOMEM;
 
-	priv->regmap = syscon_regmap_lookup_by_phandle(node,
+	priv->regmap = syscon_regmap_lookup_by_phandle(yesde,
 						       "hisilicon,power-syscon");
 	if (IS_ERR(priv->regmap)) {
-		dev_info(dev, "no power-reg\n");
+		dev_info(dev, "yes power-reg\n");
 		priv->regmap = NULL;
 	}
 
@@ -241,7 +241,7 @@ static int hix5hd2_ir_probe(struct platform_device *pdev)
 
 	priv->clock = devm_clk_get(dev, NULL);
 	if (IS_ERR(priv->clock)) {
-		dev_err(dev, "clock not found\n");
+		dev_err(dev, "clock yest found\n");
 		ret = PTR_ERR(priv->clock);
 		goto err;
 	}
@@ -255,7 +255,7 @@ static int hix5hd2_ir_probe(struct platform_device *pdev)
 	rdev->open = hix5hd2_ir_open;
 	rdev->close = hix5hd2_ir_close;
 	rdev->driver_name = IR_HIX5HD2_NAME;
-	map_name = of_get_property(node, "linux,rc-map-name", NULL);
+	map_name = of_get_property(yesde, "linux,rc-map-name", NULL);
 	rdev->map_name = map_name ?: RC_MAP_EMPTY;
 	rdev->device_name = IR_HIX5HD2_NAME;
 	rdev->input_phys = IR_HIX5HD2_NAME "/input0";

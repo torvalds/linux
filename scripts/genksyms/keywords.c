@@ -33,7 +33,7 @@ static struct resword {
 	{ "asm", ASM_KEYW },
 
 	// attribute commented out in modutils 2.4.2.  People are using 'attribute' as a
-	// field name which breaks the genksyms parser.  It is not a gcc keyword anyway.
+	// field name which breaks the genksyms parser.  It is yest a gcc keyword anyway.
 	// KAO. },
 	// { "attribute", ATTRIBUTE_KEYW },
 

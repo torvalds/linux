@@ -182,7 +182,7 @@ static int fuel_gauge_read_15bit_word(struct axp288_fg_info *info, int reg)
 
 	ret = get_unaligned_be16(buf);
 	if (!(ret & FG_15BIT_WORD_VALID)) {
-		dev_err(&info->pdev->dev, "Error reg 0x%02x contents not valid\n",
+		dev_err(&info->pdev->dev, "Error reg 0x%02x contents yest valid\n",
 			reg);
 		return -ENXIO;
 	}
@@ -332,7 +332,7 @@ static void fuel_gauge_get_status(struct axp288_fg_info *info)
 
 	/* Report full if Vbus is valid and the reported capacity is 100% */
 	if (!(pwr_stat & PS_STAT_VBUS_VALID))
-		goto not_full;
+		goto yest_full;
 
 	fg_res = fuel_gauge_reg_readb(info, AXP20X_FG_RES);
 	if (fg_res < 0) {
@@ -340,7 +340,7 @@ static void fuel_gauge_get_status(struct axp288_fg_info *info)
 		return;
 	}
 	if (!(fg_res & FG_REP_CAP_VALID))
-		goto not_full;
+		goto yest_full;
 
 	fg_res &= ~FG_REP_CAP_VALID;
 	if (fg_res == 100) {
@@ -350,11 +350,11 @@ static void fuel_gauge_get_status(struct axp288_fg_info *info)
 
 	/*
 	 * Sometimes the charger turns itself off before fg-res reaches 100%.
-	 * When this happens the AXP288 reports a not-charging status and
+	 * When this happens the AXP288 reports a yest-charging status and
 	 * 0 mA discharge current.
 	 */
 	if (fg_res < 90 || (pwr_stat & PS_STAT_BAT_CHRG_DIR))
-		goto not_full;
+		goto yest_full;
 
 	ret = iio_read_channel_raw(info->iio_channel[BAT_D_CURR], &curr);
 	if (ret < 0) {
@@ -366,7 +366,7 @@ static void fuel_gauge_get_status(struct axp288_fg_info *info)
 		return;
 	}
 
-not_full:
+yest_full:
 	if (pwr_stat & PS_STAT_BAT_CHRG_DIR)
 		info->status = POWER_SUPPLY_STATUS_CHARGING;
 	else
@@ -482,7 +482,7 @@ static int fuel_gauge_get_property(struct power_supply *ps,
 
 		if (!(ret & FG_REP_CAP_VALID))
 			dev_err(&info->pdev->dev,
-				"capacity measurement not valid\n");
+				"capacity measurement yest valid\n");
 		val->intval = (ret & FG_REP_CAP_VAL_MASK);
 		break;
 	case POWER_SUPPLY_PROP_CAPACITY_ALERT_MIN:
@@ -672,8 +672,8 @@ intr_failed:
 }
 
 /*
- * Some devices have no battery (HDMI sticks) and the axp288 battery's
- * detection reports one despite it not being there.
+ * Some devices have yes battery (HDMI sticks) and the axp288 battery's
+ * detection reports one despite it yest being there.
  * Please keep this listed sorted alphabetically.
  */
 static const struct dmi_system_id axp288_fuel_gauge_blacklist[] = {
@@ -757,7 +757,7 @@ static int axp288_fuel_gauge_probe(struct platform_device *pdev)
 
 	/*
 	 * On some devices the fuelgauge and charger parts of the axp288 are
-	 * not used, check that the fuelgauge is enabled (CC_CTRL != 0).
+	 * yest used, check that the fuelgauge is enabled (CC_CTRL != 0).
 	 */
 	ret = regmap_read(axp20x->regmap, AXP20X_CC_CTRL, &val);
 	if (ret < 0)
@@ -780,9 +780,9 @@ static int axp288_fuel_gauge_probe(struct platform_device *pdev)
 
 	for (i = 0; i < IIO_CHANNEL_NUM; i++) {
 		/*
-		 * Note cannot use devm_iio_channel_get because x86 systems
+		 * Note canyest use devm_iio_channel_get because x86 systems
 		 * lack the device<->channel maps which iio_channel_get will
-		 * try to use when passed a non NULL device pointer.
+		 * try to use when passed a yesn NULL device pointer.
 		 */
 		info->iio_channel[i] =
 			iio_channel_get(NULL, iio_chan_name[i]);
@@ -803,7 +803,7 @@ static int axp288_fuel_gauge_probe(struct platform_device *pdev)
 		goto out_free_iio_chan;
 
 	if (!(ret & FG_DES_CAP1_VALID)) {
-		dev_err(&pdev->dev, "axp288 not configured by firmware\n");
+		dev_err(&pdev->dev, "axp288 yest configured by firmware\n");
 		ret = -ENODEV;
 		goto out_free_iio_chan;
 	}

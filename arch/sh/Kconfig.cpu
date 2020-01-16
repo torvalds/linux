@@ -28,7 +28,7 @@ config SH_FPU
 	  This option must be set in order to enable the FPU.
 
 config SH64_FPU_DENORM_FLUSH
-	bool "Flush floating point denorms to zero"
+	bool "Flush floating point deyesrms to zero"
 	depends on SH_FPU && SUPERH64
 
 config SH_FPU_EMU
@@ -91,7 +91,7 @@ config CPU_HAS_SR_RB
 	bool
 	help
 	  This will enable the use of SR.RB register bank usage. Processors
-	  that are lacking this bit must have another method in place for
+	  that are lacking this bit must have ayesther method in place for
 	  accomplishing what is taken care of by the banked registers.
 
 	  See <file:Documentation/sh/register-banks.txt> for further

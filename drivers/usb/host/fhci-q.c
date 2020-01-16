@@ -14,7 +14,7 @@
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/spinlock.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/slab.h>
 #include <linux/list.h>
 #include <linux/usb.h>
@@ -61,7 +61,7 @@ void fhci_add_tds_to_ed(struct ed *ed, struct td **td_list, int number)
 
 	for (i = 0; i < number; i++) {
 		struct td *td = td_list[i];
-		list_add_tail(&td->node, &ed->td_list);
+		list_add_tail(&td->yesde, &ed->td_list);
 	}
 	if (ed->td_head == NULL)
 		ed->td_head = td_list[0];
@@ -72,7 +72,7 @@ static struct td *peek_td_from_ed(struct ed *ed)
 	struct td *td;
 
 	if (!list_empty(&ed->td_list))
-		td = list_entry(ed->td_list.next, struct td, node);
+		td = list_entry(ed->td_list.next, struct td, yesde);
 	else
 		td = NULL;
 
@@ -109,13 +109,13 @@ struct td *fhci_remove_td_from_ed(struct ed *ed)
 	struct td *td;
 
 	if (!list_empty(&ed->td_list)) {
-		td = list_entry(ed->td_list.next, struct td, node);
+		td = list_entry(ed->td_list.next, struct td, yesde);
 		list_del_init(ed->td_list.next);
 
 		/* if this TD was the ED's head, find next TD */
 		if (!list_empty(&ed->td_list))
 			ed->td_head = list_entry(ed->td_list.next, struct td,
-						 node);
+						 yesde);
 		else
 			ed->td_head = NULL;
 	} else
@@ -129,7 +129,7 @@ struct td *fhci_remove_td_from_done_list(struct fhci_controller_list *p_list)
 	struct td *td;
 
 	if (!list_empty(&p_list->done_list)) {
-		td = list_entry(p_list->done_list.next, struct td, node);
+		td = list_entry(p_list->done_list.next, struct td, yesde);
 		list_del_init(p_list->done_list.next);
 	} else
 		td = NULL;
@@ -142,17 +142,17 @@ void fhci_move_td_from_ed_to_done_list(struct fhci_usb *usb, struct ed *ed)
 	struct td *td;
 
 	td = ed->td_head;
-	list_del_init(&td->node);
+	list_del_init(&td->yesde);
 
 	/* If this TD was the ED's head,find next TD */
 	if (!list_empty(&ed->td_list))
-		ed->td_head = list_entry(ed->td_list.next, struct td, node);
+		ed->td_head = list_entry(ed->td_list.next, struct td, yesde);
 	else {
 		ed->td_head = NULL;
 		ed->state = FHCI_ED_SKIP;
 	}
 	ed->toggle_carry = td->toggle;
-	list_add_tail(&td->node, &usb->hc_list->done_list);
+	list_add_tail(&td->yesde, &usb->hc_list->done_list);
 	if (td->ioc)
 		usb->transfer_confirm(usb->fhci);
 }
@@ -165,13 +165,13 @@ static void free_urb_priv(struct fhci_hcd *fhci, struct urb *urb)
 	struct ed *ed = urb_priv->ed;
 
 	for (i = 0; i < urb_priv->num_of_tds; i++) {
-		list_del_init(&urb_priv->tds[i]->node);
+		list_del_init(&urb_priv->tds[i]->yesde);
 		fhci_recycle_empty_td(fhci, urb_priv->tds[i]);
 	}
 
 	/* if this TD was the ED's head,find the next TD */
 	if (!list_empty(&ed->td_list))
-		ed->td_head = list_entry(ed->td_list.next, struct td, node);
+		ed->td_head = list_entry(ed->td_list.next, struct td, yesde);
 	else
 		ed->td_head = NULL;
 
@@ -181,7 +181,7 @@ static void free_urb_priv(struct fhci_hcd *fhci, struct urb *urb)
 
 	/* if this TD was the ED's head,find next TD */
 	if (ed->td_head == NULL)
-		list_del_init(&ed->node);
+		list_del_init(&ed->yesde);
 	fhci->active_urbs--;
 }
 
@@ -236,7 +236,7 @@ void fhci_done_td(struct urb *urb, struct td *td)
 
 	/* BULK,INT,CONTROL... drivers see aggregate length/status,
 	 * except that "setup" bytes aren't counted and "short" transfers
-	 * might not be reported as errors.
+	 * might yest be reported as errors.
 	 */
 	else {
 		if (td->error_cnt >= 3)
@@ -255,7 +255,7 @@ void fhci_done_td(struct urb *urb, struct td *td)
 				urb->status = status_to_error(cc);
 		}
 
-		/* count all non-empty packets except control SETUP packet */
+		/* count all yesn-empty packets except control SETUP packet */
 		if (td->type != FHCI_TA_SETUP || td->iso_index != 0)
 			urb->actual_length += td->actual_len;
 	}

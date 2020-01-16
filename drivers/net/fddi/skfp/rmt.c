@@ -58,7 +58,7 @@ static const char ID_sccs[] = "@(#)rmt.c	2.13 99/07/02 (C) SK " ;
 #define ACTIONS(x)	(x|AFLAG)
 
 #define RM0_ISOLATED	0
-#define RM1_NON_OP	1		/* not operational */
+#define RM1_NON_OP	1		/* yest operational */
 #define RM2_RING_OP	2		/* ring operational */
 #define RM3_DETECT	3		/* detect dupl addresses */
 #define RM4_NON_OP_DUP	4		/* dupl. addr detected */
@@ -126,7 +126,7 @@ void rmt_init(struct s_smc *smc)
 	smc->r.loop_avail = 0 ;
 	smc->r.bn_flag = 0 ;
 	smc->r.jm_flag = 0 ;
-	smc->r.no_flag = TRUE ;
+	smc->r.yes_flag = TRUE ;
 }
 
 /*
@@ -184,7 +184,7 @@ static void rmt_fsm(struct s_smc *smc, int cmd)
 		smc->mib.m[MAC0].fddiMACMA_UnitdataAvailable = FALSE ;
 		smc->r.loop_avail = FALSE ;
 		smc->r.sm_ma_avail = FALSE ;
-		smc->r.no_flag = TRUE ;
+		smc->r.yes_flag = TRUE ;
 		DB_RMTN(1, "RMT : ISOLATED");
 		ACTIONS_DONE() ;
 		break ;
@@ -203,7 +203,7 @@ static void rmt_fsm(struct s_smc *smc, int cmd)
 		}
 		break ;
 	case ACTIONS(RM1_NON_OP) :
-		start_rmt_timer0(smc,smc->s.rmt_t_non_op,RM_TIMEOUT_NON_OP) ;
+		start_rmt_timer0(smc,smc->s.rmt_t_yesn_op,RM_TIMEOUT_NON_OP) ;
 		stop_rmt_timer1(smc) ;
 		stop_rmt_timer2(smc) ;
 		sm_ma_control(smc,MA_BEACON) ;
@@ -223,7 +223,7 @@ static void rmt_fsm(struct s_smc *smc, int cmd)
 		/*RM13*/
 		else if (cmd == RM_TIMEOUT_NON_OP) {
 			smc->r.bn_flag = FALSE ;
-			smc->r.no_flag = TRUE ;
+			smc->r.yes_flag = TRUE ;
 			GO_STATE(RM3_DETECT) ;
 			break ;
 		}
@@ -232,7 +232,7 @@ static void rmt_fsm(struct s_smc *smc, int cmd)
 		stop_rmt_timer0(smc) ;
 		stop_rmt_timer1(smc) ;
 		stop_rmt_timer2(smc) ;
-		smc->r.no_flag = FALSE ;
+		smc->r.yes_flag = FALSE ;
 		if (smc->r.rm_loop)
 			smc->r.loop_avail = TRUE ;
 		if (smc->r.rm_join) {
@@ -334,7 +334,7 @@ static void rmt_fsm(struct s_smc *smc, int cmd)
 			}
 			/*
 			 * We do NOT need to clear smc->r.bn_flag in case of
-			 * not being in state T4 or T5, because the flag
+			 * yest being in state T4 or T5, because the flag
 			 * must be cleared in order to get in this condition.
 			 */
 
@@ -367,7 +367,7 @@ static void rmt_fsm(struct s_smc *smc, int cmd)
 		}
 		break ;
 	case ACTIONS(RM4_NON_OP_DUP) :
-		start_rmt_timer0(smc,smc->s.rmt_t_announce,RM_TIMEOUT_ANNOUNCE);
+		start_rmt_timer0(smc,smc->s.rmt_t_anyesunce,RM_TIMEOUT_ANNOUNCE);
 		start_rmt_timer1(smc,smc->s.rmt_t_stuck,RM_TIMEOUT_T_STUCK) ;
 		start_rmt_timer2(smc,smc->s.rmt_t_poll,RM_TIMEOUT_POLL) ;
 		sm_mac_check_beacon_claim(smc) ;
@@ -412,7 +412,7 @@ static void rmt_fsm(struct s_smc *smc, int cmd)
 			}
 			/*
 			 * We do NOT need to clear smc->r.bn_flag in case of
-			 * not being in state T4 or T5, because the flag
+			 * yest being in state T4 or T5, because the flag
 			 * must be cleared in order to get in this condition.
 			 */
 
@@ -425,7 +425,7 @@ static void rmt_fsm(struct s_smc *smc, int cmd)
 		}
 		/*RM45*/
 		else if (cmd == RM_RING_OP) {
-			smc->r.no_flag = FALSE ;
+			smc->r.yes_flag = FALSE ;
 			GO_STATE(RM5_RING_OP_DUP) ;
 			break ;
 		}
@@ -559,7 +559,7 @@ static void rmt_new_dup_actions(struct s_smc *smc)
 	 * we have three options : change address, jam or leave
 	 * we leave the ring as default 
 	 * Optionally it's possible to reinsert after leaving the Ring
-	 * but this will not conform with SMT Spec.
+	 * but this will yest conform with SMT Spec.
 	 */
 	if (smc->s.rmt_dup_mac_behavior) {
 		SMT_ERR_LOG(smc,SMT_E0138, SMT_E0138_MSG) ;

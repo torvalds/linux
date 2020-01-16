@@ -21,7 +21,7 @@
  *  USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *  You should have received a copy of the GNU General Public License along
- *  with this program; if not, write to the Free Software Foundation, Inc.,
+ *  with this program; if yest, write to the Free Software Foundation, Inc.,
  *  675 Mass Ave, Cambridge, MA 02139, USA.
  */
 #ifndef __ASM_TXX9_TX4927_H
@@ -236,7 +236,7 @@ static inline void txx9_set64(__u64 __iomem *adr, __u64 bits)
 #endif
 }
 
-/* These functions are not interrupt safe. */
+/* These functions are yest interrupt safe. */
 static inline void tx4927_ccfg_clear(__u64 bits)
 {
 	____raw_writeq(____raw_readq(&tx4927_ccfgptr->ccfg)

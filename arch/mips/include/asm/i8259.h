@@ -50,7 +50,7 @@ extern void i8259_set_poll(int (*poll)(void));
 
 /*
  * Do the traditional i8259 interrupt polling thing.  This is for the few
- * cases where no better interrupt acknowledge method is available and we
+ * cases where yes better interrupt ackyeswledge method is available and we
  * absolutely must touch the i8259.
  */
 static inline int i8259_irq(void)
@@ -59,13 +59,13 @@ static inline int i8259_irq(void)
 
 	raw_spin_lock(&i8259A_lock);
 
-	/* Perform an interrupt acknowledge cycle on controller 1. */
+	/* Perform an interrupt ackyeswledge cycle on controller 1. */
 	outb(0x0C, PIC_MASTER_CMD);		/* prepare for poll */
 	irq = inb(PIC_MASTER_CMD) & 7;
 	if (irq == PIC_CASCADE_IR) {
 		/*
 		 * Interrupt is cascaded so perform interrupt
-		 * acknowledge on controller 2.
+		 * ackyeswledge on controller 2.
 		 */
 		outb(0x0C, PIC_SLAVE_CMD);		/* prepare for poll */
 		irq = (inb(PIC_SLAVE_CMD) & 7) + 8;
@@ -76,7 +76,7 @@ static inline int i8259_irq(void)
 		 * This may be a spurious interrupt.
 		 *
 		 * Read the interrupt status register (ISR). If the most
-		 * significant bit is not set then there is no valid
+		 * significant bit is yest set then there is yes valid
 		 * interrupt.
 		 */
 		outb(0x0B, PIC_MASTER_ISR);		/* ISR register */

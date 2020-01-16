@@ -28,7 +28,7 @@
 #define ELOG_ENTRY_LEN		0x1000
 
 #define EMCA_BUG \
-	"Can not request iomem region <0x%016llx-0x%016llx> - eMCA disabled\n"
+	"Can yest request iomem region <0x%016llx-0x%016llx> - eMCA disabled\n"
 
 struct extlog_l1_head {
 	u32 ver;	/* Header Version */
@@ -85,7 +85,7 @@ static struct acpi_hest_generic_status *extlog_elog_entry_check(int cpu, int ban
 	data &= EXT_ELOG_ENTRY_MASK;
 	estatus = (struct acpi_hest_generic_status *)ELOG_ENTRY_ADDR(data);
 
-	/* if no valid data in elog entry, just return */
+	/* if yes valid data in elog entry, just return */
 	if (estatus->block_status == 0)
 		return NULL;
 
@@ -95,8 +95,8 @@ static struct acpi_hest_generic_status *extlog_elog_entry_check(int cpu, int ban
 static void __print_extlog_rcd(const char *pfx,
 			       struct acpi_hest_generic_status *estatus, int cpu)
 {
-	static atomic_t seqno;
-	unsigned int curr_seqno;
+	static atomic_t seqyes;
+	unsigned int curr_seqyes;
 	char pfx_seq[64];
 
 	if (!pfx) {
@@ -105,8 +105,8 @@ static void __print_extlog_rcd(const char *pfx,
 		else
 			pfx = KERN_ERR;
 	}
-	curr_seqno = atomic_inc_return(&seqno);
-	snprintf(pfx_seq, sizeof(pfx_seq), "%s{%u}", pfx, curr_seqno);
+	curr_seqyes = atomic_inc_return(&seqyes);
+	snprintf(pfx_seq, sizeof(pfx_seq), "%s{%u}", pfx, curr_seqyes);
 	printk("%s""Hardware error detected on CPU%d\n", pfx_seq, cpu);
 	cper_estatus_print(pfx_seq, estatus);
 }
@@ -132,7 +132,7 @@ static int print_extlog_rcd(const char *pfx,
 	return 1;
 }
 
-static int extlog_print(struct notifier_block *nb, unsigned long val,
+static int extlog_print(struct yestifier_block *nb, unsigned long val,
 			void *data)
 {
 	struct mce *mce = (struct mce *)data;
@@ -209,8 +209,8 @@ static bool __init extlog_get_l1addr(void)
 
 	return true;
 }
-static struct notifier_block extlog_mce_dec = {
-	.notifier_call	= extlog_print,
+static struct yestifier_block extlog_mce_dec = {
+	.yestifier_call	= extlog_print,
 	.priority	= MCE_PRIO_EXTLOG,
 };
 

@@ -135,7 +135,7 @@ unsigned xtensa_map_ext_irq(unsigned ext_irq)
 	return XCHAL_NUM_INTERRUPTS;
 }
 
-unsigned xtensa_get_ext_irq_no(unsigned irq)
+unsigned xtensa_get_ext_irq_yes(unsigned irq)
 {
 	unsigned mask = (XCHAL_INTTYPE_MASK_EXTERN_EDGE |
 		XCHAL_INTTYPE_MASK_EXTERN_LEVEL) &
@@ -163,7 +163,7 @@ void __init init_IRQ(void)
 #ifdef CONFIG_HOTPLUG_CPU
 /*
  * The CPU has been marked offline.  Migrate IRQs off this CPU.  If
- * the affinity settings do not allow other CPUs, force them onto any
+ * the affinity settings do yest allow other CPUs, force them onto any
  * available CPU.
  */
 void migrate_irqs(void)
@@ -185,7 +185,7 @@ void migrate_irqs(void)
 		newcpu = cpumask_any_and(mask, cpu_online_mask);
 
 		if (newcpu >= nr_cpu_ids) {
-			pr_info_ratelimited("IRQ%u no longer affine to CPU%u\n",
+			pr_info_ratelimited("IRQ%u yes longer affine to CPU%u\n",
 					    i, cpu);
 
 			cpumask_setall(mask);

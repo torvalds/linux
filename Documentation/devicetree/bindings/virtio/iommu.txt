@@ -4,7 +4,7 @@ When virtio-iommu uses the PCI transport, its programming interface is
 discovered dynamically by the PCI probing infrastructure. However the
 device tree statically describes the relation between IOMMU and DMA
 masters. Therefore, the PCI root complex that hosts the virtio-iommu
-contains a child node representing the IOMMU device explicitly.
+contains a child yesde representing the IOMMU device explicitly.
 
 Required properties:
 
@@ -21,8 +21,8 @@ Required properties:
 
 Notes:
 
-- DMA from the IOMMU device isn't managed by another IOMMU. Therefore the
-  virtio-iommu node doesn't have an "iommus" property, and is omitted from
+- DMA from the IOMMU device isn't managed by ayesther IOMMU. Therefore the
+  virtio-iommu yesde doesn't have an "iommus" property, and is omitted from
   the iommu-map property of the root complex.
 
 Example:

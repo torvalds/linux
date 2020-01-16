@@ -2,7 +2,7 @@
 /*
  * Thunderbolt driver - switch/port utility functions
  *
- * Copyright (c) 2014 Andreas Noever <andreas.noever@gmail.com>
+ * Copyright (c) 2014 Andreas Noever <andreas.yesever@gmail.com>
  * Copyright (C) 2018, Intel Corporation
  */
 
@@ -172,7 +172,7 @@ static int nvm_authenticate_host(struct tb_switch *sw)
 
 	/*
 	 * Root switch NVM upgrade requires that we disconnect the
-	 * existing paths first (in case it is not in safe mode
+	 * existing paths first (in case it is yest in safe mode
 	 * already).
 	 */
 	if (!sw->safe_mode) {
@@ -240,7 +240,7 @@ static int nvm_authenticate_device(struct tb_switch *sw)
 				nvm_set_auth_status(sw, status);
 			}
 
-			tb_sw_info(sw, "power cycling the switch now\n");
+			tb_sw_info(sw, "power cycling the switch yesw\n");
 			dma_port_power_cycle(sw->dma_port);
 			return 0;
 		}
@@ -318,7 +318,7 @@ static struct nvmem_device *register_nvmem(struct tb_switch *sw, int id,
 		config.reg_read = tb_switch_nvm_read;
 		config.read_only = true;
 	} else {
-		config.name = "nvm_non_active";
+		config.name = "nvm_yesn_active";
 		config.reg_write = tb_switch_nvm_write;
 		config.root_only = true;
 	}
@@ -352,7 +352,7 @@ static int tb_switch_nvm_add(struct tb_switch *sw)
 
 	/*
 	 * If the switch is in safe-mode the only accessible portion of
-	 * the NVM is the non-active one where userspace is expected to
+	 * the NVM is the yesn-active one where userspace is expected to
 	 * write new functional NVM.
 	 */
 	if (!sw->safe_mode) {
@@ -373,7 +373,7 @@ static int tb_switch_nvm_add(struct tb_switch *sw)
 			goto err_ida;
 
 		nvm->major = val >> 16;
-		nvm->minor = val >> 8;
+		nvm->miyesr = val >> 8;
 
 		nvm_dev = register_nvmem(sw, nvm->id, nvm_size, true);
 		if (IS_ERR(nvm_dev)) {
@@ -383,13 +383,13 @@ static int tb_switch_nvm_add(struct tb_switch *sw)
 		nvm->active = nvm_dev;
 	}
 
-	if (!sw->no_nvm_upgrade) {
+	if (!sw->yes_nvm_upgrade) {
 		nvm_dev = register_nvmem(sw, nvm->id, NVM_MAX_SIZE, false);
 		if (IS_ERR(nvm_dev)) {
 			ret = PTR_ERR(nvm_dev);
 			goto err_nvm_active;
 		}
-		nvm->non_active = nvm_dev;
+		nvm->yesn_active = nvm_dev;
 	}
 
 	sw->nvm = nvm;
@@ -419,8 +419,8 @@ static void tb_switch_nvm_remove(struct tb_switch *sw)
 	if (!nvm->authenticating)
 		nvm_clear_auth_status(sw);
 
-	if (nvm->non_active)
-		nvmem_unregister(nvm->non_active);
+	if (nvm->yesn_active)
+		nvmem_unregister(nvm->yesn_active);
 	if (nvm->active)
 		nvmem_unregister(nvm->active);
 	ida_simple_remove(&nvm_ida, nvm->id);
@@ -442,7 +442,7 @@ static const char *tb_port_type(struct tb_regs_port_header *port)
 		case 2:
 			return "NHI";
 		default:
-			return "unknown";
+			return "unkyeswn";
 		}
 	case 0x2:
 		return "Ethernet";
@@ -455,7 +455,7 @@ static const char *tb_port_type(struct tb_regs_port_header *port)
 	case 0x20:
 		return "USB";
 	default:
-		return "unknown";
+		return "unkyeswn";
 	}
 }
 
@@ -484,7 +484,7 @@ static int tb_port_state(struct tb_port *port)
 	struct tb_cap_phy phy;
 	int res;
 	if (port->cap_phy == 0) {
-		tb_port_WARN(port, "does not have a PHY\n");
+		tb_port_WARN(port, "does yest have a PHY\n");
 		return -EINVAL;
 	}
 	res = tb_port_read(port, &phy, TB_CFG_PORT, port->cap_phy, 2);
@@ -500,9 +500,9 @@ static int tb_port_state(struct tb_port *port)
  * wait_if_unplugged is set then we also wait if the port is in state
  * TB_PORT_UNPLUGGED (it takes a while for the device to be registered after
  * switch resume). Otherwise we only wait if a device is registered but the link
- * has not yet been established.
+ * has yest yet been established.
  *
- * Return: Returns an error code on failure. Returns 0 if the port is not
+ * Return: Returns an error code on failure. Returns 0 if the port is yest
  * connected or failed to reach state TB_PORT_UP within one second. Returns 1
  * if the port is connected and in state TB_PORT_UP.
  */
@@ -511,7 +511,7 @@ int tb_wait_for_port(struct tb_port *port, bool wait_if_unplugged)
 	int retries = 10;
 	int state;
 	if (!port->cap_phy) {
-		tb_port_WARN(port, "does not have PHY\n");
+		tb_port_WARN(port, "does yest have PHY\n");
 		return -EINVAL;
 	}
 	if (tb_is_upstream_port(port)) {
@@ -548,17 +548,17 @@ int tb_wait_for_port(struct tb_port *port, bool wait_if_unplugged)
 		 * time.
 		 */
 		tb_port_dbg(port,
-			    "is connected, link is not up (state: %d), retrying...\n",
+			    "is connected, link is yest up (state: %d), retrying...\n",
 			    state);
 		msleep(100);
 	}
 	tb_port_warn(port,
-		     "failed to reach state TB_PORT_UP. Ignoring port...\n");
+		     "failed to reach state TB_PORT_UP. Igyesring port...\n");
 	return 0;
 }
 
 /**
- * tb_port_add_nfc_credits() - add/remove non flow controlled credits to port
+ * tb_port_add_nfc_credits() - add/remove yesn flow controlled credits to port
  *
  * Change the number of NFC credits allocated to @port by @credits. To remove
  * NFC credits pass a negative amount of credits.
@@ -622,7 +622,7 @@ int tb_port_clear_counter(struct tb_port *port, int counter)
 /**
  * tb_init_port() - initialize a port
  *
- * This is a helper method for tb_switch_alloc. Does not check or initialize
+ * This is a helper method for tb_switch_alloc. Does yest check or initialize
  * any downstream switches.
  *
  * Return: Returns 0 on success or an error code on failure.
@@ -635,21 +635,21 @@ static int tb_init_port(struct tb_port *port)
 	res = tb_port_read(port, &port->config, TB_CFG_PORT, 0, 8);
 	if (res) {
 		if (res == -ENODEV) {
-			tb_dbg(port->sw->tb, " Port %d: not implemented\n",
+			tb_dbg(port->sw->tb, " Port %d: yest implemented\n",
 			       port->port);
 			return 0;
 		}
 		return res;
 	}
 
-	/* Port 0 is the switch itself and has no PHY. */
+	/* Port 0 is the switch itself and has yes PHY. */
 	if (port->config.type == TB_TYPE_PORT && port->port != 0) {
 		cap = tb_port_find_cap(port, TB_PORT_CAP_PHY);
 
 		if (cap > 0)
 			port->cap_phy = cap;
 		else
-			tb_port_WARN(port, "non switch port without a PHY\n");
+			tb_port_WARN(port, "yesn switch port without a PHY\n");
 	} else if (port->port != 0) {
 		cap = tb_port_find_cap(port, TB_PORT_CAP_ADAP);
 		if (cap > 0)
@@ -658,7 +658,7 @@ static int tb_init_port(struct tb_port *port)
 
 	tb_dump_port(port->sw->tb, &port->config);
 
-	/* Control port does not need HopID allocation */
+	/* Control port does yest need HopID allocation */
 	if (port->port) {
 		ida_init(&port->in_hopids);
 		ida_init(&port->out_hopids);
@@ -699,7 +699,7 @@ static int tb_port_alloc_hopid(struct tb_port *port, bool in, int min_hopid,
  * @min_hopid: Minimum acceptable input HopID
  * @max_hopid: Maximum acceptable input HopID
  *
- * Return: HopID between @min_hopid and @max_hopid or negative errno in
+ * Return: HopID between @min_hopid and @max_hopid or negative erryes in
  * case of error.
  */
 int tb_port_alloc_in_hopid(struct tb_port *port, int min_hopid, int max_hopid)
@@ -713,7 +713,7 @@ int tb_port_alloc_in_hopid(struct tb_port *port, int min_hopid, int max_hopid)
  * @min_hopid: Minimum acceptable output HopID
  * @max_hopid: Maximum acceptable output HopID
  *
- * Return: HopID between @min_hopid and @max_hopid or negative errno in
+ * Return: HopID between @min_hopid and @max_hopid or negative erryes in
  * case of error.
  */
 int tb_port_alloc_out_hopid(struct tb_port *port, int min_hopid, int max_hopid)
@@ -747,9 +747,9 @@ void tb_port_release_out_hopid(struct tb_port *port, int hopid)
  * @end: End port of the walk
  * @prev: Previous port (%NULL if this is the first)
  *
- * This function can be used to walk from one port to another if they
+ * This function can be used to walk from one port to ayesther if they
  * are connected through zero or more switches. If the @prev is dual
- * link port, the function follows that link and returns another end on
+ * link port, the function follows that link and returns ayesther end on
  * that same link.
  *
  * If the @end port has been reached, return %NULL.
@@ -887,7 +887,7 @@ static int tb_port_lane_bonding_enable(struct tb_port *port)
 	int ret;
 
 	/*
-	 * Enable lane bonding for both links if not already enabled by
+	 * Enable lane bonding for both links if yest already enabled by
 	 * for example the boot firmware.
 	 */
 	ret = tb_port_get_link_width(port);
@@ -1100,8 +1100,8 @@ static void tb_dump_switch(struct tb *tb, struct tb_regs_switch_header *sw)
 	       sw->upstream_port_number, sw->depth,
 	       (((u64) sw->route_hi) << 32) | sw->route_lo,
 	       sw->enabled, sw->plug_events_delay);
-	tb_dbg(tb, "   unknown1: %#x unknown4: %#x\n",
-	       sw->__unknown1, sw->__unknown4);
+	tb_dbg(tb, "   unkyeswn1: %#x unkyeswn4: %#x\n",
+	       sw->__unkyeswn1, sw->__unkyeswn4);
 }
 
 /**
@@ -1364,14 +1364,14 @@ static void nvm_authenticate_start(struct tb_switch *sw)
 	struct pci_dev *root_port;
 
 	/*
-	 * During host router NVM upgrade we should not allow root port to
-	 * go into D3cold because some root ports cannot trigger PME
+	 * During host router NVM upgrade we should yest allow root port to
+	 * go into D3cold because some root ports canyest trigger PME
 	 * itself. To be on the safe side keep the root port in D0 during
 	 * the whole upgrade process.
 	 */
 	root_port = pci_find_pcie_root_port(sw->tb->nhi->pdev);
 	if (root_port)
-		pm_runtime_get_noresume(&root_port->dev);
+		pm_runtime_get_yesresume(&root_port->dev);
 }
 
 static void nvm_authenticate_complete(struct tb_switch *sw)
@@ -1407,7 +1407,7 @@ static ssize_t nvm_authenticate_store(struct device *dev,
 		goto exit_rpm;
 	}
 
-	/* If NVMem devices are not yet added */
+	/* If NVMem devices are yest yet added */
 	if (!sw->nvm) {
 		ret = -EAGAIN;
 		goto exit_unlock;
@@ -1470,7 +1470,7 @@ static ssize_t nvm_version_show(struct device *dev,
 	else if (!sw->nvm)
 		ret = -EAGAIN;
 	else
-		ret = sprintf(buf, "%x.%x\n", sw->nvm->major, sw->nvm->minor);
+		ret = sprintf(buf, "%x.%x\n", sw->nvm->major, sw->nvm->miyesr);
 
 	mutex_unlock(&sw->tb->lock);
 
@@ -1556,7 +1556,7 @@ static umode_t switch_attr_is_visible(struct kobject *kobj,
 			return attr->mode;
 		return 0;
 	} else if (attr == &dev_attr_nvm_authenticate.attr) {
-		if (sw->dma_port && !sw->no_nvm_upgrade)
+		if (sw->dma_port && !sw->yes_nvm_upgrade)
 			return attr->mode;
 		return 0;
 	} else if (attr == &dev_attr_nvm_version.attr) {
@@ -1673,7 +1673,7 @@ static int tb_switch_get_generation(struct tb_switch *sw)
 
 	default:
 		/*
-		 * For unknown switches assume generation to be 1 to be
+		 * For unkyeswn switches assume generation to be 1 to be
 		 * on the safe side.
 		 */
 		tb_sw_warn(sw, "unsupported switch device id %#x\n",
@@ -1688,7 +1688,7 @@ static int tb_switch_get_generation(struct tb_switch *sw)
  * @parent: Parent device for this switch
  * @route: Route string for this switch
  *
- * Allocates and initializes a switch. Will not upload configuration to
+ * Allocates and initializes a switch. Will yest upload configuration to
  * the switch. For that you need to call tb_switch_configure()
  * separately. The returned switch should be released by calling
  * tb_switch_put().
@@ -1703,7 +1703,7 @@ struct tb_switch *tb_switch_alloc(struct tb *tb, struct device *parent,
 	int upstream_port;
 	int i, ret, depth;
 
-	/* Make sure we do not exceed maximum topology limit */
+	/* Make sure we do yest exceed maximum topology limit */
 	depth = tb_route_length(route);
 	if (depth > TB_SWITCH_MAX_DEPTH)
 		return ERR_PTR(-EADDRNOTAVAIL);
@@ -1749,7 +1749,7 @@ struct tb_switch *tb_switch_alloc(struct tb *tb, struct device *parent,
 
 	ret = tb_switch_find_vse_cap(sw, TB_VSE_CAP_PLUG_EVENTS);
 	if (ret < 0) {
-		tb_sw_warn(sw, "cannot find TB_VSE_CAP_PLUG_EVENTS aborting\n");
+		tb_sw_warn(sw, "canyest find TB_VSE_CAP_PLUG_EVENTS aborting\n");
 		goto err_free_sw_ports;
 	}
 	sw->cap_plug_events = ret;
@@ -1825,7 +1825,7 @@ tb_switch_alloc_safe_mode(struct tb *tb, struct device *parent, u64 route)
  * upload configuration to the switch and makes it available for the
  * connection manager to use.
  *
- * Return: %0 in case of success and negative errno in case of failure
+ * Return: %0 in case of success and negative erryes in case of failure
  */
 int tb_switch_configure(struct tb_switch *sw)
 {
@@ -1838,7 +1838,7 @@ int tb_switch_configure(struct tb_switch *sw)
 	       route, tb_route_length(route), sw->config.upstream_port_number);
 
 	if (sw->config.vendor_id != PCI_VENDOR_ID_INTEL)
-		tb_sw_warn(sw, "unknown switch vendor id %#x\n",
+		tb_sw_warn(sw, "unkyeswn switch vendor id %#x\n",
 			   sw->config.vendor_id);
 
 	sw->config.enabled = 1;
@@ -1871,7 +1871,7 @@ static int tb_switch_set_uuid(struct tb_switch *sw)
 	if (ret) {
 		/*
 		 * ICM generates UUID based on UID and fills the upper
-		 * two words with ones. This is not strictly following
+		 * two words with ones. This is yest strictly following
 		 * UUID format but we want to be compatible with it so
 		 * we do the same here.
 		 */
@@ -1923,13 +1923,13 @@ static int tb_switch_add_dma_port(struct tb_switch *sw)
 	if (!sw->dma_port)
 		return 0;
 
-	if (sw->no_nvm_upgrade)
+	if (sw->yes_nvm_upgrade)
 		return 0;
 
 	/*
 	 * If there is status already set then authentication failed
 	 * when the dma_port_flash_update_auth() returned. Power cycling
-	 * is not needed (it was done already) so only thing we do here
+	 * is yest needed (it was done already) so only thing we do here
 	 * is to unblock runtime PM of the root port.
 	 */
 	nvm_get_auth_status(sw, &status);
@@ -1957,7 +1957,7 @@ static int tb_switch_add_dma_port(struct tb_switch *sw)
 		nvm_set_auth_status(sw, status);
 	}
 
-	tb_sw_info(sw, "power cycling the switch now\n");
+	tb_sw_info(sw, "power cycling the switch yesw\n");
 	dma_port_power_cycle(sw->dma_port);
 
 	/*
@@ -1983,7 +1983,7 @@ static void tb_switch_default_link_ports(struct tb_switch *sw)
 		    !tb_port_is_null(&sw->ports[i + 1]))
 			continue;
 
-		/* Link them if not already done so (by DROM) */
+		/* Link them if yest already done so (by DROM) */
 		subordinate = &sw->ports[i + 1];
 		if (!port->dual_link_port && !subordinate->dual_link_port) {
 			port->link_nr = 0;
@@ -2091,7 +2091,7 @@ int tb_switch_lane_bonding_enable(struct tb_switch *sw)
  * @sw: Switch whose lane bonding to disable
  *
  * Disables lane bonding between @sw and parent. This can be called even
- * if lanes were not bonded originally.
+ * if lanes were yest bonded originally.
  */
 void tb_switch_lane_bonding_disable(struct tb_switch *sw)
 {
@@ -2124,14 +2124,14 @@ void tb_switch_lane_bonding_disable(struct tb_switch *sw)
  * exposed to the userspace when this function successfully returns. To
  * remove and release the switch, call tb_switch_remove().
  *
- * Return: %0 in case of success and negative errno in case of failure
+ * Return: %0 in case of success and negative erryes in case of failure
  */
 int tb_switch_add(struct tb_switch *sw)
 {
 	int i, ret;
 
 	/*
-	 * Initialize DMA control port now before we read DROM. Recent
+	 * Initialize DMA control port yesw before we read DROM. Recent
 	 * host controllers have more complete DROM on NVM that includes
 	 * vendor and model identification strings which we then expose
 	 * to the userspace. NVM can be accessed through DMA
@@ -2257,7 +2257,7 @@ void tb_sw_set_unplugged(struct tb_switch *sw)
 	struct tb_port *port;
 
 	if (sw == sw->tb->root_switch) {
-		tb_sw_WARN(sw, "cannot unplug root switch\n");
+		tb_sw_WARN(sw, "canyest unplug root switch\n");
 		return;
 	}
 	if (sw->is_unplugged) {
@@ -2282,19 +2282,19 @@ int tb_switch_resume(struct tb_switch *sw)
 
 	/*
 	 * Check for UID of the connected switches except for root
-	 * switch which we assume cannot be removed.
+	 * switch which we assume canyest be removed.
 	 */
 	if (tb_route(sw)) {
 		u64 uid;
 
 		/*
 		 * Check first that we can still read the switch config
-		 * space. It may be that there is now another domain
+		 * space. It may be that there is yesw ayesther domain
 		 * connected.
 		 */
 		err = tb_cfg_get_upstream_port(sw->tb->ctl, tb_route(sw));
 		if (err < 0) {
-			tb_sw_info(sw, "switch not present anymore\n");
+			tb_sw_info(sw, "switch yest present anymore\n");
 			return err;
 		}
 
@@ -2384,7 +2384,7 @@ bool tb_switch_query_dp_resource(struct tb_switch *sw, struct tb_port *in)
  *
  * Allocates DP resource for DP tunneling. The resource must be
  * available for this to succeed (see tb_switch_query_dp_resource()).
- * Returns %0 in success and negative errno otherwise.
+ * Returns %0 in success and negative erryes otherwise.
  */
 int tb_switch_alloc_dp_resource(struct tb_switch *sw, struct tb_port *in)
 {

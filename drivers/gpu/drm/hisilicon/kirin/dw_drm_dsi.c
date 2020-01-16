@@ -291,7 +291,7 @@ static u32 dsi_get_dpi_color_coding(enum mipi_dsi_pixel_format format)
 	u32 val;
 
 	/*
-	 * TODO: only support RGB888 now, to support more
+	 * TODO: only support RGB888 yesw, to support more
 	 */
 	switch (format) {
 	case MIPI_DSI_FMT_RGB888:
@@ -441,7 +441,7 @@ static void dsi_set_mipi_phy(void __iomem *base,
 	}
 
 	if (!delay_count)
-		DRM_INFO("phylock and phystopstateclklane is not ready.\n");
+		DRM_INFO("phylock and phystopstateclklane is yest ready.\n");
 }
 
 static void dsi_set_mode_timing(void __iomem *base,
@@ -466,7 +466,7 @@ static void dsi_set_mode_timing(void __iomem *base,
 	writel(val, base +  DPI_CFG_POL);
 
 	/*
-	 * The DSI IP accepts vertical timing using lines as normal,
+	 * The DSI IP accepts vertical timing using lines as yesrmal,
 	 * but horizontal timing is a mixture of pixel-clocks for the
 	 * active region and byte-lane clocks for the blanking-related
 	 * timings.  hfp is specified as the total hline_time in byte-
@@ -515,16 +515,16 @@ static void dsi_set_video_mode(void __iomem *base, unsigned long flags)
 	u32 val;
 	u32 mode_mask = MIPI_DSI_MODE_VIDEO | MIPI_DSI_MODE_VIDEO_BURST |
 		MIPI_DSI_MODE_VIDEO_SYNC_PULSE;
-	u32 non_burst_sync_pulse = MIPI_DSI_MODE_VIDEO |
+	u32 yesn_burst_sync_pulse = MIPI_DSI_MODE_VIDEO |
 		MIPI_DSI_MODE_VIDEO_SYNC_PULSE;
-	u32 non_burst_sync_event = MIPI_DSI_MODE_VIDEO;
+	u32 yesn_burst_sync_event = MIPI_DSI_MODE_VIDEO;
 
 	/*
 	 * choose video mode type
 	 */
-	if ((flags & mode_mask) == non_burst_sync_pulse)
+	if ((flags & mode_mask) == yesn_burst_sync_pulse)
 		val = DSI_NON_BURST_SYNC_PULSES;
-	else if ((flags & mode_mask) == non_burst_sync_event)
+	else if ((flags & mode_mask) == yesn_burst_sync_event)
 		val = DSI_NON_BURST_SYNC_EVENTS;
 	else
 		val = DSI_BURST_SYNC_PULSES_1;
@@ -626,7 +626,7 @@ static enum drm_mode_status dsi_encoder_phy_mode_valid(
 
 	/*
 	 * Make sure the adjusted mode clock and the lane byte clk
-	 * have a common denominator base frequency
+	 * have a common deyesminator base frequency
 	 */
 	if (mode->clock/dsi->lanes == lane_byte_clk_kHz/3) {
 		DRM_DEBUG_DRIVER("OK!\n");
@@ -684,7 +684,7 @@ static int dsi_encoder_atomic_check(struct drm_encoder *encoder,
 				    struct drm_crtc_state *crtc_state,
 				    struct drm_connector_state *conn_state)
 {
-	/* do nothing */
+	/* do yesthing */
 	return 0;
 }
 
@@ -705,7 +705,7 @@ static int dw_drm_encoder_init(struct device *dev,
 			       struct drm_encoder *encoder)
 {
 	int ret;
-	u32 crtc_mask = drm_of_find_possible_crtcs(drm_dev, dev->of_node);
+	u32 crtc_mask = drm_of_find_possible_crtcs(drm_dev, dev->of_yesde);
 
 	if (!crtc_mask) {
 		DRM_ERROR("failed to find crtc mask\n");
@@ -745,7 +745,7 @@ static int dsi_host_attach(struct mipi_dsi_host *host,
 static int dsi_host_detach(struct mipi_dsi_host *host,
 			   struct mipi_dsi_device *mdsi)
 {
-	/* do nothing */
+	/* do yesthing */
 	return 0;
 }
 
@@ -810,7 +810,7 @@ static int dsi_bind(struct device *dev, struct device *master, void *data)
 
 static void dsi_unbind(struct device *dev, struct device *master, void *data)
 {
-	/* do nothing */
+	/* do yesthing */
 }
 
 static const struct component_ops dsi_ops = {
@@ -821,12 +821,12 @@ static const struct component_ops dsi_ops = {
 static int dsi_parse_dt(struct platform_device *pdev, struct dw_dsi *dsi)
 {
 	struct dsi_hw_ctx *ctx = dsi->ctx;
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	struct resource *res;
 	int ret;
 
 	/*
-	 * Get the endpoint node. In our case, dsi has one output port1
+	 * Get the endpoint yesde. In our case, dsi has one output port1
 	 * to which the external HDMI bridge is connected.
 	 */
 	ret = drm_of_find_panel_or_bridge(np, 1, 0, NULL, &dsi->bridge);

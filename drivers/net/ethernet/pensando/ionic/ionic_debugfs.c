@@ -203,7 +203,7 @@ void ionic_debugfs_add_qcq(struct ionic_lif *lif, struct ionic_qcq *qcq)
 	}
 
 	if (qcq->flags & IONIC_QCQ_F_NOTIFYQ) {
-		stats_dentry = debugfs_create_dir("notifyblock", qcq->dentry);
+		stats_dentry = debugfs_create_dir("yestifyblock", qcq->dentry);
 
 		debugfs_create_u64("eid", 0400, stats_dentry,
 				   (u64 *)&lif->info->status.eid);

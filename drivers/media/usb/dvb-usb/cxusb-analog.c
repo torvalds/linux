@@ -9,7 +9,7 @@
 // In case there are new analog / DVB-T hybrid devices released in the market
 // using the same general design as Medion MD95700: a CX25840 video decoder
 // outputting a BT.656 stream to a USB bridge chip which then forwards it to
-// the host in isochronous USB packets this code should be made generic, with
+// the host in isochroyesus USB packets this code should be made generic, with
 // board specific bits implemented via separate card structures.
 //
 // This is, however, unlikely as the Medion model was released
@@ -460,7 +460,7 @@ static bool cxusb_medion_v_process_auxbuf(struct cxusb_medion_dev *cxdev,
 						 list);
 			list_del(&cxdev->vbuf->list);
 		} else {
-			dev_warn(&dvbdev->udev->dev, "no free buffers\n");
+			dev_warn(&dvbdev->udev->dev, "yes free buffers\n");
 		}
 	}
 
@@ -485,7 +485,7 @@ static bool cxusb_medion_v_process_auxbuf(struct cxusb_medion_dev *cxdev,
 			return false;
 
 		/*
-		 * do not trim buffer there in case
+		 * do yest trim buffer there in case
 		 * we need to reset the search later
 		 */
 
@@ -570,7 +570,7 @@ static bool cxusb_medion_v_complete_handle_urb(struct cxusb_medion_dev *cxdev,
 			 * append new data to auxbuf while
 			 * overwriting old data if necessary
 			 *
-			 * if any overwrite happens then we can no
+			 * if any overwrite happens then we can yes
 			 * longer rely on consistency of the whole
 			 * data so let's start again the current
 			 * auxbuf frame assembling process from
@@ -615,7 +615,7 @@ static void cxusb_medion_v_complete_work(struct work_struct *work)
 	reschedule = cxusb_medion_v_complete_handle_urb(cxdev, &auxbuf_reset);
 
 	if (cxusb_medion_v_process_auxbuf(cxdev, auxbuf_reset))
-		/* reschedule us until auxbuf no longer can produce any frame */
+		/* reschedule us until auxbuf yes longer can produce any frame */
 		reschedule = true;
 
 	if (reschedule) {
@@ -639,7 +639,7 @@ static void cxusb_medion_v_complete(struct urb *u)
 
 	if (i >= CXUSB_VIDEO_URBS) {
 		dev_err(&dvbdev->udev->dev,
-			"complete on unknown URB\n");
+			"complete on unkyeswn URB\n");
 		return;
 	}
 
@@ -696,7 +696,7 @@ static int cxusb_medion_v_ss_auxbuf_alloc(struct cxusb_medion_dev *cxdev,
 
 	/*
 	 * try to fit a whole frame into each URB, as long as doing so
-	 * does not require very high order memory allocations
+	 * does yest require very high order memory allocations
 	 */
 	BUILD_BUG_ON(CXUSB_VIDEO_URB_MAX_SIZE / CXUSB_VIDEO_PKT_SIZE >
 		     CXUSB_VIDEO_MAX_FRAME_PKTS);
@@ -721,10 +721,10 @@ static int cxusb_medion_v_ss_auxbuf_alloc(struct cxusb_medion_dev *cxdev,
 	return 0;
 }
 
-static u32 cxusb_medion_norm2field_order(v4l2_std_id norm)
+static u32 cxusb_medion_yesrm2field_order(v4l2_std_id yesrm)
 {
-	bool is625 = norm & V4L2_STD_625_50;
-	bool is525 = norm & V4L2_STD_525_60;
+	bool is625 = yesrm & V4L2_STD_625_50;
+	bool is525 = yesrm & V4L2_STD_525_60;
 
 	if (!is625 && !is525)
 		return V4L2_FIELD_NONE;
@@ -743,29 +743,29 @@ static u32 cxusb_medion_field_order(struct cxusb_medion_dev *cxdev)
 	struct dvb_usb_device *dvbdev = cxdev->dvbdev;
 	u32 field;
 	int ret;
-	v4l2_std_id norm;
+	v4l2_std_id yesrm;
 
 	/* TV tuner is PAL-only so it is always TB */
 	if (cxdev->input == 0)
 		return V4L2_FIELD_SEQ_TB;
 
-	field = cxusb_medion_norm2field_order(cxdev->norm);
+	field = cxusb_medion_yesrm2field_order(cxdev->yesrm);
 	if (field != V4L2_FIELD_NONE)
 		return field;
 
-	ret = v4l2_subdev_call(cxdev->cx25840, video, g_std, &norm);
+	ret = v4l2_subdev_call(cxdev->cx25840, video, g_std, &yesrm);
 	if (ret != 0) {
 		cxusb_vprintk(dvbdev, OPS,
-			      "cannot get current standard for input %u\n",
+			      "canyest get current standard for input %u\n",
 			      (unsigned int)cxdev->input);
 	} else {
-		field = cxusb_medion_norm2field_order(norm);
+		field = cxusb_medion_yesrm2field_order(yesrm);
 		if (field != V4L2_FIELD_NONE)
 			return field;
 	}
 
 	dev_warn(&dvbdev->udev->dev,
-		 "cannot determine field order for the current standard setup and received signal, using TB\n");
+		 "canyest determine field order for the current standard setup and received signal, using TB\n");
 	return V4L2_FIELD_SEQ_TB;
 }
 
@@ -815,7 +815,7 @@ static int cxusb_medion_v_start_streaming(struct vb2_queue *q,
 		/*
 		 * TODO: change this to an array of single pages to avoid
 		 * doing a large continuous allocation when (if)
-		 * s-g isochronous USB transfers are supported
+		 * s-g isochroyesus USB transfers are supported
 		 */
 		streambuf = kmalloc(npackets * CXUSB_VIDEO_PKT_SIZE,
 				    GFP_KERNEL);
@@ -1126,8 +1126,8 @@ static int cxusb_medion_g_input(struct file *file, void *fh,
 	return 0;
 }
 
-static int cxusb_medion_set_norm(struct cxusb_medion_dev *cxdev,
-				 v4l2_std_id norm)
+static int cxusb_medion_set_yesrm(struct cxusb_medion_dev *cxdev,
+				 v4l2_std_id yesrm)
 {
 	struct dvb_usb_device *dvbdev = cxdev->dvbdev;
 	int ret;
@@ -1135,51 +1135,51 @@ static int cxusb_medion_set_norm(struct cxusb_medion_dev *cxdev,
 	cxusb_vprintk(dvbdev, OPS,
 		      "trying to set standard for input %u to %lx\n",
 		      (unsigned int)cxdev->input,
-		      (unsigned long)norm);
+		      (unsigned long)yesrm);
 
-	/* no autodetection support */
-	if (norm == V4L2_STD_UNKNOWN)
+	/* yes autodetection support */
+	if (yesrm == V4L2_STD_UNKNOWN)
 		return -EINVAL;
 
 	/* on composite or S-Video any std is acceptable */
 	if (cxdev->input != 0) {
-		ret = v4l2_subdev_call(cxdev->cx25840, video, s_std, norm);
+		ret = v4l2_subdev_call(cxdev->cx25840, video, s_std, yesrm);
 		if (ret)
 			return ret;
 
-		goto ret_savenorm;
+		goto ret_saveyesrm;
 	}
 
 	/* TV tuner is only able to demodulate PAL */
-	if ((norm & ~V4L2_STD_PAL) != 0)
+	if ((yesrm & ~V4L2_STD_PAL) != 0)
 		return -EINVAL;
 
-	ret = v4l2_subdev_call(cxdev->tda9887, video, s_std, norm);
+	ret = v4l2_subdev_call(cxdev->tda9887, video, s_std, yesrm);
 	if (ret != 0) {
 		dev_err(&dvbdev->udev->dev,
-			"tda9887 norm setup failed (%d)\n",
+			"tda9887 yesrm setup failed (%d)\n",
 			ret);
 		return ret;
 	}
 
-	ret = v4l2_subdev_call(cxdev->tuner, video, s_std, norm);
+	ret = v4l2_subdev_call(cxdev->tuner, video, s_std, yesrm);
 	if (ret != 0) {
 		dev_err(&dvbdev->udev->dev,
-			"tuner norm setup failed (%d)\n",
+			"tuner yesrm setup failed (%d)\n",
 			ret);
 		return ret;
 	}
 
-	ret = v4l2_subdev_call(cxdev->cx25840, video, s_std, norm);
+	ret = v4l2_subdev_call(cxdev->cx25840, video, s_std, yesrm);
 	if (ret != 0) {
 		dev_err(&dvbdev->udev->dev,
-			"cx25840 norm setup failed (%d)\n",
+			"cx25840 yesrm setup failed (%d)\n",
 			ret);
 		return ret;
 	}
 
-ret_savenorm:
-	cxdev->norm = norm;
+ret_saveyesrm:
+	cxdev->yesrm = yesrm;
 
 	return 0;
 }
@@ -1190,7 +1190,7 @@ static int cxusb_medion_s_input(struct file *file, void *fh,
 	struct dvb_usb_device *dvbdev = video_drvdata(file);
 	struct cxusb_medion_dev *cxdev = dvbdev->priv;
 	int ret;
-	v4l2_std_id norm;
+	v4l2_std_id yesrm;
 
 	if (i >= CXUSB_INPUT_CNT)
 		return -EINVAL;
@@ -1201,13 +1201,13 @@ static int cxusb_medion_s_input(struct file *file, void *fh,
 		return ret;
 
 	cxdev->input = i;
-	cxdev->videodev->tvnorms = cxusb_medion_inputs[i].input.std;
+	cxdev->videodev->tvyesrms = cxusb_medion_inputs[i].input.std;
 
-	norm = cxdev->norm & cxusb_medion_inputs[i].input.std;
-	if (norm == 0)
-		norm = cxusb_medion_inputs[i].input.std;
+	yesrm = cxdev->yesrm & cxusb_medion_inputs[i].input.std;
+	if (yesrm == 0)
+		yesrm = cxusb_medion_inputs[i].input.std;
 
-	cxusb_medion_set_norm(cxdev, norm);
+	cxusb_medion_set_yesrm(cxdev, yesrm);
 
 	return 0;
 }
@@ -1293,7 +1293,7 @@ static int cxusb_medion_s_tuner(struct file *file, void *fh,
 	 * since calls above may have changed it for tuner / IF demod
 	 */
 	if (vdev->vfl_type == VFL_TYPE_GRABBER)
-		v4l2_subdev_call(cxdev->cx25840, video, s_std, cxdev->norm);
+		v4l2_subdev_call(cxdev->cx25840, video, s_std, cxdev->yesrm);
 	else
 		v4l2_subdev_call(cxdev->cx25840, tuner, s_radio);
 
@@ -1336,7 +1336,7 @@ static int cxusb_medion_s_frequency(struct file *file, void *fh,
 	 * since calls above may have changed it for tuner / IF demod
 	 */
 	if (vdev->vfl_type == VFL_TYPE_GRABBER)
-		v4l2_subdev_call(cxdev->cx25840, video, s_std, cxdev->norm);
+		v4l2_subdev_call(cxdev->cx25840, video, s_std, cxdev->yesrm);
 	else
 		v4l2_subdev_call(cxdev->cx25840, tuner, s_radio);
 
@@ -1344,56 +1344,56 @@ static int cxusb_medion_s_frequency(struct file *file, void *fh,
 }
 
 static int cxusb_medion_g_std(struct file *file, void *fh,
-			      v4l2_std_id *norm)
+			      v4l2_std_id *yesrm)
 {
 	struct dvb_usb_device *dvbdev = video_drvdata(file);
 	struct cxusb_medion_dev *cxdev = dvbdev->priv;
 
-	*norm = cxdev->norm;
+	*yesrm = cxdev->yesrm;
 
-	if (*norm == V4L2_STD_UNKNOWN)
+	if (*yesrm == V4L2_STD_UNKNOWN)
 		return -ENODATA;
 
 	return 0;
 }
 
 static int cxusb_medion_s_std(struct file *file, void *fh,
-			      v4l2_std_id norm)
+			      v4l2_std_id yesrm)
 {
 	struct dvb_usb_device *dvbdev = video_drvdata(file);
 	struct cxusb_medion_dev *cxdev = dvbdev->priv;
 
-	return cxusb_medion_set_norm(cxdev, norm);
+	return cxusb_medion_set_yesrm(cxdev, yesrm);
 }
 
 static int cxusb_medion_querystd(struct file *file, void *fh,
-				 v4l2_std_id *norm)
+				 v4l2_std_id *yesrm)
 {
 	struct dvb_usb_device *dvbdev = video_drvdata(file);
 	struct cxusb_medion_dev *cxdev = dvbdev->priv;
-	v4l2_std_id norm_mask;
+	v4l2_std_id yesrm_mask;
 	int ret;
 
 	/*
 	 * make sure we don't have improper std bits set for the TV tuner
-	 * (could happen when no signal was present yet after reset)
+	 * (could happen when yes signal was present yet after reset)
 	 */
 	if (cxdev->input == 0)
-		norm_mask = V4L2_STD_PAL;
+		yesrm_mask = V4L2_STD_PAL;
 	else
-		norm_mask = V4L2_STD_ALL;
+		yesrm_mask = V4L2_STD_ALL;
 
-	ret = v4l2_subdev_call(cxdev->cx25840, video, querystd, norm);
+	ret = v4l2_subdev_call(cxdev->cx25840, video, querystd, yesrm);
 	if (ret != 0) {
 		cxusb_vprintk(dvbdev, OPS,
-			      "cannot get detected standard for input %u\n",
+			      "canyest get detected standard for input %u\n",
 			      (unsigned int)cxdev->input);
 		return ret;
 	}
 
 	cxusb_vprintk(dvbdev, OPS, "input %u detected standard is %lx\n",
-		      (unsigned int)cxdev->input, (unsigned long)*norm);
-	*norm &= norm_mask;
+		      (unsigned int)cxdev->input, (unsigned long)*yesrm);
+	*yesrm &= yesrm_mask;
 
 	return 0;
 }
@@ -1446,7 +1446,7 @@ static const struct v4l2_ioctl_ops cxusb_radio_ioctl = {
 
 /*
  * in principle, this should be const, but s_io_pin_config is declared
- * to take non-const, and gcc complains
+ * to take yesn-const, and gcc complains
  */
 static struct v4l2_subdev_io_pin_config cxusub_medion_pin_config[] = {
 	{ .pin = CX25840_PIN_DVALID_PRGM0, .function = CX25840_PAD_DEFAULT,
@@ -1490,8 +1490,8 @@ int cxusb_medion_analog_init(struct dvb_usb_device *dvbdev)
 
 	/* composite */
 	cxdev->input = 1;
-	cxdev->videodev->tvnorms = V4L2_STD_ALL;
-	cxdev->norm = V4L2_STD_PAL;
+	cxdev->videodev->tvyesrms = V4L2_STD_ALL;
+	cxdev->yesrm = V4L2_STD_PAL;
 
 	/* TODO: setup audio samples insertion */
 
@@ -1503,9 +1503,9 @@ int cxusb_medion_analog_init(struct dvb_usb_device *dvbdev)
 			 "cx25840 pin config failed (%d)\n", ret);
 
 	/* make sure that we aren't in radio mode */
-	v4l2_subdev_call(cxdev->tda9887, video, s_std, cxdev->norm);
-	v4l2_subdev_call(cxdev->tuner, video, s_std, cxdev->norm);
-	v4l2_subdev_call(cxdev->cx25840, video, s_std, cxdev->norm);
+	v4l2_subdev_call(cxdev->tda9887, video, s_std, cxdev->yesrm);
+	v4l2_subdev_call(cxdev->tuner, video, s_std, cxdev->yesrm);
+	v4l2_subdev_call(cxdev->cx25840, video, s_std, cxdev->yesrm);
 
 	memset(&subfmt, 0, sizeof(subfmt));
 	subfmt.which = V4L2_SUBDEV_FORMAT_ACTIVE;
@@ -1534,9 +1534,9 @@ static int cxusb_videoradio_open(struct file *f)
 	int ret;
 
 	/*
-	 * no locking needed since this call only modifies analog
-	 * state if there are no other analog handles currenly
-	 * opened so ops done via them cannot create a conflict
+	 * yes locking needed since this call only modifies analog
+	 * state if there are yes other analog handles currenly
+	 * opened so ops done via them canyest create a conflict
 	 */
 	ret = cxusb_medion_get(dvbdev, CXUSB_OPEN_ANALOG);
 	if (ret != 0)
@@ -1658,7 +1658,7 @@ static int cxusb_medion_register_analog_video(struct dvb_usb_device *dvbdev)
 	strscpy(cxdev->videodev->name, "cxusb", sizeof(cxdev->videodev->name));
 	cxdev->videodev->vfl_dir = VFL_DIR_RX;
 	cxdev->videodev->ioctl_ops = &cxusb_video_ioctl;
-	cxdev->videodev->tvnorms = V4L2_STD_ALL;
+	cxdev->videodev->tvyesrms = V4L2_STD_ALL;
 	cxdev->videodev->release = cxusb_medion_videodev_release;
 	cxdev->videodev->lock = &cxdev->dev_lock;
 	video_set_drvdata(cxdev->videodev, dvbdev);
@@ -1724,7 +1724,7 @@ static int cxusb_medion_register_analog_subdevs(struct dvb_usb_device *dvbdev)
 					     &dvbdev->i2c_adap,
 					     "cx25840", 0x44, NULL);
 	if (!cxdev->cx25840) {
-		dev_err(&dvbdev->udev->dev, "cx25840 not found\n");
+		dev_err(&dvbdev->udev->dev, "cx25840 yest found\n");
 		return -ENODEV;
 	}
 
@@ -1757,7 +1757,7 @@ static int cxusb_medion_register_analog_subdevs(struct dvb_usb_device *dvbdev)
 					   &dvbdev->i2c_adap,
 					   "tuner", 0x61, NULL);
 	if (!cxdev->tuner) {
-		dev_err(&dvbdev->udev->dev, "tuner not found\n");
+		dev_err(&dvbdev->udev->dev, "tuner yest found\n");
 		return -ENODEV;
 	}
 
@@ -1773,7 +1773,7 @@ static int cxusb_medion_register_analog_subdevs(struct dvb_usb_device *dvbdev)
 					     &dvbdev->i2c_adap,
 					     "tuner", 0x43, NULL);
 	if (!cxdev->tda9887) {
-		dev_err(&dvbdev->udev->dev, "tda9887 not found\n");
+		dev_err(&dvbdev->udev->dev, "tda9887 yest found\n");
 		return -ENODEV;
 	}
 

@@ -16,7 +16,7 @@
  * The core numbers used in this file are the same value as what is found in
  * the COP0_EBASE register and the rdhwr 0 instruction.
  *
- * For the CN78XX and other multi-node environments the core numbers are not
+ * For the CN78XX and other multi-yesde environments the core numbers are yest
  * contiguous.  The core numbers for the CN78XX are as follows:
  *
  * Node 0:	Cores 0 - 47

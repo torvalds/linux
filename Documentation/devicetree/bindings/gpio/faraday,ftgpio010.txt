@@ -1,4 +1,4 @@
-Faraday Technology FTGPIO010 GPIO Controller
+Faraday Techyeslogy FTGPIO010 GPIO Controller
 
 Required properties:
 

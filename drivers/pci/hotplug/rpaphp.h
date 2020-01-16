@@ -65,7 +65,7 @@ struct slot {
 	u32 power_domain;
 	u8 attention_status;
 	char *name;
-	struct device_node *dn;
+	struct device_yesde *dn;
 	struct pci_bus *bus;
 	struct list_head *pci_devs;
 	struct hotplug_slot hotplug_slot;
@@ -86,13 +86,13 @@ int rpaphp_enable_slot(struct slot *slot);
 int rpaphp_get_sensor_state(struct slot *slot, int *state);
 
 /* rpaphp_core.c */
-int rpaphp_add_slot(struct device_node *dn);
-int rpaphp_check_drc_props(struct device_node *dn, char *drc_name,
+int rpaphp_add_slot(struct device_yesde *dn);
+int rpaphp_check_drc_props(struct device_yesde *dn, char *drc_name,
 		char *drc_type);
 
 /* rpaphp_slot.c */
 void dealloc_slot_struct(struct slot *slot);
-struct slot *alloc_slot_struct(struct device_node *dn, int drc_index, char *drc_name, int power_domain);
+struct slot *alloc_slot_struct(struct device_yesde *dn, int drc_index, char *drc_name, int power_domain);
 int rpaphp_register_slot(struct slot *slot);
 int rpaphp_deregister_slot(struct slot *slot);
 

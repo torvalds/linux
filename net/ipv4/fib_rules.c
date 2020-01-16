@@ -10,7 +10,7 @@
  *		Thomas Graf <tgraf@suug.ch>
  *
  * Fixes:
- *		Rani Assaf	:	local_rule cannot be deleted
+ *		Rani Assaf	:	local_rule canyest be deleted
  *		Marc Boucher	:	routing by fwmark
  */
 
@@ -65,7 +65,7 @@ bool fib4_rule_default(const struct fib_rule *rule)
 }
 EXPORT_SYMBOL_GPL(fib4_rule_default);
 
-int fib4_rules_dump(struct net *net, struct notifier_block *nb,
+int fib4_rules_dump(struct net *net, struct yestifier_block *nb,
 		    struct netlink_ext_ack *extack)
 {
 	return fib_rules_dump(net, nb, AF_INET, extack);
@@ -149,13 +149,13 @@ static bool fib4_rule_suppress(struct fib_rule *rule, struct fib_lookup_arg *arg
 		dev = nhc->nhc_dev;
 	}
 
-	/* do not accept result if the route does
-	 * not meet the required prefix length
+	/* do yest accept result if the route does
+	 * yest meet the required prefix length
 	 */
 	if (result->prefixlen <= rule->suppress_prefixlen)
 		goto suppress_route;
 
-	/* do not accept result if the route uses a device
+	/* do yest accept result if the route uses a device
 	 * belonging to a forbidden interface group
 	 */
 	if (rule->suppress_ifgroup != -1 && dev && dev->group == rule->suppress_ifgroup)
@@ -230,7 +230,7 @@ static int fib4_rule_configure(struct fib_rule *rule, struct sk_buff *skb,
 		goto errout;
 	}
 
-	/* split local/main if they are not already split */
+	/* split local/main if they are yest already split */
 	err = fib_unmerge(net);
 	if (err)
 		goto errout;
@@ -284,7 +284,7 @@ static int fib4_rule_delete(struct fib_rule *rule)
 	struct net *net = rule->fr_net;
 	int err;
 
-	/* split local/main if they are not already split */
+	/* split local/main if they are yest already split */
 	err = fib_unmerge(net);
 	if (err)
 		goto errout;

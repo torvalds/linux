@@ -107,31 +107,31 @@ static struct ctl_table xfs_table[] = {
 		.extra2		= &xfs_params.inherit_sync.max
 	},
 	{
-		.procname	= "inherit_nodump",
-		.data		= &xfs_params.inherit_nodump.val,
+		.procname	= "inherit_yesdump",
+		.data		= &xfs_params.inherit_yesdump.val,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec_minmax,
-		.extra1		= &xfs_params.inherit_nodump.min,
-		.extra2		= &xfs_params.inherit_nodump.max
+		.extra1		= &xfs_params.inherit_yesdump.min,
+		.extra2		= &xfs_params.inherit_yesdump.max
 	},
 	{
-		.procname	= "inherit_noatime",
-		.data		= &xfs_params.inherit_noatim.val,
+		.procname	= "inherit_yesatime",
+		.data		= &xfs_params.inherit_yesatim.val,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec_minmax,
-		.extra1		= &xfs_params.inherit_noatim.min,
-		.extra2		= &xfs_params.inherit_noatim.max
+		.extra1		= &xfs_params.inherit_yesatim.min,
+		.extra2		= &xfs_params.inherit_yesatim.max
 	},
 	{
-		.procname	= "inherit_nosymlinks",
-		.data		= &xfs_params.inherit_nosym.val,
+		.procname	= "inherit_yessymlinks",
+		.data		= &xfs_params.inherit_yessym.val,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec_minmax,
-		.extra1		= &xfs_params.inherit_nosym.min,
-		.extra2		= &xfs_params.inherit_nosym.max
+		.extra1		= &xfs_params.inherit_yessym.min,
+		.extra2		= &xfs_params.inherit_yessym.max
 	},
 	{
 		.procname	= "rotorstep",
@@ -143,13 +143,13 @@ static struct ctl_table xfs_table[] = {
 		.extra2		= &xfs_params.rotorstep.max
 	},
 	{
-		.procname	= "inherit_nodefrag",
-		.data		= &xfs_params.inherit_nodfrg.val,
+		.procname	= "inherit_yesdefrag",
+		.data		= &xfs_params.inherit_yesdfrg.val,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec_minmax,
-		.extra1		= &xfs_params.inherit_nodfrg.min,
-		.extra2		= &xfs_params.inherit_nodfrg.max
+		.extra1		= &xfs_params.inherit_yesdfrg.min,
+		.extra2		= &xfs_params.inherit_yesdfrg.max
 	},
 	{
 		.procname	= "filestream_centisecs",

@@ -55,7 +55,7 @@ static inline bool tsk_is_pi_blocked(struct task_struct *tsk)
 }
 #endif
 
-extern void normalize_rt_tasks(void);
+extern void yesrmalize_rt_tasks(void);
 
 
 /*

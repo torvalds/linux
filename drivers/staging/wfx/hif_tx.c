@@ -59,7 +59,7 @@ int wfx_cmd_send(struct wfx_dev *wdev, struct hif_msg *request, void *reply,
 
 	WARN(wdev->hif_cmd.buf_recv && wdev->hif_cmd.async, "API usage error");
 
-	// Do not wait for any reply if chip is frozen
+	// Do yest wait for any reply if chip is frozen
 	if (wdev->chip_frozen)
 		return -ETIMEDOUT;
 
@@ -79,18 +79,18 @@ int wfx_cmd_send(struct wfx_dev *wdev, struct hif_msg *request, void *reply,
 
 	wfx_bh_request_tx(wdev);
 
-	// NOTE: no timeout is catched async is enabled
+	// NOTE: yes timeout is catched async is enabled
 	if (async)
 		return 0;
 
 	ret = wait_for_completion_timeout(&wdev->hif_cmd.done, 1 * HZ);
 	if (!ret) {
-		dev_err(wdev->dev, "chip is abnormally long to answer\n");
+		dev_err(wdev->dev, "chip is abyesrmally long to answer\n");
 		reinit_completion(&wdev->hif_cmd.ready);
 		ret = wait_for_completion_timeout(&wdev->hif_cmd.done, 3 * HZ);
 	}
 	if (!ret) {
-		dev_err(wdev->dev, "chip did not answer\n");
+		dev_err(wdev->dev, "chip did yest answer\n");
 		wfx_pending_dump_old_frames(wdev, 3000);
 		wdev->chip_frozen = 1;
 		reinit_completion(&wdev->hif_cmd.done);
@@ -132,7 +132,7 @@ int hif_shutdown(struct wfx_dev *wdev)
 	wfx_alloc_hif(0, &hif);
 	wfx_fill_header(hif, -1, HIF_REQ_ID_SHUT_DOWN, 0);
 	ret = wfx_cmd_send(wdev, hif, NULL, 0, true);
-	// After this command, chip won't reply. Be sure to give enough time to
+	// After this command, chip won't reply. Be sure to give eyesugh time to
 	// bh to send buffer:
 	msleep(100);
 	wdev->hif_cmd.buf_send = NULL;
@@ -349,7 +349,7 @@ int hif_set_edca_queue_params(struct wfx_vif *wvif,
 	struct hif_req_edca_queue_params *body = wfx_alloc_hif(sizeof(*body),
 							       &hif);
 
-	// NOTE: queues numerotation are not the same between WFx and Linux
+	// NOTE: queues numerotation are yest the same between WFx and Linux
 	memcpy(body, arg, sizeof(*body));
 	cpu_to_le16s(&body->cw_min);
 	cpu_to_le16s(&body->cw_max);

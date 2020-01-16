@@ -111,7 +111,7 @@ enum bcsr_whoami_boards {
 	BCSR_WHOAMI_DB1300,
 };
 
-/* STATUS reg.	Unless otherwise noted, they're valid on all boards.
+/* STATUS reg.	Unless otherwise yested, they're valid on all boards.
  * PB1200 = DB1200.
  */
 #define BCSR_STATUS_PC0VS		0x0003

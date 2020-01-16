@@ -144,7 +144,7 @@ static int amlogic_thermal_initialize(struct amlogic_thermal *pdata)
 	if ((ver & TSENSOR_TRIM_CALIB_VALID_MASK) == 0) {
 		ret = -EINVAL;
 		dev_err(&pdata->pdev->dev,
-			"tsensor thermal calibration not supported: 0x%x!\n",
+			"tsensor thermal calibration yest supported: 0x%x!\n",
 			ver);
 	}
 
@@ -267,7 +267,7 @@ static int amlogic_thermal_probe(struct platform_device *pdev)
 	}
 
 	pdata->sec_ao_map = syscon_regmap_lookup_by_phandle
-		(pdev->dev.of_node, "amlogic,ao-secure");
+		(pdev->dev.of_yesde, "amlogic,ao-secure");
 	if (IS_ERR(pdata->sec_ao_map)) {
 		dev_err(dev, "syscon regmap lookup failed.\n");
 		return PTR_ERR(pdata->sec_ao_map);

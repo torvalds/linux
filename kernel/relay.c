@@ -7,12 +7,12 @@
  * Copyright (C) 1999-2005 - Karim Yaghmour (karim@opersys.com)
  *
  * Moved to kernel/relay.c by Paul Mundt, 2006.
- * November 2006 - CPU hotplug support by Mathieu Desnoyers
- * 	(mathieu.desnoyers@polymtl.ca)
+ * November 2006 - CPU hotplug support by Mathieu Desyesyers
+ * 	(mathieu.desyesyers@polymtl.ca)
  *
  * This file is released under the GPL.
  */
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/stddef.h>
 #include <linux/slab.h>
 #include <linux/export.h>
@@ -269,7 +269,7 @@ EXPORT_SYMBOL_GPL(relay_buf_full);
  */
 
 /*
- * subbuf_start() default callback.  Does nothing.
+ * subbuf_start() default callback.  Does yesthing.
  */
 static int subbuf_start_default_callback (struct rchan_buf *buf,
 					  void *subbuf,
@@ -283,7 +283,7 @@ static int subbuf_start_default_callback (struct rchan_buf *buf,
 }
 
 /*
- * buf_mapped() default callback.  Does nothing.
+ * buf_mapped() default callback.  Does yesthing.
  */
 static void buf_mapped_default_callback(struct rchan_buf *buf,
 					struct file *filp)
@@ -291,7 +291,7 @@ static void buf_mapped_default_callback(struct rchan_buf *buf,
 }
 
 /*
- * buf_unmapped() default callback.  Does nothing.
+ * buf_unmapped() default callback.  Does yesthing.
  */
 static void buf_unmapped_default_callback(struct rchan_buf *buf,
 					  struct file *filp)
@@ -299,7 +299,7 @@ static void buf_unmapped_default_callback(struct rchan_buf *buf,
 }
 
 /*
- * create_buf_file_create() default callback.  Does nothing.
+ * create_buf_file_create() default callback.  Does yesthing.
  */
 static struct dentry *create_buf_file_default_callback(const char *filename,
 						       struct dentry *parent,
@@ -311,7 +311,7 @@ static struct dentry *create_buf_file_default_callback(const char *filename,
 }
 
 /*
- * remove_buf_file() default callback.  Does nothing.
+ * remove_buf_file() default callback.  Does yesthing.
  */
 static int remove_buf_file_default_callback(struct dentry *dentry)
 {
@@ -379,7 +379,7 @@ static void __relay_reset(struct rchan_buf *buf, unsigned int init)
  *
  *	This has the effect of erasing all data from all channel buffers
  *	and restarting the channel in its initial state.  The buffers
- *	are not freed, so any mappings are still in effect.
+ *	are yest freed, so any mappings are still in effect.
  *
  *	NOTE. Care should be taken that the channel isn't actually
  *	being used by anything when this call is made.
@@ -409,7 +409,7 @@ static inline void relay_set_buf_dentry(struct rchan_buf *buf,
 					struct dentry *dentry)
 {
 	buf->dentry = dentry;
-	d_inode(buf->dentry)->i_size = buf->early_bytes;
+	d_iyesde(buf->dentry)->i_size = buf->early_bytes;
 }
 
 static struct dentry *relay_create_buf_file(struct rchan *chan,
@@ -459,7 +459,7 @@ static struct rchan_buf *relay_open_buf(struct rchan *chan, unsigned int cpu)
 			goto free_buf;
 		relay_set_buf_dentry(buf, dentry);
 	} else {
-		/* Only retrieve global info, nothing more, nothing less */
+		/* Only retrieve global info, yesthing more, yesthing less */
 		dentry = chan->cb->create_buf_file(NULL, NULL,
 						   S_IRUSR, buf,
 						   &chan->is_global);
@@ -637,7 +637,7 @@ static void __relay_set_buf_dentry(void *info)
  *	@base_filename: base name of files to create
  *	@parent: dentry of parent directory, %NULL for root directory
  *
- *	Returns 0 if successful, non-zero otherwise.
+ *	Returns 0 if successful, yesn-zero otherwise.
  *
  *	Use to setup files for a previously buffer-only channel created
  *	by relay_open() with a NULL parent dentry.
@@ -687,14 +687,14 @@ int relay_late_setup_files(struct rchan *chan,
 
 	curr_cpu = get_cpu();
 	/*
-	 * The CPU hotplug notifier ran before us and created buffers with
-	 * no files associated. So it's safe to call relay_setup_buf_file()
+	 * The CPU hotplug yestifier ran before us and created buffers with
+	 * yes files associated. So it's safe to call relay_setup_buf_file()
 	 * on all currently online CPUs.
 	 */
 	for_each_online_cpu(i) {
 		buf = *per_cpu_ptr(chan->buf, i);
 		if (unlikely(!buf)) {
-			WARN_ONCE(1, KERN_ERR "CPU has no buffer!\n");
+			WARN_ONCE(1, KERN_ERR "CPU has yes buffer!\n");
 			err = -EINVAL;
 			break;
 		}
@@ -752,7 +752,7 @@ size_t relay_switch_subbuf(struct rchan_buf *buf, size_t length)
 		buf->padding[old_subbuf] = buf->prev_padding;
 		buf->subbufs_produced++;
 		if (buf->dentry)
-			d_inode(buf->dentry)->i_size +=
+			d_iyesde(buf->dentry)->i_size +=
 				buf->chan->subbuf_size -
 				buf->padding[old_subbuf];
 		else
@@ -800,7 +800,7 @@ EXPORT_SYMBOL_GPL(relay_switch_subbuf);
  *
  *	Adds to the channel buffer's consumed sub-buffer count.
  *	subbufs_consumed should be the number of sub-buffers newly consumed,
- *	not the total consumed.
+ *	yest the total consumed.
  *
  *	NOTE. Kernel clients don't need to call this function if the channel
  *	mode is 'overwrite'.
@@ -848,7 +848,7 @@ void relay_close(struct rchan *chan)
 				relay_close_buf(buf);
 
 	if (chan->last_toobig)
-		printk(KERN_WARNING "relay: one or more items not logged "
+		printk(KERN_WARNING "relay: one or more items yest logged "
 		       "[item size (%zd) > sub-buffer size (%zd)]\n",
 		       chan->last_toobig, chan->subbuf_size);
 
@@ -887,18 +887,18 @@ EXPORT_SYMBOL_GPL(relay_flush);
 
 /**
  *	relay_file_open - open file op for relay files
- *	@inode: the inode
+ *	@iyesde: the iyesde
  *	@filp: the file
  *
  *	Increments the channel buffer refcount.
  */
-static int relay_file_open(struct inode *inode, struct file *filp)
+static int relay_file_open(struct iyesde *iyesde, struct file *filp)
 {
-	struct rchan_buf *buf = inode->i_private;
+	struct rchan_buf *buf = iyesde->i_private;
 	kref_get(&buf->kref);
 	filp->private_data = buf;
 
-	return nonseekable_open(inode, filp);
+	return yesnseekable_open(iyesde, filp);
 }
 
 /**
@@ -940,13 +940,13 @@ static __poll_t relay_file_poll(struct file *filp, poll_table *wait)
 
 /**
  *	relay_file_release - release file op for relay files
- *	@inode: the inode
+ *	@iyesde: the iyesde
  *	@filp: the file
  *
  *	Decrements the channel refcount, as the filesystem is
- *	no longer using it.
+ *	yes longer using it.
  */
-static int relay_file_release(struct inode *inode, struct file *filp)
+static int relay_file_release(struct iyesde *iyesde, struct file *filp)
 {
 	struct rchan_buf *buf = filp->private_data;
 	kref_put(&buf->kref, relay_remove_buf);
@@ -1127,7 +1127,7 @@ static ssize_t relay_file_read(struct file *filp,
 	if (!count)
 		return 0;
 
-	inode_lock(file_inode(filp));
+	iyesde_lock(file_iyesde(filp));
 	do {
 		void *from;
 
@@ -1152,7 +1152,7 @@ static ssize_t relay_file_read(struct file *filp,
 		relay_file_read_consume(buf, read_start, ret);
 		*ppos = relay_file_read_end_pos(buf, read_start, ret);
 	} while (count);
-	inode_unlock(file_inode(filp));
+	iyesde_unlock(file_iyesde(filp));
 
 	return written;
 }
@@ -1167,7 +1167,7 @@ static void relay_consume_bytes(struct rchan_buf *rbuf, int bytes_consumed)
 	}
 }
 
-static void relay_pipe_buf_release(struct pipe_inode_info *pipe,
+static void relay_pipe_buf_release(struct pipe_iyesde_info *pipe,
 				   struct pipe_buffer *buf)
 {
 	struct rchan_buf *rbuf;
@@ -1192,10 +1192,10 @@ static void relay_page_release(struct splice_pipe_desc *spd, unsigned int i)
  */
 static ssize_t subbuf_splice_actor(struct file *in,
 			       loff_t *ppos,
-			       struct pipe_inode_info *pipe,
+			       struct pipe_iyesde_info *pipe,
 			       size_t len,
 			       unsigned int flags,
-			       int *nonpad_ret)
+			       int *yesnpad_ret)
 {
 	unsigned int pidx, poff, total_len, subbuf_pages, nr_pages;
 	struct rchan_buf *rbuf = in->private_data;
@@ -1205,7 +1205,7 @@ static ssize_t subbuf_splice_actor(struct file *in,
 	size_t read_start = (size_t) do_div(pos, alloc_size);
 	size_t read_subbuf = read_start / subbuf_size;
 	size_t padding = rbuf->padding[read_subbuf];
-	size_t nonpad_end = read_subbuf * subbuf_size + subbuf_size - padding;
+	size_t yesnpad_end = read_subbuf * subbuf_size + subbuf_size - padding;
 	struct page *pages[PIPE_DEF_BUFFERS];
 	struct partial_page partial[PIPE_DEF_BUFFERS];
 	struct splice_pipe_desc spd = {
@@ -1248,8 +1248,8 @@ static ssize_t subbuf_splice_actor(struct file *in,
 		spd.partial[spd.nr_pages].offset = poff;
 
 		this_end = cur_pos + this_len;
-		if (this_end >= nonpad_end) {
-			this_len = nonpad_end - cur_pos;
+		if (this_end >= yesnpad_end) {
+			this_len = yesnpad_end - cur_pos;
 			private = this_len + padding;
 		}
 		spd.partial[spd.nr_pages].len = this_len;
@@ -1260,7 +1260,7 @@ static ssize_t subbuf_splice_actor(struct file *in,
 		poff = 0;
 		pidx = (pidx + 1) % subbuf_pages;
 
-		if (this_end >= nonpad_end) {
+		if (this_end >= yesnpad_end) {
 			spd.nr_pages++;
 			break;
 		}
@@ -1270,11 +1270,11 @@ static ssize_t subbuf_splice_actor(struct file *in,
 	if (!spd.nr_pages)
 		goto out;
 
-	ret = *nonpad_ret = splice_to_pipe(pipe, &spd);
+	ret = *yesnpad_ret = splice_to_pipe(pipe, &spd);
 	if (ret < 0 || ret < total_len)
 		goto out;
 
-        if (read_start + ret == nonpad_end)
+        if (read_start + ret == yesnpad_end)
                 ret += padding;
 
 out:
@@ -1284,19 +1284,19 @@ out:
 
 static ssize_t relay_file_splice_read(struct file *in,
 				      loff_t *ppos,
-				      struct pipe_inode_info *pipe,
+				      struct pipe_iyesde_info *pipe,
 				      size_t len,
 				      unsigned int flags)
 {
 	ssize_t spliced;
 	int ret;
-	int nonpad_ret = 0;
+	int yesnpad_ret = 0;
 
 	ret = 0;
 	spliced = 0;
 
 	while (len && !spliced) {
-		ret = subbuf_splice_actor(in, ppos, pipe, len, flags, &nonpad_ret);
+		ret = subbuf_splice_actor(in, ppos, pipe, len, flags, &yesnpad_ret);
 		if (ret < 0)
 			break;
 		else if (!ret) {
@@ -1310,8 +1310,8 @@ static ssize_t relay_file_splice_read(struct file *in,
 			len = 0;
 		else
 			len -= ret;
-		spliced += nonpad_ret;
-		nonpad_ret = 0;
+		spliced += yesnpad_ret;
+		yesnpad_ret = 0;
 	}
 
 	if (spliced)
@@ -1325,7 +1325,7 @@ const struct file_operations relay_file_operations = {
 	.poll		= relay_file_poll,
 	.mmap		= relay_file_mmap,
 	.read		= relay_file_read,
-	.llseek		= no_llseek,
+	.llseek		= yes_llseek,
 	.release	= relay_file_release,
 	.splice_read	= relay_file_splice_read,
 };

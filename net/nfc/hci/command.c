@@ -106,7 +106,7 @@ EXPORT_SYMBOL(nfc_hci_send_event);
 
 /*
  * Execute an hci command sent to gate.
- * skb will contain response data if success. skb can be NULL if you are not
+ * skb will contain response data if success. skb can be NULL if you are yest
  * interested by the response.
  */
 int nfc_hci_send_cmd(struct nfc_hci_dev *hdev, u8 gate, u8 cmd,
@@ -149,7 +149,7 @@ int nfc_hci_set_param(struct nfc_hci_dev *hdev, u8 gate, u8 idx,
 
 	/* TODO ELa: reg idx must be inserted before param, but we don't want
 	 * to ask the caller to do it to keep a simpler API.
-	 * For now, just create a new temporary param buffer. This is far from
+	 * For yesw, just create a new temporary param buffer. This is far from
 	 * optimal though, and the plan is to modify APIs to pass idx down to
 	 * nfc_hci_hcp_message_tx where the frame is actually built, thereby
 	 * eliminating the need for the temp allocation-copy here.
@@ -345,7 +345,7 @@ open_pipe:
 	if (r < 0) {
 		if (pipe_created)
 			if (nfc_hci_delete_pipe(hdev, pipe) < 0) {
-				/* TODO: Cannot clean by deleting pipe...
+				/* TODO: Canyest clean by deleting pipe...
 				 * -> inconsistent state */
 			}
 		return r;

@@ -274,7 +274,7 @@ static int mt7621_spi_transfer_one_message(struct spi_controller *master,
 			 * This controller will shift some extra data out
 			 * of spi_opcode if (mosi_bit_cnt > 0) &&
 			 * (cmd_bit_cnt == 0). So the claimed full-duplex
-			 * support is broken since we have no way to read
+			 * support is broken since we have yes way to read
 			 * the MISO value during that bit.
 			 */
 			status = -EIO;
@@ -361,7 +361,7 @@ static int mt7621_spi_probe(struct platform_device *pdev)
 	master->setup = mt7621_spi_setup;
 	master->transfer_one_message = mt7621_spi_transfer_one_message;
 	master->bits_per_word_mask = SPI_BPW_MASK(8);
-	master->dev.of_node = pdev->dev.of_node;
+	master->dev.of_yesde = pdev->dev.of_yesde;
 	master->num_chipselect = 2;
 
 	dev_set_drvdata(&pdev->dev, master);

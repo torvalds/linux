@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <ctype.h>
-#include <errno.h>
+#include <erryes.h>
 #include <limits.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -43,12 +43,12 @@
 #define BPF_FS_MAGIC           0xcafe4a11
 #endif
 
-static const char * const sysfs__fs_known_mountpoints[] = {
+static const char * const sysfs__fs_kyeswn_mountpoints[] = {
 	"/sys",
 	0,
 };
 
-static const char * const procfs__known_mountpoints[] = {
+static const char * const procfs__kyeswn_mountpoints[] = {
 	"/proc",
 	0,
 };
@@ -57,7 +57,7 @@ static const char * const procfs__known_mountpoints[] = {
 #define DEBUGFS_DEFAULT_PATH "/sys/kernel/debug"
 #endif
 
-static const char * const debugfs__known_mountpoints[] = {
+static const char * const debugfs__kyeswn_mountpoints[] = {
 	DEBUGFS_DEFAULT_PATH,
 	"/debug",
 	0,
@@ -68,7 +68,7 @@ static const char * const debugfs__known_mountpoints[] = {
 #define TRACEFS_DEFAULT_PATH "/sys/kernel/tracing"
 #endif
 
-static const char * const tracefs__known_mountpoints[] = {
+static const char * const tracefs__kyeswn_mountpoints[] = {
 	TRACEFS_DEFAULT_PATH,
 	"/sys/kernel/debug/tracing",
 	"/tracing",
@@ -76,11 +76,11 @@ static const char * const tracefs__known_mountpoints[] = {
 	0,
 };
 
-static const char * const hugetlbfs__known_mountpoints[] = {
+static const char * const hugetlbfs__kyeswn_mountpoints[] = {
 	0,
 };
 
-static const char * const bpf_fs__known_mountpoints[] = {
+static const char * const bpf_fs__kyeswn_mountpoints[] = {
 	"/sys/fs/bpf",
 	0,
 };
@@ -109,32 +109,32 @@ enum {
 static struct fs fs__entries[] = {
 	[FS__SYSFS] = {
 		.name	= "sysfs",
-		.mounts	= sysfs__fs_known_mountpoints,
+		.mounts	= sysfs__fs_kyeswn_mountpoints,
 		.magic	= SYSFS_MAGIC,
 	},
 	[FS__PROCFS] = {
 		.name	= "proc",
-		.mounts	= procfs__known_mountpoints,
+		.mounts	= procfs__kyeswn_mountpoints,
 		.magic	= PROC_SUPER_MAGIC,
 	},
 	[FS__DEBUGFS] = {
 		.name	= "debugfs",
-		.mounts	= debugfs__known_mountpoints,
+		.mounts	= debugfs__kyeswn_mountpoints,
 		.magic	= DEBUGFS_MAGIC,
 	},
 	[FS__TRACEFS] = {
 		.name	= "tracefs",
-		.mounts	= tracefs__known_mountpoints,
+		.mounts	= tracefs__kyeswn_mountpoints,
 		.magic	= TRACEFS_MAGIC,
 	},
 	[FS__HUGETLBFS] = {
 		.name	= "hugetlbfs",
-		.mounts = hugetlbfs__known_mountpoints,
+		.mounts = hugetlbfs__kyeswn_mountpoints,
 		.magic	= HUGETLBFS_MAGIC,
 	},
 	[FS__BPF_FS] = {
 		.name	= "bpf",
-		.mounts = bpf_fs__known_mountpoints,
+		.mounts = bpf_fs__kyeswn_mountpoints,
 		.magic	= BPF_FS_MAGIC,
 	},
 };
@@ -364,7 +364,7 @@ int filename__read_str(const char *filename, char **buf, size_t *sizep)
 
 	fd = open(filename, O_RDONLY);
 	if (fd < 0)
-		return -errno;
+		return -erryes;
 
 	do {
 		if (size == alloc_size) {
@@ -381,11 +381,11 @@ int filename__read_str(const char *filename, char **buf, size_t *sizep)
 		n = read(fd, bf + size, alloc_size - size);
 		if (n < 0) {
 			if (size) {
-				pr_warn("read failed %d: %s\n", errno,
-					strerror_r(errno, sbuf, sizeof(sbuf)));
+				pr_warn("read failed %d: %s\n", erryes,
+					strerror_r(erryes, sbuf, sizeof(sbuf)));
 				err = 0;
 			} else
-				err = -errno;
+				err = -erryes;
 
 			break;
 		}

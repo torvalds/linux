@@ -563,7 +563,7 @@
 			dma-channel-mask = <0xfffe>;
 			interrupts = <GIC_SPI 143 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&crg_ctrl HI3660_CLK_GATE_DMAC>;
-			dma-no-cci;
+			dma-yes-cci;
 			dma-type = "hi3660_dma";
 		};
 

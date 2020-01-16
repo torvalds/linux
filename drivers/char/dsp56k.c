@@ -1,9 +1,9 @@
 /*
  * The DSP56001 Device Driver, saviour of the Free World(tm)
  *
- * Authors: Fredrik Noring   <noring@nocrew.org>
- *          lars brinkhoff   <lars@nocrew.org>
- *          Tomas Berndtsson <tomas@nocrew.org>
+ * Authors: Fredrik Noring   <yesring@yescrew.org>
+ *          lars brinkhoff   <lars@yescrew.org>
+ *          Tomas Berndtsson <tomas@yescrew.org>
  *
  * First version May 1996
  *
@@ -26,7 +26,7 @@
 #include <linux/module.h>
 #include <linux/major.h>
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/delay.h>	/* guess what */
 #include <linux/fs.h>
 #include <linux/mm.h>
@@ -42,7 +42,7 @@
 
 #include <asm/dsp56k.h>
 
-/* minor devices */
+/* miyesr devices */
 #define DSP56K_DEV_56001        0    /* The only device so far */
 
 #define TIMEOUT    10   /* Host port timeout in number of tries */
@@ -181,8 +181,8 @@ static int dsp56k_upload(u_char __user *bin, int len)
 static ssize_t dsp56k_read(struct file *file, char __user *buf, size_t count,
 			   loff_t *ppos)
 {
-	struct inode *inode = file_inode(file);
-	int dev = iminor(inode) & 0x0f;
+	struct iyesde *iyesde = file_iyesde(file);
+	int dev = imiyesr(iyesde) & 0x0f;
 
 	switch(dev)
 	{
@@ -191,7 +191,7 @@ static ssize_t dsp56k_read(struct file *file, char __user *buf, size_t count,
 
 		long n;
 
-		/* Don't do anything if nothing is to be done */
+		/* Don't do anything if yesthing is to be done */
 		if (!count) return 0;
 
 		n = 0;
@@ -236,7 +236,7 @@ static ssize_t dsp56k_read(struct file *file, char __user *buf, size_t count,
 	}
 
 	default:
-		printk(KERN_ERR "DSP56k driver: Unknown minor device: %d\n", dev);
+		printk(KERN_ERR "DSP56k driver: Unkyeswn miyesr device: %d\n", dev);
 		return -ENXIO;
 	}
 }
@@ -244,8 +244,8 @@ static ssize_t dsp56k_read(struct file *file, char __user *buf, size_t count,
 static ssize_t dsp56k_write(struct file *file, const char __user *buf, size_t count,
 			    loff_t *ppos)
 {
-	struct inode *inode = file_inode(file);
-	int dev = iminor(inode) & 0x0f;
+	struct iyesde *iyesde = file_iyesde(file);
+	int dev = imiyesr(iyesde) & 0x0f;
 
 	switch(dev)
 	{
@@ -253,7 +253,7 @@ static ssize_t dsp56k_write(struct file *file, const char __user *buf, size_t co
 	{
 		long n;
 
-		/* Don't do anything if nothing is to be done */
+		/* Don't do anything if yesthing is to be done */
 		if (!count) return 0;
 
 		n = 0;
@@ -298,7 +298,7 @@ static ssize_t dsp56k_write(struct file *file, const char __user *buf, size_t co
 		return -EFAULT;
 	}
 	default:
-		printk(KERN_ERR "DSP56k driver: Unknown minor device: %d\n", dev);
+		printk(KERN_ERR "DSP56k driver: Unkyeswn miyesr device: %d\n", dev);
 		return -ENXIO;
 	}
 }
@@ -306,7 +306,7 @@ static ssize_t dsp56k_write(struct file *file, const char __user *buf, size_t co
 static long dsp56k_ioctl(struct file *file, unsigned int cmd,
 			 unsigned long arg)
 {
-	int dev = iminor(file_inode(file)) & 0x0f;
+	int dev = imiyesr(file_iyesde(file)) & 0x0f;
 	void __user *argp = (void __user *)arg;
 
 	switch(dev)
@@ -326,7 +326,7 @@ static long dsp56k_ioctl(struct file *file, unsigned int cmd,
 				return -EFAULT;
 		
 			if (len <= 0) {
-				return -EINVAL;      /* nothing to upload?!? */
+				return -EINVAL;      /* yesthing to upload?!? */
 			}
 			if (len > DSP56K_MAX_BINARY_LENGTH) {
 				return -EINVAL;
@@ -396,19 +396,19 @@ static long dsp56k_ioctl(struct file *file, unsigned int cmd,
 		return 0;
 
 	default:
-		printk(KERN_ERR "DSP56k driver: Unknown minor device: %d\n", dev);
+		printk(KERN_ERR "DSP56k driver: Unkyeswn miyesr device: %d\n", dev);
 		return -ENXIO;
 	}
 }
 
 /* As of 2.1.26 this should be dsp56k_poll,
- * but how do I then check device minor number?
+ * but how do I then check device miyesr number?
  * Do I need this function at all???
  */
 #if 0
 static __poll_t dsp56k_poll(struct file *file, poll_table *wait)
 {
-	int dev = iminor(file_inode(file)) & 0x0f;
+	int dev = imiyesr(file_iyesde(file)) & 0x0f;
 
 	switch(dev)
 	{
@@ -417,15 +417,15 @@ static __poll_t dsp56k_poll(struct file *file, poll_table *wait)
 		return EPOLLIN | EPOLLRDNORM | EPOLLOUT;
 
 	default:
-		printk("DSP56k driver: Unknown minor device: %d\n", dev);
+		printk("DSP56k driver: Unkyeswn miyesr device: %d\n", dev);
 		return 0;
 	}
 }
 #endif
 
-static int dsp56k_open(struct inode *inode, struct file *file)
+static int dsp56k_open(struct iyesde *iyesde, struct file *file)
 {
-	int dev = iminor(inode) & 0x0f;
+	int dev = imiyesr(iyesde) & 0x0f;
 	int ret = 0;
 
 	mutex_lock(&dsp56k_mutex);
@@ -459,9 +459,9 @@ out:
 	return ret;
 }
 
-static int dsp56k_release(struct inode *inode, struct file *file)
+static int dsp56k_release(struct iyesde *iyesde, struct file *file)
 {
-	int dev = iminor(inode) & 0x0f;
+	int dev = imiyesr(iyesde) & 0x0f;
 
 	switch(dev)
 	{
@@ -469,7 +469,7 @@ static int dsp56k_release(struct inode *inode, struct file *file)
 		clear_bit(0, &dsp56k.in_use);
 		break;
 	default:
-		printk(KERN_ERR "DSP56k driver: Unknown minor device: %d\n", dev);
+		printk(KERN_ERR "DSP56k driver: Unkyeswn miyesr device: %d\n", dev);
 		return -ENXIO;
 	}
 
@@ -483,7 +483,7 @@ static const struct file_operations dsp56k_fops = {
 	.unlocked_ioctl	= dsp56k_ioctl,
 	.open		= dsp56k_open,
 	.release	= dsp56k_release,
-	.llseek		= noop_llseek,
+	.llseek		= yesop_llseek,
 };
 
 
@@ -496,7 +496,7 @@ static int __init dsp56k_init_driver(void)
 	int err = 0;
 
 	if(!MACH_IS_ATARI || !ATARIHW_PRESENT(DSP56K)) {
-		printk("DSP56k driver: Hardware not present\n");
+		printk("DSP56k driver: Hardware yest present\n");
 		return -ENODEV;
 	}
 

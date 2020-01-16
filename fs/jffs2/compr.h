@@ -18,12 +18,12 @@
 #include <linux/types.h>
 #include <linux/string.h>
 #include <linux/slab.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/fs.h>
 #include <linux/jffs2.h>
 #include "jffs2_fs_i.h"
 #include "jffs2_fs_sb.h"
-#include "nodelist.h"
+#include "yesdelist.h"
 
 #define JFFS2_RUBINMIPS_PRIORITY 10
 #define JFFS2_DYNRUBIN_PRIORITY  20
@@ -70,11 +70,11 @@ int jffs2_unregister_compressor(struct jffs2_compressor *comp);
 int jffs2_compressors_init(void);
 int jffs2_compressors_exit(void);
 
-uint16_t jffs2_compress(struct jffs2_sb_info *c, struct jffs2_inode_info *f,
+uint16_t jffs2_compress(struct jffs2_sb_info *c, struct jffs2_iyesde_info *f,
 			unsigned char *data_in, unsigned char **cpage_out,
 			uint32_t *datalen, uint32_t *cdatalen);
 
-int jffs2_decompress(struct jffs2_sb_info *c, struct jffs2_inode_info *f,
+int jffs2_decompress(struct jffs2_sb_info *c, struct jffs2_iyesde_info *f,
 		     uint16_t comprtype, unsigned char *cdata_in,
 		     unsigned char *data_out, uint32_t cdatalen, uint32_t datalen);
 

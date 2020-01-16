@@ -9,7 +9,7 @@
 
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/string.h>
 #include <linux/delay.h>
 #include <linux/init.h>
@@ -507,7 +507,7 @@ static void ffb_fillrect(struct fb_info *info, const struct fb_fillrect *rect)
 }
 
 /**
- *	ffb_copyarea - Copies on area of the screen to another area.
+ *	ffb_copyarea - Copies on area of the screen to ayesther area.
  *
  *	@info: frame buffer structure that represents a single frame buffer
  *	@area: structure defining the source and destination.
@@ -639,20 +639,20 @@ static void ffb_fixup_var_rgb(struct fb_var_screeninfo *var)
 /**
  *	ffb_setcolreg - Sets a color register.
  *
- *	@regno: boolean, 0 copy local, 1 get_user() function
+ *	@regyes: boolean, 0 copy local, 1 get_user() function
  *	@red: frame buffer colormap structure
  *	@green: The green value which can be up to 16 bits wide
  *	@blue:  The blue value which can be up to 16 bits wide.
  *	@transp: If supported the alpha value which can be up to 16 bits wide.
  *	@info: frame buffer info structure
  */
-static int ffb_setcolreg(unsigned regno,
+static int ffb_setcolreg(unsigned regyes,
 			 unsigned red, unsigned green, unsigned blue,
 			 unsigned transp, struct fb_info *info)
 {
 	u32 value;
 
-	if (regno >= 16)
+	if (regyes >= 16)
 		return 1;
 
 	red >>= 8;
@@ -660,7 +660,7 @@ static int ffb_setcolreg(unsigned regno,
 	blue >>= 8;
 
 	value = (blue << 16) | (green << 8) | red;
-	((u32 *)info->pseudo_palette)[regno] = value;
+	((u32 *)info->pseudo_palette)[regyes] = value;
 
 	return 0;
 }
@@ -896,7 +896,7 @@ static void ffb_init_fix(struct fb_info *info)
 
 static int ffb_probe(struct platform_device *op)
 {
-	struct device_node *dp = op->dev.of_node;
+	struct device_yesde *dp = op->dev.of_yesde;
 	struct ffb_fbc __iomem *fbc;
 	struct ffb_dac __iomem *dac;
 	struct fb_info *info;
@@ -945,7 +945,7 @@ static int ffb_probe(struct platform_device *op)
 
 	info->var.accel_flags = FB_ACCELF_TEXT;
 
-	if (of_node_name_eq(dp, "SUNW,afb"))
+	if (of_yesde_name_eq(dp, "SUNW,afb"))
 		par->flags |= FFB_FLAG_AFB;
 
 	par->board_type = of_getintprop_default(dp, "board_type", 0);
@@ -965,10 +965,10 @@ static int ffb_probe(struct platform_device *op)
 	dac_mrev = (dac_mrev & FFB_DAC_UCTRL_MANREV) >>
 		FFB_DAC_UCTRL_MANREV_SHIFT;
 
-	/* Elite3D has different DAC revision numbering, and no DAC revisions
+	/* Elite3D has different DAC revision numbering, and yes DAC revisions
 	 * have the reversed meaning of cursor enable.  Otherwise, Pacifica 1
 	 * ramdacs with manufacturing revision less than 3 have inverted
-	 * cursor logic.  We identify Pacifica 1 as not Pacifica 2, the
+	 * cursor logic.  We identify Pacifica 1 as yest Pacifica 2, the
 	 * latter having a part number value of 0x236e.
 	 */
 	if ((par->flags & FFB_FLAG_AFB) || dac_pnum == 0x236e) {
@@ -981,7 +981,7 @@ static int ffb_probe(struct platform_device *op)
 	ffb_switch_from_graph(par);
 
 	/* Unblank it just to be sure.  When there are multiple
-	 * FFB/AFB cards in the system, or it is not the OBP
+	 * FFB/AFB cards in the system, or it is yest the OBP
 	 * chosen console, it will have video outputs off in
 	 * the DAC.
 	 */

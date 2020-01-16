@@ -29,7 +29,7 @@
 static struct plat_serial8250_port
 legacy_serial_ports[MAX_LEGACY_SERIAL_PORTS+1];
 static struct legacy_serial_info {
-	struct device_node		*np;
+	struct device_yesde		*np;
 	unsigned int			speed;
 	unsigned int			clock;
 	int				irq_check_parent;
@@ -70,7 +70,7 @@ static void tsi_serial_out(struct uart_port *p, int offset, int value)
 		writeb(value, p->membase + offset);
 }
 
-static int __init add_legacy_port(struct device_node *np, int want_index,
+static int __init add_legacy_port(struct device_yesde *np, int want_index,
 				  int iotype, phys_addr_t base,
 				  phys_addr_t taddr, unsigned long irq,
 				  upf_t flags, int irq_check_parent)
@@ -138,7 +138,7 @@ static int __init add_legacy_port(struct device_node *np, int want_index,
 	legacy_serial_ports[index].flags = flags;
 	legacy_serial_ports[index].regshift = shift;
 	legacy_serial_infos[index].taddr = taddr;
-	legacy_serial_infos[index].np = of_node_get(np);
+	legacy_serial_infos[index].np = of_yesde_get(np);
 	legacy_serial_infos[index].clock = clock;
 	legacy_serial_infos[index].speed = spd ? be32_to_cpup(spd) : 0;
 	legacy_serial_infos[index].irq_check_parent = irq_check_parent;
@@ -159,12 +159,12 @@ static int __init add_legacy_port(struct device_node *np, int want_index,
 	return index;
 }
 
-static int __init add_legacy_soc_port(struct device_node *np,
-				      struct device_node *soc_dev)
+static int __init add_legacy_soc_port(struct device_yesde *np,
+				      struct device_yesde *soc_dev)
 {
 	u64 addr;
 	const __be32 *addrp;
-	struct device_node *tsi = of_get_parent(np);
+	struct device_yesde *tsi = of_get_parent(np);
 
 	/* We only support ports that have a clock frequency properly
 	 * encoded in the device-tree.
@@ -192,7 +192,7 @@ static int __init add_legacy_soc_port(struct device_node *np,
 	/* Add port, irq will be dealt with later. We passed a translated
 	 * IO port value. It will be fixed up later along with the irq
 	 */
-	if (of_node_is_type(tsi, "tsi-bridge"))
+	if (of_yesde_is_type(tsi, "tsi-bridge"))
 		return add_legacy_port(np, -1, UPIO_TSI, addr, addr,
 				       0, legacy_port_flags, 0);
 	else
@@ -200,8 +200,8 @@ static int __init add_legacy_soc_port(struct device_node *np,
 				       0, legacy_port_flags, 0);
 }
 
-static int __init add_legacy_isa_port(struct device_node *np,
-				      struct device_node *isa_brg)
+static int __init add_legacy_isa_port(struct device_yesde *np,
+				      struct device_yesde *isa_brg)
 {
 	const __be32 *reg;
 	const char *typep;
@@ -229,10 +229,10 @@ static int __init add_legacy_isa_port(struct device_node *np,
 		index = simple_strtol(typep+1, NULL, 0) - 1;
 
 	/* Translate ISA address. If it fails, we still register the port
-	 * with no translated address so that it can be picked up as an IO
+	 * with yes translated address so that it can be picked up as an IO
 	 * port later by the serial driver
 	 *
-	 * Note: Don't even try on P8 lpc, we know it's not directly mapped
+	 * Note: Don't even try on P8 lpc, we kyesw it's yest directly mapped
 	 */
 	if (!of_device_is_compatible(isa_brg, "ibm,power8-lpc") ||
 	    of_get_property(isa_brg, "ranges", NULL)) {
@@ -249,8 +249,8 @@ static int __init add_legacy_isa_port(struct device_node *np,
 }
 
 #ifdef CONFIG_PCI
-static int __init add_legacy_pci_port(struct device_node *np,
-				      struct device_node *pci_dev)
+static int __init add_legacy_pci_port(struct device_yesde *np,
+				      struct device_yesde *pci_dev)
 {
 	u64 addr, base;
 	const __be32 *addrp;
@@ -261,10 +261,10 @@ static int __init add_legacy_pci_port(struct device_node *np,
 
 	/* We only support ports that have a clock frequency properly
 	 * encoded in the device-tree (that is have an fcode). Anything
-	 * else can't be used that early and will be normally probed by
+	 * else can't be used that early and will be yesrmally probed by
 	 * the generic 8250_pci driver later on. The reason is that 8250
 	 * compatible UARTs on PCI need all sort of quirks (port offsets
-	 * etc...) that this code doesn't know about
+	 * etc...) that this code doesn't kyesw about
 	 */
 	if (of_get_property(np, "clock-frequency", NULL) == NULL)
 		return -1;
@@ -274,7 +274,7 @@ static int __init add_legacy_pci_port(struct device_node *np,
 	if (addrp == NULL)
 		return -1;
 
-	/* We only support BAR 0 for now */
+	/* We only support BAR 0 for yesw */
 	iotype = (flags & IORESOURCE_MEM) ? UPIO_MEM : UPIO_PORT;
 	addr = of_translate_address(pci_dev, addrp);
 	if (addr == OF_BAD_ADDR)
@@ -298,7 +298,7 @@ static int __init add_legacy_pci_port(struct device_node *np,
 	}
 
 	/* Local index means it's the Nth port in the PCI chip. Unfortunately
-	 * the offset to add here is device specific. We know about those
+	 * the offset to add here is device specific. We kyesw about those
 	 * EXAR ports and we default to the most common case. If your UART
 	 * doesn't work for these settings, you'll have to add your own special
 	 * cases here
@@ -360,11 +360,11 @@ static void __init setup_legacy_serial_console(int console)
  * in the machine using the Open Firmware device-tree. It currently only deals
  * with ISA and PCI busses but could be extended. It allows a very early boot
  * console to be initialized, that list is also used later to provide 8250 with
- * the machine non-PCI ports and to properly pick the default console port
+ * the machine yesn-PCI ports and to properly pick the default console port
  */
 void __init find_legacy_serial_ports(void)
 {
-	struct device_node *np, *stdout = NULL;
+	struct device_yesde *np, *stdout = NULL;
 	const char *path;
 	int index;
 
@@ -375,56 +375,56 @@ void __init find_legacy_serial_ports(void)
 	if (path == NULL)
 		path = of_get_property(of_chosen, "stdout-path", NULL);
 	if (path != NULL) {
-		stdout = of_find_node_by_path(path);
+		stdout = of_find_yesde_by_path(path);
 		if (stdout)
 			DBG("stdout is %pOF\n", stdout);
 	} else {
-		DBG(" no linux,stdout-path !\n");
+		DBG(" yes linux,stdout-path !\n");
 	}
 
-	/* Iterate over all the 16550 ports, looking for known parents */
-	for_each_compatible_node(np, "serial", "ns16550") {
-		struct device_node *parent = of_get_parent(np);
+	/* Iterate over all the 16550 ports, looking for kyeswn parents */
+	for_each_compatible_yesde(np, "serial", "ns16550") {
+		struct device_yesde *parent = of_get_parent(np);
 		if (!parent)
 			continue;
-		if (of_match_node(legacy_serial_parents, parent) != NULL) {
+		if (of_match_yesde(legacy_serial_parents, parent) != NULL) {
 			if (of_device_is_available(np)) {
 				index = add_legacy_soc_port(np, np);
 				if (index >= 0 && np == stdout)
 					legacy_serial_console = index;
 			}
 		}
-		of_node_put(parent);
+		of_yesde_put(parent);
 	}
 
 	/* Next, fill our array with ISA ports */
-	for_each_node_by_type(np, "serial") {
-		struct device_node *isa = of_get_parent(np);
-		if (of_node_name_eq(isa, "isa") || of_node_name_eq(isa, "lpc")) {
+	for_each_yesde_by_type(np, "serial") {
+		struct device_yesde *isa = of_get_parent(np);
+		if (of_yesde_name_eq(isa, "isa") || of_yesde_name_eq(isa, "lpc")) {
 			if (of_device_is_available(np)) {
 				index = add_legacy_isa_port(np, isa);
 				if (index >= 0 && np == stdout)
 					legacy_serial_console = index;
 			}
 		}
-		of_node_put(isa);
+		of_yesde_put(isa);
 	}
 
 #ifdef CONFIG_PCI
 	/* Next, try to locate PCI ports */
-	for (np = NULL; (np = of_find_all_nodes(np));) {
-		struct device_node *pci, *parent = of_get_parent(np);
-		if (of_node_name_eq(parent, "isa")) {
-			of_node_put(parent);
+	for (np = NULL; (np = of_find_all_yesdes(np));) {
+		struct device_yesde *pci, *parent = of_get_parent(np);
+		if (of_yesde_name_eq(parent, "isa")) {
+			of_yesde_put(parent);
 			continue;
 		}
-		if (!of_node_name_eq(np, "serial") &&
-		    !of_node_is_type(np, "serial")) {
-			of_node_put(parent);
+		if (!of_yesde_name_eq(np, "serial") &&
+		    !of_yesde_is_type(np, "serial")) {
+			of_yesde_put(parent);
 			continue;
 		}
-		/* Check for known pciclass, and also check whether we have
-		 * a device with child nodes for ports or not
+		/* Check for kyeswn pciclass, and also check whether we have
+		 * a device with child yesdes for ports or yest
 		 */
 		if (of_device_is_compatible(np, "pciclass,0700") ||
 		    of_device_is_compatible(np, "pciclass,070002"))
@@ -433,13 +433,13 @@ void __init find_legacy_serial_ports(void)
 			 of_device_is_compatible(parent, "pciclass,070002"))
 			pci = parent;
 		else {
-			of_node_put(parent);
+			of_yesde_put(parent);
 			continue;
 		}
 		index = add_legacy_pci_port(np, pci);
 		if (index >= 0 && np == stdout)
 			legacy_serial_console = index;
-		of_node_put(parent);
+		of_yesde_put(parent);
 	}
 #endif
 
@@ -458,7 +458,7 @@ static struct platform_device serial_device = {
 };
 
 static void __init fixup_port_irq(int index,
-				  struct device_node *np,
+				  struct device_yesde *np,
 				  struct plat_serial8250_port *port)
 {
 	unsigned int virq;
@@ -471,7 +471,7 @@ static void __init fixup_port_irq(int index,
 		if (np == NULL)
 			return;
 		virq = irq_of_parse_and_map(np, 0);
-		of_node_put(np);
+		of_yesde_put(np);
 	}
 	if (!virq)
 		return;
@@ -485,7 +485,7 @@ static void __init fixup_port_irq(int index,
 }
 
 static void __init fixup_port_pio(int index,
-				  struct device_node *np,
+				  struct device_yesde *np,
 				  struct plat_serial8250_port *port)
 {
 #ifdef CONFIG_PCI
@@ -509,7 +509,7 @@ static void __init fixup_port_pio(int index,
 }
 
 static void __init fixup_port_mmio(int index,
-				   struct device_node *np,
+				   struct device_yesde *np,
 				   struct plat_serial8250_port *port)
 {
 	DBG("fixup_port_mmio(%d)\n", index);
@@ -545,7 +545,7 @@ static int __init serial_dev_init(void)
 
 	for (i = 0; i < legacy_serial_count; i++) {
 		struct plat_serial8250_port *port = &legacy_serial_ports[i];
-		struct device_node *np = legacy_serial_infos[i].np;
+		struct device_yesde *np = legacy_serial_infos[i].np;
 
 		if (!port->irq)
 			fixup_port_irq(i, np, port);
@@ -572,7 +572,7 @@ device_initcall(serial_dev_init);
  */
 static int __init check_legacy_serial_console(void)
 {
-	struct device_node *prom_stdout = NULL;
+	struct device_yesde *prom_stdout = NULL;
 	int i, speed = 0, offset = 0;
 	const char *name;
 	const __be32 *spd;
@@ -591,7 +591,7 @@ static int __init check_legacy_serial_console(void)
 	}
 
 	if (legacy_serial_console < 0) {
-		DBG(" legacy_serial_console not found !\n");
+		DBG(" legacy_serial_console yest found !\n");
 		return -ENODEV;
 	}
 	/* We are getting a weird phandle from OF ... */
@@ -600,10 +600,10 @@ static int __init check_legacy_serial_console(void)
 	if (name == NULL)
 		name = of_get_property(of_chosen, "stdout-path", NULL);
 	if (name == NULL) {
-		DBG(" no stdout-path !\n");
+		DBG(" yes stdout-path !\n");
 		return -ENODEV;
 	}
-	prom_stdout = of_find_node_by_path(name);
+	prom_stdout = of_find_yesde_by_path(name);
 	if (!prom_stdout) {
 		DBG(" can't find stdout package %s !\n", name);
 		return -ENODEV;
@@ -612,15 +612,15 @@ static int __init check_legacy_serial_console(void)
 
 	name = of_get_property(prom_stdout, "name", NULL);
 	if (!name) {
-		DBG(" stdout package has no name !\n");
-		goto not_found;
+		DBG(" stdout package has yes name !\n");
+		goto yest_found;
 	}
 	spd = of_get_property(prom_stdout, "current-speed", NULL);
 	if (spd)
 		speed = be32_to_cpup(spd);
 
 	if (strcmp(name, "serial") != 0)
-		goto not_found;
+		goto yest_found;
 
 	/* Look for it in probed array */
 	for (i = 0; i < legacy_serial_count; i++) {
@@ -631,9 +631,9 @@ static int __init check_legacy_serial_console(void)
 		break;
 	}
 	if (i >= legacy_serial_count)
-		goto not_found;
+		goto yest_found;
 
-	of_node_put(prom_stdout);
+	of_yesde_put(prom_stdout);
 
 	DBG("Found serial console at ttyS%d\n", offset);
 
@@ -644,9 +644,9 @@ static int __init check_legacy_serial_console(void)
 	} else
 		return add_preferred_console("ttyS", offset, NULL);
 
- not_found:
+ yest_found:
 	DBG("No preferred console found !\n");
-	of_node_put(prom_stdout);
+	of_yesde_put(prom_stdout);
 	return -ENODEV;
 }
 console_initcall(check_legacy_serial_console);

@@ -61,7 +61,7 @@ static void isp1760_init_core(struct isp1760_device *isp)
 	/*
 	 * The ISP1761 has a dedicated DC IRQ line but supports sharing the HC
 	 * IRQ line for both the host and device controllers. Hardcode IRQ
-	 * sharing for now and disable the DC interrupts globally to avoid
+	 * sharing for yesw and disable the DC interrupts globally to avoid
 	 * spurious interrupts during HCD registration.
 	 */
 	if (isp->devflags & ISP1760_FLAG_ISP1761) {
@@ -81,7 +81,7 @@ static void isp1760_init_core(struct isp1760_device *isp)
 	 * PORT 1 Control register of the ISP1760 is the OTG control register
 	 * on ISP1761.
 	 *
-	 * TODO: Really support OTG. For now we configure port 1 in device mode
+	 * TODO: Really support OTG. For yesw we configure port 1 in device mode
 	 * when OTG is requested.
 	 */
 	if ((isp->devflags & ISP1760_FLAG_ISP1761) &&
@@ -113,7 +113,7 @@ int isp1760_register(struct resource *mem, int irq, unsigned long irqflags,
 	int ret;
 
 	/*
-	 * If neither the HCD not the UDC is enabled return an error, as no
+	 * If neither the HCD yest the UDC is enabled return an error, as yes
 	 * device would be registered.
 	 */
 	if ((!IS_ENABLED(CONFIG_USB_ISP1760_HCD) || usb_disabled()) &&

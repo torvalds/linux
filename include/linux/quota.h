@@ -9,11 +9,11 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
+ *    yestice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University yesr the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -89,7 +89,7 @@ extern bool qid_valid(struct kqid qid);
  *	Maps a user-namespace, type qid tuple into a kernel internal
  *	kqid, and returns that kqid.
  *
- *	When there is no mapping defined for the user-namespace, type,
+ *	When there is yes mapping defined for the user-namespace, type,
  *	qid tuple an invalid kqid is returned.  Callers are expected to
  *	test for and handle handle invalid kqids being returned.
  *	Invalid kqids may be tested for using qid_valid().
@@ -207,11 +207,11 @@ struct mem_dqblk {
 	qsize_t dqb_bsoftlimit;	/* preferred limit on disk blks */
 	qsize_t dqb_curspace;	/* current used space */
 	qsize_t dqb_rsvspace;   /* current reserved space for delalloc*/
-	qsize_t dqb_ihardlimit;	/* absolute limit on allocated inodes */
-	qsize_t dqb_isoftlimit;	/* preferred inode limit */
-	qsize_t dqb_curinodes;	/* current # allocated inodes */
+	qsize_t dqb_ihardlimit;	/* absolute limit on allocated iyesdes */
+	qsize_t dqb_isoftlimit;	/* preferred iyesde limit */
+	qsize_t dqb_curiyesdes;	/* current # allocated iyesdes */
 	time64_t dqb_btime;	/* time limit for excessive disk use */
-	time64_t dqb_itime;	/* time limit for excessive inode use */
+	time64_t dqb_itime;	/* time limit for excessive iyesde use */
 };
 
 /*
@@ -226,9 +226,9 @@ struct mem_dqinfo {
 	struct list_head dqi_dirty_list;	/* List of dirty dquots [dq_list_lock] */
 	unsigned long dqi_flags;	/* DFQ_ flags [dq_data_lock] */
 	unsigned int dqi_bgrace;	/* Space grace time [dq_data_lock] */
-	unsigned int dqi_igrace;	/* Inode grace time [dq_data_lock] */
+	unsigned int dqi_igrace;	/* Iyesde grace time [dq_data_lock] */
 	qsize_t dqi_max_spc_limit;	/* Maximum space limit [static] */
-	qsize_t dqi_max_ino_limit;	/* Maximum inode limit [static] */
+	qsize_t dqi_max_iyes_limit;	/* Maximum iyesde limit [static] */
 	void *dqi_priv;
 };
 
@@ -281,10 +281,10 @@ static inline void dqstats_dec(unsigned int type)
 
 #define DQ_MOD_B	0	/* dquot modified since read */
 #define DQ_BLKS_B	1	/* uid/gid has been warned about blk limit */
-#define DQ_INODES_B	2	/* uid/gid has been warned about inode limit */
-#define DQ_FAKE_B	3	/* no limits only usage */
+#define DQ_INODES_B	2	/* uid/gid has been warned about iyesde limit */
+#define DQ_FAKE_B	3	/* yes limits only usage */
 #define DQ_READ_B	4	/* dquot was read into memory */
-#define DQ_ACTIVE_B	5	/* dquot is active (dquot_release not called) */
+#define DQ_ACTIVE_B	5	/* dquot is active (dquot_release yest called) */
 #define DQ_LASTSET_B	6	/* Following 6 bits (see QIF_) are reserved\
 				 * for the mask of entries set via SETQUOTA\
 				 * quotactl. They are set under dq_data_lock\
@@ -292,7 +292,7 @@ static inline void dqstats_dec(unsigned int type)
 				 * clear them when it sees fit. */
 
 struct dquot {
-	struct hlist_node dq_hash;	/* Hash list in memory [dq_list_lock] */
+	struct hlist_yesde dq_hash;	/* Hash list in memory [dq_list_lock] */
 	struct list_head dq_inuse;	/* List of all quotas [dq_list_lock] */
 	struct list_head dq_free;	/* Free list element [dq_list_lock] */
 	struct list_head dq_dirty;	/* List of dirty dquots [dq_list_lock] */
@@ -329,10 +329,10 @@ struct dquot_operations {
 	int (*write_info) (struct super_block *, int);	/* Write of quota "superblock" */
 	/* get reserved quota for delayed alloc, value returned is managed by
 	 * quota code only */
-	qsize_t *(*get_reserved_space) (struct inode *);
-	int (*get_projid) (struct inode *, kprojid_t *);/* Get project ID */
-	/* Get number of inodes that were charged for a given inode */
-	int (*get_inode_usage) (struct inode *, qsize_t *);
+	qsize_t *(*get_reserved_space) (struct iyesde *);
+	int (*get_projid) (struct iyesde *, kprojid_t *);/* Get project ID */
+	/* Get number of iyesdes that were charged for a given iyesde */
+	int (*get_iyesde_usage) (struct iyesde *, qsize_t *);
 	/* Get next ID with active quota structure */
 	int (*get_next_id) (struct super_block *sb, struct kqid *qid);
 };
@@ -344,14 +344,14 @@ struct qc_dqblk {
 	int d_fieldmask;	/* mask of fields to change in ->set_dqblk() */
 	u64 d_spc_hardlimit;	/* absolute limit on used space */
 	u64 d_spc_softlimit;	/* preferred limit on used space */
-	u64 d_ino_hardlimit;	/* maximum # allocated inodes */
-	u64 d_ino_softlimit;	/* preferred inode limit */
+	u64 d_iyes_hardlimit;	/* maximum # allocated iyesdes */
+	u64 d_iyes_softlimit;	/* preferred iyesde limit */
 	u64 d_space;		/* Space owned by the user */
-	u64 d_ino_count;	/* # inodes owned by the user */
-	s64 d_ino_timer;	/* zero if within inode limits */
-				/* if not, we refuse service */
+	u64 d_iyes_count;	/* # iyesdes owned by the user */
+	s64 d_iyes_timer;	/* zero if within iyesde limits */
+				/* if yest, we refuse service */
 	s64 d_spc_timer;	/* similar to above; for space */
-	int d_ino_warns;	/* # warnings issued wrt num inodes */
+	int d_iyes_warns;	/* # warnings issued wrt num iyesdes */
 	int d_spc_warns;	/* # warnings issued wrt used space */
 	u64 d_rt_spc_hardlimit;	/* absolute limit on realtime space */
 	u64 d_rt_spc_softlimit;	/* preferred limit on RT space */
@@ -396,12 +396,12 @@ struct qc_type_state {
 	unsigned int flags;		/* Flags QCI_* */
 	unsigned int spc_timelimit;	/* Time after which space softlimit is
 					 * enforced */
-	unsigned int ino_timelimit;	/* Ditto for inode softlimit */
+	unsigned int iyes_timelimit;	/* Ditto for iyesde softlimit */
 	unsigned int rt_spc_timelimit;	/* Ditto for real-time space */
 	unsigned int spc_warnlimit;	/* Limit for number of space warnings */
-	unsigned int ino_warnlimit;	/* Ditto for inodes */
+	unsigned int iyes_warnlimit;	/* Ditto for iyesdes */
 	unsigned int rt_spc_warnlimit;	/* Ditto for real-time space */
-	unsigned long long ino;		/* Inode number of quota file */
+	unsigned long long iyes;		/* Iyesde number of quota file */
 	blkcnt_t blocks;		/* Number of 512-byte blocks in the file */
 	blkcnt_t nextents;		/* Number of extents in the file */
 };
@@ -417,10 +417,10 @@ struct qc_info {
 	unsigned int i_flags;		/* Flags QCI_* */
 	unsigned int i_spc_timelimit;	/* Time after which space softlimit is
 					 * enforced */
-	unsigned int i_ino_timelimit;	/* Ditto for inode softlimit */
+	unsigned int i_iyes_timelimit;	/* Ditto for iyesde softlimit */
 	unsigned int i_rt_spc_timelimit;/* Ditto for real-time space */
 	unsigned int i_spc_warnlimit;	/* Limit for number of space warnings */
-	unsigned int i_ino_warnlimit;	/* Limit for number of inode warnings */
+	unsigned int i_iyes_warnlimit;	/* Limit for number of iyesde warnings */
 	unsigned int i_rt_spc_warnlimit;	/* Ditto for real-time space */
 };
 
@@ -456,7 +456,7 @@ struct quota_format_type {
  *  DQUOT_LIMITS_ENABLED	0x0004		0x0008
  *  DQUOT_SUSPENDED		0x0010		0x0020
  *
- * Following bits are used for non-typed flags:
+ * Following bits are used for yesn-typed flags:
  *  DQUOT_QUOTA_SYS_FILE	0x0040
  *  DQUOT_NEGATIVE_USAGE	0x0080
  */
@@ -477,14 +477,14 @@ enum {
 #define DQUOT_STATE_LAST	(_DQUOT_STATE_FLAGS * MAXQUOTAS)
 #define DQUOT_QUOTA_SYS_FILE	(1 << DQUOT_STATE_LAST)
 						/* Quota file is a special
-						 * system file and user cannot
+						 * system file and user canyest
 						 * touch it. Filesystem is
 						 * responsible for setting
 						 * S_NOQUOTA, S_NOATIME flags
 						 */
 #define DQUOT_NEGATIVE_USAGE	(1 << (DQUOT_STATE_LAST + 1))
 					       /* Allow negative quota usage */
-/* Do not track dirty dquots in a list */
+/* Do yest track dirty dquots in a list */
 #define DQUOT_NOLIST_DIRTY	(1 << (DQUOT_STATE_LAST + 2))
 
 static inline unsigned int dquot_state_flag(unsigned int flags, int type)
@@ -518,7 +518,7 @@ static inline void quota_send_warning(struct kqid qid, dev_t dev,
 struct quota_info {
 	unsigned int flags;			/* Flags for diskquotas on this device */
 	struct rw_semaphore dqio_sem;		/* Lock quota file while I/O in progress */
-	struct inode *files[MAXQUOTAS];		/* inodes of quotafiles */
+	struct iyesde *files[MAXQUOTAS];		/* iyesdes of quotafiles */
 	struct mem_dqinfo info[MAXQUOTAS];	/* Information for each quota type */
 	const struct quota_format_ops *ops[MAXQUOTAS];	/* Operations for each type */
 };

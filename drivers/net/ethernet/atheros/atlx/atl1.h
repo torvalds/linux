@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Copyright(c) 2005 - 2006 Attansic Corporation. All rights reserved.
- * Copyright(c) 2006 - 2007 Chris Snook <csnook@redhat.com>
+ * Copyright(c) 2006 - 2007 Chris Syesok <csyesok@redhat.com>
  * Copyright(c) 2006 - 2008 Jay Cliburn <jcliburn@gmail.com>
  *
  * Derived from Intel e1000 driver
@@ -356,7 +356,7 @@ struct stats_msg_block {
 	u32 tx_underrun;	/* TX packets aborted due to TX FIFO underrun
 				 * or TRD FIFO underrun */
 	u32 tx_rd_eop;		/* reads beyond the EOP into the next frame
-				 * when TRD was not written timely */
+				 * when TRD was yest written timely */
 	u32 tx_len_err;		/* TX packets where length != actual size */
 	u32 tx_trunc;		/* TX packets truncated due to size > MTU */
 	u32 tx_bcast_byte;	/* broadcast bytes transmitted, excluding FCS */
@@ -708,7 +708,7 @@ struct atl1_hw {
 	u16 tx_jumbo_task_th;
 	u16 txf_burst;		/* Number of data bytes to read in a cache-
 				 * aligned burst. Each SRAM entry is 8 bytes */
-	u16 rx_jumbo_th;	/* Jumbo packet size for non-VLAN packet. VLAN
+	u16 rx_jumbo_th;	/* Jumbo packet size for yesn-VLAN packet. VLAN
 				 * packets should add 4 bytes */
 	u16 rx_jumbo_lkah;
 	u16 rrd_ret_timer;	/* RRD retirement timer. Decrement by 1 after
@@ -776,7 +776,7 @@ struct atl1_adapter {
 
 	/*
 	 * Use this value to check is napi handler allowed to
-	 * enable ints or not
+	 * enable ints or yest
 	 */
 	bool int_enabled;
 

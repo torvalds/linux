@@ -55,7 +55,7 @@ dasd_ioctl_enable(struct block_device *bdev)
 	dasd_enable_device(base);
 	/* Formatting the dasd device can change the capacity. */
 	mutex_lock(&bdev->bd_mutex);
-	i_size_write(bdev->bd_inode,
+	i_size_write(bdev->bd_iyesde,
 		     (loff_t)get_capacity(base->block->gdp) << 9);
 	mutex_unlock(&bdev->bd_mutex);
 	dasd_put_device(base);
@@ -91,7 +91,7 @@ dasd_ioctl_disable(struct block_device *bdev)
 	 * value.
 	 */
 	mutex_lock(&bdev->bd_mutex);
-	i_size_write(bdev->bd_inode, 0);
+	i_size_write(bdev->bd_iyesde, 0);
 	mutex_unlock(&bdev->bd_mutex);
 	dasd_put_device(base);
 	return 0;
@@ -210,7 +210,7 @@ dasd_format(struct dasd_block *block, struct format_data_t *fdata)
 		return -EPERM;
 
 	if (base->state != DASD_STATE_BASIC) {
-		pr_warn("%s: The DASD cannot be formatted while it is enabled\n",
+		pr_warn("%s: The DASD canyest be formatted while it is enabled\n",
 			dev_name(&base->cdev->dev));
 		return -EBUSY;
 	}
@@ -221,13 +221,13 @@ dasd_format(struct dasd_block *block, struct format_data_t *fdata)
 		      fdata->stop_unit, fdata->blksize, fdata->intensity);
 
 	/* Since dasdfmt keeps the device open after it was disabled,
-	 * there still exists an inode for this device.
+	 * there still exists an iyesde for this device.
 	 * We must update i_blkbits, otherwise we might get errors when
 	 * enabling the device later.
 	 */
 	if (fdata->start_unit == 0) {
 		struct block_device *bdev = bdget_disk(block->gdp, 0);
-		bdev->bd_inode->i_blkbits = blksize_bits(fdata->blksize);
+		bdev->bd_iyesde->i_blkbits = blksize_bits(fdata->blksize);
 		bdput(bdev);
 	}
 
@@ -282,7 +282,7 @@ dasd_ioctl_format(struct block_device *bdev, void __user *argp)
 		return -EFAULT;
 	}
 	if (bdev != bdev->bd_contains) {
-		pr_warn("%s: The specified DASD is a partition and cannot be formatted\n",
+		pr_warn("%s: The specified DASD is a partition and canyest be formatted\n",
 			dev_name(&base->cdev->dev));
 		dasd_put_device(base);
 		return -EINVAL;
@@ -309,7 +309,7 @@ static int dasd_ioctl_check_format(struct block_device *bdev, void __user *argp)
 	if (!base)
 		return -ENODEV;
 	if (bdev != bdev->bd_contains) {
-		pr_warn("%s: The specified DASD is a partition and cannot be checked\n",
+		pr_warn("%s: The specified DASD is a partition and canyest be checked\n",
 			dev_name(&base->cdev->dev));
 		rc = -EINVAL;
 		goto out_err;
@@ -367,7 +367,7 @@ static int dasd_ioctl_release_space(struct block_device *bdev, void __user *argp
 		goto out_err;
 	}
 	if (bdev != bdev->bd_contains) {
-		pr_warn("%s: The specified DASD is a partition and tracks cannot be released\n",
+		pr_warn("%s: The specified DASD is a partition and tracks canyest be released\n",
 			dev_name(&base->cdev->dev));
 		rc = -EINVAL;
 		goto out_err;
@@ -487,8 +487,8 @@ static int dasd_ioctl_information(struct dasd_block *block,
 	ccw_device_get_id(cdev, &dev_id);
 	ccw_device_get_schid(cdev, &sch_id);
 
-	dasd_info->devno = dev_id.devno;
-	dasd_info->schid = sch_id.sch_no;
+	dasd_info->devyes = dev_id.devyes;
+	dasd_info->schid = sch_id.sch_yes;
 	dasd_info->cu_type = cdev->id.cu_type;
 	dasd_info->cu_model = cdev->id.cu_model;
 	dasd_info->dev_type = cdev->id.dev_type;
@@ -543,7 +543,7 @@ dasd_ioctl_set_ro(struct block_device *bdev, void __user *argp)
 	if (!capable(CAP_SYS_ADMIN))
 		return -EACCES;
 	if (bdev != bdev->bd_contains)
-		// ro setting is not allowed for partitions
+		// ro setting is yest allowed for partitions
 		return -EINVAL;
 	if (get_user(intval, (int __user *)argp))
 		return -EFAULT;

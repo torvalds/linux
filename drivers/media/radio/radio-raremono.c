@@ -19,9 +19,9 @@
 #include <media/v4l2-event.h>
 
 /*
- * 'Thanko's Raremono' is a Japanese si4734-based AM/FM/SW USB receiver:
+ * 'Thanko's Raremoyes' is a Japanese si4734-based AM/FM/SW USB receiver:
  *
- * http://www.raremono.jp/product/484.html/
+ * http://www.raremoyes.jp/product/484.html/
  *
  * The USB protocol has been reversed engineered using wireshark, initially
  * by Dinesh Ram <dinesh.ram@cern.ch> and finished by Hans Verkuil
@@ -33,11 +33,11 @@
 
 /* driver and module definitions */
 MODULE_AUTHOR("Hans Verkuil <hverkuil@xs4all.nl>");
-MODULE_DESCRIPTION("Thanko's Raremono AM/FM/SW Receiver USB driver");
+MODULE_DESCRIPTION("Thanko's Raremoyes AM/FM/SW Receiver USB driver");
 MODULE_LICENSE("GPL v2");
 
 /*
- * The Device announces itself as Cygnal Integrated Products, Inc.
+ * The Device anyesunces itself as Cygnal Integrated Products, Inc.
  *
  * The vendor and product IDs (and in fact all other lsusb information as
  * well) are identical to the si470x Silicon Labs USB FM Radio Reference
@@ -46,12 +46,12 @@ MODULE_LICENSE("GPL v2");
  */
 
 /* USB Device ID List */
-static const struct usb_device_id usb_raremono_device_table[] = {
+static const struct usb_device_id usb_raremoyes_device_table[] = {
 	{USB_DEVICE_AND_INTERFACE_INFO(0x10c4, 0x818a, USB_CLASS_HID, 0, 0) },
 	{ }						/* Terminating entry */
 };
 
-MODULE_DEVICE_TABLE(usb, usb_raremono_device_table);
+MODULE_DEVICE_TABLE(usb, usb_raremoyes_device_table);
 
 #define BUFFER_LENGTH 64
 
@@ -101,7 +101,7 @@ static const struct v4l2_frequency_band bands[] = {
 	},
 };
 
-struct raremono_device {
+struct raremoyes_device {
 	struct usb_device *usbdev;
 	struct usb_interface *intf;
 	struct video_device vdev;
@@ -113,13 +113,13 @@ struct raremono_device {
 	unsigned curfreq;
 };
 
-static inline struct raremono_device *to_raremono_dev(struct v4l2_device *v4l2_dev)
+static inline struct raremoyes_device *to_raremoyes_dev(struct v4l2_device *v4l2_dev)
 {
-	return container_of(v4l2_dev, struct raremono_device, v4l2_dev);
+	return container_of(v4l2_dev, struct raremoyes_device, v4l2_dev);
 }
 
 /* Set frequency. */
-static int raremono_cmd_main(struct raremono_device *radio, unsigned band, unsigned freq)
+static int raremoyes_cmd_main(struct raremoyes_device *radio, unsigned band, unsigned freq)
 {
 	unsigned band_offset;
 	int ret;
@@ -157,13 +157,13 @@ static int raremono_cmd_main(struct raremono_device *radio, unsigned band, unsig
 /* Handle unplugging the device.
  * We call video_unregister_device in any case.
  * The last function called in this procedure is
- * usb_raremono_device_release.
+ * usb_raremoyes_device_release.
  */
-static void usb_raremono_disconnect(struct usb_interface *intf)
+static void usb_raremoyes_disconnect(struct usb_interface *intf)
 {
-	struct raremono_device *radio = to_raremono_dev(usb_get_intfdata(intf));
+	struct raremoyes_device *radio = to_raremoyes_dev(usb_get_intfdata(intf));
 
-	dev_info(&intf->dev, "Thanko's Raremono disconnected\n");
+	dev_info(&intf->dev, "Thanko's Raremoyes disconnected\n");
 
 	mutex_lock(&radio->lock);
 	usb_set_intfdata(intf, NULL);
@@ -179,10 +179,10 @@ static void usb_raremono_disconnect(struct usb_interface *intf)
 static int vidioc_querycap(struct file *file, void *priv,
 					struct v4l2_capability *v)
 {
-	struct raremono_device *radio = video_drvdata(file);
+	struct raremoyes_device *radio = video_drvdata(file);
 
-	strscpy(v->driver, "radio-raremono", sizeof(v->driver));
-	strscpy(v->card, "Thanko's Raremono", sizeof(v->card));
+	strscpy(v->driver, "radio-raremoyes", sizeof(v->driver));
+	strscpy(v->card, "Thanko's Raremoyes", sizeof(v->card));
 	usb_make_path(radio->usbdev, v->bus_info, sizeof(v->bus_info));
 	return 0;
 }
@@ -204,7 +204,7 @@ static int vidioc_enum_freq_bands(struct file *file, void *priv,
 static int vidioc_g_tuner(struct file *file, void *priv,
 		struct v4l2_tuner *v)
 {
-	struct raremono_device *radio = video_drvdata(file);
+	struct raremoyes_device *radio = video_drvdata(file);
 	int ret;
 
 	if (v->index > 0)
@@ -239,7 +239,7 @@ static int vidioc_s_tuner(struct file *file, void *priv,
 static int vidioc_s_frequency(struct file *file, void *priv,
 				const struct v4l2_frequency *f)
 {
-	struct raremono_device *radio = video_drvdata(file);
+	struct raremoyes_device *radio = video_drvdata(file);
 	u32 freq;
 	unsigned band;
 
@@ -254,13 +254,13 @@ static int vidioc_s_frequency(struct file *file, void *priv,
 		band = BAND_SW;
 
 	freq = clamp_t(u32, f->frequency, bands[band].rangelow, bands[band].rangehigh);
-	return raremono_cmd_main(radio, band, freq / 16);
+	return raremoyes_cmd_main(radio, band, freq / 16);
 }
 
 static int vidioc_g_frequency(struct file *file, void *priv,
 				struct v4l2_frequency *f)
 {
-	struct raremono_device *radio = video_drvdata(file);
+	struct raremoyes_device *radio = video_drvdata(file);
 
 	if (f->tuner != 0)
 		return -EINVAL;
@@ -269,23 +269,23 @@ static int vidioc_g_frequency(struct file *file, void *priv,
 	return 0;
 }
 
-static void raremono_device_release(struct v4l2_device *v4l2_dev)
+static void raremoyes_device_release(struct v4l2_device *v4l2_dev)
 {
-	struct raremono_device *radio = to_raremono_dev(v4l2_dev);
+	struct raremoyes_device *radio = to_raremoyes_dev(v4l2_dev);
 
 	kfree(radio->buffer);
 	kfree(radio);
 }
 
 /* File system interface */
-static const struct v4l2_file_operations usb_raremono_fops = {
+static const struct v4l2_file_operations usb_raremoyes_fops = {
 	.owner		= THIS_MODULE,
 	.open           = v4l2_fh_open,
 	.release        = v4l2_fh_release,
 	.unlocked_ioctl	= video_ioctl2,
 };
 
-static const struct v4l2_ioctl_ops usb_raremono_ioctl_ops = {
+static const struct v4l2_ioctl_ops usb_raremoyes_ioctl_ops = {
 	.vidioc_querycap = vidioc_querycap,
 	.vidioc_g_tuner = vidioc_g_tuner,
 	.vidioc_s_tuner = vidioc_s_tuner,
@@ -295,10 +295,10 @@ static const struct v4l2_ioctl_ops usb_raremono_ioctl_ops = {
 };
 
 /* check if the device is present and register with v4l and usb if it is */
-static int usb_raremono_probe(struct usb_interface *intf,
+static int usb_raremoyes_probe(struct usb_interface *intf,
 				const struct usb_device_id *id)
 {
-	struct raremono_device *radio;
+	struct raremoyes_device *radio;
 	int retval = 0;
 
 	radio = kzalloc(sizeof(*radio), GFP_KERNEL);
@@ -317,7 +317,7 @@ static int usb_raremono_probe(struct usb_interface *intf,
 	 * This device uses the same USB IDs as the si470x SiLabs reference
 	 * design. So do an additional check: attempt to read the device ID
 	 * from the si470x: the lower 12 bits are 0x0242 for the si470x. The
-	 * Raremono always returns 0x0800 (the meaning of that is unknown, but
+	 * Raremoyes always returns 0x0800 (the meaning of that is unkyeswn, but
 	 * at least it works).
 	 *
 	 * We use this check to determine which device we are dealing with.
@@ -331,12 +331,12 @@ static int usb_raremono_probe(struct usb_interface *intf,
 		radio->buffer, 3, 500);
 	if (retval != 3 ||
 	    (get_unaligned_be16(&radio->buffer[1]) & 0xfff) == 0x0242) {
-		dev_info(&intf->dev, "this is not Thanko's Raremono.\n");
+		dev_info(&intf->dev, "this is yest Thanko's Raremoyes.\n");
 		retval = -ENODEV;
 		goto free_mem;
 	}
 
-	dev_info(&intf->dev, "Thanko's Raremono connected: (%04X:%04X)\n",
+	dev_info(&intf->dev, "Thanko's Raremoyes connected: (%04X:%04X)\n",
 			id->idVendor, id->idProduct);
 
 	retval = v4l2_device_register(&intf->dev, &radio->v4l2_dev);
@@ -350,26 +350,26 @@ static int usb_raremono_probe(struct usb_interface *intf,
 	strscpy(radio->vdev.name, radio->v4l2_dev.name,
 		sizeof(radio->vdev.name));
 	radio->vdev.v4l2_dev = &radio->v4l2_dev;
-	radio->vdev.fops = &usb_raremono_fops;
-	radio->vdev.ioctl_ops = &usb_raremono_ioctl_ops;
+	radio->vdev.fops = &usb_raremoyes_fops;
+	radio->vdev.ioctl_ops = &usb_raremoyes_ioctl_ops;
 	radio->vdev.lock = &radio->lock;
 	radio->vdev.release = video_device_release_empty;
 	radio->vdev.device_caps = V4L2_CAP_TUNER | V4L2_CAP_RADIO;
-	radio->v4l2_dev.release = raremono_device_release;
+	radio->v4l2_dev.release = raremoyes_device_release;
 
 	usb_set_intfdata(intf, &radio->v4l2_dev);
 
 	video_set_drvdata(&radio->vdev, radio);
 
-	raremono_cmd_main(radio, BAND_FM, 95160);
+	raremoyes_cmd_main(radio, BAND_FM, 95160);
 
 	retval = video_register_device(&radio->vdev, VFL_TYPE_RADIO, -1);
 	if (retval == 0) {
 		dev_info(&intf->dev, "V4L2 device registered as %s\n",
-				video_device_node_name(&radio->vdev));
+				video_device_yesde_name(&radio->vdev));
 		return 0;
 	}
-	dev_err(&intf->dev, "could not register video device\n");
+	dev_err(&intf->dev, "could yest register video device\n");
 	v4l2_device_unregister(&radio->v4l2_dev);
 
 free_mem:
@@ -379,11 +379,11 @@ free_mem:
 }
 
 /* USB subsystem interface */
-static struct usb_driver usb_raremono_driver = {
-	.name			= "radio-raremono",
-	.probe			= usb_raremono_probe,
-	.disconnect		= usb_raremono_disconnect,
-	.id_table		= usb_raremono_device_table,
+static struct usb_driver usb_raremoyes_driver = {
+	.name			= "radio-raremoyes",
+	.probe			= usb_raremoyes_probe,
+	.disconnect		= usb_raremoyes_disconnect,
+	.id_table		= usb_raremoyes_device_table,
 };
 
-module_usb_driver(usb_raremono_driver);
+module_usb_driver(usb_raremoyes_driver);

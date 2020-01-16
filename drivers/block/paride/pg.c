@@ -8,16 +8,16 @@
 	of read and write operations to the appropriate /dev/pgN device.
 	A write operation delivers a command and any outbound data in
 	a single buffer.  Normally, the write will succeed unless the
-	device is offline or malfunctioning, or there is already another
+	device is offline or malfunctioning, or there is already ayesther
 	command pending.  If the write succeeds, it should be followed
 	immediately by a read operation, to obtain any returned data and
-	status information.  A read will fail if there is no operation
+	status information.  A read will fail if there is yes operation
 	in progress.
 
 	As a special case, the device can be reset with a write operation,
-	and in this case, no following read is expected, or permitted.
+	and in this case, yes following read is expected, or permitted.
 
-	There are no ioctl() operations.  Any single operation
+	There are yes ioctl() operations.  Any single operation
 	may transfer at most PG_MAX_DATA bytes.  Note that the driver must
 	copy the data through an internal buffer.  In keeping with all
 	current ATAPI devices, command packets are assumed to be exactly
@@ -60,17 +60,17 @@
 		<pro>   is the protocol number for the adapter that
 			supports this drive.  These numbers are
 			logged by 'paride' when the protocol modules
-			are initialised.  (0 if not given)
+			are initialised.  (0 if yest given)
 
 		<uni>   for those adapters that support chained
 			devices, this is the unit selector for the
 			chain of devices on the given port.  It should
 			be zero for devices that don't support chaining.
-			(0 if not given)
+			(0 if yest given)
 
 		<mod>   this can be -1 to choose the best mode, or one
 			of the mode numbers supported by the adapter.
-			(-1 if not given)
+			(-1 if yest given)
 
 		<slv>   ATAPI devices can be jumpered to master or slave.
 			Set this to 0 to choose the master drive, 1 to
@@ -195,8 +195,8 @@ module_param_array(drive3, int, NULL, 0);
 #define ATAPI_IDENTIFY		0x12
 
 static DEFINE_MUTEX(pg_mutex);
-static int pg_open(struct inode *inode, struct file *file);
-static int pg_release(struct inode *inode, struct file *file);
+static int pg_open(struct iyesde *iyesde, struct file *file);
+static int pg_release(struct iyesde *iyesde, struct file *file);
 static ssize_t pg_read(struct file *filp, char __user *buf,
 		       size_t count, loff_t * ppos);
 static ssize_t pg_write(struct file *filp, const char __user *buf,
@@ -237,7 +237,7 @@ static const struct file_operations pg_fops = {
 	.write = pg_write,
 	.open = pg_open,
 	.release = pg_release,
-	.llseek = noop_llseek,
+	.llseek = yesop_llseek,
 };
 
 static void pg_init_units(void)
@@ -523,9 +523,9 @@ static int pg_detect(void)
 	return -1;
 }
 
-static int pg_open(struct inode *inode, struct file *file)
+static int pg_open(struct iyesde *iyesde, struct file *file)
 {
-	int unit = iminor(inode) & 0x7f;
+	int unit = imiyesr(iyesde) & 0x7f;
 	struct pg *dev = &devices[unit];
 	int ret = 0;
 
@@ -562,7 +562,7 @@ out:
 	return ret;
 }
 
-static int pg_release(struct inode *inode, struct file *file)
+static int pg_release(struct iyesde *iyesde, struct file *file)
 {
 	struct pg *dev = file->private_data;
 

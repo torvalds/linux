@@ -12,7 +12,7 @@ struct xfs_buf;
 struct xfs_buftarg;
 struct xfs_efd_log_item;
 struct xfs_efi_log_item;
-struct xfs_inode;
+struct xfs_iyesde;
 struct xfs_item_ops;
 struct xfs_log_iovec;
 struct xfs_mount;
@@ -99,7 +99,7 @@ void	xfs_log_item_init(struct xfs_mount *mp, struct xfs_log_item *item,
 /*
  * Deferred operation item relogging limits.
  */
-#define XFS_DEFER_OPS_NR_INODES	2	/* join up to two inodes */
+#define XFS_DEFER_OPS_NR_INODES	2	/* join up to two iyesdes */
 #define XFS_DEFER_OPS_NR_BUFS	2	/* join up to two buffers */
 
 /*
@@ -178,11 +178,11 @@ static inline struct xfs_buf *
 xfs_trans_get_buf(
 	struct xfs_trans	*tp,
 	struct xfs_buftarg	*target,
-	xfs_daddr_t		blkno,
+	xfs_daddr_t		blkyes,
 	int			numblks,
 	uint			flags)
 {
-	DEFINE_SINGLE_BUF_MAP(map, blkno, numblks);
+	DEFINE_SINGLE_BUF_MAP(map, blkyes, numblks);
 	return xfs_trans_get_buf_map(tp, target, &map, 1, flags);
 }
 
@@ -199,13 +199,13 @@ xfs_trans_read_buf(
 	struct xfs_mount	*mp,
 	struct xfs_trans	*tp,
 	struct xfs_buftarg	*target,
-	xfs_daddr_t		blkno,
+	xfs_daddr_t		blkyes,
 	int			numblks,
 	xfs_buf_flags_t		flags,
 	struct xfs_buf		**bpp,
 	const struct xfs_buf_ops *ops)
 {
-	DEFINE_SINGLE_BUF_MAP(map, blkno, numblks);
+	DEFINE_SINGLE_BUF_MAP(map, blkyes, numblks);
 	return xfs_trans_read_buf_map(mp, tp, target, &map, 1,
 				      flags, bpp, ops);
 }
@@ -217,22 +217,22 @@ void		xfs_trans_bjoin(xfs_trans_t *, struct xfs_buf *);
 void		xfs_trans_bhold(xfs_trans_t *, struct xfs_buf *);
 void		xfs_trans_bhold_release(xfs_trans_t *, struct xfs_buf *);
 void		xfs_trans_binval(xfs_trans_t *, struct xfs_buf *);
-void		xfs_trans_inode_buf(xfs_trans_t *, struct xfs_buf *);
-void		xfs_trans_stale_inode_buf(xfs_trans_t *, struct xfs_buf *);
+void		xfs_trans_iyesde_buf(xfs_trans_t *, struct xfs_buf *);
+void		xfs_trans_stale_iyesde_buf(xfs_trans_t *, struct xfs_buf *);
 bool		xfs_trans_ordered_buf(xfs_trans_t *, struct xfs_buf *);
 void		xfs_trans_dquot_buf(xfs_trans_t *, struct xfs_buf *, uint);
-void		xfs_trans_inode_alloc_buf(xfs_trans_t *, struct xfs_buf *);
-void		xfs_trans_ichgtime(struct xfs_trans *, struct xfs_inode *, int);
-void		xfs_trans_ijoin(struct xfs_trans *, struct xfs_inode *, uint);
+void		xfs_trans_iyesde_alloc_buf(xfs_trans_t *, struct xfs_buf *);
+void		xfs_trans_ichgtime(struct xfs_trans *, struct xfs_iyesde *, int);
+void		xfs_trans_ijoin(struct xfs_trans *, struct xfs_iyesde *, uint);
 void		xfs_trans_log_buf(struct xfs_trans *, struct xfs_buf *, uint,
 				  uint);
 void		xfs_trans_dirty_buf(struct xfs_trans *, struct xfs_buf *);
 bool		xfs_trans_buf_is_dirty(struct xfs_buf *bp);
-void		xfs_trans_log_inode(xfs_trans_t *, struct xfs_inode *, uint);
+void		xfs_trans_log_iyesde(xfs_trans_t *, struct xfs_iyesde *, uint);
 
 int		xfs_trans_commit(struct xfs_trans *);
 int		xfs_trans_roll(struct xfs_trans **);
-int		xfs_trans_roll_inode(struct xfs_trans **, struct xfs_inode *);
+int		xfs_trans_roll_iyesde(struct xfs_trans **, struct xfs_iyesde *);
 void		xfs_trans_cancel(xfs_trans_t *);
 int		xfs_trans_ail_init(struct xfs_mount *);
 void		xfs_trans_ail_destroy(struct xfs_mount *);

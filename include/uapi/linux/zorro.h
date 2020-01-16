@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 /*
  *  linux/zorro.h -- Amiga AutoConfig (Zorro) Bus Definitions
  *
@@ -104,7 +104,7 @@ struct ConfigDev {
 	__be32		cd_BoardSize;	/* size of board in bytes */
 	__be16		cd_SlotAddr;	/* which slot number (PRIVATE) */
 	__be16		cd_SlotSize;	/* number of slots (PRIVATE) */
-	__be32		cd_Driver;	/* pointer to node of driver */
+	__be32		cd_Driver;	/* pointer to yesde of driver */
 	__be32		cd_NextCD;	/* linked list of drivers to config */
 	__be32		cd_Unused[4];	/* for whatever the driver wants */
 } __packed;

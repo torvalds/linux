@@ -208,7 +208,7 @@ void br_do_proxy_suppress_arp(struct sk_buff *skb, struct net_bridge *br,
 				replied = true;
 			}
 
-			/* If we have replied or as long as we know the
+			/* If we have replied or as long as we kyesw the
 			 * mac, indicate to arp replied
 			 */
 			if (replied ||
@@ -455,7 +455,7 @@ void br_do_suppress_nd(struct sk_buff *skb, struct net_bridge *br,
 				replied = true;
 			}
 
-			/* If we have replied or as long as we know the
+			/* If we have replied or as long as we kyesw the
 			 * mac, indicate to NEIGH_SUPPRESS ports that we
 			 * have replied
 			 */

@@ -11,7 +11,7 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/module.h>
 #include <linux/sched/signal.h>
 #include <linux/wait.h>
@@ -32,7 +32,7 @@
 
 #include "gbphy.h"
 
-#define GB_NUM_MINORS	16	/* 16 is more than enough */
+#define GB_NUM_MINORS	16	/* 16 is more than eyesugh */
 #define GB_NAME		"ttyGB"
 
 #define GB_UART_WRITE_FIFO_SIZE		PAGE_SIZE
@@ -55,7 +55,7 @@ struct gb_tty {
 	size_t buffer_payload_max;
 	struct gb_connection *connection;
 	u16 cport_id;
-	unsigned int minor;
+	unsigned int miyesr;
 	unsigned char clocal;
 	bool disconnected;
 	spinlock_t read_lock;
@@ -75,7 +75,7 @@ struct gb_tty {
 };
 
 static struct tty_driver *gb_tty_driver;
-static DEFINE_IDR(tty_minors);
+static DEFINE_IDR(tty_miyesrs);
 static DEFINE_MUTEX(table_lock);
 
 static int gb_uart_receive_data_handler(struct gb_operation *op)
@@ -118,7 +118,7 @@ static int gb_uart_receive_data_handler(struct gb_operation *op)
 		else if (receive_data->flags & GB_UART_RECV_FLAG_FRAMING)
 			tty_flags = TTY_FRAME;
 
-		/* overrun is special, not associated with a char */
+		/* overrun is special, yest associated with a char */
 		if (receive_data->flags & GB_UART_RECV_FLAG_OVERRUN)
 			tty_insert_flip_char(port, 0, TTY_OVERRUN);
 	}
@@ -348,12 +348,12 @@ static int gb_uart_flush(struct gb_tty *gb_tty, u8 flags)
 				 &request, sizeof(request), NULL, 0);
 }
 
-static struct gb_tty *get_gb_by_minor(unsigned int minor)
+static struct gb_tty *get_gb_by_miyesr(unsigned int miyesr)
 {
 	struct gb_tty *gb_tty;
 
 	mutex_lock(&table_lock);
-	gb_tty = idr_find(&tty_minors, minor);
+	gb_tty = idr_find(&tty_miyesrs, miyesr);
 	if (gb_tty) {
 		mutex_lock(&gb_tty->mutex);
 		if (gb_tty->disconnected) {
@@ -368,25 +368,25 @@ static struct gb_tty *get_gb_by_minor(unsigned int minor)
 	return gb_tty;
 }
 
-static int alloc_minor(struct gb_tty *gb_tty)
+static int alloc_miyesr(struct gb_tty *gb_tty)
 {
-	int minor;
+	int miyesr;
 
 	mutex_lock(&table_lock);
-	minor = idr_alloc(&tty_minors, gb_tty, 0, GB_NUM_MINORS, GFP_KERNEL);
+	miyesr = idr_alloc(&tty_miyesrs, gb_tty, 0, GB_NUM_MINORS, GFP_KERNEL);
 	mutex_unlock(&table_lock);
-	if (minor >= 0)
-		gb_tty->minor = minor;
-	return minor;
+	if (miyesr >= 0)
+		gb_tty->miyesr = miyesr;
+	return miyesr;
 }
 
-static void release_minor(struct gb_tty *gb_tty)
+static void release_miyesr(struct gb_tty *gb_tty)
 {
-	int minor = gb_tty->minor;
+	int miyesr = gb_tty->miyesr;
 
-	gb_tty->minor = 0;	/* Maybe should use an invalid value instead */
+	gb_tty->miyesr = 0;	/* Maybe should use an invalid value instead */
 	mutex_lock(&table_lock);
-	idr_remove(&tty_minors, minor);
+	idr_remove(&tty_miyesrs, miyesr);
 	mutex_unlock(&table_lock);
 }
 
@@ -395,7 +395,7 @@ static int gb_tty_install(struct tty_driver *driver, struct tty_struct *tty)
 	struct gb_tty *gb_tty;
 	int retval;
 
-	gb_tty = get_gb_by_minor(tty->index);
+	gb_tty = get_gb_by_miyesr(tty->index);
 	if (!gb_tty)
 		return -ENODEV;
 
@@ -622,7 +622,7 @@ static int get_serial_info(struct tty_struct *tty,
 	struct gb_tty *gb_tty = tty->driver_data;
 
 	ss->type = PORT_16550A;
-	ss->line = gb_tty->minor;
+	ss->line = gb_tty->miyesr;
 	ss->xmit_fifo_size = 16;
 	ss->baud_base = 9600;
 	ss->close_delay = gb_tty->port.close_delay / 10;
@@ -823,7 +823,7 @@ static int gb_uart_probe(struct gbphy_device *gbphy_dev,
 	struct gb_tty *gb_tty;
 	struct device *tty_dev;
 	int retval;
-	int minor;
+	int miyesr;
 
 	gb_tty = kzalloc(sizeof(*gb_tty), GFP_KERNEL);
 	if (!gb_tty)
@@ -862,19 +862,19 @@ static int gb_uart_probe(struct gbphy_device *gbphy_dev,
 	gb_tty->credits = GB_UART_FIRMWARE_CREDITS;
 	init_completion(&gb_tty->credits_complete);
 
-	minor = alloc_minor(gb_tty);
-	if (minor < 0) {
-		if (minor == -ENOSPC) {
+	miyesr = alloc_miyesr(gb_tty);
+	if (miyesr < 0) {
+		if (miyesr == -ENOSPC) {
 			dev_err(&gbphy_dev->dev,
-				"no more free minor numbers\n");
+				"yes more free miyesr numbers\n");
 			retval = -ENODEV;
 		} else {
-			retval = minor;
+			retval = miyesr;
 		}
 		goto exit_kfifo_free;
 	}
 
-	gb_tty->minor = minor;
+	gb_tty->miyesr = miyesr;
 	spin_lock_init(&gb_tty->write_lock);
 	spin_lock_init(&gb_tty->read_lock);
 	init_waitqueue_head(&gb_tty->wioctl);
@@ -890,7 +890,7 @@ static int gb_uart_probe(struct gbphy_device *gbphy_dev,
 
 	retval = gb_connection_enable_tx(connection);
 	if (retval)
-		goto exit_release_minor;
+		goto exit_release_miyesr;
 
 	send_control(gb_tty, gb_tty->ctrlout);
 
@@ -905,7 +905,7 @@ static int gb_uart_probe(struct gbphy_device *gbphy_dev,
 	if (retval)
 		goto exit_connection_disable;
 
-	tty_dev = tty_port_register_device(&gb_tty->port, gb_tty_driver, minor,
+	tty_dev = tty_port_register_device(&gb_tty->port, gb_tty_driver, miyesr,
 					   &gbphy_dev->dev);
 	if (IS_ERR(tty_dev)) {
 		retval = PTR_ERR(tty_dev);
@@ -917,8 +917,8 @@ static int gb_uart_probe(struct gbphy_device *gbphy_dev,
 
 exit_connection_disable:
 	gb_connection_disable(connection);
-exit_release_minor:
-	release_minor(gb_tty);
+exit_release_miyesr:
+	release_miyesr(gb_tty);
 exit_kfifo_free:
 	kfifo_free(&gb_tty->write_fifo);
 exit_buf_free:
@@ -940,7 +940,7 @@ static void gb_uart_remove(struct gbphy_device *gbphy_dev)
 
 	ret = gbphy_runtime_get_sync(gbphy_dev);
 	if (ret)
-		gbphy_runtime_get_noresume(gbphy_dev);
+		gbphy_runtime_get_yesresume(gbphy_dev);
 
 	mutex_lock(&gb_tty->mutex);
 	gb_tty->disconnected = true;
@@ -955,14 +955,14 @@ static void gb_uart_remove(struct gbphy_device *gbphy_dev)
 	}
 
 	gb_connection_disable_rx(connection);
-	tty_unregister_device(gb_tty_driver, gb_tty->minor);
+	tty_unregister_device(gb_tty_driver, gb_tty->miyesr);
 
 	/* FIXME - free transmit / receive buffers */
 
 	gb_connection_disable(connection);
 	tty_port_destroy(&gb_tty->port);
 	gb_connection_destroy(connection);
-	release_minor(gb_tty);
+	release_miyesr(gb_tty);
 	kfifo_free(&gb_tty->write_fifo);
 	kfree(gb_tty->buffer);
 	kfree(gb_tty);
@@ -974,7 +974,7 @@ static int gb_tty_init(void)
 
 	gb_tty_driver = tty_alloc_driver(GB_NUM_MINORS, 0);
 	if (IS_ERR(gb_tty_driver)) {
-		pr_err("Can not allocate tty driver\n");
+		pr_err("Can yest allocate tty driver\n");
 		retval = -ENOMEM;
 		goto fail_unregister_dev;
 	}
@@ -982,7 +982,7 @@ static int gb_tty_init(void)
 	gb_tty_driver->driver_name = "gb";
 	gb_tty_driver->name = GB_NAME;
 	gb_tty_driver->major = 0;
-	gb_tty_driver->minor_start = 0;
+	gb_tty_driver->miyesr_start = 0;
 	gb_tty_driver->type = TTY_DRIVER_TYPE_SERIAL;
 	gb_tty_driver->subtype = SERIAL_TYPE_NORMAL;
 	gb_tty_driver->flags = TTY_DRIVER_REAL_RAW | TTY_DRIVER_DYNAMIC_DEV;
@@ -993,7 +993,7 @@ static int gb_tty_init(void)
 
 	retval = tty_register_driver(gb_tty_driver);
 	if (retval) {
-		pr_err("Can not register tty driver: %d\n", retval);
+		pr_err("Can yest register tty driver: %d\n", retval);
 		goto fail_put_gb_tty;
 	}
 
@@ -1009,7 +1009,7 @@ static void gb_tty_exit(void)
 {
 	tty_unregister_driver(gb_tty_driver);
 	put_tty_driver(gb_tty_driver);
-	idr_destroy(&tty_minors);
+	idr_destroy(&tty_miyesrs);
 }
 
 static const struct gbphy_device_id gb_uart_id_table[] = {

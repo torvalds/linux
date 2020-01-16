@@ -3,7 +3,7 @@
 /plugin/;
 
 /*
- * &electric_1/motor-1 and &spin_ctrl_1 are the same node:
+ * &electric_1/motor-1 and &spin_ctrl_1 are the same yesde:
  *   /testcase-data-2/substation@100/motor-1
  *
  * Thus the property "rpm_avail" in each fragment will

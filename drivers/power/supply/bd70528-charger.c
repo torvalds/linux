@@ -7,7 +7,7 @@
 /*
  * BD70528 charger HW state machine.
  *
- * The thermal shutdown state is not drawn. From any other state but
+ * The thermal shutdown state is yest drawn. From any other state but
  * battery error and suspend it is possible to go to TSD/TMP states
  * if temperature is out of bounds.
  *
@@ -126,12 +126,12 @@ BD_ERR_IRQ_HND(HOT_DET, "Battery hot\n");
 BD_ERR_IRQ_HND(CHG_TSD, "Charger thermal shutdown\n");
 BD_ERR_IRQ_HND(DCIN2_OV_DET, "DCIN2 overvoltage detected\n");
 
-BD_INFO_IRQ_HND(BAT_OV_RES, "Battery voltage back to normal\n");
-BD_INFO_IRQ_HND(COLD_RES, "Battery temperature back to normal\n");
-BD_INFO_IRQ_HND(HOT_RES, "Battery temperature back to normal\n");
+BD_INFO_IRQ_HND(BAT_OV_RES, "Battery voltage back to yesrmal\n");
+BD_INFO_IRQ_HND(COLD_RES, "Battery temperature back to yesrmal\n");
+BD_INFO_IRQ_HND(HOT_RES, "Battery temperature back to yesrmal\n");
 BD_INFO_IRQ_HND(BAT_RMV, "Battery removed\n");
 BD_INFO_IRQ_HND(BAT_DET, "Battery detected\n");
-BD_INFO_IRQ_HND(DCIN2_OV_RES, "DCIN2 voltage back to normal\n");
+BD_INFO_IRQ_HND(DCIN2_OV_RES, "DCIN2 voltage back to yesrmal\n");
 BD_INFO_IRQ_HND(DCIN2_RMV, "DCIN2 removed\n");
 BD_INFO_IRQ_HND(DCIN2_DET, "DCIN2 detected\n");
 BD_INFO_IRQ_HND(DCIN1_RMV, "DCIN1 removed\n");
@@ -183,7 +183,7 @@ static int bd70528_get_irqs(struct platform_device *pdev,
 			return ret;
 	}
 	/*
-	 * BD70528 irq controller is not touching the main mask register.
+	 * BD70528 irq controller is yest touching the main mask register.
 	 * So enable the charger block interrupts at main level. We can just
 	 * leave them enabled as irq-controller should disable irqs
 	 * from sub-registers when IRQ is disabled or freed.
@@ -417,7 +417,7 @@ static int find_value_for_selector_low(const struct linear_range *r,
  * For BD70528 voltage/current limits we happily accept any value which
  * belongs the range. We could check if value matching the selector is
  * desired by computing the range min + (sel - sel_low) * range step - but
- * I guess it is enough if we use voltage/current which is closest (below)
+ * I guess it is eyesugh if we use voltage/current which is closest (below)
  * the requested?
  */
 static int find_selector_for_value_low(const struct linear_range *r,
@@ -468,7 +468,7 @@ static int get_charge_current(struct bd70528_psy *bdpsy, int *ma)
 					  ma);
 	if (ret) {
 		dev_err(bdpsy->dev,
-			"Unknown charge current value 0x%x\n",
+			"Unkyeswn charge current value 0x%x\n",
 			sel);
 	}
 
@@ -717,7 +717,7 @@ static int bd70528_power_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, bdpsy);
 	cfg.drv_data = bdpsy;
-	cfg.of_node = pdev->dev.parent->of_node;
+	cfg.of_yesde = pdev->dev.parent->of_yesde;
 
 	bdpsy->psy = devm_power_supply_register(&pdev->dev,
 						&bd70528_charger_desc, &cfg);

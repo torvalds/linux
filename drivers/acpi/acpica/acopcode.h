@@ -15,12 +15,12 @@
 #define MAX_INTERNAL_OPCODE
 #define NUM_INTERNAL_OPCODE         (MAX_INTERNAL_OPCODE + 1)
 
-/* Used for non-assigned opcodes */
+/* Used for yesn-assigned opcodes */
 
 #define _UNK                        0x6B
 
 /*
- * Reserved ASCII characters. Do not use any of these for
+ * Reserved ASCII characters. Do yest use any of these for
  * internal opcodes, since they are used to differentiate
  * name strings from AML opcodes
  */

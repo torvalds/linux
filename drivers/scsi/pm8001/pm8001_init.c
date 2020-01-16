@@ -8,14 +8,14 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions, and the following disclaimer,
+ *    yestice, this list of conditions, and the following disclaimer,
  *    without modification.
  * 2. Redistributions in binary form must reproduce at minimum a disclaimer
  *    substantially similar to the "NO WARRANTY" disclaimer below
  *    ("Disclaimer") and any redistribution must be conditioned upon
  *    including a substantially similar Disclaimer requirement for further
  *    binary redistribution.
- * 3. Neither the names of the above-listed copyright holders nor the names
+ * 3. Neither the names of the above-listed copyright holders yesr the names
  *    of any contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
@@ -59,7 +59,7 @@ static struct scsi_transport_template *pm8001_stt;
 
 /**
  * chip info structure to identify chip key functionality as
- * encryption available/not, no of ports, hw specific function ref
+ * encryption available/yest, yes of ports, hw specific function ref
  */
 static const struct pm8001_chip_info pm8001_chips[] = {
 	[chip_8001] = {0,  8, &pm8001_8001_dispatch,},
@@ -496,7 +496,7 @@ static struct pm8001_hba_info *pm8001_pci_alloc(struct pci_dev *pdev,
 		pm8001_ha->iomb_size = IOMB_SIZE_SPC;
 
 #ifdef PM8001_USE_TASKLET
-	/* Tasklet for non msi-x interrupt handler */
+	/* Tasklet for yesn msi-x interrupt handler */
 	if ((!pdev->msix_cap || !pci_msi_enabled())
 	    || (pm8001_ha->chip_id == chip_8001))
 		tasklet_init(&pm8001_ha->tasklet[0], pm8001_tasklet,
@@ -631,19 +631,19 @@ static void pm8001_init_sas_add(struct pm8001_hba_info *pm8001_ha)
 
 	if (pm8001_ha->chip_id == chip_8001) {
 		if (deviceid == 0x8081 || deviceid == 0x0042) {
-			payload.minor_function = 4;
+			payload.miyesr_function = 4;
 			payload.length = 4096;
 		} else {
-			payload.minor_function = 0;
+			payload.miyesr_function = 0;
 			payload.length = 128;
 		}
 	} else if ((pm8001_ha->chip_id == chip_8070 ||
 			pm8001_ha->chip_id == chip_8072) &&
 			pm8001_ha->pdev->subsystem_vendor == PCI_VENDOR_ID_ATTO) {
-		payload.minor_function = 4;
+		payload.miyesr_function = 4;
 		payload.length = 4096;
 	} else {
-		payload.minor_function = 1;
+		payload.miyesr_function = 1;
 		payload.length = 4096;
 	}
 	payload.offset = 0;
@@ -715,7 +715,7 @@ static int pm8001_get_phy_settings_info(struct pm8001_hba_info *pm8001_ha)
 
 	pm8001_ha->nvmd_completion = &completion;
 	/* SAS ADDRESS read from flash / EEPROM */
-	payload.minor_function = 6;
+	payload.miyesr_function = 6;
 	payload.offset = 0;
 	payload.length = 4096;
 	payload.func_specific = kzalloc(4096, GFP_KERNEL);
@@ -788,7 +788,7 @@ void pm8001_get_external_phy_settings(struct pm8001_hba_info *pm8001_ha,
 }
 
 /**
- * pm8001_get_phy_mask : Retrieves the mask that denotes if a PHY is int/ext
+ * pm8001_get_phy_mask : Retrieves the mask that deyestes if a PHY is int/ext
  * @pm8001_ha : our adapter
  * @phymask : The PHY mask
  */
@@ -820,7 +820,7 @@ void pm8001_get_phy_mask(struct pm8001_hba_info *pm8001_ha, int *phymask)
 
 	default:
 		PM8001_INIT_DBG(pm8001_ha,
-			pm8001_printk("Unknown subsystem device=0x%.04x",
+			pm8001_printk("Unkyeswn subsystem device=0x%.04x",
 				pm8001_ha->pdev->subsystem_device));
 	}
 }
@@ -910,7 +910,7 @@ static u32 pm8001_setup_msix(struct pm8001_hba_info *pm8001_ha)
 	pm8001_ha->number_of_intr = number_of_intr;
 
 	PM8001_INIT_DBG(pm8001_ha, pm8001_printk(
-		"pci_alloc_irq_vectors request ret:%d no of intr %d\n",
+		"pci_alloc_irq_vectors request ret:%d yes of intr %d\n",
 				rc, pm8001_ha->number_of_intr));
 
 	for (i = 0; i < number_of_intr; i++) {
@@ -954,7 +954,7 @@ static u32 pm8001_request_irq(struct pm8001_hba_info *pm8001_ha)
 		return pm8001_setup_msix(pm8001_ha);
 	else {
 		PM8001_INIT_DBG(pm8001_ha,
-			pm8001_printk("MSIX not supported!!!\n"));
+			pm8001_printk("MSIX yest supported!!!\n"));
 		goto intx;
 	}
 #endif
@@ -1111,7 +1111,7 @@ static void pm8001_pci_remove(struct pci_dev *pdev)
 	free_irq(pm8001_ha->irq, sha);
 #endif
 #ifdef PM8001_USE_TASKLET
-	/* For non-msix and msix interrupts */
+	/* For yesn-msix and msix interrupts */
 	if ((!pdev->msix_cap || !pci_msi_enabled()) ||
 	    (pm8001_ha->chip_id == chip_8001))
 		tasklet_kill(&pm8001_ha->tasklet[0]);
@@ -1146,7 +1146,7 @@ static int pm8001_pci_suspend(struct pci_dev *pdev, pm_message_t state)
 	flush_workqueue(pm8001_wq);
 	scsi_block_requests(pm8001_ha->shost);
 	if (!pdev->pm_cap) {
-		dev_err(&pdev->dev, " PCI PM not supported\n");
+		dev_err(&pdev->dev, " PCI PM yest supported\n");
 		return -ENODEV;
 	}
 	PM8001_CHIP_DISP->interrupt_disable(pm8001_ha, 0xFF);
@@ -1161,7 +1161,7 @@ static int pm8001_pci_suspend(struct pci_dev *pdev, pm_message_t state)
 	free_irq(pm8001_ha->irq, sha);
 #endif
 #ifdef PM8001_USE_TASKLET
-	/* For non-msix and msix interrupts */
+	/* For yesn-msix and msix interrupts */
 	if ((!pdev->msix_cap || !pci_msi_enabled()) ||
 	    (pm8001_ha->chip_id == chip_8001))
 		tasklet_kill(&pm8001_ha->tasklet[0]);
@@ -1231,7 +1231,7 @@ static int pm8001_pci_resume(struct pci_dev *pdev)
 	if (rc)
 		goto err_out_disable;
 #ifdef PM8001_USE_TASKLET
-	/*  Tasklet for non msi-x interrupt handler */
+	/*  Tasklet for yesn msi-x interrupt handler */
 	if ((!pdev->msix_cap || !pci_msi_enabled()) ||
 	    (pm8001_ha->chip_id == chip_8001))
 		tasklet_init(&pm8001_ha->tasklet[0], pm8001_tasklet,

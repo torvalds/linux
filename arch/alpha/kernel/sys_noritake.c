@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- *	linux/arch/alpha/kernel/sys_noritake.c
+ *	linux/arch/alpha/kernel/sys_yesritake.c
  *
  *	Copyright (C) 1995 David A Rusling
  *	Copyright (C) 1996 Jay A Estabrook
@@ -38,7 +38,7 @@
 static int cached_irq_mask;
 
 static inline void
-noritake_update_irq_hw(int irq, int mask)
+yesritake_update_irq_hw(int irq, int mask)
 {
 	int port = 0x54a;
 	if (irq >= 32) {
@@ -49,26 +49,26 @@ noritake_update_irq_hw(int irq, int mask)
 }
 
 static void
-noritake_enable_irq(struct irq_data *d)
+yesritake_enable_irq(struct irq_data *d)
 {
-	noritake_update_irq_hw(d->irq, cached_irq_mask |= 1 << (d->irq - 16));
+	yesritake_update_irq_hw(d->irq, cached_irq_mask |= 1 << (d->irq - 16));
 }
 
 static void
-noritake_disable_irq(struct irq_data *d)
+yesritake_disable_irq(struct irq_data *d)
 {
-	noritake_update_irq_hw(d->irq, cached_irq_mask &= ~(1 << (d->irq - 16)));
+	yesritake_update_irq_hw(d->irq, cached_irq_mask &= ~(1 << (d->irq - 16)));
 }
 
-static struct irq_chip noritake_irq_type = {
+static struct irq_chip yesritake_irq_type = {
 	.name		= "NORITAKE",
-	.irq_unmask	= noritake_enable_irq,
-	.irq_mask	= noritake_disable_irq,
-	.irq_mask_ack	= noritake_disable_irq,
+	.irq_unmask	= yesritake_enable_irq,
+	.irq_mask	= yesritake_disable_irq,
+	.irq_mask_ack	= yesritake_disable_irq,
 };
 
 static void 
-noritake_device_interrupt(unsigned long vector)
+yesritake_device_interrupt(unsigned long vector)
 {
 	unsigned long pld;
 	unsigned int i;
@@ -95,7 +95,7 @@ noritake_device_interrupt(unsigned long vector)
 }
 
 static void 
-noritake_srm_device_interrupt(unsigned long vector)
+yesritake_srm_device_interrupt(unsigned long vector)
 {
 	int irq;
 
@@ -106,8 +106,8 @@ noritake_srm_device_interrupt(unsigned long vector)
 	 * reports PCI vectors *lower* than I expected from the bit numbers
 	 * in the documentation.
 	 * But I really don't want to change the fixup code for allocation
-	 * of IRQs, nor the alpha_irq_mask maintenance stuff, both of which
-	 * look nice and clean now.
+	 * of IRQs, yesr the alpha_irq_mask maintenance stuff, both of which
+	 * look nice and clean yesw.
 	 * So, here's this additional grotty hack... :-(
 	 */
 	if (irq >= 16)
@@ -117,18 +117,18 @@ noritake_srm_device_interrupt(unsigned long vector)
 }
 
 static void __init
-noritake_init_irq(void)
+yesritake_init_irq(void)
 {
 	long i;
 
 	if (alpha_using_srm)
-		alpha_mv.device_interrupt = noritake_srm_device_interrupt;
+		alpha_mv.device_interrupt = yesritake_srm_device_interrupt;
 
 	outw(0, 0x54a);
 	outw(0, 0x54c);
 
 	for (i = 16; i < 48; ++i) {
-		irq_set_chip_and_handler(i, &noritake_irq_type,
+		irq_set_chip_and_handler(i, &yesritake_irq_type,
 					 handle_level_irq);
 		irq_set_status_flags(i, IRQ_LEVEL);
 	}
@@ -195,11 +195,11 @@ noritake_init_irq(void)
  */
 
 static int
-noritake_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
+yesritake_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 {
 	static char irq_tab[15][5] = {
 		/*INT    INTA   INTB   INTC   INTD */
-		/* note: IDSELs 16, 17, and 25 are CORELLE only */
+		/* yeste: IDSELs 16, 17, and 25 are CORELLE only */
 		{ 16+1,  16+1,  16+1,  16+1,  16+1},  /* IdSel 16,  QLOGIC */
 		{   -1,    -1,    -1,    -1,    -1},  /* IdSel 17, S3 Trio64 */
 		{   -1,    -1,    -1,    -1,    -1},  /* IdSel 18,  PCEB */
@@ -223,7 +223,7 @@ noritake_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 }
 
 static u8
-noritake_swizzle(struct pci_dev *dev, u8 *pinp)
+yesritake_swizzle(struct pci_dev *dev, u8 *pinp)
 {
 	int slot, pin = *pinp;
 
@@ -256,7 +256,7 @@ noritake_swizzle(struct pci_dev *dev, u8 *pinp)
 
 #if defined(CONFIG_ALPHA_GENERIC) || !defined(CONFIG_ALPHA_PRIMO)
 static void
-noritake_apecs_machine_check(unsigned long vector, unsigned long la_ptr)
+yesritake_apecs_machine_check(unsigned long vector, unsigned long la_ptr)
 {
 #define MCHK_NO_DEVSEL 0x205U
 #define MCHK_NO_TABT 0x204U
@@ -288,31 +288,31 @@ noritake_apecs_machine_check(unsigned long vector, unsigned long la_ptr)
  */
 
 #if defined(CONFIG_ALPHA_GENERIC) || !defined(CONFIG_ALPHA_PRIMO)
-struct alpha_machine_vector noritake_mv __initmv = {
+struct alpha_machine_vector yesritake_mv __initmv = {
 	.vector_name		= "Noritake",
 	DO_EV4_MMU,
 	DO_DEFAULT_RTC,
 	DO_APECS_IO,
-	.machine_check		= noritake_apecs_machine_check,
+	.machine_check		= yesritake_apecs_machine_check,
 	.max_isa_dma_address	= ALPHA_MAX_ISA_DMA_ADDRESS,
 	.min_io_address		= EISA_DEFAULT_IO_BASE,
 	.min_mem_address	= APECS_AND_LCA_DEFAULT_MEM_BASE,
 
 	.nr_irqs		= 48,
-	.device_interrupt	= noritake_device_interrupt,
+	.device_interrupt	= yesritake_device_interrupt,
 
 	.init_arch		= apecs_init_arch,
-	.init_irq		= noritake_init_irq,
+	.init_irq		= yesritake_init_irq,
 	.init_rtc		= common_init_rtc,
 	.init_pci		= common_init_pci,
-	.pci_map_irq		= noritake_map_irq,
-	.pci_swizzle		= noritake_swizzle,
+	.pci_map_irq		= yesritake_map_irq,
+	.pci_swizzle		= yesritake_swizzle,
 };
-ALIAS_MV(noritake)
+ALIAS_MV(yesritake)
 #endif
 
 #if defined(CONFIG_ALPHA_GENERIC) || defined(CONFIG_ALPHA_PRIMO)
-struct alpha_machine_vector noritake_primo_mv __initmv = {
+struct alpha_machine_vector yesritake_primo_mv __initmv = {
 	.vector_name		= "Noritake-Primo",
 	DO_EV5_MMU,
 	DO_DEFAULT_RTC,
@@ -323,15 +323,15 @@ struct alpha_machine_vector noritake_primo_mv __initmv = {
 	.min_mem_address	= CIA_DEFAULT_MEM_BASE,
 
 	.nr_irqs		= 48,
-	.device_interrupt	= noritake_device_interrupt,
+	.device_interrupt	= yesritake_device_interrupt,
 
 	.init_arch		= cia_init_arch,
-	.init_irq		= noritake_init_irq,
+	.init_irq		= yesritake_init_irq,
 	.init_rtc		= common_init_rtc,
 	.init_pci		= cia_init_pci,
 	.kill_arch		= cia_kill_arch,
-	.pci_map_irq		= noritake_map_irq,
-	.pci_swizzle		= noritake_swizzle,
+	.pci_map_irq		= yesritake_map_irq,
+	.pci_swizzle		= yesritake_swizzle,
 };
-ALIAS_MV(noritake_primo)
+ALIAS_MV(yesritake_primo)
 #endif

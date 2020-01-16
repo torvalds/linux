@@ -1,8 +1,8 @@
 Qualcomm APQ8064 SATA PHY Controller
 ------------------------------------
 
-SATA PHY nodes are defined to describe on-chip SATA Physical layer controllers.
-Each SATA PHY controller should have its own node.
+SATA PHY yesdes are defined to describe on-chip SATA Physical layer controllers.
+Each SATA PHY controller should have its own yesde.
 
 Required properties:
 - compatible: compatible list, contains "qcom,apq8064-sata-phy".

@@ -9,7 +9,7 @@ providers/consumers properties.
 
 The interconnect provider binding is intended to represent the interconnect
 controllers in the system. Each provider registers a set of interconnect
-nodes, which expose the interconnect related capabilities of the interconnect
+yesdes, which expose the interconnect related capabilities of the interconnect
 to consumer drivers. These capabilities can be throughput, latency, priority
 etc. The consumer drivers set constraints on interconnect path (or endpoints)
 depending on the use case. Interconnect providers can also be interconnect
@@ -19,12 +19,12 @@ directly.
 Required properties:
 - compatible : contains the interconnect provider compatible string
 - #interconnect-cells : number of cells in a interconnect specifier needed to
-			encode the interconnect node id
+			encode the interconnect yesde id
 
 Example:
 
-		snoc: interconnect@580000 {
-			compatible = "qcom,msm8916-snoc";
+		syesc: interconnect@580000 {
+			compatible = "qcom,msm8916-syesc";
 			#interconnect-cells = <1>;
 			reg = <0x580000 0x14000>;
 			clock-names = "bus_clk", "bus_a_clk";
@@ -35,14 +35,14 @@ Example:
 
 = interconnect consumers =
 
-The interconnect consumers are device nodes which dynamically express their
+The interconnect consumers are device yesdes which dynamically express their
 bandwidth requirements along interconnect paths they are connected to. There
 can be multiple interconnect providers on a SoC and the consumer may consume
 multiple paths from different providers depending on use case and the
 components it has to interact with.
 
 Required properties:
-interconnects : Pairs of phandles and interconnect provider specifier to denote
+interconnects : Pairs of phandles and interconnect provider specifier to deyeste
 	        the edge source and destination ports of the interconnect path.
 
 Optional properties:
@@ -59,6 +59,6 @@ Example:
 
 	sdhci@7864000 {
 		...
-		interconnects = <&pnoc MASTER_SDCC_1 &bimc SLAVE_EBI_CH0>;
+		interconnects = <&pyesc MASTER_SDCC_1 &bimc SLAVE_EBI_CH0>;
 		interconnect-names = "sdhc-mem";
 	};

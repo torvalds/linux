@@ -54,7 +54,7 @@ static void wfx_tx_policy_build(struct wfx_vif *wvif, struct tx_policy *policy,
 	count = i;
 
 	/* HACK!!! Device has problems (at least) switching from
-	 * 54Mbps CTS to 1Mbps. This switch takes enormous amount
+	 * 54Mbps CTS to 1Mbps. This switch takes eyesrmous amount
 	 * of time (100-200 ms), leading to valuable throughput drop.
 	 * As a workaround, additional g-rates are injected to the
 	 * policy.
@@ -179,7 +179,7 @@ static int wfx_tx_policy_get(struct wfx_vif *wvif,
 	} else {
 		struct tx_policy *entry;
 		*renew = true;
-		/* If policy is not found create a new one
+		/* If policy is yest found create a new one
 		 * using the oldest entry in "free" list
 		 */
 		entry = list_entry(cache->free.prev, struct tx_policy, link);
@@ -283,7 +283,7 @@ static int wfx_alloc_link_id(struct wfx_vif *wvif, const u8 *mac)
 {
 	int i, ret = 0;
 	unsigned long max_inactivity = 0;
-	unsigned long now = jiffies;
+	unsigned long yesw = jiffies;
 
 	spin_lock_bh(&wvif->ps_state_lock);
 	for (i = 0; i < WFX_MAX_STA_IN_AP_MODE; ++i) {
@@ -293,7 +293,7 @@ static int wfx_alloc_link_id(struct wfx_vif *wvif, const u8 *mac)
 		} else if (wvif->link_id_db[i].status != WFX_LINK_HARD &&
 			   !wvif->wdev->tx_queue_stats.link_map_cache[i + 1]) {
 			unsigned long inactivity =
-				now - wvif->link_id_db[i].timestamp;
+				yesw - wvif->link_id_db[i].timestamp;
 
 			if (inactivity < max_inactivity)
 				continue;
@@ -314,7 +314,7 @@ static int wfx_alloc_link_id(struct wfx_vif *wvif, const u8 *mac)
 		if (!schedule_work(&wvif->link_id_work))
 			wfx_tx_unlock(wvif->wdev);
 	} else {
-		dev_info(wvif->wdev->dev, "no more link-id available\n");
+		dev_info(wvif->wdev->dev, "yes more link-id available\n");
 	}
 	spin_unlock_bh(&wvif->ps_state_lock);
 	return ret;
@@ -367,7 +367,7 @@ void wfx_link_id_gc_work(struct work_struct *work)
 {
 	struct wfx_vif *wvif =
 		container_of(work, struct wfx_vif, link_id_gc_work.work);
-	unsigned long now = jiffies;
+	unsigned long yesw = jiffies;
 	unsigned long next_gc = -1;
 	long ttl;
 	u32 mask;
@@ -401,7 +401,7 @@ void wfx_link_id_gc_work(struct work_struct *work)
 			next_gc = min(next_gc, WFX_LINK_ID_GC_TIMEOUT);
 			spin_lock_bh(&wvif->ps_state_lock);
 		} else if (wvif->link_id_db[i].status == WFX_LINK_SOFT) {
-			ttl = wvif->link_id_db[i].timestamp - now +
+			ttl = wvif->link_id_db[i].timestamp - yesw +
 					WFX_LINK_ID_GC_TIMEOUT;
 			if (ttl <= 0) {
 				need_reset = true;
@@ -497,7 +497,7 @@ static u8 wfx_tx_get_raw_link_id(struct wfx_vif *wvif,
 	if (!ret)
 		ret = wfx_alloc_link_id(wvif, da);
 	if (!ret) {
-		dev_err(wvif->wdev->dev, "no more link-id available\n");
+		dev_err(wvif->wdev->dev, "yes more link-id available\n");
 		return WFX_LINK_ID_NO_ASSOC;
 	}
 	return ret;
@@ -508,7 +508,7 @@ static void wfx_tx_fixup_rates(struct ieee80211_tx_rate *rates)
 	int i;
 	bool finished;
 
-	// Firmware is not able to mix rates with differents flags
+	// Firmware is yest able to mix rates with differents flags
 	for (i = 0; i < IEEE80211_TX_MAX_RATES; i++) {
 		if (rates[0].flags & IEEE80211_TX_RC_SHORT_GI)
 			rates[i].flags |= IEEE80211_TX_RC_SHORT_GI;
@@ -566,7 +566,7 @@ static u8 wfx_tx_get_rate_id(struct wfx_vif *wvif,
 		dev_warn(wvif->wdev->dev, "unable to get a valid Tx policy");
 
 	if (tx_policy_renew) {
-		/* FIXME: It's not so optimal to stop TX queues every now and
+		/* FIXME: It's yest so optimal to stop TX queues every yesw and
 		 * then.  Better to reimplement task scheduling with a counter.
 		 */
 		wfx_tx_lock(wvif->wdev);
@@ -635,7 +635,7 @@ static int wfx_tx_inner(struct wfx_vif *wvif, struct ieee80211_sta *sta,
 	WARN(queue_id >= IEEE80211_NUM_ACS, "unsupported queue_id");
 	wfx_tx_fixup_rates(tx_info->driver_rates);
 
-	// From now tx_info->control is unusable
+	// From yesw tx_info->control is unusable
 	memset(tx_info->rate_driver_data, 0, sizeof(struct wfx_tx_priv));
 	// Fill tx_priv
 	tx_priv = (struct wfx_tx_priv *)tx_info->rate_driver_data;
@@ -650,7 +650,7 @@ static int wfx_tx_inner(struct wfx_vif *wvif, struct ieee80211_sta *sta,
 		tx_priv->link_id = WFX_LINK_ID_UAPSD;
 
 	// Fill hif_msg
-	WARN(skb_headroom(skb) < wmsg_len, "not enough space in skb");
+	WARN(skb_headroom(skb) < wmsg_len, "yest eyesugh space in skb");
 	WARN(offset & 1, "attempt to transmit an unaligned frame");
 	skb_put(skb, wfx_tx_get_icv_len(tx_priv->hw_key));
 	skb_push(skb, wmsg_len);
@@ -731,7 +731,7 @@ void wfx_tx_confirm_cb(struct wfx_vif *wvif, struct hif_cnf_tx *arg)
 	skb = wfx_pending_get(wvif->wdev, arg->packet_id);
 	if (!skb) {
 		dev_warn(wvif->wdev->dev,
-			 "received unknown packet_id (%#.8x) from chip\n",
+			 "received unkyeswn packet_id (%#.8x) from chip\n",
 			 arg->packet_id);
 		return;
 	}
@@ -751,7 +751,7 @@ void wfx_tx_confirm_cb(struct wfx_vif *wvif, struct hif_cnf_tx *arg)
 		if (tx_count < rate->count &&
 		    arg->status == HIF_STATUS_RETRY_EXCEEDED &&
 		    arg->ack_failures)
-			dev_dbg(wvif->wdev->dev, "all retries were not consumed: %d != %d\n",
+			dev_dbg(wvif->wdev->dev, "all retries were yest consumed: %d != %d\n",
 				rate->count, tx_count);
 		if (tx_count <= rate->count && tx_count &&
 		    arg->txed_rate != wfx_get_hw_rate(wvif->wdev, rate))
@@ -774,7 +774,7 @@ void wfx_tx_confirm_cb(struct wfx_vif *wvif, struct hif_cnf_tx *arg)
 			"%d more retries than expected\n", tx_count);
 	skb_trim(skb, skb->len - wfx_tx_get_icv_len(tx_priv->hw_key));
 
-	// From now, you can touch to tx_info->status, but do not touch to
+	// From yesw, you can touch to tx_info->status, but do yest touch to
 	// tx_priv anymore
 	// FIXME: use ieee80211_tx_info_clear_status()
 	memset(tx_info->rate_driver_data, 0, sizeof(tx_info->rate_driver_data));
@@ -808,7 +808,7 @@ void wfx_tx_confirm_cb(struct wfx_vif *wvif, struct hif_cnf_tx *arg)
 	wfx_pending_remove(wvif->wdev, skb);
 }
 
-static void wfx_notify_buffered_tx(struct wfx_vif *wvif, struct sk_buff *skb,
+static void wfx_yestify_buffered_tx(struct wfx_vif *wvif, struct sk_buff *skb,
 				   struct hif_req_tx *req)
 {
 	struct ieee80211_sta *sta;
@@ -821,7 +821,7 @@ static void wfx_notify_buffered_tx(struct wfx_vif *wvif, struct sk_buff *skb,
 		buffered = wvif->link_id_db[raw_link_id - 1].buffered;
 
 		spin_lock_bh(&wvif->ps_state_lock);
-		WARN(!buffered[tid], "inconsistent notification");
+		WARN(!buffered[tid], "inconsistent yestification");
 		buffered[tid]--;
 		spin_unlock_bh(&wvif->ps_state_lock);
 
@@ -846,7 +846,7 @@ void wfx_skb_dtor(struct wfx_dev *wdev, struct sk_buff *skb)
 
 	WARN_ON(!wvif);
 	skb_pull(skb, offset);
-	wfx_notify_buffered_tx(wvif, skb, req);
+	wfx_yestify_buffered_tx(wvif, skb, req);
 	wfx_tx_policy_put(wvif, req->tx_flags.retry_policy_index);
 	ieee80211_tx_status_irqsafe(wdev->hw, skb);
 }

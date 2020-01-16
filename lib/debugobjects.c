@@ -115,15 +115,15 @@ static int __init disable_object_debug(char *str)
 }
 
 early_param("debug_objects", enable_object_debug);
-early_param("no_debug_objects", disable_object_debug);
+early_param("yes_debug_objects", disable_object_debug);
 
 static const char *obj_states[ODEBUG_STATE_MAX] = {
-	[ODEBUG_STATE_NONE]		= "none",
+	[ODEBUG_STATE_NONE]		= "yesne",
 	[ODEBUG_STATE_INIT]		= "initialized",
 	[ODEBUG_STATE_INACTIVE]		= "inactive",
 	[ODEBUG_STATE_ACTIVE]		= "active",
 	[ODEBUG_STATE_DESTROYED]	= "destroyed",
-	[ODEBUG_STATE_NOTAVAILABLE]	= "not available",
+	[ODEBUG_STATE_NOTAVAILABLE]	= "yest available",
 };
 
 static void fill_pool(void)
@@ -146,10 +146,10 @@ static void fill_pool(void)
 		 * won the race and freed the global free list already.
 		 */
 		while (obj_nr_tofree && (obj_pool_free < obj_pool_min_free)) {
-			obj = hlist_entry(obj_to_free.first, typeof(*obj), node);
-			hlist_del(&obj->node);
+			obj = hlist_entry(obj_to_free.first, typeof(*obj), yesde);
+			hlist_del(&obj->yesde);
 			obj_nr_tofree--;
-			hlist_add_head(&obj->node, &obj_pool);
+			hlist_add_head(&obj->yesde, &obj_pool);
 			obj_pool_free++;
 		}
 		raw_spin_unlock_irqrestore(&pool_lock, flags);
@@ -172,7 +172,7 @@ static void fill_pool(void)
 
 		raw_spin_lock_irqsave(&pool_lock, flags);
 		while (cnt) {
-			hlist_add_head(&new[--cnt]->node, &obj_pool);
+			hlist_add_head(&new[--cnt]->yesde, &obj_pool);
 			debug_objects_allocated++;
 			obj_pool_free++;
 		}
@@ -188,7 +188,7 @@ static struct debug_obj *lookup_object(void *addr, struct debug_bucket *b)
 	struct debug_obj *obj;
 	int cnt = 0;
 
-	hlist_for_each_entry(obj, &b->list, node) {
+	hlist_for_each_entry(obj, &b->list, yesde) {
 		cnt++;
 		if (obj->object == addr)
 			return obj;
@@ -207,8 +207,8 @@ static struct debug_obj *__alloc_object(struct hlist_head *list)
 	struct debug_obj *obj = NULL;
 
 	if (list->first) {
-		obj = hlist_entry(list->first, typeof(*obj), node);
-		hlist_del(&obj->node);
+		obj = hlist_entry(list->first, typeof(*obj), yesde);
+		hlist_del(&obj->yesde);
 	}
 
 	return obj;
@@ -251,7 +251,7 @@ alloc_object(void *addr, struct debug_bucket *b, struct debug_obj_descr *descr)
 				obj2 = __alloc_object(&obj_pool);
 				if (!obj2)
 					break;
-				hlist_add_head(&obj2->node,
+				hlist_add_head(&obj2->yesde,
 					       &percpu_pool->free_objs);
 				percpu_pool->obj_free++;
 				obj_pool_used++;
@@ -273,7 +273,7 @@ init_obj:
 		obj->descr  = descr;
 		obj->state  = ODEBUG_STATE_NONE;
 		obj->astate = 0;
-		hlist_add_head(&obj->node, &b->list);
+		hlist_add_head(&obj->yesde, &b->list);
 	}
 	return obj;
 }
@@ -286,7 +286,7 @@ init_obj:
  */
 static void free_obj_work(struct work_struct *work)
 {
-	struct hlist_node *tmp;
+	struct hlist_yesde *tmp;
 	struct debug_obj *obj;
 	unsigned long flags;
 	HLIST_HEAD(tofree);
@@ -300,15 +300,15 @@ static void free_obj_work(struct work_struct *work)
 
 	/*
 	 * The objs on the pool list might be allocated before the work is
-	 * run, so recheck if pool list it full or not, if not fill pool
+	 * run, so recheck if pool list it full or yest, if yest fill pool
 	 * list from the global free list. As it is likely that a workload
 	 * may be gearing up to use more and more objects, don't free any
 	 * of them until the next round.
 	 */
 	while (obj_nr_tofree && obj_pool_free < debug_objects_pool_size) {
-		obj = hlist_entry(obj_to_free.first, typeof(*obj), node);
-		hlist_del(&obj->node);
-		hlist_add_head(&obj->node, &obj_pool);
+		obj = hlist_entry(obj_to_free.first, typeof(*obj), yesde);
+		hlist_del(&obj->yesde);
+		hlist_add_head(&obj->yesde, &obj_pool);
 		obj_pool_free++;
 		obj_nr_tofree--;
 	}
@@ -328,8 +328,8 @@ free_objs:
 	}
 	raw_spin_unlock_irqrestore(&pool_lock, flags);
 
-	hlist_for_each_entry_safe(obj, tmp, &tofree, node) {
-		hlist_del(&obj->node);
+	hlist_for_each_entry_safe(obj, tmp, &tofree, yesde) {
+		hlist_del(&obj->yesde);
 		kmem_cache_free(obj_cache, obj);
 	}
 }
@@ -351,7 +351,7 @@ static void __free_object(struct debug_obj *obj)
 	 */
 	percpu_pool = this_cpu_ptr(&percpu_obj_pool);
 	if (percpu_pool->obj_free < ODEBUG_POOL_PERCPU_SIZE) {
-		hlist_add_head(&obj->node, &percpu_pool->free_objs);
+		hlist_add_head(&obj->yesde, &percpu_pool->free_objs);
 		percpu_pool->obj_free++;
 		local_irq_restore(flags);
 		return;
@@ -376,12 +376,12 @@ free_to_obj_pool:
 
 	if (work) {
 		obj_nr_tofree++;
-		hlist_add_head(&obj->node, &obj_to_free);
+		hlist_add_head(&obj->yesde, &obj_to_free);
 		if (lookahead_count) {
 			obj_nr_tofree += lookahead_count;
 			obj_pool_used -= lookahead_count;
 			while (lookahead_count) {
-				hlist_add_head(&objs[--lookahead_count]->node,
+				hlist_add_head(&objs[--lookahead_count]->yesde,
 					       &obj_to_free);
 			}
 		}
@@ -395,19 +395,19 @@ free_to_obj_pool:
 			 */
 			for (i = 0; i < ODEBUG_BATCH_SIZE; i++) {
 				obj = __alloc_object(&obj_pool);
-				hlist_add_head(&obj->node, &obj_to_free);
+				hlist_add_head(&obj->yesde, &obj_to_free);
 				obj_pool_free--;
 				obj_nr_tofree++;
 			}
 		}
 	} else {
 		obj_pool_free++;
-		hlist_add_head(&obj->node, &obj_pool);
+		hlist_add_head(&obj->yesde, &obj_pool);
 		if (lookahead_count) {
 			obj_pool_free += lookahead_count;
 			obj_pool_used -= lookahead_count;
 			while (lookahead_count) {
-				hlist_add_head(&objs[--lookahead_count]->node,
+				hlist_add_head(&objs[--lookahead_count]->yesde,
 					       &obj_pool);
 			}
 		}
@@ -436,7 +436,7 @@ static void free_object(struct debug_obj *obj)
 static void debug_objects_oom(void)
 {
 	struct debug_bucket *db = obj_hash;
-	struct hlist_node *tmp;
+	struct hlist_yesde *tmp;
 	HLIST_HEAD(freelist);
 	struct debug_obj *obj;
 	unsigned long flags;
@@ -450,8 +450,8 @@ static void debug_objects_oom(void)
 		raw_spin_unlock_irqrestore(&db->lock, flags);
 
 		/* Now free them */
-		hlist_for_each_entry_safe(obj, tmp, &freelist, node) {
-			hlist_del(&obj->node);
+		hlist_for_each_entry_safe(obj, tmp, &freelist, yesde) {
+			hlist_del(&obj->yesde);
 			free_object(obj);
 		}
 	}
@@ -515,10 +515,10 @@ static void debug_object_is_on_stack(void *addr, int onstack)
 
 	limit++;
 	if (is_on_stack)
-		pr_warn("object %p is on stack %p, but NOT annotated.\n", addr,
+		pr_warn("object %p is on stack %p, but NOT anyestated.\n", addr,
 			 task_stack_page(current));
 	else
-		pr_warn("object %p is NOT on stack %p, but annotated.\n", addr,
+		pr_warn("object %p is NOT on stack %p, but anyestated.\n", addr,
 			 task_stack_page(current));
 
 	WARN_ON(1);
@@ -668,9 +668,9 @@ int debug_object_activate(void *addr, struct debug_obj_descr *descr)
 	/*
 	 * We are here when a static object is activated. We
 	 * let the type specific code confirm whether this is
-	 * true or not. if true, we just make sure that the
+	 * true or yest. if true, we just make sure that the
 	 * static object is tracked in the object tracker. If
-	 * not, this must be a bug, so we try to fix it up.
+	 * yest, this must be a bug, so we try to fix it up.
 	 */
 	if (descr->is_static_object && descr->is_static_object(addr)) {
 		/* track this static object */
@@ -819,7 +819,7 @@ void debug_object_free(void *addr, struct debug_obj_descr *descr)
 		debug_object_fixup(descr->fixup_free, addr, state);
 		return;
 	default:
-		hlist_del(&obj->node);
+		hlist_del(&obj->yesde);
 		raw_spin_unlock_irqrestore(&db->lock, flags);
 		free_object(obj);
 		return;
@@ -927,13 +927,13 @@ debug_object_active_state(void *addr, struct debug_obj_descr *descr,
 EXPORT_SYMBOL_GPL(debug_object_active_state);
 
 #ifdef CONFIG_DEBUG_OBJECTS_FREE
-static void __debug_check_no_obj_freed(const void *address, unsigned long size)
+static void __debug_check_yes_obj_freed(const void *address, unsigned long size)
 {
 	unsigned long flags, oaddr, saddr, eaddr, paddr, chunks;
 	struct debug_obj_descr *descr;
 	enum debug_obj_state state;
 	struct debug_bucket *db;
-	struct hlist_node *tmp;
+	struct hlist_yesde *tmp;
 	struct debug_obj *obj;
 	int cnt, objs_checked = 0;
 
@@ -949,7 +949,7 @@ static void __debug_check_no_obj_freed(const void *address, unsigned long size)
 repeat:
 		cnt = 0;
 		raw_spin_lock_irqsave(&db->lock, flags);
-		hlist_for_each_entry_safe(obj, tmp, &db->list, node) {
+		hlist_for_each_entry_safe(obj, tmp, &db->list, yesde) {
 			cnt++;
 			oaddr = (unsigned long) obj->object;
 			if (oaddr < saddr || oaddr >= eaddr)
@@ -965,7 +965,7 @@ repeat:
 						   (void *) oaddr, state);
 				goto repeat;
 			default:
-				hlist_del(&obj->node);
+				hlist_del(&obj->yesde);
 				__free_object(obj);
 				break;
 			}
@@ -988,10 +988,10 @@ repeat:
 	}
 }
 
-void debug_check_no_obj_freed(const void *address, unsigned long size)
+void debug_check_yes_obj_freed(const void *address, unsigned long size)
 {
 	if (debug_objects_enabled)
-		__debug_check_no_obj_freed(address, size);
+		__debug_check_yes_obj_freed(address, size);
 }
 #endif
 
@@ -1019,7 +1019,7 @@ static int debug_stats_show(struct seq_file *m, void *v)
 	return 0;
 }
 
-static int debug_stats_open(struct inode *inode, struct file *filp)
+static int debug_stats_open(struct iyesde *iyesde, struct file *filp)
 {
 	return single_open(filp, debug_stats_show, NULL);
 }
@@ -1089,7 +1089,7 @@ static bool __init fixup_init(void *addr, enum debug_obj_state state)
 /*
  * fixup_activate is called when:
  * - an active object is activated
- * - an unknown non-static object is activated
+ * - an unkyeswn yesn-static object is activated
  */
 static bool __init fixup_activate(void *addr, enum debug_obj_state state)
 {
@@ -1158,7 +1158,7 @@ check_results(void *addr, enum debug_obj_state state, int fixups, int warnings)
 
 	obj = lookup_object(addr, db);
 	if (!obj && state != ODEBUG_STATE_NONE) {
-		WARN(1, KERN_ERR "ODEBUG: selftest object not found\n");
+		WARN(1, KERN_ERR "ODEBUG: selftest object yest found\n");
 		goto out;
 	}
 	if (obj && obj->state != state) {
@@ -1252,7 +1252,7 @@ static void __init debug_objects_selftest(void)
 	debug_object_activate(&obj, &descr_type_test);
 	if (check_results(&obj, ODEBUG_STATE_ACTIVE, fixups, warnings))
 		goto out;
-	__debug_check_no_obj_freed(&obj, sizeof(obj));
+	__debug_check_yes_obj_freed(&obj, sizeof(obj));
 	if (check_results(&obj, ODEBUG_STATE_NONE, ++fixups, ++warnings))
 		goto out;
 #endif
@@ -1282,7 +1282,7 @@ void __init debug_objects_early_init(void)
 		raw_spin_lock_init(&obj_hash[i].lock);
 
 	for (i = 0; i < ODEBUG_POOL_SIZE; i++)
-		hlist_add_head(&obj_static_pool[i].node, &obj_pool);
+		hlist_add_head(&obj_static_pool[i].yesde, &obj_pool);
 }
 
 /*
@@ -1291,7 +1291,7 @@ void __init debug_objects_early_init(void)
 static int __init debug_objects_replace_static_objects(void)
 {
 	struct debug_bucket *db = obj_hash;
-	struct hlist_node *tmp;
+	struct hlist_yesde *tmp;
 	struct debug_obj *obj, *new;
 	HLIST_HEAD(objects);
 	int i, cnt = 0;
@@ -1300,18 +1300,18 @@ static int __init debug_objects_replace_static_objects(void)
 		obj = kmem_cache_zalloc(obj_cache, GFP_KERNEL);
 		if (!obj)
 			goto free;
-		hlist_add_head(&obj->node, &objects);
+		hlist_add_head(&obj->yesde, &objects);
 	}
 
 	/*
-	 * debug_objects_mem_init() is now called early that only one CPU is up
+	 * debug_objects_mem_init() is yesw called early that only one CPU is up
 	 * and interrupts have been disabled, so it is safe to replace the
 	 * active object references.
 	 */
 
 	/* Remove the statically allocated objects from the pool */
-	hlist_for_each_entry_safe(obj, tmp, &obj_pool, node)
-		hlist_del(&obj->node);
+	hlist_for_each_entry_safe(obj, tmp, &obj_pool, yesde)
+		hlist_del(&obj->yesde);
 	/* Move the allocated objects to the pool */
 	hlist_move_list(&objects, &obj_pool);
 
@@ -1319,12 +1319,12 @@ static int __init debug_objects_replace_static_objects(void)
 	for (i = 0; i < ODEBUG_HASH_SIZE; i++, db++) {
 		hlist_move_list(&db->list, &objects);
 
-		hlist_for_each_entry(obj, &objects, node) {
-			new = hlist_entry(obj_pool.first, typeof(*obj), node);
-			hlist_del(&new->node);
+		hlist_for_each_entry(obj, &objects, yesde) {
+			new = hlist_entry(obj_pool.first, typeof(*obj), yesde);
+			hlist_del(&new->yesde);
 			/* copy object data */
 			*new = *obj;
-			hlist_add_head(&new->node, &db->list);
+			hlist_add_head(&new->yesde, &db->list);
 			cnt++;
 		}
 	}
@@ -1333,8 +1333,8 @@ static int __init debug_objects_replace_static_objects(void)
 		 cnt, obj_pool_used);
 	return 0;
 free:
-	hlist_for_each_entry_safe(obj, tmp, &objects, node) {
-		hlist_del(&obj->node);
+	hlist_for_each_entry_safe(obj, tmp, &objects, yesde) {
+		hlist_del(&obj->yesde);
 		kmem_cache_free(obj_cache, obj);
 	}
 	return -ENOMEM;
@@ -1356,7 +1356,7 @@ void __init debug_objects_mem_init(void)
 	/*
 	 * Initialize the percpu object pools
 	 *
-	 * Initialization is not strictly necessary, but was done for
+	 * Initialization is yest strictly necessary, but was done for
 	 * completeness.
 	 */
 	for_each_possible_cpu(cpu)

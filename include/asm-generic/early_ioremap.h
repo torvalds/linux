@@ -20,7 +20,7 @@ extern void early_iounmap(void __iomem *addr, unsigned long size);
 extern void early_memunmap(void *addr, unsigned long size);
 
 /*
- * Weak function called by early_ioremap_reset(). It does nothing, but
+ * Weak function called by early_ioremap_reset(). It does yesthing, but
  * architectures may provide their own version to do any needed cleanups.
  */
 extern void early_ioremap_shutdown(void);

@@ -7,7 +7,7 @@
 #include <linux/module.h>
 #include <linux/ip.h>
 #include <linux/skbuff.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/random.h>
 #include <net/ip.h>
 #include <net/ipv6.h>
@@ -20,7 +20,7 @@
 #include <linux/netfilter/ipset/ip_set_hash.h>
 
 #define IPSET_TYPE_REV_MIN	0
-/*				1    nomatch flag support added */
+/*				1    yesmatch flag support added */
 /*				2    /0 support added */
 /*				3    Counters support added */
 /*				4    Comments support added */
@@ -47,7 +47,7 @@ struct hash_netiface4_elem_hashed {
 	__be32 ip;
 	u8 physdev;
 	u8 cidr;
-	u8 nomatch;
+	u8 yesmatch;
 	u8 elem;
 };
 
@@ -56,7 +56,7 @@ struct hash_netiface4_elem {
 	__be32 ip;
 	u8 physdev;
 	u8 cidr;
-	u8 nomatch;
+	u8 yesmatch;
 	u8 elem;
 	u8 wildcard;
 	char iface[IFNAMSIZ];
@@ -81,19 +81,19 @@ hash_netiface4_data_equal(const struct hash_netiface4_elem *ip1,
 static int
 hash_netiface4_do_data_match(const struct hash_netiface4_elem *elem)
 {
-	return elem->nomatch ? -ENOTEMPTY : 1;
+	return elem->yesmatch ? -ENOTEMPTY : 1;
 }
 
 static void
 hash_netiface4_data_set_flags(struct hash_netiface4_elem *elem, u32 flags)
 {
-	elem->nomatch = (flags >> 16) & IPSET_FLAG_NOMATCH;
+	elem->yesmatch = (flags >> 16) & IPSET_FLAG_NOMATCH;
 }
 
 static void
 hash_netiface4_data_reset_flags(struct hash_netiface4_elem *elem, u8 *flags)
 {
-	swap(*flags, elem->nomatch);
+	swap(*flags, elem->yesmatch);
 }
 
 static void
@@ -110,7 +110,7 @@ hash_netiface4_data_list(struct sk_buff *skb,
 	u32 flags = (data->physdev ? IPSET_FLAG_PHYSDEV : 0) |
 		    (data->wildcard ? IPSET_FLAG_IFACE_WILDCARD : 0);
 
-	if (data->nomatch)
+	if (data->yesmatch)
 		flags |= IPSET_FLAG_NOMATCH;
 	if (nla_put_ipaddr4(skb, IPSET_ATTR_IP, data->ip) ||
 	    nla_put_u8(skb, IPSET_ATTR_CIDR, data->cidr) ||
@@ -195,7 +195,7 @@ hash_netiface4_kadt(struct ip_set *set, const struct sk_buff *skb,
 
 static int
 hash_netiface4_uadt(struct ip_set *set, struct nlattr *tb[],
-		    enum ipset_adt adt, u32 *lineno, u32 flags, bool retried)
+		    enum ipset_adt adt, u32 *lineyes, u32 flags, bool retried)
 {
 	struct hash_netiface4 *h = set->data;
 	ipset_adtfn adtfn = set->variant->adt[adt];
@@ -205,7 +205,7 @@ hash_netiface4_uadt(struct ip_set *set, struct nlattr *tb[],
 	int ret;
 
 	if (tb[IPSET_ATTR_LINENO])
-		*lineno = nla_get_u32(tb[IPSET_ATTR_LINENO]);
+		*lineyes = nla_get_u32(tb[IPSET_ATTR_LINENO]);
 
 	if (unlikely(!tb[IPSET_ATTR_IP] ||
 		     !tb[IPSET_ATTR_IFACE] ||
@@ -240,7 +240,7 @@ hash_netiface4_uadt(struct ip_set *set, struct nlattr *tb[],
 	if (adt == IPSET_TEST || !tb[IPSET_ATTR_IP_TO]) {
 		e.ip = htonl(ip & ip_set_hostmask(e.cidr));
 		ret = adtfn(set, &e, &ext, &ext, flags);
-		return ip_set_enomatch(ret, flags, adt, set) ? -ret :
+		return ip_set_eyesmatch(ret, flags, adt, set) ? -ret :
 		       ip_set_eexist(ret, flags) ? 0 : ret;
 	}
 
@@ -277,7 +277,7 @@ struct hash_netiface6_elem_hashed {
 	union nf_inet_addr ip;
 	u8 physdev;
 	u8 cidr;
-	u8 nomatch;
+	u8 yesmatch;
 	u8 elem;
 };
 
@@ -285,7 +285,7 @@ struct hash_netiface6_elem {
 	union nf_inet_addr ip;
 	u8 physdev;
 	u8 cidr;
-	u8 nomatch;
+	u8 yesmatch;
 	u8 elem;
 	u8 wildcard;
 	char iface[IFNAMSIZ];
@@ -310,19 +310,19 @@ hash_netiface6_data_equal(const struct hash_netiface6_elem *ip1,
 static int
 hash_netiface6_do_data_match(const struct hash_netiface6_elem *elem)
 {
-	return elem->nomatch ? -ENOTEMPTY : 1;
+	return elem->yesmatch ? -ENOTEMPTY : 1;
 }
 
 static void
 hash_netiface6_data_set_flags(struct hash_netiface6_elem *elem, u32 flags)
 {
-	elem->nomatch = (flags >> 16) & IPSET_FLAG_NOMATCH;
+	elem->yesmatch = (flags >> 16) & IPSET_FLAG_NOMATCH;
 }
 
 static void
 hash_netiface6_data_reset_flags(struct hash_netiface6_elem *elem, u8 *flags)
 {
-	swap(*flags, elem->nomatch);
+	swap(*flags, elem->yesmatch);
 }
 
 static void
@@ -339,7 +339,7 @@ hash_netiface6_data_list(struct sk_buff *skb,
 	u32 flags = (data->physdev ? IPSET_FLAG_PHYSDEV : 0) |
 		    (data->wildcard ? IPSET_FLAG_IFACE_WILDCARD : 0);
 
-	if (data->nomatch)
+	if (data->yesmatch)
 		flags |= IPSET_FLAG_NOMATCH;
 	if (nla_put_ipaddr6(skb, IPSET_ATTR_IP, &data->ip.in6) ||
 	    nla_put_u8(skb, IPSET_ATTR_CIDR, data->cidr) ||
@@ -409,7 +409,7 @@ hash_netiface6_kadt(struct ip_set *set, const struct sk_buff *skb,
 
 static int
 hash_netiface6_uadt(struct ip_set *set, struct nlattr *tb[],
-		    enum ipset_adt adt, u32 *lineno, u32 flags, bool retried)
+		    enum ipset_adt adt, u32 *lineyes, u32 flags, bool retried)
 {
 	ipset_adtfn adtfn = set->variant->adt[adt];
 	struct hash_netiface6_elem e = { .cidr = HOST_MASK, .elem = 1 };
@@ -417,7 +417,7 @@ hash_netiface6_uadt(struct ip_set *set, struct nlattr *tb[],
 	int ret;
 
 	if (tb[IPSET_ATTR_LINENO])
-		*lineno = nla_get_u32(tb[IPSET_ATTR_LINENO]);
+		*lineyes = nla_get_u32(tb[IPSET_ATTR_LINENO]);
 
 	if (unlikely(!tb[IPSET_ATTR_IP] ||
 		     !tb[IPSET_ATTR_IFACE] ||
@@ -457,7 +457,7 @@ hash_netiface6_uadt(struct ip_set *set, struct nlattr *tb[],
 
 	ret = adtfn(set, &e, &ext, &ext, flags);
 
-	return ip_set_enomatch(ret, flags, adt, set) ? -ret :
+	return ip_set_eyesmatch(ret, flags, adt, set) ? -ret :
 	       ip_set_eexist(ret, flags) ? 0 : ret;
 }
 

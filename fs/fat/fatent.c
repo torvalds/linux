@@ -71,7 +71,7 @@ static int fat12_ent_bread(struct super_block *sb, struct fat_entry *fatent,
 	struct buffer_head **bhs = fatent->bhs;
 
 	WARN_ON(blocknr < MSDOS_SB(sb)->fat_start);
-	fatent->fat_inode = MSDOS_SB(sb)->fat_inode;
+	fatent->fat_iyesde = MSDOS_SB(sb)->fat_iyesde;
 
 	bhs[0] = sb_bread(sb, blocknr);
 	if (!bhs[0])
@@ -103,7 +103,7 @@ static int fat_ent_bread(struct super_block *sb, struct fat_entry *fatent,
 	const struct fatent_operations *ops = MSDOS_SB(sb)->fatent_ops;
 
 	WARN_ON(blocknr < MSDOS_SB(sb)->fat_start);
-	fatent->fat_inode = MSDOS_SB(sb)->fat_inode;
+	fatent->fat_iyesde = MSDOS_SB(sb)->fat_iyesde;
 	fatent->bhs[0] = sb_bread(sb, blocknr);
 	if (!fatent->bhs[0]) {
 		fat_msg(sb, KERN_ERR, "FAT read failed (blocknr %llu)",
@@ -168,9 +168,9 @@ static void fat12_ent_put(struct fat_entry *fatent, int new)
 	}
 	spin_unlock(&fat12_entry_lock);
 
-	mark_buffer_dirty_inode(fatent->bhs[0], fatent->fat_inode);
+	mark_buffer_dirty_iyesde(fatent->bhs[0], fatent->fat_iyesde);
 	if (fatent->nr_bhs == 2)
-		mark_buffer_dirty_inode(fatent->bhs[1], fatent->fat_inode);
+		mark_buffer_dirty_iyesde(fatent->bhs[1], fatent->fat_iyesde);
 }
 
 static void fat16_ent_put(struct fat_entry *fatent, int new)
@@ -179,7 +179,7 @@ static void fat16_ent_put(struct fat_entry *fatent, int new)
 		new = EOF_FAT16;
 
 	*fatent->u.ent16_p = cpu_to_le16(new);
-	mark_buffer_dirty_inode(fatent->bhs[0], fatent->fat_inode);
+	mark_buffer_dirty_iyesde(fatent->bhs[0], fatent->fat_iyesde);
 }
 
 static void fat32_ent_put(struct fat_entry *fatent, int new)
@@ -187,7 +187,7 @@ static void fat32_ent_put(struct fat_entry *fatent, int new)
 	WARN_ON(new & 0xf0000000);
 	new |= le32_to_cpu(*fatent->u.ent32_p) & ~0x0fffffff;
 	*fatent->u.ent32_p = cpu_to_le32(new);
-	mark_buffer_dirty_inode(fatent->bhs[0], fatent->fat_inode);
+	mark_buffer_dirty_iyesde(fatent->bhs[0], fatent->fat_iyesde);
 }
 
 static int fat12_ent_next(struct fat_entry *fatent)
@@ -311,7 +311,7 @@ static void mark_fsinfo_dirty(struct super_block *sb)
 	if (sb_rdonly(sb) || !is_fat32(sbi))
 		return;
 
-	__mark_inode_dirty(sbi->fsinfo_inode, I_DIRTY_SYNC);
+	__mark_iyesde_dirty(sbi->fsinfo_iyesde, I_DIRTY_SYNC);
 }
 
 static inline int fat_ent_update_ptr(struct super_block *sb,
@@ -344,10 +344,10 @@ static inline int fat_ent_update_ptr(struct super_block *sb,
 	return 1;
 }
 
-int fat_ent_read(struct inode *inode, struct fat_entry *fatent, int entry)
+int fat_ent_read(struct iyesde *iyesde, struct fat_entry *fatent, int entry)
 {
-	struct super_block *sb = inode->i_sb;
-	struct msdos_sb_info *sbi = MSDOS_SB(inode->i_sb);
+	struct super_block *sb = iyesde->i_sb;
+	struct msdos_sb_info *sbi = MSDOS_SB(iyesde->i_sb);
 	const struct fatent_operations *ops = sbi->fatent_ops;
 	int err, offset;
 	sector_t blocknr;
@@ -393,7 +393,7 @@ static int fat_mirror_bhs(struct super_block *sb, struct buffer_head **bhs,
 			memcpy(c_bh->b_data, bhs[n]->b_data, sb->s_blocksize);
 			set_buffer_uptodate(c_bh);
 			unlock_buffer(c_bh);
-			mark_buffer_dirty_inode(c_bh, sbi->fat_inode);
+			mark_buffer_dirty_iyesde(c_bh, sbi->fat_iyesde);
 			if (sb->s_flags & SB_SYNCHRONOUS)
 				err = sync_dirty_buffer(c_bh);
 			brelse(c_bh);
@@ -405,10 +405,10 @@ error:
 	return err;
 }
 
-int fat_ent_write(struct inode *inode, struct fat_entry *fatent,
+int fat_ent_write(struct iyesde *iyesde, struct fat_entry *fatent,
 		  int new, int wait)
 {
-	struct super_block *sb = inode->i_sb;
+	struct super_block *sb = iyesde->i_sb;
 	const struct fatent_operations *ops = MSDOS_SB(sb)->fatent_ops;
 	int err;
 
@@ -461,9 +461,9 @@ static void fat_collect_bhs(struct buffer_head **bhs, int *nr_bhs,
 	}
 }
 
-int fat_alloc_clusters(struct inode *inode, int *cluster, int nr_cluster)
+int fat_alloc_clusters(struct iyesde *iyesde, int *cluster, int nr_cluster)
 {
-	struct super_block *sb = inode->i_sb;
+	struct super_block *sb = iyesde->i_sb;
 	struct msdos_sb_info *sbi = MSDOS_SB(sb);
 	const struct fatent_operations *ops = sbi->fatent_ops;
 	struct fat_entry fatent, prev_ent;
@@ -535,7 +535,7 @@ out:
 	mark_fsinfo_dirty(sb);
 	fatent_brelse(&fatent);
 	if (!err) {
-		if (inode_needs_sync(inode))
+		if (iyesde_needs_sync(iyesde))
 			err = fat_sync_bhs(bhs, nr_bhs);
 		if (!err)
 			err = fat_mirror_bhs(sb, bhs, nr_bhs);
@@ -544,14 +544,14 @@ out:
 		brelse(bhs[i]);
 
 	if (err && idx_clus)
-		fat_free_clusters(inode, cluster[0]);
+		fat_free_clusters(iyesde, cluster[0]);
 
 	return err;
 }
 
-int fat_free_clusters(struct inode *inode, int cluster)
+int fat_free_clusters(struct iyesde *iyesde, int cluster)
 {
-	struct super_block *sb = inode->i_sb;
+	struct super_block *sb = iyesde->i_sb;
 	struct msdos_sb_info *sbi = MSDOS_SB(sb);
 	const struct fatent_operations *ops = sbi->fatent_ops;
 	struct fat_entry fatent;
@@ -563,7 +563,7 @@ int fat_free_clusters(struct inode *inode, int cluster)
 	fatent_init(&fatent);
 	lock_fat(sbi);
 	do {
-		cluster = fat_ent_read(inode, &fatent, cluster);
+		cluster = fat_ent_read(iyesde, &fatent, cluster);
 		if (cluster < 0) {
 			err = cluster;
 			goto error;
@@ -576,7 +576,7 @@ int fat_free_clusters(struct inode *inode, int cluster)
 
 		if (sbi->options.discard) {
 			/*
-			 * Issue discard for the sectors we no longer
+			 * Issue discard for the sectors we yes longer
 			 * care about, batching contiguous clusters
 			 * into one request
 			 */
@@ -701,9 +701,9 @@ static int fat_trim_clusters(struct super_block *sb, u32 clus, u32 nr_clus)
 				nr_clus * sbi->sec_per_clus, GFP_NOFS, 0);
 }
 
-int fat_trim_fs(struct inode *inode, struct fstrim_range *range)
+int fat_trim_fs(struct iyesde *iyesde, struct fstrim_range *range)
 {
-	struct super_block *sb = inode->i_sb;
+	struct super_block *sb = iyesde->i_sb;
 	struct msdos_sb_info *sbi = MSDOS_SB(sb);
 	const struct fatent_operations *ops = sbi->fatent_ops;
 	struct fat_entry fatent;
@@ -716,7 +716,7 @@ int fat_trim_fs(struct inode *inode, struct fstrim_range *range)
 	 * FAT data is organized as clusters, trim at the granulary of cluster.
 	 *
 	 * fstrim_range is in byte, convert vaules to cluster index.
-	 * Treat sectors before data region as all used, not to trim them.
+	 * Treat sectors before data region as all used, yest to trim them.
 	 */
 	ent_start = max_t(u64, range->start>>sbi->cluster_bits, FAT_START_ENT);
 	ent_end = ent_start + (range->len >> sbi->cluster_bits) - 1;

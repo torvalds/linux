@@ -14,9 +14,9 @@ struct panfrost_gem_object {
 	struct sg_table *sgts;
 
 	struct panfrost_mmu *mmu;
-	struct drm_mm_node node;
+	struct drm_mm_yesde yesde;
 	bool is_mapped		:1;
-	bool noexec		:1;
+	bool yesexec		:1;
 	bool is_heap		:1;
 };
 
@@ -27,9 +27,9 @@ struct  panfrost_gem_object *to_panfrost_bo(struct drm_gem_object *obj)
 }
 
 static inline
-struct  panfrost_gem_object *drm_mm_node_to_panfrost_bo(struct drm_mm_node *node)
+struct  panfrost_gem_object *drm_mm_yesde_to_panfrost_bo(struct drm_mm_yesde *yesde)
 {
-	return container_of(node, struct panfrost_gem_object, node);
+	return container_of(yesde, struct panfrost_gem_object, yesde);
 }
 
 struct drm_gem_object *panfrost_gem_create_object(struct drm_device *dev, size_t size);

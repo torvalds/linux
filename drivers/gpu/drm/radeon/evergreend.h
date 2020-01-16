@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -774,7 +774,7 @@
 /* VIDEO_LIPSYNC, AUDIO_LIPSYNC
  * 0   = invalid
  * x   = legal delay value
- * 255 = sync not supported
+ * 255 = sync yest supported
  */
 #define AZ_F0_CODEC_PIN0_CONTROL_RESPONSE_HBR             0x5fec
 #       define HBR_CAPABLE                                (1 << 0) /* enabled by default */
@@ -1604,13 +1604,13 @@
 /* COMMAND */
 #              define PACKET3_CP_DMA_DIS_WC        (1 << 21)
 #              define PACKET3_CP_DMA_CMD_SRC_SWAP(x) ((x) << 22)
-                /* 0 - none
+                /* 0 - yesne
 		 * 1 - 8 in 16
 		 * 2 - 8 in 32
 		 * 3 - 8 in 64
 		 */
 #              define PACKET3_CP_DMA_CMD_DST_SWAP(x) ((x) << 24)
-                /* 0 - none
+                /* 0 - yesne
 		 * 1 - 8 in 16
 		 * 2 - 8 in 32
 		 * 3 - 8 in 64
@@ -1669,7 +1669,7 @@
 #define		PACKET3_SET_CONTEXT_REG_START			0x00028000
 #define		PACKET3_SET_CONTEXT_REG_END			0x00029000
 #define	PACKET3_SET_ALU_CONST				0x6A
-/* alu const buffers only; no reg file */
+/* alu const buffers only; yes reg file */
 #define	PACKET3_SET_BOOL_CONST				0x6B
 #define		PACKET3_SET_BOOL_CONST_START			0x0003a500
 #define		PACKET3_SET_BOOL_CONST_END			0x0003a518
@@ -2168,7 +2168,7 @@
 #define   C_028C70_SOURCE_FORMAT                       0xFCFFFFFF
 #define     V_028C70_EXPORT_4C_32BPC                   0x0
 #define     V_028C70_EXPORT_4C_16BPC                   0x1
-#define     V_028C70_EXPORT_2C_32BPC                   0x2 /* Do not use */
+#define     V_028C70_EXPORT_2C_32BPC                   0x2 /* Do yest use */
 #define   S_028C70_RAT(x)                              (((x) & 0x1) << 26)
 #define   G_028C70_RAT(x)                              (((x) >> 26) & 0x1)
 #define   C_028C70_RAT                                 0xFBFFFFFF

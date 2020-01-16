@@ -3,7 +3,7 @@
  * imr.h: Isolated Memory Region API
  *
  * Copyright(c) 2013 Intel Corporation.
- * Copyright(c) 2015 Bryan O'Donoghue <pure.logic@nexus-software.ie>
+ * Copyright(c) 2015 Bryan O'Doyesghue <pure.logic@nexus-software.ie>
  */
 #ifndef _IMR_H
 #define _IMR_H

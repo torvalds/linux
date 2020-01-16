@@ -13,11 +13,11 @@
  *  are met:
  *
  *  1. Redistributions of source code must retain the above copyright
- *     notice, this list of conditions and the following disclaimer.
+ *     yestice, this list of conditions and the following disclaimer.
  *  2. Redistributions in binary form must reproduce the above copyright
- *     notice, this list of conditions and the following disclaimer in the
+ *     yestice, this list of conditions and the following disclaimer in the
  *     documentation and/or other materials provided with the distribution.
- *  3. Neither the name of the University nor the names of its
+ *  3. Neither the name of the University yesr the names of its
  *     contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission.
  *
@@ -397,7 +397,7 @@ static const match_table_t nfs_idmap_tokens = {
 static int nfs_idmap_legacy_upcall(struct key *, void *);
 static ssize_t idmap_pipe_downcall(struct file *, const char __user *,
 				   size_t);
-static void idmap_release_pipe(struct inode *);
+static void idmap_release_pipe(struct iyesde *);
 static void idmap_pipe_destroy_msg(struct rpc_pipe_msg *);
 
 static const struct rpc_pipe_ops idmap_upcall_ops = {
@@ -666,7 +666,7 @@ static ssize_t
 idmap_pipe_downcall(struct file *filp, const char __user *src, size_t mlen)
 {
 	struct request_key_auth *rka;
-	struct rpc_inode *rpci = RPC_I(file_inode(filp));
+	struct rpc_iyesde *rpci = RPC_I(file_iyesde(filp));
 	struct idmap *idmap = (struct idmap *)rpci->private;
 	struct key *authkey;
 	struct idmap_msg im;
@@ -674,11 +674,11 @@ idmap_pipe_downcall(struct file *filp, const char __user *src, size_t mlen)
 	int ret = -ENOKEY;
 
 	/* If instantiation is successful, anyone waiting for key construction
-	 * will have been woken up and someone else may now have used
-	 * idmap_key_cons - so after this point we may no longer touch it.
+	 * will have been woken up and someone else may yesw have used
+	 * idmap_key_cons - so after this point we may yes longer touch it.
 	 */
 	if (idmap->idmap_upcall_data == NULL)
-		goto out_noupcall;
+		goto out_yesupcall;
 
 	authkey = idmap->idmap_upcall_data->authkey;
 	rka = get_request_key_auth(authkey);
@@ -714,7 +714,7 @@ idmap_pipe_downcall(struct file *filp, const char __user *src, size_t mlen)
 
 out:
 	nfs_idmap_complete_pipe_upcall_locked(idmap, ret);
-out_noupcall:
+out_yesupcall:
 	return ret;
 }
 
@@ -726,14 +726,14 @@ idmap_pipe_destroy_msg(struct rpc_pipe_msg *msg)
 			pipe_msg);
 	struct idmap *idmap = data->idmap;
 
-	if (msg->errno)
-		nfs_idmap_abort_pipe_upcall(idmap, msg->errno);
+	if (msg->erryes)
+		nfs_idmap_abort_pipe_upcall(idmap, msg->erryes);
 }
 
 static void
-idmap_release_pipe(struct inode *inode)
+idmap_release_pipe(struct iyesde *iyesde)
 {
-	struct rpc_inode *rpci = RPC_I(inode);
+	struct rpc_iyesde *rpci = RPC_I(iyesde);
 	struct idmap *idmap = (struct idmap *)rpci->private;
 
 	nfs_idmap_abort_pipe_upcall(idmap, -EPIPE);

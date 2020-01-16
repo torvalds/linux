@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -57,7 +57,7 @@ static const u8 zero_gid[16];	/* automatically initialized to 0 */
  * if GID is found in AMGM, *index = index in AMGM, *prev = index of
  * previous entry in hash chain and *mgm holds AMGM entry.
  *
- * If no AMGM exists for given gid, *index = -1, *prev = index of last
+ * If yes AMGM exists for given gid, *index = -1, *prev = index of last
  * entry in hash chain and *mgm holds end of hash chain.
  */
 static int find_mgm(struct mthca_dev *dev,
@@ -233,7 +233,7 @@ int mthca_multicast_detach(struct ib_qp *ibqp, union ib_gid *gid, u16 lid)
 		goto out;
 
 	if (index == -1) {
-		mthca_err(dev, "MGID %pI6 not found\n", gid->raw);
+		mthca_err(dev, "MGID %pI6 yest found\n", gid->raw);
 		err = -EINVAL;
 		goto out;
 	}
@@ -246,7 +246,7 @@ int mthca_multicast_detach(struct ib_qp *ibqp, union ib_gid *gid, u16 lid)
 	}
 
 	if (loc == -1) {
-		mthca_err(dev, "QP %06x not found in MGM\n", ibqp->qp_num);
+		mthca_err(dev, "QP %06x yest found in MGM\n", ibqp->qp_num);
 		err = -EINVAL;
 		goto out;
 	}

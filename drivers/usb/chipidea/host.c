@@ -81,8 +81,8 @@ static int ehci_ci_reset(struct usb_hcd *hcd)
 
 	ehci->need_io_watchdog = 0;
 
-	if (ci->platdata->notify_event) {
-		ret = ci->platdata->notify_event(ci,
+	if (ci->platdata->yestify_event) {
+		ret = ci->platdata->yestify_event(ci,
 				CI_HDRC_CONTROLLER_RESET_EVENT);
 		if (ret)
 			return ret;
@@ -173,9 +173,9 @@ static int host_start(struct ci_hdrc *ci)
 			hcd->self.otg_port = 1;
 		}
 
-		if (ci->platdata->notify_event &&
+		if (ci->platdata->yestify_event &&
 			(ci->platdata->flags & CI_HDRC_IMX_IS_HSIC))
-			ci->platdata->notify_event
+			ci->platdata->yestify_event
 				(ci, CI_HDRC_IMX_HSIC_ACTIVE_EVENT);
 	}
 
@@ -196,8 +196,8 @@ static void host_stop(struct ci_hdrc *ci)
 	struct usb_hcd *hcd = ci->hcd;
 
 	if (hcd) {
-		if (ci->platdata->notify_event)
-			ci->platdata->notify_event(ci,
+		if (ci->platdata->yestify_event)
+			ci->platdata->yestify_event(ci,
 				CI_HDRC_CONTROLLER_STOPPED_EVENT);
 		usb_remove_hcd(hcd);
 		ci->role = CI_ROLE_END;
@@ -264,8 +264,8 @@ static int ci_ehci_hub_control(
 			ehci_err(ehci, "timeout waiting for SUSPEND\n");
 
 		if (ci->platdata->flags & CI_HDRC_IMX_IS_HSIC) {
-			if (ci->platdata->notify_event)
-				ci->platdata->notify_event(ci,
+			if (ci->platdata->yestify_event)
+				ci->platdata->yestify_event(ci,
 					CI_HDRC_IMX_HSIC_SUSPEND_EVENT);
 
 			temp = ehci_readl(ehci, status_reg);
@@ -318,9 +318,9 @@ static int ci_ehci_bus_suspend(struct usb_hcd *hcd)
 			/*
 			 * For chipidea, the resume signal will be ended
 			 * automatically, so for remote wakeup case, the
-			 * usbcmd.rs may not be set before the resume has
+			 * usbcmd.rs may yest be set before the resume has
 			 * ended if other resume paths consumes too much
-			 * time (~24ms), in that case, the SOF will not
+			 * time (~24ms), in that case, the SOF will yest
 			 * send out within 3ms after resume ends, then the
 			 * high speed device will enter full speed mode.
 			 */

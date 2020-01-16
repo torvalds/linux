@@ -29,34 +29,34 @@ bool fscrypt_policies_equal(const union fscrypt_policy *policy1,
 	return !memcmp(policy1, policy2, fscrypt_policy_size(policy1));
 }
 
-static bool supported_iv_ino_lblk_64_policy(
+static bool supported_iv_iyes_lblk_64_policy(
 					const struct fscrypt_policy_v2 *policy,
-					const struct inode *inode)
+					const struct iyesde *iyesde)
 {
-	struct super_block *sb = inode->i_sb;
-	int ino_bits = 64, lblk_bits = 64;
+	struct super_block *sb = iyesde->i_sb;
+	int iyes_bits = 64, lblk_bits = 64;
 
 	if (policy->flags & FSCRYPT_POLICY_FLAG_DIRECT_KEY) {
-		fscrypt_warn(inode,
+		fscrypt_warn(iyesde,
 			     "The DIRECT_KEY and IV_INO_LBLK_64 flags are mutually exclusive");
 		return false;
 	}
 	/*
-	 * It's unsafe to include inode numbers in the IVs if the filesystem can
-	 * potentially renumber inodes, e.g. via filesystem shrinking.
+	 * It's unsafe to include iyesde numbers in the IVs if the filesystem can
+	 * potentially renumber iyesdes, e.g. via filesystem shrinking.
 	 */
-	if (!sb->s_cop->has_stable_inodes ||
-	    !sb->s_cop->has_stable_inodes(sb)) {
-		fscrypt_warn(inode,
-			     "Can't use IV_INO_LBLK_64 policy on filesystem '%s' because it doesn't have stable inode numbers",
+	if (!sb->s_cop->has_stable_iyesdes ||
+	    !sb->s_cop->has_stable_iyesdes(sb)) {
+		fscrypt_warn(iyesde,
+			     "Can't use IV_INO_LBLK_64 policy on filesystem '%s' because it doesn't have stable iyesde numbers",
 			     sb->s_id);
 		return false;
 	}
-	if (sb->s_cop->get_ino_and_lblk_bits)
-		sb->s_cop->get_ino_and_lblk_bits(sb, &ino_bits, &lblk_bits);
-	if (ino_bits > 32 || lblk_bits > 32) {
-		fscrypt_warn(inode,
-			     "Can't use IV_INO_LBLK_64 policy on filesystem '%s' because it doesn't use 32-bit inode and block numbers",
+	if (sb->s_cop->get_iyes_and_lblk_bits)
+		sb->s_cop->get_iyes_and_lblk_bits(sb, &iyes_bits, &lblk_bits);
+	if (iyes_bits > 32 || lblk_bits > 32) {
+		fscrypt_warn(iyesde,
+			     "Can't use IV_INO_LBLK_64 policy on filesystem '%s' because it doesn't use 32-bit iyesde and block numbers",
 			     sb->s_id);
 		return false;
 	}
@@ -68,13 +68,13 @@ static bool supported_iv_ino_lblk_64_policy(
  *
  * Given an encryption policy, check whether all its encryption modes and other
  * settings are supported by this kernel.  (But we don't currently don't check
- * for crypto API support here, so attempting to use an algorithm not configured
+ * for crypto API support here, so attempting to use an algorithm yest configured
  * into the crypto API will still fail later.)
  *
  * Return: %true if supported, else %false
  */
 bool fscrypt_supported_policy(const union fscrypt_policy *policy_u,
-			      const struct inode *inode)
+			      const struct iyesde *iyesde)
 {
 	switch (policy_u->version) {
 	case FSCRYPT_POLICY_V1: {
@@ -82,7 +82,7 @@ bool fscrypt_supported_policy(const union fscrypt_policy *policy_u,
 
 		if (!fscrypt_valid_enc_modes(policy->contents_encryption_mode,
 					     policy->filenames_encryption_mode)) {
-			fscrypt_warn(inode,
+			fscrypt_warn(iyesde,
 				     "Unsupported encryption modes (contents %d, filenames %d)",
 				     policy->contents_encryption_mode,
 				     policy->filenames_encryption_mode);
@@ -91,7 +91,7 @@ bool fscrypt_supported_policy(const union fscrypt_policy *policy_u,
 
 		if (policy->flags & ~(FSCRYPT_POLICY_FLAGS_PAD_MASK |
 				      FSCRYPT_POLICY_FLAG_DIRECT_KEY)) {
-			fscrypt_warn(inode,
+			fscrypt_warn(iyesde,
 				     "Unsupported encryption flags (0x%02x)",
 				     policy->flags);
 			return false;
@@ -104,7 +104,7 @@ bool fscrypt_supported_policy(const union fscrypt_policy *policy_u,
 
 		if (!fscrypt_valid_enc_modes(policy->contents_encryption_mode,
 					     policy->filenames_encryption_mode)) {
-			fscrypt_warn(inode,
+			fscrypt_warn(iyesde,
 				     "Unsupported encryption modes (contents %d, filenames %d)",
 				     policy->contents_encryption_mode,
 				     policy->filenames_encryption_mode);
@@ -112,19 +112,19 @@ bool fscrypt_supported_policy(const union fscrypt_policy *policy_u,
 		}
 
 		if (policy->flags & ~FSCRYPT_POLICY_FLAGS_VALID) {
-			fscrypt_warn(inode,
+			fscrypt_warn(iyesde,
 				     "Unsupported encryption flags (0x%02x)",
 				     policy->flags);
 			return false;
 		}
 
 		if ((policy->flags & FSCRYPT_POLICY_FLAG_IV_INO_LBLK_64) &&
-		    !supported_iv_ino_lblk_64_policy(policy, inode))
+		    !supported_iv_iyes_lblk_64_policy(policy, iyesde))
 			return false;
 
 		if (memchr_inv(policy->__reserved, 0,
 			       sizeof(policy->__reserved))) {
-			fscrypt_warn(inode,
+			fscrypt_warn(iyesde,
 				     "Reserved bits set in encryption policy");
 			return false;
 		}
@@ -138,8 +138,8 @@ bool fscrypt_supported_policy(const union fscrypt_policy *policy_u,
 /**
  * fscrypt_new_context_from_policy - create a new fscrypt_context from a policy
  *
- * Create an fscrypt_context for an inode that is being assigned the given
- * encryption policy.  A new nonce is randomly generated.
+ * Create an fscrypt_context for an iyesde that is being assigned the given
+ * encryption policy.  A new yesnce is randomly generated.
  *
  * Return: the size of the new context in bytes.
  */
@@ -162,7 +162,7 @@ static int fscrypt_new_context_from_policy(union fscrypt_context *ctx_u,
 		memcpy(ctx->master_key_descriptor,
 		       policy->master_key_descriptor,
 		       sizeof(ctx->master_key_descriptor));
-		get_random_bytes(ctx->nonce, sizeof(ctx->nonce));
+		get_random_bytes(ctx->yesnce, sizeof(ctx->yesnce));
 		return sizeof(*ctx);
 	}
 	case FSCRYPT_POLICY_V2: {
@@ -178,7 +178,7 @@ static int fscrypt_new_context_from_policy(union fscrypt_context *ctx_u,
 		memcpy(ctx->master_key_identifier,
 		       policy->master_key_identifier,
 		       sizeof(ctx->master_key_identifier));
-		get_random_bytes(ctx->nonce, sizeof(ctx->nonce));
+		get_random_bytes(ctx->yesnce, sizeof(ctx->yesnce));
 		return sizeof(*ctx);
 	}
 	}
@@ -193,7 +193,7 @@ static int fscrypt_new_context_from_policy(union fscrypt_context *ctx_u,
  * Return: 0 on success, or -EINVAL if the fscrypt_context has an unrecognized
  * version number or size.
  *
- * This does *not* validate the settings within the policy itself, e.g. the
+ * This does *yest* validate the settings within the policy itself, e.g. the
  * modes, flags, and reserved bits.  Use fscrypt_supported_policy() for that.
  */
 int fscrypt_policy_from_context(union fscrypt_policy *policy_u,
@@ -243,49 +243,49 @@ int fscrypt_policy_from_context(union fscrypt_policy *policy_u,
 	return -EINVAL;
 }
 
-/* Retrieve an inode's encryption policy */
-static int fscrypt_get_policy(struct inode *inode, union fscrypt_policy *policy)
+/* Retrieve an iyesde's encryption policy */
+static int fscrypt_get_policy(struct iyesde *iyesde, union fscrypt_policy *policy)
 {
 	const struct fscrypt_info *ci;
 	union fscrypt_context ctx;
 	int ret;
 
-	ci = READ_ONCE(inode->i_crypt_info);
+	ci = READ_ONCE(iyesde->i_crypt_info);
 	if (ci) {
 		/* key available, use the cached policy */
 		*policy = ci->ci_policy;
 		return 0;
 	}
 
-	if (!IS_ENCRYPTED(inode))
+	if (!IS_ENCRYPTED(iyesde))
 		return -ENODATA;
 
-	ret = inode->i_sb->s_cop->get_context(inode, &ctx, sizeof(ctx));
+	ret = iyesde->i_sb->s_cop->get_context(iyesde, &ctx, sizeof(ctx));
 	if (ret < 0)
 		return (ret == -ERANGE) ? -EINVAL : ret;
 
 	return fscrypt_policy_from_context(policy, &ctx, ret);
 }
 
-static int set_encryption_policy(struct inode *inode,
+static int set_encryption_policy(struct iyesde *iyesde,
 				 const union fscrypt_policy *policy)
 {
 	union fscrypt_context ctx;
 	int ctxsize;
 	int err;
 
-	if (!fscrypt_supported_policy(policy, inode))
+	if (!fscrypt_supported_policy(policy, iyesde))
 		return -EINVAL;
 
 	switch (policy->version) {
 	case FSCRYPT_POLICY_V1:
 		/*
-		 * The original encryption policy version provided no way of
+		 * The original encryption policy version provided yes way of
 		 * verifying that the correct master key was supplied, which was
 		 * insecure in scenarios where multiple users have access to the
 		 * same encrypted files (even just read-only access).  The new
 		 * encryption policy version fixes this and also implies use of
-		 * an improved key derivation function and allows non-root users
+		 * an improved key derivation function and allows yesn-root users
 		 * to securely remove keys.  So as long as compatibility with
 		 * old kernels isn't required, it is recommended to use the new
 		 * policy version for all new encrypted directories.
@@ -294,7 +294,7 @@ static int set_encryption_policy(struct inode *inode,
 			     current->comm, current->pid);
 		break;
 	case FSCRYPT_POLICY_V2:
-		err = fscrypt_verify_key_added(inode->i_sb,
+		err = fscrypt_verify_key_added(iyesde->i_sb,
 					       policy->v2.master_key_identifier);
 		if (err)
 			return err;
@@ -306,14 +306,14 @@ static int set_encryption_policy(struct inode *inode,
 
 	ctxsize = fscrypt_new_context_from_policy(&ctx, policy);
 
-	return inode->i_sb->s_cop->set_context(inode, &ctx, ctxsize, NULL);
+	return iyesde->i_sb->s_cop->set_context(iyesde, &ctx, ctxsize, NULL);
 }
 
 int fscrypt_ioctl_set_policy(struct file *filp, const void __user *arg)
 {
 	union fscrypt_policy policy;
 	union fscrypt_policy existing_policy;
-	struct inode *inode = file_inode(filp);
+	struct iyesde *iyesde = file_iyesde(filp);
 	u8 version;
 	int size;
 	int ret;
@@ -341,25 +341,25 @@ int fscrypt_ioctl_set_policy(struct file *filp, const void __user *arg)
 		return -EFAULT;
 	policy.version = version;
 
-	if (!inode_owner_or_capable(inode))
+	if (!iyesde_owner_or_capable(iyesde))
 		return -EACCES;
 
 	ret = mnt_want_write_file(filp);
 	if (ret)
 		return ret;
 
-	inode_lock(inode);
+	iyesde_lock(iyesde);
 
-	ret = fscrypt_get_policy(inode, &existing_policy);
+	ret = fscrypt_get_policy(iyesde, &existing_policy);
 	if (ret == -ENODATA) {
-		if (!S_ISDIR(inode->i_mode))
+		if (!S_ISDIR(iyesde->i_mode))
 			ret = -ENOTDIR;
-		else if (IS_DEADDIR(inode))
+		else if (IS_DEADDIR(iyesde))
 			ret = -ENOENT;
-		else if (!inode->i_sb->s_cop->empty_dir(inode))
+		else if (!iyesde->i_sb->s_cop->empty_dir(iyesde))
 			ret = -ENOTEMPTY;
 		else
-			ret = set_encryption_policy(inode, &policy);
+			ret = set_encryption_policy(iyesde, &policy);
 	} else if (ret == -EINVAL ||
 		   (ret == 0 && !fscrypt_policies_equal(&policy,
 							&existing_policy))) {
@@ -367,7 +367,7 @@ int fscrypt_ioctl_set_policy(struct file *filp, const void __user *arg)
 		ret = -EEXIST;
 	}
 
-	inode_unlock(inode);
+	iyesde_unlock(iyesde);
 
 	mnt_drop_write_file(filp);
 	return ret;
@@ -380,7 +380,7 @@ int fscrypt_ioctl_get_policy(struct file *filp, void __user *arg)
 	union fscrypt_policy policy;
 	int err;
 
-	err = fscrypt_get_policy(file_inode(filp), &policy);
+	err = fscrypt_get_policy(file_iyesde(filp), &policy);
 	if (err)
 		return err;
 
@@ -407,7 +407,7 @@ int fscrypt_ioctl_get_policy_ex(struct file *filp, void __user *uarg)
 		     offsetof(typeof(arg), policy));
 	BUILD_BUG_ON(sizeof(arg.policy) != sizeof(*policy));
 
-	err = fscrypt_get_policy(file_inode(filp), policy);
+	err = fscrypt_get_policy(file_iyesde(filp), policy);
 	if (err)
 		return err;
 	policy_size = fscrypt_policy_size(policy);
@@ -429,13 +429,13 @@ EXPORT_SYMBOL_GPL(fscrypt_ioctl_get_policy_ex);
  * fscrypt_has_permitted_context() - is a file's encryption policy permitted
  *				     within its directory?
  *
- * @parent: inode for parent directory
- * @child: inode for file being looked up, opened, or linked into @parent
+ * @parent: iyesde for parent directory
+ * @child: iyesde for file being looked up, opened, or linked into @parent
  *
- * Filesystems must call this before permitting access to an inode in a
+ * Filesystems must call this before permitting access to an iyesde in a
  * situation where the parent directory is encrypted (either before allowing
  * ->lookup() to succeed, or for a regular file before allowing it to be opened)
- * and before any operation that involves linking an inode into an encrypted
+ * and before any operation that involves linking an iyesde into an encrypted
  * directory, including link, rename, and cross rename.  It enforces the
  * constraint that within a given encrypted directory tree, all files use the
  * same encryption policy.  The pre-access check is needed to detect potentially
@@ -444,7 +444,7 @@ EXPORT_SYMBOL_GPL(fscrypt_ioctl_get_policy_ex);
  *
  * Return: 1 if permitted, 0 if forbidden.
  */
-int fscrypt_has_permitted_context(struct inode *parent, struct inode *child)
+int fscrypt_has_permitted_context(struct iyesde *parent, struct iyesde *child)
 {
 	union fscrypt_policy parent_policy, child_policy;
 	int err;
@@ -458,7 +458,7 @@ int fscrypt_has_permitted_context(struct inode *parent, struct inode *child)
 	if (!IS_ENCRYPTED(parent))
 		return 1;
 
-	/* Encrypted directories must not contain unencrypted files */
+	/* Encrypted directories must yest contain unencrypted files */
 	if (!IS_ENCRYPTED(child))
 		return 0;
 
@@ -469,7 +469,7 @@ int fscrypt_has_permitted_context(struct inode *parent, struct inode *child)
 	 *
 	 * Note that the fscrypt_context retrieval will be required frequently
 	 * when accessing an encrypted directory tree without the key.
-	 * Performance-wise this is not a big deal because we already don't
+	 * Performance-wise this is yest a big deal because we already don't
 	 * really optimize for file access without the key (to the extent that
 	 * such access is even possible), given that any attempted access
 	 * already causes a fscrypt_context retrieval and keyring search.
@@ -498,14 +498,14 @@ EXPORT_SYMBOL(fscrypt_has_permitted_context);
 
 /**
  * fscrypt_inherit_context() - Sets a child context from its parent
- * @parent: Parent inode from which the context is inherited.
- * @child:  Child inode that inherits the context from @parent.
+ * @parent: Parent iyesde from which the context is inherited.
+ * @child:  Child iyesde that inherits the context from @parent.
  * @fs_data:  private data given by FS.
  * @preload:  preload child i_crypt_info if true
  *
- * Return: 0 on success, -errno on failure
+ * Return: 0 on success, -erryes on failure
  */
-int fscrypt_inherit_context(struct inode *parent, struct inode *child,
+int fscrypt_inherit_context(struct iyesde *parent, struct iyesde *child,
 						void *fs_data, bool preload)
 {
 	union fscrypt_context ctx;

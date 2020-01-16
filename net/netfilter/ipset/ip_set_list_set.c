@@ -7,7 +7,7 @@
 #include <linux/ip.h>
 #include <linux/rculist.h>
 #include <linux/skbuff.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 
 #include <linux/netfilter/ipset/ip_set.h>
 #include <linux/netfilter/ipset/ip_set_list.h>
@@ -28,7 +28,7 @@ struct set_elem {
 	struct list_head list;
 	struct ip_set *set;	/* Sigh, in order to cleanup reference */
 	ip_set_id_t id;
-} __aligned(__alignof__(u64));
+} __aligned(__aligyesf__(u64));
 
 struct set_adt_elem {
 	ip_set_id_t id;
@@ -344,7 +344,7 @@ list_set_udel(struct ip_set *set, void *value, const struct ip_set_ext *ext,
 
 static int
 list_set_uadt(struct ip_set *set, struct nlattr *tb[],
-	      enum ipset_adt adt, u32 *lineno, u32 flags, bool retried)
+	      enum ipset_adt adt, u32 *lineyes, u32 flags, bool retried)
 {
 	struct list_set *map = set->data;
 	ipset_adtfn adtfn = set->variant->adt[adt];
@@ -354,7 +354,7 @@ list_set_uadt(struct ip_set *set, struct nlattr *tb[],
 	int ret = 0;
 
 	if (tb[IPSET_ATTR_LINENO])
-		*lineno = nla_get_u32(tb[IPSET_ATTR_LINENO]);
+		*lineyes = nla_get_u32(tb[IPSET_ATTR_LINENO]);
 
 	if (unlikely(!tb[IPSET_ATTR_NAME] ||
 		     !ip_set_optattr_netorder(tb, IPSET_ATTR_CADT_FLAGS)))
@@ -621,7 +621,7 @@ list_set_create(struct net *net, struct ip_set *set, struct nlattr *tb[],
 
 	set->variant = &set_variant;
 	set->dsize = ip_set_elem_len(set, tb, sizeof(struct set_elem),
-				     __alignof__(struct set_elem));
+				     __aligyesf__(struct set_elem));
 	if (!init_list_set(net, set, size))
 		return -ENOMEM;
 	if (tb[IPSET_ATTR_TIMEOUT]) {

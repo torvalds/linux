@@ -22,7 +22,7 @@ Optional properties:
 			     temperature in milliCelsius and second value of
 			     the each row of array is the ADC read value.
 
-			     If not specified, driver assumes the ADC channel
+			     If yest specified, driver assumes the ADC channel
 			     gives milliCelsius directly.
 
 Example :

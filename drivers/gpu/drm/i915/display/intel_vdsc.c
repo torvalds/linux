@@ -349,7 +349,7 @@ int intel_dp_compute_dsc_params(struct intel_dp *intel_dp,
 	vdsc_cfg->dsc_version_major =
 		(intel_dp->dsc_dpcd[DP_DSC_REV - DP_DSC_SUPPORT] &
 		 DP_DSC_MAJOR_MASK) >> DP_DSC_MAJOR_SHIFT;
-	vdsc_cfg->dsc_version_minor =
+	vdsc_cfg->dsc_version_miyesr =
 		min(DSC_SUPPORTED_VERSION_MIN,
 		    (intel_dp->dsc_dpcd[DP_DSC_REV - DP_DSC_SUPPORT] &
 		     DP_DSC_MINOR_MASK) >> DP_DSC_MINOR_SHIFT);
@@ -362,16 +362,16 @@ int intel_dp_compute_dsc_params(struct intel_dp *intel_dp,
 		DRM_DEBUG_KMS("DSC Sink Line Buffer Depth invalid\n");
 		return -EINVAL;
 	}
-	if (vdsc_cfg->dsc_version_minor == 2)
+	if (vdsc_cfg->dsc_version_miyesr == 2)
 		vdsc_cfg->line_buf_depth = (line_buf_depth == DSC_1_2_MAX_LINEBUF_DEPTH_BITS) ?
 			DSC_1_2_MAX_LINEBUF_DEPTH_VAL : line_buf_depth;
 	else
 		vdsc_cfg->line_buf_depth = (line_buf_depth > DSC_1_1_MAX_LINEBUF_DEPTH_BITS) ?
 			DSC_1_1_MAX_LINEBUF_DEPTH_BITS : line_buf_depth;
 
-	/* Gen 11 does not support YCbCr */
+	/* Gen 11 does yest support YCbCr */
 	vdsc_cfg->simple_422 = false;
-	/* Gen 11 does not support VBR */
+	/* Gen 11 does yest support VBR */
 	vdsc_cfg->vbr_enable = false;
 	vdsc_cfg->block_pred_enable =
 			intel_dp->dsc_dpcd[DP_DSC_BLK_PREDICTION_SUPPORT - DP_DSC_SUPPORT] &
@@ -466,7 +466,7 @@ intel_dsc_power_domain(const struct intel_crtc_state *crtc_state)
 	 * On ICL VDSC/joining for eDP transcoder uses a separate power well,
 	 * PW2. This requires POWER_DOMAIN_TRANSCODER_VDSC_PW2 power domain.
 	 * For any other transcoder, VDSC/joining uses the power well associated
-	 * with the pipe/transcoder in use. Hence another reference on the
+	 * with the pipe/transcoder in use. Hence ayesther reference on the
 	 * transcoder power domain will suffice.
 	 *
 	 * On TGL we have the same mapping, but for transcoder A (the special
@@ -495,7 +495,7 @@ static void intel_configure_pps_for_dsc_encoder(struct intel_encoder *encoder,
 	int i = 0;
 
 	/* Populate PICTURE_PARAMETER_SET_0 registers */
-	pps_val = DSC_VER_MAJ | vdsc_cfg->dsc_version_minor <<
+	pps_val = DSC_VER_MAJ | vdsc_cfg->dsc_version_miyesr <<
 		DSC_VER_MIN_SHIFT |
 		vdsc_cfg->bits_per_component << DSC_BPC_SHIFT |
 		vdsc_cfg->line_buf_depth << DSC_LINE_BUF_DEPTH_SHIFT;

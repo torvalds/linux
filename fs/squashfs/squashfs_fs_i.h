@@ -10,7 +10,7 @@
  * squashfs_fs_i.h
  */
 
-struct squashfs_inode_info {
+struct squashfs_iyesde_info {
 	u64		start;
 	int		offset;
 	u64		xattr;
@@ -30,12 +30,12 @@ struct squashfs_inode_info {
 			int		parent;
 		};
 	};
-	struct inode	vfs_inode;
+	struct iyesde	vfs_iyesde;
 };
 
 
-static inline struct squashfs_inode_info *squashfs_i(struct inode *inode)
+static inline struct squashfs_iyesde_info *squashfs_i(struct iyesde *iyesde)
 {
-	return container_of(inode, struct squashfs_inode_info, vfs_inode);
+	return container_of(iyesde, struct squashfs_iyesde_info, vfs_iyesde);
 }
 #endif

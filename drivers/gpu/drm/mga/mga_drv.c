@@ -12,7 +12,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -50,7 +50,7 @@ static const struct file_operations mga_driver_fops = {
 #ifdef CONFIG_COMPAT
 	.compat_ioctl = mga_compat_ioctl,
 #endif
-	.llseek = noop_llseek,
+	.llseek = yesop_llseek,
 };
 
 static struct drm_driver driver = {
@@ -76,7 +76,7 @@ static struct drm_driver driver = {
 	.desc = DRIVER_DESC,
 	.date = DRIVER_DATE,
 	.major = DRIVER_MAJOR,
-	.minor = DRIVER_MINOR,
+	.miyesr = DRIVER_MINOR,
 	.patchlevel = DRIVER_PATCHLEVEL,
 };
 

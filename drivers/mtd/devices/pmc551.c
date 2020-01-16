@@ -12,10 +12,10 @@
  *	cPCI embedded systems.  The device contains a single SROM
  *	that initially programs the V370PDC chipset onboard the
  *	device, and various banks of DRAM/SDRAM onboard.  This driver
- *	implements this PCI Ram device as an MTD (Memory Technology
+ *	implements this PCI Ram device as an MTD (Memory Techyeslogy
  *	Device) so that it can be used to hold a file system, or for
  *	added swap space in embedded systems.  Since the memory on
- *	this board isn't as fast as main memory we do not try to hook
+ *	this board isn't as fast as main memory we do yest try to hook
  *	it into main memory as that would simply reduce performance
  *	on the system.  Using it as a block device allows us to use
  *	it as high speed swap or for a high speed disk device of some
@@ -26,8 +26,8 @@
  *	Due to what I assume is more buggy SROM, the 64M PMC551 I
  *	have available claims that all 4 of its DRAM banks have 64MiB
  *	of ram configured (making a grand total of 256MiB onboard).
- *	This is slightly annoying since the BAR0 size reflects the
- *	aperture size, not the dram size, and the V370PDC supplies no
+ *	This is slightly anyesying since the BAR0 size reflects the
+ *	aperture size, yest the dram size, and the V370PDC supplies yes
  *	other method for memory size discovery.  This problem is
  *	mostly only relevant when compiled as a module, as the
  *	unloading of the module with an aperture size smaller than
@@ -38,7 +38,7 @@
  *	an asize option, to allow the specification of the aperture
  *	size.  The aperture must be equal to or less then the memory
  *	size, the driver will correct this if you screw it up.  This
- *	problem is not relevant for compiled in drivers as compiled
+ *	problem is yest relevant for compiled in drivers as compiled
  *	in drivers only init once.
  *
  * Credits:
@@ -56,7 +56,7 @@
  *	out the size via the PCI detection.o, later changes by Corey
  *	Minyard set up the card to utilize a 1M sliding apature.
  *
- *	Corey Minyard <minyard@nortelnetworks.com>
+ *	Corey Minyard <minyard@yesrtelnetworks.com>
  *	* Modified driver to utilize a sliding aperture instead of
  *	 mapping all memory into kernel space which turned out to
  *	 be very wasteful.
@@ -65,8 +65,8 @@
  *	 the DRAM some.
  *
  * Bugs/FIXMEs:
- *	* MUST fix the init function to not spin on a register
- *	waiting for it to set .. this does not safely handle busted
+ *	* MUST fix the init function to yest spin on a register
+ *	waiting for it to set .. this does yest safely handle busted
  *	devices that never reset the register correctly which will
  *	cause the system to hang w/ a reboot being the only chance at
  *	recover. [sort of fixed, could be better]
@@ -399,7 +399,7 @@ static int __init fixup_pmc551(struct pci_dev *dev)
 	pci_write_config_dword(dev, PMC551_PCI_MEM_MAP0, dtmp);
 	/*
 	 * Grab old BAR0 config so that we can figure out memory size
-	 * This is another bit of kludge going on.  The reason for the
+	 * This is ayesther bit of kludge going on.  The reason for the
 	 * redundancy is I am hoping to retain the original configuration
 	 * previously assigned to the card by the BIOS or some previous
 	 * fixup routine in the kernel.  So we read the old config into cfg,
@@ -477,7 +477,7 @@ static int __init fixup_pmc551(struct pci_dev *dev)
 	/*
 	 * Turn on auto refresh
 	 * The loop is taken directly from Ramix's example code.  I assume that
-	 * this must be held high for some duration of time, but I can find no
+	 * this must be held high for some duration of time, but I can find yes
 	 * documentation refrencing the reasons why.
 	 */
 	for (i = 1; i <= 8; i++) {
@@ -514,7 +514,7 @@ static int __init fixup_pmc551(struct pci_dev *dev)
 	pci_write_config_dword(dev, PMC551_DRAM_CFG, dcmd);
 
 	/*
-	 * Check to make certain fast back-to-back, if not
+	 * Check to make certain fast back-to-back, if yest
 	 * then set it so
 	 */
 	pci_read_config_word(dev, PCI_STATUS, &cmd);
@@ -555,7 +555,7 @@ static int __init fixup_pmc551(struct pci_dev *dev)
 		"0x%llx\n", (size < 1024) ? size : (size < 1048576) ?
 		size >> 10 : size >> 20,
 		(size < 1024) ? "" : (size < 1048576) ? "Ki" : "Mi", size,
-		((dcmd & (0x1 << 3)) == 0) ? "non-" : "",
+		((dcmd & (0x1 << 3)) == 0) ? "yesn-" : "",
 		(unsigned long long)pci_resource_start(dev, 0));
 
 	/*
@@ -635,7 +635,7 @@ MODULE_AUTHOR("Mark Ferrell <mferrell@mvista.com>");
 MODULE_DESCRIPTION(PMC551_VERSION);
 
 /*
- * Stuff these outside the ifdef so as to not bust compiled in driver support
+ * Stuff these outside the ifdef so as to yest bust compiled in driver support
  */
 static int msize = 0;
 static int asize = 0;
@@ -692,14 +692,14 @@ static int __init init_pmc551(void)
 
 		/*
 		 * The PMC551 device acts VERY weird if you don't init it
-		 * first.  i.e. it will not correctly report devsel.  If for
+		 * first.  i.e. it will yest correctly report devsel.  If for
 		 * some reason the sdram is in a wrote-protected state the
 		 * device will DEVSEL when it is written to causing problems
 		 * with the oldproc.c driver in
 		 * some kernels (2.2.*)
 		 */
 		if ((length = fixup_pmc551(PCI_Device)) <= 0) {
-			printk(KERN_NOTICE "pmc551: Cannot init SDRAM\n");
+			printk(KERN_NOTICE "pmc551: Canyest init SDRAM\n");
 			break;
 		}
 
@@ -806,7 +806,7 @@ static int __init init_pmc551(void)
 	pci_dev_put(PCI_Device);
 
 	if (!pmc551list) {
-		printk(KERN_NOTICE "pmc551: not detected\n");
+		printk(KERN_NOTICE "pmc551: yest detected\n");
 		return -ENODEV;
 	} else {
 		printk(KERN_NOTICE "pmc551: %d pmc551 devices loaded\n", found);

@@ -15,7 +15,7 @@ struct typec_cable;
 struct typec_plug;
 struct typec_port;
 
-struct fwnode_handle;
+struct fwyesde_handle;
 struct device;
 
 enum typec_port_type {
@@ -155,7 +155,7 @@ struct typec_cable_desc {
 /*
  * struct typec_partner_desc - USB Type-C Partner Descriptor
  * @usb_pd: USB Power Delivery support
- * @accessory: Audio, Debug or none.
+ * @accessory: Audio, Debug or yesne.
  * @identity: Discover Identity command data
  *
  * Details about a partner that is attached to USB Type-C port. If @identity
@@ -195,7 +195,7 @@ struct typec_operations {
  * @accessory: Supported Accessory Modes
  * @sw: Cable plug orientation switch
  * @mux: Multiplexer switch for Alternate/Accessory Modes
- * @fwnode: Optional fwnode of the port
+ * @fwyesde: Optional fwyesde of the port
  * @driver_data: Private pointer for driver specific info
  * @ops: Port operations vector
  *
@@ -209,7 +209,7 @@ struct typec_capability {
 	int			prefer_role;
 	enum typec_accessory	accessory[TYPEC_MAX_ACCESSORY];
 
-	struct fwnode_handle	*fwnode;
+	struct fwyesde_handle	*fwyesde;
 	void			*driver_data;
 
 	const struct typec_operations	*ops;

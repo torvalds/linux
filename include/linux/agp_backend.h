@@ -14,7 +14,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included
+ * The above copyright yestice and this permission yestice shall be included
  * in all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
@@ -39,7 +39,7 @@ enum chipset_type {
 
 struct agp_version {
 	u16 major;
-	u16 minor;
+	u16 miyesr;
 };
 
 struct agp_kern_info {
@@ -59,7 +59,7 @@ struct agp_kern_info {
 /*
  * The agp_memory structure has information about the block of agp memory
  * allocated.  A caller may manipulate the next and prev pointers to link
- * each allocated item into a list.  These pointers are ignored by the backend.
+ * each allocated item into a list.  These pointers are igyesred by the backend.
  * Everything else should never be written to, but the caller may read any of
  * the items to determine the status of this block of agp memory.
  */

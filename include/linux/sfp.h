@@ -152,10 +152,10 @@ struct sfp_eeprom_base {
 	u8 fc_speed_800:1;
 	u8 fc_speed_1200:1;
 #else
-#error Unknown Endian
+#error Unkyeswn Endian
 #endif
 	u8 encoding;
-	u8 br_nominal;
+	u8 br_yesminal;
 	u8 rate_id;
 	u8 link_len[6];
 	char vendor_name[16];
@@ -178,7 +178,7 @@ struct sfp_eeprom_base {
 			u8 reserved60_2:6;
 			u8 reserved61:8;
 #else
-#error Unknown Endian
+#error Unkyeswn Endian
 #endif
 		} __packed passive;
 		struct {
@@ -197,7 +197,7 @@ struct sfp_eeprom_base {
 			u8 reserved60_4:4;
 			u8 reserved61:8;
 #else
-#error Unknown Endian
+#error Unkyeswn Endian
 #endif
 		} __packed active;
 	} __packed;
@@ -224,7 +224,7 @@ struct sfp_eeprom_ext {
  *
  * See the SFF-8472 specification and related documents for the definition
  * of these structure members. This can be obtained from
- * https://www.snia.org/technology-communities/sff/specifications
+ * https://www.snia.org/techyeslogy-communities/sff/specifications
  */
 struct sfp_eeprom_id {
 	struct sfp_eeprom_base base;
@@ -313,7 +313,7 @@ enum {
 	SFP_PHYS_ID_SFP			= 0x03,
 	SFP_PHYS_EXT_ID_SFP		= 0x04,
 	SFP_CONNECTOR_UNSPEC		= 0x00,
-	/* codes 01-05 not supportable on SFP, but some modules have single SC */
+	/* codes 01-05 yest supportable on SFP, but some modules have single SC */
 	SFP_CONNECTOR_SC		= 0x01,
 	SFP_CONNECTOR_FIBERJACK		= 0x06,
 	SFP_CONNECTOR_LC		= 0x07,
@@ -373,7 +373,7 @@ enum {
 	SFP_SFF8472_COMPLIANCE_REV12_0	= 0x08,
 };
 
-/* SFP Diagnostics */
+/* SFP Diagyesstics */
 enum {
 	/* Alarm and warnings stored MSB at lower address then LSB */
 	SFP_TEMP_HIGH_ALARM		= 0x00,
@@ -465,7 +465,7 @@ enum {
 	SFP_PAGE			= 0x7f,
 };
 
-struct fwnode_handle;
+struct fwyesde_handle;
 struct ethtool_eeprom;
 struct ethtool_modinfo;
 struct sfp_bus;
@@ -479,7 +479,7 @@ struct sfp_bus;
  * @module_insert: called after a module has been detected to determine
  *   whether the module is supported for the upstream device.
  * @module_remove: called after the module has been removed.
- * @link_down: called when the link is non-operational for whatever
+ * @link_down: called when the link is yesn-operational for whatever
  *   reason.
  * @link_up: called when the link is operational.
  * @connect_phy: called when an I2C accessible PHY has been detected
@@ -513,7 +513,7 @@ int sfp_get_module_eeprom(struct sfp_bus *bus, struct ethtool_eeprom *ee,
 void sfp_upstream_start(struct sfp_bus *bus);
 void sfp_upstream_stop(struct sfp_bus *bus);
 void sfp_bus_put(struct sfp_bus *bus);
-struct sfp_bus *sfp_bus_find_fwnode(struct fwnode_handle *fwnode);
+struct sfp_bus *sfp_bus_find_fwyesde(struct fwyesde_handle *fwyesde);
 int sfp_bus_add_upstream(struct sfp_bus *bus, void *upstream,
 			 const struct sfp_upstream_ops *ops);
 void sfp_bus_del_upstream(struct sfp_bus *bus);
@@ -562,7 +562,7 @@ static inline void sfp_bus_put(struct sfp_bus *bus)
 {
 }
 
-static inline struct sfp_bus *sfp_bus_find_fwnode(struct fwnode_handle *fwnode)
+static inline struct sfp_bus *sfp_bus_find_fwyesde(struct fwyesde_handle *fwyesde)
 {
 	return NULL;
 }

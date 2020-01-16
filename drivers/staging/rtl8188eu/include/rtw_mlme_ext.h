@@ -189,7 +189,7 @@ enum Associated_AP {
 	ralinkAP	= 4,
 	realtekAP	= 5,
 	airgocapAP	= 6,
-	unknownAP	= 7,
+	unkyeswnAP	= 7,
 	maxAP,
 };
 
@@ -607,7 +607,7 @@ u8 tx_beacon_hdl(struct adapter *padapter, unsigned char *pbuf);
 u8 set_ch_hdl(struct adapter *padapter, u8 *pbuf);
 u8 set_chplan_hdl(struct adapter *padapter, unsigned char *pbuf);
 u8 led_blink_hdl(struct adapter *padapter, unsigned char *pbuf);
-/* Handling DFS channel switch announcement ie. */
+/* Handling DFS channel switch anyesuncement ie. */
 u8 set_csa_hdl(struct adapter *padapter, unsigned char *pbuf);
 u8 tdls_hdl(struct adapter *padapter, unsigned char *pbuf);
 

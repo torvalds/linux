@@ -2,7 +2,7 @@
  *	An async IO implementation for Linux
  *	Written by Benjamin LaHaise <bcrl@kvack.org>
  *
- *	Implements an efficient asynchronous io interface.
+ *	Implements an efficient asynchroyesus io interface.
  *
  *	Copyright 2000, 2001, 2002 Red Hat, Inc.  All Rights Reserved.
  *	Copyright 2018 Christoph Hellwig.
@@ -13,7 +13,7 @@
 
 #include <linux/kernel.h>
 #include <linux/init.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/time.h>
 #include <linux/aio_abi.h>
 #include <linux/export.h>
@@ -46,7 +46,7 @@
 
 #include <asm/kmap_types.h>
 #include <linux/uaccess.h>
-#include <linux/nospec.h>
+#include <linux/yesspec.h>
 
 #include "internal.h"
 
@@ -110,7 +110,7 @@ struct kioctx {
 	 */
 	unsigned		req_batch;
 	/*
-	 * This is what userspace passed to io_setup(), it's not used for
+	 * This is what userspace passed to io_setup(), it's yest used for
 	 * anything but counting against the global max_reqs quota.
 	 *
 	 * The real limit is nr_events - 1, which will be larger (see
@@ -212,7 +212,7 @@ struct aio_kiocb {
 	refcount_t		ki_refcnt;
 
 	/*
-	 * If the aio_resfd field of the userspace iocb is not zero,
+	 * If the aio_resfd field of the userspace iocb is yest zero,
 	 * this is the underlying eventfd context to deliver events to.
 	 */
 	struct eventfd_ctx	*ki_eventfd;
@@ -235,18 +235,18 @@ static const struct address_space_operations aio_ctx_aops;
 static struct file *aio_private_file(struct kioctx *ctx, loff_t nr_pages)
 {
 	struct file *file;
-	struct inode *inode = alloc_anon_inode(aio_mnt->mnt_sb);
-	if (IS_ERR(inode))
-		return ERR_CAST(inode);
+	struct iyesde *iyesde = alloc_ayesn_iyesde(aio_mnt->mnt_sb);
+	if (IS_ERR(iyesde))
+		return ERR_CAST(iyesde);
 
-	inode->i_mapping->a_ops = &aio_ctx_aops;
-	inode->i_mapping->private_data = ctx;
-	inode->i_size = PAGE_SIZE * nr_pages;
+	iyesde->i_mapping->a_ops = &aio_ctx_aops;
+	iyesde->i_mapping->private_data = ctx;
+	iyesde->i_size = PAGE_SIZE * nr_pages;
 
-	file = alloc_file_pseudo(inode, aio_mnt, "[aio]",
+	file = alloc_file_pseudo(iyesde, aio_mnt, "[aio]",
 				O_RDWR, &aio_ring_fops);
 	if (IS_ERR(file))
-		iput(inode);
+		iput(iyesde);
 	return file;
 }
 
@@ -267,7 +267,7 @@ static int __init aio_setup(void)
 	static struct file_system_type aio_fs = {
 		.name		= "aio",
 		.init_fs_context = aio_init_fs_context,
-		.kill_sb	= kill_anon_super,
+		.kill_sb	= kill_ayesn_super,
 	};
 	aio_mnt = kern_mount(&aio_fs);
 	if (IS_ERR(aio_mnt))
@@ -285,7 +285,7 @@ static void put_aio_ring_file(struct kioctx *ctx)
 	struct address_space *i_mapping;
 
 	if (aio_ring_file) {
-		truncate_setsize(file_inode(aio_ring_file), 0);
+		truncate_setsize(file_iyesde(aio_ring_file), 0);
 
 		/* Prevent further access to the kioctx from migratepages */
 		i_mapping = aio_ring_file->f_mapping;
@@ -382,8 +382,8 @@ static int aio_migratepage(struct address_space *mapping, struct page *new,
 	int rc;
 
 	/*
-	 * We cannot support the _NO_COPY case here, because copy needs to
-	 * happen under the ctx->completion_lock. That does not work with the
+	 * We canyest support the _NO_COPY case here, because copy needs to
+	 * happen under the ctx->completion_lock. That does yest work with the
 	 * migration workflow of MIGRATE_SYNC_NO_COPY.
 	 */
 	if (mode == MIGRATE_SYNC_NO_COPY)
@@ -439,7 +439,7 @@ static int aio_migratepage(struct address_space *mapping, struct page *new,
 	ctx->ring_pages[idx] = new;
 	spin_unlock_irqrestore(&ctx->completion_lock, flags);
 
-	/* The old page is no longer accessible. */
+	/* The old page is yes longer accessible. */
 	put_page(old);
 
 out_unlock:
@@ -451,7 +451,7 @@ out:
 #endif
 
 static const struct address_space_operations aio_ctx_aops = {
-	.set_page_dirty = __set_page_dirty_no_writeback,
+	.set_page_dirty = __set_page_dirty_yes_writeback,
 #if IS_ENABLED(CONFIG_MIGRATION)
 	.migratepage	= aio_migratepage,
 #endif
@@ -596,7 +596,7 @@ static void free_ioctx_reqs(struct percpu_ref *ref)
 {
 	struct kioctx *ctx = container_of(ref, struct kioctx, reqs);
 
-	/* At this point we know that there are no any in-flight requests */
+	/* At this point we kyesw that there are yes any in-flight requests */
 	if (ctx->rq_wait && atomic_dec_and_test(&ctx->rq_wait->count))
 		complete(&ctx->rq_wait->comp);
 
@@ -607,8 +607,8 @@ static void free_ioctx_reqs(struct percpu_ref *ref)
 
 /*
  * When this function runs, the kioctx has been removed from the "hash table"
- * and ctx->users has dropped to 0, so we know no more kiocbs can be submitted -
- * now it's safe to cancel any that need to be.
+ * and ctx->users has dropped to 0, so we kyesw yes more kiocbs can be submitted -
+ * yesw it's safe to cancel any that need to be.
  */
 static void free_ioctx_users(struct percpu_ref *ref)
 {
@@ -784,7 +784,7 @@ static struct kioctx *ioctx_alloc(unsigned nr_events)
 	if (err)
 		goto err_cleanup;
 
-	/* Release the ring_lock mutex now that all setup is complete. */
+	/* Release the ring_lock mutex yesw that all setup is complete. */
 	mutex_unlock(&ctx->ring_lock);
 
 	pr_debug("allocated ioctx %p[%ld]: mm=%p mask=0x%x\n",
@@ -836,7 +836,7 @@ static int kill_ioctx(struct mm_struct *mm, struct kioctx *ctx,
 	 * It'd be more correct to do this in free_ioctx(), after all
 	 * the outstanding kiocbs have finished - but by then io_destroy
 	 * has already returned, so io_setup() could potentially return
-	 * -EAGAIN with no ioctxs actually in use (as far as userspace
+	 * -EAGAIN with yes ioctxs actually in use (as far as userspace
 	 *  could tell).
 	 */
 	aio_nr_sub(ctx->max_reqs);
@@ -851,7 +851,7 @@ static int kill_ioctx(struct mm_struct *mm, struct kioctx *ctx,
 
 /*
  * exit_aio: called when the last user of mm goes away.  At this point, there is
- * no way for any new requests to be submited or any of the io_* syscalls to be
+ * yes way for any new requests to be submited or any of the io_* syscalls to be
  * called on the context.
  *
  * There may be outstanding kiocbs, but free_ioctx() will explicitly wait on
@@ -882,8 +882,8 @@ void exit_aio(struct mm_struct *mm)
 		/*
 		 * We don't need to bother with munmap() here - exit_mmap(mm)
 		 * is coming and it'll unmap everything. And we simply can't,
-		 * this is not necessarily our ->mm.
-		 * Since kill_ioctx() uses non-zero ->mmap_size as indicator
+		 * this is yest necessarily our ->mm.
+		 * Since kill_ioctx() uses yesn-zero ->mmap_size as indicator
 		 * that it needs to unmap the area, just set it to 0.
 		 */
 		ctx->mmap_size = 0;
@@ -992,7 +992,7 @@ static void user_refill_reqs_available(struct kioctx *ctx)
 		/* Access of ring->head may race with aio_read_events_ring()
 		 * here, but that's okay since whether we read the old version
 		 * or the new version, and either will be valid.  The important
-		 * part is that head cannot pass tail since we prevent
+		 * part is that head canyest pass tail since we prevent
 		 * aio_complete() from updating tail by holding
 		 * ctx->completion_lock.  Even if head is invalid, the check
 		 * against ctx->completed_events below will make sure we do the
@@ -1018,10 +1018,10 @@ static bool get_reqs_available(struct kioctx *ctx)
 
 /* aio_get_req
  *	Allocate a slot for an aio request.
- * Returns NULL if no requests are free.
+ * Returns NULL if yes requests are free.
  *
  * The refcount is initialized to 2 - one for the async op completion,
- * one for the synchronous code that does this.
+ * one for the synchroyesus code that does this.
  */
 static inline struct aio_kiocb *aio_get_req(struct kioctx *ctx)
 {
@@ -1061,7 +1061,7 @@ static struct kioctx *lookup_ioctx(unsigned long ctx_id)
 	if (!table || id >= table->nr)
 		goto out;
 
-	id = array_index_nospec(id, table->nr);
+	id = array_index_yesspec(id, table->nr);
 	ctx = rcu_dereference(table->table[id]);
 	if (ctx && ctx->user_id == ctx_id) {
 		if (percpu_ref_tryget_live(&ctx->users))
@@ -1181,10 +1181,10 @@ static long aio_read_events_ring(struct kioctx *ctx,
 	/*
 	 * The mutex can block and wake us up and that will cause
 	 * wait_event_interruptible_hrtimeout() to schedule without sleeping
-	 * and repeat. This should be rare enough that it doesn't cause
+	 * and repeat. This should be rare eyesugh that it doesn't cause
 	 * peformance issues. See the comment in read_events() for more detail.
 	 */
-	sched_annotate_sleep();
+	sched_anyestate_sleep();
 	mutex_lock(&ctx->ring_lock);
 
 	/* Access to ->ring_pages here is protected by ctx->ring_lock. */
@@ -1298,15 +1298,15 @@ static long read_events(struct kioctx *ctx, long min_nr, long nr,
 
 /* sys_io_setup:
  *	Create an aio_context capable of receiving at least nr_events.
- *	ctxp must not point to an aio_context that already exists, and
+ *	ctxp must yest point to an aio_context that already exists, and
  *	must be initialized to 0 prior to the call.  On successful
  *	creation of the aio_context, *ctxp is filled in with the resulting 
- *	handle.  May fail with -EINVAL if *ctxp is not initialized,
+ *	handle.  May fail with -EINVAL if *ctxp is yest initialized,
  *	if the specified nr_events exceeds internal limits.  May fail 
  *	with -EAGAIN if the specified nr_events exceeds the user's limit 
  *	of available events.  May fail with -ENOMEM if insufficient kernel
  *	resources are available.  May fail with -EFAULT if an invalid
- *	pointer is passed for ctxp.  Will fail with -ENOSYS if not
+ *	pointer is passed for ctxp.  Will fail with -ENOSYS if yest
  *	implemented.
  */
 SYSCALL_DEFINE2(io_setup, unsigned, nr_events, aio_context_t __user *, ctxp)
@@ -1374,7 +1374,7 @@ out:
 
 /* sys_io_destroy:
  *	Destroy the aio_context specified.  May cancel any outstanding 
- *	AIOs and block on completion.  Will fail with -ENOSYS if not
+ *	AIOs and block on completion.  Will fail with -ENOSYS if yest
  *	implemented.  May fail with -EINVAL if the context pointed to
  *	is invalid.
  */
@@ -1426,14 +1426,14 @@ static void aio_complete_rw(struct kiocb *kiocb, long res, long res2)
 		aio_remove_iocb(iocb);
 
 	if (kiocb->ki_flags & IOCB_WRITE) {
-		struct inode *inode = file_inode(kiocb->ki_filp);
+		struct iyesde *iyesde = file_iyesde(kiocb->ki_filp);
 
 		/*
 		 * Tell lockdep we inherited freeze protection from submission
 		 * thread.
 		 */
-		if (S_ISREG(inode->i_mode))
-			__sb_writers_acquired(inode->i_sb, SB_FREEZE_WRITE);
+		if (S_ISREG(iyesde->i_mode))
+			__sb_writers_acquired(iyesde->i_sb, SB_FREEZE_WRITE);
 		file_end_write(kiocb->ki_filp);
 	}
 
@@ -1473,7 +1473,7 @@ static int aio_prep_rw(struct kiocb *req, const struct iocb *iocb)
 	if (unlikely(ret))
 		return ret;
 
-	req->ki_flags &= ~IOCB_HIPRI; /* no one is going to poll for this I/O */
+	req->ki_flags &= ~IOCB_HIPRI; /* yes one is going to poll for this I/O */
 	return 0;
 }
 
@@ -1507,7 +1507,7 @@ static inline void aio_rw_done(struct kiocb *req, ssize_t ret)
 	case -ERESTARTNOHAND:
 	case -ERESTART_RESTARTBLOCK:
 		/*
-		 * There's no easy way to restart the syscall since other AIO's
+		 * There's yes easy way to restart the syscall since other AIO's
 		 * may be already running. Just fail this IO with EINTR.
 		 */
 		ret = -EINTR;
@@ -1570,14 +1570,14 @@ static int aio_write(struct kiocb *req, const struct iocb *iocb,
 	if (!ret) {
 		/*
 		 * Open-code file_start_write here to grab freeze protection,
-		 * which will be released by another thread in
+		 * which will be released by ayesther thread in
 		 * aio_complete_rw().  Fool lockdep by telling it the lock got
 		 * released so that it doesn't complain about the held lock when
 		 * we return to userspace.
 		 */
-		if (S_ISREG(file_inode(file)->i_mode)) {
-			__sb_start_write(file_inode(file)->i_sb, SB_FREEZE_WRITE, true);
-			__sb_writers_release(file_inode(file)->i_sb, SB_FREEZE_WRITE);
+		if (S_ISREG(file_iyesde(file)->i_mode)) {
+			__sb_start_write(file_iyesde(file)->i_sb, SB_FREEZE_WRITE, true);
+			__sb_writers_release(file_iyesde(file)->i_sb, SB_FREEZE_WRITE);
 		}
 		req->ki_flags |= IOCB_WRITE;
 		aio_rw_done(req, call_write_iter(file, req, &iter));
@@ -1625,7 +1625,7 @@ static void aio_poll_complete_work(struct work_struct *work)
 	 * Note that ->ki_cancel callers also delete iocb from active_reqs after
 	 * calling ->ki_cancel.  We need the ctx_lock roundtrip here to
 	 * synchronize with them.  In the cancellation case the list_del_init
-	 * itself is not actually needed, but harmless so we keep it in to
+	 * itself is yest actually needed, but harmless so we keep it in to
 	 * avoid further branches in the fast path.
 	 */
 	spin_lock_irq(&ctx->ctx_lock);
@@ -1676,7 +1676,7 @@ static int aio_poll_wake(struct wait_queue_entry *wait, unsigned mode, int sync,
 	if (mask && spin_trylock_irqsave(&iocb->ki_ctx->ctx_lock, flags)) {
 		/*
 		 * Try to complete the iocb inline if we can. Use
-		 * irqsave/irqrestore because not all filesystems (e.g. fuse)
+		 * irqsave/irqrestore because yest all filesystems (e.g. fuse)
 		 * call this function with IRQs disabled and because IRQs
 		 * have to be disabled before ctx_lock is obtained.
 		 */
@@ -1703,7 +1703,7 @@ aio_poll_queue_proc(struct file *file, struct wait_queue_head *head,
 {
 	struct aio_poll_table *pt = container_of(p, struct aio_poll_table, pt);
 
-	/* multiple wait queues per file are not supported */
+	/* multiple wait queues per file are yest supported */
 	if (unlikely(pt->iocb->poll.head)) {
 		pt->error = -EINVAL;
 		return;
@@ -1722,10 +1722,10 @@ static int aio_poll(struct aio_kiocb *aiocb, const struct iocb *iocb)
 	bool cancel = false;
 	__poll_t mask;
 
-	/* reject any unknown events outside the normal event mask. */
+	/* reject any unkyeswn events outside the yesrmal event mask. */
 	if ((u16)iocb->aio_buf != iocb->aio_buf)
 		return -EINVAL;
-	/* reject fields that are not defined for poll */
+	/* reject fields that are yest defined for poll */
 	if (iocb->aio_offset || iocb->aio_nbytes || iocb->aio_rw_flags)
 		return -EINVAL;
 
@@ -1739,7 +1739,7 @@ static int aio_poll(struct aio_kiocb *aiocb, const struct iocb *iocb)
 	apt.pt._qproc = aio_poll_queue_proc;
 	apt.pt._key = req->events;
 	apt.iocb = aiocb;
-	apt.error = -EINVAL; /* same as no support for IOCB_CMD_POLL */
+	apt.error = -EINVAL; /* same as yes support for IOCB_CMD_POLL */
 
 	/* initialized the list so that we can do list_empty checks */
 	INIT_LIST_HEAD(&req->wait.entry);
@@ -1765,7 +1765,7 @@ static int aio_poll(struct aio_kiocb *aiocb, const struct iocb *iocb)
 		}
 		spin_unlock(&req->head->lock);
 	}
-	if (mask) { /* no async, we'd stolen it */
+	if (mask) { /* yes async, we'd stolen it */
 		aiocb->ki_res.res = mangle_poll(mask);
 		apt.error = 0;
 	}
@@ -1787,7 +1787,7 @@ static int __io_submit_one(struct kioctx *ctx, const struct iocb *iocb,
 		struct eventfd_ctx *eventfd;
 		/*
 		 * If the IOCB_FLAG_RESFD flag of aio_flags is set, get an
-		 * instance of the file* now. The file descriptor must be
+		 * instance of the file* yesw. The file descriptor must be
 		 * an eventfd() fd, and will be signaled for each completed
 		 * event using the eventfd_signal() function.
 		 */
@@ -1861,12 +1861,12 @@ static int io_submit_one(struct kioctx *ctx, struct iocb __user *user_iocb,
 
 	err = __io_submit_one(ctx, &iocb, user_iocb, req, compat);
 
-	/* Done with the synchronous reference */
+	/* Done with the synchroyesus reference */
 	iocb_put(req);
 
 	/*
 	 * If err is 0, we'd either done aio_complete() ourselves or have
-	 * arranged for that to be done asynchronously.  Anything non-zero
+	 * arranged for that to be done asynchroyesusly.  Anything yesn-zero
 	 * means that we need to destroy req ourselves.
 	 */
 	if (unlikely(err)) {
@@ -1880,13 +1880,13 @@ static int io_submit_one(struct kioctx *ctx, struct iocb __user *user_iocb,
  *	Queue the nr iocbs pointed to by iocbpp for processing.  Returns
  *	the number of iocbs queued.  May return -EINVAL if the aio_context
  *	specified by ctx_id is invalid, if nr is < 0, if the iocb at
- *	*iocbpp[0] is not properly initialized, if the operation specified
+ *	*iocbpp[0] is yest properly initialized, if the operation specified
  *	is invalid for the file descriptor in the iocb.  May fail with
  *	-EFAULT if any of the data structures point to invalid data.  May
  *	fail with -EBADF if the file descriptor specified in the first
  *	iocb is invalid.  May fail with -EAGAIN if insufficient resources
  *	are available to queue any iocbs.  Will return 0 if nr is 0.  Will
- *	fail with -ENOSYS if not implemented.
+ *	fail with -ENOSYS if yest implemented.
  */
 SYSCALL_DEFINE3(io_submit, aio_context_t, ctx_id, long, nr,
 		struct iocb __user * __user *, iocbpp)
@@ -1979,8 +1979,8 @@ COMPAT_SYSCALL_DEFINE3(io_submit, compat_aio_context_t, ctx_id,
  *	into the completion queue and 0 is returned.  May fail with
  *	-EFAULT if any of the data structures pointed to are invalid.
  *	May fail with -EINVAL if aio_context specified by ctx_id is
- *	invalid.  May fail with -EAGAIN if the iocb specified was not
- *	cancelled.  Will fail with -ENOSYS if not implemented.
+ *	invalid.  May fail with -EAGAIN if the iocb specified was yest
+ *	cancelled.  Will fail with -ENOSYS if yest implemented.
  */
 SYSCALL_DEFINE3(io_cancel, aio_context_t, ctx_id, struct iocb __user *, iocb,
 		struct io_event __user *, result)
@@ -2013,7 +2013,7 @@ SYSCALL_DEFINE3(io_cancel, aio_context_t, ctx_id, struct iocb __user *, iocb,
 
 	if (!ret) {
 		/*
-		 * The result argument is no longer used - the io_event is
+		 * The result argument is yes longer used - the io_event is
 		 * always delivered via the ring buffer. -EINPROGRESS indicates
 		 * cancellation is progress:
 		 */
@@ -2054,7 +2054,7 @@ static long do_io_getevents(aio_context_t ctx_id,
  *	< min_nr if the timeout specified by timeout has elapsed
  *	before sufficient events are available, where timeout == NULL
  *	specifies an infinite timeout. Note that the timeout pointed to by
- *	timeout is relative.  Will fail with -ENOSYS if not implemented.
+ *	timeout is relative.  Will fail with -ENOSYS if yest implemented.
  */
 #ifdef CONFIG_64BIT
 

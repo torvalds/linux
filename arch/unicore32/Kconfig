@@ -123,9 +123,9 @@ config LEDS
 config ALIGNMENT_TRAP
 	def_bool y
 	help
-	  Unicore processors can not fetch/store information which is not
+	  Unicore processors can yest fetch/store information which is yest
 	  naturally aligned on the bus, i.e., a 4 byte fetch must start at an
-	  address divisible by 4. On 32-bit Unicore processors, these non-aligned
+	  address divisible by 4. On 32-bit Unicore processors, these yesn-aligned
 	  fetch/store instructions will be emulated in software if you say
 	  here, which has a severe performance impact. This is necessary for
 	  correct operation of some network protocols. With an IP-only
@@ -145,7 +145,7 @@ config CMDLINE_FORCE
 	help
 	  Always use the default kernel command string, even if the boot
 	  loader passes other arguments to the kernel.
-	  This is useful if you cannot or don't want to change the
+	  This is useful if you canyest or don't want to change the
 	  command-line options your boot loader passes to the kernel.
 
 	  If unsure, say N.

@@ -170,7 +170,7 @@ static int dell_smbios_wmi_probe(struct wmi_device *wdev, const void *context)
 		return -EPROBE_DEFER;
 	if (!hotfix) {
 		dev_warn(&wdev->dev,
-			"WMI SMBIOS userspace interface not supported(%u), try upgrading to a newer BIOS\n",
+			"WMI SMBIOS userspace interface yest supported(%u), try upgrading to a newer BIOS\n",
 			hotfix);
 		wdriver->filter_callback = NULL;
 	}

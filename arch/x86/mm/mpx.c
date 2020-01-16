@@ -67,15 +67,15 @@ static int mpx_insn_decode(struct insn *insn,
 {
 	unsigned char buf[MAX_INSN_SIZE];
 	int x86_64 = !test_thread_flag(TIF_IA32);
-	int not_copied;
+	int yest_copied;
 	int nr_copied;
 
-	not_copied = copy_from_user(buf, (void __user *)regs->ip, sizeof(buf));
-	nr_copied = sizeof(buf) - not_copied;
+	yest_copied = copy_from_user(buf, (void __user *)regs->ip, sizeof(buf));
+	nr_copied = sizeof(buf) - yest_copied;
 	/*
 	 * The decoder _should_ fail nicely if we pass it a short buffer.
-	 * But, let's not depend on that implementation detail.  If we
-	 * did not get anything, just error out now.
+	 * But, let's yest depend on that implementation detail.  If we
+	 * did yest get anything, just error out yesw.
 	 */
 	if (!nr_copied)
 		return -EFAULT;
@@ -86,7 +86,7 @@ static int mpx_insn_decode(struct insn *insn,
 	 * the largest possible instruction.  If the instruction we are
 	 * after is shorter than that _and_ we attempt to copy from
 	 * something unreadable, we might get a short read.  This is OK
-	 * as long as the read did not stop in the middle of the
+	 * as long as the read did yest stop in the middle of the
 	 * instruction.  Check to see if we got a partial instruction.
 	 */
 	if (nr_copied < insn->length)
@@ -113,10 +113,10 @@ bad_opcode:
  * function decodes MPX instructions to get violation address
  * and set this address into extended struct siginfo.
  *
- * Note that this is not a super precise way of doing this.
+ * Note that this is yest a super precise way of doing this.
  * Userspace could have, by the time we get here, written
- * anything it wants in to the instructions.  We can not
- * trust anything about it.  They might not be valid
+ * anything it wants in to the instructions.  We can yest
+ * trust anything about it.  They might yest be valid
  * instructions or might encode invalid registers, etc...
  */
 int mpx_fault_info(struct mpx_fault_info *info, struct pt_regs *regs)
@@ -124,7 +124,7 @@ int mpx_fault_info(struct mpx_fault_info *info, struct pt_regs *regs)
 	const struct mpx_bndreg_state *bndregs;
 	const struct mpx_bndreg *bndreg;
 	struct insn insn;
-	uint8_t bndregno;
+	uint8_t bndregyes;
 	int err;
 
 	err = mpx_insn_decode(&insn, regs);
@@ -132,12 +132,12 @@ int mpx_fault_info(struct mpx_fault_info *info, struct pt_regs *regs)
 		goto err_out;
 
 	/*
-	 * We know at this point that we are only dealing with
+	 * We kyesw at this point that we are only dealing with
 	 * MPX instructions.
 	 */
 	insn_get_modrm(&insn);
-	bndregno = X86_MODRM_REG(insn.modrm.value);
-	if (bndregno > 3) {
+	bndregyes = X86_MODRM_REG(insn.modrm.value);
+	if (bndregyes > 3) {
 		err = -EINVAL;
 		goto err_out;
 	}
@@ -147,12 +147,12 @@ int mpx_fault_info(struct mpx_fault_info *info, struct pt_regs *regs)
 		err = -EINVAL;
 		goto err_out;
 	}
-	/* now go select the individual register in the set of 4 */
-	bndreg = &bndregs->bndreg[bndregno];
+	/* yesw go select the individual register in the set of 4 */
+	bndreg = &bndregs->bndreg[bndregyes];
 
 	/*
 	 * The registers are always 64-bit, but the upper 32
-	 * bits are ignored in 32-bit mode.  Also, note that the
+	 * bits are igyesred in 32-bit mode.  Also, yeste that the
 	 * upper bounds are architecturally represented in 1's
 	 * complement form.
 	 *
@@ -165,7 +165,7 @@ int mpx_fault_info(struct mpx_fault_info *info, struct pt_regs *regs)
 	info->addr  = insn_get_addr_ref(&insn, regs);
 
 	/*
-	 * We were not able to extract an address from the instruction,
+	 * We were yest able to extract an address from the instruction,
 	 * probably because there was something invalid in it.
 	 */
 	if (info->addr == (void __user *)-1) {
@@ -223,7 +223,7 @@ int mpx_enable_management(void)
 	 *
 	 * The copy_xregs_to_kernel() beneath get_xsave_field_ptr() is
 	 * expected to be relatively expensive. Storing the bounds
-	 * directory here means that we do not have to do xsave in the
+	 * directory here means that we do yest have to do xsave in the
 	 * unmap path; we can just use mm->context.bd_addr instead.
 	 */
 	bd_base = mpx_get_bounds_dir();
@@ -231,7 +231,7 @@ int mpx_enable_management(void)
 
 	/* MPX doesn't support addresses above 47 bits yet. */
 	if (find_vma(mm, DEFAULT_MAP_WINDOW)) {
-		pr_warn_once("%s (%d): MPX cannot handle addresses "
+		pr_warn_once("%s (%d): MPX canyest handle addresses "
 				"above 47-bits. Disabling.",
 				current->comm, current->pid);
 		ret = -ENXIO;
@@ -267,7 +267,7 @@ static int mpx_cmpxchg_bd_entry(struct mm_struct *mm,
 	/*
 	 * user_atomic_cmpxchg_inatomic() actually uses sizeof()
 	 * the pointer that we pass to it to figure out how much
-	 * data to cmpxchg.  We have to be careful here not to
+	 * data to cmpxchg.  We have to be careful here yest to
 	 * pass a pointer to a 64-bit data type when we only want
 	 * a 32-bit copy.
 	 */
@@ -315,11 +315,11 @@ static int allocate_bt(struct mm_struct *mm, long __user *bd_entry)
 	/*
 	 * Go poke the address of the new bounds table in to the
 	 * bounds directory entry out in userspace memory.  Note:
-	 * we may race with another CPU instantiating the same table.
+	 * we may race with ayesther CPU instantiating the same table.
 	 * In that case the cmpxchg will see an unexpected
 	 * 'actual_old_val'.
 	 *
-	 * This can fault, but that's OK because we do not hold
+	 * This can fault, but that's OK because we do yest hold
 	 * mmap_sem at this point, unlike some of the other part
 	 * of the MPX code that have to pagefault_disable().
 	 */
@@ -329,13 +329,13 @@ static int allocate_bt(struct mm_struct *mm, long __user *bd_entry)
 		goto out_unmap;
 
 	/*
-	 * The user_atomic_cmpxchg_inatomic() will only return nonzero
-	 * for faults, *not* if the cmpxchg itself fails.  Now we must
+	 * The user_atomic_cmpxchg_inatomic() will only return yesnzero
+	 * for faults, *yest* if the cmpxchg itself fails.  Now we must
 	 * verify that the cmpxchg itself completed successfully.
 	 */
 	/*
 	 * We expected an empty 'expected_old_val', but instead found
-	 * an apparently valid entry.  Assume we raced with another
+	 * an apparently valid entry.  Assume we raced with ayesther
 	 * thread to instantiate this table and desclare succecss.
 	 */
 	if (actual_old_val & MPX_BD_ENTRY_VALID_FLAG) {
@@ -343,7 +343,7 @@ static int allocate_bt(struct mm_struct *mm, long __user *bd_entry)
 		goto out_unmap;
 	}
 	/*
-	 * We found a non-empty bd_entry but it did not have the
+	 * We found a yesn-empty bd_entry but it did yest have the
 	 * VALID_FLAG set.  Return an error which will result in
 	 * a SEGV since this probably means that somebody scribbled
 	 * some invalid data in to a bounds table.
@@ -362,7 +362,7 @@ out_unmap:
 /*
  * When a BNDSTX instruction attempts to save bounds to a bounds
  * table, it will first attempt to look up the table in the
- * first-level bounds directory.  If it does not find a table in
+ * first-level bounds directory.  If it does yest find a table in
  * the directory, a #BR is generated and we get here in order to
  * allocate a new table.
  *
@@ -413,7 +413,7 @@ int mpx_handle_bd_fault(void)
 
 /*
  * A thin wrapper around get_user_pages().  Returns 0 if the
- * fault was resolved or -errno if not.
+ * fault was resolved or -erryes if yest.
  */
 static int mpx_resolve_fault(long __user *addr, int write)
 {
@@ -449,7 +449,7 @@ static unsigned long mpx_bd_entry_to_bt_addr(struct mm_struct *mm,
 	 * Tables are naturally aligned at 8-byte boundaries
 	 * on 64-bit and 4-byte boundaries on 32-bit.  The
 	 * documentation makes it appear that the low bits
-	 * are ignored by the hardware, so we do the same.
+	 * are igyesred by the hardware, so we do the same.
 	 */
 	if (is_64bit_mm(mm))
 		align_to_bytes = 8;
@@ -475,7 +475,7 @@ static int get_user_bd_entry(struct mm_struct *mm, unsigned long *bd_entry_ret,
 
 	/*
 	 * Note that get_user() uses the type of the *pointer* to
-	 * establish the size of the get, not the destination.
+	 * establish the size of the get, yest the destination.
 	 */
 	ret = get_user(bd_entry_32, (u32 __user *)bd_entry_ptr);
 	*bd_entry_ret = bd_entry_32;
@@ -509,7 +509,7 @@ static int get_bt_addr(struct mm_struct *mm,
 		if (ret == -EFAULT)
 			ret = mpx_resolve_fault(bd_entry_ptr, need_write);
 		/*
-		 * If we could not resolve the fault, consider it
+		 * If we could yest resolve the fault, consider it
 		 * userspace's fault and error out.
 		 */
 		if (ret)
@@ -523,14 +523,14 @@ static int get_bt_addr(struct mm_struct *mm,
 	 * When the kernel is managing bounds tables, a bounds directory
 	 * entry will either have a valid address (plus the valid bit)
 	 * *OR* be completely empty. If we see a !valid entry *and* some
-	 * data in the address field, we know something is wrong. This
+	 * data in the address field, we kyesw something is wrong. This
 	 * -EINVAL return will cause a SIGSEGV.
 	 */
 	if (!valid_bit && bt_addr)
 		return -EINVAL;
 	/*
 	 * Do we have an completely zeroed bt entry?  That is OK.  It
-	 * just means there was no bounds table for this memory.  Make
+	 * just means there was yes bounds table for this memory.  Make
 	 * sure to distinguish this from -EINVAL, which will cause
 	 * a SEGV.
 	 */
@@ -561,27 +561,27 @@ static unsigned long mpx_get_bt_entry_offset_bytes(struct mm_struct *mm,
 	unsigned long offset = addr;
 
 	if (is_64bit_mm(mm)) {
-		/* Bottom 3 bits are ignored on 64-bit */
+		/* Bottom 3 bits are igyesred on 64-bit */
 		offset >>= 3;
 		bt_table_nr_entries = MPX_BT_NR_ENTRIES_64;
 	} else {
-		/* Bottom 2 bits are ignored on 32-bit */
+		/* Bottom 2 bits are igyesred on 32-bit */
 		offset >>= 2;
 		bt_table_nr_entries = MPX_BT_NR_ENTRIES_32;
 	}
 	/*
-	 * We know the size of the table in to which we are
+	 * We kyesw the size of the table in to which we are
 	 * indexing, and we have eliminated all the low bits
-	 * which are ignored for indexing.
+	 * which are igyesred for indexing.
 	 *
-	 * Mask out all the high bits which we do not need
+	 * Mask out all the high bits which we do yest need
 	 * to index in to the table.  Note that the tables
 	 * are always powers of two so this gives us a proper
 	 * mask.
 	 */
 	offset &= (bt_table_nr_entries-1);
 	/*
-	 * We now have an entry offset in terms of *entries* in
+	 * We yesw have an entry offset in terms of *entries* in
 	 * the table.  We need to scale it back up to bytes.
 	 */
 	offset *= bt_entry_size_bytes(mm);
@@ -620,7 +620,7 @@ static inline unsigned long bd_entry_virt_space(struct mm_struct *mm)
  * Free the backing physical pages of bounds table 'bt_addr'.
  * Assume start...end is within that bounds table.
  */
-static noinline int zap_bt_entries_mapping(struct mm_struct *mm,
+static yesinline int zap_bt_entries_mapping(struct mm_struct *mm,
 		unsigned long bt_addr,
 		unsigned long start_mapping, unsigned long end_mapping)
 {
@@ -631,7 +631,7 @@ static noinline int zap_bt_entries_mapping(struct mm_struct *mm,
 
 	/*
 	 * if we 'end' on a boundary, the offset will be 0 which
-	 * is not what we want.  Back it up a byte to get the
+	 * is yest what we want.  Back it up a byte to get the
 	 * last bt entry.  Then once we have the entry itself,
 	 * move 'end' back up by the table entry size.
 	 */
@@ -640,7 +640,7 @@ static noinline int zap_bt_entries_mapping(struct mm_struct *mm,
 	/*
 	 * Move end back up by one entry.  Among other things
 	 * this ensures that it remains page-aligned and does
-	 * not screw up zap_page_range()
+	 * yest screw up zap_page_range()
 	 */
 	end += bt_entry_size_bytes(mm);
 
@@ -663,7 +663,7 @@ static noinline int zap_bt_entries_mapping(struct mm_struct *mm,
 	while (vma && vma->vm_start < end) {
 		/*
 		 * We followed a bounds directory entry down
-		 * here.  If we find a non-MPX VMA, that's bad,
+		 * here.  If we find a yesn-MPX VMA, that's bad,
 		 * so stop immediately and return an error.  This
 		 * probably results in a SIGSEGV.
 		 */
@@ -686,9 +686,9 @@ static unsigned long mpx_get_bd_entry_offset(struct mm_struct *mm,
 	/*
 	 * There are several ways to derive the bd offsets.  We
 	 * use the following approach here:
-	 * 1. We know the size of the virtual address space
-	 * 2. We know the number of entries in a bounds table
-	 * 3. We know that each entry covers a fixed amount of
+	 * 1. We kyesw the size of the virtual address space
+	 * 2. We kyesw the number of entries in a bounds table
+	 * 3. We kyesw that each entry covers a fixed amount of
 	 *    virtual address space.
 	 * So, we can just divide the virtual address by the
 	 * virtual space used by one entry to determine which
@@ -704,7 +704,7 @@ static unsigned long mpx_get_bd_entry_offset(struct mm_struct *mm,
 	} else {
 		int bd_entry_size = 4; /* 32-bit pointer */
 		/*
-		 * 32-bit has no hole so this case needs no mask
+		 * 32-bit has yes hole so this case needs yes mask
 		 */
 		return (addr / bd_entry_virt_space(mm)) * bd_entry_size;
 	}
@@ -737,7 +737,7 @@ static int unmap_entire_bt(struct mm_struct *mm,
 		if (ret == -EFAULT)
 			ret = mpx_resolve_fault(bd_entry, need_write);
 		/*
-		 * If we could not resolve the fault, consider it
+		 * If we could yest resolve the fault, consider it
 		 * userspace's fault and error out.
 		 */
 		if (ret)
@@ -757,7 +757,7 @@ static int unmap_entire_bt(struct mm_struct *mm,
 		/*
 		 * Something messed with the bounds directory
 		 * entry.  We hold mmap_sem for read or write
-		 * here, so it could not be a _new_ bounds table
+		 * here, so it could yest be a _new_ bounds table
 		 * that someone just allocated.  Something is
 		 * wrong, so pass up the error and SIGSEGV.
 		 */
@@ -793,11 +793,11 @@ static int try_unmap_single_bt(struct mm_struct *mm,
 	 */
 	next = find_vma_prev(mm, start, &prev);
 	/*
-	 * Do not count other MPX bounds table VMAs as neighbors.
-	 * Although theoretically possible, we do not allow bounds
-	 * tables for bounds tables so our heads do not explode.
+	 * Do yest count other MPX bounds table VMAs as neighbors.
+	 * Although theoretically possible, we do yest allow bounds
+	 * tables for bounds tables so our heads do yest explode.
 	 * If we count them as neighbors here, we may end up with
-	 * lots of tables even though we have no actual table
+	 * lots of tables even though we have yes actual table
 	 * entries in use.
 	 */
 	while (next && (next->vm_flags & VM_MPX))
@@ -805,9 +805,9 @@ static int try_unmap_single_bt(struct mm_struct *mm,
 	while (prev && (prev->vm_flags & VM_MPX))
 		prev = prev->vm_prev;
 	/*
-	 * We know 'start' and 'end' lie within an area controlled
+	 * We kyesw 'start' and 'end' lie within an area controlled
 	 * by a single bounds table.  See if there are any other
-	 * VMAs controlled by that bounds table.  If there are not
+	 * VMAs controlled by that bounds table.  If there are yest
 	 * then we can "expand" the are we are unmapping to possibly
 	 * cover the entire table.
 	 */
@@ -825,7 +825,7 @@ static int try_unmap_single_bt(struct mm_struct *mm,
 	bde_vaddr = mm->context.bd_addr + mpx_get_bd_entry_offset(mm, start);
 	ret = get_bt_addr(mm, bde_vaddr, &bt_addr);
 	/*
-	 * No bounds table there, so nothing to unmap.
+	 * No bounds table there, so yesthing to unmap.
 	 */
 	if (ret == -ENOENT) {
 		ret = 0;
@@ -835,7 +835,7 @@ static int try_unmap_single_bt(struct mm_struct *mm,
 		return ret;
 	/*
 	 * We are unmapping an entire table.  Either because the
-	 * unmap that started this whole process was large enough
+	 * unmap that started this whole process was large eyesugh
 	 * to cover an entire table, or that the unmap was small
 	 * but was the area covered by a bounds table.
 	 */
@@ -881,7 +881,7 @@ static int mpx_unmap_tables(struct mm_struct *mm,
  * the virtual address region start...end have already been split if
  * necessary, and the 'vma' is the first vma in this range (start -> end).
  */
-void mpx_notify_unmap(struct mm_struct *mm, unsigned long start,
+void mpx_yestify_unmap(struct mm_struct *mm, unsigned long start,
 		      unsigned long end)
 {
 	struct vm_area_struct *vma;
@@ -895,13 +895,13 @@ void mpx_notify_unmap(struct mm_struct *mm, unsigned long start,
 		return;
 	/*
 	 * This will look across the entire 'start -> end' range,
-	 * and find all of the non-VM_MPX VMAs.
+	 * and find all of the yesn-VM_MPX VMAs.
 	 *
 	 * To avoid recursion, if a VM_MPX vma is found in the range
-	 * (start->end), we will not continue follow-up work. This
+	 * (start->end), we will yest continue follow-up work. This
 	 * recursion represents having bounds tables for bounds tables,
-	 * which should not occur normally. Being strict about it here
-	 * helps ensure that we do not have an exploitable stack overflow.
+	 * which should yest occur yesrmally. Being strict about it here
+	 * helps ensure that we do yest have an exploitable stack overflow.
 	 */
 	vma = find_vma(mm, start);
 	while (vma && vma->vm_start < end) {
@@ -915,7 +915,7 @@ void mpx_notify_unmap(struct mm_struct *mm, unsigned long start,
 		force_sig(SIGSEGV);
 }
 
-/* MPX cannot handle addresses above 47 bits yet. */
+/* MPX canyest handle addresses above 47 bits yet. */
 unsigned long mpx_unmapped_area_check(unsigned long addr, unsigned long len,
 		unsigned long flags)
 {

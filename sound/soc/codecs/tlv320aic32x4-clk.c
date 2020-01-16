@@ -109,7 +109,7 @@ static int clk_aic32x4_pll_set_muldiv(struct clk_aic32x4 *pll,
 			struct clk_aic32x4_pll_muldiv *settings)
 {
 	int ret;
-	/*	Change to use regmap_bulk_write for some if not all? */
+	/*	Change to use regmap_bulk_write for some if yest all? */
 
 	ret = regmap_update_bits(pll->regmap, AIC32X4_PLLPR,
 				AIC32X4_PLL_R_MASK, settings->r);
@@ -467,7 +467,7 @@ int aic32x4_register_clocks(struct device *dev, const char *mclk_name)
 	/*
 	 * These lines are here to preserve the current functionality of
 	 * the driver with regard to the DT.  These should eventually be set
-	 * by DT nodes so that the connections can be set up in configuration
+	 * by DT yesdes so that the connections can be set up in configuration
 	 * rather than code.
 	 */
 	aic32x4_clkdesc_array[0].parent_names =

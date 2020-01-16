@@ -1,11 +1,11 @@
 .. Permission is granted to copy, distribute and/or modify this
 .. document under the terms of the GNU Free Documentation License,
 .. Version 1.1 or any later version published by the Free Software
-.. Foundation, with no Invariant Sections, no Front-Cover Texts
-.. and no Back-Cover Texts. A copy of the license is included at
+.. Foundation, with yes Invariant Sections, yes Front-Cover Texts
+.. and yes Back-Cover Texts. A copy of the license is included at
 .. Documentation/media/uapi/fdl-appendix.rst.
 ..
-.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
+.. TODO: replace it to GFDL-1.1-or-later WITH yes-invariant-sections
 
 .. _VIDIOC_DBG_G_REGISTER:
 
@@ -19,7 +19,7 @@ Name
 VIDIOC_DBG_G_REGISTER - VIDIOC_DBG_S_REGISTER - Read or write hardware registers
 
 
-Synopsis
+Syyespsis
 ========
 
 .. c:function:: int ioctl( int fd, VIDIOC_DBG_G_REGISTER, struct v4l2_dbg_register *argp )
@@ -42,13 +42,13 @@ Arguments
 Description
 ===========
 
-.. note::
+.. yeste::
 
     This is an :ref:`experimental` interface and may
     change in the future.
 
 For driver debugging purposes these ioctls allow test applications to
-access hardware registers directly. Regular applications must not use
+access hardware registers directly. Regular applications must yest use
 them.
 
 Since writing or even reading registers can jeopardize the system
@@ -70,7 +70,7 @@ the driver stores the register value in the ``val`` field and the size
 (in bytes) of the value in ``size``.
 
 When ``match.type`` is ``V4L2_CHIP_MATCH_BRIDGE``, ``match.addr``
-selects the nth non-sub-device chip on the TV card. The number zero
+selects the nth yesn-sub-device chip on the TV card. The number zero
 always selects the host chip, e. g. the chip connected to the PCI or USB
 bus. You can find out which chips are present with the
 :ref:`VIDIOC_DBG_G_CHIP_INFO` ioctl.
@@ -78,10 +78,10 @@ bus. You can find out which chips are present with the
 When ``match.type`` is ``V4L2_CHIP_MATCH_SUBDEV``, ``match.addr``
 selects the nth sub-device.
 
-These ioctls are optional, not all drivers may support them. However
+These ioctls are optional, yest all drivers may support them. However
 when a driver supports these ioctls it must also support
 :ref:`VIDIOC_DBG_G_CHIP_INFO`. Conversely
-it may support ``VIDIOC_DBG_G_CHIP_INFO`` but not these ioctls.
+it may support ``VIDIOC_DBG_G_CHIP_INFO`` but yest these ioctls.
 
 ``VIDIOC_DBG_G_REGISTER`` and ``VIDIOC_DBG_S_REGISTER`` were introduced
 in Linux 2.6.21, but their API was changed to the one described here in
@@ -106,7 +106,7 @@ instructions.
       - ``type``
       - See :ref:`chip-match-types` for a list of possible types.
     * - union
-      - (anonymous)
+      - (ayesnymous)
     * -
       - __u32
       - ``addr``
@@ -152,7 +152,7 @@ instructions.
 
     * - ``V4L2_CHIP_MATCH_BRIDGE``
       - 0
-      - Match the nth chip on the card, zero for the bridge chip. Does not
+      - Match the nth chip on the card, zero for the bridge chip. Does yest
 	match sub-devices.
     * - ``V4L2_CHIP_MATCH_SUBDEV``
       - 4
@@ -162,7 +162,7 @@ instructions.
 Return Value
 ============
 
-On success 0 is returned, on error -1 and the ``errno`` variable is set
+On success 0 is returned, on error -1 and the ``erryes`` variable is set
 appropriately. The generic error codes are described at the
 :ref:`Generic Error Codes <gen-errors>` chapter.
 

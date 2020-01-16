@@ -7,17 +7,17 @@
  * 04/11/17 Ashok Raj	<ashok.raj@intel.com> Added CPU Hotplug Support
  *
  * 2005-10-07 Keith Owens <kaos@sgi.com>
- *	      Add notify_die() hooks.
+ *	      Add yestify_die() hooks.
  */
 #include <linux/cpu.h>
 #include <linux/pm.h>
 #include <linux/elf.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
 #include <linux/slab.h>
 #include <linux/module.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/personality.h>
 #include <linux/sched.h>
 #include <linux/sched/debug.h>
@@ -161,7 +161,7 @@ console_print(const char *s)
 }
 
 void
-do_notify_resume_user(sigset_t *unused, struct sigscratch *scr, long in_syscall)
+do_yestify_resume_user(sigset_t *unused, struct sigscratch *scr, long in_syscall)
 {
 	if (fsys_mode(current, &scr->pt)) {
 		/*
@@ -190,7 +190,7 @@ do_notify_resume_user(sigset_t *unused, struct sigscratch *scr, long in_syscall)
 
 	if (test_and_clear_thread_flag(TIF_NOTIFY_RESUME)) {
 		local_irq_enable();	/* force interrupt enable */
-		tracehook_notify_resume(&scr->pt);
+		tracehook_yestify_resume(&scr->pt);
 	}
 
 	/* copy user rbs to kernel rbs */
@@ -202,12 +202,12 @@ do_notify_resume_user(sigset_t *unused, struct sigscratch *scr, long in_syscall)
 	local_irq_disable();	/* force interrupt disable */
 }
 
-static int __init nohalt_setup(char * str)
+static int __init yeshalt_setup(char * str)
 {
 	cpu_idle_poll_ctrl(true);
 	return 1;
 }
-__setup("nohalt", nohalt_setup);
+__setup("yeshalt", yeshalt_setup);
 
 #ifdef CONFIG_HOTPLUG_CPU
 /* We don't actually take CPU down, just spin without interrupts. */
@@ -223,8 +223,8 @@ static inline void play_dead(void)
 	idle_task_exit();
 	ia64_jump_to_sal(&sal_boot_rendez_state[this_cpu]);
 	/*
-	 * The above is a point of no-return, the processor is
-	 * expected to be in SAL loop now.
+	 * The above is a point of yes-return, the processor is
+	 * expected to be in SAL loop yesw.
 	 */
 	BUG();
 }
@@ -256,7 +256,7 @@ void arch_cpu_idle(void)
 	if (mark_idle)
 		(*mark_idle)(0);
 #ifdef CONFIG_SMP
-	normal_xtp();
+	yesrmal_xtp();
 #endif
 }
 
@@ -329,7 +329,7 @@ ia64_load_extra (struct task_struct *task)
  * with N=(X & 0x1ff)/8.  Thus, copying the unat value preserves the NaT bits ONLY if the
  * pt_regs structure in the parent is congruent to that of the child, modulo 512.  Since
  * the stack is page aligned and the page size is at least 4KB, this is always the case,
- * so there is nothing to worry about.
+ * so there is yesthing to worry about.
  */
 int
 copy_thread(unsigned long clone_flags,
@@ -356,15 +356,15 @@ copy_thread(unsigned long clone_flags,
 	 * NOTE: The calling convention considers all floating point
 	 * registers in the high partition (fph) to be scratch.  Since
 	 * the only way to get to this point is through a system call,
-	 * we know that the values in fph are all dead.  Hence, there
-	 * is no need to inherit the fph state from the parent to the
+	 * we kyesw that the values in fph are all dead.  Hence, there
+	 * is yes need to inherit the fph state from the parent to the
 	 * child and all we have to do is to make sure that
 	 * IA64_THREAD_FPH_VALID is cleared in the child.
 	 *
 	 * XXX We could push this optimization a bit further by
 	 * clearing IA64_THREAD_FPH_VALID on ANY system call.
-	 * However, it's not clear this is worth doing.  Also, it
-	 * would be a slight deviation from the normal Linux system
+	 * However, it's yest clear this is worth doing.  Also, it
+	 * would be a slight deviation from the yesrmal Linux system
 	 * call behavior where scratch registers are preserved across
 	 * system calls (unless used by the system call itself).
 	 */
@@ -399,7 +399,7 @@ copy_thread(unsigned long clone_flags,
 
 		/* stop some PSR bits from being inherited.
 		 * the psr.up/psr.pp bits must be cleared on fork but inherited on execve()
-		 * therefore we must specify them explicitly here and not include them in
+		 * therefore we must specify them explicitly here and yest include them in
 		 * IA64_PSR_BITS_TO_CLEAR.
 		 */
 		child_ptregs->cr_ipsr = ((child_ptregs->cr_ipsr | IA64_PSR_BITS_TO_SET)
@@ -427,7 +427,7 @@ copy_thread(unsigned long clone_flags,
 
 	/* stop some PSR bits from being inherited.
 	 * the psr.up/psr.pp bits must be cleared on fork but inherited on execve()
-	 * therefore we must specify them explicitly here and not include them in
+	 * therefore we must specify them explicitly here and yest include them in
 	 * IA64_PSR_BITS_TO_CLEAR.
 	 */
 	child_ptregs->cr_ipsr = ((child_ptregs->cr_ipsr | IA64_PSR_BITS_TO_SET)
@@ -500,7 +500,7 @@ do_copy_task_regs (struct task_struct *task, struct unw_frame_info *info, void *
 	 * For bsp and bspstore, unw_get_ar() would return the kernel
 	 * addresses, but we need the user-level addresses instead:
 	 */
-	dst[46] = urbs_end;	/* note: by convention PT_AR_BSP points to the end of the urbs! */
+	dst[46] = urbs_end;	/* yeste: by convention PT_AR_BSP points to the end of the urbs! */
 	dst[47] = pt->ar_bspstore;
 	dst[48] = ar_rnat;
 	unw_get_ar(info, UNW_AR_CCV, &dst[49]);
@@ -601,8 +601,8 @@ get_wchan (struct task_struct *p)
 		return 0;
 
 	/*
-	 * Note: p may not be a blocked task (it could be current or
-	 * another process running on some other CPU.  Rather than
+	 * Note: p may yest be a blocked task (it could be current or
+	 * ayesther process running on some other CPU.  Rather than
 	 * trying to determine if p is really blocked, we just assume
 	 * it's blocked and rely on the unwind routines to fail
 	 * gracefully if the process wasn't really blocked after all.
@@ -662,14 +662,14 @@ void machine_shutdown(void)
 void
 machine_restart (char *restart_cmd)
 {
-	(void) notify_die(DIE_MACHINE_RESTART, restart_cmd, NULL, 0, 0, 0);
+	(void) yestify_die(DIE_MACHINE_RESTART, restart_cmd, NULL, 0, 0, 0);
 	efi_reboot(REBOOT_WARM, NULL);
 }
 
 void
 machine_halt (void)
 {
-	(void) notify_die(DIE_MACHINE_HALT, "", NULL, 0, 0, 0);
+	(void) yestify_die(DIE_MACHINE_HALT, "", NULL, 0, 0, 0);
 	cpu_halt();
 }
 

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/smp.h>
 
 #include "../hyperv.h"
@@ -253,7 +253,7 @@ const struct evmcs_field vmcs_field_to_evmcs_1[] = {
 	EVMCS1_FIELD(VMX_INSTRUCTION_INFO, vmx_instruction_info,
 		     HV_VMX_ENLIGHTENED_CLEAN_FIELD_NONE),
 
-	/* No mask defined in the spec (not used) */
+	/* No mask defined in the spec (yest used) */
 	EVMCS1_FIELD(PAGE_FAULT_ERROR_CODE_MASK, page_fault_error_code_mask,
 		     HV_VMX_ENLIGHTENED_CLEAN_FIELD_ALL),
 	EVMCS1_FIELD(PAGE_FAULT_ERROR_CODE_MATCH, page_fault_error_code_match,

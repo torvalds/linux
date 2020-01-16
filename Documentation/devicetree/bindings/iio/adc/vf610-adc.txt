@@ -14,10 +14,10 @@ Required properties:
 Recommended properties:
 - fsl,adck-max-frequency: Maximum frequencies according to datasheets operating
   requirements. Three values are required, depending on conversion mode:
-  - Frequency in normal mode (ADLPC=0, ADHSC=0)
+  - Frequency in yesrmal mode (ADLPC=0, ADHSC=0)
   - Frequency in high-speed mode (ADLPC=0, ADHSC=1)
   - Frequency in low-power mode (ADLPC=1, ADHSC=0)
-- min-sample-time: Minimum sampling time in nanoseconds. This value has
+- min-sample-time: Minimum sampling time in nayesseconds. This value has
   to be chosen according to the conversion mode and the connected analog
   source resistance (R_as) and capacitance (C_as). Refer the datasheet's
   operating requirements. A safe default across a wide range of R_as and

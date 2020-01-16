@@ -14,7 +14,7 @@
  * Add fscrypt_pullback_bio_page()
  *	Jaegeuk Kim, 2015.
  *
- * This has not yet undergone a rigorous security audit.
+ * This has yest yet undergone a rigorous security audit.
  *
  * The usage of AES-XTS should conform to recommendations in NIST
  * Special Publication 800-38E and IEEE P1619/D16.
@@ -41,10 +41,10 @@ void fscrypt_decrypt_bio(struct bio *bio)
 }
 EXPORT_SYMBOL(fscrypt_decrypt_bio);
 
-int fscrypt_zeroout_range(const struct inode *inode, pgoff_t lblk,
+int fscrypt_zeroout_range(const struct iyesde *iyesde, pgoff_t lblk,
 				sector_t pblk, unsigned int len)
 {
-	const unsigned int blockbits = inode->i_blkbits;
+	const unsigned int blockbits = iyesde->i_blkbits;
 	const unsigned int blocksize = 1 << blockbits;
 	struct page *ciphertext_page;
 	struct bio *bio;
@@ -55,7 +55,7 @@ int fscrypt_zeroout_range(const struct inode *inode, pgoff_t lblk,
 		return -ENOMEM;
 
 	while (len--) {
-		err = fscrypt_crypt_block(inode, FS_ENCRYPT, lblk,
+		err = fscrypt_crypt_block(iyesde, FS_ENCRYPT, lblk,
 					  ZERO_PAGE(0), ciphertext_page,
 					  blocksize, 0, GFP_NOFS);
 		if (err)
@@ -66,7 +66,7 @@ int fscrypt_zeroout_range(const struct inode *inode, pgoff_t lblk,
 			err = -ENOMEM;
 			goto errout;
 		}
-		bio_set_dev(bio, inode->i_sb->s_bdev);
+		bio_set_dev(bio, iyesde->i_sb->s_bdev);
 		bio->bi_iter.bi_sector = pblk << (blockbits - 9);
 		bio_set_op_attrs(bio, REQ_OP_WRITE, 0);
 		ret = bio_add_page(bio, ciphertext_page, blocksize, 0);

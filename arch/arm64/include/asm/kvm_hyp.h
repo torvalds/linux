@@ -13,7 +13,7 @@
 #include <asm/kvm_mmu.h>
 #include <asm/sysreg.h>
 
-#define __hyp_text __section(.hyp.text) notrace
+#define __hyp_text __section(.hyp.text) yestrace
 
 #define read_sysreg_elx(r,nvh,vh)					\
 	({								\
@@ -36,7 +36,7 @@
 
 /*
  * Unified accessors for registers that have a different encoding
- * between VHE and non-VHE. They must be specified without their "ELx"
+ * between VHE and yesn-VHE. They must be specified without their "ELx"
  * encoding, but with the SYS_ prefix, as defined in asm/sysreg.h.
  */
 
@@ -79,7 +79,7 @@ void activate_traps_vhe_load(struct kvm_vcpu *vcpu);
 void deactivate_traps_vhe_put(void);
 
 u64 __guest_enter(struct kvm_vcpu *vcpu, struct kvm_cpu_context *host_ctxt);
-void __noreturn __hyp_do_panic(unsigned long, ...);
+void __yesreturn __hyp_do_panic(unsigned long, ...);
 
 /*
  * Must be called from hyp code running at EL2 with an updated VTTBR
@@ -95,7 +95,7 @@ static __always_inline void __hyp_text __load_guest_stage2(struct kvm *kvm)
 	 * before we can switch to the EL1/EL0 translation regime used by
 	 * the guest.
 	 */
-	asm(ALTERNATIVE("nop", "isb", ARM64_WORKAROUND_1165522));
+	asm(ALTERNATIVE("yesp", "isb", ARM64_WORKAROUND_1165522));
 }
 
 #endif /* __ARM64_KVM_HYP_H__ */

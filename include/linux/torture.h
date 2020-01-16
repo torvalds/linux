@@ -22,7 +22,7 @@
 #include <linux/bug.h>
 #include <linux/compiler.h>
 
-/* Definitions for a non-string torture-test module parameter. */
+/* Definitions for a yesn-string torture-test module parameter. */
 #define torture_param(type, name, init, msg) \
 	static type name = init; \
 	module_param(name, type, 0444); \
@@ -42,9 +42,9 @@ bool torture_offline(int cpu, long *n_onl_attempts, long *n_onl_successes,
 		     unsigned long *sum_offl, int *min_onl, int *max_onl);
 bool torture_online(int cpu, long *n_onl_attempts, long *n_onl_successes,
 		    unsigned long *sum_onl, int *min_onl, int *max_onl);
-int torture_onoff_init(long ooholdoff, long oointerval, torture_ofl_func *f);
-void torture_onoff_stats(void);
-bool torture_onoff_failures(void);
+int torture_oyesff_init(long ooholdoff, long oointerval, torture_ofl_func *f);
+void torture_oyesff_stats(void);
+bool torture_oyesff_failures(void);
 
 /* Low-rider random number generator. */
 struct torture_random_state {
@@ -64,7 +64,7 @@ int torture_shuffle_init(long shuffint);
 void torture_shutdown_absorb(const char *title);
 int torture_shutdown_init(int ssecs, void (*cleanup)(void));
 
-/* Task stuttering, which forces load/no-load transitions. */
+/* Task stuttering, which forces load/yes-load transitions. */
 bool stutter_wait(const char *title);
 int torture_stutter_init(int s, int sgap);
 

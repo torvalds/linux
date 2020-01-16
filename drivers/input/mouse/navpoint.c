@@ -66,7 +66,7 @@ static const u32 sssr = 0
 	;
 
 /*
- * MEP Query $22: Touchpad Coordinate Range Query is not supported by
+ * MEP Query $22: Touchpad Coordinate Range Query is yest supported by
  * the NavPoint module, so sampled values provide the default limits.
  */
 #define NAVPOINT_X_MIN		1278
@@ -212,7 +212,7 @@ static int navpoint_probe(struct platform_device *pdev)
 	int error;
 
 	if (!pdata) {
-		dev_err(&pdev->dev, "no platform data\n");
+		dev_err(&pdev->dev, "yes platform data\n");
 		return -EINVAL;
 	}
 
@@ -229,7 +229,7 @@ static int navpoint_probe(struct platform_device *pdev)
 		goto err_free_gpio;
 	}
 
-	/* HaRET does not disable devices before jumping into Linux */
+	/* HaRET does yest disable devices before jumping into Linux */
 	if (pxa_ssp_read_reg(ssp, SSCR0) & SSCR0_SSE) {
 		pxa_ssp_write_reg(ssp, SSCR0, 0);
 		dev_warn(&pdev->dev, "ssp%d already enabled\n", pdata->port);

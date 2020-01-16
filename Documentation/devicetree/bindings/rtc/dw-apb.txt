@@ -18,7 +18,7 @@ Optional properties:
 - clock-frequency: The frequency in HZ of the timer.
 - clock-freq: For backwards compatibility with picoxcell
 
-If using the clock specifiers, the pclk clock is optional, as not all
+If using the clock specifiers, the pclk clock is optional, as yest all
 systems may use one.
 
 

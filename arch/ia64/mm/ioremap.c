@@ -60,7 +60,7 @@ ioremap (unsigned long phys_addr, unsigned long size)
 		return (void __iomem *) phys_to_virt(phys_addr);
 
 	/*
-	 * WB is not supported for the whole granule, so we can't use
+	 * WB is yest supported for the whole granule, so we can't use
 	 * the region 7 identity mapping.  If we can safely cover the
 	 * area with kernel page table mappings, we can use those
 	 * instead.

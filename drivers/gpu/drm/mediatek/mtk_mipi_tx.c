@@ -127,7 +127,7 @@ static int mtk_mipi_tx_probe(struct platform_device *pdev)
 
 	ref_clk_name = __clk_get_name(ref_clk);
 
-	ret = of_property_read_string(dev->of_node, "clock-output-names",
+	ret = of_property_read_string(dev->of_yesde, "clock-output-names",
 				      &clk_init.name);
 	if (ret < 0) {
 		dev_err(dev, "Failed to read clock-output-names: %d\n", ret);
@@ -160,13 +160,13 @@ static int mtk_mipi_tx_probe(struct platform_device *pdev)
 
 	mipi_tx->dev = dev;
 
-	return of_clk_add_provider(dev->of_node, of_clk_src_simple_get,
+	return of_clk_add_provider(dev->of_yesde, of_clk_src_simple_get,
 				   mipi_tx->pll);
 }
 
 static int mtk_mipi_tx_remove(struct platform_device *pdev)
 {
-	of_clk_del_provider(pdev->dev.of_node);
+	of_clk_del_provider(pdev->dev.of_yesde);
 	return 0;
 }
 

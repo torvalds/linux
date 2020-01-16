@@ -27,8 +27,8 @@
 static int hfsplus_ioctl_bless(struct file *file, int __user *user_flags)
 {
 	struct dentry *dentry = file->f_path.dentry;
-	struct inode *inode = d_inode(dentry);
-	struct hfsplus_sb_info *sbi = HFSPLUS_SB(inode->i_sb);
+	struct iyesde *iyesde = d_iyesde(dentry);
+	struct hfsplus_sb_info *sbi = HFSPLUS_SB(iyesde->i_sb);
 	struct hfsplus_vh *vh = sbi->s_vhdr;
 	struct hfsplus_vh *bvh = sbi->s_backup_vhdr;
 	u32 cnid = (unsigned long)dentry->d_fsdata;
@@ -40,31 +40,31 @@ static int hfsplus_ioctl_bless(struct file *file, int __user *user_flags)
 
 	/* Directory containing the bootable system */
 	vh->finder_info[0] = bvh->finder_info[0] =
-		cpu_to_be32(parent_ino(dentry));
+		cpu_to_be32(parent_iyes(dentry));
 
 	/*
-	 * Bootloader. Just using the inode here breaks in the case of
+	 * Bootloader. Just using the iyesde here breaks in the case of
 	 * hard links - the firmware wants the ID of the hard link file,
-	 * but the inode points at the indirect inode
+	 * but the iyesde points at the indirect iyesde
 	 */
 	vh->finder_info[1] = bvh->finder_info[1] = cpu_to_be32(cnid);
 
 	/* Per spec, the OS X system folder - same as finder_info[0] here */
 	vh->finder_info[5] = bvh->finder_info[5] =
-		cpu_to_be32(parent_ino(dentry));
+		cpu_to_be32(parent_iyes(dentry));
 
 	mutex_unlock(&sbi->vh_mutex);
 	return 0;
 }
 
-static inline unsigned int hfsplus_getflags(struct inode *inode)
+static inline unsigned int hfsplus_getflags(struct iyesde *iyesde)
 {
-	struct hfsplus_inode_info *hip = HFSPLUS_I(inode);
+	struct hfsplus_iyesde_info *hip = HFSPLUS_I(iyesde);
 	unsigned int flags = 0;
 
-	if (inode->i_flags & S_IMMUTABLE)
+	if (iyesde->i_flags & S_IMMUTABLE)
 		flags |= FS_IMMUTABLE_FL;
-	if (inode->i_flags & S_APPEND)
+	if (iyesde->i_flags & S_APPEND)
 		flags |= FS_APPEND_FL;
 	if (hip->userflags & HFSPLUS_FLG_NODUMP)
 		flags |= FS_NODUMP_FL;
@@ -73,25 +73,25 @@ static inline unsigned int hfsplus_getflags(struct inode *inode)
 
 static int hfsplus_ioctl_getflags(struct file *file, int __user *user_flags)
 {
-	struct inode *inode = file_inode(file);
-	unsigned int flags = hfsplus_getflags(inode);
+	struct iyesde *iyesde = file_iyesde(file);
+	unsigned int flags = hfsplus_getflags(iyesde);
 
 	return put_user(flags, user_flags);
 }
 
 static int hfsplus_ioctl_setflags(struct file *file, int __user *user_flags)
 {
-	struct inode *inode = file_inode(file);
-	struct hfsplus_inode_info *hip = HFSPLUS_I(inode);
+	struct iyesde *iyesde = file_iyesde(file);
+	struct hfsplus_iyesde_info *hip = HFSPLUS_I(iyesde);
 	unsigned int flags, new_fl = 0;
-	unsigned int oldflags = hfsplus_getflags(inode);
+	unsigned int oldflags = hfsplus_getflags(iyesde);
 	int err = 0;
 
 	err = mnt_want_write_file(file);
 	if (err)
 		goto out;
 
-	if (!inode_owner_or_capable(inode)) {
+	if (!iyesde_owner_or_capable(iyesde)) {
 		err = -EACCES;
 		goto out_drop_write;
 	}
@@ -101,16 +101,16 @@ static int hfsplus_ioctl_setflags(struct file *file, int __user *user_flags)
 		goto out_drop_write;
 	}
 
-	inode_lock(inode);
+	iyesde_lock(iyesde);
 
-	err = vfs_ioc_setflags_prepare(inode, oldflags, flags);
+	err = vfs_ioc_setflags_prepare(iyesde, oldflags, flags);
 	if (err)
-		goto out_unlock_inode;
+		goto out_unlock_iyesde;
 
-	/* don't silently ignore unsupported ext2 flags */
+	/* don't silently igyesre unsupported ext2 flags */
 	if (flags & ~(FS_IMMUTABLE_FL|FS_APPEND_FL|FS_NODUMP_FL)) {
 		err = -EOPNOTSUPP;
-		goto out_unlock_inode;
+		goto out_unlock_iyesde;
 	}
 
 	if (flags & FS_IMMUTABLE_FL)
@@ -119,18 +119,18 @@ static int hfsplus_ioctl_setflags(struct file *file, int __user *user_flags)
 	if (flags & FS_APPEND_FL)
 		new_fl |= S_APPEND;
 
-	inode_set_flags(inode, new_fl, S_IMMUTABLE | S_APPEND);
+	iyesde_set_flags(iyesde, new_fl, S_IMMUTABLE | S_APPEND);
 
 	if (flags & FS_NODUMP_FL)
 		hip->userflags |= HFSPLUS_FLG_NODUMP;
 	else
 		hip->userflags &= ~HFSPLUS_FLG_NODUMP;
 
-	inode->i_ctime = current_time(inode);
-	mark_inode_dirty(inode);
+	iyesde->i_ctime = current_time(iyesde);
+	mark_iyesde_dirty(iyesde);
 
-out_unlock_inode:
-	inode_unlock(inode);
+out_unlock_iyesde:
+	iyesde_unlock(iyesde);
 out_drop_write:
 	mnt_drop_write_file(file);
 out:

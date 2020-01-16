@@ -3,10 +3,10 @@ Buffer Sharing and Synchronization
 
 The dma-buf subsystem provides the framework for sharing buffers for
 hardware (DMA) access across multiple device drivers and subsystems, and
-for synchronizing asynchronous hardware access.
+for synchronizing asynchroyesus hardware access.
 
 This is used, for example, by drm "prime" multi-GPU support, but is of
-course not limited to GPU use cases.
+course yest limited to GPU use cases.
 
 The three main components of this are: (1) dma-buf, representing a
 sg_table and exposed to userspace as a file descriptor to allow passing
@@ -66,15 +66,15 @@ consider though:
   size using llseek.
 
 - In order to avoid fd leaks on exec, the FD_CLOEXEC flag must be set
-  on the file descriptor.  This is not just a resource leak, but a
+  on the file descriptor.  This is yest just a resource leak, but a
   potential security hole.  It could give the newly exec'd application
   access to buffers, via the leaked fd, to which it should otherwise
-  not be permitted access.
+  yest be permitted access.
 
   The problem with doing this via a separate fcntl() call, versus doing it
   atomically when the fd is created, is that this is inherently racy in a
   multi-threaded app[3].  The issue is made worse when it is library code
-  opening/creating the file descriptor, as the application may not even be
+  opening/creating the file descriptor, as the application may yest even be
   aware of the fd's.
 
   To avoid this problem, userspace must have a way to request O_CLOEXEC
@@ -142,10 +142,10 @@ DMA Fences Functions Reference
 .. kernel-doc:: include/linux/dma-fence.h
    :internal:
 
-Seqno Hardware Fences
+Seqyes Hardware Fences
 ~~~~~~~~~~~~~~~~~~~~~
 
-.. kernel-doc:: include/linux/seqno-fence.h
+.. kernel-doc:: include/linux/seqyes-fence.h
    :internal:
 
 DMA Fence Array

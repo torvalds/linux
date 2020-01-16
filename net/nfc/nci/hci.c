@@ -37,11 +37,11 @@ struct nci_hci_create_pipe_resp {
 	u8 pipe;
 } __packed;
 
-struct nci_hci_delete_pipe_noti {
+struct nci_hci_delete_pipe_yesti {
 	u8 pipe;
 } __packed;
 
-struct nci_hci_all_pipe_cleared_noti {
+struct nci_hci_all_pipe_cleared_yesti {
 	u8 host;
 } __packed;
 
@@ -92,7 +92,7 @@ struct nci_hcp_packet {
 #define NCI_HCP_MSG_GET_CMD(header)  (header & 0x3f)
 #define NCI_HCP_MSG_GET_PIPE(header) (header & 0x7f)
 
-static int nci_hci_result_to_errno(u8 result)
+static int nci_hci_result_to_erryes(u8 result)
 {
 	switch (result) {
 	case NCI_HCI_ANY_OK:
@@ -246,7 +246,7 @@ int nci_hci_send_cmd(struct nci_dev *ndev, u8 gate, u8 cmd,
 			msecs_to_jiffies(NCI_DATA_TIMEOUT));
 	if (r == NCI_STATUS_OK) {
 		message = (struct nci_hcp_message *)conn_info->rx_skb->data;
-		r = nci_hci_result_to_errno(
+		r = nci_hci_result_to_erryes(
 			NCI_HCP_MSG_GET_CMD(message->header));
 		skb_pull(conn_info->rx_skb, NCI_HCI_HCP_MESSAGE_HEADER_LEN);
 
@@ -286,8 +286,8 @@ static void nci_hci_cmd_received(struct nci_dev *ndev, u8 pipe,
 	u8 status = NCI_HCI_ANY_OK | ~NCI_HCI_FRAGMENT;
 	u8 dest_gate, new_pipe;
 	struct nci_hci_create_pipe_resp *create_info;
-	struct nci_hci_delete_pipe_noti *delete_info;
-	struct nci_hci_all_pipe_cleared_noti *cleared_info;
+	struct nci_hci_delete_pipe_yesti *delete_info;
+	struct nci_hci_all_pipe_cleared_yesti *cleared_info;
 
 	pr_debug("from gate %x pipe %x cmd %x\n", gate, pipe, cmd);
 
@@ -316,7 +316,7 @@ static void nci_hci_cmd_received(struct nci_dev *ndev, u8 pipe,
 						create_info->src_host;
 		break;
 	case NCI_HCI_ANY_OPEN_PIPE:
-		/* If the pipe is not created report an error */
+		/* If the pipe is yest created report an error */
 		if (gate == NCI_HCI_INVALID_GATE) {
 			status = NCI_HCI_ANY_E_NOK;
 			goto exit;
@@ -327,7 +327,7 @@ static void nci_hci_cmd_received(struct nci_dev *ndev, u8 pipe,
 			status = NCI_HCI_ANY_E_NOK;
 			goto exit;
 		}
-		delete_info = (struct nci_hci_delete_pipe_noti *)skb->data;
+		delete_info = (struct nci_hci_delete_pipe_yesti *)skb->data;
 		if (delete_info->pipe >= NCI_HCI_MAX_PIPES) {
 			status = NCI_HCI_ANY_E_NOK;
 			goto exit;
@@ -345,11 +345,11 @@ static void nci_hci_cmd_received(struct nci_dev *ndev, u8 pipe,
 		}
 
 		cleared_info =
-			(struct nci_hci_all_pipe_cleared_noti *)skb->data;
+			(struct nci_hci_all_pipe_cleared_yesti *)skb->data;
 		nci_hci_reset_pipes_per_host(ndev, cleared_info->host);
 		break;
 	default:
-		pr_debug("Discarded unknown cmd %x to gate %x\n", cmd, gate);
+		pr_debug("Discarded unkyeswn cmd %x to gate %x\n", cmd, gate);
 		break;
 	}
 
@@ -597,7 +597,7 @@ int nci_hci_set_param(struct nci_dev *ndev, u8 gate, u8 idx,
 			msecs_to_jiffies(NCI_DATA_TIMEOUT));
 	if (r == NCI_STATUS_OK) {
 		message = (struct nci_hcp_message *)conn_info->rx_skb->data;
-		r = nci_hci_result_to_errno(
+		r = nci_hci_result_to_erryes(
 			NCI_HCP_MSG_GET_CMD(message->header));
 		skb_pull(conn_info->rx_skb, NCI_HCI_HCP_MESSAGE_HEADER_LEN);
 	}
@@ -637,7 +637,7 @@ int nci_hci_get_param(struct nci_dev *ndev, u8 gate, u8 idx,
 
 	if (r == NCI_STATUS_OK) {
 		message = (struct nci_hcp_message *)conn_info->rx_skb->data;
-		r = nci_hci_result_to_errno(
+		r = nci_hci_result_to_erryes(
 			NCI_HCP_MSG_GET_CMD(message->header));
 		skb_pull(conn_info->rx_skb, NCI_HCI_HCP_MESSAGE_HEADER_LEN);
 
@@ -684,7 +684,7 @@ open_pipe:
 	if (r < 0) {
 		if (pipe_created) {
 			if (nci_hci_delete_pipe(ndev, pipe) < 0) {
-				/* TODO: Cannot clean by deleting pipe...
+				/* TODO: Canyest clean by deleting pipe...
 				 * -> inconsistent state
 				 */
 			}

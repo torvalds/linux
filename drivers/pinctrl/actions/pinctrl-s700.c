@@ -41,7 +41,7 @@
 #define _GPIOD(offset)		(96 + (offset))
 #define _GPIOE(offset)		(128 + (offset))
 
-/* All non-GPIO pins follow */
+/* All yesn-GPIO pins follow */
 #define NUM_GPIOS		(_GPIOE(7) + 1)
 #define _PIN(offset)		(NUM_GPIOS + (offset))
 
@@ -1124,7 +1124,7 @@ static const struct owl_pingroup s700_groups[] = {
 	DRV_PG(uart3_all_drv, 2, 2, 2),
 };
 
-static const char * const nor_groups[] = {
+static const char * const yesr_groups[] = {
 	"lcd0_d18",
 	"i2s_d0",
 	"i2s0_pcm0",
@@ -1542,7 +1542,7 @@ static const char * const sirq2_groups[] = {
 };
 
 static const struct owl_pinmux_func s700_functions[] = {
-	[S700_MUX_NOR] = FUNCTION(nor),
+	[S700_MUX_NOR] = FUNCTION(yesr),
 	[S700_MUX_ETH_RGMII] = FUNCTION(eth_rmii),
 	[S700_MUX_ETH_SGMII] = FUNCTION(eth_smii),
 	[S700_MUX_SPI0] = FUNCTION(spi0),

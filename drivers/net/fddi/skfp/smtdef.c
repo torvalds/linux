@@ -109,11 +109,11 @@ void smt_reset_defaults(struct s_smc *smc, int level)
 	smt->ecm_td_min = DEFAULT_TD_MIN ;
 	smt->ecm_test_done = DEFAULT_TEST_DONE ;
 	smt->ecm_check_poll = DEFAULT_CHECK_POLL ;
-	smt->rmt_t_non_op = DEFAULT_T_NON_OP ;
+	smt->rmt_t_yesn_op = DEFAULT_T_NON_OP ;
 	smt->rmt_t_stuck = DEFAULT_T_STUCK ;
 	smt->rmt_t_direct = DEFAULT_T_DIRECT ;
 	smt->rmt_t_jam = DEFAULT_T_JAM ;
-	smt->rmt_t_announce = DEFAULT_T_ANNOUNCE ;
+	smt->rmt_t_anyesunce = DEFAULT_T_ANNOUNCE ;
 	smt->rmt_t_poll = DEFAULT_POLL ;
         smt->rmt_dup_mac_behavior = FALSE ;  /* See Struct smt_config */
 	smt->mac_d_max = DEFAULT_D_MAX ;
@@ -142,7 +142,7 @@ void smt_reset_defaults(struct s_smc *smc, int level)
 #ifdef	SBA
 	smt_init_sba(smc,level) ;
 #endif
-#endif	/* no SLIM_SMT */
+#endif	/* yes SLIM_SMT */
 #ifdef	TAG_MODE
 	if (level == 0) {
 		smc->hw.pci_fix_value = 0 ;
@@ -193,11 +193,11 @@ static void smt_init_mib(struct s_smc *smc, int level)
 
 	/*
 	 * fddiSMTNonMaster_Ct and fddiSMTMaster_Ct are set in smt_fixup_mib
-	 * s.sas is not set yet (is set in init driver)
+	 * s.sas is yest set yet (is set in init driver)
 	 */
 	mib->fddiSMTAvailablePaths = MIB_PATH_P | MIB_PATH_S ;
 
-	mib->fddiSMTConfigCapabilities = 0 ;	/* no hold,no wrap_ab*/
+	mib->fddiSMTConfigCapabilities = 0 ;	/* yes hold,yes wrap_ab*/
 	mib->fddiSMTTT_Notify = 10 ;
 	mib->fddiSMTStatRptPolicy = TRUE ;
 	mib->fddiSMTTrace_MaxExpiration = SEC2MIB(7) ;
@@ -264,7 +264,7 @@ static void smt_init_mib(struct s_smc *smc, int level)
 		}
 		/*
 		 * fddiPORTRequestedPaths are set in pcmplc.c
-		 * we don't know the port type yet !
+		 * we don't kyesw the port type yet !
 		 */
 		pm->fddiPORTRequestedPaths[1] = 0 ;
 		pm->fddiPORTRequestedPaths[2] = 0 ;

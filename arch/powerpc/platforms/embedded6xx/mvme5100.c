@@ -51,28 +51,28 @@ static void mvme5100_8259_cascade(struct irq_desc *desc)
 static void __init mvme5100_pic_init(void)
 {
 	struct mpic *mpic;
-	struct device_node *np;
-	struct device_node *cp = NULL;
+	struct device_yesde *np;
+	struct device_yesde *cp = NULL;
 	unsigned int cirq;
 	unsigned long intack = 0;
 	const u32 *prop = NULL;
 
-	np = of_find_node_by_type(NULL, "open-pic");
+	np = of_find_yesde_by_type(NULL, "open-pic");
 	if (!np) {
-		pr_err("Could not find open-pic node\n");
+		pr_err("Could yest find open-pic yesde\n");
 		return;
 	}
 
 	mpic = mpic_alloc(np, pci_membase, 0, 16, 256, " OpenPIC  ");
 
 	BUG_ON(mpic == NULL);
-	of_node_put(np);
+	of_yesde_put(np);
 
 	mpic_assign_isu(mpic, 0, pci_membase + 0x10000);
 
 	mpic_init(mpic);
 
-	cp = of_find_compatible_node(NULL, NULL, "chrp,iic");
+	cp = of_find_compatible_yesde(NULL, NULL, "chrp,iic");
 	if (cp == NULL) {
 		pr_warn("mvme5100_pic_init: couldn't find i8259\n");
 		return;
@@ -80,18 +80,18 @@ static void __init mvme5100_pic_init(void)
 
 	cirq = irq_of_parse_and_map(cp, 0);
 	if (!cirq) {
-		pr_warn("mvme5100_pic_init: no cascade interrupt?\n");
+		pr_warn("mvme5100_pic_init: yes cascade interrupt?\n");
 		return;
 	}
 
-	np = of_find_compatible_node(NULL, "pci", "mpc10x-pci");
+	np = of_find_compatible_yesde(NULL, "pci", "mpc10x-pci");
 	if (np) {
-		prop = of_get_property(np, "8259-interrupt-acknowledge", NULL);
+		prop = of_get_property(np, "8259-interrupt-ackyeswledge", NULL);
 
 		if (prop)
 			intack = prop[0];
 
-		of_node_put(np);
+		of_yesde_put(np);
 	}
 
 	if (intack)
@@ -99,11 +99,11 @@ static void __init mvme5100_pic_init(void)
 		   intack);
 
 	i8259_init(cp, intack);
-	of_node_put(cp);
+	of_yesde_put(cp);
 	irq_set_chained_handler(cirq, mvme5100_8259_cascade);
 }
 
-static int __init mvme5100_add_bridge(struct device_node *dev)
+static int __init mvme5100_add_bridge(struct device_yesde *dev)
 {
 	const int		*bus_range;
 	int			len;
@@ -118,8 +118,8 @@ static int __init mvme5100_add_bridge(struct device_node *dev)
 	if (hose == NULL)
 		return -ENOMEM;
 
-	hose->first_busno = bus_range ? bus_range[0] : 0;
-	hose->last_busno = bus_range ? bus_range[1] : 0xff;
+	hose->first_busyes = bus_range ? bus_range[0] : 0;
+	hose->last_busyes = bus_range ? bus_range[1] : 0xff;
 
 	setup_indirect_pci(hose, 0xfe000cf8, 0xfe000cfc, 0);
 
@@ -128,14 +128,14 @@ static int __init mvme5100_add_bridge(struct device_node *dev)
 	early_read_config_word(hose, 0, 0, PCI_DEVICE_ID, &devid);
 
 	if (devid != PCI_DEVICE_ID_MOTOROLA_HAWK) {
-		pr_err("HAWK PHB not present?\n");
+		pr_err("HAWK PHB yest present?\n");
 		return 0;
 	}
 
 	early_read_config_dword(hose, 0, 0, PCI_BASE_ADDRESS_1, &pci_membase);
 
 	if (pci_membase == 0) {
-		pr_err("HAWK PHB mibar not correctly set?\n");
+		pr_err("HAWK PHB mibar yest correctly set?\n");
 		return 0;
 	}
 
@@ -154,12 +154,12 @@ static const struct of_device_id mvme5100_of_bus_ids[] __initconst = {
  */
 static void __init mvme5100_setup_arch(void)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 
 	if (ppc_md.progress)
 		ppc_md.progress("mvme5100_setup_arch()", 0);
 
-	for_each_compatible_node(np, "pci", "hawk-pci")
+	for_each_compatible_yesde(np, "pci", "hawk-pci")
 		mvme5100_add_bridge(np);
 
 	restart = ioremap(BOARD_MODRST_REG, 4);
@@ -172,7 +172,7 @@ static void mvme5100_show_cpuinfo(struct seq_file *m)
 	seq_puts(m, "Machine\t\t: MVME5100\n");
 }
 
-static void __noreturn mvme5100_restart(char *cmd)
+static void __yesreturn mvme5100_restart(char *cmd)
 {
 
 	local_irq_disable();

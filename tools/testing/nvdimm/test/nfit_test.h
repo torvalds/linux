@@ -181,7 +181,7 @@ struct nd_intel_fw_send_data {
 	__u32 offset;
 	__u32 length;
 	__u8 data[0];
-/* this field is not declared due ot variable data from input */
+/* this field is yest declared due ot variable data from input */
 /*	__u32 status; */
 } __packed;
 
@@ -207,7 +207,7 @@ typedef struct nfit_test_resource *(*nfit_test_lookup_fn)(resource_size_t);
 typedef union acpi_object *(*nfit_test_evaluate_dsm_fn)(acpi_handle handle,
 		 const guid_t *guid, u64 rev, u64 func,
 		 union acpi_object *argv4);
-void __iomem *__wrap_ioremap_nocache(resource_size_t offset,
+void __iomem *__wrap_ioremap_yescache(resource_size_t offset,
 		unsigned long size);
 void __wrap_iounmap(volatile void __iomem *addr);
 void nfit_test_setup(nfit_test_lookup_fn lookup,

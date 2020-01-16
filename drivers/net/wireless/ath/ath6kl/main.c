@@ -4,7 +4,7 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright yestice and this permission yestice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
@@ -23,19 +23,19 @@
 #include "target.h"
 #include "debug.h"
 
-struct ath6kl_sta *ath6kl_find_sta(struct ath6kl_vif *vif, u8 *node_addr)
+struct ath6kl_sta *ath6kl_find_sta(struct ath6kl_vif *vif, u8 *yesde_addr)
 {
 	struct ath6kl *ar = vif->ar;
 	struct ath6kl_sta *conn = NULL;
 	u8 i, max_conn;
 
-	if (is_zero_ether_addr(node_addr))
+	if (is_zero_ether_addr(yesde_addr))
 		return NULL;
 
 	max_conn = (vif->nw_type == AP_NETWORK) ? AP_MAX_NUM_STA : 0;
 
 	for (i = 0; i < max_conn; i++) {
-		if (memcmp(node_addr, ar->sta_list[i].mac, ETH_ALEN) == 0) {
+		if (memcmp(yesde_addr, ar->sta_list[i].mac, ETH_ALEN) == 0) {
 			conn = &ar->sta_list[i];
 			break;
 		}
@@ -197,7 +197,7 @@ void ath6kl_free_cookie(struct ath6kl *ar, struct ath6kl_cookie *cookie)
 }
 
 /*
- * Read from the hardware through its diagnostic window. No cooperation
+ * Read from the hardware through its diagyesstic window. No cooperation
  * from the firmware is required for this.
  */
 int ath6kl_diag_read32(struct ath6kl *ar, u32 address, u32 *value)
@@ -206,7 +206,7 @@ int ath6kl_diag_read32(struct ath6kl *ar, u32 address, u32 *value)
 
 	ret = ath6kl_hif_diag_read32(ar, address, value);
 	if (ret) {
-		ath6kl_warn("failed to read32 through diagnose window: %d\n",
+		ath6kl_warn("failed to read32 through diagyesse window: %d\n",
 			    ret);
 		return ret;
 	}
@@ -215,7 +215,7 @@ int ath6kl_diag_read32(struct ath6kl *ar, u32 address, u32 *value)
 }
 
 /*
- * Write to the ATH6KL through its diagnostic window. No cooperation from
+ * Write to the ATH6KL through its diagyesstic window. No cooperation from
  * the Target is required for this.
  */
 int ath6kl_diag_write32(struct ath6kl *ar, u32 address, __le32 value)
@@ -225,7 +225,7 @@ int ath6kl_diag_write32(struct ath6kl *ar, u32 address, __le32 value)
 	ret = ath6kl_hif_diag_write32(ar, address, value);
 
 	if (ret) {
-		ath6kl_err("failed to write 0x%x during diagnose window to 0x%x\n",
+		ath6kl_err("failed to write 0x%x during diagyesse window to 0x%x\n",
 			   address, value);
 		return ret;
 	}
@@ -412,8 +412,8 @@ void ath6kl_connect_ap_mode_bss(struct ath6kl_vif *vif, u16 channel)
 	}
 
 	if (ar->last_ch != channel)
-		/* we actually don't know the phymode, default to HT20 */
-		ath6kl_cfg80211_ch_switch_notify(vif, channel, WMI_11G_HT20);
+		/* we actually don't kyesw the phymode, default to HT20 */
+		ath6kl_cfg80211_ch_switch_yestify(vif, channel, WMI_11G_HT20);
 
 	ath6kl_wmi_bssfilter_cmd(ar->wmi, vif->fw_vif_idx, NONE_BSS_FILTER, 0);
 	set_bit(CONNECTED, &vif->flags);
@@ -467,8 +467,8 @@ void ath6kl_connect_ap_mode_sta(struct ath6kl_vif *vif, u16 aid, u8 *mac_addr,
 			 * was officially allocated for BSS AC Access Delay. As
 			 * such, we need to be a bit more careful on when
 			 * parsing the frame. However, BSS AC Access Delay
-			 * element is not supposed to be included in
-			 * (Re)Association Request frames, so this should not
+			 * element is yest supposed to be included in
+			 * (Re)Association Request frames, so this should yest
 			 * cause problems.
 			 */
 			wpa_ie = pos; /* WAPI IE */
@@ -514,7 +514,7 @@ void ath6kl_disconnect(struct ath6kl_vif *vif)
 		/*
 		 * Disconnect command is issued, clear the connect pending
 		 * flag. The connected flag will be cleared in
-		 * disconnect event notification.
+		 * disconnect event yestification.
 		 */
 		clear_bit(CONNECT_PEND, &vif->flags);
 	}
@@ -658,8 +658,8 @@ void ath6kl_connect_event(struct ath6kl_vif *vif, u16 channel, u8 *bssid,
 	vif->reconnect_flag = 0;
 
 	if ((vif->nw_type == ADHOC_NETWORK) && ar->ibss_ps_enable) {
-		memset(ar->node_map, 0, sizeof(ar->node_map));
-		ar->node_num = 0;
+		memset(ar->yesde_map, 0, sizeof(ar->yesde_map));
+		ar->yesde_num = 0;
 		ar->next_ep_id = ENDPOINT_2;
 	}
 
@@ -770,8 +770,8 @@ static void ath6kl_update_target_stats(struct ath6kl_vif *vif, u8 *ptr, u32 len)
 
 	stats->pwr_save_fail_cnt +=
 		le32_to_cpu(tgt_stats->pm_stats.pwr_save_failure_cnt);
-	stats->noise_floor_calib =
-		a_sle32_to_cpu(tgt_stats->noise_floor_calib);
+	stats->yesise_floor_calib =
+		a_sle32_to_cpu(tgt_stats->yesise_floor_calib);
 
 	stats->cs_bmiss_cnt +=
 		le32_to_cpu(tgt_stats->cserv_stats.cs_bmiss_cnt);
@@ -898,7 +898,7 @@ void ath6kl_pspoll_event(struct ath6kl_vif *vif, u8 aid)
 		ath6kl_wmi_send_mgmt_cmd(ar->wmi, vif->fw_vif_idx,
 					 mgmt_buf->id, mgmt_buf->freq,
 					 mgmt_buf->wait, mgmt_buf->buf,
-					 mgmt_buf->len, mgmt_buf->no_cck);
+					 mgmt_buf->len, mgmt_buf->yes_cck);
 		conn->sta_flags &= ~STA_PS_POLLED;
 		kfree(mgmt_buf);
 	} else {
@@ -925,7 +925,7 @@ void ath6kl_dtimexpiry_event(struct ath6kl_vif *vif)
 	struct ath6kl *ar = vif->ar;
 
 	/*
-	 * If there are no associated STAs, ignore the DTIM expiry event.
+	 * If there are yes associated STAs, igyesre the DTIM expiry event.
 	 * There can be potential race conditions where the last associated
 	 * STA may disconnect & before the host could clear the 'Indicate
 	 * DTIM' request to the firmware, the firmware would have just
@@ -978,14 +978,14 @@ void ath6kl_disconnect_event(struct ath6kl_vif *vif, u8 reason, u8 *bssid,
 		}
 
 		if (prot_reason_status == WMI_AP_REASON_MAX_STA) {
-			/* send max client reached notification to user space */
+			/* send max client reached yestification to user space */
 			cfg80211_conn_failed(vif->ndev, bssid,
 					     NL80211_CONN_FAIL_MAX_CLIENTS,
 					     GFP_KERNEL);
 		}
 
 		if (prot_reason_status == WMI_AP_REASON_ACL) {
-			/* send blocked client notification to user space */
+			/* send blocked client yestification to user space */
 			cfg80211_conn_failed(vif->ndev, bssid,
 					     NL80211_CONN_FAIL_BLOCKED_CLIENT,
 					     GFP_KERNEL);
@@ -994,7 +994,7 @@ void ath6kl_disconnect_event(struct ath6kl_vif *vif, u8 reason, u8 *bssid,
 		if (!ath6kl_remove_sta(ar, bssid, prot_reason_status))
 			return;
 
-		/* if no more associated STAs, empty the mcast PS q */
+		/* if yes more associated STAs, empty the mcast PS q */
 		if (ar->sta_list_index == 0) {
 			spin_lock_bh(&ar->mcastpsq_lock);
 			skb_queue_purge(&ar->mcastpsq);
@@ -1214,7 +1214,7 @@ static void ath6kl_set_multicast_list(struct net_device *ndev)
 		if (!found) {
 			/*
 			 * Delete the filter which was previously set
-			 * but not in the new request.
+			 * but yest in the new request.
 			 */
 			ath6kl_dbg(ATH6KL_DBG_TRC,
 				   "Removing %pM from multicast filter\n",

@@ -8,21 +8,21 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
+ *    yestice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the name of GIAGIO.COM nor the names of its contributors
+ * 3. Neither the name of GIAGIO.COM yesr the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
- * Alternatively, provided that this notice is retained in full, this
+ * Alternatively, provided that this yestice is retained in full, this
  * software may be distributed under the terms of the GNU General
  * Public License ("GPL") version 2, in which case the provisions of the
  * GPL apply INSTEAD OF those given above.
  *
  * The provided data structures and external interfaces from this code
- * are not restricted to be used by modules with a GPL compatible license.
+ * are yest restricted to be used by modules with a GPL compatible license.
  *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
  * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
@@ -44,7 +44,7 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/netdevice.h>
@@ -110,7 +110,7 @@ static int ipheth_alloc_urbs(struct ipheth_device *iphone)
 
 	tx_urb = usb_alloc_urb(0, GFP_KERNEL);
 	if (tx_urb == NULL)
-		goto error_nomem;
+		goto error_yesmem;
 
 	rx_urb = usb_alloc_urb(0, GFP_KERNEL);
 	if (rx_urb == NULL)
@@ -140,7 +140,7 @@ free_rx_urb:
 	usb_free_urb(rx_urb);
 free_tx_urb:
 	usb_free_urb(tx_urb);
-error_nomem:
+error_yesmem:
 	return -ENOMEM;
 }
 
@@ -364,7 +364,7 @@ static int ipheth_tx(struct sk_buff *skb, struct net_device *net)
 	struct usb_device *udev = dev->udev;
 	int retval;
 
-	/* Paranoid */
+	/* Parayesid */
 	if (skb->len > IPHETH_BUF_SIZE) {
 		WARN(1, "%s: skb too large: %d bytes\n", __func__, skb->len);
 		dev->net->stats.tx_dropped++;
@@ -530,7 +530,7 @@ static void ipheth_disconnect(struct usb_interface *intf)
 		free_netdev(dev->net);
 	}
 	usb_set_intfdata(intf, NULL);
-	dev_info(&intf->dev, "Apple iPhone USB Ethernet now disconnected\n");
+	dev_info(&intf->dev, "Apple iPhone USB Ethernet yesw disconnected\n");
 }
 
 static struct usb_driver ipheth_driver = {

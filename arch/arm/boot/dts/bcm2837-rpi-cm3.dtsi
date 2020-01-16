@@ -11,10 +11,10 @@
 
 	leds {
 		/*
-		 * Since there is no upstream GPIO driver yet,
-		 * remove the incomplete node.
+		 * Since there is yes upstream GPIO driver yet,
+		 * remove the incomplete yesde.
 		 */
-		/delete-node/ act;
+		/delete-yesde/ act;
 	};
 
 	reg_3v3: fixed-regulator {

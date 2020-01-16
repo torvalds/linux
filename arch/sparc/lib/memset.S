@@ -5,7 +5,7 @@
  * Copyright (C) 1996 David S. Miller (davem@caip.rutgers.edu)
  *
  * Calls to memset returns initial %o0. Calls to bzero returns 0, if ok, and
- * number of bytes not yet set if exception occurs and we were called as
+ * number of bytes yest yet set if exception occurs and we were called as
  * clear_user.
  */
 
@@ -161,7 +161,7 @@ __bzero:
 	 EX(stb	%g3, [%o0], and %o1, 1)
 8:
 	b	0f
-	 nop
+	 yesp
 7:
 	be	13b
 	 orcc	%o1, 0, %g0
@@ -175,7 +175,7 @@ __bzero:
 0:
 	andcc	%g4, 1, %g0
 	be	5f
-	 nop
+	 yesp
 	retl
 	 mov	%g1, %o0
 5:

@@ -7,11 +7,11 @@
  */
 
 #ifdef __NO_PA_HDRS
-    PA header file -- do not include this header file for non-PA builds.
+    PA header file -- do yest include this header file for yesn-PA builds.
 #endif
 
 
-/* amount is assumed to be a constant between 0 and 32 (non-inclusive) */
+/* amount is assumed to be a constant between 0 and 32 (yesn-inclusive) */
 #define Shiftdouble(left,right,amount,dest)			\
     /* int left, right, amount, dest; */			\
     dest = ((left) << (32-(amount))) | ((unsigned int)(right) >> (amount))
@@ -23,7 +23,7 @@
     else dest = ((((unsigned) left)&0x7fffffff) << (32-(amount))) |	\
           ((unsigned) right >> (amount))
 
-/* amount must be between 0 and 32 (non-inclusive) */
+/* amount must be between 0 and 32 (yesn-inclusive) */
 #define Variable_shift_double(left,right,amount,dest)		\
     /* unsigned int left, right;  int amount, dest; */		\
     dest = (left << (32-(amount))) | ((unsigned) right >> (amount))

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016 Mellanox Technologies Ltd. All rights reserved.
+ * Copyright (c) 2016 Mellayesx Techyeslogies Ltd. All rights reserved.
  * Copyright (c) 2015 System Fabric Works, Inc. All rights reserved.
  *
  * This software is available to you under a choice of one of two
@@ -13,11 +13,11 @@
  *     conditions are met:
  *
  *	- Redistributions of source code must retain the above
- *	  copyright notice, this list of conditions and the following
+ *	  copyright yestice, this list of conditions and the following
  *	  disclaimer.
  *
  *	- Redistributions in binary form must reproduce the above
- *	  copyright notice, this list of conditions and the following
+ *	  copyright yestice, this list of conditions and the following
  *	  disclaimer in the documentation and/or other materials
  *	  provided with the distribution.
  *
@@ -165,17 +165,17 @@ static inline enum comp_state get_wqe(struct rxe_qp *qp,
 {
 	struct rxe_send_wqe *wqe;
 
-	/* we come here whether or not we found a response packet to see if
+	/* we come here whether or yest we found a response packet to see if
 	 * there are any posted WQEs
 	 */
 	wqe = queue_head(qp->sq.queue);
 	*wqe_p = wqe;
 
-	/* no WQE or requester has not started it yet */
+	/* yes WQE or requester has yest started it yet */
 	if (!wqe || wqe->state == wqe_state_posted)
 		return pkt ? COMPST_DONE : COMPST_EXIT;
 
-	/* WQE does not require an ack */
+	/* WQE does yest require an ack */
 	if (wqe->state == wqe_state_done)
 		return COMPST_COMP_WQE;
 
@@ -220,7 +220,7 @@ static inline enum comp_state check_psn(struct rxe_qp *qp,
 	diff = psn_compare(pkt->psn, qp->comp.psn);
 	if (diff < 0) {
 		/* response is most likely a retried packet if it matches an
-		 * uncompleted WQE go complete it else ignore it
+		 * uncompleted WQE go complete it else igyesre it
 		 */
 		if (pkt->psn == wqe->last_psn)
 			return COMPST_COMP_ACK;
@@ -534,7 +534,7 @@ static inline enum comp_state complete_wqe(struct rxe_qp *qp,
 	return COMPST_GET_WQE;
 }
 
-static void rxe_drain_resp_pkts(struct rxe_qp *qp, bool notify)
+static void rxe_drain_resp_pkts(struct rxe_qp *qp, bool yestify)
 {
 	struct sk_buff *skb;
 	struct rxe_send_wqe *wqe;
@@ -545,7 +545,7 @@ static void rxe_drain_resp_pkts(struct rxe_qp *qp, bool notify)
 	}
 
 	while ((wqe = queue_head(qp->sq.queue))) {
-		if (notify) {
+		if (yestify) {
 			wqe->status = IB_WC_WR_FLUSH_ERR;
 			do_complete(qp, wqe);
 		} else {
@@ -682,19 +682,19 @@ int rxe_completer(void *arg)
 
 		case COMPST_ERROR_RETRY:
 			/* we come here if the retry timer fired and we did
-			 * not receive a response packet. try to retry the send
-			 * queue if that makes sense and the limits have not
+			 * yest receive a response packet. try to retry the send
+			 * queue if that makes sense and the limits have yest
 			 * been exceeded. remember that some timeouts are
-			 * spurious since we do not reset the timer but kick
+			 * spurious since we do yest reset the timer but kick
 			 * it down the road or let it expire
 			 */
 
-			/* there is nothing to retry in this case */
+			/* there is yesthing to retry in this case */
 			if (!wqe || (wqe->state == wqe_state_posted)) {
 				goto exit;
 			}
 
-			/* if we've started a retry, don't start another
+			/* if we've started a retry, don't start ayesther
 			 * retry sequence, unless this is a timeout.
 			 */
 			if (qp->comp.started_retry &&
@@ -712,7 +712,7 @@ int rxe_completer(void *arg)
 				if (qp->comp.retry_cnt != 7)
 					qp->comp.retry_cnt--;
 
-				/* no point in retrying if we have already
+				/* yes point in retrying if we have already
 				 * seen the last ack that the requester could
 				 * have caused
 				 */

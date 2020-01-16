@@ -18,7 +18,7 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/types.h>
 #include <linux/pci.h>
 #include <linux/delay.h>
@@ -60,11 +60,11 @@ static int vnic_dev_discover_res(struct vnic_dev *vdev,
 	rh  = bar->vaddr;
 	mrh = bar->vaddr;
 	if (!rh) {
-		vdev_err(vdev, "vNIC BAR0 res hdr not mem-mapped\n");
+		vdev_err(vdev, "vNIC BAR0 res hdr yest mem-mapped\n");
 		return -EINVAL;
 	}
 
-	/* Check for mgmt vnic in addition to normal vnic */
+	/* Check for mgmt vnic in addition to yesrmal vnic */
 	if ((ioread32(&rh->magic) != VNIC_RES_MAGIC) ||
 		(ioread32(&rh->version) != VNIC_RES_VERSION)) {
 		if ((ioread32(&mrh->magic) != MGMTVNIC_MAGIC) ||
@@ -486,7 +486,7 @@ static int vnic_dev_cmd_proxy(struct vnic_dev *vdev,
 	return 0;
 }
 
-static int vnic_dev_cmd_no_proxy(struct vnic_dev *vdev,
+static int vnic_dev_cmd_yes_proxy(struct vnic_dev *vdev,
 	enum vnic_devcmd_cmd cmd, u64 *a0, u64 *a1, int wait)
 {
 	int err;
@@ -528,7 +528,7 @@ int vnic_dev_cmd(struct vnic_dev *vdev, enum vnic_devcmd_cmd cmd,
 				a0, a1, wait);
 	case PROXY_NONE:
 	default:
-		return vnic_dev_cmd_no_proxy(vdev, cmd, a0, a1, wait);
+		return vnic_dev_cmd_yes_proxy(vdev, cmd, a0, a1, wait);
 	}
 }
 
@@ -728,7 +728,7 @@ int vnic_dev_hang_reset_done(struct vnic_dev *vdev, int *done)
 	return 0;
 }
 
-int vnic_dev_hang_notify(struct vnic_dev *vdev)
+int vnic_dev_hang_yestify(struct vnic_dev *vdev)
 {
 	u64 a0, a1;
 	int wait = 1000;
@@ -821,90 +821,90 @@ int vnic_dev_set_ig_vlan_rewrite_mode(struct vnic_dev *vdev,
 		return 0;
 }
 
-static int vnic_dev_notify_setcmd(struct vnic_dev *vdev,
-	void *notify_addr, dma_addr_t notify_pa, u16 intr)
+static int vnic_dev_yestify_setcmd(struct vnic_dev *vdev,
+	void *yestify_addr, dma_addr_t yestify_pa, u16 intr)
 {
 	u64 a0, a1;
 	int wait = 1000;
 	int r;
 
-	memset(notify_addr, 0, sizeof(struct vnic_devcmd_notify));
-	vdev->notify = notify_addr;
-	vdev->notify_pa = notify_pa;
+	memset(yestify_addr, 0, sizeof(struct vnic_devcmd_yestify));
+	vdev->yestify = yestify_addr;
+	vdev->yestify_pa = yestify_pa;
 
-	a0 = (u64)notify_pa;
+	a0 = (u64)yestify_pa;
 	a1 = ((u64)intr << 32) & 0x0000ffff00000000ULL;
-	a1 += sizeof(struct vnic_devcmd_notify);
+	a1 += sizeof(struct vnic_devcmd_yestify);
 
 	r = vnic_dev_cmd(vdev, CMD_NOTIFY, &a0, &a1, wait);
-	vdev->notify_sz = (r == 0) ? (u32)a1 : 0;
+	vdev->yestify_sz = (r == 0) ? (u32)a1 : 0;
 	return r;
 }
 
-int vnic_dev_notify_set(struct vnic_dev *vdev, u16 intr)
+int vnic_dev_yestify_set(struct vnic_dev *vdev, u16 intr)
 {
-	void *notify_addr;
-	dma_addr_t notify_pa;
+	void *yestify_addr;
+	dma_addr_t yestify_pa;
 
-	if (vdev->notify || vdev->notify_pa) {
-		vdev_neterr(vdev, "notify block %p still allocated\n",
-			    vdev->notify);
+	if (vdev->yestify || vdev->yestify_pa) {
+		vdev_neterr(vdev, "yestify block %p still allocated\n",
+			    vdev->yestify);
 		return -EINVAL;
 	}
 
-	notify_addr = pci_alloc_consistent(vdev->pdev,
-			sizeof(struct vnic_devcmd_notify),
-			&notify_pa);
-	if (!notify_addr)
+	yestify_addr = pci_alloc_consistent(vdev->pdev,
+			sizeof(struct vnic_devcmd_yestify),
+			&yestify_pa);
+	if (!yestify_addr)
 		return -ENOMEM;
 
-	return vnic_dev_notify_setcmd(vdev, notify_addr, notify_pa, intr);
+	return vnic_dev_yestify_setcmd(vdev, yestify_addr, yestify_pa, intr);
 }
 
-static int vnic_dev_notify_unsetcmd(struct vnic_dev *vdev)
+static int vnic_dev_yestify_unsetcmd(struct vnic_dev *vdev)
 {
 	u64 a0, a1;
 	int wait = 1000;
 	int err;
 
-	a0 = 0;  /* paddr = 0 to unset notify buffer */
+	a0 = 0;  /* paddr = 0 to unset yestify buffer */
 	a1 = 0x0000ffff00000000ULL; /* intr num = -1 to unreg for intr */
-	a1 += sizeof(struct vnic_devcmd_notify);
+	a1 += sizeof(struct vnic_devcmd_yestify);
 
 	err = vnic_dev_cmd(vdev, CMD_NOTIFY, &a0, &a1, wait);
-	vdev->notify = NULL;
-	vdev->notify_pa = 0;
-	vdev->notify_sz = 0;
+	vdev->yestify = NULL;
+	vdev->yestify_pa = 0;
+	vdev->yestify_sz = 0;
 
 	return err;
 }
 
-int vnic_dev_notify_unset(struct vnic_dev *vdev)
+int vnic_dev_yestify_unset(struct vnic_dev *vdev)
 {
-	if (vdev->notify) {
+	if (vdev->yestify) {
 		pci_free_consistent(vdev->pdev,
-			sizeof(struct vnic_devcmd_notify),
-			vdev->notify,
-			vdev->notify_pa);
+			sizeof(struct vnic_devcmd_yestify),
+			vdev->yestify,
+			vdev->yestify_pa);
 	}
 
-	return vnic_dev_notify_unsetcmd(vdev);
+	return vnic_dev_yestify_unsetcmd(vdev);
 }
 
-static int vnic_dev_notify_ready(struct vnic_dev *vdev)
+static int vnic_dev_yestify_ready(struct vnic_dev *vdev)
 {
 	u32 *words;
-	unsigned int nwords = vdev->notify_sz / 4;
+	unsigned int nwords = vdev->yestify_sz / 4;
 	unsigned int i;
 	u32 csum;
 
-	if (!vdev->notify || !vdev->notify_sz)
+	if (!vdev->yestify || !vdev->yestify_sz)
 		return 0;
 
 	do {
 		csum = 0;
-		memcpy(&vdev->notify_copy, vdev->notify, vdev->notify_sz);
-		words = (u32 *)&vdev->notify_copy;
+		memcpy(&vdev->yestify_copy, vdev->yestify, vdev->yestify_sz);
+		words = (u32 *)&vdev->yestify_copy;
 		for (i = 1; i < nwords; i++)
 			csum += words[i];
 	} while (csum != words[0]);
@@ -924,7 +924,7 @@ int vnic_dev_init(struct vnic_dev *vdev, int arg)
 		vnic_dev_cmd(vdev, CMD_INIT_v1, &a0, &a1, wait);
 		if (a0 & CMD_INITF_DEFAULT_MAC) {
 			/* Emulate these for old CMD_INIT_v1 which
-			 * didn't pass a0 so no CMD_INITF_*.
+			 * didn't pass a0 so yes CMD_INITF_*.
 			 */
 			vnic_dev_cmd(vdev, CMD_GET_MAC_ADDR, &a0, &a1, wait);
 			vnic_dev_cmd(vdev, CMD_ADDR_ADD, &a0, &a1, wait);
@@ -983,34 +983,34 @@ int vnic_dev_intr_coal_timer_info(struct vnic_dev *vdev)
 
 int vnic_dev_link_status(struct vnic_dev *vdev)
 {
-	if (!vnic_dev_notify_ready(vdev))
+	if (!vnic_dev_yestify_ready(vdev))
 		return 0;
 
-	return vdev->notify_copy.link_state;
+	return vdev->yestify_copy.link_state;
 }
 
 u32 vnic_dev_port_speed(struct vnic_dev *vdev)
 {
-	if (!vnic_dev_notify_ready(vdev))
+	if (!vnic_dev_yestify_ready(vdev))
 		return 0;
 
-	return vdev->notify_copy.port_speed;
+	return vdev->yestify_copy.port_speed;
 }
 
 u32 vnic_dev_msg_lvl(struct vnic_dev *vdev)
 {
-	if (!vnic_dev_notify_ready(vdev))
+	if (!vnic_dev_yestify_ready(vdev))
 		return 0;
 
-	return vdev->notify_copy.msglvl;
+	return vdev->yestify_copy.msglvl;
 }
 
 u32 vnic_dev_mtu(struct vnic_dev *vdev)
 {
-	if (!vnic_dev_notify_ready(vdev))
+	if (!vnic_dev_yestify_ready(vdev))
 		return 0;
 
-	return vdev->notify_copy.mtu;
+	return vdev->yestify_copy.mtu;
 }
 
 void vnic_dev_set_intr_mode(struct vnic_dev *vdev,
@@ -1045,11 +1045,11 @@ u32 vnic_dev_get_intr_coal_timer_max(struct vnic_dev *vdev)
 void vnic_dev_unregister(struct vnic_dev *vdev)
 {
 	if (vdev) {
-		if (vdev->notify)
+		if (vdev->yestify)
 			pci_free_consistent(vdev->pdev,
-				sizeof(struct vnic_devcmd_notify),
-				vdev->notify,
-				vdev->notify_pa);
+				sizeof(struct vnic_devcmd_yestify),
+				vdev->yestify,
+				vdev->yestify_pa);
 		if (vdev->stats)
 			pci_free_consistent(vdev->pdev,
 				sizeof(struct vnic_stats),
@@ -1110,7 +1110,7 @@ int vnic_devcmd_init(struct vnic_dev *vdev)
 		else
 			return 0;
 	} else {
-		vdev_warn(vdev, "DEVCMD2 resource not found (old firmware?) Using DEVCMD1\n");
+		vdev_warn(vdev, "DEVCMD2 resource yest found (old firmware?) Using DEVCMD1\n");
 	}
 	err = vnic_dev_init_devcmd1(vdev);
 	if (err)
@@ -1289,7 +1289,7 @@ int vnic_dev_capable_rss_hash_type(struct vnic_dev *vdev, u8 *rss_hash_type)
 	int err;
 
 	err = vnic_dev_cmd(vdev, CMD_CAPABILITY, &a0, &a1, wait);
-	/* rss_hash_type is valid only when a0 is 1. Adapter which does not
+	/* rss_hash_type is valid only when a0 is 1. Adapter which does yest
 	 * support CMD_CAPABILITY for rss_hash_type has a0 = 0
 	 */
 	if (err || (a0 != 1))

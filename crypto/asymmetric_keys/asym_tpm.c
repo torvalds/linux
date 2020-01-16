@@ -32,8 +32,8 @@ static int tpm_loadkey2(struct tpm_buf *tb,
 			const unsigned char *keyblob, int keybloblen,
 			uint32_t *newhandle)
 {
-	unsigned char nonceodd[TPM_NONCE_SIZE];
-	unsigned char enonce[TPM_NONCE_SIZE];
+	unsigned char yesnceodd[TPM_NONCE_SIZE];
+	unsigned char eyesnce[TPM_NONCE_SIZE];
 	unsigned char authdata[SHA1_DIGEST_SIZE];
 	uint32_t authhandle = 0;
 	unsigned char cont = 0;
@@ -43,22 +43,22 @@ static int tpm_loadkey2(struct tpm_buf *tb,
 	ordinal = htonl(TPM_ORD_LOADKEY2);
 
 	/* session for loading the key */
-	ret = oiap(tb, &authhandle, enonce);
+	ret = oiap(tb, &authhandle, eyesnce);
 	if (ret < 0) {
 		pr_info("oiap failed (%d)\n", ret);
 		return ret;
 	}
 
-	/* generate odd nonce */
-	ret = tpm_get_random(NULL, nonceodd, TPM_NONCE_SIZE);
+	/* generate odd yesnce */
+	ret = tpm_get_random(NULL, yesnceodd, TPM_NONCE_SIZE);
 	if (ret < 0) {
 		pr_info("tpm_get_random failed (%d)\n", ret);
 		return ret;
 	}
 
 	/* calculate authorization HMAC value */
-	ret = TSS_authhmac(authdata, keyauth, SHA1_DIGEST_SIZE, enonce,
-			   nonceodd, cont, sizeof(uint32_t), &ordinal,
+	ret = TSS_authhmac(authdata, keyauth, SHA1_DIGEST_SIZE, eyesnce,
+			   yesnceodd, cont, sizeof(uint32_t), &ordinal,
 			   keybloblen, keyblob, 0, 0);
 	if (ret < 0)
 		return ret;
@@ -68,7 +68,7 @@ static int tpm_loadkey2(struct tpm_buf *tb,
 	tpm_buf_append_u32(tb, keyhandle);
 	tpm_buf_append(tb, keyblob, keybloblen);
 	tpm_buf_append_u32(tb, authhandle);
-	tpm_buf_append(tb, nonceodd, TPM_NONCE_SIZE);
+	tpm_buf_append(tb, yesnceodd, TPM_NONCE_SIZE);
 	tpm_buf_append_u8(tb, cont);
 	tpm_buf_append(tb, authdata, SHA1_DIGEST_SIZE);
 
@@ -78,7 +78,7 @@ static int tpm_loadkey2(struct tpm_buf *tb,
 		return ret;
 	}
 
-	ret = TSS_checkhmac1(tb->data, ordinal, nonceodd, keyauth,
+	ret = TSS_checkhmac1(tb->data, ordinal, yesnceodd, keyauth,
 			     SHA1_DIGEST_SIZE, 0, 0);
 	if (ret < 0) {
 		pr_info("TSS_checkhmac1 failed (%d)\n", ret);
@@ -103,15 +103,15 @@ static int tpm_flushspecific(struct tpm_buf *tb, uint32_t handle)
 
 /*
  * Decrypt a blob provided by userspace using a specific key handle.
- * The handle is a well known handle or previously loaded by e.g. LoadKey2
+ * The handle is a well kyeswn handle or previously loaded by e.g. LoadKey2
  */
 static int tpm_unbind(struct tpm_buf *tb,
 			uint32_t keyhandle, unsigned char *keyauth,
 			const unsigned char *blob, uint32_t bloblen,
 			void *out, uint32_t outlen)
 {
-	unsigned char nonceodd[TPM_NONCE_SIZE];
-	unsigned char enonce[TPM_NONCE_SIZE];
+	unsigned char yesnceodd[TPM_NONCE_SIZE];
+	unsigned char eyesnce[TPM_NONCE_SIZE];
 	unsigned char authdata[SHA1_DIGEST_SIZE];
 	uint32_t authhandle = 0;
 	unsigned char cont = 0;
@@ -123,22 +123,22 @@ static int tpm_unbind(struct tpm_buf *tb,
 	datalen = htonl(bloblen);
 
 	/* session for loading the key */
-	ret = oiap(tb, &authhandle, enonce);
+	ret = oiap(tb, &authhandle, eyesnce);
 	if (ret < 0) {
 		pr_info("oiap failed (%d)\n", ret);
 		return ret;
 	}
 
-	/* generate odd nonce */
-	ret = tpm_get_random(NULL, nonceodd, TPM_NONCE_SIZE);
+	/* generate odd yesnce */
+	ret = tpm_get_random(NULL, yesnceodd, TPM_NONCE_SIZE);
 	if (ret < 0) {
 		pr_info("tpm_get_random failed (%d)\n", ret);
 		return ret;
 	}
 
 	/* calculate authorization HMAC value */
-	ret = TSS_authhmac(authdata, keyauth, SHA1_DIGEST_SIZE, enonce,
-			   nonceodd, cont, sizeof(uint32_t), &ordinal,
+	ret = TSS_authhmac(authdata, keyauth, SHA1_DIGEST_SIZE, eyesnce,
+			   yesnceodd, cont, sizeof(uint32_t), &ordinal,
 			   sizeof(uint32_t), &datalen,
 			   bloblen, blob, 0, 0);
 	if (ret < 0)
@@ -150,7 +150,7 @@ static int tpm_unbind(struct tpm_buf *tb,
 	tpm_buf_append_u32(tb, bloblen);
 	tpm_buf_append(tb, blob, bloblen);
 	tpm_buf_append_u32(tb, authhandle);
-	tpm_buf_append(tb, nonceodd, TPM_NONCE_SIZE);
+	tpm_buf_append(tb, yesnceodd, TPM_NONCE_SIZE);
 	tpm_buf_append_u8(tb, cont);
 	tpm_buf_append(tb, authdata, SHA1_DIGEST_SIZE);
 
@@ -162,7 +162,7 @@ static int tpm_unbind(struct tpm_buf *tb,
 
 	datalen = LOAD32(tb->data, TPM_DATA_OFFSET);
 
-	ret = TSS_checkhmac1(tb->data, ordinal, nonceodd,
+	ret = TSS_checkhmac1(tb->data, ordinal, yesnceodd,
 			     keyauth, SHA1_DIGEST_SIZE,
 			     sizeof(uint32_t), TPM_DATA_OFFSET,
 			     datalen, TPM_DATA_OFFSET + sizeof(uint32_t),
@@ -185,7 +185,7 @@ static int tpm_unbind(struct tpm_buf *tb,
  *
  * Note that the key signature scheme of the used key should be set to
  * TPM_SS_RSASSAPKCS1v15_DER.  This allows the hashed input to be of any size
- * up to key_length_in_bytes - 11 and not be limited to size 20 like the
+ * up to key_length_in_bytes - 11 and yest be limited to size 20 like the
  * TPM_SS_RSASSAPKCS1v15_SHA1 signature scheme.
  */
 static int tpm_sign(struct tpm_buf *tb,
@@ -193,8 +193,8 @@ static int tpm_sign(struct tpm_buf *tb,
 		    const unsigned char *blob, uint32_t bloblen,
 		    void *out, uint32_t outlen)
 {
-	unsigned char nonceodd[TPM_NONCE_SIZE];
-	unsigned char enonce[TPM_NONCE_SIZE];
+	unsigned char yesnceodd[TPM_NONCE_SIZE];
+	unsigned char eyesnce[TPM_NONCE_SIZE];
 	unsigned char authdata[SHA1_DIGEST_SIZE];
 	uint32_t authhandle = 0;
 	unsigned char cont = 0;
@@ -206,22 +206,22 @@ static int tpm_sign(struct tpm_buf *tb,
 	datalen = htonl(bloblen);
 
 	/* session for loading the key */
-	ret = oiap(tb, &authhandle, enonce);
+	ret = oiap(tb, &authhandle, eyesnce);
 	if (ret < 0) {
 		pr_info("oiap failed (%d)\n", ret);
 		return ret;
 	}
 
-	/* generate odd nonce */
-	ret = tpm_get_random(NULL, nonceodd, TPM_NONCE_SIZE);
+	/* generate odd yesnce */
+	ret = tpm_get_random(NULL, yesnceodd, TPM_NONCE_SIZE);
 	if (ret < 0) {
 		pr_info("tpm_get_random failed (%d)\n", ret);
 		return ret;
 	}
 
 	/* calculate authorization HMAC value */
-	ret = TSS_authhmac(authdata, keyauth, SHA1_DIGEST_SIZE, enonce,
-			   nonceodd, cont, sizeof(uint32_t), &ordinal,
+	ret = TSS_authhmac(authdata, keyauth, SHA1_DIGEST_SIZE, eyesnce,
+			   yesnceodd, cont, sizeof(uint32_t), &ordinal,
 			   sizeof(uint32_t), &datalen,
 			   bloblen, blob, 0, 0);
 	if (ret < 0)
@@ -233,7 +233,7 @@ static int tpm_sign(struct tpm_buf *tb,
 	tpm_buf_append_u32(tb, bloblen);
 	tpm_buf_append(tb, blob, bloblen);
 	tpm_buf_append_u32(tb, authhandle);
-	tpm_buf_append(tb, nonceodd, TPM_NONCE_SIZE);
+	tpm_buf_append(tb, yesnceodd, TPM_NONCE_SIZE);
 	tpm_buf_append_u8(tb, cont);
 	tpm_buf_append(tb, authdata, SHA1_DIGEST_SIZE);
 
@@ -245,7 +245,7 @@ static int tpm_sign(struct tpm_buf *tb,
 
 	datalen = LOAD32(tb->data, TPM_DATA_OFFSET);
 
-	ret = TSS_checkhmac1(tb->data, ordinal, nonceodd,
+	ret = TSS_checkhmac1(tb->data, ordinal, yesnceodd,
 			     keyauth, SHA1_DIGEST_SIZE,
 			     sizeof(uint32_t), TPM_DATA_OFFSET,
 			     datalen, TPM_DATA_OFFSET + sizeof(uint32_t),
@@ -522,7 +522,7 @@ static int tpm_key_decrypt(struct tpm_key *tk,
 	if (r)
 		return r;
 
-	/* TODO: Handle a non-all zero SRK authorization */
+	/* TODO: Handle a yesn-all zero SRK authorization */
 	memset(srkauth, 0, sizeof(srkauth));
 
 	r = tpm_loadkey2(&tb, SRKHANDLE, srkauth,
@@ -532,7 +532,7 @@ static int tpm_key_decrypt(struct tpm_key *tk,
 		goto error;
 	}
 
-	/* TODO: Handle a non-all zero key authorization */
+	/* TODO: Handle a yesn-all zero key authorization */
 	memset(keyauth, 0, sizeof(keyauth));
 
 	r = tpm_unbind(&tb, keyhandle, keyauth,
@@ -648,7 +648,7 @@ static int tpm_key_sign(struct tpm_key *tk,
 		if (!asn1)
 			return -ENOPKG;
 
-		/* request enough space for the ASN.1 template + input hash */
+		/* request eyesugh space for the ASN.1 template + input hash */
 		asn1_wrapped = kzalloc(in_len + asn1->size, GFP_KERNEL);
 		if (!asn1_wrapped)
 			return -ENOMEM;
@@ -670,7 +670,7 @@ static int tpm_key_sign(struct tpm_key *tk,
 	if (r)
 		goto error_free_asn1_wrapped;
 
-	/* TODO: Handle a non-all zero SRK authorization */
+	/* TODO: Handle a yesn-all zero SRK authorization */
 	memset(srkauth, 0, sizeof(srkauth));
 
 	r = tpm_loadkey2(&tb, SRKHANDLE, srkauth,
@@ -680,7 +680,7 @@ static int tpm_key_sign(struct tpm_key *tk,
 		goto error_free_tb;
 	}
 
-	/* TODO: Handle a non-all zero key authorization */
+	/* TODO: Handle a yesn-all zero key authorization */
 	memset(keyauth, 0, sizeof(keyauth));
 
 	r = tpm_sign(&tb, keyhandle, keyauth, in, in_len, out, params->out_len);
@@ -791,7 +791,7 @@ error_free_tfm:
 }
 
 /*
- * Parse enough information out of TPM_KEY structure:
+ * Parse eyesugh information out of TPM_KEY structure:
  * TPM_STRUCT_VER -> 4 bytes
  * TPM_KEY_USAGE -> 2 bytes
  * TPM_KEY_FLAGS -> 4 bytes

@@ -33,10 +33,10 @@ __clean-files	:= $(extra-y) $(extra-m) $(extra-)       \
 		   $(hostlibs-y) $(hostlibs-m) $(hostlibs-) \
 		   $(hostcxxlibs-y) $(hostcxxlibs-m)
 
-__clean-files   := $(filter-out $(no-clean-files), $(__clean-files))
+__clean-files   := $(filter-out $(yes-clean-files), $(__clean-files))
 
 # clean-files is given relative to the current directory, unless it
-# starts with $(objtree)/ (which means "./", so do not add "./" unless
+# starts with $(objtree)/ (which means "./", so do yest add "./" unless
 # you want to delete a file from the toplevel object directory).
 
 __clean-files   := $(wildcard                                               \

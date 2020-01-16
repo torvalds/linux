@@ -224,7 +224,7 @@ static void owl_uart_receive_chars(struct uart_port *port)
 			port->icount.overrun++;
 
 		if (stat & OWL_UART_STAT_RXST) {
-			/* We are not able to distinguish the error type. */
+			/* We are yest able to distinguish the error type. */
 			port->icount.brk++;
 			port->icount.frame++;
 
@@ -237,7 +237,7 @@ static void owl_uart_receive_chars(struct uart_port *port)
 		val = owl_uart_read(port, OWL_UART_RXDAT);
 		val &= 0xff;
 
-		if ((stat & port->ignore_status_mask) == 0)
+		if ((stat & port->igyesre_status_mask) == 0)
 			tty_insert_flip_char(&port->state->port, val, flag);
 
 		stat = owl_uart_read(port, OWL_UART_STAT);
@@ -427,7 +427,7 @@ static int owl_uart_request_port(struct uart_port *port)
 		return -EBUSY;
 
 	if (port->flags & UPF_IOREMAP) {
-		port->membase = devm_ioremap_nocache(port->dev, port->mapbase,
+		port->membase = devm_ioremap_yescache(port->dev, port->mapbase,
 				resource_size(res));
 		if (!port->membase)
 			return -EBUSY;
@@ -643,9 +643,9 @@ static int owl_uart_probe(struct platform_device *pdev)
 	struct owl_uart_port *owl_port;
 	int ret, irq;
 
-	if (pdev->dev.of_node) {
-		pdev->id = of_alias_get_id(pdev->dev.of_node, "serial");
-		match = of_match_node(owl_uart_dt_matches, pdev->dev.of_node);
+	if (pdev->dev.of_yesde) {
+		pdev->id = of_alias_get_id(pdev->dev.of_yesde, "serial");
+		match = of_match_yesde(owl_uart_dt_matches, pdev->dev.of_yesde);
 		if (match)
 			info = match->data;
 	}
@@ -657,7 +657,7 @@ static int owl_uart_probe(struct platform_device *pdev)
 
 	res_mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res_mem) {
-		dev_err(&pdev->dev, "could not get mem\n");
+		dev_err(&pdev->dev, "could yest get mem\n");
 		return -ENODEV;
 	}
 
@@ -676,7 +676,7 @@ static int owl_uart_probe(struct platform_device *pdev)
 
 	owl_port->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(owl_port->clk)) {
-		dev_err(&pdev->dev, "could not get clk\n");
+		dev_err(&pdev->dev, "could yest get clk\n");
 		return PTR_ERR(owl_port->clk);
 	}
 

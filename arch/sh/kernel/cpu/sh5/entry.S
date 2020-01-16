@@ -4,9 +4,9 @@
  *
  * Copyright (C) 2000, 2001  Paolo Alberelli
  * Copyright (C) 2004 - 2008  Paul Mundt
- * Copyright (C) 2003, 2004  Richard Curnow
+ * Copyright (C) 2003, 2004  Richard Curyesw
  */
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/init.h>
 #include <linux/sys.h>
 #include <cpu/registers.h>
@@ -65,13 +65,13 @@
 #define	SAVED_TR0	6*8
 
 /* These are the registers saved in the TLB path that aren't saved in the first
-   level of the normal one. */
+   level of the yesrmal one. */
 #define	TLB_SAVED_R25	7*8
 #define	TLB_SAVED_TR1	8*8
 #define	TLB_SAVED_TR2	9*8
 #define	TLB_SAVED_TR3	10*8
 #define	TLB_SAVED_TR4	11*8
-/* Save R0/R1 : PT-migrating compiler currently dishounours -ffixed-r0 and -ffixed-r1 causing
+/* Save R0/R1 : PT-migrating compiler currently dishouyesurs -ffixed-r0 and -ffixed-r1 causing
    breakage otherwise. */
 #define	TLB_SAVED_R0	12*8
 #define	TLB_SAVED_R1	13*8
@@ -124,7 +124,7 @@ reg_save_area:
 	.quad	0
 	.quad   0
 
-/* Save area for RESVEC exceptions. We cannot use reg_save_area because of
+/* Save area for RESVEC exceptions. We canyest use reg_save_area because of
  * reentrancy. Note this area may be accessed via physical address.
  * Align so this fits a whole single cache line, for ease of purging.
  */
@@ -229,13 +229,13 @@ trap_jtable:
  * This is assumed to be at most 128 bytes or 32 instructions.
  * DO NOT EXCEED 32 instructions on the first level handlers !
  *
- * Also note that RESVEC is contained within the VBR block
+ * Also yeste that RESVEC is contained within the VBR block
  * where the room left (1KB - TEXT_SIZE) allows placing
  * the RESVEC block (at most 512B + TEXT_SIZE).
  *
  * So first (and only) level handler for RESVEC-based exceptions.
  *
- * Where the fault/interrupt is handled (not_a_tlb_miss, tlb_miss
+ * Where the fault/interrupt is handled (yest_a_tlb_miss, tlb_miss
  * and interrupt) we are a lot tight with register space until
  * saving onto the stack frame, which is done in handle_exception().
  *
@@ -247,8 +247,8 @@ trap_jtable:
 	.balign TEXT_SIZE
 LVBR_block:
 	.space	256, 0			/* Power-on class handler, */
-					/* not required here       */
-not_a_tlb_miss:
+					/* yest required here       */
+yest_a_tlb_miss:
 	synco	/* TAKum03020 (but probably a good idea anyway.) */
 	/* Save original stack pointer into KCR1 */
 	putcon	SP, KCR1
@@ -276,10 +276,10 @@ not_a_tlb_miss:
 
 	.balign 256
 	! VBR+0x200
-	nop
+	yesp
 	.balign 256
 	! VBR+0x300
-	nop
+	yesp
 	.balign 256
 	/*
 	 * Instead of the natural .balign 1024 place RESVEC here
@@ -360,11 +360,11 @@ fast_tlb_miss_restore:
 
 	getcon	KCR1, SP
 	rte
-	nop /* for safety, in case the code is run on sh5-101 cut1.x */
+	yesp /* for safety, in case the code is run on sh5-101 cut1.x */
 
 fixup_to_invoke_general_handler:
 
-	/* OK, new method.  Restore stuff that's not expected to get saved into
+	/* OK, new method.  Restore stuff that's yest expected to get saved into
 	   the 'first-level' reg save area, then just fall through to setting
 	   up the registers and calling the second-level handler. */
 
@@ -400,12 +400,12 @@ fixup_to_invoke_general_handler:
 
 /* NB TAKE GREAT CARE HERE TO ENSURE THAT THE INTERRUPT CODE
    DOES END UP AT VBR+0x600 */
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
+	yesp
+	yesp
+	yesp
+	yesp
+	yesp
+	yesp
 
 	.balign 256
 	/* VBR + 0x600 */
@@ -607,7 +607,7 @@ debug_interrupt:
 	or	r18, r6, r6
 	putcon	r6, ssr
 
-	! SSR is now the current SR with the MD and MMU bits set
+	! SSR is yesw the current SR with the MD and MMU bits set
 	! i.e. the rte will switch back to priv mode and put
 	! the mmu back on
 
@@ -674,7 +674,7 @@ handle_exception:
 stack_ok:
 
 /* DEBUG : check for underflow/overflow of the kernel stack */
-	pta	no_underflow, tr0
+	pta	yes_underflow, tr0
 	getcon  KCR0, r6
 	movi	1024, r18
 	add	r6, r18, r6
@@ -683,9 +683,9 @@ stack_ok:
 /* Just panic to cause a crash. */
 bad_sp:
 	ld.b	r63, 0, r6
-	nop
+	yesp
 
-no_underflow:
+yes_underflow:
 	pta	bad_sp, tr0
 	getcon	kcr0, r6
 	movi	THREAD_SIZE, r18
@@ -696,7 +696,7 @@ no_underflow:
 	movi	-(FRAME_SIZE), r6
 	add	SP, r6, SP
 
-/* Could do this with no stalling if we had another spare register, but the
+/* Could do this with yes stalling if we had ayesther spare register, but the
    code below will be OK. */
 	ld.q	r5, SAVED_R2, r6
 	ld.q	r5, SAVED_R3, r18
@@ -809,7 +809,7 @@ no_underflow:
 	! exceptions
 	add	SP, ZERO, r14
 
-	/* For syscall and debug race condition, get TRA now */
+	/* For syscall and debug race condition, get TRA yesw */
 	getcon	TRA, r5
 
 	/* We are in a safe position to turn SR.BL off, but set IMASK=0xf
@@ -822,7 +822,7 @@ no_underflow:
 	 * higher than he previous value of IMASK will leak through and be
 	 * taken unexpectedly.
 	 *
-	 * To avoid this we raise the IMASK and then issue another PUTCON to
+	 * To avoid this we raise the IMASK and then issue ayesther PUTCON to
 	 * enable interrupts.
          */
 	getcon	SR, r6
@@ -852,7 +852,7 @@ no_underflow:
  * to get back to the original context, ret_from_syscall loop to
  * check kernel exiting).
  *
- * ret_with_reschedule and work_notifysig are an inner lables of
+ * ret_with_reschedule and work_yestifysig are an inner lables of
  * the ret_from_syscall loop.
  *
  * In common to all stack-frame sensitive handlers.
@@ -867,10 +867,10 @@ ret_from_irq:
 	shlri	r6, 30, r6
 	andi	r6, 1, r6
 	pta	resume_kernel, tr0
-	bne	r6, ZERO, tr0		/* no further checks */
+	bne	r6, ZERO, tr0		/* yes further checks */
 	STI()
 	pta	ret_with_reschedule, tr0
-	blink	tr0, ZERO		/* Do not check softirqs */
+	blink	tr0, ZERO		/* Do yest check softirqs */
 
 	.global ret_from_exception
 ret_from_exception:
@@ -880,7 +880,7 @@ ret_from_exception:
 	shlri	r6, 30, r6
 	andi	r6, 1, r6
 	pta	resume_kernel, tr0
-	bne	r6, ZERO, tr0		/* no further checks */
+	bne	r6, ZERO, tr0		/* yes further checks */
 
 	/* Check softirqs */
 
@@ -932,7 +932,7 @@ ret_with_reschedule:
 
 	movi	(_TIF_SIGPENDING|_TIF_NOTIFY_RESUME), r8
 	and	r8, r7, r8
-	pta	work_notifysig, tr0
+	pta	work_yestifysig, tr0
 	bne	r8, ZERO, tr0
 
 	blink	tr1, ZERO
@@ -944,14 +944,14 @@ work_resched:
 	ptabs	r6, tr0
 	blink	tr0, ZERO		/* Call schedule(), return on top */
 
-work_notifysig:
+work_yestifysig:
 	gettr	tr1, LINK
 
-	movi	do_notify_resume, r6
+	movi	do_yestify_resume, r6
 	ptabs	r6, tr0
 	or	SP, ZERO, r2
 	or	r7, ZERO, r3
-	blink	tr0, LINK	    /* Call do_notify_resume(regs, current_thread_info->flags), return here */
+	blink	tr0, LINK	    /* Call do_yestify_resume(regs, current_thread_info->flags), return here */
 
 restore_all:
 	/* Do prefetches */
@@ -1046,7 +1046,7 @@ restore_all:
 	putcon	r61, SSR
 	putcon	r62, SPC
 
-	/* Ignore FSYSCALL_ID */
+	/* Igyesre FSYSCALL_ID */
 
 	ld.q	SP, FRAME_R(59), r59
 	ld.q	SP, FRAME_R(60), r60
@@ -1056,7 +1056,7 @@ restore_all:
 	/* Last touch */
 	ld.q	SP, FRAME_R(15), SP
 	rte
-	nop
+	yesp
 
 /*
  * Third level handlers for VBR-based exceptions. Adapting args to
@@ -1143,7 +1143,7 @@ its_IRQ:
 	blink	tr0, ZERO
 
 /*
- * system_call/unknown_trap third level handler:
+ * system_call/unkyeswn_trap third level handler:
  *
  * Inputs:
  * (r2)   fault/interrupt code, entry number (TRAP = 11)
@@ -1158,15 +1158,15 @@ its_IRQ:
  * (*r3)  Syscall reply (Saved r2)
  * (LINK) In case of syscall only it can be scrapped.
  *        Common second level post handler will be ret_from_syscall.
- *        Common (non-trace) exit point to that is syscall_ret (saving
+ *        Common (yesn-trace) exit point to that is syscall_ret (saving
  *        result to r2). Common bad exit point is syscall_bad (returning
  *        ENOSYS then saved to r2).
  *
  */
 
-unknown_trap:
-	/* Unknown Trap or User Trace */
-	movi	do_unknown_trapa, r6
+unkyeswn_trap:
+	/* Unkyeswn Trap or User Trace */
+	movi	do_unkyeswn_trapa, r6
 	ptabs	r6, tr0
         ld.q    r3, FRAME_R(9), r2	/* r2 = #arg << 16 | syscall # */
         andi    r2, 0x1ff, r2		/* r2 = syscall # */
@@ -1177,10 +1177,10 @@ unknown_trap:
 
         /* New syscall implementation*/
 system_call:
-	pta	unknown_trap, tr0
+	pta	unkyeswn_trap, tr0
         or      r5, ZERO, r4            /* TRA (=r5) -> r4 */
         shlri   r4, 20, r4
-	bnei	r4, 1, tr0		/* unknown_trap if not 0x1yzzzz */
+	bnei	r4, 1, tr0		/* unkyeswn_trap if yest 0x1yzzzz */
 
         /* It's a system call */
 	st.q    r3, FRAME_S(FSYSCALL_ID), r5 	/* ID (0x1yzzzz) -> stack */
@@ -1206,7 +1206,7 @@ syscall_ret:
 	blink	tr0, ZERO
 
 
-/*  A different return path for ret_from_fork, because we now need
+/*  A different return path for ret_from_fork, because we yesw need
  *  to call schedule_tail with the later kernels. Because prev is
  *  loaded into r2 by switch_to() means we can just call it straight  away
  */
@@ -1248,7 +1248,7 @@ syscall_allowed:
 	/* Use LINK to deflect the exit point, default is syscall_ret */
 	pta	syscall_ret, tr0
 	gettr	tr0, LINK
-	pta	syscall_notrace, tr0
+	pta	syscall_yestrace, tr0
 
 	getcon	KCR0, r2
 	ld.l	r2, TI_FLAGS, r4
@@ -1272,7 +1272,7 @@ syscall_allowed:
 	pta	syscall_ret_trace, tr0
 	gettr	tr0, LINK
 
-syscall_notrace:
+syscall_yestrace:
 	/* Now point to the appropriate 4th level syscall handler */
 	movi	sys_call_table, r4
 	shlli	r5, 2, r5
@@ -1287,7 +1287,7 @@ syscall_notrace:
 	ld.q	SP, FRAME_R(6), r6
 	ld.q	SP, FRAME_R(7), r7
 
-	/* And now the trick for those syscalls requiring regs * ! */
+	/* And yesw the trick for those syscalls requiring regs * ! */
 	or	SP, ZERO, r8
 
 	/* Call it */
@@ -1308,7 +1308,7 @@ syscall_ret_trace:
 	st.q	SP, FRAME_S(FSPC), r2
 
 	pta	ret_from_syscall, tr0
-	blink	tr0, ZERO		/* Resume normal return sequence */
+	blink	tr0, ZERO		/* Resume yesrmal return sequence */
 
 /*
  * --- Switch to running under a particular ASID and return the previous ASID value
@@ -1332,7 +1332,7 @@ switch_and_save_asid:
 	movi	1f, r0
 	putcon	r0, spc
 	rte
-	nop
+	yesp
 1:
 	ptabs	LINK, tr0
 	shlri	r3, 16, r2	/* r2 = old ASID */
@@ -1341,7 +1341,7 @@ switch_and_save_asid:
 	.global	route_to_panic_handler
 route_to_panic_handler:
 	/* Switch to real mode, goto panic_handler, don't return.  Useful for
-	   last-chance debugging, e.g. if no output wants to go to the console.
+	   last-chance debugging, e.g. if yes output wants to go to the console.
 	   */
 
 	movi	panic_handler - CONFIG_PAGE_OFFSET, r1
@@ -1355,10 +1355,10 @@ route_to_panic_handler:
 	andc	r0, r1, r0
 	putcon	r0, ssr
 	rte
-	nop
+	yesp
 1:	/* Now in real mode */
 	blink tr0, r63
-	nop
+	yesp
 
 	.global peek_real_address_q
 peek_real_address_q:
@@ -1372,7 +1372,7 @@ peek_real_address_q:
 	   controller in a way that identity maps sufficient bits to avoid the
 	   SH5-101 cut2 silicon defect).
 
-	   This code is not performance critical
+	   This code is yest performance critical
 	*/
 
 	add.l	r2, r63, r2	/* sign extend address */
@@ -1380,7 +1380,7 @@ peek_real_address_q:
 	movi	1, r1
 	shlli	r1, 28, r1
 	or	r0, r1, r1	/* r0 with block bit set */
-	putcon	r1, sr		/* now in critical section */
+	putcon	r1, sr		/* yesw in critical section */
 	movi	1, r36
 	shlli	r36, 31, r36
 	andc	r1, r36, r1	/* turn sr.mmu off in real mode section */
@@ -1392,18 +1392,18 @@ peek_real_address_q:
 
 	synco
 	rte
-	nop
+	yesp
 
 .peek0:	/* come here in real mode, don't touch caches!!
            still in critical section (sr.bl==1) */
 	putcon	r0, ssr
 	putcon	r37, spc
-	/* Here's the actual peek.  If the address is bad, all bets are now off
+	/* Here's the actual peek.  If the address is bad, all bets are yesw off
 	 * what will happen (handlers invoked in real-mode = bad news) */
 	ld.q	r2, 0, r2
 	synco
 	rte	/* Back to virtual mode */
-	nop
+	yesp
 
 1:
 	ptabs	LINK, tr0
@@ -1421,7 +1421,7 @@ poke_real_address_q:
 	   controller in a way that identity maps sufficient bits to avoid the
 	   SH5-101 cut2 silicon defect).
 
-	   This code is not performance critical
+	   This code is yest performance critical
 	*/
 
 	add.l	r2, r63, r2	/* sign extend address */
@@ -1429,7 +1429,7 @@ poke_real_address_q:
 	movi	1, r1
 	shlli	r1, 28, r1
 	or	r0, r1, r1	/* r0 with block bit set */
-	putcon	r1, sr		/* now in critical section */
+	putcon	r1, sr		/* yesw in critical section */
 	movi	1, r36
 	shlli	r36, 31, r36
 	andc	r1, r36, r1	/* turn sr.mmu off in real mode section */
@@ -1441,18 +1441,18 @@ poke_real_address_q:
 
 	synco
 	rte
-	nop
+	yesp
 
 .poke0:	/* come here in real mode, don't touch caches!!
            still in critical section (sr.bl==1) */
 	putcon	r0, ssr
 	putcon	r37, spc
-	/* Here's the actual poke.  If the address is bad, all bets are now off
+	/* Here's the actual poke.  If the address is bad, all bets are yesw off
 	 * what will happen (handlers invoked in real-mode = bad news) */
 	st.q	r2, 0, r3
 	synco
 	rte	/* Back to virtual mode */
-	nop
+	yesp
 
 1:
 	ptabs	LINK, tr0
@@ -1464,7 +1464,7 @@ poke_real_address_q:
  */
 
 /*
- * User Access support. It all moved to non inlined Assembler
+ * User Access support. It all moved to yesn inlined Assembler
  * functions in here.
  *
  * __kernel_size_t __copy_user(void *__to, const void *__from,
@@ -1477,18 +1477,18 @@ poke_real_address_q:
  *
  * Ouputs:
  * (*r2) target data
- * (r2)  non-copied bytes
+ * (r2)  yesn-copied bytes
  *
  * If a fault occurs on the user pointer, bail out early and return the
- * number of bytes not copied in r2.
+ * number of bytes yest copied in r2.
  * Strategy : for large blocks, call a real memcpy function which can
  * move >1 byte at a time using unaligned ld/st instructions, and can
  * manipulate the cache using prefetch + alloco to improve the speed
  * further.  If a fault occurs in that function, just revert to the
  * byte-by-byte approach used for small blocks; this is rare so the
- * performance hit for that case does not matter.
+ * performance hit for that case does yest matter.
  *
- * For small blocks it's not worth the overhead of setting up and calling
+ * For small blocks it's yest worth the overhead of setting up and calling
  * the memcpy routine; do the copy a byte at a time.
  *
  */
@@ -1509,7 +1509,7 @@ __copy_user:
 	ori	LINK, 0, r35
 	blink	tr0, LINK
 
-	/* Copy completed normally if we get back here */
+	/* Copy completed yesrmally if we get back here */
 	ptabs	r35, tr0
 	ld.q	SP, 24, r35
 	/* don't restore r2-r4, pointless */
@@ -1563,7 +1563,7 @@ ___copy_user_exit:
  *
  * Ouputs:
  * (*r2) zero-ed target data
- * (r2)  non-zero-ed bytes
+ * (r2)  yesn-zero-ed bytes
  */
 	.global	__clear_user
 __clear_user:
@@ -1593,12 +1593,12 @@ ___clear_user_exit:
  *
  * Ouputs:
  * (r2)  -EFAULT (faulting)
- *       0 	 (not faulting)
+ *       0 	 (yest faulting)
  */
 	.global	__get_user_asm_b
 __get_user_asm_b:
 	or	r2, ZERO, r4
-	movi	-(EFAULT), r2		/* r2 = reply, no real fixup */
+	movi	-(EFAULT), r2		/* r2 = reply, yes real fixup */
 
 ___get_user_asm_b1:
 	ld.b	r3, 0, r5		/* r5 = data */
@@ -1613,7 +1613,7 @@ ___get_user_asm_b_exit:
 	.global	__get_user_asm_w
 __get_user_asm_w:
 	or	r2, ZERO, r4
-	movi	-(EFAULT), r2		/* r2 = reply, no real fixup */
+	movi	-(EFAULT), r2		/* r2 = reply, yes real fixup */
 
 ___get_user_asm_w1:
 	ld.w	r3, 0, r5		/* r5 = data */
@@ -1628,7 +1628,7 @@ ___get_user_asm_w_exit:
 	.global	__get_user_asm_l
 __get_user_asm_l:
 	or	r2, ZERO, r4
-	movi	-(EFAULT), r2		/* r2 = reply, no real fixup */
+	movi	-(EFAULT), r2		/* r2 = reply, yes real fixup */
 
 ___get_user_asm_l1:
 	ld.l	r3, 0, r5		/* r5 = data */
@@ -1643,7 +1643,7 @@ ___get_user_asm_l_exit:
 	.global	__get_user_asm_q
 __get_user_asm_q:
 	or	r2, ZERO, r4
-	movi	-(EFAULT), r2		/* r2 = reply, no real fixup */
+	movi	-(EFAULT), r2		/* r2 = reply, yes real fixup */
 
 ___get_user_asm_q1:
 	ld.q	r3, 0, r5		/* r5 = data */
@@ -1663,12 +1663,12 @@ ___get_user_asm_q_exit:
  *
  * Ouputs:
  * (r2)  -EFAULT (faulting)
- *       0 	 (not faulting)
+ *       0 	 (yest faulting)
  */
 	.global	__put_user_asm_b
 __put_user_asm_b:
 	ld.b	r2, 0, r4		/* r4 = data */
-	movi	-(EFAULT), r2		/* r2 = reply, no real fixup */
+	movi	-(EFAULT), r2		/* r2 = reply, yes real fixup */
 
 ___put_user_asm_b1:
 	st.b	r3, 0, r4
@@ -1682,7 +1682,7 @@ ___put_user_asm_b_exit:
 	.global	__put_user_asm_w
 __put_user_asm_w:
 	ld.w	r2, 0, r4		/* r4 = data */
-	movi	-(EFAULT), r2		/* r2 = reply, no real fixup */
+	movi	-(EFAULT), r2		/* r2 = reply, yes real fixup */
 
 ___put_user_asm_w1:
 	st.w	r3, 0, r4
@@ -1696,7 +1696,7 @@ ___put_user_asm_w_exit:
 	.global	__put_user_asm_l
 __put_user_asm_l:
 	ld.l	r2, 0, r4		/* r4 = data */
-	movi	-(EFAULT), r2		/* r2 = reply, no real fixup */
+	movi	-(EFAULT), r2		/* r2 = reply, yes real fixup */
 
 ___put_user_asm_l1:
 	st.l	r3, 0, r4
@@ -1710,7 +1710,7 @@ ___put_user_asm_l_exit:
 	.global	__put_user_asm_q
 __put_user_asm_q:
 	ld.q	r2, 0, r4		/* r4 = data */
-	movi	-(EFAULT), r2		/* r2 = reply, no real fixup */
+	movi	-(EFAULT), r2		/* r2 = reply, yes real fixup */
 
 ___put_user_asm_q1:
 	st.q	r3, 0, r4
@@ -1722,7 +1722,7 @@ ___put_user_asm_q_exit:
 
 panic_stash_regs:
 	/* The idea is : when we get an unhandled panic, we dump the registers
-	   to a known memory location, the just sit in a tight loop.
+	   to a kyeswn memory location, the just sit in a tight loop.
 	   This allows the human to look at the memory region through the GDB
 	   session (assuming the debug module's SHwy initiator isn't locked up
 	   or anything), to hopefully analyze the cause of the panic. */
@@ -1859,10 +1859,10 @@ panic_stash_regs:
 	ptabs   r1, tr0
 	getcon	DCR, SP
 	blink	tr0, ZERO
-	nop
-	nop
-	nop
-	nop
+	yesp
+	yesp
+	yesp
+	yesp
 
 
 
@@ -1891,7 +1891,7 @@ sa_default_rt_restorer:
 	movi	0x10, r9
 	shori	__NR_rt_sigreturn, r9
 	trapa	r9
-	nop
+	yesp
 
 	.balign 8
 	.global sa_default_restorer
@@ -1899,7 +1899,7 @@ sa_default_restorer:
 	movi	0x10, r9
 	shori	__NR_sigreturn, r9
 	trapa	r9
-	nop
+	yesp
 
 /*
  * --- __ex_table Section
@@ -1969,9 +1969,9 @@ trap_init:
 	add	r19, r29, r19
 
 	/*
-	 * Ugly, but better loop forever now than crash afterwards.
+	 * Ugly, but better loop forever yesw than crash afterwards.
 	 * We should print a message, but if we touch LVBR or
-	 * LRESVEC blocks we should not be surprised if we get stuck
+	 * LRESVEC blocks we should yest be surprised if we get stuck
 	 * in trap_init().
 	 */
 	pta	trap_init_loop, tr1

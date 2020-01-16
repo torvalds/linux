@@ -17,7 +17,7 @@
  *
  * This module doesn't support the 440LX, but it may be possible to
  * make it do so (the 440LX's register definitions are different, but
- * not completely so - I haven't studied them in enough detail to know
+ * yest completely so - I haven't studied them in eyesugh detail to kyesw
  * how easy this would be).
  */
 
@@ -44,10 +44,10 @@
 */
 
 /* "Additionally, the 82443BX ensures that the data is corrected in
- * main memory so that accumulation of errors is prevented. Another
+ * main memory so that accumulation of errors is prevented. Ayesther
  * error within the same QWord would result in a double-bit error
- * which is unrecoverable. This is known as hardware scrubbing since
- * it requires no software intervention to correct the data in memory."
+ * which is unrecoverable. This is kyeswn as hardware scrubbing since
+ * it requires yes software intervention to correct the data in memory."
  */
 
 /* [Also see page 100 (section 4.3), "DRAM Interface"]
@@ -62,7 +62,7 @@
 #define I82443BXGX_NBXCFG 0x50	/* 32bit register starting at this PCI
 				 * config space offset */
 #define I82443BXGX_NBXCFG_OFFSET_NON_ECCROW 24	/* Array of bits, zero if
-						 * row is non-ECC */
+						 * row is yesn-ECC */
 #define I82443BXGX_NBXCFG_OFFSET_DRAM_FREQ 12	/* 2 bits,00=100MHz,10=66 MHz */
 
 #define I82443BXGX_NBXCFG_OFFSET_DRAM_INTEGRITY 7	/* 2 bits:       */
@@ -272,7 +272,7 @@ static int i82443bxgx_edacmc_probe1(struct pci_dev *pdev, int dev_idx)
 		mtype = MEM_RDR;
 		break;
 	default:
-		edac_dbg(0, "Unknown/reserved DRAM type value in DRAMC register!\n");
+		edac_dbg(0, "Unkyeswn/reserved DRAM type value in DRAMC register!\n");
 		mtype = -MEM_UNKNOWN;
 	}
 
@@ -301,7 +301,7 @@ static int i82443bxgx_edacmc_probe1(struct pci_dev *pdev, int dev_idx)
 		edac_mode = EDAC_SECDED;
 		break;
 	default:
-		edac_dbg(0, "Unknown/reserved ECC state in NBXCFG register!\n");
+		edac_dbg(0, "Unkyeswn/reserved ECC state in NBXCFG register!\n");
 		edac_mode = EDAC_UNKNOWN;
 		break;
 	}
@@ -335,7 +335,7 @@ static int i82443bxgx_edacmc_probe1(struct pci_dev *pdev, int dev_idx)
 			"%s(): Unable to create PCI control\n",
 			__func__);
 		printk(KERN_WARNING
-			"%s(): PCI error report via EDAC not setup\n",
+			"%s(): PCI error report via EDAC yest setup\n",
 			__func__);
 	}
 

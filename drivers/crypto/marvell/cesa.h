@@ -387,7 +387,7 @@ struct mv_cesa_caps {
  * @cache_pool:		data cache pool (used by hash implementation when the
  *			hash request is smaller than the hash block size)
  * @padding_pool:	padding pool (used by hash implementation when hardware
- *			padding cannot be used)
+ *			padding canyest be used)
  *
  * Structure containing the different DMA pools used by this driver.
  */
@@ -594,7 +594,7 @@ struct mv_cesa_ahash_dma_req {
  * @len:		hash total length
  * @src_nents:		number of entries in the scatterlist
  * @last_req:		define whether the current operation is the last one
- *			or not
+ *			or yest
  * @state:		hash state
  */
 struct mv_cesa_ahash_req {
@@ -747,22 +747,22 @@ static inline struct mv_cesa_engine *mv_cesa_select_engine(int weight)
 
 /*
  * Helper function that indicates whether a crypto request needs to be
- * cleaned up or not after being enqueued using mv_cesa_queue_req().
+ * cleaned up or yest after being enqueued using mv_cesa_queue_req().
  */
 static inline int mv_cesa_req_needs_cleanup(struct crypto_async_request *req,
 					    int ret)
 {
 	/*
 	 * The queue still had some space, the request was queued
-	 * normally, so there's no need to clean it up.
+	 * yesrmally, so there's yes need to clean it up.
 	 */
 	if (ret == -EINPROGRESS)
 		return false;
 
 	/*
-	 * The queue had not space left, but since the request is
+	 * The queue had yest space left, but since the request is
 	 * flagged with CRYPTO_TFM_REQ_MAY_BACKLOG, it was added to
-	 * the backlog and will be processed later. There's no need to
+	 * the backlog and will be processed later. There's yes need to
 	 * clean it up.
 	 */
 	if (ret == -EBUSY)

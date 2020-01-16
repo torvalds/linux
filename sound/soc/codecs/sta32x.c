@@ -115,18 +115,18 @@ static const struct regmap_range sta32x_volatile_regs_range[] = {
 };
 
 static const struct regmap_access_table sta32x_write_regs = {
-	.yes_ranges =	sta32x_write_regs_range,
-	.n_yes_ranges =	ARRAY_SIZE(sta32x_write_regs_range),
+	.no_ranges =	sta32x_write_regs_range,
+	.n_no_ranges =	ARRAY_SIZE(sta32x_write_regs_range),
 };
 
 static const struct regmap_access_table sta32x_read_regs = {
-	.yes_ranges =	sta32x_read_regs_range,
-	.n_yes_ranges =	ARRAY_SIZE(sta32x_read_regs_range),
+	.no_ranges =	sta32x_read_regs_range,
+	.n_no_ranges =	ARRAY_SIZE(sta32x_read_regs_range),
 };
 
 static const struct regmap_access_table sta32x_volatile_regs = {
-	.yes_ranges =	sta32x_volatile_regs_range,
-	.n_yes_ranges =	ARRAY_SIZE(sta32x_volatile_regs_range),
+	.no_ranges =	sta32x_volatile_regs_range,
+	.n_no_ranges =	ARRAY_SIZE(sta32x_volatile_regs_range),
 };
 
 /* regulator power supply names */
@@ -163,7 +163,7 @@ static const char *sta32x_drc_ac[] = {
 static const char *sta32x_auto_eq_mode[] = {
 	"User", "Preset", "Loudness" };
 static const char *sta32x_auto_gc_mode[] = {
-	"User", "AC no clipping", "AC limited clipping (10%)",
+	"User", "AC yes clipping", "AC limited clipping (10%)",
 	"DRC nighttime listening mode" };
 static const char *sta32x_auto_xo_mode[] = {
 	"User", "80Hz", "100Hz", "120Hz", "140Hz", "160Hz", "180Hz", "200Hz",
@@ -281,7 +281,7 @@ static int sta32x_coefficient_get(struct snd_kcontrol *kcontrol,
 	regmap_read(sta32x->regmap, STA32X_CFUD, &cfud);
 	cfud &= 0xf0;
 	/*
-	 * chip documentation does not say if the bits are self clearing,
+	 * chip documentation does yest say if the bits are self clearing,
 	 * so do it explicitly
 	 */
 	regmap_write(sta32x->regmap, STA32X_CFUD, cfud);
@@ -321,7 +321,7 @@ static int sta32x_coefficient_put(struct snd_kcontrol *kcontrol,
 	regmap_read(sta32x->regmap, STA32X_CFUD, &cfud);
 	cfud &= 0xf0;
 	/*
-	 * chip documentation does not say if the bits are self clearing,
+	 * chip documentation does yest say if the bits are self clearing,
 	 * so do it explicitly
 	 */
 	regmap_write(sta32x->regmap, STA32X_CFUD, cfud);
@@ -364,7 +364,7 @@ static int sta32x_sync_coef_shadow(struct snd_soc_component *component)
 		regmap_write(sta32x->regmap, STA32X_B1CF3,
 			     (sta32x->coef_shadow[i]) & 0xff);
 		/*
-		 * chip documentation does not say if the bits are
+		 * chip documentation does yest say if the bits are
 		 * self-clearing, so do it explicitly
 		 */
 		regmap_write(sta32x->regmap, STA32X_CFUD, cfud);
@@ -561,15 +561,15 @@ static int mcs_ratio_table[3][7] = {
 /**
  * sta32x_set_dai_sysclk - configure MCLK
  * @codec_dai: the codec DAI
- * @clk_id: the clock ID (ignored)
+ * @clk_id: the clock ID (igyesred)
  * @freq: the MCLK input frequency
- * @dir: the clock direction (ignored)
+ * @dir: the clock direction (igyesred)
  *
  * The value of MCLK is used to determine which sample rates are supported
  * by the STA32X, based on the mclk_ratios table.
  *
  * This function must be called by the machine driver's 'startup' function,
- * otherwise the list of supported sample rates will not be available in
+ * otherwise the list of supported sample rates will yest be available in
  * time for ALSA.
  *
  * For setups with variable MCLKs, pass 0 as 'freq' argument. This will cause
@@ -640,7 +640,7 @@ static int sta32x_set_dai_fmt(struct snd_soc_dai *codec_dai,
  * sta32x_hw_params - program the STA32X with the given hardware parameters.
  * @substream: the audio stream
  * @params: the hardware parameters to set
- * @dai: the SOC DAI (ignored)
+ * @dai: the SOC DAI (igyesred)
  *
  * This function programs the hardware with the values provided.
  * Specifically, the sample rate and the data format.
@@ -1010,7 +1010,7 @@ static const struct snd_soc_component_driver sta32x_component = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
+	.yesn_legacy_dai_naming	= 1,
 };
 
 static const struct regmap_config sta32x_regmap = {
@@ -1034,7 +1034,7 @@ MODULE_DEVICE_TABLE(of, st32x_dt_ids);
 
 static int sta32x_probe_dt(struct device *dev, struct sta32x_priv *sta32x)
 {
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 	struct sta32x_platform_data *pdata;
 	u16 tmp;
 
@@ -1103,7 +1103,7 @@ static int sta32x_i2c_probe(struct i2c_client *i2c,
 	sta32x->pdata = dev_get_platdata(dev);
 
 #ifdef CONFIG_OF
-	if (dev->of_node) {
+	if (dev->of_yesde) {
 		ret = sta32x_probe_dt(dev, sta32x);
 		if (ret < 0)
 			return ret;

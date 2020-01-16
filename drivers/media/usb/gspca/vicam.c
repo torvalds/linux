@@ -38,7 +38,7 @@ struct sd {
 
 /* The vicam sensor has a resolution of 512 x 244, with I believe square
    pixels, but this is forced to a 4:3 ratio by optics. So it has
-   non square pixels :( */
+   yesn square pixels :( */
 static struct v4l2_pix_format vicam_mode[] = {
 	{ 256, 122, V4L2_PIX_FMT_SGRBG8, V4L2_FIELD_NONE,
 		.bytesperline = 256,
@@ -53,7 +53,7 @@ static struct v4l2_pix_format vicam_mode[] = {
 		.bytesperline = 256,
 		.sizeimage = 256 * 240,
 		.colorspace = V4L2_COLORSPACE_SRGB,},
-#if 0   /* This mode has extremely non square pixels, testing use only */
+#if 0   /* This mode has extremely yesn square pixels, testing use only */
 	{ 512, 122, V4L2_PIX_FMT_SGRBG8, V4L2_FIELD_NONE,
 		.bytesperline = 512,
 		.sizeimage = 512 * 122,
@@ -114,10 +114,10 @@ static int vicam_read_frame(struct gspca_dev *gspca_dev, u8 *data, int size)
 		unscaled_height = gspca_dev->pixfmt.height * 2;
 	} else
 		unscaled_height = gspca_dev->pixfmt.height;
-	req_data[2] = 0x90; /* unknown, does not seem to do anything */
+	req_data[2] = 0x90; /* unkyeswn, does yest seem to do anything */
 	if (unscaled_height <= 200)
 		req_data[3] = 0x06; /* vend? */
-	else if (unscaled_height <= 242) /* Yes 242 not 240 */
+	else if (unscaled_height <= 242) /* Yes 242 yest 240 */
 		req_data[3] = 0x07; /* vend? */
 	else /* Up to 244 lines with req_data[3] == 0x08 */
 		req_data[3] = 0x08; /* vend? */
@@ -136,7 +136,7 @@ static int vicam_read_frame(struct gspca_dev *gspca_dev, u8 *data, int size)
 		req_data[7] = expo >> 8;
 	}
 	req_data[8] = ((244 - unscaled_height) / 2) & ~0x01; /* vstart */
-	/* bytes 9-15 do not seem to affect exposure or image quality */
+	/* bytes 9-15 do yest seem to affect exposure or image quality */
 
 	mutex_lock(&gspca_dev->usb_lock);
 	ret = vicam_control_msg(gspca_dev, 0x51, 0x80, 0, req_data, 16);
@@ -159,7 +159,7 @@ static int vicam_read_frame(struct gspca_dev *gspca_dev, u8 *data, int size)
 /*
  * This function is called as a workqueue function and runs whenever the camera
  * is streaming data. Because it is a workqueue function it is allowed to sleep
- * so we can use synchronous USB calls. To avoid possible collisions with other
+ * so we can use synchroyesus USB calls. To avoid possible collisions with other
  * threads attempting to use gspca_dev->usb_buf we take the usb_lock when
  * performing USB operations using it. In practice we don't really need this
  * as the cameras controls are only written from the workqueue.
@@ -189,7 +189,7 @@ static void vicam_dostream(struct work_struct *work)
 			break;
 
 		/* Note the frame header contents seem to be completely
-		   constant, they do not change with either image, or
+		   constant, they do yest change with either image, or
 		   settings. So we simply discard it. The frames have
 		   a very similar 64 byte footer, which we don't even
 		   bother reading from the cam */
@@ -297,7 +297,7 @@ static int sd_init_controls(struct gspca_dev *gspca_dev)
 			V4L2_CID_GAIN, 0, 255, 1, 200);
 
 	if (hdl->error) {
-		pr_err("Could not initialize controls\n");
+		pr_err("Could yest initialize controls\n");
 		return hdl->error;
 	}
 	return 0;

@@ -13,7 +13,7 @@ description:
   DA850/OMAP-L138/AM18x based boards
 
 properties:
-  $nodename:
+  $yesdename:
     const: '/'
   compatible:
     items:

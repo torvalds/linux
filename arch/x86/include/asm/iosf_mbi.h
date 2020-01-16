@@ -6,7 +6,7 @@
 #ifndef IOSF_MBI_SYMS_H
 #define IOSF_MBI_SYMS_H
 
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 
 #define MBI_MCR_OFFSET		0xD0
 #define MBI_MDR_OFFSET		0xD4
@@ -50,7 +50,7 @@
 #define QRK_MBI_UNIT_MM		0x05
 #define QRK_MBI_UNIT_SOC	0x31
 
-/* Action values for the pmic_bus_access_notifier functions */
+/* Action values for the pmic_bus_access_yestifier functions */
 #define MBI_PMIC_BUS_ACCESS_BEGIN	1
 #define MBI_PMIC_BUS_ACCESS_END		2
 
@@ -65,7 +65,7 @@ bool iosf_mbi_available(void);
  * @offset:	register address offset
  * @mdr:	register data to be read
  *
- * Locking is handled by spinlock - cannot sleep.
+ * Locking is handled by spinlock - canyest sleep.
  * Return: Nonzero on error
  */
 int iosf_mbi_read(u8 port, u8 opcode, u32 offset, u32 *mdr);
@@ -77,7 +77,7 @@ int iosf_mbi_read(u8 port, u8 opcode, u32 offset, u32 *mdr);
  * @offset:	register address offset
  * @mdr:	register data to be written
  *
- * Locking is handled by spinlock - cannot sleep.
+ * Locking is handled by spinlock - canyest sleep.
  * Return: Nonzero on error
  */
 int iosf_mbi_write(u8 port, u8 opcode, u32 offset, u32 mdr);
@@ -90,7 +90,7 @@ int iosf_mbi_write(u8 port, u8 opcode, u32 offset, u32 mdr);
  * @mdr:	register data being modified
  * @mask:	mask indicating bits in mdr to be modified
  *
- * Locking is handled by spinlock - cannot sleep.
+ * Locking is handled by spinlock - canyest sleep.
  * Return: Nonzero on error
  */
 int iosf_mbi_modify(u8 port, u8 opcode, u32 offset, u32 mdr, u32 mask);
@@ -102,7 +102,7 @@ int iosf_mbi_modify(u8 port, u8 opcode, u32 offset, u32 mdr, u32 mask);
  * through the same bus as other kernel drivers use for e.g. battery monitoring.
  *
  * If a driver sends requests to the P-Unit which require the P-Unit to access
- * the PMIC bus while another driver is also accessing the PMIC bus various bad
+ * the PMIC bus while ayesther driver is also accessing the PMIC bus various bad
  * things happen.
  *
  * Call this function before sending requests to the P-Unit which may make it
@@ -112,7 +112,7 @@ int iosf_mbi_modify(u8 port, u8 opcode, u32 offset, u32 mdr, u32 mask);
  *
  * Note on these systems the i2c-bus driver will request a sempahore from the
  * P-Unit for exclusive access to the PMIC bus when i2c drivers are accessing
- * it, but this does not appear to be sufficient, we still need to avoid making
+ * it, but this does yest appear to be sufficient, we still need to avoid making
  * certain P-Unit requests during the access window to avoid problems.
  *
  * This function locks a mutex, as such it may sleep.
@@ -130,11 +130,11 @@ void iosf_mbi_punit_release(void);
  * Call this function to block P-Unit access to the PMIC I2C bus, so that the
  * kernel can safely access the PMIC over the shared I2C bus.
  *
- * This function acquires the P-Unit bus semaphore and notifies
- * pmic_bus_access_notifier listeners that they may no longer access the
+ * This function acquires the P-Unit bus semaphore and yestifies
+ * pmic_bus_access_yestifier listeners that they may yes longer access the
  * P-Unit in a way which may cause it to access the shared I2C bus.
  *
- * Note this function may be called multiple times and the bus will not
+ * Note this function may be called multiple times and the bus will yest
  * be released until iosf_mbi_unblock_punit_i2c_access() has been called the
  * same amount of times.
  *
@@ -150,47 +150,47 @@ int iosf_mbi_block_punit_i2c_access(void);
 void iosf_mbi_unblock_punit_i2c_access(void);
 
 /**
- * iosf_mbi_register_pmic_bus_access_notifier - Register PMIC bus notifier
+ * iosf_mbi_register_pmic_bus_access_yestifier - Register PMIC bus yestifier
  *
  * This function can be used by drivers which may need to acquire P-Unit
  * managed resources from interrupt context, where iosf_mbi_punit_acquire()
- * can not be used.
+ * can yest be used.
  *
- * This function allows a driver to register a notifier to get notified (in a
+ * This function allows a driver to register a yestifier to get yestified (in a
  * process context) before other drivers start accessing the PMIC bus.
  *
  * This allows the driver to acquire any resources, which it may need during
  * the window the other driver is accessing the PMIC, before hand.
  *
- * @nb: notifier_block to register
+ * @nb: yestifier_block to register
  */
-int iosf_mbi_register_pmic_bus_access_notifier(struct notifier_block *nb);
+int iosf_mbi_register_pmic_bus_access_yestifier(struct yestifier_block *nb);
 
 /**
- * iosf_mbi_register_pmic_bus_access_notifier - Unregister PMIC bus notifier
+ * iosf_mbi_register_pmic_bus_access_yestifier - Unregister PMIC bus yestifier
  *
- * @nb: notifier_block to unregister
+ * @nb: yestifier_block to unregister
  */
-int iosf_mbi_unregister_pmic_bus_access_notifier(struct notifier_block *nb);
+int iosf_mbi_unregister_pmic_bus_access_yestifier(struct yestifier_block *nb);
 
 /**
- * iosf_mbi_unregister_pmic_bus_access_notifier_unlocked - Unregister PMIC bus
- *                                                         notifier, unlocked
+ * iosf_mbi_unregister_pmic_bus_access_yestifier_unlocked - Unregister PMIC bus
+ *                                                         yestifier, unlocked
  *
- * Like iosf_mbi_unregister_pmic_bus_access_notifier(), but for use when the
+ * Like iosf_mbi_unregister_pmic_bus_access_yestifier(), but for use when the
  * caller has already called iosf_mbi_punit_acquire() itself.
  *
- * @nb: notifier_block to unregister
+ * @nb: yestifier_block to unregister
  */
-int iosf_mbi_unregister_pmic_bus_access_notifier_unlocked(
-	struct notifier_block *nb);
+int iosf_mbi_unregister_pmic_bus_access_yestifier_unlocked(
+	struct yestifier_block *nb);
 
 /**
  * iosf_mbi_assert_punit_acquired - Assert that the P-Unit has been acquired.
  */
 void iosf_mbi_assert_punit_acquired(void);
 
-#else /* CONFIG_IOSF_MBI is not enabled */
+#else /* CONFIG_IOSF_MBI is yest enabled */
 static inline
 bool iosf_mbi_available(void)
 {
@@ -200,21 +200,21 @@ bool iosf_mbi_available(void)
 static inline
 int iosf_mbi_read(u8 port, u8 opcode, u32 offset, u32 *mdr)
 {
-	WARN(1, "IOSF_MBI driver not available");
+	WARN(1, "IOSF_MBI driver yest available");
 	return -EPERM;
 }
 
 static inline
 int iosf_mbi_write(u8 port, u8 opcode, u32 offset, u32 mdr)
 {
-	WARN(1, "IOSF_MBI driver not available");
+	WARN(1, "IOSF_MBI driver yest available");
 	return -EPERM;
 }
 
 static inline
 int iosf_mbi_modify(u8 port, u8 opcode, u32 offset, u32 mdr, u32 mask)
 {
-	WARN(1, "IOSF_MBI driver not available");
+	WARN(1, "IOSF_MBI driver yest available");
 	return -EPERM;
 }
 
@@ -222,25 +222,25 @@ static inline void iosf_mbi_punit_acquire(void) {}
 static inline void iosf_mbi_punit_release(void) {}
 
 static inline
-int iosf_mbi_register_pmic_bus_access_notifier(struct notifier_block *nb)
+int iosf_mbi_register_pmic_bus_access_yestifier(struct yestifier_block *nb)
 {
 	return 0;
 }
 
 static inline
-int iosf_mbi_unregister_pmic_bus_access_notifier(struct notifier_block *nb)
+int iosf_mbi_unregister_pmic_bus_access_yestifier(struct yestifier_block *nb)
 {
 	return 0;
 }
 
 static inline int
-iosf_mbi_unregister_pmic_bus_access_notifier_unlocked(struct notifier_block *nb)
+iosf_mbi_unregister_pmic_bus_access_yestifier_unlocked(struct yestifier_block *nb)
 {
 	return 0;
 }
 
 static inline
-int iosf_mbi_call_pmic_bus_access_notifier_chain(unsigned long val, void *v)
+int iosf_mbi_call_pmic_bus_access_yestifier_chain(unsigned long val, void *v)
 {
 	return 0;
 }

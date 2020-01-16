@@ -21,7 +21,7 @@ ACPI_MODULE_NAME("exoparg6")
  *
  * The routines that begin execution of AML opcodes are named with a common
  * convention based upon the number of arguments, the number of target operands,
- * and whether or not a value is returned:
+ * and whether or yest a value is returned:
  *
  *      AcpiExOpcode_xA_yT_zR
  *
@@ -99,8 +99,8 @@ acpi_ex_do_match(u32 match_op,
 
 	case MATCH_MLE:
 		/*
-		 * True if less than or equal: (P[i] <= M) (P[i] not_greater than M)
-		 * Change to:                  (M >= P[i]) (M not_less than P[i])
+		 * True if less than or equal: (P[i] <= M) (P[i] yest_greater than M)
+		 * Change to:                  (M >= P[i]) (M yest_less than P[i])
 		 */
 		status =
 		    acpi_ex_do_logical_op(AML_LOGICAL_LESS_OP, match_obj,
@@ -126,8 +126,8 @@ acpi_ex_do_match(u32 match_op,
 
 	case MATCH_MGE:
 		/*
-		 * True if greater than or equal: (P[i] >= M) (P[i] not_less than M)
-		 * Change to:                     (M <= P[i]) (M not_greater than P[i])
+		 * True if greater than or equal: (P[i] >= M) (P[i] yest_less than M)
+		 * Change to:                     (M <= P[i]) (M yest_greater than P[i])
 		 */
 		status =
 		    acpi_ex_do_logical_op(AML_LOGICAL_GREATER_OP, match_obj,
@@ -169,7 +169,7 @@ acpi_ex_do_match(u32 match_op,
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Execute opcode with 6 arguments, no target, and a return value
+ * DESCRIPTION: Execute opcode with 6 arguments, yes target, and a return value
  *
  ******************************************************************************/
 
@@ -213,7 +213,7 @@ acpi_status acpi_ex_opcode_6A_0T_1R(struct acpi_walk_state *walk_state)
 		}
 
 		/* Create an integer for the return value */
-		/* Default return value is ACPI_UINT64_MAX if no match found */
+		/* Default return value is ACPI_UINT64_MAX if yes match found */
 
 		return_desc = acpi_ut_create_integer_object(ACPI_UINT64_MAX);
 		if (!return_desc) {
@@ -225,12 +225,12 @@ acpi_status acpi_ex_opcode_6A_0T_1R(struct acpi_walk_state *walk_state)
 		/*
 		 * Examine each element until a match is found. Both match conditions
 		 * must be satisfied for a match to occur. Within the loop,
-		 * "continue" signifies that the current element does not match
+		 * "continue" signifies that the current element does yest match
 		 * and the next should be examined.
 		 *
 		 * Upon finding a match, the loop will terminate via "break" at
-		 * the bottom. If it terminates "normally", match_value will be
-		 * ACPI_UINT64_MAX (Ones) (its initial value) indicating that no
+		 * the bottom. If it terminates "yesrmally", match_value will be
+		 * ACPI_UINT64_MAX (Ones) (its initial value) indicating that yes
 		 * match was found.
 		 */
 		for (; index < operand[0]->package.count; index++) {
@@ -239,7 +239,7 @@ acpi_status acpi_ex_opcode_6A_0T_1R(struct acpi_walk_state *walk_state)
 
 			this_element = operand[0]->package.elements[index];
 
-			/* Treat any uninitialized (NULL) elements as non-matching */
+			/* Treat any uninitialized (NULL) elements as yesn-matching */
 
 			if (!this_element) {
 				continue;
@@ -248,7 +248,7 @@ acpi_status acpi_ex_opcode_6A_0T_1R(struct acpi_walk_state *walk_state)
 			/*
 			 * Both match conditions must be satisfied. Execution of a continue
 			 * (proceed to next iteration of enclosing for loop) signifies a
-			 * non-match.
+			 * yesn-match.
 			 */
 			if (!acpi_ex_do_match((u32) operand[1]->integer.value,
 					      this_element, operand[2])) {
@@ -274,7 +274,7 @@ acpi_status acpi_ex_opcode_6A_0T_1R(struct acpi_walk_state *walk_state)
 
 	default:
 
-		ACPI_ERROR((AE_INFO, "Unknown AML opcode 0x%X",
+		ACPI_ERROR((AE_INFO, "Unkyeswn AML opcode 0x%X",
 			    walk_state->opcode));
 
 		status = AE_AML_BAD_OPCODE;

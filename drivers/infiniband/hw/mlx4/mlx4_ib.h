@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2006, 2007 Cisco Systems.  All rights reserved.
- * Copyright (c) 2007, 2008 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2007, 2008 Mellayesx Techyeslogies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -13,11 +13,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -186,7 +186,7 @@ enum mlx4_ib_qp_flags {
 	MLX4_IB_QP_NETIF = IB_QP_CREATE_NETIF_QP,
 	MLX4_IB_QP_SCATTER_FCS = IB_QP_CREATE_SCATTER_FCS,
 
-	/* Mellanox specific flags start from IB_QP_CREATE_RESERVED_START */
+	/* Mellayesx specific flags start from IB_QP_CREATE_RESERVED_START */
 	MLX4_IB_ROCE_V2_GSI_QP = MLX4_IB_QP_CREATE_ROCE_V2_GSI,
 	MLX4_IB_SRIOV_TUNNEL_QP = 1 << 30,
 	MLX4_IB_SRIOV_SQP = 1 << 31,
@@ -258,7 +258,7 @@ struct mlx4_ib_buf {
 
 struct mlx4_rcv_tunnel_hdr {
 	__be32 flags_src_qp; /* flags[6:5] is defined for VLANs:
-			      * 0x0 - no vlan was in the packet
+			      * 0x0 - yes vlan was in the packet
 			      * 0x01 - C-VLAN was in the packet */
 	u8 g_ml_path; /* gid bit stands for ipv6/4 header in RoCE */
 	u8 reserved;
@@ -331,7 +331,7 @@ struct mlx4_ib_qp {
 	u8			alt_port;
 	u8			atomic_rd_en;
 	u8			resp_depth;
-	u8			sq_no_prefetch;
+	u8			sq_yes_prefetch;
 	u8			state;
 	int			mlx_type;
 	u32			inl_recv_sz;
@@ -519,7 +519,7 @@ struct mlx4_ib_iboe {
 	spinlock_t		lock;
 	struct net_device      *netdevs[MLX4_MAX_PORTS];
 	atomic64_t		mac[MLX4_MAX_PORTS];
-	struct notifier_block 	nb;
+	struct yestifier_block 	nb;
 	struct mlx4_port_gid_table gids[MLX4_MAX_PORTS];
 	enum ib_port_state	last_port_state[MLX4_MAX_PORTS];
 };
@@ -748,7 +748,7 @@ int mlx4_ib_create_cq(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
 		      struct ib_udata *udata);
 void mlx4_ib_destroy_cq(struct ib_cq *cq, struct ib_udata *udata);
 int mlx4_ib_poll_cq(struct ib_cq *ibcq, int num_entries, struct ib_wc *wc);
-int mlx4_ib_arm_cq(struct ib_cq *cq, enum ib_cq_notify_flags flags);
+int mlx4_ib_arm_cq(struct ib_cq *cq, enum ib_cq_yestify_flags flags);
 void __mlx4_ib_cq_clean(struct mlx4_ib_cq *cq, u32 qpn, struct mlx4_ib_srq *srq);
 void mlx4_ib_cq_clean(struct mlx4_ib_cq *cq, u32 qpn, struct mlx4_ib_srq *srq);
 
@@ -865,7 +865,7 @@ int mlx4_ib_init_alias_guid_service(struct mlx4_ib_dev *dev);
 void mlx4_ib_destroy_alias_guid_service(struct mlx4_ib_dev *dev);
 void mlx4_ib_invalidate_all_guid_record(struct mlx4_ib_dev *dev, int port);
 
-void mlx4_ib_notify_slaves_on_guid_change(struct mlx4_ib_dev *dev,
+void mlx4_ib_yestify_slaves_on_guid_change(struct mlx4_ib_dev *dev,
 					  int block_num,
 					  u8 port_num, u8 *p_data);
 
@@ -885,7 +885,7 @@ int mlx4_ib_device_register_sysfs(struct mlx4_ib_dev *device) ;
 
 void mlx4_ib_device_unregister_sysfs(struct mlx4_ib_dev *device);
 
-__be64 mlx4_ib_gen_node_guid(void);
+__be64 mlx4_ib_gen_yesde_guid(void);
 
 int mlx4_ib_steer_qp_alloc(struct mlx4_ib_dev *dev, int count, int *qpn);
 void mlx4_ib_steer_qp_free(struct mlx4_ib_dev *dev, u32 qpn, int count);

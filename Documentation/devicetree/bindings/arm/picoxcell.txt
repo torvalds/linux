@@ -1,7 +1,7 @@
 Picochip picoXcell device tree bindings.
 ========================================
 
-Required root node properties:
+Required root yesde properties:
     - compatible:
 	- "picochip,pc7302-pc3x3" : PC7302 development board with PC3X3 device.
 	- "picochip,pc7302-pc3x2" : PC7302 development board with PC3X2 device.

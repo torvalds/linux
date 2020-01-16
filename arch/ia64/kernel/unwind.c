@@ -14,7 +14,7 @@
  * They are cached for later re-use.  Each script is specific for a
  * given instruction pointer address and the set of predicate values
  * that the script depends on (most unwind descriptors are
- * unconditional and scripts often do not depend on predicates at
+ * unconditional and scripts often do yest depend on predicates at
  * all).  This code is based on the unwind conventions described in
  * the "IA-64 Software Conventions and Runtime Architecture" manual.
  *
@@ -58,7 +58,7 @@
 #ifdef UNW_DEBUG
   static unsigned int unw_debug_level = UNW_DEBUG;
 #  define UNW_DEBUG_ON(n)	unw_debug_level >= n
-   /* Do not code a printk level, not all debug lines end in newline */
+   /* Do yest code a printk level, yest all debug lines end in newline */
 #  define UNW_DPRINT(n, ...)  if (UNW_DEBUG_ON(n)) printk(__VA_ARGS__)
 #  undef inline
 #  define inline
@@ -124,7 +124,7 @@ static struct {
 		struct {
 			int lookups;
 			int hinted_hits;
-			int normal_hits;
+			int yesrmal_hits;
 			int collision_chain_traversals;
 		} cache;
 		struct {
@@ -267,7 +267,7 @@ static inline struct pt_regs *
 get_scratch_regs (struct unw_frame_info *info)
 {
 	if (!info->pt) {
-		/* This should not happen with valid unwind info.  */
+		/* This should yest happen with valid unwind info.  */
 		UNW_DPRINT(0, "unwind.%s: bad unwind info: resetting info->pt\n", __func__);
 		if (info->flags & UNW_FLAG_INTERRUPT_FRAME)
 			info->pt = (unsigned long) ((struct pt_regs *) info->psp - 1);
@@ -293,7 +293,7 @@ unw_access_gr (struct unw_frame_info *info, int regnum, unsigned long *val, char
 			*nat = 0;
 			return 0;
 		}
-		UNW_DPRINT(0, "unwind.%s: trying to access non-existent r%u\n",
+		UNW_DPRINT(0, "unwind.%s: trying to access yesn-existent r%u\n",
 			   __func__, regnum);
 		return -1;
 	}
@@ -373,7 +373,7 @@ unw_access_gr (struct unw_frame_info *info, int regnum, unsigned long *val, char
 		if ((unsigned long) addr < info->regstk.limit
 		    || (unsigned long) addr >= info->regstk.top)
 		{
-			UNW_DPRINT(0, "unwind.%s: ignoring attempt to access register outside "
+			UNW_DPRINT(0, "unwind.%s: igyesring attempt to access register outside "
 				   "of rbs\n",  __func__);
 			return -1;
 		}
@@ -384,7 +384,7 @@ unw_access_gr (struct unw_frame_info *info, int regnum, unsigned long *val, char
 
 	if (write) {
 		if (read_only(addr)) {
-			UNW_DPRINT(0, "unwind.%s: ignoring attempt to write read-only location\n",
+			UNW_DPRINT(0, "unwind.%s: igyesring attempt to write read-only location\n",
 				__func__);
 		} else {
 			*addr = *val;
@@ -426,13 +426,13 @@ unw_access_br (struct unw_frame_info *info, int regnum, unsigned long *val, int 
 		break;
 
 	      default:
-		UNW_DPRINT(0, "unwind.%s: trying to access non-existent b%u\n",
+		UNW_DPRINT(0, "unwind.%s: trying to access yesn-existent b%u\n",
 			   __func__, regnum);
 		return -1;
 	}
 	if (write)
 		if (read_only(addr)) {
-			UNW_DPRINT(0, "unwind.%s: ignoring attempt to write read-only location\n",
+			UNW_DPRINT(0, "unwind.%s: igyesring attempt to write read-only location\n",
 				__func__);
 		} else
 			*addr = *val;
@@ -449,7 +449,7 @@ unw_access_fr (struct unw_frame_info *info, int regnum, struct ia64_fpreg *val, 
 	struct pt_regs *pt;
 
 	if ((unsigned) (regnum - 2) >= 126) {
-		UNW_DPRINT(0, "unwind.%s: trying to access non-existent f%u\n",
+		UNW_DPRINT(0, "unwind.%s: trying to access yesn-existent f%u\n",
 			   __func__, regnum);
 		return -1;
 	}
@@ -481,7 +481,7 @@ unw_access_fr (struct unw_frame_info *info, int regnum, struct ia64_fpreg *val, 
 
 	if (write)
 		if (read_only(addr)) {
-			UNW_DPRINT(0, "unwind.%s: ignoring attempt to write read-only location\n",
+			UNW_DPRINT(0, "unwind.%s: igyesring attempt to write read-only location\n",
 				__func__);
 		} else
 			*addr = *val;
@@ -571,14 +571,14 @@ unw_access_ar (struct unw_frame_info *info, int regnum, unsigned long *val, int 
 		break;
 
 	      default:
-		UNW_DPRINT(0, "unwind.%s: trying to access non-existent ar%u\n",
+		UNW_DPRINT(0, "unwind.%s: trying to access yesn-existent ar%u\n",
 			   __func__, regnum);
 		return -1;
 	}
 
 	if (write) {
 		if (read_only(addr)) {
-			UNW_DPRINT(0, "unwind.%s: ignoring attempt to write read-only location\n",
+			UNW_DPRINT(0, "unwind.%s: igyesring attempt to write read-only location\n",
 				__func__);
 		} else
 			*addr = *val;
@@ -599,7 +599,7 @@ unw_access_pr (struct unw_frame_info *info, unsigned long *val, int write)
 
 	if (write) {
 		if (read_only(addr)) {
-			UNW_DPRINT(0, "unwind.%s: ignoring attempt to write read-only location\n",
+			UNW_DPRINT(0, "unwind.%s: igyesring attempt to write read-only location\n",
 				__func__);
 		} else
 			*addr = *val;
@@ -619,7 +619,7 @@ push (struct unw_state_record *sr)
 
 	rs = alloc_reg_state();
 	if (!rs) {
-		printk(KERN_ERR "unwind: cannot stack reg state!\n");
+		printk(KERN_ERR "unwind: canyest stack reg state!\n");
 		return;
 	}
 	memcpy(rs, &sr->curr, sizeof(*rs));
@@ -662,7 +662,7 @@ dup_state_stack (struct unw_reg_state *rs)
 	return first;
 }
 
-/* Free all stacked register states (but not RS itself).  */
+/* Free all stacked register states (but yest RS itself).  */
 static void
 free_state_stack (struct unw_reg_state *rs)
 {
@@ -764,7 +764,7 @@ finish_prologue (struct unw_state_record *sr)
 	/*
 	 * Next, compute when the fp, general, and branch registers get
 	 * saved.  This must come before alloc_spill_area() because
-	 * we need to know which registers are spilled to their home
+	 * we need to kyesw which registers are spilled to their home
 	 * locations.
 	 */
 	if (sr->imask) {
@@ -858,7 +858,7 @@ desc_abi (unsigned char abi, unsigned char context, struct unw_state_record *sr)
 		UNW_DPRINT(3, "unwind.%s: interrupt frame\n",  __func__);
 	}
 	else
-		UNW_DPRINT(0, "unwind%s: ignoring unwabi(abi=0x%x,context=0x%x)\n",
+		UNW_DPRINT(0, "unwind%s: igyesring unwabi(abi=0x%x,context=0x%x)\n",
 				__func__, abi, context);
 }
 
@@ -1146,7 +1146,7 @@ desc_spill_sprel_p (unsigned char qp, unw_word t, unsigned char abreg, unw_word 
 	r->val = 4*spoff;
 }
 
-#define UNW_DEC_BAD_CODE(code)			printk(KERN_ERR "unwind: unknown code 0x%02x\n", \
+#define UNW_DEC_BAD_CODE(code)			printk(KERN_ERR "unwind: unkyeswn code 0x%02x\n", \
 						       code);
 
 /*
@@ -1248,8 +1248,8 @@ script_lookup (struct unw_frame_info *info)
 	script = unw.cache + index;
 	while (1) {
 		if (cache_match(script, ip, pr)) {
-			/* update hint; no locking required as single-word writes are atomic */
-			STAT(++unw.stat.cache.normal_hits);
+			/* update hint; yes locking required as single-word writes are atomic */
+			STAT(++unw.stat.cache.yesrmal_hits);
 			unw.cache[info->prev_script].hint = script - unw.cache;
 			return script;
 		}
@@ -1388,7 +1388,7 @@ emit_nat_info (struct unw_state_record *sr, int i, struct unw_script *script)
 		break;
 
 	      default:
-		UNW_DPRINT(0, "unwind.%s: don't know how to emit nat info for where = %u\n",
+		UNW_DPRINT(0, "unwind.%s: don't kyesw how to emit nat info for where = %u\n",
 			   __func__, r->where);
 		return;
 	}
@@ -1445,7 +1445,7 @@ compile_reg (struct unw_state_record *sr, int i, struct unw_script *script)
 			if (rval <= 11)
 				val = offsetof(struct pt_regs, f6) + 16*(rval - 6);
 			else
-				UNW_DPRINT(0, "unwind.%s: kernel may not touch f%lu\n",
+				UNW_DPRINT(0, "unwind.%s: kernel may yest touch f%lu\n",
 					   __func__, rval);
 		}
 		break;
@@ -1487,7 +1487,7 @@ compile_reg (struct unw_state_record *sr, int i, struct unw_script *script)
 	if (i == UNW_REG_PSP) {
 		/*
 		 * info->psp must contain the _value_ of the previous
-		 * sp, not it's save location.  We get this by
+		 * sp, yest it's save location.  We get this by
 		 * dereferencing the value we just stored in
 		 * info->psp:
 		 */
@@ -1582,8 +1582,8 @@ build_script (struct unw_frame_info *info)
 		prev = table;
 	}
 	if (!e) {
-		/* no info, return default unwinder (leaf proc, no mem stack, no saved regs)  */
-		UNW_DPRINT(1, "unwind.%s: no unwind info for ip=0x%lx (prev ip=0x%lx)\n",
+		/* yes info, return default unwinder (leaf proc, yes mem stack, yes saved regs)  */
+		UNW_DPRINT(1, "unwind.%s: yes unwind info for ip=0x%lx (prev ip=0x%lx)\n",
 			__func__, ip, unw.cache[info->prev_script].ip);
 		sr.curr.reg[UNW_REG_RP].where = UNW_WHERE_BR;
 		sr.curr.reg[UNW_REG_RP].when = -1;
@@ -1760,7 +1760,7 @@ run_script (struct unw_script *script, struct unw_frame_info *state)
 				s[dst] = (unsigned long) get_scratch_regs(state) + val;
 			} else {
 				s[dst] = 0;
-				UNW_DPRINT(0, "unwind.%s: no state->pt, dst=%ld, val=%ld\n",
+				UNW_DPRINT(0, "unwind.%s: yes state->pt, dst=%ld, val=%ld\n",
 					   __func__, dst, val);
 			}
 			break;
@@ -2102,7 +2102,7 @@ unw_add_unwind_table (const char *name, unsigned long segment_base, unsigned lon
 	unsigned long flags;
 
 	if (end - start <= 0) {
-		UNW_DPRINT(0, "unwind.%s: ignoring attempt to insert empty unwind table\n",
+		UNW_DPRINT(0, "unwind.%s: igyesring attempt to insert empty unwind table\n",
 			   __func__);
 		return NULL;
 	}
@@ -2133,7 +2133,7 @@ unw_remove_unwind_table (void *handle)
 	long index;
 
 	if (!handle) {
-		UNW_DPRINT(0, "unwind.%s: ignoring attempt to remove non-existent unwind table\n",
+		UNW_DPRINT(0, "unwind.%s: igyesring attempt to remove yesn-existent unwind table\n",
 			   __func__);
 		return;
 	}
@@ -2141,7 +2141,7 @@ unw_remove_unwind_table (void *handle)
 	table = handle;
 	if (table == &unw.kernel_table) {
 		UNW_DPRINT(0, "unwind.%s: sorry, freeing the kernel's unwind table is a "
-			   "no-can-do!\n", __func__);
+			   "yes-can-do!\n", __func__);
 		return;
 	}
 
@@ -2291,11 +2291,11 @@ unw_init (void)
  *
  * This system call copies the unwind data into the buffer pointed to by BUF and returns
  * the size of the unwind data.  If BUF_SIZE is smaller than the size of the unwind data
- * or if BUF is NULL, nothing is copied, but the system call still returns the size of the
+ * or if BUF is NULL, yesthing is copied, but the system call still returns the size of the
  * unwind data.
  *
  * The first portion of the unwind data contains an unwind table and rest contains the
- * associated unwind info (in no particular order).  The unwind table consists of a table
+ * associated unwind info (in yes particular order).  The unwind table consists of a table
  * of entries of the form:
  *
  *	u64 start;	(64-bit address of start of function)

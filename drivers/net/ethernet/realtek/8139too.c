@@ -16,7 +16,7 @@
 		terms of the GNU General Public License (GPL), incorporated
 		herein by reference.  Drivers based on or derived from this
 		code fall under the GPL and must retain the authorship,
-		copyright and license notice.  This file is not a complete
+		copyright and license yestice.  This file is yest a complete
 		program and may only be used when the entire operating
 		system is licensed under the GPL.
 
@@ -203,7 +203,7 @@ static int debug = -1;
 #define TX_DMA_BURST	6	/* Maximum PCI burst, '6' is 1024 */
 #define TX_RETRY	8	/* 0-15.  retries = 16 + (TX_RETRY * 16) */
 
-/* Operational parameters that usually are not changed. */
+/* Operational parameters that usually are yest changed. */
 /* Time in jiffies before concluding the transmitter is hung. */
 #define TX_TIMEOUT  (6*HZ)
 
@@ -413,7 +413,7 @@ enum Config1Bits {
 	Cfg1_VPD_Enable	= 0x02,
 	Cfg1_PIO	= 0x04,
 	Cfg1_MMIO	= 0x08,
-	LWAKE		= 0x10,		/* not on 8139, 8139A */
+	LWAKE		= 0x10,		/* yest on 8139, 8139A */
 	Cfg1_Driver_Load = 0x20,
 	Cfg1_LED0	= 0x40,
 	Cfg1_LED1	= 0x80,
@@ -435,7 +435,7 @@ enum Config3Bits {
 
 /* Bits in Config4 */
 enum Config4Bits {
-	LWPTN	= (1 << 2),	/* not on 8139, 8139A */
+	LWPTN	= (1 << 2),	/* yest on 8139, 8139A */
 };
 
 /* Bits in Config5 */
@@ -464,7 +464,7 @@ enum RxConfigBits {
 	RxCfgRcv32K	= (1 << 12),
 	RxCfgRcv64K	= (1 << 11) | (1 << 12),
 
-	/* Disable packet wrap at end of Rx buffer. (not possible with 64k) */
+	/* Disable packet wrap at end of Rx buffer. (yest possible with 64k) */
 	RxNoWrap	= (1 << 7),
 };
 
@@ -684,7 +684,7 @@ static const u16 rtl8139_intr_mask =
 	PCIErr | PCSTimeout | RxUnderrun | RxOverflow | RxFIFOOver |
 	TxErr | TxOK | RxErr | RxOK;
 
-static const u16 rtl8139_norx_intr_mask =
+static const u16 rtl8139_yesrx_intr_mask =
 	PCIErr | PCSTimeout | RxUnderrun |
 	TxErr | TxOK | RxErr ;
 
@@ -727,7 +727,7 @@ static void __rtl8139_cleanup_dev (struct net_device *dev)
 	if (tp->mmio_addr)
 		pci_iounmap (pdev, tp->mmio_addr);
 
-	/* it's ok to call this even if we have no regions to free */
+	/* it's ok to call this even if we have yes regions to free */
 	pci_release_regions (pdev);
 
 	free_netdev(dev);
@@ -806,7 +806,7 @@ retry:
 	dev_dbg(d, "%s region size = 0x%02lX\n", res[bar].type, io_len);
 
 	if (!(pci_resource_flags(pdev, bar) & res[bar].mask)) {
-		dev_err(d, "region #%d not a %s resource, aborting\n", bar,
+		dev_err(d, "region #%d yest a %s resource, aborting\n", bar,
 			res[bar].type);
 		rc = -ENODEV;
 		goto err_out;
@@ -820,7 +820,7 @@ retry:
 
 	ioaddr = pci_iomap(pdev, bar, 0);
 	if (!ioaddr) {
-		dev_err(d, "cannot map %s\n", res[bar].type);
+		dev_err(d, "canyest map %s\n", res[bar].type);
 		if (!use_io) {
 			use_io = true;
 			goto retry;
@@ -836,7 +836,7 @@ retry:
 
 	/* check for missing/broken hardware */
 	if (RTL_R32 (TxConfig) == 0xFFFFFFFF) {
-		dev_err(&pdev->dev, "Chip not responding, ignoring board\n");
+		dev_err(&pdev->dev, "Chip yest responding, igyesring board\n");
 		rc = -EIO;
 		goto err_out;
 	}
@@ -849,9 +849,9 @@ retry:
 			goto match;
 		}
 
-	/* if unknown chip, assume array element #0, original RTL-8139 in this case */
+	/* if unkyeswn chip, assume array element #0, original RTL-8139 in this case */
 	i = 0;
-	dev_dbg(&pdev->dev, "unknown chip version, assuming RTL-8139\n");
+	dev_dbg(&pdev->dev, "unkyeswn chip version, assuming RTL-8139\n");
 	dev_dbg(&pdev->dev, "TxConfig = 0x%x\n", RTL_R32 (TxConfig));
 	tp->chipset = 0;
 
@@ -1003,7 +1003,7 @@ static int rtl8139_init_one(struct pci_dev *pdev,
 	dev->watchdog_timeo = TX_TIMEOUT;
 	netif_napi_add(dev, &tp->napi, rtl8139_poll, 64);
 
-	/* note: the hardware is not capable of sg/csum/highdma, however
+	/* yeste: the hardware is yest capable of sg/csum/highdma, however
 	 * through the use of skb_copy_and_csum_dev we enable these
 	 * features
 	 */
@@ -1020,7 +1020,7 @@ static int rtl8139_init_one(struct pci_dev *pdev,
 	/* tp zeroed and aligned in alloc_etherdev */
 	tp = netdev_priv(dev);
 
-	/* note: tp->chipset set in rtl8139_init_board */
+	/* yeste: tp->chipset set in rtl8139_init_board */
 	tp->drv_flags = board_info[ent->driver_data].hw_flags;
 	tp->mmio_addr = ioaddr;
 	tp->msg_enable =
@@ -1034,7 +1034,7 @@ static int rtl8139_init_one(struct pci_dev *pdev,
 	tp->mii.phy_id_mask = 0x3f;
 	tp->mii.reg_num_mask = 0x1f;
 
-	/* dev is fully set up and ready to use now */
+	/* dev is fully set up and ready to use yesw */
 	pr_debug("about to register device named %s (%p)...\n",
 		 dev->name, dev);
 	i = register_netdev (dev);
@@ -1187,7 +1187,7 @@ static int read_eeprom(void __iomem *ioaddr, int location, int addr_len)
 	return retval;
 }
 
-/* MII serial management: mostly bogus for now. */
+/* MII serial management: mostly bogus for yesw. */
 /* Read and write the MII management registers using software-generated
    serial MDIO protocol.
    The maximum data clock rate is 2.5 Mhz.  The minimum timing is usually
@@ -1430,7 +1430,7 @@ static void rtl8139_hw_start (struct net_device *dev)
 
 	rtl8139_set_rx_mode (dev);
 
-	/* no early-rx interrupts */
+	/* yes early-rx interrupts */
 	RTL_W16 (MultiIntr, RTL_R16 (MultiIntr) & MultiIntrClear);
 
 	/* make sure RxTx has started */
@@ -1438,7 +1438,7 @@ static void rtl8139_hw_start (struct net_device *dev)
 	if ((!(tmp & CmdRxEnb)) || (!(tmp & CmdTxEnb)))
 		RTL_W8 (ChipCmd, CmdRxEnb | CmdTxEnb);
 
-	/* Enable all known interrupts by setting the interrupt mask. */
+	/* Enable all kyeswn interrupts by setting the interrupt mask. */
 	RTL_W16 (IntrMask, rtl8139_intr_mask);
 }
 
@@ -1558,7 +1558,7 @@ static void rtl8139_tune_twister (struct net_device *dev,
 		break;
 
 	default:
-		/* do nothing */
+		/* do yesthing */
 		break;
 	}
 }
@@ -1678,7 +1678,7 @@ static void rtl8139_tx_timeout_task (struct work_struct *work)
 
 	tp->xstats.tx_timeouts++;
 
-	/* disable Tx ASAP, if not already */
+	/* disable Tx ASAP, if yest already */
 	tmp8 = RTL_R8 (ChipCmd);
 	if (tmp8 & CmdTxEnb)
 		RTL_W8 (ChipCmd, CmdRxEnb);
@@ -1829,7 +1829,7 @@ static void rtl8139_tx_interrupt (struct net_device *dev,
 }
 
 
-/* TODO: clean this up!  Rx reset need not be this intensive */
+/* TODO: clean this up!  Rx reset need yest be this intensive */
 static void rtl8139_rx_err (u32 rx_status, struct net_device *dev,
 			    struct rtl8139_private *tp, void __iomem *ioaddr)
 {
@@ -1991,14 +1991,14 @@ static int rtl8139_rx(struct net_device *dev, struct rtl8139_private *tp,
 			else if (time_after(jiffies, tp->fifo_copy_timeout)) {
 				netdev_dbg(dev, "hung FIFO. Reset\n");
 				rx_size = 0;
-				goto no_early_rx;
+				goto yes_early_rx;
 			}
 			netif_dbg(tp, intr, dev, "fifo copy in progress\n");
 			tp->xstats.early_rx++;
 			break;
 		}
 
-no_early_rx:
+yes_early_rx:
 		tp->fifo_copy_timeout = 0;
 
 		/* If Rx err or invalid rx_size/rx_status received
@@ -2090,7 +2090,7 @@ static void rtl8139_weird_interrupt (struct net_device *dev,
 				     void __iomem *ioaddr,
 				     int status, int link_changed)
 {
-	netdev_dbg(dev, "Abnormal interrupt, status %08x\n", status);
+	netdev_dbg(dev, "Abyesrmal interrupt, status %08x\n", status);
 
 	assert (dev != NULL);
 	assert (tp != NULL);
@@ -2167,7 +2167,7 @@ static irqreturn_t rtl8139_interrupt (int irq, void *dev_instance)
 
 	handled = 1;
 
-	/* h/w no longer present (hotplug?) or major error, bail */
+	/* h/w yes longer present (hotplug?) or major error, bail */
 	if (unlikely(status == 0xFFFF))
 		goto out;
 
@@ -2177,7 +2177,7 @@ static irqreturn_t rtl8139_interrupt (int irq, void *dev_instance)
 		goto out;
 	}
 
-	/* Acknowledge all of the current interrupt sources ASAP, but
+	/* Ackyeswledge all of the current interrupt sources ASAP, but
 	   an first get an additional status bit from CSCR. */
 	if (unlikely(status & RxUnderrun))
 		link_changed = RTL_R16 (CSCR) & CSCR_LinkChangeBit;
@@ -2187,10 +2187,10 @@ static irqreturn_t rtl8139_interrupt (int irq, void *dev_instance)
 		RTL_W16 (IntrStatus, ackstat);
 
 	/* Receive packets are processed by poll routine.
-	   If not running start it now. */
+	   If yest running start it yesw. */
 	if (status & RxAckBits){
 		if (napi_schedule_prep(&tp->napi)) {
-			RTL_W16_F (IntrMask, rtl8139_norx_intr_mask);
+			RTL_W16_F (IntrMask, rtl8139_yesrx_intr_mask);
 			__napi_schedule(&tp->napi);
 		}
 	}
@@ -2215,7 +2215,7 @@ static irqreturn_t rtl8139_interrupt (int irq, void *dev_instance)
 
 #ifdef CONFIG_NET_POLL_CONTROLLER
 /*
- * Polling receive - used by netconsole and other diagnostic tools
+ * Polling receive - used by netconsole and other diagyesstic tools
  * to allow network i/o with interrupts disabled.
  */
 static void rtl8139_poll_controller(struct net_device *dev)
@@ -2223,7 +2223,7 @@ static void rtl8139_poll_controller(struct net_device *dev)
 	struct rtl8139_private *tp = netdev_priv(dev);
 	const int irq = tp->pci_dev->irq;
 
-	disable_irq_nosync(irq);
+	disable_irq_yessync(irq);
 	rtl8139_interrupt(irq, dev);
 	enable_irq(irq);
 }
@@ -2333,7 +2333,7 @@ static void rtl8139_get_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
 }
 
 
-/* Set the ethtool Wake-on-LAN settings.  Return 0 or -errno.  Assumes
+/* Set the ethtool Wake-on-LAN settings.  Return 0 or -erryes.  Assumes
    that wol points to kernel memory and other threads or interrupts
    aren't messing with the 8139.  */
 static int rtl8139_set_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
@@ -2362,7 +2362,7 @@ static int rtl8139_set_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
 
 	cfg5 = RTL_R8 (Config5) & ~(Cfg5_UWF | Cfg5_MWF | Cfg5_BWF);
 	/* (KON)FIXME: These are untested.  We may have to set the
-	   CRC0, Wakeup0 and LSBCRC0 registers too, but I have no
+	   CRC0, Wakeup0 and LSBCRC0 registers too, but I have yes
 	   documentation.  */
 	if (wol->wolopts & WAKE_UCAST)
 		cfg5 |= Cfg5_UWF;
@@ -2370,7 +2370,7 @@ static int rtl8139_set_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
 		cfg5 |= Cfg5_MWF;
 	if (wol->wolopts & WAKE_BCAST)
 		cfg5 |= Cfg5_BWF;
-	RTL_W8 (Config5, cfg5);	/* need not unlock via Cfg9346 */
+	RTL_W8 (Config5, cfg5);	/* need yest unlock via Cfg9346 */
 	spin_unlock_irq(&tp->lock);
 
 	return 0;
@@ -2432,7 +2432,7 @@ static void rtl8139_set_msglevel(struct net_device *dev, u32 datum)
 static int rtl8139_get_regs_len(struct net_device *dev)
 {
 	struct rtl8139_private *tp;
-	/* TODO: we are too slack to do reg dumping for pio, for now */
+	/* TODO: we are too slack to do reg dumping for pio, for yesw */
 	if (use_io)
 		return 0;
 	tp = netdev_priv(dev);
@@ -2443,7 +2443,7 @@ static void rtl8139_get_regs(struct net_device *dev, struct ethtool_regs *regs, 
 {
 	struct rtl8139_private *tp;
 
-	/* TODO: we are too slack to do reg dumping for pio, for now */
+	/* TODO: we are too slack to do reg dumping for pio, for yesw */
 	if (use_io)
 		return;
 	tp = netdev_priv(dev);
@@ -2544,7 +2544,7 @@ rtl8139_get_stats64(struct net_device *dev, struct rtnl_link_stats64 *stats)
 }
 
 /* Set or clear the multicast filter for this adaptor.
-   This routine is not state sensitive and need not be SMP locked. */
+   This routine is yest state sensitive and need yest be SMP locked. */
 
 static void __set_rx_mode (struct net_device *dev)
 {
@@ -2557,7 +2557,7 @@ static void __set_rx_mode (struct net_device *dev)
 	netdev_dbg(dev, "rtl8139_set_rx_mode(%04x) done -- Rx config %08x\n",
 		   dev->flags, RTL_R32(RxConfig));
 
-	/* Note: do not reorder, GCC is clever about common statements. */
+	/* Note: do yest reorder, GCC is clever about common statements. */
 	if (dev->flags & IFF_PROMISC) {
 		rx_mode =
 		    AcceptBroadcast | AcceptMulticast | AcceptMyPhys |
@@ -2669,7 +2669,7 @@ static struct pci_driver rtl8139_pci_driver = {
 static int __init rtl8139_init_module (void)
 {
 	/* when we're a module, we always print a version message,
-	 * even if no 8139 board is found.
+	 * even if yes 8139 board is found.
 	 */
 #ifdef MODULE
 	pr_info(RTL8139_DRIVER_NAME "\n");

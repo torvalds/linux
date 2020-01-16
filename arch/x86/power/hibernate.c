@@ -41,17 +41,17 @@ unsigned long temp_pgt __visible;
 unsigned long relocated_restore_code __visible;
 
 /**
- *	pfn_is_nosave - check if given pfn is in the 'nosave' section
+ *	pfn_is_yessave - check if given pfn is in the 'yessave' section
  */
-int pfn_is_nosave(unsigned long pfn)
+int pfn_is_yessave(unsigned long pfn)
 {
-	unsigned long nosave_begin_pfn;
-	unsigned long nosave_end_pfn;
+	unsigned long yessave_begin_pfn;
+	unsigned long yessave_end_pfn;
 
-	nosave_begin_pfn = __pa_symbol(&__nosave_begin) >> PAGE_SHIFT;
-	nosave_end_pfn = PAGE_ALIGN(__pa_symbol(&__nosave_end)) >> PAGE_SHIFT;
+	yessave_begin_pfn = __pa_symbol(&__yessave_begin) >> PAGE_SHIFT;
+	yessave_end_pfn = PAGE_ALIGN(__pa_symbol(&__yessave_end)) >> PAGE_SHIFT;
 
-	return pfn >= nosave_begin_pfn && pfn < nosave_end_pfn;
+	return pfn >= yessave_begin_pfn && pfn < yessave_end_pfn;
 }
 
 
@@ -116,7 +116,7 @@ static bool hibernation_e820_mismatch(void *buf)
 	u8 result[MD5_DIGEST_SIZE];
 
 	memset(result, 0, MD5_DIGEST_SIZE);
-	/* If there is no digest in suspend kernel, let it go. */
+	/* If there is yes digest in suspend kernel, let it go. */
 	if (!memcmp(result, buf, MD5_DIGEST_SIZE))
 		return false;
 
@@ -134,7 +134,7 @@ static int hibernation_e820_save(void *buf)
 
 static bool hibernation_e820_mismatch(void *buf)
 {
-	/* If md5 is not builtin for restore kernel, let it go. */
+	/* If md5 is yest builtin for restore kernel, let it go. */
 	return false;
 }
 #endif
@@ -173,8 +173,8 @@ int arch_hibernation_header_save(void *addr, unsigned int max_size)
 	 * 6. CR3 <= saved CR3
 	 *
 	 * Our mmu_cr4_features has CR4.PCIDE=0, and toggling
-	 * CR4.PCIDE while CR3's PCID bits are nonzero is illegal, so
-	 * rdr->cr3 needs to point to valid page tables but must not
+	 * CR4.PCIDE while CR3's PCID bits are yesnzero is illegal, so
+	 * rdr->cr3 needs to point to valid page tables but must yest
 	 * have any of the PCID bits set.
 	 */
 	rdr->cr3 = restore_cr3 & ~CR3_PCID_MASK;
@@ -247,14 +247,14 @@ out:
 	return 0;
 }
 
-int arch_resume_nosmt(void)
+int arch_resume_yessmt(void)
 {
 	int ret = 0;
 	/*
 	 * We reached this while coming out of hibernation. This means
-	 * that SMT siblings are sleeping in hlt, as mwait is not safe
+	 * that SMT siblings are sleeping in hlt, as mwait is yest safe
 	 * against control transition during resume (see comment in
-	 * hibernate_resume_nonboot_cpu_disable()).
+	 * hibernate_resume_yesnboot_cpu_disable()).
 	 *
 	 * If the resumed kernel has SMT disabled, we have to take all the
 	 * SMT siblings out of hlt, and offline them again so that they

@@ -177,9 +177,9 @@ void mempool_destroy(mempool_t *pool)
 }
 EXPORT_SYMBOL(mempool_destroy);
 
-int mempool_init_node(mempool_t *pool, int min_nr, mempool_alloc_t *alloc_fn,
+int mempool_init_yesde(mempool_t *pool, int min_nr, mempool_alloc_t *alloc_fn,
 		      mempool_free_t *free_fn, void *pool_data,
-		      gfp_t gfp_mask, int node_id)
+		      gfp_t gfp_mask, int yesde_id)
 {
 	spin_lock_init(&pool->lock);
 	pool->min_nr	= min_nr;
@@ -188,8 +188,8 @@ int mempool_init_node(mempool_t *pool, int min_nr, mempool_alloc_t *alloc_fn,
 	pool->free	= free_fn;
 	init_waitqueue_head(&pool->wait);
 
-	pool->elements = kmalloc_array_node(min_nr, sizeof(void *),
-					    gfp_mask, node_id);
+	pool->elements = kmalloc_array_yesde(min_nr, sizeof(void *),
+					    gfp_mask, yesde_id);
 	if (!pool->elements)
 		return -ENOMEM;
 
@@ -209,7 +209,7 @@ int mempool_init_node(mempool_t *pool, int min_nr, mempool_alloc_t *alloc_fn,
 
 	return 0;
 }
-EXPORT_SYMBOL(mempool_init_node);
+EXPORT_SYMBOL(mempool_init_yesde);
 
 /**
  * mempool_init - initialize a memory pool
@@ -220,7 +220,7 @@ EXPORT_SYMBOL(mempool_init_node);
  * @free_fn:   user-defined element-freeing function.
  * @pool_data: optional private data available to the user-defined functions.
  *
- * Like mempool_create(), but initializes the pool in (i.e. embedded in another
+ * Like mempool_create(), but initializes the pool in (i.e. embedded in ayesther
  * structure).
  *
  * Return: %0 on success, negative error code otherwise.
@@ -228,7 +228,7 @@ EXPORT_SYMBOL(mempool_init_node);
 int mempool_init(mempool_t *pool, int min_nr, mempool_alloc_t *alloc_fn,
 		 mempool_free_t *free_fn, void *pool_data)
 {
-	return mempool_init_node(pool, min_nr, alloc_fn, free_fn,
+	return mempool_init_yesde(pool, min_nr, alloc_fn, free_fn,
 				 pool_data, GFP_KERNEL, NUMA_NO_NODE);
 
 }
@@ -245,7 +245,7 @@ EXPORT_SYMBOL(mempool_init);
  * this function creates and allocates a guaranteed size, preallocated
  * memory pool. The pool can be used from the mempool_alloc() and mempool_free()
  * functions. This function might sleep. Both the alloc_fn() and the free_fn()
- * functions might sleep - as long as the mempool_alloc() function is not called
+ * functions might sleep - as long as the mempool_alloc() function is yest called
  * from IRQ contexts.
  *
  * Return: pointer to the created memory pool object or %NULL on error.
@@ -253,30 +253,30 @@ EXPORT_SYMBOL(mempool_init);
 mempool_t *mempool_create(int min_nr, mempool_alloc_t *alloc_fn,
 				mempool_free_t *free_fn, void *pool_data)
 {
-	return mempool_create_node(min_nr,alloc_fn,free_fn, pool_data,
+	return mempool_create_yesde(min_nr,alloc_fn,free_fn, pool_data,
 				   GFP_KERNEL, NUMA_NO_NODE);
 }
 EXPORT_SYMBOL(mempool_create);
 
-mempool_t *mempool_create_node(int min_nr, mempool_alloc_t *alloc_fn,
+mempool_t *mempool_create_yesde(int min_nr, mempool_alloc_t *alloc_fn,
 			       mempool_free_t *free_fn, void *pool_data,
-			       gfp_t gfp_mask, int node_id)
+			       gfp_t gfp_mask, int yesde_id)
 {
 	mempool_t *pool;
 
-	pool = kzalloc_node(sizeof(*pool), gfp_mask, node_id);
+	pool = kzalloc_yesde(sizeof(*pool), gfp_mask, yesde_id);
 	if (!pool)
 		return NULL;
 
-	if (mempool_init_node(pool, min_nr, alloc_fn, free_fn, pool_data,
-			      gfp_mask, node_id)) {
+	if (mempool_init_yesde(pool, min_nr, alloc_fn, free_fn, pool_data,
+			      gfp_mask, yesde_id)) {
 		kfree(pool);
 		return NULL;
 	}
 
 	return pool;
 }
-EXPORT_SYMBOL(mempool_create_node);
+EXPORT_SYMBOL(mempool_create_yesde);
 
 /**
  * mempool_resize - resize an existing memory pool
@@ -286,11 +286,11 @@ EXPORT_SYMBOL(mempool_create_node);
  *              allocated for this pool.
  *
  * This function shrinks/grows the pool. In the case of growing,
- * it cannot be guaranteed that the pool will be grown to the new
+ * it canyest be guaranteed that the pool will be grown to the new
  * size immediately, but new mempool_free() calls will refill it.
  * This function may sleep.
  *
- * Note, the caller must guarantee that no mempool_destroy is called
+ * Note, the caller must guarantee that yes mempool_destroy is called
  * while this function is running. mempool_alloc() & mempool_free()
  * might be called (eg. from IRQ contexts) while this function executes.
  *
@@ -368,7 +368,7 @@ EXPORT_SYMBOL(mempool_resize);
  * returns NULL. Note that due to preallocation, this function
  * *never* fails when called from process contexts. (it might
  * fail if called from an IRQ context.)
- * Note: using __GFP_ZERO is not supported.
+ * Note: using __GFP_ZERO is yest supported.
  *
  * Return: pointer to the allocated element or %NULL on error.
  */
@@ -418,7 +418,7 @@ repeat_alloc:
 		goto repeat_alloc;
 	}
 
-	/* We must not sleep if !__GFP_DIRECT_RECLAIM */
+	/* We must yest sleep if !__GFP_DIRECT_RECLAIM */
 	if (!(gfp_mask & __GFP_DIRECT_RECLAIM)) {
 		spin_unlock_irqrestore(&pool->lock, flags);
 		return NULL;
@@ -465,7 +465,7 @@ void mempool_free(void *element, mempool_t *pool)
 	 * barriers.
 	 *
 	 * For example, assume @p is %NULL at the beginning and one task
-	 * performs "p = mempool_alloc(...);" while another task is doing
+	 * performs "p = mempool_alloc(...);" while ayesther task is doing
 	 * "while (!p) cpu_relax(); mempool_free(p, ...);".  This function
 	 * may end up using curr_nr value which is from before allocation
 	 * of @p without the following rmb.

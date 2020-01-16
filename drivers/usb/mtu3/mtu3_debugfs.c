@@ -253,7 +253,7 @@ static const struct mtu3_file_map mtu3_ep_files[] = {
 	{"qmu-gpd", mtu3_qmu_gpd_show, },
 };
 
-static int mtu3_ep_open(struct inode *inode, struct file *file)
+static int mtu3_ep_open(struct iyesde *iyesde, struct file *file)
 {
 	const char *file_name = file_dentry(file)->d_iname;
 	const struct mtu3_file_map *f_map;
@@ -266,7 +266,7 @@ static int mtu3_ep_open(struct inode *inode, struct file *file)
 			break;
 	}
 
-	return single_open(file, f_map->show, inode->i_private);
+	return single_open(file, f_map->show, iyesde->i_private);
 }
 
 static const struct file_operations mtu3_ep_fops = {
@@ -305,9 +305,9 @@ static int mtu3_probe_show(struct seq_file *sf, void *unused)
 	return 0;
 }
 
-static int mtu3_probe_open(struct inode *inode, struct file *file)
+static int mtu3_probe_open(struct iyesde *iyesde, struct file *file)
 {
-	return single_open(file, mtu3_probe_show, inode->i_private);
+	return single_open(file, mtu3_probe_show, iyesde->i_private);
 }
 
 static ssize_t mtu3_probe_write(struct file *file, const char __user *ubuf,
@@ -437,9 +437,9 @@ static int ssusb_mode_show(struct seq_file *sf, void *unused)
 	return 0;
 }
 
-static int ssusb_mode_open(struct inode *inode, struct file *file)
+static int ssusb_mode_open(struct iyesde *iyesde, struct file *file)
 {
-	return single_open(file, ssusb_mode_show, inode->i_private);
+	return single_open(file, ssusb_mode_show, iyesde->i_private);
 }
 
 static ssize_t ssusb_mode_write(struct file *file, const char __user *ubuf,
@@ -483,9 +483,9 @@ static int ssusb_vbus_show(struct seq_file *sf, void *unused)
 	return 0;
 }
 
-static int ssusb_vbus_open(struct inode *inode, struct file *file)
+static int ssusb_vbus_open(struct iyesde *iyesde, struct file *file)
 {
-	return single_open(file, ssusb_vbus_show, inode->i_private);
+	return single_open(file, ssusb_vbus_show, iyesde->i_private);
 }
 
 static ssize_t ssusb_vbus_write(struct file *file, const char __user *ubuf,

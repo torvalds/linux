@@ -221,7 +221,7 @@ static void stub_device_rebind(void)
 	struct bus_id_priv *busid_priv;
 	int i;
 
-	/* update status to STUB_BUSID_OTHER so probe ignores the device */
+	/* update status to STUB_BUSID_OTHER so probe igyesres the device */
 	spin_lock(&busid_table_lock);
 	for (i = 0; i < MAX_BUSID; i++) {
 		if (busid_table[i].name[0] &&
@@ -232,7 +232,7 @@ static void stub_device_rebind(void)
 	}
 	spin_unlock(&busid_table_lock);
 
-	/* now run rebind - no need to hold locks. driver files are removed */
+	/* yesw run rebind - yes need to hold locks. driver files are removed */
 	for (i = 0; i < MAX_BUSID; i++) {
 		if (busid_table[i].name[0] &&
 		    busid_table[i].shutdown_busid) {
@@ -260,7 +260,7 @@ static ssize_t rebind_store(struct device_driver *dev, const char *buf,
 	if (!bid)
 		return -ENODEV;
 
-	/* mark the device for deletion so probe ignores it during rescan */
+	/* mark the device for deletion so probe igyesres it during rescan */
 	bid->status = STUB_BUSID_OTHER;
 	/* release the busid lock */
 	put_busid_priv(bid);

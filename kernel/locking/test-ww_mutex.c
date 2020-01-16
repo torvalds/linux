@@ -313,7 +313,7 @@ static int __test_cycle(unsigned int nthreads)
 		if (!cycle->result)
 			continue;
 
-		pr_err("cyclic deadlock not resolved, ret[%d/%d] = %d\n",
+		pr_err("cyclic deadlock yest resolved, ret[%d/%d] = %d\n",
 		       n, nthreads, cycle->result);
 		ret = -EINVAL;
 		break;
@@ -375,7 +375,7 @@ static void dummy_load(struct stress *stress)
 	usleep_range(1000, 2000);
 }
 
-static void stress_inorder_work(struct work_struct *work)
+static void stress_iyesrder_work(struct work_struct *work)
 {
 	struct stress *stress = container_of(work, typeof(*stress), work);
 	const int nlocks = stress->nlocks;
@@ -541,7 +541,7 @@ static int stress(int nlocks, int nthreads, unsigned int flags)
 		switch (n & 3) {
 		case 0:
 			if (flags & STRESS_INORDER)
-				fn = stress_inorder_work;
+				fn = stress_iyesrder_work;
 			break;
 		case 1:
 			if (flags & STRESS_REORDER)

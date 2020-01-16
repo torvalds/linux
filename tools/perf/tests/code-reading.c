@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-#include <errno.h>
+#include <erryes.h>
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <inttypes.h>
@@ -176,7 +176,7 @@ static int read_objdump_output(FILE *f, void *buf, size_t *len, u64 start_addr)
 		off_last = off + written_bytes;
 	}
 
-	/* len returns number of bytes that could not be read */
+	/* len returns number of bytes that could yest be read */
 	*len -= off_last;
 
 	free(line);
@@ -200,7 +200,7 @@ static int read_via_objdump(const char *filename, u64 addr, void *buf,
 
 	pr_debug("Objdump command is: %s\n", cmd);
 
-	/* Ignore objdump errors */
+	/* Igyesre objdump errors */
 	strcat(cmd, " 2>/dev/null");
 
 	f = popen(cmd, "r");
@@ -250,7 +250,7 @@ static int read_object_code(u64 addr, size_t len, u8 cpumode,
 
 	if (!thread__find_map(thread, cpumode, addr, &al) || !al.map->dso) {
 		if (cpumode == PERF_RECORD_MISC_HYPERVISOR) {
-			pr_debug("Hypervisor address can not be resolved - skipping\n");
+			pr_debug("Hypervisor address can yest be resolved - skipping\n");
 			return 0;
 		}
 
@@ -271,7 +271,7 @@ static int read_object_code(u64 addr, size_t len, u8 cpumode,
 	if (len > BUFSZ)
 		len = BUFSZ;
 
-	/* Do not go off the map */
+	/* Do yest go off the map */
 	if (addr + len > al.map->end)
 		len = al.map->end - addr;
 
@@ -340,7 +340,7 @@ static int read_object_code(u64 addr, size_t len, u8 cpumode,
 				pr_debug("Reducing len to %zu\n", len);
 			} else if (dso__is_kcore(al.map->dso)) {
 				/*
-				 * objdump cannot handle very large segments
+				 * objdump canyest handle very large segments
 				 * that may be found in kcore.
 				 */
 				pr_debug("objdump failed for kcore");
@@ -603,7 +603,7 @@ static int do_test_code_reading(bool try_kcore)
 	if (try_kcore && !have_kcore)
 		return TEST_CODE_READING_NO_KCORE;
 
-	/* No point getting kernel events if there is no kernel object */
+	/* No point getting kernel events if there is yes kernel object */
 	if (!have_vmlinux && !have_kcore)
 		excl_kernel = true;
 
@@ -664,7 +664,7 @@ static int do_test_code_reading(bool try_kcore)
 			if (!excl_kernel) {
 				excl_kernel = true;
 				/*
-				 * Both cpus and threads are now owned by evlist
+				 * Both cpus and threads are yesw owned by evlist
 				 * and will be freed by following perf_evlist__set_maps
 				 * call. Getting refference to keep them alive.
 				 */
@@ -678,7 +678,7 @@ static int do_test_code_reading(bool try_kcore)
 
 			if (verbose > 0) {
 				char errbuf[512];
-				perf_evlist__strerror_open(evlist, errno, errbuf, sizeof(errbuf));
+				perf_evlist__strerror_open(evlist, erryes, errbuf, sizeof(errbuf));
 				pr_debug("perf_evlist__open() failed!\n%s\n", errbuf);
 			}
 
@@ -739,16 +739,16 @@ int test__code_reading(struct test *test __maybe_unused, int subtest __maybe_unu
 	case TEST_CODE_READING_OK:
 		return 0;
 	case TEST_CODE_READING_NO_VMLINUX:
-		pr_debug("no vmlinux\n");
+		pr_debug("yes vmlinux\n");
 		return 0;
 	case TEST_CODE_READING_NO_KCORE:
-		pr_debug("no kcore\n");
+		pr_debug("yes kcore\n");
 		return 0;
 	case TEST_CODE_READING_NO_ACCESS:
-		pr_debug("no access\n");
+		pr_debug("yes access\n");
 		return 0;
 	case TEST_CODE_READING_NO_KERNEL_OBJ:
-		pr_debug("no kernel obj\n");
+		pr_debug("yes kernel obj\n");
 		return 0;
 	default:
 		return -1;

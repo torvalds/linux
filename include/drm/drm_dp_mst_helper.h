@@ -3,11 +3,11 @@
  *
  * Permission to use, copy, modify, distribute, and sell this software and its
  * documentation for any purpose is hereby granted without fee, provided that
- * the above copyright notice appear in all copies and that both that copyright
- * notice and this permission notice appear in supporting documentation, and
- * that the name of the copyright holders not be used in advertising or
+ * the above copyright yestice appear in all copies and that both that copyright
+ * yestice and this permission yestice appear in supporting documentation, and
+ * that the name of the copyright holders yest be used in advertising or
  * publicity pertaining to distribution of the software without specific,
- * written prior permission.  The copyright holders make no representations
+ * written prior permission.  The copyright holders make yes representations
  * about the suitability of this software for any purpose.  It is provided "as
  * is" without express or implied warranty.
  *
@@ -133,7 +133,7 @@ struct drm_dp_mst_port {
 	 * This should be considered protected for reading by
 	 * &drm_dp_mst_topology_mgr.lock. There are two exceptions to this:
 	 * &drm_dp_mst_topology_mgr.up_req_work and
-	 * &drm_dp_mst_topology_mgr.work, which do not grab
+	 * &drm_dp_mst_topology_mgr.work, which do yest grab
 	 * &drm_dp_mst_topology_mgr.lock during reads but are the only
 	 * updaters of this list and are protected from writing concurrently
 	 * by &drm_dp_mst_topology_mgr.probe_lock.
@@ -167,7 +167,7 @@ struct drm_dp_mst_port {
  * @port_parent: pointer to the port parent, NULL if toplevel.
  * @mgr: topology manager for this branch device.
  * @tx_slots: transmission slots for this device.
- * @last_seqno: last sequence number used to talk to this.
+ * @last_seqyes: last sequence number used to talk to this.
  * @link_address_sent: if a link address message has been sent to this device yet.
  * @guid: guid for DP 1.2 branch device. port under this branch can be
  * identified by port #.
@@ -214,7 +214,7 @@ struct drm_dp_mst_branch {
 	 * considered protected for reading by &drm_dp_mst_topology_mgr.lock.
 	 * There are two exceptions to this:
 	 * &drm_dp_mst_topology_mgr.up_req_work and
-	 * &drm_dp_mst_topology_mgr.work, which do not grab
+	 * &drm_dp_mst_topology_mgr.work, which do yest grab
 	 * &drm_dp_mst_topology_mgr.lock during reads but are the only
 	 * updaters of this list and are protected from updating the list
 	 * concurrently by @drm_dp_mst_topology_mgr.probe_lock
@@ -227,7 +227,7 @@ struct drm_dp_mst_branch {
 
 	/* slots are protected by mstb->mgr->qlock */
 	struct drm_dp_sideband_msg_tx *tx_slots[2];
-	int last_seqno;
+	int last_seqyes;
 	bool link_address_sent;
 
 	/* global unique identifier to identify branch devices */
@@ -235,7 +235,7 @@ struct drm_dp_mst_branch {
 };
 
 
-/* sideband msg header - not bit struct */
+/* sideband msg header - yest bit struct */
 struct drm_dp_sideband_msg_hdr {
 	u8 lct;
 	u8 lcr;
@@ -245,7 +245,7 @@ struct drm_dp_sideband_msg_hdr {
 	u8 msg_len;
 	bool somt;
 	bool eomt;
-	bool seqno;
+	bool seqyes;
 };
 
 struct drm_dp_nak_reply {
@@ -308,7 +308,7 @@ struct drm_dp_sideband_msg_rx {
 	u8 chunk[48];
 	u8 msg[256];
 	u8 curchunk_len;
-	u8 curchunk_idx; /* chunk we are parsing now */
+	u8 curchunk_idx; /* chunk we are parsing yesw */
 	u8 curchunk_hdrlen;
 	u8 curlen; /* total length of the msg */
 	bool have_somt;
@@ -331,7 +331,7 @@ struct drm_dp_allocate_payload_ack_reply {
 	u16 allocated_pbn;
 };
 
-struct drm_dp_connection_status_notify {
+struct drm_dp_connection_status_yestify {
 	u8 guid[16];
 	u8 port_number;
 	bool legacy_device_plug_status;
@@ -362,7 +362,7 @@ struct drm_dp_remote_i2c_read {
 		u8 i2c_dev_id;
 		u8 num_bytes;
 		u8 *bytes;
-		u8 no_stop_bit;
+		u8 yes_stop_bit;
 		u8 i2c_transaction_delay;
 	} transactions[DP_REMOTE_I2C_READ_MAX_TRANSACTIONS];
 	u8 read_i2c_device_id;
@@ -397,7 +397,7 @@ struct drm_dp_query_payload {
 	u8 vcpi;
 };
 
-struct drm_dp_resource_status_notify {
+struct drm_dp_resource_status_yestify {
 	u8 port_number;
 	u8 guid[16];
 	u16 available_pbn;
@@ -411,9 +411,9 @@ struct drm_dp_query_payload_ack_reply {
 struct drm_dp_sideband_msg_req_body {
 	u8 req_type;
 	union ack_req {
-		struct drm_dp_connection_status_notify conn_stat;
+		struct drm_dp_connection_status_yestify conn_stat;
 		struct drm_dp_port_number_req port_num;
-		struct drm_dp_resource_status_notify resource_stat;
+		struct drm_dp_resource_status_yestify resource_stat;
 
 		struct drm_dp_query_payload query_payload;
 		struct drm_dp_allocate_payload allocate_payload;
@@ -465,7 +465,7 @@ struct drm_dp_sideband_msg_tx {
 	u8 cur_len;
 	struct drm_dp_mst_branch *dst;
 	struct list_head next;
-	int seqno;
+	int seqyes;
 	int state;
 	bool path_msg;
 	struct drm_dp_sideband_msg_reply_body reply;
@@ -574,7 +574,7 @@ struct drm_dp_mst_topology_mgr {
 
 	/**
 	 * @mst_state: If this manager is enabled for an MST capable port. False
-	 * if no MST sink/branch devices is connected.
+	 * if yes MST sink/branch devices is connected.
 	 */
 	bool mst_state;
 	/**
@@ -670,7 +670,7 @@ struct drm_dp_mst_topology_mgr {
 
 	/**
 	 * @up_req_list: List of pending up requests from the topology that
-	 * need to be processed, in chronological order.
+	 * need to be processed, in chroyeslogical order.
 	 */
 	struct list_head up_req_list;
 	/**

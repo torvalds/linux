@@ -3,9 +3,9 @@
  * store hypervisor information instruction emulation functions.
  *
  * Copyright IBM Corp. 2016
- * Author(s): Janosch Frank <frankja@linux.vnet.ibm.com>
+ * Author(s): Jayessch Frank <frankja@linux.vnet.ibm.com>
  */
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/pagemap.h>
 #include <linux/vmalloc.h>
 #include <linux/syscalls.h>
@@ -338,7 +338,7 @@ static void fill_diag(struct sthyi_sctns *sctns)
 		 * For the calling lpar we also need to get the cpu
 		 * caps and weights. The time information block header
 		 * specifies the offset to the partition block of the
-		 * caller lpar, so we know when we process its data.
+		 * caller lpar, so we kyesw when we process its data.
 		 */
 		this_lpar = (void *)part_block - diag204_buf == ti_hdr->this_part;
 		part_block = lpar_cpu_inf(&lpar_inf, this_lpar, diag224_buf,

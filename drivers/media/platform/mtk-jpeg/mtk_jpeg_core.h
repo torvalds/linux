@@ -43,7 +43,7 @@ enum mtk_jpeg_ctx_state {
  * @v4l2_dev:		v4l2 device for mem2mem mode
  * @m2m_dev:		v4l2 mem2mem device data
  * @alloc_ctx:		videobuf2 memory allocator's context
- * @dec_vdev:		video device node for decoder mem2mem mode
+ * @dec_vdev:		video device yesde for decoder mem2mem mode
  * @dec_reg_base:	JPEG registers mapping
  * @clk_jdec:		JPEG hw working clock
  * @clk_jdec_smi:	JPEG SMI bus clock
@@ -66,7 +66,7 @@ struct mtk_jpeg_dev {
 
 /**
  * struct jpeg_fmt - driver's internal color format data
- * @fourcc:	the fourcc code, 0 if not applicable
+ * @fourcc:	the fourcc code, 0 if yest applicable
  * @h_sample:	horizontal sample count of plane in 4 * 4 pixel image
  * @v_sample:	vertical sample count of plane in 4 * 4 pixel image
  * @colplanes:	number of color planes (1 for packed formats)

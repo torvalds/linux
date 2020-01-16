@@ -6,7 +6,7 @@
  *	Author: Yoichi Yuasa <source@mvista.com>
  *  Copyright (C) 2003-2009  Yoichi Yuasa <yuasa@linux-mips.org>
  */
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/fs.h>
 #include <linux/gpio/driver.h>
 #include <linux/init.h>
@@ -484,7 +484,7 @@ static int giu_probe(struct platform_device *pdev)
 		vr41xx_gpio_chip.ngpio = 48;
 		break;
 	default:
-		dev_err(&pdev->dev, "GIU: unknown ID %d\n", pdev->id);
+		dev_err(&pdev->dev, "GIU: unkyeswn ID %d\n", pdev->id);
 		return -ENODEV;
 	}
 

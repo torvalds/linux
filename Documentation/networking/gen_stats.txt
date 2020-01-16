@@ -8,7 +8,7 @@ Struct               TLV type              Description
 gnet_stats_basic     TCA_STATS_BASIC       Basic statistics
 gnet_stats_rate_est  TCA_STATS_RATE_EST    Rate estimator
 gnet_stats_queue     TCA_STATS_QUEUE       Queue statistics
-none                 TCA_STATS_APP         Application specific
+yesne                 TCA_STATS_APP         Application specific
 
 
 Collecting:
@@ -105,7 +105,7 @@ In the kernel when setting up:
    else
        failed
 
-From now on, every time you dump my_rate_est_stats it will contain
+From yesw on, every time you dump my_rate_est_stats it will contain
 up-to-date info.
 
 Once you are done, call gen_kill_estimator(my_basicstats,

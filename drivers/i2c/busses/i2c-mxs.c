@@ -5,7 +5,7 @@
  * Copyright (C) 2012-2013 Marek Vasut <marex@denx.de>
  * Copyright (C) 2011-2012 Wolfram Sang, Pengutronix e.K.
  *
- * based on a (non-working) driver which was:
+ * based on a (yesn-working) driver which was:
  *
  * Copyright (C) 2009-2010 Freescale Semiconductor, Inc. All Rights Reserved.
  */
@@ -102,12 +102,12 @@ enum mxs_i2c_devtype {
 /**
  * struct mxs_i2c_dev - per device, private MXS-I2C data
  *
- * @dev: driver model device node
+ * @dev: driver model device yesde
  * @dev_type: distinguish i.MX23/i.MX28 features
  * @regs: IO registers pointer
  * @cmd_complete: completion object for transaction wait
  * @cmd_err: error code for last transaction
- * @adapter: i2c subsystem adapter node
+ * @adapter: i2c subsystem adapter yesde
  */
 struct mxs_i2c_dev {
 	struct device *dev;
@@ -381,7 +381,7 @@ static int mxs_i2c_pio_setup_xfer(struct i2c_adapter *adap,
 	 *
 	 * WARNING! The MX23 is broken in some way, even if it claims
 	 * to support PIO, when we try to transfer any amount of data
-	 * that is not aligned to 4 bytes, the DMA engine will have
+	 * that is yest aligned to 4 bytes, the DMA engine will have
 	 * bits in DEBUG1::DMA_BYTES_ENABLES still set even after the
 	 * transfer. This in turn will mess up the next transfer as
 	 * the block it emit one byte write onto the bus terminated
@@ -395,12 +395,12 @@ static int mxs_i2c_pio_setup_xfer(struct i2c_adapter *adap,
 		/*
 		 * PIO READ transfer:
 		 *
-		 * This transfer MUST be limited to 4 bytes maximum. It is not
+		 * This transfer MUST be limited to 4 bytes maximum. It is yest
 		 * possible to transfer more than four bytes via PIO, since we
-		 * can not in any way make sure we can read the data from the
-		 * DATA register fast enough. Besides, the RX FIFO is only four
+		 * can yest in any way make sure we can read the data from the
+		 * DATA register fast eyesugh. Besides, the RX FIFO is only four
 		 * bytes deep, thus we can only really read up to four bytes at
-		 * time. Finally, there is no bit indicating us that new data
+		 * time. Finally, there is yes bit indicating us that new data
 		 * arrived at the FIFO and can thus be fetched from the DATA
 		 * register.
 		 */
@@ -439,8 +439,8 @@ static int mxs_i2c_pio_setup_xfer(struct i2c_adapter *adap,
 		 * PIO WRITE transfer:
 		 *
 		 * The code below implements clock stretching to circumvent
-		 * the possibility of kernel not being able to supply data
-		 * fast enough. It is possible to transfer arbitrary amount
+		 * the possibility of kernel yest being able to supply data
+		 * fast eyesugh. It is possible to transfer arbitrary amount
 		 * of data using PIO write.
 		 */
 
@@ -569,7 +569,7 @@ static int mxs_i2c_xfer_msg(struct i2c_adapter *adap, struct i2c_msg *msg,
 
 	/*
 	 * The MX28 I2C IP block can only do PIO READ for transfer of to up
-	 * 4 bytes of length. The write transfer is not limited as it can use
+	 * 4 bytes of length. The write transfer is yest limited as it can use
 	 * clock stretching to avoid FIFO underruns.
 	 */
 	if ((msg->flags & I2C_M_RD) && (msg->len <= 4))
@@ -612,9 +612,9 @@ static int mxs_i2c_xfer_msg(struct i2c_adapter *adap, struct i2c_msg *msg,
 	 * block must be reset, otherwise the IP block will misbehave. This can
 	 * be observed on the bus by the block sending out one single byte onto
 	 * the bus. In case such an error happens, bit 27 will be set in the
-	 * DEBUG0 register. This bit is not documented in the i.MX23 datasheet
+	 * DEBUG0 register. This bit is yest documented in the i.MX23 datasheet
 	 * and is marked as "TBD" instead. To reset this bit to a correct state,
-	 * reset the whole block. Since the block reset does not take long, do
+	 * reset the whole block. Since the block reset does yest take long, do
 	 * reset the block after every transfer to play safe.
 	 */
 	if (i2c->dev_type == MXS_I2C_V1)
@@ -708,7 +708,7 @@ static void mxs_i2c_derive_timing(struct mxs_i2c_dev *i2c, uint32_t speed)
 	} else if (divider > 1897) {
 		/*
 		 * limit the divider, so that max(low_count, high_count)
-		 * cannot exceed 1023
+		 * canyest exceed 1023
 		 */
 		divider = 1897;
 		dev_warn(dev,
@@ -738,7 +738,7 @@ static void mxs_i2c_derive_timing(struct mxs_i2c_dev *i2c, uint32_t speed)
 		leadin = DIV_ROUND_UP(600 * (clk / 1000000), 1000);
 		bus_free = DIV_ROUND_UP(1300 * (clk / 1000000), 1000);
 	} else {
-		/* normal mode */
+		/* yesrmal mode */
 		low_count = DIV_ROUND_CLOSEST(divider * 47, (47 + 40));
 		high_count = DIV_ROUND_CLOSEST(divider * 40, (47 + 40));
 		leadin = DIV_ROUND_UP(4700 * (clk / 1000000), 1000);
@@ -763,10 +763,10 @@ static int mxs_i2c_get_ofdata(struct mxs_i2c_dev *i2c)
 {
 	uint32_t speed;
 	struct device *dev = i2c->dev;
-	struct device_node *node = dev->of_node;
+	struct device_yesde *yesde = dev->of_yesde;
 	int ret;
 
-	ret = of_property_read_u32(node, "clock-frequency", &speed);
+	ret = of_property_read_u32(yesde, "clock-frequency", &speed);
 	if (ret) {
 		dev_warn(dev, "No I2C speed selected, using 100kHz\n");
 		speed = 100000;
@@ -829,7 +829,7 @@ static int mxs_i2c_probe(struct platform_device *pdev)
 
 	init_completion(&i2c->cmd_complete);
 
-	if (dev->of_node) {
+	if (dev->of_yesde) {
 		err = mxs_i2c_get_ofdata(i2c);
 		if (err)
 			return err;
@@ -856,7 +856,7 @@ static int mxs_i2c_probe(struct platform_device *pdev)
 	adap->quirks = &mxs_i2c_quirks;
 	adap->dev.parent = dev;
 	adap->nr = pdev->id;
-	adap->dev.of_node = pdev->dev.of_node;
+	adap->dev.of_yesde = pdev->dev.of_yesde;
 	i2c_set_adapdata(adap, i2c);
 	err = i2c_add_numbered_adapter(adap);
 	if (err) {

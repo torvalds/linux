@@ -20,13 +20,13 @@
  * This is the control structure for tasks blocked on a rt_mutex,
  * which is allocated on the kernel stack on of the blocked task.
  *
- * @tree_entry:		pi node to enqueue into the mutex waiters tree
- * @pi_tree_entry:	pi node to enqueue into the mutex owner waiters tree
+ * @tree_entry:		pi yesde to enqueue into the mutex waiters tree
+ * @pi_tree_entry:	pi yesde to enqueue into the mutex owner waiters tree
  * @task:		task reference to the blocked task
  */
 struct rt_mutex_waiter {
-	struct rb_node          tree_entry;
-	struct rb_node          pi_tree_entry;
+	struct rb_yesde          tree_entry;
+	struct rb_yesde          pi_tree_entry;
 	struct task_struct	*task;
 	struct rt_mutex		*lock;
 #ifdef CONFIG_DEBUG_RT_MUTEXES
@@ -52,7 +52,7 @@ static inline int rt_mutex_has_waiters(struct rt_mutex *lock)
 static inline struct rt_mutex_waiter *
 rt_mutex_top_waiter(struct rt_mutex *lock)
 {
-	struct rb_node *leftmost = rb_first_cached(&lock->waiters);
+	struct rb_yesde *leftmost = rb_first_cached(&lock->waiters);
 	struct rt_mutex_waiter *w = NULL;
 
 	if (leftmost) {
@@ -117,7 +117,7 @@ static inline struct task_struct *rt_mutex_owner(struct rt_mutex *lock)
  * detection.
  *
  * RT_MUTEX_MIN_CHAINWALK:	Stops the lock chain walk when there are
- *				no further PI adjustments to be made.
+ *				yes further PI adjustments to be made.
  *
  * RT_MUTEX_FULL_CHAINWALK:	Invoke deadlock detection with a full
  *				walk of the lock chain.

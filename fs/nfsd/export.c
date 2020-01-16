@@ -130,7 +130,7 @@ static int expkey_parse(struct cache_detail *cd, char *mesg, int mlen)
 	if (!ek)
 		goto out;
 
-	/* now we want a pathname, or empty meaning NEGATIVE  */
+	/* yesw we want a pathname, or empty meaning NEGATIVE  */
 	err = -EINVAL;
 	len = qword_get(&mesg, buf, PAGE_SIZE);
 	if (len < 0)
@@ -236,7 +236,7 @@ static struct cache_head *expkey_alloc(void)
 static void expkey_flush(void)
 {
 	/*
-	 * Take the nfsd_mutex here to ensure that the file cache is not
+	 * Take the nfsd_mutex here to ensure that the file cache is yest
 	 * destroyed while we're in the middle of flushing.
 	 */
 	mutex_lock(&nfsd_mutex);
@@ -353,16 +353,16 @@ static struct svc_export *svc_export_update(struct svc_export *new,
 					    struct svc_export *old);
 static struct svc_export *svc_export_lookup(struct svc_export *);
 
-static int check_export(struct inode *inode, int *flags, unsigned char *uuid)
+static int check_export(struct iyesde *iyesde, int *flags, unsigned char *uuid)
 {
 
 	/*
 	 * We currently export only dirs, regular files, and (for v4
 	 * pseudoroot) symlinks.
 	 */
-	if (!S_ISDIR(inode->i_mode) &&
-	    !S_ISLNK(inode->i_mode) &&
-	    !S_ISREG(inode->i_mode))
+	if (!S_ISDIR(iyesde->i_mode) &&
+	    !S_ISLNK(iyesde->i_mode) &&
+	    !S_ISREG(iyesde->i_mode))
 		return -ENOTDIR;
 
 	/*
@@ -376,18 +376,18 @@ static int check_export(struct inode *inode, int *flags, unsigned char *uuid)
 	 * 1:  We must be able to identify the filesystem from a number.
 	 *       either a device number (so FS_REQUIRES_DEV needed)
 	 *       or an FSID number (so NFSEXP_FSID or ->uuid is needed).
-	 * 2:  We must be able to find an inode from a filehandle.
+	 * 2:  We must be able to find an iyesde from a filehandle.
 	 *       This means that s_export_op must be set.
 	 */
-	if (!(inode->i_sb->s_type->fs_flags & FS_REQUIRES_DEV) &&
+	if (!(iyesde->i_sb->s_type->fs_flags & FS_REQUIRES_DEV) &&
 	    !(*flags & NFSEXP_FSID) &&
 	    uuid == NULL) {
-		dprintk("exp_export: export of non-dev fs without fsid\n");
+		dprintk("exp_export: export of yesn-dev fs without fsid\n");
 		return -EINVAL;
 	}
 
-	if (!inode->i_sb->s_export_op ||
-	    !inode->i_sb->s_export_op->fh_to_dentry) {
+	if (!iyesde->i_sb->s_export_op ||
+	    !iyesde->i_sb->s_export_op->fh_to_dentry) {
 		dprintk("exp_export: export of invalid fs type.\n");
 		return -EINVAL;
 	}
@@ -523,7 +523,7 @@ nfsd_uuid_parse(char **mesg, char *buf, unsigned char **puuid)
 
 static int svc_export_parse(struct cache_detail *cd, char *mesg, int mlen)
 {
-	/* client path expiry [flags anonuid anongid fsid] */
+	/* client path expiry [flags ayesnuid ayesngid fsid] */
 	char *buf;
 	int len;
 	int err;
@@ -579,17 +579,17 @@ static int svc_export_parse(struct cache_detail *cd, char *mesg, int mlen)
 			goto out3;
 		exp.ex_flags= an_int;
 	
-		/* anon uid */
+		/* ayesn uid */
 		err = get_int(&mesg, &an_int);
 		if (err)
 			goto out3;
-		exp.ex_anon_uid= make_kuid(current_user_ns(), an_int);
+		exp.ex_ayesn_uid= make_kuid(current_user_ns(), an_int);
 
-		/* anon gid */
+		/* ayesn gid */
 		err = get_int(&mesg, &an_int);
 		if (err)
 			goto out3;
-		exp.ex_anon_gid= make_kgid(current_user_ns(), an_int);
+		exp.ex_ayesn_gid= make_kgid(current_user_ns(), an_int);
 
 		/* fsid */
 		err = get_int(&mesg, &an_int);
@@ -605,7 +605,7 @@ static int svc_export_parse(struct cache_detail *cd, char *mesg, int mlen)
 			else if (strcmp(buf, "secinfo") == 0)
 				err = secinfo_parse(&mesg, buf, &exp);
 			else
-				/* quietly ignore unknown words and anything
+				/* quietly igyesre unkyeswn words and anything
 				 * following. Newer user-space can try to set
 				 * new values, then see what the result was.
 				 */
@@ -614,14 +614,14 @@ static int svc_export_parse(struct cache_detail *cd, char *mesg, int mlen)
 				goto out4;
 		}
 
-		err = check_export(d_inode(exp.ex_path.dentry), &exp.ex_flags,
+		err = check_export(d_iyesde(exp.ex_path.dentry), &exp.ex_flags,
 				   exp.ex_uuid);
 		if (err)
 			goto out4;
 		/*
 		 * No point caching this if it would immediately expire.
 		 * Also, this protects exportfs's dummy export from the
-		 * anon_uid/anon_gid checks:
+		 * ayesn_uid/ayesn_gid checks:
 		 */
 		if (exp.h.expiry_time < seconds_since_boot())
 			goto out4;
@@ -633,9 +633,9 @@ static int svc_export_parse(struct cache_detail *cd, char *mesg, int mlen)
 		 * delay these checks till after check_export:
 		 */
 		err = -EINVAL;
-		if (!uid_valid(exp.ex_anon_uid))
+		if (!uid_valid(exp.ex_ayesn_uid))
 			goto out4;
-		if (!gid_valid(exp.ex_anon_gid))
+		if (!gid_valid(exp.ex_ayesn_gid))
 			goto out4;
 		err = 0;
 
@@ -665,7 +665,7 @@ out:
 }
 
 static void exp_flags(struct seq_file *m, int flag, int fsid,
-		kuid_t anonu, kgid_t anong, struct nfsd4_fs_locations *fslocs);
+		kuid_t ayesnu, kgid_t ayesng, struct nfsd4_fs_locations *fslocs);
 static void show_secinfo(struct seq_file *m, struct svc_export *exp);
 
 static int svc_export_show(struct seq_file *m,
@@ -686,7 +686,7 @@ static int svc_export_show(struct seq_file *m,
 	if (test_bit(CACHE_VALID, &h->flags) && 
 	    !test_bit(CACHE_NEGATIVE, &h->flags)) {
 		exp_flags(m, exp->ex_flags, exp->ex_fsid,
-			  exp->ex_anon_uid, exp->ex_anon_gid, &exp->ex_fslocs);
+			  exp->ex_ayesn_uid, exp->ex_ayesn_gid, &exp->ex_fslocs);
 		if (exp->ex_uuid) {
 			int i;
 			seq_puts(m, ",uuid=");
@@ -733,8 +733,8 @@ static void export_update(struct cache_head *cnew, struct cache_head *citem)
 	int i;
 
 	new->ex_flags = item->ex_flags;
-	new->ex_anon_uid = item->ex_anon_uid;
-	new->ex_anon_gid = item->ex_anon_gid;
+	new->ex_ayesn_uid = item->ex_ayesn_uid;
+	new->ex_ayesn_gid = item->ex_ayesn_gid;
 	new->ex_fsid = item->ex_fsid;
 	new->ex_devid_map = item->ex_devid_map;
 	item->ex_devid_map = NULL;
@@ -893,7 +893,7 @@ exp_rootfh(struct net *net, struct auth_domain *clp, char *name,
 {
 	struct svc_export	*exp;
 	struct path		path;
-	struct inode		*inode;
+	struct iyesde		*iyesde;
 	struct svc_fh		fh;
 	int			err;
 	struct nfsd_net		*nn = net_generic(net, nfsd_net_id);
@@ -902,14 +902,14 @@ exp_rootfh(struct net *net, struct auth_domain *clp, char *name,
 	err = -EPERM;
 	/* NB: we probably ought to check that it's NUL-terminated */
 	if (kern_path(name, 0, &path)) {
-		printk("nfsd: exp_rootfh path not found %s", name);
+		printk("nfsd: exp_rootfh path yest found %s", name);
 		return err;
 	}
-	inode = d_inode(path.dentry);
+	iyesde = d_iyesde(path.dentry);
 
 	dprintk("nfsd: exp_rootfh(%s [%p] %s:%s/%ld)\n",
 		 name, path.dentry, clp->name,
-		 inode->i_sb->s_id, inode->i_ino);
+		 iyesde->i_sb->s_id, iyesde->i_iyes);
 	exp = exp_parent(cd, clp, &path);
 	if (IS_ERR(exp)) {
 		err = PTR_ERR(exp);
@@ -1007,7 +1007,7 @@ rqst_exp_get_by_name(struct svc_rqst *rqstp, struct path *path)
 		goto gss;
 	if (IS_ERR(exp))
 		return exp;
-	/* If it has secinfo, assume there are no gss/... clients */
+	/* If it has secinfo, assume there are yes gss/... clients */
 	if (exp->ex_nflavors > 0)
 		return exp;
 gss:
@@ -1039,7 +1039,7 @@ rqst_exp_find(struct svc_rqst *rqstp, int fsid_type, u32 *fsidv)
 		goto gss;
 	if (IS_ERR(exp))
 		return exp;
-	/* If it has secinfo, assume there are no gss/... clients */
+	/* If it has secinfo, assume there are yes gss/... clients */
 	if (exp->ex_nflavors > 0)
 		return exp;
 gss:
@@ -1094,7 +1094,7 @@ exp_pseudoroot(struct svc_rqst *rqstp, struct svc_fh *fhp)
 
 	exp = rqst_find_fsidzero_export(rqstp);
 	if (IS_ERR(exp))
-		return nfserrno(PTR_ERR(exp));
+		return nfserryes(PTR_ERR(exp));
 	rv = fh_compose(fhp, exp, exp->ex_path.dentry, NULL);
 	exp_put(exp);
 	return rv;
@@ -1106,14 +1106,14 @@ static struct flags {
 } expflags[] = {
 	{ NFSEXP_READONLY, {"ro", "rw"}},
 	{ NFSEXP_INSECURE_PORT, {"insecure", ""}},
-	{ NFSEXP_ROOTSQUASH, {"root_squash", "no_root_squash"}},
+	{ NFSEXP_ROOTSQUASH, {"root_squash", "yes_root_squash"}},
 	{ NFSEXP_ALLSQUASH, {"all_squash", ""}},
 	{ NFSEXP_ASYNC, {"async", "sync"}},
-	{ NFSEXP_GATHERED_WRITES, {"wdelay", "no_wdelay"}},
-	{ NFSEXP_NOREADDIRPLUS, {"nordirplus", ""}},
-	{ NFSEXP_NOHIDE, {"nohide", ""}},
+	{ NFSEXP_GATHERED_WRITES, {"wdelay", "yes_wdelay"}},
+	{ NFSEXP_NOREADDIRPLUS, {"yesrdirplus", ""}},
+	{ NFSEXP_NOHIDE, {"yeshide", ""}},
 	{ NFSEXP_CROSSMOUNT, {"crossmnt", ""}},
-	{ NFSEXP_NOSUBTREECHECK, {"no_subtree_check", ""}},
+	{ NFSEXP_NOSUBTREECHECK, {"yes_subtree_check", ""}},
 	{ NFSEXP_NOAUTHNLM, {"insecure_locks", ""}},
 	{ NFSEXP_V4ROOT, {"v4root", ""}},
 	{ NFSEXP_PNFS, {"pnfs", ""}},
@@ -1181,19 +1181,19 @@ static void show_secinfo(struct seq_file *m, struct svc_export *exp)
 }
 
 static void exp_flags(struct seq_file *m, int flag, int fsid,
-		kuid_t anonu, kgid_t anong, struct nfsd4_fs_locations *fsloc)
+		kuid_t ayesnu, kgid_t ayesng, struct nfsd4_fs_locations *fsloc)
 {
 	struct user_namespace *userns = m->file->f_cred->user_ns;
 
 	show_expflags(m, flag, NFSEXP_ALLFLAGS);
 	if (flag & NFSEXP_FSID)
 		seq_printf(m, ",fsid=%d", fsid);
-	if (!uid_eq(anonu, make_kuid(userns, (uid_t)-2)) &&
-	    !uid_eq(anonu, make_kuid(userns, 0x10000-2)))
-		seq_printf(m, ",anonuid=%u", from_kuid_munged(userns, anonu));
-	if (!gid_eq(anong, make_kgid(userns, (gid_t)-2)) &&
-	    !gid_eq(anong, make_kgid(userns, 0x10000-2)))
-		seq_printf(m, ",anongid=%u", from_kgid_munged(userns, anong));
+	if (!uid_eq(ayesnu, make_kuid(userns, (uid_t)-2)) &&
+	    !uid_eq(ayesnu, make_kuid(userns, 0x10000-2)))
+		seq_printf(m, ",ayesnuid=%u", from_kuid_munged(userns, ayesnu));
+	if (!gid_eq(ayesng, make_kgid(userns, (gid_t)-2)) &&
+	    !gid_eq(ayesng, make_kgid(userns, 0x10000-2)))
+		seq_printf(m, ",ayesngid=%u", from_kgid_munged(userns, ayesng));
 	if (fsloc && fsloc->locations_count > 0) {
 		char *loctype = (fsloc->migrated) ? "refer" : "replicas";
 		int i;

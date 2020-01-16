@@ -1,8 +1,8 @@
 * Berlin Analog to Digital Converter (ADC)
 
 The Berlin ADC has 8 channels, with one connected to a temperature sensor.
-It is part of the system controller register set. The ADC node should be a
-sub-node of the system controller node.
+It is part of the system controller register set. The ADC yesde should be a
+sub-yesde of the system controller yesde.
 
 Required properties:
 - compatible: must be "marvell,berlin2-adc"

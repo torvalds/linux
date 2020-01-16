@@ -10,7 +10,7 @@ config I2C
 	select RT_MUTEXES
 	select IRQ_DOMAIN
 	---help---
-	  I2C (pronounce: I-squared-C) is a slow serial bus protocol used in
+	  I2C (proyesunce: I-squared-C) is a slow serial bus protocol used in
 	  many micro controller applications and developed by Philips.  SMBus,
 	  or System Management Bus is a subset of the I2C protocol.  More
 	  information is contained in the directory <file:Documentation/i2c/>,
@@ -46,7 +46,7 @@ config I2C_COMPAT
 	help
 	  Say Y here if you intend to run lm-sensors 3.1.1 or older, or any
 	  other user-space package which expects i2c adapters to be class
-	  devices. If you don't know, say Y.
+	  devices. If you don't kyesw, say Y.
 
 config I2C_CHARDEV
 	tristate "I2C device interface"
@@ -106,10 +106,10 @@ config I2C_STUB
 	  This module may be useful to developers of SMBus client drivers,
 	  especially for certain kinds of sensor chips.
 
-	  If you do build this module, be sure to read the notes and warnings
+	  If you do build this module, be sure to read the yestes and warnings
 	  in <file:Documentation/i2c/i2c-stub.rst>.
 
-	  If you don't know what to do here, definitely say N.
+	  If you don't kyesw what to do here, definitely say N.
 
 config I2C_SLAVE
 	bool "I2C slave support"

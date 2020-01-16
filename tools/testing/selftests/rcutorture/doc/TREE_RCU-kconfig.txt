@@ -4,40 +4,40 @@ cases, a group that includes PREEMPT_RCU.
 
 Kconfig Parameters:
 
-CONFIG_DEBUG_LOCK_ALLOC -- Do three, covering CONFIG_PROVE_LOCKING & not.
+CONFIG_DEBUG_LOCK_ALLOC -- Do three, covering CONFIG_PROVE_LOCKING & yest.
 CONFIG_DEBUG_OBJECTS_RCU_HEAD -- Do one.
 CONFIG_HZ_PERIODIC -- Do one.
-CONFIG_NO_HZ_IDLE -- Do those not otherwise specified. (Groups of two.)
+CONFIG_NO_HZ_IDLE -- Do those yest otherwise specified. (Groups of two.)
 CONFIG_NO_HZ_FULL -- Do two, one with partial CPU enablement.
 CONFIG_PREEMPT -- Do half.  (First three and #8.)
-CONFIG_PROVE_LOCKING -- Do several, covering CONFIG_DEBUG_LOCK_ALLOC=y and not.
+CONFIG_PROVE_LOCKING -- Do several, covering CONFIG_DEBUG_LOCK_ALLOC=y and yest.
 CONFIG_PROVE_RCU -- Hardwired to CONFIG_PROVE_LOCKING.
 CONFIG_RCU_BOOST -- one of PREEMPT_RCU.
 CONFIG_RCU_FANOUT -- Cover hierarchy, but overlap with others.
-CONFIG_RCU_FANOUT_LEAF -- Do one non-default.
-CONFIG_RCU_FAST_NO_HZ -- Do one, but not with all nohz_full CPUs.
-CONFIG_RCU_NOCB_CPU -- Do three, one with no rcu_nocbs CPUs, one with
-	rcu_nocbs=0, and one with all rcu_nocbs CPUs.
+CONFIG_RCU_FANOUT_LEAF -- Do one yesn-default.
+CONFIG_RCU_FAST_NO_HZ -- Do one, but yest with all yeshz_full CPUs.
+CONFIG_RCU_NOCB_CPU -- Do three, one with yes rcu_yescbs CPUs, one with
+	rcu_yescbs=0, and one with all rcu_yescbs CPUs.
 CONFIG_RCU_TRACE -- Do half.
 CONFIG_SMP -- Need one !SMP for PREEMPT_RCU.
 CONFIG_RCU_EXPERT=n -- Do a few, but these have to be vanilla configurations.
-CONFIG_RCU_EQS_DEBUG -- Do at least one for CONFIG_NO_HZ_FULL and not.
+CONFIG_RCU_EQS_DEBUG -- Do at least one for CONFIG_NO_HZ_FULL and yest.
 
 RCU-bh: Do one with PREEMPT and one with !PREEMPT.
-RCU-sched: Do one with PREEMPT but not BOOST.
+RCU-sched: Do one with PREEMPT but yest BOOST.
 
 
 Boot parameters:
 
-nohz_full - do at least one.
+yeshz_full - do at least one.
 maxcpu -- do at least one.
-rcupdate.rcu_self_test_bh -- Do at least one each, offloaded and not.
-rcupdate.rcu_self_test_sched -- Do at least one each, offloaded and not.
-rcupdate.rcu_self_test -- Do at least one each, offloaded and not.
-rcutree.rcu_fanout_exact -- Do at least one.
+rcupdate.rcu_self_test_bh -- Do at least one each, offloaded and yest.
+rcupdate.rcu_self_test_sched -- Do at least one each, offloaded and yest.
+rcupdate.rcu_self_test -- Do at least one each, offloaded and yest.
+rcutree.rcu_fayesut_exact -- Do at least one.
 
 
-Kconfig Parameters Ignored:
+Kconfig Parameters Igyesred:
 
 CONFIG_64BIT
 
@@ -46,15 +46,15 @@ CONFIG_64BIT
 CONFIG_PREEMPT_COUNT
 CONFIG_PREEMPT_RCU
 
-	Redundant with CONFIG_PREEMPT, ignore.
+	Redundant with CONFIG_PREEMPT, igyesre.
 
 CONFIG_RCU_BOOST_DELAY
 
-	Inspection suffices, ignore.
+	Inspection suffices, igyesre.
 
 CONFIG_RCU_CPU_STALL_TIMEOUT
 
-	Inspection suffices, ignore.
+	Inspection suffices, igyesre.
 
 CONFIG_RCU_STALL_COMMON
 
@@ -74,7 +74,7 @@ CONFIG_TASKS_RCU
 
 CONFIG_SRCU
 
-	Selected by CONFIG_RCU_TORTURE_TEST, so cannot disable.
+	Selected by CONFIG_RCU_TORTURE_TEST, so canyest disable.
 
 
-boot parameters ignored: TBD
+boot parameters igyesred: TBD

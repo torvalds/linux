@@ -63,7 +63,7 @@ static int cavium_cfg_probe(struct arm_smmu_device *smmu)
 	 * the system.
 	 */
 	cs->id_base = atomic_fetch_add(smmu->num_context_banks, &context_count);
-	dev_notice(smmu->dev, "\tenabling workaround for Cavium erratum 27704\n");
+	dev_yestice(smmu->dev, "\tenabling workaround for Cavium erratum 27704\n");
 
 	return 0;
 }
@@ -131,7 +131,7 @@ int arm_mmu500_reset(struct arm_smmu_device *smmu)
 	arm_smmu_gr0_write(smmu, ARM_SMMU_GR0_sACR, reg);
 
 	/*
-	 * Disable MMU-500's not-particularly-beneficial next-page
+	 * Disable MMU-500's yest-particularly-beneficial next-page
 	 * prefetcher for the sake of errata #841119 and #826419.
 	 */
 	for (i = 0; i < smmu->num_context_banks; ++i) {
@@ -166,11 +166,11 @@ struct arm_smmu_device *arm_smmu_impl_init(struct arm_smmu_device *smmu)
 		break;
 	}
 
-	if (of_property_read_bool(smmu->dev->of_node,
+	if (of_property_read_bool(smmu->dev->of_yesde,
 				  "calxeda,smmu-secure-config-access"))
 		smmu->impl = &calxeda_impl;
 
-	if (of_device_is_compatible(smmu->dev->of_node, "qcom,sdm845-smmu-500"))
+	if (of_device_is_compatible(smmu->dev->of_yesde, "qcom,sdm845-smmu-500"))
 		return qcom_smmu_impl_init(smmu);
 
 	return smmu;

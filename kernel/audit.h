@@ -21,7 +21,7 @@
    a per-task filter.  At syscall entry, the audit_state is augmented by
    the syscall filter. */
 enum audit_state {
-	AUDIT_DISABLED,		/* Do not create per-task audit_context.
+	AUDIT_DISABLED,		/* Do yest create per-task audit_context.
 				 * No syscall-specific audit records can
 				 * be generated. */
 	AUDIT_BUILD_CONTEXT,	/* Create the per-task audit_context,
@@ -38,7 +38,7 @@ enum audit_state {
 
 /* Rule lists */
 struct audit_watch;
-struct audit_fsnotify_mark;
+struct audit_fsyestify_mark;
 struct audit_tree;
 struct audit_chunk;
 
@@ -62,7 +62,7 @@ struct audit_cap_data {
 /* When fs/namei.c:getname() is called, we store the pointer in name and bump
  * the refcnt in the associated filename struct.
  *
- * Further, in fs/namei.c:path_lookup() we store the inode and device.
+ * Further, in fs/namei.c:path_lookup() we store the iyesde and device.
  */
 struct audit_names {
 	struct list_head	list;		/* audit_context->names_list */
@@ -71,7 +71,7 @@ struct audit_names {
 	int			name_len;	/* number of chars to log */
 	bool			hidden;		/* don't log this record */
 
-	unsigned long		ino;
+	unsigned long		iyes;
 	dev_t			dev;
 	umode_t			mode;
 	kuid_t			uid;
@@ -82,7 +82,7 @@ struct audit_names {
 	unsigned int		fcap_ver;
 	unsigned char		type;		/* record type */
 	/*
-	 * This was an allocated audit_names and not from the array of
+	 * This was an allocated audit_names and yest from the array of
 	 * names allocated in the task audit context.  Thus this name
 	 * should be freed on syscall exit.
 	 */
@@ -164,8 +164,8 @@ struct audit_context {
 		} mq_getsetattr;
 		struct {
 			mqd_t			mqdes;
-			int			sigev_signo;
-		} mq_notify;
+			int			sigev_sigyes;
+		} mq_yestify;
 		struct {
 			mqd_t			mqdes;
 			size_t			msg_len;
@@ -203,11 +203,11 @@ extern void audit_log_session_info(struct audit_buffer *ab);
 extern int auditd_test_task(struct task_struct *task);
 
 #define AUDIT_INODE_BUCKETS	32
-extern struct list_head audit_inode_hash[AUDIT_INODE_BUCKETS];
+extern struct list_head audit_iyesde_hash[AUDIT_INODE_BUCKETS];
 
-static inline int audit_hash_ino(u32 ino)
+static inline int audit_hash_iyes(u32 iyes)
 {
-	return (ino & (AUDIT_INODE_BUCKETS-1));
+	return (iyes & (AUDIT_INODE_BUCKETS-1));
 }
 
 /* Indicates that audit should log the full pathname. */
@@ -259,21 +259,21 @@ extern int audit_to_watch(struct audit_krule *krule, char *path, int len,
 extern int audit_add_watch(struct audit_krule *krule, struct list_head **list);
 extern void audit_remove_watch_rule(struct audit_krule *krule);
 extern char *audit_watch_path(struct audit_watch *watch);
-extern int audit_watch_compare(struct audit_watch *watch, unsigned long ino,
+extern int audit_watch_compare(struct audit_watch *watch, unsigned long iyes,
 			       dev_t dev);
 
-extern struct audit_fsnotify_mark *audit_alloc_mark(struct audit_krule *krule,
+extern struct audit_fsyestify_mark *audit_alloc_mark(struct audit_krule *krule,
 						    char *pathname, int len);
-extern char *audit_mark_path(struct audit_fsnotify_mark *mark);
-extern void audit_remove_mark(struct audit_fsnotify_mark *audit_mark);
+extern char *audit_mark_path(struct audit_fsyestify_mark *mark);
+extern void audit_remove_mark(struct audit_fsyestify_mark *audit_mark);
 extern void audit_remove_mark_rule(struct audit_krule *krule);
-extern int audit_mark_compare(struct audit_fsnotify_mark *mark,
-			      unsigned long ino, dev_t dev);
+extern int audit_mark_compare(struct audit_fsyestify_mark *mark,
+			      unsigned long iyes, dev_t dev);
 extern int audit_dupe_exe(struct audit_krule *new, struct audit_krule *old);
 extern int audit_exe_compare(struct task_struct *tsk,
-			     struct audit_fsnotify_mark *mark);
+			     struct audit_fsyestify_mark *mark);
 
-extern struct audit_chunk *audit_tree_lookup(const struct inode *inode);
+extern struct audit_chunk *audit_tree_lookup(const struct iyesde *iyesde);
 extern void audit_put_chunk(struct audit_chunk *chunk);
 extern bool audit_tree_match(struct audit_chunk *chunk,
 			     struct audit_tree *tree);
@@ -287,7 +287,7 @@ extern void audit_put_tree(struct audit_tree *tree);
 extern void audit_kill_trees(struct audit_context *context);
 
 extern int audit_signal_info_syscall(struct task_struct *t);
-extern void audit_filter_inodes(struct task_struct *tsk,
+extern void audit_filter_iyesdes(struct task_struct *tsk,
 				struct audit_context *ctx);
 extern struct list_head *audit_killed_trees(void);
 #else /* CONFIG_AUDITSYSCALL */
@@ -322,7 +322,7 @@ static inline int audit_signal_info_syscall(struct task_struct *t)
 	return 0;
 }
 
-#define audit_filter_inodes(t, c) AUDIT_DISABLED
+#define audit_filter_iyesdes(t, c) AUDIT_DISABLED
 #endif /* CONFIG_AUDITSYSCALL */
 
 extern char *audit_unpack_string(void **bufp, size_t *remain, size_t len);

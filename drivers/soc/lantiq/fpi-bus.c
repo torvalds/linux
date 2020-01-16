@@ -27,7 +27,7 @@
 static int ltq_fpi_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 	struct resource *res_xbar;
 	struct regmap *rcu_regmap;
 	void __iomem *xbar_membase;
@@ -62,7 +62,7 @@ static int ltq_fpi_probe(struct platform_device *pdev)
 	/* disable fpi burst */
 	ltq_w32_mask(XBAR_FPI_BURST_EN, 0, xbar_membase + XBAR_ALWAYS_LAST);
 
-	return of_platform_populate(dev->of_node, NULL, NULL, dev);
+	return of_platform_populate(dev->of_yesde, NULL, NULL, dev);
 }
 
 static const struct of_device_id ltq_fpi_match[] = {

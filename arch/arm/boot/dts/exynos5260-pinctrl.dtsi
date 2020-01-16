@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Samsung's Exynos5260 SoC pin-mux and pin-config device tree source
+ * Samsung's Exyyess5260 SoC pin-mux and pin-config device tree source
  *
  * Copyright (c) 2013 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com
  *
- * Samsung's Exynos5260 SoC pin-mux and pin-config options are listed as device
- * tree nodes are listed in this file.
+ * Samsung's Exyyess5260 SoC pin-mux and pin-config options are listed as device
+ * tree yesdes are listed in this file.
  */
 
 #include <dt-bindings/pinctrl/samsung.h>

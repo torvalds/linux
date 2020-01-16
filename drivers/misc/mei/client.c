@@ -124,7 +124,7 @@ void mei_me_cl_add(struct mei_device *dev, struct mei_me_client *me_cl)
  * @dev: mei device
  * @uuid: me client uuid
  *
- * Return: me client or NULL if not found
+ * Return: me client or NULL if yest found
  *
  * Locking: dev->me_clients_rwsem
  */
@@ -152,7 +152,7 @@ static struct mei_me_client *__mei_me_cl_by_uuid(struct mei_device *dev,
  * @dev: mei device
  * @uuid: me client uuid
  *
- * Return: me client or NULL if not found
+ * Return: me client or NULL if yest found
  *
  * Locking: dev->me_clients_rwsem
  */
@@ -175,7 +175,7 @@ struct mei_me_client *mei_me_cl_by_uuid(struct mei_device *dev,
  * @dev: the device structure
  * @client_id: me client id
  *
- * Return: me client or NULL if not found
+ * Return: me client or NULL if yest found
  *
  * Locking: dev->me_clients_rwsem
  */
@@ -204,7 +204,7 @@ struct mei_me_client *mei_me_cl_by_id(struct mei_device *dev, u8 client_id)
  * @uuid: me client uuid
  * @client_id: me client id
  *
- * Return: me client or null if not found
+ * Return: me client or null if yest found
  *
  * Locking: dev->me_clients_rwsem
  */
@@ -235,7 +235,7 @@ static struct mei_me_client *__mei_me_cl_by_uuid_id(struct mei_device *dev,
  * @uuid: me client uuid
  * @client_id: me client id
  *
- * Return: me client or null if not found
+ * Return: me client or null if yest found
  */
 struct mei_me_client *mei_me_cl_by_uuid_id(struct mei_device *dev,
 					   const uuid_le *uuid, u8 client_id)
@@ -501,7 +501,7 @@ struct mei_cl_cb *mei_cl_enqueue_ctrl_wr_cb(struct mei_cl *cl, size_t length,
  * @cl: host client
  * @fp: file pointer (matching cb file object), may be NULL
  *
- * Return: cb on success, NULL if cb is not found
+ * Return: cb on success, NULL if cb is yest found
  */
 struct mei_cl_cb *mei_cl_read_cb(const struct mei_cl *cl, const struct file *fp)
 {
@@ -694,7 +694,7 @@ bool mei_hbuf_acquire(struct mei_device *dev)
 	}
 
 	if (!dev->hbuf_is_ready) {
-		dev_dbg(dev->dev, "hbuf is not ready\n");
+		dev_dbg(dev->dev, "hbuf is yest ready\n");
 		return false;
 	}
 
@@ -947,7 +947,7 @@ int mei_cl_disconnect(struct mei_cl *cl)
 
 	rets = pm_runtime_get(dev->dev);
 	if (rets < 0 && rets != -EINPROGRESS) {
-		pm_runtime_put_noidle(dev->dev);
+		pm_runtime_put_yesidle(dev->dev);
 		cl_err(dev, cl, "rpm: get failed %d\n", rets);
 		return rets;
 	}
@@ -1074,19 +1074,19 @@ int mei_cl_connect(struct mei_cl *cl, struct mei_me_client *me_cl,
 
 	rets = mei_cl_set_connecting(cl, me_cl);
 	if (rets)
-		goto nortpm;
+		goto yesrtpm;
 
 	if (mei_cl_is_fixed_address(cl)) {
 		cl->state = MEI_FILE_CONNECTED;
 		rets = 0;
-		goto nortpm;
+		goto yesrtpm;
 	}
 
 	rets = pm_runtime_get(dev->dev);
 	if (rets < 0 && rets != -EINPROGRESS) {
-		pm_runtime_put_noidle(dev->dev);
+		pm_runtime_put_yesidle(dev->dev);
 		cl_err(dev, cl, "rpm: get failed %d\n", rets);
-		goto nortpm;
+		goto yesrtpm;
 	}
 
 	cb = mei_cl_enqueue_ctrl_wr_cb(cl, 0, MEI_FOP_CONNECT, fp);
@@ -1115,7 +1115,7 @@ int mei_cl_connect(struct mei_cl *cl, struct mei_me_client *me_cl,
 		if (cl->state == MEI_FILE_DISCONNECT_REQUIRED) {
 			mei_io_list_flush_cl(&dev->ctrl_rd_list, cl);
 			mei_io_list_flush_cl(&dev->ctrl_wr_list, cl);
-			 /* ignore disconnect return valuue;
+			 /* igyesre disconnect return valuue;
 			  * in case of failure reset will be invoked
 			  */
 			__mei_cl_disconnect(cl);
@@ -1136,7 +1136,7 @@ out:
 
 	mei_io_cb_free(cb);
 
-nortpm:
+yesrtpm:
 	if (!mei_cl_is_connected(cl))
 		mei_cl_set_disconnected(cl);
 
@@ -1227,13 +1227,13 @@ static int mei_cl_tx_flow_ctrl_creds_reduce(struct mei_cl *cl)
 }
 
 /**
- *  mei_cl_notify_fop2req - convert fop to proper request
+ *  mei_cl_yestify_fop2req - convert fop to proper request
  *
- * @fop: client notification start response command
+ * @fop: client yestification start response command
  *
  * Return:  MEI_HBM_NOTIFICATION_START/STOP
  */
-u8 mei_cl_notify_fop2req(enum mei_cb_file_ops fop)
+u8 mei_cl_yestify_fop2req(enum mei_cb_file_ops fop)
 {
 	if (fop == MEI_FOP_NOTIFY_START)
 		return MEI_HBM_NOTIFICATION_START;
@@ -1242,13 +1242,13 @@ u8 mei_cl_notify_fop2req(enum mei_cb_file_ops fop)
 }
 
 /**
- *  mei_cl_notify_req2fop - convert notification request top file operation type
+ *  mei_cl_yestify_req2fop - convert yestification request top file operation type
  *
- * @req: hbm notification request type
+ * @req: hbm yestification request type
  *
  * Return:  MEI_FOP_NOTIFY_START/STOP
  */
-enum mei_cb_file_ops mei_cl_notify_req2fop(u8 req)
+enum mei_cb_file_ops mei_cl_yestify_req2fop(u8 req)
 {
 	if (req == MEI_HBM_NOTIFICATION_START)
 		return MEI_FOP_NOTIFY_START;
@@ -1257,7 +1257,7 @@ enum mei_cb_file_ops mei_cl_notify_req2fop(u8 req)
 }
 
 /**
- * mei_cl_irq_notify - send notification request in irq_thread context
+ * mei_cl_irq_yestify - send yestification request in irq_thread context
  *
  * @cl: client
  * @cb: callback block.
@@ -1265,7 +1265,7 @@ enum mei_cb_file_ops mei_cl_notify_req2fop(u8 req)
  *
  * Return: 0 on such and error otherwise.
  */
-int mei_cl_irq_notify(struct mei_cl *cl, struct mei_cl_cb *cb,
+int mei_cl_irq_yestify(struct mei_cl *cl, struct mei_cl_cb *cb,
 		      struct list_head *cmpl_list)
 {
 	struct mei_device *dev = cl->dev;
@@ -1282,8 +1282,8 @@ int mei_cl_irq_notify(struct mei_cl *cl, struct mei_cl_cb *cb,
 	if ((u32)slots < msg_slots)
 		return -EMSGSIZE;
 
-	request = mei_cl_notify_fop2req(cb->fop_type);
-	ret = mei_hbm_cl_notify_req(dev, cl, request);
+	request = mei_cl_yestify_fop2req(cb->fop_type);
+	ret = mei_hbm_cl_yestify_req(dev, cl, request);
 	if (ret) {
 		cl->status = ret;
 		list_move_tail(&cb->list, cmpl_list);
@@ -1295,7 +1295,7 @@ int mei_cl_irq_notify(struct mei_cl *cl, struct mei_cl_cb *cb,
 }
 
 /**
- * mei_cl_notify_request - send notification stop/start request
+ * mei_cl_yestify_request - send yestification stop/start request
  *
  * @cl: host client
  * @fp: associate request with file
@@ -1305,7 +1305,7 @@ int mei_cl_irq_notify(struct mei_cl *cl, struct mei_cl_cb *cb,
  *
  * Return: 0 on such and error otherwise.
  */
-int mei_cl_notify_request(struct mei_cl *cl,
+int mei_cl_yestify_request(struct mei_cl *cl,
 			  const struct file *fp, u8 request)
 {
 	struct mei_device *dev;
@@ -1319,7 +1319,7 @@ int mei_cl_notify_request(struct mei_cl *cl,
 	dev = cl->dev;
 
 	if (!dev->hbm_f_ev_supported) {
-		cl_dbg(dev, cl, "notifications not supported\n");
+		cl_dbg(dev, cl, "yestifications yest supported\n");
 		return -EOPNOTSUPP;
 	}
 
@@ -1328,12 +1328,12 @@ int mei_cl_notify_request(struct mei_cl *cl,
 
 	rets = pm_runtime_get(dev->dev);
 	if (rets < 0 && rets != -EINPROGRESS) {
-		pm_runtime_put_noidle(dev->dev);
+		pm_runtime_put_yesidle(dev->dev);
 		cl_err(dev, cl, "rpm: get failed %d\n", rets);
 		return rets;
 	}
 
-	fop_type = mei_cl_notify_req2fop(request);
+	fop_type = mei_cl_yestify_req2fop(request);
 	cb = mei_cl_enqueue_ctrl_wr_cb(cl, 0, fop_type, fp);
 	if (!cb) {
 		rets = -ENOMEM;
@@ -1341,7 +1341,7 @@ int mei_cl_notify_request(struct mei_cl *cl,
 	}
 
 	if (mei_hbuf_acquire(dev)) {
-		if (mei_hbm_cl_notify_req(dev, cl, request)) {
+		if (mei_hbm_cl_yestify_req(dev, cl, request)) {
 			rets = -ENODEV;
 			goto out;
 		}
@@ -1350,13 +1350,13 @@ int mei_cl_notify_request(struct mei_cl *cl,
 
 	mutex_unlock(&dev->device_lock);
 	wait_event_timeout(cl->wait,
-			   cl->notify_en == request ||
+			   cl->yestify_en == request ||
 			   cl->status ||
 			   !mei_cl_is_connected(cl),
 			   mei_secs_to_jiffies(MEI_CL_CONNECT_TIMEOUT));
 	mutex_lock(&dev->device_lock);
 
-	if (cl->notify_en != request && !cl->status)
+	if (cl->yestify_en != request && !cl->status)
 		cl->status = -EFAULT;
 
 	rets = cl->status;
@@ -1371,13 +1371,13 @@ out:
 }
 
 /**
- * mei_cl_notify - raise notification
+ * mei_cl_yestify - raise yestification
  *
  * @cl: host client
  *
  * Locking: called under "dev->device_lock" lock
  */
-void mei_cl_notify(struct mei_cl *cl)
+void mei_cl_yestify(struct mei_cl *cl)
 {
 	struct mei_device *dev;
 
@@ -1386,12 +1386,12 @@ void mei_cl_notify(struct mei_cl *cl)
 
 	dev = cl->dev;
 
-	if (!cl->notify_en)
+	if (!cl->yestify_en)
 		return;
 
-	cl_dbg(dev, cl, "notify event");
-	cl->notify_ev = true;
-	if (!mei_cl_bus_notify_event(cl))
+	cl_dbg(dev, cl, "yestify event");
+	cl->yestify_ev = true;
+	if (!mei_cl_bus_yestify_event(cl))
 		wake_up_interruptible(&cl->ev_wait);
 
 	if (cl->ev_async)
@@ -1400,22 +1400,22 @@ void mei_cl_notify(struct mei_cl *cl)
 }
 
 /**
- * mei_cl_notify_get - get or wait for notification event
+ * mei_cl_yestify_get - get or wait for yestification event
  *
  * @cl: host client
  * @block: this request is blocking
- * @notify_ev: true if notification event was received
+ * @yestify_ev: true if yestification event was received
  *
  * Locking: called under "dev->device_lock" lock
  *
  * Return: 0 on such and error otherwise.
  */
-int mei_cl_notify_get(struct mei_cl *cl, bool block, bool *notify_ev)
+int mei_cl_yestify_get(struct mei_cl *cl, bool block, bool *yestify_ev)
 {
 	struct mei_device *dev;
 	int rets;
 
-	*notify_ev = false;
+	*yestify_ev = false;
 
 	if (WARN_ON(!cl || !cl->dev))
 		return -ENODEV;
@@ -1423,29 +1423,29 @@ int mei_cl_notify_get(struct mei_cl *cl, bool block, bool *notify_ev)
 	dev = cl->dev;
 
 	if (!dev->hbm_f_ev_supported) {
-		cl_dbg(dev, cl, "notifications not supported\n");
+		cl_dbg(dev, cl, "yestifications yest supported\n");
 		return -EOPNOTSUPP;
 	}
 
 	if (!mei_cl_is_connected(cl))
 		return -ENODEV;
 
-	if (cl->notify_ev)
+	if (cl->yestify_ev)
 		goto out;
 
 	if (!block)
 		return -EAGAIN;
 
 	mutex_unlock(&dev->device_lock);
-	rets = wait_event_interruptible(cl->ev_wait, cl->notify_ev);
+	rets = wait_event_interruptible(cl->ev_wait, cl->yestify_ev);
 	mutex_lock(&dev->device_lock);
 
 	if (rets < 0)
 		return rets;
 
 out:
-	*notify_ev = cl->notify_ev;
-	cl->notify_ev = false;
+	*yestify_ev = cl->yestify_ev;
+	cl->yestify_ev = false;
 	return 0;
 }
 
@@ -1473,7 +1473,7 @@ int mei_cl_read_start(struct mei_cl *cl, size_t length, const struct file *fp)
 		return -ENODEV;
 
 	if (!mei_me_cl_is_active(cl->me_cl)) {
-		cl_err(dev, cl, "no such me client\n");
+		cl_err(dev, cl, "yes such me client\n");
 		return  -ENOTTY;
 	}
 
@@ -1490,9 +1490,9 @@ int mei_cl_read_start(struct mei_cl *cl, size_t length, const struct file *fp)
 
 	rets = pm_runtime_get(dev->dev);
 	if (rets < 0 && rets != -EINPROGRESS) {
-		pm_runtime_put_noidle(dev->dev);
+		pm_runtime_put_yesidle(dev->dev);
 		cl_err(dev, cl, "rpm: get failed %d\n", rets);
-		goto nortpm;
+		goto yesrtpm;
 	}
 
 	rets = 0;
@@ -1509,7 +1509,7 @@ out:
 	cl_dbg(dev, cl, "rpm: autosuspend\n");
 	pm_runtime_mark_last_busy(dev->dev);
 	pm_runtime_put_autosuspend(dev->dev);
-nortpm:
+yesrtpm:
 	if (rets)
 		mei_io_cb_free(cb);
 
@@ -1573,7 +1573,7 @@ int mei_cl_irq_write(struct mei_cl *cl, struct mei_cl_cb *cb,
 		goto err;
 
 	if (rets == 0) {
-		cl_dbg(dev, cl, "No flow control credentials: not sending.\n");
+		cl_dbg(dev, cl, "No flow control credentials: yest sending.\n");
 		return 0;
 	}
 
@@ -1685,7 +1685,7 @@ ssize_t mei_cl_write(struct mei_cl *cl, struct mei_cl_cb *cb)
 
 	rets = pm_runtime_get(dev->dev);
 	if (rets < 0 && rets != -EINPROGRESS) {
-		pm_runtime_put_noidle(dev->dev);
+		pm_runtime_put_yesidle(dev->dev);
 		cl_err(dev, cl, "rpm: get failed %zd\n", rets);
 		goto free;
 	}
@@ -1701,13 +1701,13 @@ ssize_t mei_cl_write(struct mei_cl *cl, struct mei_cl_cb *cb)
 	mei_msg_hdr_init(&mei_hdr, cb);
 
 	if (rets == 0) {
-		cl_dbg(dev, cl, "No flow control credentials: not sending.\n");
+		cl_dbg(dev, cl, "No flow control credentials: yest sending.\n");
 		rets = len;
 		goto out;
 	}
 
 	if (!mei_hbuf_acquire(dev)) {
-		cl_dbg(dev, cl, "Cannot acquire the host buffer: not sending.\n");
+		cl_dbg(dev, cl, "Canyest acquire the host buffer: yest sending.\n");
 		rets = len;
 		goto out;
 	}

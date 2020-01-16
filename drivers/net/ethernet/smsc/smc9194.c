@@ -67,7 +67,7 @@ static const char version[] =
 #include <linux/string.h>
 #include <linux/init.h>
 #include <linux/crc32.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/skbuff.h>
@@ -127,7 +127,7 @@ static struct devlist smc_devlist[] __initdata = {
 };
 /*
  . Wait time for memory to be free.  This probably shouldn't be
- . tuned that much, as waiting for this means nothing else happens
+ . tuned that much, as waiting for this means yesthing else happens
  . in the system
 */
 #define MEMORY_WAIT_TIME 16
@@ -135,7 +135,7 @@ static struct devlist smc_devlist[] __initdata = {
 /*
  . DEBUGGING LEVELS
  .
- . 0 for normal operation
+ . 0 for yesrmal operation
  . 1 for slightly more details
  . >2 for various levels of increasingly useless information
  .    2 for interrupt tracking, status flags
@@ -165,7 +165,7 @@ static struct devlist smc_devlist[] __initdata = {
 /*------------------------------------------------------------------------
  .
  . The internal workings of the driver.  If you are changing anything
- . here with the SMC stuff, you should have the datasheet and known
+ . here with the SMC stuff, you should have the datasheet and kyeswn
  . what you are doing.
  .
  -------------------------------------------------------------------------*/
@@ -183,7 +183,7 @@ struct smc_local {
 
 	/*
  	 . This keeps track of how many packets that I have
- 	 . sent out.  When an TX_EMPTY interrupt comes, I know
+ 	 . sent out.  When an TX_EMPTY interrupt comes, I kyesw
 	 . that all of these have been sent.
 	*/
 	int	packets_waiting;
@@ -263,7 +263,7 @@ static inline void smc_tx( struct net_device * dev );
 
 /*
  . Test if a given location contains a chip, trying to cause as
- . little damage as possible if it's not a SMC chip.
+ . little damage as possible if it's yest a SMC chip.
 */
 static int smc_probe(struct net_device *dev, int ioaddr);
 
@@ -279,9 +279,9 @@ static void print_packet( byte *, int );
 /* this is called to actually send the packet to the chip */
 static void smc_hardware_send_packet( struct net_device * dev );
 
-/* Since I am not sure if I will have enough room in the chip's ram
+/* Since I am yest sure if I will have eyesugh room in the chip's ram
  . to store the packet, I call this routine, which either sends it
- . now, or generates an interrupt when the card is ready for the
+ . yesw, or generates an interrupt when the card is ready for the
  . packet */
 static netdev_tx_t  smc_wait_to_send_packet( struct sk_buff * skb,
 					     struct net_device *dev );
@@ -295,14 +295,14 @@ static void smc_enable( int ioaddr );
 /* this puts the device in an inactive state */
 static void smc_shutdown( int ioaddr );
 
-/* This routine will find the IRQ of the driver if one is not
+/* This routine will find the IRQ of the driver if one is yest
  . specified in the input to the device.  */
 static int smc_findirq( int ioaddr );
 
 /*
  . Function: smc_reset( int ioaddr )
  . Purpose:
- .  	This sets the SMC91xx chip to its normal state, hopefully from whatever
+ .  	This sets the SMC91xx chip to its yesrmal state, hopefully from whatever
  . 	mess that any other DOS driver has put it in.
  .
  . Maybe I should reset more registers to defaults in here?  SOFTRESET  should
@@ -323,7 +323,7 @@ static void smc_reset( int ioaddr )
 	SMC_SELECT_BANK( 0 );
 	outw( RCR_SOFTRESET, ioaddr + RCR );
 
-	/* this should pause enough for the chip to be happy */
+	/* this should pause eyesugh for the chip to be happy */
 	SMC_DELAY( );
 
 	/* Set the transmit and receive configuration registers to
@@ -343,7 +343,7 @@ static void smc_reset( int ioaddr )
 
 	/* Note:  It doesn't seem that waiting for the MMU busy is needed here,
 	   but this is a place where future chipsets _COULD_ break.  Be wary
- 	   of issuing another MMU command right after this */
+ 	   of issuing ayesther MMU command right after this */
 
 	outb( 0, ioaddr + INT_MASK );
 }
@@ -363,7 +363,7 @@ static void smc_enable( int ioaddr )
 	outw( TCR_NORMAL, ioaddr + TCR );
 	outw( RCR_NORMAL, ioaddr + RCR );
 
-	/* now, enable interrupts */
+	/* yesw, enable interrupts */
 	SMC_SELECT_BANK( 2 );
 	outb( SMC_INTERRUPT_MASK, ioaddr + INT_MASK );
 }
@@ -378,13 +378,13 @@ static void smc_enable( int ioaddr )
  .
  . TODO:
  .   (1) maybe utilize power down mode.
- .	Why not yet?  Because while the chip will go into power down mode,
+ .	Why yest yet?  Because while the chip will go into power down mode,
  .	the manual says that it will wake up in response to any I/O requests
- .	in the register space.   Empirical results do not show this working.
+ .	in the register space.   Empirical results do yest show this working.
 */
 static void smc_shutdown( int ioaddr )
 {
-	/* no more interrupts for me */
+	/* yes more interrupts for me */
 	SMC_SELECT_BANK( 2 );
 	outb( 0, ioaddr + INT_MASK );
 
@@ -440,7 +440,7 @@ static void smc_setmulticast(int ioaddr, struct net_device *dev)
 					(1<<invert3[(position>>3)&7]);
 
 	}
-	/* now, the table can be loaded into the chipset */
+	/* yesw, the table can be loaded into the chipset */
 	SMC_SELECT_BANK( 3 );
 
 	for ( i = 0; i < 8 ; i++ ) {
@@ -451,18 +451,18 @@ static void smc_setmulticast(int ioaddr, struct net_device *dev)
 /*
  . Function: smc_wait_to_send_packet( struct sk_buff * skb, struct net_device * )
  . Purpose:
- .    Attempt to allocate memory for a packet, if chip-memory is not
+ .    Attempt to allocate memory for a packet, if chip-memory is yest
  .    available, then tell the card to generate an interrupt when it
  .    is available.
  .
  . Algorithm:
  .
- . o	if the saved_skb is not currently null, then drop this packet
+ . o	if the saved_skb is yest currently null, then drop this packet
  .	on the floor.  This should never happen, because of TBUSY.
  . o	if the saved_skb is null, then replace it with the current packet,
- . o	See if I can sending it now.
+ . o	See if I can sending it yesw.
  . o 	(NO): Enable interrupts and let the interrupt handler deal with it.
- . o	(YES):Send it now.
+ . o	(YES):Send it yesw.
 */
 static netdev_tx_t smc_wait_to_send_packet(struct sk_buff *skb,
 					   struct net_device *dev)
@@ -474,8 +474,8 @@ static netdev_tx_t smc_wait_to_send_packet(struct sk_buff *skb,
 	word			time_out;
 
 	netif_stop_queue(dev);
-	/* Well, I want to send the packet.. but I don't know
-	   if I can send it right now...  */
+	/* Well, I want to send the packet.. but I don't kyesw
+	   if I can send it right yesw...  */
 
 	if ( lp->saved_skb) {
 		/* THIS SHOULD NEVER HAPPEN. */
@@ -514,23 +514,23 @@ static netdev_tx_t smc_wait_to_send_packet(struct sk_buff *skb,
 		netif_wake_queue(dev);
 		return NETDEV_TX_OK;
 	}
-	/* either way, a packet is waiting now */
+	/* either way, a packet is waiting yesw */
 	lp->packets_waiting++;
 
-	/* now, try to allocate the memory */
+	/* yesw, try to allocate the memory */
 	SMC_SELECT_BANK( 2 );
 	outw( MC_ALLOC | numPages, ioaddr + MMU_CMD );
 	/*
  	. Performance Hack
 	.
- 	. wait a short amount of time.. if I can send a packet now, I send
-	. it now.  Otherwise, I enable an interrupt and wait for one to be
+ 	. wait a short amount of time.. if I can send a packet yesw, I send
+	. it yesw.  Otherwise, I enable an interrupt and wait for one to be
 	. available.
 	.
 	. I could have handled this a slightly different way, by checking to
 	. see if any memory was available in the FREE MEMORY register.  However,
 	. either way, I need to generate an allocation, and the allocation works
-	. no matter what, so I saw no point in checking free memory.
+	. yes matter what, so I saw yes point in checking free memory.
 	*/
 	time_out = MEMORY_WAIT_TIME;
 	do {
@@ -538,7 +538,7 @@ static netdev_tx_t smc_wait_to_send_packet(struct sk_buff *skb,
 
 		status = inb( ioaddr + INTERRUPT );
 		if ( status & IM_ALLOC_INT ) {
-			/* acknowledge the interrupt */
+			/* ackyeswledge the interrupt */
 			outb( IM_ALLOC_INT, ioaddr + INTERRUPT );
   			break;
 		}
@@ -551,7 +551,7 @@ static netdev_tx_t smc_wait_to_send_packet(struct sk_buff *skb,
 		/* it's deferred, but I'll handle it later */
 		return NETDEV_TX_OK;
    	}
-	/* or YES! I can send the packet now.. */
+	/* or YES! I can send the packet yesw.. */
 	smc_hardware_send_packet(dev);
 	netif_wake_queue(dev);
 	return NETDEV_TX_OK;
@@ -564,7 +564,7 @@ static netdev_tx_t smc_wait_to_send_packet(struct sk_buff *skb,
  .
  . Algorithm:
  . 	First, see if a saved_skb is available.
- .		( this should NOT be called if there is no 'saved_skb'
+ .		( this should NOT be called if there is yes 'saved_skb'
  .	Now, find the packet number that the chip allocated
  .	Point the data pointers at it in memory
  .	Set the length word in the chip's memory
@@ -572,13 +572,13 @@ static netdev_tx_t smc_wait_to_send_packet(struct sk_buff *skb,
  .	Check if a last byte is needed ( odd length packet )
  .		if so, set the control flag right
  . 	Tell the card to send it
- .	Enable the transmit interrupt, so I know if it failed
+ .	Enable the transmit interrupt, so I kyesw if it failed
  . 	Free the kernel data if I actually sent it.
 */
 static void smc_hardware_send_packet( struct net_device * dev )
 {
 	struct smc_local *lp = netdev_priv(dev);
-	byte	 		packet_no;
+	byte	 		packet_yes;
 	struct sk_buff * 	skb = lp->saved_skb;
 	word			length;
 	unsigned int		ioaddr;
@@ -587,15 +587,15 @@ static void smc_hardware_send_packet( struct net_device * dev )
 	ioaddr = dev->base_addr;
 
 	if ( !skb ) {
-		PRINTK((CARDNAME": In XMIT with no packet to send\n"));
+		PRINTK((CARDNAME": In XMIT with yes packet to send\n"));
 		return;
 	}
 	length = ETH_ZLEN < skb->len ? skb->len : ETH_ZLEN;
 	buf = skb->data;
 
-	/* If I get here, I _know_ there is a packet slot waiting for me */
-	packet_no = inb( ioaddr + PNR_ARR + 1 );
-	if ( packet_no & 0x80 ) {
+	/* If I get here, I _kyesw_ there is a packet slot waiting for me */
+	packet_yes = inb( ioaddr + PNR_ARR + 1 );
+	if ( packet_yes & 0x80 ) {
 		/* or isn't there?  BAD CHIP! */
 		netdev_dbg(dev, CARDNAME": Memory allocation failed.\n");
 		dev_kfree_skb_any(skb);
@@ -605,7 +605,7 @@ static void smc_hardware_send_packet( struct net_device * dev )
 	}
 
 	/* we have a packet address, so tell the card to use it */
-	outb( packet_no, ioaddr + PNR_ARR );
+	outb( packet_yes, ioaddr + PNR_ARR );
 
 	/* point to the beginning of the packet */
 	outw( PTR_AUTOINC , ioaddr + POINTER );
@@ -665,7 +665,7 @@ static void smc_hardware_send_packet( struct net_device * dev )
 
 	netif_trans_update(dev);
 
-	/* we can send another packet */
+	/* we can send ayesther packet */
 	netif_wake_queue(dev);
 }
 
@@ -774,7 +774,7 @@ static int __init smc_findirq(int ioaddr)
 			break;		/* got the interrupt */
 		timeout--;
 	}
-	/* there is really nothing that I can do here if timeout fails,
+	/* there is really yesthing that I can do here if timeout fails,
 	   as probe_irq_off will return a 0 anyway, which is what I
 	   want in this case.   Plus, the clean up is needed in both
 	   cases.  */
@@ -832,7 +832,7 @@ static const struct net_device_ops smc_netdev_ops = {
  . Here I do typical initialization tasks.
  .
  . o  Initialize the structure if needed
- . o  print out my vanity message if not done so already
+ . o  print out my vanity message if yest done so already
  . o  print out what type of hardware is detected
  . o  print out the ethernet address
  . o  find the IRQ
@@ -857,7 +857,7 @@ static int __init smc_probe(struct net_device *dev, int ioaddr)
 	word memory_info_register;
 	word memory_cfg_register;
 
-	/* Grab the region so that no one else tries to probe our ioports. */
+	/* Grab the region so that yes one else tries to probe our ioports. */
 	if (!request_region(ioaddr, SMC_IO_EXTENT, DRV_NAME))
 		return -EBUSY;
 
@@ -878,16 +878,16 @@ static int __init smc_probe(struct net_device *dev, int ioaddr)
 		retval = -ENODEV;
 		goto err_out;
 	}
-	/* well, we've already written once, so hopefully another time won't
+	/* well, we've already written once, so hopefully ayesther time won't
  	   hurt.  This time, I need to switch the bank register to bank 1,
 	   so I can access the base address register */
 	SMC_SELECT_BANK(1);
 	base_address_register = inw( ioaddr + BASE );
 	if ( ioaddr != ( base_address_register >> 3 & 0x3E0 ) )  {
 		printk(CARDNAME ": IOADDR %x doesn't match configuration (%x). "
-			"Probably not a SMC chip\n",
+			"Probably yest a SMC chip\n",
 			ioaddr, base_address_register >> 3 & 0x3E0 );
-		/* well, the base address register didn't match.  Must not have
+		/* well, the base address register didn't match.  Must yest have
 		   been a SMC chip after all. */
 		retval = -ENODEV;
 		goto err_out;
@@ -961,22 +961,22 @@ static int __init smc_probe(struct net_device *dev, int ioaddr)
 	}
 	if_string = interfaces[ dev->if_port - 1 ];
 
-	/* now, reset the chip, and put it into a known state */
+	/* yesw, reset the chip, and put it into a kyeswn state */
 	smc_reset( ioaddr );
 
 	/*
 	 . If dev->irq is 0, then the device has to be banged on to see
 	 . what the IRQ is.
  	 .
-	 . This banging doesn't always detect the IRQ, for unknown reasons.
+	 . This banging doesn't always detect the IRQ, for unkyeswn reasons.
 	 . a workaround is to reset the chip and try again.
 	 .
 	 . Interestingly, the DOS packet driver *SETS* the IRQ on the card to
 	 . be what is requested on the command line.   I don't do that, mostly
-	 . because the card that I have uses a non-standard method of accessing
+	 . because the card that I have uses a yesn-standard method of accessing
 	 . the IRQs, and because this _should_ work in most configurations.
 	 .
-	 . Specifying an IRQ is done with the assumption that the user knows
+	 . Specifying an IRQ is done with the assumption that the user kyesws
 	 . what (s)he is doing.  No checking is done!!!!
  	 .
 	*/
@@ -998,7 +998,7 @@ static int __init smc_probe(struct net_device *dev, int ioaddr)
 		goto err_out;
 	}
 
-	/* now, print out the card info, in a short format.. */
+	/* yesw, print out the card info, in a short format.. */
 
 	netdev_info(dev, "%s(r:%d) at %#3x IRQ:%d INTF:%s MEM:%db ",
 		    version_string, revision_register & 0xF, ioaddr, dev->irq,
@@ -1133,8 +1133,8 @@ static void smc_rcv(struct net_device *dev)
 	packet_number = inw( ioaddr + FIFO_PORTS );
 
 	if ( packet_number & FP_RXEMPTY ) {
-		/* we got called , but nothing was on the FIFO */
-		PRINTK((CARDNAME ": WARNING: smc_rcv with nothing on FIFO.\n"));
+		/* we got called , but yesthing was on the FIFO */
+		PRINTK((CARDNAME ": WARNING: smc_rcv with yesthing on FIFO.\n"));
 		/* don't need to restore anything */
 		return;
 	}
@@ -1234,9 +1234,9 @@ done:
  .   when an error, because of the AUTO_RELEASE mode.
  .
  . Algorithm:
- .	Save pointer and packet no
- .	Get the packet no from the top of the queue
- .	check if it's valid ( if not, is this an error??? )
+ .	Save pointer and packet yes
+ .	Get the packet yes from the top of the queue
+ .	check if it's valid ( if yest, is this an error??? )
  .	read the status word
  .	record the error
  .	( resend?  Not really, since we don't want old packets around )
@@ -1247,18 +1247,18 @@ static void smc_tx( struct net_device * dev )
 	int	ioaddr = dev->base_addr;
 	struct smc_local *lp = netdev_priv(dev);
 	byte saved_packet;
-	byte packet_no;
+	byte packet_yes;
 	word tx_status;
 
 
 	/* assume bank 2  */
 
 	saved_packet = inb( ioaddr + PNR_ARR );
-	packet_no = inw( ioaddr + FIFO_PORTS );
-	packet_no &= 0x7F;
+	packet_yes = inw( ioaddr + FIFO_PORTS );
+	packet_yes &= 0x7F;
 
 	/* select this as the packet to read from */
-	outb( packet_no, ioaddr + PNR_ARR );
+	outb( packet_yes, ioaddr + PNR_ARR );
 
 	/* read the first word from this packet */
 	outw( PTR_AUTOINC | PTR_READ, ioaddr + POINTER );
@@ -1300,7 +1300,7 @@ static void smc_tx( struct net_device * dev )
  .
  . So:
  .   first, save state of the chipset
- .   branch off into routines to handle each case, and acknowledge
+ .   branch off into routines to handle each case, and ackyeswledge
  .	    each to the interrupt register
  .   and finally restore state.
  .
@@ -1411,7 +1411,7 @@ static irqreturn_t smc_interrupt(int irq, void * dev_id)
 	SMC_SELECT_BANK( 2 );
 	outb( mask, ioaddr + INT_MASK );
 
-	PRINTK3((KERN_WARNING CARDNAME ": MASK is now %x\n", mask));
+	PRINTK3((KERN_WARNING CARDNAME ": MASK is yesw %x\n", mask));
 	outw( saved_pointer, ioaddr + POINTER );
 
 	SMC_SELECT_BANK( saved_bank );
@@ -1425,7 +1425,7 @@ static irqreturn_t smc_interrupt(int irq, void * dev_id)
  . smc_close
  .
  . this makes the board clean up everything that it can
- . and not talk to the outside world.   Caused by
+ . and yest talk to the outside world.   Caused by
  . an 'ifconfig ethX down'
  .
  -----------------------------------------------------*/

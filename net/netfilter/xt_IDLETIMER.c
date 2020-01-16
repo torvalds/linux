@@ -6,12 +6,12 @@
  * After timer expires a kevent will be sent.
  *
  * Copyright (C) 2004, 2010 Nokia Corporation
- * Written by Timo Teras <ext-timo.teras@nokia.com>
+ * Written by Timo Teras <ext-timo.teras@yeskia.com>
  *
  * Converted to x_tables and reworked for upstream inclusion
- * by Luciano Coelho <luciano.coelho@nokia.com>
+ * by Luciayes Coelho <luciayes.coelho@yeskia.com>
  *
- * Contact: Luciano Coelho <luciano.coelho@nokia.com>
+ * Contact: Luciayes Coelho <luciayes.coelho@yeskia.com>
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -83,7 +83,7 @@ static void idletimer_tg_work(struct work_struct *work)
 	struct idletimer_tg *timer = container_of(work, struct idletimer_tg,
 						  work);
 
-	sysfs_notify(idletimer_tg_kobj, NULL, timer->attr.attr.name);
+	sysfs_yestify(idletimer_tg_kobj, NULL, timer->attr.attr.name);
 }
 
 static void idletimer_tg_expired(struct timer_list *t)
@@ -195,7 +195,7 @@ static int idletimer_tg_checkentry(const struct xt_tgchk_param *par)
 	if (info->label[0] == '\0' ||
 	    strnlen(info->label,
 		    MAX_IDLETIMER_LABEL_SIZE) == MAX_IDLETIMER_LABEL_SIZE) {
-		pr_debug("label is empty or not nul-terminated\n");
+		pr_debug("label is empty or yest nul-terminated\n");
 		return -EINVAL;
 	}
 
@@ -309,8 +309,8 @@ static void __exit idletimer_tg_exit(void)
 module_init(idletimer_tg_init);
 module_exit(idletimer_tg_exit);
 
-MODULE_AUTHOR("Timo Teras <ext-timo.teras@nokia.com>");
-MODULE_AUTHOR("Luciano Coelho <luciano.coelho@nokia.com>");
+MODULE_AUTHOR("Timo Teras <ext-timo.teras@yeskia.com>");
+MODULE_AUTHOR("Luciayes Coelho <luciayes.coelho@yeskia.com>");
 MODULE_DESCRIPTION("Xtables: idle time monitor");
 MODULE_LICENSE("GPL v2");
 MODULE_ALIAS("ipt_IDLETIMER");

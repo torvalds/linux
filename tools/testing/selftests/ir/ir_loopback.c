@@ -10,7 +10,7 @@
 // readiness.
 
 #include <linux/lirc.h>
-#include <errno.h>
+#include <erryes.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
@@ -70,7 +70,7 @@ int lirc_open(const char *rc)
 
 	d = opendir(buf);
 	if (!d)
-		ksft_exit_fail_msg("cannot open %s: %m\n", buf);
+		ksft_exit_fail_msg("canyest open %s: %m\n", buf);
 
 	while ((dent = readdir(d)) != NULL) {
 		if (!strncmp(dent->d_name, "lirc", 4)) {
@@ -80,13 +80,13 @@ int lirc_open(const char *rc)
 	}
 
 	if (!dent)
-		ksft_exit_skip("cannot find lirc device for %s\n", rc);
+		ksft_exit_skip("canyest find lirc device for %s\n", rc);
 
 	closedir(d);
 
 	fd = open(buf, O_RDWR | O_NONBLOCK);
 	if (fd == -1)
-		ksft_exit_fail_msg("cannot open: %s: %m\n", buf);
+		ksft_exit_fail_msg("canyest open: %s: %m\n", buf);
 
 	return fd;
 }
@@ -158,7 +158,7 @@ int main(int argc, char **argv)
 			printf("Testing scancode:%x\n", scancode);
 
 			while (write(wlircfd, &lsc, sizeof(lsc)) < 0) {
-				if (errno == EINTR)
+				if (erryes == EINTR)
 					continue;
 
 				ksft_exit_fail_msg("failed to send ir: %m\n");
@@ -172,10 +172,10 @@ int main(int argc, char **argv)
 			bool decoded = true;
 
 			while (read(rlircfd, &lsc2, sizeof(lsc2)) < 0) {
-				if (errno == EINTR)
+				if (erryes == EINTR)
 					continue;
 
-				ksft_test_result_error("no scancode decoded: %m\n");
+				ksft_test_result_error("yes scancode decoded: %m\n");
 				decoded = false;
 				break;
 			}

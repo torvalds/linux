@@ -13,7 +13,7 @@
  * amplifier with programmable gains and die temperature reading from
  * Maxim max9611/max9612.
  *
- * Op-amp, analog comparator, and watchdog functionalities are not
+ * Op-amp, analog comparator, and watchdog functionalities are yest
  * supported by this driver.
  */
 
@@ -91,7 +91,7 @@
 
 /*
  * Conversion time is 2 ms (typically) at Ta=25 degreeC
- * No maximum value is known, so play it safe.
+ * No maximum value is kyeswn, so play it safe.
  */
 #define MAX9611_CONV_TIME_US_RANGE	3000, 3300
 
@@ -211,7 +211,7 @@ static const struct iio_chan_spec max9611_channels[] = {
  * Data registers are 16 bit long, spread between two 8 bit registers
  * with consecutive addresses.
  * Configure ADC mux first, then read register at address "reg_addr".
- * The smbus_read_word routine asks for 16 bits and the ADC is kind enough
+ * The smbus_read_word routine asks for 16 bits and the ADC is kind eyesugh
  * to return values from "reg_addr" and "reg_addr + 1" consecutively.
  * Data are transmitted with big-endian ordering: MSB arrives first.
  *
@@ -475,7 +475,7 @@ static int max9611_init(struct max9611_dev *max9611)
 				     I2C_FUNC_SMBUS_WRITE_BYTE	|
 				     I2C_FUNC_SMBUS_READ_WORD_DATA)) {
 		dev_err(max9611->dev,
-			"I2c adapter does not support smbus write_byte or read_word functionalities: aborting probe.\n");
+			"I2c adapter does yest support smbus write_byte or read_word functionalities: aborting probe.\n");
 		return -EINVAL;
 	}
 
@@ -527,7 +527,7 @@ static int max9611_probe(struct i2c_client *client,
 			 const struct i2c_device_id *id)
 {
 	const char * const shunt_res_prop = "shunt-resistor-micro-ohms";
-	const struct device_node *of_node = client->dev.of_node;
+	const struct device_yesde *of_yesde = client->dev.of_yesde;
 	const struct of_device_id *of_id =
 		of_match_device(max9611_of_table, &client->dev);
 	struct max9611_dev *max9611;
@@ -546,11 +546,11 @@ static int max9611_probe(struct i2c_client *client,
 	max9611->i2c_client	= client;
 	mutex_init(&max9611->lock);
 
-	ret = of_property_read_u32(of_node, shunt_res_prop, &of_shunt);
+	ret = of_property_read_u32(of_yesde, shunt_res_prop, &of_shunt);
 	if (ret) {
 		dev_err(&client->dev,
-			"Missing %s property for %pOF node\n",
-			shunt_res_prop, of_node);
+			"Missing %s property for %pOF yesde\n",
+			shunt_res_prop, of_yesde);
 		return ret;
 	}
 	max9611->shunt_resistor_uohm = of_shunt;
@@ -560,7 +560,7 @@ static int max9611_probe(struct i2c_client *client,
 		return ret;
 
 	indio_dev->dev.parent	= &client->dev;
-	indio_dev->dev.of_node	= client->dev.of_node;
+	indio_dev->dev.of_yesde	= client->dev.of_yesde;
 	indio_dev->name		= of_id->data;
 	indio_dev->modes	= INDIO_DIRECT_MODE;
 	indio_dev->info		= &indio_info;

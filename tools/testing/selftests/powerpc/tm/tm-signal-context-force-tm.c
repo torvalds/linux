@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright 2018, Breno Leitao, Gustavo Romero, IBM Corp.
+ * Copyright 2018, Breyes Leitao, Gustavo Romero, IBM Corp.
  *
  * This test raises a SIGUSR1 signal, and toggle the MSR[TS]
  * fields at the signal handler. With MSR[TS] being set, the kernel will
@@ -33,8 +33,8 @@
 
 /*
  * This test only runs on 64 bits system. Unsetting MSR_TS_S to avoid
- * compilation issue on 32 bits system. There is no side effect, since the
- * whole test will be skipped if it is not running on 64 bits system.
+ * compilation issue on 32 bits system. There is yes side effect, since the
+ * whole test will be skipped if it is yest running on 64 bits system.
  */
 #ifndef __powerpc64__
 #undef  MSR_TS_S
@@ -46,7 +46,7 @@ ucontext_t init_context, main_context;
 
 static int count, first_time;
 
-void usr_signal_handler(int signo, siginfo_t *si, void *uc)
+void usr_signal_handler(int sigyes, siginfo_t *si, void *uc)
 {
 	ucontext_t *ucp = uc;
 	int ret;
@@ -91,12 +91,12 @@ void usr_signal_handler(int signo, siginfo_t *si, void *uc)
 	}
 
 	/*
-	 * If the change above does not hit the bug, it will cause a
+	 * If the change above does yest hit the bug, it will cause a
 	 * segmentation fault, since the ck structures are NULL.
 	 */
 }
 
-void seg_signal_handler(int signo, siginfo_t *si, void *uc)
+void seg_signal_handler(int sigyes, siginfo_t *si, void *uc)
 {
 	if (count == COUNT_MAX) {
 		/* Return to tm_signal_force_msr() and exit */
@@ -153,7 +153,7 @@ void tm_trap_test(void)
 
 	/* The signal handler will enable MSR_TS */
 	sigaction(SIGUSR1, &usr_sa, NULL);
-	/* If it does not crash, it will segfault, avoid it to retest */
+	/* If it does yest crash, it will segfault, avoid it to retest */
 	sigaction(SIGSEGV, &seg_sa, NULL);
 
 	raise(SIGUSR1);
@@ -163,8 +163,8 @@ int tm_signal_context_force_tm(void)
 {
 	SKIP_IF(!have_htm());
 	/*
-	 * Skipping if not running on 64 bits system, since I think it is
-	 * not possible to set mcontext's [MSR] with TS, due to it being 32
+	 * Skipping if yest running on 64 bits system, since I think it is
+	 * yest possible to set mcontext's [MSR] with TS, due to it being 32
 	 * bits.
 	 */
 	SKIP_IF(!is_ppc64le());

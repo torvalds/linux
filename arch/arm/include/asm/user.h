@@ -8,14 +8,14 @@
    can understand it and provide useful information to the user (under
    linux we use the 'trad-core' bfd).  There are quite a number of
    obstacles to being able to view the contents of the floating point
-   registers, and until these are solved you will not be able to view the
+   registers, and until these are solved you will yest be able to view the
    contents of them.  Actually, you can read in the core file and look at
    the contents of the user struct to find out what the floating point
    registers contain.
    The actual file contents are as follows:
    UPAGE: 1 page consisting of a user struct that tells gdb what is present
    in the file.  Directly after this is a copy of the task_struct, which
-   is currently not used by gdb, but it may come in useful at some point.
+   is currently yest used by gdb, but it may come in useful at some point.
    All of the registers are stored as part of the upage.  The upage should
    always be only one page.
    DATA: The data area is stored.  We use current->end_text to
@@ -54,7 +54,7 @@ struct user{
 /* We start with the registers, to mimic the way that "memory" is returned
    from the ptrace(3,...) function.  */
   struct pt_regs regs;		/* Where the registers are actually stored */
-/* ptrace does not yet supply these.  Someday.... */
+/* ptrace does yest yet supply these.  Someday.... */
   int u_fpvalid;		/* True if math co-processor being used. */
                                 /* for this mess. Not yet used. */
 /* The rest of this junk is to help gdb figure out what goes where */
@@ -84,7 +84,7 @@ struct user{
 
 /*
  * User specific VFP registers. If only VFPv2 is present, registers 16 to 31
- * are ignored by the ptrace system call and the signal handler.
+ * are igyesred by the ptrace system call and the signal handler.
  */
 struct user_vfp {
 	unsigned long long fpregs[32];
@@ -93,7 +93,7 @@ struct user_vfp {
 
 /*
  * VFP exception registers exposed to user space during signal delivery.
- * Fields not relavant to the current VFP architecture are ignored.
+ * Fields yest relavant to the current VFP architecture are igyesred.
  */
 struct user_vfp_exc {
 	unsigned long	fpexc;

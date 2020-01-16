@@ -20,7 +20,7 @@ struct pci_root_info {
 };
 
 static bool pci_use_crs = true;
-static bool pci_ignore_seg = false;
+static bool pci_igyesre_seg = false;
 
 static int __init set_use_crs(const struct dmi_system_id *id)
 {
@@ -28,16 +28,16 @@ static int __init set_use_crs(const struct dmi_system_id *id)
 	return 0;
 }
 
-static int __init set_nouse_crs(const struct dmi_system_id *id)
+static int __init set_yesuse_crs(const struct dmi_system_id *id)
 {
 	pci_use_crs = false;
 	return 0;
 }
 
-static int __init set_ignore_seg(const struct dmi_system_id *id)
+static int __init set_igyesre_seg(const struct dmi_system_id *id)
 {
-	printk(KERN_INFO "PCI: %s detected: ignoring ACPI _SEG\n", id->ident);
-	pci_ignore_seg = true;
+	printk(KERN_INFO "PCI: %s detected: igyesring ACPI _SEG\n", id->ident);
+	pci_igyesre_seg = true;
 	return 0;
 }
 
@@ -78,7 +78,7 @@ static const struct dmi_system_id pci_crs_quirks[] __initconst = {
 		.matches = {
 			DMI_MATCH(DMI_BOARD_VENDOR, "MICRO-STAR INTERNATIONAL CO., LTD"),
 			DMI_MATCH(DMI_BOARD_NAME, "MS-7253"),
-			DMI_MATCH(DMI_BIOS_VENDOR, "Phoenix Technologies, LTD"),
+			DMI_MATCH(DMI_BIOS_VENDOR, "Phoenix Techyeslogies, LTD"),
 		},
 	},
 	/* https://bugs.launchpad.net/ubuntu/+source/alsa-driver/+bug/931368 */
@@ -89,7 +89,7 @@ static const struct dmi_system_id pci_crs_quirks[] __initconst = {
 		.matches = {
 			DMI_MATCH(DMI_BOARD_VENDOR, "Foxconn"),
 			DMI_MATCH(DMI_BOARD_NAME, "K8M890-8237A"),
-			DMI_MATCH(DMI_BIOS_VENDOR, "Phoenix Technologies, LTD"),
+			DMI_MATCH(DMI_BIOS_VENDOR, "Phoenix Techyeslogies, LTD"),
 		},
 	},
 
@@ -97,7 +97,7 @@ static const struct dmi_system_id pci_crs_quirks[] __initconst = {
 
 	/* https://bugzilla.redhat.com/show_bug.cgi?id=769657 */
 	{
-		.callback = set_nouse_crs,
+		.callback = set_yesuse_crs,
 		.ident = "Dell Studio 1557",
 		.matches = {
 			DMI_MATCH(DMI_BOARD_VENDOR, "Dell Inc."),
@@ -107,7 +107,7 @@ static const struct dmi_system_id pci_crs_quirks[] __initconst = {
 	},
 	/* https://bugzilla.redhat.com/show_bug.cgi?id=769657 */
 	{
-		.callback = set_nouse_crs,
+		.callback = set_yesuse_crs,
 		.ident = "Thinkpad SL510",
 		.matches = {
 			DMI_MATCH(DMI_BOARD_VENDOR, "LENOVO"),
@@ -117,7 +117,7 @@ static const struct dmi_system_id pci_crs_quirks[] __initconst = {
 	},
 	/* https://bugzilla.kernel.org/show_bug.cgi?id=42606 */
 	{
-		.callback = set_nouse_crs,
+		.callback = set_yesuse_crs,
 		.ident = "Supermicro X8DTH",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Supermicro"),
@@ -128,7 +128,7 @@ static const struct dmi_system_id pci_crs_quirks[] __initconst = {
 
 	/* https://bugzilla.kernel.org/show_bug.cgi?id=15362 */
 	{
-		.callback = set_ignore_seg,
+		.callback = set_igyesre_seg,
 		.ident = "HP xw9300",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Hewlett-Packard"),
@@ -148,7 +148,7 @@ void __init pci_acpi_crs_quirks(void)
 	dmi_check_system(pci_crs_quirks);
 
 	/*
-	 * If the user specifies "pci=use_crs" or "pci=nocrs" explicitly, that
+	 * If the user specifies "pci=use_crs" or "pci=yescrs" explicitly, that
 	 * takes precedence over anything we figured out above.
 	 */
 	if (pci_probe & PCI_ROOT_NO_CRS)
@@ -158,8 +158,8 @@ void __init pci_acpi_crs_quirks(void)
 
 	printk(KERN_INFO "PCI: %s host bridge windows from ACPI; "
 	       "if necessary, use \"pci=%s\" and report a bug\n",
-	       pci_use_crs ? "Using" : "Ignoring",
-	       pci_use_crs ? "nocrs" : "use_crs");
+	       pci_use_crs ? "Using" : "Igyesring",
+	       pci_use_crs ? "yescrs" : "use_crs");
 }
 
 #ifdef	CONFIG_PCI_MMCONFIG
@@ -174,7 +174,7 @@ static int check_segment(u16 seg, struct device *dev, char *estr)
 	}
 
 	/*
-	 * Failure in adding MMCFG information is not fatal,
+	 * Failure in adding MMCFG information is yest fatal,
 	 * just can't access extended configuration space of
 	 * devices under this host bridge.
 	 */
@@ -199,7 +199,7 @@ static int setup_mcfg_map(struct acpi_pci_root_info *ci)
 	info->mcfg_added = false;
 	seg = info->sd.domain;
 
-	/* return success if MMCFG is not in use */
+	/* return success if MMCFG is yest in use */
 	if (raw_pci_ext_ops && raw_pci_ext_ops != &pci_mmcfg)
 		return 0;
 
@@ -242,22 +242,22 @@ static void teardown_mcfg_map(struct acpi_pci_root_info *ci)
 }
 #endif
 
-static int pci_acpi_root_get_node(struct acpi_pci_root *root)
+static int pci_acpi_root_get_yesde(struct acpi_pci_root *root)
 {
 	int busnum = root->secondary.start;
 	struct acpi_device *device = root->device;
-	int node = acpi_get_node(device->handle);
+	int yesde = acpi_get_yesde(device->handle);
 
-	if (node == NUMA_NO_NODE) {
-		node = x86_pci_root_bus_node(busnum);
-		if (node != 0 && node != NUMA_NO_NODE)
-			dev_info(&device->dev, FW_BUG "no _PXM; falling back to node %d from hardware (may be inconsistent with ACPI node numbers)\n",
-				node);
+	if (yesde == NUMA_NO_NODE) {
+		yesde = x86_pci_root_bus_yesde(busnum);
+		if (yesde != 0 && yesde != NUMA_NO_NODE)
+			dev_info(&device->dev, FW_BUG "yes _PXM; falling back to yesde %d from hardware (may be inconsistent with ACPI yesde numbers)\n",
+				yesde);
 	}
-	if (node != NUMA_NO_NODE && !node_online(node))
-		node = NUMA_NO_NODE;
+	if (yesde != NUMA_NO_NODE && !yesde_online(yesde))
+		yesde = NUMA_NO_NODE;
 
-	return node;
+	return yesde;
 }
 
 static int pci_acpi_root_init_info(struct acpi_pci_root_info *ci)
@@ -308,7 +308,7 @@ static int pci_acpi_root_prepare_resources(struct acpi_pci_root_info *ci)
 
 	resource_list_for_each_entry_safe(entry, tmp, &ci->resources) {
 		dev_printk(KERN_DEBUG, &device->dev,
-			   "host bridge window %pR (ignored)\n", entry->res);
+			   "host bridge window %pR (igyesred)\n", entry->res);
 		resource_list_destroy_entry(entry);
 	}
 	x86_pci_root_bus_resources(busnum, &ci->resources);
@@ -327,15 +327,15 @@ struct pci_bus *pci_acpi_scan_root(struct acpi_pci_root *root)
 {
 	int domain = root->segment;
 	int busnum = root->secondary.start;
-	int node = pci_acpi_root_get_node(root);
+	int yesde = pci_acpi_root_get_yesde(root);
 	struct pci_bus *bus;
 
-	if (pci_ignore_seg)
+	if (pci_igyesre_seg)
 		root->segment = domain = 0;
 
 	if (domain && !pci_domains_supported) {
 		printk(KERN_WARNING "pci_bus %04x:%02x: "
-		       "ignored (multiple domains not supported)\n",
+		       "igyesred (multiple domains yest supported)\n",
 		       domain, busnum);
 		return NULL;
 	}
@@ -348,7 +348,7 @@ struct pci_bus *pci_acpi_scan_root(struct acpi_pci_root *root)
 		 */
 		struct pci_sysdata sd = {
 			.domain = domain,
-			.node = node,
+			.yesde = yesde,
 			.companion = root->device
 		};
 
@@ -359,11 +359,11 @@ struct pci_bus *pci_acpi_scan_root(struct acpi_pci_root *root)
 		info = kzalloc(sizeof(*info), GFP_KERNEL);
 		if (!info)
 			dev_err(&root->device->dev,
-				"pci_bus %04x:%02x: ignored (out of memory)\n",
+				"pci_bus %04x:%02x: igyesred (out of memory)\n",
 				domain, busnum);
 		else {
 			info->sd.domain = domain;
-			info->sd.node = node;
+			info->sd.yesde = yesde;
 			info->sd.companion = root->device;
 			bus = acpi_pci_root_create(root, &acpi_pci_root_ops,
 						   &info->common, &info->sd);
@@ -375,7 +375,7 @@ struct pci_bus *pci_acpi_scan_root(struct acpi_pci_root *root)
 	 */
 	if (bus) {
 		struct pci_bus *child;
-		list_for_each_entry(child, &bus->children, node)
+		list_for_each_entry(child, &bus->children, yesde)
 			pcie_bus_configure_settings(child);
 	}
 
@@ -385,7 +385,7 @@ struct pci_bus *pci_acpi_scan_root(struct acpi_pci_root *root)
 int pcibios_root_bridge_prepare(struct pci_host_bridge *bridge)
 {
 	/*
-	 * We pass NULL as parent to pci_create_root_bus(), so if it is not NULL
+	 * We pass NULL as parent to pci_create_root_bus(), so if it is yest NULL
 	 * here, pci_create_root_bus() has been called by someone else and
 	 * sysdata is likely to be different from what we expect.  Let it go in
 	 * that case.
@@ -401,14 +401,14 @@ int __init pci_acpi_init(void)
 {
 	struct pci_dev *dev = NULL;
 
-	if (acpi_noirq)
+	if (acpi_yesirq)
 		return -ENODEV;
 
 	printk(KERN_INFO "PCI: Using ACPI for IRQ routing\n");
 	acpi_irq_penalty_init();
 	pcibios_enable_irq = acpi_pci_irq_enable;
 	pcibios_disable_irq = acpi_pci_irq_disable;
-	x86_init.pci.init_irq = x86_init_noop;
+	x86_init.pci.init_irq = x86_init_yesop;
 
 	if (pci_routeirq) {
 		/*

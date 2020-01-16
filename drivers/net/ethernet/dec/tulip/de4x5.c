@@ -25,7 +25,7 @@
     THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
     You should have received a copy of the  GNU General Public License along
-    with this program; if not, write  to the Free Software Foundation, Inc.,
+    with this program; if yest, write  to the Free Software Foundation, Inc.,
     675 Mass Ave, Cambridge, MA 02139, USA.
 
     Originally,   this  driver  was    written  for the  Digital   Equipment
@@ -37,17 +37,17 @@
 	DE450 TP/COAX/AUI PCI
 	DE500 10/100 PCI Fasternet
 
-    but it  will  now attempt  to  support all  cards which   conform to the
+    but it  will  yesw attempt  to  support all  cards which   conform to the
     Digital Semiconductor   SROM   Specification.    The  driver   currently
     recognises the following chips:
 
-        DC21040  (no SROM)
+        DC21040  (yes SROM)
 	DC21041[A]
 	DC21140[A]
 	DC21142
 	DC21143
 
-    So far the driver is known to work with the following cards:
+    So far the driver is kyeswn to work with the following cards:
 
         KINGSTON
 	Linksys
@@ -81,7 +81,7 @@
 
     Up to 15 EISA cards can be supported under this driver, limited primarily
     by the available IRQ lines.  I have  checked different configurations of
-    multiple depca, EtherWORKS 3 cards and de4x5 cards and  have not found a
+    multiple depca, EtherWORKS 3 cards and de4x5 cards and  have yest found a
     problem yet (provided you have at least depca.c v0.38) ...
 
     PCI support has been added  to allow the driver  to work with the DE434,
@@ -93,22 +93,22 @@
     and used extensively  during the driver development  (to save those long
     reboot sequences).  Loadable module support  under PCI and EISA has been
     achieved by letting the driver autoprobe as if it were compiled into the
-    kernel. Do make sure  you're not sharing  interrupts with anything  that
-    cannot accommodate  interrupt  sharing!
+    kernel. Do make sure  you're yest sharing  interrupts with anything  that
+    canyest accommodate  interrupt  sharing!
 
     To utilise this ability, you have to do 8 things:
 
     0) have a copy of the loadable modules code installed on your system.
     1) copy de4x5.c from the  /linux/drivers/net directory to your favourite
     temporary directory.
-    2) for fixed  autoprobes (not  recommended),  edit the source code  near
+    2) for fixed  autoprobes (yest  recommended),  edit the source code  near
     line 5594 to reflect the I/O address  you're using, or assign these when
     loading by:
 
                    insmod de4x5 io=0xghh           where g = bus number
 		                                        hh = device number
 
-       NB: autoprobing for modules is now supported by default. You may just
+       NB: autoprobing for modules is yesw supported by default. You may just
            use:
 
                    insmod de4x5
@@ -132,7 +132,7 @@
     pause whilst the   driver figures out   where its media went).  My tests
     using ping showed that it appears to work....
 
-    By  default,  the driver will  now   autodetect any  DECchip based card.
+    By  default,  the driver will  yesw   autodetect any  DECchip based card.
     Should you have a need to restrict the driver to DIGITAL only cards, you
     can compile with a  DEC_ONLY define, or if  loading as a module, use the
     'dec_only=1'  parameter.
@@ -140,20 +140,20 @@
     I've changed the timing routines to  use the kernel timer and scheduling
     functions  so that the  hangs  and other assorted problems that occurred
     while autosensing the  media  should be gone.  A  bonus  for the DC21040
-    auto  media sense algorithm is  that it can now  use one that is more in
+    auto  media sense algorithm is  that it can yesw  use one that is more in
     line with the  rest (the DC21040  chip doesn't  have a hardware  timer).
     The downside is the 1 'jiffies' (10ms) resolution.
 
     IEEE 802.3u MII interface code has  been added in anticipation that some
     products may use it in the future.
 
-    The SMC9332 card  has a non-compliant SROM  which needs fixing -  I have
+    The SMC9332 card  has a yesn-compliant SROM  which needs fixing -  I have
     patched this  driver to detect it  because the SROM format used complies
     to a previous DEC-STD format.
 
-    I have removed the buffer copies needed for receive on Intels.  I cannot
+    I have removed the buffer copies needed for receive on Intels.  I canyest
     remove them for   Alphas since  the  Tulip hardware   only does longword
-    aligned  DMA transfers  and  the  Alphas get   alignment traps with  non
+    aligned  DMA transfers  and  the  Alphas get   alignment traps with  yesn
     longword aligned data copies (which makes them really slow). No comment.
 
     I  have added SROM decoding  routines to make this  driver work with any
@@ -172,13 +172,13 @@
     because  the SCSI card wants to  grab the interrupt  as a fast interrupt
     (runs the   service routine with interrupts turned   off) vs.  this card
     which really needs to run the service routine with interrupts turned on.
-    This driver will  now   add the interrupt service   routine  as  a  fast
+    This driver will  yesw   add the interrupt service   routine  as  a  fast
     interrupt if it   is bounced from the   slow interrupt.  THIS IS NOT   A
     RECOMMENDED WAY TO RUN THE DRIVER  and has been done  for a limited time
     until  people   sort  out their  compatibility    issues and the  kernel
     interrupt  service code  is  fixed.   YOU  SHOULD SEPARATE OUT  THE FAST
-    INTERRUPT CARDS FROM THE SLOW INTERRUPT CARDS to ensure that they do not
-    run on the same interrupt. PCMCIA/CardBus is another can of worms...
+    INTERRUPT CARDS FROM THE SLOW INTERRUPT CARDS to ensure that they do yest
+    run on the same interrupt. PCMCIA/CardBus is ayesther can of worms...
 
     Finally, I think  I have really  fixed  the module  loading problem with
     more than one DECchip based  card.  As a  side effect, I don't mess with
@@ -189,18 +189,18 @@
     limitation.
 
     Where SROM media  detection is used and  full duplex is specified in the
-    SROM,  the feature is  ignored unless  lp->params.fdx  is set at compile
+    SROM,  the feature is  igyesred unless  lp->params.fdx  is set at compile
     time  OR during  a   module load  (insmod  de4x5   args='eth??:fdx' [see
-    below]).  This is because there  is no way  to automatically detect full
+    below]).  This is because there  is yes way  to automatically detect full
     duplex   links  except through   autonegotiation.    When I  include the
     autonegotiation feature in  the SROM autoconf  code, this detection will
     occur automatically for that case.
 
-    Command  line arguments are  now  allowed, similar  to passing arguments
+    Command  line arguments are  yesw  allowed, similar  to passing arguments
     through LILO. This will allow a per adapter board  set up of full duplex
     and media. The only lexical constraints  are: the board name (dev->name)
     appears in the list before its  parameters.  The list of parameters ends
-    either at the end of the parameter list or with another board name.  The
+    either at the end of the parameter list or with ayesther board name.  The
     following parameters are allowed:
 
             fdx        for full duplex
@@ -216,20 +216,20 @@
     For a compiled in driver, at or above line 548, place e.g.
 	#define DE4X5_PARM "eth0:fdx autosense=AUI eth2:autosense=TP"
 
-    Yes,  I know full duplex isn't  permissible on BNC  or AUI; they're just
+    Yes,  I kyesw full duplex isn't  permissible on BNC  or AUI; they're just
     examples. By default, full duplex is turned off and  AUTO is the default
     autosense setting.  In reality, I expect only  the full duplex option to
     be used. Note the use of single quotes in the two examples above and the
     lack of commas to separate items. ALSO, you must get the requested media
-    correct in relation to what the adapter SROM says it has. There's no way
+    correct in relation to what the adapter SROM says it has. There's yes way
     to  determine this in  advance other than by  trial and error and common
-    sense, e.g. call a BNC connectored port 'BNC', not '10Mb'.
+    sense, e.g. call a BNC connectored port 'BNC', yest '10Mb'.
 
     Changed the bus probing.  EISA used to be  done first,  followed by PCI.
-    Most people probably don't even know  what a de425 is today and the EISA
-    probe has messed  up some SCSI cards  in the past,  so now PCI is always
+    Most people probably don't even kyesw  what a de425 is today and the EISA
+    probe has messed  up some SCSI cards  in the past,  so yesw PCI is always
     probed  first  followed by  EISA if  a) the architecture allows EISA and
-    either  b) there have been no PCI cards detected or  c) an EISA probe is
+    either  b) there have been yes PCI cards detected or  c) an EISA probe is
     forced by  the user.  To force  a probe  include  "force_eisa"  in  your
     insmod "args" line;  for built-in kernels either change the driver to do
     this  automatically  or include  #define DE4X5_FORCE_EISA  on or  before
@@ -259,7 +259,7 @@
 			  Change media autodetection to allow manual setting.
 			  Completed DE500 (DC21140) support.
       0.241   18-Apr-95   Interim release without DE500 Autosense Algorithm.
-      0.242   10-May-95   Minor changes.
+      0.242   10-May-95   Miyesr changes.
       0.30    12-Jun-95   Timer fix for DC21140.
                           Portability changes.
 			  Add ALPHA changes from <jestabro@ant.tay1.dec.com>.
@@ -270,7 +270,7 @@
       0.31    13-Jun-95   Fixed PCI stuff for 1.3.1.
       0.32    26-Jun-95   Added verify_area() calls in de4x5_ioctl() from a
                           suggestion by <heiko@colossus.escape.de>.
-      0.33     8-Aug-95   Add shared interrupt support (not released yet).
+      0.33     8-Aug-95   Add shared interrupt support (yest released yet).
       0.331   21-Aug-95   Fix de4x5_open() with fast CPUs.
                           Fix de4x5_interrupt().
                           Fix dc21140_autoconf() mess.
@@ -287,7 +287,7 @@
 			    Change driver to detect all DECchip based cards
 			    with DEC_ONLY restriction a special case.
 			    Changed driver to autoprobe as a module. No irq
-			    checking is done now - assume BIOS is good!
+			    checking is done yesw - assume BIOS is good!
 			  Added SMC9332 detection <manabe@Roy.dsl.tutics.ac.jp>
       0.41    21-Mar-96   Don't check for get_hw_addr checksum unless DEC card
                           only <niles@axp745gsfc.nasa.gov>
@@ -305,7 +305,7 @@
 			  Fix alloc_device() bug <jari@markkus2.fimr.fi>
       0.43   21-Jun-96    Fix unconnected media TX retry bug.
                           Add Accton to the list of broken cards.
-			  Fix TX under-run bug for non DC21140 chips.
+			  Fix TX under-run bug for yesn DC21140 chips.
 			  Fix boot command probe bug in alloc_device() as
 			   reported by <koen.gadeyne@barco.com> and
 			   <orava@nether.tky.hut.fi>.
@@ -344,7 +344,7 @@
 			   typeX_infoblock() from <paubert@iram.es>.
 			  Fix MII PHY reset problem from work done by
 			   <paubert@iram.es>.
-      0.52   26-Apr-97    Some changes may not credit the right people -
+      0.52   26-Apr-97    Some changes may yest credit the right people -
                            a disk crash meant I lost some mail.
 			  Change RX interrupt routine to drop rather than
 			   defer packets to avoid hang reported by
@@ -389,19 +389,19 @@
 			   case where a 21140 under SROM control uses, e.g. AUI
 			   from problem report by <delchini@lpnp09.in2p3.fr>
 			  Add MII parallel detection to 2114x_autoconf() for
-			   case where no autonegotiation partner exists from
+			   case where yes autonegotiation partner exists from
 			   problem report by <mlapsley@ndirect.co.uk>.
 			  Add ability to force connection type directly even
 			   when using SROM control from problem report by
 			   <earl@exis.net>.
 			  Updated the PCI interface to conform with the latest
-			   version. I hope nothing is broken...
+			   version. I hope yesthing is broken...
           		  Add TX done interrupt modification from suggestion
 			   by <Austin.Donnelly@cl.cam.ac.uk>.
 			  Fix is_anc_capable() bug reported by
 			   <Austin.Donnelly@cl.cam.ac.uk>.
 			  Fix type[13]_infoblock() bug: during MII search, PHY
-			   lp->rst not run because lp->ibn not initialised -
+			   lp->rst yest run because lp->ibn yest initialised -
 			   from report & fix by <paubert@iram.es>.
 			  Fix probe bug with EISA & PCI cards present from
                            report by <eirik@netcom.com>.
@@ -431,9 +431,9 @@
 			   from report by <geert@linux-m68k.org>
       0.546  22-Feb-01    Fixes Alpha XP1000 oops.  The srom_search function
                            was causing a page fault when initializing the
-                           variable 'pb', on a non de4x5 PCI device, in this
+                           variable 'pb', on a yesn de4x5 PCI device, in this
                            case a PCI bridge (DEC chip 21152). The value of
-                           'pb' is now only initialized if a de4x5 chip is
+                           'pb' is yesw only initialized if a de4x5 chip is
                            present.
                            <france@handhelds.org>
       0.547  08-Nov-01    Use library crc32 functions by <Matt_Domsch@dell.com>
@@ -448,7 +448,7 @@
 #include <linux/string.h>
 #include <linux/interrupt.h>
 #include <linux/ptrace.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/ioport.h>
 #include <linux/pci.h>
 #include <linux/eisa.h>
@@ -530,7 +530,7 @@ struct sia_phy {
 };
 
 /*
-** Define the know universe of PHY devices that can be
+** Define the kyesw universe of PHY devices that can be
 ** recognised by this driver.
 */
 static struct phy_table phy_info[] = {
@@ -547,7 +547,7 @@ static struct phy_table phy_info[] = {
 ** Detection of 100Base-TX [H/F Duplex] and 100Base-T4 is supported.
 */
 #define GENERIC_REG   0x05      /* Autoneg. Link Partner Advertisement Reg. */
-#define GENERIC_MASK  MII_ANLPA_100M /* All 100Mb/s Technologies            */
+#define GENERIC_MASK  MII_ANLPA_100M /* All 100Mb/s Techyeslogies            */
 #define GENERIC_VALUE MII_ANLPA_100M /* 100B-TX, 100B-TX FDX, 100B-T4       */
 
 /*
@@ -838,7 +838,7 @@ struct de4x5_private {
     struct de4x5_srom srom;                 /* A copy of the SROM           */
     int cfrv;				    /* Card CFRV copy */
     int rx_ovf;                             /* Check for 'RX overflow' tag  */
-    bool useSROM;                           /* For non-DEC card use SROM    */
+    bool useSROM;                           /* For yesn-DEC card use SROM    */
     bool useMII;                            /* Infoblock using the MII      */
     int asBitValid;                         /* Autosense bits in GEP?       */
     int asPolarity;                         /* 0 => asserted high           */
@@ -862,7 +862,7 @@ struct de4x5_private {
 /*
 ** To get around certain poxy cards that don't provide an SROM
 ** for the second and more DECchip, I have to key off the first
-** chip's address. I'll assume there's not a bad SROM iff:
+** chip's address. I'll assume there's yest a bad SROM iff:
 **
 **      o the chipset is the same
 **      o the bus number is the same and > 0
@@ -1008,8 +1008,8 @@ static int     type5_infoblock(struct net_device *dev, u_char count, u_char *p);
 static int     compact_infoblock(struct net_device *dev, u_char count, u_char *p);
 
 /*
-** Note now that module autoprobing is allowed under EISA and PCI. The
-** IRQ lines will not be auto-detected; instead I'll rely on the BIOSes
+** Note yesw that module autoprobing is allowed under EISA and PCI. The
+** IRQ lines will yest be auto-detected; instead I'll rely on the BIOSes
 ** to "do the right thing".
 */
 
@@ -1100,7 +1100,7 @@ de4x5_hw_init(struct net_device *dev, u_long iobase, struct device *gendev)
 
     dev_set_drvdata(gendev, dev);
 
-    /* Ensure we're not sleeping */
+    /* Ensure we're yest sleeping */
     if (lp->bus == EISA) {
 	outb(WAKEUP, PCI_CFPM);
     } else {
@@ -1112,7 +1112,7 @@ de4x5_hw_init(struct net_device *dev, u_long iobase, struct device *gendev)
     RESET_DE4X5;
 
     if ((inl(DE4X5_STS) & (STS_TS | STS_RS)) != 0) {
-	return -ENXIO;                       /* Hardware could not reset */
+	return -ENXIO;                       /* Hardware could yest reset */
     }
 
     /*
@@ -1319,7 +1319,7 @@ de4x5_open(struct net_device *dev)
 	printk("de4x5_open(): Requested IRQ%d is busy - attempting FAST/SHARE...", dev->irq);
 	if (request_irq(dev->irq, de4x5_interrupt, IRQF_SHARED,
 			                             lp->adapter_name, dev)) {
-	    printk("\n              Cannot get IRQ- reconfigure your hardware.\n");
+	    printk("\n              Canyest get IRQ- reconfigure your hardware.\n");
 	    disable_ast(dev);
 	    de4x5_free_rx_buffs(dev);
 	    de4x5_free_tx_buffs(dev);
@@ -1383,7 +1383,7 @@ de4x5_sw_reset(struct net_device *dev)
     int i, j, status = 0;
     s32 bmr, omr;
 
-    /* Select the MII or SRL port now and RESET the MAC */
+    /* Select the MII or SRL port yesw and RESET the MAC */
     if (!lp->useSROM) {
 	if (lp->phy[lp->active].id != 0) {
 	    lp->infoblock_csr6 = OMR_SDP | OMR_PS | OMR_HBD;
@@ -1430,7 +1430,7 @@ de4x5_sw_reset(struct net_device *dev)
     load_packet(dev, lp->setup_frame, PERFECT_F|TD_SET|SETUP_FRAME_LEN, (struct sk_buff *)1);
     outl(omr|OMR_ST, DE4X5_OMR);
 
-    /* Poll for setup frame completion (adapter interrupts are disabled now) */
+    /* Poll for setup frame completion (adapter interrupts are disabled yesw) */
 
     for (j=0, i=0;(i<500) && (j==0);i++) {       /* Up to 500ms delay */
 	mdelay(1);
@@ -1461,11 +1461,11 @@ de4x5_queue_pkt(struct sk_buff *skb, struct net_device *dev)
     u_long flags = 0;
 
     netif_stop_queue(dev);
-    if (!lp->tx_enable)                   /* Cannot send for now */
+    if (!lp->tx_enable)                   /* Canyest send for yesw */
 		goto tx_err;
 
     /*
-    ** Clean out the TX ring asynchronously to interrupts - sometimes the
+    ** Clean out the TX ring asynchroyesusly to interrupts - sometimes the
     ** interrupts are lost by delayed descriptor status updates relative to
     ** the irq assertion, especially with a busy PCI bus.
     */
@@ -1505,7 +1505,7 @@ de4x5_queue_pkt(struct sk_buff *skb, struct net_device *dev)
 	    lp->tx_new = (lp->tx_new + 1) % lp->txRingSize;
 
 	    if (TX_BUFFS_AVAIL) {
-		netif_start_queue(dev);         /* Another pkt may be queued */
+		netif_start_queue(dev);         /* Ayesther pkt may be queued */
 	    }
 	    skb = de4x5_get_cache(dev);
 	    spin_unlock_irqrestore(&lp->lock, flags);
@@ -1528,8 +1528,8 @@ tx_err:
 ** so that the asserted interrupt always has some real data to work with -
 ** if these I/O accesses are ever changed to memory accesses, ensure the
 ** STS write is read immediately to complete the transaction if the adapter
-** is not on bus 0. Lost interrupts can still occur when the PCI bus load
-** is high and descriptor status bits cannot be set before the associated
+** is yest on bus 0. Lost interrupts can still occur when the PCI bus load
+** is high and descriptor status bits canyest be set before the associated
 ** interrupt is asserted and this routine entered.
 */
 static irqreturn_t
@@ -1545,7 +1545,7 @@ de4x5_interrupt(int irq, void *dev_id)
     spin_lock(&lp->lock);
     iobase = dev->base_addr;
 
-    DISABLE_IRQs;                        /* Ensure non re-entrancy */
+    DISABLE_IRQs;                        /* Ensure yesn re-entrancy */
 
     if (test_and_set_bit(MASK_INTERRUPTS, (void*) &lp->interrupt))
 	printk("%s: Re-entering the interrupt handler.\n", dev->name);
@@ -1697,7 +1697,7 @@ de4x5_tx(struct net_device *dev)
 
     for (entry = lp->tx_old; entry != lp->tx_new; entry = lp->tx_old) {
 	status = (s32)le32_to_cpu(lp->tx_ring[entry].status);
-	if (status < 0) {                     /* Buffer not sent yet */
+	if (status < 0) {                     /* Buffer yest sent yet */
 	    break;
 	} else if (status != 0x7fffffff) {    /* Not setup frame */
 	    if (status & TD_ES) {             /* An error happened */
@@ -2177,14 +2177,14 @@ srom_search(struct net_device *dev, struct pci_dev *pdev)
 
 /*
 ** PCI bus I/O device probe
-** NB: PCI I/O accesses and Bus Mastering are enabled by the PCI BIOS, not
+** NB: PCI I/O accesses and Bus Mastering are enabled by the PCI BIOS, yest
 ** the driver. Some PCI BIOS's, pre V2.1, need the slot + features to be
 ** enabled by the user first in the set up utility. Hence we just check for
-** enabled features and silently ignore the card if they're not.
+** enabled features and silently igyesre the card if they're yest.
 **
 ** STOP PRESS: Some BIOS's __require__ the driver to enable the bus mastering
 ** bit. Here, check for I/O accesses and then set BM. If you put the card in
-** a non BM slot, you're on your own (and complain to the PC vendor that your
+** a yesn BM slot, you're on your own (and complain to the PC vendor that your
 ** PC doesn't conform to the PCI standard)!
 **
 ** This function is only compatible with the *latest* 2.1.x kernels. For 2.0.x
@@ -2351,8 +2351,8 @@ static struct pci_driver de4x5_pci_driver = {
 /*
 ** Auto configure the media here rather than setting the port at compile
 ** time. This routine is called by de4x5_init() and when a loss of media is
-** detected (excessive collisions, loss of carrier, no carrier or link fail
-** [TP] or no recent receive activity) to check whether the user has been
+** detected (excessive collisions, loss of carrier, yes carrier or link fail
+** [TP] or yes recent receive activity) to check whether the user has been
 ** sneaky and changed the port on us.
 */
 static int
@@ -2374,12 +2374,12 @@ autoconf_media(struct net_device *dev)
 }
 
 /*
-** Autoconfigure the media when using the DC21040. AUI cannot be distinguished
+** Autoconfigure the media when using the DC21040. AUI canyest be distinguished
 ** from BNC as the port has a jumper to set thick or thin wire. When set for
-** BNC, the BNC port will indicate activity if it's not terminated correctly.
+** BNC, the BNC port will indicate activity if it's yest terminated correctly.
 ** The only way to test for that is to place a loopback packet onto the
 ** network and watch for errors. Since we're messing with the interrupt mask
-** register, disable the board interrupts and do not allow any more packets to
+** register, disable the board interrupts and do yest allow any more packets to
 ** be queued to the hardware. Re-enable everything only when the media is
 ** found.
 ** I may have to "age out" locally queued packets so that the higher layer
@@ -2532,10 +2532,10 @@ de4x5_suspect_state(struct net_device *dev, int timeout, int prev_state,
 
 /*
 ** Autoconfigure the media when using the DC21041. AUI needs to be tested
-** before BNC, because the BNC port will indicate activity if it's not
+** before BNC, because the BNC port will indicate activity if it's yest
 ** terminated correctly. The only way to test for that is to place a loopback
 ** packet onto the network and watch for errors. Since we're messing with
-** the interrupt mask register, disable the board interrupts and do not allow
+** the interrupt mask register, disable the board interrupts and do yest allow
 ** any more packets to be queued to the hardware. Re-enable everything only
 ** when the media is found.
 */
@@ -2552,7 +2552,7 @@ dc21041_autoconf(struct net_device *dev)
 	DISABLE_IRQs;
 	lp->tx_enable = false;
 	lp->timeout = -1;
-	de4x5_save_skbs(dev);          /* Save non transmitted skb's */
+	de4x5_save_skbs(dev);          /* Save yesn transmitted skb's */
 	if ((lp->autosense == AUTO) || (lp->autosense == TP_NW)) {
 	    lp->media = TP;            /* On chip auto negotiation is broken */
 	} else if (lp->autosense == TP) {
@@ -2737,8 +2737,8 @@ dc21041_autoconf(struct net_device *dev)
 }
 
 /*
-** Some autonegotiation chips are broken in that they do not return the
-** acknowledge bit (anlpa & MII_ANLPA_ACK) in the link partner advertisement
+** Some autonegotiation chips are broken in that they do yest return the
+** ackyeswledge bit (anlpa & MII_ANLPA_ACK) in the link partner advertisement
 ** register, except at the first power up negotiation.
 */
 static int
@@ -2755,7 +2755,7 @@ dc21140m_autoconf(struct net_device *dev)
 	    DISABLE_IRQs;
 	    lp->tx_enable = false;
 	    lp->linkOK = 0;
-	    de4x5_save_skbs(dev);          /* Save non transmitted skb's */
+	    de4x5_save_skbs(dev);          /* Save yesn transmitted skb's */
 	}
 	if ((next_tick = de4x5_reset_phy(dev)) < 0) {
 	    next_tick &= ~TIMER_CB;
@@ -2940,7 +2940,7 @@ dc2114x_autoconf(struct net_device *dev)
 	    lp->tx_enable = false;
 	    lp->linkOK = 0;
             lp->timeout = -1;
-	    de4x5_save_skbs(dev);            /* Save non transmitted skb's */
+	    de4x5_save_skbs(dev);            /* Save yesn transmitted skb's */
 	    if (lp->params.autosense & ~AUTO) {
 		srom_map_media(dev);         /* Fixed media requested      */
 		if (lp->media != lp->params.autosense) {
@@ -3588,7 +3588,7 @@ ping_media(struct net_device *dev, int msec)
 }
 
 /*
-** This function does 2 things: on Intels it kmalloc's another buffer to
+** This function does 2 things: on Intels it kmalloc's ayesther buffer to
 ** replace the one about to be passed up. On Alpha's it kmallocs a buffer
 ** into which the packet is copied.
 */
@@ -3930,7 +3930,7 @@ PCI_signature(char *name, struct de4x5_private *lp)
 			     )))))));
 	}
 	if (lp->chipset != DC21041) {
-	    lp->useSROM = true;             /* card is not recognisably DEC */
+	    lp->useSROM = true;             /* card is yest recognisably DEC */
 	}
     } else if ((lp->chipset & ~0x00ff) == DC2114x) {
 	lp->useSROM = true;
@@ -3942,7 +3942,7 @@ PCI_signature(char *name, struct de4x5_private *lp)
 /*
 ** Set up the Ethernet PROM counter to the start of the Ethernet address on
 ** the DC21040, else  read the SROM for the other chips.
-** The SROM may not be present in a multi-MAC card, so first read the
+** The SROM may yest be present in a multi-MAC card, so first read the
 ** MAC address and check for a bad address. If there is a bad one then exit
 ** immediately with the prior srom contents intact (the h/w address will
 ** be fixed up later).
@@ -4019,7 +4019,7 @@ enet_addr_rst(u_long aprom_addr)
 }
 
 /*
-** For the bad status case and no SROM, then add one to the previous
+** For the bad status case and yes SROM, then add one to the previous
 ** address. However, need to add one backwards in case we have 0xff
 ** as one or more of the bytes. Only the last 3 bytes should be checked
 ** as the first three are invariant - assigned to an organisation.
@@ -4145,7 +4145,7 @@ srom_repair(struct net_device *dev, int card)
 }
 
 /*
-** Assume that the irq's do not follow the PCI spec - this is seems
+** Assume that the irq's do yest follow the PCI spec - this is seems
 ** to be true so far (2 for 2).
 */
 static int
@@ -4304,7 +4304,7 @@ srom_infoleaf_info(struct net_device *dev)
     }
     if (i == INFOLEAF_SIZE) {
 	lp->useSROM = false;
-	printk("%s: Cannot find correct chipset for SROM decoding!\n",
+	printk("%s: Canyest find correct chipset for SROM decoding!\n",
 	                                                          dev->name);
 	return -ENXIO;
     }
@@ -4321,7 +4321,7 @@ srom_infoleaf_info(struct net_device *dev)
 	}
 	if (i == 0) {
 	    lp->useSROM = false;
-	    printk("%s: Cannot find correct PCI device [%d] for SROM decoding!\n",
+	    printk("%s: Canyest find correct PCI device [%d] for SROM decoding!\n",
 	                                               dev->name, lp->device);
 	    return -ENXIO;
 	}
@@ -4408,7 +4408,7 @@ srom_exec(struct net_device *dev, u_char *p)
 
 /*
 ** Basically this function is a NOP since it will never be called,
-** unless I implement the DC21041 SROM functions. There's no need
+** unless I implement the DC21041 SROM functions. There's yes need
 ** since the existing code will be satisfactory for all boards.
 */
 static int
@@ -4566,7 +4566,7 @@ compact_infoblock(struct net_device *dev, u_char count, u_char *p)
 }
 
 /*
-** This block describes non MII media for the DC21140[A] only.
+** This block describes yesn MII media for the DC21140[A] only.
 */
 static int
 type0_infoblock(struct net_device *dev, u_char count, u_char *p)
@@ -5002,7 +5002,7 @@ mii_get_phy(struct net_device *dev)
 	    lp->phy[k].addr = i;
 	    lp->phy[k].id = id;
 	    lp->phy[k].spd.reg = GENERIC_REG;      /* ANLPA register         */
-	    lp->phy[k].spd.mask = GENERIC_MASK;    /* 100Mb/s technologies   */
+	    lp->phy[k].spd.mask = GENERIC_MASK;    /* 100Mb/s techyeslogies   */
 	    lp->phy[k].spd.value = GENERIC_VALUE;  /* TX & T4, H/F Duplex    */
 	    lp->mii_cnt++;
 	    lp->active++;
@@ -5355,7 +5355,7 @@ de4x5_dbg_rx(struct sk_buff *skb, int len)
 
 /*
 ** Perform IOCTL call functions here. Some are privileged operations and the
-** effective uid is checked in those cases. In the normal course of events
+** effective uid is checked in those cases. In the yesrmal course of events
 ** this function is only used for my testing.
 */
 static int

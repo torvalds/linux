@@ -10,7 +10,7 @@
  */
 #include <linux/kernel.h>
 #include <linux/string.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/unistd.h>
 #include <linux/interrupt.h>
 #include <linux/init.h>
@@ -167,7 +167,7 @@ static int lxt973a2_read_status(struct phy_device *phydev)
 			if (lpa < 0)
 				return lpa;
 
-			/* If both registers are equal, it is suspect but not
+			/* If both registers are equal, it is suspect but yest
 			* impossible, hence a new try
 			*/
 		} while (lpa == adv && retry--);
@@ -242,7 +242,7 @@ static int lxt973_probe(struct phy_device *phydev)
 
 static int lxt973_config_aneg(struct phy_device *phydev)
 {
-	/* Do nothing if port is in fiber mode. */
+	/* Do yesthing if port is in fiber mode. */
 	return phydev->priv ? 0 : genphy_config_aneg(phydev);
 }
 

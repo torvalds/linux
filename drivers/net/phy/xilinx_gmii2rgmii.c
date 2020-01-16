@@ -60,28 +60,28 @@ static int xgmiitorgmii_read_status(struct phy_device *phydev)
 static int xgmiitorgmii_probe(struct mdio_device *mdiodev)
 {
 	struct device *dev = &mdiodev->dev;
-	struct device_node *np = dev->of_node, *phy_node;
+	struct device_yesde *np = dev->of_yesde, *phy_yesde;
 	struct gmii2rgmii *priv;
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
 
-	phy_node = of_parse_phandle(np, "phy-handle", 0);
-	if (!phy_node) {
+	phy_yesde = of_parse_phandle(np, "phy-handle", 0);
+	if (!phy_yesde) {
 		dev_err(dev, "Couldn't parse phy-handle\n");
 		return -ENODEV;
 	}
 
-	priv->phy_dev = of_phy_find_device(phy_node);
-	of_node_put(phy_node);
+	priv->phy_dev = of_phy_find_device(phy_yesde);
+	of_yesde_put(phy_yesde);
 	if (!priv->phy_dev) {
 		dev_info(dev, "Couldn't find phydev\n");
 		return -EPROBE_DEFER;
 	}
 
 	if (!priv->phy_dev->drv) {
-		dev_info(dev, "Attached phy not ready\n");
+		dev_info(dev, "Attached phy yest ready\n");
 		return -EPROBE_DEFER;
 	}
 

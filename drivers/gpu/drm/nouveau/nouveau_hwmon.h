@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -25,19 +25,19 @@
 #ifndef __NOUVEAU_PM_H__
 #define __NOUVEAU_PM_H__
 
-struct nouveau_hwmon {
+struct yesuveau_hwmon {
 	struct drm_device *dev;
 	struct device *hwmon;
 };
 
-static inline struct nouveau_hwmon *
-nouveau_hwmon(struct drm_device *dev)
+static inline struct yesuveau_hwmon *
+yesuveau_hwmon(struct drm_device *dev)
 {
-	return nouveau_drm(dev)->hwmon;
+	return yesuveau_drm(dev)->hwmon;
 }
 
-/* nouveau_hwmon.c */
-int  nouveau_hwmon_init(struct drm_device *dev);
-void nouveau_hwmon_fini(struct drm_device *dev);
+/* yesuveau_hwmon.c */
+int  yesuveau_hwmon_init(struct drm_device *dev);
+void yesuveau_hwmon_fini(struct drm_device *dev);
 
 #endif

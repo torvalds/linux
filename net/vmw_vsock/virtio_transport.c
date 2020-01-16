@@ -4,7 +4,7 @@
  *
  * Copyright (C) 2013-2015 Red Hat, Inc.
  * Author: Asias He <asias@redhat.com>
- *         Stefan Hajnoczi <stefanha@redhat.com>
+ *         Stefan Hajyesczi <stefanha@redhat.com>
  *
  * Some of the code is take from Gerd Hoffmann <kraxel@redhat.com>'s
  * early virtio-vsock proof-of-concept bits.
@@ -145,7 +145,7 @@ virtio_transport_send_pkt_work(struct work_struct *work)
 		}
 
 		ret = virtqueue_add_sgs(vq, sgs, out_sg, in_sg, pkt, GFP_KERNEL);
-		/* Usually this means that there is no more space available in
+		/* Usually this means that there is yes more space available in
 		 * the vq
 		 */
 		if (ret < 0) {
@@ -161,7 +161,7 @@ virtio_transport_send_pkt_work(struct work_struct *work)
 
 			val = atomic_dec_return(&vsock->queued_replies);
 
-			/* Do we now have resources to resume rx processing? */
+			/* Do we yesw have resources to resume rx processing? */
 			if (val + 1 == virtqueue_get_vring_size(rx_vq))
 				restart_rx = true;
 		}
@@ -486,17 +486,17 @@ static struct virtio_transport virtio_transport = {
 		.stream_is_active         = virtio_transport_stream_is_active,
 		.stream_allow             = virtio_transport_stream_allow,
 
-		.notify_poll_in           = virtio_transport_notify_poll_in,
-		.notify_poll_out          = virtio_transport_notify_poll_out,
-		.notify_recv_init         = virtio_transport_notify_recv_init,
-		.notify_recv_pre_block    = virtio_transport_notify_recv_pre_block,
-		.notify_recv_pre_dequeue  = virtio_transport_notify_recv_pre_dequeue,
-		.notify_recv_post_dequeue = virtio_transport_notify_recv_post_dequeue,
-		.notify_send_init         = virtio_transport_notify_send_init,
-		.notify_send_pre_block    = virtio_transport_notify_send_pre_block,
-		.notify_send_pre_enqueue  = virtio_transport_notify_send_pre_enqueue,
-		.notify_send_post_enqueue = virtio_transport_notify_send_post_enqueue,
-		.notify_buffer_size       = virtio_transport_notify_buffer_size,
+		.yestify_poll_in           = virtio_transport_yestify_poll_in,
+		.yestify_poll_out          = virtio_transport_yestify_poll_out,
+		.yestify_recv_init         = virtio_transport_yestify_recv_init,
+		.yestify_recv_pre_block    = virtio_transport_yestify_recv_pre_block,
+		.yestify_recv_pre_dequeue  = virtio_transport_yestify_recv_pre_dequeue,
+		.yestify_recv_post_dequeue = virtio_transport_yestify_recv_post_dequeue,
+		.yestify_send_init         = virtio_transport_yestify_send_init,
+		.yestify_send_pre_block    = virtio_transport_yestify_send_pre_block,
+		.yestify_send_pre_enqueue  = virtio_transport_yestify_send_pre_enqueue,
+		.yestify_send_post_enqueue = virtio_transport_yestify_send_post_enqueue,
+		.yestify_buffer_size       = virtio_transport_yestify_buffer_size,
 	},
 
 	.send_pkt = virtio_transport_send_pkt,
@@ -681,7 +681,7 @@ static void virtio_vsock_remove(struct virtio_device *vdev)
 	/* Reset all connected sockets when the device disappear */
 	vsock_for_each_connected_socket(virtio_vsock_reset_sock);
 
-	/* Stop all work handlers to make sure no one is accessing the device,
+	/* Stop all work handlers to make sure yes one is accessing the device,
 	 * so we can safely call vdev->config->reset().
 	 */
 	mutex_lock(&vsock->rx_lock);
@@ -696,7 +696,7 @@ static void virtio_vsock_remove(struct virtio_device *vdev)
 	vsock->event_run = false;
 	mutex_unlock(&vsock->event_lock);
 
-	/* Flush all device writes and interrupts, device will not use any
+	/* Flush all device writes and interrupts, device will yest use any
 	 * more buffers.
 	 */
 	vdev->config->reset(vdev);

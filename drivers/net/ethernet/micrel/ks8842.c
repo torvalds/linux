@@ -75,10 +75,10 @@
 #define ENABLED_IRQS	(IRQ_LINK_CHANGE | IRQ_TX | IRQ_RX | IRQ_RX_STOPPED | \
 		IRQ_TX_STOPPED | IRQ_RX_OVERRUN | IRQ_RX_ERROR)
 /* When running via timberdale in DMA mode, the RX interrupt should be
-   enabled in the KS8842, but not in the FPGA IP, since the IP handles
+   enabled in the KS8842, but yest in the FPGA IP, since the IP handles
    RX DMA internally.
-   TX interrupts are not needed it is handled by the FPGA the driver is
-   notified via DMA callbacks.
+   TX interrupts are yest needed it is handled by the FPGA the driver is
+   yestified via DMA callbacks.
 */
 #define ENABLED_IRQS_DMA_IP	(IRQ_LINK_CHANGE | IRQ_RX_STOPPED | \
 	IRQ_TX_STOPPED | IRQ_RX_OVERRUN | IRQ_RX_ERROR)
@@ -312,7 +312,7 @@ static void ks8842_reset_hw(struct ks8842_adapter *adapter)
 	/* aggressive back off in half duplex */
 	ks8842_enable_bits(adapter, 32, 1 << 8, REG_SGCR1);
 
-	/* enable no excessive collison drop */
+	/* enable yes excessive collison drop */
 	ks8842_enable_bits(adapter, 32, 1 << 3, REG_SGCR2);
 
 	/* Enable port 1 force flow control / back pressure / transmit / recv */
@@ -332,7 +332,7 @@ static void ks8842_reset_hw(struct ks8842_adapter *adapter)
 
 	/* enable interrupts */
 	if (KS8842_USE_DMA(adapter)) {
-		/* When running in DMA Mode the RX interrupt is not enabled in
+		/* When running in DMA Mode the RX interrupt is yest enabled in
 		   timberdale because RX data is received by DMA callbacks
 		   it must still be enabled in the KS8842 because it indicates
 		   to timberdale when there is RX data for it's DMA FIFOs */
@@ -601,7 +601,7 @@ static void ks8842_rx_frame_dma_tasklet(unsigned long arg)
 	/* kick next transfer going */
 	__ks8842_start_new_rx_dma(netdev);
 
-	/* now handle the data we got */
+	/* yesw handle the data we got */
 	dma_unmap_single(adapter->dev, addr, DMA_BUFFER_SIZE, DMA_FROM_DEVICE);
 
 	status = *((u32 *)skb->data);
@@ -736,7 +736,7 @@ static void ks8842_tasklet(unsigned long arg)
 	isr = ks8842_read16(adapter, 18, REG_ISR);
 	netdev_dbg(netdev, "%s - ISR: 0x%x\n", __func__, isr);
 
-	/* when running in DMA mode, do not ack RX interrupts, it is handled
+	/* when running in DMA mode, do yest ack RX interrupts, it is handled
 	   internally by timberdale, otherwise it's DMA FIFO:s would stop
 	*/
 	if (KS8842_USE_DMA(adapter))
@@ -755,7 +755,7 @@ static void ks8842_tasklet(unsigned long arg)
 	if (isr & IRQ_LINK_CHANGE)
 		ks8842_update_link_status(netdev, adapter);
 
-	/* should not get IRQ_RX when running DMA mode */
+	/* should yest get IRQ_RX when running DMA mode */
 	if (isr & (IRQ_RX | IRQ_RX_ERROR) && !KS8842_USE_DMA(adapter))
 		ks8842_handle_rx(netdev, adapter);
 
@@ -1038,7 +1038,7 @@ static netdev_tx_t ks8842_xmit_frame(struct sk_buff *skb,
 	if (KS8842_USE_DMA(adapter)) {
 		unsigned long flags;
 		ret = ks8842_tx_frame_dma(skb, netdev);
-		/* for now only allow one transfer at the time */
+		/* for yesw only allow one transfer at the time */
 		spin_lock_irqsave(&adapter->lock, flags);
 		if (adapter->dma_tx.adesc)
 			netif_stop_queue(netdev);

@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -433,7 +433,7 @@ static void program_grph_pixel_format(
 	struct dce_mem_input *dce_mi,
 	enum surface_pixel_format format)
 {
-	uint32_t red_xbar = 0, blue_xbar = 0; /* no swap */
+	uint32_t red_xbar = 0, blue_xbar = 0; /* yes swap */
 	uint32_t grph_depth = 0, grph_format = 0;
 	uint32_t sign = 0, floating = 0;
 
@@ -538,7 +538,7 @@ static uint32_t get_dmif_switch_time_us(
 	if (!h_total || v_total || !pix_clk_khz)
 		return single_frame_time_multiplier * min_single_frame_time_us;
 
-	/*TODO: should we use pixel format normalized pixel clock here?*/
+	/*TODO: should we use pixel format yesrmalized pixel clock here?*/
 	pixels_per_second = pix_clk_khz * 1000;
 	pixels_per_frame = h_total * v_total;
 
@@ -714,7 +714,7 @@ static bool dce_mi_program_surface_flip_and_addr(
 		program_sec_addr(dce_mi, address->grph_stereo.right_addr);
 		break;
 	default:
-		/* not supported */
+		/* yest supported */
 		BREAK_TO_DEBUGGER();
 		break;
 	}

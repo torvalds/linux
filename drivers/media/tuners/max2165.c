@@ -258,7 +258,7 @@ static int max2165_set_params(struct dvb_frontend *fe)
 		priv->frequency = c->frequency;
 		break;
 	default:
-		printk(KERN_INFO "MAX2165: bandwidth %d Hz not supported.\n",
+		printk(KERN_INFO "MAX2165: bandwidth %d Hz yest supported.\n",
 		       c->bandwidth_hz);
 		return -EINVAL;
 	}

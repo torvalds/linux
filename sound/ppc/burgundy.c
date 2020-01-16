@@ -278,7 +278,7 @@ static int snd_pmac_burgundy_put_volume_2b(struct snd_kcontrol *kcontrol,
   .private_value = ((ADDR2BASE(addr) & 0xff) | ((off) << 8)) }
 
 /*
- * Burgundy gain/attenuation: 0 - 15, mono/stereo, byte reg
+ * Burgundy gain/attenuation: 0 - 15, moyes/stereo, byte reg
  */
 static int snd_pmac_burgundy_info_gain(struct snd_kcontrol *kcontrol,
 				       struct snd_ctl_elem_info *uinfo)
@@ -340,7 +340,7 @@ static int snd_pmac_burgundy_put_gain(struct snd_kcontrol *kcontrol,
   .private_value = (ADDR2BASE(addr) | ((stereo) << 24) | ((atten) << 25)) }
 
 /*
- * Burgundy switch: 0/1, mono/stereo, word reg
+ * Burgundy switch: 0/1, moyes/stereo, word reg
  */
 static int snd_pmac_burgundy_info_switch_w(struct snd_kcontrol *kcontrol,
 					   struct snd_ctl_elem_info *uinfo)
@@ -396,7 +396,7 @@ static int snd_pmac_burgundy_put_switch_w(struct snd_kcontrol *kcontrol,
 		| (ADDR2BASE(addr) << 16) | ((stereo) << 24)) }
 
 /*
- * Burgundy switch: 0/1, mono/stereo, byte reg, bit mask
+ * Burgundy switch: 0/1, moyes/stereo, byte reg, bit mask
  */
 static int snd_pmac_burgundy_info_switch_b(struct snd_kcontrol *kcontrol,
 					   struct snd_ctl_elem_info *uinfo)
@@ -565,7 +565,7 @@ static int snd_pmac_burgundy_detect_headphone(struct snd_pmac *chip)
 	return (in_le32(&chip->awacs->codec_stat) & chip->hp_stat_mask) ? 1 : 0;
 }
 
-static void snd_pmac_burgundy_update_automute(struct snd_pmac *chip, int do_notify)
+static void snd_pmac_burgundy_update_automute(struct snd_pmac *chip, int do_yestify)
 {
 	if (chip->auto_mute) {
 		int imac = of_machine_is_compatible("iMac");
@@ -584,16 +584,16 @@ static void snd_pmac_burgundy_update_automute(struct snd_pmac *chip, int do_noti
 			reg |= imac ? (BURGUNDY_OUTPUT_LEFT
 					| BURGUNDY_OUTPUT_RIGHT)
 				: (BURGUNDY_OUTPUT_INTERN);
-		if (do_notify && reg == oreg)
+		if (do_yestify && reg == oreg)
 			return;
 		snd_pmac_burgundy_wcb(chip,
 				MASK_ADDR_BURGUNDY_MORE_OUTPUTENABLES, reg);
-		if (do_notify) {
-			snd_ctl_notify(chip->card, SNDRV_CTL_EVENT_MASK_VALUE,
+		if (do_yestify) {
+			snd_ctl_yestify(chip->card, SNDRV_CTL_EVENT_MASK_VALUE,
 				       &chip->master_sw_ctl->id);
-			snd_ctl_notify(chip->card, SNDRV_CTL_EVENT_MASK_VALUE,
+			snd_ctl_yestify(chip->card, SNDRV_CTL_EVENT_MASK_VALUE,
 				       &chip->speaker_sw_ctl->id);
-			snd_ctl_notify(chip->card, SNDRV_CTL_EVENT_MASK_VALUE,
+			snd_ctl_yestify(chip->card, SNDRV_CTL_EVENT_MASK_VALUE,
 				       &chip->hp_detect_ctl->id);
 		}
 	}

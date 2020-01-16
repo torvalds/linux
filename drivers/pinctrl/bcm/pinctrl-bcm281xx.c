@@ -966,7 +966,7 @@ static inline enum bcm281xx_pin_type pin_type_get(struct pinctrl_dev *pctldev,
 
 /*
  * This helper function is used to build up the value and mask used to write to
- * a pin register, but does not actually write to the register.
+ * a pin register, but does yest actually write to the register.
  */
 static inline void bcm281xx_pin_update(u32 *reg_val, u32 *reg_mask,
 				       u32 param_val, u32 param_shift,
@@ -1024,7 +1024,7 @@ static const struct pinctrl_ops bcm281xx_pinctrl_ops = {
 	.get_group_name = bcm281xx_pinctrl_get_group_name,
 	.get_group_pins = bcm281xx_pinctrl_get_group_pins,
 	.pin_dbg_show = bcm281xx_pinctrl_pin_dbg_show,
-	.dt_node_to_map = pinconf_generic_dt_node_to_map_pin,
+	.dt_yesde_to_map = pinconf_generic_dt_yesde_to_map_pin,
 	.dt_free_map = pinctrl_utils_free_map,
 };
 
@@ -1122,9 +1122,9 @@ static int bcm281xx_std_pin_update(struct pinctrl_dev *pctldev,
 			break;
 		/*
 		 * The pin bias can only be one of pull-up, pull-down, or
-		 * disable.  The user does not need to specify a value for the
+		 * disable.  The user does yest need to specify a value for the
 		 * property, and the default value from pinconf-generic is
-		 * ignored.
+		 * igyesred.
 		 */
 		case PIN_CONFIG_BIAS_DISABLE:
 			bcm281xx_pin_update(val, mask, 0,
@@ -1360,7 +1360,7 @@ static int bcm281xx_pinctrl_pin_config_set(struct pinctrl_dev *pctldev,
 		break;
 
 	default:
-		dev_err(pctldev->dev, "Unknown pin type for pin %s (%d).\n",
+		dev_err(pctldev->dev, "Unkyeswn pin type for pin %s (%d).\n",
 			pdata->pins[pin].name, pin);
 		return -EINVAL;
 

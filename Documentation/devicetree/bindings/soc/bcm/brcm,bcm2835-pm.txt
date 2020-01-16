@@ -23,7 +23,7 @@ Optional properties:
 
 - timeout-sec:		Contains the watchdog timeout in seconds
 - system-power-controller: Whether the watchdog is controlling the
-    system power.  This node follows the power controller bindings[3].
+    system power.  This yesde follows the power controller bindings[3].
 
 [1] Documentation/devicetree/bindings/reset/reset.txt
 [2] Documentation/devicetree/bindings/power/power-domain.yaml

@@ -37,8 +37,8 @@ do { \
  * Enum for classifying detected devices.
  */
 enum lcs_channel_types {
-	/* Device is not a channel  */
-	lcs_channel_type_none,
+	/* Device is yest a channel  */
+	lcs_channel_type_yesne,
 
 	/* Device is a 2216 channel */
 	lcs_channel_type_parallel,
@@ -204,12 +204,12 @@ struct lcs_cmd {
 	__u8   slot;
 	__u8   cmd_code;
 	__u8   initiator;
-	__u16  sequence_no;
+	__u16  sequence_yes;
 	__u16  return_code;
 	union {
 		struct {
 			__u8   lan_type;
-			__u8   portno;
+			__u8   portyes;
 			__u16  parameter_count;
 			__u8   operator_flags[3];
 			__u8   reserved[3];
@@ -221,7 +221,7 @@ struct lcs_cmd {
 		} lcs_startup;
 		struct {
 			__u8   lan_type;
-			__u8   portno;
+			__u8   portyes;
 			__u8   unused[10];
 			__u8   mac_addr[LCS_MAC_LENGTH];
 			__u32  num_packets_deblocked;
@@ -231,13 +231,13 @@ struct lcs_cmd {
 			__u32  num_tx_packets_disgarded;
 			__u32  num_packets_rx_from_lan;
 			__u32  num_rx_errors_detected;
-			__u32  num_rx_discarded_nobuffs_avail;
+			__u32  num_rx_discarded_yesbuffs_avail;
 			__u32  num_rx_packets_too_large;
 		} lcs_lanstat_cmd;
 #ifdef CONFIG_IP_MULTICAST
 		struct {
 			__u8   lan_type;
-			__u8   portno;
+			__u8   portyes;
 			__u16  num_ip_pairs;
 			__u16  ip_assists_supported;
 			__u16  ip_assists_enabled;
@@ -265,15 +265,15 @@ struct lcs_buffer {
 	enum lcs_buffer_states state;
 	void *data;
 	int count;
-	/* Callback for completion notification. */
+	/* Callback for completion yestification. */
 	void (*callback)(struct lcs_channel *, struct lcs_buffer *);
 };
 
 struct lcs_reply {
 	struct list_head list;
-	__u16 sequence_no;
+	__u16 sequence_yes;
 	refcount_t refcnt;
-	/* Callback for completion notification. */
+	/* Callback for completion yestification. */
 	void (*callback)(struct lcs_card *, struct lcs_cmd *);
 	wait_queue_head_t wait_q;
 	struct lcs_card *card;
@@ -331,12 +331,12 @@ struct lcs_card {
 	__u16 ip_assists_enabled;
 	__s8 lan_type;
 	__u32 pkt_seq;
-	__u16 sequence_no;
-	__s16 portno;
+	__u16 sequence_yes;
+	__s16 portyes;
 	/* Some info copied from probeinfo */
 	u8 device_forced;
-	u8 max_port_no;
-	u8 hint_port_no;
-	s16 port_protocol_no;
+	u8 max_port_yes;
+	u8 hint_port_yes;
+	s16 port_protocol_yes;
 }  __attribute__ ((aligned(8)));
 

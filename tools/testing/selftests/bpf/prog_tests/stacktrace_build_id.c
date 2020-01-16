@@ -19,11 +19,11 @@ void test_stacktrace_build_id(void)
 
 retry:
 	err = bpf_prog_load(file, BPF_PROG_TYPE_TRACEPOINT, &obj, &prog_fd);
-	if (CHECK(err, "prog_load", "err %d errno %d\n", err, errno))
+	if (CHECK(err, "prog_load", "err %d erryes %d\n", err, erryes))
 		return;
 
 	prog = bpf_object__find_program_by_title(obj, prog_name);
-	if (CHECK(!prog, "find_prog", "prog '%s' not found\n", prog_name))
+	if (CHECK(!prog, "find_prog", "prog '%s' yest found\n", prog_name))
 		goto close_prog;
 
 	link = bpf_program__attach_tracepoint(prog, "random", "urandom_read");
@@ -33,22 +33,22 @@ retry:
 	/* find map fds */
 	control_map_fd = bpf_find_map(__func__, obj, "control_map");
 	if (CHECK(control_map_fd < 0, "bpf_find_map control_map",
-		  "err %d errno %d\n", err, errno))
+		  "err %d erryes %d\n", err, erryes))
 		goto disable_pmu;
 
 	stackid_hmap_fd = bpf_find_map(__func__, obj, "stackid_hmap");
 	if (CHECK(stackid_hmap_fd < 0, "bpf_find_map stackid_hmap",
-		  "err %d errno %d\n", err, errno))
+		  "err %d erryes %d\n", err, erryes))
 		goto disable_pmu;
 
 	stackmap_fd = bpf_find_map(__func__, obj, "stackmap");
-	if (CHECK(stackmap_fd < 0, "bpf_find_map stackmap", "err %d errno %d\n",
-		  err, errno))
+	if (CHECK(stackmap_fd < 0, "bpf_find_map stackmap", "err %d erryes %d\n",
+		  err, erryes))
 		goto disable_pmu;
 
 	stack_amap_fd = bpf_find_map(__func__, obj, "stack_amap");
 	if (CHECK(stack_amap_fd < 0, "bpf_find_map stack_amap",
-		  "err %d errno %d\n", err, errno))
+		  "err %d erryes %d\n", err, erryes))
 		goto disable_pmu;
 
 	if (CHECK_FAIL(system("dd if=/dev/urandom of=/dev/zero count=4 2> /dev/null")))
@@ -65,23 +65,23 @@ retry:
 	 */
 	err = compare_map_keys(stackid_hmap_fd, stackmap_fd);
 	if (CHECK(err, "compare_map_keys stackid_hmap vs. stackmap",
-		  "err %d errno %d\n", err, errno))
+		  "err %d erryes %d\n", err, erryes))
 		goto disable_pmu;
 
 	err = compare_map_keys(stackmap_fd, stackid_hmap_fd);
 	if (CHECK(err, "compare_map_keys stackmap vs. stackid_hmap",
-		  "err %d errno %d\n", err, errno))
+		  "err %d erryes %d\n", err, erryes))
 		goto disable_pmu;
 
 	err = extract_build_id(buf, 256);
 
 	if (CHECK(err, "get build_id with readelf",
-		  "err %d errno %d\n", err, errno))
+		  "err %d erryes %d\n", err, erryes))
 		goto disable_pmu;
 
 	err = bpf_map_get_next_key(stackmap_fd, NULL, &key);
 	if (CHECK(err, "get_next_key from stackmap",
-		  "err %d, errno %d\n", err, errno))
+		  "err %d, erryes %d\n", err, erryes))
 		goto disable_pmu;
 
 	do {
@@ -89,7 +89,7 @@ retry:
 
 		err = bpf_map_lookup_elem(stackmap_fd, &key, id_offs);
 		if (CHECK(err, "lookup_elem from stackmap",
-			  "err %d, errno %d\n", err, errno))
+			  "err %d, erryes %d\n", err, erryes))
 			goto disable_pmu;
 		for (i = 0; i < PERF_MAX_STACK_DEPTH; ++i)
 			if (id_offs[i].status == BPF_STACK_BUILD_ID_VALID &&
@@ -123,7 +123,7 @@ retry:
 		* sizeof(struct bpf_stack_build_id);
 	err = compare_stack_ips(stackmap_fd, stack_amap_fd, stack_trace_len);
 	CHECK(err, "compare_stack_ips stackmap vs. stack_amap",
-	      "err %d errno %d\n", err, errno);
+	      "err %d erryes %d\n", err, erryes);
 
 disable_pmu:
 	bpf_link__destroy(link);

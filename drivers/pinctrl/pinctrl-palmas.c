@@ -15,7 +15,7 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
+ * along with this program; if yest, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA
  * 02111-1307, USA
  */
@@ -359,7 +359,7 @@ struct palmas_pins_pullup_dn_info {
 	int pullup_dn_reg_base;
 	int pullup_dn_reg_add;
 	int pullup_dn_mask;
-	int normal_val;
+	int yesrmal_val;
 	int pull_up_val;
 	int pull_dn_val;
 };
@@ -394,7 +394,7 @@ static const struct palmas_pins_pullup_dn_info pud_##_name##_info = {	\
 	.pullup_dn_reg_base = PALMAS_##_rbase##_BASE,			\
 	.pullup_dn_reg_add = _add,					\
 	.pullup_dn_mask = _mask,					\
-	.normal_val = _nv,						\
+	.yesrmal_val = _nv,						\
 	.pull_up_val = _uv,						\
 	.pull_dn_val = _dv,						\
 }
@@ -655,7 +655,7 @@ static const struct pinctrl_ops palmas_pinctrl_ops = {
 	.get_groups_count = palmas_pinctrl_get_groups_count,
 	.get_group_name = palmas_pinctrl_get_group_name,
 	.get_group_pins = palmas_pinctrl_get_group_pins,
-	.dt_node_to_map = pinconf_generic_dt_node_to_map_pin,
+	.dt_yesde_to_map = pinconf_generic_dt_yesde_to_map_pin,
 	.dt_free_map = pinctrl_utils_free_map,
 };
 
@@ -699,7 +699,7 @@ static int palmas_pinctrl_set_mux(struct pinctrl_dev *pctldev,
 	/* If direct option is provided here */
 	if (function <= PALMAS_PINMUX_OPTION3) {
 		if (!g->opt[function]) {
-			dev_err(pci->dev, "Pin %s does not support option %d\n",
+			dev_err(pci->dev, "Pin %s does yest support option %d\n",
 				g->name, function);
 			return -EINVAL;
 		}
@@ -712,7 +712,7 @@ static int palmas_pinctrl_set_mux(struct pinctrl_dev *pctldev,
 				break;
 		}
 		if (WARN_ON(i == ARRAY_SIZE(g->opt))) {
-			dev_err(pci->dev, "Pin %s does not support option %d\n",
+			dev_err(pci->dev, "Pin %s does yest support option %d\n",
 				g->name, function);
 			return -EINVAL;
 		}
@@ -767,7 +767,7 @@ static int palmas_pinconf_get(struct pinctrl_dev *pctldev,
 
 	if (group_nr == pci->num_pin_groups) {
 		dev_err(pci->dev,
-			"Pinconf is not supported for pin-id %d\n", pin);
+			"Pinconf is yest supported for pin-id %d\n", pin);
 		return -ENOTSUPP;
 	}
 
@@ -775,7 +775,7 @@ static int palmas_pinconf_get(struct pinctrl_dev *pctldev,
 	opt = g->opt[pci->pins_current_opt[group_nr]];
 	if (!opt) {
 		dev_err(pci->dev,
-			"Pinconf is not supported for pin %s\n", g->name);
+			"Pinconf is yest supported for pin %s\n", g->name);
 		return -ENOTSUPP;
 	}
 
@@ -785,7 +785,7 @@ static int palmas_pinconf_get(struct pinctrl_dev *pctldev,
 	case PIN_CONFIG_BIAS_PULL_DOWN:
 		if (!opt->pud_info) {
 			dev_err(pci->dev,
-				"PULL control not supported for pin %s\n",
+				"PULL control yest supported for pin %s\n",
 				g->name);
 			return -ENOTSUPP;
 		}
@@ -800,8 +800,8 @@ static int palmas_pinconf_get(struct pinctrl_dev *pctldev,
 
 		rval = val & opt->pud_info->pullup_dn_mask;
 		arg = 0;
-		if ((opt->pud_info->normal_val >= 0) &&
-				(opt->pud_info->normal_val == rval) &&
+		if ((opt->pud_info->yesrmal_val >= 0) &&
+				(opt->pud_info->yesrmal_val == rval) &&
 				(param == PIN_CONFIG_BIAS_DISABLE))
 			arg = 1;
 		else if ((opt->pud_info->pull_up_val >= 0) &&
@@ -817,7 +817,7 @@ static int palmas_pinconf_get(struct pinctrl_dev *pctldev,
 	case PIN_CONFIG_DRIVE_OPEN_DRAIN:
 		if (!opt->od_info) {
 			dev_err(pci->dev,
-				"OD control not supported for pin %s\n",
+				"OD control yest supported for pin %s\n",
 				g->name);
 			return -ENOTSUPP;
 		}
@@ -839,14 +839,14 @@ static int palmas_pinconf_get(struct pinctrl_dev *pctldev,
 			arg = 1;
 		if (arg < 0) {
 			dev_err(pci->dev,
-				"OD control not supported for pin %s\n",
+				"OD control yest supported for pin %s\n",
 				g->name);
 			return -ENOTSUPP;
 		}
 		break;
 
 	default:
-		dev_err(pci->dev, "Properties not supported\n");
+		dev_err(pci->dev, "Properties yest supported\n");
 		return -ENOTSUPP;
 	}
 
@@ -876,7 +876,7 @@ static int palmas_pinconf_set(struct pinctrl_dev *pctldev,
 
 	if (group_nr == pci->num_pin_groups) {
 		dev_err(pci->dev,
-			"Pinconf is not supported for pin-id %d\n", pin);
+			"Pinconf is yest supported for pin-id %d\n", pin);
 		return -ENOTSUPP;
 	}
 
@@ -884,7 +884,7 @@ static int palmas_pinconf_set(struct pinctrl_dev *pctldev,
 	opt = g->opt[pci->pins_current_opt[group_nr]];
 	if (!opt) {
 		dev_err(pci->dev,
-			"Pinconf is not supported for pin %s\n", g->name);
+			"Pinconf is yest supported for pin %s\n", g->name);
 		return -ENOTSUPP;
 	}
 
@@ -898,7 +898,7 @@ static int palmas_pinconf_set(struct pinctrl_dev *pctldev,
 		case PIN_CONFIG_BIAS_PULL_DOWN:
 			if (!opt->pud_info) {
 				dev_err(pci->dev,
-					"PULL control not supported for pin %s\n",
+					"PULL control yest supported for pin %s\n",
 					g->name);
 				return -ENOTSUPP;
 			}
@@ -907,7 +907,7 @@ static int palmas_pinconf_set(struct pinctrl_dev *pctldev,
 			mask = opt->pud_info->pullup_dn_mask;
 
 			if (param == PIN_CONFIG_BIAS_DISABLE)
-				rval = opt->pud_info->normal_val;
+				rval = opt->pud_info->yesrmal_val;
 			else if (param == PIN_CONFIG_BIAS_PULL_UP)
 				rval = opt->pud_info->pull_up_val;
 			else
@@ -915,7 +915,7 @@ static int palmas_pinconf_set(struct pinctrl_dev *pctldev,
 
 			if (rval < 0) {
 				dev_err(pci->dev,
-					"PULL control not supported for pin %s\n",
+					"PULL control yest supported for pin %s\n",
 					g->name);
 				return -ENOTSUPP;
 			}
@@ -924,7 +924,7 @@ static int palmas_pinconf_set(struct pinctrl_dev *pctldev,
 		case PIN_CONFIG_DRIVE_OPEN_DRAIN:
 			if (!opt->od_info) {
 				dev_err(pci->dev,
-					"OD control not supported for pin %s\n",
+					"OD control yest supported for pin %s\n",
 					g->name);
 				return -ENOTSUPP;
 			}
@@ -937,13 +937,13 @@ static int palmas_pinconf_set(struct pinctrl_dev *pctldev,
 				rval = opt->od_info->od_enable;
 			if (rval < 0) {
 				dev_err(pci->dev,
-					"OD control not supported for pin %s\n",
+					"OD control yest supported for pin %s\n",
 					g->name);
 				return -ENOTSUPP;
 			}
 			break;
 		default:
-			dev_err(pci->dev, "Properties not supported\n");
+			dev_err(pci->dev, "Properties yest supported\n");
 			return -ENOTSUPP;
 		}
 
@@ -1003,11 +1003,11 @@ static int palmas_pinctrl_probe(struct platform_device *pdev)
 	bool enable_dvfs1 = false;
 	bool enable_dvfs2 = false;
 
-	if (pdev->dev.of_node) {
+	if (pdev->dev.of_yesde) {
 		pinctrl_data = of_device_get_match_data(&pdev->dev);
-		enable_dvfs1 = of_property_read_bool(pdev->dev.of_node,
+		enable_dvfs1 = of_property_read_bool(pdev->dev.of_yesde,
 					"ti,palmas-enable-dvfs1");
-		enable_dvfs2 = of_property_read_bool(pdev->dev.of_node,
+		enable_dvfs2 = of_property_read_bool(pdev->dev.of_yesde,
 					"ti,palmas-enable-dvfs2");
 	}
 

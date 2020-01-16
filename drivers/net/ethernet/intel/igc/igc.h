@@ -279,7 +279,7 @@ struct igc_ring {
 			struct sk_buff *skb;
 		};
 	};
-} ____cacheline_internodealigned_in_smp;
+} ____cacheline_interyesdealigned_in_smp;
 
 struct igc_q_vector {
 	struct igc_adapter *adapter;    /* backlink */
@@ -298,7 +298,7 @@ struct igc_q_vector {
 	struct net_device poll_dev;
 
 	/* for dynamic allocation of rings associated with this q_vector */
-	struct igc_ring ring[0] ____cacheline_internodealigned_in_smp;
+	struct igc_ring ring[0] ____cacheline_interyesdealigned_in_smp;
 };
 
 #define MAX_ETYPE_FILTER		(4 - 1)
@@ -325,7 +325,7 @@ struct igc_nfc_input {
 };
 
 struct igc_nfc_filter {
-	struct hlist_node nfc_node;
+	struct hlist_yesde nfc_yesde;
 	struct igc_nfc_input filter;
 	unsigned long cookie;
 	u16 etype_reg_index;

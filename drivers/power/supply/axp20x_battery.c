@@ -5,7 +5,7 @@
  *	Quentin Schulz <quentin.schulz@free-electrons.com>
  *
  * This driver is based on a previous upstreaming attempt by:
- *	Bruno Prémont <bonbons@linux-vserver.org>
+ *	Bruyes Prémont <bonbons@linux-vserver.org>
  *
  * This file is subject to the terms and conditions of the GNU General
  * Public License. See the file "COPYING" in the main directory of this
@@ -279,7 +279,7 @@ static int axp20x_battery_get_prop(struct power_supply *psy,
 		break;
 
 	case POWER_SUPPLY_PROP_CAPACITY:
-		/* When no battery is present, return capacity is 100% */
+		/* When yes battery is present, return capacity is 100% */
 		ret = regmap_read(axp20x_batt->regmap, AXP20X_PWR_OP_MODE,
 				  &reg);
 		if (ret)
@@ -551,7 +551,7 @@ static int axp20x_power_probe(struct platform_device *pdev)
 	struct power_supply_battery_info info;
 	struct device *dev = &pdev->dev;
 
-	if (!of_device_is_available(pdev->dev.of_node))
+	if (!of_device_is_available(pdev->dev.of_yesde))
 		return -ENODEV;
 
 	axp20x_batt = devm_kzalloc(&pdev->dev, sizeof(*axp20x_batt),
@@ -588,7 +588,7 @@ static int axp20x_power_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, axp20x_batt);
 
 	psy_cfg.drv_data = axp20x_batt;
-	psy_cfg.of_node = pdev->dev.of_node;
+	psy_cfg.of_yesde = pdev->dev.of_yesde;
 
 	axp20x_batt->data = (struct axp_data *)of_device_get_match_data(dev);
 

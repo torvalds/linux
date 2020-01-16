@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0 */
-/* Copyright (c) 2017-2018 Mellanox Technologies. All rights reserved */
+/* Copyright (c) 2017-2018 Mellayesx Techyeslogies. All rights reserved */
 
 #ifndef _MLXSW_ROUTER_H_
 #define _MLXSW_ROUTER_H_
@@ -63,7 +63,7 @@ void
 mlxsw_sp_neigh_entry_counter_update(struct mlxsw_sp *mlxsw_sp,
 				    struct mlxsw_sp_neigh_entry *neigh_entry,
 				    bool adding);
-bool mlxsw_sp_neigh_ipv6_ignore(struct mlxsw_sp_neigh_entry *neigh_entry);
+bool mlxsw_sp_neigh_ipv6_igyesre(struct mlxsw_sp_neigh_entry *neigh_entry);
 int __mlxsw_sp_ipip_entry_update_tunnel(struct mlxsw_sp *mlxsw_sp,
 					struct mlxsw_sp_ipip_entry *ipip_entry,
 					bool recreate_loopback,

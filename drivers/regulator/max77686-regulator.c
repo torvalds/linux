@@ -98,11 +98,11 @@ static unsigned int max77686_get_opmode_shift(int id)
 
 /*
  * When regulator is configured for GPIO control then it
- * replaces "normal" mode. Any change from low power mode to normal
+ * replaces "yesrmal" mode. Any change from low power mode to yesrmal
  * should actually change to GPIO control.
- * Map normal mode to proper value for such regulators.
+ * Map yesrmal mode to proper value for such regulators.
  */
-static unsigned int max77686_map_normal_mode(struct max77686_data *max77686,
+static unsigned int max77686_map_yesrmal_mode(struct max77686_data *max77686,
 					     int id)
 {
 	switch (id) {
@@ -152,10 +152,10 @@ static int max77686_set_suspend_mode(struct regulator_dev *rdev,
 		val = MAX77686_LDO_LOWPOWER_PWRREQ;
 		break;
 	case REGULATOR_MODE_NORMAL:			/* ON in Normal Mode */
-		val = max77686_map_normal_mode(max77686, id);
+		val = max77686_map_yesrmal_mode(max77686, id);
 		break;
 	default:
-		pr_warn("%s: regulator_suspend_mode : 0x%x not supported\n",
+		pr_warn("%s: regulator_suspend_mode : 0x%x yest supported\n",
 			rdev->desc->name, mode);
 		return -EINVAL;
 	}
@@ -186,10 +186,10 @@ static int max77686_ldo_set_suspend_mode(struct regulator_dev *rdev,
 		val = MAX77686_LDO_LOWPOWER_PWRREQ;
 		break;
 	case REGULATOR_MODE_NORMAL:			/* ON in Normal Mode */
-		val = max77686_map_normal_mode(max77686, id);
+		val = max77686_map_yesrmal_mode(max77686, id);
 		break;
 	default:
-		pr_warn("%s: regulator_suspend_mode : 0x%x not supported\n",
+		pr_warn("%s: regulator_suspend_mode : 0x%x yest supported\n",
 			rdev->desc->name, mode);
 		return -EINVAL;
 	}
@@ -213,7 +213,7 @@ static int max77686_enable(struct regulator_dev *rdev)
 	shift = max77686_get_opmode_shift(id);
 
 	if (max77686->opmode[id] == MAX77686_OFF_PWRREQ)
-		max77686->opmode[id] = max77686_map_normal_mode(max77686, id);
+		max77686->opmode[id] = max77686_map_yesrmal_mode(max77686, id);
 
 	return regmap_update_bits(rdev->regmap, rdev->desc->enable_reg,
 				  rdev->desc->enable_mask,
@@ -237,7 +237,7 @@ static int max77686_set_ramp_delay(struct regulator_dev *rdev, int ramp_delay)
 	case 55001 ... 100000:
 		break;
 	default:
-		pr_warn("%s: ramp_delay: %d not supported, setting 100000\n",
+		pr_warn("%s: ramp_delay: %d yest supported, setting 100000\n",
 			rdev->desc->name, ramp_delay);
 	}
 
@@ -245,7 +245,7 @@ static int max77686_set_ramp_delay(struct regulator_dev *rdev, int ramp_delay)
 				  MAX77686_RAMP_RATE_MASK, ramp_value << 6);
 }
 
-static int max77686_of_parse_cb(struct device_node *np,
+static int max77686_of_parse_cb(struct device_yesde *np,
 		const struct regulator_desc *desc,
 		struct regulator_config *config)
 {
@@ -256,8 +256,8 @@ static int max77686_of_parse_cb(struct device_node *np,
 	case MAX77686_BUCK8:
 	case MAX77686_BUCK9:
 	case MAX77686_LDO20 ... MAX77686_LDO22:
-		config->ena_gpiod = fwnode_gpiod_get_index(
-				of_fwnode_handle(np),
+		config->ena_gpiod = fwyesde_gpiod_get_index(
+				of_fwyesde_handle(np),
 				"maxim,ena",
 				0,
 				GPIOD_OUT_HIGH | GPIOD_FLAGS_BIT_NONEXCLUSIVE,
@@ -337,7 +337,7 @@ static const struct regulator_ops max77686_buck_dvs_ops = {
 #define regulator_desc_ldo(num)		{				\
 	.name		= "LDO"#num,					\
 	.of_match	= of_match_ptr("LDO"#num),			\
-	.regulators_node	= of_match_ptr("voltage-regulators"),	\
+	.regulators_yesde	= of_match_ptr("voltage-regulators"),	\
 	.of_parse_cb	= max77686_of_parse_cb,				\
 	.id		= MAX77686_LDO##num,				\
 	.ops		= &max77686_ops,				\
@@ -356,7 +356,7 @@ static const struct regulator_ops max77686_buck_dvs_ops = {
 #define regulator_desc_lpm_ldo(num)	{				\
 	.name		= "LDO"#num,					\
 	.of_match	= of_match_ptr("LDO"#num),			\
-	.regulators_node	= of_match_ptr("voltage-regulators"),	\
+	.regulators_yesde	= of_match_ptr("voltage-regulators"),	\
 	.id		= MAX77686_LDO##num,				\
 	.ops		= &max77686_ldo_ops,				\
 	.type		= REGULATOR_VOLTAGE,				\
@@ -374,7 +374,7 @@ static const struct regulator_ops max77686_buck_dvs_ops = {
 #define regulator_desc_ldo_low(num)		{			\
 	.name		= "LDO"#num,					\
 	.of_match	= of_match_ptr("LDO"#num),			\
-	.regulators_node	= of_match_ptr("voltage-regulators"),	\
+	.regulators_yesde	= of_match_ptr("voltage-regulators"),	\
 	.id		= MAX77686_LDO##num,				\
 	.ops		= &max77686_ldo_ops,				\
 	.type		= REGULATOR_VOLTAGE,				\
@@ -392,7 +392,7 @@ static const struct regulator_ops max77686_buck_dvs_ops = {
 #define regulator_desc_ldo1_low(num)		{			\
 	.name		= "LDO"#num,					\
 	.of_match	= of_match_ptr("LDO"#num),			\
-	.regulators_node	= of_match_ptr("voltage-regulators"),	\
+	.regulators_yesde	= of_match_ptr("voltage-regulators"),	\
 	.id		= MAX77686_LDO##num,				\
 	.ops		= &max77686_ops,				\
 	.type		= REGULATOR_VOLTAGE,				\
@@ -410,7 +410,7 @@ static const struct regulator_ops max77686_buck_dvs_ops = {
 #define regulator_desc_buck(num)		{			\
 	.name		= "BUCK"#num,					\
 	.of_match	= of_match_ptr("BUCK"#num),			\
-	.regulators_node	= of_match_ptr("voltage-regulators"),	\
+	.regulators_yesde	= of_match_ptr("voltage-regulators"),	\
 	.of_parse_cb	= max77686_of_parse_cb,				\
 	.id		= MAX77686_BUCK##num,				\
 	.ops		= &max77686_ops,				\
@@ -429,7 +429,7 @@ static const struct regulator_ops max77686_buck_dvs_ops = {
 #define regulator_desc_buck1(num)		{			\
 	.name		= "BUCK"#num,					\
 	.of_match	= of_match_ptr("BUCK"#num),			\
-	.regulators_node	= of_match_ptr("voltage-regulators"),	\
+	.regulators_yesde	= of_match_ptr("voltage-regulators"),	\
 	.id		= MAX77686_BUCK##num,				\
 	.ops		= &max77686_buck1_ops,				\
 	.type		= REGULATOR_VOLTAGE,				\
@@ -447,7 +447,7 @@ static const struct regulator_ops max77686_buck_dvs_ops = {
 #define regulator_desc_buck_dvs(num)		{			\
 	.name		= "BUCK"#num,					\
 	.of_match	= of_match_ptr("BUCK"#num),			\
-	.regulators_node	= of_match_ptr("voltage-regulators"),	\
+	.regulators_yesde	= of_match_ptr("voltage-regulators"),	\
 	.id		= MAX77686_BUCK##num,				\
 	.ops		= &max77686_buck_dvs_ops,			\
 	.type		= REGULATOR_VOLTAGE,				\

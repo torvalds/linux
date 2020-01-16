@@ -204,7 +204,7 @@ static int qoriq_tmu_calibration(struct platform_device *pdev)
 	int i, val, len;
 	u32 range[4];
 	const u32 *calibration;
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	struct qoriq_tmu_data *data = platform_get_drvdata(pdev);
 
 	len = of_property_count_u32_elems(np, "fsl,tmu-range");
@@ -261,7 +261,7 @@ static int qoriq_tmu_probe(struct platform_device *pdev)
 	int ret;
 	u32 ver;
 	struct qoriq_tmu_data *data;
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 
 	data = devm_kzalloc(&pdev->dev, sizeof(struct qoriq_tmu_data),
 			    GFP_KERNEL);

@@ -153,7 +153,7 @@ static int ccp_aes_rfc3686_setkey(struct crypto_skcipher *tfm, const u8 *key,
 		return -EINVAL;
 
 	key_len -= CTR_RFC3686_NONCE_SIZE;
-	memcpy(ctx->u.aes.nonce, key + key_len, CTR_RFC3686_NONCE_SIZE);
+	memcpy(ctx->u.aes.yesnce, key + key_len, CTR_RFC3686_NONCE_SIZE);
 
 	return ccp_aes_setkey(tfm, key, key_len);
 }
@@ -167,7 +167,7 @@ static int ccp_aes_rfc3686_crypt(struct skcipher_request *req, bool encrypt)
 
 	/* Initialize the CTR block */
 	iv = rctx->rfc3686_iv;
-	memcpy(iv, ctx->u.aes.nonce, CTR_RFC3686_NONCE_SIZE);
+	memcpy(iv, ctx->u.aes.yesnce, CTR_RFC3686_NONCE_SIZE);
 
 	iv += CTR_RFC3686_NONCE_SIZE;
 	memcpy(iv, req->iv, CTR_RFC3686_IV_SIZE);

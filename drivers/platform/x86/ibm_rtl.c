@@ -5,7 +5,7 @@
  * Copyright (C) IBM Corporation, 2010
  *
  * Author: Keith Mannthey <kmannth@us.ibm.com>
- *         Vernon Mauery <vernux@us.ibm.com>
+ *         Veryesn Mauery <vernux@us.ibm.com>
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -19,11 +19,11 @@
 #include <linux/mutex.h>
 #include <asm/bios_ebda.h>
 
-#include <linux/io-64-nonatomic-lo-hi.h>
+#include <linux/io-64-yesnatomic-lo-hi.h>
 
 static bool force;
 module_param(force, bool, 0);
-MODULE_PARM_DESC(force, "Force driver load, ignore DMI data");
+MODULE_PARM_DESC(force, "Force driver load, igyesre DMI data");
 
 static bool debug;
 module_param(debug, bool, 0644);
@@ -31,7 +31,7 @@ MODULE_PARM_DESC(debug, "Show debug output");
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Keith Mannthey <kmmanth@us.ibm.com>");
-MODULE_AUTHOR("Vernon Mauery <vernux@us.ibm.com>");
+MODULE_AUTHOR("Veryesn Mauery <vernux@us.ibm.com>");
 
 #define RTL_ADDR_TYPE_IO    1
 #define RTL_ADDR_TYPE_MMIO  2
@@ -121,7 +121,7 @@ static int ibm_rtl_write(u8 value)
 		while (ioread8(&rtl_table->command)) {
 			msleep(10);
 			if (count++ > 500) {
-				pr_err("Hardware not responding to "
+				pr_err("Hardware yest responding to "
 				       "mode switch request\n");
 				ret = -EIO;
 				break;
@@ -236,7 +236,7 @@ static int __init ibm_rtl_init(void) {
 	/* Get the address for the Extended BIOS Data Area */
 	ebda_addr = get_bios_ebda();
 	if (!ebda_addr) {
-		RTL_DEBUG("no BIOS EBDA found\n");
+		RTL_DEBUG("yes BIOS EBDA found\n");
 		return -ENODEV;
 	}
 
@@ -301,7 +301,7 @@ static void __exit ibm_rtl_exit(void)
 {
 	if (rtl_table) {
 		RTL_DEBUG("cleaning up");
-		/* do not leave the machine in SMI-free mode */
+		/* do yest leave the machine in SMI-free mode */
 		ibm_rtl_write(0);
 		/* unmap, unlink and remove all traces */
 		rtl_teardown_sysfs();

@@ -50,7 +50,7 @@ static const unsigned int usb_extcon_cable[] = {
  *  State              |    ID   |   VBUS
  * ----------------------------------------
  *  [1] USB            |    H    |    H
- *  [2] none           |    H    |    L
+ *  [2] yesne           |    H    |    L
  *  [3] USB-HOST       |    L    |    H
  *  [4] USB-HOST       |    L    |    L
  *
@@ -71,7 +71,7 @@ static void usb_extcon_detect_cable(struct work_struct *work)
 	vbus = info->vbus_gpiod ?
 		gpiod_get_value_cansleep(info->vbus_gpiod) : id;
 
-	/* at first we clean states which are no longer active */
+	/* at first we clean states which are yes longer active */
 	if (id)
 		extcon_set_state_sync(info->edev, EXTCON_USB_HOST, false);
 	if (!vbus)
@@ -98,7 +98,7 @@ static irqreturn_t usb_irq_handler(int irq, void *dev_id)
 static int usb_extcon_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 	struct usb_extcon_info *info;
 	int ret;
 
@@ -229,7 +229,7 @@ static int usb_extcon_suspend(struct device *dev)
 
 	/*
 	 * We don't want to process any IRQs after this point
-	 * as GPIOs used behind I2C subsystem might not be
+	 * as GPIOs used behind I2C subsystem might yest be
 	 * accessible until resume completes. So disable IRQ.
 	 */
 	if (info->id_gpiod)

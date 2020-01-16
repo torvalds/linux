@@ -439,10 +439,10 @@ static int ad7124_init_channel_vref(struct ad7124_state *st,
 }
 
 static int ad7124_of_parse_channel_config(struct iio_dev *indio_dev,
-					  struct device_node *np)
+					  struct device_yesde *np)
 {
 	struct ad7124_state *st = iio_priv(indio_dev);
-	struct device_node *child;
+	struct device_yesde *child;
 	struct iio_chan_spec *chan;
 	struct ad7124_channel_config *chan_config;
 	unsigned int ain[2], channel = 0, tmp;
@@ -450,7 +450,7 @@ static int ad7124_of_parse_channel_config(struct iio_dev *indio_dev,
 
 	st->num_channels = of_get_available_child_count(np);
 	if (!st->num_channels) {
-		dev_err(indio_dev->dev.parent, "no channel children\n");
+		dev_err(indio_dev->dev.parent, "yes channel children\n");
 		return -ENODEV;
 	}
 
@@ -468,7 +468,7 @@ static int ad7124_of_parse_channel_config(struct iio_dev *indio_dev,
 	indio_dev->num_channels = st->num_channels;
 	st->channel_config = chan_config;
 
-	for_each_available_child_of_node(np, child) {
+	for_each_available_child_of_yesde(np, child) {
 		ret = of_property_read_u32(child, "reg", &channel);
 		if (ret)
 			goto err;
@@ -505,7 +505,7 @@ static int ad7124_of_parse_channel_config(struct iio_dev *indio_dev,
 
 	return 0;
 err:
-	of_node_put(child);
+	of_yesde_put(child);
 
 	return ret;
 }
@@ -591,7 +591,7 @@ static int ad7124_probe(struct spi_device *spi)
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->info = &ad7124_info;
 
-	ret = ad7124_of_parse_channel_config(indio_dev, spi->dev.of_node);
+	ret = ad7124_of_parse_channel_config(indio_dev, spi->dev.of_yesde);
 	if (ret < 0)
 		return ret;
 

@@ -12,7 +12,7 @@
 #include "xfs_bit.h"
 #include "xfs_sb.h"
 #include "xfs_mount.h"
-#include "xfs_inode.h"
+#include "xfs_iyesde.h"
 #include "xfs_iwalk.h"
 #include "xfs_quota.h"
 #include "xfs_bmap.h"
@@ -26,14 +26,14 @@
 
 /*
  * The global quota manager. There is only one of these for the entire
- * system, _not_ one per file system. XQM keeps track of the overall
+ * system, _yest_ one per file system. XQM keeps track of the overall
  * quota functionality, including maintaining the freelist and hash
  * tables of dquots.
  */
-STATIC int	xfs_qm_init_quotainos(struct xfs_mount *mp);
+STATIC int	xfs_qm_init_quotaiyess(struct xfs_mount *mp);
 STATIC int	xfs_qm_init_quotainfo(struct xfs_mount *mp);
 
-STATIC void	xfs_qm_destroy_quotainos(struct xfs_quotainfo *qi);
+STATIC void	xfs_qm_destroy_quotaiyess(struct xfs_quotainfo *qi);
 STATIC void	xfs_qm_dqfree_one(struct xfs_dquot *dqp);
 /*
  * We use the batch lookup interface to iterate over the dquots as it
@@ -213,7 +213,7 @@ xfs_qm_unmount_quotas(
 	xfs_mount_t	*mp)
 {
 	/*
-	 * Release the dquots that root inode, et al might be holding,
+	 * Release the dquots that root iyesde, et al might be holding,
 	 * before we flush quotas and blow away the quotainfo structure.
 	 */
 	ASSERT(mp->m_rootip);
@@ -224,7 +224,7 @@ xfs_qm_unmount_quotas(
 		xfs_qm_dqdetach(mp->m_rsumip);
 
 	/*
-	 * Release the quota inodes.
+	 * Release the quota iyesdes.
 	 */
 	if (mp->m_quotainfo) {
 		if (mp->m_quotainfo->qi_uquotaip) {
@@ -244,7 +244,7 @@ xfs_qm_unmount_quotas(
 
 STATIC int
 xfs_qm_dqattach_one(
-	struct xfs_inode	*ip,
+	struct xfs_iyesde	*ip,
 	xfs_dqid_t		id,
 	uint			type,
 	bool			doalloc,
@@ -257,7 +257,7 @@ xfs_qm_dqattach_one(
 	error = 0;
 
 	/*
-	 * See if we already have it in the inode itself. IO_idqpp is &i_udquot
+	 * See if we already have it in the iyesde itself. IO_idqpp is &i_udquot
 	 * or &i_gdquot. This made the code look weird, but made the logic a lot
 	 * simpler.
 	 */
@@ -273,7 +273,7 @@ xfs_qm_dqattach_one(
 	 * exist on disk and we didn't ask it to allocate; ESRCH if quotas got
 	 * turned off suddenly.
 	 */
-	error = xfs_qm_dqget_inode(ip, type, doalloc, &dqp);
+	error = xfs_qm_dqget_iyesde(ip, type, doalloc, &dqp);
 	if (error)
 		return error;
 
@@ -281,7 +281,7 @@ xfs_qm_dqattach_one(
 
 	/*
 	 * dqget may have dropped and re-acquired the ilock, but it guarantees
-	 * that the dquot returned is the one that should go in the inode.
+	 * that the dquot returned is the one that should go in the iyesde.
 	 */
 	*IO_idqpp = dqp;
 	xfs_dqunlock(dqp);
@@ -290,7 +290,7 @@ xfs_qm_dqattach_one(
 
 static bool
 xfs_qm_need_dqattach(
-	struct xfs_inode	*ip)
+	struct xfs_iyesde	*ip)
 {
 	struct xfs_mount	*mp = ip->i_mount;
 
@@ -300,21 +300,21 @@ xfs_qm_need_dqattach(
 		return false;
 	if (!XFS_NOT_DQATTACHED(mp, ip))
 		return false;
-	if (xfs_is_quota_inode(&mp->m_sb, ip->i_ino))
+	if (xfs_is_quota_iyesde(&mp->m_sb, ip->i_iyes))
 		return false;
 	return true;
 }
 
 /*
- * Given a locked inode, attach dquot(s) to it, taking U/G/P-QUOTAON
+ * Given a locked iyesde, attach dquot(s) to it, taking U/G/P-QUOTAON
  * into account.
  * If @doalloc is true, the dquot(s) will be allocated if needed.
- * Inode may get unlocked and relocked in here, and the caller must deal with
+ * Iyesde may get unlocked and relocked in here, and the caller must deal with
  * the consequences.
  */
 int
 xfs_qm_dqattach_locked(
-	xfs_inode_t	*ip,
+	xfs_iyesde_t	*ip,
 	bool		doalloc)
 {
 	xfs_mount_t	*mp = ip->i_mount;
@@ -352,7 +352,7 @@ xfs_qm_dqattach_locked(
 done:
 	/*
 	 * Don't worry about the dquots that we may have attached before any
-	 * error - they'll get detached later if it has not already been done.
+	 * error - they'll get detached later if it has yest already been done.
 	 */
 	ASSERT(xfs_isilocked(ip, XFS_ILOCK_EXCL));
 	return error;
@@ -360,7 +360,7 @@ done:
 
 int
 xfs_qm_dqattach(
-	struct xfs_inode	*ip)
+	struct xfs_iyesde	*ip)
 {
 	int			error;
 
@@ -376,19 +376,19 @@ xfs_qm_dqattach(
 
 /*
  * Release dquots (and their references) if any.
- * The inode should be locked EXCL except when this's called by
+ * The iyesde should be locked EXCL except when this's called by
  * xfs_ireclaim.
  */
 void
 xfs_qm_dqdetach(
-	xfs_inode_t	*ip)
+	xfs_iyesde_t	*ip)
 {
 	if (!(ip->i_udquot || ip->i_gdquot || ip->i_pdquot))
 		return;
 
 	trace_xfs_dquot_dqdetach(ip);
 
-	ASSERT(!xfs_is_quota_inode(&ip->i_mount->m_sb, ip->i_ino));
+	ASSERT(!xfs_is_quota_iyesde(&ip->i_mount->m_sb, ip->i_iyes));
 	if (ip->i_udquot) {
 		xfs_qm_dqrele(ip->i_udquot);
 		ip->i_udquot = NULL;
@@ -420,7 +420,7 @@ xfs_qm_dquot_isolate(
 						struct xfs_dquot, q_lru);
 	struct xfs_qm_isolate	*isol = arg;
 
-	if (!xfs_dqlock_nowait(dqp))
+	if (!xfs_dqlock_yeswait(dqp))
 		goto out_miss_busy;
 
 	/*
@@ -442,7 +442,7 @@ xfs_qm_dquot_isolate(
 	 * skip it so there is time for the IO to complete before we try to
 	 * reclaim it again on the next LRU pass.
 	 */
-	if (!xfs_dqflock_nowait(dqp)) {
+	if (!xfs_dqflock_yeswait(dqp)) {
 		xfs_dqunlock(dqp);
 		goto out_miss_busy;
 	}
@@ -467,7 +467,7 @@ xfs_qm_dquot_isolate(
 	xfs_dqfunlock(dqp);
 
 	/*
-	 * Prevent lookups now that we are past the point of no return.
+	 * Prevent lookups yesw that we are past the point of yes return.
 	 */
 	dqp->dq_flags |= XFS_DQ_FREEING;
 	xfs_dqunlock(dqp);
@@ -562,8 +562,8 @@ xfs_qm_set_defquota(
 	 */
 	defq->bhardlimit = be64_to_cpu(ddqp->d_blk_hardlimit);
 	defq->bsoftlimit = be64_to_cpu(ddqp->d_blk_softlimit);
-	defq->ihardlimit = be64_to_cpu(ddqp->d_ino_hardlimit);
-	defq->isoftlimit = be64_to_cpu(ddqp->d_ino_softlimit);
+	defq->ihardlimit = be64_to_cpu(ddqp->d_iyes_hardlimit);
+	defq->isoftlimit = be64_to_cpu(ddqp->d_iyes_softlimit);
 	defq->rtbhardlimit = be64_to_cpu(ddqp->d_rtb_hardlimit);
 	defq->rtbsoftlimit = be64_to_cpu(ddqp->d_rtb_softlimit);
 	xfs_qm_dqdestroy(dqp);
@@ -591,7 +591,7 @@ xfs_qm_init_timelimits(
 	 * We try to get the limits from the superuser's limits fields.
 	 * This is quite hacky, but it is standard quota practice.
 	 *
-	 * Since we may not have done a quotacheck by this point, just read
+	 * Since we may yest have done a quotacheck by this point, just read
 	 * the dquot without attaching it to any hashtables or lists.
 	 *
 	 * Timers and warnings are globally set by the first timer found in
@@ -611,7 +611,7 @@ xfs_qm_init_timelimits(
 	ddqp = &dqp->q_core;
 	/*
 	 * The warnings and timers set the grace period given to
-	 * a user or group before he or she can not perform any
+	 * a user or group before he or she can yest perform any
 	 * more writing. If it is zero, a default is used.
 	 */
 	if (ddqp->d_btimer)
@@ -650,10 +650,10 @@ xfs_qm_init_quotainfo(
 		goto out_free_qinf;
 
 	/*
-	 * See if quotainodes are setup, and if not, allocate them,
+	 * See if quotaiyesdes are setup, and if yest, allocate them,
 	 * and change the superblock accordingly.
 	 */
-	error = xfs_qm_init_quotainos(mp);
+	error = xfs_qm_init_quotaiyess(mp);
 	if (error)
 		goto out_free_lru;
 
@@ -687,14 +687,14 @@ xfs_qm_init_quotainfo(
 
 	error = register_shrinker(&qinf->qi_shrinker);
 	if (error)
-		goto out_free_inos;
+		goto out_free_iyess;
 
 	return 0;
 
-out_free_inos:
+out_free_iyess:
 	mutex_destroy(&qinf->qi_quotaofflock);
 	mutex_destroy(&qinf->qi_tree_lock);
-	xfs_qm_destroy_quotainos(qinf);
+	xfs_qm_destroy_quotaiyess(qinf);
 out_free_lru:
 	list_lru_destroy(&qinf->qi_lru);
 out_free_qinf:
@@ -706,7 +706,7 @@ out_free_qinf:
 /*
  * Gets called when unmounting a filesystem or when all quotas get
  * turned off.
- * This purges the quota inodes, destroys locks and frees itself.
+ * This purges the quota iyesdes, destroys locks and frees itself.
  */
 void
 xfs_qm_destroy_quotainfo(
@@ -719,7 +719,7 @@ xfs_qm_destroy_quotainfo(
 
 	unregister_shrinker(&qi->qi_shrinker);
 	list_lru_destroy(&qi->qi_lru);
-	xfs_qm_destroy_quotainos(qi);
+	xfs_qm_destroy_quotaiyess(qi);
 	mutex_destroy(&qi->qi_tree_lock);
 	mutex_destroy(&qi->qi_quotaofflock);
 	kmem_free(qi);
@@ -727,13 +727,13 @@ xfs_qm_destroy_quotainfo(
 }
 
 /*
- * Create an inode and return with a reference already taken, but unlocked
- * This is how we create quota inodes
+ * Create an iyesde and return with a reference already taken, but unlocked
+ * This is how we create quota iyesdes
  */
 STATIC int
-xfs_qm_qino_alloc(
+xfs_qm_qiyes_alloc(
 	xfs_mount_t	*mp,
-	xfs_inode_t	**ip,
+	xfs_iyesde_t	**ip,
 	uint		flags)
 {
 	xfs_trans_t	*tp;
@@ -742,35 +742,35 @@ xfs_qm_qino_alloc(
 
 	*ip = NULL;
 	/*
-	 * With superblock that doesn't have separate pquotino, we
-	 * share an inode between gquota and pquota. If the on-disk
-	 * superblock has GQUOTA and the filesystem is now mounted
-	 * with PQUOTA, just use sb_gquotino for sb_pquotino and
+	 * With superblock that doesn't have separate pquotiyes, we
+	 * share an iyesde between gquota and pquota. If the on-disk
+	 * superblock has GQUOTA and the filesystem is yesw mounted
+	 * with PQUOTA, just use sb_gquotiyes for sb_pquotiyes and
 	 * vice-versa.
 	 */
-	if (!xfs_sb_version_has_pquotino(&mp->m_sb) &&
+	if (!xfs_sb_version_has_pquotiyes(&mp->m_sb) &&
 			(flags & (XFS_QMOPT_PQUOTA|XFS_QMOPT_GQUOTA))) {
-		xfs_ino_t ino = NULLFSINO;
+		xfs_iyes_t iyes = NULLFSINO;
 
 		if ((flags & XFS_QMOPT_PQUOTA) &&
-			     (mp->m_sb.sb_gquotino != NULLFSINO)) {
-			ino = mp->m_sb.sb_gquotino;
+			     (mp->m_sb.sb_gquotiyes != NULLFSINO)) {
+			iyes = mp->m_sb.sb_gquotiyes;
 			if (XFS_IS_CORRUPT(mp,
-					   mp->m_sb.sb_pquotino != NULLFSINO))
+					   mp->m_sb.sb_pquotiyes != NULLFSINO))
 				return -EFSCORRUPTED;
 		} else if ((flags & XFS_QMOPT_GQUOTA) &&
-			     (mp->m_sb.sb_pquotino != NULLFSINO)) {
-			ino = mp->m_sb.sb_pquotino;
+			     (mp->m_sb.sb_pquotiyes != NULLFSINO)) {
+			iyes = mp->m_sb.sb_pquotiyes;
 			if (XFS_IS_CORRUPT(mp,
-					   mp->m_sb.sb_gquotino != NULLFSINO))
+					   mp->m_sb.sb_gquotiyes != NULLFSINO))
 				return -EFSCORRUPTED;
 		}
-		if (ino != NULLFSINO) {
-			error = xfs_iget(mp, NULL, ino, 0, 0, ip);
+		if (iyes != NULLFSINO) {
+			error = xfs_iget(mp, NULL, iyes, 0, 0, ip);
 			if (error)
 				return error;
-			mp->m_sb.sb_gquotino = NULLFSINO;
-			mp->m_sb.sb_pquotino = NULLFSINO;
+			mp->m_sb.sb_gquotiyes = NULLFSINO;
+			mp->m_sb.sb_pquotiyes = NULLFSINO;
 			need_alloc = false;
 		}
 	}
@@ -798,19 +798,19 @@ xfs_qm_qino_alloc(
 		ASSERT(!xfs_sb_version_hasquota(&mp->m_sb));
 
 		xfs_sb_version_addquota(&mp->m_sb);
-		mp->m_sb.sb_uquotino = NULLFSINO;
-		mp->m_sb.sb_gquotino = NULLFSINO;
-		mp->m_sb.sb_pquotino = NULLFSINO;
+		mp->m_sb.sb_uquotiyes = NULLFSINO;
+		mp->m_sb.sb_gquotiyes = NULLFSINO;
+		mp->m_sb.sb_pquotiyes = NULLFSINO;
 
 		/* qflags will get updated fully _after_ quotacheck */
 		mp->m_sb.sb_qflags = mp->m_qflags & XFS_ALL_QUOTA_ACCT;
 	}
 	if (flags & XFS_QMOPT_UQUOTA)
-		mp->m_sb.sb_uquotino = (*ip)->i_ino;
+		mp->m_sb.sb_uquotiyes = (*ip)->i_iyes;
 	else if (flags & XFS_QMOPT_GQUOTA)
-		mp->m_sb.sb_gquotino = (*ip)->i_ino;
+		mp->m_sb.sb_gquotiyes = (*ip)->i_iyes;
 	else
-		mp->m_sb.sb_pquotino = (*ip)->i_ino;
+		mp->m_sb.sb_pquotiyes = (*ip)->i_iyes;
 	spin_unlock(&mp->m_sb_lock);
 	xfs_log_sb(tp);
 
@@ -820,7 +820,7 @@ xfs_qm_qino_alloc(
 		xfs_alert(mp, "%s failed (error %d)!", __func__, error);
 	}
 	if (need_alloc)
-		xfs_finish_inode_setup(*ip);
+		xfs_finish_iyesde_setup(*ip);
 	return error;
 }
 
@@ -890,7 +890,7 @@ STATIC int
 xfs_qm_reset_dqcounts_all(
 	struct xfs_mount	*mp,
 	xfs_dqid_t		firstid,
-	xfs_fsblock_t		bno,
+	xfs_fsblock_t		byes,
 	xfs_filblks_t		blkcnt,
 	uint			flags,
 	struct list_head	*buffer_list)
@@ -909,13 +909,13 @@ xfs_qm_reset_dqcounts_all(
 	 * larger than the log itself. So, we have to break it up into
 	 * manageable-sized transactions.
 	 * Note that we don't start a permanent transaction here; we might
-	 * not be able to get a log reservation for the whole thing up front,
+	 * yest be able to get a log reservation for the whole thing up front,
 	 * and we don't really care to either, because we just discard
 	 * everything if we were to crash in the middle of this loop.
 	 */
 	while (blkcnt--) {
 		error = xfs_trans_read_buf(mp, NULL, mp->m_ddev_targp,
-			      XFS_FSB_TO_DADDR(mp, bno),
+			      XFS_FSB_TO_DADDR(mp, byes),
 			      mp->m_quotainfo->qi_dqchunklen, 0, &bp,
 			      &xfs_dquot_buf_ops);
 
@@ -928,7 +928,7 @@ xfs_qm_reset_dqcounts_all(
 		 */
 		if (error == -EFSCORRUPTED) {
 			error = xfs_trans_read_buf(mp, NULL, mp->m_ddev_targp,
-				      XFS_FSB_TO_DADDR(mp, bno),
+				      XFS_FSB_TO_DADDR(mp, byes),
 				      mp->m_quotainfo->qi_dqchunklen, 0, &bp,
 				      NULL);
 		}
@@ -937,7 +937,7 @@ xfs_qm_reset_dqcounts_all(
 			break;
 
 		/*
-		 * A corrupt buffer might not have a verifier attached, so
+		 * A corrupt buffer might yest have a verifier attached, so
 		 * make sure we have the correct one attached before writeback
 		 * occurs.
 		 */
@@ -947,7 +947,7 @@ xfs_qm_reset_dqcounts_all(
 		xfs_buf_relse(bp);
 
 		/* goto the next block. */
-		bno++;
+		byes++;
 		firstid += mp->m_quotainfo->qi_dqperchunk;
 	}
 
@@ -955,28 +955,28 @@ xfs_qm_reset_dqcounts_all(
 }
 
 /*
- * Iterate over all allocated dquot blocks in this quota inode, zeroing all
+ * Iterate over all allocated dquot blocks in this quota iyesde, zeroing all
  * counters for every chunk of dquots that we find.
  */
 STATIC int
 xfs_qm_reset_dqcounts_buf(
 	struct xfs_mount	*mp,
-	struct xfs_inode	*qip,
+	struct xfs_iyesde	*qip,
 	uint			flags,
 	struct list_head	*buffer_list)
 {
 	struct xfs_bmbt_irec	*map;
 	int			i, nmaps;	/* number of map entries */
 	int			error;		/* return value */
-	xfs_fileoff_t		lblkno;
+	xfs_fileoff_t		lblkyes;
 	xfs_filblks_t		maxlblkcnt;
 	xfs_dqid_t		firstid;
-	xfs_fsblock_t		rablkno;
+	xfs_fsblock_t		rablkyes;
 	xfs_filblks_t		rablkcnt;
 
 	error = 0;
 	/*
-	 * This looks racy, but we can't keep an inode lock across a
+	 * This looks racy, but we can't keep an iyesde lock across a
 	 * trans_reserve. But, this gets called during quotacheck, and that
 	 * happens only at mount time which is single threaded.
 	 */
@@ -985,19 +985,19 @@ xfs_qm_reset_dqcounts_buf(
 
 	map = kmem_alloc(XFS_DQITER_MAP_SIZE * sizeof(*map), 0);
 
-	lblkno = 0;
+	lblkyes = 0;
 	maxlblkcnt = XFS_B_TO_FSB(mp, mp->m_super->s_maxbytes);
 	do {
 		uint		lock_mode;
 
 		nmaps = XFS_DQITER_MAP_SIZE;
 		/*
-		 * We aren't changing the inode itself. Just changing
+		 * We aren't changing the iyesde itself. Just changing
 		 * some of its data. No new blocks are added here, and
-		 * the inode is never added to the transaction.
+		 * the iyesde is never added to the transaction.
 		 */
 		lock_mode = xfs_ilock_data_map_shared(qip);
-		error = xfs_bmapi_read(qip, lblkno, maxlblkcnt - lblkno,
+		error = xfs_bmapi_read(qip, lblkyes, maxlblkcnt - lblkyes,
 				       map, &nmaps, 0);
 		xfs_iunlock(qip, lock_mode);
 		if (error)
@@ -1009,7 +1009,7 @@ xfs_qm_reset_dqcounts_buf(
 			ASSERT(map[i].br_blockcount);
 
 
-			lblkno += map[i].br_blockcount;
+			lblkyes += map[i].br_blockcount;
 
 			if (map[i].br_startblock == HOLESTARTBLOCK)
 				continue;
@@ -1022,13 +1022,13 @@ xfs_qm_reset_dqcounts_buf(
 			if ((i+1 < nmaps) &&
 			    (map[i+1].br_startblock != HOLESTARTBLOCK)) {
 				rablkcnt =  map[i+1].br_blockcount;
-				rablkno = map[i+1].br_startblock;
+				rablkyes = map[i+1].br_startblock;
 				while (rablkcnt--) {
 					xfs_buf_readahead(mp->m_ddev_targp,
-					       XFS_FSB_TO_DADDR(mp, rablkno),
+					       XFS_FSB_TO_DADDR(mp, rablkyes),
 					       mp->m_quotainfo->qi_dqchunklen,
 					       &xfs_dquot_buf_ops);
-					rablkno++;
+					rablkyes++;
 				}
 			}
 			/*
@@ -1052,14 +1052,14 @@ out:
 /*
  * Called by dqusage_adjust in doing a quotacheck.
  *
- * Given the inode, and a dquot id this updates both the incore dqout as well
+ * Given the iyesde, and a dquot id this updates both the incore dqout as well
  * as the buffer copy. This is so that once the quotacheck is done, we can
  * just log all the buffers, as opposed to logging numerous updates to
  * individual dquots.
  */
 STATIC int
 xfs_qm_quotacheck_dqadjust(
-	struct xfs_inode	*ip,
+	struct xfs_iyesde	*ip,
 	uint			type,
 	xfs_qcnt_t		nblks,
 	xfs_qcnt_t		rtblks)
@@ -1083,7 +1083,7 @@ xfs_qm_quotacheck_dqadjust(
 	trace_xfs_dqadjust(dqp);
 
 	/*
-	 * Adjust the inode count and the block count to reflect this inode's
+	 * Adjust the iyesde count and the block count to reflect this iyesde's
 	 * resource usage.
 	 */
 	be64_add_cpu(&dqp->q_core.d_icount, 1);
@@ -1100,7 +1100,7 @@ xfs_qm_quotacheck_dqadjust(
 	/*
 	 * Set default limits, adjust timers (since we changed usages)
 	 *
-	 * There are no timers for the default values set in the root dquot.
+	 * There are yes timers for the default values set in the root dquot.
 	 */
 	if (dqp->q_core.d_id) {
 		xfs_qm_adjust_dqlimits(mp, dqp);
@@ -1114,17 +1114,17 @@ xfs_qm_quotacheck_dqadjust(
 
 /*
  * callback routine supplied to bulkstat(). Given an inumber, find its
- * dquots and update them to account for resources taken by that inode.
+ * dquots and update them to account for resources taken by that iyesde.
  */
 /* ARGSUSED */
 STATIC int
 xfs_qm_dqusage_adjust(
 	struct xfs_mount	*mp,
 	struct xfs_trans	*tp,
-	xfs_ino_t		ino,
+	xfs_iyes_t		iyes,
 	void			*data)
 {
-	struct xfs_inode	*ip;
+	struct xfs_iyesde	*ip;
 	xfs_qcnt_t		nblks;
 	xfs_filblks_t		rtblks = 0;	/* total rt blks */
 	int			error;
@@ -1132,17 +1132,17 @@ xfs_qm_dqusage_adjust(
 	ASSERT(XFS_IS_QUOTA_RUNNING(mp));
 
 	/*
-	 * rootino must have its resources accounted for, not so with the quota
-	 * inodes.
+	 * rootiyes must have its resources accounted for, yest so with the quota
+	 * iyesdes.
 	 */
-	if (xfs_is_quota_inode(&mp->m_sb, ino))
+	if (xfs_is_quota_iyesde(&mp->m_sb, iyes))
 		return 0;
 
 	/*
 	 * We don't _need_ to take the ilock EXCL here because quotacheck runs
-	 * at mount time and therefore nobody will be racing chown/chproj.
+	 * at mount time and therefore yesbody will be racing chown/chproj.
 	 */
-	error = xfs_iget(mp, tp, ino, XFS_IGET_DONTCACHE, 0, &ip);
+	error = xfs_iget(mp, tp, iyes, XFS_IGET_DONTCACHE, 0, &ip);
 	if (error == -EINVAL || error == -ENOENT)
 		return 0;
 	if (error)
@@ -1165,8 +1165,8 @@ xfs_qm_dqusage_adjust(
 	nblks = (xfs_qcnt_t)ip->i_d.di_nblocks - rtblks;
 
 	/*
-	 * Add the (disk blocks and inode) resources occupied by this
-	 * inode to its dquots. We do this adjustment in the incore dquot,
+	 * Add the (disk blocks and iyesde) resources occupied by this
+	 * iyesde to its dquots. We do this adjustment in the incore dquot,
 	 * and also copy the changes to its buffer.
 	 * We don't care about putting these changes in a transaction
 	 * envelope because if we crash in the middle of a 'quotacheck'
@@ -1226,9 +1226,9 @@ xfs_qm_flush_one(
 	 * possibly queued it for I/O. The only way out is to push the buffer to
 	 * cycle the flush lock.
 	 */
-	if (!xfs_dqflock_nowait(dqp)) {
+	if (!xfs_dqflock_yeswait(dqp)) {
 		/* buf is pinned in-core by delwri list */
-		bp = xfs_buf_incore(mp->m_ddev_targp, dqp->q_blkno,
+		bp = xfs_buf_incore(mp->m_ddev_targp, dqp->q_blkyes,
 				mp->m_quotainfo->qi_dqchunklen, 0);
 		if (!bp) {
 			error = -EINVAL;
@@ -1255,7 +1255,7 @@ out_unlock:
 }
 
 /*
- * Walk thru all the filesystem inodes and construct a consistent view
+ * Walk thru all the filesystem iyesdes and construct a consistent view
  * of the disk quota world. If the quotacheck fails, disable quotas.
  */
 STATIC int
@@ -1265,16 +1265,16 @@ xfs_qm_quotacheck(
 	int			error, error2;
 	uint			flags;
 	LIST_HEAD		(buffer_list);
-	struct xfs_inode	*uip = mp->m_quotainfo->qi_uquotaip;
-	struct xfs_inode	*gip = mp->m_quotainfo->qi_gquotaip;
-	struct xfs_inode	*pip = mp->m_quotainfo->qi_pquotaip;
+	struct xfs_iyesde	*uip = mp->m_quotainfo->qi_uquotaip;
+	struct xfs_iyesde	*gip = mp->m_quotainfo->qi_gquotaip;
+	struct xfs_iyesde	*pip = mp->m_quotainfo->qi_pquotaip;
 
 	flags = 0;
 
 	ASSERT(uip || gip || pip);
 	ASSERT(XFS_IS_QUOTA_RUNNING(mp));
 
-	xfs_notice(mp, "Quotacheck needed: Please wait.");
+	xfs_yestice(mp, "Quotacheck needed: Please wait.");
 
 	/*
 	 * First we go thru all the dquots on disk, USR and GRP/PRJ, and reset
@@ -1339,8 +1339,8 @@ xfs_qm_quotacheck(
 	 * We can get this error if we couldn't do a dquot allocation inside
 	 * xfs_qm_dqusage_adjust (via bulkstat). We don't care about the
 	 * dirty dquots that might be cached, we just want to get rid of them
-	 * and turn quotaoff. The dquots won't be attached to any of the inodes
-	 * at this point (because we intentionally didn't in dqget_noattach).
+	 * and turn quotaoff. The dquots won't be attached to any of the iyesdes
+	 * at this point (because we intentionally didn't in dqget_yesattach).
 	 */
 	if (error) {
 		xfs_qm_dqpurge_all(mp, XFS_QMOPT_QUOTALL);
@@ -1372,7 +1372,7 @@ xfs_qm_quotacheck(
 				"Quotacheck: Failed to reset quota flags.");
 		}
 	} else
-		xfs_notice(mp, "Quotacheck: Done.");
+		xfs_yestice(mp, "Quotacheck: Done.");
 	return error;
 }
 
@@ -1393,11 +1393,11 @@ xfs_qm_mount_quotas(
 	uint			sbf;
 
 	/*
-	 * If quotas on realtime volumes is not supported, we disable
+	 * If quotas on realtime volumes is yest supported, we disable
 	 * quotas immediately.
 	 */
 	if (mp->m_sb.sb_rextents) {
-		xfs_notice(mp, "Cannot turn on quotas for realtime filesystem");
+		xfs_yestice(mp, "Canyest turn on quotas for realtime filesystem");
 		mp->m_qflags = 0;
 		goto write_changes;
 	}
@@ -1406,7 +1406,7 @@ xfs_qm_mount_quotas(
 
 	/*
 	 * Allocate the quotainfo structure inside the mount struct, and
-	 * create quotainode(s), and change/rev superblock if necessary.
+	 * create quotaiyesde(s), and change/rev superblock if necessary.
 	 */
 	error = xfs_qm_init_quotainfo(mp);
 	if (error) {
@@ -1418,7 +1418,7 @@ xfs_qm_mount_quotas(
 		goto write_changes;
 	}
 	/*
-	 * If any of the quotas are not consistent, do a quotacheck.
+	 * If any of the quotas are yest consistent, do a quotacheck.
 	 */
 	if (XFS_QM_NEED_QUOTACHECK(mp)) {
 		error = xfs_qm_quotacheck(mp);
@@ -1455,7 +1455,7 @@ xfs_qm_mount_quotas(
 			 * We could only have been turning quotas off.
 			 * We aren't in very good shape actually because
 			 * the incore structures are convinced that quotas are
-			 * off, but the on disk superblock doesn't know that !
+			 * off, but the on disk superblock doesn't kyesw that !
 			 */
 			ASSERT(!(XFS_IS_QUOTA_RUNNING(mp)));
 			xfs_alert(mp, "%s: Superblock update failed!",
@@ -1471,44 +1471,44 @@ xfs_qm_mount_quotas(
 
 /*
  * This is called after the superblock has been read in and we're ready to
- * iget the quota inodes.
+ * iget the quota iyesdes.
  */
 STATIC int
-xfs_qm_init_quotainos(
+xfs_qm_init_quotaiyess(
 	xfs_mount_t	*mp)
 {
-	struct xfs_inode	*uip = NULL;
-	struct xfs_inode	*gip = NULL;
-	struct xfs_inode	*pip = NULL;
+	struct xfs_iyesde	*uip = NULL;
+	struct xfs_iyesde	*gip = NULL;
+	struct xfs_iyesde	*pip = NULL;
 	int			error;
 	uint			flags = 0;
 
 	ASSERT(mp->m_quotainfo);
 
 	/*
-	 * Get the uquota and gquota inodes
+	 * Get the uquota and gquota iyesdes
 	 */
 	if (xfs_sb_version_hasquota(&mp->m_sb)) {
 		if (XFS_IS_UQUOTA_ON(mp) &&
-		    mp->m_sb.sb_uquotino != NULLFSINO) {
-			ASSERT(mp->m_sb.sb_uquotino > 0);
-			error = xfs_iget(mp, NULL, mp->m_sb.sb_uquotino,
+		    mp->m_sb.sb_uquotiyes != NULLFSINO) {
+			ASSERT(mp->m_sb.sb_uquotiyes > 0);
+			error = xfs_iget(mp, NULL, mp->m_sb.sb_uquotiyes,
 					     0, 0, &uip);
 			if (error)
 				return error;
 		}
 		if (XFS_IS_GQUOTA_ON(mp) &&
-		    mp->m_sb.sb_gquotino != NULLFSINO) {
-			ASSERT(mp->m_sb.sb_gquotino > 0);
-			error = xfs_iget(mp, NULL, mp->m_sb.sb_gquotino,
+		    mp->m_sb.sb_gquotiyes != NULLFSINO) {
+			ASSERT(mp->m_sb.sb_gquotiyes > 0);
+			error = xfs_iget(mp, NULL, mp->m_sb.sb_gquotiyes,
 					     0, 0, &gip);
 			if (error)
 				goto error_rele;
 		}
 		if (XFS_IS_PQUOTA_ON(mp) &&
-		    mp->m_sb.sb_pquotino != NULLFSINO) {
-			ASSERT(mp->m_sb.sb_pquotino > 0);
-			error = xfs_iget(mp, NULL, mp->m_sb.sb_pquotino,
+		    mp->m_sb.sb_pquotiyes != NULLFSINO) {
+			ASSERT(mp->m_sb.sb_pquotiyes > 0);
+			error = xfs_iget(mp, NULL, mp->m_sb.sb_pquotiyes,
 					     0, 0, &pip);
 			if (error)
 				goto error_rele;
@@ -1518,13 +1518,13 @@ xfs_qm_init_quotainos(
 	}
 
 	/*
-	 * Create the three inodes, if they don't exist already. The changes
+	 * Create the three iyesdes, if they don't exist already. The changes
 	 * made above will get added to a transaction and logged in one of
-	 * the qino_alloc calls below.  If the device is readonly,
+	 * the qiyes_alloc calls below.  If the device is readonly,
 	 * temporarily switch to read-write to do this.
 	 */
 	if (XFS_IS_UQUOTA_ON(mp) && uip == NULL) {
-		error = xfs_qm_qino_alloc(mp, &uip,
+		error = xfs_qm_qiyes_alloc(mp, &uip,
 					      flags | XFS_QMOPT_UQUOTA);
 		if (error)
 			goto error_rele;
@@ -1532,7 +1532,7 @@ xfs_qm_init_quotainos(
 		flags &= ~XFS_QMOPT_SBVERSION;
 	}
 	if (XFS_IS_GQUOTA_ON(mp) && gip == NULL) {
-		error = xfs_qm_qino_alloc(mp, &gip,
+		error = xfs_qm_qiyes_alloc(mp, &gip,
 					  flags | XFS_QMOPT_GQUOTA);
 		if (error)
 			goto error_rele;
@@ -1540,7 +1540,7 @@ xfs_qm_init_quotainos(
 		flags &= ~XFS_QMOPT_SBVERSION;
 	}
 	if (XFS_IS_PQUOTA_ON(mp) && pip == NULL) {
-		error = xfs_qm_qino_alloc(mp, &pip,
+		error = xfs_qm_qiyes_alloc(mp, &pip,
 					  flags | XFS_QMOPT_PQUOTA);
 		if (error)
 			goto error_rele;
@@ -1563,12 +1563,12 @@ error_rele:
 }
 
 STATIC void
-xfs_qm_destroy_quotainos(
+xfs_qm_destroy_quotaiyess(
 	struct xfs_quotainfo	*qi)
 {
 	if (qi->qi_uquotaip) {
 		xfs_irele(qi->qi_uquotaip);
-		qi->qi_uquotaip = NULL; /* paranoia */
+		qi->qi_uquotaip = NULL; /* parayesia */
 	}
 	if (qi->qi_gquotaip) {
 		xfs_irele(qi->qi_gquotaip);
@@ -1597,22 +1597,22 @@ xfs_qm_dqfree_one(
 	xfs_qm_dqdestroy(dqp);
 }
 
-/* --------------- utility functions for vnodeops ---------------- */
+/* --------------- utility functions for vyesdeops ---------------- */
 
 
 /*
- * Given an inode, a uid, gid and prid make sure that we have
- * allocated relevant dquot(s) on disk, and that we won't exceed inode
+ * Given an iyesde, a uid, gid and prid make sure that we have
+ * allocated relevant dquot(s) on disk, and that we won't exceed iyesde
  * quotas by creating this file.
- * This also attaches dquot(s) to the given inode after locking it,
+ * This also attaches dquot(s) to the given iyesde after locking it,
  * and returns the dquots corresponding to the uid and/or gid.
  *
- * in	: inode (unlocked)
+ * in	: iyesde (unlocked)
  * out	: udquot, gdquot with references taken and unlocked
  */
 int
 xfs_qm_vop_dqalloc(
-	struct xfs_inode	*ip,
+	struct xfs_iyesde	*ip,
 	xfs_dqid_t		uid,
 	xfs_dqid_t		gid,
 	prid_t			prid,
@@ -1638,8 +1638,8 @@ xfs_qm_vop_dqalloc(
 		gid = ip->i_d.di_gid;
 
 	/*
-	 * Attach the dquot(s) to this inode, doing a dquot allocation
-	 * if necessary. The dquot(s) will not be locked.
+	 * Attach the dquot(s) to this iyesde, doing a dquot allocation
+	 * if necessary. The dquot(s) will yest be locked.
 	 */
 	if (XFS_NOT_DQATTACHED(mp, ip)) {
 		error = xfs_qm_dqattach_locked(ip, true);
@@ -1653,10 +1653,10 @@ xfs_qm_vop_dqalloc(
 		if (ip->i_d.di_uid != uid) {
 			/*
 			 * What we need is the dquot that has this uid, and
-			 * if we send the inode to dqget, the uid of the inode
+			 * if we send the iyesde to dqget, the uid of the iyesde
 			 * takes priority over what's sent in the uid argument.
-			 * We must unlock inode here before calling dqget if
-			 * we're not sending the inode, because otherwise
+			 * We must unlock iyesde here before calling dqget if
+			 * we're yest sending the iyesde, because otherwise
 			 * we'll deadlock by doing trans_reserve while
 			 * holding ilock.
 			 */
@@ -1745,7 +1745,7 @@ error_rele:
 struct xfs_dquot *
 xfs_qm_vop_chown(
 	struct xfs_trans	*tp,
-	struct xfs_inode	*ip,
+	struct xfs_iyesde	*ip,
 	struct xfs_dquot	**IO_olddq,
 	struct xfs_dquot	*newdq)
 {
@@ -1770,7 +1770,7 @@ xfs_qm_vop_chown(
 	xfs_trans_mod_dquot(tp, newdq, XFS_TRANS_DQ_ICOUNT, 1);
 
 	/*
-	 * Take an extra reference, because the inode is going to keep
+	 * Take an extra reference, because the iyesde is going to keep
 	 * this dquot pointer even after the trans_commit.
 	 */
 	*IO_olddq = xfs_qm_dqhold(newdq);
@@ -1784,7 +1784,7 @@ xfs_qm_vop_chown(
 int
 xfs_qm_vop_chown_reserve(
 	struct xfs_trans	*tp,
-	struct xfs_inode	*ip,
+	struct xfs_iyesde	*ip,
 	struct xfs_dquot	*udqp,
 	struct xfs_dquot	*gdqp,
 	struct xfs_dquot	*pdqp,
@@ -1849,7 +1849,7 @@ xfs_qm_vop_chown_reserve(
 		return error;
 
 	/*
-	 * Do the delayed blks reservations/unreservations now. Since, these
+	 * Do the delayed blks reservations/unreservations yesw. Since, these
 	 * are done without the help of a transaction, if a reservation fails
 	 * its previous reservations won't be automatically undone by trans
 	 * code. So, we have to do it manually here.
@@ -1876,7 +1876,7 @@ xfs_qm_vop_chown_reserve(
 
 int
 xfs_qm_vop_rename_dqattach(
-	struct xfs_inode	**i_tab)
+	struct xfs_iyesde	**i_tab)
 {
 	struct xfs_mount	*mp = i_tab[0]->i_mount;
 	int			i;
@@ -1885,7 +1885,7 @@ xfs_qm_vop_rename_dqattach(
 		return 0;
 
 	for (i = 0; (i < 4 && i_tab[i]); i++) {
-		struct xfs_inode	*ip = i_tab[i];
+		struct xfs_iyesde	*ip = i_tab[i];
 		int			error;
 
 		/*
@@ -1905,7 +1905,7 @@ xfs_qm_vop_rename_dqattach(
 void
 xfs_qm_vop_create_dqattach(
 	struct xfs_trans	*tp,
-	struct xfs_inode	*ip,
+	struct xfs_iyesde	*ip,
 	struct xfs_dquot	*udqp,
 	struct xfs_dquot	*gdqp,
 	struct xfs_dquot	*pdqp)

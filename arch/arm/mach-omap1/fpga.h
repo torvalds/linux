@@ -3,11 +3,11 @@
  * Interrupt handler for OMAP-1510 FPGA
  *
  * Copyright (C) 2001 RidgeRun, Inc.
- * Author: Greg Lonnon <glonnon@ridgerun.com>
+ * Author: Greg Lonyesn <glonyesn@ridgerun.com>
  *
  * Copyright (C) 2002 MontaVista Software, Inc.
  *
- * Separated FPGA interrupts from innovator1510.c and cleaned up for 2.6
+ * Separated FPGA interrupts from inyesvator1510.c and cleaned up for 2.6
  * Copyright (C) 2004 Nokia Corporation by Tony Lindrgen <tony@atomide.com>
  */
 

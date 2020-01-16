@@ -7,7 +7,7 @@
 
 #define BUF_SIZE 256
 
-static __attribute__((noinline))
+static __attribute__((yesinline))
 void urandom_read(int fd, int count)
 {
        char buf[BUF_SIZE];

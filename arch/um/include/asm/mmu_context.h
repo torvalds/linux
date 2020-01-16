@@ -13,7 +13,7 @@
 
 extern void uml_setup_stubs(struct mm_struct *mm);
 /*
- * Needed since we do not use the asm-generic/mm_hooks.h:
+ * Needed since we do yest use the asm-generic/mm_hooks.h:
  */
 static inline int arch_dup_mmap(struct mm_struct *oldmm, struct mm_struct *mm)
 {

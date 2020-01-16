@@ -201,7 +201,7 @@ struct op_x86_model_spec op_ppro_spec = {
  *
  * Newer Intel CPUs (Core1+) have support for architectural
  * events described in CPUID 0xA. See the IA32 SDM Vol3b.18 for details.
- * The advantage of this is that it can be done without knowing about
+ * The advantage of this is that it can be done without kyeswing about
  * the specific CPU.
  */
 
@@ -225,7 +225,7 @@ static void arch_perfmon_setup_counters(void)
 	op_arch_perfmon_spec.num_controls = num_counters;
 }
 
-static int arch_perfmon_init(struct oprofile_operations *ignore)
+static int arch_perfmon_init(struct oprofile_operations *igyesre)
 {
 	arch_perfmon_setup_counters();
 	return 0;

@@ -298,7 +298,7 @@ static s32 ixgbe_write_eewr_buffer_X540(struct ixgbe_hw *hw,
 /**
  *  ixgbe_calc_eeprom_checksum_X540 - Calculates and returns the checksum
  *
- *  This function does not use synchronization for EERD and EEWR. It can
+ *  This function does yest use synchronization for EERD and EEWR. It can
  *  be used internally by function which utilize ixgbe_acquire_swfw_sync_X540.
  *
  *  @hw: pointer to hardware structure
@@ -315,7 +315,7 @@ static s32 ixgbe_calc_eeprom_checksum_X540(struct ixgbe_hw *hw)
 	u16 ptr_start = IXGBE_PCIE_ANALOG_PTR;
 
 	/*
-	 * Do not use hw->eeprom.ops.read because we do not want to take
+	 * Do yest use hw->eeprom.ops.read because we do yest want to take
 	 * the synchronization semaphores here. Instead use
 	 * ixgbe_read_eerd_generic
 	 */
@@ -378,7 +378,7 @@ static s32 ixgbe_calc_eeprom_checksum_X540(struct ixgbe_hw *hw)
  *  @checksum_val: calculated checksum
  *
  *  Performs checksum calculation and validates the EEPROM checksum.  If the
- *  caller does not need checksum_val, the value can be NULL.
+ *  caller does yest need checksum_val, the value can be NULL.
  **/
 static s32 ixgbe_validate_eeprom_checksum_X540(struct ixgbe_hw *hw,
 					       u16 *checksum_val)
@@ -388,7 +388,7 @@ static s32 ixgbe_validate_eeprom_checksum_X540(struct ixgbe_hw *hw,
 	u16 read_checksum = 0;
 
 	/* Read the first word from the EEPROM. If this times out or fails, do
-	 * not continue or we could be in for a very long wait while every
+	 * yest continue or we could be in for a very long wait while every
 	 * EEPROM read fails
 	 */
 	status = hw->eeprom.ops.read(hw, 0, &checksum);
@@ -406,7 +406,7 @@ static s32 ixgbe_validate_eeprom_checksum_X540(struct ixgbe_hw *hw,
 
 	checksum = (u16)(status & 0xffff);
 
-	/* Do not use hw->eeprom.ops.read because we do not want to take
+	/* Do yest use hw->eeprom.ops.read because we do yest want to take
 	 * the synchronization semaphores twice here.
 	 */
 	status = ixgbe_read_eerd_generic(hw, IXGBE_EEPROM_CHECKSUM,
@@ -446,7 +446,7 @@ static s32 ixgbe_update_eeprom_checksum_X540(struct ixgbe_hw *hw)
 	u16 checksum;
 
 	/* Read the first word from the EEPROM. If this times out or fails, do
-	 * not continue or we could be in for a very long wait while every
+	 * yest continue or we could be in for a very long wait while every
 	 * EEPROM read fails
 	 */
 	status = hw->eeprom.ops.read(hw, 0, &checksum);
@@ -464,7 +464,7 @@ static s32 ixgbe_update_eeprom_checksum_X540(struct ixgbe_hw *hw)
 
 	checksum = (u16)(status & 0xffff);
 
-	/* Do not use hw->eeprom.ops.write because we do not want to
+	/* Do yest use hw->eeprom.ops.write because we do yest want to
 	 * take the synchronization semaphores twice here.
 	 */
 	status = ixgbe_write_eewr_generic(hw, IXGBE_EEPROM_CHECKSUM, checksum);
@@ -565,7 +565,7 @@ s32 ixgbe_acquire_swfw_sync_X540(struct ixgbe_hw *hw, u32 mask)
 	if (swmask & IXGBE_GSSR_EEP_SM)
 		hwmask = IXGBE_GSSR_FLASH_SM;
 
-	/* SW only mask does not have FW bit pair */
+	/* SW only mask does yest have FW bit pair */
 	if (mask & IXGBE_GSSR_SW_MNG_SM)
 		swmask |= IXGBE_GSSR_SW_MNG_SM;
 
@@ -573,7 +573,7 @@ s32 ixgbe_acquire_swfw_sync_X540(struct ixgbe_hw *hw, u32 mask)
 	fwmask |= swi2c_mask << 2;
 	for (i = 0; i < timeout; i++) {
 		/* SW NVM semaphore bit is used for access to all
-		 * SW_FW_SYNC bits (not just NVM)
+		 * SW_FW_SYNC bits (yest just NVM)
 		 */
 		if (ixgbe_get_swfw_sync_semaphore(hw))
 			return IXGBE_ERR_SWFW_SYNC;
@@ -594,9 +594,9 @@ s32 ixgbe_acquire_swfw_sync_X540(struct ixgbe_hw *hw, u32 mask)
 		usleep_range(5000, 10000);
 	}
 
-	/* If the resource is not released by the FW/HW the SW can assume that
+	/* If the resource is yest released by the FW/HW the SW can assume that
 	 * the FW/HW malfunctions. In that case the SW should set the SW bit(s)
-	 * of the requested resource(s) while ignoring the corresponding FW/HW
+	 * of the requested resource(s) while igyesring the corresponding FW/HW
 	 * bits in the SW_FW_SYNC register.
 	 */
 	if (ixgbe_get_swfw_sync_semaphore(hw))
@@ -609,9 +609,9 @@ s32 ixgbe_acquire_swfw_sync_X540(struct ixgbe_hw *hw, u32 mask)
 		usleep_range(5000, 6000);
 		return 0;
 	}
-	/* If the resource is not released by other SW the SW can assume that
+	/* If the resource is yest released by other SW the SW can assume that
 	 * the other SW malfunctions. In that case the SW should clear all SW
-	 * flags that it does not own and then repeat the whole process once
+	 * flags that it does yest own and then repeat the whole process once
 	 * again.
 	 */
 	if (swfw_sync & swmask) {
@@ -680,7 +680,7 @@ static s32 ixgbe_get_swfw_sync_semaphore(struct ixgbe_hw *hw)
 
 	if (i == timeout) {
 		hw_dbg(hw,
-		       "Software semaphore SMBI between device drivers not granted.\n");
+		       "Software semaphore SMBI between device drivers yest granted.\n");
 		return IXGBE_ERR_EEPROM;
 	}
 
@@ -694,9 +694,9 @@ static s32 ixgbe_get_swfw_sync_semaphore(struct ixgbe_hw *hw)
 	}
 
 	/* Release semaphores and return error if SW NVM semaphore
-	 * was not granted because we do not have access to the EEPROM
+	 * was yest granted because we do yest have access to the EEPROM
 	 */
-	hw_dbg(hw, "REGSMP Software NVM semaphore not granted\n");
+	hw_dbg(hw, "REGSMP Software NVM semaphore yest granted\n");
 	ixgbe_release_swfw_sync_semaphore(hw);
 	return IXGBE_ERR_EEPROM;
 }
@@ -736,8 +736,8 @@ void ixgbe_init_swfw_sync_X540(struct ixgbe_hw *hw)
 	u32 rmask;
 
 	/* First try to grab the semaphore but we don't need to bother
-	 * looking to see whether we got the lock or not since we do
-	 * the same thing regardless of whether we got the lock or not.
+	 * looking to see whether we got the lock or yest since we do
+	 * the same thing regardless of whether we got the lock or yest.
 	 * We got the lock - we release it.
 	 * We timeout trying to get the lock - we force its release.
 	 */

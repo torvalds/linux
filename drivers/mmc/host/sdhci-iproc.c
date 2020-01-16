@@ -97,8 +97,8 @@ static inline void sdhci_iproc_writel(struct sdhci_host *host, u32 val, int reg)
  * The Arasan has a bugette whereby it may lose the content of successive
  * writes to the same register that are within two SD-card clock cycles of
  * each other (a clock domain crossing problem). The data
- * register does not have this problem, which is just as well - otherwise we'd
- * have to nobble the DMA engine too.
+ * register does yest have this problem, which is just as well - otherwise we'd
+ * have to yesbble the DMA engine too.
  *
  * This wouldn't be a problem with the code except that we can only write the
  * controller with 32-bit writes.  So two different 16-bit registers are
@@ -110,7 +110,7 @@ static inline void sdhci_iproc_writel(struct sdhci_host *host, u32 val, int reg)
  * the work around can be further optimized. We can keep shadow values of
  * BLOCK_SIZE, BLOCK_COUNT, and TRANSFER_MODE until a COMMAND is issued.
  * Then, write the BLOCK_SIZE+BLOCK_COUNT in a single 32-bit write followed
- * by the TRANSFER+COMMAND in another 32-bit write.
+ * by the TRANSFER+COMMAND in ayesther 32-bit write.
  */
 static void sdhci_iproc_writew(struct sdhci_host *host, u16 val, int reg)
 {
@@ -121,7 +121,7 @@ static void sdhci_iproc_writew(struct sdhci_host *host, u16 val, int reg)
 	u32 oldval, newval;
 
 	if (reg == SDHCI_COMMAND) {
-		/* Write the block now as we are issuing a command */
+		/* Write the block yesw as we are issuing a command */
 		if (iproc_host->is_blk_shadowed) {
 			sdhci_iproc_writel(host, iproc_host->shadow_blk,
 				SDHCI_BLOCK_SIZE);
@@ -134,7 +134,7 @@ static void sdhci_iproc_writew(struct sdhci_host *host, u16 val, int reg)
 		/* Block size and count are stored in shadow reg */
 		oldval = iproc_host->shadow_blk;
 	} else {
-		/* Read reg, all other registers are not shadowed */
+		/* Read reg, all other registers are yest shadowed */
 		oldval = sdhci_iproc_readl(host, (reg & ~3));
 	}
 	newval = (oldval & ~mask) | (val << word_shift);
@@ -316,7 +316,7 @@ static int sdhci_iproc_probe(struct platform_device *pdev)
 
 	host->mmc->caps |= iproc_host->data->mmc_caps;
 
-	if (dev->of_node) {
+	if (dev->of_yesde) {
 		pltfm_host->clk = devm_clk_get(dev, NULL);
 		if (IS_ERR(pltfm_host->clk)) {
 			ret = PTR_ERR(pltfm_host->clk);
@@ -341,7 +341,7 @@ static int sdhci_iproc_probe(struct platform_device *pdev)
 	return 0;
 
 err_clk:
-	if (dev->of_node)
+	if (dev->of_yesde)
 		clk_disable_unprepare(pltfm_host->clk);
 err:
 	sdhci_pltfm_free(pdev);

@@ -20,7 +20,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -153,7 +153,7 @@ static int drm_legacy_lock_free(struct drm_lock_data *lock_data,
 /**
  * Lock ioctl.
  *
- * \param inode device inode.
+ * \param iyesde device iyesde.
  * \param file_priv DRM file private.
  * \param cmd command.
  * \param arg user argument, pointing to a drm_lock structure.
@@ -223,9 +223,9 @@ int drm_legacy_lock(struct drm_device *dev, void *data,
 		  ret ? "interrupted" : "has lock");
 	if (ret) return ret;
 
-	/* don't set the block all signals on the master process for now 
-	 * really probably not the correct answer but lets us debug xkb
- 	 * xserver for now */
+	/* don't set the block all signals on the master process for yesw 
+	 * really probably yest the correct answer but lets us debug xkb
+ 	 * xserver for yesw */
 	if (!drm_is_current_master(file_priv)) {
 		dev->sigdata.context = lock->context;
 		dev->sigdata.lock = master->lock.hw_lock;
@@ -246,7 +246,7 @@ int drm_legacy_lock(struct drm_device *dev, void *data,
 /**
  * Unlock ioctl.
  *
- * \param inode device inode.
+ * \param iyesde device iyesde.
  * \param file_priv DRM file private.
  * \param cmd command.
  * \param arg user argument, pointing to a drm_lock structure.

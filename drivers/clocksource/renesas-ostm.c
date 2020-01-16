@@ -69,7 +69,7 @@ static int __init ostm_init_clksrc(struct timer_of *to)
 				     32, clocksource_mmio_readl_up);
 }
 
-static u64 notrace ostm_read_sched_clock(void)
+static u64 yestrace ostm_read_sched_clock(void)
 {
 	return readl(system_clock);
 }
@@ -132,7 +132,7 @@ static irqreturn_t ostm_timer_interrupt(int irq, void *dev_id)
 	if (clockevent_state_oneshot(ced))
 		ostm_timer_stop(to_timer_of(ced));
 
-	/* notify clockevent layer */
+	/* yestify clockevent layer */
 	if (ced->event_handler)
 		ced->event_handler(ced);
 
@@ -157,7 +157,7 @@ static int __init ostm_init_clkevt(struct timer_of *to)
 	return 0;
 }
 
-static int __init ostm_init(struct device_node *np)
+static int __init ostm_init(struct device_yesde *np)
 {
 	struct timer_of *to;
 	int ret;

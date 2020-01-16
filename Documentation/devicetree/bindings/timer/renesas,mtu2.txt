@@ -26,7 +26,7 @@ Required Properties:
   - clock-names: must contain "fck" for the functional clock.
 
 
-Example: R7S72100 (RZ/A1H) MTU2 node
+Example: R7S72100 (RZ/A1H) MTU2 yesde
 
 	mtu2: timer@fcff0000 {
 		compatible = "renesas,mtu2-r7s72100", "renesas,mtu2";

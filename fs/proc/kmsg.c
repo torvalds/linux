@@ -7,7 +7,7 @@
  */
 
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/time.h>
 #include <linux/kernel.h>
 #include <linux/poll.h>
@@ -20,12 +20,12 @@
 
 extern wait_queue_head_t log_wait;
 
-static int kmsg_open(struct inode * inode, struct file * file)
+static int kmsg_open(struct iyesde * iyesde, struct file * file)
 {
 	return do_syslog(SYSLOG_ACTION_OPEN, NULL, 0, SYSLOG_FROM_PROC);
 }
 
-static int kmsg_release(struct inode * inode, struct file * file)
+static int kmsg_release(struct iyesde * iyesde, struct file * file)
 {
 	(void) do_syslog(SYSLOG_ACTION_CLOSE, NULL, 0, SYSLOG_FROM_PROC);
 	return 0;

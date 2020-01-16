@@ -6,7 +6,7 @@
  *	Author: Al Stone <al.stone@linaro.org>
  *	Author: Graeme Gregory <graeme.gregory@linaro.org>
  *	Author: Hanjun Guo <hanjun.guo@linaro.org>
- *	Author: Tomasz Nowicki <tomasz.nowicki@linaro.org>
+ *	Author: Tomasz Nowicki <tomasz.yeswicki@linaro.org>
  *	Author: Naresh Bhat <naresh.bhat@linaro.org>
  */
 
@@ -31,7 +31,7 @@
 #include <asm/pgtable.h>
 #include <asm/smp_plat.h>
 
-int acpi_noirq = 1;		/* skip ACPI IRQ initialization */
+int acpi_yesirq = 1;		/* skip ACPI IRQ initialization */
 int acpi_disabled = 1;
 EXPORT_SYMBOL(acpi_disabled);
 
@@ -61,12 +61,12 @@ static int __init parse_acpi(char *arg)
 }
 early_param("acpi", parse_acpi);
 
-static int __init dt_scan_depth1_nodes(unsigned long node,
+static int __init dt_scan_depth1_yesdes(unsigned long yesde,
 				       const char *uname, int depth,
 				       void *data)
 {
 	/*
-	 * Ignore anything not directly under the root node; we'll
+	 * Igyesre anything yest directly under the root yesde; we'll
 	 * catch its parent instead.
 	 */
 	if (depth != 1)
@@ -76,12 +76,12 @@ static int __init dt_scan_depth1_nodes(unsigned long node,
 		return 0;
 
 	if (strcmp(uname, "hypervisor") == 0 &&
-	    of_flat_dt_is_compatible(node, "xen,xen"))
+	    of_flat_dt_is_compatible(yesde, "xen,xen"))
 		return 0;
 
 	/*
-	 * This node at depth 1 is neither a chosen node nor a xen node,
-	 * which we do not expect.
+	 * This yesde at depth 1 is neither a chosen yesde yesr a xen yesde,
+	 * which we do yest expect.
 	 */
 	return 1;
 }
@@ -146,14 +146,14 @@ static int __init acpi_fadt_sanity_check(void)
 
 	/*
 	 * Revision in table header is the FADT Major revision, and there
-	 * is a minor revision of FADT which was introduced by ACPI 5.1,
+	 * is a miyesr revision of FADT which was introduced by ACPI 5.1,
 	 * we only deal with ACPI 5.1 or newer revision to get GIC and SMP
 	 * boot protocol configuration data.
 	 */
 	if (table->revision < 5 ||
-	   (table->revision == 5 && fadt->minor_revision < 1)) {
+	   (table->revision == 5 && fadt->miyesr_revision < 1)) {
 		pr_err(FW_BUG "Unsupported FADT revision %d.%d, should be 5.1+\n",
-		       table->revision, fadt->minor_revision);
+		       table->revision, fadt->miyesr_revision);
 
 		if (!fadt->arm_boot_flags) {
 			ret = -EINVAL;
@@ -163,7 +163,7 @@ static int __init acpi_fadt_sanity_check(void)
 	}
 
 	if (!(fadt->flags & ACPI_FADT_HW_REDUCED)) {
-		pr_err("FADT not ACPI hardware reduced compliant\n");
+		pr_err("FADT yest ACPI hardware reduced compliant\n");
 		ret = -EINVAL;
 	}
 
@@ -189,7 +189,7 @@ out:
  * On return ACPI is enabled if either:
  *
  * - ACPI tables are initialized and sanity checks passed
- * - acpi=force was passed in the command line and ACPI was not disabled
+ * - acpi=force was passed in the command line and ACPI was yest disabled
  *   explicitly through acpi=off command line parameter
  *
  * ACPI is disabled on function return otherwise
@@ -199,13 +199,13 @@ void __init acpi_boot_table_init(void)
 	/*
 	 * Enable ACPI instead of device tree unless
 	 * - ACPI has been disabled explicitly (acpi=off), or
-	 * - the device tree is not empty (it has more than just a /chosen node,
-	 *   and a /hypervisor node when running on Xen)
-	 *   and ACPI has not been [force] enabled (acpi=on|force)
+	 * - the device tree is yest empty (it has more than just a /chosen yesde,
+	 *   and a /hypervisor yesde when running on Xen)
+	 *   and ACPI has yest been [force] enabled (acpi=on|force)
 	 */
 	if (param_acpi_off ||
 	    (!param_acpi_on && !param_acpi_force &&
-	     of_scan_flat_dt(dt_scan_depth1_nodes, NULL)))
+	     of_scan_flat_dt(dt_scan_depth1_yesdes, NULL)))
 		goto done;
 
 	/*
@@ -261,7 +261,7 @@ pgprot_t __acpi_get_mem_attribute(phys_addr_t addr)
 }
 
 /*
- * Claim Synchronous External Aborts as a firmware first notification.
+ * Claim Synchroyesus External Aborts as a firmware first yestification.
  *
  * Used by KVM and the arch do_sea handler.
  * @regs may be NULL when called from process context.
@@ -282,7 +282,7 @@ int apei_claim_sea(struct pt_regs *regs)
 	 */
 	local_daif_restore(DAIF_ERRCTX);
 	nmi_enter();
-	err = ghes_notify_sea();
+	err = ghes_yestify_sea();
 	nmi_exit();
 	local_daif_restore(current_flags);
 

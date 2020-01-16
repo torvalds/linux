@@ -69,7 +69,7 @@ SoC-specific documents
    sti/overview
    sti/stih415-overview
 
-   vfp/release-notes
+   vfp/release-yestes
 
 
 .. only::  subproject and html

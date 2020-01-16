@@ -104,7 +104,7 @@ static netdev_tx_t vlan_dev_hard_start_xmit(struct sk_buff *skb,
 	unsigned int len;
 	int ret;
 
-	/* Handle non-VLAN frames if they are sent to us, for example by DHCP.
+	/* Handle yesn-VLAN frames if they are sent to us, for example by DHCP.
 	 *
 	 * NOTE: THIS ASSUMES DIX ETHERNET, SPECIFICALLY NOT SUPPORTING
 	 * OTHER THINGS LIKE FDDI/TokenRing/802.3 SNAPs...
@@ -252,7 +252,7 @@ bool vlan_dev_inherit_address(struct net_device *dev,
 		return false;
 
 	ether_addr_copy(dev->dev_addr, real_dev->dev_addr);
-	call_netdevice_notifiers(NETDEV_CHANGEADDR, dev);
+	call_netdevice_yestifiers(NETDEV_CHANGEADDR, dev);
 	return true;
 }
 
@@ -546,7 +546,7 @@ static int vlan_dev_init(struct net_device *dev)
 	dev->gso_max_size = real_dev->gso_max_size;
 	dev->gso_max_segs = real_dev->gso_max_segs;
 	if (dev->features & NETIF_F_VLAN_FEATURES)
-		netdev_warn(real_dev, "VLAN features are set incorrectly.  Q-in-Q configurations may not work correctly.\n");
+		netdev_warn(real_dev, "VLAN features are set incorrectly.  Q-in-Q configurations may yest work correctly.\n");
 
 	dev->vlan_features = real_dev->vlan_features & ~NETIF_F_ALL_FCOE;
 	dev->hw_enc_features = vlan_tnl_features(real_dev);

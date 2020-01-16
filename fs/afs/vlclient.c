@@ -41,7 +41,7 @@ static int afs_deliver_vl_get_entry_by_name_u(struct afs_call *call)
 	entry->name[i] = 0;
 	entry->name_len = strlen(entry->name);
 
-	/* If there is a new replication site that we can use, ignore all the
+	/* If there is a new replication site that we can use, igyesre all the
 	 * sites that aren't marked as new.
 	 */
 	for (i = 0; i < nr_servers; i++) {
@@ -80,7 +80,7 @@ static int afs_deliver_vl_get_entry_by_name_u(struct afs_call *call)
 		uuid->clock_seq_hi_and_reserved	= (u8)ntohl(xdr->clock_seq_hi_and_reserved);
 		uuid->clock_seq_low		= (u8)ntohl(xdr->clock_seq_low);
 		for (j = 0; j < 6; j++)
-			uuid->node[j] = (u8)ntohl(xdr->node[j]);
+			uuid->yesde[j] = (u8)ntohl(xdr->yesde[j]);
 
 		entry->nr_servers++;
 	}
@@ -123,7 +123,7 @@ static const struct afs_call_type afs_RXVLGetEntryByNameU = {
 
 /*
  * Dispatch a get volume entry by name or ID operation (uuid variant).  If the
- * volname is a decimal number then it's a volume ID not a volume name.
+ * volname is a decimal number then it's a volume ID yest a volume name.
  */
 struct afs_vldb_entry *afs_vl_get_entry_by_name_u(struct afs_vl_cursor *vc,
 						  const char *volname,
@@ -262,7 +262,7 @@ static const struct afs_call_type afs_RXVLGetAddrsU = {
 
 /*
  * Dispatch an operation to get the addresses for a server, where the server is
- * nominated by UUID.
+ * yesminated by UUID.
  */
 struct afs_addr_list *afs_vl_get_addrs_u(struct afs_vl_cursor *vc,
 					 const uuid_t *uuid)
@@ -300,7 +300,7 @@ struct afs_addr_list *afs_vl_get_addrs_u(struct afs_vl_cursor *vc,
 	r->uuid.clock_seq_hi_and_reserved 	= htonl(u->clock_seq_hi_and_reserved);
 	r->uuid.clock_seq_low			= htonl(u->clock_seq_low);
 	for (i = 0; i < 6; i++)
-		r->uuid.node[i] = htonl(u->node[i]);
+		r->uuid.yesde[i] = htonl(u->yesde[i]);
 
 	trace_afs_make_vl_call(call);
 	afs_make_call(&vc->ac, call, GFP_KERNEL);
@@ -434,7 +434,7 @@ static int afs_deliver_yfsvl_get_endpoints(struct afs_call *call)
 
 		/* Extract the returned uuid, uniquifier, fsEndpoints count and
 		 * either the first fsEndpoint type or the volEndpoints
-		 * count if there are no fsEndpoints. */
+		 * count if there are yes fsEndpoints. */
 		/* Fall through */
 	case 1:
 		ret = afs_extract_data(call, true);
@@ -505,7 +505,7 @@ static int afs_deliver_yfsvl_get_endpoints(struct afs_call *call)
 		}
 
 		/* Got either the type of the next entry or the count of
-		 * volEndpoints if no more fsEndpoints.
+		 * volEndpoints if yes more fsEndpoints.
 		 */
 		call->count2 = ntohl(*bp++);
 
@@ -582,7 +582,7 @@ static int afs_deliver_yfsvl_get_endpoints(struct afs_call *call)
 		}
 
 		/* Got either the type of the next entry or the count of
-		 * volEndpoints if no more fsEndpoints.
+		 * volEndpoints if yes more fsEndpoints.
 		 */
 		call->count--;
 		if (call->count > 0)
@@ -619,7 +619,7 @@ static const struct afs_call_type afs_YFSVLGetEndpoints = {
 
 /*
  * Dispatch an operation to get the addresses for a server, where the server is
- * nominated by UUID.
+ * yesminated by UUID.
  */
 struct afs_addr_list *afs_yfsvl_get_endpoints(struct afs_vl_cursor *vc,
 					      const uuid_t *uuid)

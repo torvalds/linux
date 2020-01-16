@@ -50,7 +50,7 @@
  * HCD-specific behaviors/bugs.
  *
  * This does error checks, tracks devices and urbs, and delegates to a
- * "hc_driver" only for code (and data) that really needs to know about
+ * "hc_driver" only for code (and data) that really needs to kyesw about
  * hardware differences.  That includes root hub registers, i/o queues,
  * and so on ... but as little else as possible.
  *
@@ -100,7 +100,7 @@ static DEFINE_SPINLOCK(hcd_urb_list_lock);
 /* used to protect against unlinking URBs after the device is gone */
 static DEFINE_SPINLOCK(hcd_urb_unlink_lock);
 
-/* wait queue for synchronous unlinks */
+/* wait queue for synchroyesus unlinks */
 DECLARE_WAIT_QUEUE_HEAD(usb_kill_urb_queue);
 
 /*-------------------------------------------------------------------------*/
@@ -163,7 +163,7 @@ static const u8 usb25_rh_dev_descriptor[18] = {
 
 	0x09,	    /*  __u8  bDeviceClass; HUB_CLASSCODE */
 	0x00,	    /*  __u8  bDeviceSubClass; */
-	0x00,       /*  __u8  bDeviceProtocol; [ usb 2.0 no TT ] */
+	0x00,       /*  __u8  bDeviceProtocol; [ usb 2.0 yes TT ] */
 	0xFF,       /*  __u8  bMaxPacketSize0; always 0xFF (WUSB Spec 7.4.1). */
 
 	0x6b, 0x1d, /*  __le16 idVendor; Linux Foundation 0x1d6b */
@@ -184,7 +184,7 @@ static const u8 usb2_rh_dev_descriptor[18] = {
 
 	0x09,	    /*  __u8  bDeviceClass; HUB_CLASSCODE */
 	0x00,	    /*  __u8  bDeviceSubClass; */
-	0x00,       /*  __u8  bDeviceProtocol; [ usb 2.0 no TT ] */
+	0x00,       /*  __u8  bDeviceProtocol; [ usb 2.0 yes TT ] */
 	0x40,       /*  __u8  bMaxPacketSize0; 64 Bytes */
 
 	0x6b, 0x1d, /*  __le16 idVendor; Linux Foundation 0x1d6b */
@@ -197,7 +197,7 @@ static const u8 usb2_rh_dev_descriptor[18] = {
 	0x01        /*  __u8  bNumConfigurations; */
 };
 
-/* no usb 2.0 root hub "device qualifier" descriptor: one speed only */
+/* yes usb 2.0 root hub "device qualifier" descriptor: one speed only */
 
 /* usb 1.1 root hub device descriptor */
 static const u8 usb11_rh_dev_descriptor[18] = {
@@ -380,7 +380,7 @@ static const u8 ss_rh_config_descriptor[] = {
 static int authorized_default = USB_AUTHORIZE_WIRED;
 module_param(authorized_default, int, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(authorized_default,
-		"Default USB device authorization: 0 is not authorized, 1 is "
+		"Default USB device authorization: 0 is yest authorized, 1 is "
 		"authorized, 2 is authorized for internal devices, -1 is "
 		"authorized except for wireless USB (default, old behaviour)");
 /*-------------------------------------------------------------------------*/
@@ -473,7 +473,7 @@ rh_string(int id, struct usb_hcd const *hcd, u8 *data, unsigned len)
 }
 
 
-/* Root hub control transfers execute synchronously */
+/* Root hub control transfers execute synchroyesusly */
 static int rh_call_control (struct usb_hcd *hcd, struct urb *urb)
 {
 	struct usb_ctrlrequest *cmd;
@@ -531,11 +531,11 @@ static int rh_call_control (struct usb_hcd *hcd, struct urb *urb)
 	 *
 	 * Most root hubs support wakeup from downstream devices, for
 	 * runtime power management (disabling USB clocks and reducing
-	 * VBUS power usage).  However, not all of them do so; silicon,
-	 * board, and BIOS bugs here are not uncommon, so these can't
+	 * VBUS power usage).  However, yest all of them do so; silicon,
+	 * board, and BIOS bugs here are yest uncommon, so these can't
 	 * be treated quite like external hubs.
 	 *
-	 * Likewise, not all root hubs will pass wakeup events upstream,
+	 * Likewise, yest all root hubs will pass wakeup events upstream,
 	 * to wake up the whole system.  So don't assume root hub and
 	 * controller capabilities are identical.
 	 */
@@ -624,7 +624,7 @@ static int rh_call_control (struct usb_hcd *hcd, struct urb *urb)
 				goto error;
 			break;
 		case USB_DT_BOS << 8:
-			goto nongeneric;
+			goto yesngeneric;
 		default:
 			goto error;
 		}
@@ -641,7 +641,7 @@ static int rh_call_control (struct usb_hcd *hcd, struct urb *urb)
 			wValue);
 		break;
 
-	/* INTERFACE REQUESTS (no defined feature/status flags) */
+	/* INTERFACE REQUESTS (yes defined feature/status flags) */
 
 	/* ENDPOINT REQUESTS */
 
@@ -653,14 +653,14 @@ static int rh_call_control (struct usb_hcd *hcd, struct urb *urb)
 			/* FALLTHROUGH */
 	case EndpointOutRequest | USB_REQ_CLEAR_FEATURE:
 	case EndpointOutRequest | USB_REQ_SET_FEATURE:
-		dev_dbg (hcd->self.controller, "no endpoint features yet\n");
+		dev_dbg (hcd->self.controller, "yes endpoint features yet\n");
 		break;
 
 	/* CLASS REQUESTS (and errors) */
 
 	default:
-nongeneric:
-		/* non-generic request */
+yesngeneric:
+		/* yesn-generic request */
 		switch (typeReq) {
 		case GetHubStatus:
 			len = 4;
@@ -746,7 +746,7 @@ error:
  * driver requests it; otherwise the driver is responsible for
  * calling usb_hcd_poll_rh_status() when an event occurs.
  *
- * Completions are called in_interrupt(), but they may or may not
+ * Completions are called in_interrupt(), but they may or may yest
  * be in_irq().
  */
 void usb_hcd_poll_rh_status(struct usb_hcd *hcd)
@@ -782,7 +782,7 @@ void usb_hcd_poll_rh_status(struct usb_hcd *hcd)
 		spin_unlock_irqrestore(&hcd_root_hub_lock, flags);
 	}
 
-	/* The USB 2.0 spec says 256 ms.  This is close enough and won't
+	/* The USB 2.0 spec says 256 ms.  This is close eyesugh and won't
 	 * exceed that limit if HZ is 100. The math is more clunky than
 	 * maybe expected, this is to make sure that all timers for USB devices
 	 * fire at the same time to give the CPU a break in between */
@@ -810,7 +810,7 @@ static int rh_queue_status (struct usb_hcd *hcd, struct urb *urb)
 
 	spin_lock_irqsave (&hcd_root_hub_lock, flags);
 	if (hcd->status_urb || urb->transfer_buffer_length < len) {
-		dev_dbg (hcd->self.controller, "not queuing rh status urb\n");
+		dev_dbg (hcd->self.controller, "yest queuing rh status urb\n");
 		retval = -EINVAL;
 		goto done;
 	}
@@ -845,7 +845,7 @@ static int rh_urb_enqueue (struct usb_hcd *hcd, struct urb *urb)
 /*-------------------------------------------------------------------------*/
 
 /* Unlinks of root-hub control URBs are legal, but they don't do anything
- * since these URBs always execute synchronously.
+ * since these URBs always execute synchroyesusly.
  */
 static int usb_rh_urb_dequeue(struct usb_hcd *hcd, struct urb *urb, int status)
 {
@@ -858,7 +858,7 @@ static int usb_rh_urb_dequeue(struct usb_hcd *hcd, struct urb *urb, int status)
 		goto done;
 
 	if (usb_endpoint_num(&urb->ep->desc) == 0) {	/* Control URB */
-		;	/* Do nothing */
+		;	/* Do yesthing */
 
 	} else {				/* Status URB */
 		if (!hcd->uses_new_polling)
@@ -924,7 +924,7 @@ static int usb_register_bus(struct usb_bus *bus)
 	bus->busnum = busnum;
 	mutex_unlock(&usb_bus_idr_lock);
 
-	usb_notify_add_bus(bus);
+	usb_yestify_add_bus(bus);
 
 	dev_info (bus->controller, "new USB bus registered, assigned bus "
 		  "number %d\n", bus->busnum);
@@ -956,7 +956,7 @@ static void usb_deregister_bus (struct usb_bus *bus)
 	idr_remove(&usb_bus_idr, bus->busnum);
 	mutex_unlock(&usb_bus_idr_lock);
 
-	usb_notify_remove_bus(bus);
+	usb_yestify_remove_bus(bus);
 }
 
 /**
@@ -1028,7 +1028,7 @@ static int register_root_hub(struct usb_hcd *hcd)
  * @bus: the bus which the root hub belongs to
  * @portnum: the port which is being resumed
  *
- * HCDs should call this function when they know that a resume signal is
+ * HCDs should call this function when they kyesw that a resume signal is
  * being sent to a root-hub port.  The root hub will be prevented from
  * going into autosuspend until usb_hcd_end_port_resume() is called.
  *
@@ -1040,7 +1040,7 @@ void usb_hcd_start_port_resume(struct usb_bus *bus, int portnum)
 
 	if (!(bus->resuming_ports & bit)) {
 		bus->resuming_ports |= bit;
-		pm_runtime_get_noresume(&bus->root_hub->dev);
+		pm_runtime_get_yesresume(&bus->root_hub->dev);
 	}
 }
 EXPORT_SYMBOL_GPL(usb_hcd_start_port_resume);
@@ -1050,7 +1050,7 @@ EXPORT_SYMBOL_GPL(usb_hcd_start_port_resume);
  * @bus: the bus which the root hub belongs to
  * @portnum: the port which is being resumed
  *
- * HCDs should call this function when they know that a resume signal has
+ * HCDs should call this function when they kyesw that a resume signal has
  * stopped being sent to a root-hub port.  The root hub will be allowed to
  * autosuspend again.
  *
@@ -1062,7 +1062,7 @@ void usb_hcd_end_port_resume(struct usb_bus *bus, int portnum)
 
 	if (bus->resuming_ports & bit) {
 		bus->resuming_ports &= ~bit;
-		pm_runtime_put_noidle(&bus->root_hub->dev);
+		pm_runtime_put_yesidle(&bus->root_hub->dev);
 	}
 }
 EXPORT_SYMBOL_GPL(usb_hcd_end_port_resume);
@@ -1070,13 +1070,13 @@ EXPORT_SYMBOL_GPL(usb_hcd_end_port_resume);
 /*-------------------------------------------------------------------------*/
 
 /**
- * usb_calc_bus_time - approximate periodic transaction time in nanoseconds
+ * usb_calc_bus_time - approximate periodic transaction time in nayesseconds
  * @speed: from dev->speed; USB_SPEED_{LOW,FULL,HIGH}
  * @is_input: true iff the transaction sends data to the host
- * @isoc: true for isochronous transactions, false for interrupt ones
+ * @isoc: true for isochroyesus transactions, false for interrupt ones
  * @bytecount: how many bytes in the transaction.
  *
- * Return: Approximate bus time in nanoseconds for a periodic transaction.
+ * Return: Approximate bus time in nayesseconds for a periodic transaction.
  *
  * Note:
  * See USB 2.0 spec section 5.11.3; only periodic transfers need to be
@@ -1136,8 +1136,8 @@ EXPORT_SYMBOL_GPL(usb_calc_bus_time);
  * be disabled.  The actions carried out here are required for URB
  * submission, as well as for endpoint shutdown and for usb_kill_urb.
  *
- * Return: 0 for no error, otherwise a negative error code (in which case
- * the enqueue() method must fail).  If no error occurs but enqueue() fails
+ * Return: 0 for yes error, otherwise a negative error code (in which case
+ * the enqueue() method must fail).  If yes error occurs but enqueue() fails
  * anyway, it must call usb_hcd_unlink_urb_from_ep() before releasing
  * the private spinlock and returning.
  */
@@ -1191,11 +1191,11 @@ EXPORT_SYMBOL_GPL(usb_hcd_link_urb_to_ep);
  * be disabled.  The actions carried out here are required for making
  * sure than an unlink is valid.
  *
- * Return: 0 for no error, otherwise a negative error code (in which case
+ * Return: 0 for yes error, otherwise a negative error code (in which case
  * the dequeue() method must fail).  The possible error codes are:
  *
- *	-EIDRM: @urb was not submitted or has already completed.
- *		The completion function may not have been called yet.
+ *	-EIDRM: @urb was yest submitted or has already completed.
+ *		The completion function may yest have been called yet.
  *
  *	-EBUSY: @urb has already been unlinked.
  */
@@ -1213,7 +1213,7 @@ int usb_hcd_check_unlink_urb(struct usb_hcd *hcd, struct urb *urb,
 		return -EIDRM;
 
 	/* Any status except -EINPROGRESS means something already started to
-	 * unlink this URB from the hardware.  So there's no more work to do.
+	 * unlink this URB from the hardware.  So there's yes more work to do.
 	 */
 	if (urb->unlinked)
 		return -EBUSY;
@@ -1255,15 +1255,15 @@ EXPORT_SYMBOL_GPL(usb_hcd_unlink_urb_from_ep);
  *
  * So, to summarize...
  *
- * - We need "local" memory, canonical example being
+ * - We need "local" memory, cayesnical example being
  *   a small SRAM on a discrete controller being the
  *   only memory that the controller can read ...
- *   (a) "normal" kernel memory is no good, and
- *   (b) there's not enough to share
+ *   (a) "yesrmal" kernel memory is yes good, and
+ *   (b) there's yest eyesugh to share
  *
  * - So we use that, even though the primary requirement
  *   is that the memory be "local" (hence addressable
- *   by that device), not "coherent".
+ *   by that device), yest "coherent".
  *
  */
 
@@ -1402,7 +1402,7 @@ int usb_hcd_map_urb_for_dma(struct usb_hcd *hcd, struct urb *urb,
 
 	/* Map the URB's buffers for DMA access.
 	 * Lower level HCD code should use *_dma exclusively,
-	 * unless it uses pio or talks to another transport,
+	 * unless it uses pio or talks to ayesther transport,
 	 * or uses the provided scatter gather list for bulk.
 	 */
 
@@ -1523,7 +1523,7 @@ int usb_hcd_submit_urb (struct urb *urb, gfp_t mem_flags)
 
 	/* increment urb's reference count as part of giving it to the HCD
 	 * (which will control it).  HCD guarantees that it either returns
-	 * an error or calls giveback(), but not both.
+	 * an error or calls giveback(), but yest both.
 	 */
 	usb_get_urb(urb);
 	atomic_inc(&urb->use_count);
@@ -1531,8 +1531,8 @@ int usb_hcd_submit_urb (struct urb *urb, gfp_t mem_flags)
 	usbmon_urb_submit(&hcd->self, urb);
 
 	/* NOTE requirements on root-hub callers (usbfs and the hub
-	 * driver, for now):  URBs' urb->transfer_buffer must be
-	 * valid and usb_buffer_{sync,unmap}() not be needed, since
+	 * driver, for yesw):  URBs' urb->transfer_buffer must be
+	 * valid and usb_buffer_{sync,unmap}() yest be needed, since
 	 * they could clobber root hub response data.  Also, control
 	 * URBs must be submitted in process context with interrupts
 	 * enabled.
@@ -1567,7 +1567,7 @@ int usb_hcd_submit_urb (struct urb *urb, gfp_t mem_flags)
 /* this makes the hcd giveback() the urb more quickly, by kicking it
  * off hardware queues (which may take a while) and returning it as
  * soon as practical.  we've already set up the urb's return status,
- * but we can't know if the callback completed already.
+ * but we can't kyesw if the callback completed already.
  */
 static int unlink1(struct usb_hcd *hcd, struct urb *urb, int status)
 {
@@ -1578,7 +1578,7 @@ static int unlink1(struct usb_hcd *hcd, struct urb *urb, int status)
 	else {
 
 		/* The only reason an HCD might fail this call is if
-		 * it has not yet fully queued the urb to begin with.
+		 * it has yest yet fully queued the urb to begin with.
 		 * Such failures should be harmless. */
 		value = hcd->driver->urb_dequeue(hcd, urb, status);
 	}
@@ -1739,7 +1739,7 @@ EXPORT_SYMBOL_GPL(usb_hcd_giveback_urb);
 /*-------------------------------------------------------------------------*/
 
 /* Cancel all URBs pending on this endpoint and wait for the endpoint's
- * queue to drain completely.  The caller must first insure that no more
+ * queue to drain completely.  The caller must first insure that yes more
  * URBs can be submitted for this endpoint.
  */
 void usb_hcd_flush_endpoint(struct usb_device *udev,
@@ -1849,7 +1849,7 @@ int usb_hcd_alloc_bandwidth(struct usb_device *udev,
 		hcd->driver->check_bandwidth(hcd, udev);
 		return 0;
 	}
-	/* Check if the HCD says there's enough bandwidth.  Enable all endpoints
+	/* Check if the HCD says there's eyesugh bandwidth.  Enable all endpoints
 	 * each interface's alt setting 0 and ask the HCD to check the bandwidth
 	 * of the bus.  There will always be bandwidth for endpoint 0, so it's
 	 * ok to exclude it.
@@ -2016,7 +2016,7 @@ int usb_alloc_streams(struct usb_interface *interface,
 		/* Streams only apply to bulk endpoints. */
 		if (!usb_endpoint_xfer_bulk(&eps[i]->desc))
 			return -EINVAL;
-		/* Re-alloc is not allowed */
+		/* Re-alloc is yest allowed */
 		if (eps[i]->streams)
 			return -EINVAL;
 	}
@@ -2040,7 +2040,7 @@ EXPORT_SYMBOL_GPL(usb_alloc_streams);
  * @num_eps:	number of endpoints in the array.
  * @mem_flags:	flags hcd should use to allocate memory.
  *
- * Reverts a group of bulk endpoints back to not using stream IDs.
+ * Reverts a group of bulk endpoints back to yest using stream IDs.
  * Can fail if we are given bad arguments, or HCD is broken.
  *
  * Return: 0 on success. On failure, a negative error code.
@@ -2058,7 +2058,7 @@ int usb_free_streams(struct usb_interface *interface,
 	if (dev->speed < USB_SPEED_SUPER)
 		return -EINVAL;
 
-	/* Double-free is not allowed */
+	/* Double-free is yest allowed */
 	for (i = 0; i < num_eps; i++)
 		if (!eps[i] || !eps[i]->streams)
 			return -EINVAL;
@@ -2077,7 +2077,7 @@ EXPORT_SYMBOL_GPL(usb_free_streams);
 /* Protect against drivers that try to unlink URBs after the device
  * is gone, by waiting until all unlinks for @udev are finished.
  * Since we don't currently track URBs by device, simply wait until
- * nothing is running in the locked region of usb_hcd_unlink_urb().
+ * yesthing is running in the locked region of usb_hcd_unlink_urb().
  */
 void usb_hcd_synchronize_unlinks(struct usb_device *udev)
 {
@@ -2306,7 +2306,7 @@ EXPORT_SYMBOL_GPL(usb_bus_start_enum);
  * @__hcd: pointer to the HCD whose IRQ is being signaled
  *
  * If the controller isn't HALTed, calls the driver's irq handler.
- * Checks whether the controller is now dead.
+ * Checks whether the controller is yesw dead.
  *
  * Return: %IRQ_HANDLED if the IRQ was handled. %IRQ_NONE otherwise.
  */
@@ -2342,12 +2342,12 @@ static void hcd_died_work(struct work_struct *work)
 }
 
 /**
- * usb_hc_died - report abnormal shutdown of a host controller (bus glue)
+ * usb_hc_died - report abyesrmal shutdown of a host controller (bus glue)
  * @hcd: pointer to the HCD representing the controller
  *
  * This is called by bus glue to report a USB host controller that died
  * while operations may still have been pending.  It's called automatically
- * by the PCI glue, so only glue for non-PCI busses should need to call it.
+ * by the PCI glue, so only glue for yesn-PCI busses should need to call it.
  *
  * Only call this function with the primary HCD.
  */
@@ -2744,7 +2744,7 @@ int usb_add_hcd(struct usb_hcd *hcd,
 	 */
 	set_bit(HCD_FLAG_RH_RUNNING, &hcd->flags);
 
-	/* "reset" is misnamed; its role is now one-time init. the controller
+	/* "reset" is misnamed; its role is yesw one-time init. the controller
 	 * should already have been reset (and boot firmware kicked off etc).
 	 */
 	if (hcd->driver->reset) {
@@ -2761,7 +2761,7 @@ int usb_add_hcd(struct usb_hcd *hcd,
 	if (retval)
 		goto err_hcd_driver_setup;
 
-	/* NOTE: root hub and controller capabilities may not be the same */
+	/* NOTE: root hub and controller capabilities may yest be the same */
 	if (device_can_wakeup(hcd->self.controller)
 			&& device_can_wakeup(&hcd->self.root_hub->dev))
 		dev_dbg(hcd->self.controller, "supports USB remote wakeup\n");
@@ -2864,7 +2864,7 @@ void usb_remove_hcd(struct usb_hcd *hcd)
 	 *   callback
 	 *
 	 * - it is too late to run complete() here since driver may have
-	 *   been removed already now
+	 *   been removed already yesw
 	 */
 
 	/* Prevent any more root-hub status calls from the timer.
@@ -2919,7 +2919,7 @@ int usb_hcd_setup_local_mem(struct usb_hcd *hcd, phys_addr_t phys_addr,
 	void *local_mem;
 
 	hcd->localmem_pool = devm_gen_pool_create(hcd->self.sysdev, 4,
-						  dev_to_node(hcd->self.sysdev),
+						  dev_to_yesde(hcd->self.sysdev),
 						  dev_name(hcd->self.sysdev));
 	if (IS_ERR(hcd->localmem_pool))
 		return PTR_ERR(hcd->localmem_pool);
@@ -2931,11 +2931,11 @@ int usb_hcd_setup_local_mem(struct usb_hcd *hcd, phys_addr_t phys_addr,
 
 	/*
 	 * Here we pass a dma_addr_t but the arg type is a phys_addr_t.
-	 * It's not backed by system memory and thus there's no kernel mapping
+	 * It's yest backed by system memory and thus there's yes kernel mapping
 	 * for it.
 	 */
 	err = gen_pool_add_virt(hcd->localmem_pool, (unsigned long)local_mem,
-				dma, size, dev_to_node(hcd->self.sysdev));
+				dma, size, dev_to_yesde(hcd->self.sysdev));
 	if (err < 0) {
 		dev_err(hcd->self.sysdev, "gen_pool_add_virt failed with %d\n",
 			err);
@@ -2954,10 +2954,10 @@ const struct usb_mon_operations *mon_ops;
 
 /*
  * The registration is unlocked.
- * We do it this way because we do not want to lock in hot paths.
+ * We do it this way because we do yest want to lock in hot paths.
  *
  * Notice that the code is minimally error-proof. Because usbmon needs
- * symbols from usbcore, usbcore gets referenced and cannot be unloaded first.
+ * symbols from usbcore, usbcore gets referenced and canyest be unloaded first.
  */
 
 int usb_mon_register(const struct usb_mon_operations *ops)
@@ -2976,7 +2976,7 @@ void usb_mon_deregister (void)
 {
 
 	if (mon_ops == NULL) {
-		printk(KERN_ERR "USB: monitor was not registered\n");
+		printk(KERN_ERR "USB: monitor was yest registered\n");
 		return;
 	}
 	mon_ops = NULL;

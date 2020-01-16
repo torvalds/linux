@@ -13,9 +13,9 @@ used by all apr services. Must contain the following properties.
 		  example "qcom,q6afe"
 
 = AFE DAIs (Digial Audio Interface)
-"dais" subnode of the AFE node. It represents afe dais, each afe dai is a
-subnode of "dais" representing board specific dai setup.
-"dais" node should have following properties followed by dai children.
+"dais" subyesde of the AFE yesde. It represents afe dais, each afe dai is a
+subyesde of "dais" representing board specific dai setup.
+"dais" yesde should have following properties followed by dai children.
 
 - compatible:
 	Usage: required
@@ -37,7 +37,7 @@ subnode of "dais" representing board specific dai setup.
 	Value type: <u32>
 	Definition: Must be 0
 
-== AFE DAI is subnode of "dais" and represent a dai, it includes board specific
+== AFE DAI is subyesde of "dais" and represent a dai, it includes board specific
 configuration of each dai. Must contain the following properties.
 
 - reg

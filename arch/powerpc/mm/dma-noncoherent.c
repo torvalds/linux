@@ -7,11 +7,11 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/types.h>
 #include <linux/highmem.h>
 #include <linux/dma-direct.h>
-#include <linux/dma-noncoherent.h>
+#include <linux/dma-yesncoherent.h>
 
 #include <asm/tlbflush.h>
 #include <asm/dma.h>
@@ -51,9 +51,9 @@ static void __dma_sync(void *vaddr, size_t size, int direction)
  * __dma_sync_page() implementation for systems using highmem.
  * In this case, each page of a buffer must be kmapped/kunmapped
  * in order to have a virtual address for __dma_sync(). This must
- * not sleep so kmap_atomic()/kunmap_atomic() are used.
+ * yest sleep so kmap_atomic()/kunmap_atomic() are used.
  *
- * Note: yes, it is possible and correct to have a buffer extend
+ * Note: no, it is possible and correct to have a buffer extend
  * beyond the first page.
  */
 static inline void __dma_sync_page_highmem(struct page *page,

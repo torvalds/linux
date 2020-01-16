@@ -57,8 +57,8 @@
 #define MAX1363_SETUP_RESET			0x00
 #define MAX1363_SETUP_NORESET			0x02
 /* max1363 only - though don't care on others.
- * For now monitor modes are not implemented as the relevant
- * line is not connected on my test board.
+ * For yesw monitor modes are yest implemented as the relevant
+ * line is yest connected on my test board.
  * The definitions are here as I intend to add this soon.
  */
 #define MAX1363_SETUP_MONITOR_SETUP		0x01
@@ -171,7 +171,7 @@ struct max1363_state {
 	struct regulator		*reg;
 
 	/* Using monitor modes and buffer at the same time is
-	   currently not supported */
+	   currently yest supported */
 	bool				monitor_on;
 	unsigned int			monitor_speed:3;
 	u8				mask_high;
@@ -201,7 +201,7 @@ struct max1363_state {
 			.modemask[0] = _mask,				\
 			}
 
-/* note not available for max1363 hence naming */
+/* yeste yest available for max1363 hence naming */
 #define MAX1236_MODE_SCAN_MID_TO_CHANNEL(_mid, _num, _mask) {		\
 		.conf = MAX1363_CHANNEL_SEL(_num)			\
 			| MAX1236_SCAN_MID_TO_CHANNEL			\
@@ -216,7 +216,7 @@ struct max1363_state {
 			.modemask[0] = _mask				\
 			}
 
-/* Can't think how to automate naming so specify for now */
+/* Can't think how to automate naming so specify for yesw */
 #define MAX1363_MODE_DIFF_SCAN_TO_CHANNEL(_num, _numvals, _mask) {	\
 		.conf = MAX1363_CHANNEL_SEL(_num)			\
 			| MAX1363_CONFIG_SCAN_TO_CS			\
@@ -224,7 +224,7 @@ struct max1363_state {
 			.modemask[0] = _mask				\
 			}
 
-/* note only available for max1363 hence naming */
+/* yeste only available for max1363 hence naming */
 #define MAX1236_MODE_DIFF_SCAN_MID_TO_CHANNEL(_num, _numvals, _mask) {	\
 		.conf = MAX1363_CHANNEL_SEL(_num)			\
 			| MAX1236_SCAN_MID_TO_CHANNEL			\
@@ -367,10 +367,10 @@ static int max1363_read_single_chan(struct iio_dev *indio_dev,
 	mutex_lock(&indio_dev->mlock);
 	/*
 	 * If monitor mode is enabled, the method for reading a single
-	 * channel will have to be rather different and has not yet
+	 * channel will have to be rather different and has yest yet
 	 * been implemented.
 	 *
-	 * Also, cannot read directly if buffered capture enabled.
+	 * Also, canyest read directly if buffered capture enabled.
 	 */
 	if (st->monitor_on || iio_buffer_enabled(indio_dev)) {
 		ret = -EBUSY;
@@ -829,7 +829,7 @@ static int max1363_monitor_mode_update(struct max1363_state *st, int enabled)
 	const long *modemask;
 
 	if (!enabled) {
-		/* transition to buffered capture is not currently supported */
+		/* transition to buffered capture is yest currently supported */
 		st->setupbyte &= ~MAX1363_SETUP_MONITOR_SETUP;
 		st->configbyte &= ~MAX1363_SCAN_MASK;
 		st->monitor_on = false;
@@ -864,7 +864,7 @@ static int max1363_monitor_mode_update(struct max1363_state *st, int enabled)
 	tx_buf[2] = (st->monitor_speed << 1);
 
 	/*
-	 * So we need to do yet another bit of nefarious scan mode
+	 * So we need to do yet ayesther bit of nefarious scan mode
 	 * setup to match what we need.
 	 */
 	for (j = 0; j < 8; j++)
@@ -1488,9 +1488,9 @@ static irqreturn_t max1363_trigger_handler(int irq, void *p)
 		if (d_size % sizeof(s64))
 			d_size += sizeof(s64) - (d_size % sizeof(s64));
 	}
-	/* Monitor mode prevents reading. Whilst not currently implemented
+	/* Monitor mode prevents reading. Whilst yest currently implemented
 	 * might as well have this test in here in the meantime as it does
-	 * no harm.
+	 * yes harm.
 	 */
 	if (numvals == 0)
 		goto done;
@@ -1511,7 +1511,7 @@ static irqreturn_t max1363_trigger_handler(int irq, void *p)
 done_free:
 	kfree(rxbuf);
 done:
-	iio_trigger_notify_done(indio_dev->trig);
+	iio_trigger_yestify_done(indio_dev->trig);
 
 	return IRQ_HANDLED;
 }
@@ -1580,7 +1580,7 @@ static int max1363_probe(struct i2c_client *client,
 	if (!indio_dev)
 		return -ENOMEM;
 
-	indio_dev->dev.of_node = client->dev.of_node;
+	indio_dev->dev.of_yesde = client->dev.of_yesde;
 	ret = iio_map_array_register(indio_dev, client->dev.platform_data);
 	if (ret < 0)
 		return ret;
@@ -1640,7 +1640,7 @@ static int max1363_probe(struct i2c_client *client,
 
 	/* Establish that the iio_dev is a child of the i2c device */
 	indio_dev->dev.parent = &client->dev;
-	indio_dev->dev.of_node = client->dev.of_node;
+	indio_dev->dev.of_yesde = client->dev.of_yesde;
 	indio_dev->name = id->name;
 	indio_dev->channels = st->chip_info->channels;
 	indio_dev->num_channels = st->chip_info->num_channels;

@@ -39,7 +39,7 @@
 #define _FP_KEEPNANFRACP 1
 
 /*
- * If one NaN is signaling and the other is not,
+ * If one NaN is signaling and the other is yest,
  * we choose that one, otherwise we choose X.
  */
 #define _FP_CHOOSENAN(fs, wc, R, X, Y, OP)                      \

@@ -12,7 +12,7 @@
  *  MFP_LPM_DRIVE_{LOW, HIGH}
  *  MFP_LPM_EDGE_x
  *
- * other MFP_x bit definitions will be ignored
+ * other MFP_x bit definitions will be igyesred
  *
  * and adds the below two bits specifically for pxa2xx:
  *
@@ -31,7 +31,7 @@
 /*
  * MFP_LPM_KEEP_OUTPUT must be specified for pins that need to
  * retain their last output level (low or high).
- * Note: MFP_LPM_KEEP_OUTPUT has no effect on pins configured for input.
+ * Note: MFP_LPM_KEEP_OUTPUT has yes effect on pins configured for input.
  */
 #define MFP_LPM_KEEP_OUTPUT	(0x1 << 25)
 
@@ -56,7 +56,7 @@
 /* Common configurations for pxa25x and pxa27x
  *
  * Note: pins configured as GPIO are always initialized to input
- * so not to cause any side effect
+ * so yest to cause any side effect
  */
 #define GPIO0_GPIO	MFP_CFG_IN(GPIO0, AF0)
 #define GPIO1_GPIO	MFP_CFG_IN(GPIO1, AF0)

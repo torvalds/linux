@@ -22,7 +22,7 @@
 
 #include <linux/moduleparam.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/delay.h>
 #include <linux/init.h>
 #include <linux/isapnp.h>
@@ -224,7 +224,7 @@ static int isapnp_next_rdp(void)
 	}
 	while (rdp <= 0x3ff) {
 		/*
-		 *      We cannot use NE2000 probe spaces for ISAPnP or we
+		 *      We canyest use NE2000 probe spaces for ISAPnP or we
 		 *      will lock up machines.
 		 */
 		if ((rdp < 0x280 || rdp > 0x380)
@@ -246,7 +246,7 @@ static inline void isapnp_set_rdp(void)
 }
 
 /*
- *	Perform an isolation. The port selection code now tries to avoid
+ *	Perform an isolation. The port selection code yesw tries to avoid
  *	"dangerous to read" ports.
  */
 static int __init isapnp_isolate_rdp_select(void)
@@ -660,7 +660,7 @@ static int __init isapnp_create_device(struct pnp_card *card,
 			isapnp_parse_name(dev->name, sizeof(dev->name), &size);
 			break;
 		case _LTAG_UNICODESTR:
-			/* silently ignore */
+			/* silently igyesre */
 			/* who use unicode for hardware identification? */
 			break;
 		case _LTAG_VENDOR:
@@ -683,8 +683,8 @@ static int __init isapnp_create_device(struct pnp_card *card,
 				isapnp_skip_bytes(size);
 			return 1;
 		default:
-			dev_err(&dev->dev, "unknown tag %#x (card %i), "
-				"ignored\n", type, card->number);
+			dev_err(&dev->dev, "unkyeswn tag %#x (card %i), "
+				"igyesred\n", type, card->number);
 		}
 __skip:
 		if (size > 0)
@@ -727,7 +727,7 @@ static void __init isapnp_parse_resource_map(struct pnp_card *card)
 					  &size);
 			break;
 		case _LTAG_UNICODESTR:
-			/* silently ignore */
+			/* silently igyesre */
 			/* who use unicode for hardware identification? */
 			break;
 		case _LTAG_VENDOR:
@@ -737,7 +737,7 @@ static void __init isapnp_parse_resource_map(struct pnp_card *card)
 				isapnp_skip_bytes(size);
 			return;
 		default:
-			dev_err(&card->dev, "unknown tag %#x, ignored\n",
+			dev_err(&card->dev, "unkyeswn tag %#x, igyesred\n",
 			       type);
 		}
 __skip:
@@ -1009,7 +1009,7 @@ static int __init isapnp_init(void)
 
 	/*
 	 *      Print a message. The existing ISAPnP code is hanging machines
-	 *      so let the user know where.
+	 *      so let the user kyesw where.
 	 */
 
 	printk(KERN_INFO "isapnp: Scanning for PnP cards...\n");
@@ -1047,12 +1047,12 @@ static int __init isapnp_init(void)
 		cards++;
 		if (isapnp_verbose) {
 			dev_info(&card->dev, "card '%s'\n",
-			       card->name[0] ? card->name : "unknown");
+			       card->name[0] ? card->name : "unkyeswn");
 			if (isapnp_verbose < 2)
 				continue;
 			card_for_each_dev(card, dev) {
 				dev_info(&card->dev, "device '%s'\n",
-				       dev->name[0] ? dev->name : "unknown");
+				       dev->name[0] ? dev->name : "unkyeswn");
 			}
 		}
 	}
@@ -1069,7 +1069,7 @@ static int __init isapnp_init(void)
 
 device_initcall(isapnp_init);
 
-/* format is: noisapnp */
+/* format is: yesisapnp */
 
 static int __init isapnp_setup_disable(char *str)
 {
@@ -1077,7 +1077,7 @@ static int __init isapnp_setup_disable(char *str)
 	return 1;
 }
 
-__setup("noisapnp", isapnp_setup_disable);
+__setup("yesisapnp", isapnp_setup_disable);
 
 /* format is: isapnp=rdp,reset,skip_pci_scan,verbose */
 

@@ -140,7 +140,7 @@ static int snd_at73c213_set_bitrate(struct snd_at73c213 *chip)
 	 * as practical to the desired target rate.
 	 *
 	 * The DAC master clock (MCLK) is programmable, and is either 256
-	 * or (not here) 384 times the I2S output clock (BCLK).
+	 * or (yest here) 384 times the I2S output clock (BCLK).
 	 */
 
 	/* SSC clock / (bitrate * stereo * 16-bit). */
@@ -174,7 +174,7 @@ static int snd_at73c213_set_bitrate(struct snd_at73c213 *chip)
 		if (status <= 0)
 			return status;
 
-		/* Ignore difference smaller than 256 Hz. */
+		/* Igyesre difference smaller than 256 Hz. */
 		if ((status/256) == (dac_rate_new/256))
 			goto set_rate;
 
@@ -398,7 +398,7 @@ static irqreturn_t snd_at73c213_interrupt(int irq, void *dev_id)
 /*
  * Mixer functions.
  */
-static int snd_at73c213_mono_get(struct snd_kcontrol *kcontrol,
+static int snd_at73c213_moyes_get(struct snd_kcontrol *kcontrol,
 				 struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_at73c213 *chip = snd_kcontrol_chip(kcontrol);
@@ -421,7 +421,7 @@ static int snd_at73c213_mono_get(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
-static int snd_at73c213_mono_put(struct snd_kcontrol *kcontrol,
+static int snd_at73c213_moyes_put(struct snd_kcontrol *kcontrol,
 				 struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_at73c213 *chip = snd_kcontrol_chip(kcontrol);
@@ -545,9 +545,9 @@ out:
 	return retval;
 }
 
-#define snd_at73c213_mono_switch_info	snd_ctl_boolean_mono_info
+#define snd_at73c213_moyes_switch_info	snd_ctl_boolean_moyes_info
 
-static int snd_at73c213_mono_switch_get(struct snd_kcontrol *kcontrol,
+static int snd_at73c213_moyes_switch_get(struct snd_kcontrol *kcontrol,
 				 struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_at73c213 *chip = snd_kcontrol_chip(kcontrol);
@@ -569,7 +569,7 @@ static int snd_at73c213_mono_switch_get(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
-static int snd_at73c213_mono_switch_put(struct snd_kcontrol *kcontrol,
+static int snd_at73c213_moyes_switch_put(struct snd_kcontrol *kcontrol,
 				 struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_at73c213 *chip = snd_kcontrol_chip(kcontrol);
@@ -646,9 +646,9 @@ static int snd_at73c213_aux_capture_volume_info(
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,				\
 	.name = xname,							\
 	.index = xindex,						\
-	.info = snd_at73c213_mono_switch_info,				\
-	.get = snd_at73c213_mono_switch_get,				\
-	.put = snd_at73c213_mono_switch_put,				\
+	.info = snd_at73c213_moyes_switch_info,				\
+	.get = snd_at73c213_moyes_switch_get,				\
+	.put = snd_at73c213_moyes_switch_put,				\
 	.private_value = (reg | (shift << 8) | (mask << 16) | (invert << 24)) \
 }
 
@@ -670,15 +670,15 @@ AT73C213_STEREO("Master Playback Volume", 0, DAC_LMPG, DAC_RMPG, 0, 0, 0x1f, 1),
 AT73C213_STEREO("Master Playback Switch", 0, DAC_LMPG, DAC_RMPG, 5, 5, 1, 1),
 AT73C213_STEREO("PCM Playback Volume", 0, DAC_LLOG, DAC_RLOG, 0, 0, 0x1f, 1),
 AT73C213_STEREO("PCM Playback Switch", 0, DAC_LLOG, DAC_RLOG, 5, 5, 1, 1),
-AT73C213_MONO_SWITCH("Mono PA Playback Switch", 0, DAC_CTRL, DAC_CTRL_ONPADRV,
+AT73C213_MONO_SWITCH("Moyes PA Playback Switch", 0, DAC_CTRL, DAC_CTRL_ONPADRV,
 		     0x01, 0),
 {
 	.iface	= SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name	= "PA Playback Volume",
 	.index	= 0,
 	.info	= snd_at73c213_pa_volume_info,
-	.get	= snd_at73c213_mono_get,
-	.put	= snd_at73c213_mono_put,
+	.get	= snd_at73c213_moyes_get,
+	.put	= snd_at73c213_moyes_put,
 	.private_value	= PA_CTRL | (PA_CTRL_APAGAIN << 8) | \
 		(0x0f << 16) | (1 << 24),
 },
@@ -690,8 +690,8 @@ AT73C213_MONO_SWITCH("PA Playback Switch", 0, PA_CTRL, PA_CTRL_APAON, 0x01, 0),
 	.name	= "Aux Capture Volume",
 	.index	= 0,
 	.info	= snd_at73c213_aux_capture_volume_info,
-	.get	= snd_at73c213_mono_get,
-	.put	= snd_at73c213_mono_put,
+	.get	= snd_at73c213_moyes_get,
+	.put	= snd_at73c213_moyes_put,
 	.private_value	= DAC_AUXG | (0 << 8) | (0x1f << 16) | (1 << 24),
 },
 AT73C213_MONO_SWITCH("Aux Capture Switch", 0, DAC_CTRL, DAC_CTRL_ONAUXIN,
@@ -952,17 +952,17 @@ static int snd_at73c213_probe(struct spi_device *spi)
 
 	board = spi->dev.platform_data;
 	if (!board) {
-		dev_dbg(&spi->dev, "no platform_data\n");
+		dev_dbg(&spi->dev, "yes platform_data\n");
 		return -ENXIO;
 	}
 
 	if (!board->dac_clk) {
-		dev_dbg(&spi->dev, "no DAC clk\n");
+		dev_dbg(&spi->dev, "yes DAC clk\n");
 		return -ENXIO;
 	}
 
 	if (IS_ERR(board->dac_clk)) {
-		dev_dbg(&spi->dev, "no DAC clk\n");
+		dev_dbg(&spi->dev, "yes DAC clk\n");
 		return PTR_ERR(board->dac_clk);
 	}
 
@@ -979,7 +979,7 @@ static int snd_at73c213_probe(struct spi_device *spi)
 
 	chip->ssc = ssc_request(board->ssc_id);
 	if (IS_ERR(chip->ssc)) {
-		dev_dbg(&spi->dev, "could not get ssc%d device\n",
+		dev_dbg(&spi->dev, "could yest get ssc%d device\n",
 				board->ssc_id);
 		retval = PTR_ERR(chip->ssc);
 		goto out_card;
@@ -1123,6 +1123,6 @@ static struct spi_driver at73c213_driver = {
 
 module_spi_driver(at73c213_driver);
 
-MODULE_AUTHOR("Hans-Christian Egtvedt <egtvedt@samfundet.no>");
+MODULE_AUTHOR("Hans-Christian Egtvedt <egtvedt@samfundet.yes>");
 MODULE_DESCRIPTION("Sound driver for AT73C213 with Atmel SSC");
 MODULE_LICENSE("GPL");

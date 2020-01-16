@@ -32,7 +32,7 @@ struct nvif_ioctl_v0 {
 	__u8  data[];		/* ioctl data (below) */
 };
 
-struct nvif_ioctl_nop_v0 {
+struct nvif_ioctl_yesp_v0 {
 	__u64 version;
 };
 

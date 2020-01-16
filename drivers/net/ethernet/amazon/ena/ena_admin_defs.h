@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -246,7 +246,7 @@ struct ena_admin_aq_create_sq_cmd {
 	/* submission queue depth in entries */
 	u16 sq_depth;
 
-	/* SQ physical base address in OS memory. This field should not be
+	/* SQ physical base address in OS memory. This field should yest be
 	 * used for Low Latency queues. Has to be page aligned.
 	 */
 	struct ena_common_mem_addr sq_ba;
@@ -334,7 +334,7 @@ struct ena_admin_acq_create_cq_resp_desc {
 	/* actual cq depth in number of entries */
 	u16 cq_actual_depth;
 
-	u32 numa_node_register_offset;
+	u32 numa_yesde_register_offset;
 
 	u32 cq_head_db_register_offset;
 
@@ -533,7 +533,7 @@ struct ena_admin_feature_llq_desc {
 	u16 descriptors_stride_ctrl_enabled;
 
 	/* Maximum size in bytes taken by llq entries in a single tx burst.
-	 * Set to 0 when there is no such limit.
+	 * Set to 0 when there is yes such limit.
 	 */
 	u32 max_tx_burst_size;
 };
@@ -785,8 +785,8 @@ struct ena_admin_host_info {
 	u32 kernel_ver;
 
 	/* 7:0 : major
-	 * 15:8 : minor
-	 * 23:16 : sub_minor
+	 * 15:8 : miyesr
+	 * 23:16 : sub_miyesr
 	 * 31:24 : module_type
 	 */
 	u32 driver_version;
@@ -837,7 +837,7 @@ struct ena_admin_feature_rss_ind_table {
 	/* index of the inline entry. 0xFFFFFFFF means invalid */
 	u32 inline_index;
 
-	/* used for updating single entry, ignored when setting the entire
+	/* used for updating single entry, igyesred when setting the entire
 	 * table through the control buffer.
 	 */
 	struct ena_admin_rss_ind_table_entry inline_entry;
@@ -981,7 +981,7 @@ struct ena_admin_aenq_common_desc {
 	u32 timestamp_high;
 };
 
-/* asynchronous event notification groups */
+/* asynchroyesus event yestification groups */
 enum ena_admin_aenq_group {
 	ENA_ADMIN_LINK_CHANGE                       = 0,
 	ENA_ADMIN_FATAL_ERROR                       = 1,
@@ -991,7 +991,7 @@ enum ena_admin_aenq_group {
 	ENA_ADMIN_AENQ_GROUPS_NUM                   = 5,
 };
 
-enum ena_admin_aenq_notification_syndrom {
+enum ena_admin_aenq_yestification_syndrom {
 	ENA_ADMIN_SUSPEND                           = 0,
 	ENA_ADMIN_RESUME                            = 1,
 	ENA_ADMIN_UPDATE_HINTS                      = 2,

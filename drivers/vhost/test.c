@@ -55,7 +55,7 @@ static void handle_vq(struct vhost_test *n)
 		return;
 	}
 
-	vhost_disable_notify(&n->dev, vq);
+	vhost_disable_yestify(&n->dev, vq);
 
 	for (;;) {
 		head = vhost_get_vq_desc(vq, vq->iov,
@@ -67,8 +67,8 @@ static void handle_vq(struct vhost_test *n)
 			break;
 		/* Nothing new?  Wait for eventfd to tell us they refilled. */
 		if (head == vq->num) {
-			if (unlikely(vhost_enable_notify(&n->dev, vq))) {
-				vhost_disable_notify(&n->dev, vq);
+			if (unlikely(vhost_enable_yestify(&n->dev, vq))) {
+				vhost_disable_yestify(&n->dev, vq);
 				continue;
 			}
 			break;
@@ -102,7 +102,7 @@ static void handle_vq_kick(struct vhost_work *work)
 	handle_vq(n);
 }
 
-static int vhost_test_open(struct inode *inode, struct file *f)
+static int vhost_test_open(struct iyesde *iyesde, struct file *f)
 {
 	struct vhost_test *n = kmalloc(sizeof *n, GFP_KERNEL);
 	struct vhost_dev *dev;
@@ -154,7 +154,7 @@ static void vhost_test_flush(struct vhost_test *n)
 	vhost_test_flush_vq(n, VHOST_TEST_VQ);
 }
 
-static int vhost_test_release(struct inode *inode, struct file *f)
+static int vhost_test_release(struct iyesde *iyesde, struct file *f)
 {
 	struct vhost_test *n = f->private_data;
 	void  *private;
@@ -310,7 +310,7 @@ static const struct file_operations vhost_test_fops = {
 	.unlocked_ioctl = vhost_test_ioctl,
 	.compat_ioctl   = compat_ptr_ioctl,
 	.open           = vhost_test_open,
-	.llseek		= noop_llseek,
+	.llseek		= yesop_llseek,
 };
 
 static struct miscdevice vhost_test_misc = {

@@ -8,7 +8,7 @@ Required properties:
 - dc-gpios:	Display data/command selection (D/CX)
 - reset-gpios:	Reset signal (RSTX)
 
-The node for this driver must be a child node of a SPI controller, hence
+The yesde for this driver must be a child yesde of a SPI controller, hence
 all mandatory properties described in ../spi/spi-bus.txt must be specified.
 
 Optional properties:

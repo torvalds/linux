@@ -83,7 +83,7 @@ EXPORT_SYMBOL(vb2_destroy_framevec);
  * vb2_common_vm_open() - increase refcount of the vma
  * @vma:	virtual memory region for the mapping
  *
- * This function adds another user to the provided vma. It expects
+ * This function adds ayesther user to the provided vma. It expects
  * struct vb2_vmarea_handler pointer in vma->vm_private_data.
  */
 static void vb2_common_vm_open(struct vm_area_struct *vma)

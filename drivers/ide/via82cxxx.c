@@ -144,7 +144,7 @@ static void via_set_speed(ide_hwif_t *hwif, u8 dn, struct ide_timing *timing)
 	case ATA_UDMA6: t = timing->udma ? (0xe0 | (clamp_val(timing->udma, 2, 9) - 2)) : 0x07; break;
 	}
 
-	/* Set UDMA unless device is not UDMA capable */
+	/* Set UDMA unless device is yest UDMA capable */
 	if (vdev->via_config->udma_mask) {
 		u8 udma_etc;
 
@@ -424,7 +424,7 @@ static int via_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 	d = via82cxxx_chipset;
 
 	/*
-	 * Find the ISA bridge and check we know what it is.
+	 * Find the ISA bridge and check we kyesw what it is.
 	 */
 	via_config = via_config_find(&isa);
 

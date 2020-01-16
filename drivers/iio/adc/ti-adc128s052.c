@@ -138,7 +138,7 @@ static int adc128_probe(struct spi_device *spi)
 	struct adc128 *adc;
 	int ret;
 
-	if (dev_fwnode(&spi->dev))
+	if (dev_fwyesde(&spi->dev))
 		config = (unsigned long) device_get_match_data(&spi->dev);
 	else
 		config = spi_get_device_id(spi)->driver_data;
@@ -153,7 +153,7 @@ static int adc128_probe(struct spi_device *spi)
 	spi_set_drvdata(spi, indio_dev);
 
 	indio_dev->dev.parent = &spi->dev;
-	indio_dev->dev.of_node = spi->dev.of_node;
+	indio_dev->dev.of_yesde = spi->dev.of_yesde;
 	indio_dev->name = spi_get_device_id(spi)->name;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->info = &adc128_info;

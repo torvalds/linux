@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: (GPL-2.0 OR MIT)
 /*
- * Copyright (C) 2017 Zodiac Inflight Innovations
+ * Copyright (C) 2017 Zodiac Inflight Inyesvations
  */
 
 /dts-v1/;
@@ -101,7 +101,7 @@
 	};
 
 	panel {
-		/* no compatible here, bootloader will patch in correct one */
+		/* yes compatible here, bootloader will patch in correct one */
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_panel>;
 		power-supply = <&reg_3p3v>;
@@ -232,7 +232,7 @@
 	};
 
 	usbh1phy: usbphy1 {
-		compatible = "usb-nop-xceiv";
+		compatible = "usb-yesp-xceiv";
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_usbh1phy>;
 		clocks = <&clk_26M_usb>;
@@ -243,7 +243,7 @@
 	};
 
 	usbh2phy: usbphy2 {
-		compatible = "usb-nop-xceiv";
+		compatible = "usb-yesp-xceiv";
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_usbh2phy>;
 		clocks = <&clk_26M_usb>;
@@ -425,10 +425,10 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_esdhc1>;
 	bus-width = <4>;
-	no-1-8-v;
-	non-removable;
-	no-sdio;
-	no-sd;
+	yes-1-8-v;
+	yesn-removable;
+	yes-sdio;
+	yes-sd;
 	status = "okay";
 };
 
@@ -477,7 +477,7 @@
 		reg = <0x68>;
 	};
 
-	/* touch nodes default disabled, bootloader will enable the right one */
+	/* touch yesdes default disabled, bootloader will enable the right one */
 
 	touchscreen@4b {
 		compatible = "atmel,maxtouch";
@@ -513,7 +513,7 @@
 
 		rmi4-f01@1 {
 			reg = <0x1>;
-			syna,nosleep-mode = <2>;
+			syna,yessleep-mode = <2>;
 		};
 
 		rmi4-f11@11 {
@@ -685,7 +685,7 @@
 			MX51_PAD_SD1_DATA2__SD1_DATA2		0x20d5
 			MX51_PAD_SD1_DATA3__SD1_DATA3		0x20d5
 			/*
-			 * GPIO1_1 is not directly used by eSDHC1 in
+			 * GPIO1_1 is yest directly used by eSDHC1 in
 			 * any capacity, but earlier versions of RDU1
 			 * used that pin as WP GPIO for eSDHC3 and
 			 * because of that that pad has an external

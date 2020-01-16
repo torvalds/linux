@@ -5,7 +5,7 @@
  * Copyright (C) 2010 Samsung Electronics Co.Ltd
  * Copyright (C) 2011-2014 Atmel Corporation
  * Copyright (C) 2012 Google, Inc.
- * Copyright (C) 2016 Zodiac Inflight Innovations
+ * Copyright (C) 2016 Zodiac Inflight Inyesvations
  *
  * Author: Joonyoung Shim <jy0922.shim@samsung.com>
  */
@@ -240,7 +240,7 @@ struct mxt_dbg {
 	u16 diag_cmd_address;
 	struct t37_debug *t37_buf;
 	unsigned int t37_pages;
-	unsigned int t37_nodes;
+	unsigned int t37_yesdes;
 
 	struct v4l2_device v4l2;
 	struct v4l2_pix_format format;
@@ -473,7 +473,7 @@ static int mxt_lookup_bootloader_address(struct mxt_data *data, bool retry)
 			bootloader = appmode - 0x24;
 			break;
 		}
-		/* Fall through - for normal case */
+		/* Fall through - for yesrmal case */
 	case 0x4c:
 	case 0x4d:
 	case 0x5a:
@@ -483,7 +483,7 @@ static int mxt_lookup_bootloader_address(struct mxt_data *data, bool retry)
 
 	default:
 		dev_err(&data->client->dev,
-			"Appmode i2c address 0x%02x not found\n",
+			"Appmode i2c address 0x%02x yest found\n",
 			appmode);
 		return -EINVAL;
 	}
@@ -827,7 +827,7 @@ static void mxt_proc_t9_message(struct mxt_data *data, u8 *message)
 			mxt_input_sync(data);
 		}
 
-		/* if active, pressure must be non-zero */
+		/* if active, pressure must be yesn-zero */
 		if (!amplitude)
 			amplitude = MXT_PRESSURE_DEFAULT;
 
@@ -838,7 +838,7 @@ static void mxt_proc_t9_message(struct mxt_data *data, u8 *message)
 		input_report_abs(input_dev, ABS_MT_PRESSURE, amplitude);
 		input_report_abs(input_dev, ABS_MT_TOUCH_MAJOR, area);
 	} else {
-		/* Touch no longer active, close out slot */
+		/* Touch yes longer active, close out slot */
 		input_mt_report_slot_state(input_dev, MT_TOOL_FINGER, 0);
 	}
 
@@ -862,7 +862,7 @@ static void mxt_proc_t100_message(struct mxt_data *data, u8 *message)
 
 	id = message[0] - data->T100_reportid_min - 2;
 
-	/* ignore SCRSTATUS events */
+	/* igyesre SCRSTATUS events */
 	if (id < 0)
 		return;
 
@@ -914,7 +914,7 @@ static void mxt_proc_t100_message(struct mxt_data *data, u8 *message)
 			break;
 
 		case MXT_T100_TYPE_LARGE_TOUCH:
-			/* Ignore suppressed touch */
+			/* Igyesre suppressed touch */
 			break;
 
 		default:
@@ -924,7 +924,7 @@ static void mxt_proc_t100_message(struct mxt_data *data, u8 *message)
 	}
 
 	/*
-	 * Values reported should be non-zero if tool is touching the
+	 * Values reported should be yesn-zero if tool is touching the
 	 * device
 	 */
 	if (!pressure && type != MXT_T100_TYPE_HOVERING_FINGER)
@@ -964,8 +964,8 @@ static int mxt_proc_message(struct mxt_data *data, u8 *message)
 		mxt_proc_t6_messages(data, message);
 	} else if (!data->input_dev) {
 		/*
-		 * Do not report events if input device
-		 * is not yet registered.
+		 * Do yest report events if input device
+		 * is yest yet registered.
 		 */
 		mxt_dump_message(data, message);
 	} else if (report_id >= data->T9_reportid_min &&
@@ -1213,7 +1213,7 @@ static int mxt_soft_reset(struct mxt_data *data)
 	if (ret)
 		return ret;
 
-	/* Ignore CHG line for 100ms after reset */
+	/* Igyesre CHG line for 100ms after reset */
 	msleep(MXT_RESET_INVALID_CHG);
 
 	mxt_acquire_irq(data);
@@ -1338,7 +1338,7 @@ static int mxt_prepare_cfg_mem(struct mxt_data *data, struct mxt_cfg *cfg)
 			 * to zero these bytes - previous behaviour will be
 			 * retained. However this does invalidate the CRC and
 			 * will force fallback mode until the configuration is
-			 * updated. We warn here but do nothing else - the
+			 * updated. We warn here but do yesthing else - the
 			 * malloc has zeroed the entire configuration.
 			 */
 			dev_warn(dev, "Zeroing %zu byte(s) in T%d\n",
@@ -1501,7 +1501,7 @@ static int mxt_update_cfg(struct mxt_data *data, const struct firmware *fw)
 
 	/*
 	 * The Info Block CRC is calculated over mxt_info and the object
-	 * table. If it does not match then we are trying to load the
+	 * table. If it does yest match then we are trying to load the
 	 * configuration from a different chip or firmware version, so
 	 * the configuration CRC is invalid anyway.
 	 */
@@ -1514,7 +1514,7 @@ static int mxt_update_cfg(struct mxt_data *data, const struct firmware *fw)
 			ret = 0;
 			goto release_raw;
 		} else {
-			dev_info(dev, "Config CRC 0x%06X: does not match file 0x%06X\n",
+			dev_info(dev, "Config CRC 0x%06X: does yest match file 0x%06X\n",
 				 data->config_crc, config_crc);
 		}
 	} else {
@@ -1538,13 +1538,13 @@ static int mxt_update_cfg(struct mxt_data *data, const struct firmware *fw)
 	if (ret)
 		goto release_mem;
 
-	/* Calculate crc of the received configs (not the raw config file) */
+	/* Calculate crc of the received configs (yest the raw config file) */
 	if (data->T71_address)
 		crc_start = data->T71_address;
 	else if (data->T7_address)
 		crc_start = data->T7_address;
 	else
-		dev_warn(dev, "Could not find CRC start\n");
+		dev_warn(dev, "Could yest find CRC start\n");
 
 	if (crc_start > cfg.start_ofs) {
 		calculated_crc = mxt_calculate_crc(cfg.mem,
@@ -1656,7 +1656,7 @@ static int mxt_parse_object_table(struct mxt_data *data,
 				 */
 				data->T5_msg_size = mxt_obj_size(object);
 			} else {
-				/* CRC not enabled, so skip last byte */
+				/* CRC yest enabled, so skip last byte */
 				data->T5_msg_size = mxt_obj_size(object) - 1;
 			}
 			data->T5_address = object->start_address;
@@ -1770,7 +1770,7 @@ static int mxt_read_info_block(struct mxt_data *data)
 
 	/*
 	 * CRC mismatch can be caused by data corruption due to I2C comms
-	 * issue or else device is not using Object Based Protocol (eg i2c-hid)
+	 * issue or else device is yest using Object Based Protocol (eg i2c-hid)
 	 */
 	if ((data->info_crc == 0) || (data->info_crc != calculated_crc)) {
 		dev_err(&client->dev,
@@ -2117,16 +2117,16 @@ static int mxt_initialize(struct mxt_data *data)
 			dev_info(&client->dev, "Trying alternate bootloader address\n");
 			error = mxt_probe_bootloader(data, true);
 			if (error) {
-				/* Chip is not in appmode or bootloader mode */
+				/* Chip is yest in appmode or bootloader mode */
 				return error;
 			}
 		}
 
 		/* OK, we are in bootloader, see if we can recover */
 		if (++recovery_attempts > 1) {
-			dev_err(&client->dev, "Could not recover from bootloader mode\n");
+			dev_err(&client->dev, "Could yest recover from bootloader mode\n");
 			/*
-			 * We can reflash from this state, so do not
+			 * We can reflash from this state, so do yest
 			 * abort initialization.
 			 */
 			data->in_bootloader = true;
@@ -2142,7 +2142,7 @@ static int mxt_initialize(struct mxt_data *data)
 	if (error)
 		return error;
 
-	error = request_firmware_nowait(THIS_MODULE, true, MXT_CFG_NAME,
+	error = request_firmware_yeswait(THIS_MODULE, true, MXT_CFG_NAME,
 					&client->dev, GFP_KERNEL, data,
 					mxt_config_cb);
 	if (error) {
@@ -2253,7 +2253,7 @@ static int mxt_convert_debug_pages(struct mxt_data *data, u16 *outbuf)
 	unsigned int y = 0;
 	unsigned int i, rx, ry;
 
-	for (i = 0; i < dbg->t37_nodes; i++) {
+	for (i = 0; i < dbg->t37_yesdes; i++) {
 		/* Handle orientation */
 		rx = data->xy_switch ? y : x;
 		ry = data->xy_switch ? x : y;
@@ -2272,7 +2272,7 @@ static int mxt_convert_debug_pages(struct mxt_data *data, u16 *outbuf)
 	return 0;
 }
 
-static int mxt_read_diagnostic_debug(struct mxt_data *data, u8 mode,
+static int mxt_read_diagyesstic_debug(struct mxt_data *data, u8 mode,
 				     u16 *outbuf)
 {
 	struct mxt_dbg *dbg = &data->dbg;
@@ -2335,7 +2335,7 @@ static int mxt_queue_setup(struct vb2_queue *q,
 		       unsigned int sizes[], struct device *alloc_devs[])
 {
 	struct mxt_data *data = q->drv_priv;
-	size_t size = data->dbg.t37_nodes * sizeof(u16);
+	size_t size = data->dbg.t37_yesdes * sizeof(u16);
 
 	if (*nplanes)
 		return sizes[0] < size ? -EINVAL : 0;
@@ -2370,11 +2370,11 @@ static void mxt_buffer_queue(struct vb2_buffer *vb)
 		break;
 	}
 
-	ret = mxt_read_diagnostic_debug(data, mode, ptr);
+	ret = mxt_read_diagyesstic_debug(data, mode, ptr);
 	if (ret)
 		goto fault;
 
-	vb2_set_plane_payload(vb, 0, data->dbg.t37_nodes * sizeof(u16));
+	vb2_set_plane_payload(vb, 0, data->dbg.t37_yesdes * sizeof(u16));
 	vb2_buffer_done(vb, VB2_BUF_STATE_DONE);
 	return;
 
@@ -2511,7 +2511,7 @@ static int mxt_vidioc_g_parm(struct file *file, void *fh,
 
 	a->parm.capture.readbuffers = 1;
 	a->parm.capture.timeperframe.numerator = 1;
-	a->parm.capture.timeperframe.denominator = 10;
+	a->parm.capture.timeperframe.deyesminator = 10;
 	return 0;
 }
 
@@ -2573,7 +2573,7 @@ static void mxt_debug_init(struct mxt_data *data)
 	dbg->t37_address = object->start_address;
 
 	/* Calculate size of data and allocate buffer */
-	dbg->t37_nodes = data->xsize * data->ysize;
+	dbg->t37_yesdes = data->xsize * data->ysize;
 
 	if (info->family_id == MXT_FAMILY_1386)
 		dbg->t37_pages = MXT1386_COLUMNS * MXT1386_PAGES_PER_COLUMN;
@@ -2663,7 +2663,7 @@ static int mxt_configure_objects(struct mxt_data *data,
 	return 0;
 }
 
-/* Firmware Version is returned as Major.Minor.Build */
+/* Firmware Version is returned as Major.Miyesr.Build */
 static ssize_t mxt_fw_version_show(struct device *dev,
 				   struct device_attribute *attr, char *buf)
 {
@@ -2711,7 +2711,7 @@ static ssize_t mxt_object_show(struct device *dev,
 	int error;
 	u8 *obuf;
 
-	/* Pre-allocate buffer large enough to hold max sized object. */
+	/* Pre-allocate buffer large eyesugh to hold max sized object. */
 	obuf = kmalloc(256, GFP_KERNEL);
 	if (!obuf)
 		return -ENOMEM;
@@ -2799,7 +2799,7 @@ static int mxt_load_fw(struct device *dev, const char *fn)
 
 		msleep(MXT_RESET_TIME);
 
-		/* Do not need to scan since we know family ID */
+		/* Do yest need to scan since we kyesw family ID */
 		ret = mxt_lookup_bootloader_address(data, 0);
 		if (ret)
 			goto release_firmware;
@@ -2873,8 +2873,8 @@ static int mxt_load_fw(struct device *dev, const char *fn)
 	dev_dbg(dev, "Sent %d frames, %d bytes\n", frame, pos);
 
 	/*
-	 * Wait for device to reset. Some bootloader versions do not assert
-	 * the CHG line after bootloading has finished, so ignore potential
+	 * Wait for device to reset. Some bootloader versions do yest assert
+	 * the CHG line after bootloading has finished, so igyesre potential
 	 * errors.
 	 */
 	mxt_wait_for_completion(data, &data->bl_completion, MXT_FW_RESET_TIME);
@@ -3039,19 +3039,19 @@ static int mxt_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	int error;
 
 	/*
-	 * Ignore devices that do not have device properties attached to
+	 * Igyesre devices that do yest have device properties attached to
 	 * them, as we need help determining whether we are dealing with
 	 * touch screen or touchpad.
 	 *
 	 * So far on x86 the only users of Atmel touch controllers are
 	 * Chromebooks, and chromeos_laptop driver will ensure that
-	 * necessary properties are provided (if firmware does not do that).
+	 * necessary properties are provided (if firmware does yest do that).
 	 */
 	if (!device_property_present(&client->dev, "compatible"))
 		return -ENXIO;
 
 	/*
-	 * Ignore ACPI devices representing bootloader mode.
+	 * Igyesre ACPI devices representing bootloader mode.
 	 *
 	 * This is a bit of a hack: Google Chromebook BIOS creates ACPI
 	 * devices for both application and bootloader modes, but we are

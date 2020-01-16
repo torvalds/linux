@@ -56,7 +56,7 @@ Visuals used by the frame buffer device API
 ===========================================
 
 
-Monochrome (FB_VISUAL_MONO01 and FB_VISUAL_MONO10)
+Moyeschrome (FB_VISUAL_MONO01 and FB_VISUAL_MONO10)
 --------------------------------------------------
 Each pixel is either black or white.
 

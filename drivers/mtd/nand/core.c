@@ -91,11 +91,11 @@ out:
 EXPORT_SYMBOL_GPL(nanddev_markbad);
 
 /**
- * nanddev_isreserved() - Check whether an eraseblock is reserved or not
+ * nanddev_isreserved() - Check whether an eraseblock is reserved or yest
  * @nand: NAND device
  * @pos: NAND position to test
  *
- * Checks whether the eraseblock pointed by @pos is reserved or not.
+ * Checks whether the eraseblock pointed by @pos is reserved or yest.
  *
  * Return: true if the eraseblock is reserved, false otherwise.
  */
@@ -119,7 +119,7 @@ EXPORT_SYMBOL_GPL(nanddev_isreserved);
  * @nand: NAND device
  * @pos: position of the block to erase
  *
- * Erases the block if it's not bad.
+ * Erases the block if it's yest bad.
  *
  * Return: 0 in case of success, a negative error code otherwise.
  */
@@ -143,8 +143,8 @@ EXPORT_SYMBOL_GPL(nanddev_erase);
  * This is a simple mtd->_erase() implementation iterating over all blocks
  * concerned by @einfo and calling nand->ops->erase() on each of them.
  *
- * Note that mtd->_erase should not be directly assigned to this helper,
- * because there's no locking here. NAND specialized layers should instead
+ * Note that mtd->_erase should yest be directly assigned to this helper,
+ * because there's yes locking here. NAND specialized layers should instead
  * implement there own wrapper around nanddev_mtd_erase() taking the
  * appropriate lock before calling nanddev_mtd_erase().
  *

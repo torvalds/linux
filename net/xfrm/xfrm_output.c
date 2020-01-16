@@ -5,7 +5,7 @@
  * Copyright (c) 2007 Herbert Xu <herbert@gondor.apana.org.au>
  */
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/module.h>
 #include <linux/netdevice.h>
 #include <linux/netfilter.h>
@@ -16,7 +16,7 @@
 #include <net/inet_ecn.h>
 #include <net/xfrm.h>
 
-#include "xfrm_inout.h"
+#include "xfrm_iyesut.h"
 
 static int xfrm_output2(struct net *net, struct sock *sk, struct sk_buff *skb);
 static int xfrm_inner_extract_output(struct xfrm_state *x, struct sk_buff *skb);
@@ -350,7 +350,7 @@ static int xfrm6_prepare_output(struct xfrm_state *x, struct sk_buff *skb)
 	if (err)
 		return err;
 
-	skb->ignore_df = 1;
+	skb->igyesre_df = 1;
 	skb->protocol = htons(ETH_P_IPV6);
 
 	switch (x->outer_mode.encap) {
@@ -417,7 +417,7 @@ static int xfrm_output_one(struct sk_buff *skb, int err)
 		err = xfrm_skb_check_space(skb);
 		if (err) {
 			XFRM_INC_STATS(net, LINUX_MIB_XFRMOUTERROR);
-			goto error_nolock;
+			goto error_yeslock;
 		}
 
 		skb->mark = xfrm_smark_get(skb->mark, x);
@@ -425,7 +425,7 @@ static int xfrm_output_one(struct sk_buff *skb, int err)
 		err = xfrm_outer_mode_output(x, skb);
 		if (err) {
 			XFRM_INC_STATS(net, LINUX_MIB_XFRMOUTSTATEMODEERROR);
-			goto error_nolock;
+			goto error_yeslock;
 		}
 
 		spin_lock_bh(&x->lock);
@@ -457,13 +457,13 @@ static int xfrm_output_one(struct sk_buff *skb, int err)
 		if (!skb_dst(skb)) {
 			XFRM_INC_STATS(net, LINUX_MIB_XFRMOUTERROR);
 			err = -EHOSTUNREACH;
-			goto error_nolock;
+			goto error_yeslock;
 		}
 
 		if (xfrm_offload(skb)) {
 			x->type_offload->encap(x, skb);
 		} else {
-			/* Inner headers are invalid now. */
+			/* Inner headers are invalid yesw. */
 			skb->encapsulation = 0;
 
 			err = x->type->output(x, skb);
@@ -474,14 +474,14 @@ static int xfrm_output_one(struct sk_buff *skb, int err)
 resume:
 		if (err) {
 			XFRM_INC_STATS(net, LINUX_MIB_XFRMOUTSTATEPROTOERROR);
-			goto error_nolock;
+			goto error_yeslock;
 		}
 
 		dst = skb_dst_pop(skb);
 		if (!dst) {
 			XFRM_INC_STATS(net, LINUX_MIB_XFRMOUTERROR);
 			err = -EHOSTUNREACH;
-			goto error_nolock;
+			goto error_yeslock;
 		}
 		skb_dst_set(skb, dst);
 		x = dst->xfrm;
@@ -491,7 +491,7 @@ resume:
 
 error:
 	spin_unlock_bh(&x->lock);
-error_nolock:
+error_yeslock:
 	kfree_skb(skb);
 out:
 	return err;
@@ -548,7 +548,7 @@ static int xfrm_output_gso(struct net *net, struct sock *sk, struct sk_buff *skb
 		struct sk_buff *nskb = segs->next;
 		int err;
 
-		skb_mark_not_on_list(segs);
+		skb_mark_yest_on_list(segs);
 		err = xfrm_output2(net, sk, segs);
 
 		if (unlikely(err)) {

@@ -13,7 +13,7 @@
  *   actually do.
  */
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/sched.h>
 #include <linux/proc_fs.h>
 #include <linux/stat.h>
@@ -73,9 +73,9 @@
 #define LOC_ETHERNET		'E'
 #define LOC_FAN			'F'
 #define LOC_GRAPHICS		'G'
-/* reserved / not used		'H' */
+/* reserved / yest used		'H' */
 #define LOC_IO_ADAPTER		'I'
-/* reserved / not used		'J' */
+/* reserved / yest used		'J' */
 #define LOC_KEYBOARD		'K'
 #define LOC_LCD			'L'
 #define LOC_MEMORY		'M'
@@ -109,7 +109,7 @@
 /* 9006 - 9999: Vendor specific */
 
 /* other */
-#define MAX_SENSORS		 17  /* I only know of 17 sensors */    
+#define MAX_SENSORS		 17  /* I only kyesw of 17 sensors */    
 #define MAX_LINELENGTH          256
 #define SENSOR_PREFIX		"ibm,sensor-"
 #define cel_to_fahr(x)		((x*9/5)+32)
@@ -126,7 +126,7 @@ struct rtas_sensors {
 
 /* Globals */
 static struct rtas_sensors sensors;
-static struct device_node *rtas_node = NULL;
+static struct device_yesde *rtas_yesde = NULL;
 static unsigned long power_on_time = 0; /* Save the time the user set */
 static char progress_led[MAX_LINELENGTH];
 
@@ -154,7 +154,7 @@ static ssize_t ppc_rtas_tone_volume_write(struct file *file,
 static int ppc_rtas_tone_volume_show(struct seq_file *m, void *v);
 static int ppc_rtas_rmo_buf_show(struct seq_file *m, void *v);
 
-static int poweron_open(struct inode *inode, struct file *file)
+static int poweron_open(struct iyesde *iyesde, struct file *file)
 {
 	return single_open(file, ppc_rtas_poweron_show, NULL);
 }
@@ -167,7 +167,7 @@ static const struct file_operations ppc_rtas_poweron_operations = {
 	.release	= single_release,
 };
 
-static int progress_open(struct inode *inode, struct file *file)
+static int progress_open(struct iyesde *iyesde, struct file *file)
 {
 	return single_open(file, ppc_rtas_progress_show, NULL);
 }
@@ -180,7 +180,7 @@ static const struct file_operations ppc_rtas_progress_operations = {
 	.release	= single_release,
 };
 
-static int clock_open(struct inode *inode, struct file *file)
+static int clock_open(struct iyesde *iyesde, struct file *file)
 {
 	return single_open(file, ppc_rtas_clock_show, NULL);
 }
@@ -193,7 +193,7 @@ static const struct file_operations ppc_rtas_clock_operations = {
 	.release	= single_release,
 };
 
-static int tone_freq_open(struct inode *inode, struct file *file)
+static int tone_freq_open(struct iyesde *iyesde, struct file *file)
 {
 	return single_open(file, ppc_rtas_tone_freq_show, NULL);
 }
@@ -206,7 +206,7 @@ static const struct file_operations ppc_rtas_tone_freq_operations = {
 	.release	= single_release,
 };
 
-static int tone_volume_open(struct inode *inode, struct file *file)
+static int tone_volume_open(struct iyesde *iyesde, struct file *file)
 {
 	return single_open(file, ppc_rtas_tone_volume_show, NULL);
 }
@@ -233,8 +233,8 @@ static int __init proc_rtas_init(void)
 	if (!machine_is(pseries))
 		return -ENODEV;
 
-	rtas_node = of_find_node_by_name(NULL, "rtas");
-	if (rtas_node == NULL)
+	rtas_yesde = of_find_yesde_by_name(NULL, "rtas");
+	if (rtas_yesde == NULL)
 		return -ENODEV;
 
 	proc_create("powerpc/rtas/progress", 0644, NULL,
@@ -283,18 +283,18 @@ static ssize_t ppc_rtas_poweron_write(struct file *file,
 		const char __user *buf, size_t count, loff_t *ppos)
 {
 	struct rtc_time tm;
-	time64_t nowtime;
-	int error = parse_number(buf, count, &nowtime);
+	time64_t yeswtime;
+	int error = parse_number(buf, count, &yeswtime);
 	if (error)
 		return error;
 
-	power_on_time = nowtime; /* save the time */
+	power_on_time = yeswtime; /* save the time */
 
-	rtc_time64_to_tm(nowtime, &tm);
+	rtc_time64_to_tm(yeswtime, &tm);
 
 	error = rtas_call(rtas_token("set-time-for-power-on"), 7, 1, NULL, 
 			tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday,
-			tm.tm_hour, tm.tm_min, tm.tm_sec, 0 /* nano */);
+			tm.tm_hour, tm.tm_min, tm.tm_sec, 0 /* nayes */);
 	if (error)
 		printk(KERN_WARNING "error: setting poweron time returned: %s\n", 
 				ppc_rtas_process_error(error));
@@ -304,7 +304,7 @@ static ssize_t ppc_rtas_poweron_write(struct file *file,
 static int ppc_rtas_poweron_show(struct seq_file *m, void *v)
 {
 	if (power_on_time == 0)
-		seq_printf(m, "Power on time not set\n");
+		seq_printf(m, "Power on time yest set\n");
 	else
 		seq_printf(m, "%lu\n",power_on_time);
 	return 0;
@@ -349,12 +349,12 @@ static ssize_t ppc_rtas_clock_write(struct file *file,
 		const char __user *buf, size_t count, loff_t *ppos)
 {
 	struct rtc_time tm;
-	time64_t nowtime;
-	int error = parse_number(buf, count, &nowtime);
+	time64_t yeswtime;
+	int error = parse_number(buf, count, &yeswtime);
 	if (error)
 		return error;
 
-	rtc_time64_to_tm(nowtime, &tm);
+	rtc_time64_to_tm(yeswtime, &tm);
 	error = rtas_call(rtas_token("set-time-of-day"), 7, 1, NULL, 
 			tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday,
 			tm.tm_hour, tm.tm_min, tm.tm_sec, 0);
@@ -408,7 +408,7 @@ static int ppc_rtas_sensors_show(struct seq_file *m, void *v)
 		int llen, offs;
 
 		sprintf (rstr, SENSOR_PREFIX"%04d", p->token);
-		loc = of_get_property(rtas_node, rstr, &llen);
+		loc = of_get_property(rtas_yesde, rstr, &llen);
 
 		/* A sensor may have multiple instances */
 		for (j = 0, offs = 0; j <= p->quant; j++) {
@@ -435,9 +435,9 @@ static int ppc_rtas_find_all_sensors(void)
 	const unsigned int *utmp;
 	int len, i;
 
-	utmp = of_get_property(rtas_node, "rtas-sensors", &len);
+	utmp = of_get_property(rtas_yesde, "rtas-sensors", &len);
 	if (utmp == NULL) {
-		printk (KERN_ERR "error: could not get rtas-sensors\n");
+		printk (KERN_ERR "error: could yest get rtas-sensors\n");
 		return 1;
 	}
 
@@ -462,7 +462,7 @@ static char *ppc_rtas_process_error(int error)
 		case SENSOR_WARNING_HIGH:
 			return "(warning high)";
 		case SENSOR_NORMAL:
-			return "(normal)";
+			return "(yesrmal)";
 		case SENSOR_WARNING_LOW:
 			return "(warning low)";
 		case SENSOR_CRITICAL_LOW:
@@ -474,7 +474,7 @@ static char *ppc_rtas_process_error(int error)
 		case SENSOR_BUSY:
 			return "(busy)";
 		case SENSOR_NOT_EXIST:
-			return "(non existent)";
+			return "(yesn existent)";
 		case SENSOR_DR_ENTITY:
 			return "(dr entity removed)";
 		default:
@@ -512,7 +512,7 @@ static void ppc_rtas_process_sensor(struct seq_file *m,
 	int have_strings = 0;
 	int num_states = 0;
 	int temperature = 0;
-	int unknown = 0;
+	int unkyeswn = 0;
 
 	/* What kind of sensor do we have here? */
 	
@@ -620,9 +620,9 @@ static void ppc_rtas_process_sensor(struct seq_file *m,
 			seq_printf(m, "Powersupply:\t");
 			break;
 		default:
-			seq_printf(m,  "Unknown sensor (type %d), ignoring it\n",
+			seq_printf(m,  "Unkyeswn sensor (type %d), igyesring it\n",
 					s->token);
-			unknown = 1;
+			unkyeswn = 1;
 			have_strings = 1;
 			break;
 	}
@@ -632,7 +632,7 @@ static void ppc_rtas_process_sensor(struct seq_file *m,
 		} else
 			seq_printf(m, "%10d\t", state);
 	}
-	if (unknown == 0) {
+	if (unkyeswn == 0) {
 		seq_printf(m, "%s\t", ppc_rtas_process_error(error));
 		get_location_code(m, s, loc);
 	}
@@ -665,7 +665,7 @@ static void check_location(struct seq_file *m, const char *c)
 			seq_printf(m, "- %c", c[1]);
 			break;
 		default:
-			seq_printf(m, "Unknown location");
+			seq_printf(m, "Unkyeswn location");
 			break;
 	}
 }
@@ -695,7 +695,7 @@ static void get_location_code(struct seq_file *m, struct individual_sensor *s,
 		const char *loc)
 {
 	if (!loc || !*loc) {
-		seq_printf(m, "---");/* does not have a location */
+		seq_printf(m, "---");/* does yest have a location */
 	} else {
 		check_location_string(m, loc);
 	}

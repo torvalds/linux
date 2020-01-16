@@ -80,11 +80,11 @@ static irqreturn_t vsp1_irq_handler(int irq, void *data)
  * are skipped. Those include all links
  *
  * - from a UDS to a UDS (UDS entities can't be chained)
- * - from an entity to itself (no loops are allowed)
+ * - from an entity to itself (yes loops are allowed)
  *
- * Furthermore, the BRS can't be connected to histogram generators, but no
+ * Furthermore, the BRS can't be connected to histogram generators, but yes
  * special check is currently needed as all VSP instances that include a BRS
- * have no histogram generator.
+ * have yes histogram generator.
  */
 static int vsp1_create_sink_links(struct vsp1_device *vsp1,
 				  struct vsp1_entity *sink)
@@ -456,7 +456,7 @@ static int vsp1_create_entities(struct vsp1_device *vsp1)
 	}
 
 	/*
-	 * Create links and register subdev nodes if the userspace API is
+	 * Create links and register subdev yesdes if the userspace API is
 	 * enabled or initialize the DRM pipeline otherwise.
 	 */
 	if (vsp1->info->uapi) {
@@ -464,7 +464,7 @@ static int vsp1_create_entities(struct vsp1_device *vsp1)
 		if (ret < 0)
 			goto done;
 
-		ret = v4l2_device_register_subdev_nodes(&vsp1->v4l2_dev);
+		ret = v4l2_device_register_subdev_yesdes(&vsp1->v4l2_dev);
 		if (ret < 0)
 			goto done;
 
@@ -553,7 +553,7 @@ static int vsp1_device_init(struct vsp1_device *vsp1)
 /*
  * vsp1_device_get - Acquire the VSP1 device
  *
- * Make sure the device is not suspended and initialize it if needed.
+ * Make sure the device is yest suspended and initialize it if needed.
  *
  * Return 0 on success or a negative error code otherwise.
  */
@@ -786,7 +786,7 @@ static const struct vsp1_device_info vsp1_device_infos[] = {
 static int vsp1_probe(struct platform_device *pdev)
 {
 	struct vsp1_device *vsp1;
-	struct device_node *fcp_node;
+	struct device_yesde *fcp_yesde;
 	struct resource *irq;
 	struct resource *io;
 	unsigned int i;
@@ -822,12 +822,12 @@ static int vsp1_probe(struct platform_device *pdev)
 	}
 
 	/* FCP (optional). */
-	fcp_node = of_parse_phandle(pdev->dev.of_node, "renesas,fcp", 0);
-	if (fcp_node) {
-		vsp1->fcp = rcar_fcp_get(fcp_node);
-		of_node_put(fcp_node);
+	fcp_yesde = of_parse_phandle(pdev->dev.of_yesde, "renesas,fcp", 0);
+	if (fcp_yesde) {
+		vsp1->fcp = rcar_fcp_get(fcp_yesde);
+		of_yesde_put(fcp_yesde);
 		if (IS_ERR(vsp1->fcp)) {
-			dev_dbg(&pdev->dev, "FCP not found (%ld)\n",
+			dev_dbg(&pdev->dev, "FCP yest found (%ld)\n",
 				PTR_ERR(vsp1->fcp));
 			return PTR_ERR(vsp1->fcp);
 		}

@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0
 obj-$(CONFIG_FB_CMDLINE)          += fb_cmdline.o
-obj-$(CONFIG_FB_NOTIFY)           += fb_notify.o
+obj-$(CONFIG_FB_NOTIFY)           += fb_yestify.o
 obj-$(CONFIG_FB)                  += fb.o
 fb-y                              := fbmem.o fbmon.o fbcmap.o fbsysfs.o \
                                      modedb.o fbcvt.o

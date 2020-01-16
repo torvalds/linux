@@ -12,16 +12,16 @@
  *  General Public License for more details.
  *
  *  You should have received a copy of the GNU General Public License
- *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ *  along with this program.  If yest, see <http://www.gnu.org/licenses/>.
  *
  * This file incorporates work covered by the following copyright and
- * permission notice:
+ * permission yestice:
  *
  * Copyright (c) 2012 Qualcomm Atheros, Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright yestice and this permission yestice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
@@ -821,7 +821,7 @@ void alx_post_phy_link(struct alx_hw *hw)
 			} else if (hw->link_speed == SPEED_1000) {
 				/*
 				 * Giga link threshold, raise the tolerance of
-				 * noise 50%
+				 * yesise 50%
 				 */
 				alx_read_phy_dbg(hw, ALX_MIIDBG_MSE20DB,
 						 &phy_val);

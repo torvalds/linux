@@ -347,19 +347,19 @@ end:
  * @bat_priv: the bat priv with all the soft interface information
  * @tvlv_handler: tvlv callback function handling the tvlv content
  * @ogm_source: flag indicating whether the tvlv is an ogm or a unicast packet
- * @orig_node: orig node emitting the ogm packet
+ * @orig_yesde: orig yesde emitting the ogm packet
  * @src: source mac address of the unicast packet
  * @dst: destination mac address of the unicast packet
  * @tvlv_value: tvlv content
  * @tvlv_value_len: tvlv content length
  *
- * Return: success if handler was not found or the return value of the handler
+ * Return: success if handler was yest found or the return value of the handler
  * callback.
  */
 static int batadv_tvlv_call_handler(struct batadv_priv *bat_priv,
 				    struct batadv_tvlv_handler *tvlv_handler,
 				    bool ogm_source,
-				    struct batadv_orig_node *orig_node,
+				    struct batadv_orig_yesde *orig_yesde,
 				    u8 *src, u8 *dst,
 				    void *tvlv_value, u16 tvlv_value_len)
 {
@@ -370,10 +370,10 @@ static int batadv_tvlv_call_handler(struct batadv_priv *bat_priv,
 		if (!tvlv_handler->ogm_handler)
 			return NET_RX_SUCCESS;
 
-		if (!orig_node)
+		if (!orig_yesde)
 			return NET_RX_SUCCESS;
 
-		tvlv_handler->ogm_handler(bat_priv, orig_node,
+		tvlv_handler->ogm_handler(bat_priv, orig_yesde,
 					  BATADV_NO_FLAGS,
 					  tvlv_value, tvlv_value_len);
 		tvlv_handler->flags |= BATADV_TVLV_HANDLER_OGM_CALLED;
@@ -400,7 +400,7 @@ static int batadv_tvlv_call_handler(struct batadv_priv *bat_priv,
  *  appropriate handlers
  * @bat_priv: the bat priv with all the soft interface information
  * @ogm_source: flag indicating whether the tvlv is an ogm or a unicast packet
- * @orig_node: orig node emitting the ogm packet
+ * @orig_yesde: orig yesde emitting the ogm packet
  * @src: source mac address of the unicast packet
  * @dst: destination mac address of the unicast packet
  * @tvlv_value: tvlv content
@@ -411,14 +411,14 @@ static int batadv_tvlv_call_handler(struct batadv_priv *bat_priv,
  */
 int batadv_tvlv_containers_process(struct batadv_priv *bat_priv,
 				   bool ogm_source,
-				   struct batadv_orig_node *orig_node,
+				   struct batadv_orig_yesde *orig_yesde,
 				   u8 *src, u8 *dst,
 				   void *tvlv_value, u16 tvlv_value_len)
 {
 	struct batadv_tvlv_handler *tvlv_handler;
 	struct batadv_tvlv_hdr *tvlv_hdr;
 	u16 tvlv_value_cont_len;
-	u8 cifnotfound = BATADV_TVLV_HANDLER_OGM_CIFNOTFND;
+	u8 cifyestfound = BATADV_TVLV_HANDLER_OGM_CIFNOTFND;
 	int ret = NET_RX_SUCCESS;
 
 	while (tvlv_value_len >= sizeof(*tvlv_hdr)) {
@@ -435,7 +435,7 @@ int batadv_tvlv_containers_process(struct batadv_priv *bat_priv,
 						       tvlv_hdr->version);
 
 		ret |= batadv_tvlv_call_handler(bat_priv, tvlv_handler,
-						ogm_source, orig_node,
+						ogm_source, orig_yesde,
 						src, dst, tvlv_value,
 						tvlv_value_cont_len);
 		if (tvlv_handler)
@@ -452,8 +452,8 @@ int batadv_tvlv_containers_process(struct batadv_priv *bat_priv,
 				 &bat_priv->tvlv.handler_list, list) {
 		if ((tvlv_handler->flags & BATADV_TVLV_HANDLER_OGM_CIFNOTFND) &&
 		    !(tvlv_handler->flags & BATADV_TVLV_HANDLER_OGM_CALLED))
-			tvlv_handler->ogm_handler(bat_priv, orig_node,
-						  cifnotfound, NULL, 0);
+			tvlv_handler->ogm_handler(bat_priv, orig_yesde,
+						  cifyestfound, NULL, 0);
 
 		tvlv_handler->flags &= ~BATADV_TVLV_HANDLER_OGM_CALLED;
 	}
@@ -467,11 +467,11 @@ int batadv_tvlv_containers_process(struct batadv_priv *bat_priv,
  *  handlers
  * @bat_priv: the bat priv with all the soft interface information
  * @batadv_ogm_packet: ogm packet containing the tvlv containers
- * @orig_node: orig node emitting the ogm packet
+ * @orig_yesde: orig yesde emitting the ogm packet
  */
 void batadv_tvlv_ogm_receive(struct batadv_priv *bat_priv,
 			     struct batadv_ogm_packet *batadv_ogm_packet,
-			     struct batadv_orig_node *orig_node)
+			     struct batadv_orig_yesde *orig_yesde)
 {
 	void *tvlv_value;
 	u16 tvlv_value_len;
@@ -485,7 +485,7 @@ void batadv_tvlv_ogm_receive(struct batadv_priv *bat_priv,
 
 	tvlv_value = batadv_ogm_packet + 1;
 
-	batadv_tvlv_containers_process(bat_priv, true, orig_node, NULL, NULL,
+	batadv_tvlv_containers_process(bat_priv, true, orig_yesde, NULL, NULL,
 				       tvlv_value, tvlv_value_len);
 }
 
@@ -495,7 +495,7 @@ void batadv_tvlv_ogm_receive(struct batadv_priv *bat_priv,
  *  payload
  * @bat_priv: the bat priv with all the soft interface information
  * @optr: ogm tvlv handler callback function. This function receives the orig
- *  node, flags and the tvlv content as argument to process.
+ *  yesde, flags and the tvlv content as argument to process.
  * @uptr: unicast tvlv handler callback function. This function receives the
  *  source & destination of the unicast packet as well as the tvlv content
  *  to process.
@@ -505,7 +505,7 @@ void batadv_tvlv_ogm_receive(struct batadv_priv *bat_priv,
  */
 void batadv_tvlv_handler_register(struct batadv_priv *bat_priv,
 				  void (*optr)(struct batadv_priv *bat_priv,
-					       struct batadv_orig_node *orig,
+					       struct batadv_orig_yesde *orig,
 					       u8 flags,
 					       void *tvlv_value,
 					       u16 tvlv_value_len),
@@ -588,14 +588,14 @@ void batadv_tvlv_unicast_send(struct batadv_priv *bat_priv, u8 *src,
 {
 	struct batadv_unicast_tvlv_packet *unicast_tvlv_packet;
 	struct batadv_tvlv_hdr *tvlv_hdr;
-	struct batadv_orig_node *orig_node;
+	struct batadv_orig_yesde *orig_yesde;
 	struct sk_buff *skb;
 	unsigned char *tvlv_buff;
 	unsigned int tvlv_len;
 	ssize_t hdr_len = sizeof(*unicast_tvlv_packet);
 
-	orig_node = batadv_orig_hash_find(bat_priv, dst);
-	if (!orig_node)
+	orig_yesde = batadv_orig_hash_find(bat_priv, dst);
+	if (!orig_yesde)
 		return;
 
 	tvlv_len = sizeof(*tvlv_hdr) + tvlv_value_len;
@@ -625,7 +625,7 @@ void batadv_tvlv_unicast_send(struct batadv_priv *bat_priv, u8 *src,
 	tvlv_buff += sizeof(*tvlv_hdr);
 	memcpy(tvlv_buff, tvlv_value, tvlv_value_len);
 
-	batadv_send_skb_to_orig(skb, orig_node, NULL);
+	batadv_send_skb_to_orig(skb, orig_yesde, NULL);
 out:
-	batadv_orig_node_put(orig_node);
+	batadv_orig_yesde_put(orig_yesde);
 }

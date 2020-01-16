@@ -9,7 +9,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -78,7 +78,7 @@
  * list again.
  *
  * Looping through the list requires a 'struct foo' as iterator and the
- * name of the field the subnodes use.
+ * name of the field the subyesdes use.
  *
  * struct foo *iterator;
  * list_for_each_entry(iterator, &bar.list_of_foos, entry) {
@@ -86,7 +86,7 @@
  *             ...
  * }
  *
- * Note: You must not call list_del() on the iterator if you continue the
+ * Note: You must yest call list_del() on the iterator if you continue the
  * loop. You need to run the safe for-each loop instead:
  *
  * struct foo *iterator, *next;
@@ -98,13 +98,13 @@
  */
 
 /**
- * The linkage struct for list nodes. This struct must be part of your
+ * The linkage struct for list yesdes. This struct must be part of your
  * to-be-linked struct. struct list_head is required for both the head of the
- * list and for each list node.
+ * list and for each list yesde.
  *
  * Position and name of the struct list_head field is irrelevant.
- * There are no requirements that elements of a list are of the same type.
- * There are no requirements for a list head, any struct list_head can be a list
+ * There are yes requirements that elements of a list are of the same type.
+ * There are yes requirements for a list head, any struct list_head can be a list
  * head.
  */
 struct list_head {
@@ -141,7 +141,7 @@ __list_add(struct list_head *entry,
 }
 
 /**
- * Insert a new element after the given list head. The new element does not
+ * Insert a new element after the given list head. The new element does yest
  * need to be initialised as empty list.
  * The list changes from:
  *      head → some element → ...
@@ -303,7 +303,7 @@ list_empty(struct list_head *head)
  *      [modify iterator]
  * }
  *
- * This macro is not safe for node deletion. Use list_for_each_entry_safe
+ * This macro is yest safe for yesde deletion. Use list_for_each_entry_safe
  * instead.
  *
  * @param pos Iterator variable of the type of the list elements.

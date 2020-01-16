@@ -90,10 +90,10 @@ static void ip6erspan_tnl_link_config(struct ip6_tnl *t, int set_mtu);
    0: (*,*)
 
    We require exact key match i.e. if a key is present in packet
-   it will match only tunnel with the same key; if it is not present,
+   it will match only tunnel with the same key; if it is yest present,
    it will match only keyless tunnel.
 
-   All keysless packets, if not matched configured keyless tunnels
+   All keysless packets, if yest matched configured keyless tunnels
    will match fallback tunnel.
  */
 
@@ -565,7 +565,7 @@ static int ip6erspan_rcv(struct sk_buff *skb,
 				return PACKET_REJECT;
 
 			/* skb can be uncloned in __iptunnel_pull_header, so
-			 * old pkt_md is no longer valid and we need to reset
+			 * old pkt_md is yes longer valid and we need to reset
 			 * it
 			 */
 			gh = skb_network_header(skb) +
@@ -750,16 +750,16 @@ static netdev_tx_t __gre6_xmit(struct sk_buff *skb,
 		gre_build_header(skb, tunnel->tun_hlen,
 				 flags, protocol,
 				 tunnel_id_to_key32(tun_info->key.tun_id),
-				 (flags & TUNNEL_SEQ) ? htonl(tunnel->o_seqno++)
+				 (flags & TUNNEL_SEQ) ? htonl(tunnel->o_seqyes++)
 						      : 0);
 
 	} else {
 		if (tunnel->parms.o_flags & TUNNEL_SEQ)
-			tunnel->o_seqno++;
+			tunnel->o_seqyes++;
 
 		gre_build_header(skb, tunnel->tun_hlen, tunnel->parms.o_flags,
 				 protocol, tunnel->parms.o_key,
-				 htonl(tunnel->o_seqno));
+				 htonl(tunnel->o_seqyes));
 	}
 
 	return ip6_tnl_xmit(skb, dev, dsfield, fl6, encap_limit, pmtu,
@@ -788,7 +788,7 @@ static inline int ip6gre_xmit_ipv4(struct sk_buff *skb, struct net_device *dev)
 	err = __gre6_xmit(skb, dev, dsfield, &fl6, encap_limit, &mtu,
 			  skb->protocol);
 	if (err != 0) {
-		/* XXX: send ICMP error even if DF is not set. */
+		/* XXX: send ICMP error even if DF is yest set. */
 		if (err == -EMSGSIZE)
 			icmp_send(skb, ICMP_DEST_UNREACH, ICMP_FRAG_NEEDED,
 				  htonl(mtu));
@@ -1036,7 +1036,7 @@ static netdev_tx_t ip6erspan_tunnel_xmit(struct sk_buff *skb,
 	/* Push GRE header. */
 	proto = (t->parms.erspan_ver == 1) ? htons(ETH_P_ERSPAN)
 					   : htons(ETH_P_ERSPAN2);
-	gre_build_header(skb, 8, TUNNEL_SEQ, proto, 0, htonl(t->o_seqno++));
+	gre_build_header(skb, 8, TUNNEL_SEQ, proto, 0, htonl(t->o_seqyes++));
 
 	/* TooBig packet may have updated dst->dev's mtu */
 	if (!t->parms.collect_md && dst && dst_mtu(dst) > dst->dev->mtu)
@@ -1045,7 +1045,7 @@ static netdev_tx_t ip6erspan_tunnel_xmit(struct sk_buff *skb,
 	err = ip6_tnl_xmit(skb, dev, dsfield, &fl6, encap_limit, &mtu,
 			   NEXTHDR_GRE);
 	if (err != 0) {
-		/* XXX: send ICMP error even if DF is not set. */
+		/* XXX: send ICMP error even if DF is yest set. */
 		if (err == -EMSGSIZE) {
 			if (skb->protocol == htons(ETH_P_IP))
 				icmp_send(skb, ICMP_DEST_UNREACH,
@@ -1417,7 +1417,7 @@ static void ip6gre_tnl_init_features(struct net_device *dev)
 	dev->hw_features	|= GRE6_FEATURES;
 
 	if (!(nt->parms.o_flags & TUNNEL_SEQ)) {
-		/* TCP offload with GRE SEQ is not supported, nor
+		/* TCP offload with GRE SEQ is yest supported, yesr
 		 * can we support 2 levels of outer headers requiring
 		 * an update.
 		 */
@@ -1571,7 +1571,7 @@ static int __net_init ip6gre_init_net(struct net *net)
 	}
 	dev_net_set(ign->fb_tunnel_dev, net);
 	/* FB netdevice is special: we have one, and only one per netns.
-	 * Allowing to move it to another netns is clearly unsafe.
+	 * Allowing to move it to ayesther netns is clearly unsafe.
 	 */
 	ign->fb_tunnel_dev->features |= NETIF_F_NETNS_LOCAL;
 
@@ -2312,7 +2312,7 @@ static struct rtnl_link_ops ip6erspan_tap_ops __read_mostly = {
 };
 
 /*
- *	And now the modules code and kernel interface.
+ *	And yesw the modules code and kernel interface.
  */
 
 static int __init ip6gre_init(void)

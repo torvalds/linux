@@ -153,7 +153,7 @@ static struct ti_sci_inta_vint_desc *ti_sci_inta_alloc_parent_irq(struct irq_dom
 	vint_desc->vint_id = vint_id;
 	INIT_LIST_HEAD(&vint_desc->list);
 
-	parent_fwspec.fwnode = of_node_to_fwnode(of_irq_find_parent(dev_of_node(&inta->pdev->dev)));
+	parent_fwspec.fwyesde = of_yesde_to_fwyesde(of_irq_find_parent(dev_of_yesde(&inta->pdev->dev)));
 	parent_fwspec.param_count = 2;
 	parent_fwspec.param[0] = inta->pdev->id;
 	parent_fwspec.param[1] = vint_desc->vint_id;
@@ -221,7 +221,7 @@ free_global_event:
  *
  * Note: Allocation happens in the following manner:
  *	- Find a free bit available in any of the vints available in the list.
- *	- If not found, allocate a vint from the vint pool
+ *	- If yest found, allocate a vint from the vint pool
  *	- Attach the free bit to input hwirq.
  * Return event_desc if all went ok else appropriate error value.
  */
@@ -395,7 +395,7 @@ static void ti_sci_inta_unmask_irq(struct irq_data *data)
 static void ti_sci_inta_ack_irq(struct irq_data *data)
 {
 	/*
-	 * Do not clear the event if hardware is capable of sending
+	 * Do yest clear the event if hardware is capable of sending
 	 * a down event.
 	 */
 	if (irqd_get_trigger_type(data) != IRQF_TRIGGER_HIGH)
@@ -517,20 +517,20 @@ static struct msi_domain_info ti_sci_inta_msi_domain_info = {
 static int ti_sci_inta_irq_domain_probe(struct platform_device *pdev)
 {
 	struct irq_domain *parent_domain, *domain, *msi_domain;
-	struct device_node *parent_node, *node;
+	struct device_yesde *parent_yesde, *yesde;
 	struct ti_sci_inta_irq_domain *inta;
 	struct device *dev = &pdev->dev;
 	struct resource *res;
 	int ret;
 
-	node = dev_of_node(dev);
-	parent_node = of_irq_find_parent(node);
-	if (!parent_node) {
-		dev_err(dev, "Failed to get IRQ parent node\n");
+	yesde = dev_of_yesde(dev);
+	parent_yesde = of_irq_find_parent(yesde);
+	if (!parent_yesde) {
+		dev_err(dev, "Failed to get IRQ parent yesde\n");
 		return -ENODEV;
 	}
 
-	parent_domain = irq_find_host(parent_node);
+	parent_domain = irq_find_host(parent_yesde);
 	if (!parent_domain)
 		return -EPROBE_DEFER;
 
@@ -548,7 +548,7 @@ static int ti_sci_inta_irq_domain_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	ret = of_property_read_u32(dev->of_node, "ti,sci-dev-id", &pdev->id);
+	ret = of_property_read_u32(dev->of_yesde, "ti,sci-dev-id", &pdev->id);
 	if (ret) {
 		dev_err(dev, "missing 'ti,sci-dev-id' property\n");
 		return -EINVAL;
@@ -573,7 +573,7 @@ static int ti_sci_inta_irq_domain_probe(struct platform_device *pdev)
 	if (IS_ERR(inta->base))
 		return -ENODEV;
 
-	domain = irq_domain_add_linear(dev_of_node(dev),
+	domain = irq_domain_add_linear(dev_of_yesde(dev),
 				       ti_sci_get_num_resources(inta->vint),
 				       &ti_sci_inta_irq_domain_ops, inta);
 	if (!domain) {
@@ -581,7 +581,7 @@ static int ti_sci_inta_irq_domain_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 
-	msi_domain = ti_sci_inta_msi_create_irq_domain(of_node_to_fwnode(node),
+	msi_domain = ti_sci_inta_msi_create_irq_domain(of_yesde_to_fwyesde(yesde),
 						&ti_sci_inta_msi_domain_info,
 						domain);
 	if (!msi_domain) {

@@ -755,7 +755,7 @@ static const struct mtk_gate_regs top_cg_regs = {
 
 #define GATE_TOP(_id, _name, _parent, _shift)			\
 	GATE_MTK(_id, _name, _parent, &top_cg_regs, _shift,	\
-		&mtk_clk_gate_ops_no_setclr_inv)
+		&mtk_clk_gate_ops_yes_setclr_inv)
 
 static const struct mtk_gate top_clks[] = {
 	/* TOP */
@@ -1012,7 +1012,7 @@ static const struct mtk_gate_regs peri_cg_regs = {
 
 #define GATE_PERI(_id, _name, _parent, _shift)			\
 	GATE_MTK(_id, _name, _parent, &peri_cg_regs, _shift,	\
-		&mtk_clk_gate_ops_no_setclr_inv)
+		&mtk_clk_gate_ops_yes_setclr_inv)
 
 static const struct mtk_gate peri_clks[] = {
 	GATE_PERI(CLK_PERI_AXI, "peri_axi", "axi_sel", 31),
@@ -1026,7 +1026,7 @@ static const struct mtk_gate_regs apmixed_cg_regs = {
 
 #define GATE_APMIXED_FLAGS(_id, _name, _parent, _shift, _flags)	\
 	GATE_MTK_FLAGS(_id, _name, _parent, &apmixed_cg_regs,		\
-		_shift, &mtk_clk_gate_ops_no_setclr_inv, _flags)
+		_shift, &mtk_clk_gate_ops_yes_setclr_inv, _flags)
 
 #define GATE_APMIXED(_id, _name, _parent, _shift)	\
 	GATE_APMIXED_FLAGS(_id, _name, _parent, _shift,	0)
@@ -1155,21 +1155,21 @@ static const struct mtk_pll_data plls[] = {
 static int clk_mt8183_apmixed_probe(struct platform_device *pdev)
 {
 	struct clk_onecell_data *clk_data;
-	struct device_node *node = pdev->dev.of_node;
+	struct device_yesde *yesde = pdev->dev.of_yesde;
 
 	clk_data = mtk_alloc_clk_data(CLK_APMIXED_NR_CLK);
 
-	mtk_clk_register_plls(node, plls, ARRAY_SIZE(plls), clk_data);
+	mtk_clk_register_plls(yesde, plls, ARRAY_SIZE(plls), clk_data);
 
-	mtk_clk_register_gates(node, apmixed_clks, ARRAY_SIZE(apmixed_clks),
+	mtk_clk_register_gates(yesde, apmixed_clks, ARRAY_SIZE(apmixed_clks),
 		clk_data);
 
-	return of_clk_add_provider(node, of_clk_src_onecell_get, clk_data);
+	return of_clk_add_provider(yesde, of_clk_src_onecell_get, clk_data);
 }
 
 static struct clk_onecell_data *top_clk_data;
 
-static void clk_mt8183_top_init_early(struct device_node *node)
+static void clk_mt8183_top_init_early(struct device_yesde *yesde)
 {
 	int i;
 
@@ -1181,7 +1181,7 @@ static void clk_mt8183_top_init_early(struct device_node *node)
 	mtk_clk_register_factors(top_early_divs, ARRAY_SIZE(top_early_divs),
 			top_clk_data);
 
-	of_clk_add_provider(node, of_clk_src_onecell_get, top_clk_data);
+	of_clk_add_provider(yesde, of_clk_src_onecell_get, top_clk_data);
 }
 
 CLK_OF_DECLARE_DRIVER(mt8183_topckgen, "mediatek,mt8183-topckgen",
@@ -1190,7 +1190,7 @@ CLK_OF_DECLARE_DRIVER(mt8183_topckgen, "mediatek,mt8183-topckgen",
 static int clk_mt8183_top_probe(struct platform_device *pdev)
 {
 	void __iomem *base;
-	struct device_node *node = pdev->dev.of_node;
+	struct device_yesde *yesde = pdev->dev.of_yesde;
 
 	base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(base))
@@ -1205,7 +1205,7 @@ static int clk_mt8183_top_probe(struct platform_device *pdev)
 	mtk_clk_register_factors(top_divs, ARRAY_SIZE(top_divs), top_clk_data);
 
 	mtk_clk_register_muxes(top_muxes, ARRAY_SIZE(top_muxes),
-		node, &mt8183_clk_lock, top_clk_data);
+		yesde, &mt8183_clk_lock, top_clk_data);
 
 	mtk_clk_register_composites(top_aud_muxes, ARRAY_SIZE(top_aud_muxes),
 		base, &mt8183_clk_lock, top_clk_data);
@@ -1213,32 +1213,32 @@ static int clk_mt8183_top_probe(struct platform_device *pdev)
 	mtk_clk_register_composites(top_aud_divs, ARRAY_SIZE(top_aud_divs),
 		base, &mt8183_clk_lock, top_clk_data);
 
-	mtk_clk_register_gates(node, top_clks, ARRAY_SIZE(top_clks),
+	mtk_clk_register_gates(yesde, top_clks, ARRAY_SIZE(top_clks),
 		top_clk_data);
 
-	return of_clk_add_provider(node, of_clk_src_onecell_get, top_clk_data);
+	return of_clk_add_provider(yesde, of_clk_src_onecell_get, top_clk_data);
 }
 
 static int clk_mt8183_infra_probe(struct platform_device *pdev)
 {
 	struct clk_onecell_data *clk_data;
-	struct device_node *node = pdev->dev.of_node;
+	struct device_yesde *yesde = pdev->dev.of_yesde;
 	int r;
 
 	clk_data = mtk_alloc_clk_data(CLK_INFRA_NR_CLK);
 
-	mtk_clk_register_gates(node, infra_clks, ARRAY_SIZE(infra_clks),
+	mtk_clk_register_gates(yesde, infra_clks, ARRAY_SIZE(infra_clks),
 		clk_data);
 
-	r = of_clk_add_provider(node, of_clk_src_onecell_get, clk_data);
+	r = of_clk_add_provider(yesde, of_clk_src_onecell_get, clk_data);
 	if (r) {
 		dev_err(&pdev->dev,
-			"%s(): could not register clock provider: %d\n",
+			"%s(): could yest register clock provider: %d\n",
 			__func__, r);
 		return r;
 	}
 
-	mtk_register_reset_controller_set_clr(node, 4, INFRA_RST0_SET_OFFSET);
+	mtk_register_reset_controller_set_clr(yesde, 4, INFRA_RST0_SET_OFFSET);
 
 	return r;
 }
@@ -1246,20 +1246,20 @@ static int clk_mt8183_infra_probe(struct platform_device *pdev)
 static int clk_mt8183_peri_probe(struct platform_device *pdev)
 {
 	struct clk_onecell_data *clk_data;
-	struct device_node *node = pdev->dev.of_node;
+	struct device_yesde *yesde = pdev->dev.of_yesde;
 
 	clk_data = mtk_alloc_clk_data(CLK_PERI_NR_CLK);
 
-	mtk_clk_register_gates(node, peri_clks, ARRAY_SIZE(peri_clks),
+	mtk_clk_register_gates(yesde, peri_clks, ARRAY_SIZE(peri_clks),
 			       clk_data);
 
-	return of_clk_add_provider(node, of_clk_src_onecell_get, clk_data);
+	return of_clk_add_provider(yesde, of_clk_src_onecell_get, clk_data);
 }
 
 static int clk_mt8183_mcu_probe(struct platform_device *pdev)
 {
 	struct clk_onecell_data *clk_data;
-	struct device_node *node = pdev->dev.of_node;
+	struct device_yesde *yesde = pdev->dev.of_yesde;
 	void __iomem *base;
 
 	base = devm_platform_ioremap_resource(pdev, 0);
@@ -1271,7 +1271,7 @@ static int clk_mt8183_mcu_probe(struct platform_device *pdev)
 	mtk_clk_register_composites(mcu_muxes, ARRAY_SIZE(mcu_muxes), base,
 			&mt8183_clk_lock, clk_data);
 
-	return of_clk_add_provider(node, of_clk_src_onecell_get, clk_data);
+	return of_clk_add_provider(yesde, of_clk_src_onecell_get, clk_data);
 }
 
 static const struct of_device_id of_match_clk_mt8183[] = {
@@ -1307,7 +1307,7 @@ static int clk_mt8183_probe(struct platform_device *pdev)
 	r = clk_probe(pdev);
 	if (r)
 		dev_err(&pdev->dev,
-			"could not register clock provider: %s: %d\n",
+			"could yest register clock provider: %s: %d\n",
 			pdev->name, r);
 
 	return r;

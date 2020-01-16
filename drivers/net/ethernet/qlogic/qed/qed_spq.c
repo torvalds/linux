@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and /or other materials
  *        provided with the distribution.
  *
@@ -35,7 +35,7 @@
 #include <linux/io.h>
 #include <linux/delay.h>
 #include <linux/dma-mapping.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/kernel.h>
 #include <linux/list.h>
 #include <linux/pci.h>
@@ -186,7 +186,7 @@ static int qed_spq_fill_entry(struct qed_hwfn *p_hwfn,
 	case QED_SPQ_MODE_CB:
 		break;
 	default:
-		DP_NOTICE(p_hwfn, "Unknown SPQE completion mode %d\n",
+		DP_NOTICE(p_hwfn, "Unkyeswn SPQE completion mode %d\n",
 			  p_ent->comp_mode);
 		return -EINVAL;
 	}
@@ -221,7 +221,7 @@ static void qed_spq_hw_initialize(struct qed_hwfn *p_hwfn,
 	rc = qed_cxt_get_cid_info(p_hwfn, &cxt_info);
 
 	if (rc < 0) {
-		DP_NOTICE(p_hwfn, "Cannot find context info for cid=%d\n",
+		DP_NOTICE(p_hwfn, "Canyest find context info for cid=%d\n",
 			  p_spq->cid);
 		return;
 	}
@@ -287,7 +287,7 @@ static int qed_spq_hw_post(struct qed_hwfn *p_hwfn,
 }
 
 /***************************************************************************
-* Asynchronous events
+* Asynchroyesus events
 ***************************************************************************/
 static int
 qed_async_event_completion(struct qed_hwfn *p_hwfn,
@@ -304,7 +304,7 @@ qed_async_event_completion(struct qed_hwfn *p_hwfn,
 			  &p_eqe->data, p_eqe->fw_return_code);
 	} else {
 		DP_NOTICE(p_hwfn,
-			  "Unknown Async completion for protocol: %d\n",
+			  "Unkyeswn Async completion for protocol: %d\n",
 			  p_eqe->protocol_id);
 		return -EINVAL;
 	}
@@ -460,7 +460,7 @@ static int qed_cqe_completion(struct qed_hwfn *p_hwfn,
 		return 0;
 
 	/* @@@tmp - it's possible we'll eventually want to handle some
-	 * actual commands that can arrive here, but for now this is only
+	 * actual commands that can arrive here, but for yesw this is only
 	 * used to complete the ramrod using the echo value on the cqe
 	 */
 	return qed_spq_completion(p_hwfn, cqe->echo, 0, NULL);
@@ -514,7 +514,7 @@ void qed_spq_setup(struct qed_hwfn *p_hwfn)
 	}
 
 	/* Statistics */
-	p_spq->normal_count		= 0;
+	p_spq->yesrmal_count		= 0;
 	p_spq->comp_count		= 0;
 	p_spq->comp_sent_count		= 0;
 	p_spq->unlimited_pending_count	= 0;
@@ -522,7 +522,7 @@ void qed_spq_setup(struct qed_hwfn *p_hwfn)
 	bitmap_zero(p_spq->p_comp_bitmap, SPQ_RING_SIZE);
 	p_spq->comp_bitmap_idx = 0;
 
-	/* SPQ cid, cannot fail */
+	/* SPQ cid, canyest fail */
 	qed_cxt_acquire_cid(p_hwfn, PROTOCOLID_CORE, &p_spq->cid);
 	qed_spq_hw_initialize(p_hwfn, p_spq);
 
@@ -719,7 +719,7 @@ static int qed_spq_add_entry(struct qed_hwfn *p_hwfn,
 	switch (priority) {
 	case QED_SPQ_PRIORITY_NORMAL:
 		list_add_tail(&p_ent->list, &p_spq->pending);
-		p_spq->normal_count++;
+		p_spq->yesrmal_count++;
 		break;
 	case QED_SPQ_PRIORITY_HIGH:
 		list_add(&p_ent->list, &p_spq->pending);
@@ -881,9 +881,9 @@ int qed_spq_post(struct qed_hwfn *p_hwfn,
 	spin_unlock_bh(&p_spq->lock);
 
 	if (eblock) {
-		/* For entries in QED BLOCK mode, the completion code cannot
+		/* For entries in QED BLOCK mode, the completion code canyest
 		 * perform the necessary cleanup - if it did, we couldn't
-		 * access p_ent here to see whether it's successful or not.
+		 * access p_ent here to see whether it's successful or yest.
 		 * Thus, after gaining the answer perform the cleanup here.
 		 */
 		rc = qed_spq_block(p_hwfn, p_ent, fw_return_code,

@@ -19,7 +19,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <errno.h>
+#include <erryes.h>
 #include <string.h>
 
 #include <sys/time.h>
@@ -50,7 +50,7 @@ static void usage(const char *error)
 	printf("timestamping interface option*\n\n"
 	       "Options:\n"
 	       "  IP_MULTICAST_LOOP - looping outgoing multicasts\n"
-	       "  SO_TIMESTAMP - normal software time stamping, ms resolution\n"
+	       "  SO_TIMESTAMP - yesrmal software time stamping, ms resolution\n"
 	       "  SO_TIMESTAMPNS - more accurate software time stamping\n"
 	       "  SOF_TIMESTAMPING_TX_HARDWARE - hardware time stamping of outgoing packets\n"
 	       "  SOF_TIMESTAMPING_TX_SOFTWARE - software fallback for outgoing packets\n"
@@ -65,7 +65,7 @@ static void usage(const char *error)
 
 static void bail(const char *error)
 {
-	printf("%s: %s\n", error, strerror(errno));
+	printf("%s: %s\n", error, strerror(erryes));
 	exit(1);
 }
 
@@ -117,17 +117,17 @@ static const unsigned char sync[] = {
 
 static void sendpacket(int sock, struct sockaddr *addr, socklen_t addr_len)
 {
-	struct timeval now;
+	struct timeval yesw;
 	int res;
 
 	res = sendto(sock, sync, sizeof(sync), 0,
 		addr, addr_len);
-	gettimeofday(&now, 0);
+	gettimeofday(&yesw, 0);
 	if (res < 0)
-		printf("%s: %s\n", "send", strerror(errno));
+		printf("%s: %s\n", "send", strerror(erryes));
 	else
 		printf("%ld.%06ld: sent %d bytes\n",
-		       (long)now.tv_sec, (long)now.tv_usec,
+		       (long)yesw.tv_sec, (long)yesw.tv_usec,
 		       res);
 }
 
@@ -140,12 +140,12 @@ static void printpacket(struct msghdr *msg, int res,
 	struct cmsghdr *cmsg;
 	struct timeval tv;
 	struct timespec ts;
-	struct timeval now;
+	struct timeval yesw;
 
-	gettimeofday(&now, 0);
+	gettimeofday(&yesw, 0);
 
 	printf("%ld.%06ld: received %s data, %d bytes from %s, %zu bytes control messages\n",
-	       (long)now.tv_sec, (long)now.tv_usec,
+	       (long)yesw.tv_sec, (long)yesw.tv_usec,
 	       (recvmsg_flags & MSG_ERRQUEUE) ? "error" : "regular",
 	       res,
 	       inet_ntoa(from_addr->sin_addr),
@@ -200,8 +200,8 @@ static void printpacket(struct msghdr *msg, int res,
 			case IP_RECVERR: {
 				struct sock_extended_err *err =
 					(struct sock_extended_err *)CMSG_DATA(cmsg);
-				printf("IP_RECVERR ee_errno '%s' ee_origin %d => %s",
-					strerror(err->ee_errno),
+				printf("IP_RECVERR ee_erryes '%s' ee_origin %d => %s",
+					strerror(err->ee_erryes),
 					err->ee_origin,
 #ifdef SO_EE_ORIGIN_TIMESTAMPING
 					err->ee_origin == SO_EE_ORIGIN_TIMESTAMPING ?
@@ -240,7 +240,7 @@ static void printpacket(struct msghdr *msg, int res,
 
 	if (siocgstamp) {
 		if (ioctl(sock, SIOCGSTAMP, &tv))
-			printf("   %s: %s\n", "SIOCGSTAMP", strerror(errno));
+			printf("   %s: %s\n", "SIOCGSTAMP", strerror(erryes));
 		else
 			printf("SIOCGSTAMP %ld.%06ld\n",
 			       (long)tv.tv_sec,
@@ -248,7 +248,7 @@ static void printpacket(struct msghdr *msg, int res,
 	}
 	if (siocgstampns) {
 		if (ioctl(sock, SIOCGSTAMPNS, &ts))
-			printf("   %s: %s\n", "SIOCGSTAMPNS", strerror(errno));
+			printf("   %s: %s\n", "SIOCGSTAMPNS", strerror(erryes));
 		else
 			printf("SIOCGSTAMPNS %ld.%09ld\n",
 			       (long)ts.tv_sec,
@@ -284,7 +284,7 @@ static void recvpacket(int sock, int recvmsg_flags,
 		printf("%s %s: %s\n",
 		       "recvmsg",
 		       (recvmsg_flags & MSG_ERRQUEUE) ? "error" : "regular",
-		       strerror(errno));
+		       strerror(erryes));
 	} else {
 		printpacket(&msg, res, data,
 			    sock, recvmsg_flags,
@@ -366,10 +366,10 @@ int main(int argc, char **argv)
 		HWTSTAMP_FILTER_PTP_V1_L4_SYNC : HWTSTAMP_FILTER_NONE;
 	hwconfig_requested = hwconfig;
 	if (ioctl(sock, SIOCSHWTSTAMP, &hwtstamp) < 0) {
-		if ((errno == EINVAL || errno == ENOTSUP) &&
+		if ((erryes == EINVAL || erryes == ENOTSUP) &&
 		    hwconfig_requested.tx_type == HWTSTAMP_TX_OFF &&
 		    hwconfig_requested.rx_filter == HWTSTAMP_FILTER_NONE)
-			printf("SIOCSHWTSTAMP: disabling hardware time stamping not possible\n");
+			printf("SIOCSHWTSTAMP: disabling hardware time stamping yest possible\n");
 		else
 			bail("SIOCSHWTSTAMP");
 	}
@@ -426,28 +426,28 @@ int main(int argc, char **argv)
 	/* request IP_PKTINFO for debugging purposes */
 	if (setsockopt(sock, SOL_IP, IP_PKTINFO,
 		       &enabled, sizeof(enabled)) < 0)
-		printf("%s: %s\n", "setsockopt IP_PKTINFO", strerror(errno));
+		printf("%s: %s\n", "setsockopt IP_PKTINFO", strerror(erryes));
 
 	/* verify socket options */
 	len = sizeof(val);
 	if (getsockopt(sock, SOL_SOCKET, SO_TIMESTAMP, &val, &len) < 0)
-		printf("%s: %s\n", "getsockopt SO_TIMESTAMP", strerror(errno));
+		printf("%s: %s\n", "getsockopt SO_TIMESTAMP", strerror(erryes));
 	else
 		printf("SO_TIMESTAMP %d\n", val);
 
 	if (getsockopt(sock, SOL_SOCKET, SO_TIMESTAMPNS, &val, &len) < 0)
 		printf("%s: %s\n", "getsockopt SO_TIMESTAMPNS",
-		       strerror(errno));
+		       strerror(erryes));
 	else
 		printf("SO_TIMESTAMPNS %d\n", val);
 
 	if (getsockopt(sock, SOL_SOCKET, SO_TIMESTAMPING, &val, &len) < 0) {
 		printf("%s: %s\n", "getsockopt SO_TIMESTAMPING",
-		       strerror(errno));
+		       strerror(erryes));
 	} else {
 		printf("SO_TIMESTAMPING %d\n", val);
 		if (val != so_timestamping_flags)
-			printf("   not the expected value %d\n",
+			printf("   yest the expected value %d\n",
 			       so_timestamping_flags);
 	}
 
@@ -456,15 +456,15 @@ int main(int argc, char **argv)
 	next.tv_sec = (next.tv_sec + 1) / 5 * 5;
 	next.tv_usec = 0;
 	while (1) {
-		struct timeval now;
+		struct timeval yesw;
 		struct timeval delta;
 		long delta_us;
 		int res;
 		fd_set readfs, errorfs;
 
-		gettimeofday(&now, 0);
-		delta_us = (long)(next.tv_sec - now.tv_sec) * 1000000 +
-			(long)(next.tv_usec - now.tv_usec);
+		gettimeofday(&yesw, 0);
+		delta_us = (long)(next.tv_sec - yesw.tv_sec) * 1000000 +
+			(long)(next.tv_usec - yesw.tv_usec);
 		if (delta_us > 0) {
 			/* continue waiting for timeout or data */
 			delta.tv_sec = delta_us / 1000000;
@@ -475,14 +475,14 @@ int main(int argc, char **argv)
 			FD_SET(sock, &readfs);
 			FD_SET(sock, &errorfs);
 			printf("%ld.%06ld: select %ldus\n",
-			       (long)now.tv_sec, (long)now.tv_usec,
+			       (long)yesw.tv_sec, (long)yesw.tv_usec,
 			       delta_us);
 			res = select(sock + 1, &readfs, 0, &errorfs, &delta);
-			gettimeofday(&now, 0);
+			gettimeofday(&yesw, 0);
 			printf("%ld.%06ld: select returned: %d, %s\n",
-			       (long)now.tv_sec, (long)now.tv_usec,
+			       (long)yesw.tv_sec, (long)yesw.tv_usec,
 			       res,
-			       res < 0 ? strerror(errno) : "success");
+			       res < 0 ? strerror(erryes) : "success");
 			if (res > 0) {
 				if (FD_ISSET(sock, &readfs))
 					printf("ready for reading\n");

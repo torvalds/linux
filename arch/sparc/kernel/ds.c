@@ -64,7 +64,7 @@ struct ds_msg_tag {
 
 struct ds_version {
 	__u16			major;
-	__u16			minor;
+	__u16			miyesr;
 };
 
 struct ds_ver_req {
@@ -74,7 +74,7 @@ struct ds_ver_req {
 
 struct ds_ver_ack {
 	struct ds_msg_tag	tag;
-	__u16			minor;
+	__u16			miyesr;
 };
 
 struct ds_ver_nack {
@@ -86,14 +86,14 @@ struct ds_reg_req {
 	struct ds_msg_tag	tag;
 	__u64			handle;
 	__u16			major;
-	__u16			minor;
+	__u16			miyesr;
 	char			svc_id[0];
 };
 
 struct ds_reg_ack {
 	struct ds_msg_tag	tag;
 	__u64			handle;
-	__u16			minor;
+	__u16			miyesr;
 };
 
 struct ds_reg_nack {
@@ -561,11 +561,11 @@ static int dr_cpu_configure(struct ds_info *dp, struct ds_cap_state *cp,
 			__u32 stat = DR_CPU_STAT_UNCONFIGURED;
 
 			if (!cpu_present(cpu)) {
-				/* CPU not present in MD */
+				/* CPU yest present in MD */
 				res = DR_CPU_RES_NOT_IN_MD;
 				stat = DR_CPU_STAT_NOT_PRESENT;
 			} else if (err == -ENODEV) {
-				/* CPU did not call in successfully */
+				/* CPU did yest call in successfully */
 				res = DR_CPU_RES_CPU_NOT_RESPONDING;
 			}
 
@@ -786,7 +786,7 @@ void ldom_set_var(const char *var, const char *value)
 		    sizeof(pkt) - sizeof(pkt.header)) {
 			printk(KERN_ERR PFX
 				"contents length: %zu, which more than max: %lu,"
-				"so could not set (%s) variable to (%s).\n",
+				"so could yest set (%s) variable to (%s).\n",
 				strlen(var) + strlen(value) + 2,
 				sizeof(pkt) - sizeof(pkt.header), var, value);
 			return;
@@ -834,8 +834,8 @@ void ldom_set_var(const char *var, const char *value)
 			       dp->id, var, value,
 			       ds_var_response);
 	} else {
-		printk(KERN_ERR PFX "var-config not registered so "
-		       "could not set (%s) variable to (%s).\n",
+		printk(KERN_ERR PFX "var-config yest registered so "
+		       "could yest set (%s) variable to (%s).\n",
 		       var, value);
 	}
 }
@@ -909,7 +909,7 @@ static int register_services(struct ds_info *dp)
 		pbuf.req.tag.len = (msg_len - sizeof(struct ds_msg_tag));
 		pbuf.req.handle = cp->handle;
 		pbuf.req.major = 1;
-		pbuf.req.minor = 0;
+		pbuf.req.miyesr = 0;
 		strcpy(pbuf.id_buf, cp->service_id);
 
 		err = __ds_send(lp, &pbuf, msg_len);
@@ -939,7 +939,7 @@ static int ds_handshake(struct ds_info *dp, struct ds_msg_tag *pkt)
 		struct ds_cap_state *cp = find_cap(dp, ap->handle);
 
 		if (!cp) {
-			printk(KERN_ERR "ds-%llu: REG ACK for unknown "
+			printk(KERN_ERR "ds-%llu: REG ACK for unkyeswn "
 			       "handle %llx\n", dp->id, ap->handle);
 			return 0;
 		}
@@ -952,7 +952,7 @@ static int ds_handshake(struct ds_info *dp, struct ds_msg_tag *pkt)
 
 		if (!cp) {
 			printk(KERN_ERR "ds-%llu: REG NACK for "
-			       "unknown handle %llx\n",
+			       "unkyeswn handle %llx\n",
 			       dp->id, np->handle);
 			return 0;
 		}
@@ -1009,7 +1009,7 @@ static void process_ds_work(void)
 		int req_len = qp->req_len;
 
 		if (!cp) {
-			printk(KERN_ERR "ds-%llu: Data for unknown "
+			printk(KERN_ERR "ds-%llu: Data for unkyeswn "
 			       "handle %llu\n",
 			       dp->id, dpkt->handle);
 
@@ -1070,7 +1070,7 @@ static void ds_up(struct ds_info *dp)
 	req.tag.type = DS_INIT_REQ;
 	req.tag.len = sizeof(req) - sizeof(struct ds_msg_tag);
 	req.ver.major = 1;
-	req.ver.minor = 0;
+	req.ver.miyesr = 0;
 
 	err = __ds_send(lp, &req, sizeof(req));
 	if (err > 0)
@@ -1257,13 +1257,13 @@ static struct vio_driver ds_driver = {
 
 static int __init ds_init(void)
 {
-	unsigned long hv_ret, major, minor;
+	unsigned long hv_ret, major, miyesr;
 
 	if (tlb_type == hypervisor) {
-		hv_ret = sun4v_get_version(HV_GRP_REBOOT_DATA, &major, &minor);
+		hv_ret = sun4v_get_version(HV_GRP_REBOOT_DATA, &major, &miyesr);
 		if (hv_ret == HV_EOK) {
 			pr_info("SUN4V: Reboot data supported (maj=%lu,min=%lu).\n",
-				major, minor);
+				major, miyesr);
 			reboot_data_supported = 1;
 		}
 	}

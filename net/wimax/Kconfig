@@ -12,7 +12,7 @@ menuconfig WIMAX
 	  wireless broadband connectivity using the WiMAX protocol
 	  (IEEE 802.16).
 
-	  Please note that most of these devices require signing up
+	  Please yeste that most of these devices require signing up
 	  for a service plan with a provider.
 
 	  The different WiMAX drivers can be enabled in the menu entry

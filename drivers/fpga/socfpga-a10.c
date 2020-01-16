@@ -292,7 +292,7 @@ static int socfpga_a10_fpga_write_init(struct fpga_manager *mgr,
 		return -EINVAL;
 	}
 
-	/* Make sure no external devices are interfering */
+	/* Make sure yes external devices are interfering */
 	stat = socfpga_a10_fpga_read_stat(priv);
 	mask = A10_FPGAMGR_IMGCFG_STAT_F2S_NCONFIG_PIN |
 	       A10_FPGAMGR_IMGCFG_STAT_F2S_NSTATUS_PIN;
@@ -320,7 +320,7 @@ static int socfpga_a10_fpga_write_init(struct fpga_manager *mgr,
 			   A10_FPGAMGR_IMGCFG_CTL_02_EN_CFG_CTRL);
 
 	/*
-	 * Disable overrides not needed for pr.
+	 * Disable overrides yest needed for pr.
 	 * s2f_config==1 leaves reset deasseted.
 	 */
 	regmap_write(priv->regmap, A10_FPGAMGR_IMGCFG_CTL_00_OFST,
@@ -367,7 +367,7 @@ static int socfpga_a10_fpga_write(struct fpga_manager *mgr, const char *buf,
 		count -= sizeof(u32);
 	}
 
-	/* Write out remaining non 32-bit chunks */
+	/* Write out remaining yesn 32-bit chunks */
 	switch (count) {
 	case 3:
 		writel(buffer_32[i++] & 0x00ffffff, priv->fpga_data_addr);
@@ -498,13 +498,13 @@ static int socfpga_a10_fpga_probe(struct platform_device *pdev)
 
 	priv->clk = devm_clk_get(dev, NULL);
 	if (IS_ERR(priv->clk)) {
-		dev_err(dev, "no clock specified\n");
+		dev_err(dev, "yes clock specified\n");
 		return PTR_ERR(priv->clk);
 	}
 
 	ret = clk_prepare_enable(priv->clk);
 	if (ret) {
-		dev_err(dev, "could not enable clock\n");
+		dev_err(dev, "could yest enable clock\n");
 		return -EBUSY;
 	}
 

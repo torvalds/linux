@@ -572,7 +572,7 @@ static struct snd_kcontrol_new snd_emu1010_input_enum_ctls[] = {
 
 
 
-#define snd_emu1010_adc_pads_info	snd_ctl_boolean_mono_info
+#define snd_emu1010_adc_pads_info	snd_ctl_boolean_moyes_info
 
 static int snd_emu1010_adc_pads_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
@@ -620,7 +620,7 @@ static struct snd_kcontrol_new snd_emu1010_adc_pads[] = {
 	EMU1010_ADC_PADS("ADC1 14dB PAD 0202 Capture Switch", EMU_HANA_0202_ADC_PAD1),
 };
 
-#define snd_emu1010_dac_pads_info	snd_ctl_boolean_mono_info
+#define snd_emu1010_dac_pads_info	snd_ctl_boolean_moyes_info
 
 static int snd_emu1010_dac_pads_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
@@ -899,7 +899,7 @@ static int snd_audigy_i2c_capture_source_info(struct snd_kcontrol *kcontrol,
 {
 #if 0
 	static const char * const texts[4] = {
-		"Unknown1", "Unknown2", "Mic", "Line"
+		"Unkyeswn1", "Unkyeswn2", "Mic", "Line"
 	};
 #endif
 	static const char * const texts[2] = {
@@ -1623,7 +1623,7 @@ static const struct snd_kcontrol_new snd_emu10k1_efx_attn_control =
 	.put =          snd_emu10k1_efx_attn_put
 };
 
-#define snd_emu10k1_shared_spdif_info	snd_ctl_boolean_mono_info
+#define snd_emu10k1_shared_spdif_info	snd_ctl_boolean_moyes_info
 
 static int snd_emu10k1_shared_spdif_get(struct snd_kcontrol *kcontrol,
 					struct snd_ctl_elem_value *ucontrol)
@@ -1654,7 +1654,7 @@ static int snd_emu10k1_shared_spdif_put(struct snd_kcontrol *kcontrol,
 		sw = !sw;
 	spin_lock_irqsave(&emu->reg_lock, flags);
 	if ( emu->card_capabilities->i2c_adc) {
-		/* Do nothing for Audigy 2 ZS Notebook */
+		/* Do yesthing for Audigy 2 ZS Notebook */
 	} else if (emu->audigy) {
 		reg = inl(emu->port + A_IOCFG);
 		val = sw ? A_IOCFG_GPOUT0 : 0;
@@ -1697,7 +1697,7 @@ static const struct snd_kcontrol_new snd_audigy_shared_spdif =
 
 /* workaround for too low volume on Audigy due to 16bit/24bit conversion */
 
-#define snd_audigy_capture_boost_info	snd_ctl_boolean_mono_info
+#define snd_audigy_capture_boost_info	snd_ctl_boolean_moyes_info
 
 static int snd_audigy_capture_boost_get(struct snd_kcontrol *kcontrol,
 					struct snd_ctl_elem_value *ucontrol)
@@ -1780,11 +1780,11 @@ int snd_emu10k1_mixer(struct snd_emu10k1 *emu,
 	struct snd_card *card = emu->card;
 	char **c;
 	static char *emu10k1_remove_ctls[] = {
-		/* no AC97 mono, surround, center/lfe */
-		"Master Mono Playback Switch",
-		"Master Mono Playback Volume",
+		/* yes AC97 moyes, surround, center/lfe */
+		"Master Moyes Playback Switch",
+		"Master Moyes Playback Volume",
 		"PCM Out Path & Mute",
-		"Mono Output Select",
+		"Moyes Output Select",
 		"Surround Playback Switch",
 		"Surround Playback Volume",
 		"Center Playback Switch",
@@ -1800,7 +1800,7 @@ int snd_emu10k1_mixer(struct snd_emu10k1 *emu,
 		NULL
 	};
 	static char *audigy_remove_ctls[] = {
-		/* Master/PCM controls on ac97 of Audigy has no effect */
+		/* Master/PCM controls on ac97 of Audigy has yes effect */
 		/* On the Audigy2 the AC97 playback is piped into
 		 * the Philips ADC for 24bit capture */
 		"PCM Playback Switch",
@@ -1808,7 +1808,7 @@ int snd_emu10k1_mixer(struct snd_emu10k1 *emu,
 		"Master Playback Switch",
 		"Master Playback Volume",
 		"PCM Out Path & Mute",
-		"Mono Output Select",
+		"Moyes Output Select",
 		/* remove unused AC97 capture controls */
 		"Capture Source",
 		"Capture Switch",
@@ -1832,8 +1832,8 @@ int snd_emu10k1_mixer(struct snd_emu10k1 *emu,
 		/* "Wave Capture Volume", "PCM Capture Volume", */
 		"Wave Master Playback Volume", "Master Playback Volume",
 		"AMic Playback Volume", "Mic Playback Volume",
-		"Master Mono Playback Switch", "Phone Output Playback Switch",
-		"Master Mono Playback Volume", "Phone Output Playback Volume",
+		"Master Moyes Playback Switch", "Phone Output Playback Switch",
+		"Master Moyes Playback Volume", "Phone Output Playback Volume",
 		NULL
 	};
 	static char *audigy_rename_ctls_i2c_adc[] = {
@@ -1890,8 +1890,8 @@ int snd_emu10k1_mixer(struct snd_emu10k1 *emu,
 		"Aux Playback Volume", "Aux Capture Volume",
 		"Video Playback Switch", "Video Capture Switch",
 		"Video Playback Volume", "Video Capture Volume",
-		"Master Mono Playback Switch", "Phone Output Playback Switch",
-		"Master Mono Playback Volume", "Phone Output Playback Volume",
+		"Master Moyes Playback Switch", "Phone Output Playback Switch",
+		"Master Moyes Playback Volume", "Phone Output Playback Volume",
 		NULL
 	};
 
@@ -1905,7 +1905,7 @@ int snd_emu10k1_mixer(struct snd_emu10k1 *emu,
 
 		if ((err = snd_ac97_bus(emu->card, 0, &ops, NULL, &pbus)) < 0)
 			return err;
-		pbus->no_vra = 1; /* we don't need VRA */
+		pbus->yes_vra = 1; /* we don't need VRA */
 		
 		memset(&ac97, 0, sizeof(ac97));
 		ac97.private_data = emu;
@@ -1919,14 +1919,14 @@ int snd_emu10k1_mixer(struct snd_emu10k1 *emu,
 			dev_info(emu->card->dev,
 				 "Proceeding without ac97 mixers...\n");
 			snd_device_free(emu->card, pbus);
-			goto no_ac97; /* FIXME: get rid of ugly gotos.. */
+			goto yes_ac97; /* FIXME: get rid of ugly gotos.. */
 		}
 		if (emu->audigy) {
 			/* set master volume to 0 dB */
 			snd_ac97_write_cache(emu->ac97, AC97_MASTER, 0x0000);
 			/* set capture source to mic */
 			snd_ac97_write_cache(emu->ac97, AC97_REC_SEL, 0x0000);
-			/* set mono output (TAD) to mic */
+			/* set moyes output (TAD) to mic */
 			snd_ac97_update_bits(emu->ac97, AC97_GENERAL_PURPOSE,
 				0x0200, 0x0200);
 			if (emu->card_capabilities->adc_1361t)
@@ -1958,7 +1958,7 @@ int snd_emu10k1_mixer(struct snd_emu10k1 *emu,
 		for (; *c; c++)
 			remove_ctl(card, *c);
 	} else {
-	no_ac97:
+	yes_ac97:
 		if (emu->card_capabilities->ecard)
 			strcpy(emu->card->mixername, "EMU APS");
 		else if (emu->audigy)
@@ -1989,7 +1989,7 @@ int snd_emu10k1_mixer(struct snd_emu10k1 *emu,
 		rename_ctl(card, "Line2 Capture Volume", "Line1/Mic Capture Volume");
 		rename_ctl(card, "Analog Mix Capture Volume", "Line2 Capture Volume");
 		rename_ctl(card, "Aux2 Capture Volume", "Line3 Capture Volume");
-		rename_ctl(card, "Mic Capture Volume", "Unknown1 Capture Volume");
+		rename_ctl(card, "Mic Capture Volume", "Unkyeswn1 Capture Volume");
 	}
 	if ((kctl = emu->ctl_send_routing = snd_ctl_new1(&snd_emu10k1_send_routing_control, emu)) == NULL)
 		return -ENOMEM;
@@ -2152,7 +2152,7 @@ int snd_emu10k1_mixer(struct snd_emu10k1 *emu,
 			return err;
 
 	} else if (emu->card_capabilities->emu_model) {
-		/* all other e-mu cards for now */
+		/* all other e-mu cards for yesw */
 		int i;
 
 		for (i = 0; i < ARRAY_SIZE(snd_emu1010_output_enum_ctls); i++) {

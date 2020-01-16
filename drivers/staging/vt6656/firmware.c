@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
- * Copyright (c) 1996, 2003 VIA Networking Technologies, Inc.
+ * Copyright (c) 1996, 2003 VIA Networking Techyeslogies, Inc.
  * All rights reserved.
  *
  * File: baseband.c
@@ -87,7 +87,7 @@ int vnt_check_firmware_version(struct vnt_private *priv)
 			     (u8 *)&priv->firmware_version);
 	if (ret) {
 		dev_dbg(&priv->usb->dev,
-			"Could not get firmware version: %d.\n", ret);
+			"Could yest get firmware version: %d.\n", ret);
 		goto end;
 	}
 
@@ -105,7 +105,7 @@ int vnt_check_firmware_version(struct vnt_private *priv)
 		ret = vnt_firmware_branch_to_sram(priv);
 		if (ret) {
 			dev_dbg(&priv->usb->dev,
-				"Could not branch to SRAM: %d.\n", ret);
+				"Could yest branch to SRAM: %d.\n", ret);
 		} else {
 			ret = -EINVAL;
 		}

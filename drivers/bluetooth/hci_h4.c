@@ -20,7 +20,7 @@
 
 #include <linux/slab.h>
 #include <linux/tty.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/string.h>
 #include <linux/signal.h>
 #include <linux/ioctl.h>

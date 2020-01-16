@@ -8,7 +8,7 @@
  * copies of the Software, and to permit persons to whom the Software is
  * furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -133,7 +133,7 @@
 			};
 
 			/*
-			 * The SDCC3 pins are hardcoded (non-muxable) but need some pin
+			 * The SDCC3 pins are hardcoded (yesn-muxable) but need some pin
 			 * configuration.
 			 */
 			dragon_sdcc3_pins: sdcc3 {
@@ -231,7 +231,7 @@
 				 */
 				mux0 {
 					pins =
-					    /* "gpio39", CS1A_N this is not good to mux */
+					    /* "gpio39", CS1A_N this is yest good to mux */
 					    "gpio40", /* CS2A_N */
 					    "gpio134"; /* CS0_N testpoint TP29 */
 					function = "ebi2cs";
@@ -297,7 +297,7 @@
 					dragon_ethernet_gpios: ethernet-gpios {
 						pinconf {
 							pins = "gpio7";
-							function = "normal";
+							function = "yesrmal";
 							input-enable;
 							bias-disable;
 							power-source = <PM8058_GPIO_S3>;
@@ -306,7 +306,7 @@
 					dragon_bmp085_gpios: bmp085-gpios {
 						pinconf {
 							pins = "gpio16";
-							function = "normal";
+							function = "yesrmal";
 							input-enable;
 							bias-disable;
 							power-source = <PM8058_GPIO_S3>;
@@ -315,7 +315,7 @@
 					dragon_mpu3050_gpios: mpu3050-gpios {
 						pinconf {
 							pins = "gpio17";
-							function = "normal";
+							function = "yesrmal";
 							input-enable;
 							bias-disable;
 							power-source = <PM8058_GPIO_S3>;
@@ -324,7 +324,7 @@
 					dragon_sdcc3_gpios: sdcc3-gpios {
 						pinconf {
 							pins = "gpio22";
-							function = "normal";
+							function = "yesrmal";
 							input-enable;
 							bias-disable;
 							power-source = <PM8058_GPIO_S3>;
@@ -333,7 +333,7 @@
 					dragon_sdcc5_gpios: sdcc5-gpios {
 						pinconf {
 							pins = "gpio26";
-							function = "normal";
+							function = "yesrmal";
 							input-enable;
 							bias-pull-up;
 							qcom,pull-up-strength = <PMIC_GPIO_PULL_UP_30>;
@@ -343,7 +343,7 @@
 					dragon_ak8975_gpios: ak8975-gpios {
 						pinconf {
 							pins = "gpio33";
-							function = "normal";
+							function = "yesrmal";
 							input-enable;
 							bias-disable;
 							power-source = <PM8058_GPIO_S3>;
@@ -353,7 +353,7 @@
 						/* Pin 34 connected to the proxy IRQ */
 						pinconf_gpio34 {
 							pins = "gpio34";
-							function = "normal";
+							function = "yesrmal";
 							input-enable;
 							bias-disable;
 							power-source = <PM8058_GPIO_S3>;
@@ -361,7 +361,7 @@
 						/* Pin 35 connected to ASET */
 						pinconf_gpio35 {
 							pins = "gpio35";
-							function = "normal";
+							function = "yesrmal";
 							output-high;
 							bias-disable;
 							power-source = <PM8058_GPIO_S3>;
@@ -370,7 +370,7 @@
 					dragon_veth_gpios: veth-gpios {
 						pinconf {
 							pins = "gpio40";
-							function = "normal";
+							function = "yesrmal";
 							bias-disable;
 							drive-push-pull;
 						};
@@ -578,7 +578,7 @@
 			/*
 			 * An on-board SMSC LAN9221 chip for "debug ethernet",
 			 * which is actually just an ordinary ethernet on the
-			 * EBI2. This has a 25MHz chrystal next to it, so no
+			 * EBI2. This has a 25MHz chrystal next to it, so yes
 			 * clocking is needed.
 			 */
 			ethernet-ebi2@2,0 {

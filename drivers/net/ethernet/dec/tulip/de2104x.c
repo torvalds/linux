@@ -8,7 +8,7 @@
 	This software may be used and distributed according to the terms of
 	the GNU General Public License (GPL), incorporated herein by reference.
 	Drivers based on or derived from this code fall under the GPL and must
-	retain the authorship, copyright and license notice.  This file is not
+	retain the authorship, copyright and license yestice.  This file is yest
 	a complete program and may only be used when the entire operating
 	system is licensed under the GPL.
 
@@ -52,7 +52,7 @@
 #include <linux/uaccess.h>
 #include <asm/unaligned.h>
 
-/* These identify the driver base version and may not be removed. */
+/* These identify the driver base version and may yest be removed. */
 static char version[] =
 "PCI Ethernet driver v" DRV_VERSION " (" DRV_RELDATE ")";
 
@@ -135,7 +135,7 @@ MODULE_PARM_DESC (rx_copybreak, "de2104x Breakpoint at which Rx packets are copi
 
 /* This is a mysterious value that can be written to CSR11 in the 21040 (only)
    to support a pre-NWay full-duplex signaling mechanism using short frames.
-   No one knows what it should be, but if left at its default value some
+   No one kyesws what it should be, but if left at its default value some
    10base2(!) packets trigger a full-duplex-request interrupt. */
 #define FULL_DUPLEX_MAGIC	0x6969
 
@@ -237,8 +237,8 @@ enum {
 
 	/* PCIPM bits */
 	PM_Sleep		= (1 << 31),
-	PM_Snooze		= (1 << 30),
-	PM_Mask			= PM_Sleep | PM_Snooze,
+	PM_Syesoze		= (1 << 30),
+	PM_Mask			= PM_Sleep | PM_Syesoze,
 
 	/* SIAStatus bits */
 	NWayState		= (1 << 14) | (1 << 13) | (1 << 12),
@@ -656,7 +656,7 @@ static netdev_tx_t de_start_xmit (struct sk_buff *skb,
 
 /* Set or clear the multicast filter for this adaptor.
    Note that we only use exclusion around actually queueing the
-   new frame, not around filling de->setup_frame.  This is non-deterministic
+   new frame, yest around filling de->setup_frame.  This is yesn-deterministic
    when re-entered but still correct. */
 
 static void build_setup_frame_hash(u16 *setup_frm, struct net_device *dev)
@@ -971,7 +971,7 @@ static void de21040_media_timer (struct timer_list *t)
 
 	if (carrier) {
 		if (de->media_type != DE_MEDIA_AUI && (status & LinkFailStatus))
-			goto no_link_yet;
+			goto yes_link_yet;
 
 		de->media_timer.expires = jiffies + DE_TIMER_LINK;
 		add_timer(&de->media_timer);
@@ -1002,11 +1002,11 @@ static void de21040_media_timer (struct timer_list *t)
 	de_set_media(de);
 	de_start_rxtx(de);
 
-no_link_yet:
+yes_link_yet:
 	de->media_timer.expires = jiffies + DE_TIMER_NO_LINK;
 	add_timer(&de->media_timer);
 
-	netif_info(de, timer, dev, "no link, trying media %s, status %x\n",
+	netif_info(de, timer, dev, "yes link, trying media %s, status %x\n",
 		   media_name[de->media_type], status);
 }
 
@@ -1058,7 +1058,7 @@ static void de21041_media_timer (struct timer_list *t)
 		     de->media_type == DE_MEDIA_TP ||
 		     de->media_type == DE_MEDIA_TP_FD) &&
 		    (status & LinkFailStatus))
-			goto no_link_yet;
+			goto yes_link_yet;
 
 		de->media_timer.expires = jiffies + DE_TIMER_LINK;
 		add_timer(&de->media_timer);
@@ -1101,7 +1101,7 @@ static void de21041_media_timer (struct timer_list *t)
 			 de_ok_to_advertise(de, DE_MEDIA_AUI))
 			de->media_type = DE_MEDIA_AUI;
 
-		/* otherwise, ignore the hint */
+		/* otherwise, igyesre the hint */
 		else
 			have_media = 0;
 
@@ -1138,24 +1138,24 @@ set_media:
 	de_set_media(de);
 	de_start_rxtx(de);
 
-no_link_yet:
+yes_link_yet:
 	de->media_timer.expires = jiffies + DE_TIMER_NO_LINK;
 	add_timer(&de->media_timer);
 
-	netif_info(de, timer, dev, "no link, trying media %s, status %x\n",
+	netif_info(de, timer, dev, "yes link, trying media %s, status %x\n",
 		   media_name[de->media_type], status);
 }
 
 static void de_media_interrupt (struct de_private *de, u32 status)
 {
 	if (status & LinkPass) {
-		/* Ignore if current media is AUI or BNC and we can't use TP */
+		/* Igyesre if current media is AUI or BNC and we can't use TP */
 		if ((de->media_type == DE_MEDIA_AUI ||
 		     de->media_type == DE_MEDIA_BNC) &&
 		    (de->media_lock ||
 		     !de_ok_to_advertise(de, DE_MEDIA_TP_AUTO)))
 			return;
-		/* If current media is not TP, change it to TP */
+		/* If current media is yest TP, change it to TP */
 		if ((de->media_type == DE_MEDIA_AUI ||
 		     de->media_type == DE_MEDIA_BNC)) {
 			de->media_type = DE_MEDIA_TP_AUTO;
@@ -1516,7 +1516,7 @@ static void __de_get_link_ksettings(struct de_private *de,
 	else
 		cmd->base.autoneg = AUTONEG_ENABLE;
 
-	/* ignore maxtxpkt, maxrxpkt for now */
+	/* igyesre maxtxpkt, maxrxpkt for yesw */
 }
 
 static int __de_set_link_ksettings(struct de_private *de,
@@ -1579,7 +1579,7 @@ static int __de_set_link_ksettings(struct de_private *de,
 	if ((new_media == de->media_type) &&
 	    (media_lock == de->media_lock) &&
 	    (advertising == de->media_advertise))
-		return 0; /* nothing to change */
+		return 0; /* yesthing to change */
 
 	de_link_down(de);
 	mod_timer(&de->media_timer, jiffies + DE_TIMER_NO_LINK);
@@ -1802,7 +1802,7 @@ static void de21041_get_srom_info(struct de_private *de)
 		((__le16 *)ee_data)[i] =
 			cpu_to_le16(tulip_read_eeprom(de->regs, i, ee_addr_size));
 
-	/* DEC now has a specification but early board makers
+	/* DEC yesw has a specification but early board makers
 	   just put the address in the first EEPROM locations. */
 	/* This does  memcmp(eedata, eedata+16, 8) */
 
@@ -1818,7 +1818,7 @@ static void de21041_get_srom_info(struct de_private *de)
 	for (i = 0; i < 6; i ++)
 		de->dev->dev_addr[i] = ee_data[i + sa_offset];
 
-	/* get offset of controller 0 info leaf.  ignore 2nd byte. */
+	/* get offset of controller 0 info leaf.  igyesre 2nd byte. */
 	ofs = ee_data[SROMC0InfoLeaf];
 	if (ofs >= (sizeof(ee_data) - sizeof(struct de_srom_info_leaf) - sizeof(struct de_srom_media_block)))
 		goto bad_srom;
@@ -1826,7 +1826,7 @@ static void de21041_get_srom_info(struct de_private *de)
 	/* get pointer to info leaf */
 	il = (struct de_srom_info_leaf *) &ee_data[ofs];
 
-	/* paranoia checks */
+	/* parayesia checks */
 	if (il->n_blocks == 0)
 		goto bad_srom;
 	if ((sizeof(ee_data) - ofs) <
@@ -1921,13 +1921,13 @@ static void de21041_get_srom_info(struct de_private *de)
 	de->media_advertise = de->media_supported;
 
 fill_defaults:
-	/* fill in defaults, for cases where custom CSRs not used */
+	/* fill in defaults, for cases where custom CSRs yest used */
 	for (i = 0; i < DE_MAX_MEDIA; i++) {
 		if (de->media[i].csr13 == 0xffff)
 			de->media[i].csr13 = t21041_csr13[i];
 		if (de->media[i].csr14 == 0xffff) {
 			/* autonegotiation is broken at least on some chip
-			   revisions - rev. 0x21 works, 0x11 does not */
+			   revisions - rev. 0x21 works, 0x11 does yest */
 			if (de->pdev->revision < 0x20)
 				de->media[i].csr14 = t21041_csr14_brk[i];
 			else
@@ -2027,7 +2027,7 @@ static int de_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	pciaddr = pci_resource_start(pdev, 1);
 	if (!pciaddr) {
 		rc = -EIO;
-		pr_err("no MMIO resource for pci dev %s\n", pci_name(pdev));
+		pr_err("yes MMIO resource for pci dev %s\n", pci_name(pdev));
 		goto err_out_res;
 	}
 	if (pci_resource_len(pdev, 1) < DE_REGS_SIZE) {
@@ -2039,10 +2039,10 @@ static int de_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	}
 
 	/* remap CSR registers */
-	regs = ioremap_nocache(pciaddr, DE_REGS_SIZE);
+	regs = ioremap_yescache(pciaddr, DE_REGS_SIZE);
 	if (!regs) {
 		rc = -EIO;
-		pr_err("Cannot map PCI MMIO (%llx@%lx) on pci dev %s\n",
+		pr_err("Canyest map PCI MMIO (%llx@%lx) on pci dev %s\n",
 		       (unsigned long long)pci_resource_len(pdev, 1),
 		       pciaddr, pci_name(pdev));
 		goto err_out_res;
@@ -2051,10 +2051,10 @@ static int de_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	de_adapter_wake(de);
 
-	/* make sure hardware is not running */
+	/* make sure hardware is yest running */
 	rc = de_reset_mac(de);
 	if (rc) {
-		pr_err("Cannot reset MAC, pci dev %s\n", pci_name(pdev));
+		pr_err("Canyest reset MAC, pci dev %s\n", pci_name(pdev));
 		goto err_out_iomap;
 	}
 

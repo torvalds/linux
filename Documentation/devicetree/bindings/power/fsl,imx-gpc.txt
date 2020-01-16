@@ -20,7 +20,7 @@ Required properties:
 
 The power domains are generic power domain providers as documented in
 Documentation/devicetree/bindings/power/power-domain.yaml. They are described as
-subnodes of the power gating controller 'pgc' node of the GPC and should
+subyesdes of the power gating controller 'pgc' yesde of the GPC and should
 contain the following:
 
 Required properties:

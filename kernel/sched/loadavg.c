@@ -46,7 +46,7 @@
  *    again, being late doesn't loose the delta, just wrecks the sample.
  *
  *  - cpu_rq()->nr_uninterruptible isn't accurately tracked per-CPU because
- *    this would add another cross-CPU cacheline miss and atomic operation
+ *    this would add ayesther cross-CPU cacheline miss and atomic operation
  *    to the wakeup path. Instead we increment on whatever CPU the task ran
  *    when it went into uninterruptible state and decrement on whatever CPU
  *    did the wakeup. This means that only the sum of nr_uninterruptible over
@@ -67,7 +67,7 @@ EXPORT_SYMBOL(avenrun); /* should be removed */
  * @offset:	offset to add
  * @shift:	shift count to shift the result left
  *
- * These values are estimates at best, so no need for locking.
+ * These values are estimates at best, so yes need for locking.
  */
 void get_avenrun(unsigned long *loads, unsigned long offset, int shift)
 {
@@ -192,7 +192,7 @@ calc_load_n(unsigned long load, unsigned long exp,
  *    accumlating the new one.
  *
  *  - When we wake up from NO_HZ during the window, we push up our
- *    contribution, since we effectively move our sample point to a known
+ *    contribution, since we effectively move our sample point to a kyeswn
  *    busy state.
  *
  *    This is solved by pushing the window forward, and thus skipping the
@@ -203,7 +203,7 @@ calc_load_n(unsigned long load, unsigned long exp,
  *
  * When making the ILB scale, we should try to pull this in as well.
  */
-static atomic_long_t calc_load_nohz[2];
+static atomic_long_t calc_load_yeshz[2];
 static int calc_load_idx;
 
 static inline int calc_load_write_idx(void)
@@ -211,7 +211,7 @@ static inline int calc_load_write_idx(void)
 	int idx = calc_load_idx;
 
 	/*
-	 * See calc_global_nohz(), if we observe the new index, we also
+	 * See calc_global_yeshz(), if we observe the new index, we also
 	 * need to observe the new update time.
 	 */
 	smp_rmb();
@@ -231,7 +231,7 @@ static inline int calc_load_read_idx(void)
 	return calc_load_idx & 1;
 }
 
-void calc_load_nohz_start(void)
+void calc_load_yeshz_start(void)
 {
 	struct rq *this_rq = this_rq();
 	long delta;
@@ -244,11 +244,11 @@ void calc_load_nohz_start(void)
 	if (delta) {
 		int idx = calc_load_write_idx();
 
-		atomic_long_add(delta, &calc_load_nohz[idx]);
+		atomic_long_add(delta, &calc_load_yeshz[idx]);
 	}
 }
 
-void calc_load_nohz_stop(void)
+void calc_load_yeshz_stop(void)
 {
 	struct rq *this_rq = this_rq();
 
@@ -261,20 +261,20 @@ void calc_load_nohz_stop(void)
 
 	/*
 	 * We woke inside or after the sample window, this means we're already
-	 * accounted through the nohz accounting, so skip the entire deal and
+	 * accounted through the yeshz accounting, so skip the entire deal and
 	 * sync up for the next window.
 	 */
 	if (time_before(jiffies, this_rq->calc_load_update + 10))
 		this_rq->calc_load_update += LOAD_FREQ;
 }
 
-static long calc_load_nohz_fold(void)
+static long calc_load_yeshz_fold(void)
 {
 	int idx = calc_load_read_idx();
 	long delta = 0;
 
-	if (atomic_long_read(&calc_load_nohz[idx]))
-		delta = atomic_long_xchg(&calc_load_nohz[idx], 0);
+	if (atomic_long_read(&calc_load_yeshz[idx]))
+		delta = atomic_long_xchg(&calc_load_yeshz[idx], 0);
 
 	return delta;
 }
@@ -282,13 +282,13 @@ static long calc_load_nohz_fold(void)
 /*
  * NO_HZ can leave us missing all per-CPU ticks calling
  * calc_load_fold_active(), but since a NO_HZ CPU folds its delta into
- * calc_load_nohz per calc_load_nohz_start(), all we need to do is fold
+ * calc_load_yeshz per calc_load_yeshz_start(), all we need to do is fold
  * in the pending NO_HZ delta if our NO_HZ period crossed a load cycle boundary.
  *
  * Once we've updated the global active value, we need to apply the exponential
  * weights adjusted to the number of cycles missed.
  */
-static void calc_global_nohz(void)
+static void calc_global_yeshz(void)
 {
 	unsigned long sample_window;
 	long delta, active, n;
@@ -323,8 +323,8 @@ static void calc_global_nohz(void)
 }
 #else /* !CONFIG_NO_HZ_COMMON */
 
-static inline long calc_load_nohz_fold(void) { return 0; }
-static inline void calc_global_nohz(void) { }
+static inline long calc_load_yeshz_fold(void) { return 0; }
+static inline void calc_global_yeshz(void) { }
 
 #endif /* CONFIG_NO_HZ_COMMON */
 
@@ -346,7 +346,7 @@ void calc_global_load(unsigned long ticks)
 	/*
 	 * Fold the 'old' NO_HZ-delta to include all NO_HZ CPUs.
 	 */
-	delta = calc_load_nohz_fold();
+	delta = calc_load_yeshz_fold();
 	if (delta)
 		atomic_long_add(delta, &calc_load_tasks);
 
@@ -363,7 +363,7 @@ void calc_global_load(unsigned long ticks)
 	 * In case we went to NO_HZ for multiple LOAD_FREQ intervals
 	 * catch up in bulk.
 	 */
-	calc_global_nohz();
+	calc_global_yeshz();
 }
 
 /*

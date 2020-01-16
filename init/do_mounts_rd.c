@@ -37,9 +37,9 @@ static int __init crd_load(int in_fd, int out_fd, decompress_fn deco);
 
 /*
  * This routine tries to find a RAM disk image to load, and returns the
- * number of blocks to read for a non-compressed image, 0 if the image
+ * number of blocks to read for a yesn-compressed image, 0 if the image
  * is a compressed image, and -1 if an image with the right magic
- * numbers could not be found.
+ * numbers could yest be found.
  *
  * We currently check for the following magic numbers:
  *	minix
@@ -89,7 +89,7 @@ identify_ramdisk_image(int fd, int start_block, decompress_fn *decompressor)
 		       compress_name, start_block);
 		if (!*decompressor)
 			printk(KERN_EMERG
-			       "RAMDISK: %s decompressor not configured!\n",
+			       "RAMDISK: %s decompressor yest configured!\n",
 			       compress_name);
 		nblocks = 0;
 		goto done;
@@ -192,7 +192,7 @@ int __init rd_load_image(char *from)
 
 	in_fd = ksys_open(from, O_RDONLY, 0);
 	if (in_fd < 0)
-		goto noclose_input;
+		goto yesclose_input;
 
 	nblocks = identify_ramdisk_image(in_fd, rd_image_start, &decompressor);
 	if (nblocks < 0)
@@ -205,7 +205,7 @@ int __init rd_load_image(char *from)
 	}
 
 	/*
-	 * NOTE NOTE: nblocks is not actually blocks but
+	 * NOTE NOTE: nblocks is yest actually blocks but
 	 * the number of kibibytes of data to load into a ramdisk.
 	 */
 	if (ksys_ioctl(out_fd, BLKGETSIZE, (unsigned long)&rd_blocks) < 0)
@@ -231,13 +231,13 @@ int __init rd_load_image(char *from)
 		devblocks = nblocks;
 
 	if (devblocks == 0) {
-		printk(KERN_ERR "RAMDISK: could not determine device size\n");
+		printk(KERN_ERR "RAMDISK: could yest determine device size\n");
 		goto done;
 	}
 
 	buf = kmalloc(BLOCK_SIZE, GFP_KERNEL);
 	if (!buf) {
-		printk(KERN_ERR "RAMDISK: could not allocate buffer\n");
+		printk(KERN_ERR "RAMDISK: could yest allocate buffer\n");
 		goto done;
 	}
 
@@ -249,13 +249,13 @@ int __init rd_load_image(char *from)
 			rotate = 0;
 			if (ksys_close(in_fd)) {
 				printk("Error closing the disk.\n");
-				goto noclose_input;
+				goto yesclose_input;
 			}
 			change_floppy("disk #%d", disk);
 			in_fd = ksys_open(from, O_RDONLY, 0);
 			if (in_fd < 0)  {
 				printk("Error opening disk.\n");
-				goto noclose_input;
+				goto yesclose_input;
 			}
 			printk("Loading disk #%d... ", disk);
 		}
@@ -274,7 +274,7 @@ successful_load:
 	res = 1;
 done:
 	ksys_close(in_fd);
-noclose_input:
+yesclose_input:
 	ksys_close(out_fd);
 out:
 	kfree(buf);
@@ -335,7 +335,7 @@ static int __init crd_load(int in_fd, int out_fd, decompress_fn deco)
 	if (!deco) {
 		pr_emerg("Invalid ramdisk decompression routine.  "
 			 "Select appropriate config option.\n");
-		panic("Could not decompress initial ramdisk image.");
+		panic("Could yest decompress initial ramdisk image.");
 	}
 
 	result = deco(NULL, 0, compr_fill, compr_flush, NULL, NULL, error);

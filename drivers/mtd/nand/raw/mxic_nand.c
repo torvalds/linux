@@ -377,7 +377,7 @@ static int mxic_nfc_data_xfer(struct mxic_nand_ctlr *nfc, const void *txbuf,
 			memcpy(rxbuf + pos, &data, nbytes);
 		}
 		if (readl(nfc->regs + INT_STS) & INT_RX_NOT_EMPTY)
-			dev_warn(nfc->dev, "RX FIFO not empty\n");
+			dev_warn(nfc->dev, "RX FIFO yest empty\n");
 
 		pos += nbytes;
 	}
@@ -482,7 +482,7 @@ static const struct nand_controller_ops mxic_nand_controller_ops = {
 
 static int mxic_nfc_probe(struct platform_device *pdev)
 {
-	struct device_node *nand_np, *np = pdev->dev.of_node;
+	struct device_yesde *nand_np, *np = pdev->dev.of_yesde;
 	struct mtd_info *mtd;
 	struct mxic_nand_ctlr *nfc;
 	struct nand_chip *nand_chip;
@@ -514,8 +514,8 @@ static int mxic_nfc_probe(struct platform_device *pdev)
 	mtd = nand_to_mtd(nand_chip);
 	mtd->dev.parent = &pdev->dev;
 
-	for_each_child_of_node(np, nand_np)
-		nand_set_flash_node(nand_chip, nand_np);
+	for_each_child_of_yesde(np, nand_np)
+		nand_set_flash_yesde(nand_chip, nand_np);
 
 	nand_chip->priv = nfc;
 	nfc->dev = &pdev->dev;

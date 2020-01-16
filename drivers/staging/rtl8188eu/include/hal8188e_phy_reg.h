@@ -66,7 +66,7 @@
 #define	rOFDM0_TRxPathEnable		0xc04
 #define	rOFDM0_TRMuxPar			0xc08
 
-/* RxIQ DC offset, Rx digital filter, DC notch filter */
+/* RxIQ DC offset, Rx digital filter, DC yestch filter */
 #define	rOFDM0_XARxAFE			0xc10
 #define	rOFDM0_XARxIQImbalance		0xc14  /* RxIQ imbalance matrix */
 #define	rOFDM0_XBRxAFE			0xc18

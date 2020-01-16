@@ -63,7 +63,7 @@ rawhide_enable_irq(struct irq_data *d)
 
 	irq -= 16;
 	hose = irq / 24;
-	if (!hose_exists(hose)) /* if hose non-existent, exit */
+	if (!hose_exists(hose)) /* if hose yesn-existent, exit */
 		return;
 
 	irq -= hose * 24;
@@ -84,7 +84,7 @@ rawhide_disable_irq(struct irq_data *d)
 
 	irq -= 16;
 	hose = irq / 24;
-	if (!hose_exists(hose)) /* if hose non-existent, exit */
+	if (!hose_exists(hose)) /* if hose yesn-existent, exit */
 		return;
 
 	irq -= hose * 24;
@@ -105,7 +105,7 @@ rawhide_mask_and_ack_irq(struct irq_data *d)
 
 	irq -= 16;
 	hose = irq / 24;
-	if (!hose_exists(hose)) /* if hose non-existent, exit */
+	if (!hose_exists(hose)) /* if hose yesn-existent, exit */
 		return;
 
 	irq -= hose * 24;
@@ -167,7 +167,7 @@ rawhide_init_irq(void)
 
 	mcpcia_init_hoses();
 
-	/* Clear them all; only hoses that exist will be non-zero. */
+	/* Clear them all; only hoses that exist will be yesn-zero. */
 	for (i = 0; i < MCPCIA_MAX_HOSES; i++) cached_irq_masks[i] = 0;
 
 	for (hose = hose_head; hose; hose = hose->next) {

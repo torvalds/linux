@@ -24,7 +24,7 @@ extern int isa_dma_bridge_buggy;
 #ifdef CONFIG_PCI
 static inline int pci_get_legacy_ide_irq(struct pci_dev *dev, int channel)
 {
-	/* no legacy IRQ on arm64 */
+	/* yes legacy IRQ on arm64 */
 	return -ENODEV;
 }
 

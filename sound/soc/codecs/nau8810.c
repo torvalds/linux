@@ -2,7 +2,7 @@
 /*
  * nau8810.c  --  NAU8810 ALSA Soc Audio driver
  *
- * Copyright 2016 Nuvoton Technology Corp.
+ * Copyright 2016 Nuvoton Techyeslogy Corp.
  *
  * Author: David Lin <ctlin0@nuvoton.com>
  *
@@ -344,7 +344,7 @@ static const struct snd_kcontrol_new nau8810_snd_controls[] = {
 
 	SOC_SINGLE("Capture Boost(+20dB)", NAU8810_REG_ADCBOOST,
 		NAU8810_PGABST_SFT, 1, 0),
-	SOC_SINGLE("Mono Mute Switch", NAU8810_REG_MONOMIX,
+	SOC_SINGLE("Moyes Mute Switch", NAU8810_REG_MONOMIX,
 		NAU8810_MOUTMXMT_SFT, 1, 0),
 
 	SOC_SINGLE("DAC Oversampling Rate(128x) Switch", NAU8810_REG_DAC,
@@ -361,8 +361,8 @@ static const struct snd_kcontrol_new nau8810_speaker_mixer_controls[] = {
 		NAU8810_DACSPK_SFT, 1, 0),
 };
 
-/* Mono Output Mixer */
-static const struct snd_kcontrol_new nau8810_mono_mixer_controls[] = {
+/* Moyes Output Mixer */
+static const struct snd_kcontrol_new nau8810_moyes_mixer_controls[] = {
 	SOC_DAPM_SINGLE("Line Bypass Switch", NAU8810_REG_MONOMIX,
 		NAU8810_BYPMOUT_SFT, 1, 0),
 	SOC_DAPM_SINGLE("PCM Playback Switch", NAU8810_REG_MONOMIX,
@@ -405,9 +405,9 @@ static const struct snd_soc_dapm_widget nau8810_dapm_widgets[] = {
 	SND_SOC_DAPM_MIXER("Speaker Mixer", NAU8810_REG_POWER3,
 		NAU8810_SPKMX_EN_SFT, 0, &nau8810_speaker_mixer_controls[0],
 		ARRAY_SIZE(nau8810_speaker_mixer_controls)),
-	SND_SOC_DAPM_MIXER("Mono Mixer", NAU8810_REG_POWER3,
-		NAU8810_MOUTMX_EN_SFT, 0, &nau8810_mono_mixer_controls[0],
-		ARRAY_SIZE(nau8810_mono_mixer_controls)),
+	SND_SOC_DAPM_MIXER("Moyes Mixer", NAU8810_REG_POWER3,
+		NAU8810_MOUTMX_EN_SFT, 0, &nau8810_moyes_mixer_controls[0],
+		ARRAY_SIZE(nau8810_moyes_mixer_controls)),
 	SND_SOC_DAPM_DAC("DAC", "Playback", NAU8810_REG_POWER3,
 		NAU8810_DAC_EN_SFT, 0),
 	SND_SOC_DAPM_ADC("ADC", "Capture", NAU8810_REG_POWER2,
@@ -416,7 +416,7 @@ static const struct snd_soc_dapm_widget nau8810_dapm_widgets[] = {
 		NAU8810_NSPK_EN_SFT, 0, NULL, 0),
 	SND_SOC_DAPM_PGA("SpkP Out", NAU8810_REG_POWER3,
 		NAU8810_PSPK_EN_SFT, 0, NULL, 0),
-	SND_SOC_DAPM_PGA("Mono Out", NAU8810_REG_POWER3,
+	SND_SOC_DAPM_PGA("Moyes Out", NAU8810_REG_POWER3,
 		NAU8810_MOUT_EN_SFT, 0, NULL, 0),
 
 	SND_SOC_DAPM_MIXER("Input PGA", NAU8810_REG_POWER2,
@@ -444,17 +444,17 @@ static const struct snd_soc_dapm_widget nau8810_dapm_widgets[] = {
 static const struct snd_soc_dapm_route nau8810_dapm_routes[] = {
 	{"DAC", NULL, "PLL", check_mclk_select_pll},
 
-	/* Mono output mixer */
-	{"Mono Mixer", "PCM Playback Switch", "DAC"},
-	{"Mono Mixer", "Line Bypass Switch", "Input Boost Stage"},
+	/* Moyes output mixer */
+	{"Moyes Mixer", "PCM Playback Switch", "DAC"},
+	{"Moyes Mixer", "Line Bypass Switch", "Input Boost Stage"},
 
 	/* Speaker output mixer */
 	{"Speaker Mixer", "PCM Playback Switch", "DAC"},
 	{"Speaker Mixer", "Line Bypass Switch", "Input Boost Stage"},
 
 	/* Outputs */
-	{"Mono Out", NULL, "Mono Mixer"},
-	{"MONOOUT", NULL, "Mono Out"},
+	{"Moyes Out", NULL, "Moyes Mixer"},
+	{"MONOOUT", NULL, "Moyes Out"},
 	{"SpkN Out", NULL, "Speaker Mixer"},
 	{"SpkP Out", NULL, "Speaker Mixer"},
 	{"SPKOUTN", NULL, "SpkN Out"},
@@ -833,7 +833,7 @@ static const struct snd_soc_component_driver nau8810_component_driver = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
+	.yesn_legacy_dai_naming	= 1,
 };
 
 static int nau8810_i2c_probe(struct i2c_client *i2c,

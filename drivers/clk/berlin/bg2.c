@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (c) 2014 Marvell Technology Group Ltd.
+ * Copyright (c) 2014 Marvell Techyeslogy Group Ltd.
  *
  * Sebastian Hesselbarth <sebastian.hesselbarth@gmail.com>
  * Alexandre Belloni <alexandre.belloni@free-electrons.com>
@@ -70,13 +70,13 @@
  * video1:  Secondary video
  * video2:  SD auxiliary video
  *
- * There are no external audio clocks (ACLKI0, ACLKI1) and
+ * There are yes external audio clocks (ACLKI0, ACLKI1) and
  * only one external video clock (VCLKI0).
  *
  * Currently missing bits and pieces:
- * - audio_fast_pll is unknown
- * - audiohd_pll is unknown
- * - video0_pll is unknown
+ * - audio_fast_pll is unkyeswn
+ * - audiohd_pll is unkyeswn
+ * - video0_pll is unkyeswn
  * - audio[023], audiohd parent pll is assumed to be audio_fast_pll
  *
  */
@@ -489,9 +489,9 @@ static const struct berlin2_gate_data bg2_gates[] __initconst = {
 	{ "video2",	"video2_in",	29 },
 };
 
-static void __init berlin2_clock_setup(struct device_node *np)
+static void __init berlin2_clock_setup(struct device_yesde *np)
 {
-	struct device_node *parent_np = of_get_parent(np);
+	struct device_yesde *parent_np = of_get_parent(np);
 	const char *parent_names[9];
 	struct clk *clk;
 	struct clk_hw *hw;

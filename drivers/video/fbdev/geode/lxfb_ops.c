@@ -5,7 +5,7 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/fb.h>
 #include <linux/uaccess.h>
 #include <linux/delay.h>
@@ -502,7 +502,7 @@ void lx_set_mode(struct fb_info *info)
 	write_dc(par, DC_UNLOCK, DC_UNLOCK_LOCK);
 }
 
-void lx_set_palette_reg(struct fb_info *info, unsigned regno,
+void lx_set_palette_reg(struct fb_info *info, unsigned regyes,
 			unsigned red, unsigned green, unsigned blue)
 {
 	struct lxfb_par *par = info->par;
@@ -514,7 +514,7 @@ void lx_set_palette_reg(struct fb_info *info, unsigned regno,
 	val |= (green)      & 0x00ff00;
 	val |= (blue  >> 8) & 0x0000ff;
 
-	write_dc(par, DC_PAL_ADDRESS, regno);
+	write_dc(par, DC_PAL_ADDRESS, regyes);
 	write_dc(par, DC_PAL_DATA, val);
 }
 
@@ -741,7 +741,7 @@ static void lx_restore_video_proc(struct lxfb_par *par)
 		case VP_PDR:
 		case VP_CCS:
 		case VP_RSVD_0:
-		/* case VP_VDC: */ /* why should this not be restored? */
+		/* case VP_VDC: */ /* why should this yest be restored? */
 		case VP_RSVD_1:
 		case VP_CRC32:
 			/* don't restore these registers */
@@ -789,12 +789,12 @@ static void lx_restore_regs(struct lxfb_par *par)
 
 	/* control the panel */
 	if (par->fp[FP_PM] & FP_PM_P) {
-		/* power on the panel if not already power{ed,ing} on */
+		/* power on the panel if yest already power{ed,ing} on */
 		if (!(read_fp(par, FP_PM) &
 				(FP_PM_PANEL_ON|FP_PM_PANEL_PWR_UP)))
 			write_fp(par, FP_PM, par->fp[FP_PM]);
 	} else {
-		/* power down the panel if not already power{ed,ing} down */
+		/* power down the panel if yest already power{ed,ing} down */
 		if (!(read_fp(par, FP_PM) &
 				(FP_PM_PANEL_OFF|FP_PM_PANEL_PWR_DOWN)))
 			write_fp(par, FP_PM, par->fp[FP_PM]);

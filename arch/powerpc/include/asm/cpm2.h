@@ -117,7 +117,7 @@ static inline void cpm_setbrg(uint brg, uint rate)
 	__cpm2_setbrg(brg, rate, CPM2_BRG_UART_CLK, 0, CPM_BRG_EXTC_INT);
 }
 
-/* This function is used to set high speed synchronous baud rate
+/* This function is used to set high speed synchroyesus baud rate
  * clocks.
  */
 static inline void cpm2_fastbrg(uint brg, uint rate, int div16)
@@ -162,7 +162,7 @@ static inline void cpm2_fastbrg(uint brg, uint rate, int div16)
 #define PROFF_SMC2	(64)
 
 
-/* Define enough so I can at least use the serial port as a UART.
+/* Define eyesugh so I can at least use the serial port as a UART.
  */
 typedef struct smc_uart {
 	ushort	smc_rbase;	/* Rx Buffer descriptor base address */
@@ -329,7 +329,7 @@ typedef struct scc_param {
 /* Function code bits.
 */
 #define SCC_EB	((u_char) 0x10)	/* Set big endian byte order */
-#define SCC_GBL	((u_char) 0x20) /* Snooping enabled */
+#define SCC_GBL	((u_char) 0x20) /* Syesoping enabled */
 
 /* CPM Ethernet through SCC1.
  */
@@ -423,7 +423,7 @@ typedef struct scc_uart {
 	ushort	scc_brkcr;	/* Break count register */
 	ushort	scc_parec;	/* receive parity error counter */
 	ushort	scc_frmec;	/* receive framing error counter */
-	ushort	scc_nosec;	/* receive noise counter */
+	ushort	scc_yessec;	/* receive yesise counter */
 	ushort	scc_brkec;	/* receive break condition counter */
 	ushort	scc_brkln;	/* last received break length */
 	ushort	scc_uaddr1;	/* UART address character 1 */
@@ -938,7 +938,7 @@ typedef struct im_idma {
  * SIUMCR - SIU Module Configuration Register				 4-31
  */
 #define SIUMCR_BBD	0x80000000	/* Bus Busy Disable		*/
-#define SIUMCR_ESE	0x40000000	/* External Snoop Enable	*/
+#define SIUMCR_ESE	0x40000000	/* External Syesop Enable	*/
 #define SIUMCR_PBSE	0x20000000	/* Parity Byte Select Enable	*/
 #define SIUMCR_CDIS	0x10000000	/* Core Disable			*/
 #define SIUMCR_DPPC00	0x00000000	/* Data Parity Pins Configuration*/
@@ -1019,7 +1019,7 @@ typedef struct im_idma {
 
 #define CLK_TRX (PC_F3TXCLK | PC_F3RXCLK | PC_F2TXCLK | PC_F2RXCLK)
 
-/* I/O Pin assignment for FCC1.  I don't yet know the best way to do this,
+/* I/O Pin assignment for FCC1.  I don't yet kyesw the best way to do this,
  * but there is little variation among the choices.
  */
 #define PA1_COL		0x00000001U
@@ -1037,7 +1037,7 @@ typedef struct im_idma {
 #define PA1_DIRA1	(PA1_TXDAT | PA1_TXEN | PA1_TXER)
 
 
-/* I/O Pin assignment for FCC2.  I don't yet know the best way to do this,
+/* I/O Pin assignment for FCC2.  I don't yet kyesw the best way to do this,
  * but there is little variation among the choices.
  */
 #define PB2_TXER	0x00000001U
@@ -1055,7 +1055,7 @@ typedef struct im_idma {
 #define PB2_DIRB1	(PB2_TXDAT | PB2_TXEN | PB2_TXER)
 
 
-/* I/O Pin assignment for FCC3.  I don't yet know the best way to do this,
+/* I/O Pin assignment for FCC3.  I don't yet kyesw the best way to do this,
  * but there is little variation among the choices.
  */
 #define PB3_RXDV	0x00004000U

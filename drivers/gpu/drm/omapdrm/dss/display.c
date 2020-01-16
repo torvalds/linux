@@ -25,14 +25,14 @@ void omapdss_display_init(struct omap_dss_device *dssdev)
 
 	/*
 	 * Note: this presumes that all displays either have an DT alias, or
-	 * none has.
+	 * yesne has.
 	 */
-	id = of_alias_get_id(dssdev->dev->of_node, "display");
+	id = of_alias_get_id(dssdev->dev->of_yesde, "display");
 	if (id < 0)
 		id = disp_num_counter++;
 
 	/* Use 'label' property for name, if it exists */
-	of_property_read_string(dssdev->dev->of_node, "label", &dssdev->name);
+	of_property_read_string(dssdev->dev->of_yesde, "label", &dssdev->name);
 
 	if (dssdev->name == NULL)
 		dssdev->name = devm_kasprintf(dssdev->dev, GFP_KERNEL,

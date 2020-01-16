@@ -134,9 +134,9 @@ int tegra_display_hub_prepare(struct tegra_display_hub *hub)
 
 	/*
 	 * XXX Enabling/disabling windowgroups needs to happen when the owner
-	 * display controller is disabled. There's currently no good point at
+	 * display controller is disabled. There's currently yes good point at
 	 * which this could be executed, so unconditionally enable all window
-	 * groups for now.
+	 * groups for yesw.
 	 */
 	for (i = 0; i < hub->soc->num_wgrps; i++) {
 		struct tegra_windowgroup *wgrp = &hub->wgrps[i];
@@ -220,7 +220,7 @@ static bool tegra_dc_owns_shared_plane(struct tegra_dc *dc,
 		if (plane->dc == dc)
 			return true;
 
-		dev_WARN(dev, "head %u owns window %u but is not attached\n",
+		dev_WARN(dev, "head %u owns window %u but is yest attached\n",
 			 dc->pipe, plane->index);
 	}
 
@@ -251,7 +251,7 @@ static int tegra_shared_plane_set_owner(struct tegra_plane *plane,
 	 * reassign the window to the new head anyway.
 	 */
 	if (old && owner == OWNER_MASK)
-		dev_dbg(dev, "window %u not owned by head %u but %u\n", index,
+		dev_dbg(dev, "window %u yest owned by head %u but %u\n", index,
 			old->pipe, owner);
 
 	value &= ~OWNER_MASK;
@@ -332,7 +332,7 @@ static int tegra_shared_plane_atomic_check(struct drm_plane *plane,
 	struct tegra_dc *dc = to_tegra_dc(state->crtc);
 	int err;
 
-	/* no need for further checks if the plane is being disabled */
+	/* yes need for further checks if the plane is being disabled */
 	if (!state->crtc || !state->fb)
 		return 0;
 
@@ -364,7 +364,7 @@ static int tegra_shared_plane_atomic_check(struct drm_plane *plane,
 		}
 	}
 
-	/* XXX scaling is not yet supported, add a check here */
+	/* XXX scaling is yest yet supported, add a check here */
 
 	err = tegra_plane_state_add(&tegra->base, state);
 	if (err < 0)
@@ -410,7 +410,7 @@ static void tegra_shared_plane_atomic_update(struct drm_plane *plane,
 {
 	struct tegra_plane_state *state = to_tegra_plane_state(plane->state);
 	struct tegra_dc *dc = to_tegra_dc(plane->state->crtc);
-	unsigned int zpos = plane->state->normalized_zpos;
+	unsigned int zpos = plane->state->yesrmalized_zpos;
 	struct drm_framebuffer *fb = plane->state->fb;
 	struct tegra_plane *p = to_tegra_plane(plane);
 	dma_addr_t base;
@@ -496,7 +496,7 @@ static void tegra_shared_plane_atomic_update(struct drm_plane *plane,
 				DC_WINBUF_SURFACE_KIND_PITCH;
 			break;
 
-		/* XXX not supported on Tegra186 and later */
+		/* XXX yest supported on Tegra186 and later */
 		case TEGRA_BO_TILING_MODE_TILED:
 			value = DC_WINBUF_SURFACE_KIND_TILED;
 			break;
@@ -739,7 +739,7 @@ static const struct host1x_client_ops tegra_display_hub_ops = {
 
 static int tegra_display_hub_probe(struct platform_device *pdev)
 {
-	struct device_node *child = NULL;
+	struct device_yesde *child = NULL;
 	struct tegra_display_hub *hub;
 	struct clk *clk;
 	unsigned int i;
@@ -800,7 +800,7 @@ static int tegra_display_hub_probe(struct platform_device *pdev)
 			return err;
 	}
 
-	hub->num_heads = of_get_child_count(pdev->dev.of_node);
+	hub->num_heads = of_get_child_count(pdev->dev.of_yesde);
 
 	hub->clk_heads = devm_kcalloc(&pdev->dev, hub->num_heads, sizeof(clk),
 				      GFP_KERNEL);
@@ -808,9 +808,9 @@ static int tegra_display_hub_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	for (i = 0; i < hub->num_heads; i++) {
-		child = of_get_next_child(pdev->dev.of_node, child);
+		child = of_get_next_child(pdev->dev.of_yesde, child);
 		if (!child) {
-			dev_err(&pdev->dev, "failed to find node for head %u\n",
+			dev_err(&pdev->dev, "failed to find yesde for head %u\n",
 				i);
 			return -ENODEV;
 		}
@@ -819,14 +819,14 @@ static int tegra_display_hub_probe(struct platform_device *pdev)
 		if (IS_ERR(clk)) {
 			dev_err(&pdev->dev, "failed to get clock for head %u\n",
 				i);
-			of_node_put(child);
+			of_yesde_put(child);
 			return PTR_ERR(clk);
 		}
 
 		hub->clk_heads[i] = clk;
 	}
 
-	of_node_put(child);
+	of_yesde_put(child);
 
 	/* XXX: enable clock across reset? */
 	err = reset_control_assert(hub->rst);

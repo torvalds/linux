@@ -49,7 +49,7 @@ static int snd_acp3x_probe(struct pci_dev *pci,
 	/* check for msi interrupt support */
 	ret = pci_enable_msi(pci);
 	if (ret)
-		/* msi is not enabled */
+		/* msi is yest enabled */
 		irqflags = IRQF_SHARED;
 	else
 		/* msi is enabled */
@@ -98,7 +98,7 @@ static int snd_acp3x_probe(struct pci_dev *pci,
 
 		adata->pdev = platform_device_register_full(&pdevinfo);
 		if (IS_ERR(adata->pdev)) {
-			dev_err(&pci->dev, "cannot register %s device\n",
+			dev_err(&pci->dev, "canyest register %s device\n",
 				pdevinfo.name);
 			ret = PTR_ERR(adata->pdev);
 			goto unmap_mmio;

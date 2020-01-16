@@ -41,7 +41,7 @@ union smc_cdc_cursor {		/* SMC cursor */
 struct smc_cdc_msg {
 	struct smc_wr_rx_hdr		common; /* .type = 0xFE */
 	u8				len;	/* 44 */
-	__be16				seqno;
+	__be16				seqyes;
 	__be32				token;
 	union smc_cdc_cursor		prod;
 	union smc_cdc_cursor		cons;	/* piggy backed "ack" */
@@ -161,7 +161,7 @@ static inline void smcd_curs_copy(union smcd_cdc_cursor *tgt,
 }
 
 /* calculate cursor difference between old and new, where old <= new and
- * difference cannot exceed size
+ * difference canyest exceed size
  */
 static inline int smc_curs_diff(unsigned int size,
 				union smc_host_cursor *old,
@@ -228,7 +228,7 @@ static inline void smc_host_msg_to_cdc(struct smc_cdc_msg *peer,
 
 	peer->common.type = local->common.type;
 	peer->len = local->len;
-	peer->seqno = htons(local->seqno);
+	peer->seqyes = htons(local->seqyes);
 	peer->token = htonl(local->token);
 	smc_host_cursor_to_cdc(&peer->prod, &local->prod, save, conn);
 	smc_host_cursor_to_cdc(&peer->cons, &local->cons, save, conn);
@@ -261,7 +261,7 @@ static inline void smcr_cdc_msg_to_host(struct smc_host_cdc_msg *local,
 {
 	local->common.type = peer->common.type;
 	local->len = peer->len;
-	local->seqno = ntohs(peer->seqno);
+	local->seqyes = ntohs(peer->seqyes);
 	local->token = ntohl(peer->token);
 	smc_cdc_cursor_to_host(&local->prod, &peer->prod, conn);
 	smc_cdc_cursor_to_host(&local->cons, &peer->cons, conn);

@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: GPL-2.0-only
-/// NULL check before some freeing functions is not needed.
+/// NULL check before some freeing functions is yest needed.
 ///
 /// Based on checkpatch warning
-/// "kfree(NULL) is safe this check is probably not required"
+/// "kfree(NULL) is safe this check is probably yest required"
 /// and kfreeaddr.cocci by Julia Lawall.
 ///
 // Copyright: (C) 2014 Fabian Frederick.
 // Comments: -
-// Options: --no-includes --include-headers
+// Options: --yes-includes --include-headers
 
 virtual patch
 virtual org
@@ -50,11 +50,11 @@ position p;
 p << r.p;
 @@
 
-cocci.print_main("NULL check before that freeing function is not needed", p)
+cocci.print_main("NULL check before that freeing function is yest needed", p)
 
 @script:python depends on report@
 p << r.p;
 @@
 
-msg = "WARNING: NULL check before some freeing functions is not needed."
+msg = "WARNING: NULL check before some freeing functions is yest needed."
 coccilib.report.print_report(p[0], msg)

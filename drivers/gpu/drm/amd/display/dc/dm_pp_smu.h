@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -57,7 +57,7 @@ struct pp_smu {
 
 	/*
 	 * interim extra handle for backwards compatibility
-	 * as some existing functionality not yet implemented
+	 * as some existing functionality yest yet implemented
 	 * by ppsmu
 	 */
 	const void *dm;
@@ -235,7 +235,7 @@ struct pp_smu_funcs_nv {
 	enum pp_smu_status (*get_uclk_dpm_states)(struct pp_smu *pp,
 			unsigned int *clock_values_in_khz, unsigned int *num_states);
 
-	/* Not a single SMU message.  This call informs PPLIB that display will not be able
+	/* Not a single SMU message.  This call informs PPLIB that display will yest be able
 	 * to perform pstate handshaking in its current state.  Typically this handshake
 	 * is used to perform uCLK switching, so disabling pstate disables uCLK switching.
 	 *

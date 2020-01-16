@@ -229,7 +229,7 @@ static int iproc_pwmc_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	/* Set full drive and normal polarity for all channels */
+	/* Set full drive and yesrmal polarity for all channels */
 	value = readl(ip->base + IPROC_PWM_CTRL_OFFSET);
 
 	for (i = 0; i < ip->chip.npwm; i++) {

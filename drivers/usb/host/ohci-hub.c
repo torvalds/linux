@@ -11,7 +11,7 @@
 /*-------------------------------------------------------------------------*/
 
 /*
- * OHCI Root Hub ... the nonsharable stuff
+ * OHCI Root Hub ... the yesnsharable stuff
  */
 
 #define dbg_port(hc,label,num,value) \
@@ -126,7 +126,7 @@ __acquires(ohci->lock)
 	ohci_writel (ohci, ohci->hc_control, &ohci->regs->control);
 	(void) ohci_readl (ohci, &ohci->regs->control);
 
-	/* no resumes until devices finish suspending */
+	/* yes resumes until devices finish suspending */
 	if (!autostop) {
 		ohci->next_statechange = jiffies + msecs_to_jiffies (5);
 		ohci->autostop = 0;
@@ -260,7 +260,7 @@ skip_resume:
 		msleep (10);
 		spin_lock_irq (&ohci->lock);
 	}
-	/* now ohci->lock is always held and irqs are always disabled */
+	/* yesw ohci->lock is always held and irqs are always disabled */
 
 	/* keep it alive for more than ~5x suspend + resume costs */
 	ohci->next_statechange = jiffies + STATECHANGE_DELAY;
@@ -313,7 +313,7 @@ static int ohci_bus_suspend (struct usb_hcd *hcd)
 
 	if (rc == 0) {
 		del_timer_sync(&ohci->io_watchdog);
-		ohci->prev_frame_no = IO_WATCHDOG_OFF;
+		ohci->prev_frame_yes = IO_WATCHDOG_OFF;
 	}
 	return rc;
 }
@@ -334,7 +334,7 @@ static int ohci_bus_resume (struct usb_hcd *hcd)
 		rc = ohci_rh_resume (ohci);
 	spin_unlock_irq (&ohci->lock);
 
-	/* poll until we know a device is connected or we autostop */
+	/* poll until we kyesw a device is connected or we autostop */
 	if (rc == 0)
 		usb_hcd_poll_rh_status(hcd);
 	return rc;
@@ -356,13 +356,13 @@ static int ohci_root_hub_state_changes(struct ohci_hcd *ohci, int changed,
 
 	switch (ohci->hc_control & OHCI_CTRL_HCFS) {
 	case OHCI_USB_OPER:
-		/* If no status changes are pending, enable RHSC interrupts. */
+		/* If yes status changes are pending, enable RHSC interrupts. */
 		if (!rhsc_enable && !rhsc_status && !changed) {
 			rhsc_enable = OHCI_INTR_RHSC;
 			ohci_writel(ohci, rhsc_enable, &ohci->regs->intrenable);
 		}
 
-		/* Keep on polling until we know a device is connected
+		/* Keep on polling until we kyesw a device is connected
 		 * and RHSC is enabled, or until we autostop.
 		 */
 		if (!ohci->autostop) {
@@ -376,7 +376,7 @@ static int ohci_root_hub_state_changes(struct ohci_hcd *ohci, int changed,
 				ohci->next_statechange = jiffies + HZ;
 			}
 
-		/* if no devices have been attached for one second, autostop */
+		/* if yes devices have been attached for one second, autostop */
 		} else {
 			if (changed || any_connected) {
 				ohci->autostop = 0;
@@ -410,7 +410,7 @@ static int ohci_root_hub_state_changes(struct ohci_hcd *ohci, int changed,
 			poll_rh = 0;
 
 		} else {
-			/* If no status changes are pending,
+			/* If yes status changes are pending,
 			 * enable RHSC interrupts
 			 */
 			if (!rhsc_enable && !rhsc_status) {
@@ -445,7 +445,7 @@ static int ohci_root_hub_state_changes(struct ohci_hcd *ohci, int changed,
 		return 0;
 
 	/* If status changes are pending, continue polling.
-	 * Conversely, if no status changes are pending but the RHSC
+	 * Conversely, if yes status changes are pending but the RHSC
 	 * status bit was set, then RHSC may be broken so continue polling.
 	 */
 	if (changed || rhsc_status)
@@ -479,7 +479,7 @@ int ohci_hub_status_data(struct usb_hcd *hcd, char *buf)
 			&& (roothub_a (ohci) & RH_A_NDP) > MAX_ROOT_PORTS) {
 		ohci_warn (ohci, "bogus NDP, rereads as NDP=%d\n",
 			  ohci_readl (ohci, &ohci->regs->roothub.a) & RH_A_NDP);
-		/* retry later; "should not happen" */
+		/* retry later; "should yest happen" */
 		goto done;
 	}
 
@@ -548,11 +548,11 @@ ohci_hub_descriptor (
 	desc->bDescLength = 7 + 2 * temp;
 
 	temp = HUB_CHAR_COMMON_LPSM | HUB_CHAR_COMMON_OCPM;
-	if (rh & RH_A_NPS)		/* no power switching? */
+	if (rh & RH_A_NPS)		/* yes power switching? */
 		temp |= HUB_CHAR_NO_LPSM;
 	if (rh & RH_A_PSM)		/* per-port power switching? */
 		temp |= HUB_CHAR_INDV_PORT_LPSM;
-	if (rh & RH_A_NOCP)		/* no overcurrent reporting? */
+	if (rh & RH_A_NOCP)		/* yes overcurrent reporting? */
 		temp |= HUB_CHAR_NO_OCPM;
 	else if (rh & RH_A_OCPM)	/* per-port overcurrent reporting? */
 		temp |= HUB_CHAR_INDV_PORT_OCPM;
@@ -603,7 +603,7 @@ static int ohci_start_port_reset (struct usb_hcd *hcd, unsigned port)
 
 
 /* See usb 7.1.7.5:  root hubs must issue at least 50 msec reset signaling,
- * not necessarily continuous ... to guard against resume signaling.
+ * yest necessarily continuous ... to guard against resume signaling.
  */
 #define	PORT_RESET_MSEC		50
 
@@ -613,16 +613,16 @@ static int ohci_start_port_reset (struct usb_hcd *hcd, unsigned port)
 /* wrap-aware logic morphed from <linux/jiffies.h> */
 #define tick_before(t1,t2) ((s16)(((s16)(t1))-((s16)(t2))) < 0)
 
-/* called from some task, normally hub_wq */
+/* called from some task, yesrmally hub_wq */
 static inline int root_port_reset (struct ohci_hcd *ohci, unsigned port)
 {
 	__hc32 __iomem *portstat = &ohci->regs->roothub.portstatus [port];
 	u32	temp = 0;
-	u16	now = ohci_readl(ohci, &ohci->regs->fmnumber);
-	u16	reset_done = now + PORT_RESET_MSEC;
+	u16	yesw = ohci_readl(ohci, &ohci->regs->fmnumber);
+	u16	reset_done = yesw + PORT_RESET_MSEC;
 	int	limit_1 = DIV_ROUND_UP(PORT_RESET_MSEC, PORT_RESET_HW_MSEC);
 
-	/* build a "continuous enough" reset signal, with up to
+	/* build a "continuous eyesugh" reset signal, with up to
 	 * 3msec gap between pulses.  scheduler HZ==100 must work;
 	 * this might need to be deadline-scheduled.
 	 */
@@ -660,8 +660,8 @@ static inline int root_port_reset (struct ohci_hcd *ohci, unsigned port)
 		/* start the next reset, sleep till it's probably done */
 		ohci_writel (ohci, RH_PS_PRS, portstat);
 		msleep(PORT_RESET_HW_MSEC);
-		now = ohci_readl(ohci, &ohci->regs->fmnumber);
-	} while (tick_before(now, reset_done) && --limit_1 >= 0);
+		yesw = ohci_readl(ohci, &ohci->regs->fmnumber);
+	} while (tick_before(yesw, reset_done) && --limit_1 >= 0);
 
 	/* caller synchronizes using PRSC ... and handles PRS
 	 * still being set when this returns.
@@ -755,7 +755,7 @@ int ohci_hub_control(
 	case SetHubFeature:
 		switch (wValue) {
 		case C_HUB_OVER_CURRENT:
-			// FIXME:  this can be cleared, yes?
+			// FIXME:  this can be cleared, no?
 		case C_HUB_LOCAL_POWER:
 			break;
 		default:

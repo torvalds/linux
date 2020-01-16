@@ -12,7 +12,7 @@
 #include <linux/delay.h>
 #include <linux/ioport.h>
 #include <linux/slab.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/list.h>
 #include <linux/interrupt.h>
 #include <linux/proc_fs.h>
@@ -2669,7 +2669,7 @@ static int nbu2ss_ep_dequeue(struct usb_ep *_ep, struct usb_request *_req)
 
 	spin_unlock_irqrestore(&udc->lock, flags);
 
-	pr_debug("%s no queue(EINVAL)\n", __func__);
+	pr_debug("%s yes queue(EINVAL)\n", __func__);
 
 	return -EINVAL;
 }

@@ -69,7 +69,7 @@ typedef struct txdesc_8723b
 	u32 rsvd0026:1;
 	u32 rsvd0027:1;
 	u32 linip:1;
-	u32 noacm:1;
+	u32 yesacm:1;
 	u32 gf:1;
 	u32 rsvd0031:1;
 

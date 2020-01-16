@@ -20,14 +20,14 @@
 #define SRMMU_MIN_NOCACHE_PAGES (550)
 #define SRMMU_MAX_NOCACHE_PAGES	(1280)
 
-/* The following constant is used in mm/srmmu.c::srmmu_nocache_calcsize()
- * to determine the amount of memory that will be reserved as nocache:
+/* The following constant is used in mm/srmmu.c::srmmu_yescache_calcsize()
+ * to determine the amount of memory that will be reserved as yescache:
  *
- * 256 pages will be taken as nocache per each
+ * 256 pages will be taken as yescache per each
  * SRMMU_NOCACHE_ALCRATIO MB of system memory.
  *
- * limits enforced:	nocache minimum = 256 pages
- *			nocache maximum = 1280 pages
+ * limits enforced:	yescache minimum = 256 pages
+ *			yescache maximum = 1280 pages
  */
 #define SRMMU_NOCACHE_ALCRATIO	64	/* 256 pages per 64MB of system RAM */
 

@@ -31,7 +31,7 @@ static int evm_xattrs_locked;
 /**
  * evm_read_key - read() for <securityfs>/evm
  *
- * @filp: file pointer, not actually used
+ * @filp: file pointer, yest actually used
  * @buf: where to put the result
  * @count: maximum to send along
  * @ppos: where to start
@@ -55,7 +55,7 @@ static ssize_t evm_read_key(struct file *filp, char __user *buf,
 
 /**
  * evm_write_key - write() for <securityfs>/evm
- * @file: file pointer, not actually used
+ * @file: file pointer, yest actually used
  * @buf: where to get the data from
  * @count: bytes sent
  * @ppos: where to start
@@ -118,7 +118,7 @@ static const struct file_operations evm_key_ops = {
 /**
  * evm_read_xattrs - read() for <securityfs>/evm_xattrs
  *
- * @filp: file pointer, not actually used
+ * @filp: file pointer, yest actually used
  * @buf: where to put the result
  * @count: maximum to send along
  * @ppos: where to start
@@ -164,7 +164,7 @@ static ssize_t evm_read_xattrs(struct file *filp, char __user *buf,
 
 /**
  * evm_write_xattrs - write() for <securityfs>/evm_xattrs
- * @file: file pointer, not actually used
+ * @file: file pointer, yest actually used
  * @buf: where to get the data from
  * @count: bytes sent
  * @ppos: where to start
@@ -178,7 +178,7 @@ static ssize_t evm_write_xattrs(struct file *file, const char __user *buf,
 	struct xattr_list *xattr, *tmp;
 	struct audit_buffer *ab;
 	struct iattr newattrs;
-	struct inode *inode;
+	struct iyesde *iyesde;
 
 	if (!capable(CAP_SYS_ADMIN) || evm_xattrs_locked)
 		return -EPERM;
@@ -219,10 +219,10 @@ static ssize_t evm_write_xattrs(struct file *file, const char __user *buf,
 		evm_xattrs_locked = 1;
 		newattrs.ia_mode = S_IFREG | 0440;
 		newattrs.ia_valid = ATTR_MODE;
-		inode = evm_xattrs->d_inode;
-		inode_lock(inode);
+		iyesde = evm_xattrs->d_iyesde;
+		iyesde_lock(iyesde);
 		err = simple_setattr(evm_xattrs, &newattrs);
-		inode_unlock(inode);
+		iyesde_unlock(iyesde);
 		if (!err)
 			err = count;
 		goto out;

@@ -32,14 +32,14 @@ static void mt76x0e_stop_hw(struct mt76x02_dev *dev)
 
 	if (!mt76_poll(dev, MT_WPDMA_GLO_CFG, MT_WPDMA_GLO_CFG_TX_DMA_BUSY,
 		       0, 1000))
-		dev_warn(dev->mt76.dev, "TX DMA did not stop\n");
+		dev_warn(dev->mt76.dev, "TX DMA did yest stop\n");
 	mt76_clear(dev, MT_WPDMA_GLO_CFG, MT_WPDMA_GLO_CFG_TX_DMA_EN);
 
 	mt76x0_mac_stop(dev);
 
 	if (!mt76_poll(dev, MT_WPDMA_GLO_CFG, MT_WPDMA_GLO_CFG_RX_DMA_BUSY,
 		       0, 1000))
-		dev_warn(dev->mt76.dev, "TX DMA did not stop\n");
+		dev_warn(dev->mt76.dev, "TX DMA did yest stop\n");
 	mt76_clear(dev, MT_WPDMA_GLO_CFG, MT_WPDMA_GLO_CFG_RX_DMA_EN);
 }
 
@@ -88,7 +88,7 @@ static int mt76x0e_register_device(struct mt76x02_dev *dev)
 {
 	int err;
 
-	mt76x0_chip_onoff(dev, true, false);
+	mt76x0_chip_oyesff(dev, true, false);
 	if (!mt76x02_wait_for_mac(&dev->mt76))
 		return -ETIMEDOUT;
 
@@ -197,7 +197,7 @@ static void mt76x0e_cleanup(struct mt76x02_dev *dev)
 {
 	clear_bit(MT76_STATE_INITIALIZED, &dev->mt76.state);
 	tasklet_disable(&dev->mt76.pre_tbtt_tasklet);
-	mt76x0_chip_onoff(dev, false, false);
+	mt76x0_chip_oyesff(dev, false, false);
 	mt76x0e_stop_hw(dev);
 	mt76x02_dma_cleanup(dev);
 	mt76x02_mcu_cleanup(dev);

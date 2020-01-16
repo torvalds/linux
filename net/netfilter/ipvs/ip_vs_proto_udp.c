@@ -60,7 +60,7 @@ udp_conn_schedule(struct netns_ipvs *ipvs, int af, struct sk_buff *skb,
 					 &iph->saddr, ports[0]);
 
 	if (svc) {
-		int ignored;
+		int igyesred;
 
 		if (ip_vs_todrop(ipvs)) {
 			/*
@@ -75,9 +75,9 @@ udp_conn_schedule(struct netns_ipvs *ipvs, int af, struct sk_buff *skb,
 		 * Let the virtual server select a real server for the
 		 * incoming connection, and create a connection entry.
 		 */
-		*cpp = ip_vs_schedule(svc, skb, pd, &ignored, iph);
-		if (!*cpp && ignored <= 0) {
-			if (!ignored)
+		*cpp = ip_vs_schedule(svc, skb, pd, &igyesred, iph);
+		if (!*cpp && igyesred <= 0) {
+			if (!igyesred)
 				*verdict = ip_vs_leave(svc, skb, pd, iph);
 			else
 				*verdict = NF_DROP;
@@ -454,7 +454,7 @@ udp_state_transition(struct ip_vs_conn *cp, int direction,
 		     struct ip_vs_proto_data *pd)
 {
 	if (unlikely(!pd)) {
-		pr_err("UDP no ns data\n");
+		pr_err("UDP yes ns data\n");
 		return;
 	}
 

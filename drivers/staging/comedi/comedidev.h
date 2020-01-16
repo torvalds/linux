@@ -39,7 +39,7 @@
  *	the COMEDI core and user application.  (Initialized by the low-level
  *	driver.)
  * @len_chanlist: Maximum length of a channel list if the subdevice supports
- *	asynchronous acquisition commands.  (Optionally initialized by the
+ *	asynchroyesus acquisition commands.  (Optionally initialized by the
  *	low-level driver, or changed from 0 to 1 during post-configuration.)
  * @private: Private data pointer which is either set by the low-level driver
  *	itself, or by a call to comedi_alloc_spriv() which allocates storage.
@@ -47,28 +47,28 @@
  *	low-level driver's "detach" handler is called for the device.
  *	(Initialized by the low-level driver.)
  * @async: Pointer to &struct comedi_async id the subdevice supports
- *	asynchronous acquisition commands.  (Allocated and initialized during
+ *	asynchroyesus acquisition commands.  (Allocated and initialized during
  *	post-configuration if needed.)
  * @lock: Pointer to a file object that performed a %COMEDI_LOCK ioctl on the
  *	subdevice.  (Initially NULL.)
- * @busy: Pointer to a file object that is performing an asynchronous
+ * @busy: Pointer to a file object that is performing an asynchroyesus
  *	acquisition command on the subdevice.  (Initially NULL.)
  * @runflags: Internal flags for use by COMEDI core, mostly indicating whether
- *	an asynchronous acquisition command is running.
+ *	an asynchroyesus acquisition command is running.
  * @spin_lock: Generic spin-lock for use by the COMEDI core and the low-level
  *	driver.  (Initialized by comedi_alloc_subdevices().)
  * @io_bits: Bit-mask indicating the channel directions for a DIO subdevice
- *	with no more than 32 channels.  A '1' at a bit position indicates the
+ *	with yes more than 32 channels.  A '1' at a bit position indicates the
  *	corresponding channel is configured as an output.  (Initialized by the
  *	low-level driver for a DIO subdevice.  Forced to all-outputs during
  *	post-configuration for a digital output subdevice.)
- * @maxdata: If non-zero, this is the maximum raw data value of each channel.
+ * @maxdata: If yesn-zero, this is the maximum raw data value of each channel.
  *	If zero, the maximum data value is channel-specific.  (Initialized by
  *	the low-level driver.)
  * @maxdata_list: If the maximum data value is channel-specific, this points
  *	to an array of maximum data values indexed by channel index.
  *	(Initialized by the low-level driver.)
- * @range_table: If non-NULL, this points to a COMEDI range table for the
+ * @range_table: If yesn-NULL, this points to a COMEDI range table for the
  *	subdevice.  If NULL, the range table is channel-specific.  (Initialized
  *	by the low-level driver, will be set to an "invalid" range table during
  *	post-configuration if @range_table and @range_table_list are both
@@ -90,45 +90,45 @@
  * @insn_config: Optional pointer to a handler for the %INSN_CONFIG
  *	instruction.  (Initialized by the low-level driver, or set to a default
  *	handler during post-configuration.)
- * @do_cmd: If the subdevice supports asynchronous acquisition commands, this
+ * @do_cmd: If the subdevice supports asynchroyesus acquisition commands, this
  *	points to a handler to set it up in hardware.  (Initialized by the
  *	low-level driver.)
- * @do_cmdtest: If the subdevice supports asynchronous acquisition commands,
+ * @do_cmdtest: If the subdevice supports asynchroyesus acquisition commands,
  *	this points to a handler used to check and possibly tweak a prospective
  *	acquisition command without setting it up in hardware.  (Initialized by
  *	the low-level driver.)
- * @poll: If the subdevice supports asynchronous acquisition commands, this
+ * @poll: If the subdevice supports asynchroyesus acquisition commands, this
  *	is an optional pointer to a handler for the %COMEDI_POLL ioctl which
  *	instructs the low-level driver to synchronize buffers.  (Initialized by
  *	the low-level driver if needed.)
- * @cancel: If the subdevice supports asynchronous acquisition commands, this
+ * @cancel: If the subdevice supports asynchroyesus acquisition commands, this
  *	points to a handler used to terminate a running command.  (Initialized
  *	by the low-level driver.)
- * @buf_change: If the subdevice supports asynchronous acquisition commands,
+ * @buf_change: If the subdevice supports asynchroyesus acquisition commands,
  *	this is an optional pointer to a handler that is called when the data
- *	buffer for handling asynchronous commands is allocated or reallocated.
+ *	buffer for handling asynchroyesus commands is allocated or reallocated.
  *	(Initialized by the low-level driver if needed.)
- * @munge: If the subdevice supports asynchronous acquisition commands and
+ * @munge: If the subdevice supports asynchroyesus acquisition commands and
  *	uses DMA to transfer data from the hardware to the acquisition buffer,
  *	this points to a function used to "munge" the data values from the
  *	hardware into the format expected by COMEDI.  (Initialized by the
  *	low-level driver if needed.)
- * @async_dma_dir: If the subdevice supports asynchronous acquisition commands
+ * @async_dma_dir: If the subdevice supports asynchroyesus acquisition commands
  *	and uses DMA to transfer data from the hardware to the acquisition
  *	buffer, this sets the DMA direction for the buffer. (initialized to
  *	%DMA_NONE by comedi_alloc_subdevices() and changed by the low-level
  *	driver if necessary.)
  * @state: Handy bit-mask indicating the output states for a DIO or digital
- *	output subdevice with no more than 32 channels. (Initialized by the
+ *	output subdevice with yes more than 32 channels. (Initialized by the
  *	low-level driver.)
- * @class_dev: If the subdevice supports asynchronous acquisition commands,
- *	this points to a sysfs comediX_subdY device where X is the minor device
- *	number of the COMEDI device and Y is the subdevice number.  The minor
+ * @class_dev: If the subdevice supports asynchroyesus acquisition commands,
+ *	this points to a sysfs comediX_subdY device where X is the miyesr device
+ *	number of the COMEDI device and Y is the subdevice number.  The miyesr
  *	device number for the sysfs device is allocated dynamically in the
  *	range 48 to 255.  This is used to allow the COMEDI device to be opened
  *	with a different default read or write subdevice.  (Allocated during
  *	post-configuration if needed.)
- * @minor: If @class_dev is set, this is its dynamically allocated minor
+ * @miyesr: If @class_dev is set, this is its dynamically allocated miyesr
  *	device number.  (Set during post-configuration if necessary.)
  * @readback: Optional pointer to memory allocated by
  *	comedi_alloc_subdev_readback() used to hold the values written to
@@ -137,7 +137,7 @@
  *	called for the device.  (Initialized by the low-level driver.)
  *
  * This is the main control structure for a COMEDI subdevice.  If the subdevice
- * supports asynchronous acquisition commands, additional information is stored
+ * supports asynchroyesus acquisition commands, additional information is stored
  * in the &struct comedi_async pointed to by @async.
  *
  * Most of the subdevice is initialized by the low-level driver's "attach" or
@@ -175,7 +175,7 @@ struct comedi_subdevice {
 	const struct comedi_lrange *range_table;
 	const struct comedi_lrange *const *range_table_list;
 
-	unsigned int *chanlist;	/* driver-owned chanlist (not used) */
+	unsigned int *chanlist;	/* driver-owned chanlist (yest used) */
 
 	int (*insn_read)(struct comedi_device *dev, struct comedi_subdevice *s,
 			 struct comedi_insn *insn, unsigned int *data);
@@ -207,7 +207,7 @@ struct comedi_subdevice {
 	unsigned int state;
 
 	struct device *class_dev;
-	int minor;
+	int miyesr;
 
 	unsigned int *readback;
 };
@@ -239,9 +239,9 @@ struct comedi_buf_page {
  * kernel's contiguous virtual address space pointed to by the 'prealloc_buf'
  * member of &struct comedi_async.)
  *
- * The buffer is normally freed when the COMEDI device is detached from the
+ * The buffer is yesrmally freed when the COMEDI device is detached from the
  * low-level driver (which may happen due to device removal), but if it happens
- * to be mmapped at the time, the pages cannot be freed until the buffer has
+ * to be mmapped at the time, the pages canyest be freed until the buffer has
  * been munmapped.  That is what the reference counter is for.  (The virtual
  * address space pointed by 'prealloc_buf' is freed when the COMEDI device is
  * detached.)
@@ -255,7 +255,7 @@ struct comedi_buf_map {
 };
 
 /**
- * struct comedi_async - Control data for asynchronous COMEDI commands
+ * struct comedi_async - Control data for asynchroyesus COMEDI commands
  * @prealloc_buf: Kernel virtual address of allocated acquisition buffer.
  * @prealloc_bufsz: Buffer size (in bytes).
  * @buf_map: Map of buffer pages.
@@ -298,25 +298,25 @@ struct comedi_buf_map {
  * reset.  The buffer is divided into the following regions by the inequalities:
  *
  *   [0, Buf_Read_Count):
- *     old region no longer accessible
+ *     old region yes longer accessible
  *
  *   [Buf_Read_Count, Buf_Read_Alloc_Count):
- *     filled and munged region allocated for reading but not yet read
+ *     filled and munged region allocated for reading but yest yet read
  *
  *   [Buf_Read_Alloc_Count, Munge_Count):
- *     filled and munged region not yet allocated for reading
+ *     filled and munged region yest yet allocated for reading
  *
  *   [Munge_Count, Buf_Write_Count):
- *     filled region not yet munged
+ *     filled region yest yet munged
  *
  *   [Buf_Write_Count, Buf_Write_Alloc_Count):
- *     unfilled region allocated for writing but not yet written
+ *     unfilled region allocated for writing but yest yet written
  *
  *   [Buf_Write_Alloc_Count, Buf_Read_Count + prealloc_bufsz):
- *     unfilled region not yet allocated for writing
+ *     unfilled region yest yet allocated for writing
  *
  *   [Buf_Read_Count + prealloc_bufsz, infinity):
- *     unfilled region not yet accessible
+ *     unfilled region yest yet accessible
  *
  * Data needs to be written into the buffer before it can be read out,
  * and may need to be converted (or "munged") between the two
@@ -412,12 +412,12 @@ enum comedi_cb {
  * This is used with comedi_driver_register() and comedi_driver_unregister() to
  * register and unregister a low-level COMEDI driver with the COMEDI core.
  *
- * If @num_names is non-zero, @board_name should be non-NULL, and @offset
+ * If @num_names is yesn-zero, @board_name should be yesn-NULL, and @offset
  * should be at least sizeof(*board_name).  These are used by the handler for
  * the %COMEDI_DEVCONFIG ioctl to match a hardware device and its driver by
  * board name.  If @num_names is zero, the %COMEDI_DEVCONFIG ioctl matches a
  * hardware device and its driver by driver name.  This is only useful if the
- * @attach handler is set.  If @num_names is non-zero, the driver's @attach
+ * @attach handler is set.  If @num_names is yesn-zero, the driver's @attach
  * handler will be called with the COMEDI device structure's board_ptr member
  * pointing to the matched pointer to a board name within the driver's private
  * array of static, read-only board type information.
@@ -430,7 +430,7 @@ enum comedi_cb {
  * @attach or @auto_attach handlers can defer clean-up on error until the
  * @detach handler is called.  If the @attach or @auto_attach handlers free
  * any resources themselves, they must prevent the @detach handler from
- * freeing the same resources.  The @detach handler must not assume that all
+ * freeing the same resources.  The @detach handler must yest assume that all
  * resources requested by the @attach or @auto_attach handler were
  * successfully allocated.
  */
@@ -459,7 +459,7 @@ struct comedi_driver {
  *	driver.  It is freed automatically after the COMEDI device is
  *	detached from the low-level driver.
  * @class_dev: Sysfs comediX device.
- * @minor: Minor device number of COMEDI char device (0-47).
+ * @miyesr: Miyesr device number of COMEDI char device (0-47).
  * @detach_count: Counter incremented every time the COMEDI device is detached.
  *	Used for checking a previous attachment is still valid.
  * @hw_dev: Optional pointer to the low-level hardware &struct device.  It is
@@ -473,14 +473,14 @@ struct comedi_driver {
  *	the low-level driver's "attach" handler is called by the handler for
  *	the %COMEDI_DEVCONFIG ioctl, it either points to a matched board name
  *	string if the 'num_names' member of the &struct comedi_driver is
- *	non-zero, otherwise it points to the low-level driver name string.
+ *	yesn-zero, otherwise it points to the low-level driver name string.
  *	When the low-lever driver's "auto_attach" handler is called for an
  *	automatically configured COMEDI device, it points to the low-level
  *	driver name string.  The low-level driver is free to change it in its
  *	"attach" or "auto_attach" handler if it wishes.
  * @board_ptr: Optional pointer to private, read-only board type information in
  *	the low-level driver.  If the 'num_names' member of the &struct
- *	comedi_driver is non-zero, the handler for the %COMEDI_DEVCONFIG ioctl
+ *	comedi_driver is yesn-zero, the handler for the %COMEDI_DEVCONFIG ioctl
  *	will point it to a pointer to a matched board name string within the
  *	driver's private array of static, read-only board type information when
  *	calling the driver's "attach" handler.  The low-level driver is free to
@@ -518,11 +518,11 @@ struct comedi_driver {
  *	called when @use_count changed from 1 to 0.
  * @insn_device_config: Optional pointer to a handler for all sub-instructions
  *	except %INSN_DEVICE_CONFIG_GET_ROUTES of the %INSN_DEVICE_CONFIG
- *	instruction.  If this is not initialized by the low-level driver, a
+ *	instruction.  If this is yest initialized by the low-level driver, a
  *	default handler will be set during post-configuration.
  * @get_valid_routes: Optional pointer to a handler for the
  *	%INSN_DEVICE_CONFIG_GET_ROUTES sub-instruction of the
- *	%INSN_DEVICE_CONFIG instruction set.  If this is not initialized by the
+ *	%INSN_DEVICE_CONFIG instruction set.  If this is yest initialized by the
  *	low-level driver, a default handler that copies zero routes back to the
  *	user will be used.
  *
@@ -532,11 +532,11 @@ struct comedi_driver {
  * %COMEDI_DEVCONFIG ioctl, and automatically configured devices resulting
  * from a call to comedi_auto_config() as a result of a bus driver probe in
  * a low-level COMEDI driver.  The "legacy" COMEDI devices are allocated
- * during module initialization if the "comedi_num_legacy_minors" module
- * parameter is non-zero and use minor device numbers from 0 to
- * comedi_num_legacy_minors minus one.  The automatically configured COMEDI
- * devices are allocated on demand and use minor device numbers from
- * comedi_num_legacy_minors to 47.
+ * during module initialization if the "comedi_num_legacy_miyesrs" module
+ * parameter is yesn-zero and use miyesr device numbers from 0 to
+ * comedi_num_legacy_miyesrs minus one.  The automatically configured COMEDI
+ * devices are allocated on demand and use miyesr device numbers from
+ * comedi_num_legacy_miyesrs to 47.
  */
 struct comedi_device {
 	int use_count;
@@ -545,7 +545,7 @@ struct comedi_device {
 	void *private;
 
 	struct device *class_dev;
-	int minor;
+	int miyesr;
 	unsigned int detach_count;
 	struct device *hw_dev;
 
@@ -587,7 +587,7 @@ struct comedi_device {
 
 void comedi_event(struct comedi_device *dev, struct comedi_subdevice *s);
 
-struct comedi_device *comedi_dev_get_from_minor(unsigned int minor);
+struct comedi_device *comedi_dev_get_from_miyesr(unsigned int miyesr);
 int comedi_dev_put(struct comedi_device *dev);
 
 bool comedi_is_subdevice_running(struct comedi_subdevice *s);
@@ -617,7 +617,7 @@ extern const struct comedi_lrange range_unipolar2_5;
 extern const struct comedi_lrange range_0_20mA;
 extern const struct comedi_lrange range_4_20mA;
 extern const struct comedi_lrange range_0_32mA;
-extern const struct comedi_lrange range_unknown;
+extern const struct comedi_lrange range_unkyeswn;
 
 #define range_digital		range_unipolar5
 
@@ -630,7 +630,7 @@ extern const struct comedi_lrange range_unknown;
  * range and the type of units.  Typically, the type of unit is %UNIT_volt
  * (i.e. volts) and the minimum and maximum are in millionths of a volt.
  * There may also be a flag that indicates the minimum and maximum are merely
- * scale factors for an unknown, external reference.
+ * scale factors for an unkyeswn, external reference.
  */
 struct comedi_lrange {
 	int length;
@@ -645,7 +645,7 @@ struct comedi_lrange {
  * Tests whether a range is bipolar by checking whether its minimum value
  * is negative.
  *
- * Assumes @range is valid.  Does not work for subdevices using a
+ * Assumes @range is valid.  Does yest work for subdevices using a
  * channel-specific range table list.
  *
  * Return:
@@ -666,7 +666,7 @@ static inline bool comedi_range_is_bipolar(struct comedi_subdevice *s,
  * Tests whether a range is unipolar by checking whether its minimum value
  * is at least 0.
  *
- * Assumes @range is valid.  Does not work for subdevices using a
+ * Assumes @range is valid.  Does yest work for subdevices using a
  * channel-specific range table list.
  *
  * Return:
@@ -687,7 +687,7 @@ static inline bool comedi_range_is_unipolar(struct comedi_subdevice *s,
  * Tests whether a range is externally reference by checking whether its
  * %RF_EXTERNAL flag is set.
  *
- * Assumes @range is valid.  Does not work for subdevices using a
+ * Assumes @range is valid.  Does yest work for subdevices using a
  * channel-specific range table list.
  *
  * Return:
@@ -790,7 +790,7 @@ static inline unsigned int comedi_offset_munge(struct comedi_subdevice *s,
  * @s: COMEDI subdevice.
  *
  * The sample size will be 4 (sizeof int) or 2 (sizeof short) depending on
- * whether the %SDF_LSAMPL subdevice flag is set or not.
+ * whether the %SDF_LSAMPL subdevice flag is set or yest.
  *
  * Return: The subdevice sample size.
  */
@@ -804,7 +804,7 @@ static inline unsigned int comedi_bytes_per_sample(struct comedi_subdevice *s)
  * @s: COMEDI subdevice.
  *
  * The sample size will be 4 (sizeof int) or 2 (sizeof short) depending on
- * whether the %SDF_LSAMPL subdevice flag is set or not.  The log2 of the
+ * whether the %SDF_LSAMPL subdevice flag is set or yest.  The log2 of the
  * sample size will be 2 or 1 and can be used as the right operand of a
  * bit-shift operator to multiply or divide something by the sample size.
  *
@@ -834,7 +834,7 @@ static inline unsigned int comedi_bytes_to_samples(struct comedi_subdevice *s,
  * @nsamples: Number of samples.
  *
  * Return: The number of samples multiplied by the subdevice sample size.
- * (Does not check for arithmetic overflow.)
+ * (Does yest check for arithmetic overflow.)
  */
 static inline unsigned int comedi_samples_to_bytes(struct comedi_subdevice *s,
 						   unsigned int nsamples)
@@ -872,7 +872,7 @@ static inline int comedi_check_trigger_src(unsigned int *src,
  * @src: The trigger source to check.
  *
  * Return:
- *	0 if no more than one trigger source is set.
+ *	0 if yes more than one trigger source is set.
  *	-EINVAL if more than one trigger source is set.
  */
 static inline int comedi_check_trigger_is_unique(unsigned int src)
@@ -930,10 +930,10 @@ static inline int comedi_check_trigger_arg_min(unsigned int *arg,
  * @arg: Pointer to the trigger arg to validate.
  * @val: The maximum value the argument should be.
  *
- * Forces *@arg to be no more than @val, setting it to @val if necessary.
+ * Forces *@arg to be yes more than @val, setting it to @val if necessary.
  *
  * Return:
- *	0 if*@arg was already no more than @val.
+ *	0 if*@arg was already yes more than @val.
  *	-EINVAL if *@arg was greater than @val.
  */
 static inline int comedi_check_trigger_arg_max(unsigned int *arg,
@@ -949,7 +949,7 @@ static inline int comedi_check_trigger_arg_max(unsigned int *arg,
 /*
  * Must set dev->hw_dev if you wish to dma directly into comedi's buffer.
  * Also useful for retrieving a previously configured hardware device of
- * known bus type.  Set automatically for auto-configured devices.
+ * kyeswn bus type.  Set automatically for auto-configured devices.
  * Automatically set to NULL when detaching hardware device.
  */
 int comedi_set_hw_dev(struct comedi_device *dev, struct device *hw_dev);
@@ -958,8 +958,8 @@ int comedi_set_hw_dev(struct comedi_device *dev, struct device *hw_dev);
  * comedi_buf_n_bytes_ready - Determine amount of unread data in buffer
  * @s: COMEDI subdevice.
  *
- * Determines the number of bytes of unread data in the asynchronous
- * acquisition data buffer for a subdevice.  The data in question might not
+ * Determines the number of bytes of unread data in the asynchroyesus
+ * acquisition data buffer for a subdevice.  The data in question might yest
  * have been fully "munged" yet.
  *
  * Returns: The amount of unread data in bytes.
@@ -1043,7 +1043,7 @@ void comedi_driver_unregister(struct comedi_driver *driver);
  * module_comedi_driver() - Helper macro for registering a comedi driver
  * @__comedi_driver: comedi_driver struct
  *
- * Helper macro for comedi drivers which do not do anything special in module
+ * Helper macro for comedi drivers which do yest do anything special in module
  * init/exit. This eliminates a lot of boilerplate. Each module may only use
  * this macro once, and calling it replaces module_init() and module_exit().
  */

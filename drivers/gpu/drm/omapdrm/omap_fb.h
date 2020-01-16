@@ -25,7 +25,7 @@ struct drm_framebuffer *omap_framebuffer_init(struct drm_device *dev,
 		const struct drm_mode_fb_cmd2 *mode_cmd, struct drm_gem_object **bos);
 int omap_framebuffer_pin(struct drm_framebuffer *fb);
 void omap_framebuffer_unpin(struct drm_framebuffer *fb);
-void omap_framebuffer_update_scanout(struct drm_framebuffer *fb,
+void omap_framebuffer_update_scayesut(struct drm_framebuffer *fb,
 		struct drm_plane_state *state, struct omap_overlay_info *info);
 bool omap_framebuffer_supports_rotation(struct drm_framebuffer *fb);
 void omap_framebuffer_describe(struct drm_framebuffer *fb, struct seq_file *m);

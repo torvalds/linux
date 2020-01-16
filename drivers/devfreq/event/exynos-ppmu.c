@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * exynos_ppmu.c - EXYNOS PPMU (Platform Performance Monitoring Unit) support
+ * exyyess_ppmu.c - EXYNOS PPMU (Platform Performance Monitoring Unit) support
  *
  * Copyright (c) 2014-2015 Samsung Electronics Co., Ltd.
  * Author : Chanwoo Choi <cw00.choi@samsung.com>
  *
- * This driver is based on drivers/devfreq/exynos/exynos_ppmu.c
+ * This driver is based on drivers/devfreq/exyyess/exyyess_ppmu.c
  */
 
 #include <linux/clk.h>
@@ -19,18 +19,18 @@
 #include <linux/suspend.h>
 #include <linux/devfreq-event.h>
 
-#include "exynos-ppmu.h"
+#include "exyyess-ppmu.h"
 
-enum exynos_ppmu_type {
+enum exyyess_ppmu_type {
 	EXYNOS_TYPE_PPMU,
 	EXYNOS_TYPE_PPMU_V2,
 };
 
-struct exynos_ppmu_data {
+struct exyyess_ppmu_data {
 	struct clk *clk;
 };
 
-struct exynos_ppmu {
+struct exyyess_ppmu {
 	struct devfreq_event_dev **edev;
 	struct devfreq_event_desc *desc;
 	unsigned int num_events;
@@ -38,8 +38,8 @@ struct exynos_ppmu {
 	struct device *dev;
 	struct regmap *regmap;
 
-	struct exynos_ppmu_data ppmu;
-	enum exynos_ppmu_type ppmu_type;
+	struct exyyess_ppmu_data ppmu;
+	enum exyyess_ppmu_type ppmu_type;
 };
 
 #define PPMU_EVENT(name)			\
@@ -48,15 +48,15 @@ struct exynos_ppmu {
 	{ "ppmu-event2-"#name, PPMU_PMNCNT2 },	\
 	{ "ppmu-event3-"#name, PPMU_PMNCNT3 }
 
-static struct __exynos_ppmu_events {
+static struct __exyyess_ppmu_events {
 	char *name;
 	int id;
 } ppmu_events[] = {
-	/* For Exynos3250, Exynos4 and Exynos5260 */
+	/* For Exyyess3250, Exyyess4 and Exyyess5260 */
 	PPMU_EVENT(g3d),
 	PPMU_EVENT(fsys),
 
-	/* For Exynos4 SoCs and Exynos3250 */
+	/* For Exyyess4 SoCs and Exyyess3250 */
 	PPMU_EVENT(dmc0),
 	PPMU_EVENT(dmc1),
 	PPMU_EVENT(cpu),
@@ -65,14 +65,14 @@ static struct __exynos_ppmu_events {
 	PPMU_EVENT(lcd0),
 	PPMU_EVENT(camif),
 
-	/* Only for Exynos3250 and Exynos5260 */
+	/* Only for Exyyess3250 and Exyyess5260 */
 	PPMU_EVENT(mfc),
 
-	/* Only for Exynos4 SoCs */
+	/* Only for Exyyess4 SoCs */
 	PPMU_EVENT(mfc-left),
 	PPMU_EVENT(mfc-right),
 
-	/* Only for Exynos5260 SoCs */
+	/* Only for Exyyess5260 SoCs */
 	PPMU_EVENT(drex0-s0),
 	PPMU_EVENT(drex0-s1),
 	PPMU_EVENT(drex1-s0),
@@ -86,7 +86,7 @@ static struct __exynos_ppmu_events {
 	PPMU_EVENT(fimd0x),
 	PPMU_EVENT(fimd1x),
 
-	/* Only for Exynos5433 SoCs */
+	/* Only for Exyyess5433 SoCs */
 	PPMU_EVENT(d0-cpu),
 	PPMU_EVENT(d0-general),
 	PPMU_EVENT(d0-rt),
@@ -94,14 +94,14 @@ static struct __exynos_ppmu_events {
 	PPMU_EVENT(d1-general),
 	PPMU_EVENT(d1-rt),
 
-	/* For Exynos5422 SoC */
+	/* For Exyyess5422 SoC */
 	PPMU_EVENT(dmc0_0),
 	PPMU_EVENT(dmc0_1),
 	PPMU_EVENT(dmc1_0),
 	PPMU_EVENT(dmc1_1),
 };
 
-static int exynos_ppmu_find_ppmu_id(struct devfreq_event_dev *edev)
+static int exyyess_ppmu_find_ppmu_id(struct devfreq_event_dev *edev)
 {
 	int i;
 
@@ -115,9 +115,9 @@ static int exynos_ppmu_find_ppmu_id(struct devfreq_event_dev *edev)
 /*
  * The devfreq-event ops structure for PPMU v1.1
  */
-static int exynos_ppmu_disable(struct devfreq_event_dev *edev)
+static int exyyess_ppmu_disable(struct devfreq_event_dev *edev)
 {
-	struct exynos_ppmu *info = devfreq_event_get_drvdata(edev);
+	struct exyyess_ppmu *info = devfreq_event_get_drvdata(edev);
 	int ret;
 	u32 pmnc;
 
@@ -144,10 +144,10 @@ static int exynos_ppmu_disable(struct devfreq_event_dev *edev)
 	return 0;
 }
 
-static int exynos_ppmu_set_event(struct devfreq_event_dev *edev)
+static int exyyess_ppmu_set_event(struct devfreq_event_dev *edev)
 {
-	struct exynos_ppmu *info = devfreq_event_get_drvdata(edev);
-	int id = exynos_ppmu_find_ppmu_id(edev);
+	struct exyyess_ppmu *info = devfreq_event_get_drvdata(edev);
+	int id = exyyess_ppmu_find_ppmu_id(edev);
 	int ret;
 	u32 pmnc, cntens;
 
@@ -188,11 +188,11 @@ static int exynos_ppmu_set_event(struct devfreq_event_dev *edev)
 	return 0;
 }
 
-static int exynos_ppmu_get_event(struct devfreq_event_dev *edev,
+static int exyyess_ppmu_get_event(struct devfreq_event_dev *edev,
 				struct devfreq_event_data *edata)
 {
-	struct exynos_ppmu *info = devfreq_event_get_drvdata(edev);
-	int id = exynos_ppmu_find_ppmu_id(edev);
+	struct exyyess_ppmu *info = devfreq_event_get_drvdata(edev);
+	int id = exyyess_ppmu_find_ppmu_id(edev);
 	unsigned int total_count, load_count;
 	unsigned int pmcnt3_high, pmcnt3_low;
 	unsigned int pmnc, cntenc;
@@ -258,18 +258,18 @@ static int exynos_ppmu_get_event(struct devfreq_event_dev *edev,
 	return 0;
 }
 
-static const struct devfreq_event_ops exynos_ppmu_ops = {
-	.disable = exynos_ppmu_disable,
-	.set_event = exynos_ppmu_set_event,
-	.get_event = exynos_ppmu_get_event,
+static const struct devfreq_event_ops exyyess_ppmu_ops = {
+	.disable = exyyess_ppmu_disable,
+	.set_event = exyyess_ppmu_set_event,
+	.get_event = exyyess_ppmu_get_event,
 };
 
 /*
  * The devfreq-event ops structure for PPMU v2.0
  */
-static int exynos_ppmu_v2_disable(struct devfreq_event_dev *edev)
+static int exyyess_ppmu_v2_disable(struct devfreq_event_dev *edev)
 {
-	struct exynos_ppmu *info = devfreq_event_get_drvdata(edev);
+	struct exyyess_ppmu *info = devfreq_event_get_drvdata(edev);
 	int ret;
 	u32 pmnc, clear;
 
@@ -361,11 +361,11 @@ static int exynos_ppmu_v2_disable(struct devfreq_event_dev *edev)
 	return 0;
 }
 
-static int exynos_ppmu_v2_set_event(struct devfreq_event_dev *edev)
+static int exyyess_ppmu_v2_set_event(struct devfreq_event_dev *edev)
 {
-	struct exynos_ppmu *info = devfreq_event_get_drvdata(edev);
+	struct exyyess_ppmu *info = devfreq_event_get_drvdata(edev);
 	unsigned int pmnc, cntens;
-	int id = exynos_ppmu_find_ppmu_id(edev);
+	int id = exyyess_ppmu_find_ppmu_id(edev);
 	int ret;
 
 	/* Enable all counters */
@@ -406,11 +406,11 @@ static int exynos_ppmu_v2_set_event(struct devfreq_event_dev *edev)
 	return 0;
 }
 
-static int exynos_ppmu_v2_get_event(struct devfreq_event_dev *edev,
+static int exyyess_ppmu_v2_get_event(struct devfreq_event_dev *edev,
 				    struct devfreq_event_data *edata)
 {
-	struct exynos_ppmu *info = devfreq_event_get_drvdata(edev);
-	int id = exynos_ppmu_find_ppmu_id(edev);
+	struct exyyess_ppmu *info = devfreq_event_get_drvdata(edev);
+	int id = exyyess_ppmu_find_ppmu_id(edev);
 	int ret;
 	unsigned int pmnc, cntenc;
 	unsigned int pmcnt_high, pmcnt_low;
@@ -472,30 +472,30 @@ static int exynos_ppmu_v2_get_event(struct devfreq_event_dev *edev,
 	return 0;
 }
 
-static const struct devfreq_event_ops exynos_ppmu_v2_ops = {
-	.disable = exynos_ppmu_v2_disable,
-	.set_event = exynos_ppmu_v2_set_event,
-	.get_event = exynos_ppmu_v2_get_event,
+static const struct devfreq_event_ops exyyess_ppmu_v2_ops = {
+	.disable = exyyess_ppmu_v2_disable,
+	.set_event = exyyess_ppmu_v2_set_event,
+	.get_event = exyyess_ppmu_v2_get_event,
 };
 
-static const struct of_device_id exynos_ppmu_id_match[] = {
+static const struct of_device_id exyyess_ppmu_id_match[] = {
 	{
-		.compatible = "samsung,exynos-ppmu",
+		.compatible = "samsung,exyyess-ppmu",
 		.data = (void *)EXYNOS_TYPE_PPMU,
 	}, {
-		.compatible = "samsung,exynos-ppmu-v2",
+		.compatible = "samsung,exyyess-ppmu-v2",
 		.data = (void *)EXYNOS_TYPE_PPMU_V2,
 	},
 	{ /* sentinel */ },
 };
-MODULE_DEVICE_TABLE(of, exynos_ppmu_id_match);
+MODULE_DEVICE_TABLE(of, exyyess_ppmu_id_match);
 
-static int of_get_devfreq_events(struct device_node *np,
-				 struct exynos_ppmu *info)
+static int of_get_devfreq_events(struct device_yesde *np,
+				 struct exyyess_ppmu *info)
 {
 	struct devfreq_event_desc *desc;
 	struct device *dev = info->dev;
-	struct device_node *events_np, *node;
+	struct device_yesde *events_np, *yesde;
 	int i, j, count;
 	const struct of_device_id *of_id;
 	int ret;
@@ -503,7 +503,7 @@ static int of_get_devfreq_events(struct device_node *np,
 	events_np = of_get_child_by_name(np, "events");
 	if (!events_np) {
 		dev_err(dev,
-			"failed to get child node of devfreq-event devices\n");
+			"failed to get child yesde of devfreq-event devices\n");
 		return -EINVAL;
 	}
 
@@ -513,47 +513,47 @@ static int of_get_devfreq_events(struct device_node *np,
 		return -ENOMEM;
 	info->num_events = count;
 
-	of_id = of_match_device(exynos_ppmu_id_match, dev);
+	of_id = of_match_device(exyyess_ppmu_id_match, dev);
 	if (of_id)
-		info->ppmu_type = (enum exynos_ppmu_type)of_id->data;
+		info->ppmu_type = (enum exyyess_ppmu_type)of_id->data;
 	else
 		return -EINVAL;
 
 	j = 0;
-	for_each_child_of_node(events_np, node) {
+	for_each_child_of_yesde(events_np, yesde) {
 		for (i = 0; i < ARRAY_SIZE(ppmu_events); i++) {
 			if (!ppmu_events[i].name)
 				continue;
 
-			if (of_node_name_eq(node, ppmu_events[i].name))
+			if (of_yesde_name_eq(yesde, ppmu_events[i].name))
 				break;
 		}
 
 		if (i == ARRAY_SIZE(ppmu_events)) {
 			dev_warn(dev,
-				"don't know how to configure events : %pOFn\n",
-				node);
+				"don't kyesw how to configure events : %pOFn\n",
+				yesde);
 			continue;
 		}
 
 		switch (info->ppmu_type) {
 		case EXYNOS_TYPE_PPMU:
-			desc[j].ops = &exynos_ppmu_ops;
+			desc[j].ops = &exyyess_ppmu_ops;
 			break;
 		case EXYNOS_TYPE_PPMU_V2:
-			desc[j].ops = &exynos_ppmu_v2_ops;
+			desc[j].ops = &exyyess_ppmu_v2_ops;
 			break;
 		}
 
 		desc[j].driver_data = info;
 
-		of_property_read_string(node, "event-name", &desc[j].name);
-		ret = of_property_read_u32(node, "event-data-type",
+		of_property_read_string(yesde, "event-name", &desc[j].name);
+		ret = of_property_read_u32(yesde, "event-data-type",
 					   &desc[j].event_type);
 		if (ret) {
 			/* Set the event of proper data type counting.
 			 * Check if the data type has been defined in DT,
-			 * use default if not.
+			 * use default if yest.
 			 */
 			if (info->ppmu_type == EXYNOS_TYPE_PPMU_V2) {
 				struct devfreq_event_dev edev;
@@ -562,7 +562,7 @@ static int of_get_devfreq_events(struct device_node *np,
 				 * read+write data count.
 				 */
 				edev.desc = &desc[j];
-				id = exynos_ppmu_find_ppmu_id(&edev);
+				id = exyyess_ppmu_find_ppmu_id(&edev);
 
 				switch (id) {
 				case PPMU_PMNCNT0:
@@ -586,28 +586,28 @@ static int of_get_devfreq_events(struct device_node *np,
 	}
 	info->desc = desc;
 
-	of_node_put(events_np);
+	of_yesde_put(events_np);
 
 	return 0;
 }
 
-static struct regmap_config exynos_ppmu_regmap_config = {
+static struct regmap_config exyyess_ppmu_regmap_config = {
 	.reg_bits = 32,
 	.val_bits = 32,
 	.reg_stride = 4,
 };
 
-static int exynos_ppmu_parse_dt(struct platform_device *pdev,
-				struct exynos_ppmu *info)
+static int exyyess_ppmu_parse_dt(struct platform_device *pdev,
+				struct exyyess_ppmu *info)
 {
 	struct device *dev = info->dev;
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 	struct resource *res;
 	void __iomem *base;
 	int ret = 0;
 
 	if (!np) {
-		dev_err(dev, "failed to find devicetree node\n");
+		dev_err(dev, "failed to find devicetree yesde\n");
 		return -EINVAL;
 	}
 
@@ -617,9 +617,9 @@ static int exynos_ppmu_parse_dt(struct platform_device *pdev,
 	if (IS_ERR(base))
 		return PTR_ERR(base);
 
-	exynos_ppmu_regmap_config.max_register = resource_size(res) - 4;
+	exyyess_ppmu_regmap_config.max_register = resource_size(res) - 4;
 	info->regmap = devm_regmap_init_mmio(dev, base,
-					&exynos_ppmu_regmap_config);
+					&exyyess_ppmu_regmap_config);
 	if (IS_ERR(info->regmap)) {
 		dev_err(dev, "failed to initialize regmap\n");
 		return PTR_ERR(info->regmap);
@@ -628,21 +628,21 @@ static int exynos_ppmu_parse_dt(struct platform_device *pdev,
 	info->ppmu.clk = devm_clk_get(dev, "ppmu");
 	if (IS_ERR(info->ppmu.clk)) {
 		info->ppmu.clk = NULL;
-		dev_warn(dev, "cannot get PPMU clock\n");
+		dev_warn(dev, "canyest get PPMU clock\n");
 	}
 
 	ret = of_get_devfreq_events(np, info);
 	if (ret < 0) {
-		dev_err(dev, "failed to parse exynos ppmu dt node\n");
+		dev_err(dev, "failed to parse exyyess ppmu dt yesde\n");
 		return ret;
 	}
 
 	return 0;
 }
 
-static int exynos_ppmu_probe(struct platform_device *pdev)
+static int exyyess_ppmu_probe(struct platform_device *pdev)
 {
-	struct exynos_ppmu *info;
+	struct exyyess_ppmu *info;
 	struct devfreq_event_dev **edev;
 	struct devfreq_event_desc *desc;
 	int i, ret = 0, size;
@@ -654,7 +654,7 @@ static int exynos_ppmu_probe(struct platform_device *pdev)
 	info->dev = &pdev->dev;
 
 	/* Parse dt data to get resource */
-	ret = exynos_ppmu_parse_dt(pdev, info);
+	ret = exyyess_ppmu_parse_dt(pdev, info);
 	if (ret < 0) {
 		dev_err(&pdev->dev,
 			"failed to parse devicetree for resource\n");
@@ -678,7 +678,7 @@ static int exynos_ppmu_probe(struct platform_device *pdev)
 			return PTR_ERR(edev[i]);
 		}
 
-		pr_info("exynos-ppmu: new PPMU device registered %s (%s)\n",
+		pr_info("exyyess-ppmu: new PPMU device registered %s (%s)\n",
 			dev_name(&pdev->dev), desc[i].name);
 	}
 
@@ -691,25 +691,25 @@ static int exynos_ppmu_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int exynos_ppmu_remove(struct platform_device *pdev)
+static int exyyess_ppmu_remove(struct platform_device *pdev)
 {
-	struct exynos_ppmu *info = platform_get_drvdata(pdev);
+	struct exyyess_ppmu *info = platform_get_drvdata(pdev);
 
 	clk_disable_unprepare(info->ppmu.clk);
 
 	return 0;
 }
 
-static struct platform_driver exynos_ppmu_driver = {
-	.probe	= exynos_ppmu_probe,
-	.remove	= exynos_ppmu_remove,
+static struct platform_driver exyyess_ppmu_driver = {
+	.probe	= exyyess_ppmu_probe,
+	.remove	= exyyess_ppmu_remove,
 	.driver = {
-		.name	= "exynos-ppmu",
-		.of_match_table = exynos_ppmu_id_match,
+		.name	= "exyyess-ppmu",
+		.of_match_table = exyyess_ppmu_id_match,
 	},
 };
-module_platform_driver(exynos_ppmu_driver);
+module_platform_driver(exyyess_ppmu_driver);
 
-MODULE_DESCRIPTION("Exynos PPMU(Platform Performance Monitoring Unit) driver");
+MODULE_DESCRIPTION("Exyyess PPMU(Platform Performance Monitoring Unit) driver");
 MODULE_AUTHOR("Chanwoo Choi <cw00.choi@samsung.com>");
 MODULE_LICENSE("GPL");

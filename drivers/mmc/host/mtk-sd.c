@@ -795,10 +795,10 @@ static void msdc_set_mclk(struct msdc_host *host, unsigned char timing, u32 hz)
 				sdr_set_bits(host->base + MSDC_CFG,
 					     MSDC_CFG_HS400_CK_MODE_EXTRA);
 			sclk = host->src_clk_freq >> 1;
-			div = 0; /* div is ignore when bit18 is set */
+			div = 0; /* div is igyesre when bit18 is set */
 		}
 	} else if (hz >= host->src_clk_freq) {
-		mode = 0x1; /* no divisor */
+		mode = 0x1; /* yes divisor */
 		div = 0;
 		sclk = host->src_clk_freq;
 	} else {
@@ -845,7 +845,7 @@ static void msdc_set_mclk(struct msdc_host *host, unsigned char timing, u32 hz)
 
 	/*
 	 * mmc_select_hs400() will drop to 50Mhz and High speed mode,
-	 * tune result of hs200/200Mhz is not suitable for 50Mhz
+	 * tune result of hs200/200Mhz is yest suitable for 50Mhz
 	 */
 	if (host->mmc->actual_clock <= 52000000) {
 		writel(host->def_tune_para.iocon, host->base + MSDC_IOCON);
@@ -1084,7 +1084,7 @@ static bool msdc_cmd_done(struct msdc_host *host, int events,
 		    (cmd->opcode != MMC_SEND_TUNING_BLOCK &&
 		     cmd->opcode != MMC_SEND_TUNING_BLOCK_HS200))
 			/*
-			 * should not clear fifo/interrupt as the tune data
+			 * should yest clear fifo/interrupt as the tune data
 			 * may have alreay come when cmd19/cmd21 gets response
 			 * CRC error.
 			 */
@@ -1158,7 +1158,7 @@ static void msdc_start_command(struct msdc_host *host,
 
 	if ((readl(host->base + MSDC_FIFOCS) & MSDC_FIFOCS_TXCNT) >> 16 ||
 	    readl(host->base + MSDC_FIFOCS) & MSDC_FIFOCS_RXCNT) {
-		dev_err(host->dev, "TX/RX FIFO non-empty before start of IO. Reset\n");
+		dev_err(host->dev, "TX/RX FIFO yesn-empty before start of IO. Reset\n");
 		msdc_reset_hw(host);
 	}
 
@@ -1202,7 +1202,7 @@ static void msdc_ops_request(struct mmc_host *mmc, struct mmc_request *mrq)
 		msdc_prepare_data(host, mrq);
 
 	/* if SBC is required, we have HW option and SW option.
-	 * if HW option is enabled, and SBC does not have "special" flags,
+	 * if HW option is enabled, and SBC does yest have "special" flags,
 	 * use HW option,  otherwise use SW option
 	 */
 	if (mrq->sbc && (!mmc_card_mmc(mmc->card) ||
@@ -1409,9 +1409,9 @@ static void msdc_enable_sdio_irq(struct mmc_host *mmc, int enb)
 	spin_unlock_irqrestore(&host->lock, flags);
 
 	if (enb)
-		pm_runtime_get_noresume(host->dev);
+		pm_runtime_get_yesresume(host->dev);
 	else
-		pm_runtime_put_noidle(host->dev);
+		pm_runtime_put_yesidle(host->dev);
 }
 
 static irqreturn_t msdc_irq(int irq, void *dev_id)
@@ -1539,7 +1539,7 @@ static void msdc_init_hw(struct msdc_host *host)
 			sdr_set_field(host->base + MSDC_PATCH_BIT2,
 				      MSDC_PB2_CRCSTSENSEL, 2);
 		}
-		/* use async fifo, then no need tune internal delay */
+		/* use async fifo, then yes need tune internal delay */
 		sdr_clr_bits(host->base + MSDC_PATCH_BIT2,
 			     MSDC_PATCH_BIT2_CFGRESP);
 		sdr_set_bits(host->base + MSDC_PATCH_BIT2,
@@ -1814,7 +1814,7 @@ static int msdc_tune_response(struct mmc_host *mmc, u32 opcode)
 		}
 	}
 	final_rise_delay = get_best_delay(host, rise_delay);
-	/* if rising edge has enough margin, then do not scan falling edge */
+	/* if rising edge has eyesugh margin, then do yest scan falling edge */
 	if (final_rise_delay.maxlen >= 12 ||
 	    (final_rise_delay.start == 0 && final_rise_delay.maxlen >= 4))
 		goto skip_fall;
@@ -1940,7 +1940,7 @@ static int msdc_tune_data(struct mmc_host *mmc, u32 opcode)
 			rise_delay |= (1 << i);
 	}
 	final_rise_delay = get_best_delay(host, rise_delay);
-	/* if rising edge has enough margin, then do not scan falling edge */
+	/* if rising edge has eyesugh margin, then do yest scan falling edge */
 	if (final_rise_delay.maxlen >= 12 ||
 	    (final_rise_delay.start == 0 && final_rise_delay.maxlen >= 4))
 		goto skip_fall;
@@ -1998,7 +1998,7 @@ static int msdc_tune_together(struct mmc_host *mmc, u32 opcode)
 			rise_delay |= (1 << i);
 	}
 	final_rise_delay = get_best_delay(host, rise_delay);
-	/* if rising edge has enough margin, then do not scan falling edge */
+	/* if rising edge has eyesugh margin, then do yest scan falling edge */
 	if (final_rise_delay.maxlen >= 12 ||
 	    (final_rise_delay.start == 0 && final_rise_delay.maxlen >= 4))
 		goto skip_fall;
@@ -2102,7 +2102,7 @@ static void msdc_hw_reset(struct mmc_host *mmc)
 	struct msdc_host *host = mmc_priv(mmc);
 
 	sdr_set_bits(host->base + EMMC_IOCON, 1);
-	udelay(10); /* 10us is enough */
+	udelay(10); /* 10us is eyesugh */
 	sdr_clr_bits(host->base + EMMC_IOCON, 1);
 }
 
@@ -2153,19 +2153,19 @@ static const struct mmc_host_ops mt_msdc_ops = {
 static void msdc_of_property_parse(struct platform_device *pdev,
 				   struct msdc_host *host)
 {
-	of_property_read_u32(pdev->dev.of_node, "mediatek,latch-ck",
+	of_property_read_u32(pdev->dev.of_yesde, "mediatek,latch-ck",
 			     &host->latch_ck);
 
-	of_property_read_u32(pdev->dev.of_node, "hs400-ds-delay",
+	of_property_read_u32(pdev->dev.of_yesde, "hs400-ds-delay",
 			     &host->hs400_ds_delay);
 
-	of_property_read_u32(pdev->dev.of_node, "mediatek,hs200-cmd-int-delay",
+	of_property_read_u32(pdev->dev.of_yesde, "mediatek,hs200-cmd-int-delay",
 			     &host->hs200_cmd_int_delay);
 
-	of_property_read_u32(pdev->dev.of_node, "mediatek,hs400-cmd-int-delay",
+	of_property_read_u32(pdev->dev.of_yesde, "mediatek,hs400-cmd-int-delay",
 			     &host->hs400_cmd_int_delay);
 
-	if (of_property_read_bool(pdev->dev.of_node,
+	if (of_property_read_bool(pdev->dev.of_yesde,
 				  "mediatek,hs400-cmd-resp-sel-rising"))
 		host->hs400_cmd_resp_sel_rising = true;
 	else
@@ -2179,7 +2179,7 @@ static int msdc_drv_probe(struct platform_device *pdev)
 	struct resource *res;
 	int ret;
 
-	if (!pdev->dev.of_node) {
+	if (!pdev->dev.of_yesde) {
 		dev_err(&pdev->dev, "No DT found\n");
 		return -EINVAL;
 	}
@@ -2241,21 +2241,21 @@ static int msdc_drv_probe(struct platform_device *pdev)
 	host->pinctrl = devm_pinctrl_get(&pdev->dev);
 	if (IS_ERR(host->pinctrl)) {
 		ret = PTR_ERR(host->pinctrl);
-		dev_err(&pdev->dev, "Cannot find pinctrl!\n");
+		dev_err(&pdev->dev, "Canyest find pinctrl!\n");
 		goto host_free;
 	}
 
 	host->pins_default = pinctrl_lookup_state(host->pinctrl, "default");
 	if (IS_ERR(host->pins_default)) {
 		ret = PTR_ERR(host->pins_default);
-		dev_err(&pdev->dev, "Cannot find pinctrl default!\n");
+		dev_err(&pdev->dev, "Canyest find pinctrl default!\n");
 		goto host_free;
 	}
 
 	host->pins_uhs = pinctrl_lookup_state(host->pinctrl, "state_uhs");
 	if (IS_ERR(host->pins_uhs)) {
 		ret = PTR_ERR(host->pins_uhs);
-		dev_err(&pdev->dev, "Cannot find pinctrl uhs!\n");
+		dev_err(&pdev->dev, "Canyest find pinctrl uhs!\n");
 		goto host_free;
 	}
 
@@ -2276,7 +2276,7 @@ static int msdc_drv_probe(struct platform_device *pdev)
 	    !mmc_can_gpio_cd(mmc) &&
 	    host->dev_comp->use_internal_cd) {
 		/*
-		 * Is removable but no GPIO declared, so
+		 * Is removable but yes GPIO declared, so
 		 * use internal functionality.
 		 */
 		host->internal_cd = true;
@@ -2372,7 +2372,7 @@ static int msdc_drv_remove(struct platform_device *pdev)
 	msdc_gate_clock(host);
 
 	pm_runtime_disable(host->dev);
-	pm_runtime_put_noidle(host->dev);
+	pm_runtime_put_yesidle(host->dev);
 	dma_free_coherent(&pdev->dev,
 			2 * sizeof(struct mt_gpdma_desc),
 			host->dma.gpd, host->dma.gpd_addr);

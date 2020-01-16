@@ -20,7 +20,7 @@ module_param(crit_offset, int, 0644);
 MODULE_PARM_DESC(crit_offset,
 	"Critical Temperature offset from tj max in millidegree Celsius.");
 
-/* IRQ 86 is a fixed APIC interrupt for BYT DTS Aux threshold notifications */
+/* IRQ 86 is a fixed APIC interrupt for BYT DTS Aux threshold yestifications */
 #define BYT_SOC_DTS_APIC_IRQ	86
 
 static int soc_dts_thres_gsi;
@@ -68,7 +68,7 @@ static int __init intel_soc_thermal_init(void)
 						      ACPI_LEVEL_SENSITIVE,
 						      ACPI_ACTIVE_LOW);
 		if (soc_dts_thres_irq < 0) {
-			pr_warn("intel_soc_dts: Could not get IRQ for GSI %d, err %d\n",
+			pr_warn("intel_soc_dts: Could yest get IRQ for GSI %d, err %d\n",
 				soc_dts_thres_gsi, soc_dts_thres_irq);
 			soc_dts_thres_irq = 0;
 		}
@@ -81,7 +81,7 @@ static int __init intel_soc_thermal_init(void)
 					   "soc_dts", soc_dts);
 		if (err) {
 			/*
-			 * Do not just error out because the user space thermal
+			 * Do yest just error out because the user space thermal
 			 * daemon such as DPTF may use polling instead of being
 			 * interrupt driven.
 			 */

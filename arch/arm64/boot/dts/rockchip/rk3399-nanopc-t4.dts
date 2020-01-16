@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
- * FriendlyElec NanoPC-T4 board device tree source
+ * FriendlyElec NayesPC-T4 board device tree source
  *
  * Copyright (c) 2018 FriendlyElec Computer Tech. Co., Ltd.
  * (http://www.friendlyarm.com)
@@ -9,11 +9,11 @@
  */
 
 /dts-v1/;
-#include "rk3399-nanopi4.dtsi"
+#include "rk3399-nayespi4.dtsi"
 
 / {
-	model = "FriendlyElec NanoPC-T4";
-	compatible = "friendlyarm,nanopc-t4", "rockchip,rk3399";
+	model = "FriendlyElec NayesPC-T4";
+	compatible = "friendlyarm,nayespc-t4", "rockchip,rk3399";
 
 	vcc12v0_sys: vcc12v0-sys {
 		compatible = "regulator-fixed";
@@ -125,7 +125,7 @@
 	ir {
 		ir_rx: ir-rx {
 			/* external pullup to VCC3V3_SYS, despite being 1.8V :/ */
-			rockchip,pins = <0 RK_PA6 1 &pcfg_pull_none>;
+			rockchip,pins = <0 RK_PA6 1 &pcfg_pull_yesne>;
 		};
 	};
 };

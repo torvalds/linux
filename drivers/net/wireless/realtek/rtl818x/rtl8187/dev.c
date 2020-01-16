@@ -269,9 +269,9 @@ static void rtl8187_tx(struct ieee80211_hw *dev,
 
 	if (info->flags & IEEE80211_TX_CTL_ASSIGN_SEQ) {
 		if (info->flags & IEEE80211_TX_CTL_FIRST_FRAGMENT)
-			priv->seqno += 0x10;
+			priv->seqyes += 0x10;
 		tx_hdr->seq_ctrl &= cpu_to_le16(IEEE80211_SCTL_FRAG);
-		tx_hdr->seq_ctrl |= cpu_to_le16(priv->seqno);
+		tx_hdr->seq_ctrl |= cpu_to_le16(priv->seqyes);
 	}
 
 	if (!priv->is_rtl8187b) {
@@ -360,14 +360,14 @@ static void rtl8187_rx_cb(struct urb *urb)
 		/* The Realtek datasheet for the RTL8187B shows that the RX
 		 * header contains the following quantities: signal quality,
 		 * RSSI, AGC, the received power in dB, and the measured SNR.
-		 * In testing, none of these quantities show qualitative
+		 * In testing, yesne of these quantities show qualitative
 		 * agreement with AP signal strength, except for the AGC,
 		 * which is inversely proportional to the strength of the
 		 * signal. In the following, the signal strength
 		 * is derived from the AGC. The arbitrary scaling constants
 		 * are chosen to make the results close to the values obtained
-		 * for a BCM4312 using b43 as the driver. The noise is ignored
-		 * for now.
+		 * for a BCM4312 using b43 as the driver. The yesise is igyesred
+		 * for yesw.
 		 */
 		flags = le32_to_cpu(hdr->flags);
 		signal = 14 - hdr->agc / 2;
@@ -495,7 +495,7 @@ static void rtl8187b_status_cb(struct urb *urb)
 
 	cmd_type = (val >> 30) & 0x3;
 	if (cmd_type == 1) {
-		unsigned int pkt_rc, seq_no;
+		unsigned int pkt_rc, seq_yes;
 		bool tok;
 		struct sk_buff *skb, *iter;
 		struct ieee80211_hdr *ieee80211hdr;
@@ -503,7 +503,7 @@ static void rtl8187b_status_cb(struct urb *urb)
 
 		pkt_rc = val & 0xFF;
 		tok = val & (1 << 15);
-		seq_no = (val >> 16) & 0xFFF;
+		seq_yes = (val >> 16) & 0xFFF;
 
 		spin_lock_irqsave(&priv->b_tx_status.queue.lock, flags);
 		skb = NULL;
@@ -511,7 +511,7 @@ static void rtl8187b_status_cb(struct urb *urb)
 			ieee80211hdr = (struct ieee80211_hdr *)iter->data;
 
 			/*
-			 * While testing, it was discovered that the seq_no
+			 * While testing, it was discovered that the seq_yes
 			 * doesn't actually contains the sequence number.
 			 * Instead of returning just the 12 bits of sequence
 			 * number, hardware is returning entire sequence control
@@ -521,7 +521,7 @@ static void rtl8187b_status_cb(struct urb *urb)
 			 * it's unlikely we wrongly ack some sent data
 			 */
 			if ((le16_to_cpu(ieee80211hdr->seq_ctrl)
-			     & 0xFFF) == seq_no) {
+			     & 0xFFF) == seq_yes) {
 				skb = iter;
 				break;
 			}
@@ -774,7 +774,7 @@ static int rtl8187b_init_hw(struct ieee80211_hw *dev)
 
 	rtl8187_set_anaparam(priv, true);
 
-	/* Reset PLL sequence on 8187B. Realtek note: reduces power
+	/* Reset PLL sequence on 8187B. Realtek yeste: reduces power
 	 * consumption about 30 mA */
 	rtl818x_iowrite8(priv, (u8 *)0xFF61, 0x10);
 	reg = rtl818x_ioread8(priv, (u8 *)0xFF62);
@@ -883,11 +883,11 @@ static int rtl8187b_init_hw(struct ieee80211_hw *dev)
 static void rtl8187_work(struct work_struct *work)
 {
 	/* The RTL8187 returns the retry count through register 0xFFFA. In
-	 * addition, it appears to be a cumulative retry count, not the
+	 * addition, it appears to be a cumulative retry count, yest the
 	 * value for the current TX packet. When multiple TX entries are
 	 * waiting in the queue, the retry count will be the total for all.
 	 * The "error" may matter for purposes of rate setting, but there is
-	 * no other choice with this hardware.
+	 * yes other choice with this hardware.
 	 */
 	struct rtl8187_priv *priv = container_of(work, struct rtl8187_priv,
 				    work.work);
@@ -1624,7 +1624,7 @@ static int rtl8187_probe(struct usb_interface *intf,
 
 	err = ieee80211_register_hw(dev);
 	if (err) {
-		printk(KERN_ERR "rtl8187: Cannot register device\n");
+		printk(KERN_ERR "rtl8187: Canyest register device\n");
 		goto err_free_dmabuf;
 	}
 	skb_queue_head_init(&priv->b_tx_status.queue);

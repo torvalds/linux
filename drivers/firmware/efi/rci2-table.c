@@ -30,7 +30,7 @@ struct rci2_table_global_hdr {
 	u32 resvd2;
 	u32 resvd3;
 	u8 major_rev;
-	u8 minor_rev;
+	u8 miyesr_rev;
 	u16 num_of_structs;
 	u32 rci2_len;
 	u16 rci2_chksum;
@@ -88,7 +88,7 @@ static int __init efi_rci2_sysfs_init(void)
 			     sizeof(struct rci2_table_global_hdr),
 			     MEMREMAP_WB);
 	if (!rci2_base) {
-		pr_debug("RCI2 table init failed - could not map RCI2 table\n");
+		pr_debug("RCI2 table init failed - could yest map RCI2 table\n");
 		goto err;
 	}
 
@@ -113,7 +113,7 @@ static int __init efi_rci2_sysfs_init(void)
 
 	rci2_base = memremap(rci2_table_phys, rci2_table_len, MEMREMAP_WB);
 	if (!rci2_base) {
-		pr_debug("RCI2 table - could not map RCI2 table\n");
+		pr_debug("RCI2 table - could yest map RCI2 table\n");
 		goto err;
 	}
 

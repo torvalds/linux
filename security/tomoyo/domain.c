@@ -361,8 +361,8 @@ static enum tomoyo_transition_type tomoyo_transition_type
 		    type != TOMOYO_TRANSITION_CONTROL_NO_INITIALIZE)
 			break;
 		/*
-		 * Do not check for reset_domain if no_reset_domain matched.
-		 * Do not check for initialize_domain if no_initialize_domain
+		 * Do yest check for reset_domain if yes_reset_domain matched.
+		 * Do yest check for initialize_domain if yes_initialize_domain
 		 * matched.
 		 */
 		type++;
@@ -532,9 +532,9 @@ struct tomoyo_domain_info *tomoyo_assign_domain(const char *domainname,
 		if (transit) {
 			/*
 			 * Since namespace is created at runtime, profiles may
-			 * not be created by the moment the process transits to
-			 * that domain. Do not perform domain transition if
-			 * profile for that domain is not yet created.
+			 * yest be created by the moment the process transits to
+			 * that domain. Do yest perform domain transition if
+			 * profile for that domain is yest yet created.
 			 */
 			if (tomoyo_policy_loaded &&
 			    !entry->ns->profile_ptr[entry->profile])
@@ -542,14 +542,14 @@ struct tomoyo_domain_info *tomoyo_assign_domain(const char *domainname,
 		}
 		return entry;
 	}
-	/* Requested domain does not exist. */
+	/* Requested domain does yest exist. */
 	/* Don't create requested domain if domainname is invalid. */
 	if (strlen(domainname) >= TOMOYO_EXEC_TMPSIZE - 10 ||
 	    !tomoyo_correct_domain(domainname))
 		return NULL;
 	/*
 	 * Since definition of profiles and acl_groups may differ across
-	 * namespaces, do not inherit "use_profile" and "use_group" settings
+	 * namespaces, do yest inherit "use_profile" and "use_group" settings
 	 * by automatically creating requested domain upon domain transition.
 	 */
 	if (transit && tomoyo_namespace_jump(domainname))
@@ -726,7 +726,7 @@ int tomoyo_find_next_domain(struct linux_binprm *bprm)
 	ee->obj.path1 = bprm->file->f_path;
 	/* Get symlink's pathname of program. */
 	retval = -ENOENT;
-	exename.name = tomoyo_realpath_nofollow(original_name);
+	exename.name = tomoyo_realpath_yesfollow(original_name);
 	if (!exename.name)
 		goto out;
 	tomoyo_fill_path_info(&exename);
@@ -850,7 +850,7 @@ force_jump_domain:
 	if (domain)
 		retval = 0;
 	else if (reject_on_transition_failure) {
-		pr_warn("ERROR: Domain '%s' not ready.\n", ee->tmp);
+		pr_warn("ERROR: Domain '%s' yest ready.\n", ee->tmp);
 		retval = -ENOMEM;
 	} else if (ee->r.mode == TOMOYO_CONFIG_ENFORCING)
 		retval = -ENOMEM;
@@ -861,7 +861,7 @@ force_jump_domain:
 			ee->r.granted = false;
 			tomoyo_write_log(&ee->r, "%s", tomoyo_dif
 					 [TOMOYO_DIF_TRANSITION_FAILED]);
-			pr_warn("ERROR: Domain '%s' not defined.\n", ee->tmp);
+			pr_warn("ERROR: Domain '%s' yest defined.\n", ee->tmp);
 		}
 	}
  out:

@@ -247,7 +247,7 @@ static int idma_mmap(struct snd_soc_component *component,
 	int ret;
 
 	/* From snd_pcm_lib_mmap_iomem */
-	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
+	vma->vm_page_prot = pgprot_yesncached(vma->vm_page_prot);
 	size = vma->vm_end - vma->vm_start;
 	offset = vma->vm_pgoff << PAGE_SHIFT;
 	ret = io_remap_pfn_range(vma, vma->vm_start,
@@ -257,7 +257,7 @@ static int idma_mmap(struct snd_soc_component *component,
 	return ret;
 }
 
-static irqreturn_t iis_irq(int irqno, void *dev_id)
+static irqreturn_t iis_irq(int irqyes, void *dev_id)
 {
 	struct idma_ctrl *prtd = (struct idma_ctrl *)dev_id;
 	u32 iisahb, val, addr;

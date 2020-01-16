@@ -33,14 +33,14 @@ SHOW_MMUSTAT_ULONG(immu_tsb_hits_ctx0_4mb_tte);
 SHOW_MMUSTAT_ULONG(immu_tsb_ticks_ctx0_4mb_tte);
 SHOW_MMUSTAT_ULONG(immu_tsb_hits_ctx0_256mb_tte);
 SHOW_MMUSTAT_ULONG(immu_tsb_ticks_ctx0_256mb_tte);
-SHOW_MMUSTAT_ULONG(immu_tsb_hits_ctxnon0_8k_tte);
-SHOW_MMUSTAT_ULONG(immu_tsb_ticks_ctxnon0_8k_tte);
-SHOW_MMUSTAT_ULONG(immu_tsb_hits_ctxnon0_64k_tte);
-SHOW_MMUSTAT_ULONG(immu_tsb_ticks_ctxnon0_64k_tte);
-SHOW_MMUSTAT_ULONG(immu_tsb_hits_ctxnon0_4mb_tte);
-SHOW_MMUSTAT_ULONG(immu_tsb_ticks_ctxnon0_4mb_tte);
-SHOW_MMUSTAT_ULONG(immu_tsb_hits_ctxnon0_256mb_tte);
-SHOW_MMUSTAT_ULONG(immu_tsb_ticks_ctxnon0_256mb_tte);
+SHOW_MMUSTAT_ULONG(immu_tsb_hits_ctxyesn0_8k_tte);
+SHOW_MMUSTAT_ULONG(immu_tsb_ticks_ctxyesn0_8k_tte);
+SHOW_MMUSTAT_ULONG(immu_tsb_hits_ctxyesn0_64k_tte);
+SHOW_MMUSTAT_ULONG(immu_tsb_ticks_ctxyesn0_64k_tte);
+SHOW_MMUSTAT_ULONG(immu_tsb_hits_ctxyesn0_4mb_tte);
+SHOW_MMUSTAT_ULONG(immu_tsb_ticks_ctxyesn0_4mb_tte);
+SHOW_MMUSTAT_ULONG(immu_tsb_hits_ctxyesn0_256mb_tte);
+SHOW_MMUSTAT_ULONG(immu_tsb_ticks_ctxyesn0_256mb_tte);
 SHOW_MMUSTAT_ULONG(dmmu_tsb_hits_ctx0_8k_tte);
 SHOW_MMUSTAT_ULONG(dmmu_tsb_ticks_ctx0_8k_tte);
 SHOW_MMUSTAT_ULONG(dmmu_tsb_hits_ctx0_64k_tte);
@@ -49,14 +49,14 @@ SHOW_MMUSTAT_ULONG(dmmu_tsb_hits_ctx0_4mb_tte);
 SHOW_MMUSTAT_ULONG(dmmu_tsb_ticks_ctx0_4mb_tte);
 SHOW_MMUSTAT_ULONG(dmmu_tsb_hits_ctx0_256mb_tte);
 SHOW_MMUSTAT_ULONG(dmmu_tsb_ticks_ctx0_256mb_tte);
-SHOW_MMUSTAT_ULONG(dmmu_tsb_hits_ctxnon0_8k_tte);
-SHOW_MMUSTAT_ULONG(dmmu_tsb_ticks_ctxnon0_8k_tte);
-SHOW_MMUSTAT_ULONG(dmmu_tsb_hits_ctxnon0_64k_tte);
-SHOW_MMUSTAT_ULONG(dmmu_tsb_ticks_ctxnon0_64k_tte);
-SHOW_MMUSTAT_ULONG(dmmu_tsb_hits_ctxnon0_4mb_tte);
-SHOW_MMUSTAT_ULONG(dmmu_tsb_ticks_ctxnon0_4mb_tte);
-SHOW_MMUSTAT_ULONG(dmmu_tsb_hits_ctxnon0_256mb_tte);
-SHOW_MMUSTAT_ULONG(dmmu_tsb_ticks_ctxnon0_256mb_tte);
+SHOW_MMUSTAT_ULONG(dmmu_tsb_hits_ctxyesn0_8k_tte);
+SHOW_MMUSTAT_ULONG(dmmu_tsb_ticks_ctxyesn0_8k_tte);
+SHOW_MMUSTAT_ULONG(dmmu_tsb_hits_ctxyesn0_64k_tte);
+SHOW_MMUSTAT_ULONG(dmmu_tsb_ticks_ctxyesn0_64k_tte);
+SHOW_MMUSTAT_ULONG(dmmu_tsb_hits_ctxyesn0_4mb_tte);
+SHOW_MMUSTAT_ULONG(dmmu_tsb_ticks_ctxyesn0_4mb_tte);
+SHOW_MMUSTAT_ULONG(dmmu_tsb_hits_ctxyesn0_256mb_tte);
+SHOW_MMUSTAT_ULONG(dmmu_tsb_ticks_ctxyesn0_256mb_tte);
 
 static struct attribute *mmu_stat_attrs[] = {
 	&dev_attr_immu_tsb_hits_ctx0_8k_tte.attr,
@@ -67,14 +67,14 @@ static struct attribute *mmu_stat_attrs[] = {
 	&dev_attr_immu_tsb_ticks_ctx0_4mb_tte.attr,
 	&dev_attr_immu_tsb_hits_ctx0_256mb_tte.attr,
 	&dev_attr_immu_tsb_ticks_ctx0_256mb_tte.attr,
-	&dev_attr_immu_tsb_hits_ctxnon0_8k_tte.attr,
-	&dev_attr_immu_tsb_ticks_ctxnon0_8k_tte.attr,
-	&dev_attr_immu_tsb_hits_ctxnon0_64k_tte.attr,
-	&dev_attr_immu_tsb_ticks_ctxnon0_64k_tte.attr,
-	&dev_attr_immu_tsb_hits_ctxnon0_4mb_tte.attr,
-	&dev_attr_immu_tsb_ticks_ctxnon0_4mb_tte.attr,
-	&dev_attr_immu_tsb_hits_ctxnon0_256mb_tte.attr,
-	&dev_attr_immu_tsb_ticks_ctxnon0_256mb_tte.attr,
+	&dev_attr_immu_tsb_hits_ctxyesn0_8k_tte.attr,
+	&dev_attr_immu_tsb_ticks_ctxyesn0_8k_tte.attr,
+	&dev_attr_immu_tsb_hits_ctxyesn0_64k_tte.attr,
+	&dev_attr_immu_tsb_ticks_ctxyesn0_64k_tte.attr,
+	&dev_attr_immu_tsb_hits_ctxyesn0_4mb_tte.attr,
+	&dev_attr_immu_tsb_ticks_ctxyesn0_4mb_tte.attr,
+	&dev_attr_immu_tsb_hits_ctxyesn0_256mb_tte.attr,
+	&dev_attr_immu_tsb_ticks_ctxyesn0_256mb_tte.attr,
 	&dev_attr_dmmu_tsb_hits_ctx0_8k_tte.attr,
 	&dev_attr_dmmu_tsb_ticks_ctx0_8k_tte.attr,
 	&dev_attr_dmmu_tsb_hits_ctx0_64k_tte.attr,
@@ -83,14 +83,14 @@ static struct attribute *mmu_stat_attrs[] = {
 	&dev_attr_dmmu_tsb_ticks_ctx0_4mb_tte.attr,
 	&dev_attr_dmmu_tsb_hits_ctx0_256mb_tte.attr,
 	&dev_attr_dmmu_tsb_ticks_ctx0_256mb_tte.attr,
-	&dev_attr_dmmu_tsb_hits_ctxnon0_8k_tte.attr,
-	&dev_attr_dmmu_tsb_ticks_ctxnon0_8k_tte.attr,
-	&dev_attr_dmmu_tsb_hits_ctxnon0_64k_tte.attr,
-	&dev_attr_dmmu_tsb_ticks_ctxnon0_64k_tte.attr,
-	&dev_attr_dmmu_tsb_hits_ctxnon0_4mb_tte.attr,
-	&dev_attr_dmmu_tsb_ticks_ctxnon0_4mb_tte.attr,
-	&dev_attr_dmmu_tsb_hits_ctxnon0_256mb_tte.attr,
-	&dev_attr_dmmu_tsb_ticks_ctxnon0_256mb_tte.attr,
+	&dev_attr_dmmu_tsb_hits_ctxyesn0_8k_tte.attr,
+	&dev_attr_dmmu_tsb_ticks_ctxyesn0_8k_tte.attr,
+	&dev_attr_dmmu_tsb_hits_ctxyesn0_64k_tte.attr,
+	&dev_attr_dmmu_tsb_ticks_ctxyesn0_64k_tte.attr,
+	&dev_attr_dmmu_tsb_hits_ctxyesn0_4mb_tte.attr,
+	&dev_attr_dmmu_tsb_ticks_ctxyesn0_4mb_tte.attr,
+	&dev_attr_dmmu_tsb_hits_ctxyesn0_256mb_tte.attr,
+	&dev_attr_dmmu_tsb_ticks_ctxyesn0_256mb_tte.attr,
 	NULL,
 };
 
@@ -244,13 +244,13 @@ static void __init check_mmu_stats(void)
 		mmu_stats_supported = 1;
 }
 
-static void register_nodes(void)
+static void register_yesdes(void)
 {
 #ifdef CONFIG_NUMA
 	int i;
 
 	for (i = 0; i < MAX_NUMNODES; i++)
-		register_one_node(i);
+		register_one_yesde(i);
 #endif
 }
 
@@ -258,7 +258,7 @@ static int __init topology_init(void)
 {
 	int cpu, ret;
 
-	register_nodes();
+	register_yesdes();
 
 	check_mmu_stats();
 

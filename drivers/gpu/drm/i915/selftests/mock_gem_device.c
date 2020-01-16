@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -171,7 +171,7 @@ struct drm_i915_private *mock_gem_device(void)
 
 	i915_gem_init__mm(i915);
 	intel_gt_init_early(&i915->gt, i915);
-	atomic_inc(&i915->gt.wakeref.count); /* disable; no hw support */
+	atomic_inc(&i915->gt.wakeref.count); /* disable; yes hw support */
 	i915->gt.awake = -ENODEV;
 
 	i915->wq = alloc_ordered_workqueue("mock", 0);

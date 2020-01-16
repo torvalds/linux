@@ -140,7 +140,7 @@ struct fm10k_ring {
 			struct sk_buff *skb;
 		};
 	};
-} ____cacheline_internodealigned_in_smp;
+} ____cacheline_interyesdealigned_in_smp;
 
 struct fm10k_ring_container {
 	struct fm10k_ring *ring;	/* pointer to linked list of rings */
@@ -175,7 +175,7 @@ static inline struct netdev_queue *txring_txq(const struct fm10k_ring *ring)
 
 #define MAX_Q_VECTORS 256
 #define MIN_Q_VECTORS	1
-enum fm10k_non_q_vectors {
+enum fm10k_yesn_q_vectors {
 	FM10K_MBX_VECTOR,
 	NON_Q_VECTORS
 };
@@ -198,7 +198,7 @@ struct fm10k_q_vector {
 	struct rcu_head rcu;	/* to avoid race with update stats on free */
 
 	/* for dynamic allocation of rings associated with this q_vector */
-	struct fm10k_ring ring[0] ____cacheline_internodealigned_in_smp;
+	struct fm10k_ring ring[0] ____cacheline_interyesdealigned_in_smp;
 };
 
 enum fm10k_ring_f_enum {

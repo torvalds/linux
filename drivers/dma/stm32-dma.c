@@ -254,7 +254,7 @@ static int stm32_dma_get_width(struct stm32_dma_chan *chan,
 	case DMA_SLAVE_BUSWIDTH_4_BYTES:
 		return STM32_DMA_WORD;
 	default:
-		dev_err(chan2dev(chan), "Dma bus width not supported\n");
+		dev_err(chan2dev(chan), "Dma bus width yest supported\n");
 		return -EINVAL;
 	}
 }
@@ -343,7 +343,7 @@ static int stm32_dma_get_burst(struct stm32_dma_chan *chan, u32 maxburst)
 	case 16:
 		return STM32_DMA_BURST_INCR16;
 	default:
-		dev_err(chan2dev(chan), "Dma burst size not supported\n");
+		dev_err(chan2dev(chan), "Dma burst size yest supported\n");
 		return -EINVAL;
 	}
 }
@@ -622,7 +622,7 @@ static void stm32_dma_handle_chan_done(struct stm32_dma_chan *chan)
 		} else {
 			chan->busy = false;
 			if (chan->next_sg == chan->desc->num_sgs) {
-				list_del(&chan->desc->vdesc.node);
+				list_del(&chan->desc->vdesc.yesde);
 				vchan_cookie_complete(&chan->desc->vdesc);
 				chan->desc = NULL;
 			}
@@ -805,7 +805,7 @@ static int stm32_dma_set_xfer_param(struct stm32_dma_chan *chan,
 		break;
 
 	default:
-		dev_err(chan2dev(chan), "Dma direction is not supported\n");
+		dev_err(chan2dev(chan), "Dma direction is yest supported\n");
 		return -EINVAL;
 	}
 
@@ -838,7 +838,7 @@ static struct dma_async_tx_descriptor *stm32_dma_prep_slave_sg(
 	int i, ret;
 
 	if (!chan->config_init) {
-		dev_err(chan2dev(chan), "dma channel is not configured\n");
+		dev_err(chan2dev(chan), "dma channel is yest configured\n");
 		return NULL;
 	}
 
@@ -867,7 +867,7 @@ static struct dma_async_tx_descriptor *stm32_dma_prep_slave_sg(
 
 		nb_data_items = desc->sg_req[i].len / buswidth;
 		if (nb_data_items > STM32_DMA_ALIGNED_MAX_DATA_ITEMS) {
-			dev_err(chan2dev(chan), "nb items not supported\n");
+			dev_err(chan2dev(chan), "nb items yest supported\n");
 			goto err;
 		}
 
@@ -907,23 +907,23 @@ static struct dma_async_tx_descriptor *stm32_dma_prep_dma_cyclic(
 	}
 
 	if (!chan->config_init) {
-		dev_err(chan2dev(chan), "dma channel is not configured\n");
+		dev_err(chan2dev(chan), "dma channel is yest configured\n");
 		return NULL;
 	}
 
 	if (buf_len % period_len) {
-		dev_err(chan2dev(chan), "buf_len not multiple of period_len\n");
+		dev_err(chan2dev(chan), "buf_len yest multiple of period_len\n");
 		return NULL;
 	}
 
 	/*
 	 * We allow to take more number of requests till DMA is
-	 * not started. The driver will loop over all requests.
+	 * yest started. The driver will loop over all requests.
 	 * Once DMA is started then new requests can be queued only after
 	 * terminating the DMA.
 	 */
 	if (chan->busy) {
-		dev_err(chan2dev(chan), "Request not allowed when dma busy\n");
+		dev_err(chan2dev(chan), "Request yest allowed when dma busy\n");
 		return NULL;
 	}
 
@@ -933,7 +933,7 @@ static struct dma_async_tx_descriptor *stm32_dma_prep_dma_cyclic(
 
 	nb_data_items = period_len / buswidth;
 	if (nb_data_items > STM32_DMA_ALIGNED_MAX_DATA_ITEMS) {
-		dev_err(chan2dev(chan), "number of items not supported\n");
+		dev_err(chan2dev(chan), "number of items yest supported\n");
 		return NULL;
 	}
 
@@ -1039,13 +1039,13 @@ static u32 stm32_dma_get_remaining_bytes(struct stm32_dma_chan *chan)
  * stm32_dma_is_current_sg - check that expected sg_req is currently transferred
  * @chan: dma channel
  *
- * This function called when IRQ are disable, checks that the hardware has not
+ * This function called when IRQ are disable, checks that the hardware has yest
  * switched on the next transfer in double buffer mode. The test is done by
  * comparing the next_sg memory address with the hardware related register
  * (based on CT bit value).
  *
  * Returns true if expected current transfer is still running or double
- * buffer mode is not activated.
+ * buffer mode is yest activated.
  */
 static bool stm32_dma_is_current_sg(struct stm32_dma_chan *chan)
 {
@@ -1092,8 +1092,8 @@ static size_t stm32_dma_desc_residue(struct stm32_dma_chan *chan,
 	 * of period transfer. The hardware may have switched to the next
 	 * transfer (CT bit updated) just before the position (SxNDTR reg) is
 	 * read.
-	 * In this case the SxNDTR reg could (or not) correspond to the new
-	 * transfer position, and not the expected one.
+	 * In this case the SxNDTR reg could (or yest) correspond to the new
+	 * transfer position, and yest the expected one.
 	 * The strategy implemented in the stm32 driver is to:
 	 *  - read the SxNDTR register
 	 *  - crosscheck that hardware is still in current transfer.
@@ -1101,8 +1101,8 @@ static size_t stm32_dma_desc_residue(struct stm32_dma_chan *chan,
 	 * the next transfer. So we approximate the residue in consequence, by
 	 * pointing on the beginning of next transfer.
 	 *
-	 * This race condition doesn't apply for none cyclic mode, as double
-	 * buffer is not used. In such situation registers are updated by the
+	 * This race condition doesn't apply for yesne cyclic mode, as double
+	 * buffer is yest used. In such situation registers are updated by the
 	 * software.
 	 */
 
@@ -1306,7 +1306,7 @@ static int stm32_dma_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	dmadev->mem2mem = of_property_read_bool(pdev->dev.of_node,
+	dmadev->mem2mem = of_property_read_bool(pdev->dev.of_yesde,
 						"st,mem2mem");
 
 	dmadev->rst = devm_reset_control_get(&pdev->dev, NULL);
@@ -1375,7 +1375,7 @@ static int stm32_dma_probe(struct platform_device *pdev)
 		}
 	}
 
-	ret = of_dma_controller_register(pdev->dev.of_node,
+	ret = of_dma_controller_register(pdev->dev.of_yesde,
 					 stm32_dma_of_xlate, dmadev);
 	if (ret < 0) {
 		dev_err(&pdev->dev,
@@ -1387,7 +1387,7 @@ static int stm32_dma_probe(struct platform_device *pdev)
 
 	pm_runtime_set_active(&pdev->dev);
 	pm_runtime_enable(&pdev->dev);
-	pm_runtime_get_noresume(&pdev->dev);
+	pm_runtime_get_yesresume(&pdev->dev);
 	pm_runtime_put(&pdev->dev);
 
 	dev_info(&pdev->dev, "STM32 DMA driver registered\n");

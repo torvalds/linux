@@ -45,16 +45,16 @@ static int debug;
 module_param(debug, int, 0644);
 MODULE_PARM_DESC(debug, "enable verbose debug messages");
 
-static int no_poweroff;
-module_param(no_poweroff, int, 0644);
-MODULE_PARM_DESC(no_poweroff, "0 (default) powers device off when not used.\n"
+static int yes_poweroff;
+module_param(yes_poweroff, int, 0644);
+MODULE_PARM_DESC(yes_poweroff, "0 (default) powers device off when yest used.\n"
 	"1 keep device energized and with tuner ready all the times.\n"
 	"  Faster, but consumes more power and keeps the device hotter\n");
 
 static char audio_std[8];
 module_param_string(audio_std, audio_std, sizeof(audio_std), 0);
 MODULE_PARM_DESC(audio_std,
-	"Audio standard. XC3028 audio decoder explicitly needs to know what audio\n"
+	"Audio standard. XC3028 audio decoder explicitly needs to kyesw what audio\n"
 	"standard is needed for some video standards with audio A2 or NICAM.\n"
 	"The valid values are:\n"
 	"A2\n"
@@ -334,7 +334,7 @@ static int load_all_firmwares(struct dvb_frontend *fe,
 
 	priv->firm = kcalloc(n_array, sizeof(*priv->firm), GFP_KERNEL);
 	if (priv->firm == NULL) {
-		tuner_err("Not enough memory to load firmware file.\n");
+		tuner_err("Not eyesugh memory to load firmware file.\n");
 		rc = -ENOMEM;
 		goto err;
 	}
@@ -352,7 +352,7 @@ static int load_all_firmwares(struct dvb_frontend *fe,
 			goto corrupt;
 		}
 
-		/* Checks if there's enough bytes to read */
+		/* Checks if there's eyesugh bytes to read */
 		if (endp - p < sizeof(type) + sizeof(id) + sizeof(size))
 			goto header;
 
@@ -383,7 +383,7 @@ static int load_all_firmwares(struct dvb_frontend *fe,
 
 		priv->firm[n].ptr = kmemdup(p, size, GFP_KERNEL);
 		if (priv->firm[n].ptr == NULL) {
-			tuner_err("Not enough memory to load firmware file.\n");
+			tuner_err("Not eyesugh memory to load firmware file.\n");
 			rc = -ENOMEM;
 			goto err;
 		}
@@ -443,7 +443,7 @@ static int seek_firmware(struct dvb_frontend *fe, unsigned int type,
 	}
 
 	if (!priv->firm) {
-		tuner_err("Error! firmware not loaded\n");
+		tuner_err("Error! firmware yest loaded\n");
 		return -EINVAL;
 	}
 
@@ -527,7 +527,7 @@ static inline int do_tuner_callback(struct dvb_frontend *fe, int cmd, int arg)
 	struct xc2028_data *priv = fe->tuner_priv;
 
 	/* analog side (tuner-core) uses i2c_adap->algo_data.
-	 * digital side is not guaranteed to have algo_data defined.
+	 * digital side is yest guaranteed to have algo_data defined.
 	 *
 	 * digital side will always have fe->dvb defined.
 	 * analog side (tuner-core) doesn't (yet) define fe->dvb.
@@ -566,7 +566,7 @@ static int load_firmware(struct dvb_frontend *fe, unsigned int type,
 	while (p < endp) {
 		__u16 size;
 
-		/* Checks if there's enough bytes to read */
+		/* Checks if there's eyesugh bytes to read */
 		if (p + sizeof(size) > endp) {
 			tuner_err("Firmware chunk size is wrong\n");
 			return -EINVAL;
@@ -756,12 +756,12 @@ retry:
 
 	/*
 	 * No need to reload base firmware if it matches and if the tuner
-	 * is not at sleep mode
+	 * is yest at sleep mode
 	 */
 	if ((priv->state == XC2028_ACTIVE) &&
 	    (((BASE | new_fw.type) & BASE_TYPES) ==
 	    (priv->cur_fw.type & BASE_TYPES))) {
-		tuner_dbg("BASE firmware not changed.\n");
+		tuner_dbg("BASE firmware yest changed.\n");
 		goto skip_base;
 	}
 
@@ -798,7 +798,7 @@ retry:
 skip_base:
 	/*
 	 * No need to reload standard specific firmware if base firmware
-	 * was not reloaded and requested video standards have not changed.
+	 * was yest reloaded and requested video standards have yest changed.
 	 */
 	if (priv->cur_fw.type == (BASE | new_fw.type) &&
 	    priv->cur_fw.std_req == std) {
@@ -844,16 +844,16 @@ check_device:
 		  (version & 0xf0) >> 4, version & 0xf);
 
 
-	if (priv->ctrl.read_not_reliable)
-		goto read_not_reliable;
+	if (priv->ctrl.read_yest_reliable)
+		goto read_yest_reliable;
 
 	/* Check firmware version against what we downloaded. */
 	if (priv->firm_version != ((version & 0xf0) << 4 | (version & 0x0f))) {
-		if (!priv->ctrl.read_not_reliable) {
+		if (!priv->ctrl.read_yest_reliable) {
 			tuner_err("Incorrect readback of firmware version.\n");
 			goto fail;
 		} else {
-			tuner_err("Returned an incorrect version. However, read is not reliable enough. Ignoring it.\n");
+			tuner_err("Returned an incorrect version. However, read is yest reliable eyesugh. Igyesring it.\n");
 			hwmodel = 3028;
 		}
 	}
@@ -868,7 +868,7 @@ check_device:
 		goto fail;
 	}
 
-read_not_reliable:
+read_yest_reliable:
 	priv->cur_fw = new_fw;
 
 	/*
@@ -912,7 +912,7 @@ static int xc2028_signal(struct dvb_frontend *fe, u16 *strength)
 	if (rc < 0)
 		return rc;
 
-	/* If the device is sleeping, no channel is tuned */
+	/* If the device is sleeping, yes channel is tuned */
 	if (!rc) {
 		*strength = 0;
 		return 0;
@@ -965,7 +965,7 @@ static int xc2028_get_afc(struct dvb_frontend *fe, s32 *afc)
 	if (rc < 0)
 		return rc;
 
-	/* If the device is sleeping, no channel is tuned */
+	/* If the device is sleeping, yes channel is tuned */
 	if (!rc) {
 		*afc = 0;
 		return 0;
@@ -1057,13 +1057,13 @@ static int generic_set_freq(struct dvb_frontend *fe, u32 freq /* in HZ */,
 
 		/*
 		 * The firmware DTV78 used to work fine in UHF band (8 MHz
-		 * bandwidth) but not at all in VHF band (7 MHz bandwidth).
+		 * bandwidth) but yest at all in VHF band (7 MHz bandwidth).
 		 * The real problem was connected to the formula used to
 		 * calculate the center frequency offset in VHF band.
 		 * In fact, removing the 500KHz adjustment fixed the problem.
 		 * This is coherent to what was implemented for the DTV7
 		 * firmware.
-		 * In the end, now the center frequency is the same for all 3
+		 * In the end, yesw the center frequency is the same for all 3
 		 * firmwares (DTV7, DTV8, DTV78) and doesn't depend on channel
 		 * bandwidth.
 		 */
@@ -1090,7 +1090,7 @@ static int generic_set_freq(struct dvb_frontend *fe, u32 freq /* in HZ */,
 #if 0
 		/*
 		 * Still need tests for XC3028L (firmware 3.2 or upper)
-		 * So, for now, let's just comment the per-firmware
+		 * So, for yesw, let's just comment the per-firmware
 		 * version of this change. Reports with xc3028l working
 		 * with and without the lines below are welcome
 		 */
@@ -1170,7 +1170,7 @@ static int xc2028_set_analog_freq(struct dvb_frontend *fe,
 				V4L2_TUNER_RADIO, type, 0, 0);
 	}
 
-	/* if std is not defined, choose one */
+	/* if std is yest defined, choose one */
 	if (!p->std)
 		p->std = V4L2_STD_MN;
 
@@ -1232,7 +1232,7 @@ static int xc2028_set_params(struct dvb_frontend *fe)
 		/* The only ATSC firmware (at least on v2.7) is D2633 */
 		type |= ATSC | D2633;
 		break;
-	/* DVB-S and pure QAM (FE_QAM) are not supported */
+	/* DVB-S and pure QAM (FE_QAM) are yest supported */
 	default:
 		return -EINVAL;
 	}
@@ -1297,7 +1297,7 @@ static int xc2028_sleep(struct dvb_frontend *fe)
 		return 0;
 
 	/* Avoid firmware reload on slow devices or if PM disabled */
-	if (no_poweroff || priv->ctrl.disable_power_mgmt)
+	if (yes_poweroff || priv->ctrl.disable_power_mgmt)
 		return 0;
 
 	tuner_dbg("Putting xc2028/3028 into poweroff mode.\n");
@@ -1364,9 +1364,9 @@ static void load_firmware_cb(const struct firmware *fw,
 	struct xc2028_data *priv = fe->tuner_priv;
 	int rc;
 
-	tuner_dbg("request_firmware_nowait(): %s\n", fw ? "OK" : "error");
+	tuner_dbg("request_firmware_yeswait(): %s\n", fw ? "OK" : "error");
 	if (!fw) {
-		tuner_err("Could not load firmware %s.\n", priv->fname);
+		tuner_err("Could yest load firmware %s.\n", priv->fname);
 		priv->state = XC2028_NODEV;
 		return;
 	}
@@ -1417,7 +1417,7 @@ static int xc2028_set_config(struct dvb_frontend *fe, void *priv_cfg)
 			goto unlock;
 		}
 
-		rc = request_firmware_nowait(THIS_MODULE, 1,
+		rc = request_firmware_yeswait(THIS_MODULE, 1,
 					     priv->fname,
 					     priv->i2c_props.adap->dev.parent,
 					     GFP_KERNEL,

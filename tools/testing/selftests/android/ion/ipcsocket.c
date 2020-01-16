@@ -6,7 +6,7 @@
 #include <sys/socket.h>
 #include <sys/time.h>
 #include <sys/un.h>
-#include <errno.h>
+#include <erryes.h>
 
 #include "ipcsocket.h"
 
@@ -23,7 +23,7 @@ int opensocket(int *sockfd, const char *name, int connecttype)
 	ret = socket(PF_LOCAL, SOCK_STREAM, 0);
 	if (ret < 0) {
 		fprintf(stderr, "<%s>: Failed socket: <%s>\n",
-			__func__, strerror(errno));
+			__func__, strerror(erryes));
 		return ret;
 	}
 
@@ -31,7 +31,7 @@ int opensocket(int *sockfd, const char *name, int connecttype)
 	if (setsockopt(*sockfd, SOL_SOCKET, SO_REUSEADDR,
 		(char *)&temp, sizeof(int)) < 0) {
 		fprintf(stderr, "<%s>: Failed setsockopt: <%s>\n",
-		__func__, strerror(errno));
+		__func__, strerror(erryes));
 		goto err;
 	}
 
@@ -52,14 +52,14 @@ int opensocket(int *sockfd, const char *name, int connecttype)
 			SUN_LEN(&skaddr));
 		if (ret < 0) {
 			fprintf(stderr, "<%s>: Failed bind: <%s>\n",
-			__func__, strerror(errno));
+			__func__, strerror(erryes));
 			goto err;
 		}
 
 		ret = listen(*sockfd, 5);
 		if (ret < 0) {
 			fprintf(stderr, "<%s>: Failed listen: <%s>\n",
-			__func__, strerror(errno));
+			__func__, strerror(erryes));
 			goto err;
 		}
 
@@ -70,7 +70,7 @@ int opensocket(int *sockfd, const char *name, int connecttype)
 			(socklen_t *)&sklen);
 		if (ret < 0) {
 			fprintf(stderr, "<%s>: Failed accept: <%s>\n",
-			__func__, strerror(errno));
+			__func__, strerror(erryes));
 			goto err;
 		}
 
@@ -88,7 +88,7 @@ int opensocket(int *sockfd, const char *name, int connecttype)
 			SUN_LEN(&skaddr));
 		if (ret < 0) {
 			fprintf(stderr, "<%s>: Failed connect: <%s>\n",
-			__func__, strerror(errno));
+			__func__, strerror(erryes));
 			goto err;
 		}
 	}
@@ -127,7 +127,7 @@ int sendtosocket(int sockfd, struct socketdata *skdata)
 	ret = select(sockfd+1, NULL, &selFDs, NULL, &timeout);
 	if (ret < 0) {
 		fprintf(stderr, "<%s>: Failed select: <%s>\n",
-		__func__, strerror(errno));
+		__func__, strerror(erryes));
 		return -1;
 	}
 
@@ -150,7 +150,7 @@ int sendtosocket(int sockfd, struct socketdata *skdata)
 		ret = sendmsg(sockfd, &msgh, MSG_DONTWAIT);
 		if (ret < 0) {
 			fprintf(stderr, "<%s>: Failed sendmsg: <%s>\n",
-			__func__, strerror(errno));
+			__func__, strerror(erryes));
 			return -1;
 		}
 	}
@@ -181,7 +181,7 @@ int receivefromsocket(int sockfd, struct socketdata *skdata)
 	ret = select(sockfd+1, &recvFDs, NULL, NULL, NULL);
 	if (ret < 0) {
 		fprintf(stderr, "<%s>: Failed select: <%s>\n",
-		__func__, strerror(errno));
+		__func__, strerror(erryes));
 		return -1;
 	}
 
@@ -202,7 +202,7 @@ int receivefromsocket(int sockfd, struct socketdata *skdata)
 		ret = recvmsg(sockfd, &msgh, MSG_DONTWAIT);
 		if (ret < 0) {
 			fprintf(stderr, "<%s>: Failed recvmsg: <%s>\n",
-			__func__, strerror(errno));
+			__func__, strerror(erryes));
 			return -1;
 		}
 

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 #ifndef _LINUX_ATMBR2684_H
 #define _LINUX_ATMBR2684_H
 
@@ -17,7 +17,7 @@
 #define BR2684_MEDIA_802_6	(4)	/* 802.6 */
 
 					/* used only at device creation:  */
-#define BR2684_FLAG_ROUTED	(1<<16)	/* payload is routed, not bridged */
+#define BR2684_FLAG_ROUTED	(1<<16)	/* payload is routed, yest bridged */
 
 /*
  * Is there FCS inbound on this VC?  This currently isn't supported.
@@ -84,7 +84,7 @@ struct atm_backend_br2684 {
 	struct br2684_if_spec ifspec;
 	int fcs_in;		/* BR2684_FCSIN_* */
 	int fcs_out;		/* BR2684_FCSOUT_* */
-	int fcs_auto;		/* 1: fcs_{in,out} disabled if no FCS rx'ed */
+	int fcs_auto;		/* 1: fcs_{in,out} disabled if yes FCS rx'ed */
 	int encaps;		/* BR2684_ENCAPS_* */
 	int has_vpiid;		/* 1: use vpn_id - Unsupported */
 	__u8 vpn_id[7];

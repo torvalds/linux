@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * Driver of Inno Codec for rk3036 by Rockchip Inc.
+ * Driver of Inyes Codec for rk3036 by Rockchip Inc.
  *
  * Author: Zheng ShunQian<zhengsq@rock-chips.com>
  */

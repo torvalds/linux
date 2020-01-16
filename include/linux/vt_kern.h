@@ -14,13 +14,13 @@
 #include <linux/console_struct.h>
 #include <linux/mm.h>
 #include <linux/consolemap.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 
 /*
- * Presently, a lot of graphics programs do not restore the contents of
+ * Presently, a lot of graphics programs do yest restore the contents of
  * the higher font pages.  Defining this flag will avoid use of them, but
  * will lose support for PIO_FONTRESET.  Note that many font operations are
- * not likely to work with these programs anyway; they need to be
+ * yest likely to work with these programs anyway; they need to be
  * fixed.  The linux/Documentation directory includes a code snippet
  * to save and restore the text font.
  */
@@ -148,15 +148,15 @@ extern struct vt_spawn_console vt_spawn_con;
 
 extern int vt_move_to_console(unsigned int vt, int alloc);
 
-/* Interfaces for VC notification of character events (for accessibility etc) */
+/* Interfaces for VC yestification of character events (for accessibility etc) */
 
-struct vt_notifier_param {
+struct vt_yestifier_param {
 	struct vc_data *vc;	/* VC on which the update happened */
 	unsigned int c;		/* Printed char */
 };
 
-extern int register_vt_notifier(struct notifier_block *nb);
-extern int unregister_vt_notifier(struct notifier_block *nb);
+extern int register_vt_yestifier(struct yestifier_block *nb);
+extern int unregister_vt_yestifier(struct yestifier_block *nb);
 
 extern void hide_boot_cursor(bool hide);
 

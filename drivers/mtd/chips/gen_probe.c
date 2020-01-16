@@ -70,7 +70,7 @@ static struct cfi_private *genprobe_ident_chips(struct map_info *map, struct chi
 	   interleave and device type, etc. */
 	if (!genprobe_new_chip(map, cp, &cfi)) {
 		/* The probe didn't like it */
-		pr_debug("%s: Found no %s device at location zero\n",
+		pr_debug("%s: Found yes %s device at location zero\n",
 			 cp->name, map->name);
 		return NULL;
 	}
@@ -196,7 +196,7 @@ extern cfi_cmdset_fn_t cfi_cmdset_0001;
 extern cfi_cmdset_fn_t cfi_cmdset_0002;
 extern cfi_cmdset_fn_t cfi_cmdset_0020;
 
-static inline struct mtd_info *cfi_cmdset_unknown(struct map_info *map,
+static inline struct mtd_info *cfi_cmdset_unkyeswn(struct map_info *map,
 						  int primary)
 {
 	struct cfi_private *cfi = map->fldrv_priv;
@@ -225,7 +225,7 @@ static inline struct mtd_info *cfi_cmdset_unknown(struct map_info *map,
 		return mtd;
 	}
 #endif
-	printk(KERN_NOTICE "Support for command set %04X not present\n", type);
+	printk(KERN_NOTICE "Support for command set %04X yest present\n", type);
 
 	return NULL;
 }
@@ -258,7 +258,7 @@ static struct mtd_info *check_cmd_set(struct map_info *map, int primary)
 		return cfi_cmdset_0020(map, primary);
 #endif
 	default:
-		return cfi_cmdset_unknown(map, primary);
+		return cfi_cmdset_unkyeswn(map, primary);
 	}
 }
 

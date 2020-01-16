@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016 Mellanox Technologies Ltd. All rights reserved.
+ * Copyright (c) 2016 Mellayesx Techyeslogies Ltd. All rights reserved.
  * Copyright (c) 2015 System Fabric Works, Inc. All rights reserved.
  *
  * This software is available to you under a choice of one of two
@@ -13,11 +13,11 @@
  *	   conditions are met:
  *
  *		- Redistributions of source code must retain the above
- *		  copyright notice, this list of conditions and the following
+ *		  copyright yestice, this list of conditions and the following
  *		  disclaimer.
  *
  *		- Redistributions in binary form must reproduce the above
- *		  copyright notice, this list of conditions and the following
+ *		  copyright yestice, this list of conditions and the following
  *		  disclaimer in the documentation and/or other materials
  *		  provided with the distribution.
  *
@@ -528,7 +528,7 @@ static void rxe_qp_reset(struct rxe_qp *qp)
 	atomic_set(&qp->ssn, 0);
 	qp->req.opcode = -1;
 	qp->req.need_retry = 0;
-	qp->req.noack_pkts = 0;
+	qp->req.yesack_pkts = 0;
 	qp->resp.msn = 0;
 	qp->resp.opcode = -1;
 	qp->resp.drop_msg = 0;
@@ -615,7 +615,7 @@ int rxe_qp_from_attr(struct rxe_qp *qp, struct ib_qp_attr *attr, int mask,
 		qp->attr.cur_qp_state = attr->qp_state;
 
 	if (mask & IB_QP_EN_SQD_ASYNC_NOTIFY)
-		qp->attr.en_sqd_async_notify = attr->en_sqd_async_notify;
+		qp->attr.en_sqd_async_yestify = attr->en_sqd_async_yestify;
 
 	if (mask & IB_QP_ACCESS_FLAGS)
 		qp->attr.qp_access_flags = attr->qp_access_flags;

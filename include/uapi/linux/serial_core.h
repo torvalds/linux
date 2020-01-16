@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-yeste */
 /*
  *  linux/drivers/char/serial_core.h
  *
@@ -15,7 +15,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
+ * along with this program; if yest, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 #ifndef _UAPILINUX_SERIAL_CORE_H
@@ -59,7 +59,7 @@
 #define PORT_16550A_FSL64 30	/* Freescale 16550 UART with 64 FIFOs */
 
 /*
- * ARM specific type numbers.  These are not currently guaranteed
+ * ARM specific type numbers.  These are yest currently guaranteed
  * to be implemented, and will change in the future.  These are
  * separate so any additions to the old serial.c that occur before
  * we are merged can be easily merged here.
@@ -97,7 +97,7 @@
 #define PORT_ATMEL	49
 
 /* Macintosh Zilog type numbers */
-#define PORT_MAC_ZILOG	50	/* m68k : not yet implemented */
+#define PORT_MAC_ZILOG	50	/* m68k : yest yet implemented */
 #define PORT_PMAC_ZILOG	51
 
 /* SH-SCI */
@@ -181,7 +181,7 @@
 
 #define PORT_S3C6400	84
 
-/* NWPSERIAL, now removed */
+/* NWPSERIAL, yesw removed */
 #define PORT_NWPSERIAL	85
 
 /* MAX3100 */
@@ -227,7 +227,7 @@
 /* Energy Micro efm32 SoC */
 #define PORT_EFMUART   100
 
-/* ARC (Synopsys) on-chip UART */
+/* ARC (Syyespsys) on-chip UART */
 #define PORT_ARC       101
 
 /* Rocketport EXPRESS/INFINITY */

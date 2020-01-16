@@ -53,7 +53,7 @@
  * @pci: our link to PCI bus
  * @guid: _DSM GUID
  * @has_dsm_for_pm: true for devices which need to run _DSM on runtime PM
- * @wakeup_work: work for asynchronous resume
+ * @wakeup_work: work for asynchroyesus resume
  */
 struct dwc3_pci {
 	struct platform_device *dwc3;
@@ -152,7 +152,7 @@ static int dwc3_pci_quirks(struct dwc3_pci *dwc)
 			struct gpio_desc *gpio;
 			int ret;
 
-			/* On BYT the FW does not always enable the refclock */
+			/* On BYT the FW does yest always enable the refclock */
 			ret = dwc3_byt_enable_ulpi_refclock(pdev);
 			if (ret)
 				return ret;

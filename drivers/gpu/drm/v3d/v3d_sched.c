@@ -117,7 +117,7 @@ static struct dma_fence *v3d_bin_job_run(struct drm_sched_job *sched_job)
 		dma_fence_put(job->base.irq_fence);
 	job->base.irq_fence = dma_fence_get(fence);
 
-	trace_v3d_submit_cl(dev, false, to_v3d_fence(fence)->seqno,
+	trace_v3d_submit_cl(dev, false, to_v3d_fence(fence)->seqyes,
 			    job->start, job->end);
 
 	/* Set the current and end address of the control list.
@@ -154,7 +154,7 @@ static struct dma_fence *v3d_render_job_run(struct drm_sched_job *sched_job)
 	 * scheduling, though -- imagine job0 rendering to texture and
 	 * job1 reading, and them being executed as bin0, bin1,
 	 * render0, render1, so that render1's flush at bin time
-	 * wasn't enough.
+	 * wasn't eyesugh.
 	 */
 	v3d_invalidate_caches(v3d);
 
@@ -166,7 +166,7 @@ static struct dma_fence *v3d_render_job_run(struct drm_sched_job *sched_job)
 		dma_fence_put(job->base.irq_fence);
 	job->base.irq_fence = dma_fence_get(fence);
 
-	trace_v3d_submit_cl(dev, true, to_v3d_fence(fence)->seqno,
+	trace_v3d_submit_cl(dev, true, to_v3d_fence(fence)->seqyes,
 			    job->start, job->end);
 
 	/* XXX: Set the QCFG */
@@ -197,7 +197,7 @@ v3d_tfu_job_run(struct drm_sched_job *sched_job)
 		dma_fence_put(job->base.irq_fence);
 	job->base.irq_fence = dma_fence_get(fence);
 
-	trace_v3d_submit_tfu(dev, to_v3d_fence(fence)->seqno);
+	trace_v3d_submit_tfu(dev, to_v3d_fence(fence)->seqyes);
 
 	V3D_WRITE(V3D_TFU_IIA, job->args.iia);
 	V3D_WRITE(V3D_TFU_IIS, job->args.iis);
@@ -238,7 +238,7 @@ v3d_csd_job_run(struct drm_sched_job *sched_job)
 		dma_fence_put(job->base.irq_fence);
 	job->base.irq_fence = dma_fence_get(fence);
 
-	trace_v3d_submit_csd(dev, to_v3d_fence(fence)->seqno);
+	trace_v3d_submit_csd(dev, to_v3d_fence(fence)->seqyes);
 
 	for (i = 1; i <= 6; i++)
 		V3D_CORE_WRITE(0, V3D_CSD_QUEUED_CFG0 + 4 * i, job->args.cfg[i]);

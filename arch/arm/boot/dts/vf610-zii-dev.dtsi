@@ -1,12 +1,12 @@
 /*
- * Copyright (C) 2015, 2016 Zodiac Inflight Innovations
+ * Copyright (C) 2015, 2016 Zodiac Inflight Inyesvations
  *
  * Based on an original 'vf610-twr.dts' which is Copyright 2015,
  * Freescale Semiconductor, Inc.
  *
  * This file is dual-licensed: you can use it either under the terms
  * of the GPL or the X11 license, at your option. Note that this dual
- * licensing only applies to this file, and not this project as a
+ * licensing only applies to this file, and yest this project as a
  * whole.
  *
  *  a) This file is free software; you can redistribute it and/or
@@ -29,7 +29,7 @@
  *     Software is furnished to do so, subject to the following
  *     conditions:
  *
- *     The above copyright notice and this permission notice shall be
+ *     The above copyright yestice and this permission yestice shall be
  *     included in all copies or substantial portions of the Software.
  *
  *     THE SOFTWARE IS PROVIDED , WITHOUT WARRANTY OF ANY KIND,
@@ -187,7 +187,7 @@
 	 * modes, so, spi-max-frequency is limited to 90MHz
 	 */
 	flash@0 {
-		compatible = "jedec,spi-nor";
+		compatible = "jedec,spi-yesr";
 		#address-cells = <1>;
 		#size-cells = <1>;
 		spi-max-frequency = <90000000>;
@@ -197,7 +197,7 @@
 	};
 
 	flash@2 {
-		compatible = "jedec,spi-nor";
+		compatible = "jedec,spi-yesr";
 		#address-cells = <1>;
 		#size-cells = <1>;
 		spi-max-frequency = <90000000>;

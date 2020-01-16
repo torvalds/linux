@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -22,7 +22,7 @@
 #include "priv.h"
 
 #include <core/memory.h>
-#include <core/notify.h>
+#include <core/yestify.h>
 
 static void
 nvkm_fault_ntfy_fini(struct nvkm_event *event, int type, int index)
@@ -40,13 +40,13 @@ nvkm_fault_ntfy_init(struct nvkm_event *event, int type, int index)
 
 static int
 nvkm_fault_ntfy_ctor(struct nvkm_object *object, void *argv, u32 argc,
-		     struct nvkm_notify *notify)
+		     struct nvkm_yestify *yestify)
 {
 	struct nvkm_fault_buffer *buffer = nvkm_fault_buffer(object);
 	if (argc == 0) {
-		notify->size  = 0;
-		notify->types = 1;
-		notify->index = buffer->id;
+		yestify->size  = 0;
+		yestify->types = 1;
+		yestify->index = buffer->id;
 		return 0;
 	}
 	return -ENOSYS;

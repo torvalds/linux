@@ -9,7 +9,7 @@ Overview
 These events are similar to tracepoint based events. Instead of Tracepoint,
 this is based on kprobes (kprobe and kretprobe). So it can probe wherever
 kprobes can probe (this means, all functions except those with
-__kprobes/nokprobe_inline annotation and those marked NOKPROBE_SYMBOL).
+__kprobes/yeskprobe_inline anyestation and those marked NOKPROBE_SYMBOL).
 Unlike the Tracepoint based event, this can be added and removed
 dynamically, on the fly.
 
@@ -24,7 +24,7 @@ You can also use /sys/kernel/debug/tracing/dynamic_events instead of
 kprobe_events. That interface will provide unified access to other
 dynamic events too.
 
-Synopsis of kprobe_events
+Syyespsis of kprobe_events
 -------------------------
 ::
 
@@ -75,7 +75,7 @@ x86-64 uses x64).
 These value types can be an array. To record array data, you can add '[N]'
 (where N is a fixed number, less than 64) to the base type.
 E.g. 'x16[4]' means an array of x16 (2bytes hex) with 4 elements.
-Note that the array can be applied to memory type fetchargs, you can not
+Note that the array can be applied to memory type fetchargs, you can yest
 apply it to registers/stack-entries etc. (for example, '$stack1:x8[8]' is
 wrong, but '+8($stack):x8[8]' is OK.)
 String type is a special type, which fetches a "null-terminated" string from
@@ -84,10 +84,10 @@ has been paged out. "ustring" type is an alternative of string for user-space.
 See :ref:`user_mem_access` for more info..
 The string array type is a bit different from other types. For other base
 types, <base-type>[1] is equal to <base-type> (e.g. +0(%di):x32[1] is same
-as +0(%di):x32.) But string[1] is not equal to string. The string type itself
+as +0(%di):x32.) But string[1] is yest equal to string. The string type itself
 represents "char array", but string array type represents "char * array".
 So, for example, +0(%di):string[1] is equal to +0(+0(%di)):string.
-Bitfield is another special type, which takes 3 parameters, bit-width, bit-
+Bitfield is ayesther special type, which takes 3 parameters, bit-width, bit-
 offset, and container-size (usually 32). The syntax is::
 
  b<bit-width>@<bit-offset>/<container-size>
@@ -112,7 +112,7 @@ space. 'ustring' is a shortcut way of performing the same task. That is,
 +0(%si):ustring is equivalent to +u0(%si):string.
 
 Note that kprobe-event provides the user-memory access syntax but it doesn't
-use it transparently. This means if you use normal dereference or string type
+use it transparently. This means if you use yesrmal dereference or string type
 for user memory, it might fail, and may always fail on some archs. The user
 has to carefully check if the target data is in kernel or user space.
 
@@ -237,7 +237,7 @@ And you can see the traced information via /sys/kernel/debug/tracing/trace.
 ::
 
   cat /sys/kernel/debug/tracing/trace
-  # tracer: nop
+  # tracer: yesp
   #
   #           TASK-PID    CPU#    TIMESTAMP  FUNCTION
   #              | |       |          |         |

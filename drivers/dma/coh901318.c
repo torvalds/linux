@@ -1267,7 +1267,7 @@ static const struct coh_dma_channel chan_config[U300_DMA_CHANNELS] = {
 
 struct coh901318_desc {
 	struct dma_async_tx_descriptor desc;
-	struct list_head node;
+	struct list_head yesde;
 	struct scatterlist *sg;
 	unsigned int sg_len;
 	struct coh901318_lli *lli;
@@ -1522,15 +1522,15 @@ coh901318_desc_get(struct coh901318_chan *cohc)
 		desc = kzalloc(sizeof(struct coh901318_desc), GFP_NOWAIT);
 		if (desc == NULL)
 			goto out;
-		INIT_LIST_HEAD(&desc->node);
+		INIT_LIST_HEAD(&desc->yesde);
 		dma_async_tx_descriptor_init(&desc->desc, &cohc->chan);
 	} else {
 		/* Reuse an old desc. */
 		desc = list_first_entry(&cohc->free,
 					struct coh901318_desc,
-					node);
-		list_del(&desc->node);
-		/* Initialize it a bit so it's not insane */
+					yesde);
+		list_del(&desc->yesde);
+		/* Initialize it a bit so it's yest insane */
 		desc->sg = NULL;
 		desc->sg_len = 0;
 		desc->desc.callback = NULL;
@@ -1544,40 +1544,40 @@ coh901318_desc_get(struct coh901318_chan *cohc)
 static void
 coh901318_desc_free(struct coh901318_chan *cohc, struct coh901318_desc *cohd)
 {
-	list_add_tail(&cohd->node, &cohc->free);
+	list_add_tail(&cohd->yesde, &cohc->free);
 }
 
 /* call with irq lock held */
 static void
 coh901318_desc_submit(struct coh901318_chan *cohc, struct coh901318_desc *desc)
 {
-	list_add_tail(&desc->node, &cohc->active);
+	list_add_tail(&desc->yesde, &cohc->active);
 }
 
 static struct coh901318_desc *
 coh901318_first_active_get(struct coh901318_chan *cohc)
 {
 	return list_first_entry_or_null(&cohc->active, struct coh901318_desc,
-					node);
+					yesde);
 }
 
 static void
 coh901318_desc_remove(struct coh901318_desc *cohd)
 {
-	list_del(&cohd->node);
+	list_del(&cohd->yesde);
 }
 
 static void
 coh901318_desc_queue(struct coh901318_chan *cohc, struct coh901318_desc *desc)
 {
-	list_add_tail(&desc->node, &cohc->queue);
+	list_add_tail(&desc->yesde, &cohc->queue);
 }
 
 static struct coh901318_desc *
 coh901318_first_queued(struct coh901318_chan *cohc)
 {
 	return list_first_entry_or_null(&cohc->queue, struct coh901318_desc,
-					node);
+					yesde);
 }
 
 static inline u32 coh901318_get_bytes_in_lli(struct coh901318_lli *in_lli)
@@ -1621,7 +1621,7 @@ static u32 coh901318_get_bytes_left(struct dma_chan *chan)
 		 * so that the transfer counter is somewhere inside
 		 * the buffer.
 		 */
-		cohd = list_entry(pos, struct coh901318_desc, node);
+		cohd = list_entry(pos, struct coh901318_desc, yesde);
 
 		if (i == 0) {
 			struct coh901318_lli *lli;
@@ -1667,7 +1667,7 @@ static u32 coh901318_get_bytes_left(struct dma_chan *chan)
 
 	/* Also count bytes in the queued jobs */
 	list_for_each(pos, &cohc->queue) {
-		cohd = list_entry(pos, struct coh901318_desc, node);
+		cohd = list_entry(pos, struct coh901318_desc, yesde);
 		left += coh901318_get_bytes_in_lli(cohd->lli);
 	}
 
@@ -1908,7 +1908,7 @@ static void dma_tasklet(unsigned long data)
 	spin_lock_irqsave(&cohc->lock, flags);
 
 	/*
-	 * If another interrupt fired while the tasklet was scheduling,
+	 * If ayesther interrupt fired while the tasklet was scheduling,
 	 * we don't get called twice, so we have this number of active
 	 * counter that keep track of the number of IRQs expected to
 	 * be handled for this channel. If there happen to be more than
@@ -1938,7 +1938,7 @@ static void dma_tasklet(unsigned long data)
 static void dma_tc_handle(struct coh901318_chan *cohc)
 {
 	/*
-	 * If the channel is not allocated, then we shouldn't have
+	 * If the channel is yest allocated, then we shouldn't have
 	 * any TC interrupts on it.
 	 */
 	if (!cohc->allocated) {
@@ -1953,9 +1953,9 @@ static void dma_tc_handle(struct coh901318_chan *cohc)
 	 * When we reach this point, at least one queue item
 	 * should have been moved over from cohc->queue to
 	 * cohc->active and run to completion, that is why we're
-	 * getting a terminal count interrupt is it not?
+	 * getting a terminal count interrupt is it yest?
 	 * If you get this BUG() the most probable cause is that
-	 * the individual nodes in the lli chain have IRQ enabled,
+	 * the individual yesdes in the lli chain have IRQ enabled,
 	 * so check your platform config for lli chain ctrl.
 	 */
 	BUG_ON(list_empty(&cohc->active));
@@ -1996,7 +1996,7 @@ static irqreturn_t dma_irq_handler(int irq, void *dev_id)
 	status2 = readl(virtbase + COH901318_INT_STATUS2);
 
 	if (unlikely(status1 == 0 && status2 == 0)) {
-		dev_warn(base->dev, "spurious DMA IRQ from no channel!\n");
+		dev_warn(base->dev, "spurious DMA IRQ from yes channel!\n");
 		return IRQ_HANDLED;
 	}
 
@@ -2026,7 +2026,7 @@ static irqreturn_t dma_irq_handler(int irq, void *dev_id)
 			if (unlikely(!test_bit(i, virtbase +
 					       COH901318_TC_INT_STATUS1))) {
 				dev_warn(COHC_2_DEV(cohc),
-					 "ignoring interrupt not caused by terminal count on channel %d\n", ch);
+					 "igyesring interrupt yest caused by terminal count on channel %d\n", ch);
 				/* Clear TC interrupt */
 				BUG_ON(1);
 				__set_bit(i, virtbase + COH901318_TC_INT_CLEAR1);
@@ -2072,7 +2072,7 @@ static irqreturn_t dma_irq_handler(int irq, void *dev_id)
 			if (unlikely(!test_bit(i, virtbase +
 					       COH901318_TC_INT_STATUS2))) {
 				dev_warn(COHC_2_DEV(cohc),
-					 "ignoring interrupt not caused by terminal count on channel %d\n", ch);
+					 "igyesring interrupt yest caused by terminal count on channel %d\n", ch);
 				/* Clear TC interrupt */
 				__set_bit(i, virtbase + COH901318_TC_INT_CLEAR2);
 				BUG_ON(1);
@@ -2427,7 +2427,7 @@ coh901318_issue_pending(struct dma_chan *chan)
 
 	/*
 	 * Busy means that pending jobs are already being processed,
-	 * and then there is no point in starting the queue: the
+	 * and then there is yes point in starting the queue: the
 	 * terminal count interrupt on the channel will take the next
 	 * job on the queue and execute it anyway.
 	 */
@@ -2622,7 +2622,7 @@ static void coh901318_base_init(struct dma_device *dma, const int *pick_chans,
 			tasklet_init(&cohc->tasklet, dma_tasklet,
 				     (unsigned long) cohc);
 
-			list_add_tail(&cohc->chan.device_node,
+			list_add_tail(&cohc->chan.device_yesde,
 				      &dma->channels);
 		}
 	}
@@ -2733,7 +2733,7 @@ static int __init coh901318_probe(struct platform_device *pdev)
 	if (err)
 		goto err_register_memcpy;
 
-	err = of_dma_controller_register(pdev->dev.of_node, coh901318_xlate,
+	err = of_dma_controller_register(pdev->dev.of_yesde, coh901318_xlate,
 					 base);
 	if (err)
 		goto err_register_of_dma;
@@ -2777,7 +2777,7 @@ static int coh901318_remove(struct platform_device *pdev)
 	coh901318_base_remove(base, dma_slave_channels);
 	coh901318_base_remove(base, dma_memcpy_channels);
 
-	of_dma_controller_free(pdev->dev.of_node);
+	of_dma_controller_free(pdev->dev.of_yesde);
 	dma_async_device_unregister(&base->dma_memcpy);
 	dma_async_device_unregister(&base->dma_slave);
 	coh901318_pool_destroy(&base->pool);

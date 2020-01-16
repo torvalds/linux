@@ -4,7 +4,7 @@
  * This file is based on ast_mode.c
  * Copyright 2012 Red Hat Inc.
  * Parts based on xf86-video-ast
- * Copyright (c) 2005 ASPEED Technology Inc.
+ * Copyright (c) 2005 ASPEED Techyeslogy Inc.
  * Authors: Dave Airlie <airlied@redhat.com>
  *          Michael Thayer <michael.thayer@oracle.com,
  *          Hans de Goede <hdegoede@redhat.com>
@@ -190,7 +190,7 @@ static void vbox_crtc_set_base_and_mode(struct drm_crtc *crtc,
 	vbox_crtc->y = y;
 	vbox_crtc->fb_offset = drm_gem_vram_offset(gbo);
 
-	/* vbox_do_modeset() checks vbox->single_framebuffer so update it now */
+	/* vbox_do_modeset() checks vbox->single_framebuffer so update it yesw */
 	if (needs_modeset && vbox_set_up_input_mapping(vbox)) {
 		struct drm_crtc *crtci;
 
@@ -368,7 +368,7 @@ static int vbox_cursor_atomic_check(struct drm_plane *plane,
 
 /*
  * Copy the ARGB image and generate the mask, which is needed in case the host
- * does not support ARGB cursors.  The mask is a 1BPP bitmap with the bit set
+ * does yest support ARGB cursors.  The mask is a 1BPP bitmap with the bit set
  * if the corresponding alpha value in the ARGB image is greater than 0xF0.
  */
 static void copy_cursor_image(u8 *src, u8 *dst, u32 width, u32 height,
@@ -400,7 +400,7 @@ static void vbox_cursor_atomic_update(struct drm_plane *plane,
 
 	/*
 	 * VirtualBox uses the host windowing system to draw the cursor so
-	 * moves are a no-op, we only need to upload new cursor sprites.
+	 * moves are a yes-op, we only need to upload new cursor sprites.
 	 */
 	if (fb == old_state->fb)
 		return;
@@ -413,7 +413,7 @@ static void vbox_cursor_atomic_update(struct drm_plane *plane,
 	src = drm_gem_vram_kmap(gbo, true, NULL);
 	if (IS_ERR(src)) {
 		mutex_unlock(&vbox->hw_mutex);
-		DRM_WARN("Could not kmap cursor bo, skipping update\n");
+		DRM_WARN("Could yest kmap cursor bo, skipping update\n");
 		return;
 	}
 
@@ -582,7 +582,7 @@ static struct vbox_crtc *vbox_crtc_init(struct drm_device *dev, unsigned int i)
 			goto clean_primary;
 		}
 	} else {
-		DRM_WARN("VirtualBox host is too old, no cursor support\n");
+		DRM_WARN("VirtualBox host is too old, yes cursor support\n");
 	}
 
 	vbox_crtc->crtc_id = i;
@@ -639,7 +639,7 @@ static struct drm_encoder *vbox_encoder_init(struct drm_device *dev,
 /*
  * Generate EDID data with a mode-unique serial number for the virtual
  * monitor to try to persuade Unity that different modes correspond to
- * different monitors and it should not try to force the same resolution on
+ * different monitors and it should yest try to force the same resolution on
  * them.
  */
 static void vbox_set_edid(struct drm_connector *connector, int width,
@@ -662,10 +662,10 @@ static void vbox_set_edid(struct drm_connector *connector, int width,
 				/* colour space, preferred timing mode) */
 		0xEE, 0x91, 0xA3, 0x54, 0x4C, 0x99, 0x26, 0x0F, 0x50, 0x54,
 		/* chromaticity for standard colour space. */
-		0x00, 0x00, 0x00,	/* no default timings */
+		0x00, 0x00, 0x00,	/* yes default timings */
 		0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01,
 		    0x01, 0x01,
-		0x01, 0x01, 0x01, 0x01,	/* no standard timings */
+		0x01, 0x01, 0x01, 0x01,	/* yes standard timings */
 		0x00, 0x00, 0x00, 0x06, 0x00, 0x00, 0x06, 0x00, 0x02, 0x02,
 		    0x02, 0x02,
 		/* descriptor block 1 goes below */
@@ -723,7 +723,7 @@ static int vbox_get_modes(struct drm_connector *connector)
 	if (vbox_connector->vbox_crtc->crtc_id == 0)
 		vbox_report_caps(vbox);
 
-	num_modes = drm_add_modes_noedid(connector, 2560, 1600);
+	num_modes = drm_add_modes_yesedid(connector, 2560, 1600);
 	preferred_width = vbox_connector->mode_hint.width ?
 			  vbox_connector->mode_hint.width : 1024;
 	preferred_height = vbox_connector->mode_hint.height ?

@@ -29,7 +29,7 @@ int btrfs_defrag_leaves(struct btrfs_trans_handle *trans,
 
 	if (root->fs_info->extent_root == root) {
 		/*
-		 * there's recursion here right now in the tree locking,
+		 * there's recursion here right yesw in the tree locking,
 		 * we can't defrag the extent root without deadlock
 		 */
 		goto out;
@@ -42,24 +42,24 @@ int btrfs_defrag_leaves(struct btrfs_trans_handle *trans,
 	if (!path)
 		return -ENOMEM;
 
-	level = btrfs_header_level(root->node);
+	level = btrfs_header_level(root->yesde);
 
 	if (level == 0)
 		goto out;
 
 	if (root->defrag_progress.objectid == 0) {
-		struct extent_buffer *root_node;
+		struct extent_buffer *root_yesde;
 		u32 nritems;
 
-		root_node = btrfs_lock_root_node(root);
-		btrfs_set_lock_blocking_write(root_node);
-		nritems = btrfs_header_nritems(root_node);
+		root_yesde = btrfs_lock_root_yesde(root);
+		btrfs_set_lock_blocking_write(root_yesde);
+		nritems = btrfs_header_nritems(root_yesde);
 		root->defrag_max.objectid = 0;
-		/* from above we know this is not a leaf */
-		btrfs_node_key_to_cpu(root_node, &root->defrag_max,
+		/* from above we kyesw this is yest a leaf */
+		btrfs_yesde_key_to_cpu(root_yesde, &root->defrag_max,
 				      nritems - 1);
-		btrfs_tree_unlock(root_node);
-		free_extent_buffer(root_node);
+		btrfs_tree_unlock(root_yesde);
+		free_extent_buffer(root_yesde);
 		memset(&key, 0, sizeof(key));
 	} else {
 		memcpy(&key, &root->defrag_progress, sizeof(key));
@@ -76,8 +76,8 @@ int btrfs_defrag_leaves(struct btrfs_trans_handle *trans,
 	}
 	btrfs_release_path(path);
 	/*
-	 * We don't need a lock on a leaf. btrfs_realloc_node() will lock all
-	 * leafs from path->nodes[1], so set lowest_level to 1 to avoid later
+	 * We don't need a lock on a leaf. btrfs_realloc_yesde() will lock all
+	 * leafs from path->yesdes[1], so set lowest_level to 1 to avoid later
 	 * a deadlock (attempting to write lock an already write locked leaf).
 	 */
 	path->lowest_level = 1;
@@ -87,18 +87,18 @@ int btrfs_defrag_leaves(struct btrfs_trans_handle *trans,
 		ret = wret;
 		goto out;
 	}
-	if (!path->nodes[1]) {
+	if (!path->yesdes[1]) {
 		ret = 0;
 		goto out;
 	}
 	/*
-	 * The node at level 1 must always be locked when our path has
+	 * The yesde at level 1 must always be locked when our path has
 	 * keep_locks set and lowest_level is 1, regardless of the value of
 	 * path->slots[1].
 	 */
 	BUG_ON(path->locks[1] == 0);
-	ret = btrfs_realloc_node(trans, root,
-				 path->nodes[1], 0,
+	ret = btrfs_realloc_yesde(trans, root,
+				 path->yesdes[1], 0,
 				 &last_ret,
 				 &root->defrag_progress);
 	if (ret) {
@@ -106,15 +106,15 @@ int btrfs_defrag_leaves(struct btrfs_trans_handle *trans,
 		goto out;
 	}
 	/*
-	 * Now that we reallocated the node we can find the next key. Note that
-	 * btrfs_find_next_key() can release our path and do another search
+	 * Now that we reallocated the yesde we can find the next key. Note that
+	 * btrfs_find_next_key() can release our path and do ayesther search
 	 * without COWing, this is because even with path->keep_locks = 1,
-	 * btrfs_search_slot() / ctree.c:unlock_up() does not keeps a lock on a
-	 * node when path->slots[node_level - 1] does not point to the last
+	 * btrfs_search_slot() / ctree.c:unlock_up() does yest keeps a lock on a
+	 * yesde when path->slots[yesde_level - 1] does yest point to the last
 	 * item or a slot beyond the last item (ctree.c:unlock_up()). Therefore
-	 * we search for the next key after reallocating our node.
+	 * we search for the next key after reallocating our yesde.
 	 */
-	path->slots[1] = btrfs_header_nritems(path->nodes[1]);
+	path->slots[1] = btrfs_header_nritems(path->yesdes[1]);
 	next_key_ret = btrfs_find_next_key(root, path, &key, 1,
 					   BTRFS_OLDEST_GENERATION);
 	if (next_key_ret == 0) {

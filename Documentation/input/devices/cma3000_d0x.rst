@@ -35,7 +35,7 @@ Threshold values:
 
 CMA3000 chip supports mutually exclusive I2C and SPI interfaces for
 communication, currently the driver supports I2C based communication only.
-Initial configuration for bus mode is set in non volatile memory and can later
+Initial configuration for bus mode is set in yesn volatile memory and can later
 be modified through bus interface command.
 
 Driver reports acceleration data through input subsystem. It generates ABS_MISC

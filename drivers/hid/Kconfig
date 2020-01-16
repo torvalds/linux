@@ -13,7 +13,7 @@ config HID
 	  A human interface device (HID) is a type of computer device that
 	  interacts directly with and takes input from humans. The term "HID"
 	  most commonly used to refer to the USB-HID specification, but other
-	  devices (such as, but not strictly limited to, Bluetooth) are
+	  devices (such as, but yest strictly limited to, Bluetooth) are
 	  designed using HID specification (this involves certain keyboards,
 	  mice, tablets, etc). This option adds the HID bus to the kernel,
 	  together with generic HID layer code. The HID devices are added and
@@ -48,8 +48,8 @@ config HIDRAW
 	event interface on /dev/hidraw.
 
 	There is also a /dev/hiddev configuration option in the USB HID
-	configuration menu. In comparison to hiddev, this device does not process
-	the hid events at all (no parsing, no lookups). This lets applications
+	configuration menu. In comparison to hiddev, this device does yest process
+	the hid events at all (yes parsing, yes lookups). This lets applications
 	to work on raw hid events when they want to, and avoid using transport-specific
 	userspace libhid/libusb libraries.
 
@@ -66,7 +66,7 @@ config UHID
 	corresponding HID Device Driver or provides input devices on top of your
 	user-space device.
 
-	This driver cannot be used to parse HID-reports in user-space and write
+	This driver canyest be used to parse HID-reports in user-space and write
 	special HID-drivers. You should use hidraw for that.
 	Instead, this driver allows to write the transport-layer driver in
 	user-space like USB-HID and Bluetooth-HID do in kernel-space.
@@ -153,7 +153,7 @@ config HID_ASUS
 	depends on ASUS_WMI || ASUS_WMI=n
 	select POWER_SUPPLY
 	---help---
-	Support for Asus notebook built-in keyboard and touchpad via i2c, and
+	Support for Asus yestebook built-in keyboard and touchpad via i2c, and
 	the Asus Republic of Gamers laptop keyboard special keys.
 
 	Supported devices:
@@ -182,7 +182,7 @@ config HID_BETOP_FF
 	---help---
 	Say Y here if you want to enable force feedback support for devices by
 	BETOP Production Ltd.
-	Currently the following devices are known to be supported:
+	Currently the following devices are kyeswn to be supported:
 	 - BETOP 2185 PC & BFM MODE
 
 config HID_BIGBEN_FF
@@ -215,7 +215,7 @@ config HID_CORSAIR
 	tristate "Corsair devices"
 	depends on HID && USB && LEDS_CLASS
 	---help---
-	Support for Corsair devices that are not fully compliant with the
+	Support for Corsair devices that are yest fully compliant with the
 	HID standard.
 
 	Supported devices:
@@ -226,7 +226,7 @@ config HID_COUGAR
 	tristate "Cougar devices"
 	depends on HID
 	help
-	Support for Cougar devices that are not fully compliant with the
+	Support for Cougar devices that are yest fully compliant with the
 	HID standard.
 
 	Supported devices:
@@ -236,7 +236,7 @@ config HID_MACALLY
 	tristate "Macally devices"
 	depends on HID
 	help
-	Support for Macally devices that are not fully compliant with the
+	Support for Macally devices that are yest fully compliant with the
 	HID standard.
 
 	supported devices:
@@ -315,7 +315,7 @@ config HID_EMS_FF
 	---help---
 	Say Y here if you want to enable force feedback support for devices by
 	EMS Production Ltd.
-	Currently the following devices are known to be supported:
+	Currently the following devices are kyeswn to be supported:
 	 - Trio Linker Plus II
 
 config HID_ELAN
@@ -323,7 +323,7 @@ config HID_ELAN
 	depends on LEDS_CLASS && USB_HID
 	---help---
 	Say Y to enable support for the USB ELAN touchpad
-	Currently the following devices are known to be supported:
+	Currently the following devices are kyeswn to be supported:
 	 - HP Pavilion X2 10-p0XX.
 
 config HID_ELECOM
@@ -400,14 +400,14 @@ config HID_GT683R
 	  - Audio:  LEDs brightness depends on sound level
 	  - Breathing: LEDs brightness varies at human breathing rate
 
-	Currently the following devices are know to be supported:
+	Currently the following devices are kyesw to be supported:
 	  - MSI GT683R
 
 config HID_KEYTOUCH
 	tristate "Keytouch HID devices"
 	depends on HID
 	---help---
-	Support for Keytouch HID devices not fully compliant with
+	Support for Keytouch HID devices yest fully compliant with
 	the specification. Currently supported:
 		- Keytouch IEC 60945
 
@@ -415,7 +415,7 @@ config HID_KYE
 	tristate "KYE/Genius devices"
 	depends on HID
 	---help---
-	Support for KYE/Genius devices not fully compliant with HID standard:
+	Support for KYE/Genius devices yest fully compliant with HID standard:
 	- Ergo Mouse
 	- EasyPen i405X tablet
 	- MousePen i608X tablet
@@ -434,10 +434,10 @@ config HID_WALTOP
 	Support for Waltop tablets.
 
 config HID_VIEWSONIC
-	tristate "ViewSonic/Signotec"
+	tristate "ViewSonic/Sigyestec"
 	depends on HID
 	help
-	  Support for ViewSonic/Signotec PD1011 signature pad.
+	  Support for ViewSonic/Sigyestec PD1011 signature pad.
 
 config HID_GYRATION
 	tristate "Gyration remote control"
@@ -459,7 +459,7 @@ config HID_ITE
 	depends on HID
 	default !EXPERT
 	---help---
-	Support for ITE devices not fully compliant with HID standard.
+	Support for ITE devices yest fully compliant with HID standard.
 
 config HID_JABRA
 	tristate "Jabra USB HID Driver"
@@ -507,15 +507,15 @@ config HID_LED
 	module will be called hid-led.
 
 config HID_LENOVO
-	tristate "Lenovo / Thinkpad devices"
+	tristate "Leyesvo / Thinkpad devices"
 	depends on HID
 	select NEW_LEDS
 	select LEDS_CLASS
 	---help---
-	Support for IBM/Lenovo devices that are not fully compliant with HID standard.
+	Support for IBM/Leyesvo devices that are yest fully compliant with HID standard.
 
-	Say Y if you want support for horizontal scrolling of the IBM/Lenovo
-	Scrollpoint mice or the non-compliant features of the Lenovo Thinkpad
+	Say Y if you want support for horizontal scrolling of the IBM/Leyesvo
+	Scrollpoint mice or the yesn-compliant features of the Leyesvo Thinkpad
 	standalone keyboards, e.g:
 	- ThinkPad USB Keyboard with TrackPoint (supports extra LEDs and trackpoint
 	  configuration)
@@ -528,7 +528,7 @@ config HID_LOGITECH
 	depends on LEDS_CLASS
 	default !EXPERT
 	---help---
-	Support for Logitech devices that are not fully compliant with HID standard.
+	Support for Logitech devices that are yest fully compliant with HID standard.
 
 config HID_LOGITECH_DJ
 	tristate "Logitech Unifying receivers full support"
@@ -642,12 +642,12 @@ config HID_REDRAGON
     Support for Redragon keyboards that need fix-ups to work properly.
 
 config HID_MICROSOFT
-	tristate "Microsoft non-fully HID-compliant devices"
+	tristate "Microsoft yesn-fully HID-compliant devices"
 	depends on HID
 	default !EXPERT
 	select INPUT_FF_MEMLESS
 	---help---
-	Support for Microsoft devices that are not fully compliant with HID standard.
+	Support for Microsoft devices that are yest fully compliant with HID standard.
 
 config HID_MONTEREY
 	tristate "Monterey Genius KB29E keyboard"
@@ -706,7 +706,7 @@ config HID_NTI
 	tristate "NTI keyboard adapters"
 	---help---
 	Support for the "extra" Sun keyboard keys on keyboards attached
-	through Network Technologies USB-SUN keyboard adapters.
+	through Network Techyeslogies USB-SUN keyboard adapters.
 
 config HID_NTRIG
 	tristate "N-Trig touch screen"
@@ -771,11 +771,11 @@ config HID_PICOLCD
 	  - Switching between Firmware and Flash mode
 	  - EEProm / Flash access     (via debugfs)
 	  Features selectively enabled:
-	  - Framebuffer for monochrome 256x64 display
+	  - Framebuffer for moyeschrome 256x64 display
 	  - Backlight control
 	  - Contrast control
 	  - General purpose outputs
-	  Features that are not (yet) supported:
+	  Features that are yest (yet) supported:
 	  - IR
 
 config HID_PICOLCD_FB
@@ -789,7 +789,7 @@ config HID_PICOLCD_FB
 	select FB_SYS_IMAGEBLIT
 	select FB_SYS_FOPS
 	---help---
-	  Provide access to PicoLCD's 256x64 monochrome display via a
+	  Provide access to PicoLCD's 256x64 moyeschrome display via a
 	  framebuffer device.
 
 config HID_PICOLCD_BACKLIGHT
@@ -837,10 +837,10 @@ config HID_PLANTRONICS
 	  Say M here if you may ever plug in a Plantronics USB audio device.
 
 config HID_PRIMAX
-	tristate "Primax non-fully HID-compliant devices"
+	tristate "Primax yesn-fully HID-compliant devices"
 	depends on HID
 	---help---
-	Support for Primax devices that are not fully compliant with the
+	Support for Primax devices that are yest fully compliant with the
 	HID standard.
 
 config HID_RETRODE
@@ -859,10 +859,10 @@ config HID_ROCCAT
 	support for its special functionalities.
 
 config HID_SAITEK
-	tristate "Saitek (Mad Catz) non-fully HID-compliant devices"
+	tristate "Saitek (Mad Catz) yesn-fully HID-compliant devices"
 	depends on HID
 	---help---
-	Support for Saitek devices that are not fully compliant with the
+	Support for Saitek devices that are yest fully compliant with the
 	HID standard.
 
 	Supported devices:
@@ -968,7 +968,7 @@ config HID_SMARTJOYPLUS
 	Support for SmartJoy PLUS PS2/USB adapter, Super Dual Box,
 	Super Joy Box 3 Pro, Super Dual Box Pro, and Super Joy Box 5 Pro.
 
-	Note that DDR (Dance Dance Revolution) mode is not supported, nor
+	Note that DDR (Dance Dance Revolution) mode is yest supported, yesr
 	is pressure sensitive buttons on the pro models.
 
 config SMARTJOYPLUS_FF
@@ -1068,7 +1068,7 @@ config HID_WIIMOTE
 	Wii Balance Board.
 
 	Support for all official Nintendo extensions is available, however, 3rd
-	party extensions might not be supported. Please report these devices to:
+	party extensions might yest be supported. Please report these devices to:
 	  http://github.com/dvdhrm/xwiimote/issues
 
 	Other Nintendo Wii U peripherals that are IEEE 802.11 based (including
@@ -1081,10 +1081,10 @@ config HID_WIIMOTE
 	module will be called hid-wiimote.
 
 config HID_XINMO
-	tristate "Xin-Mo non-fully compliant devices"
+	tristate "Xin-Mo yesn-fully compliant devices"
 	depends on HID
 	---help---
-	Support for Xin-Mo devices that are not fully compliant with the HID
+	Support for Xin-Mo devices that are yest fully compliant with the HID
 	standard. Currently only supports the Xin-Mo Dual Arcade. Say Y here
 	if you have a Xin-Mo Dual Arcade controller.
 

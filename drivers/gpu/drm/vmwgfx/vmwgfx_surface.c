@@ -11,7 +11,7 @@
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright yestice and this permission yestice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
  *
@@ -426,12 +426,12 @@ static int vmw_legacy_srf_create(struct vmw_resource *res)
 	ret = vmw_resource_alloc_id(res);
 	if (unlikely(ret != 0)) {
 		DRM_ERROR("Failed to allocate a surface id.\n");
-		goto out_no_id;
+		goto out_yes_id;
 	}
 
 	if (unlikely(res->id >= SVGA3D_MAX_SURFACE_IDS)) {
 		ret = -EBUSY;
-		goto out_no_fifo;
+		goto out_yes_fifo;
 	}
 
 	/*
@@ -442,7 +442,7 @@ static int vmw_legacy_srf_create(struct vmw_resource *res)
 	cmd = VMW_FIFO_RESERVE(dev_priv, submit_size);
 	if (unlikely(!cmd)) {
 		ret = -ENOMEM;
-		goto out_no_fifo;
+		goto out_yes_fifo;
 	}
 
 	vmw_surface_define_encode(srf, cmd);
@@ -456,9 +456,9 @@ static int vmw_legacy_srf_create(struct vmw_resource *res)
 	dev_priv->used_memory_size += res->backup_size;
 	return 0;
 
-out_no_fifo:
+out_yes_fifo:
 	vmw_resource_release_id(res);
-out_no_id:
+out_yes_id:
 	return ret;
 }
 
@@ -670,7 +670,7 @@ static void vmw_user_surface_free(struct vmw_resource *res)
 		drm_master_put(&user_srf->master);
 	kfree(srf->offsets);
 	kfree(srf->sizes);
-	kfree(srf->snooper.image);
+	kfree(srf->syesoper.image);
 	ttm_prime_object_kfree(user_srf, prime);
 	ttm_mem_global_free(vmw_mem_glob(dev_priv), size);
 }
@@ -737,7 +737,7 @@ int vmw_surface_define_ioctl(struct drm_device *dev, void *data,
 	struct ttm_object_file *tfile = vmw_fpriv(file_priv)->tfile;
 	struct ttm_operation_ctx ctx = {
 		.interruptible = true,
-		.no_wait_gpu = false
+		.yes_wait_gpu = false
 	};
 	int ret;
 	int i, j;
@@ -789,7 +789,7 @@ int vmw_surface_define_ioctl(struct drm_device *dev, void *data,
 	user_srf = kzalloc(sizeof(*user_srf), GFP_KERNEL);
 	if (unlikely(!user_srf)) {
 		ret = -ENOMEM;
-		goto out_no_user_srf;
+		goto out_yes_user_srf;
 	}
 
 	srf = &user_srf->srf;
@@ -798,7 +798,7 @@ int vmw_surface_define_ioctl(struct drm_device *dev, void *data,
 	/* Driver internally stores as 64-bit flags */
 	srf->flags = (SVGA3dSurfaceAllFlags)req->flags;
 	srf->format = req->format;
-	srf->scanout = req->scanout;
+	srf->scayesut = req->scayesut;
 
 	memcpy(srf->mip_levels, req->mip_levels, sizeof(srf->mip_levels));
 	srf->num_sizes = num_sizes;
@@ -808,14 +808,14 @@ int vmw_surface_define_ioctl(struct drm_device *dev, void *data,
 				 sizeof(*srf->sizes) * srf->num_sizes);
 	if (IS_ERR(srf->sizes)) {
 		ret = PTR_ERR(srf->sizes);
-		goto out_no_sizes;
+		goto out_yes_sizes;
 	}
 	srf->offsets = kmalloc_array(srf->num_sizes,
 				     sizeof(*srf->offsets),
 				     GFP_KERNEL);
 	if (unlikely(!srf->offsets)) {
 		ret = -ENOMEM;
-		goto out_no_offsets;
+		goto out_yes_offsets;
 	}
 
 	srf->base_size = *srf->sizes;
@@ -843,20 +843,20 @@ int vmw_surface_define_ioctl(struct drm_device *dev, void *data,
 		}
 	}
 	res->backup_size = cur_bo_offset;
-	if (srf->scanout &&
+	if (srf->scayesut &&
 	    srf->num_sizes == 1 &&
 	    srf->sizes[0].width == 64 &&
 	    srf->sizes[0].height == 64 &&
 	    srf->format == SVGA3D_A8R8G8B8) {
 
-		srf->snooper.image = kzalloc(64 * 64 * 4, GFP_KERNEL);
-		if (!srf->snooper.image) {
+		srf->syesoper.image = kzalloc(64 * 64 * 4, GFP_KERNEL);
+		if (!srf->syesoper.image) {
 			DRM_ERROR("Failed to allocate cursor_image\n");
 			ret = -ENOMEM;
-			goto out_no_copy;
+			goto out_yes_copy;
 		}
 	} else {
-		srf->snooper.image = NULL;
+		srf->syesoper.image = NULL;
 	}
 
 	user_srf->prime.base.shareable = false;
@@ -908,13 +908,13 @@ int vmw_surface_define_ioctl(struct drm_device *dev, void *data,
 
 	ttm_read_unlock(&dev_priv->reservation_sem);
 	return 0;
-out_no_copy:
+out_yes_copy:
 	kfree(srf->offsets);
-out_no_offsets:
+out_yes_offsets:
 	kfree(srf->sizes);
-out_no_sizes:
+out_yes_sizes:
 	ttm_prime_object_kfree(user_srf, prime);
-out_no_user_srf:
+out_yes_user_srf:
 	ttm_mem_global_free(vmw_mem_glob(dev_priv), size);
 out_unlock:
 	ttm_read_unlock(&dev_priv->reservation_sem);
@@ -950,12 +950,12 @@ vmw_surface_handle_reference(struct vmw_private *dev_priv,
 	ret = -EINVAL;
 	base = ttm_base_object_lookup_for_ref(dev_priv->tdev, handle);
 	if (unlikely(!base)) {
-		VMW_DEBUG_USER("Could not find surface to reference.\n");
-		goto out_no_lookup;
+		VMW_DEBUG_USER("Could yest find surface to reference.\n");
+		goto out_yes_lookup;
 	}
 
 	if (unlikely(ttm_base_object_type(base) != VMW_RES_SURFACE)) {
-		VMW_DEBUG_USER("Referenced object is not a surface.\n");
+		VMW_DEBUG_USER("Referenced object is yest a surface.\n");
 		goto out_bad_resource;
 	}
 
@@ -974,7 +974,7 @@ vmw_surface_handle_reference(struct vmw_private *dev_priv,
 		ret = ttm_ref_object_add(tfile, base, TTM_REF_USAGE, NULL,
 					 require_exist);
 		if (unlikely(ret != 0)) {
-			DRM_ERROR("Could not add a reference to a surface.\n");
+			DRM_ERROR("Could yest add a reference to a surface.\n");
 			goto out_bad_resource;
 		}
 	}
@@ -984,7 +984,7 @@ vmw_surface_handle_reference(struct vmw_private *dev_priv,
 
 out_bad_resource:
 	ttm_base_object_unref(&base);
-out_no_lookup:
+out_yes_lookup:
 	if (handle_type == DRM_VMW_HANDLE_PRIME)
 		(void) ttm_ref_object_base_unref(tfile, handle, TTM_REF_USAGE);
 
@@ -1076,12 +1076,12 @@ static int vmw_gb_surface_create(struct vmw_resource *res)
 	ret = vmw_resource_alloc_id(res);
 	if (unlikely(ret != 0)) {
 		DRM_ERROR("Failed to allocate a surface id.\n");
-		goto out_no_id;
+		goto out_yes_id;
 	}
 
 	if (unlikely(res->id >= VMWGFX_NUM_GB_SURFACE)) {
 		ret = -EBUSY;
-		goto out_no_fifo;
+		goto out_yes_fifo;
 	}
 
 	if (dev_priv->has_sm4_1 && srf->array_size > 0) {
@@ -1104,7 +1104,7 @@ static int vmw_gb_surface_create(struct vmw_resource *res)
 	cmd3 = (typeof(cmd3))cmd;
 	if (unlikely(!cmd)) {
 		ret = -ENOMEM;
-		goto out_no_fifo;
+		goto out_yes_fifo;
 	}
 
 	if (dev_priv->has_sm4_1 && srf->array_size > 0) {
@@ -1153,9 +1153,9 @@ static int vmw_gb_surface_create(struct vmw_resource *res)
 
 	return 0;
 
-out_no_fifo:
+out_yes_fifo:
 	vmw_resource_release_id(res);
-out_no_id:
+out_yes_id:
 	vmw_fifo_resource_dec(dev_priv);
 	return ret;
 }
@@ -1370,7 +1370,7 @@ int vmw_gb_surface_reference_ioctl(struct drm_device *dev, void *data,
  *                         to 0 for kernel mode only memory
  * @svga3d_flags: SVGA3d surface flags for the device
  * @format: requested surface format
- * @for_scanout: true if inteded to be used for scanout buffer
+ * @for_scayesut: true if inteded to be used for scayesut buffer
  * @num_mip_levels:  number of MIP levels
  * @multisample_count:
  * @array_size: Surface array size.
@@ -1379,16 +1379,16 @@ int vmw_gb_surface_reference_ioctl(struct drm_device *dev, void *data,
  * @quality_level: Precision settings
  * @user_srf_out: allocated user_srf.  Set to NULL on failure.
  *
- * GB surfaces allocated by this function will not have a user mode handle, and
+ * GB surfaces allocated by this function will yest have a user mode handle, and
  * thus will only be visible to vmwgfx.  For optimization reasons the
- * surface may later be given a user mode handle by another function to make
+ * surface may later be given a user mode handle by ayesther function to make
  * it available to user mode drivers.
  */
 int vmw_surface_gb_priv_define(struct drm_device *dev,
 			       uint32_t user_accounting_size,
 			       SVGA3dSurfaceAllFlags svga3d_flags,
 			       SVGA3dSurfaceFormat format,
-			       bool for_scanout,
+			       bool for_scayesut,
 			       uint32_t num_mip_levels,
 			       uint32_t multisample_count,
 			       uint32_t array_size,
@@ -1401,7 +1401,7 @@ int vmw_surface_gb_priv_define(struct drm_device *dev,
 	struct vmw_user_surface *user_srf;
 	struct ttm_operation_ctx ctx = {
 		.interruptible = true,
-		.no_wait_gpu = false
+		.yes_wait_gpu = false
 	};
 	struct vmw_surface *srf;
 	int ret;
@@ -1410,7 +1410,7 @@ int vmw_surface_gb_priv_define(struct drm_device *dev,
 
 	*srf_out = NULL;
 
-	if (for_scanout) {
+	if (for_scayesut) {
 		if (!svga3dsurface_is_screen_target_format(format)) {
 			VMW_DEBUG_USER("Invalid Screen Target surface format.");
 			return -EINVAL;
@@ -1434,9 +1434,9 @@ int vmw_surface_gb_priv_define(struct drm_device *dev,
 		}
 	}
 
-	/* array_size must be null for non-GL3 host. */
+	/* array_size must be null for yesn-GL3 host. */
 	if (array_size > 0 && !dev_priv->has_dx) {
-		VMW_DEBUG_USER("Tried to create DX surface on non-DX host.\n");
+		VMW_DEBUG_USER("Tried to create DX surface on yesn-DX host.\n");
 		return -EINVAL;
 	}
 
@@ -1456,7 +1456,7 @@ int vmw_surface_gb_priv_define(struct drm_device *dev,
 	user_srf = kzalloc(sizeof(*user_srf), GFP_KERNEL);
 	if (unlikely(!user_srf)) {
 		ret = -ENOMEM;
-		goto out_no_user_srf;
+		goto out_yes_user_srf;
 	}
 
 	*srf_out  = &user_srf->srf;
@@ -1467,7 +1467,7 @@ int vmw_surface_gb_priv_define(struct drm_device *dev,
 	srf = &user_srf->srf;
 	srf->flags             = svga3d_flags;
 	srf->format            = format;
-	srf->scanout           = for_scanout;
+	srf->scayesut           = for_scayesut;
 	srf->mip_levels[0]     = num_mip_levels;
 	srf->num_sizes         = 1;
 	srf->sizes             = NULL;
@@ -1498,15 +1498,15 @@ int vmw_surface_gb_priv_define(struct drm_device *dev,
 		srf->res.backup_size += sizeof(SVGA3dDXSOState);
 
 	/*
-	 * Don't set SVGA3D_SURFACE_SCREENTARGET flag for a scanout surface with
+	 * Don't set SVGA3D_SURFACE_SCREENTARGET flag for a scayesut surface with
 	 * size greater than STDU max width/height. This is really a workaround
 	 * to support creation of big framebuffer requested by some user-space
 	 * for whole topology. That big framebuffer won't really be used for
 	 * binding with screen target as during prepare_fb a separate surface is
-	 * created so it's safe to ignore SVGA3D_SURFACE_SCREENTARGET flag.
+	 * created so it's safe to igyesre SVGA3D_SURFACE_SCREENTARGET flag.
 	 */
 	if (dev_priv->active_display_unit == vmw_du_screen_target &&
-	    for_scanout && size.width <= dev_priv->stdu_max_width &&
+	    for_scayesut && size.width <= dev_priv->stdu_max_width &&
 	    size.height <= dev_priv->stdu_max_height)
 		srf->flags |= SVGA3D_SURFACE_SCREENTARGET;
 
@@ -1519,7 +1519,7 @@ int vmw_surface_gb_priv_define(struct drm_device *dev,
 	ttm_read_unlock(&dev_priv->reservation_sem);
 	return ret;
 
-out_no_user_srf:
+out_yes_user_srf:
 	ttm_mem_global_free(vmw_mem_glob(dev_priv), user_accounting_size);
 
 out_unlock:
@@ -1595,7 +1595,7 @@ vmw_gb_surface_define_internal(struct drm_device *dev,
 
 	if (!dev_priv->has_sm4_1) {
 		/*
-		 * If SM4_1 is not support then cannot send 64-bit flag to
+		 * If SM4_1 is yest support then canyest send 64-bit flag to
 		 * device.
 		 */
 		if (req->svga3d_flags_upper_32_bits != 0)
@@ -1630,7 +1630,7 @@ vmw_gb_surface_define_internal(struct drm_device *dev,
 					 svga3d_flags_64,
 					 req->base.format,
 					 req->base.drm_surface_flags &
-					 drm_vmw_surface_flag_scanout,
+					 drm_vmw_surface_flag_scayesut,
 					 req->base.mip_levels,
 					 req->base.multisample_count,
 					 req->base.array_size,
@@ -1719,7 +1719,7 @@ vmw_gb_surface_define_internal(struct drm_device *dev,
 	rep->backup_size = res->backup_size;
 	if (res->backup) {
 		rep->buffer_map_handle =
-			drm_vma_node_offset_addr(&res->backup->base.base.vma_node);
+			drm_vma_yesde_offset_addr(&res->backup->base.base.vma_yesde);
 		rep->buffer_size = res->backup->base.num_pages * PAGE_SIZE;
 		rep->buffer_handle = backup_handle;
 	} else {
@@ -1775,7 +1775,7 @@ vmw_gb_surface_reference_internal(struct drm_device *dev,
 	mutex_unlock(&dev_priv->cmdbuf_mutex);
 
 	if (unlikely(ret != 0)) {
-		DRM_ERROR("Could not add a reference to a GB surface "
+		DRM_ERROR("Could yest add a reference to a GB surface "
 			  "backup buffer.\n");
 		(void) ttm_ref_object_base_unref(tfile, base->handle,
 						 TTM_REF_USAGE);
@@ -1795,7 +1795,7 @@ vmw_gb_surface_reference_internal(struct drm_device *dev,
 	rep->crep.backup_size = srf->res.backup_size;
 	rep->crep.buffer_handle = backup_handle;
 	rep->crep.buffer_map_handle =
-		drm_vma_node_offset_addr(&srf->res.backup->base.base.vma_node);
+		drm_vma_yesde_offset_addr(&srf->res.backup->base.base.vma_yesde);
 	rep->crep.buffer_size = srf->res.backup->base.num_pages * PAGE_SIZE;
 
 	rep->creq.version = drm_vmw_gb_surface_v1;
@@ -2015,7 +2015,7 @@ static int vmw_surface_dirty_sync(struct vmw_resource *res)
 
 		/*
 		 * DX_UPDATE_SUBRESOURCE is aware of array surfaces.
-		 * UPDATE_GB_IMAGE is not.
+		 * UPDATE_GB_IMAGE is yest.
 		 */
 		if (has_dx) {
 			cmd1->header.id = SVGA_3D_CMD_DX_UPDATE_SUBRESOURCE;
@@ -2058,7 +2058,7 @@ static int vmw_surface_dirty_alloc(struct vmw_resource *res)
 	size_t dirty_size, acc_size;
 	static struct ttm_operation_ctx ctx = {
 		.interruptible = false,
-		.no_wait_gpu = false
+		.yes_wait_gpu = false
 	};
 	int ret;
 
@@ -2085,14 +2085,14 @@ static int vmw_surface_dirty_alloc(struct vmw_resource *res)
 	dirty = kvzalloc(dirty_size, GFP_KERNEL);
 	if (!dirty) {
 		ret = -ENOMEM;
-		goto out_no_dirty;
+		goto out_yes_dirty;
 	}
 
 	num_samples = max_t(u32, 1, srf->multisample_count);
 	ret = svga3dsurface_setup_cache(&srf->base_size, srf->format, num_mip,
 					num_layers, num_samples, &dirty->cache);
 	if (ret)
-		goto out_no_cache;
+		goto out_yes_cache;
 
 	dirty->num_subres = num_subres;
 	dirty->size = acc_size;
@@ -2100,9 +2100,9 @@ static int vmw_surface_dirty_alloc(struct vmw_resource *res)
 
 	return 0;
 
-out_no_cache:
+out_yes_cache:
 	kvfree(dirty);
-out_no_dirty:
+out_yes_dirty:
 	ttm_mem_global_free(vmw_mem_glob(res->dev_priv), acc_size);
 	return ret;
 }

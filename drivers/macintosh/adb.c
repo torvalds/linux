@@ -6,7 +6,7 @@
  * Copyright (C) 1996 Paul Mackerras.
  *
  * Modified to declare controllers as structures, added
- * client notification of bus reset and handles PowerBook
+ * client yestification of bus reset and handles PowerBook
  * sleep, by Benjamin Herrenschmidt.
  *
  * To do:
@@ -18,7 +18,7 @@
  */
 
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/module.h>
@@ -28,7 +28,7 @@
 #include <linux/adb.h>
 #include <linux/cuda.h>
 #include <linux/pmu.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/wait.h>
 #include <linux/init.h>
 #include <linux/delay.h>
@@ -103,7 +103,7 @@ static struct adb_handler {
  * handler field.
  * Accesses to the handler field are protected by the adb_handler_lock
  * rwlock.  It is held across all calls to any handler, so that by the
- * time adb_unregister returns, we know that the old handler isn't being
+ * time adb_unregister returns, we kyesw that the old handler isn't being
  * called.
  */
 static DEFINE_MUTEX(adb_handler_mutex);
@@ -124,7 +124,7 @@ static void printADBreply(struct adb_request *req)
 
 static int adb_scan_bus(void)
 {
-	int i, highFree=0, noMovement;
+	int i, highFree=0, yesMovement;
 	int devmask = 0;
 	struct adb_request req;
 	
@@ -140,8 +140,8 @@ static int adb_scan_bus(void)
 			highFree = i;
 	}
 
-	/* Note we reset noMovement to 0 each time we move a device */
-	for (noMovement = 1; noMovement < 2 && highFree > 0; noMovement++) {
+	/* Note we reset yesMovement to 0 each time we move a device */
+	for (yesMovement = 1; yesMovement < 2 && highFree > 0; yesMovement++) {
 		for (i = 1; i < 16; i++) {
 			if (adb_handler[i].original_address == 0)
 				continue;
@@ -163,7 +163,7 @@ static int adb_scan_bus(void)
 			 * See if anybody actually moved. This is suggested
 			 * by HW TechNote 01:
 			 *
-			 * http://developer.apple.com/technotes/hw/hw_01.html
+			 * http://developer.apple.com/techyestes/hw/hw_01.html
 			 */
 			adb_request(&req, NULL, ADBREQ_SYNC | ADBREQ_REPLY, 1,
 				    (highFree << 4) | 0xf);
@@ -189,7 +189,7 @@ static int adb_scan_bus(void)
 				if (highFree <= 0)
 					break;
 
-				noMovement = 0;
+				yesMovement = 0;
 			} else {
 				/*
 				 * No devices left at address i; move the
@@ -256,7 +256,7 @@ adb_reset_bus(void)
 
 #ifdef CONFIG_PM
 /*
- * notify clients before sleep
+ * yestify clients before sleep
  */
 static int __adb_suspend(struct platform_device *dev, pm_message_t state)
 {
@@ -266,7 +266,7 @@ static int __adb_suspend(struct platform_device *dev, pm_message_t state)
 	/* Stop autopoll */
 	if (adb_controller->autopoll)
 		adb_controller->autopoll(0);
-	blocking_notifier_call_chain(&adb_client_list, ADB_MSG_POWERDOWN, NULL);
+	blocking_yestifier_call_chain(&adb_client_list, ADB_MSG_POWERDOWN, NULL);
 
 	return 0;
 }
@@ -336,7 +336,7 @@ static int __init adb_init(void)
 	    adb_controller->init())
 		adb_controller = NULL;
 	if (adb_controller == NULL) {
-		pr_warn("Warning: no ADB interface detected\n");
+		pr_warn("Warning: yes ADB interface detected\n");
 	} else {
 #ifdef CONFIG_PPC
 		if (of_machine_is_compatible("AAPL,PowerBook1998") ||
@@ -363,7 +363,7 @@ do_adb_reset_bus(void)
 	if (adb_controller->autopoll)
 		adb_controller->autopoll(0);
 
-	blocking_notifier_call_chain(&adb_client_list,
+	blocking_yestifier_call_chain(&adb_client_list,
 		ADB_MSG_PRE_RESET, NULL);
 
 	if (sleepy_trackpad) {
@@ -376,7 +376,7 @@ do_adb_reset_bus(void)
 	memset(adb_handler, 0, sizeof(adb_handler));
 	write_unlock_irq(&adb_handler_lock);
 
-	/* That one is still a bit synchronous, oh well... */
+	/* That one is still a bit synchroyesus, oh well... */
 	if (adb_controller->reset_bus)
 		ret = adb_controller->reset_bus();
 	else
@@ -394,7 +394,7 @@ do_adb_reset_bus(void)
 	}
 	mutex_unlock(&adb_handler_mutex);
 
-	blocking_notifier_call_chain(&adb_client_list,
+	blocking_yestifier_call_chain(&adb_client_list,
 		ADB_MSG_POST_RESET, NULL);
 	
 	return ret;
@@ -442,7 +442,7 @@ adb_request(struct adb_request *req, void (*done)(struct adb_request *),
 	if (flags & ADBREQ_NOSEND)
 		return 0;
 
-	/* Synchronous requests block using an on-stack completion */
+	/* Synchroyesus requests block using an on-stack completion */
 	if (flags & ADBREQ_SYNC) {
 		WARN_ON(done);
 		req->done = adb_sync_req_done;
@@ -461,8 +461,8 @@ EXPORT_SYMBOL(adb_request);
 
  /* Ultimately this should return the number of devices with
     the given default id.
-    And it does it now ! Note: changed behaviour: This function
-    will now register if default_id _and_ handler_id both match
+    And it does it yesw ! Note: changed behaviour: This function
+    will yesw register if default_id _and_ handler_id both match
     but handler_id can be left to 0 to match with default_id only.
     When handler_id is set, this function will try to adjust
     the handler_id id it doesn't match. */
@@ -526,7 +526,7 @@ adb_input(unsigned char *buf, int nb, int autopoll)
 	void (*handler)(unsigned char *, int, int);
 
 	/* We skip keystrokes and mouse moves when the sleep process
-	 * has been started. We stop autopoll, but this is another security
+	 * has been started. We stop autopoll, but this is ayesther security
 	 */
 	if (adb_got_sleep)
 		return;
@@ -662,13 +662,13 @@ do_adb_query(struct adb_request *req)
 	return ret;
 }
 
-static int adb_open(struct inode *inode, struct file *file)
+static int adb_open(struct iyesde *iyesde, struct file *file)
 {
 	struct adbdev_state *state;
 	int ret = 0;
 
 	mutex_lock(&adb_mutex);
-	if (iminor(inode) > 0 || adb_controller == NULL) {
+	if (imiyesr(iyesde) > 0 || adb_controller == NULL) {
 		ret = -ENXIO;
 		goto out;
 	}
@@ -689,7 +689,7 @@ out:
 	return ret;
 }
 
-static int adb_release(struct inode *inode, struct file *file)
+static int adb_release(struct iyesde *iyesde, struct file *file)
 {
 	struct adbdev_state *state = file->private_data;
 	unsigned long flags;
@@ -840,7 +840,7 @@ out:
 
 static const struct file_operations adb_fops = {
 	.owner		= THIS_MODULE,
-	.llseek		= no_llseek,
+	.llseek		= yes_llseek,
 	.read		= adb_read,
 	.write		= adb_write,
 	.open		= adb_open,

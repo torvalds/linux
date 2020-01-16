@@ -391,10 +391,10 @@ struct kobj_type xfs_log_ktype = {
  * Metadata IO error configuration
  *
  * The sysfs structure here is:
- *	...xfs/<dev>/error/<class>/<errno>/<error_attrs>
+ *	...xfs/<dev>/error/<class>/<erryes>/<error_attrs>
  *
  * where <class> allows us to discriminate between data IO and metadata IO,
- * and any other future type of IO (e.g. special inode or directory error
+ * and any other future type of IO (e.g. special iyesde or directory error
  * handling) we care to support.
  */
 static inline struct xfs_error_cfg *

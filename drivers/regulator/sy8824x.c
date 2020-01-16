@@ -116,7 +116,7 @@ static int sy8824_i2c_probe(struct i2c_client *client,
 			    const struct i2c_device_id *id)
 {
 	struct device *dev = &client->dev;
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 	struct sy8824_device_info *di;
 	struct regulator_config config = { };
 	struct regmap *regmap;
@@ -128,7 +128,7 @@ static int sy8824_i2c_probe(struct i2c_client *client,
 
 	di->regulator = of_get_regulator_init_data(dev, np, &di->desc);
 	if (!di->regulator) {
-		dev_err(dev, "Platform data not found!\n");
+		dev_err(dev, "Platform data yest found!\n");
 		return -EINVAL;
 	}
 
@@ -146,7 +146,7 @@ static int sy8824_i2c_probe(struct i2c_client *client,
 	config.init_data = di->regulator;
 	config.regmap = regmap;
 	config.driver_data = di;
-	config.of_node = np;
+	config.of_yesde = np;
 
 	ret = sy8824_regulator_register(di, &config);
 	if (ret < 0)

@@ -44,12 +44,12 @@ static int dpseci_dbg_fqs_show(struct seq_file *file, void *offset)
 	return 0;
 }
 
-static int dpseci_dbg_fqs_open(struct inode *inode, struct file *file)
+static int dpseci_dbg_fqs_open(struct iyesde *iyesde, struct file *file)
 {
 	int err;
 	struct dpaa2_caam_priv *priv;
 
-	priv = (struct dpaa2_caam_priv *)inode->i_private;
+	priv = (struct dpaa2_caam_priv *)iyesde->i_private;
 
 	err = single_open(file, dpseci_dbg_fqs_show, priv);
 	if (err < 0)

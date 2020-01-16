@@ -12,7 +12,7 @@ struct snd_rawmidi_params32 {
 	s32 stream;
 	u32 buffer_size;
 	u32 avail_min;
-	unsigned int no_active_sensing; /* avoid bit-field */
+	unsigned int yes_active_sensing; /* avoid bit-field */
 	unsigned char reserved[16];
 } __attribute__((packed));
 
@@ -25,9 +25,9 @@ static int snd_rawmidi_ioctl_params_compat(struct snd_rawmidi_file *rfile,
 	if (get_user(params.stream, &src->stream) ||
 	    get_user(params.buffer_size, &src->buffer_size) ||
 	    get_user(params.avail_min, &src->avail_min) ||
-	    get_user(val, &src->no_active_sensing))
+	    get_user(val, &src->yes_active_sensing))
 		return -EFAULT;
-	params.no_active_sensing = val;
+	params.yes_active_sensing = val;
 	switch (params.stream) {
 	case SNDRV_RAWMIDI_STREAM_OUTPUT:
 		if (!rfile->output)

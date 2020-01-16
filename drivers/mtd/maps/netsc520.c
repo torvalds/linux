@@ -5,7 +5,7 @@
  *	based on sc520cdp.c by Sysgo Real-Time Solutions GmbH
  *
  * The NetSc520 is a demonstration board for the Elan Sc520 processor available
- * from AMD.  It has a single back of 16 megs of 32-bit Flash ROM and another
+ * from AMD.  It has a single back of 16 megs of 32-bit Flash ROM and ayesther
  * 16 megs of SDRAM.
  */
 
@@ -25,14 +25,14 @@
 ** store the kernel image loaded by the bootstrap loader.  The second
 ** partition is 256 KiB and holds the BIOS image.  The third
 ** partition is 14.5 MiB and is intended for the flash file system
-** image.  The last partition is 512 KiB and contains another copy
+** image.  The last partition is 512 KiB and contains ayesther copy
 ** of the BIOS image and the reset vector.
 **
 ** Only the third partition should be mounted.  The first partition
-** should not be mounted, but it can erased and written to using the
+** should yest be mounted, but it can erased and written to using the
 ** MTD character routines.  The second and fourth partitions should
-** not be touched - it is possible to corrupt the BIOS image by
-** mounting these partitions, and potentially the board will not be
+** yest be touched - it is possible to corrupt the BIOS image by
+** mounting these partitions, and potentially the board will yest be
 ** recoverable afterwards.
 */
 
@@ -82,10 +82,10 @@ static int __init init_netsc520(void)
 	printk(KERN_NOTICE "NetSc520 flash device: 0x%Lx at 0x%Lx\n",
 			(unsigned long long)netsc520_map.size,
 			(unsigned long long)netsc520_map.phys);
-	netsc520_map.virt = ioremap_nocache(netsc520_map.phys, netsc520_map.size);
+	netsc520_map.virt = ioremap_yescache(netsc520_map.phys, netsc520_map.size);
 
 	if (!netsc520_map.virt) {
-		printk("Failed to ioremap_nocache\n");
+		printk("Failed to ioremap_yescache\n");
 		return -EIO;
 	}
 

@@ -850,7 +850,7 @@ static unsigned int wm_adsp_region_to_reg(struct wm_adsp_region const *mem,
 	case WMFW_ADSP1_ZM:
 		return mem->base + (offset * 2);
 	default:
-		WARN(1, "Unknown memory region type");
+		WARN(1, "Unkyeswn memory region type");
 		return offset;
 	}
 }
@@ -868,18 +868,18 @@ static unsigned int wm_halo_region_to_reg(struct wm_adsp_region const *mem,
 	case WMFW_HALO_PM_PACKED:
 		return mem->base + (offset * 5);
 	default:
-		WARN(1, "Unknown memory region type");
+		WARN(1, "Unkyeswn memory region type");
 		return offset;
 	}
 }
 
 static void wm_adsp_read_fw_status(struct wm_adsp *dsp,
-				   int noffs, unsigned int *offs)
+				   int yesffs, unsigned int *offs)
 {
 	unsigned int i;
 	int ret;
 
-	for (i = 0; i < noffs; ++i) {
+	for (i = 0; i < yesffs; ++i) {
 		ret = regmap_read(dsp->regmap, dsp->base + offs[i], &offs[i]);
 		if (ret) {
 			adsp_err(dsp, "Failed to read SCRATCH%u: %d\n", i, ret);
@@ -1121,7 +1121,7 @@ static int wm_coeff_put_acked(struct snd_kcontrol *kctl,
 	int ret;
 
 	if (val == 0)
-		return 0;	/* 0 means no event */
+		return 0;	/* 0 means yes event */
 
 	mutex_lock(&ctl->dsp->pwr_lock);
 
@@ -1226,11 +1226,11 @@ static int wm_coeff_get_acked(struct snd_kcontrol *kcontrol,
 			      struct snd_ctl_elem_value *ucontrol)
 {
 	/*
-	 * Although it's not useful to read an acked control, we must satisfy
+	 * Although it's yest useful to read an acked control, we must satisfy
 	 * user-side assumptions that all controls are readable and that a
 	 * write of the same value should be filtered out (it's valid to send
 	 * the same event number again to the firmware). We therefore return 0,
-	 * meaning "no event" so valid event numbers will always be a change
+	 * meaning "yes event" so valid event numbers will always be a change
 	 */
 	ucontrol->value.integer.value[0] = 0;
 
@@ -1336,7 +1336,7 @@ static int wm_coeff_init_control_caches(struct wm_adsp *dsp)
 
 		/*
 		 * For readable controls populate the cache from the DSP memory.
-		 * For non-readable controls the cache was zero-filled when
+		 * For yesn-readable controls the cache was zero-filled when
 		 * created so we don't need to do anything.
 		 */
 		if (!ctl->flags || (ctl->flags & WMFW_CTL_FLAG_READABLE)) {
@@ -1420,7 +1420,7 @@ static int wm_adsp_create_control(struct wm_adsp *dsp,
 
 	region_name = wm_adsp_mem_region_name(alg_region->type);
 	if (!region_name) {
-		adsp_err(dsp, "Unknown region type: %d\n", alg_region->type);
+		adsp_err(dsp, "Unkyeswn region type: %d\n", alg_region->type);
 		return -EINVAL;
 	}
 
@@ -1700,7 +1700,7 @@ static int wm_adsp_parse_coeff(struct wm_adsp *dsp,
 			break;
 		case WMFW_CTL_TYPE_ACKED:
 			if (coeff_blk.flags & WMFW_CTL_FLAG_SYS)
-				continue;	/* ignore */
+				continue;	/* igyesre */
 
 			ret = wm_adsp_check_coeff_flags(dsp, &coeff_blk,
 						WMFW_CTL_FLAG_VOLATILE |
@@ -1730,7 +1730,7 @@ static int wm_adsp_parse_coeff(struct wm_adsp *dsp,
 				return -EINVAL;
 			break;
 		default:
-			adsp_err(dsp, "Unknown control type: %d\n",
+			adsp_err(dsp, "Unkyeswn control type: %d\n",
 				 coeff_blk.ctl_type);
 			return -EINVAL;
 		}
@@ -1857,7 +1857,7 @@ static int wm_adsp_load(struct wm_adsp *dsp)
 	}
 
 	if (!dsp->ops->validate_version(dsp, header->ver)) {
-		adsp_err(dsp, "%s: unknown file format %d\n",
+		adsp_err(dsp, "%s: unkyeswn file format %d\n",
 			 file, header->ver);
 		goto out_fw;
 	}
@@ -1889,7 +1889,7 @@ static int wm_adsp_load(struct wm_adsp *dsp)
 	while (pos < firmware->size &&
 	       sizeof(*region) < firmware->size - pos) {
 		region = (void *)&(firmware->data[pos]);
-		region_name = "Unknown";
+		region_name = "Unkyeswn";
 		reg = 0;
 		text = NULL;
 		offset = le32_to_cpu(region->offset) & 0xffffff;
@@ -1935,7 +1935,7 @@ static int wm_adsp_load(struct wm_adsp *dsp)
 			break;
 		default:
 			adsp_warn(dsp,
-				  "%s.%d: Unknown region type %x at %d(%x)\n",
+				  "%s.%d: Unkyeswn region type %x at %d(%x)\n",
 				  file, regions, type, pos, pos);
 			break;
 		}
@@ -2012,7 +2012,7 @@ out:
 
 /*
  * Find wm_coeff_ctl with input name as its subname
- * If not found, return NULL
+ * If yest found, return NULL
  */
 static struct wm_coeff_ctl *wm_adsp_get_ctl(struct wm_adsp *dsp,
 					     const char *name, int type,
@@ -2051,7 +2051,7 @@ int wm_adsp_write_ctl(struct wm_adsp *dsp, const char *name, int type,
 	ret = wm_coeff_write_control(ctl, buf, len);
 
 	kcontrol = snd_soc_card_get_kcontrol(dsp->component->card, ctl->name);
-	snd_ctl_notify(dsp->component->card->snd_card,
+	snd_ctl_yestify(dsp->component->card->snd_card,
 		       SNDRV_CTL_EVENT_MASK_VALUE, &kcontrol->id);
 
 	return ret;
@@ -2607,7 +2607,7 @@ static int wm_adsp_load_coeff(struct wm_adsp *dsp)
 			 file, blocks, le32_to_cpu(blk->len), offset, type);
 
 		reg = 0;
-		region_name = "Unknown";
+		region_name = "Unkyeswn";
 		switch (type) {
 		case (WMFW_NAME_TEXT << 8):
 		case (WMFW_INFO_TEXT << 8):
@@ -2663,7 +2663,7 @@ static int wm_adsp_load_coeff(struct wm_adsp *dsp)
 			break;
 
 		default:
-			adsp_err(dsp, "%s.%d: Unknown region type %x at %d\n",
+			adsp_err(dsp, "%s.%d: Unkyeswn region type %x at %d\n",
 				 file, blocks, type, pos);
 			break;
 		}
@@ -3443,7 +3443,7 @@ static void wm_adsp_compr_detach(struct wm_adsp_compr *compr)
 	if (!compr)
 		return;
 
-	/* Wake the poll so it can see buffer is no longer attached */
+	/* Wake the poll so it can see buffer is yes longer attached */
 	if (compr->stream)
 		snd_compr_fragment_elapsed(compr->stream);
 
@@ -3462,14 +3462,14 @@ int wm_adsp_compr_open(struct wm_adsp *dsp, struct snd_compr_stream *stream)
 	mutex_lock(&dsp->pwr_lock);
 
 	if (wm_adsp_fw[dsp->fw].num_caps == 0) {
-		adsp_err(dsp, "%s: Firmware does not support compressed API\n",
+		adsp_err(dsp, "%s: Firmware does yest support compressed API\n",
 			 rtd->codec_dai->name);
 		ret = -ENXIO;
 		goto out;
 	}
 
 	if (wm_adsp_fw[dsp->fw].compr_direction != stream->direction) {
-		adsp_err(dsp, "%s: Firmware does not support stream direction\n",
+		adsp_err(dsp, "%s: Firmware does yest support stream direction\n",
 			 rtd->codec_dai->name);
 		ret = -EINVAL;
 		goto out;
@@ -4092,7 +4092,7 @@ int wm_adsp_compr_handle_irq(struct wm_adsp *dsp)
 
 		ret = wm_adsp_buffer_get_error(buf);
 		if (ret < 0)
-			goto out_notify; /* Wake poll to report error */
+			goto out_yestify; /* Wake poll to report error */
 
 		ret = wm_adsp_buffer_read(buf, HOST_BUFFER_FIELD(irq_count),
 					  &buf->irq_count);
@@ -4110,7 +4110,7 @@ int wm_adsp_compr_handle_irq(struct wm_adsp *dsp)
 		if (wm_adsp_fw[dsp->fw].voice_trigger && buf->irq_count == 2)
 			ret = WM_ADSP_COMPR_VOICE_TRIGGER;
 
-out_notify:
+out_yestify:
 		if (compr && compr->stream)
 			snd_compr_fragment_elapsed(compr->stream);
 	}

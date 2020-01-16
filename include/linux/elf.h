@@ -27,7 +27,7 @@ extern Elf32_Dyn _DYNAMIC [];
 #define elfhdr		elf32_hdr
 #define elf_phdr	elf32_phdr
 #define elf_shdr	elf32_shdr
-#define elf_note	elf32_note
+#define elf_yeste	elf32_yeste
 #define elf_addr_t	Elf32_Off
 #define Elf_Half	Elf32_Half
 #define Elf_Word	Elf32_Word
@@ -38,22 +38,22 @@ extern Elf64_Dyn _DYNAMIC [];
 #define elfhdr		elf64_hdr
 #define elf_phdr	elf64_phdr
 #define elf_shdr	elf64_shdr
-#define elf_note	elf64_note
+#define elf_yeste	elf64_yeste
 #define elf_addr_t	Elf64_Off
 #define Elf_Half	Elf64_Half
 #define Elf_Word	Elf64_Word
 
 #endif
 
-/* Optional callbacks to write extra ELF notes. */
+/* Optional callbacks to write extra ELF yestes. */
 struct file;
 struct coredump_params;
 
 #ifndef ARCH_HAVE_EXTRA_ELF_NOTES
-static inline int elf_coredump_extra_notes_size(void) { return 0; }
-static inline int elf_coredump_extra_notes_write(struct coredump_params *cprm) { return 0; }
+static inline int elf_coredump_extra_yestes_size(void) { return 0; }
+static inline int elf_coredump_extra_yestes_write(struct coredump_params *cprm) { return 0; }
 #else
-extern int elf_coredump_extra_notes_size(void);
-extern int elf_coredump_extra_notes_write(struct coredump_params *cprm);
+extern int elf_coredump_extra_yestes_size(void);
+extern int elf_coredump_extra_yestes_write(struct coredump_params *cprm);
 #endif
 #endif /* _LINUX_ELF_H */

@@ -125,12 +125,12 @@ struct vep *vudc_find_endpoint(struct vudc *udc, u8 address)
 
 static int vgadget_get_frame(struct usb_gadget *_gadget)
 {
-	struct timespec64 now;
+	struct timespec64 yesw;
 	struct vudc *udc = usb_gadget_to_vudc(_gadget);
 
-	ktime_get_ts64(&now);
-	return ((now.tv_sec - udc->start_time.tv_sec) * 1000 +
-		(now.tv_nsec - udc->start_time.tv_nsec) / NSEC_PER_MSEC)
+	ktime_get_ts64(&yesw);
+	return ((yesw.tv_sec - udc->start_time.tv_sec) * 1000 +
+		(yesw.tv_nsec - udc->start_time.tv_nsec) / NSEC_PER_MSEC)
 			& 0x7FF;
 }
 
@@ -521,7 +521,7 @@ static int init_vudc_hw(struct vudc *udc)
 
 	udc->ep = kcalloc(VIRTUAL_ENDPOINTS, sizeof(*udc->ep), GFP_KERNEL);
 	if (!udc->ep)
-		goto nomem_ep;
+		goto yesmem_ep;
 
 	INIT_LIST_HEAD(&udc->gadget.ep_list);
 
@@ -582,7 +582,7 @@ static int init_vudc_hw(struct vudc *udc)
 	v_init_timer(udc);
 	return 0;
 
-nomem_ep:
+yesmem_ep:
 		return -ENOMEM;
 }
 

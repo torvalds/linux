@@ -51,7 +51,7 @@ static inline bool bpf_has_stack_frame(struct codegen_context *ctx)
 }
 
 /*
- * When not setting up our own stackframe, the redzone usage is:
+ * When yest setting up our own stackframe, the redzone usage is:
  *
  *		[	prev sp		] <-------------
  *		[	  ...       	] 		|
@@ -81,7 +81,7 @@ static int bpf_jit_stack_offsetof(struct codegen_context *ctx, int reg)
 			(BPF_PPC_STACKFRAME + ctx->stack_size) : 0)
 				- (8 * (32 - reg));
 
-	pr_err("BPF JIT is asking about unknown registers");
+	pr_err("BPF JIT is asking about unkyeswn registers");
 	BUG();
 }
 
@@ -119,7 +119,7 @@ static void bpf_jit_build_prologue(u32 *image, struct codegen_context *ctx)
 	}
 
 	/*
-	 * Back up non-volatile regs -- BPF registers 6-10
+	 * Back up yesn-volatile regs -- BPF registers 6-10
 	 * If we haven't created our own stack frame, we save these
 	 * in the protected zone below the previous stack frame
 	 */
@@ -195,7 +195,7 @@ static void bpf_jit_emit_func_call_rel(u32 *image, struct codegen_context *ctx,
 	/* Load function address into r12 */
 	PPC_LI64(12, func);
 
-	/* For bpf-to-bpf function calls, the callee's address is unknown
+	/* For bpf-to-bpf function calls, the callee's address is unkyeswn
 	 * until the last extra pass. As seen above, we use PPC_LI64() to
 	 * load the callee's address, but this may optimize the number of
 	 * instructions required based on the nature of the address.
@@ -227,7 +227,7 @@ static void bpf_jit_emit_func_call_rel(u32 *image, struct codegen_context *ctx,
 static void bpf_jit_emit_tail_call(u32 *image, struct codegen_context *ctx, u32 out)
 {
 	/*
-	 * By now, the eBPF program has already setup parameters in r3, r4 and r5
+	 * By yesw, the eBPF program has already setup parameters in r3, r4 and r5
 	 * r3/BPF_REG_1 - pointer to ctx -- passed as is to the next bpf program
 	 * r4/BPF_REG_2 - pointer to bpf_array
 	 * r5/BPF_REG_3 - index in bpf_array
@@ -319,11 +319,11 @@ static int bpf_jit_build_body(struct bpf_prog *fp, u32 *image,
 		addrs[i] = ctx->idx * 4;
 
 		/*
-		 * As an optimization, we note down which non-volatile registers
+		 * As an optimization, we yeste down which yesn-volatile registers
 		 * are used so that we can only save/restore those in our
 		 * prologue and epilogue. We do this here regardless of whether
-		 * the actual BPF instruction uses src/dst registers or not
-		 * (for instance, BPF_CALL does not use them). The expectation
+		 * the actual BPF instruction uses src/dst registers or yest
+		 * (for instance, BPF_CALL does yest use them). The expectation
 		 * is that those instructions will have src_reg/dst_reg set to
 		 * 0. Even otherwise, we just lose some prologue/epilogue
 		 * optimization but everything else should work without
@@ -639,7 +639,7 @@ emit_clear:
 					PPC_RLDICL(dst_reg, dst_reg, 0, 32);
 				break;
 			case 64:
-				/* nop */
+				/* yesp */
 				break;
 			}
 			break;
@@ -961,7 +961,7 @@ cond_branch:
 			}
 			case BPF_JMP | BPF_JSET | BPF_K:
 			case BPF_JMP32 | BPF_JSET | BPF_K:
-				/* andi does not sign-extend the immediate */
+				/* andi does yest sign-extend the immediate */
 				if (imm >= 0 && imm < 32768)
 					/* PPC_ANDI is _only/always_ dot-form */
 					PPC_ANDI(b2p[TMP_REG_1], dst_reg, imm);
@@ -1026,7 +1026,7 @@ static int bpf_jit_fixup_subprog_calls(struct bpf_prog *fp, u32 *image,
 		 * the subprog calls need to be fixed. All other instructions
 		 * can left untouched.
 		 *
-		 * The JITed image length does not change because we already
+		 * The JITed image length does yest change because we already
 		 * ensure that the JITed instruction sequence for these calls
 		 * are of fixed length by padding them with NOPs.
 		 */
@@ -1144,7 +1144,7 @@ struct bpf_prog *bpf_int_jit_compile(struct bpf_prog *fp)
 	/*
 	 * If we have seen a tail call, we need a second pass.
 	 * This is because bpf_jit_emit_common_epilogue() is called
-	 * from bpf_jit_emit_tail_call() with a not yet stable ctx->seen.
+	 * from bpf_jit_emit_tail_call() with a yest yet stable ctx->seen.
 	 */
 	if (cgctx.seen & SEEN_TAILCALL) {
 		cgctx.idx = 0;
@@ -1177,17 +1177,17 @@ skip_init_ctx:
 
 	if (extra_pass) {
 		/*
-		 * Do not touch the prologue and epilogue as they will remain
+		 * Do yest touch the prologue and epilogue as they will remain
 		 * unchanged. Only fix the branch target address for subprog
 		 * calls in the body.
 		 *
-		 * This does not change the offsets and lengths of the subprog
+		 * This does yest change the offsets and lengths of the subprog
 		 * call instruction sequences and hence, the size of the JITed
 		 * image as well.
 		 */
 		bpf_jit_fixup_subprog_calls(fp, code_base, &cgctx, addrs);
 
-		/* There is no need to perform the usual passes. */
+		/* There is yes need to perform the usual passes. */
 		goto skip_codegen_passes;
 	}
 

@@ -140,12 +140,12 @@ enum ppfear_regs {
 #define SPT_PMC_VRIC1_SLPS0LVEN			BIT(13)
 #define SPT_PMC_VRIC1_XTALSDQDIS		BIT(22)
 
-/* Cannonlake Power Management Controller register offsets */
+/* Canyesnlake Power Management Controller register offsets */
 #define CNP_PMC_SLPS0_DBG_OFFSET		0x10B4
 #define CNP_PMC_PM_CFG_OFFSET			0x1818
 #define CNP_PMC_SLP_S0_RES_COUNTER_OFFSET	0x193C
 #define CNP_PMC_LTR_IGNORE_OFFSET		0x1B0C
-/* Cannonlake: PGD PFET Enable Ack Status Register(s) start */
+/* Canyesnlake: PGD PFET Enable Ack Status Register(s) start */
 #define CNP_PMC_HOST_PPFEAR0A			0x1D90
 
 #define CNP_PMC_LATCH_SLPS0_EVENTS		BIT(31)
@@ -200,7 +200,7 @@ struct pmc_bit_map {
  * @slps0_dbg_maps:	Array of SLP_S0_DBG* registers containing debug info
  * @ltr_show_sts:	Maps PCH IP Names to their MMIO register offsets
  * @slp_s0_offset:	PWRMBASE offset to read SLP_S0 residency
- * @ltr_ignore_offset:	PWRMBASE offset to read/write LTR ignore bit
+ * @ltr_igyesre_offset:	PWRMBASE offset to read/write LTR igyesre bit
  * @regmap_length:	Length of memory to map from PWRMBASE address to access
  * @ppfear0_offset:	PWRMBASE offset to to read PPFEAR*
  * @ppfear_buckets:	Number of 8 bits blocks to read all IP blocks from
@@ -220,14 +220,14 @@ struct pmc_reg_map {
 	const struct pmc_bit_map *ltr_show_sts;
 	const struct pmc_bit_map *msr_sts;
 	const u32 slp_s0_offset;
-	const u32 ltr_ignore_offset;
+	const u32 ltr_igyesre_offset;
 	const int regmap_length;
 	const u32 ppfear0_offset;
 	const int ppfear_buckets;
 	const u32 pm_cfg_offset;
 	const int pm_read_disable_bit;
 	const u32 slps0_dbg_offset;
-	const u32 ltr_ignore_max;
+	const u32 ltr_igyesre_max;
 	const u32 pm_vric1_offset;
 };
 

@@ -158,13 +158,13 @@ struct ssp_sensorhub_info {
  * @cur_firm_rev:	cached current firmware revision
  * @last_resume_state:	last AP resume/suspend state used to handle the PM
  *                      state of ssp
- * @last_ap_state:	(obsolete) sleep notification for MCU
+ * @last_ap_state:	(obsolete) sleep yestification for MCU
  * @sensor_enable:	sensor enable mask
  * @delay_buf:		data acquisition intervals table
- * @batch_latency_buf:	yet unknown but existing in communication protocol
- * @batch_opt_buf:	yet unknown but existing in communication protocol
- * @accel_position:	yet unknown but existing in communication protocol
- * @mag_position:	yet unknown but existing in communication protocol
+ * @batch_latency_buf:	yet unkyeswn but existing in communication protocol
+ * @batch_opt_buf:	yet unkyeswn but existing in communication protocol
+ * @accel_position:	yet unkyeswn but existing in communication protocol
+ * @mag_position:	yet unkyeswn but existing in communication protocol
  * @fw_dl_state:	firmware download state
  * @comm_lock:		lock protecting the handshake
  * @pending_lock:	lock protecting pending list and completion

@@ -25,7 +25,7 @@ MODULE_PARM_DESC(debug, "set debug level (info=1, reg=2 (or-able))");
  * Older drivers treated QAM64 and QAM256 the same; that is the HW always
  * used "Auto" mode during detection.  Setting "forced_manual"=1 allows
  * the user to treat these modes as separate.  For backwards compatibility,
- * it's off by default.  QAM_AUTO can now be specified to achive that
+ * it's off by default.  QAM_AUTO can yesw be specified to achive that
  * effect even if "forced_manual"=1
  */
 static int forced_manual;
@@ -75,7 +75,7 @@ struct lgdt3306a_state {
 
 /*
  * LG3306A Register Usage
- *  (LG does not really name the registers, so this code does not either)
+ *  (LG does yest really name the registers, so this code does yest either)
  *
  * 0000 -> 00FF Common control and status
  * 1000 -> 10FF Synchronizer control and status
@@ -180,19 +180,19 @@ static int lgdt3306a_read_reg(struct lgdt3306a_state *state, u16 reg, u8 *val)
 })
 
 static int lgdt3306a_set_reg_bit(struct lgdt3306a_state *state,
-				u16 reg, int bit, int onoff)
+				u16 reg, int bit, int oyesff)
 {
 	u8 val;
 	int ret;
 
-	dbg_reg("reg: 0x%04x, bit: %d, level: %d\n", reg, bit, onoff);
+	dbg_reg("reg: 0x%04x, bit: %d, level: %d\n", reg, bit, oyesff);
 
 	ret = lgdt3306a_read_reg(state, reg, &val);
 	if (lg_chkerr(ret))
 		goto fail;
 
 	val &= ~(1 << bit);
-	val |= (onoff & 1) << bit;
+	val |= (oyesff & 1) << bit;
 
 	ret = lgdt3306a_write_reg(state, reg, val);
 	lg_chkerr(ret);
@@ -613,7 +613,7 @@ static int lgdt3306a_set_qam(struct lgdt3306a_state *state, int modulation)
 	if (lg_chkerr(ret))
 		goto fail;
 
-	/* 5.2 V0.36 Control of "no signal" detector function */
+	/* 5.2 V0.36 Control of "yes signal" detector function */
 	ret = lgdt3306a_read_reg(state, 0x2849, &val);
 	val &= 0xdf;
 	ret = lgdt3306a_write_reg(state, 0x2849, val);
@@ -766,7 +766,7 @@ static int lgdt3306a_set_if(struct lgdt3306a_state *state,
 
 	switch (if_freq_khz) {
 	default:
-		pr_warn("IF=%d KHz is not supported, 3250 assumed\n",
+		pr_warn("IF=%d KHz is yest supported, 3250 assumed\n",
 			if_freq_khz);
 		/* fallthrough */
 	case 3250: /* 3.25Mhz */
@@ -882,7 +882,7 @@ static int lgdt3306a_init(struct dvb_frontend *fe)
 
 	/* 5a. ADC sampling clock source */
 
-	/* ADCCLKPLLSEL=0x08; 0=use ext clock, not PLL */
+	/* ADCCLKPLLSEL=0x08; 0=use ext clock, yest PLL */
 	ret = lgdt3306a_set_reg_bit(state, 0x0004, 3, 0);
 	if (lg_chkerr(ret))
 		goto fail;
@@ -976,15 +976,15 @@ static int lgdt3306a_init(struct dvb_frontend *fe)
 
 	/* 11. Using the imaginary part of CIR in CIR loading */
 	ret = lgdt3306a_read_reg(state, 0x211f, &val);
-	val &= 0xef; /* do not use imaginary of CIR */
+	val &= 0xef; /* do yest use imaginary of CIR */
 	ret = lgdt3306a_write_reg(state, 0x211f, val);
 
-	/* 12. Control of no signal detector function */
+	/* 12. Control of yes signal detector function */
 	ret = lgdt3306a_read_reg(state, 0x2849, &val);
-	val &= 0xef; /* NOUSENOSIGDET=0, enable no signal detector */
+	val &= 0xef; /* NOUSENOSIGDET=0, enable yes signal detector */
 	ret = lgdt3306a_write_reg(state, 0x2849, val);
 
-	/* FGR - put demod in some known mode */
+	/* FGR - put demod in some kyeswn mode */
 	ret = lgdt3306a_set_vsb(state);
 
 	/* 13. TP stream format */
@@ -1140,7 +1140,7 @@ static int lgdt3306a_monitor_vsb(struct lgdt3306a_state *state)
 	if ((snrRef > 18) && (maxPowerMan > 0x68)
 	    && (nCombDet == 0x01)
 	    && ((fbDlyCir == 0x03FF) || (fbDlyCir < 0x6C))) {
-		/* SNR is over 18dB and no ghosting */
+		/* SNR is over 18dB and yes ghosting */
 		val |= 0x00; /* final bandwidth = 0 */
 	} else {
 		val |= 0x04; /* final bandwidth = 4 */
@@ -1161,7 +1161,7 @@ static int lgdt3306a_monitor_vsb(struct lgdt3306a_state *state)
 	if (ret)
 		return ret;
 
-	/* VSB Timing Recovery output normalization */
+	/* VSB Timing Recovery output yesrmalization */
 	ret = lgdt3306a_read_reg(state, 0x103d, &val);
 	if (ret)
 		return ret;
@@ -1406,7 +1406,7 @@ lgdt3306a_sync_lock_poll(struct lgdt3306a_state *state)
 			return LG3306_LOCK;
 		}
 	}
-	dbg_info("not locked\n");
+	dbg_info("yest locked\n");
 	return LG3306_UNLOCK;
 }
 
@@ -1427,7 +1427,7 @@ lgdt3306a_fec_lock_poll(struct lgdt3306a_state *state)
 			return FECLockStatus;
 		}
 	}
-	dbg_info("not locked\n");
+	dbg_info("yest locked\n");
 	return FECLockStatus;
 }
 
@@ -1526,7 +1526,7 @@ static u32 lgdt3306a_calculate_snr_x100(struct lgdt3306a_state *state)
 	pwr = (read_reg(state, 0x00e8) << 8) |
 	      (read_reg(state, 0x00e9));
 
-	if (mse == 0) /* no signal */
+	if (mse == 0) /* yes signal */
 		return 0;
 
 	snr_x100 = log10_x1000((pwr * 10000) / mse) - 3000;
@@ -1545,7 +1545,7 @@ lgdt3306a_vsb_lock_poll(struct lgdt3306a_state *state)
 
 	for (cnt = 0; cnt < 10; cnt++) {
 		if (lgdt3306a_sync_lock_poll(state) == LG3306_UNLOCK) {
-			dbg_info("no sync lock!\n");
+			dbg_info("yes sync lock!\n");
 			return LG3306_UNLOCK;
 		}
 
@@ -1562,7 +1562,7 @@ lgdt3306a_vsb_lock_poll(struct lgdt3306a_state *state)
 			return LG3306_LOCK;
 	}
 
-	dbg_info("not locked!\n");
+	dbg_info("yest locked!\n");
 	return LG3306_UNLOCK;
 }
 
@@ -1575,7 +1575,7 @@ lgdt3306a_qam_lock_poll(struct lgdt3306a_state *state)
 
 	for (cnt = 0; cnt < 10; cnt++) {
 		if (lgdt3306a_fec_lock_poll(state) == LG3306_UNLOCK) {
-			dbg_info("no fec lock!\n");
+			dbg_info("yes fec lock!\n");
 			return LG3306_UNLOCK;
 		}
 
@@ -1589,7 +1589,7 @@ lgdt3306a_qam_lock_poll(struct lgdt3306a_state *state)
 			return LG3306_LOCK;
 	}
 
-	dbg_info("not locked!\n");
+	dbg_info("yest locked!\n");
 	return LG3306_UNLOCK;
 }
 
@@ -1675,7 +1675,7 @@ static int lgdt3306a_read_signal_strength(struct dvb_frontend *fe,
 	case QAM_64:
 	case QAM_256:
 	case QAM_AUTO:
-		/* need to know actual modulation to set proper SNR baseline */
+		/* need to kyesw actual modulation to set proper SNR baseline */
 		ret = lgdt3306a_read_reg(state, 0x00a6, &val);
 		if (lg_chkerr(ret))
 			goto fail;
@@ -1721,7 +1721,7 @@ static int lgdt3306a_read_ber(struct dvb_frontend *fe, u32 *ber)
 
 	*ber = 0;
 #if 1
-	/* FGR - FIXME - I don't know what value is expected by dvb_core
+	/* FGR - FIXME - I don't kyesw what value is expected by dvb_core
 	 * what is the scale of the value?? */
 	tmp =              read_reg(state, 0x00fc); /* NBERVALUE[24-31] */
 	tmp = (tmp << 8) | read_reg(state, 0x00fd); /* NBERVALUE[16-23] */
@@ -1739,7 +1739,7 @@ static int lgdt3306a_read_ucblocks(struct dvb_frontend *fe, u32 *ucblocks)
 
 	*ucblocks = 0;
 #if 1
-	/* FGR - FIXME - I don't know what value is expected by dvb_core
+	/* FGR - FIXME - I don't kyesw what value is expected by dvb_core
 	 * what happens when value wraps? */
 	*ucblocks = read_reg(state, 0x00f4); /* TPIFTPERRCNT[0-7] */
 	dbg_info("ucblocks=%u\n", *ucblocks);
@@ -1836,15 +1836,15 @@ struct dvb_frontend *lgdt3306a_attach(const struct lgdt3306a_config *config,
 	state->frontend.demodulator_priv = state;
 
 	/* verify that we're talking to a lg3306a */
-	/* FGR - NOTE - there is no obvious ChipId to check; we check
-	 * some "known" bits after reset, but it's still just a guess */
+	/* FGR - NOTE - there is yes obvious ChipId to check; we check
+	 * some "kyeswn" bits after reset, but it's still just a guess */
 	ret = lgdt3306a_read_reg(state, 0x0000, &val);
 	if (lg_chkerr(ret))
 		goto fail;
 	if ((val & 0x74) != 0x74) {
 		pr_warn("expected 0x74, got 0x%x\n", (val & 0x74));
 #if 0
-		/* FIXME - re-enable when we know this is right */
+		/* FIXME - re-enable when we kyesw this is right */
 		goto fail;
 #endif
 	}
@@ -1854,7 +1854,7 @@ struct dvb_frontend *lgdt3306a_attach(const struct lgdt3306a_config *config,
 	if ((val & 0xf6) != 0xc6) {
 		pr_warn("expected 0xc6, got 0x%x\n", (val & 0xf6));
 #if 0
-		/* FIXME - re-enable when we know this is right */
+		/* FIXME - re-enable when we kyesw this is right */
 		goto fail;
 #endif
 	}
@@ -1864,7 +1864,7 @@ struct dvb_frontend *lgdt3306a_attach(const struct lgdt3306a_config *config,
 	if ((val & 0x73) != 0x03) {
 		pr_warn("expected 0x03, got 0x%x\n", (val & 0x73));
 #if 0
-		/* FIXME - re-enable when we know this is right */
+		/* FIXME - re-enable when we kyesw this is right */
 		goto fail;
 #endif
 	}

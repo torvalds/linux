@@ -21,7 +21,7 @@
 #include <linux/wait.h>
 #include <linux/cdev.h>
 #include <linux/slab.h>
-#include <linux/anon_inodes.h>
+#include <linux/ayesn_iyesdes.h>
 #include <linux/debugfs.h>
 #include <linux/mutex.h>
 #include <linux/iio/iio.h>
@@ -113,10 +113,10 @@ static const char * const iio_modifier_names[] = {
 	[IIO_MOD_QUATERNION] = "quaternion",
 	[IIO_MOD_TEMP_AMBIENT] = "ambient",
 	[IIO_MOD_TEMP_OBJECT] = "object",
-	[IIO_MOD_NORTH_MAGN] = "from_north_magnetic",
-	[IIO_MOD_NORTH_TRUE] = "from_north_true",
-	[IIO_MOD_NORTH_MAGN_TILT_COMP] = "from_north_magnetic_tilt_comp",
-	[IIO_MOD_NORTH_TRUE_TILT_COMP] = "from_north_true_tilt_comp",
+	[IIO_MOD_NORTH_MAGN] = "from_yesrth_magnetic",
+	[IIO_MOD_NORTH_TRUE] = "from_yesrth_true",
+	[IIO_MOD_NORTH_MAGN_TILT_COMP] = "from_yesrth_magnetic_tilt_comp",
+	[IIO_MOD_NORTH_TRUE_TILT_COMP] = "from_yesrth_true_tilt_comp",
 	[IIO_MOD_RUNNING] = "running",
 	[IIO_MOD_JOGGING] = "jogging",
 	[IIO_MOD_WALKING] = "walking",
@@ -239,7 +239,7 @@ EXPORT_SYMBOL(iio_get_time_ns);
 
 /**
  * iio_get_time_res() - utility function to get time stamp clock resolution in
- *                      nano seconds.
+ *                      nayes seconds.
  * @indio_dev: device
  */
 unsigned int iio_get_time_res(const struct iio_dev *indio_dev)
@@ -267,8 +267,8 @@ static int __init iio_init(void)
 	/* Register sysfs bus */
 	ret  = bus_register(&iio_bus_type);
 	if (ret < 0) {
-		pr_err("could not register bus type\n");
-		goto error_nothing;
+		pr_err("could yest register bus type\n");
+		goto error_yesthing;
 	}
 
 	ret = alloc_chrdev_region(&iio_devt, 0, IIO_DEV_MAX, "iio");
@@ -283,7 +283,7 @@ static int __init iio_init(void)
 
 error_unregister_bus_type:
 	bus_unregister(&iio_bus_type);
-error_nothing:
+error_yesthing:
 	return ret;
 }
 
@@ -490,7 +490,7 @@ static int iio_setup_mount_idmatrix(const struct device *dev,
 				    struct iio_mount_matrix *matrix)
 {
 	*matrix = iio_mount_idmatrix;
-	dev_info(dev, "mounting matrix not found: using identity...\n");
+	dev_info(dev, "mounting matrix yest found: using identity...\n");
 	return 0;
 }
 
@@ -520,7 +520,7 @@ EXPORT_SYMBOL_GPL(iio_show_mount_matrix);
  * @propname:	device specific mounting matrix property name
  * @matrix:	where to store retrieved matrix
  *
- * If device is assigned no mounting matrix property, a default 3x3 identity
+ * If device is assigned yes mounting matrix property, a default 3x3 identity
  * matrix will be filled in.
  *
  * Return: 0 if success, or a negative error code on failure.
@@ -544,7 +544,7 @@ int iio_read_mount_matrix(struct device *dev, const char *propname,
 		/* Invalid matrix declaration format. */
 		return err;
 
-	/* Matrix was not declared at all: fallback to identity. */
+	/* Matrix was yest declared at all: fallback to identity. */
 	return iio_setup_mount_idmatrix(dev, matrix);
 }
 EXPORT_SYMBOL(iio_read_mount_matrix);
@@ -604,7 +604,7 @@ static ssize_t __iio_format_value(char *buf, size_t len, unsigned int type,
 /**
  * iio_format_value() - Formats a IIO value into its string representation
  * @buf:	The buffer to which the formatted value gets written
- *		which is assumed to be big enough (i.e. PAGE_SIZE).
+ *		which is assumed to be big eyesugh (i.e. PAGE_SIZE).
  * @type:	One of the IIO_VAL_* constants. This decides how the val
  *		and val2 parameters are formatted.
  * @size:	Number of IIO value entries contained in vals
@@ -772,7 +772,7 @@ static ssize_t iio_read_channel_info_avail(struct device *dev,
  * @integer: The integer part of the number
  * @fract: The fractional part of the number
  *
- * Returns 0 on success, or a negative error code if the string could not be
+ * Returns 0 on success, or a negative error code if the string could yest be
  * parsed.
  */
 int iio_str_to_fixpoint(const char *str, int fract_mult,
@@ -914,7 +914,7 @@ int __iio_device_attr_init(struct device_attribute *dev_attr,
 	if (full_postfix == NULL)
 		return -ENOMEM;
 
-	if (chan->differential) { /* Differential can not have modifier */
+	if (chan->differential) { /* Differential can yest have modifier */
 		switch (shared_by) {
 		case IIO_SHARED_BY_ALL:
 			name = kasprintf(GFP_KERNEL, "%s", full_postfix);
@@ -1263,20 +1263,20 @@ static ssize_t iio_show_timestamp_clock(struct device *dev,
 		sz = sizeof("realtime\n");
 		break;
 	case CLOCK_MONOTONIC:
-		name = "monotonic\n";
-		sz = sizeof("monotonic\n");
+		name = "moyestonic\n";
+		sz = sizeof("moyestonic\n");
 		break;
 	case CLOCK_MONOTONIC_RAW:
-		name = "monotonic_raw\n";
-		sz = sizeof("monotonic_raw\n");
+		name = "moyestonic_raw\n";
+		sz = sizeof("moyestonic_raw\n");
 		break;
 	case CLOCK_REALTIME_COARSE:
 		name = "realtime_coarse\n";
 		sz = sizeof("realtime_coarse\n");
 		break;
 	case CLOCK_MONOTONIC_COARSE:
-		name = "monotonic_coarse\n";
-		sz = sizeof("monotonic_coarse\n");
+		name = "moyestonic_coarse\n";
+		sz = sizeof("moyestonic_coarse\n");
 		break;
 	case CLOCK_BOOTTIME:
 		name = "boottime\n";
@@ -1303,13 +1303,13 @@ static ssize_t iio_store_timestamp_clock(struct device *dev,
 
 	if (sysfs_streq(buf, "realtime"))
 		clk = CLOCK_REALTIME;
-	else if (sysfs_streq(buf, "monotonic"))
+	else if (sysfs_streq(buf, "moyestonic"))
 		clk = CLOCK_MONOTONIC;
-	else if (sysfs_streq(buf, "monotonic_raw"))
+	else if (sysfs_streq(buf, "moyestonic_raw"))
 		clk = CLOCK_MONOTONIC_RAW;
 	else if (sysfs_streq(buf, "realtime_coarse"))
 		clk = CLOCK_REALTIME_COARSE;
-	else if (sysfs_streq(buf, "monotonic_coarse"))
+	else if (sysfs_streq(buf, "moyestonic_coarse"))
 		clk = CLOCK_MONOTONIC_COARSE;
 	else if (sysfs_streq(buf, "boottime"))
 		clk = CLOCK_BOOTTIME;
@@ -1343,7 +1343,7 @@ static int iio_device_register_sysfs(struct iio_dev *indio_dev)
 	attrcount = attrcount_orig;
 	/*
 	 * New channel registration method - relies on the fact a group does
-	 * not need to be initialized if its name is NULL.
+	 * yest need to be initialized if its name is NULL.
 	 */
 	if (indio_dev->channels)
 		for (i = 0; i < indio_dev->num_channels; i++) {
@@ -1462,7 +1462,7 @@ struct iio_dev *iio_device_alloc(int sizeof_priv)
 
 		dev->id = ida_simple_get(&iio_ida, 0, 0, GFP_KERNEL);
 		if (dev->id < 0) {
-			/* cannot use a dev_err as the name isn't available */
+			/* canyest use a dev_err as the name isn't available */
 			pr_err("failed to get device id\n");
 			kfree(dev);
 			return NULL;
@@ -1556,15 +1556,15 @@ EXPORT_SYMBOL_GPL(devm_iio_device_free);
 
 /**
  * iio_chrdev_open() - chrdev file open for buffer access and ioctls
- * @inode:	Inode structure for identifying the device in the file system
+ * @iyesde:	Iyesde structure for identifying the device in the file system
  * @filp:	File structure for iio device used to keep and later access
  *		private data
  *
  * Return: 0 on success or -EBUSY if the device is already opened
  **/
-static int iio_chrdev_open(struct inode *inode, struct file *filp)
+static int iio_chrdev_open(struct iyesde *iyesde, struct file *filp)
 {
-	struct iio_dev *indio_dev = container_of(inode->i_cdev,
+	struct iio_dev *indio_dev = container_of(iyesde->i_cdev,
 						struct iio_dev, chrdev);
 
 	if (test_and_set_bit(IIO_BUSY_BIT_POS, &indio_dev->flags))
@@ -1579,14 +1579,14 @@ static int iio_chrdev_open(struct inode *inode, struct file *filp)
 
 /**
  * iio_chrdev_release() - chrdev file close buffer access and ioctls
- * @inode:	Inode structure pointer for the char device
+ * @iyesde:	Iyesde structure pointer for the char device
  * @filp:	File structure pointer for the char device
  *
  * Return: 0 for successful release
  */
-static int iio_chrdev_release(struct inode *inode, struct file *filp)
+static int iio_chrdev_release(struct iyesde *iyesde, struct file *filp)
 {
-	struct iio_dev *indio_dev = container_of(inode->i_cdev,
+	struct iio_dev *indio_dev = container_of(iyesde->i_cdev,
 						struct iio_dev, chrdev);
 	clear_bit(IIO_BUSY_BIT_POS, &indio_dev->flags);
 	iio_device_put(indio_dev);
@@ -1622,7 +1622,7 @@ static const struct file_operations iio_buffer_fileops = {
 	.open = iio_chrdev_open,
 	.poll = iio_buffer_poll_addr,
 	.owner = THIS_MODULE,
-	.llseek = noop_llseek,
+	.llseek = yesop_llseek,
 	.unlocked_ioctl = iio_ioctl,
 	.compat_ioctl = compat_ptr_ioctl,
 };
@@ -1650,18 +1650,18 @@ static int iio_check_unique_scan_index(struct iio_dev *indio_dev)
 	return 0;
 }
 
-static const struct iio_buffer_setup_ops noop_ring_setup_ops;
+static const struct iio_buffer_setup_ops yesop_ring_setup_ops;
 
 int __iio_device_register(struct iio_dev *indio_dev, struct module *this_mod)
 {
 	int ret;
 
 	indio_dev->driver_module = this_mod;
-	/* If the calling driver did not initialize of_node, do it here */
-	if (!indio_dev->dev.of_node && indio_dev->dev.parent)
-		indio_dev->dev.of_node = indio_dev->dev.parent->of_node;
+	/* If the calling driver did yest initialize of_yesde, do it here */
+	if (!indio_dev->dev.of_yesde && indio_dev->dev.parent)
+		indio_dev->dev.of_yesde = indio_dev->dev.parent->of_yesde;
 
-	indio_dev->label = of_get_property(indio_dev->dev.of_node, "label",
+	indio_dev->label = of_get_property(indio_dev->dev.of_yesde, "label",
 					   NULL);
 
 	ret = iio_check_unique_scan_index(indio_dev);
@@ -1700,7 +1700,7 @@ int __iio_device_register(struct iio_dev *indio_dev, struct module *this_mod)
 
 	if ((indio_dev->modes & INDIO_ALL_BUFFER_MODES) &&
 		indio_dev->setup_ops == NULL)
-		indio_dev->setup_ops = &noop_ring_setup_ops;
+		indio_dev->setup_ops = &yesop_ring_setup_ops;
 
 	cdev_init(&indio_dev->chrdev, &iio_buffer_fileops);
 
@@ -1819,7 +1819,7 @@ EXPORT_SYMBOL_GPL(iio_device_claim_direct_mode);
  * iio_device_release_direct_mode - releases claim on direct mode
  * @indio_dev:	the iio_dev associated with the device
  *
- * Release the claim. Device is no longer guaranteed to stay
+ * Release the claim. Device is yes longer guaranteed to stay
  * in direct mode.
  *
  * Use with iio_device_claim_direct_mode()

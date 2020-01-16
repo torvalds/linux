@@ -53,7 +53,7 @@ nla_put_failure:
  * The dumping handle is marked to be in backward compatibility mode telling
  * all gnet_stats_copy_XXX() functions to fill a local copy of struct tc_stats.
  *
- * Returns 0 on success or -1 if the room in the socket buffer was not sufficient.
+ * Returns 0 on success or -1 if the room in the socket buffer was yest sufficient.
  */
 int
 gnet_stats_start_copy_compat(struct sk_buff *skb, int type, int tc_stats_type,
@@ -104,7 +104,7 @@ EXPORT_SYMBOL(gnet_stats_start_copy_compat);
  * an empty TLV header to the socket buffer for use a container for all
  * other statistic TLVS.
  *
- * Returns 0 on success or -1 if the room in the socket buffer was not sufficient.
+ * Returns 0 on success or -1 if the room in the socket buffer was yest sufficient.
  */
 int
 gnet_stats_start_copy(struct sk_buff *skb, int type, spinlock_t *lock,
@@ -201,7 +201,7 @@ ___gnet_stats_copy_basic(const seqcount_t *running,
  * gnet_stats_start_copy().
  *
  * Returns 0 on success or -1 with the statistic lock released
- * if the room in the socket buffer was not sufficient.
+ * if the room in the socket buffer was yest sufficient.
  */
 int
 gnet_stats_copy_basic(const seqcount_t *running,
@@ -225,7 +225,7 @@ EXPORT_SYMBOL(gnet_stats_copy_basic);
  * gnet_stats_start_copy().
  *
  * Returns 0 on success or -1 with the statistic lock released
- * if the room in the socket buffer was not sufficient.
+ * if the room in the socket buffer was yest sufficient.
  */
 int
 gnet_stats_copy_basic_hw(const seqcount_t *running,
@@ -247,7 +247,7 @@ EXPORT_SYMBOL(gnet_stats_copy_basic_hw);
  * gnet_stats_start_copy().
  *
  * Returns 0 on success or -1 with the statistic lock released
- * if the room in the socket buffer was not sufficient.
+ * if the room in the socket buffer was yest sufficient.
  */
 int
 gnet_stats_copy_rate_est(struct gnet_dump *d,
@@ -330,7 +330,7 @@ EXPORT_SYMBOL(__gnet_stats_copy_queue);
  * they are available.
  *
  * Returns 0 on success or -1 with the statistic lock released
- * if the room in the socket buffer was not sufficient.
+ * if the room in the socket buffer was yest sufficient.
  */
 int
 gnet_stats_copy_queue(struct gnet_dump *d,
@@ -368,7 +368,7 @@ EXPORT_SYMBOL(gnet_stats_copy_queue);
  * handle is in backward compatibility mode.
  *
  * Returns 0 on success or -1 with the statistic lock released
- * if the room in the socket buffer was not sufficient.
+ * if the room in the socket buffer was yest sufficient.
  */
 int
 gnet_stats_copy_app(struct gnet_dump *d, void *st, int len)
@@ -404,7 +404,7 @@ EXPORT_SYMBOL(gnet_stats_copy_app);
  * lock.
  *
  * Returns 0 on success or -1 with the statistic lock released
- * if the room in the socket buffer was not sufficient.
+ * if the room in the socket buffer was yest sufficient.
  */
 int
 gnet_stats_finish_copy(struct gnet_dump *d)

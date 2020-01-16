@@ -4,7 +4,7 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright yestice and this permission yestice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
@@ -155,7 +155,7 @@ struct ath6kl_vif *ath6kl_get_vif_by_index(struct ath6kl *ar, u8 if_idx)
 
 /*  Performs DIX to 802.3 encapsulation for transmit packets.
  *  Assumes the entire DIX header is contiguous and that there is
- *  enough room in the buffer for a 802.3 mac header and LLC+SNAP headers.
+ *  eyesugh room in the buffer for a 802.3 mac header and LLC+SNAP headers.
  */
 int ath6kl_wmi_dix_2_dot3(struct wmi *wmi, struct sk_buff *skb)
 {
@@ -521,7 +521,7 @@ static int ath6kl_wmi_remain_on_chnl_event_rx(struct wmi *wmi, u8 *datap,
 	chan = ieee80211_get_channel(ar->wiphy, freq);
 	if (!chan) {
 		ath6kl_dbg(ATH6KL_DBG_WMI,
-			   "remain_on_chnl: Unknown channel (freq=%u)\n",
+			   "remain_on_chnl: Unkyeswn channel (freq=%u)\n",
 			   freq);
 		return -EINVAL;
 	}
@@ -555,7 +555,7 @@ static int ath6kl_wmi_cancel_remain_on_chnl_event_rx(struct wmi *wmi,
 	chan = ieee80211_get_channel(ar->wiphy, freq);
 	if (!chan) {
 		ath6kl_dbg(ATH6KL_DBG_WMI,
-			   "cancel_remain_on_chnl: Unknown channel (freq=%u)\n",
+			   "cancel_remain_on_chnl: Unkyeswn channel (freq=%u)\n",
 			   freq);
 		return -EINVAL;
 	}
@@ -722,7 +722,7 @@ static inline struct sk_buff *ath6kl_wmi_get_new_buf(u32 size)
 	return skb;
 }
 
-/* Send a "simple" wmi command -- one with no arguments */
+/* Send a "simple" wmi command -- one with yes arguments */
 static int ath6kl_wmi_simple_cmd(struct wmi *wmi, u8 if_idx,
 				 enum wmi_cmd_id cmd_id)
 {
@@ -1002,7 +1002,7 @@ static void ath6kl_wmi_regdomain_event(struct wmi *wmi, u8 *datap, int len)
 			ath6kl_dbg(ATH6KL_DBG_WMI, "Regpair used: 0x%0x\n",
 				   regpair->reg_domain);
 		else
-			ath6kl_warn("Regpair not found reg_code 0x%0x\n",
+			ath6kl_warn("Regpair yest found reg_code 0x%0x\n",
 				    reg_code);
 	}
 
@@ -1042,20 +1042,20 @@ static int ath6kl_wmi_disconnect_event_rx(struct wmi *wmi, u8 *datap, int len,
 	return 0;
 }
 
-static int ath6kl_wmi_peer_node_event_rx(struct wmi *wmi, u8 *datap, int len)
+static int ath6kl_wmi_peer_yesde_event_rx(struct wmi *wmi, u8 *datap, int len)
 {
-	struct wmi_peer_node_event *ev;
+	struct wmi_peer_yesde_event *ev;
 
-	if (len < sizeof(struct wmi_peer_node_event))
+	if (len < sizeof(struct wmi_peer_yesde_event))
 		return -EINVAL;
 
-	ev = (struct wmi_peer_node_event *) datap;
+	ev = (struct wmi_peer_yesde_event *) datap;
 
 	if (ev->event_code == PEER_NODE_JOIN_EVENT)
-		ath6kl_dbg(ATH6KL_DBG_WMI, "joined node with mac addr: %pM\n",
+		ath6kl_dbg(ATH6KL_DBG_WMI, "joined yesde with mac addr: %pM\n",
 			   ev->peer_mac_addr);
 	else if (ev->event_code == PEER_NODE_LEAVE_EVENT)
-		ath6kl_dbg(ATH6KL_DBG_WMI, "left node with mac addr: %pM\n",
+		ath6kl_dbg(ATH6KL_DBG_WMI, "left yesde with mac addr: %pM\n",
 			   ev->peer_mac_addr);
 
 	return 0;
@@ -1107,7 +1107,7 @@ static int ath6kl_wmi_bssinfo_event_rx(struct wmi *wmi, u8 *datap, int len,
 
 	if (bih->frame_type != BEACON_FTYPE &&
 	    bih->frame_type != PROBERESP_FTYPE)
-		return 0; /* Only update BSS table for now */
+		return 0; /* Only update BSS table for yesw */
 
 	if (bih->frame_type == BEACON_FTYPE &&
 	    test_bit(CLEAR_BSSFILTER_ON_BEACON, &vif->flags)) {
@@ -1151,11 +1151,11 @@ static int ath6kl_wmi_bssinfo_event_rx(struct wmi *wmi, u8 *datap, int len,
 	/*
 	 * Firmware doesn't return any event when scheduled scan has
 	 * finished, so we need to use a timer to find out when there are
-	 * no more results.
+	 * yes more results.
 	 *
 	 * The timer is started from the first bss info received, otherwise
-	 * the timer would not ever fire if the scan interval is short
-	 * enough.
+	 * the timer would yest ever fire if the scan interval is short
+	 * eyesugh.
 	 */
 	if (test_bit(SCHED_SCANNING, &vif->flags) &&
 	    !timer_pending(&vif->sched_scan_timer)) {
@@ -1183,7 +1183,7 @@ static int ath6kl_wmi_pstream_timeout_event_rx(struct wmi *wmi, u8 *datap,
 
 	/*
 	 * When the pstream (fat pipe == AC) timesout, it means there were
-	 * no thinStreams within this pstream & it got implicitly created
+	 * yes thinStreams within this pstream & it got implicitly created
 	 * due to data flow on this AC. We start the inactivity timer only
 	 * for implicitly created pstream. Just reset the host state.
 	 */
@@ -1309,7 +1309,7 @@ static int ath6kl_wmi_neighbor_report_event_rx(struct wmi *wmi, u8 *datap,
 		ath6kl_dbg(ATH6KL_DBG_WMI, "neighbor %d/%d - %pM 0x%x\n",
 			   i + 1, ev->num_neighbors, ev->neighbor[i].bssid,
 			   ev->neighbor[i].bss_flags);
-		cfg80211_pmksa_candidate_notify(vif->ndev, i,
+		cfg80211_pmksa_candidate_yestify(vif->ndev, i,
 						ev->neighbor[i].bssid,
 						!!(ev->neighbor[i].bss_flags &
 						   WMI_PREAUTH_CAPABLE_BSS),
@@ -1328,7 +1328,7 @@ static int ath6kl_wmi_neighbor_report_event_rx(struct wmi *wmi, u8 *datap,
  */
 static int ath6kl_wmi_error_event_rx(struct wmi *wmi, u8 *datap, int len)
 {
-	const char *type = "unknown error";
+	const char *type = "unkyeswn error";
 	struct wmi_cmd_error_event *ev;
 	ev = (struct wmi_cmd_error_event *) datap;
 
@@ -1580,10 +1580,10 @@ static int ath6kl_wmi_cac_event_rx(struct wmi *wmi, u8 *datap, int len,
 	return 0;
 }
 
-static int ath6kl_wmi_txe_notify_event_rx(struct wmi *wmi, u8 *datap, int len,
+static int ath6kl_wmi_txe_yestify_event_rx(struct wmi *wmi, u8 *datap, int len,
 					  struct ath6kl_vif *vif)
 {
-	struct wmi_txe_notify_event *ev;
+	struct wmi_txe_yestify_event *ev;
 	u32 rate, pkts;
 
 	if (len < sizeof(*ev))
@@ -1597,30 +1597,30 @@ static int ath6kl_wmi_txe_notify_event_rx(struct wmi *wmi, u8 *datap, int len,
 	if (vif->sme_state != SME_CONNECTED)
 		return -ENOTCONN;
 
-	ev = (struct wmi_txe_notify_event *) datap;
+	ev = (struct wmi_txe_yestify_event *) datap;
 	rate = le32_to_cpu(ev->rate);
 	pkts = le32_to_cpu(ev->pkts);
 
-	ath6kl_dbg(ATH6KL_DBG_WMI, "TXE notify event: peer %pM rate %d%% pkts %d intvl %ds\n",
+	ath6kl_dbg(ATH6KL_DBG_WMI, "TXE yestify event: peer %pM rate %d%% pkts %d intvl %ds\n",
 		   vif->bssid, rate, pkts, vif->txe_intvl);
 
-	cfg80211_cqm_txe_notify(vif->ndev, vif->bssid, pkts,
+	cfg80211_cqm_txe_yestify(vif->ndev, vif->bssid, pkts,
 				rate, vif->txe_intvl, GFP_KERNEL);
 
 	return 0;
 }
 
-int ath6kl_wmi_set_txe_notify(struct wmi *wmi, u8 idx,
+int ath6kl_wmi_set_txe_yestify(struct wmi *wmi, u8 idx,
 			      u32 rate, u32 pkts, u32 intvl)
 {
 	struct sk_buff *skb;
-	struct wmi_txe_notify_cmd *cmd;
+	struct wmi_txe_yestify_cmd *cmd;
 
 	skb = ath6kl_wmi_get_new_buf(sizeof(*cmd));
 	if (!skb)
 		return -ENOMEM;
 
-	cmd = (struct wmi_txe_notify_cmd *) skb->data;
+	cmd = (struct wmi_txe_yestify_cmd *) skb->data;
 	cmd->rate = cpu_to_le32(rate);
 	cmd->pkts = cpu_to_le32(pkts);
 	cmd->intvl = cpu_to_le32(intvl);
@@ -1946,7 +1946,7 @@ int ath6kl_wmi_disconnect_cmd(struct wmi *wmi, u8 if_idx)
 
 	wmi->traffic_class = 100;
 
-	/* Disconnect command does not need to do a SYNC before. */
+	/* Disconnect command does yest need to do a SYNC before. */
 	ret = ath6kl_wmi_simple_cmd(wmi, if_idx, WMI_DISCONNECT_CMDID);
 
 	return ret;
@@ -2009,7 +2009,7 @@ int ath6kl_wmi_beginscan_cmd(struct wmi *wmi, u8 if_idx,
 			     enum wmi_scan_type scan_type,
 			     u32 force_fgscan, u32 is_legacy,
 			     u32 home_dwell_time, u32 force_scan_interval,
-			     s8 num_chan, u16 *ch_list, u32 no_cck, u32 *rates)
+			     s8 num_chan, u16 *ch_list, u32 yes_cck, u32 *rates)
 {
 	struct ieee80211_supported_band *sband;
 	struct sk_buff *skb;
@@ -2050,7 +2050,7 @@ int ath6kl_wmi_beginscan_cmd(struct wmi *wmi, u8 if_idx,
 	sc->is_legacy = cpu_to_le32(is_legacy);
 	sc->home_dwell_time = cpu_to_le32(home_dwell_time);
 	sc->force_scan_intvl = cpu_to_le32(force_scan_interval);
-	sc->no_cck = cpu_to_le32(no_cck);
+	sc->yes_cck = cpu_to_le32(yes_cck);
 	sc->num_ch = num_chan;
 
 	for (band = 0; band < NUM_NL80211_BANDS; band++) {
@@ -2494,7 +2494,7 @@ static int ath6kl_wmi_sync_point(struct wmi *wmi, u8 if_idx)
 
 	/*
 	 * If buffer allocation for any of the dataSync fails,
-	 * then do not send the Synchronize cmd on the control ep
+	 * then do yest send the Synchronize cmd on the control ep
 	 */
 	if (ret)
 		goto free_cmd_skb;
@@ -2546,7 +2546,7 @@ int ath6kl_wmi_create_pstream_cmd(struct wmi *wmi, u8 if_idx,
 	struct wmi_create_pstream_cmd *cmd;
 	u8 fatpipe_exist_for_ac = 0;
 	s32 min_phy = 0;
-	s32 nominal_phy = 0;
+	s32 yesminal_phy = 0;
 	int ret;
 
 	if (!((params->user_pri <= 0x7) &&
@@ -2565,24 +2565,24 @@ int ath6kl_wmi_create_pstream_cmd(struct wmi *wmi, u8 if_idx,
 	}
 
 	/*
-	 * Check nominal PHY rate is >= minimalPHY,
+	 * Check yesminal PHY rate is >= minimalPHY,
 	 * so that DUT can allow TSRS IE
 	 */
 
 	/* Get the physical rate (units of bps) */
 	min_phy = ((le32_to_cpu(params->min_phy_rate) / 1000) / 1000);
 
-	/* Check minimal phy < nominal phy rate */
-	if (params->nominal_phy >= min_phy) {
+	/* Check minimal phy < yesminal phy rate */
+	if (params->yesminal_phy >= min_phy) {
 		/* unit of 500 kbps */
-		nominal_phy = (params->nominal_phy * 1000) / 500;
+		yesminal_phy = (params->yesminal_phy * 1000) / 500;
 		ath6kl_dbg(ATH6KL_DBG_WMI,
 			   "TSRS IE enabled::MinPhy %x->NominalPhy ===> %x\n",
-			   min_phy, nominal_phy);
+			   min_phy, yesminal_phy);
 
-		params->nominal_phy = nominal_phy;
+		params->yesminal_phy = yesminal_phy;
 	} else {
-		params->nominal_phy = 0;
+		params->yesminal_phy = 0;
 	}
 
 	skb = ath6kl_wmi_get_new_buf(sizeof(*cmd));
@@ -2697,7 +2697,7 @@ int ath6kl_wmi_set_ip_cmd(struct wmi *wmi, u8 if_idx,
 	struct wmi_set_ip_cmd *cmd;
 	int ret;
 
-	/* Multicast address are not valid */
+	/* Multicast address are yest valid */
 	if (ipv4_is_multicast(ips0) ||
 	    ipv4_is_multicast(ips1))
 		return -EINVAL;
@@ -2742,7 +2742,7 @@ static void ath6kl_wmi_relinquish_implicit_pstream_credits(struct wmi *wmi)
 			spin_unlock_bh(&wmi->lock);
 
 			/*
-			 * If there are no user created thin streams
+			 * If there are yes user created thin streams
 			 * delete the fatpipe
 			 */
 			if (!active_tsids) {
@@ -3368,7 +3368,7 @@ static int ath6kl_wmi_addba_req_event_rx(struct wmi *wmi, u8 *datap, int len,
 	struct wmi_addba_req_event *cmd = (struct wmi_addba_req_event *) datap;
 
 	aggr_recv_addba_req_evt(vif, cmd->tid,
-				le16_to_cpu(cmd->st_seq_no), cmd->win_sz);
+				le16_to_cpu(cmd->st_seq_yes), cmd->win_sz);
 
 	return 0;
 }
@@ -3648,7 +3648,7 @@ static int ath6kl_wmi_send_action_cmd(struct wmi *wmi, u8 if_idx, u32 id,
 	u8 *buf;
 
 	if (wait)
-		return -EINVAL; /* Offload for wait not supported */
+		return -EINVAL; /* Offload for wait yest supported */
 
 	buf = kmemdup(data, data_len, GFP_KERNEL);
 	if (!buf)
@@ -3679,14 +3679,14 @@ static int ath6kl_wmi_send_action_cmd(struct wmi *wmi, u8 if_idx, u32 id,
 
 static int __ath6kl_wmi_send_mgmt_cmd(struct wmi *wmi, u8 if_idx, u32 id,
 				      u32 freq, u32 wait, const u8 *data,
-				      u16 data_len, u32 no_cck)
+				      u16 data_len, u32 yes_cck)
 {
 	struct sk_buff *skb;
 	struct wmi_send_mgmt_cmd *p;
 	u8 *buf;
 
 	if (wait)
-		return -EINVAL; /* Offload for wait not supported */
+		return -EINVAL; /* Offload for wait yest supported */
 
 	buf = kmemdup(data, data_len, GFP_KERNEL);
 	if (!buf)
@@ -3709,7 +3709,7 @@ static int __ath6kl_wmi_send_mgmt_cmd(struct wmi *wmi, u8 if_idx, u32 id,
 	p->id = cpu_to_le32(id);
 	p->freq = cpu_to_le32(freq);
 	p->wait = cpu_to_le32(wait);
-	p->no_cck = cpu_to_le32(no_cck);
+	p->yes_cck = cpu_to_le32(yes_cck);
 	p->len = cpu_to_le16(data_len);
 	memcpy(p->data, data, data_len);
 	return ath6kl_wmi_cmd_send(wmi, if_idx, skb, WMI_SEND_MGMT_CMDID,
@@ -3718,7 +3718,7 @@ static int __ath6kl_wmi_send_mgmt_cmd(struct wmi *wmi, u8 if_idx, u32 id,
 
 int ath6kl_wmi_send_mgmt_cmd(struct wmi *wmi, u8 if_idx, u32 id, u32 freq,
 				u32 wait, const u8 *data, u16 data_len,
-				u32 no_cck)
+				u32 yes_cck)
 {
 	int status;
 	struct ath6kl *ar = wmi->parent_dev;
@@ -3733,7 +3733,7 @@ int ath6kl_wmi_send_mgmt_cmd(struct wmi *wmi, u8 if_idx, u32 id, u32 freq,
 		 */
 		status = __ath6kl_wmi_send_mgmt_cmd(ar->wmi, if_idx, id, freq,
 						    wait, data, data_len,
-						    no_cck);
+						    yes_cck);
 	} else {
 		status = ath6kl_wmi_send_action_cmd(ar->wmi, if_idx, id, freq,
 						    wait, data, data_len);
@@ -3872,7 +3872,7 @@ static int ath6kl_wmi_control_rx_xtnd(struct wmi *wmi, struct sk_buff *skb)
 		ath6kl_debug_fwlog_event(wmi->parent_dev, datap, len);
 		break;
 	default:
-		ath6kl_warn("unknown cmd id 0x%x\n", id);
+		ath6kl_warn("unkyeswn cmd id 0x%x\n", id);
 		ret = -EINVAL;
 		break;
 	}
@@ -3960,9 +3960,9 @@ static int ath6kl_wmi_proc_events_vif(struct wmi *wmi, u16 if_idx, u16 cmd_id,
 		return ath6kl_wmi_rx_action_event_rx(wmi, datap, len, vif);
 	case WMI_TXE_NOTIFY_EVENTID:
 		ath6kl_dbg(ATH6KL_DBG_WMI, "WMI_TXE_NOTIFY_EVENTID\n");
-		return ath6kl_wmi_txe_notify_event_rx(wmi, datap, len, vif);
+		return ath6kl_wmi_txe_yestify_event_rx(wmi, datap, len, vif);
 	default:
-		ath6kl_dbg(ATH6KL_DBG_WMI, "unknown cmd id 0x%x\n", cmd_id);
+		ath6kl_dbg(ATH6KL_DBG_WMI, "unkyeswn cmd id 0x%x\n", cmd_id);
 		return -EINVAL;
 	}
 
@@ -4009,7 +4009,7 @@ static int ath6kl_wmi_proc_events(struct wmi *wmi, struct sk_buff *skb)
 		break;
 	case WMI_PEER_NODE_EVENTID:
 		ath6kl_dbg(ATH6KL_DBG_WMI, "WMI_PEER_NODE_EVENTID\n");
-		ret = ath6kl_wmi_peer_node_event_rx(wmi, datap, len);
+		ret = ath6kl_wmi_peer_yesde_event_rx(wmi, datap, len);
 		break;
 	case WMI_REGDOMAIN_EVENTID:
 		ath6kl_dbg(ATH6KL_DBG_WMI, "WMI_REGDOMAIN_EVENTID\n");

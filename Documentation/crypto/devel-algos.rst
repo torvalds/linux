@@ -48,7 +48,7 @@ follows:
    through, then it rolls back successful registrations before returning
    the error code. Note that if a driver needs to handle registration
    errors for individual transformations, then it will need to use the
-   non-bulk function crypto_register_alg() instead.
+   yesn-bulk function crypto_register_alg() instead.
 
 -  crypto_unregister_algs() tries to unregister all the given
    transformations, continuing on error. It logs errors and always
@@ -62,7 +62,7 @@ Example of transformations: aes, arc4, ...
 This section describes the simplest of all transformation
 implementations, that being the CIPHER type used for symmetric ciphers.
 The CIPHER type is used for transformations which operate on exactly one
-block at a time and there are no dependencies between blocks at all.
+block at a time and there are yes dependencies between blocks at all.
 
 Registration specifics
 ~~~~~~~~~~~~~~~~~~~~~~
@@ -80,7 +80,7 @@ Struct cipher_alg defines a single block cipher.
 
 Here are schematics of how these functions are called when operated from
 other part of the kernel. Note that the .cia_setkey() call might happen
-before or after any of these schematics happen, but must not happen
+before or after any of these schematics happen, but must yest happen
 during any of these are in-flight.
 
 ::
@@ -92,7 +92,7 @@ during any of these are in-flight.
                                       '-----> CIPHERTEXT
 
 
-Please note that a pattern where .cia_setkey() is called multiple times
+Please yeste that a pattern where .cia_setkey() is called multiple times
 is also valid:
 
 ::
@@ -152,7 +152,7 @@ Registering And Unregistering The Transformation
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 There are multiple ways to register a HASH transformation, depending on
-whether the transformation is synchronous [SHASH] or asynchronous
+whether the transformation is synchroyesus [SHASH] or asynchroyesus
 [AHASH] and the amount of HASH transformations we are registering. You
 can find the prototypes defined in include/crypto/internal/hash.h:
 
@@ -180,8 +180,8 @@ Cipher Definition With struct shash_alg and ahash_alg
 
 Here are schematics of how these functions are called when operated from
 other part of the kernel. Note that the .setkey() call might happen
-before or after any of these schematics happen, but must not happen
-during any of these are in-flight. Please note that calling .init()
+before or after any of these schematics happen, but must yest happen
+during any of these are in-flight. Please yeste that calling .init()
 followed immediately by .finish() is also a perfectly valid
 transformation.
 
@@ -189,13 +189,13 @@ transformation.
 
        I)   DATA -----------.
                             v
-             .init() -> .update() -> .final()      ! .update() might not be called
+             .init() -> .update() -> .final()      ! .update() might yest be called
                          ^    |         |            at all in this scenario.
                          '----'         '---> HASH
 
        II)  DATA -----------.-----------.
                             v           v
-             .init() -> .update() -> .finup()      ! .update() may not be called
+             .init() -> .update() -> .finup()      ! .update() may yest be called
                          ^    |         |            at all in this scenario.
                          '----'         '---> HASH
 
@@ -207,12 +207,12 @@ transformation.
 
 
 Here is a schematic of how the .export()/.import() functions are called
-when used from another part of the kernel.
+when used from ayesther part of the kernel.
 
 ::
 
        KEY--.                 DATA--.
-            v                       v                  ! .update() may not be called
+            v                       v                  ! .update() may yest be called
         .setkey() -> .init() -> .update() -> .export()   at all in this scenario.
                                  ^     |         |
                                  '-----'         '--> PARTIAL_HASH
@@ -221,7 +221,7 @@ when used from another part of the kernel.
 
        PARTIAL_HASH--.   DATA1--.
                      v          v
-                 .import -> .update() -> .final()     ! .update() may not be called
+                 .import -> .update() -> .final()     ! .update() may yest be called
                              ^    |         |           at all in this scenario.
                              '----'         '--> HASH1
 
@@ -233,18 +233,18 @@ when used from another part of the kernel.
 
 Note that it is perfectly legal to "abandon" a request object:
 - call .init() and then (as many times) .update()
-- _not_ call any of .final(), .finup() or .export() at any point in future
+- _yest_ call any of .final(), .finup() or .export() at any point in future
 
 In other words implementations should mind the resource allocation and clean-up.
 No resources related to request objects should remain allocated after a call
-to .init() or .update(), since there might be no chance to free them.
+to .init() or .update(), since there might be yes chance to free them.
 
 
-Specifics Of Asynchronous HASH Transformation
+Specifics Of Asynchroyesus HASH Transformation
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Some of the drivers will want to use the Generic ScatterWalk in case the
 implementation needs to be fed separate chunks of the scatterlist which
 contains the input data. The buffer containing the resulting hash will
-always be properly aligned to .cra_alignmask so there is no need to
+always be properly aligned to .cra_alignmask so there is yes need to
 worry about this.

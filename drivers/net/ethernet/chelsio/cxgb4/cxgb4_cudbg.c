@@ -292,7 +292,7 @@ static u32 cxgb4_get_entity_length(struct adapter *adap, u32 entity)
 	case CUDBG_HMA:
 		value = t4_read_reg(adap, MA_TARGET_MEM_ENABLE_A);
 		if (value & HMA_MUX_F) {
-			/* In T6, there's no MC1.  So, HMA shares MC1
+			/* In T6, there's yes MC1.  So, HMA shares MC1
 			 * address space.
 			 */
 			value = t4_read_reg(adap, MA_EXT_MEMORY1_BAR_A);
@@ -330,7 +330,7 @@ u32 cxgb4_get_dump_length(struct adapter *adap, u32 flag)
 		}
 	}
 
-	/* If compression is enabled, a smaller destination buffer is enough */
+	/* If compression is enabled, a smaller destination buffer is eyesugh */
 	wsize = cudbg_get_workspace_size();
 	if (wsize && len > CUDBG_DUMP_BUFF_SIZE)
 		len = CUDBG_DUMP_BUFF_SIZE;
@@ -422,7 +422,7 @@ int cxgb4_cudbg_collect(struct adapter *adap, void *buf, u32 *buf_size,
 	cudbg_hdr->signature = CUDBG_SIGNATURE;
 	cudbg_hdr->hdr_len = sizeof(struct cudbg_hdr);
 	cudbg_hdr->major_ver = CUDBG_MAJOR_VERSION;
-	cudbg_hdr->minor_ver = CUDBG_MINOR_VERSION;
+	cudbg_hdr->miyesr_ver = CUDBG_MINOR_VERSION;
 	cudbg_hdr->max_entities = CUDBG_MAX_ENTITY;
 	cudbg_hdr->chip_ver = adap->params.chip;
 	cudbg_hdr->dump_type = CUDBG_DUMP_TYPE_MINI;
@@ -439,7 +439,7 @@ int cxgb4_cudbg_collect(struct adapter *adap, void *buf, u32 *buf_size,
 		cudbg_init.compress_type = CUDBG_COMPRESSION_ZLIB;
 		rc = cudbg_alloc_compress_buff(&cudbg_init);
 		if (rc) {
-			/* Ignore error and continue without compression. */
+			/* Igyesre error and continue without compression. */
 			dev_warn(adap->pdev_dev,
 				 "Fail allocating compression buffer ret: %d.  Continuing without compression.\n",
 				 rc);

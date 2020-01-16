@@ -362,7 +362,7 @@ static ssize_t show_in(struct device *dev, struct device_attribute *attr,
 		break;
 	default:
 		res = 0;
-		dev_dbg(dev, "Unknown attr fetch (%d)\n", fn);
+		dev_dbg(dev, "Unkyeswn attr fetch (%d)\n", fn);
 	}
 
 	return sprintf(buf, "%d\n", res);
@@ -394,7 +394,7 @@ static ssize_t set_in(struct device *dev, struct device_attribute *attr,
 		vt1211_write8(data, VT1211_REG_IN_MAX(ix), data->in_max[ix]);
 		break;
 	default:
-		dev_dbg(dev, "Unknown attr fetch (%d)\n", fn);
+		dev_dbg(dev, "Unkyeswn attr fetch (%d)\n", fn);
 	}
 	mutex_unlock(&data->update_lock);
 
@@ -436,7 +436,7 @@ static ssize_t show_temp(struct device *dev, struct device_attribute *attr,
 		break;
 	default:
 		res = 0;
-		dev_dbg(dev, "Unknown attr fetch (%d)\n", fn);
+		dev_dbg(dev, "Unkyeswn attr fetch (%d)\n", fn);
 	}
 
 	return sprintf(buf, "%d\n", res);
@@ -470,7 +470,7 @@ static ssize_t set_temp(struct device *dev, struct device_attribute *attr,
 			      data->temp_hyst[ix]);
 		break;
 	default:
-		dev_dbg(dev, "Unknown attr fetch (%d)\n", fn);
+		dev_dbg(dev, "Unkyeswn attr fetch (%d)\n", fn);
 	}
 	mutex_unlock(&data->update_lock);
 
@@ -512,7 +512,7 @@ static ssize_t show_fan(struct device *dev, struct device_attribute *attr,
 		break;
 	default:
 		res = 0;
-		dev_dbg(dev, "Unknown attr fetch (%d)\n", fn);
+		dev_dbg(dev, "Unkyeswn attr fetch (%d)\n", fn);
 	}
 
 	return sprintf(buf, "%d\n", res);
@@ -565,7 +565,7 @@ static ssize_t set_fan(struct device *dev, struct device_attribute *attr,
 		default:
 			count = -EINVAL;
 			dev_warn(dev,
-				 "fan div value %ld not supported. Choose one of 1, 2, 4, or 8.\n",
+				 "fan div value %ld yest supported. Choose one of 1, 2, 4, or 8.\n",
 				 val);
 			goto EXIT;
 		}
@@ -575,7 +575,7 @@ static ssize_t set_fan(struct device *dev, struct device_attribute *attr,
 				data->fan_ctl));
 		break;
 	default:
-		dev_dbg(dev, "Unknown attr fetch (%d)\n", fn);
+		dev_dbg(dev, "Unkyeswn attr fetch (%d)\n", fn);
 	}
 
 EXIT:
@@ -618,7 +618,7 @@ static ssize_t show_pwm(struct device *dev, struct device_attribute *attr,
 		break;
 	default:
 		res = 0;
-		dev_dbg(dev, "Unknown attr fetch (%d)\n", fn);
+		dev_dbg(dev, "Unkyeswn attr fetch (%d)\n", fn);
 	}
 
 	return sprintf(buf, "%d\n", res);
@@ -669,7 +669,7 @@ static ssize_t set_pwm(struct device *dev, struct device_attribute *attr,
 		default:
 			count = -EINVAL;
 			dev_warn(dev,
-				 "pwm mode %ld not supported. Choose one of 0 or 2.\n",
+				 "pwm mode %ld yest supported. Choose one of 0 or 2.\n",
 				 val);
 			goto EXIT;
 		}
@@ -696,13 +696,13 @@ static ssize_t set_pwm(struct device *dev, struct device_attribute *attr,
 		if (val < 1 || val > 7) {
 			count = -EINVAL;
 			dev_warn(dev,
-				 "temp channel %ld not supported. Choose a value between 1 and 7.\n",
+				 "temp channel %ld yest supported. Choose a value between 1 and 7.\n",
 				 val);
 			goto EXIT;
 		}
 		if (!ISTEMP(val - 1, data->uch_config)) {
 			count = -EINVAL;
-			dev_warn(dev, "temp channel %ld is not available.\n",
+			dev_warn(dev, "temp channel %ld is yest available.\n",
 				 val);
 			goto EXIT;
 		}
@@ -715,7 +715,7 @@ static ssize_t set_pwm(struct device *dev, struct device_attribute *attr,
 			      ((data->pwm_ctl[1] << 4) | data->pwm_ctl[0]));
 		break;
 	default:
-		dev_dbg(dev, "Unknown attr fetch (%d)\n", fn);
+		dev_dbg(dev, "Unkyeswn attr fetch (%d)\n", fn);
 	}
 
 EXIT:
@@ -1297,7 +1297,7 @@ static int __init vt1211_find(int sio_cip, unsigned short *address)
 	*address = ((superio_inb(sio_cip, SIO_VT1211_BADDR) << 8) |
 		    (superio_inb(sio_cip, SIO_VT1211_BADDR + 1))) & 0xff00;
 	if (*address == 0) {
-		pr_warn("Base address is not set, skipping\n");
+		pr_warn("Base address is yest set, skipping\n");
 		goto EXIT;
 	}
 

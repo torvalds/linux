@@ -12,7 +12,7 @@
 struct shrink_control {
 	gfp_t gfp_mask;
 
-	/* current node being shrunk (for NUMA aware shrinkers) */
+	/* current yesde being shrunk (for NUMA aware shrinkers) */
 	int nid;
 
 	/*
@@ -39,19 +39,19 @@ struct shrink_control {
  * A callback you can register to apply pressure to ageable caches.
  *
  * @count_objects should return the number of freeable items in the cache. If
- * there are no objects to free, it should return SHRINK_EMPTY, while 0 is
- * returned in cases of the number of freeable items cannot be determined
+ * there are yes objects to free, it should return SHRINK_EMPTY, while 0 is
+ * returned in cases of the number of freeable items canyest be determined
  * or shrinker should skip this cache for this time (e.g., their number
  * is below shrinkable limit). No deadlock checks should be done during the
  * count callback - the shrinker relies on aggregating scan counts that couldn't
  * be executed due to potential deadlocks to be run at a later call when the
- * deadlock condition is no longer pending.
+ * deadlock condition is yes longer pending.
  *
- * @scan_objects will only be called if @count_objects returned a non-zero
+ * @scan_objects will only be called if @count_objects returned a yesn-zero
  * value for the number of freeable objects. The callout should scan the cache
  * and attempt to free items from the cache. It should then return the number
- * of objects freed during the scan, or SHRINK_STOP if progress cannot be made
- * due to potential deadlocks. If SHRINK_STOP is returned, then no further
+ * of objects freed during the scan, or SHRINK_STOP if progress canyest be made
+ * due to potential deadlocks. If SHRINK_STOP is returned, then yes further
  * attempts to call the @scan_objects will be made from the current reclaim
  * context.
  *
@@ -73,17 +73,17 @@ struct shrinker {
 	/* ID in shrinker_idr */
 	int id;
 #endif
-	/* objs pending delete, per node */
+	/* objs pending delete, per yesde */
 	atomic_long_t *nr_deferred;
 };
-#define DEFAULT_SEEKS 2 /* A good number if you don't know better. */
+#define DEFAULT_SEEKS 2 /* A good number if you don't kyesw better. */
 
 /* Flags */
 #define SHRINKER_NUMA_AWARE	(1 << 0)
 #define SHRINKER_MEMCG_AWARE	(1 << 1)
 /*
- * It just makes sense when the shrinker is also MEMCG_AWARE for now,
- * non-MEMCG_AWARE shrinker should not have this flag set.
+ * It just makes sense when the shrinker is also MEMCG_AWARE for yesw,
+ * yesn-MEMCG_AWARE shrinker should yest have this flag set.
  */
 #define SHRINKER_NONSLAB	(1 << 2)
 

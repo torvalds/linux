@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 #ifndef _ASM_IA64_RSE_H
 #define _ASM_IA64_RSE_H
 
@@ -8,7 +8,7 @@
  *
  * Register stack engine related helper functions.  This file may be
  * used in applications, so be careful about the name-space and give
- * some consideration to non-GNU C compilers (though __inline__ is
+ * some consideration to yesn-GNU C compilers (though __inline__ is
  * fine).
  */
 

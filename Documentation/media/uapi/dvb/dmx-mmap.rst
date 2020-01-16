@@ -1,11 +1,11 @@
 .. Permission is granted to copy, distribute and/or modify this
 .. document under the terms of the GNU Free Documentation License,
 .. Version 1.1 or any later version published by the Free Software
-.. Foundation, with no Invariant Sections, no Front-Cover Texts
-.. and no Back-Cover Texts. A copy of the license is included at
+.. Foundation, with yes Invariant Sections, yes Front-Cover Texts
+.. and yes Back-Cover Texts. A copy of the license is included at
 .. Documentation/media/uapi/fdl-appendix.rst.
 ..
-.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
+.. TODO: replace it to GFDL-1.1-or-later WITH yes-invariant-sections
 
 .. _dmx-mmap:
 
@@ -20,7 +20,7 @@ dmx-mmap - Map device memory into application address space
 
 .. warning:: this API is still experimental
 
-Synopsis
+Syyespsis
 ========
 
 .. code-block:: c
@@ -39,7 +39,7 @@ Arguments
     Map the buffer to this address in the application's address space.
     When the ``MAP_FIXED`` flag is specified, ``start`` must be a
     multiple of the pagesize and mmap will fail when the specified
-    address cannot be used. Use of this option is discouraged;
+    address canyest be used. Use of this option is discouraged;
     applications should just specify a ``NULL`` pointer here.
 
 ``length``
@@ -59,8 +59,8 @@ Arguments
     the page are private to the process or are to be shared with other
     references.
 
-    ``MAP_FIXED`` requests that the driver selects no other address than
-    the one specified. If the specified address cannot be used,
+    ``MAP_FIXED`` requests that the driver selects yes other address than
+    the one specified. If the specified address canyest be used,
     :ref:`mmap() <dmx-mmap>` will fail. If ``MAP_FIXED`` is specified,
     ``start`` must be a multiple of the pagesize. Use of this option is
     discouraged.
@@ -69,9 +69,9 @@ Arguments
     ``MAP_SHARED`` allows applications to share the mapped memory with
     other (e. g. child-) processes.
 
-    .. note::
+    .. yeste::
 
-       The Linux Digital TV applications should not set the
+       The Linux Digital TV applications should yest set the
        ``MAP_PRIVATE``, ``MAP_DENYWRITE``, ``MAP_EXECUTABLE`` or ``MAP_ANON``
        flags.
 
@@ -102,24 +102,24 @@ Return Value
 ============
 
 On success :ref:`mmap() <dmx-mmap>` returns a pointer to the mapped buffer. On
-error ``MAP_FAILED`` (-1) is returned, and the ``errno`` variable is set
+error ``MAP_FAILED`` (-1) is returned, and the ``erryes`` variable is set
 appropriately. Possible error codes are:
 
 EBADF
-    ``fd`` is not a valid file descriptor.
+    ``fd`` is yest a valid file descriptor.
 
 EACCES
-    ``fd`` is not open for reading and writing.
+    ``fd`` is yest open for reading and writing.
 
 EINVAL
-    The ``start`` or ``length`` or ``offset`` are not suitable. (E. g.
-    they are too large, or not aligned on a ``PAGESIZE`` boundary.)
+    The ``start`` or ``length`` or ``offset`` are yest suitable. (E. g.
+    they are too large, or yest aligned on a ``PAGESIZE`` boundary.)
 
-    The ``flags`` or ``prot`` value is not supported.
+    The ``flags`` or ``prot`` value is yest supported.
 
     No buffers have been allocated with the
     :ref:`DMX_REQBUFS` ioctl.
 
 ENOMEM
-    Not enough physical or virtual memory was available to complete the
+    Not eyesugh physical or virtual memory was available to complete the
     request.

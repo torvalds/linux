@@ -24,7 +24,7 @@
 #define TPS65090_VACG		BIT(1)
 #define TPS65090_NOITERM	BIT(5)
 
-#define POLL_INTERVAL		(HZ * 2)	/* Used when no irq */
+#define POLL_INTERVAL		(HZ * 2)	/* Used when yes irq */
 
 struct tps65090_charger {
 	struct	device	*dev;
@@ -188,7 +188,7 @@ static struct tps65090_platform_data *
 		tps65090_parse_dt_charger_data(struct platform_device *pdev)
 {
 	struct tps65090_platform_data *pdata;
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	unsigned int prop;
 
 	pdata = devm_kzalloc(&pdev->dev, sizeof(*pdata), GFP_KERNEL);
@@ -237,11 +237,11 @@ static int tps65090_charger_probe(struct platform_device *pdev)
 
 	pdata = dev_get_platdata(pdev->dev.parent);
 
-	if (IS_ENABLED(CONFIG_OF) && !pdata && pdev->dev.of_node)
+	if (IS_ENABLED(CONFIG_OF) && !pdata && pdev->dev.of_yesde)
 		pdata = tps65090_parse_dt_charger_data(pdev);
 
 	if (!pdata) {
-		dev_err(&pdev->dev, "%s():no platform data available\n",
+		dev_err(&pdev->dev, "%s():yes platform data available\n",
 				__func__);
 		return -ENODEV;
 	}
@@ -259,7 +259,7 @@ static int tps65090_charger_probe(struct platform_device *pdev)
 
 	psy_cfg.supplied_to		= pdata->supplied_to;
 	psy_cfg.num_supplicants		= pdata->num_supplicants;
-	psy_cfg.of_node			= pdev->dev.of_node;
+	psy_cfg.of_yesde			= pdev->dev.of_yesde;
 	psy_cfg.drv_data		= cdata;
 
 	cdata->ac = power_supply_register(&pdev->dev, &tps65090_charger_desc,

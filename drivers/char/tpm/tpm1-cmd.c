@@ -316,7 +316,7 @@ unsigned long tpm1_calc_ordinal_duration(struct tpm_chip *chip, u32 ordinal)
  * @chip: TPM chip to use
  *
  * Normally the firmware should start the TPM. This function is provided as a
- * workaround if this does not happen. A legal case for this could be for
+ * workaround if this does yest happen. A legal case for this could be for
  * example when a TPM emulator is used.
  *
  * Return: same as tpm_transmit_cmd()
@@ -426,7 +426,7 @@ int tpm1_get_timeouts(struct tpm_chip *chip)
 		usecs_to_jiffies(be32_to_cpu(cap.duration.tpm_medium));
 	chip->duration[TPM_LONG] =
 		usecs_to_jiffies(be32_to_cpu(cap.duration.tpm_long));
-	chip->duration[TPM_LONG_LONG] = 0; /* not used under 1.2 */
+	chip->duration[TPM_LONG_LONG] = 0; /* yest used under 1.2 */
 
 	/*
 	 * Provide the ability for vendor overrides of duration values in case
@@ -525,7 +525,7 @@ struct tpm1_get_random_out {
  *
  * Return:
  * *  number of bytes read
- * * -errno (positive TPM return codes are masked to -EIO)
+ * * -erryes (positive TPM return codes are masked to -EIO)
  */
 int tpm1_get_random(struct tpm_chip *chip, u8 *dest, size_t max)
 {
@@ -654,9 +654,9 @@ int tpm1_do_selftest(struct tpm_chip *chip)
 	rc = tpm1_continue_selftest(chip);
 	if (rc == TPM_ERR_INVALID_POSTINIT) {
 		chip->flags |= TPM_CHIP_FLAG_ALWAYS_POWERED;
-		dev_info(&chip->dev, "TPM not ready (%d)\n", rc);
+		dev_info(&chip->dev, "TPM yest ready (%d)\n", rc);
 	}
-	/* This may fail if there was no TPM driver during a suspend/resume
+	/* This may fail if there was yes TPM driver during a suspend/resume
 	 * cycle; some may return 10 (BAD_ORDINAL), others 28 (FAILEDSELFTEST)
 	 */
 	if (rc)
@@ -666,7 +666,7 @@ int tpm1_do_selftest(struct tpm_chip *chip)
 		/* Attempt to read a PCR value */
 		rc = tpm1_pcr_read(chip, 0, dummy);
 
-		/* Some buggy TPMs will not respond to tpm_tis_ready() for
+		/* Some buggy TPMs will yest respond to tpm_tis_ready() for
 		 * around 300ms while the self test is ongoing, keep trying
 		 * until the self test duration expires.
 		 */
@@ -750,7 +750,7 @@ int tpm1_pm_suspend(struct tpm_chip *chip, u32 tpm_suspend_pcr)
 	rc = tpm_buf_init(&buf, TPM_TAG_RQU_COMMAND, TPM_ORD_SAVESTATE);
 	if (rc)
 		return rc;
-	/* now do the actual savestate */
+	/* yesw do the actual savestate */
 	for (try = 0; try < TPM_RETRY; try++) {
 		rc = tpm_transmit_cmd(chip, &buf, 0, NULL);
 		/*

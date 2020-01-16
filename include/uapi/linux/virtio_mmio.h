@@ -12,11 +12,11 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
+ *    yestice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the name of IBM nor the names of its contributors
+ * 3. Neither the name of IBM yesr the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS ``AS IS'' AND
@@ -98,13 +98,13 @@
 /* Ready bit for the currently selected queue - Read Write */
 #define VIRTIO_MMIO_QUEUE_READY		0x044
 
-/* Queue notifier - Write Only */
+/* Queue yestifier - Write Only */
 #define VIRTIO_MMIO_QUEUE_NOTIFY	0x050
 
 /* Interrupt status - Read Only */
 #define VIRTIO_MMIO_INTERRUPT_STATUS	0x060
 
-/* Interrupt acknowledge - Write Only */
+/* Interrupt ackyeswledge - Write Only */
 #define VIRTIO_MMIO_INTERRUPT_ACK	0x064
 
 /* Device status register - Read Write */
@@ -132,7 +132,7 @@
 
 
 /*
- * Interrupt flags (re: interrupt status & acknowledge registers)
+ * Interrupt flags (re: interrupt status & ackyeswledge registers)
  */
 
 #define VIRTIO_MMIO_INT_VRING		(1 << 0)

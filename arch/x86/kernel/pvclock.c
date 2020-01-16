@@ -6,7 +6,7 @@
 #include <linux/clocksource.h>
 #include <linux/kernel.h>
 #include <linux/percpu.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/sched.h>
 #include <linux/gfp.h>
 #include <linux/memblock.h>
@@ -88,15 +88,15 @@ u64 pvclock_clocksource_read(struct pvclock_vcpu_time_info *src)
 
 	/*
 	 * Assumption here is that last_value, a global accumulator, always goes
-	 * forward. If we are less than that, we should not be much smaller.
+	 * forward. If we are less than that, we should yest be much smaller.
 	 * We assume there is an error marging we're inside, and then the correction
-	 * does not sacrifice accuracy.
+	 * does yest sacrifice accuracy.
 	 *
 	 * For reads: global may have changed between test and return,
 	 * but this means someone else updated poked the clock at a later time.
-	 * We just need to make sure we are not seeing a backwards event.
+	 * We just need to make sure we are yest seeing a backwards event.
 	 *
-	 * For updates: last_value = ret is not enough, since two vcpus could be
+	 * For updates: last_value = ret is yest eyesugh, since two vcpus could be
 	 * updating at the same time, and one of them could be slightly behind,
 	 * making the assumption that last_value always go forward fail to hold.
 	 */
@@ -116,7 +116,7 @@ void pvclock_read_wallclock(struct pvclock_wall_clock *wall_clock,
 {
 	u32 version;
 	u64 delta;
-	struct timespec64 now;
+	struct timespec64 yesw;
 
 	/* get wallclock at system boot */
 	do {
@@ -129,18 +129,18 @@ void pvclock_read_wallclock(struct pvclock_wall_clock *wall_clock,
 		 * interface with an extended pvclock_wall_clock structure
 		 * like ARM has.
 		 */
-		now.tv_sec  = wall_clock->sec;
-		now.tv_nsec = wall_clock->nsec;
+		yesw.tv_sec  = wall_clock->sec;
+		yesw.tv_nsec = wall_clock->nsec;
 		rmb();		/* fetch time before checking version */
 	} while ((wall_clock->version & 1) || (version != wall_clock->version));
 
 	delta = pvclock_clocksource_read(vcpu_time);	/* time since system boot */
-	delta += now.tv_sec * NSEC_PER_SEC + now.tv_nsec;
+	delta += yesw.tv_sec * NSEC_PER_SEC + yesw.tv_nsec;
 
-	now.tv_nsec = do_div(delta, NSEC_PER_SEC);
-	now.tv_sec = delta;
+	yesw.tv_nsec = do_div(delta, NSEC_PER_SEC);
+	yesw.tv_sec = delta;
 
-	set_normalized_timespec64(ts, now.tv_sec, now.tv_nsec);
+	set_yesrmalized_timespec64(ts, yesw.tv_sec, yesw.tv_nsec);
 }
 
 void pvclock_set_pvti_cpu0_va(struct pvclock_vsyscall_time_info *pvti)

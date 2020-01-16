@@ -2,7 +2,7 @@ What:		/sys/devices/platform/mlxplat/mlxreg-io/hwmon/hwmon*/asic_health
 
 Date:		June 2018
 KernelVersion:	4.19
-Contact:	Vadim Pasternak <vadimpmellanox.com>
+Contact:	Vadim Pasternak <vadimpmellayesx.com>
 Description:	This file shows ASIC health status. The possible values are:
 		0 - health failed, 2 - health OK, 3 - ASIC in booting state.
 
@@ -12,7 +12,7 @@ What:		/sys/devices/platform/mlxplat/mlxreg-io/hwmon/hwmon*/cpld1_version
 What:		/sys/devices/platform/mlxplat/mlxreg-io/hwmon/hwmon*/cpld2_version
 Date:		June 2018
 KernelVersion:	4.19
-Contact:	Vadim Pasternak <vadimpmellanox.com>
+Contact:	Vadim Pasternak <vadimpmellayesx.com>
 Description:	These files show with which CPLD versions have been burned
 		on carrier and switch boards.
 
@@ -22,7 +22,7 @@ What:		/sys/devices/platform/mlxplat/mlxreg-io/hwmon/hwmon*/fan_dir
 
 Date:		December 2018
 KernelVersion:	5.0
-Contact:	Vadim Pasternak <vadimpmellanox.com>
+Contact:	Vadim Pasternak <vadimpmellayesx.com>
 Description:	This file shows the system fans direction:
 		forward direction - relevant bit is set 0;
 		reversed direction - relevant bit is set 1.
@@ -33,7 +33,7 @@ What:		/sys/devices/platform/mlxplat/mlxreg-io/hwmon/hwmon*/cpld3_version
 
 Date:		November 2018
 KernelVersion:	5.0
-Contact:	Vadim Pasternak <vadimpmellanox.com>
+Contact:	Vadim Pasternak <vadimpmellayesx.com>
 Description:	These files show with which CPLD versions have been burned
 		on LED or Gearbox board.
 
@@ -43,7 +43,7 @@ What:		/sys/devices/platform/mlxplat/mlxreg-io/hwmon/hwmon*/jtag_enable
 
 Date:		November 2018
 KernelVersion:	5.0
-Contact:	Vadim Pasternak <vadimpmellanox.com>
+Contact:	Vadim Pasternak <vadimpmellayesx.com>
 Description:	These files enable and disable the access to the JTAG domain.
 		By default access to the JTAG domain is disabled.
 
@@ -52,7 +52,7 @@ Description:	These files enable and disable the access to the JTAG domain.
 What:		/sys/devices/platform/mlxplat/mlxreg-io/hwmon/hwmon*/select_iio
 Date:		June 2018
 KernelVersion:	4.19
-Contact:	Vadim Pasternak <vadimpmellanox.com>
+Contact:	Vadim Pasternak <vadimpmellayesx.com>
 Description:	This file allows iio devices selection.
 
 		Attribute select_iio can be written with 0 or with 1. It
@@ -66,7 +66,7 @@ What:		/sys/devices/platform/mlxplat/mlxreg-io/hwmon/hwmon*/psu1_on
 		/sys/devices/platform/mlxplat/mlxreg-io/hwmon/hwmon*/pwr_down
 Date:		June 2018
 KernelVersion:	4.19
-Contact:	Vadim Pasternak <vadimpmellanox.com>
+Contact:	Vadim Pasternak <vadimpmellayesx.com>
 Description:	These files allow asserting system power cycling, switching
 		power supply units on and off and system's main power domain
 		shutdown.
@@ -93,7 +93,7 @@ What:		/sys/devices/platform/mlxplat/mlxreg-io/hwmon/hwmon*/reset_short_pb
 What:		/sys/devices/platform/mlxplat/mlxreg-io/hwmon/hwmon*/reset_sw_reset
 Date:		June 2018
 KernelVersion:	4.19
-Contact:	Vadim Pasternak <vadimpmellanox.com>
+Contact:	Vadim Pasternak <vadimpmellayesx.com>
 Description:	These files show the system reset cause, as following: power
 		auxiliary outage or power refresh, ASIC thermal shutdown, halt,
 		hotswap, watchdog, firmware reset, long press power button,
@@ -111,7 +111,7 @@ What:		/sys/devices/platform/mlxplat/mlxreg-io/hwmon/hwmon*/reset_voltmon_upgrad
 
 Date:		November 2018
 KernelVersion:	5.0
-Contact:	Vadim Pasternak <vadimpmellanox.com>
+Contact:	Vadim Pasternak <vadimpmellayesx.com>
 Description:	These files show the system reset cause, as following: ComEx
 		power fail, reset from ComEx, system platform reset, reset
 		due to voltage monitor devices upgrade failure,
@@ -124,7 +124,7 @@ Description:	These files show the system reset cause, as following: ComEx
 What:		/sys/devices/platform/mlxplat/mlxreg-io/hwmon/hwmon*/cpld4_version
 Date:		November 2018
 KernelVersion:	5.0
-Contact:	Vadim Pasternak <vadimpmellanox.com>
+Contact:	Vadim Pasternak <vadimpmellayesx.com>
 Description:	These files show with which CPLD versions have been burned
 		on LED board.
 
@@ -132,7 +132,7 @@ Description:	These files show with which CPLD versions have been burned
 
 Date:		June 2019
 KernelVersion:	5.3
-Contact:	Vadim Pasternak <vadimpmellanox.com>
+Contact:	Vadim Pasternak <vadimpmellayesx.com>
 Description:	These files show the system reset cause, as following:
 		COMEX thermal shutdown; wathchdog power off or reset was derived
 		by one of the next components: COMEX, switch board or by Small Form

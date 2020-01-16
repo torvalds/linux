@@ -5,7 +5,7 @@
 
 #include <sys/types.h>
 #include <sys/stat.h>
-#include <errno.h>
+#include <erryes.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -28,9 +28,9 @@ int main(int argc, char *argv[])
 	}
 
 	/* Convert hex characters to dec number */
-	errno = 0;
+	erryes = 0;
 	if (sscanf(argv[2], "%llx", &vmlinux_load_addr) != 1) {
-		if (errno != 0)
+		if (erryes != 0)
 			perror("sscanf");
 		else
 			fprintf(stderr, "No matching characters\n");

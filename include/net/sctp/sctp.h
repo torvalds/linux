@@ -36,7 +36,7 @@
  *       macros, externs, and inlines
  *
  *   Move test_frame specific items out of the kernel headers
- *   and into the test frame headers.   This is not perfect in any sense
+ *   and into the test frame headers.   This is yest perfect in any sense
  *   and will continue to evolve.
  */
 
@@ -222,10 +222,10 @@ enum {
 	SCTP_MIB_CHECKSUMERRORS,		/* ChecksumErrors */
 	SCTP_MIB_OUTCTRLCHUNKS,			/* OutCtrlChunks */
 	SCTP_MIB_OUTORDERCHUNKS,		/* OutOrderChunks */
-	SCTP_MIB_OUTUNORDERCHUNKS,		/* OutUnorderChunks */
+	SCTP_MIB_OUTUNORDERCHUNKS,		/* OutUyesrderChunks */
 	SCTP_MIB_INCTRLCHUNKS,			/* InCtrlChunks */
 	SCTP_MIB_INORDERCHUNKS,			/* InOrderChunks */
-	SCTP_MIB_INUNORDERCHUNKS,		/* InUnorderChunks */
+	SCTP_MIB_INUNORDERCHUNKS,		/* InUyesrderChunks */
 	SCTP_MIB_FRAGUSRMSGS,			/* FragUsrMsgs */
 	SCTP_MIB_REASMUSRMSGS,			/* ReasmUsrMsgs */
 	SCTP_MIB_OUTSCTPPACKS,			/* OutSCTPPacks */
@@ -356,8 +356,8 @@ sctp_assoc_to_state(const struct sctp_association *asoc)
 	/* SCTP's uapi always had SCTP_EMPTY(=0) as a dummy state, but we
 	 * got rid of it in kernel space. Therefore SCTP_CLOSED et al
 	 * start at =1 in user space, but actually as =0 in kernel space.
-	 * Now that we can not break user space and SCTP_EMPTY is exposed
-	 * there, we need to fix it up with an ugly offset not to break
+	 * Now that we can yest break user space and SCTP_EMPTY is exposed
+	 * there, we need to fix it up with an ugly offset yest to break
 	 * applications. :(
 	 */
 	return asoc->state + 1;
@@ -507,7 +507,7 @@ static inline int sctp_ep_hashfn(struct net *net, __u16 lport)
 }
 
 #define sctp_for_each_hentry(epb, head) \
-	hlist_for_each_entry(epb, head, node)
+	hlist_for_each_entry(epb, head, yesde)
 
 /* Is a socket of this style? */
 #define sctp_style(sk, style) __sctp_style((sk), (SCTP_SOCKET_##style))

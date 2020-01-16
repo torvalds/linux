@@ -69,7 +69,7 @@ static void client_mark_guilty(struct drm_i915_file_private *file_priv,
 	if (score) {
 		atomic_add(score, &file_priv->ban_score);
 
-		DRM_DEBUG_DRIVER("client %s: gained %u ban score, now %u\n",
+		DRM_DEBUG_DRIVER("client %s: gained %u ban score, yesw %u\n",
 				 ctx->name, score,
 				 atomic_read(&file_priv->ban_score));
 	}
@@ -109,7 +109,7 @@ static bool context_mark_guilty(struct i915_gem_context *ctx)
 	return banned;
 }
 
-static void context_mark_innocent(struct i915_gem_context *ctx)
+static void context_mark_inyescent(struct i915_gem_context *ctx)
 {
 	atomic_inc(&ctx->active_count);
 }
@@ -119,8 +119,8 @@ void __i915_request_reset(struct i915_request *rq, bool guilty)
 	GEM_TRACE("%s rq=%llx:%lld, guilty? %s\n",
 		  rq->engine->name,
 		  rq->fence.context,
-		  rq->fence.seqno,
-		  yesno(guilty));
+		  rq->fence.seqyes,
+		  noyes(guilty));
 
 	GEM_BUG_ON(i915_request_completed(rq));
 
@@ -130,7 +130,7 @@ void __i915_request_reset(struct i915_request *rq, bool guilty)
 			engine_skip_context(rq);
 	} else {
 		dma_fence_set_error(&rq->fence, -EAGAIN);
-		context_mark_innocent(rq->gem_context);
+		context_mark_inyescent(rq->gem_context);
 	}
 }
 
@@ -149,7 +149,7 @@ static int i915_do_reset(struct intel_gt *gt,
 	struct pci_dev *pdev = gt->i915->drm.pdev;
 	int err;
 
-	/* Assert reset for at least 20 usec, and wait for acknowledgement. */
+	/* Assert reset for at least 20 usec, and wait for ackyeswledgement. */
 	pci_write_config_byte(pdev, I915_GDRST, GRDOM_RESET_ENABLE);
 	udelay(50);
 	err = wait_for_atomic(i915_in_reset(pdev), 50);
@@ -260,7 +260,7 @@ static int gen6_hw_domain_reset(struct intel_gt *gt, u32 hw_domain_mask)
 	int err;
 
 	/*
-	 * GEN6_GDRST is not in the gt power well, no need to check
+	 * GEN6_GDRST is yest in the gt power well, yes need to check
 	 * for fifo space for the write or forcewake the chip for
 	 * the read
 	 */
@@ -445,7 +445,7 @@ static int gen11_reset_engines(struct intel_gt *gt,
 
 sfc_unlock:
 	/*
-	 * We unlock the SFC based on the lock status and not the result of
+	 * We unlock the SFC based on the lock status and yest the result of
 	 * gen11_lock_sfc to make sure that we clean properly if something
 	 * wrong happened during the lock (e.g. lock acquired after timeout
 	 * expiration).
@@ -506,17 +506,17 @@ static int gen8_reset_engines(struct intel_gt *gt,
 			      unsigned int retry)
 {
 	struct intel_engine_cs *engine;
-	const bool reset_non_ready = retry >= 1;
+	const bool reset_yesn_ready = retry >= 1;
 	intel_engine_mask_t tmp;
 	int ret;
 
 	for_each_engine_masked(engine, gt, engine_mask, tmp) {
 		ret = gen8_engine_reset_prepare(engine);
-		if (ret && !reset_non_ready)
+		if (ret && !reset_yesn_ready)
 			goto skip_reset;
 
 		/*
-		 * If this is not the first failed attempt to prepare,
+		 * If this is yest the first failed attempt to prepare,
 		 * we decide to proceed anyway.
 		 *
 		 * By doing so we risk context corruption and with
@@ -634,7 +634,7 @@ int intel_reset_guc(struct intel_gt *gt)
 }
 
 /*
- * Ensure irq handler finishes, and not run again.
+ * Ensure irq handler finishes, and yest run again.
  * Also return the active request so that we only search for it once.
  */
 static void reset_prepare_engine(struct intel_engine_cs *engine)
@@ -655,7 +655,7 @@ static void revoke_mmaps(struct intel_gt *gt)
 	int i;
 
 	for (i = 0; i < gt->ggtt->num_fences; i++) {
-		struct drm_vma_offset_node *node;
+		struct drm_vma_offset_yesde *yesde;
 		struct i915_vma *vma;
 		u64 vma_offset;
 
@@ -667,10 +667,10 @@ static void revoke_mmaps(struct intel_gt *gt)
 			continue;
 
 		GEM_BUG_ON(vma->fence != &gt->ggtt->fence_regs[i]);
-		node = &vma->obj->base.vma_node;
+		yesde = &vma->obj->base.vma_yesde;
 		vma_offset = vma->ggtt_view.partial.offset << PAGE_SHIFT;
-		unmap_mapping_range(gt->i915->drm.anon_inode->i_mapping,
-				    drm_vma_node_offset_addr(node) + vma_offset,
+		unmap_mapping_range(gt->i915->drm.ayesn_iyesde->i_mapping,
+				    drm_vma_yesde_offset_addr(yesde) + vma_offset,
 				    vma->size,
 				    1);
 	}
@@ -740,13 +740,13 @@ static void reset_finish(struct intel_gt *gt, intel_engine_mask_t awake)
 	}
 }
 
-static void nop_submit_request(struct i915_request *request)
+static void yesp_submit_request(struct i915_request *request)
 {
 	struct intel_engine_cs *engine = request->engine;
 	unsigned long flags;
 
 	GEM_TRACE("%s fence %llx:%lld -> -EIO\n",
-		  engine->name, request->fence.context, request->fence.seqno);
+		  engine->name, request->fence.context, request->fence.seqyes);
 	dma_fence_set_error(&request->fence, -EIO);
 
 	spin_lock_irqsave(&engine->active.lock, flags);
@@ -776,8 +776,8 @@ static void __intel_gt_set_wedged(struct intel_gt *gt)
 	GEM_TRACE("start\n");
 
 	/*
-	 * First, stop submission to hw, but do not yet complete requests by
-	 * rolling the global seqno forward (since this would complete requests
+	 * First, stop submission to hw, but do yest yet complete requests by
+	 * rolling the global seqyes forward (since this would complete requests
 	 * for which we haven't set the fence error to EIO yet).
 	 */
 	awake = reset_prepare(gt);
@@ -787,12 +787,12 @@ static void __intel_gt_set_wedged(struct intel_gt *gt)
 		__intel_gt_reset(gt, ALL_ENGINES);
 
 	for_each_engine(engine, gt, id)
-		engine->submit_request = nop_submit_request;
+		engine->submit_request = yesp_submit_request;
 
 	/*
-	 * Make sure no request can slip through without getting completed by
-	 * either this call here to intel_engine_write_global_seqno, or the one
-	 * in nop_submit_request.
+	 * Make sure yes request can slip through without getting completed by
+	 * either this call here to intel_engine_write_global_seqyes, or the one
+	 * in yesp_submit_request.
 	 */
 	synchronize_rcu_expedited();
 	set_bit(I915_WEDGED, &gt->reset.flags);
@@ -838,7 +838,7 @@ static bool __intel_gt_unset_wedged(struct intel_gt *gt)
 	 * third party fences. We marked all inflight requests as EIO, and
 	 * every execbuf since returned EIO, for consistency we want all
 	 * the currently pending requests to also be marked as EIO, which
-	 * is done inside our nop_submit_request - and so we must wait.
+	 * is done inside our yesp_submit_request - and so we must wait.
 	 *
 	 * No more can be submitted until we reset the wedged bit.
 	 */
@@ -856,7 +856,7 @@ static bool __intel_gt_unset_wedged(struct intel_gt *gt)
 		 * All internal dependencies (i915_requests) will have
 		 * been flushed by the set-wedge, but we may be stuck waiting
 		 * for external fences. These should all be capped to 10s
-		 * (I915_FENCE_TIMEOUT) so this wait should not be unbounded
+		 * (I915_FENCE_TIMEOUT) so this wait should yest be unbounded
 		 * in the worst case.
 		 */
 		dma_fence_default_wait(fence, false, MAX_SCHEDULE_TIMEOUT);
@@ -869,7 +869,7 @@ static bool __intel_gt_unset_wedged(struct intel_gt *gt)
 	spin_unlock_irqrestore(&timelines->lock, flags);
 
 	/* We must reset pending GPU events before restoring our submission */
-	ok = !HAS_EXECLISTS(gt->i915); /* XXX better agnosticism desired */
+	ok = !HAS_EXECLISTS(gt->i915); /* XXX better agyessticism desired */
 	if (!INTEL_INFO(gt->i915)->gpu_reset_clobbers_display)
 		ok = __intel_gt_reset(gt, ALL_ENGINES) == 0;
 	if (!ok) {
@@ -882,13 +882,13 @@ static bool __intel_gt_unset_wedged(struct intel_gt *gt)
 	}
 
 	/*
-	 * Undo nop_submit_request. We prevent all new i915 requests from
+	 * Undo yesp_submit_request. We prevent all new i915 requests from
 	 * being queued (by disallowing execbuf whilst wedged) so having
-	 * waited for all active requests above, we know the system is idle
-	 * and do not have to worry about a thread being inside
+	 * waited for all active requests above, we kyesw the system is idle
+	 * and do yest have to worry about a thread being inside
 	 * engine->submit_request() as we swap over. So unlike installing
-	 * the nop_submit_request on reset, we can do this from normal
-	 * context and do not require stop_machine().
+	 * the yesp_submit_request on reset, we can do this from yesrmal
+	 * context and do yest require stop_machine().
 	 */
 	intel_engines_reset_default_submission(gt);
 
@@ -978,7 +978,7 @@ void intel_gt_reset(struct intel_gt *gt,
 		goto unlock;
 
 	if (reason)
-		dev_notice(gt->i915->drm.dev,
+		dev_yestice(gt->i915->drm.dev,
 			   "Resetting chip for %s\n", reason);
 	atomic_inc(&gt->i915->gpu_error.reset_count);
 
@@ -986,7 +986,7 @@ void intel_gt_reset(struct intel_gt *gt,
 
 	if (!intel_has_gpu_reset(gt)) {
 		if (i915_modparams.reset)
-			dev_err(gt->i915->drm.dev, "GPU reset not supported\n");
+			dev_err(gt->i915->drm.dev, "GPU reset yest supported\n");
 		else
 			DRM_DEBUG_DRIVER("GPU reset disabled\n");
 		goto error;
@@ -1032,7 +1032,7 @@ unlock:
 
 taint:
 	/*
-	 * History tells us that if we cannot reset the GPU now, we
+	 * History tells us that if we canyest reset the GPU yesw, we
 	 * never will. This then impacts everything that is run
 	 * subsequently. On failing the reset, we mark the driver
 	 * as wedged, preventing further execution on the GPU.
@@ -1057,7 +1057,7 @@ static inline int intel_gt_reset_engine(struct intel_engine_cs *engine)
 /**
  * intel_engine_reset - reset GPU engine to recover from a hang
  * @engine: engine to reset
- * @msg: reason for GPU reset; or NULL for no dev_notice()
+ * @msg: reason for GPU reset; or NULL for yes dev_yestice()
  *
  * Reset a specific GPU engine. Useful if a hang is detected.
  * Returns zero on successful reset or otherwise an error code.
@@ -1081,7 +1081,7 @@ int intel_engine_reset(struct intel_engine_cs *engine, const char *msg)
 	reset_prepare_engine(engine);
 
 	if (msg)
-		dev_notice(engine->i915->drm.dev,
+		dev_yestice(engine->i915->drm.dev,
 			   "Resetting %s for %s\n", engine->name, msg);
 	atomic_inc(&engine->i915->gpu_error.reset_engine_count[engine->uabi_class]);
 
@@ -1098,7 +1098,7 @@ int intel_engine_reset(struct intel_engine_cs *engine, const char *msg)
 	}
 
 	/*
-	 * The request that caused the hang is stuck on elsp, we know the
+	 * The request that caused the hang is stuck on elsp, we kyesw the
 	 * active request and can drop it, adjust head to skip the offending
 	 * request to resume executing remaining requests in the queue.
 	 */
@@ -1159,7 +1159,7 @@ static void intel_gt_reset_global(struct intel_gt *gt,
  * Do some basic checking of register state at error time and
  * dump it to the syslog.  Also call i915_capture_error_state() to make
  * sure we get a record and make it available in debugfs.  Fire a uevent
- * so userspace knows something bad happened (should trigger collection
+ * so userspace kyesws something bad happened (should trigger collection
  * of a ring dump etc.).
  */
 void intel_gt_handle_error(struct intel_gt *gt,

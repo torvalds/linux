@@ -85,7 +85,7 @@ static int st_press_i2c_probe(struct i2c_client *client,
 	struct iio_dev *indio_dev;
 	int ret;
 
-	if (client->dev.of_node) {
+	if (client->dev.of_yesde) {
 		st_sensors_of_name_probe(&client->dev, st_press_of_match,
 					 client->name, sizeof(client->name));
 	} else if (ACPI_HANDLE(&client->dev)) {
@@ -100,7 +100,7 @@ static int st_press_i2c_probe(struct i2c_client *client,
 
 	settings = st_press_get_settings(client->name);
 	if (!settings) {
-		dev_err(&client->dev, "device name %s not recognized.\n",
+		dev_err(&client->dev, "device name %s yest recognized.\n",
 			client->name);
 		return -ENODEV;
 	}

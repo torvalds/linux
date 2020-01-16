@@ -5,9 +5,9 @@
 #include <asm/page.h>
 
 #if CONFIG_PGTABLE_LEVELS == 3
-#include <asm-generic/pgtable-nopud.h>
+#include <asm-generic/pgtable-yespud.h>
 #elif CONFIG_PGTABLE_LEVELS == 2
-#include <asm-generic/pgtable-nopmd.h>
+#include <asm-generic/pgtable-yespmd.h>
 #endif
 
 #include <asm/fixmap.h>
@@ -31,9 +31,9 @@ static inline spinlock_t *pgd_spinlock(pgd_t *);
  * PAGE_OFFSET.  This operation can be relatively expensive (e.g.,
  * require a hash-, or multi-level tree-lookup or something of that
  * sort) but it guarantees to return TRUE only if accessing the page
- * at that address does not cause an error.  Note that there may be
+ * at that address does yest cause an error.  Note that there may be
  * addresses for which kern_addr_valid() returns FALSE even though an
- * access would not cause an error (e.g., this is typically true for
+ * access would yest cause an error (e.g., this is typically true for
  * memory mapped I/O regions.
  *
  * XXX Need to implement this for parisc.
@@ -256,8 +256,8 @@ static inline void purge_tlb_entries(struct mm_struct *mm, unsigned long addr)
 
 #define PAGE_NONE	__pgprot(_PAGE_PRESENT | _PAGE_USER)
 #define PAGE_SHARED	__pgprot(_PAGE_PRESENT | _PAGE_USER | _PAGE_READ | _PAGE_WRITE)
-/* Others seem to make this executable, I don't know if that's correct
-   or not.  The stack is mapped this way though so this is necessary
+/* Others seem to make this executable, I don't kyesw if that's correct
+   or yest.  The stack is mapped this way though so this is necessary
    in the short term - dhd@linuxcare.com, 2000-08-08 */
 #define PAGE_READONLY	__pgprot(_PAGE_PRESENT | _PAGE_USER | _PAGE_READ)
 #define PAGE_WRITEONLY  __pgprot(_PAGE_PRESENT | _PAGE_USER | _PAGE_WRITE)
@@ -275,7 +275,7 @@ static inline void purge_tlb_entries(struct mm_struct *mm, unsigned long addr)
 /*
  * We could have an execute only page using "gateway - promote to priv
  * level 3", but that is kind of silly. So, the way things are defined
- * now, we must always have read permission for pages with execute
+ * yesw, we must always have read permission for pages with execute
  * permission. For the fun of it we'll go ahead and support write only
  * pages.
  */
@@ -317,7 +317,7 @@ extern unsigned long *empty_zero_page;
 
 #define ZERO_PAGE(vaddr) (virt_to_page(empty_zero_page))
 
-#define pte_none(x)     (pte_val(x) == 0)
+#define pte_yesne(x)     (pte_val(x) == 0)
 #define pte_present(x)	(pte_val(x) & _PAGE_PRESENT)
 #define pte_clear(mm, addr, xp)  set_pte_at(mm, addr, xp, __pte(0))
 
@@ -329,11 +329,11 @@ extern unsigned long *empty_zero_page;
 #define pgd_address(x)	((unsigned long)(pgd_val(x) &~ PxD_FLAG_MASK) << PxD_VALUE_SHIFT)
 
 #if CONFIG_PGTABLE_LEVELS == 3
-/* The first entry of the permanent pmd is not there if it contains
+/* The first entry of the permanent pmd is yest there if it contains
  * the gateway marker */
-#define pmd_none(x)	(!pmd_val(x) || pmd_flag(x) == PxD_FLAG_ATTACHED)
+#define pmd_yesne(x)	(!pmd_val(x) || pmd_flag(x) == PxD_FLAG_ATTACHED)
 #else
-#define pmd_none(x)	(!pmd_val(x))
+#define pmd_yesne(x)	(!pmd_val(x))
 #endif
 #define pmd_bad(x)	(!(pmd_flag(x) & PxD_FLAG_VALID))
 #define pmd_present(x)	(pmd_flag(x) & PxD_FLAG_PRESENT)
@@ -341,7 +341,7 @@ static inline void pmd_clear(pmd_t *pmd) {
 #if CONFIG_PGTABLE_LEVELS == 3
 	if (pmd_flag(*pmd) & PxD_FLAG_ATTACHED)
 		/* This is the entry pointing to the permanent pmd
-		 * attached to the pgd; cannot clear it */
+		 * attached to the pgd; canyest clear it */
 		set_pmd(pmd, __pmd(PxD_FLAG_ATTACHED));
 	else
 #endif
@@ -356,13 +356,13 @@ static inline void pmd_clear(pmd_t *pmd) {
 
 /* For 64 bit we have three level tables */
 
-#define pud_none(x)     (!pud_val(x))
+#define pud_yesne(x)     (!pud_val(x))
 #define pud_bad(x)      (!(pud_flag(x) & PxD_FLAG_VALID))
 #define pud_present(x)  (pud_flag(x) & PxD_FLAG_PRESENT)
 static inline void pud_clear(pud_t *pud) {
 #if CONFIG_PGTABLE_LEVELS == 3
 	if(pud_flag(*pud) & PxD_FLAG_ATTACHED)
-		/* This is the permanent pmd attached to the pud; cannot
+		/* This is the permanent pmd attached to the pud; canyest
 		 * free it */
 		return;
 #endif
@@ -372,7 +372,7 @@ static inline void pud_clear(pud_t *pud) {
 
 /*
  * The following only work if pte_present() is true.
- * Undefined behaviour if not..
+ * Undefined behaviour if yest..
  */
 static inline int pte_dirty(pte_t pte)		{ return pte_val(pte) & _PAGE_DIRTY; }
 static inline int pte_young(pte_t pte)		{ return pte_val(pte) & _PAGE_ACCESSED; }
@@ -564,7 +564,7 @@ extern void arch_report_meminfo(struct seq_file *m);
 #endif
 
 
-#define pgprot_noncached(prot) __pgprot(pgprot_val(prot) | _PAGE_NO_CACHE)
+#define pgprot_yesncached(prot) __pgprot(pgprot_val(prot) | _PAGE_NO_CACHE)
 
 /* We provide our own get_unmapped_area to provide cache coherency */
 

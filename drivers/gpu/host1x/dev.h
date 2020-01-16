@@ -129,7 +129,7 @@ struct host1x {
 	const struct host1x_pushbuffer_ops *cdma_pb_op;
 	const struct host1x_debug_ops *debug_op;
 
-	struct host1x_syncpt *nop_sp;
+	struct host1x_syncpt *yesp_sp;
 
 	struct mutex syncpt_mutex;
 

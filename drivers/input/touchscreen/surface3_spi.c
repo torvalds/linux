@@ -108,7 +108,7 @@ static void surface3_spi_process_touch(struct surface3_ts_data *ts_data, u8 *dat
 		 * When bit 5 of status is 1, it marks the end of the report:
 		 * - touch present: 0xe7
 		 * - touch released: 0xe4
-		 * - nothing valuable: 0xff
+		 * - yesthing valuable: 0xff
 		 */
 		if (finger->status & 0x10)
 			break;
@@ -176,7 +176,7 @@ static void surface3_spi_process(struct surface3_ts_data *ts_data)
 
 	if (memcmp(header, data, sizeof(header)))
 		dev_err(&ts_data->spi->dev,
-			"%s header error: %*ph, ignoring...\n",
+			"%s header error: %*ph, igyesring...\n",
 			__func__, (int)sizeof(header), data);
 
 	switch (data[9]) {
@@ -188,7 +188,7 @@ static void surface3_spi_process(struct surface3_ts_data *ts_data)
 		break;
 	default:
 		dev_err(&ts_data->spi->dev,
-			"%s unknown packet type: %x, ignoring...\n",
+			"%s unkyeswn packet type: %x, igyesring...\n",
 			__func__, data[9]);
 		break;
 	}

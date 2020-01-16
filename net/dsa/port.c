@@ -7,20 +7,20 @@
  */
 
 #include <linux/if_bridge.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/of_mdio.h>
 #include <linux/of_net.h>
 
 #include "dsa_priv.h"
 
-static int dsa_port_notify(const struct dsa_port *dp, unsigned long e, void *v)
+static int dsa_port_yestify(const struct dsa_port *dp, unsigned long e, void *v)
 {
-	struct raw_notifier_head *nh = &dp->ds->dst->nh;
+	struct raw_yestifier_head *nh = &dp->ds->dst->nh;
 	int err;
 
-	err = raw_notifier_call_chain(nh, e, v);
+	err = raw_yestifier_call_chain(nh, e, v);
 
-	return notifier_to_errno(err);
+	return yestifier_to_erryes(err);
 }
 
 int dsa_port_set_state(struct dsa_port *dp, u8 state,
@@ -54,7 +54,7 @@ int dsa_port_set_state(struct dsa_port *dp, u8 state,
 	return 0;
 }
 
-static void dsa_port_set_state_now(struct dsa_port *dp, u8 state)
+static void dsa_port_set_state_yesw(struct dsa_port *dp, u8 state)
 {
 	int err;
 
@@ -76,7 +76,7 @@ int dsa_port_enable(struct dsa_port *dp, struct phy_device *phy)
 	}
 
 	if (!dp->bridge_dev)
-		dsa_port_set_state_now(dp, BR_STATE_FORWARDING);
+		dsa_port_set_state_yesw(dp, BR_STATE_FORWARDING);
 
 	return 0;
 }
@@ -87,7 +87,7 @@ void dsa_port_disable(struct dsa_port *dp)
 	int port = dp->index;
 
 	if (!dp->bridge_dev)
-		dsa_port_set_state_now(dp, BR_STATE_DISABLED);
+		dsa_port_set_state_yesw(dp, BR_STATE_DISABLED);
 
 	if (ds->ops->port_disable)
 		ds->ops->port_disable(ds, port);
@@ -95,7 +95,7 @@ void dsa_port_disable(struct dsa_port *dp)
 
 int dsa_port_bridge_join(struct dsa_port *dp, struct net_device *br)
 {
-	struct dsa_notifier_bridge_info info = {
+	struct dsa_yestifier_bridge_info info = {
 		.sw_index = dp->ds->index,
 		.port = dp->index,
 		.br = br,
@@ -112,7 +112,7 @@ int dsa_port_bridge_join(struct dsa_port *dp, struct net_device *br)
 	 */
 	dp->bridge_dev = br;
 
-	err = dsa_port_notify(dp, DSA_NOTIFIER_BRIDGE_JOIN, &info);
+	err = dsa_port_yestify(dp, DSA_NOTIFIER_BRIDGE_JOIN, &info);
 
 	/* The bridging is rolled back on error */
 	if (err) {
@@ -125,7 +125,7 @@ int dsa_port_bridge_join(struct dsa_port *dp, struct net_device *br)
 
 void dsa_port_bridge_leave(struct dsa_port *dp, struct net_device *br)
 {
-	struct dsa_notifier_bridge_info info = {
+	struct dsa_yestifier_bridge_info info = {
 		.sw_index = dp->ds->index,
 		.port = dp->index,
 		.br = br,
@@ -137,9 +137,9 @@ void dsa_port_bridge_leave(struct dsa_port *dp, struct net_device *br)
 	 */
 	dp->bridge_dev = NULL;
 
-	err = dsa_port_notify(dp, DSA_NOTIFIER_BRIDGE_LEAVE, &info);
+	err = dsa_port_yestify(dp, DSA_NOTIFIER_BRIDGE_LEAVE, &info);
 	if (err)
-		pr_err("DSA: failed to notify DSA_NOTIFIER_BRIDGE_LEAVE\n");
+		pr_err("DSA: failed to yestify DSA_NOTIFIER_BRIDGE_LEAVE\n");
 
 	/* Port is leaving the bridge, disable flooding */
 	dsa_port_bridge_flags(dp, 0, NULL);
@@ -147,7 +147,7 @@ void dsa_port_bridge_leave(struct dsa_port *dp, struct net_device *br)
 	/* Port left the bridge, put in BR_STATE_DISABLED by the bridge layer,
 	 * so allow it to be in BR_STATE_FORWARDING to be kept functional
 	 */
-	dsa_port_set_state_now(dp, BR_STATE_FORWARDING);
+	dsa_port_set_state_yesw(dp, BR_STATE_FORWARDING);
 }
 
 static bool dsa_port_can_apply_vlan_filtering(struct dsa_port *dp,
@@ -171,7 +171,7 @@ static bool dsa_port_can_apply_vlan_filtering(struct dsa_port *dp,
 		if (!other_bridge)
 			continue;
 		/* If it's the same bridge, it also has same
-		 * vlan_filtering setting => no need to check
+		 * vlan_filtering setting => yes need to check
 		 */
 		if (other_bridge == dp->bridge_dev)
 			continue;
@@ -219,17 +219,17 @@ int dsa_port_ageing_time(struct dsa_port *dp, clock_t ageing_clock,
 {
 	unsigned long ageing_jiffies = clock_t_to_jiffies(ageing_clock);
 	unsigned int ageing_time = jiffies_to_msecs(ageing_jiffies);
-	struct dsa_notifier_ageing_time_info info = {
+	struct dsa_yestifier_ageing_time_info info = {
 		.ageing_time = ageing_time,
 		.trans = trans,
 	};
 
 	if (switchdev_trans_ph_prepare(trans))
-		return dsa_port_notify(dp, DSA_NOTIFIER_AGEING_TIME, &info);
+		return dsa_port_yestify(dp, DSA_NOTIFIER_AGEING_TIME, &info);
 
 	dp->ageing_time = ageing_time;
 
-	return dsa_port_notify(dp, DSA_NOTIFIER_AGEING_TIME, &info);
+	return dsa_port_yestify(dp, DSA_NOTIFIER_AGEING_TIME, &info);
 }
 
 int dsa_port_pre_bridge_flags(const struct dsa_port *dp, unsigned long flags,
@@ -276,20 +276,20 @@ int dsa_port_mrouter(struct dsa_port *dp, bool mrouter,
 int dsa_port_fdb_add(struct dsa_port *dp, const unsigned char *addr,
 		     u16 vid)
 {
-	struct dsa_notifier_fdb_info info = {
+	struct dsa_yestifier_fdb_info info = {
 		.sw_index = dp->ds->index,
 		.port = dp->index,
 		.addr = addr,
 		.vid = vid,
 	};
 
-	return dsa_port_notify(dp, DSA_NOTIFIER_FDB_ADD, &info);
+	return dsa_port_yestify(dp, DSA_NOTIFIER_FDB_ADD, &info);
 }
 
 int dsa_port_fdb_del(struct dsa_port *dp, const unsigned char *addr,
 		     u16 vid)
 {
-	struct dsa_notifier_fdb_info info = {
+	struct dsa_yestifier_fdb_info info = {
 		.sw_index = dp->ds->index,
 		.port = dp->index,
 		.addr = addr,
@@ -297,7 +297,7 @@ int dsa_port_fdb_del(struct dsa_port *dp, const unsigned char *addr,
 
 	};
 
-	return dsa_port_notify(dp, DSA_NOTIFIER_FDB_DEL, &info);
+	return dsa_port_yestify(dp, DSA_NOTIFIER_FDB_DEL, &info);
 }
 
 int dsa_port_fdb_dump(struct dsa_port *dp, dsa_fdb_dump_cb_t *cb, void *data)
@@ -315,52 +315,52 @@ int dsa_port_mdb_add(const struct dsa_port *dp,
 		     const struct switchdev_obj_port_mdb *mdb,
 		     struct switchdev_trans *trans)
 {
-	struct dsa_notifier_mdb_info info = {
+	struct dsa_yestifier_mdb_info info = {
 		.sw_index = dp->ds->index,
 		.port = dp->index,
 		.trans = trans,
 		.mdb = mdb,
 	};
 
-	return dsa_port_notify(dp, DSA_NOTIFIER_MDB_ADD, &info);
+	return dsa_port_yestify(dp, DSA_NOTIFIER_MDB_ADD, &info);
 }
 
 int dsa_port_mdb_del(const struct dsa_port *dp,
 		     const struct switchdev_obj_port_mdb *mdb)
 {
-	struct dsa_notifier_mdb_info info = {
+	struct dsa_yestifier_mdb_info info = {
 		.sw_index = dp->ds->index,
 		.port = dp->index,
 		.mdb = mdb,
 	};
 
-	return dsa_port_notify(dp, DSA_NOTIFIER_MDB_DEL, &info);
+	return dsa_port_yestify(dp, DSA_NOTIFIER_MDB_DEL, &info);
 }
 
 int dsa_port_vlan_add(struct dsa_port *dp,
 		      const struct switchdev_obj_port_vlan *vlan,
 		      struct switchdev_trans *trans)
 {
-	struct dsa_notifier_vlan_info info = {
+	struct dsa_yestifier_vlan_info info = {
 		.sw_index = dp->ds->index,
 		.port = dp->index,
 		.trans = trans,
 		.vlan = vlan,
 	};
 
-	return dsa_port_notify(dp, DSA_NOTIFIER_VLAN_ADD, &info);
+	return dsa_port_yestify(dp, DSA_NOTIFIER_VLAN_ADD, &info);
 }
 
 int dsa_port_vlan_del(struct dsa_port *dp,
 		      const struct switchdev_obj_port_vlan *vlan)
 {
-	struct dsa_notifier_vlan_info info = {
+	struct dsa_yestifier_vlan_info info = {
 		.sw_index = dp->ds->index,
 		.port = dp->index,
 		.vlan = vlan,
 	};
 
-	return dsa_port_notify(dp, DSA_NOTIFIER_VLAN_DEL, &info);
+	return dsa_port_yestify(dp, DSA_NOTIFIER_VLAN_DEL, &info);
 }
 
 int dsa_port_vid_add(struct dsa_port *dp, u16 vid, u16 flags)
@@ -398,7 +398,7 @@ EXPORT_SYMBOL(dsa_port_vid_del);
 
 static struct phy_device *dsa_port_get_phy_device(struct dsa_port *dp)
 {
-	struct device_node *phy_dn;
+	struct device_yesde *phy_dn;
 	struct phy_device *phydev;
 
 	phy_dn = of_parse_phandle(dp->dn, "phy-handle", 0);
@@ -407,11 +407,11 @@ static struct phy_device *dsa_port_get_phy_device(struct dsa_port *dp)
 
 	phydev = of_phy_find_device(phy_dn);
 	if (!phydev) {
-		of_node_put(phy_dn);
+		of_yesde_put(phy_dn);
 		return ERR_PTR(-EPROBE_DEFER);
 	}
 
-	of_node_put(phy_dn);
+	of_yesde_put(phy_dn);
 	return phydev;
 }
 
@@ -560,7 +560,7 @@ err_put_dev:
 
 static int dsa_port_fixed_link_register_of(struct dsa_port *dp)
 {
-	struct device_node *dn = dp->dn;
+	struct device_yesde *dn = dp->dn;
 	struct dsa_switch *ds = dp->ds;
 	struct phy_device *phydev;
 	int port = dp->index;
@@ -595,7 +595,7 @@ static int dsa_port_fixed_link_register_of(struct dsa_port *dp)
 static int dsa_port_phylink_register(struct dsa_port *dp)
 {
 	struct dsa_switch *ds = dp->ds;
-	struct device_node *port_dn = dp->dn;
+	struct device_yesde *port_dn = dp->dn;
 	phy_interface_t mode;
 	int err;
 
@@ -606,7 +606,7 @@ static int dsa_port_phylink_register(struct dsa_port *dp)
 	dp->pl_config.dev = ds->dev;
 	dp->pl_config.type = PHYLINK_DEV;
 
-	dp->pl = phylink_create(&dp->pl_config, of_fwnode_handle(port_dn),
+	dp->pl = phylink_create(&dp->pl_config, of_fwyesde_handle(port_dn),
 				mode, &dsa_port_phylink_mac_ops);
 	if (IS_ERR(dp->pl)) {
 		pr_err("error creating PHYLINK: %ld\n", PTR_ERR(dp->pl));
@@ -615,7 +615,7 @@ static int dsa_port_phylink_register(struct dsa_port *dp)
 
 	err = phylink_of_phy_connect(dp->pl, port_dn, 0);
 	if (err && err != -ENODEV) {
-		pr_err("could not attach to PHY: %d\n", err);
+		pr_err("could yest attach to PHY: %d\n", err);
 		goto err_phy_connect;
 	}
 

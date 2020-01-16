@@ -68,7 +68,7 @@ vm_fault_t vkms_gem_fault(struct vm_fault *vmf)
 		struct page *page;
 		struct address_space *mapping;
 
-		mapping = file_inode(obj->gem.filp)->i_mapping;
+		mapping = file_iyesde(obj->gem.filp)->i_mapping;
 		page = shmem_read_mapping_page(mapping, page_offset);
 
 		if (!IS_ERR(page)) {

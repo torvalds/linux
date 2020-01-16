@@ -3,7 +3,7 @@
  *  sst_dsp.c - Intel SST Driver for audio engine
  *
  *  Copyright (C) 2008-14	Intel Corp
- *  Authors:	Vinod Koul <vinod.koul@intel.com>
+ *  Authors:	Viyesd Koul <viyesd.koul@intel.com>
  *		Harsha Priya <priya.harsha@intel.com>
  *		Dharageswari R <dharageswari.r@intel.com>
  *		KP Jeeja <jeeja.kp@intel.com>
@@ -94,7 +94,7 @@ int sst_start_mrfld(struct intel_sst_drv *sst_drv_ctx)
 	csr.full = sst_shim_read64(sst_drv_ctx->shim, SST_CSR);
 	dev_dbg(sst_drv_ctx->dev, "value:0x%llx\n", csr.full);
 
-	csr.part.xt_snoop = 1;
+	csr.part.xt_syesop = 1;
 	csr.full &= ~(0x5);
 	sst_shim_write64(sst_drv_ctx->shim, SST_CSR, csr.full);
 
@@ -140,22 +140,22 @@ static int sst_validate_fw_image(struct intel_sst_drv *ctx, unsigned long size,
  * @src: Source addr to be filled in the list
  * @size: Size to be filled in the list
  *
- * Adds the node to the list after required fields
- * are populated in the node
+ * Adds the yesde to the list after required fields
+ * are populated in the yesde
  */
 static int sst_fill_memcpy_list(struct list_head *memcpy_list,
 			void *destn, const void *src, u32 size, bool is_io)
 {
-	struct sst_memcpy_list *listnode;
+	struct sst_memcpy_list *listyesde;
 
-	listnode = kzalloc(sizeof(*listnode), GFP_KERNEL);
-	if (listnode == NULL)
+	listyesde = kzalloc(sizeof(*listyesde), GFP_KERNEL);
+	if (listyesde == NULL)
 		return -ENOMEM;
-	listnode->dstn = destn;
-	listnode->src = src;
-	listnode->size = size;
-	listnode->is_io = is_io;
-	list_add_tail(&listnode->memcpylist, memcpy_list);
+	listyesde->dstn = destn;
+	listyesde->src = src;
+	listyesde->size = size;
+	listyesde->is_io = is_io;
+	list_add_tail(&listyesde->memcpylist, memcpy_list);
 
 	return 0;
 }
@@ -258,27 +258,27 @@ static int sst_parse_fw_memcpy(struct intel_sst_drv *ctx, unsigned long size,
  */
 static void sst_do_memcpy(struct list_head *memcpy_list)
 {
-	struct sst_memcpy_list *listnode;
+	struct sst_memcpy_list *listyesde;
 
-	list_for_each_entry(listnode, memcpy_list, memcpylist) {
-		if (listnode->is_io)
-			memcpy32_toio((void __iomem *)listnode->dstn,
-					listnode->src, listnode->size);
+	list_for_each_entry(listyesde, memcpy_list, memcpylist) {
+		if (listyesde->is_io)
+			memcpy32_toio((void __iomem *)listyesde->dstn,
+					listyesde->src, listyesde->size);
 		else
-			memcpy(listnode->dstn, listnode->src, listnode->size);
+			memcpy(listyesde->dstn, listyesde->src, listyesde->size);
 	}
 }
 
 void sst_memcpy_free_resources(struct intel_sst_drv *sst_drv_ctx)
 {
-	struct sst_memcpy_list *listnode, *tmplistnode;
+	struct sst_memcpy_list *listyesde, *tmplistyesde;
 
 	/* Free the list */
 	if (!list_empty(&sst_drv_ctx->memcpy_list)) {
-		list_for_each_entry_safe(listnode, tmplistnode,
+		list_for_each_entry_safe(listyesde, tmplistyesde,
 				&sst_drv_ctx->memcpy_list, memcpylist) {
-			list_del(&listnode->memcpylist);
-			kfree(listnode);
+			list_del(&listyesde->memcpylist);
+			kfree(listyesde);
 		}
 	}
 }
@@ -401,7 +401,7 @@ int sst_load_fw(struct intel_sst_drv *sst_drv_ctx)
 		return -EAGAIN;
 
 	if (!sst_drv_ctx->fw_in_mem) {
-		dev_dbg(sst_drv_ctx->dev, "sst: FW not in memory retry to download\n");
+		dev_dbg(sst_drv_ctx->dev, "sst: FW yest in memory retry to download\n");
 		ret_val = sst_request_fw(sst_drv_ctx);
 		if (ret_val)
 			return ret_val;

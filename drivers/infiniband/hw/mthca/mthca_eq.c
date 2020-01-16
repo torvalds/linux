@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2004, 2005 Topspin Communications.  All rights reserved.
- * Copyright (c) 2005 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2005 Mellayesx Techyeslogies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -13,11 +13,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -31,7 +31,7 @@
  * SOFTWARE.
  */
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/interrupt.h>
 #include <linux/pci.h>
 #include <linux/slab.h>
@@ -192,7 +192,7 @@ static inline void arbel_set_eq_ci(struct mthca_dev *dev, struct mthca_eq *eq, u
 	wmb();
 	__raw_writel((__force u32) cpu_to_be32(ci),
 		     dev->eq_regs.arbel.eq_set_ci_base + eq->eqn * 8);
-	/* We still want ordering, just not swabbing, so add a barrier */
+	/* We still want ordering, just yest swabbing, so add a barrier */
 	mb();
 }
 
@@ -204,14 +204,14 @@ static inline void set_eq_ci(struct mthca_dev *dev, struct mthca_eq *eq, u32 ci)
 		tavor_set_eq_ci(dev, eq, ci);
 }
 
-static inline void tavor_eq_req_not(struct mthca_dev *dev, int eqn)
+static inline void tavor_eq_req_yest(struct mthca_dev *dev, int eqn)
 {
 	mthca_write64(MTHCA_EQ_DB_REQ_NOT | eqn, 0,
 		      dev->kar + MTHCA_EQ_DOORBELL,
 		      MTHCA_GET_DOORBELL_LOCK(&dev->doorbell_lock));
 }
 
-static inline void arbel_eq_req_not(struct mthca_dev *dev, u32 eqn_mask)
+static inline void arbel_eq_req_yest(struct mthca_dev *dev, u32 eqn_mask)
 {
 	writel(eqn_mask, dev->eq_regs.arbel.eq_arm);
 }
@@ -374,7 +374,7 @@ static int mthca_eq_int(struct mthca_dev *dev, struct mthca_eq *eq)
 		if (unlikely(set_ci >= MTHCA_NUM_SPARE_EQE)) {
 			/*
 			 * Conditional on hca_type is OK here because
-			 * this is a rare case, not the fast path.
+			 * this is a rare case, yest the fast path.
 			 */
 			set_eq_ci(dev, eq, eq->cons_index);
 			set_ci = 0;
@@ -409,7 +409,7 @@ static irqreturn_t mthca_tavor_interrupt(int irq, void *dev_ptr)
 			if (mthca_eq_int(dev, &dev->eq_table.eq[i]))
 				tavor_set_eq_ci(dev, &dev->eq_table.eq[i],
 						dev->eq_table.eq[i].cons_index);
-			tavor_eq_req_not(dev, dev->eq_table.eq[i].eqn);
+			tavor_eq_req_yest(dev, dev->eq_table.eq[i].eqn);
 		}
 
 	return IRQ_HANDLED;
@@ -422,7 +422,7 @@ static irqreturn_t mthca_tavor_msi_x_interrupt(int irq, void *eq_ptr)
 
 	mthca_eq_int(dev, eq);
 	tavor_set_eq_ci(dev, eq, eq->cons_index);
-	tavor_eq_req_not(dev, eq->eqn);
+	tavor_eq_req_yest(dev, eq->eqn);
 
 	/* MSI-X vectors always belong to us */
 	return IRQ_HANDLED;
@@ -444,7 +444,7 @@ static irqreturn_t mthca_arbel_interrupt(int irq, void *dev_ptr)
 					dev->eq_table.eq[i].cons_index);
 		}
 
-	arbel_eq_req_not(dev, dev->eq_table.arm_mask);
+	arbel_eq_req_yest(dev, dev->eq_table.arm_mask);
 
 	return IRQ_RETVAL(work);
 }
@@ -456,7 +456,7 @@ static irqreturn_t mthca_arbel_msi_x_interrupt(int irq, void *eq_ptr)
 
 	mthca_eq_int(dev, eq);
 	arbel_set_eq_ci(dev, eq, eq->cons_index);
-	arbel_eq_req_not(dev, eq->eqn_mask);
+	arbel_eq_req_yest(dev, eq->eqn_mask);
 
 	/* MSI-X vectors always belong to us */
 	return IRQ_HANDLED;
@@ -659,7 +659,7 @@ static int mthca_map_eq_regs(struct mthca_dev *dev)
 		 * We assume that the EQ arm and EQ set CI registers
 		 * fall within the first BAR.  We can't trust the
 		 * values firmware gives us, since those addresses are
-		 * valid on the HCA's side of the PCI bus but not
+		 * valid on the HCA's side of the PCI bus but yest
 		 * necessarily the host side.
 		 */
 		if (mthca_map_reg(dev, (pci_resource_len(dev->pdev, 0) - 1) &
@@ -730,7 +730,7 @@ int mthca_map_eq_icm(struct mthca_dev *dev, u64 icm_virt)
 	int ret;
 
 	/*
-	 * We assume that mapping one page is enough for the whole EQ
+	 * We assume that mapping one page is eyesugh for the whole EQ
 	 * context table.  This is fine with all current HCAs, because
 	 * we only use 32 EQs and each EQ uses 32 bytes of context
 	 * memory, or 1 KB total.
@@ -861,9 +861,9 @@ int mthca_init_eq_table(struct mthca_dev *dev)
 
 	for (i = 0; i < MTHCA_NUM_EQ; ++i)
 		if (mthca_is_memfree(dev))
-			arbel_eq_req_not(dev, dev->eq_table.eq[i].eqn_mask);
+			arbel_eq_req_yest(dev, dev->eq_table.eq[i].eqn_mask);
 		else
-			tavor_eq_req_not(dev, dev->eq_table.eq[i].eqn);
+			tavor_eq_req_yest(dev, dev->eq_table.eq[i].eqn);
 
 	return 0;
 

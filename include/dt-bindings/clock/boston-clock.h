@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016 Imagination Technologies
+ * Copyright (C) 2016 Imagination Techyeslogies
  *
  * SPDX-License-Identifier:	GPL-2.0
  */

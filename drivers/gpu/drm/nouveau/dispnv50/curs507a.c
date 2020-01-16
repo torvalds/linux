@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -106,7 +106,7 @@ curs507a_wndw = {
 };
 
 int
-curs507a_new_(const struct nv50_wimm_func *func, struct nouveau_drm *drm,
+curs507a_new_(const struct nv50_wimm_func *func, struct yesuveau_drm *drm,
 	      int head, s32 oclass, u32 interlock_data,
 	      struct nv50_wndw **pwndw)
 {
@@ -137,7 +137,7 @@ curs507a_new_(const struct nv50_wimm_func *func, struct nouveau_drm *drm,
 }
 
 int
-curs507a_new(struct nouveau_drm *drm, int head, s32 oclass,
+curs507a_new(struct yesuveau_drm *drm, int head, s32 oclass,
 	     struct nv50_wndw **pwndw)
 {
 	return curs507a_new_(&curs507a, drm, head, oclass,

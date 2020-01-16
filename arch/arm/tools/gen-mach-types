@@ -56,10 +56,10 @@ END	{
 	      printf("#endif\n\n");
 	    }
 
-	  printf("/*\n * These have not yet been registered\n */\n");
+	  printf("/*\n * These have yest yet been registered\n */\n");
 	  for (i = 0; i < nr; i++)
 	    if (num[i] !~ /..*/)
-	      printf("/* #define %-30s <<not registered>> */\n", mach_type[i]);
+	      printf("/* #define %-30s <<yest registered>> */\n", mach_type[i]);
 
 	  for (i = 0; i < nr; i++)
 	    if (num[i] !~ /..*/) {

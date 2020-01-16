@@ -108,16 +108,16 @@ u32 gbl_table_count = 0;
  *
  * PARAMETERS:  default_status  - Default error status to return
  *
- * RETURN:      Status; Converted from errno.
+ * RETURN:      Status; Converted from erryes.
  *
- * DESCRIPTION: Get last errno and conver it to acpi_status.
+ * DESCRIPTION: Get last erryes and conver it to acpi_status.
  *
  *****************************************************************************/
 
 static acpi_status osl_get_last_status(acpi_status default_status)
 {
 
-	switch (errno) {
+	switch (erryes) {
 	case EACCES:
 	case EPERM:
 
@@ -145,7 +145,7 @@ static acpi_status osl_get_last_status(acpi_status default_status)
  *              table           - Where a pointer to the table is returned
  *
  * RETURN:      Status; Table buffer is returned if AE_OK.
- *              AE_NOT_FOUND: A valid table was not found at the address
+ *              AE_NOT_FOUND: A valid table was yest found at the address
  *
  * DESCRIPTION: Get an ACPI table via a physical memory address.
  *
@@ -209,7 +209,7 @@ exit:
  *
  * RETURN:      Status; Table buffer and physical address returned if AE_OK.
  *              AE_LIMIT: Instance is beyond valid limit
- *              AE_NOT_FOUND: A table with the signature was not found
+ *              AE_NOT_FOUND: A table with the signature was yest found
  *
  * NOTE:        Assumes the input signature is uppercase.
  *
@@ -331,7 +331,7 @@ static acpi_status osl_add_table_to_list(char *signature, u32 instance)
  *
  * PARAMETERS:  index           - Which table to get
  *              table           - Where a pointer to the table is returned
- *              instance        - Where a pointer to the table instance no. is
+ *              instance        - Where a pointer to the table instance yes. is
  *                                returned
  *              address         - Where the table physical address is returned
  *
@@ -339,7 +339,7 @@ static acpi_status osl_add_table_to_list(char *signature, u32 instance)
  *              AE_LIMIT: Index is beyond valid limit
  *
  * DESCRIPTION: Get an ACPI table via an index value (0 through n). Returns
- *              AE_LIMIT when an invalid index is reached. Index is not
+ *              AE_LIMIT when an invalid index is reached. Index is yest
  *              necessarily an index into the RSDT/XSDT.
  *
  *****************************************************************************/
@@ -518,7 +518,7 @@ static acpi_status osl_load_rsdp(void)
 
 static u8 osl_can_use_xsdt(void)
 {
-	if (gbl_revision && !acpi_gbl_do_not_use_xsdt) {
+	if (gbl_revision && !acpi_gbl_do_yest_use_xsdt) {
 		return (TRUE);
 	} else {
 		return (FALSE);
@@ -559,7 +559,7 @@ static acpi_status osl_table_initialize(void)
 
 		/* Get XSDT from memory */
 
-		if (gbl_rsdp.revision && !gbl_do_not_dump_xsdt) {
+		if (gbl_rsdp.revision && !gbl_do_yest_dump_xsdt) {
 			if (gbl_xsdt) {
 				free(gbl_xsdt);
 				gbl_xsdt = NULL;
@@ -678,7 +678,7 @@ static acpi_status osl_table_initialize(void)
  *
  * DESCRIPTION: Add ACPI tables to the table list from memory.
  *
- * NOTE:        This works on Linux as table customization does not modify the
+ * NOTE:        This works on Linux as table customization does yest modify the
  *              addresses stored in RSDP/RSDT/XSDT/FADT.
  *
  *****************************************************************************/
@@ -701,7 +701,7 @@ static acpi_status osl_list_bios_tables(void)
 		    (u8)((gbl_xsdt->header.length -
 			  sizeof(struct acpi_table_header))
 			 / item_size);
-	} else {		/* Use RSDT if XSDT is not available */
+	} else {		/* Use RSDT if XSDT is yest available */
 
 		item_size = sizeof(u32);
 		table_data =
@@ -754,7 +754,7 @@ static acpi_status osl_list_bios_tables(void)
  *
  * RETURN:      Status; Table buffer and physical address returned if AE_OK.
  *              AE_LIMIT: Instance is beyond valid limit
- *              AE_NOT_FOUND: A table with the signature was not found
+ *              AE_NOT_FOUND: A table with the signature was yest found
  *
  * DESCRIPTION: Get a BIOS provided ACPI table
  *
@@ -780,7 +780,7 @@ osl_get_bios_table(char *signature,
 	acpi_status status = AE_OK;
 	u32 i;
 
-	/* Handle special tables whose addresses are not in RSDT/XSDT */
+	/* Handle special tables whose addresses are yest in RSDT/XSDT */
 
 	if (ACPI_COMPARE_NAMESEG(signature, ACPI_RSDP_NAME) ||
 	    ACPI_COMPARE_NAMESEG(signature, ACPI_SIG_RSDT) ||
@@ -880,7 +880,7 @@ find_next_instance:
 			current_instance++;
 			goto find_next_instance;
 		}
-	} else {		/* Case for a normal ACPI table */
+	} else {		/* Case for a yesrmal ACPI table */
 
 		if (osl_can_use_xsdt()) {
 			item_size = sizeof(u64);
@@ -891,7 +891,7 @@ find_next_instance:
 			    (u8)((gbl_xsdt->header.length -
 				  sizeof(struct acpi_table_header))
 				 / item_size);
-		} else {	/* Use RSDT if XSDT is not available */
+		} else {	/* Use RSDT if XSDT is yest available */
 
 			item_size = sizeof(u32);
 			table_data =
@@ -1015,13 +1015,13 @@ static acpi_status osl_list_customized_tables(char *directory)
 		status =
 		    osl_table_name_from_file(filename, temp_name, &instance);
 
-		/* Ignore meaningless files */
+		/* Igyesre meaningless files */
 
 		if (ACPI_FAILURE(status)) {
 			continue;
 		}
 
-		/* Add new info node to global table list */
+		/* Add new info yesde to global table list */
 
 		status = osl_add_table_to_list(temp_name, instance);
 		if (ACPI_FAILURE(status)) {
@@ -1044,7 +1044,7 @@ static acpi_status osl_list_customized_tables(char *directory)
  *                                    returned
  *
  * RETURN:      Status; Mapped table is returned if AE_OK.
- *              AE_NOT_FOUND: A valid table was not found at the address
+ *              AE_NOT_FOUND: A valid table was yest found at the address
  *
  * DESCRIPTION: Map entire ACPI table into caller's address space.
  *
@@ -1070,7 +1070,7 @@ osl_map_table(acpi_size address,
 	mapped_table =
 	    acpi_os_map_memory(address, sizeof(struct acpi_table_header));
 	if (!mapped_table) {
-		fprintf(stderr, "Could not map table header at 0x%8.8X%8.8X\n",
+		fprintf(stderr, "Could yest map table header at 0x%8.8X%8.8X\n",
 			ACPI_FORMAT_UINT64(address));
 		return (osl_get_last_status(AE_BAD_ADDRESS));
 	}
@@ -1105,7 +1105,7 @@ osl_map_table(acpi_size address,
 	mapped_table = acpi_os_map_memory(address, length);
 	if (!mapped_table) {
 		fprintf(stderr,
-			"Could not map table at 0x%8.8X%8.8X length %8.8X\n",
+			"Could yest map table at 0x%8.8X%8.8X length %8.8X\n",
 			ACPI_FORMAT_UINT64(address), length);
 		return (osl_get_last_status(AE_INVALID_TABLE_LENGTH));
 	}
@@ -1156,7 +1156,7 @@ static acpi_status
 osl_table_name_from_file(char *filename, char *signature, u32 *instance)
 {
 
-	/* Ignore meaningless files */
+	/* Igyesre meaningless files */
 
 	if (strlen(filename) < ACPI_NAMESEG_SIZE) {
 		return (AE_BAD_SIGNATURE);
@@ -1210,7 +1210,7 @@ osl_read_table_from_file(char *filename,
 
 	table_file = fopen(filename, "rb");
 	if (table_file == NULL) {
-		fprintf(stderr, "Could not open table file: %s\n", filename);
+		fprintf(stderr, "Could yest open table file: %s\n", filename);
 		return (osl_get_last_status(AE_NOT_FOUND));
 	}
 
@@ -1220,7 +1220,7 @@ osl_read_table_from_file(char *filename,
 
 	count = fread(&header, 1, sizeof(struct acpi_table_header), table_file);
 	if (count != sizeof(struct acpi_table_header)) {
-		fprintf(stderr, "Could not read table header: %s\n", filename);
+		fprintf(stderr, "Could yest read table header: %s\n", filename);
 		status = AE_BAD_HEADER;
 		goto exit;
 	}
@@ -1256,7 +1256,7 @@ osl_read_table_from_file(char *filename,
 	local_table = calloc(1, table_length);
 	if (!local_table) {
 		fprintf(stderr,
-			"%4.4s: Could not allocate buffer for table of length %X\n",
+			"%4.4s: Could yest allocate buffer for table of length %X\n",
 			header.signature, table_length);
 		status = AE_NO_MEMORY;
 		goto exit;
@@ -1266,7 +1266,7 @@ osl_read_table_from_file(char *filename,
 
 	count = fread(local_table, 1, table_length, table_file);
 	if (count != table_length) {
-		fprintf(stderr, "%4.4s: Could not read table content\n",
+		fprintf(stderr, "%4.4s: Could yest read table content\n",
 			header.signature);
 		status = AE_INVALID_TABLE_LENGTH;
 		goto exit;
@@ -1296,7 +1296,7 @@ exit:
  *
  * RETURN:      Status; Table buffer is returned if AE_OK.
  *              AE_LIMIT: Instance is beyond valid limit
- *              AE_NOT_FOUND: A table with the signature was not found
+ *              AE_NOT_FOUND: A table with the signature was yest found
  *
  * DESCRIPTION: Get an OS customized table.
  *
@@ -1327,7 +1327,7 @@ osl_get_customized_table(char *pathname,
 
 	while ((filename = acpi_os_get_next_filename(table_dir))) {
 
-		/* Ignore meaningless files */
+		/* Igyesre meaningless files */
 
 		if (!ACPI_COMPARE_NAMESEG(filename, signature)) {
 			continue;
@@ -1339,7 +1339,7 @@ osl_get_customized_table(char *pathname,
 		    osl_table_name_from_file(filename, temp_name,
 					     &current_instance);
 
-		/* Ignore meaningless files */
+		/* Igyesre meaningless files */
 
 		if (ACPI_FAILURE(status) || current_instance != instance) {
 			continue;
@@ -1363,7 +1363,7 @@ osl_get_customized_table(char *pathname,
 		return (AE_LIMIT);
 	}
 
-	/* There is no physical address saved for customized tables, use zero */
+	/* There is yes physical address saved for customized tables, use zero */
 
 	*address = 0;
 	status = osl_read_table_from_file(table_filename, 0, NULL, table);

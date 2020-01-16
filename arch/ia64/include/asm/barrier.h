@@ -27,10 +27,10 @@
  *   rmb():	Like wmb(), but for reads.
  *   mb():	wmb()/rmb() combo, i.e., all previous memory
  *		accesses are visible before all subsequent
- *		accesses and vice versa.  This is also known as
+ *		accesses and vice versa.  This is also kyeswn as
  *		a "fence."
  *
- * Note: "mb()" and its variants cannot be used as a fence to order
+ * Note: "mb()" and its variants canyest be used as a fence to order
  * accesses to memory mapped I/O registers.  For that, mf.a needs to
  * be used.  However, we don't want to always use mf.a because (a)
  * it's (presumably) much slower than mf and (b) mf.a is supported for
@@ -49,7 +49,7 @@
 #define __smp_mb__after_atomic()	barrier()
 
 /*
- * IA64 GCC turns volatile stores into st.rel and volatile loads into ld.acq no
+ * IA64 GCC turns volatile stores into st.rel and volatile loads into ld.acq yes
  * need for asm trickery!
  */
 
@@ -70,7 +70,7 @@ do {									\
 
 /*
  * The group barrier in front of the rsm & ssm are necessary to ensure
- * that none of the previous instructions in the same group are
+ * that yesne of the previous instructions in the same group are
  * affected by the rsm/ssm.
  */
 

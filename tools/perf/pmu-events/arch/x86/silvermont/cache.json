@@ -1,21 +1,21 @@
 [
     {
-        "PublicDescription": "This event counts the number of demand and prefetch transactions that the L2 XQ rejects due to a full or near full condition which likely indicates back pressure from the IDI link. The XQ may reject transactions from the L2Q (non-cacheable requests), BBS (L2 misses) and WOB (L2 write-back victims).",
+        "PublicDescription": "This event counts the number of demand and prefetch transactions that the L2 XQ rejects due to a full or near full condition which likely indicates back pressure from the IDI link. The XQ may reject transactions from the L2Q (yesn-cacheable requests), BBS (L2 misses) and WOB (L2 write-back victims).",
         "EventCode": "0x30",
         "Counter": "0,1",
         "UMask": "0x0",
         "EventName": "L2_REJECT_XQ.ALL",
         "SampleAfterValue": "200003",
-        "BriefDescription": "Counts the number of request from the L2 that were not accepted into the XQ"
+        "BriefDescription": "Counts the number of request from the L2 that were yest accepted into the XQ"
     },
     {
-        "PublicDescription": "Counts the number of (demand and L1 prefetchers) core requests rejected by the L2Q due to a full or nearly full w condition which likely indicates back pressure from L2Q.  It also counts requests that would have gone directly to the XQ, but are rejected due to a full or nearly full condition, indicating back pressure from the IDI link.  The L2Q may also reject transactions  from a core to insure fairness between cores, or to delay a core?s dirty eviction when the address conflicts incoming external snoops.  (Note that L2 prefetcher requests that are dropped are not counted by this event.)",
+        "PublicDescription": "Counts the number of (demand and L1 prefetchers) core requests rejected by the L2Q due to a full or nearly full w condition which likely indicates back pressure from L2Q.  It also counts requests that would have gone directly to the XQ, but are rejected due to a full or nearly full condition, indicating back pressure from the IDI link.  The L2Q may also reject transactions  from a core to insure fairness between cores, or to delay a core?s dirty eviction when the address conflicts incoming external syesops.  (Note that L2 prefetcher requests that are dropped are yest counted by this event.)",
         "EventCode": "0x31",
         "Counter": "0,1",
         "UMask": "0x0",
         "EventName": "CORE_REJECT_L2Q.ALL",
         "SampleAfterValue": "200003",
-        "BriefDescription": "Counts the number of request that were not accepted into the L2Q because the L2Q is FULL."
+        "BriefDescription": "Counts the number of request that were yest accepted into the L2Q because the L2Q is FULL."
     },
     {
         "PublicDescription": "This event counts requests originating from the core that references a cache line in the L2 cache.",
@@ -36,7 +36,7 @@
         "BriefDescription": "L2 cache request misses"
     },
     {
-        "PublicDescription": "Counts cycles that fetch is stalled due to an outstanding ICache miss. That is, the decoder queue is able to accept bytes, but the fetch unit is unable to provide bytes due to an ICache miss.  Note: this event is not the same as the total number of cycles spent retrieving instruction cache lines from the memory hierarchy.\r\nCounts cycles that fetch is stalled due to any reason. That is, the decoder queue is able to accept bytes, but the fetch unit is unable to provide bytes.  This will include cycles due to an ITLB miss, ICache miss and other events.",
+        "PublicDescription": "Counts cycles that fetch is stalled due to an outstanding ICache miss. That is, the decoder queue is able to accept bytes, but the fetch unit is unable to provide bytes due to an ICache miss.  Note: this event is yest the same as the total number of cycles spent retrieving instruction cache lines from the memory hierarchy.\r\nCounts cycles that fetch is stalled due to any reason. That is, the decoder queue is able to accept bytes, but the fetch unit is unable to provide bytes.  This will include cycles due to an ITLB miss, ICache miss and other events.",
         "EventCode": "0x86",
         "Counter": "0,1",
         "UMask": "0x4",
@@ -55,13 +55,13 @@
         "BriefDescription": "Loads blocked due to store forward restriction"
     },
     {
-        "PublicDescription": "This event counts the cases where a forward was technically possible, but did not occur because the store data was not available at the right time.",
+        "PublicDescription": "This event counts the cases where a forward was technically possible, but did yest occur because the store data was yest available at the right time.",
         "EventCode": "0x03",
         "Counter": "0,1",
         "UMask": "0x2",
         "EventName": "REHABQ.LD_BLOCK_STD_NOTREADY",
         "SampleAfterValue": "200003",
-        "BriefDescription": "Loads blocked due to store data not ready"
+        "BriefDescription": "Loads blocked due to store data yest ready"
     },
     {
         "PublicDescription": "This event counts the number of retire stores that experienced cache line boundary splits.",
@@ -92,7 +92,7 @@
         "BriefDescription": "Uops with lock semantics"
     },
     {
-        "PublicDescription": "This event counts the number of retired stores that are delayed because there is not a store address buffer available.",
+        "PublicDescription": "This event counts the number of retired stores that are delayed because there is yest a store address buffer available.",
         "EventCode": "0x03",
         "Counter": "0,1",
         "UMask": "0x20",
@@ -119,7 +119,7 @@
         "BriefDescription": "Any reissued store uops"
     },
     {
-        "PublicDescription": "This event counts the number of load ops retired that miss in L1 Data cache. Note that prefetch misses will not be counted.",
+        "PublicDescription": "This event counts the number of load ops retired that miss in L1 Data cache. Note that prefetch misses will yest be counted.",
         "EventCode": "0x04",
         "Counter": "0,1",
         "UMask": "0x1",
@@ -223,7 +223,7 @@
         "EventName": "OFFCORE_RESPONSE.ANY_CODE_RD.L2_MISS.HIT_OTHER_CORE_NO_FWD",
         "MSRIndex": "0x1a6,0x1a7",
         "SampleAfterValue": "100007",
-        "BriefDescription": "Counts any code reads (demand & prefetch) that miss L2 and the snoops to sibling cores hit in either E/S state and the line is not forwarded.",
+        "BriefDescription": "Counts any code reads (demand & prefetch) that miss L2 and the syesops to sibling cores hit in either E/S state and the line is yest forwarded.",
         "Offcore": "1"
     },
     {
@@ -234,7 +234,7 @@
         "EventName": "OFFCORE_RESPONSE.ANY_CODE_RD.L2_MISS.SNOOP_MISS",
         "MSRIndex": "0x1a6,0x1a7",
         "SampleAfterValue": "100007",
-        "BriefDescription": "Counts any code reads (demand & prefetch) that miss L2 with a snoop miss response.",
+        "BriefDescription": "Counts any code reads (demand & prefetch) that miss L2 with a syesop miss response.",
         "Offcore": "1"
     },
     {
@@ -278,7 +278,7 @@
         "EventName": "OFFCORE_RESPONSE.ANY_RFO.L2_MISS.HIT_OTHER_CORE_NO_FWD",
         "MSRIndex": "0x1a6,0x1a7",
         "SampleAfterValue": "100007",
-        "BriefDescription": "Counts any rfo reads (demand & prefetch) that miss L2 and the snoops to sibling cores hit in either E/S state and the line is not forwarded.",
+        "BriefDescription": "Counts any rfo reads (demand & prefetch) that miss L2 and the syesops to sibling cores hit in either E/S state and the line is yest forwarded.",
         "Offcore": "1"
     },
     {
@@ -289,7 +289,7 @@
         "EventName": "OFFCORE_RESPONSE.ANY_RFO.L2_MISS.SNOOP_MISS",
         "MSRIndex": "0x1a6,0x1a7",
         "SampleAfterValue": "100007",
-        "BriefDescription": "Counts any rfo reads (demand & prefetch) that miss L2 with a snoop miss response.",
+        "BriefDescription": "Counts any rfo reads (demand & prefetch) that miss L2 with a syesop miss response.",
         "Offcore": "1"
     },
     {
@@ -333,7 +333,7 @@
         "EventName": "OFFCORE_RESPONSE.ANY_DATA_RD.L2_MISS.HIT_OTHER_CORE_NO_FWD",
         "MSRIndex": "0x1a6,0x1a7",
         "SampleAfterValue": "100007",
-        "BriefDescription": "Counts any data read (demand & prefetch) that miss L2 and the snoops to sibling cores hit in either E/S state and the line is not forwarded.",
+        "BriefDescription": "Counts any data read (demand & prefetch) that miss L2 and the syesops to sibling cores hit in either E/S state and the line is yest forwarded.",
         "Offcore": "1"
     },
     {
@@ -344,7 +344,7 @@
         "EventName": "OFFCORE_RESPONSE.ANY_DATA_RD.L2_MISS.SNOOP_MISS",
         "MSRIndex": "0x1a6,0x1a7",
         "SampleAfterValue": "100007",
-        "BriefDescription": "Counts any data read (demand & prefetch) that miss L2 with a snoop miss response.",
+        "BriefDescription": "Counts any data read (demand & prefetch) that miss L2 with a syesop miss response.",
         "Offcore": "1"
     },
     {
@@ -388,7 +388,7 @@
         "EventName": "OFFCORE_RESPONSE.ANY_REQUEST.L2_MISS.HIT_OTHER_CORE_NO_FWD",
         "MSRIndex": "0x1a6,0x1a7",
         "SampleAfterValue": "100007",
-        "BriefDescription": "Counts any request that miss L2 and the snoops to sibling cores hit in either E/S state and the line is not forwarded.",
+        "BriefDescription": "Counts any request that miss L2 and the syesops to sibling cores hit in either E/S state and the line is yest forwarded.",
         "Offcore": "1"
     },
     {
@@ -399,7 +399,7 @@
         "EventName": "OFFCORE_RESPONSE.ANY_REQUEST.L2_MISS.SNOOP_MISS",
         "MSRIndex": "0x1a6,0x1a7",
         "SampleAfterValue": "100007",
-        "BriefDescription": "Counts any request that miss L2 with a snoop miss response.",
+        "BriefDescription": "Counts any request that miss L2 with a syesop miss response.",
         "Offcore": "1"
     },
     {
@@ -443,7 +443,7 @@
         "EventName": "OFFCORE_RESPONSE.PF_L1_DATA_RD.L2_MISS.HIT_OTHER_CORE_NO_FWD",
         "MSRIndex": "0x1a6,0x1a7",
         "SampleAfterValue": "100007",
-        "BriefDescription": "Counts DCU hardware prefetcher data read that miss L2 and the snoops to sibling cores hit in either E/S state and the line is not forwarded.",
+        "BriefDescription": "Counts DCU hardware prefetcher data read that miss L2 and the syesops to sibling cores hit in either E/S state and the line is yest forwarded.",
         "Offcore": "1"
     },
     {
@@ -454,7 +454,7 @@
         "EventName": "OFFCORE_RESPONSE.PF_L1_DATA_RD.L2_MISS.SNOOP_MISS",
         "MSRIndex": "0x1a6,0x1a7",
         "SampleAfterValue": "100007",
-        "BriefDescription": "Counts DCU hardware prefetcher data read that miss L2 with a snoop miss response.",
+        "BriefDescription": "Counts DCU hardware prefetcher data read that miss L2 with a syesop miss response.",
         "Offcore": "1"
     },
     {
@@ -509,7 +509,7 @@
         "EventName": "OFFCORE_RESPONSE.PF_L2_CODE_RD.L2_MISS.HIT_OTHER_CORE_NO_FWD",
         "MSRIndex": "0x1a6,0x1a7",
         "SampleAfterValue": "100007",
-        "BriefDescription": "Counts code reads generated by L2 prefetchers that miss L2 and the snoops to sibling cores hit in either E/S state and the line is not forwarded.",
+        "BriefDescription": "Counts code reads generated by L2 prefetchers that miss L2 and the syesops to sibling cores hit in either E/S state and the line is yest forwarded.",
         "Offcore": "1"
     },
     {
@@ -520,7 +520,7 @@
         "EventName": "OFFCORE_RESPONSE.PF_L2_CODE_RD.L2_MISS.SNOOP_MISS",
         "MSRIndex": "0x1a6,0x1a7",
         "SampleAfterValue": "100007",
-        "BriefDescription": "Counts code reads generated by L2 prefetchers that miss L2 with a snoop miss response.",
+        "BriefDescription": "Counts code reads generated by L2 prefetchers that miss L2 with a syesop miss response.",
         "Offcore": "1"
     },
     {
@@ -553,7 +553,7 @@
         "EventName": "OFFCORE_RESPONSE.PF_L2_RFO.L2_MISS.HIT_OTHER_CORE_NO_FWD",
         "MSRIndex": "0x1a6,0x1a7",
         "SampleAfterValue": "100007",
-        "BriefDescription": "Counts RFO requests generated by L2 prefetchers that miss L2 and the snoops to sibling cores hit in either E/S state and the line is not forwarded.",
+        "BriefDescription": "Counts RFO requests generated by L2 prefetchers that miss L2 and the syesops to sibling cores hit in either E/S state and the line is yest forwarded.",
         "Offcore": "1"
     },
     {
@@ -564,7 +564,7 @@
         "EventName": "OFFCORE_RESPONSE.PF_L2_RFO.L2_MISS.SNOOP_MISS",
         "MSRIndex": "0x1a6,0x1a7",
         "SampleAfterValue": "100007",
-        "BriefDescription": "Counts RFO requests generated by L2 prefetchers that miss L2 with a snoop miss response.",
+        "BriefDescription": "Counts RFO requests generated by L2 prefetchers that miss L2 with a syesop miss response.",
         "Offcore": "1"
     },
     {
@@ -597,7 +597,7 @@
         "EventName": "OFFCORE_RESPONSE.PF_L2_DATA_RD.L2_MISS.HIT_OTHER_CORE_NO_FWD",
         "MSRIndex": "0x1a6,0x1a7",
         "SampleAfterValue": "100007",
-        "BriefDescription": "Counts data cacheline reads generated by L2 prefetchers that miss L2 and the snoops to sibling cores hit in either E/S state and the line is not forwarded.",
+        "BriefDescription": "Counts data cacheline reads generated by L2 prefetchers that miss L2 and the syesops to sibling cores hit in either E/S state and the line is yest forwarded.",
         "Offcore": "1"
     },
     {
@@ -608,7 +608,7 @@
         "EventName": "OFFCORE_RESPONSE.PF_L2_DATA_RD.L2_MISS.SNOOP_MISS",
         "MSRIndex": "0x1a6,0x1a7",
         "SampleAfterValue": "100007",
-        "BriefDescription": "Counts data cacheline reads generated by L2 prefetchers that miss L2 with a snoop miss response.",
+        "BriefDescription": "Counts data cacheline reads generated by L2 prefetchers that miss L2 with a syesop miss response.",
         "Offcore": "1"
     },
     {
@@ -630,7 +630,7 @@
         "EventName": "OFFCORE_RESPONSE.COREWB.L2_MISS.NO_SNOOP_NEEDED",
         "MSRIndex": "0x1a6,0x1a7",
         "SampleAfterValue": "100007",
-        "BriefDescription": "Counts writeback (modified to exclusive) that miss L2 with no details on snoop-related information.",
+        "BriefDescription": "Counts writeback (modified to exclusive) that miss L2 with yes details on syesop-related information.",
         "Offcore": "1"
     },
     {
@@ -663,7 +663,7 @@
         "EventName": "OFFCORE_RESPONSE.DEMAND_CODE_RD.L2_MISS.HIT_OTHER_CORE_NO_FWD",
         "MSRIndex": "0x1a6,0x1a7",
         "SampleAfterValue": "100007",
-        "BriefDescription": "Counts demand and DCU prefetch instruction cacheline that miss L2 and the snoops to sibling cores hit in either E/S state and the line is not forwarded.",
+        "BriefDescription": "Counts demand and DCU prefetch instruction cacheline that miss L2 and the syesops to sibling cores hit in either E/S state and the line is yest forwarded.",
         "Offcore": "1"
     },
     {
@@ -674,7 +674,7 @@
         "EventName": "OFFCORE_RESPONSE.DEMAND_CODE_RD.L2_MISS.SNOOP_MISS",
         "MSRIndex": "0x1a6,0x1a7",
         "SampleAfterValue": "100007",
-        "BriefDescription": "Counts demand and DCU prefetch instruction cacheline that miss L2 with a snoop miss response.",
+        "BriefDescription": "Counts demand and DCU prefetch instruction cacheline that miss L2 with a syesop miss response.",
         "Offcore": "1"
     },
     {
@@ -729,7 +729,7 @@
         "EventName": "OFFCORE_RESPONSE.DEMAND_RFO.L2_MISS.HIT_OTHER_CORE_NO_FWD",
         "MSRIndex": "0x1a6,0x1a7",
         "SampleAfterValue": "100007",
-        "BriefDescription": "Counts demand and DCU prefetch RFOs that miss L2 and the snoops to sibling cores hit in either E/S state and the line is not forwarded.",
+        "BriefDescription": "Counts demand and DCU prefetch RFOs that miss L2 and the syesops to sibling cores hit in either E/S state and the line is yest forwarded.",
         "Offcore": "1"
     },
     {
@@ -740,7 +740,7 @@
         "EventName": "OFFCORE_RESPONSE.DEMAND_RFO.L2_MISS.SNOOP_MISS",
         "MSRIndex": "0x1a6,0x1a7",
         "SampleAfterValue": "100007",
-        "BriefDescription": "Counts demand and DCU prefetch RFOs that miss L2 with a snoop miss response.",
+        "BriefDescription": "Counts demand and DCU prefetch RFOs that miss L2 with a syesop miss response.",
         "Offcore": "1"
     },
     {
@@ -784,7 +784,7 @@
         "EventName": "OFFCORE_RESPONSE.DEMAND_DATA_RD.L2_MISS.HIT_OTHER_CORE_NO_FWD",
         "MSRIndex": "0x1a6,0x1a7",
         "SampleAfterValue": "100007",
-        "BriefDescription": "Counts demand and DCU prefetch data read that miss L2 and the snoops to sibling cores hit in either E/S state and the line is not forwarded.",
+        "BriefDescription": "Counts demand and DCU prefetch data read that miss L2 and the syesops to sibling cores hit in either E/S state and the line is yest forwarded.",
         "Offcore": "1"
     },
     {
@@ -795,7 +795,7 @@
         "EventName": "OFFCORE_RESPONSE.DEMAND_DATA_RD.L2_MISS.SNOOP_MISS",
         "MSRIndex": "0x1a6,0x1a7",
         "SampleAfterValue": "100007",
-        "BriefDescription": "Counts demand and DCU prefetch data read that miss L2 with a snoop miss response.",
+        "BriefDescription": "Counts demand and DCU prefetch data read that miss L2 with a syesop miss response.",
         "Offcore": "1"
     },
     {

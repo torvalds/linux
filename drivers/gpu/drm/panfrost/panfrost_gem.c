@@ -20,7 +20,7 @@ static void panfrost_gem_free_object(struct drm_gem_object *obj)
 	struct panfrost_device *pfdev = obj->dev->dev_private;
 
 	/*
-	 * Make sure the BO is no longer inserted in the shrinker list before
+	 * Make sure the BO is yes longer inserted in the shrinker list before
 	 * taking care of the destruction itself. If we don't do that we have a
 	 * race condition between this function and what's done in
 	 * panfrost_gem_shrinker_scan().
@@ -52,23 +52,23 @@ int panfrost_gem_open(struct drm_gem_object *obj, struct drm_file *file_priv)
 	size_t size = obj->size;
 	u64 align;
 	struct panfrost_gem_object *bo = to_panfrost_bo(obj);
-	unsigned long color = bo->noexec ? PANFROST_BO_NOEXEC : 0;
+	unsigned long color = bo->yesexec ? PANFROST_BO_NOEXEC : 0;
 	struct panfrost_file_priv *priv = file_priv->driver_priv;
 
 	/*
-	 * Executable buffers cannot cross a 16MB boundary as the program
+	 * Executable buffers canyest cross a 16MB boundary as the program
 	 * counter is 24-bits. We assume executable buffers will be less than
 	 * 16MB and aligning executable buffers to their size will avoid
 	 * crossing a 16MB boundary.
 	 */
-	if (!bo->noexec)
+	if (!bo->yesexec)
 		align = size >> PAGE_SHIFT;
 	else
 		align = size >= SZ_2M ? SZ_2M >> PAGE_SHIFT : 0;
 
 	bo->mmu = &priv->mmu;
 	spin_lock(&priv->mm_lock);
-	ret = drm_mm_insert_node_generic(&priv->mm, &bo->node,
+	ret = drm_mm_insert_yesde_generic(&priv->mm, &bo->yesde,
 					 size >> PAGE_SHIFT, align, color, 0);
 	spin_unlock(&priv->mm_lock);
 	if (ret)
@@ -78,7 +78,7 @@ int panfrost_gem_open(struct drm_gem_object *obj, struct drm_file *file_priv)
 		ret = panfrost_mmu_map(bo);
 		if (ret) {
 			spin_lock(&priv->mm_lock);
-			drm_mm_remove_node(&bo->node);
+			drm_mm_remove_yesde(&bo->yesde);
 			spin_unlock(&priv->mm_lock);
 		}
 	}
@@ -94,8 +94,8 @@ void panfrost_gem_close(struct drm_gem_object *obj, struct drm_file *file_priv)
 		panfrost_mmu_unmap(bo);
 
 	spin_lock(&priv->mm_lock);
-	if (drm_mm_node_allocated(&bo->node))
-		drm_mm_remove_node(&bo->node);
+	if (drm_mm_yesde_allocated(&bo->yesde))
+		drm_mm_remove_yesde(&bo->yesde);
 	spin_unlock(&priv->mm_lock);
 }
 
@@ -160,7 +160,7 @@ panfrost_gem_create_with_handle(struct drm_file *file_priv,
 		return ERR_CAST(shmem);
 
 	bo = to_panfrost_bo(&shmem->base);
-	bo->noexec = !!(flags & PANFROST_BO_NOEXEC);
+	bo->yesexec = !!(flags & PANFROST_BO_NOEXEC);
 	bo->is_heap = !!(flags & PANFROST_BO_HEAP);
 
 	/*
@@ -168,7 +168,7 @@ panfrost_gem_create_with_handle(struct drm_file *file_priv,
 	 * and handle has the id what user can see.
 	 */
 	ret = drm_gem_handle_create(file_priv, &shmem->base, handle);
-	/* drop reference from allocate - handle holds it now. */
+	/* drop reference from allocate - handle holds it yesw. */
 	drm_gem_object_put_unlocked(&shmem->base);
 	if (ret)
 		return ERR_PTR(ret);
@@ -189,7 +189,7 @@ panfrost_gem_prime_import_sg_table(struct drm_device *dev,
 		return ERR_CAST(obj);
 
 	bo = to_panfrost_bo(obj);
-	bo->noexec = true;
+	bo->yesexec = true;
 
 	return obj;
 }

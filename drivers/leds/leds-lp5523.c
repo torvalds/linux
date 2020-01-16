@@ -5,7 +5,7 @@
  * Copyright (C) 2010 Nokia Corporation
  * Copyright (C) 2012 Texas Instruments
  *
- * Contact: Samu Onkalo <samu.p.onkalo@nokia.com>
+ * Contact: Samu Onkalo <samu.p.onkalo@yeskia.com>
  *          Milo(Woogyom) Kim <milo.kim@ti.com>
  */
 
@@ -312,7 +312,7 @@ static int lp5523_init_program_engine(struct lp55xx_chip *chip)
 
 	if (status != LP5523_ENG_STATUS_MASK) {
 		dev_err(&chip->cl->dev,
-			"could not configure LED engine, status = 0x%.2x\n",
+			"could yest configure LED engine, status = 0x%.2x\n",
 			status);
 		ret = -1;
 	}
@@ -603,7 +603,7 @@ static ssize_t lp5523_selftest(struct device *dev,
 		goto fail;
 
 	if (!(status & LP5523_LEDTEST_DONE))
-		usleep_range(3000, 6000); /* Was not ready. Wait little bit */
+		usleep_range(3000, 6000); /* Was yest ready. Wait little bit */
 
 	ret = lp55xx_read(chip, LP5523_REG_LED_TEST_ADC, &vdd);
 	if (ret < 0)
@@ -612,7 +612,7 @@ static ssize_t lp5523_selftest(struct device *dev,
 	vdd--;	/* There may be some fluctuation in measurement */
 
 	for (i = 0; i < LP5523_MAX_LEDS; i++) {
-		/* Skip non-existing channels */
+		/* Skip yesn-existing channels */
 		if (pdata->led_config[i].led_current == 0)
 			continue;
 
@@ -632,7 +632,7 @@ static ssize_t lp5523_selftest(struct device *dev,
 			goto fail;
 
 		if (!(status & LP5523_LEDTEST_DONE))
-			usleep_range(3000, 6000);/* Was not ready. Wait. */
+			usleep_range(3000, 6000);/* Was yest ready. Wait. */
 
 		ret = lp55xx_read(chip, LP5523_REG_LED_TEST_ADC, &adc);
 		if (ret < 0)
@@ -870,7 +870,7 @@ static int lp5523_probe(struct i2c_client *client,
 	struct lp55xx_chip *chip;
 	struct lp55xx_led *led;
 	struct lp55xx_platform_data *pdata = dev_get_platdata(&client->dev);
-	struct device_node *np = client->dev.of_node;
+	struct device_yesde *np = client->dev.of_yesde;
 
 	if (!pdata) {
 		if (np) {
@@ -878,7 +878,7 @@ static int lp5523_probe(struct i2c_client *client,
 			if (IS_ERR(pdata))
 				return PTR_ERR(pdata);
 		} else {
-			dev_err(&client->dev, "no platform data\n");
+			dev_err(&client->dev, "yes platform data\n");
 			return -EINVAL;
 		}
 	}
@@ -969,7 +969,7 @@ static struct i2c_driver lp5523_driver = {
 
 module_i2c_driver(lp5523_driver);
 
-MODULE_AUTHOR("Mathias Nyman <mathias.nyman@nokia.com>");
+MODULE_AUTHOR("Mathias Nyman <mathias.nyman@yeskia.com>");
 MODULE_AUTHOR("Milo Kim <milo.kim@ti.com>");
 MODULE_DESCRIPTION("LP5523 LED engine");
 MODULE_LICENSE("GPL");

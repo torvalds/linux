@@ -22,17 +22,17 @@ Required properties :
   array of CLK_RST_CONTROLLER_RST_DEVICES_* registers.
 - nvidia,external-memory-controller : phandle of the EMC driver.
 
-The node should contain a "emc-timings" subnode for each supported RAM type (see
+The yesde should contain a "emc-timings" subyesde for each supported RAM type (see
 field RAM_CODE in register PMC_STRAPPING_OPT_A).
 
-Required properties for "emc-timings" nodes :
+Required properties for "emc-timings" yesdes :
 - nvidia,ram-code : Should contain the value of RAM_CODE this timing set
   is used for.
 
-Each "emc-timings" node should contain a "timing" subnode for every supported
+Each "emc-timings" yesde should contain a "timing" subyesde for every supported
 EMC clock rate.
 
-Required properties for "timing" nodes :
+Required properties for "timing" yesdes :
 - clock-frequency : Should contain the memory clock rate to which this timing
 relates.
 - nvidia,parent-clock-frequency : Should contain the rate at which the current

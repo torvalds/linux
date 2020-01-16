@@ -53,7 +53,7 @@ void save_stack_trace(struct stack_trace *trace)
 EXPORT_SYMBOL_GPL(save_stack_trace);
 
 static void
-save_stack_address_nosched(void *data, unsigned long addr, int reliable)
+save_stack_address_yessched(void *data, unsigned long addr, int reliable)
 {
 	struct stack_trace *trace = (struct stack_trace *)data;
 
@@ -72,15 +72,15 @@ save_stack_address_nosched(void *data, unsigned long addr, int reliable)
 		trace->entries[trace->nr_entries++] = addr;
 }
 
-static const struct stacktrace_ops save_stack_ops_nosched = {
+static const struct stacktrace_ops save_stack_ops_yessched = {
 	.stack = save_stack_stack,
-	.address = save_stack_address_nosched,
+	.address = save_stack_address_yessched,
 };
 
 void save_stack_trace_tsk(struct task_struct *tsk, struct stack_trace *trace)
 {
 	unsigned long *sp = (unsigned long *)tsk->thread.sp;
 
-	unwind_stack(current, NULL, sp,  &save_stack_ops_nosched, trace);
+	unwind_stack(current, NULL, sp,  &save_stack_ops_yessched, trace);
 }
 EXPORT_SYMBOL_GPL(save_stack_trace_tsk);

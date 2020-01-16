@@ -2,7 +2,7 @@
 /*
  * Thunderbolt control channel messages
  *
- * Copyright (C) 2014 Andreas Noever <andreas.noever@gmail.com>
+ * Copyright (C) 2014 Andreas Noever <andreas.yesever@gmail.com>
  * Copyright (C) 2017, Intel Corporation
  */
 
@@ -33,7 +33,7 @@ enum tb_cfg_error {
 /* common header */
 struct tb_cfg_header {
 	u32 route_hi:22;
-	u32 unknown:10; /* highest order bit is set on replies */
+	u32 unkyeswn:10; /* highest order bit is set on replies */
 	u32 route_lo;
 } __packed;
 

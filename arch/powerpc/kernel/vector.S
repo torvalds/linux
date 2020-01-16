@@ -39,8 +39,8 @@ EXPORT_SYMBOL(store_vr_state)
  * Disable VMX for the task which had it previously,
  * and save its vector registers in its thread_struct.
  * Enables the VMX for use in the kernel on return.
- * On SMP we know the VMX is free, since we give it up every
- * switch (ie, no lazy save of the vector registers).
+ * On SMP we kyesw the VMX is free, since we give it up every
+ * switch (ie, yes lazy save of the vector registers).
  *
  * Note that on 32-bit this can only use registers that will be
  * restored by fast_exception_return, i.e. r3 - r6, r10 and r11.
@@ -48,14 +48,14 @@ EXPORT_SYMBOL(store_vr_state)
 _GLOBAL(load_up_altivec)
 	mfmsr	r5			/* grab the current MSR */
 	oris	r5,r5,MSR_VEC@h
-	MTMSRD(r5)			/* enable use of AltiVec now */
+	MTMSRD(r5)			/* enable use of AltiVec yesw */
 	isync
 
 	/*
-	 * While userspace in general ignores VRSAVE, glibc uses it as a boolean
+	 * While userspace in general igyesres VRSAVE, glibc uses it as a boolean
 	 * to optimise userspace context save/restore. Whenever we take an
-	 * altivec unavailable exception we must set VRSAVE to something non
-	 * zero. Set it to all 1s. See also the programming note in the ISA.
+	 * altivec unavailable exception we must set VRSAVE to something yesn
+	 * zero. Set it to all 1s. See also the programming yeste in the ISA.
 	 */
 	mfspr	r4,SPRN_VRSAVE
 	cmpwi	0,r4,0
@@ -170,7 +170,7 @@ fphalf:
 	.text
 /*
  * Internal routine to enable floating point and set FPSCR to 0.
- * Don't call it from C; it doesn't use the normal calling convention.
+ * Don't call it from C; it doesn't use the yesrmal calling convention.
  */
 fpenable:
 #ifdef CONFIG_PPC32

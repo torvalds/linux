@@ -153,12 +153,12 @@ struct msgdma_extended_desc {
  * struct msgdma_sw_desc - implements a sw descriptor
  * @async_tx: support for the async_tx api
  * @hw_desc: assosiated HW descriptor
- * @free_list: node of the free SW descriprots list
+ * @free_list: yesde of the free SW descriprots list
  */
 struct msgdma_sw_desc {
 	struct dma_async_tx_descriptor async_tx;
 	struct msgdma_extended_desc hw_desc;
-	struct list_head node;
+	struct list_head yesde;
 	struct list_head tx_list;
 };
 
@@ -211,8 +211,8 @@ static struct msgdma_sw_desc *msgdma_get_descriptor(struct msgdma_device *mdev)
 	unsigned long flags;
 
 	spin_lock_irqsave(&mdev->lock, flags);
-	desc = list_first_entry(&mdev->free_list, struct msgdma_sw_desc, node);
-	list_del(&desc->node);
+	desc = list_first_entry(&mdev->free_list, struct msgdma_sw_desc, yesde);
+	list_del(&desc->yesde);
 	spin_unlock_irqrestore(&mdev->lock, flags);
 
 	INIT_LIST_HEAD(&desc->tx_list);
@@ -231,10 +231,10 @@ static void msgdma_free_descriptor(struct msgdma_device *mdev,
 	struct msgdma_sw_desc *child, *next;
 
 	mdev->desc_free_cnt++;
-	list_add_tail(&desc->node, &mdev->free_list);
-	list_for_each_entry_safe(child, next, &desc->tx_list, node) {
+	list_add_tail(&desc->yesde, &mdev->free_list);
+	list_for_each_entry_safe(child, next, &desc->tx_list, yesde) {
 		mdev->desc_free_cnt++;
-		list_move_tail(&child->node, &mdev->free_list);
+		list_move_tail(&child->yesde, &mdev->free_list);
 	}
 }
 
@@ -248,7 +248,7 @@ static void msgdma_free_desc_list(struct msgdma_device *mdev,
 {
 	struct msgdma_sw_desc *desc, *next;
 
-	list_for_each_entry_safe(desc, next, list, node)
+	list_for_each_entry_safe(desc, next, list, yesde)
 		msgdma_free_descriptor(mdev, desc);
 }
 
@@ -309,7 +309,7 @@ static dma_cookie_t msgdma_tx_submit(struct dma_async_tx_descriptor *tx)
 	spin_lock_irqsave(&mdev->lock, flags);
 	cookie = dma_cookie_assign(tx);
 
-	list_add_tail(&new->node, &mdev->pending_list);
+	list_add_tail(&new->yesde, &mdev->pending_list);
 	spin_unlock_irqrestore(&mdev->lock, flags);
 
 	return cookie;
@@ -341,7 +341,7 @@ msgdma_prep_memcpy(struct dma_chan *dchan, dma_addr_t dma_dst,
 	spin_lock_irqsave(&mdev->lock, irqflags);
 	if (desc_cnt > mdev->desc_free_cnt) {
 		spin_unlock_irqrestore(&mdev->lock, irqflags);
-		dev_dbg(mdev->dev, "mdev %p descs are not available\n", mdev);
+		dev_dbg(mdev->dev, "mdev %p descs are yest available\n", mdev);
 		return NULL;
 	}
 	mdev->desc_free_cnt -= desc_cnt;
@@ -361,7 +361,7 @@ msgdma_prep_memcpy(struct dma_chan *dchan, dma_addr_t dma_dst,
 		if (!first)
 			first = new;
 		else
-			list_add_tail(&new->node, &first->tx_list);
+			list_add_tail(&new->yesde, &first->tx_list);
 	} while (len);
 
 	msgdma_desc_config_eod(desc);
@@ -404,7 +404,7 @@ msgdma_prep_slave_sg(struct dma_chan *dchan, struct scatterlist *sgl,
 	spin_lock_irqsave(&mdev->lock, irqflags);
 	if (desc_cnt > mdev->desc_free_cnt) {
 		spin_unlock_irqrestore(&mdev->lock, irqflags);
-		dev_dbg(mdev->dev, "mdev %p descs are not available\n", mdev);
+		dev_dbg(mdev->dev, "mdev %p descs are yest available\n", mdev);
 		return NULL;
 	}
 	mdev->desc_free_cnt -= desc_cnt;
@@ -435,7 +435,7 @@ msgdma_prep_slave_sg(struct dma_chan *dchan, struct scatterlist *sgl,
 		if (!first)
 			first = new;
 		else
-			list_add_tail(&new->node, &first->tx_list);
+			list_add_tail(&new->yesde, &first->tx_list);
 
 		/* Fetch the next scatterlist entry */
 		if (avail == 0) {
@@ -478,7 +478,7 @@ static void msgdma_reset(struct msgdma_device *mdev)
 				 (val & MSGDMA_CSR_STAT_RESETTING) == 0,
 				 1, 10000);
 	if (ret)
-		dev_err(mdev->dev, "DMA channel did not reset\n");
+		dev_err(mdev->dev, "DMA channel did yest reset\n");
 
 	/* Clear all status bits */
 	iowrite32(MSGDMA_CSR_STAT_MASK, mdev->csr + MSGDMA_CSR_STATUS);
@@ -496,7 +496,7 @@ static void msgdma_copy_one(struct msgdma_device *mdev,
 	void __iomem *hw_desc = mdev->desc;
 
 	/*
-	 * Check if the DESC FIFO it not full. If its full, we need to wait
+	 * Check if the DESC FIFO it yest full. If its full, we need to wait
 	 * for at least one entry to become free again
 	 */
 	while (ioread32(mdev->csr + MSGDMA_CSR_STATUS) &
@@ -507,7 +507,7 @@ static void msgdma_copy_one(struct msgdma_device *mdev,
 	 * The descriptor needs to get copied into the descriptor FIFO
 	 * of the DMA controller. The descriptor will get flushed to the
 	 * FIFO, once the last word (control word) is written. Since we
-	 * are not 100% sure that memcpy() writes all word in the "correct"
+	 * are yest 100% sure that memcpy() writes all word in the "correct"
 	 * oder (address from low to high) on all architectures, we make
 	 * sure this control word is written last by single coding it and
 	 * adding some write-barriers here.
@@ -535,7 +535,7 @@ static void msgdma_copy_desc_to_fifo(struct msgdma_device *mdev,
 
 	msgdma_copy_one(mdev, desc);
 
-	list_for_each_entry_safe(sdesc, next, &desc->tx_list, node)
+	list_for_each_entry_safe(sdesc, next, &desc->tx_list, yesde)
 		msgdma_copy_one(mdev, sdesc);
 }
 
@@ -551,7 +551,7 @@ static void msgdma_start_transfer(struct msgdma_device *mdev)
 		return;
 
 	desc = list_first_entry_or_null(&mdev->pending_list,
-					struct msgdma_sw_desc, node);
+					struct msgdma_sw_desc, yesde);
 	if (!desc)
 		return;
 
@@ -581,11 +581,11 @@ static void msgdma_chan_desc_cleanup(struct msgdma_device *mdev)
 {
 	struct msgdma_sw_desc *desc, *next;
 
-	list_for_each_entry_safe(desc, next, &mdev->done_list, node) {
+	list_for_each_entry_safe(desc, next, &mdev->done_list, yesde) {
 		dma_async_tx_callback callback;
 		void *callback_param;
 
-		list_del(&desc->node);
+		list_del(&desc->yesde);
 
 		callback = desc->async_tx.callback;
 		callback_param = desc->async_tx.callback_param;
@@ -609,12 +609,12 @@ static void msgdma_complete_descriptor(struct msgdma_device *mdev)
 	struct msgdma_sw_desc *desc;
 
 	desc = list_first_entry_or_null(&mdev->active_list,
-					struct msgdma_sw_desc, node);
+					struct msgdma_sw_desc, yesde);
 	if (!desc)
 		return;
-	list_del(&desc->node);
+	list_del(&desc->yesde);
 	dma_cookie_complete(&desc->async_tx);
-	list_add_tail(&desc->node, &mdev->done_list);
+	list_add_tail(&desc->yesde, &mdev->done_list);
 }
 
 /**
@@ -668,7 +668,7 @@ static int msgdma_alloc_chan_resources(struct dma_chan *dchan)
 		desc = mdev->sw_desq + i;
 		dma_async_tx_descriptor_init(&desc->async_tx, &mdev->dmachan);
 		desc->async_tx.tx_submit = msgdma_tx_submit;
-		list_add_tail(&desc->node, &mdev->free_list);
+		list_add_tail(&desc->yesde, &mdev->free_list);
 	}
 
 	return MSGDMA_DESC_NUM;
@@ -696,7 +696,7 @@ static void msgdma_tasklet(unsigned long data)
 	while (count--) {
 		/*
 		 * Read both longwords to purge this response from the FIFO
-		 * On Avalon-MM implementations, size and status do not
+		 * On Avalon-MM implementations, size and status do yest
 		 * have any real values, like transferred bytes or error
 		 * bits. So we need to just drop these values.
 		 */
@@ -750,7 +750,7 @@ static void msgdma_dev_remove(struct msgdma_device *mdev)
 
 	devm_free_irq(mdev->dev, mdev->irq, mdev);
 	tasklet_kill(&mdev->irq_tasklet);
-	list_del(&mdev->dmachan.device_node);
+	list_del(&mdev->dmachan.device_yesde);
 }
 
 static int request_and_map(struct platform_device *pdev, const char *name,
@@ -761,7 +761,7 @@ static int request_and_map(struct platform_device *pdev, const char *name,
 
 	*res = platform_get_resource_byname(pdev, IORESOURCE_MEM, name);
 	if (*res == NULL) {
-		dev_err(device, "resource %s not defined\n", name);
+		dev_err(device, "resource %s yest defined\n", name);
 		return -ENODEV;
 	}
 
@@ -772,10 +772,10 @@ static int request_and_map(struct platform_device *pdev, const char *name,
 		return -EBUSY;
 	}
 
-	*ptr = devm_ioremap_nocache(device, region->start,
+	*ptr = devm_ioremap_yescache(device, region->start,
 				    resource_size(region));
 	if (*ptr == NULL) {
-		dev_err(device, "ioremap_nocache of %s failed!", name);
+		dev_err(device, "ioremap_yescache of %s failed!", name);
 		return -ENOMEM;
 	}
 
@@ -869,7 +869,7 @@ static int msgdma_probe(struct platform_device *pdev)
 	dma_dev->device_free_chan_resources = msgdma_free_chan_resources;
 
 	mdev->dmachan.device = dma_dev;
-	list_add_tail(&mdev->dmachan.device_node, &dma_dev->channels);
+	list_add_tail(&mdev->dmachan.device_yesde, &dma_dev->channels);
 
 	/* Set DMA mask to 64 bits */
 	ret = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(64));
@@ -886,7 +886,7 @@ static int msgdma_probe(struct platform_device *pdev)
 	if (ret)
 		goto fail;
 
-	dev_notice(&pdev->dev, "Altera mSGDMA driver probe success\n");
+	dev_yestice(&pdev->dev, "Altera mSGDMA driver probe success\n");
 
 	return 0;
 
@@ -909,7 +909,7 @@ static int msgdma_remove(struct platform_device *pdev)
 	dma_async_device_unregister(&mdev->dmadev);
 	msgdma_dev_remove(mdev);
 
-	dev_notice(&pdev->dev, "Altera mSGDMA driver removed\n");
+	dev_yestice(&pdev->dev, "Altera mSGDMA driver removed\n");
 
 	return 0;
 }

@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -63,9 +63,9 @@
  * for example, to force to  2 lane, 2.7GHz,
  * echo 4 0xa > link_settings
  *
- * spread_spectrum could not be changed dynamically.
+ * spread_spectrum could yest be changed dynamically.
  *
- * in case invalid lane count, link rate are force, no hw programming will be
+ * in case invalid lane count, link rate are force, yes hw programming will be
  * done. please check link settings after force operation to see if HW get
  * programming.
  *
@@ -77,7 +77,7 @@
 static ssize_t dp_link_settings_read(struct file *f, char __user *buf,
 				 size_t size, loff_t *pos)
 {
-	struct amdgpu_dm_connector *connector = file_inode(f)->i_private;
+	struct amdgpu_dm_connector *connector = file_iyesde(f)->i_private;
 	struct dc_link *link = connector->dc_link;
 	char *rd_buf = NULL;
 	char *rd_buf_ptr = NULL;
@@ -143,7 +143,7 @@ static ssize_t dp_link_settings_read(struct file *f, char __user *buf,
 static ssize_t dp_link_settings_write(struct file *f, const char __user *buf,
 				 size_t size, loff_t *pos)
 {
-	struct amdgpu_dm_connector *connector = file_inode(f)->i_private;
+	struct amdgpu_dm_connector *connector = file_iyesde(f)->i_private;
 	struct dc_link *link = connector->dc_link;
 	struct dc *dc = (struct dc *)link->dc;
 	struct dc_link_settings prefer_link_settings;
@@ -169,10 +169,10 @@ static ssize_t dp_link_settings_write(struct file *f, const char __user *buf,
 
 	r = copy_from_user(wr_buf_ptr, buf, wr_buf_size);
 
-	/* r is bytes not be copied */
+	/* r is bytes yest be copied */
 	if (r >= wr_buf_size) {
 		kfree(wr_buf);
-		DRM_DEBUG_DRIVER("user data not read\n");
+		DRM_DEBUG_DRIVER("user data yest read\n");
 		return -EINVAL;
 	}
 
@@ -224,7 +224,7 @@ static ssize_t dp_link_settings_write(struct file *f, const char __user *buf,
 	}
 
 	/* save user force lane_count, link_rate to preferred settings
-	 * spread spectrum will not be changed
+	 * spread spectrum will yest be changed
 	 */
 	prefer_link_settings.link_spread = link->cur_link_settings.link_spread;
 	prefer_link_settings.lane_count = param[0];
@@ -280,7 +280,7 @@ static ssize_t dp_link_settings_write(struct file *f, const char __user *buf,
 static ssize_t dp_phy_settings_read(struct file *f, char __user *buf,
 				 size_t size, loff_t *pos)
 {
-	struct amdgpu_dm_connector *connector = file_inode(f)->i_private;
+	struct amdgpu_dm_connector *connector = file_iyesde(f)->i_private;
 	struct dc_link *link = connector->dc_link;
 	char *rd_buf = NULL;
 	const uint32_t rd_buf_size = 20;
@@ -320,7 +320,7 @@ static ssize_t dp_phy_settings_read(struct file *f, char __user *buf,
 static ssize_t dp_phy_settings_write(struct file *f, const char __user *buf,
 				 size_t size, loff_t *pos)
 {
-	struct amdgpu_dm_connector *connector = file_inode(f)->i_private;
+	struct amdgpu_dm_connector *connector = file_iyesde(f)->i_private;
 	struct dc_link *link = connector->dc_link;
 	struct dc *dc = (struct dc *)link->dc;
 	char *wr_buf = NULL;
@@ -345,10 +345,10 @@ static ssize_t dp_phy_settings_write(struct file *f, const char __user *buf,
 
 	r = copy_from_user(wr_buf_ptr, buf, wr_buf_size);
 
-	/* r is bytes not be copied */
+	/* r is bytes yest be copied */
 	if (r >= wr_buf_size) {
 		kfree(wr_buf);
-		DRM_DEBUG_DRIVER("user data not be read\n");
+		DRM_DEBUG_DRIVER("user data yest be read\n");
 		return 0;
 	}
 
@@ -423,7 +423,7 @@ static ssize_t dp_phy_settings_write(struct file *f, const char __user *buf,
  *
  * set PHY layer or Link layer test pattern
  * PHY test pattern is used for PHY SI check.
- * Link layer test will not affect PHY SI.
+ * Link layer test will yest affect PHY SI.
  *
  * Reset Test Pattern:
  * 0 = DP_TEST_PATTERN_VIDEO_MODE
@@ -455,7 +455,7 @@ static ssize_t dp_phy_settings_write(struct file *f, const char __user *buf,
  * --- set test pattern
  * echo <test pattern #> > test_pattern
  *
- * If test pattern # is not supported, NO HW programming will be done.
+ * If test pattern # is yest supported, NO HW programming will be done.
  * for DP_TEST_PATTERN_80BIT_CUSTOM, it needs extra 10 bytes of data
  * for the user pattern. input 10 bytes data are separated by space
  *
@@ -480,7 +480,7 @@ static ssize_t dp_phy_settings_write(struct file *f, const char __user *buf,
 static ssize_t dp_phy_test_pattern_debugfs_write(struct file *f, const char __user *buf,
 				 size_t size, loff_t *pos)
 {
-	struct amdgpu_dm_connector *connector = file_inode(f)->i_private;
+	struct amdgpu_dm_connector *connector = file_iyesde(f)->i_private;
 	struct dc_link *link = connector->dc_link;
 	char *wr_buf = NULL;
 	char *wr_buf_ptr = NULL;
@@ -518,16 +518,16 @@ static ssize_t dp_phy_test_pattern_debugfs_write(struct file *f, const char __us
 
 	r = copy_from_user(wr_buf_ptr, buf, wr_buf_size);
 
-	/* r is bytes not be copied */
+	/* r is bytes yest be copied */
 	if (r >= wr_buf_size) {
 		kfree(wr_buf);
-		DRM_DEBUG_DRIVER("user data not be read\n");
+		DRM_DEBUG_DRIVER("user data yest be read\n");
 		return 0;
 	}
 
 	bytes_from_user = wr_buf_size - r;
 
-	/* check number of parameters. isspace could not differ space and \n */
+	/* check number of parameters. isspace could yest differ space and \n */
 	while ((*wr_buf_ptr != 0xa) && (wr_buf_count < wr_buf_size)) {
 		/* skip space*/
 		while (isspace(*wr_buf_ptr) && (wr_buf_count < wr_buf_size)) {
@@ -538,7 +538,7 @@ static ssize_t dp_phy_test_pattern_debugfs_write(struct file *f, const char __us
 		if (wr_buf_count == wr_buf_size)
 			break;
 
-		/* skip non-space*/
+		/* skip yesn-space*/
 		while ((!isspace(*wr_buf_ptr)) && (wr_buf_count < wr_buf_size)) {
 			wr_buf_ptr++;
 			wr_buf_count++;
@@ -615,19 +615,19 @@ static ssize_t dp_phy_test_pattern_debugfs_write(struct file *f, const char __us
 		}
 
 		if (i < 10) {
-			/* not use default value */
+			/* yest use default value */
 			for (i = 0; i < 10; i++)
 				custom_pattern[i] = (uint8_t) param[i + 1];
 		}
 	}
 
-	/* Usage: set DP physical test pattern using debugfs with normal DP
+	/* Usage: set DP physical test pattern using debugfs with yesrmal DP
 	 * panel. Then plug out DP panel and connect a scope to measure
-	 * For normal video mode and test pattern generated from CRCT,
-	 * they are visibile to user. So do not disable HPD.
+	 * For yesrmal video mode and test pattern generated from CRCT,
+	 * they are visibile to user. So do yest disable HPD.
 	 * Video Mode is also set to clear the test pattern, so enable HPD
 	 * because it might have been disabled after a test pattern was set.
-	 * AUX depends on HPD * sequence dependent, do not move!
+	 * AUX depends on HPD * sequence dependent, do yest move!
 	 */
 	if (!disable_hpd)
 		dc_link_enable_hpd(link);
@@ -661,7 +661,7 @@ static ssize_t dp_phy_test_pattern_debugfs_write(struct file *f, const char __us
 		custom_pattern,
 		10);
 
-	/* Usage: Set DP physical test pattern using AMDDP with normal DP panel
+	/* Usage: Set DP physical test pattern using AMDDP with yesrmal DP panel
 	 * Then plug out DP panel and connect a scope to measure DP PHY signal.
 	 * Need disable interrupt to avoid SW driver disable DP output. This is
 	 * done after the test pattern is set.
@@ -776,7 +776,7 @@ static ssize_t dp_sdp_message_debugfs_write(struct file *f, const char __user *b
 {
 	int r;
 	uint8_t data[36];
-	struct amdgpu_dm_connector *connector = file_inode(f)->i_private;
+	struct amdgpu_dm_connector *connector = file_iyesde(f)->i_private;
 	struct dm_crtc_state *acrtc_state;
 	uint32_t write_size = 36;
 
@@ -801,7 +801,7 @@ static ssize_t dp_dpcd_address_write(struct file *f, const char __user *buf,
 				 size_t size, loff_t *pos)
 {
 	int r;
-	struct amdgpu_dm_connector *connector = file_inode(f)->i_private;
+	struct amdgpu_dm_connector *connector = file_iyesde(f)->i_private;
 
 	if (size < sizeof(connector->debugfs_dpcd_address))
 		return 0;
@@ -816,7 +816,7 @@ static ssize_t dp_dpcd_size_write(struct file *f, const char __user *buf,
 				 size_t size, loff_t *pos)
 {
 	int r;
-	struct amdgpu_dm_connector *connector = file_inode(f)->i_private;
+	struct amdgpu_dm_connector *connector = file_iyesde(f)->i_private;
 
 	if (size < sizeof(connector->debugfs_dpcd_size))
 		return 0;
@@ -835,7 +835,7 @@ static ssize_t dp_dpcd_data_write(struct file *f, const char __user *buf,
 {
 	int r;
 	char *data;
-	struct amdgpu_dm_connector *connector = file_inode(f)->i_private;
+	struct amdgpu_dm_connector *connector = file_iyesde(f)->i_private;
 	struct dc_link *link = connector->dc_link;
 	uint32_t write_size = connector->debugfs_dpcd_size;
 
@@ -859,7 +859,7 @@ static ssize_t dp_dpcd_data_read(struct file *f, char __user *buf,
 {
 	int r;
 	char *data;
-	struct amdgpu_dm_connector *connector = file_inode(f)->i_private;
+	struct amdgpu_dm_connector *connector = file_iyesde(f)->i_private;
 	struct dc_link *link = connector->dc_link;
 	uint32_t read_size = connector->debugfs_dpcd_size;
 
@@ -1019,7 +1019,7 @@ static ssize_t dtn_log_read(
 	size_t size,
 	loff_t *pos)
 {
-	struct amdgpu_device *adev = file_inode(f)->i_private;
+	struct amdgpu_device *adev = file_iyesde(f)->i_private;
 	struct dc *dc = adev->dm.dc;
 	struct dc_log_buffer_ctx log_ctx = { 0 };
 	ssize_t result = 0;
@@ -1058,7 +1058,7 @@ static ssize_t dtn_log_write(
 	size_t size,
 	loff_t *pos)
 {
-	struct amdgpu_device *adev = file_inode(f)->i_private;
+	struct amdgpu_device *adev = file_iyesde(f)->i_private;
 	struct dc *dc = adev->dm.dc;
 
 	/* Write triggers log output via dmesg. */
@@ -1078,8 +1078,8 @@ static ssize_t dtn_log_write(
  */
 static int current_backlight_read(struct seq_file *m, void *data)
 {
-	struct drm_info_node *node = (struct drm_info_node *)m->private;
-	struct drm_device *dev = node->minor->dev;
+	struct drm_info_yesde *yesde = (struct drm_info_yesde *)m->private;
+	struct drm_device *dev = yesde->miyesr->dev;
 	struct amdgpu_device *adev = dev->dev_private;
 	struct dc *dc = adev->dm.dc;
 	unsigned int backlight = dc_get_current_backlight_pwm(dc);
@@ -1095,8 +1095,8 @@ static int current_backlight_read(struct seq_file *m, void *data)
  */
 static int target_backlight_read(struct seq_file *m, void *data)
 {
-	struct drm_info_node *node = (struct drm_info_node *)m->private;
-	struct drm_device *dev = node->minor->dev;
+	struct drm_info_yesde *yesde = (struct drm_info_yesde *)m->private;
+	struct drm_device *dev = yesde->miyesr->dev;
 	struct amdgpu_device *adev = dev->dev_private;
 	struct dc *dc = adev->dm.dc;
 	unsigned int backlight = dc_get_target_backlight_pwm(dc);
@@ -1107,8 +1107,8 @@ static int target_backlight_read(struct seq_file *m, void *data)
 
 static int mst_topo(struct seq_file *m, void *unused)
 {
-	struct drm_info_node *node = (struct drm_info_node *)m->private;
-	struct drm_device *dev = node->minor->dev;
+	struct drm_info_yesde *yesde = (struct drm_info_yesde *)m->private;
+	struct drm_device *dev = yesde->miyesr->dev;
 	struct drm_connector *connector;
 	struct drm_connector_list_iter conn_iter;
 	struct amdgpu_dm_connector *aconnector;
@@ -1172,8 +1172,8 @@ int dtn_debugfs_init(struct amdgpu_device *adev)
 		.llseek = default_llseek
 	};
 
-	struct drm_minor *minor = adev->ddev->primary;
-	struct dentry *root = minor->debugfs_root;
+	struct drm_miyesr *miyesr = adev->ddev->primary;
+	struct dentry *root = miyesr->debugfs_root;
 	int ret;
 
 	ret = amdgpu_debugfs_add_files(adev, amdgpu_dm_debugfs_list,

@@ -107,7 +107,7 @@ int virtcrypto_dev_started(struct virtio_crypto *vcrypto_dev);
 bool virtcrypto_algo_is_supported(struct virtio_crypto *vcrypto_dev,
 				  uint32_t service,
 				  uint32_t algo);
-struct virtio_crypto *virtcrypto_get_dev_node(int node,
+struct virtio_crypto *virtcrypto_get_dev_yesde(int yesde,
 					      uint32_t service,
 					      uint32_t algo);
 int virtcrypto_dev_start(struct virtio_crypto *vcrypto);
@@ -118,15 +118,15 @@ int virtio_crypto_skcipher_crypt_req(
 void
 virtcrypto_clear_request(struct virtio_crypto_request *vc_req);
 
-static inline int virtio_crypto_get_current_node(void)
+static inline int virtio_crypto_get_current_yesde(void)
 {
-	int cpu, node;
+	int cpu, yesde;
 
 	cpu = get_cpu();
-	node = topology_physical_package_id(cpu);
+	yesde = topology_physical_package_id(cpu);
 	put_cpu();
 
-	return node;
+	return yesde;
 }
 
 int virtio_crypto_algs_register(struct virtio_crypto *vcrypto);

@@ -9,7 +9,7 @@
  */
 
 /*
- * uClinux H8/300 support by Yoshinori Sato <ysato@users.sourceforge.jp>
+ * uClinux H8/300 support by Yoshiyesri Sato <ysato@users.sourceforge.jp>
  *                and David McCullough <davidm@snapgear.com>
  *
  * Based on
@@ -20,7 +20,7 @@
  * ++roman (07/09/96): implemented signal stacks (specially for tosemu on
  * Atari :-) Current limitation: Only one sigstack can be active at one time.
  * If a second signal with SA_ONSTACK set arrives while working on a sigstack,
- * SA_ONSTACK is ignored. This behaviour avoids lots of trouble with nested
+ * SA_ONSTACK is igyesred. This behaviour avoids lots of trouble with nested
  * signal handlers!
  */
 
@@ -30,7 +30,7 @@
 #include <linux/kernel.h>
 #include <linux/signal.h>
 #include <linux/syscalls.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/wait.h>
 #include <linux/ptrace.h>
 #include <linux/unistd.h>
@@ -80,7 +80,7 @@ restore_sigcontext(struct sigcontext *usc, int *pd0)
 	unsigned int er0;
 
 	/* Always make any pending restarted system calls return -EINTR */
-	current->restart_block.fn = do_no_restart_syscall;
+	current->restart_block.fn = do_yes_restart_syscall;
 
 	/* restore passed registers */
 #define COPY(r)  do { err |= get_user(regs->r, &usc->sc_##r); } while (0)
@@ -256,7 +256,7 @@ handle_signal(struct ksignal *ksig, struct pt_regs *regs)
 
 /*
  * Note that 'init' is a special process: it doesn't get signals it doesn't
- * want to handle. Thus you cannot kill init even with a SIGKILL even by
+ * want to handle. Thus you canyest kill init even with a SIGKILL even by
  * mistake.
  */
 static void do_signal(struct pt_regs *regs)
@@ -274,17 +274,17 @@ static void do_signal(struct pt_regs *regs)
 	if (regs->orig_er0 >= 0)
 		handle_restart(regs, NULL);
 
-	/* If there's no signal to deliver, we just restore the saved mask.  */
+	/* If there's yes signal to deliver, we just restore the saved mask.  */
 	restore_saved_sigmask();
 }
 
-asmlinkage void do_notify_resume(struct pt_regs *regs, u32 thread_info_flags)
+asmlinkage void do_yestify_resume(struct pt_regs *regs, u32 thread_info_flags)
 {
 	if (thread_info_flags & _TIF_SIGPENDING)
 		do_signal(regs);
 
 	if (thread_info_flags & _TIF_NOTIFY_RESUME) {
 		clear_thread_flag(TIF_NOTIFY_RESUME);
-		tracehook_notify_resume(regs);
+		tracehook_yestify_resume(regs);
 	}
 }

@@ -252,7 +252,7 @@ static const struct ingenic_cgu_clk_info x1000_cgu_clocks[] = {
 	},
 };
 
-static void __init x1000_cgu_init(struct device_node *np)
+static void __init x1000_cgu_init(struct device_yesde *np)
 {
 	int retval;
 

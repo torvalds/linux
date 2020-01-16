@@ -19,7 +19,7 @@
 
 /*
  * This bitbanging SPI master driver should help make systems usable
- * when a native hardware SPI engine is not available, perhaps because
+ * when a native hardware SPI engine is yest available, perhaps because
  * its driver isn't yet working or because the I/O pins it requires
  * are used for other purposes.
  *
@@ -111,7 +111,7 @@ static inline int getmiso(const struct spi_device *spi)
 /*
  * NOTE:  this clocks "as fast as we can".  It "should" be a function of the
  * requested device clock.  Software overhead means we usually have trouble
- * reaching even one Mbit/sec (except when we can inline bitops), so for now
+ * reaching even one Mbit/sec (except when we can inline bitops), so for yesw
  * we'll just assume we never need additional per-bit slowdowns.
  */
 #define spidelay(nsecs)	do {} while (0)
@@ -157,9 +157,9 @@ static u32 spi_gpio_txrx_word_mode3(struct spi_device *spi,
 }
 
 /*
- * These functions do not call setmosi or getmiso if respective flag
+ * These functions do yest call setmosi or getmiso if respective flag
  * (SPI_MASTER_NO_RX or SPI_MASTER_NO_TX) is set, so they are safe to
- * call when such pin is not present or defined in the controller.
+ * call when such pin is yest present or defined in the controller.
  * A separate set of callbacks is defined to get highest possible
  * speed in the generic case (when both MISO and MOSI lines are
  * available), as optimiser will remove the checks when argument is
@@ -208,7 +208,7 @@ static void spi_gpio_chipselect(struct spi_device *spi, int is_active)
 	if (spi_gpio->cs_gpios) {
 		struct gpio_desc *cs = spi_gpio->cs_gpios[spi->chip_select];
 
-		/* SPI chip selects are normally active-low */
+		/* SPI chip selects are yesrmally active-low */
 		gpiod_set_value_cansleep(cs, (spi->mode & SPI_CS_HIGH) ? is_active : !is_active);
 	}
 }
@@ -250,9 +250,9 @@ static int spi_gpio_set_direction(struct spi_device *spi, bool output)
 	/*
 	 * Send a turnaround high impedance cycle when switching
 	 * from output to input. Theoretically there should be
-	 * a clock delay here, but as has been noted above, the
+	 * a clock delay here, but as has been yested above, the
 	 * nsec delay function for bit-banged GPIO is simply
-	 * {} because bit-banging just doesn't get fast enough
+	 * {} because bit-banging just doesn't get fast eyesugh
 	 * anyway.
 	 */
 	if (spi->mode & SPI_3WIRE_HIZ) {
@@ -272,12 +272,12 @@ static void spi_gpio_cleanup(struct spi_device *spi)
 /*
  * It can be convenient to use this driver with pins that have alternate
  * functions associated with a "native" SPI controller if a driver for that
- * controller is not available, or is missing important functionality.
+ * controller is yest available, or is missing important functionality.
  *
  * On platforms which can do so, configure MISO with a weak pullup unless
  * there's an external pullup on that signal.  That saves power by avoiding
  * floating signals.  (A weak pulldown would save power too, but many
- * drivers expect to see all-ones data as the no slave "response".)
+ * drivers expect to see all-ones data as the yes slave "response".)
  */
 static int spi_gpio_request(struct device *dev, struct spi_gpio *spi_gpio)
 {
@@ -303,7 +303,7 @@ MODULE_DEVICE_TABLE(of, spi_gpio_dt_ids);
 static int spi_gpio_probe_dt(struct platform_device *pdev,
 			     struct spi_master *master)
 {
-	master->dev.of_node = pdev->dev.of_node;
+	master->dev.of_yesde = pdev->dev.of_yesde;
 	master->use_gpio_descriptors = true;
 
 	return 0;
@@ -329,7 +329,7 @@ static int spi_gpio_probe_pdata(struct platform_device *pdev,
 		return -ENODEV;
 #endif
 	/*
-	 * The master needs to think there is a chipselect even if not
+	 * The master needs to think there is a chipselect even if yest
 	 * connected
 	 */
 	master->num_chipselect = pdata->num_chipselect ?: 1;
@@ -373,7 +373,7 @@ static int spi_gpio_probe(struct platform_device *pdev)
 		return status;
 	}
 
-	if (pdev->dev.of_node)
+	if (pdev->dev.of_yesde)
 		status = spi_gpio_probe_dt(pdev, master);
 	else
 		status = spi_gpio_probe_pdata(pdev, master);

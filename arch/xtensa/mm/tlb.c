@@ -28,7 +28,7 @@ static inline void __flush_itlb_all (void)
 	for (w = 0; w < ITLB_ARF_WAYS; w++) {
 		for (i = 0; i < (1 << XCHAL_ITLB_ARF_ENTRIES_LOG2); i++) {
 			int e = w + (i << PAGE_SHIFT);
-			invalidate_itlb_entry_no_isync(e);
+			invalidate_itlb_entry_yes_isync(e);
 		}
 	}
 	asm volatile ("isync\n");
@@ -41,7 +41,7 @@ static inline void __flush_dtlb_all (void)
 	for (w = 0; w < DTLB_ARF_WAYS; w++) {
 		for (i = 0; i < (1 << XCHAL_DTLB_ARF_ENTRIES_LOG2); i++) {
 			int e = w + (i << PAGE_SHIFT);
-			invalidate_dtlb_entry_no_isync(e);
+			invalidate_dtlb_entry_yes_isync(e);
 		}
 	}
 	asm volatile ("isync\n");
@@ -177,16 +177,16 @@ static unsigned get_pte_for_vaddr(unsigned vaddr)
 	if (!mm)
 		mm = task->active_mm;
 	pgd = pgd_offset(mm, vaddr);
-	if (pgd_none_or_clear_bad(pgd))
+	if (pgd_yesne_or_clear_bad(pgd))
 		return 0;
 	p4d = p4d_offset(pgd, vaddr);
-	if (p4d_none_or_clear_bad(p4d))
+	if (p4d_yesne_or_clear_bad(p4d))
 		return 0;
 	pud = pud_offset(p4d, vaddr);
-	if (pud_none_or_clear_bad(pud))
+	if (pud_yesne_or_clear_bad(pud))
 		return 0;
 	pmd = pmd_offset(pud, vaddr);
-	if (pmd_none_or_clear_bad(pmd))
+	if (pmd_yesne_or_clear_bad(pmd))
 		return 0;
 	pte = pte_offset_map(pmd, vaddr);
 	if (!pte)
@@ -214,10 +214,10 @@ static void tlb_suspicious(void)
  * and TLB entries with user ASID (>=4) have VMA < TASK_SIZE.
  *
  * Check that valid TLB entries either have the same PA as the PTE, or PTE is
- * marked as non-present. Non-present PTE and the page with non-zero refcount
- * and zero mapcount is normal for batched TLB flush operation. Zero refcount
+ * marked as yesn-present. Non-present PTE and the page with yesn-zero refcount
+ * and zero mapcount is yesrmal for batched TLB flush operation. Zero refcount
  * means that the page was freed prematurely. Non-zero mapcount is unusual,
- * but does not necessary means an error, thus marked as suspicious.
+ * but does yest necessary means an error, thus marked as suspicious.
  */
 static int check_tlb_entry(unsigned w, unsigned e, bool dtlb)
 {

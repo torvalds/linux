@@ -1,24 +1,24 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 #ifndef _UAPI_ASM_X86_E820_H
 #define _UAPI_ASM_X86_E820_H
 #define E820MAP	0x2d0		/* our map */
 #define E820MAX	128		/* number of entries in E820MAP */
 
 /*
- * Legacy E820 BIOS limits us to 128 (E820MAX) nodes due to the
- * constrained space in the zeropage.  If we have more nodes than
+ * Legacy E820 BIOS limits us to 128 (E820MAX) yesdes due to the
+ * constrained space in the zeropage.  If we have more yesdes than
  * that, and if we've booted off EFI firmware, then the EFI tables
- * passed us from the EFI firmware can list more nodes.  Size our
+ * passed us from the EFI firmware can list more yesdes.  Size our
  * internal memory map tables to have room for these additional
- * nodes, based on up to three entries per node for which the
+ * yesdes, based on up to three entries per yesde for which the
  * kernel was built: MAX_NUMNODES == (1 << CONFIG_NODES_SHIFT),
  * plus E820MAX, allowing space for the possible duplicate E820
  * entries that might need room in the same arrays, prior to the
  * call to sanitize_e820_map() to remove duplicates.  The allowance
- * of three memory map entries per node is "enough" entries for
+ * of three memory map entries per yesde is "eyesugh" entries for
  * the initial hardware platform motivating this mechanism to make
  * use of additional EFI map entries.  Future platforms may want
- * to allow more than three entries per node or otherwise refine
+ * to allow more than three entries per yesde or otherwise refine
  * this size.
  */
 
@@ -36,8 +36,8 @@
 #define E820_PMEM	7
 
 /*
- * This is a non-standardized way to represent ADR or NVDIMM regions that
- * persist over a reboot.  The kernel will ignore their special capabilities
+ * This is a yesn-standardized way to represent ADR or NVDIMM regions that
+ * persist over a reboot.  The kernel will igyesre their special capabilities
  * unless the CONFIG_X86_PMEM_LEGACY option is set.
  *
  * ( Note that older platforms also used 6 for the same type of memory,
@@ -49,7 +49,7 @@
 /*
  * reserved RAM used by kernel itself
  * if CONFIG_INTEL_TXT is enabled, memory of this type will be
- * included in the S3 integrity calculation and so should not include
+ * included in the S3 integrity calculation and so should yest include
  * any memory that BIOS might alter over the S3 transition
  */
 #define E820_RESERVED_KERN        128

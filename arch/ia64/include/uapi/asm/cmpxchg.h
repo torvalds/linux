@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 #ifndef _ASM_IA64_CMPXCHG_H
 #define _ASM_IA64_CMPXCHG_H
 
@@ -118,7 +118,7 @@ extern long ia64_cmpxchg_called_with_bad_pointer(void);
 	ia64_cmpxchg(rel, (ptr), (o), (n), sizeof(*(ptr)))
 
 /*
- * Worse still - early processor implementations actually just ignored
+ * Worse still - early processor implementations actually just igyesred
  * the acquire/release and did a full fence all the time.  Unfortunately
  * this meant a lot of badly written code that used .acq when they really
  * wanted .rel became legacy out in the wild - so when we made a cpu

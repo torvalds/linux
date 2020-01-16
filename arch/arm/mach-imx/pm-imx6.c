@@ -436,32 +436,32 @@ static const struct platform_suspend_ops imx6q_pm_ops = {
 static int __init imx6_pm_get_base(struct imx6_pm_base *base,
 				const char *compat)
 {
-	struct device_node *node;
+	struct device_yesde *yesde;
 	struct resource res;
 	int ret = 0;
 
-	node = of_find_compatible_node(NULL, NULL, compat);
-	if (!node)
+	yesde = of_find_compatible_yesde(NULL, NULL, compat);
+	if (!yesde)
 		return -ENODEV;
 
-	ret = of_address_to_resource(node, 0, &res);
+	ret = of_address_to_resource(yesde, 0, &res);
 	if (ret)
-		goto put_node;
+		goto put_yesde;
 
 	base->pbase = res.start;
 	base->vbase = ioremap(res.start, resource_size(&res));
 	if (!base->vbase)
 		ret = -ENOMEM;
 
-put_node:
-	of_node_put(node);
+put_yesde:
+	of_yesde_put(yesde);
 	return ret;
 }
 
 static int __init imx6q_suspend_init(const struct imx6_pm_socdata *socdata)
 {
 	phys_addr_t ocram_pbase;
-	struct device_node *node;
+	struct device_yesde *yesde;
 	struct platform_device *pdev;
 	struct imx6_cpu_pm_info *pm_info;
 	struct gen_pool *ocram_pool;
@@ -476,31 +476,31 @@ static int __init imx6q_suspend_init(const struct imx6_pm_socdata *socdata)
 		return -EINVAL;
 	}
 
-	node = of_find_compatible_node(NULL, NULL, "mmio-sram");
-	if (!node) {
-		pr_warn("%s: failed to find ocram node!\n", __func__);
+	yesde = of_find_compatible_yesde(NULL, NULL, "mmio-sram");
+	if (!yesde) {
+		pr_warn("%s: failed to find ocram yesde!\n", __func__);
 		return -ENODEV;
 	}
 
-	pdev = of_find_device_by_node(node);
+	pdev = of_find_device_by_yesde(yesde);
 	if (!pdev) {
 		pr_warn("%s: failed to find ocram device!\n", __func__);
 		ret = -ENODEV;
-		goto put_node;
+		goto put_yesde;
 	}
 
 	ocram_pool = gen_pool_get(&pdev->dev, NULL);
 	if (!ocram_pool) {
 		pr_warn("%s: ocram pool unavailable!\n", __func__);
 		ret = -ENODEV;
-		goto put_node;
+		goto put_yesde;
 	}
 
 	ocram_base = gen_pool_alloc(ocram_pool, MX6Q_SUSPEND_OCRAM_SIZE);
 	if (!ocram_base) {
 		pr_warn("%s: unable to alloc ocram!\n", __func__);
 		ret = -ENOMEM;
-		goto put_node;
+		goto put_yesde;
 	}
 
 	ocram_pbase = gen_pool_virt_to_phys(ocram_pool, ocram_base);
@@ -515,7 +515,7 @@ static int __init imx6q_suspend_init(const struct imx6_pm_socdata *socdata)
 	pm_info->pm_info_size = sizeof(*pm_info);
 
 	/*
-	 * ccm physical address is not used by asm code currently,
+	 * ccm physical address is yest used by asm code currently,
 	 * so get ccm virtual address directly.
 	 */
 	pm_info->ccm_base.vbase = ccm_base;
@@ -523,7 +523,7 @@ static int __init imx6q_suspend_init(const struct imx6_pm_socdata *socdata)
 	ret = imx6_pm_get_base(&pm_info->mmdc_base, socdata->mmdc_compat);
 	if (ret) {
 		pr_warn("%s: failed to get mmdc base %d!\n", __func__, ret);
-		goto put_node;
+		goto put_yesde;
 	}
 
 	ret = imx6_pm_get_base(&pm_info->src_base, socdata->src_compat);
@@ -570,7 +570,7 @@ static int __init imx6q_suspend_init(const struct imx6_pm_socdata *socdata)
 		&imx6_suspend,
 		MX6Q_SUSPEND_OCRAM_SIZE - sizeof(*pm_info));
 
-	goto put_node;
+	goto put_yesde;
 
 pl310_cache_map_failed:
 	iounmap(pm_info->gpc_base.vbase);
@@ -580,8 +580,8 @@ iomuxc_map_failed:
 	iounmap(pm_info->src_base.vbase);
 src_map_failed:
 	iounmap(pm_info->mmdc_base.vbase);
-put_node:
-	of_node_put(node);
+put_yesde:
+	of_yesde_put(yesde);
 
 	return ret;
 }
@@ -638,10 +638,10 @@ static int imx6_pm_stby_poweroff_probe(void)
 
 void __init imx6_pm_ccm_init(const char *ccm_compat)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 	u32 val;
 
-	np = of_find_compatible_node(NULL, NULL, ccm_compat);
+	np = of_find_compatible_yesde(NULL, NULL, ccm_compat);
 	ccm_base = of_iomap(np, 0);
 	BUG_ON(!ccm_base);
 

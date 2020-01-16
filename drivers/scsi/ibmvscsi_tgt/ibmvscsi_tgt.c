@@ -5,7 +5,7 @@
  *			   Santiago Leon (santil@us.ibm.com) IBM Corp.
  *			   Linda Xie (lxie@us.ibm.com) IBM Corp.
  *
- * Copyright (C) 2005-2011 FUJITA Tomonori <tomof@acm.org>
+ * Copyright (C) 2005-2011 FUJITA Tomoyesri <tomof@acm.org>
  * Copyright (C) 2010 Nicholas A. Bellinger <nab@kernel.org>
  *
  * Authors: Bryant G. Ly <bryantly@linux.vnet.ibm.com>
@@ -160,7 +160,7 @@ static long ibmvscsis_unregister_command_q(struct scsi_info *vscsi)
 
 		case H_BUSY:
 		case H_LONG_BUSY_ORDER_1_MSEC:
-			/* msleep not good for small values */
+			/* msleep yest good for small values */
 			usleep_range(1000, 2000);
 			ticks += 1;
 			break;
@@ -185,7 +185,7 @@ static long ibmvscsis_unregister_command_q(struct scsi_info *vscsi)
 			ticks += 100000;
 			break;
 		default:
-			dev_err(&vscsi->dev, "unregister_command_q: unknown error %ld from h_free_crq\n",
+			dev_err(&vscsi->dev, "unregister_command_q: unkyeswn error %ld from h_free_crq\n",
 				qrc);
 			rc = ERROR;
 			break;
@@ -235,13 +235,13 @@ static void ibmvscsis_delete_client_info(struct scsi_info *vscsi,
  * @vscsi:	Pointer to our adapter structure
  *
  * This function calls unregister_command_q, then clears interrupts and
- * any pending interrupt acknowledgments associated with the command q.
- * It also clears memory if there is no error.
+ * any pending interrupt ackyeswledgments associated with the command q.
+ * It also clears memory if there is yes error.
  *
- * PHYP did not meet the PAPR architecture so that we must give up the
+ * PHYP did yest meet the PAPR architecture so that we must give up the
  * lock. This causes a timing hole regarding state change.  To close the
  * hole this routine does accounting on any change that occurred during
- * the time the lock is not held.
+ * the time the lock is yest held.
  * NOTE: must give up and then acquire the interrupt lock, the caller must
  *	 make sure that state and or flags will prevent interrupt handler from
  *	 scheduling work.
@@ -346,7 +346,7 @@ static long ibmvscsis_send_init_message(struct scsi_info *vscsi, u8 format)
  * ibmvscsis_check_init_msg() - Check init message valid
  * @vscsi:	Pointer to our adapter structure
  * @format:	Pointer to return format of Init Message, if any.
- *		Set to UNUSED_FORMAT if no Init Message in queue.
+ *		Set to UNUSED_FORMAT if yes Init Message in queue.
  *
  * Checks if an initialize message was queued by the initiatior
  * after the queue was created and before the interrupt was enabled.
@@ -369,9 +369,9 @@ static long ibmvscsis_check_init_msg(struct scsi_info *vscsi, uint *format)
 		dma_rmb();
 
 		/*
-		 * the caller has ensured no initialize message was
+		 * the caller has ensured yes initialize message was
 		 * sent after the queue was
-		 * created so there should be no other message on the queue.
+		 * created so there should be yes other message on the queue.
 		 */
 		crq = ibmvscsis_cmd_q_dequeue(vscsi->cmd_q.mask,
 					      &vscsi->cmd_q.index,
@@ -398,7 +398,7 @@ static long ibmvscsis_check_init_msg(struct scsi_info *vscsi, uint *format)
  *
  * An error has occurred or the driver received a Transport event,
  * and the driver is requesting that the command queue be de-registered
- * in a safe manner. If there is no outstanding I/O then we can stop the
+ * in a safe manner. If there is yes outstanding I/O then we can stop the
  * queue. If we are restarting the queue it will be reflected in the
  * the state of the adapter.
  *
@@ -431,7 +431,7 @@ static void ibmvscsis_disconnect(struct work_struct *work)
 	case NO_QUEUE:
 	/*
 	 * Can never transition from this state;
-	 * igonore errors and logout.
+	 * igoyesre errors and logout.
 	 */
 	case UNCONFIGURING:
 		break;
@@ -507,8 +507,8 @@ static void ibmvscsis_disconnect(struct work_struct *work)
 		break;
 
 	/*
-	 * Initiator has not done a successful srp login
-	 * or has done a successful srp logout ( adapter was not
+	 * Initiator has yest done a successful srp login
+	 * or has done a successful srp logout ( adapter was yest
 	 * busy). In the first case there can be responses queued
 	 * waiting for space on the initiators response queue (MAD)
 	 * The second case the adapter is idle. Assume the worse case,
@@ -540,7 +540,7 @@ static void ibmvscsis_disconnect(struct work_struct *work)
 			dev_dbg(&vscsi->dev, "disconnect flags 0x%x\n",
 				vscsi->flags);
 			/*
-			 * This routine is can not be called with the interrupt
+			 * This routine is can yest be called with the interrupt
 			 * lock held.
 			 */
 			spin_unlock_bh(&vscsi->intr_lock);
@@ -917,7 +917,7 @@ static void ibmvscsis_reset_queue(struct scsi_info *vscsi)
 /**
  * ibmvscsis_free_cmd_resources() - Free command resources
  * @vscsi:	Pointer to our adapter structure
- * @cmd:	Command which is not longer in use
+ * @cmd:	Command which is yest longer in use
  *
  * Must be called with interrupt lock held.
  */
@@ -931,7 +931,7 @@ static void ibmvscsis_free_cmd_resources(struct scsi_info *vscsi,
 	case SCSI_CDB:
 		/*
 		 * When the queue goes down this value is cleared, so it
-		 * cannot be cleared in this general purpose function.
+		 * canyest be cleared in this general purpose function.
 		 */
 		if (vscsi->debit)
 			vscsi->debit -= 1;
@@ -942,7 +942,7 @@ static void ibmvscsis_free_cmd_resources(struct scsi_info *vscsi,
 	case UNSET_TYPE:
 		break;
 	default:
-		dev_err(&vscsi->dev, "free_cmd_resources unknown type %d\n",
+		dev_err(&vscsi->dev, "free_cmd_resources unkyeswn type %d\n",
 			cmd->type);
 		break;
 	}
@@ -962,7 +962,7 @@ static void ibmvscsis_free_cmd_resources(struct scsi_info *vscsi,
  * ibmvscsis_ready_for_suspend() - Helper function to call VIOCTL
  * @vscsi:	Pointer to our adapter structure
  * @idle:	Indicates whether we were called from adapter_idle.  This
- *		is important to know if we need to do a disconnect, since if
+ *		is important to kyesw if we need to do a disconnect, since if
  *		we're called from adapter_idle, we're still processing the
  *		current disconnect, so we can't just call post_disconnect.
  *
@@ -1021,7 +1021,7 @@ static long ibmvscsis_ready_for_suspend(struct scsi_info *vscsi, bool idle)
  * @vscsi:	Pointer to our adapter structure
  * @crq:	Pointer to CRQ entry containing the Transport Event
  *
- * Do the logic to close the I_T nexus.  This function may not
+ * Do the logic to close the I_T nexus.  This function may yest
  * behave to specification.
  *
  * EXECUTION ENVIRONMENT:
@@ -1076,7 +1076,7 @@ static long ibmvscsis_trans_event(struct scsi_info *vscsi,
 					(int)list_empty(&vscsi->active_q));
 				dev_warn(&vscsi->dev, "connection lost with outstanding work\n");
 			} else {
-				dev_dbg(&vscsi->dev, "trans_event: SRP Processing, but no outstanding work\n");
+				dev_dbg(&vscsi->dev, "trans_event: SRP Processing, but yes outstanding work\n");
 			}
 
 			ibmvscsis_post_disconnect(vscsi, WAIT_IDLE,
@@ -1200,7 +1200,7 @@ poll_work:
 				 * if a tranport event has occurred leave
 				 * everything but transport events on the queue
 				 */
-				dev_dbg(&vscsi->dev, "poll_cmd_q, ignoring\n");
+				dev_dbg(&vscsi->dev, "poll_cmd_q, igyesring\n");
 
 				/*
 				 * need to decrement the queue index so we can
@@ -1302,7 +1302,7 @@ static struct ibmvscsis_cmd *ibmvscsis_get_free_cmd(struct scsi_info *vscsi)
  * This function is called when the adapter is idle when the driver
  * is attempting to clear an error condition.
  * The adapter is considered busy if any of its cmd queues
- * are non-empty. This function can be invoked
+ * are yesn-empty. This function can be invoked
  * from the off level disconnect function.
  *
  * EXECUTION ENVIRONMENT:
@@ -1389,7 +1389,7 @@ static void ibmvscsis_adapter_idle(struct scsi_info *vscsi)
 
 	/*
 	 * There is a timing window where we could lose a disconnect request.
-	 * The known path to this window occurs during the DISCONNECT_RECONNECT
+	 * The kyeswn path to this window occurs during the DISCONNECT_RECONNECT
 	 * case above: reset_queue calls free_command_q, which will release the
 	 * interrupt lock.  During that time, a new post_disconnect call can be
 	 * made with a "more severe" state (DISCONNECT or UNCONFIGURING).
@@ -1401,7 +1401,7 @@ static void ibmvscsis_adapter_idle(struct scsi_info *vscsi)
 	 * forever.
 	 * Fix is that free command queue sets acr state and acr flags if there
 	 * is a change under the lock
-	 * note free command queue writes to this state it clears it
+	 * yeste free command queue writes to this state it clears it
 	 * before releasing the lock, different drivers call the free command
 	 * queue different times so dont initialize above
 	 */
@@ -1543,7 +1543,7 @@ static long ibmvscsis_adapter_info(struct scsi_info *vscsi,
 	}
 
 	/*
-	 * Copy client info, but ignore partition number, which we
+	 * Copy client info, but igyesre partition number, which we
 	 * already got from phyp - unless we failed to get it from
 	 * phyp (e.g. if we're running on a p5 system).
 	 */
@@ -1803,7 +1803,7 @@ static void srp_snd_msg_failed(struct scsi_info *vscsi, long rc)
 	 * child being removed then the driver assumes
 	 * the system admin is attempting to break the
 	 * connection with the client and MAX_TIMER_POPS
-	 * is honored.
+	 * is hoyesred.
 	 */
 	if ((vscsi->rsp_q_timer.timer_pops < MAX_TIMER_POPS) ||
 	    (vscsi->state == SRP_PROCESSING)) {
@@ -1813,7 +1813,7 @@ static void srp_snd_msg_failed(struct scsi_info *vscsi, long rc)
 
 		/*
 		 * Check if the timer is running; if it
-		 * is not then start it up.
+		 * is yest then start it up.
 		 */
 		if (!vscsi->rsp_q_timer.started) {
 			if (vscsi->rsp_q_timer.timer_pops <
@@ -1863,7 +1863,7 @@ static void srp_snd_msg_failed(struct scsi_info *vscsi, long rc)
  * @vscsi:	Pointer to our adapter structure
  *
  * Send a response, first checking the waiting queue. Responses are
- * sent in order they are received. If the response cannot be sent,
+ * sent in order they are received. If the response canyest be sent,
  * because the client queue is full, it stays on the waiting queue.
  *
  * PRECONDITION:
@@ -1872,8 +1872,8 @@ static void srp_snd_msg_failed(struct scsi_info *vscsi, long rc)
 static void ibmvscsis_send_messages(struct scsi_info *vscsi)
 {
 	u64 msg_hi = 0;
-	/* note do not attempt to access the IU_data_ptr with this pointer
-	 * it is not valid
+	/* yeste do yest attempt to access the IU_data_ptr with this pointer
+	 * it is yest valid
 	 */
 	struct viosrp_crq *crq = (struct viosrp_crq *)&msg_hi;
 	struct ibmvscsis_cmd *cmd, *nxt;
@@ -2034,12 +2034,12 @@ static long ibmvscsis_mad(struct scsi_info *vscsi, struct viosrp_crq *crq)
 
 	switch (vscsi->state) {
 		/*
-		 * We have not exchanged Init Msgs yet, so this MAD was sent
-		 * before the last Transport Event; client will not be
+		 * We have yest exchanged Init Msgs yet, so this MAD was sent
+		 * before the last Transport Event; client will yest be
 		 * expecting a response.
 		 */
 	case WAIT_CONNECTION:
-		dev_dbg(&vscsi->dev, "mad: in Wait Connection state, ignoring MAD, flags %d\n",
+		dev_dbg(&vscsi->dev, "mad: in Wait Connection state, igyesring MAD, flags %d\n",
 			vscsi->flags);
 		return ADAPT_SUCCESS;
 
@@ -2093,7 +2093,7 @@ static long ibmvscsis_mad(struct scsi_info *vscsi, struct viosrp_crq *crq)
 }
 
 /**
- * ibmvscsis_login_rsp() - Create/copy a login response notice to the client
+ * ibmvscsis_login_rsp() - Create/copy a login response yestice to the client
  * @vscsi:	Pointer to our adapter structure
  * @cmd:	Pointer to the command for the SRP Login request
  *
@@ -2152,7 +2152,7 @@ static long ibmvscsis_login_rsp(struct scsi_info *vscsi,
 }
 
 /**
- * ibmvscsis_srp_login_rej() - Create/copy a login rejection notice to client
+ * ibmvscsis_srp_login_rej() - Create/copy a login rejection yestice to client
  * @vscsi:	Pointer to our adapter structure
  * @cmd:	Pointer to the command for the SRP Login request
  * @reason:	The reason the SRP Login is being rejected, per SRP protocol
@@ -2342,7 +2342,7 @@ static long ibmvscsis_srp_login(struct scsi_info *vscsi,
  * @cmd:	Command element to use to process the Implicit Logout request
  * @crq:	Pointer to CRQ entry containing the Implicit Logout request
  *
- * Do the logic to close the I_T nexus.  This function may not
+ * Do the logic to close the I_T nexus.  This function may yest
  * behave to specification.
  *
  * EXECUTION ENVIRONMENT:
@@ -2464,10 +2464,10 @@ static void ibmvscsis_srp_cmd(struct scsi_info *vscsi, struct viosrp_crq *crq)
  * ibmvscsis_ping_response() - Respond to a ping request
  * @vscsi:	Pointer to our adapter structure
  *
- * Let the client know that the server is alive and waiting on
+ * Let the client kyesw that the server is alive and waiting on
  * its native I/O stack.
  * If any type of error occurs from the call to queue a ping
- * response then the client is either not accepting or receiving
+ * response then the client is either yest accepting or receiving
  * interrupts.  Disconnect with an error.
  *
  * EXECUTION ENVIRONMENT:
@@ -2502,7 +2502,7 @@ static long ibmvscsis_ping_response(struct scsi_info *vscsi)
 		ibmvscsis_post_disconnect(vscsi, ERR_DISCONNECT_RECONNECT, 0);
 		break;
 	default:
-		dev_err(&vscsi->dev, "ping_response: h_send_crq returned unknown rc %ld\n",
+		dev_err(&vscsi->dev, "ping_response: h_send_crq returned unkyeswn rc %ld\n",
 			rc);
 		ibmvscsis_post_disconnect(vscsi, ERR_DISCONNECT, 0);
 		break;
@@ -2518,7 +2518,7 @@ static long ibmvscsis_ping_response(struct scsi_info *vscsi)
  *
  * This function will return success if the command queue element is valid
  * and the srp iu or MAD request it pointed to was also valid.  That does
- * not mean that an error was not returned to the client.
+ * yest mean that an error was yest returned to the client.
  *
  * EXECUTION ENVIRONMENT:
  *	Interrupt, intr lock held
@@ -2596,7 +2596,7 @@ static int read_dma_window(struct scsi_info *vscsi)
 	const __be32 *prop;
 
 	/* TODO Using of_parse_dma_window would be better, but it doesn't give
-	 * a way to read multiple windows without already knowing the size of
+	 * a way to read multiple windows without already kyeswing the size of
 	 * a window or the number of windows.
 	 */
 	dma_window = (const __be32 *)vio_get_attribute(vdev,
@@ -2628,7 +2628,7 @@ static int read_dma_window(struct scsi_info *vscsi)
 		dma_window += be32_to_cpu(*prop);
 	}
 
-	/* dma_window should point to the second window now */
+	/* dma_window should point to the second window yesw */
 	vscsi->dds.window[REMOTE].liobn = be32_to_cpu(*dma_window);
 
 	return 0;
@@ -2659,7 +2659,7 @@ static struct ibmvscsis_tport *ibmvscsis_lookup_port(const char *name)
  * @cmd:	Pointer to command element with SRP command
  *
  * Parse the srp command; if it is valid then submit it to tcm.
- * Note: The return code does not reflect the status of the SCSI CDB.
+ * Note: The return code does yest reflect the status of the SCSI CDB.
  *
  * EXECUTION ENVIRONMENT:
  *	Process level
@@ -2699,7 +2699,7 @@ static void ibmvscsis_parse_cmd(struct scsi_info *vscsi,
 		goto fail;
 	}
 
-	cmd->rsp.sol_not = srp->sol_not;
+	cmd->rsp.sol_yest = srp->sol_yest;
 
 	switch (srp->task_attr) {
 	case SRP_SIMPLE_TASK:
@@ -2753,7 +2753,7 @@ fail:
  * @cmd:	Pointer to command element with SRP task management request
  *
  * Parse the srp task management request; if it is valid then submit it to tcm.
- * Note: The return code does not reflect the status of the task management
+ * Note: The return code does yest reflect the status of the task management
  * request.
  *
  * EXECUTION ENVIRONMENT:
@@ -2771,7 +2771,7 @@ static void ibmvscsis_parse_task(struct scsi_info *vscsi,
 
 	nexus = vscsi->tport.ibmv_nexus;
 
-	cmd->rsp.sol_not = srp_tsk->sol_not;
+	cmd->rsp.sol_yest = srp_tsk->sol_yest;
 
 	switch (srp_tsk->tsk_mgmt_func) {
 	case SRP_TSK_ABORT_TASK:
@@ -2791,7 +2791,7 @@ static void ibmvscsis_parse_task(struct scsi_info *vscsi,
 		tcm_type = TMR_CLEAR_ACA;
 		break;
 	default:
-		dev_err(&vscsi->dev, "unknown task mgmt func %d\n",
+		dev_err(&vscsi->dev, "unkyeswn task mgmt func %d\n",
 			srp_tsk->tsk_mgmt_func);
 		cmd->se_cmd.se_tmr_req->response =
 			TMR_TASK_MGMT_FUNCTION_NOT_SUPPORTED;
@@ -2910,7 +2910,7 @@ static void ibmvscsis_free_cmds(struct scsi_info *vscsi)
  * This routine is called when the timer pops to service the waiting
  * queue. Elements on the queue have completed, their responses have been
  * copied to the client, but the client's response queue was full so
- * the queue message could not be sent. The routine grabs the proper locks
+ * the queue message could yest be sent. The routine grabs the proper locks
  * and calls send messages.
  *
  * EXECUTION ENVIRONMENT:
@@ -2971,7 +2971,7 @@ static irqreturn_t ibmvscsis_interrupt(int dummy, void *data)
  * ibmvscsis_enable_change_state() - Set new state based on enabled status
  * @vscsi:	Pointer to our adapter structure
  *
- * This function determines our new state now that we are enabled.  This
+ * This function determines our new state yesw that we are enabled.  This
  * may involve sending an Init Complete message to the client.
  *
  * Must be called with interrupt lock held.
@@ -3013,7 +3013,7 @@ static long ibmvscsis_create_command_q(struct scsi_info *vscsi, int num_cmds)
 	int pages;
 	struct vio_dev *vdev = vscsi->dma_dev;
 
-	/* We might support multiple pages in the future, but just 1 for now */
+	/* We might support multiple pages in the future, but just 1 for yesw */
 	pages = 1;
 
 	vscsi->cmd_q.size = pages;
@@ -3064,7 +3064,7 @@ static u8 ibmvscsis_fast_fail(struct scsi_info *vscsi,
 	u8 rc = se_cmd->scsi_status;
 
 	if (vscsi->fast_fail && (READ_CMD(srp->cdb) || WRITE_CMD(srp->cdb)))
-		if (scsi_normalize_sense(se_cmd->sense_buffer,
+		if (scsi_yesrmalize_sense(se_cmd->sense_buffer,
 					 se_cmd->scsi_sense_length, &sshdr))
 			if (sshdr.sense_key == HARDWARE_ERROR &&
 			    (se_cmd->residual_count == 0 ||
@@ -3124,15 +3124,15 @@ static long srp_build_response(struct scsi_info *vscsi,
 				memcpy(data, se_cmd->sense_buffer,
 				       se_cmd->scsi_sense_length);
 			}
-			rsp->sol_not = (cmd->rsp.sol_not & UCSOLNT) >>
+			rsp->sol_yest = (cmd->rsp.sol_yest & UCSOLNT) >>
 				UCSOLNT_RESP_SHIFT;
 		} else if (cmd->flags & CMD_FAST_FAIL) {
 			dev_dbg(&vscsi->dev, "build_resp: cmd %p, fast fail\n",
 				cmd);
-			rsp->sol_not = (cmd->rsp.sol_not & UCSOLNT) >>
+			rsp->sol_yest = (cmd->rsp.sol_yest & UCSOLNT) >>
 				UCSOLNT_RESP_SHIFT;
 		} else {
-			rsp->sol_not = (cmd->rsp.sol_not & SCSOLNT) >>
+			rsp->sol_yest = (cmd->rsp.sol_yest & SCSOLNT) >>
 				SCSOLNT_RESP_SHIFT;
 		}
 	} else {
@@ -3145,20 +3145,20 @@ static long srp_build_response(struct scsi_info *vscsi,
 		case TMR_FUNCTION_COMPLETE:
 		case TMR_TASK_DOES_NOT_EXIST:
 			rsp_code = SRP_TASK_MANAGEMENT_FUNCTION_COMPLETE;
-			rsp->sol_not = (cmd->rsp.sol_not & SCSOLNT) >>
+			rsp->sol_yest = (cmd->rsp.sol_yest & SCSOLNT) >>
 				SCSOLNT_RESP_SHIFT;
 			break;
 		case TMR_TASK_MGMT_FUNCTION_NOT_SUPPORTED:
 		case TMR_LUN_DOES_NOT_EXIST:
 			rsp_code = SRP_TASK_MANAGEMENT_FUNCTION_NOT_SUPPORTED;
-			rsp->sol_not = (cmd->rsp.sol_not & UCSOLNT) >>
+			rsp->sol_yest = (cmd->rsp.sol_yest & UCSOLNT) >>
 				UCSOLNT_RESP_SHIFT;
 			break;
 		case TMR_FUNCTION_FAILED:
 		case TMR_FUNCTION_REJECTED:
 		default:
 			rsp_code = SRP_TASK_MANAGEMENT_FUNCTION_FAILED;
-			rsp->sol_not = (cmd->rsp.sol_not & UCSOLNT) >>
+			rsp->sol_yest = (cmd->rsp.sol_yest & UCSOLNT) >>
 				UCSOLNT_RESP_SHIFT;
 			break;
 		}
@@ -3262,7 +3262,7 @@ static int ibmvscsis_rdma(struct ibmvscsis_cmd *cmd, struct scatterlist *sg,
 					 vscsi->dds.window[LOCAL].liobn,
 					 server_ioba);
 		} else {
-			/* The h_copy_rdma will cause phyp, running in another
+			/* The h_copy_rdma will cause phyp, running in ayesther
 			 * partition, to read memory, so we need to make sure
 			 * the data has been written out, hence these syncs.
 			 */
@@ -3293,7 +3293,7 @@ static int ibmvscsis_rdma(struct ibmvscsis_cmd *cmd, struct scatterlist *sg,
 			break;
 
 		default:
-			dev_err(&vscsi->dev, "rdma: unknown error %ld from h_copy_rdma\n",
+			dev_err(&vscsi->dev, "rdma: unkyeswn error %ld from h_copy_rdma\n",
 				rc);
 			break;
 		}
@@ -3329,7 +3329,7 @@ static int ibmvscsis_rdma(struct ibmvscsis_cmd *cmd, struct scatterlist *sg,
  * associated with the command elements to local memory and execute the
  * SRP requests.
  *
- * Note: this is an edge triggered interrupt. It can not be shared.
+ * Note: this is an edge triggered interrupt. It can yest be shared.
  */
 static void ibmvscsis_handle_crq(unsigned long data)
 {
@@ -3346,7 +3346,7 @@ static void ibmvscsis_handle_crq(unsigned long data)
 	/*
 	 * if we are in a path where we are waiting for all pending commands
 	 * to complete because we received a transport event and anything in
-	 * the command queue is for a new connection, do nothing
+	 * the command queue is for a new connection, do yesthing
 	 */
 	if (TARGET_STOP(vscsi)) {
 		vio_enable_interrupts(vscsi->dma_dev);
@@ -3478,7 +3478,7 @@ static int ibmvscsis_probe(struct vio_dev *vdev,
 	spin_unlock_bh(&ibmvscsis_dev_lock);
 
 	/*
-	 * TBD: How do we determine # of cmds to request?  Do we know how
+	 * TBD: How do we determine # of cmds to request?  Do we kyesw how
 	 * many "children" we have?
 	 */
 	vscsi->request_limit = INITIAL_SRP_LIMIT;
@@ -3651,11 +3651,11 @@ static ssize_t unit_address_show(struct device *dev,
 
 static int ibmvscsis_get_system_info(void)
 {
-	struct device_node *rootdn, *vdevdn;
+	struct device_yesde *rootdn, *vdevdn;
 	const char *id, *model, *name;
 	const uint *num;
 
-	rootdn = of_find_node_by_path("/");
+	rootdn = of_find_yesde_by_path("/");
 	if (!rootdn)
 		return -ENOENT;
 
@@ -3668,13 +3668,13 @@ static int ibmvscsis_get_system_info(void)
 	if (name)
 		strncpy(partition_name, name, sizeof(partition_name));
 
-	num = of_get_property(rootdn, "ibm,partition-no", NULL);
+	num = of_get_property(rootdn, "ibm,partition-yes", NULL);
 	if (num)
 		partition_number = of_read_number(num, 1);
 
-	of_node_put(rootdn);
+	of_yesde_put(rootdn);
 
-	vdevdn = of_find_node_by_path("/vdevice");
+	vdevdn = of_find_yesde_by_path("/vdevice");
 	if (vdevdn) {
 		const uint *mvds;
 
@@ -3682,7 +3682,7 @@ static int ibmvscsis_get_system_info(void)
 				       NULL);
 		if (mvds)
 			max_vdma_size = *mvds;
-		of_node_put(vdevdn);
+		of_yesde_put(vdevdn);
 	}
 
 	return 0;
@@ -3774,14 +3774,14 @@ static int ibmvscsis_write_pending(struct se_cmd *se_cmd)
 		return -EIO;
 	}
 	/*
-	 * We now tell TCM to add this WRITE CDB directly into the TCM storage
+	 * We yesw tell TCM to add this WRITE CDB directly into the TCM storage
 	 * object execution queue.
 	 */
 	target_execute_cmd(se_cmd);
 	return 0;
 }
 
-static void ibmvscsis_set_default_node_attrs(struct se_node_acl *nacl)
+static void ibmvscsis_set_default_yesde_attrs(struct se_yesde_acl *nacl)
 {
 }
 
@@ -4041,7 +4041,7 @@ static const struct target_core_fabric_ops ibmvscsis_ops = {
 	.release_cmd			= ibmvscsis_release_cmd,
 	.sess_get_index			= ibmvscsis_sess_get_index,
 	.write_pending			= ibmvscsis_write_pending,
-	.set_default_node_attributes	= ibmvscsis_set_default_node_attrs,
+	.set_default_yesde_attributes	= ibmvscsis_set_default_yesde_attrs,
 	.get_cmd_state			= ibmvscsis_get_cmd_state,
 	.queue_data_in			= ibmvscsis_queue_data_in,
 	.queue_status			= ibmvscsis_queue_status,

@@ -42,7 +42,7 @@
 
 struct tlc591xx_led {
 	bool active;
-	unsigned int led_no;
+	unsigned int led_yes;
 	struct led_classdev ldev;
 	struct tlc591xx_priv *priv;
 };
@@ -87,9 +87,9 @@ static int
 tlc591xx_set_ledout(struct tlc591xx_priv *priv, struct tlc591xx_led *led,
 		    u8 val)
 {
-	unsigned int i = (led->led_no % 4) * 2;
+	unsigned int i = (led->led_yes % 4) * 2;
 	unsigned int mask = LEDOUT_MASK << i;
-	unsigned int addr = priv->reg_ledout_offset + (led->led_no >> 2);
+	unsigned int addr = priv->reg_ledout_offset + (led->led_yes >> 2);
 
 	val = val << i;
 
@@ -100,7 +100,7 @@ static int
 tlc591xx_set_pwm(struct tlc591xx_priv *priv, struct tlc591xx_led *led,
 		 u8 brightness)
 {
-	u8 pwm = TLC591XX_REG_PWM(led->led_no);
+	u8 pwm = TLC591XX_REG_PWM(led->led_yes);
 
 	return regmap_write(priv->regmap, pwm, brightness);
 }
@@ -148,7 +148,7 @@ static int
 tlc591xx_probe(struct i2c_client *client,
 	       const struct i2c_device_id *id)
 {
-	struct device_node *np = client->dev.of_node, *child;
+	struct device_yesde *np = client->dev.of_yesde, *child;
 	struct device *dev = &client->dev;
 	const struct of_device_id *match;
 	const struct tlc591xx *tlc591xx;
@@ -185,20 +185,20 @@ tlc591xx_probe(struct i2c_client *client,
 	if (err < 0)
 		return err;
 
-	for_each_child_of_node(np, child) {
+	for_each_child_of_yesde(np, child) {
 		struct tlc591xx_led *led;
 		struct led_init_data init_data = {};
 
-		init_data.fwnode = of_fwnode_handle(child);
+		init_data.fwyesde = of_fwyesde_handle(child);
 
 		err = of_property_read_u32(child, "reg", &reg);
 		if (err) {
-			of_node_put(child);
+			of_yesde_put(child);
 			return err;
 		}
 		if (reg < 0 || reg >= tlc591xx->max_leds ||
 		    priv->leds[reg].active) {
-			of_node_put(child);
+			of_yesde_put(child);
 			return -EINVAL;
 		}
 		led = &priv->leds[reg];
@@ -208,7 +208,7 @@ tlc591xx_probe(struct i2c_client *client,
 			of_get_property(child, "linux,default-trigger", NULL);
 
 		led->priv = priv;
-		led->led_no = reg;
+		led->led_yes = reg;
 		led->ldev.brightness_set_blocking = tlc591xx_brightness_set;
 		led->ldev.max_brightness = TLC591XX_MAX_BRIGHTNESS;
 		err = devm_led_classdev_register_ext(dev, &led->ldev,

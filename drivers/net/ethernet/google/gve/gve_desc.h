@@ -11,9 +11,9 @@
 
 #include <linux/build_bug.h>
 
-/* A note on seg_addrs
+/* A yeste on seg_addrs
  *
- * Base addresses encoded in seg_addr are not assumed to be physical
+ * Base addresses encoded in seg_addr are yest assumed to be physical
  * addresses. The ring format assumes these come from some linear address
  * space. This could be physical memory, kernel virtual memory, user virtual
  * memory. gVNIC uses lists of registered pages. Each queue is assumed
@@ -28,7 +28,7 @@ struct gve_tx_pkt_desc {
 	u8	desc_cnt;  /* Total descriptors for this packet */
 	__be16	len;  /* Total length of this packet (in bytes) */
 	__be16	seg_len;  /* Length of this descriptor's segment */
-	__be64	seg_addr;  /* Base address (see note) of this segment */
+	__be64	seg_addr;  /* Base address (see yeste) of this segment */
 } __packed;
 
 struct gve_tx_seg_desc {
@@ -106,7 +106,7 @@ static inline bool gve_needs_rss(__be16 flag)
 	return false;
 }
 
-static inline u8 gve_next_seqno(u8 seq)
+static inline u8 gve_next_seqyes(u8 seq)
 {
 	return (seq + 1) == 8 ? 1 : seq + 1;
 }

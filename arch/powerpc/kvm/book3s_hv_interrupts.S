@@ -26,7 +26,7 @@
  ****************************************************************************/
 
 /* Registers:
- *  none
+ *  yesne
  */
 _GLOBAL(__kvmppc_vcore_entry)
 
@@ -37,7 +37,7 @@ _GLOBAL(__kvmppc_vcore_entry)
 	/* Save host state to the stack */
 	stdu	r1, -SWITCH_FRAME_SIZE(r1)
 
-	/* Save non-volatile registers (r14 - r31) and CR */
+	/* Save yesn-volatile registers (r14 - r31) and CR */
 	SAVE_NVGPRS(r1)
 	mfcr	r3
 	std	r3, _CCR(r1)
@@ -78,7 +78,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_ARCH_300)
 
 	/* Jump to partition switch code */
 	bl	kvmppc_hv_entry_trampoline
-	nop
+	yesp
 
 /*
  * We return here in virtual mode after the guest exits
@@ -96,7 +96,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_ARCH_300)
 	 * R13      = PACA
 	 */
 
-	/* Restore non-volatile host registers (r14 - r31) and CR */
+	/* Restore yesn-volatile host registers (r14 - r31) and CR */
 	REST_NVGPRS(r1)
 	ld	r4, _CCR(r1)
 	mtcr	r4
@@ -126,7 +126,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_ARCH_207S)
 	isync
 	lbz	r5, PACA_PMCINUSE(r13)	/* is the host using the PMU? */
 	cmpwi	r5, 0
-	beq	31f			/* skip if not */
+	beq	31f			/* skip if yest */
 	mfspr	r5, SPRN_MMCR1
 	mfspr	r9, SPRN_SIAR
 	mfspr	r10, SPRN_SDAR

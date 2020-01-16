@@ -20,7 +20,7 @@ static void regulator_fixed_release(struct device *dev)
 }
 
 /**
- * regulator_register_fixed_name - register a no-op fixed regulator
+ * regulator_register_fixed_name - register a yes-op fixed regulator
  * @id: platform device id
  * @name: name to be used for the regulator
  * @supplies: consumers for this regulator

@@ -263,7 +263,7 @@ static int iscsi_login_zero_tsih_s1(
 	if (!sess) {
 		iscsit_tx_login_rsp(conn, ISCSI_STATUS_CLS_TARGET_ERR,
 				ISCSI_LOGIN_STATUS_NO_RESOURCES);
-		pr_err("Could not allocate memory for session\n");
+		pr_err("Could yest allocate memory for session\n");
 		return -ENOMEM;
 	}
 
@@ -338,7 +338,7 @@ free_sess:
 static int iscsi_login_zero_tsih_s2(
 	struct iscsi_conn *conn)
 {
-	struct iscsi_node_attrib *na;
+	struct iscsi_yesde_attrib *na;
 	struct iscsi_session *sess = conn->sess;
 	bool iser = false;
 
@@ -371,7 +371,7 @@ static int iscsi_login_zero_tsih_s2(
 		return iscsi_set_keys_irrelevant_for_discovery(
 				conn->param_list);
 
-	na = iscsit_tpg_get_node_attrib(sess);
+	na = iscsit_tpg_get_yesde_attrib(sess);
 
 	/*
 	 * Need to send TargetPortalGroupTag back in first login response
@@ -456,7 +456,7 @@ check_prot:
 	return 0;
 }
 
-static int iscsi_login_non_zero_tsih_s1(
+static int iscsi_login_yesn_zero_tsih_s1(
 	struct iscsi_conn *conn,
 	unsigned char *buf)
 {
@@ -468,7 +468,7 @@ static int iscsi_login_non_zero_tsih_s1(
 /*
  *	Add a new connection to an existing session.
  */
-static int iscsi_login_non_zero_tsih_s2(
+static int iscsi_login_yesn_zero_tsih_s2(
 	struct iscsi_conn *conn,
 	unsigned char *buf)
 {
@@ -503,7 +503,7 @@ static int iscsi_login_non_zero_tsih_s2(
 	 */
 	if (!sess) {
 		pr_err("Initiator attempting to add a connection to"
-			" a non-existent session, rejecting iSCSI Login.\n");
+			" a yesn-existent session, rejecting iSCSI Login.\n");
 		iscsit_tx_login_rsp(conn, ISCSI_STATUS_CLS_INITIATOR_ERR,
 				ISCSI_LOGIN_STATUS_NO_SESSION);
 		return -1;
@@ -511,7 +511,7 @@ static int iscsi_login_non_zero_tsih_s2(
 
 	/*
 	 * Stop the Time2Retain timer if this is a failed session, we restart
-	 * the timer if the login is not successful.
+	 * the timer if the login is yest successful.
 	 */
 	spin_lock_bh(&sess->conn_lock);
 	if (sess->session_state == TARG_SESS_STATE_FAILED)
@@ -543,7 +543,7 @@ static int iscsi_login_non_zero_tsih_s2(
 	return 0;
 }
 
-int iscsi_login_post_auth_non_zero_tsih(
+int iscsi_login_post_auth_yesn_zero_tsih(
 	struct iscsi_conn *conn,
 	u16 cid,
 	u32 exp_statsn)
@@ -555,8 +555,8 @@ int iscsi_login_post_auth_non_zero_tsih(
 	/*
 	 * By following item 5 in the login table,  if we have found
 	 * an existing ISID and a valid/existing TSIH and an existing
-	 * CID we do connection reinstatement.  Currently we dont not
-	 * support it so we send back an non-zero status class to the
+	 * CID we do connection reinstatement.  Currently we dont yest
+	 * support it so we send back an yesn-zero status class to the
 	 * initiator and release the new connection.
 	 */
 	conn_ptr = iscsit_get_conn_from_cid_rcfr(sess, cid);
@@ -572,10 +572,10 @@ int iscsi_login_post_auth_non_zero_tsih(
 	/*
 	 * Check for any connection recovery entries containing CID.
 	 * We use the original ExpStatSN sent in the first login request
-	 * to acknowledge commands for the failed connection.
+	 * to ackyeswledge commands for the failed connection.
 	 *
-	 * Also note that an explict logout may have already been sent,
-	 * but the response may not be sent due to additional connection
+	 * Also yeste that an explict logout may have already been sent,
+	 * but the response may yest be sent due to additional connection
 	 * loss.
 	 */
 	if (sess->sess_ops->ErrorRecoveryLevel == 2) {
@@ -620,7 +620,7 @@ static void iscsi_post_login_start_timers(struct iscsi_conn *conn)
 		return;
 
 	if (!sess->sess_ops->SessionType)
-		iscsit_start_nopin_timer(conn);
+		iscsit_start_yespin_timer(conn);
 }
 
 int iscsit_start_kthreads(struct iscsi_conn *conn)
@@ -714,7 +714,7 @@ void iscsi_post_login_handler(
 		list_add_tail(&conn->conn_list, &sess->sess_conn_list);
 		atomic_inc(&sess->nconn);
 		pr_debug("Incremented iSCSI Connection count to %hu"
-			" from node: %s\n", atomic_read(&sess->nconn),
+			" from yesde: %s\n", atomic_read(&sess->nconn),
 			sess->sess_ops->InitiatorName);
 		spin_unlock_bh(&sess->conn_lock);
 
@@ -727,7 +727,7 @@ void iscsi_post_login_handler(
 		conn->conn_rx_reset_cpumask = 1;
 		conn->conn_tx_reset_cpumask = 1;
 		/*
-		 * Wakeup the sleeping iscsi_target_rx_thread() now that
+		 * Wakeup the sleeping iscsi_target_rx_thread() yesw that
 		 * iscsi_conn is in TARG_CONN_STATE_LOGGED_IN state.
 		 */
 		complete(&conn->rx_login_comp);
@@ -750,7 +750,7 @@ void iscsi_post_login_handler(
 
 	spin_lock_bh(&se_tpg->session_lock);
 	__transport_register_session(&sess->tpg->tpg_se_tpg,
-			se_sess->se_node_acl, se_sess, sess);
+			se_sess->se_yesde_acl, se_sess, sess);
 	pr_debug("Moving to TARG_SESS_STATE_LOGGED_IN.\n");
 	sess->session_state = TARG_SESS_STATE_LOGGED_IN;
 
@@ -761,7 +761,7 @@ void iscsi_post_login_handler(
 	spin_lock_bh(&sess->conn_lock);
 	list_add_tail(&conn->conn_list, &sess->sess_conn_list);
 	atomic_inc(&sess->nconn);
-	pr_debug("Incremented iSCSI Connection count to %hu from node:"
+	pr_debug("Incremented iSCSI Connection count to %hu from yesde:"
 		" %s\n", atomic_read(&sess->nconn),
 		sess->sess_ops->InitiatorName);
 	spin_unlock_bh(&sess->conn_lock);
@@ -769,7 +769,7 @@ void iscsi_post_login_handler(
 	sess->sid = tpg->sid++;
 	if (!sess->sid)
 		sess->sid = tpg->sid++;
-	pr_debug("Established iSCSI session from node: %s\n",
+	pr_debug("Established iSCSI session from yesde: %s\n",
 			sess->sess_ops->InitiatorName);
 
 	tpg->nsessions++;
@@ -789,7 +789,7 @@ void iscsi_post_login_handler(
 	conn->conn_rx_reset_cpumask = 1;
 	conn->conn_tx_reset_cpumask = 1;
 	/*
-	 * Wakeup the sleeping iscsi_target_rx_thread() now that
+	 * Wakeup the sleeping iscsi_target_rx_thread() yesw that
 	 * iscsi_conn is in TARG_CONN_STATE_LOGGED_IN state.
 	 */
 	complete(&conn->rx_login_comp);
@@ -820,7 +820,7 @@ static void iscsi_start_login_thread_timer(struct iscsi_np *np)
 {
 	/*
 	 * This used the TA_LOGIN_TIMEOUT constant because at this
-	 * point we do not have access to ISCSI_TPG_ATTRIB(tpg)->login_timeout
+	 * point we do yest have access to ISCSI_TPG_ATTRIB(tpg)->login_timeout
 	 */
 	spin_lock_bh(&np->np_thread_lock);
 	np->np_login_timer_flags &= ~ISCSI_TF_STOP;
@@ -1107,7 +1107,7 @@ static struct iscsi_conn *iscsit_alloc_conn(struct iscsi_np *np)
 
 	conn = kzalloc(sizeof(struct iscsi_conn), GFP_KERNEL);
 	if (!conn) {
-		pr_err("Could not allocate memory for new connection\n");
+		pr_err("Could yest allocate memory for new connection\n");
 		return NULL;
 	}
 	pr_debug("Moving to TARG_CONN_STATE_FREE.\n");
@@ -1129,13 +1129,13 @@ static struct iscsi_conn *iscsit_alloc_conn(struct iscsi_np *np)
 	spin_lock_init(&conn->cmd_lock);
 	spin_lock_init(&conn->conn_usage_lock);
 	spin_lock_init(&conn->immed_queue_lock);
-	spin_lock_init(&conn->nopin_timer_lock);
+	spin_lock_init(&conn->yespin_timer_lock);
 	spin_lock_init(&conn->response_queue_lock);
 	spin_lock_init(&conn->state_lock);
 
-	timer_setup(&conn->nopin_response_timer,
-		    iscsit_handle_nopin_response_timeout, 0);
-	timer_setup(&conn->nopin_timer, iscsit_handle_nopin_timeout, 0);
+	timer_setup(&conn->yespin_response_timer,
+		    iscsit_handle_yespin_response_timeout, 0);
+	timer_setup(&conn->yespin_timer, iscsit_handle_yespin_timeout, 0);
 
 	if (iscsit_conn_set_transport(conn, np->np_transport) < 0)
 		goto free_conn;
@@ -1268,7 +1268,7 @@ static int __iscsi_target_login_thread(struct iscsi_np *np)
 
 	conn = iscsit_alloc_conn(np);
 	if (!conn) {
-		/* Get another socket */
+		/* Get ayesther socket */
 		return 1;
 	}
 
@@ -1284,7 +1284,7 @@ static int __iscsi_target_login_thread(struct iscsi_np *np)
 			spin_unlock_bh(&np->np_thread_lock);
 			complete(&np->np_restart_comp);
 			iscsit_free_conn(conn);
-			/* Get another socket */
+			/* Get ayesther socket */
 			return 1;
 		}
 		spin_unlock_bh(&np->np_thread_lock);
@@ -1323,7 +1323,7 @@ static int __iscsi_target_login_thread(struct iscsi_np *np)
 	spin_lock_bh(&np->np_thread_lock);
 	if (np->np_thread_state != ISCSI_NP_THREAD_ACTIVE) {
 		spin_unlock_bh(&np->np_thread_lock);
-		pr_err("iSCSI Network Portal on %pISpc currently not"
+		pr_err("iSCSI Network Portal on %pISpc currently yest"
 			" active.\n", &np->np_sockaddr);
 		iscsit_tx_login_rsp(conn, ISCSI_STATUS_CLS_TARGET_ERR,
 				ISCSI_LOGIN_STATUS_SVC_UNAVAILABLE);
@@ -1356,12 +1356,12 @@ static int __iscsi_target_login_thread(struct iscsi_np *np)
 	} else {
 		/*
 		 * Add a new connection to an existing session.
-		 * We check for a non-existant session in
-		 * iscsi_login_non_zero_tsih_s2() below based
+		 * We check for a yesn-existant session in
+		 * iscsi_login_yesn_zero_tsih_s2() below based
 		 * on ISID/TSIH, but wait until after authentication
 		 * to check for connection reinstatement, etc.
 		 */
-		if (iscsi_login_non_zero_tsih_s1(conn, buffer) < 0)
+		if (iscsi_login_yesn_zero_tsih_s1(conn, buffer) < 0)
 			goto new_sess_out;
 	}
 	/*
@@ -1394,7 +1394,7 @@ static int __iscsi_target_login_thread(struct iscsi_np *np)
 		if (iscsi_login_zero_tsih_s2(conn) < 0)
 			goto new_sess_out;
 	} else {
-		if (iscsi_login_non_zero_tsih_s2(conn, buffer) < 0)
+		if (iscsi_login_yesn_zero_tsih_s2(conn, buffer) < 0)
 			goto old_sess_out;
 	}
 
@@ -1423,7 +1423,7 @@ static int __iscsi_target_login_thread(struct iscsi_np *np)
 
 	tpg = NULL;
 	tpg_np = NULL;
-	/* Get another socket */
+	/* Get ayesther socket */
 	return 1;
 
 new_sess_out:
@@ -1460,7 +1460,7 @@ int iscsi_target_login_thread(void *arg)
 	while (1) {
 		ret = __iscsi_target_login_thread(np);
 		/*
-		 * We break and exit here unless another sock_accept() call
+		 * We break and exit here unless ayesther sock_accept() call
 		 * is expected.
 		 */
 		if (ret != 1)

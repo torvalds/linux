@@ -97,10 +97,10 @@ static void lbtf_cmd_work(struct work_struct *work)
 	}
 
 	if (priv->cmd_timed_out && priv->cur_cmd) {
-		struct cmd_ctrl_node *cmdnode = priv->cur_cmd;
+		struct cmd_ctrl_yesde *cmdyesde = priv->cur_cmd;
 
 		if (++priv->nr_retries > 10) {
-			lbtf_complete_command(priv, cmdnode,
+			lbtf_complete_command(priv, cmdyesde,
 					      -ETIMEDOUT);
 			priv->nr_retries = 0;
 		} else {
@@ -108,7 +108,7 @@ static void lbtf_cmd_work(struct work_struct *work)
 
 			/* Stick it back at the _top_ of the pending
 			 * queue for immediate resubmission */
-			list_add(&cmdnode->list, &priv->cmdpendingq);
+			list_add(&cmdyesde->list, &priv->cmdpendingq);
 		}
 	}
 	priv->cmd_timed_out = 0;
@@ -135,7 +135,7 @@ static void command_timer_fn(struct timer_list *t)
 
 	if (!priv->cur_cmd) {
 		printk(KERN_DEBUG "libertastf: command timer expired; "
-				  "no pending command\n");
+				  "yes pending command\n");
 		goto out;
 	}
 
@@ -189,7 +189,7 @@ static void lbtf_op_tx(struct ieee80211_hw *hw,
 	queue_work(lbtf_wq, &priv->tx_work);
 	/*
 	 * queue will be restarted when we receive transmission feedback if
-	 * there are no buffered multicast frames to send
+	 * there are yes buffered multicast frames to send
 	 */
 	ieee80211_stop_queues(priv->hw);
 }
@@ -273,16 +273,16 @@ static void lbtf_op_stop(struct ieee80211_hw *hw)
 	unsigned long flags;
 	struct sk_buff *skb;
 
-	struct cmd_ctrl_node *cmdnode;
+	struct cmd_ctrl_yesde *cmdyesde;
 
 	lbtf_deb_enter(LBTF_DEB_MACOPS);
 
-	/* Flush pending command nodes */
+	/* Flush pending command yesdes */
 	spin_lock_irqsave(&priv->driver_lock, flags);
-	list_for_each_entry(cmdnode, &priv->cmdpendingq, list) {
-		cmdnode->result = -ENOENT;
-		cmdnode->cmdwaitqwoken = 1;
-		wake_up_interruptible(&cmdnode->cmdwait_q);
+	list_for_each_entry(cmdyesde, &priv->cmdpendingq, list) {
+		cmdyesde->result = -ENOENT;
+		cmdyesde->cmdwaitqwoken = 1;
+		wake_up_interruptible(&cmdyesde->cmdwait_q);
 	}
 
 	spin_unlock_irqrestore(&priv->driver_lock, flags);
@@ -467,7 +467,7 @@ static int lbtf_op_get_survey(struct ieee80211_hw *hw, int idx,
 
 	survey->channel = conf->chandef.chan;
 	survey->filled = SURVEY_INFO_NOISE_DBM;
-	survey->noise = priv->noise;
+	survey->yesise = priv->yesise;
 
 	return 0;
 }
@@ -507,7 +507,7 @@ int lbtf_rx(struct lbtf_private *priv, struct sk_buff *skb)
 	stats.freq = priv->cur_freq;
 	stats.band = NL80211_BAND_2GHZ;
 	stats.signal = prxpd->snr - prxpd->nf;
-	priv->noise = prxpd->nf;
+	priv->yesise = prxpd->nf;
 	/* Marvell rate index has a hole at value 4 */
 	if (prxpd->rx_rate > 4)
 		--prxpd->rx_rate;

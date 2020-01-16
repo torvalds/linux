@@ -233,7 +233,7 @@ static int stmpe_adc_init_hw(struct stmpe_adc *adc)
 
 	ret = stmpe_enable(stmpe, STMPE_BLOCK_ADC);
 	if (ret) {
-		dev_err(stmpe->dev, "Could not enable clock for ADC\n");
+		dev_err(stmpe->dev, "Could yest enable clock for ADC\n");
 		return ret;
 	}
 
@@ -254,8 +254,8 @@ static int stmpe_adc_probe(struct platform_device *pdev)
 {
 	struct iio_dev *indio_dev;
 	struct stmpe_adc *info;
-	struct device_node *np;
-	u32 norequest_mask = 0;
+	struct device_yesde *np;
+	u32 yesrequest_mask = 0;
 	int irq_temp, irq_adc;
 	int num_chan = 0;
 	int i = 0;
@@ -303,14 +303,14 @@ static int stmpe_adc_probe(struct platform_device *pdev)
 
 	info->stmpe = dev_get_drvdata(pdev->dev.parent);
 
-	np = pdev->dev.of_node;
+	np = pdev->dev.of_yesde;
 
 	if (!np)
-		dev_err(&pdev->dev, "no device tree node found\n");
+		dev_err(&pdev->dev, "yes device tree yesde found\n");
 
-	of_property_read_u32(np, "st,norequest-mask", &norequest_mask);
+	of_property_read_u32(np, "st,yesrequest-mask", &yesrequest_mask);
 
-	for_each_clear_bit(i, (unsigned long *) &norequest_mask,
+	for_each_clear_bit(i, (unsigned long *) &yesrequest_mask,
 			   (STMPE_ADC_LAST_NR + 1)) {
 		stmpe_adc_voltage_chan(&info->stmpe_adc_iio_channels[num_chan], i);
 		num_chan++;
@@ -325,10 +325,10 @@ static int stmpe_adc_probe(struct platform_device *pdev)
 		return ret;
 
 	stmpe_reg_write(info->stmpe, STMPE_REG_ADC_INT_EN,
-			~(norequest_mask & 0xFF));
+			~(yesrequest_mask & 0xFF));
 
 	stmpe_reg_write(info->stmpe, STMPE_REG_ADC_INT_STA,
-			~(norequest_mask & 0xFF));
+			~(yesrequest_mask & 0xFF));
 
 	return devm_iio_device_register(&pdev->dev, indio_dev);
 }

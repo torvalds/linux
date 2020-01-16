@@ -362,13 +362,13 @@ static void at91_clk_unregister_sam9x5_slow(struct clk_hw *hw)
 	kfree(slowck);
 }
 
-static void __init at91sam9x5_sckc_register(struct device_node *np,
+static void __init at91sam9x5_sckc_register(struct device_yesde *np,
 					    unsigned int rc_osc_startup_us,
 					    const struct clk_slow_bits *bits)
 {
 	const char *parent_names[2] = { "slow_rc_osc", "slow_osc" };
 	void __iomem *regbase = of_iomap(np, 0);
-	struct device_node *child = NULL;
+	struct device_yesde *child = NULL;
 	const char *xtal_name;
 	struct clk_hw *slow_rc, *slow_osc, *slowck;
 	bool bypass;
@@ -438,14 +438,14 @@ static const struct clk_slow_bits at91sam9x5_bits = {
 	.cr_oscsel = BIT(3),
 };
 
-static void __init of_at91sam9x5_sckc_setup(struct device_node *np)
+static void __init of_at91sam9x5_sckc_setup(struct device_yesde *np)
 {
 	at91sam9x5_sckc_register(np, 75, &at91sam9x5_bits);
 }
 CLK_OF_DECLARE(at91sam9x5_clk_sckc, "atmel,at91sam9x5-sckc",
 	       of_at91sam9x5_sckc_setup);
 
-static void __init of_sama5d3_sckc_setup(struct device_node *np)
+static void __init of_sama5d3_sckc_setup(struct device_yesde *np)
 {
 	at91sam9x5_sckc_register(np, 500, &at91sam9x5_bits);
 }
@@ -458,7 +458,7 @@ static const struct clk_slow_bits at91sam9x60_bits = {
 	.cr_oscsel = BIT(24),
 };
 
-static void __init of_sam9x60_sckc_setup(struct device_node *np)
+static void __init of_sam9x60_sckc_setup(struct device_yesde *np)
 {
 	void __iomem *regbase = of_iomap(np, 0);
 	struct clk_hw_onecell_data *clk_data;
@@ -534,7 +534,7 @@ static int clk_sama5d4_slow_osc_prepare(struct clk_hw *hw)
 
 	/*
 	 * Assume that if it has already been selected (for example by the
-	 * bootloader), enough time has aready passed.
+	 * bootloader), eyesugh time has aready passed.
 	 */
 	if ((readl(osc->sckcr) & osc->bits->cr_oscsel)) {
 		osc->prepared = true;
@@ -566,7 +566,7 @@ static const struct clk_slow_bits at91sama5d4_bits = {
 	.cr_oscsel = BIT(3),
 };
 
-static void __init of_sama5d4_sckc_setup(struct device_node *np)
+static void __init of_sama5d4_sckc_setup(struct device_yesde *np)
 {
 	void __iomem *regbase = of_iomap(np, 0);
 	struct clk_hw *slow_rc, *slowck;

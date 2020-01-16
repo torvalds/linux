@@ -18,7 +18,7 @@
  * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
  * USE OR OTHER DEALINGS IN THE SOFTWARE.
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright yestice and this permission yestice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
  *
@@ -97,7 +97,7 @@ int amdgpu_vce_sw_init(struct amdgpu_device *adev, unsigned long size)
 {
 	const char *fw_name;
 	const struct common_firmware_header *hdr;
-	unsigned ucode_version, version_major, version_minor, binary_id;
+	unsigned ucode_version, version_major, version_miyesr, binary_id;
 	int i, r;
 
 	switch (adev->asic_type) {
@@ -176,11 +176,11 @@ int amdgpu_vce_sw_init(struct amdgpu_device *adev, unsigned long size)
 
 	ucode_version = le32_to_cpu(hdr->ucode_version);
 	version_major = (ucode_version >> 20) & 0xfff;
-	version_minor = (ucode_version >> 8) & 0xfff;
+	version_miyesr = (ucode_version >> 8) & 0xfff;
 	binary_id = ucode_version & 0xff;
 	DRM_INFO("Found VCE firmware Version: %hhd.%hhd Binary ID: %hhd\n",
-		version_major, version_minor, binary_id);
-	adev->vce.fw_version = ((version_major << 24) | (version_minor << 16) |
+		version_major, version_miyesr, binary_id);
+	adev->vce.fw_version = ((version_major << 24) | (version_miyesr << 16) |
 				(binary_id << 8));
 
 	r = amdgpu_bo_create_kernel(adev, size, PAGE_SIZE,
@@ -326,7 +326,7 @@ int amdgpu_vce_resume(struct amdgpu_device *adev)
  *
  * @work: pointer to work structure
  *
- * power of VCE when it's not used any more
+ * power of VCE when it's yest used any more
  */
 static void amdgpu_vce_idle_work_handler(struct work_struct *work)
 {
@@ -537,11 +537,11 @@ static int amdgpu_vce_get_destroy_msg(struct amdgpu_ring *ring, uint32_t handle,
 
 	ib->ptr[ib->length_dw++] = 0x00000020; /* len */
 	ib->ptr[ib->length_dw++] = 0x00000002; /* task info */
-	ib->ptr[ib->length_dw++] = 0xffffffff; /* next task info, set to 0xffffffff if no */
+	ib->ptr[ib->length_dw++] = 0xffffffff; /* next task info, set to 0xffffffff if yes */
 	ib->ptr[ib->length_dw++] = 0x00000001; /* destroy session */
 	ib->ptr[ib->length_dw++] = 0x00000000;
 	ib->ptr[ib->length_dw++] = 0x00000000;
-	ib->ptr[ib->length_dw++] = 0xffffffff; /* feedback is not needed, set to 0xffffffff and firmware will not output feedback */
+	ib->ptr[ib->length_dw++] = 0xffffffff; /* feedback is yest needed, set to 0xffffffff and firmware will yest output feedback */
 	ib->ptr[ib->length_dw++] = 0x00000000;
 
 	ib->ptr[ib->length_dw++] = 0x00000008; /* len */
@@ -569,7 +569,7 @@ err:
 }
 
 /**
- * amdgpu_vce_cs_validate_bo - make sure not to cross 4GB boundary
+ * amdgpu_vce_cs_validate_bo - make sure yest to cross 4GB boundary
  *
  * @p: parser context
  * @lo: address of lower dword
@@ -577,7 +577,7 @@ err:
  * @size: minimum size
  * @index: bs/fb index
  *
- * Make sure that no BO cross a 4GB boundary.
+ * Make sure that yes BO cross a 4GB boundary.
  */
 static int amdgpu_vce_validate_bo(struct amdgpu_cs_parser *p, uint32_t ib_idx,
 				  int lo, int hi, unsigned size, int32_t index)
@@ -674,7 +674,7 @@ static int amdgpu_vce_cs_reloc(struct amdgpu_cs_parser *p, uint32_t ib_idx,
  * @allocated: allocated a new handle?
  *
  * Validates the handle and return the found session index or -EINVAL
- * we we don't have another free session index.
+ * we we don't have ayesther free session index.
  */
 static int amdgpu_vce_validate_handle(struct amdgpu_cs_parser *p,
 				      uint32_t handle, uint32_t *allocated)
@@ -692,7 +692,7 @@ static int amdgpu_vce_validate_handle(struct amdgpu_cs_parser *p,
 		}
 	}
 
-	/* handle not found try to alloc a new one */
+	/* handle yest found try to alloc a new one */
 	for (i = 0; i < AMDGPU_MAX_VCE_HANDLES; ++i) {
 		if (!atomic_cmpxchg(&p->adev->vce.handles[i], 0, handle)) {
 			p->adev->vce.filp[i] = p->filp;
@@ -913,7 +913,7 @@ int amdgpu_vce_ring_parse_cs(struct amdgpu_cs_parser *p, uint32_t ib_idx)
 		}
 
 		if (session_idx == -1) {
-			DRM_ERROR("no session command at start of IB\n");
+			DRM_ERROR("yes session command at start of IB\n");
 			r = -EINVAL;
 			goto out;
 		}
@@ -1002,7 +1002,7 @@ int amdgpu_vce_ring_parse_cs_vm(struct amdgpu_cs_parser *p, uint32_t ib_idx)
 		}
 
 		if (session_idx == -1) {
-			DRM_ERROR("no session command at start of IB\n");
+			DRM_ERROR("yes session command at start of IB\n");
 			r = -EINVAL;
 			goto out;
 		}
@@ -1120,7 +1120,7 @@ int amdgpu_vce_ring_test_ib(struct amdgpu_ring *ring, long timeout)
 	struct amdgpu_bo *bo = NULL;
 	long r;
 
-	/* skip vce ring1/2 ib test for now, since it's not reliable */
+	/* skip vce ring1/2 ib test for yesw, since it's yest reliable */
 	if (ring != &ring->adev->vce.ring[0])
 		return 0;
 

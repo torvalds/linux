@@ -13,7 +13,7 @@
 static unsigned long mmio_address;
 module_param_hw(mmio_address, ulong, iomem, 0);
 MODULE_PARM_DESC(mmio_address, " Start address of the mapping of 16 kB "
-				"(or 8 MB if read_far is non-zero).");
+				"(or 8 MB if read_far is yesn-zero).");
 
 static unsigned long read_far = 0x400100;
 module_param(read_far, ulong, 0);
@@ -79,9 +79,9 @@ static void do_read_far_test(void __iomem *p)
 
 static void do_test(unsigned long size)
 {
-	void __iomem *p = ioremap_nocache(mmio_address, size);
+	void __iomem *p = ioremap_yescache(mmio_address, size);
 	if (!p) {
-		pr_err("could not ioremap, aborting.\n");
+		pr_err("could yest ioremap, aborting.\n");
 		return;
 	}
 	mmiotrace_printk("ioremap returned %p.\n", p);
@@ -104,12 +104,12 @@ static void do_test_bulk_ioremapping(void)
 	int i;
 
 	for (i = 0; i < 10; ++i) {
-		p = ioremap_nocache(mmio_address, PAGE_SIZE);
+		p = ioremap_yescache(mmio_address, PAGE_SIZE);
 		if (p)
 			iounmap(p);
 	}
 
-	/* Force freeing. If it will crash we will know why. */
+	/* Force freeing. If it will crash we will kyesw why. */
 	synchronize_rcu();
 }
 

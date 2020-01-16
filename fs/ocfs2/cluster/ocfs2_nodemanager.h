@@ -1,11 +1,11 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /* -*- mode: c; c-basic-offset: 8; -*-
- * vim: noexpandtab sw=8 ts=8 sts=0:
+ * vim: yesexpandtab sw=8 ts=8 sts=0:
  *
- * ocfs2_nodemanager.h
+ * ocfs2_yesdemanager.h
  *
  * Header describing the interface between userspace and the kernel
- * for the ocfs2_nodemanager module.
+ * for the ocfs2_yesdemanager module.
  *
  * Copyright (C) 2002, 2004 Oracle.  All rights reserved.
  */

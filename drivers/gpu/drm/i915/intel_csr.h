@@ -8,7 +8,7 @@
 
 struct drm_i915_private;
 
-#define CSR_VERSION(major, minor)	((major) << 16 | (minor))
+#define CSR_VERSION(major, miyesr)	((major) << 16 | (miyesr))
 #define CSR_VERSION_MAJOR(version)	((version) >> 16)
 #define CSR_VERSION_MINOR(version)	((version) & 0xffff)
 

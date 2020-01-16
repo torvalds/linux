@@ -49,13 +49,13 @@
 
 /*
  * Used to mark which completion handles (for RIO Status's) are for CTIO's
- * vs. regular (non-target) info. This is checked for in
+ * vs. regular (yesn-target) info. This is checked for in
  * qla2x00_process_response_queue() to see if a handle coming back in a
  * multi-complete should come to the tgt driver or be handled there by qla2xxx
  */
 #define CTIO_COMPLETION_HANDLE_MARK	BIT_29
 #if (CTIO_COMPLETION_HANDLE_MARK <= DEFAULT_OUTSTANDING_COMMANDS)
-#error "CTIO_COMPLETION_HANDLE_MARK not larger than "
+#error "CTIO_COMPLETION_HANDLE_MARK yest larger than "
 	"DEFAULT_OUTSTANDING_COMMANDS"
 #endif
 #define HANDLE_IS_CTIO_COMP(h) (h & CTIO_COMPLETION_HANDLE_MARK)
@@ -123,9 +123,9 @@
 			 : (uint16_t)(iocb)->u.isp2x.target.id.standard)
 
 #ifndef NOTIFY_ACK_TYPE
-#define NOTIFY_ACK_TYPE 0x0E	  /* Notify acknowledge entry. */
+#define NOTIFY_ACK_TYPE 0x0E	  /* Notify ackyeswledge entry. */
 /*
- * ISP queue -	notify acknowledge entry structure definition.
+ * ISP queue -	yestify ackyeswledge entry structure definition.
  *		This is sent to the ISP from the target driver.
  */
 struct nack_to_isp {
@@ -676,7 +676,7 @@ struct qla_tgt_func_tmpl {
 	void (*free_mcmd)(struct qla_tgt_mgmt_cmd *);
 	void (*free_session)(struct fc_port *);
 
-	int (*check_initiator_node_acl)(struct scsi_qla_host *, unsigned char *,
+	int (*check_initiator_yesde_acl)(struct scsi_qla_host *, unsigned char *,
 					struct fc_port *);
 	void (*update_sess)(struct fc_port *, port_id_t, uint16_t, bool);
 	struct fc_port *(*find_sess_by_loop_id)(struct scsi_qla_host *,
@@ -700,7 +700,7 @@ int qla2x00_wait_for_hba_online(struct scsi_qla_host *);
 
 #define QLA_TGT_MAX_HW_PENDING_TIME	60 /* in seconds */
 
-/* Immediate notify status constants */
+/* Immediate yestify status constants */
 #define IMM_NTFY_LIP_RESET          0x000E
 #define IMM_NTFY_LIP_LINK_REINIT    0x000F
 #define IMM_NTFY_IOCB_OVERFLOW      0x0016
@@ -714,7 +714,7 @@ int qla2x00_wait_for_hba_online(struct scsi_qla_host *);
 #define IMM_NTFY_SRR                0x0045
 #define IMM_NTFY_ELS                0x0046
 
-/* Immediate notify task flags */
+/* Immediate yestify task flags */
 #define IMM_NTFY_TASK_MGMT_SHIFT    8
 
 #define QLA_TGT_CLEAR_ACA               0x40
@@ -729,7 +729,7 @@ int qla2x00_wait_for_hba_online(struct scsi_qla_host *);
 #define QLA_TGT_ABTS			0xFFFB
 #define QLA_TGT_2G_ABORT_TASK		0xFFFA
 
-/* Notify Acknowledge flags */
+/* Notify Ackyeswledge flags */
 #define NOTIFY_ACK_RES_COUNT        BIT_8
 #define NOTIFY_ACK_CLEAR_LIP_RESET  BIT_5
 #define NOTIFY_ACK_TM_RESP_CODE_VALID BIT_4
@@ -807,7 +807,7 @@ struct qla_tgt {
 
 	struct imm_ntfy_from_isp link_reinit_iocb;
 	wait_queue_head_t waitQ;
-	int notify_ack_expected;
+	int yestify_ack_expected;
 	int abts_resp_expected;
 	int modify_lun_expected;
 	atomic_t tgt_global_resets_count;
@@ -850,7 +850,7 @@ enum trace_flags {
 
 struct qla_tgt_cmd {
 	/*
-	 * Do not move cmd_type field. it needs to line up with srb->cmd_type
+	 * Do yest move cmd_type field. it needs to line up with srb->cmd_type
 	 */
 	uint8_t cmd_type;
 	uint8_t pad[7];
@@ -876,7 +876,7 @@ struct qla_tgt_cmd {
 
 	/*
 	 * This variable may be set from outside the LIO and I/O completion
-	 * callback functions. Do not declare this member variable as a
+	 * callback functions. Do yest declare this member variable as a
 	 * bitfield to avoid a read-modify-write operation when this variable
 	 * is set.
 	 */
@@ -1009,7 +1009,7 @@ extern void qlt_update_vp_map(struct scsi_qla_host *, int);
 extern void qlt_free_session_done(struct work_struct *);
 /*
  * This macro is used during early initializations when host->active_mode
- * is not set. Right now, ha value is ignored.
+ * is yest set. Right yesw, ha value is igyesred.
  */
 #define QLA_TGT_MODE_ENABLED() (ql2x_ini_mode != QLA2XXX_INI_MODE_ENABLED)
 

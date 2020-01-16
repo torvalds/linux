@@ -9,7 +9,7 @@ struct reserved_mem_ops;
 
 struct reserved_mem {
 	const char			*name;
-	unsigned long			fdt_node;
+	unsigned long			fdt_yesde;
 	unsigned long			phandle;
 	const struct reserved_mem_ops	*ops;
 	phys_addr_t			base;
@@ -32,25 +32,25 @@ typedef int (*reservedmem_of_init_fn)(struct reserved_mem *rmem);
 #ifdef CONFIG_OF_RESERVED_MEM
 
 int of_reserved_mem_device_init_by_idx(struct device *dev,
-				       struct device_node *np, int idx);
+				       struct device_yesde *np, int idx);
 void of_reserved_mem_device_release(struct device *dev);
 
 void fdt_init_reserved_mem(void);
-void fdt_reserved_mem_save_node(unsigned long node, const char *uname,
+void fdt_reserved_mem_save_yesde(unsigned long yesde, const char *uname,
 			       phys_addr_t base, phys_addr_t size);
-struct reserved_mem *of_reserved_mem_lookup(struct device_node *np);
+struct reserved_mem *of_reserved_mem_lookup(struct device_yesde *np);
 #else
 static inline int of_reserved_mem_device_init_by_idx(struct device *dev,
-					struct device_node *np, int idx)
+					struct device_yesde *np, int idx)
 {
 	return -ENOSYS;
 }
 static inline void of_reserved_mem_device_release(struct device *pdev) { }
 
 static inline void fdt_init_reserved_mem(void) { }
-static inline void fdt_reserved_mem_save_node(unsigned long node,
+static inline void fdt_reserved_mem_save_yesde(unsigned long yesde,
 		const char *uname, phys_addr_t base, phys_addr_t size) { }
-static inline struct reserved_mem *of_reserved_mem_lookup(struct device_node *np)
+static inline struct reserved_mem *of_reserved_mem_lookup(struct device_yesde *np)
 {
 	return NULL;
 }
@@ -62,13 +62,13 @@ static inline struct reserved_mem *of_reserved_mem_lookup(struct device_node *np
  *
  * This function assigns respective DMA-mapping operations based on the first
  * reserved memory region specified by 'memory-region' property in device tree
- * node of the given device.
+ * yesde of the given device.
  *
  * Returns error code or zero on success.
  */
 static inline int of_reserved_mem_device_init(struct device *dev)
 {
-	return of_reserved_mem_device_init_by_idx(dev, dev->of_node, 0);
+	return of_reserved_mem_device_init_by_idx(dev, dev->of_yesde, 0);
 }
 
 #endif /* __OF_RESERVED_MEM_H */

@@ -8,7 +8,7 @@
  * Copyright (C) 2002 MontaVista Software, Inc.
  * Copyright (C) 2001 RidgeRun, Inc.
  * Author: RidgeRun, Inc.
- *         Greg Lonnon (glonnon@ridgerun.com) or info@ridgerun.com
+ *         Greg Lonyesn (glonyesn@ridgerun.com) or info@ridgerun.com
  */
 #include <linux/kernel.h>
 #include <linux/io.h>

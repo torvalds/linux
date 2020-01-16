@@ -23,7 +23,7 @@ igt_request_alloc(struct i915_gem_context *ctx, struct intel_engine_cs *engine)
 
 	/*
 	 * Pinning the contexts may generate requests in order to acquire
-	 * GGTT space, so do this first before we reserve a seqno for
+	 * GGTT space, so do this first before we reserve a seqyes for
 	 * ourselves.
 	 */
 	ce = i915_gem_context_get_engine(ctx, engine->legacy_idx);
@@ -60,8 +60,8 @@ igt_emit_store_dw(struct i915_vma *vma,
 		goto err;
 	}
 
-	GEM_BUG_ON(offset + (count - 1) * PAGE_SIZE > vma->node.size);
-	offset += vma->node.start;
+	GEM_BUG_ON(offset + (count - 1) * PAGE_SIZE > vma->yesde.size);
+	offset += vma->yesde.start;
 
 	for (n = 0; n < count; n++) {
 		if (gen >= 8) {
@@ -131,7 +131,7 @@ int igt_gpu_fill_dw(struct intel_context *ce,
 		flags |= I915_DISPATCH_SECURE;
 
 	err = rq->engine->emit_bb_start(rq,
-					batch->node.start, batch->node.size,
+					batch->yesde.start, batch->yesde.size,
 					flags);
 	if (err)
 		goto err_request;

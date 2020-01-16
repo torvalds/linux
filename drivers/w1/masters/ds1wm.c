@@ -7,7 +7,7 @@
  * Copyright (c) 2004-2007, Matt Reimer <mreimer@vpop.net>
  *
  * Use consistent with the GNU GPL is permitted,
- * provided that this copyright notice is
+ * provided that this copyright yestice is
  * preserved in its entirety in all copies and derived works.
  */
 
@@ -33,7 +33,7 @@
 #define DS1WM_INT	0x02	/* R/W interrupt status */
 #define DS1WM_INT_EN	0x03	/* R/W interrupt enable */
 #define DS1WM_CLKDIV	0x04	/* R/W 5 bits of divisor and pre-scale */
-#define DS1WM_CNTRL	0x05	/* R/W master control register (not used yet) */
+#define DS1WM_CNTRL	0x05	/* R/W master control register (yest used yet) */
 
 #define DS1WM_CMD_1W_RESET  (1 << 0)	/* force reset on 1-wire bus */
 #define DS1WM_CMD_SRA	    (1 << 1)	/* enable Search ROM accelerator mode */
@@ -109,7 +109,7 @@ struct ds1wm_data {
 	u8       read_byte;
 	/* byte to write that makes all intr disabled, */
 	/* considering active_state (IAS) (optimization) */
-	u8       int_en_reg_none;
+	u8       int_en_reg_yesne;
 	unsigned int reset_recover_delay; /* see ds1wm.h */
 };
 
@@ -183,13 +183,13 @@ static irqreturn_t ds1wm_isr(int isr, void *data)
 	struct ds1wm_data *ds1wm_data = data;
 	u8 intr;
 	u8 inten = ds1wm_read_register(ds1wm_data, DS1WM_INT_EN);
-	/* if no bits are set in int enable register (except the IAS)
-	than go no further, reading the regs below has side effects */
+	/* if yes bits are set in int enable register (except the IAS)
+	than go yes further, reading the regs below has side effects */
 	if (!(inten & DS1WM_INTEN_NOT_IAS))
 		return IRQ_NONE;
 
 	ds1wm_write_register(ds1wm_data,
-		DS1WM_INT_EN, ds1wm_data->int_en_reg_none);
+		DS1WM_INT_EN, ds1wm_data->int_en_reg_yesne);
 
 	/* this read action clears the INTR and certain flags in ds1wm */
 	intr = ds1wm_read_register(ds1wm_data, DS1WM_INT);
@@ -226,7 +226,7 @@ static int ds1wm_reset(struct ds1wm_data *ds1wm_data)
 
 	/* enable Presence detect only */
 	ds1wm_write_register(ds1wm_data, DS1WM_INT_EN, DS1WM_INTEN_EPD |
-	ds1wm_data->int_en_reg_none);
+	ds1wm_data->int_en_reg_yesne);
 
 	ds1wm_write_register(ds1wm_data, DS1WM_CMD, DS1WM_CMD_1W_RESET);
 
@@ -238,7 +238,7 @@ static int ds1wm_reset(struct ds1wm_data *ds1wm_data)
 	}
 
 	if (!ds1wm_data->slave_present) {
-		dev_dbg(&ds1wm_data->pdev->dev, "reset: no devices found\n");
+		dev_dbg(&ds1wm_data->pdev->dev, "reset: yes devices found\n");
 		return 1;
 	}
 
@@ -255,7 +255,7 @@ static int ds1wm_write(struct ds1wm_data *ds1wm_data, u8 data)
 	ds1wm_data->write_complete = &write_done;
 
 	ds1wm_write_register(ds1wm_data, DS1WM_INT_EN,
-	ds1wm_data->int_en_reg_none | DS1WM_INTEN_ETMT);
+	ds1wm_data->int_en_reg_yesne | DS1WM_INTEN_ETMT);
 
 	ds1wm_write_register(ds1wm_data, DS1WM_DATA, data);
 
@@ -273,7 +273,7 @@ static int ds1wm_write(struct ds1wm_data *ds1wm_data, u8 data)
 static u8 ds1wm_read(struct ds1wm_data *ds1wm_data, unsigned char write_data)
 {
 	unsigned long timeleft;
-	u8 intEnable = DS1WM_INTEN_ERBF | ds1wm_data->int_en_reg_none;
+	u8 intEnable = DS1WM_INTEN_ERBF | ds1wm_data->int_en_reg_yesne;
 	DECLARE_COMPLETION_ONSTACK(read_done);
 
 	ds1wm_read_register(ds1wm_data, DS1WM_DATA);
@@ -318,7 +318,7 @@ static void ds1wm_up(struct ds1wm_data *ds1wm_data)
 	dev_dbg(dev, "found divisor 0x%x for clock %d\n",
 		divisor, plat->clock_rate);
 	if (divisor == 0) {
-		dev_err(dev, "no suitable divisor for %dHz clock\n",
+		dev_err(dev, "yes suitable divisor for %dHz clock\n",
 			plat->clock_rate);
 		return;
 	}
@@ -336,7 +336,7 @@ static void ds1wm_down(struct ds1wm_data *ds1wm_data)
 
 	/* Disable interrupts. */
 	ds1wm_write_register(ds1wm_data, DS1WM_INT_EN,
-		ds1wm_data->int_en_reg_none);
+		ds1wm_data->int_en_reg_yesne);
 
 	if (ds1wm_data->cell->disable)
 		ds1wm_data->cell->disable(ds1wm_data->pdev);
@@ -392,7 +392,7 @@ static void ds1wm_search(void *data, struct w1_master *master_dev,
 		if (ds1wm_reset(ds1wm_data)) {
 			mutex_unlock(&master_dev->bus_mutex);
 			dev_dbg(&ds1wm_data->pdev->dev,
-				"pass: %d reset error (or no slaves)\n", pass);
+				"pass: %d reset error (or yes slaves)\n", pass);
 			break;
 		}
 
@@ -473,7 +473,7 @@ static void ds1wm_search(void *data, struct w1_master *master_dev,
 			"pass: %d complete, preparing next pass\n", pass);
 
 		/* any discrepency found which we already choose the
-		   '1' branch is now is now irrelevant we reveal the
+		   '1' branch is yesw is yesw irrelevant we reveal the
 		   next branch with this: */
 		d &= ~r;
 		/* find last bit set, i.e. the most signif. bit set */
@@ -539,7 +539,7 @@ static int ds1wm_probe(struct platform_device *pdev)
 	/* how many bits to shift register number to get register offset */
 	if (plat->bus_shift > 2) {
 		dev_err(&ds1wm_data->pdev->dev,
-			"illegal bus shift %d, not written",
+			"illegal bus shift %d, yest written",
 			ds1wm_data->bus_shift);
 		return -EINVAL;
 	}
@@ -560,13 +560,13 @@ static int ds1wm_probe(struct platform_device *pdev)
 	if (!res)
 		return -ENXIO;
 	ds1wm_data->irq = res->start;
-	ds1wm_data->int_en_reg_none = (plat->active_high ? DS1WM_INTEN_IAS : 0);
+	ds1wm_data->int_en_reg_yesne = (plat->active_high ? DS1WM_INTEN_IAS : 0);
 	ds1wm_data->reset_recover_delay = plat->reset_recover_delay;
 
 	/* Mask interrupts, set IAS before claiming interrupt */
 	inten = ds1wm_read_register(ds1wm_data, DS1WM_INT_EN);
 	ds1wm_write_register(ds1wm_data,
-		DS1WM_INT_EN, ds1wm_data->int_en_reg_none);
+		DS1WM_INT_EN, ds1wm_data->int_en_reg_yesne);
 
 	if (res->flags & IORESOURCE_IRQ_HIGHEDGE)
 		irq_set_irq_type(ds1wm_data->irq, IRQ_TYPE_EDGE_RISING);
@@ -581,7 +581,7 @@ static int ds1wm_probe(struct platform_device *pdev)
 			IRQF_SHARED, "ds1wm", ds1wm_data);
 	if (ret) {
 		dev_err(&ds1wm_data->pdev->dev,
-			"devm_request_irq %d failed with errno %d\n",
+			"devm_request_irq %d failed with erryes %d\n",
 			ds1wm_data->irq,
 			ret);
 

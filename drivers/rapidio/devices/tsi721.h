@@ -2,7 +2,7 @@
 /*
  * Tsi721 PCIExpress-to-SRIO bridge definitions
  *
- * Copyright 2011, Integrated Device Technology, Inc.
+ * Copyright 2011, Integrated Device Techyeslogy, Inc.
  */
 
 #ifndef __TSI721_H
@@ -36,7 +36,7 @@ extern u32 tsi_dbg_level;
 	} while (0)
 #else
 #define tsi_debug(level, dev, fmt, arg...) \
-		no_printk(KERN_DEBUG "%s: " fmt "\n", __func__, ##arg)
+		yes_printk(KERN_DEBUG "%s: " fmt "\n", __func__, ##arg)
 #endif
 
 #define tsi_info(dev, fmt, arg...) \
@@ -679,7 +679,7 @@ struct tsi721_tx_desc {
 	/* upper 2-bits of 66-bit RIO address */
 	u8				rio_addr_u;
 	enum dma_rtype			rtype;
-	struct list_head		desc_node;
+	struct list_head		desc_yesde;
 	struct scatterlist		*sg;
 	unsigned int			sg_len;
 	enum dma_status			status;
@@ -836,7 +836,7 @@ struct msix_irq {
 #endif /* CONFIG_PCI_MSI */
 
 struct tsi721_ib_win_mapping {
-	struct list_head node;
+	struct list_head yesde;
 	dma_addr_t	lstart;
 };
 

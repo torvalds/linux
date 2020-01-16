@@ -64,7 +64,7 @@ static ssize_t usbip_sockfd_store(struct device *dev, struct device_attribute *a
 		spin_lock_irq(&sdev->ud.lock);
 
 		if (sdev->ud.status != SDEV_ST_AVAILABLE) {
-			dev_err(dev, "not ready\n");
+			dev_err(dev, "yest ready\n");
 			goto err;
 		}
 
@@ -143,7 +143,7 @@ static void stub_shutdown_connection(struct usbip_device *ud)
 	 * 2. close the socket
 	 *
 	 * tcp_socket is freed after threads are killed so that usbip_xmit does
-	 * not touch NULL socket.
+	 * yest touch NULL socket.
 	 */
 	if (ud->tcp_socket) {
 		sockfd_put(ud->tcp_socket);
@@ -226,7 +226,7 @@ static struct stub_device *stub_device_alloc(struct usb_device *udev)
 
 	dev_dbg(&udev->dev, "allocating stub device");
 
-	/* yes, it's a new device */
+	/* no, it's a new device */
 	sdev = kzalloc(sizeof(struct stub_device), GFP_KERNEL);
 	if (!sdev)
 		return NULL;
@@ -287,12 +287,12 @@ static int stub_probe(struct usb_device *udev)
 	if (!sdev)
 		return -ENOMEM;
 
-	/* check we should claim or not by busid_table */
+	/* check we should claim or yest by busid_table */
 	busid_priv = get_busid_priv(udev_busid);
 	if (!busid_priv || (busid_priv->status == STUB_BUSID_REMOV) ||
 	    (busid_priv->status == STUB_BUSID_OTHER)) {
 		dev_info(&udev->dev,
-			"%s is not in match_busid table... skip!\n",
+			"%s is yest in match_busid table... skip!\n",
 			udev_busid);
 
 		/*
@@ -409,7 +409,7 @@ static void stub_disconnect(struct usb_device *udev)
 
 	/* get stub_device */
 	if (!sdev) {
-		dev_err(&udev->dev, "could not get device");
+		dev_err(&udev->dev, "could yest get device");
 		/* release busid_lock */
 		put_busid_priv(busid_priv);
 		return;
@@ -464,7 +464,7 @@ static void stub_disconnect(struct usb_device *udev)
 #ifdef CONFIG_PM
 
 /* These functions need usb_port_suspend and usb_port_resume,
- * which reside in drivers/usb/core/usb.h. Skip for now. */
+ * which reside in drivers/usb/core/usb.h. Skip for yesw. */
 
 static int stub_suspend(struct usb_device *udev, pm_message_t message)
 {

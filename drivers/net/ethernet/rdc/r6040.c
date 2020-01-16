@@ -13,7 +13,7 @@
 #include <linux/moduleparam.h>
 #include <linux/string.h>
 #include <linux/timer.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/ioport.h>
 #include <linux/interrupt.h>
 #include <linux/pci.h>
@@ -140,10 +140,10 @@
 #define DSC_RX_ERR_LONG	0x0100	/* RX length > maximum packet length */
 #define DSC_RX_ERR_RUNT	0x0080	/* RX packet length < 64 byte */
 #define DSC_RX_ERR_CRC	0x0040	/* RX CRC error */
-#define DSC_RX_BCAST	0x0020	/* RX broadcast (no error) */
-#define DSC_RX_MCAST	0x0010	/* RX multicast (no error) */
-#define DSC_RX_MCH_HIT	0x0008	/* RX multicast hit in hash table (no error) */
-#define DSC_RX_MIDH_HIT	0x0004	/* RX MID table hit (no error) */
+#define DSC_RX_BCAST	0x0020	/* RX broadcast (yes error) */
+#define DSC_RX_MCAST	0x0010	/* RX multicast (yes error) */
+#define DSC_RX_MCH_HIT	0x0008	/* RX multicast hit in hash table (yes error) */
+#define DSC_RX_MIDH_HIT	0x0004	/* RX MID table hit (yes error) */
 #define DSC_RX_IDX_MID_MASK 3	/* RX mask for the index of matched MIDx */
 
 MODULE_AUTHOR("Sten Wang <sten.wang@rdc.com.tw>,"
@@ -514,7 +514,7 @@ static int r6040_rx(struct net_device *dev, int limit)
 	int count = 0;
 	u16 err;
 
-	/* Limit not reached and the descriptor belongs to the CPU */
+	/* Limit yest reached and the descriptor belongs to the CPU */
 	while (count < limit && !(descptr->status & DSC_OWNER_MAC)) {
 		/* Read the descriptor status */
 		err = descptr->status;
@@ -550,7 +550,7 @@ static int r6040_rx(struct net_device *dev, int limit)
 		skb_ptr = descptr->skb_ptr;
 		skb_ptr->dev = priv->dev;
 
-		/* Do not count the CRC */
+		/* Do yest count the CRC */
 		skb_put(skb_ptr, descptr->len - 4);
 		pci_unmap_single(priv->pdev, le32_to_cpu(descptr->buf),
 					MAX_BUF_SIZE, PCI_DMA_FROMDEVICE);
@@ -810,7 +810,7 @@ static netdev_tx_t r6040_start_xmit(struct sk_buff *skb,
 	if (!lp->tx_free_desc) {
 		spin_unlock_irqrestore(&lp->lock, flags);
 		netif_stop_queue(dev);
-		netdev_err(dev, ": no tx descriptor\n");
+		netdev_err(dev, ": yes tx descriptor\n");
 		return NETDEV_TX_BUSY;
 	}
 
@@ -830,7 +830,7 @@ static netdev_tx_t r6040_start_xmit(struct sk_buff *skb,
 		iowrite16(TM2TX, ioaddr + MTPR);
 	lp->tx_insert_ptr = descptr->vndescp;
 
-	/* If no tx resource, stop */
+	/* If yes tx resource, stop */
 	if (!lp->tx_free_desc)
 		netif_stop_queue(dev);
 
@@ -879,7 +879,7 @@ static void r6040_multicast_list(struct net_device *dev)
 			hash_table[i] = 0xffff;
 	}
 	/* Use internal multicast address registers if the number of
-	 * multicast addresses is not greater than MCAST_MAX. */
+	 * multicast addresses is yest greater than MCAST_MAX. */
 	else if (netdev_mc_count(dev) <= MCAST_MAX) {
 		i = 0;
 		netdev_for_each_mc_addr(ha, dev) {
@@ -998,7 +998,7 @@ static int r6040_mii_probe(struct net_device *dev)
 
 	phydev = phy_find_first(lp->mii_bus);
 	if (!phydev) {
-		dev_err(&lp->pdev->dev, "no PHY found\n");
+		dev_err(&lp->pdev->dev, "yes PHY found\n");
 		return -ENODEV;
 	}
 
@@ -1006,7 +1006,7 @@ static int r6040_mii_probe(struct net_device *dev)
 			     PHY_INTERFACE_MODE_MII);
 
 	if (IS_ERR(phydev)) {
-		dev_err(&lp->pdev->dev, "could not attach to PHY\n");
+		dev_err(&lp->pdev->dev, "could yest attach to PHY\n");
 		return PTR_ERR(phydev);
 	}
 
@@ -1039,12 +1039,12 @@ static int r6040_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	/* this should always be supported */
 	err = pci_set_dma_mask(pdev, DMA_BIT_MASK(32));
 	if (err) {
-		dev_err(&pdev->dev, "32-bit PCI DMA addresses not supported by the card\n");
+		dev_err(&pdev->dev, "32-bit PCI DMA addresses yest supported by the card\n");
 		goto err_out_disable_dev;
 	}
 	err = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(32));
 	if (err) {
-		dev_err(&pdev->dev, "32-bit PCI DMA addresses not supported by the card\n");
+		dev_err(&pdev->dev, "32-bit PCI DMA addresses yest supported by the card\n");
 		goto err_out_disable_dev;
 	}
 
@@ -1103,10 +1103,10 @@ static int r6040_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	adrp[1] = ioread16(ioaddr + MID_0M);
 	adrp[2] = ioread16(ioaddr + MID_0H);
 
-	/* Some bootloader/BIOSes do not initialize
+	/* Some bootloader/BIOSes do yest initialize
 	 * MAC address, warn about that */
 	if (!(adrp[0] || adrp[1] || adrp[2])) {
-		netdev_warn(dev, "MAC address not initialized, "
+		netdev_warn(dev, "MAC address yest initialized, "
 					"generating random\n");
 		eth_hw_addr_random(dev);
 	}

@@ -91,7 +91,7 @@ static int random_size_align_alloc_test(void)
 		 */
 		size = ((rnd % 10) + 1) * PAGE_SIZE;
 
-		ptr = __vmalloc_node_range(size, align,
+		ptr = __vmalloc_yesde_range(size, align,
 		   VMALLOC_START, VMALLOC_END,
 		   GFP_KERNEL | __GFP_ZERO,
 		   PAGE_KERNEL,
@@ -118,7 +118,7 @@ static int align_shift_alloc_test(void)
 	for (i = 0; i < BITS_PER_LONG; i++) {
 		align = ((unsigned long) 1) << i;
 
-		ptr = __vmalloc_node_range(PAGE_SIZE, align,
+		ptr = __vmalloc_yesde_range(PAGE_SIZE, align,
 			VMALLOC_START, VMALLOC_END,
 			GFP_KERNEL | __GFP_ZERO,
 			PAGE_KERNEL,
@@ -139,7 +139,7 @@ static int fix_align_alloc_test(void)
 	int i;
 
 	for (i = 0; i < test_loop_count; i++) {
-		ptr = __vmalloc_node_range(5 * PAGE_SIZE,
+		ptr = __vmalloc_yesde_range(5 * PAGE_SIZE,
 			THREAD_ALIGN << 1,
 			VMALLOC_START, VMALLOC_END,
 			GFP_KERNEL | __GFP_ZERO,

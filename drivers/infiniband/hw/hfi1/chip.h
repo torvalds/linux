@@ -24,12 +24,12 @@
  * are met:
  *
  *  - Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  *  - Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
+ *    yestice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
- *  - Neither the name of Intel Corporation nor the names of its
+ *  - Neither the name of Intel Corporation yesr the names of its
  *    contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
@@ -103,7 +103,7 @@
 /* PbcInsertHcrc field settings */
 #define PBC_IHCRC_LKDETH 0x0	/* insert @ local KDETH offset */
 #define PBC_IHCRC_GKDETH 0x1	/* insert @ global KDETH offset */
-#define PBC_IHCRC_NONE   0x2	/* no HCRC inserted */
+#define PBC_IHCRC_NONE   0x2	/* yes HCRC inserted */
 
 /* PBC fields */
 #define PBC_STATIC_RATE_CONTROL_COUNT_SHIFT 32
@@ -376,7 +376,7 @@
 /*
  * Freeze handling flags
  */
-#define FREEZE_ABORT     0x01	/* do not do recovery */
+#define FREEZE_ABORT     0x01	/* do yest do recovery */
 #define FREEZE_SELF	     0x02	/* initiate the freeze */
 #define FREEZE_LINK_DOWN 0x04	/* link is down */
 
@@ -594,7 +594,7 @@ enum {
 #define FPGA_CCLOCK_PS 30300	/*  33 MHz */
 
 /*
- * Mask of enabled MISC errors.  Do not enable the two RSA engine errors -
+ * Mask of enabled MISC errors.  Do yest enable the two RSA engine errors -
  * see firmware.c:run_rsa() for details.
  */
 #define DRIVER_MISC_MASK \
@@ -602,7 +602,7 @@ enum {
 		| MISC_ERR_STATUS_MISC_KEY_MISMATCH_ERR_SMASK))
 
 /* valid values for the loopback module parameter */
-#define LOOPBACK_NONE	0	/* no loopback - default */
+#define LOOPBACK_NONE	0	/* yes loopback - default */
 #define LOOPBACK_SERDES 1
 #define LOOPBACK_LCB	2
 #define LOOPBACK_CABLE	3	/* external cable */
@@ -617,8 +617,8 @@ void write_csr(const struct hfi1_devdata *dd, u32 offset, u64 value);
 
 /*
  * The *_kctxt_* flavor of the CSR read/write functions are for
- * per-context or per-SDMA CSRs that are not mappable to user-space.
- * Their spacing is not a PAGE_SIZE multiple.
+ * per-context or per-SDMA CSRs that are yest mappable to user-space.
+ * Their spacing is yest a PAGE_SIZE multiple.
  */
 static inline u64 read_kctxt_csr(const struct hfi1_devdata *dd, int ctxt,
 				 u32 offset0)
@@ -755,16 +755,16 @@ void init_chip_resources(struct hfi1_devdata *dd);
 void finish_chip_resources(struct hfi1_devdata *dd);
 
 /* ms wait time for access to an SBus resoure */
-#define SBUS_TIMEOUT 4000 /* long enough for a FW download and SBR */
+#define SBUS_TIMEOUT 4000 /* long eyesugh for a FW download and SBR */
 
 /* ms wait time for a qsfp (i2c) chain to become available */
-#define QSFP_WAIT 20000 /* long enough for FW update to the F4 uc */
+#define QSFP_WAIT 20000 /* long eyesugh for FW update to the F4 uc */
 
 void fabric_serdes_reset(struct hfi1_devdata *dd);
 int read_8051_data(struct hfi1_devdata *dd, u32 addr, u32 len, u64 *result);
 
 /* chip.c */
-void read_misc_status(struct hfi1_devdata *dd, u8 *ver_major, u8 *ver_minor,
+void read_misc_status(struct hfi1_devdata *dd, u8 *ver_major, u8 *ver_miyesr,
 		      u8 *ver_patch);
 int write_host_interface_version(struct hfi1_devdata *dd, u8 version);
 void read_guid(struct hfi1_devdata *dd);

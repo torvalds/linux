@@ -41,8 +41,8 @@ void __iomem *imp3a_regs;
 void __init ge_imp3a_pic_init(void)
 {
 	struct mpic *mpic;
-	struct device_node *np;
-	struct device_node *cascade_node = NULL;
+	struct device_yesde *np;
+	struct device_yesde *cascade_yesde = NULL;
 
 	if (of_machine_is_compatible("fsl,MPC8572DS-CAMP")) {
 		mpic = mpic_alloc(NULL, 0,
@@ -63,28 +63,28 @@ void __init ge_imp3a_pic_init(void)
 	 * There is a simple interrupt handler in the main FPGA, this needs
 	 * to be cascaded into the MPIC
 	 */
-	for_each_node_by_type(np, "interrupt-controller")
+	for_each_yesde_by_type(np, "interrupt-controller")
 		if (of_device_is_compatible(np, "gef,fpga-pic-1.00")) {
-			cascade_node = np;
+			cascade_yesde = np;
 			break;
 		}
 
-	if (cascade_node == NULL) {
+	if (cascade_yesde == NULL) {
 		printk(KERN_WARNING "IMP3A: No FPGA PIC\n");
 		return;
 	}
 
-	gef_pic_init(cascade_node);
-	of_node_put(cascade_node);
+	gef_pic_init(cascade_yesde);
+	of_yesde_put(cascade_yesde);
 }
 
 static void ge_imp3a_pci_assign_primary(void)
 {
 #ifdef CONFIG_PCI
-	struct device_node *np;
+	struct device_yesde *np;
 	struct resource rsrc;
 
-	for_each_node_by_type(np, "pci") {
+	for_each_yesde_by_type(np, "pci") {
 		if (of_device_is_compatible(np, "fsl,mpc8540-pci") ||
 		    of_device_is_compatible(np, "fsl,mpc8548-pcie") ||
 		    of_device_is_compatible(np, "fsl,p2020-pcie")) {
@@ -101,7 +101,7 @@ static void ge_imp3a_pci_assign_primary(void)
  */
 static void __init ge_imp3a_setup_arch(void)
 {
-	struct device_node *regs;
+	struct device_yesde *regs;
 
 	if (ppc_md.progress)
 		ppc_md.progress("ge_imp3a_setup_arch()", 0);
@@ -113,12 +113,12 @@ static void __init ge_imp3a_setup_arch(void)
 	swiotlb_detect_4g();
 
 	/* Remap basic board registers */
-	regs = of_find_compatible_node(NULL, NULL, "ge,imp3a-fpga-regs");
+	regs = of_find_compatible_yesde(NULL, NULL, "ge,imp3a-fpga-regs");
 	if (regs) {
 		imp3a_regs = of_iomap(regs, 0);
 		if (imp3a_regs == NULL)
 			printk(KERN_WARNING "Unable to map board registers\n");
-		of_node_put(regs);
+		of_yesde_put(regs);
 	}
 
 #if defined(CONFIG_MMIO_NVRAM)
@@ -185,7 +185,7 @@ static void ge_imp3a_show_cpuinfo(struct seq_file *m)
 	seq_printf(m, "cPCI geo. addr\t: %u\n", ge_imp3a_get_cpci_geo_addr());
 
 	seq_printf(m, "cPCI syscon\t: %s\n",
-		ge_imp3a_get_cpci_is_syscon() ? "yes" : "no");
+		ge_imp3a_get_cpci_is_syscon() ? "no" : "yes");
 }
 
 /*

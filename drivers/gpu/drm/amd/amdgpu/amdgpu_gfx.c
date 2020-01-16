@@ -10,7 +10,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -157,7 +157,7 @@ void amdgpu_gfx_parse_disable_cu(unsigned *mask, unsigned max_se, unsigned max_s
 		char *next;
 		int ret = sscanf(p, "%u.%u.%u", &se, &sh, &cu);
 		if (ret < 3) {
-			DRM_ERROR("amdgpu: could not parse disable_cu\n");
+			DRM_ERROR("amdgpu: could yest parse disable_cu\n");
 			return;
 		}
 
@@ -371,7 +371,7 @@ int amdgpu_gfx_mqd_sw_init(struct amdgpu_device *adev,
 		/* originaly the KIQ MQD is put in GTT domain, but for SRIOV VRAM domain is a must
 		 * otherwise hypervisor trigger SAVE_VF fail after driver unloaded which mean MQD
 		 * deallocated and gart_unbind, to strict diverage we decide to use VRAM domain for
-		 * KIQ MQD no matter SRIOV or Bare-metal
+		 * KIQ MQD yes matter SRIOV or Bare-metal
 		 */
 		r = amdgpu_bo_create_kernel(adev, mqd_size, PAGE_SIZE,
 					    AMDGPU_GEM_DOMAIN_VRAM, &ring->mqd_obj,
@@ -384,7 +384,7 @@ int amdgpu_gfx_mqd_sw_init(struct amdgpu_device *adev,
 		/* prepare MQD backup */
 		adev->gfx.mec.mqd_backup[AMDGPU_MAX_COMPUTE_RINGS] = kmalloc(mqd_size, GFP_KERNEL);
 		if (!adev->gfx.mec.mqd_backup[AMDGPU_MAX_COMPUTE_RINGS])
-				dev_warn(adev->dev, "no memory to create MQD backup for ring %s\n", ring->name);
+				dev_warn(adev->dev, "yes memory to create MQD backup for ring %s\n", ring->name);
 	}
 
 	if (adev->asic_type >= CHIP_NAVI10 && amdgpu_async_gfx_ring) {
@@ -403,7 +403,7 @@ int amdgpu_gfx_mqd_sw_init(struct amdgpu_device *adev,
 				/* prepare MQD backup */
 				adev->gfx.me.mqd_backup[i] = kmalloc(mqd_size, GFP_KERNEL);
 				if (!adev->gfx.me.mqd_backup[i])
-					dev_warn(adev->dev, "no memory to create MQD backup for ring %s\n", ring->name);
+					dev_warn(adev->dev, "yes memory to create MQD backup for ring %s\n", ring->name);
 			}
 		}
 	}
@@ -423,7 +423,7 @@ int amdgpu_gfx_mqd_sw_init(struct amdgpu_device *adev,
 			/* prepare MQD backup */
 			adev->gfx.mec.mqd_backup[i] = kmalloc(mqd_size, GFP_KERNEL);
 			if (!adev->gfx.mec.mqd_backup[i])
-				dev_warn(adev->dev, "no memory to create MQD backup for ring %s\n", ring->name);
+				dev_warn(adev->dev, "yes memory to create MQD backup for ring %s\n", ring->name);
 		}
 	}
 
@@ -533,9 +533,9 @@ int amdgpu_gfx_enable_kcq(struct amdgpu_device *adev)
  * @bool enable true: enable gfx off feature, false: disable gfx off feature
  *
  * 1. gfx off feature will be enabled by gfx ip after gfx cg gp enabled.
- * 2. other client can send request to disable gfx off feature, the request should be honored.
+ * 2. other client can send request to disable gfx off feature, the request should be hoyesred.
  * 3. other client can cancel their request of disable gfx off feature
- * 4. other client should not send request to enable gfx off feature before disable gfx off feature.
+ * 4. other client should yest send request to enable gfx off feature before disable gfx off feature.
  */
 
 void amdgpu_gfx_off_ctrl(struct amdgpu_device *adev, bool enable)
@@ -598,7 +598,7 @@ int amdgpu_gfx_ras_late_init(struct amdgpu_device *adev)
 		if (r)
 			goto late_fini;
 	} else {
-		/* free gfx ras_if if ras is not supported */
+		/* free gfx ras_if if ras is yest supported */
 		r = 0;
 		goto free;
 	}

@@ -25,7 +25,7 @@
 #include <linux/iommu.h>
 #include <linux/delay.h>
 #include <linux/amd-iommu.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/export.h>
 #include <linux/irq.h>
 #include <linux/msi.h>
@@ -67,7 +67,7 @@
  * physically contiguous memory regions it is mapping into page sizes
  * that we support.
  *
- * 512GB Pages are not supported due to a hardware bug
+ * 512GB Pages are yest supported due to a hardware bug
  */
 #define AMD_IOMMU_PGSIZES	((~0xFFFUL) & ~(2ULL << 38))
 
@@ -86,7 +86,7 @@ LIST_HEAD(acpihid_map);
  */
 const struct iommu_ops amd_iommu_ops;
 
-static ATOMIC_NOTIFIER_HEAD(ppr_notifier);
+static ATOMIC_NOTIFIER_HEAD(ppr_yestifier);
 int amd_iommu_max_glx_val = -1;
 
 /*
@@ -170,13 +170,13 @@ static struct iommu_dev_data *alloc_dev_data(u16 devid)
 static struct iommu_dev_data *search_dev_data(u16 devid)
 {
 	struct iommu_dev_data *dev_data;
-	struct llist_node *node;
+	struct llist_yesde *yesde;
 
 	if (llist_empty(&dev_data_list))
 		return NULL;
 
-	node = dev_data_list.first;
-	llist_for_each_entry(dev_data, node, dev_data_list) {
+	yesde = dev_data_list.first;
+	llist_for_each_entry(dev_data, yesde, dev_data_list) {
 		if (dev_data->devid == devid)
 			return dev_data;
 	}
@@ -206,7 +206,7 @@ static void clone_aliases(struct pci_dev *pdev)
 		return;
 
 	/*
-	 * The IVRS alias stored in the alias table may not be
+	 * The IVRS alias stored in the alias table may yest be
 	 * part of the PCI DMA aliases if it's bus differs
 	 * from the original device.
 	 */
@@ -220,13 +220,13 @@ static struct pci_dev *setup_aliases(struct device *dev)
 	struct pci_dev *pdev = to_pci_dev(dev);
 	u16 ivrs_alias;
 
-	/* For ACPI HID devices, there are no aliases */
+	/* For ACPI HID devices, there are yes aliases */
 	if (!dev_is_pci(dev))
 		return NULL;
 
 	/*
 	 * Add the IVRS alias to the pci aliases if it is on the same
-	 * bus. The IVRS table may know about a quirk that we don't.
+	 * bus. The IVRS table may kyesw about a quirk that we don't.
 	 */
 	ivrs_alias = amd_iommu_alias_table[pci_dev_id(pdev)];
 	if (ivrs_alias != pci_dev_id(pdev) &&
@@ -381,7 +381,7 @@ static int iommu_init_device(struct device *dev)
 	/*
 	 * By default we use passthrough mode for IOMMUv2 capable device.
 	 * But if amd_iommu=force_isolation is set (e.g. to debug DMA to
-	 * invalid address), we ignore the capability for the device so
+	 * invalid address), we igyesre the capability for the device so
 	 * it'll be forced to go into translation mode.
 	 */
 	if ((iommu_default_passthrough() || !amd_iommu_force_isolation) &&
@@ -399,7 +399,7 @@ static int iommu_init_device(struct device *dev)
 	return 0;
 }
 
-static void iommu_ignore_device(struct device *dev)
+static void iommu_igyesre_device(struct device *dev)
 {
 	int devid;
 
@@ -441,7 +441,7 @@ static void iommu_uninit_device(struct device *dev)
 
 	/*
 	 * We keep dev_data around for unplugged devices and reuse it when the
-	 * device is re-plugged - not doing so would introduce a ton of races.
+	 * device is re-plugged - yest doing so would introduce a ton of races.
 	 */
 }
 
@@ -618,7 +618,7 @@ static void iommu_handle_ppr_entry(struct amd_iommu *iommu, u64 *raw)
 	struct amd_iommu_fault fault;
 
 	if (PPR_REQ_TYPE(raw[0]) != PPR_REQ_FAULT) {
-		pr_err_ratelimited("Unknown PPR request received\n");
+		pr_err_ratelimited("Unkyeswn PPR request received\n");
 		return;
 	}
 
@@ -628,7 +628,7 @@ static void iommu_handle_ppr_entry(struct amd_iommu *iommu, u64 *raw)
 	fault.tag       = PPR_TAG(raw[0]);
 	fault.flags     = PPR_FLAGS(raw[0]);
 
-	atomic_notifier_call_chain(&ppr_notifier, 0, &fault);
+	atomic_yestifier_call_chain(&ppr_yestifier, 0, &fault);
 }
 
 static void iommu_poll_ppr_log(struct amd_iommu *iommu)
@@ -683,15 +683,15 @@ static void iommu_poll_ppr_log(struct amd_iommu *iommu)
 }
 
 #ifdef CONFIG_IRQ_REMAP
-static int (*iommu_ga_log_notifier)(u32);
+static int (*iommu_ga_log_yestifier)(u32);
 
-int amd_iommu_register_ga_log_notifier(int (*notifier)(u32))
+int amd_iommu_register_ga_log_yestifier(int (*yestifier)(u32))
 {
-	iommu_ga_log_notifier = notifier;
+	iommu_ga_log_yestifier = yestifier;
 
 	return 0;
 }
-EXPORT_SYMBOL(amd_iommu_register_ga_log_notifier);
+EXPORT_SYMBOL(amd_iommu_register_ga_log_yestifier);
 
 static void iommu_poll_ga_log(struct amd_iommu *iommu)
 {
@@ -720,15 +720,15 @@ static void iommu_poll_ga_log(struct amd_iommu *iommu)
 		/* Handle GA entry */
 		switch (GA_REQ_TYPE(log_entry)) {
 		case GA_GUEST_NR:
-			if (!iommu_ga_log_notifier)
+			if (!iommu_ga_log_yestifier)
 				break;
 
 			pr_debug("%s: devid=%#x, ga_tag=%#x\n",
 				 __func__, GA_DEVID(log_entry),
 				 GA_TAG(log_entry));
 
-			if (iommu_ga_log_notifier(GA_TAG(log_entry)) != 0)
-				pr_err("GA log notifier failed.\n");
+			if (iommu_ga_log_yestifier(GA_TAG(log_entry)) != 0)
+				pr_err("GA log yestifier failed.\n");
 			break;
 		default:
 			break;
@@ -779,7 +779,7 @@ irqreturn_t amd_iommu_int_thread(int irq, void *data)
 		 *
 		 * Workaround: The IOMMU driver should read back the
 		 * status register and check if the interrupt bits are cleared.
-		 * If not, driver will need to go through the interrupt handler
+		 * If yest, driver will need to go through the interrupt handler
 		 * again and re-clear the bits
 		 */
 		status = readl(iommu->mmio_base + MMIO_STATUS_OFFSET);
@@ -880,7 +880,7 @@ static void build_inv_iommu_pages(struct iommu_cmd *cmd, u64 address,
 	CMD_SET_TYPE(cmd, CMD_INV_IOMMU_PAGES);
 	if (s) /* size bit - we flush more than one 4kb page */
 		cmd->data[2] |= CMD_INV_IOMMU_PAGES_SIZE_MASK;
-	if (pde) /* PDE bit - we want to flush everything, not only the PTEs */
+	if (pde) /* PDE bit - we want to flush everything, yest only the PTEs */
 		cmd->data[2] |= CMD_INV_IOMMU_PAGES_PDE_MASK;
 }
 
@@ -1095,7 +1095,7 @@ static void amd_iommu_flush_dte_all(struct amd_iommu *iommu)
 
 /*
  * This function uses heavy locking and may disable irqs for some time. But
- * this is no issue because it is only called during resume.
+ * this is yes issue because it is only called during resume.
  */
 static void amd_iommu_flush_tlb_all(struct amd_iommu *iommu)
 {
@@ -1283,7 +1283,7 @@ static void domain_flush_complete(struct protection_domain *domain)
 	}
 }
 
-/* Flush the not present cache if it exists */
+/* Flush the yest present cache if it exists */
 static void domain_flush_np_cache(struct protection_domain *domain,
 		dma_addr_t iova, size_t size)
 {
@@ -1412,8 +1412,8 @@ static void free_pagetable(struct protection_domain *domain)
 }
 
 /*
- * This function is used to add another level to an IO page table. Adding
- * another level increases the size of the address space by 9 bits to a size up
+ * This function is used to add ayesther level to an IO page table. Adding
+ * ayesther level increases the size of the address space by 9 bits to a size up
  * to 64 bits.
  */
 static bool increase_address_space(struct protection_domain *domain,
@@ -1667,7 +1667,7 @@ out:
 		spin_unlock_irqrestore(&dom->lock, flags);
 	}
 
-	/* Everything flushed out, free pages now */
+	/* Everything flushed out, free pages yesw */
 	free_page_list(freelist);
 
 	return ret;
@@ -2003,7 +2003,7 @@ static int pdev_iommuv2_enable(struct pci_dev *pdev)
 	bool reset_enable;
 	int reqs, ret;
 
-	/* FIXME: Hardcode number of outstanding requests for now */
+	/* FIXME: Hardcode number of outstanding requests for yesw */
 	reqs = 32;
 	if (pdev_pri_erratum(pdev, AMD_PRI_DEV_ERRATUM_LIMIT_REQ_ONE))
 		reqs = 1;
@@ -2044,7 +2044,7 @@ out_err:
 }
 
 /*
- * If a device is not yet associated with a domain, this function makes the
+ * If a device is yest yet associated with a domain, this function makes the
  * device visible in the domain
  */
 static int attach_device(struct device *dev,
@@ -2174,7 +2174,7 @@ static int amd_iommu_add_device(struct device *dev)
 		if (ret != -ENOTSUPP)
 			dev_err(dev, "Failed to initialize - trying to proceed anyway\n");
 
-		iommu_ignore_device(dev);
+		iommu_igyesre_device(dev);
 		dev->dma_ops = NULL;
 		goto out;
 	}
@@ -2314,7 +2314,7 @@ int __init amd_iommu_init_dma_ops(void)
  *
  * This interface allows access to lower level functions of the IOMMU
  * like protection domain handling and assignement of devices to domains
- * which is not possible with the dma_ops interface.
+ * which is yest possible with the dma_ops interface.
  *
  *****************************************************************************/
 
@@ -2700,23 +2700,23 @@ const struct iommu_ops amd_iommu_ops = {
  * The next functions do a basic initialization of IOMMU for pass through
  * mode
  *
- * In passthrough mode the IOMMU is initialized and enabled but not used for
+ * In passthrough mode the IOMMU is initialized and enabled but yest used for
  * DMA-API translation.
  *
  *****************************************************************************/
 
 /* IOMMUv2 specific functions */
-int amd_iommu_register_ppr_notifier(struct notifier_block *nb)
+int amd_iommu_register_ppr_yestifier(struct yestifier_block *nb)
 {
-	return atomic_notifier_chain_register(&ppr_notifier, nb);
+	return atomic_yestifier_chain_register(&ppr_yestifier, nb);
 }
-EXPORT_SYMBOL(amd_iommu_register_ppr_notifier);
+EXPORT_SYMBOL(amd_iommu_register_ppr_yestifier);
 
-int amd_iommu_unregister_ppr_notifier(struct notifier_block *nb)
+int amd_iommu_unregister_ppr_yestifier(struct yestifier_block *nb)
 {
-	return atomic_notifier_chain_unregister(&ppr_notifier, nb);
+	return atomic_yestifier_chain_unregister(&ppr_yestifier, nb);
 }
-EXPORT_SYMBOL(amd_iommu_unregister_ppr_notifier);
+EXPORT_SYMBOL(amd_iommu_unregister_ppr_yestifier);
 
 void amd_iommu_domain_direct_map(struct iommu_domain *dom)
 {
@@ -2731,7 +2731,7 @@ void amd_iommu_domain_direct_map(struct iommu_domain *dom)
 	/* Make changes visible to IOMMUs */
 	update_domain(domain);
 
-	/* Page-table is not visible to IOMMU anymore, so free it */
+	/* Page-table is yest visible to IOMMU anymore, so free it */
 	free_pagetable(domain);
 
 	spin_unlock_irqrestore(&domain->lock, flags);
@@ -2758,7 +2758,7 @@ int amd_iommu_domain_enable_v2(struct iommu_domain *dom, int pasids)
 
 	/*
 	 * Save us all sanity checks whether devices already in the
-	 * domain support IOMMUv2. Just force that the domain has no
+	 * domain support IOMMUv2. Just force that the domain has yes
 	 * devices attached when it is switched into IOMMUv2 mode.
 	 */
 	ret = -EBUSY;
@@ -2818,7 +2818,7 @@ static int __flush_pasid(struct protection_domain *domain, int pasid,
 		int qdep;
 
 		/*
-		   There might be non-IOMMUv2 capable devices in an IOMMUv2
+		   There might be yesn-IOMMUv2 capable devices in an IOMMUv2
 		 * domain.
 		 */
 		if (!dev_data->ats.enabled)
@@ -3114,11 +3114,11 @@ static struct irq_remap_table *get_irq_table(u16 devid)
 	struct irq_remap_table *table;
 
 	if (WARN_ONCE(!amd_iommu_rlookup_table[devid],
-		      "%s: no iommu for devid %x\n", __func__, devid))
+		      "%s: yes iommu for devid %x\n", __func__, devid))
 		return NULL;
 
 	table = irq_lookup_table[devid];
-	if (WARN_ONCE(!table, "%s: no table for devid %x\n", __func__, devid))
+	if (WARN_ONCE(!table, "%s: yes table for devid %x\n", __func__, devid))
 		return NULL;
 
 	return table;
@@ -3881,7 +3881,7 @@ static int amd_ir_set_vcpu_affinity(struct irq_data *data, void *vcpu_info)
 
 	/* Note:
 	 * This device has never been set up for guest mode.
-	 * we should not modify the IRTE
+	 * we should yest modify the IRTE
 	 */
 	if (!dev_data || !dev_data->use_vapic)
 		return 0;
@@ -3986,13 +3986,13 @@ static struct irq_chip amd_ir_chip = {
 
 int amd_iommu_create_irq_domain(struct amd_iommu *iommu)
 {
-	struct fwnode_handle *fn;
+	struct fwyesde_handle *fn;
 
-	fn = irq_domain_alloc_named_id_fwnode("AMD-IR", iommu->index);
+	fn = irq_domain_alloc_named_id_fwyesde("AMD-IR", iommu->index);
 	if (!fn)
 		return -ENOMEM;
 	iommu->ir_domain = irq_domain_create_tree(fn, &amd_ir_domain_ops, iommu);
-	irq_domain_free_fwnode(fn);
+	irq_domain_free_fwyesde(fn);
 	if (!iommu->ir_domain)
 		return -ENOMEM;
 

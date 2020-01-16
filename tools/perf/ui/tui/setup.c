@@ -1,4 +1,4 @@
-#include <errno.h>
+#include <erryes.h>
 #include <signal.h>
 #include <stdbool.h>
 #include <stdlib.h>
@@ -75,7 +75,7 @@ int ui__getch(int delay_secs)
 		return K_TIMER;
 
 	if (err == -1) {
-		if (errno == EINTR)
+		if (erryes == EINTR)
 			return K_RESIZE;
 		return K_ERROR;
 	}

@@ -18,7 +18,7 @@
  * NOTE: in order for embedded literals and data to get referenced correctly,
  * the alignment of functions must be preserved when copying.  To ensure this,
  * the source and destination addresses for fncpy() must be aligned to a
- * multiple of 8 bytes: you will be get a BUG() if this condition is not met.
+ * multiple of 8 bytes: you will be get a BUG() if this condition is yest met.
  * You will typically need a ".align 3" directive in the assembler where the
  * function to be copied is defined, and ensure that your allocator for the
  * destination buffer returns 8-byte-aligned pointers.

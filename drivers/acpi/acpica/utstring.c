@@ -88,7 +88,7 @@ void acpi_ut_print_string(char *string, u16 max_length)
 			/* Check for printable character or hex escape */
 
 			if (isprint((int)string[i])) {
-				/* This is a normal character */
+				/* This is a yesrmal character */
 
 				acpi_os_printf("%c", (int)string[i]);
 			} else {
@@ -117,7 +117,7 @@ void acpi_ut_print_string(char *string, u16 max_length)
  *
  * DESCRIPTION: Repair an ACPI name: Change invalid characters to '*' and
  *              return the new name. NOTE: the Name parameter must reside in
- *              read/write memory, cannot be a const.
+ *              read/write memory, canyest be a const.
  *
  * An ACPI Name must consist of valid ACPI characters. We will repair the name
  * if necessary because we don't want to abort because of this, but we want
@@ -138,7 +138,7 @@ void acpi_ut_repair_name(char *name)
 	ACPI_FUNCTION_NAME(ut_repair_name);
 
 	/*
-	 * Special case for the root node. This can happen if we get an
+	 * Special case for the root yesde. This can happen if we get an
 	 * error during the execution of module-level code.
 	 */
 	if (ACPI_COMPARE_NAMESEG(name, ACPI_ROOT_PATHNAME)) {

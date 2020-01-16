@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -23,9 +23,9 @@
 #ifndef __RENOIR_PPT_H__
 #define __RENOIR_PPT_H__
 
-extern void renoir_set_ppt_funcs(struct smu_context *smu);
+extern void reyesir_set_ppt_funcs(struct smu_context *smu);
 
-/* UMD PState Renoir Msg Parameters in MHz */
+/* UMD PState Reyesir Msg Parameters in MHz */
 #define RENOIR_UMD_PSTATE_GFXCLK       700
 #define RENOIR_UMD_PSTATE_SOCCLK       678
 #define RENOIR_UMD_PSTATE_FCLK         800

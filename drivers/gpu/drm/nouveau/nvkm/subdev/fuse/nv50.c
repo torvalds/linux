@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -30,7 +30,7 @@ nv50_fuse_read(struct nvkm_fuse *fuse, u32 addr)
 	unsigned long flags;
 	u32 fuse_enable, val;
 
-	/* racy if another part of nvkm start writing to this reg */
+	/* racy if ayesther part of nvkm start writing to this reg */
 	spin_lock_irqsave(&fuse->lock, flags);
 	fuse_enable = nvkm_mask(device, 0x001084, 0x800, 0x800);
 	val = nvkm_rd32(device, 0x021000 + addr);

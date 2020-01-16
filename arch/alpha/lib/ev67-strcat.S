@@ -9,11 +9,11 @@
  *	Compiler Writer's Guide for the Alpha 21264
  *	abbreviated as 'CWG' in other comments here
  *	ftp.digital.com/pub/Digital/info/semiconductor/literature/dsc-library.html
- * Scheduling notation:
+ * Scheduling yestation:
  *	E	- either cluster
  *	U	- upper subcluster; U0 - subcluster U0; U1 - subcluster U1
  *	L	- lower subcluster; L0 - subcluster L0; L1 - subcluster L1
- * Try not to change the actual algorithm if possible for consistency.
+ * Try yest to change the actual algorithm if possible for consistency.
  * Commentary: It seems bogus to walk the input string twice - once
  * to determine the length, and then again while doing the copy.
  * A significant (future) enhancement would be to only read the input
@@ -36,7 +36,7 @@ strcat:
 	lda     $2, -1		# E :
 	insqh   $2, $16, $2	# U :
 
-	andnot  $16, 7, $16	# E :
+	andyest  $16, 7, $16	# E :
 	or      $2, $1, $1	# E :
 	cmpbge  $31, $1, $2	# E : bits set iff byte == 0
 	bne     $2, $found	# U :

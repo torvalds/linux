@@ -59,7 +59,7 @@ enum efi_secureboot_mode efi_get_secureboot(efi_system_table_t *sys_table_arg)
 	/*
 	 * See if a user has put the shim into insecure mode. If so, and if the
 	 * variable doesn't have the runtime attribute set, we might as well
-	 * honor that.
+	 * hoyesr that.
 	 */
 	size = sizeof(moksbstate);
 	status = get_efi_var(shim_MokSBState_name, &shim_guid,
@@ -76,6 +76,6 @@ secure_boot_enabled:
 	return efi_secureboot_mode_enabled;
 
 out_efi_err:
-	pr_efi_err(sys_table_arg, "Could not determine UEFI Secure Boot status.\n");
-	return efi_secureboot_mode_unknown;
+	pr_efi_err(sys_table_arg, "Could yest determine UEFI Secure Boot status.\n");
+	return efi_secureboot_mode_unkyeswn;
 }

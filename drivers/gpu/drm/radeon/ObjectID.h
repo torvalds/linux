@@ -8,7 +8,7 @@
 * and/or sell copies of the Software, and to permit persons to whom the
 * Software is furnished to do so, subject to the following conditions:
 *
-* The above copyright notice and this permission notice shall be included in
+* The above copyright yestice and this permission yestice shall be included in
 * all copies or substantial portions of the Software.
 *
 * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -62,7 +62,7 @@
 #define ENCODER_OBJECT_ID_EXTERNAL_SDVOA          0x0C
 #define ENCODER_OBJECT_ID_EXTERNAL_SDVOB          0x0D
 #define ENCODER_OBJECT_ID_TITFP513                0x0E
-#define ENCODER_OBJECT_ID_INTERNAL_LVTM1          0x0F    /* not used for Radeon */
+#define ENCODER_OBJECT_ID_INTERNAL_LVTM1          0x0F    /* yest used for Radeon */
 #define ENCODER_OBJECT_ID_VT1623                  0x10
 #define ENCODER_OBJECT_ID_HDMI_SI1930             0x11
 #define ENCODER_OBJECT_ID_HDMI_INTERNAL           0x12
@@ -76,7 +76,7 @@
 #define ENCODER_OBJECT_ID_INTERNAL_KLDSCP_DVO1    0x14
 #define ENCODER_OBJECT_ID_INTERNAL_KLDSCP_DAC1    0x15
 #define ENCODER_OBJECT_ID_INTERNAL_KLDSCP_DAC2    0x16  /* Shared with CV/TV and CRT */
-#define ENCODER_OBJECT_ID_SI178                   0X17  /* External TMDS (dual link, no HDCP.) */
+#define ENCODER_OBJECT_ID_SI178                   0X17  /* External TMDS (dual link, yes HDCP.) */
 #define ENCODER_OBJECT_ID_MVPU_FPGA               0x18  /* MVPU FPGA chip */
 #define ENCODER_OBJECT_ID_INTERNAL_DDI            0x19
 #define ENCODER_OBJECT_ID_VT1625                  0x1A

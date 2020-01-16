@@ -228,7 +228,7 @@ static struct v4l2_standard generic_standards[] = {
 		.frameperiod    =
 		{
 			.numerator  = 1,
-			.denominator= 25
+			.deyesminator= 25
 		},
 		.framelines     = 625,
 		.reserved       = {0,0,0,0}
@@ -239,7 +239,7 @@ static struct v4l2_standard generic_standards[] = {
 		.frameperiod    =
 		{
 			.numerator  = 1001,
-			.denominator= 30000
+			.deyesminator= 30000
 		},
 		.framelines     = 525,
 		.reserved       = {0,0,0,0}
@@ -248,7 +248,7 @@ static struct v4l2_standard generic_standards[] = {
 		.frameperiod    =
 		{
 			.numerator  = 1001,
-			.denominator= 30000
+			.deyesminator= 30000
 		},
 		.framelines     = 525,
 		.reserved       = {0,0,0,0}
@@ -257,7 +257,7 @@ static struct v4l2_standard generic_standards[] = {
 		.frameperiod    =
 		{
 			.numerator  = 1001,
-			.denominator= 30000
+			.deyesminator= 30000
 		},
 		.framelines     = 525,
 		.reserved       = {0,0,0,0}
@@ -349,7 +349,7 @@ struct v4l2_standard *pvr2_std_create_enum(unsigned int *countptr,
 
 	pvr2_trace(PVR2_TRACE_STD,"Setting up %u unique standard(s)",
 		   std_cnt);
-	if (!std_cnt) return NULL; // paranoia
+	if (!std_cnt) return NULL; // parayesia
 
 	stddefs = kcalloc(std_cnt, sizeof(struct v4l2_standard),
 			  GFP_KERNEL);

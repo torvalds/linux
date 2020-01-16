@@ -11,7 +11,7 @@
 #define _ASOC_ARIZONA_H
 
 #include <linux/completion.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/mfd/arizona/core.h>
 
 #include <sound/soc.h>
@@ -309,7 +309,7 @@ int arizona_set_fll(struct arizona_fll *fll, int source,
 
 int arizona_init_spk(struct snd_soc_component *component);
 int arizona_init_gpio(struct snd_soc_component *component);
-int arizona_init_mono(struct snd_soc_component *component);
+int arizona_init_moyes(struct snd_soc_component *component);
 
 int arizona_init_common(struct arizona *arizona);
 int arizona_init_vol_limit(struct arizona *arizona);
@@ -326,27 +326,27 @@ bool arizona_input_analog(struct snd_soc_component *component, int shift);
 
 const char *arizona_sample_rate_val_to_name(unsigned int rate_val);
 
-static inline int arizona_register_notifier(struct snd_soc_component *component,
-					    struct notifier_block *nb,
-					    int (*notify)
-					    (struct notifier_block *nb,
+static inline int arizona_register_yestifier(struct snd_soc_component *component,
+					    struct yestifier_block *nb,
+					    int (*yestify)
+					    (struct yestifier_block *nb,
 					    unsigned long action, void *data))
 {
 	struct arizona_priv *priv = snd_soc_component_get_drvdata(component);
 	struct arizona *arizona = priv->arizona;
 
-	nb->notifier_call = notify;
+	nb->yestifier_call = yestify;
 
-	return blocking_notifier_chain_register(&arizona->notifier, nb);
+	return blocking_yestifier_chain_register(&arizona->yestifier, nb);
 }
 
-static inline int arizona_unregister_notifier(struct snd_soc_component *component,
-					      struct notifier_block *nb)
+static inline int arizona_unregister_yestifier(struct snd_soc_component *component,
+					      struct yestifier_block *nb)
 {
 	struct arizona_priv *priv = snd_soc_component_get_drvdata(component);
 	struct arizona *arizona = priv->arizona;
 
-	return blocking_notifier_chain_unregister(&arizona->notifier, nb);
+	return blocking_yestifier_chain_unregister(&arizona->yestifier, nb);
 }
 
 int arizona_of_get_audio_pdata(struct arizona *arizona);

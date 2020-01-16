@@ -251,7 +251,7 @@ struct mixart_sample_pos
 	u32   sample_pos_low_part;
 } __attribute__((packed));
 
-struct mixart_timer_notify
+struct mixart_timer_yestify
 {
 	u32                  stream_count;
 	struct mixart_sample_pos  streams[MIXART_MAX_STREAM_PER_CARD * MIXART_MAX_CARDS];
@@ -547,8 +547,8 @@ void snd_mixart_init_mailbox(struct mixart_mgr *mgr);
 void snd_mixart_exit_mailbox(struct mixart_mgr *mgr);
 
 int  snd_mixart_send_msg(struct mixart_mgr *mgr, struct mixart_msg *request, int max_resp_size, void *resp_data);
-int  snd_mixart_send_msg_wait_notif(struct mixart_mgr *mgr, struct mixart_msg *request, u32 notif_event);
-int  snd_mixart_send_msg_nonblock(struct mixart_mgr *mgr, struct mixart_msg *request);
+int  snd_mixart_send_msg_wait_yestif(struct mixart_mgr *mgr, struct mixart_msg *request, u32 yestif_event);
+int  snd_mixart_send_msg_yesnblock(struct mixart_mgr *mgr, struct mixart_msg *request);
 
 irqreturn_t snd_mixart_interrupt(int irq, void *dev_id);
 irqreturn_t snd_mixart_threaded_irq(int irq, void *dev_id);

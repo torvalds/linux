@@ -69,7 +69,7 @@ static inline void copy_exception_handler(unsigned int addr)
 		"addi	%1,%1,4\n"
 		"flushi %1\n"
 		"flushp\n"
-		: /* no output registers */
+		: /* yes output registers */
 		: "r" (start), "r" (addr), "r" (tmp)
 		: "memory"
 	);
@@ -92,7 +92,7 @@ static inline void copy_fast_tlb_miss_handler(unsigned int addr)
 		"	addi	%0,%0,4\n"
 		"	addi	%1,%1,4\n"
 		"	bne	%0,%2,1b\n"
-		: /* no output registers */
+		: /* yes output registers */
 		: "r" (start), "r" (addr), "r" (end), "r" (tmp)
 		: "memory"
 	);

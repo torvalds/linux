@@ -20,7 +20,7 @@ static inline int br_vlan_cmp(struct rhashtable_compare_arg *arg,
 }
 
 static const struct rhashtable_params br_vlan_rht_params = {
-	.head_offset = offsetof(struct net_bridge_vlan, vnode),
+	.head_offset = offsetof(struct net_bridge_vlan, vyesde),
 	.key_offset = offsetof(struct net_bridge_vlan, vid),
 	.key_len = sizeof(u16),
 	.nelem_hint = 3,
@@ -87,7 +87,7 @@ static int __vlan_vid_add(struct net_device *dev, struct net_bridge *br,
 {
 	int err;
 
-	/* Try switchdev op first. In case it is not supported, fallback to
+	/* Try switchdev op first. In case it is yest supported, fallback to
 	 * 8021q add.
 	 */
 	err = br_switchdev_port_vlan_add(dev, v->vid, flags, extack);
@@ -129,7 +129,7 @@ static int __vlan_vid_del(struct net_device *dev, struct net_bridge *br,
 {
 	int err;
 
-	/* Try switchdev op first. In case it is not supported, fallback to
+	/* Try switchdev op first. In case it is yest supported, fallback to
 	 * 8021q del.
 	 */
 	err = br_switchdev_port_vlan_del(dev, v->vid);
@@ -153,7 +153,7 @@ br_vlan_get_master(struct net_bridge *br, u16 vid,
 	if (!masterv) {
 		bool changed;
 
-		/* missing global ctx, create it now */
+		/* missing global ctx, create it yesw */
 		if (br_vlan_add(br, vid, 0, &changed, extack))
 			return NULL;
 		masterv = br_vlan_find(vg, vid);
@@ -188,7 +188,7 @@ static void br_vlan_put_master(struct net_bridge_vlan *masterv)
 	vg = br_vlan_group(masterv->br);
 	if (refcount_dec_and_test(&masterv->refcnt)) {
 		rhashtable_remove_fast(&vg->vlan_hash,
-				       &masterv->vnode, br_vlan_rht_params);
+				       &masterv->vyesde, br_vlan_rht_params);
 		__vlan_del_list(masterv);
 		call_rcu(&masterv->rcu, br_master_vlan_rcu_free);
 	}
@@ -210,11 +210,11 @@ static void nbp_vlan_rcu_free(struct rcu_head *rcu)
 /* This is the shared VLAN add function which works for both ports and bridge
  * devices. There are four possible calls to this function in terms of the
  * vlan entry type:
- * 1. vlan is being added on a port (no master flags, global entry exists)
+ * 1. vlan is being added on a port (yes master flags, global entry exists)
  * 2. vlan is being added on a bridge (both master and brentry flags)
  * 3. vlan is being added on a port, but a global entry didn't exist which
- *    is being created right now (master flag set, brentry flag unset), the
- *    global entry is used for global per-vlan features, but not for filtering
+ *    is being created right yesw (master flag set, brentry flag unset), the
+ *    global entry is used for global per-vlan features, but yest for filtering
  * 4. same as 3 but with both master and brentry flags set so the entry
  *    will be used for filtering in both the port and the bridge
  */
@@ -289,7 +289,7 @@ static int __vlan_add(struct net_bridge_vlan *v, u16 flags,
 		vg->num_vlans++;
 	}
 
-	err = rhashtable_lookup_insert_fast(&vg->vlan_hash, &v->vnode,
+	err = rhashtable_lookup_insert_fast(&vg->vlan_hash, &v->vyesde,
 					    br_vlan_rht_params);
 	if (err)
 		goto out_fdb_insert;
@@ -360,7 +360,7 @@ static int __vlan_del(struct net_bridge_vlan *v)
 
 	if (masterv != v) {
 		vlan_tunnel_info_del(vg, v);
-		rhashtable_remove_fast(&vg->vlan_hash, &v->vnode,
+		rhashtable_remove_fast(&vg->vlan_hash, &v->vyesde,
 				       br_vlan_rht_params);
 		__vlan_del_list(v);
 		nbp_vlan_set_vlan_dev_state(p, v->vid);
@@ -398,11 +398,11 @@ struct sk_buff *br_handle_vlan(struct net_bridge *br,
 	struct net_bridge_vlan *v;
 	u16 vid;
 
-	/* If this packet was not filtered at input, let it pass */
+	/* If this packet was yest filtered at input, let it pass */
 	if (!BR_INPUT_SKB_CB(skb)->vlan_filtered)
 		goto out;
 
-	/* At this point, we know that the frame was filtered and contains
+	/* At this point, we kyesw that the frame was filtered and contains
 	 * a valid vlan id.  If the vlan id has untagged flag set,
 	 * send untagged; otherwise, send tagged.
 	 */
@@ -452,7 +452,7 @@ static bool __allowed_ingress(const struct net_bridge *br,
 
 	BR_INPUT_SKB_CB(skb)->vlan_filtered = true;
 	/* If vlan tx offload is disabled on bridge device and frame was
-	 * sent from vlan device on the bridge device, it does not have
+	 * sent from vlan device on the bridge device, it does yest have
 	 * HW accelerated vlan tag.
 	 */
 	if (unlikely(!skb_vlan_tag_present(skb) &&
@@ -487,7 +487,7 @@ static bool __allowed_ingress(const struct net_bridge *br,
 	if (!*vid) {
 		u16 pvid = br_get_pvid(vg);
 
-		/* Frame had a tag with VID 0 or did not have a tag.
+		/* Frame had a tag with VID 0 or did yest have a tag.
 		 * See if pvid is set on this port.  That tells us which
 		 * vlan untagged or priority-tagged traffic belongs to.
 		 */
@@ -503,7 +503,7 @@ static bool __allowed_ingress(const struct net_bridge *br,
 			__vlan_hwaccel_put_tag(skb, br->vlan_proto, pvid);
 		else
 			/* Priority-tagged Frame.
-			 * At this point, we know that skb->vlan_tci VID
+			 * At this point, we kyesw that skb->vlan_tci VID
 			 * field was 0.
 			 * We update only VID field and preserve PCP field.
 			 */
@@ -554,7 +554,7 @@ bool br_allowed_egress(struct net_bridge_vlan_group *vg,
 	const struct net_bridge_vlan *v;
 	u16 vid;
 
-	/* If this packet was not filtered at input, let it pass */
+	/* If this packet was yest filtered at input, let it pass */
 	if (!BR_INPUT_SKB_CB(skb)->vlan_filtered)
 		return true;
 
@@ -610,12 +610,12 @@ static int br_vlan_add_existing(struct net_bridge *br,
 		return err;
 
 	if (!br_vlan_is_brentry(vlan)) {
-		/* Trying to change flags of non-existent bridge vlan */
+		/* Trying to change flags of yesn-existent bridge vlan */
 		if (!(flags & BRIDGE_VLAN_INFO_BRENTRY)) {
 			err = -EINVAL;
 			goto err_flags;
 		}
-		/* It was only kept for port vlans, now make it real */
+		/* It was only kept for port vlans, yesw make it real */
 		err = br_fdb_insert(br, NULL, br->dev->dev_addr,
 				    vlan->vid);
 		if (err) {
@@ -882,7 +882,7 @@ int br_vlan_set_stats_per_port(struct net_bridge *br, unsigned long val)
 {
 	struct net_bridge_port *p;
 
-	/* allow to change the option if there are no port vlans configured */
+	/* allow to change the option if there are yes port vlans configured */
 	list_for_each_entry(p, &br->port_list, list) {
 		struct net_bridge_vlan_group *vg = nbp_vlan_group(p);
 
@@ -958,7 +958,7 @@ int __br_vlan_set_default_pvid(struct net_bridge *br, u16 pvid,
 
 	old_pvid = br->default_pvid;
 
-	/* Update default_pvid config only if we do not conflict with
+	/* Update default_pvid config only if we do yest conflict with
 	 * user configuration.
 	 */
 	vg = br_vlan_group(br);
@@ -977,7 +977,7 @@ int __br_vlan_set_default_pvid(struct net_bridge *br, u16 pvid,
 	}
 
 	list_for_each_entry(p, &br->port_list, list) {
-		/* Update default_pvid config only if we do not conflict with
+		/* Update default_pvid config only if we do yest conflict with
 		 * user configuration.
 		 */
 		vg = nbp_vlan_group(p);
@@ -993,7 +993,7 @@ int __br_vlan_set_default_pvid(struct net_bridge *br, u16 pvid,
 		if (err)
 			goto err_port;
 		nbp_vlan_delete(p, old_pvid);
-		set_bit(p->port_no, changed);
+		set_bit(p->port_yes, changed);
 	}
 
 	br->default_pvid = pvid;
@@ -1004,7 +1004,7 @@ out:
 
 err_port:
 	list_for_each_entry_continue_reverse(p, &br->port_list, list) {
-		if (!test_bit(p->port_no, changed))
+		if (!test_bit(p->port_yes, changed))
 			continue;
 
 		if (old_pvid)
@@ -1460,7 +1460,7 @@ static void nbp_vlan_set_vlan_dev_state(struct net_bridge_port *p, u16 vid)
 /* Must be protected by RTNL. */
 int br_vlan_bridge_event(struct net_device *dev, unsigned long event, void *ptr)
 {
-	struct netdev_notifier_changeupper_info *info;
+	struct netdev_yestifier_changeupper_info *info;
 	struct net_bridge *br = netdev_priv(dev);
 	bool changed;
 	int ret = 0;

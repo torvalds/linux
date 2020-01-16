@@ -107,7 +107,7 @@ int x509_check_for_self_signed(struct x509_certificate *cert)
 	if (cert->raw_subject_size != cert->raw_issuer_size ||
 	    memcmp(cert->raw_subject, cert->raw_issuer,
 		   cert->raw_issuer_size) != 0)
-		goto not_self_signed;
+		goto yest_self_signed;
 
 	if (cert->sig->auth_ids[0] || cert->sig->auth_ids[1]) {
 		/* If the AKID is present it may have one or two parts.  If
@@ -117,7 +117,7 @@ int x509_check_for_self_signed(struct x509_certificate *cert)
 		bool b = asymmetric_key_id_same(cert->id, cert->sig->auth_ids[0]);
 
 		if (!a && !b)
-			goto not_self_signed;
+			goto yest_self_signed;
 
 		ret = -EKEYREJECTED;
 		if (((a && !b) || (b && !a)) &&
@@ -145,8 +145,8 @@ out:
 	pr_devel("<==%s() = %d\n", __func__, ret);
 	return ret;
 
-not_self_signed:
-	pr_devel("<==%s() = 0 [not]\n", __func__);
+yest_self_signed:
+	pr_devel("<==%s() = 0 [yest]\n", __func__);
 	return 0;
 }
 

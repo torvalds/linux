@@ -48,7 +48,7 @@
 /**
  * For convenience, we may need to pass around the encrypted session
  * key between kernel and userspace because the authentication token
- * may not be extractable.  For example, the TPM may not release the
+ * may yest be extractable.  For example, the TPM may yest release the
  * private key, instead requiring the encrypted data and returning the
  * decrypted data.
  */
@@ -91,7 +91,7 @@ struct ecryptfs_private_key {
 
 /* May be a password or a private key */
 struct ecryptfs_auth_tok {
-	u16 version; /* 8-bit major and 8-bit minor */
+	u16 version; /* 8-bit major and 8-bit miyesr */
 	u16 token_type;
 #define ECRYPTFS_ENCRYPT_ONLY 0x00000001
 	u32 flags;

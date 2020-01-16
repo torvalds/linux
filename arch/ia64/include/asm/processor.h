@@ -57,9 +57,9 @@
 
 
 /*
- * This shift should be large enough to be able to represent 1000000000/itc_freq with good
- * accuracy while being small enough to fit 10*1000000000<<IA64_NSEC_PER_CYC_SHIFT in 64 bits
- * (this will give enough slack to represent 10 seconds worth of time as a scaled number).
+ * This shift should be large eyesugh to be able to represent 1000000000/itc_freq with good
+ * accuracy while being small eyesugh to fit 10*1000000000<<IA64_NSEC_PER_CYC_SHIFT in 64 bits
+ * (this will give eyesugh slack to represent 10 seconds worth of time as a scaled number).
  */
 #define IA64_NSEC_PER_CYC_SHIFT	30
 
@@ -78,7 +78,7 @@
 #include <asm/unwind.h>
 #include <linux/atomic.h>
 #ifdef CONFIG_NUMA
-#include <asm/nodedata.h>
+#include <asm/yesdedata.h>
 #endif
 
 /* like above but expressed as bitfields for more efficient access: */
@@ -226,7 +226,7 @@ struct cpuinfo_ia64 {
 	char *model_name;
 
 #ifdef CONFIG_NUMA
-	struct ia64_node_data *node_data;
+	struct ia64_yesde_data *yesde_data;
 #endif
 };
 
@@ -235,7 +235,7 @@ DECLARE_PER_CPU(struct cpuinfo_ia64, ia64_cpu_info);
 /*
  * The "local" data variable.  It refers to the per-CPU data of the currently executing
  * CPU, much like "current" points to the per-task data of the currently executing task.
- * Do not use the address of local_cpu_data, since it will be different from
+ * Do yest use the address of local_cpu_data, since it will be different from
  * cpu_data(smp_processor_id())!
  */
 #define local_cpu_data		(&__ia64_per_cpu_var(ia64_cpu_info))
@@ -352,8 +352,8 @@ extern unsigned long get_wchan (struct task_struct *p);
 /* Return stack pointer of blocked task TSK.  */
 #define KSTK_ESP(tsk)  ((tsk)->thread.ksp)
 
-extern void ia64_getreg_unknown_kr (void);
-extern void ia64_setreg_unknown_kr (void);
+extern void ia64_getreg_unkyeswn_kr (void);
+extern void ia64_setreg_unkyeswn_kr (void);
 
 #define ia64_get_kr(regnum)					\
 ({								\
@@ -368,7 +368,7 @@ extern void ia64_setreg_unknown_kr (void);
 	    case 5: r = ia64_getreg(_IA64_REG_AR_KR5); break;	\
 	    case 6: r = ia64_getreg(_IA64_REG_AR_KR6); break;	\
 	    case 7: r = ia64_getreg(_IA64_REG_AR_KR7); break;	\
-	    default: ia64_getreg_unknown_kr(); break;		\
+	    default: ia64_getreg_unkyeswn_kr(); break;		\
 	}							\
 	r;							\
 })
@@ -384,7 +384,7 @@ extern void ia64_setreg_unknown_kr (void);
 	    case 5: ia64_setreg(_IA64_REG_AR_KR5, r); break;	\
 	    case 6: ia64_setreg(_IA64_REG_AR_KR6, r); break;	\
 	    case 7: ia64_setreg(_IA64_REG_AR_KR7, r); break;	\
-	    default: ia64_setreg_unknown_kr(); break;		\
+	    default: ia64_setreg_unkyeswn_kr(); break;		\
 	}							\
 })
 
@@ -661,13 +661,13 @@ ia64_imva (void *addr)
 static inline void
 prefetch (const void *x)
 {
-	 ia64_lfetch(ia64_lfhint_none, x);
+	 ia64_lfetch(ia64_lfhint_yesne, x);
 }
 
 static inline void
 prefetchw (const void *x)
 {
-	ia64_lfetch_excl(ia64_lfhint_none, x);
+	ia64_lfetch_excl(ia64_lfhint_yesne, x);
 }
 
 #define spin_lock_prefetch(x)	prefetchw(x)

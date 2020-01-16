@@ -101,7 +101,7 @@
 /* Transfer period step (write) */
 #define REG_STP			(6)
 
-/* Synchronous Offset (write) */
+/* Synchroyesus Offset (write) */
 #define REG_SOF			(7)
 
 /* Fifo state register (read) */
@@ -167,7 +167,7 @@
 #define REG_DAL			(15)
 
 typedef enum {
-	PHASE_IDLE,					/* we're not planning on doing anything	*/
+	PHASE_IDLE,					/* we're yest planning on doing anything	*/
 	PHASE_SELECTION,				/* selecting a device			*/
 	PHASE_SELSTEPS,					/* selection with command steps		*/
 	PHASE_COMMAND,					/* command sent				*/
@@ -188,7 +188,7 @@ typedef enum {
 } fasdmadir_t;
 
 typedef enum {
-	fasdma_none,					/* No dma				*/
+	fasdma_yesne,					/* No dma				*/
 	fasdma_pio,					/* PIO mode				*/
 	fasdma_pseudo,					/* Pseudo DMA				*/
 	fasdma_real_block,				/* Real DMA, on block by block basis	*/
@@ -200,7 +200,7 @@ typedef enum {
 	neg_inprogress,					/* Negotiation sent			*/
 	neg_complete,					/* Negotiation complete			*/
 	neg_targcomplete,				/* Target completed negotiation		*/
-	neg_invalid					/* Negotiation not supported		*/
+	neg_invalid					/* Negotiation yest supported		*/
 } neg_t;
 
 #define MAGIC	0x441296bdUL
@@ -268,7 +268,7 @@ typedef struct {
 	struct {
 		unsigned char	clockrate;		/* clock rate of FAS device (MHz)	*/
 		unsigned char	select_timeout;		/* timeout (R5)				*/
-		unsigned char	sync_max_depth;		/* Synchronous xfer max fifo depth	*/
+		unsigned char	sync_max_depth;		/* Synchroyesus xfer max fifo depth	*/
 		unsigned char	wide_max_size;		/* Maximum wide transfer size		*/
 		unsigned char	cntl3;			/* Control Reg 3			*/
 		unsigned int	asyncperiod;		/* Async transfer period (ns)		*/
@@ -288,10 +288,10 @@ typedef struct {
 		unsigned char	parity_enabled:1;	/* parity checking enabled		*/
 		unsigned char	parity_check:1;		/* need to check parity checking	*/
 		unsigned char	period;			/* sync xfer period in (*4ns)		*/
-		unsigned char	stp;			/* synchronous transfer period		*/
-		unsigned char	sof;			/* synchronous offset register		*/
+		unsigned char	stp;			/* synchroyesus transfer period		*/
+		unsigned char	sof;			/* synchroyesus offset register		*/
 		unsigned char	wide_xfer;		/* currently negociated wide transfer	*/
-		neg_t		sync_state;		/* synchronous transfer mode		*/
+		neg_t		sync_state;		/* synchroyesus transfer mode		*/
 		neg_t		wide_state;		/* wide transfer mode			*/
 	} device[8];
 	unsigned long	busyluns[64/sizeof(unsigned long)];/* array of bits indicating LUNs busy	*/
@@ -332,13 +332,13 @@ extern int fas216_add (struct Scsi_Host *instance, struct device *dev);
  */
 extern int fas216_queue_command(struct Scsi_Host *h, struct scsi_cmnd *SCpnt);
 
-/* Function: int fas216_noqueue_command(struct Scsi_Host *h, struct scsi_cmnd *SCpnt)
+/* Function: int fas216_yesqueue_command(struct Scsi_Host *h, struct scsi_cmnd *SCpnt)
  * Purpose : queue a command for adapter to process, and process it to completion.
  * Params  : h - host adapter
  *	   : SCpnt - Command to queue
  * Returns : 0 - success, else error
  */
-extern int fas216_noqueue_command(struct Scsi_Host *, struct scsi_cmnd *);
+extern int fas216_yesqueue_command(struct Scsi_Host *, struct scsi_cmnd *);
 
 /* Function: irqreturn_t fas216_intr (FAS216_Info *info)
  * Purpose : handle interrupts from the interface to progress a command

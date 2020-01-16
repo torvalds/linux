@@ -191,14 +191,14 @@ static int hdmi_cec_adap_enable(struct cec_adapter *adap, bool enable)
 
 	/* Clear TX FIFO */
 	if (!hdmi_cec_clear_tx_fifo(adap)) {
-		pr_err("cec-%s: could not clear TX FIFO\n", adap->name);
+		pr_err("cec-%s: could yest clear TX FIFO\n", adap->name);
 		err = -EIO;
 		goto err_disable_clk;
 	}
 
 	/* Clear RX FIFO */
 	if (!hdmi_cec_clear_rx_fifo(adap)) {
-		pr_err("cec-%s: could not clear RX FIFO\n", adap->name);
+		pr_err("cec-%s: could yest clear RX FIFO\n", adap->name);
 		err = -EIO;
 		goto err_disable_clk;
 	}
@@ -238,7 +238,7 @@ static int hdmi_cec_adap_enable(struct cec_adapter *adap, bool enable)
 		/*
 		 * If we enabled CEC in middle of a CEC message on the bus,
 		 * we could have start bit irregularity and/or short
-		 * pulse event. Clear them now.
+		 * pulse event. Clear them yesw.
 		 */
 		temp = hdmi_read_reg(core->base, HDMI_CEC_INT_STATUS_1);
 		temp = FLD_MOD(0x0, 0x5, 2, 0);
@@ -284,7 +284,7 @@ static int hdmi_cec_adap_transmit(struct cec_adapter *adap, u8 attempts,
 
 	/* Clear TX FIFO */
 	if (!hdmi_cec_clear_tx_fifo(adap)) {
-		pr_err("cec-%s: could not clear TX FIFO for transmit\n",
+		pr_err("cec-%s: could yest clear TX FIFO for transmit\n",
 		       adap->name);
 		return -EIO;
 	}

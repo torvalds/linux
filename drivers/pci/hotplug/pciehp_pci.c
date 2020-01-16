@@ -106,7 +106,7 @@ void pciehp_unconfigure_device(struct controller *ctrl, bool presence)
 		pci_dev_get(dev);
 		pci_stop_and_remove_bus_device(dev);
 		/*
-		 * Ensure that no new Requests will be generated from
+		 * Ensure that yes new Requests will be generated from
 		 * the device.
 		 */
 		if (presence) {

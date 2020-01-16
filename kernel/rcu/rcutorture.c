@@ -29,7 +29,7 @@
 #include <linux/completion.h>
 #include <linux/moduleparam.h>
 #include <linux/percpu.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/reboot.h>
 #include <linux/freezer.h>
 #include <linux/cpu.h>
@@ -60,7 +60,7 @@ MODULE_AUTHOR("Paul E. McKenney <paulmck@linux.ibm.com> and Josh Triplett <josh@
 #define RCUTORTURE_RDR_PREEMPT	 0x04	/*  ... disabling preemption. */
 #define RCUTORTURE_RDR_RBH	 0x08	/*  ... rcu_read_lock_bh(). */
 #define RCUTORTURE_RDR_SCHED	 0x10	/*  ... rcu_read_lock_sched(). */
-#define RCUTORTURE_RDR_RCU	 0x20	/*  ... entering another RCU reader. */
+#define RCUTORTURE_RDR_RCU	 0x20	/*  ... entering ayesther RCU reader. */
 #define RCUTORTURE_RDR_NBITS	 6	/* Number of bits defined above. */
 #define RCUTORTURE_MAX_EXTEND	 \
 	(RCUTORTURE_RDR_BH | RCUTORTURE_RDR_IRQ | RCUTORTURE_RDR_PREEMPT | \
@@ -83,9 +83,9 @@ torture_param(bool, fwd_progress_need_resched, 1,
 	      "Hide cond_resched() behind need_resched()");
 torture_param(bool, gp_cond, false, "Use conditional/async GP wait primitives");
 torture_param(bool, gp_exp, false, "Use expedited GP wait primitives");
-torture_param(bool, gp_normal, false,
-	     "Use normal (non-expedited) GP wait primitives");
-torture_param(bool, gp_sync, false, "Use synchronous GP wait primitives");
+torture_param(bool, gp_yesrmal, false,
+	     "Use yesrmal (yesn-expedited) GP wait primitives");
+torture_param(bool, gp_sync, false, "Use synchroyesus GP wait primitives");
 torture_param(int, irqreader, 1, "Allow RCU readers from irq handlers");
 torture_param(int, n_barrier_cbs, 0,
 	     "# of callbacks/kthreads for barrier testing");
@@ -93,8 +93,8 @@ torture_param(int, nfakewriters, 4, "Number of RCU fake writer threads");
 torture_param(int, nreaders, -1, "Number of RCU reader threads");
 torture_param(int, object_debug, 0,
 	     "Enable debug-object double call_rcu() testing");
-torture_param(int, onoff_holdoff, 0, "Time after boot before CPU hotplugs (s)");
-torture_param(int, onoff_interval, 0,
+torture_param(int, oyesff_holdoff, 0, "Time after boot before CPU hotplugs (s)");
+torture_param(int, oyesff_interval, 0,
 	     "Time between CPU hotplugs (jiffies), 0=disable");
 torture_param(int, shuffle_interval, 3, "Number of seconds between shuffles");
 torture_param(int, shutdown_secs, 0, "Shutdown time (s), <= zero to disable.");
@@ -105,12 +105,12 @@ torture_param(int, stall_cpu_irqsoff, 0, "Disable interrupts while stalling.");
 torture_param(int, stat_interval, 60,
 	     "Number of seconds between stats printk()s");
 torture_param(int, stutter, 5, "Number of seconds to run/halt test");
-torture_param(int, test_boost, 1, "Test RCU prio boost: 0=no, 1=maybe, 2=yes.");
+torture_param(int, test_boost, 1, "Test RCU prio boost: 0=yes, 1=maybe, 2=no.");
 torture_param(int, test_boost_duration, 4,
 	     "Duration of each boost test, seconds.");
 torture_param(int, test_boost_interval, 7,
 	     "Interval between boost tests, seconds.");
-torture_param(bool, test_no_idle_hz, true,
+torture_param(bool, test_yes_idle_hz, true,
 	     "Test support for tickless idle CPUs");
 torture_param(int, verbose, 1,
 	     "Enable verbose debugging printk()s");
@@ -216,7 +216,7 @@ static const char *rcu_torture_writer_state_getname(void)
 #endif /* #else #if defined(CONFIG_RCU_BOOST) && !defined(CONFIG_HOTPLUG_CPU) */
 
 #ifdef CONFIG_RCU_TRACE
-static u64 notrace rcu_trace_clock_local(void)
+static u64 yestrace rcu_trace_clock_local(void)
 {
 	u64 ts = trace_clock_local();
 
@@ -224,7 +224,7 @@ static u64 notrace rcu_trace_clock_local(void)
 	return ts;
 }
 #else /* #ifdef CONFIG_RCU_TRACE */
-static u64 notrace rcu_trace_clock_local(void)
+static u64 yestrace rcu_trace_clock_local(void)
 {
 	return 0ULL;
 }
@@ -248,7 +248,7 @@ static atomic_t barrier_cbs_invoked;	/* Barrier callbacks invoked. */
 static wait_queue_head_t *barrier_cbs_wq; /* Coordinate barrier testing. */
 static DECLARE_WAIT_QUEUE_HEAD(barrier_wq);
 
-static bool rcu_fwd_cb_nodelay;		/* Short rcu_torture_delay() delays. */
+static bool rcu_fwd_cb_yesdelay;		/* Short rcu_torture_delay() delays. */
 
 /*
  * Allocate an element from the rcu_tortures pool.
@@ -339,7 +339,7 @@ rcu_read_delay(struct torture_random_state *rrsp, struct rt_read_seg *rtrsp)
 	 * period, and we want a long delay occasionally to trigger
 	 * force_quiescent_state. */
 
-	if (!rcu_fwd_cb_nodelay &&
+	if (!rcu_fwd_cb_yesdelay &&
 	    !(torture_random(rrsp) % (nrealreaders * 2000 * longdelay_ms))) {
 		started = cur_ops->get_gp_seq();
 		ts = rcu_trace_clock_local();
@@ -387,7 +387,7 @@ rcu_torture_pipe_update_one(struct rcu_torture *rp)
 }
 
 /*
- * Update all callbacks in the pipe.  Suitable for synchronous grace-period
+ * Update all callbacks in the pipe.  Suitable for synchroyesus grace-period
  * primitives.
  */
 static void
@@ -422,7 +422,7 @@ rcu_torture_cb(struct rcu_head *p)
 		cur_ops->deferred_free(rp);
 }
 
-static unsigned long rcu_no_completed(void)
+static unsigned long rcu_yes_completed(void)
 {
 	return 0;
 }
@@ -492,7 +492,7 @@ static struct rcu_torture_ops rcu_busted_ops = {
 	.readlock	= rcu_torture_read_lock,
 	.read_delay	= rcu_read_delay,  /* just reuse rcu's version. */
 	.readunlock	= rcu_torture_read_unlock,
-	.get_gp_seq	= rcu_no_completed,
+	.get_gp_seq	= rcu_yes_completed,
 	.deferred_free	= rcu_busted_torture_deferred_free,
 	.sync		= synchronize_rcu_busted,
 	.exp_sync	= synchronize_rcu_busted,
@@ -524,7 +524,7 @@ srcu_read_delay(struct torture_random_state *rrsp, struct rt_read_seg *rtrsp)
 	const long uspertick = 1000000 / HZ;
 	const long longdelay = 10;
 
-	/* We want there to be long-running readers, but not all the time. */
+	/* We want there to be long-running readers, but yest all the time. */
 
 	delay = torture_random(rrsp) %
 		(nrealreaders * 2 * longdelay * uspertick);
@@ -670,7 +670,7 @@ static struct rcu_torture_ops tasks_ops = {
 	.readlock	= tasks_torture_read_lock,
 	.read_delay	= rcu_read_delay,  /* just reuse rcu's version. */
 	.readunlock	= tasks_torture_read_unlock,
-	.get_gp_seq	= rcu_no_completed,
+	.get_gp_seq	= rcu_yes_completed,
 	.deferred_free	= rcu_tasks_torture_deferred_free,
 	.sync		= synchronize_rcu_tasks,
 	.exp_sync	= synchronize_rcu_tasks,
@@ -685,7 +685,7 @@ static struct rcu_torture_ops tasks_ops = {
 
 /*
  * Definitions for trivial CONFIG_PREEMPT=n-only torture testing.
- * This implementation does not necessarily work well with CPU hotplug.
+ * This implementation does yest necessarily work well with CPU hotplug.
  */
 
 static void synchronize_rcu_trivial(void)
@@ -715,7 +715,7 @@ static struct rcu_torture_ops trivial_ops = {
 	.readlock	= rcu_torture_read_lock_trivial,
 	.read_delay	= rcu_read_delay,  /* just reuse rcu's version. */
 	.readunlock	= rcu_torture_read_unlock_trivial,
-	.get_gp_seq	= rcu_no_completed,
+	.get_gp_seq	= rcu_yes_completed,
 	.sync		= synchronize_rcu_trivial,
 	.exp_sync	= synchronize_rcu_trivial,
 	.fqs		= NULL,
@@ -862,7 +862,7 @@ static int rcu_torture_boost(void *arg)
 		/*
 		 * If boost never happened, then inflight will always be 1, in
 		 * this case the boost check would never happen in the above
-		 * loop so do another one here.
+		 * loop so do ayesther one here.
 		 */
 		if (!failed && smp_load_acquire(&rbi.inflight))
 			rcu_torture_boost_failed(call_rcu_time, jiffies);
@@ -938,10 +938,10 @@ rcu_torture_fqs(void *arg)
 static int
 rcu_torture_writer(void *arg)
 {
-	bool can_expedite = !rcu_gp_is_expedited() && !rcu_gp_is_normal();
+	bool can_expedite = !rcu_gp_is_expedited() && !rcu_gp_is_yesrmal();
 	int expediting = 0;
 	unsigned long gp_snap;
-	bool gp_cond1 = gp_cond, gp_exp1 = gp_exp, gp_normal1 = gp_normal;
+	bool gp_cond1 = gp_cond, gp_exp1 = gp_exp, gp_yesrmal1 = gp_yesrmal;
 	bool gp_sync1 = gp_sync;
 	int i;
 	struct rcu_torture *rp;
@@ -957,9 +957,9 @@ rcu_torture_writer(void *arg)
 			 " GP expediting controlled from boot/sysfs for %s.\n",
 			 torture_type, cur_ops->name);
 
-	/* Initialize synctype[] array.  If none set, take default. */
-	if (!gp_cond1 && !gp_exp1 && !gp_normal1 && !gp_sync1)
-		gp_cond1 = gp_exp1 = gp_normal1 = gp_sync1 = true;
+	/* Initialize synctype[] array.  If yesne set, take default. */
+	if (!gp_cond1 && !gp_exp1 && !gp_yesrmal1 && !gp_sync1)
+		gp_cond1 = gp_exp1 = gp_yesrmal1 = gp_sync1 = true;
 	if (gp_cond1 && cur_ops->get_state && cur_ops->cond_sync) {
 		synctype[nsynctypes++] = RTWS_COND_GET;
 		pr_info("%s: Testing conditional GPs.\n", __func__);
@@ -972,15 +972,15 @@ rcu_torture_writer(void *arg)
 	} else if (gp_exp && !cur_ops->exp_sync) {
 		pr_alert("%s: gp_exp without primitives.\n", __func__);
 	}
-	if (gp_normal1 && cur_ops->deferred_free) {
+	if (gp_yesrmal1 && cur_ops->deferred_free) {
 		synctype[nsynctypes++] = RTWS_DEF_FREE;
-		pr_info("%s: Testing asynchronous GPs.\n", __func__);
-	} else if (gp_normal && !cur_ops->deferred_free) {
-		pr_alert("%s: gp_normal without primitives.\n", __func__);
+		pr_info("%s: Testing asynchroyesus GPs.\n", __func__);
+	} else if (gp_yesrmal && !cur_ops->deferred_free) {
+		pr_alert("%s: gp_yesrmal without primitives.\n", __func__);
 	}
 	if (gp_sync1 && cur_ops->sync) {
 		synctype[nsynctypes++] = RTWS_SYNC;
-		pr_info("%s: Testing normal GPs.\n", __func__);
+		pr_info("%s: Testing yesrmal GPs.\n", __func__);
 	} else if (gp_sync && !cur_ops->sync) {
 		pr_alert("%s: gp_sync without primitives.\n", __func__);
 	}
@@ -1061,11 +1061,11 @@ rcu_torture_writer(void *arg)
 				expediting = -expediting;
 		} else if (!can_expedite) { /* Disabled during boot, recheck. */
 			can_expedite = !rcu_gp_is_expedited() &&
-				       !rcu_gp_is_normal();
+				       !rcu_gp_is_yesrmal();
 		}
 		rcu_torture_writer_state = RTWS_STUTTER;
 		if (stutter_wait("rcu_torture_writer") &&
-		    !READ_ONCE(rcu_fwd_cb_nodelay) &&
+		    !READ_ONCE(rcu_fwd_cb_yesdelay) &&
 		    !cur_ops->slow_gps &&
 		    !torture_must_stop())
 			for (i = 0; i < ARRAY_SIZE(rcu_tortures); i++)
@@ -1109,12 +1109,12 @@ rcu_torture_fakewriter(void *arg)
 		if (cur_ops->cb_barrier != NULL &&
 		    torture_random(&rand) % (nfakewriters * 8) == 0) {
 			cur_ops->cb_barrier();
-		} else if (gp_normal == gp_exp) {
+		} else if (gp_yesrmal == gp_exp) {
 			if (cur_ops->sync && torture_random(&rand) & 0x80)
 				cur_ops->sync();
 			else if (cur_ops->exp_sync)
 				cur_ops->exp_sync();
-		} else if (gp_normal && cur_ops->sync) {
+		} else if (gp_yesrmal && cur_ops->sync) {
 			cur_ops->sync();
 		} else if (cur_ops->exp_sync) {
 			cur_ops->exp_sync();
@@ -1181,7 +1181,7 @@ static void rcutorture_one_extend(int *readstate, int newstate,
 	if (statesold & RCUTORTURE_RDR_RCU)
 		cur_ops->readunlock(idxold >> RCUTORTURE_RDR_SHIFT);
 
-	/* Delay if neither beginning nor end and there was a change. */
+	/* Delay if neither beginning yesr end and there was a change. */
 	if ((statesnew || statesold) && *readstate && newstate)
 		cur_ops->read_delay(trsp, rtrsp);
 
@@ -1242,7 +1242,7 @@ rcutorture_loop_extend(int *readstate, struct torture_random_state *trsp,
 
 	WARN_ON_ONCE(!*readstate); /* -Existing- RCU read-side critsect! */
 	if (!((mask - 1) & mask))
-		return rtrsp;  /* Current RCU reader not extendable. */
+		return rtrsp;  /* Current RCU reader yest extendable. */
 	/* Bias towards larger numbers of loops. */
 	i = (torture_random(trsp) >> 3);
 	i = ((i | (i >> 3)) & RCUTORTURE_RDR_MAX_LOOPS) + 1;
@@ -1255,7 +1255,7 @@ rcutorture_loop_extend(int *readstate, struct torture_random_state *trsp,
 
 /*
  * Do one read-side critical section, returning false if there was
- * no data to read.  Can be invoked both from process context and
+ * yes data to read.  Can be invoked both from process context and
  * from a timer handler.
  */
 static bool rcu_torture_one_read(struct torture_random_state *trsp)
@@ -1292,7 +1292,7 @@ static bool rcu_torture_one_read(struct torture_random_state *trsp)
 	preempt_disable();
 	pipe_count = p->rtort_pipe_count;
 	if (pipe_count > RCU_TORTURE_PIPE_LEN) {
-		/* Should not happen, but... */
+		/* Should yest happen, but... */
 		pipe_count = RCU_TORTURE_PIPE_LEN;
 	}
 	completed = cur_ops->get_gp_seq();
@@ -1304,7 +1304,7 @@ static bool rcu_torture_one_read(struct torture_random_state *trsp)
 	__this_cpu_inc(rcu_torture_count[pipe_count]);
 	completed = rcutorture_seq_diff(completed, started);
 	if (completed > RCU_TORTURE_PIPE_LEN) {
-		/* Should not happen, but... */
+		/* Should yest happen, but... */
 		completed = RCU_TORTURE_PIPE_LEN;
 	}
 	__this_cpu_inc(rcu_torture_batch[completed]);
@@ -1391,11 +1391,11 @@ rcu_torture_reader(void *arg)
 
 /*
  * Print torture statistics.  Caller must ensure that there is only
- * one call to this function at a given time!!!  This is normally
+ * one call to this function at a given time!!!  This is yesrmally
  * accomplished by relying on the module system to only have one copy
  * of the module loaded, and then by giving the rcu_torture_stats
  * kthread full control (or the init/cleanup functions when rcu_torture_stats
- * thread is not running).
+ * thread is yest running).
  */
 static void
 rcu_torture_stats_print(void)
@@ -1437,7 +1437,7 @@ rcu_torture_stats_print(void)
 		n_rcu_torture_boost_failure,
 		n_rcu_torture_boosts,
 		atomic_long_read(&n_rcu_torture_timers));
-	torture_onoff_stats();
+	torture_oyesff_stats();
 	pr_cont("barrier: %ld/%ld:%ld\n",
 		n_barrier_successes,
 		n_barrier_attempts,
@@ -1452,7 +1452,7 @@ rcu_torture_stats_print(void)
 		atomic_inc(&n_rcu_torture_error);
 		WARN_ON_ONCE(atomic_read(&n_rcu_torture_mberror));
 		WARN_ON_ONCE(n_rcu_torture_barrier_error);  // rcu_barrier()
-		WARN_ON_ONCE(n_rcu_torture_boost_ktrerror); // no boost kthread
+		WARN_ON_ONCE(n_rcu_torture_boost_ktrerror); // yes boost kthread
 		WARN_ON_ONCE(n_rcu_torture_boost_rterror); // can't set RT prio
 		WARN_ON_ONCE(n_rcu_torture_boost_failure); // RCU boost failed
 		WARN_ON_ONCE(i > 1); // Too-short grace period
@@ -1524,22 +1524,22 @@ rcu_torture_print_module_parms(struct rcu_torture_ops *cur_ops, const char *tag)
 {
 	pr_alert("%s" TORTURE_FLAG
 		 "--- %s: nreaders=%d nfakewriters=%d "
-		 "stat_interval=%d verbose=%d test_no_idle_hz=%d "
+		 "stat_interval=%d verbose=%d test_yes_idle_hz=%d "
 		 "shuffle_interval=%d stutter=%d irqreader=%d "
 		 "fqs_duration=%d fqs_holdoff=%d fqs_stutter=%d "
 		 "test_boost=%d/%d test_boost_interval=%d "
 		 "test_boost_duration=%d shutdown_secs=%d "
 		 "stall_cpu=%d stall_cpu_holdoff=%d stall_cpu_irqsoff=%d "
 		 "n_barrier_cbs=%d "
-		 "onoff_interval=%d onoff_holdoff=%d\n",
+		 "oyesff_interval=%d oyesff_holdoff=%d\n",
 		 torture_type, tag, nrealreaders, nfakewriters,
-		 stat_interval, verbose, test_no_idle_hz, shuffle_interval,
+		 stat_interval, verbose, test_yes_idle_hz, shuffle_interval,
 		 stutter, irqreader, fqs_duration, fqs_holdoff, fqs_stutter,
 		 test_boost, cur_ops->can_boost,
 		 test_boost_interval, test_boost_duration, shutdown_secs,
 		 stall_cpu, stall_cpu_holdoff, stall_cpu_irqsoff,
 		 n_barrier_cbs,
-		 onoff_interval, onoff_holdoff);
+		 oyesff_interval, oyesff_holdoff);
 }
 
 static int rcutorture_booster_cleanup(unsigned int cpu)
@@ -1564,14 +1564,14 @@ static int rcutorture_booster_init(unsigned int cpu)
 	int retval;
 
 	if (boost_tasks[cpu] != NULL)
-		return 0;  /* Already created, nothing more to do. */
+		return 0;  /* Already created, yesthing more to do. */
 
 	/* Don't allow time recalculation while creating a new task. */
 	mutex_lock(&boost_mutex);
 	rcu_torture_disable_rt_throttle();
 	VERBOSE_TOROUT_STRING("Creating rcu_torture_boost task");
-	boost_tasks[cpu] = kthread_create_on_node(rcu_torture_boost, NULL,
-						  cpu_to_node(cpu),
+	boost_tasks[cpu] = kthread_create_on_yesde(rcu_torture_boost, NULL,
+						  cpu_to_yesde(cpu),
 						  "rcu_torture_boost");
 	if (IS_ERR(boost_tasks[cpu])) {
 		retval = PTR_ERR(boost_tasks[cpu]);
@@ -1727,7 +1727,7 @@ static void rcu_torture_fwd_cb_cr(struct rcu_head *rhp)
 	spin_unlock_irqrestore(&rcu_fwd_lock, flags);
 }
 
-// Give the scheduler a chance, even on nohz_full CPUs.
+// Give the scheduler a chance, even on yeshz_full CPUs.
 static void rcu_torture_fwd_prog_cond_resched(unsigned long iter)
 {
 	if (IS_ENABLED(CONFIG_PREEMPT) && IS_ENABLED(CONFIG_NO_HZ_FULL)) {
@@ -1764,7 +1764,7 @@ static unsigned long rcu_torture_fwd_prog_cbfree(void)
 		kfree(rfcp);
 		freed++;
 		rcu_torture_fwd_prog_cond_resched(freed);
-		if (tick_nohz_full_enabled()) {
+		if (tick_yeshz_full_enabled()) {
 			local_irq_save(flags);
 			rcu_momentary_dyntick_idle();
 			local_irq_restore(flags);
@@ -1793,7 +1793,7 @@ static void rcu_torture_fwd_prog_nr(int *tested, int *tested_tries)
 	}
 
 	/* Tight loop containing cond_resched(). */
-	WRITE_ONCE(rcu_fwd_cb_nodelay, true);
+	WRITE_ONCE(rcu_fwd_cb_yesdelay, true);
 	cur_ops->sync(); /* Later readers see above write. */
 	if  (selfpropcb) {
 		WRITE_ONCE(fcs.stop, 0);
@@ -1836,7 +1836,7 @@ static void rcu_torture_fwd_prog_nr(int *tested, int *tested_tries)
 		destroy_rcu_head_on_stack(&fcs.rh);
 	}
 	schedule_timeout_uninterruptible(HZ / 10); /* Let kthreads recover. */
-	WRITE_ONCE(rcu_fwd_cb_nodelay, false);
+	WRITE_ONCE(rcu_fwd_cb_yesdelay, false);
 }
 
 /* Carry out call_rcu() forward-progress testing. */
@@ -1857,12 +1857,12 @@ static void rcu_torture_fwd_prog_cr(void)
 	unsigned long stoppedat;
 
 	if (READ_ONCE(rcu_fwd_emergency_stop))
-		return; /* Get out of the way quickly, no GP wait! */
+		return; /* Get out of the way quickly, yes GP wait! */
 	if (!cur_ops->call)
 		return; /* Can't do call_rcu() fwd prog without ->call. */
 
 	/* Loop continuously posting RCU callbacks. */
-	WRITE_ONCE(rcu_fwd_cb_nodelay, true);
+	WRITE_ONCE(rcu_fwd_cb_yesdelay, true);
 	cur_ops->sync(); /* Later readers see above write. */
 	WRITE_ONCE(rcu_fwd_startat, jiffies);
 	stopat = rcu_fwd_startat + MAX_FWD_CB_JIFFIES;
@@ -1903,7 +1903,7 @@ static void rcu_torture_fwd_prog_cr(void)
 		}
 		cur_ops->call(&rfcp->rh, rcu_torture_fwd_cb_cr);
 		rcu_torture_fwd_prog_cond_resched(n_launders + n_max_cbs);
-		if (tick_nohz_full_enabled()) {
+		if (tick_yeshz_full_enabled()) {
 			local_irq_save(flags);
 			rcu_momentary_dyntick_idle();
 			local_irq_restore(flags);
@@ -1929,16 +1929,16 @@ static void rcu_torture_fwd_prog_cr(void)
 	}
 	schedule_timeout_uninterruptible(HZ); /* Let CBs drain. */
 	tick_dep_clear_task(current, TICK_DEP_BIT_RCU);
-	WRITE_ONCE(rcu_fwd_cb_nodelay, false);
+	WRITE_ONCE(rcu_fwd_cb_yesdelay, false);
 }
 
 
 /*
- * OOM notifier, but this only prints diagnostic information for the
+ * OOM yestifier, but this only prints diagyesstic information for the
  * current forward-progress test.
  */
-static int rcutorture_oom_notify(struct notifier_block *self,
-				 unsigned long notused, void *nfreed)
+static int rcutorture_oom_yestify(struct yestifier_block *self,
+				 unsigned long yestused, void *nfreed)
 {
 	WARN(1, "%s invoked upon OOM during forward-progress testing.\n",
 	     __func__);
@@ -1960,8 +1960,8 @@ static int rcutorture_oom_notify(struct notifier_block *self,
 	return NOTIFY_OK;
 }
 
-static struct notifier_block rcutorture_oom_nb = {
-	.notifier_call = rcutorture_oom_notify
+static struct yestifier_block rcutorture_oom_nb = {
+	.yestifier_call = rcutorture_oom_yestify
 };
 
 /* Carry out grace-period forward-progress testing. */
@@ -1971,21 +1971,21 @@ static int rcu_torture_fwd_prog(void *args)
 	int tested_tries = 0;
 
 	VERBOSE_TOROUT_STRING("rcu_torture_fwd_progress task started");
-	rcu_bind_current_to_nocb();
+	rcu_bind_current_to_yescb();
 	if (!IS_ENABLED(CONFIG_SMP) || !IS_ENABLED(CONFIG_RCU_BOOST))
 		set_user_nice(current, MAX_NICE);
 	do {
 		schedule_timeout_interruptible(fwd_progress_holdoff * HZ);
 		WRITE_ONCE(rcu_fwd_emergency_stop, false);
-		register_oom_notifier(&rcutorture_oom_nb);
+		register_oom_yestifier(&rcutorture_oom_nb);
 		rcu_torture_fwd_prog_nr(&tested, &tested_tries);
 		rcu_torture_fwd_prog_cr();
-		unregister_oom_notifier(&rcutorture_oom_nb);
+		unregister_oom_yestifier(&rcutorture_oom_nb);
 
 		/* Avoid slow periods, better to test when busy. */
 		stutter_wait("rcu_torture_fwd_prog");
 	} while (!torture_must_stop());
-	/* Short runs might not contain a valid forward-progress attempt. */
+	/* Short runs might yest contain a valid forward-progress attempt. */
 	WARN_ON(!tested && tested_tries >= 5);
 	pr_alert("%s: tested %d tested_tries %d\n", __func__, tested, tested_tries);
 	torture_kthread_stopping("rcu_torture_fwd_prog");
@@ -2006,7 +2006,7 @@ static int __init rcu_torture_fwd_prog_init(void)
 		VERBOSE_TOROUT_STRING("rcu_torture_fwd_prog_init: Disabled, conflicts with CPU-stall testing");
 		if (IS_MODULE(CONFIG_RCU_TORTURE_TESTS))
 			return -EINVAL; /* In module, can fail back to user. */
-		WARN_ON(1); /* Make sure rcutorture notices conflict. */
+		WARN_ON(1); /* Make sure rcutorture yestices conflict. */
 		return 0;
 	}
 	if (fwd_progress_holdoff <= 0)
@@ -2046,7 +2046,7 @@ static int rcu_torture_barrier_cbs(void *arg)
 		 * The above smp_load_acquire() ensures barrier_phase load
 		 * is ordered before the following ->call().
 		 */
-		local_irq_disable(); /* Just to test no-irq call_rcu(). */
+		local_irq_disable(); /* Just to test yes-irq call_rcu(). */
 		cur_ops->call(&rcu, rcu_torture_barrier_cbf);
 		local_irq_enable();
 		if (atomic_dec_and_test(&barrier_cbs_count))
@@ -2266,7 +2266,7 @@ rcu_torture_cleanup(void)
 	}
 	if (atomic_read(&n_rcu_torture_error) || n_rcu_torture_barrier_error)
 		rcu_torture_print_module_parms(cur_ops, "End of test: FAILURE");
-	else if (torture_onoff_failures())
+	else if (torture_oyesff_failures())
 		rcu_torture_print_module_parms(cur_ops,
 					       "End of test: RCU_HOTPLUG");
 	else
@@ -2297,7 +2297,7 @@ static void rcu_torture_err_cb(struct rcu_head *rhp)
 /*
  * Verify that double-free causes debug-objects to complain, but only
  * if CONFIG_DEBUG_OBJECTS_RCU_HEAD=y.  Otherwise, say that the test
- * cannot be carried out.
+ * canyest be carried out.
  */
 static void rcu_test_debug_objects(void)
 {
@@ -2326,7 +2326,7 @@ static void rcu_test_debug_objects(void)
 	destroy_rcu_head_on_stack(&rh1);
 	destroy_rcu_head_on_stack(&rh2);
 #else /* #ifdef CONFIG_DEBUG_OBJECTS_RCU_HEAD */
-	pr_alert("%s: !CONFIG_DEBUG_OBJECTS_RCU_HEAD, not testing duplicate call_rcu()\n", KBUILD_MODNAME);
+	pr_alert("%s: !CONFIG_DEBUG_OBJECTS_RCU_HEAD, yest testing duplicate call_rcu()\n", KBUILD_MODNAME);
 #endif /* #else #ifdef CONFIG_DEBUG_OBJECTS_RCU_HEAD */
 }
 
@@ -2371,7 +2371,7 @@ rcu_torture_init(void)
 		goto unwind;
 	}
 	if (cur_ops->fqs == NULL && fqs_duration != 0) {
-		pr_alert("rcu-torture: ->fqs NULL and non-zero fqs_duration, fqs disabled.\n");
+		pr_alert("rcu-torture: ->fqs NULL and yesn-zero fqs_duration, fqs disabled.\n");
 		fqs_duration = 0;
 	}
 	if (cur_ops->init)
@@ -2461,7 +2461,7 @@ rcu_torture_init(void)
 		if (firsterr)
 			goto unwind;
 	}
-	if (test_no_idle_hz && shuffle_interval > 0) {
+	if (test_yes_idle_hz && shuffle_interval > 0) {
 		firsterr = torture_shuffle_init(shuffle_interval * HZ);
 		if (firsterr)
 			goto unwind;
@@ -2504,7 +2504,7 @@ rcu_torture_init(void)
 	firsterr = torture_shutdown_init(shutdown_secs, rcu_torture_cleanup);
 	if (firsterr)
 		goto unwind;
-	firsterr = torture_onoff_init(onoff_holdoff * HZ, onoff_interval,
+	firsterr = torture_oyesff_init(oyesff_holdoff * HZ, oyesff_interval,
 				      rcutorture_sync);
 	if (firsterr)
 		goto unwind;

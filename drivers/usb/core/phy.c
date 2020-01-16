@@ -25,7 +25,7 @@ static int usb_phy_roothub_add_phy(struct device *dev, int index,
 	struct usb_phy_roothub *roothub_entry;
 	struct phy *phy;
 
-	phy = devm_of_phy_get_by_index(dev, dev->of_node, index);
+	phy = devm_of_phy_get_by_index(dev, dev->of_yesde, index);
 	if (IS_ERR(phy)) {
 		if (PTR_ERR(phy) == -ENODEV)
 			return 0;
@@ -54,7 +54,7 @@ struct usb_phy_roothub *usb_phy_roothub_alloc(struct device *dev)
 	if (!IS_ENABLED(CONFIG_GENERIC_PHY))
 		return NULL;
 
-	num_phys = of_count_phandle_with_args(dev->of_node, "phys",
+	num_phys = of_count_phandle_with_args(dev->of_yesde, "phys",
 					      "#phy-cells");
 	if (num_phys <= 0)
 		return NULL;

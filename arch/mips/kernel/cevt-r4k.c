@@ -3,7 +3,7 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  *
- * Copyright (C) 2007 MIPS Technologies, Inc.
+ * Copyright (C) 2007 MIPS Techyeslogies, Inc.
  * Copyright (C) 2007 Ralf Baechle <ralf@linux-mips.org>
  */
 #include <linux/clockchips.h>
@@ -110,7 +110,7 @@ int cp0_timer_irq_installed;
 
 /*
  * Possibly handle a performance counter interrupt.
- * Return true if the timer interrupt should not be checked
+ * Return true if the timer interrupt should yest be checked
  */
 static inline int handle_perf_irq(int r2)
 {
@@ -134,7 +134,7 @@ irqreturn_t c0_compare_interrupt(int irq, void *dev_id)
 
 	/*
 	 * Suckage alert:
-	 * Before R2 of the architecture there was no way to see if a
+	 * Before R2 of the architecture there was yes way to see if a
 	 * performance counter interrupt was pending, so we have to run
 	 * the performance counter interrupt handler anyway.
 	 */
@@ -143,8 +143,8 @@ irqreturn_t c0_compare_interrupt(int irq, void *dev_id)
 
 	/*
 	 * The same applies to performance counter interrupts.	But with the
-	 * above we now know that the reason we got here must be a timer
-	 * interrupt.  Being the paranoiacs we are we check anyway.
+	 * above we yesw kyesw that the reason we got here must be a timer
+	 * interrupt.  Being the parayesiacs we are we check anyway.
 	 */
 	if (!r2 || (read_c0_cause() & CAUSEF_TI)) {
 		/* Clear Count/Compare Interrupt */

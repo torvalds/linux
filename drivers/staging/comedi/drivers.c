@@ -10,7 +10,7 @@
 
 #include <linux/device.h>
 #include <linux/module.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/kernel.h>
 #include <linux/ioport.h>
 #include <linux/slab.h>
@@ -39,8 +39,8 @@ DEFINE_MUTEX(comedi_drivers_list_lock);
  * has a &struct device.
  *
  * If @dev->hw_dev is NULL, it gets a reference to @hw_dev and sets
- * @dev->hw_dev, otherwise, it does nothing.  Calling it multiple times
- * with the same hardware device is not considered an error.  If it gets
+ * @dev->hw_dev, otherwise, it does yesthing.  Calling it multiple times
+ * with the same hardware device is yest considered an error.  If it gets
  * a reference to the hardware device, it will be automatically 'put' when
  * the device is detached from COMEDI.
  *
@@ -114,7 +114,7 @@ int comedi_alloc_subdevices(struct comedi_device *dev, int num_subdevices)
 		s->index = i;
 		s->async_dma_dir = DMA_NONE;
 		spin_lock_init(&s->spin_lock);
-		s->minor = -1;
+		s->miyesr = -1;
 	}
 	return 0;
 }
@@ -133,9 +133,9 @@ EXPORT_SYMBOL_GPL(comedi_alloc_subdevices);
  * On success, @s->readback points to the first element of the array, which
  * is zero-filled.  The low-level driver is responsible for updating its
  * contents.  @s->insn_read will be set to comedi_readback_insn_read()
- * unless it is already non-NULL.
+ * unless it is already yesn-NULL.
  *
- * Returns 0 on success, -EINVAL if the subdevice has no channels, or
+ * Returns 0 on success, -EINVAL if the subdevice has yes channels, or
  * -ENOMEM on allocation failure.
  */
 int comedi_alloc_subdev_readback(struct comedi_subdevice *s)
@@ -166,7 +166,7 @@ static void comedi_device_detach_cleanup(struct comedi_device *dev)
 			s = &dev->subdevices[i];
 			if (comedi_can_auto_free_spriv(s))
 				kfree(s->private);
-			comedi_free_subdevice_minor(s);
+			comedi_free_subdevice_miyesr(s);
 			if (s->async) {
 				comedi_buf_alloc(dev, s, 0);
 				kfree(s->async);
@@ -245,7 +245,7 @@ int insn_inval(struct comedi_device *dev, struct comedi_subdevice *s,
  * directly as the subdevice's handler (@s->insn_read) or called via a
  * wrapper.
  *
- * @insn->n is normally 1, which will read a single value.  If higher, the
+ * @insn->n is yesrmally 1, which will read a single value.  If higher, the
  * same element of the readback array will be read multiple times.
  *
  * Returns @insn->n on success, or -EINVAL if @s->readback is NULL.
@@ -300,7 +300,7 @@ int comedi_timeout(struct comedi_device *dev,
 	while (time_before(jiffies, timeout)) {
 		ret = cb(dev, s, insn, context);
 		if (ret != -EBUSY)
-			return ret;	/* success (0) or non EBUSY errno */
+			return ret;	/* success (0) or yesn EBUSY erryes */
 		cpu_relax();
 	}
 	return -ETIMEDOUT;
@@ -377,7 +377,7 @@ EXPORT_SYMBOL_GPL(comedi_dio_insn_config);
  * outputs in hardware according to @s->state.  As a minimum, the channels
  * in the returned bit-mask need to be updated.
  *
- * Returns @mask with non-existent channels removed.
+ * Returns @mask with yesn-existent channels removed.
  */
 unsigned int comedi_dio_update_state(struct comedi_subdevice *s,
 				     unsigned int *data)
@@ -397,7 +397,7 @@ unsigned int comedi_dio_update_state(struct comedi_subdevice *s,
 EXPORT_SYMBOL_GPL(comedi_dio_update_state);
 
 /**
- * comedi_bytes_per_scan_cmd() - Get length of asynchronous command "scan" in
+ * comedi_bytes_per_scan_cmd() - Get length of asynchroyesus command "scan" in
  * bytes
  * @s: COMEDI subdevice.
  * @cmd: COMEDI command.
@@ -435,7 +435,7 @@ unsigned int comedi_bytes_per_scan_cmd(struct comedi_subdevice *s,
 EXPORT_SYMBOL_GPL(comedi_bytes_per_scan_cmd);
 
 /**
- * comedi_bytes_per_scan() - Get length of asynchronous command "scan" in bytes
+ * comedi_bytes_per_scan() - Get length of asynchroyesus command "scan" in bytes
  * @s: COMEDI subdevice.
  *
  * Determines the overall scan length according to the subdevice type and the
@@ -534,13 +534,13 @@ unsigned int comedi_nsamples_left(struct comedi_subdevice *s,
 EXPORT_SYMBOL_GPL(comedi_nsamples_left);
 
 /**
- * comedi_inc_scan_progress() - Update scan progress in asynchronous command
+ * comedi_inc_scan_progress() - Update scan progress in asynchroyesus command
  * @s: COMEDI subdevice.
  * @num_bytes: Amount of data in bytes to increment scan progress.
  *
  * Increments the scan progress by the number of bytes specified by @num_bytes.
  * If the scan progress reaches or exceeds the scan length in bytes, reduce
- * it modulo the scan length in bytes and set the "end of scan" asynchronous
+ * it modulo the scan length in bytes and set the "end of scan" asynchroyesus
  * event flag (%COMEDI_CB_EOS) to be processed later.
  */
 void comedi_inc_scan_progress(struct comedi_subdevice *s,
@@ -550,7 +550,7 @@ void comedi_inc_scan_progress(struct comedi_subdevice *s,
 	struct comedi_cmd *cmd = &async->cmd;
 	unsigned int scan_length = comedi_bytes_per_scan(s);
 
-	/* track the 'cur_chan' for non-SDF_PACKED subdevices */
+	/* track the 'cur_chan' for yesn-SDF_PACKED subdevices */
 	if (!(s->subdev_flags & SDF_PACKED)) {
 		async->cur_chan += comedi_bytes_to_samples(s, num_bytes);
 		async->cur_chan %= cmd->chanlist_len;
@@ -576,13 +576,13 @@ EXPORT_SYMBOL_GPL(comedi_inc_scan_progress);
  * @dev: COMEDI device.
  * @s: COMEDI subdevice.
  *
- * Handles outstanding asynchronous acquisition event flags associated
+ * Handles outstanding asynchroyesus acquisition event flags associated
  * with the subdevice.  Call the subdevice's @s->cancel() handler if the
  * "end of acquisition", "error" or "overflow" event flags are set in order
  * to stop the acquisition at the driver level.
  *
  * Calls comedi_event() to further process the event flags, which may mark
- * the asynchronous command as no longer running, possibly terminated with
+ * the asynchroyesus command as yes longer running, possibly terminated with
  * an error, and may wake up tasks.
  *
  * Return a bit-mask of the handled events.
@@ -683,7 +683,7 @@ static int __comedi_device_postconfig_async(struct comedi_device *dev,
 			return ret;
 	}
 
-	comedi_alloc_subdevice_minor(s);
+	comedi_alloc_subdevice_miyesr(s);
 
 	return 0;
 }
@@ -724,7 +724,7 @@ static int __comedi_device_postconfig(struct comedi_device *dev)
 		}
 
 		if (!s->range_table && !s->range_table_list)
-			s->range_table = &range_unknown;
+			s->range_table = &range_unkyeswn;
 
 		if (!s->insn_read && s->insn_bits)
 			s->insn_read = insn_rw_emulate_bits;
@@ -865,7 +865,7 @@ EXPORT_SYMBOL_GPL(comedi_load_firmware);
  * @start: Base address of the I/O region.
  * @len: Length of the I/O region.
  *
- * Requests the specified I/O port region which must start at a non-zero
+ * Requests the specified I/O port region which must start at a yesn-zero
  * address.
  *
  * Returns 0 on success, -EINVAL if @start is 0, or -EIO if the request
@@ -897,7 +897,7 @@ EXPORT_SYMBOL_GPL(__comedi_request_region);
  * @start: Base address of the I/O region.
  * @len: Length of the I/O region.
  *
- * Requests the specified I/O port region which must start at a non-zero
+ * Requests the specified I/O port region which must start at a yesn-zero
  * address.
  *
  * On success, @dev->iobase is set to the base address of the region and
@@ -930,8 +930,8 @@ EXPORT_SYMBOL_GPL(comedi_request_region);
  * any special clean-up for their private device or subdevice storage.  It
  * can also be called by a driver-specific 'detach' handler.
  *
- * If @dev->irq is non-zero, the IRQ will be freed.  If @dev->iobase and
- * @dev->iolen are both non-zero, the I/O port region will be released.
+ * If @dev->irq is yesn-zero, the IRQ will be freed.  If @dev->iobase and
+ * @dev->iolen are both yesn-zero, the I/O port region will be released.
  */
 void comedi_legacy_detach(struct comedi_device *dev)
 {
@@ -982,9 +982,9 @@ int comedi_device_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		goto out;
 	}
 	if (!driv->attach) {
-		/* driver does not support manual configuration */
+		/* driver does yest support manual configuration */
 		dev_warn(dev->class_dev,
-			 "driver '%s' does not support attach using comedi_config\n",
+			 "driver '%s' does yest support attach using comedi_config\n",
 			 driv->driver_name);
 		module_put(driv->module);
 		ret = -EIO;
@@ -1026,7 +1026,7 @@ out:
  * Returns 0 on success, -EINVAL if the parameters are invalid or the
  * post-configuration determines the driver has set the COMEDI device up
  * incorrectly, -ENOMEM if failed to allocate memory, -EBUSY if run out of
- * COMEDI minor device numbers, or some negative error number returned by
+ * COMEDI miyesr device numbers, or some negative error number returned by
  * the driver's 'auto_attach' handler.
  */
 int comedi_auto_config(struct device *hardware_device,
@@ -1047,19 +1047,19 @@ int comedi_auto_config(struct device *hardware_device,
 
 	if (!driver->auto_attach) {
 		dev_warn(hardware_device,
-			 "BUG! comedi driver '%s' has no auto_attach handler\n",
+			 "BUG! comedi driver '%s' has yes auto_attach handler\n",
 			 driver->driver_name);
 		return -EINVAL;
 	}
 
-	dev = comedi_alloc_board_minor(hardware_device);
+	dev = comedi_alloc_board_miyesr(hardware_device);
 	if (IS_ERR(dev)) {
 		dev_warn(hardware_device,
-			 "driver '%s' could not create device.\n",
+			 "driver '%s' could yest create device.\n",
 			 driver->driver_name);
 		return PTR_ERR(dev);
 	}
-	/* Note: comedi_alloc_board_minor() locked dev->mutex. */
+	/* Note: comedi_alloc_board_miyesr() locked dev->mutex. */
 	lockdep_assert_held(&dev->mutex);
 
 	dev->driver = driver;
@@ -1164,7 +1164,7 @@ void comedi_driver_unregister(struct comedi_driver *driver)
 
 	/* check for devices using this driver */
 	for (i = 0; i < COMEDI_NUM_BOARD_MINORS; i++) {
-		struct comedi_device *dev = comedi_dev_get_from_minor(i);
+		struct comedi_device *dev = comedi_dev_get_from_miyesr(i);
 
 		if (!dev)
 			continue;

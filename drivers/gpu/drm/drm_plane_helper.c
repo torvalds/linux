@@ -10,7 +10,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -40,14 +40,14 @@
  * DOC: overview
  *
  * This helper library has two parts. The first part has support to implement
- * primary plane support on top of the normal CRTC configuration interface.
+ * primary plane support on top of the yesrmal CRTC configuration interface.
  * Since the legacy &drm_mode_config_funcs.set_config interface ties the primary
- * plane together with the CRTC state this does not allow userspace to disable
+ * plane together with the CRTC state this does yest allow userspace to disable
  * the primary plane itself. The default primary plane only expose XRBG8888 and
  * ARGB8888 as valid pixel formats for the attached framebuffer.
  *
  * Drivers are highly recommended to implement proper support for primary
- * planes, and newly merged drivers must not rely upon these transitional
+ * planes, and newly merged drivers must yest rely upon these transitional
  * helpers.
  *
  * The second part also implements transitional helpers which allow drivers to

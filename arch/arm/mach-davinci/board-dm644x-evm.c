@@ -53,7 +53,7 @@
 #define LXT971_PHY_ID	(0x001378e2)
 #define LXT971_PHY_MASK	(0xfffffff0)
 
-static struct mtd_partition davinci_evm_norflash_partitions[] = {
+static struct mtd_partition davinci_evm_yesrflash_partitions[] = {
 	/* bootloader (UBL, U-Boot, etc) in first 5 sectors */
 	{
 		.name		= "bootloader",
@@ -84,28 +84,28 @@ static struct mtd_partition davinci_evm_norflash_partitions[] = {
 	}
 };
 
-static struct physmap_flash_data davinci_evm_norflash_data = {
+static struct physmap_flash_data davinci_evm_yesrflash_data = {
 	.width		= 2,
-	.parts		= davinci_evm_norflash_partitions,
-	.nr_parts	= ARRAY_SIZE(davinci_evm_norflash_partitions),
+	.parts		= davinci_evm_yesrflash_partitions,
+	.nr_parts	= ARRAY_SIZE(davinci_evm_yesrflash_partitions),
 };
 
 /* NOTE: CFI probe will correctly detect flash part as 32M, but EMIF
  * limits addresses to 16M, so using addresses past 16M will wrap */
-static struct resource davinci_evm_norflash_resource = {
+static struct resource davinci_evm_yesrflash_resource = {
 	.start		= DM644X_ASYNC_EMIF_DATA_CE0_BASE,
 	.end		= DM644X_ASYNC_EMIF_DATA_CE0_BASE + SZ_16M - 1,
 	.flags		= IORESOURCE_MEM,
 };
 
-static struct platform_device davinci_evm_norflash_device = {
+static struct platform_device davinci_evm_yesrflash_device = {
 	.name		= "physmap-flash",
 	.id		= 0,
 	.dev		= {
-		.platform_data	= &davinci_evm_norflash_data,
+		.platform_data	= &davinci_evm_yesrflash_data,
 	},
 	.num_resources	= 1,
-	.resource	= &davinci_evm_norflash_resource,
+	.resource	= &davinci_evm_yesrflash_resource,
 };
 
 /* DM644x EVM includes a 64 MByte small-page NAND flash (16K blocks).
@@ -141,7 +141,7 @@ static struct mtd_partition davinci_evm_nandflash_partition[] = {
 		.mask_flags	= 0,
 	}
 	/* A few blocks at end hold a flash BBT ... created by TI's CCS
-	 * using flashwriter_nand.out, but ignored by TI's versions of
+	 * using flashwriter_nand.out, but igyesred by TI's versions of
 	 * Linux and u-boot.  We boot faster by using them.
 	 */
 };
@@ -348,7 +348,7 @@ evm_led_setup(struct i2c_client *client, int gpio, unsigned ngpio, void *c)
 		leds++;
 	}
 
-	/* what an extremely annoying way to be forced to handle
+	/* what an extremely anyesying way to be forced to handle
 	 * device unregistration ...
 	 */
 	evm_led_dev = platform_device_alloc("leds-gpio", 0);
@@ -858,7 +858,7 @@ static __init void davinci_evm_init(void)
 			if (HAS_NOR)
 				pr_warn("WARNING: both NAND and NOR flash are enabled; disable one of them.\n");
 		} else if (HAS_NOR)
-			platform_device_register(&davinci_evm_norflash_device);
+			platform_device_register(&davinci_evm_yesrflash_device);
 	}
 
 	platform_add_devices(davinci_evm_devices,

@@ -189,7 +189,7 @@
 			};
 
 			i2c2: i2c@f801c000 {
-				dmas = <0>, <0>;	/* Do not use DMA for i2c2 */
+				dmas = <0>, <0>;	/* Do yest use DMA for i2c2 */
 				pinctrl-0 = <&pinctrl_i2c2_pu>;
 				status = "okay";
 			};

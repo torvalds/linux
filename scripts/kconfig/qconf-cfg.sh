@@ -26,7 +26,7 @@ if pkg-config --exists $PKG2; then
 fi
 
 echo >&2 "*"
-echo >&2 "* Could not find Qt via pkg-config."
+echo >&2 "* Could yest find Qt via pkg-config."
 echo >&2 "* Please install either Qt 4.8 or 5.x. and make sure it's in PKG_CONFIG_PATH"
 echo >&2 "*"
 exit 1

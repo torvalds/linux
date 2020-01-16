@@ -5,7 +5,7 @@
  *	Created by: Hariprasad Nellitheertha (hari@in.ibm.com)
  *	Copyright (C) IBM Corporation, 2004. All rights reserved
  */
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/crash_dump.h>
 #include <linux/io.h>
 #include <linux/uaccess.h>
@@ -20,7 +20,7 @@
  * @userbuf: if set, @buf is in user address space, use copy_to_user(),
  *	otherwise @buf is in kernel address space, use memcpy().
  *
- * Copy a page from "oldmem". For this page, there is no pte mapped
+ * Copy a page from "oldmem". For this page, there is yes pte mapped
  * in the current kernel. We stitch up a pte, similar to kmap_atomic.
  */
 ssize_t copy_oldmem_page(unsigned long pfn, char *buf,

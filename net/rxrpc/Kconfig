@@ -10,7 +10,7 @@ config AF_RXRPC
 	select KEYS
 	help
 	  Say Y or M here to include support for RxRPC session sockets (just
-	  the transport part, not the presentation part: (un)marshalling is
+	  the transport part, yest the presentation part: (un)marshalling is
 	  left to the application).
 
 	  These are used for AFS kernel filesystem and userspace utilities.

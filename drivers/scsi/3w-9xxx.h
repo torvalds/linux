@@ -23,7 +23,7 @@
    MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE. Each Recipient is
    solely responsible for determining the appropriateness of using and
    distributing the Program and assumes all risks associated with its
-   exercise of rights under this Agreement, including but not limited to
+   exercise of rights under this Agreement, including but yest limited to
    the risks and costs of program errors, damage to or loss of data,
    programs or equipment, and unavailability or interruption of operations.
 
@@ -37,7 +37,7 @@
    HEREUNDER, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGES
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
+   along with this program; if yest, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
    Bugs/Comments/Suggestions should be mailed to:
@@ -109,7 +109,7 @@ static twa_message_type twa_aen_table[] = {
 	{0x0035, "Background migration done"},
 	{0x0036, "Verify detected and fixed data/parity mismatch"},
 	{0x0037, "SO-DIMM incompatible"},
-	{0x0038, "SO-DIMM not detected"},
+	{0x0038, "SO-DIMM yest detected"},
 	{0x0039, "Corrected Sbuf ECC error"},
 	{0x003A, "Drive power on reset detected"},
 	{0x003B, "Background rebuild paused"},
@@ -139,16 +139,16 @@ static twa_message_type twa_error_table[] = {
 	{0x0100, "SGL entry contains zero data"},
 	{0x0101, "Invalid command opcode"},
 	{0x0102, "SGL entry has unaligned address"},
-	{0x0103, "SGL size does not match command"},
+	{0x0103, "SGL size does yest match command"},
 	{0x0104, "SGL entry has illegal length"},
-	{0x0105, "Command packet is not aligned"},
+	{0x0105, "Command packet is yest aligned"},
 	{0x0106, "Invalid request ID"},
 	{0x0107, "Duplicate request ID"},
-	{0x0108, "ID not locked"},
+	{0x0108, "ID yest locked"},
 	{0x0109, "LBA out of range"},
-	{0x010A, "Logical unit not supported"},
-	{0x010B, "Parameter table does not exist"},
-	{0x010C, "Parameter index does not exist"},
+	{0x010A, "Logical unit yest supported"},
+	{0x010B, "Parameter table does yest exist"},
+	{0x010C, "Parameter index does yest exist"},
 	{0x010D, "Invalid field in CDB"},
 	{0x010E, "Specified port has invalid drive"},
 	{0x010F, "Parameter item size mismatch"},
@@ -159,18 +159,18 @@ static twa_message_type twa_error_table[] = {
 	{0x0114, "Out of memory"},
 	{0x0115, "Out of heap"},
 	{0x0120, "Double degrade"},
-	{0x0121, "Drive not degraded"},
+	{0x0121, "Drive yest degraded"},
 	{0x0122, "Reconstruct error"},
-	{0x0123, "Replace not accepted"},
+	{0x0123, "Replace yest accepted"},
 	{0x0124, "Replace drive capacity too small"},
-	{0x0125, "Sector count not allowed"},
+	{0x0125, "Sector count yest allowed"},
 	{0x0126, "No spares left"},
 	{0x0127, "Reconstruct error"},
 	{0x0128, "Unit is offline"},
-	{0x0129, "Cannot update status to DCB"},
+	{0x0129, "Canyest update status to DCB"},
 	{0x0130, "Invalid stripe handle"},
-	{0x0131, "Handle that was not locked"},
-	{0x0132, "Handle that was not empty"},
+	{0x0131, "Handle that was yest locked"},
+	{0x0132, "Handle that was yest empty"},
 	{0x0133, "Handle has different owner"},
 	{0x0140, "IPR has parent"},
 	{0x0150, "Illegal Pbuf address alignment"},
@@ -182,27 +182,27 @@ static twa_message_type twa_error_table[] = {
 	{0x0162, "SGL has too many entries"},
 	{0x0170, "Insufficient resources for rebuilder"},
 	{0x0171, "Verify error (data != parity)"},
-	{0x0180, "Requested segment not in directory of this DCB"},
+	{0x0180, "Requested segment yest in directory of this DCB"},
 	{0x0181, "DCB segment has unsupported version"},
 	{0x0182, "DCB segment has checksum error"},
 	{0x0183, "DCB support (settings) segment invalid"},
 	{0x0184, "DCB UDB (unit descriptor block) segment invalid"},
 	{0x0185, "DCB GUID (globally unique identifier) segment invalid"},
-	{0x01A0, "Could not clear Sbuf"},
+	{0x01A0, "Could yest clear Sbuf"},
 	{0x01C0, "Flash identify failed"},
 	{0x01C1, "Flash out of bounds"},
 	{0x01C2, "Flash verify error"},
-	{0x01C3, "Flash file object not found"},
+	{0x01C3, "Flash file object yest found"},
 	{0x01C4, "Flash file already present"},
 	{0x01C5, "Flash file system full"},
-	{0x01C6, "Flash file not present"},
+	{0x01C6, "Flash file yest present"},
 	{0x01C7, "Flash file size error"},
 	{0x01C8, "Bad flash file checksum"},
 	{0x01CA, "Corrupt flash file system detected"},
 	{0x01D0, "Invalid field in parameter list"},
 	{0x01D1, "Parameter list length error"},
-	{0x01D2, "Parameter item is not changeable"},
-	{0x01D3, "Parameter item is not saveable"},
+	{0x01D2, "Parameter item is yest changeable"},
+	{0x01D3, "Parameter item is yest saveable"},
 	{0x0200, "UDMA CRC error"},
 	{0x0201, "Internal CRC error"},
 	{0x0202, "Data ECC error"},
@@ -211,7 +211,7 @@ static twa_message_type twa_error_table[] = {
 	{0x0205, "Drive power on reset"},
 	{0x0206, "ADP level 2 error"},
 	{0x0207, "Soft reset failed"},
-	{0x0208, "Drive not ready"},
+	{0x0208, "Drive yest ready"},
 	{0x0209, "Unclassified port error"},
 	{0x020A, "Drive aborted command"},
 	{0x0210, "Internal CRC error"},
@@ -225,10 +225,10 @@ static twa_message_type twa_error_table[] = {
 	{0x0230, "Unsupported command during flash recovery"},
 	{0x0231, "Next image buffer expected"},
 	{0x0232, "Binary image architecture incompatible"},
-	{0x0233, "Binary image has no signature"},
+	{0x0233, "Binary image has yes signature"},
 	{0x0234, "Binary image has bad checksum"},
 	{0x0235, "Image downloaded overflowed buffer"},
-	{0x0240, "I2C device not found"},
+	{0x0240, "I2C device yest found"},
 	{0x0241, "I2C transaction aborted"},
 	{0x0242, "SO-DIMM parameter(s) incompatible using defaults"},
 	{0x0243, "SO-DIMM unsupported"},
@@ -241,7 +241,7 @@ static twa_message_type twa_error_table[] = {
 	{0x0254, "Unable to create data channel for this unit descriptor"},
 	{0x0255, "CreateUnit descriptor specifies a drive already in use"},
 	{0x0256, "Unable to write configuration to all disks during CreateUnit"},
-	{0x0257, "CreateUnit does not support this descriptor version"},
+	{0x0257, "CreateUnit does yest support this descriptor version"},
 	{0x0258, "Invalid subunit for RAID 0 or 5 in CreateUnit"},
 	{0x0259, "Too many descriptors in CreateUnit"},
 	{0x025A, "Invalid configuration specified in CreateUnit descriptor"},
@@ -298,7 +298,7 @@ static twa_message_type twa_error_table[] = {
 #define TW_OP_DOWNLOAD_FIRMWARE 0x16
 #define TW_OP_RESET             0x1C
 
-/* Asynchronous Event Notification (AEN) codes used by the driver */
+/* Asynchroyesus Event Notification (AEN) codes used by the driver */
 #define TW_AEN_QUEUE_EMPTY       0x0000
 #define TW_AEN_SOFT_RESET        0x0001
 #define TW_AEN_SYNC_TIME_WITH_HOST 0x031
@@ -460,7 +460,7 @@ static twa_message_type twa_error_table[] = {
 			TW_CONTROL_DISABLE_INTERRUPTS, TW_CONTROL_REG_ADDR(x)))
 #define TW_PRINTK(h,a,b,c) { \
 if (h) \
-printk(KERN_WARNING "3w-9xxx: scsi%d: ERROR: (0x%02X:0x%04X): %s.\n",h->host_no,a,b,c); \
+printk(KERN_WARNING "3w-9xxx: scsi%d: ERROR: (0x%02X:0x%04X): %s.\n",h->host_yes,a,b,c); \
 else \
 printk(KERN_WARNING "3w-9xxx: ERROR: (0x%02X:0x%04X): %s.\n",a,b,c); \
 }

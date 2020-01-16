@@ -55,7 +55,7 @@ struct hisi_lpc_dev {
 #define LPC_REG_WDATA			0x24 /* write FIFO */
 #define LPC_REG_RDATA			0x28 /* read FIFO */
 
-/* The minimal nanosecond interval for each query on LPC cycle status */
+/* The minimal nayessecond interval for each query on LPC cycle status */
 #define LPC_NSEC_PERWAIT	100
 
 /*
@@ -96,7 +96,7 @@ static int wait_lpc_idle(void __iomem *mbase, unsigned int waitcnt)
  * @buf: where the read back data is stored
  * @opcnt: how many I/O operations required, i.e. data width
  *
- * Returns 0 on success, non-zero on fail.
+ * Returns 0 on success, yesn-zero on fail.
  */
 static int hisi_lpc_target_in(struct hisi_lpc_dev *lpcdev,
 			      struct lpc_cycle_para *para, unsigned long addr,
@@ -149,7 +149,7 @@ static int hisi_lpc_target_in(struct hisi_lpc_dev *lpcdev,
  * @buf: where the data to be written is stored
  * @opcnt: how many I/O operations required, i.e. data width
  *
- * Returns 0 on success, non-zero on fail.
+ * Returns 0 on success, yesn-zero on fail.
  */
 static int hisi_lpc_target_out(struct hisi_lpc_dev *lpcdev,
 			       struct lpc_cycle_para *para, unsigned long addr,
@@ -267,7 +267,7 @@ static void hisi_lpc_comm_out(void *hostdata, unsigned long pio,
  * @count: how many data units whose length is dwidth will be read
  *
  * When success, the data read back is stored in buffer pointed by buffer.
- * Returns 0 on success, -errno otherwise.
+ * Returns 0 on success, -erryes otherwise.
  */
 static u32 hisi_lpc_comm_ins(void *hostdata, unsigned long pio, void *buffer,
 			     size_t dwidth, unsigned int count)
@@ -347,7 +347,7 @@ static int hisi_lpc_acpi_xlat_io_res(struct acpi_device *adev,
 	unsigned long sys_port;
 	resource_size_t len = resource_size(res);
 
-	sys_port = logic_pio_trans_hwaddr(&host->fwnode, res->start, len);
+	sys_port = logic_pio_trans_hwaddr(&host->fwyesde, res->start, len);
 	if (sys_port == ~0UL)
 		return -EFAULT;
 
@@ -359,8 +359,8 @@ static int hisi_lpc_acpi_xlat_io_res(struct acpi_device *adev,
 
 /*
  * hisi_lpc_acpi_set_io_res - set the resources for a child
- * @child: the device node to be updated the I/O resource
- * @hostdev: the device node associated with host controller
+ * @child: the device yesde to be updated the I/O resource
+ * @hostdev: the device yesde associated with host controller
  * @res: double pointer to be set to the address of translated resources
  * @num_res: pointer to variable to hold the number of translated resources
  *
@@ -389,7 +389,7 @@ static int hisi_lpc_acpi_set_io_res(struct device *child,
 	adev = to_acpi_device(child);
 
 	if (!adev->status.present) {
-		dev_dbg(child, "device is not present\n");
+		dev_dbg(child, "device is yest present\n");
 		return -EIO;
 	}
 
@@ -412,13 +412,13 @@ static int hisi_lpc_acpi_set_io_res(struct device *child,
 	resources = devm_kcalloc(hostdev, count, sizeof(*resources),
 				 GFP_KERNEL);
 	if (!resources) {
-		dev_warn(hostdev, "could not allocate memory for %d resources\n",
+		dev_warn(hostdev, "could yest allocate memory for %d resources\n",
 			 count);
 		acpi_dev_free_resource_list(&resource_list);
 		return -ENOMEM;
 	}
 	count = 0;
-	list_for_each_entry(rentry, &resource_list, node)
+	list_for_each_entry(rentry, &resource_list, yesde)
 		resources[count++] = *rentry->res;
 
 	acpi_dev_free_resource_list(&resource_list);
@@ -462,7 +462,7 @@ static void hisi_lpc_acpi_remove(struct device *hostdev)
 
 	device_for_each_child(hostdev, NULL, hisi_lpc_acpi_remove_subdev);
 
-	list_for_each_entry(child, &adev->children, node)
+	list_for_each_entry(child, &adev->children, yesde)
 		acpi_device_clear_enumerated(child);
 }
 
@@ -483,7 +483,7 @@ static int hisi_lpc_acpi_probe(struct device *hostdev)
 	int ret;
 
 	/* Only consider the children of the host */
-	list_for_each_entry(child, &adev->children, node) {
+	list_for_each_entry(child, &adev->children, yesde) {
 		const char *hid = acpi_device_hid(child);
 		const struct hisi_lpc_acpi_cell *cell;
 		struct platform_device *pdev;
@@ -532,7 +532,7 @@ static int hisi_lpc_acpi_probe(struct device *hostdev)
 
 		if (!found) {
 			dev_warn(hostdev,
-				 "could not find cell for child device (%s), discarding\n",
+				 "could yest find cell for child device (%s), discarding\n",
 				 hid);
 			continue;
 		}
@@ -589,7 +589,7 @@ static void hisi_lpc_acpi_remove(struct device *hostdev)
  *		   will finish all the initialization.
  * @pdev: the platform device corresponding to hisi lpc host
  *
- * Returns 0 on success, non-zero on fail.
+ * Returns 0 on success, yesn-zero on fail.
  */
 static int hisi_lpc_probe(struct platform_device *pdev)
 {
@@ -616,7 +616,7 @@ static int hisi_lpc_probe(struct platform_device *pdev)
 	if (!range)
 		return -ENOMEM;
 
-	range->fwnode = dev->fwnode;
+	range->fwyesde = dev->fwyesde;
 	range->flags = LOGIC_PIO_INDIRECT;
 	range->size = PIO_INDIRECT_SIZE;
 	range->hostdata = lpcdev;
@@ -633,7 +633,7 @@ static int hisi_lpc_probe(struct platform_device *pdev)
 	if (acpi_device)
 		ret = hisi_lpc_acpi_probe(dev);
 	else
-		ret = of_platform_populate(dev->of_node, NULL, NULL, dev);
+		ret = of_platform_populate(dev->of_yesde, NULL, NULL, dev);
 	if (ret) {
 		logic_pio_unregister_range(range);
 		return ret;

@@ -51,8 +51,8 @@ void memcpy_flushcache(void *dst, const void *src, size_t cnt);
 #if defined(CONFIG_KASAN) && !defined(__SANITIZE_ADDRESS__)
 
 /*
- * For files that are not instrumented (e.g. mm/slub.c) we
- * should use not instrumented version of mem* functions.
+ * For files that are yest instrumented (e.g. mm/slub.c) we
+ * should use yest instrumented version of mem* functions.
  */
 
 #define memcpy(dst, src, len) __memcpy(dst, src, len)

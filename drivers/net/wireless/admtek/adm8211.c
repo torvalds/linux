@@ -146,7 +146,7 @@ static int adm8211_read_eeprom(struct ieee80211_hw *dev)
 		else
 			priv->rf_type = ADM8211_TYPE_AIROHA;
 
-		printk(KERN_WARNING "%s (adm8211): Unknown RFtype %d\n",
+		printk(KERN_WARNING "%s (adm8211): Unkyeswn RFtype %d\n",
 		       pci_name(priv->pdev), (cr49 >> 3) & 0x7);
 	}
 
@@ -164,7 +164,7 @@ static int adm8211_read_eeprom(struct ieee80211_hw *dev)
 		else
 			priv->bbp_type = ADM8211_TYPE_ADMTEK;
 
-		printk(KERN_WARNING "%s (adm8211): Unknown BBPtype: %d\n",
+		printk(KERN_WARNING "%s (adm8211): Unkyeswn BBPtype: %d\n",
 		       pci_name(priv->pdev), cr49 >> 3);
 	}
 
@@ -204,7 +204,7 @@ static int adm8211_read_eeprom(struct ieee80211_hw *dev)
 		else
 			priv->specific_bbptype = ADM8211_BBP_ADM8011;
 
-		printk(KERN_WARNING "%s (adm8211): Unknown specific BBP: %d\n",
+		printk(KERN_WARNING "%s (adm8211): Unkyeswn specific BBP: %d\n",
 		       pci_name(priv->pdev), priv->eeprom->specific_bbptype);
 	}
 
@@ -225,7 +225,7 @@ static int adm8211_read_eeprom(struct ieee80211_hw *dev)
 		else if (priv->pdev->revision == ADM8211_REV_AB)
 			priv->transceiver_type = ADM8211_RFMD2948;
 
-		printk(KERN_WARNING "%s (adm8211): Unknown transceiver: %d\n",
+		printk(KERN_WARNING "%s (adm8211): Unkyeswn transceiver: %d\n",
 		       pci_name(priv->pdev), priv->eeprom->specific_rftype);
 
 		break;
@@ -908,7 +908,7 @@ static int adm8211_hw_init_bbp(struct ieee80211_hw *dev)
 	/* write BBP regs */
 	if (priv->bbp_type == ADM8211_TYPE_RFMD) {
 		/* RF3000 BBP */
-		/* another set:
+		/* ayesther set:
 		 * 11: c8
 		 * 14: 14
 		 * 15: 50 (chan 1..13; chan 14: d0)
@@ -1197,7 +1197,7 @@ static void adm8211_hw_init(struct ieee80211_hw *dev)
 	/* ACK interrupts */
 	ADM8211_CSR_WRITE(STSR, ADM8211_CSR_READ(STSR));
 
-	/* Setup WEP (turns it off for now) */
+	/* Setup WEP (turns it off for yesw) */
 	reg = ADM8211_CSR_READ(MACTEST);
 	reg &= ~(7 << 20);
 	ADM8211_CSR_WRITE(MACTEST, reg);
@@ -1789,7 +1789,7 @@ static int adm8211_probe(struct pci_dev *pdev,
 
 	err = pci_enable_device(pdev);
 	if (err) {
-		printk(KERN_ERR "%s (adm8211): Cannot enable new PCI device\n",
+		printk(KERN_ERR "%s (adm8211): Canyest enable new PCI device\n",
 		       pci_name(pdev));
 		return err;
 	}
@@ -1813,7 +1813,7 @@ static int adm8211_probe(struct pci_dev *pdev,
 
 	err = pci_request_regions(pdev, "adm8211");
 	if (err) {
-		printk(KERN_ERR "%s (adm8211): Cannot obtain PCI resources\n",
+		printk(KERN_ERR "%s (adm8211): Canyest obtain PCI resources\n",
 		       pci_name(pdev));
 		return err; /* someone else grabbed it? don't disable it */
 	}
@@ -1848,7 +1848,7 @@ static int adm8211_probe(struct pci_dev *pdev,
 		priv->map = pci_iomap(pdev, 0, io_len);
 
 	if (!priv->map) {
-		printk(KERN_ERR "%s (adm8211): Cannot map device memory\n",
+		printk(KERN_ERR "%s (adm8211): Canyest map device memory\n",
 		       pci_name(pdev));
 		err = -ENOMEM;
 		goto err_free_dev;
@@ -1859,7 +1859,7 @@ static int adm8211_probe(struct pci_dev *pdev,
 
 	err = adm8211_alloc_rings(dev);
 	if (err) {
-		printk(KERN_ERR "%s (adm8211): Cannot allocate TX/RX ring\n",
+		printk(KERN_ERR "%s (adm8211): Canyest allocate TX/RX ring\n",
 		       pci_name(pdev));
 		goto err_iounmap;
 	}
@@ -1915,7 +1915,7 @@ static int adm8211_probe(struct pci_dev *pdev,
 
 	err = ieee80211_register_hw(dev);
 	if (err) {
-		printk(KERN_ERR "%s (adm8211): Cannot register device\n",
+		printk(KERN_ERR "%s (adm8211): Canyest register device\n",
 		       pci_name(pdev));
 		goto err_free_eeprom;
 	}

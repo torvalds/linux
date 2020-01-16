@@ -239,7 +239,7 @@ static const char * const usb_78m_parents[] __initconst = {
 	"mainpll_d20"
 };
 
-static const char * const spinor_parents[] __initconst = {
+static const char * const spiyesr_parents[] __initconst = {
 	"clk26m_d2",
 	"clk26m_ck",
 	"mainpll_d40",
@@ -384,7 +384,7 @@ static struct mtk_composite top_muxes[] __initdata = {
 	MUX(CLK_TOP_USB_78M_SEL, "usb_78m_sel", usb_78m_parents,
 		0x004, 20, 3),
 	/* CLK_MUX_SEL8 */
-	MUX(CLK_TOP_SPINOR_SEL, "spinor_sel", spinor_parents,
+	MUX(CLK_TOP_SPINOR_SEL, "spiyesr_sel", spiyesr_parents,
 		0x040, 0, 3),
 	MUX(CLK_TOP_MSDC2_SEL, "msdc2_sel", msdc2_parents,
 		0x040, 3, 3),
@@ -575,7 +575,7 @@ static const struct mtk_gate_regs top5_cg_regs = {
 		.parent_name = _parent,			\
 		.regs = &top5_cg_regs,			\
 		.shift = _shift,			\
-		.ops = &mtk_clk_gate_ops_no_setclr,	\
+		.ops = &mtk_clk_gate_ops_yes_setclr,	\
 	}
 
 static const struct mtk_gate top_clks[] __initconst = {
@@ -640,7 +640,7 @@ static const struct mtk_gate top_clks[] __initconst = {
 	GATE_TOP2_I(CLK_TOP_MSDC2_INFRA, "msdc2_infra", "rg_msdc2", 30),
 	GATE_TOP2(CLK_TOP_USB_78M, "usb_78m", "usb_78m_sel", 31),
 	/* TOP3 */
-	GATE_TOP3(CLK_TOP_RG_SPINOR, "rg_spinor", "spinor_sel", 0),
+	GATE_TOP3(CLK_TOP_RG_SPINOR, "rg_spiyesr", "spiyesr_sel", 0),
 	GATE_TOP3(CLK_TOP_RG_MSDC2, "rg_msdc2", "msdc2_sel", 1),
 	GATE_TOP3(CLK_TOP_RG_ETH, "rg_eth", "eth_sel", 2),
 	GATE_TOP3(CLK_TOP_RG_AUD1, "rg_aud1", "aud1_sel", 8),
@@ -674,13 +674,13 @@ static const struct mtk_gate top_clks[] __initconst = {
 	GATE_TOP5(CLK_TOP_APLL12_DIV6, "apll12_div6", "apll12_ck_div6", 8),
 };
 
-static void __init mtk_topckgen_init(struct device_node *node)
+static void __init mtk_topckgen_init(struct device_yesde *yesde)
 {
 	struct clk_onecell_data *clk_data;
 	int r;
 	void __iomem *base;
 
-	base = of_iomap(node, 0);
+	base = of_iomap(yesde, 0);
 	if (!base) {
 		pr_err("%s(): ioremap failed\n", __func__);
 		return;
@@ -690,7 +690,7 @@ static void __init mtk_topckgen_init(struct device_node *node)
 
 	mtk_clk_register_fixed_clks(fixed_clks, ARRAY_SIZE(fixed_clks),
 				    clk_data);
-	mtk_clk_register_gates(node, top_clks, ARRAY_SIZE(top_clks), clk_data);
+	mtk_clk_register_gates(yesde, top_clks, ARRAY_SIZE(top_clks), clk_data);
 
 	mtk_clk_register_factors(top_divs, ARRAY_SIZE(top_divs), clk_data);
 	mtk_clk_register_composites(top_muxes, ARRAY_SIZE(top_muxes), base,
@@ -698,20 +698,20 @@ static void __init mtk_topckgen_init(struct device_node *node)
 	mtk_clk_register_dividers(top_adj_divs, ARRAY_SIZE(top_adj_divs),
 				base, &mt8516_clk_lock, clk_data);
 
-	r = of_clk_add_provider(node, of_clk_src_onecell_get, clk_data);
+	r = of_clk_add_provider(yesde, of_clk_src_onecell_get, clk_data);
 	if (r)
-		pr_err("%s(): could not register clock provider: %d\n",
+		pr_err("%s(): could yest register clock provider: %d\n",
 			__func__, r);
 }
 CLK_OF_DECLARE(mtk_topckgen, "mediatek,mt8516-topckgen", mtk_topckgen_init);
 
-static void __init mtk_infracfg_init(struct device_node *node)
+static void __init mtk_infracfg_init(struct device_yesde *yesde)
 {
 	struct clk_onecell_data *clk_data;
 	int r;
 	void __iomem *base;
 
-	base = of_iomap(node, 0);
+	base = of_iomap(yesde, 0);
 	if (!base) {
 		pr_err("%s(): ioremap failed\n", __func__);
 		return;
@@ -722,9 +722,9 @@ static void __init mtk_infracfg_init(struct device_node *node)
 	mtk_clk_register_composites(ifr_muxes, ARRAY_SIZE(ifr_muxes), base,
 		&mt8516_clk_lock, clk_data);
 
-	r = of_clk_add_provider(node, of_clk_src_onecell_get, clk_data);
+	r = of_clk_add_provider(yesde, of_clk_src_onecell_get, clk_data);
 	if (r)
-		pr_err("%s(): could not register clock provider: %d\n",
+		pr_err("%s(): could yest register clock provider: %d\n",
 			__func__, r);
 }
 CLK_OF_DECLARE(mtk_infracfg, "mediatek,mt8516-infracfg", mtk_infracfg_init);
@@ -784,13 +784,13 @@ static const struct mtk_pll_data plls[] = {
 		31, 0x01A0, 1, 0x01B4, 0x01A4, 0),
 };
 
-static void __init mtk_apmixedsys_init(struct device_node *node)
+static void __init mtk_apmixedsys_init(struct device_yesde *yesde)
 {
 	struct clk_onecell_data *clk_data;
 	void __iomem *base;
 	int r;
 
-	base = of_iomap(node, 0);
+	base = of_iomap(yesde, 0);
 	if (!base) {
 		pr_err("%s(): ioremap failed\n", __func__);
 		return;
@@ -798,11 +798,11 @@ static void __init mtk_apmixedsys_init(struct device_node *node)
 
 	clk_data = mtk_alloc_clk_data(CLK_APMIXED_NR_CLK);
 
-	mtk_clk_register_plls(node, plls, ARRAY_SIZE(plls), clk_data);
+	mtk_clk_register_plls(yesde, plls, ARRAY_SIZE(plls), clk_data);
 
-	r = of_clk_add_provider(node, of_clk_src_onecell_get, clk_data);
+	r = of_clk_add_provider(yesde, of_clk_src_onecell_get, clk_data);
 	if (r)
-		pr_err("%s(): could not register clock provider: %d\n",
+		pr_err("%s(): could yest register clock provider: %d\n",
 			__func__, r);
 
 }

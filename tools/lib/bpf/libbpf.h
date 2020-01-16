@@ -25,17 +25,17 @@ extern "C" {
 #define LIBBPF_API __attribute__((visibility("default")))
 #endif
 
-enum libbpf_errno {
+enum libbpf_erryes {
 	__LIBBPF_ERRNO__START = 4000,
 
 	/* Something wrong in libelf */
 	LIBBPF_ERRNO__LIBELF = __LIBBPF_ERRNO__START,
 	LIBBPF_ERRNO__FORMAT,	/* BPF object format invalid */
-	LIBBPF_ERRNO__KVERSION,	/* Incorrect or no 'version' section */
+	LIBBPF_ERRNO__KVERSION,	/* Incorrect or yes 'version' section */
 	LIBBPF_ERRNO__ENDIAN,	/* Endian mismatch */
 	LIBBPF_ERRNO__INTERNAL,	/* Internal error in libbpf */
 	LIBBPF_ERRNO__RELOC,	/* Relocation failed */
-	LIBBPF_ERRNO__LOAD,	/* Load program failure for unknown reason */
+	LIBBPF_ERRNO__LOAD,	/* Load program failure for unkyeswn reason */
 	LIBBPF_ERRNO__VERIFY,	/* Kernel verifier blocks program loading */
 	LIBBPF_ERRNO__PROG2BIG,	/* Program too big */
 	LIBBPF_ERRNO__KVER,	/* Incorrect kernel version */
@@ -72,7 +72,7 @@ struct bpf_object_open_attr {
  * This dance with uninitialized declaration, followed by memset to zero,
  * followed by assignment using compound literal syntax is done to preserve
  * ability to use a nice struct field initialization syntax and **hopefully**
- * have all the padding bytes initialized to zero. It's not guaranteed though,
+ * have all the padding bytes initialized to zero. It's yest guaranteed though,
  * when copying literal, that compiler won't copy garbage in literal's padding
  * bytes, but that's the best way I've found and it seems to work in practice.
  *
@@ -99,9 +99,9 @@ struct bpf_object_open_opts {
 	 *   name and will override default "<addr>-<buf-size>" name;
 	 */
 	const char *object_name;
-	/* parse map definitions non-strictly, allowing extra attributes/data */
+	/* parse map definitions yesn-strictly, allowing extra attributes/data */
 	bool relaxed_maps;
-	/* process CO-RE relocations non-strictly, allowing them to fail */
+	/* process CO-RE relocations yesn-strictly, allowing them to fail */
 	bool relaxed_core_relocs;
 	/* maps that set the 'pinning' attribute in their definition will have
 	 * their pin_path attribute set to a file in this directory, and be
@@ -138,7 +138,7 @@ enum libbpf_pin_type {
 };
 
 /* pin_maps and unpin_maps can both be called with a NULL path, in which case
- * they will use the pin_path attribute of each map (and ignore all maps that
+ * they will use the pin_path attribute of each map (and igyesre all maps that
  * don't have a pin_path set).
  */
 LIBBPF_API int bpf_object__pin_maps(struct bpf_object *obj, const char *path);
@@ -281,7 +281,7 @@ struct bpf_insn;
  *   After the program is loaded, get resulting FD of a given instance
  *   of the BPF program.
  *
- * If bpf_program__set_prep() is not used, the program would be loaded
+ * If bpf_program__set_prep() is yest used, the program would be loaded
  * without adjustment during bpf_object__load(). The program has only
  * one instance. In this case bpf_program__fd(prog) is equal to
  * bpf_program__nth_fd(prog, 0).
@@ -289,13 +289,13 @@ struct bpf_insn;
 
 struct bpf_prog_prep_result {
 	/*
-	 * If not NULL, load new instruction array.
+	 * If yest NULL, load new instruction array.
 	 * If set to NULL, don't load this instance.
 	 */
 	struct bpf_insn *new_insn_ptr;
 	int new_insn_cnt;
 
-	/* If not NULL, result FD is written to it. */
+	/* If yest NULL, result FD is written to it. */
 	int *pfd;
 };
 
@@ -369,7 +369,7 @@ struct bpf_map_def {
 
 /*
  * The 'struct bpf_map' in include/linux/bpf.h is internal to the kernel,
- * so no need to worry about a name clash.
+ * so yes need to worry about a name clash.
  */
 struct bpf_map;
 LIBBPF_API struct bpf_map *
@@ -616,7 +616,7 @@ bpf_program__bpil_offs_to_addr(struct bpf_prog_info_linear *info_linear);
 
 /*
  * A helper function to get the number of possible CPUs before looking up
- * per-CPU maps. Negative errno is returned on failure.
+ * per-CPU maps. Negative erryes is returned on failure.
  *
  * Example usage:
  *

@@ -94,17 +94,17 @@ ssize_t ide_park_show(struct device *dev, struct device_attribute *attr,
 {
 	ide_drive_t *drive = to_ide_device(dev);
 	ide_hwif_t *hwif = drive->hwif;
-	unsigned long now;
+	unsigned long yesw;
 	unsigned int msecs;
 
 	if (drive->dev_flags & IDE_DFLAG_NO_UNLOAD)
 		return -EOPNOTSUPP;
 
 	spin_lock_irq(&hwif->lock);
-	now = jiffies;
+	yesw = jiffies;
 	if (drive->dev_flags & IDE_DFLAG_PARKED &&
-	    time_after(drive->sleep, now))
-		msecs = jiffies_to_msecs(drive->sleep - now);
+	    time_after(drive->sleep, yesw))
+		msecs = jiffies_to_msecs(drive->sleep - yesw);
 	else
 		msecs = 0;
 	spin_unlock_irq(&hwif->lock);

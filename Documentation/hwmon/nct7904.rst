@@ -48,15 +48,15 @@ pwm[1-4]_enable		R/W, 1/2 for manual or SmartFan mode
 pwm[1-4]		R/O in SmartFan mode, R/W in manual control mode
 ======================= =======================================================
 
-The driver checks sensor control registers and does not export the sensors
-that are not enabled. Anyway, a sensor that is enabled may actually be not
+The driver checks sensor control registers and does yest export the sensors
+that are yest enabled. Anyway, a sensor that is enabled may actually be yest
 connected and thus provide zero readings.
 
 
 Limitations
 -----------
 
-The following features are not supported in current version:
+The following features are yest supported in current version:
 
  - SmartFan control
  - Watchdog

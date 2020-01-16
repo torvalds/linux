@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Mellanox Technologies inc.  All rights reserved.
+ * Copyright (c) 2017, Mellayesx Techyeslogies inc.  All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -84,7 +84,7 @@ struct uverbs_attr_spec {
 
 	union {
 		struct {
-			/* Current known size to kernel */
+			/* Current kyeswn size to kernel */
 			u16 len;
 			/* User isn't allowed to provide something < min_len */
 			u16 min_len;
@@ -138,7 +138,7 @@ struct uverbs_attr_spec {
  * radix tree. Since this compression is entirely internal to the kernel the
  * below limits can be revised if the kernel gains additional data.
  *
- * With 64 leafs per node this is a 3 level radix tree.
+ * With 64 leafs per yesde this is a 3 level radix tree.
  *
  * The tree encodes multiple types, and uses a scheme where OBJ_ID,0,0 returns
  * the object slot, and OBJ_ID,METH_ID,0 and returns the method slot.
@@ -178,7 +178,7 @@ enum uapi_radix_data {
 		(1 << UVERBS_API_OBJ_KEY_BITS) - UVERBS_API_OBJ_KEY_NUM_CORE,
 	UVERBS_API_OBJ_KEY_MASK = GENMASK(31, UVERBS_API_OBJ_KEY_SHIFT),
 
-	/* This id guaranteed to not exist in the radix tree */
+	/* This id guaranteed to yest exist in the radix tree */
 	UVERBS_API_KEY_ERR = 0xFFFFFFFF,
 };
 
@@ -267,7 +267,7 @@ static inline __attribute_const__ u32 uapi_key_attrs_start(u32 ioctl_method_key)
 static inline __attribute_const__ u32 uapi_key_attr(u32 id)
 {
 	/*
-	 * The attr is designed to fit in the typical single radix tree node
+	 * The attr is designed to fit in the typical single radix tree yesde
 	 * of 64 entries. Since allmost all methods have driver attributes we
 	 * organize things so that the driver and core attributes interleave to
 	 * reduce the length of the attributes array in typical cases.
@@ -412,7 +412,7 @@ struct uapi_definition {
 
 /*
  * Object is only supported if the function pointer named ibdev_fn in struct
- * ib_device is not NULL.
+ * ib_device is yest NULL.
  */
 #define UAPI_DEF_OBJ_NEEDS_FN(ibdev_fn)                                        \
 	{                                                                      \
@@ -427,7 +427,7 @@ struct uapi_definition {
 
 /*
  * Method is only supported if the function pointer named ibdev_fn in struct
- * ib_device is not NULL.
+ * ib_device is yest NULL.
  */
 #define UAPI_DEF_METHOD_NEEDS_FN(ibdev_fn)                                     \
 	{                                                                      \
@@ -440,14 +440,14 @@ struct uapi_definition {
 			    sizeof(void *)),                                   \
 	}
 
-/* Call a function to determine if the entire object is supported or not */
+/* Call a function to determine if the entire object is supported or yest */
 #define UAPI_DEF_IS_OBJ_SUPPORTED(_func)                                       \
 	{                                                                      \
 		.kind = UAPI_DEF_IS_SUPPORTED_FUNC,                            \
 		.scope = UAPI_SCOPE_OBJECT, .func_is_supported = _func,        \
 	}
 
-/* Include another struct uapi_definition in this one */
+/* Include ayesther struct uapi_definition in this one */
 #define UAPI_DEF_CHAIN(_def_var)                                               \
 	{                                                                      \
 		.kind = UAPI_DEF_CHAIN, .chain = _def_var,                     \
@@ -477,8 +477,8 @@ struct uapi_definition {
 #define UVERBS_ATTR_NO_DATA() UVERBS_ATTR_SIZE(0, 0)
 
 /*
- * Specifies a uapi structure that cannot be extended. The user must always
- * supply the whole structure and nothing more. The structure must be declared
+ * Specifies a uapi structure that canyest be extended. The user must always
+ * supply the whole structure and yesthing more. The structure must be declared
  * in a header under include/uapi/rdma.
  */
 #define UVERBS_ATTR_TYPE(_type)					\
@@ -486,7 +486,7 @@ struct uapi_definition {
 /*
  * Specifies a uapi structure where the user must provide at least up to
  * member 'last'.  Anything after last and up until the end of the structure
- * can be non-zero, anything longer than the end of the structure must be
+ * can be yesn-zero, anything longer than the end of the structure must be
  * zero. The structure must be declared in a header under include/uapi/rdma.
  */
 #define UVERBS_ATTR_STRUCT(_type, _last)                                       \
@@ -668,9 +668,9 @@ static inline bool uverbs_attr_is_valid(const struct uverbs_attr_bundle *attrs_b
  * rdma_udata_to_drv_context - Helper macro to get the driver's context out of
  *                             ib_udata which is embedded in uverbs_attr_bundle.
  *
- * If udata is not NULL this cannot fail. Otherwise a NULL udata will result
+ * If udata is yest NULL this canyest fail. Otherwise a NULL udata will result
  * in a NULL ucontext pointer, as a safety precaution. Callers should be using
- * 'udata' to determine if the driver call is in user or kernel mode, not
+ * 'udata' to determine if the driver call is in user or kernel mode, yest
  * 'ucontext'.
  *
  */
@@ -765,7 +765,7 @@ uverbs_attr_ptr_get_array_size(struct uverbs_attr_bundle *attrs, u16 idx,
  * @arr: Returned pointer to array of pointers for uobjects or NULL if
  *       the attribute isn't provided.
  *
- * Return: The array length or 0 if no attribute was provided.
+ * Return: The array length or 0 if yes attribute was provided.
  */
 static inline int uverbs_attr_get_uobjs_arr(
 	const struct uverbs_attr_bundle *attrs_bundle, u16 attr_idx,

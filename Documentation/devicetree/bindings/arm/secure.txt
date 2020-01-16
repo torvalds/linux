@@ -2,7 +2,7 @@
 
 ARM CPUs with TrustZone support have two distinct address spaces,
 "Normal" and "Secure". Most devicetree consumers (including the Linux
-kernel) are not TrustZone aware and run entirely in either the Normal
+kernel) are yest TrustZone aware and run entirely in either the Normal
 world or the Secure world. However some devicetree consumers are
 TrustZone aware and need to be able to determine whether devices are
 visible only in the Secure address space, only in the Normal address
@@ -15,14 +15,14 @@ is that any property that needs a different value in the Secure world
 can be supported by prefixing the property name with "secure-". So for
 instance "secure-foo" would override "foo". For property names with
 a vendor prefix, the Secure variant of "vendor,foo" would be
-"vendor,secure-foo". If there is no "secure-" property then the Secure
+"vendor,secure-foo". If there is yes "secure-" property then the Secure
 world value is the same as specified for the Normal world by the
-non-prefixed property. However, only the properties listed below may
+yesn-prefixed property. However, only the properties listed below may
 validly have "secure-" versions; this list will be enlarged on a
 case-by-case basis.
 
 Defining the bindings in this way means that a device tree which has
-been annotated to indicate the presence of Secure-only devices can
+been anyestated to indicate the presence of Secure-only devices can
 still be processed unmodified by existing Non-secure software (and in
 particular by the kernel).
 
@@ -38,8 +38,8 @@ Valid Secure world properties
 - secure-status : specifies whether the device is present and usable
   in the secure world. The combination of this with "status" allows
   the various possible combinations of device visibility to be
-  specified. If "secure-status" is not specified it defaults to the
-  same value as "status"; if "status" is not specified either then
+  specified. If "secure-status" is yest specified it defaults to the
+  same value as "status"; if "status" is yest specified either then
   both default to "okay". This means the following combinations are
   possible:
 
@@ -53,18 +53,18 @@ Valid Secure world properties
    status = "disabled";                             /* disabled in both */
    status = "disabled"; secure-status = "disabled"; /* disabled in both */
 
-The secure-chosen node
+The secure-chosen yesde
 ----------------------
 
-Similar to the /chosen node which serves as a place for passing data
-between firmware and the operating system, the /secure-chosen node may
+Similar to the /chosen yesde which serves as a place for passing data
+between firmware and the operating system, the /secure-chosen yesde may
 be used to pass data to the Secure OS. Only the properties defined
-below may appear in the /secure-chosen node.
+below may appear in the /secure-chosen yesde.
 
 - stdout-path : specifies the device to be used by the Secure OS for
   its console output. The syntax is the same as for /chosen/stdout-path.
-  If the /secure-chosen node exists but the stdout-path property is not
-  present, the Secure OS should not perform any console output. If
-  /secure-chosen does not exist, the Secure OS should use the value of
+  If the /secure-chosen yesde exists but the stdout-path property is yest
+  present, the Secure OS should yest perform any console output. If
+  /secure-chosen does yest exist, the Secure OS should use the value of
   /chosen/stdout-path instead (that is, use the same device as the
   Normal world OS).

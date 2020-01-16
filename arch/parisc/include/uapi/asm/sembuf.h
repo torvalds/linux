@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 #ifndef _PARISC_SEMBUF_H
 #define _PARISC_SEMBUF_H
 
@@ -25,7 +25,7 @@ struct semid64_ds {
 	unsigned long	sem_ctime_high;
 	unsigned long	sem_ctime;		/* last change time */
 #endif
-	unsigned long	sem_nsems;		/* no. of semaphores in array */
+	unsigned long	sem_nsems;		/* yes. of semaphores in array */
 	unsigned long	__unused1;
 	unsigned long	__unused2;
 };

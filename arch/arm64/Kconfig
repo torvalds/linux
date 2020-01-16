@@ -327,7 +327,7 @@ config ARM64_WORKAROUND_CLEAN_CACHE
 	bool
 
 config ARM64_ERRATUM_826319
-	bool "Cortex-A53: 826319: System might deadlock if a write cannot complete until read data is accepted"
+	bool "Cortex-A53: 826319: System might deadlock if a write canyest complete until read data is accepted"
 	default y
 	select ARM64_WORKAROUND_CLEAN_CACHE
 	help
@@ -337,12 +337,12 @@ config ARM64_ERRATUM_826319
 
 	  If a Cortex-A53 uses an AMBA AXI4 ACE interface to other processors
 	  and is unable to accept a certain write via this interface, it will
-	  not progress on read data presented on the read data channel and the
+	  yest progress on read data presented on the read data channel and the
 	  system can deadlock.
 
 	  The workaround promotes data cache clean instructions to
 	  data cache clean-and-invalidate.
-	  Please note that this does not necessarily enable the workaround,
+	  Please yeste that this does yest necessarily enable the workaround,
 	  as it depends on the alternative framework, which will only patch
 	  the kernel if an affected CPU is detected.
 
@@ -358,20 +358,20 @@ config ARM64_ERRATUM_827319
 	  master interface and an L2 cache.
 
 	  Under certain conditions this erratum can cause a clean line eviction
-	  to occur at the same time as another transaction to the same address
+	  to occur at the same time as ayesther transaction to the same address
 	  on the AMBA 5 CHI interface, which can cause data corruption if the
 	  interconnect reorders the two transactions.
 
 	  The workaround promotes data cache clean instructions to
 	  data cache clean-and-invalidate.
-	  Please note that this does not necessarily enable the workaround,
+	  Please yeste that this does yest necessarily enable the workaround,
 	  as it depends on the alternative framework, which will only patch
 	  the kernel if an affected CPU is detected.
 
 	  If unsure, say Y.
 
 config ARM64_ERRATUM_824069
-	bool "Cortex-A53: 824069: Cache line might not be marked as clean after a CleanShared snoop"
+	bool "Cortex-A53: 824069: Cache line might yest be marked as clean after a CleanShared syesop"
 	default y
 	select ARM64_WORKAROUND_CLEAN_CACHE
 	help
@@ -380,14 +380,14 @@ config ARM64_ERRATUM_824069
 	  to a coherent interconnect.
 
 	  If a Cortex-A53 processor is executing a store or prefetch for
-	  write instruction at the same time as a processor in another
+	  write instruction at the same time as a processor in ayesther
 	  cluster is executing a cache maintenance operation to the same
 	  address, then this erratum might cause a clean cache line to be
 	  incorrectly marked as dirty.
 
 	  The workaround promotes data cache clean instructions to
 	  data cache clean-and-invalidate.
-	  Please note that this option does not necessarily enable the
+	  Please yeste that this option does yest necessarily enable the
 	  workaround, as it depends on the alternative framework, which will
 	  only patch the kernel if an affected CPU is detected.
 
@@ -403,13 +403,13 @@ config ARM64_ERRATUM_819472
 	  present when it is connected to a coherent interconnect.
 
 	  If the processor is executing a load and store exclusive sequence at
-	  the same time as a processor in another cluster is executing a cache
+	  the same time as a processor in ayesther cluster is executing a cache
 	  maintenance operation to the same address, then this erratum might
 	  cause data corruption.
 
 	  The workaround promotes data cache clean instructions to
 	  data cache clean-and-invalidate.
-	  Please note that this does not necessarily enable the workaround,
+	  Please yeste that this does yest necessarily enable the workaround,
 	  as it depends on the alternative framework, which will only patch
 	  the kernel if an affected CPU is detected.
 
@@ -427,7 +427,7 @@ config ARM64_ERRATUM_832075
 
 	  The workaround is to promote device loads to use Load-Acquire
 	  semantics.
-	  Please note that this does not necessarily enable the workaround,
+	  Please yeste that this does yest necessarily enable the workaround,
 	  as it depends on the alternative framework, which will only patch
 	  the kernel if an affected CPU is detected.
 
@@ -448,7 +448,7 @@ config ARM64_ERRATUM_834220
 
 	  The workaround is to verify that the Stage 1 translation
 	  doesn't generate a fault before handling the Stage 2 fault.
-	  Please note that this does not necessarily enable the workaround,
+	  Please yeste that this does yest necessarily enable the workaround,
 	  as it depends on the alternative framework, which will only patch
 	  the kernel if an affected CPU is detected.
 
@@ -469,7 +469,7 @@ config ARM64_ERRATUM_845719
 
 	  The workaround is to write the contextidr_el1 register on exception
 	  return to a 32-bit task.
-	  Please note that this does not necessarily enable the workaround,
+	  Please yeste that this does yest necessarily enable the workaround,
 	  as it depends on the alternative framework, which will only patch
 	  the kernel if an affected CPU is detected.
 
@@ -496,7 +496,7 @@ config ARM64_ERRATUM_1024718
 	  Affected Cortex-A55 cores (r0p0, r0p1, r1p0) could cause incorrect
 	  update of the hardware dirty bit when the DBM/AP bits are updated
 	  without a break-before-make. The workaround is to disable the usage
-	  of hardware DBM locally on the affected cores. CPUs not affected by
+	  of hardware DBM locally on the affected cores. CPUs yest affected by
 	  this erratum will continue to use the feature.
 
 	  If unsure, say Y.
@@ -536,7 +536,7 @@ config ARM64_ERRATUM_1286807
 
 	  On the affected Cortex-A76 cores (r0p0 to r3p0), if a virtual
 	  address for a cacheable mapping of a location is being
-	  accessed by a core while another core is remapping the virtual
+	  accessed by a core while ayesther core is remapping the virtual
 	  address to a new physical page using the recommended
 	  break-before-make sequence, then under very rare circumstances
 	  TLBI+DSB completes before a read using the translation being
@@ -581,7 +581,7 @@ config ARM64_ERRATUM_1542419
 	  1542419.
 
 	  Affected Neoverse-N1 cores could execute a stale instruction when
-	  modified by another CPU. The workaround depends on a firmware
+	  modified by ayesther CPU. The workaround depends on a firmware
 	  counterpart.
 
 	  Workaround the issue by hiding the DIC feature from EL0. This
@@ -599,9 +599,9 @@ config CAVIUM_ERRATUM_22375
 	  with a small impact affecting only ITS table allocation.
 
 	    erratum 22375: only alloc 8MB table size
-	    erratum 24313: ignore memory access type
+	    erratum 24313: igyesre memory access type
 
-	  The fixes are in ITS initialization and basically ignore memory access
+	  The fixes are in ITS initialization and basically igyesre memory access
 	  type and table size provided by the TYPER and BASER registers.
 
 	  If unsure, say Y.
@@ -611,17 +611,17 @@ config CAVIUM_ERRATUM_23144
 	depends on NUMA
 	default y
 	help
-	  ITS SYNC command hang for cross node io and collections/cpu mapping.
+	  ITS SYNC command hang for cross yesde io and collections/cpu mapping.
 
 	  If unsure, say Y.
 
 config CAVIUM_ERRATUM_23154
-	bool "Cavium erratum 23154: Access to ICC_IAR1_EL1 is not sync'ed"
+	bool "Cavium erratum 23154: Access to ICC_IAR1_EL1 is yest sync'ed"
 	default y
 	help
 	  The gicv3 of ThunderX requires a modified version for
 	  reading the IAR status to ensure data synchronization
-	  (access to icc_iar1_el1 is not sync'ed before and after).
+	  (access to icc_iar1_el1 is yest sync'ed before and after).
 
 	  If unsure, say Y.
 
@@ -631,7 +631,7 @@ config CAVIUM_ERRATUM_27456
 	help
 	  On ThunderX T88 pass 1.x through 2.1 parts, broadcast TLBI
 	  instructions may cause the icache to become corrupted if it
-	  contains data for a non-current ASID.  The fix is to
+	  contains data for a yesn-current ASID.  The fix is to
 	  invalidate the icache when changing the mm context.
 
 	  If unsure, say Y.
@@ -693,9 +693,9 @@ config QCOM_QDF2400_ERRATUM_0065
 	bool "QDF2400 E0065: Incorrect GITS_TYPER.ITT_Entry_size"
 	default y
 	help
-	  On Qualcomm Datacenter Technologies QDF2400 SoC, ITS hardware reports
+	  On Qualcomm Datacenter Techyeslogies QDF2400 SoC, ITS hardware reports
 	  ITE size incorrectly. The GITS_TYPER.ITT_Entry_size field should have
-	  been indicated as 16Bytes (0xf), not 8Bytes (0x7).
+	  been indicated as 16Bytes (0xf), yest 8Bytes (0x7).
 
 	  If unsure, say Y.
 
@@ -704,7 +704,7 @@ config SOCIONEXT_SYNQUACER_PREITS
 	default y
 	help
 	  Socionext Synquacer SoCs implement a separate h/w block to generate
-	  MSI doorbell writes with non-zero values for the device ID.
+	  MSI doorbell writes with yesn-zero values for the device ID.
 
 	  If unsure, say Y.
 
@@ -866,8 +866,8 @@ config ARM64_PA_BITS_52
 	  part of the ARMv8.2-LPA extension.
 
 	  With this enabled, the kernel will also continue to work on CPUs that
-	  do not support ARMv8.2-LPA, but with some added memory overhead (and
-	  minor performance overhead).
+	  do yest support ARMv8.2-LPA, but with some added memory overhead (and
+	  miyesr performance overhead).
 
 endchoice
 
@@ -1004,7 +1004,7 @@ config SECCOMP
 	  the process as file descriptors supporting the read/write
 	  syscalls, it's possible to isolate those applications in
 	  their own address space using seccomp. Once seccomp is
-	  enabled via prctl(PR_SET_SECCOMP), it cannot be disabled
+	  enabled via prctl(PR_SET_SECCOMP), it canyest be disabled
 	  and the task is only allowed to execute a few safe syscalls
 	  defined by each seccomp mode.
 
@@ -1032,9 +1032,9 @@ config KEXEC
 	bool "kexec system call"
 	---help---
 	  kexec is a system call that implements the ability to shutdown your
-	  current kernel, and to start another kernel.  It is like a reboot
+	  current kernel, and to start ayesther kernel.  It is like a reboot
 	  but it is independent of the system firmware.   And like a reboot
-	  you can start any kernel with it, not just Linux.
+	  you can start any kernel with it, yest just Linux.
 
 config KEXEC_FILE
 	bool "kexec file based system call"
@@ -1073,7 +1073,7 @@ config CRASH_DUMP
 	bool "Build kdump crash kernel"
 	help
 	  Generate crash dump after being started by kexec. This should
-	  be normally only set in special crash dump kernels which are
+	  be yesrmally only set in special crash dump kernels which are
 	  loaded in the main kernel with kexec-tools into a specially
 	  reserved region and then later executed after a crash by
 	  kdump/kexec.
@@ -1155,7 +1155,7 @@ config HARDEN_EL2_VECTORS
 
 	  This config option will map the vectors to a fixed location,
 	  independent of the EL2 code mapping, so that revealing VBAR_EL2
-	  to an attacker does not give away any extra information. This
+	  to an attacker does yest give away any extra information. This
 	  only gets enabled on affected CPUs.
 
 	  If unsure, say Y.
@@ -1175,7 +1175,7 @@ config RODATA_FULL_DEFAULT_ENABLED
 	help
 	  Apply read-only attributes of VM areas to the linear alias of
 	  the backing pages as well. This prevents code or read-only data
-	  from being modified (inadvertently or intentionally) via another
+	  from being modified (inadvertently or intentionally) via ayesther
 	  mapping of the same memory page. This additional enhancement can
 	  be turned off at runtime by passing rodata=[off|on] (and turned on
 	  with rodata=full if this option is set to 'n')
@@ -1240,12 +1240,12 @@ config KUSER_HELPERS
 	  exploits.
 
 	  If all of the binaries and libraries which run on your platform
-	  are built specifically for your platform, and make no use of
+	  are built specifically for your platform, and make yes use of
 	  these helpers, then you can turn this option off to hinder
 	  such exploits. However, in that case, if a binary or library
-	  relying on those helpers is run, it will not function correctly.
+	  relying on those helpers is run, it will yest function correctly.
 
-	  Say N here only if you are absolutely certain that you do not
+	  Say N here only if you are absolutely certain that you do yest
 	  need these helpers; otherwise, the safe option is to say Y.
 
 config COMPAT_VDSO
@@ -1283,14 +1283,14 @@ config SWP_EMULATION
 	  emulation of these instructions for userspace using LDXR/STXR.
 
 	  In some older versions of glibc [<=2.8] SWP is used during futex
-	  trylock() operations with the assumption that the code will not
+	  trylock() operations with the assumption that the code will yest
 	  be preempted. This invalid assumption may be more likely to fail
 	  with SWP emulation enabled, leading to deadlock of the user
 	  application.
 
 	  NOTE: when accessing uncached shared regions, LDXR/STXR rely
 	  on an external transaction monitoring block called a global
-	  monitor to maintain update atomicity. If your system does not
+	  monitor to maintain update atomicity. If your system does yest
 	  implement a global monitor, this option can cause programs that
 	  perform SWP operations to uncached memory to deadlock.
 
@@ -1357,11 +1357,11 @@ config ARM64_PAN
 	 prevents the kernel or hypervisor from accessing user-space (EL0)
 	 memory directly.
 
-	 Choosing this option will cause any unprotected (not using
+	 Choosing this option will cause any unprotected (yest using
 	 copy_to_user et al) memory access to fail with a permission fault.
 
-	 The feature is detected at runtime, and will remain as a 'nop'
-	 instruction if the cpu does not implement the feature.
+	 The feature is detected at runtime, and will remain as a 'yesp'
+	 instruction if the cpu does yest implement the feature.
 
 config ARM64_LSE_ATOMICS
 	bool "Atomic instructions"
@@ -1374,7 +1374,7 @@ config ARM64_LSE_ATOMICS
 
 	  Say Y here to make use of these instructions for the in-kernel
 	  atomic routines. This incurs a small overhead on CPUs that do
-	  not support these instructions and requires the kernel to be
+	  yest support these instructions and requires the kernel to be
 	  built with binutils >= 2.25 in order for the new instructions
 	  to be used.
 
@@ -1388,7 +1388,7 @@ config ARM64_VHE
 	  the cost of the world switch.
 
 	  Selecting this option allows the VHE feature to be detected
-	  at runtime, and does not affect processors that do not
+	  at runtime, and does yest affect processors that do yest
 	  implement this feature.
 
 endmenu
@@ -1413,7 +1413,7 @@ config ARM64_UAO
 	  memory permissions.
 
 	  The feature is detected at runtime, the kernel will use the
-	  regular load/store instructions if the cpu does not implement the
+	  regular load/store instructions if the cpu does yest implement the
 	  feature.
 
 config ARM64_PMEM
@@ -1425,8 +1425,8 @@ config ARM64_PMEM
 	  ARMv8.2 DCPoP feature.
 
 	  The feature is detected at runtime, and the kernel will use DC CVAC
-	  operations if DC CVAP is not supported (following the behaviour of
-	  DC CVAP itself if the system does not define a point of persistence).
+	  operations if DC CVAP is yest supported (following the behaviour of
+	  DC CVAP itself if the system does yest define a point of persistence).
 
 config ARM64_RAS_EXTN
 	bool "Enable support for RAS CPU Extensions"
@@ -1455,7 +1455,7 @@ config ARM64_CNP
 	  caching of such entries in the TLB.
 
 	  Selecting this option allows the CNP feature to be detected
-	  at runtime, and does not affect PEs that do not implement
+	  at runtime, and does yest affect PEs that do yest implement
 	  this feature.
 
 endmenu
@@ -1478,8 +1478,8 @@ config ARM64_PTR_AUTH
 	  for each process at exec() time, with these keys being
 	  context-switched along with the process.
 
-	  The feature is detected at runtime. If the feature is not present in
-	  hardware it will not be advertised to userspace/KVM guest nor will it
+	  The feature is detected at runtime. If the feature is yest present in
+	  hardware it will yest be advertised to userspace/KVM guest yesr will it
 	  be enabled. However, KVM guest also require VHE mode and hence
 	  CONFIG_ARM64_VHE=y option to use this feature.
 
@@ -1514,11 +1514,11 @@ config ARM64_SVE
 	  If you need the kernel to boot on SVE-capable hardware with broken
 	  firmware, you may need to say N here until you get your firmware
 	  fixed.  Otherwise, you may experience firmware panics or lockups when
-	  booting the kernel.  If unsure and you are not observing these
+	  booting the kernel.  If unsure and you are yest observing these
 	  symptoms, you should assume that it is safe to say Y.
 
 	  CPUs that support SVE are architecturally required to support the
-	  Virtualization Host Extensions (VHE), so the kernel makes no
+	  Virtualization Host Extensions (VHE), so the kernel makes yes
 	  provision for supporting SVE alongside KVM without VHE enabled.
 	  Thus, you will need to enable CONFIG_ARM64_VHE if you want to support
 	  KVM in the same kernel image.
@@ -1537,7 +1537,7 @@ config ARM64_MODULE_PLTS
 
 	  When running with address space randomization (KASLR), the module
 	  region itself may be too far away for ordinary relative jumps and
-	  calls, and so in that case, module PLTs are required and cannot be
+	  calls, and so in that case, module PLTs are required and canyest be
 	  disabled.
 
 	  Specific errata workaround(s) might also force module PLTs to be
@@ -1587,7 +1587,7 @@ config RANDOMIZE_BASE
 	help
 	  Randomizes the virtual address at which the kernel image is
 	  loaded, as a security feature that deters exploit attempts
-	  relying on knowledge of the location of kernel internals.
+	  relying on kyeswledge of the location of kernel internals.
 
 	  It is the bootloader's job to provide entropy, by passing a
 	  random u64 value in /chosen/kaslr-seed at kernel entry.
@@ -1610,7 +1610,7 @@ config RANDOMIZE_MODULE_REGION_FULL
 	  but it does imply that function calls between modules and the core
 	  kernel will need to be resolved via veneers in the module PLT.
 
-	  When this option is not set, the module region will be randomized over
+	  When this option is yest set, the module region will be randomized over
 	  a limited range that contains the [_stext, _etext] interval of the
 	  core kernel, so branch relocations are always in range.
 
@@ -1630,7 +1630,7 @@ config ARM64_ACPI_PARKING_PROTOCOL
 	depends on ACPI
 	help
 	  Enable support for the ARM64 ACPI parking protocol. If disabled
-	  the kernel will not allow booting through the ARM64 ACPI parking
+	  the kernel will yest allow booting through the ARM64 ACPI parking
 	  protocol even if the corresponding data is present in the ACPI
 	  MADT table.
 
@@ -1648,7 +1648,7 @@ config CMDLINE_FORCE
 	help
 	  Always use the default kernel command string, even if the boot
 	  loader passes other arguments to the kernel.
-	  This is useful if you cannot or don't want to change the
+	  This is useful if you canyest or don't want to change the
 	  command-line options your boot loader passes to the kernel.
 
 config EFI_STUB
@@ -1668,7 +1668,7 @@ config EFI
 	default y
 	help
 	  This option provides support for runtime services provided
-	  by UEFI firmware (such as non-volatile variables, realtime
+	  by UEFI firmware (such as yesn-volatile variables, realtime
           clock, and platform reset). A UEFI stub is also provided to
 	  allow the kernel to be booted as an EFI application. This
 	  is only useful on systems that have UEFI firmware.
@@ -1682,7 +1682,7 @@ config DMI
 
 	  This option is only useful on systems that have UEFI firmware.
 	  However, even with this option, the resultant kernel should
-	  continue to boot on existing non-UEFI platforms.
+	  continue to boot on existing yesn-UEFI platforms.
 
 endmenu
 

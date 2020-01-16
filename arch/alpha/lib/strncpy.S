@@ -3,8 +3,8 @@
  * arch/alpha/lib/strncpy.S
  * Contributed by Richard Henderson (rth@tamu.edu)
  *
- * Copy no more than COUNT bytes of the null-terminated string from
- * SRC to DST.  If SRC does not cover all of COUNT, the balance is
+ * Copy yes more than COUNT bytes of the null-terminated string from
+ * SRC to DST.  If SRC does yest cover all of COUNT, the balance is
  * zeroed.
  *
  * Or, rather, if the kernel cared about that weird ANSI quirk.  This
@@ -12,8 +12,8 @@
  * __stxncpy is in range of a branch.
  */
 #include <asm/export.h>
-	.set noat
-	.set noreorder
+	.set yesat
+	.set yesreorder
 
 	.text
 
@@ -24,19 +24,19 @@ strncpy:
 	.frame $30, 0, $26
 	.prologue 0
 
-	mov	$16, $0		# set return value now
+	mov	$16, $0		# set return value yesw
 	beq	$18, $zerolen
-	unop
+	uyesp
 	bsr	$23, __stxncpy	# do the work of the copy
 
-	unop
+	uyesp
 	bne	$18, $multiword	# do we have full words left?
-	subq	$24, 1, $3	# nope
+	subq	$24, 1, $3	# yespe
 	subq	$27, 1, $4
 
 	or	$3, $24, $3	# clear the bits between the last
 	or	$4, $27, $4	# written byte and the last byte in COUNT
-	andnot	$3, $4, $4
+	andyest	$3, $4, $4
 	zap	$1, $4, $1
 
 	stq_u	$1, 0($16)
@@ -46,17 +46,17 @@ strncpy:
 $multiword:
 	subq	$27, 1, $2	# clear the final bits in the prev word
 	or	$2, $27, $2
-	zapnot	$1, $2, $1
+	zapyest	$1, $2, $1
 	subq	$18, 1, $18
 
 	stq_u	$1, 0($16)
 	addq	$16, 8, $16
-	unop
+	uyesp
 	beq	$18, 1f
 
-	nop
-	unop
-	nop
+	yesp
+	uyesp
+	yesp
 	blbc	$18, 0f
 
 	stq_u	$31, 0($16)	# zero one word

@@ -44,8 +44,8 @@
 	};
 
 	/*
-	 * The soc node represents the soc top level view. It is used for IPs
-	 * that are not memory mapped in the MPU view or for the MPU itself.
+	 * The soc yesde represents the soc top level view. It is used for IPs
+	 * that are yest memory mapped in the MPU view or for the MPU itself.
 	 */
 	soc {
 		compatible = "ti,omap-infra";
@@ -631,7 +631,7 @@
 		gpmc: gpmc@50000000 {
 			compatible = "ti,am3352-gpmc";
 			ti,hwmods = "gpmc";
-			ti,no-idle-on-init;
+			ti,yes-idle-on-init;
 			reg = <0x50000000 0x2000>;
 			interrupts = <100>;
 			gpmc,num-cs = <7>;

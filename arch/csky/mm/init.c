@@ -7,7 +7,7 @@
 #include <linux/signal.h>
 #include <linux/sched.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/string.h>
 #include <linux/types.h>
 #include <linux/pagemap.h>
@@ -52,7 +52,7 @@ void __init mem_init(void)
 	for (tmp = highstart_pfn; tmp < highend_pfn; tmp++) {
 		struct page *page = pfn_to_page(tmp);
 
-		/* FIXME not sure about */
+		/* FIXME yest sure about */
 		if (!memblock_is_reserved(tmp << PAGE_SHIFT))
 			free_highmem_page(page);
 	}

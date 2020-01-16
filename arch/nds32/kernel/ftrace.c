@@ -9,13 +9,13 @@ extern void (*ftrace_trace_function)(unsigned long, unsigned long,
 				     struct ftrace_ops*, struct pt_regs*);
 extern void ftrace_graph_caller(void);
 
-noinline void __naked ftrace_stub(unsigned long ip, unsigned long parent_ip,
+yesinline void __naked ftrace_stub(unsigned long ip, unsigned long parent_ip,
 				  struct ftrace_ops *op, struct pt_regs *regs)
 {
 	__asm__ ("");  /* avoid to optimize as pure function */
 }
 
-noinline void _mcount(unsigned long parent_ip)
+yesinline void _mcount(unsigned long parent_ip)
 {
 	/* save all state by the compiler prologue */
 
@@ -37,13 +37,13 @@ EXPORT_SYMBOL(_mcount);
 
 #else /* CONFIG_DYNAMIC_FTRACE */
 
-noinline void __naked ftrace_stub(unsigned long ip, unsigned long parent_ip,
+yesinline void __naked ftrace_stub(unsigned long ip, unsigned long parent_ip,
 				  struct ftrace_ops *op, struct pt_regs *regs)
 {
 	__asm__ ("");  /* avoid to optimize as pure function */
 }
 
-noinline void __naked _mcount(unsigned long parent_ip)
+yesinline void __naked _mcount(unsigned long parent_ip)
 {
 	__asm__ ("");  /* avoid to optimize as pure function */
 }
@@ -69,17 +69,17 @@ void _ftrace_caller(unsigned long parent_ip)
 	/* a placeholder for the call to a real tracing function */
 	__asm__ __volatile__ (
 		"ftrace_call:		\n\t"
-		"nop			\n\t"
-		"nop			\n\t"
-		"nop			\n\t");
+		"yesp			\n\t"
+		"yesp			\n\t"
+		"yesp			\n\t");
 
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
 	/* a placeholder for the call to ftrace_graph_caller */
 	__asm__ __volatile__ (
 		"ftrace_graph_call:	\n\t"
-		"nop			\n\t"
-		"nop			\n\t"
-		"nop			\n\t");
+		"yesp			\n\t"
+		"yesp			\n\t"
+		"yesp			\n\t");
 #endif
 	/* restore all state needed by the compiler epilogue */
 }
@@ -184,24 +184,24 @@ int ftrace_update_ftrace_func(ftrace_func_t func)
 int ftrace_make_call(struct dyn_ftrace *rec, unsigned long addr)
 {
 	unsigned long pc = rec->ip;
-	unsigned long nop_insn[3] = {INSN_NOP, INSN_NOP, INSN_NOP};
+	unsigned long yesp_insn[3] = {INSN_NOP, INSN_NOP, INSN_NOP};
 	unsigned long call_insn[3] = {INSN_NOP, INSN_NOP, INSN_NOP};
 
 	ftrace_gen_call_insn(call_insn, addr);
 
-	return ftrace_modify_code(pc, nop_insn, call_insn, true);
+	return ftrace_modify_code(pc, yesp_insn, call_insn, true);
 }
 
-int ftrace_make_nop(struct module *mod, struct dyn_ftrace *rec,
+int ftrace_make_yesp(struct module *mod, struct dyn_ftrace *rec,
 		    unsigned long addr)
 {
 	unsigned long pc = rec->ip;
-	unsigned long nop_insn[3] = {INSN_NOP, INSN_NOP, INSN_NOP};
+	unsigned long yesp_insn[3] = {INSN_NOP, INSN_NOP, INSN_NOP};
 	unsigned long call_insn[3] = {INSN_NOP, INSN_NOP, INSN_NOP};
 
 	ftrace_gen_call_insn(call_insn, addr);
 
-	return ftrace_modify_code(pc, call_insn, nop_insn, true);
+	return ftrace_modify_code(pc, call_insn, yesp_insn, true);
 }
 #endif /* CONFIG_DYNAMIC_FTRACE */
 
@@ -221,7 +221,7 @@ void prepare_ftrace_return(unsigned long *parent, unsigned long self_addr,
 		*parent = return_hooker;
 }
 
-noinline void ftrace_graph_caller(void)
+yesinline void ftrace_graph_caller(void)
 {
 	unsigned long *parent_ip =
 		(unsigned long *)(__builtin_frame_address(2) - 4);
@@ -257,15 +257,15 @@ extern unsigned long ftrace_graph_call;
 static int ftrace_modify_graph_caller(bool enable)
 {
 	unsigned long pc = (unsigned long)&ftrace_graph_call;
-	unsigned long nop_insn[3] = {INSN_NOP, INSN_NOP, INSN_NOP};
+	unsigned long yesp_insn[3] = {INSN_NOP, INSN_NOP, INSN_NOP};
 	unsigned long call_insn[3] = {INSN_NOP, INSN_NOP, INSN_NOP};
 
 	ftrace_gen_call_insn(call_insn, (unsigned long)ftrace_graph_caller);
 
 	if (enable)
-		return ftrace_modify_code(pc, nop_insn, call_insn, true);
+		return ftrace_modify_code(pc, yesp_insn, call_insn, true);
 	else
-		return ftrace_modify_code(pc, call_insn, nop_insn, true);
+		return ftrace_modify_code(pc, call_insn, yesp_insn, true);
 }
 
 int ftrace_enable_ftrace_graph_caller(void)
@@ -283,11 +283,11 @@ int ftrace_disable_ftrace_graph_caller(void)
 
 
 #ifdef CONFIG_TRACE_IRQFLAGS
-noinline void __trace_hardirqs_off(void)
+yesinline void __trace_hardirqs_off(void)
 {
 	trace_hardirqs_off();
 }
-noinline void __trace_hardirqs_on(void)
+yesinline void __trace_hardirqs_on(void)
 {
 	trace_hardirqs_on();
 }

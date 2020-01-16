@@ -111,7 +111,7 @@ int lio_setup_glists(struct octeon_device *oct, struct lio *lio, int num_iqs)
 	}
 
 	for (i = 0; i < num_iqs; i++) {
-		int numa_node = dev_to_node(&oct->pci_dev->dev);
+		int numa_yesde = dev_to_yesde(&oct->pci_dev->dev);
 
 		spin_lock_init(&lio->glist_lock[i]);
 
@@ -128,8 +128,8 @@ int lio_setup_glists(struct octeon_device *oct, struct lio *lio, int num_iqs)
 		}
 
 		for (j = 0; j < lio->tx_qsize; j++) {
-			g = kzalloc_node(sizeof(*g), GFP_KERNEL,
-					 numa_node);
+			g = kzalloc_yesde(sizeof(*g), GFP_KERNEL,
+					 numa_yesde);
 			if (!g)
 				g = kzalloc(sizeof(*g), GFP_KERNEL);
 			if (!g)
@@ -165,7 +165,7 @@ int liquidio_set_feature(struct net_device *netdev, int cmd, u16 param1)
 	nctrl.ncmd.u64 = 0;
 	nctrl.ncmd.s.cmd = cmd;
 	nctrl.ncmd.s.param1 = param1;
-	nctrl.iq_no = lio->linfo.txpciq[0].s.q_no;
+	nctrl.iq_yes = lio->linfo.txpciq[0].s.q_yes;
 	nctrl.netpndev = (u64)netdev;
 	nctrl.cb_fn = liquidio_link_ctrl_cmd_completion;
 
@@ -389,7 +389,7 @@ void liquidio_link_ctrl_cmd_completion(void *nctrl_ptr)
 		break;
 
 	default:
-		dev_err(&oct->pci_dev->dev, "%s Unknown cmd %d\n", __func__,
+		dev_err(&oct->pci_dev->dev, "%s Unkyeswn cmd %d\n", __func__,
 			nctrl->ncmd.s.cmd);
 	}
 }
@@ -411,7 +411,7 @@ void octeon_pf_changed_vf_macaddr(struct octeon_device *oct, u8 *mac)
 		macaddr_changed = true;
 		ether_addr_copy(netdev->dev_addr, mac);
 		ether_addr_copy(((u8 *)&lio->linfo.hw_addr) + 2, mac);
-		call_netdevice_notifiers(NETDEV_CHANGEADDR, netdev);
+		call_netdevice_yestifiers(NETDEV_CHANGEADDR, netdev);
 	}
 
 	rtnl_unlock();
@@ -420,7 +420,7 @@ void octeon_pf_changed_vf_macaddr(struct octeon_device *oct, u8 *mac)
 		dev_info(&oct->pci_dev->dev,
 			 "PF changed VF's MAC address to %pM\n", mac);
 
-	/* no need to notify the firmware of the macaddr change because
+	/* yes need to yestify the firmware of the macaddr change because
 	 * the PF did that already
 	 */
 }
@@ -430,7 +430,7 @@ void octeon_schedule_rxq_oom_work(struct octeon_device *oct,
 {
 	struct net_device *netdev = oct->props[0].netdev;
 	struct lio *lio = GET_LIO(netdev);
-	struct cavium_wq *wq = &lio->rxq_status_wq[droq->q_no];
+	struct cavium_wq *wq = &lio->rxq_status_wq[droq->q_yes];
 
 	queue_delayed_work(wq->wq, &wq->wk.work,
 			   msecs_to_jiffies(LIO_OOM_POLL_INTERVAL_MS));
@@ -441,8 +441,8 @@ static void octnet_poll_check_rxq_oom_status(struct work_struct *work)
 	struct cavium_wk *wk = (struct cavium_wk *)work;
 	struct lio *lio = (struct lio *)wk->ctxptr;
 	struct octeon_device *oct = lio->oct_dev;
-	int q_no = wk->ctxul;
-	struct octeon_droq *droq = oct->droq[q_no];
+	int q_yes = wk->ctxul;
+	struct octeon_droq *droq = oct->droq[q_yes];
 
 	if (!ifstate_check(lio, LIO_IFSTATE_RUNNING) || !droq)
 		return;
@@ -456,11 +456,11 @@ int setup_rx_oom_poll_fn(struct net_device *netdev)
 	struct lio *lio = GET_LIO(netdev);
 	struct octeon_device *oct = lio->oct_dev;
 	struct cavium_wq *wq;
-	int q, q_no;
+	int q, q_yes;
 
 	for (q = 0; q < oct->num_oqs; q++) {
-		q_no = lio->linfo.rxpciq[q].s.q_no;
-		wq = &lio->rxq_status_wq[q_no];
+		q_yes = lio->linfo.rxpciq[q].s.q_yes;
+		wq = &lio->rxq_status_wq[q_yes];
 		wq->wq = alloc_workqueue("rxq-oom-status",
 					 WQ_MEM_RECLAIM, 0);
 		if (!wq->wq) {
@@ -471,7 +471,7 @@ int setup_rx_oom_poll_fn(struct net_device *netdev)
 		INIT_DELAYED_WORK(&wq->wk.work,
 				  octnet_poll_check_rxq_oom_status);
 		wq->wk.ctxptr = lio;
-		wq->wk.ctxul = q_no;
+		wq->wk.ctxul = q_yes;
 	}
 
 	return 0;
@@ -482,10 +482,10 @@ void cleanup_rx_oom_poll_fn(struct net_device *netdev)
 	struct lio *lio = GET_LIO(netdev);
 	struct octeon_device *oct = lio->oct_dev;
 	struct cavium_wq *wq;
-	int q_no;
+	int q_yes;
 
-	for (q_no = 0; q_no < oct->num_oqs; q_no++) {
-		wq = &lio->rxq_status_wq[q_no];
+	for (q_yes = 0; q_yes < oct->num_oqs; q_yes++) {
+		wq = &lio->rxq_status_wq[q_yes];
 		if (wq->wq) {
 			cancel_delayed_work_sync(&wq->wk.work);
 			flush_workqueue(wq->wq);
@@ -504,7 +504,7 @@ static void lio_update_txq_status(struct octeon_device *oct, int iq_num)
 
 	netdev = oct->props[iq->ifidx].netdev;
 
-	/* This is needed because the first IQ does not have
+	/* This is needed because the first IQ does yest have
 	 * a netdev associated with it.
 	 */
 	if (!netdev)
@@ -523,34 +523,34 @@ static void lio_update_txq_status(struct octeon_device *oct, int iq_num)
 /**
  * \brief Setup output queue
  * @param oct octeon device
- * @param q_no which queue
+ * @param q_yes which queue
  * @param num_descs how many descriptors
  * @param desc_size size of each descriptor
  * @param app_ctx application context
  */
-static int octeon_setup_droq(struct octeon_device *oct, int q_no, int num_descs,
+static int octeon_setup_droq(struct octeon_device *oct, int q_yes, int num_descs,
 			     int desc_size, void *app_ctx)
 {
 	int ret_val;
 
-	dev_dbg(&oct->pci_dev->dev, "Creating Droq: %d\n", q_no);
+	dev_dbg(&oct->pci_dev->dev, "Creating Droq: %d\n", q_yes);
 	/* droq creation and local register settings. */
-	ret_val = octeon_create_droq(oct, q_no, num_descs, desc_size, app_ctx);
+	ret_val = octeon_create_droq(oct, q_yes, num_descs, desc_size, app_ctx);
 	if (ret_val < 0)
 		return ret_val;
 
 	if (ret_val == 1) {
-		dev_dbg(&oct->pci_dev->dev, "Using default droq %d\n", q_no);
+		dev_dbg(&oct->pci_dev->dev, "Using default droq %d\n", q_yes);
 		return 0;
 	}
 
 	/* Enable the droq queues */
-	octeon_set_droq_pkt_op(oct, q_no, 1);
+	octeon_set_droq_pkt_op(oct, q_yes, 1);
 
 	/* Send Credit for Octeon Output queues. Credits are always
 	 * sent after the output queue is enabled.
 	 */
-	writel(oct->droq[q_no]->max_count, oct->droq[q_no]->pkts_credit_reg);
+	writel(oct->droq[q_yes]->max_count, oct->droq[q_yes]->pkts_credit_reg);
 
 	return ret_val;
 }
@@ -585,7 +585,7 @@ liquidio_push_packet(u32 octeon_id __attribute__((unused)),
 		struct lio *lio = GET_LIO(netdev);
 		struct octeon_device *oct = lio->oct_dev;
 
-		/* Do not proceed if the interface is not in RUNNING state. */
+		/* Do yest proceed if the interface is yest in RUNNING state. */
 		if (!ifstate_check(lio, LIO_IFSTATE_RUNNING)) {
 			recv_buffer_free(skb);
 			droq->stats.rx_dropped++;
@@ -594,7 +594,7 @@ liquidio_push_packet(u32 octeon_id __attribute__((unused)),
 
 		skb->dev = netdev;
 
-		skb_record_rx_queue(skb, droq->q_no);
+		skb_record_rx_queue(skb, droq->q_yes);
 		if (likely(len > MIN_SKB_SIZE)) {
 			struct octeon_skb_page_info *pg_info;
 			unsigned char *va;
@@ -632,7 +632,7 @@ liquidio_push_packet(u32 octeon_id __attribute__((unused)),
 				if (ifstate_check
 					(lio,
 					 LIO_IFSTATE_RX_TIMESTAMP_ENABLED)) {
-					/* Nanoseconds are in the first 64-bits
+					/* Nayesseconds are in the first 64-bits
 					 * of the packet.
 					 */
 					memcpy(&ns, (skb->data + r_dh_off),
@@ -746,18 +746,18 @@ static int liquidio_napi_poll(struct napi_struct *napi, int budget)
 	struct octeon_instr_queue *iq;
 	struct octeon_device *oct;
 	struct octeon_droq *droq;
-	int tx_done = 0, iq_no;
+	int tx_done = 0, iq_yes;
 	int work_done;
 
 	droq = container_of(napi, struct octeon_droq, napi);
 	oct = droq->oct_dev;
-	iq_no = droq->q_no;
+	iq_yes = droq->q_yes;
 
 	/* Handle Droq descriptors */
 	work_done = octeon_droq_process_poll_pkts(oct, droq, budget);
 
 	/* Flush the instruction queue */
-	iq = oct->instr_queue[iq_no];
+	iq = oct->instr_queue[iq_yes];
 	if (iq) {
 		/* TODO: move this check to inside octeon_flush_iq,
 		 * once check_db_timeout is removed
@@ -771,10 +771,10 @@ static int liquidio_napi_poll(struct napi_struct *napi, int budget)
 		 * Return back if tx_done is false.
 		 */
 		/* sub-queue status update */
-		lio_update_txq_status(oct, iq_no);
+		lio_update_txq_status(oct, iq_yes);
 	} else {
 		dev_err(&oct->pci_dev->dev, "%s:  iq (%d) num invalid\n",
-			__func__, iq_no);
+			__func__, iq_yes);
 	}
 
 #define MAX_REG_CNT  2000000U
@@ -785,7 +785,7 @@ static int liquidio_napi_poll(struct napi_struct *napi, int budget)
 		tx_done = 1;
 		napi_complete_done(napi, work_done);
 
-		octeon_enable_irq(droq->oct_dev, droq->q_no);
+		octeon_enable_irq(droq->oct_dev, droq->q_yes);
 		return 0;
 	}
 
@@ -812,7 +812,7 @@ int liquidio_setup_io_queues(struct octeon_device *octeon_dev, int ifidx,
 	int num_tx_descs;
 	struct lio *lio;
 	int retval = 0;
-	int q, q_no;
+	int q, q_yes;
 	int cpu_id;
 
 	netdev = octeon_dev->props[ifidx].netdev;
@@ -831,12 +831,12 @@ int liquidio_setup_io_queues(struct octeon_device *octeon_dev, int ifidx,
 
 	/* set up DROQs. */
 	for (q = 0; q < num_oqs; q++) {
-		q_no = lio->linfo.rxpciq[q].s.q_no;
+		q_yes = lio->linfo.rxpciq[q].s.q_yes;
 		dev_dbg(&octeon_dev->pci_dev->dev,
-			"%s index:%d linfo.rxpciq.s.q_no:%d\n",
-			__func__, q, q_no);
+			"%s index:%d linfo.rxpciq.s.q_yes:%d\n",
+			__func__, q, q_yes);
 		retval = octeon_setup_droq(
-		    octeon_dev, q_no,
+		    octeon_dev, q_yes,
 		    CFG_GET_NUM_RX_DESCS_NIC_IF(octeon_get_conf(octeon_dev),
 						lio->ifidx),
 		    CFG_GET_NUM_RX_BUF_SIZE_NIC_IF(octeon_get_conf(octeon_dev),
@@ -849,7 +849,7 @@ int liquidio_setup_io_queues(struct octeon_device *octeon_dev, int ifidx,
 			return 1;
 		}
 
-		droq = octeon_dev->droq[q_no];
+		droq = octeon_dev->droq[q_yes];
 		napi = &droq->napi;
 		dev_dbg(&octeon_dev->pci_dev->dev, "netif_napi_add netdev:%llx oct:%llx\n",
 			(u64)netdev, (u64)octeon_dev);
@@ -861,7 +861,7 @@ int liquidio_setup_io_queues(struct octeon_device *octeon_dev, int ifidx,
 		if (cpu_id >= cpu_id_modulus)
 			cpu_id = 0;
 
-		octeon_register_droq_ops(octeon_dev, q_no, &droq_ops);
+		octeon_register_droq_ops(octeon_dev, q_yes, &droq_ops);
 	}
 
 	if (OCTEON_CN23XX_PF(octeon_dev) || OCTEON_CN23XX_VF(octeon_dev)) {
@@ -915,7 +915,7 @@ int liquidio_schedule_msix_droq_pkt_handler(struct octeon_droq *droq, u64 ret)
 		if (ret & MSIX_PO_INT) {
 			if (OCTEON_CN23XX_VF(oct))
 				dev_err(&oct->pci_dev->dev,
-					"should not come here should not get rx when poll mode = 0 for vf\n");
+					"should yest come here should yest get rx when poll mode = 0 for vf\n");
 			tasklet_schedule(&oct_priv->droq_tasklet);
 			return 1;
 		}
@@ -952,19 +952,19 @@ static void liquidio_schedule_droq_pkt_handlers(struct octeon_device *oct)
 	struct octeon_device_priv *oct_priv =
 		(struct octeon_device_priv *)oct->priv;
 	struct octeon_droq *droq;
-	u64 oq_no;
+	u64 oq_yes;
 
 	if (oct->int_status & OCT_DEV_INTR_PKT_DATA) {
-		for (oq_no = 0; oq_no < MAX_OCTEON_OUTPUT_QUEUES(oct);
-		     oq_no++) {
-			if (!(oct->droq_intr & BIT_ULL(oq_no)))
+		for (oq_yes = 0; oq_yes < MAX_OCTEON_OUTPUT_QUEUES(oct);
+		     oq_yes++) {
+			if (!(oct->droq_intr & BIT_ULL(oq_yes)))
 				continue;
 
-			droq = oct->droq[oq_no];
+			droq = oct->droq[oq_yes];
 
 			if (droq->ops.poll_mode) {
 				droq->ops.napi_fn(droq);
-				oct_priv->napi_mask |= BIT_ULL(oq_no);
+				oct_priv->napi_mask |= BIT_ULL(oq_yes);
 			} else {
 				tasklet_schedule(&oct_priv->droq_tasklet);
 			}
@@ -1020,7 +1020,7 @@ int octeon_setup_interrupt(struct octeon_device *oct, u32 num_ioqs)
 		if (OCTEON_CN23XX_PF(oct)) {
 			num_interrupts = MAX_IOQ_INTERRUPTS_PER_PF + 1;
 
-			/* one non ioq interrupt for handling
+			/* one yesn ioq interrupt for handling
 			 * sli_mac_pf_int_sum
 			 */
 			oct->num_msix_irqs += 1;
@@ -1055,7 +1055,7 @@ int octeon_setup_interrupt(struct octeon_device *oct, u32 num_ioqs)
 		msix_entries = (struct msix_entry *)oct->msix_entries;
 
 		/*Assumption is that pf msix vectors start from pf srn to pf to
-		 * trs and not from 0. if not change this code
+		 * trs and yest from 0. if yest change this code
 		 */
 		if (OCTEON_CN23XX_PF(oct)) {
 			for (i = 0; i < oct->num_msix_irqs - 1; i++)
@@ -1081,10 +1081,10 @@ int octeon_setup_interrupt(struct octeon_device *oct, u32 num_ioqs)
 			return num_alloc_ioq_vectors;
 		}
 
-		dev_dbg(&oct->pci_dev->dev, "OCTEON: Enough MSI-X interrupts are allocated...\n");
+		dev_dbg(&oct->pci_dev->dev, "OCTEON: Eyesugh MSI-X interrupts are allocated...\n");
 
 		num_ioq_vectors = oct->num_msix_irqs;
-		/** For PF, there is one non-ioq interrupt handler */
+		/** For PF, there is one yesn-ioq interrupt handler */
 		if (OCTEON_CN23XX_PF(oct)) {
 			num_ioq_vectors -= 1;
 
@@ -1127,7 +1127,7 @@ int octeon_setup_interrupt(struct octeon_device *oct, u32 num_ioqs)
 				dev_err(&oct->pci_dev->dev,
 					"Request_irq failed for MSIX interrupt Error: %d\n",
 					irqret);
-				/** Freeing the non-ioq irq vector here . */
+				/** Freeing the yesn-ioq irq vector here . */
 				free_irq(msix_entries[num_ioq_vectors].vector,
 					 oct);
 
@@ -1228,7 +1228,7 @@ int liquidio_change_mtu(struct net_device *netdev, int new_mtu)
 
 	octeon_swap_8B_data((u64 *)ncmd, (OCTNET_CMD_SIZE >> 3));
 
-	sc->iq_no = lio->linfo.txpciq[0].s.q_no;
+	sc->iq_yes = lio->linfo.txpciq[0].s.q_yes;
 
 	octeon_prepare_soft_command(oct, sc, OPCODE_NIC,
 				    OPCODE_NIC_CMD, 0, 0, 0);
@@ -1349,9 +1349,9 @@ octnet_nic_stats_callback(struct octeon_device *oct_dev,
 		tstats->one_collision_sent = rsp_tstats->one_collision_sent;
 		/* Packets sent after multiple collision*/
 		tstats->multi_collision_sent = rsp_tstats->multi_collision_sent;
-		/* Packets not sent due to max collisions */
+		/* Packets yest sent due to max collisions */
 		tstats->max_collision_fail = rsp_tstats->max_collision_fail;
-		/* Packets not sent due to max deferrals */
+		/* Packets yest sent due to max deferrals */
 		tstats->max_deferral_fail = rsp_tstats->max_deferral_fail;
 		/* Accounts for over/under-run of buffers */
 		tstats->fifo_err = rsp_tstats->fifo_err;
@@ -1407,7 +1407,7 @@ static int lio_fetch_vf_stats(struct lio *lio)
 	init_completion(&sc->complete);
 	sc->sc_status = OCTEON_REQUEST_PENDING;
 
-	sc->iq_no = lio->linfo.txpciq[0].s.q_no;
+	sc->iq_yes = lio->linfo.txpciq[0].s.q_yes;
 
 	octeon_prepare_soft_command(oct_dev, sc, OPCODE_NIC,
 				    OPCODE_NIC_VF_PORT_STATS, 0, 0, 0);
@@ -1482,7 +1482,7 @@ void lio_fetch_stats(struct work_struct *work)
 	init_completion(&sc->complete);
 	sc->sc_status = OCTEON_REQUEST_PENDING;
 
-	sc->iq_no = lio->linfo.txpciq[0].s.q_no;
+	sc->iq_yes = lio->linfo.txpciq[0].s.q_yes;
 
 	octeon_prepare_soft_command(oct_dev, sc, OPCODE_NIC,
 				    OPCODE_NIC_PORT_STATS, 0, 0, 0);
@@ -1548,7 +1548,7 @@ int liquidio_set_speed(struct lio *lio, int speed)
 
 	octeon_swap_8B_data((u64 *)ncmd, (OCTNET_CMD_SIZE >> 3));
 
-	sc->iq_no = lio->linfo.txpciq[0].s.q_no;
+	sc->iq_yes = lio->linfo.txpciq[0].s.q_yes;
 
 	octeon_prepare_soft_command(oct, sc, OPCODE_NIC,
 				    OPCODE_NIC_UBOOT_CTL, 0, 0, 0);
@@ -1614,7 +1614,7 @@ int liquidio_get_speed(struct lio *lio)
 
 	octeon_swap_8B_data((u64 *)ncmd, (OCTNET_CMD_SIZE >> 3));
 
-	sc->iq_no = lio->linfo.txpciq[0].s.q_no;
+	sc->iq_yes = lio->linfo.txpciq[0].s.q_yes;
 
 	octeon_prepare_soft_command(oct, sc, OPCODE_NIC,
 				    OPCODE_NIC_UBOOT_CTL, 0, 0, 0);
@@ -1647,7 +1647,7 @@ int liquidio_get_speed(struct lio *lio)
 						OCTEON_CN2350_25GB_SUBSYS_ID ||
 				    oct->subsystem_id ==
 						OCTEON_CN2360_25GB_SUBSYS_ID) {
-					oct->no_speed_setting = 1;
+					oct->yes_speed_setting = 1;
 					oct->speed_setting = 25;
 				} else {
 					oct->speed_setting = 10;
@@ -1709,7 +1709,7 @@ int liquidio_set_fec(struct lio *lio, int on_off)
 
 	octeon_swap_8B_data((u64 *)ncmd, (OCTNET_CMD_SIZE >> 3));
 
-	sc->iq_no = lio->linfo.txpciq[0].s.q_no;
+	sc->iq_yes = lio->linfo.txpciq[0].s.q_yes;
 
 	octeon_prepare_soft_command(oct, sc, OPCODE_NIC,
 				    OPCODE_NIC_UBOOT_CTL, 0, 0, 0);
@@ -1778,7 +1778,7 @@ int liquidio_get_fec(struct lio *lio)
 
 	octeon_swap_8B_data((u64 *)ncmd, (OCTNET_CMD_SIZE >> 3));
 
-	sc->iq_no = lio->linfo.txpciq[0].s.q_no;
+	sc->iq_yes = lio->linfo.txpciq[0].s.q_yes;
 
 	octeon_prepare_soft_command(oct, sc, OPCODE_NIC,
 				    OPCODE_NIC_UBOOT_CTL, 0, 0, 0);

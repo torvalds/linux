@@ -233,7 +233,7 @@ synproxy_tstamp_adjust(struct sk_buff *skb, unsigned int protoff,
 
 static struct nf_ct_ext_type nf_ct_synproxy_extend __read_mostly = {
 	.len		= sizeof(struct nf_conn_synproxy),
-	.align		= __alignof__(struct nf_conn_synproxy),
+	.align		= __aligyesf__(struct nf_conn_synproxy),
 	.id		= NF_CT_EXT_SYNPROXY,
 };
 
@@ -444,7 +444,7 @@ synproxy_send_tcp(struct net *net,
 	nskb->csum_start  = (unsigned char *)nth - nskb->head;
 	nskb->csum_offset = offsetof(struct tcphdr, check);
 
-	skb_dst_set_noref(nskb, skb_dst(skb));
+	skb_dst_set_yesref(nskb, skb_dst(skb));
 	nskb->protocol = htons(ETH_P_IP);
 	if (ip_route_me_harder(net, nskb, RTN_UNSPEC))
 		goto free_nskb;

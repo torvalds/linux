@@ -236,7 +236,7 @@ struct fjes_drv_ep_stats {
 	u64 recv_intr_stop;
 	u64 recv_intr_zoneupdate;
 	u64 tx_buffer_full;
-	u64 tx_dropped_not_shared;
+	u64 tx_dropped_yest_shared;
 	u64 tx_dropped_ver_mismatch;
 	u64 tx_dropped_buf_size_mismatch;
 	u64 tx_dropped_vlanid_mismatch;

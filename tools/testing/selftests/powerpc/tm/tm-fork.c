@@ -8,7 +8,7 @@
  * to see if we can enter the kernel during a transaction.
  */
 
-#include <errno.h>
+#include <erryes.h>
 #include <inttypes.h>
 #include <pthread.h>
 #include <stdio.h>

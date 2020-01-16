@@ -119,10 +119,10 @@ static struct packet_type caif_usb_type __read_mostly = {
 	.type = cpu_to_be16(ETH_P_802_EX1),
 };
 
-static int cfusbl_device_notify(struct notifier_block *me, unsigned long what,
+static int cfusbl_device_yestify(struct yestifier_block *me, unsigned long what,
 				void *ptr)
 {
-	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
+	struct net_device *dev = netdev_yestifier_info_to_dev(ptr);
 	struct caif_dev_common common;
 	struct cflayer *layer, *link_support;
 	struct usbnet *usbnet;
@@ -180,19 +180,19 @@ static int cfusbl_device_notify(struct notifier_block *me, unsigned long what,
 	return 0;
 }
 
-static struct notifier_block caif_device_notifier = {
-	.notifier_call = cfusbl_device_notify,
+static struct yestifier_block caif_device_yestifier = {
+	.yestifier_call = cfusbl_device_yestify,
 	.priority = 0,
 };
 
 static int __init cfusbl_init(void)
 {
-	return register_netdevice_notifier(&caif_device_notifier);
+	return register_netdevice_yestifier(&caif_device_yestifier);
 }
 
 static void __exit cfusbl_exit(void)
 {
-	unregister_netdevice_notifier(&caif_device_notifier);
+	unregister_netdevice_yestifier(&caif_device_yestifier);
 	dev_remove_pack(&caif_usb_type);
 }
 

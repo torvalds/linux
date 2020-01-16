@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-/* Copyright (C) 2017 Andes Technology Corporation */
+/* Copyright (C) 2017 Andes Techyeslogy Corporation */
 
 #include <linux/init.h>
 #include <linux/linkage.h>
@@ -22,7 +22,7 @@
 
 	/*
 	 * The call to ftrace_return_to_handler would overwrite the return
-	 * register if a0 was not saved.
+	 * register if a0 was yest saved.
 	 */
 	.macro SAVE_RET_ABI_STATE
 	addi	sp, sp, -32
@@ -58,7 +58,7 @@ ENTRY(return_to_handler)
 /*
  * On implementing the frame point test, the ideal way is to compare the
  * s0 (frame pointer, if enabled) on entry and the sp (stack pointer) on return.
- * However, the psABI of variable-length-argument functions does not allow this.
+ * However, the psABI of variable-length-argument functions does yest allow this.
  *
  * So alternatively we check the *old* frame pointer position, that is, the
  * value stored in -16(s0) on entry, and the s0 on return.

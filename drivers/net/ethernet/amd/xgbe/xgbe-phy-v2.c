@@ -19,26 +19,26 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * along with this program.  If yest, see <http://www.gnu.org/licenses/>.
  *
  * This file incorporates work covered by the following copyright and
- * permission notice:
- *     The Synopsys DWC ETHER XGMAC Software Driver and documentation
- *     (hereinafter "Software") is an unsupported proprietary work of Synopsys,
- *     Inc. unless otherwise expressly agreed to in writing between Synopsys
+ * permission yestice:
+ *     The Syyespsys DWC ETHER XGMAC Software Driver and documentation
+ *     (hereinafter "Software") is an unsupported proprietary work of Syyespsys,
+ *     Inc. unless otherwise expressly agreed to in writing between Syyespsys
  *     and you.
  *
  *     The Software IS NOT an item of Licensed Software or Licensed Product
  *     under any End User Software License Agreement or Agreement for Licensed
- *     Product with Synopsys or any supplement thereto.  Permission is hereby
+ *     Product with Syyespsys or any supplement thereto.  Permission is hereby
  *     granted, free of charge, to any person obtaining a copy of this software
- *     annotated with this license and the Software, to deal in the Software
+ *     anyestated with this license and the Software, to deal in the Software
  *     without restriction, including without limitation the rights to use,
  *     copy, modify, merge, publish, distribute, sublicense, and/or sell copies
  *     of the Software, and to permit persons to whom the Software is furnished
  *     to do so, subject to the following conditions:
  *
- *     The above copyright notice and this permission notice shall be included
+ *     The above copyright yestice and this permission yestice shall be included
  *     in all copies or substantial portions of the Software.
  *
  *     THIS SOFTWARE IS BEING DISTRIBUTED BY SYNOPSYS SOLELY ON AN "AS IS"
@@ -62,11 +62,11 @@
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
  *     * Redistributions of source code must retain the above copyright
- *       notice, this list of conditions and the following disclaimer.
+ *       yestice, this list of conditions and the following disclaimer.
  *     * Redistributions in binary form must reproduce the above copyright
- *       notice, this list of conditions and the following disclaimer in the
+ *       yestice, this list of conditions and the following disclaimer in the
  *       documentation and/or other materials provided with the distribution.
- *     * Neither the name of Advanced Micro Devices, Inc. nor the
+ *     * Neither the name of Advanced Micro Devices, Inc. yesr the
  *       names of its contributors may be used to endorse or promote products
  *       derived from this software without specific prior written permission.
  *
@@ -82,23 +82,23 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  * This file incorporates work covered by the following copyright and
- * permission notice:
- *     The Synopsys DWC ETHER XGMAC Software Driver and documentation
- *     (hereinafter "Software") is an unsupported proprietary work of Synopsys,
- *     Inc. unless otherwise expressly agreed to in writing between Synopsys
+ * permission yestice:
+ *     The Syyespsys DWC ETHER XGMAC Software Driver and documentation
+ *     (hereinafter "Software") is an unsupported proprietary work of Syyespsys,
+ *     Inc. unless otherwise expressly agreed to in writing between Syyespsys
  *     and you.
  *
  *     The Software IS NOT an item of Licensed Software or Licensed Product
  *     under any End User Software License Agreement or Agreement for Licensed
- *     Product with Synopsys or any supplement thereto.  Permission is hereby
+ *     Product with Syyespsys or any supplement thereto.  Permission is hereby
  *     granted, free of charge, to any person obtaining a copy of this software
- *     annotated with this license and the Software, to deal in the Software
+ *     anyestated with this license and the Software, to deal in the Software
  *     without restriction, including without limitation the rights to use,
  *     copy, modify, merge, publish, distribute, sublicense, and/or sell copies
  *     of the Software, and to permit persons to whom the Software is furnished
  *     to do so, subject to the following conditions:
  *
- *     The above copyright notice and this permission notice shall be included
+ *     The above copyright yestice and this permission yestice shall be included
  *     in all copies or substantial portions of the Software.
  *
  *     THIS SOFTWARE IS BEING DISTRIBUTED BY SYNOPSYS SOLELY ON AN "AS IS"
@@ -286,9 +286,9 @@ struct xgbe_sfp_eeprom {
 struct xgbe_sfp_ascii {
 	union {
 		char vendor[XGBE_SFP_BASE_VENDOR_NAME_LEN + 1];
-		char partno[XGBE_SFP_BASE_VENDOR_PN_LEN + 1];
+		char partyes[XGBE_SFP_BASE_VENDOR_PN_LEN + 1];
 		char rev[XGBE_SFP_BASE_VENDOR_REV_LEN + 1];
-		char serno[XGBE_SFP_BASE_VENDOR_SN_LEN + 1];
+		char seryes[XGBE_SFP_BASE_VENDOR_SN_LEN + 1];
 	} u;
 };
 
@@ -377,7 +377,7 @@ struct xgbe_phy_data {
 	unsigned int redrv_model;
 
 	/* KR AN support */
-	unsigned int phy_cdr_notrack;
+	unsigned int phy_cdr_yestrack;
 	unsigned int phy_cdr_delay;
 };
 
@@ -519,7 +519,7 @@ static int xgbe_phy_sfp_put_mux(struct xgbe_prv_data *pdata)
 	if (phy_data->sfp_comm == XGBE_SFP_COMM_DIRECT)
 		return 0;
 
-	/* Select no mux channels */
+	/* Select yes mux channels */
 	mux_channel = 0;
 	i2c_op.cmd = XGBE_I2C_CMD_WRITE;
 	i2c_op.target = phy_data->sfp_mux_address;
@@ -1011,7 +1011,7 @@ static int xgbe_phy_find_phy_device(struct xgbe_prv_data *pdata)
 					    phy_data->phydev_mode);
 	if (ret) {
 		netdev_err(pdata->netdev,
-			   "mdio port/clause not compatible (%u/%u)\n",
+			   "mdio port/clause yest compatible (%u/%u)\n",
 			   phy_data->mdio_addr, phy_data->phydev_mode);
 		return ret;
 	}
@@ -1434,7 +1434,7 @@ static int xgbe_phy_module_eeprom(struct xgbe_prv_data *pdata,
 	sfp_eeprom = (struct xgbe_sfp_eeprom *)eeprom_data;
 
 	if (XGBE_SFP_DIAGS_SUPPORTED(sfp_eeprom)) {
-		/* Read the SFP diagnostic eeprom */
+		/* Read the SFP diagyesstic eeprom */
 		eeprom_addr = 0;
 		ret = xgbe_phy_i2c_read(pdata, XGBE_SFP_DIAG_INFO_ADDRESS,
 					&eeprom_addr, sizeof(eeprom_addr),
@@ -1543,7 +1543,7 @@ static enum xgbe_mode xgbe_phy_an37_sgmii_outcome(struct xgbe_prv_data *pdata)
 			XGBE_SET_LP_ADV(lks, 100baseT_Full);
 			mode = XGBE_MODE_SGMII_100;
 		} else {
-			/* Half-duplex not supported */
+			/* Half-duplex yest supported */
 			XGBE_SET_LP_ADV(lks, 100baseT_Half);
 			mode = XGBE_MODE_UNKNOWN;
 		}
@@ -1553,7 +1553,7 @@ static enum xgbe_mode xgbe_phy_an37_sgmii_outcome(struct xgbe_prv_data *pdata)
 			XGBE_SET_LP_ADV(lks, 1000baseT_Full);
 			mode = XGBE_MODE_SGMII_1000;
 		} else {
-			/* Half-duplex not supported */
+			/* Half-duplex yest supported */
 			XGBE_SET_LP_ADV(lks, 1000baseT_Half);
 			mode = XGBE_MODE_UNKNOWN;
 		}
@@ -1601,7 +1601,7 @@ static enum xgbe_mode xgbe_phy_an37_outcome(struct xgbe_prv_data *pdata)
 	if (lp_reg & 0x20)
 		XGBE_SET_LP_ADV(lks, 1000baseX_Full);
 
-	/* Half duplex is not supported */
+	/* Half duplex is yest supported */
 	ad_reg &= lp_reg;
 	mode = (ad_reg & 0x20) ? XGBE_MODE_X : XGBE_MODE_UNKNOWN;
 
@@ -1954,10 +1954,10 @@ static void xgbe_phy_perform_ratechange(struct xgbe_prv_data *pdata,
 	unsigned int s0 = 0;
 	unsigned int wait;
 
-	/* Log if a previous command did not complete */
+	/* Log if a previous command did yest complete */
 	if (XP_IOREAD_BITS(pdata, XP_DRIVER_INT_RO, STATUS))
 		netif_dbg(pdata, link, pdata->netdev,
-			  "firmware mailbox not ready for command\n");
+			  "firmware mailbox yest ready for command\n");
 
 	/* Construct the command */
 	XP_SET_BITS(s0, XP_DRIVER_SCRATCH_0, COMMAND, cmd);
@@ -1978,7 +1978,7 @@ static void xgbe_phy_perform_ratechange(struct xgbe_prv_data *pdata,
 	}
 
 	netif_dbg(pdata, link, pdata->netdev,
-		  "firmware mailbox command did not complete\n");
+		  "firmware mailbox command did yest complete\n");
 }
 
 static void xgbe_phy_rrc(struct xgbe_prv_data *pdata)
@@ -2119,7 +2119,7 @@ static enum xgbe_mode xgbe_phy_switch_baset_mode(struct xgbe_prv_data *pdata)
 {
 	struct xgbe_phy_data *phy_data = pdata->phy_data;
 
-	/* No switching if not 10GBase-T */
+	/* No switching if yest 10GBase-T */
 	if (phy_data->port_mode != XGBE_PORT_MODE_10GBASE_T)
 		return xgbe_phy_cur_mode(pdata);
 
@@ -2884,7 +2884,7 @@ static void xgbe_phy_cdr_track(struct xgbe_prv_data *pdata)
 	if (!pdata->debugfs_an_cdr_workaround)
 		return;
 
-	if (!phy_data->phy_cdr_notrack)
+	if (!phy_data->phy_cdr_yestrack)
 		return;
 
 	usleep_range(phy_data->phy_cdr_delay,
@@ -2894,17 +2894,17 @@ static void xgbe_phy_cdr_track(struct xgbe_prv_data *pdata)
 			 XGBE_PMA_CDR_TRACK_EN_MASK,
 			 XGBE_PMA_CDR_TRACK_EN_ON);
 
-	phy_data->phy_cdr_notrack = 0;
+	phy_data->phy_cdr_yestrack = 0;
 }
 
-static void xgbe_phy_cdr_notrack(struct xgbe_prv_data *pdata)
+static void xgbe_phy_cdr_yestrack(struct xgbe_prv_data *pdata)
 {
 	struct xgbe_phy_data *phy_data = pdata->phy_data;
 
 	if (!pdata->debugfs_an_cdr_workaround)
 		return;
 
-	if (phy_data->phy_cdr_notrack)
+	if (phy_data->phy_cdr_yestrack)
 		return;
 
 	XMDIO_WRITE_BITS(pdata, MDIO_MMD_PMAPMD, MDIO_VEND2_PMA_CDR_CONTROL,
@@ -2913,7 +2913,7 @@ static void xgbe_phy_cdr_notrack(struct xgbe_prv_data *pdata)
 
 	xgbe_phy_rrc(pdata);
 
-	phy_data->phy_cdr_notrack = 1;
+	phy_data->phy_cdr_yestrack = 1;
 }
 
 static void xgbe_phy_kr_training_post(struct xgbe_prv_data *pdata)
@@ -2967,7 +2967,7 @@ static void xgbe_phy_an_pre(struct xgbe_prv_data *pdata)
 		if (phy_data->cur_mode != XGBE_MODE_KR)
 			break;
 
-		xgbe_phy_cdr_notrack(pdata);
+		xgbe_phy_cdr_yestrack(pdata);
 		break;
 	default:
 		break;
@@ -3011,7 +3011,7 @@ static int xgbe_phy_start(struct xgbe_prv_data *pdata)
 						    XGBE_MDIO_MODE_CL22);
 		if (ret) {
 			netdev_err(pdata->netdev,
-				   "redriver mdio port not compatible (%u)\n",
+				   "redriver mdio port yest compatible (%u)\n",
 				   phy_data->redrv_addr);
 			return ret;
 		}
@@ -3084,7 +3084,7 @@ static int xgbe_phy_init(struct xgbe_prv_data *pdata)
 
 	/* Check if enabled */
 	if (!xgbe_phy_port_enabled(pdata)) {
-		dev_info(pdata->dev, "device is not enabled\n");
+		dev_info(pdata->dev, "device is yest enabled\n");
 		return -ENODEV;
 	}
 
@@ -3150,7 +3150,7 @@ static int xgbe_phy_init(struct xgbe_prv_data *pdata)
 	}
 	pdata->kr_redrv = phy_data->redrv;
 
-	/* Indicate current mode is unknown */
+	/* Indicate current mode is unkyeswn */
 	phy_data->cur_mode = XGBE_MODE_UNKNOWN;
 
 	/* Initialize supported features */
@@ -3310,7 +3310,7 @@ static int xgbe_phy_init(struct xgbe_prv_data *pdata)
 						    phy_data->phydev_mode);
 		if (ret) {
 			dev_err(pdata->dev,
-				"mdio port/clause not compatible (%d/%u)\n",
+				"mdio port/clause yest compatible (%d/%u)\n",
 				phy_data->mdio_addr, phy_data->phydev_mode);
 			return -EINVAL;
 		}
@@ -3321,7 +3321,7 @@ static int xgbe_phy_init(struct xgbe_prv_data *pdata)
 						    XGBE_MDIO_MODE_CL22);
 		if (ret) {
 			dev_err(pdata->dev,
-				"redriver mdio port not compatible (%u)\n",
+				"redriver mdio port yest compatible (%u)\n",
 				phy_data->redrv_addr);
 			return -EINVAL;
 		}

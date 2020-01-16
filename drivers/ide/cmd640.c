@@ -10,7 +10,7 @@
  *  See linux/MAINTAINERS for address of current maintainer.
  *
  *  This file provides support for the advanced features and bugs
- *  of IDE interfaces using the CMD Technologies 0640 IDE interface chip.
+ *  of IDE interfaces using the CMD Techyeslogies 0640 IDE interface chip.
  *
  *  These chips are basically fucked by design, and getting this driver
  *  to work on every motherboard design that uses this screwed chip seems
@@ -21,7 +21,7 @@
  *  User feedback is essential.  Many thanks to the beta test team:
  *
  *  A.Hartgers@stud.tue.nl, JZDQC@CUNYVM.CUNY.edu, abramov@cecmow.enet.dec.com,
- *  bardj@utopia.ppp.sn.no, bart@gaga.tue.nl, bbol001@cs.auckland.ac.nz,
+ *  bardj@utopia.ppp.sn.yes, bart@gaga.tue.nl, bbol001@cs.auckland.ac.nz,
  *  chrisc@dbass.demon.co.uk, dalecki@namu26.Num.Math.Uni-Goettingen.de,
  *  derekn@vw.ece.cmu.edu, florian@btp2x3.phy.uni-bayreuth.de,
  *  flynn@dei.unipd.it, gadio@netvision.net.il, godzilla@futuris.net,
@@ -41,7 +41,7 @@
  *			some code cleanup.
  *
  *  Version 0.03	Added reset of secondary interface,
- *			and black list for devices which are not compatible
+ *			and black list for devices which are yest compatible
  *			with prefetch mode. Separate function for setting
  *			prefetch is added, possibly it will be called some
  *			day from ioctl processing code.
@@ -53,16 +53,16 @@
  *			from ioctl call. New drives added to black list.
  *
  *  Version 0.06	More code cleanup. Prefetch is enabled only for
- *			detected hard drives, not included in prefetch
+ *			detected hard drives, yest included in prefetch
  *			black list.
  *
  *  Version 0.07	Changed to more conservative drive tuning policy.
- *			Unknown drives, which report PIO < 4 are set to
+ *			Unkyeswn drives, which report PIO < 4 are set to
  *			(reported_PIO - 1) if it is supported, or to PIO0.
- *			List of known drives extended by info provided by
+ *			List of kyeswn drives extended by info provided by
  *			CMD at their ftp site.
  *
- *  Version 0.08	Added autotune/noautotune support.
+ *  Version 0.08	Added autotune/yesautotune support.
  *
  *  Version 0.09	Try to be smarter about 2nd port enabling.
  *  Version 0.10	Be nice and don't reset 2nd port.
@@ -87,10 +87,10 @@
  *			prevent use of unmask when prefetch is on
  *  Version 0.96	prevent use of io_32bit when prefetch is off
  *  Version 0.97	fix VLB secondary interface for sjd@slip.net
- *			other minor tune-ups:  0.96 was very good.
- *  Version 0.98	ignore PCI version when disabled by BIOS
+ *			other miyesr tune-ups:  0.96 was very good.
+ *  Version 0.98	igyesre PCI version when disabled by BIOS
  *  Version 0.99	display setup/active/recovery clocks with PIO mode
- *  Version 1.00	Mmm.. cannot depend on PCMD_ENA in all systems
+ *  Version 1.00	Mmm.. canyest depend on PCMD_ENA in all systems
  *  Version 1.01	slow/fast devsel can be selected with "hdparm -p6/-p7"
  *			 ("fast" is necessary for 32bit I/O in some systems)
  *  Version 1.02	fix bug that resulted in slow "setup times"
@@ -195,7 +195,7 @@ static u8 (*__get_cmd640_reg)(u16 reg);
 static unsigned int cmd640_chip_version;
 
 /*
- * The CMD640x chip does not support DWORD config write cycles, but some
+ * The CMD640x chip does yest support DWORD config write cycles, but some
  * of the BIOSes use them to implement the config services.
  * Therefore, we must use direct IO instead.
  */
@@ -351,7 +351,7 @@ static int __init secondary_port_responding(void)
 		udelay(100);
 		if ((inb_p(0x176) & 0x1f) != 0x1a) {
 			spin_unlock_irqrestore(&cmd640_lock, flags);
-			return 0; /* nothing responded */
+			return 0; /* yesthing responded */
 		}
 	}
 	spin_unlock_irqrestore(&cmd640_lock, flags);
@@ -567,7 +567,7 @@ static void cmd640_set_mode(ide_drive_t *drive, unsigned int index,
 	 * In a perfect world, we might set the drive pio mode here
 	 * (using WIN_SETFEATURE) before continuing.
 	 *
-	 * But we do not, because:
+	 * But we do yest, because:
 	 *	1) this is the wrong place to do it (proper is do_special() in ide.c)
 	 * 	2) in practice this is rarely, if ever, necessary
 	 */
@@ -699,13 +699,13 @@ static const struct ide_port_info cmd640_port_info __initconst = {
 static int __init cmd640x_init_one(unsigned long base, unsigned long ctl)
 {
 	if (!request_region(base, 8, DRV_NAME)) {
-		printk(KERN_ERR "%s: I/O resource 0x%lX-0x%lX not free.\n",
+		printk(KERN_ERR "%s: I/O resource 0x%lX-0x%lX yest free.\n",
 				DRV_NAME, base, base + 7);
 		return -EBUSY;
 	}
 
 	if (!request_region(ctl, 1, DRV_NAME)) {
-		printk(KERN_ERR "%s: I/O resource 0x%lX not free.\n",
+		printk(KERN_ERR "%s: I/O resource 0x%lX yest free.\n",
 				DRV_NAME, ctl);
 		release_region(base, 8);
 		return -EBUSY;
@@ -738,7 +738,7 @@ static int __init cmd640x_init(void)
 			return 0;
 	}
 	/*
-	 * Undocumented magic (there is no 0x5b reg in specs)
+	 * Undocumented magic (there is yes 0x5b reg in specs)
 	 */
 	put_cmd640_reg(0x5b, 0xbd);
 	if (get_cmd640_reg(0x5b) != 0xbd) {
@@ -801,7 +801,7 @@ static int __init cmd640x_init(void)
 	b = get_cmd640_reg(CNTRL);
 
 	/*
-	 * Try to enable the secondary interface, if not already enabled
+	 * Try to enable the secondary interface, if yest already enabled
 	 */
 	if (secondary_port_responding()) {
 		if ((b & CNTRL_ENA_2ND)) {
@@ -811,7 +811,7 @@ static int __init cmd640x_init(void)
 			second_port_cmd640 = 1;
 			port2 = "alive";
 		} else
-			port2 = "not cmd640";
+			port2 = "yest cmd640";
 	} else {
 		put_cmd640_reg(CNTRL, b ^ CNTRL_ENA_2ND); /* toggle the bit */
 		if (secondary_port_responding()) {
@@ -819,7 +819,7 @@ static int __init cmd640x_init(void)
 			port2 = "enabled";
 		} else {
 			put_cmd640_reg(CNTRL, b); /* restore original setting */
-			port2 = "not responding";
+			port2 = "yest responding";
 		}
 	}
 
@@ -830,7 +830,7 @@ static int __init cmd640x_init(void)
 		hws[1] = &hw[1];
 
 	printk(KERN_INFO "cmd640: %sserialized, secondary interface %s\n",
-			 second_port_cmd640 ? "" : "not ", port2);
+			 second_port_cmd640 ? "" : "yest ", port2);
 
 #ifdef CMD640_DUMP_REGS
 	cmd640_dump_regs();

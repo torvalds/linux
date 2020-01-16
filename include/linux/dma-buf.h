@@ -66,7 +66,7 @@ struct dma_buf_ops {
 	 *
 	 * The exporter should also in general check whether the current
 	 * allocation fullfills the DMA constraints of the new device. If this
-	 * is not the case, and the allocation cannot be moved, it should also
+	 * is yest the case, and the allocation canyest be moved, it should also
 	 * fail the attach operation.
 	 *
 	 * Any exporter-private housekeeping data can be stored in the
@@ -99,7 +99,7 @@ struct dma_buf_ops {
 	 * This is called by dma_buf_map_attachment() and is used to map a
 	 * shared &dma_buf into device address space, and it is mandatory. It
 	 * can only be called if @attach has been called successfully. This
-	 * essentially pins the DMA buffer into place, and it cannot be moved
+	 * essentially pins the DMA buffer into place, and it canyest be moved
 	 * any more
 	 *
 	 * This call may sleep, e.g. when the backing storage first needs to be
@@ -111,7 +111,7 @@ struct dma_buf_ops {
 	 * &device.dma_params from the &dma_buf_attachment. The @attach callback
 	 * should also check these constraints.
 	 *
-	 * If this is being called for the first time, the exporter can now
+	 * If this is being called for the first time, the exporter can yesw
 	 * choose to scan through the list of attachments for this buffer,
 	 * collate the requirements of the attached devices, and choose an
 	 * appropriate backing storage for the buffer.
@@ -181,7 +181,7 @@ struct dma_buf_ops {
 	 * de-factor mlock rights to userspace) and for the kernel-internal
 	 * users of the various kmap interfaces, where the backing storage must
 	 * be pinned to guarantee that the atomic kmap calls can succeed. Since
-	 * there's no in-kernel users of the kmap interfaces yet this isn't a
+	 * there's yes in-kernel users of the kmap interfaces yet this isn't a
 	 * real problem.
 	 *
 	 * Returns:
@@ -222,15 +222,15 @@ struct dma_buf_ops {
 	 *
 	 * Because dma-buf buffers have invariant size over their lifetime, the
 	 * dma-buf core checks whether a vma is too large and rejects such
-	 * mappings. The exporter hence does not need to duplicate this check.
-	 * Drivers do not need to check this themselves.
+	 * mappings. The exporter hence does yest need to duplicate this check.
+	 * Drivers do yest need to check this themselves.
 	 *
 	 * If an exporter needs to manually flush caches and hence needs to fake
 	 * coherency for mmap support, it needs to be able to zap all the ptes
 	 * pointing at the backing storage. Now linux mm needs a struct
 	 * address_space associated with the struct file stored in vma->vm_file
 	 * to do that with the function unmap_mapping_range. But the dma_buf
-	 * framework only backs every dma_buf fd with the anon_file struct file,
+	 * framework only backs every dma_buf fd with the ayesn_file struct file,
 	 * i.e. all dma_bufs share the same file.
 	 *
 	 * Hence exporters need to setup their own file (and address_space)
@@ -282,7 +282,7 @@ struct dma_buf_ops {
  * struct dma_buf - shared buffer object
  * @size: size of the buffer
  * @file: file pointer used for sharing buffers across, and for refcounting.
- * @attachments: list of dma_buf_attachment that denotes all devices attached,
+ * @attachments: list of dma_buf_attachment that deyestes all devices attached,
  *               protected by dma_resv lock.
  * @ops: dma_buf_ops associated with this buffer object.
  * @lock: used internally to serialize list manipulation, attach/detach and
@@ -294,7 +294,7 @@ struct dma_buf_ops {
  *        protected by @resv.
  * @owner: pointer to exporter module; used for refcounting when exporter is a
  *         kernel module.
- * @list_node: node for dma_buf accounting and debugging.
+ * @list_yesde: yesde for dma_buf accounting and debugging.
  * @priv: exporter specific private data for this buffer object.
  * @resv: reservation object linked to this dma-buf
  * @poll: for userspace poll support
@@ -302,7 +302,7 @@ struct dma_buf_ops {
  * @cb_shared: for userspace poll support
  *
  * This represents a shared buffer, created by calling dma_buf_export(). The
- * userspace representation is a normal file descriptor, which can be created by
+ * userspace representation is a yesrmal file descriptor, which can be created by
  * calling dma_buf_fd().
  *
  * Shared dma buffers are reference counted using dma_buf_put() and
@@ -321,7 +321,7 @@ struct dma_buf {
 	const char *exp_name;
 	const char *name;
 	struct module *owner;
-	struct list_head list_node;
+	struct list_head list_yesde;
 	void *priv;
 	struct dma_resv *resv;
 
@@ -340,7 +340,7 @@ struct dma_buf {
  * struct dma_buf_attachment - holds device-buffer attachment data
  * @dmabuf: buffer for this attachment.
  * @dev: device attached to the buffer.
- * @node: list of dma_buf_attachment, protected by dma_resv lock of the dmabuf.
+ * @yesde: list of dma_buf_attachment, protected by dma_resv lock of the dmabuf.
  * @sgt: cached mapping.
  * @dir: direction of cached mapping.
  * @priv: exporter specific attachment data.
@@ -359,7 +359,7 @@ struct dma_buf {
 struct dma_buf_attachment {
 	struct dma_buf *dmabuf;
 	struct device *dev;
-	struct list_head node;
+	struct list_head yesde;
 	struct sg_table *sgt;
 	enum dma_data_direction dir;
 	bool dynamic_mapping;
@@ -459,7 +459,7 @@ struct sg_table *dma_buf_map_attachment(struct dma_buf_attachment *,
 					enum dma_data_direction);
 void dma_buf_unmap_attachment(struct dma_buf_attachment *, struct sg_table *,
 				enum dma_data_direction);
-void dma_buf_move_notify(struct dma_buf *dma_buf);
+void dma_buf_move_yestify(struct dma_buf *dma_buf);
 int dma_buf_begin_cpu_access(struct dma_buf *dma_buf,
 			     enum dma_data_direction dir);
 int dma_buf_end_cpu_access(struct dma_buf *dma_buf,

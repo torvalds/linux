@@ -12,17 +12,17 @@ the device tree.
 
 Required properties:
 
-The scmi node with the following properties shall be under the /firmware/ node.
+The scmi yesde with the following properties shall be under the /firmware/ yesde.
 
 - compatible : shall be "arm,scmi"
 - mboxes: List of phandle and mailbox channel specifiers. It should contain
 	  exactly one or two mailboxes, one for transmitting messages("tx")
-	  and another optional for receiving the notifications("rx") if
+	  and ayesther optional for receiving the yestifications("rx") if
 	  supported.
 - shmem : List of phandle pointing to the shared memory(SHM) area as per
 	  generic mailbox client binding.
-- #address-cells : should be '1' if the device has sub-nodes, maps to
-	  protocol identifier for a given sub-node.
+- #address-cells : should be '1' if the device has sub-yesdes, maps to
+	  protocol identifier for a given sub-yesde.
 - #size-cells : should be '0' as 'reg' property doesn't have any size
 	  associated with it.
 
@@ -35,12 +35,12 @@ about the generic mailbox controller and client driver bindings.
 
 The mailbox is the only permitted method of calling the SCMI firmware.
 Mailbox doorbell is used as a mechanism to alert the presence of a
-messages and/or notification.
+messages and/or yestification.
 
-Each protocol supported shall have a sub-node with corresponding compatible
+Each protocol supported shall have a sub-yesde with corresponding compatible
 as described in the following sections. If the platform supports dedicated
 communication channel for a particular protocol, the 3 properties namely:
-mboxes, mbox-names and shmem shall be present in the sub-node corresponding
+mboxes, mbox-names and shmem shall be present in the sub-yesde corresponding
 to that protocol.
 
 Clock/Performance bindings for the clocks/OPPs based on SCMI Message Protocol
@@ -91,9 +91,9 @@ processors and SCP.
 
 The properties should follow the generic mmio-sram description found in [4]
 
-Each sub-node represents the reserved area for SCMI.
+Each sub-yesde represents the reserved area for SCMI.
 
-Required sub-node properties:
+Required sub-yesde properties:
 - reg : The base offset and size of the reserved area with the SRAM
 - compatible : should be "arm,scmi-shmem" for Non-secure SRAM based
 	       shared memory

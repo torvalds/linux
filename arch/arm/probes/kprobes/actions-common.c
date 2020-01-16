@@ -77,7 +77,7 @@ static void __kprobes simulate_ldm1_pc(probes_opcode_t insn,
 }
 
 static void __kprobes
-emulate_generic_r0_12_noflags(probes_opcode_t insn,
+emulate_generic_r0_12_yesflags(probes_opcode_t insn,
 	struct arch_probes_insn *asi, struct pt_regs *regs)
 {
 	register void *rregs asm("r1") = regs;
@@ -105,10 +105,10 @@ emulate_generic_r0_12_noflags(probes_opcode_t insn,
 }
 
 static void __kprobes
-emulate_generic_r2_14_noflags(probes_opcode_t insn,
+emulate_generic_r2_14_yesflags(probes_opcode_t insn,
 	struct arch_probes_insn *asi, struct pt_regs *regs)
 {
-	emulate_generic_r0_12_noflags(insn, asi,
+	emulate_generic_r0_12_yesflags(insn, asi,
 		(struct pt_regs *)(regs->uregs+2));
 }
 
@@ -116,7 +116,7 @@ static void __kprobes
 emulate_ldm_r3_15(probes_opcode_t insn,
 	struct arch_probes_insn *asi, struct pt_regs *regs)
 {
-	emulate_generic_r0_12_noflags(insn, asi,
+	emulate_generic_r0_12_yesflags(insn, asi,
 		(struct pt_regs *)(regs->uregs+3));
 	load_write_pc(regs->ARM_pc, regs);
 }
@@ -132,13 +132,13 @@ kprobe_decode_ldmstm(probes_opcode_t insn, struct arch_probes_insn *asi,
 
 	if (rn <= 12 && (reglist & 0xe000) == 0) {
 		/* Instruction only uses registers in the range R0..R12 */
-		handler = emulate_generic_r0_12_noflags;
+		handler = emulate_generic_r0_12_yesflags;
 
 	} else if (rn >= 2 && (reglist & 0x8003) == 0) {
 		/* Instruction only uses registers in the range R2..R14 */
 		rn -= 2;
 		reglist >>= 2;
-		handler = emulate_generic_r2_14_noflags;
+		handler = emulate_generic_r2_14_yesflags;
 
 	} else if (rn >= 3 && (reglist & 0x0007) == 0) {
 		/* Instruction only uses registers in the range R3..R15 */

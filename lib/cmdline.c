@@ -41,10 +41,10 @@ static int get_range(char **str, int *pint, int n)
  *	comma as well.
  *
  *	Return values:
- *	0 - no int in string
- *	1 - int found, no subsequent comma
+ *	0 - yes int in string
+ *	1 - int found, yes subsequent comma
  *	2 - int found including a subsequent comma
- *	3 - hyphen found to denote a range
+ *	3 - hyphen found to deyeste a range
  */
 
 int get_option(char **str, int *pint)
@@ -76,7 +76,7 @@ EXPORT_SYMBOL(get_option);
  *	This function parses a string containing a comma-separated
  *	list of integers, a hyphen-separated range of _positive_ integers,
  *	or a combination of both.  The parse halts when the array is
- *	full, or when no more numbers can be retrieved from the
+ *	full, or when yes more numbers can be retrieved from the
  *	string.
  *
  *	Return value is the character in the string which caused
@@ -165,7 +165,7 @@ unsigned long long memparse(const char *ptr, char **retptr)
 EXPORT_SYMBOL(memparse);
 
 /**
- *	parse_option_str - Parse a string and check an option is set or not
+ *	parse_option_str - Parse a string and check an option is set or yest
  *	@str: String to be parsed
  *	@option: option name
  *

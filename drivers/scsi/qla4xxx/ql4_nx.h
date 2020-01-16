@@ -14,7 +14,7 @@
 #define PHAN_INITIALIZE_FAILED		0xffff
 #define PHAN_INITIALIZE_COMPLETE	0xff01
 
-/* Host writes the following to notify that it has done the init-handshake */
+/* Host writes the following to yestify that it has done the init-handshake */
 #define PHAN_INITIALIZE_ACK		0xf00f
 #define PHAN_PEG_RCV_INITIALIZED	0xff01
 
@@ -829,7 +829,7 @@ struct crb_addr_pair {
 		.pci_int_reg    =	ISR_MSI_INT_TRIGGER(7) },       \
 }
 
-/* Magic number to let user know flash is programmed */
+/* Magic number to let user kyesw flash is programmed */
 #define	QLA82XX_BDINFO_MAGIC	0x12345678
 #define FW_SIZE_OFFSET		(0x3e840c)
 
@@ -885,7 +885,7 @@ struct crb_addr_pair {
 					      * mismatch */
 
 /* Driver_code is for driver to write some info about the entry
- * currently not used.
+ * currently yest used.
  */
 struct qla8xxx_minidump_entry_hdr {
 	uint32_t entry_type;

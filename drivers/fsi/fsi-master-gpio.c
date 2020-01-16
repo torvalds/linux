@@ -30,7 +30,7 @@ struct fsi_master_gpio {
 	struct gpio_desc	*gpio_enable;	/* FSI enable */
 	struct gpio_desc	*gpio_mux;	/* Mux control */
 	bool			external_mode;
-	bool			no_delays;
+	bool			yes_delays;
 	uint32_t		last_addr;
 	uint8_t			t_send_delay;
 	uint8_t			t_echo_delay;
@@ -51,10 +51,10 @@ static void clock_toggle(struct fsi_master_gpio *master, int count)
 	int i;
 
 	for (i = 0; i < count; i++) {
-		if (!master->no_delays)
+		if (!master->yes_delays)
 			ndelay(FSI_GPIO_STD_DLY);
 		gpiod_set_value(master->gpio_clk, 0);
-		if (!master->no_delays)
+		if (!master->yes_delays)
 			ndelay(FSI_GPIO_STD_DLY);
 		gpiod_set_value(master->gpio_clk, 1);
 	}
@@ -64,7 +64,7 @@ static int sda_clock_in(struct fsi_master_gpio *master)
 {
 	int in;
 
-	if (!master->no_delays)
+	if (!master->yes_delays)
 		ndelay(FSI_GPIO_STD_DLY);
 	gpiod_set_value(master->gpio_clk, 0);
 
@@ -73,7 +73,7 @@ static int sda_clock_in(struct fsi_master_gpio *master)
 
 	/* Actual data read */
 	in = gpiod_get_value(master->gpio_data);
-	if (!master->no_delays)
+	if (!master->yes_delays)
 		ndelay(FSI_GPIO_STD_DLY);
 	gpiod_set_value(master->gpio_clk, 1);
 	return in ? 1 : 0;
@@ -173,7 +173,7 @@ static void msg_push_crc(struct fsi_gpio_msg *msg)
 
 	top = msg->bits & 0x3;
 
-	/* start bit, and any non-aligned top bits */
+	/* start bit, and any yesn-aligned top bits */
 	crc = crc4(0, 1 << top | msg->msg >> (msg->bits - top), top + 1);
 
 	/* aligned bits */
@@ -208,7 +208,7 @@ static bool check_relative_address(struct fsi_master_gpio *master, int id,
 	/* remove the top two bits from any 23-bit addressing */
 	last_addr &= (1 << 21) - 1;
 
-	/* We know that the addresses are limited to 21 bits, so this won't
+	/* We kyesw that the addresses are limited to 21 bits, so this won't
 	 * overflow the signed rel_addr */
 	rel_addr = addr - last_addr;
 	if (rel_addr > 255 || rel_addr < -256)
@@ -374,7 +374,7 @@ static int read_one_response(struct fsi_master_gpio *master,
 
 	local_irq_restore(flags);
 
-	/* we have a whole message now; check CRC */
+	/* we have a whole message yesw; check CRC */
 	crc = crc4(0, 1, 1);
 	crc = crc4(crc, msg.msg, msg.bits);
 	if (crc) {
@@ -474,7 +474,7 @@ retry:
 	case FSI_RESP_BUSY:
 		/*
 		 * Its necessary to clock slave before issuing
-		 * d-poll, not indicated in the hardware protocol
+		 * d-poll, yest indicated in the hardware protocol
 		 * spec. < 20 clocks causes slave to hang, 21 ok.
 		 */
 		if (busy_count++ < FSI_MASTER_MAX_BUSY) {
@@ -762,7 +762,7 @@ static void fsi_master_gpio_release(struct device *dev)
 {
 	struct fsi_master_gpio *master = to_fsi_master_gpio(dev_to_fsi_master(dev));
 
-	of_node_put(dev_of_node(master->dev));
+	of_yesde_put(dev_of_yesde(master->dev));
 
 	kfree(master);
 }
@@ -779,7 +779,7 @@ static int fsi_master_gpio_probe(struct platform_device *pdev)
 
 	master->dev = &pdev->dev;
 	master->master.dev.parent = master->dev;
-	master->master.dev.of_node = of_node_get(dev_of_node(master->dev));
+	master->master.dev.of_yesde = of_yesde_get(dev_of_yesde(master->dev));
 	master->master.dev.release = fsi_master_gpio_release;
 	master->last_addr = LAST_ADDR_INVALID;
 
@@ -825,11 +825,11 @@ static int fsi_master_gpio_probe(struct platform_device *pdev)
 	master->gpio_mux = gpio;
 
 	/*
-	 * Check if GPIO block is slow enought that no extra delays
+	 * Check if GPIO block is slow eyesught that yes extra delays
 	 * are necessary. This improves performance on ast2500 by
 	 * an order of magnitude.
 	 */
-	master->no_delays = device_property_present(&pdev->dev, "no-gpio-delays");
+	master->yes_delays = device_property_present(&pdev->dev, "yes-gpio-delays");
 
 	/* Default FSI command delays */
 	master->t_send_delay = FSI_SEND_DELAY_CLOCKS;

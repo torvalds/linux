@@ -4,7 +4,7 @@
 
 #ifndef __ASSEMBLY__
 
-/* The synchronize caches instruction executes as a nop on systems in
+/* The synchronize caches instruction executes as a yesp on systems in
    which all memory references are performed in order. */
 #define synchronize_caches() __asm__ __volatile__ ("sync" : : : "memory")
 

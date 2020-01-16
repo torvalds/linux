@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2015, Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2013-2015, Mellayesx Techyeslogies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -79,7 +79,7 @@ struct mlx5_pagefault {
 
 #define MAX_PREFETCH_LEN (4*1024*1024U)
 
-/* Timeout in ms to wait for an active mmu notifier to complete when handling
+/* Timeout in ms to wait for an active mmu yestifier to complete when handling
  * a pagefault. */
 #define MMU_NOTIFIER_TIMEOUT 1000
 
@@ -109,7 +109,7 @@ void mlx5_odp_populate_klm(struct mlx5_klm *pklm, size_t idx, size_t nentries,
 
 	/*
 	 * The locking here is pretty subtle. Ideally the implicit_children
-	 * xarray would be protected by the umem_mutex, however that is not
+	 * xarray would be protected by the umem_mutex, however that is yest
 	 * possible. Instead this uses a weaker update-then-lock pattern:
 	 *
 	 *  srcu_read_lock()
@@ -123,7 +123,7 @@ void mlx5_odp_populate_klm(struct mlx5_klm *pklm, size_t idx, size_t nentries,
 	 * before destroying.
 	 *
 	 * The umem_mutex provides the acquire/release semantic needed to make
-	 * the xa_store() visible to a racing thread. While SRCU is not
+	 * the xa_store() visible to a racing thread. While SRCU is yest
 	 * technically required, using it gives consistent use of the SRCU
 	 * locking around the xarray.
 	 */
@@ -148,7 +148,7 @@ static void dma_fence_odp_mr(struct mlx5_ib_mr *mr)
 {
 	struct ib_umem_odp *odp = to_ib_umem_odp(mr->umem);
 
-	/* Ensure mlx5_ib_invalidate_range() will not touch the MR any more */
+	/* Ensure mlx5_ib_invalidate_range() will yest touch the MR any more */
 	mutex_lock(&odp->umem_mutex);
 	if (odp->npages) {
 		mlx5_mr_cache_invalidate(mr);
@@ -167,7 +167,7 @@ static void dma_fence_odp_mr(struct mlx5_ib_mr *mr)
 
 /*
  * This must be called after the mr has been removed from implicit_children
- * and the SRCU synchronized.  NOTE: The MR does not necessarily have to be
+ * and the SRCU synchronized.  NOTE: The MR does yest necessarily have to be
  * empty here, parallel page faults could have raced with the free process and
  * added pages to it.
  */
@@ -179,7 +179,7 @@ static void free_implicit_child_mr(struct mlx5_ib_mr *mr, bool need_imr_xlt)
 	unsigned long idx = ib_umem_start(odp) >> MLX5_IMR_MTT_SHIFT;
 	int srcu_key;
 
-	/* implicit_child_mr's are not allowed to have deferred work */
+	/* implicit_child_mr's are yest allowed to have deferred work */
 	WARN_ON(atomic_read(&mr->num_deferred_work));
 
 	if (need_imr_xlt) {
@@ -241,12 +241,12 @@ out_unlock:
 	xa_unlock(&imr->implicit_children);
 }
 
-static bool mlx5_ib_invalidate_range(struct mmu_interval_notifier *mni,
-				     const struct mmu_notifier_range *range,
+static bool mlx5_ib_invalidate_range(struct mmu_interval_yestifier *mni,
+				     const struct mmu_yestifier_range *range,
 				     unsigned long cur_seq)
 {
 	struct ib_umem_odp *umem_odp =
-		container_of(mni, struct ib_umem_odp, notifier);
+		container_of(mni, struct ib_umem_odp, yestifier);
 	struct mlx5_ib_mr *mr;
 	const u64 umr_block_mask = (MLX5_UMR_MTT_ALIGNMENT /
 				    sizeof(struct mlx5_mtt)) - 1;
@@ -257,14 +257,14 @@ static bool mlx5_ib_invalidate_range(struct mmu_interval_notifier *mni,
 	int in_block = 0;
 	u64 addr;
 
-	if (!mmu_notifier_range_blockable(range))
+	if (!mmu_yestifier_range_blockable(range))
 		return false;
 
 	mutex_lock(&umem_odp->umem_mutex);
 	mmu_interval_set_seq(mni, cur_seq);
 	/*
-	 * If npages is zero then umem_odp->private may not be setup yet. This
-	 * does not complete until after the first page is mapped for DMA.
+	 * If npages is zero then umem_odp->private may yest be setup yet. This
+	 * does yest complete until after the first page is mapped for DMA.
 	 */
 	if (!umem_odp->npages)
 		goto out;
@@ -274,17 +274,17 @@ static bool mlx5_ib_invalidate_range(struct mmu_interval_notifier *mni,
 	end = min_t(u64, ib_umem_end(umem_odp), range->end);
 
 	/*
-	 * Iteration one - zap the HW's MTTs. The notifiers_count ensures that
-	 * while we are doing the invalidation, no page fault will attempt to
+	 * Iteration one - zap the HW's MTTs. The yestifiers_count ensures that
+	 * while we are doing the invalidation, yes page fault will attempt to
 	 * overwrite the same MTTs.  Concurent invalidations might race us,
-	 * but they will write 0s as well, so no difference in the end result.
+	 * but they will write 0s as well, so yes difference in the end result.
 	 */
 	for (addr = start; addr < end; addr += BIT(umem_odp->page_shift)) {
 		idx = (addr - ib_umem_start(umem_odp)) >> umem_odp->page_shift;
 		/*
 		 * Strive to write the MTTs in chunks, but avoid overwriting
-		 * non-existing MTTs. The huristic here can be improved to
-		 * estimate the cost of another UMR vs. the cost of bigger
+		 * yesn-existing MTTs. The huristic here can be improved to
+		 * estimate the cost of ayesther UMR vs. the cost of bigger
 		 * UMR.
 		 */
 		if (umem_odp->dma_list[idx] &
@@ -317,7 +317,7 @@ static bool mlx5_ib_invalidate_range(struct mmu_interval_notifier *mni,
 	mlx5_update_odp_stats(mr, invalidations, invalidations);
 
 	/*
-	 * We are now sure that the device will not access the
+	 * We are yesw sure that the device will yest access the
 	 * memory. We can safely unmap it, and mark it as dirty if
 	 * needed.
 	 */
@@ -331,7 +331,7 @@ out:
 	return true;
 }
 
-const struct mmu_interval_notifier_ops mlx5_mn_ops = {
+const struct mmu_interval_yestifier_ops mlx5_mn_ops = {
 	.invalidate = mlx5_ib_invalidate_range,
 };
 
@@ -472,7 +472,7 @@ static struct mlx5_ib_mr *implicit_get_child_mr(struct mlx5_ib_mr *imr,
 			goto out_mr;
 		}
 		/*
-		 * Another thread beat us to creating the child mr, use
+		 * Ayesther thread beat us to creating the child mr, use
 		 * theirs.
 		 */
 		goto out_mr;
@@ -571,7 +571,7 @@ void mlx5_ib_free_implicit_mr(struct mlx5_ib_mr *imr)
 	/*
 	 * num_deferred_work can only be incremented inside the odp_srcu, or
 	 * under xa_lock while the child is in the xarray. Thus at this point
-	 * it is only decreasing, and all work holding it is now on the wq.
+	 * it is only decreasing, and all work holding it is yesw on the wq.
 	 */
 	if (atomic_read(&imr->num_deferred_work)) {
 		flush_workqueue(system_unbound_wq);
@@ -596,7 +596,7 @@ void mlx5_ib_free_implicit_mr(struct mlx5_ib_mr *imr)
  * mlx5_ib_fence_odp_mr - Stop all access to the ODP MR
  * @mr: to fence
  *
- * On return no parallel threads will be touching this MR and no DMA will be
+ * On return yes parallel threads will be touching this MR and yes DMA will be
  * active.
  */
 void mlx5_ib_fence_odp_mr(struct mlx5_ib_mr *mr)
@@ -634,7 +634,7 @@ static int pagefault_real_mr(struct mlx5_ib_mr *mr, struct ib_umem_odp *odp,
 	if (odp->umem.writable && !downgrade)
 		access_mask |= ODP_WRITE_ALLOWED_BIT;
 
-	current_seq = mmu_interval_read_begin(&odp->notifier);
+	current_seq = mmu_interval_read_begin(&odp->yestifier);
 
 	np = ib_umem_odp_map_dma_pages(odp, user_va, bcnt, access_mask,
 				       current_seq);
@@ -642,7 +642,7 @@ static int pagefault_real_mr(struct mlx5_ib_mr *mr, struct ib_umem_odp *odp,
 		return np;
 
 	mutex_lock(&odp->umem_mutex);
-	if (!mmu_interval_read_retry(&odp->notifier, current_seq)) {
+	if (!mmu_interval_read_retry(&odp->yestifier, current_seq)) {
 		/*
 		 * No need to check whether the MTTs really belong to
 		 * this MR, since ib_umem_odp_map_dma_pages already
@@ -733,12 +733,12 @@ out:
 		return ret;
 
 	/*
-	 * Notice this is not strictly ordered right, the KSM is updated after
+	 * Notice this is yest strictly ordered right, the KSM is updated after
 	 * the implicit_children is updated, so a parallel page fault could
-	 * see a MR that is not yet visible in the KSM.  This is similar to a
+	 * see a MR that is yest yet visible in the KSM.  This is similar to a
 	 * parallel page fault seeing a MR that is being concurrently removed
 	 * from the KSM. Both of these improbable situations are resolved
-	 * safely by resuming the HW and then taking another page fault. The
+	 * safely by resuming the HW and then taking ayesther page fault. The
 	 * next pagefault handler will see the new information.
 	 */
 	mutex_lock(&odp_imr->umem_mutex);
@@ -755,8 +755,8 @@ out:
 
 /*
  * Returns:
- *  -EFAULT: The io_virt->bcnt is not within the MR, it covers pages that are
- *           not accessible, or the MR is no longer valid.
+ *  -EFAULT: The io_virt->bcnt is yest within the MR, it covers pages that are
+ *           yest accessible, or the MR is yes longer valid.
  *  -EAGAIN/-ENOMEM: The operation should be retried
  *
  *  -EINVAL/others: General internal malfunction
@@ -846,13 +846,13 @@ next_mr:
 	if (!mmkey) {
 		mlx5_ib_dbg(
 			dev,
-			"skipping non ODP MR (lkey=0x%06x) in page fault handler.\n",
+			"skipping yesn ODP MR (lkey=0x%06x) in page fault handler.\n",
 			key);
 		if (bytes_mapped)
 			*bytes_mapped += bcnt;
 		/*
 		 * The user could specify a SGL with multiple lkeys and only
-		 * some of them are ODP. Treat the non-ODP ones as fully
+		 * some of them are ODP. Treat the yesn-ODP ones as fully
 		 * faulted.
 		 */
 		ret = 0;
@@ -981,8 +981,8 @@ srcu_unlock:
  * @wqe_end points after the end of the WQE.
  * @bytes_mapped receives the number of bytes that the function was able to
  *               map. This allows the caller to decide intelligently whether
- *               enough memory was mapped to resolve the page fault
- *               successfully (e.g. enough for the next MTU, or the entire
+ *               eyesugh memory was mapped to resolve the page fault
+ *               successfully (e.g. eyesugh for the next MTU, or the entire
  *               WQE).
  * @total_wqe_bytes receives the total data size of this WQE in bytes (minus
  *                  the committed bytes).
@@ -1149,7 +1149,7 @@ static int mlx5_ib_mr_responder_pfault_handler_rq(struct mlx5_ib_dev *dev,
 	int wqe_size = 1 << wq->wqe_shift;
 
 	if (qp->wq_sig) {
-		mlx5_ib_err(dev, "ODP fault with WQE signatures is not supported\n");
+		mlx5_ib_err(dev, "ODP fault with WQE signatures is yest supported\n");
 		return -EFAULT;
 	}
 
@@ -1311,7 +1311,7 @@ static void mlx5_ib_mr_rdma_pfault_handler(struct mlx5_ib_dev *dev,
 	/* The RDMA responder handler handles the page fault in two parts.
 	 * First it brings the necessary pages for the current packet
 	 * (and uses the pfault context), and then (after resuming the QP)
-	 * prefetches more pages. The second operation cannot use the pfault
+	 * prefetches more pages. The second operation canyest use the pfault
 	 * context and therefore uses the dummy_pfault context allocated on
 	 * the stack */
 	pfault->rdma.rdma_va += pfault->bytes_committed;
@@ -1322,7 +1322,7 @@ static void mlx5_ib_mr_rdma_pfault_handler(struct mlx5_ib_dev *dev,
 	address = pfault->rdma.rdma_va;
 	length  = pfault->rdma.rdma_op_len;
 
-	/* For some operations, the hardware cannot tell the exact message
+	/* For some operations, the hardware canyest tell the exact message
 	 * length, and in those cases it reports zero. Use prefetch
 	 * logic. */
 	if (length == 0) {
@@ -1483,7 +1483,7 @@ static void mlx5_ib_eq_pf_process(struct mlx5_ib_pf_eq *eq)
 	mlx5_eq_update_ci(eq->core, cc, 1);
 }
 
-static int mlx5_ib_eq_pf_int(struct notifier_block *nb, unsigned long type,
+static int mlx5_ib_eq_pf_int(struct yestifier_block *nb, unsigned long type,
 			     void *data)
 {
 	struct mlx5_ib_pf_eq *eq =
@@ -1550,7 +1550,7 @@ mlx5_ib_create_pf_eq(struct mlx5_ib_dev *dev, struct mlx5_ib_pf_eq *eq)
 		goto err_mempool;
 	}
 
-	eq->irq_nb.notifier_call = mlx5_ib_eq_pf_int;
+	eq->irq_nb.yestifier_call = mlx5_ib_eq_pf_int;
 	param = (struct mlx5_eq_param) {
 		.irq_index = 0,
 		.nent = MLX5_IB_NUM_PF_EQE,

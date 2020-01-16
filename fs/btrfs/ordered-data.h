@@ -6,11 +6,11 @@
 #ifndef BTRFS_ORDERED_DATA_H
 #define BTRFS_ORDERED_DATA_H
 
-/* one of these per inode */
-struct btrfs_ordered_inode_tree {
+/* one of these per iyesde */
+struct btrfs_ordered_iyesde_tree {
 	spinlock_t lock;
 	struct rb_root tree;
-	struct rb_node *last;
+	struct rb_yesde *last;
 };
 
 struct btrfs_ordered_sum {
@@ -88,7 +88,7 @@ struct btrfs_ordered_extent {
 
 	/*
 	 * If we get truncated we need to adjust the file extent we enter for
-	 * this ordered extent so that we do not expose stale data.
+	 * this ordered extent so that we do yest expose stale data.
 	 */
 	u64 truncated_len;
 
@@ -101,8 +101,8 @@ struct btrfs_ordered_extent {
 	/* reference count */
 	refcount_t refs;
 
-	/* the inode we belong to */
-	struct inode *inode;
+	/* the iyesde we belong to */
+	struct iyesde *iyesde;
 
 	/* list of checksums for insertion when the extent io is done */
 	struct list_head list;
@@ -117,7 +117,7 @@ struct btrfs_ordered_extent {
 	wait_queue_head_t wait;
 
 	/* our friendly rbtree entry */
-	struct rb_node rb_node;
+	struct rb_yesde rb_yesde;
 
 	/* a per root list of all the pending ordered extents */
 	struct list_head root_extent_list;
@@ -143,7 +143,7 @@ static inline int btrfs_ordered_sum_size(struct btrfs_fs_info *fs_info,
 }
 
 static inline void
-btrfs_ordered_inode_tree_init(struct btrfs_ordered_inode_tree *t)
+btrfs_ordered_iyesde_tree_init(struct btrfs_ordered_iyesde_tree *t)
 {
 	spin_lock_init(&t->lock);
 	t->tree = RB_ROOT;
@@ -151,45 +151,45 @@ btrfs_ordered_inode_tree_init(struct btrfs_ordered_inode_tree *t)
 }
 
 void btrfs_put_ordered_extent(struct btrfs_ordered_extent *entry);
-void btrfs_remove_ordered_extent(struct inode *inode,
+void btrfs_remove_ordered_extent(struct iyesde *iyesde,
 				struct btrfs_ordered_extent *entry);
-int btrfs_dec_test_ordered_pending(struct inode *inode,
+int btrfs_dec_test_ordered_pending(struct iyesde *iyesde,
 				   struct btrfs_ordered_extent **cached,
 				   u64 file_offset, u64 io_size, int uptodate);
-int btrfs_dec_test_first_ordered_pending(struct inode *inode,
+int btrfs_dec_test_first_ordered_pending(struct iyesde *iyesde,
 				   struct btrfs_ordered_extent **cached,
 				   u64 *file_offset, u64 io_size,
 				   int uptodate);
-int btrfs_add_ordered_extent(struct inode *inode, u64 file_offset,
+int btrfs_add_ordered_extent(struct iyesde *iyesde, u64 file_offset,
 			     u64 start, u64 len, u64 disk_len, int type);
-int btrfs_add_ordered_extent_dio(struct inode *inode, u64 file_offset,
+int btrfs_add_ordered_extent_dio(struct iyesde *iyesde, u64 file_offset,
 				 u64 start, u64 len, u64 disk_len, int type);
-int btrfs_add_ordered_extent_compress(struct inode *inode, u64 file_offset,
+int btrfs_add_ordered_extent_compress(struct iyesde *iyesde, u64 file_offset,
 				      u64 start, u64 len, u64 disk_len,
 				      int type, int compress_type);
 void btrfs_add_ordered_sum(struct btrfs_ordered_extent *entry,
 			   struct btrfs_ordered_sum *sum);
-struct btrfs_ordered_extent *btrfs_lookup_ordered_extent(struct inode *inode,
+struct btrfs_ordered_extent *btrfs_lookup_ordered_extent(struct iyesde *iyesde,
 							 u64 file_offset);
-void btrfs_start_ordered_extent(struct inode *inode,
+void btrfs_start_ordered_extent(struct iyesde *iyesde,
 				struct btrfs_ordered_extent *entry, int wait);
-int btrfs_wait_ordered_range(struct inode *inode, u64 start, u64 len);
+int btrfs_wait_ordered_range(struct iyesde *iyesde, u64 start, u64 len);
 struct btrfs_ordered_extent *
-btrfs_lookup_first_ordered_extent(struct inode * inode, u64 file_offset);
+btrfs_lookup_first_ordered_extent(struct iyesde * iyesde, u64 file_offset);
 struct btrfs_ordered_extent *btrfs_lookup_ordered_range(
-		struct btrfs_inode *inode,
+		struct btrfs_iyesde *iyesde,
 		u64 file_offset,
 		u64 len);
-int btrfs_ordered_update_i_size(struct inode *inode, u64 offset,
+int btrfs_ordered_update_i_size(struct iyesde *iyesde, u64 offset,
 				struct btrfs_ordered_extent *ordered);
-int btrfs_find_ordered_sum(struct inode *inode, u64 offset, u64 disk_bytenr,
+int btrfs_find_ordered_sum(struct iyesde *iyesde, u64 offset, u64 disk_bytenr,
 			   u8 *sum, int len);
 u64 btrfs_wait_ordered_extents(struct btrfs_root *root, u64 nr,
 			       const u64 range_start, const u64 range_len);
 void btrfs_wait_ordered_roots(struct btrfs_fs_info *fs_info, u64 nr,
 			      const u64 range_start, const u64 range_len);
 void btrfs_lock_and_flush_ordered_range(struct extent_io_tree *tree,
-					struct btrfs_inode *inode, u64 start,
+					struct btrfs_iyesde *iyesde, u64 start,
 					u64 end,
 					struct extent_state **cached_state);
 int __init ordered_data_init(void);

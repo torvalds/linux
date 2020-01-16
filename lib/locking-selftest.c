@@ -90,7 +90,7 @@ static DEFINE_RT_MUTEX(rtmutex_D);
  * Locks that we initialize dynamically as well so that
  * e.g. X1 and X2 becomes two instances of the same class,
  * but X* and Y* are different classes. We do this so that
- * we do not trigger a real lockup:
+ * we do yest trigger a real lockup:
  */
 static DEFINE_RAW_SPINLOCK(lock_X1);
 static DEFINE_RAW_SPINLOCK(lock_X2);
@@ -132,11 +132,11 @@ static DEFINE_RT_MUTEX(rtmutex_Z2);
 #endif
 
 /*
- * non-inlined runtime initializers, to let separate locks share
+ * yesn-inlined runtime initializers, to let separate locks share
  * the same lock-class:
  */
 #define INIT_CLASS_FUNC(class) 				\
-static noinline void					\
+static yesinline void					\
 init_class_##class(raw_spinlock_t *lock, rwlock_t *rwlock, \
 	struct mutex *mutex, struct rw_semaphore *rwsem)\
 {							\
@@ -337,7 +337,7 @@ static void rsem_AA1B(void)
 	RSL(X2); // this one should fail
 }
 /*
- * The mixing of read and write locks is not allowed:
+ * The mixing of read and write locks is yest allowed:
  */
 static void rlock_AA2(void)
 {
@@ -933,7 +933,7 @@ GENERATE_PERMUTATIONS_3_EVENTS(irqsafe4_soft_wlock)
  *
  * Deadlock scenario:
  *
- * CPU#1 is at #1, i.e. it has write-locked A, but has not
+ * CPU#1 is at #1, i.e. it has write-locked A, but has yest
  * taken B yet.
  *
  * CPU#2 is at #2, i.e. it has locked B.
@@ -1236,7 +1236,7 @@ static inline void print_testname(const char *testname)
 	pr_cont("\n");
 
 /*
- * 'read' variant: rlocks must not trigger.
+ * 'read' variant: rlocks must yest trigger.
  */
 #define DO_TESTCASE_6R(desc, name)				\
 	print_testname(desc);					\
@@ -1339,16 +1339,16 @@ static void ww_test_fail_acquire(void)
 #endif
 }
 
-static void ww_test_normal(void)
+static void ww_test_yesrmal(void)
 {
 	int ret;
 
 	WWAI(&t);
 
 	/*
-	 * None of the ww_mutex codepaths should be taken in the 'normal'
+	 * None of the ww_mutex codepaths should be taken in the 'yesrmal'
 	 * mutex calls. The easiest way to verify this is by using the
-	 * normal mutex calls, and making sure o.ctx is unmodified.
+	 * yesrmal mutex calls, and making sure o.ctx is unmodified.
 	 */
 
 	/* mutex_lock (and indirectly, mutex_lock_nested) */
@@ -1469,7 +1469,7 @@ static void ww_test_object_lock_stale_context(void)
 	WWL(&o, &t);
 }
 
-static void ww_test_edeadlk_normal(void)
+static void ww_test_edeadlk_yesrmal(void)
 {
 	int ret;
 
@@ -1495,7 +1495,7 @@ static void ww_test_edeadlk_normal(void)
 	WWL(&o2, &t);
 }
 
-static void ww_test_edeadlk_normal_slow(void)
+static void ww_test_edeadlk_yesrmal_slow(void)
 {
 	int ret;
 
@@ -1521,7 +1521,7 @@ static void ww_test_edeadlk_normal_slow(void)
 	ww_mutex_lock_slow(&o2, &t);
 }
 
-static void ww_test_edeadlk_no_unlock(void)
+static void ww_test_edeadlk_yes_unlock(void)
 {
 	int ret;
 
@@ -1546,7 +1546,7 @@ static void ww_test_edeadlk_no_unlock(void)
 	WWL(&o2, &t);
 }
 
-static void ww_test_edeadlk_no_unlock_slow(void)
+static void ww_test_edeadlk_yes_unlock_slow(void)
 {
 	int ret;
 
@@ -1898,7 +1898,7 @@ static void ww_tests(void)
 
 	print_testname("ww api failures");
 	dotest(ww_test_fail_acquire, SUCCESS, LOCKTYPE_WW);
-	dotest(ww_test_normal, SUCCESS, LOCKTYPE_WW);
+	dotest(ww_test_yesrmal, SUCCESS, LOCKTYPE_WW);
 	dotest(ww_test_unneeded_slow, FAILURE, LOCKTYPE_WW);
 	pr_cont("\n");
 
@@ -1921,10 +1921,10 @@ static void ww_tests(void)
 	pr_cont("\n");
 
 	print_testname("EDEADLK handling");
-	dotest(ww_test_edeadlk_normal, SUCCESS, LOCKTYPE_WW);
-	dotest(ww_test_edeadlk_normal_slow, SUCCESS, LOCKTYPE_WW);
-	dotest(ww_test_edeadlk_no_unlock, FAILURE, LOCKTYPE_WW);
-	dotest(ww_test_edeadlk_no_unlock_slow, FAILURE, LOCKTYPE_WW);
+	dotest(ww_test_edeadlk_yesrmal, SUCCESS, LOCKTYPE_WW);
+	dotest(ww_test_edeadlk_yesrmal_slow, SUCCESS, LOCKTYPE_WW);
+	dotest(ww_test_edeadlk_yes_unlock, FAILURE, LOCKTYPE_WW);
+	dotest(ww_test_edeadlk_yes_unlock_slow, FAILURE, LOCKTYPE_WW);
 	dotest(ww_test_edeadlk_acquire_more, FAILURE, LOCKTYPE_WW);
 	dotest(ww_test_edeadlk_acquire_more_slow, FAILURE, LOCKTYPE_WW);
 	dotest(ww_test_edeadlk_acquire_more_edeadlk, FAILURE, LOCKTYPE_WW);
@@ -2035,8 +2035,8 @@ void locking_selftest(void)
 	dotest(rlock_ABBA1, FAILURE, LOCKTYPE_RWLOCK);
 #ifdef CONFIG_PROVE_LOCKING
 	/*
-	 * Lockdep does indeed fail here, but there's nothing we can do about
-	 * that now.  Don't kill lockdep for it.
+	 * Lockdep does indeed fail here, but there's yesthing we can do about
+	 * that yesw.  Don't kill lockdep for it.
 	 */
 	unexpected_testcase_failures--;
 #endif

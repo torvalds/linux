@@ -43,10 +43,10 @@ Build the Linux kernel as usual::
 3) Running on FPGA (optional)
 
 The OpenRISC community typically uses FuseSoC to manage building and programming
-an SoC into an FPGA.  The below is an example of programming a De0 Nano
+an SoC into an FPGA.  The below is an example of programming a De0 Nayes
 development board with the OpenRISC SoC.  During the build FPGA RTL is code
 downloaded from the FuseSoC IP cores repository and built using the FPGA vendor
-tools.  Binaries are loaded onto the board with openocd.
+tools.  Binaries are loaded onto the board with opeyescd.
 
 ::
 
@@ -55,10 +55,10 @@ tools.  Binaries are loaded onto the board with openocd.
 	sudo pip install -e .
 
 	fusesoc init
-	fusesoc build de0_nano
-	fusesoc pgm de0_nano
+	fusesoc build de0_nayes
+	fusesoc pgm de0_nayes
 
-	openocd -f interface/altera-usb-blaster.cfg \
+	opeyescd -f interface/altera-usb-blaster.cfg \
 		-f board/or1k_generic.cfg
 
 	telnet localhost 4444
@@ -78,7 +78,7 @@ likely provides binary packages to support OpenRISC.
 
 ---------------------------------------------------------------------
 
-Terminology
+Termiyeslogy
 ===========
 
 In the code, the following particles are used on symbols to limit the scope

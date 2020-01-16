@@ -167,7 +167,7 @@ static int _dpu_plane_calc_fill_level(struct drm_plane *plane,
 			total_fl = (fixed_buff_size / 2) /
 				((src_width + 32) * fmt->bpp);
 		} else {
-			/* non NV12 */
+			/* yesn NV12 */
 			total_fl = (fixed_buff_size / 2) * 2 /
 				((src_width + 32) * fmt->bpp);
 		}
@@ -413,7 +413,7 @@ static void _dpu_plane_set_qos_remap(struct drm_plane *plane)
 	dpu_vbif_set_qos_remap(dpu_kms, &qos_params);
 }
 
-static void _dpu_plane_set_scanout(struct drm_plane *plane,
+static void _dpu_plane_set_scayesut(struct drm_plane *plane,
 		struct dpu_plane_state *pstate,
 		struct dpu_hw_pipe_cfg *pipe_cfg,
 		struct drm_framebuffer *fb)
@@ -425,11 +425,11 @@ static void _dpu_plane_set_scanout(struct drm_plane *plane,
 
 	ret = dpu_format_populate_layout(aspace, fb, &pipe_cfg->layout);
 	if (ret == -EAGAIN)
-		DPU_DEBUG_PLANE(pdpu, "not updating same src addrs\n");
+		DPU_DEBUG_PLANE(pdpu, "yest updating same src addrs\n");
 	else if (ret)
 		DPU_ERROR_PLANE(pdpu, "failed to get format layout, %d\n", ret);
 	else if (pdpu->pipe_hw->ops.setup_sourceaddress) {
-		trace_dpu_plane_set_scanout(pdpu->pipe_hw->idx,
+		trace_dpu_plane_set_scayesut(pdpu->pipe_hw->idx,
 					    &pipe_cfg->layout,
 					    pstate->multirect_index);
 		pdpu->pipe_hw->ops.setup_sourceaddress(pdpu->pipe_hw, pipe_cfg,
@@ -679,7 +679,7 @@ int dpu_plane_validate_multirect_v2(struct dpu_multirect_plane_states *plane)
 		if (drm_rect_calc_hscale(&src[i], &dst[i], 1, 1) != 1 ||
 		    drm_rect_calc_vscale(&src[i], &dst[i], 1, 1) != 1) {
 			DPU_ERROR_PLANE(dpu_plane[i],
-				"scaling is not supported in multirect mode\n");
+				"scaling is yest supported in multirect mode\n");
 			return -EINVAL;
 		}
 
@@ -693,7 +693,7 @@ int dpu_plane_validate_multirect_v2(struct dpu_multirect_plane_states *plane)
 		 * SSPP PD_MEM is split half - one for each RECT.
 		 * Tiled formats need 5 lines of buffering while fetching
 		 * whereas linear formats need only 2 lines.
-		 * So we cannot support more than half of the supported SSPP
+		 * So we canyest support more than half of the supported SSPP
 		 * width for tiled formats.
 		 */
 		width_threshold = dpu_plane[i]->pipe_sblk->common->maxlinewidth;
@@ -934,7 +934,7 @@ void dpu_plane_flush(struct drm_plane *plane)
 
 	/*
 	 * These updates have to be done immediately before the plane flush
-	 * timing, and may not be moved to the atomic_update/mode_set functions.
+	 * timing, and may yest be moved to the atomic_update/mode_set functions.
 	 */
 	if (pdpu->is_error)
 		/* force white frame with 100% alpha pipe output on error */
@@ -978,7 +978,7 @@ static void dpu_plane_sspp_atomic_update(struct drm_plane *plane)
 
 	memset(&(pdpu->pipe_cfg), 0, sizeof(struct dpu_hw_pipe_cfg));
 
-	_dpu_plane_set_scanout(plane, pstate, &pdpu->pipe_cfg, fb);
+	_dpu_plane_set_scayesut(plane, pstate, &pdpu->pipe_cfg, fb);
 
 	pstate->pending = true;
 
@@ -992,7 +992,7 @@ static void dpu_plane_sspp_atomic_update(struct drm_plane *plane)
 
 	pdpu->pipe_cfg.src_rect = state->src;
 
-	/* state->src is 16.16, src_rect is not */
+	/* state->src is 16.16, src_rect is yest */
 	pdpu->pipe_cfg.src_rect.x1 >>= 16;
 	pdpu->pipe_cfg.src_rect.x2 >>= 16;
 	pdpu->pipe_cfg.src_rect.y1 >>= 16;

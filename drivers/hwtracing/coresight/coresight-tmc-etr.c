@@ -114,7 +114,7 @@ struct etr_sg_table {
  *
  * We need to map @nr_pages * ETR_SG_PAGES_PER_SYSPAGE data pages.
  * Each TMC page can map (ETR_SG_PTRS_PER_PAGE - 1) buffer pointers,
- * with the last entry pointing to another page of table entries.
+ * with the last entry pointing to ayesther page of table entries.
  * If we spill over to a new page for mapping 1 entry, we could as
  * well replace the link entry of the previous page with the last entry.
  */
@@ -155,7 +155,7 @@ tmc_pages_get_offset(struct tmc_pages *tmc_pages, dma_addr_t addr)
 
 /*
  * tmc_pages_free : Unmap and free the pages used by tmc_pages.
- * If the pages were not allocated in tmc_pages_alloc(), we would
+ * If the pages were yest allocated in tmc_pages_alloc(), we would
  * simply drop the refcount.
  */
 static void tmc_pages_free(struct tmc_pages *tmc_pages,
@@ -181,14 +181,14 @@ static void tmc_pages_free(struct tmc_pages *tmc_pages,
 
 /*
  * tmc_pages_alloc : Allocate and map pages for a given @tmc_pages.
- * If @pages is not NULL, the list of page virtual addresses are
+ * If @pages is yest NULL, the list of page virtual addresses are
  * used as the data pages. The pages are then dma_map'ed for @dev
  * with dma_direction @dir.
  *
  * Returns 0 upon success, else the error number.
  */
 static int tmc_pages_alloc(struct tmc_pages *tmc_pages,
-			   struct device *dev, int node,
+			   struct device *dev, int yesde,
 			   enum dma_data_direction dir, void **pages)
 {
 	int i, nr_pages;
@@ -215,7 +215,7 @@ static int tmc_pages_alloc(struct tmc_pages *tmc_pages,
 			/* Hold a refcount on the page */
 			get_page(page);
 		} else {
-			page = alloc_pages_node(node,
+			page = alloc_pages_yesde(yesde,
 						GFP_KERNEL | __GFP_ZERO, 0);
 		}
 		paddr = dma_map_page(real_dev, page, 0, PAGE_SIZE, dir);
@@ -258,8 +258,8 @@ void tmc_free_sg_table(struct tmc_sg_table *sg_table)
 
 /*
  * Alloc pages for the table. Since this will be used by the device,
- * allocate the pages closer to the device (i.e, dev_to_node(dev)
- * rather than the CPU node).
+ * allocate the pages closer to the device (i.e, dev_to_yesde(dev)
+ * rather than the CPU yesde).
  */
 static int tmc_alloc_table_pages(struct tmc_sg_table *sg_table)
 {
@@ -267,7 +267,7 @@ static int tmc_alloc_table_pages(struct tmc_sg_table *sg_table)
 	struct tmc_pages *table_pages = &sg_table->table_pages;
 
 	rc = tmc_pages_alloc(table_pages, sg_table->dev,
-			     dev_to_node(sg_table->dev),
+			     dev_to_yesde(sg_table->dev),
 			     DMA_TO_DEVICE, NULL);
 	if (rc)
 		return rc;
@@ -286,9 +286,9 @@ static int tmc_alloc_data_pages(struct tmc_sg_table *sg_table, void **pages)
 {
 	int rc;
 
-	/* Allocate data pages on the node requested by the caller */
+	/* Allocate data pages on the yesde requested by the caller */
 	rc = tmc_pages_alloc(&sg_table->data_pages,
-			     sg_table->dev, sg_table->node,
+			     sg_table->dev, sg_table->yesde,
 			     DMA_FROM_DEVICE, pages);
 	if (!rc) {
 		sg_table->data_vaddr = vmap(sg_table->data_pages.pages,
@@ -307,13 +307,13 @@ static int tmc_alloc_data_pages(struct tmc_sg_table *sg_table, void **pages)
  * Table pages.
  *
  * @dev		- Coresight device to which page should be DMA mapped.
- * @node	- Numa node for mem allocations
+ * @yesde	- Numa yesde for mem allocations
  * @nr_tpages	- Number of pages for the table entries.
  * @nr_dpages	- Number of pages for Data buffer.
  * @pages	- Optional list of virtual address of pages.
  */
 struct tmc_sg_table *tmc_alloc_sg_table(struct device *dev,
-					int node,
+					int yesde,
 					int nr_tpages,
 					int nr_dpages,
 					void **pages)
@@ -326,7 +326,7 @@ struct tmc_sg_table *tmc_alloc_sg_table(struct device *dev,
 		return ERR_PTR(-ENOMEM);
 	sg_table->data_pages.nr_pages = nr_dpages;
 	sg_table->table_pages.nr_pages = nr_tpages;
-	sg_table->node = node;
+	sg_table->yesde = yesde;
 	sg_table->dev = dev;
 
 	rc  = tmc_alloc_data_pages(sg_table, pages);
@@ -379,7 +379,7 @@ void tmc_sg_table_sync_table(struct tmc_sg_table *sg_table)
  * Returns :
  *	the length of linear data available at @offset.
  *	or
- *	<= 0 if no data is available.
+ *	<= 0 if yes data is available.
  */
 ssize_t tmc_sg_table_get_data(struct tmc_sg_table *sg_table,
 			      u64 offset, size_t len, char **bufpp)
@@ -548,12 +548,12 @@ static void tmc_etr_sg_table_populate(struct etr_sg_table *etr_table)
  * populate the table.
  *
  * @dev		- Device pointer for the TMC
- * @node	- NUMA node where the memory should be allocated
+ * @yesde	- NUMA yesde where the memory should be allocated
  * @size	- Total size of the data buffer
  * @pages	- Optional list of page virtual address
  */
 static struct etr_sg_table *
-tmc_init_etr_sg_table(struct device *dev, int node,
+tmc_init_etr_sg_table(struct device *dev, int yesde,
 		      unsigned long size, void **pages)
 {
 	int nr_entries, nr_tpages;
@@ -567,7 +567,7 @@ tmc_init_etr_sg_table(struct device *dev, int node,
 	nr_entries = tmc_etr_sg_table_entries(nr_dpages);
 	nr_tpages = DIV_ROUND_UP(nr_entries, ETR_SG_PTRS_PER_SYSPAGE);
 
-	sg_table = tmc_alloc_sg_table(dev, node, nr_tpages, nr_dpages, pages);
+	sg_table = tmc_alloc_sg_table(dev, yesde, nr_tpages, nr_dpages, pages);
 	if (IS_ERR(sg_table)) {
 		kfree(etr_table);
 		return ERR_CAST(sg_table);
@@ -588,13 +588,13 @@ tmc_init_etr_sg_table(struct device *dev, int node,
  * tmc_etr_alloc_flat_buf: Allocate a contiguous DMA buffer.
  */
 static int tmc_etr_alloc_flat_buf(struct tmc_drvdata *drvdata,
-				  struct etr_buf *etr_buf, int node,
+				  struct etr_buf *etr_buf, int yesde,
 				  void **pages)
 {
 	struct etr_flat_buf *flat_buf;
 	struct device *real_dev = drvdata->csdev->dev.parent;
 
-	/* We cannot reuse existing pages for flat buf */
+	/* We canyest reuse existing pages for flat buf */
 	if (pages)
 		return -EINVAL;
 
@@ -668,13 +668,13 @@ static const struct etr_buf_operations etr_flat_buf_ops = {
  * appropriately.
  */
 static int tmc_etr_alloc_sg_buf(struct tmc_drvdata *drvdata,
-				struct etr_buf *etr_buf, int node,
+				struct etr_buf *etr_buf, int yesde,
 				void **pages)
 {
 	struct etr_sg_table *etr_table;
 	struct device *dev = &drvdata->csdev->dev;
 
-	etr_table = tmc_init_etr_sg_table(dev, node,
+	etr_table = tmc_init_etr_sg_table(dev, yesde,
 					  etr_buf->size, pages);
 	if (IS_ERR(etr_table))
 		return -ENOMEM;
@@ -794,7 +794,7 @@ static const struct etr_buf_operations *etr_buf_ops[] = {
 
 static inline int tmc_etr_mode_alloc_buf(int mode,
 					 struct tmc_drvdata *drvdata,
-					 struct etr_buf *etr_buf, int node,
+					 struct etr_buf *etr_buf, int yesde,
 					 void **pages)
 {
 	int rc = -EINVAL;
@@ -805,7 +805,7 @@ static inline int tmc_etr_mode_alloc_buf(int mode,
 	case ETR_MODE_CATU:
 		if (etr_buf_ops[mode] && etr_buf_ops[mode]->alloc)
 			rc = etr_buf_ops[mode]->alloc(drvdata, etr_buf,
-						      node, pages);
+						      yesde, pages);
 		if (!rc)
 			etr_buf->ops = etr_buf_ops[mode];
 		return rc;
@@ -819,12 +819,12 @@ static inline int tmc_etr_mode_alloc_buf(int mode,
  * @drvdata	: ETR device details.
  * @size	: size of the requested buffer.
  * @flags	: Required properties for the buffer.
- * @node	: Node for memory allocations.
+ * @yesde	: Node for memory allocations.
  * @pages	: An optional list of pages.
  */
 static struct etr_buf *tmc_alloc_etr_buf(struct tmc_drvdata *drvdata,
 					 ssize_t size, int flags,
-					 int node, void **pages)
+					 int yesde, void **pages)
 {
 	int rc = -ENOMEM;
 	bool has_etr_sg, has_iommu;
@@ -845,11 +845,11 @@ static struct etr_buf *tmc_alloc_etr_buf(struct tmc_drvdata *drvdata,
 	etr_buf->size = size;
 
 	/*
-	 * If we have to use an existing list of pages, we cannot reliably
+	 * If we have to use an existing list of pages, we canyest reliably
 	 * use a contiguous DMA memory (even if we have an IOMMU). Otherwise,
 	 * we use the contiguous DMA memory if at least one of the following
 	 * conditions is true:
-	 *  a) The ETR cannot use Scatter-Gather.
+	 *  a) The ETR canyest use Scatter-Gather.
 	 *  b) we have a backing IOMMU
 	 *  c) The requested memory size is smaller (< 1M).
 	 *
@@ -859,13 +859,13 @@ static struct etr_buf *tmc_alloc_etr_buf(struct tmc_drvdata *drvdata,
 	if (!pages &&
 	    (!has_sg || has_iommu || size < SZ_1M))
 		rc = tmc_etr_mode_alloc_buf(ETR_MODE_FLAT, drvdata,
-					    etr_buf, node, pages);
+					    etr_buf, yesde, pages);
 	if (rc && has_etr_sg)
 		rc = tmc_etr_mode_alloc_buf(ETR_MODE_ETR_SG, drvdata,
-					    etr_buf, node, pages);
+					    etr_buf, yesde, pages);
 	if (rc && has_catu)
 		rc = tmc_etr_mode_alloc_buf(ETR_MODE_CATU, drvdata,
-					    etr_buf, node, pages);
+					    etr_buf, yesde, pages);
 	if (rc) {
 		kfree(etr_buf);
 		return ERR_PTR(rc);
@@ -979,7 +979,7 @@ static void __tmc_etr_enable_hw(struct tmc_drvdata *drvdata)
 	/*
 	 * If the TMC pointers must be programmed before the session,
 	 * we have to set it properly (i.e, RRP/RWP to base address and
-	 * STS to "not full").
+	 * STS to "yest full").
 	 */
 	if (tmc_etr_has_cap(drvdata, TMC_ETR_SAVE_RESTORE)) {
 		tmc_write_rrp(drvdata, etr_buf->hwaddr);
@@ -1063,7 +1063,7 @@ static struct etr_buf *
 tmc_etr_setup_sysfs_buf(struct tmc_drvdata *drvdata)
 {
 	return tmc_alloc_etr_buf(drvdata, drvdata->size,
-				 0, cpu_to_node(0), NULL);
+				 0, cpu_to_yesde(0), NULL);
 }
 
 static void
@@ -1129,7 +1129,7 @@ static int tmc_enable_etr_sink_sysfs(struct coresight_device *csdev)
 
 	/*
 	 * If we are enabling the ETR from disabled state, we need to make
-	 * sure we have a buffer with the right size. The etr_buf is not reset
+	 * sure we have a buffer with the right size. The etr_buf is yest reset
 	 * immediately after we stop the tracing in SYSFS mode as we wait for
 	 * the user to collect the data. We may be able to reuse the existing
 	 * buffer, provided the size matches. Any allocation has to be done
@@ -1156,7 +1156,7 @@ static int tmc_enable_etr_sink_sysfs(struct coresight_device *csdev)
 
 	/*
 	 * In sysFS mode we can have multiple writers per sink.  Since this
-	 * sink is already enabled no memory is needed and the HW need not be
+	 * sink is already enabled yes memory is needed and the HW need yest be
 	 * touched, even if the buffer size has changed.
 	 */
 	if (drvdata->mode == CS_MODE_SYSFS) {
@@ -1203,18 +1203,18 @@ static struct etr_buf *
 alloc_etr_buf(struct tmc_drvdata *drvdata, struct perf_event *event,
 	      int nr_pages, void **pages, bool snapshot)
 {
-	int node;
+	int yesde;
 	struct etr_buf *etr_buf;
 	unsigned long size;
 
-	node = (event->cpu == -1) ? NUMA_NO_NODE : cpu_to_node(event->cpu);
+	yesde = (event->cpu == -1) ? NUMA_NO_NODE : cpu_to_yesde(event->cpu);
 	/*
 	 * Try to match the perf ring buffer size if it is larger
 	 * than the size requested via sysfs.
 	 */
 	if ((nr_pages << PAGE_SHIFT) > drvdata->size) {
 		etr_buf = tmc_alloc_etr_buf(drvdata, (nr_pages << PAGE_SHIFT),
-					    0, node, NULL);
+					    0, yesde, NULL);
 		if (!IS_ERR(etr_buf))
 			goto done;
 	}
@@ -1225,7 +1225,7 @@ alloc_etr_buf(struct tmc_drvdata *drvdata, struct perf_event *event,
 	 */
 	size = drvdata->size;
 	do {
-		etr_buf = tmc_alloc_etr_buf(drvdata, size, 0, node, NULL);
+		etr_buf = tmc_alloc_etr_buf(drvdata, size, 0, yesde, NULL);
 		if (!IS_ERR(etr_buf))
 			goto done;
 		size /= 2;
@@ -1255,8 +1255,8 @@ retry:
 	 * event but a single etr_buf associated with the ETR is shared between
 	 * them.  The last event in a trace session will copy the content of the
 	 * etr_buf to its AUX ring buffer.  Ring buffer associated to other
-	 * events are simply not used an freed as events are destoyed.  We still
-	 * need to allocate a ring buffer for each event since we don't know
+	 * events are simply yest used an freed as events are destoyed.  We still
+	 * need to allocate a ring buffer for each event since we don't kyesw
 	 * which event will be last.
 	 */
 
@@ -1273,7 +1273,7 @@ retry:
 		return etr_buf;
 	}
 
-	/* If we made it here no buffer has been allocated, do so now. */
+	/* If we made it here yes buffer has been allocated, do so yesw. */
 	mutex_unlock(&drvdata->idr_mutex);
 
 	etr_buf = alloc_etr_buf(drvdata, event, nr_pages, pages, snapshot);
@@ -1285,7 +1285,7 @@ retry:
 	ret = idr_alloc(&drvdata->idr, etr_buf, pid, pid + 1, GFP_KERNEL);
 	mutex_unlock(&drvdata->idr_mutex);
 
-	/* Another event with this session ID has allocated this buffer. */
+	/* Ayesther event with this session ID has allocated this buffer. */
 	if (ret == -ENOSPC) {
 		tmc_free_etr_buf(etr_buf);
 		goto retry;
@@ -1329,13 +1329,13 @@ static struct etr_perf_buffer *
 tmc_etr_setup_perf_buf(struct tmc_drvdata *drvdata, struct perf_event *event,
 		       int nr_pages, void **pages, bool snapshot)
 {
-	int node;
+	int yesde;
 	struct etr_buf *etr_buf;
 	struct etr_perf_buffer *etr_perf;
 
-	node = (event->cpu == -1) ? NUMA_NO_NODE : cpu_to_node(event->cpu);
+	yesde = (event->cpu == -1) ? NUMA_NO_NODE : cpu_to_yesde(event->cpu);
 
-	etr_perf = kzalloc_node(sizeof(*etr_perf), GFP_KERNEL, node);
+	etr_perf = kzalloc_yesde(sizeof(*etr_perf), GFP_KERNEL, yesde);
 	if (!etr_perf)
 		return ERR_PTR(-ENOMEM);
 
@@ -1390,7 +1390,7 @@ static void tmc_free_etr_buffer(void *config)
 		goto free_etr_perf_buffer;
 
 	mutex_lock(&drvdata->idr_mutex);
-	/* If we are not the last one to use the buffer, don't touch it. */
+	/* If we are yest the last one to use the buffer, don't touch it. */
 	if (!refcount_dec_and_test(&etr_buf->refcount)) {
 		mutex_unlock(&drvdata->idr_mutex);
 		goto free_etr_perf_buffer;
@@ -1402,7 +1402,7 @@ static void tmc_free_etr_buffer(void *config)
 
 	/*
 	 * Something went very wrong if the buffer associated with this ID
-	 * is not the same in the IDR.  Leak to avoid use after free.
+	 * is yest the same in the IDR.  Leak to avoid use after free.
 	 */
 	if (buf && WARN_ON(buf != etr_buf))
 		goto free_etr_perf_buffer;
@@ -1485,7 +1485,7 @@ tmc_update_etr_buffer(struct coresight_device *csdev,
 
 	spin_lock_irqsave(&drvdata->spinlock, flags);
 
-	/* Don't do anything if another tracer is using this sink */
+	/* Don't do anything if ayesther tracer is using this sink */
 	if (atomic_read(csdev->refcnt) != 1) {
 		spin_unlock_irqrestore(&drvdata->spinlock, flags);
 		goto out;
@@ -1512,7 +1512,7 @@ tmc_update_etr_buffer(struct coresight_device *csdev,
 	/*
 	 * The ETR buffer may be bigger than the space available in the
 	 * perf ring buffer (handle->size).  If so advance the offset so that we
-	 * get the latest trace data.  In snapshot mode none of that matters
+	 * get the latest trace data.  In snapshot mode yesne of that matters
 	 * since we are expected to clobber stale data in favour of the latest
 	 * traces.
 	 */
@@ -1580,7 +1580,7 @@ static int tmc_enable_etr_sink_perf(struct coresight_device *csdev, void *data)
 	/* Get a handle on the pid of the process to monitor */
 	pid = etr_perf->pid;
 
-	/* Do not proceed if this device is associated with another session */
+	/* Do yest proceed if this device is associated with ayesther session */
 	if (drvdata->pid != -1 && drvdata->pid != pid) {
 		rc = -EBUSY;
 		goto unlock_out;
@@ -1726,7 +1726,7 @@ int tmc_read_unprepare_etr(struct tmc_drvdata *drvdata)
 		__tmc_etr_enable_hw(drvdata);
 	} else {
 		/*
-		 * The ETR is not tracing and the buffer was just read.
+		 * The ETR is yest tracing and the buffer was just read.
 		 * As such prepare to free the trace buffer.
 		 */
 		sysfs_buf = drvdata->sysfs_buf;

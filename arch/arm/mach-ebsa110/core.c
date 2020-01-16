@@ -279,7 +279,7 @@ static struct platform_device *ebsa110_devices[] = {
 /*
  * EBSA110 idling methodology:
  *
- * We can not execute the "wait for interrupt" instruction since that
+ * We can yest execute the "wait for interrupt" instruction since that
  * will stop our MCLK signal (which provides the clock for the glue
  * logic, and therefore the timer interrupt).
  *

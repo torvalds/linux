@@ -55,7 +55,7 @@ static inline bool soc_intel_is_byt_cr(struct platform_device *pdev)
 				       &bios_status);
 
 		if (status) {
-			dev_err(dev, "could not read PUNIT BIOS_CONFIG\n");
+			dev_err(dev, "could yest read PUNIT BIOS_CONFIG\n");
 		} else {
 			/* bits 26:27 mirror PMIC options */
 			bios_status = (bios_status >> 26) & 3;
@@ -65,10 +65,10 @@ static inline bool soc_intel_is_byt_cr(struct platform_device *pdev)
 				return true;
 			}
 
-			dev_info(dev, "BYT-CR not detected\n");
+			dev_info(dev, "BYT-CR yest detected\n");
 		}
 	} else {
-		dev_info(dev, "IOSF_MBI not available, no BYT-CR detection\n");
+		dev_info(dev, "IOSF_MBI yest available, yes BYT-CR detection\n");
 	}
 
 	if (!platform_get_resource(pdev, IORESOURCE_IRQ, 5)) {

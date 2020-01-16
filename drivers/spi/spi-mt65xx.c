@@ -632,7 +632,7 @@ static int mtk_spi_probe(struct platform_device *pdev)
 	}
 
 	master->auto_runtime_pm = true;
-	master->dev.of_node = pdev->dev.of_node;
+	master->dev.of_yesde = pdev->dev.of_yesde;
 	master->mode_bits = SPI_CPOL | SPI_CPHA | SPI_LSB_FIRST;
 
 	master->set_cs = mtk_spi_set_cs;
@@ -641,9 +641,9 @@ static int mtk_spi_probe(struct platform_device *pdev)
 	master->can_dma = mtk_spi_can_dma;
 	master->setup = mtk_spi_setup;
 
-	of_id = of_match_node(mtk_spi_of_match, pdev->dev.of_node);
+	of_id = of_match_yesde(mtk_spi_of_match, pdev->dev.of_yesde);
 	if (!of_id) {
-		dev_err(&pdev->dev, "failed to probe of_node\n");
+		dev_err(&pdev->dev, "failed to probe of_yesde\n");
 		ret = -EINVAL;
 		goto err_put_master;
 	}
@@ -659,7 +659,7 @@ static int mtk_spi_probe(struct platform_device *pdev)
 
 	if (mdata->dev_comp->need_pad_sel) {
 		mdata->pad_num = of_property_count_u32_elems(
-			pdev->dev.of_node,
+			pdev->dev.of_yesde,
 			"mediatek,pad-select");
 		if (mdata->pad_num < 0) {
 			dev_err(&pdev->dev,
@@ -676,7 +676,7 @@ static int mtk_spi_probe(struct platform_device *pdev)
 		}
 
 		for (i = 0; i < mdata->pad_num; i++) {
-			of_property_read_u32_index(pdev->dev.of_node,
+			of_property_read_u32_index(pdev->dev.of_yesde,
 						   "mediatek,pad-select",
 						   i, &mdata->pad_sel[i]);
 			if (mdata->pad_sel[i] > MT8173_SPI_MAX_PAD_SEL) {
@@ -758,7 +758,7 @@ static int mtk_spi_probe(struct platform_device *pdev)
 	if (mdata->dev_comp->need_pad_sel) {
 		if (mdata->pad_num != master->num_chipselect) {
 			dev_err(&pdev->dev,
-				"pad_num does not match num_chipselect(%d != %d)\n",
+				"pad_num does yest match num_chipselect(%d != %d)\n",
 				mdata->pad_num, master->num_chipselect);
 			ret = -EINVAL;
 			goto err_disable_runtime_pm;
@@ -766,7 +766,7 @@ static int mtk_spi_probe(struct platform_device *pdev)
 
 		if (!master->cs_gpios && master->num_chipselect > 1) {
 			dev_err(&pdev->dev,
-				"cs_gpios not specified and num_chipselect > 1\n");
+				"cs_gpios yest specified and num_chipselect > 1\n");
 			ret = -EINVAL;
 			goto err_disable_runtime_pm;
 		}
@@ -791,7 +791,7 @@ static int mtk_spi_probe(struct platform_device *pdev)
 		addr_bits = DMA_ADDR_DEF_BITS;
 	ret = dma_set_mask(&pdev->dev, DMA_BIT_MASK(addr_bits));
 	if (ret)
-		dev_notice(&pdev->dev, "SPI dma_set_mask(%d) failed, ret:%d\n",
+		dev_yestice(&pdev->dev, "SPI dma_set_mask(%d) failed, ret:%d\n",
 			   addr_bits, ret);
 
 	return 0;

@@ -4,7 +4,7 @@
  *
  *	Based on acquirewdt.c by Alan Cox.
  *
- *	The author does NOT admit liability nor provide warranty for
+ *	The author does NOT admit liability yesr provide warranty for
  *	any of this software. This material is provided "AS-IS" in
  *	the hope that it may be useful for others.
  *
@@ -53,7 +53,7 @@
 #include <linux/watchdog.h>
 #include <linux/fs.h>
 #include <linux/ioport.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/reboot.h>
 #include <linux/init.h>
 #include <linux/io.h>
@@ -64,7 +64,7 @@
 #define PFX OUR_NAME ": "
 
 /*
- * You must set these - The driver cannot probe for the settings
+ * You must set these - The driver canyest probe for the settings
  */
 
 static int wdt_stop = 0x45;
@@ -84,7 +84,7 @@ MODULE_PARM_DESC(wdt_start, "SBC60xx WDT 'start' io port (default 0x443)");
 #define WDT_INTERVAL (HZ/4+1)
 
 /*
- * We must not require too good response from the userspace daemon.
+ * We must yest require too good response from the userspace daemon.
  * Here we require the userspace daemon to send us a heartbeat
  * char to /dev/watchdog every 30 seconds.
  * If the daemon pulses us every 25 seconds, we can still afford
@@ -100,10 +100,10 @@ MODULE_PARM_DESC(timeout,
 	"Watchdog timeout in seconds. (1<=timeout<=3600, default="
 				__MODULE_STRING(WATCHDOG_TIMEOUT) ")");
 
-static bool nowayout = WATCHDOG_NOWAYOUT;
-module_param(nowayout, bool, 0);
-MODULE_PARM_DESC(nowayout,
-	"Watchdog cannot be stopped once started (default="
+static bool yeswayout = WATCHDOG_NOWAYOUT;
+module_param(yeswayout, bool, 0);
+MODULE_PARM_DESC(yeswayout,
+	"Watchdog canyest be stopped once started (default="
 				__MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
 
 static void wdt_timer_ping(struct timer_list *);
@@ -127,7 +127,7 @@ static void wdt_timer_ping(struct timer_list *unused)
 		/* Re-set the timer interval */
 		mod_timer(&timer, jiffies + WDT_INTERVAL);
 	} else
-		pr_warn("Heartbeat lost! Will not ping the watchdog\n");
+		pr_warn("Heartbeat lost! Will yest ping the watchdog\n");
 }
 
 /*
@@ -140,15 +140,15 @@ static void wdt_startup(void)
 
 	/* Start the timer */
 	mod_timer(&timer, jiffies + WDT_INTERVAL);
-	pr_info("Watchdog timer is now enabled\n");
+	pr_info("Watchdog timer is yesw enabled\n");
 }
 
-static void wdt_turnoff(void)
+static void wdt_turyesff(void)
 {
 	/* Stop the timer */
 	del_timer(&timer);
 	inb_p(wdt_stop);
-	pr_info("Watchdog timer is now disabled...\n");
+	pr_info("Watchdog timer is yesw disabled...\n");
 }
 
 static void wdt_keepalive(void)
@@ -166,14 +166,14 @@ static ssize_t fop_write(struct file *file, const char __user *buf,
 {
 	/* See if we got the magic character 'V' and reload the timer */
 	if (count) {
-		if (!nowayout) {
+		if (!yeswayout) {
 			size_t ofs;
 
-			/* note: just in case someone wrote the
+			/* yeste: just in case someone wrote the
 			   magic character five months ago... */
 			wdt_expect_close = 0;
 
-			/* scan to see whether or not we got the
+			/* scan to see whether or yest we got the
 			   magic character */
 			for (ofs = 0; ofs != count; ofs++) {
 				char c;
@@ -191,27 +191,27 @@ static ssize_t fop_write(struct file *file, const char __user *buf,
 	return count;
 }
 
-static int fop_open(struct inode *inode, struct file *file)
+static int fop_open(struct iyesde *iyesde, struct file *file)
 {
 	/* Just in case we're already talking to someone... */
 	if (test_and_set_bit(0, &wdt_is_open))
 		return -EBUSY;
 
-	if (nowayout)
+	if (yeswayout)
 		__module_get(THIS_MODULE);
 
 	/* Good, fire up the show */
 	wdt_startup();
-	return stream_open(inode, file);
+	return stream_open(iyesde, file);
 }
 
-static int fop_close(struct inode *inode, struct file *file)
+static int fop_close(struct iyesde *iyesde, struct file *file)
 {
 	if (wdt_expect_close == 42)
-		wdt_turnoff();
+		wdt_turyesff();
 	else {
 		del_timer(&timer);
-		pr_crit("device file closed unexpectedly. Will not stop the WDT!\n");
+		pr_crit("device file closed unexpectedly. Will yest stop the WDT!\n");
 	}
 	clear_bit(0, &wdt_is_open);
 	wdt_expect_close = 0;
@@ -241,7 +241,7 @@ static long fop_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		if (get_user(new_options, p))
 			return -EFAULT;
 		if (new_options & WDIOS_DISABLECARD) {
-			wdt_turnoff();
+			wdt_turyesff();
 			retval = 0;
 		}
 		if (new_options & WDIOS_ENABLECARD) {
@@ -275,7 +275,7 @@ static long fop_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 static const struct file_operations wdt_fops = {
 	.owner		= THIS_MODULE,
-	.llseek		= no_llseek,
+	.llseek		= yes_llseek,
 	.write		= fop_write,
 	.open		= fop_open,
 	.release	= fop_close,
@@ -284,7 +284,7 @@ static const struct file_operations wdt_fops = {
 };
 
 static struct miscdevice wdt_miscdev = {
-	.minor = WATCHDOG_MINOR,
+	.miyesr = WATCHDOG_MINOR,
 	.name = "watchdog",
 	.fops = &wdt_fops,
 };
@@ -293,11 +293,11 @@ static struct miscdevice wdt_miscdev = {
  *	Notifier for system down
  */
 
-static int wdt_notify_sys(struct notifier_block *this, unsigned long code,
+static int wdt_yestify_sys(struct yestifier_block *this, unsigned long code,
 	void *unused)
 {
 	if (code == SYS_DOWN || code == SYS_HALT)
-		wdt_turnoff();
+		wdt_turyesff();
 	return NOTIFY_DONE;
 }
 
@@ -306,18 +306,18 @@ static int wdt_notify_sys(struct notifier_block *this, unsigned long code,
  *	turn the timebomb registers off.
  */
 
-static struct notifier_block wdt_notifier = {
-	.notifier_call = wdt_notify_sys,
+static struct yestifier_block wdt_yestifier = {
+	.yestifier_call = wdt_yestify_sys,
 };
 
 static void __exit sbc60xxwdt_unload(void)
 {
-	wdt_turnoff();
+	wdt_turyesff();
 
 	/* Deregister */
 	misc_deregister(&wdt_miscdev);
 
-	unregister_reboot_notifier(&wdt_notifier);
+	unregister_reboot_yestifier(&wdt_yestifier);
 	if ((wdt_stop != 0x45) && (wdt_stop != wdt_start))
 		release_region(wdt_stop, 1);
 	release_region(wdt_start, 1);
@@ -339,7 +339,7 @@ static int __init sbc60xxwdt_init(void)
 		goto err_out;
 	}
 
-	/* We cannot reserve 0x45 - the kernel already has! */
+	/* We canyest reserve 0x45 - the kernel already has! */
 	if (wdt_stop != 0x45 && wdt_stop != wdt_start) {
 		if (!request_region(wdt_stop, 1, "SBC 60XX WDT")) {
 			pr_err("I/O address 0x%04x already in use\n", wdt_stop);
@@ -348,25 +348,25 @@ static int __init sbc60xxwdt_init(void)
 		}
 	}
 
-	rc = register_reboot_notifier(&wdt_notifier);
+	rc = register_reboot_yestifier(&wdt_yestifier);
 	if (rc) {
-		pr_err("cannot register reboot notifier (err=%d)\n", rc);
+		pr_err("canyest register reboot yestifier (err=%d)\n", rc);
 		goto err_out_region2;
 	}
 
 	rc = misc_register(&wdt_miscdev);
 	if (rc) {
-		pr_err("cannot register miscdev on minor=%d (err=%d)\n",
-		       wdt_miscdev.minor, rc);
+		pr_err("canyest register miscdev on miyesr=%d (err=%d)\n",
+		       wdt_miscdev.miyesr, rc);
 		goto err_out_reboot;
 	}
-	pr_info("WDT driver for 60XX single board computer initialised. timeout=%d sec (nowayout=%d)\n",
-		timeout, nowayout);
+	pr_info("WDT driver for 60XX single board computer initialised. timeout=%d sec (yeswayout=%d)\n",
+		timeout, yeswayout);
 
 	return 0;
 
 err_out_reboot:
-	unregister_reboot_notifier(&wdt_notifier);
+	unregister_reboot_yestifier(&wdt_yestifier);
 err_out_region2:
 	if (wdt_stop != 0x45 && wdt_stop != wdt_start)
 		release_region(wdt_stop, 1);

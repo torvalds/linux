@@ -72,7 +72,7 @@ if_expr:
 
 expr:	  NUMBER
 	| ID			{ if (lookup_id(ctx, $1, &$$) < 0) {
-					pr_debug("%s not found\n", $1);
+					pr_debug("%s yest found\n", $1);
 					YYABORT;
 				  }
 				}
@@ -106,7 +106,7 @@ static int expr__symbol(YYSTYPE *res, const char *p, const char **pp)
 			return -1;
 		/*
 		 * Allow @ instead of / to be able to specify pmu/event/ without
-		 * conflicts with normal division.
+		 * conflicts with yesrmal division.
 		 */
 		if (*p == '@')
 			*dst++ = '/';

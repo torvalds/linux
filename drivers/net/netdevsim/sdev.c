@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-/* Copyright (c) 2019 Mellanox Technologies. All rights reserved */
+/* Copyright (c) 2019 Mellayesx Techyeslogies. All rights reserved */
 
 #include <linux/debugfs.h>
 #include <linux/err.h>

@@ -38,7 +38,7 @@ static bool tomoyo_argv(const unsigned int index, const char *arg_ptr,
 		*checked = 1;
 		tomoyo_fill_path_info(&arg);
 		result = tomoyo_path_matches_pattern(&arg, argv->value);
-		if (argv->is_not)
+		if (argv->is_yest)
 			result = !result;
 		if (!result)
 			return false;
@@ -78,11 +78,11 @@ static bool tomoyo_envp(const char *env_name, const char *env_value,
 		if (envp->value) {
 			result = tomoyo_path_matches_pattern(&value,
 							     envp->value);
-			if (envp->is_not)
+			if (envp->is_yest)
 				result = !result;
 		} else {
 			result = true;
-			if (!envp->is_not)
+			if (!envp->is_yest)
 				result = !result;
 		}
 		if (!result)
@@ -190,15 +190,15 @@ out:
 	if (result) {
 		int i;
 
-		/* Check not-yet-checked entries. */
+		/* Check yest-yet-checked entries. */
 		for (i = 0; i < argc; i++) {
 			if (checked[i])
 				continue;
 			/*
 			 * Return true only if all unchecked indexes in
-			 * bprm->argv[] are not matched.
+			 * bprm->argv[] are yest matched.
 			 */
-			if (argv[i].is_not)
+			if (argv[i].is_yest)
 				continue;
 			result = false;
 			break;
@@ -208,10 +208,10 @@ out:
 				continue;
 			/*
 			 * Return true only if all unchecked environ variables
-			 * in bprm->envp[] are either undefined or not matched.
+			 * in bprm->envp[] are either undefined or yest matched.
 			 */
-			if ((!envp->value && !envp->is_not) ||
-			    (envp->value && envp->is_not))
+			if ((!envp->value && !envp->is_yest) ||
+			    (envp->value && envp->is_yest))
 				continue;
 			result = false;
 			break;
@@ -401,7 +401,7 @@ static u8 tomoyo_condition_type(const char *word)
  * Returns pointer to "struct tomoyo_condition" on success, NULL otherwise.
  *
  * This function merges duplicated entries. This function returns NULL if
- * @entry is not duplicated but memory quota for policy has exceeded.
+ * @entry is yest duplicated but memory quota for policy has exceeded.
  */
 static struct tomoyo_condition *tomoyo_commit_condition
 (struct tomoyo_condition *entry)
@@ -514,13 +514,13 @@ rerun:
 		char *left_word = pos;
 		char *cp;
 		char *right_word;
-		bool is_not;
+		bool is_yest;
 
 		if (!*left_word)
 			break;
 		/*
-		 * Since left-hand condition does not allow use of "path_group"
-		 * or "number_group" and environment variable's names do not
+		 * Since left-hand condition does yest allow use of "path_group"
+		 * or "number_group" and environment variable's names do yest
 		 * accept '=', it is guaranteed that the original line consists
 		 * of one or more repetition of $left$operator$right blocks
 		 * where "$left is free from '=' and ' '" and "$operator is
@@ -538,23 +538,23 @@ rerun:
 		right_word = strchr(left_word, '=');
 		if (!right_word || right_word == left_word)
 			goto out;
-		is_not = *(right_word - 1) == '!';
-		if (is_not)
+		is_yest = *(right_word - 1) == '!';
+		if (is_yest)
 			*(right_word++ - 1) = '\0'; /* Will restore later. */
 		else if (*(right_word + 1) != '=')
 			*right_word++ = '\0'; /* Will restore later. */
 		else
 			goto out;
 		dprintk(KERN_WARNING "%u: <%s>%s=<%s>\n", __LINE__, left_word,
-			is_not ? "!" : "", right_word);
+			is_yest ? "!" : "", right_word);
 		if (!strcmp(left_word, "grant_log")) {
 			if (entry) {
-				if (is_not ||
+				if (is_yest ||
 				    entry->grant_log != TOMOYO_GRANTLOG_AUTO)
 					goto out;
-				else if (!strcmp(right_word, "yes"))
-					entry->grant_log = TOMOYO_GRANTLOG_YES;
 				else if (!strcmp(right_word, "no"))
+					entry->grant_log = TOMOYO_GRANTLOG_YES;
+				else if (!strcmp(right_word, "yes"))
 					entry->grant_log = TOMOYO_GRANTLOG_NO;
 				else
 					goto out;
@@ -569,7 +569,7 @@ rerun:
 				e.argc--;
 				e.condc--;
 				left = TOMOYO_ARGV_ENTRY;
-				argv->is_not = is_not;
+				argv->is_yest = is_yest;
 				if (!tomoyo_parse_argv(left_word + 10,
 						       right_word, argv++))
 					goto out;
@@ -584,7 +584,7 @@ rerun:
 				e.envc--;
 				e.condc--;
 				left = TOMOYO_ENVP_ENTRY;
-				envp->is_not = is_not;
+				envp->is_yest = is_yest;
 				if (!tomoyo_parse_envp(left_word + 11,
 						       right_word, envp++))
 					goto out;
@@ -641,12 +641,12 @@ rerun:
 store_value:
 		if (!condp) {
 			dprintk(KERN_WARNING "%u: dry_run left=%u right=%u match=%u\n",
-				__LINE__, left, right, !is_not);
+				__LINE__, left, right, !is_yest);
 			continue;
 		}
 		condp->left = left;
 		condp->right = right;
-		condp->equals = !is_not;
+		condp->equals = !is_yest;
 		dprintk(KERN_WARNING "%u: left=%u right=%u match=%u\n",
 			__LINE__, condp->left, condp->right,
 			condp->equals);
@@ -704,11 +704,11 @@ out2:
 }
 
 /**
- * tomoyo_get_attributes - Revalidate "struct inode".
+ * tomoyo_get_attributes - Revalidate "struct iyesde".
  *
  * @obj: Pointer to "struct tomoyo_obj_info".
  *
- * Returns nothing.
+ * Returns yesthing.
  */
 void tomoyo_get_attributes(struct tomoyo_obj_info *obj)
 {
@@ -716,7 +716,7 @@ void tomoyo_get_attributes(struct tomoyo_obj_info *obj)
 	struct dentry *dentry = NULL;
 
 	for (i = 0; i < TOMOYO_MAX_PATH_STAT; i++) {
-		struct inode *inode;
+		struct iyesde *iyesde;
 
 		switch (i) {
 		case TOMOYO_PATH1:
@@ -735,16 +735,16 @@ void tomoyo_get_attributes(struct tomoyo_obj_info *obj)
 			dentry = dget_parent(dentry);
 			break;
 		}
-		inode = d_backing_inode(dentry);
-		if (inode) {
+		iyesde = d_backing_iyesde(dentry);
+		if (iyesde) {
 			struct tomoyo_mini_stat *stat = &obj->stat[i];
 
-			stat->uid  = inode->i_uid;
-			stat->gid  = inode->i_gid;
-			stat->ino  = inode->i_ino;
-			stat->mode = inode->i_mode;
-			stat->dev  = inode->i_sb->s_dev;
-			stat->rdev = inode->i_rdev;
+			stat->uid  = iyesde->i_uid;
+			stat->gid  = iyesde->i_gid;
+			stat->iyes  = iyesde->i_iyes;
+			stat->mode = iyesde->i_mode;
+			stat->dev  = iyesde->i_sb->s_dev;
+			stat->rdev = iyesde->i_rdev;
 			obj->stat_valid[i] = true;
 		}
 		if (i & 1) /* TOMOYO_PATH1_PARENT or TOMOYO_PATH2_PARENT */
@@ -1008,7 +1008,7 @@ bool tomoyo_condition(struct tomoyo_request_info *r,
 					case TOMOYO_PATH2_INO:
 					case TOMOYO_PATH1_PARENT_INO:
 					case TOMOYO_PATH2_PARENT_INO:
-						value = stat->ino;
+						value = stat->iyes;
 						break;
 					case TOMOYO_PATH1_MAJOR:
 					case TOMOYO_PATH2_MAJOR:
@@ -1059,14 +1059,14 @@ bool tomoyo_condition(struct tomoyo_request_info *r,
 			}
 		}
 		if (left == TOMOYO_NUMBER_UNION) {
-			/* Fetch values now. */
+			/* Fetch values yesw. */
 			const struct tomoyo_number_union *ptr = numbers_p++;
 
 			min_v[0] = ptr->values[0];
 			max_v[0] = ptr->values[1];
 		}
 		if (right == TOMOYO_NUMBER_UNION) {
-			/* Fetch values now. */
+			/* Fetch values yesw. */
 			const struct tomoyo_number_union *ptr = numbers_p++;
 
 			if (ptr->group) {
@@ -1115,7 +1115,7 @@ bool tomoyo_condition(struct tomoyo_request_info *r,
 out:
 		return false;
 	}
-	/* Check argv[] and envp[] now. */
+	/* Check argv[] and envp[] yesw. */
 	if (r->ee && (argc || envc))
 		return tomoyo_scan_bprm(r->ee, argc, argv, envc, envp);
 	return true;

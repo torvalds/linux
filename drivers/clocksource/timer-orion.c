@@ -37,7 +37,7 @@
 
 static void __iomem *timer_base;
 
-static unsigned long notrace orion_read_timer(void)
+static unsigned long yestrace orion_read_timer(void)
 {
 	return ~readl(timer_base + TIMER0_VAL);
 }
@@ -55,7 +55,7 @@ static void orion_delay_timer_init(unsigned long rate)
 /*
  * Free-running clocksource handling.
  */
-static u64 notrace orion_read_sched_clock(void)
+static u64 yestrace orion_read_sched_clock(void)
 {
 	return ~readl(timer_base + TIMER0_VAL);
 }
@@ -120,7 +120,7 @@ static struct irqaction orion_clkevt_irq = {
 	.handler	= orion_clkevt_irq_handler,
 };
 
-static int __init orion_timer_init(struct device_node *np)
+static int __init orion_timer_init(struct device_yesde *np)
 {
 	unsigned long rate;
 	struct clk *clk;

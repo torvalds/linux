@@ -106,7 +106,7 @@ static void txx9aclc_ac97_cold_reset(struct snd_ac97 *ac97)
 	if (!wait_event_timeout(ac97_waitq,
 				(__raw_readl(base + ACINTSTS) & ready) == ready,
 				HZ)) {
-		dev_err(&ac97->dev, "primary codec is not ready "
+		dev_err(&ac97->dev, "primary codec is yest ready "
 			"(status %#x)\n",
 			__raw_readl(base + ACINTSTS));
 	}

@@ -289,7 +289,7 @@
 			#clock-cells = <1>;
 		};
 
-		medianoc_ade: medianoc_ade@f4520000 {
+		mediayesc_ade: mediayesc_ade@f4520000 {
 			compatible = "syscon";
 			reg = <0x0 0xf4520000 0x0 0x4000>;
 		};
@@ -369,7 +369,7 @@
 			dma-requests = <32>;
 			interrupts = <0 84 4>;
 			clocks = <&sys_ctrl HI6220_EDMAC_ACLK>;
-			dma-no-cci;
+			dma-yes-cci;
 			dma-type = "hi6220_dma";
 			status = "ok";
 		};
@@ -913,7 +913,7 @@
 			compatible = "hisilicon,hi6220-ade";
 			reg = <0x0 0xf4100000 0x0 0x7800>;
 			reg-names = "ade_base";
-			hisilicon,noc-syscon = <&medianoc_ade>;
+			hisilicon,yesc-syscon = <&mediayesc_ade>;
 			resets = <&media_ctrl MEDIA_ADE>;
 			interrupts = <0 115 4>; /* ldi interrupt */
 

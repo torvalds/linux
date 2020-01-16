@@ -80,7 +80,7 @@ int read_usb_vudc_device(struct udev_device *sdev, struct usbip_usb_device *dev)
 		return -1;
 	ret = fread((char *) &descr, sizeof(descr), 1, fd);
 	if (ret != 1) {
-		err("Cannot read vudc device descr file: %s", strerror(errno));
+		err("Canyest read vudc device descr file: %s", strerror(erryes));
 		goto err;
 	}
 	fclose(fd);

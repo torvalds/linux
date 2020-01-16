@@ -20,29 +20,29 @@ static struct i915_global_scheduler {
 static DEFINE_SPINLOCK(schedule_lock);
 
 static const struct i915_request *
-node_to_request(const struct i915_sched_node *node)
+yesde_to_request(const struct i915_sched_yesde *yesde)
 {
-	return container_of(node, const struct i915_request, sched);
+	return container_of(yesde, const struct i915_request, sched);
 }
 
-static inline bool node_started(const struct i915_sched_node *node)
+static inline bool yesde_started(const struct i915_sched_yesde *yesde)
 {
-	return i915_request_started(node_to_request(node));
+	return i915_request_started(yesde_to_request(yesde));
 }
 
-static inline bool node_signaled(const struct i915_sched_node *node)
+static inline bool yesde_signaled(const struct i915_sched_yesde *yesde)
 {
-	return i915_request_completed(node_to_request(node));
+	return i915_request_completed(yesde_to_request(yesde));
 }
 
-static inline struct i915_priolist *to_priolist(struct rb_node *rb)
+static inline struct i915_priolist *to_priolist(struct rb_yesde *rb)
 {
-	return rb_entry(rb, struct i915_priolist, node);
+	return rb_entry(rb, struct i915_priolist, yesde);
 }
 
 static void assert_priolists(struct intel_engine_execlists * const execlists)
 {
-	struct rb_node *rb;
+	struct rb_yesde *rb;
 	long last_prio, i;
 
 	if (!IS_ENABLED(CONFIG_DRM_I915_DEBUG_GEM))
@@ -73,7 +73,7 @@ i915_sched_lookup_priolist(struct intel_engine_cs *engine, int prio)
 {
 	struct intel_engine_execlists * const execlists = &engine->execlists;
 	struct i915_priolist *p;
-	struct rb_node **parent, *rb;
+	struct rb_yesde **parent, *rb;
 	bool first = true;
 	int idx, i;
 
@@ -83,13 +83,13 @@ i915_sched_lookup_priolist(struct intel_engine_cs *engine, int prio)
 	/* buckets sorted from highest [in slot 0] to lowest priority */
 	idx = I915_PRIORITY_COUNT - (prio & I915_PRIORITY_MASK) - 1;
 	prio >>= I915_USER_PRIORITY_SHIFT;
-	if (unlikely(execlists->no_priolist))
+	if (unlikely(execlists->yes_priolist))
 		prio = I915_PRIORITY_NORMAL;
 
 find_priolist:
 	/* most positive priority is scheduled first, equal priorities fifo */
 	rb = NULL;
-	parent = &execlists->queue.rb_root.rb_node;
+	parent = &execlists->queue.rb_root.rb_yesde;
 	while (*parent) {
 		rb = *parent;
 		p = to_priolist(rb);
@@ -119,7 +119,7 @@ find_priolist:
 			 * requests, so if userspace lied about their
 			 * dependencies that reordering may be visible.
 			 */
-			execlists->no_priolist = true;
+			execlists->yes_priolist = true;
 			goto find_priolist;
 		}
 	}
@@ -127,8 +127,8 @@ find_priolist:
 	p->priority = prio;
 	for (i = 0; i < ARRAY_SIZE(p->requests); i++)
 		INIT_LIST_HEAD(&p->requests[i]);
-	rb_link_node(&p->node, rb, parent);
-	rb_insert_color_cached(&p->node, &execlists->queue, first);
+	rb_link_yesde(&p->yesde, rb, parent);
+	rb_insert_color_cached(&p->yesde, &execlists->queue, first);
 	p->used = 0;
 
 out:
@@ -146,18 +146,18 @@ struct sched_cache {
 };
 
 static struct intel_engine_cs *
-sched_lock_engine(const struct i915_sched_node *node,
+sched_lock_engine(const struct i915_sched_yesde *yesde,
 		  struct intel_engine_cs *locked,
 		  struct sched_cache *cache)
 {
-	const struct i915_request *rq = node_to_request(node);
+	const struct i915_request *rq = yesde_to_request(yesde);
 	struct intel_engine_cs *engine;
 
 	GEM_BUG_ON(!locked);
 
 	/*
 	 * Virtual engines complicate acquiring the engine timeline lock,
-	 * as their rq->engine pointer is not stable until under that
+	 * as their rq->engine pointer is yest stable until under that
 	 * engine lock. The simple ploy we use is to take the lock then
 	 * check that the rq still belongs to the newly locked engine.
 	 */
@@ -180,10 +180,10 @@ static inline int rq_prio(const struct i915_request *rq)
 static inline bool need_preempt(int prio, int active)
 {
 	/*
-	 * Allow preemption of low -> normal -> high, but we do
-	 * not allow low priority tasks to preempt other low priority
+	 * Allow preemption of low -> yesrmal -> high, but we do
+	 * yest allow low priority tasks to preempt other low priority
 	 * tasks under the impression that latency for low priority
-	 * tasks does not matter (as much as background throughput),
+	 * tasks does yest matter (as much as background throughput),
 	 * so kiss.
 	 */
 	return prio >= max(I915_PRIORITY_NORMAL, active);
@@ -224,7 +224,7 @@ unlock:
 	rcu_read_unlock();
 }
 
-static void __i915_schedule(struct i915_sched_node *node,
+static void __i915_schedule(struct i915_sched_yesde *yesde,
 			    const struct i915_sched_attr *attr)
 {
 	struct intel_engine_cs *engine;
@@ -238,23 +238,23 @@ static void __i915_schedule(struct i915_sched_node *node,
 	lockdep_assert_held(&schedule_lock);
 	GEM_BUG_ON(prio == I915_PRIORITY_INVALID);
 
-	if (prio <= READ_ONCE(node->attr.priority))
+	if (prio <= READ_ONCE(yesde->attr.priority))
 		return;
 
-	if (node_signaled(node))
+	if (yesde_signaled(yesde))
 		return;
 
-	stack.signaler = node;
+	stack.signaler = yesde;
 	list_add(&stack.dfs_link, &dfs);
 
 	/*
 	 * Recursively bump all dependent priorities to match the new request.
 	 *
 	 * A naive approach would be to use recursion:
-	 * static void update_priorities(struct i915_sched_node *node, prio) {
-	 *	list_for_each_entry(dep, &node->signalers_list, signal_link)
+	 * static void update_priorities(struct i915_sched_yesde *yesde, prio) {
+	 *	list_for_each_entry(dep, &yesde->signalers_list, signal_link)
 	 *		update_priorities(dep->signal, prio)
-	 *	queue_request(node);
+	 *	queue_request(yesde);
 	 * }
 	 * but that may have unlimited recursion depth and so runs a very
 	 * real risk of overunning the kernel stack. Instead, we build
@@ -266,22 +266,22 @@ static void __i915_schedule(struct i915_sched_node *node,
 	 * last element in the list is the request we must execute first.
 	 */
 	list_for_each_entry(dep, &dfs, dfs_link) {
-		struct i915_sched_node *node = dep->signaler;
+		struct i915_sched_yesde *yesde = dep->signaler;
 
-		/* If we are already flying, we know we have no signalers */
-		if (node_started(node))
+		/* If we are already flying, we kyesw we have yes signalers */
+		if (yesde_started(yesde))
 			continue;
 
 		/*
-		 * Within an engine, there can be no cycle, but we may
+		 * Within an engine, there can be yes cycle, but we may
 		 * refer to the same dependency chain multiple times
-		 * (redundant dependencies are not eliminated) and across
+		 * (redundant dependencies are yest eliminated) and across
 		 * engines.
 		 */
-		list_for_each_entry(p, &node->signalers_list, signal_link) {
-			GEM_BUG_ON(p == dep); /* no cycles! */
+		list_for_each_entry(p, &yesde->signalers_list, signal_link) {
+			GEM_BUG_ON(p == dep); /* yes cycles! */
 
-			if (node_signaled(p->signaler))
+			if (yesde_signaled(p->signaler))
 				continue;
 
 			if (prio > READ_ONCE(p->signaler->attr.priority))
@@ -291,13 +291,13 @@ static void __i915_schedule(struct i915_sched_node *node,
 
 	/*
 	 * If we didn't need to bump any existing priorities, and we haven't
-	 * yet submitted this request (i.e. there is no potential race with
+	 * yet submitted this request (i.e. there is yes potential race with
 	 * execlists_submit_request()), we can set our own priority and skip
 	 * acquiring the engine locks.
 	 */
-	if (node->attr.priority == I915_PRIORITY_INVALID) {
-		GEM_BUG_ON(!list_empty(&node->link));
-		node->attr = *attr;
+	if (yesde->attr.priority == I915_PRIORITY_INVALID) {
+		GEM_BUG_ON(!list_empty(&yesde->link));
+		yesde->attr = *attr;
 
 		if (stack.dfs_link.next == stack.dfs_link.prev)
 			return;
@@ -306,32 +306,32 @@ static void __i915_schedule(struct i915_sched_node *node,
 	}
 
 	memset(&cache, 0, sizeof(cache));
-	engine = node_to_request(node)->engine;
+	engine = yesde_to_request(yesde)->engine;
 	spin_lock(&engine->active.lock);
 
 	/* Fifo and depth-first replacement ensure our deps execute before us */
-	engine = sched_lock_engine(node, engine, &cache);
+	engine = sched_lock_engine(yesde, engine, &cache);
 	list_for_each_entry_safe_reverse(dep, p, &dfs, dfs_link) {
 		INIT_LIST_HEAD(&dep->dfs_link);
 
-		node = dep->signaler;
-		engine = sched_lock_engine(node, engine, &cache);
+		yesde = dep->signaler;
+		engine = sched_lock_engine(yesde, engine, &cache);
 		lockdep_assert_held(&engine->active.lock);
 
 		/* Recheck after acquiring the engine->timeline.lock */
-		if (prio <= node->attr.priority || node_signaled(node))
+		if (prio <= yesde->attr.priority || yesde_signaled(yesde))
 			continue;
 
-		GEM_BUG_ON(node_to_request(node)->engine != engine);
+		GEM_BUG_ON(yesde_to_request(yesde)->engine != engine);
 
-		node->attr.priority = prio;
+		yesde->attr.priority = prio;
 
-		if (list_empty(&node->link)) {
+		if (list_empty(&yesde->link)) {
 			/*
-			 * If the request is not in the priolist queue because
-			 * it is not yet runnable, then it doesn't contribute
+			 * If the request is yest in the priolist queue because
+			 * it is yest yet runnable, then it doesn't contribute
 			 * to our preemption decisions. On the other hand,
-			 * if the request is on the HW, it too is not in the
+			 * if the request is on the HW, it too is yest in the
 			 * queue; but in that case we may still need to reorder
 			 * the inflight requests.
 			 */
@@ -339,16 +339,16 @@ static void __i915_schedule(struct i915_sched_node *node,
 		}
 
 		if (!intel_engine_is_virtual(engine) &&
-		    !i915_request_is_active(node_to_request(node))) {
+		    !i915_request_is_active(yesde_to_request(yesde))) {
 			if (!cache.priolist)
 				cache.priolist =
 					i915_sched_lookup_priolist(engine,
 								   prio);
-			list_move_tail(&node->link, cache.priolist);
+			list_move_tail(&yesde->link, cache.priolist);
 		}
 
 		/* Defer (tasklet) submission until after all of our updates. */
-		kick_submission(engine, node_to_request(node), prio);
+		kick_submission(engine, yesde_to_request(yesde), prio);
 	}
 
 	spin_unlock(&engine->active.lock);
@@ -361,12 +361,12 @@ void i915_schedule(struct i915_request *rq, const struct i915_sched_attr *attr)
 	spin_unlock_irq(&schedule_lock);
 }
 
-static void __bump_priority(struct i915_sched_node *node, unsigned int bump)
+static void __bump_priority(struct i915_sched_yesde *yesde, unsigned int bump)
 {
-	struct i915_sched_attr attr = node->attr;
+	struct i915_sched_attr attr = yesde->attr;
 
 	attr.priority |= bump;
-	__i915_schedule(node, &attr);
+	__i915_schedule(yesde, &attr);
 }
 
 void i915_schedule_bump_priority(struct i915_request *rq, unsigned int bump)
@@ -382,14 +382,14 @@ void i915_schedule_bump_priority(struct i915_request *rq, unsigned int bump)
 	spin_unlock_irqrestore(&schedule_lock, flags);
 }
 
-void i915_sched_node_init(struct i915_sched_node *node)
+void i915_sched_yesde_init(struct i915_sched_yesde *yesde)
 {
-	INIT_LIST_HEAD(&node->signalers_list);
-	INIT_LIST_HEAD(&node->waiters_list);
-	INIT_LIST_HEAD(&node->link);
-	node->attr.priority = I915_PRIORITY_INVALID;
-	node->semaphores = 0;
-	node->flags = 0;
+	INIT_LIST_HEAD(&yesde->signalers_list);
+	INIT_LIST_HEAD(&yesde->waiters_list);
+	INIT_LIST_HEAD(&yesde->link);
+	yesde->attr.priority = I915_PRIORITY_INVALID;
+	yesde->semaphores = 0;
+	yesde->flags = 0;
 }
 
 static struct i915_dependency *
@@ -404,8 +404,8 @@ i915_dependency_free(struct i915_dependency *dep)
 	kmem_cache_free(global.slab_dependencies, dep);
 }
 
-bool __i915_sched_node_add_dependency(struct i915_sched_node *node,
-				      struct i915_sched_node *signal,
+bool __i915_sched_yesde_add_dependency(struct i915_sched_yesde *yesde,
+				      struct i915_sched_yesde *signal,
 				      struct i915_dependency *dep,
 				      unsigned long flags)
 {
@@ -413,24 +413,24 @@ bool __i915_sched_node_add_dependency(struct i915_sched_node *node,
 
 	spin_lock_irq(&schedule_lock);
 
-	if (!node_signaled(signal)) {
+	if (!yesde_signaled(signal)) {
 		INIT_LIST_HEAD(&dep->dfs_link);
 		list_add(&dep->wait_link, &signal->waiters_list);
-		list_add(&dep->signal_link, &node->signalers_list);
+		list_add(&dep->signal_link, &yesde->signalers_list);
 		dep->signaler = signal;
-		dep->waiter = node;
+		dep->waiter = yesde;
 		dep->flags = flags;
 
 		/* Keep track of whether anyone on this chain has a semaphore */
 		if (signal->flags & I915_SCHED_HAS_SEMAPHORE_CHAIN &&
-		    !node_started(signal))
-			node->flags |= I915_SCHED_HAS_SEMAPHORE_CHAIN;
+		    !yesde_started(signal))
+			yesde->flags |= I915_SCHED_HAS_SEMAPHORE_CHAIN;
 
 		/*
-		 * As we do not allow WAIT to preempt inflight requests,
+		 * As we do yest allow WAIT to preempt inflight requests,
 		 * once we have executed a request, along with triggering
 		 * any execution callbacks, we must preserve its ordering
-		 * within the non-preemptible FIFO.
+		 * within the yesn-preemptible FIFO.
 		 */
 		BUILD_BUG_ON(__NO_PREEMPTION & ~I915_PRIORITY_MASK);
 		if (flags & I915_DEPENDENCY_EXTERNAL)
@@ -444,8 +444,8 @@ bool __i915_sched_node_add_dependency(struct i915_sched_node *node,
 	return ret;
 }
 
-int i915_sched_node_add_dependency(struct i915_sched_node *node,
-				   struct i915_sched_node *signal)
+int i915_sched_yesde_add_dependency(struct i915_sched_yesde *yesde,
+				   struct i915_sched_yesde *signal)
 {
 	struct i915_dependency *dep;
 
@@ -453,7 +453,7 @@ int i915_sched_node_add_dependency(struct i915_sched_node *node,
 	if (!dep)
 		return -ENOMEM;
 
-	if (!__i915_sched_node_add_dependency(node, signal, dep,
+	if (!__i915_sched_yesde_add_dependency(yesde, signal, dep,
 					      I915_DEPENDENCY_EXTERNAL |
 					      I915_DEPENDENCY_ALLOC))
 		i915_dependency_free(dep);
@@ -461,7 +461,7 @@ int i915_sched_node_add_dependency(struct i915_sched_node *node,
 	return 0;
 }
 
-void i915_sched_node_fini(struct i915_sched_node *node)
+void i915_sched_yesde_fini(struct i915_sched_yesde *yesde)
 {
 	struct i915_dependency *dep, *tmp;
 
@@ -473,7 +473,7 @@ void i915_sched_node_fini(struct i915_sched_node *node)
 	 * However, retirement is run independently on each timeline and
 	 * so we may be called out-of-order.
 	 */
-	list_for_each_entry_safe(dep, tmp, &node->signalers_list, signal_link) {
+	list_for_each_entry_safe(dep, tmp, &yesde->signalers_list, signal_link) {
 		GEM_BUG_ON(!list_empty(&dep->dfs_link));
 
 		list_del(&dep->wait_link);
@@ -482,8 +482,8 @@ void i915_sched_node_fini(struct i915_sched_node *node)
 	}
 
 	/* Remove ourselves from everyone who depends upon us */
-	list_for_each_entry_safe(dep, tmp, &node->waiters_list, wait_link) {
-		GEM_BUG_ON(dep->signaler != node);
+	list_for_each_entry_safe(dep, tmp, &yesde->waiters_list, wait_link) {
+		GEM_BUG_ON(dep->signaler != yesde);
 		GEM_BUG_ON(!list_empty(&dep->dfs_link));
 
 		list_del(&dep->signal_link);

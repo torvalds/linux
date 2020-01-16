@@ -124,7 +124,7 @@ enum stv0367_ter_if_iq_mode {
 
 #if 0
 enum FE_TER_FECRate {
-	FE_TER_FEC_NONE = 0x00,	/* no FEC rate specified */
+	FE_TER_FEC_NONE = 0x00,	/* yes FEC rate specified */
 	FE_TER_FEC_ALL = 0xFF,	 /* Logical OR of all FECs */
 	FE_TER_FEC_1_2 = 1,
 	FE_TER_FEC_2_3 = (1 << 1),
@@ -175,7 +175,7 @@ struct stv0367_cab_signal_info {
 	enum stv0367cab_mod modulation;
 	enum fe_spectral_inversion spect_inv;
 	s32 Power_dBmx10;	/* Power of the RF signal (dBm x 10) */
-	u32	CN_dBx10;	/* Carrier to noise ratio (dB x 10) */
+	u32	CN_dBx10;	/* Carrier to yesise ratio (dB x 10) */
 	u32	BER;		/* Bit error rate (x 10000000)	*/
 };
 

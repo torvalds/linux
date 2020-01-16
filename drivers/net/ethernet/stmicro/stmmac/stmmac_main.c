@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*******************************************************************************
   This is the driver for the ST MAC 10/100/1000 on-chip Ethernet controllers.
-  ST Ethernet IPs are built around a Synopsys IP Core.
+  ST Ethernet IPs are built around a Syyespsys IP Core.
 
 	Copyright(C) 2007-2011 STMicroelectronics Ltd
 
@@ -57,7 +57,7 @@ MODULE_PARM_DESC(watchdog, "Transmit timeout in milliseconds (default 5s)");
 
 static int debug = -1;
 module_param(debug, int, 0644);
-MODULE_PARM_DESC(debug, "Message Level (-1: default, 0: no output, 16: all)");
+MODULE_PARM_DESC(debug, "Message Level (-1: default, 0: yes output, 16: all)");
 
 static int phyaddr = -1;
 module_param(phyaddr, int, 0444);
@@ -223,7 +223,7 @@ static void stmmac_global_err(struct stmmac_priv *priv)
  * clock input.
  * Note:
  *	If a specific clk_csr value is passed from the platform
- *	this means that the CSR Clock Range selection cannot be
+ *	this means that the CSR Clock Range selection canyest be
  *	changed at run-time and it is fixed (as reported in the driver
  *	documentation). Viceversa the driver will try to set the MDC
  *	clock dynamically according to the actual clock input.
@@ -237,8 +237,8 @@ static void stmmac_clk_csr_set(struct stmmac_priv *priv)
 	/* Platform provided default clk_csr would be assumed valid
 	 * for all other cases except for the below mentioned ones.
 	 * For values higher than the IEEE 802.3 specified frequency
-	 * we can not estimate the proper divider as it is not known
-	 * the frequency of clk_csr_i. So we do not change the default
+	 * we can yest estimate the proper divider as it is yest kyeswn
+	 * the frequency of clk_csr_i. So we do yest change the default
 	 * divider.
 	 */
 	if (!(priv->clk_csr & MAC_CSR_H_FRQ_MASK)) {
@@ -362,7 +362,7 @@ void stmmac_disable_eee_mode(struct stmmac_priv *priv)
  * stmmac_eee_ctrl_timer - EEE TX SW timer.
  * @arg : data hook
  * Description:
- *  if there is no data transfer and if we are not in LPI state,
+ *  if there is yes data transfer and if we are yest in LPI state,
  *  then MAC Transmitter can be moved to LPI state.
  */
 static void stmmac_eee_ctrl_timer(struct timer_list *t)
@@ -385,8 +385,8 @@ bool stmmac_eee_init(struct stmmac_priv *priv)
 {
 	int tx_lpi_timer = priv->tx_lpi_timer;
 
-	/* Using PCS we cannot dial with the phy registers at this stage
-	 * so we do not support extra feature like EEE.
+	/* Using PCS we canyest dial with the phy registers at this stage
+	 * so we do yest support extra feature like EEE.
 	 */
 	if ((priv->hw->pcs == STMMAC_PCS_RGMII) ||
 	    (priv->hw->pcs == STMMAC_PCS_TBI) ||
@@ -492,7 +492,7 @@ static void stmmac_get_rx_hwtstamp(struct stmmac_priv *priv, struct dma_desc *p,
 		memset(shhwtstamp, 0, sizeof(struct skb_shared_hwtstamps));
 		shhwtstamp->hwtstamp = ns_to_ktime(ns);
 	} else  {
-		netdev_dbg(priv->dev, "cannot get RX hw timestamp\n");
+		netdev_dbg(priv->dev, "canyest get RX hw timestamp\n");
 	}
 }
 
@@ -511,7 +511,7 @@ static int stmmac_hwtstamp_set(struct net_device *dev, struct ifreq *ifr)
 {
 	struct stmmac_priv *priv = netdev_priv(dev);
 	struct hwtstamp_config config;
-	struct timespec64 now;
+	struct timespec64 yesw;
 	u64 temp = 0;
 	u32 ptp_v2 = 0;
 	u32 tstamp_all = 0;
@@ -553,7 +553,7 @@ static int stmmac_hwtstamp_set(struct net_device *dev, struct ifreq *ifr)
 	if (priv->adv_ts) {
 		switch (config.rx_filter) {
 		case HWTSTAMP_FILTER_NONE:
-			/* time stamp no incoming packet at all */
+			/* time stamp yes incoming packet at all */
 			config.rx_filter = HWTSTAMP_FILTER_NONE;
 			break;
 
@@ -715,11 +715,11 @@ static int stmmac_hwtstamp_set(struct net_device *dev, struct ifreq *ifr)
 		stmmac_config_addend(priv, priv->ptpaddr, priv->default_addend);
 
 		/* initialize system time */
-		ktime_get_real_ts64(&now);
+		ktime_get_real_ts64(&yesw);
 
 		/* lower 32 bits of tv_sec are safe until y2106 */
 		stmmac_init_systime(priv, priv->ptpaddr,
-				(u32)now.tv_sec, now.tv_nsec);
+				(u32)yesw.tv_sec, yesw.tv_nsec);
 	}
 
 	memcpy(&priv->tstamp_config, &config, sizeof(config));
@@ -861,11 +861,11 @@ static void stmmac_validate(struct phylink_config *config,
 
 	bitmap_and(supported, supported, mac_supported,
 		   __ETHTOOL_LINK_MODE_MASK_NBITS);
-	bitmap_andnot(supported, supported, mask,
+	bitmap_andyest(supported, supported, mask,
 		      __ETHTOOL_LINK_MODE_MASK_NBITS);
 	bitmap_and(state->advertising, state->advertising, mac_supported,
 		   __ETHTOOL_LINK_MODE_MASK_NBITS);
-	bitmap_andnot(state->advertising, state->advertising, mask,
+	bitmap_andyest(state->advertising, state->advertising, mask,
 		      __ETHTOOL_LINK_MODE_MASK_NBITS);
 }
 
@@ -1009,24 +1009,24 @@ static void stmmac_check_pcs_mode(struct stmmac_priv *priv)
 static int stmmac_init_phy(struct net_device *dev)
 {
 	struct stmmac_priv *priv = netdev_priv(dev);
-	struct device_node *node;
+	struct device_yesde *yesde;
 	int ret;
 
-	node = priv->plat->phylink_node;
+	yesde = priv->plat->phylink_yesde;
 
-	if (node)
-		ret = phylink_of_phy_connect(priv->phylink, node, 0);
+	if (yesde)
+		ret = phylink_of_phy_connect(priv->phylink, yesde, 0);
 
-	/* Some DT bindings do not set-up the PHY handle. Let's try to
+	/* Some DT bindings do yest set-up the PHY handle. Let's try to
 	 * manually parse it
 	 */
-	if (!node || ret) {
+	if (!yesde || ret) {
 		int addr = priv->plat->phy_addr;
 		struct phy_device *phydev;
 
 		phydev = mdiobus_get_phy(priv->mii, addr);
 		if (!phydev) {
-			netdev_err(priv->dev, "no phy at addr %d\n", addr);
+			netdev_err(priv->dev, "yes phy at addr %d\n", addr);
 			return -ENODEV;
 		}
 
@@ -1038,14 +1038,14 @@ static int stmmac_init_phy(struct net_device *dev)
 
 static int stmmac_phy_setup(struct stmmac_priv *priv)
 {
-	struct fwnode_handle *fwnode = of_fwnode_handle(priv->plat->phylink_node);
+	struct fwyesde_handle *fwyesde = of_fwyesde_handle(priv->plat->phylink_yesde);
 	int mode = priv->plat->phy_interface;
 	struct phylink *phylink;
 
 	priv->phylink_config.dev = &priv->dev->dev;
 	priv->phylink_config.type = PHYLINK_NETDEV;
 
-	phylink = phylink_create(&priv->phylink_config, fwnode,
+	phylink = phylink_create(&priv->phylink_config, fwyesde,
 				 mode, &stmmac_phylink_mac_ops);
 	if (IS_ERR(phylink))
 		return PTR_ERR(phylink);
@@ -1557,7 +1557,7 @@ static int alloc_dma_rx_desc_resources(struct stmmac_priv *priv)
 		pp_params.pool_size = DMA_RX_SIZE;
 		num_pages = DIV_ROUND_UP(priv->dma_buf_sz, PAGE_SIZE);
 		pp_params.order = ilog2(num_pages);
-		pp_params.nid = dev_to_node(priv->device);
+		pp_params.nid = dev_to_yesde(priv->device);
 		pp_params.dev = priv->device;
 		pp_params.dma_dir = DMA_FROM_DEVICE;
 
@@ -1832,8 +1832,8 @@ static void stmmac_dma_operation_mode(struct stmmac_priv *priv)
 		 * In case of GMAC, SF mode can be enabled
 		 * to perform the TX COE in HW. This depends on:
 		 * 1) TX COE if actually supported
-		 * 2) There is no bugged Jumbo frame support
-		 *    that needs to not insert csum in the TDES.
+		 * 2) There is yes bugged Jumbo frame support
+		 *    that needs to yest insert csum in the TDES.
 		 */
 		txmode = SF_DMA_MODE;
 		rxmode = SF_DMA_MODE;
@@ -1902,7 +1902,7 @@ static int stmmac_tx_clean(struct stmmac_priv *priv, int budget, u32 queue)
 		dma_rmb();
 
 		/* Just consider the last segment and ...*/
-		if (likely(!(status & tx_not_ls))) {
+		if (likely(!(status & tx_yest_ls))) {
 			/* ... verify the status error condition */
 			if (unlikely(status & tx_err)) {
 				priv->dev->stats.tx_errors++;
@@ -2179,7 +2179,7 @@ static void stmmac_check_ether_addr(struct stmmac_priv *priv)
  * Description:
  * It inits the DMA invoking the specific MAC/GMAC callback.
  * Some DMA parameters can be passed from the platform;
- * in case of these are not passed a default is kept for the MAC or GMAC.
+ * in case of these are yest passed a default is kept for the MAC or GMAC.
  */
 static int stmmac_init_dma_engine(struct stmmac_priv *priv)
 {
@@ -2428,7 +2428,7 @@ static void stmmac_mac_config_rx_queues_routing(struct stmmac_priv *priv)
 	u8 packet;
 
 	for (queue = 0; queue < rx_queues_count; queue++) {
-		/* no specific packet type routing specified for the queue */
+		/* yes specific packet type routing specified for the queue */
 		if (priv->plat->rx_queues_cfg[queue].pkt_route == 0x0)
 			continue;
 
@@ -2522,7 +2522,7 @@ static void stmmac_safety_feat_configuration(struct stmmac_priv *priv)
  *  Checksum features, timers). The DMA is ready to start receiving and
  *  transmitting.
  *  Return value:
- *  0 on success and an appropriate (-)ve integer as defined in errno.h
+ *  0 on success and an appropriate (-)ve integer as defined in erryes.h
  *  file on failure.
  */
 static int stmmac_hw_setup(struct net_device *dev, bool init_ptp)
@@ -2588,7 +2588,7 @@ static int stmmac_hw_setup(struct net_device *dev, bool init_ptp)
 
 		ret = stmmac_init_ptp(priv);
 		if (ret == -EOPNOTSUPP)
-			netdev_warn(priv->dev, "PTP not supported by HW\n");
+			netdev_warn(priv->dev, "PTP yest supported by HW\n");
 		else if (ret)
 			netdev_warn(priv->dev, "PTP init failed\n");
 	}
@@ -2643,7 +2643,7 @@ static void stmmac_hw_teardown(struct net_device *dev)
  *  Description:
  *  This function is the open entry point of the driver.
  *  Return value:
- *  0 on success and an appropriate (-)ve integer as defined in errno.h
+ *  0 on success and an appropriate (-)ve integer as defined in erryes.h
  *  file on failure.
  */
 static int stmmac_open(struct net_device *dev)
@@ -2659,7 +2659,7 @@ static int stmmac_open(struct net_device *dev)
 		ret = stmmac_init_phy(dev);
 		if (ret) {
 			netdev_err(priv->dev,
-				   "%s: Cannot attach to PHY (error: %d)\n",
+				   "%s: Canyest attach to PHY (error: %d)\n",
 				   __func__, ret);
 			return ret;
 		}
@@ -2715,7 +2715,7 @@ static int stmmac_open(struct net_device *dev)
 		goto irq_error;
 	}
 
-	/* Request the Wake IRQ in case of another line is used for WoL */
+	/* Request the Wake IRQ in case of ayesther line is used for WoL */
 	if (priv->wol_irq != dev->irq) {
 		ret = request_irq(priv->wol_irq, stmmac_interrupt,
 				  IRQF_SHARED, dev->name, dev);
@@ -2938,7 +2938,7 @@ static netdev_tx_t stmmac_tso_xmit(struct sk_buff *skb, struct net_device *dev)
 		hdr = tcp_hdrlen(skb);
 	}
 
-	/* Desc availability based on threshold should be enough safe */
+	/* Desc availability based on threshold should be eyesugh safe */
 	if (unlikely(stmmac_tx_avail(priv, queue) <
 		(((skb->len - proto_hdr_len) / TSO_MAX_BUFF_SIZE + 1)))) {
 		if (!netif_tx_queue_stopped(netdev_get_tx_queue(dev, queue))) {
@@ -2952,7 +2952,7 @@ static netdev_tx_t stmmac_tso_xmit(struct sk_buff *skb, struct net_device *dev)
 		return NETDEV_TX_BUSY;
 	}
 
-	pay_len = skb_headlen(skb) - proto_hdr_len; /* no frags */
+	pay_len = skb_headlen(skb) - proto_hdr_len; /* yes frags */
 
 	mss = skb_shinfo(skb)->gso_size;
 
@@ -3147,7 +3147,7 @@ static netdev_tx_t stmmac_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	unsigned int first_entry, tx_packets, enh_desc;
 	struct stmmac_priv *priv = netdev_priv(dev);
-	unsigned int nopaged_len = skb_headlen(skb);
+	unsigned int yespaged_len = skb_headlen(skb);
 	int i, csum_insertion = 0, is_jumbo = 0;
 	u32 queue = skb_get_queue_mapping(skb);
 	int nfrags = skb_shinfo(skb)->nr_frags;
@@ -3251,7 +3251,7 @@ static netdev_tx_t stmmac_xmit(struct sk_buff *skb, struct net_device *dev)
 	/* According to the coalesce parameter the IC bit for the latest
 	 * segment is reset and the timer re-started to clean the tx status.
 	 * This approach takes care about the fragments: desc is the first
-	 * element in case of no SG.
+	 * element in case of yes SG.
 	 */
 	tx_packets = (entry + 1) - first_tx;
 	tx_q->tx_count_frames += tx_packets;
@@ -3326,7 +3326,7 @@ static netdev_tx_t stmmac_xmit(struct sk_buff *skb, struct net_device *dev)
 		bool last_segment = (nfrags == 0);
 
 		des = dma_map_single(priv->device, skb->data,
-				     nopaged_len, DMA_TO_DEVICE);
+				     yespaged_len, DMA_TO_DEVICE);
 		if (dma_mapping_error(priv->device, des))
 			goto dma_map_err;
 
@@ -3334,7 +3334,7 @@ static netdev_tx_t stmmac_xmit(struct sk_buff *skb, struct net_device *dev)
 
 		stmmac_set_desc_addr(priv, first, des);
 
-		tx_q->tx_skbuff_dma[first_entry].len = nopaged_len;
+		tx_q->tx_skbuff_dma[first_entry].len = yespaged_len;
 		tx_q->tx_skbuff_dma[first_entry].last_segment = last_segment;
 
 		if (unlikely((skb_shinfo(skb)->tx_flags & SKBTX_HW_TSTAMP) &&
@@ -3345,7 +3345,7 @@ static netdev_tx_t stmmac_xmit(struct sk_buff *skb, struct net_device *dev)
 		}
 
 		/* Prepare the first descriptor setting the OWN bit too */
-		stmmac_prepare_tx_desc(priv, first, 1, nopaged_len,
+		stmmac_prepare_tx_desc(priv, first, 1, yespaged_len,
 				csum_insertion, priv->mode, 1, last_segment,
 				skb->len);
 	} else {
@@ -3498,13 +3498,13 @@ static unsigned int stmmac_rx_buf1_len(struct stmmac_priv *priv,
 		return hlen;
 	}
 
-	/* First descriptor, not last descriptor and not split header */
-	if (status & rx_not_ls)
+	/* First descriptor, yest last descriptor and yest split header */
+	if (status & rx_yest_ls)
 		return priv->dma_buf_sz;
 
 	plen = stmmac_get_rx_frame_len(priv, p, coe);
 
-	/* First descriptor and last descriptor and not split header */
+	/* First descriptor and last descriptor and yest split header */
 	return min_t(unsigned int, priv->dma_buf_sz, plen);
 }
 
@@ -3515,12 +3515,12 @@ static unsigned int stmmac_rx_buf2_len(struct stmmac_priv *priv,
 	int coe = priv->hw->rx_csum;
 	unsigned int plen = 0;
 
-	/* Not split header, buffer is not available */
+	/* Not split header, buffer is yest available */
 	if (!priv->sph)
 		return 0;
 
 	/* Not last descriptor */
-	if (status & rx_not_ls)
+	if (status & rx_yest_ls)
 		return priv->dma_buf_sz;
 
 	plen = stmmac_get_rx_frame_len(priv, p, coe);
@@ -3618,7 +3618,7 @@ read_again:
 				priv->dev->stats.rx_errors++;
 		}
 
-		if (unlikely(error && (status & rx_not_ls)))
+		if (unlikely(error && (status & rx_yest_ls)))
 			goto read_again;
 		if (unlikely(error)) {
 			dev_kfree_skb(skb);
@@ -3645,8 +3645,8 @@ read_again:
 		 * feature is always disabled and packets need to be
 		 * stripped manually.
 		 */
-		if (likely(!(status & rx_not_ls)) &&
-		    (likely(priv->synopsys_id >= DWMAC_CORE_4_00) ||
+		if (likely(!(status & rx_yest_ls)) &&
+		    (likely(priv->syyespsys_id >= DWMAC_CORE_4_00) ||
 		     unlikely(status != llc_snap))) {
 			if (buf2_len)
 				buf2_len -= ETH_FCS_LEN;
@@ -3698,7 +3698,7 @@ read_again:
 		}
 
 drain_data:
-		if (likely(status & rx_not_ls))
+		if (likely(status & rx_yest_ls))
 			goto read_again;
 		if (!skb)
 			continue;
@@ -3710,7 +3710,7 @@ drain_data:
 		skb->protocol = eth_type_trans(skb, priv->dev);
 
 		if (unlikely(!coe))
-			skb_checksum_none_assert(skb);
+			skb_checksum_yesne_assert(skb);
 		else
 			skb->ip_summed = CHECKSUM_UNNECESSARY;
 
@@ -3726,7 +3726,7 @@ drain_data:
 		count++;
 	}
 
-	if (status & rx_not_ls || skb) {
+	if (status & rx_yest_ls || skb) {
 		rx_q->state_saved = true;
 		rx_q->state.skb = skb;
 		rx_q->state.error = error;
@@ -3823,7 +3823,7 @@ static void stmmac_set_rx_mode(struct net_device *dev)
  *  to drive packet transmission. Ethernet has an MTU of 1500 octets
  *  (ETH_DATA_LEN). This value can be changed with ifconfig.
  *  Return value:
- *  0 on success and an appropriate (-)ve integer as defined in errno.h
+ *  0 on success and an appropriate (-)ve integer as defined in erryes.h
  *  file on failure.
  */
 static int stmmac_change_mtu(struct net_device *dev, int new_mtu)
@@ -3868,7 +3868,7 @@ static netdev_features_t stmmac_fix_features(struct net_device *dev,
 	/* Some GMAC devices have a bugged Jumbo frame support that
 	 * needs to have the Tx COE disabled for oversized frames
 	 * (due to limited buffer sizes). In this case we disable
-	 * the TX csum insertion in the TDES and not use SF.
+	 * the TX csum insertion in the TDES and yest use SF.
 	 */
 	if (priv->plat->bugged_jumbo && (dev->mtu > ETH_DATA_LEN))
 		features &= ~NETIF_F_CSUM_MASK;
@@ -3990,7 +3990,7 @@ static irqreturn_t stmmac_interrupt(int irq, void *dev_id)
 }
 
 #ifdef CONFIG_NET_POLL_CONTROLLER
-/* Polling receive - used by NETCONSOLE and other diagnostic tools
+/* Polling receive - used by NETCONSOLE and other diagyesstic tools
  * to allow network I/O with interrupts disabled.
  */
 static void stmmac_poll_controller(struct net_device *dev)
@@ -4090,7 +4090,7 @@ static u16 stmmac_select_queue(struct net_device *dev, struct sk_buff *skb,
 
 	if (gso & (SKB_GSO_TCPV4 | SKB_GSO_TCPV6 | SKB_GSO_UDP_L4)) {
 		/*
-		 * There is no way to determine the number of TSO/USO
+		 * There is yes way to determine the number of TSO/USO
 		 * capable Queues. Let's use always the Queue 0
 		 * because if TSO/USO is supported then at least this
 		 * one will be capable.
@@ -4198,7 +4198,7 @@ static int stmmac_dma_cap_show(struct seq_file *seq, void *v)
 	struct stmmac_priv *priv = netdev_priv(dev);
 
 	if (!priv->hw_cap_support) {
-		seq_printf(seq, "DMA HW features not supported\n");
+		seq_printf(seq, "DMA HW features yest supported\n");
 		return 0;
 	}
 
@@ -4235,7 +4235,7 @@ static int stmmac_dma_cap_show(struct seq_file *seq, void *v)
 	seq_printf(seq, "\tAV features: %s\n", (priv->dma_cap.av) ? "Y" : "N");
 	seq_printf(seq, "\tChecksum Offload in TX: %s\n",
 		   (priv->dma_cap.tx_coe) ? "Y" : "N");
-	if (priv->synopsys_id >= DWMAC_CORE_4_00) {
+	if (priv->syyespsys_id >= DWMAC_CORE_4_00) {
 		seq_printf(seq, "\tIP Checksum Offload in RX: %s\n",
 			   (priv->dma_cap.rx_coe) ? "Y" : "N");
 	} else {
@@ -4259,10 +4259,10 @@ DEFINE_SHOW_ATTRIBUTE(stmmac_dma_cap);
 
 /* Use network device events to rename debugfs file entries.
  */
-static int stmmac_device_event(struct notifier_block *unused,
+static int stmmac_device_event(struct yestifier_block *unused,
 			       unsigned long event, void *ptr)
 {
-	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
+	struct net_device *dev = netdev_yestifier_info_to_dev(ptr);
 	struct stmmac_priv *priv = netdev_priv(dev);
 
 	if (dev->netdev_ops != &stmmac_netdev_ops)
@@ -4281,8 +4281,8 @@ done:
 	return NOTIFY_DONE;
 }
 
-static struct notifier_block stmmac_notifier = {
-	.notifier_call = stmmac_device_event,
+static struct yestifier_block stmmac_yestifier = {
+	.yestifier_call = stmmac_device_event,
 };
 
 static void stmmac_init_fs(struct net_device *dev)
@@ -4300,14 +4300,14 @@ static void stmmac_init_fs(struct net_device *dev)
 	debugfs_create_file("dma_cap", 0444, priv->dbgfs_dir, dev,
 			    &stmmac_dma_cap_fops);
 
-	register_netdevice_notifier(&stmmac_notifier);
+	register_netdevice_yestifier(&stmmac_yestifier);
 }
 
 static void stmmac_exit_fs(struct net_device *dev)
 {
 	struct stmmac_priv *priv = netdev_priv(dev);
 
-	unregister_netdevice_notifier(&stmmac_notifier);
+	unregister_netdevice_yestifier(&stmmac_yestifier);
 	debugfs_remove_recursive(priv->dbgfs_dir);
 }
 #endif /* CONFIG_DEBUG_FS */
@@ -4449,7 +4449,7 @@ static void stmmac_service_task(struct work_struct *work)
  *  Description: this function is to configure the MAC device according to
  *  some platform parameters or the HW capability register. It prepares the
  *  driver to use either ring or chain modes and to setup either enhanced or
- *  normal descriptors.
+ *  yesrmal descriptors.
  */
 static int stmmac_hw_init(struct stmmac_priv *priv)
 {
@@ -4506,7 +4506,7 @@ static int stmmac_hw_init(struct stmmac_priv *priv)
 	if (priv->plat->rx_coe) {
 		priv->hw->rx_csum = priv->plat->rx_coe;
 		dev_info(priv->device, "RX Checksum Offload Engine supported\n");
-		if (priv->synopsys_id < DWMAC_CORE_4_00)
+		if (priv->syyespsys_id < DWMAC_CORE_4_00)
 			dev_info(priv->device, "COE Type %d\n", priv->hw->rx_csum);
 	}
 	if (priv->plat->tx_coe)
@@ -4532,7 +4532,7 @@ static int stmmac_hw_init(struct stmmac_priv *priv)
 	 * has to be disable and this can be done by passing the
 	 * riwt_off field from the platform.
 	 */
-	if (((priv->synopsys_id >= DWMAC_CORE_3_50) ||
+	if (((priv->syyespsys_id >= DWMAC_CORE_3_50) ||
 	    (priv->plat->has_xgmac)) && (!priv->plat->riwt_off)) {
 		priv->use_riwt = 1;
 		dev_info(priv->device,
@@ -4550,7 +4550,7 @@ static int stmmac_hw_init(struct stmmac_priv *priv)
  * Description: this is the main probe function used to
  * call the alloc_etherdev, allocate the priv structure.
  * Return:
- * returns 0 on success, otherwise errno.
+ * returns 0 on success, otherwise erryes.
  */
 int stmmac_dvr_probe(struct device *device,
 		     struct plat_stmmacenet_data *plat_dat,
@@ -4704,11 +4704,11 @@ int stmmac_dvr_probe(struct device *device,
 	ndev->min_mtu = ETH_ZLEN - ETH_HLEN;
 	if (priv->plat->has_xgmac)
 		ndev->max_mtu = XGMAC_JUMBO_LEN;
-	else if ((priv->plat->enh_desc) || (priv->synopsys_id >= DWMAC_CORE_4_00))
+	else if ((priv->plat->enh_desc) || (priv->syyespsys_id >= DWMAC_CORE_4_00))
 		ndev->max_mtu = JUMBO_LEN;
 	else
 		ndev->max_mtu = SKB_MAX_HEAD(NET_SKB_PAD + NET_IP_ALIGN);
-	/* Will not overwrite ndev->max_mtu if plat->maxmtu > ndev->max_mtu
+	/* Will yest overwrite ndev->max_mtu if plat->maxmtu > ndev->max_mtu
 	 * as well as plat->maxmtu < ndev->min_mtu which is a invalid range.
 	 */
 	if ((priv->plat->maxmtu < ndev->max_mtu) &&
@@ -4745,7 +4745,7 @@ int stmmac_dvr_probe(struct device *device,
 	mutex_init(&priv->lock);
 
 	/* If a specific clk_csr value is passed from the platform
-	 * this means that the CSR Clock Range selection cannot be
+	 * this means that the CSR Clock Range selection canyest be
 	 * changed at run-time and it is fixed. Viceversa the driver'll try to
 	 * set the MDC clock dynamically according to the csr actual
 	 * clock input.
@@ -4946,7 +4946,7 @@ int stmmac_resume(struct device *dev)
 	 * automatically as soon as a magic packet or a Wake-up frame
 	 * is received. Anyway, it's better to manually clear
 	 * this bit because it can generate problems while resuming
-	 * from another devices (e.g. serial console).
+	 * from ayesther devices (e.g. serial console).
 	 */
 	if (device_may_wakeup(priv->device)) {
 		mutex_lock(&priv->lock);

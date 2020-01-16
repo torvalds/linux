@@ -14,7 +14,7 @@
 
 #define MAX_BUF_SZ	PAGE_SIZE
 
-static int adi_open(struct inode *inode, struct file *file)
+static int adi_open(struct iyesde *iyesde, struct file *file)
 {
 	file->f_mode |= FMODE_UNSIGNED_OFFSET;
 	return 0;
@@ -212,7 +212,7 @@ static const struct file_operations adi_fops = {
 };
 
 static struct miscdevice adi_miscdev = {
-	.minor = MISC_DYNAMIC_MINOR,
+	.miyesr = MISC_DYNAMIC_MINOR,
 	.name = KBUILD_MODNAME,
 	.fops = &adi_fops,
 };

@@ -40,7 +40,7 @@ void dcookie_unregister(struct dcookie_user * user);
  * Convert the given dentry/vfsmount pair into
  * a cookie value.
  *
- * Returns -EINVAL if no living task has registered as a
+ * Returns -EINVAL if yes living task has registered as a
  * dcookie user.
  *
  * Returns 0 on success, with *cookie filled in

@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -33,10 +33,10 @@ struct acpi_bus_event;
  * ARG1: (ACPI_BUFFER) parameter buffer, 256 bytes
  * OUTPUT: (ACPI_BUFFER) output buffer, 256 bytes
  * ATIF provides an entry point for the gfx driver to interact with the sbios.
- * The AMD ACPI notification mechanism uses Notify (VGA, 0x81) or a custom
- * notification. Which notification is used as indicated by the ATIF Control
+ * The AMD ACPI yestification mechanism uses Notify (VGA, 0x81) or a custom
+ * yestification. Which yestification is used as indicated by the ATIF Control
  * Method GET_SYSTEM_PARAMETERS. When the driver receives Notify (VGA, 0x81) or
- * a custom notification it invokes ATIF Control Method GET_SYSTEM_BIOS_REQUESTS
+ * a custom yestification it invokes ATIF Control Method GET_SYSTEM_BIOS_REQUESTS
  * to identify pending System BIOS requests and associated parameters. For
  * example, if one of the pending requests is DISPLAY_SWITCH_REQUEST, the driver
  * will perform display device detection and invoke ATIF Control Method
@@ -66,11 +66,11 @@ struct acpi_bus_event;
 /* ATIF */
 #define ATIF_FUNCTION_VERIFY_INTERFACE                             0x0
 /* ARG0: ATIF_FUNCTION_VERIFY_INTERFACE
- * ARG1: none
+ * ARG1: yesne
  * OUTPUT:
  * WORD  - structure size in bytes (includes size field)
  * WORD  - version
- * DWORD - supported notifications mask
+ * DWORD - supported yestifications mask
  * DWORD - supported functions bit vector
  */
 /* Notifications mask */
@@ -97,7 +97,7 @@ struct acpi_bus_event;
 #       define ATIF_GET_EXTERNAL_GPU_INFORMATION_SUPPORTED        (1 << 20)
 #define ATIF_FUNCTION_GET_SYSTEM_PARAMETERS                        0x1
 /* ARG0: ATIF_FUNCTION_GET_SYSTEM_PARAMETERS
- * ARG1: none
+ * ARG1: yesne
  * OUTPUT:
  * WORD  - structure size in bytes (includes size field)
  * DWORD - valid flags mask
@@ -108,26 +108,26 @@ struct acpi_bus_event;
  * WORD  - structure size in bytes (includes size field)
  * DWORD - valid flags mask
  * DWORD - flags
- * BYTE  - notify command code
+ * BYTE  - yestify command code
  *
  * flags
  * bits 1:0:
- * 0 - Notify(VGA, 0x81) is not used for notification
- * 1 - Notify(VGA, 0x81) is used for notification
- * 2 - Notify(VGA, n) is used for notification where
- * n (0xd0-0xd9) is specified in notify command code.
+ * 0 - Notify(VGA, 0x81) is yest used for yestification
+ * 1 - Notify(VGA, 0x81) is used for yestification
+ * 2 - Notify(VGA, n) is used for yestification where
+ * n (0xd0-0xd9) is specified in yestify command code.
  * bit 2:
- * 1 - lid changes not reported though int10
+ * 1 - lid changes yest reported though int10
  */
 #define ATIF_FUNCTION_GET_SYSTEM_BIOS_REQUESTS                     0x2
 /* ARG0: ATIF_FUNCTION_GET_SYSTEM_BIOS_REQUESTS
- * ARG1: none
+ * ARG1: yesne
  * OUTPUT:
  * WORD  - structure size in bytes (includes size field)
  * DWORD - pending sbios requests
  * BYTE  - panel expansion mode
  * BYTE  - thermal state: target gfx controller
- * BYTE  - thermal state: state id (0: exit state, non-0: state)
+ * BYTE  - thermal state: state id (0: exit state, yesn-0: state)
  * BYTE  - forced power state: target gfx controller
  * BYTE  - forced power state: state id
  * BYTE  - system power source
@@ -180,7 +180,7 @@ struct acpi_bus_event;
 #       define ATIF_DFP6                                           (1 << 12)
 #define ATIF_FUNCTION_GET_LID_STATE                                0x4
 /* ARG0: ATIF_FUNCTION_GET_LID_STATE
- * ARG1: none
+ * ARG1: yesne
  * OUTPUT:
  * WORD  - structure size in bytes (includes size field)
  * BYTE  - lid state (0: open, 1: closed)
@@ -190,7 +190,7 @@ struct acpi_bus_event;
  */
 #define ATIF_FUNCTION_GET_TV_STANDARD_FROM_CMOS                    0x5
 /* ARG0: ATIF_FUNCTION_GET_TV_STANDARD_FROM_CMOS
- * ARG1: none
+ * ARG1: yesne
  * OUTPUT:
  * WORD  - structure size in bytes (includes size field)
  * BYTE  - 0
@@ -210,11 +210,11 @@ struct acpi_bus_event;
  * WORD  - structure size in bytes (includes size field)
  * BYTE  - 0
  * BYTE  - TV standard
- * OUTPUT: none
+ * OUTPUT: yesne
  */
 #define ATIF_FUNCTION_GET_PANEL_EXPANSION_MODE_FROM_CMOS           0x7
 /* ARG0: ATIF_FUNCTION_GET_PANEL_EXPANSION_MODE_FROM_CMOS
- * ARG1: none
+ * ARG1: yesne
  * OUTPUT:
  * WORD  - structure size in bytes (includes size field)
  * BYTE  - panel expansion mode
@@ -224,7 +224,7 @@ struct acpi_bus_event;
  * ARG1:
  * WORD  - structure size in bytes (includes size field)
  * BYTE  - panel expansion mode
- * OUTPUT: none
+ * OUTPUT: yesne
  */
 #define ATIF_FUNCTION_TEMPERATURE_CHANGE_NOTIFICATION              0xD
 /* ARG0: ATIF_FUNCTION_TEMPERATURE_CHANGE_NOTIFICATION
@@ -232,11 +232,11 @@ struct acpi_bus_event;
  * WORD  - structure size in bytes (includes size field)
  * WORD  - gfx controller id
  * BYTE  - current temperature (degress Celsius)
- * OUTPUT: none
+ * OUTPUT: yesne
  */
 #define ATIF_FUNCTION_GET_GRAPHICS_DEVICE_TYPES                    0xF
 /* ARG0: ATIF_FUNCTION_GET_GRAPHICS_DEVICE_TYPES
- * ARG1: none
+ * ARG1: yesne
  * OUTPUT:
  * WORD  - number of gfx devices
  * WORD  - device structure size in bytes (excludes device size field)
@@ -251,7 +251,7 @@ struct acpi_bus_event;
 #       define ATIF_XGP_PORT_IN_DOCK                               (1 << 3)
 #define ATIF_FUNCTION_GET_EXTERNAL_GPU_INFORMATION                 0x15
 /* ARG0: ATIF_FUNCTION_GET_EXTERNAL_GPU_INFORMATION
- * ARG1: none
+ * ARG1: yesne
  * OUTPUT:
  * WORD  - number of reported external gfx devices
  * WORD  - device structure size in bytes (excludes device size field)
@@ -264,7 +264,7 @@ struct acpi_bus_event;
 /* ATPX */
 #define ATPX_FUNCTION_VERIFY_INTERFACE                             0x0
 /* ARG0: ATPX_FUNCTION_VERIFY_INTERFACE
- * ARG1: none
+ * ARG1: yesne
  * OUTPUT:
  * WORD  - structure size in bytes (includes size field)
  * WORD  - version
@@ -281,7 +281,7 @@ struct acpi_bus_event;
 #       define ATPX_GET_DISPLAY_DETECTION_PORTS_SUPPORTED          (1 << 8)
 #define ATPX_FUNCTION_GET_PX_PARAMETERS                            0x1
 /* ARG0: ATPX_FUNCTION_GET_PX_PARAMETERS
- * ARG1: none
+ * ARG1: yesne
  * OUTPUT:
  * WORD  - structure size in bytes (includes size field)
  * DWORD - valid flags mask
@@ -307,14 +307,14 @@ struct acpi_bus_event;
  * ARG1:
  * WORD  - structure size in bytes (includes size field)
  * BYTE  - dGPU power state (0: power off, 1: power on)
- * OUTPUT: none
+ * OUTPUT: yesne
  */
 #define ATPX_FUNCTION_DISPLAY_MUX_CONTROL                          0x3
 /* ARG0: ATPX_FUNCTION_DISPLAY_MUX_CONTROL
  * ARG1:
  * WORD  - structure size in bytes (includes size field)
  * WORD  - display mux control (0: iGPU, 1: dGPU)
- * OUTPUT: none
+ * OUTPUT: yesne
  */
 #       define ATPX_INTEGRATED_GPU                                 0
 #       define ATPX_DISCRETE_GPU                                   1
@@ -323,25 +323,25 @@ struct acpi_bus_event;
  * ARG1:
  * WORD  - structure size in bytes (includes size field)
  * WORD  - i2c/aux/hpd mux control (0: iGPU, 1: dGPU)
- * OUTPUT: none
+ * OUTPUT: yesne
  */
 #define ATPX_FUNCTION_GRAPHICS_DEVICE_SWITCH_START_NOTIFICATION    0x5
 /* ARG0: ATPX_FUNCTION_GRAPHICS_DEVICE_SWITCH_START_NOTIFICATION
  * ARG1:
  * WORD  - structure size in bytes (includes size field)
  * WORD  - target gpu (0: iGPU, 1: dGPU)
- * OUTPUT: none
+ * OUTPUT: yesne
  */
 #define ATPX_FUNCTION_GRAPHICS_DEVICE_SWITCH_END_NOTIFICATION      0x6
 /* ARG0: ATPX_FUNCTION_GRAPHICS_DEVICE_SWITCH_END_NOTIFICATION
  * ARG1:
  * WORD  - structure size in bytes (includes size field)
  * WORD  - target gpu (0: iGPU, 1: dGPU)
- * OUTPUT: none
+ * OUTPUT: yesne
  */
 #define ATPX_FUNCTION_GET_DISPLAY_CONNECTORS_MAPPING               0x8
 /* ARG0: ATPX_FUNCTION_GET_DISPLAY_CONNECTORS_MAPPING
- * ARG1: none
+ * ARG1: yesne
  * OUTPUT:
  * WORD  - number of display connectors
  * WORD  - connector structure size in bytes (excludes connector size field)
@@ -356,7 +356,7 @@ struct acpi_bus_event;
 #       define ATPX_DISPLAY_I2C_SUPPORTED_BY_ADAPTER_ID_DEVICE     (1 << 2)
 #define ATPX_FUNCTION_GET_DISPLAY_DETECTION_PORTS                  0x9
 /* ARG0: ATPX_FUNCTION_GET_DISPLAY_DETECTION_PORTS
- * ARG1: none
+ * ARG1: yesne
  * OUTPUT:
  * WORD  - number of HPD/DDC ports
  * WORD  - port structure size in bytes (excludes port size field)
@@ -388,7 +388,7 @@ struct acpi_bus_event;
 /* ATCS */
 #define ATCS_FUNCTION_VERIFY_INTERFACE                             0x0
 /* ARG0: ATCS_FUNCTION_VERIFY_INTERFACE
- * ARG1: none
+ * ARG1: yesne
  * OUTPUT:
  * WORD  - structure size in bytes (includes size field)
  * WORD  - version
@@ -401,7 +401,7 @@ struct acpi_bus_event;
 #       define ATCS_SET_PCIE_BUS_WIDTH_SUPPORTED                   (1 << 3)
 #define ATCS_FUNCTION_GET_EXTERNAL_STATE                           0x1
 /* ARG0: ATCS_FUNCTION_GET_EXTERNAL_STATE
- * ARG1: none
+ * ARG1: yesne
  * OUTPUT:
  * WORD  - structure size in bytes (includes size field)
  * DWORD - valid flags mask
@@ -439,8 +439,8 @@ struct acpi_bus_event;
 #       define ATCS_REQUEST_IN_PROGRESS                            3
 #define ATCS_FUNCTION_PCIE_DEVICE_READY_NOTIFICATION               0x3
 /* ARG0: ATCS_FUNCTION_PCIE_DEVICE_READY_NOTIFICATION
- * ARG1: none
- * OUTPUT: none
+ * ARG1: yesne
+ * OUTPUT: yesne
  */
 #define ATCS_FUNCTION_SET_PCIE_BUS_WIDTH                           0x4
 /* ARG0: ATCS_FUNCTION_SET_PCIE_BUS_WIDTH

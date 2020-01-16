@@ -3,7 +3,7 @@ Andestech(nds32) AE3XX Platform
 The AE3XX prototype demonstrates the AE3XX example platform on the FPGA. It
 is composed of one Andestech(nds32) processor and AE3XX.
 
-Required properties (in root node):
+Required properties (in root yesde):
 - compatible = "andestech,ae3xx";
 
 Example:
@@ -27,7 +27,7 @@ system performance of their applications and track bugs of their designs
 efficiently. The optional hardware development platform further provides real
 system environment for early prototyping and software/hardware co-development.
 
-Required properties (in root node):
+Required properties (in root yesde):
 	compatible = "andestech,ag101p";
 
 Example:

@@ -504,15 +504,15 @@ static int venc_s_parm(struct file *file, void *fh, struct v4l2_streamparm *a)
 
 	memset(out->reserved, 0, sizeof(out->reserved));
 
-	if (!timeperframe->denominator)
-		timeperframe->denominator = inst->timeperframe.denominator;
+	if (!timeperframe->deyesminator)
+		timeperframe->deyesminator = inst->timeperframe.deyesminator;
 	if (!timeperframe->numerator)
 		timeperframe->numerator = inst->timeperframe.numerator;
 
 	out->capability = V4L2_CAP_TIMEPERFRAME;
 
 	us_per_frame = timeperframe->numerator * (u64)USEC_PER_SEC;
-	do_div(us_per_frame, timeperframe->denominator);
+	do_div(us_per_frame, timeperframe->deyesminator);
 
 	if (!us_per_frame)
 		return -EINVAL;
@@ -600,11 +600,11 @@ static int venc_enum_frameintervals(struct file *file, void *fh,
 		return -EINVAL;
 
 	fival->stepwise.min.numerator = 1;
-	fival->stepwise.min.denominator = frate_max(inst);
+	fival->stepwise.min.deyesminator = frate_max(inst);
 	fival->stepwise.max.numerator = 1;
-	fival->stepwise.max.denominator = frate_min(inst);
+	fival->stepwise.max.deyesminator = frate_min(inst);
 	fival->stepwise.step.numerator = 1;
-	fival->stepwise.step.denominator = frate_max(inst);
+	fival->stepwise.step.deyesminator = frate_max(inst);
 
 	return 0;
 }
@@ -1065,7 +1065,7 @@ static void venc_buf_done(struct venus_inst *inst, unsigned int buf_type,
 	v4l2_m2m_buf_done(vbuf, VB2_BUF_STATE_DONE);
 }
 
-static void venc_event_notify(struct venus_inst *inst, u32 event,
+static void venc_event_yestify(struct venus_inst *inst, u32 event,
 			      struct hfi_event_data *data)
 {
 	struct device *dev = inst->core->dev_enc;
@@ -1078,7 +1078,7 @@ static void venc_event_notify(struct venus_inst *inst, u32 event,
 
 static const struct hfi_inst_ops venc_hfi_ops = {
 	.buf_done = venc_buf_done,
-	.event_notify = venc_event_notify,
+	.event_yestify = venc_event_yestify,
 };
 
 static const struct v4l2_m2m_ops venc_m2m_ops = {
@@ -1137,7 +1137,7 @@ static void venc_inst_init(struct venus_inst *inst)
 	inst->out_height = 720;
 	inst->fps = 15;
 	inst->timeperframe.numerator = 1;
-	inst->timeperframe.denominator = 15;
+	inst->timeperframe.deyesminator = 15;
 	inst->hfi_codec = HFI_VIDEO_CODEC_H264;
 }
 
@@ -1178,7 +1178,7 @@ static int venc_open(struct file *file)
 
 	/*
 	 * create m2m device for every instance, the m2m context scheduling
-	 * is made by firmware side so we do not need to care about.
+	 * is made by firmware side so we do yest need to care about.
 	 */
 	inst->m2m_dev = v4l2_m2m_init(&venc_m2m_ops);
 	if (IS_ERR(inst->m2m_dev)) {

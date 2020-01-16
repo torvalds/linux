@@ -39,7 +39,7 @@ fw.mgmt
 =======
 
 Control unit firmware version. This firmware is responsible for house
-keeping tasks, PHY control etc. but not the packet-by-packet data path
+keeping tasks, PHY control etc. but yest the packet-by-packet data path
 operation.
 
 fw.app

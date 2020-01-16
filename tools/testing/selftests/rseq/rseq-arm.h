@@ -2,7 +2,7 @@
 /*
  * rseq-arm.h
  *
- * (C) Copyright 2016-2018 - Mathieu Desnoyers <mathieu.desnoyers@efficios.com>
+ * (C) Copyright 2016-2018 - Mathieu Desyesyers <mathieu.desyesyers@efficios.com>
  */
 
 /*
@@ -10,7 +10,7 @@
  *
  * RSEQ_SIG uses the udf A32 instruction with an uncommon immediate operand
  * value 0x5de3. This traps if user-space reaches this instruction by mistake,
- * and the uncommon operand ensures the kernel does not move the instruction
+ * and the uncommon operand ensures the kernel does yest move the instruction
  * pointer to attacker-controlled code on rseq abort.
  *
  * The instruction pattern in the A32 instruction set is:
@@ -45,11 +45,11 @@
  *
  * Prior to ARMv6, -mbig-endian generates big-endian code and data
  * (which match), so the endianness of the data representation of the
- * signature should not be reversed. However, the choice between BE32
- * and BE8 is done by the linker, so we cannot know whether code and
+ * signature should yest be reversed. However, the choice between BE32
+ * and BE8 is done by the linker, so we canyest kyesw whether code and
  * data endianness will be mixed before the linker is invoked. So rather
  * than try to play tricks with the linker, the rseq signature is simply
- * data (not a trap instruction) prior to ARMv6 on big endian. This is
+ * data (yest a trap instruction) prior to ARMv6 on big endian. This is
  * why the signature is expressed as data (.word) rather than as
  * instruction (.inst) in assembler.
  */
@@ -102,9 +102,9 @@ do {									\
 /*
  * Exit points of a rseq critical section consist of all instructions outside
  * of the critical section where a critical section can either branch to or
- * reach through the normal course of its execution. The abort IP and the
- * post-commit IP are already part of the __rseq_cs section and should not be
- * explicitly defined as additional exit points. Knowing all exit points is
+ * reach through the yesrmal course of its execution. The abort IP and the
+ * post-commit IP are already part of the __rseq_cs section and should yest be
+ * explicitly defined as additional exit points. Kyeswing all exit points is
  * useful to assist debuggers stepping over the critical section.
  */
 #define RSEQ_ASM_DEFINE_EXIT_POINT(start_ip, exit_ip)			\
@@ -183,7 +183,7 @@ int rseq_cmpeqv_storev(intptr_t *v, intptr_t expect, intptr_t newv, int cpu)
 		"b 5f\n\t"
 		RSEQ_ASM_DEFINE_ABORT(3, 4, "", abort, 1b, 2b, 4f)
 		"5:\n\t"
-		: /* gcc asm goto does not allow outputs */
+		: /* gcc asm goto does yest allow outputs */
 		: [cpu_id]		"r" (cpu),
 		  [current_cpu_id]	"m" (__rseq_abi.cpu_id),
 		  [rseq_cs]		"m" (__rseq_abi.rseq_cs),
@@ -216,7 +216,7 @@ error2:
 }
 
 static inline __attribute__((always_inline))
-int rseq_cmpnev_storeoffp_load(intptr_t *v, intptr_t expectnot,
+int rseq_cmpnev_storeoffp_load(intptr_t *v, intptr_t expectyest,
 			       off_t voffp, intptr_t *load, int cpu)
 {
 	RSEQ_INJECT_C(9)
@@ -234,13 +234,13 @@ int rseq_cmpnev_storeoffp_load(intptr_t *v, intptr_t expectnot,
 		RSEQ_ASM_CMP_CPU_ID(cpu_id, current_cpu_id, 4f)
 		RSEQ_INJECT_ASM(3)
 		"ldr r0, %[v]\n\t"
-		"cmp %[expectnot], r0\n\t"
+		"cmp %[expectyest], r0\n\t"
 		"beq %l[cmpfail]\n\t"
 		RSEQ_INJECT_ASM(4)
 #ifdef RSEQ_COMPARE_TWICE
 		RSEQ_ASM_CMP_CPU_ID(cpu_id, current_cpu_id, %l[error1])
 		"ldr r0, %[v]\n\t"
-		"cmp %[expectnot], r0\n\t"
+		"cmp %[expectyest], r0\n\t"
 		"beq %l[error2]\n\t"
 #endif
 		"str r0, %[load]\n\t"
@@ -253,13 +253,13 @@ int rseq_cmpnev_storeoffp_load(intptr_t *v, intptr_t expectnot,
 		"b 5f\n\t"
 		RSEQ_ASM_DEFINE_ABORT(3, 4, "", abort, 1b, 2b, 4f)
 		"5:\n\t"
-		: /* gcc asm goto does not allow outputs */
+		: /* gcc asm goto does yest allow outputs */
 		: [cpu_id]		"r" (cpu),
 		  [current_cpu_id]	"m" (__rseq_abi.cpu_id),
 		  [rseq_cs]		"m" (__rseq_abi.rseq_cs),
 		  /* final store input */
 		  [v]			"m" (*v),
-		  [expectnot]		"r" (expectnot),
+		  [expectyest]		"r" (expectyest),
 		  [voffp]		"Ir" (voffp),
 		  [load]		"m" (*load)
 		  RSEQ_INJECT_INPUT
@@ -314,7 +314,7 @@ int rseq_addv(intptr_t *v, intptr_t count, int cpu)
 		"b 5f\n\t"
 		RSEQ_ASM_DEFINE_ABORT(3, 4, "", abort, 1b, 2b, 4f)
 		"5:\n\t"
-		: /* gcc asm goto does not allow outputs */
+		: /* gcc asm goto does yest allow outputs */
 		: [cpu_id]		"r" (cpu),
 		  [current_cpu_id]	"m" (__rseq_abi.cpu_id),
 		  [rseq_cs]		"m" (__rseq_abi.rseq_cs),
@@ -379,7 +379,7 @@ int rseq_cmpeqv_trystorev_storev(intptr_t *v, intptr_t expect,
 		"b 5f\n\t"
 		RSEQ_ASM_DEFINE_ABORT(3, 4, "", abort, 1b, 2b, 4f)
 		"5:\n\t"
-		: /* gcc asm goto does not allow outputs */
+		: /* gcc asm goto does yest allow outputs */
 		: [cpu_id]		"r" (cpu),
 		  [current_cpu_id]	"m" (__rseq_abi.cpu_id),
 		  [rseq_cs]		"m" (__rseq_abi.rseq_cs),
@@ -455,7 +455,7 @@ int rseq_cmpeqv_trystorev_storev_release(intptr_t *v, intptr_t expect,
 		"b 5f\n\t"
 		RSEQ_ASM_DEFINE_ABORT(3, 4, "", abort, 1b, 2b, 4f)
 		"5:\n\t"
-		: /* gcc asm goto does not allow outputs */
+		: /* gcc asm goto does yest allow outputs */
 		: [cpu_id]		"r" (cpu),
 		  [current_cpu_id]	"m" (__rseq_abi.cpu_id),
 		  [rseq_cs]		"m" (__rseq_abi.rseq_cs),
@@ -535,7 +535,7 @@ int rseq_cmpeqv_cmpeqv_storev(intptr_t *v, intptr_t expect,
 		"b 5f\n\t"
 		RSEQ_ASM_DEFINE_ABORT(3, 4, "", abort, 1b, 2b, 4f)
 		"5:\n\t"
-		: /* gcc asm goto does not allow outputs */
+		: /* gcc asm goto does yest allow outputs */
 		: [cpu_id]		"r" (cpu),
 		  [current_cpu_id]	"m" (__rseq_abi.cpu_id),
 		  [rseq_cs]		"m" (__rseq_abi.rseq_cs),
@@ -655,7 +655,7 @@ int rseq_cmpeqv_trymemcpy_storev(intptr_t *v, intptr_t expect,
 					error2)
 #endif
 		"8:\n\t"
-		: /* gcc asm goto does not allow outputs */
+		: /* gcc asm goto does yest allow outputs */
 		: [cpu_id]		"r" (cpu),
 		  [current_cpu_id]	"m" (__rseq_abi.cpu_id),
 		  [rseq_cs]		"m" (__rseq_abi.rseq_cs),
@@ -780,7 +780,7 @@ int rseq_cmpeqv_trymemcpy_storev_release(intptr_t *v, intptr_t expect,
 					error2)
 #endif
 		"8:\n\t"
-		: /* gcc asm goto does not allow outputs */
+		: /* gcc asm goto does yest allow outputs */
 		: [cpu_id]		"r" (cpu),
 		  [current_cpu_id]	"m" (__rseq_abi.cpu_id),
 		  [rseq_cs]		"m" (__rseq_abi.rseq_cs),

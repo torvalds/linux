@@ -9,7 +9,7 @@
 
 #include <linux/module.h>
 #include <linux/io.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/of_platform.h>
 #include <linux/platform_device.h>
 
@@ -128,7 +128,7 @@ struct sti_vtg_sync_params {
  * @sync_params: synchronisation parameters used to generate timings
  * @irq: VTG irq
  * @irq_status: store the IRQ status value
- * @notifier_list: notifier callback
+ * @yestifier_list: yestifier callback
  * @crtc: the CRTC for vblank event
  */
 struct sti_vtg {
@@ -136,15 +136,15 @@ struct sti_vtg {
 	struct sti_vtg_sync_params sync_params[VTG_MAX_SYNC_OUTPUT];
 	int irq;
 	u32 irq_status;
-	struct raw_notifier_head notifier_list;
+	struct raw_yestifier_head yestifier_list;
 	struct drm_crtc *crtc;
 };
 
-struct sti_vtg *of_vtg_find(struct device_node *np)
+struct sti_vtg *of_vtg_find(struct device_yesde *np)
 {
 	struct platform_device *pdev;
 
-	pdev = of_find_device_by_node(np);
+	pdev = of_find_device_by_yesde(np);
 	if (!pdev)
 		return NULL;
 
@@ -172,7 +172,7 @@ static void vtg_set_output_window(void __iomem *regs,
 	video_top_field_start = (ystart << 16) | xstart;
 	video_top_field_stop = (ystop << 16) | xstop;
 
-	/* Only progressive supported for now */
+	/* Only progressive supported for yesw */
 	video_bottom_field_start = video_top_field_start;
 	video_bottom_field_stop = video_top_field_stop;
 
@@ -230,7 +230,7 @@ static void vtg_set_hsync_vsync_pos(struct sti_vtg_sync_params *sync,
 	sync->vsync_line_top = (fallsync_top << 16) | risesync_top;
 	sync->vsync_off_top = (fallsync_offs_top << 16) | risesync_offs_top;
 
-	/* Only progressive supported for now */
+	/* Only progressive supported for yesw */
 	sync->vsync_line_bot = sync->vsync_line_top;
 	sync->vsync_off_bot = sync->vsync_off_top;
 }
@@ -245,7 +245,7 @@ static void vtg_set_mode(struct sti_vtg *vtg,
 	/* Set the number of clock cycles per line */
 	writel(mode->htotal, vtg->regs + VTG_CLKLN);
 
-	/* Set Half Line Per Field (only progressive supported for now) */
+	/* Set Half Line Per Field (only progressive supported for yesw) */
 	writel(mode->vtotal * 2, vtg->regs + VTG_HLFLN);
 
 	/* Program output window */
@@ -337,16 +337,16 @@ u32 sti_vtg_get_pixel_number(struct drm_display_mode mode, int x)
 	return mode.htotal - mode.hsync_start + x;
 }
 
-int sti_vtg_register_client(struct sti_vtg *vtg, struct notifier_block *nb,
+int sti_vtg_register_client(struct sti_vtg *vtg, struct yestifier_block *nb,
 			    struct drm_crtc *crtc)
 {
 	vtg->crtc = crtc;
-	return raw_notifier_chain_register(&vtg->notifier_list, nb);
+	return raw_yestifier_chain_register(&vtg->yestifier_list, nb);
 }
 
-int sti_vtg_unregister_client(struct sti_vtg *vtg, struct notifier_block *nb)
+int sti_vtg_unregister_client(struct sti_vtg *vtg, struct yestifier_block *nb)
 {
-	return raw_notifier_chain_unregister(&vtg->notifier_list, nb);
+	return raw_yestifier_chain_unregister(&vtg->yestifier_list, nb);
 }
 
 static irqreturn_t vtg_irq_thread(int irq, void *arg)
@@ -357,7 +357,7 @@ static irqreturn_t vtg_irq_thread(int irq, void *arg)
 	event = (vtg->irq_status & VTG_IRQ_TOP) ?
 		VTG_TOP_FIELD_EVENT : VTG_BOTTOM_FIELD_EVENT;
 
-	raw_notifier_call_chain(&vtg->notifier_list, event, vtg->crtc);
+	raw_yestifier_call_chain(&vtg->yestifier_list, event, vtg->crtc);
 
 	return IRQ_HANDLED;
 }
@@ -393,7 +393,7 @@ static int vtg_probe(struct platform_device *pdev)
 		DRM_ERROR("Get memory resource failed\n");
 		return -ENOMEM;
 	}
-	vtg->regs = devm_ioremap_nocache(dev, res->start, resource_size(res));
+	vtg->regs = devm_ioremap_yescache(dev, res->start, resource_size(res));
 	if (!vtg->regs) {
 		DRM_ERROR("failed to remap I/O memory\n");
 		return -ENOMEM;
@@ -405,7 +405,7 @@ static int vtg_probe(struct platform_device *pdev)
 		return vtg->irq;
 	}
 
-	RAW_INIT_NOTIFIER_HEAD(&vtg->notifier_list);
+	RAW_INIT_NOTIFIER_HEAD(&vtg->yestifier_list);
 
 	ret = devm_request_threaded_irq(dev, vtg->irq, vtg_irq,
 					vtg_irq_thread, IRQF_ONESHOT,

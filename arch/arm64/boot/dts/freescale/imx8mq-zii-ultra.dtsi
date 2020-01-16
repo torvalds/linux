@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: (GPL-2.0 OR MIT)
 /*
- * Copyright (C) 2019 Zodiac Inflight Innovations
+ * Copyright (C) 2019 Zodiac Inflight Inyesvations
  */
 
 #include "imx8mq.dtsi"
@@ -520,9 +520,9 @@
 	pinctrl-2 = <&pinctrl_usdhc1_200mhz>;
 	vqmmc-supply = <&sw4_reg>;
 	bus-width = <8>;
-	non-removable;
-	no-sd;
-	no-sdio;
+	yesn-removable;
+	yes-sd;
+	yes-sdio;
 	status = "okay";
 };
 

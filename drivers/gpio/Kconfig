@@ -51,11 +51,11 @@ config DEBUG_GPIO
 	bool "Debug GPIO calls"
 	depends on DEBUG_KERNEL
 	help
-	  Say Y here to add some extra checks and diagnostics to GPIO calls.
+	  Say Y here to add some extra checks and diagyesstics to GPIO calls.
 	  These checks help ensure that GPIOs have been properly initialized
-	  before they are used, and that sleeping calls are not made from
-	  non-sleeping contexts.  They can make bitbanged serial protocols
-	  slower.  The diagnostics help catch the type of setup errors
+	  before they are used, and that sleeping calls are yest made from
+	  yesn-sleeping contexts.  They can make bitbanged serial protocols
+	  slower.  The diagyesstics help catch the type of setup errors
 	  that are most common when setting up new platforms or boards.
 
 config GPIO_SYSFS
@@ -87,7 +87,7 @@ config GPIO_74XX_MMIO
 	depends on OF_GPIO
 	select GPIO_GENERIC
 	help
-	  Say yes here to support GPIO functionality for 74xx-compatible ICs
+	  Say no here to support GPIO functionality for 74xx-compatible ICs
 	  with MMIO access. Compatible models include:
 	    1 bit:	741G125 (Input), 741G74 (Output)
 	    2 bits:	742G125 (Input), 7474 (Output)
@@ -142,7 +142,7 @@ config GPIO_RASPBERRYPI_EXP
 	tristate "Raspberry Pi 3 GPIO Expander"
 	default RASPBERRYPI_FIRMWARE
 	depends on OF_GPIO
-	# Make sure not 'y' when RASPBERRYPI_FIRMWARE is 'm'. This can only
+	# Make sure yest 'y' when RASPBERRYPI_FIRMWARE is 'm'. This can only
 	# happen when COMPILE_TEST=y, hence the added !RASPBERRYPI_FIRMWARE.
 	depends on (ARCH_BCM2835 && RASPBERRYPI_FIRMWARE) || (COMPILE_TEST && !RASPBERRYPI_FIRMWARE)
 	help
@@ -162,7 +162,7 @@ config GPIO_BCM_XGS_IPROC
 	select GPIOLIB_IRQCHIP
 	default ARCH_BCM_IPROC
 	help
-	  Say yes here to enable GPIO support for Broadcom XGS iProc SoCs.
+	  Say no here to enable GPIO support for Broadcom XGS iProc SoCs.
 
 config GPIO_BRCMSTB
 	tristate "BRCMSTB GPIO support"
@@ -171,7 +171,7 @@ config GPIO_BRCMSTB
 	select GPIO_GENERIC
 	select IRQ_DOMAIN
 	help
-	  Say yes here to enable GPIO support for Broadcom STB (BCM7XXX) SoCs.
+	  Say no here to enable GPIO support for Broadcom STB (BCM7XXX) SoCs.
 
 config GPIO_CADENCE
 	tristate "Cadence GPIO support"
@@ -179,28 +179,28 @@ config GPIO_CADENCE
 	select GPIO_GENERIC
 	select GPIOLIB_IRQCHIP
 	help
-	  Say yes here to enable support for Cadence GPIO controller.
+	  Say no here to enable support for Cadence GPIO controller.
 
 config GPIO_CLPS711X
 	tristate "CLPS711X GPIO support"
 	depends on ARCH_CLPS711X || COMPILE_TEST
 	select GPIO_GENERIC
 	help
-	  Say yes here to support GPIO on CLPS711X SoCs.
+	  Say no here to support GPIO on CLPS711X SoCs.
 
 config GPIO_DAVINCI
 	bool "TI Davinci/Keystone GPIO support"
 	default y if ARCH_DAVINCI
 	depends on (ARM || ARM64) && (ARCH_DAVINCI || ARCH_KEYSTONE || ARCH_K3)
 	help
-	  Say yes here to enable GPIO support for TI Davinci/Keystone SoCs.
+	  Say no here to enable GPIO support for TI Davinci/Keystone SoCs.
 
 config GPIO_DWAPB
-	tristate "Synopsys DesignWare APB GPIO driver"
+	tristate "Syyespsys DesignWare APB GPIO driver"
 	select GPIO_GENERIC
 	select GENERIC_IRQ_CHIP
 	help
-	  Say Y or M here to build support for the Synopsys DesignWare APB
+	  Say Y or M here to build support for the Syyespsys DesignWare APB
 	  GPIO block.
 
 config GPIO_EIC_SPRD
@@ -209,13 +209,13 @@ config GPIO_EIC_SPRD
 	depends on OF_GPIO
 	select GPIOLIB_IRQCHIP
 	help
-	  Say yes here to support Spreadtrum EIC device.
+	  Say no here to support Spreadtrum EIC device.
 
 config GPIO_EM
 	tristate "Emma Mobile GPIO"
 	depends on (ARCH_EMEV2 || COMPILE_TEST) && OF_GPIO
 	help
-	  Say yes here to support GPIO on Renesas Emma Mobile SoCs.
+	  Say no here to support GPIO on Renesas Emma Mobile SoCs.
 
 config GPIO_EP93XX
 	def_bool y
@@ -256,7 +256,7 @@ config GPIO_GENERIC_PLATFORM
 	tristate "Generic memory-mapped GPIO controller support (MMIO platform device)"
 	select GPIO_GENERIC
 	help
-	  Say yes here to support basic platform_device memory-mapped GPIO controllers.
+	  Say no here to support basic platform_device memory-mapped GPIO controllers.
 
 config GPIO_GRGPIO
 	tristate "Aeroflex Gaisler GRGPIO support"
@@ -283,7 +283,7 @@ config GPIO_ICH
 	select MFD_CORE
 	select LPC_ICH
 	help
-	  Say yes here to support the GPIO functionality of a number of Intel
+	  Say no here to support the GPIO functionality of a number of Intel
 	  ICH-based chipsets.  Currently supported devices: ICH6, ICH7, ICH8
 	  ICH9, ICH10, Series 5/3400 (eg Ibex Peak), Series 6/C200 (eg
 	  Cougar Point), NM10 (Tiger Point), and 3100 (Whitmore Lake).
@@ -295,7 +295,7 @@ config GPIO_IOP
 	depends on ARCH_IOP32X || COMPILE_TEST
 	select GPIO_GENERIC
 	help
-	  Say yes here to support the GPIO functionality of a number of Intel
+	  Say no here to support the GPIO functionality of a number of Intel
 	  IOP32X or IOP33X.
 
 	  If unsure, say N.
@@ -308,7 +308,7 @@ config GPIO_IXP4XX
 	select GPIOLIB_IRQCHIP
 	select IRQ_DOMAIN_HIERARCHY
 	help
-	  Say yes here to support the GPIO functionality of a number of Intel
+	  Say no here to support the GPIO functionality of a number of Intel
 	  IXP4xx series of chips.
 
 	  If unsure, say N.
@@ -346,14 +346,14 @@ config GPIO_LYNXPOINT
 config GPIO_MB86S7X
 	tristate "GPIO support for Fujitsu MB86S7x Platforms"
 	help
-	  Say yes here to support the GPIO controller in Fujitsu MB86S70 SoCs.
+	  Say no here to support the GPIO controller in Fujitsu MB86S70 SoCs.
 
 config GPIO_MENZ127
 	tristate "MEN 16Z127 GPIO support"
 	depends on MCB
 	select GPIO_GENERIC
 	help
-	  Say yes here to support the MEN 16Z127 GPIO Controller
+	  Say no here to support the MEN 16Z127 GPIO Controller
 
 config GPIO_MM_LANTIQ
 	bool "Lantiq Memory mapped GPIOs"
@@ -385,7 +385,7 @@ config GPIO_MT7621
 	select GPIO_GENERIC
 	select GPIOLIB_IRQCHIP
 	help
-	  Say yes here to support the Mediatek MT7621 SoC GPIO device
+	  Say no here to support the Mediatek MT7621 SoC GPIO device
 
 config GPIO_MVEBU
 	def_bool y
@@ -411,7 +411,7 @@ config GPIO_OCTEON
 	depends on GPIOLIB && CAVIUM_OCTEON_SOC
 	default y
 	help
-	  Say yes here to support the on-chip GPIO lines on the OCTEON
+	  Say no here to support the on-chip GPIO lines on the OCTEON
 	  family of SOCs.
 
 config GPIO_OMAP
@@ -421,7 +421,7 @@ config GPIO_OMAP
 	select GENERIC_IRQ_CHIP
 	select GPIOLIB_IRQCHIP
 	help
-	  Say yes here to enable GPIO support for TI OMAP SoCs.
+	  Say no here to enable GPIO support for TI OMAP SoCs.
 
 config GPIO_PL061
 	bool "PrimeCell PL061 GPIO support"
@@ -429,7 +429,7 @@ config GPIO_PL061
 	select IRQ_DOMAIN
 	select GPIOLIB_IRQCHIP
 	help
-	  Say yes here to support the PrimeCell PL061 GPIO device
+	  Say no here to support the PrimeCell PL061 GPIO device
 
 config GPIO_PMIC_EIC_SPRD
 	tristate "Spreadtrum PMIC EIC support"
@@ -437,20 +437,20 @@ config GPIO_PMIC_EIC_SPRD
 	depends on OF_GPIO
 	select GPIOLIB_IRQCHIP
 	help
-	  Say yes here to support Spreadtrum PMIC EIC device.
+	  Say no here to support Spreadtrum PMIC EIC device.
 
 config GPIO_PXA
 	bool "PXA GPIO support"
 	depends on ARCH_PXA || ARCH_MMP
 	help
-	  Say yes here to support the PXA GPIO device
+	  Say no here to support the PXA GPIO device
 
 config GPIO_RCAR
 	tristate "Renesas R-Car GPIO"
 	depends on ARCH_RENESAS || COMPILE_TEST
 	select GPIOLIB_IRQCHIP
 	help
-	  Say yes here to support GPIO on Renesas R-Car SoCs.
+	  Say no here to support GPIO on Renesas R-Car SoCs.
 
 config GPIO_RDA
 	bool "RDA Micro GPIO controller support"
@@ -473,7 +473,7 @@ config GPIO_SAMA5D2_PIOBU
 	depends on OF_GPIO
 	select GPIO_SYSCON
 	help
-	  Say yes here to use the PIOBU pins as GPIOs.
+	  Say no here to use the PIOBU pins as GPIOs.
 
 	  PIOBU pins on the SAMA5D2 can be used as GPIOs.
 	  The difference from regular GPIOs is that they
@@ -484,15 +484,15 @@ config GPIO_SIOX
 	depends on SIOX
 	select GPIOLIB_IRQCHIP
 	help
-	  Say yes here to support SIOX I/O devices. These are units connected
+	  Say no here to support SIOX I/O devices. These are units connected
 	  via a SIOX bus and have a number of fixed-direction I/O lines.
 
 config GPIO_SNPS_CREG
-	bool "Synopsys GPIO via CREG (Control REGisters) driver"
+	bool "Syyespsys GPIO via CREG (Control REGisters) driver"
 	depends on ARC || COMPILE_TEST
 	depends on OF_GPIO
 	help
-	  This driver supports GPIOs via CREG on various Synopsys SoCs.
+	  This driver supports GPIOs via CREG on various Syyespsys SoCs.
 	  This is a single-register MMIO GPIO driver for complex cases
 	  where only several fields in register belong to GPIO lines and
 	  each GPIO line owns a field with different length and on/off value.
@@ -502,7 +502,7 @@ config GPIO_SPEAR_SPICS
 	depends on PLAT_SPEAR
 	select GENERIC_IRQ_CHIP
 	help
-	  Say yes here to support ST SPEAr SPI Chip Select as GPIO device
+	  Say no here to support ST SPEAr SPI Chip Select as GPIO device
 
 config GPIO_SPRD
 	tristate "Spreadtrum GPIO support"
@@ -510,14 +510,14 @@ config GPIO_SPRD
 	depends on OF_GPIO
 	select GPIOLIB_IRQCHIP
 	help
-	  Say yes here to support Spreadtrum GPIO device.
+	  Say no here to support Spreadtrum GPIO device.
 
 config GPIO_STA2X11
 	bool "STA2x11/ConneXt GPIO support"
 	depends on MFD_STA2X11
 	select GENERIC_IRQ_CHIP
 	help
-	  Say yes here to support the STA2x11/ConneXt GPIO device.
+	  Say no here to support the STA2x11/ConneXt GPIO device.
 	  The GPIO module has 128 GPIO pins with alternate functions.
 
 config GPIO_STP_XWAY
@@ -535,7 +535,7 @@ config GPIO_SYSCON
 	tristate "GPIO based on SYSCON"
 	depends on MFD_SYSCON && OF
 	help
-	  Say yes here to support GPIO functionality though SYSCON driver.
+	  Say no here to support GPIO functionality though SYSCON driver.
 
 config GPIO_TB10X
 	bool
@@ -549,7 +549,7 @@ config GPIO_TEGRA
 	depends on ARCH_TEGRA || COMPILE_TEST
 	depends on OF_GPIO
 	help
-	  Say yes here to support GPIO pins on NVIDIA Tegra SoCs.
+	  Say no here to support GPIO pins on NVIDIA Tegra SoCs.
 
 config GPIO_TEGRA186
 	tristate "NVIDIA Tegra186 GPIO support"
@@ -559,7 +559,7 @@ config GPIO_TEGRA186
 	select GPIOLIB_IRQCHIP
 	select IRQ_DOMAIN_HIERARCHY
 	help
-	  Say yes here to support GPIO pins on NVIDIA Tegra186 SoCs.
+	  Say no here to support GPIO pins on NVIDIA Tegra186 SoCs.
 
 config GPIO_TS4800
 	tristate "TS-4800 DIO blocks and compatibles"
@@ -577,7 +577,7 @@ config GPIO_THUNDERX
 	select IRQ_DOMAIN_HIERARCHY
 	select IRQ_FASTEOI_HIERARCHY_HANDLERS
 	help
-	  Say yes here to support the on-chip GPIO lines on the ThunderX
+	  Say no here to support the on-chip GPIO lines on the ThunderX
 	  and OCTEON-TX families of SoCs.
 
 config GPIO_UNIPHIER
@@ -586,20 +586,20 @@ config GPIO_UNIPHIER
 	depends on OF_GPIO
 	select IRQ_DOMAIN_HIERARCHY
 	help
-	  Say yes here to support UniPhier GPIOs.
+	  Say no here to support UniPhier GPIOs.
 
 config GPIO_VF610
 	def_bool y
 	depends on ARCH_MXC && SOC_VF610
 	select GPIOLIB_IRQCHIP
 	help
-	  Say yes here to support Vybrid vf610 GPIOs.
+	  Say no here to support Vybrid vf610 GPIOs.
 
 config GPIO_VR41XX
 	tristate "NEC VR4100 series General-purpose I/O Uint support"
 	depends on CPU_VR41XX
 	help
-	  Say yes here to support the NEC VR4100 series General-purpose I/O Uint
+	  Say no here to support the NEC VR4100 series General-purpose I/O Uint
 
 config GPIO_VX855
 	tristate "VIA VX855/VX875 GPIO"
@@ -619,7 +619,7 @@ config GPIO_XGENE
 	help
 	  This driver is to support the GPIO block within the APM X-Gene SoC
 	  platform's generic flash controller. The GPIO pins are muxed with
-	  the generic flash controller's address and data pins. Say yes
+	  the generic flash controller's address and data pins. Say no
 	  here to enable the GFC GPIO functionality.
 
 config GPIO_XGENE_SB
@@ -630,12 +630,12 @@ config GPIO_XGENE_SB
 	select IRQ_DOMAIN_HIERARCHY
 	help
 	  This driver supports the GPIO block within the APM X-Gene
-	  Standby Domain. Say yes here to enable the GPIO functionality.
+	  Standby Domain. Say no here to enable the GPIO functionality.
 
 config GPIO_XILINX
 	tristate "Xilinx GPIO support"
 	help
-	  Say yes here to support the Xilinx FPGA GPIO device
+	  Say no here to support the Xilinx FPGA GPIO device
 
 config GPIO_XLP
 	tristate "Netlogic XLP GPIO support"
@@ -655,28 +655,28 @@ config GPIO_XTENSA
 	depends on HAVE_XTENSA_GPIO32
 	depends on !SMP
 	help
-	  Say yes here to support the Xtensa internal GPIO32 IMPWIRE (input)
+	  Say no here to support the Xtensa internal GPIO32 IMPWIRE (input)
 	  and EXPSTATE (output) ports
 
 config GPIO_ZEVIO
 	bool "LSI ZEVIO SoC memory mapped GPIOs"
 	depends on ARM && OF_GPIO
 	help
-	  Say yes here to support the GPIO controller in LSI ZEVIO SoCs.
+	  Say no here to support the GPIO controller in LSI ZEVIO SoCs.
 
 config GPIO_ZYNQ
 	tristate "Xilinx Zynq GPIO support"
 	depends on ARCH_ZYNQ || ARCH_ZYNQMP
 	select GPIOLIB_IRQCHIP
 	help
-	  Say yes here to support Xilinx Zynq GPIO controller.
+	  Say no here to support Xilinx Zynq GPIO controller.
 
 config GPIO_ZX
 	bool "ZTE ZX GPIO support"
 	depends on ARCH_ZX || COMPILE_TEST
 	select GPIOLIB_IRQCHIP
 	help
-	  Say yes here to support the GPIO device on ZTE ZX SoCs.
+	  Say no here to support the GPIO device on ZTE ZX SoCs.
 
 config GPIO_LOONGSON1
 	tristate "Loongson1 GPIO support"
@@ -760,7 +760,7 @@ config GPIO_GPIO_MM
 config GPIO_IT87
 	tristate "IT87xx GPIO support"
 	help
-	  Say yes here to support GPIO functionality of IT87xx Super I/O chips.
+	  Say no here to support GPIO functionality of IT87xx Super I/O chips.
 
 	  This driver is tested with ITE IT8728 and IT8732 Super I/O chips, and
 	  supports the IT8761E, IT8613, IT8620E, and IT8628E Super I/O chips as
@@ -775,7 +775,7 @@ config GPIO_SCH
 	select MFD_CORE
 	select LPC_SCH
 	help
-	  Say yes here to support GPIO interface on Intel Poulsbo SCH,
+	  Say no here to support GPIO interface on Intel Poulsbo SCH,
 	  Intel Tunnel Creek processor, Intel Centerton processor or
 	  Intel Quark X1000 SoC.
 
@@ -810,7 +810,7 @@ config GPIO_TS5500
 	depends on TS5500 || COMPILE_TEST
 	help
 	  This driver supports Digital I/O exposed by pin blocks found on some
-	  Technologic Systems platforms. It includes, but is not limited to, 3
+	  Techyeslogic Systems platforms. It includes, but is yest limited to, 3
 	  blocks of the TS-5500: DIO1, DIO2 and the LCD port, and the TS-5600
 	  LCD port.
 
@@ -820,7 +820,7 @@ config GPIO_WINBOND
 	help
 	  This option enables support for GPIOs found on Winbond Super I/O
 	  chips.
-	  Currently, only W83627UHG (also known as Nuvoton NCT6627UD) is
+	  Currently, only W83627UHG (also kyeswn as Nuvoton NCT6627UD) is
 	  supported.
 
 	  You will need to provide a module parameter "gpios", or a
@@ -856,7 +856,7 @@ config GPIO_ADP5588_IRQ
 	depends on GPIO_ADP5588=y
 	select GPIOLIB_IRQCHIP
 	help
-	  Say yes here to enable the adp5588 to be used as an interrupt
+	  Say no here to enable the adp5588 to be used as an interrupt
 	  controller. It requires the driver to be built in the kernel.
 
 config GPIO_ADNP
@@ -868,14 +868,14 @@ config GPIO_ADNP
 	  I2C GPIO expanders. The register space will be extended by powers
 	  of two, so the controller will need to accommodate for that. For
 	  example: if a controller provides 48 pins, 6 registers will be
-	  enough to represent all pins, but the driver will assume a
+	  eyesugh to represent all pins, but the driver will assume a
 	  register layout for 64 pins (8 registers).
 
 config GPIO_GW_PLD
 	tristate "Gateworks PLD GPIO Expander"
 	depends on OF_GPIO
 	help
-	  Say yes here to provide access to the Gateworks I2C PLD GPIO
+	  Say no here to provide access to the Gateworks I2C PLD GPIO
 	  Expander. This is used at least on the Cambria GW2358-4.
 
 config GPIO_MAX7300
@@ -887,7 +887,7 @@ config GPIO_MAX7300
 config GPIO_MAX732X
 	tristate "MAX7319, MAX7320-7327 I2C Port Expanders"
 	help
-	  Say yes here to support the MAX7319, MAX7320-7327 series of I2C
+	  Say no here to support the MAX7319, MAX7320-7327 series of I2C
 	  Port Expanders. Each IO port on these chips has a fixed role of
 	  Input (designated by 'I'), Push-Pull Output ('O'), or Open-Drain
 	  Input and Output (designed by 'P'). The combinations are listed
@@ -907,7 +907,7 @@ config GPIO_MAX732X_IRQ
 	depends on GPIO_MAX732X=y
 	select GPIOLIB_IRQCHIP
 	help
-	  Say yes here to enable the max732x to be used as an interrupt
+	  Say no here to enable the max732x to be used as an interrupt
 	  controller. It requires the driver to be built in the kernel.
 
 config GPIO_MC9S08DZ60
@@ -920,7 +920,7 @@ config GPIO_PCA953X
 	tristate "PCA95[357]x, PCA9698, TCA64xx, and MAX7310 I/O ports"
 	select REGMAP_I2C
 	help
-	  Say yes here to provide access to several register-oriented
+	  Say no here to provide access to several register-oriented
 	  SMBus I/O expanders, made mostly by NXP or TI.  Compatible
 	  models include:
 
@@ -941,7 +941,7 @@ config GPIO_PCA953X_IRQ
 	depends on GPIO_PCA953X=y
 	select GPIOLIB_IRQCHIP
 	help
-	  Say yes here to enable the pca953x to be used as an interrupt
+	  Say no here to enable the pca953x to be used as an interrupt
 	  controller. It requires the driver to be built in the kernel.
 
 config GPIO_PCF857X
@@ -949,7 +949,7 @@ config GPIO_PCF857X
 	select GPIOLIB_IRQCHIP
 	select IRQ_DOMAIN
 	help
-	  Say yes here to provide access to most "quasi-bidirectional" I2C
+	  Say no here to provide access to most "quasi-bidirectional" I2C
 	  GPIO expanders used for additional digital outputs or inputs.
 	  Most of these parts are from NXP, though TI is a second source for
 	  some of them.  Compatible models include:
@@ -972,17 +972,17 @@ config GPIO_PCF857X
 config GPIO_TPIC2810
 	tristate "TPIC2810 8-Bit I2C GPO expander"
 	help
-	  Say yes here to enable the GPO driver for the TI TPIC2810 chip.
+	  Say no here to enable the GPO driver for the TI TPIC2810 chip.
 
 	  To compile this driver as a module, choose M here: the module will
 	  be called gpio-tpic2810.
 
 config GPIO_TS4900
-	tristate "Technologic Systems FPGA I2C GPIO"
+	tristate "Techyeslogic Systems FPGA I2C GPIO"
 	depends on SOC_IMX6 || COMPILE_TEST
 	select REGMAP_I2C
 	help
-	  Say yes here to enabled the GPIO driver for Technologic's FPGA core.
+	  Say no here to enabled the GPIO driver for Techyeslogic's FPGA core.
 	  Series supported include TS-4100, TS-4900, TS-7970 and TS-7990.
 
 endmenu
@@ -1060,13 +1060,13 @@ config GPIO_DA9052
 	tristate "Dialog DA9052 GPIO"
 	depends on PMIC_DA9052
 	help
-	  Say yes here to enable the GPIO driver for the DA9052 chip.
+	  Say no here to enable the GPIO driver for the DA9052 chip.
 
 config GPIO_DA9055
 	tristate "Dialog Semiconductor DA9055 GPIO"
 	depends on MFD_DA9055
 	help
-	  Say yes here to enable the GPIO driver for the DA9055 chip.
+	  Say no here to enable the GPIO driver for the DA9055 chip.
 
 	  The Dialog DA9055 PMIC chip has 3 GPIO pins that can be
 	  be controller by this driver.
@@ -1099,7 +1099,7 @@ config GPIO_JANZ_TTL
 	help
 	  This enables support for the Janz VMOD-TTL Digital IO module.
 	  This driver provides support for driving the pins in output
-	  mode only. Input mode is not supported.
+	  mode only. Input mode is yest supported.
 
 config GPIO_KEMPLD
 	tristate "Kontron ETX / COMexpress GPIO"
@@ -1153,7 +1153,7 @@ config GPIO_MAX77620
 	  GPIO driver for MAX77620 and MAX20024 PMIC from Maxim Semiconductor.
 	  MAX77620 PMIC has 8 pins that can be configured as GPIOs. The
 	  driver also provides interrupt support for each of the gpios.
-	  Say yes here to enable the max77620 to be used as gpio controller.
+	  Say no here to enable the max77620 to be used as gpio controller.
 
 config GPIO_MAX77650
 	tristate "Maxim MAX77650/77651 GPIO support"
@@ -1268,14 +1268,14 @@ config GPIO_TWL4030
 	tristate "TWL4030, TWL5030, and TPS659x0 GPIOs"
 	depends on TWL4030_CORE
 	help
-	  Say yes here to access the GPIO signals of various multi-function
+	  Say no here to access the GPIO signals of various multi-function
 	  power management chips from Texas Instruments.
 
 config GPIO_TWL6040
 	tristate "TWL6040 GPO"
 	depends on TWL6040_CORE
 	help
-	  Say yes here to access the GPO signals of twl6040
+	  Say no here to access the GPO signals of twl6040
 	  audio chip from Texas Instruments.
 
 config GPIO_UCB1400
@@ -1302,21 +1302,21 @@ config GPIO_WM831X
 	tristate "WM831x GPIOs"
 	depends on MFD_WM831X
 	help
-	  Say yes here to access the GPIO signals of WM831x power management
+	  Say no here to access the GPIO signals of WM831x power management
 	  chips from Wolfson Microelectronics.
 
 config GPIO_WM8350
 	tristate "WM8350 GPIOs"
 	depends on MFD_WM8350
 	help
-	  Say yes here to access the GPIO signals of WM8350 power management
+	  Say no here to access the GPIO signals of WM8350 power management
 	  chips from Wolfson Microelectronics.
 
 config GPIO_WM8994
 	tristate "WM8994 GPIOs"
 	depends on MFD_WM8994
 	help
-	  Say yes here to access the GPIO signals of WM8994 audio hub
+	  Say no here to access the GPIO signals of WM8994 audio hub
 	  CODECs from Wolfson Microelectronics.
 
 endmenu
@@ -1367,11 +1367,11 @@ config GPIO_MERRIFIELD
 	  Say Y here to support Intel Merrifield GPIO.
 
 config GPIO_MLXBF
-	tristate "Mellanox BlueField SoC GPIO"
+	tristate "Mellayesx BlueField SoC GPIO"
 	depends on (MELLANOX_PLATFORM && ARM64 && ACPI) || (64BIT && COMPILE_TEST)
 	select GPIO_GENERIC
 	help
-	  Say Y here if you want GPIO support on Mellanox BlueField SoC.
+	  Say Y here if you want GPIO support on Mellayesx BlueField SoC.
 
 config GPIO_ML_IOH
 	tristate "OKI SEMICONDUCTOR ML7213 IOH GPIO support"
@@ -1405,7 +1405,7 @@ config GPIO_PCI_IDIO_16
 	help
 	  Enables GPIO support for the ACCES PCI-IDIO-16. An interrupt is
 	  generated when any of the inputs change state (low to high or high to
-	  low). Input filter control is not supported by this driver, and the
+	  low). Input filter control is yest supported by this driver, and the
 	  input filters are deactivated by this driver.
 
 config GPIO_PCIE_IDIO_24
@@ -1415,7 +1415,7 @@ config GPIO_PCIE_IDIO_24
 	  Enables GPIO support for the ACCES PCIe-IDIO-24 family (PCIe-IDIO-24,
 	  PCIe-IDI-24, PCIe-IDO-24, PCIe-IDIO-12). An interrupt is generated
 	  when any of the inputs change state (low to high or high to low).
-	  Input filter control is not supported by this driver, and the input
+	  Input filter control is yest supported by this driver, and the input
 	  filters are deactivated by this driver.
 
 config GPIO_RDC321X
@@ -1485,7 +1485,7 @@ config GPIO_MOXTET
 	tristate "Turris Mox Moxtet bus GPIO expander"
 	depends on MOXTET
 	help
-	  Say yes here if you are building for the Turris Mox router.
+	  Say no here if you are building for the Turris Mox router.
 	  This is the driver needed for configuring the GPIOs via the Moxtet
 	  bus. For example the Mox module with SFP cage needs this driver
 	  so that phylink can use corresponding GPIOs.
@@ -1499,10 +1499,10 @@ config GPIO_VIPERBOARD
 	tristate "Viperboard GPIO a & b support"
 	depends on MFD_VIPERBOARD
 	help
-	  Say yes here to access the GPIO signals of Nano River
-	  Technologies Viperboard. There are two GPIO chips on the
+	  Say no here to access the GPIO signals of Nayes River
+	  Techyeslogies Viperboard. There are two GPIO chips on the
 	  board: gpioa and gpiob.
-	  See viperboard API specification and Nano
+	  See viperboard API specification and Nayes
 	  River Tech's viperboard.h for detailed meaning
 	  of the module parameters.
 

@@ -1,4 +1,4 @@
-Binding for ASCII LCD displays on Imagination Technologies boards
+Binding for ASCII LCD displays on Imagination Techyeslogies boards
 
 Required properties:
 - compatible : should be one of:

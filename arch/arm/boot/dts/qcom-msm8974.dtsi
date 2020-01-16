@@ -22,47 +22,47 @@
 
 		mpss@8000000 {
 			reg = <0x08000000 0x5100000>;
-			no-map;
+			yes-map;
 		};
 
 		mba@d100000 {
 			reg = <0x0d100000 0x100000>;
-			no-map;
+			yes-map;
 		};
 
 		reserved@d200000 {
 			reg = <0x0d200000 0xa00000>;
-			no-map;
+			yes-map;
 		};
 
 		adsp_region: adsp@dc00000 {
 			reg = <0x0dc00000 0x1900000>;
-			no-map;
+			yes-map;
 		};
 
 		venus@f500000 {
 			reg = <0x0f500000 0x500000>;
-			no-map;
+			yes-map;
 		};
 
 		smem_region: smem@fa00000 {
 			reg = <0xfa00000 0x200000>;
-			no-map;
+			yes-map;
 		};
 
 		tz@fc00000 {
 			reg = <0x0fc00000 0x160000>;
-			no-map;
+			yes-map;
 		};
 
 		rfsa@fd60000 {
 			reg = <0x0fd60000 0x20000>;
-			no-map;
+			yes-map;
 		};
 
 		rmtfs@fd80000 {
 			reg = <0x0fd80000 0x180000>;
-			no-map;
+			yes-map;
 		};
 	};
 
@@ -1004,7 +1004,7 @@
 				 * Not described input ports:
 				 * 0 - connected trought funnel to Audio, Modem and
 				 *     Resource and Power Manager CPU's
-				 * 2...7 - not-connected
+				 * 2...7 - yest-connected
 				 */
 				port@1 {
 					reg = <1>;
@@ -1036,12 +1036,12 @@
 
 				/*
 				 * Not described input ports:
-				 * 0 - not-connected
+				 * 0 - yest-connected
 				 * 1 - connected trought funnel to Multimedia CPU
 				 * 2 - connected to Wireless CPU
-				 * 3 - not-connected
-				 * 4 - not-connected
-				 * 6 - not-connected
+				 * 3 - yest-connected
+				 * 4 - yest-connected
+				 * 6 - yest-connected
 				 * 7 - connected to STM
 				 */
 				port@5 {

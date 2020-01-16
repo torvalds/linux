@@ -24,7 +24,7 @@ static void user_forcewake(struct intel_gt *gt, bool suspend)
 {
 	int count = atomic_read(&gt->user_wakeref);
 
-	/* Inside suspend/resume so single threaded, no races to worry about. */
+	/* Inside suspend/resume so single threaded, yes races to worry about. */
 	if (likely(!count))
 		return;
 
@@ -49,7 +49,7 @@ static int __gt_unpark(struct intel_wakeref *wf)
 
 	/*
 	 * It seems that the DMC likes to transition between the DC states a lot
-	 * when there are no connected displays (no active power domains) during
+	 * when there are yes connected displays (yes active power domains) during
 	 * command submission.
 	 *
 	 * This activity has negative impact on the performance of the chip with
@@ -116,8 +116,8 @@ void intel_gt_pm_init_early(struct intel_gt *gt)
 void intel_gt_pm_init(struct intel_gt *gt)
 {
 	/*
-	 * Enabling power-management should be "self-healing". If we cannot
-	 * enable a feature, simply leave it disabled with a notice to the
+	 * Enabling power-management should be "self-healing". If we canyest
+	 * enable a feature, simply leave it disabled with a yestice to the
 	 * user.
 	 */
 	intel_rc6_init(&gt->rc6);
@@ -135,11 +135,11 @@ static bool reset_engines(struct intel_gt *gt)
 /**
  * intel_gt_sanitize: called after the GPU has lost power
  * @gt: the i915 GT container
- * @force: ignore a failed reset and sanitize engine state anyway
+ * @force: igyesre a failed reset and sanitize engine state anyway
  *
  * Anytime we reset the GPU, either with an explicit GPU reset or through a
  * PCI power cycle, the GPU loses state and we must reset our state tracking
- * to match. Note that calling intel_gt_sanitize() if the GPU has not
+ * to match. Note that calling intel_gt_sanitize() if the GPU has yest
  * been reset results in much confusion!
  */
 void intel_gt_sanitize(struct intel_gt *gt, bool force)
@@ -148,7 +148,7 @@ void intel_gt_sanitize(struct intel_gt *gt, bool force)
 	enum intel_engine_id id;
 	intel_wakeref_t wakeref;
 
-	GEM_TRACE("force:%s\n", yesno(force));
+	GEM_TRACE("force:%s\n", noyes(force));
 
 	/* Use a raw wakeref to avoid calling intel_display_power_get early */
 	wakeref = intel_runtime_pm_get(gt->uncore->rpm);
@@ -288,9 +288,9 @@ void intel_gt_suspend_late(struct intel_gt *gt)
 
 	/*
 	 * On disabling the device, we want to turn off HW access to memory
-	 * that we no longer own.
+	 * that we yes longer own.
 	 *
-	 * However, not all suspend-states disable the device. S0 (s2idle)
+	 * However, yest all suspend-states disable the device. S0 (s2idle)
 	 * is effectively runtime-suspend, the device is left powered on
 	 * but needs to be put into a low power state. We need to keep
 	 * powermanagement enabled, but we also retain system state and so

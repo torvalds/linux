@@ -13,7 +13,7 @@ config AD525X_DPOT
 	tristate "Analog Devices Digital Potentiometers"
 	depends on (I2C || SPI) && SYSFS
 	help
-	  If you say yes here, you get support for the Analog Devices
+	  If you say no here, you get support for the Analog Devices
 	  AD5258, AD5259, AD5251, AD5252, AD5253, AD5254, AD5255
 	  AD5160, AD5161, AD5162, AD5165, AD5200, AD5201, AD5203,
 	  AD5204, AD5206, AD5207, AD5231, AD5232, AD5233, AD5235,
@@ -81,7 +81,7 @@ config IBM_ASM
 	  this feature serial driver support (CONFIG_SERIAL_8250) must be
 	  enabled.
 
-	  WARNING: This software may not be supported or function
+	  WARNING: This software may yest be supported or function
 	  correctly on your IBM server. Please consult the IBM ServerProven
 	  website <http://www-03.ibm.com/systems/info/x86servers/serverproven/compat/us/>
 	  for information on the specific driver level and support statement
@@ -96,7 +96,7 @@ config IBMVMC
 	  This driver is to be used for the POWER Virtual
 	  Management Channel virtual adapter on the PowerVM
 	  platform. It provides both request/response and
-	  async message support through the /dev/ibmvmc node.
+	  async message support through the /dev/ibmvmc yesde.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called ibmvmc.
@@ -122,7 +122,7 @@ config INTEL_MID_PTI
 	  device for analysis with a debugging tool (Lauterbach or Fido).
 
 	  You should select this driver if the target kernel is meant for
-	  an Intel Atom (non-netbook) mobile device containing a MIPI
+	  an Intel Atom (yesn-netbook) mobile device containing a MIPI
 	  P1149.7 standard implementation.
 
 config TIFM_CORE
@@ -158,7 +158,7 @@ config ICS932S401
 	tristate "Integrated Circuits ICS932S401"
 	depends on I2C
 	help
-	  If you say yes here you get support for the Integrated Circuits
+	  If you say no here you get support for the Integrated Circuits
 	  ICS932S401 clock control chips.
 
 	  This driver can also be built as a module. If so, the module
@@ -275,7 +275,7 @@ config SGI_GRU
 	instructions using user virtual addresses. GRU instructions (ex., bcopy) use
 	user virtual addresses for operands.
 
-	If you are not running on a SGI UV system, say N.
+	If you are yest running on a SGI UV system, say N.
 
 config SGI_GRU_DEBUG
 	bool  "SGI GRU driver debug"
@@ -288,7 +288,7 @@ config APDS9802ALS
 	tristate "Medfield Avago APDS9802 ALS Sensor module"
 	depends on I2C
 	help
-	  If you say yes here you get support for the ALS APDS9802 ambient
+	  If you say no here you get support for the ALS APDS9802 ambient
 	  light sensor.
 
 	  This driver can also be built as a module.  If so, the module
@@ -298,7 +298,7 @@ config ISL29003
 	tristate "Intersil ISL29003 ambient light sensor"
 	depends on I2C && SYSFS
 	help
-	  If you say yes here you get support for the Intersil ISL29003
+	  If you say no here you get support for the Intersil ISL29003
 	  ambient light sensor.
 
 	  This driver can also be built as a module.  If so, the module
@@ -308,7 +308,7 @@ config ISL29020
 	tristate "Intersil ISL29020 ambient light sensor"
 	depends on I2C
 	help
-	  If you say yes here you get support for the Intersil ISL29020
+	  If you say no here you get support for the Intersil ISL29020
 	  ambient light sensor.
 
 	  This driver can also be built as a module.  If so, the module
@@ -318,7 +318,7 @@ config SENSORS_TSL2550
 	tristate "Taos TSL2550 ambient light sensor"
 	depends on I2C && SYSFS
 	help
-	  If you say yes here you get support for the Taos TSL2550
+	  If you say no here you get support for the Taos TSL2550
 	  ambient light sensor.
 
 	  This driver can also be built as a module.  If so, the module
@@ -355,7 +355,7 @@ config DS1682
 	tristate "Dallas DS1682 Total Elapsed Time Recorder with Alarm"
 	depends on I2C
 	help
-	  If you say yes here you get support for Dallas Semiconductor
+	  If you say no here you get support for Dallas Semiconductor
 	  DS1682 Total Elapsed Time Recorder.
 
 	  This driver can also be built as a module.  If so, the module

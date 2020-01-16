@@ -11,9 +11,9 @@ AMLOGIC SRAM and Shared Memory for SCPI
 Required properties:
 - compatible : should be "amlogic,meson-gxbb-sram"
 
-Each sub-node represents the reserved area for SCPI.
+Each sub-yesde represents the reserved area for SCPI.
 
-Required sub-node properties:
+Required sub-yesde properties:
 - compatible : should be "amlogic,meson-gxbb-scp-shmem" for SRAM based shared
 		memory on Amlogic GXBB SoC.
 

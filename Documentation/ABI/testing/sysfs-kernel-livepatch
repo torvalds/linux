@@ -41,7 +41,7 @@ Description:
 		A writable attribute that allows administrator to affect the
 		course of an existing transition. Writing 1 clears
 		TIF_PATCH_PENDING flag of all tasks and thus forces the tasks to
-		the patched or unpatched state. Administrator should not
+		the patched or unpatched state. Administrator should yest
 		use this feature without a clearance from a patch
 		distributor. Removal (rmmod) of patch modules is permanently
 		disabled when the feature is used. See
@@ -67,4 +67,4 @@ Description:
 		sympos number corresponding to the nth occurrence of the symbol
 		name in kallsyms for the patched object.
 
-		There are currently no such attributes.
+		There are currently yes such attributes.

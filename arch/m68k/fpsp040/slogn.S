@@ -3,35 +3,35 @@
 |
 |	slogn computes the natural logarithm of an
 |	input value. slognd does the same except the input value is a
-|	denormalized number. slognp1 computes log(1+X), and slognp1d
-|	computes log(1+X) for denormalized X.
+|	deyesrmalized number. slognp1 computes log(1+X), and slognp1d
+|	computes log(1+X) for deyesrmalized X.
 |
 |	Input: Double-extended value in memory location pointed to by address
 |		register a0.
 |
 |	Output:	log(X) or log(1+X) returned in floating-point register Fp0.
 |
-|	Accuracy and Monotonicity: The returned result is within 2 ulps in
+|	Accuracy and Moyestonicity: The returned result is within 2 ulps in
 |		64 significant bit, i.e. within 0.5001 ulp to 53 bits if the
 |		result is subsequently rounded to double precision. The
-|		result is provably monotonic in double precision.
+|		result is provably moyestonic in double precision.
 |
 |	Speed: The program slogn takes approximately 190 cycles for input
 |		argument X such that |X-1| >= 1/16, which is the usual
 |		situation. For those arguments, slognp1 takes approximately
 |		 210 cycles. For the less common arguments, the program will
-|		 run no worse than 10% slower.
+|		 run yes worse than 10% slower.
 |
 |	Algorithm:
 |	LOGN:
-|	Step 1. If |X-1| < 1/16, approximate log(X) by an odd polynomial in
+|	Step 1. If |X-1| < 1/16, approximate log(X) by an odd polyyesmial in
 |		u, where u = 2(X-1)/(X+1). Otherwise, move on to Step 2.
 |
 |	Step 2. X = 2**k * Y where 1 <= Y < 2. Define F to be the first seven
 |		significant bits of Y plus 2**(-7), i.e. F = 1.xxxxxx1 in base
 |		2 where the six "x" match those of Y. Note that |Y-F| <= 2**(-7).
 |
-|	Step 3. Define u = (Y-F)/F. Approximate log(1+u) by a polynomial in u,
+|	Step 3. Define u = (Y-F)/F. Approximate log(1+u) by a polyyesmial in u,
 |		log(1+u) = poly.
 |
 |	Step 4. Reconstruct log(X) = log( 2**k * Y ) = k*log(2) + log(F) + log(1+u)
@@ -39,7 +39,7 @@
 |		beforehand and stored in the program.
 |
 |	lognp1:
-|	Step 1: If |X| < 1/16, approximate log(1+X) by an odd polynomial in
+|	Step 1: If |X| < 1/16, approximate log(1+X) by an odd polyyesmial in
 |		u where u = 2X/(2+X). Otherwise, move on to Step 2.
 |
 |	Step 2: Let 1+X = 2**k * Y, where 1 <= Y < 2. Define F as done in Step 2
@@ -56,7 +56,7 @@
 |	Note 2. In Step 2 of lognp1, in order to preserved accuracy, the value
 |		Y-F has to be calculated carefully when 1/2 <= X < 3/2.
 |
-|	Note 3. To fully exploit the pipeline, polynomials are usually separated
+|	Note 3. To fully exploit the pipeline, polyyesmials are usually separated
 |		into two parts evaluated independently before being added up.
 |
 
@@ -256,19 +256,19 @@ slognd:
 
 	movel		#-100,ADJK(%a6)	| ...INPUT = 2^(ADJK) * FP0
 
-|----normalize the input value by left shifting k bits (k to be determined
+|----yesrmalize the input value by left shifting k bits (k to be determined
 |----below), adjusting exponent and storing -k to  ADJK
-|----the value TWOTO100 is no longer needed.
-|----Note that this code assumes the denormalized input is NON-ZERO.
+|----the value TWOTO100 is yes longer needed.
+|----Note that this code assumes the deyesrmalized input is NON-ZERO.
 
      moveml	%d2-%d7,-(%a7)		| ...save some registers
-     movel	#0x00000000,%d3		| ...D3 is exponent of smallest norm. #
+     movel	#0x00000000,%d3		| ...D3 is exponent of smallest yesrm. #
      movel	4(%a0),%d4
      movel	8(%a0),%d5		| ...(D4,D5) is (Hi_X,Lo_X)
      clrl	%d2			| ...D2 used for holding K
 
      tstl	%d4
-     bnes	HiX_not0
+     bnes	HiX_yest0
 
 HiX_0:
      movel	%d5,%d4
@@ -277,7 +277,7 @@ HiX_0:
      clrl	%d6
      bfffo      %d4{#0:#32},%d6
      lsll      %d6,%d4
-     addl	%d6,%d2			| ...(D3,D4,D5) is normalized
+     addl	%d6,%d2			| ...(D3,D4,D5) is yesrmalized
 
      movel	%d3,X(%a6)
      movel	%d4,XFRAC(%a6)
@@ -290,7 +290,7 @@ HiX_0:
      bras	LOGBGN			| ...begin regular log(X)
 
 
-HiX_not0:
+HiX_yest0:
      clrl	%d6
      bfffo	%d4{#0:#32},%d6		| ...find first 1
      movel	%d6,%d2			| ...get k
@@ -300,7 +300,7 @@ HiX_not0:
      negl	%d6
      addil	#32,%d6
      lsrl	%d6,%d7
-     orl	%d7,%d4			| ...(D3,D4,D5) normalized
+     orl	%d7,%d4			| ...(D3,D4,D5) yesrmalized
 
      movel	%d3,X(%a6)
      movel	%d4,XFRAC(%a6)
@@ -475,7 +475,7 @@ LOGNEG:
 	.global	slognp1d
 slognp1d:
 |--ENTRY POINT FOR LOG(1+Z) FOR DENORMALIZED INPUT
-| Simply return the denorm
+| Simply return the deyesrm
 
 	bra	t_extdnrm
 

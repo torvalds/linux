@@ -57,9 +57,9 @@ static struct drm_bridge_funcs funcs = {
 static int lvds_encoder_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *port;
-	struct device_node *endpoint;
-	struct device_node *panel_node;
+	struct device_yesde *port;
+	struct device_yesde *endpoint;
+	struct device_yesde *panel_yesde;
 	struct drm_panel *panel;
 	struct lvds_encoder *lvds_encoder;
 
@@ -77,31 +77,31 @@ static int lvds_encoder_probe(struct platform_device *pdev)
 		return err;
 	}
 
-	/* Locate the panel DT node. */
-	port = of_graph_get_port_by_id(dev->of_node, 1);
+	/* Locate the panel DT yesde. */
+	port = of_graph_get_port_by_id(dev->of_yesde, 1);
 	if (!port) {
-		dev_dbg(dev, "port 1 not found\n");
+		dev_dbg(dev, "port 1 yest found\n");
 		return -ENXIO;
 	}
 
 	endpoint = of_get_child_by_name(port, "endpoint");
-	of_node_put(port);
+	of_yesde_put(port);
 	if (!endpoint) {
-		dev_dbg(dev, "no endpoint for port 1\n");
+		dev_dbg(dev, "yes endpoint for port 1\n");
 		return -ENXIO;
 	}
 
-	panel_node = of_graph_get_remote_port_parent(endpoint);
-	of_node_put(endpoint);
-	if (!panel_node) {
-		dev_dbg(dev, "no remote endpoint for port 1\n");
+	panel_yesde = of_graph_get_remote_port_parent(endpoint);
+	of_yesde_put(endpoint);
+	if (!panel_yesde) {
+		dev_dbg(dev, "yes remote endpoint for port 1\n");
 		return -ENXIO;
 	}
 
-	panel = of_drm_find_panel(panel_node);
-	of_node_put(panel_node);
+	panel = of_drm_find_panel(panel_yesde);
+	of_yesde_put(panel_yesde);
 	if (IS_ERR(panel)) {
-		dev_dbg(dev, "panel not found, deferring probe\n");
+		dev_dbg(dev, "panel yest found, deferring probe\n");
 		return PTR_ERR(panel);
 	}
 
@@ -111,11 +111,11 @@ static int lvds_encoder_probe(struct platform_device *pdev)
 	if (IS_ERR(lvds_encoder->panel_bridge))
 		return PTR_ERR(lvds_encoder->panel_bridge);
 
-	/* The panel_bridge bridge is attached to the panel's of_node,
-	 * but we need a bridge attached to our of_node for our user
+	/* The panel_bridge bridge is attached to the panel's of_yesde,
+	 * but we need a bridge attached to our of_yesde for our user
 	 * to look up.
 	 */
-	lvds_encoder->bridge.of_node = dev->of_node;
+	lvds_encoder->bridge.of_yesde = dev->of_yesde;
 	lvds_encoder->bridge.funcs = &funcs;
 	drm_bridge_add(&lvds_encoder->bridge);
 

@@ -23,7 +23,7 @@ static int page_ok(unsigned long page)
 
 	/*
 	 * First see if the page is readable.  If it is, it may still
-	 * be a VDSO, so we go on to see if it's writable.  If not
+	 * be a VDSO, so we go on to see if it's writable.  If yest
 	 * then try mapping memory there.  If that fails, then we're
 	 * still in the kernel area.  As a sanity check, we'll fail if
 	 * the mmap succeeds, but gives us an address different from
@@ -43,7 +43,7 @@ static int page_ok(unsigned long page)
 
 	/*
 	 * Now, is it writeable?  If so, then we're in user address
-	 * space.  If not, then try mprotecting it and try the write
+	 * space.  If yest, then try mprotecting it and try the write
 	 * again.
 	 */
 	if (setjmp(buf) == 0) {

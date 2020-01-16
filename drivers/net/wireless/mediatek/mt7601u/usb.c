@@ -241,7 +241,7 @@ static int mt7601u_assign_pipes(struct usb_interface *usb_intf,
 		    ep_i++ < __MT_EP_IN_MAX) {
 			dev->in_eps[ep_i - 1] = usb_endpoint_num(ep_desc);
 			dev->in_max_packet = usb_endpoint_maxp(ep_desc);
-			/* Note: this is ignored by usb sub-system but vendor
+			/* Note: this is igyesred by usb sub-system but vendor
 			 *	 code does it. We can drop this at some point.
 			 */
 			dev->in_eps[ep_i - 1] |= USB_DIR_IN;
@@ -302,7 +302,7 @@ static int mt7601u_probe(struct usb_interface *usb_intf,
 
 	/* Note: vendor driver skips this check for MT7601U */
 	if (!(mt7601u_rr(dev, MT_EFUSE_CTRL) & MT_EFUSE_CTRL_SEL))
-		dev_warn(dev->dev, "Warning: eFUSE not present\n");
+		dev_warn(dev->dev, "Warning: eFUSE yest present\n");
 
 	ret = mt7601u_init_hardware(dev);
 	if (ret)

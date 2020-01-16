@@ -12,13 +12,13 @@
 #include <linux/mm.h>
 #include <linux/mmzone.h>
 #include <linux/export.h>
-#include <linux/nodemask.h>
+#include <linux/yesdemask.h>
 #include <linux/cpu.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/of.h>
 #include <linux/pfn.h>
 #include <linux/cpuset.h>
-#include <linux/node.h>
+#include <linux/yesde.h>
 #include <linux/stop_machine.h>
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
@@ -44,12 +44,12 @@ static int numa_debug;
 #define dbg(args...) if (numa_debug) { printk(KERN_INFO args); }
 
 int numa_cpu_lookup_table[NR_CPUS];
-cpumask_var_t node_to_cpumask_map[MAX_NUMNODES];
-struct pglist_data *node_data[MAX_NUMNODES];
+cpumask_var_t yesde_to_cpumask_map[MAX_NUMNODES];
+struct pglist_data *yesde_data[MAX_NUMNODES];
 
 EXPORT_SYMBOL(numa_cpu_lookup_table);
-EXPORT_SYMBOL(node_to_cpumask_map);
-EXPORT_SYMBOL(node_data);
+EXPORT_SYMBOL(yesde_to_cpumask_map);
+EXPORT_SYMBOL(yesde_data);
 
 static int min_common_depth;
 static int n_mem_addr_cells, n_mem_size_cells;
@@ -61,28 +61,28 @@ static const __be32 *distance_ref_points;
 static int distance_lookup_table[MAX_NUMNODES][MAX_DISTANCE_REF_POINTS];
 
 /*
- * Allocate node_to_cpumask_map based on number of available nodes
- * Requires node_possible_map to be valid.
+ * Allocate yesde_to_cpumask_map based on number of available yesdes
+ * Requires yesde_possible_map to be valid.
  *
- * Note: cpumask_of_node() is not valid until after this is done.
+ * Note: cpumask_of_yesde() is yest valid until after this is done.
  */
-static void __init setup_node_to_cpumask_map(void)
+static void __init setup_yesde_to_cpumask_map(void)
 {
-	unsigned int node;
+	unsigned int yesde;
 
-	/* setup nr_node_ids if not done yet */
-	if (nr_node_ids == MAX_NUMNODES)
-		setup_nr_node_ids();
+	/* setup nr_yesde_ids if yest done yet */
+	if (nr_yesde_ids == MAX_NUMNODES)
+		setup_nr_yesde_ids();
 
 	/* allocate the map */
-	for_each_node(node)
-		alloc_bootmem_cpumask_var(&node_to_cpumask_map[node]);
+	for_each_yesde(yesde)
+		alloc_bootmem_cpumask_var(&yesde_to_cpumask_map[yesde]);
 
-	/* cpumask_of_node() will now work */
-	dbg("Node to cpumask map for %u nodes\n", nr_node_ids);
+	/* cpumask_of_yesde() will yesw work */
+	dbg("Node to cpumask map for %u yesdes\n", nr_yesde_ids);
 }
 
-static int __init fake_numa_create_new_node(unsigned long end_pfn,
+static int __init fake_numa_create_new_yesde(unsigned long end_pfn,
 						unsigned int *nid)
 {
 	unsigned long long mem;
@@ -91,14 +91,14 @@ static int __init fake_numa_create_new_node(unsigned long end_pfn,
 	static unsigned long long curr_boundary;
 
 	/*
-	 * Modify node id, iff we started creating NUMA nodes
+	 * Modify yesde id, iff we started creating NUMA yesdes
 	 * We want to continue from where we left of the last time
 	 */
 	if (fake_nid)
 		*nid = fake_nid;
 	/*
-	 * In case there are no more arguments to parse, the
-	 * node_id should be the same as the last fake node id
+	 * In case there are yes more arguments to parse, the
+	 * yesde_id should be the same as the last fake yesde id
 	 * (we've handled this above).
 	 */
 	if (!p)
@@ -123,7 +123,7 @@ static int __init fake_numa_create_new_node(unsigned long end_pfn,
 		cmdline = p;
 		fake_nid++;
 		*nid = fake_nid;
-		dbg("created new fake_node with id %d\n", fake_nid);
+		dbg("created new fake_yesde with id %d\n", fake_nid);
 		return 1;
 	}
 	return 0;
@@ -137,28 +137,28 @@ static void reset_numa_cpu_lookup_table(void)
 		numa_cpu_lookup_table[cpu] = -1;
 }
 
-static void map_cpu_to_node(int cpu, int node)
+static void map_cpu_to_yesde(int cpu, int yesde)
 {
-	update_numa_cpu_lookup_table(cpu, node);
+	update_numa_cpu_lookup_table(cpu, yesde);
 
-	dbg("adding cpu %d to node %d\n", cpu, node);
+	dbg("adding cpu %d to yesde %d\n", cpu, yesde);
 
-	if (!(cpumask_test_cpu(cpu, node_to_cpumask_map[node])))
-		cpumask_set_cpu(cpu, node_to_cpumask_map[node]);
+	if (!(cpumask_test_cpu(cpu, yesde_to_cpumask_map[yesde])))
+		cpumask_set_cpu(cpu, yesde_to_cpumask_map[yesde]);
 }
 
 #if defined(CONFIG_HOTPLUG_CPU) || defined(CONFIG_PPC_SPLPAR)
-static void unmap_cpu_from_node(unsigned long cpu)
+static void unmap_cpu_from_yesde(unsigned long cpu)
 {
-	int node = numa_cpu_lookup_table[cpu];
+	int yesde = numa_cpu_lookup_table[cpu];
 
-	dbg("removing cpu %lu from node %d\n", cpu, node);
+	dbg("removing cpu %lu from yesde %d\n", cpu, yesde);
 
-	if (cpumask_test_cpu(cpu, node_to_cpumask_map[node])) {
-		cpumask_clear_cpu(cpu, node_to_cpumask_map[node]);
+	if (cpumask_test_cpu(cpu, yesde_to_cpumask_map[yesde])) {
+		cpumask_clear_cpu(cpu, yesde_to_cpumask_map[yesde]);
 	} else {
-		printk(KERN_ERR "WARNING: cpu %lu not found in node %d\n",
-		       cpu, node);
+		printk(KERN_ERR "WARNING: cpu %lu yest found in yesde %d\n",
+		       cpu, yesde);
 	}
 }
 #endif /* CONFIG_HOTPLUG_CPU || CONFIG_PPC_SPLPAR */
@@ -179,13 +179,13 @@ int cpu_distance(__be32 *cpu1_assoc, __be32 *cpu2_assoc)
 	return dist;
 }
 
-/* must hold reference to node during call */
-static const __be32 *of_get_associativity(struct device_node *dev)
+/* must hold reference to yesde during call */
+static const __be32 *of_get_associativity(struct device_yesde *dev)
 {
 	return of_get_property(dev, "ibm,associativity", NULL);
 }
 
-int __node_distance(int a, int b)
+int __yesde_distance(int a, int b)
 {
 	int i;
 	int distance = LOCAL_DISTANCE;
@@ -203,7 +203,7 @@ int __node_distance(int a, int b)
 
 	return distance;
 }
-EXPORT_SYMBOL(__node_distance);
+EXPORT_SYMBOL(__yesde_distance);
 
 static void initialize_distance_lookup_table(int nid,
 		const __be32 *associativity)
@@ -221,7 +221,7 @@ static void initialize_distance_lookup_table(int nid,
 	}
 }
 
-/* Returns nid in the range [0..MAX_NUMNODES-1], or -1 if no useful numa
+/* Returns nid in the range [0..MAX_NUMNODES-1], or -1 if yes useful numa
  * info is found.
  */
 static int associativity_to_nid(const __be32 *associativity)
@@ -234,7 +234,7 @@ static int associativity_to_nid(const __be32 *associativity)
 	if (of_read_number(associativity, 1) >= min_common_depth)
 		nid = of_read_number(&associativity[min_common_depth], 1);
 
-	/* POWER4 LPAR uses 0xffff as invalid node */
+	/* POWER4 LPAR uses 0xffff as invalid yesde */
 	if (nid == 0xffff || nid >= MAX_NUMNODES)
 		nid = NUMA_NO_NODE;
 
@@ -250,10 +250,10 @@ out:
 	return nid;
 }
 
-/* Returns the nid associated with the given device tree node,
- * or -1 if not found.
+/* Returns the nid associated with the given device tree yesde,
+ * or -1 if yest found.
  */
-static int of_node_to_nid_single(struct device_node *device)
+static int of_yesde_to_nid_single(struct device_yesde *device)
 {
 	int nid = NUMA_NO_NODE;
 	const __be32 *tmp;
@@ -265,42 +265,42 @@ static int of_node_to_nid_single(struct device_node *device)
 }
 
 /* Walk the device tree upwards, looking for an associativity id */
-int of_node_to_nid(struct device_node *device)
+int of_yesde_to_nid(struct device_yesde *device)
 {
 	int nid = NUMA_NO_NODE;
 
-	of_node_get(device);
+	of_yesde_get(device);
 	while (device) {
-		nid = of_node_to_nid_single(device);
+		nid = of_yesde_to_nid_single(device);
 		if (nid != -1)
 			break;
 
 		device = of_get_next_parent(device);
 	}
-	of_node_put(device);
+	of_yesde_put(device);
 
 	return nid;
 }
-EXPORT_SYMBOL(of_node_to_nid);
+EXPORT_SYMBOL(of_yesde_to_nid);
 
 static int __init find_min_common_depth(void)
 {
 	int depth;
-	struct device_node *root;
+	struct device_yesde *root;
 
 	if (firmware_has_feature(FW_FEATURE_OPAL))
-		root = of_find_node_by_path("/ibm,opal");
+		root = of_find_yesde_by_path("/ibm,opal");
 	else
-		root = of_find_node_by_path("/rtas");
+		root = of_find_yesde_by_path("/rtas");
 	if (!root)
-		root = of_find_node_by_path("/");
+		root = of_find_yesde_by_path("/");
 
 	/*
 	 * This property is a set of 32-bit integers, each representing
-	 * an index into the ibm,associativity nodes.
+	 * an index into the ibm,associativity yesdes.
 	 *
 	 * With form 0 affinity the first integer is for an SMP configuration
-	 * (should be all 0's) and the second is for a normal NUMA
+	 * (should be all 0's) and the second is for a yesrmal NUMA
 	 * configuration. We have only one level of NUMA.
 	 *
 	 * With form 1 affinity the first integer is the most significant
@@ -312,7 +312,7 @@ static int __init find_min_common_depth(void)
 					&distance_ref_points_depth);
 
 	if (!distance_ref_points) {
-		dbg("NUMA: ibm,associativity-reference-points not found.\n");
+		dbg("NUMA: ibm,associativity-reference-points yest found.\n");
 		goto err;
 	}
 
@@ -346,25 +346,25 @@ static int __init find_min_common_depth(void)
 		distance_ref_points_depth = MAX_DISTANCE_REF_POINTS;
 	}
 
-	of_node_put(root);
+	of_yesde_put(root);
 	return depth;
 
 err:
-	of_node_put(root);
+	of_yesde_put(root);
 	return -1;
 }
 
 static void __init get_n_mem_cells(int *n_addr_cells, int *n_size_cells)
 {
-	struct device_node *memory = NULL;
+	struct device_yesde *memory = NULL;
 
-	memory = of_find_node_by_type(memory, "memory");
+	memory = of_find_yesde_by_type(memory, "memory");
 	if (!memory)
-		panic("numa.c: No memory nodes found!");
+		panic("numa.c: No memory yesdes found!");
 
 	*n_addr_cells = of_n_addr_cells(memory);
 	*n_size_cells = of_n_size_cells(memory);
-	of_node_put(memory);
+	of_yesde_put(memory);
 }
 
 static unsigned long read_n_cells(int n, const __be32 **buf)
@@ -396,26 +396,26 @@ struct assoc_arrays {
  */
 static int of_get_assoc_arrays(struct assoc_arrays *aa)
 {
-	struct device_node *memory;
+	struct device_yesde *memory;
 	const __be32 *prop;
 	u32 len;
 
-	memory = of_find_node_by_path("/ibm,dynamic-reconfiguration-memory");
+	memory = of_find_yesde_by_path("/ibm,dynamic-reconfiguration-memory");
 	if (!memory)
 		return -1;
 
 	prop = of_get_property(memory, "ibm,associativity-lookup-arrays", &len);
 	if (!prop || len < 2 * sizeof(unsigned int)) {
-		of_node_put(memory);
+		of_yesde_put(memory);
 		return -1;
 	}
 
 	aa->n_arrays = of_read_number(prop++, 1);
 	aa->array_sz = of_read_number(prop++, 1);
 
-	of_node_put(memory);
+	of_yesde_put(memory);
 
-	/* Now that we know the number of arrays and size of each array,
+	/* Now that we kyesw the number of arrays and size of each array,
 	 * revalidate the size of the property read in.
 	 */
 	if (len < (aa->n_arrays * aa->array_sz + 2) * sizeof(unsigned int))
@@ -426,8 +426,8 @@ static int of_get_assoc_arrays(struct assoc_arrays *aa)
 }
 
 /*
- * This is like of_node_to_nid_single() for memory represented in the
- * ibm,dynamic-reconfiguration-memory node.
+ * This is like of_yesde_to_nid_single() for memory represented in the
+ * ibm,dynamic-reconfiguration-memory yesde.
  */
 static int of_drconf_to_nid_single(struct drmem_lmb *lmb)
 {
@@ -468,19 +468,19 @@ static int of_drconf_to_nid_single(struct drmem_lmb *lmb)
 static int numa_setup_cpu(unsigned long lcpu)
 {
 	int nid = NUMA_NO_NODE;
-	struct device_node *cpu;
+	struct device_yesde *cpu;
 
 	/*
-	 * If a valid cpu-to-node mapping is already available, use it
+	 * If a valid cpu-to-yesde mapping is already available, use it
 	 * directly instead of querying the firmware, since it represents
-	 * the most recent mapping notified to us by the platform (eg: VPHN).
+	 * the most recent mapping yestified to us by the platform (eg: VPHN).
 	 */
 	if ((nid = numa_cpu_lookup_table[lcpu]) >= 0) {
-		map_cpu_to_node(lcpu, nid);
+		map_cpu_to_yesde(lcpu, nid);
 		return nid;
 	}
 
-	cpu = of_get_cpu_node(lcpu, NULL);
+	cpu = of_get_cpu_yesde(lcpu, NULL);
 
 	if (!cpu) {
 		WARN_ON(1);
@@ -490,23 +490,23 @@ static int numa_setup_cpu(unsigned long lcpu)
 			goto out;
 	}
 
-	nid = of_node_to_nid_single(cpu);
+	nid = of_yesde_to_nid_single(cpu);
 
 out_present:
-	if (nid < 0 || !node_possible(nid))
-		nid = first_online_node;
+	if (nid < 0 || !yesde_possible(nid))
+		nid = first_online_yesde;
 
-	map_cpu_to_node(lcpu, nid);
-	of_node_put(cpu);
+	map_cpu_to_yesde(lcpu, nid);
+	of_yesde_put(cpu);
 out:
 	return nid;
 }
 
-static void verify_cpu_node_mapping(int cpu, int node)
+static void verify_cpu_yesde_mapping(int cpu, int yesde)
 {
 	int base, sibling, i;
 
-	/* Verify that all the threads in the core belong to the same node */
+	/* Verify that all the threads in the core belong to the same yesde */
 	base = cpu_first_thread_sibling(cpu);
 
 	for (i = 0; i < threads_per_core; i++) {
@@ -515,28 +515,28 @@ static void verify_cpu_node_mapping(int cpu, int node)
 		if (sibling == cpu || cpu_is_offline(sibling))
 			continue;
 
-		if (cpu_to_node(sibling) != node) {
+		if (cpu_to_yesde(sibling) != yesde) {
 			WARN(1, "CPU thread siblings %d and %d don't belong"
-				" to the same node!\n", cpu, sibling);
+				" to the same yesde!\n", cpu, sibling);
 			break;
 		}
 	}
 }
 
-/* Must run before sched domains notifier. */
+/* Must run before sched domains yestifier. */
 static int ppc_numa_cpu_prepare(unsigned int cpu)
 {
 	int nid;
 
 	nid = numa_setup_cpu(cpu);
-	verify_cpu_node_mapping(cpu, nid);
+	verify_cpu_yesde_mapping(cpu, nid);
 	return 0;
 }
 
 static int ppc_numa_cpu_dead(unsigned int cpu)
 {
 #ifdef CONFIG_HOTPLUG_CPU
-	unmap_cpu_from_node(cpu);
+	unmap_cpu_from_yesde(cpu);
 #endif
 	return 0;
 }
@@ -556,7 +556,7 @@ static unsigned long __init numa_enforce_memory_limit(unsigned long start,
 	 * We use memblock_end_of_DRAM() in here instead of memory_limit because
 	 * we've already adjusted it for the limit and it takes care of
 	 * having memory holes below the limit.  Also, in the case of
-	 * iommu_is_off, memory_limit is not set but is implicitly enforced.
+	 * iommu_is_off, memory_limit is yest set but is implicitly enforced.
 	 */
 
 	if (start + size <= memblock_end_of_DRAM())
@@ -585,7 +585,7 @@ static inline int __init read_usm_ranges(const __be32 **usm)
 
 /*
  * Extract NUMA information from the ibm,dynamic-reconfiguration-memory
- * node.  This assumes n_mem_{addr,size}_cells have been set.
+ * yesde.  This assumes n_mem_{addr,size}_cells have been set.
  */
 static void __init numa_setup_drmem_lmb(struct drmem_lmb *lmb,
 					const __be32 **usm)
@@ -596,7 +596,7 @@ static void __init numa_setup_drmem_lmb(struct drmem_lmb *lmb,
 
 	/*
 	 * Skip this block if the reserved bit is set in flags (0x80)
-	 * or if the block is not assigned to this partition (0x8)
+	 * or if the block is yest assigned to this partition (0x8)
 	 */
 	if ((lmb->flags & DRCONF_MEM_RESERVED)
 	    || !(lmb->flags & DRCONF_MEM_ASSIGNED))
@@ -611,7 +611,7 @@ static void __init numa_setup_drmem_lmb(struct drmem_lmb *lmb,
 
 	if (is_kexec_kdump) {
 		ranges = read_usm_ranges(usm);
-		if (!ranges) /* there are no (base, size) duple */
+		if (!ranges) /* there are yes (base, size) duple */
 			return;
 	}
 
@@ -622,18 +622,18 @@ static void __init numa_setup_drmem_lmb(struct drmem_lmb *lmb,
 		}
 
 		nid = of_drconf_to_nid_single(lmb);
-		fake_numa_create_new_node(((base + size) >> PAGE_SHIFT),
+		fake_numa_create_new_yesde(((base + size) >> PAGE_SHIFT),
 					  &nid);
-		node_set_online(nid);
+		yesde_set_online(nid);
 		sz = numa_enforce_memory_limit(base, size);
 		if (sz)
-			memblock_set_node(base, sz, &memblock.memory, nid);
+			memblock_set_yesde(base, sz, &memblock.memory, nid);
 	} while (--ranges);
 }
 
 static int __init parse_numa_properties(void)
 {
-	struct device_node *memory;
+	struct device_yesde *memory;
 	int default_nid = 0;
 	unsigned long i;
 
@@ -657,31 +657,31 @@ static int __init parse_numa_properties(void)
 
 	/*
 	 * Even though we connect cpus to numa domains later in SMP
-	 * init, we need to know the node ids now. This is because
-	 * each node to be onlined must have NODE_DATA etc backing it.
+	 * init, we need to kyesw the yesde ids yesw. This is because
+	 * each yesde to be onlined must have NODE_DATA etc backing it.
 	 */
 	for_each_present_cpu(i) {
-		struct device_node *cpu;
+		struct device_yesde *cpu;
 		int nid;
 
-		cpu = of_get_cpu_node(i, NULL);
+		cpu = of_get_cpu_yesde(i, NULL);
 		BUG_ON(!cpu);
-		nid = of_node_to_nid_single(cpu);
-		of_node_put(cpu);
+		nid = of_yesde_to_nid_single(cpu);
+		of_yesde_put(cpu);
 
 		/*
 		 * Don't fall back to default_nid yet -- we will plug
-		 * cpus into nodes once the memory scan has discovered
+		 * cpus into yesdes once the memory scan has discovered
 		 * the topology.
 		 */
 		if (nid < 0)
 			continue;
-		node_set_online(nid);
+		yesde_set_online(nid);
 	}
 
 	get_n_mem_cells(&n_mem_addr_cells, &n_mem_size_cells);
 
-	for_each_node_by_type(memory, "memory") {
+	for_each_yesde_by_type(memory, "memory") {
 		unsigned long start;
 		unsigned long size;
 		int nid;
@@ -704,20 +704,20 @@ new_range:
 		size = read_n_cells(n_mem_size_cells, &memcell_buf);
 
 		/*
-		 * Assumption: either all memory nodes or none will
-		 * have associativity properties.  If none, then
+		 * Assumption: either all memory yesdes or yesne will
+		 * have associativity properties.  If yesne, then
 		 * everything goes to default_nid.
 		 */
-		nid = of_node_to_nid_single(memory);
+		nid = of_yesde_to_nid_single(memory);
 		if (nid < 0)
 			nid = default_nid;
 
-		fake_numa_create_new_node(((start + size) >> PAGE_SHIFT), &nid);
-		node_set_online(nid);
+		fake_numa_create_new_yesde(((start + size) >> PAGE_SHIFT), &nid);
+		yesde_set_online(nid);
 
 		size = numa_enforce_memory_limit(start, size);
 		if (size)
-			memblock_set_node(start, size, &memblock.memory, nid);
+			memblock_set_yesde(start, size, &memblock.memory, nid);
 
 		if (--ranges)
 			goto new_range;
@@ -726,18 +726,18 @@ new_range:
 	/*
 	 * Now do the same thing for each MEMBLOCK listed in the
 	 * ibm,dynamic-memory property in the
-	 * ibm,dynamic-reconfiguration-memory node.
+	 * ibm,dynamic-reconfiguration-memory yesde.
 	 */
-	memory = of_find_node_by_path("/ibm,dynamic-reconfiguration-memory");
+	memory = of_find_yesde_by_path("/ibm,dynamic-reconfiguration-memory");
 	if (memory) {
 		walk_drmem_lmbs(memory, numa_setup_drmem_lmb);
-		of_node_put(memory);
+		of_yesde_put(memory);
 	}
 
 	return 0;
 }
 
-static void __init setup_nonnuma(void)
+static void __init setup_yesnnuma(void)
 {
 	unsigned long top_of_ram = memblock_end_of_DRAM();
 	unsigned long total_ram = memblock_phys_mem_size();
@@ -754,24 +754,24 @@ static void __init setup_nonnuma(void)
 		start_pfn = memblock_region_memory_base_pfn(reg);
 		end_pfn = memblock_region_memory_end_pfn(reg);
 
-		fake_numa_create_new_node(end_pfn, &nid);
-		memblock_set_node(PFN_PHYS(start_pfn),
+		fake_numa_create_new_yesde(end_pfn, &nid);
+		memblock_set_yesde(PFN_PHYS(start_pfn),
 				  PFN_PHYS(end_pfn - start_pfn),
 				  &memblock.memory, nid);
-		node_set_online(nid);
+		yesde_set_online(nid);
 	}
 }
 
 void __init dump_numa_cpu_topology(void)
 {
-	unsigned int node;
+	unsigned int yesde;
 	unsigned int cpu, count;
 
 	if (!numa_enabled)
 		return;
 
-	for_each_online_node(node) {
-		pr_info("Node %d CPUs:", node);
+	for_each_online_yesde(yesde) {
+		pr_info("Node %d CPUs:", yesde);
 
 		count = 0;
 		/*
@@ -780,7 +780,7 @@ void __init dump_numa_cpu_topology(void)
 		 */
 		for (cpu = 0; cpu < nr_cpu_ids; cpu++) {
 			if (cpumask_test_cpu(cpu,
-					node_to_cpumask_map[node])) {
+					yesde_to_cpumask_map[yesde])) {
 				if (count == 0)
 					pr_cont(" %u", cpu);
 				++count;
@@ -797,8 +797,8 @@ void __init dump_numa_cpu_topology(void)
 	}
 }
 
-/* Initialize NODE_DATA for a node on the local memory */
-static void __init setup_node_data(int nid, u64 start_pfn, u64 end_pfn)
+/* Initialize NODE_DATA for a yesde on the local memory */
+static void __init setup_yesde_data(int nid, u64 start_pfn, u64 end_pfn)
 {
 	u64 spanned_pages = end_pfn - start_pfn;
 	const size_t nd_size = roundup(sizeof(pg_data_t), SMP_CACHE_BYTES);
@@ -808,7 +808,7 @@ static void __init setup_node_data(int nid, u64 start_pfn, u64 end_pfn)
 
 	nd_pa = memblock_phys_alloc_try_nid(nd_size, SMP_CACHE_BYTES, nid);
 	if (!nd_pa)
-		panic("Cannot allocate %zu bytes for node %d data\n",
+		panic("Canyest allocate %zu bytes for yesde %d data\n",
 		      nd_size, nid);
 
 	nd = __va(nd_pa);
@@ -818,39 +818,39 @@ static void __init setup_node_data(int nid, u64 start_pfn, u64 end_pfn)
 		nd_pa, nd_pa + nd_size - 1);
 	tnid = early_pfn_to_nid(nd_pa >> PAGE_SHIFT);
 	if (tnid != nid)
-		pr_info("    NODE_DATA(%d) on node %d\n", nid, tnid);
+		pr_info("    NODE_DATA(%d) on yesde %d\n", nid, tnid);
 
-	node_data[nid] = nd;
+	yesde_data[nid] = nd;
 	memset(NODE_DATA(nid), 0, sizeof(pg_data_t));
-	NODE_DATA(nid)->node_id = nid;
-	NODE_DATA(nid)->node_start_pfn = start_pfn;
-	NODE_DATA(nid)->node_spanned_pages = spanned_pages;
+	NODE_DATA(nid)->yesde_id = nid;
+	NODE_DATA(nid)->yesde_start_pfn = start_pfn;
+	NODE_DATA(nid)->yesde_spanned_pages = spanned_pages;
 }
 
-static void __init find_possible_nodes(void)
+static void __init find_possible_yesdes(void)
 {
-	struct device_node *rtas;
-	u32 numnodes, i;
+	struct device_yesde *rtas;
+	u32 numyesdes, i;
 
 	if (!numa_enabled)
 		return;
 
-	rtas = of_find_node_by_path("/rtas");
+	rtas = of_find_yesde_by_path("/rtas");
 	if (!rtas)
 		return;
 
 	if (of_property_read_u32_index(rtas,
 				"ibm,max-associativity-domains",
-				min_common_depth, &numnodes))
+				min_common_depth, &numyesdes))
 		goto out;
 
-	for (i = 0; i < numnodes; i++) {
-		if (!node_possible(i))
-			node_set(i, node_possible_map);
+	for (i = 0; i < numyesdes; i++) {
+		if (!yesde_possible(i))
+			yesde_set(i, yesde_possible_map);
 	}
 
 out:
-	of_node_put(rtas);
+	of_yesde_put(rtas);
 }
 
 void __init mem_topology_setup(void)
@@ -858,19 +858,19 @@ void __init mem_topology_setup(void)
 	int cpu;
 
 	if (parse_numa_properties())
-		setup_nonnuma();
+		setup_yesnnuma();
 
 	/*
-	 * Modify the set of possible NUMA nodes to reflect information
-	 * available about the set of online nodes, and the set of nodes
+	 * Modify the set of possible NUMA yesdes to reflect information
+	 * available about the set of online yesdes, and the set of yesdes
 	 * that we expect to make use of for this platform's affinity
 	 * calculations.
 	 */
-	nodes_and(node_possible_map, node_possible_map, node_online_map);
+	yesdes_and(yesde_possible_map, yesde_possible_map, yesde_online_map);
 
-	find_possible_nodes();
+	find_possible_yesdes();
 
-	setup_node_to_cpumask_map();
+	setup_yesde_to_cpumask_map();
 
 	reset_numa_cpu_lookup_table();
 
@@ -887,11 +887,11 @@ void __init initmem_init(void)
 
 	memblock_dump_all();
 
-	for_each_online_node(nid) {
+	for_each_online_yesde(nid) {
 		unsigned long start_pfn, end_pfn;
 
 		get_pfn_range_for_nid(nid, &start_pfn, &end_pfn);
-		setup_node_data(nid, start_pfn, end_pfn);
+		setup_yesde_data(nid, start_pfn, end_pfn);
 		sparse_memory_present_with_active_regions(nid);
 	}
 
@@ -899,12 +899,12 @@ void __init initmem_init(void)
 
 	/*
 	 * We need the numa_cpu_lookup_table to be accurate for all CPUs,
-	 * even before we online them, so that we can use cpu_to_{node,mem}
+	 * even before we online them, so that we can use cpu_to_{yesde,mem}
 	 * early in boot, cf. smp_prepare_cpus().
-	 * _nocalls() + manual invocation is used because cpuhp is not yet
+	 * _yescalls() + manual invocation is used because cpuhp is yest yet
 	 * initialized for the boot CPU.
 	 */
-	cpuhp_setup_state_nocalls(CPUHP_POWER_NUMA_PREPARE, "powerpc/numa:prepare",
+	cpuhp_setup_state_yescalls(CPUHP_POWER_NUMA_PREPARE, "powerpc/numa:prepare",
 				  ppc_numa_cpu_prepare, ppc_numa_cpu_dead);
 }
 
@@ -951,7 +951,7 @@ early_param("topology_updates", early_topology_updates);
 
 #ifdef CONFIG_MEMORY_HOTPLUG
 /*
- * Find the node associated with a hot added memory section for
+ * Find the yesde associated with a hot added memory section for
  * memory represented in the device tree by the property
  * ibm,dynamic-reconfiguration-memory/ibm,dynamic-memory.
  */
@@ -964,7 +964,7 @@ static int hot_add_drconf_scn_to_nid(unsigned long scn_addr)
 	lmb_size = drmem_lmb_size();
 
 	for_each_drmem_lmb(lmb) {
-		/* skip this block if it is reserved or not assigned to
+		/* skip this block if it is reserved or yest assigned to
 		 * this partition */
 		if ((lmb->flags & DRCONF_MEM_RESERVED)
 		    || !(lmb->flags & DRCONF_MEM_ASSIGNED))
@@ -982,16 +982,16 @@ static int hot_add_drconf_scn_to_nid(unsigned long scn_addr)
 }
 
 /*
- * Find the node associated with a hot added memory section for memory
- * represented in the device tree as a node (i.e. memory@XXXX) for
+ * Find the yesde associated with a hot added memory section for memory
+ * represented in the device tree as a yesde (i.e. memory@XXXX) for
  * each memblock.
  */
-static int hot_add_node_scn_to_nid(unsigned long scn_addr)
+static int hot_add_yesde_scn_to_nid(unsigned long scn_addr)
 {
-	struct device_node *memory;
+	struct device_yesde *memory;
 	int nid = NUMA_NO_NODE;
 
-	for_each_node_by_type(memory, "memory") {
+	for_each_yesde_by_type(memory, "memory") {
 		unsigned long start, size;
 		int ranges;
 		const __be32 *memcell_buf;
@@ -1011,7 +1011,7 @@ static int hot_add_node_scn_to_nid(unsigned long scn_addr)
 			if ((scn_addr < start) || (scn_addr >= (start + size)))
 				continue;
 
-			nid = of_node_to_nid_single(memory);
+			nid = of_yesde_to_nid_single(memory);
 			break;
 		}
 
@@ -1019,55 +1019,55 @@ static int hot_add_node_scn_to_nid(unsigned long scn_addr)
 			break;
 	}
 
-	of_node_put(memory);
+	of_yesde_put(memory);
 
 	return nid;
 }
 
 /*
- * Find the node associated with a hot added memory section.  Section
- * corresponds to a SPARSEMEM section, not an MEMBLOCK.  It is assumed that
+ * Find the yesde associated with a hot added memory section.  Section
+ * corresponds to a SPARSEMEM section, yest an MEMBLOCK.  It is assumed that
  * sections are fully contained within a single MEMBLOCK.
  */
 int hot_add_scn_to_nid(unsigned long scn_addr)
 {
-	struct device_node *memory = NULL;
+	struct device_yesde *memory = NULL;
 	int nid;
 
 	if (!numa_enabled)
-		return first_online_node;
+		return first_online_yesde;
 
-	memory = of_find_node_by_path("/ibm,dynamic-reconfiguration-memory");
+	memory = of_find_yesde_by_path("/ibm,dynamic-reconfiguration-memory");
 	if (memory) {
 		nid = hot_add_drconf_scn_to_nid(scn_addr);
-		of_node_put(memory);
+		of_yesde_put(memory);
 	} else {
-		nid = hot_add_node_scn_to_nid(scn_addr);
+		nid = hot_add_yesde_scn_to_nid(scn_addr);
 	}
 
-	if (nid < 0 || !node_possible(nid))
-		nid = first_online_node;
+	if (nid < 0 || !yesde_possible(nid))
+		nid = first_online_yesde;
 
 	return nid;
 }
 
 static u64 hot_add_drconf_memory_max(void)
 {
-	struct device_node *memory = NULL;
-	struct device_node *dn = NULL;
+	struct device_yesde *memory = NULL;
+	struct device_yesde *dn = NULL;
 	const __be64 *lrdr = NULL;
 
-	dn = of_find_node_by_path("/rtas");
+	dn = of_find_yesde_by_path("/rtas");
 	if (dn) {
 		lrdr = of_get_property(dn, "ibm,lrdr-capacity", NULL);
-		of_node_put(dn);
+		of_yesde_put(dn);
 		if (lrdr)
 			return be64_to_cpup(lrdr);
 	}
 
-	memory = of_find_node_by_path("/ibm,dynamic-reconfiguration-memory");
+	memory = of_find_yesde_by_path("/ibm,dynamic-reconfiguration-memory");
 	if (memory) {
-		of_node_put(memory);
+		of_yesde_put(memory);
 		return drmem_lmb_memory_max();
 	}
 	return 0;
@@ -1149,7 +1149,7 @@ static void setup_cpu_associativity_change_counters(void)
  * level changes, the corresponding counter is incremented.
  *
  * Set a bit in cpu_associativity_changes_mask for each cpu whose home
- * node associativity levels have changed.
+ * yesde associativity levels have changed.
  *
  * Returns the number of cpus with unhandled associativity changes.
  */
@@ -1180,7 +1180,7 @@ static int update_cpu_associativity_changes_mask(void)
 
 /*
  * Retrieve the new associativity information for a virtual processor's
- * home node.
+ * home yesde.
  */
 static long vphn_get_associativity(unsigned long cpu,
 					__be32 *associativity)
@@ -1193,7 +1193,7 @@ static long vphn_get_associativity(unsigned long cpu,
 	switch (rc) {
 	case H_FUNCTION:
 		printk_once(KERN_INFO
-			"VPHN is not supported. Disabling polling...\n");
+			"VPHN is yest supported. Disabling polling...\n");
 		stop_topology_update();
 		break;
 	case H_HARDWARE:
@@ -1218,30 +1218,30 @@ int find_and_online_cpu_nid(int cpu)
 
 	/* Use associativity from first thread for all siblings */
 	if (vphn_get_associativity(cpu, associativity))
-		return cpu_to_node(cpu);
+		return cpu_to_yesde(cpu);
 
 	new_nid = associativity_to_nid(associativity);
-	if (new_nid < 0 || !node_possible(new_nid))
-		new_nid = first_online_node;
+	if (new_nid < 0 || !yesde_possible(new_nid))
+		new_nid = first_online_yesde;
 
 	if (NODE_DATA(new_nid) == NULL) {
 #ifdef CONFIG_MEMORY_HOTPLUG
 		/*
-		 * Need to ensure that NODE_DATA is initialized for a node from
+		 * Need to ensure that NODE_DATA is initialized for a yesde from
 		 * available memory (see memblock_alloc_try_nid). If unable to
-		 * init the node, then default to nearest node that has memory
-		 * installed. Skip onlining a node if the subsystems are not
+		 * init the yesde, then default to nearest yesde that has memory
+		 * installed. Skip onlining a yesde if the subsystems are yest
 		 * yet initialized.
 		 */
-		if (!topology_inited || try_online_node(new_nid))
-			new_nid = first_online_node;
+		if (!topology_inited || try_online_yesde(new_nid))
+			new_nid = first_online_yesde;
 #else
 		/*
-		 * Default to using the nearest node that has memory installed.
+		 * Default to using the nearest yesde that has memory installed.
 		 * Otherwise, it would be necessary to patch the kernel MM code
-		 * to deal with more memoryless-node error conditions.
+		 * to deal with more memoryless-yesde error conditions.
 		 */
-		new_nid = first_online_node;
+		new_nid = first_online_yesde;
 #endif
 	}
 
@@ -1270,10 +1270,10 @@ static int update_cpu_topology(void *data)
 		if (cpu != update->cpu)
 			continue;
 
-		unmap_cpu_from_node(cpu);
-		map_cpu_to_node(cpu, new_nid);
-		set_cpu_numa_node(cpu, new_nid);
-		set_cpu_numa_mem(cpu, local_memory_node(new_nid));
+		unmap_cpu_from_yesde(cpu);
+		map_cpu_to_yesde(cpu, new_nid);
+		set_cpu_numa_yesde(cpu, new_nid);
+		set_cpu_numa_mem(cpu, local_memory_yesde(new_nid));
 		vdso_getcpu_init();
 	}
 
@@ -1290,7 +1290,7 @@ static int update_lookup_table(void *data)
 	/*
 	 * Upon topology update, the numa-cpu lookup table needs to be updated
 	 * for all threads in the core, including offline CPUs, to ensure that
-	 * future hotplug operations respect the cpu-to-node associativity
+	 * future hotplug operations respect the cpu-to-yesde associativity
 	 * properly.
 	 */
 	for (update = data; update; update = update->next) {
@@ -1308,7 +1308,7 @@ static int update_lookup_table(void *data)
 }
 
 /*
- * Update the node maps and sysfs entries for each cpu whose home node
+ * Update the yesde maps and sysfs entries for each cpu whose home yesde
  * has changed. Returns 1 when the topology has changed, and 0 otherwise.
  *
  * cpus_locked says whether we already hold cpu_hotplug_lock.
@@ -1342,7 +1342,7 @@ int numa_update_cpu_topology(bool cpus_locked)
 		 */
 		if (!cpumask_subset(cpu_sibling_mask(cpu),
 					&cpu_associativity_changes_mask)) {
-			pr_info("Sibling bits not set for associativity "
+			pr_info("Sibling bits yest set for associativity "
 					"change, cpu%d\n", cpu);
 			cpumask_or(&cpu_associativity_changes_mask,
 					&cpu_associativity_changes_mask,
@@ -1354,10 +1354,10 @@ int numa_update_cpu_topology(bool cpus_locked)
 		new_nid = find_and_online_cpu_nid(cpu);
 
 		if (new_nid == numa_cpu_lookup_table[cpu]) {
-			cpumask_andnot(&cpu_associativity_changes_mask,
+			cpumask_andyest(&cpu_associativity_changes_mask,
 					&cpu_associativity_changes_mask,
 					cpu_sibling_mask(cpu));
-			dbg("Assoc chg gives same node %d for cpu%d\n",
+			dbg("Assoc chg gives same yesde %d for cpu%d\n",
 					new_nid, cpu);
 			cpu = cpu_last_thread_sibling(cpu);
 			continue;
@@ -1384,19 +1384,19 @@ int numa_update_cpu_topology(bool cpus_locked)
 	pr_debug("Topology update for the following CPUs:\n");
 	if (cpumask_weight(&updated_cpus)) {
 		for (ud = &updates[0]; ud; ud = ud->next) {
-			pr_debug("cpu %d moving from node %d "
+			pr_debug("cpu %d moving from yesde %d "
 					  "to %d\n", ud->cpu,
 					  ud->old_nid, ud->new_nid);
 		}
 	}
 
 	/*
-	 * In cases where we have nothing to update (because the updates list
+	 * In cases where we have yesthing to update (because the updates list
 	 * is too short or because the new topology is same as the old one),
 	 * skip invoking update_cpu_topology() via stop-machine(). This is
-	 * necessary (and not just a fast-path optimization) since stop-machine
+	 * necessary (and yest just a fast-path optimization) since stop-machine
 	 * can end up electing a random CPU to run update_cpu_topology(), and
-	 * thus trick us into setting up incorrect cpu-node mappings (since
+	 * thus trick us into setting up incorrect cpu-yesde mappings (since
 	 * 'updates' is kzalloc()'ed).
 	 *
 	 * And for the similar reason, we will skip all the following updating.
@@ -1423,8 +1423,8 @@ int numa_update_cpu_topology(bool cpus_locked)
 			     cpumask_of(raw_smp_processor_id()));
 
 	for (ud = &updates[0]; ud; ud = ud->next) {
-		unregister_cpu_under_node(ud->cpu, ud->old_nid);
-		register_cpu_under_node(ud->cpu, ud->new_nid);
+		unregister_cpu_under_yesde(ud->cpu, ud->old_nid);
+		register_cpu_under_yesde(ud->cpu, ud->new_nid);
 
 		dev = get_cpu_device(ud->cpu);
 		if (dev)
@@ -1474,7 +1474,7 @@ static void reset_topology_timer(void)
 
 #ifdef CONFIG_SMP
 
-static int dt_update_callback(struct notifier_block *nb,
+static int dt_update_callback(struct yestifier_block *nb,
 				unsigned long action, void *data)
 {
 	struct of_reconfig_data *update = data;
@@ -1482,7 +1482,7 @@ static int dt_update_callback(struct notifier_block *nb,
 
 	switch (action) {
 	case OF_RECONFIG_UPDATE_PROPERTY:
-		if (of_node_is_type(update->dn, "cpu") &&
+		if (of_yesde_is_type(update->dn, "cpu") &&
 		    !of_prop_cmp(update->prop->name, "ibm,associativity")) {
 			u32 core_id;
 			of_property_read_u32(update->dn, "reg", &core_id);
@@ -1495,8 +1495,8 @@ static int dt_update_callback(struct notifier_block *nb,
 	return rc;
 }
 
-static struct notifier_block dt_update_nb = {
-	.notifier_call = dt_update_callback,
+static struct yestifier_block dt_update_nb = {
+	.yestifier_call = dt_update_callback,
 };
 
 #endif
@@ -1515,7 +1515,7 @@ int start_topology_update(void)
 		if (!prrn_enabled) {
 			prrn_enabled = 1;
 #ifdef CONFIG_SMP
-			rc = of_reconfig_notifier_register(&dt_update_nb);
+			rc = of_reconfig_yestifier_register(&dt_update_nb);
 #endif
 		}
 	}
@@ -1550,7 +1550,7 @@ int stop_topology_update(void)
 	if (prrn_enabled) {
 		prrn_enabled = 0;
 #ifdef CONFIG_SMP
-		rc = of_reconfig_notifier_unregister(&dt_update_nb);
+		rc = of_reconfig_yestifier_unregister(&dt_update_nb);
 #endif
 	}
 	if (vphn_enabled) {
@@ -1587,7 +1587,7 @@ static int topology_read(struct seq_file *file, void *v)
 	return 0;
 }
 
-static int topology_open(struct inode *inode, struct file *file)
+static int topology_open(struct iyesde *iyesde, struct file *file)
 {
 	return single_open(file, topology_read, NULL);
 }

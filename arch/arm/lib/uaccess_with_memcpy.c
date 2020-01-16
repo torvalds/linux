@@ -30,25 +30,25 @@ pin_page_for_write(const void __user *_addr, pte_t **ptep, spinlock_t **ptlp)
 	spinlock_t *ptl;
 
 	pgd = pgd_offset(current->mm, addr);
-	if (unlikely(pgd_none(*pgd) || pgd_bad(*pgd)))
+	if (unlikely(pgd_yesne(*pgd) || pgd_bad(*pgd)))
 		return 0;
 
 	pud = pud_offset(pgd, addr);
-	if (unlikely(pud_none(*pud) || pud_bad(*pud)))
+	if (unlikely(pud_yesne(*pud) || pud_bad(*pud)))
 		return 0;
 
 	pmd = pmd_offset(pud, addr);
-	if (unlikely(pmd_none(*pmd)))
+	if (unlikely(pmd_yesne(*pmd)))
 		return 0;
 
 	/*
 	 * A pmd can be bad if it refers to a HugeTLB or THP page.
 	 *
 	 * Both THP and HugeTLB pages have the same pmd layout
-	 * and should not be manipulated by the pte functions.
+	 * and should yest be manipulated by the pte functions.
 	 *
 	 * Lock the page table for the destination and check
-	 * to see that it's still huge and whether or not we will
+	 * to see that it's still huge and whether or yest we will
 	 * need to fault on write.
 	 */
 	if (unlikely(pmd_thp_or_huge(*pmd))) {
@@ -81,7 +81,7 @@ pin_page_for_write(const void __user *_addr, pte_t **ptep, spinlock_t **ptlp)
 	return 1;
 }
 
-static unsigned long noinline
+static unsigned long yesinline
 __copy_to_user_memcpy(void __user *to, const void *from, unsigned long n)
 {
 	unsigned long ua_flags;
@@ -92,7 +92,7 @@ __copy_to_user_memcpy(void __user *to, const void *from, unsigned long n)
 		return 0;
 	}
 
-	/* the mmap semaphore is taken only if not in an atomic context */
+	/* the mmap semaphore is taken only if yest in an atomic context */
 	atomic = faulthandler_disabled();
 
 	if (!atomic)
@@ -155,7 +155,7 @@ arm_copy_to_user(void __user *to, const void *from, unsigned long n)
 	return n;
 }
 	
-static unsigned long noinline
+static unsigned long yesinline
 __clear_user_memset(void __user *addr, unsigned long n)
 {
 	unsigned long ua_flags;
@@ -237,14 +237,14 @@ static int __init test_size_treshold(void)
 	ret = -ENOMEM;
 	src_page = alloc_page(GFP_KERNEL);
 	if (!src_page)
-		goto no_src;
+		goto yes_src;
 	dst_page = alloc_page(GFP_KERNEL);
 	if (!dst_page)
-		goto no_dst;
+		goto yes_dst;
 	kernel_ptr = page_address(src_page);
 	user_ptr = vmap(&dst_page, 1, VM_IOREMAP, __pgprot(__P010));
 	if (!user_ptr)
-		goto no_vmap;
+		goto yes_vmap;
 
 	/* warm up the src page dcache */
 	ret = __copy_to_user_memcpy(user_ptr, kernel_ptr, PAGE_SIZE);
@@ -271,11 +271,11 @@ static int __init test_size_treshold(void)
 		ret = -EFAULT;
 
 	vunmap(user_ptr);
-no_vmap:
+yes_vmap:
 	put_page(dst_page);
-no_dst:
+yes_dst:
 	put_page(src_page);
-no_src:
+yes_src:
 	return ret;
 }
 

@@ -22,11 +22,11 @@
 #define THRD_SIB_FMT_NEW \
 	"%s/devices/system/cpu/cpu%d/topology/core_cpus_list"
 #define NODE_ONLINE_FMT \
-	"%s/devices/system/node/online"
+	"%s/devices/system/yesde/online"
 #define NODE_MEMINFO_FMT \
-	"%s/devices/system/node/node%d/meminfo"
+	"%s/devices/system/yesde/yesde%d/meminfo"
 #define NODE_CPULIST_FMT \
-	"%s/devices/system/node/node%d/cpulist"
+	"%s/devices/system/yesde/yesde%d/cpulist"
 
 static int build_cpu_topology(struct cpu_topology *tp, int cpu)
 {
@@ -230,7 +230,7 @@ out_free:
 	return tp;
 }
 
-static int load_numa_node(struct numa_topology_node *node, int nr)
+static int load_numa_yesde(struct numa_topology_yesde *yesde, int nr)
 {
 	char str[MAXPATHLEN];
 	char field[32];
@@ -240,7 +240,7 @@ static int load_numa_node(struct numa_topology_node *node, int nr)
 	FILE *fp;
 	u64 mem;
 
-	node->node = (u32) nr;
+	yesde->yesde = (u32) nr;
 
 	scnprintf(str, MAXPATHLEN, NODE_MEMINFO_FMT,
 		  sysfs__mountpoint(), nr);
@@ -255,10 +255,10 @@ static int load_numa_node(struct numa_topology_node *node, int nr)
 		if (sscanf(buf, "%*s %*d %31s %"PRIu64, field, &mem) != 2)
 			goto err;
 		if (!strcmp(field, "MemTotal:"))
-			node->mem_total = mem;
+			yesde->mem_total = mem;
 		if (!strcmp(field, "MemFree:"))
-			node->mem_free = mem;
-		if (node->mem_total && node->mem_free)
+			yesde->mem_free = mem;
+		if (yesde->mem_total && yesde->mem_free)
 			break;
 	}
 
@@ -279,7 +279,7 @@ static int load_numa_node(struct numa_topology_node *node, int nr)
 	if (p)
 		*p = '\0';
 
-	node->cpus = buf;
+	yesde->cpus = buf;
 	fclose(fp);
 	return 0;
 
@@ -292,7 +292,7 @@ err:
 
 struct numa_topology *numa_topology__new(void)
 {
-	struct perf_cpu_map *node_map = NULL;
+	struct perf_cpu_map *yesde_map = NULL;
 	struct numa_topology *tp = NULL;
 	char path[MAXPATHLEN];
 	char *buf = NULL;
@@ -315,20 +315,20 @@ struct numa_topology *numa_topology__new(void)
 	if (c)
 		*c = '\0';
 
-	node_map = perf_cpu_map__new(buf);
-	if (!node_map)
+	yesde_map = perf_cpu_map__new(buf);
+	if (!yesde_map)
 		goto out;
 
-	nr = (u32) node_map->nr;
+	nr = (u32) yesde_map->nr;
 
-	tp = zalloc(sizeof(*tp) + sizeof(tp->nodes[0])*nr);
+	tp = zalloc(sizeof(*tp) + sizeof(tp->yesdes[0])*nr);
 	if (!tp)
 		goto out;
 
 	tp->nr = nr;
 
 	for (i = 0; i < nr; i++) {
-		if (load_numa_node(&tp->nodes[i], node_map->map[i])) {
+		if (load_numa_yesde(&tp->yesdes[i], yesde_map->map[i])) {
 			numa_topology__delete(tp);
 			tp = NULL;
 			break;
@@ -338,7 +338,7 @@ struct numa_topology *numa_topology__new(void)
 out:
 	free(buf);
 	fclose(fp);
-	perf_cpu_map__put(node_map);
+	perf_cpu_map__put(yesde_map);
 	return tp;
 }
 
@@ -347,7 +347,7 @@ void numa_topology__delete(struct numa_topology *tp)
 	u32 i;
 
 	for (i = 0; i < tp->nr; i++)
-		zfree(&tp->nodes[i].cpus);
+		zfree(&tp->yesdes[i].cpus);
 
 	free(tp);
 }

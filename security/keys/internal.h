@@ -28,11 +28,11 @@ struct iovec;
 	printk(KERN_DEBUG "   "FMT"\n", ##__VA_ARGS__)
 #else
 #define kenter(FMT, ...) \
-	no_printk(KERN_DEBUG "==> %s("FMT")\n", __func__, ##__VA_ARGS__)
+	yes_printk(KERN_DEBUG "==> %s("FMT")\n", __func__, ##__VA_ARGS__)
 #define kleave(FMT, ...) \
-	no_printk(KERN_DEBUG "<== %s()"FMT"\n", __func__, ##__VA_ARGS__)
+	yes_printk(KERN_DEBUG "<== %s()"FMT"\n", __func__, ##__VA_ARGS__)
 #define kdebug(FMT, ...) \
-	no_printk(KERN_DEBUG FMT"\n", ##__VA_ARGS__)
+	yes_printk(KERN_DEBUG FMT"\n", ##__VA_ARGS__)
 #endif
 
 extern struct key_type key_type_dead;
@@ -49,7 +49,7 @@ extern struct key_type key_type_logon;
  * We also keep track of keys under request from userspace for this UID here.
  */
 struct key_user {
-	struct rb_node		node;
+	struct rb_yesde		yesde;
 	struct mutex		cons_lock;	/* construction initiation lock */
 	spinlock_t		lock;
 	refcount_t		usage;		/* for accessing qnkeys & qnbytes */
@@ -122,7 +122,7 @@ struct keyring_search_context {
 #define KEYRING_SEARCH_NO_UPDATE_TIME	0x0004	/* Don't update times */
 #define KEYRING_SEARCH_NO_CHECK_PERM	0x0008	/* Don't check permissions */
 #define KEYRING_SEARCH_DETECT_TOO_DEEP	0x0010	/* Give an error on excessive depth */
-#define KEYRING_SEARCH_SKIP_EXPIRED	0x0020	/* Ignore expired keys (intention to replace) */
+#define KEYRING_SEARCH_SKIP_EXPIRED	0x0020	/* Igyesre expired keys (intention to replace) */
 #define KEYRING_SEARCH_RECURSE		0x0040	/* Search child keyrings also */
 
 	int (*iterator)(const void *object, void *iterator_data);
@@ -131,7 +131,7 @@ struct keyring_search_context {
 	int			skipped_ret;
 	bool			possessed;
 	key_ref_t		result;
-	time64_t		now;
+	time64_t		yesw;
 };
 
 extern bool key_default_cmp(const struct key *key,

@@ -13,9 +13,9 @@
  * are met:
  *
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
+ *    yestice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
  *
@@ -40,7 +40,7 @@
 #include <linux/irq.h>
 #include <linux/bitops.h>
 #include <linux/pci_ids.h>
-#include <linux/nodemask.h>
+#include <linux/yesdemask.h>
 
 #include <asm/cpu.h>
 #include <asm/mipsregs.h>
@@ -88,8 +88,8 @@
 /*SATA_CTL Bits */
 #define SATA_RST_N		BIT(0)  /* Active low reset sata_core phy */
 #define SataCtlReserve0		BIT(1)
-#define M_CSYSREQ		BIT(2)  /* AXI master low power, not used */
-#define S_CSYSREQ		BIT(3)  /* AXI slave low power, not used */
+#define M_CSYSREQ		BIT(2)  /* AXI master low power, yest used */
+#define S_CSYSREQ		BIT(3)  /* AXI slave low power, yest used */
 #define P0_CP_DET		BIT(8)  /* Reserved, bring in from pad */
 #define P0_MP_SW		BIT(9)  /* Mech Switch */
 #define P0_DISABLE		BIT(10) /* disable p0 */
@@ -116,8 +116,8 @@
 #define P1_AT_BYPASS		BIT(31) /* P1 address translation by pass */
 
 /* Status register */
-#define M_CACTIVE		BIT(0)  /* m_cactive, not used */
-#define S_CACTIVE		BIT(1)  /* s_cactive, not used */
+#define M_CACTIVE		BIT(0)  /* m_cactive, yest used */
+#define S_CACTIVE		BIT(1)  /* s_cactive, yest used */
 #define P0_PHY_READY		BIT(8)  /* phy is ready */
 #define P0_CP_POD		BIT(9)  /* Cold PowerOn */
 #define P0_SLUMBER		BIT(10) /* power mode slumber */
@@ -142,10 +142,10 @@
 
 #define nlm_read_sata_reg(b, r)		nlm_read_reg(b, r)
 #define nlm_write_sata_reg(b, r, v)	nlm_write_reg(b, r, v)
-#define nlm_get_sata_pcibase(node)	\
-		nlm_pcicfg_base(XLP9XX_IO_SATA_OFFSET(node))
-#define nlm_get_sata_regbase(node)	\
-		(nlm_get_sata_pcibase(node) + 0x100)
+#define nlm_get_sata_pcibase(yesde)	\
+		nlm_pcicfg_base(XLP9XX_IO_SATA_OFFSET(yesde))
+#define nlm_get_sata_regbase(yesde)	\
+		(nlm_get_sata_pcibase(yesde) + 0x100)
 
 /* SATA PHY config for register block 1 0x0065 .. 0x006e */
 static const u8 sata_phy_config1[]  = {
@@ -250,14 +250,14 @@ static void verify_sata_phy_config(u64 regbase)
 	}
 }
 
-static void nlm_sata_firmware_init(int node)
+static void nlm_sata_firmware_init(int yesde)
 {
 	u32 reg_val;
 	u64 regbase;
 	int n;
 
 	pr_info("Initializing XLP9XX On-chip AHCI...\n");
-	regbase = nlm_get_sata_regbase(node);
+	regbase = nlm_get_sata_regbase(yesde);
 
 	/* Reset port0 */
 	sata_clear_glue_reg(regbase, SATA_CTL, P0_IRST_POR);
@@ -332,13 +332,13 @@ static void nlm_sata_firmware_init(int node)
 
 static int __init nlm_ahci_init(void)
 {
-	int node;
+	int yesde;
 
 	if (!cpu_is_xlp9xx())
 		return 0;
-	for (node = 0; node < NLM_NR_NODES; node++)
-		if (nlm_node_present(node))
-			nlm_sata_firmware_init(node);
+	for (yesde = 0; yesde < NLM_NR_NODES; yesde++)
+		if (nlm_yesde_present(yesde))
+			nlm_sata_firmware_init(yesde);
 	return 0;
 }
 
@@ -346,10 +346,10 @@ static void nlm_sata_intr_ack(struct irq_data *data)
 {
 	u64 regbase;
 	u32 val;
-	int node;
+	int yesde;
 
-	node = data->irq / NLM_IRQS_PER_NODE;
-	regbase = nlm_get_sata_regbase(node);
+	yesde = data->irq / NLM_IRQS_PER_NODE;
+	regbase = nlm_get_sata_regbase(yesde);
 	val = nlm_read_sata_reg(regbase, SATA_INT);
 	sata_set_glue_reg(regbase, SATA_INT, val);
 }
@@ -364,11 +364,11 @@ static void nlm_sata_fixup_final(struct pci_dev *dev)
 {
 	u32 val;
 	u64 regbase;
-	int node;
+	int yesde;
 
-	/* Find end bridge function to find node */
-	node = xlp_socdev_to_node(dev);
-	regbase = nlm_get_sata_regbase(node);
+	/* Find end bridge function to find yesde */
+	yesde = xlp_socdev_to_yesde(dev);
+	regbase = nlm_get_sata_regbase(yesde);
 
 	/* clear pending interrupts and then enable them */
 	val = nlm_read_sata_reg(regbase, SATA_INT);
@@ -377,8 +377,8 @@ static void nlm_sata_fixup_final(struct pci_dev *dev)
 	/* Enable only the core interrupt */
 	sata_set_glue_reg(regbase, SATA_INT_MASK, 0x1);
 
-	dev->irq = nlm_irq_to_xirq(node, PIC_SATA_IRQ);
-	nlm_set_pic_extra_ack(node, PIC_SATA_IRQ, nlm_sata_intr_ack);
+	dev->irq = nlm_irq_to_xirq(yesde, PIC_SATA_IRQ);
+	nlm_set_pic_extra_ack(yesde, PIC_SATA_IRQ, nlm_sata_intr_ack);
 }
 
 arch_initcall(nlm_ahci_init);

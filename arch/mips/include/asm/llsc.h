@@ -26,7 +26,7 @@
 /*
  * Using a branch-likely instruction to check the result of an sc instruction
  * works around a bug present in R10000 CPUs prior to revision 3.0 that could
- * cause ll-sc sequences to execute non-atomically.
+ * cause ll-sc sequences to execute yesn-atomically.
  */
 #if R10000_LLSC_WAR
 # define __SC_BEQZ "beqzl	"

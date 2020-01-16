@@ -92,7 +92,7 @@ static DEFINE_MUTEX(set_freq_lock);
 #define SLEEP_FREQ	(800 * 1000)
 
 /* Tracks if cpu freqency can be updated anymore */
-static bool no_cpufreq_access;
+static bool yes_cpufreq_access;
 
 /*
  * DRAM configurations to calculate refresh counter for changing
@@ -204,7 +204,7 @@ static void s5pv210_set_refresh(enum s5pv210_dmc_port ch, unsigned long freq)
 	} else if (ch == DMC1) {
 		reg = (dmc_base[1] + 0x30);
 	} else {
-		pr_err("Cannot find DMC port\n");
+		pr_err("Canyest find DMC port\n");
 		return;
 	}
 
@@ -232,7 +232,7 @@ static int s5pv210_target(struct cpufreq_policy *policy, unsigned int index)
 
 	mutex_lock(&set_freq_lock);
 
-	if (no_cpufreq_access) {
+	if (yes_cpufreq_access) {
 		pr_err("Denied access to %s as it is disabled temporarily\n",
 		       __func__);
 		ret = -EINVAL;
@@ -285,8 +285,8 @@ static int s5pv210_target(struct cpufreq_policy *policy, unsigned int index)
 	/*
 	 * APLL should be changed in this level
 	 * APLL -> MPLL(for stable transition) -> APLL
-	 * Some clock source's clock API are not prepared.
-	 * Do not use clock API in below code.
+	 * Some clock source's clock API are yest prepared.
+	 * Do yest use clock API in below code.
 	 */
 	if (pll_changing) {
 		/*
@@ -523,7 +523,7 @@ static int s5pv210_cpu_init(struct cpufreq_policy *policy)
 
 	/*
 	 * check_mem_type : This driver only support LPDDR & LPDDR2.
-	 * other memory type is not supported.
+	 * other memory type is yest supported.
 	 */
 	mem_type = check_mem_type(dmc_base[0]);
 
@@ -551,7 +551,7 @@ out_dmc0:
 	return ret;
 }
 
-static int s5pv210_cpufreq_reboot_notifier_event(struct notifier_block *this,
+static int s5pv210_cpufreq_reboot_yestifier_event(struct yestifier_block *this,
 						 unsigned long event, void *ptr)
 {
 	int ret;
@@ -560,7 +560,7 @@ static int s5pv210_cpufreq_reboot_notifier_event(struct notifier_block *this,
 	if (ret < 0)
 		return NOTIFY_BAD;
 
-	no_cpufreq_access = true;
+	yes_cpufreq_access = true;
 	return NOTIFY_DONE;
 }
 
@@ -575,13 +575,13 @@ static struct cpufreq_driver s5pv210_driver = {
 	.resume		= cpufreq_generic_suspend, /* We need to set SLEEP FREQ again */
 };
 
-static struct notifier_block s5pv210_cpufreq_reboot_notifier = {
-	.notifier_call = s5pv210_cpufreq_reboot_notifier_event,
+static struct yestifier_block s5pv210_cpufreq_reboot_yestifier = {
+	.yestifier_call = s5pv210_cpufreq_reboot_yestifier_event,
 };
 
 static int s5pv210_cpufreq_probe(struct platform_device *pdev)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 	int id, result = 0;
 
 	/*
@@ -595,7 +595,7 @@ static int s5pv210_cpufreq_probe(struct platform_device *pdev)
 	arm_regulator = regulator_get(NULL, "vddarm");
 	if (IS_ERR(arm_regulator)) {
 		if (PTR_ERR(arm_regulator) == -EPROBE_DEFER)
-			pr_debug("vddarm regulator not ready, defer\n");
+			pr_debug("vddarm regulator yest ready, defer\n");
 		else
 			pr_err("failed to get regulator vddarm\n");
 		return PTR_ERR(arm_regulator);
@@ -604,35 +604,35 @@ static int s5pv210_cpufreq_probe(struct platform_device *pdev)
 	int_regulator = regulator_get(NULL, "vddint");
 	if (IS_ERR(int_regulator)) {
 		if (PTR_ERR(int_regulator) == -EPROBE_DEFER)
-			pr_debug("vddint regulator not ready, defer\n");
+			pr_debug("vddint regulator yest ready, defer\n");
 		else
 			pr_err("failed to get regulator vddint\n");
 		result = PTR_ERR(int_regulator);
 		goto err_int_regulator;
 	}
 
-	np = of_find_compatible_node(NULL, NULL, "samsung,s5pv210-clock");
+	np = of_find_compatible_yesde(NULL, NULL, "samsung,s5pv210-clock");
 	if (!np) {
-		pr_err("%s: failed to find clock controller DT node\n",
+		pr_err("%s: failed to find clock controller DT yesde\n",
 			__func__);
 		result = -ENODEV;
 		goto err_clock;
 	}
 
 	clk_base = of_iomap(np, 0);
-	of_node_put(np);
+	of_yesde_put(np);
 	if (!clk_base) {
 		pr_err("%s: failed to map clock registers\n", __func__);
 		result = -EFAULT;
 		goto err_clock;
 	}
 
-	for_each_compatible_node(np, NULL, "samsung,s5pv210-dmc") {
+	for_each_compatible_yesde(np, NULL, "samsung,s5pv210-dmc") {
 		id = of_alias_get_id(np, "dmc");
 		if (id < 0 || id >= ARRAY_SIZE(dmc_base)) {
-			pr_err("%s: failed to get alias of dmc node '%pOFn'\n",
+			pr_err("%s: failed to get alias of dmc yesde '%pOFn'\n",
 				__func__, np);
-			of_node_put(np);
+			of_yesde_put(np);
 			result = id;
 			goto err_clk_base;
 		}
@@ -641,7 +641,7 @@ static int s5pv210_cpufreq_probe(struct platform_device *pdev)
 		if (!dmc_base[id]) {
 			pr_err("%s: failed to map dmc%d registers\n",
 				__func__, id);
-			of_node_put(np);
+			of_yesde_put(np);
 			result = -EFAULT;
 			goto err_dmc;
 		}
@@ -649,13 +649,13 @@ static int s5pv210_cpufreq_probe(struct platform_device *pdev)
 
 	for (id = 0; id < ARRAY_SIZE(dmc_base); ++id) {
 		if (!dmc_base[id]) {
-			pr_err("%s: failed to find dmc%d node\n", __func__, id);
+			pr_err("%s: failed to find dmc%d yesde\n", __func__, id);
 			result = -ENODEV;
 			goto err_dmc;
 		}
 	}
 
-	register_reboot_notifier(&s5pv210_cpufreq_reboot_notifier);
+	register_reboot_yestifier(&s5pv210_cpufreq_reboot_yestifier);
 
 	return cpufreq_register_driver(&s5pv210_driver);
 

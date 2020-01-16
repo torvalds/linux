@@ -44,17 +44,17 @@
  *
  * See the .h file for how the ring is laid out. Note that while the
  * command ring is defined, the particulars of the data area are
- * not. Offset values in the command entry point to other locations
+ * yest. Offset values in the command entry point to other locations
  * internal to the mmap-ed area. There is separate space outside the
  * command ring for data buffers. This leaves maximum flexibility for
  * moving buffer allocations, or even page flipping or other
  * allocation techniques, without altering the command ring layout.
  *
  * SECURITY:
- * The user process must be assumed to be malicious. There's no way to
+ * The user process must be assumed to be malicious. There's yes way to
  * prevent it breaking the command ring protocol if it wants, but in
  * order to prevent other issues we must only ever read *data* from
- * the shared memory area, not offsets or sizes. This applies to
+ * the shared memory area, yest offsets or sizes. This applies to
  * command ring entries as well as the mailbox. Extra code needed for
  * this may have a 'UAM' comment.
  */
@@ -107,7 +107,7 @@ struct tcmu_nl_cmd {
 };
 
 struct tcmu_dev {
-	struct list_head node;
+	struct list_head yesde;
 	struct kref kref;
 
 	struct se_device se_dev;
@@ -122,7 +122,7 @@ struct tcmu_dev {
 
 	struct uio_info uio_info;
 
-	struct inode *inode;
+	struct iyesde *iyesde;
 
 	struct tcmu_mailbox *mb_addr;
 	uint64_t dev_size;
@@ -285,7 +285,7 @@ static int tcmu_fail_netlink_cmd(struct tcmu_nl_cmd *nl_cmd)
 	struct tcmu_dev *udev = nl_cmd->udev;
 
 	if (!tcmu_netlink_blocked) {
-		pr_err("Could not reset device's netlink interface. Netlink is not blocked.\n");
+		pr_err("Could yest reset device's netlink interface. Netlink is yest blocked.\n");
 		return -EBUSY;
 	}
 
@@ -357,7 +357,7 @@ static int tcmu_genl_cmd_done(struct genl_info *info, int completed_cmd)
 
 	if (!info->attrs[TCMU_ATTR_CMD_STATUS] ||
 	    !info->attrs[TCMU_ATTR_DEVICE_ID]) {
-		printk(KERN_ERR "TCMU_ATTR_CMD_STATUS or TCMU_ATTR_DEVICE_ID not set, doing nothing\n");
+		printk(KERN_ERR "TCMU_ATTR_CMD_STATUS or TCMU_ATTR_DEVICE_ID yest set, doing yesthing\n");
 		return -EINVAL;
         }
 
@@ -373,7 +373,7 @@ static int tcmu_genl_cmd_done(struct genl_info *info, int completed_cmd)
 	}
 
 	if (!udev) {
-		pr_err("tcmu nl cmd %u/%d completion could not find device with dev id %u.\n",
+		pr_err("tcmu nl cmd %u/%d completion could yest find device with dev id %u.\n",
 		       completed_cmd, rc, dev_id);
 		ret = -ENODEV;
 		goto unlock;
@@ -710,7 +710,7 @@ static void scatter_data_area(struct tcmu_dev *udev,
 				/*
 				 * Will allocate a new iovec because we are
 				 * first time here or the current block page
-				 * is not next to the previous one.
+				 * is yest next to the previous one.
 				 */
 				new_iov(iov, iov_cnt);
 				(*iov)->iov_base = (void __user *)to_offset;
@@ -835,7 +835,7 @@ static bool is_ring_space_avail(struct tcmu_dev *udev, struct tcmu_cmd *cmd,
 
 	space = spc_free(cmd_head, udev->cmdr_last_cleaned, udev->cmdr_size);
 	if (space < cmd_needed) {
-		pr_debug("no cmd space: %u %u %u\n", cmd_head,
+		pr_debug("yes cmd space: %u %u %u\n", cmd_head,
 		       udev->cmdr_last_cleaned, udev->cmdr_size);
 		return false;
 	}
@@ -847,7 +847,7 @@ static bool is_ring_space_avail(struct tcmu_dev *udev, struct tcmu_cmd *cmd,
 				(udev->max_blocks - udev->dbi_thresh) + space;
 
 		if (blocks_left < blocks_needed) {
-			pr_debug("no data space: only %lu available, but ask for %zu\n",
+			pr_debug("yes data space: only %lu available, but ask for %zu\n",
 					blocks_left * DATA_BLOCK_SIZE,
 					data_needed);
 			return false;
@@ -893,7 +893,7 @@ static int tcmu_setup_cmd_timer(struct tcmu_cmd *tcmu_cmd, unsigned int tmo,
 
 	cmd_id = idr_alloc(&udev->commands, tcmu_cmd, 1, USHRT_MAX, GFP_NOWAIT);
 	if (cmd_id < 0) {
-		pr_err("tcmu: Could not allocate cmd id.\n");
+		pr_err("tcmu: Could yest allocate cmd id.\n");
 		return cmd_id;
 	}
 	tcmu_cmd->cmd_id = cmd_id;
@@ -919,8 +919,8 @@ static int add_to_qfull_queue(struct tcmu_cmd *tcmu_cmd)
 	int ret;
 
 	/*
-	 * For backwards compat if qfull_time_out is not set use
-	 * cmd_time_out and if that's not set use the default time out.
+	 * For backwards compat if qfull_time_out is yest set use
+	 * cmd_time_out and if that's yest set use the default time out.
 	 */
 	if (!udev->qfull_time_out)
 		return -ETIMEDOUT;
@@ -947,7 +947,7 @@ static int add_to_qfull_queue(struct tcmu_cmd *tcmu_cmd)
  * @scsi_err: TCM error code if failure (-1) returned.
  *
  * Returns:
- * -1 we cannot queue internally or to the ring.
+ * -1 we canyest queue internally or to the ring.
  *  0 success
  *  1 internally queued to wait for ring memory to free.
  */
@@ -1023,7 +1023,7 @@ static int queue_cmd_ring(struct tcmu_cmd *tcmu_cmd, sense_reason_t *scsi_err)
 		entry = (void *) mb + CMDR_OFF + cmd_head;
 		tcmu_hdr_set_op(&entry->hdr.len_op, TCMU_OP_PAD);
 		tcmu_hdr_set_len(&entry->hdr.len_op, pad_size);
-		entry->hdr.cmd_id = 0; /* not used for PAD */
+		entry->hdr.cmd_id = 0; /* yest used for PAD */
 		entry->hdr.kflags = 0;
 		entry->hdr.uflags = 0;
 		tcmu_flush_dcache_range(entry, sizeof(*entry));
@@ -1080,7 +1080,7 @@ static int queue_cmd_ring(struct tcmu_cmd *tcmu_cmd, sense_reason_t *scsi_err)
 
 	tcmu_hdr_set_len(&entry->hdr.len_op, command_size);
 
-	/* All offsets relative to mb_addr, not start of entry! */
+	/* All offsets relative to mb_addr, yest start of entry! */
 	cdb_off = CMDR_OFF + cmd_head + base_command_size;
 	memcpy((void *) mb + cdb_off, se_cmd->t_task_cdb, scsi_command_size(se_cmd->t_task_cdb));
 	entry->req.cdb_off = cdb_off;
@@ -1093,7 +1093,7 @@ static int queue_cmd_ring(struct tcmu_cmd *tcmu_cmd, sense_reason_t *scsi_err)
 	set_bit(TCMU_CMD_BIT_INFLIGHT, &tcmu_cmd->flags);
 
 	/* TODO: only if FLUSH and FUA? */
-	uio_event_notify(&udev->uio_info);
+	uio_event_yestify(&udev->uio_info);
 
 	return 0;
 
@@ -1221,7 +1221,7 @@ static unsigned int tcmu_handle_completions(struct tcmu_dev *udev)
 	int handled = 0;
 
 	if (test_bit(TCMU_DEV_BIT_BROKEN, &udev->flags)) {
-		pr_err("ring broken, not handling completions\n");
+		pr_err("ring broken, yest handling completions\n");
 		return 0;
 	}
 
@@ -1244,7 +1244,7 @@ static unsigned int tcmu_handle_completions(struct tcmu_dev *udev)
 
 		cmd = idr_remove(&udev->commands, entry->hdr.cmd_id);
 		if (!cmd) {
-			pr_err("cmd_id %u not found, ring is broken\n",
+			pr_err("cmd_id %u yest found, ring is broken\n",
 			       entry->hdr.cmd_id);
 			set_bit(TCMU_DEV_BIT_BROKEN, &udev->flags);
 			break;
@@ -1260,12 +1260,12 @@ static unsigned int tcmu_handle_completions(struct tcmu_dev *udev)
 	}
 
 	if (mb->cmd_tail == mb->cmd_head) {
-		/* no more pending commands */
+		/* yes more pending commands */
 		del_timer(&udev->cmd_timer);
 
 		if (list_empty(&udev->qfull_queue)) {
 			/*
-			 * no more pending or waiting commands so try to
+			 * yes more pending or waiting commands so try to
 			 * reclaim blocks if needed.
 			 */
 			if (atomic_read(&global_db_count) >
@@ -1299,7 +1299,7 @@ static int tcmu_check_expired_cmd(int id, void *p, void *data)
 	if (is_running) {
 		/*
 		 * If cmd_time_out is disabled but qfull is set deadline
-		 * will only reflect the qfull timeout. Ignore it.
+		 * will only reflect the qfull timeout. Igyesre it.
 		 */
 		if (!udev->cmd_time_out)
 			return 0;
@@ -1393,7 +1393,7 @@ static struct se_device *tcmu_alloc_device(struct se_hba *hba, const char *name)
 	udev->max_blocks = DATA_BLOCK_BITS_DEF;
 	mutex_init(&udev->cmdr_lock);
 
-	INIT_LIST_HEAD(&udev->node);
+	INIT_LIST_HEAD(&udev->yesde);
 	INIT_LIST_HEAD(&udev->timedout_entry);
 	INIT_LIST_HEAD(&udev->qfull_queue);
 	INIT_LIST_HEAD(&udev->inflight_queue);
@@ -1431,7 +1431,7 @@ static bool run_qfull_queue(struct tcmu_dev *udev, bool fail)
 		if (fail) {
 			idr_remove(&udev->commands, tcmu_cmd->cmd_id);
 			/*
-			 * We were not able to even start the command, so
+			 * We were yest able to even start the command, so
 			 * fail with busy to allow a retry in case runner
 			 * was only temporarily down. If the device is being
 			 * removed then LIO core will do the right thing and
@@ -1449,7 +1449,7 @@ static bool run_qfull_queue(struct tcmu_dev *udev, bool fail)
 
 			idr_remove(&udev->commands, tcmu_cmd->cmd_id);
 			/*
-			 * Ignore scsi_ret for now. target_complete_cmd
+			 * Igyesre scsi_ret for yesw. target_complete_cmd
 			 * drops it.
 			 */
 			target_complete_cmd(tcmu_cmd->se_cmd,
@@ -1512,7 +1512,7 @@ static struct page *tcmu_try_get_block_page(struct tcmu_dev *udev, uint32_t dbi)
 	}
 
 	/*
-	 * Userspace messed up and passed in a address not in the
+	 * Userspace messed up and passed in a address yest in the
 	 * data iov passed to it.
 	 */
 	pr_err("Invalid addr to data block mapping  (dbi %u) on device %s\n",
@@ -1580,15 +1580,15 @@ static int tcmu_mmap(struct uio_info *info, struct vm_area_struct *vma)
 	return 0;
 }
 
-static int tcmu_open(struct uio_info *info, struct inode *inode)
+static int tcmu_open(struct uio_info *info, struct iyesde *iyesde)
 {
 	struct tcmu_dev *udev = container_of(info, struct tcmu_dev, uio_info);
 
-	/* O_EXCL not supported for char devs, so fake it? */
+	/* O_EXCL yest supported for char devs, so fake it? */
 	if (test_and_set_bit(TCMU_DEV_BIT_OPEN, &udev->flags))
 		return -EBUSY;
 
-	udev->inode = inode;
+	udev->iyesde = iyesde;
 	kref_get(&udev->kref);
 
 	pr_debug("open\n");
@@ -1662,7 +1662,7 @@ static void tcmu_dev_kref_release(struct kref *kref)
 	call_rcu(&dev->rcu_head, tcmu_dev_call_rcu);
 }
 
-static int tcmu_release(struct uio_info *info, struct inode *inode)
+static int tcmu_release(struct uio_info *info, struct iyesde *iyesde)
 {
 	struct tcmu_dev *udev = container_of(info, struct tcmu_dev, uio_info);
 
@@ -1772,7 +1772,7 @@ static int tcmu_netlink_event_init(struct tcmu_dev *udev,
 	if (ret < 0)
 		goto free_skb;
 
-	ret = nla_put_u32(skb, TCMU_ATTR_MINOR, udev->uio_info.uio_dev->minor);
+	ret = nla_put_u32(skb, TCMU_ATTR_MINOR, udev->uio_info.uio_dev->miyesr);
 	if (ret < 0)
 		goto free_skb;
 
@@ -1806,7 +1806,7 @@ static int tcmu_netlink_event_send(struct tcmu_dev *udev,
 	ret = genlmsg_multicast_allns(&tcmu_genl_family, skb, 0,
 				      TCMU_MCGRP_CONFIG, GFP_KERNEL);
 
-	/* Wait during an add as the listener may not be up yet */
+	/* Wait during an add as the listener may yest be up yet */
 	if (ret == 0 ||
 	   (ret == -ESRCH && cmd == TCMU_CMD_ADDED_DEVICE))
 		return tcmu_wait_genl_cmd_reply(udev);
@@ -1957,7 +1957,7 @@ static int tcmu_configure_device(struct se_device *dev)
 		goto err_netlink;
 
 	mutex_lock(&root_udev_mutex);
-	list_add(&udev->node, &root_udev);
+	list_add(&udev->yesde, &root_udev);
 	mutex_unlock(&root_udev_mutex);
 
 	return 0;
@@ -1994,7 +1994,7 @@ static void tcmu_destroy_device(struct se_device *dev)
 	del_timer_sync(&udev->qfull_timer);
 
 	mutex_lock(&root_udev_mutex);
-	list_del(&udev->node);
+	list_del(&udev->yesde);
 	mutex_unlock(&root_udev_mutex);
 
 	tcmu_send_dev_remove_event(udev);
@@ -2050,7 +2050,7 @@ static void tcmu_reset_ring(struct tcmu_dev *udev, u8 err_level)
 			list_del_init(&cmd->queue_entry);
 			if (err_level == 1) {
 				/*
-				 * Userspace was not able to start the
+				 * Userspace was yest able to start the
 				 * command or it is retryable.
 				 */
 				target_complete_cmd(cmd->se_cmd, SAM_STAT_BUSY);
@@ -2132,7 +2132,7 @@ static int tcmu_set_max_blocks_param(struct tcmu_dev *udev, substring_t *arg)
 
 	mutex_lock(&udev->cmdr_lock);
 	if (udev->data_bitmap) {
-		pr_err("Cannot set max_data_area_mb after it has been enabled.\n");
+		pr_err("Canyest set max_data_area_mb after it has been enabled.\n");
 		ret = -EINVAL;
 		goto unlock;
 	}
@@ -2544,7 +2544,7 @@ static ssize_t tcmu_block_dev_store(struct config_item *item, const char *page,
 	int ret;
 
 	if (!target_dev_configured(&udev->se_dev)) {
-		pr_err("Device is not configured.\n");
+		pr_err("Device is yest configured.\n");
 		return -EINVAL;
 	}
 
@@ -2576,7 +2576,7 @@ static ssize_t tcmu_reset_ring_store(struct config_item *item, const char *page,
 	int ret;
 
 	if (!target_dev_configured(&udev->se_dev)) {
-		pr_err("Device is not configured.\n");
+		pr_err("Device is yest configured.\n");
 		return -EINVAL;
 	}
 
@@ -2641,7 +2641,7 @@ static void find_free_blocks(void)
 		return;
 
 	mutex_lock(&root_udev_mutex);
-	list_for_each_entry(udev, &root_udev, node) {
+	list_for_each_entry(udev, &root_udev, yesde) {
 		mutex_lock(&udev->cmdr_lock);
 
 		if (!target_dev_configured(&udev->se_dev)) {
@@ -2662,7 +2662,7 @@ static void find_free_blocks(void)
 		block = find_last_bit(udev->data_bitmap, end);
 		if (block == udev->dbi_max) {
 			/*
-			 * The last bit is dbi_max, so it is not possible
+			 * The last bit is dbi_max, so it is yest possible
 			 * reclaim any blocks.
 			 */
 			mutex_unlock(&udev->cmdr_lock);
@@ -2678,7 +2678,7 @@ static void find_free_blocks(void)
 
 		/* Here will truncate the data area from off */
 		off = udev->data_off + start * DATA_BLOCK_SIZE;
-		unmap_mapping_range(udev->inode->i_mapping, off, 0, 1);
+		unmap_mapping_range(udev->iyesde->i_mapping, off, 0, 1);
 
 		/* Release the block pages */
 		tcmu_blocks_release(&udev->data_blocks, start, end);
@@ -2736,7 +2736,7 @@ static int __init tcmu_module_init(void)
 
 	tcmu_cmd_cache = kmem_cache_create("tcmu_cmd_cache",
 				sizeof(struct tcmu_cmd),
-				__alignof__(struct tcmu_cmd),
+				__aligyesf__(struct tcmu_cmd),
 				0, NULL);
 	if (!tcmu_cmd_cache)
 		return -ENOMEM;

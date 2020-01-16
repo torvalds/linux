@@ -93,24 +93,24 @@ static int tps6105x_add_device(struct tps6105x *tps6105x,
 
 static struct tps6105x_platform_data *tps6105x_parse_dt(struct device *dev)
 {
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 	struct tps6105x_platform_data *pdata;
-	struct device_node *child;
+	struct device_yesde *child;
 
 	if (!np)
 		return ERR_PTR(-EINVAL);
 	if (of_get_available_child_count(np) > 1) {
-		dev_err(dev, "cannot support multiple operational modes");
+		dev_err(dev, "canyest support multiple operational modes");
 		return ERR_PTR(-EINVAL);
 	}
 	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
 	if (!pdata)
 		return ERR_PTR(-ENOMEM);
 	pdata->mode = TPS6105X_MODE_SHUTDOWN;
-	for_each_available_child_of_node(np, child) {
-		if (child->name && !of_node_cmp(child->name, "regulator"))
+	for_each_available_child_of_yesde(np, child) {
+		if (child->name && !of_yesde_cmp(child->name, "regulator"))
 			pdata->mode = TPS6105X_MODE_VOLTAGE;
-		else if (child->name && !of_node_cmp(child->name, "led"))
+		else if (child->name && !of_yesde_cmp(child->name, "led"))
 			pdata->mode = TPS6105X_MODE_TORCH;
 	}
 
@@ -157,7 +157,7 @@ static int tps6105x_probe(struct i2c_client *client,
 	switch (pdata->mode) {
 	case TPS6105X_MODE_SHUTDOWN:
 		dev_info(&client->dev,
-			 "present, not used for anything, only GPIO\n");
+			 "present, yest used for anything, only GPIO\n");
 		break;
 	case TPS6105X_MODE_TORCH:
 		ret = tps6105x_add_device(tps6105x, &tps6105x_leds_cell);

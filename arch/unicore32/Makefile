@@ -16,18 +16,18 @@ ifneq ($(SUBARCH),$(ARCH))
 	endif
 endif
 
-LDFLAGS_vmlinux		:= -p --no-undefined -X
+LDFLAGS_vmlinux		:= -p --yes-undefined -X
 
-OBJCOPYFLAGS		:= -O binary -R .note -R .note.gnu.build-id -R .comment -S
+OBJCOPYFLAGS		:= -O binary -R .yeste -R .yeste.gnu.build-id -R .comment -S
 
 # Never generate .eh_frame
-KBUILD_CFLAGS		+= $(call cc-option,-fno-dwarf2-cfi-asm)
+KBUILD_CFLAGS		+= $(call cc-option,-fyes-dwarf2-cfi-asm)
 
 # Never use hard float in kernel
 KBUILD_CFLAGS		+= -msoft-float
 
 ifeq ($(CONFIG_FRAME_POINTER),y)
-KBUILD_CFLAGS		+= -mno-sched-prolog
+KBUILD_CFLAGS		+= -myes-sched-prolog
 endif
 
 CHECKFLAGS		+= -D__unicore32__

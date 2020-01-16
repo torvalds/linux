@@ -2,7 +2,7 @@
 /*
  * delay loops
  *
- * Copyright (C) 2015 Yoshinori Sato
+ * Copyright (C) 2015 Yoshiyesri Sato
  */
 
 #include <linux/module.h>

@@ -7,7 +7,7 @@
 # $(KBUILD_VMLINUX_LIBS). Most are built-in.a files from top-level directories
 # in the kernel tree, others are specified in arch/$(ARCH)/Makefile.
 # $(KBUILD_VMLINUX_LIBS) are archives which are linked conditionally
-# (not within --whole-archive), and do not require symbol indexes added.
+# (yest within --whole-archive), and do yest require symbol indexes added.
 #
 # vmlinux
 #   ^
@@ -20,8 +20,8 @@
 #   |
 #   +-< ${kallsymso} (see description in KALLSYMS section)
 #
-# vmlinux version (uname -v) cannot be updated during normal
-# descending-into-subdirs phase since we do not yet know if we need to
+# vmlinux version (uname -v) canyest be updated during yesrmal
+# descending-into-subdirs phase since we do yest yet kyesw if we need to
 # update vmlinux.
 # Therefore this step is delayed until just before final link of vmlinux.
 #
@@ -47,7 +47,7 @@ modpost_link()
 
 	objects="--whole-archive				\
 		${KBUILD_VMLINUX_OBJS}				\
-		--no-whole-archive				\
+		--yes-whole-archive				\
 		--start-group					\
 		${KBUILD_VMLINUX_LIBS}				\
 		--end-group"
@@ -72,7 +72,7 @@ vmlinux_link()
 	if [ "${SRCARCH}" != "um" ]; then
 		objects="--whole-archive			\
 			${KBUILD_VMLINUX_OBJS}			\
-			--no-whole-archive			\
+			--yes-whole-archive			\
 			--start-group				\
 			${KBUILD_VMLINUX_LIBS}			\
 			--end-group				\
@@ -84,7 +84,7 @@ vmlinux_link()
 	else
 		objects="-Wl,--whole-archive			\
 			${KBUILD_VMLINUX_OBJS}			\
-			-Wl,--no-whole-archive			\
+			-Wl,--yes-whole-archive			\
 			-Wl,--start-group			\
 			${KBUILD_VMLINUX_LIBS}			\
 			-Wl,--end-group				\
@@ -108,7 +108,7 @@ gen_btf()
 	local bin_arch
 
 	if ! [ -x "$(command -v ${PAHOLE})" ]; then
-		info "BTF" "${1}: pahole (${PAHOLE}) is not available"
+		info "BTF" "${1}: pahole (${PAHOLE}) is yest available"
 		return 1
 	fi
 
@@ -274,13 +274,13 @@ if [ -n "${CONFIG_KALLSYMS}" ]; then
 	#     but __kallsyms is empty.
 	#     Running kallsyms on that gives us .tmp_kallsyms1.o with
 	#     the right size
-	# 2)  Link .tmp_vmlinux2 so it now has a __kallsyms section of
+	# 2)  Link .tmp_vmlinux2 so it yesw has a __kallsyms section of
 	#     the right size, but due to the added section, some
 	#     addresses have shifted.
 	#     From here, we generate a correct .tmp_kallsyms2.o
-	# 3)  That link may have expanded the kernel image enough that
+	# 3)  That link may have expanded the kernel image eyesugh that
 	#     more linker branch stubs / trampolines had to be added, which
-	#     introduces new names, which further expands kallsyms. Do another
+	#     introduces new names, which further expands kallsyms. Do ayesther
 	#     pass if that is the case. In theory it's possible this results
 	#     in even more stubs, but unlikely.
 	#     KALLSYMS_EXTRA_PASS=1 may also used to debug or work around

@@ -228,7 +228,7 @@ static int bnxt_vf_rep_get_port_parent_id(struct net_device *dev,
 	struct bnxt_vf_rep *vf_rep = netdev_priv(dev);
 
 	/* as only PORT_PARENT_ID is supported currently use common code
-	 * between PF and VF-rep for now.
+	 * between PF and VF-rep for yesw.
 	 */
 	return bnxt_get_port_parent_id(vf_rep->bp->dev, ppid);
 }
@@ -449,7 +449,7 @@ static int bnxt_vf_reps_create(struct bnxt *bp)
 		bnxt_vf_rep_netdev_init(bp, vf_rep, dev);
 		rc = register_netdev(dev);
 		if (rc) {
-			/* no need for unregister_netdev in cleanup */
+			/* yes need for unregister_netdev in cleanup */
 			dev->netdev_ops = NULL;
 			goto err;
 		}
@@ -499,7 +499,7 @@ int bnxt_dl_eswitch_mode_set(struct devlink *devlink, u16 mode,
 
 	case DEVLINK_ESWITCH_MODE_SWITCHDEV:
 		if (bp->hwrm_spec_code < 0x10803) {
-			netdev_warn(bp->dev, "FW does not support SRIOV E-Switch SWITCHDEV mode\n");
+			netdev_warn(bp->dev, "FW does yest support SRIOV E-Switch SWITCHDEV mode\n");
 			rc = -ENOTSUPP;
 			goto done;
 		}

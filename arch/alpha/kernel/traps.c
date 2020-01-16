@@ -233,7 +233,7 @@ do_entArith(unsigned long summary, unsigned long write_mask,
 asmlinkage void
 do_entIF(unsigned long type, struct pt_regs *regs)
 {
-	int signo, code;
+	int sigyes, code;
 
 	if ((regs->ps & ~IPL_MAX) == 0) {
 		if (type == 1) {
@@ -280,35 +280,35 @@ do_entIF(unsigned long type, struct pt_regs *regs)
 	      case 2: /* gentrap */
 		switch ((long) regs->r16) {
 		case GEN_INTOVF:
-			signo = SIGFPE;
+			sigyes = SIGFPE;
 			code = FPE_INTOVF;
 			break;
 		case GEN_INTDIV:
-			signo = SIGFPE;
+			sigyes = SIGFPE;
 			code = FPE_INTDIV;
 			break;
 		case GEN_FLTOVF:
-			signo = SIGFPE;
+			sigyes = SIGFPE;
 			code = FPE_FLTOVF;
 			break;
 		case GEN_FLTDIV:
-			signo = SIGFPE;
+			sigyes = SIGFPE;
 			code = FPE_FLTDIV;
 			break;
 		case GEN_FLTUND:
-			signo = SIGFPE;
+			sigyes = SIGFPE;
 			code = FPE_FLTUND;
 			break;
 		case GEN_FLTINV:
-			signo = SIGFPE;
+			sigyes = SIGFPE;
 			code = FPE_FLTINV;
 			break;
 		case GEN_FLTINE:
-			signo = SIGFPE;
+			sigyes = SIGFPE;
 			code = FPE_FLTRES;
 			break;
 		case GEN_ROPRAND:
-			signo = SIGFPE;
+			sigyes = SIGFPE;
 			code = FPE_FLTUNK;
 			break;
 
@@ -330,12 +330,12 @@ do_entIF(unsigned long type, struct pt_regs *regs)
 		case GEN_SUBRNG6:
 		case GEN_SUBRNG7:
 		default:
-			signo = SIGTRAP;
+			sigyes = SIGTRAP;
 			code = TRAP_UNK;
 			break;
 		}
 
-		send_sig_fault(signo, code, (void __user *) regs->pc, regs->r16,
+		send_sig_fault(sigyes, code, (void __user *) regs->pc, regs->r16,
 			       current);
 		return;
 
@@ -343,17 +343,17 @@ do_entIF(unsigned long type, struct pt_regs *regs)
 		if (implver() == IMPLVER_EV4) {
 			long si_code;
 
-			/* The some versions of SRM do not handle
+			/* The some versions of SRM do yest handle
 			   the opDEC properly - they return the PC of the
-			   opDEC fault, not the instruction after as the
+			   opDEC fault, yest the instruction after as the
 			   Alpha architecture requires.  Here we fix it up.
 			   We do this by intentionally causing an opDEC
 			   fault during the boot sequence and testing if
-			   we get the correct PC.  If not, we set a flag
+			   we get the correct PC.  If yest, we set a flag
 			   to correct it every time through.  */
 			regs->pc += opDEC_fix; 
 			
-			/* EV4 does not implement anything except normal
+			/* EV4 does yest implement anything except yesrmal
 			   rounding.  Everything else will come here as
 			   an illegal instruction.  Emulate them.  */
 			si_code = alpha_fp_emul(regs->pc - 4);
@@ -375,7 +375,7 @@ do_entIF(unsigned long type, struct pt_regs *regs)
 		   to save and restore the FP registers.
 
 		   Given that GCC by default generates code that uses the
-		   FP registers, PAL_clrfen is not useful except for DoS
+		   FP registers, PAL_clrfen is yest useful except for DoS
 		   attacks.  So turn the bleeding FPU back on and be done
 		   with it.  */
 		current_thread_info()->pcb.flags |= 1;
@@ -411,7 +411,7 @@ do_entDbg(struct pt_regs *regs)
  * needs access to all the integer registers (the kernel doesn't use
  * fp-regs), and it needs to have them in order for simpler access.
  *
- * Due to the non-standard register layout (and because we don't want
+ * Due to the yesn-standard register layout (and because we don't want
  * to handle floating-point regs), user-mode unaligned accesses are
  * handled separately by do_entUnaUser below.
  *
@@ -499,8 +499,8 @@ do_entUna(void * va, unsigned long opcode, unsigned long reg,
 		una_reg(reg) = tmp1|tmp2;
 		return;
 
-	/* Note that the store sequences do not indicate that they change
-	   memory because it _should_ be affecting nothing in this context.
+	/* Note that the store sequences do yest indicate that they change
+	   memory because it _should_ be affecting yesthing in this context.
 	   (Otherwise we have other, much larger, problems.)  */
 	case 0x0d: /* stw */
 		__asm__ __volatile__(
@@ -638,8 +638,8 @@ got_exception:
 /*
  * Convert an s-floating point value in memory format to the
  * corresponding value in register format.  The exponent
- * needs to be remapped to preserve non-finite values
- * (infinities, not-a-numbers, denormals).
+ * needs to be remapped to preserve yesn-finite values
+ * (infinities, yest-a-numbers, deyesrmals).
  */
 static inline unsigned long
 s_mem_to_reg (unsigned long s_mem)
@@ -686,7 +686,7 @@ s_reg_to_mem (unsigned long s_reg)
  *
  * Finally, we handle regular integer load/stores only.  In
  * particular, load-linked/store-conditionally and floating point
- * load/stores are not supported.  The former make no sense with
+ * load/stores are yest supported.  The former make yes sense with
  * unaligned faults (they are guaranteed to fail) and I don't think
  * the latter will occur in any decent program.
  *
@@ -746,7 +746,7 @@ do_entUnaUser(void __user * va, unsigned long opcode,
 		return;
 
 	/* Don't bother reading ds in the access check since we already
-	   know that this came from the user.  Also rely on the fact that
+	   kyesw that this came from the user.  Also rely on the fact that
 	   the page at TASK_SIZE is unmapped and so can't be touched anyway. */
 	if ((unsigned long)va >= TASK_SIZE)
 		goto give_sigsegv;
@@ -854,8 +854,8 @@ do_entUnaUser(void __user * va, unsigned long opcode,
 		*reg_addr = tmp1|tmp2;
 		break;
 
-	/* Note that the store sequences do not indicate that they change
-	   memory because it _should_ be affecting nothing in this context.
+	/* Note that the store sequences do yest indicate that they change
+	   memory because it _should_ be affecting yesthing in this context.
 	   (Otherwise we have other, much larger, problems.)  */
 	case 0x0d: /* stw */
 		__asm__ __volatile__(

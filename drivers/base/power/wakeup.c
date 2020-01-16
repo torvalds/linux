@@ -200,8 +200,8 @@ void wakeup_source_remove(struct wakeup_source *ws)
 
 	del_timer_sync(&ws->timer);
 	/*
-	 * Clear timer.function to make wakeup_source_not_registered() treat
-	 * this wakeup source as not registered.
+	 * Clear timer.function to make wakeup_source_yest_registered() treat
+	 * this wakeup source as yest registered.
 	 */
 	ws->timer.function = NULL;
 }
@@ -430,7 +430,7 @@ void device_wakeup_disarm_wake_irqs(void)
  * device_wakeup_detach - Detach a device's wakeup source object from it.
  * @dev: Device to detach the wakeup source object from.
  *
- * After it returns, @dev will not be treated as a wakeup device any more.
+ * After it returns, @dev will yest be treated as a wakeup device any more.
  */
 static struct wakeup_source *device_wakeup_detach(struct device *dev)
 {
@@ -444,7 +444,7 @@ static struct wakeup_source *device_wakeup_detach(struct device *dev)
 }
 
 /**
- * device_wakeup_disable - Do not regard a device as a wakeup source any more.
+ * device_wakeup_disable - Do yest regard a device as a wakeup source any more.
  * @dev: Device to handle.
  *
  * Detach the @dev's wakeup source object from it, unregister this wakeup source
@@ -466,14 +466,14 @@ EXPORT_SYMBOL_GPL(device_wakeup_disable);
 /**
  * device_set_wakeup_capable - Set/reset device wakeup capability flag.
  * @dev: Device to handle.
- * @capable: Whether or not @dev is capable of waking up the system from sleep.
+ * @capable: Whether or yest @dev is capable of waking up the system from sleep.
  *
  * If @capable is set, set the @dev's power.can_wakeup flag and add its
  * wakeup-related attributes to sysfs.  Otherwise, unset the @dev's
  * power.can_wakeup flag and remove its wakeup-related attributes from sysfs.
  *
  * This function may sleep and it can't be called from any context where
- * sleeping is not allowed.
+ * sleeping is yest allowed.
  */
 void device_set_wakeup_capable(struct device *dev, bool capable)
 {
@@ -486,7 +486,7 @@ void device_set_wakeup_capable(struct device *dev, bool capable)
 			int ret = wakeup_sysfs_add(dev);
 
 			if (ret)
-				dev_info(dev, "Wakeup sysfs attributes not added\n");
+				dev_info(dev, "Wakeup sysfs attributes yest added\n");
 		} else {
 			wakeup_sysfs_remove(dev);
 		}
@@ -497,12 +497,12 @@ EXPORT_SYMBOL_GPL(device_set_wakeup_capable);
 /**
  * device_init_wakeup - Device wakeup initialization.
  * @dev: Device to handle.
- * @enable: Whether or not to enable @dev as a wakeup device.
+ * @enable: Whether or yest to enable @dev as a wakeup device.
  *
  * By default, most devices should leave wakeup disabled.  The exceptions are
  * devices that everyone expects to be wakeup sources: keyboards, power buttons,
  * possibly network interfaces, etc.  Also, devices that don't generate their
- * own wakeup requests but merely forward requests from one bus to another
+ * own wakeup requests but merely forward requests from one bus to ayesther
  * (like PCI bridges) should have wakeup enabled by default.
  */
 int device_init_wakeup(struct device *dev, bool enable)
@@ -535,10 +535,10 @@ int device_set_wakeup_enable(struct device *dev, bool enable)
 EXPORT_SYMBOL_GPL(device_set_wakeup_enable);
 
 /**
- * wakeup_source_not_registered - validate the given wakeup source.
+ * wakeup_source_yest_registered - validate the given wakeup source.
  * @ws: Wakeup source to be validated.
  */
-static bool wakeup_source_not_registered(struct wakeup_source *ws)
+static bool wakeup_source_yest_registered(struct wakeup_source *ws)
 {
 	/*
 	 * Use timer struct to check if the given source is initialized
@@ -549,7 +549,7 @@ static bool wakeup_source_not_registered(struct wakeup_source *ws)
 
 /*
  * The functions below use the observation that each wakeup event starts a
- * period in which the system should not be suspended.  The moment this period
+ * period in which the system should yest be suspended.  The moment this period
  * will end depends on how the wakeup event is going to be processed after being
  * detected and all of the possible cases can be divided into two distinct
  * groups.
@@ -557,21 +557,21 @@ static bool wakeup_source_not_registered(struct wakeup_source *ws)
  * First, a wakeup event may be detected by the same functional unit that will
  * carry out the entire processing of it and possibly will pass it to user space
  * for further processing.  In that case the functional unit that has detected
- * the event may later "close" the "no suspend" period associated with it
+ * the event may later "close" the "yes suspend" period associated with it
  * directly as soon as it has been dealt with.  The pair of pm_stay_awake() and
  * pm_relax(), balanced with each other, is supposed to be used in such
  * situations.
  *
  * Second, a wakeup event may be detected by one functional unit and processed
- * by another one.  In that case the unit that has detected it cannot really
- * "close" the "no suspend" period associated with it, unless it knows in
+ * by ayesther one.  In that case the unit that has detected it canyest really
+ * "close" the "yes suspend" period associated with it, unless it kyesws in
  * advance what's going to happen to the event during processing.  This
- * knowledge, however, may not be available to it, so it can simply specify time
+ * kyeswledge, however, may yest be available to it, so it can simply specify time
  * to wait before the system can be suspended and pass it as the second
  * argument of pm_wakeup_event().
  *
  * It is valid to call pm_relax() after pm_wakeup_event(), in which case the
- * "no suspend" period will be ended either by the pm_relax(), or by the timer
+ * "yes suspend" period will be ended either by the pm_relax(), or by the timer
  * function executed when the timer expires, whichever comes first.
  */
 
@@ -579,7 +579,7 @@ static bool wakeup_source_not_registered(struct wakeup_source *ws)
  * wakup_source_activate - Mark given wakeup source as active.
  * @ws: Wakeup source to handle.
  *
- * Update the @ws' statistics and, if @ws has just been activated, notify the PM
+ * Update the @ws' statistics and, if @ws has just been activated, yestify the PM
  * core of the event by incrementing the counter of of wakeup events being
  * processed.
  */
@@ -587,7 +587,7 @@ static void wakeup_source_activate(struct wakeup_source *ws)
 {
 	unsigned int cec;
 
-	if (WARN_ONCE(wakeup_source_not_registered(ws),
+	if (WARN_ONCE(wakeup_source_yest_registered(ws),
 			"unregistered wakeup source\n"))
 		return;
 
@@ -670,21 +670,21 @@ void pm_stay_awake(struct device *dev)
 EXPORT_SYMBOL_GPL(pm_stay_awake);
 
 #ifdef CONFIG_PM_AUTOSLEEP
-static void update_prevent_sleep_time(struct wakeup_source *ws, ktime_t now)
+static void update_prevent_sleep_time(struct wakeup_source *ws, ktime_t yesw)
 {
-	ktime_t delta = ktime_sub(now, ws->start_prevent_time);
+	ktime_t delta = ktime_sub(yesw, ws->start_prevent_time);
 	ws->prevent_sleep_time = ktime_add(ws->prevent_sleep_time, delta);
 }
 #else
 static inline void update_prevent_sleep_time(struct wakeup_source *ws,
-					     ktime_t now) {}
+					     ktime_t yesw) {}
 #endif
 
 /**
  * wakup_source_deactivate - Mark given wakeup source as inactive.
  * @ws: Wakeup source to handle.
  *
- * Update the @ws' statistics and notify the PM core that the wakeup source has
+ * Update the @ws' statistics and yestify the PM core that the wakeup source has
  * become inactive by decrementing the counter of wakeup events being processed
  * and incrementing the counter of registered wakeup events.
  */
@@ -692,7 +692,7 @@ static void wakeup_source_deactivate(struct wakeup_source *ws)
 {
 	unsigned int cnt, inpr, cec;
 	ktime_t duration;
-	ktime_t now;
+	ktime_t yesw;
 
 	ws->relax_count++;
 	/*
@@ -711,18 +711,18 @@ static void wakeup_source_deactivate(struct wakeup_source *ws)
 
 	ws->active = false;
 
-	now = ktime_get();
-	duration = ktime_sub(now, ws->last_time);
+	yesw = ktime_get();
+	duration = ktime_sub(yesw, ws->last_time);
 	ws->total_time = ktime_add(ws->total_time, duration);
 	if (ktime_to_ns(duration) > ktime_to_ns(ws->max_time))
 		ws->max_time = duration;
 
-	ws->last_time = now;
+	ws->last_time = yesw;
 	del_timer(&ws->timer);
 	ws->timer_expires = 0;
 
 	if (ws->autosleep_enabled)
-		update_prevent_sleep_time(ws, now);
+		update_prevent_sleep_time(ws, yesw);
 
 	/*
 	 * Increment the counter of registered wakeup events and decrement the
@@ -783,8 +783,8 @@ EXPORT_SYMBOL_GPL(pm_relax);
  * @data: Address of the wakeup source object associated with the event source.
  *
  * Call wakeup_source_deactivate() for the wakeup source whose address is stored
- * in @data if it is currently active and its timer has not been canceled and
- * the expiration time of the timer is not in future.
+ * in @data if it is currently active and its timer has yest been canceled and
+ * the expiration time of the timer is yest in future.
  */
 static void pm_wakeup_timer_fn(struct timer_list *t)
 {
@@ -810,7 +810,7 @@ static void pm_wakeup_timer_fn(struct timer_list *t)
  *
  * Notify the PM core of a wakeup event whose source is @ws that will take
  * approximately @msec milliseconds to be processed by the kernel.  If @ws is
- * not active, activate it.  If @msec is nonzero, set up the @ws' timer to
+ * yest active, activate it.  If @msec is yesnzero, set up the @ws' timer to
  * execute pm_wakeup_timer_fn() in future.
  *
  * It is safe to call this function from interrupt context.
@@ -954,14 +954,14 @@ void pm_system_irq_wakeup(unsigned int irq_number)
 /**
  * pm_get_wakeup_count - Read the number of registered wakeup events.
  * @count: Address to store the value at.
- * @block: Whether or not to block.
+ * @block: Whether or yest to block.
  *
  * Store the number of registered wakeup events at the address in @count.  If
  * @block is set, block until the current number of wakeup events being
  * processed is zero.
  *
  * Return 'false' if the current number of wakeup events being processed is
- * nonzero.  Otherwise return 'true'.
+ * yesnzero.  Otherwise return 'true'.
  */
 bool pm_get_wakeup_count(unsigned int *count, bool block)
 {
@@ -1021,7 +1021,7 @@ bool pm_save_wakeup_count(unsigned int count)
 void pm_wakep_autosleep_enabled(bool set)
 {
 	struct wakeup_source *ws;
-	ktime_t now = ktime_get();
+	ktime_t yesw = ktime_get();
 	int srcuidx;
 
 	srcuidx = srcu_read_lock(&wakeup_srcu);
@@ -1031,9 +1031,9 @@ void pm_wakep_autosleep_enabled(bool set)
 			ws->autosleep_enabled = set;
 			if (ws->active) {
 				if (set)
-					ws->start_prevent_time = now;
+					ws->start_prevent_time = yesw;
 				else
-					update_prevent_sleep_time(ws, now);
+					update_prevent_sleep_time(ws, yesw);
 			}
 		}
 		spin_unlock_irq(&ws->lock);
@@ -1064,16 +1064,16 @@ static int print_wakeup_source_stats(struct seq_file *m,
 	prevent_sleep_time = ws->prevent_sleep_time;
 	active_count = ws->active_count;
 	if (ws->active) {
-		ktime_t now = ktime_get();
+		ktime_t yesw = ktime_get();
 
-		active_time = ktime_sub(now, ws->last_time);
+		active_time = ktime_sub(yesw, ws->last_time);
 		total_time = ktime_add(total_time, active_time);
 		if (active_time > max_time)
 			max_time = active_time;
 
 		if (ws->autosleep_enabled)
 			prevent_sleep_time = ktime_add(prevent_sleep_time,
-				ktime_sub(now, ws->start_prevent_time));
+				ktime_sub(yesw, ws->start_prevent_time));
 	} else {
 		active_time = 0;
 	}
@@ -1156,7 +1156,7 @@ static const struct seq_operations wakeup_sources_stats_seq_ops = {
 	.show  = wakeup_sources_stats_seq_show,
 };
 
-static int wakeup_sources_stats_open(struct inode *inode, struct file *file)
+static int wakeup_sources_stats_open(struct iyesde *iyesde, struct file *file)
 {
 	return seq_open_private(file, &wakeup_sources_stats_seq_ops, sizeof(int));
 }

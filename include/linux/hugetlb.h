@@ -30,11 +30,11 @@ typedef struct { unsigned long pd; } hugepd_t;
 struct hugepage_subpool {
 	spinlock_t lock;
 	long count;
-	long max_hpages;	/* Maximum huge pages or -1 if no maximum. */
+	long max_hpages;	/* Maximum huge pages or -1 if yes maximum. */
 	long used_hpages;	/* Used count against maximum, includes */
 				/* both alloced and reserved pages. */
 	struct hstate *hstate;
-	long min_hpages;	/* Minimum huge pages or -1 if no minimum. */
+	long min_hpages;	/* Minimum huge pages or -1 if yes minimum. */
 	long rsv_hpages;	/* Pages reserved against global pool to */
 				/* sasitfy minimum size. */
 };
@@ -84,7 +84,7 @@ void __unmap_hugepage_range(struct mmu_gather *tlb, struct vm_area_struct *vma,
 				unsigned long start, unsigned long end,
 				struct page *ref_page);
 void hugetlb_report_meminfo(struct seq_file *);
-int hugetlb_report_node_meminfo(int, char *);
+int hugetlb_report_yesde_meminfo(int, char *);
 void hugetlb_show_meminfo(void);
 unsigned long hugetlb_total_pages(void);
 vm_fault_t hugetlb_fault(struct mm_struct *mm, struct vm_area_struct *vma,
@@ -94,16 +94,16 @@ int hugetlb_mcopy_atomic_pte(struct mm_struct *dst_mm, pte_t *dst_pte,
 				unsigned long dst_addr,
 				unsigned long src_addr,
 				struct page **pagep);
-int hugetlb_reserve_pages(struct inode *inode, long from, long to,
+int hugetlb_reserve_pages(struct iyesde *iyesde, long from, long to,
 						struct vm_area_struct *vma,
 						vm_flags_t vm_flags);
-long hugetlb_unreserve_pages(struct inode *inode, long start, long end,
+long hugetlb_unreserve_pages(struct iyesde *iyesde, long start, long end,
 						long freed);
 bool isolate_huge_page(struct page *page, struct list_head *list);
 void putback_active_hugepage(struct page *page);
 void move_hugetlb_state(struct page *oldpage, struct page *newpage, int reason);
 void free_huge_page(struct page *page);
-void hugetlb_fix_reserve_counts(struct inode *inode);
+void hugetlb_fix_reserve_counts(struct iyesde *iyesde);
 extern struct mutex *hugetlb_fault_mutex_table;
 u32 hugetlb_fault_mutex_hash(struct address_space *mapping, pgoff_t idx);
 
@@ -167,7 +167,7 @@ static inline long follow_hugetlb_page(struct mm_struct *mm,
 			struct vm_area_struct *vma, struct page **pages,
 			struct vm_area_struct **vmas, unsigned long *position,
 			unsigned long *nr_pages, long i, unsigned int flags,
-			int *nonblocking)
+			int *yesnblocking)
 {
 	BUG();
 	return 0;
@@ -190,7 +190,7 @@ static inline void hugetlb_report_meminfo(struct seq_file *m)
 {
 }
 
-static inline int hugetlb_report_node_meminfo(int nid, char *buf)
+static inline int hugetlb_report_yesde_meminfo(int nid, char *buf)
 {
 	return 0;
 }
@@ -333,7 +333,7 @@ static inline int pgd_write(pgd_t pgd)
 }
 #endif
 
-#define HUGETLB_ANON_FILE "anon_hugepage"
+#define HUGETLB_ANON_FILE "ayesn_hugepage"
 
 enum {
 	/*
@@ -343,15 +343,15 @@ enum {
 	HUGETLB_SHMFS_INODE     = 1,
 	/*
 	 * The file is being created on the internal vfs mount and shmfs
-	 * accounting rules do not apply
+	 * accounting rules do yest apply
 	 */
 	HUGETLB_ANONHUGE_INODE  = 2,
 };
 
 #ifdef CONFIG_HUGETLBFS
 struct hugetlbfs_sb_info {
-	long	max_inodes;   /* inodes allowed */
-	long	free_inodes;  /* inodes free */
+	long	max_iyesdes;   /* iyesdes allowed */
+	long	free_iyesdes;  /* iyesdes free */
 	spinlock_t	stat_lock;
 	struct hstate *hstate;
 	struct hugepage_subpool *spool;
@@ -365,15 +365,15 @@ static inline struct hugetlbfs_sb_info *HUGETLBFS_SB(struct super_block *sb)
 	return sb->s_fs_info;
 }
 
-struct hugetlbfs_inode_info {
+struct hugetlbfs_iyesde_info {
 	struct shared_policy policy;
-	struct inode vfs_inode;
+	struct iyesde vfs_iyesde;
 	unsigned int seals;
 };
 
-static inline struct hugetlbfs_inode_info *HUGETLBFS_I(struct inode *inode)
+static inline struct hugetlbfs_iyesde_info *HUGETLBFS_I(struct iyesde *iyesde)
 {
-	return container_of(inode, struct hugetlbfs_inode_info, vfs_inode);
+	return container_of(iyesde, struct hugetlbfs_iyesde_info, vfs_iyesde);
 }
 
 extern const struct file_operations hugetlbfs_file_operations;
@@ -427,9 +427,9 @@ struct hstate {
 	unsigned long nr_overcommit_huge_pages;
 	struct list_head hugepage_activelist;
 	struct list_head hugepage_freelists[MAX_NUMNODES];
-	unsigned int nr_huge_pages_node[MAX_NUMNODES];
-	unsigned int free_huge_pages_node[MAX_NUMNODES];
-	unsigned int surplus_huge_pages_node[MAX_NUMNODES];
+	unsigned int nr_huge_pages_yesde[MAX_NUMNODES];
+	unsigned int free_huge_pages_yesde[MAX_NUMNODES];
+	unsigned int surplus_huge_pages_yesde[MAX_NUMNODES];
 #ifdef CONFIG_CGROUP_HUGETLB
 	/* cgroup control files */
 	struct cftype cgroup_files[5];
@@ -444,13 +444,13 @@ struct huge_bootmem_page {
 
 struct page *alloc_huge_page(struct vm_area_struct *vma,
 				unsigned long addr, int avoid_reserve);
-struct page *alloc_huge_page_node(struct hstate *h, int nid);
-struct page *alloc_huge_page_nodemask(struct hstate *h, int preferred_nid,
-				nodemask_t *nmask);
+struct page *alloc_huge_page_yesde(struct hstate *h, int nid);
+struct page *alloc_huge_page_yesdemask(struct hstate *h, int preferred_nid,
+				yesdemask_t *nmask);
 struct page *alloc_huge_page_vma(struct hstate *h, struct vm_area_struct *vma,
 				unsigned long address);
 struct page *alloc_migrate_huge_page(struct hstate *h, gfp_t gfp_mask,
-				     int nid, nodemask_t *nmask);
+				     int nid, yesdemask_t *nmask);
 int huge_add_to_page_cache(struct page *page, struct address_space *mapping,
 			pgoff_t idx);
 
@@ -471,14 +471,14 @@ extern unsigned int default_hstate_idx;
 
 #define default_hstate (hstates[default_hstate_idx])
 
-static inline struct hstate *hstate_inode(struct inode *i)
+static inline struct hstate *hstate_iyesde(struct iyesde *i)
 {
 	return HUGETLBFS_SB(i->i_sb)->hstate;
 }
 
 static inline struct hstate *hstate_file(struct file *f)
 {
-	return hstate_inode(file_inode(f));
+	return hstate_iyesde(file_iyesde(f));
 }
 
 static inline struct hstate *hstate_sizelog(int page_size_log)
@@ -600,17 +600,17 @@ static inline bool hugepage_migration_supported(struct hstate *h)
 
 /*
  * Movability check is different as compared to migration check.
- * It determines whether or not a huge page should be placed on
- * movable zone or not. Movability of any huge page should be
+ * It determines whether or yest a huge page should be placed on
+ * movable zone or yest. Movability of any huge page should be
  * required only if huge page size is supported for migration.
  * There wont be any reason for the huge page to be movable if
- * it is not migratable to start with. Also the size of the huge
- * page should be large enough to be placed under a movable zone
- * and still feasible enough to be migratable. Just the presence
- * in movable zone does not make the migration feasible.
+ * it is yest migratable to start with. Also the size of the huge
+ * page should be large eyesugh to be placed under a movable zone
+ * and still feasible eyesugh to be migratable. Just the presence
+ * in movable zone does yest make the migration feasible.
  *
  * So even though large huge page sizes like the gigantic ones
- * are migratable they should not be movable because its not
+ * are migratable they should yest be movable because its yest
  * feasible to migrate them from movable zone.
  */
 static inline bool hugepage_movable_supported(struct hstate *h)
@@ -636,7 +636,7 @@ static inline spinlock_t *huge_pte_lockptr(struct hstate *h,
 /*
  * Some platform decide whether they support huge pages at boot
  * time. Some of them, such as powerpc, set HPAGE_SHIFT to 0
- * when there is no such support
+ * when there is yes such support
  */
 #define hugepages_supported() (HPAGE_SHIFT != 0)
 #endif
@@ -690,13 +690,13 @@ static inline struct page *alloc_huge_page(struct vm_area_struct *vma,
 	return NULL;
 }
 
-static inline struct page *alloc_huge_page_node(struct hstate *h, int nid)
+static inline struct page *alloc_huge_page_yesde(struct hstate *h, int nid)
 {
 	return NULL;
 }
 
 static inline struct page *
-alloc_huge_page_nodemask(struct hstate *h, int preferred_nid, nodemask_t *nmask)
+alloc_huge_page_yesdemask(struct hstate *h, int preferred_nid, yesdemask_t *nmask)
 {
 	return NULL;
 }
@@ -728,7 +728,7 @@ static inline struct hstate *hstate_vma(struct vm_area_struct *vma)
 	return NULL;
 }
 
-static inline struct hstate *hstate_inode(struct inode *i)
+static inline struct hstate *hstate_iyesde(struct iyesde *i)
 {
 	return NULL;
 }

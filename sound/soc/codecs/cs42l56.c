@@ -993,7 +993,7 @@ static void cs42l56_beep_work(struct work_struct *work)
 }
 
 /* For usability define a way of injecting beep events for the device -
- * many systems will not have a keyboard.
+ * many systems will yest have a keyboard.
  */
 static int cs42l56_beep_event(struct input_dev *dev, unsigned int type,
 			     unsigned int code, int hz)
@@ -1113,7 +1113,7 @@ static const struct snd_soc_component_driver soc_component_dev_cs42l56 = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
+	.yesn_legacy_dai_naming	= 1,
 };
 
 static const struct regmap_config cs42l56_regmap = {
@@ -1131,7 +1131,7 @@ static const struct regmap_config cs42l56_regmap = {
 static int cs42l56_handle_of_data(struct i2c_client *i2c_client,
 				    struct cs42l56_platform_data *pdata)
 {
-	struct device_node *np = i2c_client->dev.of_node;
+	struct device_yesde *np = i2c_client->dev.of_yesde;
 	u32 val32;
 
 	if (of_property_read_bool(np, "cirrus,ain1a-reference-cfg"))
@@ -1197,7 +1197,7 @@ static int cs42l56_i2c_probe(struct i2c_client *i2c_client,
 		if (!pdata)
 			return -ENOMEM;
 
-		if (i2c_client->dev.of_node) {
+		if (i2c_client->dev.of_yesde) {
 			ret = cs42l56_handle_of_data(i2c_client,
 						     &cs42l56->pdata);
 			if (ret != 0)

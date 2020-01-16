@@ -4,8 +4,8 @@
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
  * met: 1. Redistributions of source code must retain the above copyright
- * notice, this list of conditions and the following disclaimer. 2.
- * Redistributions in binary form must reproduce the above copyright notice,
+ * yestice, this list of conditions and the following disclaimer. 2.
+ * Redistributions in binary form must reproduce the above copyright yestice,
  * this list of conditions and the following disclaimer in the documentation
  * and/or other materials provided with the distribution.
  *
@@ -102,12 +102,12 @@
 /* Ioctl's have the command encoded in the lower word,
  * and the size of any in or out parameters in the upper
  * word.  The high 2 bits of the upper word are used
- * to encode the in/out status of the parameter; for now
+ * to encode the in/out status of the parameter; for yesw
  * we restrict parameters to at most 8191 bytes.
  */
 /* #define	SIOCTYPE		(0xff<<8) */
 #define	SIOCPARM_MASK	0x1fff		/* parameters must be < 8192 bytes */
-#define	SIOC_VOID	0x00000000	/* no parameters */
+#define	SIOC_VOID	0x00000000	/* yes parameters */
 #define	SIOC_OUT	0x20000000	/* copy out parameters */
 #define	SIOC_IN		0x40000000	/* copy in parameters */
 #define	SIOC_INOUT	(SIOC_IN|SIOC_OUT)
@@ -150,15 +150,15 @@
 
 typedef struct synth_control
 {
-	int devno;	/* Synthesizer # */
+	int devyes;	/* Synthesizer # */
 	char data[4000]; /* Device spesific command/data record */
 }synth_control;
 
 typedef struct remove_sample
 {
-	int devno;	/* Synthesizer # */
-	int bankno;	/* MIDI bank # (0=General MIDI) */
-	int instrno;	/* MIDI instrument number */
+	int devyes;	/* Synthesizer # */
+	int bankyes;	/* MIDI bank # (0=General MIDI) */
+	int instryes;	/* MIDI instrument number */
 } remove_sample;
 
 typedef struct seq_event_rec {
@@ -195,7 +195,7 @@ typedef struct seq_event_rec {
 #  elif __BYTE_ORDER == __LITTLE_ENDIAN
 #    define AFMT_S16_NE AFMT_S16_LE
 #  else
-#    error "could not determine byte order"
+#    error "could yest determine byte order"
 #  endif
 # endif
 #endif
@@ -216,8 +216,8 @@ struct patch_info {
 #define GUS_PATCH	   WAVE_PATCH
 #define WAVEFRONT_PATCH    _PATCHKEY(0x06)
 
-		short device_no;	/* Synthesizer number */
-		short instr_no;		/* Midi pgm# */
+		short device_yes;	/* Synthesizer number */
+		short instr_yes;		/* Midi pgm# */
 
 		unsigned int mode;
 /*
@@ -231,7 +231,7 @@ struct patch_info {
 #define WAVE_LOOP_BACK	0x10	/* bit 4 = Set is looping backward. */
 #define WAVE_SUSTAIN_ON	0x20	/* bit 5 = Turn sustaining on. (Env. pts. 3)*/
 #define WAVE_ENVELOPES	0x40	/* bit 6 = Enable envelopes - 1 */
-#define WAVE_FAST_RELEASE 0x80	/* bit 7 = Shut off immediately after note off */
+#define WAVE_FAST_RELEASE 0x80	/* bit 7 = Shut off immediately after yeste off */
 				/* 	(use the env_rate/env_offs fields). */
 /* Linux specific bits */
 #define WAVE_VIBRATO	0x00010000	/* The vibrato info is valid */
@@ -247,25 +247,25 @@ struct patch_info {
 		int loop_start, loop_end; /* Byte offsets from the beginning */
 
 /* 
- * The base_freq and base_note fields are used when computing the
- * playback speed for a note. The base_note defines the tone frequency
+ * The base_freq and base_yeste fields are used when computing the
+ * playback speed for a yeste. The base_yeste defines the tone frequency
  * which is heard if the sample is played using the base_freq as the
  * playback speed.
  *
- * The low_note and high_note fields define the minimum and maximum note
+ * The low_yeste and high_yeste fields define the minimum and maximum yeste
  * frequencies for which this sample is valid. It is possible to define
  * more than one samples for an instrument number at the same time. The
- * low_note and high_note fields are used to select the most suitable one.
+ * low_yeste and high_yeste fields are used to select the most suitable one.
  *
- * The fields base_note, high_note and low_note should contain
- * the note frequency multiplied by 1000. For example value for the
+ * The fields base_yeste, high_yeste and low_yeste should contain
+ * the yeste frequency multiplied by 1000. For example value for the
  * middle A is 440*1000.
  */
 
 		unsigned int base_freq;
-		unsigned int base_note;
-		unsigned int high_note;
-		unsigned int low_note;
+		unsigned int base_yeste;
+		unsigned int high_yeste;
+		unsigned int low_yeste;
 		int panning;	/* -128=left, 127=right */
 		int detuning;
 
@@ -276,7 +276,7 @@ struct patch_info {
 		unsigned char	env_offset[ 6 ]; /* 255 == 100% */
 
 	/* 
-	 * The tremolo, vibrato and scale info are not supported yet.
+	 * The tremolo, vibrato and scale info are yest supported yet.
 	 * Enable by setting the mode bits WAVE_TREMOLO, WAVE_VIBRATO or
 	 * WAVE_SCALE
 	 */
@@ -303,7 +303,7 @@ struct sysex_info {
 		short key;		/* Use SYSEX_PATCH or MAUI_PATCH here */
 #define SYSEX_PATCH	_PATCHKEY(0x05)
 #define MAUI_PATCH	_PATCHKEY(0x06)
-		short device_no;	/* Synthesizer number */
+		short device_yes;	/* Synthesizer number */
 		int len;	/* Size of the sysex data in bytes */
 		unsigned char data[1];	/* Sysex data starts here */
 	};
@@ -380,7 +380,7 @@ struct sysex_info {
 /*		undefined		0x20 */
 /* The controller numbers 0x21 to 0x3f are reserved for the */
 /* least significant bytes of the controllers 0x00 to 0x1f. */
-/* These controllers are not recognised by the driver. */
+/* These controllers are yest recognised by the driver. */
 
 /* Controllers 64 to 69 (0x40 to 0x45) are on/off switches. */
 /* 0=OFF and 127=ON (intermediate values are possible) */
@@ -414,7 +414,7 @@ struct sysex_info {
 /*		undefined		0x66 - 0x78 */
 /*		reserved		0x79 - 0x7f */
 
-/* Pseudo controllers (not midi compatible) */
+/* Pseudo controllers (yest midi compatible) */
 #define    CTRL_PITCH_BENDER		255
 #define    CTRL_PITCH_BENDER_RANGE	254
 #define    CTRL_EXPRESSION		253	/* Obsolete */
@@ -442,13 +442,13 @@ struct sysex_info {
 /*
  *	SEQ_FULLSIZE events are used for loading patches/samples to the
  *	synthesizer devices. These events are passed directly to the driver
- *	of the associated synthesizer device. There is no limit to the size
- *	of the extended events. These events are not queued but executed
+ *	of the associated synthesizer device. There is yes limit to the size
+ *	of the extended events. These events are yest queued but executed
  *	immediately when the write() is called (execution can take several
  *	seconds of time). 
  *
  *	When a SEQ_FULLSIZE message is written to the device, it must
- *	be written using exactly one write() call. Other events cannot
+ *	be written using exactly one write() call. Other events canyest
  *	be mixed to the same write.
  *	
  *	For FM synths (YM3812/OPL3) use struct sbi_instrument and write it to the 
@@ -570,7 +570,7 @@ typedef struct {
  * Buffer status queries.
  */
 typedef struct audio_buf_info {
-			int fragments;	/* # of available fragments (partially usend ones not counted) */
+			int fragments;	/* # of available fragments (partially usend ones yest counted) */
 			int fragstotal;	/* Total # of fragments allocated */
 			int fragsize;	/* Size of a fragment in bytes */
 
@@ -591,7 +591,7 @@ typedef struct audio_buf_info {
 							/* decrease precision of timing */
 #	define DSP_CAP_COPROC		0x00000800	/* Has a coprocessor */
 							/* Sometimes it's a DSP */
-							/* but usually not */
+							/* but usually yest */
 #	define DSP_CAP_TRIGGER		0x00001000	/* Supports SETTRIGGER */
 #	define DSP_CAP_MMAP		0x00002000	/* Supports mmap() */
 #	define DSP_CAP_MULTI		0x00004000	/* support multiple open */
@@ -695,15 +695,15 @@ typedef struct buffmem_desc {
  */
 
 typedef struct copr_buffer {
-		int command;	/* Set to 0 if not used */
+		int command;	/* Set to 0 if yest used */
 		int flags;
 #define CPF_NONE		0x0000
 #define CPF_FIRST		0x0001	/* First block */
 #define CPF_LAST		0x0002	/* Last block */
 		int len;
-		int offs;	/* If required by the device (0 if not used) */
+		int offs;	/* If required by the device (0 if yest used) */
 
-		unsigned char data[4000]; /* NOTE! 4000 is not 4k */
+		unsigned char data[4000]; /* NOTE! 4000 is yest 4k */
 	} copr_buffer;
 
 typedef struct copr_debug_buf {
@@ -781,11 +781,11 @@ typedef struct copr_msg {
 #define SOUND_ONOFF_MIN		28
 #define SOUND_ONOFF_MAX		30
 
-/* Note!	Number 31 cannot be used since the sign bit is reserved */
+/* Note!	Number 31 canyest be used since the sign bit is reserved */
 #define SOUND_MIXER_NONE	31
 
 /*
- * The following unsupported macros are no longer functional.
+ * The following unsupported macros are yes longer functional.
  * Use SOUND_MIXER_PRIVATE# macros in future.
  */
 #define SOUND_MIXER_ENHANCE	SOUND_MIXER_NONE
@@ -966,7 +966,7 @@ typedef struct mixer_vol_table {
 /* 
  * An ioctl for identifying the driver version. It will return value
  * of the SOUND_VERSION macro used when compiling the driver.
- * This call was introduced in OSS version 3.6 and it will not work
+ * This call was introduced in OSS version 3.6 and it will yest work
  * with earlier versions (returns EINVAL).
  */
 #define OSS_GETVERSION			_SIOR ('M', 118, int)
@@ -983,9 +983,9 @@ typedef struct mixer_vol_table {
  *	0x9X = device/port specific events, event[1] = device/port,
  *		The last 4 bits give the subtype:
  *			0x02	= Channel event (event[3] = chn).
- *			0x01	= note event (event[4] = note).
- *			(0x01 is not used alone but always with bit 0x02).
- *	       event[2] = MIDI message code (0x80=note off etc.)
+ *			0x01	= yeste event (event[4] = yeste).
+ *			(0x01 is yest used alone but always with bit 0x02).
+ *	       event[2] = MIDI message code (0x80=yeste off etc.)
  *
  */
 
@@ -996,7 +996,7 @@ typedef struct mixer_vol_table {
 #define EV_SYSEX		0x94
 /*
  * Event types 200 to 220 are reserved for application use.
- * These numbers will not be used by the driver.
+ * These numbers will yest be used by the driver.
  */
 
 /*
@@ -1043,7 +1043,7 @@ typedef struct mixer_vol_table {
  *	/dev/sequencer interface
  *
  *	This is a legacy interface for applications written against
- *	the OSSlib-3.8 style interface. It is no longer possible
+ *	the OSSlib-3.8 style interface. It is yes longer possible
  *	to actually link against OSSlib with this header, but we
  *	still provide these macros for programs using them.
  *
@@ -1052,7 +1052,7 @@ typedef struct mixer_vol_table {
  *	of the header.
  *
  *	We redefine the extern keyword so that make headers_check
- *	does not complain about SEQ_USE_EXTBUF.
+ *	does yest complain about SEQ_USE_EXTBUF.
  */
 #define SEQ_DECLAREBUF()		SEQ_USE_EXTBUF()
 
@@ -1101,11 +1101,11 @@ void seqbuf_dump(void);	/* This function must be provided by programs */
  * using this library.
  *
  * #define _seqbuf 		 name of the buffer (unsigned char[]) 
- * #define _SEQ_ADVBUF(len)	 If the applic needs to know the exact
+ * #define _SEQ_ADVBUF(len)	 If the applic needs to kyesw the exact
  *				 size of the event, this macro can be used.
  *				 Otherwise this must be defined as empty.
  * #define _seqbufptr		 Define the name of index variable or 0 if
- *				 not required. 
+ *				 yest required. 
  */
 #define _SEQ_NEEDBUF(len)	/* empty */
 #endif
@@ -1125,26 +1125,26 @@ void seqbuf_dump(void);	/* This function must be provided by programs */
  * Midi voice messages
  */
 
-#define _CHN_VOICE(dev, event, chn, note, parm) \
+#define _CHN_VOICE(dev, event, chn, yeste, parm) \
 					{_SEQ_NEEDBUF(8);\
 					_seqbuf[_seqbufptr] = EV_CHN_VOICE;\
 					_seqbuf[_seqbufptr+1] = (dev);\
 					_seqbuf[_seqbufptr+2] = (event);\
 					_seqbuf[_seqbufptr+3] = (chn);\
-					_seqbuf[_seqbufptr+4] = (note);\
+					_seqbuf[_seqbufptr+4] = (yeste);\
 					_seqbuf[_seqbufptr+5] = (parm);\
 					_seqbuf[_seqbufptr+6] = (0);\
 					_seqbuf[_seqbufptr+7] = 0;\
 					_SEQ_ADVBUF(8);}
 
-#define SEQ_START_NOTE(dev, chn, note, vol) \
-		_CHN_VOICE(dev, MIDI_NOTEON, chn, note, vol)
+#define SEQ_START_NOTE(dev, chn, yeste, vol) \
+		_CHN_VOICE(dev, MIDI_NOTEON, chn, yeste, vol)
 
-#define SEQ_STOP_NOTE(dev, chn, note, vol) \
-		_CHN_VOICE(dev, MIDI_NOTEOFF, chn, note, vol)
+#define SEQ_STOP_NOTE(dev, chn, yeste, vol) \
+		_CHN_VOICE(dev, MIDI_NOTEOFF, chn, yeste, vol)
 
-#define SEQ_KEY_PRESSURE(dev, chn, note, pressure) \
-		_CHN_VOICE(dev, MIDI_KEY_PRESSURE, chn, note, pressure)
+#define SEQ_KEY_PRESSURE(dev, chn, yeste, pressure) \
+		_CHN_VOICE(dev, MIDI_KEY_PRESSURE, chn, yeste, pressure)
 
 /*
  * Midi channel messages
@@ -1162,14 +1162,14 @@ void seqbuf_dump(void);	/* This function must be provided by programs */
 					_SEQ_ADVBUF(8);}
 /*
  * SEQ_SYSEX permits sending of sysex messages. (It may look that it permits
- * sending any MIDI bytes but it's absolutely not possible. Trying to do
+ * sending any MIDI bytes but it's absolutely yest possible. Trying to do
  * so _will_ cause problems with MPU401 intelligent mode).
  *
  * Sysex messages are sent in blocks of 1 to 6 bytes. Longer messages must be 
- * sent by calling SEQ_SYSEX() several times (there must be no other events
+ * sent by calling SEQ_SYSEX() several times (there must be yes other events
  * between them). First sysex fragment must have 0xf0 in the first byte
  * and the last byte (buf[len-1] of the last fragment must be 0xf7. No byte
- * between these sysex start and end markers cannot be larger than 0x7f. Also
+ * between these sysex start and end markers canyest be larger than 0x7f. Also
  * lengths of each fragments (except the last one) must be 6.
  *
  * Breaking the above rules may work with some MIDI ports but is likely to

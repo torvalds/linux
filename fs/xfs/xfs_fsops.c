@@ -87,13 +87,13 @@ xfs_growfs_data_private(
 	 * anything.
 	 */
 	INIT_LIST_HEAD(&id.buffer_list);
-	for (id.agno = nagcount - 1;
-	     id.agno >= oagcount;
-	     id.agno--, new -= id.agsize) {
+	for (id.agyes = nagcount - 1;
+	     id.agyes >= oagcount;
+	     id.agyes--, new -= id.agsize) {
 
-		if (id.agno == nagcount - 1)
+		if (id.agyes == nagcount - 1)
 			id.agsize = nb -
-				(id.agno * (xfs_rfsblock_t)mp->m_sb.sb_agblocks);
+				(id.agyes * (xfs_rfsblock_t)mp->m_sb.sb_agblocks);
 		else
 			id.agsize = mp->m_sb.sb_agblocks;
 
@@ -117,7 +117,7 @@ xfs_growfs_data_private(
 	}
 
 	/*
-	 * Update changed superblock fields transactionally. These are not
+	 * Update changed superblock fields transactionally. These are yest
 	 * seen by the rest of the world until the transaction commit applies
 	 * them atomically to the superblock.
 	 */
@@ -146,7 +146,7 @@ xfs_growfs_data_private(
 	if (new) {
 		struct xfs_perag	*pag;
 
-		pag = xfs_perag_get(mp, id.agno);
+		pag = xfs_perag_get(mp, id.agyes);
 		error = xfs_ag_resv_free(pag);
 		xfs_perag_put(pag);
 		if (error)
@@ -154,7 +154,7 @@ xfs_growfs_data_private(
 	}
 
 	/*
-	 * Reserve AG metadata blocks. ENOSPC here does not mean there was a
+	 * Reserve AG metadata blocks. ENOSPC here does yest mean there was a
 	 * growfs failure, just that there still isn't space for new user data
 	 * after the grow has been run.
 	 */
@@ -251,7 +251,7 @@ xfs_growfs_data(
 	} else
 		M_IGEO(mp)->maxicount = 0;
 
-	/* Update secondary superblocks now the physical grow has completed */
+	/* Update secondary superblocks yesw the physical grow has completed */
 	error = xfs_update_secondary_sbs(mp);
 
 out_error:
@@ -290,8 +290,8 @@ xfs_fs_counts(
 	xfs_mount_t		*mp,
 	xfs_fsop_counts_t	*cnt)
 {
-	cnt->allocino = percpu_counter_read_positive(&mp->m_icount);
-	cnt->freeino = percpu_counter_read_positive(&mp->m_ifree);
+	cnt->allociyes = percpu_counter_read_positive(&mp->m_icount);
+	cnt->freeiyes = percpu_counter_read_positive(&mp->m_ifree);
 	cnt->freedata = percpu_counter_read_positive(&mp->m_fdblocks) -
 						mp->m_alloc_set_aside;
 
@@ -312,7 +312,7 @@ xfs_fs_counts(
  * reserved are returned in outval
  *
  * A null inval pointer indicates that only the current reserved blocks
- * available  should  be returned no settings are changed.
+ * available  should  be returned yes settings are changed.
  */
 
 int
@@ -459,7 +459,7 @@ xfs_fs_goingdown(
 /*
  * Force a shutdown of the filesystem instantly while keeping the filesystem
  * consistent. We don't do an unmount here; just shutdown the shop, make sure
- * that absolutely nothing persistent happens to this filesystem after this
+ * that absolutely yesthing persistent happens to this filesystem after this
  * point.
  */
 void
@@ -492,7 +492,7 @@ xfs_do_force_shutdown(
 		return;
 	}
 
-	xfs_notice(mp,
+	xfs_yestice(mp,
 "%s(0x%x) called from line %d of file %s. Return address = "PTR_FMT,
 		__func__, flags, lnnum, fname, __return_address);
 
@@ -523,14 +523,14 @@ int
 xfs_fs_reserve_ag_blocks(
 	struct xfs_mount	*mp)
 {
-	xfs_agnumber_t		agno;
+	xfs_agnumber_t		agyes;
 	struct xfs_perag	*pag;
 	int			error = 0;
 	int			err2;
 
-	mp->m_finobt_nores = false;
-	for (agno = 0; agno < mp->m_sb.sb_agcount; agno++) {
-		pag = xfs_perag_get(mp, agno);
+	mp->m_fiyesbt_yesres = false;
+	for (agyes = 0; agyes < mp->m_sb.sb_agcount; agyes++) {
+		pag = xfs_perag_get(mp, agyes);
 		err2 = xfs_ag_resv_init(pag, NULL);
 		xfs_perag_put(pag);
 		if (err2 && !error)
@@ -553,13 +553,13 @@ int
 xfs_fs_unreserve_ag_blocks(
 	struct xfs_mount	*mp)
 {
-	xfs_agnumber_t		agno;
+	xfs_agnumber_t		agyes;
 	struct xfs_perag	*pag;
 	int			error = 0;
 	int			err2;
 
-	for (agno = 0; agno < mp->m_sb.sb_agcount; agno++) {
-		pag = xfs_perag_get(mp, agno);
+	for (agyes = 0; agyes < mp->m_sb.sb_agcount; agyes++) {
+		pag = xfs_perag_get(mp, agyes);
 		err2 = xfs_ag_resv_free(pag);
 		xfs_perag_put(pag);
 		if (err2 && !error)

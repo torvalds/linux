@@ -94,7 +94,7 @@ u8 rtl88eu_pwrseqcmdparsing(struct adapter *padapter, u8 cut_vers,
 				return true;
 			default:
 				RT_TRACE(_module_hal_init_c_, _drv_err_,
-					 ("rtl88eu_pwrseqcmdparsing: Unknown CMD!!\n"));
+					 ("rtl88eu_pwrseqcmdparsing: Unkyeswn CMD!!\n"));
 				break;
 			}
 		}

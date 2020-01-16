@@ -36,7 +36,7 @@ struct clk_regmap {
  * @flags:	hardware-specific flags
  *
  * Flags:
- * Same as clk_gate except CLK_GATE_HIWORD_MASK which is ignored
+ * Same as clk_gate except CLK_GATE_HIWORD_MASK which is igyesred
  */
 struct clk_regmap_gate_data {
 	unsigned int	offset;
@@ -62,7 +62,7 @@ extern const struct clk_ops clk_regmap_gate_ro_ops;
  * @table:	array of value/divider pairs, last entry should have div = 0
  *
  * Flags:
- * Same as clk_divider except CLK_DIVIDER_HIWORD_MASK which is ignored
+ * Same as clk_divider except CLK_DIVIDER_HIWORD_MASK which is igyesred
  */
 struct clk_regmap_div_data {
 	unsigned int	offset;
@@ -92,7 +92,7 @@ extern const struct clk_ops clk_regmap_divider_ro_ops;
  * @flags:	hardware-specific flags
  *
  * Flags:
- * Same as clk_divider except CLK_MUX_HIWORD_MASK which is ignored
+ * Same as clk_divider except CLK_MUX_HIWORD_MASK which is igyesred
  */
 struct clk_regmap_mux_data {
 	unsigned int	offset;

@@ -13,9 +13,9 @@
  * are met:
  *
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
+ *    yestice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
  *
@@ -90,10 +90,10 @@ void xlp_wakeup_secondary_cpus(void);
 
 void xlp_mmu_init(void);
 void nlm_hal_init(void);
-int nlm_get_dram_map(int node, uint64_t *dram_map, int nentries);
+int nlm_get_dram_map(int yesde, uint64_t *dram_map, int nentries);
 
 struct pci_dev;
-int xlp_socdev_to_node(const struct pci_dev *dev);
+int xlp_socdev_to_yesde(const struct pci_dev *dev);
 
 /* Device tree related */
 void xlp_early_init_devtree(void);

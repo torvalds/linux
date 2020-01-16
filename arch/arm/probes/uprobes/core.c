@@ -5,11 +5,11 @@
 
 #include <linux/kernel.h>
 #include <linux/stddef.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/highmem.h>
 #include <linux/sched.h>
 #include <linux/uprobes.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 
 #include <asm/opcodes.h>
 #include <asm/traps.h>
@@ -33,7 +33,7 @@ int set_swbp(struct arch_uprobe *auprobe, struct mm_struct *mm,
 		   __opcode_to_mem_arm(auprobe->bpinsn));
 }
 
-bool arch_uprobe_ignore(struct arch_uprobe *auprobe, struct pt_regs *regs)
+bool arch_uprobe_igyesre(struct arch_uprobe *auprobe, struct pt_regs *regs)
 {
 	if (!auprobe->asi.insn_check_cc(regs->ARM_cpsr)) {
 		regs->ARM_pc += 4;
@@ -76,7 +76,7 @@ int arch_uprobe_analyze_insn(struct arch_uprobe *auprobe, struct mm_struct *mm,
 	unsigned int bpinsn;
 	enum probes_insn ret;
 
-	/* Thumb not yet support */
+	/* Thumb yest yet support */
 	if (addr & 0x3)
 		return -EINVAL;
 
@@ -137,8 +137,8 @@ int arch_uprobe_pre_xol(struct arch_uprobe *auprobe, struct pt_regs *regs)
 	if (auprobe->prehandler)
 		auprobe->prehandler(auprobe, &utask->autask, regs);
 
-	utask->autask.saved_trap_no = current->thread.trap_no;
-	current->thread.trap_no = UPROBE_TRAP_NR;
+	utask->autask.saved_trap_yes = current->thread.trap_yes;
+	current->thread.trap_yes = UPROBE_TRAP_NR;
 	regs->ARM_pc = utask->xol_vaddr;
 
 	return 0;
@@ -148,9 +148,9 @@ int arch_uprobe_post_xol(struct arch_uprobe *auprobe, struct pt_regs *regs)
 {
 	struct uprobe_task *utask = current->utask;
 
-	WARN_ON_ONCE(current->thread.trap_no != UPROBE_TRAP_NR);
+	WARN_ON_ONCE(current->thread.trap_yes != UPROBE_TRAP_NR);
 
-	current->thread.trap_no = utask->autask.saved_trap_no;
+	current->thread.trap_yes = utask->autask.saved_trap_yes;
 	regs->ARM_pc = utask->vaddr + 4;
 
 	if (auprobe->posthandler)
@@ -161,7 +161,7 @@ int arch_uprobe_post_xol(struct arch_uprobe *auprobe, struct pt_regs *regs)
 
 bool arch_uprobe_xol_was_trapped(struct task_struct *t)
 {
-	if (t->thread.trap_no != UPROBE_TRAP_NR)
+	if (t->thread.trap_yes != UPROBE_TRAP_NR)
 		return true;
 
 	return false;
@@ -171,11 +171,11 @@ void arch_uprobe_abort_xol(struct arch_uprobe *auprobe, struct pt_regs *regs)
 {
 	struct uprobe_task *utask = current->utask;
 
-	current->thread.trap_no = utask->autask.saved_trap_no;
+	current->thread.trap_yes = utask->autask.saved_trap_yes;
 	instruction_pointer_set(regs, utask->vaddr);
 }
 
-int arch_uprobe_exception_notify(struct notifier_block *self,
+int arch_uprobe_exception_yestify(struct yestifier_block *self,
 				 unsigned long val, void *data)
 {
 	return NOTIFY_DONE;
@@ -188,9 +188,9 @@ static int uprobe_trap_handler(struct pt_regs *regs, unsigned int instr)
 	local_irq_save(flags);
 	instr &= 0x0fffffff;
 	if (instr == (UPROBE_SWBP_ARM_INSN & 0x0fffffff))
-		uprobe_pre_sstep_notifier(regs);
+		uprobe_pre_sstep_yestifier(regs);
 	else if (instr == (UPROBE_SS_ARM_INSN & 0x0fffffff))
-		uprobe_post_sstep_notifier(regs);
+		uprobe_post_sstep_yestifier(regs);
 	local_irq_restore(flags);
 
 	return 0;

@@ -6,7 +6,7 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/skbuff.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/types.h>
 #include <linux/string.h>
 #include <linux/delay.h>
@@ -166,7 +166,7 @@ static int __init adummy_init(void)
 	atm_dev->dev_data = adummy_dev;
 
 	if (sysfs_create_group(&atm_dev->class_dev.kobj, &adummy_group_attrs))
-		dev_err(&atm_dev->class_dev, "Could not register attrs for adummy\n");
+		dev_err(&atm_dev->class_dev, "Could yest register attrs for adummy\n");
 
 	if (adummy_start(atm_dev)) {
 		printk(KERN_ERR DEV_LABEL ": adummy_start() failed\n");

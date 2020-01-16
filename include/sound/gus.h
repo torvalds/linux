@@ -392,7 +392,7 @@ struct snd_gus_card {
 	unsigned int
 	 initialized: 1,		/* resources were initialized */
 	 equal_irq:1,			/* GF1 and CODEC shares IRQ (GUS MAX only) */
-	 equal_dma:1,			/* if dma channels are equal (not valid for daughter board) */
+	 equal_dma:1,			/* if dma channels are equal (yest valid for daughter board) */
 	 ics_flag:1,			/* have we ICS mixer chip */
 	 ics_flipped:1,			/* ICS mixer have flipped some channels? */
 	 codec_flag:1,			/* have we CODEC chip? */

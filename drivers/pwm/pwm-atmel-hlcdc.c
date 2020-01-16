@@ -63,7 +63,7 @@ static int atmel_hlcdc_pwm_apply(struct pwm_chip *c, struct pwm_device *pwm,
 			do_div(clk_period_ns, clk_freq);
 		}
 
-		/* Errata: cannot use slow clk on some IP revisions */
+		/* Errata: canyest use slow clk on some IP revisions */
 		if ((chip->errata && chip->errata->slow_clk_erratum) ||
 		    clk_period_ns > state->period) {
 			new_clk = hlcdc->sys_clk;
@@ -76,7 +76,7 @@ static int atmel_hlcdc_pwm_apply(struct pwm_chip *c, struct pwm_device *pwm,
 		}
 
 		for (pres = 0; pres <= ATMEL_HLCDC_PWMPS_MAX; pres++) {
-		/* Errata: cannot divide by 1 on some IP revisions */
+		/* Errata: canyest divide by 1 on some IP revisions */
 			if (!pres && chip->errata &&
 			    chip->errata->div1_clk_erratum)
 				continue;
@@ -258,7 +258,7 @@ static int atmel_hlcdc_pwm_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	match = of_match_node(atmel_hlcdc_dt_ids, dev->parent->of_node);
+	match = of_match_yesde(atmel_hlcdc_dt_ids, dev->parent->of_yesde);
 	if (match)
 		chip->errata = match->data;
 

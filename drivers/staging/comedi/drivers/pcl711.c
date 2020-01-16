@@ -152,7 +152,7 @@ static void pcl711_ai_set_mode(struct comedi_device *dev, unsigned int mode)
 	 * jumpers on the board.
 	 *
 	 * Enables the interrupt when needed on the pcl711b board. These
-	 * bits do nothing on the other boards.
+	 * bits do yesthing on the other boards.
 	 */
 	if (mode == PCL711_MODE_EXT_IRQ || mode == PCL711_MODE_PACER_IRQ)
 		mode |= PCL711_MODE_IRQ(dev->irq);

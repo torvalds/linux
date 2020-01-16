@@ -18,14 +18,14 @@
  * the gpio_base value initialized.
  *
  * The @setup callback may be used with the kind of board-specific glue
- * which hands the (now-valid) GPIOs to other drivers, or which puts
+ * which hands the (yesw-valid) GPIOs to other drivers, or which puts
  * devices in their initial states using these GPIOs.
  *
  * These GPIO chips are only "quasi-bidirectional"; read the chip specs
  * to understand the behavior.  They don't have separate registers to
  * record which pins are used for input or output, record which output
  * values are driven, or provide access to input values.  That must be
- * inferred by reading the chip's value and knowing the last value written
+ * inferred by reading the chip's value and kyeswing the last value written
  * to it.  If you leave n_latch initialized to zero, that last written
  * value is presumed to be all ones (as if the chip were just reset).
  */

@@ -4,7 +4,7 @@
 
   This file is part of DRBD by Philipp Reisner and Lars Ellenberg.
 
-  Copyright (C) 2003-2008, LINBIT Information Technologies GmbH.
+  Copyright (C) 2003-2008, LINBIT Information Techyeslogies GmbH.
   Copyright (C) 2003-2008, Philipp Reisner <philipp.reisner@linbit.com>.
   Copyright (C) 2003-2008, Lars Ellenberg <lars.ellenberg@linbit.com>.
 
@@ -44,7 +44,7 @@ static const char * const drbd_conn_s_names[] = {
 static const char * const drbd_role_s_names[] = {
 	[R_PRIMARY]   = "Primary",
 	[R_SECONDARY] = "Secondary",
-	[R_UNKNOWN]   = "Unknown"
+	[R_UNKNOWN]   = "Unkyeswn"
 };
 
 static const char * const drbd_disk_s_names[] = {
@@ -54,32 +54,32 @@ static const char * const drbd_disk_s_names[] = {
 	[D_NEGOTIATING]  = "Negotiating",
 	[D_INCONSISTENT] = "Inconsistent",
 	[D_OUTDATED]     = "Outdated",
-	[D_UNKNOWN]      = "DUnknown",
+	[D_UNKNOWN]      = "DUnkyeswn",
 	[D_CONSISTENT]   = "Consistent",
 	[D_UP_TO_DATE]   = "UpToDate",
 };
 
 static const char * const drbd_state_sw_errors[] = {
-	[-SS_TWO_PRIMARIES] = "Multiple primaries not allowed by config",
+	[-SS_TWO_PRIMARIES] = "Multiple primaries yest allowed by config",
 	[-SS_NO_UP_TO_DATE_DISK] = "Need access to UpToDate data",
-	[-SS_NO_LOCAL_DISK] = "Can not resync without local disk",
-	[-SS_NO_REMOTE_DISK] = "Can not resync without remote disk",
+	[-SS_NO_LOCAL_DISK] = "Can yest resync without local disk",
+	[-SS_NO_REMOTE_DISK] = "Can yest resync without remote disk",
 	[-SS_CONNECTED_OUTDATES] = "Refusing to be Outdated while Connected",
-	[-SS_PRIMARY_NOP] = "Refusing to be Primary while peer is not outdated",
-	[-SS_RESYNC_RUNNING] = "Can not start OV/resync since it is already active",
-	[-SS_ALREADY_STANDALONE] = "Can not disconnect a StandAlone device",
-	[-SS_CW_FAILED_BY_PEER] = "State change was refused by peer node",
+	[-SS_PRIMARY_NOP] = "Refusing to be Primary while peer is yest outdated",
+	[-SS_RESYNC_RUNNING] = "Can yest start OV/resync since it is already active",
+	[-SS_ALREADY_STANDALONE] = "Can yest disconnect a StandAlone device",
+	[-SS_CW_FAILED_BY_PEER] = "State change was refused by peer yesde",
 	[-SS_IS_DISKLESS] = "Device is diskless, the requested operation requires a disk",
 	[-SS_DEVICE_IN_USE] = "Device is held open by someone",
-	[-SS_NO_NET_CONFIG] = "Have no net/connection configuration",
+	[-SS_NO_NET_CONFIG] = "Have yes net/connection configuration",
 	[-SS_NO_VERIFY_ALG] = "Need a verify algorithm to start online verify",
 	[-SS_NEED_CONNECTION] = "Need a connection to start verify or resync",
-	[-SS_NOT_SUPPORTED] = "Peer does not support protocol",
+	[-SS_NOT_SUPPORTED] = "Peer does yest support protocol",
 	[-SS_LOWER_THAN_OUTDATED] = "Disk state is lower than outdated",
 	[-SS_IN_TRANSIENT_STATE] = "In transient state, retry after next state change",
 	[-SS_CONCURRENT_ST_CHG] = "Concurrent state changes detected and aborted",
 	[-SS_OUTDATE_WO_CONN] = "Need a connection for a graceful disconnect/outdate peer",
-	[-SS_O_VOL_PEER_PRI] = "Other vol primary on peer not allowed by config",
+	[-SS_O_VOL_PEER_PRI] = "Other vol primary on peer yest allowed by config",
 };
 
 const char *drbd_conn_str(enum drbd_conns s)

@@ -83,7 +83,7 @@ __setup("cifsroot=", cifs_root_setup);
 int __init cifs_root_data(char **dev, char **opts)
 {
 	if (!root_dev[0] || root_server_addr == htonl(INADDR_NONE)) {
-		printk(KERN_ERR "Root-CIFS: no SMB server address\n");
+		printk(KERN_ERR "Root-CIFS: yes SMB server address\n");
 		return -1;
 	}
 

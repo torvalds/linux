@@ -33,7 +33,7 @@ extern int vdma_get_enable(int channel);
 #define VDMA_PAGE_EMPTY		0xff000000
 
 /*
- * Macros to get page no. and offset of a given address
+ * Macros to get page yes. and offset of a given address
  * Note that VDMA_PAGE() works for physical addresses only
  */
 #define VDMA_PAGE(a)		((unsigned int)(a) >> 12)
@@ -43,7 +43,7 @@ extern int vdma_get_enable(int channel);
  * VDMA pagetable entry description
  */
 typedef volatile struct VDMA_PGTBL_ENTRY {
-	unsigned int frame;		/* physical frame no. */
+	unsigned int frame;		/* physical frame yes. */
 	unsigned int owner;		/* owner of this entry (0=free) */
 } VDMA_PGTBL_ENTRY;
 

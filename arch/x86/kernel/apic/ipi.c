@@ -15,7 +15,7 @@ static __init int apic_ipi_shorthand(char *str)
 	get_option(&str, &apic_ipi_shorthand_off);
 	return 1;
 }
-__setup("no_ipi_broadcast=", apic_ipi_shorthand);
+__setup("yes_ipi_broadcast=", apic_ipi_shorthand);
 
 static int __init print_ipi_mode(void)
 {
@@ -28,7 +28,7 @@ late_initcall(print_ipi_mode);
 void apic_smt_update(void)
 {
 	/*
-	 * Do not switch to broadcast mode if:
+	 * Do yest switch to broadcast mode if:
 	 * - Disabled on the command line
 	 * - Only a single CPU is online
 	 * - Not all present CPUs have been at least booted once
@@ -57,8 +57,8 @@ void apic_send_IPI_allbutself(unsigned int vector)
 }
 
 /*
- * Send a 'reschedule' IPI to another CPU. It goes straight through and
- * wastes no time serializing anything. Worst case is that we lose a
+ * Send a 'reschedule' IPI to ayesther CPU. It goes straight through and
+ * wastes yes time serializing anything. Worst case is that we lose a
  * reschedule ...
  */
 void native_smp_send_reschedule(int cpu)
@@ -128,7 +128,7 @@ void __default_send_IPI_shortcut(unsigned int shortcut, int vector)
 
 	/*
 	 * No need to touch the target chip field. Also the destination
-	 * mode is ignored when a shorthand is used.
+	 * mode is igyesred when a shorthand is used.
 	 */
 	cfg = __prepare_ICR(shortcut, vector, 0);
 
@@ -139,7 +139,7 @@ void __default_send_IPI_shortcut(unsigned int shortcut, int vector)
 }
 
 /*
- * This is used to send an IPI with no shorthand notation (the destination is
+ * This is used to send an IPI with yes shorthand yestation (the destination is
  * specified in bits 56 to 63 of the ICR).
  */
 void __default_send_IPI_dest_field(unsigned int mask, int vector, unsigned int dest)

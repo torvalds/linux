@@ -33,7 +33,7 @@ void *tun_ptr_to_xdp(void *ptr);
 void tun_ptr_free(void *ptr);
 #else
 #include <linux/err.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 struct file;
 struct socket;
 static inline struct socket *tun_get_socket(struct file *f)

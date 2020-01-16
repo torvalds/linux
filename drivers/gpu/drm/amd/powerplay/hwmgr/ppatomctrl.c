@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -514,7 +514,7 @@ bool atomctrl_is_voltage_controlled_by_gpio_v3(
 	bool ret;
 
 	PP_ASSERT_WITH_CODE((NULL != voltage_info),
-			"Could not find Voltage Table in BIOS.", return false;);
+			"Could yest find Voltage Table in BIOS.", return false;);
 
 	ret = (NULL != atomctrl_lookup_voltage_type_v3
 			(voltage_info, voltage_type, voltage_mode)) ? true : false;
@@ -534,7 +534,7 @@ int atomctrl_get_voltage_table_v3(
 	unsigned int i;
 
 	PP_ASSERT_WITH_CODE((NULL != voltage_info),
-			"Could not find Voltage Table in BIOS.", return -1;);
+			"Could yest find Voltage Table in BIOS.", return -1;);
 
 	voltage_object = atomctrl_lookup_voltage_type_v3
 		(voltage_info, voltage_type, voltage_mode);
@@ -629,7 +629,7 @@ bool atomctrl_get_pp_assign_pin(
 		get_gpio_lookup_table(hwmgr->adev);
 
 	PP_ASSERT_WITH_CODE((NULL != gpio_lookup_table),
-			"Could not find GPIO lookup Table in BIOS.", return false);
+			"Could yest find GPIO lookup Table in BIOS.", return false);
 
 	bRet = atomctrl_lookup_gpio_pin(gpio_lookup_table, pinId,
 		gpio_pin_assignment);
@@ -722,7 +722,7 @@ int atomctrl_calculate_voltage_evv_on_sclk(
 		fDerateTDP = GetScaledFraction(le32_to_cpu(getASICProfilingInfo->ulTdpDerateDPM7), 1000);
 		break;
 	default:
-		pr_err("DPM Level not supported\n");
+		pr_err("DPM Level yest supported\n");
 		fPowerDPMx = Convert_ULONG_ToFraction(1);
 		fDerateTDP = GetScaledFraction(le32_to_cpu(getASICProfilingInfo->ulTdpDerateDPM0), 1000);
 	}
@@ -1438,7 +1438,7 @@ int  atomctrl_get_svi2_info(struct pp_hwmgr *hwmgr, uint8_t voltage_type,
 	const ATOM_VOLTAGE_OBJECT_V3 *voltage_object;
 
 	PP_ASSERT_WITH_CODE((NULL != voltage_info),
-			"Could not find Voltage Table in BIOS.", return -EINVAL);
+			"Could yest find Voltage Table in BIOS.", return -EINVAL);
 
 	voltage_object = atomctrl_lookup_voltage_type_v3
 		(voltage_info, voltage_type,  VOLTAGE_OBJ_SVID2);

@@ -195,7 +195,7 @@ static u32 _rtl8821ae_phy_rf_serial_read(struct ieee80211_hw *hw,
 	bool is_pi_mode = false;
 	u32 retvalue = 0;
 
-	/* 2009/06/17 MH We can not execute IO for power
+	/* 2009/06/17 MH We can yest execute IO for power
 	save or other accident mode.*/
 	if (RT_CANNOT_IO(hw)) {
 		pr_err("return all one\n");
@@ -842,7 +842,7 @@ static void _rtl8821ae_config_rf_reg(struct ieee80211_hw *hw,
 				     enum radio_path rfpath, u32 regaddr)
 {
 	if (addr == 0xfe || addr == 0xffe) {
-		/* In order not to disturb BT music when
+		/* In order yest to disturb BT music when
 		 * wifi init.(1ant NIC only)
 		 */
 		mdelay(50);
@@ -1747,7 +1747,7 @@ static void _rtl8812ae_phy_set_txpower_limit(struct ieee80211_hw *hw, u8 *pregul
 				[rate_section][channel_index][RF90_PATH_A]);
 	} else {
 		RT_TRACE(rtlpriv, COMP_INIT, DBG_TRACE,
-			 "Cannot recognize the band info in %s\n", pband);
+			 "Canyest recognize the band info in %s\n", pband);
 		return;
 	}
 }
@@ -1884,7 +1884,7 @@ __rtl8821ae_phy_config_with_headerfile(struct ieee80211_hw *hw,
 					}
 				}
 			} else if (v1 & BIT(30)) { /*negative condition*/
-			/*do nothing*/
+			/*do yesthing*/
 			}
 		} else {
 			if (matched)
@@ -2098,7 +2098,7 @@ bool rtl8812ae_phy_config_rf_with_headerfile(struct ieee80211_hw *hw,
 		break;
 	case RF90_PATH_C:
 	case RF90_PATH_D:
-		pr_err("switch case %#x not processed\n", rfpath);
+		pr_err("switch case %#x yest processed\n", rfpath);
 		break;
 	}
 	return true;
@@ -2126,7 +2126,7 @@ bool rtl8821ae_phy_config_rf_with_headerfile(struct ieee80211_hw *hw,
 	case RF90_PATH_B:
 	case RF90_PATH_C:
 	case RF90_PATH_D:
-		pr_err("switch case %#x not processed\n", rfpath);
+		pr_err("switch case %#x yest processed\n", rfpath);
 		break;
 	}
 	return true;
@@ -3328,7 +3328,7 @@ void rtl8821ae_phy_scan_operation_backup(struct ieee80211_hw *hw, u8 operation)
 						      (u8 *)&iotype);
 			break;
 		default:
-			pr_err("Unknown Scan Backup operation.\n");
+			pr_err("Unkyeswn Scan Backup operation.\n");
 			break;
 		}
 	}
@@ -3352,7 +3352,7 @@ static void _rtl8821ae_phy_set_reg_bw(struct rtl_priv *rtlpriv, u8 bw)
 		rtl_write_word(rtlpriv, REG_TRXPTCL_CTL, tmp & 0xFF7F);
 		break;
 	default:
-		RT_TRACE(rtlpriv, COMP_ERR, DBG_WARNING, "unknown Bandwidth: 0x%x\n", bw);
+		RT_TRACE(rtlpriv, COMP_ERR, DBG_WARNING, "unkyeswn Bandwidth: 0x%x\n", bw);
 		break;
 	}
 }
@@ -3467,7 +3467,7 @@ void rtl8821ae_phy_set_bw_mode_callback(struct ieee80211_hw *hw)
 
 		break;
 	default:
-		pr_err("unknown bandwidth: %#X\n",
+		pr_err("unkyeswn bandwidth: %#X\n",
 		       rtlphy->current_chan_bw);
 		break;
 	}
@@ -4647,7 +4647,7 @@ bool rtl8821ae_phy_set_io_cmd(struct ieee80211_hw *hw, enum io_type iotype)
 			postprocessing = true;
 			break;
 		default:
-			pr_err("switch case %#x not processed\n",
+			pr_err("switch case %#x yest processed\n",
 			       iotype);
 			break;
 		}
@@ -4691,7 +4691,7 @@ static void rtl8821ae_phy_set_io(struct ieee80211_hw *hw)
 	case IO_CMD_PAUSE_BAND1_DM_BY_SCAN:
 		break;
 	default:
-		pr_err("switch case %#x not processed\n",
+		pr_err("switch case %#x yest processed\n",
 		       rtlphy->current_io_type);
 		break;
 	}
@@ -4797,7 +4797,7 @@ static bool _rtl8821ae_phy_set_rf_power_state(struct ieee80211_hw *hw,
 		}
 		break;
 	default:
-		pr_err("switch case %#x not processed\n",
+		pr_err("switch case %#x yest processed\n",
 		       rfpwr_state);
 		bresult = false;
 		break;

@@ -20,7 +20,7 @@
 #define knav_range_offset_to_inst(kdev, range, q)	\
 	(range->queue_base_inst + (q << kdev->inst_shift))
 
-static void __knav_acc_notify(struct knav_range_info *range,
+static void __knav_acc_yestify(struct knav_range_info *range,
 				struct knav_acc_channel *acc)
 {
 	struct knav_device *kdev = range->kdev;
@@ -33,23 +33,23 @@ static void __knav_acc_notify(struct knav_range_info *range,
 		for (queue = 0; queue < range->num_queues; queue++) {
 			inst = knav_range_offset_to_inst(kdev, range,
 								queue);
-			if (inst->notify_needed) {
-				inst->notify_needed = 0;
-				dev_dbg(kdev->dev, "acc-irq: notifying %d\n",
+			if (inst->yestify_needed) {
+				inst->yestify_needed = 0;
+				dev_dbg(kdev->dev, "acc-irq: yestifying %d\n",
 					range_base + queue);
-				knav_queue_notify(inst);
+				knav_queue_yestify(inst);
 			}
 		}
 	} else {
 		queue = acc->channel - range->acc_info.start_channel;
 		inst = knav_range_offset_to_inst(kdev, range, queue);
-		dev_dbg(kdev->dev, "acc-irq: notifying %d\n",
+		dev_dbg(kdev->dev, "acc-irq: yestifying %d\n",
 			range_base + queue);
-		knav_queue_notify(inst);
+		knav_queue_yestify(inst);
 	}
 }
 
-static int knav_acc_set_notify(struct knav_range_info *range,
+static int knav_acc_set_yestify(struct knav_range_info *range,
 				struct knav_queue_inst *kq,
 				bool enabled)
 {
@@ -64,11 +64,11 @@ static int knav_acc_set_notify(struct knav_range_info *range,
 	if (!enabled || atomic_read(&kq->desc_count) <= 0)
 		return 0;
 
-	kq->notify_needed = 1;
+	kq->yestify_needed = 1;
 	atomic_inc(&kq->acc->retrigger_count);
 	mask = BIT(kq->acc->channel % 32);
 	offset = ACC_INTD_OFFSET_STATUS(kq->acc->channel);
-	dev_dbg(kdev->dev, "setup-notify: re-triggering irq for %s\n",
+	dev_dbg(kdev->dev, "setup-yestify: re-triggering irq for %s\n",
 		kq->acc->name);
 	writel_relaxed(mask, pdsp->intd + offset);
 	return 0;
@@ -83,7 +83,7 @@ static irqreturn_t knav_acc_int_handler(int irq, void *_instdata)
 	struct knav_acc_info *info;
 	struct knav_device *kdev;
 
-	u32 *list, *list_cpu, val, idx, notifies;
+	u32 *list, *list_cpu, val, idx, yestifies;
 	int range_base, channel, queue = 0;
 	dma_addr_t list_dma;
 
@@ -109,7 +109,7 @@ static irqreturn_t knav_acc_int_handler(int irq, void *_instdata)
 		channel, acc->list_index, list_cpu, &list_dma);
 	if (atomic_read(&acc->retrigger_count)) {
 		atomic_dec(&acc->retrigger_count);
-		__knav_acc_notify(range, acc);
+		__knav_acc_yestify(range, acc);
 		writel_relaxed(1, pdsp->intd + ACC_INTD_OFFSET_COUNT(channel));
 		/* ack the interrupt */
 		writel_relaxed(ACC_CHANNEL_INT_BASE + channel,
@@ -118,8 +118,8 @@ static irqreturn_t knav_acc_int_handler(int irq, void *_instdata)
 		return IRQ_HANDLED;
 	}
 
-	notifies = readl_relaxed(pdsp->intd + ACC_INTD_OFFSET_COUNT(channel));
-	WARN_ON(!notifies);
+	yestifies = readl_relaxed(pdsp->intd + ACC_INTD_OFFSET_COUNT(channel));
+	WARN_ON(!yestifies);
 	dma_sync_single_for_cpu(kdev->dev, list_dma, info->list_size,
 				DMA_FROM_DEVICE);
 
@@ -169,12 +169,12 @@ static irqreturn_t knav_acc_int_handler(int irq, void *_instdata)
 
 		idx = atomic_inc_return(&kq->desc_tail) & ACC_DESCS_MASK;
 		kq->descs[idx] = val;
-		kq->notify_needed = 1;
+		kq->yestify_needed = 1;
 		dev_dbg(kdev->dev, "acc-irq: enqueue %08x at %d, queue %d\n",
 			val, idx, queue + range_base);
 	}
 
-	__knav_acc_notify(range, acc);
+	__knav_acc_yestify(range, acc);
 	memset(list_cpu, 0, info->list_size);
 	dma_sync_single_for_device(kdev->dev, list_dma, info->list_size,
 				   DMA_TO_DEVICE);
@@ -451,7 +451,7 @@ static int knav_acc_free_range(struct knav_range_info *range)
 }
 
 struct knav_range_ops knav_acc_range_ops = {
-	.set_notify	= knav_acc_set_notify,
+	.set_yestify	= knav_acc_set_yestify,
 	.init_queue	= knav_acc_init_queue,
 	.open_queue	= knav_acc_open_queue,
 	.close_queue	= knav_acc_close_queue,
@@ -463,13 +463,13 @@ struct knav_range_ops knav_acc_range_ops = {
  * knav_init_acc_range: Initialise accumulator ranges
  *
  * @kdev:		qmss device
- * @node:		device node
+ * @yesde:		device yesde
  * @range:		qmms range information
  *
  * Return 0 on success or error
  */
 int knav_init_acc_range(struct knav_device *kdev,
-			struct device_node *node,
+			struct device_yesde *yesde,
 			struct knav_range_info *range)
 {
 	struct knav_acc_channel *acc;
@@ -484,7 +484,7 @@ int knav_init_acc_range(struct knav_device *kdev,
 	range->flags |= RANGE_HAS_ACCUMULATOR;
 	info = &range->acc_info;
 
-	ret = of_property_read_u32_array(node, "accumulator", config, 5);
+	ret = of_property_read_u32_array(yesde, "accumulator", config, 5);
 	if (ret)
 		return ret;
 
@@ -508,20 +508,20 @@ int knav_init_acc_range(struct knav_device *kdev,
 
 	pdsp = knav_find_pdsp(kdev, info->pdsp_id);
 	if (!pdsp) {
-		dev_err(kdev->dev, "pdsp id %d not found for range %s\n",
+		dev_err(kdev->dev, "pdsp id %d yest found for range %s\n",
 			info->pdsp_id, range->name);
 		return -EINVAL;
 	}
 
 	if (!pdsp->started) {
-		dev_err(kdev->dev, "pdsp id %d not started for range %s\n",
+		dev_err(kdev->dev, "pdsp id %d yest started for range %s\n",
 			info->pdsp_id, range->name);
 		return -ENODEV;
 	}
 
 	info->pdsp = pdsp;
 	channels = range->num_queues;
-	if (of_get_property(node, "multi-queue", NULL)) {
+	if (of_get_property(yesde, "multi-queue", NULL)) {
 		range->flags |= RANGE_MULTI_QUEUE;
 		channels = 1;
 		if (range->queue_base & (32 - 1)) {

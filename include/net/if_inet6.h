@@ -52,7 +52,7 @@ struct inet6_ifaddr {
 	__u8			stable_privacy_retry;
 
 	__u16			scope;
-	__u64			dad_nonce;
+	__u64			dad_yesnce;
 
 	unsigned long		cstamp;	/* created timestamp */
 	unsigned long		tstamp; /* updated timestamp */
@@ -62,7 +62,7 @@ struct inet6_ifaddr {
 	struct inet6_dev	*idev;
 	struct fib6_info	*rt;
 
-	struct hlist_node	addr_lst;
+	struct hlist_yesde	addr_lst;
 	struct list_head	if_list;
 
 	struct list_head	tmp_list;
@@ -141,7 +141,7 @@ struct ifacaddr6 {
 	struct in6_addr		aca_addr;
 	struct fib6_info	*aca_rt;
 	struct ifacaddr6	*aca_next;
-	struct hlist_node	aca_addr_lst;
+	struct hlist_yesde	aca_addr_lst;
 	int			aca_users;
 	refcount_t		aca_refcnt;
 	unsigned long		aca_cstamp;

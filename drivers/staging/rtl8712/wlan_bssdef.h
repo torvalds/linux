@@ -30,13 +30,13 @@ enum NDIS_802_11_NETWORK_TYPE {
 	Ndis802_11DS,
 	Ndis802_11OFDM5,
 	Ndis802_11OFDM24,
-	Ndis802_11NetworkTypeMax /* not a real type, defined as an upper bound*/
+	Ndis802_11NetworkTypeMax /* yest a real type, defined as an upper bound*/
 };
 
 struct NDIS_802_11_CONFIGURATION_FH {
 	u32 Length;             /* Length of structure */
 	u32 HopPattern;         /* As defined by 802.11, MSB set */
-	u32 HopSet;             /* to one if non-802.11 */
+	u32 HopSet;             /* to one if yesn-802.11 */
 	u32 DwellTime;          /* units are Kusec */
 };
 
@@ -55,7 +55,7 @@ struct NDIS_802_11_CONFIGURATION {
 enum NDIS_802_11_NETWORK_INFRASTRUCTURE {
 	Ndis802_11IBSS,
 	Ndis802_11Infrastructure,
-	Ndis802_11AutoUnknown,
+	Ndis802_11AutoUnkyeswn,
 	Ndis802_11InfrastructureMax, /*Not a real value,defined as upper bound*/
 	Ndis802_11APMode
 };
@@ -182,7 +182,7 @@ struct NDIS_802_11_WEP {
 struct	wlan_network {
 	struct list_head list;
 	int	network_type;	/*refer to ieee80211.h for WIRELESS_11A/B/G */
-	int	fixed;		/* set to fixed when not to be removed asi
+	int	fixed;		/* set to fixed when yest to be removed asi
 				 * site-surveying
 				 */
 	unsigned int	last_scanned; /*timestamp for the network */

@@ -21,9 +21,9 @@ struct fwh_xxlock_thunk {
 
 /*
  * This locking/unlock is specific to firmware hub parts.  Only one
- * is known that supports the Intel command set.    Firmware
- * hub parts cannot be interleaved as they are on the LPC bus
- * so this code has not been tested with interleaved chips,
+ * is kyeswn that supports the Intel command set.    Firmware
+ * hub parts canyest be interleaved as they are on the LPC bus
+ * so this code has yest been tested with interleaved chips,
  * and will likely fail in that context.
  */
 static int fwh_xxlock_oneblock(struct map_info *map, struct flchip *chip,
@@ -33,7 +33,7 @@ static int fwh_xxlock_oneblock(struct map_info *map, struct flchip *chip,
 	struct fwh_xxlock_thunk *xxlt = (struct fwh_xxlock_thunk *)thunk;
 	int ret;
 
-	/* Refuse the operation if the we cannot look behind the chip */
+	/* Refuse the operation if the we canyest look behind the chip */
 	if (chip->start < 0x400000) {
 		pr_debug( "MTD %s(): chip->start: %lx wanted >= 0x400000\n",
 			__func__, chip->start );
@@ -54,7 +54,7 @@ static int fwh_xxlock_oneblock(struct map_info *map, struct flchip *chip,
 	adr += chip->start - 0x400000;
 
 	/*
-	 * This is easy because these are writes to registers and not writes
+	 * This is easy because these are writes to registers and yest writes
 	 * to flash memory - that means that we don't have to check status
 	 * and timeout.
 	 */

@@ -251,7 +251,7 @@ int __init pingv6_init(void)
 	return inet6_register_protosw(&pingv6_protosw);
 }
 
-/* This never gets called because it's not possible to unload the ipv6 module,
+/* This never gets called because it's yest possible to unload the ipv6 module,
  * but just in case.
  */
 void pingv6_exit(void)

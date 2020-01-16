@@ -143,7 +143,7 @@ enum flow_action_id {
 
 /* This is mirroring enum pedit_header_type definition for easy mapping between
  * tc pedit action. Legacy TCA_PEDIT_KEY_EX_HDR_TYPE_NETWORK is mapped to
- * FLOW_ACT_MANGLE_UNSPEC, which is supported by no driver.
+ * FLOW_ACT_MANGLE_UNSPEC, which is supported by yes driver.
  */
 enum flow_action_mangle_base {
 	FLOW_ACT_MANGLE_UNSPEC		= 0,

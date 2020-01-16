@@ -304,10 +304,10 @@ static const struct mtk_ddp_comp_match mtk_ddp_matches[DDP_COMPONENT_ID_MAX] = {
 	[DDP_COMPONENT_WDMA1]	= { MTK_DISP_WDMA,	1, NULL },
 };
 
-int mtk_ddp_comp_get_id(struct device_node *node,
+int mtk_ddp_comp_get_id(struct device_yesde *yesde,
 			enum mtk_ddp_comp_type comp_type)
 {
-	int id = of_alias_get_id(node, mtk_ddp_comp_stem[comp_type]);
+	int id = of_alias_get_id(yesde, mtk_ddp_comp_stem[comp_type]);
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(mtk_ddp_matches); i++) {
@@ -319,12 +319,12 @@ int mtk_ddp_comp_get_id(struct device_node *node,
 	return -EINVAL;
 }
 
-int mtk_ddp_comp_init(struct device *dev, struct device_node *node,
+int mtk_ddp_comp_init(struct device *dev, struct device_yesde *yesde,
 		      struct mtk_ddp_comp *comp, enum mtk_ddp_comp_id comp_id,
 		      const struct mtk_ddp_comp_funcs *funcs)
 {
 	enum mtk_ddp_comp_type type;
-	struct device_node *larb_node;
+	struct device_yesde *larb_yesde;
 	struct platform_device *larb_pdev;
 
 	if (comp_id < 0 || comp_id >= DDP_COMPONENT_ID_MAX)
@@ -349,9 +349,9 @@ int mtk_ddp_comp_init(struct device *dev, struct device_node *node,
 		return 0;
 	}
 
-	comp->regs = of_iomap(node, 0);
-	comp->irq = of_irq_get(node, 0);
-	comp->clk = of_clk_get(node, 0);
+	comp->regs = of_iomap(yesde, 0);
+	comp->irq = of_irq_get(yesde, 0);
+	comp->clk = of_clk_get(yesde, 0);
 	if (IS_ERR(comp->clk))
 		return PTR_ERR(comp->clk);
 
@@ -362,20 +362,20 @@ int mtk_ddp_comp_init(struct device *dev, struct device_node *node,
 	    type != MTK_DISP_WDMA)
 		return 0;
 
-	larb_node = of_parse_phandle(node, "mediatek,larb", 0);
-	if (!larb_node) {
+	larb_yesde = of_parse_phandle(yesde, "mediatek,larb", 0);
+	if (!larb_yesde) {
 		dev_err(dev,
-			"Missing mediadek,larb phandle in %pOF node\n", node);
+			"Missing mediadek,larb phandle in %pOF yesde\n", yesde);
 		return -EINVAL;
 	}
 
-	larb_pdev = of_find_device_by_node(larb_node);
+	larb_pdev = of_find_device_by_yesde(larb_yesde);
 	if (!larb_pdev) {
-		dev_warn(dev, "Waiting for larb device %pOF\n", larb_node);
-		of_node_put(larb_node);
+		dev_warn(dev, "Waiting for larb device %pOF\n", larb_yesde);
+		of_yesde_put(larb_yesde);
 		return -EPROBE_DEFER;
 	}
-	of_node_put(larb_node);
+	of_yesde_put(larb_yesde);
 
 	comp->larb_dev = &larb_pdev->dev;
 

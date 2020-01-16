@@ -5,7 +5,7 @@
  * Copyright (C) 2007-2008 Steven Rostedt <srostedt@redhat.com>
  *
  * Thanks goes to Ingo Molnar, for suggesting the idea.
- * Mathieu Desnoyers, for suggesting postponing the modifications.
+ * Mathieu Desyesyers, for suggesting postponing the modifications.
  * Arjan van de Ven, for keeping me straight, and explaining to me
  * the dangers of modifying code on the run.
  */
@@ -29,7 +29,7 @@
 #include <asm/set_memory.h>
 #include <asm/kprobes.h>
 #include <asm/ftrace.h>
-#include <asm/nops.h>
+#include <asm/yesps.h>
 #include <asm/text-patching.h>
 
 #ifdef CONFIG_DYNAMIC_FTRACE
@@ -109,9 +109,9 @@ static unsigned long text_ip_addr(unsigned long ip)
 	return ip;
 }
 
-static const unsigned char *ftrace_nop_replace(void)
+static const unsigned char *ftrace_yesp_replace(void)
 {
-	return ideal_nops[NOP_ATOMIC5];
+	return ideal_yesps[NOP_ATOMIC5];
 }
 
 static int
@@ -124,7 +124,7 @@ ftrace_modify_code_direct(unsigned long ip, unsigned const char *old_code,
 
 	/*
 	 * Note:
-	 * We are paranoid about modifying text, as if a bug was to happen, it
+	 * We are parayesid about modifying text, as if a bug was to happen, it
 	 * could cause us to read or write to someplace that could cause harm.
 	 * Carefully read and modify the code with probe_kernel_*(), and make
 	 * sure what we read is what we expected it to be before modifying it.
@@ -149,21 +149,21 @@ ftrace_modify_code_direct(unsigned long ip, unsigned const char *old_code,
 	return 0;
 }
 
-int ftrace_make_nop(struct module *mod,
+int ftrace_make_yesp(struct module *mod,
 		    struct dyn_ftrace *rec, unsigned long addr)
 {
 	unsigned const char *new, *old;
 	unsigned long ip = rec->ip;
 
 	old = ftrace_call_replace(ip, addr);
-	new = ftrace_nop_replace();
+	new = ftrace_yesp_replace();
 
 	/*
 	 * On boot up, and when modules are loaded, the MCOUNT_ADDR
-	 * is converted to a nop, and will never become MCOUNT_ADDR
+	 * is converted to a yesp, and will never become MCOUNT_ADDR
 	 * again. This code is either running before SMP (on boot up)
 	 * or before the code will ever be executed (module load).
-	 * We do not want to use the breakpoint version in this case,
+	 * We do yest want to use the breakpoint version in this case,
 	 * just modify the code directly.
 	 */
 	if (addr == MCOUNT_ADDR)
@@ -171,8 +171,8 @@ int ftrace_make_nop(struct module *mod,
 
 	ftrace_expected = NULL;
 
-	/* Normal cases use add_brk_on_nop */
-	WARN_ONCE(1, "invalid use of ftrace_make_nop");
+	/* Normal cases use add_brk_on_yesp */
+	WARN_ONCE(1, "invalid use of ftrace_make_yesp");
 	return -EINVAL;
 }
 
@@ -181,7 +181,7 @@ int ftrace_make_call(struct dyn_ftrace *rec, unsigned long addr)
 	unsigned const char *new, *old;
 	unsigned long ip = rec->ip;
 
-	old = ftrace_nop_replace();
+	old = ftrace_yesp_replace();
 	new = ftrace_call_replace(ip, addr);
 
 	/* Should only be called when module is loaded */
@@ -194,9 +194,9 @@ int ftrace_make_call(struct dyn_ftrace *rec, unsigned long addr)
  * call this handler for a breakpoint added by ftrace, then
  * the kernel may crash.
  *
- * As atomic_writes on x86 do not need a barrier, we do not
+ * As atomic_writes on x86 do yest need a barrier, we do yest
  * need to add smp_mb()s for this to work. It is also considered
- * that we can not read the modifying_ftrace_code before
+ * that we can yest read the modifying_ftrace_code before
  * executing the breakpoint. That would be quite remarkable if
  * it could do that. Here's the flow that is required:
  *
@@ -212,11 +212,11 @@ int ftrace_make_call(struct dyn_ftrace *rec, unsigned long addr)
  *
  * atomic_dec(mfc);
  *
- * If we hit a breakpoint that was not set by ftrace, it does not
- * matter if ftrace_int3_handler() is called or not. It will
- * simply be ignored. But it is crucial that a ftrace nop/caller
+ * If we hit a breakpoint that was yest set by ftrace, it does yest
+ * matter if ftrace_int3_handler() is called or yest. It will
+ * simply be igyesred. But it is crucial that a ftrace yesp/caller
  * breakpoint is handled. No other user should ever place a
- * breakpoint on an ftrace nop/caller location. It must only
+ * breakpoint on an ftrace yesp/caller location. It must only
  * be done by this code.
  */
 atomic_t modifying_ftrace_code __read_mostly;
@@ -229,8 +229,8 @@ ftrace_modify_code(unsigned long ip, unsigned const char *old_code,
  * Should never be called:
  *  As it is only called by __ftrace_replace_code() which is called by
  *  ftrace_replace_code() that x86 overrides, and by ftrace_update_code()
- *  which is called to turn mcount into nops or nops into function calls
- *  but not to convert a function from not using regs to one that uses
+ *  which is called to turn mcount into yesps or yesps into function calls
+ *  but yest to convert a function from yest using regs to one that uses
  *  regs, which ftrace_modify_call() is for.
  */
 int ftrace_modify_call(struct dyn_ftrace *rec, unsigned long old_addr,
@@ -286,7 +286,7 @@ int ftrace_update_ftrace_func(ftrace_func_t func)
 	return ret;
 }
 
-static nokprobe_inline int is_ftrace_caller(unsigned long ip)
+static yeskprobe_inline int is_ftrace_caller(unsigned long ip)
 {
 	if (ip == ftrace_update_func)
 		return 1;
@@ -297,9 +297,9 @@ static nokprobe_inline int is_ftrace_caller(unsigned long ip)
 /*
  * A breakpoint was added to the code address we are about to
  * modify, and this is the handle that will just skip over it.
- * We are either changing a nop into a trace call, or a trace
- * call to a nop. While the change is taking place, we treat
- * it just like it was a nop.
+ * We are either changing a yesp into a trace call, or a trace
+ * call to a yesp. While the change is taking place, we treat
+ * it just like it was a yesp.
  */
 int ftrace_int3_handler(struct pt_regs *regs)
 {
@@ -364,11 +364,11 @@ static int add_brk_on_call(struct dyn_ftrace *rec, unsigned long addr)
 }
 
 
-static int add_brk_on_nop(struct dyn_ftrace *rec)
+static int add_brk_on_yesp(struct dyn_ftrace *rec)
 {
 	unsigned const char *old;
 
-	old = ftrace_nop_replace();
+	old = ftrace_yesp_replace();
 
 	return add_break(rec->ip, old);
 }
@@ -387,12 +387,12 @@ static int add_breakpoints(struct dyn_ftrace *rec, bool enable)
 		return 0;
 
 	case FTRACE_UPDATE_MAKE_CALL:
-		/* converting nop to call */
-		return add_brk_on_nop(rec);
+		/* converting yesp to call */
+		return add_brk_on_yesp(rec);
 
 	case FTRACE_UPDATE_MODIFY_CALL:
 	case FTRACE_UPDATE_MAKE_NOP:
-		/* converting a call to a nop */
+		/* converting a call to a yesp */
 		return add_brk_on_call(rec, ftrace_addr);
 	}
 	return 0;
@@ -400,17 +400,17 @@ static int add_breakpoints(struct dyn_ftrace *rec, bool enable)
 
 /*
  * On error, we need to remove breakpoints. This needs to
- * be done caefully. If the address does not currently have a
- * breakpoint, we know we are done. Otherwise, we look at the
- * remaining 4 bytes of the instruction. If it matches a nop
- * we replace the breakpoint with the nop. Otherwise we replace
+ * be done caefully. If the address does yest currently have a
+ * breakpoint, we kyesw we are done. Otherwise, we look at the
+ * remaining 4 bytes of the instruction. If it matches a yesp
+ * we replace the breakpoint with the yesp. Otherwise we replace
  * it with the call instruction.
  */
 static int remove_breakpoint(struct dyn_ftrace *rec)
 {
 	unsigned char ins[MCOUNT_INSN_SIZE];
 	unsigned char brk = BREAKPOINT_INSTRUCTION;
-	const unsigned char *nop;
+	const unsigned char *yesp;
 	unsigned long ftrace_addr;
 	unsigned long ip = rec->ip;
 
@@ -418,41 +418,41 @@ static int remove_breakpoint(struct dyn_ftrace *rec)
 	if (probe_kernel_read(ins, (void *)ip, MCOUNT_INSN_SIZE))
 		return -EFAULT;
 
-	/* If this does not have a breakpoint, we are done */
+	/* If this does yest have a breakpoint, we are done */
 	if (ins[0] != brk)
 		return 0;
 
-	nop = ftrace_nop_replace();
+	yesp = ftrace_yesp_replace();
 
 	/*
-	 * If the last 4 bytes of the instruction do not match
-	 * a nop, then we assume that this is a call to ftrace_addr.
+	 * If the last 4 bytes of the instruction do yest match
+	 * a yesp, then we assume that this is a call to ftrace_addr.
 	 */
-	if (memcmp(&ins[1], &nop[1], MCOUNT_INSN_SIZE - 1) != 0) {
+	if (memcmp(&ins[1], &yesp[1], MCOUNT_INSN_SIZE - 1) != 0) {
 		/*
-		 * For extra paranoidism, we check if the breakpoint is on
+		 * For extra parayesidism, we check if the breakpoint is on
 		 * a call that would actually jump to the ftrace_addr.
-		 * If not, don't touch the breakpoint, we make just create
+		 * If yest, don't touch the breakpoint, we make just create
 		 * a disaster.
 		 */
 		ftrace_addr = ftrace_get_addr_new(rec);
-		nop = ftrace_call_replace(ip, ftrace_addr);
+		yesp = ftrace_call_replace(ip, ftrace_addr);
 
-		if (memcmp(&ins[1], &nop[1], MCOUNT_INSN_SIZE - 1) == 0)
+		if (memcmp(&ins[1], &yesp[1], MCOUNT_INSN_SIZE - 1) == 0)
 			goto update;
 
 		/* Check both ftrace_addr and ftrace_old_addr */
 		ftrace_addr = ftrace_get_addr_curr(rec);
-		nop = ftrace_call_replace(ip, ftrace_addr);
+		yesp = ftrace_call_replace(ip, ftrace_addr);
 
-		ftrace_expected = nop;
+		ftrace_expected = yesp;
 
-		if (memcmp(&ins[1], &nop[1], MCOUNT_INSN_SIZE - 1) != 0)
+		if (memcmp(&ins[1], &yesp[1], MCOUNT_INSN_SIZE - 1) != 0)
 			return -EINVAL;
 	}
 
  update:
-	return ftrace_write(ip, nop, 1);
+	return ftrace_write(ip, yesp, 1);
 }
 
 static int add_update_code(unsigned long ip, unsigned const char *new)
@@ -472,12 +472,12 @@ static int add_update_call(struct dyn_ftrace *rec, unsigned long addr)
 	return add_update_code(ip, new);
 }
 
-static int add_update_nop(struct dyn_ftrace *rec)
+static int add_update_yesp(struct dyn_ftrace *rec)
 {
 	unsigned long ip = rec->ip;
 	unsigned const char *new;
 
-	new = ftrace_nop_replace();
+	new = ftrace_yesp_replace();
 	return add_update_code(ip, new);
 }
 
@@ -496,12 +496,12 @@ static int add_update(struct dyn_ftrace *rec, bool enable)
 
 	case FTRACE_UPDATE_MODIFY_CALL:
 	case FTRACE_UPDATE_MAKE_CALL:
-		/* converting nop to call */
+		/* converting yesp to call */
 		return add_update_call(rec, ftrace_addr);
 
 	case FTRACE_UPDATE_MAKE_NOP:
-		/* converting a call to a nop */
-		return add_update_nop(rec);
+		/* converting a call to a yesp */
+		return add_update_yesp(rec);
 	}
 
 	return 0;
@@ -517,12 +517,12 @@ static int finish_update_call(struct dyn_ftrace *rec, unsigned long addr)
 	return ftrace_write(ip, new, 1);
 }
 
-static int finish_update_nop(struct dyn_ftrace *rec)
+static int finish_update_yesp(struct dyn_ftrace *rec)
 {
 	unsigned long ip = rec->ip;
 	unsigned const char *new;
 
-	new = ftrace_nop_replace();
+	new = ftrace_yesp_replace();
 
 	return ftrace_write(ip, new, 1);
 }
@@ -542,12 +542,12 @@ static int finish_update(struct dyn_ftrace *rec, bool enable)
 
 	case FTRACE_UPDATE_MODIFY_CALL:
 	case FTRACE_UPDATE_MAKE_CALL:
-		/* converting nop to call */
+		/* converting yesp to call */
 		return finish_update_call(rec, ftrace_addr);
 
 	case FTRACE_UPDATE_MAKE_NOP:
-		/* converting a call to a nop */
-		return finish_update_nop(rec);
+		/* converting a call to a yesp */
+		return finish_update_yesp(rec);
 	}
 
 	return 0;
@@ -632,7 +632,7 @@ void ftrace_replace_code(int enable)
 		rec = ftrace_rec_iter_record(iter);
 		/*
 		 * Breakpoints are handled only when this function is in
-		 * progress. The system could not work with them.
+		 * progress. The system could yest work with them.
 		 */
 		if (remove_breakpoint(rec))
 			BUG();
@@ -661,7 +661,7 @@ ftrace_modify_code(unsigned long ip, unsigned const char *old_code,
 	ret = ftrace_write(ip, new_code, 1);
 	/*
 	 * The breakpoint is handled only when this function is in progress.
-	 * The system could not work if we could not remove it.
+	 * The system could yest work if we could yest remove it.
 	 */
 	BUG_ON(ret);
  out:
@@ -669,7 +669,7 @@ ftrace_modify_code(unsigned long ip, unsigned const char *old_code,
 	return ret;
 
  fail_update:
-	/* Also here the system could not work with the breakpoint */
+	/* Also here the system could yest work with the breakpoint */
 	if (ftrace_write(ip, old_code, 1))
 		BUG();
 	goto out;
@@ -772,7 +772,7 @@ create_trampoline(struct ftrace_ops *ops, unsigned int *tramp_size)
 	size = end_offset - start_offset;
 
 	/*
-	 * Allocate enough size to store the ftrace_caller code,
+	 * Allocate eyesugh size to store the ftrace_caller code,
 	 * the iret , as well as the address of the ftrace_ops this
 	 * trampoline is used for.
 	 */
@@ -823,7 +823,7 @@ create_trampoline(struct ftrace_ops *ops, unsigned int *tramp_size)
 	/* put in the new offset to the ftrace_ops */
 	memcpy(trampoline + op_offset, &op_ptr, OP_REF_SIZE);
 
-	/* ALLOC_TRAMP flags lets us know we created it */
+	/* ALLOC_TRAMP flags lets us kyesw we created it */
 	ops->flags |= FTRACE_OPS_FL_ALLOC_TRAMP;
 
 	set_vm_flush_reset_perms(trampoline);
@@ -868,7 +868,7 @@ void arch_ftrace_update_trampoline(struct ftrace_ops *ops)
 	if (ops->trampoline) {
 		/*
 		 * The ftrace_ops caller may set up its own trampoline.
-		 * In such a case, this code must not modify it.
+		 * In such a case, this code must yest modify it.
 		 */
 		if (!(ops->flags & FTRACE_OPS_FL_ALLOC_TRAMP))
 			return;
@@ -921,7 +921,7 @@ void prepare_ftrace_return(unsigned long self_addr, unsigned long *parent,
 			   unsigned long frame_pointer);
 
 /*
- * If the ops->trampoline was not allocated, then it probably
+ * If the ops->trampoline was yest allocated, then it probably
  * has a static trampoline func, or is the ftrace caller itself.
  */
 static void *static_tramp_func(struct ftrace_ops *ops, struct dyn_ftrace *rec)
@@ -933,7 +933,7 @@ static void *static_tramp_func(struct ftrace_ops *ops, struct dyn_ftrace *rec)
 	if (ops && ops->trampoline) {
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
 		/*
-		 * We only know about function graph tracer setting as static
+		 * We only kyesw about function graph tracer setting as static
 		 * trampoline.
 		 */
 		if (ops->trampoline == FTRACE_GRAPH_ADDR)
@@ -1031,7 +1031,7 @@ void prepare_ftrace_return(unsigned long self_addr, unsigned long *parent,
 	 * virtual address.
 	 *
 	 * This check isn't as accurate as virt_addr_valid(), but it should be
-	 * good enough for this purpose, and it's fast.
+	 * good eyesugh for this purpose, and it's fast.
 	 */
 	if (unlikely((long)__builtin_frame_address(0) >= 0))
 		return;
@@ -1045,7 +1045,7 @@ void prepare_ftrace_return(unsigned long self_addr, unsigned long *parent,
 	/*
 	 * Protect against fault, even if it shouldn't
 	 * happen. This tool is too much intrusive to
-	 * ignore such a protection.
+	 * igyesre such a protection.
 	 */
 	asm volatile(
 		"1: " _ASM_MOV " (%[parent]), %[old]\n"

@@ -24,12 +24,12 @@ komeda_plane_init_data_flow(struct drm_plane_state *st,
 
 	memset(dflow, 0, sizeof(*dflow));
 
-	dflow->blending_zorder = st->normalized_zpos;
+	dflow->blending_zorder = st->yesrmalized_zpos;
 	if (pipe == to_kcrtc(st->crtc)->master)
 		dflow->blending_zorder -= kcrtc_st->max_slave_zorder;
 	if (dflow->blending_zorder < 0) {
 		DRM_DEBUG_ATOMIC("%s zorder:%d < max_slave_zorder: %d.\n",
-				 st->plane->name, st->normalized_zpos,
+				 st->plane->name, st->yesrmalized_zpos,
 				 kcrtc_st->max_slave_zorder);
 		return -EINVAL;
 	}
@@ -67,7 +67,7 @@ komeda_plane_init_data_flow(struct drm_plane_state *st,
  * @state: the plane state object
  *
  * RETURNS:
- * Zero for success or -errno
+ * Zero for success or -erryes
  */
 static int
 komeda_plane_atomic_check(struct drm_plane *plane,
@@ -86,7 +86,7 @@ komeda_plane_atomic_check(struct drm_plane *plane,
 
 	crtc_st = drm_atomic_get_crtc_state(state->state, state->crtc);
 	if (IS_ERR(crtc_st) || !crtc_st->enable) {
-		DRM_DEBUG_ATOMIC("Cannot update plane on a disabled CRTC.\n");
+		DRM_DEBUG_ATOMIC("Canyest update plane on a disabled CRTC.\n");
 		return -EINVAL;
 	}
 
@@ -110,7 +110,7 @@ komeda_plane_atomic_check(struct drm_plane *plane,
 	return err;
 }
 
-/* plane doesn't represent a real HW, so there is no HW update for plane.
+/* plane doesn't represent a real HW, so there is yes HW update for plane.
  * komeda handles all the HW update in crtc->atomic_flush
  */
 static void

@@ -43,7 +43,7 @@
 
 /********************* FSF SPECIFIC DEFINES *********************************/
 
-/* ATTENTION: value must not be used by hardware */
+/* ATTENTION: value must yest be used by hardware */
 #define FSF_QTCB_UNSOLICITED_STATUS		0x6305
 
 /*************** ADAPTER/PORT/UNIT AND FSF_REQ STATUS FLAGS ******************/
@@ -79,7 +79,7 @@
 #define ZFCP_STATUS_PORT_PHYS_OPEN		0x00000001
 #define ZFCP_STATUS_PORT_LINK_TEST		0x00000002
 
-/* FSF request status (this does not have a common part) */
+/* FSF request status (this does yest have a common part) */
 #define ZFCP_STATUS_FSFREQ_ERROR		0x00000008
 #define ZFCP_STATUS_FSFREQ_CLEANUP		0x00000010
 #define ZFCP_STATUS_FSFREQ_ABORTSUCCEEDED	0x00000040
@@ -162,9 +162,9 @@ struct zfcp_adapter {
 	struct Scsi_Host	*scsi_host;	   /* Pointer to mid-layer */
 	struct list_head	port_list;	   /* remote port list */
 	rwlock_t		port_list_lock;    /* port list lock */
-	unsigned long		req_no;		   /* unique FSF req number */
+	unsigned long		req_yes;		   /* unique FSF req number */
 	struct zfcp_reqlist	*req_list;
-	u32			fsf_req_seq_no;	   /* FSF cmnd seq number */
+	u32			fsf_req_seq_yes;	   /* FSF cmnd seq number */
 	rwlock_t		abort_lock;        /* Protects against SCSI
 						      stack abort/command
 						      completion races */
@@ -198,7 +198,7 @@ struct zfcp_adapter {
 	struct device_dma_parameters dma_parms;
 	struct zfcp_fc_events events;
 	unsigned long		next_port_scan;
-	struct zfcp_diag_adapter	*diagnostics;
+	struct zfcp_diag_adapter	*diagyesstics;
 };
 
 struct zfcp_port {
@@ -210,7 +210,7 @@ struct zfcp_port {
 	rwlock_t		unit_list_lock; /* unit list lock */
 	atomic_t		units;	       /* zfcp_unit count */
 	atomic_t	       status;	       /* status of this remote port */
-	u64		       wwnn;	       /* WWNN if known */
+	u64		       wwnn;	       /* WWNN if kyeswn */
 	u64		       wwpn;	       /* WWPN */
 	u32		       d_id;	       /* D_ID */
 	u32		       handle;	       /* handle assigned by FSF */

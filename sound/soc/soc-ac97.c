@@ -168,7 +168,7 @@ static void snd_soc_ac97_free_gpio(struct snd_ac97 *ac97)
  * snd_soc_alloc_ac97_component() - Allocate new a AC'97 device
  * @component: The COMPONENT for which to create the AC'97 device
  *
- * Allocated a new snd_ac97 device and intializes it, but does not yet register
+ * Allocated a new snd_ac97 device and intializes it, but does yest yet register
  * it. The caller is responsible to either call device_add(&ac97->dev) to
  * register the device, or to call put_device(&ac97->dev) to free the device.
  *
@@ -207,9 +207,9 @@ EXPORT_SYMBOL(snd_soc_alloc_ac97_component);
  *
  * Initialises AC97 component resources for use by ad-hoc devices only.
  *
- * If @id is not 0 this function will reset the device, then read the ID from
+ * If @id is yest 0 this function will reset the device, then read the ID from
  * the device and check if it matches the expected ID. If it doesn't match an
- * error will be returned and device will not be registered.
+ * error will be returned and device will yest be registered.
  *
  * Returns: A PTR_ERR() on failure or a valid snd_ac97 struct on success.
  */
@@ -335,7 +335,7 @@ static int snd_soc_ac97_parse_pinctl(struct device *dev,
 	}
 	cfg->pstate_run = state;
 
-	gpio = of_get_named_gpio(dev->of_node, "ac97-gpios", 0);
+	gpio = of_get_named_gpio(dev->of_yesde, "ac97-gpios", 0);
 	if (gpio < 0) {
 		dev_err(dev, "Can't find ac97-sync gpio\n");
 		return gpio;
@@ -347,7 +347,7 @@ static int snd_soc_ac97_parse_pinctl(struct device *dev,
 	}
 	cfg->gpio_sync = gpio;
 
-	gpio = of_get_named_gpio(dev->of_node, "ac97-gpios", 1);
+	gpio = of_get_named_gpio(dev->of_yesde, "ac97-gpios", 1);
 	if (gpio < 0) {
 		dev_err(dev, "Can't find ac97-sdata gpio %d\n", gpio);
 		return gpio;
@@ -359,7 +359,7 @@ static int snd_soc_ac97_parse_pinctl(struct device *dev,
 	}
 	cfg->gpio_sdata = gpio;
 
-	gpio = of_get_named_gpio(dev->of_node, "ac97-gpios", 2);
+	gpio = of_get_named_gpio(dev->of_yesde, "ac97-gpios", 2);
 	if (gpio < 0) {
 		dev_err(dev, "Can't find ac97-reset gpio\n");
 		return gpio;
@@ -396,7 +396,7 @@ EXPORT_SYMBOL_GPL(snd_soc_set_ac97_ops);
  * snd_soc_set_ac97_ops_of_reset - Set ac97 ops with generic ac97 reset functions
  *
  * This function sets the reset and warm_reset properties of ops and parses
- * the device node of pdev to get pinctrl states and gpio numbers to use.
+ * the device yesde of pdev to get pinctrl states and gpio numbers to use.
  */
 int snd_soc_set_ac97_ops_of_reset(struct snd_ac97_bus_ops *ops,
 		struct platform_device *pdev)

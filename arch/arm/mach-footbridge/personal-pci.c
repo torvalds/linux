@@ -28,12 +28,12 @@ static int __init personal_server_map_irq(const struct pci_dev *dev, u8 slot,
 
 	if (line > 0x40 && line <= 0x5f) {
 		/* line corresponds to the bit controlling this interrupt
-		 * in the footbridge.  Ignore the first 8 interrupt bits,
+		 * in the footbridge.  Igyesre the first 8 interrupt bits,
 		 * look up the rest in the map.  IN0 is bit number 8
 		 */
 		return irqmap_personal_server[(line & 0x1f) - 8];
 	} else if (line == 0) {
-		/* no interrupt */
+		/* yes interrupt */
 		return 0;
 	} else
 		return irqmap_personal_server[(line - 1) & 3];

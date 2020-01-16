@@ -102,7 +102,7 @@ void setup_udp_tunnel_sock(struct net *net, struct socket *sock,
  * devices such as VFs or other ports on the same device.
  *
  * It is strongly encouraged to use CHECKSUM_COMPLETE for Rx to avoid the
- * need to use this for Rx checksum offload.  It should not be necessary to
+ * need to use this for Rx checksum offload.  It should yest be necessary to
  * call this function to perform Tx offloads on outgoing traffic.
  */
 enum udp_parsable_tunnel_type {
@@ -122,26 +122,26 @@ void udp_tunnel_push_rx_port(struct net_device *dev, struct socket *sock,
 			     unsigned short type);
 void udp_tunnel_drop_rx_port(struct net_device *dev, struct socket *sock,
 			     unsigned short type);
-void udp_tunnel_notify_add_rx_port(struct socket *sock, unsigned short type);
-void udp_tunnel_notify_del_rx_port(struct socket *sock, unsigned short type);
+void udp_tunnel_yestify_add_rx_port(struct socket *sock, unsigned short type);
+void udp_tunnel_yestify_del_rx_port(struct socket *sock, unsigned short type);
 
 static inline void udp_tunnel_get_rx_info(struct net_device *dev)
 {
 	ASSERT_RTNL();
-	call_netdevice_notifiers(NETDEV_UDP_TUNNEL_PUSH_INFO, dev);
+	call_netdevice_yestifiers(NETDEV_UDP_TUNNEL_PUSH_INFO, dev);
 }
 
 static inline void udp_tunnel_drop_rx_info(struct net_device *dev)
 {
 	ASSERT_RTNL();
-	call_netdevice_notifiers(NETDEV_UDP_TUNNEL_DROP_INFO, dev);
+	call_netdevice_yestifiers(NETDEV_UDP_TUNNEL_DROP_INFO, dev);
 }
 
 /* Transmit the skb using UDP encapsulation. */
 void udp_tunnel_xmit_skb(struct rtable *rt, struct sock *sk, struct sk_buff *skb,
 			 __be32 src, __be32 dst, __u8 tos, __u8 ttl,
 			 __be16 df, __be16 src_port, __be16 dst_port,
-			 bool xnet, bool nocheck);
+			 bool xnet, bool yescheck);
 
 #if IS_ENABLED(CONFIG_IPV6)
 int udp_tunnel6_xmit_skb(struct dst_entry *dst, struct sock *sk,
@@ -149,7 +149,7 @@ int udp_tunnel6_xmit_skb(struct dst_entry *dst, struct sock *sk,
 			 struct net_device *dev, struct in6_addr *saddr,
 			 struct in6_addr *daddr,
 			 __u8 prio, __u8 ttl, __be32 label,
-			 __be16 src_port, __be16 dst_port, bool nocheck);
+			 __be16 src_port, __be16 dst_port, bool yescheck);
 #endif
 
 void udp_tunnel_sock_release(struct socket *sock);

@@ -194,7 +194,7 @@ struct hclgevf_cfg {
 	u8 phy_addr;
 	u8 media_type;
 	u8 mac_addr[ETH_ALEN];
-	u32 numa_node_map;
+	u32 numa_yesde_map;
 };
 
 struct hclgevf_rss_tuple_cfg {
@@ -259,7 +259,7 @@ struct hclgevf_dev {
 	u16 rss_size_max;	/* HW defined max RSS task queue */
 
 	u16 num_alloc_vport;	/* num vports this driver supports */
-	u32 numa_node_mask;
+	u32 numa_yesde_mask;
 	u16 rx_buf_len;
 	u16 num_tx_desc;	/* desc num of per tx queue */
 	u16 num_rx_desc;	/* desc num of per rx queue */

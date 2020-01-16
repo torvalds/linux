@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) 2004, 2007-2010, 2011-2012 Synopsys, Inc. (www.synopsys.com)
+ * Copyright (C) 2004, 2007-2010, 2011-2012 Syyespsys, Inc. (www.syyespsys.com)
  *
  * RajeshwarR: Dec 11, 2007
  *   -- Added support for Inter Processor Interrupts
@@ -61,7 +61,7 @@ static int __init arc_get_cpu_map(const char *name, struct cpumask *cpumask)
 }
 
 /*
- * Read from DeviceTree and setup cpu possible mask. If there is no
+ * Read from DeviceTree and setup cpu possible mask. If there is yes
  * "possible-cpus" property in DeviceTree pretend all [0..NR_CPUS-1] exist.
  */
 static void __init arc_init_cpu_possible(void)
@@ -87,7 +87,7 @@ static void __init arc_init_cpu_possible(void)
  * - Initialise the CPU possible map early - this describes the CPUs
  *   which may be present or become present in the system.
  * - Call early smp init hook. This can initialize a specific multi-core
- *   IP which is say common to several platforms (hence not part of
+ *   IP which is say common to several platforms (hence yest part of
  *   platform specific int_early() hook)
  */
 void __init smp_init_cpus(void)
@@ -102,7 +102,7 @@ void __init smp_init_cpus(void)
 void __init smp_prepare_cpus(unsigned int max_cpus)
 {
 	/*
-	 * if platform didn't set the present map already, do it now
+	 * if platform didn't set the present map already, do it yesw
 	 * boot cpu is set to present already by init/main.c
 	 */
 	if (num_present_cpus() <= 1)
@@ -183,7 +183,7 @@ void start_kernel_secondary(void)
 	if (machine_desc->init_per_cpu)
 		machine_desc->init_per_cpu(cpu);
 
-	notify_cpu_starting(cpu);
+	yestify_cpu_starting(cpu);
 	set_cpu_online(cpu, true);
 
 	pr_info("## CPU%u LIVE ##: Executing Code...\n", cpu);
@@ -236,7 +236,7 @@ int __cpu_up(unsigned int cpu, struct task_struct *idle)
 }
 
 /*
- * not supported here
+ * yest supported here
  */
 int setup_profiling_timer(unsigned int multiplier)
 {
@@ -283,10 +283,10 @@ static void ipi_send_msg_one(int cpu, enum ipi_msg_type msg)
 
 	/*
 	 * Call the platform specific IPI kick function, but avoid if possible:
-	 * Only do so if there's no pending msg from other concurrent sender(s).
+	 * Only do so if there's yes pending msg from other concurrent sender(s).
 	 * Otherwise, recevier will see this msg as well when it takes the
 	 * IPI corresponding to that msg. This is true, even if it is already in
-	 * IPI handler, because !@old means it has not yet dequeued the msg(s)
+	 * IPI handler, because !@old means it has yest yet dequeued the msg(s)
 	 * so @new msg can be a free-loader
 	 */
 	if (plat_smp_ops.ipi_send && !old)
@@ -407,7 +407,7 @@ int smp_ipi_irq_setup(int cpu, irq_hw_number_t hwirq)
 	unsigned int virq = irq_find_mapping(NULL, hwirq);
 
 	if (!virq)
-		panic("Cannot find virq for root domain and hwirq=%lu", hwirq);
+		panic("Canyest find virq for root domain and hwirq=%lu", hwirq);
 
 	/* Boot cpu calls request, all call enable */
 	if (!cpu) {

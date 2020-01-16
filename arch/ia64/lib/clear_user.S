@@ -34,7 +34,7 @@
 
 //
 // Theory of operations:
-//	- we check whether or not the buffer is small, i.e., less than 17
+//	- we check whether or yest the buffer is small, i.e., less than 17
 //	  in which case we do the byte by byte loop.
 //
 //	- Otherwise we go progressively from 1 byte store to 8byte store in
@@ -43,12 +43,12 @@
 //	  The good point about this breakdown is that the long buffer handling
 //	  contains only 2 branches.
 //
-//	The reason for not using shifting & masking for both the head and the
-//	tail is to stay semantically correct. This routine is not supposed
+//	The reason for yest using shifting & masking for both the head and the
+//	tail is to stay semantically correct. This routine is yest supposed
 //	to write bytes outside of the buffer. While most of the time this would
 //	be ok, we can't tolerate a mistake. A classical example is the case
 //	of multithreaded code were to the extra bytes touched is actually owned
-//	by another thread which runs concurrently to ours. Another, less likely,
+//	by ayesther thread which runs concurrently to ours. Ayesther, less likely,
 //	example is with device drivers where reading an I/O mapped location may
 //	have side effects (same thing for writing).
 //
@@ -76,7 +76,7 @@ GLOBAL_ENTRY(__do_clear_user)
 	// We could have played with the predicates to use the extra
 	// M slot for 2 stores/iteration but the cost the initialization
 	// the various counters compared to how long the loop is supposed
-	// to last on average does not make this solution viable.
+	// to last on average does yest make this solution viable.
 	//
 1:
 	EX( .Lexit1, st1 [buf]=r0,1 )
@@ -93,8 +93,8 @@ GLOBAL_ENTRY(__do_clear_user)
 
 
 	//
-	// At this point we know we have more than 16 bytes to copy
-	// so we focus on alignment (no branches required)
+	// At this point we kyesw we have more than 16 bytes to copy
+	// so we focus on alignment (yes branches required)
 	//
 	// The use of len/len2 for countdown of the number of bytes left
 	// instead of ret0 is due to the fact that the exception code
@@ -141,8 +141,8 @@ GLOBAL_ENTRY(__do_clear_user)
 	// doing : left= 16*ar.lc + 16.  this would avoid the addition at
 	// every iteration.
 	// However we need to keep the synchronization point. A template
-	// M;;MB does not exist and thus we can keep the addition at no
-	// extra cycle cost (use a nop slot anyway). It also simplifies the
+	// M;;MB does yest exist and thus we can keep the addition at yes
+	// extra cycle cost (use a yesp slot anyway). It also simplifies the
 	// (unlikely)  error recovery code
 	//
 
@@ -158,7 +158,7 @@ GLOBAL_ENTRY(__do_clear_user)
 	//
 	// We alternate the use of len3,len2 to allow parallelism and correct
 	// error handling. We also reuse p6/p7 to return correct value.
-	// The addition of len2/len3 does not cost anything more compared to
+	// The addition of len2/len3 does yest cost anything more compared to
 	// the regular memset as we had empty slots.
 	//
 .dotail:
@@ -194,14 +194,14 @@ GLOBAL_ENTRY(__do_clear_user)
 	// .Lexit2:
 	//	if p6 -> coming from st8 or st2 : len2 contains what's left
 	//	if p7 -> coming from st4 or st1 : len3 contains what's left
-	// We must restore lc/pr even though might not have been used.
+	// We must restore lc/pr even though might yest have been used.
 .Lexit2:
 	.pred.rel "mutex", p6, p7
 (p6)	mov len=len2
 (p7)	mov len=len3
 	;;
 	//
-	// .Lexit4: comes from head, need not restore pr/lc
+	// .Lexit4: comes from head, need yest restore pr/lc
 	//	    len contains bytes left
 	//
 .Lexit3:

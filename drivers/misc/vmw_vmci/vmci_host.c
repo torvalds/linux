@@ -71,9 +71,9 @@ struct vmci_qp_alloc_info_vmvm {
 	u32 _pad;
 };
 
-/* VMCISetNotifyInfo: Used to pass notify flag's address to the host driver. */
-struct vmci_set_notify_info {
-	u64 notify_uva;
+/* VMCISetNotifyInfo: Used to pass yestify flag's address to the host driver. */
+struct vmci_set_yestify_info {
+	u64 yestify_uva;
 	s32 result;
 	u32 _pad;
 };
@@ -98,7 +98,7 @@ static atomic_t vmci_host_active_users = ATOMIC_INIT(0);
  * always present, all guests could possibly use the host
  * personality. However, to minimize the deviation from the
  * pre-unified driver state of affairs, we only consider the host
- * device active if there is no active guest device or if there
+ * device active if there is yes active guest device or if there
  * are VMX'en with active VMCI contexts using the host device.
  */
 bool vmci_host_code_active(void)
@@ -116,7 +116,7 @@ int vmci_host_users(void)
 /*
  * Called on open of /dev/vmci.
  */
-static int vmci_host_open(struct inode *inode, struct file *filp)
+static int vmci_host_open(struct iyesde *iyesde, struct file *filp)
 {
 	struct vmci_host_dev *vmci_host_dev;
 
@@ -135,7 +135,7 @@ static int vmci_host_open(struct inode *inode, struct file *filp)
  * Called on close of /dev/vmci, most often when the process
  * exits.
  */
-static int vmci_host_close(struct inode *inode, struct file *filp)
+static int vmci_host_close(struct iyesde *iyesde, struct file *filp)
 {
 	struct vmci_host_dev *vmci_host_dev = filp->private_data;
 
@@ -215,15 +215,15 @@ static int drv_cp_harray_to_user(void __user *user_buf_uva,
 }
 
 /*
- * Sets up a given context for notify to work. Maps the notify
+ * Sets up a given context for yestify to work. Maps the yestify
  * boolean in user VA into kernel space.
  */
-static int vmci_host_setup_notify(struct vmci_ctx *context,
+static int vmci_host_setup_yestify(struct vmci_ctx *context,
 				  unsigned long uva)
 {
 	int retval;
 
-	if (context->notify_page) {
+	if (context->yestify_page) {
 		pr_devel("%s: Notify mechanism is already set up\n", __func__);
 		return VMCI_ERROR_DUPLICATE_ENTRY;
 	}
@@ -239,17 +239,17 @@ static int vmci_host_setup_notify(struct vmci_ctx *context,
 	/*
 	 * Lock physical page backing a given user VA.
 	 */
-	retval = get_user_pages_fast(uva, 1, FOLL_WRITE, &context->notify_page);
+	retval = get_user_pages_fast(uva, 1, FOLL_WRITE, &context->yestify_page);
 	if (retval != 1) {
-		context->notify_page = NULL;
+		context->yestify_page = NULL;
 		return VMCI_ERROR_GENERIC;
 	}
 
 	/*
-	 * Map the locked page and set up notify pointer.
+	 * Map the locked page and set up yestify pointer.
 	 */
-	context->notify = kmap(context->notify_page) + (uva & (PAGE_SIZE - 1));
-	vmci_ctx_check_signal_notify(context);
+	context->yestify = kmap(context->yestify_page) + (uva & (PAGE_SIZE - 1));
+	vmci_ctx_check_signal_yestify(context);
 
 	return VMCI_SUCCESS;
 }
@@ -384,7 +384,7 @@ static int vmci_host_do_send_datagram(struct vmci_host_dev *vmci_host_dev,
 			 send_info.len);
 	if (IS_ERR(dg)) {
 		vmci_ioctl_err(
-			"cannot allocate memory to dispatch datagram\n");
+			"canyest allocate memory to dispatch datagram\n");
 		return PTR_ERR(dg);
 	}
 
@@ -522,7 +522,7 @@ static int vmci_host_do_queuepair_setva(struct vmci_host_dev *vmci_host_dev,
 	}
 
 	if (vmci_host_dev->user_version < VMCI_VERSION_NOVMVM) {
-		vmci_ioctl_err("is not allowed\n");
+		vmci_ioctl_err("is yest allowed\n");
 		return -EINVAL;
 	}
 
@@ -559,7 +559,7 @@ static int vmci_host_do_queuepair_setpf(struct vmci_host_dev *vmci_host_dev,
 
 	if (vmci_host_dev->user_version < VMCI_VERSION_HOSTQP ||
 	    vmci_host_dev->user_version >= VMCI_VERSION_NOVMVM) {
-		vmci_ioctl_err("not supported on this VMX (version=%d)\n",
+		vmci_ioctl_err("yest supported on this VMX (version=%d)\n",
 			       vmci_host_dev->user_version);
 		return -EINVAL;
 	}
@@ -574,9 +574,9 @@ static int vmci_host_do_queuepair_setpf(struct vmci_host_dev *vmci_host_dev,
 
 	/*
 	 * Communicate success pre-emptively to the caller.  Note that the
-	 * basic premise is that it is incumbent upon the caller not to look at
+	 * basic premise is that it is incumbent upon the caller yest to look at
 	 * the info.result field until after the ioctl() returns.  And then,
-	 * only if the ioctl() result indicates no error.  We send up the
+	 * only if the ioctl() result indicates yes error.  We send up the
 	 * SUCCESS status before calling SetPageStore() store because failing
 	 * to copy up the result code means unwinding the SetPageStore().
 	 *
@@ -609,14 +609,14 @@ static int vmci_host_do_queuepair_setpf(struct vmci_host_dev *vmci_host_dev,
 			 * communicate that to the caller (because the
 			 * copy_to_user() call failed).  So, if we
 			 * simply return an error (in this case
-			 * -EFAULT) then the caller will know that the
+			 * -EFAULT) then the caller will kyesw that the
 			 *  SetPageStore failed even though we couldn't
 			 *  put the result code in the result field and
 			 *  indicate exactly why it failed.
 			 *
-			 * That says nothing about the issue where we
+			 * That says yesthing about the issue where we
 			 * were once able to write to the caller's info
-			 * memory and now can't.  Something more
+			 * memory and yesw can't.  Something more
 			 * serious is probably going on than the fact
 			 * that SetPageStore() didn't work.
 			 */
@@ -653,7 +653,7 @@ static int vmci_host_do_qp_detach(struct vmci_host_dev *vmci_host_dev,
 	return put_user(result, &info->result) ? -EFAULT : 0;
 }
 
-static int vmci_host_do_ctx_add_notify(struct vmci_host_dev *vmci_host_dev,
+static int vmci_host_do_ctx_add_yestify(struct vmci_host_dev *vmci_host_dev,
 				       const char *ioctl_name,
 				       void __user *uptr)
 {
@@ -671,12 +671,12 @@ static int vmci_host_do_ctx_add_notify(struct vmci_host_dev *vmci_host_dev,
 		return -EFAULT;
 
 	cid = vmci_ctx_get_id(vmci_host_dev->context);
-	result = vmci_ctx_add_notification(cid, ar_info.remote_cid);
+	result = vmci_ctx_add_yestification(cid, ar_info.remote_cid);
 
 	return put_user(result, &info->result) ? -EFAULT : 0;
 }
 
-static int vmci_host_do_ctx_remove_notify(struct vmci_host_dev *vmci_host_dev,
+static int vmci_host_do_ctx_remove_yestify(struct vmci_host_dev *vmci_host_dev,
 					  const char *ioctl_name,
 					  void __user *uptr)
 {
@@ -694,7 +694,7 @@ static int vmci_host_do_ctx_remove_notify(struct vmci_host_dev *vmci_host_dev,
 		return -EFAULT;
 
 	cid = vmci_ctx_get_id(vmci_host_dev->context);
-	result = vmci_ctx_remove_notification(cid,
+	result = vmci_ctx_remove_yestification(cid,
 					      ar_info.remote_cid);
 
 	return put_user(result, &info->result) ? -EFAULT : 0;
@@ -773,38 +773,38 @@ static int vmci_host_do_get_context_id(struct vmci_host_dev *vmci_host_dev,
 	return put_user(VMCI_HOST_CONTEXT_ID, u32ptr) ? -EFAULT : 0;
 }
 
-static int vmci_host_do_set_notify(struct vmci_host_dev *vmci_host_dev,
+static int vmci_host_do_set_yestify(struct vmci_host_dev *vmci_host_dev,
 				   const char *ioctl_name,
 				   void __user *uptr)
 {
-	struct vmci_set_notify_info notify_info;
+	struct vmci_set_yestify_info yestify_info;
 
 	if (vmci_host_dev->ct_type != VMCIOBJ_CONTEXT) {
 		vmci_ioctl_err("only valid for contexts\n");
 		return -EINVAL;
 	}
 
-	if (copy_from_user(&notify_info, uptr, sizeof(notify_info)))
+	if (copy_from_user(&yestify_info, uptr, sizeof(yestify_info)))
 		return -EFAULT;
 
-	if (notify_info.notify_uva) {
-		notify_info.result =
-			vmci_host_setup_notify(vmci_host_dev->context,
-					       notify_info.notify_uva);
+	if (yestify_info.yestify_uva) {
+		yestify_info.result =
+			vmci_host_setup_yestify(vmci_host_dev->context,
+					       yestify_info.yestify_uva);
 	} else {
-		vmci_ctx_unset_notify(vmci_host_dev->context);
-		notify_info.result = VMCI_SUCCESS;
+		vmci_ctx_unset_yestify(vmci_host_dev->context);
+		yestify_info.result = VMCI_SUCCESS;
 	}
 
-	return copy_to_user(uptr, &notify_info, sizeof(notify_info)) ?
+	return copy_to_user(uptr, &yestify_info, sizeof(yestify_info)) ?
 		-EFAULT : 0;
 }
 
-static int vmci_host_do_notify_resource(struct vmci_host_dev *vmci_host_dev,
+static int vmci_host_do_yestify_resource(struct vmci_host_dev *vmci_host_dev,
 					const char *ioctl_name,
 					void __user *uptr)
 {
-	struct vmci_dbell_notify_resource_info info;
+	struct vmci_dbell_yestify_resource_info info;
 	u32 cid;
 
 	if (vmci_host_dev->user_version < VMCI_VERSION_NOTIFY) {
@@ -826,7 +826,7 @@ static int vmci_host_do_notify_resource(struct vmci_host_dev *vmci_host_dev,
 	case VMCI_NOTIFY_RESOURCE_ACTION_NOTIFY:
 		if (info.resource == VMCI_NOTIFY_RESOURCE_DOOR_BELL) {
 			u32 flags = VMCI_NO_PRIVILEGE_FLAGS;
-			info.result = vmci_ctx_notify_dbell(cid, info.handle,
+			info.result = vmci_ctx_yestify_dbell(cid, info.handle,
 							    flags);
 		} else {
 			info.result = VMCI_ERROR_UNAVAILABLE;
@@ -842,7 +842,7 @@ static int vmci_host_do_notify_resource(struct vmci_host_dev *vmci_host_dev,
 		break;
 
 	default:
-		vmci_ioctl_err("got unknown action (action=%d)\n",
+		vmci_ioctl_err("got unkyeswn action (action=%d)\n",
 			       info.action);
 		info.result = VMCI_ERROR_INVALID_ARGS;
 	}
@@ -850,11 +850,11 @@ static int vmci_host_do_notify_resource(struct vmci_host_dev *vmci_host_dev,
 	return copy_to_user(uptr, &info, sizeof(info)) ? -EFAULT : 0;
 }
 
-static int vmci_host_do_recv_notifications(struct vmci_host_dev *vmci_host_dev,
+static int vmci_host_do_recv_yestifications(struct vmci_host_dev *vmci_host_dev,
 					   const char *ioctl_name,
 					   void __user *uptr)
 {
-	struct vmci_ctx_notify_recv_info info;
+	struct vmci_ctx_yestify_recv_info info;
 	struct vmci_handle_arr *db_handle_array;
 	struct vmci_handle_arr *qp_handle_array;
 	void __user *ubuf;
@@ -867,7 +867,7 @@ static int vmci_host_do_recv_notifications(struct vmci_host_dev *vmci_host_dev,
 	}
 
 	if (vmci_host_dev->user_version < VMCI_VERSION_NOTIFY) {
-		vmci_ioctl_err("not supported for the current vmx version\n");
+		vmci_ioctl_err("yest supported for the current vmx version\n");
 		return -EINVAL;
 	}
 
@@ -881,7 +881,7 @@ static int vmci_host_do_recv_notifications(struct vmci_host_dev *vmci_host_dev,
 
 	cid = vmci_ctx_get_id(vmci_host_dev->context);
 
-	info.result = vmci_ctx_rcv_notifications_get(cid,
+	info.result = vmci_ctx_rcv_yestifications_get(cid,
 				&db_handle_array, &qp_handle_array);
 	if (info.result != VMCI_SUCCESS)
 		return copy_to_user(uptr, &info, sizeof(info)) ? -EFAULT : 0;
@@ -899,7 +899,7 @@ static int vmci_host_do_recv_notifications(struct vmci_host_dev *vmci_host_dev,
 	if (!retval && copy_to_user(uptr, &info, sizeof(info)))
 		retval = -EFAULT;
 
-	vmci_ctx_rcv_notifications_release(cid,
+	vmci_ctx_rcv_yestifications_release(cid,
 				db_handle_array, qp_handle_array,
 				info.result == VMCI_SUCCESS && !retval);
 
@@ -934,9 +934,9 @@ static long vmci_host_unlocked_ioctl(struct file *filp,
 	case IOCTL_VMCI_QUEUEPAIR_DETACH:
 		VMCI_DO_IOCTL(QUEUEPAIR_DETACH, qp_detach);
 	case IOCTL_VMCI_CTX_ADD_NOTIFICATION:
-		VMCI_DO_IOCTL(CTX_ADD_NOTIFICATION, ctx_add_notify);
+		VMCI_DO_IOCTL(CTX_ADD_NOTIFICATION, ctx_add_yestify);
 	case IOCTL_VMCI_CTX_REMOVE_NOTIFICATION:
-		VMCI_DO_IOCTL(CTX_REMOVE_NOTIFICATION, ctx_remove_notify);
+		VMCI_DO_IOCTL(CTX_REMOVE_NOTIFICATION, ctx_remove_yestify);
 	case IOCTL_VMCI_CTX_GET_CPT_STATE:
 		VMCI_DO_IOCTL(CTX_GET_CPT_STATE, ctx_get_cpt_state);
 	case IOCTL_VMCI_CTX_SET_CPT_STATE:
@@ -944,18 +944,18 @@ static long vmci_host_unlocked_ioctl(struct file *filp,
 	case IOCTL_VMCI_GET_CONTEXT_ID:
 		VMCI_DO_IOCTL(GET_CONTEXT_ID, get_context_id);
 	case IOCTL_VMCI_SET_NOTIFY:
-		VMCI_DO_IOCTL(SET_NOTIFY, set_notify);
+		VMCI_DO_IOCTL(SET_NOTIFY, set_yestify);
 	case IOCTL_VMCI_NOTIFY_RESOURCE:
-		VMCI_DO_IOCTL(NOTIFY_RESOURCE, notify_resource);
+		VMCI_DO_IOCTL(NOTIFY_RESOURCE, yestify_resource);
 	case IOCTL_VMCI_NOTIFICATIONS_RECEIVE:
-		VMCI_DO_IOCTL(NOTIFICATIONS_RECEIVE, recv_notifications);
+		VMCI_DO_IOCTL(NOTIFICATIONS_RECEIVE, recv_yestifications);
 
 	case IOCTL_VMCI_VERSION:
 	case IOCTL_VMCI_VERSION2:
 		return vmci_host_get_version(vmci_host_dev, iocmd, uptr);
 
 	default:
-		pr_devel("%s: Unknown ioctl (iocmd=%d)\n", __func__, iocmd);
+		pr_devel("%s: Unkyeswn ioctl (iocmd=%d)\n", __func__, iocmd);
 		return -EINVAL;
 	}
 
@@ -973,7 +973,7 @@ static const struct file_operations vmuser_fops = {
 
 static struct miscdevice vmci_host_miscdev = {
 	 .name = "vmci",
-	 .minor = MISC_DYNAMIC_MINOR,
+	 .miyesr = MISC_DYNAMIC_MINOR,
 	 .fops = &vmuser_fops,
 };
 
@@ -993,17 +993,17 @@ int __init vmci_host_init(void)
 
 	error = misc_register(&vmci_host_miscdev);
 	if (error) {
-		pr_warn("Module registration error (name=%s, major=%d, minor=%d, err=%d)\n",
+		pr_warn("Module registration error (name=%s, major=%d, miyesr=%d, err=%d)\n",
 			vmci_host_miscdev.name,
-			MISC_MAJOR, vmci_host_miscdev.minor,
+			MISC_MAJOR, vmci_host_miscdev.miyesr,
 			error);
 		pr_warn("Unable to initialize host personality\n");
 		vmci_ctx_destroy(host_context);
 		return error;
 	}
 
-	pr_info("VMCI host device registered (name=%s, major=%d, minor=%d)\n",
-		vmci_host_miscdev.name, MISC_MAJOR, vmci_host_miscdev.minor);
+	pr_info("VMCI host device registered (name=%s, major=%d, miyesr=%d)\n",
+		vmci_host_miscdev.name, MISC_MAJOR, vmci_host_miscdev.miyesr);
 
 	vmci_host_device_initialized = true;
 	return 0;

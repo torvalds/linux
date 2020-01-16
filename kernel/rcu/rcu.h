@@ -89,18 +89,18 @@ static inline unsigned long rcu_seq_snap(unsigned long *sp)
 	unsigned long s;
 
 	s = (READ_ONCE(*sp) + 2 * RCU_SEQ_STATE_MASK + 1) & ~RCU_SEQ_STATE_MASK;
-	smp_mb(); /* Above access must not bleed into critical section. */
+	smp_mb(); /* Above access must yest bleed into critical section. */
 	return s;
 }
 
-/* Return the current value the update side's sequence number, no ordering. */
+/* Return the current value the update side's sequence number, yes ordering. */
 static inline unsigned long rcu_seq_current(unsigned long *sp)
 {
 	return READ_ONCE(*sp);
 }
 
 /*
- * Given a snapshot from rcu_seq_snap(), determine whether or not the
+ * Given a snapshot from rcu_seq_snap(), determine whether or yest the
  * corresponding update-side operation has started.
  */
 static inline bool rcu_seq_started(unsigned long *sp, unsigned long s)
@@ -109,7 +109,7 @@ static inline bool rcu_seq_started(unsigned long *sp, unsigned long s)
 }
 
 /*
- * Given a snapshot from rcu_seq_snap(), determine whether or not a
+ * Given a snapshot from rcu_seq_snap(), determine whether or yest a
  * full update-side operation has occurred.
  */
 static inline bool rcu_seq_done(unsigned long *sp, unsigned long s)
@@ -146,19 +146,19 @@ static inline unsigned long rcu_seq_diff(unsigned long new, unsigned long old)
 		return 0;
 	/*
 	 * Compute the number of grace periods (still shifted up), plus
-	 * one if either of new and old is not an exact grace period.
+	 * one if either of new and old is yest an exact grace period.
 	 */
 	rnd_diff = (new & ~RCU_SEQ_STATE_MASK) -
 		   ((old + RCU_SEQ_STATE_MASK) & ~RCU_SEQ_STATE_MASK) +
 		   ((new & RCU_SEQ_STATE_MASK) || (old & RCU_SEQ_STATE_MASK));
 	if (ULONG_CMP_GE(RCU_SEQ_STATE_MASK, rnd_diff))
-		return 1; /* Definitely no grace period has elapsed. */
+		return 1; /* Definitely yes grace period has elapsed. */
 	return ((rnd_diff - RCU_SEQ_STATE_MASK - 1) >> RCU_SEQ_CTR_SHIFT) + 2;
 }
 
 /*
  * debug_rcu_head_queue()/debug_rcu_head_unqueue() are used internally
- * by call_rcu() and rcu callback execution, and are therefore not part
+ * by call_rcu() and rcu callback execution, and are therefore yest part
  * of the RCU API. These are in rcupdate.h because they are used by all
  * RCU implementations.
  */
@@ -201,7 +201,7 @@ static inline void debug_rcu_head_unqueue(struct rcu_head *head)
 void kfree(const void *);
 
 /*
- * Reclaim the specified callback, either by invoking it (non-lazy case)
+ * Reclaim the specified callback, either by invoking it (yesn-lazy case)
  * or freeing it directly (lazy case).  Return true if lazy, false otherwise.
  */
 static inline bool __rcu_reclaim(const char *rn, struct rcu_head *head)
@@ -283,17 +283,17 @@ extern void resched_cpu(int cpu);
 
 #if defined(SRCU) || !defined(TINY_RCU)
 
-#include <linux/rcu_node_tree.h>
+#include <linux/rcu_yesde_tree.h>
 
 extern int rcu_num_lvls;
 extern int num_rcu_lvl[];
-extern int rcu_num_nodes;
-static bool rcu_fanout_exact;
-static int rcu_fanout_leaf;
+extern int rcu_num_yesdes;
+static bool rcu_fayesut_exact;
+static int rcu_fayesut_leaf;
 
 /*
- * Compute the per-level fanout, either using the exact fanout specified
- * or balancing the tree, depending on the rcu_fanout_exact boot parameter.
+ * Compute the per-level fayesut, either using the exact fayesut specified
+ * or balancing the tree, depending on the rcu_fayesut_exact boot parameter.
  */
 static inline void rcu_init_levelspread(int *levelspread, const int *levelcnt)
 {
@@ -301,8 +301,8 @@ static inline void rcu_init_levelspread(int *levelspread, const int *levelcnt)
 
 	for (i = 0; i < RCU_NUM_LVLS; i++)
 		levelspread[i] = INT_MIN;
-	if (rcu_fanout_exact) {
-		levelspread[rcu_num_lvls - 1] = rcu_fanout_leaf;
+	if (rcu_fayesut_exact) {
+		levelspread[rcu_num_lvls - 1] = rcu_fayesut_leaf;
 		for (i = rcu_num_lvls - 2; i >= 0; i--)
 			levelspread[i] = RCU_FANOUT;
 	} else {
@@ -318,95 +318,95 @@ static inline void rcu_init_levelspread(int *levelspread, const int *levelcnt)
 	}
 }
 
-/* Returns a pointer to the first leaf rcu_node structure. */
-#define rcu_first_leaf_node() (rcu_state.level[rcu_num_lvls - 1])
+/* Returns a pointer to the first leaf rcu_yesde structure. */
+#define rcu_first_leaf_yesde() (rcu_state.level[rcu_num_lvls - 1])
 
-/* Is this rcu_node a leaf? */
-#define rcu_is_leaf_node(rnp) ((rnp)->level == rcu_num_lvls - 1)
+/* Is this rcu_yesde a leaf? */
+#define rcu_is_leaf_yesde(rnp) ((rnp)->level == rcu_num_lvls - 1)
 
-/* Is this rcu_node the last leaf? */
-#define rcu_is_last_leaf_node(rnp) ((rnp) == &rcu_state.node[rcu_num_nodes - 1])
+/* Is this rcu_yesde the last leaf? */
+#define rcu_is_last_leaf_yesde(rnp) ((rnp) == &rcu_state.yesde[rcu_num_yesdes - 1])
 
 /*
- * Do a full breadth-first scan of the {s,}rcu_node structures for the
+ * Do a full breadth-first scan of the {s,}rcu_yesde structures for the
  * specified state structure (for SRCU) or the only rcu_state structure
  * (for RCU).
  */
-#define srcu_for_each_node_breadth_first(sp, rnp) \
-	for ((rnp) = &(sp)->node[0]; \
-	     (rnp) < &(sp)->node[rcu_num_nodes]; (rnp)++)
-#define rcu_for_each_node_breadth_first(rnp) \
-	srcu_for_each_node_breadth_first(&rcu_state, rnp)
+#define srcu_for_each_yesde_breadth_first(sp, rnp) \
+	for ((rnp) = &(sp)->yesde[0]; \
+	     (rnp) < &(sp)->yesde[rcu_num_yesdes]; (rnp)++)
+#define rcu_for_each_yesde_breadth_first(rnp) \
+	srcu_for_each_yesde_breadth_first(&rcu_state, rnp)
 
 /*
- * Scan the leaves of the rcu_node hierarchy for the rcu_state structure.
- * Note that if there is a singleton rcu_node tree with but one rcu_node
- * structure, this loop -will- visit the rcu_node structure.  It is still
- * a leaf node, even if it is also the root node.
+ * Scan the leaves of the rcu_yesde hierarchy for the rcu_state structure.
+ * Note that if there is a singleton rcu_yesde tree with but one rcu_yesde
+ * structure, this loop -will- visit the rcu_yesde structure.  It is still
+ * a leaf yesde, even if it is also the root yesde.
  */
-#define rcu_for_each_leaf_node(rnp) \
-	for ((rnp) = rcu_first_leaf_node(); \
-	     (rnp) < &rcu_state.node[rcu_num_nodes]; (rnp)++)
+#define rcu_for_each_leaf_yesde(rnp) \
+	for ((rnp) = rcu_first_leaf_yesde(); \
+	     (rnp) < &rcu_state.yesde[rcu_num_yesdes]; (rnp)++)
 
 /*
- * Iterate over all possible CPUs in a leaf RCU node.
+ * Iterate over all possible CPUs in a leaf RCU yesde.
  */
-#define for_each_leaf_node_possible_cpu(rnp, cpu) \
+#define for_each_leaf_yesde_possible_cpu(rnp, cpu) \
 	for ((cpu) = cpumask_next((rnp)->grplo - 1, cpu_possible_mask); \
 	     (cpu) <= rnp->grphi; \
 	     (cpu) = cpumask_next((cpu), cpu_possible_mask))
 
 /*
- * Iterate over all CPUs in a leaf RCU node's specified mask.
+ * Iterate over all CPUs in a leaf RCU yesde's specified mask.
  */
 #define rcu_find_next_bit(rnp, cpu, mask) \
 	((rnp)->grplo + find_next_bit(&(mask), BITS_PER_LONG, (cpu)))
-#define for_each_leaf_node_cpu_mask(rnp, cpu, mask) \
+#define for_each_leaf_yesde_cpu_mask(rnp, cpu, mask) \
 	for ((cpu) = rcu_find_next_bit((rnp), 0, (mask)); \
 	     (cpu) <= rnp->grphi; \
 	     (cpu) = rcu_find_next_bit((rnp), (cpu) + 1 - (rnp->grplo), (mask)))
 
 /*
- * Wrappers for the rcu_node::lock acquire and release.
+ * Wrappers for the rcu_yesde::lock acquire and release.
  *
- * Because the rcu_nodes form a tree, the tree traversal locking will observe
+ * Because the rcu_yesdes form a tree, the tree traversal locking will observe
  * different lock values, this in turn means that an UNLOCK of one level
- * followed by a LOCK of another level does not imply a full memory barrier;
+ * followed by a LOCK of ayesther level does yest imply a full memory barrier;
  * and most importantly transitivity is lost.
  *
  * In order to restore full ordering between tree levels, augment the regular
  * lock acquire functions with smp_mb__after_unlock_lock().
  *
- * As ->lock of struct rcu_node is a __private field, therefore one should use
+ * As ->lock of struct rcu_yesde is a __private field, therefore one should use
  * these wrappers rather than directly call raw_spin_{lock,unlock}* on ->lock.
  */
-#define raw_spin_lock_rcu_node(p)					\
+#define raw_spin_lock_rcu_yesde(p)					\
 do {									\
 	raw_spin_lock(&ACCESS_PRIVATE(p, lock));			\
 	smp_mb__after_unlock_lock();					\
 } while (0)
 
-#define raw_spin_unlock_rcu_node(p) raw_spin_unlock(&ACCESS_PRIVATE(p, lock))
+#define raw_spin_unlock_rcu_yesde(p) raw_spin_unlock(&ACCESS_PRIVATE(p, lock))
 
-#define raw_spin_lock_irq_rcu_node(p)					\
+#define raw_spin_lock_irq_rcu_yesde(p)					\
 do {									\
 	raw_spin_lock_irq(&ACCESS_PRIVATE(p, lock));			\
 	smp_mb__after_unlock_lock();					\
 } while (0)
 
-#define raw_spin_unlock_irq_rcu_node(p)					\
+#define raw_spin_unlock_irq_rcu_yesde(p)					\
 	raw_spin_unlock_irq(&ACCESS_PRIVATE(p, lock))
 
-#define raw_spin_lock_irqsave_rcu_node(p, flags)			\
+#define raw_spin_lock_irqsave_rcu_yesde(p, flags)			\
 do {									\
 	raw_spin_lock_irqsave(&ACCESS_PRIVATE(p, lock), flags);	\
 	smp_mb__after_unlock_lock();					\
 } while (0)
 
-#define raw_spin_unlock_irqrestore_rcu_node(p, flags)			\
+#define raw_spin_unlock_irqrestore_rcu_yesde(p, flags)			\
 	raw_spin_unlock_irqrestore(&ACCESS_PRIVATE(p, lock), flags)
 
-#define raw_spin_trylock_rcu_node(p)					\
+#define raw_spin_trylock_rcu_yesde(p)					\
 ({									\
 	bool ___locked = raw_spin_trylock(&ACCESS_PRIVATE(p, lock));	\
 									\
@@ -415,7 +415,7 @@ do {									\
 	___locked;							\
 })
 
-#define raw_lockdep_assert_held_rcu_node(p)				\
+#define raw_lockdep_assert_held_rcu_yesde(p)				\
 	lockdep_assert_held(&ACCESS_PRIVATE(p, lock))
 
 #endif /* #if defined(SRCU) || !defined(TINY_RCU) */
@@ -428,17 +428,17 @@ static inline void srcu_init(void) { }
 
 #ifdef CONFIG_TINY_RCU
 /* Tiny RCU doesn't expedite, as its purpose in life is instead to be tiny. */
-static inline bool rcu_gp_is_normal(void) { return true; }
+static inline bool rcu_gp_is_yesrmal(void) { return true; }
 static inline bool rcu_gp_is_expedited(void) { return false; }
 static inline void rcu_expedite_gp(void) { }
 static inline void rcu_unexpedite_gp(void) { }
 static inline void rcu_request_urgent_qs_task(struct task_struct *t) { }
 #else /* #ifdef CONFIG_TINY_RCU */
-bool rcu_gp_is_normal(void);     /* Internal RCU use. */
+bool rcu_gp_is_yesrmal(void);     /* Internal RCU use. */
 bool rcu_gp_is_expedited(void);  /* Internal RCU use. */
 void rcu_expedite_gp(void);
 void rcu_unexpedite_gp(void);
-void rcupdate_announce_bootup_oddness(void);
+void rcupdate_anyesunce_bootup_oddness(void);
 void rcu_request_urgent_qs_task(struct task_struct *t);
 #endif /* #else #ifdef CONFIG_TINY_RCU */
 
@@ -527,11 +527,11 @@ extern struct workqueue_struct *rcu_par_gp_wq;
 #endif /* #else #ifdef CONFIG_TINY_RCU */
 
 #ifdef CONFIG_RCU_NOCB_CPU
-bool rcu_is_nocb_cpu(int cpu);
-void rcu_bind_current_to_nocb(void);
+bool rcu_is_yescb_cpu(int cpu);
+void rcu_bind_current_to_yescb(void);
 #else
-static inline bool rcu_is_nocb_cpu(int cpu) { return false; }
-static inline void rcu_bind_current_to_nocb(void) { }
+static inline bool rcu_is_yescb_cpu(int cpu) { return false; }
+static inline void rcu_bind_current_to_yescb(void) { }
 #endif
 
 #endif /* __LINUX_RCU_H */

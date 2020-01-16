@@ -4,7 +4,7 @@
  *
  * Copyright (C) 2010 Nokia Corporation
  *
- * Contact: Luciano Coelho <luciano.coelho@nokia.com>
+ * Contact: Luciayes Coelho <luciayes.coelho@yeskia.com>
  */
 #include "testmode.h"
 
@@ -24,9 +24,9 @@ enum wl1271_tm_commands {
 	WL1271_TM_CMD_TEST,
 	WL1271_TM_CMD_INTERROGATE,
 	WL1271_TM_CMD_CONFIGURE,
-	WL1271_TM_CMD_NVS_PUSH,		/* Not in use. Keep to not break ABI */
+	WL1271_TM_CMD_NVS_PUSH,		/* Not in use. Keep to yest break ABI */
 	WL1271_TM_CMD_SET_PLT_MODE,
-	WL1271_TM_CMD_RECOVER,		/* Not in use. Keep to not break ABI */
+	WL1271_TM_CMD_RECOVER,		/* Not in use. Keep to yest break ABI */
 	WL1271_TM_CMD_GET_MAC,
 
 	__WL1271_TM_CMD_AFTER_LAST
@@ -85,7 +85,7 @@ static int wl1271_tm_cmd_test(struct wl1271 *wl, struct nlattr *tb[])
 
 	ret = pm_runtime_get_sync(wl->dev);
 	if (ret < 0) {
-		pm_runtime_put_noidle(wl->dev);
+		pm_runtime_put_yesidle(wl->dev);
 		goto out;
 	}
 
@@ -160,7 +160,7 @@ static int wl1271_tm_cmd_interrogate(struct wl1271 *wl, struct nlattr *tb[])
 
 	ret = pm_runtime_get_sync(wl->dev);
 	if (ret < 0) {
-		pm_runtime_put_noidle(wl->dev);
+		pm_runtime_put_yesidle(wl->dev);
 		goto out;
 	}
 

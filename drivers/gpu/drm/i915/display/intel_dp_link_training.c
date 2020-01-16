@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -246,7 +246,7 @@ static u32 intel_dp_training_pattern(struct intel_dp *intel_dp)
 
 	/*
 	 * Intel platforms that support HBR3 also support TPS4. It is mandatory
-	 * for all downstream devices that support HBR3. There are no known eDP
+	 * for all downstream devices that support HBR3. There are yes kyeswn eDP
 	 * panels that support TPS4 as of Feb 2018 as per VESA eDP_v1.4b_E1
 	 * specification.
 	 */
@@ -262,7 +262,7 @@ static u32 intel_dp_training_pattern(struct intel_dp *intel_dp)
 	}
 	/*
 	 * Intel platforms that support HBR2 also support TPS3. TPS3 support is
-	 * also mandatory for downstream devices that support HBR2. However, not
+	 * also mandatory for downstream devices that support HBR2. However, yest
 	 * all sinks follow the spec.
 	 */
 	source_tps3 = intel_dp_source_supports_hbr2(intel_dp);
@@ -311,7 +311,7 @@ intel_dp_link_training_channel_equalization(struct intel_dp *intel_dp)
 		if (!drm_dp_clock_recovery_ok(link_status,
 					      intel_dp->lane_count)) {
 			intel_dp_dump_link_status(link_status);
-			DRM_DEBUG_KMS("Clock recovery check failed, cannot "
+			DRM_DEBUG_KMS("Clock recovery check failed, canyest "
 				      "continue channel equalization\n");
 			break;
 		}

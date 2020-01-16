@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 /*
  * include/asm-xtensa/mman.h
  *
@@ -17,12 +17,12 @@
 
 /*
  * Protections are chosen from these bits, OR'd together.  The
- * implementation does not necessarily support PROT_EXEC or PROT_WRITE
- * without PROT_READ.  The only guarantees are that no writing will be
- * allowed without PROT_WRITE and no access will be allowed for PROT_NONE.
+ * implementation does yest necessarily support PROT_EXEC or PROT_WRITE
+ * without PROT_READ.  The only guarantees are that yes writing will be
+ * allowed without PROT_WRITE and yes access will be allowed for PROT_NONE.
  */
 
-#define PROT_NONE	0x0		/* page can not be accessed */
+#define PROT_NONE	0x0		/* page can yest be accessed */
 #define PROT_READ	0x1		/* page can be read */
 #define PROT_WRITE	0x2		/* page can be written */
 #define PROT_EXEC	0x4		/* page can be executed */
@@ -38,7 +38,7 @@
 #define MAP_TYPE	0x00f		/* Mask for type of mapping */
 #define MAP_FIXED	0x010		/* Interpret addr exactly */
 
-/* not used by linux, but here to make sure we don't clash with ABI defines */
+/* yest used by linux, but here to make sure we don't clash with ABI defines */
 #define MAP_RENAME	0x020		/* Assign page to file */
 #define MAP_AUTOGROW	0x040		/* File may grow by writing */
 #define MAP_LOCAL	0x080		/* Copy on fork/sproc */
@@ -52,19 +52,19 @@
 #define MAP_EXECUTABLE	0x4000		/* mark it as an executable */
 #define MAP_LOCKED	0x8000		/* pages are locked */
 #define MAP_POPULATE	0x10000		/* populate (prefault) pagetables */
-#define MAP_NONBLOCK	0x20000		/* do not block on IO */
+#define MAP_NONBLOCK	0x20000		/* do yest block on IO */
 #define MAP_STACK	0x40000		/* give out an address that is best suited for process/thread stacks */
 #define MAP_HUGETLB	0x80000		/* create a huge page mapping */
 #define MAP_FIXED_NOREPLACE 0x100000	/* MAP_FIXED which doesn't unmap underlying mapping */
-#define MAP_UNINITIALIZED 0x4000000	/* For anonymous mmap, memory could be
+#define MAP_UNINITIALIZED 0x4000000	/* For ayesnymous mmap, memory could be
 					 * uninitialized */
 
 /*
  * Flags for msync
  */
-#define MS_ASYNC	0x0001		/* sync memory asynchronously */
+#define MS_ASYNC	0x0001		/* sync memory asynchroyesusly */
 #define MS_INVALIDATE	0x0002		/* invalidate mappings & caches */
-#define MS_SYNC		0x0004		/* synchronous memory sync */
+#define MS_SYNC		0x0004		/* synchroyesus memory sync */
 
 /*
  * Flags for mlockall
@@ -76,9 +76,9 @@
 /*
  * Flags for mlock
  */
-#define MLOCK_ONFAULT	0x01		/* Lock pages in range after they are faulted in, do not prefault */
+#define MLOCK_ONFAULT	0x01		/* Lock pages in range after they are faulted in, do yest prefault */
 
-#define MADV_NORMAL	0		/* no further special treatment */
+#define MADV_NORMAL	0		/* yes further special treatment */
 #define MADV_RANDOM	1		/* expect random page references */
 #define MADV_SEQUENTIAL	2		/* expect sequential page references */
 #define MADV_WILLNEED	3		/* will need these pages */
@@ -91,7 +91,7 @@
 #define MADV_DOFORK	11		/* do inherit across fork */
 
 #define MADV_MERGEABLE   12		/* KSM may merge identical pages */
-#define MADV_UNMERGEABLE 13		/* KSM may not merge identical pages */
+#define MADV_UNMERGEABLE 13		/* KSM may yest merge identical pages */
 
 #define MADV_HUGEPAGE	14		/* Worth backing with hugepages */
 #define MADV_NOHUGEPAGE	15		/* Not worth backing with hugepages */

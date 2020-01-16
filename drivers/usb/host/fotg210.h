@@ -8,11 +8,11 @@
 
 /*
  * __hc32 and __hc16 are "Host Controller" types, they may be equivalent to
- * __leXX (normally) or __beXX (given FOTG210_BIG_ENDIAN_DESC), depending on
+ * __leXX (yesrmally) or __beXX (given FOTG210_BIG_ENDIAN_DESC), depending on
  * the host controller implementation.
  *
  * To facilitate the strongest possible byte-order checking from "sparse"
- * and so on, we use __leXX unless that's not practical.
+ * and so on, we use __leXX unless that's yest practical.
  */
 #define __hc32	__le32
 #define __hc16	__le16
@@ -20,7 +20,7 @@
 /* statistics can be kept for tuning/monitoring */
 struct fotg210_stats {
 	/* irq usage */
-	unsigned long		normal;
+	unsigned long		yesrmal;
 	unsigned long		error;
 	unsigned long		iaa;
 	unsigned long		lost_iaa;
@@ -44,7 +44,7 @@ struct fotg210_stats {
 
 /*
  * fotg210_rh_state values of FOTG210_RH_RUNNING or above mean that the
- * controller may be doing DMA.  Lower values mean there's no DMA.
+ * controller may be doing DMA.  Lower values mean there's yes DMA.
  */
 enum fotg210_rh_state {
 	FOTG210_RH_HALTED,
@@ -122,7 +122,7 @@ struct fotg210_hcd {			/* one per controller */
 	struct fotg210_qh		*intr_unlink;
 	struct fotg210_qh		*intr_unlink_last;
 	unsigned		intr_unlink_cycle;
-	unsigned		now_frame;	/* frame from HC hardware */
+	unsigned		yesw_frame;	/* frame from HC hardware */
 	unsigned		next_frame;	/* scan periodic, start here */
 	unsigned		intr_count;	/* intr activity count */
 	unsigned		isoc_count;	/* isoc activity count */
@@ -131,7 +131,7 @@ struct fotg210_hcd {			/* one per controller */
 	unsigned		uframe_periodic_max;
 
 
-	/* list of itds completed while now_frame was still active */
+	/* list of itds completed while yesw_frame was still active */
 	struct list_head	cached_itd_list;
 	struct fotg210_itd	*last_itd_to_free;
 
@@ -240,7 +240,7 @@ struct fotg210_regs {
 #define CMD_ASE		(1<<5)		/* async schedule enable */
 #define CMD_PSE		(1<<4)		/* periodic schedule enable */
 /* 3:2 is periodic frame list size */
-#define CMD_RESET	(1<<1)		/* reset HC not bus */
+#define CMD_RESET	(1<<1)		/* reset HC yest bus */
 #define CMD_RUN		(1<<0)		/* start/stop HC */
 
 	/* USBSTS: offset 0x04 */
@@ -256,7 +256,7 @@ struct fotg210_regs {
 #define STS_FLR		(1<<3)		/* frame list rolled over */
 #define STS_PCD		(1<<2)		/* port change detect */
 #define STS_ERR		(1<<1)		/* "error" completion (overflow, ...) */
-#define STS_INT		(1<<0)		/* "normal" completion (short, ...) */
+#define STS_INT		(1<<0)		/* "yesrmal" completion (short, ...) */
 
 	/* USBINTR: offset 0x08 */
 	u32		intr_enable;
@@ -361,11 +361,11 @@ struct fotg210_qtd {
 #define Q_NEXT_TYPE(fotg210, dma)	((dma) & cpu_to_hc32(fotg210, 3 << 1))
 
 /*
- * Now the following defines are not converted using the
+ * Now the following defines are yest converted using the
  * cpu_to_le32() macro anymore, since we have to support
  * "dynamic" switching between be and le support, so that the driver
  * can be used on one system with SoC EHCI controller using big-endian
- * descriptors as well as a normal little-endian PCI EHCI controller.
+ * descriptors as well as a yesrmal little-endian PCI EHCI controller.
  */
 /* values for that type tag */
 #define Q_TYPE_ITD	(0 << 1)
@@ -440,7 +440,7 @@ struct fotg210_qh {
 	dma_addr_t		qh_dma;		/* address of qh */
 	union fotg210_shadow	qh_next;	/* ptr to qh; or periodic */
 	struct list_head	qtd_list;	/* sw qtd list */
-	struct list_head	intr_node;	/* list of intr QHs */
+	struct list_head	intr_yesde;	/* list of intr QHs */
 	struct fotg210_qtd	*dummy;
 	struct fotg210_qh	*unlink_next;	/* next on unlink list */
 
@@ -484,7 +484,7 @@ struct fotg210_iso_packet {
 };
 
 /* temporary schedule data for packets from iso urbs (both speeds)
- * each packet is one logical usb transaction to the device (not TT),
+ * each packet is one logical usb transaction to the device (yest TT),
  * beginning at stream->next_uframe
  */
 struct fotg210_iso_sched {
@@ -536,7 +536,7 @@ struct fotg210_iso_stream {
 
 /*
  * EHCI Specification 0.95 Section 3.3
- * Fig 3-4 "Isochronous Transaction Descriptor (iTD)"
+ * Fig 3-4 "Isochroyesus Transaction Descriptor (iTD)"
  *
  * Schedule records for high speed iso xfers
  */
@@ -604,7 +604,7 @@ struct fotg210_fstn {
 
 /*
  * Some EHCI controllers have a Transaction Translator built into the
- * root hub. This is a non-standard feature.  Each controller will need
+ * root hub. This is a yesn-standard feature.  Each controller will need
  * to add code to the following inline functions, and call them as
  * needed (mostly in root hub code).
  */
@@ -633,11 +633,11 @@ fotg210_port_speed(struct fotg210_hcd *fotg210, unsigned int portsc)
 
 /*-------------------------------------------------------------------------*/
 
-#define	fotg210_has_fsl_portno_bug(e)		(0)
+#define	fotg210_has_fsl_portyes_bug(e)		(0)
 
 /*
  * While most USB host controllers implement their registers in
- * little-endian format, a minority (celleb companion chip) implement
+ * little-endian format, a miyesrity (celleb companion chip) implement
  * them in big endian format.
  *
  * This attempts to support either format at compile time without a

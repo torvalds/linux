@@ -32,7 +32,7 @@ Required properties:
 - reg: integer, I2C address of the fuel gauge.
 
 Optional properties:
-- monitored-battery: phandle of battery characteristics node
+- monitored-battery: phandle of battery characteristics yesde
     The fuel gauge uses the following battery properties:
     + energy-full-design-microwatt-hours
     + charge-full-design-microamp-hours

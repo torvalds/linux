@@ -25,12 +25,12 @@
  * are met:
  *
  *  - Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  *  - Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
+ *    yestice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
- *  - Neither the name of Intel Corporation nor the names of its
+ *  - Neither the name of Intel Corporation yesr the names of its
  *    contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
@@ -68,6 +68,6 @@ int rvt_post_srq_recv(struct ib_srq *ibsrq, const struct ib_recv_wr *wr,
 		      const struct ib_recv_wr **bad_wr);
 int rvt_wss_init(struct rvt_dev_info *rdi);
 void rvt_wss_exit(struct rvt_dev_info *rdi);
-int rvt_alloc_rq(struct rvt_rq *rq, u32 size, int node,
+int rvt_alloc_rq(struct rvt_rq *rq, u32 size, int yesde,
 		 struct ib_udata *udata);
 #endif          /* DEF_RVTQP_H */

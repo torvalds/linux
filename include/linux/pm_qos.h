@@ -6,7 +6,7 @@
  * Mark Gross <mgross@linux.intel.com>
  */
 #include <linux/plist.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/device.h>
 #include <linux/workqueue.h>
 
@@ -41,14 +41,14 @@ enum pm_qos_flags_status {
 #define PM_QOS_FLAG_NO_POWER_OFF	(1 << 0)
 
 struct pm_qos_request {
-	struct plist_node node;
+	struct plist_yesde yesde;
 	int pm_qos_class;
 	struct delayed_work work; /* for pm_qos_update_request_timeout */
 };
 
 struct pm_qos_flags_request {
-	struct list_head node;
-	s32 flags;	/* Do not change to 64 bit */
+	struct list_head yesde;
+	s32 flags;	/* Do yest change to 64 bit */
 };
 
 enum pm_qos_type {
@@ -65,16 +65,16 @@ enum pm_qos_type {
  */
 struct pm_qos_constraints {
 	struct plist_head list;
-	s32 target_value;	/* Do not change to 64 bit */
+	s32 target_value;	/* Do yest change to 64 bit */
 	s32 default_value;
-	s32 no_constraint_value;
+	s32 yes_constraint_value;
 	enum pm_qos_type type;
-	struct blocking_notifier_head *notifiers;
+	struct blocking_yestifier_head *yestifiers;
 };
 
 struct pm_qos_flags {
 	struct list_head list;
-	s32 effective_flags;	/* Do not change to 64 bit */
+	s32 effective_flags;	/* Do yest change to 64 bit */
 };
 
 
@@ -88,14 +88,14 @@ enum freq_qos_req_type {
 
 struct freq_constraints {
 	struct pm_qos_constraints min_freq;
-	struct blocking_notifier_head min_freq_notifiers;
+	struct blocking_yestifier_head min_freq_yestifiers;
 	struct pm_qos_constraints max_freq;
-	struct blocking_notifier_head max_freq_notifiers;
+	struct blocking_yestifier_head max_freq_yestifiers;
 };
 
 struct freq_qos_request {
 	enum freq_qos_req_type type;
-	struct plist_node pnode;
+	struct plist_yesde pyesde;
 	struct freq_constraints *qos;
 };
 
@@ -111,7 +111,7 @@ enum dev_pm_qos_req_type {
 struct dev_pm_qos_request {
 	enum dev_pm_qos_req_type type;
 	union {
-		struct plist_node pnode;
+		struct plist_yesde pyesde;
 		struct pm_qos_flags_request flr;
 		struct freq_qos_request freq;
 	} data;
@@ -140,7 +140,7 @@ static inline int dev_pm_qos_request_active(struct dev_pm_qos_request *req)
 	return req->dev != NULL;
 }
 
-int pm_qos_update_target(struct pm_qos_constraints *c, struct plist_node *node,
+int pm_qos_update_target(struct pm_qos_constraints *c, struct plist_yesde *yesde,
 			 enum pm_qos_req_action action, int value);
 bool pm_qos_update_flags(struct pm_qos_flags *pqf,
 			 struct pm_qos_flags_request *req,
@@ -154,8 +154,8 @@ void pm_qos_update_request_timeout(struct pm_qos_request *req,
 void pm_qos_remove_request(struct pm_qos_request *req);
 
 int pm_qos_request(int pm_qos_class);
-int pm_qos_add_notifier(int pm_qos_class, struct notifier_block *notifier);
-int pm_qos_remove_notifier(int pm_qos_class, struct notifier_block *notifier);
+int pm_qos_add_yestifier(int pm_qos_class, struct yestifier_block *yestifier);
+int pm_qos_remove_yestifier(int pm_qos_class, struct yestifier_block *yestifier);
 int pm_qos_request_active(struct pm_qos_request *req);
 s32 pm_qos_read_value(struct pm_qos_constraints *c);
 
@@ -168,11 +168,11 @@ int dev_pm_qos_add_request(struct device *dev, struct dev_pm_qos_request *req,
 			   enum dev_pm_qos_req_type type, s32 value);
 int dev_pm_qos_update_request(struct dev_pm_qos_request *req, s32 new_value);
 int dev_pm_qos_remove_request(struct dev_pm_qos_request *req);
-int dev_pm_qos_add_notifier(struct device *dev,
-			    struct notifier_block *notifier,
+int dev_pm_qos_add_yestifier(struct device *dev,
+			    struct yestifier_block *yestifier,
 			    enum dev_pm_qos_req_type type);
-int dev_pm_qos_remove_notifier(struct device *dev,
-			       struct notifier_block *notifier,
+int dev_pm_qos_remove_yestifier(struct device *dev,
+			       struct yestifier_block *yestifier,
 			       enum dev_pm_qos_req_type type);
 void dev_pm_qos_constraints_init(struct device *dev);
 void dev_pm_qos_constraints_destroy(struct device *dev);
@@ -191,7 +191,7 @@ void dev_pm_qos_hide_latency_tolerance(struct device *dev);
 
 static inline s32 dev_pm_qos_requested_resume_latency(struct device *dev)
 {
-	return dev->power.qos->resume_latency_req->data.pnode.prio;
+	return dev->power.qos->resume_latency_req->data.pyesde.prio;
 }
 
 static inline s32 dev_pm_qos_requested_flags(struct device *dev)
@@ -240,12 +240,12 @@ static inline int dev_pm_qos_update_request(struct dev_pm_qos_request *req,
 			{ return 0; }
 static inline int dev_pm_qos_remove_request(struct dev_pm_qos_request *req)
 			{ return 0; }
-static inline int dev_pm_qos_add_notifier(struct device *dev,
-					  struct notifier_block *notifier,
+static inline int dev_pm_qos_add_yestifier(struct device *dev,
+					  struct yestifier_block *yestifier,
 					  enum dev_pm_qos_req_type type)
 			{ return 0; }
-static inline int dev_pm_qos_remove_notifier(struct device *dev,
-					     struct notifier_block *notifier,
+static inline int dev_pm_qos_remove_yestifier(struct device *dev,
+					     struct yestifier_block *yestifier,
 					     enum dev_pm_qos_req_type type)
 			{ return 0; }
 static inline void dev_pm_qos_constraints_init(struct device *dev)
@@ -306,11 +306,11 @@ int freq_qos_remove_request(struct freq_qos_request *req);
 int freq_qos_apply(struct freq_qos_request *req,
 		   enum pm_qos_req_action action, s32 value);
 
-int freq_qos_add_notifier(struct freq_constraints *qos,
+int freq_qos_add_yestifier(struct freq_constraints *qos,
 			  enum freq_qos_req_type type,
-			  struct notifier_block *notifier);
-int freq_qos_remove_notifier(struct freq_constraints *qos,
+			  struct yestifier_block *yestifier);
+int freq_qos_remove_yestifier(struct freq_constraints *qos,
 			     enum freq_qos_req_type type,
-			     struct notifier_block *notifier);
+			     struct yestifier_block *yestifier);
 
 #endif

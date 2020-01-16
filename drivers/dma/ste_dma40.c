@@ -324,8 +324,8 @@ static __initdata struct d40_reg_val dma_init_reg_v4b[] = {
 /**
  * struct d40_lli_pool - Structure for keeping LLIs in memory
  *
- * @base: Pointer to memory area when the pre_alloc_lli's are not large
- * enough, IE bigger than the most common case, 1 dst and 1 src. NULL if
+ * @base: Pointer to memory area when the pre_alloc_lli's are yest large
+ * eyesugh, IE bigger than the most common case, 1 dst and 1 src. NULL if
  * pre_alloc_lli is used.
  * @dma_addr: DMA address, if mapped
  * @size: The size in bytes of the memory at base or the size of pre_alloc_lli.
@@ -353,7 +353,7 @@ struct d40_lli_pool {
  * @lcla_alloc: Number of LCLA entries allocated.
  * @txd: DMA engine struct. Used for among other things for communication
  * during a transfer.
- * @node: List entry.
+ * @yesde: List entry.
  * @is_in_client_list: true if the client owns this descriptor.
  * @cyclic: true if this is a cyclic job
  *
@@ -371,7 +371,7 @@ struct d40_desc {
 	int				 lcla_alloc;
 
 	struct dma_async_tx_descriptor	 txd;
-	struct list_head		 node;
+	struct list_head		 yesde;
 
 	bool				 is_in_client_list;
 	bool				 cyclic;
@@ -431,7 +431,7 @@ struct d40_base;
  * and tasklet.
  * @busy: Set to true when transfer is ongoing on this channel.
  * @phy_chan: Pointer to physical channel which this instance runs on. If this
- * point is NULL, then the channel is not allocated.
+ * point is NULL, then the channel is yest allocated.
  * @chan: DMA engine handle.
  * @tasklet: Tasklet that gets scheduled from interrupt context to complete a
  * transfer and call client callback.
@@ -530,7 +530,7 @@ struct d40_gen_dmac {
  * @num_memcpy_chans: The number of channels used for memcpy (mem-to-mem
  * transfers).
  * @num_phy_chans: The number of physical channels. Read from HW. This
- * is the number of available channels for this driver, not counting "Secure
+ * is the number of available channels for this driver, yest counting "Secure
  * mode" allocated physical channels.
  * @num_log_chans: The number of logical channels. Calculated from
  * num_phy_chans.
@@ -760,7 +760,7 @@ static int d40_lcla_free_all(struct d40_chan *d40c,
 
 static void d40_desc_remove(struct d40_desc *d40d)
 {
-	list_del(&d40d->node);
+	list_del(&d40d->yesde);
 }
 
 static struct d40_desc *d40_desc_get(struct d40_chan *d40c)
@@ -771,7 +771,7 @@ static struct d40_desc *d40_desc_get(struct d40_chan *d40c)
 		struct d40_desc *d;
 		struct d40_desc *_d;
 
-		list_for_each_entry_safe(d, _d, &d40c->client, node) {
+		list_for_each_entry_safe(d, _d, &d40c->client, yesde) {
 			if (async_tx_test_ack(&d->txd)) {
 				d40_desc_remove(d);
 				desc = d;
@@ -785,7 +785,7 @@ static struct d40_desc *d40_desc_get(struct d40_chan *d40c)
 		desc = kmem_cache_zalloc(d40c->base->desc_slab, GFP_NOWAIT);
 
 	if (desc)
-		INIT_LIST_HEAD(&desc->node);
+		INIT_LIST_HEAD(&desc->yesde);
 
 	return desc;
 }
@@ -800,7 +800,7 @@ static void d40_desc_free(struct d40_chan *d40c, struct d40_desc *d40d)
 
 static void d40_desc_submit(struct d40_chan *d40c, struct d40_desc *desc)
 {
-	list_add_tail(&desc->node, &d40c->active);
+	list_add_tail(&desc->yesde, &d40c->active);
 }
 
 static void d40_phy_lli_load(struct d40_chan *chan, struct d40_desc *desc)
@@ -822,7 +822,7 @@ static void d40_phy_lli_load(struct d40_chan *chan, struct d40_desc *desc)
 
 static void d40_desc_done(struct d40_chan *d40c, struct d40_desc *desc)
 {
-	list_add_tail(&desc->node, &d40c->done);
+	list_add_tail(&desc->yesde, &d40c->done);
 }
 
 static void d40_log_lli_to_lcxa(struct d40_chan *chan, struct d40_desc *desc)
@@ -839,7 +839,7 @@ static void d40_log_lli_to_lcxa(struct d40_chan *chan, struct d40_desc *desc)
 
 	/*
 	 * We may have partially running cyclic transfers, in case we did't get
-	 * enough LCLA entries.
+	 * eyesugh LCLA entries.
 	 */
 	linkback = cyclic && lli_current == 0;
 
@@ -862,8 +862,8 @@ static void d40_log_lli_to_lcxa(struct d40_chan *chan, struct d40_desc *desc)
 	}
 
 	/*
-	 * For linkback, we normally load the LCPA in the loop since we need to
-	 * link it to the second LCLA and not the first.  However, if we
+	 * For linkback, we yesrmally load the LCPA in the loop since we need to
+	 * link it to the second LCLA and yest the first.  However, if we
 	 * couldn't even get a first LCLA, then we have to run in LCPA and
 	 * reload manually.
 	 */
@@ -917,7 +917,7 @@ static void d40_log_lli_to_lcxa(struct d40_chan *chan, struct d40_desc *desc)
 				       next_lcla, flags);
 
 		/*
-		 * Cache maintenance is not needed if lcla is
+		 * Cache maintenance is yest needed if lcla is
 		 * mapped in esram
 		 */
 		if (!use_esram_lcla) {
@@ -948,7 +948,7 @@ static void d40_desc_load(struct d40_chan *d40c, struct d40_desc *d40d)
 
 static struct d40_desc *d40_first_active_get(struct d40_chan *d40c)
 {
-	return list_first_entry_or_null(&d40c->active, struct d40_desc, node);
+	return list_first_entry_or_null(&d40c->active, struct d40_desc, yesde);
 }
 
 /* remove desc from current queue and add it to the pending_queue */
@@ -956,23 +956,23 @@ static void d40_desc_queue(struct d40_chan *d40c, struct d40_desc *desc)
 {
 	d40_desc_remove(desc);
 	desc->is_in_client_list = false;
-	list_add_tail(&desc->node, &d40c->pending_queue);
+	list_add_tail(&desc->yesde, &d40c->pending_queue);
 }
 
 static struct d40_desc *d40_first_pending(struct d40_chan *d40c)
 {
 	return list_first_entry_or_null(&d40c->pending_queue, struct d40_desc,
-					node);
+					yesde);
 }
 
 static struct d40_desc *d40_first_queued(struct d40_chan *d40c)
 {
-	return list_first_entry_or_null(&d40c->queue, struct d40_desc, node);
+	return list_first_entry_or_null(&d40c->queue, struct d40_desc, yesde);
 }
 
 static struct d40_desc *d40_first_done(struct d40_chan *d40c)
 {
-	return list_first_entry_or_null(&d40c->done, struct d40_desc, node);
+	return list_first_entry_or_null(&d40c->done, struct d40_desc, yesde);
 }
 
 static int d40_psize_2_burst_size(bool is_log, int psize)
@@ -1136,7 +1136,7 @@ static void d40_term_all(struct d40_chan *d40c)
 
 	/* Release client owned descriptors */
 	if (!list_empty(&d40c->client))
-		list_for_each_entry_safe(d40d, _d, &d40c->client, node) {
+		list_for_each_entry_safe(d40d, _d, &d40c->client, yesde) {
 			d40_desc_remove(d40d);
 			d40_desc_free(d40c, d40d);
 		}
@@ -1144,7 +1144,7 @@ static void d40_term_all(struct d40_chan *d40c)
 	/* Release descriptors in prepare queue */
 	if (!list_empty(&d40c->prepare_queue))
 		list_for_each_entry_safe(d40d, _d,
-					 &d40c->prepare_queue, node) {
+					 &d40c->prepare_queue, yesde) {
 			d40_desc_remove(d40d);
 			d40_desc_free(d40c, d40d);
 		}
@@ -1417,7 +1417,7 @@ static int d40_pause(struct dma_chan *chan)
 	unsigned long flags;
 
 	if (d40c->phy_chan == NULL) {
-		chan_err(d40c, "Channel is not allocated!\n");
+		chan_err(d40c, "Channel is yest allocated!\n");
 		return -EINVAL;
 	}
 
@@ -1442,7 +1442,7 @@ static int d40_resume(struct dma_chan *chan)
 	unsigned long flags;
 
 	if (d40c->phy_chan == NULL) {
-		chan_err(d40c, "Channel is not allocated!\n");
+		chan_err(d40c, "Channel is yest allocated!\n");
 		return -EINVAL;
 	}
 
@@ -1533,7 +1533,7 @@ static void dma_tc_handle(struct d40_chan *d40c)
 		 * If this was a paritially loaded list, we need to reloaded
 		 * it, and only when the list is completed.  We need to check
 		 * for done because the interrupt will hit for every link, and
-		 * not just the last one.
+		 * yest just the last one.
 		 */
 		if (d40d->lli_current < d40d->lli_len
 		    && !d40_tx_is_linked(d40c)
@@ -1613,7 +1613,7 @@ static void dma_tasklet(unsigned long data)
 		} else if (!d40d->is_in_client_list) {
 			d40_desc_remove(d40d);
 			d40_lcla_free_all(d40c, d40d);
-			list_add_tail(&d40d->node, &d40c->client);
+			list_add_tail(&d40d->yesde, &d40c->client);
 			d40d->is_in_client_list = true;
 		}
 	}
@@ -1630,7 +1630,7 @@ static void dma_tasklet(unsigned long data)
 
 	return;
  check_pending_tx:
-	/* Rescue manouver if receiving double interrupts */
+	/* Rescue mayesuver if receiving double interrupts */
 	if (d40c->pending_tx > 0)
 		d40c->pending_tx--;
 	spin_unlock_irqrestore(&d40c->lock, flags);
@@ -1722,7 +1722,7 @@ static int d40_validate_conf(struct d40_chan *d40c,
 		 * DMAC HW supports it. Will be added to this driver,
 		 * in case any dma client requires it.
 		 */
-		chan_err(d40c, "periph to periph not supported\n");
+		chan_err(d40c, "periph to periph yest supported\n");
 		res = -EINVAL;
 	}
 
@@ -1760,13 +1760,13 @@ static bool d40_alloc_mask_set(struct d40_phy_res *phy,
 			phy->allocated_src = D40_ALLOC_PHY;
 			goto found_unlock;
 		} else
-			goto not_found_unlock;
+			goto yest_found_unlock;
 	}
 
 	/* Logical channel */
 	if (is_src) {
 		if (phy->allocated_src == D40_ALLOC_PHY)
-			goto not_found_unlock;
+			goto yest_found_unlock;
 
 		if (phy->allocated_src == D40_ALLOC_FREE)
 			phy->allocated_src = D40_ALLOC_LOG_FREE;
@@ -1775,10 +1775,10 @@ static bool d40_alloc_mask_set(struct d40_phy_res *phy,
 			phy->allocated_src |= BIT(log_event_line);
 			goto found_unlock;
 		} else
-			goto not_found_unlock;
+			goto yest_found_unlock;
 	} else {
 		if (phy->allocated_dst == D40_ALLOC_PHY)
-			goto not_found_unlock;
+			goto yest_found_unlock;
 
 		if (phy->allocated_dst == D40_ALLOC_FREE)
 			phy->allocated_dst = D40_ALLOC_LOG_FREE;
@@ -1788,7 +1788,7 @@ static bool d40_alloc_mask_set(struct d40_phy_res *phy,
 			goto found_unlock;
 		}
 	}
- not_found_unlock:
+ yest_found_unlock:
 	spin_unlock_irqrestore(&phy->lock, flags);
 	return false;
  found_unlock:
@@ -1915,7 +1915,7 @@ found_phy:
 				goto found_log;
 
 			dev_err(chan2dev(d40c),
-				"could not allocate fixed phy channel %d\n", i);
+				"could yest allocate fixed phy channel %d\n", i);
 			return -EINVAL;
 		}
 
@@ -2014,7 +2014,7 @@ static int d40_free_dma(struct d40_chan *d40c)
 	else if (d40c->dma_cfg.dir == DMA_DEV_TO_MEM)
 		is_src = true;
 	else {
-		chan_err(d40c, "Unknown direction\n");
+		chan_err(d40c, "Unkyeswn direction\n");
 		return -EINVAL;
 	}
 
@@ -2077,7 +2077,7 @@ static bool d40_is_paused(struct d40_chan *d40c)
 	} else if (d40c->dma_cfg.dir == DMA_DEV_TO_MEM) {
 		status = readl(chanbase + D40_CHAN_REG_SSLNK);
 	} else {
-		chan_err(d40c, "Unknown direction\n");
+		chan_err(d40c, "Unkyeswn direction\n");
 		goto unlock;
 	}
 
@@ -2189,7 +2189,7 @@ d40_prep_desc(struct d40_chan *chan, struct scatterlist *sg,
 
 	ret = d40_pool_lli_alloc(chan, desc, desc->lli_len);
 	if (ret < 0) {
-		chan_err(chan, "Could not allocate lli\n");
+		chan_err(chan, "Could yest allocate lli\n");
 		goto free_desc;
 	}
 
@@ -2218,7 +2218,7 @@ d40_prep_sg(struct dma_chan *dchan, struct scatterlist *sg_src,
 	int ret;
 
 	if (!chan->phy_chan) {
-		chan_err(chan, "Cannot prepare unallocated channel\n");
+		chan_err(chan, "Canyest prepare unallocated channel\n");
 		return NULL;
 	}
 
@@ -2257,7 +2257,7 @@ d40_prep_sg(struct dma_chan *dchan, struct scatterlist *sg_src,
 	 * add descriptor to the prepare queue in order to be able
 	 * to free them later in terminate_all
 	 */
-	list_add_tail(&desc->node, &chan->prepare_queue);
+	list_add_tail(&desc->yesde, &chan->prepare_queue);
 
 	spin_unlock_irqrestore(&chan->lock, flags);
 
@@ -2307,7 +2307,7 @@ static void __d40_set_prio_rt(struct d40_chan *d40c, int dev_type, bool src)
 	 * a high priority destination event line can generate extra packet
 	 * transactions.
 	 *
-	 * The workaround is to not set the high priority level for the
+	 * The workaround is to yest set the high priority level for the
 	 * destination event lines that trigger logical channels.
 	 */
 	if (!src && chan_is_logical(d40c))
@@ -2397,7 +2397,7 @@ static int d40_alloc_chan_resources(struct dma_chan *chan)
 
 	dma_cookie_init(chan);
 
-	/* If no dma configuration is set use default configuration (memcpy) */
+	/* If yes dma configuration is set use default configuration (memcpy) */
 	if (!d40c->configured) {
 		err = d40_config_memcpy(d40c);
 		if (err) {
@@ -2459,7 +2459,7 @@ static void d40_free_chan_resources(struct dma_chan *chan)
 	unsigned long flags;
 
 	if (d40c->phy_chan == NULL) {
-		chan_err(d40c, "Cannot free unallocated channel\n");
+		chan_err(d40c, "Canyest free unallocated channel\n");
 		return;
 	}
 
@@ -2543,7 +2543,7 @@ static enum dma_status d40_tx_status(struct dma_chan *chan,
 	enum dma_status ret;
 
 	if (d40c->phy_chan == NULL) {
-		chan_err(d40c, "Cannot read status of unallocated channel\n");
+		chan_err(d40c, "Canyest read status of unallocated channel\n");
 		return -EINVAL;
 	}
 
@@ -2563,7 +2563,7 @@ static void d40_issue_pending(struct dma_chan *chan)
 	unsigned long flags;
 
 	if (d40c->phy_chan == NULL) {
-		chan_err(d40c, "Channel is not allocated!\n");
+		chan_err(d40c, "Channel is yest allocated!\n");
 		return;
 	}
 
@@ -2585,7 +2585,7 @@ static int d40_terminate_all(struct dma_chan *chan)
 	int ret;
 
 	if (d40c->phy_chan == NULL) {
-		chan_err(d40c, "Channel is not allocated!\n");
+		chan_err(d40c, "Channel is yest allocated!\n");
 		return -EINVAL;
 	}
 
@@ -2665,7 +2665,7 @@ static int d40_set_runtime_config_write(struct dma_chan *chan,
 	int ret;
 
 	if (d40c->phy_chan == NULL) {
-		chan_err(d40c, "Channel is not allocated!\n");
+		chan_err(d40c, "Channel is yest allocated!\n");
 		return -EINVAL;
 	}
 
@@ -2679,7 +2679,7 @@ static int d40_set_runtime_config_write(struct dma_chan *chan,
 
 		if (cfg->dir != DMA_DEV_TO_MEM)
 			dev_dbg(d40c->base->dev,
-				"channel was not configured for peripheral "
+				"channel was yest configured for peripheral "
 				"to memory transfer (%d) overriding\n",
 				cfg->dir);
 		cfg->dir = DMA_DEV_TO_MEM;
@@ -2695,7 +2695,7 @@ static int d40_set_runtime_config_write(struct dma_chan *chan,
 
 		if (cfg->dir != DMA_MEM_TO_DEV)
 			dev_dbg(d40c->base->dev,
-				"channel was not configured for memory "
+				"channel was yest configured for memory "
 				"to peripheral transfer (%d) overriding\n",
 				cfg->dir);
 		cfg->dir = DMA_MEM_TO_DEV;
@@ -2713,7 +2713,7 @@ static int d40_set_runtime_config_write(struct dma_chan *chan,
 	}
 
 	if (config_addr <= 0) {
-		dev_err(d40c->base->dev, "no address supplied\n");
+		dev_err(d40c->base->dev, "yes address supplied\n");
 		return -EINVAL;
 	}
 
@@ -2768,7 +2768,7 @@ static int d40_set_runtime_config_write(struct dma_chan *chan,
 	d40c->runtime_direction = direction;
 	dev_dbg(d40c->base->dev,
 		"configured channel %s for %s, data width %d/%d, "
-		"maxburst %d/%d elements, LE, no flow control\n",
+		"maxburst %d/%d elements, LE, yes flow control\n",
 		dma_chan_name(chan),
 		(direction == DMA_DEV_TO_MEM) ? "RX" : "TX",
 		src_addr_width, dst_addr_width,
@@ -2807,7 +2807,7 @@ static void __init d40_chan_init(struct d40_base *base, struct dma_device *dma,
 		tasklet_init(&d40c->tasklet, dma_tasklet,
 			     (unsigned long) d40c);
 
-		list_add_tail(&d40c->chan.device_node,
+		list_add_tail(&d40c->chan.device_yesde,
 			      &dma->channels);
 	}
 }
@@ -3094,7 +3094,7 @@ static int __init d40_phy_res_init(struct d40_base *base)
 	 * To keep things simple, Enable all clocks initially.
 	 * The clocks will get managed later post channel allocation.
 	 * The clocks for the event lines on which reserved channels exists
-	 * are not managed here.
+	 * are yest managed here.
 	 */
 	writel(D40_DREG_GCC_ENABLE_ALL, base->virtbase + D40_DREG_GCC);
 	base->gcc_pwr_off_mask = gcc;
@@ -3152,11 +3152,11 @@ static struct d40_base * __init d40_hw_detect_init(struct platform_device *pdev)
 			& 255) << (i * 8);
 
 	if (cid != AMBA_CID) {
-		d40_err(&pdev->dev, "Unknown hardware! No PrimeCell ID\n");
+		d40_err(&pdev->dev, "Unkyeswn hardware! No PrimeCell ID\n");
 		goto unmap_io;
 	}
 	if (AMBA_MANF_BITS(pid) != AMBA_VENDOR_ST) {
-		d40_err(&pdev->dev, "Unknown designer! Got %x wanted %x\n",
+		d40_err(&pdev->dev, "Unkyeswn designer! Got %x wanted %x\n",
 			AMBA_MANF_BITS(pid),
 			AMBA_VENDOR_ST);
 		goto unmap_io;
@@ -3172,7 +3172,7 @@ static struct d40_base * __init d40_hw_detect_init(struct platform_device *pdev)
 	 */
 	rev = AMBA_REV_BITS(pid);
 	if (rev < 2) {
-		d40_err(&pdev->dev, "hardware revision: %d is not supported", rev);
+		d40_err(&pdev->dev, "hardware revision: %d is yest supported", rev);
 		goto unmap_io;
 	}
 
@@ -3365,7 +3365,7 @@ static void __init d40_hw_init(struct d40_base *base)
 	/* Write which interrupt to clear */
 	writel(pcicr, base->virtbase + base->gen_dmac.interrupt_clear);
 
-	/* These are __initdata and cannot be accessed after init */
+	/* These are __initdata and canyest be accessed after init */
 	base->gen_dmac.init_reg = NULL;
 	base->gen_dmac.init_reg_size = 0;
 }
@@ -3417,7 +3417,7 @@ static int __init d40_lcla_allocate(struct d40_base *base)
 		base->lcla_pool.base = (void *)page_list[i];
 	} else {
 		/*
-		 * After many attempts and no succees with finding the correct
+		 * After many attempts and yes succees with finding the correct
 		 * alignment, try with allocating a big buffer.
 		 */
 		dev_warn(base->dev,
@@ -3454,7 +3454,7 @@ static int __init d40_lcla_allocate(struct d40_base *base)
 }
 
 static int __init d40_of_probe(struct platform_device *pdev,
-			       struct device_node *np)
+			       struct device_yesde *np)
 {
 	struct stedma40_platform_data *pdata;
 	int num_phy = 0, num_memcpy = 0, num_disabled = 0;
@@ -3507,7 +3507,7 @@ static int __init d40_of_probe(struct platform_device *pdev,
 static int __init d40_probe(struct platform_device *pdev)
 {
 	struct stedma40_platform_data *plat_data = dev_get_platdata(&pdev->dev);
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	int ret = -ENOENT;
 	struct d40_base *base;
 	struct resource *res;
@@ -3652,7 +3652,7 @@ static int __init d40_probe(struct platform_device *pdev)
 		ret = of_dma_controller_register(np, d40_xlate, NULL);
 		if (ret)
 			dev_err(&pdev->dev,
-				"could not register of_dma_controller\n");
+				"could yest register of_dma_controller\n");
 	}
 
 	dev_info(base->dev, "initialized\n");

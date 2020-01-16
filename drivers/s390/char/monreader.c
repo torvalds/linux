@@ -13,7 +13,7 @@
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/init.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/miscdevice.h>
@@ -275,7 +275,7 @@ static struct iucv_handler monreader_iucv_handler = {
 /******************************************************************************
  *                               file operations                              *
  *****************************************************************************/
-static int mon_open(struct inode *inode, struct file *filp)
+static int mon_open(struct iyesde *iyesde, struct file *filp)
 {
 	struct mon_private *monpriv;
 	int rc;
@@ -320,7 +320,7 @@ static int mon_open(struct inode *inode, struct file *filp)
 	}
 	filp->private_data = monpriv;
 	dev_set_drvdata(monreader_device, monpriv);
-	return nonseekable_open(inode, filp);
+	return yesnseekable_open(iyesde, filp);
 
 out_path:
 	iucv_path_free(monpriv->path);
@@ -332,7 +332,7 @@ out:
 	return rc;
 }
 
-static int mon_close(struct inode *inode, struct file *filp)
+static int mon_close(struct iyesde *iyesde, struct file *filp)
 {
 	int rc, i;
 	struct mon_private *monpriv = filp->private_data;
@@ -447,13 +447,13 @@ static const struct file_operations mon_fops = {
 	.release = &mon_close,
 	.read    = &mon_read,
 	.poll    = &mon_poll,
-	.llseek  = noop_llseek,
+	.llseek  = yesop_llseek,
 };
 
 static struct miscdevice mon_dev = {
 	.name       = "monreader",
 	.fops       = &mon_fops,
-	.minor      = MISC_DYNAMIC_MINOR,
+	.miyesr      = MISC_DYNAMIC_MINOR,
 };
 
 
@@ -526,7 +526,7 @@ static int monreader_restore(struct device *dev)
 			  &mon_dcss_start, &mon_dcss_end);
 	if (rc < 0) {
 		segment_warning(rc, mon_dcss_name);
-		panic("fatal monreader resume error: no monitor dcss\n");
+		panic("fatal monreader resume error: yes monitor dcss\n");
 	}
 	return monreader_thaw(dev);
 }
@@ -552,7 +552,7 @@ static int __init mon_init(void)
 	int rc;
 
 	if (!MACHINE_IS_VM) {
-		pr_err("The z/VM *MONITOR record device driver cannot be "
+		pr_err("The z/VM *MONITOR record device driver canyest be "
 		       "loaded without z/VM\n");
 		return -ENODEV;
 	}
@@ -593,7 +593,7 @@ static int __init mon_init(void)
 		goto out_device;
 	}
 	if (rc != SEG_TYPE_SC) {
-		pr_err("The specified *MONITOR DCSS %s does not have the "
+		pr_err("The specified *MONITOR DCSS %s does yest have the "
 		       "required type SC\n", mon_dcss_name);
 		rc = -EINVAL;
 		goto out_device;

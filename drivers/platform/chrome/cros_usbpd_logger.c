@@ -40,7 +40,7 @@ static const char * const chg_type_names[] = {
 };
 
 static const char * const role_names[] = {
-	"Disconnected", "SRC", "SNK", "SNK (not charging)"
+	"Disconnected", "SRC", "SNK", "SNK (yest charging)"
 };
 
 static const char * const fault_names[] = {
@@ -104,7 +104,7 @@ static void cros_usbpd_print_log_entry(struct ec_response_pd_log *r,
 
 		role_idx = r->data & CHARGE_FLAGS_ROLE_MASK;
 		role = role_idx < ARRAY_SIZE(role_names) ?
-			role_names[role_idx] : "Unknown";
+			role_names[role_idx] : "Unkyeswn";
 
 		type_idx = (r->data & CHARGE_FLAGS_TYPE_MASK)
 			 >> CHARGE_FLAGS_TYPE_SHIFT;
@@ -122,7 +122,7 @@ static void cros_usbpd_print_log_entry(struct ec_response_pd_log *r,
 		len += append_str(buf, len, "%s %s %s %dmV max %dmV / %dmA",
 				  role,	r->data & CHARGE_FLAGS_DUAL_ROLE ?
 				  "DRP" : "Charger",
-				  chg_type, meas->voltage_now,
+				  chg_type, meas->voltage_yesw,
 				  meas->voltage_max, meas->current_max);
 		break;
 	case PD_EVENT_ACC_RW_FAIL:
@@ -143,9 +143,9 @@ static void cros_usbpd_print_log_entry(struct ec_response_pd_log *r,
 				  MCDP_FAMILY(minfo->family),
 				  MCDP_CHIPID(minfo->chipid));
 		len += append_str(buf, len, "irom:%d.%d.%d fw:%d.%d.%d",
-				  minfo->irom.major, minfo->irom.minor,
+				  minfo->irom.major, minfo->irom.miyesr,
 				  minfo->irom.build, minfo->fw.major,
-				  minfo->fw.minor, minfo->fw.build);
+				  minfo->fw.miyesr, minfo->fw.build);
 		break;
 	default:
 		len += append_str(buf, len, "Event %02x (%04x) [", r->type,
@@ -173,19 +173,19 @@ static void cros_usbpd_log_check(struct work_struct *work)
 	struct device *dev = logger->dev;
 	struct ec_response_pd_log *r;
 	int entries = 0;
-	ktime_t now;
+	ktime_t yesw;
 
 	while (entries++ < CROS_USBPD_MAX_LOG_ENTRIES) {
 		r = ec_get_log_entry(logger);
-		now = ktime_get_real();
+		yesw = ktime_get_real();
 		if (IS_ERR(r)) {
-			dev_dbg(dev, "Cannot get PD log %ld\n", PTR_ERR(r));
+			dev_dbg(dev, "Canyest get PD log %ld\n", PTR_ERR(r));
 			break;
 		}
 		if (r->type == PD_EVENT_NO_ENTRY)
 			break;
 
-		cros_usbpd_print_log_entry(r, now);
+		cros_usbpd_print_log_entry(r, yesw);
 	}
 
 	queue_delayed_work(logger->log_workqueue, &logger->log_work,

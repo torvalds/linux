@@ -1,18 +1,18 @@
 /*	BSDI osd_defs.h,v 1.4 1998/06/03 19:14:58 karels Exp	*/
 /*
- * Copyright (c) 1996-1999 Distributed Processing Technology Corporation
+ * Copyright (c) 1996-1999 Distributed Processing Techyeslogy Corporation
  * All rights reserved.
  *
  * Redistribution and use in source form, with or without modification, are
  * permitted provided that redistributions of source code must retain the
- * above copyright notice, this list of conditions and the following disclaimer.
+ * above copyright yestice, this list of conditions and the following disclaimer.
  *
- * This software is provided `as is' by Distributed Processing Technology and
- * any express or implied warranties, including, but not limited to, the
+ * This software is provided `as is' by Distributed Processing Techyeslogy and
+ * any express or implied warranties, including, but yest limited to, the
  * implied warranties of merchantability and fitness for a particular purpose,
- * are disclaimed. In no event shall Distributed Processing Technology be
+ * are disclaimed. In yes event shall Distributed Processing Techyeslogy be
  * liable for any direct, indirect, incidental, special, exemplary or
- * consequential damages (including, but not limited to, procurement of
+ * consequential damages (including, but yest limited to, procurement of
  * substitute goods or services; loss of use, data, or profits; or business
  * interruptions) however caused and on any theory of liability, whether in
  * contract, strict liability, or tort (including negligence or otherwise)
@@ -32,7 +32,7 @@
  *	This file contains the OS dependent defines.  This file is included
  *in osd_util.h and provides the OS specific defines for that file.
  *
- *Copyright Distributed Processing Technology, Corp.
+ *Copyright Distributed Processing Techyeslogy, Corp.
  *	  140 Candace Dr.
  *	  Maitland, Fl.	32751   USA
  *	  Phone: (407) 830-5522  Fax: (407) 260-5366
@@ -68,7 +68,7 @@
 #define         _DPT_MOTIF
 #endif
 
-  /* Redefine 'far' to nothing - no far pointer type required in UNIX */
+  /* Redefine 'far' to yesthing - yes far pointer type required in UNIX */
 #define		far
 
   /* Define the mutually exclusive semaphore type */

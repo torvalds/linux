@@ -28,7 +28,7 @@
  * idx: state index
  *
  * Called from the CPUidle framework to program the device to the
- * specified target state selected by the governor.
+ * specified target state selected by the goveryesr.
  */
 static int arm_enter_idle_state(struct cpuidle_device *dev,
 				struct cpuidle_driver *drv, int idx)
@@ -87,9 +87,9 @@ static int __init arm_idle_init_cpu(int cpu)
 
 	/*
 	 * Initialize idle states data, starting at index 1.  This
-	 * driver is DT only, if no DT idle states are detected (ret
+	 * driver is DT only, if yes DT idle states are detected (ret
 	 * == 0) let the driver initialization fail accordingly since
-	 * there is no reason to initialize the idle driver if only
+	 * there is yes reason to initialize the idle driver if only
 	 * wfi is supported.
 	 */
 	ret = dt_init_idle_driver(drv, arm_idle_state_match, 1);
@@ -108,9 +108,9 @@ static int __init arm_idle_init_cpu(int cpu)
 	 * Allow the initialization to continue for other CPUs, if the
 	 * reported failure is a HW misconfiguration/breakage (-ENXIO).
 	 *
-	 * Some platforms do not support idle operations
+	 * Some platforms do yest support idle operations
 	 * (arm_cpuidle_init() returning -EOPNOTSUPP), we should
-	 * not flag this case as an error, it is a valid
+	 * yest flag this case as an error, it is a valid
 	 * configuration.
 	 */
 	if (ret) {

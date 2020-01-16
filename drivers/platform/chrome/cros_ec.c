@@ -44,7 +44,7 @@ static irqreturn_t ec_irq_handler(int irq, void *data)
  * cros_ec_handle_event() - process and forward pending events on EC
  * @ec_dev: Device with events to process.
  *
- * Call this function in a loop when the kernel is notified that the EC has
+ * Call this function in a loop when the kernel is yestified that the EC has
  * pending events.
  *
  * Return: true if more events are still pending and this function should be
@@ -67,7 +67,7 @@ bool cros_ec_handle_event(struct cros_ec_device *ec_dev)
 		pm_wakeup_event(ec_dev->dev, 0);
 
 	if (ret > 0)
-		blocking_notifier_call_chain(&ec_dev->event_notifier,
+		blocking_yestifier_call_chain(&ec_dev->event_yestifier,
 					     0, ec_dev);
 
 	return ec_has_more_events;
@@ -121,7 +121,7 @@ static int cros_ec_sleep_event(struct cros_ec_device *ec_dev, u8 sleep_event)
 
 	ret = cros_ec_cmd_xfer(ec_dev, &buf.msg);
 
-	/* For now, report failure to transition to S0ix with a warning. */
+	/* For yesw, report failure to transition to S0ix with a warning. */
 	if (ret >= 0 && ec_dev->host_sleep_v1 &&
 	    (sleep_event == HOST_SLEEP_EVENT_S0IX_RESUME)) {
 		ec_dev->last_resume_result =
@@ -151,7 +151,7 @@ int cros_ec_register(struct cros_ec_device *ec_dev)
 	struct device *dev = ec_dev->dev;
 	int err = 0;
 
-	BLOCKING_INIT_NOTIFIER_HEAD(&ec_dev->event_notifier);
+	BLOCKING_INIT_NOTIFIER_HEAD(&ec_dev->event_yestifier);
 
 	ec_dev->max_request = sizeof(struct ec_params_hello);
 	ec_dev->max_response = sizeof(struct ec_response_get_protocol_info);
@@ -169,7 +169,7 @@ int cros_ec_register(struct cros_ec_device *ec_dev)
 
 	err = cros_ec_query_all(ec_dev);
 	if (err) {
-		dev_err(dev, "Cannot identify the EC: error %d\n", err);
+		dev_err(dev, "Canyest identify the EC: error %d\n", err);
 		return err;
 	}
 
@@ -202,7 +202,7 @@ int cros_ec_register(struct cros_ec_device *ec_dev)
 		 * We make the following assumptions:
 		 * - behind an EC, we have a pd
 		 * - only one device added.
-		 * - the EC is responsive at init time (it is not true for a
+		 * - the EC is responsive at init time (it is yest true for a
 		 *   sensor hub).
 		 */
 		ec_dev->pd = platform_device_register_data(ec_dev->dev,
@@ -217,7 +217,7 @@ int cros_ec_register(struct cros_ec_device *ec_dev)
 		}
 	}
 
-	if (IS_ENABLED(CONFIG_OF) && dev->of_node) {
+	if (IS_ENABLED(CONFIG_OF) && dev->of_yesde) {
 		err = devm_of_platform_populate(dev);
 		if (err) {
 			platform_device_unregister(ec_dev->pd);
@@ -299,7 +299,7 @@ static void cros_ec_report_events_during_suspend(struct cros_ec_device *ec_dev)
 {
 	while (ec_dev->mkbp_event_supported &&
 	       cros_ec_get_next_event(ec_dev, NULL, NULL) > 0)
-		blocking_notifier_call_chain(&ec_dev->event_notifier,
+		blocking_yestifier_call_chain(&ec_dev->event_yestifier,
 					     1, ec_dev);
 }
 
@@ -333,8 +333,8 @@ int cros_ec_resume(struct cros_ec_device *ec_dev)
 		ec_dev->wake_enabled = 0;
 	}
 	/*
-	 * Let the mfd devices know about events that occur during
-	 * suspend. This way the clients know what to do with them.
+	 * Let the mfd devices kyesw about events that occur during
+	 * suspend. This way the clients kyesw what to do with them.
 	 */
 	cros_ec_report_events_during_suspend(ec_dev);
 

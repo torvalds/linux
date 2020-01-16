@@ -20,7 +20,7 @@ Serial Device Naming
 	  kernel registered the device described by the HCDP as
 	  /dev/ttyS0.
 
-	- If there was no HCDP, we assumed there were UARTs at the
+	- If there was yes HCDP, we assumed there were UARTs at the
 	  legacy COM port addresses (I/O ports 0x3f8 and 0x2f8), so
 	  the kernel registered those as /dev/ttyS0 and /dev/ttyS1.
 
@@ -29,7 +29,7 @@ Serial Device Naming
 
     With an HCDP, device names changed depending on EFI configuration
     and "console=" arguments.  Without an HCDP, device names didn't
-    change, but we registered devices that might not really exist.
+    change, but we registered devices that might yest really exist.
 
     For example, an HP rx1600 with a single built-in serial port
     (described in the ACPI namespace) plus an MP[2] (a PCI device) has
@@ -51,10 +51,10 @@ Serial Device Naming
 Console Selection
 =================
 
-    EFI knows what your console devices are, but it doesn't tell the
-    kernel quite enough to actually locate them.  The DIG64 HCDP
+    EFI kyesws what your console devices are, but it doesn't tell the
+    kernel quite eyesugh to actually locate them.  The DIG64 HCDP
     table[1] does tell the kernel where potential serial console
-    devices are, but not all firmware supplies it.  Also, EFI supports
+    devices are, but yest all firmware supplies it.  Also, EFI supports
     multiple simultaneous consoles and doesn't tell the kernel which
     should be the "primary" one.
 
@@ -79,7 +79,7 @@ Console Selection
 Early Serial Console
 ====================
 
-    The kernel can't start using a serial console until it knows where
+    The kernel can't start using a serial console until it kyesws where
     the device lives.  Normally this happens when the driver enumerates
     all the serial devices, which can happen a minute or more after the
     kernel starts booting.
@@ -108,10 +108,10 @@ Troubleshooting Serial Console Problems
 	  Make sure only one UART is selected in the EFI console
 	  path[3].
 
-	- You're connected to an HP MP port[2] but have a non-MP UART
+	- You're connected to an HP MP port[2] but have a yesn-MP UART
 	  selected as EFI console device.  EFI uses the MP as a
 	  console device even when it isn't explicitly selected.
-	  Either move the console cable to the non-MP UART, or change
+	  Either move the console cable to the yesn-MP UART, or change
 	  the EFI console path[3] to the MP UART.
 
     Long pause (60+ seconds) between "Uncompressing Linux... done" and
@@ -120,12 +120,12 @@ Troubleshooting Serial Console Problems
 	- No early console because you used "console=ttyS<n>".  Remove
 	  the "console=" option if your firmware supplies an HCDP.
 
-	- If you don't have an HCDP, the kernel doesn't know where
+	- If you don't have an HCDP, the kernel doesn't kyesw where
 	  your console lives until the driver discovers serial
 	  devices.  Use "console=uart,io,0x3f8" (or appropriate
 	  address for your machine).
 
-    Kernel and init script output works fine, but no "login:" prompt:
+    Kernel and init script output works fine, but yes "login:" prompt:
 
 	- Add getty entry to /etc/inittab for console tty.  Look for
 	  the "Adding console on ttyS<n>" message that tells you which

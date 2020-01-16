@@ -23,20 +23,20 @@
  *		(and it will be the usual case). When the job finishes,
  *		v4l2_m2m_job_finish() or v4l2_m2m_buf_done_and_job_finish()
  *		has to be called.
- * @job_ready:	optional. Should return 0 if the driver does not have a job
- *		fully prepared to run yet (i.e. it will not be able to finish a
- *		transaction without sleeping). If not provided, it will be
+ * @job_ready:	optional. Should return 0 if the driver does yest have a job
+ *		fully prepared to run yet (i.e. it will yest be able to finish a
+ *		transaction without sleeping). If yest provided, it will be
  *		assumed that one source and one destination buffer are all
  *		that is required for the driver to perform one full transaction.
- *		This method may not sleep.
+ *		This method may yest sleep.
  * @job_abort:	optional. Informs the driver that it has to abort the currently
  *		running transaction as soon as possible (i.e. as soon as it can
  *		stop the device safely; e.g. in the next interrupt handler),
- *		even if the transaction would not have been finished by then.
+ *		even if the transaction would yest have been finished by then.
  *		After the driver performs the necessary steps, it has to call
  *		v4l2_m2m_job_finish() or v4l2_m2m_buf_done_and_job_finish() as
- *		if the transaction ended normally.
- *		This function does not have to (and will usually not) wait
+ *		if the transaction ended yesrmally.
+ *		This function does yest have to (and will usually yest) wait
  *		until the device enters a state when it can be stopped.
  */
 struct v4l2_m2m_ops {
@@ -126,7 +126,7 @@ struct v4l2_m2m_buffer {
 
 /**
  * v4l2_m2m_get_curr_priv() - return driver private data for the currently
- * running instance or NULL if no instance is running
+ * running instance or NULL if yes instance is running
  *
  * @m2m_dev: opaque pointer to the internal data to handle M2M context
  */
@@ -177,7 +177,7 @@ void v4l2_m2m_try_schedule(struct v4l2_m2m_ctx *m2m_ctx);
  *
  * This function has to be called only after &v4l2_m2m_ops->device_run
  * callback has been called on the driver. To prevent recursion, it should
- * not be called directly from the &v4l2_m2m_ops->device_run callback though.
+ * yest be called directly from the &v4l2_m2m_ops->device_run callback though.
  */
 void v4l2_m2m_job_finish(struct v4l2_m2m_dev *m2m_dev,
 			 struct v4l2_m2m_ctx *m2m_ctx);
@@ -321,7 +321,7 @@ int v4l2_m2m_streamoff(struct file *file, struct v4l2_m2m_ctx *m2m_ctx,
  *
  * Call from the driver's poll() function. Will poll both queues. If a buffer
  * is available to dequeue (with dqbuf) from the source queue, this will
- * indicate that a non-blocking write can be performed, while read will be
+ * indicate that a yesn-blocking write can be performed, while read will be
  * returned in case of the destination queue.
  */
 __poll_t v4l2_m2m_poll(struct file *file, struct v4l2_m2m_ctx *m2m_ctx,
@@ -335,7 +335,7 @@ __poll_t v4l2_m2m_poll(struct file *file, struct v4l2_m2m_ctx *m2m_ctx,
  * @vma: pointer to struct &vm_area_struct
  *
  * Call from driver's mmap() function. Will handle mmap() for both queues
- * seamlessly for videobuffer, which will receive normal per-queue offsets and
+ * seamlessly for videobuffer, which will receive yesrmal per-queue offsets and
  * proper videobuf queue pointers. The differentiation is made outside videobuf
  * by adding a predefined offset to buffers from one of the queues and
  * subtracting it before passing it back to videobuf. Only drivers (and
@@ -673,7 +673,7 @@ v4l2_m2m_dst_buf_remove_by_idx(struct v4l2_m2m_ctx *m2m_ctx, unsigned int idx)
  * and TSTAMP_SRC_MASK flags from @out_vb to @cap_vb.
  *
  * If @copy_frame_flags is false, then the KEYFRAME, BFRAME and PFRAME
- * flags are not copied. This is typically needed for encoders that
+ * flags are yest copied. This is typically needed for encoders that
  * set this bits explicitly.
  */
 void v4l2_m2m_buf_copy_metadata(const struct vb2_v4l2_buffer *out_vb,

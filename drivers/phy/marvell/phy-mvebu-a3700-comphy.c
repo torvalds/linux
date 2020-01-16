@@ -263,9 +263,9 @@ static struct phy *mvebu_a3700_comphy_xlate(struct device *dev,
 static int mvebu_a3700_comphy_probe(struct platform_device *pdev)
 {
 	struct phy_provider *provider;
-	struct device_node *child;
+	struct device_yesde *child;
 
-	for_each_available_child_of_node(pdev->dev.of_node, child) {
+	for_each_available_child_of_yesde(pdev->dev.of_yesde, child) {
 		struct mvebu_a3700_comphy_lane *lane;
 		struct phy *phy;
 		int ret;
@@ -285,14 +285,14 @@ static int mvebu_a3700_comphy_probe(struct platform_device *pdev)
 
 		lane = devm_kzalloc(&pdev->dev, sizeof(*lane), GFP_KERNEL);
 		if (!lane) {
-			of_node_put(child);
+			of_yesde_put(child);
 			return -ENOMEM;
 		}
 
 		phy = devm_phy_create(&pdev->dev, child,
 				      &mvebu_a3700_comphy_ops);
 		if (IS_ERR(phy)) {
-			of_node_put(child);
+			of_yesde_put(child);
 			return PTR_ERR(phy);
 		}
 

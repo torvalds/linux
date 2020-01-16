@@ -28,16 +28,16 @@
 /*
  * This function adds a BSS priority table to the table list.
  *
- * The function allocates a new BSS priority table node and adds it to
+ * The function allocates a new BSS priority table yesde and adds it to
  * the end of BSS priority table list, kept in driver memory.
  */
 static int mwifiex_add_bss_prio_tbl(struct mwifiex_private *priv)
 {
 	struct mwifiex_adapter *adapter = priv->adapter;
-	struct mwifiex_bss_prio_node *bss_prio;
+	struct mwifiex_bss_prio_yesde *bss_prio;
 	struct mwifiex_bss_prio_tbl *tbl = adapter->bss_prio_tbl;
 
-	bss_prio = kzalloc(sizeof(struct mwifiex_bss_prio_node), GFP_KERNEL);
+	bss_prio = kzalloc(sizeof(struct mwifiex_bss_prio_yesde), GFP_KERNEL);
 	if (!bss_prio)
 		return -ENOMEM;
 
@@ -313,7 +313,7 @@ static void mwifiex_init_adapter(struct mwifiex_adapter *adapter)
 	adapter->max_mgmt_ie_index = MAX_MGMT_IE_INDEX;
 	adapter->mfg_mode = mfg_mode;
 	adapter->key_api_major_ver = 0;
-	adapter->key_api_minor_ver = 0;
+	adapter->key_api_miyesr_ver = 0;
 	eth_broadcast_addr(adapter->perm_addr);
 	adapter->iface_limit.sta_intf = MWIFIEX_MAX_STA_NUM;
 	adapter->iface_limit.uap_intf = MWIFIEX_MAX_UAP_NUM;
@@ -558,14 +558,14 @@ int mwifiex_init_fw(struct mwifiex_adapter *adapter)
 /*
  * This function deletes the BSS priority tables.
  *
- * The function traverses through all the allocated BSS priority nodes
+ * The function traverses through all the allocated BSS priority yesdes
  * in every BSS priority table and frees them.
  */
 static void mwifiex_delete_bss_prio_tbl(struct mwifiex_private *priv)
 {
 	int i;
 	struct mwifiex_adapter *adapter = priv->adapter;
-	struct mwifiex_bss_prio_node *bssprio_node, *tmp_node;
+	struct mwifiex_bss_prio_yesde *bssprio_yesde, *tmp_yesde;
 	struct list_head *head;
 	spinlock_t *lock; /* bss priority lock */
 
@@ -580,15 +580,15 @@ static void mwifiex_delete_bss_prio_tbl(struct mwifiex_private *priv)
 
 		{
 			spin_lock_bh(lock);
-			list_for_each_entry_safe(bssprio_node, tmp_node, head,
+			list_for_each_entry_safe(bssprio_yesde, tmp_yesde, head,
 						 list) {
-				if (bssprio_node->priv == priv) {
+				if (bssprio_yesde->priv == priv) {
 					mwifiex_dbg(adapter, INFO,
 						    "info: Delete\t"
-						    "node %p, next = %p\n",
-						    bssprio_node, tmp_node);
-					list_del(&bssprio_node->list);
-					kfree(bssprio_node);
+						    "yesde %p, next = %p\n",
+						    bssprio_yesde, tmp_yesde);
+					list_del(&bssprio_yesde->list);
+					kfree(bssprio_yesde);
 				}
 			}
 			spin_unlock_bh(lock);
@@ -634,7 +634,7 @@ mwifiex_shutdown_drv(struct mwifiex_adapter *adapter)
 		mwifiex_dbg(adapter, WARN,
 			    "curr_cmd is still in processing\n");
 		del_timer_sync(&adapter->cmd_timer);
-		mwifiex_recycle_cmd_node(adapter, adapter->curr_cmd);
+		mwifiex_recycle_cmd_yesde(adapter, adapter->curr_cmd);
 		adapter->curr_cmd = NULL;
 	}
 
@@ -684,7 +684,7 @@ mwifiex_shutdown_drv(struct mwifiex_adapter *adapter)
  *      - Check if firmware is already running
  *      - Check if the interface is the winner to download the firmware
  *
- * ...and followed by another -
+ * ...and followed by ayesther -
  *      - Check if the firmware is downloaded successfully
  *
  * After download is successfully completed, the host interrupts are enabled.
@@ -719,7 +719,7 @@ int mwifiex_dnld_fw(struct mwifiex_adapter *adapter,
 
 		if (!adapter->winner) {
 			mwifiex_dbg(adapter, MSG,
-				    "WLAN is not the winner! Skip FW dnld\n");
+				    "WLAN is yest the winner! Skip FW dnld\n");
 			goto poll_fw;
 		}
 	}
@@ -735,7 +735,7 @@ int mwifiex_dnld_fw(struct mwifiex_adapter *adapter,
 	}
 
 poll_fw:
-	/* Check if the firmware is downloaded successfully or not */
+	/* Check if the firmware is downloaded successfully or yest */
 	ret = adapter->if_ops.check_fw_status(adapter, poll_num);
 	if (ret)
 		mwifiex_dbg(adapter, ERROR,

@@ -15,7 +15,7 @@
  */
 #include <linux/init.h>
 #include <linux/delay.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>
 #include <linux/sched.h>
@@ -208,7 +208,7 @@ static void txx9spi_work_one(struct txx9spi *c, struct spi_message *m)
 
 			if (len < count * wsize)
 				count = len / wsize;
-			/* now tx must be idle... */
+			/* yesw tx must be idle... */
 			while (!(txx9spi_rd(c, TXx9_SPSR) & TXx9_SPSR_SIDLE))
 				cpu_relax();
 			cr0 = txx9spi_rd(c, TXx9_SPCR0);
@@ -262,7 +262,7 @@ exit:
 	if (m->complete)
 		m->complete(m->context);
 
-	/* normally deactivate chipselect ... unless no error and
+	/* yesrmally deactivate chipselect ... unless yes error and
 	 * cs_change has hinted that the next message will probably
 	 * be for this chip too.
 	 */
@@ -319,7 +319,7 @@ static int txx9spi_transfer(struct spi_device *spi, struct spi_message *m)
 /*
  * Chip select uses GPIO only, further the driver is using the chip select
  * numer (from the device tree "reg" property, and this can only come from
- * device tree since this i MIPS and there is no way to pass platform data) as
+ * device tree since this i MIPS and there is yes way to pass platform data) as
  * the GPIO number. As the platform has only one GPIO controller (the txx9 GPIO
  * chip) it is thus using the chip select number as an offset into that chip.
  * This chip has a maximum of 16 GPIOs 0..15 and this is what all platforms

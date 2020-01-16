@@ -2,7 +2,7 @@
 /*
  * This file contains code to reset and initialize USB host controllers.
  * Some of it includes work-arounds for PCI hardware and BIOS quirks.
- * It may need to run early during booting -- before USB would normally
+ * It may need to run early during booting -- before USB would yesrmally
  * initialize -- to ensure that Linux doesn't use any legacy modes.
  *
  *  Copyright (c) 1999 Martin Mares <mj@ucw.cz>
@@ -276,7 +276,7 @@ commit:
 		pci_dev_put(info.smbus_dev);
 
 	} else {
-		/* no race - commit the result */
+		/* yes race - commit the result */
 		info.probe_count++;
 		amd_chipset = info;
 		spin_unlock_irqrestore(&amd_lock, flags);
@@ -325,13 +325,13 @@ bool usb_amd_quirk_pll_check(void)
 EXPORT_SYMBOL_GPL(usb_amd_quirk_pll_check);
 
 /*
- * The hardware normally enables the A-link power management feature, which
+ * The hardware yesrmally enables the A-link power management feature, which
  * lets the system lower the power consumption in idle states.
  *
  * This USB quirk prevents the link going into that lower power state
- * during isochronous transfers.
+ * during isochroyesus transfers.
  *
- * Without this quirk, isochronous stream on OHCI/EHCI/xHCI controllers of
+ * Without this quirk, isochroyesus stream on OHCI/EHCI/xHCI controllers of
  * some AMD platforms may stutter or have breaks occasionally.
  */
 static void usb_amd_quirk_pll(int disable)
@@ -642,7 +642,7 @@ void uhci_reset_hc(struct pci_dev *pdev, unsigned long base)
 	pci_write_config_word(pdev, UHCI_USBLEGSUP, UHCI_USBLEGSUP_RWC);
 
 	/* Reset the HC - this will force us to get a
-	 * new notification of any already connected
+	 * new yestification of any already connected
 	 * ports due to the virtual disconnect that it
 	 * implies.
 	 */
@@ -650,7 +650,7 @@ void uhci_reset_hc(struct pci_dev *pdev, unsigned long base)
 	mb();
 	udelay(5);
 	if (inw(base + UHCI_USBCMD) & UHCI_USBCMD_HCRESET)
-		dev_warn(&pdev->dev, "HCRESET not completed yet!\n");
+		dev_warn(&pdev->dev, "HCRESET yest completed yet!\n");
 
 	/* Just to be safe, disable interrupt requests and
 	 * make sure the controller is stopped.
@@ -675,7 +675,7 @@ int uhci_check_and_reset_hc(struct pci_dev *pdev, unsigned long base)
 	 * When restarting a suspended controller, we expect all the
 	 * settings to be the same as we left them:
 	 *
-	 *	PIRQ and SMI disabled, no R/W bits set in USBLEGSUP;
+	 *	PIRQ and SMI disabled, yes R/W bits set in USBLEGSUP;
 	 *	Controller is stopped and configured with EGSM set;
 	 *	No interrupts enabled except possibly Resume Detect.
 	 *
@@ -748,7 +748,7 @@ static void quirk_usb_handoff_ohci(struct pci_dev *pdev)
 	void __iomem *base;
 	u32 control;
 	u32 fminterval = 0;
-	bool no_fminterval = false;
+	bool yes_fminterval = false;
 	int cnt;
 
 	if (!mmio_resource_enabled(pdev, 0))
@@ -763,11 +763,11 @@ static void quirk_usb_handoff_ohci(struct pci_dev *pdev)
 	 * the OHCI_FMINTERVAL offset.
 	 */
 	if (pdev->vendor == PCI_VENDOR_ID_AL && pdev->device == 0x5237)
-		no_fminterval = true;
+		yes_fminterval = true;
 
 	control = readl(base + OHCI_CONTROL);
 
-/* On PA-RISC, PDC can leave IR set incorrectly; ignore it there. */
+/* On PA-RISC, PDC can leave IR set incorrectly; igyesre it there. */
 #ifdef __hppa__
 #define	OHCI_CTRL_MASK		(OHCI_CTRL_RWC | OHCI_CTRL_IR)
 #else
@@ -797,7 +797,7 @@ static void quirk_usb_handoff_ohci(struct pci_dev *pdev)
 	readl(base + OHCI_CONTROL);
 
 	/* software reset of the controller, preserving HcFmInterval */
-	if (!no_fminterval)
+	if (!yes_fminterval)
 		fminterval = readl(base + OHCI_FMINTERVAL);
 
 	writel(OHCI_HCR, base + OHCI_CMDSTATUS);
@@ -809,14 +809,14 @@ static void quirk_usb_handoff_ohci(struct pci_dev *pdev)
 		udelay(1);
 	}
 
-	if (!no_fminterval)
+	if (!yes_fminterval)
 		writel(fminterval, base + OHCI_FMINTERVAL);
 
-	/* Now the controller is safely in SUSPEND and nothing can wake it up */
+	/* Now the controller is safely in SUSPEND and yesthing can wake it up */
 	iounmap(base);
 }
 
-static const struct dmi_system_id ehci_dmi_nohandoff_table[] = {
+static const struct dmi_system_id ehci_dmi_yeshandoff_table[] = {
 	{
 		/*  Pegatron Lucid (ExoPC) */
 		.matches = {
@@ -863,7 +863,7 @@ static void ehci_bios_handoff(struct pci_dev *pdev,
 	 */
 	if (pdev->vendor == 0x8086 && (pdev->device == 0x283a ||
 			pdev->device == 0x27cc)) {
-		if (dmi_check_system(ehci_dmi_nohandoff_table))
+		if (dmi_check_system(ehci_dmi_yeshandoff_table))
 			try_handoff = 0;
 	}
 
@@ -873,7 +873,7 @@ static void ehci_bios_handoff(struct pci_dev *pdev,
 #if 0
 /* aleksey_gorelov@phoenix.com reports that some systems need SMI forced on,
  * but that seems dubious in general (the BIOS left it off intentionally)
- * and is known to prevent some systems from booting.  so we won't do this
+ * and is kyeswn to prevent some systems from booting.  so we won't do this
  * unless maybe we can determine when we're on a system that needs SMI forced.
  */
 		/* BIOS workaround (?): be sure the pre-Linux code
@@ -891,7 +891,7 @@ static void ehci_bios_handoff(struct pci_dev *pdev,
 		pci_write_config_byte(pdev, offset + 3, 1);
 	}
 
-	/* if boot firmware now owns EHCI, spin till it hands it over. */
+	/* if boot firmware yesw owns EHCI, spin till it hands it over. */
 	if (try_handoff) {
 		int msec = 1000;
 		while ((cap & EHCI_USBLEGSUP_BIOS) && (msec > 0)) {
@@ -904,7 +904,7 @@ static void ehci_bios_handoff(struct pci_dev *pdev,
 
 	if (cap & EHCI_USBLEGSUP_BIOS) {
 		/* well, possibly buggy BIOS... try to shut it down,
-		 * and hope nothing goes too wrong
+		 * and hope yesthing goes too wrong
 		 */
 		if (try_handoff)
 			dev_warn(&pdev->dev,
@@ -1001,7 +1001,7 @@ static void quirk_usb_disable_ehci(struct pci_dev *pdev)
  *
  * Polls a register every delay_usec microseconds.
  * Returns 0 when the mask bits have the value done.
- * Returns -ETIMEDOUT if this condition is not true after
+ * Returns -ETIMEDOUT if this condition is yest true after
  * wait_usec microseconds have passed.
  */
 static int handshake(void __iomem *ptr, u32 mask, u32 done,
@@ -1044,7 +1044,7 @@ void usb_enable_intel_xhci_ports(struct pci_dev *xhci_pdev)
 	bool		ehci_found = false;
 	struct pci_dev	*companion = NULL;
 
-	/* Sony VAIO t-series with subsystem device ID 90a8 is not capable of
+	/* Sony VAIO t-series with subsystem device ID 90a8 is yest capable of
 	 * switching ports from EHCI to xHCI
 	 */
 	if (xhci_pdev->subsystem_vendor == PCI_VENDOR_ID_SONY &&
@@ -1095,7 +1095,7 @@ void usb_enable_intel_xhci_ports(struct pci_dev *xhci_pdev)
 	pci_read_config_dword(xhci_pdev, USB_INTEL_USB3_PSSEN,
 			&ports_available);
 	dev_dbg(&xhci_pdev->dev,
-		"USB 3.0 ports that are now enabled under xHCI: 0x%x\n",
+		"USB 3.0 ports that are yesw enabled under xHCI: 0x%x\n",
 		ports_available);
 
 	/* Read XUSB2PRM, xHCI USB 2.0 Port Routing Mask Register
@@ -1118,7 +1118,7 @@ void usb_enable_intel_xhci_ports(struct pci_dev *xhci_pdev)
 	pci_read_config_dword(xhci_pdev, USB_INTEL_XUSB2PR,
 			&ports_available);
 	dev_dbg(&xhci_pdev->dev,
-		"USB 2.0 ports that are now switched over to xHCI: 0x%x\n",
+		"USB 2.0 ports that are yesw switched over to xHCI: 0x%x\n",
 		ports_available);
 }
 EXPORT_SYMBOL_GPL(usb_enable_intel_xhci_ports);
@@ -1150,7 +1150,7 @@ static void quirk_usb_handoff_xhci(struct pci_dev *pdev)
 	if (!mmio_resource_enabled(pdev, 0))
 		return;
 
-	base = ioremap_nocache(pci_resource_start(pdev, 0), len);
+	base = ioremap_yescache(pci_resource_start(pdev, 0), len);
 	if (base == NULL)
 		return;
 
@@ -1210,7 +1210,7 @@ hc_init:
 	op_reg_base = base + XHCI_HC_LENGTH(readl(base));
 
 	/* Wait for the host controller to be ready before writing any
-	 * operational or runtime registers.  Wait 5 seconds and no more.
+	 * operational or runtime registers.  Wait 5 seconds and yes more.
 	 */
 	timeout = handshake(op_reg_base + XHCI_STS_OFFSET, XHCI_STS_CNR, 0,
 			5000000, 10);
@@ -1218,7 +1218,7 @@ hc_init:
 	if (timeout) {
 		val = readl(op_reg_base + XHCI_STS_OFFSET);
 		dev_warn(&pdev->dev,
-			 "xHCI HW not ready after 5 sec (HC bug?) status = 0x%x\n",
+			 "xHCI HW yest ready after 5 sec (HC bug?) status = 0x%x\n",
 			 val);
 	}
 
@@ -1233,7 +1233,7 @@ hc_init:
 	if (timeout) {
 		val = readl(op_reg_base + XHCI_STS_OFFSET);
 		dev_warn(&pdev->dev,
-			 "xHCI HW did not halt within %d usec status = 0x%x\n",
+			 "xHCI HW did yest halt within %d usec status = 0x%x\n",
 			 XHCI_MAX_HALT_USEC, val);
 	}
 
@@ -1244,7 +1244,7 @@ iounmap:
 static void quirk_usb_early_handoff(struct pci_dev *pdev)
 {
 	/* Skip Netlogic mips SoC's internal PCI USB controller.
-	 * This device does not need/support EHCI/OHCI handoff
+	 * This device does yest need/support EHCI/OHCI handoff
 	 */
 	if (pdev->vendor == 0x184e)	/* vendor Netlogic */
 		return;

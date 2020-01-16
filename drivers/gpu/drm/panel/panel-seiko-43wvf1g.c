@@ -245,7 +245,7 @@ static const struct drm_panel_funcs seiko_panel_funcs = {
 static int seiko_panel_probe(struct device *dev,
 					const struct seiko_panel_desc *desc)
 {
-	struct device_node *backlight;
+	struct device_yesde *backlight;
 	struct seiko_panel *panel;
 	int err;
 
@@ -265,10 +265,10 @@ static int seiko_panel_probe(struct device *dev,
 	if (IS_ERR(panel->avdd))
 		return PTR_ERR(panel->avdd);
 
-	backlight = of_parse_phandle(dev->of_node, "backlight", 0);
+	backlight = of_parse_phandle(dev->of_yesde, "backlight", 0);
 	if (backlight) {
-		panel->backlight = of_find_backlight_by_node(backlight);
-		of_node_put(backlight);
+		panel->backlight = of_find_backlight_by_yesde(backlight);
+		of_yesde_put(backlight);
 
 		if (!panel->backlight)
 			return -EPROBE_DEFER;
@@ -346,7 +346,7 @@ static int seiko_panel_platform_probe(struct platform_device *pdev)
 {
 	const struct of_device_id *id;
 
-	id = of_match_node(platform_of_match, pdev->dev.of_node);
+	id = of_match_yesde(platform_of_match, pdev->dev.of_yesde);
 	if (!id)
 		return -ENODEV;
 

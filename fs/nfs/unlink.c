@@ -15,7 +15,7 @@
 #include <linux/sched.h>
 #include <linux/wait.h>
 #include <linux/namei.h>
-#include <linux/fsnotify.h>
+#include <linux/fsyestify.h>
 
 #include "internal.h"
 #include "nfs4_fs.h"
@@ -46,7 +46,7 @@ nfs_free_unlinkdata(struct nfs_unlinkdata *data)
 static void nfs_async_unlink_done(struct rpc_task *task, void *calldata)
 {
 	struct nfs_unlinkdata *data = calldata;
-	struct inode *dir = d_inode(data->dentry->d_parent);
+	struct iyesde *dir = d_iyesde(data->dentry->d_parent);
 
 	trace_nfs_sillyrename_unlink(data, task->tk_status);
 	if (!NFS_PROTO(dir)->unlink_done(task, dir))
@@ -66,7 +66,7 @@ static void nfs_async_unlink_release(void *calldata)
 	struct dentry *dentry = data->dentry;
 	struct super_block *sb = dentry->d_sb;
 
-	up_read_non_owner(&NFS_I(d_inode(dentry->d_parent))->rmdir_sem);
+	up_read_yesn_owner(&NFS_I(d_iyesde(dentry->d_parent))->rmdir_sem);
 	d_lookup_done(dentry);
 	nfs_free_unlinkdata(data);
 	dput(dentry);
@@ -76,7 +76,7 @@ static void nfs_async_unlink_release(void *calldata)
 static void nfs_unlink_prepare(struct rpc_task *task, void *calldata)
 {
 	struct nfs_unlinkdata *data = calldata;
-	struct inode *dir = d_inode(data->dentry->d_parent);
+	struct iyesde *dir = d_iyesde(data->dentry->d_parent);
 	NFS_PROTO(dir)->unlink_rpc_prepare(task, data);
 }
 
@@ -86,7 +86,7 @@ static const struct rpc_call_ops nfs_unlink_ops = {
 	.rpc_call_prepare = nfs_unlink_prepare,
 };
 
-static void nfs_do_call_unlink(struct inode *inode, struct nfs_unlinkdata *data)
+static void nfs_do_call_unlink(struct iyesde *iyesde, struct nfs_unlinkdata *data)
 {
 	struct rpc_message msg = {
 		.rpc_argp = &data->args,
@@ -101,12 +101,12 @@ static void nfs_do_call_unlink(struct inode *inode, struct nfs_unlinkdata *data)
 		.flags = RPC_TASK_ASYNC,
 	};
 	struct rpc_task *task;
-	struct inode *dir = d_inode(data->dentry->d_parent);
+	struct iyesde *dir = d_iyesde(data->dentry->d_parent);
 	nfs_sb_active(dir->i_sb);
 	data->args.fh = NFS_FH(dir);
 	nfs_fattr_init(data->res.dir_attr);
 
-	NFS_PROTO(dir)->unlink_setup(&msg, data->dentry, inode);
+	NFS_PROTO(dir)->unlink_setup(&msg, data->dentry, iyesde);
 
 	task_setup_data.rpc_client = NFS_CLIENT(dir);
 	task = rpc_run_task(&task_setup_data);
@@ -114,15 +114,15 @@ static void nfs_do_call_unlink(struct inode *inode, struct nfs_unlinkdata *data)
 		rpc_put_task_async(task);
 }
 
-static int nfs_call_unlink(struct dentry *dentry, struct inode *inode, struct nfs_unlinkdata *data)
+static int nfs_call_unlink(struct dentry *dentry, struct iyesde *iyesde, struct nfs_unlinkdata *data)
 {
-	struct inode *dir = d_inode(dentry->d_parent);
+	struct iyesde *dir = d_iyesde(dentry->d_parent);
 	struct dentry *alias;
 
-	down_read_non_owner(&NFS_I(dir)->rmdir_sem);
+	down_read_yesn_owner(&NFS_I(dir)->rmdir_sem);
 	alias = d_alloc_parallel(dentry->d_parent, &data->args.name, &data->wq);
 	if (IS_ERR(alias)) {
-		up_read_non_owner(&NFS_I(dir)->rmdir_sem);
+		up_read_yesn_owner(&NFS_I(dir)->rmdir_sem);
 		return 0;
 	}
 	if (!d_in_lookup(alias)) {
@@ -144,22 +144,22 @@ static int nfs_call_unlink(struct dentry *dentry, struct inode *inode, struct nf
 			ret = 0;
 		spin_unlock(&alias->d_lock);
 		dput(alias);
-		up_read_non_owner(&NFS_I(dir)->rmdir_sem);
+		up_read_yesn_owner(&NFS_I(dir)->rmdir_sem);
 		/*
 		 * If we'd displaced old cached devname, free it.  At that
-		 * point dentry is definitely not a root, so we won't need
+		 * point dentry is definitely yest a root, so we won't need
 		 * that anymore.
 		 */
 		kfree(devname_garbage);
 		return ret;
 	}
 	data->dentry = alias;
-	nfs_do_call_unlink(inode, data);
+	nfs_do_call_unlink(iyesde, data);
 	return 1;
 }
 
 /**
- * nfs_async_unlink - asynchronous unlinking of a file
+ * nfs_async_unlink - asynchroyesus unlinking of a file
  * @dentry: parent directory of dentry
  * @name: name of dentry to unlink
  */
@@ -192,7 +192,7 @@ nfs_async_unlink(struct dentry *dentry, const struct qstr *name)
 	spin_unlock(&dentry->d_lock);
 	/*
 	 * If we'd displaced old cached devname, free it.  At that
-	 * point dentry is definitely not a root, so we won't need
+	 * point dentry is definitely yest a root, so we won't need
 	 * that anymore.
 	 */
 	kfree(devname_garbage);
@@ -210,14 +210,14 @@ out:
 /**
  * nfs_complete_unlink - Initialize completion of the sillydelete
  * @dentry: dentry to delete
- * @inode: inode
+ * @iyesde: iyesde
  *
  * Since we're most likely to be called by dentry_iput(), we
  * only use the dentry to find the sillydelete. We then copy the name
  * into the qstr.
  */
 void
-nfs_complete_unlink(struct dentry *dentry, struct inode *inode)
+nfs_complete_unlink(struct dentry *dentry, struct iyesde *iyesde)
 {
 	struct nfs_unlinkdata	*data;
 
@@ -227,7 +227,7 @@ nfs_complete_unlink(struct dentry *dentry, struct inode *inode)
 	dentry->d_fsdata = NULL;
 	spin_unlock(&dentry->d_lock);
 
-	if (NFS_STALE(inode) || !nfs_call_unlink(dentry, inode, data))
+	if (NFS_STALE(iyesde) || !nfs_call_unlink(dentry, iyesde, data))
 		nfs_free_unlinkdata(data);
 }
 
@@ -258,8 +258,8 @@ nfs_cancel_async_unlink(struct dentry *dentry)
 static void nfs_async_rename_done(struct rpc_task *task, void *calldata)
 {
 	struct nfs_renamedata *data = calldata;
-	struct inode *old_dir = data->old_dir;
-	struct inode *new_dir = data->new_dir;
+	struct iyesde *old_dir = data->old_dir;
+	struct iyesde *new_dir = data->new_dir;
 	struct dentry *old_dentry = data->old_dentry;
 
 	trace_nfs_sillyrename_rename(old_dir, old_dentry,
@@ -283,9 +283,9 @@ static void nfs_async_rename_release(void *calldata)
 	struct super_block *sb = data->old_dir->i_sb;
 
 	if (d_really_is_positive(data->old_dentry))
-		nfs_mark_for_revalidate(d_inode(data->old_dentry));
+		nfs_mark_for_revalidate(d_iyesde(data->old_dentry));
 
-	/* The result of the rename is unknown. Play it safe by
+	/* The result of the rename is unkyeswn. Play it safe by
 	 * forcing a new lookup */
 	if (data->cancelled) {
 		spin_lock(&data->old_dir->i_lock);
@@ -320,17 +320,17 @@ static const struct rpc_call_ops nfs_rename_ops = {
 };
 
 /**
- * nfs_async_rename - perform an asynchronous rename operation
+ * nfs_async_rename - perform an asynchroyesus rename operation
  * @old_dir: directory that currently holds the dentry to be renamed
  * @new_dir: target directory for the rename
  * @old_dentry: original dentry to be renamed
  * @new_dentry: dentry to which the old_dentry should be renamed
  * @complete: Function to run on successful completion
  *
- * It's expected that valid references to the dentries and inodes are held
+ * It's expected that valid references to the dentries and iyesdes are held
  */
 struct rpc_task *
-nfs_async_rename(struct inode *old_dir, struct inode *new_dir,
+nfs_async_rename(struct iyesde *old_dir, struct iyesde *new_dir,
 		 struct dentry *old_dentry, struct dentry *new_dentry,
 		 void (*complete)(struct rpc_task *, struct nfs_renamedata *))
 {
@@ -408,10 +408,10 @@ nfs_complete_sillyrename(struct rpc_task *task, struct nfs_renamedata *data)
 
 /**
  * nfs_sillyrename - Perform a silly-rename of a dentry
- * @dir: inode of directory that contains dentry
+ * @dir: iyesde of directory that contains dentry
  * @dentry: dentry to be sillyrenamed
  *
- * NFSv2/3 is stateless and the server doesn't know when the client is
+ * NFSv2/3 is stateless and the server doesn't kyesw when the client is
  * holding a file open. To prevent application problems when a file is
  * unlinked while it's still open, the client performs a "silly-rename".
  * That is, it renames the file to a hidden file in the same directory,
@@ -422,19 +422,19 @@ nfs_complete_sillyrename(struct rpc_task *task, struct nfs_renamedata *data)
  * (Note: NFSv4 is stateful, and has opens, so in theory an NFSv4 server
  * could take responsibility for keeping open files referenced.  The server
  * would also need to ensure that opened-but-deleted files were kept over
- * reboots.  However, we may not assume a server does so.  (RFC 5661
+ * reboots.  However, we may yest assume a server does so.  (RFC 5661
  * does provide an OPEN4_RESULT_PRESERVE_UNLINKED flag that a server can
  * use to advertise that it does this; some day we may take advantage of
  * it.))
  */
 int
-nfs_sillyrename(struct inode *dir, struct dentry *dentry)
+nfs_sillyrename(struct iyesde *dir, struct dentry *dentry)
 {
 	static unsigned int sillycounter;
 	unsigned char silly[SILLYNAME_LEN + 1];
 	unsigned long long fileid;
 	struct dentry *sdentry;
-	struct inode *inode = d_inode(dentry);
+	struct iyesde *iyesde = d_iyesde(dentry);
 	struct rpc_task *task;
 	int            error = -EBUSY;
 
@@ -448,7 +448,7 @@ nfs_sillyrename(struct inode *dir, struct dentry *dentry)
 	if (dentry->d_flags & DCACHE_NFSFS_RENAMED)
 		goto out;
 
-	fileid = NFS_FILEID(d_inode(dentry));
+	fileid = NFS_FILEID(d_iyesde(dentry));
 
 	sdentry = NULL;
 	do {
@@ -470,9 +470,9 @@ nfs_sillyrename(struct inode *dir, struct dentry *dentry)
 		 */
 		if (IS_ERR(sdentry))
 			goto out;
-	} while (d_inode(sdentry) != NULL); /* need negative lookup */
+	} while (d_iyesde(sdentry) != NULL); /* need negative lookup */
 
-	ihold(inode);
+	ihold(iyesde);
 
 	/* queue unlink first. Can't do this from rpc_release as it
 	 * has to allocate memory
@@ -498,23 +498,23 @@ nfs_sillyrename(struct inode *dir, struct dentry *dentry)
 	case 0:
 		/* The rename succeeded */
 		nfs_set_verifier(dentry, nfs_save_change_attribute(dir));
-		spin_lock(&inode->i_lock);
-		NFS_I(inode)->attr_gencount = nfs_inc_attr_generation_counter();
-		NFS_I(inode)->cache_validity |= NFS_INO_INVALID_CHANGE
+		spin_lock(&iyesde->i_lock);
+		NFS_I(iyesde)->attr_gencount = nfs_inc_attr_generation_counter();
+		NFS_I(iyesde)->cache_validity |= NFS_INO_INVALID_CHANGE
 			| NFS_INO_INVALID_CTIME
 			| NFS_INO_REVAL_FORCED;
-		spin_unlock(&inode->i_lock);
+		spin_unlock(&iyesde->i_lock);
 		d_move(dentry, sdentry);
 		break;
 	case -ERESTARTSYS:
-		/* The result of the rename is unknown. Play it safe by
+		/* The result of the rename is unkyeswn. Play it safe by
 		 * forcing a new lookup */
 		d_drop(dentry);
 		d_drop(sdentry);
 	}
 	rpc_put_task(task);
 out_dput:
-	iput(inode);
+	iput(iyesde);
 	dput(sdentry);
 out:
 	return error;

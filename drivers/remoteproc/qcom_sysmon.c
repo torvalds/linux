@@ -4,7 +4,7 @@
  */
 #include <linux/firmware.h>
 #include <linux/module.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/slab.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
@@ -16,13 +16,13 @@
 
 #include "qcom_common.h"
 
-static BLOCKING_NOTIFIER_HEAD(sysmon_notifiers);
+static BLOCKING_NOTIFIER_HEAD(sysmon_yestifiers);
 
 struct qcom_sysmon {
 	struct rproc_subdev subdev;
 	struct rproc *rproc;
 
-	struct list_head node;
+	struct list_head yesde;
 
 	const char *name;
 
@@ -30,7 +30,7 @@ struct qcom_sysmon {
 	int ssctl_version;
 	int ssctl_instance;
 
-	struct notifier_block nb;
+	struct yestifier_block nb;
 
 	struct device *dev;
 
@@ -50,7 +50,7 @@ static DEFINE_MUTEX(sysmon_lock);
 static LIST_HEAD(sysmon_list);
 
 /**
- * sysmon_send_event() - send notification of other remote's SSR event
+ * sysmon_send_event() - send yestification of other remote's SSR event
  * @sysmon:	sysmon context
  * @name:	other remote's name
  */
@@ -327,7 +327,7 @@ static void ssctl_request_shutdown(struct qcom_sysmon *sysmon)
 }
 
 /**
- * ssctl_send_event() - send notification of other remote's SSR event
+ * ssctl_send_event() - send yestification of other remote's SSR event
  * @sysmon:	sysmon context
  * @name:	other remote's name
  */
@@ -399,7 +399,7 @@ static int ssctl_new_server(struct qmi_handle *qmi, struct qmi_service *svc)
 	sysmon->ssctl_version = svc->version;
 
 	sysmon->ssctl.sq_family = AF_QIPCRTR;
-	sysmon->ssctl.sq_node = svc->node;
+	sysmon->ssctl.sq_yesde = svc->yesde;
 	sysmon->ssctl.sq_port = svc->port;
 
 	svc->priv = sysmon;
@@ -433,7 +433,7 @@ static void sysmon_stop(struct rproc_subdev *subdev, bool crashed)
 {
 	struct qcom_sysmon *sysmon = container_of(subdev, struct qcom_sysmon, subdev);
 
-	blocking_notifier_call_chain(&sysmon_notifiers, 0, (void *)sysmon->name);
+	blocking_yestifier_call_chain(&sysmon_yestifiers, 0, (void *)sysmon->name);
 
 	/* Don't request graceful shutdown if we've crashed */
 	if (crashed)
@@ -446,21 +446,21 @@ static void sysmon_stop(struct rproc_subdev *subdev, bool crashed)
 }
 
 /**
- * sysmon_notify() - notify sysmon target of another's SSR
- * @nb:		notifier_block associated with sysmon instance
+ * sysmon_yestify() - yestify sysmon target of ayesther's SSR
+ * @nb:		yestifier_block associated with sysmon instance
  * @event:	unused
  * @data:	SSR identifier of the remote that is going down
  */
-static int sysmon_notify(struct notifier_block *nb, unsigned long event,
+static int sysmon_yestify(struct yestifier_block *nb, unsigned long event,
 			 void *data)
 {
 	struct qcom_sysmon *sysmon = container_of(nb, struct qcom_sysmon, nb);
 	struct rproc *rproc = sysmon->rproc;
 	const char *ssr_name = data;
 
-	/* Skip non-running rprocs and the originating instance */
+	/* Skip yesn-running rprocs and the originating instance */
 	if (rproc->state != RPROC_RUNNING || !strcmp(data, sysmon->name)) {
-		dev_dbg(sysmon->dev, "not notifying %s\n", sysmon->name);
+		dev_dbg(sysmon->dev, "yest yestifying %s\n", sysmon->name);
 		return NOTIFY_DONE;
 	}
 
@@ -512,7 +512,7 @@ struct qcom_sysmon *qcom_add_sysmon_subdev(struct rproc *rproc,
 	init_completion(&sysmon->shutdown_comp);
 	mutex_init(&sysmon->lock);
 
-	sysmon->shutdown_irq = of_irq_get_byname(sysmon->dev->of_node,
+	sysmon->shutdown_irq = of_irq_get_byname(sysmon->dev->of_yesde,
 						 "shutdown-ack");
 	if (sysmon->shutdown_irq < 0) {
 		if (sysmon->shutdown_irq != -ENODATA) {
@@ -548,11 +548,11 @@ struct qcom_sysmon *qcom_add_sysmon_subdev(struct rproc *rproc,
 
 	rproc_add_subdev(rproc, &sysmon->subdev);
 
-	sysmon->nb.notifier_call = sysmon_notify;
-	blocking_notifier_chain_register(&sysmon_notifiers, &sysmon->nb);
+	sysmon->nb.yestifier_call = sysmon_yestify;
+	blocking_yestifier_chain_register(&sysmon_yestifiers, &sysmon->nb);
 
 	mutex_lock(&sysmon_lock);
-	list_add(&sysmon->node, &sysmon_list);
+	list_add(&sysmon->yesde, &sysmon_list);
 	mutex_unlock(&sysmon_lock);
 
 	return sysmon;
@@ -569,10 +569,10 @@ void qcom_remove_sysmon_subdev(struct qcom_sysmon *sysmon)
 		return;
 
 	mutex_lock(&sysmon_lock);
-	list_del(&sysmon->node);
+	list_del(&sysmon->yesde);
 	mutex_unlock(&sysmon_lock);
 
-	blocking_notifier_chain_unregister(&sysmon_notifiers, &sysmon->nb);
+	blocking_yestifier_chain_unregister(&sysmon_yestifiers, &sysmon->nb);
 
 	rproc_remove_subdev(sysmon->rproc, &sysmon->subdev);
 
@@ -589,7 +589,7 @@ EXPORT_SYMBOL_GPL(qcom_remove_sysmon_subdev);
  * Find the sysmon context associated with the ancestor remoteproc and assign
  * this rpmsg device with said sysmon context.
  *
- * Return: 0 on success, negative errno on failure.
+ * Return: 0 on success, negative erryes on failure.
  */
 static int sysmon_probe(struct rpmsg_device *rpdev)
 {
@@ -598,18 +598,18 @@ static int sysmon_probe(struct rpmsg_device *rpdev)
 
 	rproc = rproc_get_by_child(&rpdev->dev);
 	if (!rproc) {
-		dev_err(&rpdev->dev, "sysmon device not child of rproc\n");
+		dev_err(&rpdev->dev, "sysmon device yest child of rproc\n");
 		return -EINVAL;
 	}
 
 	mutex_lock(&sysmon_lock);
-	list_for_each_entry(sysmon, &sysmon_list, node) {
+	list_for_each_entry(sysmon, &sysmon_list, yesde) {
 		if (sysmon->rproc == rproc)
 			goto found;
 	}
 	mutex_unlock(&sysmon_lock);
 
-	dev_err(&rpdev->dev, "no sysmon associated with parent rproc\n");
+	dev_err(&rpdev->dev, "yes sysmon associated with parent rproc\n");
 
 	return -EINVAL;
 

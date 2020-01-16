@@ -18,7 +18,7 @@
 
 /*
  * This flag is used to indicate that the page pointed to by a pte is clean
- * and does not require cleaning before returning it to the user.
+ * and does yest require cleaning before returning it to the user.
  */
 #define PG_dcache_clean PG_arch_1
 
@@ -33,7 +33,7 @@
  *	start addresses should be rounded down, end addresses up.
  *
  *	See Documentation/core-api/cachetlb.rst for more information.
- *	Please note that the implementation of these, and the required
+ *	Please yeste that the implementation of these, and the required
  *	effects are cache-type (VIVT/VIPT/PIPT) specific.
  *
  *	flush_icache_all()
@@ -69,7 +69,7 @@
  *	coherent_kern_range(start, end)
  *
  *		Ensure coherency between the Icache and the Dcache in the
- *		region described by start, end.  If you have non-snooping
+ *		region described by start, end.  If you have yesn-syesoping
  *		Harvard caches, you need to implement this function.
  *		- start  - virtual start address
  *		- end    - virtual end address
@@ -77,7 +77,7 @@
  *	coherent_user_range(start, end)
  *
  *		Ensure coherency between the Icache and the Dcache in the
- *		region described by start, end.  If you have non-snooping
+ *		region described by start, end.  If you have yesn-syesoping
  *		Harvard caches, you need to implement this function.
  *		- start  - virtual start address
  *		- end    - virtual end address
@@ -113,7 +113,7 @@ struct cpu_cache_fns {
 	void (*dma_unmap_area)(const void *, size_t, int);
 
 	void (*dma_flush_range)(const void *, const void *);
-} __no_randomize_layout;
+} __yes_randomize_layout;
 
 /*
  * Select the calling method
@@ -132,7 +132,7 @@ extern struct cpu_cache_fns cpu_cache;
 #define __cpuc_flush_dcache_area	cpu_cache.flush_kern_dcache_area
 
 /*
- * These are private to the dma-mapping API.  Do not use directly.
+ * These are private to the dma-mapping API.  Do yest use directly.
  * Their sole purpose is to ensure that data held in the cache
  * is visible to DMA, or data written by DMA to system memory is
  * visible to the CPU.
@@ -151,7 +151,7 @@ extern int  __cpuc_coherent_user_range(unsigned long, unsigned long);
 extern void __cpuc_flush_dcache_area(void *, size_t);
 
 /*
- * These are private to the dma-mapping API.  Do not use directly.
+ * These are private to the dma-mapping API.  Do yest use directly.
  * Their sole purpose is to ensure that data held in the cache
  * is visible to DMA, or data written by DMA to system memory is
  * visible to the CPU.
@@ -303,13 +303,13 @@ static inline void invalidate_kernel_vmap_range(void *addr, int size)
 }
 
 #define ARCH_HAS_FLUSH_ANON_PAGE
-static inline void flush_anon_page(struct vm_area_struct *vma,
+static inline void flush_ayesn_page(struct vm_area_struct *vma,
 			 struct page *page, unsigned long vmaddr)
 {
-	extern void __flush_anon_page(struct vm_area_struct *vma,
+	extern void __flush_ayesn_page(struct vm_area_struct *vma,
 				struct page *, unsigned long);
-	if (PageAnon(page))
-		__flush_anon_page(vma, page, vmaddr);
+	if (PageAyesn(page))
+		__flush_ayesn_page(vma, page, vmaddr);
 }
 
 #define ARCH_HAS_FLUSH_KERNEL_DCACHE_PAGE
@@ -329,18 +329,18 @@ extern void flush_kernel_dcache_page(struct page *);
 
 /*
  * flush_cache_vmap() is used when creating mappings (eg, via vmap,
- * vmalloc, ioremap etc) in kernel space for pages.  On non-VIPT
+ * vmalloc, ioremap etc) in kernel space for pages.  On yesn-VIPT
  * caches, since the direct-mappings of these pages may contain cached
  * data, we need to do a full cache flush to ensure that writebacks
  * don't corrupt data placed into these pages via the new mappings.
  */
 static inline void flush_cache_vmap(unsigned long start, unsigned long end)
 {
-	if (!cache_is_vipt_nonaliasing())
+	if (!cache_is_vipt_yesnaliasing())
 		flush_cache_all();
 	else
 		/*
-		 * set_pte_at() called from vmap_pte_range() does not
+		 * set_pte_at() called from vmap_pte_range() does yest
 		 * have a DSB after cleaning the cache line.
 		 */
 		dsb(ishst);
@@ -348,12 +348,12 @@ static inline void flush_cache_vmap(unsigned long start, unsigned long end)
 
 static inline void flush_cache_vunmap(unsigned long start, unsigned long end)
 {
-	if (!cache_is_vipt_nonaliasing())
+	if (!cache_is_vipt_yesnaliasing())
 		flush_cache_all();
 }
 
 /*
- * Memory synchronization helpers for mixed cached vs non cached accesses.
+ * Memory synchronization helpers for mixed cached vs yesn cached accesses.
  *
  * Some synchronization algorithms have to set states in memory with the
  * cache enabled or disabled depending on the code path.  It is crucial
@@ -367,7 +367,7 @@ static inline void flush_cache_vunmap(unsigned long start, unsigned long end)
  * accessed memory.
  *
  * Also, in order to prevent a cached writer from interfering with an
- * adjacent non-cached writer, each state variable must be located to
+ * adjacent yesn-cached writer, each state variable must be located to
  * a separate cache line.
  */
 
@@ -380,7 +380,7 @@ static inline void flush_cache_vunmap(unsigned long start, unsigned long end)
 #define __CACHE_WRITEBACK_GRANULE (1 << __CACHE_WRITEBACK_ORDER)
 
 /*
- * There is no __cpuc_clean_dcache_area but we use it anyway for
+ * There is yes __cpuc_clean_dcache_area but we use it anyway for
  * code intent clarity, and alias it to __cpuc_flush_dcache_area.
  */
 #define __cpuc_clean_dcache_area __cpuc_flush_dcache_area
@@ -399,8 +399,8 @@ static inline void __sync_cache_range_w(volatile void *p, size_t size)
 
 /*
  * Ensure preceding writes to *p by other CPUs are visible to
- * subsequent reads by this CPU.  We must be careful not to
- * discard data simultaneously written by another CPU, hence the
+ * subsequent reads by this CPU.  We must be careful yest to
+ * discard data simultaneously written by ayesther CPU, hence the
  * usage of flush rather than invalidate operations.
  */
 static inline void __sync_cache_range_r(volatile void *p, size_t size)
@@ -436,17 +436,17 @@ static inline void __sync_cache_range_r(volatile void *p, size_t size)
  * - Clear the ACTLR "SMP" bit to disable local coherency
  *
  * ... and so without any intervening memory access in between those steps,
- * not even to the stack.
+ * yest even to the stack.
  *
  * WARNING -- After this has been called:
  *
  * - No ldrex/strex (and similar) instructions must be used.
- * - The CPU is obviously no longer coherent with the other CPUs.
- * - This is unlikely to work as expected if Linux is running non-secure.
+ * - The CPU is obviously yes longer coherent with the other CPUs.
+ * - This is unlikely to work as expected if Linux is running yesn-secure.
  *
  * Note:
  *
- * - This is known to apply to several ARMv7 processor implementations,
+ * - This is kyeswn to apply to several ARMv7 processor implementations,
  *   however some exceptions may exist.  Caveat emptor.
  *
  * - The clobber list is dictated by the call to v7_flush_dcache_*.

@@ -5,7 +5,7 @@
  *
  * Copyright (c) 2011 Christian Strobel <christian.strobel@iis.fraunhofer.de>
  * Copyright (c) 2011 Manuel Stahl <manuel.stahl@iis.fraunhofer.de>
- * Copyright (c) 2012 Thorsten Nowak <thorsten.nowak@iis.fraunhofer.de>
+ * Copyright (c) 2012 Thorsten Nowak <thorsten.yeswak@iis.fraunhofer.de>
  */
 
 #include <linux/slab.h>
@@ -54,7 +54,7 @@ static irqreturn_t itg3200_trigger_handler(int irq, void *p)
 
 	iio_push_to_buffers_with_timestamp(indio_dev, buf, pf->timestamp);
 
-	iio_trigger_notify_done(indio_dev->trig);
+	iio_trigger_yestify_done(indio_dev->trig);
 
 error_ret:
 	return IRQ_HANDLED;

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
- * Exynos Specific Extensions for Synopsys DW Multimedia Card Interface driver
+ * Exyyess Specific Extensions for Syyespsys DW Multimedia Card Interface driver
  *
  * Copyright (C) 2012-2014 Samsung Electronics Co., Ltd.
  */

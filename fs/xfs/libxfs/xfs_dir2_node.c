@@ -11,7 +11,7 @@
 #include "xfs_log_format.h"
 #include "xfs_trans_resv.h"
 #include "xfs_mount.h"
-#include "xfs_inode.h"
+#include "xfs_iyesde.h"
 #include "xfs_bmap.h"
 #include "xfs_dir2.h"
 #include "xfs_dir2_priv.h"
@@ -58,7 +58,7 @@ xfs_dir2_db_to_fdindex(struct xfs_da_geometry *geo, xfs_dir2_db_t db)
 #ifdef DEBUG
 static xfs_failaddr_t
 xfs_dir3_leafn_check(
-	struct xfs_inode	*dp,
+	struct xfs_iyesde	*dp,
 	struct xfs_buf		*bp)
 {
 	struct xfs_dir2_leaf	*leaf = bp->b_addr;
@@ -68,7 +68,7 @@ xfs_dir3_leafn_check(
 
 	if (leafhdr.magic == XFS_DIR3_LEAFN_MAGIC) {
 		struct xfs_dir3_leaf_hdr *leaf3 = bp->b_addr;
-		if (be64_to_cpu(leaf3->info.blkno) != bp->b_bn)
+		if (be64_to_cpu(leaf3->info.blkyes) != bp->b_bn)
 			return __this_address;
 	} else if (leafhdr.magic != XFS_DIR2_LEAFN_MAGIC)
 		return __this_address;
@@ -78,7 +78,7 @@ xfs_dir3_leafn_check(
 
 static inline void
 xfs_dir3_leaf_check(
-	struct xfs_inode	*dp,
+	struct xfs_iyesde	*dp,
 	struct xfs_buf		*bp)
 {
 	xfs_failaddr_t		fa;
@@ -110,7 +110,7 @@ xfs_dir3_free_verify(
 
 		if (!uuid_equal(&hdr3->uuid, &mp->m_sb.sb_meta_uuid))
 			return __this_address;
-		if (be64_to_cpu(hdr3->blkno) != bp->b_bn)
+		if (be64_to_cpu(hdr3->blkyes) != bp->b_bn)
 			return __this_address;
 		if (!xfs_log_check_lsn(mp, be64_to_cpu(hdr3->lsn)))
 			return __this_address;
@@ -174,15 +174,15 @@ const struct xfs_buf_ops xfs_dir3_free_buf_ops = {
 /* Everything ok in the free block header? */
 static xfs_failaddr_t
 xfs_dir3_free_header_check(
-	struct xfs_inode	*dp,
-	xfs_dablk_t		fbno,
+	struct xfs_iyesde	*dp,
+	xfs_dablk_t		fbyes,
 	struct xfs_buf		*bp)
 {
 	struct xfs_mount	*mp = dp->i_mount;
 	int			maxbests = mp->m_dir_geo->free_max_bests;
 	unsigned int		firstdb;
 
-	firstdb = (xfs_dir2_da_to_db(mp->m_dir_geo, fbno) -
+	firstdb = (xfs_dir2_da_to_db(mp->m_dir_geo, fbyes) -
 		   xfs_dir2_byte_to_db(mp->m_dir_geo, XFS_DIR2_FREE_OFFSET)) *
 			maxbests;
 	if (xfs_sb_version_hascrc(&mp->m_sb)) {
@@ -210,21 +210,21 @@ xfs_dir3_free_header_check(
 static int
 __xfs_dir3_free_read(
 	struct xfs_trans	*tp,
-	struct xfs_inode	*dp,
-	xfs_dablk_t		fbno,
+	struct xfs_iyesde	*dp,
+	xfs_dablk_t		fbyes,
 	unsigned int		flags,
 	struct xfs_buf		**bpp)
 {
 	xfs_failaddr_t		fa;
 	int			err;
 
-	err = xfs_da_read_buf(tp, dp, fbno, flags, bpp, XFS_DATA_FORK,
+	err = xfs_da_read_buf(tp, dp, fbyes, flags, bpp, XFS_DATA_FORK,
 			&xfs_dir3_free_buf_ops);
 	if (err || !*bpp)
 		return err;
 
 	/* Check things that we can't do in the verifier. */
-	fa = xfs_dir3_free_header_check(dp, fbno, *bpp);
+	fa = xfs_dir3_free_header_check(dp, fbyes, *bpp);
 	if (fa) {
 		xfs_verifier_error(*bpp, -EFSCORRUPTED, fa);
 		xfs_trans_brelse(tp, *bpp);
@@ -293,37 +293,37 @@ xfs_dir2_free_hdr_to_disk(
 int
 xfs_dir2_free_read(
 	struct xfs_trans	*tp,
-	struct xfs_inode	*dp,
-	xfs_dablk_t		fbno,
+	struct xfs_iyesde	*dp,
+	xfs_dablk_t		fbyes,
 	struct xfs_buf		**bpp)
 {
-	return __xfs_dir3_free_read(tp, dp, fbno, 0, bpp);
+	return __xfs_dir3_free_read(tp, dp, fbyes, 0, bpp);
 }
 
 static int
 xfs_dir2_free_try_read(
 	struct xfs_trans	*tp,
-	struct xfs_inode	*dp,
-	xfs_dablk_t		fbno,
+	struct xfs_iyesde	*dp,
+	xfs_dablk_t		fbyes,
 	struct xfs_buf		**bpp)
 {
-	return __xfs_dir3_free_read(tp, dp, fbno, XFS_DABUF_MAP_HOLE_OK, bpp);
+	return __xfs_dir3_free_read(tp, dp, fbyes, XFS_DABUF_MAP_HOLE_OK, bpp);
 }
 
 static int
 xfs_dir3_free_get_buf(
 	xfs_da_args_t		*args,
-	xfs_dir2_db_t		fbno,
+	xfs_dir2_db_t		fbyes,
 	struct xfs_buf		**bpp)
 {
 	struct xfs_trans	*tp = args->trans;
-	struct xfs_inode	*dp = args->dp;
+	struct xfs_iyesde	*dp = args->dp;
 	struct xfs_mount	*mp = dp->i_mount;
 	struct xfs_buf		*bp;
 	int			error;
 	struct xfs_dir3_icfree_hdr hdr;
 
-	error = xfs_da_get_buf(tp, dp, xfs_dir2_db_to_da(args->geo, fbno),
+	error = xfs_da_get_buf(tp, dp, xfs_dir2_db_to_da(args->geo, fbyes),
 			&bp, XFS_DATA_FORK);
 	if (error)
 		return error;
@@ -343,8 +343,8 @@ xfs_dir3_free_get_buf(
 
 		hdr.magic = XFS_DIR3_FREE_MAGIC;
 
-		hdr3->hdr.blkno = cpu_to_be64(bp->b_bn);
-		hdr3->hdr.owner = cpu_to_be64(dp->i_ino);
+		hdr3->hdr.blkyes = cpu_to_be64(bp->b_bn);
+		hdr3->hdr.owner = cpu_to_be64(dp->i_iyes);
 		uuid_copy(&hdr3->hdr.uuid, &mp->m_sb.sb_meta_uuid);
 	} else
 		hdr.magic = XFS_DIR2_FREE_MAGIC;
@@ -394,16 +394,16 @@ xfs_dir2_free_log_header(
 }
 
 /*
- * Convert a leaf-format directory to a node-format directory.
+ * Convert a leaf-format directory to a yesde-format directory.
  * We need to change the magic number of the leaf block, and copy
  * the freespace table out of the leaf block into its own block.
  */
 int						/* error */
-xfs_dir2_leaf_to_node(
+xfs_dir2_leaf_to_yesde(
 	xfs_da_args_t		*args,		/* operation arguments */
 	struct xfs_buf		*lbp)		/* leaf buffer */
 {
-	xfs_inode_t		*dp;		/* incore directory inode */
+	xfs_iyesde_t		*dp;		/* incore directory iyesde */
 	int			error;		/* error return value */
 	struct xfs_buf		*fbp;		/* freespace buffer */
 	xfs_dir2_db_t		fdb;		/* freespace block number */
@@ -416,14 +416,14 @@ xfs_dir2_leaf_to_node(
 	xfs_trans_t		*tp;		/* transaction pointer */
 	struct xfs_dir3_icfree_hdr freehdr;
 
-	trace_xfs_dir2_leaf_to_node(args);
+	trace_xfs_dir2_leaf_to_yesde(args);
 
 	dp = args->dp;
 	tp = args->trans;
 	/*
 	 * Add a freespace block to the directory.
 	 */
-	if ((error = xfs_dir2_grow_inode(args, XFS_DIR2_FREE_SPACE, &fdb))) {
+	if ((error = xfs_dir2_grow_iyesde(args, XFS_DIR2_FREE_SPACE, &fdb))) {
 		return error;
 	}
 	ASSERT(fdb == xfs_dir2_byte_to_db(args->geo, XFS_DIR2_FREE_OFFSET));
@@ -466,7 +466,7 @@ xfs_dir2_leaf_to_node(
 	xfs_dir2_free_log_header(args, fbp);
 
 	/*
-	 * Converting the leaf to a leafnode is just a matter of changing the
+	 * Converting the leaf to a leafyesde is just a matter of changing the
 	 * magic number and the ops. Do the change directly to the buffer as
 	 * it's less work (and less code) than decoding the header to host
 	 * format and back again.
@@ -483,7 +483,7 @@ xfs_dir2_leaf_to_node(
 }
 
 /*
- * Add a leaf entry to a leaf block in a node-form directory.
+ * Add a leaf entry to a leaf block in a yesde-form directory.
  * The other work necessary is done from the caller.
  */
 static int					/* error */
@@ -493,7 +493,7 @@ xfs_dir2_leafn_add(
 	int			index)		/* insertion pt for new entry */
 {
 	struct xfs_dir3_icleaf_hdr leafhdr;
-	struct xfs_inode	*dp = args->dp;
+	struct xfs_iyesde	*dp = args->dp;
 	struct xfs_dir2_leaf	*leaf = bp->b_addr;
 	struct xfs_dir2_leaf_entry *lep;
 	struct xfs_dir2_leaf_entry *ents;
@@ -509,7 +509,7 @@ xfs_dir2_leafn_add(
 	ents = leafhdr.ents;
 
 	/*
-	 * Quick check just to make sure we are not going to index
+	 * Quick check just to make sure we are yest going to index
 	 * into other peoples memory
 	 */
 	if (index < 0) {
@@ -519,7 +519,7 @@ xfs_dir2_leafn_add(
 
 	/*
 	 * If there are already the maximum number of leaf entries in
-	 * the block, if there are no stale entries it won't fit.
+	 * the block, if there are yes stale entries it won't fit.
 	 * Caller will do a split.  If there are stale entries we'll do
 	 * a compact.
 	 */
@@ -560,7 +560,7 @@ xfs_dir2_leafn_add(
 
 	lep->hashval = cpu_to_be32(args->hashval);
 	lep->address = cpu_to_be32(xfs_dir2_db_off_to_dataptr(args->geo,
-				args->blkno, args->index));
+				args->blkyes, args->index));
 
 	xfs_dir2_leaf_hdr_to_disk(dp->i_mount, leaf, &leafhdr);
 	xfs_dir3_leaf_log_header(args, bp);
@@ -572,7 +572,7 @@ xfs_dir2_leafn_add(
 #ifdef DEBUG
 static void
 xfs_dir2_free_hdr_check(
-	struct xfs_inode *dp,
+	struct xfs_iyesde *dp,
 	struct xfs_buf	*bp,
 	xfs_dir2_db_t	db)
 {
@@ -594,7 +594,7 @@ xfs_dir2_free_hdr_check(
  */
 xfs_dahash_t					/* hash value */
 xfs_dir2_leaf_lasthash(
-	struct xfs_inode *dp,
+	struct xfs_iyesde *dp,
 	struct xfs_buf	*bp,			/* leaf buffer */
 	int		*count)			/* count of entries in leaf */
 {
@@ -615,7 +615,7 @@ xfs_dir2_leaf_lasthash(
 }
 
 /*
- * Look up a leaf entry for space to add a name in a node-format leaf block.
+ * Look up a leaf entry for space to add a name in a yesde-format leaf block.
  * The extrablk in state is a freespace block.
  */
 STATIC int
@@ -628,7 +628,7 @@ xfs_dir2_leafn_lookup_for_addname(
 	struct xfs_buf		*curbp = NULL;	/* current data/free buffer */
 	xfs_dir2_db_t		curdb = -1;	/* current data block number */
 	xfs_dir2_db_t		curfdb = -1;	/* current free block number */
-	xfs_inode_t		*dp;		/* incore directory inode */
+	xfs_iyesde_t		*dp;		/* incore directory iyesde */
 	int			error;		/* error return value */
 	int			fi;		/* free entry index */
 	xfs_dir2_free_t		*free = NULL;	/* free block structure */
@@ -661,7 +661,7 @@ xfs_dir2_leafn_lookup_for_addname(
 	if (state->extravalid) {
 		/* If so, it's a free block buffer, get the block number. */
 		curbp = state->extrablk.bp;
-		curfdb = state->extrablk.blkno;
+		curfdb = state->extrablk.blkyes;
 		free = curbp->b_addr;
 		ASSERT(free->hdr.magic == cpu_to_be32(XFS_DIR2_FREE_MAGIC) ||
 		       free->hdr.magic == cpu_to_be32(XFS_DIR3_FREE_MAGIC));
@@ -701,7 +701,7 @@ xfs_dir2_leafn_lookup_for_addname(
 			 */
 			newfdb = xfs_dir2_db_to_fdb(args->geo, newdb);
 			/*
-			 * If it's not the one we have in hand, read it in.
+			 * If it's yest the one we have in hand, read it in.
 			 */
 			if (newfdb != curfdb) {
 				/*
@@ -749,12 +749,12 @@ out:
 		state->extravalid = 1;
 		state->extrablk.bp = curbp;
 		state->extrablk.index = fi;
-		state->extrablk.blkno = curfdb;
+		state->extrablk.blkyes = curfdb;
 
 		/*
-		 * Important: this magic number is not in the buffer - it's for
+		 * Important: this magic number is yest in the buffer - it's for
 		 * buffer type information and therefore only the free/data type
-		 * matters here, not whether CRCs are enabled or not.
+		 * matters here, yest whether CRCs are enabled or yest.
 		 */
 		state->extrablk.magic = XFS_DIR2_FREE_MAGIC;
 	} else {
@@ -768,7 +768,7 @@ out:
 }
 
 /*
- * Look up a leaf entry in a node-format leaf block.
+ * Look up a leaf entry in a yesde-format leaf block.
  * The extrablk in state a data block.
  */
 STATIC int
@@ -781,7 +781,7 @@ xfs_dir2_leafn_lookup_for_entry(
 	struct xfs_buf		*curbp = NULL;	/* current data/free buffer */
 	xfs_dir2_db_t		curdb = -1;	/* current data block number */
 	xfs_dir2_data_entry_t	*dep;		/* data block entry */
-	xfs_inode_t		*dp;		/* incore directory inode */
+	xfs_iyesde_t		*dp;		/* incore directory iyesde */
 	int			error;		/* error return value */
 	int			index;		/* leaf entry index */
 	xfs_dir2_leaf_t		*leaf;		/* leaf structure */
@@ -813,7 +813,7 @@ xfs_dir2_leafn_lookup_for_entry(
 	 */
 	if (state->extravalid) {
 		curbp = state->extrablk.bp;
-		curdb = state->extrablk.blkno;
+		curdb = state->extrablk.blkyes;
 	}
 	/*
 	 * Loop over leaf entries with the right hash value.
@@ -843,14 +843,14 @@ xfs_dir2_leafn_lookup_for_entry(
 			 * for a CI name, drop it
 			 */
 			if (curbp && (args->cmpresult == XFS_CMP_DIFFERENT ||
-						curdb != state->extrablk.blkno))
+						curdb != state->extrablk.blkyes))
 				xfs_trans_brelse(tp, curbp);
 			/*
 			 * If needing the block that is saved with a CI match,
 			 * use it otherwise read in the new data block.
 			 */
 			if (args->cmpresult != XFS_CMP_DIFFERENT &&
-					newdb == state->extrablk.blkno) {
+					newdb == state->extrablk.blkyes) {
 				ASSERT(state->extravalid);
 				curbp = state->extrablk.bp;
 			} else {
@@ -873,13 +873,13 @@ xfs_dir2_leafn_lookup_for_entry(
 		/*
 		 * Compare the entry and if it's an exact match, return
 		 * EEXIST immediately. If it's the first case-insensitive
-		 * match, store the block & inode number and continue looking.
+		 * match, store the block & iyesde number and continue looking.
 		 */
 		cmp = xfs_dir2_compname(args, dep->name, dep->namelen);
 		if (cmp != XFS_CMP_DIFFERENT && cmp != args->cmpresult) {
 			/* If there is a CI match block, drop it */
 			if (args->cmpresult != XFS_CMP_DIFFERENT &&
-						curdb != state->extrablk.blkno)
+						curdb != state->extrablk.blkyes)
 				xfs_trans_brelse(tp, state->extrablk.bp);
 			args->cmpresult = cmp;
 			args->inumber = be64_to_cpu(dep->inumber);
@@ -887,7 +887,7 @@ xfs_dir2_leafn_lookup_for_entry(
 			*indexp = index;
 			state->extravalid = 1;
 			state->extrablk.bp = curbp;
-			state->extrablk.blkno = curdb;
+			state->extrablk.blkyes = curdb;
 			state->extrablk.index = (int)((char *)dep -
 							(char *)curbp->b_addr);
 			state->extrablk.magic = XFS_DIR2_DATA_MAGIC;
@@ -904,12 +904,12 @@ xfs_dir2_leafn_lookup_for_entry(
 			state->extravalid = 1;
 			state->extrablk.bp = curbp;
 			state->extrablk.index = -1;
-			state->extrablk.blkno = curdb;
+			state->extrablk.blkyes = curdb;
 			state->extrablk.magic = XFS_DIR2_DATA_MAGIC;
 			curbp->b_ops = &xfs_dir3_data_buf_ops;
 			xfs_trans_buf_set_type(tp, curbp, XFS_BLFT_DIR_DATA_BUF);
 		} else {
-			/* If the curbp is not the CI match block, drop it */
+			/* If the curbp is yest the CI match block, drop it */
 			if (state->extrablk.bp != curbp)
 				xfs_trans_brelse(tp, curbp);
 		}
@@ -921,7 +921,7 @@ xfs_dir2_leafn_lookup_for_entry(
 }
 
 /*
- * Look up a leaf entry in a node-format leaf block.
+ * Look up a leaf entry in a yesde-format leaf block.
  * If this is an addname then the extrablk in state is a freespace block,
  * otherwise it's a data block.
  */
@@ -960,13 +960,13 @@ xfs_dir3_leafn_moveents(
 	trace_xfs_dir2_leafn_moveents(args, start_s, start_d, count);
 
 	/*
-	 * Silently return if nothing to do.
+	 * Silently return if yesthing to do.
 	 */
 	if (count == 0)
 		return;
 
 	/*
-	 * If the destination index is not the end of the current
+	 * If the destination index is yest the end of the current
 	 * destination leaf entries, open up a hole in the destination
 	 * to hold the new entries.
 	 */
@@ -1023,7 +1023,7 @@ xfs_dir3_leafn_moveents(
  */
 int						/* sort order */
 xfs_dir2_leafn_order(
-	struct xfs_inode	*dp,
+	struct xfs_iyesde	*dp,
 	struct xfs_buf		*leaf1_bp,		/* leaf1 buffer */
 	struct xfs_buf		*leaf2_bp)		/* leaf2 buffer */
 {
@@ -1075,7 +1075,7 @@ xfs_dir2_leafn_rebalance(
 	struct xfs_dir2_leaf_entry *ents2;
 	struct xfs_dir3_icleaf_hdr hdr1;
 	struct xfs_dir3_icleaf_hdr hdr2;
-	struct xfs_inode	*dp = state->args->dp;
+	struct xfs_iyesde	*dp = state->args->dp;
 
 	args = state->args;
 	/*
@@ -1113,7 +1113,7 @@ xfs_dir2_leafn_rebalance(
 	}
 	/*
 	 * If the old count is even then the new count is odd, so there's
-	 * no preferred side for the new entry.
+	 * yes preferred side for the new entry.
 	 * Pick the left one.
 	 */
 	else
@@ -1160,7 +1160,7 @@ xfs_dir2_leafn_rebalance(
 		blk2->index = blk1->index - hdr1.count;
 
 	/*
-	 * Finally sanity check just to make sure we are not returning a
+	 * Finally sanity check just to make sure we are yest returning a
 	 * negative index
 	 */
 	if (blk2->index < 0) {
@@ -1184,12 +1184,12 @@ xfs_dir3_data_block_free(
 {
 	int			logfree = 0;
 	struct xfs_dir3_icfree_hdr freehdr;
-	struct xfs_inode	*dp = args->dp;
+	struct xfs_iyesde	*dp = args->dp;
 
 	xfs_dir2_free_hdr_from_disk(dp->i_mount, &freehdr, free);
 	if (hdr) {
 		/*
-		 * Data block is not empty, just set the free entry to the new
+		 * Data block is yest empty, just set the free entry to the new
 		 * value.
 		 */
 		freehdr.bests[findex] = cpu_to_be16(longest);
@@ -1203,7 +1203,7 @@ xfs_dir3_data_block_free(
 	/*
 	 * If this was the last entry in the table, we can trim the table size
 	 * back.  There might be other entries at the end referring to
-	 * non-existent data blocks, get those too.
+	 * yesn-existent data blocks, get those too.
 	 */
 	if (findex == freehdr.nvalid - 1) {
 		int	i;		/* free entry index */
@@ -1224,20 +1224,20 @@ xfs_dir3_data_block_free(
 	xfs_dir2_free_log_header(args, fbp);
 
 	/*
-	 * If there are no useful entries left in the block, get rid of the
+	 * If there are yes useful entries left in the block, get rid of the
 	 * block if we can.
 	 */
 	if (!freehdr.nused) {
 		int error;
 
-		error = xfs_dir2_shrink_inode(args, fdb, fbp);
+		error = xfs_dir2_shrink_iyesde(args, fdb, fbp);
 		if (error == 0) {
 			fbp = NULL;
 			logfree = 0;
 		} else if (error != -ENOSPC || args->total != 0)
 			return error;
 		/*
-		 * It's possible to get ENOSPC if there is no
+		 * It's possible to get ENOSPC if there is yes
 		 * space reservation.  In this case some one
 		 * else will eventually get rid of this block.
 		 */
@@ -1250,7 +1250,7 @@ xfs_dir3_data_block_free(
 }
 
 /*
- * Remove an entry from a node directory.
+ * Remove an entry from a yesde directory.
  * This removes the leaf entry and the data entry,
  * and updates the free block if necessary.
  */
@@ -1267,7 +1267,7 @@ xfs_dir2_leafn_remove(
 	xfs_dir2_db_t		db;		/* data block number */
 	struct xfs_buf		*dbp;		/* data block buffer */
 	xfs_dir2_data_entry_t	*dep;		/* data block entry */
-	xfs_inode_t		*dp;		/* incore directory inode */
+	xfs_iyesde_t		*dp;		/* incore directory iyesde */
 	xfs_dir2_leaf_t		*leaf;		/* leaf structure */
 	xfs_dir2_leaf_entry_t	*lep;		/* leaf entry */
 	int			longest;	/* longest data free entry */
@@ -1294,7 +1294,7 @@ xfs_dir2_leafn_remove(
 	 * Extract the data block and offset from the entry.
 	 */
 	db = xfs_dir2_dataptr_to_db(geo, be32_to_cpu(lep->address));
-	ASSERT(dblk->blkno == db);
+	ASSERT(dblk->blkyes == db);
 	off = xfs_dir2_dataptr_to_off(geo, be32_to_cpu(lep->address));
 	ASSERT(dblk->index == off);
 
@@ -1367,20 +1367,20 @@ xfs_dir2_leafn_remove(
 		findex = xfs_dir2_db_to_fdindex(geo, db);
 		longest = be16_to_cpu(bf[0].length);
 		/*
-		 * If the data block is now empty we can get rid of it
+		 * If the data block is yesw empty we can get rid of it
 		 * (usually).
 		 */
 		if (longest == geo->blksize - geo->data_entry_offset) {
 			/*
 			 * Try to punch out the data block.
 			 */
-			error = xfs_dir2_shrink_inode(args, db, dbp);
+			error = xfs_dir2_shrink_iyesde(args, db, dbp);
 			if (error == 0) {
 				dblk->bp = NULL;
 				hdr = NULL;
 			}
 			/*
-			 * We can get ENOSPC if there's no space reservation.
+			 * We can get ENOSPC if there's yes space reservation.
 			 * In this case just drop the buffer and some one else
 			 * will eventually get rid of the empty block.
 			 */
@@ -1399,7 +1399,7 @@ xfs_dir2_leafn_remove(
 
 	xfs_dir3_leaf_check(dp, bp);
 	/*
-	 * Return indication of whether this leaf block is empty enough
+	 * Return indication of whether this leaf block is empty eyesugh
 	 * to justify trying to join it with a neighbor.
 	 */
 	*rval = (geo->leaf_hdr_size +
@@ -1418,29 +1418,29 @@ xfs_dir2_leafn_split(
 	xfs_da_state_blk_t	*newblk)	/* newly created block */
 {
 	xfs_da_args_t		*args;		/* operation arguments */
-	xfs_dablk_t		blkno;		/* new leaf block number */
+	xfs_dablk_t		blkyes;		/* new leaf block number */
 	int			error;		/* error return value */
-	struct xfs_inode	*dp;
+	struct xfs_iyesde	*dp;
 
 	/*
-	 * Allocate space for a new leaf node.
+	 * Allocate space for a new leaf yesde.
 	 */
 	args = state->args;
 	dp = args->dp;
 	ASSERT(oldblk->magic == XFS_DIR2_LEAFN_MAGIC);
-	error = xfs_da_grow_inode(args, &blkno);
+	error = xfs_da_grow_iyesde(args, &blkyes);
 	if (error) {
 		return error;
 	}
 	/*
 	 * Initialize the new leaf block.
 	 */
-	error = xfs_dir3_leaf_get_buf(args, xfs_dir2_da_to_db(args->geo, blkno),
+	error = xfs_dir3_leaf_get_buf(args, xfs_dir2_da_to_db(args->geo, blkyes),
 				      &newblk->bp, XFS_DIR2_LEAFN_MAGIC);
 	if (error)
 		return error;
 
-	newblk->blkno = blkno;
+	newblk->blkyes = blkyes;
 	newblk->magic = XFS_DIR2_LEAFN_MAGIC;
 	/*
 	 * Rebalance the entries across the two leaves, link the new
@@ -1475,7 +1475,7 @@ xfs_dir2_leafn_split(
  * If the current block is over 50% full, don't try to join it, return 0.
  * If the block is empty, fill in the state structure and return 2.
  * If it can be collapsed, fill in the state structure and return 1.
- * If nothing can be done, return 0.
+ * If yesthing can be done, return 0.
  */
 int						/* error */
 xfs_dir2_leafn_toosmall(
@@ -1483,7 +1483,7 @@ xfs_dir2_leafn_toosmall(
 	int			*action)	/* resulting action to take */
 {
 	xfs_da_state_blk_t	*blk;		/* leaf block */
-	xfs_dablk_t		blkno;		/* leaf block number */
+	xfs_dablk_t		blkyes;		/* leaf block number */
 	struct xfs_buf		*bp;		/* leaf buffer */
 	int			bytes;		/* bytes in use */
 	int			count;		/* leaf live entry count */
@@ -1494,11 +1494,11 @@ xfs_dir2_leafn_toosmall(
 	int			rval;		/* result from path_shift */
 	struct xfs_dir3_icleaf_hdr leafhdr;
 	struct xfs_dir2_leaf_entry *ents;
-	struct xfs_inode	*dp = state->args->dp;
+	struct xfs_iyesde	*dp = state->args->dp;
 
 	/*
 	 * Check for the degenerate case of the block being over 50% full.
-	 * If so, it's not worth even looking to see if we might be able
+	 * If so, it's yest worth even looking to see if we might be able
 	 * to coalesce with a sibling.
 	 */
 	blk = &state->path.blk[state->path.active - 1];
@@ -1518,7 +1518,7 @@ xfs_dir2_leafn_toosmall(
 	}
 	/*
 	 * Check for the degenerate case of the block being empty.
-	 * If the block is empty, we'll simply delete it, no need to
+	 * If the block is empty, we'll simply delete it, yes need to
 	 * coalesce it with a sibling block.  We choose (arbitrarily)
 	 * to merge with the forward block unless it is NULL.
 	 */
@@ -1547,13 +1547,13 @@ xfs_dir2_leafn_toosmall(
 	for (i = 0, bp = NULL; i < 2; forward = !forward, i++) {
 		struct xfs_dir3_icleaf_hdr hdr2;
 
-		blkno = forward ? leafhdr.forw : leafhdr.back;
-		if (blkno == 0)
+		blkyes = forward ? leafhdr.forw : leafhdr.back;
+		if (blkyes == 0)
 			continue;
 		/*
 		 * Read the sibling leaf block.
 		 */
-		error = xfs_dir3_leafn_read(state->args->trans, dp, blkno, &bp);
+		error = xfs_dir3_leafn_read(state->args->trans, dp, blkyes, &bp);
 		if (error)
 			return error;
 
@@ -1590,7 +1590,7 @@ xfs_dir2_leafn_toosmall(
 	 * numbered block) and path point to the block we want to drop.
 	 */
 	memcpy(&state->altpath, &state->path, sizeof(state->path));
-	if (blkno < blk->blkno)
+	if (blkyes < blk->blkyes)
 		error = xfs_da3_path_shift(state, &state->altpath, forward, 0,
 			&rval);
 	else
@@ -1620,7 +1620,7 @@ xfs_dir2_leafn_unbalance(
 	struct xfs_dir3_icleaf_hdr drophdr;
 	struct xfs_dir2_leaf_entry *sents;
 	struct xfs_dir2_leaf_entry *dents;
-	struct xfs_inode	*dp = state->args->dp;
+	struct xfs_iyesde	*dp = state->args->dp;
 
 	args = state->args;
 	ASSERT(drop_blk->magic == XFS_DIR2_LEAFN_MAGIC);
@@ -1671,20 +1671,20 @@ xfs_dir2_leafn_unbalance(
  * has specified.
  */
 static int
-xfs_dir2_node_add_datablk(
+xfs_dir2_yesde_add_datablk(
 	struct xfs_da_args	*args,
 	struct xfs_da_state_blk	*fblk,
-	xfs_dir2_db_t		*dbno,
+	xfs_dir2_db_t		*dbyes,
 	struct xfs_buf		**dbpp,
 	struct xfs_buf		**fbpp,
 	struct xfs_dir3_icfree_hdr *hdr,
 	int			*findex)
 {
-	struct xfs_inode	*dp = args->dp;
+	struct xfs_iyesde	*dp = args->dp;
 	struct xfs_trans	*tp = args->trans;
 	struct xfs_mount	*mp = dp->i_mount;
 	struct xfs_dir2_data_free *bf;
-	xfs_dir2_db_t		fbno;
+	xfs_dir2_db_t		fbyes;
 	struct xfs_buf		*fbp;
 	struct xfs_buf		*dbp;
 	int			error;
@@ -1694,10 +1694,10 @@ xfs_dir2_node_add_datablk(
 		return -ENOSPC;
 
 	/* Allocate and initialize the new data block.  */
-	error = xfs_dir2_grow_inode(args, XFS_DIR2_DATA_SPACE, dbno);
+	error = xfs_dir2_grow_iyesde(args, XFS_DIR2_DATA_SPACE, dbyes);
 	if (error)
 		return error;
-	error = xfs_dir3_data_init(args, *dbno, &dbp);
+	error = xfs_dir3_data_init(args, *dbyes, &dbp);
 	if (error)
 		return error;
 
@@ -1705,9 +1705,9 @@ xfs_dir2_node_add_datablk(
 	 * Get the freespace block corresponding to the data block
 	 * that was just allocated.
 	 */
-	fbno = xfs_dir2_db_to_fdb(args->geo, *dbno);
+	fbyes = xfs_dir2_db_to_fdb(args->geo, *dbyes);
 	error = xfs_dir2_free_try_read(tp, dp,
-			       xfs_dir2_db_to_da(args->geo, fbno), &fbp);
+			       xfs_dir2_db_to_da(args->geo, fbyes), &fbp);
 	if (error)
 		return error;
 
@@ -1716,22 +1716,22 @@ xfs_dir2_node_add_datablk(
 	 * return a NULL fbp.  Allocate and initialize a new one.
 	 */
 	if (!fbp) {
-		error = xfs_dir2_grow_inode(args, XFS_DIR2_FREE_SPACE, &fbno);
+		error = xfs_dir2_grow_iyesde(args, XFS_DIR2_FREE_SPACE, &fbyes);
 		if (error)
 			return error;
 
 		if (XFS_IS_CORRUPT(mp,
-				   xfs_dir2_db_to_fdb(args->geo, *dbno) !=
-				   fbno)) {
+				   xfs_dir2_db_to_fdb(args->geo, *dbyes) !=
+				   fbyes)) {
 			xfs_alert(mp,
-"%s: dir ino %llu needed freesp block %lld for data block %lld, got %lld",
-				__func__, (unsigned long long)dp->i_ino,
-				(long long)xfs_dir2_db_to_fdb(args->geo, *dbno),
-				(long long)*dbno, (long long)fbno);
+"%s: dir iyes %llu needed freesp block %lld for data block %lld, got %lld",
+				__func__, (unsigned long long)dp->i_iyes,
+				(long long)xfs_dir2_db_to_fdb(args->geo, *dbyes),
+				(long long)*dbyes, (long long)fbyes);
 			if (fblk) {
 				xfs_alert(mp,
-			" fblk "PTR_FMT" blkno %llu index %d magic 0x%x",
-					fblk, (unsigned long long)fblk->blkno,
+			" fblk "PTR_FMT" blkyes %llu index %d magic 0x%x",
+					fblk, (unsigned long long)fblk->blkyes,
 					fblk->index, fblk->magic);
 			} else {
 				xfs_alert(mp, " ... fblk is NULL");
@@ -1740,13 +1740,13 @@ xfs_dir2_node_add_datablk(
 		}
 
 		/* Get a buffer for the new block. */
-		error = xfs_dir3_free_get_buf(args, fbno, &fbp);
+		error = xfs_dir3_free_get_buf(args, fbyes, &fbp);
 		if (error)
 			return error;
 		xfs_dir2_free_hdr_from_disk(mp, hdr, fbp->b_addr);
 
 		/* Remember the first slot as our empty slot. */
-		hdr->firstdb = (fbno - xfs_dir2_byte_to_db(args->geo,
+		hdr->firstdb = (fbyes - xfs_dir2_byte_to_db(args->geo,
 							XFS_DIR2_FREE_OFFSET)) *
 				args->geo->free_max_bests;
 	} else {
@@ -1754,7 +1754,7 @@ xfs_dir2_node_add_datablk(
 	}
 
 	/* Set the freespace block index from the data block number. */
-	*findex = xfs_dir2_db_to_fdindex(args->geo, *dbno);
+	*findex = xfs_dir2_db_to_fdindex(args->geo, *dbyes);
 
 	/* Extend the freespace table if the new data block is off the end. */
 	if (*findex >= hdr->nvalid) {
@@ -1783,23 +1783,23 @@ xfs_dir2_node_add_datablk(
 }
 
 static int
-xfs_dir2_node_find_freeblk(
+xfs_dir2_yesde_find_freeblk(
 	struct xfs_da_args	*args,
 	struct xfs_da_state_blk	*fblk,
-	xfs_dir2_db_t		*dbnop,
+	xfs_dir2_db_t		*dbyesp,
 	struct xfs_buf		**fbpp,
 	struct xfs_dir3_icfree_hdr *hdr,
 	int			*findexp,
 	int			length)
 {
-	struct xfs_inode	*dp = args->dp;
+	struct xfs_iyesde	*dp = args->dp;
 	struct xfs_trans	*tp = args->trans;
 	struct xfs_buf		*fbp = NULL;
-	xfs_dir2_db_t		firstfbno;
-	xfs_dir2_db_t		lastfbno;
-	xfs_dir2_db_t		ifbno = -1;
-	xfs_dir2_db_t		dbno = -1;
-	xfs_dir2_db_t		fbno;
+	xfs_dir2_db_t		firstfbyes;
+	xfs_dir2_db_t		lastfbyes;
+	xfs_dir2_db_t		ifbyes = -1;
+	xfs_dir2_db_t		dbyes = -1;
+	xfs_dir2_db_t		fbyes;
 	xfs_fileoff_t		fo;
 	int			findex = 0;
 	int			error;
@@ -1818,15 +1818,15 @@ xfs_dir2_node_find_freeblk(
 			ASSERT(findex < hdr->nvalid);
 			ASSERT(be16_to_cpu(hdr->bests[findex]) != NULLDATAOFF);
 			ASSERT(be16_to_cpu(hdr->bests[findex]) >= length);
-			dbno = hdr->firstdb + findex;
+			dbyes = hdr->firstdb + findex;
 			goto found_block;
 		}
 
 		/*
-		 * The data block looked at didn't have enough room.
+		 * The data block looked at didn't have eyesugh room.
 		 * We'll start at the beginning of the freespace entries.
 		 */
-		ifbno = fblk->blkno;
+		ifbyes = fblk->blkyes;
 		xfs_trans_brelse(tp, fbp);
 		fbp = NULL;
 		fblk->bp = NULL;
@@ -1834,26 +1834,26 @@ xfs_dir2_node_find_freeblk(
 
 	/*
 	 * If we don't have a data block yet, we're going to scan the freespace
-	 * data for a data block with enough free space in it.
+	 * data for a data block with eyesugh free space in it.
 	 */
 	error = xfs_bmap_last_offset(dp, &fo, XFS_DATA_FORK);
 	if (error)
 		return error;
-	lastfbno = xfs_dir2_da_to_db(args->geo, (xfs_dablk_t)fo);
-	firstfbno = xfs_dir2_byte_to_db(args->geo, XFS_DIR2_FREE_OFFSET);
+	lastfbyes = xfs_dir2_da_to_db(args->geo, (xfs_dablk_t)fo);
+	firstfbyes = xfs_dir2_byte_to_db(args->geo, XFS_DIR2_FREE_OFFSET);
 
-	for (fbno = lastfbno - 1; fbno >= firstfbno; fbno--) {
-		/* If it's ifbno we already looked at it. */
-		if (fbno == ifbno)
+	for (fbyes = lastfbyes - 1; fbyes >= firstfbyes; fbyes--) {
+		/* If it's ifbyes we already looked at it. */
+		if (fbyes == ifbyes)
 			continue;
 
 		/*
 		 * Read the block.  There can be holes in the freespace blocks,
-		 * so this might not succeed.  This should be really rare, so
-		 * there's no reason to avoid it.
+		 * so this might yest succeed.  This should be really rare, so
+		 * there's yes reason to avoid it.
 		 */
 		error = xfs_dir2_free_try_read(tp, dp,
-				xfs_dir2_db_to_da(args->geo, fbno),
+				xfs_dir2_db_to_da(args->geo, fbyes),
 				&fbp);
 		if (error)
 			return error;
@@ -1862,11 +1862,11 @@ xfs_dir2_node_find_freeblk(
 
 		xfs_dir2_free_hdr_from_disk(dp->i_mount, hdr, fbp->b_addr);
 
-		/* Scan the free entry array for a large enough free space. */
+		/* Scan the free entry array for a large eyesugh free space. */
 		for (findex = hdr->nvalid - 1; findex >= 0; findex--) {
 			if (be16_to_cpu(hdr->bests[findex]) != NULLDATAOFF &&
 			    be16_to_cpu(hdr->bests[findex]) >= length) {
-				dbno = hdr->firstdb + findex;
+				dbyes = hdr->firstdb + findex;
 				goto found_block;
 			}
 		}
@@ -1876,19 +1876,19 @@ xfs_dir2_node_find_freeblk(
 	}
 
 found_block:
-	*dbnop = dbno;
+	*dbyesp = dbyes;
 	*fbpp = fbp;
 	*findexp = findex;
 	return 0;
 }
 
 /*
- * Add the data entry for a node-format directory name addition.
+ * Add the data entry for a yesde-format directory name addition.
  * The leaf entry is added in xfs_dir2_leafn_add.
  * We may enter with a freespace block that the lookup found.
  */
 static int
-xfs_dir2_node_addname_int(
+xfs_dir2_yesde_addname_int(
 	struct xfs_da_args	*args,		/* operation arguments */
 	struct xfs_da_state_blk	*fblk)		/* optional freespace block */
 {
@@ -1897,12 +1897,12 @@ xfs_dir2_node_addname_int(
 	struct xfs_dir2_data_hdr *hdr;		/* data block header */
 	struct xfs_dir2_data_free *bf;
 	struct xfs_trans	*tp = args->trans;
-	struct xfs_inode	*dp = args->dp;
+	struct xfs_iyesde	*dp = args->dp;
 	struct xfs_dir3_icfree_hdr freehdr;
 	struct xfs_buf		*dbp;		/* data block buffer */
 	struct xfs_buf		*fbp;		/* freespace buffer */
 	xfs_dir2_data_aoff_t	aoff;
-	xfs_dir2_db_t		dbno;		/* data block number */
+	xfs_dir2_db_t		dbyes;		/* data block number */
 	int			error;		/* error return value */
 	int			findex;		/* freespace entry index */
 	int			length;		/* length of the new entry */
@@ -1912,17 +1912,17 @@ xfs_dir2_node_addname_int(
 	__be16			*tagp;		/* data entry tag pointer */
 
 	length = xfs_dir2_data_entsize(dp->i_mount, args->namelen);
-	error = xfs_dir2_node_find_freeblk(args, fblk, &dbno, &fbp, &freehdr,
+	error = xfs_dir2_yesde_find_freeblk(args, fblk, &dbyes, &fbp, &freehdr,
 					   &findex, length);
 	if (error)
 		return error;
 
 	/*
-	 * Now we know if we must allocate blocks, so if we are checking whether
-	 * we can insert without allocation then we can return now.
+	 * Now we kyesw if we must allocate blocks, so if we are checking whether
+	 * we can insert without allocation then we can return yesw.
 	 */
 	if (args->op_flags & XFS_DA_OP_JUSTCHECK) {
-		if (dbno == -1)
+		if (dbyes == -1)
 			return -ENOSPC;
 		return 0;
 	}
@@ -1931,21 +1931,21 @@ xfs_dir2_node_addname_int(
 	 * If we don't have a data block, we need to allocate one and make
 	 * the freespace entries refer to it.
 	 */
-	if (dbno == -1) {
+	if (dbyes == -1) {
 		/* we're going to have to log the free block index later */
 		logfree = 1;
-		error = xfs_dir2_node_add_datablk(args, fblk, &dbno, &dbp, &fbp,
+		error = xfs_dir2_yesde_add_datablk(args, fblk, &dbyes, &dbp, &fbp,
 						  &freehdr, &findex);
 	} else {
 		/* Read the data block in. */
 		error = xfs_dir3_data_read(tp, dp,
-					   xfs_dir2_db_to_da(args->geo, dbno),
+					   xfs_dir2_db_to_da(args->geo, dbyes),
 					   0, &dbp);
 	}
 	if (error)
 		return error;
 
-	/* setup for data block up now */
+	/* setup for data block up yesw */
 	hdr = dbp->b_addr;
 	bf = xfs_dir2_data_bestfree_p(dp->i_mount, hdr);
 	ASSERT(be16_to_cpu(bf[0].length) >= length);
@@ -1979,7 +1979,7 @@ xfs_dir2_node_addname_int(
 	if (needlog)
 		xfs_dir2_data_log_header(args, dbp);
 
-	/* If the freespace block entry is now wrong, update it. */
+	/* If the freespace block entry is yesw wrong, update it. */
 	if (freehdr.bests[findex] != bf[0].length) {
 		freehdr.bests[findex] = bf[0].length;
 		logfree = 1;
@@ -1990,16 +1990,16 @@ xfs_dir2_node_addname_int(
 		xfs_dir2_free_log_bests(args, &freehdr, fbp, findex, findex);
 
 	/* Return the data block and offset in args. */
-	args->blkno = (xfs_dablk_t)dbno;
+	args->blkyes = (xfs_dablk_t)dbyes;
 	args->index = be16_to_cpu(*tagp);
 	return 0;
 }
 
 /*
- * Top-level node form directory addname routine.
+ * Top-level yesde form directory addname routine.
  */
 int						/* error */
-xfs_dir2_node_addname(
+xfs_dir2_yesde_addname(
 	xfs_da_args_t		*args)		/* operation arguments */
 {
 	xfs_da_state_blk_t	*blk;		/* leaf block for insert */
@@ -2007,7 +2007,7 @@ xfs_dir2_node_addname(
 	int			rval;		/* sub-return value */
 	xfs_da_state_t		*state;		/* btree cursor */
 
-	trace_xfs_dir2_node_addname(args);
+	trace_xfs_dir2_yesde_addname(args);
 
 	/*
 	 * Allocate and initialize the state (btree cursor).
@@ -2016,10 +2016,10 @@ xfs_dir2_node_addname(
 	state->args = args;
 	state->mp = args->dp->i_mount;
 	/*
-	 * Look up the name.  We're not supposed to find it, but
+	 * Look up the name.  We're yest supposed to find it, but
 	 * this gives us the insertion point.
 	 */
-	error = xfs_da3_node_lookup_int(state, &rval);
+	error = xfs_da3_yesde_lookup_int(state, &rval);
 	if (error)
 		rval = error;
 	if (rval != -ENOENT) {
@@ -2029,7 +2029,7 @@ xfs_dir2_node_addname(
 	 * Add the data entry to a data block.
 	 * Extravalid is set to a freeblock found by lookup.
 	 */
-	rval = xfs_dir2_node_addname_int(args,
+	rval = xfs_dir2_yesde_addname_int(args,
 		state->extravalid ? &state->extrablk : NULL);
 	if (rval) {
 		goto done;
@@ -2065,12 +2065,12 @@ done:
 }
 
 /*
- * Lookup an entry in a node-format directory.
- * All the real work happens in xfs_da3_node_lookup_int.
- * The only real output is the inode number of the entry.
+ * Lookup an entry in a yesde-format directory.
+ * All the real work happens in xfs_da3_yesde_lookup_int.
+ * The only real output is the iyesde number of the entry.
  */
 int						/* error */
-xfs_dir2_node_lookup(
+xfs_dir2_yesde_lookup(
 	xfs_da_args_t	*args)			/* operation arguments */
 {
 	int		error;			/* error return value */
@@ -2078,7 +2078,7 @@ xfs_dir2_node_lookup(
 	int		rval;			/* operation return value */
 	xfs_da_state_t	*state;			/* btree cursor */
 
-	trace_xfs_dir2_node_lookup(args);
+	trace_xfs_dir2_yesde_lookup(args);
 
 	/*
 	 * Allocate and initialize the btree cursor.
@@ -2089,7 +2089,7 @@ xfs_dir2_node_lookup(
 	/*
 	 * Fill in the path to the entry in the cursor.
 	 */
-	error = xfs_da3_node_lookup_int(state, &rval);
+	error = xfs_da3_yesde_lookup_int(state, &rval);
 	if (error)
 		rval = error;
 	else if (rval == -ENOENT && args->cmpresult == XFS_CMP_CASE) {
@@ -2120,10 +2120,10 @@ xfs_dir2_node_lookup(
 }
 
 /*
- * Remove an entry from a node-format directory.
+ * Remove an entry from a yesde-format directory.
  */
 int						/* error */
-xfs_dir2_node_removename(
+xfs_dir2_yesde_removename(
 	struct xfs_da_args	*args)		/* operation arguments */
 {
 	struct xfs_da_state_blk	*blk;		/* leaf block */
@@ -2131,7 +2131,7 @@ xfs_dir2_node_removename(
 	int			rval;		/* operation return value */
 	struct xfs_da_state	*state;		/* btree cursor */
 
-	trace_xfs_dir2_node_removename(args);
+	trace_xfs_dir2_yesde_removename(args);
 
 	/*
 	 * Allocate and initialize the btree cursor.
@@ -2141,7 +2141,7 @@ xfs_dir2_node_removename(
 	state->mp = args->dp->i_mount;
 
 	/* Look up the entry we're deleting, set up the cursor. */
-	error = xfs_da3_node_lookup_int(state, &rval);
+	error = xfs_da3_yesde_lookup_int(state, &rval);
 	if (error)
 		goto out_free;
 
@@ -2172,20 +2172,20 @@ xfs_dir2_node_removename(
 	if (rval && state->path.active > 1)
 		error = xfs_da3_join(state);
 	/*
-	 * If no errors so far, try conversion to leaf format.
+	 * If yes errors so far, try conversion to leaf format.
 	 */
 	if (!error)
-		error = xfs_dir2_node_to_leaf(state);
+		error = xfs_dir2_yesde_to_leaf(state);
 out_free:
 	xfs_da_state_free(state);
 	return error;
 }
 
 /*
- * Replace an entry's inode number in a node-format directory.
+ * Replace an entry's iyesde number in a yesde-format directory.
  */
 int						/* error */
-xfs_dir2_node_replace(
+xfs_dir2_yesde_replace(
 	xfs_da_args_t		*args)		/* operation arguments */
 {
 	xfs_da_state_blk_t	*blk;		/* leaf block */
@@ -2193,12 +2193,12 @@ xfs_dir2_node_replace(
 	xfs_dir2_data_entry_t	*dep;		/* data entry changed */
 	int			error;		/* error return value */
 	int			i;		/* btree level */
-	xfs_ino_t		inum;		/* new inode number */
+	xfs_iyes_t		inum;		/* new iyesde number */
 	int			ftype;		/* new file type */
 	int			rval;		/* internal return value */
 	xfs_da_state_t		*state;		/* btree cursor */
 
-	trace_xfs_dir2_node_replace(args);
+	trace_xfs_dir2_yesde_replace(args);
 
 	/*
 	 * Allocate and initialize the btree cursor.
@@ -2208,8 +2208,8 @@ xfs_dir2_node_replace(
 	state->mp = args->dp->i_mount;
 
 	/*
-	 * We have to save new inode number and ftype since
-	 * xfs_da3_node_lookup_int() is going to overwrite them
+	 * We have to save new iyesde number and ftype since
+	 * xfs_da3_yesde_lookup_int() is going to overwrite them
 	 */
 	inum = args->inumber;
 	ftype = args->filetype;
@@ -2217,13 +2217,13 @@ xfs_dir2_node_replace(
 	/*
 	 * Lookup the entry to change in the btree.
 	 */
-	error = xfs_da3_node_lookup_int(state, &rval);
+	error = xfs_da3_yesde_lookup_int(state, &rval);
 	if (error) {
 		rval = error;
 	}
 	/*
-	 * It should be found, since the vnodeops layer has looked it up
-	 * and locked it.  But paranoia is good.
+	 * It should be found, since the vyesdeops layer has looked it up
+	 * and locked it.  But parayesia is good.
 	 */
 	if (rval == -EEXIST) {
 		struct xfs_dir3_icleaf_hdr	leafhdr;
@@ -2249,7 +2249,7 @@ xfs_dir2_node_replace(
 				be32_to_cpu(leafhdr.ents[blk->index].address)));
 		ASSERT(inum != be64_to_cpu(dep->inumber));
 		/*
-		 * Fill in the new inode number and log the entry.
+		 * Fill in the new iyesde number and log the entry.
 		 */
 		dep->inumber = cpu_to_be64(inum);
 		xfs_dir2_data_put_ftype(state->mp, dep, ftype);
@@ -2276,16 +2276,16 @@ xfs_dir2_node_replace(
 
 /*
  * Trim off a trailing empty freespace block.
- * Return (in rvalp) 1 if we did it, 0 if not.
+ * Return (in rvalp) 1 if we did it, 0 if yest.
  */
 int						/* error */
-xfs_dir2_node_trim_free(
+xfs_dir2_yesde_trim_free(
 	xfs_da_args_t		*args,		/* operation arguments */
 	xfs_fileoff_t		fo,		/* free block number */
 	int			*rvalp)		/* out: did something */
 {
 	struct xfs_buf		*bp;		/* freespace buffer */
-	xfs_inode_t		*dp;		/* incore directory inode */
+	xfs_iyesde_t		*dp;		/* incore directory iyesde */
 	int			error;		/* error return code */
 	xfs_dir2_free_t		*free;		/* freespace structure */
 	xfs_trans_t		*tp;		/* transaction pointer */
@@ -2304,7 +2304,7 @@ xfs_dir2_node_trim_free(
 		return error;
 	/*
 	 * There can be holes in freespace.  If fo is a hole, there's
-	 * nothing to do.
+	 * yesthing to do.
 	 */
 	if (!bp)
 		return 0;
@@ -2312,7 +2312,7 @@ xfs_dir2_node_trim_free(
 	xfs_dir2_free_hdr_from_disk(dp->i_mount, &freehdr, free);
 
 	/*
-	 * If there are used entries, there's nothing to do.
+	 * If there are used entries, there's yesthing to do.
 	 */
 	if (freehdr.nused > 0) {
 		xfs_trans_brelse(tp, bp);
@@ -2321,11 +2321,11 @@ xfs_dir2_node_trim_free(
 	/*
 	 * Blow the block away.
 	 */
-	error = xfs_dir2_shrink_inode(args,
+	error = xfs_dir2_shrink_iyesde(args,
 			xfs_dir2_da_to_db(args->geo, (xfs_dablk_t)fo), bp);
 	if (error) {
 		/*
-		 * Can't fail with ENOSPC since that only happens with no
+		 * Can't fail with ENOSPC since that only happens with yes
 		 * space reservation, when breaking up an extent into two
 		 * pieces.  This is the last block of an extent.
 		 */

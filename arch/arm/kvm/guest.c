@@ -4,7 +4,7 @@
  * Author: Christoffer Dall <c.dall@virtualopensystems.com>
  */
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/err.h>
 #include <linux/kvm_host.h>
 #include <linux/module.h>
@@ -205,7 +205,7 @@ int kvm_arm_copy_reg_indices(struct kvm_vcpu *vcpu, u64 __user *uindices)
 
 int kvm_arm_get_reg(struct kvm_vcpu *vcpu, const struct kvm_one_reg *reg)
 {
-	/* We currently use nothing arch-specific in upper 32 bits */
+	/* We currently use yesthing arch-specific in upper 32 bits */
 	if ((reg->id & ~KVM_REG_SIZE_MASK) >> 32 != KVM_REG_ARM >> 32)
 		return -EINVAL;
 
@@ -224,7 +224,7 @@ int kvm_arm_get_reg(struct kvm_vcpu *vcpu, const struct kvm_one_reg *reg)
 
 int kvm_arm_set_reg(struct kvm_vcpu *vcpu, const struct kvm_one_reg *reg)
 {
-	/* We currently use nothing arch-specific in upper 32 bits */
+	/* We currently use yesthing arch-specific in upper 32 bits */
 	if ((reg->id & ~KVM_REG_SIZE_MASK) >> 32 != KVM_REG_ARM >> 32)
 		return -EINVAL;
 
@@ -261,7 +261,7 @@ int __kvm_arm_vcpu_get_events(struct kvm_vcpu *vcpu,
 
 	/*
 	 * We never return a pending ext_dabt here because we deliver it to
-	 * the virtual CPU directly when setting the event and it's no longer
+	 * the virtual CPU directly when setting the event and it's yes longer
 	 * 'pending' at this point.
 	 */
 
@@ -308,7 +308,7 @@ int kvm_vcpu_preferred_target(struct kvm_vcpu_init *init)
 	memset(init, 0, sizeof(*init));
 
 	/*
-	 * For now, we don't return any features.
+	 * For yesw, we don't return any features.
 	 * In future, we might use features to return target
 	 * specific features available for the preferred
 	 * target type.

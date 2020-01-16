@@ -1,9 +1,9 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 /*
  *  compress_offload.h - compress offload header definations
  *
  *  Copyright (C) 2011 Intel Corporation
- *  Authors:	Vinod Koul <vinod.koul@linux.intel.com>
+ *  Authors:	Viyesd Koul <viyesd.koul@linux.intel.com>
  *		Pierre-Louis Bossart <pierre-louis.bossart@linux.intel.com>
  *  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  *
@@ -17,7 +17,7 @@
  *  General Public License for more details.
  *
  *  You should have received a copy of the GNU General Public License along
- *  with this program; if not, write to the Free Software Foundation, Inc.,
+ *  with this program; if yest, write to the Free Software Foundation, Inc.,
  *  59 Temple Place, Suite 330, Boston, MA 02111-1307 USA.
  *
  * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -46,12 +46,12 @@ struct snd_compressed_buffer {
  * struct snd_compr_params - compressed stream params
  * @buffer: buffer description
  * @codec: codec parameters
- * @no_wake_mode: dont wake on fragment elapsed
+ * @yes_wake_mode: dont wake on fragment elapsed
  */
 struct snd_compr_params {
 	struct snd_compressed_buffer buffer;
 	struct snd_codec codec;
-	__u8 no_wake_mode;
+	__u8 yes_wake_mode;
 } __attribute__((packed, aligned(4)));
 
 /**
@@ -60,7 +60,7 @@ struct snd_compr_params {
  * @copied_total: Total number of bytes copied from/to ring buffer to/by DSP
  * @pcm_frames: Frames decoded or encoded by DSP. This field will evolve by
  *	large steps and should only be used to monitor encoding/decoding
- *	progress. It shall not be used for timing estimates.
+ *	progress. It shall yest be used for timing estimates.
  * @pcm_io_frames: Frames rendered or received by DSP into a mixer or an audio
  * output/input. This field should be used for A/V sync or time estimates.
  * @sampling_rate: sampling rate of audio
@@ -124,9 +124,9 @@ struct snd_compr_codec_caps {
 
 /**
  * enum sndrv_compress_encoder
- * @SNDRV_COMPRESS_ENCODER_PADDING: no of samples appended by the encoder at the
+ * @SNDRV_COMPRESS_ENCODER_PADDING: yes of samples appended by the encoder at the
  * end of the track
- * @SNDRV_COMPRESS_ENCODER_DELAY: no of samples inserted by the encoder at the
+ * @SNDRV_COMPRESS_ENCODER_DELAY: yes of samples inserted by the encoder at the
  * beginning of the track
  */
 enum sndrv_compress_encoder {

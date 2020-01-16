@@ -91,7 +91,7 @@ struct mipi_dsi_host_ops {
 
 /**
  * struct mipi_dsi_host - DSI host device
- * @dev: driver model device node for this DSI host
+ * @dev: driver model device yesde for this DSI host
  * @ops: DSI host operations
  * @list: list management
  */
@@ -103,7 +103,7 @@ struct mipi_dsi_host {
 
 int mipi_dsi_host_register(struct mipi_dsi_host *host);
 void mipi_dsi_host_unregister(struct mipi_dsi_host *host);
-struct mipi_dsi_host *of_find_mipi_dsi_host_by_node(struct device_node *node);
+struct mipi_dsi_host *of_find_mipi_dsi_host_by_yesde(struct device_yesde *yesde);
 
 /* DSI mode flags */
 
@@ -127,7 +127,7 @@ struct mipi_dsi_host *of_find_mipi_dsi_host_by_node(struct device_node *node);
 #define MIPI_DSI_MODE_VSYNC_FLUSH	BIT(8)
 /* disable EoT packets in HS mode */
 #define MIPI_DSI_MODE_EOT_PACKET	BIT(9)
-/* device supports non-continuous clock behavior (DSI spec 5.6.1) */
+/* device supports yesn-continuous clock behavior (DSI spec 5.6.1) */
 #define MIPI_DSI_CLOCK_NON_CONTINUOUS	BIT(10)
 /* transmit data in low power */
 #define MIPI_DSI_MODE_LPM		BIT(11)
@@ -145,7 +145,7 @@ enum mipi_dsi_pixel_format {
  * struct mipi_dsi_device_info - template for creating a mipi_dsi_device
  * @type: DSI peripheral chip type
  * @channel: DSI virtual channel assigned to peripheral
- * @node: pointer to OF device node or NULL
+ * @yesde: pointer to OF device yesde or NULL
  *
  * This is populated and passed to mipi_dsi_device_new to create a new
  * DSI device
@@ -153,13 +153,13 @@ enum mipi_dsi_pixel_format {
 struct mipi_dsi_device_info {
 	char type[DSI_DEV_NAME_SIZE];
 	u32 channel;
-	struct device_node *node;
+	struct device_yesde *yesde;
 };
 
 /**
  * struct mipi_dsi_device - DSI peripheral device
  * @host: DSI host for this peripheral
- * @dev: driver model device node for this peripheral
+ * @dev: driver model device yesde for this peripheral
  * @name: DSI peripheral chip type
  * @channel: virtual channel assigned to the peripheral
  * @format: pixel format for video mode
@@ -221,7 +221,7 @@ struct mipi_dsi_device *
 mipi_dsi_device_register_full(struct mipi_dsi_host *host,
 			      const struct mipi_dsi_device_info *info);
 void mipi_dsi_device_unregister(struct mipi_dsi_device *dsi);
-struct mipi_dsi_device *of_find_mipi_dsi_device_by_node(struct device_node *np);
+struct mipi_dsi_device *of_find_mipi_dsi_device_by_yesde(struct device_yesde *np);
 int mipi_dsi_attach(struct mipi_dsi_device *dsi);
 int mipi_dsi_detach(struct mipi_dsi_device *dsi);
 int mipi_dsi_shutdown_peripheral(struct mipi_dsi_device *dsi);
@@ -258,7 +258,7 @@ ssize_t mipi_dsi_dcs_write(struct mipi_dsi_device *dsi, u8 cmd,
 			   const void *data, size_t len);
 ssize_t mipi_dsi_dcs_read(struct mipi_dsi_device *dsi, u8 cmd, void *data,
 			  size_t len);
-int mipi_dsi_dcs_nop(struct mipi_dsi_device *dsi);
+int mipi_dsi_dcs_yesp(struct mipi_dsi_device *dsi);
 int mipi_dsi_dcs_soft_reset(struct mipi_dsi_device *dsi);
 int mipi_dsi_dcs_get_power_mode(struct mipi_dsi_device *dsi, u8 *mode);
 int mipi_dsi_dcs_get_pixel_format(struct mipi_dsi_device *dsi, u8 *format);

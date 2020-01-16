@@ -104,10 +104,10 @@ int elm_config(struct device *dev, enum bch_ecc bch_type,
 	struct elm_info *info = dev_get_drvdata(dev);
 
 	if (!info) {
-		dev_err(dev, "Unable to configure elm - device not probed?\n");
+		dev_err(dev, "Unable to configure elm - device yest probed?\n");
 		return -EPROBE_DEFER;
 	}
-	/* ELM cannot detect ECC errors for chunks > 1KB */
+	/* ELM canyest detect ECC errors for chunks > 1KB */
 	if (ecc_step_size > ((ELM_ECC_SIZE + 1) / 2)) {
 		dev_err(dev, "unsupported config ecc-size=%d\n", ecc_step_size);
 		return -EINVAL;
@@ -290,7 +290,7 @@ static void elm_error_correction(struct elm_info *info,
 			offset = ELM_LOCATION_STATUS + ERROR_LOCATION_SIZE * i;
 			reg_val = elm_read_reg(info, offset);
 
-			/* Check correctable error or not */
+			/* Check correctable error or yest */
 			if (reg_val & ECC_CORRECTABLE_MASK) {
 				offset = ELM_ERROR_LOCATION_0 +
 					ERROR_LOCATION_SIZE * i;
@@ -392,7 +392,7 @@ static int elm_probe(struct platform_device *pdev)
 
 	irq = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
 	if (!irq) {
-		dev_err(&pdev->dev, "no irq resource defined\n");
+		dev_err(&pdev->dev, "yes irq resource defined\n");
 		return -ENODEV;
 	}
 

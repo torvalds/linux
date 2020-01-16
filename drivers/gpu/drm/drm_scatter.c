@@ -18,7 +18,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -46,7 +46,7 @@
 static inline void *drm_vmalloc_dma(unsigned long size)
 {
 #if defined(__powerpc__) && defined(CONFIG_NOT_COHERENT_CACHE)
-	return __vmalloc(size, GFP_KERNEL, pgprot_noncached_wc(PAGE_KERNEL));
+	return __vmalloc(size, GFP_KERNEL, pgprot_yesncached_wc(PAGE_KERNEL));
 #else
 	return vmalloc_32(size);
 #endif
@@ -177,7 +177,7 @@ int drm_legacy_sg_alloc(struct drm_device *dev, void *data,
 				if (*tmp != 0xcafebabe && error == 0) {
 					error = 1;
 					DRM_ERROR("Scatter allocation error, "
-						  "pagelist does not match "
+						  "pagelist does yest match "
 						  "virtual mapping\n");
 				}
 			}

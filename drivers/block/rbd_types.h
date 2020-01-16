@@ -22,7 +22,7 @@
  *   rbd_data.<id>.0000000000000000
  *   rbd_data.<id>.0000000000000001
  *   ...		- data
- * Clients do not access header data directly in rbd format 2.
+ * Clients do yest access header data directly in rbd format 2.
  */
 
 #define RBD_HEADER_PREFIX      "rbd_header."
@@ -34,7 +34,7 @@
 #define RBD_LOCK_TAG           "internal"
 #define RBD_LOCK_COOKIE_PREFIX "auto"
 
-enum rbd_notify_op {
+enum rbd_yestify_op {
 	RBD_NOTIFY_OP_ACQUIRED_LOCK      = 0,
 	RBD_NOTIFY_OP_RELEASED_LOCK      = 1,
 	RBD_NOTIFY_OP_REQUEST_LOCK       = 2,
@@ -55,7 +55,7 @@ enum rbd_notify_op {
  *   rb.<idhi>.<idlo>.<extra>.000000000000
  *   rb.<idhi>.<idlo>.<extra>.000000000001
  *   ...		- data
- * There is no notion of a persistent image id in rbd format 1.
+ * There is yes yestion of a persistent image id in rbd format 1.
  */
 
 #define RBD_SUFFIX		".rbd"

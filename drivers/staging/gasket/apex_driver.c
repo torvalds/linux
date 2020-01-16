@@ -46,7 +46,7 @@
 /* The number of user-mappable memory ranges in BAR2 of a Apex chip. */
 #define NUM_REGIONS 3
 
-/* The number of nodes in a Apex chip. */
+/* The number of yesdes in a Apex chip. */
 #define NUM_NODES 1
 
 /*
@@ -138,7 +138,7 @@ static const struct gasket_mappable_region mappable_regions[NUM_REGIONS] = {
 	{ 0x48000, 0x1000 },
 };
 
-/* Gasket device interrupts enums must be dense (i.e., no empty slots). */
+/* Gasket device interrupts enums must be dense (i.e., yes empty slots). */
 enum apex_interrupt {
 	APEX_INTERRUPT_INSTR_QUEUE = 0,
 	APEX_INTERRUPT_INPUT_ACTV_QUEUE = 1,
@@ -232,7 +232,7 @@ static int allow_power_save = 1;
 static int allow_sw_clock_gating;
 
 /* Allows HW based clock gating. */
-/* Note: this is not mutual exclusive with SW clock gating. */
+/* Note: this is yest mutual exclusive with SW clock gating. */
 static int allow_hw_clock_gating = 1;
 
 /* Act as if only GCB is instantiated. */
@@ -275,7 +275,7 @@ static int apex_enter_reset(struct gasket_dev *gasket_dev)
 					APEX_BAR2_REG_USER_HIB_DMA_PAUSED, 1, 1,
 					APEX_RESET_DELAY, APEX_RESET_RETRY)) {
 		dev_err(gasket_dev->dev,
-			"DMAs did not quiesce within timeout (%d ms)\n",
+			"DMAs did yest quiesce within timeout (%d ms)\n",
 			APEX_RESET_RETRY * APEX_RESET_DELAY);
 		return -ETIMEDOUT;
 	}
@@ -297,7 +297,7 @@ static int apex_enter_reset(struct gasket_dev *gasket_dev)
 					APEX_BAR2_REG_SCU_3, BIT(6), BIT(6),
 					APEX_RESET_DELAY, APEX_RESET_RETRY)) {
 		dev_err(gasket_dev->dev,
-			"RAM did not shut down within timeout (%d ms)\n",
+			"RAM did yest shut down within timeout (%d ms)\n",
 			APEX_RESET_RETRY * APEX_RESET_DELAY);
 		return -ETIMEDOUT;
 	}
@@ -333,7 +333,7 @@ static int apex_quit_reset(struct gasket_dev *gasket_dev)
 	/*
 	 *  - Disable GCB reset (rg_rst_gcb):
 	 *    - b00: Not forced (HW controlled)
-	 *    - b1x: Force disable = Force not Reset
+	 *    - b1x: Force disable = Force yest Reset
 	 */
 	gasket_read_modify_write_32(gasket_dev, APEX_BAR_INDEX,
 				    APEX_BAR2_REG_SCU_2, 0x2, 2, 2);
@@ -343,7 +343,7 @@ static int apex_quit_reset(struct gasket_dev *gasket_dev)
 					APEX_BAR2_REG_SCU_3, BIT(6), 0,
 					APEX_RESET_DELAY, APEX_RESET_RETRY)) {
 		dev_err(gasket_dev->dev,
-			"RAM did not enable within timeout (%d ms)\n",
+			"RAM did yest enable within timeout (%d ms)\n",
 			APEX_RESET_RETRY * APEX_RESET_DELAY);
 		return -ETIMEDOUT;
 	}
@@ -354,7 +354,7 @@ static int apex_quit_reset(struct gasket_dev *gasket_dev)
 					SCU3_CUR_RST_GCB_BIT_MASK, 0,
 					APEX_RESET_DELAY, APEX_RESET_RETRY)) {
 		dev_err(gasket_dev->dev,
-			"GCB did not leave reset within timeout (%d ms)\n",
+			"GCB did yest leave reset within timeout (%d ms)\n",
 			APEX_RESET_RETRY * APEX_RESET_DELAY);
 		return -ETIMEDOUT;
 	}
@@ -430,7 +430,7 @@ static int apex_reset(struct gasket_dev *gasket_dev)
 		return 0;
 
 	if (!is_gcb_in_reset(gasket_dev)) {
-		/* We are not in reset - toggle the reset bit so as to force
+		/* We are yest in reset - toggle the reset bit so as to force
 		 * re-init of custom block
 		 */
 		dev_dbg(gasket_dev->dev, "%s: toggle reset\n", __func__);
@@ -497,7 +497,7 @@ static long apex_ioctl(struct file *filp, uint cmd, void __user *argp)
 	case APEX_IOCTL_GATE_CLOCK:
 		return apex_clock_gating(gasket_dev, argp);
 	default:
-		return -ENOTTY; /* unknown command */
+		return -ENOTTY; /* unkyeswn command */
 	}
 }
 
@@ -538,7 +538,7 @@ static ssize_t sysfs_show(struct device *device, struct device_attribute *attr,
 		val = gasket_page_table_num_active_pages(gpt);
 		break;
 	default:
-		dev_dbg(gasket_dev->dev, "Unknown attribute: %s\n",
+		dev_dbg(gasket_dev->dev, "Unkyeswn attribute: %s\n",
 			attr->attr.name);
 		ret = 0;
 		goto exit;
@@ -551,11 +551,11 @@ exit:
 }
 
 static struct gasket_sysfs_attribute apex_sysfs_attrs[] = {
-	GASKET_SYSFS_RO(node_0_page_table_entries, sysfs_show,
+	GASKET_SYSFS_RO(yesde_0_page_table_entries, sysfs_show,
 			ATTR_KERNEL_HIB_PAGE_TABLE_SIZE),
-	GASKET_SYSFS_RO(node_0_simple_page_table_entries, sysfs_show,
+	GASKET_SYSFS_RO(yesde_0_simple_page_table_entries, sysfs_show,
 			ATTR_KERNEL_HIB_SIMPLE_PAGE_TABLE_SIZE),
-	GASKET_SYSFS_RO(node_0_num_mapped_pages, sysfs_show,
+	GASKET_SYSFS_RO(yesde_0_num_mapped_pages, sysfs_show,
 			ATTR_KERNEL_HIB_NUM_ACTIVE_PAGES),
 	GASKET_END_OF_ATTR_ARRAY
 };
@@ -563,7 +563,7 @@ static struct gasket_sysfs_attribute apex_sysfs_attrs[] = {
 /* On device open, perform a core reinit reset. */
 static int apex_device_open_cb(struct gasket_dev *gasket_dev)
 {
-	return gasket_reset_nolock(gasket_dev);
+	return gasket_reset_yeslock(gasket_dev);
 }
 
 static const struct pci_device_id apex_pci_ids[] = {
@@ -661,7 +661,7 @@ static const struct gasket_driver_desc apex_desc = {
 	.name = "apex",
 	.driver_version = APEX_DRIVER_VERSION,
 	.major = 120,
-	.minor = 0,
+	.miyesr = 0,
 	.module = THIS_MODULE,
 	.pci_id_table = apex_pci_ids,
 

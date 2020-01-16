@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /* -*- mode: c; c-basic-offset: 8; -*-
- * vim: noexpandtab sw=8 ts=8 sts=0:
+ * vim: yesexpandtab sw=8 ts=8 sts=0:
  *
  * uptodate.c
  *
@@ -11,19 +11,19 @@
  *
  * Standard buffer head caching flags (uptodate, etc) are insufficient
  * in a clustered environment - a buffer may be marked up to date on
- * our local node but could have been modified by another cluster
+ * our local yesde but could have been modified by ayesther cluster
  * member. As a result an additional (and performant) caching scheme
  * is required. A further requirement is that we consume as little
  * memory as possible - we never pin buffer_head structures in order
  * to cache them.
  *
- * We track the existence of up to date buffers on the inodes which
+ * We track the existence of up to date buffers on the iyesdes which
  * are associated with them. Because we don't want to pin
  * buffer_heads, this is only a (strong) hint and several other checks
  * are made in the I/O path to ensure that we don't use a stale or
  * invalid buffer without going to disk:
  *	- buffer_jbd is used liberally - if a bh is in the journal on
- *	  this node then it *must* be up to date.
+ *	  this yesde then it *must* be up to date.
  *	- the standard buffer_uptodate() macro is used to detect buffers
  *	  which may be invalid (even if we have an up to date tracking
  * 	  item for them)
@@ -44,12 +44,12 @@
 
 #include "ocfs2.h"
 
-#include "inode.h"
+#include "iyesde.h"
 #include "uptodate.h"
 #include "ocfs2_trace.h"
 
 struct ocfs2_meta_cache_item {
-	struct rb_node	c_node;
+	struct rb_yesde	c_yesde;
 	sector_t	c_block;
 };
 
@@ -126,21 +126,21 @@ void ocfs2_metadata_cache_exit(struct ocfs2_caching_info *ci)
 }
 
 
-/* No lock taken here as 'root' is not expected to be visible to other
+/* No lock taken here as 'root' is yest expected to be visible to other
  * processes. */
 static unsigned int ocfs2_purge_copied_metadata_tree(struct rb_root *root)
 {
 	unsigned int purged = 0;
-	struct rb_node *node;
+	struct rb_yesde *yesde;
 	struct ocfs2_meta_cache_item *item;
 
-	while ((node = rb_last(root)) != NULL) {
-		item = rb_entry(node, struct ocfs2_meta_cache_item, c_node);
+	while ((yesde = rb_last(root)) != NULL) {
+		item = rb_entry(yesde, struct ocfs2_meta_cache_item, c_yesde);
 
 		trace_ocfs2_purge_copied_metadata_tree(
 					(unsigned long long) item->c_block);
 
-		rb_erase(&item->c_node, root);
+		rb_erase(&item->c_yesde, root);
 		kmem_cache_free(ocfs2_uptodate_cachep, item);
 
 		purged++;
@@ -148,8 +148,8 @@ static unsigned int ocfs2_purge_copied_metadata_tree(struct rb_root *root)
 	return purged;
 }
 
-/* Called from locking and called from ocfs2_clear_inode. Dump the
- * cache for a given inode.
+/* Called from locking and called from ocfs2_clear_iyesde. Dump the
+ * cache for a given iyesde.
  *
  * This function is a few more lines longer than necessary due to some
  * accounting done here, but I think it's worth tracking down those
@@ -188,7 +188,7 @@ void ocfs2_metadata_cache_purge(struct ocfs2_caching_info *ci)
 		     to_purge, purged);
 }
 
-/* Returns the index in the cache array, -1 if not found.
+/* Returns the index in the cache array, -1 if yest found.
  * Requires ip_lock. */
 static int ocfs2_search_cache_array(struct ocfs2_caching_info *ci,
 				    sector_t item)
@@ -209,11 +209,11 @@ static struct ocfs2_meta_cache_item *
 ocfs2_search_cache_tree(struct ocfs2_caching_info *ci,
 			sector_t block)
 {
-	struct rb_node * n = ci->ci_cache.ci_tree.rb_node;
+	struct rb_yesde * n = ci->ci_cache.ci_tree.rb_yesde;
 	struct ocfs2_meta_cache_item *item = NULL;
 
 	while (n) {
-		item = rb_entry(n, struct ocfs2_meta_cache_item, c_node);
+		item = rb_entry(n, struct ocfs2_meta_cache_item, c_yesde);
 
 		if (block < item->c_block)
 			n = n->rb_left;
@@ -251,26 +251,26 @@ static int ocfs2_buffer_cached(struct ocfs2_caching_info *ci,
 	return (index != -1) || (item != NULL);
 }
 
-/* Warning: even if it returns true, this does *not* guarantee that
- * the block is stored in our inode metadata cache.
+/* Warning: even if it returns true, this does *yest* guarantee that
+ * the block is stored in our iyesde metadata cache.
  *
  * This can be called under lock_buffer()
  */
 int ocfs2_buffer_uptodate(struct ocfs2_caching_info *ci,
 			  struct buffer_head *bh)
 {
-	/* Doesn't matter if the bh is in our cache or not -- if it's
-	 * not marked uptodate then we know it can't have correct
+	/* Doesn't matter if the bh is in our cache or yest -- if it's
+	 * yest marked uptodate then we kyesw it can't have correct
 	 * data. */
 	if (!buffer_uptodate(bh))
 		return 0;
 
-	/* OCFS2 does not allow multiple nodes to be changing the same
+	/* OCFS2 does yest allow multiple yesdes to be changing the same
 	 * block at the same time. */
 	if (buffer_jbd(bh))
 		return 1;
 
-	/* Ok, locally the buffer is marked as up to date, now search
+	/* Ok, locally the buffer is marked as up to date, yesw search
 	 * our cache to see if we can trust that. */
 	return ocfs2_buffer_cached(ci, bh);
 }
@@ -299,15 +299,15 @@ static void ocfs2_append_cache_array(struct ocfs2_caching_info *ci,
 	ci->ci_num_cached++;
 }
 
-/* By now the caller should have checked that the item does *not*
+/* By yesw the caller should have checked that the item does *yest*
  * exist in the tree.
  * Requires ip_lock. */
 static void __ocfs2_insert_cache_tree(struct ocfs2_caching_info *ci,
 				      struct ocfs2_meta_cache_item *new)
 {
 	sector_t block = new->c_block;
-	struct rb_node *parent = NULL;
-	struct rb_node **p = &ci->ci_cache.ci_tree.rb_node;
+	struct rb_yesde *parent = NULL;
+	struct rb_yesde **p = &ci->ci_cache.ci_tree.rb_yesde;
 	struct ocfs2_meta_cache_item *tmp;
 
 	trace_ocfs2_insert_cache_tree(
@@ -317,7 +317,7 @@ static void __ocfs2_insert_cache_tree(struct ocfs2_caching_info *ci,
 	while(*p) {
 		parent = *p;
 
-		tmp = rb_entry(parent, struct ocfs2_meta_cache_item, c_node);
+		tmp = rb_entry(parent, struct ocfs2_meta_cache_item, c_yesde);
 
 		if (block < tmp->c_block)
 			p = &(*p)->rb_left;
@@ -331,8 +331,8 @@ static void __ocfs2_insert_cache_tree(struct ocfs2_caching_info *ci,
 		}
 	}
 
-	rb_link_node(&new->c_node, parent, p);
-	rb_insert_color(&new->c_node, &ci->ci_cache.ci_tree);
+	rb_link_yesde(&new->c_yesde, parent, p);
+	rb_insert_color(&new->c_yesde, &ci->ci_cache.ci_tree);
 	ci->ci_num_cached++;
 }
 
@@ -358,7 +358,7 @@ static void ocfs2_expand_cache(struct ocfs2_caching_info *ci,
 			(unsigned long long)ocfs2_metadata_cache_owner(ci),
 			ci->ci_num_cached, OCFS2_CACHE_INFO_MAX_ARRAY);
 	mlog_bug_on_msg(!(ci->ci_flags & OCFS2_CACHE_FL_INLINE),
-			"Owner %llu not marked as inline anymore!\n",
+			"Owner %llu yest marked as inline anymore!\n",
 			(unsigned long long)ocfs2_metadata_cache_owner(ci));
 
 	/* Be careful to initialize the tree members *first* because
@@ -398,19 +398,19 @@ static void __ocfs2_set_buffer_uptodate(struct ocfs2_caching_info *ci,
 
 	new = kmem_cache_alloc(ocfs2_uptodate_cachep, GFP_NOFS);
 	if (!new) {
-		mlog_errno(-ENOMEM);
+		mlog_erryes(-ENOMEM);
 		return;
 	}
 	new->c_block = block;
 
 	if (expand_tree) {
-		/* Do *not* allocate an array here - the removal code
-		 * has no way of tracking that. */
+		/* Do *yest* allocate an array here - the removal code
+		 * has yes way of tracking that. */
 		for (i = 0; i < OCFS2_CACHE_INFO_MAX_ARRAY; i++) {
 			tree[i] = kmem_cache_alloc(ocfs2_uptodate_cachep,
 						   GFP_NOFS);
 			if (!tree[i]) {
-				mlog_errno(-ENOMEM);
+				mlog_erryes(-ENOMEM);
 				goto out_free;
 			}
 
@@ -449,10 +449,10 @@ out_free:
 }
 
 /* Item insertion is guarded by co_io_lock(), so the insertion path takes
- * advantage of this by not rechecking for a duplicate insert during
+ * advantage of this by yest rechecking for a duplicate insert during
  * the slow case. Additionally, if the cache needs to be bumped up to
- * a tree, the code will not recheck after acquiring the lock --
- * multiple paths cannot be expanding to a tree at the same time.
+ * a tree, the code will yest recheck after acquiring the lock --
+ * multiple paths canyest be expanding to a tree at the same time.
  *
  * The slow path takes into account that items can be removed
  * (including the whole tree wiped and reset) when this process it out
@@ -460,7 +460,7 @@ out_free:
  * path.
  *
  * Note that this function may actually fail to insert the block if
- * memory cannot be allocated. This is not fatal however (but may
+ * memory canyest be allocated. This is yest fatal however (but may
  * result in a performance penalty)
  *
  * Readahead buffers can be passed in here before the I/O request is
@@ -501,13 +501,13 @@ void ocfs2_set_buffer_uptodate(struct ocfs2_caching_info *ci,
 	__ocfs2_set_buffer_uptodate(ci, bh->b_blocknr, expand);
 }
 
-/* Called against a newly allocated buffer. Most likely nobody should
+/* Called against a newly allocated buffer. Most likely yesbody should
  * be able to read this sort of metadata while it's still being
  * allocated, but this is careful to take co_io_lock() anyway. */
 void ocfs2_set_new_buffer_uptodate(struct ocfs2_caching_info *ci,
 				   struct buffer_head *bh)
 {
-	/* This should definitely *not* exist in our cache */
+	/* This should definitely *yest* exist in our cache */
 	BUG_ON(ocfs2_buffer_cached(ci, bh));
 
 	set_buffer_uptodate(bh);
@@ -534,7 +534,7 @@ static void ocfs2_remove_metadata_array(struct ocfs2_caching_info *ci,
 
 	ci->ci_num_cached--;
 
-	/* don't need to copy if the array is now empty, or if we
+	/* don't need to copy if the array is yesw empty, or if we
 	 * removed at the tail */
 	if (ci->ci_num_cached && index < ci->ci_num_cached) {
 		bytes = sizeof(sector_t) * (ci->ci_num_cached - index);
@@ -550,7 +550,7 @@ static void ocfs2_remove_metadata_tree(struct ocfs2_caching_info *ci,
 		(unsigned long long)ocfs2_metadata_cache_owner(ci),
 		(unsigned long long)item->c_block);
 
-	rb_erase(&item->c_node, &ci->ci_cache.ci_tree);
+	rb_erase(&item->c_yesde, &ci->ci_cache.ci_tree);
 	ci->ci_num_cached--;
 }
 
@@ -582,7 +582,7 @@ static void ocfs2_remove_block_from_cache(struct ocfs2_caching_info *ci,
 }
 
 /*
- * Called when we remove a chunk of metadata from an inode. We don't
+ * Called when we remove a chunk of metadata from an iyesde. We don't
  * bother reverting things to an inlined array in the case of a remove
  * which moves us back under the limit.
  */
@@ -594,7 +594,7 @@ void ocfs2_remove_from_cache(struct ocfs2_caching_info *ci,
 	ocfs2_remove_block_from_cache(ci, block);
 }
 
-/* Called when we remove xattr clusters from an inode. */
+/* Called when we remove xattr clusters from an iyesde. */
 void ocfs2_remove_xattr_clusters_from_cache(struct ocfs2_caching_info *ci,
 					    sector_t block,
 					    u32 c_len)

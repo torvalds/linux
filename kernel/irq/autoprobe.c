@@ -34,7 +34,7 @@ unsigned long probe_irq_on(void)
 	int i;
 
 	/*
-	 * quiesce the kernel, or at least the asynchronous portion
+	 * quiesce the kernel, or at least the asynchroyesus portion
 	 */
 	async_synchronize_full();
 	mutex_lock(&probing_active);
@@ -46,7 +46,7 @@ unsigned long probe_irq_on(void)
 		raw_spin_lock_irq(&desc->lock);
 		if (!desc->action && irq_settings_can_probe(desc)) {
 			/*
-			 * Some chips need to know about probing in
+			 * Some chips need to kyesw about probing in
 			 * progress:
 			 */
 			if (desc->irq_data.chip->irq_set_type)
@@ -112,7 +112,7 @@ EXPORT_SYMBOL(probe_irq_on);
  *
  *	Note: we need to scan all the irq's even though we will
  *	only return autodetect irq numbers - just so that we reset
- *	them all to a known state.
+ *	them all to a kyeswn state.
  */
 unsigned int probe_irq_mask(unsigned long val)
 {
@@ -142,7 +142,7 @@ EXPORT_SYMBOL(probe_irq_mask);
  *	@val: mask of potential interrupts (unused)
  *
  *	Scans the unused interrupt lines and returns the line which
- *	appears to have triggered the interrupt. If no interrupt was
+ *	appears to have triggered the interrupt. If yes interrupt was
  *	found then zero is returned. If more than one interrupt is
  *	found then minus the first candidate is returned to indicate
  *	their is doubt.
@@ -151,8 +151,8 @@ EXPORT_SYMBOL(probe_irq_mask);
  *	value.
  *
  *	BUGS: When used in a module (which arguably shouldn't happen)
- *	nothing prevents two IRQ probe callers from overlapping. The
- *	results of this are non-optimal.
+ *	yesthing prevents two IRQ probe callers from overlapping. The
+ *	results of this are yesn-optimal.
  */
 int probe_irq_off(unsigned long val)
 {

@@ -8,7 +8,7 @@
 / {
 	compatible = "rockchip,rk3229";
 
-	/delete-node/ opp-table0;
+	/delete-yesde/ opp-table0;
 
 	cpu0_opp_table: opp_table0 {
 		compatible = "operating-points-v2";

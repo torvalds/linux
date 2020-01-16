@@ -15,7 +15,7 @@
  * Note that we shift the lower 32bits of each EntryLo[01] entry
  * 6 bits to the left. That way we can convert the PFN into the
  * physical address by a single 'and' operation and gain 6 additional
- * bits for storing information which isn't present in a normal
+ * bits for storing information which isn't present in a yesrmal
  * MIPS page table.
  *
  * Similar to the Alpha port, we need to keep track of the ref
@@ -28,7 +28,7 @@
  *
  * Certain revisions of the R4000 and R5000 have a bug where if a
  * certain sequence occurs in the last 3 instructions of an executable
- * page, and the following page is not mapped, the cpu can do
+ * page, and the following page is yest mapped, the cpu can do
  * unpredictable things.  The code (when it is written) to deal with
  * this problem will be in the update_mmu_cache() code for the r4k.
  */
@@ -90,7 +90,7 @@ enum pgtable_bits {
 
 /* Page table bits used for r3k systems */
 enum pgtable_bits {
-	/* Used only by software (writes to EntryLo ignored) */
+	/* Used only by software (writes to EntryLo igyesred) */
 	_PAGE_PRESENT_SHIFT,
 	_PAGE_NO_READ_SHIFT,
 	_PAGE_WRITE_SHIFT,
@@ -206,7 +206,7 @@ static inline uint64_t pte_to_entrylo(unsigned long pte_val)
 		sa = 63 - _PAGE_NO_READ_SHIFT;
 #endif
 		/*
-		 * C has no way to express that this is a DSRL
+		 * C has yes way to express that this is a DSRL
 		 * _PAGE_NO_EXEC_SHIFT followed by a ROTR 2.  Luckily
 		 * in the fast path this is done in assembly
 		 */
@@ -229,7 +229,7 @@ static inline uint64_t pte_to_entrylo(unsigned long pte_val)
 #elif defined(CONFIG_CPU_SB1)
 
 /* No penalty for being coherent on the SB1, so just
-   use it for "noncoherent" spaces, too.  Shouldn't hurt. */
+   use it for "yesncoherent" spaces, too.  Shouldn't hurt. */
 
 #define _CACHE_CACHABLE_NONCOHERENT (5<<_CACHE_SHIFT)
 

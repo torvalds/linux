@@ -20,7 +20,7 @@ static int blkpg_ioctl(struct block_device *bdev, struct blkpg_ioctl_arg __user 
 	struct blkpg_partition p;
 	struct disk_part_iter piter;
 	long long start, length;
-	int partno;
+	int partyes;
 
 	if (!capable(CAP_SYS_ADMIN))
 		return -EACCES;
@@ -31,8 +31,8 @@ static int blkpg_ioctl(struct block_device *bdev, struct blkpg_ioctl_arg __user 
 	disk = bdev->bd_disk;
 	if (bdev != bdev->bd_contains)
 		return -EINVAL;
-	partno = p.pno;
-	if (partno <= 0)
+	partyes = p.pyes;
+	if (partyes <= 0)
 		return -EINVAL;
 	switch (a.op) {
 		case BLKPG_ADD_PARTITION:
@@ -43,7 +43,7 @@ static int blkpg_ioctl(struct block_device *bdev, struct blkpg_ioctl_arg __user 
 			    sizeof(long long) > sizeof(long)) {
 				long pstart = start, plength = length;
 				if (pstart != start || plength != length
-				    || pstart < 0 || plength < 0 || partno > 65535)
+				    || pstart < 0 || plength < 0 || partyes > 65535)
 					return -EINVAL;
 			}
 			/* check if partition is aligned to blocksize */
@@ -66,12 +66,12 @@ static int blkpg_ioctl(struct block_device *bdev, struct blkpg_ioctl_arg __user 
 			disk_part_iter_exit(&piter);
 
 			/* all seems OK */
-			part = add_partition(disk, partno, start, length,
+			part = add_partition(disk, partyes, start, length,
 					     ADDPART_FLAG_NONE, NULL);
 			mutex_unlock(&bdev->bd_mutex);
 			return PTR_ERR_OR_ZERO(part);
 		case BLKPG_DEL_PARTITION:
-			part = disk_get_part(disk, partno);
+			part = disk_get_part(disk, partyes);
 			if (!part)
 				return -ENXIO;
 
@@ -91,7 +91,7 @@ static int blkpg_ioctl(struct block_device *bdev, struct blkpg_ioctl_arg __user 
 			invalidate_bdev(bdevp);
 
 			mutex_lock_nested(&bdev->bd_mutex, 1);
-			delete_partition(disk, partno);
+			delete_partition(disk, partyes);
 			mutex_unlock(&bdev->bd_mutex);
 			mutex_unlock(&bdevp->bd_mutex);
 			bdput(bdevp);
@@ -109,7 +109,7 @@ static int blkpg_ioctl(struct block_device *bdev, struct blkpg_ioctl_arg __user 
 				    || pstart < 0 || plength < 0)
 					return -EINVAL;
 			}
-			part = disk_get_part(disk, partno);
+			part = disk_get_part(disk, partyes);
 			if (!part)
 				return -ENXIO;
 			bdevp = bdget(part_devt(part));
@@ -130,7 +130,7 @@ static int blkpg_ioctl(struct block_device *bdev, struct blkpg_ioctl_arg __user 
 			disk_part_iter_init(&piter, disk,
 					    DISK_PITER_INCL_EMPTY);
 			while ((lpart = disk_part_iter_next(&piter))) {
-				if (lpart->partno != partno &&
+				if (lpart->partyes != partyes &&
 				   !(start + length <= lpart->start_sect ||
 				   start >= lpart->start_sect + lpart->nr_sects)
 				   ) {
@@ -144,7 +144,7 @@ static int blkpg_ioctl(struct block_device *bdev, struct blkpg_ioctl_arg __user 
 			}
 			disk_part_iter_exit(&piter);
 			part_nr_sects_write(part, (sector_t)length);
-			i_size_write(bdevp->bd_inode, p.length);
+			i_size_write(bdevp->bd_iyesde, p.length);
 			mutex_unlock(&bdevp->bd_mutex);
 			mutex_unlock(&bdev->bd_mutex);
 			bdput(bdevp);
@@ -177,7 +177,7 @@ static int blk_ioctl_discard(struct block_device *bdev, fmode_t mode,
 	uint64_t range[2];
 	uint64_t start, len;
 	struct request_queue *q = bdev_get_queue(bdev);
-	struct address_space *mapping = bdev->bd_inode->i_mapping;
+	struct address_space *mapping = bdev->bd_iyesde->i_mapping;
 
 
 	if (!(mode & FMODE_WRITE))
@@ -197,9 +197,9 @@ static int blk_ioctl_discard(struct block_device *bdev, fmode_t mode,
 	if (len & 511)
 		return -EINVAL;
 
-	if (start + len > i_size_read(bdev->bd_inode))
+	if (start + len > i_size_read(bdev->bd_iyesde))
 		return -EINVAL;
-	truncate_inode_pages_range(mapping, start, start + len - 1);
+	truncate_iyesde_pages_range(mapping, start, start + len - 1);
 	return blkdev_issue_discard(bdev, start >> 9, len >> 9,
 				    GFP_KERNEL, flags);
 }
@@ -225,14 +225,14 @@ static int blk_ioctl_zeroout(struct block_device *bdev, fmode_t mode,
 		return -EINVAL;
 	if (len & 511)
 		return -EINVAL;
-	if (end >= (uint64_t)i_size_read(bdev->bd_inode))
+	if (end >= (uint64_t)i_size_read(bdev->bd_iyesde))
 		return -EINVAL;
 	if (end < start)
 		return -EINVAL;
 
 	/* Invalidate the page cache, including dirty pages */
-	mapping = bdev->bd_inode->i_mapping;
-	truncate_inode_pages_range(mapping, start, end);
+	mapping = bdev->bd_iyesde->i_mapping;
+	truncate_iyesde_pages_range(mapping, start, end);
 
 	return blkdev_issue_zeroout(bdev, start >> 9, len >> 9, GFP_KERNEL,
 			BLKDEV_ZERO_NOUNMAP);
@@ -377,7 +377,7 @@ static int blkdev_pr_clear(struct block_device *bdev,
 
 /*
  * Is it an unrecognized ioctl? The correct returns are either
- * ENOTTY (final) or ENOIOCTLCMD ("I don't know this one, try a
+ * ENOTTY (final) or ENOIOCTLCMD ("I don't kyesw this one, try a
  * fallback"). ENOIOCTLCMD gets turned into ENOTTY by the ioctl
  * code before returning.
  *
@@ -541,7 +541,7 @@ int blkdev_ioctl(struct block_device *bdev, fmode_t mode, unsigned cmd,
 				    queue_max_sectors(bdev_get_queue(bdev)));
 		return put_ushort(arg, max_sectors);
 	case BLKROTATIONAL:
-		return put_ushort(arg, !blk_queue_nonrot(bdev_get_queue(bdev)));
+		return put_ushort(arg, !blk_queue_yesnrot(bdev_get_queue(bdev)));
 	case BLKRASET:
 	case BLKFRASET:
 		if(!capable(CAP_SYS_ADMIN))
@@ -555,12 +555,12 @@ int blkdev_ioctl(struct block_device *bdev, fmode_t mode, unsigned cmd,
 	case BLKRRPART:
 		return blkdev_reread_part(bdev);
 	case BLKGETSIZE:
-		size = i_size_read(bdev->bd_inode);
+		size = i_size_read(bdev->bd_iyesde);
 		if ((size >> 9) > ~0UL)
 			return -EFBIG;
 		return put_ulong(arg, size >> 9);
 	case BLKGETSIZE64:
-		return put_u64(arg, i_size_read(bdev->bd_inode));
+		return put_u64(arg, i_size_read(bdev->bd_iyesde));
 	case BLKTRACESTART:
 	case BLKTRACESTOP:
 	case BLKTRACESETUP:

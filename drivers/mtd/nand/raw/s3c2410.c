@@ -167,7 +167,7 @@ struct s3c2410_nand_info {
 	enum s3c_cpu_type		cpu_type;
 
 #ifdef CONFIG_ARM_S3C24XX_CPUFREQ
-	struct notifier_block	freq_transition;
+	struct yestifier_block	freq_transition;
 #endif
 };
 
@@ -247,7 +247,7 @@ static void s3c2410_nand_clk_set_state(struct s3c2410_nand_info *info,
 
 /**
  * s3c_nand_calc_rate - calculate timing data.
- * @wanted: The cycle time in nanoseconds.
+ * @wanted: The cycle time in nayesseconds.
  * @clk: The clock rate in kHz.
  * @max: The maximum divider value.
  *
@@ -311,7 +311,7 @@ static int s3c2410_nand_setrate(struct s3c2410_nand_info *info)
 	}
 
 	if (tacls < 0 || twrph0 < 0 || twrph1 < 0) {
-		dev_err(info->device, "cannot get suitable timings\n");
+		dev_err(info->device, "canyest get suitable timings\n");
 		return -EINVAL;
 	}
 
@@ -524,12 +524,12 @@ static int s3c2410_nand_correct_data(struct nand_chip *chip, u_char *dat,
 	if (diff0 == 0 && diff1 == 0 && diff2 == 0)
 		return 0;		/* ECC is ok */
 
-	/* sometimes people do not think about using the ECC, so check
-	 * to see if we have an 0xff,0xff,0xff read ECC and then ignore
+	/* sometimes people do yest think about using the ECC, so check
+	 * to see if we have an 0xff,0xff,0xff read ECC and then igyesre
 	 * the error, on the assumption that this is an un-eccd page.
 	 */
 	if (read_ecc[0] == 0xff && read_ecc[1] == 0xff && read_ecc[2] == 0xff
-	    && info->platform->ignore_unset_ecc)
+	    && info->platform->igyesre_unset_ecc)
 		return 0;
 
 	/* Can we correct this ECC (ie, one row and column change).
@@ -714,7 +714,7 @@ static void s3c2440_nand_write_buf(struct nand_chip *this, const u_char *buf,
 
 #ifdef CONFIG_ARM_S3C24XX_CPUFREQ
 
-static int s3c2410_nand_cpufreq_transition(struct notifier_block *nb,
+static int s3c2410_nand_cpufreq_transition(struct yestifier_block *nb,
 					  unsigned long val, void *data)
 {
 	struct s3c2410_nand_info *info;
@@ -733,16 +733,16 @@ static int s3c2410_nand_cpufreq_transition(struct notifier_block *nb,
 
 static inline int s3c2410_nand_cpufreq_register(struct s3c2410_nand_info *info)
 {
-	info->freq_transition.notifier_call = s3c2410_nand_cpufreq_transition;
+	info->freq_transition.yestifier_call = s3c2410_nand_cpufreq_transition;
 
-	return cpufreq_register_notifier(&info->freq_transition,
+	return cpufreq_register_yestifier(&info->freq_transition,
 					 CPUFREQ_TRANSITION_NOTIFIER);
 }
 
 static inline void
 s3c2410_nand_cpufreq_deregister(struct s3c2410_nand_info *info)
 {
-	cpufreq_unregister_notifier(&info->freq_transition,
+	cpufreq_unregister_yestifier(&info->freq_transition,
 				    CPUFREQ_TRANSITION_NOTIFIER);
 }
 
@@ -775,10 +775,10 @@ static int s3c24xx_nand_remove(struct platform_device *pdev)
 
 	if (info->mtds != NULL) {
 		struct s3c2410_nand_mtd *ptr = info->mtds;
-		int mtdno;
+		int mtdyes;
 
-		for (mtdno = 0; mtdno < info->mtd_count; mtdno++, ptr++) {
-			pr_debug("releasing mtd %d (%p)\n", mtdno, ptr);
+		for (mtdyes = 0; mtdyes < info->mtd_count; mtdyes++, ptr++) {
+			pr_debug("releasing mtd %d (%p)\n", mtdyes, ptr);
 			nand_release(&ptr->chip);
 		}
 	}
@@ -845,11 +845,11 @@ static void s3c2410_nand_init_chip(struct s3c2410_nand_info *info,
 				   struct s3c2410_nand_mtd *nmtd,
 				   struct s3c2410_nand_set *set)
 {
-	struct device_node *np = info->device->of_node;
+	struct device_yesde *np = info->device->of_yesde;
 	struct nand_chip *chip = &nmtd->chip;
 	void __iomem *regs = info->regs;
 
-	nand_set_flash_node(chip, set->of_node);
+	nand_set_flash_yesde(chip, set->of_yesde);
 
 	chip->legacy.write_buf    = s3c2410_nand_write_buf;
 	chip->legacy.read_buf     = s3c2410_nand_read_buf;
@@ -1022,7 +1022,7 @@ static int s3c24xx_nand_probe_dt(struct platform_device *pdev)
 	const struct s3c24XX_nand_devtype_data *devtype_data;
 	struct s3c2410_platform_nand *pdata;
 	struct s3c2410_nand_info *info = platform_get_drvdata(pdev);
-	struct device_node *np = pdev->dev.of_node, *child;
+	struct device_yesde *np = pdev->dev.of_yesde, *child;
 	struct s3c2410_nand_set *sets;
 
 	devtype_data = of_device_get_match_data(&pdev->dev);
@@ -1048,12 +1048,12 @@ static int s3c24xx_nand_probe_dt(struct platform_device *pdev)
 
 	pdata->sets = sets;
 
-	for_each_available_child_of_node(np, child) {
+	for_each_available_child_of_yesde(np, child) {
 		sets->name = (char *)child->name;
-		sets->of_node = child;
+		sets->of_yesde = child;
 		sets->nr_chips = 1;
 
-		of_node_get(child);
+		of_yesde_get(child);
 
 		sets++;
 	}
@@ -1087,7 +1087,7 @@ static int s3c24xx_nand_probe(struct platform_device *pdev)
 	int err = 0;
 	int size;
 	int nr_sets;
-	int setno;
+	int setyes;
 
 	info = devm_kzalloc(&pdev->dev, sizeof(*info), GFP_KERNEL);
 	if (info == NULL) {
@@ -1111,7 +1111,7 @@ static int s3c24xx_nand_probe(struct platform_device *pdev)
 
 	s3c2410_nand_clk_set_state(info, CLOCK_ENABLE);
 
-	if (pdev->dev.of_node)
+	if (pdev->dev.of_yesde)
 		err = s3c24xx_nand_probe_dt(pdev);
 	else
 		err = s3c24xx_nand_probe_pdata(pdev);
@@ -1161,11 +1161,11 @@ static int s3c24xx_nand_probe(struct platform_device *pdev)
 
 	nmtd = info->mtds;
 
-	for (setno = 0; setno < nr_sets; setno++, nmtd++, sets++) {
+	for (setyes = 0; setyes < nr_sets; setyes++, nmtd++, sets++) {
 		struct mtd_info *mtd = nand_to_mtd(&nmtd->chip);
 
 		pr_debug("initialising set %d (%p, info %p)\n",
-			 setno, nmtd, info);
+			 setyes, nmtd, info);
 
 		mtd->dev.parent = &pdev->dev;
 		s3c2410_nand_init_chip(info, nmtd, sets);
@@ -1216,7 +1216,7 @@ static int s3c24xx_nand_suspend(struct platform_device *dev, pm_message_t pm)
 		/* For the moment, we must ensure nFCE is high during
 		 * the time we are suspended. This really should be
 		 * handled by suspending the MTDs we are using, but
-		 * that is currently not the case. */
+		 * that is currently yest the case. */
 
 		writel(info->save_sel | info->sel_bit, info->sel_reg);
 

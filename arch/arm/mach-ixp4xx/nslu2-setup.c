@@ -9,7 +9,7 @@
  * based on ixdp425-setup.c:
  *      Copyright (C) 2003-2004 MontaVista Software, Inc.
  * based on nslu2-power.c:
- *	Copyright (C) 2005 Tower Technologies
+ *	Copyright (C) 2005 Tower Techyeslogies
  *
  * Author: Mark Rakes <mrakes at mac.com>
  * Author: Rod Whitby <rod@whitby.id.au>
@@ -248,7 +248,7 @@ device_initcall(nslu2_gpio_init);
 
 static void __init nslu2_timer_init(void)
 {
-    /* The xtal on this machine is non-standard. */
+    /* The xtal on this machine is yesn-standard. */
     ixp4xx_timer_freq = NSLU2_FREQ;
 
     /* Call standard timer_init function. */
@@ -273,7 +273,7 @@ static void __init nslu2_init(void)
 	/*
 	 * This is only useful on a modified machine, but it is valuable
 	 * to have it first in order to see debug messages, and so that
-	 * it does *not* get removed if platform_add_devices fails!
+	 * it does *yest* get removed if platform_add_devices fails!
 	 */
 	(void)platform_device_register(&nslu2_uart);
 
@@ -284,14 +284,14 @@ static void __init nslu2_init(void)
 	if (request_irq(gpio_to_irq(NSLU2_RB_GPIO), &nslu2_reset_handler,
 		IRQF_TRIGGER_LOW, "NSLU2 reset button", NULL) < 0) {
 
-		printk(KERN_DEBUG "Reset Button IRQ %d not available\n",
+		printk(KERN_DEBUG "Reset Button IRQ %d yest available\n",
 			gpio_to_irq(NSLU2_RB_GPIO));
 	}
 
 	if (request_irq(gpio_to_irq(NSLU2_PB_GPIO), &nslu2_power_handler,
 		IRQF_TRIGGER_HIGH, "NSLU2 power button", NULL) < 0) {
 
-		printk(KERN_DEBUG "Power Button IRQ %d not available\n",
+		printk(KERN_DEBUG "Power Button IRQ %d yest available\n",
 			gpio_to_irq(NSLU2_PB_GPIO));
 	}
 

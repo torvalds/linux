@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Huawei HiNIC PCI Express Linux driver
- * Copyright(c) 2017 Huawei Technologies Co., Ltd
+ * Copyright(c) 2017 Huawei Techyeslogies Co., Ltd
  */
 
 #include <linux/kernel.h>
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/pci.h>
 #include <linux/device.h>
 #include <linux/slab.h>
@@ -352,7 +352,7 @@ static int cmdq_sync_cmd_direct_resp(struct hinic_cmdq *cmdq,
 	/* Keep doorbell index correct. bh - for tasklet(ceq). */
 	spin_lock_bh(&cmdq->cmdq_lock);
 
-	/* WQE_SIZE = WQEBB_SIZE, we will get the wq element and not shadow*/
+	/* WQE_SIZE = WQEBB_SIZE, we will get the wq element and yest shadow*/
 	hw_wqe = hinic_get_wqe(wq, WQE_LCMD_SIZE, &curr_prod_idx);
 	if (IS_ERR(hw_wqe)) {
 		spin_unlock_bh(&cmdq->cmdq_lock);
@@ -382,7 +382,7 @@ static int cmdq_sync_cmd_direct_resp(struct hinic_cmdq *cmdq,
 	/* The data that is written to HW should be in Big Endian Format */
 	hinic_cpu_to_be32(&cmdq_wqe, WQE_LCMD_SIZE);
 
-	/* CMDQ WQE is not shadow, therefore wqe will be written to wq */
+	/* CMDQ WQE is yest shadow, therefore wqe will be written to wq */
 	cmdq_wqe_fill(curr_cmdq_wqe, &cmdq_wqe);
 
 	cmdq_set_db(cmdq, HINIC_CMDQ_SYNC, next_prod_idx);
@@ -429,7 +429,7 @@ static int cmdq_set_arm_bit(struct hinic_cmdq *cmdq, void *buf_in,
 	/* Keep doorbell index correct */
 	spin_lock(&cmdq->cmdq_lock);
 
-	/* WQE_SIZE = WQEBB_SIZE, we will get the wq element and not shadow*/
+	/* WQE_SIZE = WQEBB_SIZE, we will get the wq element and yest shadow*/
 	hw_wqe = hinic_get_wqe(wq, WQE_SCMD_SIZE, &curr_prod_idx);
 	if (IS_ERR(hw_wqe)) {
 		spin_unlock(&cmdq->cmdq_lock);
@@ -454,7 +454,7 @@ static int cmdq_set_arm_bit(struct hinic_cmdq *cmdq, void *buf_in,
 	/* The data that is written to HW should be in Big Endian Format */
 	hinic_cpu_to_be32(&cmdq_wqe, WQE_SCMD_SIZE);
 
-	/* cmdq wqe is not shadow, therefore wqe will be written to wq */
+	/* cmdq wqe is yest shadow, therefore wqe will be written to wq */
 	cmdq_wqe_fill(curr_cmdq_wqe, &cmdq_wqe);
 
 	cmdq_set_db(cmdq, HINIC_CMDQ_SYNC, next_prod_idx);

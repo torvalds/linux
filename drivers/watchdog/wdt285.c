@@ -64,7 +64,7 @@ static void watchdog_ping(void)
 /*
  *	Allow only one person to hold it open
  */
-static int watchdog_open(struct inode *inode, struct file *file)
+static int watchdog_open(struct iyesde *iyesde, struct file *file)
 {
 	int ret;
 
@@ -90,22 +90,22 @@ static int watchdog_open(struct inode *inode, struct file *file)
 #else
 	/*
 	 * Setting this bit is irreversible; once enabled, there is
-	 * no way to disable the watchdog.
+	 * yes way to disable the watchdog.
 	 */
 	*CSR_SA110_CNTL |= 1 << 13;
 
 	ret = 0;
 #endif
-	stream_open(inode, file);
+	stream_open(iyesde, file);
 	return ret;
 }
 
 /*
  *	Shut off the timer.
  *	Note: if we really have enabled the watchdog, there
- *	is no way to turn off.
+ *	is yes way to turn off.
  */
-static int watchdog_release(struct inode *inode, struct file *file)
+static int watchdog_release(struct iyesde *iyesde, struct file *file)
 {
 #ifdef ONLY_TESTING
 	free_irq(IRQ_TIMER4, NULL);
@@ -178,7 +178,7 @@ static long watchdog_ioctl(struct file *file, unsigned int cmd,
 
 static const struct file_operations watchdog_fops = {
 	.owner		= THIS_MODULE,
-	.llseek		= no_llseek,
+	.llseek		= yes_llseek,
 	.write		= watchdog_write,
 	.unlocked_ioctl	= watchdog_ioctl,
 	.compat_ioctl	= compat_ptr_ioctl,
@@ -187,7 +187,7 @@ static const struct file_operations watchdog_fops = {
 };
 
 static struct miscdevice watchdog_miscdev = {
-	.minor		= WATCHDOG_MINOR,
+	.miyesr		= WATCHDOG_MINOR,
 	.name		= "watchdog",
 	.fops		= &watchdog_fops,
 };
@@ -207,7 +207,7 @@ static int __init footbridge_watchdog_init(void)
 		soft_margin);
 
 	if (machine_is_cats())
-		pr_warn("Warning: Watchdog reset may not work on this machine\n");
+		pr_warn("Warning: Watchdog reset may yest work on this machine\n");
 	return 0;
 }
 

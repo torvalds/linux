@@ -22,16 +22,16 @@ There are four components to pagemap:
       :ref:`Documentation/admin-guide/mm/soft-dirty.rst <soft_dirty>`)
     * Bit  56    page exclusively mapped (since 4.2)
     * Bits 57-60 zero
-    * Bit  61    page is file-page or shared-anon (since 3.5)
+    * Bit  61    page is file-page or shared-ayesn (since 3.5)
     * Bit  62    page swapped
     * Bit  63    page present
 
    Since Linux 4.0 only users with the CAP_SYS_ADMIN capability can get PFNs.
    In 4.0 and 4.1 opens by unprivileged fail with -EPERM.  Starting from
-   4.2 the PFN field is zeroed if the user does not have CAP_SYS_ADMIN.
+   4.2 the PFN field is zeroed if the user does yest have CAP_SYS_ADMIN.
    Reason: information about PFNs helps in exploiting Rowhammer vulnerability.
 
-   If the page is not present but in swap, then the PFN contains an
+   If the page is yest present but in swap, then the PFN contains an
    encoding of the swap file number and the page's offset into the
    swap. Unmapped pages return a null PFN. This allows determining
    precisely which pages are mapped (or in swap) and comparing mapped
@@ -80,7 +80,7 @@ number of times a page is mapped.
     25. IDLE
     26. PGTABLE
 
- * ``/proc/kpagecgroup``.  This file contains a 64-bit inode number of the
+ * ``/proc/kpagecgroup``.  This file contains a 64-bit iyesde number of the
    memory cgroup each page is charged to, indexed by PFN. Only available when
    CONFIG_MEMCG is set.
 
@@ -92,7 +92,7 @@ Short descriptions to the page flags
 7 - SLAB
    page is managed by the SLAB/SLOB/SLUB/SLQB kernel memory allocator
    When compound page is used, SLUB/SLQB will only set this flag on the head
-   page; SLOB will not flag it at all.
+   page; SLOB will yest flag it at all.
 10 - BUDDY
     a free memory block managed by the buddy system allocator
     The buddy system organizes free memory in blocks of various orders.
@@ -114,7 +114,7 @@ Short descriptions to the page flags
 19 - HWPOISON
     hardware detected memory corruption on this page: don't touch the data!
 20 - NOPAGE
-    no page frame exists at the requested address
+    yes page frame exists at the requested address
 21 - KSM
     identical memory pages dynamically shared between one or more processes
 22 - THP
@@ -124,7 +124,7 @@ Short descriptions to the page flags
 24 - ZERO_PAGE
     zero page for pfn_zero or huge_zero page
 25 - IDLE
-    page has not been accessed since it was marked idle (see
+    page has yest been accessed since it was marked idle (see
     :ref:`Documentation/admin-guide/mm/idle_page_tracking.rst <idle_page_tracking>`).
     Note that this flag may be stale in case the page was accessed via
     a PTE. To make sure the flag is up-to-date one has to read
@@ -154,8 +154,8 @@ LRU related page flags
 6 - ACTIVE
    page is in the active LRU list
 18 - UNEVICTABLE
-   page is in the unevictable (non-)LRU list It is somehow pinned and
-   not a candidate for LRU page reclaims, e.g. ramfs pages,
+   page is in the unevictable (yesn-)LRU list It is somehow pinned and
+   yest a candidate for LRU page reclaims, e.g. ramfs pages,
    shmctl(SHM_LOCK) and mlock() memory segments
 2 - REFERENCED
    page has been referenced since last LRU list enqueue/requeue
@@ -164,7 +164,7 @@ LRU related page flags
 11 - MMAP
    a memory mapped page
 12 - ANON
-   a memory mapped page that is not part of a file
+   a memory mapped page that is yest part of a file
 13 - SWAPCACHE
    page is mapped to swap space, i.e. has an associated swap entry
 14 - SWAPBACKED
@@ -189,17 +189,17 @@ usage goes like this:
     just read, seek to that entry in the file, and read the data you want.
 
 For example, to find the "unique set size" (USS), which is the amount of
-memory that a process is using that is not shared with any other process,
+memory that a process is using that is yest shared with any other process,
 you can go through every map in the process, find the PFNs, look those up
 in kpagecount, and tally up the number of pages that are only referenced
 once.
 
-Other notes
+Other yestes
 ===========
 
-Reading from any of the files will return -EINVAL if you are not starting
+Reading from any of the files will return -EINVAL if you are yest starting
 the read on an 8-byte boundary (e.g., if you sought an odd number of bytes
-into the file), or if the size of the read is not a multiple of 8 bytes.
+into the file), or if the size of the read is yest a multiple of 8 bytes.
 
 Before Linux 3.11 pagemap bits 55-60 were used for "page-shift" (which is
 always 12 at most architectures). Since Linux 3.11 their meaning changes

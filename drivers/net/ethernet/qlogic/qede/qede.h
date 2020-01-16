@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and /or other materials
  *        provided with the distribution.
  *
@@ -67,7 +67,7 @@
 #define DRV_MODULE_SYM		qede
 
 struct qede_stats_common {
-	u64 no_buff_discards;
+	u64 yes_buff_discards;
 	u64 packet_too_big_discard;
 	u64 ttl0_discard;
 	u64 rx_ucast_bytes;
@@ -89,7 +89,7 @@ struct qede_stats_common {
 	u64 coalesced_pkts;
 	u64 coalesced_events;
 	u64 coalesced_aborts_num;
-	u64 non_coalesced_pkts;
+	u64 yesn_coalesced_pkts;
 	u64 coalesced_bytes;
 	u64 link_change_count;
 	u64 ptp_skip_txts;
@@ -263,7 +263,7 @@ struct qede_dev {
 	bool gro_disable;
 	struct list_head vlan_list;
 	u16 configured_vlans;
-	u16 non_configured_vlans;
+	u16 yesn_configured_vlans;
 	bool accept_any_vlan;
 	struct delayed_work		sp_task;
 	unsigned long			sp_flags;
@@ -368,7 +368,7 @@ struct qede_rx_queue {
 	u64 rx_alloc_errors;
 	u64 rx_ip_frags;
 
-	u64 xdp_no_pass;
+	u64 xdp_yes_pass;
 
 	void *handle;
 	struct xdp_rxq_info xdp_rxq;
@@ -533,7 +533,7 @@ int qede_set_mac_addr(struct net_device *ndev, void *p);
 
 int qede_vlan_rx_add_vid(struct net_device *dev, __be16 proto, u16 vid);
 int qede_vlan_rx_kill_vid(struct net_device *dev, __be16 proto, u16 vid);
-void qede_vlan_mark_nonconfigured(struct qede_dev *edev);
+void qede_vlan_mark_yesnconfigured(struct qede_dev *edev);
 int qede_configure_vlan_filters(struct qede_dev *edev);
 
 netdev_features_t qede_fix_features(struct net_device *dev,

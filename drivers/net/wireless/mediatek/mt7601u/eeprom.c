@@ -48,8 +48,8 @@ mt7601u_efuse_read(struct mt7601u_dev *dev, u16 addr, u8 *data,
 
 	val = mt76_rr(dev, MT_EFUSE_CTRL);
 	if ((val & MT_EFUSE_CTRL_AOUT) == MT_EFUSE_CTRL_AOUT) {
-		/* Parts of eeprom not in the usage map (0x80-0xc0,0xf0)
-		 * will not return valid data but it's ok.
+		/* Parts of eeprom yest in the usage map (0x80-0xc0,0xf0)
+		 * will yest return valid data but it's ok.
 		 */
 		memset(data, 0xff, 16);
 		return 0;
@@ -116,7 +116,7 @@ mt7601u_set_chip_cap(struct mt7601u_dev *dev, u8 *eeprom)
 
 	if (nic_conf1 & MT_EE_NIC_CONF_1_HW_RF_CTRL)
 		dev_err(dev->dev,
-			"Error: this driver does not support HW RF ctrl\n");
+			"Error: this driver does yest support HW RF ctrl\n");
 
 	if (!field_valid(nic_conf0 >> 8))
 		return;
@@ -168,7 +168,7 @@ mt7601u_set_channel_power(struct mt7601u_dev *dev, u8 *eeprom)
 static void
 mt7601u_set_country_reg(struct mt7601u_dev *dev, u8 *eeprom)
 {
-	/* Note: - region 31 is not valid for mt7601u (see rtmp_init.c)
+	/* Note: - region 31 is yest valid for mt7601u (see rtmp_init.c)
 	 *	 - comments in rtmp_def.h are incorrect (see rt_channel.c)
 	 */
 	static const struct reg_channel_bounds chan_bounds[] = {
@@ -249,7 +249,7 @@ mt7601u_extra_power_over_mac(struct mt7601u_dev *dev)
 static void
 mt7601u_set_power_rate(struct power_per_rate *rate, s8 delta, u8 value)
 {
-	/* Invalid? Note: vendor driver does not handle this */
+	/* Invalid? Note: vendor driver does yest handle this */
 	if (value == 0xff)
 		return;
 

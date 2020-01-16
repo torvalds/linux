@@ -5,7 +5,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <errno.h>
+#include <erryes.h>
 #include <termios.h>
 #include <unistd.h>
 #include <netinet/in.h>
@@ -115,11 +115,11 @@ int port_listen_fd(int port)
 
 	fd = socket(PF_INET, SOCK_STREAM, 0);
 	if (fd == -1)
-		return -errno;
+		return -erryes;
 
 	arg = 1;
 	if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &arg, sizeof(arg)) < 0) {
-		err = -errno;
+		err = -erryes;
 		goto out;
 	}
 
@@ -127,12 +127,12 @@ int port_listen_fd(int port)
 	addr.sin_port = htons(port);
 	addr.sin_addr.s_addr = htonl(INADDR_ANY);
 	if (bind(fd, (struct sockaddr *) &addr, sizeof(addr)) < 0) {
-		err = -errno;
+		err = -erryes;
 		goto out;
 	}
 
 	if (listen(fd, 1) < 0) {
-		err = -errno;
+		err = -erryes;
 		goto out;
 	}
 
@@ -173,7 +173,7 @@ int port_connection(int fd, int *socket, int *pid_out)
 
 	new = accept(fd, NULL, 0);
 	if (new < 0)
-		return -errno;
+		return -erryes;
 
 	err = os_pipe(socket, 0, 0);
 	if (err < 0)

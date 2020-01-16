@@ -1,6 +1,6 @@
 [
     {
-        "PublicDescription": "Counts cycles that fetch is stalled due to an outstanding ITLB miss. That is, the decoder queue is able to accept bytes, but the fetch unit is unable to provide bytes due to an ITLB miss.  Note: this event is not the same as page walk cycles to retrieve an instruction translation.",
+        "PublicDescription": "Counts cycles that fetch is stalled due to an outstanding ITLB miss. That is, the decoder queue is able to accept bytes, but the fetch unit is unable to provide bytes due to an ITLB miss.  Note: this event is yest the same as page walk cycles to retrieve an instruction translation.",
         "EventCode": "0x86",
         "Counter": "0,1",
         "UMask": "0x2",

@@ -42,7 +42,7 @@ asmlinkage __wsum csum_partial_copy_generic(const void *src, void *dst,
  *	access_ok().
  */
 static inline
-__wsum csum_partial_copy_nocheck(const void *src, void *dst,
+__wsum csum_partial_copy_yescheck(const void *src, void *dst,
 				 int len, __wsum sum)
 {
 	return csum_partial_copy_generic(src, dst, len, sum, NULL, NULL);
@@ -69,7 +69,7 @@ static inline __sum16 csum_fold(__wsum sum)
 		"add	%1, %0\n\t"
 		"swap.w	%0, %1\n\t"
 		"add	%1, %0\n\t"
-		"not	%0, %0\n\t"
+		"yest	%0, %0\n\t"
 		: "=r" (sum), "=&r" (__dummy)
 		: "0" (sum)
 		: "t");
@@ -111,7 +111,7 @@ static inline __sum16 ip_fast_csum(const void *iph, unsigned int ihl)
 	return	csum_fold(sum);
 }
 
-static inline __wsum csum_tcpudp_nofold(__be32 saddr, __be32 daddr,
+static inline __wsum csum_tcpudp_yesfold(__be32 saddr, __be32 daddr,
 					__u32 len, __u8 proto,
 					__wsum sum)
 {
@@ -141,7 +141,7 @@ static inline __sum16 csum_tcpudp_magic(__be32 saddr, __be32 daddr,
 					__u32 len, __u8 proto,
 					__wsum sum)
 {
-	return csum_fold(csum_tcpudp_nofold(saddr, daddr, len, proto, sum));
+	return csum_fold(csum_tcpudp_yesfold(saddr, daddr, len, proto, sum));
 }
 
 /*

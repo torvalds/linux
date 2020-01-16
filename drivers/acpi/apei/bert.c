@@ -5,7 +5,7 @@
  * Copyright 2011 Intel Corp.
  *   Author: Huang Ying <ying.huang@intel.com>
  *
- * Under normal circumstances, when a hardware error occurs, the error
+ * Under yesrmal circumstances, when a hardware error occurs, the error
  * handler receives control and processes the error. This gives OSPM a
  * chance to process the error condition, report it, and optionally attempt
  * recovery. In some cases, the system is unable to process an error.

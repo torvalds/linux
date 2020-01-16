@@ -3,7 +3,7 @@
  * Copyright (c) 2013 Samsung Electronics Co., Ltd.
  * Author: Mateusz Krawczuk <m.krawczuk@partner.samsung.com>
  *
- * Based on clock drivers for S3C64xx and Exynos4 SoCs.
+ * Based on clock drivers for S3C64xx and Exyyess4 SoCs.
  *
  * Common Clock Framework support for all S5PC110/S5PV210 SoCs.
  */
@@ -269,11 +269,11 @@ static const char *const mout_d1sync_6442_p[] __initconst = {
 
 static const char *const mout_group2_6442_p[] __initconst = {
 	"fin_pll",
-	"none",
-	"none",
+	"yesne",
+	"yesne",
 	"sclk_usbphy0",
-	"none",
-	"none",
+	"yesne",
+	"yesne",
 	"mout_mpll",
 	"mout_epll",
 	"mout_vpll",
@@ -282,10 +282,10 @@ static const char *const mout_group2_6442_p[] __initconst = {
 static const char *const mout_audio0_6442_p[] __initconst = {
 	"fin_pll",
 	"pcmcdclk0",
-	"none",
+	"yesne",
 	"sclk_usbphy0",
-	"none",
-	"none",
+	"yesne",
+	"yesne",
 	"mout_mpll",
 	"mout_epll",
 	"mout_vpll",
@@ -294,10 +294,10 @@ static const char *const mout_audio0_6442_p[] __initconst = {
 static const char *const mout_audio1_6442_p[] __initconst = {
 	"i2scdclk1",
 	"pcmcdclk1",
-	"none",
+	"yesne",
 	"sclk_usbphy0",
-	"none",
-	"none",
+	"yesne",
+	"yesne",
 	"mout_mpll",
 	"mout_epll",
 	"mout_vpll",
@@ -333,26 +333,26 @@ static const char *const mout_clksel_6442_p[] __initconst = {
 	"fout_epll",
 	"fout_vpll",
 	"sclk_usbphy0",
-	"none",
-	"none",
+	"yesne",
+	"yesne",
 	"rtc",
 	"rtc_tick",
-	"none",
-	"none",
+	"yesne",
+	"yesne",
 	"dout_hclkd",
 	"dout_pclkd",
 	"dout_hclkp",
 	"dout_pclkp",
 	"dout_apll_clkout",
-	"none",
+	"yesne",
 	"fin_pll",
-	"none",
+	"yesne",
 	"div_dclk"
 };
 
 static const char *const mout_clkout_p[] __initconst = {
 	"dout_clkout",
-	"none",
+	"yesne",
 	"xxti",
 	"xusbxti"
 };
@@ -735,7 +735,7 @@ static const struct samsung_pll_clock s5p6442_pll_clks[] __initconst = {
 						VPLL_LOCK, VPLL_CON, NULL),
 };
 
-static void __init __s5pv210_clk_init(struct device_node *np,
+static void __init __s5pv210_clk_init(struct device_yesde *np,
 				      unsigned long xxti_f,
 				      unsigned long xusbxti_f,
 				      bool is_s5p6442)
@@ -793,7 +793,7 @@ static void __init __s5pv210_clk_init(struct device_node *np,
 		_get_rate("mout_epll"), _get_rate("mout_vpll"));
 }
 
-static void __init s5pv210_clk_dt_init(struct device_node *np)
+static void __init s5pv210_clk_dt_init(struct device_yesde *np)
 {
 	reg_base = of_iomap(np, 0);
 	if (!reg_base)
@@ -803,7 +803,7 @@ static void __init s5pv210_clk_dt_init(struct device_node *np)
 }
 CLK_OF_DECLARE(s5pv210_clk, "samsung,s5pv210-clock", s5pv210_clk_dt_init);
 
-static void __init s5p6442_clk_dt_init(struct device_node *np)
+static void __init s5p6442_clk_dt_init(struct device_yesde *np)
 {
 	reg_base = of_iomap(np, 0);
 	if (!reg_base)

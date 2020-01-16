@@ -52,7 +52,7 @@ static unsigned short batcap_gr[8] = { 1, 15, 25, 35, 50, 70, 100, 100 };
  */
 static unsigned short batcap_i4[8] = { 1, 15, 30, 45, 60, 70, 85, 100 };
 
-static void __wacom_notify_battery(struct wacom_battery *battery,
+static void __wacom_yestify_battery(struct wacom_battery *battery,
 				   int bat_status, int bat_capacity,
 				   bool bat_charging, bool bat_connected,
 				   bool ps_connected)
@@ -75,13 +75,13 @@ static void __wacom_notify_battery(struct wacom_battery *battery,
 	}
 }
 
-static void wacom_notify_battery(struct wacom_wac *wacom_wac,
+static void wacom_yestify_battery(struct wacom_wac *wacom_wac,
 	int bat_status, int bat_capacity, bool bat_charging,
 	bool bat_connected, bool ps_connected)
 {
 	struct wacom *wacom = container_of(wacom_wac, struct wacom, wacom_wac);
 
-	__wacom_notify_battery(&wacom->battery, bat_status, bat_capacity,
+	__wacom_yestify_battery(&wacom->battery, bat_status, bat_capacity,
 			       bat_charging, bat_connected, ps_connected);
 }
 
@@ -122,7 +122,7 @@ static int wacom_penpartner_irq(struct wacom_wac *wacom)
 
 	default:
 		dev_dbg(input->dev.parent,
-			"%s: received unknown report #%d\n", __func__, data[0]);
+			"%s: received unkyeswn report #%d\n", __func__, data[0]);
 		return 0;
         }
 
@@ -138,7 +138,7 @@ static int wacom_pl_irq(struct wacom_wac *wacom)
 
 	if (data[0] != WACOM_REPORT_PENABLED) {
 		dev_dbg(input->dev.parent,
-			"%s: received unknown report #%d\n", __func__, data[0]);
+			"%s: received unkyeswn report #%d\n", __func__, data[0]);
 		return 0;
 	}
 
@@ -156,7 +156,7 @@ static int wacom_pl_irq(struct wacom_wac *wacom)
 	}
 
 	/* If the eraser is in prox, STYLUS2 is always set. If we
-	 * mis-detected the type and notice that STYLUS2 isn't set
+	 * mis-detected the type and yestice that STYLUS2 isn't set
 	 * then force the eraser out of prox and let the pen in.
 	 */
 	if (wacom->tool[0] == BTN_TOOL_RUBBER && !(data[4] & 0x20)) {
@@ -197,7 +197,7 @@ static int wacom_ptu_irq(struct wacom_wac *wacom)
 
 	if (data[0] != WACOM_REPORT_PENABLED) {
 		dev_dbg(input->dev.parent,
-			"%s: received unknown report #%d\n", __func__, data[0]);
+			"%s: received unkyeswn report #%d\n", __func__, data[0]);
 		return 0;
 	}
 
@@ -257,7 +257,7 @@ static int wacom_dtus_irq(struct wacom_wac *wacom)
 
 	if (data[0] != WACOM_REPORT_DTUS && data[0] != WACOM_REPORT_DTUSPAD) {
 		dev_dbg(input->dev.parent,
-			"%s: received unknown report #%d", __func__, data[0]);
+			"%s: received unkyeswn report #%d", __func__, data[0]);
 		return 0;
 	} else if (data[0] == WACOM_REPORT_DTUSPAD) {
 		input = wacom->pad_input;
@@ -314,13 +314,13 @@ static int wacom_graphire_irq(struct wacom_wac *wacom)
 	if (features->type == GRAPHIRE_BT) {
 		if (data[0] != WACOM_REPORT_PENABLED_BT) {
 			dev_dbg(input->dev.parent,
-				"%s: received unknown report #%d\n", __func__,
+				"%s: received unkyeswn report #%d\n", __func__,
 				data[0]);
 			goto exit;
 		}
 	} else if (data[0] != WACOM_REPORT_PENABLED) {
 		dev_dbg(input->dev.parent,
-			"%s: received unknown report #%d\n", __func__, data[0]);
+			"%s: received unkyeswn report #%d\n", __func__, data[0]);
 		goto exit;
 	}
 
@@ -447,7 +447,7 @@ static int wacom_graphire_irq(struct wacom_wac *wacom)
 		rw = (data[7] >> 2 & 0x07);
 		battery_capacity = batcap_gr[rw];
 		ps_connected = rw == 7;
-		wacom_notify_battery(wacom, WACOM_POWER_SUPPLY_STATUS_AUTO,
+		wacom_yestify_battery(wacom, WACOM_POWER_SUPPLY_STATUS_AUTO,
 				     battery_capacity, ps_connected, 1,
 				     ps_connected);
 	}
@@ -545,7 +545,7 @@ static int wacom_intuos_pad(struct wacom_wac *wacom)
 		input_report_abs(input, ABS_Z, be16_to_cpup((__be16 *)&data[8]));
 	} else if (features->type == CINTIQ_HYBRID) {
 		/*
-		 * Do not send hardware buttons under Android. They
+		 * Do yest send hardware buttons under Android. They
 		 * are already sent to the system through GPIO (and
 		 * have different meaning).
 		 *
@@ -573,7 +573,7 @@ static int wacom_intuos_pad(struct wacom_wac *wacom)
 		 * addition to the mechanical switch. Switch data is
 		 * stored in data[4], capacitive data in data[5].
 		 *
-		 * Touch ring mode switch (data[3]) has no capacitive sensor
+		 * Touch ring mode switch (data[3]) has yes capacitive sensor
 		 */
 		buttons = (data[4] << 1) | (data[3] & 0x01);
 		ring1 = data[2];
@@ -719,7 +719,7 @@ static int wacom_intuos_get_tool_type(int tool_id)
 		tool_type = BTN_TOOL_AIRBRUSH;
 		break;
 
-	default: /* Unknown tool */
+	default: /* Unkyeswn tool */
 		tool_type = BTN_TOOL_PEN;
 		break;
 	}
@@ -765,7 +765,7 @@ static void wacom_exit_report(struct wacom_wac *wacom)
 	wacom->id[idx] = 0;
 }
 
-static int wacom_intuos_inout(struct wacom_wac *wacom)
+static int wacom_intuos_iyesut(struct wacom_wac *wacom)
 {
 	struct wacom_features *features = &wacom->features;
 	unsigned char *data = wacom->data;
@@ -813,7 +813,7 @@ static int wacom_intuos_inout(struct wacom_wac *wacom)
 		wacom->shared->stylus_in_proximity = false;
 		wacom->reporting_data = false;
 
-		/* don't report exit if we don't know the ID */
+		/* don't report exit if we don't kyesw the ID */
 		if (!wacom->id[idx])
 			return 1;
 
@@ -850,7 +850,7 @@ static int wacom_intuos_general(struct wacom_wac *wacom)
 	if (delay_pen_events(wacom))
 		return 1;
 
-	/* don't report events if we don't know the tool ID */
+	/* don't report events if we don't kyesw the tool ID */
 	if (!wacom->id[idx]) {
 		/* but reschedule a read of the current tool */
 		wacom_intuos_schedule_prox_event(wacom);
@@ -1022,7 +1022,7 @@ static int wacom_intuos_irq(struct wacom_wac *wacom)
 	    data[0] != WACOM_REPORT_CINTIQPAD &&
 	    data[0] != WACOM_REPORT_INTUOS5PAD) {
 		dev_dbg(input->dev.parent,
-			"%s: received unknown report #%d\n", __func__, data[0]);
+			"%s: received unkyeswn report #%d\n", __func__, data[0]);
                 return 0;
 	}
 
@@ -1032,7 +1032,7 @@ static int wacom_intuos_irq(struct wacom_wac *wacom)
 		return result;
 
 	/* process in/out prox events */
-	result = wacom_intuos_inout(wacom);
+	result = wacom_intuos_iyesut(wacom);
 	if (result)
 		return result - 1;
 
@@ -1056,7 +1056,7 @@ static int wacom_remote_irq(struct wacom_wac *wacom_wac, size_t len)
 	unsigned long flags;
 
 	if (data[0] != WACOM_REPORT_REMOTE) {
-		hid_dbg(wacom->hdev, "%s: received unknown report #%d",
+		hid_dbg(wacom->hdev, "%s: received unkyeswn report #%d",
 			__func__, data[0]);
 		return 0;
 	}
@@ -1124,7 +1124,7 @@ static int wacom_remote_irq(struct wacom_wac *wacom_wac, size_t len)
 			wacom->led.groups[i].select = touch_ring_mode;
 	}
 
-	__wacom_notify_battery(&remote->remotes[index].battery,
+	__wacom_yestify_battery(&remote->remotes[index].battery,
 				WACOM_POWER_SUPPLY_STATUS_AUTO, bat_percent,
 				bat_charging, 1, bat_charging);
 
@@ -1211,14 +1211,14 @@ static int wacom_intuos_bt_irq(struct wacom_wac *wacom, size_t len)
 		bat_charging = (power_raw & 0x08) ? 1 : 0;
 		ps_connected = (power_raw & 0x10) ? 1 : 0;
 		battery_capacity = batcap_i4[power_raw & 0x07];
-		wacom_notify_battery(wacom, WACOM_POWER_SUPPLY_STATUS_AUTO,
+		wacom_yestify_battery(wacom, WACOM_POWER_SUPPLY_STATUS_AUTO,
 				     battery_capacity, bat_charging,
 				     battery_capacity || bat_charging,
 				     ps_connected);
 		break;
 	default:
 		dev_dbg(wacom->pen_input->dev.parent,
-				"Unknown report: %d,%d size:%zu\n",
+				"Unkyeswn report: %d,%d size:%zu\n",
 				data[0], data[1], len);
 		return 0;
 	}
@@ -1271,7 +1271,7 @@ static void wacom_intuos_pro2_bt_pen(struct wacom_wac *wacom)
 	}
 
 	if (wacom->serial[0] >> 52 == 1) {
-		/* Add back in missing bits of ID for non-USI pens */
+		/* Add back in missing bits of ID for yesn-USI pens */
 		wacom->id[0] |= (wacom->serial[0] >> 32) & 0xFFFFF;
 	}
 
@@ -1377,7 +1377,7 @@ static void wacom_intuos_pro2_bt_touch(struct wacom_wac *wacom)
 
 		/*
 		 * First packet resets the counter since only the first
-		 * packet in series will have non-zero current_num_contacts.
+		 * packet in series will have yesn-zero current_num_contacts.
 		 */
 		if (current_num_contacts)
 			wacom->num_contacts_left = current_num_contacts;
@@ -1457,7 +1457,7 @@ static void wacom_intuos_pro2_bt_battery(struct wacom_wac *wacom)
 	bool chg = data[284] & 0x80;
 	int battery_status = data[284] & 0x7F;
 
-	wacom_notify_battery(wacom, WACOM_POWER_SUPPLY_STATUS_AUTO,
+	wacom_yestify_battery(wacom, WACOM_POWER_SUPPLY_STATUS_AUTO,
 			     battery_status, chg, 1, chg);
 }
 
@@ -1484,7 +1484,7 @@ static void wacom_intuos_gen3_bt_battery(struct wacom_wac *wacom)
 	bool chg = data[45] & 0x80;
 	int battery_status = data[45] & 0x7F;
 
-	wacom_notify_battery(wacom, WACOM_POWER_SUPPLY_STATUS_AUTO,
+	wacom_yestify_battery(wacom, WACOM_POWER_SUPPLY_STATUS_AUTO,
 			     battery_status, chg, 1, chg);
 }
 
@@ -1494,7 +1494,7 @@ static int wacom_intuos_pro2_bt_irq(struct wacom_wac *wacom, size_t len)
 
 	if (data[0] != 0x80 && data[0] != 0x81) {
 		dev_dbg(wacom->pen_input->dev.parent,
-			"%s: received unknown report #%d\n", __func__, data[0]);
+			"%s: received unkyeswn report #%d\n", __func__, data[0]);
 		return 0;
 	}
 
@@ -1537,7 +1537,7 @@ static int wacom_24hdt_irq(struct wacom_wac *wacom)
 
 	/*
 	 * First packet resets the counter since only the first
-	 * packet in series will have non-zero current_num_contacts.
+	 * packet in series will have yesn-zero current_num_contacts.
 	 */
 	if (current_num_contacts)
 		wacom->num_contacts_left = current_num_contacts;
@@ -1594,13 +1594,13 @@ static int wacom_mt_touch(struct wacom_wac *wacom)
 	int contacts_to_send = 0;
 	int x_offset = 0;
 
-	/* MTTPC does not support Height and Width */
+	/* MTTPC does yest support Height and Width */
 	if (wacom->features.type == MTTPC || wacom->features.type == MTTPC_B)
 		x_offset = -4;
 
 	/*
 	 * First packet resets the counter since only the first
-	 * packet in series will have non-zero current_num_contacts.
+	 * packet in series will have yesn-zero current_num_contacts.
 	 */
 	if (current_num_contacts)
 		wacom->num_contacts_left = current_num_contacts;
@@ -1773,12 +1773,12 @@ static int wacom_tpc_irq(struct wacom_wac *wacom, size_t len)
 }
 
 static int wacom_offset_rotation(struct input_dev *input, struct hid_usage *usage,
-				 int value, int num, int denom)
+				 int value, int num, int deyesm)
 {
 	struct input_absinfo *abs = &input->absinfo[usage->code];
 	int range = (abs->maximum - abs->minimum + 1);
 
-	value += num*range/denom;
+	value += num*range/deyesm;
 	if (value > abs->maximum)
 		value -= range;
 	else if (value < abs->minimum)
@@ -1948,7 +1948,7 @@ static void wacom_wac_battery_report(struct hid_device *hdev,
 		bool connected = wacom_wac->hid_data.bat_connected;
 		bool powered = wacom_wac->hid_data.ps_connected;
 
-		wacom_notify_battery(wacom_wac, status, capacity, charging,
+		wacom_yestify_battery(wacom_wac, status, capacity, charging,
 				     connected, powered);
 	}
 }
@@ -1995,8 +1995,8 @@ static void wacom_wac_pad_usage_mapping(struct hid_device *hdev,
 		/*
 		 * This usage, which is used to mute touch events, comes
 		 * from the pad packet, but is reported on the touch
-		 * interface. Because the touch interface may not have
-		 * been created yet, we cannot call wacom_map_usage(). In
+		 * interface. Because the touch interface may yest have
+		 * been created yet, we canyest call wacom_map_usage(). In
 		 * order to process this usage when we receive it, we set
 		 * the usage type and code directly.
 		 */
@@ -2040,7 +2040,7 @@ static void wacom_wac_pad_usage_mapping(struct hid_device *hdev,
 		features->device_type |= WACOM_DEVICETYPE_PAD;
 		break;
 	case WACOM_HID_WD_MODE_CHANGE:
-		/* do not overwrite previous data */
+		/* do yest overwrite previous data */
 		if (!wacom_wac->has_mode_change) {
 			wacom_wac->has_mode_change = true;
 			wacom_wac->is_direct_mode = true;
@@ -2338,7 +2338,7 @@ static void wacom_wac_pen_event(struct hid_device *hdev, struct hid_field *field
 	case WACOM_HID_WD_TOOLTYPE:
 		/*
 		 * Some devices (MobileStudio Pro, and possibly later
-		 * devices as well) do not return the complete tool
+		 * devices as well) do yest return the complete tool
 		 * type in their WACOM_HID_WD_TOOLTYPE usage. Use a
 		 * bitwise OR so the complete value can be built
 		 * up over time :(
@@ -3051,7 +3051,7 @@ static int wacom_bpt_pen(struct wacom_wac *wacom)
 		/*
 		 * Convert distance from out prox to distance from tablet.
 		 * distance will be greater than distance_max once
-		 * touching and applying pressure; do not report negative
+		 * touching and applying pressure; do yest report negative
 		 * distance.
 		 */
 		if (data[8] <= features->distance_max)
@@ -3213,14 +3213,14 @@ static int wacom_wireless_irq(struct wacom_wac *wacom, size_t len)
 			wacom_schedule_work(wacom, WACOM_WORKER_WIRELESS);
 		}
 
-		wacom_notify_battery(wacom, WACOM_POWER_SUPPLY_STATUS_AUTO,
+		wacom_yestify_battery(wacom, WACOM_POWER_SUPPLY_STATUS_AUTO,
 				     battery, charging, 1, 0);
 
 	} else if (wacom->pid != 0) {
 		/* disconnected while previously connected */
 		wacom->pid = 0;
 		wacom_schedule_work(wacom, WACOM_WORKER_WIRELESS);
-		wacom_notify_battery(wacom, POWER_SUPPLY_STATUS_UNKNOWN, 0, 0, 0, 0);
+		wacom_yestify_battery(wacom, POWER_SUPPLY_STATUS_UNKNOWN, 0, 0, 0, 0);
 	}
 
 	return 0;
@@ -3248,7 +3248,7 @@ static int wacom_status_irq(struct wacom_wac *wacom_wac, size_t len)
 		int battery = (data[8] & 0x3f) * 100 / 31;
 		bool charging = !!(data[8] & 0x80);
 
-		wacom_notify_battery(wacom_wac, WACOM_POWER_SUPPLY_STATUS_AUTO,
+		wacom_yestify_battery(wacom_wac, WACOM_POWER_SUPPLY_STATUS_AUTO,
 				     battery, charging, battery || charging, 1);
 
 		if (!wacom->battery.battery &&
@@ -3261,7 +3261,7 @@ static int wacom_status_irq(struct wacom_wac *wacom_wac, size_t len)
 		 wacom->battery.battery) {
 		features->quirks &= ~WACOM_QUIRK_BATTERY;
 		wacom_schedule_work(wacom_wac, WACOM_WORKER_BATTERY);
-		wacom_notify_battery(wacom_wac, POWER_SUPPLY_STATUS_UNKNOWN, 0, 0, 0, 0);
+		wacom_yestify_battery(wacom_wac, POWER_SUPPLY_STATUS_UNKNOWN, 0, 0, 0, 0);
 	}
 	return 0;
 }
@@ -3466,14 +3466,14 @@ void wacom_setup_device_quirks(struct wacom *wacom)
 			features->device_type |= WACOM_DEVICETYPE_PAD;
 	}
 
-	/* touch device found but size is not defined. use default */
+	/* touch device found but size is yest defined. use default */
 	if (features->device_type & WACOM_DEVICETYPE_TOUCH && !features->x_max) {
 		features->x_max = 1023;
 		features->y_max = 1023;
 	}
 
 	/*
-	 * Intuos5/Pro and Bamboo 3rd gen have no useful data about its
+	 * Intuos5/Pro and Bamboo 3rd gen have yes useful data about its
 	 * touch interface in its HID descriptor. If this is the touch
 	 * interface (PacketSize of WACOM_PKGLEN_BBTOUCH3), override the
 	 * tablet values.
@@ -3504,7 +3504,7 @@ void wacom_setup_device_quirks(struct wacom *wacom)
 	 * Hack for the Bamboo One:
 	 * the device presents a PAD/Touch interface as most Bamboos and even
 	 * sends ghosts PAD data on it. However, later, we must disable this
-	 * ghost interface, and we can not detect it unless we set it here
+	 * ghost interface, and we can yest detect it unless we set it here
 	 * to WACOM_DEVICETYPE_PAD or WACOM_DEVICETYPE_TOUCH.
 	 */
 	if (features->type == BAMBOO_PEN &&
@@ -4178,7 +4178,7 @@ int wacom_setup_pad_input_capabilities(struct input_dev *input_dev,
 
 	case INTUOS4WL:
 		/*
-		 * For Bluetooth devices, the udev rule does not work correctly
+		 * For Bluetooth devices, the udev rule does yest work correctly
 		 * for pads unless we add a stylus capability, which forces
 		 * ID_INPUT_TABLET to be set.
 		 */
@@ -4214,7 +4214,7 @@ int wacom_setup_pad_input_capabilities(struct input_dev *input_dev,
 		break;
 
 	default:
-		/* no pad supported */
+		/* yes pad supported */
 		return -ENODEV;
 	}
 	return 0;

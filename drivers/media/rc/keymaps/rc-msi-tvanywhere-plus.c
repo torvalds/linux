@@ -10,9 +10,9 @@
 
 /*
   Keycodes for remote on the MSI TV@nywhere Plus. The controller IC on the card
-  is marked "KS003". The controller is I2C at address 0x30, but does not seem
+  is marked "KS003". The controller is I2C at address 0x30, but does yest seem
   to respond to probes until a read is performed from a valid device.
-  I don't know why...
+  I don't kyesw why...
 
   Note: This remote may be of similar or identical design to the
   Pixelview remote (?).  The raw codes and duplicate button codes

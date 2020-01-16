@@ -159,7 +159,7 @@ config ARM_RASPBERRYPI_CPUFREQ
 config ARM_S3C_CPUFREQ
 	bool
 	help
-	  Internal configuration node for common cpufreq on Samsung SoC
+	  Internal configuration yesde for common cpufreq on Samsung SoC
 
 config ARM_S3C24XX_CPUFREQ
 	bool "CPUfreq driver for Samsung S3C24XX series CPUs (EXPERIMENTAL)"
@@ -224,7 +224,7 @@ config ARM_S3C2416_CPUFREQ_VCORESCALE
 	help
 	  Enable CPU voltage scaling when entering the dvs mode.
 	  It uses information gathered through existing hardware and
-	  tests but not documented in any datasheet.
+	  tests but yest documented in any datasheet.
 
 	  If in doubt, say N.
 
@@ -284,7 +284,7 @@ config ARM_STI_CPUFREQ
 	depends on SOC_STIH407
 	help
 	  This driver uses the generic OPP framework to match the running
-	  platform with a predefined set of suitable values.  If not provided
+	  platform with a predefined set of suitable values.  If yest provided
 	  we will fall-back so safe-values contained in Device Tree.  Enable
 	  this config option if you wish to add CPUFreq support for STi based
 	  SoCs.

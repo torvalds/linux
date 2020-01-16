@@ -62,7 +62,7 @@ Contact:	Tomas Winkler <tomas.winkler@intel.com>
 Description:	Display the ME firmware version.
 
 		The version of the platform ME firmware is in format:
-		<platform>:<major>.<minor>.<milestone>.<build_no>.
+		<platform>:<major>.<miyesr>.<milestone>.<build_yes>.
 		There can be up to three such blocks for different
 		FW components.
 

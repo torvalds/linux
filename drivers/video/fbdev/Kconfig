@@ -17,17 +17,17 @@ menuconfig FB
 	  The frame buffer device provides an abstraction for the graphics
 	  hardware. It represents the frame buffer of some video hardware and
 	  allows application software to access the graphics hardware through
-	  a well-defined interface, so the software doesn't need to know
+	  a well-defined interface, so the software doesn't need to kyesw
 	  anything about the low-level (hardware register) stuff.
 
 	  Frame buffer devices work identically across the different
 	  architectures supported by Linux and make the implementation of
 	  application programs easier and more portable; at this point, an X
 	  server exists which uses the frame buffer device exclusively.
-	  On several non-X86 architectures, the frame buffer device is the
+	  On several yesn-X86 architectures, the frame buffer device is the
 	  only way to use the graphics hardware.
 
-	  The device is accessed through special device nodes, usually located
+	  The device is accessed through special device yesdes, usually located
 	  in the /dev directory, i.e. /dev/fb*.
 
 	  You need an utility program called fbset to make full use of frame
@@ -37,12 +37,12 @@ menuconfig FB
 	  information.
 
 	  Say Y here and to the driver for your graphics board below if you
-	  are compiling a kernel for a non-x86 architecture.
+	  are compiling a kernel for a yesn-x86 architecture.
 
 	  If you are compiling for the x86 architecture, you can say Y if you
-	  want to play with it, but it is not essential. Please note that
+	  want to play with it, but it is yest essential. Please yeste that
 	  running graphical applications that directly touch the hardware
-	  (e.g. an accelerated X server) and that are not frame buffer
+	  (e.g. an accelerated X server) and that are yest frame buffer
 	  device-aware may cause unexpected results. If unsure, say N.
 
 config FIRMWARE_EDID
@@ -51,13 +51,13 @@ config FIRMWARE_EDID
 	---help---
 	  This enables access to the EDID transferred from the firmware.
 	  On the i386, this is from the Video BIOS. Enable this if DDC/I2C
-	  transfers do not work for your driver and if you are using
+	  transfers do yest work for your driver and if you are using
 	  nvidiafb, i810fb or savagefb.
 
 	  In general, choosing Y for this option is safe.  If you
 	  experience extremely long delays while booting before you get
 	  something on your display, try setting this to N.  Matrox cards in
-	  combination with certain motherboards and monitors are known to
+	  combination with certain motherboards and monitors are kyeswn to
 	  suffer from this problem.
 
 config FB_DDC
@@ -141,7 +141,7 @@ menuconfig FB_FOREIGN_ENDIAN
 	depends on FB
 	---help---
 	  This menu will let you enable support for the framebuffers with
-	  non-native endianness (e.g. Little-Endian framebuffer on a
+	  yesn-native endianness (e.g. Little-Endian framebuffer on a
 	  Big-Endian machine). Most probably you don't have such hardware,
 	  so it's safe to say "n" here.
 
@@ -196,7 +196,7 @@ config FB_MODE_HELPERS
 	  This enables functions for handling video modes using the
 	  Generalized Timing Formula and the EDID parser. A few drivers rely
 	  on this feature such as the radeonfb, rivafb, and the i810fb. If
-	  your driver does not take advantage of this feature, choosing Y will
+	  your driver does yest take advantage of this feature, choosing Y will
 	  just increase the kernel size by about 5K.
 
 config FB_TILEBLITTING
@@ -360,7 +360,7 @@ config FB_CYBER2000_DDC
 	default y
 	help
 	  Say Y here if you want DDC support for your CyberPro graphics
-	  card. This is only I2C bus support, driver does not use EDID.
+	  card. This is only I2C bus support, driver does yest use EDID.
 
 config FB_CYBER2000_I2C
 	bool "CyberPro 2000/2010/5000 I2C support"
@@ -419,7 +419,7 @@ config FB_AMIGA_AGA
 	depends on FB_AMIGA
 	help
 	  This enables support for the Advanced Graphics Architecture (also
-	  known as the AGA or AA) Chip Set, found in the A1200, A4000, A4000T
+	  kyeswn as the AGA or AA) Chip Set, found in the A1200, A4000, A4000T
 	  and CD32. If you intend to run Linux on any of these systems, say Y;
 	  otherwise say N.
 
@@ -431,17 +431,17 @@ config FB_FM2
 	select FB_CFB_IMAGEBLIT
 	help
 	  This is the frame buffer device driver for the Amiga FrameMaster
-	  card from BSC (exhibited 1992 but not shipped as a CBM product).
+	  card from BSC (exhibited 1992 but yest shipped as a CBM product).
 
 config FB_ARC
-	tristate "Arc Monochrome LCD board support"
+	tristate "Arc Moyeschrome LCD board support"
 	depends on FB && X86
 	select FB_SYS_FILLRECT
 	select FB_SYS_COPYAREA
 	select FB_SYS_IMAGEBLIT
 	select FB_SYS_FOPS
 	help
-	  This enables support for the Arc Monochrome LCD board. The board
+	  This enables support for the Arc Moyeschrome LCD board. The board
 	  is based on the KS-108 lcd controller and is typically a matrix
 	  of 2*n chips. This driver was tested with a 128x64 panel. This
 	  driver supports it for use with x86 SBCs through a 16 bit GPIO
@@ -510,7 +510,7 @@ config FB_CT65550
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
 	help
-	  This is the frame buffer device driver for the Chips & Technologies
+	  This is the frame buffer device driver for the Chips & Techyeslogies
 	  65550 graphics chip in PowerBooks.
 
 config FB_ASILIANT
@@ -590,10 +590,10 @@ config FB_TGA
 	---help---
 	  This is the frame buffer device driver for generic TGA and SFB+
 	  graphic cards.  These include DEC ZLXp-E1, -E2 and -E3 PCI cards,
-	  also known as PBXGA-A, -B and -C, and DEC ZLX-E1, -E2 and -E3
-	  TURBOchannel cards, also known as PMAGD-A, -B and -C.
+	  also kyeswn as PBXGA-A, -B and -C, and DEC ZLX-E1, -E2 and -E3
+	  TURBOchannel cards, also kyeswn as PMAGD-A, -B and -C.
 
-	  Due to hardware limitations ZLX-E2 and E3 cards are not supported
+	  Due to hardware limitations ZLX-E2 and E3 cards are yest supported
 	  for DECstation 5000/200 systems.  Additionally due to firmware
 	  limitations these cards may cause troubles with booting DECstation
 	  5000/240 and /260 systems, but are fully supported under Linux if
@@ -628,8 +628,8 @@ config FB_VESA
 	select FB_BOOT_VESA_SUPPORT
 	help
 	  This is the frame buffer device driver for generic VESA 2.0
-	  compliant graphic cards. The older VESA 1.2 cards are not supported.
-	  You will get a boot time penguin logo at no additional cost. Please
+	  compliant graphic cards. The older VESA 1.2 cards are yest supported.
+	  You will get a boot time penguin logo at yes additional cost. Please
 	  read <file:Documentation/fb/vesafb.rst>. If unsure, say Y.
 
 config FB_EFI
@@ -658,15 +658,15 @@ config FB_N411
 	  Hecuba form using the n411 devkit.
 
 config FB_HGA
-	tristate "Hercules mono graphics support"
+	tristate "Hercules moyes graphics support"
 	depends on FB && X86
 	help
-	  Say Y here if you have a Hercules mono graphics card.
+	  Say Y here if you have a Hercules moyes graphics card.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called hgafb.
 
-	  As this card technology is at least 25 years old,
+	  As this card techyeslogy is at least 25 years old,
 	  most people will answer N here.
 
 config FB_GBE
@@ -818,7 +818,7 @@ config FB_PVR2
 	---help---
 	  Say Y here if you have a PowerVR 2 card in your box.  If you plan to
 	  run linux on your Dreamcast, you will have to say Y here.
-	  This driver may or may not work on other PowerVR 2 cards, but is
+	  This driver may or may yest work on other PowerVR 2 cards, but is
 	  totally untested.  Use at your own risk.  If unsure, say N.
 
 	  To compile this driver as a module, choose M here: the
@@ -999,16 +999,16 @@ config FB_I810_GTF
 	help
 	  If you say Y, then the VESA standard, Generalized Timing Formula
 	  or GTF, will be used to calculate the required video timing values
-	  per video mode.  Since the GTF allows nondiscrete timings
-	  (nondiscrete being a range of values as opposed to discrete being a
+	  per video mode.  Since the GTF allows yesndiscrete timings
+	  (yesndiscrete being a range of values as opposed to discrete being a
 	  set of values), you'll be able to use any combination of horizontal
 	  and vertical resolutions, and vertical refresh rates without having
 	  to specify your own timing parameters.  This is especially useful
 	  to maximize the performance of an aging display, or if you just
-	  have a display with nonstandard dimensions. A VESA compliant
-	  monitor is recommended, but can still work with non-compliant ones.
+	  have a display with yesnstandard dimensions. A VESA compliant
+	  monitor is recommended, but can still work with yesn-compliant ones.
 	  If you need or want this, then select this option. The timings may
-	  not be compliant with Intel's recommended values. Use at your own
+	  yest be compliant with Intel's recommended values. Use at your own
 	  risk.
 
 	  If you say N, the driver will revert to discrete video timings
@@ -1141,14 +1141,14 @@ config FB_MATROX_G
 	  Secondary head driver always start in 640x480 resolution and you
 	  must use fbset to change it.
 
-	  Do not forget that second head supports only 16 and 32 bpp
+	  Do yest forget that second head supports only 16 and 32 bpp
 	  packed pixels, so it is a good idea to compile them into the kernel
 	  too. You can use only some font widths, as the driver uses generic
-	  painting procedures (the secondary head does not use acceleration
+	  painting procedures (the secondary head does yest use acceleration
 	  engine).
 
 	  G450/G550 hardware can display TV picture only from secondary CRTC,
-	  and it performs no scaling, so picture must have 525 or 625 lines.
+	  and it performs yes scaling, so picture must have 525 or 625 lines.
 
 config FB_MATROX_I2C
 	tristate "Matrox I2C support"
@@ -1171,11 +1171,11 @@ config FB_MATROX_MAVEN
 	tristate "G400 second head support"
 	depends on FB_MATROX_G && FB_MATROX_I2C
 	---help---
-	  WARNING !!! This support does not work with G450 !!!
+	  WARNING !!! This support does yest work with G450 !!!
 
 	  Say Y or M here if you want to use a secondary head (meaning two
 	  monitors in parallel) on G400 or MGA-TVO add-on on G200. Secondary
-	  head is not compatible with accelerated XFree 3.3.x SVGA servers -
+	  head is yest compatible with accelerated XFree 3.3.x SVGA servers -
 	  secondary head output is blanked while you are in X. With XFree
 	  3.9.17 preview you can use both heads if you use SVGA over fbdev or
 	  the fbdev driver on first head and the fbdev driver on second head.
@@ -1192,10 +1192,10 @@ config FB_MATROX_MAVEN
 	  Secondary head driver also always start in 640x480 resolution, you
 	  must use fbset to change it.
 
-	  Also do not forget that second head supports only 16 and 32 bpp
+	  Also do yest forget that second head supports only 16 and 32 bpp
 	  packed pixels, so it is a good idea to compile them into the kernel
 	  too.  You can use only some font widths, as the driver uses generic
-	  painting procedures (the secondary head does not use acceleration
+	  painting procedures (the secondary head does yest use acceleration
 	  engine).
 
 config FB_RADEON
@@ -1341,7 +1341,7 @@ config FB_SAVAGE
 	select FB_CFB_IMAGEBLIT
 	select VGASTATE
 	help
-	  This driver supports notebooks and computers with S3 Savage PCI/AGP
+	  This driver supports yestebooks and computers with S3 Savage PCI/AGP
 	  chips.
 
 	  Say Y if you have such a graphics card.
@@ -1447,7 +1447,7 @@ config FB_NEOMAGIC
 	select FB_CFB_IMAGEBLIT
 	select VGASTATE
 	help
-	  This driver supports notebooks with NeoMagic PCI chips.
+	  This driver supports yestebooks with NeoMagic PCI chips.
 	  Say Y if you have such a graphics card.
 
 	  To compile this driver as a module, choose M here: the
@@ -1509,7 +1509,7 @@ config FB_VOODOO1
 	  To compile this driver as a module, choose M here: the
 	  module will be called sstfb.
 
-	  WARNING: Do not use any application that uses the 3D engine
+	  WARNING: Do yest use any application that uses the 3D engine
 	  (namely glide) while using this driver.
 	  Please read the <file:Documentation/fb/sstfb.rst> for supported
 	  options and other important info  support.
@@ -2041,7 +2041,7 @@ config FB_SH7760
 	  Support for the SH7760/SH7763/SH7720/SH7721 integrated
 	  (D)STN/TFT LCD Controller.
 	  Supports display resolutions up to 1024x1024 pixel, grayscale and
-	  color operation, with depths ranging from 1 bpp to 8 bpp monochrome
+	  color operation, with depths ranging from 1 bpp to 8 bpp moyeschrome
 	  and 8, 15 or 16 bpp color; 90 degrees clockwise display rotation for
 	  panels <= 320 pixel horizontal resolution.
 
@@ -2070,11 +2070,11 @@ config FB_VIRTUAL
 	---help---
 	  This is a `virtual' frame buffer device. It operates on a chunk of
 	  unswappable kernel memory instead of on the memory of a graphics
-	  board. This means you cannot see any output sent to this frame
+	  board. This means you canyest see any output sent to this frame
 	  buffer device, while it does consume precious memory. The main use
 	  of this frame buffer device is testing and debugging the frame
-	  buffer subsystem. Do NOT enable it for normal systems! To protect
-	  the innocent, it has to be enabled explicitly at boot time using the
+	  buffer subsystem. Do NOT enable it for yesrmal systems! To protect
+	  the inyescent, it has to be enabled explicitly at boot time using the
 	  kernel option `video=vfb:'.
 
 	  To compile this driver as a module, choose M here: the
@@ -2096,10 +2096,10 @@ config XEN_FBDEV_FRONTEND
 	help
 	  This driver implements the front-end of the Xen virtual
 	  frame buffer driver.  It communicates with a back-end
-	  in another domain.
+	  in ayesther domain.
 
 config FB_METRONOME
-	tristate "E-Ink Metronome/8track controller support"
+	tristate "E-Ink Metroyesme/8track controller support"
 	depends on FB
 	select FB_SYS_FILLRECT
 	select FB_SYS_COPYAREA
@@ -2107,7 +2107,7 @@ config FB_METRONOME
 	select FB_SYS_FOPS
 	select FB_DEFERRED_IO
 	help
-	  This driver implements support for the E-Ink Metronome
+	  This driver implements support for the E-Ink Metroyesme
 	  controller. The pre-release name for this device was 8track
 	  and could also have been called by some vendors as PVI-nnnn.
 
@@ -2180,7 +2180,7 @@ config FB_MX3
 	default y
 	help
 	  This is a framebuffer device for the i.MX31 LCD Controller. So
-	  far only synchronous displays are supported. If you plan to use
+	  far only synchroyesus displays are supported. If you plan to use
 	  an LCD display with your i.MX31 system, say Y here.
 
 config FB_BROADSHEET

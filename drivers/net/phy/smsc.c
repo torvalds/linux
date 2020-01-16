@@ -191,7 +191,7 @@ static void smsc_get_stats(struct phy_device *phydev,
 static int smsc_phy_probe(struct phy_device *phydev)
 {
 	struct device *dev = &phydev->mdio.dev;
-	struct device_node *of_node = dev->of_node;
+	struct device_yesde *of_yesde = dev->of_yesde;
 	struct smsc_phy_priv *priv;
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
@@ -200,7 +200,7 @@ static int smsc_phy_probe(struct phy_device *phydev)
 
 	priv->energy_enable = true;
 
-	if (of_property_read_bool(of_node, "smsc,disable-energy-detect"))
+	if (of_property_read_bool(of_yesde, "smsc,disable-energy-detect"))
 		priv->energy_enable = false;
 
 	phydev->priv = priv;

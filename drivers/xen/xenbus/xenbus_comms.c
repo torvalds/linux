@@ -18,7 +18,7 @@
  * and to permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -145,13 +145,13 @@ static int xb_write(const void *data, unsigned int len)
 		len -= avail;
 		bytes += avail;
 
-		/* Other side must not see new producer until data is there. */
+		/* Other side must yest see new producer until data is there. */
 		virt_wmb();
 		intf->req_prod += avail;
 
 		/* Implies mb(): other side will see the updated producer. */
 		if (prod <= intf->req_cons)
-			notify_remote_via_evtchn(xen_store_evtchn);
+			yestify_remote_via_evtchn(xen_store_evtchn);
 	}
 
 	return bytes;
@@ -198,13 +198,13 @@ static int xb_read(void *data, unsigned int len)
 		len -= avail;
 		bytes += avail;
 
-		/* Other side must not see free space until we've copied out */
+		/* Other side must yest see free space until we've copied out */
 		virt_mb();
 		intf->rsp_cons += avail;
 
 		/* Implies mb(): other side will see the updated consumer. */
 		if (intf->rsp_prod - cons >= XENSTORE_RING_SIZE)
-			notify_remote_via_evtchn(xen_store_evtchn);
+			yestify_remote_via_evtchn(xen_store_evtchn);
 	}
 
 	return bytes;
@@ -444,11 +444,11 @@ int xb_init_comms(void)
 	struct xenstore_domain_interface *intf = xen_store_interface;
 
 	if (intf->req_prod != intf->req_cons)
-		pr_err("request ring is not quiescent (%08x:%08x)!\n",
+		pr_err("request ring is yest quiescent (%08x:%08x)!\n",
 		       intf->req_cons, intf->req_prod);
 
 	if (intf->rsp_prod != intf->rsp_cons) {
-		pr_warn("response ring is not quiescent (%08x:%08x): fixing up\n",
+		pr_warn("response ring is yest quiescent (%08x:%08x): fixing up\n",
 			intf->rsp_cons, intf->rsp_prod);
 		/* breaks kdump */
 		if (!reset_devices)

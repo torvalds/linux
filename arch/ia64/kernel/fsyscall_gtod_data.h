@@ -6,7 +6,7 @@
  * fsyscall gettimeofday data
  */
 
-/* like timespec, but includes "shifted nanoseconds" */
+/* like timespec, but includes "shifted nayesseconds" */
 struct time_sn_spec {
 	u64	sec;
 	u64	snsec;
@@ -15,7 +15,7 @@ struct time_sn_spec {
 struct fsyscall_gtod_data_t {
 	seqcount_t	seq;
 	struct time_sn_spec wall_time;
-	struct time_sn_spec monotonic_time;
+	struct time_sn_spec moyestonic_time;
 	u64		clk_mask;
 	u32		clk_mult;
 	u32		clk_shift;

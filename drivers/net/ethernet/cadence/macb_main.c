@@ -82,7 +82,7 @@ struct sifive_fu540_macb_mgmt {
 #define MACB_WOL_ENABLED		(0x1 << 1)
 
 /* Graceful stop timeouts in us. We should allow up to
- * 1 frame time (10 Mbits/s, full-duplex, ignoring collisions)
+ * 1 frame time (10 Mbits/s, full-duplex, igyesring collisions)
  */
 #define MACB_HALT_TIMEOUT	1230
 
@@ -441,7 +441,7 @@ static void macb_set_tx_clk(struct clk *clk, int speed, struct net_device *dev)
 		return;
 
 	/* RGMII allows 50 ppm frequency error. Test and warn if this limit
-	 * is not satisfied.
+	 * is yest satisfied.
 	 */
 	ferr = abs(rate_rounded - rate);
 	ferr = DIV_ROUND_UP(ferr, rate / 100000);
@@ -540,7 +540,7 @@ static void macb_mac_config(struct phylink_config *config, unsigned int mode,
 	if (state->duplex)
 		ctrl |= MACB_BIT(FD);
 
-	/* We do not support MLO_PAUSE_RX yet */
+	/* We do yest support MLO_PAUSE_RX yet */
 	if (state->pause & MLO_PAUSE_TX)
 		ctrl |= MACB_BIT(PAE);
 
@@ -617,25 +617,25 @@ static int macb_phylink_connect(struct macb *bp)
 	struct phy_device *phydev;
 	int ret;
 
-	if (bp->pdev->dev.of_node &&
-	    of_parse_phandle(bp->pdev->dev.of_node, "phy-handle", 0)) {
-		ret = phylink_of_phy_connect(bp->phylink, bp->pdev->dev.of_node,
+	if (bp->pdev->dev.of_yesde &&
+	    of_parse_phandle(bp->pdev->dev.of_yesde, "phy-handle", 0)) {
+		ret = phylink_of_phy_connect(bp->phylink, bp->pdev->dev.of_yesde,
 					     0);
 		if (ret) {
-			netdev_err(dev, "Could not attach PHY (%d)\n", ret);
+			netdev_err(dev, "Could yest attach PHY (%d)\n", ret);
 			return ret;
 		}
 	} else {
 		phydev = phy_find_first(bp->mii_bus);
 		if (!phydev) {
-			netdev_err(dev, "no PHY found\n");
+			netdev_err(dev, "yes PHY found\n");
 			return -ENXIO;
 		}
 
 		/* attach the mac to the phy */
 		ret = phylink_connect_phy(bp->phylink, phydev);
 		if (ret) {
-			netdev_err(dev, "Could not attach to PHY (%d)\n", ret);
+			netdev_err(dev, "Could yest attach to PHY (%d)\n", ret);
 			return ret;
 		}
 	}
@@ -653,10 +653,10 @@ static int macb_mii_probe(struct net_device *dev)
 	bp->phylink_config.dev = &dev->dev;
 	bp->phylink_config.type = PHYLINK_NETDEV;
 
-	bp->phylink = phylink_create(&bp->phylink_config, bp->pdev->dev.fwnode,
+	bp->phylink = phylink_create(&bp->phylink_config, bp->pdev->dev.fwyesde,
 				     bp->phy_interface, &macb_phylink_ops);
 	if (IS_ERR(bp->phylink)) {
-		netdev_err(dev, "Could not create a phylink instance (%ld)\n",
+		netdev_err(dev, "Could yest create a phylink instance (%ld)\n",
 			   PTR_ERR(bp->phylink));
 		return PTR_ERR(bp->phylink);
 	}
@@ -666,19 +666,19 @@ static int macb_mii_probe(struct net_device *dev)
 
 static int macb_mdiobus_register(struct macb *bp)
 {
-	struct device_node *child, *np = bp->pdev->dev.of_node;
+	struct device_yesde *child, *np = bp->pdev->dev.of_yesde;
 
 	/* Only create the PHY from the device tree if at least one PHY is
 	 * described. Otherwise scan the entire MDIO bus. We do this to support
-	 * old device tree that did not follow the best practices and did not
+	 * old device tree that did yest follow the best practices and did yest
 	 * describe their network PHYs.
 	 */
-	for_each_available_child_of_node(np, child)
+	for_each_available_child_of_yesde(np, child)
 		if (of_mdiobus_child_is_phy(child)) {
 			/* The loop increments the child refcount,
 			 * decrement it before returning.
 			 */
-			of_node_put(child);
+			of_yesde_put(child);
 
 			return of_mdiobus_register(bp->mii_bus, np);
 		}
@@ -828,20 +828,20 @@ static void macb_tx_error_task(struct work_struct *work)
 	/* Prevent the queue IRQ handlers from running: each of them may call
 	 * macb_tx_interrupt(), which in turn may call netif_wake_subqueue().
 	 * As explained below, we have to halt the transmission before updating
-	 * TBQP registers so we call netif_tx_stop_all_queues() to notify the
+	 * TBQP registers so we call netif_tx_stop_all_queues() to yestify the
 	 * network engine about the macb/gem being halted.
 	 */
 	spin_lock_irqsave(&bp->lock, flags);
 
-	/* Make sure nobody is trying to queue up new packets */
+	/* Make sure yesbody is trying to queue up new packets */
 	netif_tx_stop_all_queues(bp->dev);
 
-	/* Stop transmission now
+	/* Stop transmission yesw
 	 * (in case we have just queued new packets)
 	 * macb/gem must be halted to write TBQP register
 	 */
 	if (macb_halt_tx(bp))
-		/* Just complain for now, reinitializing TX path can be good */
+		/* Just complain for yesw, reinitializing TX path can be good */
 		netdev_err(bp->dev, "BUG: halt tx timed out\n");
 
 	/* Treat frames in TX queue including the ones that caused the error.
@@ -967,7 +967,7 @@ static void macb_tx_interrupt(struct macb_queue *queue)
 				if (unlikely(skb_shinfo(skb)->tx_flags &
 					     SKBTX_HW_TSTAMP) &&
 				    gem_ptp_do_txstamp(queue, skb, desc) == 0) {
-					/* skb now belongs to timestamp buffer
+					/* skb yesw belongs to timestamp buffer
 					 * and will be removed later
 					 */
 					tx_skb->skb = NULL;
@@ -1027,7 +1027,7 @@ static void gem_rx_refill(struct macb_queue *queue)
 				break;
 			}
 
-			/* now fill corresponding descriptor entry */
+			/* yesw fill corresponding descriptor entry */
 			paddr = dma_map_single(&bp->pdev->dev, skb->data,
 					       bp->rx_buffer_size,
 					       DMA_FROM_DEVICE);
@@ -1063,7 +1063,7 @@ static void gem_rx_refill(struct macb_queue *queue)
 			queue, queue->rx_prepared_head, queue->rx_tail);
 }
 
-/* Mark DMA descriptors from begin up to and not including end as unused */
+/* Mark DMA descriptors from begin up to and yest including end as unused */
 static void discard_partial_frame(struct macb_queue *queue, unsigned int begin,
 				  unsigned int end)
 {
@@ -1121,7 +1121,7 @@ static int gem_rx(struct macb_queue *queue, struct napi_struct *napi,
 
 		if (!(ctrl & MACB_BIT(RX_SOF) && ctrl & MACB_BIT(RX_EOF))) {
 			netdev_err(bp->dev,
-				   "not whole frame pointed by descriptor\n");
+				   "yest whole frame pointed by descriptor\n");
 			bp->dev->stats.rx_dropped++;
 			queue->stats.rx_dropped++;
 			break;
@@ -1134,7 +1134,7 @@ static int gem_rx(struct macb_queue *queue, struct napi_struct *napi,
 			queue->stats.rx_dropped++;
 			break;
 		}
-		/* now everything is ready for receiving packet */
+		/* yesw everything is ready for receiving packet */
 		queue->rx_skbuff[entry] = NULL;
 		len = ctrl & bp->rx_frm_len_mask;
 
@@ -1145,7 +1145,7 @@ static int gem_rx(struct macb_queue *queue, struct napi_struct *napi,
 				 bp->rx_buffer_size, DMA_FROM_DEVICE);
 
 		skb->protocol = eth_type_trans(skb, bp->dev);
-		skb_checksum_none_assert(skb);
+		skb_checksum_yesne_assert(skb);
 		if (bp->dev->features & NETIF_F_RXCSUM &&
 		    !(bp->dev->flags & IFF_PROMISC) &&
 		    GEM_BFEXT(RX_CSUM, ctrl) & GEM_RX_CSUM_CHECKED_MASK)
@@ -1218,7 +1218,7 @@ static int macb_rx_frame(struct macb_queue *queue, struct napi_struct *napi,
 
 	offset = 0;
 	len += NET_IP_ALIGN;
-	skb_checksum_none_assert(skb);
+	skb_checksum_yesne_assert(skb);
 	skb_put(skb, len);
 
 	for (frag = first_frag; ; frag++) {
@@ -1469,11 +1469,11 @@ static irqreturn_t macb_interrupt(int irq, void *dev_id)
 			    (unsigned long)status);
 
 		if (status & bp->rx_intr_mask) {
-			/* There's no point taking any more interrupts
+			/* There's yes point taking any more interrupts
 			 * until we have processed the buffers. The
 			 * scheduling call may fail if the poll routine
 			 * is already scheduled, so disable interrupts
-			 * now.
+			 * yesw.
 			 */
 			queue_writel(queue, IDR, bp->rx_intr_mask);
 			if (bp->caps & MACB_CAPS_ISR_CLEAR_ON_WRITE)
@@ -1535,7 +1535,7 @@ static irqreturn_t macb_interrupt(int irq, void *dev_id)
 
 		if (status & MACB_BIT(HRESP)) {
 			tasklet_schedule(&bp->hresp_err_tasklet);
-			netdev_err(dev, "DMA bus error: HRESP not OK\n");
+			netdev_err(dev, "DMA bus error: HRESP yest OK\n");
 
 			if (bp->caps & MACB_CAPS_ISR_CLEAR_ON_WRITE)
 				queue_writel(queue, ISR, MACB_BIT(HRESP));
@@ -1549,7 +1549,7 @@ static irqreturn_t macb_interrupt(int irq, void *dev_id)
 }
 
 #ifdef CONFIG_NET_POLL_CONTROLLER
-/* Polling receive - used by netconsole and other diagnostic tools
+/* Polling receive - used by netconsole and other diagyesstic tools
  * to allow network i/o with interrupts disabled.
  */
 static void macb_poll_controller(struct net_device *dev)
@@ -1590,7 +1590,7 @@ static unsigned int macb_tx_map(struct macb *bp,
 			lso_ctrl = MACB_LSO_TSO_ENABLE;
 	}
 
-	/* First, map non-paged data */
+	/* First, map yesn-paged data */
 	len = skb_headlen(skb);
 
 	/* first buffer length */
@@ -1749,7 +1749,7 @@ static netdev_features_t macb_features_check(struct sk_buff *skb,
 	/* Validate LSO compatibility */
 
 	/* there is only one buffer */
-	if (!skb_is_nonlinear(skb))
+	if (!skb_is_yesnlinear(skb))
 		return features;
 
 	/* length of header */
@@ -1778,7 +1778,7 @@ static netdev_features_t macb_features_check(struct sk_buff *skb,
 
 static inline int macb_clear_csum(struct sk_buff *skb)
 {
-	/* no change for packets without checksum offloading */
+	/* yes change for packets without checksum offloading */
 	if (skb->ip_summed != CHECKSUM_PARTIAL)
 		return 0;
 
@@ -2253,7 +2253,7 @@ static u32 macb_dbw(struct macb *bp)
 /* Configure the receive DMA engine
  * - use the correct receive buffer size
  * - set best burst length for DMA operations
- *   (if not supported by FIFO, it will fallback to default)
+ *   (if yest supported by FIFO, it will fallback to default)
  * - set both rx/tx packet buffers to full memory size
  * These are configurable parameters for GEM.
  */
@@ -2696,7 +2696,7 @@ static struct net_device_stats *macb_get_stats(struct net_device *dev)
 	nstat->tx_aborted_errors = hwstat->tx_excessive_cols;
 	nstat->tx_carrier_errors = hwstat->tx_carrier_errors;
 	nstat->tx_fifo_errors = hwstat->tx_underruns;
-	/* Don't know about heartbeat or window errors... */
+	/* Don't kyesw about heartbeat or window errors... */
 
 	return nstat;
 }
@@ -2821,7 +2821,7 @@ static int macb_set_ringparam(struct net_device *netdev,
 
 	if ((new_tx_size == bp->tx_ring_size) &&
 	    (new_rx_size == bp->rx_ring_size)) {
-		/* nothing to do */
+		/* yesthing to do */
 		return 0;
 	}
 
@@ -2938,7 +2938,7 @@ static void gem_enable_flow_filters(struct macb *bp, bool enable)
 		/* enable/disable screener regs for the flow entry */
 		t2_scr = GEM_BFINS(ETHTEN, enable, t2_scr);
 
-		/* only enable fields with no masking */
+		/* only enable fields with yes masking */
 		tp4sp_m = &(fs->m_u.tcp_ip4_spec);
 
 		if (enable && (tp4sp_m->ip4src == 0xFFFFFFFF))
@@ -2972,7 +2972,7 @@ static void gem_prog_cmp_regs(struct macb *bp, struct ethtool_rx_flow_spec *fs)
 	tp4sp_v = &(fs->h_u.tcp_ip4_spec);
 	tp4sp_m = &(fs->m_u.tcp_ip4_spec);
 
-	/* ignore field if any masking set */
+	/* igyesre field if any masking set */
 	if (tp4sp_m->ip4src == 0xFFFFFFFF) {
 		/* 1st compare reg - IP source address */
 		w0 = 0;
@@ -2986,7 +2986,7 @@ static void gem_prog_cmp_regs(struct macb *bp, struct ethtool_rx_flow_spec *fs)
 		cmp_a = true;
 	}
 
-	/* ignore field if any masking set */
+	/* igyesre field if any masking set */
 	if (tp4sp_m->ip4dst == 0xFFFFFFFF) {
 		/* 2nd compare reg - IP destination address */
 		w0 = 0;
@@ -3000,7 +3000,7 @@ static void gem_prog_cmp_regs(struct macb *bp, struct ethtool_rx_flow_spec *fs)
 		cmp_b = true;
 	}
 
-	/* ignore both port fields if masking set in both */
+	/* igyesre both port fields if masking set in both */
 	if ((tp4sp_m->psrc == 0xFFFF) || (tp4sp_m->pdst == 0xFFFF)) {
 		/* 3rd compare reg - source port, destination port */
 		w0 = 0;
@@ -3071,7 +3071,7 @@ static int gem_add_flow_filter(struct net_device *netdev,
 			added = true;
 			break;
 		} else if (item->fs.location == fs->location) {
-			netdev_err(netdev, "Rule not added: location %d not free!\n",
+			netdev_err(netdev, "Rule yest added: location %d yest free!\n",
 					fs->location);
 			ret = -EBUSY;
 			goto err;
@@ -3185,7 +3185,7 @@ static int gem_get_rxnfc(struct net_device *netdev, struct ethtool_rxnfc *cmd,
 		break;
 	default:
 		netdev_err(netdev,
-			  "Command parameter %d is not supported\n", cmd->cmd);
+			  "Command parameter %d is yest supported\n", cmd->cmd);
 		ret = -EOPNOTSUPP;
 	}
 
@@ -3211,7 +3211,7 @@ static int gem_set_rxnfc(struct net_device *netdev, struct ethtool_rxnfc *cmd)
 		break;
 	default:
 		netdev_err(netdev,
-			  "Command parameter %d is not supported\n", cmd->cmd);
+			  "Command parameter %d is yest supported\n", cmd->cmd);
 		ret = -EOPNOTSUPP;
 	}
 
@@ -3574,7 +3574,7 @@ static int macb_init(struct platform_device *pdev)
 #endif
 		}
 
-		/* get irq: here we use the linux queue index, not the hardware
+		/* get irq: here we use the linux queue index, yest the hardware
 		 * queue index. the queue irq definitions in the device tree
 		 * must remove the optional gaps that could exist in the
 		 * hardware queue mask.
@@ -3636,11 +3636,11 @@ static int macb_init(struct platform_device *pdev)
 	if (bp->max_tuples > 0) {
 		/* also needs one ethtype match to check IPv4 */
 		if (GEM_BFEXT(SCR2ETH, reg) > 0) {
-			/* program this reg now */
+			/* program this reg yesw */
 			reg = 0;
 			reg = GEM_BFINS(ETHTCMP, (uint16_t)ETH_P_IP, reg);
 			gem_writel_n(bp, ETHT, SCRT2_ETHT, reg);
-			/* Filtering is supported in hw but don't enable it in kernel now */
+			/* Filtering is supported in hw but don't enable it in kernel yesw */
 			dev->hw_features |= NETIF_F_NTUPLE;
 			/* init Rx flow definitions */
 			INIT_LIST_HEAD(&bp->rx_fs_list.list);
@@ -4237,7 +4237,7 @@ static int macb_probe(struct platform_device *pdev)
 			struct clk **, struct clk **,  struct clk **,
 			struct clk **) = macb_config->clk_init;
 	int (*init)(struct platform_device *) = macb_config->init;
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	struct clk *pclk, *hclk = NULL, *tx_clk = NULL, *rx_clk = NULL;
 	struct clk *tsu_clk = NULL;
 	unsigned int queue_mask, num_queues;
@@ -4258,7 +4258,7 @@ static int macb_probe(struct platform_device *pdev)
 	if (np) {
 		const struct of_device_id *match;
 
-		match = of_match_node(macb_dt_ids, np);
+		match = of_match_yesde(macb_dt_ids, np);
 		if (match && match->data) {
 			macb_config = match->data;
 			clk_init = macb_config->clk_init;
@@ -4272,7 +4272,7 @@ static int macb_probe(struct platform_device *pdev)
 
 	pm_runtime_set_autosuspend_delay(&pdev->dev, MACB_PM_TIMEOUT);
 	pm_runtime_use_autosuspend(&pdev->dev);
-	pm_runtime_get_noresume(&pdev->dev);
+	pm_runtime_get_yesresume(&pdev->dev);
 	pm_runtime_set_active(&pdev->dev);
 	pm_runtime_enable(&pdev->dev);
 	native_io = hw_is_native_io(mem);
@@ -4371,7 +4371,7 @@ static int macb_probe(struct platform_device *pdev)
 
 	err = of_get_phy_mode(np, &interface);
 	if (err)
-		/* not found in DT, MII by default */
+		/* yest found in DT, MII by default */
 		bp->phy_interface = PHY_INTERFACE_MODE_MII;
 	else
 		bp->phy_interface = interface;
@@ -4391,7 +4391,7 @@ static int macb_probe(struct platform_device *pdev)
 
 	err = register_netdev(dev);
 	if (err) {
-		dev_err(&pdev->dev, "Cannot register net device, aborting.\n");
+		dev_err(&pdev->dev, "Canyest register net device, aborting.\n");
 		goto err_out_unregister_mdio;
 	}
 

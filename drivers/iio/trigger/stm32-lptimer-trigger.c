@@ -77,7 +77,7 @@ static int stm32_lptim_trigger_probe(struct platform_device *pdev)
 	if (!priv)
 		return -ENOMEM;
 
-	if (of_property_read_u32(pdev->dev.of_node, "reg", &index))
+	if (of_property_read_u32(pdev->dev.of_yesde, "reg", &index))
 		return -EINVAL;
 
 	if (index >= ARRAY_SIZE(stm32_lptim_triggers))

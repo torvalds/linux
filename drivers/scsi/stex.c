@@ -2,14 +2,14 @@
 /*
  * SuperTrak EX Series Storage Controller driver for Linux
  *
- *	Copyright (C) 2005-2015 Promise Technology Inc.
+ *	Copyright (C) 2005-2015 Promise Techyeslogy Inc.
  *
  *	Written By:
  *		Ed Lin <promise_linux@promise.com>
  */
 
 #include <linux/init.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/kernel.h>
 #include <linux/delay.h>
 #include <linux/slab.h>
@@ -218,7 +218,7 @@ struct handshake_frame {
 	u8 partner_type;	/* who sends this frame */
 	u8 reserved0[7];
 	__le32 partner_ver_major;
-	__le32 partner_ver_minor;
+	__le32 partner_ver_miyesr;
 	__le32 partner_ver_oem;
 	__le32 partner_ver_build;
 	__le32 extra_offset;	/* NEW */
@@ -234,7 +234,7 @@ struct req_msg {
 	u8 task_attr;
 	u8 task_manage;
 	u8 data_dir;
-	u8 payload_sz;		/* payload size in 4-byte, not used */
+	u8 payload_sz;		/* payload size in 4-byte, yest used */
 	u8 cdb[STEX_CDB_LENGTH];
 	u32 variable[0];
 };
@@ -252,7 +252,7 @@ struct status_msg {
 
 struct ver_info {
 	u32 major;
-	u32 minor;
+	u32 miyesr;
 	u32 oem;
 	u32 build;
 	u32 reserved[2];
@@ -282,12 +282,12 @@ struct st_frame {
 
 struct st_drvver {
 	u32 major;
-	u32 minor;
+	u32 miyesr;
 	u32 oem;
 	u32 build;
 	u32 signature[2];
 	u8 console_id;
-	u8 host_no;
+	u8 host_yes;
 	u8 reserved0[2];
 	u32 reserved[3];
 };
@@ -359,8 +359,8 @@ struct st_card_info {
 };
 
 static int S6flag;
-static int stex_halt(struct notifier_block *nb, ulong event, void *buf);
-static struct notifier_block stex_notifier = {
+static int stex_halt(struct yestifier_block *nb, ulong event, void *buf);
+static struct yestifier_block stex_yestifier = {
 	stex_halt, NULL, 0
 };
 
@@ -381,7 +381,7 @@ static const char console_inq_page[] =
 };
 
 MODULE_AUTHOR("Ed Lin");
-MODULE_DESCRIPTION("Promise Technology SuperTrak EX Controllers");
+MODULE_DESCRIPTION("Promise Techyeslogy SuperTrak EX Controllers");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(ST_DRIVER_VERSION);
 
@@ -499,7 +499,7 @@ static void stex_controller_info(struct st_hba *hba, struct st_ccb *ccb)
 	p->rom_addr = 0;
 
 	p->drv_ver.major = ST_VER_MAJOR;
-	p->drv_ver.minor = ST_VER_MINOR;
+	p->drv_ver.miyesr = ST_VER_MINOR;
 	p->drv_ver.oem = ST_OEM;
 	p->drv_ver.build = ST_BUILD_VER;
 
@@ -562,7 +562,7 @@ stex_ss_send_cmd(struct st_hba *hba, struct req_msg *req, u16 tag)
 	}
 }
 
-static void return_abnormal_state(struct st_hba *hba, int status)
+static void return_abyesrmal_state(struct st_hba *hba, int status)
 {
 	struct st_ccb *ccb;
 	unsigned long flags;
@@ -633,9 +633,9 @@ stex_queuecommand_lck(struct scsi_cmnd *cmd, void (*done)(struct scsi_cmnd *))
 	}
 	case REPORT_LUNS:
 		/*
-		 * The shasta firmware does not report actual luns in the
+		 * The shasta firmware does yest report actual luns in the
 		 * target, so fail the command to force sequential lun scan.
-		 * Also, the console device does not support this command.
+		 * Also, the console device does yest support this command.
 		 */
 		if (hba->cardtype == st_shasta || id == host->max_id - 1) {
 			stex_invalid_field(cmd, done);
@@ -672,12 +672,12 @@ stex_queuecommand_lck(struct scsi_cmnd *cmd, void (*done)(struct scsi_cmnd *))
 			size_t cp_len = sizeof(ver);
 
 			ver.major = ST_VER_MAJOR;
-			ver.minor = ST_VER_MINOR;
+			ver.miyesr = ST_VER_MINOR;
 			ver.oem = ST_OEM;
 			ver.build = ST_BUILD_VER;
 			ver.signature[0] = PASSTHRU_SIGNATURE;
 			ver.console_id = host->max_id - 1;
-			ver.host_no = hba->host->host_no;
+			ver.host_yes = hba->host->host_yes;
 			cp_len = scsi_sg_copy_from_buffer(cmd, &ver, cp_len);
 			cmd->result = sizeof(ver) == cp_len ?
 				DID_OK << 16 | COMMAND_COMPLETE << 8 :
@@ -812,10 +812,10 @@ static void stex_mu_intr(struct st_hba *hba, u32 doorbell)
 	}
 
 	/*
-	 * it's not a valid status payload if:
-	 * 1. there are no pending requests(e.g. during init stage)
+	 * it's yest a valid status payload if:
+	 * 1. there are yes pending requests(e.g. during init stage)
 	 * 2. there are some pending requests, but the controller is in
-	 *     reset status, and its type is not st_yosemite
+	 *     reset status, and its type is yest st_yosemite
 	 * firmware of st_yosemite in reset status will return pending requests
 	 * to driver, so we allow it to pass
 	 */
@@ -951,7 +951,7 @@ static void stex_ss_mu_intr(struct st_hba *hba)
 		}
 
 		ccb->req = NULL;
-		if (likely(value & SS_STS_DONE)) { /* normal case */
+		if (likely(value & SS_STS_DONE)) { /* yesrmal case */
 			ccb->srb_status = SRB_STATUS_SUCCESS;
 			ccb->scsi_status = SAM_STAT_GOOD;
 		} else {
@@ -1036,7 +1036,7 @@ static int stex_common_handshake(struct st_hba *hba)
 		while (readl(base + OMR0) != MU_HANDSHAKE_SIGNATURE) {
 			if (time_after(jiffies, before + MU_MAX_DELAY * HZ)) {
 				printk(KERN_ERR DRV_NAME
-					"(%s): no handshake signature\n",
+					"(%s): yes handshake signature\n",
 					pci_name(hba->pdev));
 				return -1;
 			}
@@ -1086,7 +1086,7 @@ static int stex_common_handshake(struct st_hba *hba)
 	while (readl(base + OMR0) != MU_HANDSHAKE_SIGNATURE) {
 		if (time_after(jiffies, before + MU_MAX_DELAY * HZ)) {
 			printk(KERN_ERR DRV_NAME
-				"(%s): no signature after handshake frame\n",
+				"(%s): yes signature after handshake frame\n",
 				pci_name(hba->pdev));
 			return -1;
 		}
@@ -1122,7 +1122,7 @@ static int stex_ss_handshake(struct st_hba *hba)
 		while (operationaldata != SS_MU_OPERATIONAL) {
 			if (time_after(jiffies, before + MU_MAX_DELAY * HZ)) {
 				printk(KERN_ERR DRV_NAME
-					"(%s): firmware not operational\n",
+					"(%s): firmware yest operational\n",
 					pci_name(hba->pdev));
 				return -1;
 			}
@@ -1134,7 +1134,7 @@ static int stex_ss_handshake(struct st_hba *hba)
 		while (operationaldata != SS_MU_OPERATIONAL) {
 			if (time_after(jiffies, before + MU_MAX_DELAY * HZ)) {
 				printk(KERN_ERR DRV_NAME
-					"(%s): firmware not operational\n",
+					"(%s): firmware yest operational\n",
 					pci_name(hba->pdev));
 				return -1;
 			}
@@ -1173,7 +1173,7 @@ static int stex_ss_handshake(struct st_hba *hba)
 		data &= ~(1 << 2);
 		writel(data, base + YINT_EN);
 		if (hba->msi_lock == 0) {
-			/* P3 MSI Register cannot access twice */
+			/* P3 MSI Register canyest access twice */
 			writel((1 << 6), base + YH2I_INT);
 			hba->msi_lock  = 1;
 		}
@@ -1187,7 +1187,7 @@ static int stex_ss_handshake(struct st_hba *hba)
 		while (!(le32_to_cpu(*scratch) & SS_STS_HANDSHAKE)) {
 			if (time_after(jiffies, before + MU_MAX_DELAY * HZ)) {
 				printk(KERN_ERR DRV_NAME
-					"(%s): no signature after handshake frame\n",
+					"(%s): yes signature after handshake frame\n",
 					pci_name(hba->pdev));
 				ret = -1;
 				break;
@@ -1200,7 +1200,7 @@ static int stex_ss_handshake(struct st_hba *hba)
 		while (mailboxdata != SS_STS_HANDSHAKE) {
 			if (time_after(jiffies, before + MU_MAX_DELAY * HZ)) {
 				printk(KERN_ERR DRV_NAME
-					"(%s): no signature after handshake frame\n",
+					"(%s): yes signature after handshake frame\n",
 					pci_name(hba->pdev));
 				ret = -1;
 				break;
@@ -1323,7 +1323,7 @@ static void stex_hard_reset(struct st_hba *hba)
 	pci_write_config_byte(bus->self, PCI_BRIDGE_CONTROL, pci_bctl);
 
 	/*
-	 * 1 ms may be enough for 8-port controllers. But 16-port controllers
+	 * 1 ms may be eyesugh for 8-port controllers. But 16-port controllers
 	 * require more time to finish bus reset. Use 100 ms here for safety
 	 */
 	msleep(100);
@@ -1426,7 +1426,7 @@ static int stex_do_reset(struct st_hba *hba)
 	else if (hba->cardtype == st_P3)
 		stex_p3_reset(hba);
 
-	return_abnormal_state(hba, DID_RESET);
+	return_abyesrmal_state(hba, DID_RESET);
 
 	if (stex_handshake(hba) == 0)
 		return 0;
@@ -1664,7 +1664,7 @@ static int stex_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	pci_set_master(pdev);
 
 	S6flag = 0;
-	register_reboot_notifier(&stex_notifier);
+	register_reboot_yestifier(&stex_yestifier);
 
 	host = scsi_host_alloc(&driver_template, sizeof(struct st_hba));
 
@@ -1786,7 +1786,7 @@ static int stex_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	host->max_id = ci->max_id;
 	host->max_lun = ci->max_lun;
 	host->max_channel = ci->max_channel;
-	host->unique_id = host->host_no;
+	host->unique_id = host->host_yes;
 	host->max_cmd_len = STEX_CDB_LENGTH;
 
 	hba->host = host;
@@ -1794,7 +1794,7 @@ static int stex_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	init_waitqueue_head(&hba->reset_waitq);
 
 	snprintf(hba->work_q_name, sizeof(hba->work_q_name),
-		 "stex_wq_%d", host->host_no);
+		 "stex_wq_%d", host->host_yes);
 	hba->work_q = create_singlethread_workqueue(hba->work_q_name);
 	if (!hba->work_q) {
 		printk(KERN_ERR DRV_NAME "(%s): create workqueue failed\n",
@@ -1932,7 +1932,7 @@ static void stex_remove(struct pci_dev *pdev)
 	struct st_hba *hba = pci_get_drvdata(pdev);
 
 	hba->mu_status = MU_STATE_NOCONNECT;
-	return_abnormal_state(hba, DID_NO_CONNECT);
+	return_abyesrmal_state(hba, DID_NO_CONNECT);
 	scsi_remove_host(hba->host);
 
 	scsi_block_requests(hba->host);
@@ -1943,7 +1943,7 @@ static void stex_remove(struct pci_dev *pdev)
 
 	pci_disable_device(pdev);
 
-	unregister_reboot_notifier(&stex_notifier);
+	unregister_reboot_yestifier(&stex_yestifier);
 }
 
 static void stex_shutdown(struct pci_dev *pdev)
@@ -1953,7 +1953,7 @@ static void stex_shutdown(struct pci_dev *pdev)
 	if (hba->supports_pm == 0) {
 		stex_hba_stop(hba, ST_IGNORED);
 	} else if (hba->supports_pm == 1 && S6flag) {
-		unregister_reboot_notifier(&stex_notifier);
+		unregister_reboot_yestifier(&stex_yestifier);
 		stex_hba_stop(hba, ST_S6);
 	} else
 		stex_hba_stop(hba, ST_S5);
@@ -1993,7 +1993,7 @@ static int stex_resume(struct pci_dev *pdev)
 	return 0;
 }
 
-static int stex_halt(struct notifier_block *nb, unsigned long event, void *buf)
+static int stex_halt(struct yestifier_block *nb, unsigned long event, void *buf)
 {
 	S6flag = 1;
 	return NOTIFY_OK;

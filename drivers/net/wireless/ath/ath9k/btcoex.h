@@ -3,7 +3,7 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright yestice and this permission yestice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
@@ -84,12 +84,12 @@ struct ath9k_hw_mci {
 	bool unhalt_bt_gpm; /* need send UNHALT */
 	bool halted_bt_gpm; /* HALT sent */
 	bool need_flush_btinfo;
-	bool bt_version_known;
+	bool bt_version_kyeswn;
 	bool wlan_channels_update;
 	u8 wlan_ver_major;
-	u8 wlan_ver_minor;
+	u8 wlan_ver_miyesr;
 	u8 bt_ver_major;
-	u8 bt_ver_minor;
+	u8 bt_ver_miyesr;
 	u8 bt_state;
 	u8 stomp_ftp;
 	bool concur_tx;

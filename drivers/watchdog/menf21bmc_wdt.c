@@ -25,9 +25,9 @@
 #define BMC_WD_TIMEOUT_MIN	1	/* in sec */
 #define BMC_WD_TIMEOUT_MAX	6553	/* in sec */
 
-static bool nowayout = WATCHDOG_NOWAYOUT;
-module_param(nowayout, bool, 0);
-MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started (default="
+static bool yeswayout = WATCHDOG_NOWAYOUT;
+module_param(yeswayout, bool, 0);
+MODULE_PARM_DESC(yeswayout, "Watchdog canyest be stopped once started (default="
 				__MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
 
 struct menf21bmc_wdt {
@@ -141,7 +141,7 @@ static int menf21bmc_wdt_probe(struct platform_device *pdev)
 	}
 
 	watchdog_init_timeout(&drv_data->wdt, bmc_timeout / 10, dev);
-	watchdog_set_nowayout(&drv_data->wdt, nowayout);
+	watchdog_set_yeswayout(&drv_data->wdt, yeswayout);
 	watchdog_set_drvdata(&drv_data->wdt, drv_data);
 	platform_set_drvdata(pdev, drv_data);
 

@@ -340,7 +340,7 @@ static int cxd2880_start_feed(struct dvb_demux_feed *feed)
 
 	if (dvb_spi->feed_count == CXD2880_MAX_FILTER_SIZE) {
 		pr_err("Exceeded maximum PID count (32).");
-		pr_err("Selected PID cannot be enabled.\n");
+		pr_err("Selected PID canyest be enabled.\n");
 		return -EINVAL;
 	}
 
@@ -437,7 +437,7 @@ static int cxd2880_stop_feed(struct dvb_demux_feed *feed)
 	dvb_spi = demux->priv;
 
 	if (!dvb_spi->feed_count) {
-		pr_err("no feed is started\n");
+		pr_err("yes feed is started\n");
 		return -EINVAL;
 	}
 
@@ -448,7 +448,7 @@ static int cxd2880_stop_feed(struct dvb_demux_feed *feed)
 		 * in dvb_spi->all_pid_feed_count.
 		 */
 		if (dvb_spi->all_pid_feed_count <= 0) {
-			pr_err("PID %d not found.\n", feed->pid);
+			pr_err("PID %d yest found.\n", feed->pid);
 			return -EINVAL;
 		}
 		dvb_spi->all_pid_feed_count--;
@@ -470,7 +470,7 @@ static int cxd2880_stop_feed(struct dvb_demux_feed *feed)
 		dvb_spi->filter_config = cfgtmp;
 
 		if (i == CXD2880_MAX_FILTER_SIZE) {
-			pr_err("PID %d not found\n", feed->pid);
+			pr_err("PID %d yest found\n", feed->pid);
 			return -EINVAL;
 		}
 	}

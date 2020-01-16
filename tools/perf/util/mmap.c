@@ -3,7 +3,7 @@
  * Copyright (C) 2011-2017, Red Hat Inc, Arnaldo Carvalho de Melo <acme@redhat.com>
  *
  * Parts came from evlist.c builtin-{top,stat,record}.c, see those files for further
- * copyright notes.
+ * copyright yestes.
  */
 
 #include <sys/mman.h>
@@ -86,15 +86,15 @@ static int perf_mmap__aio_bind(struct mmap *map, int idx, int cpu, int affinity)
 {
 	void *data;
 	size_t mmap_len;
-	unsigned long node_mask;
+	unsigned long yesde_mask;
 
-	if (affinity != PERF_AFFINITY_SYS && cpu__max_node() > 1) {
+	if (affinity != PERF_AFFINITY_SYS && cpu__max_yesde() > 1) {
 		data = map->aio.data[idx];
 		mmap_len = mmap__mmap_len(map);
-		node_mask = 1UL << cpu__get_node(cpu);
-		if (mbind(data, mmap_len, MPOL_BIND, &node_mask, 1, 0)) {
-			pr_err("Failed to bind [%p-%p] AIO buffer to node %d: error %m\n",
-				data, data + mmap_len, cpu__get_node(cpu));
+		yesde_mask = 1UL << cpu__get_yesde(cpu);
+		if (mbind(data, mmap_len, MPOL_BIND, &yesde_mask, 1, 0)) {
+			pr_err("Failed to bind [%p-%p] AIO buffer to yesde %d: error %m\n",
+				data, data + mmap_len, cpu__get_yesde(cpu));
 			return -1;
 		}
 	}
@@ -156,7 +156,7 @@ static int perf_mmap__aio_mmap(struct mmap *map, struct mmap_params *mp)
 				return -1;
 			/*
 			 * Use cblock.aio_fildes value different from -1
-			 * to denote started aio write operation on the
+			 * to deyeste started aio write operation on the
 			 * cblock so it requires explicit record__aio_sync()
 			 * call prior the cblock may be reused again.
 			 */
@@ -215,7 +215,7 @@ void mmap__munmap(struct mmap *map)
 	auxtrace_mmap__munmap(&map->auxtrace_mmap);
 }
 
-static void build_node_mask(int node, cpu_set_t *mask)
+static void build_yesde_mask(int yesde, cpu_set_t *mask)
 {
 	int c, cpu, nr_cpus;
 	const struct perf_cpu_map *cpu_map = NULL;
@@ -227,7 +227,7 @@ static void build_node_mask(int node, cpu_set_t *mask)
 	nr_cpus = perf_cpu_map__nr(cpu_map);
 	for (c = 0; c < nr_cpus; c++) {
 		cpu = cpu_map->map[c]; /* map c index to online cpu index */
-		if (cpu__get_node(cpu) == node)
+		if (cpu__get_yesde(cpu) == yesde)
 			CPU_SET(cpu, mask);
 	}
 }
@@ -235,8 +235,8 @@ static void build_node_mask(int node, cpu_set_t *mask)
 static void perf_mmap__setup_affinity_mask(struct mmap *map, struct mmap_params *mp)
 {
 	CPU_ZERO(&map->affinity_mask);
-	if (mp->affinity == PERF_AFFINITY_NODE && cpu__max_node() > 1)
-		build_node_mask(cpu__get_node(map->core.cpu), &map->affinity_mask);
+	if (mp->affinity == PERF_AFFINITY_NODE && cpu__max_yesde() > 1)
+		build_yesde_mask(cpu__get_yesde(map->core.cpu), &map->affinity_mask);
 	else if (mp->affinity == PERF_AFFINITY_CPU)
 		CPU_SET(map->core.cpu, &map->affinity_mask);
 }
@@ -245,7 +245,7 @@ int mmap__mmap(struct mmap *map, struct mmap_params *mp, int fd, int cpu)
 {
 	if (perf_mmap__mmap(&map->core, &mp->core, fd, cpu)) {
 		pr_debug2("failed to mmap perf event ring buffer, error %d\n",
-			  errno);
+			  erryes);
 		return -1;
 	}
 
@@ -260,7 +260,7 @@ int mmap__mmap(struct mmap *map, struct mmap_params *mp, int fd, int cpu)
 				 MAP_PRIVATE|MAP_ANONYMOUS, 0, 0);
 		if (map->data == MAP_FAILED) {
 			pr_debug2("failed to mmap data buffer, error %d\n",
-					errno);
+					erryes);
 			map->data = NULL;
 			return -1;
 		}

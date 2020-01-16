@@ -9,7 +9,7 @@
  * STRATEGY
  *  for playback, we send series of "chunks", which size is equal with the
  *  IBL size, typically 126 samples.  at each end of chunk, the end-of-buffer
- *  interrupt is notified, and the interrupt handler will feed the next chunk.
+ *  interrupt is yestified, and the interrupt handler will feed the next chunk.
  *
  *  the current position is calculated from the sample count RMH.
  *  pipe->transferred is the counter of data which has been already transferred.
@@ -18,11 +18,11 @@
  *
  *  for capture, the situation is much easier.
  *  to get a low latency response, we'll check the capture streams at each
- *  interrupt (capture stream has no EOB notification).  if the pending
+ *  interrupt (capture stream has yes EOB yestification).  if the pending
  *  data is accumulated to the period size, snd_pcm_period_elapsed() is
  *  called and the pointer is updated.
  *
- *  the current point of read buffer is kept in pipe->hw_ptr.  note that
+ *  the current point of read buffer is kept in pipe->hw_ptr.  yeste that
  *  this is in bytes.
  *
  * TODO
@@ -100,7 +100,7 @@ static int vx_set_differed_time(struct vx_core *chip, struct vx_rmh *rmh,
 	/* Time stamp is the 1st following parameter */
 	vx_set_pcx_time(chip, &pipe->pcx_time, &rmh->Cmd[1]);
 
-	/* Add the flags to a notified differed command */
+	/* Add the flags to a yestified differed command */
 	if (pipe->differed_type & DC_NOTIFY_DELAY)
 		rmh->Cmd[1] |= NOTIFY_MASK_TIME_HIGH ;
 
@@ -230,7 +230,7 @@ static int vx_get_pipe_state(struct vx_core *chip, struct vx_pipe *pipe, int *st
  *
  * NOTE: calling this function always switches to the stream mode.
  *       you'll need to disconnect the host to get back to the
- *       normal mode.
+ *       yesrmal mode.
  */
 static int vx_query_hbuffer_size(struct vx_core *chip, struct vx_pipe *pipe)
 {
@@ -252,7 +252,7 @@ static int vx_query_hbuffer_size(struct vx_core *chip, struct vx_pipe *pipe)
  * vx_pipe_can_start - query whether a pipe is ready for start
  * @pipe: the pipe to be checked
  *
- * return 1 if ready, 0 if not ready, and negative value on error.
+ * return 1 if ready, 0 if yest ready, and negative value on error.
  *
  * called from trigger callback only
  */
@@ -302,7 +302,7 @@ static int vx_send_irqa(struct vx_core *chip)
 
 #define MAX_WAIT_FOR_DSP        250
 /*
- * vx boards do not support inter-card sync, besides
+ * vx boards do yest support inter-card sync, besides
  * only 126 samples require to be prepared before a pipe can start
  */
 #define CAN_START_DELAY         2	/* wait 2ms only before asking if the pipe is ready*/
@@ -320,15 +320,15 @@ static int vx_toggle_pipe(struct vx_core *chip, struct vx_pipe *pipe, int state)
 {
 	int err, i, cur_state;
 
-	/* Check the pipe is not already in the requested state */
+	/* Check the pipe is yest already in the requested state */
 	if (vx_get_pipe_state(chip, pipe, &cur_state) < 0)
 		return -EBADFD;
 	if (state == cur_state)
 		return 0;
 
 	/* If a start is requested, ask the DSP to get prepared
-	 * and wait for a positive acknowledge (when there are
-	 * enough sound buffer for this pipe)
+	 * and wait for a positive ackyeswledge (when there are
+	 * eyesugh sound buffer for this pipe)
 	 */
 	if (state) {
 		for (i = 0 ; i < MAX_WAIT_FOR_DSP; i++) {
@@ -350,7 +350,7 @@ static int vx_toggle_pipe(struct vx_core *chip, struct vx_pipe *pipe, int state)
     
 	/* If it completes successfully, wait for the pipes
 	 * reaching the expected state before returning
-	 * Check one pipe only (since they are synchronous)
+	 * Check one pipe only (since they are synchroyesus)
 	 */
 	for (i = 0; i < MAX_WAIT_FOR_DSP; i++) {
 		err = vx_get_pipe_state(chip, pipe, &cur_state);
@@ -526,7 +526,7 @@ static int vx_pcm_playback_open(struct snd_pcm_substream *subs)
 	/* playback pipe may have been already allocated for monitoring */
 	pipe = chip->playback_pipes[audio];
 	if (! pipe) {
-		/* not allocated yet */
+		/* yest allocated yet */
 		err = vx_alloc_pipe(chip, 0, audio, 2, &pipe); /* stereo playback */
 		if (err < 0)
 			return err;
@@ -573,25 +573,25 @@ static int vx_pcm_playback_close(struct snd_pcm_substream *subs)
 
 
 /*
- * vx_notify_end_of_buffer - send "end-of-buffer" notifier at the given pipe
- * @pipe: the pipe to notify
+ * vx_yestify_end_of_buffer - send "end-of-buffer" yestifier at the given pipe
+ * @pipe: the pipe to yestify
  *
  * NB: call with a certain lock.
  */
-static int vx_notify_end_of_buffer(struct vx_core *chip, struct vx_pipe *pipe)
+static int vx_yestify_end_of_buffer(struct vx_core *chip, struct vx_pipe *pipe)
 {
 	int err;
 	struct vx_rmh rmh;  /* use a temporary rmh here */
 
 	/* Toggle Dsp Host Interface into Message mode */
-	vx_send_rih_nolock(chip, IRQ_PAUSE_START_CONNECT);
+	vx_send_rih_yeslock(chip, IRQ_PAUSE_START_CONNECT);
 	vx_init_rmh(&rmh, CMD_NOTIFY_END_OF_BUFFER);
 	vx_set_stream_cmd_params(&rmh, 0, pipe->number);
-	err = vx_send_msg_nolock(chip, &rmh);
+	err = vx_send_msg_yeslock(chip, &rmh);
 	if (err < 0)
 		return err;
 	/* Toggle Dsp Host Interface back to sound transfer mode */
-	vx_send_rih_nolock(chip, IRQ_PAUSE_START_CONNECT);
+	vx_send_rih_yeslock(chip, IRQ_PAUSE_START_CONNECT);
 	return 0;
 }
 
@@ -601,7 +601,7 @@ static int vx_notify_end_of_buffer(struct vx_core *chip, struct vx_pipe *pipe)
  * @pipe: the pipe to transfer
  * @size: chunk size in bytes
  *
- * transfer a single buffer chunk.  EOB notificaton is added after that.
+ * transfer a single buffer chunk.  EOB yestificaton is added after that.
  * called from the interrupt handler, too.
  *
  * return 0 if ok.
@@ -621,7 +621,7 @@ static int vx_pcm_playback_transfer_chunk(struct vx_core *chip,
 	}
 	if (space < size) {
 		vx_send_rih(chip, IRQ_CONNECT_STREAM_NEXT);
-		snd_printd("no enough hbuffer space %d\n", space);
+		snd_printd("yes eyesugh hbuffer space %d\n", space);
 		return -EIO; /* XRUN */
 	}
 		
@@ -630,9 +630,9 @@ static int vx_pcm_playback_transfer_chunk(struct vx_core *chip,
 	 */
 	mutex_lock(&chip->lock);
 	vx_pseudo_dma_write(chip, runtime, pipe, size);
-	err = vx_notify_end_of_buffer(chip, pipe);
+	err = vx_yestify_end_of_buffer(chip, pipe);
 	/* disconnect the host, SIZE_HBUF command always switches to the stream mode */
-	vx_send_rih_nolock(chip, IRQ_CONNECT_STREAM_NEXT);
+	vx_send_rih_yeslock(chip, IRQ_CONNECT_STREAM_NEXT);
 	mutex_unlock(&chip->lock);
 	return err;
 }
@@ -640,7 +640,7 @@ static int vx_pcm_playback_transfer_chunk(struct vx_core *chip,
 /*
  * update the position of the given pipe.
  * pipe->position is updated and wrapped within the buffer size.
- * pipe->transferred is updated, too, but the size is not wrapped,
+ * pipe->transferred is updated, too, but the size is yest wrapped,
  * so that the caller can check the total transferred size later
  * (to call snd_pcm_period_elapsed).
  */
@@ -728,12 +728,12 @@ static int vx_pcm_trigger(struct snd_pcm_substream *subs, int cmd)
 			vx_pcm_playback_transfer(chip, subs, pipe, 2);
 		err = vx_start_stream(chip, pipe);
 		if (err < 0) {
-			pr_debug("vx: cannot start stream\n");
+			pr_debug("vx: canyest start stream\n");
 			return err;
 		}
 		err = vx_toggle_pipe(chip, pipe, 1);
 		if (err < 0) {
-			pr_debug("vx: cannot start pipe\n");
+			pr_debug("vx: canyest start pipe\n");
 			vx_stop_stream(chip, pipe);
 			return err;
 		}
@@ -823,7 +823,7 @@ static int vx_pcm_prepare(struct snd_pcm_substream *subs)
 	}
 
 	if (chip->pcm_running && chip->freq != runtime->rate) {
-		snd_printk(KERN_ERR "vx: cannot set different clock %d "
+		snd_printk(KERN_ERR "vx: canyest set different clock %d "
 			   "from the current %d\n", runtime->rate, chip->freq);
 		return -EINVAL;
 	}
@@ -1157,7 +1157,7 @@ static int vx_init_audio_io(struct vx_core *chip)
 
 	vx_init_rmh(&rmh, CMD_SUPPORTED);
 	if (vx_send_msg(chip, &rmh) < 0) {
-		snd_printk(KERN_ERR "vx: cannot get the supported audio data\n");
+		snd_printk(KERN_ERR "vx: canyest get the supported audio data\n");
 		return -ENXIO;
 	}
 
@@ -1237,7 +1237,7 @@ int snd_vx_pcm_new(struct vx_core *chip)
 		pcm->private_data = chip;
 		pcm->private_free = snd_vx_pcm_free;
 		pcm->info_flags = 0;
-		pcm->nonatomic = true;
+		pcm->yesnatomic = true;
 		strcpy(pcm->name, chip->card->shortname);
 		chip->pcm[i] = pcm;
 	}

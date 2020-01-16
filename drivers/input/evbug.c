@@ -52,8 +52,8 @@ static int evbug_connect(struct input_handler *handler, struct input_dev *dev,
 
 	printk(KERN_DEBUG pr_fmt("Connected device: %s (%s at %s)\n"),
 	       dev_name(&dev->dev),
-	       dev->name ?: "unknown",
-	       dev->phys ?: "unknown");
+	       dev->name ?: "unkyeswn",
+	       dev->phys ?: "unkyeswn");
 
 	return 0;
 

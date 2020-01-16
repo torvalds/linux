@@ -15,7 +15,7 @@ struct drm_device;
 struct drm_file;
 struct drm_framebuffer;
 struct drm_gem_object;
-struct drm_minor;
+struct drm_miyesr;
 struct module;
 
 /**
@@ -41,8 +41,8 @@ struct drm_client_funcs {
 	 * @restore:
 	 *
 	 * Called on drm_lastclose(). The first client instance in the list that
-	 * returns zero gets the privilege to restore and no more clients are
-	 * called. This callback is not called after @unregister has been called.
+	 * returns zero gets the privilege to restore and yes more clients are
+	 * called. This callback is yest called after @unregister has been called.
 	 *
 	 * This callback is optional.
 	 */
@@ -52,7 +52,7 @@ struct drm_client_funcs {
 	 * @hotplug:
 	 *
 	 * Called on drm_kms_helper_hotplug_event().
-	 * This callback is not called after @unregister has been called.
+	 * This callback is yest called after @unregister has been called.
 	 *
 	 * This callback is optional.
 	 */
@@ -183,6 +183,6 @@ int drm_client_modeset_dpms(struct drm_client_dev *client, int mode);
 	drm_for_each_connector_iter(connector, iter) \
 		if (connector->connector_type != DRM_MODE_CONNECTOR_WRITEBACK)
 
-int drm_client_debugfs_init(struct drm_minor *minor);
+int drm_client_debugfs_init(struct drm_miyesr *miyesr);
 
 #endif

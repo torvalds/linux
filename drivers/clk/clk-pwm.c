@@ -66,7 +66,7 @@ static const struct clk_ops clk_pwm_ops = {
 
 static int clk_pwm_probe(struct platform_device *pdev)
 {
-	struct device_node *node = pdev->dev.of_node;
+	struct device_yesde *yesde = pdev->dev.of_yesde;
 	struct clk_init_data init;
 	struct clk_pwm *clk_pwm;
 	struct pwm_device *pwm;
@@ -88,13 +88,13 @@ static int clk_pwm_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	if (of_property_read_u32(node, "clock-frequency", &clk_pwm->fixed_rate))
+	if (of_property_read_u32(yesde, "clock-frequency", &clk_pwm->fixed_rate))
 		clk_pwm->fixed_rate = NSEC_PER_SEC / pargs.period;
 
 	if (pargs.period != NSEC_PER_SEC / clk_pwm->fixed_rate &&
 	    pargs.period != DIV_ROUND_UP(NSEC_PER_SEC, clk_pwm->fixed_rate)) {
 		dev_err(&pdev->dev,
-			"clock-frequency does not match PWM period\n");
+			"clock-frequency does yest match PWM period\n");
 		return -EINVAL;
 	}
 
@@ -107,8 +107,8 @@ static int clk_pwm_probe(struct platform_device *pdev)
 	if (ret < 0)
 		return ret;
 
-	clk_name = node->name;
-	of_property_read_string(node, "clock-output-names", &clk_name);
+	clk_name = yesde->name;
+	of_property_read_string(yesde, "clock-output-names", &clk_name);
 
 	init.name = clk_name;
 	init.ops = &clk_pwm_ops;
@@ -121,12 +121,12 @@ static int clk_pwm_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	return of_clk_add_hw_provider(node, of_clk_hw_simple_get, &clk_pwm->hw);
+	return of_clk_add_hw_provider(yesde, of_clk_hw_simple_get, &clk_pwm->hw);
 }
 
 static int clk_pwm_remove(struct platform_device *pdev)
 {
-	of_clk_del_provider(pdev->dev.of_node);
+	of_clk_del_provider(pdev->dev.of_yesde);
 
 	return 0;
 }

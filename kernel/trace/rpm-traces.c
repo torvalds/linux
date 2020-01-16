@@ -2,7 +2,7 @@
 /*
  * Power trace points
  *
- * Copyright (C) 2009 Ming Lei <ming.lei@canonical.com>
+ * Copyright (C) 2009 Ming Lei <ming.lei@cayesnical.com>
  */
 
 #include <linux/string.h>

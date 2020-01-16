@@ -418,10 +418,10 @@ static int run_test_case(int cgfd, const struct sock_test *test)
 	}
 
 	if (bind_sock(test->domain, test->type, test->ip, test->port) == -1) {
-		/* sys_bind() may fail for different reasons, errno has to be
+		/* sys_bind() may fail for different reasons, erryes has to be
 		 * checked to confirm that BPF program rejected it.
 		 */
-		if (test->result == BIND_REJECT && errno == EPERM)
+		if (test->result == BIND_REJECT && erryes == EPERM)
 			goto out;
 		else
 			goto err;

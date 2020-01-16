@@ -54,7 +54,7 @@ static int cdns_pcie_ep_set_bar(struct pci_epc *epc, u8 fn,
 	struct cdns_pcie_ep *ep = epc_get_drvdata(epc);
 	struct cdns_pcie *pcie = &ep->pcie;
 	dma_addr_t bar_phys = epf_bar->phys_addr;
-	enum pci_barno bar = epf_bar->barno;
+	enum pci_baryes bar = epf_bar->baryes;
 	int flags = epf_bar->flags;
 	u32 addr0, addr1, reg, cfg, b, aperture, ctrl;
 	u64 sz;
@@ -62,7 +62,7 @@ static int cdns_pcie_ep_set_bar(struct pci_epc *epc, u8 fn,
 	/* BAR size is 2^(aperture + 7) */
 	sz = max_t(size_t, epf_bar->size, CDNS_PCIE_EP_MIN_APERTURE);
 	/*
-	 * roundup_pow_of_two() returns an unsigned long, which is not suited
+	 * roundup_pow_of_two() returns an unsigned long, which is yest suited
 	 * for 64bit values.
 	 */
 	sz = 1ULL << fls64(sz - 1);
@@ -120,7 +120,7 @@ static void cdns_pcie_ep_clear_bar(struct pci_epc *epc, u8 fn,
 {
 	struct cdns_pcie_ep *ep = epc_get_drvdata(epc);
 	struct cdns_pcie *pcie = &ep->pcie;
-	enum pci_barno bar = epf_bar->barno;
+	enum pci_baryes bar = epf_bar->baryes;
 	u32 reg, cfg, b, ctrl;
 
 	if (bar < BAR_4) {
@@ -152,7 +152,7 @@ static int cdns_pcie_ep_map_addr(struct pci_epc *epc, u8 fn, phys_addr_t addr,
 	r = find_first_zero_bit(&ep->ob_region_map,
 				sizeof(ep->ob_region_map) * BITS_PER_LONG);
 	if (r >= ep->max_regions - 1) {
-		dev_err(&epc->dev, "no free outbound region\n");
+		dev_err(&epc->dev, "yes free outbound region\n");
 		return -EINVAL;
 	}
 
@@ -239,7 +239,7 @@ static void cdns_pcie_ep_assert_intx(struct cdns_pcie_ep *ep, u8 fn,
 	if (unlikely(ep->irq_pci_addr != CDNS_PCIE_EP_IRQ_PCI_ADDR_LEGACY ||
 		     ep->irq_pci_fn != fn)) {
 		/* First region was reserved for IRQ writes. */
-		cdns_pcie_set_outbound_region_for_normal_msg(pcie, fn, 0,
+		cdns_pcie_set_outbound_region_for_yesrmal_msg(pcie, fn, 0,
 							     ep->irq_phys_addr);
 		ep->irq_pci_addr = CDNS_PCIE_EP_IRQ_PCI_ADDR_LEGACY;
 		ep->irq_pci_fn = fn;
@@ -364,20 +364,20 @@ static int cdns_pcie_ep_start(struct pci_epc *epc)
 	 */
 	cfg = BIT(0);
 	list_for_each_entry(epf, &epc->pci_epf, list)
-		cfg |= BIT(epf->func_no);
+		cfg |= BIT(epf->func_yes);
 	cdns_pcie_writel(pcie, CDNS_PCIE_LM_EP_FUNC_CFG, cfg);
 
 	return 0;
 }
 
 static const struct pci_epc_features cdns_pcie_epc_features = {
-	.linkup_notifier = false,
+	.linkup_yestifier = false,
 	.msi_capable = true,
 	.msix_capable = false,
 };
 
 static const struct pci_epc_features*
-cdns_pcie_ep_get_features(struct pci_epc *epc, u8 func_no)
+cdns_pcie_ep_get_features(struct pci_epc *epc, u8 func_yes)
 {
 	return &cdns_pcie_epc_features;
 }
@@ -400,7 +400,7 @@ int cdns_pcie_ep_setup(struct cdns_pcie_ep *ep)
 {
 	struct device *dev = ep->pcie.dev;
 	struct platform_device *pdev = to_platform_device(dev);
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 	struct cdns_pcie *pcie = &ep->pcie;
 	struct resource *res;
 	struct pci_epc *epc;

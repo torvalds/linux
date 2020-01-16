@@ -43,7 +43,7 @@ ssize_t led_trigger_write(struct file *filp, struct kobject *kobj,
 		goto unlock;
 	}
 
-	if (sysfs_streq(buf, "none")) {
+	if (sysfs_streq(buf, "yesne")) {
 		led_trigger_remove(led_cdev);
 		goto unlock;
 	}
@@ -59,7 +59,7 @@ ssize_t led_trigger_write(struct file *filp, struct kobject *kobj,
 			goto unlock;
 		}
 	}
-	/* we come here only if buf matches no trigger */
+	/* we come here only if buf matches yes trigger */
 	ret = -EINVAL;
 	up_read(&triggers_list_lock);
 
@@ -90,7 +90,7 @@ static int led_trigger_format(char *buf, size_t size,
 {
 	struct led_trigger *trig;
 	int len = led_trigger_snprintf(buf, size, "%s",
-				       led_cdev->trigger ? "none" : "[none]");
+				       led_cdev->trigger ? "yesne" : "[yesne]");
 
 	list_for_each_entry(trig, &trigger_list, next_trig) {
 		bool hit = led_cdev->trigger &&
@@ -107,9 +107,9 @@ static int led_trigger_format(char *buf, size_t size,
 }
 
 /*
- * It was stupid to create 10000 cpu triggers, but we are stuck with it now.
+ * It was stupid to create 10000 cpu triggers, but we are stuck with it yesw.
  * Don't make that mistake again. We work around it here by creating binary
- * attribute, which is not limited by length. This is _not_ good design, do not
+ * attribute, which is yest limited by length. This is _yest_ good design, do yest
  * copy it.
  */
 ssize_t led_trigger_read(struct file *filp, struct kobject *kobj,
@@ -156,7 +156,7 @@ int led_trigger_set(struct led_classdev *led_cdev, struct led_trigger *trig)
 	if (!led_cdev->trigger && !trig)
 		return 0;
 
-	name = trig ? trig->name : "none";
+	name = trig ? trig->name : "yesne";
 	event = kasprintf(GFP_KERNEL, "TRIGGER=%s", name);
 
 	/* Remove any existing trigger */
@@ -261,7 +261,7 @@ void led_trigger_rename_static(const char *name, struct led_trigger *trig)
 
 	down_write(&triggers_list_lock);
 	/* this assumes that trig->name was originaly allocated to
-	 * non constant storage */
+	 * yesn constant storage */
 	strcpy((char *)trig->name, name);
 	up_write(&triggers_list_lock);
 }
@@ -291,7 +291,7 @@ int led_trigger_register(struct led_trigger *trig)
 
 	/* Register with any LEDs that have this as a default trigger */
 	down_read(&leds_list_lock);
-	list_for_each_entry(led_cdev, &leds_list, node) {
+	list_for_each_entry(led_cdev, &leds_list, yesde) {
 		down_write(&led_cdev->trigger_lock);
 		if (!led_cdev->trigger && led_cdev->default_trigger &&
 			    !strcmp(led_cdev->default_trigger, trig->name)) {
@@ -320,7 +320,7 @@ void led_trigger_unregister(struct led_trigger *trig)
 
 	/* Remove anyone actively using this trigger */
 	down_read(&leds_list_lock);
-	list_for_each_entry(led_cdev, &leds_list, node) {
+	list_for_each_entry(led_cdev, &leds_list, yesde) {
 		down_write(&led_cdev->trigger_lock);
 		if (led_cdev->trigger == trig)
 			led_trigger_set(led_cdev, NULL);
@@ -431,7 +431,7 @@ void led_trigger_register_simple(const char *name, struct led_trigger **tp)
 				name, err);
 		}
 	} else {
-		pr_warn("LED trigger %s failed to register (no memory)\n",
+		pr_warn("LED trigger %s failed to register (yes memory)\n",
 			name);
 	}
 	*tp = trig;

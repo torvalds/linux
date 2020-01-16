@@ -13,7 +13,7 @@
  * and to permit persons to whom the Software is furnished to do so,
  * subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright yestice and this permission yestice (including the
  * next paragraph) shall be included in all copies or substantial
  * portions of the Software.
  *
@@ -46,7 +46,7 @@
  *
  *	RL  RLC   RC   RRC   RR
  *
- *	The Left/Right Surround channel _notions_ LS/RS in SMPTE 320M
+ *	The Left/Right Surround channel _yestions_ LS/RS in SMPTE 320M
  *	corresponds to CEA RL/RR; The SMPTE channel _assignment_ C/LFE is
  *	swapped to CEA LFE/FC.
  */

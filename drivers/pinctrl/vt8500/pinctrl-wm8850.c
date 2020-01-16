@@ -19,7 +19,7 @@
  * so they are exported in the 0..31 range which is what users
  * expect.
  *
- * Do not reorder these banks as it will change the pin numbering
+ * Do yest reorder these banks as it will change the pin numbering
  */
 static const struct wmt_pinctrl_bank_registers wm8850_banks[] = {
 	WMT_PINCTRL_BANK(0x40, 0x80, 0xC0, 0x00, 0x480, 0x4C0),		/* 0 */

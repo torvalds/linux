@@ -18,7 +18,7 @@
 
 # ifndef __ASSEMBLY__
 
-/* Most things should be clean enough to redefine this at will, if care
+/* Most things should be clean eyesugh to redefine this at will, if care
    is taken to make libc match.  */
 
 typedef unsigned long old_sigset_t;

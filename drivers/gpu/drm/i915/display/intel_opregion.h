@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -49,7 +49,7 @@ struct intel_opregion {
 	u32 vbt_size;
 	u32 *lid_state;
 	struct work_struct asle_work;
-	struct notifier_block acpi_notifier;
+	struct yestifier_block acpi_yestifier;
 };
 
 #define OPREGION_SIZE            (8 * 1024)
@@ -66,9 +66,9 @@ void intel_opregion_suspend(struct drm_i915_private *dev_priv,
 			    pci_power_t state);
 
 void intel_opregion_asle_intr(struct drm_i915_private *dev_priv);
-int intel_opregion_notify_encoder(struct intel_encoder *intel_encoder,
+int intel_opregion_yestify_encoder(struct intel_encoder *intel_encoder,
 				  bool enable);
-int intel_opregion_notify_adapter(struct drm_i915_private *dev_priv,
+int intel_opregion_yestify_adapter(struct drm_i915_private *dev_priv,
 				  pci_power_t state);
 int intel_opregion_get_panel_type(struct drm_i915_private *dev_priv);
 
@@ -101,13 +101,13 @@ static inline void intel_opregion_asle_intr(struct drm_i915_private *dev_priv)
 }
 
 static inline int
-intel_opregion_notify_encoder(struct intel_encoder *intel_encoder, bool enable)
+intel_opregion_yestify_encoder(struct intel_encoder *intel_encoder, bool enable)
 {
 	return 0;
 }
 
 static inline int
-intel_opregion_notify_adapter(struct drm_i915_private *dev, pci_power_t state)
+intel_opregion_yestify_adapter(struct drm_i915_private *dev, pci_power_t state)
 {
 	return 0;
 }

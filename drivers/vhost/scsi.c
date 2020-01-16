@@ -7,7 +7,7 @@
  * Licensed to the Linux Foundation under the General Public License (GPL) version 2.
  *
  * Authors: Nicholas A. Bellinger <nab@daterainc.com>
- *          Stefan Hajnoczi <stefanha@linux.vnet.ibm.com>
+ *          Stefan Hajyesczi <stefanha@linux.vnet.ibm.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -109,7 +109,7 @@ struct vhost_scsi_cmd {
 	/* Sense buffer that will be mapped into outgoing status */
 	unsigned char tvc_sense_buf[TRANSPORT_SENSE_BUFFER];
 	/* Completed commands list, serviced from vhost worker thread */
-	struct llist_node tvc_completion_list;
+	struct llist_yesde tvc_completion_list;
 	/* Used to track inflight cmd */
 	struct vhost_scsi_inflight *inflight;
 };
@@ -157,7 +157,7 @@ struct vhost_scsi_evt {
 	/* event to be sent to guest */
 	struct virtio_scsi_event event;
 	/* event list, serviced from vhost worker thread */
-	struct llist_node list;
+	struct llist_yesde list;
 };
 
 enum {
@@ -181,7 +181,7 @@ struct vhost_scsi_virtqueue {
 	/*
 	 * Reference counting for inflight reqs, used for flush operation. At
 	 * each time, one reference tracks new commands submitted, while we
-	 * wait for another one to reach 0.
+	 * wait for ayesther one to reach 0.
 	 */
 	struct vhost_scsi_inflight inflights[2];
 	/*
@@ -352,7 +352,7 @@ static int vhost_scsi_write_pending(struct se_cmd *se_cmd)
 	return 0;
 }
 
-static void vhost_scsi_set_default_node_attrs(struct se_node_acl *nacl)
+static void vhost_scsi_set_default_yesde_attrs(struct se_yesde_acl *nacl)
 {
 	return;
 }
@@ -458,7 +458,7 @@ vhost_scsi_do_evt_work(struct vhost_scsi *vs, struct vhost_scsi_evt *evt)
 	}
 
 again:
-	vhost_disable_notify(&vs->dev, vq);
+	vhost_disable_yestify(&vs->dev, vq);
 	head = vhost_get_vq_desc(vq, vq->iov,
 			ARRAY_SIZE(vq->iov), &out, &in,
 			NULL, NULL);
@@ -467,7 +467,7 @@ again:
 		return;
 	}
 	if (head == vq->num) {
-		if (vhost_enable_notify(&vs->dev, vq))
+		if (vhost_enable_yestify(&vs->dev, vq))
 			goto again;
 		vs->vs_events_missed = true;
 		return;
@@ -499,11 +499,11 @@ static void vhost_scsi_evt_work(struct vhost_work *work)
 					vs_event_work);
 	struct vhost_virtqueue *vq = &vs->vqs[VHOST_SCSI_VQ_EVT].vq;
 	struct vhost_scsi_evt *evt, *t;
-	struct llist_node *llnode;
+	struct llist_yesde *llyesde;
 
 	mutex_lock(&vq->mutex);
-	llnode = llist_del_all(&vs->vs_event_list);
-	llist_for_each_entry_safe(evt, t, llnode, list) {
+	llyesde = llist_del_all(&vs->vs_event_list);
+	llist_for_each_entry_safe(evt, t, llyesde, list) {
 		vhost_scsi_do_evt_work(vs, evt);
 		vhost_scsi_free_evt(vs, evt);
 	}
@@ -522,14 +522,14 @@ static void vhost_scsi_complete_cmd_work(struct vhost_work *work)
 	DECLARE_BITMAP(signal, VHOST_SCSI_MAX_VQ);
 	struct virtio_scsi_cmd_resp v_rsp;
 	struct vhost_scsi_cmd *cmd, *t;
-	struct llist_node *llnode;
+	struct llist_yesde *llyesde;
 	struct se_cmd *se_cmd;
 	struct iov_iter iov_iter;
 	int ret, vq;
 
 	bitmap_zero(signal, VHOST_SCSI_MAX_VQ);
-	llnode = llist_del_all(&vs->vs_completion_list);
-	llist_for_each_entry_safe(cmd, t, llnode, tvc_completion_list) {
+	llyesde = llist_del_all(&vs->vs_completion_list);
+	llist_for_each_entry_safe(cmd, t, llyesde, tvc_completion_list) {
 		se_cmd = &cmd->tvc_se_cmd;
 
 		pr_debug("%s tv_cmd %p resid %u status %#02x\n", __func__,
@@ -616,7 +616,7 @@ vhost_scsi_get_tag(struct vhost_virtqueue *vq, struct vhost_scsi_tpg *tpg,
 /*
  * Map a user memory range into a scatterlist
  *
- * Returns the number of scatterlist entries used or -errno on error.
+ * Returns the number of scatterlist entries used or -erryes on error.
  */
 static int
 vhost_scsi_map_to_sgl(struct vhost_scsi_cmd *cmd,
@@ -828,8 +828,8 @@ vhost_scsi_get_desc(struct vhost_scsi *vs, struct vhost_virtqueue *vq,
 
 	/* Nothing new?  Wait for eventfd to tell us they refilled. */
 	if (vc->head == vq->num) {
-		if (unlikely(vhost_enable_notify(&vs->dev, vq))) {
-			vhost_disable_notify(&vs->dev, vq);
+		if (unlikely(vhost_enable_yestify(&vs->dev, vq))) {
+			vhost_disable_yestify(&vs->dev, vq);
 			ret = -EAGAIN;
 		}
 		goto done;
@@ -896,7 +896,7 @@ vhost_scsi_get_req(struct vhost_virtqueue *vq, struct vhost_scsi_ctx *vc,
 
 		tpg = READ_ONCE(vs_tpg[*vc->target]);
 		if (unlikely(!tpg)) {
-			vq_err(vq, "Target 0x%x does not exist\n", *vc->target);
+			vq_err(vq, "Target 0x%x does yest exist\n", *vc->target);
 		} else {
 			if (tpgp)
 				*tpgp = tpg;
@@ -936,7 +936,7 @@ vhost_scsi_handle_vq(struct vhost_scsi *vs, struct vhost_virtqueue *vq)
 	memset(&vc, 0, sizeof(vc));
 	vc.rsp_size = sizeof(struct virtio_scsi_cmd_resp);
 
-	vhost_disable_notify(&vs->dev, vq);
+	vhost_disable_yestify(&vs->dev, vq);
 
 	do {
 		ret = vhost_scsi_get_desc(vs, vq, &vc);
@@ -1015,14 +1015,14 @@ vhost_scsi_handle_vq(struct vhost_scsi *vs, struct vhost_virtqueue *vq)
 		if (t10_pi) {
 			if (v_req_pi.pi_bytesout) {
 				if (data_direction != DMA_TO_DEVICE) {
-					vq_err(vq, "Received non zero pi_bytesout,"
+					vq_err(vq, "Received yesn zero pi_bytesout,"
 						" but wrong data_direction\n");
 					goto err;
 				}
 				prot_bytes = vhost32_to_cpu(vq, v_req_pi.pi_bytesout);
 			} else if (v_req_pi.pi_bytesin) {
 				if (data_direction != DMA_FROM_DEVICE) {
-					vq_err(vq, "Received non zero pi_bytesin,"
+					vq_err(vq, "Received yesn zero pi_bytesin,"
 						" but wrong data_direction\n");
 					goto err;
 				}
@@ -1053,7 +1053,7 @@ vhost_scsi_handle_vq(struct vhost_scsi *vs, struct vhost_virtqueue *vq)
 			lun = ((v_req.lun[2] << 8) | v_req.lun[3]) & 0x3FFF;
 		}
 		/*
-		 * Check that the received CDB size does not exceeded our
+		 * Check that the received CDB size does yest exceeded our
 		 * hardcoded max for vhost-scsi, then get a pre-allocated
 		 * cmd descriptor for the new virtio-scsi tag.
 		 *
@@ -1189,7 +1189,7 @@ vhost_scsi_ctl_handle_vq(struct vhost_scsi *vs, struct vhost_virtqueue *vq)
 
 	memset(&vc, 0, sizeof(vc));
 
-	vhost_disable_notify(&vs->dev, vq);
+	vhost_disable_yestify(&vs->dev, vq);
 
 	do {
 		ret = vhost_scsi_get_desc(vs, vq, &vc);
@@ -1209,7 +1209,7 @@ vhost_scsi_ctl_handle_vq(struct vhost_scsi *vs, struct vhost_virtqueue *vq)
 			/*
 			 * The size of the response buffer depends on the
 			 * request type and must be validated against it.
-			 * Since the request type is not known, don't send
+			 * Since the request type is yest kyeswn, don't send
 			 * a response.
 			 */
 			continue;
@@ -1232,7 +1232,7 @@ vhost_scsi_ctl_handle_vq(struct vhost_scsi *vs, struct vhost_virtqueue *vq)
 			vc.target = NULL;
 			break;
 		default:
-			vq_err(vq, "Unknown control request %d", v_req.type);
+			vq_err(vq, "Unkyeswn control request %d", v_req.type);
 			continue;
 		}
 
@@ -1246,7 +1246,7 @@ vhost_scsi_ctl_handle_vq(struct vhost_scsi *vs, struct vhost_virtqueue *vq)
 			goto err;
 
 		/*
-		 * Get the rest of the request now that its size is known.
+		 * Get the rest of the request yesw that its size is kyeswn.
 		 */
 		vc.req += typ_size;
 		vc.req_size -= typ_size;
@@ -1434,9 +1434,9 @@ vhost_scsi_set_endpoint(struct vhost_scsi *vs,
 			}
 			/*
 			 * In order to ensure individual vhost-scsi configfs
-			 * groups cannot be removed while in use by vhost ioctl,
+			 * groups canyest be removed while in use by vhost ioctl,
 			 * go ahead and take an explicit se_tpg->tpg_group.cg_item
-			 * dependency now.
+			 * dependency yesw.
 			 */
 			se_tpg = &tpg->se_tpg;
 			ret = target_depend_item(&se_tpg->tpg_group.cg_item);
@@ -1525,7 +1525,7 @@ vhost_scsi_clear_endpoint(struct vhost_scsi *vs,
 
 		if (strcmp(tv_tport->tport_name, t->vhost_wwpn)) {
 			pr_warn("tv_tport->tport_name: %s, tpg->tport_tpgt: %hu"
-				" does not match t->vhost_wwpn: %s, t->vhost_tpgt: %hu\n",
+				" does yest match t->vhost_wwpn: %s, t->vhost_tpgt: %hu\n",
 				tv_tport->tport_name, tpg->tport_tpgt,
 				t->vhost_wwpn, t->vhost_tpgt);
 			ret = -EINVAL;
@@ -1537,7 +1537,7 @@ vhost_scsi_clear_endpoint(struct vhost_scsi *vs,
 		match = true;
 		mutex_unlock(&tpg->tv_tpg_mutex);
 		/*
-		 * Release se_tpg->tpg_group.cg_item configfs dependency now
+		 * Release se_tpg->tpg_group.cg_item configfs dependency yesw
 		 * to allow vhost-scsi WWPN se_tpg->tpg_group shutdown to occur.
 		 */
 		se_tpg = &tpg->se_tpg;
@@ -1596,7 +1596,7 @@ static int vhost_scsi_set_features(struct vhost_scsi *vs, u64 features)
 	return 0;
 }
 
-static int vhost_scsi_open(struct inode *inode, struct file *f)
+static int vhost_scsi_open(struct iyesde *iyesde, struct file *f)
 {
 	struct vhost_scsi *vs;
 	struct vhost_virtqueue **vqs;
@@ -1641,7 +1641,7 @@ err_vs:
 	return r;
 }
 
-static int vhost_scsi_release(struct inode *inode, struct file *f)
+static int vhost_scsi_release(struct iyesde *iyesde, struct file *f)
 {
 	struct vhost_scsi *vs = f->private_data;
 	struct vhost_scsi_target t;
@@ -1733,7 +1733,7 @@ static const struct file_operations vhost_scsi_fops = {
 	.unlocked_ioctl = vhost_scsi_ioctl,
 	.compat_ioctl	= compat_ptr_ioctl,
 	.open           = vhost_scsi_open,
-	.llseek		= noop_llseek,
+	.llseek		= yesop_llseek,
 };
 
 static struct miscdevice vhost_scsi_misc = {
@@ -1765,7 +1765,7 @@ static char *vhost_scsi_dump_proto_id(struct vhost_scsi_tport *tport)
 		break;
 	}
 
-	return "Unknown";
+	return "Unkyeswn";
 }
 
 static void
@@ -1957,7 +1957,7 @@ static int vhost_scsi_make_nexus(struct vhost_scsi_tpg *tpg,
 	}
 	/*
 	 * Since we are running in 'demo mode' this call with generate a
-	 * struct se_node_acl for the vhost_scsi struct se_portal_group with
+	 * struct se_yesde_acl for the vhost_scsi struct se_portal_group with
 	 * the SCSI Initiator port name of the passed configfs group 'name'.
 	 */
 	tv_nexus->tvn_se_sess = target_setup_session(&tpg->se_tpg,
@@ -2013,7 +2013,7 @@ static int vhost_scsi_drop_nexus(struct vhost_scsi_tpg *tpg)
 
 	pr_debug("TCM_vhost_ConfigFS: Removing I_T Nexus to emulated"
 		" %s Initiator Port: %s\n", vhost_scsi_dump_proto_id(tpg->tport),
-		tv_nexus->tvn_se_sess->se_node_acl->initiatorname);
+		tv_nexus->tvn_se_sess->se_yesde_acl->initiatorname);
 
 	vhost_scsi_free_cmd_map_res(se_sess);
 	/*
@@ -2042,7 +2042,7 @@ static ssize_t vhost_scsi_tpg_nexus_show(struct config_item *item, char *page)
 		return -ENODEV;
 	}
 	ret = snprintf(page, PAGE_SIZE, "%s\n",
-			tv_nexus->tvn_se_sess->se_node_acl->initiatorname);
+			tv_nexus->tvn_se_sess->se_yesde_acl->initiatorname);
 	mutex_unlock(&tpg->tv_tpg_mutex);
 
 	return ret;
@@ -2079,7 +2079,7 @@ static ssize_t vhost_scsi_tpg_nexus_store(struct config_item *item,
 	ptr = strstr(i_port, "naa.");
 	if (ptr) {
 		if (tport_wwn->tport_proto_id != SCSI_PROTOCOL_SAS) {
-			pr_err("Passed SAS Initiator Port %s does not"
+			pr_err("Passed SAS Initiator Port %s does yest"
 				" match target port protoid: %s\n", i_port,
 				vhost_scsi_dump_proto_id(tport_wwn));
 			return -EINVAL;
@@ -2090,7 +2090,7 @@ static ssize_t vhost_scsi_tpg_nexus_store(struct config_item *item,
 	ptr = strstr(i_port, "fc.");
 	if (ptr) {
 		if (tport_wwn->tport_proto_id != SCSI_PROTOCOL_FCP) {
-			pr_err("Passed FCP Initiator Port %s does not"
+			pr_err("Passed FCP Initiator Port %s does yest"
 				" match target port protoid: %s\n", i_port,
 				vhost_scsi_dump_proto_id(tport_wwn));
 			return -EINVAL;
@@ -2101,7 +2101,7 @@ static ssize_t vhost_scsi_tpg_nexus_store(struct config_item *item,
 	ptr = strstr(i_port, "iqn.");
 	if (ptr) {
 		if (tport_wwn->tport_proto_id != SCSI_PROTOCOL_ISCSI) {
-			pr_err("Passed iSCSI Initiator Port %s does not"
+			pr_err("Passed iSCSI Initiator Port %s does yest"
 				" match target port protoid: %s\n", i_port,
 				vhost_scsi_dump_proto_id(tport_wwn));
 			return -EINVAL;
@@ -2293,7 +2293,7 @@ static const struct target_core_fabric_ops vhost_scsi_ops = {
 	.sess_get_index			= vhost_scsi_sess_get_index,
 	.sess_get_initiator_sid		= NULL,
 	.write_pending			= vhost_scsi_write_pending,
-	.set_default_node_attributes	= vhost_scsi_set_default_node_attrs,
+	.set_default_yesde_attributes	= vhost_scsi_set_default_yesde_attrs,
 	.get_cmd_state			= vhost_scsi_get_cmd_state,
 	.queue_data_in			= vhost_scsi_queue_data_in,
 	.queue_status			= vhost_scsi_queue_status,

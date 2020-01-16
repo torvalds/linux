@@ -31,7 +31,7 @@ struct fscrypt_name {
 	const struct qstr *usr_fname;
 	struct fscrypt_str disk_name;
 	u32 hash;
-	u32 minor_hash;
+	u32 miyesr_hash;
 	struct fscrypt_str crypto_buf;
 	bool is_ciphertext_name;
 };
@@ -56,26 +56,26 @@ struct fscrypt_name {
 struct fscrypt_operations {
 	unsigned int flags;
 	const char *key_prefix;
-	int (*get_context)(struct inode *, void *, size_t);
-	int (*set_context)(struct inode *, const void *, size_t, void *);
-	bool (*dummy_context)(struct inode *);
-	bool (*empty_dir)(struct inode *);
+	int (*get_context)(struct iyesde *, void *, size_t);
+	int (*set_context)(struct iyesde *, const void *, size_t, void *);
+	bool (*dummy_context)(struct iyesde *);
+	bool (*empty_dir)(struct iyesde *);
 	unsigned int max_namelen;
-	bool (*has_stable_inodes)(struct super_block *sb);
-	void (*get_ino_and_lblk_bits)(struct super_block *sb,
-				      int *ino_bits_ret, int *lblk_bits_ret);
+	bool (*has_stable_iyesdes)(struct super_block *sb);
+	void (*get_iyes_and_lblk_bits)(struct super_block *sb,
+				      int *iyes_bits_ret, int *lblk_bits_ret);
 };
 
-static inline bool fscrypt_has_encryption_key(const struct inode *inode)
+static inline bool fscrypt_has_encryption_key(const struct iyesde *iyesde)
 {
 	/* pairs with cmpxchg_release() in fscrypt_get_encryption_info() */
-	return READ_ONCE(inode->i_crypt_info) != NULL;
+	return READ_ONCE(iyesde->i_crypt_info) != NULL;
 }
 
-static inline bool fscrypt_dummy_context_enabled(struct inode *inode)
+static inline bool fscrypt_dummy_context_enabled(struct iyesde *iyesde)
 {
-	return inode->i_sb->s_cop->dummy_context &&
-		inode->i_sb->s_cop->dummy_context(inode);
+	return iyesde->i_sb->s_cop->dummy_context &&
+		iyesde->i_sb->s_cop->dummy_context(iyesde);
 }
 
 /*
@@ -97,14 +97,14 @@ extern struct page *fscrypt_encrypt_pagecache_blocks(struct page *page,
 						     unsigned int len,
 						     unsigned int offs,
 						     gfp_t gfp_flags);
-extern int fscrypt_encrypt_block_inplace(const struct inode *inode,
+extern int fscrypt_encrypt_block_inplace(const struct iyesde *iyesde,
 					 struct page *page, unsigned int len,
 					 unsigned int offs, u64 lblk_num,
 					 gfp_t gfp_flags);
 
 extern int fscrypt_decrypt_pagecache_blocks(struct page *page, unsigned int len,
 					    unsigned int offs);
-extern int fscrypt_decrypt_block_inplace(const struct inode *inode,
+extern int fscrypt_decrypt_block_inplace(const struct iyesde *iyesde,
 					 struct page *page, unsigned int len,
 					 unsigned int offs, u64 lblk_num);
 
@@ -124,8 +124,8 @@ extern void fscrypt_free_bounce_page(struct page *bounce_page);
 extern int fscrypt_ioctl_set_policy(struct file *, const void __user *);
 extern int fscrypt_ioctl_get_policy(struct file *, void __user *);
 extern int fscrypt_ioctl_get_policy_ex(struct file *, void __user *);
-extern int fscrypt_has_permitted_context(struct inode *, struct inode *);
-extern int fscrypt_inherit_context(struct inode *, struct inode *,
+extern int fscrypt_has_permitted_context(struct iyesde *, struct iyesde *);
+extern int fscrypt_inherit_context(struct iyesde *, struct iyesde *,
 					void *, bool);
 /* keyring.c */
 extern void fscrypt_sb_free(struct super_block *sb);
@@ -136,13 +136,13 @@ extern int fscrypt_ioctl_remove_key_all_users(struct file *filp,
 extern int fscrypt_ioctl_get_key_status(struct file *filp, void __user *arg);
 
 /* keysetup.c */
-extern int fscrypt_get_encryption_info(struct inode *);
-extern void fscrypt_put_encryption_info(struct inode *);
-extern void fscrypt_free_inode(struct inode *);
-extern int fscrypt_drop_inode(struct inode *inode);
+extern int fscrypt_get_encryption_info(struct iyesde *);
+extern void fscrypt_put_encryption_info(struct iyesde *);
+extern void fscrypt_free_iyesde(struct iyesde *);
+extern int fscrypt_drop_iyesde(struct iyesde *iyesde);
 
 /* fname.c */
-extern int fscrypt_setup_filename(struct inode *, const struct qstr *,
+extern int fscrypt_setup_filename(struct iyesde *, const struct qstr *,
 				int lookup, struct fscrypt_name *);
 
 static inline void fscrypt_free_filename(struct fscrypt_name *fname)
@@ -150,10 +150,10 @@ static inline void fscrypt_free_filename(struct fscrypt_name *fname)
 	kfree(fname->crypto_buf.name);
 }
 
-extern int fscrypt_fname_alloc_buffer(const struct inode *, u32,
+extern int fscrypt_fname_alloc_buffer(const struct iyesde *, u32,
 				struct fscrypt_str *);
 extern void fscrypt_fname_free_buffer(struct fscrypt_str *);
-extern int fscrypt_fname_disk_to_usr(struct inode *, u32, u32,
+extern int fscrypt_fname_disk_to_usr(struct iyesde *, u32, u32,
 			const struct fscrypt_str *, struct fscrypt_str *);
 
 #define FSCRYPT_FNAME_MAX_UNDIGESTED_SIZE	32
@@ -175,8 +175,8 @@ extern int fscrypt_fname_disk_to_usr(struct inode *, u32, u32,
  * filenames up to NAME_MAX bytes, since base64 encoding expands the length.
  *
  * To make it possible for filesystems to still find the correct directory entry
- * despite not knowing the full on-disk name, we encode any filesystem-specific
- * 'hash' and/or 'minor_hash' which the filesystem may need for its lookups,
+ * despite yest kyeswing the full on-disk name, we encode any filesystem-specific
+ * 'hash' and/or 'miyesr_hash' which the filesystem may need for its lookups,
  * followed by the second-to-last ciphertext block of the filename.  Due to the
  * use of the CBC-CTS encryption mode, the second-to-last ciphertext block
  * depends on the full plaintext.  (Note that ciphertext stealing causes the
@@ -193,7 +193,7 @@ extern int fscrypt_fname_disk_to_usr(struct inode *, u32, u32,
  */
 struct fscrypt_digested_name {
 	u32 hash;
-	u32 minor_hash;
+	u32 miyesr_hash;
 	u8 digest[FSCRYPT_FNAME_DIGEST_SIZE];
 };
 
@@ -232,27 +232,27 @@ static inline bool fscrypt_match_name(const struct fscrypt_name *fname,
 
 /* bio.c */
 extern void fscrypt_decrypt_bio(struct bio *);
-extern int fscrypt_zeroout_range(const struct inode *, pgoff_t, sector_t,
+extern int fscrypt_zeroout_range(const struct iyesde *, pgoff_t, sector_t,
 				 unsigned int);
 
 /* hooks.c */
-extern int fscrypt_file_open(struct inode *inode, struct file *filp);
-extern int __fscrypt_prepare_link(struct inode *inode, struct inode *dir,
+extern int fscrypt_file_open(struct iyesde *iyesde, struct file *filp);
+extern int __fscrypt_prepare_link(struct iyesde *iyesde, struct iyesde *dir,
 				  struct dentry *dentry);
-extern int __fscrypt_prepare_rename(struct inode *old_dir,
+extern int __fscrypt_prepare_rename(struct iyesde *old_dir,
 				    struct dentry *old_dentry,
-				    struct inode *new_dir,
+				    struct iyesde *new_dir,
 				    struct dentry *new_dentry,
 				    unsigned int flags);
-extern int __fscrypt_prepare_lookup(struct inode *dir, struct dentry *dentry,
+extern int __fscrypt_prepare_lookup(struct iyesde *dir, struct dentry *dentry,
 				    struct fscrypt_name *fname);
-extern int __fscrypt_prepare_symlink(struct inode *dir, unsigned int len,
+extern int __fscrypt_prepare_symlink(struct iyesde *dir, unsigned int len,
 				     unsigned int max_len,
 				     struct fscrypt_str *disk_link);
-extern int __fscrypt_encrypt_symlink(struct inode *inode, const char *target,
+extern int __fscrypt_encrypt_symlink(struct iyesde *iyesde, const char *target,
 				     unsigned int len,
 				     struct fscrypt_str *disk_link);
-extern const char *fscrypt_get_symlink(struct inode *inode, const void *caddr,
+extern const char *fscrypt_get_symlink(struct iyesde *iyesde, const void *caddr,
 				       unsigned int max_size,
 				       struct delayed_call *done);
 static inline void fscrypt_set_ops(struct super_block *sb,
@@ -262,12 +262,12 @@ static inline void fscrypt_set_ops(struct super_block *sb,
 }
 #else  /* !CONFIG_FS_ENCRYPTION */
 
-static inline bool fscrypt_has_encryption_key(const struct inode *inode)
+static inline bool fscrypt_has_encryption_key(const struct iyesde *iyesde)
 {
 	return false;
 }
 
-static inline bool fscrypt_dummy_context_enabled(struct inode *inode)
+static inline bool fscrypt_dummy_context_enabled(struct iyesde *iyesde)
 {
 	return false;
 }
@@ -289,7 +289,7 @@ static inline struct page *fscrypt_encrypt_pagecache_blocks(struct page *page,
 	return ERR_PTR(-EOPNOTSUPP);
 }
 
-static inline int fscrypt_encrypt_block_inplace(const struct inode *inode,
+static inline int fscrypt_encrypt_block_inplace(const struct iyesde *iyesde,
 						struct page *page,
 						unsigned int len,
 						unsigned int offs, u64 lblk_num,
@@ -305,7 +305,7 @@ static inline int fscrypt_decrypt_pagecache_blocks(struct page *page,
 	return -EOPNOTSUPP;
 }
 
-static inline int fscrypt_decrypt_block_inplace(const struct inode *inode,
+static inline int fscrypt_decrypt_block_inplace(const struct iyesde *iyesde,
 						struct page *page,
 						unsigned int len,
 						unsigned int offs, u64 lblk_num)
@@ -346,14 +346,14 @@ static inline int fscrypt_ioctl_get_policy_ex(struct file *filp,
 	return -EOPNOTSUPP;
 }
 
-static inline int fscrypt_has_permitted_context(struct inode *parent,
-						struct inode *child)
+static inline int fscrypt_has_permitted_context(struct iyesde *parent,
+						struct iyesde *child)
 {
 	return 0;
 }
 
-static inline int fscrypt_inherit_context(struct inode *parent,
-					  struct inode *child,
+static inline int fscrypt_inherit_context(struct iyesde *parent,
+					  struct iyesde *child,
 					  void *fs_data, bool preload)
 {
 	return -EOPNOTSUPP;
@@ -387,27 +387,27 @@ static inline int fscrypt_ioctl_get_key_status(struct file *filp,
 }
 
 /* keysetup.c */
-static inline int fscrypt_get_encryption_info(struct inode *inode)
+static inline int fscrypt_get_encryption_info(struct iyesde *iyesde)
 {
 	return -EOPNOTSUPP;
 }
 
-static inline void fscrypt_put_encryption_info(struct inode *inode)
+static inline void fscrypt_put_encryption_info(struct iyesde *iyesde)
 {
 	return;
 }
 
-static inline void fscrypt_free_inode(struct inode *inode)
+static inline void fscrypt_free_iyesde(struct iyesde *iyesde)
 {
 }
 
-static inline int fscrypt_drop_inode(struct inode *inode)
+static inline int fscrypt_drop_iyesde(struct iyesde *iyesde)
 {
 	return 0;
 }
 
  /* fname.c */
-static inline int fscrypt_setup_filename(struct inode *dir,
+static inline int fscrypt_setup_filename(struct iyesde *dir,
 					 const struct qstr *iname,
 					 int lookup, struct fscrypt_name *fname)
 {
@@ -426,7 +426,7 @@ static inline void fscrypt_free_filename(struct fscrypt_name *fname)
 	return;
 }
 
-static inline int fscrypt_fname_alloc_buffer(const struct inode *inode,
+static inline int fscrypt_fname_alloc_buffer(const struct iyesde *iyesde,
 					     u32 max_encrypted_len,
 					     struct fscrypt_str *crypto_str)
 {
@@ -438,8 +438,8 @@ static inline void fscrypt_fname_free_buffer(struct fscrypt_str *crypto_str)
 	return;
 }
 
-static inline int fscrypt_fname_disk_to_usr(struct inode *inode,
-					    u32 hash, u32 minor_hash,
+static inline int fscrypt_fname_disk_to_usr(struct iyesde *iyesde,
+					    u32 hash, u32 miyesr_hash,
 					    const struct fscrypt_str *iname,
 					    struct fscrypt_str *oname)
 {
@@ -460,7 +460,7 @@ static inline void fscrypt_decrypt_bio(struct bio *bio)
 {
 }
 
-static inline int fscrypt_zeroout_range(const struct inode *inode, pgoff_t lblk,
+static inline int fscrypt_zeroout_range(const struct iyesde *iyesde, pgoff_t lblk,
 					sector_t pblk, unsigned int len)
 {
 	return -EOPNOTSUPP;
@@ -468,36 +468,36 @@ static inline int fscrypt_zeroout_range(const struct inode *inode, pgoff_t lblk,
 
 /* hooks.c */
 
-static inline int fscrypt_file_open(struct inode *inode, struct file *filp)
+static inline int fscrypt_file_open(struct iyesde *iyesde, struct file *filp)
 {
-	if (IS_ENCRYPTED(inode))
+	if (IS_ENCRYPTED(iyesde))
 		return -EOPNOTSUPP;
 	return 0;
 }
 
-static inline int __fscrypt_prepare_link(struct inode *inode, struct inode *dir,
+static inline int __fscrypt_prepare_link(struct iyesde *iyesde, struct iyesde *dir,
 					 struct dentry *dentry)
 {
 	return -EOPNOTSUPP;
 }
 
-static inline int __fscrypt_prepare_rename(struct inode *old_dir,
+static inline int __fscrypt_prepare_rename(struct iyesde *old_dir,
 					   struct dentry *old_dentry,
-					   struct inode *new_dir,
+					   struct iyesde *new_dir,
 					   struct dentry *new_dentry,
 					   unsigned int flags)
 {
 	return -EOPNOTSUPP;
 }
 
-static inline int __fscrypt_prepare_lookup(struct inode *dir,
+static inline int __fscrypt_prepare_lookup(struct iyesde *dir,
 					   struct dentry *dentry,
 					   struct fscrypt_name *fname)
 {
 	return -EOPNOTSUPP;
 }
 
-static inline int __fscrypt_prepare_symlink(struct inode *dir,
+static inline int __fscrypt_prepare_symlink(struct iyesde *dir,
 					    unsigned int len,
 					    unsigned int max_len,
 					    struct fscrypt_str *disk_link)
@@ -506,7 +506,7 @@ static inline int __fscrypt_prepare_symlink(struct inode *dir,
 }
 
 
-static inline int __fscrypt_encrypt_symlink(struct inode *inode,
+static inline int __fscrypt_encrypt_symlink(struct iyesde *iyesde,
 					    const char *target,
 					    unsigned int len,
 					    struct fscrypt_str *disk_link)
@@ -514,7 +514,7 @@ static inline int __fscrypt_encrypt_symlink(struct inode *inode,
 	return -EOPNOTSUPP;
 }
 
-static inline const char *fscrypt_get_symlink(struct inode *inode,
+static inline const char *fscrypt_get_symlink(struct iyesde *iyesde,
 					      const void *caddr,
 					      unsigned int max_size,
 					      struct delayed_call *done)
@@ -530,55 +530,55 @@ static inline void fscrypt_set_ops(struct super_block *sb,
 #endif	/* !CONFIG_FS_ENCRYPTION */
 
 /**
- * fscrypt_require_key - require an inode's encryption key
- * @inode: the inode we need the key for
+ * fscrypt_require_key - require an iyesde's encryption key
+ * @iyesde: the iyesde we need the key for
  *
- * If the inode is encrypted, set up its encryption key if not already done.
+ * If the iyesde is encrypted, set up its encryption key if yest already done.
  * Then require that the key be present and return -ENOKEY otherwise.
  *
- * No locks are needed, and the key will live as long as the struct inode --- so
+ * No locks are needed, and the key will live as long as the struct iyesde --- so
  * it won't go away from under you.
  *
- * Return: 0 on success, -ENOKEY if the key is missing, or another -errno code
+ * Return: 0 on success, -ENOKEY if the key is missing, or ayesther -erryes code
  * if a problem occurred while setting up the encryption key.
  */
-static inline int fscrypt_require_key(struct inode *inode)
+static inline int fscrypt_require_key(struct iyesde *iyesde)
 {
-	if (IS_ENCRYPTED(inode)) {
-		int err = fscrypt_get_encryption_info(inode);
+	if (IS_ENCRYPTED(iyesde)) {
+		int err = fscrypt_get_encryption_info(iyesde);
 
 		if (err)
 			return err;
-		if (!fscrypt_has_encryption_key(inode))
+		if (!fscrypt_has_encryption_key(iyesde))
 			return -ENOKEY;
 	}
 	return 0;
 }
 
 /**
- * fscrypt_prepare_link - prepare to link an inode into a possibly-encrypted directory
- * @old_dentry: an existing dentry for the inode being linked
+ * fscrypt_prepare_link - prepare to link an iyesde into a possibly-encrypted directory
+ * @old_dentry: an existing dentry for the iyesde being linked
  * @dir: the target directory
  * @dentry: negative dentry for the target filename
  *
  * A new link can only be added to an encrypted directory if the directory's
- * encryption key is available --- since otherwise we'd have no way to encrypt
+ * encryption key is available --- since otherwise we'd have yes way to encrypt
  * the filename.  Therefore, we first set up the directory's encryption key (if
- * not already done) and return an error if it's unavailable.
+ * yest already done) and return an error if it's unavailable.
  *
- * We also verify that the link will not violate the constraint that all files
+ * We also verify that the link will yest violate the constraint that all files
  * in an encrypted directory tree use the same encryption policy.
  *
  * Return: 0 on success, -ENOKEY if the directory's encryption key is missing,
  * -EXDEV if the link would result in an inconsistent encryption policy, or
- * another -errno code.
+ * ayesther -erryes code.
  */
 static inline int fscrypt_prepare_link(struct dentry *old_dentry,
-				       struct inode *dir,
+				       struct iyesde *dir,
 				       struct dentry *dentry)
 {
 	if (IS_ENCRYPTED(dir))
-		return __fscrypt_prepare_link(d_inode(old_dentry), dir, dentry);
+		return __fscrypt_prepare_link(d_iyesde(old_dentry), dir, dentry);
 	return 0;
 }
 
@@ -592,20 +592,20 @@ static inline int fscrypt_prepare_link(struct dentry *old_dentry,
  *
  * Prepare for ->rename() where the source and/or target directories may be
  * encrypted.  A new link can only be added to an encrypted directory if the
- * directory's encryption key is available --- since otherwise we'd have no way
+ * directory's encryption key is available --- since otherwise we'd have yes way
  * to encrypt the filename.  A rename to an existing name, on the other hand,
  * *is* cryptographically possible without the key.  However, we take the more
- * conservative approach and just forbid all no-key renames.
+ * conservative approach and just forbid all yes-key renames.
  *
- * We also verify that the rename will not violate the constraint that all files
+ * We also verify that the rename will yest violate the constraint that all files
  * in an encrypted directory tree use the same encryption policy.
  *
  * Return: 0 on success, -ENOKEY if an encryption key is missing, -EXDEV if the
- * rename would cause inconsistent encryption policies, or another -errno code.
+ * rename would cause inconsistent encryption policies, or ayesther -erryes code.
  */
-static inline int fscrypt_prepare_rename(struct inode *old_dir,
+static inline int fscrypt_prepare_rename(struct iyesde *old_dir,
 					 struct dentry *old_dentry,
-					 struct inode *new_dir,
+					 struct iyesde *new_dir,
 					 struct dentry *new_dentry,
 					 unsigned int flags)
 {
@@ -632,9 +632,9 @@ static inline int fscrypt_prepare_rename(struct inode *old_dir,
  *
  * Return: 0 on success; -ENOENT if key is unavailable but the filename isn't a
  * correctly formed encoded ciphertext name, so a negative dentry should be
- * created; or another -errno code.
+ * created; or ayesther -erryes code.
  */
-static inline int fscrypt_prepare_lookup(struct inode *dir,
+static inline int fscrypt_prepare_lookup(struct iyesde *dir,
 					 struct dentry *dentry,
 					 struct fscrypt_name *fname)
 {
@@ -649,27 +649,27 @@ static inline int fscrypt_prepare_lookup(struct inode *dir,
 }
 
 /**
- * fscrypt_prepare_setattr - prepare to change a possibly-encrypted inode's attributes
- * @dentry: dentry through which the inode is being changed
+ * fscrypt_prepare_setattr - prepare to change a possibly-encrypted iyesde's attributes
+ * @dentry: dentry through which the iyesde is being changed
  * @attr: attributes to change
  *
- * Prepare for ->setattr() on a possibly-encrypted inode.  On an encrypted file,
+ * Prepare for ->setattr() on a possibly-encrypted iyesde.  On an encrypted file,
  * most attribute changes are allowed even without the encryption key.  However,
  * without the encryption key we do have to forbid truncates.  This is needed
- * because the size being truncated to may not be a multiple of the filesystem
+ * because the size being truncated to may yest be a multiple of the filesystem
  * block size, and in that case we'd have to decrypt the final block, zero the
  * portion past i_size, and re-encrypt it.  (We *could* allow truncating to a
  * filesystem block boundary, but it's simpler to just forbid all truncates ---
  * and we already forbid all other contents modifications without the key.)
  *
- * Return: 0 on success, -ENOKEY if the key is missing, or another -errno code
+ * Return: 0 on success, -ENOKEY if the key is missing, or ayesther -erryes code
  * if a problem occurred while setting up the encryption key.
  */
 static inline int fscrypt_prepare_setattr(struct dentry *dentry,
 					  struct iattr *attr)
 {
 	if (attr->ia_valid & ATTR_SIZE)
-		return fscrypt_require_key(d_inode(dentry));
+		return fscrypt_require_key(d_iyesde(dentry));
 	return 0;
 }
 
@@ -689,14 +689,14 @@ static inline int fscrypt_prepare_setattr(struct dentry *dentry,
  * unencrypted, but left NULL if the symlink will be encrypted.  For encrypted
  * symlinks, the filesystem must call fscrypt_encrypt_symlink() to create the
  * on-disk target later.  (The reason for the two-step process is that some
- * filesystems need to know the size of the symlink target before creating the
- * inode, e.g. to determine whether it will be a "fast" or "slow" symlink.)
+ * filesystems need to kyesw the size of the symlink target before creating the
+ * iyesde, e.g. to determine whether it will be a "fast" or "slow" symlink.)
  *
  * Return: 0 on success, -ENAMETOOLONG if the symlink target is too long,
- * -ENOKEY if the encryption key is missing, or another -errno code if a problem
+ * -ENOKEY if the encryption key is missing, or ayesther -erryes code if a problem
  * occurred while setting up the encryption key.
  */
-static inline int fscrypt_prepare_symlink(struct inode *dir,
+static inline int fscrypt_prepare_symlink(struct iyesde *dir,
 					  const char *target,
 					  unsigned int len,
 					  unsigned int max_len,
@@ -714,26 +714,26 @@ static inline int fscrypt_prepare_symlink(struct inode *dir,
 
 /**
  * fscrypt_encrypt_symlink - encrypt the symlink target if needed
- * @inode: symlink inode
+ * @iyesde: symlink iyesde
  * @target: plaintext symlink target
  * @len: length of @target excluding null terminator
  * @disk_link: (in/out) the on-disk symlink target being prepared
  *
  * If the symlink target needs to be encrypted, then this function encrypts it
  * into @disk_link->name.  fscrypt_prepare_symlink() must have been called
- * previously to compute @disk_link->len.  If the filesystem did not allocate a
+ * previously to compute @disk_link->len.  If the filesystem did yest allocate a
  * buffer for @disk_link->name after calling fscrypt_prepare_link(), then one
  * will be kmalloc()'ed and the filesystem will be responsible for freeing it.
  *
- * Return: 0 on success, -errno on failure
+ * Return: 0 on success, -erryes on failure
  */
-static inline int fscrypt_encrypt_symlink(struct inode *inode,
+static inline int fscrypt_encrypt_symlink(struct iyesde *iyesde,
 					  const char *target,
 					  unsigned int len,
 					  struct fscrypt_str *disk_link)
 {
-	if (IS_ENCRYPTED(inode))
-		return __fscrypt_encrypt_symlink(inode, target, len, disk_link);
+	if (IS_ENCRYPTED(iyesde))
+		return __fscrypt_encrypt_symlink(iyesde, target, len, disk_link);
 	return 0;
 }
 

@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -36,7 +36,7 @@ nv44_mmu_init(struct nvkm_mmu *mmu)
 	u32 addr;
 
 	/* calculate vram address of this PRAMIN block, object must be
-	 * allocated on 512KiB alignment, and not exceed a total size
+	 * allocated on 512KiB alignment, and yest exceed a total size
 	 * of 512KiB for this to work correctly
 	 */
 	addr  = nvkm_rd32(device, 0x10020c);

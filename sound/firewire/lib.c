@@ -25,8 +25,8 @@
  *         request only in that generation; use %FW_QUIET to suppress error
  *         messages
  *
- * Submits an asynchronous request to the target device, and waits for the
- * response.  The node ID and the current generation are derived from @unit.
+ * Submits an asynchroyesus request to the target device, and waits for the
+ * response.  The yesde ID and the current generation are derived from @unit.
  * On a bus reset or an error, the transaction is retried a few times.
  * Returns zero on success, or a negative error code.
  */
@@ -41,10 +41,10 @@ int snd_fw_transaction(struct fw_unit *unit, int tcode,
 	for (;;) {
 		if (!(flags & FW_FIXED_GENERATION)) {
 			generation = device->generation;
-			smp_rmb(); /* node_id vs. generation */
+			smp_rmb(); /* yesde_id vs. generation */
 		}
 		rcode = fw_run_transaction(device->card, tcode,
-					   device->node_id, generation,
+					   device->yesde_id, generation,
 					   device->max_speed, offset,
 					   buffer, length);
 
@@ -74,24 +74,24 @@ EXPORT_SYMBOL(snd_fw_transaction);
  * @unit: an instance for unit on IEEE 1394 bus
  * @dwork: delayed work with callback function
  *
- * This function is not designed for general purposes. When new unit is
+ * This function is yest designed for general purposes. When new unit is
  * connected to IEEE 1394 bus, the bus is under bus-reset state because of
- * topological change. In this state, units tend to fail both of asynchronous
- * and isochronous communication. To avoid this problem, this function is used
+ * topological change. In this state, units tend to fail both of asynchroyesus
+ * and isochroyesus communication. To avoid this problem, this function is used
  * to postpone sound card registration after the state. The callers must
  * set up instance of delayed work in advance.
  */
 void snd_fw_schedule_registration(struct fw_unit *unit,
 				  struct delayed_work *dwork)
 {
-	u64 now, delay;
+	u64 yesw, delay;
 
-	now = get_jiffies_64();
+	yesw = get_jiffies_64();
 	delay = fw_parent_device(unit)->card->reset_jiffies
 					+ msecs_to_jiffies(PROBE_DELAY_MS);
 
-	if (time_after64(delay, now))
-		delay -= now;
+	if (time_after64(delay, yesw))
+		delay -= yesw;
 	else
 		delay = 0;
 

@@ -88,7 +88,7 @@ static int xvip_dma_verify_format(struct xvip_dma *dma)
  * @pipe: The pipeline
  * @start: Start (when true) or stop (when false) the pipeline
  *
- * Walk the entities chain starting at the pipeline output video node and start
+ * Walk the entities chain starting at the pipeline output video yesde and start
  * or stop all of them.
  *
  * Return: 0 if successful, or the return value of the failed video::s_stream
@@ -146,7 +146,7 @@ static int xvip_pipeline_start_stop(struct xvip_pipeline *pipe, bool start)
  *
  * Return: 0 if successful, or the return value of the failed video::s_stream
  * operation otherwise. Stopping the pipeline never fails. The pipeline state is
- * not updated when the operation fails.
+ * yest updated when the operation fails.
  */
 static int xvip_pipeline_set_stream(struct xvip_pipeline *pipe, bool on)
 {
@@ -183,7 +183,7 @@ static int xvip_pipeline_validate(struct xvip_pipeline *pipe,
 
 	mutex_lock(&mdev->graph_mutex);
 
-	/* Walk the graph to locate the video nodes. */
+	/* Walk the graph to locate the video yesdes. */
 	ret = media_graph_walk_init(&graph, mdev);
 	if (ret) {
 		mutex_unlock(&mdev->graph_mutex);
@@ -249,10 +249,10 @@ static void xvip_pipeline_cleanup(struct xvip_pipeline *pipe)
  * @pipe: the pipeline
  * @dma: DMA engine at one end of the pipeline
  *
- * Validate the pipeline if no user exists yet, otherwise just increase the use
+ * Validate the pipeline if yes user exists yet, otherwise just increase the use
  * count.
  *
- * Return: 0 if successful or -EPIPE if the pipeline is not valid.
+ * Return: 0 if successful or -EPIPE if the pipeline is yest valid.
  */
 static int xvip_pipeline_prepare(struct xvip_pipeline *pipe,
 				 struct xvip_dma *dma)
@@ -319,7 +319,7 @@ xvip_dma_queue_setup(struct vb2_queue *vq,
 {
 	struct xvip_dma *dma = vb2_get_drv_priv(vq);
 
-	/* Make sure the image size is large enough. */
+	/* Make sure the image size is large eyesugh. */
 	if (*nplanes)
 		return sizes[0] < dma->format.sizeimage ? -EINVAL : 0;
 
@@ -497,14 +497,14 @@ xvip_dma_querycap(struct file *file, void *fh, struct v4l2_capability *cap)
 	strscpy(cap->driver, "xilinx-vipp", sizeof(cap->driver));
 	strscpy(cap->card, dma->video.name, sizeof(cap->card));
 	snprintf(cap->bus_info, sizeof(cap->bus_info), "platform:%pOFn:%u",
-		 dma->xdev->dev->of_node, dma->port);
+		 dma->xdev->dev->of_yesde, dma->port);
 
 	return 0;
 }
 
-/* FIXME: without this callback function, some applications are not configured
+/* FIXME: without this callback function, some applications are yest configured
  * with correct formats, and it results in frames in wrong format. Whether this
- * callback needs to be required is not clearly defined, so it should be
+ * callback needs to be required is yest clearly defined, so it should be
  * clarified through the mailing list.
  */
 static int
@@ -677,12 +677,12 @@ int xvip_dma_init(struct xvip_composite_device *xdev, struct xvip_dma *dma,
 	if (ret < 0)
 		goto error;
 
-	/* ... and the video node... */
+	/* ... and the video yesde... */
 	dma->video.fops = &xvip_dma_fops;
 	dma->video.v4l2_dev = &xdev->v4l2_dev;
 	dma->video.queue = &dma->queue;
 	snprintf(dma->video.name, sizeof(dma->video.name), "%pOFn %s %u",
-		 xdev->dev->of_node,
+		 xdev->dev->of_yesde,
 		 type == V4L2_BUF_TYPE_VIDEO_CAPTURE ? "output" : "input",
 		 port);
 	dma->video.vfl_type = VFL_TYPE_GRABBER;
@@ -727,7 +727,7 @@ int xvip_dma_init(struct xvip_composite_device *xdev, struct xvip_dma *dma,
 	snprintf(name, sizeof(name), "port%u", port);
 	dma->dma = dma_request_slave_channel(dma->xdev->dev, name);
 	if (dma->dma == NULL) {
-		dev_err(dma->xdev->dev, "no VDMA channel found\n");
+		dev_err(dma->xdev->dev, "yes VDMA channel found\n");
 		ret = -ENODEV;
 		goto error;
 	}

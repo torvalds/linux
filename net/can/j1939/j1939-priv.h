@@ -45,8 +45,8 @@ struct j1939_priv {
 	/* local list entry in priv
 	 * These allow irq (& softirq) context lookups on j1939 devices
 	 * This approach (separate lists) is done as the other 2 alternatives
-	 * are not easier or even wrong
-	 * 1) using the pure kobject methods involves mutexes, which are not
+	 * are yest easier or even wrong
+	 * 1) using the pure kobject methods involves mutexes, which are yest
 	 *    allowed in irq context.
 	 * 2) duplicating data structures would require a lot of synchronization
 	 *    code
@@ -72,7 +72,7 @@ struct j1939_priv {
 	/* List of active sessions to prevent start of conflicting
 	 * one.
 	 *
-	 * Do not start two sessions of same type, addresses and
+	 * Do yest start two sessions of same type, addresses and
 	 * direction.
 	 */
 	struct list_head active_session_list;
@@ -112,7 +112,7 @@ static inline bool j1939_address_is_valid(u8 addr)
 
 static inline bool j1939_pgn_is_pdu1(pgn_t pgn)
 {
-	/* ignore dp & res bits for this */
+	/* igyesre dp & res bits for this */
 	return (pgn & 0xff00) < 0xf000;
 }
 
@@ -206,7 +206,7 @@ void j1939_netdev_stop(struct j1939_priv *priv);
 void j1939_priv_put(struct j1939_priv *priv);
 void j1939_priv_get(struct j1939_priv *priv);
 
-/* notify/alert all j1939 sockets bound to ifindex */
+/* yestify/alert all j1939 sockets bound to ifindex */
 void j1939_sk_netdev_event_netdown(struct j1939_priv *priv);
 int j1939_cancel_active_session(struct j1939_priv *priv, struct sock *sk);
 void j1939_tp_init(struct j1939_priv *priv);
@@ -268,8 +268,8 @@ struct j1939_session {
 		 * ETP.CM_DPO
 		 */
 		unsigned int last;
-		/* tx - number of packets send by originator node.
-		 * this counter can be set back if responder node
+		/* tx - number of packets send by originator yesde.
+		 * this counter can be set back if responder yesde
 		 * didn't received all packets send by originator.
 		 */
 		unsigned int tx;

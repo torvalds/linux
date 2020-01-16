@@ -72,7 +72,7 @@ _GLOBAL(store_fp_state)
 EXPORT_SYMBOL(store_fp_state)
 
 /*
- * This task wants to use the FPU now.
+ * This task wants to use the FPU yesw.
  * On UP, disable FP for the task which had the FPU previously,
  * and save its floating-point registers in its thread_struct.
  * Load up this task's FP registers from its thread_struct,
@@ -89,7 +89,7 @@ BEGIN_FTR_SECTION
 END_FTR_SECTION_IFSET(CPU_FTR_VSX)
 #endif
 	SYNC
-	MTMSRD(r5)			/* enable use of fpu now */
+	MTMSRD(r5)			/* enable use of fpu yesw */
 	isync
 	/* enable use of FP after return */
 #ifdef CONFIG_PPC32

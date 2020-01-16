@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 /* $Id: hysdn_if.h,v 1.1.8.3 2001/09/23 22:25:05 kai Exp $
  *
  * Linux driver for HYSDN cards
@@ -15,13 +15,13 @@
 /****************/
 /* error values */
 /****************/
-#define ERR_NONE             0 /* no error occurred */
+#define ERR_NONE             0 /* yes error occurred */
 #define ERR_ALREADY_BOOT  1000 /* we are already booting */
 #define EPOF_BAD_MAGIC    1001 /* bad magic in POF header */
 #define ERR_BOARD_DPRAM   1002 /* board DPRAM failed */
 #define EPOF_INTERNAL     1003 /* internal POF handler error */
 #define EPOF_BAD_IMG_SIZE 1004 /* POF boot image size invalid */
-#define ERR_BOOTIMG_FAIL  1005 /* 1. stage boot image did not start */
+#define ERR_BOOTIMG_FAIL  1005 /* 1. stage boot image did yest start */
 #define ERR_BOOTSEQ_FAIL  1006 /* 2. stage boot seq handshake timeout */
 #define ERR_POF_TIMEOUT   1007 /* timeout waiting for card pof ready */
 #define ERR_NOT_BOOTED    1008 /* operation only allowed when booted */

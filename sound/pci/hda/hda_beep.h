@@ -2,7 +2,7 @@
 /*
  * Digital Beep Input Interface for HD-audio codec
  *
- * Author: Matt Ranostay <matt.ranostay@konsulko.com>
+ * Author: Matt Rayesstay <matt.rayesstay@konsulko.com>
  * Copyright (c) 2008 Embedded Alley Solutions Inc
  */
 

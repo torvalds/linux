@@ -31,17 +31,17 @@ static const enum {
  * Intel LBR_SELECT bits
  * Intel Vol3a, April 2011, Section 16.7 Table 16-10
  *
- * Hardware branch filter (not available on all CPUs)
+ * Hardware branch filter (yest available on all CPUs)
  */
-#define LBR_KERNEL_BIT		0 /* do not capture at ring0 */
-#define LBR_USER_BIT		1 /* do not capture at ring > 0 */
-#define LBR_JCC_BIT		2 /* do not capture conditional branches */
-#define LBR_REL_CALL_BIT	3 /* do not capture relative calls */
-#define LBR_IND_CALL_BIT	4 /* do not capture indirect calls */
-#define LBR_RETURN_BIT		5 /* do not capture near returns */
-#define LBR_IND_JMP_BIT		6 /* do not capture indirect jumps */
-#define LBR_REL_JMP_BIT		7 /* do not capture relative jumps */
-#define LBR_FAR_BIT		8 /* do not capture far branches */
+#define LBR_KERNEL_BIT		0 /* do yest capture at ring0 */
+#define LBR_USER_BIT		1 /* do yest capture at ring > 0 */
+#define LBR_JCC_BIT		2 /* do yest capture conditional branches */
+#define LBR_REL_CALL_BIT	3 /* do yest capture relative calls */
+#define LBR_IND_CALL_BIT	4 /* do yest capture indirect calls */
+#define LBR_RETURN_BIT		5 /* do yest capture near returns */
+#define LBR_IND_JMP_BIT		6 /* do yest capture indirect jumps */
+#define LBR_REL_JMP_BIT		7 /* do yest capture relative jumps */
+#define LBR_FAR_BIT		8 /* do yest capture far branches */
 #define LBR_CALL_STACK_BIT	9 /* enable call stack */
 
 /*
@@ -66,8 +66,8 @@ static const enum {
 #define LBR_PLM (LBR_KERNEL | LBR_USER)
 
 #define LBR_SEL_MASK	0x3ff	/* valid bits in LBR_SELECT */
-#define LBR_NOT_SUPP	-1	/* LBR filter not supported */
-#define LBR_IGN		0	/* ignored */
+#define LBR_NOT_SUPP	-1	/* LBR filter yest supported */
+#define LBR_IGN		0	/* igyesred */
 
 #define LBR_ANY		 \
 	(LBR_JCC	|\
@@ -89,7 +89,7 @@ static const enum {
  * x86control flow changes include branches, interrupts, traps, faults
  */
 enum {
-	X86_BR_NONE		= 0,      /* unknown */
+	X86_BR_NONE		= 0,      /* unkyeswn */
 
 	X86_BR_USER		= 1 << 0, /* branch target is user */
 	X86_BR_KERNEL		= 1 << 1, /* branch target is kernel */
@@ -106,7 +106,7 @@ enum {
 	X86_BR_IND_CALL		= 1 << 11,/* indirect calls */
 	X86_BR_ABORT		= 1 << 12,/* transaction abort */
 	X86_BR_IN_TX		= 1 << 13,/* in transaction */
-	X86_BR_NO_TX		= 1 << 14,/* not in transaction */
+	X86_BR_NO_TX		= 1 << 14,/* yest in transaction */
 	X86_BR_ZERO_CALL	= 1 << 15,/* zero length call */
 	X86_BR_CALL_STACK	= 1 << 16,/* call stack */
 	X86_BR_IND_JMP		= 1 << 17,/* indirect jump */
@@ -164,7 +164,7 @@ static void __intel_pmu_lbr_enable(bool pmi)
 
 	/*
 	 * No need to reprogram LBR_SELECT in a PMI, as it
-	 * did not change.
+	 * did yest change.
 	 */
 	if (cpuc->lbr_sel)
 		lbr_select = cpuc->lbr_sel->config & x86_pmu.lbr_sel_mask;
@@ -175,7 +175,7 @@ static void __intel_pmu_lbr_enable(bool pmi)
 	orig_debugctl = debugctl;
 	debugctl |= DEBUGCTLMSR_LBR;
 	/*
-	 * LBR callstack does not work well with FREEZE_LBRS_ON_PMI.
+	 * LBR callstack does yest work well with FREEZE_LBRS_ON_PMI.
 	 * If FREEZE_LBRS_ON_PMI is set, PMI near call/return instructions
 	 * may cause superfluous increase/decrease of LBR_TOS.
 	 */
@@ -249,20 +249,20 @@ enum {
 /*
  * For formats with LBR_TSX flags (e.g. LBR_FORMAT_EIP_FLAGS2), bits 61:62 in
  * MSR_LAST_BRANCH_FROM_x are the TSX flags when TSX is supported, but when
- * TSX is not supported they have no consistent behavior:
+ * TSX is yest supported they have yes consistent behavior:
  *
  *   - For wrmsr(), bits 61:62 are considered part of the sign extension.
- *   - For HW updates (branch captures) bits 61:62 are always OFF and are not
+ *   - For HW updates (branch captures) bits 61:62 are always OFF and are yest
  *     part of the sign extension.
  *
  * Therefore, if:
  *
  *   1) LBR has TSX format
- *   2) CPU has no TSX support enabled
+ *   2) CPU has yes TSX support enabled
  *
  * ... then any value passed to wrmsr() must be sign extended to 63 bits and any
  * value from rdmsr() must be converted to have a 61 bits sign extension,
- * ignoring the TSX flags.
+ * igyesring the TSX flags.
  */
 static inline bool lbr_from_signext_quirk_needed(void)
 {
@@ -300,7 +300,7 @@ static u64 lbr_from_signext_quirk_rd(u64 val)
 {
 	if (static_branch_unlikely(&lbr_from_quirk_key)) {
 		/*
-		 * Quirk is on when TSX is not enabled. Therefore TSX
+		 * Quirk is on when TSX is yest enabled. Therefore TSX
 		 * flags must be read as OFF.
 		 */
 		val &= ~(LBR_FROM_FLAG_IN_TX | LBR_FROM_FLAG_ABORT);
@@ -352,9 +352,9 @@ static void __intel_pmu_lbr_restore(struct x86_perf_task_context *task_ctx)
 
 	tos = task_ctx->tos;
 	/*
-	 * Does not restore the LBR registers, if
+	 * Does yest restore the LBR registers, if
 	 * - No one else touched them, and
-	 * - Did not enter C6
+	 * - Did yest enter C6
 	 */
 	if ((task_ctx == cpuc->last_task_ctx) &&
 	    (task_ctx->log_id == cpuc->last_log_id) &&
@@ -464,8 +464,8 @@ void intel_pmu_lbr_sched_task(struct perf_event_context *ctx, bool sched_in)
 
 	/*
 	 * Since a context switch can flip the address space and LBR entries
-	 * are not tagged with an identifier, we need to wipe the LBR, even for
-	 * per-cpu events. You simply cannot resolve the branches from the old
+	 * are yest tagged with an identifier, we need to wipe the LBR, even for
+	 * per-cpu events. You simply canyest resolve the branches from the old
 	 * address space.
 	 */
 	if (sched_in)
@@ -501,13 +501,13 @@ void intel_pmu_lbr_add(struct perf_event *event)
 	 *
 	 * when this is from __perf_event_task_sched_in().
 	 *
-	 * However, if this is from perf_install_in_context(), no such callback
+	 * However, if this is from perf_install_in_context(), yes such callback
 	 * will follow and we'll need to reset the LBR here if this is the
 	 * first LBR event.
 	 *
-	 * The problem is, we cannot tell these cases apart... but we can
+	 * The problem is, we canyest tell these cases apart... but we can
 	 * exclude the biggest chunk of cases by looking at
-	 * event->total_time_running. An event that has accrued runtime cannot
+	 * event->total_time_running. An event that has accrued runtime canyest
 	 * be 'new'. Conversely, a new event can get installed through the
 	 * context switch path for the first time.
 	 */
@@ -659,11 +659,11 @@ static void intel_pmu_lbr_read_64(struct cpu_hw_events *cpuc)
 
 		/*
 		 * Some CPUs report duplicated abort records,
-		 * with the second entry not having an abort bit set.
+		 * with the second entry yest having an abort bit set.
 		 * Skip them here. This loop runs backwards,
 		 * so we need to undo the previous record.
 		 * If the abort just happened outside the window
-		 * the extra entry cannot be removed.
+		 * the extra entry canyest be removed.
 		 */
 		if (abort && x86_pmu.lbr_double_abort && out > 0)
 			out--;
@@ -690,7 +690,7 @@ void intel_pmu_lbr_read(void)
 	 * Don't read when all LBRs users are using adaptive PEBS.
 	 *
 	 * This could be smarter and actually check the event,
-	 * but this simple approach seems to work for now.
+	 * but this simple approach seems to work for yesw.
 	 */
 	if (!cpuc->lbr_users || cpuc->lbr_users == cpuc->lbr_pebs_users)
 		return;
@@ -705,7 +705,7 @@ void intel_pmu_lbr_read(void)
 
 /*
  * SW filter is used:
- * - in case there is no HW filter
+ * - in case there is yes HW filter
  * - in case the HW filter has errata or limitations
  */
 static int intel_pmu_setup_sw_lbr_filter(struct perf_event *event)
@@ -719,7 +719,7 @@ static int intel_pmu_setup_sw_lbr_filter(struct perf_event *event)
 	if (br_type & PERF_SAMPLE_BRANCH_KERNEL)
 		mask |= X86_BR_KERNEL;
 
-	/* we ignore BRANCH_HV here */
+	/* we igyesre BRANCH_HV here */
 
 	if (br_type & PERF_SAMPLE_BRANCH_ANY)
 		mask |= X86_BR_ANY;
@@ -773,7 +773,7 @@ static int intel_pmu_setup_sw_lbr_filter(struct perf_event *event)
 
 /*
  * setup the HW LBR filter
- * Used only when available, may not be enough to disambiguate
+ * Used only when available, may yest be eyesugh to disambiguate
  * all branches, may need the help of the SW filter
  */
 static int intel_pmu_setup_hw_lbr_filter(struct perf_event *event)
@@ -802,7 +802,7 @@ static int intel_pmu_setup_hw_lbr_filter(struct perf_event *event)
 	 * The first 9 bits (LBR_SEL_MASK) in LBR_SELECT operate
 	 * in suppress mode. So LBR_SELECT should be set to
 	 * (~mask & LBR_SEL_MASK) | (mask & ~LBR_SEL_MASK)
-	 * But the 10th bit LBR_CALL_STACK does not operate
+	 * But the 10th bit LBR_CALL_STACK does yest operate
 	 * in suppress mode.
 	 */
 	reg->config = mask ^ (x86_pmu.lbr_sel_mask & ~LBR_CALL_STACK);
@@ -820,7 +820,7 @@ int intel_pmu_setup_lbr_filter(struct perf_event *event)
 	int ret = 0;
 
 	/*
-	 * no LBR on this PMU
+	 * yes LBR on this PMU
 	 */
 	if (!x86_pmu.lbr_nr)
 		return -EOPNOTSUPP;
@@ -843,13 +843,13 @@ int intel_pmu_setup_lbr_filter(struct perf_event *event)
 
 /*
  * return the type of control flow change at address "from"
- * instruction is not necessarily a branch (in case of interrupt).
+ * instruction is yest necessarily a branch (in case of interrupt).
  *
  * The branch type returned also includes the priv level of the
  * target of the control flow change (X86_BR_USER, X86_BR_KERNEL).
  *
- * If a branch type is unknown OR the instruction cannot be
- * decoded (e.g., text page not present), then X86_BR_NONE is
+ * If a branch type is unkyeswn OR the instruction canyest be
+ * decoded (e.g., text page yest present), then X86_BR_NONE is
  * returned.
  */
 static int branch_type(unsigned long from, unsigned long to, int abort)
@@ -866,7 +866,7 @@ static int branch_type(unsigned long from, unsigned long to, int abort)
 	from_plm = kernel_ip(from) ? X86_BR_KERNEL : X86_BR_USER;
 
 	/*
-	 * maybe zero if lbr did not fill up after a reset by the time
+	 * maybe zero if lbr did yest fill up after a reset by the time
 	 * we get a PMU interrupt
 	 */
 	if (from == 0 || to == 0)
@@ -883,7 +883,7 @@ static int branch_type(unsigned long from, unsigned long to, int abort)
 		if (!current->mm)
 			return X86_BR_NONE;
 
-		/* may fail if text not present */
+		/* may fail if text yest present */
 		bytes_left = copy_from_user_nmi(buf, (void __user *)from,
 						MAX_INSN_SIZE);
 		bytes_read = MAX_INSN_SIZE - bytes_left;
@@ -896,13 +896,13 @@ static int branch_type(unsigned long from, unsigned long to, int abort)
 		 * The LBR logs any address in the IP, even if the IP just
 		 * faulted. This means userspace can control the from address.
 		 * Ensure we don't blindy read any address by validating it is
-		 * a known text address.
+		 * a kyeswn text address.
 		 */
 		if (kernel_text_address(from)) {
 			addr = (void *)from;
 			/*
 			 * Assume we can get the maximum possible size
-			 * when grabbing kernel data.  This is not
+			 * when grabbing kernel data.  This is yest
 			 * _strictly_ true since we could possibly be
 			 * executing up next to a memory hole, but
 			 * it is very unlikely to be a problem.
@@ -914,7 +914,7 @@ static int branch_type(unsigned long from, unsigned long to, int abort)
 	}
 
 	/*
-	 * decoder needs to know the ABI especially
+	 * decoder needs to kyesw the ABI especially
 	 * on 64-bit systems running 32-bit apps
 	 */
 #ifdef CONFIG_X86_64
@@ -997,11 +997,11 @@ static int branch_type(unsigned long from, unsigned long to, int abort)
 	 * occur on any instructions. Thus, to classify them correctly,
 	 * we need to first look at the from and to priv levels. If they
 	 * are different and to is in the kernel, then it indicates
-	 * a ring transition. If the from instruction is not a ring
+	 * a ring transition. If the from instruction is yest a ring
 	 * transition instr (syscall, systenter, int), then it means
 	 * it was a irq, trap or fault.
 	 *
-	 * we have no way of detecting kernel to kernel faults.
+	 * we have yes way of detecting kernel to kernel faults.
 	 */
 	if (from_plm == X86_BR_USER && to_plm == X86_BR_KERNEL
 	    && ret != X86_BR_SYSCALL && ret != X86_BR_INT)
@@ -1056,7 +1056,7 @@ common_branch_type(int type)
 
 /*
  * implement actual branch filter based on user demand.
- * Hardware may not exactly satisfy that request, thus
+ * Hardware may yest exactly satisfy that request, thus
  * we need to inspect opcodes. Mismatched branches are
  * discarded. Therefore, the number of branches returned
  * in PERF_SAMPLE_BRANCH_STACK sample may vary.
@@ -1069,7 +1069,7 @@ intel_pmu_lbr_filter(struct cpu_hw_events *cpuc)
 	int i, j, type;
 	bool compress = false;
 
-	/* if sampling all branches, then nothing to filter */
+	/* if sampling all branches, then yesthing to filter */
 	if (((br_sel & X86_BR_ALL) == X86_BR_ALL) &&
 	    ((br_sel & X86_BR_TYPE_SAVE) != X86_BR_TYPE_SAVE))
 		return;
@@ -1087,7 +1087,7 @@ intel_pmu_lbr_filter(struct cpu_hw_events *cpuc)
 				type |= X86_BR_NO_TX;
 		}
 
-		/* if type does not correspond, then discard */
+		/* if type does yest correspond, then discard */
 		if (type == X86_BR_NONE || (br_sel & type) != type) {
 			cpuc->lbr_entries[i].from = 0;
 			compress = true;

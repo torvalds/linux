@@ -7,7 +7,7 @@
  */
 
 /*
- * List of clocks wich are not derived from system clock (SYSCLOCK)
+ * List of clocks wich are yest derived from system clock (SYSCLOCK)
  *
  * The index of these clocks is the secondary index of DT bindings
  * (see Documentatoin/devicetree/bindings/clock/st,stm32-rcc.txt)

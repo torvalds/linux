@@ -57,8 +57,8 @@ static void mxs_pin_dbg_show(struct pinctrl_dev *pctldev, struct seq_file *s,
 	seq_printf(s, " %s", dev_name(pctldev->dev));
 }
 
-static int mxs_dt_node_to_map(struct pinctrl_dev *pctldev,
-			      struct device_node *np,
+static int mxs_dt_yesde_to_map(struct pinctrl_dev *pctldev,
+			      struct device_yesde *np,
 			      struct pinctrl_map **map, unsigned *num_maps)
 {
 	struct pinctrl_map *new_map;
@@ -71,7 +71,7 @@ static int mxs_dt_node_to_map(struct pinctrl_dev *pctldev,
 	u32 val, reg;
 	int ret, i = 0;
 
-	/* Check for pin config node which has no 'reg' property */
+	/* Check for pin config yesde which has yes 'reg' property */
 	if (of_property_read_u32(np, "reg", &reg))
 		purecfg = true;
 
@@ -85,7 +85,7 @@ static int mxs_dt_node_to_map(struct pinctrl_dev *pctldev,
 	if (!ret)
 		config |= val << PULL_SHIFT | PULL_PRESENT;
 
-	/* Check for group node which has both mux and config settings */
+	/* Check for group yesde which has both mux and config settings */
 	if (!purecfg && config)
 		new_num = 2;
 
@@ -155,7 +155,7 @@ static const struct pinctrl_ops mxs_pinctrl_ops = {
 	.get_group_name = mxs_get_group_name,
 	.get_group_pins = mxs_get_group_pins,
 	.pin_dbg_show = mxs_pin_dbg_show,
-	.dt_node_to_map = mxs_dt_node_to_map,
+	.dt_yesde_to_map = mxs_dt_yesde_to_map,
 	.dt_free_map = mxs_dt_free_map,
 };
 
@@ -345,7 +345,7 @@ static struct pinctrl_desc mxs_pinctrl_desc = {
 };
 
 static int mxs_pinctrl_parse_group(struct platform_device *pdev,
-				   struct device_node *np, int idx,
+				   struct device_yesde *np, int idx,
 				   const char **out_name)
 {
 	struct mxs_pinctrl_data *d = platform_get_drvdata(pdev);
@@ -396,8 +396,8 @@ static int mxs_pinctrl_probe_dt(struct platform_device *pdev,
 				struct mxs_pinctrl_data *d)
 {
 	struct mxs_pinctrl_soc_data *soc = d->soc;
-	struct device_node *np = pdev->dev.of_node;
-	struct device_node *child;
+	struct device_yesde *np = pdev->dev.of_yesde;
+	struct device_yesde *child;
 	struct mxs_function *f;
 	const char *gpio_compat = "fsl,mxs-gpio";
 	const char *fn, *fnull = "";
@@ -407,17 +407,17 @@ static int mxs_pinctrl_probe_dt(struct platform_device *pdev,
 
 	child = of_get_next_child(np, NULL);
 	if (!child) {
-		dev_err(&pdev->dev, "no group is defined\n");
+		dev_err(&pdev->dev, "yes group is defined\n");
 		return -ENOENT;
 	}
 
 	/* Count total functions and groups */
 	fn = fnull;
-	for_each_child_of_node(np, child) {
+	for_each_child_of_yesde(np, child) {
 		if (of_device_is_compatible(child, gpio_compat))
 			continue;
 		soc->ngroups++;
-		/* Skip pure pinconf node */
+		/* Skip pure pinconf yesde */
 		if (of_property_read_u32(child, "reg", &val))
 			continue;
 		if (strcmp(fn, child->name)) {
@@ -442,26 +442,26 @@ static int mxs_pinctrl_probe_dt(struct platform_device *pdev,
 	/* Count groups for each function */
 	fn = fnull;
 	f = &soc->functions[idxf];
-	for_each_child_of_node(np, child) {
+	for_each_child_of_yesde(np, child) {
 		if (of_device_is_compatible(child, gpio_compat))
 			continue;
 		if (of_property_read_u32(child, "reg", &val))
 			continue;
 		if (strcmp(fn, child->name)) {
-			struct device_node *child2;
+			struct device_yesde *child2;
 
 			/*
 			 * This reference is dropped by
 			 * of_get_next_child(np, * child)
 			 */
-			of_node_get(child);
+			of_yesde_get(child);
 
 			/*
 			 * The logic parsing the functions from dt currently
 			 * doesn't handle if functions with the same name are
-			 * not grouped together. Only the first contiguous
+			 * yest grouped together. Only the first contiguous
 			 * cluster is usable for each function name. This is a
-			 * bug that is not trivial to fix, but at least warn
+			 * bug that is yest trivial to fix, but at least warn
 			 * about it.
 			 */
 			for (child2 = of_get_next_child(np, child);
@@ -469,7 +469,7 @@ static int mxs_pinctrl_probe_dt(struct platform_device *pdev,
 			     child2 = of_get_next_child(np, child2)) {
 				if (!strcmp(child2->name, fn))
 					dev_warn(&pdev->dev,
-						 "function nodes must be grouped by name (failed for: %s)",
+						 "function yesdes must be grouped by name (failed for: %s)",
 						 fn);
 			}
 
@@ -482,14 +482,14 @@ static int mxs_pinctrl_probe_dt(struct platform_device *pdev,
 	/* Get groups for each function */
 	idxf = 0;
 	fn = fnull;
-	for_each_child_of_node(np, child) {
+	for_each_child_of_yesde(np, child) {
 		if (of_device_is_compatible(child, gpio_compat))
 			continue;
 		if (of_property_read_u32(child, "reg", &val)) {
 			ret = mxs_pinctrl_parse_group(pdev, child,
 						      idxg++, NULL);
 			if (ret) {
-				of_node_put(child);
+				of_yesde_put(child);
 				return ret;
 			}
 			continue;
@@ -502,7 +502,7 @@ static int mxs_pinctrl_probe_dt(struct platform_device *pdev,
 						 sizeof(*f->groups),
 						 GFP_KERNEL);
 			if (!f->groups) {
-				of_node_put(child);
+				of_yesde_put(child);
 				return -ENOMEM;
 			}
 			fn = child->name;
@@ -511,7 +511,7 @@ static int mxs_pinctrl_probe_dt(struct platform_device *pdev,
 		ret = mxs_pinctrl_parse_group(pdev, child, idxg++,
 					      &f->groups[i++]);
 		if (ret) {
-			of_node_put(child);
+			of_yesde_put(child);
 			return ret;
 		}
 	}
@@ -522,7 +522,7 @@ static int mxs_pinctrl_probe_dt(struct platform_device *pdev,
 int mxs_pinctrl_probe(struct platform_device *pdev,
 		      struct mxs_pinctrl_soc_data *soc)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	struct mxs_pinctrl_data *d;
 	int ret;
 

@@ -69,7 +69,7 @@ static inline int clp_get_ilp(unsigned long *ilp)
 static __always_inline int clp_req(void *data, unsigned int lps)
 {
 	struct { u8 _[CLP_BLK_SIZE]; } *req = data;
-	u64 ignored;
+	u64 igyesred;
 	int cc = 3;
 
 	asm volatile (
@@ -78,7 +78,7 @@ static __always_inline int clp_req(void *data, unsigned int lps)
 		"	srl	%[cc],28\n"
 		"1:\n"
 		EX_TABLE(0b, 1b)
-		: [cc] "+d" (cc), [ign] "=d" (ignored), "+m" (*req)
+		: [cc] "+d" (cc), [ign] "=d" (igyesred), "+m" (*req)
 		: [req] "a" (req), [lps] "i" (lps)
 		: "cc");
 	return cc;
@@ -100,7 +100,7 @@ static void clp_store_query_pci_fngrp(struct zpci_dev *zdev,
 	zdev->tlb_refresh = response->refresh;
 	zdev->dma_mask = response->dasm;
 	zdev->msi_addr = response->msia;
-	zdev->max_msi = response->noi;
+	zdev->max_msi = response->yesi;
 	zdev->fmb_update = response->mui;
 
 	switch (response->version) {
@@ -546,7 +546,7 @@ static int clp_pci_command(struct clp_req *req, struct clp_req_hdr *lpcb)
 	}
 }
 
-static int clp_normal_command(struct clp_req *req)
+static int clp_yesrmal_command(struct clp_req *req)
 {
 	struct clp_req_hdr *lpcb;
 	void __user *uptr;
@@ -626,25 +626,25 @@ static long clp_misc_ioctl(struct file *filp, unsigned int cmd,
 		return -EFAULT;
 	if (req.r != 0)
 		return -EINVAL;
-	return req.c ? clp_immediate_command(&req) : clp_normal_command(&req);
+	return req.c ? clp_immediate_command(&req) : clp_yesrmal_command(&req);
 }
 
-static int clp_misc_release(struct inode *inode, struct file *filp)
+static int clp_misc_release(struct iyesde *iyesde, struct file *filp)
 {
 	return 0;
 }
 
 static const struct file_operations clp_misc_fops = {
 	.owner = THIS_MODULE,
-	.open = nonseekable_open,
+	.open = yesnseekable_open,
 	.release = clp_misc_release,
 	.unlocked_ioctl = clp_misc_ioctl,
 	.compat_ioctl = clp_misc_ioctl,
-	.llseek = no_llseek,
+	.llseek = yes_llseek,
 };
 
 static struct miscdevice clp_misc_device = {
-	.minor = MISC_DYNAMIC_MINOR,
+	.miyesr = MISC_DYNAMIC_MINOR,
 	.name = "clp",
 	.fops = &clp_misc_fops,
 };

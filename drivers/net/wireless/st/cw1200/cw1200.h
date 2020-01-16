@@ -3,13 +3,13 @@
  * Common private data for ST-Ericsson CW1200 drivers
  *
  * Copyright (c) 2010, ST-Ericsson
- * Author: Dmitry Tarnyagin <dmitry.tarnyagin@lockless.no>
+ * Author: Dmitry Tarnyagin <dmitry.tarnyagin@lockless.yes>
  *
  * Based on the mac80211 Prism54 code, which is
  * Copyright (c) 2006, Michael Wu <flamingice@sourmilk.net>
  *
  * Based on the islsm (softmac prism54) driver, which is:
- * Copyright 2004-2006 Jean-Baptiste Note <jbnote@gmail.com>, et al.
+ * Copyright 2004-2006 Jean-Baptiste Note <jbyeste@gmail.com>, et al.
  */
 
 #ifndef CW1200_H

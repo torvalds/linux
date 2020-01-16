@@ -15,7 +15,7 @@
  * distribute the resulting executable under terms of your choice, provided that
  * you also meet, for each linked independent module, the terms and conditions
  * of the license of that module.  An independent module is a module which is
- * not derived from this software.  The special exception does not apply to any
+ * yest derived from this software.  The special exception does yest apply to any
  * modifications of the software.
  *
  * Maintained by: Ariel Elior <ariel.elior@qlogic.com>
@@ -399,7 +399,7 @@ struct pf_vf_bulletin_size {
 };
 
 struct pf_vf_bulletin_content {
-	u32 crc;			/* crc of structure to ensure is not in
+	u32 crc;			/* crc of structure to ensure is yest in
 					 * mid-update
 					 */
 	u16 version;
@@ -412,10 +412,10 @@ struct pf_vf_bulletin_content {
 #define MAC_ADDR_VALID		0	/* alert the vf that a new mac address
 					 * is available for it
 					 */
-#define VLAN_VALID		1	/* when set, the vf should not access
+#define VLAN_VALID		1	/* when set, the vf should yest access
 					 * the vfpf channel
 					 */
-#define CHANNEL_DOWN		2	/* vfpf channel is disabled. VFs are not
+#define CHANNEL_DOWN		2	/* vfpf channel is disabled. VFs are yest
 					 * to attempt to send messages on the
 					 * channel after this bit is set
 					 */

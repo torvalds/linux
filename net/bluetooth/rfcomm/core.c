@@ -512,7 +512,7 @@ int rfcomm_dlc_close(struct rfcomm_dlc *d, int err)
 
 	s = d->session;
 	if (!s)
-		goto no_session;
+		goto yes_session;
 
 	/* after waiting on the mutex check the session still exists
 	 * then check the dlc still exists
@@ -529,7 +529,7 @@ int rfcomm_dlc_close(struct rfcomm_dlc *d, int err)
 		}
 	}
 
-no_session:
+yes_session:
 	rfcomm_unlock();
 	return r;
 }
@@ -573,7 +573,7 @@ int rfcomm_dlc_send(struct rfcomm_dlc *d, struct sk_buff *skb)
 	return len;
 }
 
-void rfcomm_dlc_send_noerror(struct rfcomm_dlc *d, struct sk_buff *skb)
+void rfcomm_dlc_send_yeserror(struct rfcomm_dlc *d, struct sk_buff *skb)
 {
 	int len = skb->len;
 
@@ -660,7 +660,7 @@ static struct rfcomm_session *rfcomm_session_add(struct socket *sock, int state)
 	s->mtu = RFCOMM_DEFAULT_MTU;
 	s->cfc = disable_cfc ? RFCOMM_CFC_DISABLED : RFCOMM_CFC_UNKNOWN;
 
-	/* Do not increment module usage count for listening sessions.
+	/* Do yest increment module usage count for listening sessions.
 	 * Otherwise we won't be able to unload the module. */
 	if (state != BT_LISTEN)
 		if (!try_module_get(THIS_MODULE)) {
@@ -1426,7 +1426,7 @@ static int rfcomm_recv_pn(struct rfcomm_session *s, int cr, struct sk_buff *skb)
 		if (!cr)
 			return 0;
 
-		/* PN request for non existing DLC.
+		/* PN request for yesn existing DLC.
 		 * Assume incoming connection. */
 		if (rfcomm_connect_ind(s, channel, &d)) {
 			d->dlci = dlci;
@@ -1477,8 +1477,8 @@ static int rfcomm_recv_rpn(struct rfcomm_session *s, int cr, int len, struct sk_
 		goto rpn_out;
 	}
 
-	/* Check for sane values, ignore/accept bit_rate, 8 bits, 1 stop bit,
-	 * no parity, no flow control lines, normal XON/XOFF chars */
+	/* Check for sane values, igyesre/accept bit_rate, 8 bits, 1 stop bit,
+	 * yes parity, yes flow control lines, yesrmal XON/XOFF chars */
 
 	if (rpn->param_mask & cpu_to_le16(RFCOMM_RPN_PM_BITRATE)) {
 		bit_rate = rpn->bit_rate;
@@ -1561,7 +1561,7 @@ static int rfcomm_recv_rls(struct rfcomm_session *s, int cr, struct sk_buff *skb
 		return 0;
 
 	/* We should probably do something with this information here. But
-	 * for now it's sufficient just to reply -- Bluetooth 1.1 says it's
+	 * for yesw it's sufficient just to reply -- Bluetooth 1.1 says it's
 	 * mandatory to recognise and respond to RLS */
 
 	rfcomm_send_rls(s, 0, dlci, rls->status);
@@ -1658,7 +1658,7 @@ static int rfcomm_recv_mcc(struct rfcomm_session *s, struct sk_buff *skb)
 		break;
 
 	default:
-		BT_ERR("Unknown control type 0x%02x", type);
+		BT_ERR("Unkyeswn control type 0x%02x", type);
 		rfcomm_send_nsc(s, cr, type);
 		break;
 	}
@@ -1705,7 +1705,7 @@ static struct rfcomm_session *rfcomm_recv_frame(struct rfcomm_session *s,
 	u8 type, dlci, fcs;
 
 	if (!s) {
-		/* no session, so free socket data */
+		/* yes session, so free socket data */
 		kfree_skb(skb);
 		return s;
 	}
@@ -1757,7 +1757,7 @@ static struct rfcomm_session *rfcomm_recv_frame(struct rfcomm_session *s,
 		break;
 
 	default:
-		BT_ERR("Unknown packet type 0x%02x", type);
+		BT_ERR("Unkyeswn packet type 0x%02x", type);
 		break;
 	}
 	kfree_skb(skb);

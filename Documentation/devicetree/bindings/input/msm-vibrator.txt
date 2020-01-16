@@ -7,7 +7,7 @@ Required properties:
 		"qcom,msm8974-vibrator"
   - reg: the base address and length of the IO memory for the registers.
   - pinctrl-names: set to default.
-  - pinctrl-0: phandles pointing to pin configuration nodes. See
+  - pinctrl-0: phandles pointing to pin configuration yesdes. See
                Documentation/devicetree/bindings/pinctrl/pinctrl-bindings.txt
   - clock-names: set to pwm
   - clocks: phandle of the clock. See

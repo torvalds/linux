@@ -13,8 +13,8 @@
 
 #ifndef __ASSEMBLY__
 
-/* Page Upper Directory not used in RISC-V */
-#include <asm-generic/pgtable-nopud.h>
+/* Page Upper Directory yest used in RISC-V */
+#include <asm-generic/pgtable-yespud.h>
 #include <asm/page.h>
 #include <asm/tlbflush.h>
 #include <linux/mm_types.h>
@@ -95,7 +95,7 @@ extern pgd_t swapper_pg_dir[];
 #define VMALLOC_START    (PAGE_OFFSET - VMALLOC_SIZE)
 
 /*
- * Roughly size the vmemmap space to be large enough to fit enough
+ * Roughly size the vmemmap space to be large eyesugh to fit eyesugh
  * struct pages to map half the virtual address space. Then
  * position vmemmap directly below the VMALLOC region.
  */
@@ -116,7 +116,7 @@ static inline int pmd_present(pmd_t pmd)
 	return (pmd_val(pmd) & (_PAGE_PRESENT | _PAGE_PROT_NONE));
 }
 
-static inline int pmd_none(pmd_t pmd)
+static inline int pmd_yesne(pmd_t pmd)
 {
 	return (pmd_val(pmd) == 0);
 }
@@ -197,7 +197,7 @@ static inline int pte_present(pte_t pte)
 	return (pte_val(pte) & (_PAGE_PRESENT | _PAGE_PROT_NONE));
 }
 
-static inline int pte_none(pte_t pte)
+static inline int pte_yesne(pte_t pte)
 {
 	return (pte_val(pte) == 0);
 }
@@ -295,7 +295,7 @@ static inline void update_mmu_cache(struct vm_area_struct *vma,
 {
 	/*
 	 * The kernel assumes that TLBs don't cache invalid entries, but
-	 * in RISC-V, SFENCE.VMA specifies an ordering constraint, not a
+	 * in RISC-V, SFENCE.VMA specifies an ordering constraint, yest a
 	 * cache flush; it is necessary even after writing invalid entries.
 	 * Relying on flush_tlb_fix_spurious_fault would suffice, but
 	 * the extra traps reduce performance.  So, eagerly SFENCE.VMA.
@@ -389,8 +389,8 @@ static inline int ptep_clear_flush_young(struct vm_area_struct *vma,
 	 * So as a performance optimization don't flush the TLB when
 	 * clearing the accessed bit, it will eventually be flushed by
 	 * a context switch or a VM operation anyway. [ In the rare
-	 * event of it not getting flushed for a long time the delay
-	 * shouldn't really matter because there's no real memory
+	 * event of it yest getting flushed for a long time the delay
+	 * shouldn't really matter because there's yes real memory
 	 * pressure for swapout to react to. ]
 	 */
 	return ptep_test_and_clear_young(vma, address, ptep);

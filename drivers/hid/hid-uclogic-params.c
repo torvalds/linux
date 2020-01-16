@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
- *  HID driver for UC-Logic devices not fully compliant with HID standard
+ *  HID driver for UC-Logic devices yest fully compliant with HID standard
  *  - tablet initialization and parameter retrieval
  *
  *  Copyright (c) 2018 Nikolai Kondrashov
@@ -26,18 +26,18 @@
  * @inrange:	The in-range reporting type to convert.
  *
  * Returns:
- *	The string representing the type, or NULL if the type is unknown.
+ *	The string representing the type, or NULL if the type is unkyeswn.
  */
 const char *uclogic_params_pen_inrange_to_str(
 			enum uclogic_params_pen_inrange inrange)
 {
 	switch (inrange) {
 	case UCLOGIC_PARAMS_PEN_INRANGE_NORMAL:
-		return "normal";
+		return "yesrmal";
 	case UCLOGIC_PARAMS_PEN_INRANGE_INVERTED:
 		return "inverted";
 	case UCLOGIC_PARAMS_PEN_INRANGE_NONE:
-		return "none";
+		return "yesne";
 	default:
 		return NULL;
 	}
@@ -52,14 +52,14 @@ const char *uclogic_params_pen_inrange_to_str(
  *		the retrieved descriptor. Not modified in case of error.
  *		Can be NULL to have retrieved descriptor discarded.
  * @hdev:	The HID device of the tablet interface to retrieve the string
- *		descriptor from. Cannot be NULL.
+ *		descriptor from. Canyest be NULL.
  * @idx:	Index of the string descriptor to request from the device.
  * @len:	Length of the buffer to allocate and the data to retrieve.
  *
  * Returns:
  *	number of bytes retrieved (<= len),
- *	-EPIPE, if the descriptor was not found, or
- *	another negative errno code in case of other error.
+ *	-EPIPE, if the descriptor was yest found, or
+ *	ayesther negative erryes code in case of other error.
  */
 static int uclogic_params_get_str_desc(__u8 **pbuf, struct hid_device *hdev,
 					__u8 idx, size_t len)
@@ -86,7 +86,7 @@ static int uclogic_params_get_str_desc(__u8 **pbuf, struct hid_device *hdev,
 				0x0409, buf, len,
 				USB_CTRL_GET_TIMEOUT);
 	if (rc == -EPIPE) {
-		hid_dbg(hdev, "string descriptor #%hhu not found\n", idx);
+		hid_dbg(hdev, "string descriptor #%hhu yest found\n", idx);
 		goto cleanup;
 	} else if (rc < 0) {
 		hid_err(hdev,
@@ -110,7 +110,7 @@ cleanup:
  * uclogic_params_pen (tablet interface's pen input parameters).
  * Can be called repeatedly.
  *
- * @pen:	Pen input parameters to cleanup. Cannot be NULL.
+ * @pen:	Pen input parameters to cleanup. Canyest be NULL.
  */
 static void uclogic_params_pen_cleanup(struct uclogic_params_pen *pen)
 {
@@ -124,15 +124,15 @@ static void uclogic_params_pen_cleanup(struct uclogic_params_pen *pen)
  *
  * @pen:	Pointer to the pen parameters to initialize (to be
  *		cleaned up with uclogic_params_pen_cleanup()). Not modified in
- *		case of error, or if parameters are not found. Cannot be NULL.
+ *		case of error, or if parameters are yest found. Canyest be NULL.
  * @pfound:	Location for a flag which is set to true if the parameters
- *		were found, and to false if not (e.g. device was
- *		incompatible). Not modified in case of error. Cannot be NULL.
+ *		were found, and to false if yest (e.g. device was
+ *		incompatible). Not modified in case of error. Canyest be NULL.
  * @hdev:	The HID device of the tablet interface to initialize and get
- *		parameters from. Cannot be NULL.
+ *		parameters from. Canyest be NULL.
  *
  * Returns:
- *	Zero, if successful. A negative errno code on error.
+ *	Zero, if successful. A negative erryes code on error.
  */
 static int uclogic_params_pen_init_v1(struct uclogic_params_pen *pen,
 				      bool *pfound,
@@ -164,14 +164,14 @@ static int uclogic_params_pen_init_v1(struct uclogic_params_pen *pen,
 	rc = uclogic_params_get_str_desc(&buf, hdev, 100, len);
 	if (rc == -EPIPE) {
 		hid_dbg(hdev,
-			"string descriptor with pen parameters not found, assuming not compatible\n");
+			"string descriptor with pen parameters yest found, assuming yest compatible\n");
 		goto finish;
 	} else if (rc < 0) {
 		hid_err(hdev, "failed retrieving pen parameters: %d\n", rc);
 		goto cleanup;
 	} else if (rc != len) {
 		hid_dbg(hdev,
-			"string descriptor with pen parameters has invalid length (got %d, expected %d), assuming not compatible\n",
+			"string descriptor with pen parameters has invalid length (got %d, expected %d), assuming yest compatible\n",
 			rc, len);
 		goto finish;
 	}
@@ -252,15 +252,15 @@ static s32 uclogic_params_get_le24(const void *p)
  *
  * @pen:	Pointer to the pen parameters to initialize (to be
  *		cleaned up with uclogic_params_pen_cleanup()). Not modified in
- *		case of error, or if parameters are not found. Cannot be NULL.
+ *		case of error, or if parameters are yest found. Canyest be NULL.
  * @pfound:	Location for a flag which is set to true if the parameters
- *		were found, and to false if not (e.g. device was
- *		incompatible). Not modified in case of error. Cannot be NULL.
+ *		were found, and to false if yest (e.g. device was
+ *		incompatible). Not modified in case of error. Canyest be NULL.
  * @hdev:	The HID device of the tablet interface to initialize and get
- *		parameters from. Cannot be NULL.
+ *		parameters from. Canyest be NULL.
  *
  * Returns:
- *	Zero, if successful. A negative errno code on error.
+ *	Zero, if successful. A negative erryes code on error.
  */
 static int uclogic_params_pen_init_v2(struct uclogic_params_pen *pen,
 					bool *pfound,
@@ -292,22 +292,22 @@ static int uclogic_params_pen_init_v2(struct uclogic_params_pen *pen,
 	rc = uclogic_params_get_str_desc(&buf, hdev, 200, len);
 	if (rc == -EPIPE) {
 		hid_dbg(hdev,
-			"string descriptor with pen parameters not found, assuming not compatible\n");
+			"string descriptor with pen parameters yest found, assuming yest compatible\n");
 		goto finish;
 	} else if (rc < 0) {
 		hid_err(hdev, "failed retrieving pen parameters: %d\n", rc);
 		goto cleanup;
 	} else if (rc != len) {
 		hid_dbg(hdev,
-			"string descriptor with pen parameters has invalid length (got %d, expected %d), assuming not compatible\n",
+			"string descriptor with pen parameters has invalid length (got %d, expected %d), assuming yest compatible\n",
 			rc, len);
 		goto finish;
 	} else {
 		size_t i;
 		/*
-		 * Check it's not just a catch-all UTF-16LE-encoded ASCII
+		 * Check it's yest just a catch-all UTF-16LE-encoded ASCII
 		 * string (such as the model name) some tablets put into all
-		 * unknown string descriptors.
+		 * unkyeswn string descriptors.
 		 */
 		for (i = 2;
 		     i < len &&
@@ -315,7 +315,7 @@ static int uclogic_params_pen_init_v2(struct uclogic_params_pen *pen,
 		     i += 2);
 		if (i >= len) {
 			hid_dbg(hdev,
-				"string descriptor with pen parameters seems to contain only text, assuming not compatible\n");
+				"string descriptor with pen parameters seems to contain only text, assuming yest compatible\n");
 			goto finish;
 		}
 	}
@@ -381,7 +381,7 @@ cleanup:
  * uclogic_params_frame (tablet interface's frame controls input parameters).
  * Can be called repeatedly.
  *
- * @frame:	Frame controls input parameters to cleanup. Cannot be NULL.
+ * @frame:	Frame controls input parameters to cleanup. Canyest be NULL.
  */
 static void uclogic_params_frame_cleanup(struct uclogic_params_frame *frame)
 {
@@ -395,14 +395,14 @@ static void uclogic_params_frame_cleanup(struct uclogic_params_frame *frame)
  *
  * @frame:	Pointer to the frame parameters to initialize (to be cleaned
  *		up with uclogic_params_frame_cleanup()). Not modified in case
- *		of error. Cannot be NULL.
+ *		of error. Canyest be NULL.
  * @desc_ptr:	Report descriptor pointer. Can be NULL, if desc_size is zero.
  * @desc_size:	Report descriptor size.
  * @id:		Report ID used for frame reports, if they should be tweaked,
- *		zero if not.
+ *		zero if yest.
  *
  * Returns:
- *	Zero, if successful. A negative errno code on error.
+ *	Zero, if successful. A negative erryes code on error.
  */
 static int uclogic_params_frame_init_with_desc(
 					struct uclogic_params_frame *frame,
@@ -432,15 +432,15 @@ static int uclogic_params_frame_init_with_desc(
  *
  * @frame:	Pointer to the frame parameters to initialize (to be cleaned
  *		up with uclogic_params_frame_cleanup()). Not modified in case
- *		of error, or if parameters are not found. Cannot be NULL.
+ *		of error, or if parameters are yest found. Canyest be NULL.
  * @pfound:	Location for a flag which is set to true if the parameters
- *		were found, and to false if not (e.g. device was
- *		incompatible). Not modified in case of error. Cannot be NULL.
+ *		were found, and to false if yest (e.g. device was
+ *		incompatible). Not modified in case of error. Canyest be NULL.
  * @hdev:	The HID device of the tablet interface to initialize and get
- *		parameters from. Cannot be NULL.
+ *		parameters from. Canyest be NULL.
  *
  * Returns:
- *	Zero, if successful. A negative errno code on error.
+ *	Zero, if successful. A negative erryes code on error.
  */
 static int uclogic_params_frame_init_v1_buttonpad(
 					struct uclogic_params_frame *frame,
@@ -471,7 +471,7 @@ static int uclogic_params_frame_init_v1_buttonpad(
 	rc = usb_string(usb_dev, 123, str_buf, str_len);
 	if (rc == -EPIPE) {
 		hid_dbg(hdev,
-			"generic button -enabling string descriptor not found\n");
+			"generic button -enabling string descriptor yest found\n");
 	} else if (rc < 0) {
 		goto cleanup;
 	} else if (strncmp(str_buf, "HK On", rc) != 0) {
@@ -502,7 +502,7 @@ cleanup:
  * (tablet interface's parameters).
  * Can be called repeatedly.
  *
- * @params:	Input parameters to cleanup. Cannot be NULL.
+ * @params:	Input parameters to cleanup. Canyest be NULL.
  */
 void uclogic_params_cleanup(struct uclogic_params *params)
 {
@@ -519,14 +519,14 @@ void uclogic_params_cleanup(struct uclogic_params *params)
  * Get a replacement report descriptor for a tablet's interface.
  *
  * @params:	The parameters of a tablet interface to get report
- *		descriptor for. Cannot be NULL.
+ *		descriptor for. Canyest be NULL.
  * @pdesc:	Location for the resulting, kmalloc-allocated report
- *		descriptor pointer, or for NULL, if there's no replacement
- *		report descriptor. Not modified in case of error. Cannot be
+ *		descriptor pointer, or for NULL, if there's yes replacement
+ *		report descriptor. Not modified in case of error. Canyest be
  *		NULL.
- * @psize:	Location for the resulting report descriptor size, not set if
- *		there's no replacement report descriptor. Not modified in case
- *		of error. Cannot be NULL.
+ * @psize:	Location for the resulting report descriptor size, yest set if
+ *		there's yes replacement report descriptor. Not modified in case
+ *		of error. Canyest be NULL.
  *
  * Returns:
  *	Zero, if successful.
@@ -598,7 +598,7 @@ int uclogic_params_get_desc(const struct uclogic_params *params,
  * specifying the interface is invalid.
  *
  * @params:		Parameters to initialize (to be cleaned with
- *			uclogic_params_cleanup()). Cannot be NULL.
+ *			uclogic_params_cleanup()). Canyest be NULL.
  */
 static void uclogic_params_init_invalid(struct uclogic_params *params)
 {
@@ -613,9 +613,9 @@ static void uclogic_params_init_invalid(struct uclogic_params *params)
  *
  * @params:		Parameters to initialize (to be cleaned with
  *			uclogic_params_cleanup()). Not modified in case of
- *			error. Cannot be NULL.
+ *			error. Canyest be NULL.
  * @hdev:		The HID device of the tablet interface create the
- *			parameters for. Cannot be NULL.
+ *			parameters for. Canyest be NULL.
  * @orig_desc_size:	Expected size of the original report descriptor to
  *			be replaced.
  * @desc_ptr:		Pointer to the replacement report descriptor.
@@ -680,7 +680,7 @@ cleanup:
  *
  * @params:		Parameters to initialize (to be cleaned with
  *			uclogic_params_cleanup()). Not modified in case of
- *			error. Cannot be NULL.
+ *			error. Canyest be NULL.
  */
 static void uclogic_params_init_with_pen_unused(struct uclogic_params *params)
 {
@@ -694,12 +694,12 @@ static void uclogic_params_init_with_pen_unused(struct uclogic_params *params)
  *
  * @params:	Parameters to fill in (to be cleaned with
  *		uclogic_params_cleanup()). Not modified in case of error.
- *		Cannot be NULL.
+ *		Canyest be NULL.
  * @hdev:	The HID device of the tablet interface to initialize and get
- *		parameters from. Cannot be NULL.
+ *		parameters from. Canyest be NULL.
  *
  * Returns:
- *	Zero, if successful. A negative errno code on error.
+ *	Zero, if successful. A negative erryes code on error.
  */
 static int uclogic_params_huion_init(struct uclogic_params *params,
 				     struct hid_device *hdev)
@@ -709,7 +709,7 @@ static int uclogic_params_huion_init(struct uclogic_params *params,
 	struct usb_interface *iface = to_usb_interface(hdev->dev.parent);
 	__u8 bInterfaceNumber = iface->cur_altsetting->desc.bInterfaceNumber;
 	bool found;
-	/* The resulting parameters (noop) */
+	/* The resulting parameters (yesop) */
 	struct uclogic_params p = {0, };
 	static const char transition_ver[] = "HUION_T153_160607";
 	char *ver_ptr = NULL;
@@ -721,7 +721,7 @@ static int uclogic_params_huion_init(struct uclogic_params *params,
 		goto cleanup;
 	}
 
-	/* If it's not a pen interface */
+	/* If it's yest a pen interface */
 	if (bInterfaceNumber != 0) {
 		/* TODO: Consider marking the interface invalid */
 		uclogic_params_init_with_pen_unused(&p);
@@ -746,7 +746,7 @@ static int uclogic_params_huion_init(struct uclogic_params *params,
 	/* If this is a transition firmware */
 	if (strcmp(ver_ptr, transition_ver) == 0) {
 		hid_dbg(hdev,
-			"transition firmware detected, not probing pen v2 parameters\n");
+			"transition firmware detected, yest probing pen v2 parameters\n");
 	} else {
 		/* Try to probe v2 pen parameters */
 		rc = uclogic_params_pen_init_v2(&p.pen, &found, hdev);
@@ -772,7 +772,7 @@ static int uclogic_params_huion_init(struct uclogic_params *params,
 			p.pen_frame_flag = 0x20;
 			goto output;
 		}
-		hid_dbg(hdev, "pen v2 parameters not found\n");
+		hid_dbg(hdev, "pen v2 parameters yest found\n");
 	}
 
 	/* Try to probe v1 pen parameters */
@@ -792,14 +792,14 @@ static int uclogic_params_huion_init(struct uclogic_params *params,
 			goto cleanup;
 		}
 		hid_dbg(hdev, "buttonpad v1 parameters%s found\n",
-			(found ? "" : " not"));
+			(found ? "" : " yest"));
 		if (found) {
 			/* Set bitmask marking frame reports */
 			p.pen_frame_flag = 0x20;
 		}
 		goto output;
 	}
-	hid_dbg(hdev, "pen v1 parameters not found\n");
+	hid_dbg(hdev, "pen v1 parameters yest found\n");
 
 	uclogic_params_init_invalid(&p);
 
@@ -820,13 +820,13 @@ cleanup:
  *
  * @params:	Parameters to fill in (to be cleaned with
  *		uclogic_params_cleanup()). Not modified in case of error.
- *		Cannot be NULL.
+ *		Canyest be NULL.
  * @hdev:	The HID device of the tablet interface to initialize and get
- *		parameters from. Cannot be NULL. Must be using the USB low-level
+ *		parameters from. Canyest be NULL. Must be using the USB low-level
  *		driver, i.e. be an actual USB tablet.
  *
  * Returns:
- *	Zero, if successful. A negative errno code on error.
+ *	Zero, if successful. A negative erryes code on error.
  */
 int uclogic_params_init(struct uclogic_params *params,
 			struct hid_device *hdev)
@@ -837,7 +837,7 @@ int uclogic_params_init(struct uclogic_params *params,
 	struct usb_interface *iface = to_usb_interface(hdev->dev.parent);
 	__u8 bInterfaceNumber = iface->cur_altsetting->desc.bInterfaceNumber;
 	bool found;
-	/* The resulting parameters (noop) */
+	/* The resulting parameters (yesop) */
 	struct uclogic_params p = {0, };
 
 	/* Check arguments */
@@ -869,12 +869,12 @@ int uclogic_params_init(struct uclogic_params *params,
 	 * If the interface is recognized as producing certain useful input:
 	 *	Mark interface as valid.
 	 *	Output interface parameters.
-	 * Else, if the interface is recognized as *not* producing any useful
+	 * Else, if the interface is recognized as *yest* producing any useful
 	 * input:
 	 *	Mark interface as invalid.
 	 * Else:
 	 *	Mark interface as valid.
-	 *	Output noop parameters.
+	 *	Output yesop parameters.
 	 *
 	 * Rule of thumb: it is better to disable a broken interface than let
 	 *		  it spew garbage input.
@@ -908,7 +908,7 @@ int uclogic_params_init(struct uclogic_params *params,
 				}
 				if (!found) {
 					hid_warn(hdev,
-						 "pen parameters not found");
+						 "pen parameters yest found");
 				}
 			} else {
 				uclogic_params_init_invalid(&p);
@@ -954,7 +954,7 @@ int uclogic_params_init(struct uclogic_params *params,
 	case VID_PID(USB_VENDOR_ID_UCLOGIC,
 		     USB_DEVICE_ID_UCLOGIC_TABLET_TWHA60):
 		/*
-		 * If it is not a three-interface version, which is known to
+		 * If it is yest a three-interface version, which is kyeswn to
 		 * respond to initialization.
 		 */
 		if (bNumInterfaces != 3) {
@@ -1012,7 +1012,7 @@ int uclogic_params_init(struct uclogic_params *params,
 				goto cleanup;
 			}
 			if (!found) {
-				hid_warn(hdev, "pen parameters not found");
+				hid_warn(hdev, "pen parameters yest found");
 				uclogic_params_init_invalid(&p);
 			}
 		} else {
@@ -1045,7 +1045,7 @@ int uclogic_params_init(struct uclogic_params *params,
 		break;
 	case VID_PID(USB_VENDOR_ID_UGEE,
 		     USB_DEVICE_ID_UGEE_TABLET_G5):
-		/* Ignore non-pen interfaces */
+		/* Igyesre yesn-pen interfaces */
 		if (bInterfaceNumber != 1) {
 			uclogic_params_init_invalid(&p);
 			break;
@@ -1072,14 +1072,14 @@ int uclogic_params_init(struct uclogic_params *params,
 			p.frame.dev_id_byte =
 				UCLOGIC_RDESC_UGEE_G5_FRAME_DEV_ID_BYTE;
 		} else {
-			hid_warn(hdev, "pen parameters not found");
+			hid_warn(hdev, "pen parameters yest found");
 			uclogic_params_init_invalid(&p);
 		}
 
 		break;
 	case VID_PID(USB_VENDOR_ID_UGEE,
 		     USB_DEVICE_ID_UGEE_TABLET_EX07S):
-		/* Ignore non-pen interfaces */
+		/* Igyesre yesn-pen interfaces */
 		if (bInterfaceNumber != 1) {
 			uclogic_params_init_invalid(&p);
 			break;
@@ -1102,7 +1102,7 @@ int uclogic_params_init(struct uclogic_params *params,
 				goto cleanup;
 			}
 		} else {
-			hid_warn(hdev, "pen parameters not found");
+			hid_warn(hdev, "pen parameters yest found");
 			uclogic_params_init_invalid(&p);
 		}
 

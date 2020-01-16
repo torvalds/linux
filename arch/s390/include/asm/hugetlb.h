@@ -86,9 +86,9 @@ static inline pte_t mk_huge_pte(struct page *page, pgprot_t pgprot)
 	return mk_pte(page, pgprot);
 }
 
-static inline int huge_pte_none(pte_t pte)
+static inline int huge_pte_yesne(pte_t pte)
 {
-	return pte_none(pte);
+	return pte_yesne(pte);
 }
 
 static inline int huge_pte_write(pte_t pte)

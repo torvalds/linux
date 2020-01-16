@@ -80,7 +80,7 @@ static unsigned int tbg_get_div(void __iomem *reg, const struct tbg_def *ptbg)
 
 static int armada_3700_tbg_clock_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	struct clk_hw_onecell_data *hw_tbg_data;
 	struct device *dev = &pdev->dev;
 	const char *parent_name;
@@ -133,7 +133,7 @@ static int armada_3700_tbg_clock_remove(struct platform_device *pdev)
 	int i;
 	struct clk_hw_onecell_data *hw_tbg_data = platform_get_drvdata(pdev);
 
-	of_clk_del_provider(pdev->dev.of_node);
+	of_clk_del_provider(pdev->dev.of_yesde);
 	for (i = 0; i < hw_tbg_data->num; i++)
 		clk_hw_unregister_fixed_factor(hw_tbg_data->hws[i]);
 

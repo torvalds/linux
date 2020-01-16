@@ -9,7 +9,7 @@
  */
 
 /*
- * This file adds a test for Video Device. This test should not be included
+ * This file adds a test for Video Device. This test should yest be included
  * in the Kselftest run. This test should be run when hardware and driver
  * that makes use of V4L2 API is present.
  *
@@ -20,7 +20,7 @@
  *	sudo ./video_device_test -d /dev/videoX
  *
  *	While test is running, remove the device or unbind the driver and
- *	ensure there are no use after free errors and other Oops in the
+ *	ensure there are yes use after free errors and other Oops in the
  *	dmesg.
  *	When possible, enable KaSan kernel config option for use-after-free
  *	error detection.
@@ -29,7 +29,7 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <stdlib.h>
-#include <errno.h>
+#include <erryes.h>
 #include <string.h>
 #include <fcntl.h>
 #include <sys/ioctl.h>
@@ -72,26 +72,26 @@ int main(int argc, char **argv)
 	/* Open Video device and keep it open */
 	fd = open(video_dev, O_RDWR);
 	if (fd == -1) {
-		printf("Video Device open errno %s\n", strerror(errno));
+		printf("Video Device open erryes %s\n", strerror(erryes));
 		exit(-1);
 	}
 
 	printf("\nNote:\n"
 	       "While test is running, remove the device or unbind\n"
-	       "driver and ensure there are no use after free errors\n"
+	       "driver and ensure there are yes use after free errors\n"
 	       "and other Oops in the dmesg. When possible, enable KaSan\n"
 	       "kernel config option for use-after-free error detection.\n\n");
 
 	while (count > 0) {
 		ret = ioctl(fd, VIDIOC_QUERYCAP, &vcap);
 		if (ret < 0)
-			printf("VIDIOC_QUERYCAP errno %s\n", strerror(errno));
+			printf("VIDIOC_QUERYCAP erryes %s\n", strerror(erryes));
 		else
 			printf("Video device driver %s\n", vcap.driver);
 
 		ret = ioctl(fd, VIDIOC_G_TUNER, &vtuner);
 		if (ret < 0)
-			printf("VIDIOC_G_TUNER, errno %s\n", strerror(errno));
+			printf("VIDIOC_G_TUNER, erryes %s\n", strerror(erryes));
 		else
 			printf("type %d rangelow %d rangehigh %d\n",
 				vtuner.type, vtuner.rangelow, vtuner.rangehigh);

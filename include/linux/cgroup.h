@@ -11,7 +11,7 @@
 
 #include <linux/sched.h>
 #include <linux/cpumask.h>
-#include <linux/nodemask.h>
+#include <linux/yesdemask.h>
 #include <linux/rculist.h>
 #include <linux/cgroupstats.h>
 #include <linux/fs.h>
@@ -30,7 +30,7 @@
 #ifdef CONFIG_CGROUPS
 
 /*
- * All weight knobs on the default hierarhcy should use the following min,
+ * All weight kyesbs on the default hierarhcy should use the following min,
  * default and max values.  The default value is the logarithmic center of
  * MIN and MAX and allows 100x to be expressed in both directions.
  */
@@ -65,7 +65,7 @@ struct css_task_iter {
 	struct css_set			*cur_cset;
 	struct css_set			*cur_dcset;
 	struct task_struct		*cur_task;
-	struct list_head		iters_node;	/* css_set->task_iters */
+	struct list_head		iters_yesde;	/* css_set->task_iters */
 };
 
 extern struct cgroup_root cgrp_dfl_root;
@@ -113,7 +113,7 @@ int cgroup_transfer_tasks(struct cgroup *to, struct cgroup *from);
 int cgroup_add_dfl_cftypes(struct cgroup_subsys *ss, struct cftype *cfts);
 int cgroup_add_legacy_cftypes(struct cgroup_subsys *ss, struct cftype *cfts);
 int cgroup_rm_cftypes(struct cftype *cfts);
-void cgroup_file_notify(struct cgroup_file *cfile);
+void cgroup_file_yestify(struct cgroup_file *cfile);
 
 int task_cgroup_path(struct task_struct *task, char *buf, size_t buflen);
 int cgroupstats_build(struct cgroupstats *stats, struct dentry *dentry);
@@ -183,7 +183,7 @@ void css_task_iter_end(struct css_task_iter *it);
  * @root: css whose descendants to walk
  *
  * Walk @root's descendants.  @root is included in the iteration and the
- * first node to be visited.  Must be called under rcu_read_lock().
+ * first yesde to be visited.  Must be called under rcu_read_lock().
  *
  * If a subsystem synchronizes ->css_online() and the start of iteration, a
  * css which finished ->css_online() is guaranteed to be visible in the
@@ -244,7 +244,7 @@ void css_task_iter_end(struct css_task_iter *it);
  *
  * Similar to css_for_each_descendant_pre() but performs post-order
  * traversal instead.  @root is included in the iteration and the last
- * node to be visited.
+ * yesde to be visited.
  *
  * If a subsystem synchronizes ->css_online() and the start of iteration, a
  * css which finished ->css_online() is guaranteed to be visible in the
@@ -270,13 +270,13 @@ void css_task_iter_end(struct css_task_iter *it);
  * processes.
  *
  * On the v2 hierarchy, there may be tasks from multiple processes and they
- * may not share the source or destination csses.
+ * may yest share the source or destination csses.
  *
  * On traditional hierarchies, when there are multiple tasks in @tset, if a
  * task of a process is in @tset, all tasks of the process are in @tset.
  * Also, all are guaranteed to share the same source and destination csses.
  *
- * Iteration is not in any specific order.
+ * Iteration is yest in any specific order.
  */
 #define cgroup_taskset_for_each(task, dst_css, tset)			\
 	for ((task) = cgroup_taskset_first((tset), &(dst_css));		\
@@ -290,7 +290,7 @@ void css_task_iter_end(struct css_task_iter *it);
  * @tset: taskset to iterate
  *
  * Iterate threadgroup leaders of @tset.  For single-task migrations, @tset
- * may not contain any.
+ * may yest contain any.
  */
 #define cgroup_taskset_for_each_leader(leader, dst_css, tset)		\
 	for ((leader) = cgroup_taskset_first((tset), &(dst_css));	\
@@ -342,7 +342,7 @@ static inline void css_get_many(struct cgroup_subsys_state *css, unsigned int n)
  * being released.  This function doesn't care whether @css is on or
  * offline.  The caller naturally needs to ensure that @css is accessible
  * but doesn't have to be holding a reference on it - IOW, RCU protected
- * access is good enough for this function.  Returns %true if a reference
+ * access is good eyesugh for this function.  Returns %true if a reference
  * count was successfully obtained; %false otherwise.
  */
 static inline bool css_tryget(struct cgroup_subsys_state *css)
@@ -358,7 +358,7 @@ static inline bool css_tryget(struct cgroup_subsys_state *css)
  *
  * Obtain a reference on @css if it's online.  The caller naturally needs
  * to ensure that @css is accessible but doesn't have to be holding a
- * reference on it - IOW, RCU protected access is good enough for this
+ * reference on it - IOW, RCU protected access is good eyesugh for this
  * function.  Returns %true if a reference count was successfully obtained;
  * %false otherwise.
  */
@@ -375,10 +375,10 @@ static inline bool css_tryget_online(struct cgroup_subsys_state *css)
  *
  * Test whether @css is in the process of offlining or already offline.  In
  * most cases, ->css_online() and ->css_offline() callbacks should be
- * enough; however, the actual offline operations are RCU delayed and this
+ * eyesugh; however, the actual offline operations are RCU delayed and this
  * test returns %true also when @css is scheduled to be offlined.
  *
- * This is useful, for example, when the use case requires synchronous
+ * This is useful, for example, when the use case requires synchroyesus
  * behavior with respect to cgroup removal.  cgroup removal schedules css
  * offlining but the css can seem alive while the operation is being
  * delayed.  If the delay affects user visible semantics, this test can be
@@ -611,17 +611,17 @@ static inline bool task_under_cgroup_hierarchy(struct task_struct *task,
 	return cgroup_is_descendant(cset->dfl_cgrp, ancestor);
 }
 
-/* no synchronization, the result can only be used as a hint */
+/* yes synchronization, the result can only be used as a hint */
 static inline bool cgroup_is_populated(struct cgroup *cgrp)
 {
 	return cgrp->nr_populated_csets + cgrp->nr_populated_domain_children +
 		cgrp->nr_populated_threaded_children;
 }
 
-/* returns ino associated with a cgroup */
-static inline ino_t cgroup_ino(struct cgroup *cgrp)
+/* returns iyes associated with a cgroup */
+static inline iyes_t cgroup_iyes(struct cgroup *cgrp)
 {
-	return kernfs_ino(cgrp->kn);
+	return kernfs_iyes(cgrp->kn);
 }
 
 /* cft/css accessors for cftype->write() operation */
@@ -680,7 +680,7 @@ static inline void cgroup_init_kthreadd(void)
 	 * that the new kthreads are guaranteed to stay in the root until
 	 * initialization is finished.
 	 */
-	current->no_cgroup_migration = 1;
+	current->yes_cgroup_migration = 1;
 }
 
 static inline void cgroup_kthread_ready(void)
@@ -689,7 +689,7 @@ static inline void cgroup_kthread_ready(void)
 	 * This kthread finished initialization.  The creator should have
 	 * set PF_NO_SETAFFINITY if this kthread should stay in the root.
 	 */
-	current->no_cgroup_migration = 0;
+	current->yes_cgroup_migration = 0;
 }
 
 void cgroup_path_from_kernfs_id(u64 id, char *buf, size_t buflen);

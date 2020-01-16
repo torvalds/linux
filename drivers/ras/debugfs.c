@@ -18,16 +18,16 @@ static int trace_show(struct seq_file *m, void *v)
 	return atomic_read(&trace_count);
 }
 
-static int trace_open(struct inode *inode, struct file *file)
+static int trace_open(struct iyesde *iyesde, struct file *file)
 {
 	atomic_inc(&trace_count);
 	return single_open(file, trace_show, NULL);
 }
 
-static int trace_release(struct inode *inode, struct file *file)
+static int trace_release(struct iyesde *iyesde, struct file *file)
 {
 	atomic_dec(&trace_count);
-	return single_release(inode, file);
+	return single_release(iyesde, file);
 }
 
 static const struct file_operations trace_fops = {

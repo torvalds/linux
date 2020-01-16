@@ -110,7 +110,7 @@ static int atmel_read(struct atmel_captouch_device *capdev,
 
 	if (capdev->xfer_buf[0] != reg) {
 		dev_err(dev,
-			"I2C read error: register address does not match (%#02x vs %02x)\n",
+			"I2C read error: register address does yest match (%#02x vs %02x)\n",
 			capdev->xfer_buf[0], reg);
 		return -ECOMM;
 	}
@@ -166,7 +166,7 @@ static int atmel_captouch_probe(struct i2c_client *client,
 {
 	struct atmel_captouch_device *capdev;
 	struct device *dev = &client->dev;
-	struct device_node *node;
+	struct device_yesde *yesde;
 	int i;
 	int err;
 
@@ -174,7 +174,7 @@ static int atmel_captouch_probe(struct i2c_client *client,
 				     I2C_FUNC_SMBUS_BYTE_DATA |
 					I2C_FUNC_SMBUS_WORD_DATA |
 					I2C_FUNC_SMBUS_I2C_BLOCK)) {
-		dev_err(dev, "needed i2c functionality is not supported\n");
+		dev_err(dev, "needed i2c functionality is yest supported\n");
 		return -EINVAL;
 	}
 
@@ -203,20 +203,20 @@ static int atmel_captouch_probe(struct i2c_client *client,
 	capdev->input->name = "ATMegaXX Capacitive Button Controller";
 	__set_bit(EV_KEY, capdev->input->evbit);
 
-	node = dev->of_node;
-	if (!node) {
-		dev_err(dev, "failed to find matching node in device tree\n");
+	yesde = dev->of_yesde;
+	if (!yesde) {
+		dev_err(dev, "failed to find matching yesde in device tree\n");
 		return -EINVAL;
 	}
 
-	if (of_property_read_bool(node, "autorepeat"))
+	if (of_property_read_bool(yesde, "autorepeat"))
 		__set_bit(EV_REP, capdev->input->evbit);
 
-	capdev->num_btn = of_property_count_u32_elems(node, "linux,keymap");
+	capdev->num_btn = of_property_count_u32_elems(yesde, "linux,keymap");
 	if (capdev->num_btn > MAX_NUM_OF_BUTTONS)
 		capdev->num_btn = MAX_NUM_OF_BUTTONS;
 
-	err = of_property_read_u32_array(node, "linux,keycodes",
+	err = of_property_read_u32_array(yesde, "linux,keycodes",
 					 capdev->keycodes,
 					 capdev->num_btn);
 	if (err) {

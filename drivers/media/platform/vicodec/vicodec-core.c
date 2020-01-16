@@ -531,8 +531,8 @@ static void update_capture_data_from_header(struct vicodec_ctx *ctx)
 	unsigned int hdr_height_div = (flags & FWHT_FL_CHROMA_FULL_HEIGHT) ? 1 : 2;
 
 	/*
-	 * This function should not be used by a stateless codec since
-	 * it changes values in q_data that are not request specific
+	 * This function should yest be used by a stateless codec since
+	 * it changes values in q_data that are yest request specific
 	 */
 	WARN_ON(ctx->is_stateless);
 
@@ -620,7 +620,7 @@ restart:
 	 * The current scanned frame might be the first frame of a new
 	 * resolution so its size might be larger than ctx->comp_max_size.
 	 * In that case it is copied up to the current buffer capacity and
-	 * the copy will continue after allocating new large enough buffer
+	 * the copy will continue after allocating new large eyesugh buffer
 	 * when restreaming
 	 */
 	max_to_copy = min(comp_frame_size, ctx->comp_max_size);
@@ -1454,7 +1454,7 @@ static int vicodec_buf_prepare(struct vb2_buffer *vb)
 
 	if (vb2_plane_size(vb, 0) < q_data->vb2_sizeimage) {
 		dprintk(ctx->dev,
-			"%s data will not fit into plane (%lu < %lu)\n",
+			"%s data will yest fit into plane (%lu < %lu)\n",
 			__func__, vb2_plane_size(vb, 0),
 			(long)q_data->vb2_sizeimage);
 		return -EINVAL;
@@ -2075,7 +2075,7 @@ static const struct video_device vicodec_videodev = {
 	.vfl_dir	= VFL_DIR_M2M,
 	.fops		= &vicodec_fops,
 	.ioctl_ops	= &vicodec_ioctl_ops,
-	.minor		= -1,
+	.miyesr		= -1,
 	.release	= video_device_release_empty,
 };
 

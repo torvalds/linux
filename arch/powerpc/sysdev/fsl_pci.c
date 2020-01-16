@@ -69,7 +69,7 @@ static int fsl_pcie_check_link(struct pci_controller *hose)
 
 	if (hose->indirect_type & PPC_INDIRECT_TYPE_FSL_CFG_REG_LINK) {
 		if (hose->ops->read == fsl_indirect_read_config)
-			__indirect_read_config(hose, hose->first_busno, 0,
+			__indirect_read_config(hose, hose->first_busyes, 0,
 					       PCIE_LTSSM, 4, &val);
 		else
 			early_read_config_dword(hose, 0, 0, PCIE_LTSSM, &val);
@@ -178,15 +178,15 @@ static int setup_one_atmu(struct ccsr_pci __iomem *pci,
 
 static bool is_kdump(void)
 {
-	struct device_node *node;
+	struct device_yesde *yesde;
 
-	node = of_find_node_by_type(NULL, "memory");
-	if (!node) {
+	yesde = of_find_yesde_by_type(NULL, "memory");
+	if (!yesde) {
 		WARN_ON_ONCE(1);
 		return false;
 	}
 
-	return of_property_read_bool(node, "linux,usable-memory");
+	return of_property_read_bool(yesde, "linux,usable-memory");
 }
 
 /* atmu setup for fsl pci/pcie controller */
@@ -218,7 +218,7 @@ static void setup_pci_atmu(struct pci_controller *hose)
 		 * windows have implemented the default target value as 0xf
 		 * for CCSR space.In all Freescale legacy devices the target
 		 * of 0xf is reserved for local memory space. 9132 Rev1.0
-		 * now has local mempry space mapped to target 0x0 instead of
+		 * yesw has local mempry space mapped to target 0x0 instead of
 		 * 0xf. Hence adding a workaround to remove the target 0xf
 		 * defined for memory space from Inbound window attributes.
 		 */
@@ -233,7 +233,7 @@ static void setup_pci_atmu(struct pci_controller *hose)
 		}
 	}
 
-	/* Disable all windows (except powar0 since it's ignored) */
+	/* Disable all windows (except powar0 since it's igyesred) */
 	for(i = 1; i < 5; i++)
 		out_be32(&pci->pow[i].powar, 0);
 
@@ -319,8 +319,8 @@ static void setup_pci_atmu(struct pci_controller *hose)
 	 * The msi-address-64 property, if it exists, indicates the physical
 	 * address of the MSIIR register.  Normally, this register is located
 	 * inside CCSR, so the ATMU that covers all of CCSR is used. But if
-	 * this property exists, then we normally need to create a new ATMU
-	 * for it.  For now, however, we cheat.  The only entity that creates
+	 * this property exists, then we yesrmally need to create a new ATMU
+	 * for it.  For yesw, however, we cheat.  The only entity that creates
 	 * this property is the Freescale hypervisor, and the address is
 	 * specified in the partition configuration.  Typically, the address
 	 * is located in the page immediately after the end of DDR.  If so, we
@@ -479,21 +479,21 @@ static void __init setup_pci_cmd(struct pci_controller *hose)
 void fsl_pcibios_fixup_bus(struct pci_bus *bus)
 {
 	struct pci_controller *hose = pci_bus_to_host(bus);
-	int i, is_pcie = 0, no_link;
+	int i, is_pcie = 0, yes_link;
 
 	/* The root complex bridge comes up with bogus resources,
 	 * we copy the PHB ones in.
 	 *
-	 * With the current generic PCI code, the PHB bus no longer
+	 * With the current generic PCI code, the PHB bus yes longer
 	 * has bus->resource[0..4] set, so things are a bit more
 	 * tricky.
 	 */
 
 	if (fsl_pcie_bus_fixup)
 		is_pcie = early_find_capability(hose, 0, 0, PCI_CAP_ID_EXP);
-	no_link = !!(hose->indirect_type & PPC_INDIRECT_TYPE_NO_PCIE_LINK);
+	yes_link = !!(hose->indirect_type & PPC_INDIRECT_TYPE_NO_PCIE_LINK);
 
-	if (bus->parent == hose->bus && (is_pcie || no_link)) {
+	if (bus->parent == hose->bus && (is_pcie || yes_link)) {
 		for (i = 0; i < PCI_BRIDGE_RESOURCE_NUM; ++i) {
 			struct resource *res = bus->resource[i];
 			struct resource *par;
@@ -520,12 +520,12 @@ int fsl_add_bridge(struct platform_device *pdev, int is_primary)
 	struct resource rsrc;
 	const int *bus_range;
 	u8 hdr_type, progif;
-	struct device_node *dev;
+	struct device_yesde *dev;
 	struct ccsr_pci __iomem *pci;
 	u16 temp;
 	u32 svr = mfspr(SPRN_SVR);
 
-	dev = pdev->dev.of_node;
+	dev = pdev->dev.of_yesde;
 
 	if (!of_device_is_available(dev)) {
 		pr_warn("%pOF: disabled\n", dev);
@@ -553,15 +553,15 @@ int fsl_add_bridge(struct platform_device *pdev, int is_primary)
 
 	/* set platform device as the parent */
 	hose->parent = &pdev->dev;
-	hose->first_busno = bus_range ? bus_range[0] : 0x0;
-	hose->last_busno = bus_range ? bus_range[1] : 0xff;
+	hose->first_busyes = bus_range ? bus_range[0] : 0x0;
+	hose->last_busyes = bus_range ? bus_range[1] : 0xff;
 
 	pr_debug("PCI memory map start 0x%016llx, size 0x%016llx\n",
 		 (u64)rsrc.start, (u64)resource_size(&rsrc));
 
 	pci = hose->private_data = ioremap(rsrc.start, resource_size(&rsrc));
 	if (!hose->private_data)
-		goto no_bridge;
+		goto yes_bridge;
 
 	setup_indirect_pci(hose, rsrc.start, rsrc.start + 0x4,
 			   PPC_INDIRECT_TYPE_BIG_ENDIAN);
@@ -575,14 +575,14 @@ int fsl_add_bridge(struct platform_device *pdev, int is_primary)
 		/* For PCIE read HEADER_TYPE to identify controller mode */
 		early_read_config_byte(hose, 0, 0, PCI_HEADER_TYPE, &hdr_type);
 		if ((hdr_type & 0x7f) != PCI_HEADER_TYPE_BRIDGE)
-			goto no_bridge;
+			goto yes_bridge;
 
 	} else {
 		/* For PCI read PROG to identify controller mode */
 		early_read_config_byte(hose, 0, 0, PCI_CLASS_PROG, &progif);
 		if ((progif & 1) &&
 		    !of_property_read_bool(dev, "fsl,pci-agent-force-enum"))
-			goto no_bridge;
+			goto yes_bridge;
 	}
 
 	setup_pci_cmd(hose);
@@ -598,7 +598,7 @@ int fsl_add_bridge(struct platform_device *pdev, int is_primary)
 		 * Set PBFR(PCI Bus Function Register)[10] = 1 to
 		 * disable the combining of crossing cacheline
 		 * boundary requests into one burst transaction.
-		 * PCI-X operation is not affected.
+		 * PCI-X operation is yest affected.
 		 * Fix erratum PCI 5 on MPC8548
 		 */
 #define PCI_BUS_FUNCTION 0x44
@@ -618,8 +618,8 @@ int fsl_add_bridge(struct platform_device *pdev, int is_primary)
 
 	printk(KERN_INFO "Found FSL PCI host bridge at 0x%016llx. "
 		"Firmware bus number: %d->%d\n",
-		(unsigned long long)rsrc.start, hose->first_busno,
-		hose->last_busno);
+		(unsigned long long)rsrc.start, hose->first_busyes,
+		hose->last_busyes);
 
 	pr_debug(" ->Hose at 0x%p, cfg_addr=0x%p,cfg_data=0x%p\n",
 		hose, hose->cfg_addr, hose->cfg_data);
@@ -636,9 +636,9 @@ int fsl_add_bridge(struct platform_device *pdev, int is_primary)
 
 	return 0;
 
-no_bridge:
+yes_bridge:
 	iounmap(hose->private_data);
-	/* unmap cfg_data & cfg_addr separately if not on same page */
+	/* unmap cfg_data & cfg_addr separately if yest on same page */
 	if (((unsigned long)hose->cfg_data & PAGE_MASK) !=
 	    ((unsigned long)hose->cfg_addr & PAGE_MASK))
 		iounmap(hose->cfg_data);
@@ -683,11 +683,11 @@ static int mpc83xx_pcie_exclude_device(struct pci_bus *bus, unsigned int devfn)
 		return PCIBIOS_DEVICE_NOT_FOUND;
 	/*
 	 * Workaround for the HW bug: for Type 0 configure transactions the
-	 * PCI-E controller does not check the device number bits and just
+	 * PCI-E controller does yest check the device number bits and just
 	 * assumes that the device number bits are 0.
 	 */
-	if (bus->number == hose->first_busno ||
-			bus->primary == hose->first_busno) {
+	if (bus->number == hose->first_busyes ||
+			bus->primary == hose->first_busyes) {
 		if (devfn & 0xf8)
 			return PCIBIOS_DEVICE_NOT_FOUND;
 	}
@@ -715,7 +715,7 @@ static void __iomem *mpc83xx_pcie_remap_cfg(struct pci_bus *bus,
 	offset &= 0xfff;
 
 	/* Type 0 */
-	if (bus->number == hose->first_busno)
+	if (bus->number == hose->first_busyes)
 		return pcie->cfg_type0 + offset;
 
 	if (pcie->dev_base == dev_base)
@@ -734,7 +734,7 @@ static int mpc83xx_pcie_write_config(struct pci_bus *bus, unsigned int devfn,
 	struct pci_controller *hose = pci_bus_to_host(bus);
 
 	/* PPC_INDIRECT_TYPE_SURPRESS_PRIMARY_BUS */
-	if (offset == PCI_PRIMARY_BUS && bus->number == hose->first_busno)
+	if (offset == PCI_PRIMARY_BUS && bus->number == hose->first_busyes)
 		val &= 0xffffff00;
 
 	return pci_generic_config_write(bus, devfn, offset, len, val);
@@ -792,7 +792,7 @@ err0:
 
 }
 
-int __init mpc83xx_add_bridge(struct device_node *dev)
+int __init mpc83xx_add_bridge(struct device_yesde *dev)
 {
 	int ret;
 	int len;
@@ -853,8 +853,8 @@ int __init mpc83xx_add_bridge(struct device_node *dev)
 	if (!hose)
 		return -ENOMEM;
 
-	hose->first_busno = bus_range ? bus_range[0] : 0;
-	hose->last_busno = bus_range ? bus_range[1] : 0xff;
+	hose->first_busyes = bus_range ? bus_range[0] : 0;
+	hose->last_busyes = bus_range ? bus_range[1] : 0xff;
 
 	if (of_device_is_compatible(dev, "fsl,mpc8314-pcie")) {
 		ret = mpc83xx_pcie_setup(hose, &rsrc_reg);
@@ -867,8 +867,8 @@ int __init mpc83xx_add_bridge(struct device_node *dev)
 
 	printk(KERN_INFO "Found FSL PCI host bridge at 0x%016llx. "
 	       "Firmware bus number: %d->%d\n",
-	       (unsigned long long)rsrc_reg.start, hose->first_busno,
-	       hose->last_busno);
+	       (unsigned long long)rsrc_reg.start, hose->first_busyes,
+	       hose->last_busyes);
 
 	pr_debug(" ->Hose at 0x%p, cfg_addr=0x%p,cfg_data=0x%p\n",
 	    hose, hose->cfg_addr, hose->cfg_data);
@@ -895,7 +895,7 @@ u64 fsl_pci_immrbar_base(struct pci_controller *hose)
 		/* Walk the Root Complex Inbound windows to match IMMR base */
 		in = pcie->cfg_type0 + PEX_RC_INWIN_BASE;
 		for (i = 0; i < 4; i++) {
-			/* not enabled, skip */
+			/* yest enabled, skip */
 			if (!(in_le32(&in[i].ar) & PEX_RCIWARn_EN))
 				continue;
 
@@ -904,7 +904,7 @@ u64 fsl_pci_immrbar_base(struct pci_controller *hose)
 					    in_le32(&in[i].barl);
 		}
 
-		printk(KERN_WARNING "could not find PCI BAR matching IMMR\n");
+		printk(KERN_WARNING "could yest find PCI BAR matching IMMR\n");
 	}
 #endif
 
@@ -1034,7 +1034,7 @@ static int is_in_pci_mem_space(phys_addr_t addr)
 	struct resource *res;
 	int i;
 
-	list_for_each_entry(hose, &hose_list, list_node) {
+	list_for_each_entry(hose, &hose_list, list_yesde) {
 		if (!(hose->indirect_type & PPC_INDIRECT_TYPE_EXT_REG))
 			continue;
 
@@ -1106,35 +1106,35 @@ static const struct of_device_id pci_ids[] = {
 	{},
 };
 
-struct device_node *fsl_pci_primary;
+struct device_yesde *fsl_pci_primary;
 
 void fsl_pci_assign_primary(void)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 
 	/* Callers can specify the primary bus using other means. */
 	if (fsl_pci_primary)
 		return;
 
-	/* If a PCI host bridge contains an ISA node, it's primary. */
-	np = of_find_node_by_type(NULL, "isa");
+	/* If a PCI host bridge contains an ISA yesde, it's primary. */
+	np = of_find_yesde_by_type(NULL, "isa");
 	while ((fsl_pci_primary = of_get_parent(np))) {
-		of_node_put(np);
+		of_yesde_put(np);
 		np = fsl_pci_primary;
 
-		if (of_match_node(pci_ids, np) && of_device_is_available(np))
+		if (of_match_yesde(pci_ids, np) && of_device_is_available(np))
 			return;
 	}
 
 	/*
-	 * If there's no PCI host bridge with ISA, arbitrarily
+	 * If there's yes PCI host bridge with ISA, arbitrarily
 	 * designate one as primary.  This can go away once
 	 * various bugs with primary-less systems are fixed.
 	 */
-	for_each_matching_node(np, pci_ids) {
+	for_each_matching_yesde(np, pci_ids) {
 		if (of_device_is_available(np)) {
 			fsl_pci_primary = np;
-			of_node_put(np);
+			of_yesde_put(np);
 			return;
 		}
 	}
@@ -1208,7 +1208,7 @@ static int fsl_pci_pme_probe(struct pci_controller *hose)
 	return 0;
 }
 
-static void send_pme_turnoff_message(struct pci_controller *hose)
+static void send_pme_turyesff_message(struct pci_controller *hose)
 {
 	struct ccsr_pci __iomem *pci = hose->private_data;
 	u32 dr;
@@ -1231,14 +1231,14 @@ static void send_pme_turnoff_message(struct pci_controller *hose)
 
 static void fsl_pci_syscore_do_suspend(struct pci_controller *hose)
 {
-	send_pme_turnoff_message(hose);
+	send_pme_turyesff_message(hose);
 }
 
 static int fsl_pci_syscore_suspend(void)
 {
 	struct pci_controller *hose, *tmp;
 
-	list_for_each_entry_safe(hose, tmp, &hose_list, list_node)
+	list_for_each_entry_safe(hose, tmp, &hose_list, list_yesde)
 		fsl_pci_syscore_do_suspend(hose);
 
 	return 0;
@@ -1271,7 +1271,7 @@ static void fsl_pci_syscore_resume(void)
 {
 	struct pci_controller *hose, *tmp;
 
-	list_for_each_entry_safe(hose, tmp, &hose_list, list_node)
+	list_for_each_entry_safe(hose, tmp, &hose_list, list_yesde)
 		fsl_pci_syscore_do_resume(hose);
 }
 
@@ -1292,7 +1292,7 @@ static int add_err_dev(struct platform_device *pdev)
 {
 	struct platform_device *errdev;
 	struct mpc85xx_edac_pci_plat_data pd = {
-		.of_node = pdev->dev.of_node
+		.of_yesde = pdev->dev.of_yesde
 	};
 
 	errdev = platform_device_register_resndata(&pdev->dev,
@@ -1307,11 +1307,11 @@ static int add_err_dev(struct platform_device *pdev)
 
 static int fsl_pci_probe(struct platform_device *pdev)
 {
-	struct device_node *node;
+	struct device_yesde *yesde;
 	int ret;
 
-	node = pdev->dev.of_node;
-	ret = fsl_add_bridge(pdev, fsl_pci_primary == node);
+	yesde = pdev->dev.of_yesde;
+	ret = fsl_add_bridge(pdev, fsl_pci_primary == yesde);
 	if (ret)
 		return ret;
 

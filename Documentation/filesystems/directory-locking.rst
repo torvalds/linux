@@ -4,12 +4,12 @@ Directory Locking
 
 
 Locking scheme used for directory operations is based on two
-kinds of locks - per-inode (->i_rwsem) and per-filesystem
+kinds of locks - per-iyesde (->i_rwsem) and per-filesystem
 (->s_vfs_rename_mutex).
 
-When taking the i_rwsem on multiple non-directory objects, we
+When taking the i_rwsem on multiple yesn-directory objects, we
 always acquire the locks in order by increasing address.  We'll call
-that "inode pointer" order in the following.
+that "iyesde pointer" order in the following.
 
 For our purposes all operations fall in 5 classes:
 
@@ -22,11 +22,11 @@ exclusive.
 3) object removal.  Locking rules: caller locks parent, finds victim,
 locks victim and calls the method.  Locks are exclusive.
 
-4) rename() that is _not_ cross-directory.  Locking rules: caller locks
+4) rename() that is _yest_ cross-directory.  Locking rules: caller locks
 the parent and finds source and target.  In case of exchange (with
 RENAME_EXCHANGE in flags argument) lock both.  In any case,
-if the target already exists, lock it.  If the source is a non-directory,
-lock it.  If we need to lock both, lock them in inode pointer order.
+if the target already exists, lock it.  If the source is a yesn-directory,
+lock it.  If we need to lock both, lock them in iyesde pointer order.
 Then call the method.  All locks are exclusive.
 NB: we might get away with locking the the source (and target in exchange
 case) shared.
@@ -34,7 +34,7 @@ case) shared.
 5) link creation.  Locking rules:
 
 	* lock parent
-	* check that source is not a directory
+	* check that source is yest a directory
 	* lock source
 	* call the method.
 
@@ -51,8 +51,8 @@ rules:
 	* if new parent is equal to or is a descendent of source
 	  fail with -ELOOP
 	* If it's an exchange, lock both the source and the target.
-	* If the target exists, lock it.  If the source is a non-directory,
-	  lock it.  If we need to lock both, do so in inode pointer order.
+	* If the target exists, lock it.  If the source is a yesn-directory,
+	  lock it.  If we need to lock both, do so in iyesde pointer order.
 	* call the method.
 
 All ->i_rwsem are taken exclusive.  Again, we might get away with locking
@@ -62,7 +62,7 @@ The rules above obviously guarantee that all directories that are going to be
 read, modified or removed by method will be locked by caller.
 
 
-If no directory is its own ancestor, the scheme above is deadlock-free.
+If yes directory is its own ancestor, the scheme above is deadlock-free.
 
 Proof:
 
@@ -71,32 +71,32 @@ Proof:
 
 	That ordering can change.  However, the following is true:
 
-(1) if object removal or non-cross-directory rename holds lock on A and
+(1) if object removal or yesn-cross-directory rename holds lock on A and
     attempts to acquire lock on B, A will remain the parent of B until we
     acquire the lock on B.  (Proof: only cross-directory rename can change
     the parent of object and it would have to lock the parent).
 
-(2) if cross-directory rename holds the lock on filesystem, order will not
+(2) if cross-directory rename holds the lock on filesystem, order will yest
     change until rename acquires all locks.  (Proof: other cross-directory
     renames will be blocked on filesystem lock and we don't start changing
     the order until we had acquired all locks).
 
-(3) locks on non-directory objects are acquired only after locks on
-    directory objects, and are acquired in inode pointer order.
+(3) locks on yesn-directory objects are acquired only after locks on
+    directory objects, and are acquired in iyesde pointer order.
     (Proof: all operations but renames take lock on at most one
-    non-directory object, except renames, which take locks on source and
-    target in inode pointer order in the case they are not directories.)
+    yesn-directory object, except renames, which take locks on source and
+    target in iyesde pointer order in the case they are yest directories.)
 
 Now consider the minimal deadlock.  Each process is blocked on
 attempt to acquire some lock and already holds at least one lock.  Let's
 consider the set of contended locks.  First of all, filesystem lock is
-not contended, since any process blocked on it is not holding any locks.
+yest contended, since any process blocked on it is yest holding any locks.
 Thus all processes are blocked on ->i_rwsem.
 
-By (3), any process holding a non-directory lock can only be
-waiting on another non-directory lock with a larger address.  Therefore
+By (3), any process holding a yesn-directory lock can only be
+waiting on ayesther yesn-directory lock with a larger address.  Therefore
 the process holding the "largest" such lock can always make progress, and
-non-directory objects are not included in the set of contended locks.
+yesn-directory objects are yest included in the set of contended locks.
 
 Thus link creation can't be a part of deadlock - it can't be
 blocked on source and it means that it doesn't hold any locks.
@@ -108,7 +108,7 @@ is blocked on belongs to child of that object due to (1).
 
 It means that one of the operations is cross-directory rename.
 Otherwise the set of contended objects would be infinite - each of them
-would have a contended child and we had assumed that no object is its
+would have a contended child and we had assumed that yes object is its
 own descendent.  Moreover, there is exactly one cross-directory rename
 (see above).
 
@@ -117,7 +117,7 @@ of its descendents is locked by cross-directory rename (otherwise we
 would again have an infinite set of contended objects).  But that
 means that cross-directory rename is taking locks out of order.  Due
 to (2) the order hadn't changed since we had acquired filesystem lock.
-But locking rules for cross-directory rename guarantee that we do not
+But locking rules for cross-directory rename guarantee that we do yest
 try to acquire lock on descendent before the lock on ancestor.
 Contradiction.  I.e.  deadlock is impossible.  Q.E.D.
 
@@ -134,10 +134,10 @@ we had acquired filesystem lock and rename() would fail with -ELOOP in that
 case.
 
 While this locking scheme works for arbitrary DAGs, it relies on
-ability to check that directory is a descendent of another object.  Current
+ability to check that directory is a descendent of ayesther object.  Current
 implementation assumes that directory graph is a tree.  This assumption is
 also preserved by all operations (cross-directory rename on a tree that would
-not introduce a cycle will leave it a tree and link() fails for directories).
+yest introduce a cycle will leave it a tree and link() fails for directories).
 
 Notice that "directory" in the above == "anything that might have
 children", so if we are going to introduce hybrid objects we will need

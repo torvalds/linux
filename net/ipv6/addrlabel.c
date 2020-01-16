@@ -35,7 +35,7 @@ struct ip6addrlbl_entry {
 	int ifindex;
 	int addrtype;
 	u32 label;
-	struct hlist_node list;
+	struct hlist_yesde list;
 	struct rcu_head rcu;
 };
 
@@ -56,7 +56,7 @@ struct ip6addrlbl_entry {
  *							(deprecated by RFC3879)
  * 3ffe::/16		N/A		12		6bone
  *
- * Note: 0xffffffff is used if we do not have any policies.
+ * Note: 0xffffffff is used if we do yest have any policies.
  * Note: Labels for ULA and 6to4 are different from labels listed in RFC6724.
  */
 
@@ -204,7 +204,7 @@ static int __ip6addrlbl_add(struct net *net, struct ip6addrlbl_entry *newp,
 			    int replace)
 {
 	struct ip6addrlbl_entry *last = NULL, *p = NULL;
-	struct hlist_node *n;
+	struct hlist_yesde *n;
 	int ret = 0;
 
 	ADDRLABEL(KERN_DEBUG "%s(newp=%p, replace=%d)\n", __func__, newp,
@@ -267,7 +267,7 @@ static int __ip6addrlbl_del(struct net *net,
 			    int ifindex)
 {
 	struct ip6addrlbl_entry *p = NULL;
-	struct hlist_node *n;
+	struct hlist_yesde *n;
 	int ret = -ESRCH;
 
 	ADDRLABEL(KERN_DEBUG "%s(prefix=%pI6, prefixlen=%d, ifindex=%d)\n",
@@ -330,7 +330,7 @@ static int __net_init ip6addrlbl_net_init(struct net *net)
 static void __net_exit ip6addrlbl_net_exit(struct net *net)
 {
 	struct ip6addrlbl_entry *p = NULL;
-	struct hlist_node *n;
+	struct hlist_yesde *n;
 
 	/* Remove all labels belonging to the exiting net */
 	spin_lock(&net->ipv6.ip6addrlbl_table.lock);

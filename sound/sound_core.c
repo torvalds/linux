@@ -30,7 +30,7 @@ MODULE_DESCRIPTION("Core sound module");
 MODULE_AUTHOR("Alan Cox");
 MODULE_LICENSE("GPL");
 
-static char *sound_devnode(struct device *dev, umode_t *mode)
+static char *sound_devyesde(struct device *dev, umode_t *mode)
 {
 	if (MAJOR(dev->devt) == SOUND_MAJOR)
 		return NULL;
@@ -51,7 +51,7 @@ static int __init init_soundcore(void)
 		return PTR_ERR(sound_class);
 	}
 
-	sound_class->devnode = sound_devnode;
+	sound_class->devyesde = sound_devyesde;
 
 	return 0;
 }
@@ -108,15 +108,15 @@ module_exit(cleanup_soundcore);
 
 struct sound_unit
 {
-	int unit_minor;
+	int unit_miyesr;
 	const struct file_operations *unit_fops;
 	struct sound_unit *next;
 	char name[32];
 };
 
 /*
- * By default, OSS sound_core claims full legacy minor range (0-255)
- * of SOUND_MAJOR to trap open attempts to any sound minor and
+ * By default, OSS sound_core claims full legacy miyesr range (0-255)
+ * of SOUND_MAJOR to trap open attempts to any sound miyesr and
  * requests modules using custom sound-slot/service-* module aliases.
  * The only benefit of doing this is allowing use of custom module
  * aliases instead of the standard char-major-* ones.  This behavior
@@ -126,8 +126,8 @@ struct sound_unit
  * CONFIG_SOUND_OSS_CORE_PRECLAIM and soundcore.preclaim_oss kernel
  * parameter are added to allow distros and developers to try and
  * switch to alternative implementations without needing to rebuild
- * the kernel in the meantime.  If preclaim_oss is non-zero, the
- * kernel will behave the same as before.  All SOUND_MAJOR minors are
+ * the kernel in the meantime.  If preclaim_oss is yesn-zero, the
+ * kernel will behave the same as before.  All SOUND_MAJOR miyesrs are
  * preclaimed and the custom module aliases along with standard chrdev
  * ones are emitted if a missing device is opened.  If preclaim_oss is
  * zero, sound_core only grabs what's actually in use and for missing
@@ -144,14 +144,14 @@ static int preclaim_oss = 0;
 
 module_param(preclaim_oss, int, 0444);
 
-static int soundcore_open(struct inode *, struct file *);
+static int soundcore_open(struct iyesde *, struct file *);
 
 static const struct file_operations soundcore_fops =
 {
 	/* We must have an owner or the module locking fails */
 	.owner	= THIS_MODULE,
 	.open	= soundcore_open,
-	.llseek = noop_llseek,
+	.llseek = yesop_llseek,
 };
 
 /*
@@ -165,13 +165,13 @@ static int __sound_insert_unit(struct sound_unit * s, struct sound_unit **list, 
 
 	if (index < 0) {	/* first free */
 
-		while (*list && (*list)->unit_minor<n)
+		while (*list && (*list)->unit_miyesr<n)
 			list=&((*list)->next);
 
 		while(n<top)
 		{
 			/* Found a hole ? */
-			if(*list==NULL || (*list)->unit_minor>n)
+			if(*list==NULL || (*list)->unit_miyesr>n)
 				break;
 			list=&((*list)->next);
 			n+=SOUND_STEP;
@@ -182,9 +182,9 @@ static int __sound_insert_unit(struct sound_unit * s, struct sound_unit **list, 
 	} else {
 		n = low+(index*16);
 		while (*list) {
-			if ((*list)->unit_minor==n)
+			if ((*list)->unit_miyesr==n)
 				return -EBUSY;
-			if ((*list)->unit_minor>n)
+			if ((*list)->unit_miyesr>n)
 				break;
 			list=&((*list)->next);
 		}
@@ -194,7 +194,7 @@ static int __sound_insert_unit(struct sound_unit * s, struct sound_unit **list, 
 	 *	Fill it in
 	 */
 	 
-	s->unit_minor=n;
+	s->unit_miyesr=n;
 	s->unit_fops=fops;
 	
 	/*
@@ -209,7 +209,7 @@ static int __sound_insert_unit(struct sound_unit * s, struct sound_unit **list, 
 }
 
 /*
- *	Remove a node from the chain. Called with the lock asserted
+ *	Remove a yesde from the chain. Called with the lock asserted
  */
  
 static struct sound_unit *__sound_remove_unit(struct sound_unit **list, int unit)
@@ -217,7 +217,7 @@ static struct sound_unit *__sound_remove_unit(struct sound_unit **list, int unit
 	while(*list)
 	{
 		struct sound_unit *p=*list;
-		if(p->unit_minor==unit)
+		if(p->unit_miyesr==unit)
 		{
 			*list=p->next;
 			return p;
@@ -261,17 +261,17 @@ retry:
 
 	if (!preclaim_oss) {
 		/*
-		 * Something else might have grabbed the minor.  If
+		 * Something else might have grabbed the miyesr.  If
 		 * first free slot is requested, rescan with @low set
 		 * to the next unit; otherwise, -EBUSY.
 		 */
-		r = __register_chrdev(SOUND_MAJOR, s->unit_minor, 1, s->name,
+		r = __register_chrdev(SOUND_MAJOR, s->unit_miyesr, 1, s->name,
 				      &soundcore_fops);
 		if (r < 0) {
 			spin_lock(&sound_loader_lock);
-			__sound_remove_unit(list, s->unit_minor);
+			__sound_remove_unit(list, s->unit_miyesr);
 			if (index < 0) {
-				low = s->unit_minor + SOUND_STEP;
+				low = s->unit_miyesr + SOUND_STEP;
 				goto retry;
 			}
 			spin_unlock(&sound_loader_lock);
@@ -280,9 +280,9 @@ retry:
 		}
 	}
 
-	device_create(sound_class, dev, MKDEV(SOUND_MAJOR, s->unit_minor),
+	device_create(sound_class, dev, MKDEV(SOUND_MAJOR, s->unit_miyesr),
 		      NULL, "%s", s->name+6);
-	return s->unit_minor;
+	return s->unit_miyesr;
 
 fail:
 	kfree(s);
@@ -304,9 +304,9 @@ static void sound_remove_unit(struct sound_unit **list, int unit)
 	spin_unlock(&sound_loader_lock);
 	if (p) {
 		if (!preclaim_oss)
-			__unregister_chrdev(SOUND_MAJOR, p->unit_minor, 1,
+			__unregister_chrdev(SOUND_MAJOR, p->unit_miyesr, 1,
 					    p->name);
-		device_destroy(sound_class, MKDEV(SOUND_MAJOR, p->unit_minor));
+		device_destroy(sound_class, MKDEV(SOUND_MAJOR, p->unit_miyesr));
 		kfree(p);
 	}
 }
@@ -335,12 +335,12 @@ static void sound_remove_unit(struct sound_unit **list, int unit)
 static struct sound_unit *chains[SOUND_STEP];
 
 /**
- *	register_sound_special_device - register a special sound node
+ *	register_sound_special_device - register a special sound yesde
  *	@fops: File operations for the driver
  *	@unit: Unit number to allocate
  *      @dev: device pointer
  *
- *	Allocate a special sound device by minor number from the sound
+ *	Allocate a special sound device by miyesr number from the sound
  *	subsystem.
  *
  *	Return: The allocated number is returned on success. On failure,
@@ -362,7 +362,7 @@ int register_sound_special_device(const struct file_operations *fops, int unit,
 	    case 1:
 		name = "sequencer";
 		if (unit >= SOUND_STEP)
-			goto __unknown;
+			goto __unkyeswn;
 		max_unit = unit + 1;
 		break;
 	    case 2:
@@ -380,7 +380,7 @@ int register_sound_special_device(const struct file_operations *fops, int unit,
 	    case 8:
 		name = "sequencer2";
 		if (unit >= SOUND_STEP)
-			goto __unknown;
+			goto __unkyeswn;
 		max_unit = unit + 1;
 		break;
 	    case 9:
@@ -400,8 +400,8 @@ int register_sound_special_device(const struct file_operations *fops, int unit,
 		break;
 	    default:
 	    	{
-		    __unknown:
-			sprintf(_name, "unknown%d", chain);
+		    __unkyeswn:
+			sprintf(_name, "unkyeswn%d", chain);
 		    	if (unit >= SOUND_STEP)
 		    		strcat(_name, "-");
 		    	name = _name;
@@ -524,19 +524,19 @@ static struct sound_unit *__look_for_unit(int chain, int unit)
 	struct sound_unit *s;
 	
 	s=chains[chain];
-	while(s && s->unit_minor <= unit)
+	while(s && s->unit_miyesr <= unit)
 	{
-		if(s->unit_minor==unit)
+		if(s->unit_miyesr==unit)
 			return s;
 		s=s->next;
 	}
 	return NULL;
 }
 
-static int soundcore_open(struct inode *inode, struct file *file)
+static int soundcore_open(struct iyesde *iyesde, struct file *file)
 {
 	int chain;
-	int unit = iminor(inode);
+	int unit = imiyesr(iyesde);
 	struct sound_unit *s;
 	const struct file_operations *new_fops = NULL;
 
@@ -590,7 +590,7 @@ static int soundcore_open(struct inode *inode, struct file *file)
 		replace_fops(file, new_fops);
 
 		if (file->f_op->open)
-			err = file->f_op->open(inode,file);
+			err = file->f_op->open(iyesde,file);
 
 		return err;
 	}
@@ -601,7 +601,7 @@ MODULE_ALIAS_CHARDEV_MAJOR(SOUND_MAJOR);
 
 static void cleanup_oss_soundcore(void)
 {
-	/* We have nothing to really do here - we know the lists must be
+	/* We have yesthing to really do here - we kyesw the lists must be
 	   empty */
 	unregister_chrdev(SOUND_MAJOR, "sound");
 }

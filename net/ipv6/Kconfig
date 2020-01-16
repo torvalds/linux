@@ -83,7 +83,7 @@ config INET6_ESP_OFFLOAD
 	---help---
 	  Support for ESP transformation offload. This makes sense
 	  only if this system really does IPsec and want to do it
-	  with high throughput. A typical desktop system does not
+	  with high throughput. A typical desktop system does yest
 	  need it, even if it does IPsec.
 
 	  If unsure, say N.
@@ -143,9 +143,9 @@ tristate "Virtual (secure) IPv6: tunneling"
 	select XFRM
 	---help---
 	Tunneling means encapsulating data of one protocol type within
-	another protocol and sending it over a channel that understands the
+	ayesther protocol and sending it over a channel that understands the
 	encapsulating protocol. This can be used with xfrm mode tunnel to give
-	the notion of a secure tunnel for IPSEC and then use routing protocol
+	the yestion of a secure tunnel for IPSEC and then use routing protocol
 	on top.
 
 config IPV6_SIT
@@ -156,7 +156,7 @@ config IPV6_SIT
 	default y
 	---help---
 	  Tunneling means encapsulating data of one protocol type within
-	  another protocol and sending it over a channel that understands the
+	  ayesther protocol and sending it over a channel that understands the
 	  encapsulating protocol. This driver implements encapsulation of IPv6
 	  into IPv4 packets. This is useful if you want to connect two IPv6
 	  networks over an IPv4-only path.
@@ -203,7 +203,7 @@ config IPV6_GRE
 	depends on NET_IPGRE_DEMUX
 	---help---
 	  Tunneling means encapsulating data of one protocol type within
-	  another protocol and sending it over a channel that understands the
+	  ayesther protocol and sending it over a channel that understands the
 	  encapsulating protocol. This particular tunneling driver implements
 	  GRE (Generic Routing Encapsulation) and at this time allows
 	  encapsulating of IPv4 or IPv6 over existing IPv6 infrastructure.
@@ -236,9 +236,9 @@ config IPV6_SUBTREES
 	  Enable routing by source address or prefix.
 
 	  The destination address is still the primary routing key, so mixing
-	  normal and source prefix specific routes in the same routing table
+	  yesrmal and source prefix specific routes in the same routing table
 	  may sometimes lead to unintended routing behavior.  This can be
-	  avoided by defining different routing tables for the normal and
+	  avoided by defining different routing tables for the yesrmal and
 	  source prefix specific routes.
 
 	  If unsure, say N.

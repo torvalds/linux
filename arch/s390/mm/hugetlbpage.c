@@ -26,10 +26,10 @@ static inline unsigned long __pte_to_rste(pte_t pte)
 	 * Convert encoding		  pte bits	pmd / pud bits
 	 *				lIR.uswrdy.p	dy..R...I...wr
 	 * empty			010.000000.0 -> 00..0...1...00
-	 * prot-none, clean, old	111.000000.1 -> 00..1...1...00
-	 * prot-none, clean, young	111.000001.1 -> 01..1...1...00
-	 * prot-none, dirty, old	111.000010.1 -> 10..1...1...00
-	 * prot-none, dirty, young	111.000011.1 -> 11..1...1...00
+	 * prot-yesne, clean, old	111.000000.1 -> 00..1...1...00
+	 * prot-yesne, clean, young	111.000001.1 -> 01..1...1...00
+	 * prot-yesne, dirty, old	111.000010.1 -> 10..1...1...00
+	 * prot-yesne, dirty, young	111.000011.1 -> 11..1...1...00
 	 * read-only, clean, old	111.000100.1 -> 00..1...1...01
 	 * read-only, clean, young	101.000101.1 -> 01..1...0...01
 	 * read-only, dirty, old	111.000110.1 -> 10..1...1...01
@@ -81,10 +81,10 @@ static inline pte_t __rste_to_pte(unsigned long rste)
 	 * Convert encoding		pmd / pud bits	    pte bits
 	 *				dy..R...I...wr	  lIR.uswrdy.p
 	 * empty			00..0...1...00 -> 010.000000.0
-	 * prot-none, clean, old	00..1...1...00 -> 111.000000.1
-	 * prot-none, clean, young	01..1...1...00 -> 111.000001.1
-	 * prot-none, dirty, old	10..1...1...00 -> 111.000010.1
-	 * prot-none, dirty, young	11..1...1...00 -> 111.000011.1
+	 * prot-yesne, clean, old	00..1...1...00 -> 111.000000.1
+	 * prot-yesne, clean, young	01..1...1...00 -> 111.000001.1
+	 * prot-yesne, dirty, old	10..1...1...00 -> 111.000010.1
+	 * prot-yesne, dirty, young	11..1...1...00 -> 111.000011.1
 	 * read-only, clean, old	00..1...1...01 -> 111.000100.1
 	 * read-only, clean, young	01..1...0...01 -> 101.000101.1
 	 * read-only, dirty, old	10..1...1...01 -> 111.000110.1

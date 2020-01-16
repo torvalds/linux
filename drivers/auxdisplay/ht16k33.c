@@ -317,7 +317,7 @@ static void ht16k33_keypad_stop(struct input_dev *dev)
 static int ht16k33_keypad_probe(struct i2c_client *client,
 				struct ht16k33_keypad *keypad)
 {
-	struct device_node *node = client->dev.of_node;
+	struct device_yesde *yesde = client->dev.of_yesde;
 	u32 rows = HT16K33_MATRIX_KEYPAD_MAX_ROWS;
 	u32 cols = HT16K33_MATRIX_KEYPAD_MAX_COLS;
 	int err;
@@ -336,13 +336,13 @@ static int ht16k33_keypad_probe(struct i2c_client *client,
 	keypad->dev->open = ht16k33_keypad_start;
 	keypad->dev->close = ht16k33_keypad_stop;
 
-	if (!of_get_property(node, "linux,no-autorepeat", NULL))
+	if (!of_get_property(yesde, "linux,yes-autorepeat", NULL))
 		__set_bit(EV_REP, keypad->dev->evbit);
 
-	err = of_property_read_u32(node, "debounce-delay-ms",
+	err = of_property_read_u32(yesde, "debounce-delay-ms",
 				   &keypad->debounce_ms);
 	if (err) {
-		dev_err(&client->dev, "key debounce delay not specified\n");
+		dev_err(&client->dev, "key debounce delay yest specified\n");
 		return err;
 	}
 
@@ -395,7 +395,7 @@ static int ht16k33_probe(struct i2c_client *client,
 	struct backlight_properties bl_props;
 	struct ht16k33_priv *priv;
 	struct ht16k33_fbdev *fbdev;
-	struct device_node *node = client->dev.of_node;
+	struct device_yesde *yesde = client->dev.of_yesde;
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) {
 		dev_err(&client->dev, "i2c_check_functionality error\n");
@@ -437,10 +437,10 @@ static int ht16k33_probe(struct i2c_client *client,
 		goto err_fbdev_buffer;
 	}
 
-	err = of_property_read_u32(node, "refresh-rate-hz",
+	err = of_property_read_u32(yesde, "refresh-rate-hz",
 		&fbdev->refresh_rate);
 	if (err) {
-		dev_err(&client->dev, "refresh rate not specified\n");
+		dev_err(&client->dev, "refresh rate yest specified\n");
 		goto err_fbdev_info;
 	}
 	fb_bl_default_curve(fbdev->info, 0, MIN_BRIGHTNESS, MAX_BRIGHTNESS);
@@ -477,7 +477,7 @@ static int ht16k33_probe(struct i2c_client *client,
 		goto err_fbdev_unregister;
 	}
 
-	err = of_property_read_u32(node, "default-brightness-level",
+	err = of_property_read_u32(yesde, "default-brightness-level",
 				   &dft_brightness);
 	if (err) {
 		dft_brightness = MAX_BRIGHTNESS;

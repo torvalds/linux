@@ -20,7 +20,7 @@
 #include <linux/spinlock.h>
 #include <linux/kthread.h>
 #include <linux/interrupt.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/ioport.h>
 #include <linux/in.h>
 #include <linux/ip.h>
@@ -65,7 +65,7 @@ static const u32 default_msg =
 
 static int debug = -1;	/* defaults above */
 module_param(debug, int, 0664);
-MODULE_PARM_DESC(debug, "Debug level (0=none,...,16=all)");
+MODULE_PARM_DESC(debug, "Debug level (0=yesne,...,16=all)");
 
 #define MSIX_IRQ 0
 #define MSI_IRQ 1
@@ -84,7 +84,7 @@ static int qlge_force_coredump;
 module_param(qlge_force_coredump, int, 0);
 MODULE_PARM_DESC(qlge_force_coredump,
 		"Option to allow force of firmware core dump. "
-		"Default is OFF - Do not allow.");
+		"Default is OFF - Do yest allow.");
 
 static const struct pci_device_id qlge_pci_tbl[] = {
 	{PCI_DEVICE(PCI_VENDOR_ID_QLOGIC, QLGE_DEVICE_ID_8012)},
@@ -318,7 +318,7 @@ int ql_get_mac_addr_reg(struct ql_adapter *qdev, u32 type, u16 index,
 	case MAC_ADDR_TYPE_MULTI_FLTR:
 	default:
 		netif_crit(qdev, ifup, qdev->ndev,
-			   "Address type %d not yet supported.\n", type);
+			   "Address type %d yest yet supported.\n", type);
 		status = -EPERM;
 	}
 exit:
@@ -401,7 +401,7 @@ static int ql_set_mac_addr_reg(struct ql_adapter *qdev, u8 *addr, u32 type,
 				   (index << MAC_ADDR_IDX_SHIFT) |	/* index */
 				   type);	/* type */
 			/* This field should also include the queue id
-			   and possibly the function id.  Right now we hardcode
+			   and possibly the function id.  Right yesw we hardcode
 			   the route field to NIC core.
 			 */
 			cam_output = (CAM_OUT_ROUTE_NIC |
@@ -436,7 +436,7 @@ static int ql_set_mac_addr_reg(struct ql_adapter *qdev, u8 *addr, u32 type,
 	case MAC_ADDR_TYPE_MULTI_FLTR:
 	default:
 		netif_crit(qdev, ifup, qdev->ndev,
-			   "Address type %d not yet supported.\n", type);
+			   "Address type %d yest yet supported.\n", type);
 		status = -EPERM;
 	}
 exit:
@@ -518,7 +518,7 @@ exit:
 static int ql_set_routing_reg(struct ql_adapter *qdev, u32 index, u32 mask,
 			      int enable)
 {
-	int status = -EINVAL; /* Return error if no mask match. */
+	int status = -EINVAL; /* Return error if yes mask match. */
 	u32 value = 0;
 
 	switch (mask) {
@@ -596,7 +596,7 @@ static int ql_set_routing_reg(struct ql_adapter *qdev, u32 index, u32 mask,
 		}
 	default:
 		netif_err(qdev, ifup, qdev->ndev,
-			  "Mask type %d not yet supported.\n", mask);
+			  "Mask type %d yest yet supported.\n", mask);
 		status = -EPERM;
 		goto exit;
 	}
@@ -902,11 +902,11 @@ static int ql_8012_port_initialize(struct ql_adapter *qdev)
 	u32 data;
 
 	if (ql_sem_trylock(qdev, qdev->xg_sem_mask)) {
-		/* Another function has the semaphore, so
+		/* Ayesther function has the semaphore, so
 		 * wait for the port init bit to come ready.
 		 */
 		netif_info(qdev, link, qdev->ndev,
-			   "Another function has the semaphore, so wait for the port init bit to come ready.\n");
+			   "Ayesther function has the semaphore, so wait for the port init bit to come ready.\n");
 		status = ql_wait_reg_rdy(qdev, STS, qdev->port_init, 0);
 		if (status) {
 			netif_crit(qdev, link, qdev->ndev,
@@ -1135,7 +1135,7 @@ static int qlge_refill_bq(struct qlge_bq *bq, gfp_t gfp)
 			retval = qlge_refill_lb(rx_ring, bq_desc, gfp);
 		if (retval < 0) {
 			netif_err(qdev, ifup, qdev->ndev,
-				  "ring %u %s: Could not get a page chunk, idx %d\n",
+				  "ring %u %s: Could yest get a page chunk, idx %d\n",
 				  rx_ring->cq_id, bq_type_name[bq->type], i);
 			break;
 		}
@@ -1298,7 +1298,7 @@ static int ql_map_send(struct ql_adapter *qdev,
 		tbd++;
 		if (frag_idx == 6 && frag_cnt > 7) {
 			/* Let's tack on an sglist.
-			 * Our control block will now
+			 * Our control block will yesw
 			 * look like this:
 			 * iocb->seg[0] = skb->data
 			 * iocb->seg[1] = frag[0]
@@ -1537,7 +1537,7 @@ static void ql_process_mac_rx_page(struct ql_adapter *qdev,
 	rx_ring->rx_packets++;
 	rx_ring->rx_bytes += skb->len;
 	skb->protocol = eth_type_trans(skb, ndev);
-	skb_checksum_none_assert(skb);
+	skb_checksum_yesne_assert(skb);
 
 	if ((ndev->features & NETIF_F_RXCSUM) &&
 		!(ib_mac_rsp->flags1 & IB_MAC_CSUM_ERR_MASK)) {
@@ -1642,9 +1642,9 @@ static void ql_process_mac_rx_skb(struct ql_adapter *qdev,
 	rx_ring->rx_packets++;
 	rx_ring->rx_bytes += skb->len;
 	skb->protocol = eth_type_trans(skb, ndev);
-	skb_checksum_none_assert(skb);
+	skb_checksum_yesne_assert(skb);
 
-	/* If rx checksum is on, and there are no
+	/* If rx checksum is on, and there are yes
 	 * csum or frame errors.
 	 */
 	if ((ndev->features & NETIF_F_RXCSUM) &&
@@ -1693,7 +1693,7 @@ static void ql_realign_skb(struct sk_buff *skb, int len)
 /*
  * This function builds an skb for the given inbound
  * completion.  It will be rewritten for readability in the near
- * future, but for not it works well.
+ * future, but for yest it works well.
  */
 static struct sk_buff *ql_build_rx_skb(struct ql_adapter *qdev,
 				       struct rx_ring *rx_ring,
@@ -1788,7 +1788,7 @@ static struct sk_buff *ql_build_rx_skb(struct ql_adapter *qdev,
 			/*
 			 * The headers and data are in a single large buffer. We
 			 * copy it to a new skb and let it go. This can happen with
-			 * jumbo mtu on a non-TCP/UDP frame.
+			 * jumbo mtu on a yesn-TCP/UDP frame.
 			 */
 			lbq_desc = ql_get_curr_lchunk(qdev, rx_ring);
 			skb = netdev_alloc_skb(qdev->ndev, length);
@@ -1834,7 +1834,7 @@ static struct sk_buff *ql_build_rx_skb(struct ql_adapter *qdev,
 				 SMALL_BUF_MAP_SIZE, PCI_DMA_FROMDEVICE);
 		if (!(ib_mac_rsp->flags4 & IB_MAC_IOCB_RSP_HS)) {
 			/*
-			 * This is an non TCP/UDP IP frame, so
+			 * This is an yesn TCP/UDP IP frame, so
 			 * the headers aren't split into a small
 			 * buffer.  We have to use the small buffer
 			 * that contains our sg list as our skb to
@@ -1932,9 +1932,9 @@ static void ql_process_mac_split_rx_intr(struct ql_adapter *qdev,
 	}
 
 	skb->protocol = eth_type_trans(skb, ndev);
-	skb_checksum_none_assert(skb);
+	skb_checksum_yesne_assert(skb);
 
-	/* If rx checksum is on, and there are no
+	/* If rx checksum is on, and there are yes
 	 * csum or frame errors.
 	 */
 	if ((ndev->features & NETIF_F_RXCSUM) &&
@@ -2041,11 +2041,11 @@ static void ql_process_mac_tx_intr(struct ql_adapter *qdev,
 					OB_MAC_IOCB_RSP_P | OB_MAC_IOCB_RSP_B))) {
 		if (mac_rsp->flags1 & OB_MAC_IOCB_RSP_E) {
 			netif_warn(qdev, tx_done, qdev->ndev,
-				   "Total descriptor length did not match transfer length.\n");
+				   "Total descriptor length did yest match transfer length.\n");
 		}
 		if (mac_rsp->flags1 & OB_MAC_IOCB_RSP_S) {
 			netif_warn(qdev, tx_done, qdev->ndev,
-				   "Frame too short to be valid, not sent.\n");
+				   "Frame too short to be valid, yest sent.\n");
 		}
 		if (mac_rsp->flags1 & OB_MAC_IOCB_RSP_L) {
 			netif_warn(qdev, tx_done, qdev->ndev,
@@ -2053,7 +2053,7 @@ static void ql_process_mac_tx_intr(struct ql_adapter *qdev,
 		}
 		if (mac_rsp->flags1 & OB_MAC_IOCB_RSP_B) {
 			netif_warn(qdev, tx_done, qdev->ndev,
-				   "PCI backplane error. Frame not sent.\n");
+				   "PCI backplane error. Frame yest sent.\n");
 		}
 	}
 	atomic_inc(&tx_ring->tx_count);
@@ -2076,7 +2076,7 @@ void ql_queue_asic_error(struct ql_adapter *qdev)
 	 */
 	clear_bit(QL_ADAPTER_UP, &qdev->flags);
 	/* Set asic recovery bit to indicate reset process that we are
-	 * in fatal error recovery process rather than normal close
+	 * in fatal error recovery process rather than yesrmal close
 	 */
 	set_bit(QL_ASIC_RECOVERY, &qdev->flags);
 	queue_delayed_work(qdev->workqueue, &qdev->asic_reset_work, 0);
@@ -2105,7 +2105,7 @@ static void ql_process_chip_ae_intr(struct ql_adapter *qdev,
 
 	case PCI_ERR_ANON_BUF_RD:
 		netdev_err(qdev->ndev, "PCI error occurred when reading "
-					"anonymous buffers from rx_ring %d.\n",
+					"ayesnymous buffers from rx_ring %d.\n",
 					ib_ae_rsp->q_id);
 		ql_queue_asic_error(qdev);
 		break;
@@ -2143,7 +2143,7 @@ static int ql_clean_outbound_rx_ring(struct rx_ring *rx_ring)
 			break;
 		default:
 			netif_printk(qdev, rx_status, KERN_DEBUG, qdev->ndev,
-				     "Hit default case, not handled! dropping the packet, opcode = %x.\n",
+				     "Hit default case, yest handled! dropping the packet, opcode = %x.\n",
 				     net_rsp->opcode);
 		}
 		count++;
@@ -2158,7 +2158,7 @@ static int ql_clean_outbound_rx_ring(struct rx_ring *rx_ring)
 		if ((atomic_read(&tx_ring->tx_count) > (tx_ring->wq_len / 4)))
 			/*
 			 * The queue got stopped because the tx_ring was full.
-			 * Wake it up, because it's now at least 25% empty.
+			 * Wake it up, because it's yesw at least 25% empty.
 			 */
 			netif_wake_subqueue(qdev->ndev, tx_ring->wq_id);
 	}
@@ -2195,7 +2195,7 @@ static int ql_clean_inbound_rx_ring(struct rx_ring *rx_ring, int budget)
 			break;
 		default:
 			netif_printk(qdev, rx_status, KERN_DEBUG, qdev->ndev,
-				     "Hit default case, not handled! dropping the packet, opcode = %x.\n",
+				     "Hit default case, yest handled! dropping the packet, opcode = %x.\n",
 				     net_rsp->opcode);
 			break;
 		}
@@ -2226,7 +2226,7 @@ static int ql_napi_poll_msix(struct napi_struct *napi, int budget)
 	for (i = qdev->rss_ring_count; i < qdev->rx_ring_count; i++) {
 		trx_ring = &qdev->rx_ring[i];
 		/* If this TX completion ring belongs to this vector and
-		 * it's not empty then service it.
+		 * it's yest empty then service it.
 		 */
 		if ((ctx->irq_mask & (1 << trx_ring->cq_id)) &&
 			(ql_read_sh_reg(trx_ring->prod_idx_sh_reg) !=
@@ -2423,7 +2423,7 @@ static irqreturn_t qlge_isr(int irq, void *dev_id)
 	 * be masked manually.
 	 * When using MSI mode, INTR_EN_EN must be explicitly disabled
 	 * (even though it is auto-masked), otherwise a later command to
-	 * enable it is not effective.
+	 * enable it is yest effective.
 	 */
 	if (!test_bit(QL_MSIX_ENABLED, &qdev->flags))
 		ql_disable_completion_interrupt(qdev, 0);
@@ -2473,7 +2473,7 @@ static irqreturn_t qlge_isr(int irq, void *dev_id)
 		work_done++;
 	} else {
 		/* Experience shows that the device sometimes signals an
-		 * interrupt but no work is scheduled from this function.
+		 * interrupt but yes work is scheduled from this function.
 		 * Nevertheless, the interrupt is auto-masked. Therefore, we
 		 * systematically re-enable the interrupt if we didn't
 		 * schedule napi.
@@ -2610,7 +2610,7 @@ static netdev_tx_t qlge_send(struct sk_buff *skb, struct net_device *ndev)
 	if (ql_map_send(qdev, mac_iocb_ptr, skb, tx_ring_desc) !=
 			NETDEV_TX_OK) {
 		netif_err(qdev, tx_queued, qdev->ndev,
-			  "Could not map the segments.\n");
+			  "Could yest map the segments.\n");
 		tx_ring->tx_errors++;
 		return NETDEV_TX_BUSY;
 	}
@@ -2632,7 +2632,7 @@ static netdev_tx_t qlge_send(struct sk_buff *skb, struct net_device *ndev)
 		if ((atomic_read(&tx_ring->tx_count) > (tx_ring->wq_len / 4)))
 			/*
 			 * The queue got stopped because the tx_ring was full.
-			 * Wake it up, because it's now at least 25% empty.
+			 * Wake it up, because it's yesw at least 25% empty.
 			 */
 			netif_wake_subqueue(qdev->ndev, tx_ring->wq_id);
 	}
@@ -3306,7 +3306,7 @@ static void ql_resolve_queues_to_irqs(struct ql_adapter *qdev)
 			ql_set_irq_mask(qdev, intr_context);
 			/*
 			 * We set up each vectors enable/disable/read bits so
-			 * there's no bit/mask calculations in the critical path.
+			 * there's yes bit/mask calculations in the critical path.
 			 */
 			intr_context->intr_en_mask =
 			    INTR_EN_TYPE_MASK | INTR_EN_INTR_MASK |
@@ -3324,7 +3324,7 @@ static void ql_resolve_queues_to_irqs(struct ql_adapter *qdev)
 				/* The first vector/queue handles
 				 * broadcast/multicast, fatal errors,
 				 * and firmware events.  This in addition
-				 * to normal inbound NAPI processing.
+				 * to yesrmal inbound NAPI processing.
 				 */
 				intr_context->handler = qlge_isr;
 				sprintf(intr_context->name, "%s-rx-%d",
@@ -3347,7 +3347,7 @@ static void ql_resolve_queues_to_irqs(struct ql_adapter *qdev)
 		intr_context->qdev = qdev;
 		/*
 		 * We set up each vectors enable/disable/read bits so
-		 * there's no bit/mask calculations in the critical path.
+		 * there's yes bit/mask calculations in the critical path.
 		 */
 		intr_context->intr_en_mask =
 		    INTR_EN_TYPE_MASK | INTR_EN_INTR_MASK | INTR_EN_TYPE_ENABLE;
@@ -3356,8 +3356,8 @@ static void ql_resolve_queues_to_irqs(struct ql_adapter *qdev)
 		    INTR_EN_TYPE_DISABLE;
 		if (test_bit(QL_LEGACY_ENABLED, &qdev->flags)) {
 			/* Experience shows that when using INTx interrupts,
-			 * the device does not always auto-mask INTR_EN_EN.
-			 * Moreover, masking INTR_EN_EN manually does not
+			 * the device does yest always auto-mask INTR_EN_EN.
+			 * Moreover, masking INTR_EN_EN manually does yest
 			 * immediately prevent interrupt generation.
 			 */
 			intr_context->intr_en_mask |= INTR_EN_EI << 16 |
@@ -3723,7 +3723,7 @@ static int ql_adapter_reset(struct ql_adapter *qdev)
 	}
 
 	/* Check if bit is set then skip the mailbox command and
-	 * clear the bit, else we are in normal reset process.
+	 * clear the bit, else we are in yesrmal reset process.
 	 */
 	if (!test_bit(QL_ASIC_RECOVERY, &qdev->flags)) {
 		/* Stop management traffic. */
@@ -4102,7 +4102,7 @@ static int qlge_change_mtu(struct net_device *ndev, int new_mtu)
 	if (ndev->mtu == 1500 && new_mtu == 9000) {
 		netif_err(qdev, ifup, qdev->ndev, "Changing to jumbo MTU.\n");
 	} else if (ndev->mtu == 9000 && new_mtu == 1500) {
-		netif_err(qdev, ifup, qdev->ndev, "Changing to normal MTU.\n");
+		netif_err(qdev, ifup, qdev->ndev, "Changing to yesrmal MTU.\n");
 	} else
 		return -EINVAL;
 
@@ -4455,7 +4455,7 @@ static int ql_init_device(struct pci_dev *pdev, struct net_device *ndev,
 	pdev->needs_freset = 1;
 	pci_save_state(pdev);
 	qdev->reg_base =
-	    ioremap_nocache(pci_resource_start(pdev, 1),
+	    ioremap_yescache(pci_resource_start(pdev, 1),
 			    pci_resource_len(pdev, 1));
 	if (!qdev->reg_base) {
 		dev_err(&pdev->dev, "Register mapping failed.\n");
@@ -4465,7 +4465,7 @@ static int ql_init_device(struct pci_dev *pdev, struct net_device *ndev,
 
 	qdev->doorbell_area_size = pci_resource_len(pdev, 3);
 	qdev->doorbell_area =
-	    ioremap_nocache(pci_resource_start(pdev, 3),
+	    ioremap_yescache(pci_resource_start(pdev, 3),
 			    pci_resource_len(pdev, 3));
 	if (!qdev->doorbell_area) {
 		dev_err(&pdev->dev, "Doorbell register mapping failed.\n");
@@ -4705,7 +4705,7 @@ static pci_ers_result_t qlge_io_error_detected(struct pci_dev *pdev,
 	struct ql_adapter *qdev = netdev_priv(ndev);
 
 	switch (state) {
-	case pci_channel_io_normal:
+	case pci_channel_io_yesrmal:
 		return PCI_ERS_RESULT_CAN_RECOVER;
 	case pci_channel_io_frozen:
 		netif_device_detach(ndev);
@@ -4738,12 +4738,12 @@ static pci_ers_result_t qlge_io_slot_reset(struct pci_dev *pdev)
 	struct net_device *ndev = pci_get_drvdata(pdev);
 	struct ql_adapter *qdev = netdev_priv(ndev);
 
-	pdev->error_state = pci_channel_io_normal;
+	pdev->error_state = pci_channel_io_yesrmal;
 
 	pci_restore_state(pdev);
 	if (pci_enable_device(pdev)) {
 		netif_err(qdev, ifup, qdev->ndev,
-			  "Cannot re-enable PCI device after reset.\n");
+			  "Canyest re-enable PCI device after reset.\n");
 		return PCI_ERS_RESULT_DISCONNECT;
 	}
 	pci_set_master(pdev);
@@ -4772,7 +4772,7 @@ static void qlge_io_resume(struct pci_dev *pdev)
 		}
 	} else {
 		netif_err(qdev, ifup, qdev->ndev,
-			  "Device was not running prior to EEH.\n");
+			  "Device was yest running prior to EEH.\n");
 	}
 	mod_timer(&qdev->timer, jiffies + (5*HZ));
 	netif_device_attach(ndev);
@@ -4822,7 +4822,7 @@ static int qlge_resume(struct pci_dev *pdev)
 	pci_restore_state(pdev);
 	err = pci_enable_device(pdev);
 	if (err) {
-		netif_err(qdev, ifup, qdev->ndev, "Cannot enable PCI device from suspend\n");
+		netif_err(qdev, ifup, qdev->ndev, "Canyest enable PCI device from suspend\n");
 		return err;
 	}
 	pci_set_master(pdev);

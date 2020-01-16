@@ -182,13 +182,13 @@
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
     {
-        "PublicDescription": "Number of Instruction Cache, Streaming Buffer and Victim Cache Reads. both cacheable and noncacheable, including UC fetches.",
+        "PublicDescription": "Number of Instruction Cache, Streaming Buffer and Victim Cache Reads. both cacheable and yesncacheable, including UC fetches.",
         "EventCode": "0x80",
         "Counter": "0,1,2,3",
         "UMask": "0x1",
         "EventName": "ICACHE.HIT",
         "SampleAfterValue": "2000003",
-        "BriefDescription": "Number of Instruction Cache, Streaming Buffer and Victim Cache Reads. both cacheable and noncacheable, including UC fetches",
+        "BriefDescription": "Number of Instruction Cache, Streaming Buffer and Victim Cache Reads. both cacheable and yesncacheable, including UC fetches",
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
     {
@@ -212,13 +212,13 @@
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
     {
-        "PublicDescription": "Count issue pipeline slots where no uop was delivered from the front end to the back end when there is no back-end stall.",
+        "PublicDescription": "Count issue pipeline slots where yes uop was delivered from the front end to the back end when there is yes back-end stall.",
         "EventCode": "0x9C",
         "Counter": "0,1,2,3",
         "UMask": "0x1",
         "EventName": "IDQ_UOPS_NOT_DELIVERED.CORE",
         "SampleAfterValue": "2000003",
-        "BriefDescription": "Uops not delivered to Resource Allocation Table (RAT) per thread when backend of the machine is not stalled",
+        "BriefDescription": "Uops yest delivered to Resource Allocation Table (RAT) per thread when backend of the machine is yest stalled",
         "CounterHTOff": "0,1,2,3"
     },
     {
@@ -227,7 +227,7 @@
         "UMask": "0x1",
         "EventName": "IDQ_UOPS_NOT_DELIVERED.CYCLES_0_UOPS_DELIV.CORE",
         "SampleAfterValue": "2000003",
-        "BriefDescription": "Cycles per thread when 4 or more uops are not delivered to Resource Allocation Table (RAT) when backend of the machine is not stalled.",
+        "BriefDescription": "Cycles per thread when 4 or more uops are yest delivered to Resource Allocation Table (RAT) when backend of the machine is yest stalled.",
         "CounterMask": "4",
         "CounterHTOff": "0,1,2,3"
     },
@@ -237,7 +237,7 @@
         "UMask": "0x1",
         "EventName": "IDQ_UOPS_NOT_DELIVERED.CYCLES_LE_1_UOP_DELIV.CORE",
         "SampleAfterValue": "2000003",
-        "BriefDescription": "Cycles per thread when 3 or more uops are not delivered to Resource Allocation Table (RAT) when backend of the machine is not stalled.",
+        "BriefDescription": "Cycles per thread when 3 or more uops are yest delivered to Resource Allocation Table (RAT) when backend of the machine is yest stalled.",
         "CounterMask": "3",
         "CounterHTOff": "0,1,2,3"
     },

@@ -15,9 +15,9 @@
 
 /*
  * GPIO name legend: proper name = the GPIO line is used as GPIO
- *         NC      = not connected (pin out but not routed from the chip to
+ *         NC      = yest connected (pin out but yest routed from the chip to
  *                   anything the board)
- *         "[PER]" = pin is muxed for [peripheral] (not GPIO)
+ *         "[PER]" = pin is muxed for [peripheral] (yest GPIO)
  *         LSEC    = Low Speed External Connector
  *         P HSEC  = Primary High Speed External Connector
  *         S HSEC  = Secondary High Speed External Connector
@@ -25,7 +25,7 @@
  *         TP      = Test Points
  *
  * Line names are taken from the schematic "DragonBoard 820c",
- * drawing no: LM25-P2751-1
+ * drawing yes: LM25-P2751-1
  *
  * For the lines routed to the external connectors the
  * lines are named after the 96Boards CE Specification 1.0,
@@ -439,7 +439,7 @@
 			enable-active-high;
 		};
 
-		agnoc@0 {
+		agyesc@0 {
 			pcie@600000 {
 				status = "okay";
 				perst-gpio = <&msmgpio 35 GPIO_ACTIVE_LOW>;

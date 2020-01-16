@@ -1,5 +1,5 @@
 /*
- * SRAM pool for tiny memories not otherwise managed.
+ * SRAM pool for tiny memories yest otherwise managed.
  *
  * Copyright (C) 2010  Paul Mundt
  *
@@ -9,7 +9,7 @@
  */
 #include <linux/init.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <asm/sram.h>
 
 /*
@@ -17,14 +17,14 @@
  * added either by the CPU or the platform code. Typical SRAM sizes
  * to be inserted in to the pool will generally be less than the page
  * size, with anything more reasonably sized handled as a NUMA memory
- * node.
+ * yesde.
  */
 struct gen_pool *sram_pool;
 
 static int __init sram_pool_init(void)
 {
 	/*
-	 * This is a global pool, we don't care about node locality.
+	 * This is a global pool, we don't care about yesde locality.
 	 */
 	sram_pool = gen_pool_create(1, -1);
 	if (unlikely(!sram_pool))

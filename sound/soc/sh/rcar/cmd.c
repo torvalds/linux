@@ -3,7 +3,7 @@
 // Renesas R-Car CMD support
 //
 // Copyright (C) 2015 Renesas Solutions Corp.
-// Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
+// Kuniyesri Morimoto <kuniyesri.morimoto.gx@renesas.com>
 
 #include "rsnd.h"
 

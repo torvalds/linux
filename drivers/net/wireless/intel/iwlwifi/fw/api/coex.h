@@ -39,12 +39,12 @@
  * are met:
  *
  *  * Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  *  * Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
+ *    yestice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
- *  * Neither the name Intel Corporation nor the names of its
+ *  * Neither the name Intel Corporation yesr the names of its
  *    contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
@@ -190,15 +190,15 @@ enum iwl_bt_mxbox_dw3 {
 	BT_MBOX(3, UPDATE_REQUEST, 21, 1),
 };
 
-#define BT_MBOX_MSG(_notif, _num, _field)				     \
-	((le32_to_cpu((_notif)->mbox_msg[(_num)]) & BT_MBOX##_num##_##_field)\
+#define BT_MBOX_MSG(_yestif, _num, _field)				     \
+	((le32_to_cpu((_yestif)->mbox_msg[(_num)]) & BT_MBOX##_num##_##_field)\
 	>> BT_MBOX##_num##_##_field##_POS)
 
 #define BT_MBOX_PRINT(_num, _field, _end)				    \
 			pos += scnprintf(buf + pos, bufsz - pos,	    \
 					 "\t%s: %d%s",			    \
 					 #_field,			    \
-					 BT_MBOX_MSG(notif, _num, _field),  \
+					 BT_MBOX_MSG(yestif, _num, _field),  \
 					 true ? "\n" : ", ");
 enum iwl_bt_activity_grading {
 	BT_OFF			= 0,
@@ -218,7 +218,7 @@ enum iwl_bt_ci_compliance {
 }; /* BT_COEX_CI_COMPLIENCE_E_VER_1 */
 
 /**
- * struct iwl_bt_coex_profile_notif - notification about BT coex
+ * struct iwl_bt_coex_profile_yestif - yestification about BT coex
  * @mbox_msg: message from BT to WiFi
  * @msg_idx: the index of the message
  * @bt_ci_compliance: enum %iwl_bt_ci_compliance
@@ -229,7 +229,7 @@ enum iwl_bt_ci_compliance {
  * @rrc_status: is RRC enabled - one bit per PHY
  * @reserved: reserved
  */
-struct iwl_bt_coex_profile_notif {
+struct iwl_bt_coex_profile_yestif {
 	__le32 mbox_msg[4];
 	__le32 msg_idx;
 	__le32 bt_ci_compliance;

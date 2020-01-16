@@ -11,7 +11,7 @@
 #include <linux/init.h>
 #include <linux/irq.h>
 
-/* loongson internal northbridge initialization */
+/* loongson internal yesrthbridge initialization */
 extern void bonito_irq_init(void);
 
 /* machine-specific reboot/halt operation */
@@ -249,7 +249,7 @@ extern struct cpufreq_frequency_table loongson2_clockmod_table[];
 /*
  * address windows configuration module
  *
- * loongson2e do not have this module
+ * loongson2e do yest have this module
  */
 #ifdef CONFIG_CPU_SUPPORTS_ADDRWINCFG
 

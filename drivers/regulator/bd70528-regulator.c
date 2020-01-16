@@ -59,7 +59,7 @@ static int bd70528_set_ramp_delay(struct regulator_dev *rdev, int ramp_delay)
 				  BD70528_MASK_BUCK_RAMP,
 				  ramp_value << BD70528_SIFT_BUCK_RAMP);
 	}
-	dev_err(&rdev->dev, "%s: ramp_delay: %d not supported\n",
+	dev_err(&rdev->dev, "%s: ramp_delay: %d yest supported\n",
 		rdev->desc->name, ramp_delay);
 	return -EINVAL;
 }
@@ -77,7 +77,7 @@ static int bd70528_led_set_voltage_sel(struct regulator_dev *rdev,
 		return regulator_set_voltage_sel_regmap(rdev, sel);
 
 	dev_err(&rdev->dev,
-		"LED voltage change not allowed when led is enabled\n");
+		"LED voltage change yest allowed when led is enabled\n");
 
 	return -EBUSY;
 }
@@ -116,7 +116,7 @@ static const struct regulator_desc bd70528_desc[] = {
 	{
 		.name = "buck1",
 		.of_match = of_match_ptr("BUCK1"),
-		.regulators_node = of_match_ptr("regulators"),
+		.regulators_yesde = of_match_ptr("regulators"),
 		.id = BD70528_BUCK1,
 		.ops = &bd70528_buck_ops,
 		.type = REGULATOR_VOLTAGE,
@@ -132,7 +132,7 @@ static const struct regulator_desc bd70528_desc[] = {
 	{
 		.name = "buck2",
 		.of_match = of_match_ptr("BUCK2"),
-		.regulators_node = of_match_ptr("regulators"),
+		.regulators_yesde = of_match_ptr("regulators"),
 		.id = BD70528_BUCK2,
 		.ops = &bd70528_buck_ops,
 		.type = REGULATOR_VOLTAGE,
@@ -148,7 +148,7 @@ static const struct regulator_desc bd70528_desc[] = {
 	{
 		.name = "buck3",
 		.of_match = of_match_ptr("BUCK3"),
-		.regulators_node = of_match_ptr("regulators"),
+		.regulators_yesde = of_match_ptr("regulators"),
 		.id = BD70528_BUCK3,
 		.ops = &bd70528_buck_ops,
 		.type = REGULATOR_VOLTAGE,
@@ -164,7 +164,7 @@ static const struct regulator_desc bd70528_desc[] = {
 	{
 		.name = "ldo1",
 		.of_match = of_match_ptr("LDO1"),
-		.regulators_node = of_match_ptr("regulators"),
+		.regulators_yesde = of_match_ptr("regulators"),
 		.id = BD70528_LDO1,
 		.ops = &bd70528_ldo_ops,
 		.type = REGULATOR_VOLTAGE,
@@ -180,7 +180,7 @@ static const struct regulator_desc bd70528_desc[] = {
 	{
 		.name = "ldo2",
 		.of_match = of_match_ptr("LDO2"),
-		.regulators_node = of_match_ptr("regulators"),
+		.regulators_yesde = of_match_ptr("regulators"),
 		.id = BD70528_LDO2,
 		.ops = &bd70528_ldo_ops,
 		.type = REGULATOR_VOLTAGE,
@@ -196,7 +196,7 @@ static const struct regulator_desc bd70528_desc[] = {
 	{
 		.name = "ldo3",
 		.of_match = of_match_ptr("LDO3"),
-		.regulators_node = of_match_ptr("regulators"),
+		.regulators_yesde = of_match_ptr("regulators"),
 		.id = BD70528_LDO3,
 		.ops = &bd70528_ldo_ops,
 		.type = REGULATOR_VOLTAGE,
@@ -212,7 +212,7 @@ static const struct regulator_desc bd70528_desc[] = {
 	{
 		.name = "ldo_led1",
 		.of_match = of_match_ptr("LDO_LED1"),
-		.regulators_node = of_match_ptr("regulators"),
+		.regulators_yesde = of_match_ptr("regulators"),
 		.id = BD70528_LED1,
 		.ops = &bd70528_led_ops,
 		.type = REGULATOR_VOLTAGE,
@@ -227,7 +227,7 @@ static const struct regulator_desc bd70528_desc[] = {
 	{
 		.name = "ldo_led2",
 		.of_match = of_match_ptr("LDO_LED2"),
-		.regulators_node = of_match_ptr("regulators"),
+		.regulators_yesde = of_match_ptr("regulators"),
 		.id = BD70528_LED2,
 		.ops = &bd70528_led_ops,
 		.type = REGULATOR_VOLTAGE,

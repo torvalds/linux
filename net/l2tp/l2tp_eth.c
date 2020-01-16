@@ -235,7 +235,7 @@ static void l2tp_eth_adjust_mtu(struct l2tp_tunnel *tunnel,
 	if (l3_overhead == 0) {
 		/* L3 Overhead couldn't be identified, this could be
 		 * because tunnel->sock was NULL or the socket's
-		 * address family was not IPv4 or IPv6,
+		 * address family was yest IPv4 or IPv6,
 		 * dev mtu stays at 1500.
 		 */
 		return;

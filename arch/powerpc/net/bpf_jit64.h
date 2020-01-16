@@ -24,7 +24,7 @@
  * sp (r1) --->	[    stack pointer	] --------------
  */
 
-/* for gpr non volatile registers BPG_REG_6 to 10 */
+/* for gpr yesn volatile registers BPG_REG_6 to 10 */
 #define BPF_PPC_STACK_SAVE	(6*8)
 /* for bpf JIT code internal usage */
 #define BPF_PPC_STACK_LOCALS	16
@@ -48,7 +48,7 @@ static const int b2p[] = {
 	[BPF_REG_3] = 5,
 	[BPF_REG_4] = 6,
 	[BPF_REG_5] = 7,
-	/* non volatile registers */
+	/* yesn volatile registers */
 	[BPF_REG_6] = 27,
 	[BPF_REG_7] = 28,
 	[BPF_REG_8] = 29,
@@ -65,7 +65,7 @@ static const int b2p[] = {
 #define BPF_PPC_NVR_MIN		27
 
 /*
- * WARNING: These can use TMP_REG_2 if the offset is not at word boundary,
+ * WARNING: These can use TMP_REG_2 if the offset is yest at word boundary,
  * so ensure that it isn't in use already.
  */
 #define PPC_BPF_LL(r, base, i) do {					      \
@@ -95,7 +95,7 @@ struct codegen_context {
 	 * - register usage is tracked with corresponding
 	 *   bits (r3-r10 and r27-r31)
 	 * - rest of the bits can be used to track other
-	 *   things -- for now, we use bits 16 to 23
+	 *   things -- for yesw, we use bits 16 to 23
 	 *   encoded in SEEN_* macros above
 	 */
 	unsigned int seen;

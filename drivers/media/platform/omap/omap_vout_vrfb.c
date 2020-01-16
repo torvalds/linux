@@ -149,7 +149,7 @@ int omap_vout_setup_vrfb_bufs(struct platform_device *pdev, int vid_num,
 	if (vout->vrfb_dma_tx.req_status == DMA_CHAN_NOT_ALLOTED)
 		dev_info(&pdev->dev,
 			 ": failed to allocate DMA Channel for video%d\n",
-			 vfd->minor);
+			 vfd->miyesr);
 
 	init_waitqueue_head(&vout->vrfb_dma_tx.wait);
 
@@ -206,7 +206,7 @@ int omap_vout_vrfb_buffer_setup(struct omap_vout_device *vout,
 	/* If rotation is enabled, allocate memory for VRFB space also */
 	*count = *count > VRFB_NUM_BUFS ? VRFB_NUM_BUFS : *count;
 
-	/* Allocate the VRFB buffers only if the buffers are not
+	/* Allocate the VRFB buffers only if the buffers are yest
 	 * allocated during init time.
 	 */
 	if (!vout->vrfb_static_allocation)

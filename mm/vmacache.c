@@ -23,10 +23,10 @@
  * This task may be accessing a foreign mm via (for example)
  * get_user_pages()->find_vma().  The vmacache is task-local and this
  * task's vmacache pertains to a different mm (ie, its own).  There is
- * nothing we can do here.
+ * yesthing we can do here.
  *
  * Also handle the case where a kernel thread has adopted this mm via use_mm().
- * That kernel thread's vmacache is not applicable to this mm.
+ * That kernel thread's vmacache is yest applicable to this mm.
  */
 static inline bool vmacache_valid_mm(struct mm_struct *mm)
 {

@@ -55,19 +55,19 @@ static void handle_memory_error(void)
 {
 	unsigned long flags;
 	struct OpalMemoryErrorData *merr_evt;
-	struct OpalMsgNode *msg_node;
+	struct OpalMsgNode *msg_yesde;
 
 	spin_lock_irqsave(&opal_mem_err_lock, flags);
 	while (!list_empty(&opal_memory_err_list)) {
-		 msg_node = list_entry(opal_memory_err_list.next,
+		 msg_yesde = list_entry(opal_memory_err_list.next,
 					   struct OpalMsgNode, list);
-		list_del(&msg_node->list);
+		list_del(&msg_yesde->list);
 		spin_unlock_irqrestore(&opal_mem_err_lock, flags);
 
 		merr_evt = (struct OpalMemoryErrorData *)
-					&msg_node->msg.params[0];
+					&msg_yesde->msg.params[0];
 		handle_memory_error_event(merr_evt);
-		kfree(msg_node);
+		kfree(msg_yesde);
 		spin_lock_irqsave(&opal_mem_err_lock, flags);
 	}
 	spin_unlock_irqrestore(&opal_mem_err_lock, flags);
@@ -81,36 +81,36 @@ static void mem_error_handler(struct work_struct *work)
 static DECLARE_WORK(mem_error_work, mem_error_handler);
 
 /*
- * opal_memory_err_event - notifier handler that queues up the opal message
+ * opal_memory_err_event - yestifier handler that queues up the opal message
  * to be preocessed later.
  */
-static int opal_memory_err_event(struct notifier_block *nb,
+static int opal_memory_err_event(struct yestifier_block *nb,
 			  unsigned long msg_type, void *msg)
 {
 	unsigned long flags;
-	struct OpalMsgNode *msg_node;
+	struct OpalMsgNode *msg_yesde;
 
 	if (msg_type != OPAL_MSG_MEM_ERR)
 		return 0;
 
-	msg_node = kzalloc(sizeof(*msg_node), GFP_ATOMIC);
-	if (!msg_node) {
-		pr_err("MEMORY_ERROR: out of memory, Opal message event not"
+	msg_yesde = kzalloc(sizeof(*msg_yesde), GFP_ATOMIC);
+	if (!msg_yesde) {
+		pr_err("MEMORY_ERROR: out of memory, Opal message event yest"
 		       "handled\n");
 		return -ENOMEM;
 	}
-	memcpy(&msg_node->msg, msg, sizeof(msg_node->msg));
+	memcpy(&msg_yesde->msg, msg, sizeof(msg_yesde->msg));
 
 	spin_lock_irqsave(&opal_mem_err_lock, flags);
-	list_add(&msg_node->list, &opal_memory_err_list);
+	list_add(&msg_yesde->list, &opal_memory_err_list);
 	spin_unlock_irqrestore(&opal_mem_err_lock, flags);
 
 	schedule_work(&mem_error_work);
 	return 0;
 }
 
-static struct notifier_block opal_mem_err_nb = {
-	.notifier_call	= opal_memory_err_event,
+static struct yestifier_block opal_mem_err_nb = {
+	.yestifier_call	= opal_memory_err_event,
 	.next		= NULL,
 	.priority	= 0,
 };
@@ -120,10 +120,10 @@ static int __init opal_mem_err_init(void)
 	int ret;
 
 	if (!opal_mem_err_nb_init) {
-		ret = opal_message_notifier_register(
+		ret = opal_message_yestifier_register(
 					OPAL_MSG_MEM_ERR, &opal_mem_err_nb);
 		if (ret) {
-			pr_err("%s: Can't register OPAL event notifier (%d)\n",
+			pr_err("%s: Can't register OPAL event yestifier (%d)\n",
 			       __func__, ret);
 			return ret;
 		}

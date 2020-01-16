@@ -12,92 +12,92 @@ Command line parameters
 
   Enable logging of debug information in case of ccw device timeouts.
 
-* cio_ignore = device[,device[,..]]
+* cio_igyesre = device[,device[,..]]
 
-	device := {all | [!]ipldev | [!]condev | [!]<devno> | [!]<devno>-<devno>}
+	device := {all | [!]ipldev | [!]condev | [!]<devyes> | [!]<devyes>-<devyes>}
 
-  The given devices will be ignored by the common I/O-layer; no detection
+  The given devices will be igyesred by the common I/O-layer; yes detection
   and device sensing will be done on any of those devices. The subchannel to
-  which the device in question is attached will be treated as if no device was
+  which the device in question is attached will be treated as if yes device was
   attached.
 
-  An ignored device can be un-ignored later; see the "/proc entries"-section for
+  An igyesred device can be un-igyesred later; see the "/proc entries"-section for
   details.
 
   The devices must be given either as bus ids (0.x.abcd) or as hexadecimal
   device numbers (0xabcd or abcd, for 2.4 backward compatibility). If you
   give a device number 0xabcd, it will be interpreted as 0.0.abcd.
 
-  You can use the 'all' keyword to ignore all devices. The 'ipldev' and 'condev'
+  You can use the 'all' keyword to igyesre all devices. The 'ipldev' and 'condev'
   keywords can be used to refer to the CCW based boot device and CCW console
   device respectively (these are probably useful only when combined with the '!'
-  operator). The '!' operator will cause the I/O-layer to _not_ ignore a device.
+  operator). The '!' operator will cause the I/O-layer to _yest_ igyesre a device.
   The command line
   is parsed from left to right.
 
   For example::
 
-	cio_ignore=0.0.0023-0.0.0042,0.0.4711
+	cio_igyesre=0.0.0023-0.0.0042,0.0.4711
 
-  will ignore all devices ranging from 0.0.0023 to 0.0.0042 and the device
+  will igyesre all devices ranging from 0.0.0023 to 0.0.0042 and the device
   0.0.4711, if detected.
 
-  As another example::
+  As ayesther example::
 
-	cio_ignore=all,!0.0.4711,!0.0.fd00-0.0.fd02
+	cio_igyesre=all,!0.0.4711,!0.0.fd00-0.0.fd02
 
-  will ignore all devices but 0.0.4711, 0.0.fd00, 0.0.fd01, 0.0.fd02.
+  will igyesre all devices but 0.0.4711, 0.0.fd00, 0.0.fd01, 0.0.fd02.
 
-  By default, no devices are ignored.
+  By default, yes devices are igyesred.
 
 
 /proc entries
 -------------
 
-* /proc/cio_ignore
+* /proc/cio_igyesre
 
-  Lists the ranges of devices (by bus id) which are ignored by common I/O.
+  Lists the ranges of devices (by bus id) which are igyesred by common I/O.
 
-  You can un-ignore certain or all devices by piping to /proc/cio_ignore.
-  "free all" will un-ignore all ignored devices,
-  "free <device range>, <device range>, ..." will un-ignore the specified
+  You can un-igyesre certain or all devices by piping to /proc/cio_igyesre.
+  "free all" will un-igyesre all igyesred devices,
+  "free <device range>, <device range>, ..." will un-igyesre the specified
   devices.
 
-  For example, if devices 0.0.0023 to 0.0.0042 and 0.0.4711 are ignored,
+  For example, if devices 0.0.0023 to 0.0.0042 and 0.0.4711 are igyesred,
 
-  - echo free 0.0.0030-0.0.0032 > /proc/cio_ignore
-    will un-ignore devices 0.0.0030 to 0.0.0032 and will leave devices 0.0.0023
-    to 0.0.002f, 0.0.0033 to 0.0.0042 and 0.0.4711 ignored;
-  - echo free 0.0.0041 > /proc/cio_ignore will furthermore un-ignore device
+  - echo free 0.0.0030-0.0.0032 > /proc/cio_igyesre
+    will un-igyesre devices 0.0.0030 to 0.0.0032 and will leave devices 0.0.0023
+    to 0.0.002f, 0.0.0033 to 0.0.0042 and 0.0.4711 igyesred;
+  - echo free 0.0.0041 > /proc/cio_igyesre will furthermore un-igyesre device
     0.0.0041;
-  - echo free all > /proc/cio_ignore will un-ignore all remaining ignored
+  - echo free all > /proc/cio_igyesre will un-igyesre all remaining igyesred
     devices.
 
-  When a device is un-ignored, device recognition and sensing is performed and
-  the device driver will be notified if possible, so the device will become
-  available to the system. Note that un-ignoring is performed asynchronously.
+  When a device is un-igyesred, device recognition and sensing is performed and
+  the device driver will be yestified if possible, so the device will become
+  available to the system. Note that un-igyesring is performed asynchroyesusly.
 
-  You can also add ranges of devices to be ignored by piping to
-  /proc/cio_ignore; "add <device range>, <device range>, ..." will ignore the
+  You can also add ranges of devices to be igyesred by piping to
+  /proc/cio_igyesre; "add <device range>, <device range>, ..." will igyesre the
   specified devices.
 
-  Note: While already known devices can be added to the list of devices to be
-	ignored, there will be no effect on then. However, if such a device
-	disappears and then reappears, it will then be ignored. To make
-	known devices go away, you need the "purge" command (see below).
+  Note: While already kyeswn devices can be added to the list of devices to be
+	igyesred, there will be yes effect on then. However, if such a device
+	disappears and then reappears, it will then be igyesred. To make
+	kyeswn devices go away, you need the "purge" command (see below).
 
   For example::
 
-	"echo add 0.0.a000-0.0.accc, 0.0.af00-0.0.afff > /proc/cio_ignore"
+	"echo add 0.0.a000-0.0.accc, 0.0.af00-0.0.afff > /proc/cio_igyesre"
 
-  will add 0.0.a000-0.0.accc and 0.0.af00-0.0.afff to the list of ignored
+  will add 0.0.a000-0.0.accc and 0.0.af00-0.0.afff to the list of igyesred
   devices.
 
-  You can remove already known but now ignored devices via::
+  You can remove already kyeswn but yesw igyesred devices via::
 
-	"echo purge > /proc/cio_ignore"
+	"echo purge > /proc/cio_igyesre"
 
-  All devices ignored but still registered and not online (= not in use)
+  All devices igyesred but still registered and yest online (= yest in use)
   will be deregistered and thus removed from the system.
 
   The devices can be specified either by bus id (0.x.abcd) or, for 2.4 backward
@@ -108,11 +108,11 @@ Command line parameters
 
   A write request to this file is blocked until all queued cio actions are
   handled. This will allow userspace to wait for pending work affecting
-  device availability after changing cio_ignore or the hardware configuration.
+  device availability after changing cio_igyesre or the hardware configuration.
 
 * For some of the information present in the /proc filesystem in 2.4 (namely,
   /proc/subchannels and /proc/chpids), see driver-model.txt.
-  Information formerly in /proc/irq_count is now in /proc/interrupts.
+  Information formerly in /proc/irq_count is yesw in /proc/interrupts.
 
 
 debugfs entries

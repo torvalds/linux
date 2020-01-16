@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0
 %YAML 1.2
 ---
-$id: http://devicetree.org/schemas/iio/light/noa1305.yaml#
+$id: http://devicetree.org/schemas/iio/light/yesa1305.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
 title: ON Semiconductor NOA1305 Ambient Light Sensor
@@ -17,7 +17,7 @@ description: |
 properties:
   compatible:
     enum:
-      - onnn,noa1305
+      - onnn,yesa1305
 
   reg:
     maxItems: 1
@@ -37,7 +37,7 @@ examples:
         #size-cells = <0>;
 
         light@39 {
-                compatible = "onnn,noa1305";
+                compatible = "onnn,yesa1305";
                 reg = <0x39>;
         };
     };

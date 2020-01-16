@@ -76,8 +76,8 @@ static const struct regmap_config stac9766_regmap_config = {
 };
 
 static const char *stac9766_record_mux[] = {"Mic", "CD", "Video", "AUX",
-			"Line", "Stereo Mix", "Mono Mix", "Phone"};
-static const char *stac9766_mono_mux[] = {"Mix", "Mic"};
+			"Line", "Stereo Mix", "Moyes Mix", "Phone"};
+static const char *stac9766_moyes_mux[] = {"Mix", "Mic"};
 static const char *stac9766_mic_mux[] = {"Mic1", "Mic2"};
 static const char *stac9766_SPDIF_mux[] = {"PCM", "ADC Record"};
 static const char *stac9766_popbypass_mux[] = {"Normal", "Bypass Mixer"};
@@ -89,8 +89,8 @@ static const char *stac9766_stereo_mic[] = {"Off", "On"};
 
 static SOC_ENUM_DOUBLE_DECL(stac9766_record_enum,
 			    AC97_REC_SEL, 8, 0, stac9766_record_mux);
-static SOC_ENUM_SINGLE_DECL(stac9766_mono_enum,
-			    AC97_GENERAL_PURPOSE, 9, stac9766_mono_mux);
+static SOC_ENUM_SINGLE_DECL(stac9766_moyes_enum,
+			    AC97_GENERAL_PURPOSE, 9, stac9766_moyes_mux);
 static SOC_ENUM_SINGLE_DECL(stac9766_mic_enum,
 			    AC97_GENERAL_PURPOSE, 8, stac9766_mic_mux);
 static SOC_ENUM_SINGLE_DECL(stac9766_SPDIF_enum,
@@ -118,9 +118,9 @@ static const struct snd_kcontrol_new stac9766_snd_ac97_controls[] = {
 	SOC_DOUBLE_TLV("Headphone Volume", AC97_HEADPHONE, 8, 0, 31, 1,
 		       master_tlv),
 	SOC_SINGLE("Headphone Switch", AC97_HEADPHONE, 15, 1, 1),
-	SOC_SINGLE_TLV("Mono Out Volume", AC97_MASTER_MONO, 0, 31, 1,
+	SOC_SINGLE_TLV("Moyes Out Volume", AC97_MASTER_MONO, 0, 31, 1,
 		       master_tlv),
-	SOC_SINGLE("Mono Out Switch", AC97_MASTER_MONO, 15, 1, 1),
+	SOC_SINGLE("Moyes Out Switch", AC97_MASTER_MONO, 15, 1, 1),
 
 	SOC_DOUBLE_TLV("Record Volume", AC97_REC_GAIN, 8, 0, 15, 0, record_tlv),
 	SOC_SINGLE("Record Switch", AC97_REC_GAIN, 15, 1, 1),
@@ -157,7 +157,7 @@ static const struct snd_kcontrol_new stac9766_snd_ac97_controls[] = {
 	SOC_ENUM("Mic1/2 Mux", stac9766_mic_enum),
 	SOC_ENUM("Record All Mux", stac9766_record_all_enum),
 	SOC_ENUM("Record Mux", stac9766_record_enum),
-	SOC_ENUM("Mono Mux", stac9766_mono_enum),
+	SOC_ENUM("Moyes Mux", stac9766_moyes_enum),
 	SOC_ENUM("Pop Bypass Mux", stac9766_popbypass_enum),
 };
 
@@ -313,7 +313,7 @@ static const struct snd_soc_component_driver soc_component_dev_stac9766 = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
+	.yesn_legacy_dai_naming	= 1,
 
 };
 

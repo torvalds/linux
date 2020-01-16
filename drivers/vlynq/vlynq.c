@@ -12,7 +12,7 @@
 #include <linux/string.h>
 #include <linux/device.h>
 #include <linux/module.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/platform_device.h>
 #include <linux/interrupt.h>
 #include <linux/delay.h>

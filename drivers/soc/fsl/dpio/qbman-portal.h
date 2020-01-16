@@ -43,8 +43,8 @@ enum qbman_pull_type_e {
 	qbman_pull_type_prio = 1,
 	/* dequeue with active FQ precedence, respect ICS */
 	qbman_pull_type_active,
-	/* dequeue with active FQ precedence, no ICS */
-	qbman_pull_type_active_noics
+	/* dequeue with active FQ precedence, yes ICS */
+	qbman_pull_type_active_yesics
 };
 
 /* Definitions for parsing dequeue entries */
@@ -166,7 +166,7 @@ void qbman_swp_dqrr_consume(struct qbman_swp *s, const struct dpaa2_dq *dq);
 int qbman_result_has_new_result(struct qbman_swp *p, const struct dpaa2_dq *dq);
 
 void qbman_eq_desc_clear(struct qbman_eq_desc *d);
-void qbman_eq_desc_set_no_orp(struct qbman_eq_desc *d, int respond_success);
+void qbman_eq_desc_set_yes_orp(struct qbman_eq_desc *d, int respond_success);
 void qbman_eq_desc_set_token(struct qbman_eq_desc *d, u8 token);
 void qbman_eq_desc_set_fq(struct qbman_eq_desc *d, u32 fqid);
 void qbman_eq_desc_set_qd(struct qbman_eq_desc *d, u32 qdid,
@@ -197,7 +197,7 @@ void *qbman_swp_mc_result(struct qbman_swp *p);
  * qbman_result_is_DQ() - check if the dequeue result is a dequeue response
  * @dq: the dequeue result to be checked
  *
- * DQRR entries may contain non-dequeue results, ie. notifications
+ * DQRR entries may contain yesn-dequeue results, ie. yestifications
  */
 static inline int qbman_result_is_DQ(const struct dpaa2_dq *dq)
 {
@@ -205,7 +205,7 @@ static inline int qbman_result_is_DQ(const struct dpaa2_dq *dq)
 }
 
 /**
- * qbman_result_is_SCN() - Check the dequeue result is notification or not
+ * qbman_result_is_SCN() - Check the dequeue result is yestification or yest
  * @dq: the dequeue result to be checked
  *
  */
@@ -263,7 +263,7 @@ static inline int qbman_result_is_FQPN(const struct dpaa2_dq *dq)
 }
 
 /**
- * qbman_result_SCN_state() - Get the state field in State-change notification
+ * qbman_result_SCN_state() - Get the state field in State-change yestification
  */
 static inline u8 qbman_result_SCN_state(const struct dpaa2_dq *scn)
 {
@@ -273,7 +273,7 @@ static inline u8 qbman_result_SCN_state(const struct dpaa2_dq *scn)
 #define SCN_RID_MASK 0x00FFFFFF
 
 /**
- * qbman_result_SCN_rid() - Get the resource id in State-change notification
+ * qbman_result_SCN_rid() - Get the resource id in State-change yestification
  */
 static inline u32 qbman_result_SCN_rid(const struct dpaa2_dq *scn)
 {
@@ -281,7 +281,7 @@ static inline u32 qbman_result_SCN_rid(const struct dpaa2_dq *scn)
 }
 
 /**
- * qbman_result_SCN_ctx() - Get the context data in State-change notification
+ * qbman_result_SCN_ctx() - Get the context data in State-change yestification
  */
 static inline u64 qbman_result_SCN_ctx(const struct dpaa2_dq *scn)
 {
@@ -311,7 +311,7 @@ static inline int qbman_swp_fq_schedule(struct qbman_swp *s, u32 fqid)
  * Force eligible will force a tentatively-scheduled FQ to be fully-scheduled
  * and thus be available for selection by any channel-dequeuing behaviour (push
  * or pull). If the FQ is subsequently "dequeued" from the channel and is still
- * empty at the time this happens, the resulting dq_entry will have no FD.
+ * empty at the time this happens, the resulting dq_entry will have yes FD.
  * (qbman_result_DQ_fd() will return NULL.)
  *
  * Return 0 for success, or negative error code for failure.
@@ -342,10 +342,10 @@ static inline int qbman_swp_fq_xon(struct qbman_swp *s, u32 fqid)
  *
  * This setting doesn't affect enqueues to the FQ, just dequeues.
  * XOFF FQs will remain in the tenatively-scheduled state, even when
- * non-empty, meaning they won't be selected for scheduled dequeuing.
+ * yesn-empty, meaning they won't be selected for scheduled dequeuing.
  * If a FQ is changed to XOFF after it had already become truly-scheduled
  * to a channel, and a pull dequeue of that channel occurs that selects
- * that FQ for dequeuing, then the resulting dq_entry will have no FD.
+ * that FQ for dequeuing, then the resulting dq_entry will have yes FD.
  * (qbman_result_DQ_fd() will return NULL.)
  *
  * Return 0 for success, or negative error code for failure.
@@ -356,11 +356,11 @@ static inline int qbman_swp_fq_xoff(struct qbman_swp *s, u32 fqid)
 }
 
 /* If the user has been allocated a channel object that is going to generate
- * CDANs to another channel, then the qbman_swp_CDAN* functions will be
+ * CDANs to ayesther channel, then the qbman_swp_CDAN* functions will be
  * necessary.
  *
- * CDAN-enabled channels only generate a single CDAN notification, after which
- * they need to be reenabled before they'll generate another. The idea is
+ * CDAN-enabled channels only generate a single CDAN yestification, after which
+ * they need to be reenabled before they'll generate ayesther. The idea is
  * that pull dequeuing will occur in reaction to the CDAN, followed by a
  * reenable step. Each function generates a distinct command to hardware, so a
  * combination function is provided if the user wishes to modify the "context"

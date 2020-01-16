@@ -99,8 +99,8 @@ static int sh_pfc_map_add_config(struct pinctrl_map *map,
 	return 0;
 }
 
-static int sh_pfc_dt_subnode_to_map(struct pinctrl_dev *pctldev,
-				    struct device_node *np,
+static int sh_pfc_dt_subyesde_to_map(struct pinctrl_dev *pctldev,
+				    struct device_yesde *np,
 				    struct pinctrl_map **map,
 				    unsigned int *num_maps, unsigned int *index)
 {
@@ -121,7 +121,7 @@ static int sh_pfc_dt_subnode_to_map(struct pinctrl_dev *pctldev,
 
 	/* Support both the old Renesas-specific properties and the new standard
 	 * properties. Mixing old and new properties isn't allowed, neither
-	 * inside a subnode nor across subnodes.
+	 * inside a subyesde yesr across subyesdes.
 	 */
 	if (!pmx->func_prop_name) {
 		if (of_find_property(np, "groups", NULL) ||
@@ -151,7 +151,7 @@ static int sh_pfc_dt_subnode_to_map(struct pinctrl_dev *pctldev,
 
 	if (!function && num_configs == 0) {
 		dev_err(dev,
-			"DT node must contain at least a function or config\n");
+			"DT yesde must contain at least a function or config\n");
 		ret = -ENODEV;
 		goto done;
 	}
@@ -178,7 +178,7 @@ static int sh_pfc_dt_subnode_to_map(struct pinctrl_dev *pctldev,
 	}
 
 	if (!num_pins && !num_groups) {
-		dev_err(dev, "No pin or group provided in DT node\n");
+		dev_err(dev, "No pin or group provided in DT yesde\n");
 		ret = -ENODEV;
 		goto done;
 	}
@@ -255,13 +255,13 @@ static void sh_pfc_dt_free_map(struct pinctrl_dev *pctldev,
 	kfree(map);
 }
 
-static int sh_pfc_dt_node_to_map(struct pinctrl_dev *pctldev,
-				 struct device_node *np,
+static int sh_pfc_dt_yesde_to_map(struct pinctrl_dev *pctldev,
+				 struct device_yesde *np,
 				 struct pinctrl_map **map, unsigned *num_maps)
 {
 	struct sh_pfc_pinctrl *pmx = pinctrl_dev_get_drvdata(pctldev);
 	struct device *dev = pmx->pfc->dev;
-	struct device_node *child;
+	struct device_yesde *child;
 	unsigned int index;
 	int ret;
 
@@ -269,18 +269,18 @@ static int sh_pfc_dt_node_to_map(struct pinctrl_dev *pctldev,
 	*num_maps = 0;
 	index = 0;
 
-	for_each_child_of_node(np, child) {
-		ret = sh_pfc_dt_subnode_to_map(pctldev, child, map, num_maps,
+	for_each_child_of_yesde(np, child) {
+		ret = sh_pfc_dt_subyesde_to_map(pctldev, child, map, num_maps,
 					       &index);
 		if (ret < 0) {
-			of_node_put(child);
+			of_yesde_put(child);
 			goto done;
 		}
 	}
 
-	/* If no mapping has been found in child nodes try the config node. */
+	/* If yes mapping has been found in child yesdes try the config yesde. */
 	if (*num_maps == 0) {
-		ret = sh_pfc_dt_subnode_to_map(pctldev, np, map, num_maps,
+		ret = sh_pfc_dt_subyesde_to_map(pctldev, np, map, num_maps,
 					       &index);
 		if (ret < 0)
 			goto done;
@@ -289,7 +289,7 @@ static int sh_pfc_dt_node_to_map(struct pinctrl_dev *pctldev,
 	if (*num_maps)
 		return 0;
 
-	dev_err(dev, "no mapping found in node %pOF\n", np);
+	dev_err(dev, "yes mapping found in yesde %pOF\n", np);
 	ret = -EINVAL;
 
 done:
@@ -306,7 +306,7 @@ static const struct pinctrl_ops sh_pfc_pinctrl_ops = {
 	.get_group_pins		= sh_pfc_get_group_pins,
 	.pin_dbg_show		= sh_pfc_pin_dbg_show,
 #ifdef CONFIG_OF
-	.dt_node_to_map		= sh_pfc_dt_node_to_map,
+	.dt_yesde_to_map		= sh_pfc_dt_yesde_to_map,
 	.dt_free_map		= sh_pfc_dt_free_map,
 #endif
 };
@@ -358,7 +358,7 @@ static int sh_pfc_func_set_mux(struct pinctrl_dev *pctldev, unsigned selector,
 		struct sh_pfc_pin_config *cfg = &pmx->configs[idx];
 
 		/*
-		 * This driver cannot manage both gpio and mux when the gpio
+		 * This driver canyest manage both gpio and mux when the gpio
 		 * pin is already enabled. So, this function fails.
 		 */
 		if (cfg->gpio_enabled) {
@@ -823,7 +823,7 @@ int sh_pfc_register_pinctrl(struct sh_pfc *pfc)
 	ret = devm_pinctrl_register_and_init(pfc->dev, &pmx->pctl_desc, pmx,
 					     &pmx->pctl);
 	if (ret) {
-		dev_err(pfc->dev, "could not register: %i\n", ret);
+		dev_err(pfc->dev, "could yest register: %i\n", ret);
 
 		return ret;
 	}

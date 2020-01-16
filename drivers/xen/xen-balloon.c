@@ -18,7 +18,7 @@
  * and to permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -33,7 +33,7 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/mm_types.h>
 #include <linux/init.h>
 #include <linux/capability.h>
@@ -69,7 +69,7 @@ static void watch_target(struct xenbus_watch *watch,
 	static long target_diff;
 
 #ifdef CONFIG_MEMORY_HOTPLUG
-	/* The balloon driver will take care of adding memory now. */
+	/* The balloon driver will take care of adding memory yesw. */
 	if (xen_saved_max_mem_size)
 		max_mem_size = xen_saved_max_mem_size;
 #endif
@@ -103,12 +103,12 @@ static void watch_target(struct xenbus_watch *watch,
 	balloon_set_new_target(new_target - target_diff);
 }
 static struct xenbus_watch target_watch = {
-	.node = "memory/target",
+	.yesde = "memory/target",
 	.callback = watch_target,
 };
 
 
-static int balloon_init_watcher(struct notifier_block *notifier,
+static int balloon_init_watcher(struct yestifier_block *yestifier,
 				unsigned long event,
 				void *data)
 {
@@ -121,15 +121,15 @@ static int balloon_init_watcher(struct notifier_block *notifier,
 	return NOTIFY_DONE;
 }
 
-static struct notifier_block xenstore_notifier = {
-	.notifier_call = balloon_init_watcher,
+static struct yestifier_block xenstore_yestifier = {
+	.yestifier_call = balloon_init_watcher,
 };
 
 void xen_balloon_init(void)
 {
 	register_balloon(&balloon_dev);
 
-	register_xenstore_notifier(&xenstore_notifier);
+	register_xenstore_yestifier(&xenstore_yestifier);
 }
 EXPORT_SYMBOL_GPL(xen_balloon_init);
 

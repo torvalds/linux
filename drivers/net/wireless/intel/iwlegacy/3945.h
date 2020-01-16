@@ -33,15 +33,15 @@ extern const struct il_ops il3945_ops;
 #define _IL3945_MODULE_FIRMWARE(api) IL3945_FW_PRE #api ".ucode"
 #define IL3945_MODULE_FIRMWARE(api) _IL3945_MODULE_FIRMWARE(api)
 
-/* Default noise level to report when noise measurement is not available.
+/* Default yesise level to report when yesise measurement is yest available.
  *   This may be because we're:
- *   1)  Not associated (4965, no beacon stats being sent to driver)
- *   2)  Scanning (noise measurement does not apply to associated channel)
- *   3)  Receiving CCK (3945 delivers noise info only for OFDM frames)
- * Use default noise value of -127 ... this is below the range of measurable
+ *   1)  Not associated (4965, yes beacon stats being sent to driver)
+ *   2)  Scanning (yesise measurement does yest apply to associated channel)
+ *   3)  Receiving CCK (3945 delivers yesise info only for OFDM frames)
+ * Use default yesise value of -127 ... this is below the range of measurable
  *   Rx dBm for either 3945 or 4965, so it can indicate "unmeasurable" to user.
  *   Also, -127 works better than 0 when averaging frames with/without
- *   noise info (e.g. averaging might be done in app); measured dBm values are
+ *   yesise info (e.g. averaging might be done in app); measured dBm values are
  *   always negative ... using a negative value as the default keeps all
  *   averages within an s8's (used in some apps) range of negative values. */
 #define IL_NOISE_MEAS_NOT_AVAILABLE (-127)
@@ -96,7 +96,7 @@ enum il3945_antenna {
  * RTS threshold here is total size [2347] minus 4 FCS bytes
  * Per spec:
  *   a value of 0 means RTS on all data/management packets
- *   a value > max MSDU size means no RTS
+ *   a value > max MSDU size means yes RTS
  * else RTS for data/management frames where MPDU is larger
  *   than RTS value.
  */
@@ -231,8 +231,8 @@ int il3945_commit_rxon(struct il_priv *il);
  * il3945_hw_find_station - Find station id for a given BSSID
  * @bssid: MAC address of station ID to find
  *
- * NOTE:  This should not be hardware specific but the code has
- * not yet been merged into a single common layer for managing the
+ * NOTE:  This should yest be hardware specific but the code has
+ * yest yet been merged into a single common layer for managing the
  * station tables.
  */
 u8 il3945_hw_find_station(struct il_priv *il, const u8 *bssid);
@@ -265,7 +265,7 @@ extern const struct il3945_rate_info il3945_rates[RATE_COUNT_3945];
  * One for each of 5 "sample" power levels in each band.
  * v_det is measured at the factory, using the 3945's built-in power amplifier
  *   (PA) output voltage detector.  This same detector is used during Tx of
- *   long packets in normal operation to provide feedback as to proper output
+ *   long packets in yesrmal operation to provide feedback as to proper output
  *   level.
  * Data copied from EEPROM.
  * DO NOT ALTER THIS STRUCTURE!!!
@@ -277,10 +277,10 @@ struct il3945_eeprom_txpower_sample {
 } __packed;
 
 /*
- * Mappings of Tx power levels -> nominal radio/DSP gain table idxes.
+ * Mappings of Tx power levels -> yesminal radio/DSP gain table idxes.
  * One for each channel group (a.k.a. "band") (1 for BG, 4 for A).
  * Tx power setup code interpolates between the 5 "sample" power levels
- *    to determine the nominal setup for a requested power level.
+ *    to determine the yesminal setup for a requested power level.
  * Data copied from EEPROM.
  * DO NOT ALTER THIS STRUCTURE!!!
  */
@@ -298,7 +298,7 @@ struct il3945_eeprom_txpower_group {
 } __packed;
 
 /*
- * Temperature-based Tx-power compensation data, not band-specific.
+ * Temperature-based Tx-power compensation data, yest band-specific.
  * These coefficients are use to modify a/b/c/d/e coeffs based on
  *   difference between current temperature and factory calib temperature.
  * Data copied from EEPROM.
@@ -356,7 +356,7 @@ struct il3945_eeprom {
 /*
  * 4.9 GHz channels 183, 184, 185, 187, 188, 189, 192, 196,
  * 5.0 GHz channels 7, 8, 11, 12, 16
- * (4915-5080MHz) (none of these is ever supported)
+ * (4915-5080MHz) (yesne of these is ever supported)
  */
 	u16 band_2_count;	/* abs.ofs: 226 */
 	struct il_eeprom_channel band_2_channels[13];	/* abs.ofs: 228 */
@@ -401,7 +401,7 @@ struct il3945_eeprom {
 #define PCI_CFG_REV_ID_BIT_BASIC_SKU                (0x40)	/* bit 6    */
 #define PCI_CFG_REV_ID_BIT_RTP                      (0x80)	/* bit 7    */
 
-/* 4 DATA + 1 CMD. There are 2 HCCA queues that are not used. */
+/* 4 DATA + 1 CMD. There are 2 HCCA queues that are yest used. */
 #define IL39_NUM_QUEUES        5
 #define IL39_CMD_QUEUE_NUM	4
 

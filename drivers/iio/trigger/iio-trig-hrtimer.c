@@ -88,7 +88,7 @@ static enum hrtimer_restart iio_hrtimer_trig_handler(struct hrtimer *timer)
 
 	info = container_of(timer, struct iio_hrtimer_info, timer);
 
-	hrtimer_forward_now(timer, info->period);
+	hrtimer_forward_yesw(timer, info->period);
 	iio_trigger_poll(info->swt.trigger);
 
 	return HRTIMER_RESTART;
@@ -160,7 +160,7 @@ static int iio_trig_hrtimer_remove(struct iio_sw_trigger *swt)
 
 	iio_trigger_unregister(swt->trigger);
 
-	/* cancel the timer after unreg to make sure no one rearms it */
+	/* cancel the timer after unreg to make sure yes one rearms it */
 	hrtimer_cancel(&trig_info->timer);
 	iio_trigger_free(swt->trigger);
 	kfree(trig_info);

@@ -6,7 +6,7 @@
 
 #include <linux/futex.h>
 #include <linux/uaccess.h>
-#include <asm/errno.h>
+#include <asm/erryes.h>
 #include <asm/barrier.h>
 
 #define __futex_atomic_op(insn, ret, oldval, uaddr, oparg)	\
@@ -44,7 +44,7 @@ static inline int arch_futex_atomic_op_inuser(int op, int oparg, int *oval,
 		__futex_atomic_op("or %0,%3,%1\n", ret, oldval, uaddr, oparg);
 		break;
 	case FUTEX_OP_ANDN:
-		__futex_atomic_op("andnot %0,%3,%1\n", ret, oldval, uaddr, oparg);
+		__futex_atomic_op("andyest %0,%3,%1\n", ret, oldval, uaddr, oparg);
 		break;
 	case FUTEX_OP_XOR:
 		__futex_atomic_op("xor %0,%3,%1\n", ret, oldval, uaddr, oparg);

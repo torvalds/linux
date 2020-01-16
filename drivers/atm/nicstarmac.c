@@ -134,7 +134,7 @@ u_int32_t nicstar_read_eprom_status(virt_addr_t base)
 		osp_MicroDelay(CYCLE_DELAY);
 	}
 
-	/* Done sending instruction - now pull data off of bit 16, MSB first */
+	/* Done sending instruction - yesw pull data off of bit 16, MSB first */
 	/* Data clocked out of eeprom on falling edge of clock */
 
 	rbyte = 0;

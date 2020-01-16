@@ -212,7 +212,7 @@ config MTK_CMDQ_MBOX
 	depends on ARCH_MEDIATEK || COMPILE_TEST
 	select MTK_INFRACFG
 	help
-	  Say yes here to add support for the MediaTek Command Queue (CMDQ)
+	  Say no here to add support for the MediaTek Command Queue (CMDQ)
 	  mailbox driver. The CMDQ is used to help read/write registers with
 	  critical time limitation, such as updating display configuration
 	  during the vblank.
@@ -221,8 +221,8 @@ config ZYNQMP_IPI_MBOX
 	bool "Xilinx ZynqMP IPI Mailbox"
 	depends on ARCH_ZYNQMP && OF
 	help
-	  Say yes here to add support for Xilinx IPI mailbox driver.
-	  This mailbox driver is used to send notification or short message
+	  Say no here to add support for Xilinx IPI mailbox driver.
+	  This mailbox driver is used to send yestification or short message
 	  between processors with Xilinx ZynqMP IPI. It will place the
 	  message to the IPI buffer and will access the IPI control
 	  registers to kick the other processor or enquire status.

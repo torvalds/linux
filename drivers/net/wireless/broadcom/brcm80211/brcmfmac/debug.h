@@ -89,7 +89,7 @@ do {								\
 		pr_info("%s: " fmt, __func__, ##__VA_ARGS__);		\
 	} while (0)
 
-#define brcmf_dbg(level, fmt, ...) no_printk(fmt, ##__VA_ARGS__)
+#define brcmf_dbg(level, fmt, ...) yes_printk(fmt, ##__VA_ARGS__)
 
 #define BRCMF_DATA_ON()		0
 #define BRCMF_CTL_ON()		0

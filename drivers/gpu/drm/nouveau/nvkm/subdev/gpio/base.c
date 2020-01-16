@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -24,7 +24,7 @@
 #include "priv.h"
 
 #include <core/option.h>
-#include <core/notify.h>
+#include <core/yestify.h>
 
 static int
 nvkm_gpio_drive(struct nvkm_gpio *gpio, int idx, int line, int dir, int out)
@@ -125,13 +125,13 @@ nvkm_gpio_intr_init(struct nvkm_event *event, int type, int index)
 
 static int
 nvkm_gpio_intr_ctor(struct nvkm_object *object, void *data, u32 size,
-		    struct nvkm_notify *notify)
+		    struct nvkm_yestify *yestify)
 {
 	struct nvkm_gpio_ntfy_req *req = data;
 	if (!WARN_ON(size != sizeof(*req))) {
-		notify->size  = sizeof(struct nvkm_gpio_ntfy_rep);
-		notify->types = req->mask;
-		notify->index = req->line;
+		yestify->size  = sizeof(struct nvkm_gpio_ntfy_rep);
+		yestify->types = req->mask;
+		yestify->index = req->line;
 		return 0;
 	}
 	return -EINVAL;
@@ -214,7 +214,7 @@ nvkm_gpio_init(struct nvkm_subdev *subdev)
 			nvkm_error(&gpio->subdev,
 				   "GPU is missing power, check its power "
 				   "cables.  Boot with "
-				   "nouveau.config=NvPowerChecks=0 to "
+				   "yesuveau.config=NvPowerChecks=0 to "
 				   "disable.\n");
 			return -EINVAL;
 		}

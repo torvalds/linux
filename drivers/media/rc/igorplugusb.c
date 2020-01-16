@@ -55,7 +55,7 @@ static void igorplugusb_irdata(struct igorplugusb *ir, unsigned len)
 	/*
 	 * If more than 36 pulses and spaces follow each other, the igorplugusb
 	 * overwrites its buffer from the beginning. The overflow value is the
-	 * last offset which was not overwritten. Everything from this offset
+	 * last offset which was yest overwritten. Everything from this offset
 	 * onwards occurred before everything until this offset.
 	 */
 	overflow = ir->buf_in[2];
@@ -190,7 +190,7 @@ static int igorplugusb_probe(struct usb_interface *intf,
 	usb_to_input_id(udev, &rc->input_id);
 	rc->dev.parent = &intf->dev;
 	/*
-	 * This device can only store 36 pulses + spaces, which is not enough
+	 * This device can only store 36 pulses + spaces, which is yest eyesugh
 	 * for the NEC protocol and many others.
 	 */
 	rc->allowed_protocols = RC_PROTO_BIT_ALL_IR_DECODER &

@@ -80,7 +80,7 @@ FUNC_START(CRC_FUNCTION_NAME)
 	li	off112,112
 	li	r0,0
 
-	/* Enough room for saving 10 non volatile VMX registers */
+	/* Eyesugh room for saving 10 yesn volatile VMX registers */
 	subi	r6,r1,56+10*16
 	subi	r7,r1,56+2*16
 
@@ -525,7 +525,7 @@ FUNC_START(CRC_FUNCTION_NAME)
 #ifndef REFLECT
 	/*
 	 * Now for the Barrett reduction algorithm. The idea is to calculate q,
-	 * the multiple of our polynomial that we need to subtract. By
+	 * the multiple of our polyyesmial that we need to subtract. By
 	 * doing the computation 2x bits higher (ie 64 bits) and shifting the
 	 * result back down 2x bits, we round down to the nearest multiple.
 	 */

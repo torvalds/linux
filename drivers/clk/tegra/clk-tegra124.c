@@ -767,7 +767,7 @@ static struct tegra_clk tegra124_clks[tegra_clk_max] __initdata = {
 	[tegra_clk_kbc] = { .dt_id = TEGRA124_CLK_KBC, .present = true },
 	[tegra_clk_kfuse] = { .dt_id = TEGRA124_CLK_KFUSE, .present = true },
 	[tegra_clk_sbc1] = { .dt_id = TEGRA124_CLK_SBC1, .present = true },
-	[tegra_clk_nor] = { .dt_id = TEGRA124_CLK_NOR, .present = true },
+	[tegra_clk_yesr] = { .dt_id = TEGRA124_CLK_NOR, .present = true },
 	[tegra_clk_sbc2] = { .dt_id = TEGRA124_CLK_SBC2, .present = true },
 	[tegra_clk_sbc3] = { .dt_id = TEGRA124_CLK_SBC3, .present = true },
 	[tegra_clk_i2c5] = { .dt_id = TEGRA124_CLK_I2C5, .present = true },
@@ -1078,7 +1078,7 @@ static __init void tegra124_periph_clk_init(void __iomem *clk_base,
 
 		clkp = tegra_lookup_dt_id(init->clk_id, tegra124_clks);
 		if (!clkp) {
-			pr_warn("clock %u not found\n", init->clk_id);
+			pr_warn("clock %u yest found\n", init->clk_id);
 			continue;
 		}
 
@@ -1245,7 +1245,7 @@ static void tegra124_wait_cpu_in_reset(u32 cpu)
 	do {
 		reg = readl(clk_base + CLK_RST_CONTROLLER_CPU_CMPLX_STATUS);
 		cpu_relax();
-	} while (!(reg & (1 << cpu)));  /* check CPU been reset or not */
+	} while (!(reg & (1 << cpu)));  /* check CPU been reset or yest */
 }
 
 static void tegra124_disable_cpu_clock(u32 cpu)
@@ -1455,7 +1455,7 @@ static void __init tegra132_clock_apply_init_table(void)
 
 /**
  * tegra124_132_clock_init_pre - clock initialization preamble for T124/T132
- * @np: struct device_node * of the DT node for the SoC CAR IP block
+ * @np: struct device_yesde * of the DT yesde for the SoC CAR IP block
  *
  * Register most of the clocks controlled by the CAR IP block, along
  * with a few clocks controlled by the PMC IP block.  Everything in
@@ -1463,9 +1463,9 @@ static void __init tegra132_clock_apply_init_table(void)
  * PMC clock initialization should probably be moved to PMC-specific
  * driver code.  No return value.
  */
-static void __init tegra124_132_clock_init_pre(struct device_node *np)
+static void __init tegra124_132_clock_init_pre(struct device_yesde *np)
 {
-	struct device_node *node;
+	struct device_yesde *yesde;
 	u32 plld_base;
 
 	clk_base = of_iomap(np, 0);
@@ -1474,14 +1474,14 @@ static void __init tegra124_132_clock_init_pre(struct device_node *np)
 		return;
 	}
 
-	node = of_find_matching_node(NULL, pmc_match);
-	if (!node) {
-		pr_err("Failed to find pmc node\n");
+	yesde = of_find_matching_yesde(NULL, pmc_match);
+	if (!yesde) {
+		pr_err("Failed to find pmc yesde\n");
 		WARN_ON(1);
 		return;
 	}
 
-	pmc_base = of_iomap(node, 0);
+	pmc_base = of_iomap(yesde, 0);
 	if (!pmc_base) {
 		pr_err("Can't map pmc registers\n");
 		WARN_ON(1);
@@ -1514,15 +1514,15 @@ static void __init tegra124_132_clock_init_pre(struct device_node *np)
 
 /**
  * tegra124_132_clock_init_post - clock initialization postamble for T124/T132
- * @np: struct device_node * of the DT node for the SoC CAR IP block
+ * @np: struct device_yesde * of the DT yesde for the SoC CAR IP block
  *
  * Register most of the along with a few clocks controlled by the PMC
  * IP block.  Everything in this function should be common to Tegra124
  * and Tegra132.  This function must be called after
  * tegra124_132_clock_init_pre(), otherwise clk_base and pmc_base will
- * not be set.  No return value.
+ * yest be set.  No return value.
  */
-static void __init tegra124_132_clock_init_post(struct device_node *np)
+static void __init tegra124_132_clock_init_post(struct device_yesde *np)
 {
 	tegra_super_clk_gen4_init(clk_base, pmc_base, tegra124_clks,
 				  &pll_x_params);
@@ -1540,16 +1540,16 @@ static void __init tegra124_132_clock_init_post(struct device_node *np)
 
 /**
  * tegra124_clock_init - Tegra124-specific clock initialization
- * @np: struct device_node * of the DT node for the SoC CAR IP block
+ * @np: struct device_yesde * of the DT yesde for the SoC CAR IP block
  *
  * Register most SoC clocks for the Tegra124 system-on-chip.  Most of
  * this code is shared between the Tegra124 and Tegra132 SoCs,
  * although some of the initial clock settings and CPU clocks differ.
- * Intended to be called by the OF init code when a DT node with the
+ * Intended to be called by the OF init code when a DT yesde with the
  * "nvidia,tegra124-car" string is encountered, and declared with
  * CLK_OF_DECLARE.  No return value.
  */
-static void __init tegra124_clock_init(struct device_node *np)
+static void __init tegra124_clock_init(struct device_yesde *np)
 {
 	tegra124_132_clock_init_pre(np);
 	tegra_clk_apply_init_table = tegra124_clock_apply_init_table;
@@ -1558,16 +1558,16 @@ static void __init tegra124_clock_init(struct device_node *np)
 
 /**
  * tegra132_clock_init - Tegra132-specific clock initialization
- * @np: struct device_node * of the DT node for the SoC CAR IP block
+ * @np: struct device_yesde * of the DT yesde for the SoC CAR IP block
  *
  * Register most SoC clocks for the Tegra132 system-on-chip.  Most of
  * this code is shared between the Tegra124 and Tegra132 SoCs,
  * although some of the initial clock settings and CPU clocks differ.
- * Intended to be called by the OF init code when a DT node with the
+ * Intended to be called by the OF init code when a DT yesde with the
  * "nvidia,tegra132-car" string is encountered, and declared with
  * CLK_OF_DECLARE.  No return value.
  */
-static void __init tegra132_clock_init(struct device_node *np)
+static void __init tegra132_clock_init(struct device_yesde *np)
 {
 	tegra124_132_clock_init_pre(np);
 

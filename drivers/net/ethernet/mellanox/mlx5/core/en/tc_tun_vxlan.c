@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
-/* Copyright (c) 2018 Mellanox Technologies. */
+/* Copyright (c) 2018 Mellayesx Techyeslogies. */
 
 #include <net/vxlan.h>
 #include "lib/vxlan.h"
@@ -32,9 +32,9 @@ static int mlx5e_tc_tun_check_udp_dport_vxlan(struct mlx5e_priv *priv,
 	if (!mlx5_vxlan_lookup_port(priv->mdev->vxlan,
 				    be16_to_cpu(enc_ports.key->dst))) {
 		NL_SET_ERR_MSG_MOD(extack,
-				   "Matched UDP dst port is not registered as a VXLAN port");
+				   "Matched UDP dst port is yest registered as a VXLAN port");
 		netdev_warn(priv->netdev,
-			    "UDP port %d is not registered as a VXLAN port\n",
+			    "UDP port %d is yest registered as a VXLAN port\n",
 			    be16_to_cpu(enc_ports.key->dst));
 		return -EOPNOTSUPP;
 	}
@@ -68,7 +68,7 @@ static int mlx5e_tc_tun_init_encap_attr_vxlan(struct net_device *tunnel_dev,
 
 	if (!mlx5_vxlan_lookup_port(priv->mdev->vxlan, dst_port)) {
 		NL_SET_ERR_MSG_MOD(extack,
-				   "vxlan udp dport was not registered with the HW");
+				   "vxlan udp dport was yest registered with the HW");
 		netdev_warn(priv->netdev,
 			    "%d isn't an offloaded vxlan udp dport\n",
 			    dst_port);
@@ -125,9 +125,9 @@ static int mlx5e_tc_tun_parse_vxlan(struct mlx5e_priv *priv,
 	if (!MLX5_CAP_ESW_FLOWTABLE_FDB(priv->mdev,
 					ft_field_support.outer_vxlan_vni)) {
 		NL_SET_ERR_MSG_MOD(extack,
-				   "Matching on VXLAN VNI is not supported");
+				   "Matching on VXLAN VNI is yest supported");
 		netdev_warn(priv->netdev,
-			    "Matching on VXLAN VNI is not supported\n");
+			    "Matching on VXLAN VNI is yest supported\n");
 		return -EOPNOTSUPP;
 	}
 

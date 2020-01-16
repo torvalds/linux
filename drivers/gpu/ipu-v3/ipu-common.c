@@ -328,9 +328,9 @@ EXPORT_SYMBOL_GPL(ipu_idmac_put);
 static void __ipu_idmac_reset_current_buffer(struct ipuv3_channel *channel)
 {
 	struct ipu_soc *ipu = channel->ipu;
-	unsigned int chno = channel->num;
+	unsigned int chyes = channel->num;
 
-	ipu_cm_write(ipu, idma_mask(chno), IPU_CHA_CUR_BUF(chno));
+	ipu_cm_write(ipu, idma_mask(chyes), IPU_CHA_CUR_BUF(chyes));
 }
 
 void ipu_idmac_set_double_buffer(struct ipuv3_channel *channel,
@@ -487,9 +487,9 @@ EXPORT_SYMBOL_GPL(ipu_module_disable);
 int ipu_idmac_get_current_buffer(struct ipuv3_channel *channel)
 {
 	struct ipu_soc *ipu = channel->ipu;
-	unsigned int chno = channel->num;
+	unsigned int chyes = channel->num;
 
-	return (ipu_cm_read(ipu, IPU_CHA_CUR_BUF(chno)) & idma_mask(chno)) ? 1 : 0;
+	return (ipu_cm_read(ipu, IPU_CHA_CUR_BUF(chyes)) & idma_mask(chyes)) ? 1 : 0;
 }
 EXPORT_SYMBOL_GPL(ipu_idmac_get_current_buffer);
 
@@ -520,16 +520,16 @@ EXPORT_SYMBOL_GPL(ipu_idmac_buffer_is_ready);
 void ipu_idmac_select_buffer(struct ipuv3_channel *channel, u32 buf_num)
 {
 	struct ipu_soc *ipu = channel->ipu;
-	unsigned int chno = channel->num;
+	unsigned int chyes = channel->num;
 	unsigned long flags;
 
 	spin_lock_irqsave(&ipu->lock, flags);
 
 	/* Mark buffer as ready. */
 	if (buf_num == 0)
-		ipu_cm_write(ipu, idma_mask(chno), IPU_CHA_BUF0_RDY(chno));
+		ipu_cm_write(ipu, idma_mask(chyes), IPU_CHA_BUF0_RDY(chyes));
 	else
-		ipu_cm_write(ipu, idma_mask(chno), IPU_CHA_BUF1_RDY(chno));
+		ipu_cm_write(ipu, idma_mask(chyes), IPU_CHA_BUF1_RDY(chyes));
 
 	spin_unlock_irqrestore(&ipu->lock, flags);
 }
@@ -538,7 +538,7 @@ EXPORT_SYMBOL_GPL(ipu_idmac_select_buffer);
 void ipu_idmac_clear_buffer(struct ipuv3_channel *channel, u32 buf_num)
 {
 	struct ipu_soc *ipu = channel->ipu;
-	unsigned int chno = channel->num;
+	unsigned int chyes = channel->num;
 	unsigned long flags;
 
 	spin_lock_irqsave(&ipu->lock, flags);
@@ -546,13 +546,13 @@ void ipu_idmac_clear_buffer(struct ipuv3_channel *channel, u32 buf_num)
 	ipu_cm_write(ipu, 0xF0300000, IPU_GPR); /* write one to clear */
 	switch (buf_num) {
 	case 0:
-		ipu_cm_write(ipu, idma_mask(chno), IPU_CHA_BUF0_RDY(chno));
+		ipu_cm_write(ipu, idma_mask(chyes), IPU_CHA_BUF0_RDY(chyes));
 		break;
 	case 1:
-		ipu_cm_write(ipu, idma_mask(chno), IPU_CHA_BUF1_RDY(chno));
+		ipu_cm_write(ipu, idma_mask(chyes), IPU_CHA_BUF1_RDY(chyes));
 		break;
 	case 2:
-		ipu_cm_write(ipu, idma_mask(chno), IPU_CHA_BUF2_RDY(chno));
+		ipu_cm_write(ipu, idma_mask(chyes), IPU_CHA_BUF2_RDY(chyes));
 		break;
 	default:
 		break;
@@ -581,9 +581,9 @@ int ipu_idmac_enable_channel(struct ipuv3_channel *channel)
 }
 EXPORT_SYMBOL_GPL(ipu_idmac_enable_channel);
 
-bool ipu_idmac_channel_busy(struct ipu_soc *ipu, unsigned int chno)
+bool ipu_idmac_channel_busy(struct ipu_soc *ipu, unsigned int chyes)
 {
-	return (ipu_idmac_read(ipu, IDMAC_CHA_BUSY(chno)) & idma_mask(chno));
+	return (ipu_idmac_read(ipu, IDMAC_CHA_BUSY(chyes)) & idma_mask(chyes));
 }
 EXPORT_SYMBOL_GPL(ipu_idmac_channel_busy);
 
@@ -744,7 +744,7 @@ EXPORT_SYMBOL_GPL(ipu_set_ic_src_mux);
 /* Frame Synchronization Unit Channel Linking */
 
 struct fsu_link_reg_info {
-	int chno;
+	int chyes;
 	u32 reg;
 	u32 mask;
 	u32 val;
@@ -783,8 +783,8 @@ static const struct fsu_link_info *find_fsu_link_info(int src, int sink)
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(fsu_link_info); i++) {
-		if (src == fsu_link_info[i].src.chno &&
-		    sink == fsu_link_info[i].sink.chno)
+		if (src == fsu_link_info[i].src.chyes &&
+		    sink == fsu_link_info[i].sink.chyes)
 			return &fsu_link_info[i];
 	}
 
@@ -1164,7 +1164,7 @@ struct ipu_platform_reg {
 	const char *name;
 };
 
-/* These must be in the order of the corresponding device tree port nodes */
+/* These must be in the order of the corresponding device tree port yesdes */
 static struct ipu_platform_reg client_reg[] = {
 	{
 		.pdata = {
@@ -1218,14 +1218,14 @@ static int ipu_add_client_devices(struct ipu_soc *ipu, unsigned long ipu_base)
 	for (i = 0; i < ARRAY_SIZE(client_reg); i++) {
 		struct ipu_platform_reg *reg = &client_reg[i];
 		struct platform_device *pdev;
-		struct device_node *of_node;
+		struct device_yesde *of_yesde;
 
-		/* Associate subdevice with the corresponding port node */
-		of_node = of_graph_get_port_by_id(dev->of_node, i);
-		if (!of_node) {
+		/* Associate subdevice with the corresponding port yesde */
+		of_yesde = of_graph_get_port_by_id(dev->of_yesde, i);
+		if (!of_yesde) {
 			dev_info(dev,
-				 "no port@%d node in %pOF, not using %s%d\n",
-				 i, dev->of_node,
+				 "yes port@%d yesde in %pOF, yest using %s%d\n",
+				 i, dev->of_yesde,
 				 (i / 2) ? "DI" : "CSI", i % 2);
 			continue;
 		}
@@ -1238,7 +1238,7 @@ static int ipu_add_client_devices(struct ipu_soc *ipu, unsigned long ipu_base)
 
 		pdev->dev.parent = dev;
 
-		reg->pdata.of_node = of_node;
+		reg->pdata.of_yesde = of_yesde;
 		ret = platform_device_add_data(pdev, &reg->pdata,
 					       sizeof(reg->pdata));
 		if (!ret)
@@ -1274,7 +1274,7 @@ static int ipu_irq_init(struct ipu_soc *ipu)
 	};
 	int ret, i;
 
-	ipu->domain = irq_domain_add_linear(ipu->dev->of_node, IPU_NUM_IRQS,
+	ipu->domain = irq_domain_add_linear(ipu->dev->of_yesde, IPU_NUM_IRQS,
 					    &irq_generic_chip_ops, ipu);
 	if (!ipu->domain) {
 		dev_err(ipu->dev, "failed to add irq domain\n");
@@ -1372,7 +1372,7 @@ EXPORT_SYMBOL_GPL(ipu_dump);
 
 static int ipu_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	struct ipu_soc *ipu;
 	struct resource *res;
 	unsigned long ipu_base;

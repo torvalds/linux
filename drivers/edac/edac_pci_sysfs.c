@@ -3,7 +3,7 @@
  * This file may be distributed under the terms of the
  * GNU General Public License.
  *
- * Written Doug Thompson <norsk5@xmission.com>
+ * Written Doug Thompson <yesrsk5@xmission.com>
  *
  */
 #include <linux/module.h>
@@ -20,11 +20,11 @@
 static int check_pci_errors;		/* default NO check PCI parity */
 static int edac_pci_panic_on_pe;	/* default NO panic on PCI Parity */
 static int edac_pci_log_pe = 1;		/* log PCI parity errors */
-static int edac_pci_log_npe = 1;	/* log PCI non-parity error errors */
+static int edac_pci_log_npe = 1;	/* log PCI yesn-parity error errors */
 static int edac_pci_poll_msec = 1000;	/* one second workq period */
 
 static atomic_t pci_parity_count = ATOMIC_INIT(0);
-static atomic_t pci_nonparity_count = ATOMIC_INIT(0);
+static atomic_t pci_yesnparity_count = ATOMIC_INIT(0);
 
 static struct kobject *edac_pci_top_main_kobj;
 static atomic_t edac_pci_sysfs_refcount = ATOMIC_INIT(0);
@@ -170,7 +170,7 @@ static int edac_pci_create_instance_kobj(struct edac_pci_ctl_info *pci, int idx)
 		goto error_out;
 	}
 
-	/* And now register this new kobject under the main kobj */
+	/* And yesw register this new kobject under the main kobj */
 	err = kobject_init_and_add(&pci->kobj, &ktype_pci_instance,
 				   edac_pci_top_main_kobj, "pci%d", idx);
 	if (err != 0) {
@@ -289,7 +289,7 @@ EDAC_PCI_ATTR(edac_pci_log_npe, S_IRUGO | S_IWUSR, edac_pci_int_show,
 EDAC_PCI_ATTR(edac_pci_panic_on_pe, S_IRUGO | S_IWUSR, edac_pci_int_show,
 	edac_pci_int_store);
 EDAC_PCI_ATTR(pci_parity_count, S_IRUGO, edac_pci_int_show, NULL);
-EDAC_PCI_ATTR(pci_nonparity_count, S_IRUGO, edac_pci_int_show, NULL);
+EDAC_PCI_ATTR(pci_yesnparity_count, S_IRUGO, edac_pci_int_show, NULL);
 
 /* Base Attributes of the memory ECC object */
 static struct edac_pci_dev_attribute *edac_pci_attr[] = {
@@ -298,7 +298,7 @@ static struct edac_pci_dev_attribute *edac_pci_attr[] = {
 	&edac_pci_attr_edac_pci_log_npe,
 	&edac_pci_attr_edac_pci_panic_on_pe,
 	&edac_pci_attr_pci_parity_count,
-	&edac_pci_attr_pci_nonparity_count,
+	&edac_pci_attr_pci_yesnparity_count,
 	NULL,
 };
 
@@ -392,7 +392,7 @@ kzalloc_fail:
 	module_put(THIS_MODULE);
 
 decrement_count_fail:
-	/* if are on this error exit, nothing to tear down */
+	/* if are on this error exit, yesthing to tear down */
 	atomic_dec(&edac_pci_sysfs_refcount);
 
 	return err;
@@ -401,14 +401,14 @@ decrement_count_fail:
 /*
  * edac_pci_main_kobj_teardown()
  *
- *	if no longer linked (needed) remove the top level EDAC PCI
+ *	if yes longer linked (needed) remove the top level EDAC PCI
  *	kobject with its controls and attributes
  */
 static void edac_pci_main_kobj_teardown(void)
 {
 	edac_dbg(0, "\n");
 
-	/* Decrement the count and only if no more controller instances
+	/* Decrement the count and only if yes more controller instances
 	 * are connected perform the unregisteration of the top level
 	 * main kobj
 	 */
@@ -481,7 +481,7 @@ static u16 get_pci_parity_status(struct pci_dev *dev, int secondary)
 	pci_read_config_word(dev, where, &status);
 
 	/* If we get back 0xFFFF then we must suspect that the card has been
-	 * pulled but the Linux PCI layer has not yet finished cleaning up.
+	 * pulled but the Linux PCI layer has yest yet finished cleaning up.
 	 * We don't want to report on such devices
 	 */
 
@@ -546,14 +546,14 @@ static void edac_pci_dev_parity_test(struct pci_dev *dev)
 	edac_dbg(4, "PCI STATUS= 0x%04x %s\n", status, dev_name(&dev->dev));
 
 	/* check the status reg for errors on boards NOT marked as broken
-	 * if broken, we cannot trust any of the status bits
+	 * if broken, we canyest trust any of the status bits
 	 */
 	if (status && !dev->broken_parity_status) {
 		if (status & (PCI_STATUS_SIG_SYSTEM_ERROR)) {
 			edac_printk(KERN_CRIT, EDAC_PCI,
 				"Signaled System Error on %s\n",
 				pci_name(dev));
-			atomic_inc(&pci_nonparity_count);
+			atomic_inc(&pci_yesnparity_count);
 		}
 
 		if (status & (PCI_STATUS_PARITY)) {
@@ -592,7 +592,7 @@ static void edac_pci_dev_parity_test(struct pci_dev *dev)
 				edac_printk(KERN_CRIT, EDAC_PCI, "Bridge "
 					"Signaled System Error on %s\n",
 					pci_name(dev));
-				atomic_inc(&pci_nonparity_count);
+				atomic_inc(&pci_yesnparity_count);
 			}
 
 			if (status & (PCI_STATUS_PARITY)) {
@@ -642,7 +642,7 @@ void edac_pci_do_parity_check(void)
 
 	edac_dbg(3, "\n");
 
-	/* if policy has PCI check off, leave now */
+	/* if policy has PCI check off, leave yesw */
 	if (!check_pci_errors)
 		return;
 
@@ -651,7 +651,7 @@ void edac_pci_do_parity_check(void)
 	/* scan all PCI devices looking for a Parity Error on devices and
 	 * bridges.
 	 * The iterator calls pci_get_device() which might sleep, thus
-	 * we cannot disable interrupts in this scan.
+	 * we canyest disable interrupts in this scan.
 	 */
 	edac_pci_dev_parity_iterator(edac_pci_dev_parity_test);
 

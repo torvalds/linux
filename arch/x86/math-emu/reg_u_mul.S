@@ -14,7 +14,7 @@
 
 /*---------------------------------------------------------------------------+
  |   Basic multiplication routine.                                           |
- |   Does not check the resulting exponent for overflow/underflow            |
+ |   Does yest check the resulting exponent for overflow/underflow            |
  |                                                                           |
  |   FPU_u_mul(FPU_REG *a, FPU_REG *b, FPU_REG *c, unsigned int cw);         |
  |                                                                           |
@@ -78,7 +78,7 @@ SYM_FUNC_START(FPU_u_mul)
 	mull	SIGH(%edi)
 	addl	%eax,FPU_accum_1
 	adcl	%edx,%ebx
-/*	adcl	$0,%ecx		// overflow here is not possible */
+/*	adcl	$0,%ecx		// overflow here is yest possible */
 
 	movl	SIGH(%esi),%eax
 	mull	SIGL(%edi)
@@ -95,20 +95,20 @@ SYM_FUNC_START(FPU_u_mul)
 	movl	PARAM6,%eax
 	subl	EXP_BIAS-1,%eax
 
-	/* Two denormals can cause an exponent underflow */
+	/* Two deyesrmals can cause an exponent underflow */
 	cmpl	EXP_WAY_UNDER,%eax
-	jg	Exp_not_underflow
+	jg	Exp_yest_underflow
 
 	/* Set to a really low value allow correct handling */
 	movl	EXP_WAY_UNDER,%eax
 
-Exp_not_underflow:
+Exp_yest_underflow:
 
-/*  Have now finished with the sources */
+/*  Have yesw finished with the sources */
 	movl	PARAM3,%edi	/* Point to the destination */
 	movw	%ax,EXP(%edi)
 
-/*  Now make sure that the result is normalized */
+/*  Now make sure that the result is yesrmalized */
 	testl	$0x80000000,%ecx
 	jnz	LResult_Normalised
 

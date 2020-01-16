@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 #include "comm.h"
-#include <errno.h>
+#include <erryes.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -11,7 +11,7 @@
 
 struct comm_str {
 	char *str;
-	struct rb_node rb_node;
+	struct rb_yesde rb_yesde;
 	refcount_t refcnt;
 };
 
@@ -21,7 +21,7 @@ static struct rw_semaphore comm_str_lock = {.lock = PTHREAD_RWLOCK_INITIALIZER,}
 
 static struct comm_str *comm_str__get(struct comm_str *cs)
 {
-	if (cs && refcount_inc_not_zero(&cs->refcnt))
+	if (cs && refcount_inc_yest_zero(&cs->refcnt))
 		return cs;
 
 	return NULL;
@@ -31,7 +31,7 @@ static void comm_str__put(struct comm_str *cs)
 {
 	if (cs && refcount_dec_and_test(&cs->refcnt)) {
 		down_write(&comm_str_lock);
-		rb_erase(&cs->rb_node, &comm_str_root);
+		rb_erase(&cs->rb_yesde, &comm_str_root);
 		up_write(&comm_str_lock);
 		zfree(&cs->str);
 		free(cs);
@@ -60,19 +60,19 @@ static struct comm_str *comm_str__alloc(const char *str)
 static
 struct comm_str *__comm_str__findnew(const char *str, struct rb_root *root)
 {
-	struct rb_node **p = &root->rb_node;
-	struct rb_node *parent = NULL;
+	struct rb_yesde **p = &root->rb_yesde;
+	struct rb_yesde *parent = NULL;
 	struct comm_str *iter, *new;
 	int cmp;
 
 	while (*p != NULL) {
 		parent = *p;
-		iter = rb_entry(parent, struct comm_str, rb_node);
+		iter = rb_entry(parent, struct comm_str, rb_yesde);
 
 		/*
 		 * If we race with comm_str__put, iter->refcnt is 0
 		 * and it will be removed within comm_str__put call
-		 * shortly, ignore it in this search.
+		 * shortly, igyesre it in this search.
 		 */
 		cmp = strcmp(str, iter->str);
 		if (!cmp && comm_str__get(iter))
@@ -88,8 +88,8 @@ struct comm_str *__comm_str__findnew(const char *str, struct rb_root *root)
 	if (!new)
 		return NULL;
 
-	rb_link_node(&new->rb_node, parent, p);
-	rb_insert_color(&new->rb_node, root);
+	rb_link_yesde(&new->rb_yesde, parent, p);
+	rb_insert_color(&new->rb_yesde, root);
 
 	return new;
 }

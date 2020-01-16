@@ -255,18 +255,18 @@ static ssize_t os_area_flash_write(const void *buf, size_t count, loff_t pos)
  * Overwrites an existing property.
  */
 
-static void os_area_set_property(struct device_node *node,
+static void os_area_set_property(struct device_yesde *yesde,
 	struct property *prop)
 {
 	int result;
-	struct property *tmp = of_find_property(node, prop->name, NULL);
+	struct property *tmp = of_find_property(yesde, prop->name, NULL);
 
 	if (tmp) {
 		pr_debug("%s:%d found %s\n", __func__, __LINE__, prop->name);
-		of_remove_property(node, tmp);
+		of_remove_property(yesde, tmp);
 	}
 
-	result = of_add_property(node, prop);
+	result = of_add_property(yesde, prop);
 
 	if (result)
 		pr_debug("%s:%d of_set_property failed\n", __func__,
@@ -278,16 +278,16 @@ static void os_area_set_property(struct device_node *node,
  *
  */
 
-static void __init os_area_get_property(struct device_node *node,
+static void __init os_area_get_property(struct device_yesde *yesde,
 	struct property *prop)
 {
-	const struct property *tmp = of_find_property(node, prop->name, NULL);
+	const struct property *tmp = of_find_property(yesde, prop->name, NULL);
 
 	if (tmp) {
 		BUG_ON(prop->length != tmp->length);
 		memcpy(prop->value, tmp->value, prop->length);
 	} else
-		pr_debug("%s:%d not found %s\n", __func__, __LINE__,
+		pr_debug("%s:%d yest found %s\n", __func__, __LINE__,
 			prop->name);
 }
 
@@ -513,7 +513,7 @@ static int db_get_64(const struct os_area_db *db,
 				(long long int)*i.value_64);
 		return 0;
 	}
-	pr_debug("%s:%d: not found\n", __func__, __LINE__);
+	pr_debug("%s:%d: yest found\n", __func__, __LINE__);
 	return -1;
 }
 
@@ -641,7 +641,7 @@ static int update_flash_db(void)
 
 	error = db_verify(db);
 	if (error) {
-		pr_notice("%s: Verify of flash database failed, formatting.\n",
+		pr_yestice("%s: Verify of flash database failed, formatting.\n",
 			  __func__);
 		dump_db(db);
 		os_area_db_init(db);
@@ -664,30 +664,30 @@ fail:
 }
 
 /**
- * os_area_queue_work_handler - Asynchronous write handler.
+ * os_area_queue_work_handler - Asynchroyesus write handler.
  *
- * An asynchronous write for flash memory and the device tree.  Do not
+ * An asynchroyesus write for flash memory and the device tree.  Do yest
  * call directly, use os_area_queue_work().
  */
 
 static void os_area_queue_work_handler(struct work_struct *work)
 {
-	struct device_node *node;
+	struct device_yesde *yesde;
 	int error;
 
 	pr_debug(" -> %s:%d\n", __func__, __LINE__);
 
-	node = of_find_node_by_path("/");
-	if (node) {
-		os_area_set_property(node, &property_rtc_diff);
-		of_node_put(node);
+	yesde = of_find_yesde_by_path("/");
+	if (yesde) {
+		os_area_set_property(yesde, &property_rtc_diff);
+		of_yesde_put(yesde);
 	} else
-		pr_debug("%s:%d of_find_node_by_path failed\n",
+		pr_debug("%s:%d of_find_yesde_by_path failed\n",
 			__func__, __LINE__);
 
 	error = update_flash_db();
 	if (error)
-		pr_warn("%s: Could not update FLASH ROM\n", __func__);
+		pr_warn("%s: Could yest update FLASH ROM\n", __func__);
 
 	pr_debug(" <- %s:%d\n", __func__, __LINE__);
 }
@@ -709,7 +709,7 @@ static void os_area_queue_work(void)
  * We copy the data we want into a static variable and allow the memory setup
  * by the HV to be claimed by the memblock manager.
  *
- * The os area mirror will not be available to a second stage kernel, and
+ * The os area mirror will yest be available to a second stage kernel, and
  * the header verify will fail.  In this case, the saved_params values will
  * be set from flash memory or the passed in device tree in ps3_os_area_init().
  */
@@ -771,27 +771,27 @@ void __init ps3_os_area_save_params(void)
 
 void __init ps3_os_area_init(void)
 {
-	struct device_node *node;
+	struct device_yesde *yesde;
 
 	pr_debug(" -> %s:%d\n", __func__, __LINE__);
 
-	node = of_find_node_by_path("/");
+	yesde = of_find_yesde_by_path("/");
 
-	if (!saved_params.valid && node) {
+	if (!saved_params.valid && yesde) {
 		/* Second stage kernels should have a dt entry. */
-		os_area_get_property(node, &property_rtc_diff);
-		os_area_get_property(node, &property_av_multi_out);
+		os_area_get_property(yesde, &property_rtc_diff);
+		os_area_get_property(yesde, &property_av_multi_out);
 	}
 
 	if(!saved_params.rtc_diff)
 		saved_params.rtc_diff = SECONDS_FROM_1970_TO_2000;
 
-	if (node) {
-		os_area_set_property(node, &property_rtc_diff);
-		os_area_set_property(node, &property_av_multi_out);
-		of_node_put(node);
+	if (yesde) {
+		os_area_set_property(yesde, &property_rtc_diff);
+		os_area_set_property(yesde, &property_av_multi_out);
+		of_yesde_put(yesde);
 	} else
-		pr_debug("%s:%d of_find_node_by_path failed\n",
+		pr_debug("%s:%d of_find_yesde_by_path failed\n",
 			__func__, __LINE__);
 
 	pr_debug(" <- %s:%d\n", __func__, __LINE__);
@@ -810,7 +810,7 @@ EXPORT_SYMBOL_GPL(ps3_os_area_get_rtc_diff);
 /**
  * ps3_os_area_set_rtc_diff - Set the rtc diff value.
  *
- * An asynchronous write is needed to support writing updates from
+ * An asynchroyesus write is needed to support writing updates from
  * the timer interrupt context.
  */
 

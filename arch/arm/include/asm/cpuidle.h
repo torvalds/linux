@@ -24,15 +24,15 @@ static inline int arm_cpuidle_simple_enter(struct cpuidle_device *dev,
 
 /*
  * in case power_specified == 1, give a default WFI power value needed
- * by some governors
+ * by some goveryesrs
  */
 #define ARM_CPUIDLE_WFI_STATE ARM_CPUIDLE_WFI_STATE_PWR(UINT_MAX)
 
-struct device_node;
+struct device_yesde;
 
 struct cpuidle_ops {
 	int (*suspend)(unsigned long arg);
-	int (*init)(struct device_node *, int cpu);
+	int (*init)(struct device_yesde *, int cpu);
 };
 
 struct of_cpuidle_method {

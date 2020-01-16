@@ -35,7 +35,7 @@ cryptoloop_init(struct loop_device *lo, const struct loop_info64 *info)
 	char *cmsp = cms;			/* c-m string pointer */
 	struct crypto_sync_skcipher *tfm;
 
-	/* encryption breaks for non sector aligned offsets */
+	/* encryption breaks for yesn sector aligned offsets */
 
 	if (info->lo_offset % LOOP_IV_SECTOR_SIZE)
 		goto out;

@@ -68,7 +68,7 @@ static void do_softint(struct work_struct *work)
 
 static irqreturn_t hp680_ts_interrupt(int irq, void *dev)
 {
-	disable_irq_nosync(irq);
+	disable_irq_yessync(irq);
 	schedule_delayed_work(&work, HZ / 20);
 
 	return IRQ_HANDLED;

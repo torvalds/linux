@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-1.0+ WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-1.0+ WITH Linux-syscall-yeste */
 /*
  * SyncLink Multiprotocol Serial Adapter Driver
  *
@@ -147,7 +147,7 @@ typedef struct _MGSL_PARAMS
 {
 	/* Common */
 
-	unsigned long	mode;		/* Asynchronous or HDLC */
+	unsigned long	mode;		/* Asynchroyesus or HDLC */
 	unsigned char	loopback;	/* internal loopback mode */
 
 	/* HDLC Only */
@@ -165,7 +165,7 @@ typedef struct _MGSL_PARAMS
 	unsigned long	data_rate;	/* bits per second */
 	unsigned char	data_bits;	/* 7 or 8 data bits */
 	unsigned char	stop_bits;	/* 1 or 2 stop bits */
-	unsigned char	parity;		/* none, even, or odd */
+	unsigned char	parity;		/* yesne, even, or odd */
 
 } MGSL_PARAMS, *PMGSL_PARAMS;
 
@@ -180,7 +180,7 @@ typedef struct _MGSL_PARAMS
 #define MGSL_MAX_SERIAL_NUMBER 30
 
 /*
-** device diagnostics status
+** device diagyesstics status
 */
 
 #define DiagStatus_OK				0

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (C) 2009 Texas Instruments.
- * Copyright (C) 2010 EF Johnson Technologies
+ * Copyright (C) 2010 EF Johnson Techyeslogies
  */
 
 #include <linux/interrupt.h>
@@ -204,7 +204,7 @@ static void davinci_spi_chipselect(struct spi_device *spi, int value)
 
 	dspi = spi_master_get_devdata(spi->master);
 
-	/* program delay transfers if tx_delay is non zero */
+	/* program delay transfers if tx_delay is yesn zero */
 	if (spicfg && spicfg->wdelay)
 		spidat1 |= SPIDAT1_WDEL;
 
@@ -214,9 +214,9 @@ static void davinci_spi_chipselect(struct spi_device *spi, int value)
 	 */
 	if (spi->cs_gpiod) {
 		/*
-		 * FIXME: is this code ever executed? This host does not
+		 * FIXME: is this code ever executed? This host does yest
 		 * set SPI_MASTER_GPIO_SS so this chipselect callback should
-		 * not get called from the SPI core when we are using
+		 * yest get called from the SPI core when we are using
 		 * GPIOs for chip select.
 		 */
 		if (value == BITBANG_CS_ACTIVE)
@@ -242,7 +242,7 @@ static void davinci_spi_chipselect(struct spi_device *spi, int value)
  * less than or equal to the specified maximum.
  *
  * Returns: calculated prescale value for easy programming into SPI registers
- * or negative error number if valid prescalar cannot be updated.
+ * or negative error number if valid prescalar canyest be updated.
  */
 static inline int davinci_spi_get_prescale(struct davinci_spi *dspi,
 							u32 max_speed_hz)
@@ -287,7 +287,7 @@ static int davinci_spi_setup_transfer(struct spi_device *spi,
 		hz = t->speed_hz;
 	}
 
-	/* if bits_per_word is not set then set it default */
+	/* if bits_per_word is yest set then set it default */
 	if (!bits_per_word)
 		bits_per_word = spi->bits_per_word;
 
@@ -384,7 +384,7 @@ static int davinci_spi_setup_transfer(struct spi_device *spi,
 static int davinci_spi_of_setup(struct spi_device *spi)
 {
 	struct davinci_spi_config *spicfg = spi->controller_data;
-	struct device_node *np = spi->dev.of_node;
+	struct device_yesde *np = spi->dev.of_yesde;
 	struct davinci_spi *dspi = spi_master_get_devdata(spi->master);
 	u32 prop;
 
@@ -414,7 +414,7 @@ static int davinci_spi_of_setup(struct spi_device *spi)
 static int davinci_spi_setup(struct spi_device *spi)
 {
 	struct davinci_spi *dspi;
-	struct device_node *np = spi->dev.of_node;
+	struct device_yesde *np = spi->dev.of_yesde;
 	bool internal_cs = true;
 
 	dspi = spi_master_get_devdata(spi->master);
@@ -443,7 +443,7 @@ static void davinci_spi_cleanup(struct spi_device *spi)
 	struct davinci_spi_config *spicfg = spi->controller_data;
 
 	spi->controller_data = NULL;
-	if (spi->dev.of_node)
+	if (spi->dev.of_yesde)
 		kfree(spicfg);
 }
 
@@ -692,7 +692,7 @@ static int davinci_spi_bufs(struct spi_device *spi, struct spi_transfer *t)
 	 */
 	if (errors) {
 		ret = davinci_spi_check_error(dspi, errors);
-		WARN(!ret, "%s: error reported but no error found!\n",
+		WARN(!ret, "%s: error reported but yes error found!\n",
 							dev_name(&spi->dev));
 		return ret;
 	}
@@ -728,7 +728,7 @@ static irqreturn_t dummy_thread_fn(s32 irq, void *data)
  *
  * ISR will determine that interrupt arrives either for READ or WRITE command.
  * According to command it will do the appropriate action. It will check
- * transfer length and if it is not zero then dispatch transfer command again.
+ * transfer length and if it is yest zero then dispatch transfer command again.
  * If transfer length is zero then it will indicate the COMPLETION so that
  * davinci_spi_bufs function can go ahead.
  */
@@ -816,7 +816,7 @@ MODULE_DEVICE_TABLE(of, davinci_spi_of_match);
 static int spi_davinci_get_pdata(struct platform_device *pdev,
 			struct davinci_spi *dspi)
 {
-	struct device_node *node = pdev->dev.of_node;
+	struct device_yesde *yesde = pdev->dev.of_yesde;
 	struct davinci_spi_of_data *spi_data;
 	struct davinci_spi_platform_data *pdata;
 	unsigned int num_cs, intr_line = 0;
@@ -836,13 +836,13 @@ static int spi_davinci_get_pdata(struct platform_device *pdev,
 	 * default num_cs is 1 and all chipsel are internal to the chip
 	 * indicated by chip_sel being NULL or cs_gpios being NULL or
 	 * set to -ENOENT. num-cs includes internal as well as gpios.
-	 * indicated by chip_sel being NULL. GPIO based CS is not
+	 * indicated by chip_sel being NULL. GPIO based CS is yest
 	 * supported yet in DT bindings.
 	 */
 	num_cs = 1;
-	of_property_read_u32(node, "num-cs", &num_cs);
+	of_property_read_u32(yesde, "num-cs", &num_cs);
 	pdata->num_chipselect = num_cs;
-	of_property_read_u32(node, "ti,davinci-spi-intr-line", &intr_line);
+	of_property_read_u32(yesde, "ti,davinci-spi-intr-line", &intr_line);
 	pdata->intr_line = intr_line;
 	return 0;
 }
@@ -894,7 +894,7 @@ static int davinci_spi_probe(struct platform_device *pdev)
 			goto free_master;
 	}
 
-	/* pdata in dspi is now updated and point pdata to that */
+	/* pdata in dspi is yesw updated and point pdata to that */
 	pdata = &dspi->pdata;
 
 	dspi->bytes_per_word = devm_kcalloc(&pdev->dev,
@@ -946,7 +946,7 @@ static int davinci_spi_probe(struct platform_device *pdev)
 		goto free_master;
 
 	master->use_gpio_descriptors = true;
-	master->dev.of_node = pdev->dev.of_node;
+	master->dev.of_yesde = pdev->dev.of_yesde;
 	master->bus_num = pdev->id;
 	master->num_chipselect = pdata->num_chipselect;
 	master->bits_per_word_mask = SPI_BPW_RANGE_MASK(2, 16);
@@ -970,7 +970,7 @@ static int davinci_spi_probe(struct platform_device *pdev)
 	if (ret == -EPROBE_DEFER) {
 		goto free_clk;
 	} else if (ret) {
-		dev_info(&pdev->dev, "DMA is not supported (%d)\n", ret);
+		dev_info(&pdev->dev, "DMA is yest supported (%d)\n", ret);
 		dspi->dma_rx = NULL;
 		dspi->dma_tx = NULL;
 	}

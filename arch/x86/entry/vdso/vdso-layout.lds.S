@@ -12,7 +12,7 @@ SECTIONS
 	/*
 	 * User/kernel shared data is before the vDSO.  This may be a little
 	 * uglier than putting it after the vDSO, but it avoids issues with
-	 * non-allocatable things that dangle past the end of the PT_LOAD
+	 * yesn-allocatable things that dangle past the end of the PT_LOAD
 	 * segment.
 	 */
 
@@ -52,7 +52,7 @@ SECTIONS
 		*(.gnu.linkonce.b.*)
 	}						:text
 
-	.note		: { *(.note.*) }		:text	:note
+	.yeste		: { *(.yeste.*) }		:text	:yeste
 
 	.eh_frame_hdr	: { *(.eh_frame_hdr) }		:text	:eh_frame_hdr
 	.eh_frame	: { KEEP (*(.eh_frame)) }	:text
@@ -76,7 +76,7 @@ SECTIONS
 }
 
 /*
- * Very old versions of ld do not recognize this name token; use the constant.
+ * Very old versions of ld do yest recognize this name token; use the constant.
  */
 #define PT_GNU_EH_FRAME	0x6474e550
 
@@ -88,6 +88,6 @@ PHDRS
 {
 	text		PT_LOAD		FLAGS(5) FILEHDR PHDRS; /* PF_R|PF_X */
 	dynamic		PT_DYNAMIC	FLAGS(4);		/* PF_R */
-	note		PT_NOTE		FLAGS(4);		/* PF_R */
+	yeste		PT_NOTE		FLAGS(4);		/* PF_R */
 	eh_frame_hdr	PT_GNU_EH_FRAME;
 }

@@ -11,7 +11,7 @@
 #include <linux/ioport.h>
 #include <linux/device.h>
 #include <linux/io.h>
-#include <linux/io-64-nonatomic-hi-lo.h>
+#include <linux/io-64-yesnatomic-hi-lo.h>
 #include <linux/fsl/mc.h>
 
 #include "fsl-mc-private.h"
@@ -83,7 +83,7 @@ static const char *mc_status_to_string(enum mc_cmd_status status)
 	};
 
 	if ((unsigned int)status >= ARRAY_SIZE(status_strings))
-		return "Unknown MC error";
+		return "Unkyeswn MC error";
 
 	return status_strings[status];
 }

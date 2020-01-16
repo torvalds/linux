@@ -184,7 +184,7 @@ static netdev_tx_t bnep_net_xmit(struct sk_buff *skb,
 #endif
 
 	/*
-	 * We cannot send L2CAP packets from here as we are potentially in a bh.
+	 * We canyest send L2CAP packets from here as we are potentially in a bh.
 	 * So we have to queue them and wake up session thread which is sleeping
 	 * on the sk_sleep(sk).
 	 */

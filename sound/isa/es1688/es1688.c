@@ -146,7 +146,7 @@ static int snd_es1688_probe(struct snd_card *card, unsigned int n)
 		if (snd_opl3_create(card, fm_port[n], fm_port[n] + 2,
 				OPL3_HW_OPL3, 0, &opl3) < 0)
 			dev_warn(card->dev,
-				 "opl3 not detected at 0x%lx\n", fm_port[n]);
+				 "opl3 yest detected at 0x%lx\n", fm_port[n]);
 		else {
 			error =	snd_opl3_hwdep_new(opl3, 0, 1, NULL);
 			if (error < 0)

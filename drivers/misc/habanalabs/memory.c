@@ -35,7 +35,7 @@
  *
  * On finish, the list is checked to have only one chunk of all the relevant
  * virtual range (which is a half of the device total virtual range).
- * If not (means not all mappings were unmapped), a warning is printed.
+ * If yest (means yest all mappings were unmapped), a warning is printed.
  */
 
 /*
@@ -242,8 +242,8 @@ static void dram_pg_pool_do_release(struct kref *ref)
 			dram_pg_pool_refcount);
 
 	/*
-	 * free the idr here as only here we know for sure that there are no
-	 * allocated physical pages and hence there are no handles in use
+	 * free the idr here as only here we kyesw for sure that there are yes
+	 * allocated physical pages and hence there are yes handles in use
 	 */
 	idr_destroy(&vm->phys_pg_pack_handles);
 	gen_pool_destroy(vm->dram_pg_pool);
@@ -307,7 +307,7 @@ static int free_device_memory(struct hl_ctx *ctx, u32 handle)
 	phys_pg_pack = idr_find(&vm->phys_pg_pack_handles, handle);
 	if (phys_pg_pack) {
 		if (atomic_read(&phys_pg_pack->mapping_cnt) > 0) {
-			dev_err(hdev->dev, "handle %u is mapped, cannot free\n",
+			dev_err(hdev->dev, "handle %u is mapped, canyest free\n",
 				handle);
 			spin_unlock(&vm->idr_lock);
 			return -EINVAL;
@@ -328,7 +328,7 @@ static int free_device_memory(struct hl_ctx *ctx, u32 handle)
 	} else {
 		spin_unlock(&vm->idr_lock);
 		dev_err(hdev->dev,
-			"free device memory failed, no match for handle %u\n",
+			"free device memory failed, yes match for handle %u\n",
 			handle);
 		return -EINVAL;
 	}
@@ -352,8 +352,8 @@ static void clear_va_list_locked(struct hl_device *hdev,
 {
 	struct hl_vm_va_block *va_block, *tmp;
 
-	list_for_each_entry_safe(va_block, tmp, va_list, node) {
-		list_del(&va_block->node);
+	list_for_each_entry_safe(va_block, tmp, va_list, yesde) {
+		list_del(&va_block->yesde);
 		kfree(va_block);
 	}
 }
@@ -377,7 +377,7 @@ static void print_va_list_locked(struct hl_device *hdev,
 
 	dev_dbg(hdev->dev, "print va list:\n");
 
-	list_for_each_entry(va_block, va_list, node)
+	list_for_each_entry(va_block, va_list, yesde)
 		dev_dbg(hdev->dev,
 			"va block, start: 0x%llx, end: 0x%llx, size: %llu\n",
 			va_block->start, va_block->end, va_block->size);
@@ -402,20 +402,20 @@ static void merge_va_blocks_locked(struct hl_device *hdev,
 {
 	struct hl_vm_va_block *prev, *next;
 
-	prev = list_prev_entry(va_block, node);
-	if (&prev->node != va_list && prev->end + 1 == va_block->start) {
+	prev = list_prev_entry(va_block, yesde);
+	if (&prev->yesde != va_list && prev->end + 1 == va_block->start) {
 		prev->end = va_block->end;
 		prev->size = prev->end - prev->start;
-		list_del(&va_block->node);
+		list_del(&va_block->yesde);
 		kfree(va_block);
 		va_block = prev;
 	}
 
-	next = list_next_entry(va_block, node);
-	if (&next->node != va_list && va_block->end + 1 == next->start) {
+	next = list_next_entry(va_block, yesde);
+	if (&next->yesde != va_list && va_block->end + 1 == next->start) {
 		next->start = va_block->start;
 		next->size = next->end - next->start;
-		list_del(&va_block->node);
+		list_del(&va_block->yesde);
 		kfree(va_block);
 	}
 }
@@ -442,7 +442,7 @@ static int add_va_block_locked(struct hl_device *hdev,
 
 	print_va_list_locked(hdev, va_list);
 
-	list_for_each_entry(va_block, va_list, node) {
+	list_for_each_entry(va_block, va_list, yesde) {
 		/* TODO: remove upon matureness */
 		if (hl_mem_area_crosses_range(start, size, va_block->start,
 				va_block->end)) {
@@ -465,9 +465,9 @@ static int add_va_block_locked(struct hl_device *hdev,
 	va_block->size = size;
 
 	if (!res)
-		list_add(&va_block->node, va_list);
+		list_add(&va_block->yesde, va_list);
 	else
-		list_add(&va_block->node, &res->node);
+		list_add(&va_block->yesde, &res->yesde);
 
 	merge_va_blocks_locked(hdev, va_list, va_block);
 
@@ -526,8 +526,8 @@ static u64 get_va_block(struct hl_device *hdev,
 
 	if (is_userptr)
 		/*
-		 * We cannot know if the user allocated memory with huge pages
-		 * or not, hence we continue with the biggest possible
+		 * We canyest kyesw if the user allocated memory with huge pages
+		 * or yest, hence we continue with the biggest possible
 		 * granularity.
 		 */
 		page_size = hdev->asic_prop.pmmu.huge_page_size;
@@ -540,7 +540,7 @@ static u64 get_va_block(struct hl_device *hdev,
 
 	print_va_list_locked(hdev, &va_range->list);
 
-	list_for_each_entry(va_block, &va_range->list, node) {
+	list_for_each_entry(va_block, &va_range->list, yesde) {
 		/* calc the first possible aligned addr */
 		valid_start = va_block->start;
 
@@ -570,7 +570,7 @@ static u64 get_va_block(struct hl_device *hdev,
 	}
 
 	if (!new_va_block) {
-		dev_err(hdev->dev, "no available va block for size %llu\n",
+		dev_err(hdev->dev, "yes available va block for size %llu\n",
 				size);
 		goto out;
 	}
@@ -589,7 +589,7 @@ static u64 get_va_block(struct hl_device *hdev,
 		new_va_block->start += size;
 		new_va_block->size = new_va_block->end - new_va_block->start;
 	} else {
-		list_del(&new_va_block->node);
+		list_del(&new_va_block->yesde);
 		kfree(new_va_block);
 	}
 
@@ -820,7 +820,7 @@ static int get_paddr_from_handle(struct hl_ctx *ctx, struct hl_mem_in *args,
 	phys_pg_pack = idr_find(&vm->phys_pg_pack_handles, handle);
 	if (!phys_pg_pack) {
 		spin_unlock(&vm->idr_lock);
-		dev_err(hdev->dev, "no match for handle %u\n", handle);
+		dev_err(hdev->dev, "yes match for handle %u\n", handle);
 		return -EINVAL;
 	}
 
@@ -852,7 +852,7 @@ static int map_device_va(struct hl_ctx *ctx, struct hl_mem_in *args,
 	struct hl_vm *vm = &hdev->vm;
 	struct hl_vm_phys_pg_pack *phys_pg_pack;
 	struct hl_userptr *userptr = NULL;
-	struct hl_vm_hash_node *hnode;
+	struct hl_vm_hash_yesde *hyesde;
 	enum vm_type_t *vm_type;
 	u64 ret_vaddr, hint_addr;
 	u32 handle = 0;
@@ -891,11 +891,11 @@ static int map_device_va(struct hl_ctx *ctx, struct hl_mem_in *args,
 		if (!phys_pg_pack) {
 			spin_unlock(&vm->idr_lock);
 			dev_err(hdev->dev,
-				"no match for handle %u\n", handle);
+				"yes match for handle %u\n", handle);
 			return -EINVAL;
 		}
 
-		/* increment now to avoid freeing device memory while mapping */
+		/* increment yesw to avoid freeing device memory while mapping */
 		atomic_inc(&phys_pg_pack->mapping_cnt);
 
 		spin_unlock(&vm->idr_lock);
@@ -912,23 +912,23 @@ static int map_device_va(struct hl_ctx *ctx, struct hl_mem_in *args,
 	if (!is_userptr && !(phys_pg_pack->flags & HL_MEM_SHARED) &&
 			phys_pg_pack->asid != ctx->asid) {
 		dev_err(hdev->dev,
-			"Failed to map memory, handle %u is not shared\n",
+			"Failed to map memory, handle %u is yest shared\n",
 			handle);
 		rc = -EPERM;
 		goto shared_err;
 	}
 
-	hnode = kzalloc(sizeof(*hnode), GFP_KERNEL);
-	if (!hnode) {
+	hyesde = kzalloc(sizeof(*hyesde), GFP_KERNEL);
+	if (!hyesde) {
 		rc = -ENOMEM;
-		goto hnode_err;
+		goto hyesde_err;
 	}
 
 	ret_vaddr = get_va_block(hdev,
 			is_userptr ? &ctx->host_va_range : &ctx->dram_va_range,
 			phys_pg_pack->total_size, hint_addr, is_userptr);
 	if (!ret_vaddr) {
-		dev_err(hdev->dev, "no available va block for handle %u\n",
+		dev_err(hdev->dev, "yes available va block for handle %u\n",
 				handle);
 		rc = -ENOMEM;
 		goto va_block_err;
@@ -950,11 +950,11 @@ static int map_device_va(struct hl_ctx *ctx, struct hl_mem_in *args,
 
 	ret_vaddr += phys_pg_pack->offset;
 
-	hnode->ptr = vm_type;
-	hnode->vaddr = ret_vaddr;
+	hyesde->ptr = vm_type;
+	hyesde->vaddr = ret_vaddr;
 
 	mutex_lock(&ctx->mem_hash_lock);
-	hash_add(ctx->mem_hash, &hnode->node, ret_vaddr);
+	hash_add(ctx->mem_hash, &hyesde->yesde, ret_vaddr);
 	mutex_unlock(&ctx->mem_hash_lock);
 
 	*device_addr = ret_vaddr;
@@ -974,8 +974,8 @@ map_err:
 				handle, ret_vaddr);
 
 va_block_err:
-	kfree(hnode);
-hnode_err:
+	kfree(hyesde);
+hyesde_err:
 shared_err:
 	atomic_dec(&phys_pg_pack->mapping_cnt);
 	if (is_userptr)
@@ -1002,7 +1002,7 @@ static int unmap_device_va(struct hl_ctx *ctx, u64 vaddr, bool ctx_free)
 {
 	struct hl_device *hdev = ctx->hdev;
 	struct hl_vm_phys_pg_pack *phys_pg_pack = NULL;
-	struct hl_vm_hash_node *hnode = NULL;
+	struct hl_vm_hash_yesde *hyesde = NULL;
 	struct hl_userptr *userptr = NULL;
 	struct hl_va_range *va_range;
 	enum vm_type_t *vm_type;
@@ -1011,27 +1011,27 @@ static int unmap_device_va(struct hl_ctx *ctx, u64 vaddr, bool ctx_free)
 
 	/* protect from double entrance */
 	mutex_lock(&ctx->mem_hash_lock);
-	hash_for_each_possible(ctx->mem_hash, hnode, node, (unsigned long)vaddr)
-		if (vaddr == hnode->vaddr)
+	hash_for_each_possible(ctx->mem_hash, hyesde, yesde, (unsigned long)vaddr)
+		if (vaddr == hyesde->vaddr)
 			break;
 
-	if (!hnode) {
+	if (!hyesde) {
 		mutex_unlock(&ctx->mem_hash_lock);
 		dev_err(hdev->dev,
-			"unmap failed, no mem hnode for vaddr 0x%llx\n",
+			"unmap failed, yes mem hyesde for vaddr 0x%llx\n",
 			vaddr);
 		return -EINVAL;
 	}
 
-	hash_del(&hnode->node);
+	hash_del(&hyesde->yesde);
 	mutex_unlock(&ctx->mem_hash_lock);
 
-	vm_type = hnode->ptr;
+	vm_type = hyesde->ptr;
 
 	if (*vm_type == VM_TYPE_USERPTR) {
 		is_userptr = true;
 		va_range = &ctx->host_va_range;
-		userptr = hnode->ptr;
+		userptr = hyesde->ptr;
 		rc = init_phys_pg_pack_from_userptr(ctx, userptr,
 							&phys_pg_pack);
 		if (rc) {
@@ -1043,17 +1043,17 @@ static int unmap_device_va(struct hl_ctx *ctx, u64 vaddr, bool ctx_free)
 	} else if (*vm_type == VM_TYPE_PHYS_PACK) {
 		is_userptr = false;
 		va_range = &ctx->dram_va_range;
-		phys_pg_pack = hnode->ptr;
+		phys_pg_pack = hyesde->ptr;
 	} else {
 		dev_warn(hdev->dev,
-			"unmap failed, unknown vm desc for vaddr 0x%llx\n",
+			"unmap failed, unkyeswn vm desc for vaddr 0x%llx\n",
 				vaddr);
 		rc = -EFAULT;
 		goto vm_type_err;
 	}
 
 	if (atomic_read(&phys_pg_pack->mapping_cnt) == 0) {
-		dev_err(hdev->dev, "vaddr 0x%llx is not mapped\n", vaddr);
+		dev_err(hdev->dev, "vaddr 0x%llx is yest mapped\n", vaddr);
 		rc = -EINVAL;
 		goto mapping_cnt_err;
 	}
@@ -1088,7 +1088,7 @@ static int unmap_device_va(struct hl_ctx *ctx, u64 vaddr, bool ctx_free)
 	}
 
 	atomic_dec(&phys_pg_pack->mapping_cnt);
-	kfree(hnode);
+	kfree(hyesde);
 
 	if (is_userptr) {
 		free_phys_pg_pack(hdev, phys_pg_pack);
@@ -1102,13 +1102,13 @@ mapping_cnt_err:
 		free_phys_pg_pack(hdev, phys_pg_pack);
 vm_type_err:
 	mutex_lock(&ctx->mem_hash_lock);
-	hash_add(ctx->mem_hash, &hnode->node, vaddr);
+	hash_add(ctx->mem_hash, &hyesde->yesde, vaddr);
 	mutex_unlock(&ctx->mem_hash_lock);
 
 	return rc;
 }
 
-static int mem_ioctl_no_mmu(struct hl_fpriv *hpriv, union hl_mem_args *args)
+static int mem_ioctl_yes_mmu(struct hl_fpriv *hpriv, union hl_mem_args *args)
 {
 	struct hl_device *hdev = hpriv->hdev;
 	struct hl_ctx *ctx = hpriv->ctx;
@@ -1125,7 +1125,7 @@ static int mem_ioctl_no_mmu(struct hl_fpriv *hpriv, union hl_mem_args *args)
 			goto out;
 		}
 
-		/* Force contiguous as there are no real MMU
+		/* Force contiguous as there are yes real MMU
 		 * translations to overcome physical memory gaps
 		 */
 		args->in.flags |= HL_MEM_CONTIGUOUS;
@@ -1157,7 +1157,7 @@ static int mem_ioctl_no_mmu(struct hl_fpriv *hpriv, union hl_mem_args *args)
 		break;
 
 	default:
-		dev_err(hdev->dev, "Unknown opcode for memory IOCTL\n");
+		dev_err(hdev->dev, "Unkyeswn opcode for memory IOCTL\n");
 		rc = -ENOTTY;
 		break;
 	}
@@ -1183,12 +1183,12 @@ int hl_mem_ioctl(struct hl_fpriv *hpriv, void *data)
 	}
 
 	if (!hdev->mmu_enable)
-		return mem_ioctl_no_mmu(hpriv, args);
+		return mem_ioctl_yes_mmu(hpriv, args);
 
 	switch (args->in.op) {
 	case HL_MEM_OP_ALLOC:
 		if (!hdev->dram_supports_virtual_memory) {
-			dev_err(hdev->dev, "DRAM alloc is not supported\n");
+			dev_err(hdev->dev, "DRAM alloc is yest supported\n");
 			rc = -EINVAL;
 			goto out;
 		}
@@ -1222,7 +1222,7 @@ int hl_mem_ioctl(struct hl_fpriv *hpriv, void *data)
 		break;
 
 	default:
-		dev_err(hdev->dev, "Unknown opcode for memory IOCTL\n");
+		dev_err(hdev->dev, "Unkyeswn opcode for memory IOCTL\n");
 		rc = -ENOTTY;
 		break;
 	}
@@ -1321,7 +1321,7 @@ int hl_pin_host_memory(struct hl_device *hdev, u64 addr, u64 size,
 
 	/*
 	 * This function can be called also from data path, hence use atomic
-	 * always as it is not a big allocation.
+	 * always as it is yest a big allocation.
 	 */
 	userptr->sgt = kzalloc(sizeof(*userptr->sgt), GFP_ATOMIC);
 	if (!userptr->sgt)
@@ -1335,7 +1335,7 @@ int hl_pin_host_memory(struct hl_device *hdev, u64 addr, u64 size,
 	userptr->size = size;
 	userptr->addr = addr;
 	userptr->dma_mapped = false;
-	INIT_LIST_HEAD(&userptr->job_node);
+	INIT_LIST_HEAD(&userptr->job_yesde);
 
 	rc = get_user_memory(hdev, addr, size, npages, start, offset,
 				userptr);
@@ -1385,7 +1385,7 @@ void hl_unpin_host_memory(struct hl_device *hdev, struct hl_userptr *userptr)
 	put_vaddr_frames(userptr->vec);
 	frame_vector_destroy(userptr->vec);
 
-	list_del(&userptr->job_node);
+	list_del(&userptr->job_yesde);
 
 	sg_free_table(userptr->sgt);
 	kfree(userptr->sgt);
@@ -1406,7 +1406,7 @@ void hl_userptr_delete_list(struct hl_device *hdev,
 {
 	struct hl_userptr *userptr, *tmp;
 
-	list_for_each_entry_safe(userptr, tmp, userptr_list, job_node) {
+	list_for_each_entry_safe(userptr, tmp, userptr_list, job_yesde) {
 		hl_unpin_host_memory(hdev, userptr);
 		kfree(userptr);
 	}
@@ -1429,7 +1429,7 @@ bool hl_userptr_is_pinned(struct hl_device *hdev, u64 addr,
 				u32 size, struct list_head *userptr_list,
 				struct hl_userptr **userptr)
 {
-	list_for_each_entry((*userptr), userptr_list, job_node) {
+	list_for_each_entry((*userptr), userptr_list, job_yesde) {
 		if ((addr == (*userptr)->addr) && (size == (*userptr)->size))
 			return true;
 	}
@@ -1611,8 +1611,8 @@ static void hl_va_range_fini(struct hl_device *hdev,
  * - MMU for context
  *
  * In addition this function does the following:
- * - Unmaps the existing hashtable nodes if the hashtable is not empty. The
- *   hashtable should be empty as no valid mappings should exist at this
+ * - Unmaps the existing hashtable yesdes if the hashtable is yest empty. The
+ *   hashtable should be empty as yes valid mappings should exist at this
  *   point.
  * - Frees any existing physical page list from the idr which relates to the
  *   current context asid.
@@ -1625,26 +1625,26 @@ void hl_vm_ctx_fini(struct hl_ctx *ctx)
 	struct hl_device *hdev = ctx->hdev;
 	struct hl_vm *vm = &hdev->vm;
 	struct hl_vm_phys_pg_pack *phys_pg_list;
-	struct hl_vm_hash_node *hnode;
-	struct hlist_node *tmp_node;
+	struct hl_vm_hash_yesde *hyesde;
+	struct hlist_yesde *tmp_yesde;
 	int i;
 
 	hl_debugfs_remove_ctx_mem_hash(hdev, ctx);
 
 	/*
-	 * Clearly something went wrong on hard reset so no point in printing
-	 * another side effect error
+	 * Clearly something went wrong on hard reset so yes point in printing
+	 * ayesther side effect error
 	 */
 	if (!hdev->hard_reset_pending && !hash_empty(ctx->mem_hash))
-		dev_notice(hdev->dev,
+		dev_yestice(hdev->dev,
 				"ctx %d is freed while it has va in use\n",
 				ctx->asid);
 
-	hash_for_each_safe(ctx->mem_hash, i, tmp_node, hnode, node) {
+	hash_for_each_safe(ctx->mem_hash, i, tmp_yesde, hyesde, yesde) {
 		dev_dbg(hdev->dev,
-			"hl_mem_hash_node of vaddr 0x%llx of asid %d is still alive\n",
-			hnode->vaddr, ctx->asid);
-		unmap_device_va(ctx, hnode->vaddr, true);
+			"hl_mem_hash_yesde of vaddr 0x%llx of asid %d is still alive\n",
+			hyesde->vaddr, ctx->asid);
+		unmap_device_va(ctx, hyesde->vaddr, true);
 	}
 
 	/* invalidate the cache once after the unmapping loop */
@@ -1738,11 +1738,11 @@ void hl_vm_fini(struct hl_device *hdev)
 		return;
 
 	/*
-	 * At this point all the contexts should be freed and hence no DRAM
+	 * At this point all the contexts should be freed and hence yes DRAM
 	 * memory should be in use. Hence the DRAM pool should be freed here.
 	 */
 	if (kref_put(&vm->dram_pg_pool_refcount, dram_pg_pool_do_release) != 1)
-		dev_warn(hdev->dev, "dram_pg_pool was not destroyed on %s\n",
+		dev_warn(hdev->dev, "dram_pg_pool was yest destroyed on %s\n",
 				__func__);
 
 	vm->init_done = false;

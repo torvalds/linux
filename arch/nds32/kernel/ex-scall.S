@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-// Copyright (C) 2005-2017 Andes Technology Corporation
+// Copyright (C) 2005-2017 Andes Techyeslogy Corporation
 
 #include <linux/linkage.h>
 #include <asm/unistd.h>
@@ -12,7 +12,7 @@
 /*
  * $r0 = previous task_struct,
  * $r1 = next task_struct,
- * previous and next are guaranteed not to be the same.
+ * previous and next are guaranteed yest to be the same.
  */
 
 ENTRY(__switch_to)
@@ -35,7 +35,7 @@ ENTRY(__switch_to)
 /*
  * $r7 will be writen as syscall nr
  */
-	.macro	get_scno
+	.macro	get_scyes
 	lwi	$r7, [$sp + R15_OFFSET]
 	swi	$r7, [$sp + SYSCALLNO_OFFSET]
 	.endm
@@ -48,7 +48,7 @@ ENTRY(__switch_to)
 ENTRY(eh_syscall)
 	updateipc
 
-	get_scno
+	get_scyes
 	gie_enable
 
 	lwi	$p0, [tsk+#TSK_TI_FLAGS]		! check for syscall tracing
@@ -64,7 +64,7 @@ jmp_systbl:
 	slli	$p1, $r7, #2
 	add	$p1, tbl, $p1
 	lwi	$p1, [$p1]
-	jr	$p1				! no return
+	jr	$p1				! yes return
 
 _SCNO_EXCEED:
 	ori	$r0, $r7, #0

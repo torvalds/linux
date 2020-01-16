@@ -37,7 +37,7 @@ Optional properties:
 			5: Analog lock detect
 			6: Digital lock detect
 	- adi,low-spur-mode-enable: Enables low spur mode.
-			Default = Low noise mode.
+			Default = Low yesise mode.
 	- adi,cycle-slip-reduction-enable: Enables cycle slip reduction.
 	- adi,charge-cancellation-enable: Enabled charge pump
 			charge cancellation for integer-N modes.

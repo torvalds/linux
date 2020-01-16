@@ -19,12 +19,12 @@ void test_tp_attach_query(void)
 	snprintf(buf, sizeof(buf),
 		 "/sys/kernel/debug/tracing/events/sched/sched_switch/id");
 	efd = open(buf, O_RDONLY, 0);
-	if (CHECK(efd < 0, "open", "err %d errno %d\n", efd, errno))
+	if (CHECK(efd < 0, "open", "err %d erryes %d\n", efd, erryes))
 		return;
 	bytes = read(efd, buf, sizeof(buf));
 	close(efd);
 	if (CHECK(bytes <= 0 || bytes >= sizeof(buf),
-		  "read", "bytes %d errno %d\n", bytes, errno))
+		  "read", "bytes %d erryes %d\n", bytes, erryes))
 		return;
 
 	attr.config = strtol(buf, NULL, 0);
@@ -37,7 +37,7 @@ void test_tp_attach_query(void)
 	for (i = 0; i < num_progs; i++) {
 		err = bpf_prog_load(file, BPF_PROG_TYPE_TRACEPOINT, &obj[i],
 				    &prog_fd[i]);
-		if (CHECK(err, "prog_load", "err %d errno %d\n", err, errno))
+		if (CHECK(err, "prog_load", "err %d erryes %d\n", err, erryes))
 			goto cleanup1;
 
 		bzero(&prog_info, sizeof(prog_info));
@@ -46,20 +46,20 @@ void test_tp_attach_query(void)
 		prog_info.nr_map_ids = 0;
 		info_len = sizeof(prog_info);
 		err = bpf_obj_get_info_by_fd(prog_fd[i], &prog_info, &info_len);
-		if (CHECK(err, "bpf_obj_get_info_by_fd", "err %d errno %d\n",
-			  err, errno))
+		if (CHECK(err, "bpf_obj_get_info_by_fd", "err %d erryes %d\n",
+			  err, erryes))
 			goto cleanup1;
 		saved_prog_ids[i] = prog_info.id;
 
 		pmu_fd[i] = syscall(__NR_perf_event_open, &attr, -1 /* pid */,
 				    0 /* cpu 0 */, -1 /* group id */,
 				    0 /* flags */);
-		if (CHECK(pmu_fd[i] < 0, "perf_event_open", "err %d errno %d\n",
-			  pmu_fd[i], errno))
+		if (CHECK(pmu_fd[i] < 0, "perf_event_open", "err %d erryes %d\n",
+			  pmu_fd[i], erryes))
 			goto cleanup2;
 		err = ioctl(pmu_fd[i], PERF_EVENT_IOC_ENABLE, 0);
-		if (CHECK(err, "perf_event_ioc_enable", "err %d errno %d\n",
-			  err, errno))
+		if (CHECK(err, "perf_event_ioc_enable", "err %d erryes %d\n",
+			  err, erryes))
 			goto cleanup3;
 
 		if (i == 0) {
@@ -68,14 +68,14 @@ void test_tp_attach_query(void)
 			err = ioctl(pmu_fd[i], PERF_EVENT_IOC_QUERY_BPF, query);
 			if (CHECK(err || query->prog_cnt != 0,
 				  "perf_event_ioc_query_bpf",
-				  "err %d errno %d query->prog_cnt %u\n",
-				  err, errno, query->prog_cnt))
+				  "err %d erryes %d query->prog_cnt %u\n",
+				  err, erryes, query->prog_cnt))
 				goto cleanup3;
 		}
 
 		err = ioctl(pmu_fd[i], PERF_EVENT_IOC_SET_BPF, prog_fd[i]);
-		if (CHECK(err, "perf_event_ioc_set_bpf", "err %d errno %d\n",
-			  err, errno))
+		if (CHECK(err, "perf_event_ioc_set_bpf", "err %d erryes %d\n",
+			  err, erryes))
 			goto cleanup3;
 
 		if (i == 1) {
@@ -84,26 +84,26 @@ void test_tp_attach_query(void)
 			err = ioctl(pmu_fd[i], PERF_EVENT_IOC_QUERY_BPF, query);
 			if (CHECK(err || query->prog_cnt != 2,
 				  "perf_event_ioc_query_bpf",
-				  "err %d errno %d query->prog_cnt %u\n",
-				  err, errno, query->prog_cnt))
+				  "err %d erryes %d query->prog_cnt %u\n",
+				  err, erryes, query->prog_cnt))
 				goto cleanup3;
 
 			/* try a few negative tests */
 			/* invalid query pointer */
 			err = ioctl(pmu_fd[i], PERF_EVENT_IOC_QUERY_BPF,
 				    (struct perf_event_query_bpf *)0x1);
-			if (CHECK(!err || errno != EFAULT,
+			if (CHECK(!err || erryes != EFAULT,
 				  "perf_event_ioc_query_bpf",
-				  "err %d errno %d\n", err, errno))
+				  "err %d erryes %d\n", err, erryes))
 				goto cleanup3;
 
-			/* no enough space */
+			/* yes eyesugh space */
 			query->ids_len = 1;
 			err = ioctl(pmu_fd[i], PERF_EVENT_IOC_QUERY_BPF, query);
-			if (CHECK(!err || errno != ENOSPC || query->prog_cnt != 2,
+			if (CHECK(!err || erryes != ENOSPC || query->prog_cnt != 2,
 				  "perf_event_ioc_query_bpf",
-				  "err %d errno %d query->prog_cnt %u\n",
-				  err, errno, query->prog_cnt))
+				  "err %d erryes %d query->prog_cnt %u\n",
+				  err, erryes, query->prog_cnt))
 				goto cleanup3;
 		}
 
@@ -111,8 +111,8 @@ void test_tp_attach_query(void)
 		err = ioctl(pmu_fd[i], PERF_EVENT_IOC_QUERY_BPF, query);
 		if (CHECK(err || query->prog_cnt != (i + 1),
 			  "perf_event_ioc_query_bpf",
-			  "err %d errno %d query->prog_cnt %u\n",
-			  err, errno, query->prog_cnt))
+			  "err %d erryes %d query->prog_cnt %u\n",
+			  err, erryes, query->prog_cnt))
 			goto cleanup3;
 		for (j = 0; j < i + 1; j++)
 			if (CHECK(saved_prog_ids[j] != query->ids[j],

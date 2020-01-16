@@ -171,7 +171,7 @@ SMbuf* smt_get_mbuf(struct s_smc *smc);
 #endif
 
 #ifdef	USE_CAN_ADDR
-#define MA		smc->hw.fddi_canon_addr.a
+#define MA		smc->hw.fddi_cayesn_addr.a
 #define	GROUP_ADDR_BIT	0x01
 #else
 #define	MA		smc->hw.fddi_home_addr.a
@@ -214,7 +214,7 @@ SMbuf* smt_get_mbuf(struct s_smc *smc);
  *	u_int mac_drv_check_space()
  *
  *	function	DOWNCALL	(drvsr.c)
- *			This function calculates the needed non virtual
+ *			This function calculates the needed yesn virtual
  *			memory for MBufs, RxD and TxD descriptors etc.
  *			needed by the driver.
  *
@@ -267,7 +267,7 @@ int mac_drv_init(struct s_smc *smc)
 	if (!(smc->os.hwm.descr_p = (union s_fp_descr volatile *)
 		mac_drv_get_desc_mem(smc,(u_int)
 		(RXD_TXD_COUNT+1)*sizeof(struct s_smt_fp_txd)))) {
-		return 1;	/* no space the hwm modul can't work */
+		return 1;	/* yes space the hwm modul can't work */
 	}
 
 	/*
@@ -279,13 +279,13 @@ int mac_drv_init(struct s_smc *smc)
 #ifndef	COMMON_MB_POOL
 	if (!(smc->os.hwm.mbuf_pool.mb_start = (SMbuf *) mac_drv_get_space(smc,
 		MAX_MBUF*sizeof(SMbuf)))) {
-		return 1;	/* no space the hwm modul can't work */
+		return 1;	/* yes space the hwm modul can't work */
 	}
 #else
 	if (!mb_start) {
 		if (!(mb_start = (SMbuf *) mac_drv_get_space(smc,
 			MAX_MBUF*sizeof(SMbuf)))) {
-			return 1;	/* no space the hwm modul can't work */
+			return 1;	/* yes space the hwm modul can't work */
 		}
 	}
 #endif
@@ -509,7 +509,7 @@ void smt_free_mbuf(struct s_smc *smc, SMbuf *mb)
 		DB_GEN(3, "free_mbuf: sm_use_count = %d", mb->sm_use_count);
 		/*
 		 * If the use_count is != zero the MBuf is queued
-		 * more than once and must not queued into the
+		 * more than once and must yest queued into the
 		 * free MBuf queue
 		 */
 		if (!mb->sm_use_count) {
@@ -812,7 +812,7 @@ void fddi_isr(struct s_smc *smc)
 		if (is & (IS_XS_F|IS_XA_F)) {
 			DB_GEN(6, "Fast tx complete queue");
 			/*
-			 * clear IRQ, Note: no IRQ is lost, because
+			 * clear IRQ, Note: yes IRQ is lost, because
 			 * 	we always service both queues
 			 */
 			outpd(ADDR(B5_XS_CSR),CSR_IRQ_CL_F) ;
@@ -864,7 +864,7 @@ void fddi_isr(struct s_smc *smc)
 #ifdef	NDIS_OS2
 		post_proc() ;
 		if (offDepth) {		/* leave fddi_isr because */
-			break ;		/* indications not allowed */
+			break ;		/* indications yest allowed */
 		}
 #endif
 #ifdef	USE_BREAK_ISR
@@ -873,7 +873,7 @@ void fddi_isr(struct s_smc *smc)
 		}
 #endif
 
-		/* NOTE: when the isr is left, no rx is pending */
+		/* NOTE: when the isr is left, yes rx is pending */
 	}	/* end of interrupt source polling loop */
 
 #ifdef	USE_BREAK_ISR
@@ -928,7 +928,7 @@ void fddi_isr(struct s_smc *smc)
  *		FC_SMT_INFO and passes them to the LLC receive channel
  *		by calling mac_drv_rx_init.
  *		The SMT Frames which are sent by the local SMT and the NSA
- *		frames whose A- and C-Indicator is not set are also duplicated
+ *		frames whose A- and C-Indicator is yest set are also duplicated
  *		and passed.
  *		The receive mode RX_DISABLE_PASS_SMT disables the passing
  *		of SMT frames.
@@ -1135,7 +1135,7 @@ void process_receive(struct s_smc *smc)
 		DB_RX(5, "EOF set in RxD, used_frags = %d", used_frags);
 
 		/* may be next 2 DRV_BUF_FLUSH() can be skipped, because */
-		/* BMU_ST_BUF will not be changed by the ASIC */
+		/* BMU_ST_BUF will yest be changed by the ASIC */
 		DRV_BUF_FLUSH(r,DDI_DMA_SYNC_FORCPU) ;
 		while (rx_used && !(r->rxd_rbctrl & cpu_to_le32(BMU_ST_BUF))) {
 			DB_RX(5, "Check STF bit in %p", r);
@@ -1155,7 +1155,7 @@ void process_receive(struct s_smc *smc)
 		queue->rx_used = rx_used ;
 
 		/*
-		 * ASIC Errata no. 7 (STF - Bit Bug)
+		 * ASIC Errata yes. 7 (STF - Bit Bug)
 		 */
 		rxd->rxd_rbctrl &= cpu_to_le32(~BMU_STF) ;
 
@@ -1246,7 +1246,7 @@ void process_receive(struct s_smc *smc)
 					    virt[3] != MA[2] ||
 					    virt[2] != MA[1] ||
 					    virt[1] != MA[0]) {
-						DB_RX(2, "DA != MA and not multi- or broadcast");
+						DB_RX(2, "DA != MA and yest multi- or broadcast");
 						goto abort_frame ;
 					}
 				}
@@ -1260,7 +1260,7 @@ void process_receive(struct s_smc *smc)
 		}
 		else {
 			if (!(mb = smt_get_mbuf(smc))) {
-				smc->hw.fp.err_stats.err_no_buf++ ;
+				smc->hw.fp.err_stats.err_yes_buf++ ;
 				DB_RX(4, "No SMbuf; receive terminated");
 				goto abort_frame ;
 			}
@@ -1310,7 +1310,7 @@ void process_receive(struct s_smc *smc)
 
 				/* if pass_NSA set pass the NSA frame or */
 				/* pass_SMT set and the A-Indicator */
-				/* is not set, pass the NSA frame */
+				/* is yest set, pass the NSA frame */
 				if (smc->os.hwm.pass_NSA ||
 					(smc->os.hwm.pass_SMT &&
 					!(rfsw & A_INDIC))) {
@@ -1339,9 +1339,9 @@ void process_receive(struct s_smc *smc)
 				break ;
 			default :
 				/*
-				 * unknown FC abort the frame
+				 * unkyeswn FC abort the frame
 				 */
-				DB_RX(2, "unknown FC error");
+				DB_RX(2, "unkyeswn FC error");
 				smt_free_mbuf(smc,mb) ;
 				DB_RX(5, "requeue RxD");
 				mac_drv_requeue_rxd(smc,rxd,frag_count) ;
@@ -1529,8 +1529,8 @@ void mac_drv_clear_rx_queue(struct s_smc *smc)
  *
  * para	fc	the frame control. To determine through which
  *		send queue the frame should be transmitted.
- *		0x50 - 0x57:	asynchronous LLC frame
- *		0xD0 - 0xD7:	synchronous LLC frame
+ *		0x50 - 0x57:	asynchroyesus LLC frame
+ *		0xD0 - 0xD7:	synchroyesus LLC frame
  *		0x41, 0x4F:	SMT frame to the network
  *		0x42:		SMT frame to the network and to the local SMT
  *		0x43:		SMT frame to the local SMT
@@ -1614,7 +1614,7 @@ int hwm_tx_init(struct s_smc *smc, u_char fc, int frag_count, int frame_len,
  *	len	the length of the fragment
  *	frame_status	status of the frame, see design description
  *
- * return	nothing returned, no parameter is modified
+ * return	yesthing returned, yes parameter is modified
  *
  * NOTE:	It is possible to invoke this macro with a fragment length
  *		of zero.
@@ -1633,7 +1633,7 @@ void hwm_tx_frag(struct s_smc *smc, char far *virt, u_long phys, int len,
 	NDD_TRACE("THfB",virt,len,frame_status) ;
 	/* Bug fix: AF / May 31 1999 (#missing)
 	 * snmpinfo problem reported by IBM is caused by invalid
-	 * t-pointer (txd) if LAN_TX is not set but LOC_TX only.
+	 * t-pointer (txd) if LAN_TX is yest set but LOC_TX only.
 	 * Set: t = queue->tx_curr_put  here !
 	 */
 	t = queue->tx_curr_put ;
@@ -1673,7 +1673,7 @@ void hwm_tx_frag(struct s_smc *smc, char far *virt, u_long phys, int len,
 		DB_TX(3, "LOC_TX:");
 		if (frame_status & FIRST_FRAG) {
 			if(!(smc->os.hwm.tx_mb = smt_get_mbuf(smc))) {
-				smc->hw.fp.err_stats.err_no_buf++ ;
+				smc->hw.fp.err_stats.err_yes_buf++ ;
 				DB_TX(4, "No SMbuf; transmit terminated");
 			}
 			else {
@@ -1930,7 +1930,7 @@ void smt_send_mbuf(struct s_smc *smc, SMbuf *mb, int fc)
  *		reached, it calls mac_drv_tx_complete to release the
  *		send buffer.
  *
- * return	nothing
+ * return	yesthing
  *
  *	END_MANUAL_ENTRY
  */
@@ -2015,7 +2015,7 @@ free_next_queue: ;
  *		In this case, the frames in the send queues are obsolete and
  *		should be removed.
  *
- * note		calling sequence:
+ * yeste		calling sequence:
  *		CLI_FBI(), card_stop(),
  *		mac_drv_clear_tx_queue(), mac_drv_clear_rx_queue(),
  *
@@ -2100,7 +2100,7 @@ void mac_drv_clear_tx_queue(struct s_smc *smc)
  *
  * para	flag	debug flag, possible values are:
  *			= 0:	reset all debug flags (the defined level is
- *				ignored)
+ *				igyesred)
  *			= 1:	debug.d_smtf
  *			= 2:	debug.d_smt
  *			= 3:	debug.d_ecm

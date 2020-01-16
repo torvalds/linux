@@ -671,7 +671,7 @@ static int tegra_spi_init_dma_param(struct tegra_spi_data *tspi,
 		ret = PTR_ERR(dma_chan);
 		if (ret != -EPROBE_DEFER)
 			dev_err(tspi->dev,
-				"Dma channel is not available: %d\n", ret);
+				"Dma channel is yest available: %d\n", ret);
 		return ret;
 	}
 
@@ -922,11 +922,11 @@ static struct tegra_spi_client_data
 	*tegra_spi_parse_cdata_dt(struct spi_device *spi)
 {
 	struct tegra_spi_client_data *cdata;
-	struct device_node *slave_np;
+	struct device_yesde *slave_np;
 
-	slave_np = spi->dev.of_node;
+	slave_np = spi->dev.of_yesde;
 	if (!slave_np) {
-		dev_dbg(&spi->dev, "device node not found\n");
+		dev_dbg(&spi->dev, "device yesde yest found\n");
 		return NULL;
 	}
 
@@ -946,7 +946,7 @@ static void tegra_spi_cleanup(struct spi_device *spi)
 	struct tegra_spi_client_data *cdata = spi->controller_data;
 
 	spi->controller_data = NULL;
-	if (spi->dev.of_node)
+	if (spi->dev.of_yesde)
 		kfree(cdata);
 }
 
@@ -1067,7 +1067,7 @@ static int tegra_spi_transfer_one_message(struct spi_master *master,
 		ret = tegra_spi_start_transfer_one(spi, xfer, cmd1);
 		if (ret < 0) {
 			dev_err(tspi->dev,
-				"spi can not start transfer, err %d\n", ret);
+				"spi can yest start transfer, err %d\n", ret);
 			goto complete_xfer;
 		}
 
@@ -1318,7 +1318,7 @@ static int tegra_spi_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, master);
 	tspi = spi_master_get_devdata(master);
 
-	if (of_property_read_u32(pdev->dev.of_node, "spi-max-frequency",
+	if (of_property_read_u32(pdev->dev.of_yesde, "spi-max-frequency",
 				 &master->max_speed_hz))
 		master->max_speed_hz = 25000000; /* 25MHz */
 
@@ -1333,7 +1333,7 @@ static int tegra_spi_probe(struct platform_device *pdev)
 	master->set_cs_timing = tegra_spi_set_hw_cs_timing;
 	master->num_chipselect = MAX_CHIP_SELECT;
 	master->auto_runtime_pm = true;
-	bus_num = of_alias_get_id(pdev->dev.of_node, "spi");
+	bus_num = of_alias_get_id(pdev->dev.of_yesde, "spi");
 	if (bus_num >= 0)
 		master->bus_num = bus_num;
 
@@ -1361,14 +1361,14 @@ static int tegra_spi_probe(struct platform_device *pdev)
 
 	tspi->clk = devm_clk_get(&pdev->dev, "spi");
 	if (IS_ERR(tspi->clk)) {
-		dev_err(&pdev->dev, "can not get clock\n");
+		dev_err(&pdev->dev, "can yest get clock\n");
 		ret = PTR_ERR(tspi->clk);
 		goto exit_free_master;
 	}
 
 	tspi->rst = devm_reset_control_get_exclusive(&pdev->dev, "spi");
 	if (IS_ERR(tspi->rst)) {
-		dev_err(&pdev->dev, "can not get reset\n");
+		dev_err(&pdev->dev, "can yest get reset\n");
 		ret = PTR_ERR(tspi->rst);
 		goto exit_free_master;
 	}
@@ -1420,10 +1420,10 @@ static int tegra_spi_probe(struct platform_device *pdev)
 		goto exit_pm_disable;
 	}
 
-	master->dev.of_node = pdev->dev.of_node;
+	master->dev.of_yesde = pdev->dev.of_yesde;
 	ret = devm_spi_register_master(&pdev->dev, master);
 	if (ret < 0) {
-		dev_err(&pdev->dev, "can not register to master err %d\n", ret);
+		dev_err(&pdev->dev, "can yest register to master err %d\n", ret);
 		goto exit_free_irq;
 	}
 	return ret;

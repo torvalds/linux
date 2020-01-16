@@ -35,7 +35,7 @@
  * ABSTRACT:
  *
  * The PXA270 processor comes with a bunch of hardware on its silicon.
- * Not all of this hardware can be used at the same time and not all
+ * Not all of this hardware can be used at the same time and yest all
  * is routed to module's connectors. Also it depends on the baseboard, what
  * kind of hardware can be used in which way.
  * -> So this file supports the main devices on the CPU card only!
@@ -114,7 +114,7 @@ static struct resource smc91x_resources[] = {
 	[1] = {
 		.start	= PCM027_ETH_IRQ,
 		.end	= PCM027_ETH_IRQ,
-		/* note: smc91x's driver doesn't use the trigger bits yet */
+		/* yeste: smc91x's driver doesn't use the trigger bits yet */
 		.flags	= IORESOURCE_IRQ | PCM027_ETH_IRQ_EDGE,
 	}
 };

@@ -57,7 +57,7 @@ Configuration interface:
 Driver uses the switch device driver model and exposes each switch port as
 a network interface, which can be included in a bridge. Traffic switched
 between ports is offloaded into the hardware. Exposed network interfaces
-are not used for I/O, they are used just for configuration. This
+are yest used for I/O, they are used just for configuration. This
 limitation is going to be addressed in the future.
 
 The DPSW can have ports connected to DPNIs or to PHYs via DPMACs.

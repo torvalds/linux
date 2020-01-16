@@ -60,16 +60,16 @@ static __le32 ceph_flags_sys2wire(u32 flags)
  * We implement three modes of file I/O:
  *  - buffered uses the generic_file_aio_{read,write} helpers
  *
- *  - synchronous is used when there is multi-client read/write
- *    sharing, avoids the page cache, and synchronously waits for an
+ *  - synchroyesus is used when there is multi-client read/write
+ *    sharing, avoids the page cache, and synchroyesusly waits for an
  *    ack from the OSD.
  *
  *  - direct io takes the variant of the sync path that references
  *    user pages directly.
  *
  * fsync() flushes and waits on dirty pages, but just queues metadata
- * for writeback: since the MDS can recover size and mtime there is no
- * need to wait for MDS acknowledgement.
+ * for writeback: since the MDS can recover size and mtime there is yes
+ * need to wait for MDS ackyeswledgement.
  */
 
 /*
@@ -118,7 +118,7 @@ static ssize_t __iter_get_bvecs(struct iov_iter *iter, size_t maxsize,
 }
 
 /*
- * iov_iter_get_pages() only considers one iov_iter segment, no matter
+ * iov_iter_get_pages() only considers one iov_iter segment, yes matter
  * what maxsize or maxpages are given.  For ITER_BVEC that is a single
  * page.
  *
@@ -175,7 +175,7 @@ static void put_bvecs(struct bio_vec *bvecs, int num_bvecs, bool should_dirty)
 
 /*
  * Prepare an open request.  Preallocate ceph_cap to avoid an
- * inopportune ENOMEM later.
+ * iyespportune ENOMEM later.
  */
 static struct ceph_mds_request *
 prepare_open_request(struct super_block *sb, int flags, int create_mode)
@@ -199,15 +199,15 @@ out:
 	return req;
 }
 
-static int ceph_init_file_info(struct inode *inode, struct file *file,
+static int ceph_init_file_info(struct iyesde *iyesde, struct file *file,
 					int fmode, bool isdir)
 {
-	struct ceph_inode_info *ci = ceph_inode(inode);
+	struct ceph_iyesde_info *ci = ceph_iyesde(iyesde);
 	struct ceph_file_info *fi;
 
-	dout("%s %p %p 0%o (%s)\n", __func__, inode, file,
-			inode->i_mode, isdir ? "dir" : "regular");
-	BUG_ON(inode->i_fop->release != ceph_release);
+	dout("%s %p %p 0%o (%s)\n", __func__, iyesde, file,
+			iyesde->i_mode, isdir ? "dir" : "regular");
+	BUG_ON(iyesde->i_fop->release != ceph_release);
 
 	if (isdir) {
 		struct ceph_dir_file_info *dfi =
@@ -235,49 +235,49 @@ static int ceph_init_file_info(struct inode *inode, struct file *file,
 	spin_lock_init(&fi->rw_contexts_lock);
 	INIT_LIST_HEAD(&fi->rw_contexts);
 	fi->meta_err = errseq_sample(&ci->i_meta_err);
-	fi->filp_gen = READ_ONCE(ceph_inode_to_client(inode)->filp_gen);
+	fi->filp_gen = READ_ONCE(ceph_iyesde_to_client(iyesde)->filp_gen);
 
 	return 0;
 }
 
 /*
  * initialize private struct file data.
- * if we fail, clean up by dropping fmode reference on the ceph_inode
+ * if we fail, clean up by dropping fmode reference on the ceph_iyesde
  */
-static int ceph_init_file(struct inode *inode, struct file *file, int fmode)
+static int ceph_init_file(struct iyesde *iyesde, struct file *file, int fmode)
 {
 	int ret = 0;
 
-	switch (inode->i_mode & S_IFMT) {
+	switch (iyesde->i_mode & S_IFMT) {
 	case S_IFREG:
-		ceph_fscache_register_inode_cookie(inode);
-		ceph_fscache_file_set_cookie(inode, file);
+		ceph_fscache_register_iyesde_cookie(iyesde);
+		ceph_fscache_file_set_cookie(iyesde, file);
 		/* fall through */
 	case S_IFDIR:
-		ret = ceph_init_file_info(inode, file, fmode,
-						S_ISDIR(inode->i_mode));
+		ret = ceph_init_file_info(iyesde, file, fmode,
+						S_ISDIR(iyesde->i_mode));
 		if (ret)
 			return ret;
 		break;
 
 	case S_IFLNK:
-		dout("init_file %p %p 0%o (symlink)\n", inode, file,
-		     inode->i_mode);
-		ceph_put_fmode(ceph_inode(inode), fmode); /* clean up */
+		dout("init_file %p %p 0%o (symlink)\n", iyesde, file,
+		     iyesde->i_mode);
+		ceph_put_fmode(ceph_iyesde(iyesde), fmode); /* clean up */
 		break;
 
 	default:
-		dout("init_file %p %p 0%o (special)\n", inode, file,
-		     inode->i_mode);
+		dout("init_file %p %p 0%o (special)\n", iyesde, file,
+		     iyesde->i_mode);
 		/*
-		 * we need to drop the open ref now, since we don't
+		 * we need to drop the open ref yesw, since we don't
 		 * have .release set to ceph_release.
 		 */
-		ceph_put_fmode(ceph_inode(inode), fmode); /* clean up */
-		BUG_ON(inode->i_fop->release == ceph_release);
+		ceph_put_fmode(ceph_iyesde(iyesde), fmode); /* clean up */
+		BUG_ON(iyesde->i_fop->release == ceph_release);
 
 		/* call the proper open fop */
-		ret = inode->i_fop->open(inode, file);
+		ret = iyesde->i_fop->open(iyesde, file);
 	}
 	return ret;
 }
@@ -285,10 +285,10 @@ static int ceph_init_file(struct inode *inode, struct file *file, int fmode)
 /*
  * try renew caps after session gets killed.
  */
-int ceph_renew_caps(struct inode *inode)
+int ceph_renew_caps(struct iyesde *iyesde)
 {
-	struct ceph_mds_client *mdsc = ceph_sb_to_client(inode->i_sb)->mdsc;
-	struct ceph_inode_info *ci = ceph_inode(inode);
+	struct ceph_mds_client *mdsc = ceph_sb_to_client(iyesde->i_sb)->mdsc;
+	struct ceph_iyesde_info *ci = ceph_iyesde(iyesde);
 	struct ceph_mds_request *req;
 	int err, flags, wanted;
 
@@ -299,7 +299,7 @@ int ceph_renew_caps(struct inode *inode)
 		int issued = __ceph_caps_issued(ci, NULL);
 		spin_unlock(&ci->i_ceph_lock);
 		dout("renew caps %p want %s issued %s updating mds_wanted\n",
-		     inode, ceph_cap_string(wanted), ceph_cap_string(issued));
+		     iyesde, ceph_cap_string(wanted), ceph_cap_string(issued));
 		ceph_check_caps(ci, 0, NULL);
 		return 0;
 	}
@@ -317,34 +317,34 @@ int ceph_renew_caps(struct inode *inode)
 		flags |= O_LAZY;
 #endif
 
-	req = prepare_open_request(inode->i_sb, flags, 0);
+	req = prepare_open_request(iyesde->i_sb, flags, 0);
 	if (IS_ERR(req)) {
 		err = PTR_ERR(req);
 		goto out;
 	}
 
-	req->r_inode = inode;
-	ihold(inode);
+	req->r_iyesde = iyesde;
+	ihold(iyesde);
 	req->r_num_caps = 1;
 	req->r_fmode = -1;
 
 	err = ceph_mdsc_do_request(mdsc, NULL, req);
 	ceph_mdsc_put_request(req);
 out:
-	dout("renew caps %p open result=%d\n", inode, err);
+	dout("renew caps %p open result=%d\n", iyesde, err);
 	return err < 0 ? err : 0;
 }
 
 /*
  * If we already have the requisite capabilities, we can satisfy
- * the open request locally (no need to request new caps from the
- * MDS).  We do, however, need to inform the MDS (asynchronously)
+ * the open request locally (yes need to request new caps from the
+ * MDS).  We do, however, need to inform the MDS (asynchroyesusly)
  * if our wanted caps set expands.
  */
-int ceph_open(struct inode *inode, struct file *file)
+int ceph_open(struct iyesde *iyesde, struct file *file)
 {
-	struct ceph_inode_info *ci = ceph_inode(inode);
-	struct ceph_fs_client *fsc = ceph_sb_to_client(inode->i_sb);
+	struct ceph_iyesde_info *ci = ceph_iyesde(iyesde);
+	struct ceph_fs_client *fsc = ceph_sb_to_client(iyesde->i_sb);
 	struct ceph_mds_client *mdsc = fsc->mdsc;
 	struct ceph_mds_request *req;
 	struct ceph_file_info *fi = file->private_data;
@@ -358,30 +358,30 @@ int ceph_open(struct inode *inode, struct file *file)
 
 	/* filter out O_CREAT|O_EXCL; vfs did that already.  yuck. */
 	flags = file->f_flags & ~(O_CREAT|O_EXCL);
-	if (S_ISDIR(inode->i_mode))
-		flags = O_DIRECTORY;  /* mds likes to know */
+	if (S_ISDIR(iyesde->i_mode))
+		flags = O_DIRECTORY;  /* mds likes to kyesw */
 
-	dout("open inode %p ino %llx.%llx file %p flags %d (%d)\n", inode,
-	     ceph_vinop(inode), file, flags, file->f_flags);
+	dout("open iyesde %p iyes %llx.%llx file %p flags %d (%d)\n", iyesde,
+	     ceph_viyesp(iyesde), file, flags, file->f_flags);
 	fmode = ceph_flags_to_mode(flags);
 	wanted = ceph_caps_for_mode(fmode);
 
 	/* snapped files are read-only */
-	if (ceph_snap(inode) != CEPH_NOSNAP && (file->f_mode & FMODE_WRITE))
+	if (ceph_snap(iyesde) != CEPH_NOSNAP && (file->f_mode & FMODE_WRITE))
 		return -EROFS;
 
 	/* trivially open snapdir */
-	if (ceph_snap(inode) == CEPH_SNAPDIR) {
+	if (ceph_snap(iyesde) == CEPH_SNAPDIR) {
 		spin_lock(&ci->i_ceph_lock);
 		__ceph_get_fmode(ci, fmode);
 		spin_unlock(&ci->i_ceph_lock);
-		return ceph_init_file(inode, file, fmode);
+		return ceph_init_file(iyesde, file, fmode);
 	}
 
 	/*
 	 * No need to block if we have caps on the auth MDS (for
 	 * write) or any MDS (for read).  Update wanted set
-	 * asynchronously.
+	 * asynchroyesusly.
 	 */
 	spin_lock(&ci->i_ceph_lock);
 	if (__ceph_is_any_real_caps(ci) &&
@@ -390,7 +390,7 @@ int ceph_open(struct inode *inode, struct file *file)
 		int issued = __ceph_caps_issued(ci, NULL);
 
 		dout("open %p fmode %d want %s issued %s using existing\n",
-		     inode, fmode, ceph_cap_string(wanted),
+		     iyesde, fmode, ceph_cap_string(wanted),
 		     ceph_cap_string(issued));
 		__ceph_get_fmode(ci, fmode);
 		spin_unlock(&ci->i_ceph_lock);
@@ -398,44 +398,44 @@ int ceph_open(struct inode *inode, struct file *file)
 		/* adjust wanted? */
 		if ((issued & wanted) != wanted &&
 		    (mds_wanted & wanted) != wanted &&
-		    ceph_snap(inode) != CEPH_SNAPDIR)
+		    ceph_snap(iyesde) != CEPH_SNAPDIR)
 			ceph_check_caps(ci, 0, NULL);
 
-		return ceph_init_file(inode, file, fmode);
-	} else if (ceph_snap(inode) != CEPH_NOSNAP &&
+		return ceph_init_file(iyesde, file, fmode);
+	} else if (ceph_snap(iyesde) != CEPH_NOSNAP &&
 		   (ci->i_snap_caps & wanted) == wanted) {
 		__ceph_get_fmode(ci, fmode);
 		spin_unlock(&ci->i_ceph_lock);
-		return ceph_init_file(inode, file, fmode);
+		return ceph_init_file(iyesde, file, fmode);
 	}
 
 	spin_unlock(&ci->i_ceph_lock);
 
 	dout("open fmode %d wants %s\n", fmode, ceph_cap_string(wanted));
-	req = prepare_open_request(inode->i_sb, flags, 0);
+	req = prepare_open_request(iyesde->i_sb, flags, 0);
 	if (IS_ERR(req)) {
 		err = PTR_ERR(req);
 		goto out;
 	}
-	req->r_inode = inode;
-	ihold(inode);
+	req->r_iyesde = iyesde;
+	ihold(iyesde);
 
 	req->r_num_caps = 1;
 	err = ceph_mdsc_do_request(mdsc, NULL, req);
 	if (!err)
-		err = ceph_init_file(inode, file, req->r_fmode);
+		err = ceph_init_file(iyesde, file, req->r_fmode);
 	ceph_mdsc_put_request(req);
-	dout("open result=%d on %llx.%llx\n", err, ceph_vinop(inode));
+	dout("open result=%d on %llx.%llx\n", err, ceph_viyesp(iyesde));
 out:
 	return err;
 }
 
 
 /*
- * Do a lookup + open with a single request.  If we get a non-existent
+ * Do a lookup + open with a single request.  If we get a yesn-existent
  * file or symlink, return 1 so the VFS can retry.
  */
-int ceph_atomic_open(struct inode *dir, struct dentry *dentry,
+int ceph_atomic_open(struct iyesde *dir, struct dentry *dentry,
 		     struct file *file, unsigned flags, umode_t mode)
 {
 	struct ceph_fs_client *fsc = ceph_sb_to_client(dir->i_sb);
@@ -463,7 +463,7 @@ int ceph_atomic_open(struct inode *dir, struct dentry *dentry,
 		if (err < 0)
 			goto out_ctx;
 	} else if (!d_in_lookup(dentry)) {
-		/* If it's not being looked up, it's negative */
+		/* If it's yest being looked up, it's negative */
 		return -ENOENT;
 	}
 
@@ -499,7 +499,7 @@ int ceph_atomic_open(struct inode *dir, struct dentry *dentry,
 		goto out_req;
 
 	if ((flags & O_CREAT) && !req->r_reply_info.head->is_dentry)
-		err = ceph_handle_notrace_create(dir, dentry);
+		err = ceph_handle_yestrace_create(dir, dentry);
 
 	if (d_in_lookup(dentry)) {
 		dn = ceph_finish_lookup(req, dentry, err);
@@ -513,19 +513,19 @@ int ceph_atomic_open(struct inode *dir, struct dentry *dentry,
 		goto out_req;
 	if (dn || d_really_is_negative(dentry) || d_is_symlink(dentry)) {
 		/* make vfs retry on splice, ENOENT, or symlink */
-		dout("atomic_open finish_no_open on dn %p\n", dn);
-		err = finish_no_open(file, dn);
+		dout("atomic_open finish_yes_open on dn %p\n", dn);
+		err = finish_yes_open(file, dn);
 	} else {
 		dout("atomic_open finish_open on dn %p\n", dn);
-		if (req->r_op == CEPH_MDS_OP_CREATE && req->r_reply_info.has_create_ino) {
-			ceph_init_inode_acls(d_inode(dentry), &as_ctx);
+		if (req->r_op == CEPH_MDS_OP_CREATE && req->r_reply_info.has_create_iyes) {
+			ceph_init_iyesde_acls(d_iyesde(dentry), &as_ctx);
 			file->f_mode |= FMODE_CREATED;
 		}
 		err = finish_open(file, dentry, ceph_open);
 	}
 out_req:
-	if (!req->r_err && req->r_target_inode)
-		ceph_put_fmode(ceph_inode(req->r_target_inode), req->r_fmode);
+	if (!req->r_err && req->r_target_iyesde)
+		ceph_put_fmode(ceph_iyesde(req->r_target_iyesde), req->r_fmode);
 	ceph_mdsc_put_request(req);
 out_ctx:
 	ceph_release_acl_sec_ctx(&as_ctx);
@@ -533,13 +533,13 @@ out_ctx:
 	return err;
 }
 
-int ceph_release(struct inode *inode, struct file *file)
+int ceph_release(struct iyesde *iyesde, struct file *file)
 {
-	struct ceph_inode_info *ci = ceph_inode(inode);
+	struct ceph_iyesde_info *ci = ceph_iyesde(iyesde);
 
-	if (S_ISDIR(inode->i_mode)) {
+	if (S_ISDIR(iyesde->i_mode)) {
 		struct ceph_dir_file_info *dfi = file->private_data;
-		dout("release inode %p dir file %p\n", inode, file);
+		dout("release iyesde %p dir file %p\n", iyesde, file);
 		WARN_ON(!list_empty(&dfi->file_info.rw_contexts));
 
 		ceph_put_fmode(ci, dfi->file_info.fmode);
@@ -551,14 +551,14 @@ int ceph_release(struct inode *inode, struct file *file)
 		kmem_cache_free(ceph_dir_file_cachep, dfi);
 	} else {
 		struct ceph_file_info *fi = file->private_data;
-		dout("release inode %p regular file %p\n", inode, file);
+		dout("release iyesde %p regular file %p\n", iyesde, file);
 		WARN_ON(!list_empty(&fi->rw_contexts));
 
 		ceph_put_fmode(ci, fi->fmode);
 		kmem_cache_free(ceph_file_cachep, fi);
 	}
 
-	/* wake up anyone waiting for caps on this inode */
+	/* wake up anyone waiting for caps on this iyesde */
 	wake_up_all(&ci->i_cap_wq);
 	return 0;
 }
@@ -570,11 +570,11 @@ enum {
 };
 
 /*
- * Completely synchronous read and write methods.  Direct from __user
+ * Completely synchroyesus read and write methods.  Direct from __user
  * buffer to osd, or directly to user pages (if O_DIRECT).
  *
- * If the read spans object boundary, just do multiple reads.  (That's not
- * atomic, but good enough for now.)
+ * If the read spans object boundary, just do multiple reads.  (That's yest
+ * atomic, but good eyesugh for yesw.)
  *
  * If we get a short result from the OSD, check against i_size; we need to
  * only return a short read to the caller if we hit EOF.
@@ -583,9 +583,9 @@ static ssize_t ceph_sync_read(struct kiocb *iocb, struct iov_iter *to,
 			      int *retry_op)
 {
 	struct file *file = iocb->ki_filp;
-	struct inode *inode = file_inode(file);
-	struct ceph_inode_info *ci = ceph_inode(inode);
-	struct ceph_fs_client *fsc = ceph_inode_to_client(inode);
+	struct iyesde *iyesde = file_iyesde(file);
+	struct ceph_iyesde_info *ci = ceph_iyesde(iyesde);
+	struct ceph_fs_client *fsc = ceph_iyesde_to_client(iyesde);
 	struct ceph_osd_client *osdc = &fsc->client->osdc;
 	ssize_t ret;
 	u64 off = iocb->ki_pos;
@@ -598,11 +598,11 @@ static ssize_t ceph_sync_read(struct kiocb *iocb, struct iov_iter *to,
 		return 0;
 	/*
 	 * flush any page cache pages in this range.  this
-	 * will make concurrent normal and sync io slow,
+	 * will make concurrent yesrmal and sync io slow,
 	 * but it will at least behave sensibly when they are
 	 * in sequence.
 	 */
-	ret = filemap_write_and_wait_range(inode->i_mapping,
+	ret = filemap_write_and_wait_range(iyesde->i_mapping,
 					   off, off + len - 1);
 	if (ret < 0)
 		return ret;
@@ -617,7 +617,7 @@ static ssize_t ceph_sync_read(struct kiocb *iocb, struct iov_iter *to,
 		bool more;
 
 		req = ceph_osdc_new_request(osdc, &ci->i_layout,
-					ci->i_vino, off, &len, 0, 1,
+					ci->i_viyes, off, &len, 0, 1,
 					CEPH_OSD_OP_READ, CEPH_OSD_FLAG_READ,
 					NULL, ci->i_truncate_seq,
 					ci->i_truncate_size, false);
@@ -660,7 +660,7 @@ static ssize_t ceph_sync_read(struct kiocb *iocb, struct iov_iter *to,
 			ret = ceph_osdc_wait_request(osdc, req);
 		ceph_osdc_put_request(req);
 
-		i_size = i_size_read(inode);
+		i_size = i_size_read(iyesde);
 		dout("sync_read %llu~%llu got %zd i_size %llu%s\n",
 		     off, len, ret, i_size, (more ? " MORE" : ""));
 
@@ -714,7 +714,7 @@ static ssize_t ceph_sync_read(struct kiocb *iocb, struct iov_iter *to,
 
 	if (off > iocb->ki_pos) {
 		if (ret >= 0 &&
-		    iov_iter_count(to) > 0 && off >= i_size_read(inode))
+		    iov_iter_count(to) > 0 && off >= i_size_read(iyesde))
 			*retry_op = CHECK_EOF;
 		ret = off - iocb->ki_pos;
 		iocb->ki_pos = off;
@@ -744,30 +744,30 @@ struct ceph_aio_work {
 
 static void ceph_aio_retry_work(struct work_struct *work);
 
-static void ceph_aio_complete(struct inode *inode,
+static void ceph_aio_complete(struct iyesde *iyesde,
 			      struct ceph_aio_request *aio_req)
 {
-	struct ceph_inode_info *ci = ceph_inode(inode);
+	struct ceph_iyesde_info *ci = ceph_iyesde(iyesde);
 	int ret;
 
 	if (!atomic_dec_and_test(&aio_req->pending_reqs))
 		return;
 
 	if (aio_req->iocb->ki_flags & IOCB_DIRECT)
-		inode_dio_end(inode);
+		iyesde_dio_end(iyesde);
 
 	ret = aio_req->error;
 	if (!ret)
 		ret = aio_req->total_len;
 
-	dout("ceph_aio_complete %p rc %d\n", inode, ret);
+	dout("ceph_aio_complete %p rc %d\n", iyesde, ret);
 
 	if (ret >= 0 && aio_req->write) {
 		int dirty;
 
 		loff_t endoff = aio_req->iocb->ki_pos + aio_req->total_len;
-		if (endoff > i_size_read(inode)) {
-			if (ceph_inode_set_size(inode, endoff))
+		if (endoff > i_size_read(iyesde)) {
+			if (ceph_iyesde_set_size(iyesde, endoff))
 				ceph_check_caps(ci, CHECK_CAPS_AUTHONLY, NULL);
 		}
 
@@ -777,7 +777,7 @@ static void ceph_aio_complete(struct inode *inode,
 					       &aio_req->prealloc_cf);
 		spin_unlock(&ci->i_ceph_lock);
 		if (dirty)
-			__mark_inode_dirty(inode, dirty);
+			__mark_iyesde_dirty(iyesde, dirty);
 
 	}
 
@@ -793,7 +793,7 @@ static void ceph_aio_complete(struct inode *inode,
 static void ceph_aio_complete_req(struct ceph_osd_request *req)
 {
 	int rc = req->r_result;
-	struct inode *inode = req->r_inode;
+	struct iyesde *iyesde = req->r_iyesde;
 	struct ceph_aio_request *aio_req = req->r_priv;
 	struct ceph_osd_data *osd_data = osd_req_op_extent_osd_data(req, 0);
 
@@ -801,7 +801,7 @@ static void ceph_aio_complete_req(struct ceph_osd_request *req)
 	BUG_ON(!osd_data->num_bvecs);
 
 	dout("ceph_aio_complete_req %p rc %d bytes %u\n",
-	     inode, rc, osd_data->bvec_pos.iter.bi_size);
+	     iyesde, rc, osd_data->bvec_pos.iter.bi_size);
 
 	if (rc == -EOLDSNAPC) {
 		struct ceph_aio_work *aio_work;
@@ -811,7 +811,7 @@ static void ceph_aio_complete_req(struct ceph_osd_request *req)
 		if (aio_work) {
 			INIT_WORK(&aio_work->work, ceph_aio_retry_work);
 			aio_work->req = req;
-			queue_work(ceph_inode_to_client(inode)->inode_wq,
+			queue_work(ceph_iyesde_to_client(iyesde)->iyesde_wq,
 				   &aio_work->work);
 			return;
 		}
@@ -829,7 +829,7 @@ static void ceph_aio_complete_req(struct ceph_osd_request *req)
 			 * i_size.
 			 */
 			if (aio_req->num_reqs == 1) {
-				loff_t i_size = i_size_read(inode);
+				loff_t i_size = i_size_read(iyesde);
 				loff_t endoff = aio_req->iocb->ki_pos + rc;
 				if (endoff < i_size)
 					zlen = min_t(size_t, zlen,
@@ -852,7 +852,7 @@ static void ceph_aio_complete_req(struct ceph_osd_request *req)
 	if (rc < 0)
 		cmpxchg(&aio_req->error, 0, rc);
 
-	ceph_aio_complete(inode, aio_req);
+	ceph_aio_complete(iyesde, aio_req);
 	return;
 }
 
@@ -862,8 +862,8 @@ static void ceph_aio_retry_work(struct work_struct *work)
 		container_of(work, struct ceph_aio_work, work);
 	struct ceph_osd_request *orig_req = aio_work->req;
 	struct ceph_aio_request *aio_req = orig_req->r_priv;
-	struct inode *inode = orig_req->r_inode;
-	struct ceph_inode_info *ci = ceph_inode(inode);
+	struct iyesde *iyesde = orig_req->r_iyesde;
+	struct ceph_iyesde_info *ci = ceph_iyesde(iyesde);
 	struct ceph_snap_context *snapc;
 	struct ceph_osd_request *req;
 	int ret;
@@ -908,7 +908,7 @@ static void ceph_aio_retry_work(struct work_struct *work)
 	ceph_osdc_put_request(orig_req);
 
 	req->r_callback = ceph_aio_complete_req;
-	req->r_inode = inode;
+	req->r_iyesde = iyesde;
 	req->r_priv = aio_req;
 
 	ret = ceph_osdc_start_request(req->r_osdc, req, false);
@@ -928,23 +928,23 @@ ceph_direct_read_write(struct kiocb *iocb, struct iov_iter *iter,
 		       struct ceph_cap_flush **pcf)
 {
 	struct file *file = iocb->ki_filp;
-	struct inode *inode = file_inode(file);
-	struct ceph_inode_info *ci = ceph_inode(inode);
-	struct ceph_fs_client *fsc = ceph_inode_to_client(inode);
-	struct ceph_vino vino;
+	struct iyesde *iyesde = file_iyesde(file);
+	struct ceph_iyesde_info *ci = ceph_iyesde(iyesde);
+	struct ceph_fs_client *fsc = ceph_iyesde_to_client(iyesde);
+	struct ceph_viyes viyes;
 	struct ceph_osd_request *req;
 	struct bio_vec *bvecs;
 	struct ceph_aio_request *aio_req = NULL;
 	int num_pages = 0;
 	int flags;
 	int ret = 0;
-	struct timespec64 mtime = current_time(inode);
+	struct timespec64 mtime = current_time(iyesde);
 	size_t count = iov_iter_count(iter);
 	loff_t pos = iocb->ki_pos;
 	bool write = iov_iter_rw(iter) == WRITE;
 	bool should_dirty = !write && iter_is_iovec(iter);
 
-	if (write && ceph_snap(file_inode(file)) != CEPH_NOSNAP)
+	if (write && ceph_snap(file_iyesde(file)) != CEPH_NOSNAP)
 		return -EROFS;
 
 	dout("sync_direct_%s on file %p %lld~%u snapc %p seq %lld\n",
@@ -952,11 +952,11 @@ ceph_direct_read_write(struct kiocb *iocb, struct iov_iter *iter,
 	     snapc, snapc ? snapc->seq : 0);
 
 	if (write) {
-		int ret2 = invalidate_inode_pages2_range(inode->i_mapping,
+		int ret2 = invalidate_iyesde_pages2_range(iyesde->i_mapping,
 					pos >> PAGE_SHIFT,
 					(pos + count - 1) >> PAGE_SHIFT);
 		if (ret2 < 0)
-			dout("invalidate_inode_pages2_range returned %d\n", ret2);
+			dout("invalidate_iyesde_pages2_range returned %d\n", ret2);
 
 		flags = /* CEPH_OSD_FLAG_ORDERSNAP | */ CEPH_OSD_FLAG_WRITE;
 	} else {
@@ -972,9 +972,9 @@ ceph_direct_read_write(struct kiocb *iocb, struct iov_iter *iter,
 		else
 			size = min_t(u64, size, fsc->mount_options->rsize);
 
-		vino = ceph_vino(inode);
+		viyes = ceph_viyes(iyesde);
 		req = ceph_osdc_new_request(&fsc->client->osdc, &ci->i_layout,
-					    vino, pos, &size, 0,
+					    viyes, pos, &size, 0,
 					    1,
 					    write ? CEPH_OSD_OP_WRITE :
 						    CEPH_OSD_OP_READ,
@@ -1001,7 +1001,7 @@ ceph_direct_read_write(struct kiocb *iocb, struct iov_iter *iter,
 		 * or IO can be satisfied by single OSD request.
 		 */
 		if (pos == iocb->ki_pos && !is_sync_kiocb(iocb) &&
-		    (len == count || pos + count <= i_size_read(inode))) {
+		    (len == count || pos + count <= i_size_read(iyesde))) {
 			aio_req = kzalloc(sizeof(*aio_req), GFP_KERNEL);
 			if (aio_req) {
 				aio_req->iocb = iocb;
@@ -1013,7 +1013,7 @@ ceph_direct_read_write(struct kiocb *iocb, struct iov_iter *iter,
 					swap(aio_req->prealloc_cf, *pcf);
 				}
 			}
-			/* ignore error */
+			/* igyesre error */
 		}
 
 		if (write) {
@@ -1021,7 +1021,7 @@ ceph_direct_read_write(struct kiocb *iocb, struct iov_iter *iter,
 			 * throw out any page cache pages in this range. this
 			 * may block.
 			 */
-			truncate_inode_pages_range(inode->i_mapping, pos,
+			truncate_iyesde_pages_range(iyesde->i_mapping, pos,
 						   PAGE_ALIGN(pos + len) - 1);
 
 			req->r_mtime = mtime;
@@ -1035,7 +1035,7 @@ ceph_direct_read_write(struct kiocb *iocb, struct iov_iter *iter,
 			atomic_inc(&aio_req->pending_reqs);
 
 			req->r_callback = ceph_aio_complete_req;
-			req->r_inode = inode;
+			req->r_iyesde = iyesde;
 			req->r_priv = aio_req;
 			list_add_tail(&req->r_private_item, &aio_req->osd_reqs);
 
@@ -1047,7 +1047,7 @@ ceph_direct_read_write(struct kiocb *iocb, struct iov_iter *iter,
 		if (!ret)
 			ret = ceph_osdc_wait_request(&fsc->client->osdc, req);
 
-		size = i_size_read(inode);
+		size = i_size_read(iyesde);
 		if (!write) {
 			if (ret == -ENOENT)
 				ret = 0;
@@ -1075,8 +1075,8 @@ ceph_direct_read_write(struct kiocb *iocb, struct iov_iter *iter,
 			break;
 
 		if (write && pos > size) {
-			if (ceph_inode_set_size(inode, pos))
-				ceph_check_caps(ceph_inode(inode),
+			if (ceph_iyesde_set_size(iyesde, pos))
+				ceph_check_caps(ceph_iyesde(iyesde),
 						CHECK_CAPS_AUTHONLY,
 						NULL);
 		}
@@ -1094,7 +1094,7 @@ ceph_direct_read_write(struct kiocb *iocb, struct iov_iter *iter,
 					      CEPH_CAP_FILE_RD);
 
 		list_splice(&aio_req->osd_reqs, &osd_reqs);
-		inode_dio_begin(inode);
+		iyesde_dio_begin(iyesde);
 		while (!list_empty(&osd_reqs)) {
 			req = list_first_entry(&osd_reqs,
 					       struct ceph_osd_request,
@@ -1119,7 +1119,7 @@ ceph_direct_read_write(struct kiocb *iocb, struct iov_iter *iter,
 }
 
 /*
- * Synchronous write, straight from __user pointer or user pages.
+ * Synchroyesus write, straight from __user pointer or user pages.
  *
  * If write spans object boundary, just do multiple writes.  (For a
  * correct atomic write, we should e.g. take write locks on all
@@ -1130,10 +1130,10 @@ ceph_sync_write(struct kiocb *iocb, struct iov_iter *from, loff_t pos,
 		struct ceph_snap_context *snapc)
 {
 	struct file *file = iocb->ki_filp;
-	struct inode *inode = file_inode(file);
-	struct ceph_inode_info *ci = ceph_inode(inode);
-	struct ceph_fs_client *fsc = ceph_inode_to_client(inode);
-	struct ceph_vino vino;
+	struct iyesde *iyesde = file_iyesde(file);
+	struct ceph_iyesde_info *ci = ceph_iyesde(iyesde);
+	struct ceph_fs_client *fsc = ceph_iyesde_to_client(iyesde);
+	struct ceph_viyes viyes;
 	struct ceph_osd_request *req;
 	struct page **pages;
 	u64 len;
@@ -1142,25 +1142,25 @@ ceph_sync_write(struct kiocb *iocb, struct iov_iter *from, loff_t pos,
 	int flags;
 	int ret;
 	bool check_caps = false;
-	struct timespec64 mtime = current_time(inode);
+	struct timespec64 mtime = current_time(iyesde);
 	size_t count = iov_iter_count(from);
 
-	if (ceph_snap(file_inode(file)) != CEPH_NOSNAP)
+	if (ceph_snap(file_iyesde(file)) != CEPH_NOSNAP)
 		return -EROFS;
 
 	dout("sync_write on file %p %lld~%u snapc %p seq %lld\n",
 	     file, pos, (unsigned)count, snapc, snapc->seq);
 
-	ret = filemap_write_and_wait_range(inode->i_mapping,
+	ret = filemap_write_and_wait_range(iyesde->i_mapping,
 					   pos, pos + count - 1);
 	if (ret < 0)
 		return ret;
 
-	ret = invalidate_inode_pages2_range(inode->i_mapping,
+	ret = invalidate_iyesde_pages2_range(iyesde->i_mapping,
 					    pos >> PAGE_SHIFT,
 					    (pos + count - 1) >> PAGE_SHIFT);
 	if (ret < 0)
-		dout("invalidate_inode_pages2_range returned %d\n", ret);
+		dout("invalidate_iyesde_pages2_range returned %d\n", ret);
 
 	flags = /* CEPH_OSD_FLAG_ORDERSNAP | */ CEPH_OSD_FLAG_WRITE;
 
@@ -1168,9 +1168,9 @@ ceph_sync_write(struct kiocb *iocb, struct iov_iter *from, loff_t pos,
 		size_t left;
 		int n;
 
-		vino = ceph_vino(inode);
+		viyes = ceph_viyes(iyesde);
 		req = ceph_osdc_new_request(&fsc->client->osdc, &ci->i_layout,
-					    vino, pos, &len, 0, 1,
+					    viyes, pos, &len, 0, 1,
 					    CEPH_OSD_OP_WRITE, flags, snapc,
 					    ci->i_truncate_seq,
 					    ci->i_truncate_size,
@@ -1208,7 +1208,7 @@ ceph_sync_write(struct kiocb *iocb, struct iov_iter *from, loff_t pos,
 			goto out;
 		}
 
-		req->r_inode = inode;
+		req->r_iyesde = iyesde;
 
 		osd_req_op_extent_osd_data_pages(req, 0, pages, len, 0,
 						false, true);
@@ -1228,10 +1228,10 @@ out:
 		ceph_clear_error_write(ci);
 		pos += len;
 		written += len;
-		if (pos > i_size_read(inode)) {
-			check_caps = ceph_inode_set_size(inode, pos);
+		if (pos > i_size_read(iyesde)) {
+			check_caps = ceph_iyesde_set_size(iyesde, pos);
 			if (check_caps)
-				ceph_check_caps(ceph_inode(inode),
+				ceph_check_caps(ceph_iyesde(iyesde),
 						CHECK_CAPS_AUTHONLY,
 						NULL);
 		}
@@ -1246,8 +1246,8 @@ out:
 }
 
 /*
- * Wrap generic_file_aio_read with checks for cap bits on the inode.
- * Atomically grab references, so that those bits are not released
+ * Wrap generic_file_aio_read with checks for cap bits on the iyesde.
+ * Atomically grab references, so that those bits are yest released
  * back to the MDS mid-read.
  *
  * Hmm, the sync read case isn't actually async... should it be?
@@ -1257,8 +1257,8 @@ static ssize_t ceph_read_iter(struct kiocb *iocb, struct iov_iter *to)
 	struct file *filp = iocb->ki_filp;
 	struct ceph_file_info *fi = filp->private_data;
 	size_t len = iov_iter_count(to);
-	struct inode *inode = file_inode(filp);
-	struct ceph_inode_info *ci = ceph_inode(inode);
+	struct iyesde *iyesde = file_iyesde(filp);
+	struct ceph_iyesde_info *ci = ceph_iyesde(iyesde);
 	struct page *pinned_page = NULL;
 	ssize_t ret;
 	int want, got = 0;
@@ -1266,12 +1266,12 @@ static ssize_t ceph_read_iter(struct kiocb *iocb, struct iov_iter *to)
 
 again:
 	dout("aio_read %p %llx.%llx %llu~%u trying to get caps on %p\n",
-	     inode, ceph_vinop(inode), iocb->ki_pos, (unsigned)len, inode);
+	     iyesde, ceph_viyesp(iyesde), iocb->ki_pos, (unsigned)len, iyesde);
 
 	if (iocb->ki_flags & IOCB_DIRECT)
-		ceph_start_io_direct(inode);
+		ceph_start_io_direct(iyesde);
 	else
-		ceph_start_io_read(inode);
+		ceph_start_io_read(iyesde);
 
 	if (fi->fmode & CEPH_FILE_MODE_LAZY)
 		want = CEPH_CAP_FILE_CACHE | CEPH_CAP_FILE_LAZYIO;
@@ -1281,9 +1281,9 @@ again:
 			    &got, &pinned_page);
 	if (ret < 0) {
 		if (iocb->ki_flags & IOCB_DIRECT)
-			ceph_end_io_direct(inode);
+			ceph_end_io_direct(iyesde);
 		else
-			ceph_end_io_read(inode);
+			ceph_end_io_read(iyesde);
 		return ret;
 	}
 
@@ -1292,7 +1292,7 @@ again:
 	    (fi->flags & CEPH_F_SYNC)) {
 
 		dout("aio_sync_read %p %llx.%llx %llu~%u got cap refs on %s\n",
-		     inode, ceph_vinop(inode), iocb->ki_pos, (unsigned)len,
+		     iyesde, ceph_viyesp(iyesde), iocb->ki_pos, (unsigned)len,
 		     ceph_cap_string(got));
 
 		if (ci->i_inline_version == CEPH_INLINE_NONE) {
@@ -1310,7 +1310,7 @@ again:
 	} else {
 		CEPH_DEFINE_RW_CONTEXT(rw_ctx, got);
 		dout("aio_read %p %llx.%llx %llu~%u got cap refs on %s\n",
-		     inode, ceph_vinop(inode), iocb->ki_pos, (unsigned)len,
+		     iyesde, ceph_viyesp(iyesde), iocb->ki_pos, (unsigned)len,
 		     ceph_cap_string(got));
 		ceph_add_rw_context(fi, &rw_ctx);
 		ret = generic_file_read_iter(iocb, to);
@@ -1318,7 +1318,7 @@ again:
 	}
 
 	dout("aio_read %p %llx.%llx dropping cap refs on %s = %d\n",
-	     inode, ceph_vinop(inode), ceph_cap_string(got), (int)ret);
+	     iyesde, ceph_viyesp(iyesde), ceph_cap_string(got), (int)ret);
 	if (pinned_page) {
 		put_page(pinned_page);
 		pinned_page = NULL;
@@ -1326,9 +1326,9 @@ again:
 	ceph_put_cap_refs(ci, got);
 
 	if (iocb->ki_flags & IOCB_DIRECT)
-		ceph_end_io_direct(inode);
+		ceph_end_io_direct(iyesde);
 	else
-		ceph_end_io_read(inode);
+		ceph_end_io_read(iyesde);
 
 	if (retry_op > HAVE_RETRIED && ret >= 0) {
 		int statret;
@@ -1340,7 +1340,7 @@ again:
 				return -ENOMEM;
 		}
 
-		statret = __ceph_do_getattr(inode, page,
+		statret = __ceph_do_getattr(iyesde, page,
 					    CEPH_STAT_CAP_INLINE_DATA, !!page);
 		if (statret < 0) {
 			if (page)
@@ -1352,7 +1352,7 @@ again:
 			return statret;
 		}
 
-		i_size = i_size_read(inode);
+		i_size = i_size_read(iyesde);
 		if (retry_op == READ_INLINE) {
 			BUG_ON(ret > 0 || read > 0);
 			if (iocb->ki_pos < i_size &&
@@ -1401,27 +1401,27 @@ again:
 /*
  * Take cap references to avoid releasing caps to MDS mid-write.
  *
- * If we are synchronous, and write with an old snap context, the OSD
+ * If we are synchroyesus, and write with an old snap context, the OSD
  * may return EOLDSNAPC.  In that case, retry the write.. _after_
  * dropping our cap refs and allowing the pending snap to logically
  * complete _before_ this write occurs.
  *
- * If we are near ENOSPC, write synchronously.
+ * If we are near ENOSPC, write synchroyesusly.
  */
 static ssize_t ceph_write_iter(struct kiocb *iocb, struct iov_iter *from)
 {
 	struct file *file = iocb->ki_filp;
 	struct ceph_file_info *fi = file->private_data;
-	struct inode *inode = file_inode(file);
-	struct ceph_inode_info *ci = ceph_inode(inode);
-	struct ceph_fs_client *fsc = ceph_inode_to_client(inode);
+	struct iyesde *iyesde = file_iyesde(file);
+	struct ceph_iyesde_info *ci = ceph_iyesde(iyesde);
+	struct ceph_fs_client *fsc = ceph_iyesde_to_client(iyesde);
 	struct ceph_cap_flush *prealloc_cf;
 	ssize_t count, written = 0;
 	int err, want, got;
 	loff_t pos;
-	loff_t limit = max(i_size_read(inode), fsc->max_file_size);
+	loff_t limit = max(i_size_read(iyesde), fsc->max_file_size);
 
-	if (ceph_snap(inode) != CEPH_NOSNAP)
+	if (ceph_snap(iyesde) != CEPH_NOSNAP)
 		return -EROFS;
 
 	prealloc_cf = ceph_alloc_cap_flush();
@@ -1430,15 +1430,15 @@ static ssize_t ceph_write_iter(struct kiocb *iocb, struct iov_iter *from)
 
 retry_snap:
 	if (iocb->ki_flags & IOCB_DIRECT)
-		ceph_start_io_direct(inode);
+		ceph_start_io_direct(iyesde);
 	else
-		ceph_start_io_write(inode);
+		ceph_start_io_write(iyesde);
 
 	/* We can write back this queue in page reclaim */
-	current->backing_dev_info = inode_to_bdi(inode);
+	current->backing_dev_info = iyesde_to_bdi(iyesde);
 
 	if (iocb->ki_flags & IOCB_APPEND) {
-		err = ceph_do_getattr(inode, CEPH_STAT_CAP_SIZE, false);
+		err = ceph_do_getattr(iyesde, CEPH_STAT_CAP_SIZE, false);
 		if (err < 0)
 			goto out;
 	}
@@ -1456,7 +1456,7 @@ retry_snap:
 	}
 
 	count = iov_iter_count(from);
-	if (ceph_quota_is_max_bytes_exceeded(inode, pos + count)) {
+	if (ceph_quota_is_max_bytes_exceeded(iyesde, pos + count)) {
 		err = -EDQUOT;
 		goto out;
 	}
@@ -1469,7 +1469,7 @@ retry_snap:
 	if (err)
 		goto out;
 
-	inode_inc_iversion_raw(inode);
+	iyesde_inc_iversion_raw(iyesde);
 
 	if (ci->i_inline_version != CEPH_INLINE_NONE) {
 		err = ceph_uninline_data(file, NULL);
@@ -1477,14 +1477,14 @@ retry_snap:
 			goto out;
 	}
 
-	/* FIXME: not complete since it doesn't account for being at quota */
+	/* FIXME: yest complete since it doesn't account for being at quota */
 	if (ceph_osdmap_flag(&fsc->client->osdc, CEPH_OSDMAP_FULL)) {
 		err = -ENOSPC;
 		goto out;
 	}
 
 	dout("aio_write %p %llx.%llx %llu~%zd getting caps. i_size %llu\n",
-	     inode, ceph_vinop(inode), pos, count, i_size_read(inode));
+	     iyesde, ceph_viyesp(iyesde), pos, count, i_size_read(iyesde));
 	if (fi->fmode & CEPH_FILE_MODE_LAZY)
 		want = CEPH_CAP_FILE_BUFFER | CEPH_CAP_FILE_LAZYIO;
 	else
@@ -1496,7 +1496,7 @@ retry_snap:
 		goto out;
 
 	dout("aio_write %p %llx.%llx %llu~%zd got cap refs on %s\n",
-	     inode, ceph_vinop(inode), pos, count, ceph_cap_string(got));
+	     iyesde, ceph_viyesp(iyesde), pos, count, ceph_cap_string(got));
 
 	if ((got & (CEPH_CAP_FILE_BUFFER|CEPH_CAP_FILE_LAZYIO)) == 0 ||
 	    (iocb->ki_flags & IOCB_DIRECT) || (fi->flags & CEPH_F_SYNC) ||
@@ -1522,10 +1522,10 @@ retry_snap:
 		if (iocb->ki_flags & IOCB_DIRECT) {
 			written = ceph_direct_read_write(iocb, &data, snapc,
 							 &prealloc_cf);
-			ceph_end_io_direct(inode);
+			ceph_end_io_direct(iyesde);
 		} else {
 			written = ceph_sync_write(iocb, &data, pos, snapc);
-			ceph_end_io_write(inode);
+			ceph_end_io_write(iyesde);
 		}
 		if (written > 0)
 			iov_iter_advance(from, written);
@@ -1536,12 +1536,12 @@ retry_snap:
 		 * the MDS revokes Fwb caps before sending truncate
 		 * message to us. We can't get Fwb cap while there
 		 * are pending vmtruncate. So write and vmtruncate
-		 * can not run at the same time
+		 * can yest run at the same time
 		 */
 		written = generic_perform_write(file, from, pos);
 		if (likely(written >= 0))
 			iocb->ki_pos = pos + written;
-		ceph_end_io_write(inode);
+		ceph_end_io_write(iyesde);
 	}
 
 	if (written >= 0) {
@@ -1553,19 +1553,19 @@ retry_snap:
 					       &prealloc_cf);
 		spin_unlock(&ci->i_ceph_lock);
 		if (dirty)
-			__mark_inode_dirty(inode, dirty);
-		if (ceph_quota_is_max_bytes_approaching(inode, iocb->ki_pos))
+			__mark_iyesde_dirty(iyesde, dirty);
+		if (ceph_quota_is_max_bytes_approaching(iyesde, iocb->ki_pos))
 			ceph_check_caps(ci, CHECK_CAPS_NODELAY, NULL);
 	}
 
 	dout("aio_write %p %llx.%llx %llu~%u  dropping cap refs on %s\n",
-	     inode, ceph_vinop(inode), pos, (unsigned)count,
+	     iyesde, ceph_viyesp(iyesde), pos, (unsigned)count,
 	     ceph_cap_string(got));
 	ceph_put_cap_refs(ci, got);
 
 	if (written == -EOLDSNAPC) {
 		dout("aio_write %p %llx.%llx %llu~%u" "got EOLDSNAPC, retrying\n",
-		     inode, ceph_vinop(inode), pos, (unsigned)count);
+		     iyesde, ceph_viyesp(iyesde), pos, (unsigned)count);
 		goto retry_snap;
 	}
 
@@ -1578,9 +1578,9 @@ retry_snap:
 	goto out_unlocked;
 out:
 	if (iocb->ki_flags & IOCB_DIRECT)
-		ceph_end_io_direct(inode);
+		ceph_end_io_direct(iyesde);
 	else
-		ceph_end_io_write(inode);
+		ceph_end_io_write(iyesde);
 out_unlocked:
 	ceph_free_cap_flush(prealloc_cf);
 	current->backing_dev_info = NULL;
@@ -1592,20 +1592,20 @@ out_unlocked:
  */
 static loff_t ceph_llseek(struct file *file, loff_t offset, int whence)
 {
-	struct inode *inode = file->f_mapping->host;
-	struct ceph_fs_client *fsc = ceph_inode_to_client(inode);
+	struct iyesde *iyesde = file->f_mapping->host;
+	struct ceph_fs_client *fsc = ceph_iyesde_to_client(iyesde);
 	loff_t i_size;
 	loff_t ret;
 
-	inode_lock(inode);
+	iyesde_lock(iyesde);
 
 	if (whence == SEEK_END || whence == SEEK_DATA || whence == SEEK_HOLE) {
-		ret = ceph_do_getattr(inode, CEPH_STAT_CAP_SIZE, false);
+		ret = ceph_do_getattr(iyesde, CEPH_STAT_CAP_SIZE, false);
 		if (ret < 0)
 			goto out;
 	}
 
-	i_size = i_size_read(inode);
+	i_size = i_size_read(iyesde);
 	switch (whence) {
 	case SEEK_END:
 		offset += i_size;
@@ -1641,17 +1641,17 @@ static loff_t ceph_llseek(struct file *file, loff_t offset, int whence)
 	ret = vfs_setpos(file, offset, max(i_size, fsc->max_file_size));
 
 out:
-	inode_unlock(inode);
+	iyesde_unlock(iyesde);
 	return ret;
 }
 
 static inline void ceph_zero_partial_page(
-	struct inode *inode, loff_t offset, unsigned size)
+	struct iyesde *iyesde, loff_t offset, unsigned size)
 {
 	struct page *page;
 	pgoff_t index = offset >> PAGE_SHIFT;
 
-	page = find_lock_page(inode->i_mapping, index);
+	page = find_lock_page(iyesde->i_mapping, index);
 	if (page) {
 		wait_on_page_writeback(page);
 		zero_user(page, offset & (PAGE_SIZE - 1), size);
@@ -1660,7 +1660,7 @@ static inline void ceph_zero_partial_page(
 	}
 }
 
-static void ceph_zero_pagecache_range(struct inode *inode, loff_t offset,
+static void ceph_zero_pagecache_range(struct iyesde *iyesde, loff_t offset,
 				      loff_t length)
 {
 	loff_t nearly = round_up(offset, PAGE_SIZE);
@@ -1668,25 +1668,25 @@ static void ceph_zero_pagecache_range(struct inode *inode, loff_t offset,
 		loff_t size = nearly - offset;
 		if (length < size)
 			size = length;
-		ceph_zero_partial_page(inode, offset, size);
+		ceph_zero_partial_page(iyesde, offset, size);
 		offset += size;
 		length -= size;
 	}
 	if (length >= PAGE_SIZE) {
 		loff_t size = round_down(length, PAGE_SIZE);
-		truncate_pagecache_range(inode, offset, offset + size - 1);
+		truncate_pagecache_range(iyesde, offset, offset + size - 1);
 		offset += size;
 		length -= size;
 	}
 	if (length)
-		ceph_zero_partial_page(inode, offset, length);
+		ceph_zero_partial_page(iyesde, offset, length);
 }
 
-static int ceph_zero_partial_object(struct inode *inode,
+static int ceph_zero_partial_object(struct iyesde *iyesde,
 				    loff_t offset, loff_t *length)
 {
-	struct ceph_inode_info *ci = ceph_inode(inode);
-	struct ceph_fs_client *fsc = ceph_inode_to_client(inode);
+	struct ceph_iyesde_info *ci = ceph_iyesde(iyesde);
+	struct ceph_fs_client *fsc = ceph_iyesde_to_client(iyesde);
 	struct ceph_osd_request *req;
 	int ret = 0;
 	loff_t zero = 0;
@@ -1700,7 +1700,7 @@ static int ceph_zero_partial_object(struct inode *inode,
 	}
 
 	req = ceph_osdc_new_request(&fsc->client->osdc, &ci->i_layout,
-					ceph_vino(inode),
+					ceph_viyes(iyesde),
 					offset, length,
 					0, 1, op,
 					CEPH_OSD_FLAG_WRITE,
@@ -1710,7 +1710,7 @@ static int ceph_zero_partial_object(struct inode *inode,
 		goto out;
 	}
 
-	req->r_mtime = inode->i_mtime;
+	req->r_mtime = iyesde->i_mtime;
 	ret = ceph_osdc_start_request(&fsc->client->osdc, req, false);
 	if (!ret) {
 		ret = ceph_osdc_wait_request(&fsc->client->osdc, req);
@@ -1723,10 +1723,10 @@ out:
 	return ret;
 }
 
-static int ceph_zero_objects(struct inode *inode, loff_t offset, loff_t length)
+static int ceph_zero_objects(struct iyesde *iyesde, loff_t offset, loff_t length)
 {
 	int ret = 0;
-	struct ceph_inode_info *ci = ceph_inode(inode);
+	struct ceph_iyesde_info *ci = ceph_iyesde(iyesde);
 	s32 stripe_unit = ci->i_layout.stripe_unit;
 	s32 stripe_count = ci->i_layout.stripe_count;
 	s32 object_size = ci->i_layout.object_size;
@@ -1740,7 +1740,7 @@ static int ceph_zero_objects(struct inode *inode, loff_t offset, loff_t length)
 
 	while (length && offset < nearly) {
 		loff_t size = length;
-		ret = ceph_zero_partial_object(inode, offset, &size);
+		ret = ceph_zero_partial_object(iyesde, offset, &size);
 		if (ret < 0)
 			return ret;
 		offset += size;
@@ -1750,7 +1750,7 @@ static int ceph_zero_objects(struct inode *inode, loff_t offset, loff_t length)
 		int i;
 		loff_t pos = offset;
 		for (i = 0; i < stripe_count; ++i) {
-			ret = ceph_zero_partial_object(inode, pos, NULL);
+			ret = ceph_zero_partial_object(iyesde, pos, NULL);
 			if (ret < 0)
 				return ret;
 			pos += stripe_unit;
@@ -1760,7 +1760,7 @@ static int ceph_zero_objects(struct inode *inode, loff_t offset, loff_t length)
 	}
 	while (length) {
 		loff_t size = length;
-		ret = ceph_zero_partial_object(inode, offset, &size);
+		ret = ceph_zero_partial_object(iyesde, offset, &size);
 		if (ret < 0)
 			return ret;
 		offset += size;
@@ -1773,8 +1773,8 @@ static long ceph_fallocate(struct file *file, int mode,
 				loff_t offset, loff_t length)
 {
 	struct ceph_file_info *fi = file->private_data;
-	struct inode *inode = file_inode(file);
-	struct ceph_inode_info *ci = ceph_inode(inode);
+	struct iyesde *iyesde = file_iyesde(file);
+	struct ceph_iyesde_info *ci = ceph_iyesde(iyesde);
 	struct ceph_cap_flush *prealloc_cf;
 	int want, got = 0;
 	int dirty;
@@ -1785,16 +1785,16 @@ static long ceph_fallocate(struct file *file, int mode,
 	if (mode != (FALLOC_FL_KEEP_SIZE | FALLOC_FL_PUNCH_HOLE))
 		return -EOPNOTSUPP;
 
-	if (!S_ISREG(inode->i_mode))
+	if (!S_ISREG(iyesde->i_mode))
 		return -EOPNOTSUPP;
 
 	prealloc_cf = ceph_alloc_cap_flush();
 	if (!prealloc_cf)
 		return -ENOMEM;
 
-	inode_lock(inode);
+	iyesde_lock(iyesde);
 
-	if (ceph_snap(inode) != CEPH_NOSNAP) {
+	if (ceph_snap(iyesde) != CEPH_NOSNAP) {
 		ret = -EROFS;
 		goto unlock;
 	}
@@ -1805,7 +1805,7 @@ static long ceph_fallocate(struct file *file, int mode,
 			goto unlock;
 	}
 
-	size = i_size_read(inode);
+	size = i_size_read(iyesde);
 
 	/* Are we punching a hole beyond EOF? */
 	if (offset >= size)
@@ -1822,8 +1822,8 @@ static long ceph_fallocate(struct file *file, int mode,
 	if (ret < 0)
 		goto unlock;
 
-	ceph_zero_pagecache_range(inode, offset, length);
-	ret = ceph_zero_objects(inode, offset, length);
+	ceph_zero_pagecache_range(iyesde, offset, length);
+	ret = ceph_zero_objects(iyesde, offset, length);
 
 	if (!ret) {
 		spin_lock(&ci->i_ceph_lock);
@@ -1832,12 +1832,12 @@ static long ceph_fallocate(struct file *file, int mode,
 					       &prealloc_cf);
 		spin_unlock(&ci->i_ceph_lock);
 		if (dirty)
-			__mark_inode_dirty(inode, dirty);
+			__mark_iyesde_dirty(iyesde, dirty);
 	}
 
 	ceph_put_cap_refs(ci, got);
 unlock:
-	inode_unlock(inode);
+	iyesde_unlock(iyesde);
 	ceph_free_cap_flush(prealloc_cf);
 	return ret;
 }
@@ -1865,12 +1865,12 @@ retry_caps:
 	 * we would risk a deadlock by using ceph_get_caps.  Thus, we'll do some
 	 * retry dance instead to try to get both capabilities.
 	 */
-	ret = ceph_try_get_caps(file_inode(src_filp),
+	ret = ceph_try_get_caps(file_iyesde(src_filp),
 				CEPH_CAP_FILE_RD, CEPH_CAP_FILE_SHARED,
 				false, src_got);
 	if (ret <= 0) {
 		/* Start by dropping dst_ci caps and getting src_ci caps */
-		ceph_put_cap_refs(ceph_inode(file_inode(dst_filp)), *dst_got);
+		ceph_put_cap_refs(ceph_iyesde(file_iyesde(dst_filp)), *dst_got);
 		if (retrying) {
 			if (!ret)
 				/* ceph_try_get_caps masks EAGAIN */
@@ -1882,15 +1882,15 @@ retry_caps:
 		if (ret < 0)
 			return ret;
 		/*... drop src_ci caps too, and retry */
-		ceph_put_cap_refs(ceph_inode(file_inode(src_filp)), *src_got);
+		ceph_put_cap_refs(ceph_iyesde(file_iyesde(src_filp)), *src_got);
 		retrying = true;
 		goto retry_caps;
 	}
 	return ret;
 }
 
-static void put_rd_wr_caps(struct ceph_inode_info *src_ci, int src_got,
-			   struct ceph_inode_info *dst_ci, int dst_got)
+static void put_rd_wr_caps(struct ceph_iyesde_info *src_ci, int src_got,
+			   struct ceph_iyesde_info *dst_ci, int dst_got)
 {
 	ceph_put_cap_refs(src_ci, src_got);
 	ceph_put_cap_refs(dst_ci, dst_got);
@@ -1899,33 +1899,33 @@ static void put_rd_wr_caps(struct ceph_inode_info *src_ci, int src_got,
 /*
  * This function does several size-related checks, returning an error if:
  *  - source file is smaller than off+len
- *  - destination file size is not OK (inode_newsize_ok())
+ *  - destination file size is yest OK (iyesde_newsize_ok())
  *  - max bytes quotas is exceeded
  */
-static int is_file_size_ok(struct inode *src_inode, struct inode *dst_inode,
+static int is_file_size_ok(struct iyesde *src_iyesde, struct iyesde *dst_iyesde,
 			   loff_t src_off, loff_t dst_off, size_t len)
 {
 	loff_t size, endoff;
 
-	size = i_size_read(src_inode);
+	size = i_size_read(src_iyesde);
 	/*
 	 * Don't copy beyond source file EOF.  Instead of simply setting length
 	 * to (size - src_off), just drop to VFS default implementation, as the
 	 * local i_size may be stale due to other clients writing to the source
-	 * inode.
+	 * iyesde.
 	 */
 	if (src_off + len > size) {
 		dout("Copy beyond EOF (%llu + %zu > %llu)\n",
 		     src_off, len, size);
 		return -EOPNOTSUPP;
 	}
-	size = i_size_read(dst_inode);
+	size = i_size_read(dst_iyesde);
 
 	endoff = dst_off + len;
-	if (inode_newsize_ok(dst_inode, endoff))
+	if (iyesde_newsize_ok(dst_iyesde, endoff))
 		return -EOPNOTSUPP;
 
-	if (ceph_quota_is_max_bytes_exceeded(dst_inode, endoff))
+	if (ceph_quota_is_max_bytes_exceeded(dst_iyesde, endoff))
 		return -EDQUOT;
 
 	return 0;
@@ -1935,12 +1935,12 @@ static ssize_t __ceph_copy_file_range(struct file *src_file, loff_t src_off,
 				      struct file *dst_file, loff_t dst_off,
 				      size_t len, unsigned int flags)
 {
-	struct inode *src_inode = file_inode(src_file);
-	struct inode *dst_inode = file_inode(dst_file);
-	struct ceph_inode_info *src_ci = ceph_inode(src_inode);
-	struct ceph_inode_info *dst_ci = ceph_inode(dst_inode);
+	struct iyesde *src_iyesde = file_iyesde(src_file);
+	struct iyesde *dst_iyesde = file_iyesde(dst_file);
+	struct ceph_iyesde_info *src_ci = ceph_iyesde(src_iyesde);
+	struct ceph_iyesde_info *dst_ci = ceph_iyesde(dst_iyesde);
 	struct ceph_cap_flush *prealloc_cf;
-	struct ceph_fs_client *src_fsc = ceph_inode_to_client(src_inode);
+	struct ceph_fs_client *src_fsc = ceph_iyesde_to_client(src_iyesde);
 	struct ceph_object_locator src_oloc, dst_oloc;
 	struct ceph_object_id src_oid, dst_oid;
 	loff_t endoff = 0, size;
@@ -1950,8 +1950,8 @@ static ssize_t __ceph_copy_file_range(struct file *src_file, loff_t src_off,
 	int src_got = 0, dst_got = 0, err, dirty;
 	bool do_final_copy = false;
 
-	if (src_inode->i_sb != dst_inode->i_sb) {
-		struct ceph_fs_client *dst_fsc = ceph_inode_to_client(dst_inode);
+	if (src_iyesde->i_sb != dst_iyesde->i_sb) {
+		struct ceph_fs_client *dst_fsc = ceph_iyesde_to_client(dst_iyesde);
 
 		if (ceph_fsid_compare(&src_fsc->client->fsid,
 				      &dst_fsc->client->fsid)) {
@@ -1960,7 +1960,7 @@ static ssize_t __ceph_copy_file_range(struct file *src_file, loff_t src_off,
 			return -EXDEV;
 		}
 	}
-	if (ceph_snap(dst_inode) != CEPH_NOSNAP)
+	if (ceph_snap(dst_iyesde) != CEPH_NOSNAP)
 		return -EROFS;
 
 	/*
@@ -1977,7 +1977,7 @@ static ssize_t __ceph_copy_file_range(struct file *src_file, loff_t src_off,
 	/*
 	 * Striped file layouts require that we copy partial objects, but the
 	 * OSD copy-from operation only supports full-object copies.  Limit
-	 * this to non-striped file layouts for now.
+	 * this to yesn-striped file layouts for yesw.
 	 */
 	if ((src_ci->i_layout.stripe_unit != dst_ci->i_layout.stripe_unit) ||
 	    (src_ci->i_layout.stripe_count != 1) ||
@@ -1988,7 +1988,7 @@ static ssize_t __ceph_copy_file_range(struct file *src_file, loff_t src_off,
 	}
 
 	if (len < src_ci->i_layout.object_size)
-		return -EOPNOTSUPP; /* no remote copy will be done */
+		return -EOPNOTSUPP; /* yes remote copy will be done */
 
 	prealloc_cf = ceph_alloc_cap_flush();
 	if (!prealloc_cf)
@@ -2008,7 +2008,7 @@ static ssize_t __ceph_copy_file_range(struct file *src_file, loff_t src_off,
 
 	/*
 	 * We need FILE_WR caps for dst_ci and FILE_RD for src_ci as other
-	 * clients may have dirty data in their caches.  And OSDs know nothing
+	 * clients may have dirty data in their caches.  And OSDs kyesw yesthing
 	 * about caps, so they can't safely do the remote object copies.
 	 */
 	err = get_rd_wr_caps(src_file, &src_got,
@@ -2019,19 +2019,19 @@ static ssize_t __ceph_copy_file_range(struct file *src_file, loff_t src_off,
 		goto out;
 	}
 
-	ret = is_file_size_ok(src_inode, dst_inode, src_off, dst_off, len);
+	ret = is_file_size_ok(src_iyesde, dst_iyesde, src_off, dst_off, len);
 	if (ret < 0)
 		goto out_caps;
 
-	size = i_size_read(dst_inode);
+	size = i_size_read(dst_iyesde);
 	endoff = dst_off + len;
 
 	/* Drop dst file cached pages */
-	ret = invalidate_inode_pages2_range(dst_inode->i_mapping,
+	ret = invalidate_iyesde_pages2_range(dst_iyesde->i_mapping,
 					    dst_off >> PAGE_SHIFT,
 					    endoff >> PAGE_SHIFT);
 	if (ret < 0) {
-		dout("Failed to invalidate inode pages (%zd)\n", ret);
+		dout("Failed to invalidate iyesde pages (%zd)\n", ret);
 		ret = 0; /* XXX */
 	}
 	src_oloc.pool = src_ci->i_layout.pool_id;
@@ -2073,7 +2073,7 @@ static ssize_t __ceph_copy_file_range(struct file *src_file, loff_t src_off,
 				     dst_file, (dst_off + len), &dst_got);
 		if (err < 0)
 			goto out;
-		err = is_file_size_ok(src_inode, dst_inode,
+		err = is_file_size_ok(src_iyesde, dst_iyesde,
 				      src_off, dst_off, len);
 		if (err < 0)
 			goto out_caps;
@@ -2088,14 +2088,14 @@ static ssize_t __ceph_copy_file_range(struct file *src_file, loff_t src_off,
 					      &dst_objoff, &dst_objlen);
 		ceph_oid_init(&src_oid);
 		ceph_oid_printf(&src_oid, "%llx.%08llx",
-				src_ci->i_vino.ino, src_objnum);
+				src_ci->i_viyes.iyes, src_objnum);
 		ceph_oid_init(&dst_oid);
 		ceph_oid_printf(&dst_oid, "%llx.%08llx",
-				dst_ci->i_vino.ino, dst_objnum);
+				dst_ci->i_viyes.iyes, dst_objnum);
 		/* Do an object remote copy */
 		err = ceph_osdc_copy_from(
 			&src_fsc->client->osdc,
-			src_ci->i_vino.snap, 0,
+			src_ci->i_viyes.snap, 0,
 			&src_oid, &src_oloc,
 			CEPH_OSD_OP_FLAG_FADVISE_SEQUENTIAL |
 			CEPH_OSD_OP_FLAG_FADVISE_NOCACHE,
@@ -2119,15 +2119,15 @@ static ssize_t __ceph_copy_file_range(struct file *src_file, loff_t src_off,
 		do_final_copy = true;
 
 	file_update_time(dst_file);
-	inode_inc_iversion_raw(dst_inode);
+	iyesde_inc_iversion_raw(dst_iyesde);
 
 	if (endoff > size) {
 		int caps_flags = 0;
 
-		/* Let the MDS know about dst file size change */
-		if (ceph_quota_is_max_bytes_approaching(dst_inode, endoff))
+		/* Let the MDS kyesw about dst file size change */
+		if (ceph_quota_is_max_bytes_approaching(dst_iyesde, endoff))
 			caps_flags |= CHECK_CAPS_NODELAY;
-		if (ceph_inode_set_size(dst_inode, endoff))
+		if (ceph_iyesde_set_size(dst_iyesde, endoff))
 			caps_flags |= CHECK_CAPS_AUTHONLY;
 		if (caps_flags)
 			ceph_check_caps(dst_ci, caps_flags, NULL);
@@ -2138,7 +2138,7 @@ static ssize_t __ceph_copy_file_range(struct file *src_file, loff_t src_off,
 	dirty = __ceph_mark_dirty_caps(dst_ci, CEPH_CAP_FILE_WR, &prealloc_cf);
 	spin_unlock(&dst_ci->i_ceph_lock);
 	if (dirty)
-		__mark_inode_dirty(dst_inode, dirty);
+		__mark_iyesde_dirty(dst_iyesde, dirty);
 
 out_caps:
 	put_rd_wr_caps(src_ci, src_got, dst_ci, dst_got);

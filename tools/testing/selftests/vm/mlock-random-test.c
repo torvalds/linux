@@ -183,7 +183,7 @@ int test_mlock_within_limit(char *p, int alloc_size)
 	locked_vm_size = get_proc_locked_vm_size();
 	page_size = get_proc_page_size((unsigned long)p);
 	if (page_size == 0) {
-		printf("cannot get proc MMUPageSize\n");
+		printf("canyest get proc MMUPageSize\n");
 		return -1;
 	}
 

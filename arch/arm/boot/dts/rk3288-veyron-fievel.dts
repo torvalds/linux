@@ -18,7 +18,7 @@
 		     "google,veyron-fievel-rev0", "google,veyron-fievel",
 		     "google,veyron", "rockchip,rk3288";
 
-	/delete-node/ bt-activity;
+	/delete-yesde/ bt-activity;
 
 	vccsys: vccsys {
 		compatible = "regulator-fixed";
@@ -125,7 +125,7 @@
 	vcc12-supply = <&vcc33_sys>;
 
 	regulators {
-		/delete-node/ LDO_REG1;
+		/delete-yesde/ LDO_REG1;
 
 		/*
 		 * According to the schematic, vcc18_lcdt is for
@@ -143,7 +143,7 @@
 		};
 
 		/*
-		 * This is not a pwren anymore, but the real power supply,
+		 * This is yest a pwren anymore, but the real power supply,
 		 * vdd10_lcd for HDMI_AVDD_1V0
 		 */
 		vdd10_lcd: LDO_REG7 {
@@ -421,7 +421,7 @@
 &pinctrl {
 	pinctrl-names = "default", "sleep";
 	pinctrl-0 = <
-		/* Common for sleep and wake, but no owners */
+		/* Common for sleep and wake, but yes owners */
 		&ddr0_retention
 		&ddrio_pwroff
 		&global_pwroff
@@ -436,7 +436,7 @@
 	>;
 
 	pinctrl-1 = <
-		/* Common for sleep and wake, but no owners */
+		/* Common for sleep and wake, but yes owners */
 		&ddr0_retention
 		&ddrio_pwroff
 		&global_pwroff
@@ -452,7 +452,7 @@
 
 	buck-5v {
 		drv_5v: drv-5v {
-			rockchip,pins = <7 RK_PC5 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <7 RK_PC5 RK_FUNC_GPIO &pcfg_pull_yesne>;
 		};
 	};
 
@@ -472,7 +472,7 @@
 
 	hdmi {
 		vcc50_hdmi_en: vcc50-hdmi-en {
-			rockchip,pins = <5 RK_PC3 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <5 RK_PC3 RK_FUNC_GPIO &pcfg_pull_yesne>;
 		};
 	};
 
@@ -508,15 +508,15 @@
 
 	usb-host {
 		hub_usb1_pwr_en: hub_usb1_pwr_en {
-			rockchip,pins = <5 RK_PC2 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <5 RK_PC2 RK_FUNC_GPIO &pcfg_pull_yesne>;
 		};
 
 		hub_usb2_pwr_en: hub_usb2_pwr_en {
-			rockchip,pins = <5 RK_PB6 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <5 RK_PB6 RK_FUNC_GPIO &pcfg_pull_yesne>;
 		};
 
 		usb_otg_pwr_en: usb_otg_pwr_en {
-			rockchip,pins = <0 RK_PB4 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <0 RK_PB4 RK_FUNC_GPIO &pcfg_pull_yesne>;
 		};
 	};
 };

@@ -12,7 +12,7 @@
  */
 
 /*
- * Copyright 1995 by the Massachusetts Institute of Technology.
+ * Copyright 1995 by the Massachusetts Institute of Techyeslogy.
  * All Rights Reserved.
  *
  * Export of this software from the United States of America may
@@ -23,14 +23,14 @@
  * WITHIN THAT CONSTRAINT, permission to use, copy, modify, and
  * distribute this software and its documentation for any purpose and
  * without fee is hereby granted, provided that the above copyright
- * notice appear in all copies and that both that copyright notice and
- * this permission notice appear in supporting documentation, and that
- * the name of M.I.T. not be used in advertising or publicity pertaining
+ * yestice appear in all copies and that both that copyright yestice and
+ * this permission yestice appear in supporting documentation, and that
+ * the name of M.I.T. yest be used in advertising or publicity pertaining
  * to distribution of the software without specific, written prior
  * permission.  Furthermore if you modify this software you must label
- * your software as modified software and not distribute it in such a
+ * your software as modified software and yest distribute it in such a
  * fashion that it might be confused with the original M.I.T. software.
- * M.I.T. makes no representations about the suitability of
+ * M.I.T. makes yes representations about the suitability of
  * this software for any purpose.  It is provided "as is" without express
  * or implied warranty.
  *
@@ -65,7 +65,7 @@ struct gss_krb5_enctype {
 	const u16		sealalg;	/* sealing algorithm */
 	const u32		blocksize;	/* encryption blocksize */
 	const u32		conflen;	/* confounder length
-						   (normally the same as
+						   (yesrmally the same as
 						   the blocksize) */
 	const u32		cksumlength;	/* checksum length */
 	const u32		keyed_cksum;	/* is it a keyed cksum? */
@@ -140,15 +140,15 @@ enum sgn_alg {
 	SGN_ALG_DES_MAC_MD5 = 0x0000,
 	SGN_ALG_MD2_5 = 0x0001,
 	SGN_ALG_DES_MAC = 0x0002,
-	SGN_ALG_3 = 0x0003,		/* not published */
-	SGN_ALG_HMAC_MD5 = 0x0011,	/* microsoft w2k; no support */
+	SGN_ALG_3 = 0x0003,		/* yest published */
+	SGN_ALG_HMAC_MD5 = 0x0011,	/* microsoft w2k; yes support */
 	SGN_ALG_HMAC_SHA1_DES3_KD = 0x0004
 };
 enum seal_alg {
 	SEAL_ALG_NONE = 0xffff,
 	SEAL_ALG_DES = 0x0000,
-	SEAL_ALG_1 = 0x0001,		/* not published */
-	SEAL_ALG_MICROSOFT_RC4 = 0x0010,/* microsoft w2k; no support */
+	SEAL_ALG_1 = 0x0001,		/* yest published */
+	SEAL_ALG_MICROSOFT_RC4 = 0x0010,/* microsoft w2k; yes support */
 	SEAL_ALG_DES3KD = 0x0002
 };
 
@@ -219,7 +219,7 @@ enum seal_alg {
 #define KG_USAGE_INITIATOR_SIGN (25)
 
 /*
- * This compile-time check verifies that we will not exceed the
+ * This compile-time check verifies that we will yest exceed the
  * slack space allotted by the client and server auth_gss code
  * before they call gss_wrap().
  */
@@ -313,7 +313,7 @@ gss_krb5_aes_encrypt(struct krb5_ctx *kctx, u32 offset,
 
 u32
 gss_krb5_aes_decrypt(struct krb5_ctx *kctx, u32 offset,
-		     struct xdr_buf *buf, u32 *plainoffset,
+		     struct xdr_buf *buf, u32 *plaiyesffset,
 		     u32 *plainlen);
 
 int

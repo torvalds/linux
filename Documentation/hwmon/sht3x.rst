@@ -7,7 +7,7 @@ Supported chips:
 
     Prefix: 'sht3x'
 
-    Addresses scanned: none
+    Addresses scanned: yesne
 
     Datasheet: https://www.sensirion.com/file/datasheet_sht3x_digital
 
@@ -31,8 +31,8 @@ Documentation/i2c/instantiating-devices.rst for methods to instantiate the devic
 There are two options configurable by means of sht3x_platform_data:
 
 1. blocking (pull the I2C clock line down while performing the measurement) or
-   non-blocking mode. Blocking mode will guarantee the fastest result but
-   the I2C bus will be busy during that time. By default, non-blocking mode
+   yesn-blocking mode. Blocking mode will guarantee the fastest result but
+   the I2C bus will be busy during that time. By default, yesn-blocking mode
    is used. Make sure clock-stretching works properly on your device if you
    want to use blocking mode.
 2. high or low accuracy. High accuracy is used by default and using it is
@@ -83,6 +83,6 @@ heater_enable:      heater enable, heating element removes excess humidity from
 			- 0: turned off
 			- 1: turned on
 update_interval:    update interval, 0 for single shot, interval in msec
-		    for periodic measurement. If the interval is not supported
+		    for periodic measurement. If the interval is yest supported
 		    by the sensor, the next faster interval is chosen
 =================== ============================================================

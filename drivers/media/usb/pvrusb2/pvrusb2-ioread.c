@@ -6,7 +6,7 @@
 
 #include "pvrusb2-ioread.h"
 #include "pvrusb2-debug.h"
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/string.h>
 #include <linux/mm.h>
 #include <linux/slab.h>
@@ -26,7 +26,7 @@ struct pvr2_ioread {
 	unsigned int sync_trashed_count;
 	int enabled;         // Streaming is on
 	int spigot_open;     // OK to pass data to client
-	int stream_running;  // Passing data to client now
+	int stream_running;  // Passing data to client yesw
 
 	/* State relevant to current buffer being read */
 	struct pvr2_buffer *c_buf;
@@ -353,7 +353,7 @@ int pvr2_ioread_avail(struct pvr2_ioread *cp)
 {
 	int ret;
 	if (!(cp->enabled)) {
-		// Stream is not enabled; so this is an I/O error
+		// Stream is yest enabled; so this is an I/O error
 		return -EIO;
 	}
 
@@ -365,12 +365,12 @@ int pvr2_ioread_avail(struct pvr2_ioread *cp)
 	ret = 0;
 	if (cp->stream_running) {
 		if (!pvr2_stream_get_ready_count(cp->stream)) {
-			// No data available at all right now.
+			// No data available at all right yesw.
 			ret = -EAGAIN;
 		}
 	} else {
 		if (pvr2_stream_get_ready_count(cp->stream) < BUFFER_COUNT/2) {
-			// Haven't buffered up enough yet; try again later
+			// Haven't buffered up eyesugh yet; try again later
 			ret = -EAGAIN;
 		}
 	}
@@ -453,7 +453,7 @@ cp);
 				cp->sync_buf_offs += bcnt;
 				if (cp->sync_buf_offs >= cp->sync_key_len) {
 					// Consumed entire key; switch mode
-					// to normal.
+					// to yesrmal.
 					pvr2_trace(PVR2_TRACE_DATA_FLOW,
 						   "/*---TRACE_READ---*/ sync_state <== 0");
 					cp->sync_state = 0;
@@ -472,7 +472,7 @@ cp);
 			// If anything was copied, return that count
 			ret = copied_cnt;
 		} else {
-			// Nothing copied; suggest to caller that another
+			// Nothing copied; suggest to caller that ayesther
 			// attempt should be tried again later
 			ret = -EAGAIN;
 		}

@@ -188,7 +188,7 @@
 	},
 	BPF_EXIT_INSN(),
 	},
-	.errstr = "unknown opcode d7",
+	.errstr = "unkyeswn opcode d7",
 	.result = REJECT,
 },
 {

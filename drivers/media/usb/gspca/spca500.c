@@ -84,17 +84,17 @@ static const struct v4l2_pix_format sif_mode[] = {
 
 
 static const __u16 spca500_visual_defaults[][3] = {
-	{0x00, 0x0003, 0x816b},	/* SSI not active sync with vsync,
+	{0x00, 0x0003, 0x816b},	/* SSI yest active sync with vsync,
 				 * hue (H byte) = 0,
 				 * saturation/hue enable,
 				 * brightness/contrast enable.
 				 */
 	{0x00, 0x0000, 0x8167},	/* brightness = 0 */
 	{0x00, 0x0020, 0x8168},	/* contrast = 0 */
-	{0x00, 0x0003, 0x816b},	/* SSI not active sync with vsync,
+	{0x00, 0x0003, 0x816b},	/* SSI yest active sync with vsync,
 				 * hue (H byte) = 0, saturation/hue enable,
 				 * brightness/contrast enable.
-				 * was 0x0003, now 0x0000.
+				 * was 0x0003, yesw 0x0000.
 				 */
 	{0x00, 0x0000, 0x816a},	/* hue (L byte) = 0 */
 	{0x00, 0x0020, 0x8169},	/* saturation = 0x20 */
@@ -520,7 +520,7 @@ static void spca500_reinit(struct gspca_dev *gspca_dev)
 	int err;
 	__u8 Data;
 
-	/* some unknown command from Aiptek pocket dv and family300 */
+	/* some unkyeswn command from Aiptek pocket dv and family300 */
 
 	reg_w(gspca_dev, 0x00, 0x0d01, 0x01);
 	reg_w(gspca_dev, 0x00, 0x0d03, 0x00);
@@ -918,7 +918,7 @@ static int sd_init_controls(struct gspca_dev *gspca_dev)
 			V4L2_CID_SATURATION, 0, 63, 1, 31);
 
 	if (hdl->error) {
-		pr_err("Could not initialize controls\n");
+		pr_err("Could yest initialize controls\n");
 		return hdl->error;
 	}
 	return 0;

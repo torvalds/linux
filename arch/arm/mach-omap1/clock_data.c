@@ -85,7 +85,7 @@ static struct clk ck_dpll1 = {
 };
 
 /*
- * FIXME: This clock seems to be necessary but no-one has asked for its
+ * FIXME: This clock seems to be necessary but yes-one has asked for its
  * activation.  [ FIX: SoSSI, SSR ]
  */
 static struct arm_idlect1_clk ck_dpll1out = {
@@ -140,7 +140,7 @@ static struct arm_idlect1_clk armper_ck = {
 };
 
 /*
- * FIXME: This clock seems to be necessary but no-one has asked for its
+ * FIXME: This clock seems to be necessary but yes-one has asked for its
  * activation.  [ GPIO code for 1510 ]
  */
 static struct clk arm_gpio_ck = {
@@ -310,7 +310,7 @@ static struct clk tc1_ck = {
 };
 
 /*
- * FIXME: This clock seems to be necessary but no-one has asked for its
+ * FIXME: This clock seems to be necessary but yes-one has asked for its
  * activation.  [ pm.c (SRAM), CCP, Camera ]
  */
 static struct clk tc2_ck = {
@@ -415,7 +415,7 @@ static struct arm_idlect1_clk lcd_ck_1510 = {
 static struct clk uart1_1510 = {
 	.name		= "uart1_ck",
 	.ops		= &clkops_null,
-	/* Direct from ULPD, no real parent */
+	/* Direct from ULPD, yes real parent */
 	.parent		= &armper_ck.clk,
 	.rate		= 12000000,
 	.flags		= ENABLE_REG_32BIT | CLOCK_NO_IDLE_PARENT,
@@ -429,13 +429,13 @@ static struct clk uart1_1510 = {
  * XXX The enable_bit here is misused - it simply switches between 12MHz
  * and 48MHz.  Reimplement with clksel.
  *
- * XXX SYSC register handling does not belong in the clock framework
+ * XXX SYSC register handling does yest belong in the clock framework
  */
 static struct uart_clk uart1_16xx = {
 	.clk	= {
 		.name		= "uart1_ck",
 		.ops		= &clkops_uart_16xx,
-		/* Direct from ULPD, no real parent */
+		/* Direct from ULPD, yes real parent */
 		.parent		= &armper_ck.clk,
 		.rate		= 48000000,
 		.flags		= ENABLE_REG_32BIT | CLOCK_NO_IDLE_PARENT,
@@ -454,7 +454,7 @@ static struct uart_clk uart1_16xx = {
 static struct clk uart2_ck = {
 	.name		= "uart2_ck",
 	.ops		= &clkops_null,
-	/* Direct from ULPD, no real parent */
+	/* Direct from ULPD, yes real parent */
 	.parent		= &armper_ck.clk,
 	.rate		= 12000000,
 	.flags		= ENABLE_REG_32BIT | CLOCK_NO_IDLE_PARENT,
@@ -473,7 +473,7 @@ static struct clk uart2_ck = {
 static struct clk uart3_1510 = {
 	.name		= "uart3_ck",
 	.ops		= &clkops_null,
-	/* Direct from ULPD, no real parent */
+	/* Direct from ULPD, yes real parent */
 	.parent		= &armper_ck.clk,
 	.rate		= 12000000,
 	.flags		= ENABLE_REG_32BIT | CLOCK_NO_IDLE_PARENT,
@@ -487,13 +487,13 @@ static struct clk uart3_1510 = {
  * XXX The enable_bit here is misused - it simply switches between 12MHz
  * and 48MHz.  Reimplement with clksel.
  *
- * XXX SYSC register handling does not belong in the clock framework
+ * XXX SYSC register handling does yest belong in the clock framework
  */
 static struct uart_clk uart3_16xx = {
 	.clk	= {
 		.name		= "uart3_ck",
 		.ops		= &clkops_uart_16xx,
-		/* Direct from ULPD, no real parent */
+		/* Direct from ULPD, yes real parent */
 		.parent		= &armper_ck.clk,
 		.rate		= 48000000,
 		.flags		= ENABLE_REG_32BIT | CLOCK_NO_IDLE_PARENT,
@@ -506,7 +506,7 @@ static struct uart_clk uart3_16xx = {
 static struct clk usb_clko = {	/* 6 MHz output on W4_USB_CLKO */
 	.name		= "usb_clko",
 	.ops		= &clkops_generic,
-	/* Direct from ULPD, no parent */
+	/* Direct from ULPD, yes parent */
 	.rate		= 6000000,
 	.flags		= ENABLE_REG_32BIT,
 	.enable_reg	= OMAP1_IO_ADDRESS(ULPD_CLOCK_CTRL),
@@ -516,7 +516,7 @@ static struct clk usb_clko = {	/* 6 MHz output on W4_USB_CLKO */
 static struct clk usb_hhc_ck1510 = {
 	.name		= "usb_hhc_ck",
 	.ops		= &clkops_generic,
-	/* Direct from ULPD, no parent */
+	/* Direct from ULPD, yes parent */
 	.rate		= 48000000, /* Actually 2 clocks, 12MHz and 48MHz */
 	.flags		= ENABLE_REG_32BIT,
 	.enable_reg	= OMAP1_IO_ADDRESS(MOD_CONF_CTRL_0),
@@ -526,9 +526,9 @@ static struct clk usb_hhc_ck1510 = {
 static struct clk usb_hhc_ck16xx = {
 	.name		= "usb_hhc_ck",
 	.ops		= &clkops_generic,
-	/* Direct from ULPD, no parent */
+	/* Direct from ULPD, yes parent */
 	.rate		= 48000000,
-	/* OTG_SYSCON_2.OTG_PADEN == 0 (not 1510-compatible) */
+	/* OTG_SYSCON_2.OTG_PADEN == 0 (yest 1510-compatible) */
 	.flags		= ENABLE_REG_32BIT,
 	.enable_reg	= OMAP1_IO_ADDRESS(OTG_BASE + 0x08), /* OTG_SYSCON_2 */
 	.enable_bit	= OTG_SYSCON_2_UHOST_EN_SHIFT
@@ -537,7 +537,7 @@ static struct clk usb_hhc_ck16xx = {
 static struct clk usb_dc_ck = {
 	.name		= "usb_dc_ck",
 	.ops		= &clkops_generic,
-	/* Direct from ULPD, no parent */
+	/* Direct from ULPD, yes parent */
 	.rate		= 48000000,
 	.enable_reg	= OMAP1_IO_ADDRESS(SOFT_REQ_REG),
 	.enable_bit	= SOFT_USB_OTG_DPLL_REQ_SHIFT,
@@ -546,7 +546,7 @@ static struct clk usb_dc_ck = {
 static struct clk uart1_7xx = {
 	.name		= "uart1_ck",
 	.ops		= &clkops_generic,
-	/* Direct from ULPD, no parent */
+	/* Direct from ULPD, yes parent */
 	.rate		= 12000000,
 	.enable_reg	= OMAP1_IO_ADDRESS(SOFT_REQ_REG),
 	.enable_bit	= 9,
@@ -555,7 +555,7 @@ static struct clk uart1_7xx = {
 static struct clk uart2_7xx = {
 	.name		= "uart2_ck",
 	.ops		= &clkops_generic,
-	/* Direct from ULPD, no parent */
+	/* Direct from ULPD, yes parent */
 	.rate		= 12000000,
 	.enable_reg	= OMAP1_IO_ADDRESS(SOFT_REQ_REG),
 	.enable_bit	= 11,
@@ -564,7 +564,7 @@ static struct clk uart2_7xx = {
 static struct clk mclk_1510 = {
 	.name		= "mclk",
 	.ops		= &clkops_generic,
-	/* Direct from ULPD, no parent. May be enabled by ext hardware. */
+	/* Direct from ULPD, yes parent. May be enabled by ext hardware. */
 	.rate		= 12000000,
 	.enable_reg	= OMAP1_IO_ADDRESS(SOFT_REQ_REG),
 	.enable_bit	= SOFT_COM_MCKO_REQ_SHIFT,
@@ -573,7 +573,7 @@ static struct clk mclk_1510 = {
 static struct clk mclk_16xx = {
 	.name		= "mclk",
 	.ops		= &clkops_generic,
-	/* Direct from ULPD, no parent. May be enabled by ext hardware. */
+	/* Direct from ULPD, yes parent. May be enabled by ext hardware. */
 	.enable_reg	= OMAP1_IO_ADDRESS(COM_CLK_DIV_CTRL_SEL),
 	.enable_bit	= COM_ULPD_PLL_CLK_REQ,
 	.set_rate	= &omap1_set_ext_clk_rate,
@@ -584,14 +584,14 @@ static struct clk mclk_16xx = {
 static struct clk bclk_1510 = {
 	.name		= "bclk",
 	.ops		= &clkops_generic,
-	/* Direct from ULPD, no parent. May be enabled by ext hardware. */
+	/* Direct from ULPD, yes parent. May be enabled by ext hardware. */
 	.rate		= 12000000,
 };
 
 static struct clk bclk_16xx = {
 	.name		= "bclk",
 	.ops		= &clkops_generic,
-	/* Direct from ULPD, no parent. May be enabled by ext hardware. */
+	/* Direct from ULPD, yes parent. May be enabled by ext hardware. */
 	.enable_reg	= OMAP1_IO_ADDRESS(SWD_CLK_DIV_CTRL_SEL),
 	.enable_bit	= SWD_ULPD_PLL_CLK_REQ,
 	.set_rate	= &omap1_set_ext_clk_rate,
@@ -668,7 +668,7 @@ static struct clk i2c_ick = {
  */
 
 static struct omap_clk omap_clks[] = {
-	/* non-ULPD clocks */
+	/* yesn-ULPD clocks */
 	CLK(NULL,	"ck_ref",	&ck_ref,	CK_16XX | CK_1510 | CK_310 | CK_7XX),
 	CLK(NULL,	"ck_dpll1",	&ck_dpll1,	CK_16XX | CK_1510 | CK_310 | CK_7XX),
 	/* CK_GEN1 clocks */
@@ -752,7 +752,7 @@ static struct omap_clk omap_clks[] = {
 
 static void __init omap1_show_rates(void)
 {
-	pr_notice("Clocking rate (xtal/DPLL1/MPU): %ld.%01ld/%ld.%01ld/%ld.%01ld MHz\n",
+	pr_yestice("Clocking rate (xtal/DPLL1/MPU): %ld.%01ld/%ld.%01ld/%ld.%01ld MHz\n",
 		  ck_ref.rate / 1000000, (ck_ref.rate / 100000) % 10,
 		  ck_dpll1.rate / 1000000, (ck_dpll1.rate / 100000) % 10,
 		  arm_ck.rate / 1000000, (arm_ck.rate / 100000) % 10);
@@ -818,7 +818,7 @@ int __init omap1_clk_init(void)
 		omap_readw(ARM_SYSST), omap_readw(DPLL_CTL),
 		omap_readw(ARM_CKCTL));
 
-	/* We want to be in syncronous scalable mode */
+	/* We want to be in syncroyesus scalable mode */
 	omap_writew(0x1000, ARM_SYSST);
 
 
@@ -852,7 +852,7 @@ int __init omap1_clk_init(void)
 		}
 	}
 	propagate_rate(&ck_dpll1);
-	/* Cache rates for clocks connected to ck_ref (not dpll1) */
+	/* Cache rates for clocks connected to ck_ref (yest dpll1) */
 	propagate_rate(&ck_ref);
 	omap1_show_rates();
 	if (machine_is_omap_perseus2() || machine_is_omap_fsample()) {
@@ -867,8 +867,8 @@ int __init omap1_clk_init(void)
 				(1 << SDW_MCLK_INV_BIT),
 				ULPD_CLOCK_CTRL);
 
-	/* Turn off DSP and ARM_TIMXO. Make sure ARM_INTHCK is not divided */
-	/* (on 730, bit 13 must not be cleared) */
+	/* Turn off DSP and ARM_TIMXO. Make sure ARM_INTHCK is yest divided */
+	/* (on 730, bit 13 must yest be cleared) */
 	if (cpu_is_omap7xx())
 		omap_writew(omap_readw(ARM_CKCTL) & 0x2fff, ARM_CKCTL);
 	else
@@ -908,7 +908,7 @@ void __init omap1_clk_late_init(void)
 
 	/* Find the highest supported frequency and enable it */
 	if (omap1_select_table_rate(&virtual_ck_mpu, ~0)) {
-		pr_err("System frequencies not set, using default. Check your config.\n");
+		pr_err("System frequencies yest set, using default. Check your config.\n");
 		/*
 		 * Reprogramming the DPLL is tricky, it must be done from SRAM.
 		 */

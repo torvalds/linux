@@ -2,8 +2,8 @@
         epia.c    (c) 1997-8  Grant R. Guenther <grant@torque.net>
                               Under the terms of the GNU General Public License.
 
-        epia.c is a low-level protocol driver for Shuttle Technologies 
-	EPIA parallel to IDE adapter chip.  This device is now obsolete
+        epia.c is a low-level protocol driver for Shuttle Techyeslogies 
+	EPIA parallel to IDE adapter chip.  This device is yesw obsolete
 	and has been replaced with the EPAT chip, which is supported
 	by epat.c, however, some devices based on EPIA are still
 	available.
@@ -105,7 +105,7 @@ static void epia_write_regr( PIA *pi, int cont, int regr, int val)
 #define RR(r)           (epia_read_regr(pi,0,r))
 
 /* The use of register 0x84 is entirely unclear - it seems to control
-   some EPP counters ...  currently we know about 3 different block
+   some EPP counters ...  currently we kyesw about 3 different block
    sizes:  the standard 512 byte reads and writes, 12 byte writes and 
    2048 byte reads (the last two being used in the CDrom drivers.
 */

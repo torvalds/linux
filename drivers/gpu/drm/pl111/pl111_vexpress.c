@@ -26,9 +26,9 @@ int pl111_vexpress_clcd_init(struct device *dev,
 			     struct pl111_drm_dev_private *priv,
 			     struct regmap *map)
 {
-	struct device_node *root;
-	struct device_node *child;
-	struct device_node *ct_clcd = NULL;
+	struct device_yesde *root;
+	struct device_yesde *child;
+	struct device_yesde *ct_clcd = NULL;
 	bool has_coretile_clcd = false;
 	bool has_coretile_hdlcd = false;
 	bool mux_motherboard = true;
@@ -39,11 +39,11 @@ int pl111_vexpress_clcd_init(struct device *dev,
 	 * Check if we have a CLCD or HDLCD on the core tile by checking if a
 	 * CLCD or HDLCD is available in the root of the device tree.
 	 */
-	root = of_find_node_by_path("/");
+	root = of_find_yesde_by_path("/");
 	if (!root)
 		return -EINVAL;
 
-	for_each_available_child_of_node(root, child) {
+	for_each_available_child_of_yesde(root, child) {
 		if (of_device_is_compatible(child, "arm,pl111")) {
 			has_coretile_clcd = true;
 			ct_clcd = child;
@@ -51,23 +51,23 @@ int pl111_vexpress_clcd_init(struct device *dev,
 		}
 		if (of_device_is_compatible(child, "arm,hdlcd")) {
 			has_coretile_hdlcd = true;
-			of_node_put(child);
+			of_yesde_put(child);
 			break;
 		}
 	}
 
-	of_node_put(root);
+	of_yesde_put(root);
 
 	/*
 	 * If there is a coretile HDLCD and it has a driver,
-	 * do not mux the CLCD on the motherboard to the DVI.
+	 * do yest mux the CLCD on the motherboard to the DVI.
 	 */
 	if (has_coretile_hdlcd && IS_ENABLED(CONFIG_DRM_HDLCD))
 		mux_motherboard = false;
 
 	/*
 	 * On the Vexpress CA9 we let the CLCD on the coretile
-	 * take precedence, so also in this case do not mux the
+	 * take precedence, so also in this case do yest mux the
 	 * motherboard to the DVI.
 	 */
 	if (has_coretile_clcd)
@@ -76,7 +76,7 @@ int pl111_vexpress_clcd_init(struct device *dev,
 	if (mux_motherboard) {
 		dev_info(dev, "DVI muxed to motherboard CLCD\n");
 		val = VEXPRESS_FPGAMUX_MOTHERBOARD;
-	} else if (ct_clcd == dev->of_node) {
+	} else if (ct_clcd == dev->of_yesde) {
 		dev_info(dev,
 			 "DVI muxed to daughterboard 1 (core tile) CLCD\n");
 		val = VEXPRESS_FPGAMUX_DAUGHTERBOARD_1;

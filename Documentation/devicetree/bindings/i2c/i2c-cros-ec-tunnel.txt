@@ -1,11 +1,11 @@
 I2C bus that tunnels through the ChromeOS EC (cros-ec)
 ======================================================
 On some ChromeOS board designs we've got a connection to the EC (embedded
-controller) but no direct connection to some devices on the other side of
+controller) but yes direct connection to some devices on the other side of
 the EC (like a battery and PMIC).  To get access to those devices we need
 to tunnel our i2c commands through the EC.
 
-The node for this device should be under a cros-ec node like google,cros-ec-spi
+The yesde for this device should be under a cros-ec yesde like google,cros-ec-spi
 or google,cros-ec-i2c.
 
 
@@ -13,8 +13,8 @@ Required properties:
 - compatible: google,cros-ec-i2c-tunnel
 - google,remote-bus: The EC bus we'd like to talk to.
 
-Optional child nodes:
-- One node per I2C device connected to the tunnelled I2C bus.
+Optional child yesdes:
+- One yesde per I2C device connected to the tunnelled I2C bus.
 
 
 Example:

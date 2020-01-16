@@ -2,7 +2,7 @@ Spreadtrum EIC controller bindings
 
 The EIC is the abbreviation of external interrupt controller, which can
 be used only in input mode. The Spreadtrum platform has 2 EIC controllers,
-one is in digital chip, and another one is in PMIC. The digital chip EIC
+one is in digital chip, and ayesther one is in PMIC. The digital chip EIC
 controller contains 4 sub-modules: EIC-debounce, EIC-latch, EIC-async and
 EIC-sync. But the PMIC EIC controller contains only one EIC-debounce sub-
 module.
@@ -14,10 +14,10 @@ is introduced into this sub-module to enhance the input event detection
 reliability. In addition, this sub-module's clock can be shut off
 automatically to reduce power dissipation. Moreover the debounce range
 is from 1ms to 4s with a step size of 1ms. The input signal will be
-ignored if it is asserted for less than 1 ms.
+igyesred if it is asserted for less than 1 ms.
 
 The EIC-latch sub-module is used to latch some special power down signals
-and generate interrupts, since the EIC-latch does not depend on the APB
+and generate interrupts, since the EIC-latch does yest depend on the APB
 clock to capture signals.
 
 The EIC-async sub-module uses a 32kHz clock to capture the short signals
@@ -36,10 +36,10 @@ Required properties:
   "sprd,sc2731-eic".
 - reg: Define the base and range of the I/O address space containing
   the GPIO controller registers.
-- gpio-controller: Marks the device node as a GPIO controller.
+- gpio-controller: Marks the device yesde as a GPIO controller.
 - #gpio-cells: Should be <2>. The first cell is the gpio number and
   the second cell is used to specify optional parameters.
-- interrupt-controller: Marks the device node as an interrupt controller.
+- interrupt-controller: Marks the device yesde as an interrupt controller.
 - #interrupt-cells: Should be <2>. Specifies the number of cells needed
   to encode interrupt source.
 - interrupts: Should be the port interrupt shared by all the gpios.

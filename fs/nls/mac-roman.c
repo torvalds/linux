@@ -20,10 +20,10 @@
  * including without limitation the rights to use, copy, modify, merge,
  * publish, distribute, and/or sell copies of the Data Files or Software, and
  * to permit persons to whom the Data Files or Software are furnished to do
- * so, provided that (a) the above copyright notice(s) and this permission
- * notice appear with all copies of the Data Files or Software, (b) both the
- * above copyright notice(s) and this permission notice appear in associated
- * documentation, and (c) there is clear notice in each modified Data File or
+ * so, provided that (a) the above copyright yestice(s) and this permission
+ * yestice appear with all copies of the Data Files or Software, (b) both the
+ * above copyright yestice(s) and this permission yestice appear in associated
+ * documentation, and (c) there is clear yestice in each modified Data File or
  * in the Software as well as in the documentation associated with the Data
  * File(s) or Software that the data or software has been modified.
  *
@@ -37,8 +37,8 @@
  * OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  * PERFORMANCE OF THE DATA FILES OR SOFTWARE.
  *
- * Except as contained in this notice, the name of a copyright holder shall
- * not be used in advertising or otherwise to promote the sale, use or other
+ * Except as contained in this yestice, the name of a copyright holder shall
+ * yest be used in advertising or otherwise to promote the sale, use or other
  * dealings in these Data Files or Software without prior written
  * authorization of the copyright holder.
  */
@@ -47,7 +47,7 @@
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include <linux/nls.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 
 static const wchar_t charset2uni[256] = {
 	/* 0x00 */

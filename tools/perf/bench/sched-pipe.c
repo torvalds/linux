@@ -18,7 +18,7 @@
 #include <signal.h>
 #include <sys/wait.h>
 #include <string.h>
-#include <errno.h>
+#include <erryes.h>
 #include <assert.h>
 #include <sys/time.h>
 #include <sys/types.h>
@@ -174,7 +174,7 @@ int bench_sched_pipe(int argc, const char **argv)
 
 	default:
 		/* reaching here is something disaster */
-		fprintf(stderr, "Unknown format:%d\n", bench_format);
+		fprintf(stderr, "Unkyeswn format:%d\n", bench_format);
 		exit(1);
 		break;
 	}

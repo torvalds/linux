@@ -12,7 +12,7 @@
  *
  *
  * TODO
- *	Look into engine reset on timeout errors. Should not be required.
+ *	Look into engine reset on timeout errors. Should yest be required.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -183,7 +183,7 @@ static int hpt_dma_blacklisted(const struct ata_device *dev, char *modestr,
 
 	i = match_string(list, -1, model_num);
 	if (i >= 0) {
-		pr_warn("%s is not supported for %s\n", modestr, list[i]);
+		pr_warn("%s is yest supported for %s\n", modestr, list[i]);
 		return 1;
 	}
 	return 0;
@@ -230,7 +230,7 @@ static void hpt366_set_mode(struct ata_port *ap, struct ata_device *adev,
 			    u8 mode)
 {
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
-	u32 addr = 0x40 + 4 * adev->devno;
+	u32 addr = 0x40 + 4 * adev->devyes;
 	u32 mask, reg, t;
 
 	/* determine timing mask and find matching clock entry */
@@ -328,7 +328,7 @@ static void hpt36x_init_chipset(struct pci_dev *dev)
  *	Secondly all the timings depend on the clock for the chip which we must
  *	detect and look up
  *
- *	This is the known chip mappings. It may be missing a couple of later
+ *	This is the kyeswn chip mappings. It may be missing a couple of later
  *	releases.
  *
  *	Chip version		PCI		Rev	Notes
@@ -359,7 +359,7 @@ static int hpt36x_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 		return rc;
 
 	/* May be a later chip in disguise. Check */
-	/* Newer chips are not in the HPT36x driver. Ignore them */
+	/* Newer chips are yest in the HPT36x driver. Igyesre them */
 	if (dev->revision > 2)
 		return -ENODEV;
 

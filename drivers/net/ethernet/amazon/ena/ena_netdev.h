@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -187,11 +187,11 @@ struct ena_tx_buffer {
 	u32 print_once;
 	/* Save the last jiffies to detect missing tx packets
 	 *
-	 * sets to non zero value on ena_start_xmit and set to zero on
+	 * sets to yesn zero value on ena_start_xmit and set to zero on
 	 * napi and timer_Service_routine.
 	 *
-	 * while this value is not protected by lock,
-	 * a given packet is not expected to be handled by ena_start_xmit
+	 * while this value is yest protected by lock,
+	 * a given packet is yest expected to be handled by ena_start_xmit
 	 * and by napi/timer_service at the same time.
 	 */
 	unsigned long last_jiffies;
@@ -270,7 +270,7 @@ struct ena_ring {
 	u8 tx_max_header_size;
 
 	bool first_interrupt;
-	u16 no_interrupt_event_cnt;
+	u16 yes_interrupt_event_cnt;
 
 	/* cpu for TPH */
 	int cpu;
@@ -282,7 +282,7 @@ struct ena_ring {
 	struct ena_com_rx_buf_info ena_bufs[ENA_PKT_MAX_BUFS];
 	u32  smoothed_interval;
 	u32  per_napi_packets;
-	u16 non_empty_napi_events;
+	u16 yesn_empty_napi_events;
 	struct u64_stats_sync syncp;
 	union {
 		struct ena_stats_tx tx_stats;

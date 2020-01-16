@@ -20,8 +20,8 @@ struct tegra_ivc {
 		dma_addr_t phys;
 	} rx, tx;
 
-	void (*notify)(struct tegra_ivc *ivc, void *data);
-	void *notify_data;
+	void (*yestify)(struct tegra_ivc *ivc, void *data);
+	void *yestify_data;
 
 	unsigned int num_frames;
 	size_t frame_size;
@@ -69,15 +69,15 @@ void *tegra_ivc_write_get_next_frame(struct tegra_ivc *ivc);
 int tegra_ivc_write_advance(struct tegra_ivc *ivc);
 
 /**
- * tegra_ivc_notified - handle internal messages
+ * tegra_ivc_yestified - handle internal messages
  * @ivc		pointer of the IVC channel
  *
- * This function must be called following every notification.
+ * This function must be called following every yestification.
  *
  * Returns 0 if the channel is ready for communication, or -EAGAIN if a channel
  * reset is in progress.
  */
-int tegra_ivc_notified(struct tegra_ivc *ivc);
+int tegra_ivc_yestified(struct tegra_ivc *ivc);
 
 /**
  * tegra_ivc_reset - initiates a reset of the shared memory state
@@ -85,7 +85,7 @@ int tegra_ivc_notified(struct tegra_ivc *ivc);
  *
  * This function must be called after a channel is reserved before it is used
  * for communication. The channel will be ready for use when a subsequent call
- * to notify the remote of the channel reset.
+ * to yestify the remote of the channel reset.
  */
 void tegra_ivc_reset(struct tegra_ivc *ivc);
 
@@ -94,7 +94,7 @@ unsigned tegra_ivc_total_queue_size(unsigned queue_size);
 int tegra_ivc_init(struct tegra_ivc *ivc, struct device *peer, void *rx,
 		   dma_addr_t rx_phys, void *tx, dma_addr_t tx_phys,
 		   unsigned int num_frames, size_t frame_size,
-		   void (*notify)(struct tegra_ivc *ivc, void *data),
+		   void (*yestify)(struct tegra_ivc *ivc, void *data),
 		   void *data);
 void tegra_ivc_cleanup(struct tegra_ivc *ivc);
 

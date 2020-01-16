@@ -333,7 +333,7 @@ enum {
 struct nvm_geo {
 	/* device reported version */
 	u8	major_ver_id;
-	u8	minor_ver_id;
+	u8	miyesr_ver_id;
 
 	/* kernel short version */
 	u8	version;
@@ -687,7 +687,7 @@ extern void nvm_end_io(struct nvm_rq *);
 #else /* CONFIG_NVM */
 struct nvm_dev_ops;
 
-static inline struct nvm_dev *nvm_alloc_dev(int node)
+static inline struct nvm_dev *nvm_alloc_dev(int yesde)
 {
 	return ERR_PTR(-EINVAL);
 }

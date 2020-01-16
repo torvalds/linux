@@ -75,7 +75,7 @@
 #define  PWRCR_SCISEL0	BIT(0)
 #define  PWRCR_SCISEL1	BIT(1)
 #define  PWRCR_SCIEN	BIT(2)	/* Serial port enable */
-#define  PWRCR_PDWNACK	BIT(5)	/* Power down acknowledge */
+#define  PWRCR_PDWNACK	BIT(5)	/* Power down ackyeswledge */
 #define  PWRCR_PDWNREQ	BIT(7)	/* Power down request */
 #define  PWRCR_INT2	BIT(11)	/* INT2 connection to power manager */
 #define  PWRCR_BUPINIT	BIT(13)	/* DDR backup initialize */

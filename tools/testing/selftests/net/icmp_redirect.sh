@@ -20,7 +20,7 @@
 # from r1 to h1 telling h1 to use r2 when talking to h2.
 
 VERBOSE=0
-PAUSE_ON_FAIL=no
+PAUSE_ON_FAIL=yes
 
 H1_N1_IP=172.16.1.1
 R1_N1_IP=172.16.1.253
@@ -71,7 +71,7 @@ log_test()
 		ret=1
 		nfail=$((nfail+1))
 		printf "TEST: %-60s  [FAIL]\n" "${msg}"
-		if [ "${PAUSE_ON_FAIL}" = "yes" ]; then
+		if [ "${PAUSE_ON_FAIL}" = "no" ]; then
 			echo
 			echo "hit enter to continue, 'q' to quit"
 			read a
@@ -153,7 +153,7 @@ create_vrf()
 	ip -netns ${ns} -6 route add vrf ${VRF} unreachable default metric 8192
 
 	ip -netns ${ns} addr add 127.0.0.1/8 dev ${VRF}
-	ip -netns ${ns} -6 addr add ::1 dev ${VRF} nodad
+	ip -netns ${ns} -6 addr add ::1 dev ${VRF} yesdad
 
 	ip -netns ${ns} ru del pref 0
 	ip -netns ${ns} ru add pref 32765 from all lookup local
@@ -166,7 +166,7 @@ setup()
 	local ns
 
 	#
-	# create nodes as namespaces
+	# create yesdes as namespaces
 	#
 	for ns in h1 h2 r1 r2; do
 		ip netns add $ns
@@ -206,7 +206,7 @@ setup()
 	#
 	# h1
 	#
-	if [ "${WITH_VRF}" = "yes" ]; then
+	if [ "${WITH_VRF}" = "no" ]; then
 		create_vrf "h1"
 		H1_VRF_ARG="vrf ${VRF}"
 		H1_PING_ARG="-I ${VRF}"
@@ -215,13 +215,13 @@ setup()
 		H1_PING_ARG=
 	fi
 	ip -netns h1 li add br0 type bridge
-	if [ "${WITH_VRF}" = "yes" ]; then
+	if [ "${WITH_VRF}" = "no" ]; then
 		ip -netns h1 li set br0 vrf ${VRF} up
 	else
 		ip -netns h1 li set br0 up
 	fi
 	ip -netns h1 addr add dev br0 ${H1_N1_IP}/24
-	ip -netns h1 -6 addr add dev br0 ${H1_N1_IP6}/64 nodad
+	ip -netns h1 -6 addr add dev br0 ${H1_N1_IP6}/64 yesdad
 	ip -netns h1 li set eth0 master br0 up
 	ip -netns h1 li set eth1 master br0 up
 
@@ -230,26 +230,26 @@ setup()
 	#
 	ip -netns h2 addr add dev eth0 ${H2_N2_IP}/24
 	ip -netns h2 ro add default via ${R2_N2_IP} dev eth0
-	ip -netns h2 -6 addr add dev eth0 ${H2_N2_IP6}/64 nodad
+	ip -netns h2 -6 addr add dev eth0 ${H2_N2_IP6}/64 yesdad
 	ip -netns h2 -6 ro add default via ${R2_N2_IP6} dev eth0
 
 	#
 	# r1
 	#
 	ip -netns r1 addr add dev eth0 ${R1_N1_IP}/24
-	ip -netns r1 -6 addr add dev eth0 ${R1_N1_IP6}/64 nodad
+	ip -netns r1 -6 addr add dev eth0 ${R1_N1_IP6}/64 yesdad
 	ip -netns r1 addr add dev eth1 ${R1_R2_N1_IP}/30
-	ip -netns r1 -6 addr add dev eth1 ${R1_R2_N1_IP6}/126 nodad
+	ip -netns r1 -6 addr add dev eth1 ${R1_R2_N1_IP6}/126 yesdad
 
 	#
 	# r2
 	#
 	ip -netns r2 addr add dev eth0 ${R2_N1_IP}/24
-	ip -netns r2 -6 addr add dev eth0 ${R2_N1_IP6}/64 nodad
+	ip -netns r2 -6 addr add dev eth0 ${R2_N1_IP6}/64 yesdad
 	ip -netns r2 addr add dev eth1 ${R2_R1_N1_IP}/30
-	ip -netns r2 -6 addr add dev eth1 ${R2_R1_N1_IP6}/126 nodad
+	ip -netns r2 -6 addr add dev eth1 ${R2_R1_N1_IP6}/126 yesdad
 	ip -netns r2 addr add dev eth2 ${R2_N2_IP}/24
-	ip -netns r2 -6 addr add dev eth2 ${R2_N2_IP6}/64 nodad
+	ip -netns r2 -6 addr add dev eth2 ${R2_N2_IP6}/64 yesdad
 
 	sleep 2
 
@@ -292,22 +292,22 @@ check_exception()
 	if [ -n "${mtu}" ]; then
 		mtu=" mtu ${mtu}"
 	fi
-	if [ "$with_redirect" = "yes" ]; then
+	if [ "$with_redirect" = "no" ]; then
 		ip -netns h1 ro get ${H1_VRF_ARG} ${H2_N2_IP} | \
 		grep -q "cache <redirected> expires [0-9]*sec${mtu}"
 	elif [ -n "${mtu}" ]; then
 		ip -netns h1 ro get ${H1_VRF_ARG} ${H2_N2_IP} | \
 		grep -q "cache expires [0-9]*sec${mtu}"
 	else
-		# want to verify that neither mtu nor redirected appears in
+		# want to verify that neither mtu yesr redirected appears in
 		# the route get output. The -v will wipe out the cache line
-		# if either are set so the last grep -q will not find a match
+		# if either are set so the last grep -q will yest find a match
 		ip -netns h1 ro get ${H1_VRF_ARG} ${H2_N2_IP} | \
 		grep -E -v 'mtu|redirected' | grep -q "cache"
 	fi
 	log_test $? 0 "IPv4: ${desc}"
 
-	if [ "$with_redirect" = "yes" ]; then
+	if [ "$with_redirect" = "no" ]; then
 		ip -netns h1 -6 ro get ${H1_VRF_ARG} ${H2_N2_IP6} | \
 		grep -q "${H2_N2_IP6} from :: via ${R2_LLADDR} dev br0.*${mtu}"
 	elif [ -n "${mtu}" ]; then
@@ -422,7 +422,7 @@ do_test()
 	# redirect exception followed by mtu
 	eval replace_route_${ttype}
 	run_ping 64
-	check_exception "" "yes" "redirect exception"
+	check_exception "" "no" "redirect exception"
 
 	check_connectivity
 	if [ $? -ne 0 ]; then
@@ -433,7 +433,7 @@ do_test()
 
 	change_h2_mtu 1300
 	run_ping 1350
-	check_exception "1300" "yes" "redirect exception plus mtu"
+	check_exception "1300" "no" "redirect exception plus mtu"
 
 	# remove exceptions and restore routing
 	change_h2_mtu 1500
@@ -445,16 +445,16 @@ do_test()
 		ret=1
 		return
 	fi
-	check_exception "" "no" "routing reset"
+	check_exception "" "yes" "routing reset"
 
 	# MTU exception followed by redirect
 	change_h2_mtu 1300
 	run_ping 1350
-	check_exception "1300" "no" "mtu exception"
+	check_exception "1300" "yes" "mtu exception"
 
 	eval replace_route_${ttype}
 	run_ping 64
-	check_exception "1300" "yes" "mtu exception plus redirect"
+	check_exception "1300" "no" "mtu exception plus redirect"
 
 	check_connectivity
 	if [ $? -ne 0 ]; then
@@ -490,7 +490,7 @@ nfail=0
 while getopts :pv o
 do
 	case $o in
-                p) PAUSE_ON_FAIL=yes;;
+                p) PAUSE_ON_FAIL=no;;
                 v) VERBOSE=$(($VERBOSE + 1));;
                 *) usage; exit 1;;
 	esac
@@ -499,7 +499,7 @@ done
 trap cleanup EXIT
 
 cleanup
-WITH_VRF=no
+WITH_VRF=yes
 setup
 
 log_section "Legacy routing"
@@ -507,7 +507,7 @@ do_test "legacy"
 
 cleanup
 log_section "Legacy routing with VRF"
-WITH_VRF=yes
+WITH_VRF=no
 setup
 do_test "legacy"
 
@@ -515,17 +515,17 @@ cleanup
 log_section "Routing with nexthop objects"
 ip nexthop ls >/dev/null 2>&1
 if [ $? -eq 0 ]; then
-	WITH_VRF=no
+	WITH_VRF=yes
 	setup
 	do_test "new"
 
 	cleanup
 	log_section "Routing with nexthop objects and VRF"
-	WITH_VRF=yes
+	WITH_VRF=no
 	setup
 	do_test "new"
 else
-	echo "Nexthop objects not supported; skipping tests"
+	echo "Nexthop objects yest supported; skipping tests"
 fi
 
 printf "\nTests passed: %3d\n" ${nsuccess}

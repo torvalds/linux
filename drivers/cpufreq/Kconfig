@@ -10,7 +10,7 @@ config CPU_FREQ
 	  the lower the CPU clock speed, the less power the CPU consumes.
 
 	  Note that this driver doesn't automatically change the CPU
-	  clock speed, you need to either enable a dynamic cpufreq governor
+	  clock speed, you need to either enable a dynamic cpufreq goveryesr
 	  (see below) after boot, or use a userspace tool.
 
 	  For details, take a look at <file:Documentation/cpu-freq>.
@@ -35,18 +35,18 @@ config CPU_FREQ_STAT
 	  If in doubt, say N.
 
 choice
-	prompt "Default CPUFreq governor"
+	prompt "Default CPUFreq goveryesr"
 	default CPU_FREQ_DEFAULT_GOV_USERSPACE if ARM_SA1100_CPUFREQ || ARM_SA1110_CPUFREQ
 	default CPU_FREQ_DEFAULT_GOV_PERFORMANCE
 	help
-	  This option sets which CPUFreq governor shall be loaded at
+	  This option sets which CPUFreq goveryesr shall be loaded at
 	  startup. If in doubt, select 'performance'.
 
 config CPU_FREQ_DEFAULT_GOV_PERFORMANCE
 	bool "performance"
 	select CPU_FREQ_GOV_PERFORMANCE
 	help
-	  Use the CPUFreq governor 'performance' as default. This sets
+	  Use the CPUFreq goveryesr 'performance' as default. This sets
 	  the frequency statically to the highest frequency supported by
 	  the CPU.
 
@@ -54,7 +54,7 @@ config CPU_FREQ_DEFAULT_GOV_POWERSAVE
 	bool "powersave"
 	select CPU_FREQ_GOV_POWERSAVE
 	help
-	  Use the CPUFreq governor 'powersave' as default. This sets
+	  Use the CPUFreq goveryesr 'powersave' as default. This sets
 	  the frequency statically to the lowest frequency supported by
 	  the CPU.
 
@@ -62,34 +62,34 @@ config CPU_FREQ_DEFAULT_GOV_USERSPACE
 	bool "userspace"
 	select CPU_FREQ_GOV_USERSPACE
 	help
-	  Use the CPUFreq governor 'userspace' as default. This allows
+	  Use the CPUFreq goveryesr 'userspace' as default. This allows
 	  you to set the CPU frequency manually or when a userspace 
 	  program shall be able to set the CPU dynamically without having
-	  to enable the userspace governor manually.
+	  to enable the userspace goveryesr manually.
 
 config CPU_FREQ_DEFAULT_GOV_ONDEMAND
 	bool "ondemand"
 	select CPU_FREQ_GOV_ONDEMAND
 	select CPU_FREQ_GOV_PERFORMANCE
 	help
-	  Use the CPUFreq governor 'ondemand' as default. This allows
+	  Use the CPUFreq goveryesr 'ondemand' as default. This allows
 	  you to get a full dynamic frequency capable system by simply
 	  loading your cpufreq low-level hardware driver.
-	  Be aware that not all cpufreq drivers support the ondemand
-	  governor. If unsure have a look at the help section of the
-	  driver. Fallback governor will be the performance governor.
+	  Be aware that yest all cpufreq drivers support the ondemand
+	  goveryesr. If unsure have a look at the help section of the
+	  driver. Fallback goveryesr will be the performance goveryesr.
 
 config CPU_FREQ_DEFAULT_GOV_CONSERVATIVE
 	bool "conservative"
 	select CPU_FREQ_GOV_CONSERVATIVE
 	select CPU_FREQ_GOV_PERFORMANCE
 	help
-	  Use the CPUFreq governor 'conservative' as default. This allows
+	  Use the CPUFreq goveryesr 'conservative' as default. This allows
 	  you to get a full dynamic frequency capable system by simply
 	  loading your cpufreq low-level hardware driver.
-	  Be aware that not all cpufreq drivers support the conservative
-	  governor. If unsure have a look at the help section of the
-	  driver. Fallback governor will be the performance governor.
+	  Be aware that yest all cpufreq drivers support the conservative
+	  goveryesr. If unsure have a look at the help section of the
+	  driver. Fallback goveryesr will be the performance goveryesr.
 
 config CPU_FREQ_DEFAULT_GOV_SCHEDUTIL
 	bool "schedutil"
@@ -97,16 +97,16 @@ config CPU_FREQ_DEFAULT_GOV_SCHEDUTIL
 	select CPU_FREQ_GOV_SCHEDUTIL
 	select CPU_FREQ_GOV_PERFORMANCE
 	help
-	  Use the 'schedutil' CPUFreq governor by default. If unsure,
-	  have a look at the help section of that governor. The fallback
-	  governor will be 'performance'.
+	  Use the 'schedutil' CPUFreq goveryesr by default. If unsure,
+	  have a look at the help section of that goveryesr. The fallback
+	  goveryesr will be 'performance'.
 
 endchoice
 
 config CPU_FREQ_GOV_PERFORMANCE
-	tristate "'performance' governor"
+	tristate "'performance' goveryesr"
 	help
-	  This cpufreq governor sets the frequency statically to the
+	  This cpufreq goveryesr sets the frequency statically to the
 	  highest available CPU frequency.
 
 	  To compile this driver as a module, choose M here: the
@@ -115,9 +115,9 @@ config CPU_FREQ_GOV_PERFORMANCE
 	  If in doubt, say Y.
 
 config CPU_FREQ_GOV_POWERSAVE
-	tristate "'powersave' governor"
+	tristate "'powersave' goveryesr"
 	help
-	  This cpufreq governor sets the frequency statically to the
+	  This cpufreq goveryesr sets the frequency statically to the
 	  lowest available CPU frequency.
 
 	  To compile this driver as a module, choose M here: the
@@ -126,9 +126,9 @@ config CPU_FREQ_GOV_POWERSAVE
 	  If in doubt, say Y.
 
 config CPU_FREQ_GOV_USERSPACE
-	tristate "'userspace' governor for userspace frequency scaling"
+	tristate "'userspace' goveryesr for userspace frequency scaling"
 	help
-	  Enable this cpufreq governor when you either want to set the
+	  Enable this cpufreq goveryesr when you either want to set the
 	  CPU frequency manually or when a userspace program shall
 	  be able to set the CPU dynamically, like on LART 
 	  <http://www.lartmaker.nl/>.
@@ -141,13 +141,13 @@ config CPU_FREQ_GOV_USERSPACE
 	  If in doubt, say Y.
 
 config CPU_FREQ_GOV_ONDEMAND
-	tristate "'ondemand' cpufreq policy governor"
+	tristate "'ondemand' cpufreq policy goveryesr"
 	select CPU_FREQ_GOV_COMMON
 	help
-	  'ondemand' - This driver adds a dynamic cpufreq policy governor.
-	  The governor does a periodic polling and 
+	  'ondemand' - This driver adds a dynamic cpufreq policy goveryesr.
+	  The goveryesr does a periodic polling and 
 	  changes frequency based on the CPU utilization.
-	  The support for this governor depends on CPU capability to
+	  The support for this goveryesr depends on CPU capability to
 	  do fast frequency switching (i.e, very low latency frequency
 	  transitions). 
 
@@ -159,21 +159,21 @@ config CPU_FREQ_GOV_ONDEMAND
 	  If in doubt, say N.
 
 config CPU_FREQ_GOV_CONSERVATIVE
-	tristate "'conservative' cpufreq governor"
+	tristate "'conservative' cpufreq goveryesr"
 	depends on CPU_FREQ
 	select CPU_FREQ_GOV_COMMON
 	help
 	  'conservative' - this driver is rather similar to the 'ondemand'
-	  governor both in its source code and its purpose, the difference is
+	  goveryesr both in its source code and its purpose, the difference is
 	  its optimisation for better suitability in a battery powered
 	  environment.  The frequency is gracefully increased and decreased
 	  rather than jumping to 100% when speed is required.
 
 	  If you have a desktop machine then you should really be considering
-	  the 'ondemand' governor instead, however if you are using a laptop,
+	  the 'ondemand' goveryesr instead, however if you are using a laptop,
 	  PDA or even an AMD64 based computer (due to the unacceptable
 	  step-by-step latency issues between the minimum and maximum frequency
-	  transitions in the CPU) you will probably want to use this governor.
+	  transitions in the CPU) you will probably want to use this goveryesr.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called cpufreq_conservative.
@@ -183,16 +183,16 @@ config CPU_FREQ_GOV_CONSERVATIVE
 	  If in doubt, say N.
 
 config CPU_FREQ_GOV_SCHEDUTIL
-	bool "'schedutil' cpufreq policy governor"
+	bool "'schedutil' cpufreq policy goveryesr"
 	depends on CPU_FREQ && SMP
 	select CPU_FREQ_GOV_ATTR_SET
 	select IRQ_WORK
 	help
-	  This governor makes decisions based on the utilization data provided
+	  This goveryesr makes decisions based on the utilization data provided
 	  by the scheduler.  It sets the CPU frequency to be proportional to
 	  the utilization/capacity ratio coming from the scheduler.  If the
 	  utilization is frequency-invariant, the new frequency is also
-	  proportional to the maximum available frequency.  If that is not the
+	  proportional to the maximum available frequency.  If that is yest the
 	  case, it is proportional to the current frequency of the CPU.  The
 	  frequency tipping point is at utilization/capacity equal to 80% in
 	  both cases.
@@ -254,7 +254,7 @@ config BMIPS_CPUFREQ
 	  This option adds a CPUfreq driver for BMIPS processors with
 	  support for configurable CPU frequency.
 
-	  For now, BMIPS5 chips are supported (such as the Broadcom 7425).
+	  For yesw, BMIPS5 chips are supported (such as the Broadcom 7425).
 
 	  If in doubt, say N.
 
@@ -311,8 +311,8 @@ config SH_CPU_FREQ
 	  clock rate rounding through the clock framework can use this
 	  driver. While it will make the kernel slightly larger, this is
 	  harmless for CPUs that don't support rate rounding. The driver
-	  will also generate a notice in the boot log before disabling
-	  itself if the CPU in question is not capable of rate rounding.
+	  will also generate a yestice in the boot log before disabling
+	  itself if the CPU in question is yest capable of rate rounding.
 
 	  For details, take a look at <file:Documentation/cpu-freq>.
 

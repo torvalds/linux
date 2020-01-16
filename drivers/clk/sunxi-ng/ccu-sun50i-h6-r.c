@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (c) 2017 Icenowy Zheng <icenowy@aosc.xyz>
+ * Copyright (c) 2017 Iceyeswy Zheng <iceyeswy@aosc.xyz>
  */
 
 #include <linux/clk-provider.h>
@@ -117,7 +117,7 @@ static SUNXI_CCU_MP_WITH_MUX_GATE(ir_clk, "ir",
 				  0);
 
 /*
- * BSP didn't use the 1-wire function at all now, and the information about
+ * BSP didn't use the 1-wire function at all yesw, and the information about
  * this mod clock is guessed from the IR mod clock above. The existence of
  * this mod clock is proven by BSP clock header, and the dividers are verified
  * by contents in the 1-wire related chapter of the User Manual.
@@ -185,23 +185,23 @@ static const struct sunxi_ccu_desc sun50i_h6_r_ccu_desc = {
 	.num_resets	= ARRAY_SIZE(sun50i_h6_r_ccu_resets),
 };
 
-static void __init sunxi_r_ccu_init(struct device_node *node,
+static void __init sunxi_r_ccu_init(struct device_yesde *yesde,
 				    const struct sunxi_ccu_desc *desc)
 {
 	void __iomem *reg;
 
-	reg = of_io_request_and_map(node, 0, of_node_full_name(node));
+	reg = of_io_request_and_map(yesde, 0, of_yesde_full_name(yesde));
 	if (IS_ERR(reg)) {
-		pr_err("%pOF: Could not map the clock registers\n", node);
+		pr_err("%pOF: Could yest map the clock registers\n", yesde);
 		return;
 	}
 
-	sunxi_ccu_probe(node, reg, desc);
+	sunxi_ccu_probe(yesde, reg, desc);
 }
 
-static void __init sun50i_h6_r_ccu_setup(struct device_node *node)
+static void __init sun50i_h6_r_ccu_setup(struct device_yesde *yesde)
 {
-	sunxi_r_ccu_init(node, &sun50i_h6_r_ccu_desc);
+	sunxi_r_ccu_init(yesde, &sun50i_h6_r_ccu_desc);
 }
 CLK_OF_DECLARE(sun50i_h6_r_ccu, "allwinner,sun50i-h6-r-ccu",
 	       sun50i_h6_r_ccu_setup);

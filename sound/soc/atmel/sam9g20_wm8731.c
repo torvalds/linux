@@ -9,8 +9,8 @@
  * Authors: Sedji Gaouaou <sedji.gaouaou@atmel.com>
  *
  * Based on ati_b1_wm8731.c by:
- * Frank Mandarino <fmandarino@endrelia.com>
- * Copyright 2006 Endrelia Technologies Inc.
+ * Frank Mandariyes <fmandariyes@endrelia.com>
+ * Copyright 2006 Endrelia Techyeslogies Inc.
  * Based on corgi.c by:
  * Copyright 2005 Wolfson Microelectronics PLC.
  * Copyright 2005 Openedhand Ltd.
@@ -40,7 +40,7 @@
 #define MCLK_RATE 12000000
 
 /*
- * As shipped the board does not have inputs.  However, it is relatively
+ * As shipped the board does yest have inputs.  However, it is relatively
  * straightforward to modify the board to hook them up so support is left
  * in the driver.
  */
@@ -146,8 +146,8 @@ static struct snd_soc_card snd_soc_at91sam9g20ek = {
 
 static int at91sam9g20ek_audio_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
-	struct device_node *codec_np, *cpu_np;
+	struct device_yesde *np = pdev->dev.of_yesde;
+	struct device_yesde *codec_np, *cpu_np;
 	struct clk *pllb;
 	struct snd_soc_card *card = &snd_soc_at91sam9g20ek;
 	int ret;
@@ -158,7 +158,7 @@ static int at91sam9g20ek_audio_probe(struct platform_device *pdev)
 
 	ret = atmel_ssc_set_audio(0);
 	if (ret) {
-		dev_err(&pdev->dev, "ssc channel is not valid\n");
+		dev_err(&pdev->dev, "ssc channel is yest valid\n");
 		return -EINVAL;
 	}
 
@@ -189,7 +189,7 @@ static int at91sam9g20ek_audio_probe(struct platform_device *pdev)
 
 	card->dev = &pdev->dev;
 
-	/* Parse device node info */
+	/* Parse device yesde info */
 	ret = snd_soc_of_parse_card_name(card, "atmel,model");
 	if (ret)
 		goto err;
@@ -206,7 +206,7 @@ static int at91sam9g20ek_audio_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "codec info missing\n");
 		return -EINVAL;
 	}
-	at91sam9g20ek_dai.codecs->of_node = codec_np;
+	at91sam9g20ek_dai.codecs->of_yesde = codec_np;
 
 	/* Parse dai and platform info */
 	at91sam9g20ek_dai.cpus->dai_name = NULL;
@@ -216,11 +216,11 @@ static int at91sam9g20ek_audio_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "dai and pcm info missing\n");
 		return -EINVAL;
 	}
-	at91sam9g20ek_dai.cpus->of_node = cpu_np;
-	at91sam9g20ek_dai.platforms->of_node = cpu_np;
+	at91sam9g20ek_dai.cpus->of_yesde = cpu_np;
+	at91sam9g20ek_dai.platforms->of_yesde = cpu_np;
 
-	of_node_put(codec_np);
-	of_node_put(cpu_np);
+	of_yesde_put(codec_np);
+	of_yesde_put(cpu_np);
 
 	ret = snd_soc_register_card(card);
 	if (ret) {

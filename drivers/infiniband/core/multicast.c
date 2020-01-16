@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -95,7 +95,7 @@ struct mcast_member;
 
 struct mcast_group {
 	struct ib_sa_mcmember_rec rec;
-	struct rb_node		node;
+	struct rb_yesde		yesde;
 	struct mcast_port	*port;
 	spinlock_t		lock;
 	struct work_struct	work;
@@ -129,20 +129,20 @@ static void leave_handler(int status, struct ib_sa_mcmember_rec *rec,
 static struct mcast_group *mcast_find(struct mcast_port *port,
 				      union ib_gid *mgid)
 {
-	struct rb_node *node = port->table.rb_node;
+	struct rb_yesde *yesde = port->table.rb_yesde;
 	struct mcast_group *group;
 	int ret;
 
-	while (node) {
-		group = rb_entry(node, struct mcast_group, node);
+	while (yesde) {
+		group = rb_entry(yesde, struct mcast_group, yesde);
 		ret = memcmp(mgid->raw, group->rec.mgid.raw, sizeof *mgid);
 		if (!ret)
 			return group;
 
 		if (ret < 0)
-			node = node->rb_left;
+			yesde = yesde->rb_left;
 		else
-			node = node->rb_right;
+			yesde = yesde->rb_right;
 	}
 	return NULL;
 }
@@ -151,14 +151,14 @@ static struct mcast_group *mcast_insert(struct mcast_port *port,
 					struct mcast_group *group,
 					int allow_duplicates)
 {
-	struct rb_node **link = &port->table.rb_node;
-	struct rb_node *parent = NULL;
+	struct rb_yesde **link = &port->table.rb_yesde;
+	struct rb_yesde *parent = NULL;
 	struct mcast_group *cur_group;
 	int ret;
 
 	while (*link) {
 		parent = *link;
-		cur_group = rb_entry(parent, struct mcast_group, node);
+		cur_group = rb_entry(parent, struct mcast_group, yesde);
 
 		ret = memcmp(group->rec.mgid.raw, cur_group->rec.mgid.raw,
 			     sizeof group->rec.mgid);
@@ -171,8 +171,8 @@ static struct mcast_group *mcast_insert(struct mcast_port *port,
 		else
 			return cur_group;
 	}
-	rb_link_node(&group->node, parent, link);
-	rb_insert_color(&group->node, &port->table);
+	rb_link_yesde(&group->yesde, parent, link);
+	rb_insert_color(&group->yesde, &port->table);
 	return NULL;
 }
 
@@ -189,7 +189,7 @@ static void release_group(struct mcast_group *group)
 
 	spin_lock_irqsave(&port->lock, flags);
 	if (atomic_dec_and_test(&group->refcount)) {
-		rb_erase(&group->node, &port->table);
+		rb_erase(&group->yesde, &port->table);
 		spin_unlock_irqrestore(&port->lock, flags);
 		kfree(group);
 		deref_port(port);
@@ -219,8 +219,8 @@ static void queue_join(struct mcast_member *member)
 }
 
 /*
- * A multicast group has four types of members: full member, non member,
- * sendonly non member and sendonly full member.
+ * A multicast group has four types of members: full member, yesn member,
+ * sendonly yesn member and sendonly full member.
  * We need to keep track of the number of members of each
  * type based on their join state.  Adjust the number of members the belong to
  * the specified join states.
@@ -237,7 +237,7 @@ static void adjust_membership(struct mcast_group *group, u8 join_state, int inc)
 /*
  * If a multicast group has zero members left for a particular join state, but
  * the group is still a member with the SA, we need to leave that join state.
- * Determine which join states we still belong to, but that do not have any
+ * Determine which join states we still belong to, but that do yest have any
  * active members.
  */
 static u8 get_leave_state(struct mcast_group *group)
@@ -322,7 +322,7 @@ static int cmp_rec(struct ib_sa_mcmember_rec *src,
 	if (comp_mask & IB_SA_MCMEMBER_REC_SCOPE && src->scope != dst->scope)
 		return -EINVAL;
 
-	/* join_state checked separately, proxy_join ignored */
+	/* join_state checked separately, proxy_join igyesred */
 
 	return 0;
 }
@@ -532,7 +532,7 @@ static void join_handler(int status, struct ib_sa_mcmember_rec *rec,
 				       sizeof(group->rec.mgid));
 		group->rec = *rec;
 		if (mgids_changed) {
-			rb_erase(&group->node, &group->port->table);
+			rb_erase(&group->yesde, &group->port->table);
 			is_mgid0 = !memcmp(&mgid0, &group->rec.mgid,
 					   sizeof(mgid0));
 			mcast_insert(group->port, group, is_mgid0);
@@ -739,8 +739,8 @@ int ib_init_ah_from_mcmember(struct ib_device *device, u8 port_num,
 {
 	const struct ib_gid_attr *sgid_attr;
 
-	/* GID table is not based on the netdevice for IB link layer,
-	 * so ignore ndev during search.
+	/* GID table is yest based on the netdevice for IB link layer,
+	 * so igyesre ndev during search.
 	 */
 	if (rdma_protocol_ib(device, port_num))
 		ndev = NULL;
@@ -771,12 +771,12 @@ static void mcast_groups_event(struct mcast_port *port,
 			       enum mcast_group_state state)
 {
 	struct mcast_group *group;
-	struct rb_node *node;
+	struct rb_yesde *yesde;
 	unsigned long flags;
 
 	spin_lock_irqsave(&port->lock, flags);
-	for (node = rb_first(&port->table); node; node = rb_next(node)) {
-		group = rb_entry(node, struct mcast_group, node);
+	for (yesde = rb_first(&port->table); yesde; yesde = rb_next(yesde)) {
+		group = rb_entry(yesde, struct mcast_group, yesde);
 		spin_lock(&group->lock);
 		if (group->state == MCAST_IDLE) {
 			atomic_inc(&group->refcount);

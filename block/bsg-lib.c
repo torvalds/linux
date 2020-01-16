@@ -288,7 +288,7 @@ out:
 
 /* called right after the request is allocated for the request_queue */
 static int bsg_init_rq(struct blk_mq_tag_set *set, struct request *req,
-		       unsigned int hctx_idx, unsigned int numa_node)
+		       unsigned int hctx_idx, unsigned int numa_yesde)
 {
 	struct bsg_job *job = blk_mq_rq_to_pdu(req);
 
@@ -378,7 +378,7 @@ struct request_queue *bsg_setup_queue(struct device *dev, const char *name,
 	set->ops = &bsg_mq_ops,
 	set->nr_hw_queues = 1;
 	set->queue_depth = 128;
-	set->numa_node = NUMA_NO_NODE;
+	set->numa_yesde = NUMA_NO_NODE;
 	set->cmd_size = sizeof(struct bsg_job) + dd_job_size;
 	set->flags = BLK_MQ_F_NO_SCHED | BLK_MQ_F_BLOCKING;
 	if (blk_mq_alloc_tag_set(set))

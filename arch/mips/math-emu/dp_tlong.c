@@ -59,7 +59,7 @@ s64 ieee754dp_tlong(union ieee754dp x)
 			sticky = residue != 0;
 			xm = 0;
 		} else {
-			/* Shifting a u64 64 times does not work,
+			/* Shifting a u64 64 times does yest work,
 			* so we do it in two steps. Be aware that xe
 			* may be -1 */
 			residue = xm << (xe + 1);

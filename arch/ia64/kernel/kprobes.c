@@ -70,7 +70,7 @@ static void __kprobes set_brl_inst(void *from, void *to)
 	bundle_t *brl;
 	brl = (bundle_t *) ((u64) from & ~0xf);
 	brl->quad0.template = 0x05;	/* [MLX](stop) */
-	brl->quad0.slot0 = NOP_M_INST;	/* nop.m 0x0 */
+	brl->quad0.slot0 = NOP_M_INST;	/* yesp.m 0x0 */
 	brl->quad0.slot1_p0 = ((rel >> 20) & 0x7fffffffff) << 2;
 	brl->quad1.slot1_p1 = (((rel >> 20) & 0x7fffffffff) << 2) >> (64 - 46);
 	/* brl.cond.sptk.many.clr rel<<4 (qp=0) */
@@ -183,7 +183,7 @@ static int __kprobes unsupported_inst(uint template, uint  slot,
 		if (slot == 1 && qp)  {
 			printk(KERN_WARNING "Kprobes on cmp unc "
 					"instruction on slot 1 at <0x%lx> "
-					"is not supported\n", addr);
+					"is yest supported\n", addr);
 			return -EINVAL;
 
 		}
@@ -197,7 +197,7 @@ static int __kprobes unsupported_inst(uint template, uint  slot,
 			 */
 			if (((kprobe_inst >> 33) & 0x7) == 1) {
 				printk(KERN_WARNING
-					"Kprobes on speculation inst at <0x%lx> not supported\n",
+					"Kprobes on speculation inst at <0x%lx> yest supported\n",
 						addr);
 				return -EINVAL;
 			}
@@ -207,7 +207,7 @@ static int __kprobes unsupported_inst(uint template, uint  slot,
 			 */
 			if (((kprobe_inst >> 27) & 0x1FF) == 0x30) {
 				printk(KERN_WARNING
-					"Kprobes on \"mov r1=ip\" at <0x%lx> not supported\n",
+					"Kprobes on \"mov r1=ip\" at <0x%lx> yest supported\n",
 						addr);
 				return -EINVAL;
 
@@ -222,7 +222,7 @@ static int __kprobes unsupported_inst(uint template, uint  slot,
 			if (slot == 1 && qp) {
 				printk(KERN_WARNING "Kprobes on test bit "
 						"instruction on slot at <0x%lx> "
-						"is not supported\n", addr);
+						"is yest supported\n", addr);
 				return -EINVAL;
 			}
 			qp = 0;
@@ -232,7 +232,7 @@ static int __kprobes unsupported_inst(uint template, uint  slot,
 		if (major_opcode == 7) {
 			/* IP-Relative Predict major code is 7 */
 			printk(KERN_WARNING "Kprobes on IP-Relative"
-					"Predict is not supported\n");
+					"Predict is yest supported\n");
 			return -EINVAL;
 		}
 		else if (major_opcode == 2) {
@@ -242,12 +242,12 @@ static int __kprobes unsupported_inst(uint template, uint  slot,
 			int x6=(kprobe_inst >> 27) & 0x3F;
 			if ((x6 == 0x10) || (x6 == 0x11)) {
 				printk(KERN_WARNING "Kprobes on "
-					"Indirect Predict is not supported\n");
+					"Indirect Predict is yest supported\n");
 				return -EINVAL;
 			}
 		}
 	}
-	/* kernel does not use float instruction, here for safety kprobe
+	/* kernel does yest use float instruction, here for safety kprobe
 	 * will judge whether it is fcmp/flass/float approximation instruction
 	 */
 	else if (unlikely(bundle_encoding[template][slot] == F)) {
@@ -257,7 +257,7 @@ static int __kprobes unsupported_inst(uint template, uint  slot,
 			if (slot == 1 && qp) {
 				printk(KERN_WARNING "Kprobes on fcmp/fclass "
 					"instruction on slot at <0x%lx> "
-					"is not supported\n", addr);
+					"is yest supported\n", addr);
 				return -EINVAL;
 
 			}
@@ -268,7 +268,7 @@ static int __kprobes unsupported_inst(uint template, uint  slot,
 			/* float Approximation instruction */
 			if (slot == 1 && qp) {
 				printk(KERN_WARNING "Kprobes on float Approx "
-					"instr at <0x%lx> is not supported\n",
+					"instr at <0x%lx> is yest supported\n",
 						addr);
 				return -EINVAL;
 			}
@@ -344,7 +344,7 @@ static void __kprobes get_kprobe_inst(bundle_t *bundle, uint slot,
 	}
 }
 
-/* Returns non-zero if the addr is in the Interrupt Vector Table */
+/* Returns yesn-zero if the addr is in the Interrupt Vector Table */
 static int __kprobes in_ivt_functions(unsigned long addr)
 {
 	return (addr >= (unsigned long)__start_ivt_text
@@ -408,7 +408,7 @@ int __kprobes trampoline_probe_handler(struct kprobe *p, struct pt_regs *regs)
 {
 	struct kretprobe_instance *ri = NULL;
 	struct hlist_head *head, empty_rp;
-	struct hlist_node *tmp;
+	struct hlist_yesde *tmp;
 	unsigned long flags, orig_ret_address = 0;
 	unsigned long trampoline_address =
 		((struct fnptr *)kretprobe_trampoline)->ip;
@@ -431,7 +431,7 @@ int __kprobes trampoline_probe_handler(struct kprobe *p, struct pt_regs *regs)
 	 */
 	hlist_for_each_entry_safe(ri, tmp, head, hlist) {
 		if (ri->task != current)
-			/* another task is sharing our hash bucket */
+			/* ayesther task is sharing our hash bucket */
 			continue;
 
 		orig_ret_address = (unsigned long)ri->ret_addr;
@@ -448,7 +448,7 @@ int __kprobes trampoline_probe_handler(struct kprobe *p, struct pt_regs *regs)
 
 	hlist_for_each_entry_safe(ri, tmp, head, hlist) {
 		if (ri->task != current)
-			/* another task is sharing our hash bucket */
+			/* ayesther task is sharing our hash bucket */
 			continue;
 
 		if (ri->rp && ri->rp->handler)
@@ -474,7 +474,7 @@ int __kprobes trampoline_probe_handler(struct kprobe *p, struct pt_regs *regs)
 		kfree(ri);
 	}
 	/*
-	 * By returning a non-zero value, we are telling
+	 * By returning a yesn-zero value, we are telling
 	 * kprobe_handler() that we don't want the post_handler
 	 * to run (and have re-enabled preemption)
 	 */
@@ -520,7 +520,7 @@ static int __kprobes __is_ia64_break_inst(bundle_t *bundle, uint slot)
 
 /*
  * In this function, we check whether the target bundle modifies IP or
- * it triggers an exception. If so, it cannot be boostable.
+ * it triggers an exception. If so, it canyest be boostable.
  */
 static int __kprobes can_boost(bundle_t *bundle, uint slot,
 			       unsigned long bundle_addr)
@@ -787,10 +787,10 @@ static int __kprobes pre_kprobes_handler(struct die_args *args)
 			if ((kcb->kprobe_status == KPROBE_HIT_SS) &&
 	 		     (p->ainsn.inst_flag == INST_FLAG_BREAK_INST)) {
 				ia64_psr(regs)->ss = 0;
-				goto no_kprobe;
+				goto yes_kprobe;
 			}
 			/* We have reentered the pre_kprobe_handler(), since
-			 * another probe was hit while within the handler.
+			 * ayesther probe was hit while within the handler.
 			 * We here save the original kprobes variables and
 			 * just single step on the instruction of the new probe
 			 * without calling any user handlers.
@@ -803,14 +803,14 @@ static int __kprobes pre_kprobes_handler(struct die_args *args)
 			return 1;
 		} else if (!is_ia64_break_inst(regs)) {
 			/* The breakpoint instruction was removed by
-			 * another cpu right after we hit, no further
+			 * ayesther cpu right after we hit, yes further
 			 * handling of this interrupt is appropriate
 			 */
 			ret = 1;
-			goto no_kprobe;
+			goto yes_kprobe;
 		} else {
 			/* Not our break */
-			goto no_kprobe;
+			goto yes_kprobe;
 		}
 	}
 
@@ -819,9 +819,9 @@ static int __kprobes pre_kprobes_handler(struct die_args *args)
 		if (!is_ia64_break_inst(regs)) {
 			/*
 			 * The breakpoint instruction was removed right
-			 * after we hit it.  Another cpu has removed
+			 * after we hit it.  Ayesther cpu has removed
 			 * either a probepoint or a debugger breakpoint
-			 * at this address.  In either case, no further
+			 * at this address.  In either case, yes further
 			 * handling of this interrupt is appropriate.
 			 */
 			ret = 1;
@@ -829,7 +829,7 @@ static int __kprobes pre_kprobes_handler(struct die_args *args)
 		}
 
 		/* Not one of our break, let kernel handle it */
-		goto no_kprobe;
+		goto yes_kprobe;
 	}
 
 	set_current_kprobe(p, kcb);
@@ -837,7 +837,7 @@ static int __kprobes pre_kprobes_handler(struct die_args *args)
 
 	if (p->pre_handler && p->pre_handler(p, regs)) {
 		reset_current_kprobe();
-		preempt_enable_no_resched();
+		preempt_enable_yes_resched();
 		return 1;
 	}
 
@@ -850,7 +850,7 @@ static int __kprobes pre_kprobes_handler(struct die_args *args)
 		ia64_psr(regs)->ss = 0;
 
 		reset_current_kprobe();
-		preempt_enable_no_resched();
+		preempt_enable_yes_resched();
 		return 1;
 	}
 #endif
@@ -858,8 +858,8 @@ static int __kprobes pre_kprobes_handler(struct die_args *args)
 	kcb->kprobe_status = KPROBE_HIT_SS;
 	return 1;
 
-no_kprobe:
-	preempt_enable_no_resched();
+yes_kprobe:
+	preempt_enable_yes_resched();
 	return ret;
 }
 
@@ -886,7 +886,7 @@ static int __kprobes post_kprobes_handler(struct pt_regs *regs)
 	reset_current_kprobe();
 
 out:
-	preempt_enable_no_resched();
+	preempt_enable_yes_resched();
 	return 1;
 }
 
@@ -904,7 +904,7 @@ int __kprobes kprobe_fault_handler(struct pt_regs *regs, int trapnr)
 		 * stepped caused a page fault. We reset the current
 		 * kprobe and the instruction pointer points back to
 		 * the probe address and allow the page fault handler
-		 * to continue as a normal page fault.
+		 * to continue as a yesrmal page fault.
 		 */
 		regs->cr_iip = ((unsigned long)cur->addr) & ~0xFULL;
 		ia64_psr(regs)->ri = ((unsigned long)cur->addr) & 0xf;
@@ -912,7 +912,7 @@ int __kprobes kprobe_fault_handler(struct pt_regs *regs, int trapnr)
 			restore_previous_kprobe(kcb);
 		else
 			reset_current_kprobe();
-		preempt_enable_no_resched();
+		preempt_enable_yes_resched();
 		break;
 	case KPROBE_HIT_ACTIVE:
 	case KPROBE_HIT_SSDONE:
@@ -950,7 +950,7 @@ int __kprobes kprobe_fault_handler(struct pt_regs *regs, int trapnr)
 	return 0;
 }
 
-int __kprobes kprobe_exceptions_notify(struct notifier_block *self,
+int __kprobes kprobe_exceptions_yestify(struct yestifier_block *self,
 				       unsigned long val, void *data)
 {
 	struct die_args *args = (struct die_args *)data;

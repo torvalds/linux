@@ -63,7 +63,7 @@ void rtas_get_rtc_time(struct rtc_time *rtc_tm)
 				printk_ratelimited(KERN_WARNING
 						   "error: reading clock "
 						   "would delay interrupt\n");
-				return;	/* delay not allowed */
+				return;	/* delay yest allowed */
 			}
 			msleep(wait_time);
 		}

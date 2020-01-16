@@ -47,10 +47,10 @@ config HOSTAP_FIRMWARE
 	It is available from http://hostap.epitest.fi/.
 
 config HOSTAP_FIRMWARE_NVRAM
-	bool "Support for non-volatile firmware download"
+	bool "Support for yesn-volatile firmware download"
 	depends on HOSTAP_FIRMWARE
 	---help---
-	Allow Host AP driver to write firmware images to the non-volatile
+	Allow Host AP driver to write firmware images to the yesn-volatile
 	card memory, i.e. flash memory that survives power cycling.
 	Enable this option if you want to be able to change card firmware
 	permanently.

@@ -3,7 +3,7 @@
  * xfrm4_policy.c
  *
  * Changes:
- *	Kazunori MIYAZAWA @USAGI
+ *	Kazuyesri MIYAZAWA @USAGI
  * 	YOSHIFUJI Hideaki @USAGI
  *		Split up af-specific portion
  *

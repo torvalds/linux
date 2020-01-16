@@ -87,7 +87,7 @@ do {								\
  * Used to power on/off a bandgap device instance. Only used on those
  * that features tempsoff bit.
  *
- * Return: 0 on success, -ENOTSUPP if tempsoff is not supported.
+ * Return: 0 on success, -ENOTSUPP if tempsoff is yest supported.
  */
 static int ti_bandgap_power(struct ti_bandgap *bgp, bool on)
 {
@@ -156,7 +156,7 @@ static u32 ti_bandgap_read_temp(struct ti_bandgap *bgp, int id)
 	if (TI_BANDGAP_HAS(bgp, FREEZE_BIT)) {
 		RMW_BITS(bgp, id, bgap_mask_ctrl, mask_freeze_mask, 1);
 		/*
-		 * In case we cannot read from cur_dtemp / dtemp_0,
+		 * In case we canyest read from cur_dtemp / dtemp_0,
 		 * then we read from the last valid temp read
 		 */
 		reg = tsr->ctrl_dtemp_1;
@@ -299,8 +299,8 @@ int ti_bandgap_adc_to_mcelsius(struct ti_bandgap *bgp, int adc_val, int *t)
  * Checks if the bandgap pointer is valid and if the sensor id is also
  * applicable.
  *
- * Return: 0 if no errors, -EINVAL for invalid @bgp pointer or -ERANGE if
- * @id cannot index @bgp sensors.
+ * Return: 0 if yes errors, -EINVAL for invalid @bgp pointer or -ERANGE if
+ * @id canyest index @bgp sensors.
  */
 static inline int ti_bandgap_validate(struct ti_bandgap *bgp, int id)
 {
@@ -446,7 +446,7 @@ static int ti_bandgap_write_counter_delay(struct ti_bandgap *bgp, int id,
 		rval = 0x5;
 		break;
 	default:
-		dev_warn(bgp->dev, "Delay %d ms is not supported\n", interval);
+		dev_warn(bgp->dev, "Delay %d ms is yest supported\n", interval);
 		return -EINVAL;
 	}
 
@@ -661,7 +661,7 @@ static int ti_bandgap_set_continuous_mode(struct ti_bandgap *bgp)
  * are read from the buffer and for those without the Buffer -ENOTSUPP is
  * returned.
  *
- * Return: 0 if no error, else return corresponding error. If no
+ * Return: 0 if yes error, else return corresponding error. If yes
  *		error then the trend value is passed on to trend parameter
  */
 int ti_bandgap_get_trend(struct ti_bandgap *bgp, int id, int *trend)
@@ -710,7 +710,7 @@ int ti_bandgap_get_trend(struct ti_bandgap *bgp, int id, int *trend)
 	if (ret)
 		goto unfreeze;
 
-	/* Set the interval to 1 ms if bandgap counter delay is not set */
+	/* Set the interval to 1 ms if bandgap counter delay is yest set */
 	if (interval == 0)
 		interval = 1;
 
@@ -738,7 +738,7 @@ exit:
  * one of the bandgap sensors violates the TSHUT high/hot threshold.
  * And in that case, the system must go off.
  *
- * Return: 0 if no error, else error status
+ * Return: 0 if yes error, else error status
  */
 static int ti_bandgap_tshut_init(struct ti_bandgap *bgp,
 				 struct platform_device *pdev)
@@ -749,12 +749,12 @@ static int ti_bandgap_tshut_init(struct ti_bandgap *bgp,
 	/* Request for gpio_86 line */
 	status = gpio_request(gpio_nr, "tshut");
 	if (status < 0) {
-		dev_err(bgp->dev, "Could not request for TSHUT GPIO:%i\n", 86);
+		dev_err(bgp->dev, "Could yest request for TSHUT GPIO:%i\n", 86);
 		return status;
 	}
 	status = gpio_direction_input(gpio_nr);
 	if (status) {
-		dev_err(bgp->dev, "Cannot set input TSHUT GPIO %d\n", gpio_nr);
+		dev_err(bgp->dev, "Canyest set input TSHUT GPIO %d\n", gpio_nr);
 		return status;
 	}
 
@@ -775,11 +775,11 @@ static int ti_bandgap_tshut_init(struct ti_bandgap *bgp,
  *
  * Call this function only in case the bandgap features HAS(TALERT).
  * In this case, the driver needs to handle the TALERT signals as an IRQs.
- * TALERT is a normal IRQ and it is fired any time thresholds (hot or cold)
+ * TALERT is a yesrmal IRQ and it is fired any time thresholds (hot or cold)
  * are violated. In these situation, the driver must reprogram the thresholds,
  * accordingly to specified policy.
  *
- * Return: 0 if no error, else return corresponding error.
+ * Return: 0 if yes error, else return corresponding error.
  */
 static int ti_bandgap_talert_init(struct ti_bandgap *bgp,
 				  struct platform_device *pdev)
@@ -817,15 +817,15 @@ static const struct of_device_id of_ti_bandgap_match[];
  */
 static struct ti_bandgap *ti_bandgap_build(struct platform_device *pdev)
 {
-	struct device_node *node = pdev->dev.of_node;
+	struct device_yesde *yesde = pdev->dev.of_yesde;
 	const struct of_device_id *of_id;
 	struct ti_bandgap *bgp;
 	struct resource *res;
 	int i;
 
 	/* just for the sake */
-	if (!node) {
-		dev_err(&pdev->dev, "no platform information available\n");
+	if (!yesde) {
+		dev_err(&pdev->dev, "yes platform information available\n");
 		return ERR_PTR(-EINVAL);
 	}
 
@@ -860,7 +860,7 @@ static struct ti_bandgap *ti_bandgap_build(struct platform_device *pdev)
 	} while (res);
 
 	if (TI_BANDGAP_HAS(bgp, TSHUT)) {
-		bgp->tshut_gpio = of_get_gpio(node, 0);
+		bgp->tshut_gpio = of_get_gpio(yesde, 0);
 		if (!gpio_is_valid(bgp->tshut_gpio)) {
 			dev_err(&pdev->dev, "invalid gpio for tshut (%d)\n",
 				bgp->tshut_gpio);
@@ -919,14 +919,14 @@ int ti_bandgap_probe(struct platform_device *pdev)
 
 		tsr = bgp->conf->sensors[i].registers;
 		/*
-		 * check if the efuse has a non-zero value if not
+		 * check if the efuse has a yesn-zero value if yest
 		 * it is an untrimmed sample and the temperatures
-		 * may not be accurate
+		 * may yest be accurate
 		 */
 		val = ti_bandgap_readl(bgp, tsr->bgap_efuse);
 		if (!val)
 			dev_info(&pdev->dev,
-				 "Non-trimmed BGAP, Temp not accurate\n");
+				 "Non-trimmed BGAP, Temp yest accurate\n");
 	}
 
 	clk_rate = clk_round_rate(bgp->div_clk,
@@ -940,7 +940,7 @@ int ti_bandgap_probe(struct platform_device *pdev)
 
 	ret = clk_set_rate(bgp->div_clk, clk_rate);
 	if (ret)
-		dev_err(&pdev->dev, "Cannot re-set clock rate. Continuing\n");
+		dev_err(&pdev->dev, "Canyest re-set clock rate. Continuing\n");
 
 	bgp->clk_rate = clk_rate;
 	if (TI_BANDGAP_HAS(bgp, CLK_CTRL))
@@ -953,7 +953,7 @@ int ti_bandgap_probe(struct platform_device *pdev)
 
 	ti_bandgap_power(bgp, true);
 
-	/* Set default counter to 1 for now */
+	/* Set default counter to 1 for yesw */
 	if (TI_BANDGAP_HAS(bgp, COUNTER))
 		for (i = 0; i < bgp->conf->sensor_count; i++)
 			RMW_BITS(bgp, i, bgap_counter, counter_mask, 1);

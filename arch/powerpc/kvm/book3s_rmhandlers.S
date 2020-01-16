@@ -39,10 +39,10 @@
 #define RFI_TO_KERNEL	RFI
 #define RFI_TO_GUEST	RFI
 
-.macro INTERRUPT_TRAMPOLINE intno
+.macro INTERRUPT_TRAMPOLINE intyes
 
-.global kvmppc_trampoline_\intno
-kvmppc_trampoline_\intno:
+.global kvmppc_trampoline_\intyes
+kvmppc_trampoline_\intyes:
 
 	mtspr	SPRN_SPRG_SCRATCH0, r13		/* Save r13 */
 
@@ -62,7 +62,7 @@ kvmppc_trampoline_\intno:
 2:	mtcr	r12
 	mfspr	r12, SPRN_SPRG_SCRATCH1
 	mfspr	r13, SPRN_SPRG_SCRATCH0		/* r13 = original r13 */
-	b	kvmppc_resume_\intno		/* Get back original handler */
+	b	kvmppc_resume_\intyes		/* Get back original handler */
 
 1:	tophys(r13, r13)
 	stw	r12, HSTATE_SCRATCH1(r13)
@@ -70,20 +70,20 @@ kvmppc_trampoline_\intno:
 	stw	r12, HSTATE_SCRATCH0(r13)
 	lbz	r12, HSTATE_IN_GUEST(r13)
 	cmpwi	r12, KVM_GUEST_MODE_NONE
-	bne	..kvmppc_handler_hasmagic_\intno
+	bne	..kvmppc_handler_hasmagic_\intyes
 	/* No KVM guest? Then jump back to the Linux handler! */
 	lwz	r12, HSTATE_SCRATCH1(r13)
 	b	2b
 
-	/* Now we know we're handling a KVM guest */
-..kvmppc_handler_hasmagic_\intno:
+	/* Now we kyesw we're handling a KVM guest */
+..kvmppc_handler_hasmagic_\intyes:
 
 	/* Should we just skip the faulting instruction? */
 	cmpwi	r12, KVM_GUEST_MODE_SKIP
 	beq	kvmppc_handler_skip_ins
 
 	/* Let's store which interrupt we're handling */
-	li	r12, \intno
+	li	r12, \intyes
 
 	/* Jump into the SLB exit code that goes to the highmem handler */
 	b	kvmppc_handler_trampoline_exit

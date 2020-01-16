@@ -85,7 +85,7 @@ static inline unsigned long kaslr_offset(void)
 
 /*
  * Do NOT EVER look at the BIOS memory size location.
- * It does not work on many machines.
+ * It does yest work on many machines.
  */
 #define LOWMEMSIZE()	(0x9f000)
 
@@ -100,15 +100,15 @@ void *extend_brk(size_t size, size_t align);
  *
  * (This uses a temp function to wrap the asm so we can pass it the
  * size parameter; otherwise we wouldn't be able to.  We can't use a
- * "section" attribute on a normal variable because it always ends up
+ * "section" attribute on a yesrmal variable because it always ends up
  * being @progbits, which ends up allocating space in the vmlinux
  * executable.)
  */
 #define RESERVE_BRK(name,sz)						\
-	static void __section(.discard.text) __used notrace		\
+	static void __section(.discard.text) __used yestrace		\
 	__brk_reservation_fn_##name##__(void) {				\
 		asm volatile (						\
-			".pushsection .brk_reservation,\"aw\",@nobits;" \
+			".pushsection .brk_reservation,\"aw\",@yesbits;" \
 			".brk." #name ":"				\
 			" 1:.skip %c0;"					\
 			" .size .brk." #name ", . - 1b;"		\
@@ -134,7 +134,7 @@ asmlinkage void __init x86_64_start_reservations(char *real_mode_data);
 #endif /* _SETUP */
 #else
 #define RESERVE_BRK(name,sz)				\
-	.pushsection .brk_reservation,"aw",@nobits;	\
+	.pushsection .brk_reservation,"aw",@yesbits;	\
 .brk.name:						\
 1:	.skip sz;					\
 	.size .brk.name,.-1b;				\

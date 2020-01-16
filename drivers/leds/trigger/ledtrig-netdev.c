@@ -29,8 +29,8 @@
  *
  * device_name - network device name to monitor
  * interval - duration of LED blink, in milliseconds
- * link -  LED's normal state reflects whether the link is up
- *         (has carrier) or not
+ * link -  LED's yesrmal state reflects whether the link is up
+ *         (has carrier) or yest
  * tx -  LED blinks on transmitted data
  * rx -  LED blinks on receive data
  *
@@ -40,7 +40,7 @@ struct led_netdev_data {
 	spinlock_t lock;
 
 	struct delayed_work work;
-	struct notifier_block notifier;
+	struct yestifier_block yestifier;
 
 	struct led_classdev *led_cdev;
 	struct net_device *net_dev;
@@ -293,13 +293,13 @@ static struct attribute *netdev_trig_attrs[] = {
 };
 ATTRIBUTE_GROUPS(netdev_trig);
 
-static int netdev_trig_notify(struct notifier_block *nb,
+static int netdev_trig_yestify(struct yestifier_block *nb,
 			      unsigned long evt, void *dv)
 {
 	struct net_device *dev =
-		netdev_notifier_info_to_dev((struct netdev_notifier_info *)dv);
+		netdev_yestifier_info_to_dev((struct netdev_yestifier_info *)dv);
 	struct led_netdev_data *trigger_data =
-		container_of(nb, struct led_netdev_data, notifier);
+		container_of(nb, struct led_netdev_data, yestifier);
 
 	if (evt != NETDEV_UP && evt != NETDEV_DOWN && evt != NETDEV_CHANGE
 	    && evt != NETDEV_REGISTER && evt != NETDEV_UNREGISTER
@@ -359,7 +359,7 @@ static void netdev_trig_work(struct work_struct *work)
 		return;
 	}
 
-	/* If we are not looking for RX/TX then return  */
+	/* If we are yest looking for RX/TX then return  */
 	if (!test_bit(NETDEV_LED_TX, &trigger_data->mode) &&
 	    !test_bit(NETDEV_LED_RX, &trigger_data->mode))
 		return;
@@ -400,8 +400,8 @@ static int netdev_trig_activate(struct led_classdev *led_cdev)
 
 	spin_lock_init(&trigger_data->lock);
 
-	trigger_data->notifier.notifier_call = netdev_trig_notify;
-	trigger_data->notifier.priority = 10;
+	trigger_data->yestifier.yestifier_call = netdev_trig_yestify;
+	trigger_data->yestifier.priority = 10;
 
 	INIT_DELAYED_WORK(&trigger_data->work, netdev_trig_work);
 
@@ -415,7 +415,7 @@ static int netdev_trig_activate(struct led_classdev *led_cdev)
 
 	led_set_trigger_data(led_cdev, trigger_data);
 
-	rc = register_netdevice_notifier(&trigger_data->notifier);
+	rc = register_netdevice_yestifier(&trigger_data->yestifier);
 	if (rc)
 		kfree(trigger_data);
 
@@ -426,7 +426,7 @@ static void netdev_trig_deactivate(struct led_classdev *led_cdev)
 {
 	struct led_netdev_data *trigger_data = led_get_trigger_data(led_cdev);
 
-	unregister_netdevice_notifier(&trigger_data->notifier);
+	unregister_netdevice_yestifier(&trigger_data->yestifier);
 
 	cancel_delayed_work_sync(&trigger_data->work);
 

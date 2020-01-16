@@ -43,7 +43,7 @@ typedef struct {
 
 /* command structure */
 typedef struct {
-    u32     BoardNode;                      /* board node (always 0) */
+    u32     BoardNode;                      /* board yesde (always 0) */
     u32     CommandIndex;                   /* command number */
     u16      OpCode;                         /* the command (READ,..) */
     union {
@@ -82,8 +82,8 @@ typedef struct {
         struct {
             u16      reserved;
             u32     direction;              /* data direction */
-            u32     mdisc_time;             /* disc. time (0: no timeout)*/
-            u32     mcon_time;              /* connect time(0: no to.) */
+            u32     mdisc_time;             /* disc. time (0: yes timeout)*/
+            u32     mcon_time;              /* connect time(0: yes to.) */
             u32     sdata;                  /* dest. addr. (if s/g: -1) */
             u32     sdlen;                  /* data length (bytes) */
             u32     clen;                   /* SCSI cmd. length(6,10,12) */
@@ -94,15 +94,15 @@ typedef struct {
             u8      priority;               /* only 0 used */
             u32     sense_len;              /* sense data length */
             u32     sense_data;             /* sense data addr. */
-            u32     link_p;                 /* linked cmds (not supp.) */
+            u32     link_p;                 /* linked cmds (yest supp.) */
             u32     sg_ranz;                /* s/g element count */
             gdth_sg_str sg_lst[GDTH_MAXSG];     /* s/g list */
         } __attribute__((packed)) raw;                           /* raw service cmd. struct. */
         struct {
             u16      reserved;
             u32     direction;              /* data direction */
-            u32     mdisc_time;             /* disc. time (0: no timeout)*/
-            u32     mcon_time;              /* connect time(0: no to.) */
+            u32     mdisc_time;             /* disc. time (0: yes timeout)*/
+            u32     mcon_time;              /* connect time(0: yes to.) */
             u64     sdata;                  /* dest. addr. (if s/g: -1) */
             u32     sdlen;                  /* data length (bytes) */
             u32     clen;                   /* SCSI cmd. length(6,..,16) */
@@ -135,19 +135,19 @@ typedef struct {
     union {
         char                stream[16];
         struct {
-            u16          ionode;
+            u16          ioyesde;
             u16          service;
             u32         index;
         } __attribute__((packed)) driver;
         struct {
-            u16          ionode;
+            u16          ioyesde;
             u16          service;
             u16          status;
             u32         info;
             u8          scsi_coord[3];
         } __attribute__((packed)) async;
         struct {
-            u16          ionode;
+            u16          ioyesde;
             u16          service;
             u16          status;
             u32         info;
@@ -176,7 +176,7 @@ typedef struct {
 
 /* GDTIOCTL_GENERAL */
 typedef struct {
-    u16 ionode;                              /* controller number */
+    u16 ioyesde;                              /* controller number */
     u16 timeout;                             /* timeout */
     u32 info;                               /* error info */ 
     u16 status;                              /* status */
@@ -187,7 +187,7 @@ typedef struct {
 
 /* GDTIOCTL_LOCKDRV */
 typedef struct {
-    u16 ionode;                              /* controller number */
+    u16 ioyesde;                              /* controller number */
     u8 lock;                                /* lock/unlock */
     u8 drive_cnt;                           /* drive count */
     u16 drives[MAX_HDRIVES];                 /* drives */
@@ -195,7 +195,7 @@ typedef struct {
 
 /* GDTIOCTL_LOCKCHN */
 typedef struct {
-    u16 ionode;                              /* controller number */
+    u16 ioyesde;                              /* controller number */
     u8 lock;                                /* lock/unlock */
     u8 channel;                             /* channel */
 } gdth_ioctl_lockchn;
@@ -209,12 +209,12 @@ typedef struct {
 
 /* GDTIOCTL_CTRTYPE */
 typedef struct {
-    u16 ionode;                              /* controller number */
+    u16 ioyesde;                              /* controller number */
     u8 type;                                /* controller type */
     u16 info;                                /* slot etc. */
     u16 oem_id;                              /* OEM ID */
-    u16 bios_ver;                            /* not used */
-    u16 access;                              /* not used */
+    u16 bios_ver;                            /* yest used */
+    u16 access;                              /* yest used */
     u16 ext_type;                            /* extended type */
     u16 device_id;                           /* device ID */
     u16 sub_device_id;                       /* sub device ID */
@@ -222,7 +222,7 @@ typedef struct {
 
 /* GDTIOCTL_EVENT */
 typedef struct {
-    u16 ionode;
+    u16 ioyesde;
     int erase;                                  /* erase event? */
     int handle;                                 /* event handle */
     gdth_evt_str event;
@@ -230,9 +230,9 @@ typedef struct {
 
 /* GDTIOCTL_RESCAN/GDTIOCTL_HDRLIST */
 typedef struct {
-    u16 ionode;                              /* controller number */
+    u16 ioyesde;                              /* controller number */
     u8 flag;                                /* add/remove */
-    u16 hdr_no;                              /* drive no. */
+    u16 hdr_yes;                              /* drive yes. */
     struct {
         u8 bus;                             /* SCSI bus */
         u8 target;                          /* target ID */
@@ -243,7 +243,7 @@ typedef struct {
 
 /* GDTIOCTL_RESET_BUS/GDTIOCTL_RESET_DRV */
 typedef struct {
-    u16 ionode;                              /* controller number */
+    u16 ioyesde;                              /* controller number */
     u16 number;                              /* bus/host drive number */
     u16 status;                              /* status */
 } gdth_ioctl_reset;

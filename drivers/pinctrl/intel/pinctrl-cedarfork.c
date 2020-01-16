@@ -29,7 +29,7 @@
 
 #define CDF_COMMUNITY(b, s, e, g)			\
 	{						\
-		.barno = (b),				\
+		.baryes = (b),				\
 		.padown_offset = CDF_PAD_OWN,		\
 		.padcfglock_offset = CDF_PADCFGLOCK,	\
 		.hostown_offset = CDF_HOSTSW_OWN,	\

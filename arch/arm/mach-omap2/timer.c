@@ -11,8 +11,8 @@
  *
  * Original driver:
  * Copyright (C) 2005 Nokia Corporation
- * Author: Paul Mundt <paul.mundt@nokia.com>
- *         Juha Yrjölä <juha.yrjola@nokia.com>
+ * Author: Paul Mundt <paul.mundt@yeskia.com>
+ *         Juha Yrjölä <juha.yrjola@yeskia.com>
  * OMAP Dual-mode timer framework support by Timo Teras
  *
  * Some parts based off of TI's 24xx code:
@@ -169,7 +169,7 @@ static const struct of_device_id omap_timer_match[] __initconst = {
 	{ }
 };
 
-static int omap_timer_add_disabled_property(struct device_node *np)
+static int omap_timer_add_disabled_property(struct device_yesde *np)
 {
 	struct property *prop;
 
@@ -184,7 +184,7 @@ static int omap_timer_add_disabled_property(struct device_node *np)
 	return of_add_property(np, prop);
 }
 
-static int omap_timer_update_dt(struct device_node *np)
+static int omap_timer_update_dt(struct device_yesde *np)
 {
 	int error = 0;
 
@@ -214,16 +214,16 @@ static int omap_timer_update_dt(struct device_node *np)
  * Helper function to get a timer during early boot using device-tree for use
  * as kernel system timer. Optionally, the property argument can be used to
  * select a timer with a specific property. Once a timer is found then mark
- * the timer node in device-tree as disabled, to prevent the kernel from
- * registering this timer as a platform device and so no one else can use it.
+ * the timer yesde in device-tree as disabled, to prevent the kernel from
+ * registering this timer as a platform device and so yes one else can use it.
  */
-static struct device_node * __init omap_get_timer_dt(const struct of_device_id *match,
+static struct device_yesde * __init omap_get_timer_dt(const struct of_device_id *match,
 						     const char *property)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 	int error;
 
-	for_each_matching_node(np, match) {
+	for_each_matching_yesde(np, match) {
 		if (!of_device_is_available(np))
 			continue;
 
@@ -237,7 +237,7 @@ static struct device_node * __init omap_get_timer_dt(const struct of_device_id *
 			continue;
 
 		error = omap_timer_update_dt(np);
-		WARN(error, "%s: Could not update dt: %i\n", __func__, error);
+		WARN(error, "%s: Could yest update dt: %i\n", __func__, error);
 
 		return np;
 	}
@@ -249,21 +249,21 @@ static struct device_node * __init omap_get_timer_dt(const struct of_device_id *
  * omap_dmtimer_init - initialisation function when device tree is used
  *
  * For secure OMAP3/DRA7xx devices, timers with device type "timer-secure"
- * cannot be used by the kernel as they are reserved. Therefore, to prevent the
+ * canyest be used by the kernel as they are reserved. Therefore, to prevent the
  * kernel registering these devices remove them dynamically from the device
  * tree on boot.
  */
 static void __init omap_dmtimer_init(void)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 
 	if (!cpu_is_omap34xx() && !soc_is_dra7xx())
 		return;
 
-	/* If we are a secure device, remove any secure timer nodes */
+	/* If we are a secure device, remove any secure timer yesdes */
 	if ((omap_type() != OMAP2_DEVICE_TYPE_GP)) {
 		np = omap_get_timer_dt(omap_timer_match, "ti,timer-secure");
-		of_node_put(np);
+		of_yesde_put(np);
 	}
 }
 
@@ -287,7 +287,7 @@ static int __init omap_dm_timer_init_one(struct omap_dm_timer *timer,
 					 int posted)
 {
 	const char *oh_name = NULL;
-	struct device_node *np;
+	struct device_yesde *np;
 	struct omap_hwmod *oh;
 	struct clk *src;
 	int r = 0;
@@ -312,7 +312,7 @@ static int __init omap_dm_timer_init_one(struct omap_dm_timer *timer,
 
 	timer->fclk = of_clk_get_by_name(np, "fck");
 
-	of_node_put(np);
+	of_yesde_put(np);
 
 	oh = omap_hwmod_lookup(oh_name);
 	if (!oh)
@@ -336,7 +336,7 @@ static int __init omap_dm_timer_init_one(struct omap_dm_timer *timer,
 		return PTR_ERR(src);
 
 	WARN(clk_set_parent(timer->fclk, src) < 0,
-	     "Cannot set timer parent clock, no PLL clock driver?");
+	     "Canyest set timer parent clock, yes PLL clock driver?");
 
 	clk_put(src);
 
@@ -373,8 +373,8 @@ static void __init omap2_gp_clockevent_init(int gptimer_id,
 
 	/*
 	 * For clock-event timers we never read the timer counter and
-	 * so we are not impacted by errata i103 and i767. Therefore,
-	 * we can safely ignore this errata for clock-event timers.
+	 * so we are yest impacted by errata i103 and i767. Therefore,
+	 * we can safely igyesre this errata for clock-event timers.
 	 */
 	__omap_dm_timer_override_errata(&clkev, OMAP_TIMER_ERRATA_I103_I767);
 
@@ -425,7 +425,7 @@ static struct clocksource clocksource_gpt = {
 	.flags		= CLOCK_SOURCE_IS_CONTINUOUS,
 };
 
-static u64 notrace dmtimer_read_sched_clock(void)
+static u64 yestrace dmtimer_read_sched_clock(void)
 {
 	if (clksrc.reserved)
 		return __omap_dm_timer_read_counter(&clksrc,
@@ -443,7 +443,7 @@ static const struct of_device_id omap_counter_match[] __initconst = {
 static int __init __maybe_unused omap2_sync32k_clocksource_init(void)
 {
 	int ret;
-	struct device_node *np = NULL;
+	struct device_yesde *np = NULL;
 	struct omap_hwmod *oh;
 	const char *oh_name = "counter_32k";
 
@@ -529,7 +529,7 @@ static void __init omap2_gptimer_clocksource_init(int gptimer_id,
 	sched_clock_register(dmtimer_read_sched_clock, 32, clksrc.rate);
 
 	if (clocksource_register_hz(&clocksource_gpt, clksrc.rate))
-		pr_err("Could not register clocksource %s\n",
+		pr_err("Could yest register clocksource %s\n",
 			clocksource_gpt.name);
 	else
 		pr_info("OMAP clocksource: %s at %lu Hz\n",
@@ -632,10 +632,10 @@ static void __init realtime_counter_init(void)
 
 	if (soc_is_dra7xx()) {
 		/*
-		 * Errata i856 says the 32.768KHz crystal does not start at
+		 * Errata i856 says the 32.768KHz crystal does yest start at
 		 * power on, so the CPU falls back to an emulated 32KHz clock
 		 * based on sysclk / 610 instead. This causes the master counter
-		 * frequency to not be 6.144MHz but at sysclk / 610 * 375 / 2
+		 * frequency to yest be 6.144MHz but at sysclk / 610 * 375 / 2
 		 * (OR sysclk * 75 / 244)
 		 *
 		 * This affects at least the DRA7/AM572x 1.0, 1.1 revisions.
@@ -644,7 +644,7 @@ static void __init realtime_counter_init(void)
 		 * later.
 		 *
 		 * Either case can be detected by using the two speedselect bits
-		 * If they are not 0, then the 32.768KHz clock driving the
+		 * If they are yest 0, then the 32.768KHz clock driving the
 		 * coarse counter that corrects the fine counter every time it
 		 * ticks is actually rate/610 rather than 32.768KHz and we
 		 * should compensate to avoid the 570ppm (at 20MHz, much worse
@@ -727,7 +727,7 @@ void __init omap5_realtime_timer_init(void)
  *   clocksource="gp_timer"	(For all OMAP2PLUS architectures)
  *
  * Note that, here we are using same standard kernel parameter "clocksource=",
- * and not introducing any OMAP specific interface.
+ * and yest introducing any OMAP specific interface.
  */
 static int __init omap2_override_clocksource(char *str)
 {

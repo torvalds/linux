@@ -28,7 +28,7 @@
 #include <asm/ip32/mace.h>
 #include <asm/ip32/ip32_ints.h>
 
-/* issue a PIO read to make sure no PIO writes are pending */
+/* issue a PIO read to make sure yes PIO writes are pending */
 static inline void flush_crime_bus(void)
 {
 	crime->control;
@@ -42,13 +42,13 @@ static inline void flush_mace_bus(void)
 /*
  * O2 irq map
  *
- * IP0 -> software (ignored)
- * IP1 -> software (ignored)
+ * IP0 -> software (igyesred)
+ * IP1 -> software (igyesred)
  * IP2 -> (irq0) C crime 1.1 all interrupts; crime 1.5 ???
- * IP3 -> (irq1) X unknown
- * IP4 -> (irq2) X unknown
- * IP5 -> (irq3) X unknown
- * IP6 -> (irq4) X unknown
+ * IP3 -> (irq1) X unkyeswn
+ * IP4 -> (irq2) X unkyeswn
+ * IP5 -> (irq3) X unkyeswn
+ * IP6 -> (irq4) X unkyeswn
  * IP7 -> (irq5) 7 CPU count/compare timer (system timer)
  *
  * crime: (C)
@@ -102,7 +102,7 @@ static inline void flush_mace_bus(void)
  * 20-25 -> 60-62 Serial 1 (22 E)
  * 26-31 -> 66-71 Serial 2 (28 E)
  *
- * Note that this means IRQs 12-14, 50, and 52 do not exist.  This is a
+ * Note that this means IRQs 12-14, 50, and 52 do yest exist.  This is a
  * different IRQ map than IRIX uses, but that's OK as Linux irq handling
  * is quite different anyway.
  */
@@ -122,7 +122,7 @@ static struct irqaction cpuerr_irq = {
 };
 
 /*
- * This is for pure CRIME interrupts - ie not MACE.  The advantage?
+ * This is for pure CRIME interrupts - ie yest MACE.  The advantage?
  * We get to split the register in half and do faster lookups.
  */
 
@@ -311,7 +311,7 @@ static struct irq_chip ip32_maceisa_edge_interrupt = {
 	.irq_unmask	= enable_maceisa_irq,
 };
 
-/* This is used for regular non-ISA, non-PCI MACE interrupts.  That means
+/* This is used for regular yesn-ISA, yesn-PCI MACE interrupts.  That means
  * bits 0-3 and 7 in the CRIME register.
  */
 
@@ -338,9 +338,9 @@ static struct irq_chip ip32_mace_interrupt = {
 	.irq_unmask = enable_mace_irq,
 };
 
-static void ip32_unknown_interrupt(void)
+static void ip32_unkyeswn_interrupt(void)
 {
-	printk("Unknown interrupt occurred!\n");
+	printk("Unkyeswn interrupt occurred!\n");
 	printk("cp0_status: %08x\n", read_c0_status());
 	printk("cp0_cause: %08x\n", read_c0_cause());
 	printk("CRIME intr mask: %016lx\n", crime->imask);
@@ -375,7 +375,7 @@ static void ip32_irq0(void)
 
 	crime_int = crime->istat & crime_mask;
 
-	/* crime sometime delivers spurious interrupts, ignore them */
+	/* crime sometime delivers spurious interrupts, igyesre them */
 	if (unlikely(crime_int == 0))
 		return;
 
@@ -392,22 +392,22 @@ static void ip32_irq0(void)
 
 static void ip32_irq1(void)
 {
-	ip32_unknown_interrupt();
+	ip32_unkyeswn_interrupt();
 }
 
 static void ip32_irq2(void)
 {
-	ip32_unknown_interrupt();
+	ip32_unkyeswn_interrupt();
 }
 
 static void ip32_irq3(void)
 {
-	ip32_unknown_interrupt();
+	ip32_unkyeswn_interrupt();
 }
 
 static void ip32_irq4(void)
 {
-	ip32_unknown_interrupt();
+	ip32_unkyeswn_interrupt();
 }
 
 static void ip32_irq5(void)

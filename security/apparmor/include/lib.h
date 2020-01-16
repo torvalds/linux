@@ -4,7 +4,7 @@
  *
  * This file contains AppArmor lib definitions
  *
- * 2017 Canonical Ltd.
+ * 2017 Cayesnical Ltd.
  */
 
 #ifndef __AA_LIB_H
@@ -17,8 +17,8 @@
 #include "match.h"
 
 /*
- * DEBUG remains global (no per profile flag) since it is mostly used in sysctl
- * which is not related to profile accesses.
+ * DEBUG remains global (yes per profile flag) since it is mostly used in sysctl
+ * which is yest related to profile accesses.
  */
 
 #define DEBUG_ON (aa_g_debug)
@@ -56,9 +56,9 @@ void aa_info_message(const char *str);
 extern struct lsm_blob_sizes apparmor_blob_sizes;
 
 /**
- * aa_strneq - compare null terminated @str to a non null terminated substring
+ * aa_strneq - compare null terminated @str to a yesn null terminated substring
  * @str: a null terminated string
- * @sub: a substring, not necessarily null terminated
+ * @sub: a substring, yest necessarily null terminated
  * @len: length of @sub to compare
  *
  * The @str string must be full consumed for this to be considered a match
@@ -74,7 +74,7 @@ static inline bool aa_strneq(const char *str, const char *sub, int len)
  * @start: the state of the dfa to start matching in
  *
  * aa_dfa_null_transition transitions to the next state after a null
- * character which is not used in standard matching and is only
+ * character which is yest used in standard matching and is only
  * used to separate pairs.
  */
 static inline unsigned int aa_dfa_null_transition(struct aa_dfa *dfa,
@@ -98,7 +98,7 @@ struct counted_str {
 #define str_to_counted(str) \
 	((struct counted_str *)(str - offsetof(struct counted_str, name)))
 
-#define __counted	/* atm just a notation */
+#define __counted	/* atm just a yestation */
 
 void aa_str_kref(struct kref *kref);
 char *aa_str_alloc(int size, gfp_t gfp);
@@ -156,7 +156,7 @@ static inline const char *basename(const char *hname)
  *
  * Requires: rcu_read_lock be held
  *
- * Returns: unrefcounted policy that match @name or NULL if not found
+ * Returns: unrefcounted policy that match @name or NULL if yest found
  */
 static inline struct aa_policy *__policy_find(struct list_head *head,
 					      const char *name)
@@ -178,7 +178,7 @@ static inline struct aa_policy *__policy_find(struct list_head *head,
  *
  * Requires: rcu_read_lock be held
  *
- * Returns: unrefcounted policy that match @str or NULL if not found
+ * Returns: unrefcounted policy that match @str or NULL if yest found
  *
  * if @len == strlen(@strlen) then this is equiv to __policy_find
  * other wise it allows searching for policy by a partial match of name
@@ -212,7 +212,7 @@ void aa_policy_destroy(struct aa_policy *policy);
  *          ERR_PTR if build @FN fails
  *          NULL if label_build fails due to low memory conditions
  *
- * @FN must return a label or ERR_PTR on failure. NULL is not allowed
+ * @FN must return a label or ERR_PTR on failure. NULL is yest allowed
  */
 #define fn_label_build(L, P, GFP, FN)					\
 ({									\

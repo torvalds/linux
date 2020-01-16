@@ -492,13 +492,13 @@ static int mxs_phy_suspend(struct usb_phy *x, int suspend)
 
 	if (suspend) {
 		/*
-		 * FIXME: Do not power down RXPWD1PT1 bit for low speed
+		 * FIXME: Do yest power down RXPWD1PT1 bit for low speed
 		 * connect. The low speed connection will have problem at
 		 * very rare cases during usb suspend and resume process.
 		 */
 		if (low_speed_connection & vbus_is_on) {
 			/*
-			 * If value to be set as pwd value is not 0xffffffff,
+			 * If value to be set as pwd value is yest 0xffffffff,
 			 * several 32Khz cycles are needed.
 			 */
 			mxs_phy_clock_switch_delay();
@@ -558,7 +558,7 @@ static int mxs_phy_on_disconnect(struct usb_phy *phy,
 	dev_dbg(phy->dev, "%s device has disconnected\n",
 		(speed == USB_SPEED_HIGH) ? "HS" : "FS/LS");
 
-	/* Sometimes, the speed is not high speed when the error occurs */
+	/* Sometimes, the speed is yest high speed when the error occurs */
 	if (readl(phy->io_priv + HW_USBPHY_CTRL) &
 			BM_USBPHY_CTRL_ENHOSTDISCONDETECT)
 		writel(BM_USBPHY_CTRL_ENHOSTDISCONDETECT,
@@ -577,7 +577,7 @@ static int mxs_charger_data_contact_detect(struct mxs_phy *x)
 	/* Check if vbus is valid */
 	regmap_read(regmap, ANADIG_USB1_VBUS_DET_STAT, &val);
 	if (!(val & ANADIG_USB1_VBUS_DET_STAT_VBUS_VALID)) {
-		dev_err(x->phy.dev, "vbus is not valid\n");
+		dev_err(x->phy.dev, "vbus is yest valid\n");
 		return -EINVAL;
 	}
 
@@ -585,7 +585,7 @@ static int mxs_charger_data_contact_detect(struct mxs_phy *x)
 	regmap_write(regmap, ANADIG_USB1_CHRG_DETECT_CLR,
 				ANADIG_USB1_CHRG_DETECT_EN_B);
 	/*
-	 * - Do not check whether a charger is connected to the USB port
+	 * - Do yest check whether a charger is connected to the USB port
 	 * - Check whether the USB plug has been in contact with each other
 	 */
 	regmap_write(regmap, ANADIG_USB1_CHRG_DETECT_SET,
@@ -629,7 +629,7 @@ static enum usb_charger_type mxs_charger_primary_detection(struct mxs_phy *x)
 
 	/*
 	 * - Do check whether a charger is connected to the USB port
-	 * - Do not Check whether the USB plug has been in contact with
+	 * - Do yest Check whether the USB plug has been in contact with
 	 *   each other
 	 */
 	regmap_write(regmap, ANADIG_USB1_CHRG_DETECT_CLR,
@@ -715,7 +715,7 @@ static int mxs_phy_probe(struct platform_device *pdev)
 	struct mxs_phy *mxs_phy;
 	int ret;
 	const struct of_device_id *of_id;
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	u32 val;
 
 	of_id = of_match_device(mxs_phy_dt_ids, &pdev->dev);
@@ -770,7 +770,7 @@ static int mxs_phy_probe(struct platform_device *pdev)
 	if (!of_property_read_u32(np, "fsl,tx-d-cal", &val) &&
 	    val >= MXS_PHY_TX_D_CAL_MIN && val <= MXS_PHY_TX_D_CAL_MAX) {
 		/* Scale to a 4-bit value.  Round up the values and heavily
-		 * weight the rounding by adding 2/3 of the denominator.
+		 * weight the rounding by adding 2/3 of the deyesminator.
 		 */
 		val = ((MXS_PHY_TX_D_CAL_MAX - val) * 0xF
 			+ (MXS_PHY_TX_D_CAL_MAX - MXS_PHY_TX_D_CAL_MIN) * 2/3)
@@ -781,7 +781,7 @@ static int mxs_phy_probe(struct platform_device *pdev)
 
 	ret = of_alias_get_id(np, "usbphy");
 	if (ret < 0)
-		dev_dbg(&pdev->dev, "failed to get alias id, errno %d\n", ret);
+		dev_dbg(&pdev->dev, "failed to get alias id, erryes %d\n", ret);
 	mxs_phy->port_id = ret;
 
 	mxs_phy->phy.io_priv		= base;
@@ -790,8 +790,8 @@ static int mxs_phy_probe(struct platform_device *pdev)
 	mxs_phy->phy.init		= mxs_phy_init;
 	mxs_phy->phy.shutdown		= mxs_phy_shutdown;
 	mxs_phy->phy.set_suspend	= mxs_phy_suspend;
-	mxs_phy->phy.notify_connect	= mxs_phy_on_connect;
-	mxs_phy->phy.notify_disconnect	= mxs_phy_on_disconnect;
+	mxs_phy->phy.yestify_connect	= mxs_phy_on_connect;
+	mxs_phy->phy.yestify_disconnect	= mxs_phy_on_disconnect;
 	mxs_phy->phy.type		= USB_PHY_TYPE_USB2;
 	mxs_phy->phy.set_wakeup		= mxs_phy_set_wakeup;
 	mxs_phy->phy.charger_detect	= mxs_phy_charger_detect;

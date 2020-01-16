@@ -5,7 +5,7 @@
  * Copyright (C) 2009-2010 Nokia Corporation
  * Paul Walmsley, Kevin Hilman
  *
- * Developed in collaboration with (alphabetical order): Benoit
+ * Developed in collaboration with (alphabetical order): Beyesit
  * Cousson, Thara Gopinath, Tony Lindgren, Rajendra Nayak, Vikram
  * Pandita, Sakari Poussa, Anand Sawant, Santosh Shilimkar, Richard
  * Woodruff
@@ -15,7 +15,7 @@
  * devices.
  *
  * In the medium- to long-term, this code should be implemented as a
- * proper omap_bus/omap_device in Linux, no more platform_data func
+ * proper omap_bus/omap_device in Linux, yes more platform_data func
  * pointers
  */
 #undef DEBUG
@@ -32,7 +32,7 @@
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 
 #include "common.h"
 #include "soc.h"
@@ -65,7 +65,7 @@ static void _add_clkdev(struct omap_device *od, const char *clk_alias,
 	if (IS_ERR(r)) {
 		struct of_phandle_args clkspec;
 
-		clkspec.np = of_find_node_by_name(NULL, clk_name);
+		clkspec.np = of_find_yesde_by_name(NULL, clk_name);
 
 		r = of_clk_get_from_provider(&clkspec);
 
@@ -94,7 +94,7 @@ static void _add_clkdev(struct omap_device *od, const char *clk_alias,
  *
  * For the main clock and every optional clock present per hwmod per
  * omap_device, this function adds an entry in the clkdev table of the
- * form <dev-id=dev_name, con-id=role> if it does not exist already.
+ * form <dev-id=dev_name, con-id=role> if it does yest exist already.
  *
  * The function is called from inside omap_device_build_ss(), after
  * omap_device_register.
@@ -130,27 +130,27 @@ static int omap_device_build_from_dt(struct platform_device *pdev)
 	struct omap_hwmod **hwmods;
 	struct omap_device *od;
 	struct omap_hwmod *oh;
-	struct device_node *node = pdev->dev.of_node;
+	struct device_yesde *yesde = pdev->dev.of_yesde;
 	struct resource res;
 	const char *oh_name;
 	int oh_cnt, i, ret = 0;
 	bool device_active = false, skip_pm_domain = false;
 
-	oh_cnt = of_property_count_strings(node, "ti,hwmods");
+	oh_cnt = of_property_count_strings(yesde, "ti,hwmods");
 	if (oh_cnt <= 0) {
 		dev_dbg(&pdev->dev, "No 'hwmods' to build omap_device\n");
 		return -ENODEV;
 	}
 
 	/* SDMA still needs special handling for omap_device_build() */
-	ret = of_property_read_string_index(node, "ti,hwmods", 0, &oh_name);
+	ret = of_property_read_string_index(yesde, "ti,hwmods", 0, &oh_name);
 	if (!ret && (!strncmp("dma_system", oh_name, 10) ||
 		     !strncmp("dma", oh_name, 3)))
 		skip_pm_domain = true;
 
 	/* Use ti-sysc driver instead of omap_device? */
 	if (!skip_pm_domain &&
-	    !omap_hwmod_parse_module_range(NULL, node, &res))
+	    !omap_hwmod_parse_module_range(NULL, yesde, &res))
 		return -ENODEV;
 
 	hwmods = kcalloc(oh_cnt, sizeof(struct omap_hwmod *), GFP_KERNEL);
@@ -160,10 +160,10 @@ static int omap_device_build_from_dt(struct platform_device *pdev)
 	}
 
 	for (i = 0; i < oh_cnt; i++) {
-		of_property_read_string_index(node, "ti,hwmods", i, &oh_name);
+		of_property_read_string_index(yesde, "ti,hwmods", i, &oh_name);
 		oh = omap_hwmod_lookup(oh_name);
 		if (!oh) {
-			dev_err(&pdev->dev, "Cannot lookup hwmod '%s'\n",
+			dev_err(&pdev->dev, "Canyest lookup hwmod '%s'\n",
 				oh_name);
 			ret = -EINVAL;
 			goto odbfd_exit1;
@@ -175,7 +175,7 @@ static int omap_device_build_from_dt(struct platform_device *pdev)
 
 	od = omap_device_alloc(pdev, hwmods, oh_cnt);
 	if (IS_ERR(od)) {
-		dev_err(&pdev->dev, "Cannot allocate omap_device for :%s\n",
+		dev_err(&pdev->dev, "Canyest allocate omap_device for :%s\n",
 			oh_name);
 		ret = PTR_ERR(od);
 		goto odbfd_exit1;
@@ -207,7 +207,7 @@ odbfd_exit:
 	return ret;
 }
 
-static int _omap_device_notifier_call(struct notifier_block *nb,
+static int _omap_device_yestifier_call(struct yestifier_block *nb,
 				      unsigned long event, void *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
@@ -237,7 +237,7 @@ static int _omap_device_notifier_call(struct notifier_block *nb,
 		}
 		break;
 	case BUS_NOTIFY_ADD_DEVICE:
-		if (pdev->dev.of_node)
+		if (pdev->dev.of_yesde)
 			omap_device_build_from_dt(pdev);
 		omap_auxdata_legacy_init(dev);
 		/* fall through */
@@ -380,15 +380,15 @@ void omap_device_delete(struct omap_device *od)
  *
  * We still have legacy DMA and smartreflex needing resources.
  * Let's populate what they need until we can eventually just
- * remove this function. Note that there should be no need to
- * call this from omap_device_build_from_dt(), nor should there
+ * remove this function. Note that there should be yes need to
+ * call this from omap_device_build_from_dt(), yesr should there
  * be any need to call it for other devices.
  */
 static int
 omap_device_copy_resources(struct omap_hwmod *oh,
 			   struct platform_device *pdev)
 {
-	struct device_node *np, *child;
+	struct device_yesde *np, *child;
 	struct property *prop;
 	struct resource *res;
 	const char *name;
@@ -397,7 +397,7 @@ omap_device_copy_resources(struct omap_hwmod *oh,
 	if (!oh || !oh->od || !oh->od->pdev)
 		return -EINVAL;
 
-	np = oh->od->pdev->dev.of_node;
+	np = oh->od->pdev->dev.of_yesde;
 	if (!np) {
 		error = -ENODEV;
 		goto error;
@@ -585,17 +585,17 @@ static int _od_fail_runtime_resume(struct device *dev)
 #endif
 
 #ifdef CONFIG_SUSPEND
-static int _od_suspend_noirq(struct device *dev)
+static int _od_suspend_yesirq(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct omap_device *od = to_omap_device(pdev);
 	int ret;
 
-	/* Don't attempt late suspend on a driver that is not bound */
+	/* Don't attempt late suspend on a driver that is yest bound */
 	if (od->_driver_status != BUS_NOTIFY_BOUND_DRIVER)
 		return 0;
 
-	ret = pm_generic_suspend_noirq(dev);
+	ret = pm_generic_suspend_yesirq(dev);
 
 	if (!ret && !pm_runtime_status_suspended(dev)) {
 		if (pm_generic_runtime_suspend(dev) == 0) {
@@ -607,7 +607,7 @@ static int _od_suspend_noirq(struct device *dev)
 	return ret;
 }
 
-static int _od_resume_noirq(struct device *dev)
+static int _od_resume_yesirq(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct omap_device *od = to_omap_device(pdev);
@@ -618,11 +618,11 @@ static int _od_resume_noirq(struct device *dev)
 		pm_generic_runtime_resume(dev);
 	}
 
-	return pm_generic_resume_noirq(dev);
+	return pm_generic_resume_yesirq(dev);
 }
 #else
-#define _od_suspend_noirq NULL
-#define _od_resume_noirq NULL
+#define _od_suspend_yesirq NULL
+#define _od_resume_yesirq NULL
 #endif
 
 struct dev_pm_domain omap_device_fail_pm_domain = {
@@ -637,8 +637,8 @@ struct dev_pm_domain omap_device_pm_domain = {
 		SET_RUNTIME_PM_OPS(_od_runtime_suspend, _od_runtime_resume,
 				   NULL)
 		USE_PLATFORM_PM_SLEEP_OPS
-		SET_NOIRQ_SYSTEM_SLEEP_PM_OPS(_od_suspend_noirq,
-					      _od_resume_noirq)
+		SET_NOIRQ_SYSTEM_SLEEP_PM_OPS(_od_suspend_yesirq,
+					      _od_resume_yesirq)
 	}
 };
 
@@ -700,7 +700,7 @@ int omap_device_enable(struct platform_device *pdev)
  * @pdev: The platform_device (omap_device) to idle
  *
  * Idle omap_device @od.  Device drivers call this function indirectly
- * via pm_runtime_put*().  Returns -EINVAL if the omap_device is not
+ * via pm_runtime_put*().  Returns -EINVAL if the omap_device is yest
  * currently enabled, or passes along the return value of
  * _omap_device_idle_hwmods().
  */
@@ -794,18 +794,18 @@ struct device *omap_device_get_by_hwmod_name(const char *oh_name)
 	struct omap_hwmod *oh;
 
 	if (!oh_name) {
-		WARN(1, "%s: no hwmod name!\n", __func__);
+		WARN(1, "%s: yes hwmod name!\n", __func__);
 		return ERR_PTR(-EINVAL);
 	}
 
 	oh = omap_hwmod_lookup(oh_name);
 	if (!oh) {
-		WARN(1, "%s: no hwmod for %s\n", __func__,
+		WARN(1, "%s: yes hwmod for %s\n", __func__,
 			oh_name);
 		return ERR_PTR(-ENODEV);
 	}
 	if (!oh->od) {
-		WARN(1, "%s: no omap_device for %s\n", __func__,
+		WARN(1, "%s: yes omap_device for %s\n", __func__,
 			oh_name);
 		return ERR_PTR(-ENODEV);
 	}
@@ -813,13 +813,13 @@ struct device *omap_device_get_by_hwmod_name(const char *oh_name)
 	return &oh->od->pdev->dev;
 }
 
-static struct notifier_block platform_nb = {
-	.notifier_call = _omap_device_notifier_call,
+static struct yestifier_block platform_nb = {
+	.yestifier_call = _omap_device_yestifier_call,
 };
 
 static int __init omap_device_init(void)
 {
-	bus_register_notifier(&platform_bus_type, &platform_nb);
+	bus_register_yestifier(&platform_bus_type, &platform_nb);
 	return 0;
 }
 omap_postcore_initcall(omap_device_init);
@@ -830,7 +830,7 @@ omap_postcore_initcall(omap_device_init);
  * @data: unused
  *
  * Check the driver bound status of this device, and idle it
- * if there is no driver attached.
+ * if there is yes driver attached.
  */
 static int __init omap_device_late_idle(struct device *dev, void *data)
 {
@@ -842,13 +842,13 @@ static int __init omap_device_late_idle(struct device *dev, void *data)
 		return 0;
 
 	/*
-	 * If omap_device state is enabled, but has no driver bound,
+	 * If omap_device state is enabled, but has yes driver bound,
 	 * idle it.
 	 */
 
 	/*
 	 * Some devices (like memory controllers) are always kept
-	 * enabled, and should not be idled even with no drivers.
+	 * enabled, and should yest be idled even with yes drivers.
 	 */
 	for (i = 0; i < od->hwmods_cnt; i++)
 		if (od->hwmods[i]->flags & HWMOD_INIT_NO_IDLE)
@@ -857,7 +857,7 @@ static int __init omap_device_late_idle(struct device *dev, void *data)
 	if (od->_driver_status != BUS_NOTIFY_BOUND_DRIVER &&
 	    od->_driver_status != BUS_NOTIFY_BIND_DRIVER) {
 		if (od->_state == OMAP_DEVICE_STATE_ENABLED) {
-			dev_warn(dev, "%s: enabled but no driver.  Idling\n",
+			dev_warn(dev, "%s: enabled but yes driver.  Idling\n",
 				 __func__);
 			omap_device_idle(pdev);
 		}

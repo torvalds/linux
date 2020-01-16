@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -439,7 +439,7 @@ struct SMU7_MclkDpmScoreboard {
 	uint8_t  MclkSwitchInProgress;
 	uint8_t  MclkSwitchCritical;
 
-	uint8_t  IgnoreVBlank;
+	uint8_t  IgyesreVBlank;
 	uint8_t  TargetMclkIndex;
 	uint16_t VbiFailureCount;
 	uint8_t  VbiWaitCounter;
@@ -540,7 +540,7 @@ struct SMU7_BapmScoreboard {
 	int32_t Limit;
 	int32_t Hyst;
 	int32_t therm_influence_coeff_table[SMU74_DTE_ITERATIONS * SMU74_DTE_SOURCES * SMU74_DTE_SINKS * 2];
-	int32_t therm_node_table[SMU74_DTE_ITERATIONS * SMU74_DTE_SOURCES * SMU74_DTE_SINKS];
+	int32_t therm_yesde_table[SMU74_DTE_ITERATIONS * SMU74_DTE_SOURCES * SMU74_DTE_SINKS];
 	uint16_t ConfigTDPPowerScalar;
 	uint16_t FanSpeedPowerScalar;
 	uint16_t OverDrivePowerScalar;
@@ -700,15 +700,15 @@ struct SMU7_Discrete_Pm_Status_Table {
 	uint32_t I_calc_max;
 	uint32_t I_calc_acc;
 	uint32_t I_calc_acc_vddci;
-	uint32_t V_calc_noload_acc;
+	uint32_t V_calc_yesload_acc;
 	uint32_t V_calc_load_acc;
-	uint32_t V_calc_noload_acc_vddci;
+	uint32_t V_calc_yesload_acc_vddci;
 	uint32_t P_meas_acc;
-	uint32_t V_meas_noload_acc;
+	uint32_t V_meas_yesload_acc;
 	uint32_t V_meas_load_acc;
 	uint32_t I_meas_acc;
 	uint32_t P_meas_acc_vddci;
-	uint32_t V_meas_noload_acc_vddci;
+	uint32_t V_meas_yesload_acc_vddci;
 	uint32_t V_meas_load_acc_vddci;
 	uint32_t I_meas_acc_vddci;
 

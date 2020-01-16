@@ -3,7 +3,7 @@
  */
 #define _GNU_SOURCE
 #include <sched.h>
-#include <errno.h>
+#include <erryes.h>
 #include <stdio.h>
 #include <sys/types.h>
 #include <asm/unistd.h>
@@ -44,7 +44,7 @@ static void test_task_rename(int cpu)
 	start_time = time_get_ns();
 	for (i = 0; i < MAX_CNT; i++) {
 		if (write(fd, buf, sizeof(buf)) < 0) {
-			printf("task rename failed: %s\n", strerror(errno));
+			printf("task rename failed: %s\n", strerror(erryes));
 			close(fd);
 			return;
 		}
@@ -68,7 +68,7 @@ static void test_urandom_read(int cpu)
 	start_time = time_get_ns();
 	for (i = 0; i < MAX_CNT; i++) {
 		if (read(fd, buf, sizeof(buf)) < 0) {
-			printf("failed to read from /dev/urandom: %s\n", strerror(errno));
+			printf("failed to read from /dev/urandom: %s\n", strerror(erryes));
 			close(fd);
 			return;
 		}

@@ -189,7 +189,7 @@
         "UMask": "0x1",
         "EventName": "SNOOP_RESPONSE.HIT",
         "SampleAfterValue": "100000",
-        "BriefDescription": "Thread responded HIT to snoop"
+        "BriefDescription": "Thread responded HIT to syesop"
     },
     {
         "EventCode": "0xB8",
@@ -197,7 +197,7 @@
         "UMask": "0x2",
         "EventName": "SNOOP_RESPONSE.HITE",
         "SampleAfterValue": "100000",
-        "BriefDescription": "Thread responded HITE to snoop"
+        "BriefDescription": "Thread responded HITE to syesop"
     },
     {
         "EventCode": "0xB8",
@@ -205,7 +205,7 @@
         "UMask": "0x4",
         "EventName": "SNOOP_RESPONSE.HITM",
         "SampleAfterValue": "100000",
-        "BriefDescription": "Thread responded HITM to snoop"
+        "BriefDescription": "Thread responded HITM to syesop"
     },
     {
         "EventCode": "0xB4",
@@ -213,7 +213,7 @@
         "UMask": "0x4",
         "EventName": "SNOOPQ_REQUESTS.CODE",
         "SampleAfterValue": "100000",
-        "BriefDescription": "Snoop code requests"
+        "BriefDescription": "Syesop code requests"
     },
     {
         "EventCode": "0xB4",
@@ -221,7 +221,7 @@
         "UMask": "0x1",
         "EventName": "SNOOPQ_REQUESTS.DATA",
         "SampleAfterValue": "100000",
-        "BriefDescription": "Snoop data requests"
+        "BriefDescription": "Syesop data requests"
     },
     {
         "EventCode": "0xB4",
@@ -229,21 +229,21 @@
         "UMask": "0x2",
         "EventName": "SNOOPQ_REQUESTS.INVALIDATE",
         "SampleAfterValue": "100000",
-        "BriefDescription": "Snoop invalidate requests"
+        "BriefDescription": "Syesop invalidate requests"
     },
     {
         "EventCode": "0xB3",
         "UMask": "0x4",
         "EventName": "SNOOPQ_REQUESTS_OUTSTANDING.CODE",
         "SampleAfterValue": "2000000",
-        "BriefDescription": "Outstanding snoop code requests"
+        "BriefDescription": "Outstanding syesop code requests"
     },
     {
         "EventCode": "0xB3",
         "UMask": "0x4",
         "EventName": "SNOOPQ_REQUESTS_OUTSTANDING.CODE_NOT_EMPTY",
         "SampleAfterValue": "2000000",
-        "BriefDescription": "Cycles snoop code requests queued",
+        "BriefDescription": "Cycles syesop code requests queued",
         "CounterMask": "1"
     },
     {
@@ -251,14 +251,14 @@
         "UMask": "0x1",
         "EventName": "SNOOPQ_REQUESTS_OUTSTANDING.DATA",
         "SampleAfterValue": "2000000",
-        "BriefDescription": "Outstanding snoop data requests"
+        "BriefDescription": "Outstanding syesop data requests"
     },
     {
         "EventCode": "0xB3",
         "UMask": "0x1",
         "EventName": "SNOOPQ_REQUESTS_OUTSTANDING.DATA_NOT_EMPTY",
         "SampleAfterValue": "2000000",
-        "BriefDescription": "Cycles snoop data requests queued",
+        "BriefDescription": "Cycles syesop data requests queued",
         "CounterMask": "1"
     },
     {
@@ -266,14 +266,14 @@
         "UMask": "0x2",
         "EventName": "SNOOPQ_REQUESTS_OUTSTANDING.INVALIDATE",
         "SampleAfterValue": "2000000",
-        "BriefDescription": "Outstanding snoop invalidate requests"
+        "BriefDescription": "Outstanding syesop invalidate requests"
     },
     {
         "EventCode": "0xB3",
         "UMask": "0x2",
         "EventName": "SNOOPQ_REQUESTS_OUTSTANDING.INVALIDATE_NOT_EMPTY",
         "SampleAfterValue": "2000000",
-        "BriefDescription": "Cycles snoop invalidate requests queued",
+        "BriefDescription": "Cycles syesop invalidate requests queued",
         "CounterMask": "1"
     },
     {

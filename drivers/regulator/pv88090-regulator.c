@@ -164,7 +164,7 @@ static const struct regulator_ops pv88090_ldo_ops = {
 		.id = chip##_ID_##regl_name,\
 		.name = __stringify(chip##_##regl_name),\
 		.of_match = of_match_ptr(#regl_name),\
-		.regulators_node = of_match_ptr("regulators"),\
+		.regulators_yesde = of_match_ptr("regulators"),\
 		.type = REGULATOR_VOLTAGE,\
 		.owner = THIS_MODULE,\
 		.ops = &pv88090_buck_ops,\
@@ -190,7 +190,7 @@ static const struct regulator_ops pv88090_ldo_ops = {
 		.id = chip##_ID_##regl_name,\
 		.name = __stringify(chip##_##regl_name),\
 		.of_match = of_match_ptr(#regl_name),\
-		.regulators_node = of_match_ptr("regulators"),\
+		.regulators_yesde = of_match_ptr("regulators"),\
 		.type = REGULATOR_VOLTAGE,\
 		.owner = THIS_MODULE,\
 		.ops = &pv88090_ldo_ops,\
@@ -228,7 +228,7 @@ static irqreturn_t pv88090_irq_handler(int irq, void *data)
 		for (i = 0; i < PV88090_MAX_REGULATORS; i++) {
 			if (chip->rdev[i] != NULL) {
 			        regulator_lock(chip->rdev[i]);
-				regulator_notifier_call_chain(chip->rdev[i],
+				regulator_yestifier_call_chain(chip->rdev[i],
 					REGULATOR_EVENT_UNDER_VOLTAGE,
 					NULL);
 			        regulator_unlock(chip->rdev[i]);
@@ -247,7 +247,7 @@ static irqreturn_t pv88090_irq_handler(int irq, void *data)
 		for (i = 0; i < PV88090_MAX_REGULATORS; i++) {
 			if (chip->rdev[i] != NULL) {
 			        regulator_lock(chip->rdev[i]);
-				regulator_notifier_call_chain(chip->rdev[i],
+				regulator_yestifier_call_chain(chip->rdev[i],
 					REGULATOR_EVENT_OVER_TEMP,
 					NULL);
 			        regulator_unlock(chip->rdev[i]);

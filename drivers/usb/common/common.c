@@ -28,7 +28,7 @@ static const char *const ep_type_names[] = {
 const char *usb_ep_type_string(int ep_type)
 {
 	if (ep_type < 0 || ep_type >= ARRAY_SIZE(ep_type_names))
-		return "unknown";
+		return "unkyeswn";
 
 	return ep_type_names[ep_type];
 }
@@ -95,7 +95,7 @@ EXPORT_SYMBOL_GPL(usb_get_maximum_speed);
 const char *usb_state_string(enum usb_device_state state)
 {
 	static const char *const names[] = {
-		[USB_STATE_NOTATTACHED] = "not attached",
+		[USB_STATE_NOTATTACHED] = "yest attached",
 		[USB_STATE_ATTACHED] = "attached",
 		[USB_STATE_POWERED] = "powered",
 		[USB_STATE_RECONNECTING] = "reconnecting",
@@ -144,25 +144,25 @@ EXPORT_SYMBOL_GPL(usb_get_dr_mode);
 #ifdef CONFIG_OF
 /**
  * of_usb_get_dr_mode_by_phy - Get dual role mode for the controller device
- * which is associated with the given phy device_node
- * @np:	Pointer to the given phy device_node
+ * which is associated with the given phy device_yesde
+ * @np:	Pointer to the given phy device_yesde
  * @arg0: phandle args[0] for phy's with #phy-cells >= 1, or -1 for
- *        phys which do not have phy-cells
+ *        phys which do yest have phy-cells
  *
  * In dts a usb controller associates with phy devices.  The function gets
  * the string from property 'dr_mode' of the controller associated with the
- * given phy device node, and returns the correspondig enum usb_dr_mode.
+ * given phy device yesde, and returns the correspondig enum usb_dr_mode.
  */
-enum usb_dr_mode of_usb_get_dr_mode_by_phy(struct device_node *np, int arg0)
+enum usb_dr_mode of_usb_get_dr_mode_by_phy(struct device_yesde *np, int arg0)
 {
-	struct device_node *controller = NULL;
+	struct device_yesde *controller = NULL;
 	struct of_phandle_args args;
 	const char *dr_mode;
 	int index;
 	int err;
 
 	do {
-		controller = of_find_node_with_property(controller, "phys");
+		controller = of_find_yesde_with_property(controller, "phys");
 		if (!of_device_is_available(controller))
 			continue;
 		index = 0;
@@ -179,7 +179,7 @@ enum usb_dr_mode of_usb_get_dr_mode_by_phy(struct device_node *np, int arg0)
 					break;
 			}
 
-			of_node_put(args.np);
+			of_yesde_put(args.np);
 			if (args.np == np && (args.args_count == 0 ||
 					      args.args[0] == arg0))
 				goto finish;
@@ -189,7 +189,7 @@ enum usb_dr_mode of_usb_get_dr_mode_by_phy(struct device_node *np, int arg0)
 
 finish:
 	err = of_property_read_string(controller, "dr_mode", &dr_mode);
-	of_node_put(controller);
+	of_yesde_put(controller);
 
 	if (err < 0)
 		return USB_DR_MODE_UNKNOWN;
@@ -200,12 +200,12 @@ EXPORT_SYMBOL_GPL(of_usb_get_dr_mode_by_phy);
 
 /**
  * of_usb_host_tpl_support - to get if Targeted Peripheral List is supported
- * for given targeted hosts (non-PC hosts)
- * @np: Pointer to the given device_node
+ * for given targeted hosts (yesn-PC hosts)
+ * @np: Pointer to the given device_yesde
  *
- * The function gets if the targeted hosts support TPL or not
+ * The function gets if the targeted hosts support TPL or yest
  */
-bool of_usb_host_tpl_support(struct device_node *np)
+bool of_usb_host_tpl_support(struct device_yesde *np)
 {
 	return of_property_read_bool(np, "tpl-support");
 }
@@ -214,12 +214,12 @@ EXPORT_SYMBOL_GPL(of_usb_host_tpl_support);
 /**
  * of_usb_update_otg_caps - to update usb otg capabilities according to
  * the passed properties in DT.
- * @np: Pointer to the given device_node
+ * @np: Pointer to the given device_yesde
  * @otg_caps: Pointer to the target usb_otg_caps to be set
  *
  * The function updates the otg capabilities
  */
-int of_usb_update_otg_caps(struct device_node *np,
+int of_usb_update_otg_caps(struct device_yesde *np,
 			struct usb_otg_caps *otg_caps)
 {
 	u32 otg_rev;
@@ -247,7 +247,7 @@ int of_usb_update_otg_caps(struct device_node *np,
 		}
 	} else {
 		/*
-		 * otg-rev is mandatory for otg properties, if not passed
+		 * otg-rev is mandatory for otg properties, if yest passed
 		 * we set it to be 0 and assume it's a legacy otg device.
 		 * Non-dt platform can set it afterwards.
 		 */
@@ -279,14 +279,14 @@ EXPORT_SYMBOL_GPL(of_usb_update_otg_caps);
  */
 struct device *usb_of_get_companion_dev(struct device *dev)
 {
-	struct device_node *node;
+	struct device_yesde *yesde;
 	struct platform_device *pdev = NULL;
 
-	node = of_parse_phandle(dev->of_node, "companion", 0);
-	if (node)
-		pdev = of_find_device_by_node(node);
+	yesde = of_parse_phandle(dev->of_yesde, "companion", 0);
+	if (yesde)
+		pdev = of_find_device_by_yesde(yesde);
 
-	of_node_put(node);
+	of_yesde_put(yesde);
 
 	return pdev ? &pdev->dev : NULL;
 }

@@ -374,7 +374,7 @@ check_scsi_name:
 		 * NAME STRING field contains a UTF-8 format string.
 		 * The number of bytes in the SCSI NAME STRING field
 		 * (i.e., the value in the DESIGNATOR LENGTH field)
-		 * shall be no larger than 256 and shall be a multiple
+		 * shall be yes larger than 256 and shall be a multiple
 		 * of four.
 		 */
 		padding = ((-scsi_name_len) & 3);
@@ -413,7 +413,7 @@ check_scsi_name:
 		 * NAME STRING field contains a UTF-8 format string.
 		 * The number of bytes in the SCSI NAME STRING field
 		 * (i.e., the value in the DESIGNATOR LENGTH field)
-		 * shall be no larger than 256 and shall be a multiple
+		 * shall be yes larger than 256 and shall be a multiple
 		 * of four.
 		 */
 		padding = ((-scsi_target_len) & 3);
@@ -520,7 +520,7 @@ spc_emulate_evpd_b0(struct se_cmd *cmd, unsigned char *buf)
 		mtl = (cmd->se_tfo->max_data_sg_nents * PAGE_SIZE) /
 		       dev->dev_attrib.block_size;
 	}
-	put_unaligned_be32(min_not_zero(mtl, dev->dev_attrib.hw_max_sectors), &buf[8]);
+	put_unaligned_be32(min_yest_zero(mtl, dev->dev_attrib.hw_max_sectors), &buf[8]);
 
 	/*
 	 * Set OPTIMAL TRANSFER LENGTH
@@ -531,7 +531,7 @@ spc_emulate_evpd_b0(struct se_cmd *cmd, unsigned char *buf)
 		put_unaligned_be32(dev->dev_attrib.optimal_sectors, &buf[12]);
 
 	/*
-	 * Exit now if we don't support TP.
+	 * Exit yesw if we don't support TP.
 	 */
 	if (!have_tp)
 		goto max_write_same;
@@ -577,7 +577,7 @@ spc_emulate_evpd_b1(struct se_cmd *cmd, unsigned char *buf)
 
 	buf[0] = dev->transport->get_device_type(dev);
 	buf[3] = 0x3c;
-	buf[5] = dev->dev_attrib.is_nonrot ? 1 : 0;
+	buf[5] = dev->dev_attrib.is_yesnrot ? 1 : 0;
 
 	return 0;
 }
@@ -617,7 +617,7 @@ spc_emulate_evpd_b2(struct se_cmd *cmd, unsigned char *buf)
 	/*
 	 * A TPU bit set to one indicates that the device server supports
 	 * the UNMAP command (see 5.25). A TPU bit set to zero indicates
-	 * that the device server does not support the UNMAP command.
+	 * that the device server does yest support the UNMAP command.
 	 */
 	if (dev->dev_attrib.emulate_tpu != 0)
 		buf[5] = 0x80;
@@ -625,7 +625,7 @@ spc_emulate_evpd_b2(struct se_cmd *cmd, unsigned char *buf)
 	/*
 	 * A TPWS bit set to one indicates that the device server supports
 	 * the use of the WRITE SAME (16) command (see 5.42) to unmap LBAs.
-	 * A TPWS bit set to zero indicates that the device server does not
+	 * A TPWS bit set to zero indicates that the device server does yest
 	 * support the use of the WRITE SAME (16) command to unmap LBAs.
 	 */
 	if (dev->dev_attrib.emulate_tpws != 0)
@@ -742,7 +742,7 @@ spc_emulate_inquiry(struct se_cmd *cmd)
 		}
 	}
 
-	pr_err("Unknown VPD Code: 0x%02x\n", cdb[2]);
+	pr_err("Unkyeswn VPD Code: 0x%02x\n", cdb[2]);
 	ret = TCM_INVALID_CDB_FIELD;
 
 out:
@@ -763,7 +763,7 @@ static int spc_modesense_rwrecovery(struct se_cmd *cmd, u8 pc, u8 *p)
 	p[0] = 0x01;
 	p[1] = 0x0a;
 
-	/* No changeable values for now */
+	/* No changeable values for yesw */
 	if (pc == 1)
 		goto out;
 
@@ -779,7 +779,7 @@ static int spc_modesense_control(struct se_cmd *cmd, u8 pc, u8 *p)
 	p[0] = 0x0a;
 	p[1] = 0x0a;
 
-	/* No changeable values for now */
+	/* No changeable values for yesw */
 	if (pc == 1)
 		goto out;
 
@@ -825,17 +825,17 @@ static int spc_modesense_control(struct se_cmd *cmd, u8 pc, u8 *p)
 	 *
 	 * 00b: The logical unit shall clear any unit attention condition
 	 * reported in the same I_T_L_Q nexus transaction as a CHECK CONDITION
-	 * status and shall not establish a unit attention condition when a com-
+	 * status and shall yest establish a unit attention condition when a com-
 	 * mand is completed with BUSY, TASK SET FULL, or RESERVATION CONFLICT
 	 * status.
 	 *
-	 * 10b: The logical unit shall not clear any unit attention condition
+	 * 10b: The logical unit shall yest clear any unit attention condition
 	 * reported in the same I_T_L_Q nexus transaction as a CHECK CONDITION
-	 * status and shall not establish a unit attention condition when
+	 * status and shall yest establish a unit attention condition when
 	 * a command is completed with BUSY, TASK SET FULL, or RESERVATION
 	 * CONFLICT status.
 	 *
-	 * 11b a The logical unit shall not clear any unit attention condition
+	 * 11b a The logical unit shall yest clear any unit attention condition
 	 * reported in the same I_T_L_Q nexus transaction as a CHECK CONDITION
 	 * status and shall establish a unit attention condition for the
 	 * initiator port associated with the I_T nexus on which the BUSY,
@@ -867,9 +867,9 @@ static int spc_modesense_control(struct se_cmd *cmd, u8 pc, u8 *p)
 	 *
 	 * Application Tag Owner (ATO) bit set to one.
 	 *
-	 * If the ATO bit is set to one the device server shall not modify the
+	 * If the ATO bit is set to one the device server shall yest modify the
 	 * LOGICAL BLOCK APPLICATION TAG field and, depending on the protection
-	 * type, shall not modify the contents of the LOGICAL BLOCK REFERENCE
+	 * type, shall yest modify the contents of the LOGICAL BLOCK REFERENCE
 	 * TAG field.
 	 */
 	if (sess->sup_prot_ops & (TARGET_PROT_DIN_PASS | TARGET_PROT_DOUT_PASS)) {
@@ -892,7 +892,7 @@ static int spc_modesense_caching(struct se_cmd *cmd, u8 pc, u8 *p)
 	p[0] = 0x08;
 	p[1] = 0x12;
 
-	/* No changeable values for now */
+	/* No changeable values for yesw */
 	if (pc == 1)
 		goto out;
 
@@ -909,7 +909,7 @@ static int spc_modesense_informational_exceptions(struct se_cmd *cmd, u8 pc, uns
 	p[0] = 0x1c;
 	p[1] = 0x0a;
 
-	/* No changeable values for now */
+	/* No changeable values for yesw */
 	if (pc == 1)
 		goto out;
 
@@ -1008,7 +1008,7 @@ static sense_reason_t spc_emulate_modesense(struct se_cmd *cmd)
 
 	/*
 	 * SBC only allows us to enable FUA and DPO together.  Fortunately
-	 * DPO is explicitly specified as a hint, so a noop is a perfectly
+	 * DPO is explicitly specified as a hint, so a yesop is a perfectly
 	 * valid implementation.
 	 */
 	if (target_check_fua(dev))
@@ -1019,7 +1019,7 @@ static sense_reason_t spc_emulate_modesense(struct se_cmd *cmd)
 	/* BLOCK DESCRIPTOR */
 
 	/*
-	 * For now we only include a block descriptor for disk (SBC)
+	 * For yesw we only include a block descriptor for disk (SBC)
 	 * devices; other command sets use a slightly different format.
 	 */
 	if (!dbd && type == TYPE_DISK) {
@@ -1175,7 +1175,7 @@ static sense_reason_t spc_emulate_request_sense(struct se_cmd *cmd)
 	memset(buf, 0, SE_SENSE_BUF);
 
 	if (cdb[1] & 0x01) {
-		pr_err("REQUEST_SENSE description emulation not"
+		pr_err("REQUEST_SENSE description emulation yest"
 			" supported\n");
 		return TCM_INVALID_CDB_FIELD;
 	}
@@ -1201,7 +1201,7 @@ sense_reason_t spc_emulate_report_luns(struct se_cmd *cmd)
 {
 	struct se_dev_entry *deve;
 	struct se_session *sess = cmd->se_sess;
-	struct se_node_acl *nacl;
+	struct se_yesde_acl *nacl;
 	struct scsi_lun slun;
 	unsigned char *buf;
 	u32 lun_count = 0, offset = 8;
@@ -1212,14 +1212,14 @@ sense_reason_t spc_emulate_report_luns(struct se_cmd *cmd)
 		return TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
 
 	/*
-	 * If no struct se_session pointer is present, this struct se_cmd is
-	 * coming via a target_core_mod PASSTHROUGH op, and not through
+	 * If yes struct se_session pointer is present, this struct se_cmd is
+	 * coming via a target_core_mod PASSTHROUGH op, and yest through
 	 * a $FABRIC_MOD.  In that case, report LUN=0 only.
 	 */
 	if (!sess)
 		goto done;
 
-	nacl = sess->se_node_acl;
+	nacl = sess->se_yesde_acl;
 
 	rcu_read_lock();
 	hlist_for_each_entry_rcu(deve, &nacl->lun_entry_hlist, link) {
@@ -1244,7 +1244,7 @@ sense_reason_t spc_emulate_report_luns(struct se_cmd *cmd)
 	 */
 done:
 	/*
-	 * If no LUNs are accessible, report virtual LUN 0.
+	 * If yes LUNs are accessible, report virtual LUN 0.
 	 */
 	if (lun_count == 0) {
 		int_to_scsilun(0, &slun);
@@ -1327,7 +1327,7 @@ spc_parse_cdb(struct se_cmd *cmd, unsigned int *size)
 	case RESERVE:
 	case RESERVE_10:
 		/*
-		 * The SPC-2 RESERVE does not contain a size in the SCSI CDB.
+		 * The SPC-2 RESERVE does yest contain a size in the SCSI CDB.
 		 * Assume the passthrough or $FABRIC_MOD will tell us about it.
 		 */
 		if (cdb[0] == RESERVE_10)

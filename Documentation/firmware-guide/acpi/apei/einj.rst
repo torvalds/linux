@@ -18,7 +18,7 @@ mechanism through which the injection is done.
 Alternatively, look in /sys/firmware/acpi/tables for an "EINJ" file,
 which is a different representation of the same thing.
 
-It doesn't necessarily mean that EINJ is not supported if those above
+It doesn't necessarily mean that EINJ is yest supported if those above
 don't exist: before you give up, go into BIOS setup to see if the BIOS
 has an option to enable error injection. Look for something called WHEA
 or similar. Often, you need to enable an ACPI5 support option prior, in
@@ -44,16 +44,16 @@ The following files belong to it:
   Error Type Value	Error Description
   ================  ===================================
   0x00000001        Processor Correctable
-  0x00000002        Processor Uncorrectable non-fatal
+  0x00000002        Processor Uncorrectable yesn-fatal
   0x00000004        Processor Uncorrectable fatal
   0x00000008        Memory Correctable
-  0x00000010        Memory Uncorrectable non-fatal
+  0x00000010        Memory Uncorrectable yesn-fatal
   0x00000020        Memory Uncorrectable fatal
   0x00000040        PCI Express Correctable
   0x00000080        PCI Express Uncorrectable fatal
-  0x00000100        PCI Express Uncorrectable non-fatal
+  0x00000100        PCI Express Uncorrectable yesn-fatal
   0x00000200        Platform Correctable
-  0x00000400        Platform Uncorrectable non-fatal
+  0x00000400        Platform Uncorrectable yesn-fatal
   0x00000800        Platform Uncorrectable fatal
   ================  ===================================
 
@@ -108,10 +108,10 @@ The following files belong to it:
 - param4
   Used when the 0x4 bit is set in "flags" to specify target PCIe device
 
-- notrigger
+- yestrigger
 
   The error injection mechanism is a two-step process. First inject the
-  error, then perform some actions to trigger it. Setting "notrigger"
+  error, then perform some actions to trigger it. Setting "yestrigger"
   to 1 skips the trigger phase, which *may* allow the user to cause the
   error in some other context by a simple access to the CPU, memory
   location, or device that is the target of the error injection. Whether
@@ -164,13 +164,13 @@ An error injection example::
 
   # cd /sys/kernel/debug/apei/einj
   # cat available_error_type		# See which errors can be injected
-  0x00000002	Processor Uncorrectable non-fatal
+  0x00000002	Processor Uncorrectable yesn-fatal
   0x00000008	Memory Correctable
-  0x00000010	Memory Uncorrectable non-fatal
+  0x00000010	Memory Uncorrectable yesn-fatal
   # echo 0x12345000 > param1		# Set memory address for injection
   # echo $((-1 << 12)) > param2		# Mask 0xfffffffffffff000 - anywhere in this page
   # echo 0x8 > error_type			# Choose correctable memory error
-  # echo 1 > error_inject			# Inject now
+  # echo 1 > error_inject			# Inject yesw
 
 You should see something like this in dmesg::
 

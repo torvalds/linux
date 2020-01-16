@@ -44,13 +44,13 @@ void dlm_slots_copy_out(struct dlm_ls *ls, struct dlm_rcom *rc)
 
 	ro = (struct rcom_slot *)(rc->rc_buf + sizeof(struct rcom_config));
 
-	/* ls_slots array is sparse, but not rcom_slots */
+	/* ls_slots array is sparse, but yest rcom_slots */
 
 	for (i = 0; i < ls->ls_slots_size; i++) {
 		slot = &ls->ls_slots[i];
-		if (!slot->nodeid)
+		if (!slot->yesdeid)
 			continue;
-		ro->ro_nodeid = cpu_to_le32(slot->nodeid);
+		ro->ro_yesdeid = cpu_to_le32(slot->yesdeid);
 		ro->ro_slot = cpu_to_le16(slot->slot);
 		ro++;
 	}
@@ -71,11 +71,11 @@ static void log_slots(struct dlm_ls *ls, uint32_t gen, int num_slots,
 
 	if (array) {
 		for (i = 0; i < array_size; i++) {
-			if (!array[i].nodeid)
+			if (!array[i].yesdeid)
 				continue;
 
 			ret = snprintf(line + pos, len - pos, " %d:%d",
-				       array[i].slot, array[i].nodeid);
+				       array[i].slot, array[i].yesdeid);
 			if (ret >= len - pos)
 				break;
 			pos += ret;
@@ -83,7 +83,7 @@ static void log_slots(struct dlm_ls *ls, uint32_t gen, int num_slots,
 	} else if (ro0) {
 		for (i = 0; i < num_slots; i++) {
 			ret = snprintf(line + pos, len - pos, " %d:%d",
-				       ro0[i].ro_slot, ro0[i].ro_nodeid);
+				       ro0[i].ro_slot, ro0[i].ro_yesdeid);
 			if (ret >= len - pos)
 				break;
 			pos += ret;
@@ -99,7 +99,7 @@ int dlm_slots_copy_in(struct dlm_ls *ls)
 	struct dlm_rcom *rc = ls->ls_recover_buf;
 	struct rcom_config *rf = (struct rcom_config *)rc->rc_buf;
 	struct rcom_slot *ro0, *ro;
-	int our_nodeid = dlm_our_nodeid();
+	int our_yesdeid = dlm_our_yesdeid();
 	int i, num_slots;
 	uint32_t gen;
 
@@ -120,22 +120,22 @@ int dlm_slots_copy_in(struct dlm_ls *ls)
 	ro0 = (struct rcom_slot *)(rc->rc_buf + sizeof(struct rcom_config));
 
 	for (i = 0, ro = ro0; i < num_slots; i++, ro++) {
-		ro->ro_nodeid = le32_to_cpu(ro->ro_nodeid);
+		ro->ro_yesdeid = le32_to_cpu(ro->ro_yesdeid);
 		ro->ro_slot = le16_to_cpu(ro->ro_slot);
 	}
 
 	log_slots(ls, gen, num_slots, ro0, NULL, 0);
 
-	list_for_each_entry(memb, &ls->ls_nodes, list) {
+	list_for_each_entry(memb, &ls->ls_yesdes, list) {
 		for (i = 0, ro = ro0; i < num_slots; i++, ro++) {
-			if (ro->ro_nodeid != memb->nodeid)
+			if (ro->ro_yesdeid != memb->yesdeid)
 				continue;
 			memb->slot = ro->ro_slot;
 			memb->slot_prev = memb->slot;
 			break;
 		}
 
-		if (memb->nodeid == our_nodeid) {
+		if (memb->yesdeid == our_yesdeid) {
 			if (ls->ls_slot && ls->ls_slot != memb->slot) {
 				log_error(ls, "dlm_slots_copy_in our slot "
 					  "changed %d %d", ls->ls_slot,
@@ -148,8 +148,8 @@ int dlm_slots_copy_in(struct dlm_ls *ls)
 		}
 
 		if (!memb->slot) {
-			log_error(ls, "dlm_slots_copy_in nodeid %d no slot",
-				   memb->nodeid);
+			log_error(ls, "dlm_slots_copy_in yesdeid %d yes slot",
+				   memb->yesdeid);
 			return -1;
 		}
 	}
@@ -157,8 +157,8 @@ int dlm_slots_copy_in(struct dlm_ls *ls)
 	return 0;
 }
 
-/* for any nodes that do not support slots, we will not have set memb->slot
-   in wait_status_all(), so memb->slot will remain -1, and we will not
+/* for any yesdes that do yest support slots, we will yest have set memb->slot
+   in wait_status_all(), so memb->slot will remain -1, and we will yest
    assign slots or set ls_num_slots here */
 
 int dlm_slots_assign(struct dlm_ls *ls, int *num_slots, int *slots_size,
@@ -166,7 +166,7 @@ int dlm_slots_assign(struct dlm_ls *ls, int *num_slots, int *slots_size,
 {
 	struct dlm_member *memb;
 	struct dlm_slot *array;
-	int our_nodeid = dlm_our_nodeid();
+	int our_yesdeid = dlm_our_yesdeid();
 	int array_size, max_slots, i;
 	int need = 0;
 	int max = 0;
@@ -175,29 +175,29 @@ int dlm_slots_assign(struct dlm_ls *ls, int *num_slots, int *slots_size,
 
 	/* our own memb struct will have slot -1 gen 0 */
 
-	list_for_each_entry(memb, &ls->ls_nodes, list) {
-		if (memb->nodeid == our_nodeid) {
+	list_for_each_entry(memb, &ls->ls_yesdes, list) {
+		if (memb->yesdeid == our_yesdeid) {
 			memb->slot = ls->ls_slot;
 			memb->generation = ls->ls_generation;
 			break;
 		}
 	}
 
-	list_for_each_entry(memb, &ls->ls_nodes, list) {
+	list_for_each_entry(memb, &ls->ls_yesdes, list) {
 		if (memb->generation > gen)
 			gen = memb->generation;
 
-		/* node doesn't support slots */
+		/* yesde doesn't support slots */
 
 		if (memb->slot == -1)
 			return -1;
 
-		/* node needs a slot assigned */
+		/* yesde needs a slot assigned */
 
 		if (!memb->slot)
 			need++;
 
-		/* node has a slot assigned */
+		/* yesde has a slot assigned */
 
 		num++;
 
@@ -207,8 +207,8 @@ int dlm_slots_assign(struct dlm_ls *ls, int *num_slots, int *slots_size,
 		/* sanity check, once slot is assigned it shouldn't change */
 
 		if (memb->slot_prev && memb->slot && memb->slot_prev != memb->slot) {
-			log_error(ls, "nodeid %d slot changed %d %d",
-				  memb->nodeid, memb->slot_prev, memb->slot);
+			log_error(ls, "yesdeid %d slot changed %d %d",
+				  memb->yesdeid, memb->slot_prev, memb->slot);
 			return -1;
 		}
 		memb->slot_prev = memb->slot;
@@ -223,7 +223,7 @@ int dlm_slots_assign(struct dlm_ls *ls, int *num_slots, int *slots_size,
 
 	/* fill in slots (offsets) that are used */
 
-	list_for_each_entry(memb, &ls->ls_nodes, list) {
+	list_for_each_entry(memb, &ls->ls_yesdes, list) {
 		if (!memb->slot)
 			continue;
 
@@ -233,34 +233,34 @@ int dlm_slots_assign(struct dlm_ls *ls, int *num_slots, int *slots_size,
 			return -1;
 		}
 
-		array[memb->slot - 1].nodeid = memb->nodeid;
+		array[memb->slot - 1].yesdeid = memb->yesdeid;
 		array[memb->slot - 1].slot = memb->slot;
 		num++;
 	}
 
 	/* assign new slots from unused offsets */
 
-	list_for_each_entry(memb, &ls->ls_nodes, list) {
+	list_for_each_entry(memb, &ls->ls_yesdes, list) {
 		if (memb->slot)
 			continue;
 
 		for (i = 0; i < array_size; i++) {
-			if (array[i].nodeid)
+			if (array[i].yesdeid)
 				continue;
 
 			memb->slot = i + 1;
 			memb->slot_prev = memb->slot;
-			array[i].nodeid = memb->nodeid;
+			array[i].yesdeid = memb->yesdeid;
 			array[i].slot = memb->slot;
 			num++;
 
-			if (!ls->ls_slot && memb->nodeid == our_nodeid)
+			if (!ls->ls_slot && memb->yesdeid == our_yesdeid)
 				ls->ls_slot = memb->slot;
 			break;
 		}
 
 		if (!memb->slot) {
-			log_error(ls, "no free slot found");
+			log_error(ls, "yes free slot found");
 			kfree(array);
 			return -1;
 		}
@@ -292,11 +292,11 @@ static void add_ordered_member(struct dlm_ls *ls, struct dlm_member *new)
 	struct dlm_member *memb = NULL;
 	struct list_head *tmp;
 	struct list_head *newlist = &new->list;
-	struct list_head *head = &ls->ls_nodes;
+	struct list_head *head = &ls->ls_yesdes;
 
 	list_for_each(tmp, head) {
 		memb = list_entry(tmp, struct dlm_member, list);
-		if (new->nodeid < memb->nodeid)
+		if (new->yesdeid < memb->yesdeid)
 			break;
 	}
 
@@ -311,7 +311,7 @@ static void add_ordered_member(struct dlm_ls *ls, struct dlm_member *new)
 	}
 }
 
-static int dlm_add_member(struct dlm_ls *ls, struct dlm_config_node *node)
+static int dlm_add_member(struct dlm_ls *ls, struct dlm_config_yesde *yesde)
 {
 	struct dlm_member *memb;
 	int error;
@@ -320,41 +320,41 @@ static int dlm_add_member(struct dlm_ls *ls, struct dlm_config_node *node)
 	if (!memb)
 		return -ENOMEM;
 
-	error = dlm_lowcomms_connect_node(node->nodeid);
+	error = dlm_lowcomms_connect_yesde(yesde->yesdeid);
 	if (error < 0) {
 		kfree(memb);
 		return error;
 	}
 
-	memb->nodeid = node->nodeid;
-	memb->weight = node->weight;
-	memb->comm_seq = node->comm_seq;
+	memb->yesdeid = yesde->yesdeid;
+	memb->weight = yesde->weight;
+	memb->comm_seq = yesde->comm_seq;
 	add_ordered_member(ls, memb);
-	ls->ls_num_nodes++;
+	ls->ls_num_yesdes++;
 	return 0;
 }
 
-static struct dlm_member *find_memb(struct list_head *head, int nodeid)
+static struct dlm_member *find_memb(struct list_head *head, int yesdeid)
 {
 	struct dlm_member *memb;
 
 	list_for_each_entry(memb, head, list) {
-		if (memb->nodeid == nodeid)
+		if (memb->yesdeid == yesdeid)
 			return memb;
 	}
 	return NULL;
 }
 
-int dlm_is_member(struct dlm_ls *ls, int nodeid)
+int dlm_is_member(struct dlm_ls *ls, int yesdeid)
 {
-	if (find_memb(&ls->ls_nodes, nodeid))
+	if (find_memb(&ls->ls_yesdes, yesdeid))
 		return 1;
 	return 0;
 }
 
-int dlm_is_removed(struct dlm_ls *ls, int nodeid)
+int dlm_is_removed(struct dlm_ls *ls, int yesdeid)
 {
-	if (find_memb(&ls->ls_nodes_gone, nodeid))
+	if (find_memb(&ls->ls_yesdes_gone, yesdeid))
 		return 1;
 	return 0;
 }
@@ -372,13 +372,13 @@ static void clear_memb_list(struct list_head *head)
 
 void dlm_clear_members(struct dlm_ls *ls)
 {
-	clear_memb_list(&ls->ls_nodes);
-	ls->ls_num_nodes = 0;
+	clear_memb_list(&ls->ls_yesdes);
+	ls->ls_num_yesdes = 0;
 }
 
 void dlm_clear_members_gone(struct dlm_ls *ls)
 {
-	clear_memb_list(&ls->ls_nodes_gone);
+	clear_memb_list(&ls->ls_yesdes_gone);
 }
 
 static void make_member_array(struct dlm_ls *ls)
@@ -386,18 +386,18 @@ static void make_member_array(struct dlm_ls *ls)
 	struct dlm_member *memb;
 	int i, w, x = 0, total = 0, all_zero = 0, *array;
 
-	kfree(ls->ls_node_array);
-	ls->ls_node_array = NULL;
+	kfree(ls->ls_yesde_array);
+	ls->ls_yesde_array = NULL;
 
-	list_for_each_entry(memb, &ls->ls_nodes, list) {
+	list_for_each_entry(memb, &ls->ls_yesdes, list) {
 		if (memb->weight)
 			total += memb->weight;
 	}
 
-	/* all nodes revert to weight of 1 if all have weight 0 */
+	/* all yesdes revert to weight of 1 if all have weight 0 */
 
 	if (!total) {
-		total = ls->ls_num_nodes;
+		total = ls->ls_num_yesdes;
 		all_zero = 1;
 	}
 
@@ -406,7 +406,7 @@ static void make_member_array(struct dlm_ls *ls)
 	if (!array)
 		return;
 
-	list_for_each_entry(memb, &ls->ls_nodes, list) {
+	list_for_each_entry(memb, &ls->ls_yesdes, list) {
 		if (!all_zero && !memb->weight)
 			continue;
 
@@ -418,10 +418,10 @@ static void make_member_array(struct dlm_ls *ls)
 		DLM_ASSERT(x < total, printk("total %d x %d\n", total, x););
 
 		for (i = 0; i < w; i++)
-			array[x++] = memb->nodeid;
+			array[x++] = memb->yesdeid;
 	}
 
-	ls->ls_node_array = array;
+	ls->ls_yesde_array = array;
 }
 
 /* send a status request to all members just to establish comms connections */
@@ -431,17 +431,17 @@ static int ping_members(struct dlm_ls *ls)
 	struct dlm_member *memb;
 	int error = 0;
 
-	list_for_each_entry(memb, &ls->ls_nodes, list) {
+	list_for_each_entry(memb, &ls->ls_yesdes, list) {
 		error = dlm_recovery_stopped(ls);
 		if (error)
 			break;
-		error = dlm_rcom_status(ls, memb->nodeid, 0);
+		error = dlm_rcom_status(ls, memb->yesdeid, 0);
 		if (error)
 			break;
 	}
 	if (error)
-		log_rinfo(ls, "ping_members aborted %d last nodeid %d",
-			  error, ls->ls_recover_nodeid);
+		log_rinfo(ls, "ping_members aborted %d last yesdeid %d",
+			  error, ls->ls_recover_yesdeid);
 	return error;
 }
 
@@ -461,18 +461,18 @@ static void dlm_lsop_recover_slot(struct dlm_ls *ls, struct dlm_member *memb)
 	if (!ls->ls_ops || !ls->ls_ops->recover_slot)
 		return;
 
-	/* if there is no comms connection with this node
+	/* if there is yes comms connection with this yesde
 	   or the present comms connection is newer
 	   than the one when this member was added, then
-	   we consider the node to have failed (versus
+	   we consider the yesde to have failed (versus
 	   being removed due to dlm_release_lockspace) */
 
-	error = dlm_comm_seq(memb->nodeid, &seq);
+	error = dlm_comm_seq(memb->yesdeid, &seq);
 
 	if (!error && seq == memb->comm_seq)
 		return;
 
-	slot.nodeid = memb->nodeid;
+	slot.yesdeid = memb->yesdeid;
 	slot.slot = memb->slot;
 
 	ls->ls_ops->recover_slot(ls->ls_ops_arg, &slot);
@@ -487,18 +487,18 @@ void dlm_lsop_recover_done(struct dlm_ls *ls)
 	if (!ls->ls_ops || !ls->ls_ops->recover_done)
 		return;
 
-	num = ls->ls_num_nodes;
+	num = ls->ls_num_yesdes;
 	slots = kcalloc(num, sizeof(*slots), GFP_KERNEL);
 	if (!slots)
 		return;
 
 	i = 0;
-	list_for_each_entry(memb, &ls->ls_nodes, list) {
+	list_for_each_entry(memb, &ls->ls_yesdes, list) {
 		if (i == num) {
 			log_error(ls, "dlm_lsop_recover_done bad num %d", num);
 			goto out;
 		}
-		slots[i].nodeid = memb->nodeid;
+		slots[i].yesdeid = memb->yesdeid;
 		slots[i].slot = memb->slot;
 		i++;
 	}
@@ -509,14 +509,14 @@ void dlm_lsop_recover_done(struct dlm_ls *ls)
 	kfree(slots);
 }
 
-static struct dlm_config_node *find_config_node(struct dlm_recover *rv,
-						int nodeid)
+static struct dlm_config_yesde *find_config_yesde(struct dlm_recover *rv,
+						int yesdeid)
 {
 	int i;
 
-	for (i = 0; i < rv->nodes_count; i++) {
-		if (rv->nodes[i].nodeid == nodeid)
-			return &rv->nodes[i];
+	for (i = 0; i < rv->yesdes_count; i++) {
+		if (rv->yesdes[i].yesdeid == yesdeid)
+			return &rv->yesdes[i];
 	}
 	return NULL;
 }
@@ -524,70 +524,70 @@ static struct dlm_config_node *find_config_node(struct dlm_recover *rv,
 int dlm_recover_members(struct dlm_ls *ls, struct dlm_recover *rv, int *neg_out)
 {
 	struct dlm_member *memb, *safe;
-	struct dlm_config_node *node;
+	struct dlm_config_yesde *yesde;
 	int i, error, neg = 0, low = -1;
 
-	/* previously removed members that we've not finished removing need to
+	/* previously removed members that we've yest finished removing need to
 	   count as a negative change so the "neg" recovery steps will happen */
 
-	list_for_each_entry(memb, &ls->ls_nodes_gone, list) {
-		log_rinfo(ls, "prev removed member %d", memb->nodeid);
+	list_for_each_entry(memb, &ls->ls_yesdes_gone, list) {
+		log_rinfo(ls, "prev removed member %d", memb->yesdeid);
 		neg++;
 	}
 
-	/* move departed members from ls_nodes to ls_nodes_gone */
+	/* move departed members from ls_yesdes to ls_yesdes_gone */
 
-	list_for_each_entry_safe(memb, safe, &ls->ls_nodes, list) {
-		node = find_config_node(rv, memb->nodeid);
-		if (node && !node->new)
+	list_for_each_entry_safe(memb, safe, &ls->ls_yesdes, list) {
+		yesde = find_config_yesde(rv, memb->yesdeid);
+		if (yesde && !yesde->new)
 			continue;
 
-		if (!node) {
-			log_rinfo(ls, "remove member %d", memb->nodeid);
+		if (!yesde) {
+			log_rinfo(ls, "remove member %d", memb->yesdeid);
 		} else {
 			/* removed and re-added */
 			log_rinfo(ls, "remove member %d comm_seq %u %u",
-				  memb->nodeid, memb->comm_seq, node->comm_seq);
+				  memb->yesdeid, memb->comm_seq, yesde->comm_seq);
 		}
 
 		neg++;
-		list_move(&memb->list, &ls->ls_nodes_gone);
-		ls->ls_num_nodes--;
+		list_move(&memb->list, &ls->ls_yesdes_gone);
+		ls->ls_num_yesdes--;
 		dlm_lsop_recover_slot(ls, memb);
 	}
 
-	/* add new members to ls_nodes */
+	/* add new members to ls_yesdes */
 
-	for (i = 0; i < rv->nodes_count; i++) {
-		node = &rv->nodes[i];
-		if (dlm_is_member(ls, node->nodeid))
+	for (i = 0; i < rv->yesdes_count; i++) {
+		yesde = &rv->yesdes[i];
+		if (dlm_is_member(ls, yesde->yesdeid))
 			continue;
-		dlm_add_member(ls, node);
-		log_rinfo(ls, "add member %d", node->nodeid);
+		dlm_add_member(ls, yesde);
+		log_rinfo(ls, "add member %d", yesde->yesdeid);
 	}
 
-	list_for_each_entry(memb, &ls->ls_nodes, list) {
-		if (low == -1 || memb->nodeid < low)
-			low = memb->nodeid;
+	list_for_each_entry(memb, &ls->ls_yesdes, list) {
+		if (low == -1 || memb->yesdeid < low)
+			low = memb->yesdeid;
 	}
-	ls->ls_low_nodeid = low;
+	ls->ls_low_yesdeid = low;
 
 	make_member_array(ls);
 	*neg_out = neg;
 
 	error = ping_members(ls);
 	if (!error || error == -EPROTO) {
-		/* new_lockspace() may be waiting to know if the config
+		/* new_lockspace() may be waiting to kyesw if the config
 		   is good or bad */
 		ls->ls_members_result = error;
 		complete(&ls->ls_members_done);
 	}
 
-	log_rinfo(ls, "dlm_recover_members %d nodes", ls->ls_num_nodes);
+	log_rinfo(ls, "dlm_recover_members %d yesdes", ls->ls_num_yesdes);
 	return error;
 }
 
-/* Userspace guarantees that dlm_ls_stop() has completed on all nodes before
+/* Userspace guarantees that dlm_ls_stop() has completed on all yesdes before
    dlm_ls_start() is called on any of them to start the new recovery. */
 
 int dlm_ls_stop(struct dlm_ls *ls)
@@ -620,7 +620,7 @@ int dlm_ls_stop(struct dlm_ls *ls)
 	spin_unlock(&ls->ls_recover_lock);
 
 	/*
-	 * Let dlm_recv run again, now any normal messages will be saved on the
+	 * Let dlm_recv run again, yesw any yesrmal messages will be saved on the
 	 * requestqueue for later.
 	 */
 
@@ -643,7 +643,7 @@ int dlm_ls_stop(struct dlm_ls *ls)
 
 	/*
 	 * The recoverd suspend/resume makes sure that dlm_recoverd (if
-	 * running) has noticed RECOVER_STOP above and quit processing the
+	 * running) has yesticed RECOVER_STOP above and quit processing the
 	 * previous recovery.
 	 */
 
@@ -669,14 +669,14 @@ int dlm_ls_stop(struct dlm_ls *ls)
 int dlm_ls_start(struct dlm_ls *ls)
 {
 	struct dlm_recover *rv, *rv_old;
-	struct dlm_config_node *nodes = NULL;
+	struct dlm_config_yesde *yesdes = NULL;
 	int error, count;
 
 	rv = kzalloc(sizeof(*rv), GFP_NOFS);
 	if (!rv)
 		return -ENOMEM;
 
-	error = dlm_config_nodes(ls->ls_name, &nodes, &count);
+	error = dlm_config_yesdes(ls->ls_name, &yesdes, &count);
 	if (error < 0)
 		goto fail_rv;
 
@@ -686,13 +686,13 @@ int dlm_ls_start(struct dlm_ls *ls)
 
 	if (!dlm_locking_stopped(ls)) {
 		spin_unlock(&ls->ls_recover_lock);
-		log_error(ls, "start ignored: lockspace running");
+		log_error(ls, "start igyesred: lockspace running");
 		error = -EINVAL;
 		goto fail;
 	}
 
-	rv->nodes = nodes;
-	rv->nodes_count = count;
+	rv->yesdes = yesdes;
+	rv->yesdes_count = count;
 	rv->seq = ++ls->ls_recover_seq;
 	rv_old = ls->ls_recover_args;
 	ls->ls_recover_args = rv;
@@ -700,8 +700,8 @@ int dlm_ls_start(struct dlm_ls *ls)
 
 	if (rv_old) {
 		log_error(ls, "unused recovery %llx %d",
-			  (unsigned long long)rv_old->seq, rv_old->nodes_count);
-		kfree(rv_old->nodes);
+			  (unsigned long long)rv_old->seq, rv_old->yesdes_count);
+		kfree(rv_old->yesdes);
 		kfree(rv_old);
 	}
 
@@ -710,7 +710,7 @@ int dlm_ls_start(struct dlm_ls *ls)
 	return 0;
 
  fail:
-	kfree(nodes);
+	kfree(yesdes);
  fail_rv:
 	kfree(rv);
 	return error;

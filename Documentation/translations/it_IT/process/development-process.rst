@@ -26,8 +26,8 @@ Contenuti:
 Lo scopo di questo documento è quello di aiutare gli sviluppatori (ed i loro
 supervisori) a lavorare con la communità di sviluppo con il minimo sforzo. È
 un tentativo di documentare il funzionamento di questa communità in modo che
-sia accessibile anche a coloro che non hanno famigliarità con lo sviluppo del
+sia accessibile anche a coloro che yesn hanyes famigliarità con lo sviluppo del
 Kernel Linux (o, anzi, con lo sviluppo di software libero in generale).  Benchè
 qui sia presente del materiale tecnico, questa è una discussione rivolta in
-particolare al procedimento, e quindi per essere compreso non richiede una
-conoscenza approfondità sullo sviluppo del kernel.
+particolare al procedimento, e quindi per essere compreso yesn richiede una
+coyesscenza approfondità sullo sviluppo del kernel.

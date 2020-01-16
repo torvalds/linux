@@ -17,7 +17,7 @@
 
 #define DEFAULT_TIMEOUT_MS 3000
 /*
- * Hold configuration here, cannot be more than one instance of the driver
+ * Hold configuration here, canyest be more than one instance of the driver
  * since pm_power_off itself is global.
  */
 static struct gpio_desc *reset_gpio;

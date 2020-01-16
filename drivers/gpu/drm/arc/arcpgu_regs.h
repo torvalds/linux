@@ -2,7 +2,7 @@
 /*
  * ARC PGU DRM driver.
  *
- * Copyright (C) 2016 Synopsys, Inc. (www.synopsys.com)
+ * Copyright (C) 2016 Syyespsys, Inc. (www.syyespsys.com)
  */
 
 #ifndef _ARC_PGU_REGS_H_

@@ -95,9 +95,9 @@ static bool force;
 module_param(force, bool, 0);
 MODULE_PARM_DESC(force, "Force loading without checking for supported models");
 
-static bool ignore_dmi;
-module_param(ignore_dmi, bool, 0);
-MODULE_PARM_DESC(ignore_dmi, "Continue probing hardware even if DMI data does not match");
+static bool igyesre_dmi;
+module_param(igyesre_dmi, bool, 0);
+MODULE_PARM_DESC(igyesre_dmi, "Continue probing hardware even if DMI data does yest match");
 
 #if IS_ENABLED(CONFIG_I8K)
 static bool restricted = true;
@@ -289,9 +289,9 @@ static int i8k_get_fan_type(int fan)
 }
 
 /*
- * Read the fan nominal rpm for specific fan speed.
+ * Read the fan yesminal rpm for specific fan speed.
  */
-static int i8k_get_fan_nominal_speed(int fan, int speed)
+static int i8k_get_fan_yesminal_speed(int fan, int speed)
 {
 	struct smm_regs regs = { .eax = I8K_SMM_GET_NOM_SPEED, };
 
@@ -371,7 +371,7 @@ static int i8k_get_temp(int sensor)
 	/*
 	 * Return -ENODATA for all invalid temperatures.
 	 *
-	 * Known instances are the 0x99 value as seen above as well as
+	 * Kyeswn instances are the 0x99 value as seen above as well as
 	 * 0xc1 (193), which may be returned when trying to read the GPU
 	 * temperature if the system supports a GPU and it is currently
 	 * turned off.
@@ -590,7 +590,7 @@ static int i8k_proc_show(struct seq_file *seq, void *offset)
 	return 0;
 }
 
-static int i8k_open_fs(struct inode *inode, struct file *file)
+static int i8k_open_fs(struct iyesde *iyesde, struct file *file)
 {
 	return single_open(file, i8k_proc_show, NULL);
 }
@@ -1233,10 +1233,10 @@ static int __init i8k_probe(void)
 	 * Get DMI information
 	 */
 	if (!dmi_check_system(i8k_dmi_table)) {
-		if (!ignore_dmi && !force)
+		if (!igyesre_dmi && !force)
 			return -ENODEV;
 
-		pr_info("not running on a supported Dell system.\n");
+		pr_info("yest running on a supported Dell system.\n");
 		pr_info("vendor=%s, model=%s, version=%s\n",
 			i8k_get_dmi_data(DMI_SYS_VENDOR),
 			i8k_get_dmi_data(DMI_PRODUCT_NAME),
@@ -1283,7 +1283,7 @@ static int __init i8k_probe(void)
 			fan_max = conf->fan_max;
 	}
 
-	i8k_fan_max = fan_max ? : I8K_FAN_HIGH;	/* Must not be 0 */
+	i8k_fan_max = fan_max ? : I8K_FAN_HIGH;	/* Must yest be 0 */
 	i8k_pwm_mult = DIV_ROUND_UP(255, i8k_fan_max);
 
 	fan_control = dmi_first_match(i8k_whitelist_fan_control);
@@ -1297,11 +1297,11 @@ static int __init i8k_probe(void)
 
 	if (!fan_mult) {
 		/*
-		 * Autodetect fan multiplier based on nominal rpm
+		 * Autodetect fan multiplier based on yesminal rpm
 		 * If fan reports rpm value too high then set multiplier to 1
 		 */
 		for (fan = 0; fan < 2; ++fan) {
-			ret = i8k_get_fan_nominal_speed(fan, i8k_fan_max);
+			ret = i8k_get_fan_yesminal_speed(fan, i8k_fan_max);
 			if (ret < 0)
 				continue;
 			if (ret > I8K_FAN_MAX_RPM)

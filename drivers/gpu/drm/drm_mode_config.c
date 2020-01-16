@@ -3,11 +3,11 @@
  *
  * Permission to use, copy, modify, distribute, and sell this software and its
  * documentation for any purpose is hereby granted without fee, provided that
- * the above copyright notice appear in all copies and that both that copyright
- * notice and this permission notice appear in supporting documentation, and
- * that the name of the copyright holders not be used in advertising or
+ * the above copyright yestice appear in all copies and that both that copyright
+ * yestice and this permission yestice appear in supporting documentation, and
+ * that the name of the copyright holders yest be used in advertising or
  * publicity pertaining to distribution of the software without specific,
- * written prior permission.  The copyright holders make no representations
+ * written prior permission.  The copyright holders make yes representations
  * about the suitability of this software for any purpose.  It is provided "as
  * is" without express or implied warranty.
  *
@@ -83,7 +83,7 @@ void drm_modeset_unregister_all(struct drm_device *dev)
  * Called by the user via ioctl.
  *
  * Returns:
- * Zero on success, negative errno on failure.
+ * Zero on success, negative erryes on failure.
  */
 int drm_mode_getresources(struct drm_device *dev, void *data,
 			  struct drm_file *file_priv)
@@ -379,7 +379,7 @@ static int drm_mode_create_standard_properties(struct drm_device *dev)
  * Initialize @dev's mode_config structure, used for tracking the graphics
  * configuration of @dev.
  *
- * Since this initializes the modeset locks, no locking is possible. Which is no
+ * Since this initializes the modeset locks, yes locking is possible. Which is yes
  * problem, since this should happen single threaded at init time. It is the
  * driver's problem to ensure this guarantee.
  *
@@ -426,7 +426,7 @@ EXPORT_SYMBOL(drm_mode_config_init);
  * free up the framebuffers and associated buffer objects.
  *
  * Note that since this /should/ happen single-threaded at driver/device
- * teardown time, no locking is required. It's the driver's job to ensure that
+ * teardown time, yes locking is required. It's the driver's job to ensure that
  * this guarantee actually holds true.
  */
 void drm_mode_config_cleanup(struct drm_device *dev)
@@ -449,7 +449,7 @@ void drm_mode_config_cleanup(struct drm_device *dev)
 	drm_for_each_connector_iter(connector, &conn_iter) {
 		/* drm_connector_list_iter holds an full reference to the
 		 * current connector itself, which means it is inherently safe
-		 * against unreferencing the current connector - but not against
+		 * against unreferencing the current connector - but yest against
 		 * deleting it right away. */
 		drm_connector_put(connector);
 	}
@@ -483,11 +483,11 @@ void drm_mode_config_cleanup(struct drm_device *dev)
 	}
 
 	/*
-	 * Single-threaded teardown context, so it's not required to grab the
+	 * Single-threaded teardown context, so it's yest required to grab the
 	 * fb_lock to protect against concurrent fb_list access. Contrary, it
 	 * would actually deadlock with the drm_framebuffer_cleanup function.
 	 *
-	 * Also, if there are any framebuffers left, that's a driver leak now,
+	 * Also, if there are any framebuffers left, that's a driver leak yesw,
 	 * so politely WARN about this.
 	 */
 	WARN_ON(!list_empty(&dev->mode_config.fb_list));

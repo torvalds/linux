@@ -1,11 +1,11 @@
 .. Permission is granted to copy, distribute and/or modify this
 .. document under the terms of the GNU Free Documentation License,
 .. Version 1.1 or any later version published by the Free Software
-.. Foundation, with no Invariant Sections, no Front-Cover Texts
-.. and no Back-Cover Texts. A copy of the license is included at
+.. Foundation, with yes Invariant Sections, yes Front-Cover Texts
+.. and yes Back-Cover Texts. A copy of the license is included at
 .. Documentation/media/uapi/fdl-appendix.rst.
 ..
-.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
+.. TODO: replace it to GFDL-1.1-or-later WITH yes-invariant-sections
 
 .. _pixfmt-indexed:
 
@@ -15,7 +15,7 @@ Indexed Format
 
 In this format each pixel is represented by an 8 bit index into a 256
 entry ARGB palette. It is intended for
-:ref:`Video Output Overlays <osd>` only. There are no ioctls to access
+:ref:`Video Output Overlays <osd>` only. There are yes ioctls to access
 the palette, this must be done with ioctls of the Linux framebuffer API.
 
 

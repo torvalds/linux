@@ -5,7 +5,7 @@
  * Copyright © 2005  Sean Young <sean@mess.org>
  *
  * This type of flash translation layer (FTL) is used by the Embedded BIOS
- * by General Software. It is known as the Resident Flash Disk (RFD), see:
+ * by General Software. It is kyeswn as the Resident Flash Disk (RFD), see:
  *
  *	http://www.gensw.com/pages/prod/bios/rfd.htm
  *
@@ -40,9 +40,9 @@ MODULE_PARM_DESC(block_size, "Block size to use by RFD, defaults to erase unit s
 /* An erase unit should start with this value */
 #define RFD_MAGIC		0x9193
 
-/* the second value is 0xffff or 0xffc8; function unknown */
+/* the second value is 0xffff or 0xffc8; function unkyeswn */
 
-/* the third value is always 0xffff, ignored */
+/* the third value is always 0xffff, igyesred */
 
 /* next is an array of mapping for each corresponding sector */
 #define HEADER_MAP_OFFSET	3
@@ -90,12 +90,12 @@ struct partition {
 
 static int rfd_ftl_writesect(struct mtd_blktrans_dev *dev, u_long sector, char *buf);
 
-static int build_block_map(struct partition *part, int block_no)
+static int build_block_map(struct partition *part, int block_yes)
 {
-	struct block *block = &part->blocks[block_no];
+	struct block *block = &part->blocks[block_yes];
 	int i;
 
-	block->offset = part->block_size * block_no;
+	block->offset = part->block_size * block_yes;
 
 	if (le16_to_cpu(part->header_cache[0]) != RFD_MAGIC) {
 		block->state = BLOCK_UNUSED;
@@ -124,7 +124,7 @@ static int build_block_map(struct partition *part, int block_no)
 			printk(KERN_WARNING PREFIX
 				"'%s': unit #%d: entry %d corrupt, "
 				"sector %d out of range\n",
-				part->mbd.mtd->name, block_no, i, entry);
+				part->mbd.mtd->name, block_yes, i, entry);
 			continue;
 		}
 
@@ -143,7 +143,7 @@ static int build_block_map(struct partition *part, int block_no)
 	}
 
 	if (block->free_sectors == part->data_sectors_per_block)
-		part->reserved_block = block_no;
+		part->reserved_block = block_yes;
 
 	return 0;
 }
@@ -217,14 +217,14 @@ static int scan_header(struct partition *part)
 	}
 
 	if (blocks_found == 0) {
-		printk(KERN_NOTICE PREFIX "no RFD magic found in '%s'\n",
+		printk(KERN_NOTICE PREFIX "yes RFD magic found in '%s'\n",
 				part->mbd.mtd->name);
 		rc = -ENOENT;
 		goto err;
 	}
 
 	if (part->reserved_block == -1) {
-		printk(KERN_WARNING PREFIX "'%s': no empty erase unit found\n",
+		printk(KERN_WARNING PREFIX "'%s': yes empty erase unit found\n",
 				part->mbd.mtd->name);
 
 		part->errors = 1;
@@ -319,7 +319,7 @@ static int erase_block(struct partition *part, int block)
 	return rc;
 }
 
-static int move_block_contents(struct partition *part, int block_no, u_long *old_sector)
+static int move_block_contents(struct partition *part, int block_yes, u_long *old_sector)
 {
 	void *sector_data;
 	u16 *map;
@@ -336,7 +336,7 @@ static int move_block_contents(struct partition *part, int block_no, u_long *old
 	if (!map)
 		goto err2;
 
-	rc = mtd_read(part->mbd.mtd, part->blocks[block_no].offset,
+	rc = mtd_read(part->mbd.mtd, part->blocks[block_yes].offset,
 		      part->header_size, &retlen, (u_char *)map);
 
 	if (!rc && retlen != part->header_size)
@@ -345,7 +345,7 @@ static int move_block_contents(struct partition *part, int block_no, u_long *old
 	if (rc) {
 		printk(KERN_ERR PREFIX "error reading '%s' at "
 			"0x%lx\n", part->mbd.mtd->name,
-			part->blocks[block_no].offset);
+			part->blocks[block_yes].offset);
 
 		goto err;
 	}
@@ -361,17 +361,17 @@ static int move_block_contents(struct partition *part, int block_no, u_long *old
 		if (entry == SECTOR_ZERO)
 			entry = 0;
 
-		/* already warned about and ignored in build_block_map() */
+		/* already warned about and igyesred in build_block_map() */
 		if (entry >= part->sector_count)
 			continue;
 
-		addr = part->blocks[block_no].offset +
+		addr = part->blocks[block_yes].offset +
 			(i + part->header_sectors_per_block) * SECTOR_SIZE;
 
 		if (*old_sector == addr) {
 			*old_sector = -1;
-			if (!part->blocks[block_no].used_sectors--) {
-				rc = erase_block(part, block_no);
+			if (!part->blocks[block_yes].used_sectors--) {
+				rc = erase_block(part, block_yes);
 				break;
 			}
 			continue;
@@ -441,7 +441,7 @@ static int reclaim_block(struct partition *part, u_long *old_sector)
 		if (block == old_sector_block)
 			this_score--;
 		else {
-			/* no point in moving a full block */
+			/* yes point in moving a full block */
 			if (part->blocks[block].used_sectors ==
 					part->data_sectors_per_block)
 				continue;

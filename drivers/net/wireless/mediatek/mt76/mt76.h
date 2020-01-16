@@ -435,7 +435,7 @@ struct mt76_rx_status {
 
 	u8 aggr:1;
 	u8 tid;
-	u16 seqno;
+	u16 seqyes;
 
 	u16 freq;
 	u32 flag;

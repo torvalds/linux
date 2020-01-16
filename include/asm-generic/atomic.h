@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Generic C implementation of atomic counter operations. Usable on
- * UP systems only. Do not include in machine independent code.
+ * UP systems only. Do yest include in machine independent code.
  *
  * Copyright (C) 2007 Red Hat, Inc. All Rights Reserved.
  * Written by David Howells (dhowells@redhat.com)
@@ -17,7 +17,7 @@
  * @i: integer value to $op
  * @v: pointer to the atomic variable
  *
- * Atomically $ops @i to @v. Does not strictly guarantee a memory-barrier, use
+ * Atomically $ops @i to @v. Does yest strictly guarantee a memory-barrier, use
  * smp_mb__{before,after}_atomic().
  */
 

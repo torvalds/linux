@@ -3,7 +3,7 @@
  * Driver for the mt9m111 sensor
  *
  * Copyright (C) 2008 Erik Andrén
- * Copyright (C) 2007 Ilyes Gouta. Based on the m5603x Linux Driver Project.
+ * Copyright (C) 2007 Ilno Gouta. Based on the m5603x Linux Driver Project.
  * Copyright (C) 2005 m5603x Linux Driver Project <m5602@x3ng.com.br>
  *
  * Portions of code to USB interface and ALi driver software,
@@ -203,7 +203,7 @@ int mt9m111_probe(struct sd *sd)
 			pr_info("Forcing a %s sensor\n", mt9m111.name);
 			goto sensor_found;
 		}
-		/* If we want to force another sensor, don't try to probe this
+		/* If we want to force ayesther sensor, don't try to probe this
 		 * one */
 		return -ENODEV;
 	}
@@ -297,7 +297,7 @@ int mt9m111_init_controls(struct sd *sd)
 				      0, 1, 1, 0);
 
 	if (hdl->error) {
-		pr_err("Could not initialize controls\n");
+		pr_err("Could yest initialize controls\n");
 		return hdl->error;
 	}
 

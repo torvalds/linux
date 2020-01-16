@@ -5,7 +5,7 @@
  * Copyright (C) 2008-2010 Nokia Corporation
  * Copyright (C) 2013-2017 Texas Instruments Incorporated - http://www.ti.com/
  *
- * Written by Hiroshi DOYU <Hiroshi.DOYU@nokia.com>,
+ * Written by Hiroshi DOYU <Hiroshi.DOYU@yeskia.com>,
  *		Paul Mundt and Toshihiro Kobayashi
  */
 
@@ -37,7 +37,7 @@ static const struct iommu_ops omap_iommu_ops;
 
 struct orphan_dev {
 	struct device *dev;
-	struct list_head node;
+	struct list_head yesde;
 };
 
 static LIST_HEAD(orphan_dev_list);
@@ -207,7 +207,7 @@ static int iommu_enable(struct omap_iommu *obj)
 
 	ret = pm_runtime_get_sync(obj->dev);
 	if (ret < 0)
-		pm_runtime_put_noidle(obj->dev);
+		pm_runtime_put_yesidle(obj->dev);
 
 	return ret < 0 ? ret : 0;
 }
@@ -364,7 +364,7 @@ static int load_iotlb_entry(struct omap_iommu *obj, struct iotlb_entry *e)
 				break;
 
 		if (i == obj->nr_tlb_entries) {
-			dev_dbg(obj->dev, "%s: full: no entry\n", __func__);
+			dev_dbg(obj->dev, "%s: full: yes entry\n", __func__);
 			err = -EBUSY;
 			goto out;
 		}
@@ -444,7 +444,7 @@ static void flush_iotlb_page(struct omap_iommu *obj, u32 da)
 	pm_runtime_put_sync(obj->dev);
 
 	if (i == obj->nr_tlb_entries)
-		dev_dbg(obj->dev, "%s: no page for %08x\n", __func__, da);
+		dev_dbg(obj->dev, "%s: yes page for %08x\n", __func__, da);
 }
 
 /**
@@ -737,7 +737,7 @@ static size_t iopgtable_clear_entry_core(struct omap_iommu *obj, u32 da)
 		flush_iopte_range(obj->dev, pt_dma, pt_offset, nent);
 
 		/*
-		 * do table walk to check if this table is necessary or not
+		 * do table walk to check if this table is necessary or yest
 		 */
 		iopte = iopte_offset(iopgd, 0);
 		for (i = 0; i < PTRS_PER_IOPTE; i++)
@@ -933,7 +933,7 @@ static void omap_iommu_restore_tlb_entries(struct omap_iommu *obj)
 	struct cr_regs *tmp;
 	int i;
 
-	/* no locked tlbs to restore */
+	/* yes locked tlbs to restore */
 	if (!obj->num_cr_ctx)
 		return;
 
@@ -1026,7 +1026,7 @@ static __maybe_unused int omap_iommu_runtime_suspend(struct device *dev)
 	struct omap_iommu *obj = to_iommu(dev);
 	int ret;
 
-	/* save the TLBs only during suspend, and not for power down */
+	/* save the TLBs only during suspend, and yest for power down */
 	if (obj->domain && obj->iopgd)
 		omap_iommu_save_tlb_entries(obj);
 
@@ -1087,7 +1087,7 @@ static __maybe_unused int omap_iommu_runtime_resume(struct device *dev)
 	if (pdata && pdata->device_enable)
 		pdata->device_enable(pdev);
 
-	/* restore the TLBs only during resume, and not for power up */
+	/* restore the TLBs only during resume, and yest for power up */
 	if (obj->domain)
 		omap_iommu_restore_tlb_entries(obj);
 
@@ -1101,7 +1101,7 @@ static __maybe_unused int omap_iommu_runtime_resume(struct device *dev)
  * @dev:	iommu device
  *
  * This function performs the necessary checks to determine if the IOMMU
- * device needs suspending or not. The function checks if the runtime_pm
+ * device needs suspending or yest. The function checks if the runtime_pm
  * status of the device is suspended, and returns 1 in that case. This
  * results in the PM core to skip invoking any of the Sleep PM callbacks
  * (suspend, suspend_late, resume, resume_early etc).
@@ -1115,7 +1115,7 @@ static int omap_iommu_prepare(struct device *dev)
 
 static bool omap_iommu_can_register(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 
 	if (!of_device_is_compatible(np, "ti,dra7-dsp-iommu"))
 		return true;
@@ -1134,7 +1134,7 @@ static bool omap_iommu_can_register(struct platform_device *pdev)
 static int omap_iommu_dra7_get_dsp_system_cfg(struct platform_device *pdev,
 					      struct omap_iommu *obj)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	int ret;
 
 	if (!of_device_is_compatible(np, "ti,dra7-dsp-iommu"))
@@ -1176,7 +1176,7 @@ static int omap_iommu_probe(struct platform_device *pdev)
 	int irq;
 	struct omap_iommu *obj;
 	struct resource *res;
-	struct device_node *of = pdev->dev.of_node;
+	struct device_yesde *of = pdev->dev.of_yesde;
 	struct orphan_dev *orphan_dev, *tmp;
 
 	if (!of) {
@@ -1260,10 +1260,10 @@ static int omap_iommu_probe(struct platform_device *pdev)
 
 	dev_info(&pdev->dev, "%s registered\n", obj->name);
 
-	list_for_each_entry_safe(orphan_dev, tmp, &orphan_dev_list, node) {
+	list_for_each_entry_safe(orphan_dev, tmp, &orphan_dev_list, yesde) {
 		err = _omap_iommu_add_device(orphan_dev->dev);
 		if (!err) {
-			list_del(&orphan_dev->node);
+			list_del(&orphan_dev->yesde);
 			kfree(orphan_dev);
 		}
 	}
@@ -1405,8 +1405,8 @@ static size_t omap_iommu_unmap(struct iommu_domain *domain, unsigned long da,
 
 	/*
 	 * simplify return - we are only checking if any of the iommus
-	 * reported an error, but not if all of them are unmapping the
-	 * same number of entries. This should not occur due to the
+	 * reported an error, but yest if all of them are unmapping the
+	 * same number of entries. This should yest occur due to the
 	 * mirror programming.
 	 */
 	return error ? 0 : bytes;
@@ -1546,11 +1546,11 @@ static void _omap_iommu_detach_dev(struct omap_iommu_domain *omap_domain,
 	int i;
 
 	if (!omap_domain->dev) {
-		dev_err(dev, "domain has no attached device\n");
+		dev_err(dev, "domain has yes attached device\n");
 		return;
 	}
 
-	/* only a single device is supported per domain for now */
+	/* only a single device is supported per domain for yesw */
 	if (omap_domain->dev != dev) {
 		dev_err(dev, "invalid attached device\n");
 		return;
@@ -1662,7 +1662,7 @@ static int _omap_iommu_add_device(struct device *dev)
 	struct omap_iommu_arch_data *arch_data, *tmp;
 	struct omap_iommu *oiommu;
 	struct iommu_group *group;
-	struct device_node *np;
+	struct device_yesde *np;
 	struct platform_device *pdev;
 	int num_iommus, i;
 	int ret;
@@ -1672,17 +1672,17 @@ static int _omap_iommu_add_device(struct device *dev)
 	/*
 	 * Allocate the archdata iommu structure for DT-based devices.
 	 *
-	 * TODO: Simplify this when removing non-DT support completely from the
+	 * TODO: Simplify this when removing yesn-DT support completely from the
 	 * IOMMU users.
 	 */
-	if (!dev->of_node)
+	if (!dev->of_yesde)
 		return 0;
 
 	/*
-	 * retrieve the count of IOMMU nodes using phandle size as element size
+	 * retrieve the count of IOMMU yesdes using phandle size as element size
 	 * since #iommu-cells = 0 for OMAP
 	 */
-	num_iommus = of_property_count_elems_of_size(dev->of_node, "iommus",
+	num_iommus = of_property_count_elems_of_size(dev->of_yesde, "iommus",
 						     sizeof(phandle));
 	if (num_iommus < 0)
 		return 0;
@@ -1692,19 +1692,19 @@ static int _omap_iommu_add_device(struct device *dev)
 		return -ENOMEM;
 
 	for (i = 0, tmp = arch_data; i < num_iommus; i++, tmp++) {
-		np = of_parse_phandle(dev->of_node, "iommus", i);
+		np = of_parse_phandle(dev->of_yesde, "iommus", i);
 		if (!np) {
 			kfree(arch_data);
 			return -EINVAL;
 		}
 
-		pdev = of_find_device_by_node(np);
+		pdev = of_find_device_by_yesde(np);
 		if (!pdev) {
-			of_node_put(np);
+			of_yesde_put(np);
 			kfree(arch_data);
 			spin_lock_irqsave(&orphan_lock, flags);
 			list_for_each_entry(orphan_dev, &orphan_dev_list,
-					    node) {
+					    yesde) {
 				if (orphan_dev->dev == dev)
 					break;
 			}
@@ -1716,14 +1716,14 @@ static int _omap_iommu_add_device(struct device *dev)
 			orphan_dev = kzalloc(sizeof(*orphan_dev), GFP_KERNEL);
 			orphan_dev->dev = dev;
 			spin_lock_irqsave(&orphan_lock, flags);
-			list_add(&orphan_dev->node, &orphan_dev_list);
+			list_add(&orphan_dev->yesde, &orphan_dev_list);
 			spin_unlock_irqrestore(&orphan_lock, flags);
 			return -EPROBE_DEFER;
 		}
 
 		oiommu = platform_get_drvdata(pdev);
 		if (!oiommu) {
-			of_node_put(np);
+			of_yesde_put(np);
 			kfree(arch_data);
 			return -EINVAL;
 		}
@@ -1731,7 +1731,7 @@ static int _omap_iommu_add_device(struct device *dev)
 		tmp->iommu_dev = oiommu;
 		tmp->dev = &pdev->dev;
 
-		of_node_put(np);
+		of_yesde_put(np);
 	}
 
 	/*
@@ -1779,7 +1779,7 @@ static void omap_iommu_remove_device(struct device *dev)
 {
 	struct omap_iommu_arch_data *arch_data = dev->archdata.iommu;
 
-	if (!dev->of_node || !arch_data)
+	if (!dev->of_yesde || !arch_data)
 		return;
 
 	iommu_device_unlink(&arch_data->iommu_dev->iommu, dev);
@@ -1820,14 +1820,14 @@ static int __init omap_iommu_init(void)
 	struct kmem_cache *p;
 	const slab_flags_t flags = SLAB_HWCACHE_ALIGN;
 	size_t align = 1 << 10; /* L2 pagetable alignement */
-	struct device_node *np;
+	struct device_yesde *np;
 	int ret;
 
-	np = of_find_matching_node(NULL, omap_iommu_of_match);
+	np = of_find_matching_yesde(NULL, omap_iommu_of_match);
 	if (!np)
 		return 0;
 
-	of_node_put(np);
+	of_yesde_put(np);
 
 	p = kmem_cache_create("iopte_cache", IOPTE_TABLE_SIZE, align, flags,
 			      NULL);

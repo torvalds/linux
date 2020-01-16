@@ -232,7 +232,7 @@ static int tegra_mc_reset_setup(struct tegra_mc *mc)
 
 	mc->reset.ops = &tegra_mc_reset_ops;
 	mc->reset.owner = THIS_MODULE;
-	mc->reset.of_node = mc->dev->of_node;
+	mc->reset.of_yesde = mc->dev->of_yesde;
 	mc->reset.of_reset_n_cells = 1;
 	mc->reset.nr_resets = mc->soc->num_resets;
 
@@ -288,7 +288,7 @@ int tegra_mc_write_emem_configuration(struct tegra_mc *mc, unsigned long rate)
 	}
 
 	if (!timing) {
-		dev_err(mc->dev, "no memory timing registered for rate %lu\n",
+		dev_err(mc->dev, "yes memory timing registered for rate %lu\n",
 			rate);
 		return -EINVAL;
 	}
@@ -312,15 +312,15 @@ unsigned int tegra_mc_get_emem_device_count(struct tegra_mc *mc)
 
 static int load_one_timing(struct tegra_mc *mc,
 			   struct tegra_mc_timing *timing,
-			   struct device_node *node)
+			   struct device_yesde *yesde)
 {
 	int err;
 	u32 tmp;
 
-	err = of_property_read_u32(node, "clock-frequency", &tmp);
+	err = of_property_read_u32(yesde, "clock-frequency", &tmp);
 	if (err) {
 		dev_err(mc->dev,
-			"timing %pOFn: failed to read rate\n", node);
+			"timing %pOFn: failed to read rate\n", yesde);
 		return err;
 	}
 
@@ -330,24 +330,24 @@ static int load_one_timing(struct tegra_mc *mc,
 	if (!timing->emem_data)
 		return -ENOMEM;
 
-	err = of_property_read_u32_array(node, "nvidia,emem-configuration",
+	err = of_property_read_u32_array(yesde, "nvidia,emem-configuration",
 					 timing->emem_data,
 					 mc->soc->num_emem_regs);
 	if (err) {
 		dev_err(mc->dev,
 			"timing %pOFn: failed to read EMEM configuration\n",
-			node);
+			yesde);
 		return err;
 	}
 
 	return 0;
 }
 
-static int load_timings(struct tegra_mc *mc, struct device_node *node)
+static int load_timings(struct tegra_mc *mc, struct device_yesde *yesde)
 {
-	struct device_node *child;
+	struct device_yesde *child;
 	struct tegra_mc_timing *timing;
-	int child_count = of_get_child_count(node);
+	int child_count = of_get_child_count(yesde);
 	int i = 0, err;
 
 	mc->timings = devm_kcalloc(mc->dev, child_count, sizeof(*timing),
@@ -357,12 +357,12 @@ static int load_timings(struct tegra_mc *mc, struct device_node *node)
 
 	mc->num_timings = child_count;
 
-	for_each_child_of_node(node, child) {
+	for_each_child_of_yesde(yesde, child) {
 		timing = &mc->timings[i++];
 
 		err = load_one_timing(mc, timing, child);
 		if (err) {
-			of_node_put(child);
+			of_yesde_put(child);
 			return err;
 		}
 	}
@@ -372,22 +372,22 @@ static int load_timings(struct tegra_mc *mc, struct device_node *node)
 
 static int tegra_mc_setup_timings(struct tegra_mc *mc)
 {
-	struct device_node *node;
-	u32 ram_code, node_ram_code;
+	struct device_yesde *yesde;
+	u32 ram_code, yesde_ram_code;
 	int err;
 
 	ram_code = tegra_read_ram_code();
 
 	mc->num_timings = 0;
 
-	for_each_child_of_node(mc->dev->of_node, node) {
-		err = of_property_read_u32(node, "nvidia,ram-code",
-					   &node_ram_code);
-		if (err || (node_ram_code != ram_code))
+	for_each_child_of_yesde(mc->dev->of_yesde, yesde) {
+		err = of_property_read_u32(yesde, "nvidia,ram-code",
+					   &yesde_ram_code);
+		if (err || (yesde_ram_code != ram_code))
 			continue;
 
-		err = load_timings(mc, node);
-		of_node_put(node);
+		err = load_timings(mc, yesde);
+		of_yesde_put(yesde);
 		if (err)
 			return err;
 		break;
@@ -395,7 +395,7 @@ static int tegra_mc_setup_timings(struct tegra_mc *mc)
 
 	if (mc->num_timings == 0)
 		dev_warn(mc->dev,
-			 "no memory timings for RAM code %u registered\n",
+			 "yes memory timings for RAM code %u registered\n",
 			 ram_code);
 
 	return 0;
@@ -433,8 +433,8 @@ static irqreturn_t tegra_mc_irq(int irq, void *data)
 		return IRQ_NONE;
 
 	for_each_set_bit(bit, &status, 32) {
-		const char *error = status_names[bit] ?: "unknown";
-		const char *client = "unknown", *desc;
+		const char *error = status_names[bit] ?: "unkyeswn";
+		const char *client = "unkyeswn", *desc;
 		const char *direction, *secure;
 		phys_addr_t addr = 0;
 		unsigned int i;
@@ -616,7 +616,7 @@ static int tegra_mc_probe(struct platform_device *pdev)
 		return err;
 	}
 
-	/* length of MC tick in nanoseconds */
+	/* length of MC tick in nayesseconds */
 	mc->tick = 30;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -660,7 +660,7 @@ static int tegra_mc_probe(struct platform_device *pdev)
 
 	mc->irq = platform_get_irq(pdev, 0);
 	if (mc->irq < 0) {
-		dev_err(&pdev->dev, "interrupt not specified\n");
+		dev_err(&pdev->dev, "interrupt yest specified\n");
 		return mc->irq;
 	}
 

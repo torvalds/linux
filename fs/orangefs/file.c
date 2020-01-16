@@ -16,24 +16,24 @@
 #include <linux/fs.h>
 #include <linux/pagemap.h>
 
-static int flush_racache(struct inode *inode)
+static int flush_racache(struct iyesde *iyesde)
 {
-	struct orangefs_inode_s *orangefs_inode = ORANGEFS_I(inode);
+	struct orangefs_iyesde_s *orangefs_iyesde = ORANGEFS_I(iyesde);
 	struct orangefs_kernel_op_s *new_op;
 	int ret;
 
 	gossip_debug(GOSSIP_UTILS_DEBUG,
 	    "%s: %pU: Handle is %pU | fs_id %d\n", __func__,
-	    get_khandle_from_ino(inode), &orangefs_inode->refn.khandle,
-	    orangefs_inode->refn.fs_id);
+	    get_khandle_from_iyes(iyesde), &orangefs_iyesde->refn.khandle,
+	    orangefs_iyesde->refn.fs_id);
 
 	new_op = op_alloc(ORANGEFS_VFS_OP_RA_FLUSH);
 	if (!new_op)
 		return -ENOMEM;
-	new_op->upcall.req.ra_cache_flush.refn = orangefs_inode->refn;
+	new_op->upcall.req.ra_cache_flush.refn = orangefs_iyesde->refn;
 
 	ret = service_operation(new_op, "orangefs_flush_racache",
-	    get_interruptible_flag(inode));
+	    get_interruptible_flag(iyesde));
 
 	gossip_debug(GOSSIP_UTILS_DEBUG, "%s: got return value of %d\n",
 	    __func__, ret);
@@ -45,13 +45,13 @@ static int flush_racache(struct inode *inode)
 /*
  * Post and wait for the I/O upcall to finish
  */
-ssize_t wait_for_direct_io(enum ORANGEFS_io_type type, struct inode *inode,
+ssize_t wait_for_direct_io(enum ORANGEFS_io_type type, struct iyesde *iyesde,
 	loff_t *offset, struct iov_iter *iter, size_t total_size,
 	loff_t readahead_size, struct orangefs_write_range *wr,
 	int *index_return, struct file *file)
 {
-	struct orangefs_inode_s *orangefs_inode = ORANGEFS_I(inode);
-	struct orangefs_khandle *handle = &orangefs_inode->refn.khandle;
+	struct orangefs_iyesde_s *orangefs_iyesde = ORANGEFS_I(iyesde);
+	struct orangefs_khandle *handle = &orangefs_iyesde->refn.khandle;
 	struct orangefs_kernel_op_s *new_op = NULL;
 	int buffer_index;
 	ssize_t ret;
@@ -63,10 +63,10 @@ ssize_t wait_for_direct_io(enum ORANGEFS_io_type type, struct inode *inode,
 	if (!new_op)
 		return -ENOMEM;
 
-	/* synchronous I/O */
+	/* synchroyesus I/O */
 	new_op->upcall.req.io.readahead_size = readahead_size;
 	new_op->upcall.req.io.io_type = type;
-	new_op->upcall.req.io.refn = orangefs_inode->refn;
+	new_op->upcall.req.io.refn = orangefs_iyesde->refn;
 
 populate_shared_memory:
 	/* get a shared buffer index */
@@ -94,16 +94,16 @@ populate_shared_memory:
 		new_op->upcall.gid = from_kgid(&init_user_ns, wr->gid);
 	}
 	/*
-	 * Orangefs has no open, and orangefs checks file permissions
+	 * Orangefs has yes open, and orangefs checks file permissions
 	 * on each file access. Posix requires that file permissions
-	 * be checked on open and nowhere else. Orangefs-through-the-kernel
+	 * be checked on open and yeswhere else. Orangefs-through-the-kernel
 	 * needs to seem posix compliant.
 	 *
-	 * The VFS opens files, even if the filesystem provides no
+	 * The VFS opens files, even if the filesystem provides yes
 	 * method. We can see if a file was successfully opened for
 	 * read and or for write by looking at file->f_mode.
 	 *
-	 * When writes are flowing from the page cache, file is no
+	 * When writes are flowing from the page cache, file is yes
 	 * longer available. We can trust the VFS to have checked
 	 * file->f_mode before writing to the page cache.
 	 *
@@ -119,7 +119,7 @@ populate_shared_memory:
 		open_for_read = file->f_mode & FMODE_READ;
 	} else {
 		open_for_write = 1;
-		open_for_read = 0; /* not relevant? */
+		open_for_read = 0; /* yest relevant? */
 	}
 	if ((type == ORANGEFS_IO_WRITE) && open_for_write)
 		new_op->upcall.uid = 0;
@@ -156,12 +156,12 @@ populate_shared_memory:
 				type == ORANGEFS_IO_WRITE ?
 					"file_write" :
 					"file_read",
-				get_interruptible_flag(inode));
+				get_interruptible_flag(iyesde));
 
 	/*
 	 * If service_operation() returns -EAGAIN #and# the operation was
 	 * purged from orangefs_request_list or htable_ops_in_progress, then
-	 * we know that the client was restarted, causing the shared memory
+	 * we kyesw that the client was restarted, causing the shared memory
 	 * area to be wiped clean.  To restart a  write operation in this
 	 * case, we must re-copy the data from the user's iovec to a NEW
 	 * shared memory location. To restart a read operation, we must get
@@ -181,19 +181,19 @@ populate_shared_memory:
 		if (ret == -EINTR) {
 			/*
 			 * We can't return EINTR if any data was written,
-			 * it's not POSIX. It is minimally acceptable
+			 * it's yest POSIX. It is minimally acceptable
 			 * to give a partial write, the way NFS does.
 			 *
-			 * It would be optimal to return all or nothing,
+			 * It would be optimal to return all or yesthing,
 			 * but if a userspace write is bigger than
 			 * an IO buffer, and the interrupt occurs
-			 * between buffer writes, that would not be
+			 * between buffer writes, that would yest be
 			 * possible.
 			 */
 			switch (new_op->op_state - OP_VFS_STATE_GIVEN_UP) {
 			/*
 			 * If the op was waiting when the interrupt
-			 * occurred, then the client-core did not
+			 * occurred, then the client-core did yest
 			 * trigger the write.
 			 */
 			case OP_VFS_STATE_WAITING:
@@ -301,38 +301,38 @@ out:
 	return ret;
 }
 
-int orangefs_revalidate_mapping(struct inode *inode)
+int orangefs_revalidate_mapping(struct iyesde *iyesde)
 {
-	struct orangefs_inode_s *orangefs_inode = ORANGEFS_I(inode);
-	struct address_space *mapping = inode->i_mapping;
-	unsigned long *bitlock = &orangefs_inode->bitlock;
+	struct orangefs_iyesde_s *orangefs_iyesde = ORANGEFS_I(iyesde);
+	struct address_space *mapping = iyesde->i_mapping;
+	unsigned long *bitlock = &orangefs_iyesde->bitlock;
 	int ret;
 
 	while (1) {
 		ret = wait_on_bit(bitlock, 1, TASK_KILLABLE);
 		if (ret)
 			return ret;
-		spin_lock(&inode->i_lock);
+		spin_lock(&iyesde->i_lock);
 		if (test_bit(1, bitlock)) {
-			spin_unlock(&inode->i_lock);
+			spin_unlock(&iyesde->i_lock);
 			continue;
 		}
-		if (!time_before(jiffies, orangefs_inode->mapping_time))
+		if (!time_before(jiffies, orangefs_iyesde->mapping_time))
 			break;
-		spin_unlock(&inode->i_lock);
+		spin_unlock(&iyesde->i_lock);
 		return 0;
 	}
 
 	set_bit(1, bitlock);
 	smp_wmb();
-	spin_unlock(&inode->i_lock);
+	spin_unlock(&iyesde->i_lock);
 
 	unmap_mapping_range(mapping, 0, 0, 0);
 	ret = filemap_write_and_wait(mapping);
 	if (!ret)
-		ret = invalidate_inode_pages2(mapping);
+		ret = invalidate_iyesde_pages2(mapping);
 
-	orangefs_inode->mapping_time = jiffies +
+	orangefs_iyesde->mapping_time = jiffies +
 	    orangefs_cache_timeout_msecs*HZ/1000;
 
 	clear_bit(1, bitlock);
@@ -352,7 +352,7 @@ static ssize_t orangefs_file_read_iter(struct kiocb *iocb,
 
 	/*
 	 * Remember how they set "count" in read(2) or pread(2) or whatever -
-	 * users can use count as a knob to control orangefs io size and later
+	 * users can use count as a kyesb to control orangefs io size and later
 	 * we can try to help them fill as many pages as possible in readpage.
 	 */
 	if (!iocb->ki_filp->private_data) {
@@ -363,14 +363,14 @@ static ssize_t orangefs_file_read_iter(struct kiocb *iocb,
 		ro->blksiz = iter->count;
 	}
 
-	down_read(&file_inode(iocb->ki_filp)->i_rwsem);
-	ret = orangefs_revalidate_mapping(file_inode(iocb->ki_filp));
+	down_read(&file_iyesde(iocb->ki_filp)->i_rwsem);
+	ret = orangefs_revalidate_mapping(file_iyesde(iocb->ki_filp));
 	if (ret)
 		goto out;
 
 	ret = generic_file_read_iter(iocb, iter);
 out:
-	up_read(&file_inode(iocb->ki_filp)->i_rwsem);
+	up_read(&file_iyesde(iocb->ki_filp)->i_rwsem);
 	return ret;
 }
 
@@ -380,8 +380,8 @@ static ssize_t orangefs_file_write_iter(struct kiocb *iocb,
 	int ret;
 	orangefs_stats.writes++;
 
-	if (iocb->ki_pos > i_size_read(file_inode(iocb->ki_filp))) {
-		ret = orangefs_revalidate_mapping(file_inode(iocb->ki_filp));
+	if (iocb->ki_pos > i_size_read(file_iyesde(iocb->ki_filp))) {
+		ret = orangefs_revalidate_mapping(file_iyesde(iocb->ki_filp));
 		if (ret)
 			return ret;
 	}
@@ -390,12 +390,12 @@ static ssize_t orangefs_file_write_iter(struct kiocb *iocb,
 	return ret;
 }
 
-static int orangefs_getflags(struct inode *inode, unsigned long *uval)
+static int orangefs_getflags(struct iyesde *iyesde, unsigned long *uval)
 {
 	__u64 val = 0;
 	int ret;
 
-	ret = orangefs_inode_getxattr(inode,
+	ret = orangefs_iyesde_getxattr(iyesde,
 				      "user.pvfs2.meta_hint",
 				      &val, sizeof(val));
 	if (ret < 0 && ret != -ENODATA)
@@ -411,7 +411,7 @@ static int orangefs_getflags(struct inode *inode, unsigned long *uval)
  */
 static long orangefs_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
-	struct inode *inode = file_inode(file);
+	struct iyesde *iyesde = file_iyesde(file);
 	int ret = -ENOTTY;
 	__u64 val = 0;
 	unsigned long uval;
@@ -425,7 +425,7 @@ static long orangefs_ioctl(struct file *file, unsigned int cmd, unsigned long ar
 	 * and append flags
 	 */
 	if (cmd == FS_IOC_GETFLAGS) {
-		ret = orangefs_getflags(inode, &uval);
+		ret = orangefs_getflags(iyesde, &uval);
 		if (ret)
 			return ret;
 		gossip_debug(GOSSIP_FILE_DEBUG,
@@ -440,27 +440,27 @@ static long orangefs_ioctl(struct file *file, unsigned int cmd, unsigned long ar
 			return -EFAULT;
 		/*
 		 * ORANGEFS_MIRROR_FL is set internally when the mirroring mode
-		 * is turned on for a file. The user is not allowed to turn
+		 * is turned on for a file. The user is yest allowed to turn
 		 * on this bit, but the bit is present if the user first gets
 		 * the flags and then updates the flags with some new
-		 * settings. So, we ignore it in the following edit. bligon.
+		 * settings. So, we igyesre it in the following edit. bligon.
 		 */
 		if ((uval & ~ORANGEFS_MIRROR_FL) &
 		    (~(FS_IMMUTABLE_FL | FS_APPEND_FL | FS_NOATIME_FL))) {
 			gossip_err("orangefs_ioctl: the FS_IOC_SETFLAGS only supports setting one of FS_IMMUTABLE_FL|FS_APPEND_FL|FS_NOATIME_FL\n");
 			return -EINVAL;
 		}
-		ret = orangefs_getflags(inode, &old_uval);
+		ret = orangefs_getflags(iyesde, &old_uval);
 		if (ret)
 			return ret;
-		ret = vfs_ioc_setflags_prepare(inode, old_uval, uval);
+		ret = vfs_ioc_setflags_prepare(iyesde, old_uval, uval);
 		if (ret)
 			return ret;
 		val = uval;
 		gossip_debug(GOSSIP_FILE_DEBUG,
 			     "orangefs_ioctl: FS_IOC_SETFLAGS: %llu\n",
 			     (unsigned long long)val);
-		ret = orangefs_inode_setxattr(inode,
+		ret = orangefs_iyesde_setxattr(iyesde,
 					      "user.pvfs2.meta_hint",
 					      &val, sizeof(val), 0);
 	}
@@ -472,12 +472,12 @@ static vm_fault_t orangefs_fault(struct vm_fault *vmf)
 {
 	struct file *file = vmf->vma->vm_file;
 	int ret;
-	ret = orangefs_inode_getattr(file->f_mapping->host,
+	ret = orangefs_iyesde_getattr(file->f_mapping->host,
 	    ORANGEFS_GETATTR_SIZE);
 	if (ret == -ESTALE)
 		ret = -EIO;
 	if (ret) {
-		gossip_err("%s: orangefs_inode_getattr failed, "
+		gossip_err("%s: orangefs_iyesde_getattr failed, "
 		    "ret:%d:.\n", __func__, ret);
 		return VM_FAULT_SIGBUS;
 	}
@@ -497,7 +497,7 @@ static int orangefs_file_mmap(struct file *file, struct vm_area_struct *vma)
 {
 	int ret;
 
-	ret = orangefs_revalidate_mapping(file_inode(file));
+	ret = orangefs_revalidate_mapping(file_iyesde(file));
 	if (ret)
 		return ret;
 
@@ -505,7 +505,7 @@ static int orangefs_file_mmap(struct file *file, struct vm_area_struct *vma)
 		     "orangefs_file_mmap: called on %s\n",
 		     (file ?
 			(char *)file->f_path.dentry->d_name.name :
-			(char *)"Unknown"));
+			(char *)"Unkyeswn"));
 
 	/* set the sequential readahead hint */
 	vma->vm_flags |= VM_SEQ_READ;
@@ -519,30 +519,30 @@ static int orangefs_file_mmap(struct file *file, struct vm_area_struct *vma)
 #define mapping_nrpages(idata) ((idata)->nrpages)
 
 /*
- * Called to notify the module that there are no more references to
- * this file (i.e. no processes have it open).
+ * Called to yestify the module that there are yes more references to
+ * this file (i.e. yes processes have it open).
  *
- * \note Not called when each file is closed.
+ * \yeste Not called when each file is closed.
  */
-static int orangefs_file_release(struct inode *inode, struct file *file)
+static int orangefs_file_release(struct iyesde *iyesde, struct file *file)
 {
 	gossip_debug(GOSSIP_FILE_DEBUG,
 		     "orangefs_file_release: called on %pD\n",
 		     file);
 
 	/*
-	 * remove all associated inode pages from the page cache and
+	 * remove all associated iyesde pages from the page cache and
 	 * readahead cache (if any); this forces an expensive refresh of
 	 * data for the next caller of mmap (or 'get_block' accesses)
 	 */
-	if (file_inode(file) &&
-	    file_inode(file)->i_mapping &&
-	    mapping_nrpages(&file_inode(file)->i_data)) {
+	if (file_iyesde(file) &&
+	    file_iyesde(file)->i_mapping &&
+	    mapping_nrpages(&file_iyesde(file)->i_data)) {
 		if (orangefs_features & ORANGEFS_FEATURE_READAHEAD) {
 			gossip_debug(GOSSIP_INODE_DEBUG,
 			    "calling flush_racache on %pU\n",
-			    get_khandle_from_ino(inode));
-			flush_racache(inode);
+			    get_khandle_from_iyes(iyesde));
+			flush_racache(iyesde);
 			gossip_debug(GOSSIP_INODE_DEBUG,
 			    "flush_racache finished\n");
 		}
@@ -560,11 +560,11 @@ static int orangefs_fsync(struct file *file,
 		       int datasync)
 {
 	int ret;
-	struct orangefs_inode_s *orangefs_inode =
-		ORANGEFS_I(file_inode(file));
+	struct orangefs_iyesde_s *orangefs_iyesde =
+		ORANGEFS_I(file_iyesde(file));
 	struct orangefs_kernel_op_s *new_op = NULL;
 
-	ret = filemap_write_and_wait_range(file_inode(file)->i_mapping,
+	ret = filemap_write_and_wait_range(file_iyesde(file)->i_mapping,
 	    start, end);
 	if (ret < 0)
 		return ret;
@@ -572,11 +572,11 @@ static int orangefs_fsync(struct file *file,
 	new_op = op_alloc(ORANGEFS_VFS_OP_FSYNC);
 	if (!new_op)
 		return -ENOMEM;
-	new_op->upcall.req.fsync.refn = orangefs_inode->refn;
+	new_op->upcall.req.fsync.refn = orangefs_iyesde->refn;
 
 	ret = service_operation(new_op,
 			"orangefs_fsync",
-			get_interruptible_flag(file_inode(file)));
+			get_interruptible_flag(file_iyesde(file)));
 
 	gossip_debug(GOSSIP_FILE_DEBUG,
 		     "orangefs_fsync got return value of %d\n",
@@ -589,7 +589,7 @@ static int orangefs_fsync(struct file *file,
 /*
  * Change the file pointer position for an instance of an open file.
  *
- * \note If .llseek is overriden, we must acquire lock as described in
+ * \yeste If .llseek is overriden, we must acquire lock as described in
  *       Documentation/filesystems/locking.rst.
  *
  * Future upgrade could support SEEK_DATA and SEEK_HOLE but would
@@ -598,21 +598,21 @@ static int orangefs_fsync(struct file *file,
 static loff_t orangefs_file_llseek(struct file *file, loff_t offset, int origin)
 {
 	int ret = -EINVAL;
-	struct inode *inode = file_inode(file);
+	struct iyesde *iyesde = file_iyesde(file);
 
 	if (origin == SEEK_END) {
 		/*
-		 * revalidate the inode's file size.
+		 * revalidate the iyesde's file size.
 		 * NOTE: We are only interested in file size here,
 		 * so we set mask accordingly.
 		 */
-		ret = orangefs_inode_getattr(file->f_mapping->host,
+		ret = orangefs_iyesde_getattr(file->f_mapping->host,
 		    ORANGEFS_GETATTR_SIZE);
 		if (ret == -ESTALE)
 			ret = -EIO;
 		if (ret) {
 			gossip_debug(GOSSIP_FILE_DEBUG,
-				     "%s:%s:%d calling make bad inode\n",
+				     "%s:%s:%d calling make bad iyesde\n",
 				     __FILE__,
 				     __func__,
 				     __LINE__);
@@ -622,23 +622,23 @@ static loff_t orangefs_file_llseek(struct file *file, loff_t offset, int origin)
 
 	gossip_debug(GOSSIP_FILE_DEBUG,
 		     "orangefs_file_llseek: offset is %ld | origin is %d"
-		     " | inode size is %lu\n",
+		     " | iyesde size is %lu\n",
 		     (long)offset,
 		     origin,
-		     (unsigned long)i_size_read(inode));
+		     (unsigned long)i_size_read(iyesde));
 
 	return generic_file_llseek(file, offset, origin);
 }
 
 /*
- * Support local locks (locks that only this kernel knows about)
+ * Support local locks (locks that only this kernel kyesws about)
  * if Orangefs was mounted -o local_lock.
  */
 static int orangefs_lock(struct file *filp, int cmd, struct file_lock *fl)
 {
 	int rc = -EINVAL;
 
-	if (ORANGEFS_SB(file_inode(filp)->i_sb)->flags & ORANGEFS_OPT_LOCAL_LOCK) {
+	if (ORANGEFS_SB(file_iyesde(filp)->i_sb)->flags & ORANGEFS_OPT_LOCAL_LOCK) {
 		if (cmd == F_GETLK) {
 			rc = 0;
 			posix_test_lock(filp, fl);
@@ -650,10 +650,10 @@ static int orangefs_lock(struct file *filp, int cmd, struct file_lock *fl)
 	return rc;
 }
 
-static int orangefs_file_open(struct inode * inode, struct file *file)
+static int orangefs_file_open(struct iyesde * iyesde, struct file *file)
 {
 	file->private_data = NULL;
-	return generic_file_open(inode, file);
+	return generic_file_open(iyesde, file);
 }
 
 static int orangefs_flush(struct file *file, fl_owner_t id)
@@ -662,21 +662,21 @@ static int orangefs_flush(struct file *file, fl_owner_t id)
 	 * This is vfs_fsync_range(file, 0, LLONG_MAX, 0) without the
 	 * service_operation in orangefs_fsync.
 	 *
-	 * Do not send fsync to OrangeFS server on a close.  Do send fsync
+	 * Do yest send fsync to OrangeFS server on a close.  Do send fsync
 	 * on an explicit fsync call.  This duplicates historical OrangeFS
 	 * behavior.
 	 */
-	struct inode *inode = file->f_mapping->host;
+	struct iyesde *iyesde = file->f_mapping->host;
 	int r;
 
 	kfree(file->private_data);
 	file->private_data = NULL;
 
-	if (inode->i_state & I_DIRTY_TIME) {
-		spin_lock(&inode->i_lock);
-		inode->i_state &= ~I_DIRTY_TIME;
-		spin_unlock(&inode->i_lock);
-		mark_inode_dirty_sync(inode);
+	if (iyesde->i_state & I_DIRTY_TIME) {
+		spin_lock(&iyesde->i_lock);
+		iyesde->i_state &= ~I_DIRTY_TIME;
+		spin_unlock(&iyesde->i_lock);
+		mark_iyesde_dirty_sync(iyesde);
 	}
 
 	r = filemap_write_and_wait_range(file->f_mapping, 0, LLONG_MAX);

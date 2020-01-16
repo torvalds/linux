@@ -203,7 +203,7 @@ lqasc_rx_chars(struct uart_port *port)
 				flag = TTY_FRAME;
 		}
 
-		if ((rsr & port->ignore_status_mask) == 0)
+		if ((rsr & port->igyesre_status_mask) == 0)
 			tty_insert_flip_char(tport, ch, flag);
 
 		if (rsr & ASCSTATE_ROE)
@@ -435,7 +435,7 @@ lqasc_set_termios(struct uart_port *port,
 		break;
 	}
 
-	cflag &= ~CMSPAR; /* Mark/Space parity is not supported */
+	cflag &= ~CMSPAR; /* Mark/Space parity is yest supported */
 
 	if (cflag & CSTOPB)
 		con |= ASCCON_STP;
@@ -451,21 +451,21 @@ lqasc_set_termios(struct uart_port *port,
 	if (iflag & INPCK)
 		port->read_status_mask |= ASCSTATE_FE | ASCSTATE_PE;
 
-	port->ignore_status_mask = 0;
+	port->igyesre_status_mask = 0;
 	if (iflag & IGNPAR)
-		port->ignore_status_mask |= ASCSTATE_FE | ASCSTATE_PE;
+		port->igyesre_status_mask |= ASCSTATE_FE | ASCSTATE_PE;
 
 	if (iflag & IGNBRK) {
 		/*
-		 * If we're ignoring parity and break indicators,
-		 * ignore overruns too (for real raw support).
+		 * If we're igyesring parity and break indicators,
+		 * igyesre overruns too (for real raw support).
 		 */
 		if (iflag & IGNPAR)
-			port->ignore_status_mask |= ASCSTATE_ROE;
+			port->igyesre_status_mask |= ASCSTATE_ROE;
 	}
 
 	if ((cflag & CREAD) == 0)
-		port->ignore_status_mask |= UART_DUMMY_UER_RX;
+		port->igyesre_status_mask |= UART_DUMMY_UER_RX;
 
 	/* set error signals  - framing, parity  and overrun, enable receiver */
 	con |= ASCCON_FEN | ASCCON_TOEN | ASCCON_ROEN;
@@ -489,7 +489,7 @@ lqasc_set_termios(struct uart_port *port,
 	/* set up to use divisor of 2 */
 	asc_update_bits(ASCCON_BRS, 0, port->membase + LTQ_ASC_CON);
 
-	/* now we can write the new baudrate into the register */
+	/* yesw we can write the new baudrate into the register */
 	__raw_writel(divisor, port->membase + LTQ_ASC_BG);
 
 	/* turn the baudrate generator back on */
@@ -536,7 +536,7 @@ lqasc_request_port(struct uart_port *port)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {
-		dev_err(&pdev->dev, "cannot obtain I/O memory region");
+		dev_err(&pdev->dev, "canyest obtain I/O memory region");
 		return -ENODEV;
 	}
 	size = resource_size(res);
@@ -544,12 +544,12 @@ lqasc_request_port(struct uart_port *port)
 	res = devm_request_mem_region(&pdev->dev, res->start,
 		size, dev_name(&pdev->dev));
 	if (!res) {
-		dev_err(&pdev->dev, "cannot request I/O memory region");
+		dev_err(&pdev->dev, "canyest request I/O memory region");
 		return -EBUSY;
 	}
 
 	if (port->flags & UPF_IOREMAP) {
-		port->membase = devm_ioremap_nocache(&pdev->dev,
+		port->membase = devm_ioremap_yescache(&pdev->dev,
 			port->mapbase, size);
 		if (port->membase == NULL)
 			return -ENOMEM;
@@ -711,7 +711,7 @@ static struct uart_driver lqasc_reg = {
 	.driver_name =	DRVNAME,
 	.dev_name =	"ttyLTQ",
 	.major =	0,
-	.minor =	0,
+	.miyesr =	0,
 	.nr =		MAXPORTS,
 	.cons =		&lqasc_console,
 };
@@ -722,7 +722,7 @@ static int fetch_irq_lantiq(struct device *dev, struct ltq_uart_port *ltq_port)
 	struct resource irqres[3];
 	int ret;
 
-	ret = of_irq_to_resource_table(dev->of_node, irqres, 3);
+	ret = of_irq_to_resource_table(dev->of_yesde, irqres, 3);
 	if (ret != 3) {
 		dev_err(dev,
 			"failed to get IRQs for serial port\n");
@@ -784,7 +784,7 @@ static int fetch_irq_intel(struct device *dev, struct ltq_uart_port *ltq_port)
 	struct uart_port *port = &ltq_port->port;
 	int ret;
 
-	ret = of_irq_get(dev->of_node, 0);
+	ret = of_irq_get(dev->of_yesde, 0);
 	if (ret < 0) {
 		dev_err(dev, "failed to fetch IRQ for serial port\n");
 		return ret;
@@ -818,7 +818,7 @@ static void free_irq_intel(struct uart_port *port)
 static int __init
 lqasc_probe(struct platform_device *pdev)
 {
-	struct device_node *node = pdev->dev.of_node;
+	struct device_yesde *yesde = pdev->dev.of_yesde;
 	struct ltq_uart_port *ltq_port;
 	struct uart_port *port;
 	struct resource *mmres;
@@ -845,7 +845,7 @@ lqasc_probe(struct platform_device *pdev)
 		return ret;
 
 	/* get serial id */
-	line = of_alias_get_id(node, "serial");
+	line = of_alias_get_id(yesde, "serial");
 	if (line < 0) {
 		if (IS_ENABLED(CONFIG_LANTIQ)) {
 			if (mmres->start == CPHYSADDR(LTQ_EARLY_ASC))
@@ -853,7 +853,7 @@ lqasc_probe(struct platform_device *pdev)
 			else
 				line = 1;
 		} else {
-			dev_err(&pdev->dev, "failed to get alias id, errno %d\n",
+			dev_err(&pdev->dev, "failed to get alias id, erryes %d\n",
 				line);
 			return line;
 		}
@@ -885,7 +885,7 @@ lqasc_probe(struct platform_device *pdev)
 		return -ENOENT;
 	}
 
-	/* not all asc ports have clock gates, lets ignore the return code */
+	/* yest all asc ports have clock gates, lets igyesre the return code */
 	if (IS_ENABLED(CONFIG_LANTIQ) && !IS_ENABLED(CONFIG_COMMON_CLK))
 		ltq_port->clk = clk_get(&pdev->dev, NULL);
 	else

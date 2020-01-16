@@ -11,7 +11,7 @@ menuconfig CAN
 	  communications protocol. Development of the CAN bus started in
 	  1983 at Robert Bosch GmbH, and the protocol was officially
 	  released in 1986. The CAN bus was originally mainly for automotive,
-	  but is now widely used in marine (NMEA2000), industrial, and medical
+	  but is yesw widely used in marine (NMEA2000), industrial, and medical
 	  applications. More information on the CAN network protocol family
 	  PF_CAN is contained in <Documentation/networking/can.rst>.
 
@@ -26,7 +26,7 @@ config CAN_RAW
 	---help---
 	  The raw CAN protocol option offers access to the CAN bus via
 	  the BSD socket API. You probably want to use the raw socket in
-	  most cases where no higher level protocol is being used. The raw
+	  most cases where yes higher level protocol is being used. The raw
 	  socket has several filter options e.g. ID masking / error frames.
 	  To receive/send raw CAN messages, use AF_CAN with protocol CAN_RAW.
 
@@ -51,7 +51,7 @@ config CAN_GW
 	  msg sending and can optionally modify routed CAN frames on the fly.
 	  CAN frames can be routed between CAN network interfaces (one hop).
 	  They can be modified with AND/OR/XOR/SET operations as configured
-	  by the netlink configuration interface known e.g. from iptables.
+	  by the netlink configuration interface kyeswn e.g. from iptables.
 
 source "net/can/j1939/Kconfig"
 

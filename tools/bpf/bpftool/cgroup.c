@@ -3,7 +3,7 @@
 // Author: Roman Gushchin <guro@fb.com>
 
 #define _XOPEN_SOURCE 500
-#include <errno.h>
+#include <erryes.h>
 #include <fcntl.h>
 #include <ftw.h>
 #include <mntent.h>
@@ -147,7 +147,7 @@ static int show_attached_bpf_progs(int cgroup_fd, enum bpf_attach_type type,
 		attach_flags_str = "";
 		break;
 	default:
-		snprintf(buf, sizeof(buf), "unknown(%x)", attach_flags);
+		snprintf(buf, sizeof(buf), "unkyeswn(%x)", attach_flags);
 		attach_flags_str = buf;
 	}
 
@@ -180,7 +180,7 @@ static int do_show(int argc, char **argv)
 			query_flags |= BPF_F_QUERY_EFFECTIVE;
 			NEXT_ARG();
 		} else {
-			p_err("expected no more arguments, 'effective', got: '%s'?",
+			p_err("expected yes more arguments, 'effective', got: '%s'?",
 			      *argv);
 			return -1;
 		}
@@ -236,16 +236,16 @@ static int do_show_tree_fn(const char *fpath, const struct stat *sb,
 
 	cgroup_fd = open(fpath, O_RDONLY);
 	if (cgroup_fd < 0) {
-		p_err("can't open cgroup %s: %s", fpath, strerror(errno));
+		p_err("can't open cgroup %s: %s", fpath, strerror(erryes));
 		return SHOW_TREE_FN_ERR;
 	}
 
 	for (type = 0; type < __MAX_BPF_ATTACH_TYPE; type++) {
 		int count = count_attached_bpf_progs(cgroup_fd, type);
 
-		if (count < 0 && errno != EINVAL) {
+		if (count < 0 && erryes != EINVAL) {
 			p_err("can't query bpf programs attached to %s: %s",
-			      fpath, strerror(errno));
+			      fpath, strerror(erryes));
 			close(cgroup_fd);
 			return SHOW_TREE_FN_ERR;
 		}
@@ -272,12 +272,12 @@ static int do_show_tree_fn(const char *fpath, const struct stat *sb,
 	for (type = 0; type < __MAX_BPF_ATTACH_TYPE; type++)
 		show_attached_bpf_progs(cgroup_fd, type, ftw->level);
 
-	if (errno == EINVAL)
-		/* Last attach type does not support query.
-		 * Do not report an error for this, especially because batch
+	if (erryes == EINVAL)
+		/* Last attach type does yest support query.
+		 * Do yest report an error for this, especially because batch
 		 * mode would stop processing commands.
 		 */
-		errno = 0;
+		erryes = 0;
 
 	if (json_output) {
 		jsonw_end_array(json_wtr);
@@ -335,7 +335,7 @@ static int do_show_tree(int argc, char **argv)
 				query_flags |= BPF_F_QUERY_EFFECTIVE;
 				NEXT_ARG();
 			} else {
-				p_err("expected no more arguments, 'effective', got: '%s'?",
+				p_err("expected yes more arguments, 'effective', got: '%s'?",
 				      *argv);
 				return -1;
 			}
@@ -353,7 +353,7 @@ static int do_show_tree(int argc, char **argv)
 	switch (nftw(cgroup_root, do_show_tree_fn, 1024, FTW_MOUNT)) {
 	case NFTW_ERR:
 		p_err("can't iterate over %s: %s", cgroup_root,
-		      strerror(errno));
+		      strerror(erryes));
 		ret = -1;
 		break;
 	case SHOW_TREE_FN_ERR:
@@ -408,7 +408,7 @@ static int do_attach(int argc, char **argv)
 		} else if (is_prefix(argv[i], "override")) {
 			attach_flags |= BPF_F_ALLOW_OVERRIDE;
 		} else {
-			p_err("unknown option: %s", argv[i]);
+			p_err("unkyeswn option: %s", argv[i]);
 			goto exit_cgroup;
 		}
 	}

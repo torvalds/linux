@@ -32,7 +32,7 @@ struct ipc_message {
 	bool pending;
 	bool complete;
 	bool wait;
-	int errno;
+	int erryes;
 };
 
 struct sst_generic_ipc;
@@ -70,10 +70,10 @@ struct sst_generic_ipc {
 int sst_ipc_tx_message_wait(struct sst_generic_ipc *ipc,
 	struct sst_ipc_message request, struct sst_ipc_message *reply);
 
-int sst_ipc_tx_message_nowait(struct sst_generic_ipc *ipc,
+int sst_ipc_tx_message_yeswait(struct sst_generic_ipc *ipc,
 	struct sst_ipc_message request);
 
-int sst_ipc_tx_message_nopm(struct sst_generic_ipc *ipc,
+int sst_ipc_tx_message_yespm(struct sst_generic_ipc *ipc,
 	struct sst_ipc_message request, struct sst_ipc_message *reply);
 
 struct ipc_message *sst_ipc_reply_find_msg(struct sst_generic_ipc *ipc,

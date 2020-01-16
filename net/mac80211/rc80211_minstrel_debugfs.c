@@ -7,7 +7,7 @@
  *
  * Based on minstrel.c:
  *   Copyright (C) 2005-2007 Derek Smithies <derek@indranet.co.nz>
- *   Sponsored by Indranet Technologies Ltd
+ *   Sponsored by Indranet Techyeslogies Ltd
  *
  * Based on sample.c:
  *   Copyright (c) 2005 John Bicket
@@ -17,13 +17,13 @@
  *   modification, are permitted provided that the following conditions
  *   are met:
  *   1. Redistributions of source code must retain the above copyright
- *      notice, this list of conditions and the following disclaimer,
+ *      yestice, this list of conditions and the following disclaimer,
  *      without modification.
  *   2. Redistributions in binary form must reproduce at minimum a disclaimer
  *      similar to the "NO WARRANTY" disclaimer below ("Disclaimer") and any
  *      redistribution must be conditioned upon including a substantially
  *      similar Disclaimer requirement for further binary redistribution.
- *   3. Neither the names of the above-listed copyright holders nor the names
+ *   3. Neither the names of the above-listed copyright holders yesr the names
  *      of any contributors may be used to endorse or promote products derived
  *      from this software without specific prior written permission.
  *
@@ -55,9 +55,9 @@
 #include "rc80211_minstrel.h"
 
 int
-minstrel_stats_open(struct inode *inode, struct file *file)
+minstrel_stats_open(struct iyesde *iyesde, struct file *file)
 {
-	struct minstrel_sta_info *mi = inode->i_private;
+	struct minstrel_sta_info *mi = iyesde->i_private;
 	struct minstrel_debugfs_info *ms;
 	unsigned int i, tp_max, tp_avg, eprob;
 	char *p;
@@ -117,9 +117,9 @@ minstrel_stats_open(struct inode *inode, struct file *file)
 }
 
 int
-minstrel_stats_csv_open(struct inode *inode, struct file *file)
+minstrel_stats_csv_open(struct iyesde *iyesde, struct file *file)
 {
-	struct minstrel_sta_info *mi = inode->i_private;
+	struct minstrel_sta_info *mi = iyesde->i_private;
 	struct minstrel_debugfs_info *ms;
 	unsigned int i, tp_max, tp_avg, eprob;
 	char *p;

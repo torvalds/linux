@@ -53,7 +53,7 @@ struct snd_info_entry_ops {
 	int (*ioctl)(struct snd_info_entry *entry, void *file_private_data,
 		     struct file *file, unsigned int cmd, unsigned long arg);
 	int (*mmap)(struct snd_info_entry *entry, void *file_private_data,
-		    struct inode *inode, struct file *file,
+		    struct iyesde *iyesde, struct file *file,
 		    struct vm_area_struct *vma);
 };
 
@@ -77,9 +77,9 @@ struct snd_info_entry {
 };
 
 #if defined(CONFIG_SND_OSSEMUL) && defined(CONFIG_SND_PROC_FS)
-int snd_info_minor_register(void);
+int snd_info_miyesr_register(void);
 #else
-#define snd_info_minor_register()	0
+#define snd_info_miyesr_register()	0
 #endif
 
 

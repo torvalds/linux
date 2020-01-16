@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -1241,7 +1241,7 @@ struct hns_roce_func_clear {
 #define FUNC_CLEAR_RST_FUN_DONE_S 0
 /* Each physical function manages up to 248 virtual functions；
  * it takes up to 100ms for each function to execute clear；
- * if an abnormal reset occurs, it is executed twice at most;
+ * if an abyesrmal reset occurs, it is executed twice at most;
  * so it takes up to 249 * 2 * 100ms.
  */
 #define HNS_ROCE_V2_FUNC_CLEAR_TIMEOUT_MSECS	(249 * 2 * 100)

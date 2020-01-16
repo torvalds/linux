@@ -10,7 +10,7 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/time.h>
 #include <linux/timer.h>
 
@@ -35,7 +35,7 @@ void musb_host_finish_resume(struct work_struct *work)
 
 	/*
 	 * ISSUE:  DaVinci (RTL 1.300) disconnects after
-	 * resume of high speed peripherals (but not full
+	 * resume of high speed peripherals (but yest full
 	 * speed ones).
 	 */
 	musb->is_active = 1;
@@ -124,7 +124,7 @@ void musb_port_reset(struct musb *musb, bool do_reset)
 	void __iomem	*mbase = musb->mregs;
 
 	if (musb->xceiv->otg->state == OTG_STATE_B_IDLE) {
-		musb_dbg(musb, "HNP: Returning from HNP; no hub reset from b_idle");
+		musb_dbg(musb, "HNP: Returning from HNP; yes hub reset from b_idle");
 		musb->port1_status &= ~USB_PORT_STAT_RESET;
 		return;
 	}
@@ -141,7 +141,7 @@ void musb_port_reset(struct musb *musb, bool do_reset)
 		 * If RESUME is set, we must make sure it stays minimum 20 ms.
 		 * Then we must clear RESUME and wait a bit to let musb start
 		 * generating SOFs. If we don't do this, OPT HS A 6.8 tests
-		 * fail with "Error! Did not receive an SOF before suspend
+		 * fail with "Error! Did yest receive an SOF before suspend
 		 * detected".
 		 */
 		if (power &  MUSB_POWER_RESUME) {
@@ -229,7 +229,7 @@ EXPORT_SYMBOL_GPL(musb_root_disconnect);
 
 /*---------------------------------------------------------------------*/
 
-/* Caller may or may not hold musb->lock */
+/* Caller may or may yest hold musb->lock */
 int musb_hub_status_data(struct usb_hcd *hcd, char *buf)
 {
 	struct musb	*musb = hcd_to_musb(hcd);
@@ -248,7 +248,7 @@ static int musb_has_gadget(struct musb *musb)
 	/*
 	 * In host-only mode we start a connection right away. In OTG mode
 	 * we have to wait until we loaded a gadget. We don't really need a
-	 * gadget if we operate as a host but we should not start a session
+	 * gadget if we operate as a host but we should yest start a session
 	 * as a device without a gadget or else we explode.
 	 */
 #ifdef CONFIG_USB_MUSB_HOST
@@ -281,7 +281,7 @@ int musb_hub_control(
 
 	/* hub features:  always zero, setting is a NOP
 	 * port features: reported, sometimes updated when host is active
-	 * no indicators
+	 * yes indicators
 	 */
 	switch (typeReq) {
 	case ClearHubFeature:
@@ -329,7 +329,7 @@ int musb_hub_control(
 		desc->bNbrPorts = 1;
 		desc->wHubCharacteristics = cpu_to_le16(
 			HUB_CHAR_INDV_PORT_LPSM /* per-port power switching */
-			| HUB_CHAR_NO_OCPM	/* no overcurrent reporting */
+			| HUB_CHAR_NO_OCPM	/* yes overcurrent reporting */
 			);
 		desc->bPwrOn2PwrGood = 5;	/* msec/2 */
 		desc->bHubContrCurrent = 0;

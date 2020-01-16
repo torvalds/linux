@@ -8,7 +8,7 @@ See Documentation/devicetree/bindings/mfd/madera.txt
 and defines for values used in these bindings:
 include/dt-bindings/sound/madera.h
 
-These properties are all contained in the parent MFD node.
+These properties are all contained in the parent MFD yesde.
 
 Optional properties:
   - cirrus,dmic-ref : Indicates how the MICBIAS pins have been externally
@@ -22,7 +22,7 @@ Optional properties:
 
   - cirrus,inmode : A list of input mode settings for each input. A maximum of
     16 cells, with four cells per input in the order INnAL, INnAR INnBL INnBR.
-    For non-muxed inputs the first two cells for that input set the mode for
+    For yesn-muxed inputs the first two cells for that input set the mode for
     the left and right channel and the second two cells must be 0.
     For muxed inputs the first two cells for that input set the mode of the
     left and right A inputs and the second two cells set the mode of the left
@@ -31,24 +31,24 @@ Optional properties:
     than the number of inputs the unspecified inputs default to
     MADERA_INMODE_DIFF.
 
-  - cirrus,out-mono : Mono bit for each output, maximum of six cells if the
+  - cirrus,out-moyes : Moyes bit for each output, maximum of six cells if the
     array is shorter outputs will be set to stereo.
 
   - cirrus,max-channels-clocked : Maximum number of channels that I2S clocks
     will be generated for. Useful when clock master for systems where the I2S
     bus has multiple data lines.
     One cell for each AIF, use a value of zero for AIFs that should be handled
-    normally.
+    yesrmally.
 
   - cirrus,pdm-fmt : PDM speaker data format, must contain 2 cells
     (OUT5 and OUT6). See the PDM_SPKn_FMT field in the datasheet for a
     description of this value.
-    The second cell is ignored for codecs that do not have OUT6.
+    The second cell is igyesred for codecs that do yest have OUT6.
 
   - cirrus,pdm-mute : PDM mute format, must contain 2 cells
     (OUT5 and OUT6). See the PDM_SPKn_CTRL_1 register in the datasheet for a
     description of this value.
-    The second cell is ignored for codecs that do not have OUT6.
+    The second cell is igyesred for codecs that do yest have OUT6.
 
 Example:
 
@@ -60,8 +60,8 @@ cs47l35@0 {
 		MADERA_INMODE_DMIC MADERA_INMODE_DMIC /* IN1A digital */
 		MADERA_INMODE_SE   MADERA_INMODE_SE   /* IN1B single-ended */
 		MADERA_INMODE_DIFF MADERA_INMODE_DIFF /* IN2 differential */
-		0 0 	/* not used on this codec */
+		0 0 	/* yest used on this codec */
 	>;
-	cirrus,out-mono = <0 0 0 0 0 0>;
+	cirrus,out-moyes = <0 0 0 0 0 0>;
 	cirrus,max-channels-clocked = <2 0 0>;
 };

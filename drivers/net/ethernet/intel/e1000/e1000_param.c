@@ -88,8 +88,8 @@ E1000_PARAM(AutoNeg, "Advertised auto-negotiation setting");
  *
  * Valid Range: 0-3
  *  - 0 - No Flow Control
- *  - 1 - Rx only, respond to PAUSE frames but do not generate them
- *  - 2 - Tx only, generate PAUSE frames but ignore them on receive
+ *  - 1 - Rx only, respond to PAUSE frames but do yest generate them
+ *  - 2 - Tx only, generate PAUSE frames but igyesre them on receive
  *  - 3 - Full Flow Control Support
  *
  * Default Value: Read flow control settings from the EEPROM
@@ -109,7 +109,7 @@ E1000_PARAM(FlowControl, "Flow Control setting");
 E1000_PARAM(XsumRX, "Disable or enable Receive Checksum offload");
 
 /* Transmit Interrupt Delay in units of 1.024 microseconds
- *  Tx interrupt delay needs to typically be set to something non zero
+ *  Tx interrupt delay needs to typically be set to something yesn zero
  *
  * Valid Range: 0-65535
  */
@@ -238,7 +238,7 @@ static void e1000_check_copper_options(struct e1000_adapter *adapter);
  * @adapter: board private structure
  *
  * This routine checks all command line parameters for valid user
- * input.  If an invalid value is given, or if no user specified
+ * input.  If an invalid value is given, or if yes user specified
  * value exists, a default value is used.  The final value is stored
  * in a variable in the adapter structure.
  **/
@@ -248,7 +248,7 @@ void e1000_check_options(struct e1000_adapter *adapter)
 	int bd = adapter->bd_number;
 
 	if (bd >= E1000_MAX_NIC) {
-		e_dev_warn("Warning: no configuration for board #%i "
+		e_dev_warn("Warning: yes configuration for board #%i "
 			   "using defaults for all values\n", bd);
 	}
 
@@ -513,18 +513,18 @@ static void e1000_check_fiber_options(struct e1000_adapter *adapter)
 {
 	int bd = adapter->bd_number;
 	if (num_Speed > bd) {
-		e_dev_info("Speed not valid for fiber adapters, parameter "
-			   "ignored\n");
+		e_dev_info("Speed yest valid for fiber adapters, parameter "
+			   "igyesred\n");
 	}
 
 	if (num_Duplex > bd) {
-		e_dev_info("Duplex not valid for fiber adapters, parameter "
-			   "ignored\n");
+		e_dev_info("Duplex yest valid for fiber adapters, parameter "
+			   "igyesred\n");
 	}
 
 	if ((num_AutoNeg > bd) && (AutoNeg[bd] != 0x20)) {
-		e_dev_info("AutoNeg other than 1000/Full is not valid for fiber"
-			   "adapters, parameter ignored\n");
+		e_dev_info("AutoNeg other than 1000/Full is yest valid for fiber"
+			   "adapters, parameter igyesred\n");
 	}
 }
 
@@ -550,7 +550,7 @@ static void e1000_check_copper_options(struct e1000_adapter *adapter)
 		opt = (struct e1000_option) {
 			.type = list_option,
 			.name = "Speed",
-			.err  = "parameter ignored",
+			.err  = "parameter igyesred",
 			.def  = 0,
 			.arg  = { .l = { .nr = ARRAY_SIZE(speed_list),
 					 .p = speed_list }}
@@ -572,7 +572,7 @@ static void e1000_check_copper_options(struct e1000_adapter *adapter)
 		opt = (struct e1000_option) {
 			.type = list_option,
 			.name = "Duplex",
-			.err  = "parameter ignored",
+			.err  = "parameter igyesred",
 			.def  = 0,
 			.arg  = { .l = { .nr = ARRAY_SIZE(dplx_list),
 					 .p = dplx_list }}
@@ -588,7 +588,7 @@ static void e1000_check_copper_options(struct e1000_adapter *adapter)
 
 	if ((num_AutoNeg > bd) && (speed != 0 || dplx != 0)) {
 		e_dev_info("AutoNeg specified along with Speed or Duplex, "
-			   "parameter ignored\n");
+			   "parameter igyesred\n");
 		adapter->hw.autoneg_advertised = AUTONEG_ADV_DEFAULT;
 	} else { /* Autoneg */
 		static const struct e1000_opt_list an_list[] =
@@ -628,7 +628,7 @@ static void e1000_check_copper_options(struct e1000_adapter *adapter)
 		opt = (struct e1000_option) {
 			.type = list_option,
 			.name = "AutoNeg",
-			.err  = "parameter ignored",
+			.err  = "parameter igyesred",
 			.def  = AUTONEG_ADV_DEFAULT,
 			.arg  = { .l = { .nr = ARRAY_SIZE(an_list),
 					 .p = an_list }}
@@ -707,7 +707,7 @@ static void e1000_check_copper_options(struct e1000_adapter *adapter)
 		e_dev_info("1000 Mbps Speed specified without Duplex\n");
 		goto full_duplex_only;
 	case SPEED_1000 + HALF_DUPLEX:
-		e_dev_info("Half Duplex is not supported at 1000 Mbps\n");
+		e_dev_info("Half Duplex is yest supported at 1000 Mbps\n");
 		/* fall through */
 	case SPEED_1000 + FULL_DUPLEX:
 full_duplex_only:

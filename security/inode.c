@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- *  inode.c - securityfs
+ *  iyesde.c - securityfs
  *
  *  Copyright (C) 2005 Greg Kroah-Hartman <gregkh@suse.de>
  *
- *  Based on fs/debugfs/inode.c which had the following copyright notice:
+ *  Based on fs/debugfs/iyesde.c which had the following copyright yestice:
  *    Copyright (C) 2004 Greg Kroah-Hartman <greg@kroah.com>
  *    Copyright (C) 2004 IBM Inc.
  */
@@ -25,16 +25,16 @@
 static struct vfsmount *mount;
 static int mount_count;
 
-static void securityfs_free_inode(struct inode *inode)
+static void securityfs_free_iyesde(struct iyesde *iyesde)
 {
-	if (S_ISLNK(inode->i_mode))
-		kfree(inode->i_link);
-	free_inode_nonrcu(inode);
+	if (S_ISLNK(iyesde->i_mode))
+		kfree(iyesde->i_link);
+	free_iyesde_yesnrcu(iyesde);
 }
 
 static const struct super_operations securityfs_super_operations = {
 	.statfs		= simple_statfs,
-	.free_inode	= securityfs_free_inode,
+	.free_iyesde	= securityfs_free_iyesde,
 };
 
 static int securityfs_fill_super(struct super_block *sb, struct fs_context *fc)
@@ -82,11 +82,11 @@ static struct file_system_type fs_type = {
  *          directory dentry if set.  If this parameter is %NULL, then the
  *          file will be created in the root of the securityfs filesystem.
  * @data: a pointer to something that the caller will want to get to later
- *        on.  The inode.i_private pointer will point to this value on
+ *        on.  The iyesde.i_private pointer will point to this value on
  *        the open() call.
  * @fops: a pointer to a struct file_operations that should be used for
  *        this file.
- * @iops: a point to a struct of inode_operations that should be used for
+ * @iops: a point to a struct of iyesde_operations that should be used for
  *        this file/dir
  *
  * This is the basic "create a file/dir/symlink" function for
@@ -97,20 +97,20 @@ static struct file_system_type fs_type = {
  *
  * This function returns a pointer to a dentry if it succeeds.  This
  * pointer must be passed to the securityfs_remove() function when the
- * file is to be removed (no automatic cleanup happens if your module
+ * file is to be removed (yes automatic cleanup happens if your module
  * is unloaded, you are responsible here).  If an error occurs, the
  * function will return the error value (via ERR_PTR).
  *
- * If securityfs is not enabled in the kernel, the value %-ENODEV is
+ * If securityfs is yest enabled in the kernel, the value %-ENODEV is
  * returned.
  */
 static struct dentry *securityfs_create_dentry(const char *name, umode_t mode,
 					struct dentry *parent, void *data,
 					const struct file_operations *fops,
-					const struct inode_operations *iops)
+					const struct iyesde_operations *iops)
 {
 	struct dentry *dentry;
-	struct inode *dir, *inode;
+	struct iyesde *dir, *iyesde;
 	int error;
 
 	if (!(mode & S_IFMT))
@@ -125,9 +125,9 @@ static struct dentry *securityfs_create_dentry(const char *name, umode_t mode,
 	if (!parent)
 		parent = mount->mnt_root;
 
-	dir = d_inode(parent);
+	dir = d_iyesde(parent);
 
-	inode_lock(dir);
+	iyesde_lock(dir);
 	dentry = lookup_one_len(name, parent, strlen(name));
 	if (IS_ERR(dentry))
 		goto out;
@@ -137,37 +137,37 @@ static struct dentry *securityfs_create_dentry(const char *name, umode_t mode,
 		goto out1;
 	}
 
-	inode = new_inode(dir->i_sb);
-	if (!inode) {
+	iyesde = new_iyesde(dir->i_sb);
+	if (!iyesde) {
 		error = -ENOMEM;
 		goto out1;
 	}
 
-	inode->i_ino = get_next_ino();
-	inode->i_mode = mode;
-	inode->i_atime = inode->i_mtime = inode->i_ctime = current_time(inode);
-	inode->i_private = data;
+	iyesde->i_iyes = get_next_iyes();
+	iyesde->i_mode = mode;
+	iyesde->i_atime = iyesde->i_mtime = iyesde->i_ctime = current_time(iyesde);
+	iyesde->i_private = data;
 	if (S_ISDIR(mode)) {
-		inode->i_op = &simple_dir_inode_operations;
-		inode->i_fop = &simple_dir_operations;
-		inc_nlink(inode);
+		iyesde->i_op = &simple_dir_iyesde_operations;
+		iyesde->i_fop = &simple_dir_operations;
+		inc_nlink(iyesde);
 		inc_nlink(dir);
 	} else if (S_ISLNK(mode)) {
-		inode->i_op = iops ? iops : &simple_symlink_inode_operations;
-		inode->i_link = data;
+		iyesde->i_op = iops ? iops : &simple_symlink_iyesde_operations;
+		iyesde->i_link = data;
 	} else {
-		inode->i_fop = fops;
+		iyesde->i_fop = fops;
 	}
-	d_instantiate(dentry, inode);
+	d_instantiate(dentry, iyesde);
 	dget(dentry);
-	inode_unlock(dir);
+	iyesde_unlock(dir);
 	return dentry;
 
 out1:
 	dput(dentry);
 	dentry = ERR_PTR(error);
 out:
-	inode_unlock(dir);
+	iyesde_unlock(dir);
 	simple_release_fs(&mount, &mount_count);
 	return dentry;
 }
@@ -181,7 +181,7 @@ out:
  *          directory dentry if set.  If this parameter is %NULL, then the
  *          file will be created in the root of the securityfs filesystem.
  * @data: a pointer to something that the caller will want to get to later
- *        on.  The inode.i_private pointer will point to this value on
+ *        on.  The iyesde.i_private pointer will point to this value on
  *        the open() call.
  * @fops: a pointer to a struct file_operations that should be used for
  *        this file.
@@ -190,11 +190,11 @@ out:
  *
  * This function returns a pointer to a dentry if it succeeds.  This
  * pointer must be passed to the securityfs_remove() function when the file is
- * to be removed (no automatic cleanup happens if your module is unloaded,
+ * to be removed (yes automatic cleanup happens if your module is unloaded,
  * you are responsible here).  If an error occurs, the function will return
  * the error value (via ERR_PTR).
  *
- * If securityfs is not enabled in the kernel, the value %-ENODEV is
+ * If securityfs is yest enabled in the kernel, the value %-ENODEV is
  * returned.
  */
 struct dentry *securityfs_create_file(const char *name, umode_t mode,
@@ -218,11 +218,11 @@ EXPORT_SYMBOL_GPL(securityfs_create_file);
  *
  * This function returns a pointer to a dentry if it succeeds.  This
  * pointer must be passed to the securityfs_remove() function when the file is
- * to be removed (no automatic cleanup happens if your module is unloaded,
+ * to be removed (yes automatic cleanup happens if your module is unloaded,
  * you are responsible here).  If an error occurs, the function will return
  * the error value (via ERR_PTR).
  *
- * If securityfs is not enabled in the kernel, the value %-ENODEV is
+ * If securityfs is yest enabled in the kernel, the value %-ENODEV is
  * returned.
  */
 struct dentry *securityfs_create_dir(const char *name, struct dentry *parent)
@@ -241,26 +241,26 @@ EXPORT_SYMBOL_GPL(securityfs_create_dir);
  *          directory will be created in the root of the securityfs filesystem.
  * @target: a pointer to a string containing the name of the symlink's target.
  *          If this parameter is %NULL, then the @iops parameter needs to be
- *          setup to handle .readlink and .get_link inode_operations.
- * @iops: a pointer to the struct inode_operations to use for the symlink. If
- *        this parameter is %NULL, then the default simple_symlink_inode
+ *          setup to handle .readlink and .get_link iyesde_operations.
+ * @iops: a pointer to the struct iyesde_operations to use for the symlink. If
+ *        this parameter is %NULL, then the default simple_symlink_iyesde
  *        operations will be used.
  *
  * This function creates a symlink in securityfs with the given @name.
  *
  * This function returns a pointer to a dentry if it succeeds.  This
  * pointer must be passed to the securityfs_remove() function when the file is
- * to be removed (no automatic cleanup happens if your module is unloaded,
+ * to be removed (yes automatic cleanup happens if your module is unloaded,
  * you are responsible here).  If an error occurs, the function will return
  * the error value (via ERR_PTR).
  *
- * If securityfs is not enabled in the kernel, the value %-ENODEV is
+ * If securityfs is yest enabled in the kernel, the value %-ENODEV is
  * returned.
  */
 struct dentry *securityfs_create_symlink(const char *name,
 					 struct dentry *parent,
 					 const char *target,
-					 const struct inode_operations *iops)
+					 const struct iyesde_operations *iops)
 {
 	struct dentry *dent;
 	char *link = NULL;
@@ -285,7 +285,7 @@ EXPORT_SYMBOL_GPL(securityfs_create_symlink);
  * @dentry: a pointer to a the dentry of the file or directory to be removed.
  *
  * This function removes a file or directory in securityfs that was previously
- * created with a call to another securityfs function (like
+ * created with a call to ayesther securityfs function (like
  * securityfs_create_file() or variants thereof.)
  *
  * This function is required to be called in order for the file to be
@@ -294,13 +294,13 @@ EXPORT_SYMBOL_GPL(securityfs_create_symlink);
  */
 void securityfs_remove(struct dentry *dentry)
 {
-	struct inode *dir;
+	struct iyesde *dir;
 
 	if (!dentry || IS_ERR(dentry))
 		return;
 
-	dir = d_inode(dentry->d_parent);
-	inode_lock(dir);
+	dir = d_iyesde(dentry->d_parent);
+	iyesde_lock(dir);
 	if (simple_positive(dentry)) {
 		if (d_is_dir(dentry))
 			simple_rmdir(dir, dentry);
@@ -308,7 +308,7 @@ void securityfs_remove(struct dentry *dentry)
 			simple_unlink(dir, dentry);
 		dput(dentry);
 	}
-	inode_unlock(dir);
+	iyesde_unlock(dir);
 	simple_release_fs(&mount, &mount_count);
 }
 EXPORT_SYMBOL_GPL(securityfs_remove);

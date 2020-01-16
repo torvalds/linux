@@ -37,7 +37,7 @@ NGbzero:
 
 	/* %o5: saved %asi, restored at NGbzero_done
 	 * %g7: store-init %asi to use
-	 * %o4:	non-store-init %asi to use
+	 * %o4:	yesn-store-init %asi to use
 	 */
 	rd		%asi, %o5
 	mov		ASI_BLK_INIT_QUAD_LDD_P, %g7
@@ -97,7 +97,7 @@ NGbzero_medium:
 	bne,pt		%xcc, 1b
 	 add		%o0, 8, %o0
 2:	brz,pt		%o1, NGbzero_done
-	 nop
+	 yesp
 
 NGbzero_tiny:
 1:	EX_ST(stba %o2, [%o0 + 0x00] %asi)
@@ -157,5 +157,5 @@ niagara_patch_bzero:
 	NG_DO_PATCH(__clear_user, NGclear_user)
 	NG_DO_PATCH(tsb_init, NGtsb_init)
 	retl
-	 nop
+	 yesp
 	.size	niagara_patch_bzero,.-niagara_patch_bzero

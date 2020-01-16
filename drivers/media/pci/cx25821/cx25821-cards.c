@@ -20,7 +20,7 @@
 struct cx25821_board cx25821_boards[] = {
 	[UNKNOWN_BOARD] = {
 		.name = "UNKNOWN/GENERIC",
-		/* Ensure safe default for unknown boards */
+		/* Ensure safe default for unkyeswn boards */
 		.clk_freq = 0,
 	},
 

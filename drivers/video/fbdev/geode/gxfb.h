@@ -42,7 +42,7 @@ struct gxfb_par {
 unsigned int gx_frame_buffer_size(void);
 int gx_line_delta(int xres, int bpp);
 void gx_set_mode(struct fb_info *info);
-void gx_set_hw_palette_reg(struct fb_info *info, unsigned regno,
+void gx_set_hw_palette_reg(struct fb_info *info, unsigned regyes,
 		unsigned red, unsigned green, unsigned blue);
 
 void gx_set_dclk_frequency(struct fb_info *info);
@@ -250,7 +250,7 @@ enum vp_registers {
 
 /*
  * Flat Panel registers (table 6-55).
- * Also 64 bit registers; see above note about 32-bit handling.
+ * Also 64 bit registers; see above yeste about 32-bit handling.
  */
 
 /* we're actually in the VP register space, starting at address 0x400 */

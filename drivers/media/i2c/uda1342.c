@@ -31,7 +31,7 @@ static int uda1342_s_routing(struct v4l2_subdev *sd,
 		write_reg(client, 0x00, 0x1441); /* select input 2 */
 		break;
 	default:
-		v4l2_err(sd, "input %d not supported\n", input);
+		v4l2_err(sd, "input %d yest supported\n", input);
 		break;
 	}
 	return 0;

@@ -427,7 +427,7 @@ static const struct csid_format *csid_get_fmt_entry(
 		if (code == formats[i].code)
 			return &formats[i];
 
-	WARN(1, "Unknown format\n");
+	WARN(1, "Unkyeswn format\n");
 
 	return &formats[0];
 }
@@ -497,7 +497,7 @@ static int csid_set_clock_rates(struct csid_device *csid)
 				return -EINVAL;
 			}
 
-			/* if sensor pixel clock is not available */
+			/* if sensor pixel clock is yest available */
 			/* set highest possible CSID clock rate */
 			if (min_rate == 0)
 				j = clock->nfreqs - 1;
@@ -633,7 +633,7 @@ static int csid_set_stream(struct v4l2_subdev *sd, int enable)
 		ret = v4l2_ctrl_handler_setup(&csid->ctrls);
 		if (ret < 0) {
 			dev_err(csid->camss->dev,
-				"could not sync v4l2 controls: %d\n", ret);
+				"could yest sync v4l2 controls: %d\n", ret);
 			return ret;
 		}
 
@@ -794,7 +794,7 @@ static void csid_try_format(struct csid_device *csid,
 			if (fmt->code == csid->formats[i].code)
 				break;
 
-		/* If not found, use UYVY as default */
+		/* If yest found, use UYVY as default */
 		if (i >= csid->nformats)
 			fmt->code = MEDIA_BUS_FMT_UYVY8_2X8;
 
@@ -823,7 +823,7 @@ static void csid_try_format(struct csid_device *csid,
 				if (csid->formats[i].code == fmt->code)
 					break;
 
-			/* If not found, use UYVY as default */
+			/* If yest found, use UYVY as default */
 			if (i >= csid->nformats)
 				fmt->code = MEDIA_BUS_FMT_UYVY8_2X8;
 
@@ -1020,7 +1020,7 @@ static int csid_set_test_pattern(struct csid_device *csid, s32 value)
 {
 	struct csid_testgen_config *tg = &csid->testgen;
 
-	/* If CSID is linked to CSIPHY, do not allow to enable test generator */
+	/* If CSID is linked to CSIPHY, do yest allow to enable test generator */
 	if (value && media_entity_remote_pad(&csid->pads[MSM_CSID_PAD_SINK]))
 		return -EBUSY;
 
@@ -1109,7 +1109,7 @@ int msm_csid_subdev_init(struct camss *camss, struct csid_device *csid,
 	r = platform_get_resource_byname(pdev, IORESOURCE_MEM, res->reg[0]);
 	csid->base = devm_ioremap_resource(dev, r);
 	if (IS_ERR(csid->base)) {
-		dev_err(dev, "could not map memory\n");
+		dev_err(dev, "could yest map memory\n");
 		return PTR_ERR(csid->base);
 	}
 
@@ -1178,7 +1178,7 @@ int msm_csid_subdev_init(struct camss *camss, struct csid_device *csid,
 
 	csid->vdda = devm_regulator_get(dev, res->regulator[0]);
 	if (IS_ERR(csid->vdda)) {
-		dev_err(dev, "could not get regulator\n");
+		dev_err(dev, "could yest get regulator\n");
 		return PTR_ERR(csid->vdda);
 	}
 
@@ -1246,15 +1246,15 @@ static int csid_link_setup(struct media_entity *entity,
 		csid = v4l2_get_subdevdata(sd);
 
 		/* If test generator is enabled */
-		/* do not allow a link from CSIPHY to CSID */
+		/* do yest allow a link from CSIPHY to CSID */
 		if (csid->testgen_mode->cur.val != 0)
 			return -EBUSY;
 
 		sd = media_entity_to_v4l2_subdev(remote->entity);
 		csiphy = v4l2_get_subdevdata(sd);
 
-		/* If a sensor is not linked to CSIPHY */
-		/* do no allow a link from CSIPHY to CSID */
+		/* If a sensor is yest linked to CSIPHY */
+		/* do yes allow a link from CSIPHY to CSID */
 		if (!csiphy->cfg.csi2)
 			return -EPERM;
 
@@ -1306,7 +1306,7 @@ static const struct media_entity_operations csid_media_ops = {
 };
 
 /*
- * msm_csid_register_entity - Register subdev node for CSID module
+ * msm_csid_register_entity - Register subdev yesde for CSID module
  * @csid: CSID device
  * @v4l2_dev: V4L2 device
  *
@@ -1381,7 +1381,7 @@ free_ctrl:
 }
 
 /*
- * msm_csid_unregister_entity - Unregister CSID module subdev node
+ * msm_csid_unregister_entity - Unregister CSID module subdev yesde
  * @csid: CSID device
  */
 void msm_csid_unregister_entity(struct csid_device *csid)

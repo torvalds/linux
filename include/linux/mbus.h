@@ -11,7 +11,7 @@
 #ifndef __LINUX_MBUS_H
 #define __LINUX_MBUS_H
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 
 struct resource;
 
@@ -56,7 +56,7 @@ struct mbus_dram_target_info
  */
 #ifdef CONFIG_PLAT_ORION
 extern const struct mbus_dram_target_info *mv_mbus_dram_info(void);
-extern const struct mbus_dram_target_info *mv_mbus_dram_info_nooverlap(void);
+extern const struct mbus_dram_target_info *mv_mbus_dram_info_yesoverlap(void);
 int mvebu_mbus_get_io_win_info(phys_addr_t phyaddr, u32 *size, u8 *target,
 			       u8 *attr);
 #else
@@ -64,7 +64,7 @@ static inline const struct mbus_dram_target_info *mv_mbus_dram_info(void)
 {
 	return NULL;
 }
-static inline const struct mbus_dram_target_info *mv_mbus_dram_info_nooverlap(void)
+static inline const struct mbus_dram_target_info *mv_mbus_dram_info_yesoverlap(void)
 {
 	return NULL;
 }
@@ -73,7 +73,7 @@ static inline int mvebu_mbus_get_io_win_info(phys_addr_t phyaddr, u32 *size,
 {
 	/*
 	 * On all ARM32 MVEBU platforms with MBus support, this stub
-	 * function will not get called. The real function from the
+	 * function will yest get called. The real function from the
 	 * MBus driver is called instead. ARM64 MVEBU platforms like
 	 * the Armada 3700 could use the mv_xor device driver which calls
 	 * into this function

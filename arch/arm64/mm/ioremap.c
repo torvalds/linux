@@ -84,7 +84,7 @@ EXPORT_SYMBOL(iounmap);
 
 void __iomem *ioremap_cache(phys_addr_t phys_addr, size_t size)
 {
-	/* For normal memory we already have a cacheable mapping. */
+	/* For yesrmal memory we already have a cacheable mapping. */
 	if (pfn_valid(__phys_to_pfn(phys_addr)))
 		return (void __iomem *)__phys_to_virt(phys_addr);
 

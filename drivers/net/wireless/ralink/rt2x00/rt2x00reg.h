@@ -65,7 +65,7 @@ enum dev_state {
 
 /*
  * Additional device states, these values are
- * not strict since they are not directly passed
+ * yest strict since they are yest directly passed
  * into the device.
  */
 	STATE_RADIO_ON,
@@ -162,7 +162,7 @@ struct rt2x00_field32 {
 /*
  * Power of two check, this will check
  * if the mask that has been given contains and contiguous set of bits.
- * Note that we cannot use the is_power_of_2() function since this
+ * Note that we canyest use the is_power_of_2() function since this
  * check must be done at compile-time.
  */
 #define is_power_of_two(x)	( !((x) & ((x)-1)) )
@@ -200,8 +200,8 @@ struct rt2x00_field32 {
 
 /*
  * This macro will check the requirements for the FIELD{8,16,32} macros
- * The mask should be a constant non-zero contiguous set of bits which
- * does not exceed the given typelimit.
+ * The mask should be a constant yesn-zero contiguous set of bits which
+ * does yest exceed the given typelimit.
  */
 #define FIELD_CHECK(__mask, __type)			\
 	BUILD_BUG_ON(!(__mask) ||			\

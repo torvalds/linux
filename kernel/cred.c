@@ -25,7 +25,7 @@
 #define kdebug(FMT, ...)						\
 do {									\
 	if (0)								\
-		no_printk("[%-5.5s%5u] " FMT "\n",			\
+		yes_printk("[%-5.5s%5u] " FMT "\n",			\
 			  current->comm, current->pid, ##__VA_ARGS__);	\
 } while (0)
 #endif
@@ -127,7 +127,7 @@ static void put_cred_rcu(struct rcu_head *rcu)
  * __put_cred - Destroy a set of credentials
  * @cred: The record to release
  *
- * Destroy a set of credentials on which no references remain.
+ * Destroy a set of credentials on which yes references remain.
  */
 void __put_cred(struct cred *cred)
 {
@@ -144,7 +144,7 @@ void __put_cred(struct cred *cred)
 	BUG_ON(cred == current->cred);
 	BUG_ON(cred == current->real_cred);
 
-	if (cred->non_rcu)
+	if (cred->yesn_rcu)
 		put_cred_rcu(&cred->rcu);
 	else
 		call_rcu(&cred->rcu, put_cred_rcu);
@@ -181,11 +181,11 @@ void exit_creds(struct task_struct *tsk)
 }
 
 /**
- * get_task_cred - Get another task's objective credentials
+ * get_task_cred - Get ayesther task's objective credentials
  * @task: The task to query
  *
  * Get the objective credentials of a task, pinning them so that they can't go
- * away.  Accessing a task's credentials directly is not permitted.
+ * away.  Accessing a task's credentials directly is yest permitted.
  *
  * The caller must also make sure task doesn't get deleted, either by holding a
  * ref on task or by holding tasklist_lock to prevent it from being unlinked.
@@ -264,7 +264,7 @@ struct cred *prepare_creds(void)
 	old = task->cred;
 	memcpy(new, old, sizeof(struct cred));
 
-	new->non_rcu = 0;
+	new->yesn_rcu = 0;
 	atomic_set(&new->usage, 1);
 	set_cred_subscribers(new, 0);
 	get_group_info(new->group_info);
@@ -423,7 +423,7 @@ static bool cred_cap_issubset(const struct cred *set, const struct cred *subset)
  *
  * Install a new set of credentials to the current task, using RCU to replace
  * the old set.  Both the objective and the subjective credentials pointers are
- * updated.  This function may not be called if the subjective credentials are
+ * updated.  This function may yest be called if the subjective credentials are
  * in an overridden state.
  *
  * This function eats the caller's reference to the new credentials.
@@ -460,12 +460,12 @@ int commit_creds(struct cred *new)
 			set_dumpable(task->mm, suid_dumpable);
 		task->pdeath_signal = 0;
 		/*
-		 * If a task drops privileges and becomes nondumpable,
+		 * If a task drops privileges and becomes yesndumpable,
 		 * the dumpability change must become visible before
 		 * the credential change; otherwise, a __ptrace_may_access()
 		 * racing with this change may be able to attach to a task it
 		 * shouldn't be able to attach to (as if the task had dropped
-		 * privileges without becoming nondumpable).
+		 * privileges without becoming yesndumpable).
 		 * Pairs with a read barrier in __ptrace_may_access().
 		 */
 		smp_wmb();
@@ -490,7 +490,7 @@ int commit_creds(struct cred *new)
 		atomic_dec(&old->user->processes);
 	alter_cred_subscribers(old, -2);
 
-	/* send notifications */
+	/* send yestifications */
 	if (!uid_eq(new->uid,   old->uid)  ||
 	    !uid_eq(new->euid,  old->euid) ||
 	    !uid_eq(new->suid,  old->suid) ||
@@ -552,12 +552,12 @@ const struct cred *override_creds(const struct cred *new)
 	/*
 	 * NOTE! This uses 'get_new_cred()' rather than 'get_cred()'.
 	 *
-	 * That means that we do not clear the 'non_rcu' flag, since
-	 * we are only installing the cred into the thread-synchronous
-	 * '->cred' pointer, not the '->real_cred' pointer that is
+	 * That means that we do yest clear the 'yesn_rcu' flag, since
+	 * we are only installing the cred into the thread-synchroyesus
+	 * '->cred' pointer, yest the '->real_cred' pointer that is
 	 * visible to other threads under RCU.
 	 *
-	 * Also note that we did validate_creds() manually, not depending
+	 * Also yeste that we did validate_creds() manually, yest depending
 	 * on the validation in 'get_cred()'.
 	 */
 	get_new_cred((struct cred *)new);
@@ -670,13 +670,13 @@ void __init cred_init(void)
  *
  * @daemon is used to provide a base for the security record, but can be NULL.
  * If @daemon is supplied, then the security data will be derived from that;
- * otherwise they'll be set to 0 and no groups, full capabilities and no keys.
+ * otherwise they'll be set to 0 and yes groups, full capabilities and yes keys.
  *
  * The caller may change these controls afterwards if desired.
  *
  * Returns the new credentials or NULL if out of memory.
  *
- * Does not take, and does not return holding current->cred_replace_mutex.
+ * Does yest take, and does yest return holding current->cred_replace_mutex.
  */
 struct cred *prepare_kernel_cred(struct task_struct *daemon)
 {
@@ -697,7 +697,7 @@ struct cred *prepare_kernel_cred(struct task_struct *daemon)
 	validate_creds(old);
 
 	*new = *old;
-	new->non_rcu = 0;
+	new->yesn_rcu = 0;
 	atomic_set(&new->usage, 1);
 	set_cred_subscribers(new, 0);
 	get_uid(new->user);
@@ -769,19 +769,19 @@ EXPORT_SYMBOL(set_security_override_from_ctx);
 /**
  * set_create_files_as - Set the LSM file create context in a set of credentials
  * @new: The credentials to alter
- * @inode: The inode to take the context from
+ * @iyesde: The iyesde to take the context from
  *
  * Change the LSM file creation context in a set of credentials to be the same
- * as the object context of the specified inode, so that the new inodes have
- * the same MAC context as that inode.
+ * as the object context of the specified iyesde, so that the new iyesdes have
+ * the same MAC context as that iyesde.
  */
-int set_create_files_as(struct cred *new, struct inode *inode)
+int set_create_files_as(struct cred *new, struct iyesde *iyesde)
 {
-	if (!uid_valid(inode->i_uid) || !gid_valid(inode->i_gid))
+	if (!uid_valid(iyesde->i_uid) || !gid_valid(iyesde->i_gid))
 		return -EINVAL;
-	new->fsuid = inode->i_uid;
-	new->fsgid = inode->i_gid;
-	return security_kernel_create_files_as(new, inode);
+	new->fsuid = iyesde->i_uid;
+	new->fsgid = iyesde->i_gid;
+	return security_kernel_create_files_as(new, iyesde);
 }
 EXPORT_SYMBOL(set_create_files_as);
 

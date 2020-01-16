@@ -43,7 +43,7 @@ static int rx51_battery_read_voltage(struct rx51_device_info *di)
 	int voltage = rx51_battery_read_adc(di->channel_vbat);
 
 	if (voltage < 0) {
-		dev_err(di->dev, "Could not read ADC: %d\n", voltage);
+		dev_err(di->dev, "Could yest read ADC: %d\n", voltage);
 		return voltage;
 	}
 
@@ -97,7 +97,7 @@ static int rx51_battery_read_temperature(struct rx51_device_info *di)
 	int raw = rx51_battery_read_adc(di->channel_temp);
 
 	if (raw < 0)
-		dev_err(di->dev, "Could not read ADC: %d\n", raw);
+		dev_err(di->dev, "Could yest read ADC: %d\n", raw);
 
 	/* Zero and negative values are undefined */
 	if (raw <= 0)
@@ -134,7 +134,7 @@ static int rx51_battery_read_capacity(struct rx51_device_info *di)
 	int capacity = rx51_battery_read_adc(di->channel_bsi);
 
 	if (capacity < 0) {
-		dev_err(di->dev, "Could not read ADC: %d\n", capacity);
+		dev_err(di->dev, "Could yest read ADC: %d\n", capacity);
 		return capacity;
 	}
 
@@ -261,7 +261,7 @@ static int rx51_battery_remove(struct platform_device *pdev)
 
 #ifdef CONFIG_OF
 static const struct of_device_id n900_battery_of_match[] = {
-	{.compatible = "nokia,n900-battery", },
+	{.compatible = "yeskia,n900-battery", },
 	{ },
 };
 MODULE_DEVICE_TABLE(of, n900_battery_of_match);

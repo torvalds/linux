@@ -29,8 +29,8 @@ ENTRY(__c6xabi_mpyll)
 	b	.s2	B3
  ||	mpy32u	.m2x	B5,A4,B1:B0	; X0*Y1 (don't need upper 32-bits)
  ||	mpy32u	.m1x	A5,B4,A3:A2	; X1*Y0 (don't need upper 32-bits)
-	nop
-	nop
+	yesp
+	yesp
 	mv	.s1	A0,A4
 	add	.l1x	A2,B0,A5
 	add	.s1	A1,A5,A5

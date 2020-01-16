@@ -17,7 +17,7 @@
  * for PC cards that contain an OHCI host controller. Typical PC cards
  * are the Orange Mobile 3G Option GlobeTrotter Fusion card.
  *
- * The U132 adapter will *NOT *work with PC cards that do not contain
+ * The U132 adapter will *NOT *work with PC cards that do yest contain
  * an OHCI controller. A simple way to test whether a PC card has an
  * OHCI controller as an interface is to insert the PC card directly
  * into a laptop(or desktop) with a CardBus slot and if "lspci" shows
@@ -27,7 +27,7 @@
  *
  * Please inform the Author and Maintainer about any PC cards that
  * contain OHCI Host Controller and work when directly connected to
- * an embedded CardBus slot but do not work when they are connected
+ * an embedded CardBus slot but do yest work when they are connected
  * via an ELAN U132 adapter.
  *
  */
@@ -35,7 +35,7 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/init.h>
 #include <linux/list.h>
 #include <linux/ioctl.h>
@@ -89,11 +89,11 @@ static const struct usb_device_id ftdi_elan_table[] = {
 
 MODULE_DEVICE_TABLE(usb, ftdi_elan_table);
 /* only the jtag(firmware upgrade device) interface requires
- * a device file and corresponding minor number, but the
+ * a device file and corresponding miyesr number, but the
  * interface is created unconditionally - I suppose it could
- * be configured or not according to a module parameter.
- * But since we(now) require one interface per device,
- * and since it unlikely that a normal installation would
+ * be configured or yest according to a module parameter.
+ * But since we(yesw) require one interface per device,
+ * and since it unlikely that a yesrmal installation would
  * require more than a couple of elan-ftdi devices, 8 seems
  * like a reasonable limit to have here, and if someone
  * really requires more than 8 devices, then they can frig the
@@ -132,13 +132,13 @@ struct u132_target {
 	int halted;
 	int skipped;
 	int actual;
-	int non_null;
+	int yesn_null;
 	int active;
 	int abandoning;
 	void (*callback)(void *endp, struct urb *urb, u8 *buf, int len,
 			 int toggle_bits, int error_count, int condition_code,
 			 int repeat_number, int halted, int skipped, int actual,
-			 int non_null);
+			 int yesn_null);
 };
 /* Structure to hold all of our device specific stuff*/
 struct usb_ftdi {
@@ -611,16 +611,16 @@ static void ftdi_elan_status_work(struct work_struct *work)
  * the usage count for the device is incremented on open()
  * and decremented on release()
  */
-static int ftdi_elan_open(struct inode *inode, struct file *file)
+static int ftdi_elan_open(struct iyesde *iyesde, struct file *file)
 {
-	int subminor;
+	int submiyesr;
 	struct usb_interface *interface;
 
-	subminor = iminor(inode);
-	interface = usb_find_interface(&ftdi_elan_driver, subminor);
+	submiyesr = imiyesr(iyesde);
+	interface = usb_find_interface(&ftdi_elan_driver, submiyesr);
 
 	if (!interface) {
-		pr_err("can't find device for minor %d\n", subminor);
+		pr_err("can't find device for miyesr %d\n", submiyesr);
 		return -ENODEV;
 	} else {
 		struct usb_ftdi *ftdi = usb_get_intfdata(interface);
@@ -638,7 +638,7 @@ static int ftdi_elan_open(struct inode *inode, struct file *file)
 	}
 }
 
-static int ftdi_elan_release(struct inode *inode, struct file *file)
+static int ftdi_elan_release(struct iyesde *iyesde, struct file *file)
 {
 	struct usb_ftdi *ftdi = file->private_data;
 	if (ftdi == NULL)
@@ -785,7 +785,7 @@ static int ftdi_elan_command_engine(struct usb_ftdi *ftdi)
 	buf = usb_alloc_coherent(ftdi->udev, total_size, GFP_KERNEL,
 				 &urb->transfer_dma);
 	if (!buf) {
-		dev_err(&ftdi->udev->dev, "could not get a buffer to write %d commands totaling %d bytes to the Uxxx\n",
+		dev_err(&ftdi->udev->dev, "could yest get a buffer to write %d commands totaling %d bytes to the Uxxx\n",
 			command_size, total_size);
 		usb_free_urb(urb);
 		return -ENOMEM;
@@ -832,7 +832,7 @@ static void ftdi_elan_do_callback(struct usb_ftdi *ftdi,
 	int halted = target->halted;
 	int skipped = target->skipped;
 	int actual = target->actual;
-	int non_null = target->non_null;
+	int yesn_null = target->yesn_null;
 	int toggle_bits = target->toggle_bits;
 	int error_count = target->error_count;
 	int condition_code = target->condition_code;
@@ -843,7 +843,7 @@ static void ftdi_elan_do_callback(struct usb_ftdi *ftdi,
 	target->callback = NULL;
 	(*callback) (target->endp, urb, buffer, length, toggle_bits,
 		     error_count, condition_code, repeat_number, halted, skipped,
-		     actual, non_null);
+		     actual, yesn_null);
 }
 
 static char *have_ed_set_response(struct usb_ftdi *ftdi,
@@ -853,7 +853,7 @@ static char *have_ed_set_response(struct usb_ftdi *ftdi,
 	int payload = (ed_length >> 0) & 0x07FF;
 	mutex_lock(&ftdi->u132_lock);
 	target->actual = 0;
-	target->non_null = (ed_length >> 15) & 0x0001;
+	target->yesn_null = (ed_length >> 15) & 0x0001;
 	target->repeat_number = (ed_length >> 11) & 0x000F;
 	if (ed_type == 0x02 || ed_type == 0x03) {
 		if (payload == 0 || target->abandoning > 0) {
@@ -890,7 +890,7 @@ static char *have_ed_get_response(struct usb_ftdi *ftdi,
 	mutex_lock(&ftdi->u132_lock);
 	target->condition_code = TD_DEVNOTRESP;
 	target->actual = (ed_length >> 0) & 0x01FF;
-	target->non_null = (ed_length >> 15) & 0x0001;
+	target->yesn_null = (ed_length >> 15) & 0x0001;
 	target->repeat_number = (ed_length >> 11) & 0x000F;
 	mutex_unlock(&ftdi->u132_lock);
 	if (target->active)
@@ -1031,7 +1031,7 @@ have:if (ftdi->bulk_in_left > 0) {
 			} else if (buscmd == 0x06) {
 			} else if (buscmd == 0x0A) {
 			} else
-				dev_err(&ftdi->udev->dev, "Uxxx unknown(%0X) value = %08X\n",
+				dev_err(&ftdi->udev->dev, "Uxxx unkyeswn(%0X) value = %08X\n",
 					buscmd, data);
 			goto have;
 		} else {
@@ -1131,7 +1131,7 @@ error_1:
 
 static const struct file_operations ftdi_elan_fops = {
 	.owner = THIS_MODULE,
-	.llseek = no_llseek,
+	.llseek = yes_llseek,
 	.read = ftdi_elan_read,
 	.write = ftdi_elan_write,
 	.open = ftdi_elan_open,
@@ -1139,13 +1139,13 @@ static const struct file_operations ftdi_elan_fops = {
 };
 
 /*
- * usb class driver info in order to get a minor number from the usb core,
+ * usb class driver info in order to get a miyesr number from the usb core,
  * and to have the device registered with the driver core
  */
 static struct usb_class_driver ftdi_elan_jtag_class = {
 	.name = "ftdi-%d-jtag",
 	.fops = &ftdi_elan_fops,
-	.minor_base = USB_FTDI_ELAN_MINOR_BASE,
+	.miyesr_base = USB_FTDI_ELAN_MINOR_BASE,
 };
 
 /*
@@ -1167,20 +1167,20 @@ static struct usb_class_driver ftdi_elan_jtag_class = {
 #define cPIDsetup 0x0
 #define cPIDout 0x1
 #define cPIDin 0x2
-#define cPIDinonce 0x3
-#define cCCnoerror 0x0
+#define cPIDiyesnce 0x3
+#define cCCyeserror 0x0
 #define cCCcrc 0x1
 #define cCCbitstuff 0x2
 #define cCCtoggle 0x3
 #define cCCstall 0x4
-#define cCCnoresp 0x5
+#define cCCyesresp 0x5
 #define cCCbadpid1 0x6
 #define cCCbadpid2 0x7
 #define cCCdataoverrun 0x8
 #define cCCdataunderrun 0x9
 #define cCCbuffoverrun 0xC
 #define cCCbuffunderrun 0xD
-#define cCCnotaccessed 0xF
+#define cCCyestaccessed 0xF
 static int ftdi_elan_write_reg(struct usb_ftdi *ftdi, u32 data)
 {
 wait:if (ftdi->disconnected > 0) {
@@ -1429,7 +1429,7 @@ static int ftdi_elan_edset_setup(struct usb_ftdi *ftdi, u8 ed_number,
 				 void *endp, struct urb *urb, u8 address, u8 ep_number, u8 toggle_bits,
 				 void (*callback) (void *endp, struct urb *urb, u8 *buf, int len,
 						   int toggle_bits, int error_count, int condition_code, int repeat_number,
-						   int halted, int skipped, int actual, int non_null))
+						   int halted, int skipped, int actual, int yesn_null))
 {
 	u8 ed = ed_number - 1;
 wait:if (ftdi->disconnected > 0) {
@@ -1473,7 +1473,7 @@ int usb_ftdi_elan_edset_setup(struct platform_device *pdev, u8 ed_number,
 			      void *endp, struct urb *urb, u8 address, u8 ep_number, u8 toggle_bits,
 			      void (*callback) (void *endp, struct urb *urb, u8 *buf, int len,
 						int toggle_bits, int error_count, int condition_code, int repeat_number,
-						int halted, int skipped, int actual, int non_null))
+						int halted, int skipped, int actual, int yesn_null))
 {
 	struct usb_ftdi *ftdi = platform_device_to_usb_ftdi(pdev);
 	return ftdi_elan_edset_setup(ftdi, ed_number, endp, urb, address,
@@ -1486,7 +1486,7 @@ static int ftdi_elan_edset_input(struct usb_ftdi *ftdi, u8 ed_number,
 				 void *endp, struct urb *urb, u8 address, u8 ep_number, u8 toggle_bits,
 				 void (*callback) (void *endp, struct urb *urb, u8 *buf, int len,
 						   int toggle_bits, int error_count, int condition_code, int repeat_number,
-						   int halted, int skipped, int actual, int non_null))
+						   int halted, int skipped, int actual, int yesn_null))
 {
 	u8 ed = ed_number - 1;
 wait:if (ftdi->disconnected > 0) {
@@ -1538,7 +1538,7 @@ int usb_ftdi_elan_edset_input(struct platform_device *pdev, u8 ed_number,
 			      void *endp, struct urb *urb, u8 address, u8 ep_number, u8 toggle_bits,
 			      void (*callback) (void *endp, struct urb *urb, u8 *buf, int len,
 						int toggle_bits, int error_count, int condition_code, int repeat_number,
-						int halted, int skipped, int actual, int non_null))
+						int halted, int skipped, int actual, int yesn_null))
 {
 	struct usb_ftdi *ftdi = platform_device_to_usb_ftdi(pdev);
 	return ftdi_elan_edset_input(ftdi, ed_number, endp, urb, address,
@@ -1551,7 +1551,7 @@ static int ftdi_elan_edset_empty(struct usb_ftdi *ftdi, u8 ed_number,
 				 void *endp, struct urb *urb, u8 address, u8 ep_number, u8 toggle_bits,
 				 void (*callback) (void *endp, struct urb *urb, u8 *buf, int len,
 						   int toggle_bits, int error_count, int condition_code, int repeat_number,
-						   int halted, int skipped, int actual, int non_null))
+						   int halted, int skipped, int actual, int yesn_null))
 {
 	u8 ed = ed_number - 1;
 wait:if (ftdi->disconnected > 0) {
@@ -1595,7 +1595,7 @@ int usb_ftdi_elan_edset_empty(struct platform_device *pdev, u8 ed_number,
 			      void *endp, struct urb *urb, u8 address, u8 ep_number, u8 toggle_bits,
 			      void (*callback) (void *endp, struct urb *urb, u8 *buf, int len,
 						int toggle_bits, int error_count, int condition_code, int repeat_number,
-						int halted, int skipped, int actual, int non_null))
+						int halted, int skipped, int actual, int yesn_null))
 {
 	struct usb_ftdi *ftdi = platform_device_to_usb_ftdi(pdev);
 	return ftdi_elan_edset_empty(ftdi, ed_number, endp, urb, address,
@@ -1608,7 +1608,7 @@ static int ftdi_elan_edset_output(struct usb_ftdi *ftdi, u8 ed_number,
 				  void *endp, struct urb *urb, u8 address, u8 ep_number, u8 toggle_bits,
 				  void (*callback) (void *endp, struct urb *urb, u8 *buf, int len,
 						    int toggle_bits, int error_count, int condition_code, int repeat_number,
-						    int halted, int skipped, int actual, int non_null))
+						    int halted, int skipped, int actual, int yesn_null))
 {
 	u8 ed = ed_number - 1;
 wait:if (ftdi->disconnected > 0) {
@@ -1674,7 +1674,7 @@ int usb_ftdi_elan_edset_output(struct platform_device *pdev, u8 ed_number,
 			       void *endp, struct urb *urb, u8 address, u8 ep_number, u8 toggle_bits,
 			       void (*callback) (void *endp, struct urb *urb, u8 *buf, int len,
 						 int toggle_bits, int error_count, int condition_code, int repeat_number,
-						 int halted, int skipped, int actual, int non_null))
+						 int halted, int skipped, int actual, int yesn_null))
 {
 	struct usb_ftdi *ftdi = platform_device_to_usb_ftdi(pdev);
 	return ftdi_elan_edset_output(ftdi, ed_number, endp, urb, address,
@@ -1687,7 +1687,7 @@ static int ftdi_elan_edset_single(struct usb_ftdi *ftdi, u8 ed_number,
 				  void *endp, struct urb *urb, u8 address, u8 ep_number, u8 toggle_bits,
 				  void (*callback) (void *endp, struct urb *urb, u8 *buf, int len,
 						    int toggle_bits, int error_count, int condition_code, int repeat_number,
-						    int halted, int skipped, int actual, int non_null))
+						    int halted, int skipped, int actual, int yesn_null))
 {
 	u8 ed = ed_number - 1;
 wait:if (ftdi->disconnected > 0) {
@@ -1739,7 +1739,7 @@ int usb_ftdi_elan_edset_single(struct platform_device *pdev, u8 ed_number,
 			       void *endp, struct urb *urb, u8 address, u8 ep_number, u8 toggle_bits,
 			       void (*callback) (void *endp, struct urb *urb, u8 *buf, int len,
 						 int toggle_bits, int error_count, int condition_code, int repeat_number,
-						 int halted, int skipped, int actual, int non_null))
+						 int halted, int skipped, int actual, int yesn_null))
 {
 	struct usb_ftdi *ftdi = platform_device_to_usb_ftdi(pdev);
 	return ftdi_elan_edset_single(ftdi, ed_number, endp, urb, address,
@@ -1893,7 +1893,7 @@ static int ftdi_elan_synchronize_flush(struct usb_ftdi *ftdi)
 		return -ENOMEM;
 	buf = usb_alloc_coherent(ftdi->udev, I, GFP_KERNEL, &urb->transfer_dma);
 	if (!buf) {
-		dev_err(&ftdi->udev->dev, "could not get a buffer for flush sequence\n");
+		dev_err(&ftdi->udev->dev, "could yest get a buffer for flush sequence\n");
 		usb_free_urb(urb);
 		return -ENOMEM;
 	}
@@ -1931,7 +1931,7 @@ static int ftdi_elan_synchronize_reset(struct usb_ftdi *ftdi)
 		return -ENOMEM;
 	buf = usb_alloc_coherent(ftdi->udev, I, GFP_KERNEL, &urb->transfer_dma);
 	if (!buf) {
-		dev_err(&ftdi->udev->dev, "could not get a buffer for the reset sequence\n");
+		dev_err(&ftdi->udev->dev, "could yest get a buffer for the reset sequence\n");
 		usb_free_urb(urb);
 		return -ENOMEM;
 	}
@@ -2663,7 +2663,7 @@ static int ftdi_elan_probe(struct usb_interface *interface,
 	retval = usb_find_common_endpoints(iface_desc,
 			&bulk_in, &bulk_out, NULL, NULL);
 	if (retval) {
-		dev_err(&ftdi->udev->dev, "Could not find both bulk-in and bulk-out endpoints\n");
+		dev_err(&ftdi->udev->dev, "Could yest find both bulk-in and bulk-out endpoints\n");
 		goto error;
 	}
 
@@ -2686,22 +2686,22 @@ static int ftdi_elan_probe(struct usb_interface *interface,
 	    ftdi->bulk_out_endpointAddr == 0x02) {
 		retval = usb_register_dev(interface, &ftdi_elan_jtag_class);
 		if (retval) {
-			dev_err(&ftdi->udev->dev, "Not able to get a minor for this device\n");
+			dev_err(&ftdi->udev->dev, "Not able to get a miyesr for this device\n");
 			usb_set_intfdata(interface, NULL);
 			retval = -ENOMEM;
 			goto error;
 		} else {
 			ftdi->class = &ftdi_elan_jtag_class;
-			dev_info(&ftdi->udev->dev, "USB FDTI=%p JTAG interface %d now attached to ftdi%d\n",
+			dev_info(&ftdi->udev->dev, "USB FDTI=%p JTAG interface %d yesw attached to ftdi%d\n",
 				 ftdi, iface_desc->desc.bInterfaceNumber,
-				 interface->minor);
+				 interface->miyesr);
 			return 0;
 		}
 	} else if (iface_desc->desc.bInterfaceNumber == 1 &&
 		   ftdi->bulk_in_endpointAddr == 0x83 &&
 		   ftdi->bulk_out_endpointAddr == 0x04) {
 		ftdi->class = NULL;
-		dev_info(&ftdi->udev->dev, "USB FDTI=%p ELAN interface %d now activated\n",
+		dev_info(&ftdi->udev->dev, "USB FDTI=%p ELAN interface %d yesw activated\n",
 			 ftdi, iface_desc->desc.bInterfaceNumber);
 		INIT_DELAYED_WORK(&ftdi->status_work, ftdi_elan_status_work);
 		INIT_DELAYED_WORK(&ftdi->command_work, ftdi_elan_command_work);
@@ -2710,7 +2710,7 @@ static int ftdi_elan_probe(struct usb_interface *interface,
 		return 0;
 	} else {
 		dev_err(&ftdi->udev->dev,
-			"Could not find ELAN's U132 device\n");
+			"Could yest find ELAN's U132 device\n");
 		retval = -ENODEV;
 		goto error;
 	}
@@ -2725,12 +2725,12 @@ static void ftdi_elan_disconnect(struct usb_interface *interface)
 	struct usb_ftdi *ftdi = usb_get_intfdata(interface);
 	ftdi->disconnected += 1;
 	if (ftdi->class) {
-		int minor = interface->minor;
+		int miyesr = interface->miyesr;
 		struct usb_class_driver *class = ftdi->class;
 		usb_set_intfdata(interface, NULL);
 		usb_deregister_dev(interface, class);
-		dev_info(&ftdi->udev->dev, "USB FTDI U132 jtag interface on minor %d now disconnected\n",
-			 minor);
+		dev_info(&ftdi->udev->dev, "USB FTDI U132 jtag interface on miyesr %d yesw disconnected\n",
+			 miyesr);
 	} else {
 		ftdi_status_cancel_work(ftdi);
 		ftdi_command_cancel_work(ftdi);
@@ -2746,7 +2746,7 @@ static void ftdi_elan_disconnect(struct usb_interface *interface)
 		}
 		ftdi->disconnected += 1;
 		usb_set_intfdata(interface, NULL);
-		dev_info(&ftdi->udev->dev, "USB FTDI U132 host controller interface now disconnected\n");
+		dev_info(&ftdi->udev->dev, "USB FTDI U132 host controller interface yesw disconnected\n");
 	}
 	ftdi_elan_put_kref(ftdi);
 }

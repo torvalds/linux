@@ -765,7 +765,7 @@ static int mtk_dai_i2s_config(struct mtk_base_afe *afe,
 				   0xffffeffe, i2s_con);
 		break;
 	default:
-		dev_warn(afe->dev, "%s(), id %d not support\n",
+		dev_warn(afe->dev, "%s(), id %d yest support\n",
 			 __func__, i2s_id);
 		return -EINVAL;
 	}
@@ -816,7 +816,7 @@ static int mtk_dai_i2s_set_sysclk(struct snd_soc_dai *dai,
 	}
 
 	if (apll_rate % freq != 0) {
-		dev_warn(afe->dev, "%s(), APLL cannot generate freq Hz",
+		dev_warn(afe->dev, "%s(), APLL canyest generate freq Hz",
 			 __func__);
 		return -EINVAL;
 	}
@@ -966,7 +966,7 @@ static const struct mtk_afe_i2s_priv mt8183_i2s_priv[DAI_I2S_NUM] = {
 static int mt8183_dai_i2s_get_share(struct mtk_base_afe *afe)
 {
 	struct mt8183_afe_private *afe_priv = afe->platform_priv;
-	const struct device_node *of_node = afe->dev->of_node;
+	const struct device_yesde *of_yesde = afe->dev->of_yesde;
 	const char *of_str;
 	const char *property_name;
 	struct mtk_afe_i2s_priv *i2s_priv;
@@ -975,7 +975,7 @@ static int mt8183_dai_i2s_get_share(struct mtk_base_afe *afe)
 	for (i = 0; i < DAI_I2S_NUM; i++) {
 		i2s_priv = afe_priv->dai_priv[mt8183_i2s_priv[i].id];
 		property_name = mt8183_i2s_priv[i].share_property_name;
-		if (of_property_read_string(of_node, property_name, &of_str))
+		if (of_property_read_string(of_yesde, property_name, &of_str))
 			continue;
 		i2s_priv->share_i2s_id = get_i2s_id_by_name(afe, of_str);
 	}

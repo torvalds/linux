@@ -122,7 +122,7 @@ void acpi_ut_dump_buffer(u8 *buffer, u32 count, u32 display, u32 base_offset)
 				}
 
 				/*
-				 * Add comment characters so rest of line is ignored when
+				 * Add comment characters so rest of line is igyesred when
 				 * compiled
 				 */
 				if (j == 0) {

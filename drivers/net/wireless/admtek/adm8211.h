@@ -494,7 +494,7 @@ struct adm8211_tx_hdr {
 struct adm8211_eeprom {
 	__le16	signature;		/* 0x00 */
 	u8	major_version;		/* 0x02 */
-	u8	minor_version;		/* 0x03 */
+	u8	miyesr_version;		/* 0x03 */
 	u8	reserved_1[4];		/* 0x04 */
 	u8	hwaddr[6];		/* 0x08 */
 	u8	reserved_2[8];		/* 0x1E */

@@ -84,7 +84,7 @@ static void platform_bgmac_clk_enable(struct bgmac *bgmac, u32 flags)
 	}
 
 	val = bgmac_idm_read(bgmac, BCMA_IOCTL);
-	/* Some bits of BCMA_IOCTL set by HW/ATF and should not change */
+	/* Some bits of BCMA_IOCTL set by HW/ATF and should yest change */
 	val |= flags & ~(BGMAC_AWCACHE | BGMAC_ARCACHE | BGMAC_AWUSER |
 			 BGMAC_ARUSER);
 	val |= BGMAC_CLK_EN;
@@ -154,11 +154,11 @@ static int platform_phy_connect(struct bgmac *bgmac)
 
 	if (bgmac->plat.nicpm_base)
 		phy_dev = of_phy_get_and_connect(bgmac->net_dev,
-						 bgmac->dev->of_node,
+						 bgmac->dev->of_yesde,
 						 bgmac_nicpm_speed_set);
 	else
 		phy_dev = of_phy_get_and_connect(bgmac->net_dev,
-						 bgmac->dev->of_node,
+						 bgmac->dev->of_yesde,
 						 bgmac_adjust_link);
 	if (!phy_dev) {
 		dev_err(bgmac->dev, "PHY connection failed\n");
@@ -170,7 +170,7 @@ static int platform_phy_connect(struct bgmac *bgmac)
 
 static int bgmac_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	struct bgmac *bgmac;
 	struct resource *regs;
 	const u8 *mac_addr;
@@ -196,7 +196,7 @@ static int bgmac_probe(struct platform_device *pdev)
 	if (!IS_ERR(mac_addr))
 		ether_addr_copy(bgmac->net_dev->dev_addr, mac_addr);
 	else
-		dev_warn(&pdev->dev, "MAC address not present in device tree\n");
+		dev_warn(&pdev->dev, "MAC address yest present in device tree\n");
 
 	bgmac->irq = platform_get_irq(pdev, 0);
 	if (bgmac->irq < 0)

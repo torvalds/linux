@@ -58,7 +58,7 @@ enum USB_SPEED{
 
 #define TS_MASK         0x6
 enum TS_PORT{
-	NO_TS_PORT = 0x0,	/* 2'b00: Neither port used. PCB not a Hybrid,
+	NO_TS_PORT = 0x0,	/* 2'b00: Neither port used. PCB yest a Hybrid,
 				   only offers Analog TV or Video */
 	TS1_PORT = 0x4,		/* 2'b10: TS1 Input (Hybrid mode :
 				Digital or External Analog/Compressed source) */
@@ -74,7 +74,7 @@ enum TS_PORT{
 #define EAVP_MASK       0x8
 enum EAV_PRESENT{
 	NO_EXTERNAL_AV = 0x0,	/* 0: No External A/V inputs
-						(no need for i2s block),
+						(yes need for i2s block),
 						Analog Tuner must be present */
 	EXTERNAL_AV = 0x8	/* 1: External A/V inputs
 						present (requires i2s blk) */

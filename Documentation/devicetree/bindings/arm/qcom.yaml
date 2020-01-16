@@ -47,8 +47,8 @@ description: |
   	hk01
   	qrd
 
-  The 'soc_version' and 'board_version' elements take the form of v<Major>.<Minor>
-  where the minor number may be omitted when it's zero, i.e.  v1.0 is the same
+  The 'soc_version' and 'board_version' elements take the form of v<Major>.<Miyesr>
+  where the miyesr number may be omitted when it's zero, i.e.  v1.0 is the same
   as v1. If all versions of the 'board_version' elements match, then a
   wildcard '*' should be used, e.g. 'v*'.
 

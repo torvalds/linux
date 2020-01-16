@@ -14,7 +14,7 @@ Required properties:
   - reg-names: Should contain the reg names "gpmi-nand" and "bch"
   - interrupts : BCH interrupt number.
   - interrupt-names : Should be "bch".
-  - dmas: DMA specifier, consisting of a phandle to DMA controller node
+  - dmas: DMA specifier, consisting of a phandle to DMA controller yesde
     and GPMI DMA channel ID.
     Refer to dma.txt and fsl-mxs-dma.txt for details.
   - dma-names: Must be "rx-tx".
@@ -27,25 +27,25 @@ Required properties:
     * imx7d : "gpmi_io", "gpmi_bch_apb"
 
 Optional properties:
-  - nand-on-flash-bbt: boolean to enable on flash bbt option if not
+  - nand-on-flash-bbt: boolean to enable on flash bbt option if yest
                        present false
   - fsl,use-minimum-ecc: Protect this NAND flash with the minimum ECC
                        strength required. The required ECC strength is
                        automatically discoverable for some flash
                        (e.g., according to the ONFI standard).
-                       However, note that if this strength is not
-                       discoverable or this property is not enabled,
+                       However, yeste that if this strength is yest
+                       discoverable or this property is yest enabled,
                        the software may chooses an implementation-defined
                        ECC scheme.
-  - fsl,no-blockmark-swap: Don't swap the bad block marker from the OOB
+  - fsl,yes-blockmark-swap: Don't swap the bad block marker from the OOB
                        area with the byte in the data area but rely on the
                        flash based BBT for identifying bad blocks.
                        NOTE: this is only valid in conjunction with
                              'nand-on-flash-bbt'.
-                       WARNING: on i.MX28 blockmark swapping cannot be
+                       WARNING: on i.MX28 blockmark swapping canyest be
                        disabled for the BootROM in the FCB. Thus,
                        partitions written from Linux with this feature
-                       turned on may not be accessible by the BootROM
+                       turned on may yest be accessible by the BootROM
                        code.
   - nand-ecc-strength: integer representing the number of bits to correct
                        per ECC step. Needs to be a multiple of 2.
@@ -53,7 +53,7 @@ Optional properties:
                        that are covered by a single ECC step. The driver
                        supports 512 and 1024.
 
-The device tree may optionally contain sub-nodes describing partitions of the
+The device tree may optionally contain sub-yesdes describing partitions of the
 address space. See partition.txt for more detail.
 
 Examples:

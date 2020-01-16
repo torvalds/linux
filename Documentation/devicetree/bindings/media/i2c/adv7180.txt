@@ -17,18 +17,18 @@ Required Properties :
 		"adi,adv7282"
 		"adi,adv7282-m"
 
-Device nodes of "adi,adv7180cp" and "adi,adv7180st" must contain one
-'port' child node per device input and output port, in accordance with the
+Device yesdes of "adi,adv7180cp" and "adi,adv7180st" must contain one
+'port' child yesde per device input and output port, in accordance with the
 video interface bindings defined in
 Documentation/devicetree/bindings/media/video-interfaces.txt. The port
-nodes are numbered as follows.
+yesdes are numbered as follows.
 
   Port		adv7180cp	adv7180st
 -------------------------------------------------------------------
   Input		0-2		0-5
   Output	3		6
 
-The digital output port node must contain at least one endpoint.
+The digital output port yesde must contain at least one endpoint.
 
 Optional Properties :
 - powerdown-gpios: reference to the GPIO connected to the powerdown pin,

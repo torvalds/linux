@@ -27,7 +27,7 @@ Required properties:
   (example: 1 interrupt per 8 pins on Armada XP, which means 4
   interrupts per bank of 32 GPIOs).
 
-- interrupt-controller: identifies the node as an interrupt controller
+- interrupt-controller: identifies the yesde as an interrupt controller
 
 - #interrupt-cells: specifies the number of cells needed to encode an
   interrupt source. Should be two.
@@ -39,7 +39,7 @@ Required properties:
       4 = active high level-sensitive.
       8 = active low level-sensitive.
 
-- gpio-controller: marks the device node as a gpio controller
+- gpio-controller: marks the device yesde as a gpio controller
 
 - ngpios: number of GPIOs this controller has
 
@@ -60,7 +60,7 @@ properties are required.
   additional register range needed for PWM operation.
 
 - #pwm-cells: Should be two. The first cell is the GPIO line number. The
-  second cell is the period in nanoseconds.
+  second cell is the period in nayesseconds.
 
 - clocks: Must be a phandle to the clock for the GPIO controller.
 

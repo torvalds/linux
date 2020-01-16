@@ -1,15 +1,15 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * SAMSUNG Exynos5433 TM2 board device tree source
+ * SAMSUNG Exyyess5433 TM2 board device tree source
  *
  * Copyright (c) 2016 Samsung Electronics Co., Ltd.
  *
  * Common device tree source file for Samsung's TM2 and TM2E boards
- * which are based on Samsung Exynos5433 SoC.
+ * which are based on Samsung Exyyess5433 SoC.
  */
 
 /dts-v1/;
-#include "exynos5433.dtsi"
+#include "exyyess5433.dtsi"
 #include <dt-bindings/clock/samsung,s2mps11.h>
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/input/input.h>
@@ -168,7 +168,7 @@
 &bus_g2d_400 {
 	devfreq-events = <&ppmu_event0_d0_general>, <&ppmu_event0_d1_general>;
 	vdd-supply = <&buck4_reg>;
-	exynos,saturation-ratio = <10>;
+	exyyess,saturation-ratio = <10>;
 	status = "okay";
 };
 
@@ -202,17 +202,17 @@
 	status = "okay";
 };
 
-&bus_noc0 {
+&bus_yesc0 {
 	devfreq = <&bus_g2d_400>;
 	status = "okay";
 };
 
-&bus_noc1 {
+&bus_yesc1 {
 	devfreq = <&bus_g2d_400>;
 	status = "okay";
 };
 
-&bus_noc2 {
+&bus_yesc2 {
 	devfreq = <&bus_g2d_400>;
 	status = "okay";
 };
@@ -938,7 +938,7 @@
 	mmc-hs200-1_8v;
 	mmc-hs400-1_8v;
 	cap-mmc-highspeed;
-	non-removable;
+	yesn-removable;
 	card-detect-delay = <200>;
 	samsung,dw-mshc-ciu-div = <3>;
 	samsung,dw-mshc-sdr-timing = <0 4>;
@@ -1272,7 +1272,7 @@
 
 &spi_3 {
 	status = "okay";
-	no-cs-readback;
+	yes-cs-readback;
 
 	irled@0 {
 		compatible = "ir-spi-led";

@@ -27,7 +27,7 @@
  * to manage physical interfaces
  */
 struct cfcnfg_phyinfo {
-	struct list_head node;
+	struct list_head yesde;
 	bool up;
 
 	/* Pointer to the layer below the MUX (framing layer) */
@@ -135,7 +135,7 @@ static struct cfcnfg_phyinfo *cfcnfg_get_phyinfo_rcu(struct cfcnfg *cnfg,
 {
 	struct cfcnfg_phyinfo *phy;
 
-	list_for_each_entry_rcu(phy, &cnfg->phys, node)
+	list_for_each_entry_rcu(phy, &cnfg->phys, yesde)
 		if (phy->id == phyid)
 			return phy;
 	return NULL;
@@ -151,7 +151,7 @@ static struct dev_info *cfcnfg_get_phyid(struct cfcnfg *cnfg,
 	/* Try to match with specified preference */
 	struct cfcnfg_phyinfo *phy;
 
-	list_for_each_entry_rcu(phy, &cnfg->phys, node) {
+	list_for_each_entry_rcu(phy, &cnfg->phys, yesde) {
 		if (phy->up && phy->pref == phy_pref &&
 				phy->frm_layer != NULL)
 
@@ -159,7 +159,7 @@ static struct dev_info *cfcnfg_get_phyid(struct cfcnfg *cnfg,
 	}
 
 	/* Otherwise just return something */
-	list_for_each_entry_rcu(phy, &cnfg->phys, node)
+	list_for_each_entry_rcu(phy, &cnfg->phys, yesde)
 		if (phy->up)
 			return &phy->dev_info;
 
@@ -170,7 +170,7 @@ static int cfcnfg_get_id_from_ifi(struct cfcnfg *cnfg, int ifi)
 {
 	struct cfcnfg_phyinfo *phy;
 
-	list_for_each_entry_rcu(phy, &cnfg->phys, node)
+	list_for_each_entry_rcu(phy, &cnfg->phys, yesde)
 		if (phy->ifindex == ifi && phy->up)
 			return phy->id;
 	return -ENODEV;
@@ -191,7 +191,7 @@ int caif_disconnect_client(struct net *net, struct cflayer *adap_layer)
 		if (servl != NULL)
 			layer_set_up(servl, NULL);
 	} else
-		pr_debug("nothing to disconnect\n");
+		pr_debug("yesthing to disconnect\n");
 
 	/* Do RCU sync before initiating cleanup */
 	synchronize_rcu();
@@ -335,7 +335,7 @@ int caif_connect_client(struct net *net, struct caif_connect_request *conn_req,
 	err = -ENODEV;
 	frml = phy->frm_layer;
 	if (frml == NULL) {
-		pr_err("Specified PHY type does not exist!\n");
+		pr_err("Specified PHY type does yest exist!\n");
 		goto unlock;
 	}
 	caif_assert(param.phyid == phy->id);
@@ -388,7 +388,7 @@ cfcnfg_linkup_rsp(struct cflayer *layer, u8 channel_id, enum cfctrl_srv serv,
 	rcu_read_lock();
 
 	if (adapt_layer == NULL) {
-		pr_debug("link setup response but no client exist, send linkdown back\n");
+		pr_debug("link setup response but yes client exist, send linkdown back\n");
 		cfctrl_linkdown_req(cnfg->ctrl, channel_id, NULL);
 		goto unlock;
 	}
@@ -432,7 +432,7 @@ cfcnfg_linkup_rsp(struct cflayer *layer, u8 channel_id, enum cfctrl_srv serv,
 		servicel = cfdbgl_create(channel_id, &phyinfo->dev_info);
 		break;
 	default:
-		pr_err("Protocol error. Link setup response - unknown channel type\n");
+		pr_err("Protocol error. Link setup response - unkyeswn channel type\n");
 		goto unlock;
 	}
 	if (!servicel)
@@ -508,7 +508,7 @@ got_phyid:
 		layer_set_up(phy_layer, frml);
 	}
 
-	list_add_rcu(&phyinfo->node, &cnfg->phys);
+	list_add_rcu(&phyinfo->yesde, &cnfg->phys);
 out:
 	mutex_unlock(&cnfg->lock);
 	return;
@@ -573,13 +573,13 @@ int cfcnfg_del_phy_layer(struct cfcnfg *cnfg, struct cflayer *phy_layer)
 	caif_assert(phy_layer->id == phyid);
 	caif_assert(phyinfo->frm_layer->id == phyid);
 
-	list_del_rcu(&phyinfo->node);
+	list_del_rcu(&phyinfo->yesde);
 	synchronize_rcu();
 
-	/* Fail if reference count is not zero */
+	/* Fail if reference count is yest zero */
 	if (cffrml_refcnt_read(phyinfo->frm_layer) != 0) {
 		pr_info("Wait for device inuse\n");
-		list_add_rcu(&phyinfo->node, &cnfg->phys);
+		list_add_rcu(&phyinfo->yesde, &cnfg->phys);
 		mutex_unlock(&cnfg->lock);
 		return -EAGAIN;
 	}

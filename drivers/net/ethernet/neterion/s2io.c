@@ -5,7 +5,7 @@
  * This software may be used and distributed according to the terms of
  * the GNU General Public License (GPL), incorporated herein by reference.
  * Drivers based on or derived from this code fall under the GPL and must
- * retain the authorship, copyright and license notice.  This file is not
+ * retain the authorship, copyright and license yestice.  This file is yest
  * a complete program and may only be used when the entire operating
  * system is licensed under the GPL.
  * See the file COPYING in this distribution for more information.
@@ -45,7 +45,7 @@
  * vlan_tag_strip: This can be used to enable or disable vlan stripping.
  *                 Possible values '1' for enable , '0' for disable.
  *                 Default is '2' - which means disable in promisc mode
- *                 and enable in non-promiscuous mode.
+ *                 and enable in yesn-promiscuous mode.
  * multiq: This parameter used to enable/disable MULTIQUEUE support.
  *      Possible values '1' for enable and '0' for disable. Default is '0'
  ************************************************************************/
@@ -54,7 +54,7 @@
 
 #include <linux/module.h>
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/ioport.h>
 #include <linux/pci.h>
 #include <linux/dma-mapping.h>
@@ -75,7 +75,7 @@
 #include <linux/tcp.h>
 #include <linux/uaccess.h>
 #include <linux/io.h>
-#include <linux/io-64-nonatomic-lo-hi.h>
+#include <linux/io-64-yesnatomic-lo-hi.h>
 #include <linux/slab.h>
 #include <linux/prefetch.h>
 #include <net/tcp.h>
@@ -431,7 +431,7 @@ S2IO_PARM_INT(shared_splits, 0);
 S2IO_PARM_INT(tmac_util_period, 5);
 S2IO_PARM_INT(rmac_util_period, 5);
 S2IO_PARM_INT(l3l4hdr_size, 128);
-/* 0 is no steering, 1 is Priority steering, 2 is Default steering */
+/* 0 is yes steering, 1 is Priority steering, 2 is Default steering */
 S2IO_PARM_INT(tx_steering_type, TX_DEFAULT_STEERING);
 /* Frequency of Rx desc syncs expressed as power of 2 */
 S2IO_PARM_INT(rxsync_frequency, 3);
@@ -439,7 +439,7 @@ S2IO_PARM_INT(rxsync_frequency, 3);
 S2IO_PARM_INT(intr_type, 2);
 /* Large receive offload feature */
 
-/* Max pkts to be aggregated by LRO at one time. If not specified,
+/* Max pkts to be aggregated by LRO at one time. If yest specified,
  * aggregation happens until we hit max IP pkt size(64K)
  */
 S2IO_PARM_INT(lro_max_pkts, 0xFFFF);
@@ -506,10 +506,10 @@ static inline void s2io_stop_all_tx_queue(struct s2io_nic *sp)
 	netif_tx_stop_all_queues(sp->dev);
 }
 
-static inline void s2io_stop_tx_queue(struct s2io_nic *sp, int fifo_no)
+static inline void s2io_stop_tx_queue(struct s2io_nic *sp, int fifo_yes)
 {
 	if (!sp->config.multiq)
-		sp->mac_control.fifos[fifo_no].queue_state =
+		sp->mac_control.fifos[fifo_yes].queue_state =
 			FIFO_QUEUE_STOP;
 
 	netif_tx_stop_all_queues(sp->dev);
@@ -542,8 +542,8 @@ static inline void s2io_wake_tx_queue(
 {
 
 	if (multiq) {
-		if (cnt && __netif_subqueue_stopped(fifo->dev, fifo->fifo_no))
-			netif_wake_subqueue(fifo->dev, fifo->fifo_no);
+		if (cnt && __netif_subqueue_stopped(fifo->dev, fifo->fifo_yes))
+			netif_wake_subqueue(fifo->dev, fifo->fifo_yes);
 	} else if (cnt && (fifo->queue_state == FIFO_QUEUE_STOP)) {
 		if (netif_queue_stopped(fifo->dev)) {
 			fifo->queue_state = FIFO_QUEUE_START;
@@ -631,7 +631,7 @@ static int init_shared_mem(struct s2io_nic *nic)
 		fifo->tx_curr_put_info.fifo_len = tx_cfg->fifo_len - 1;
 		fifo->tx_curr_get_info.offset = 0;
 		fifo->tx_curr_get_info.fifo_len = tx_cfg->fifo_len - 1;
-		fifo->fifo_no = i;
+		fifo->fifo_yes = i;
 		fifo->nic = nic;
 		fifo->max_txds = MAX_SKB_FRAGS + 2;
 		fifo->dev = dev;
@@ -698,7 +698,7 @@ static int init_shared_mem(struct s2io_nic *nic)
 		struct ring_info *ring = &mac_control->rings[i];
 
 		if (rx_cfg->num_rxd % (rxd_count[nic->rxd_mode] + 1)) {
-			DBG_PRINT(ERR_DBG, "%s: Ring%d RxD count is not a "
+			DBG_PRINT(ERR_DBG, "%s: Ring%d RxD count is yest a "
 				  "multiple of RxDs per Block\n",
 				  dev->name, i);
 			return FAILURE;
@@ -724,7 +724,7 @@ static int init_shared_mem(struct s2io_nic *nic)
 		ring->rx_curr_put_info.offset = 0;
 		ring->rx_curr_put_info.ring_len = rx_cfg->num_rxd - 1;
 		ring->nic = nic;
-		ring->ring_no = i;
+		ring->ring_yes = i;
 
 		blk_cnt = rx_cfg->num_rxd / (rxd_count[nic->rxd_mode] + 1);
 		/*  Allocating all the Rx blocks */
@@ -912,7 +912,7 @@ static void free_shared_mem(struct s2io_nic *nic)
 			swstats->mem_freed += PAGE_SIZE;
 		}
 		/* If we got a zero DMA address during allocation,
-		 * free the page now
+		 * free the page yesw
 		 */
 		if (mac_control->zerodma_virt_addr) {
 			pci_free_consistent(nic->pdev, PAGE_SIZE,
@@ -1014,7 +1014,7 @@ static int s2io_verify_pci_mode(struct s2io_nic *nic)
 	mode = (u8)GET_PCI_MODE(val64);
 
 	if (val64 & PCI_MODE_UNKNOWN_MODE)
-		return -1;      /* Unknown PCI mode */
+		return -1;      /* Unkyeswn PCI mode */
 	return mode;
 }
 
@@ -1050,7 +1050,7 @@ static int s2io_print_pci_mode(struct s2io_nic *nic)
 	mode = (u8)GET_PCI_MODE(val64);
 
 	if (val64 & PCI_MODE_UNKNOWN_MODE)
-		return -1;	/* Unknown PCI mode */
+		return -1;	/* Unkyeswn PCI mode */
 
 	config->bus_speed = bus_speed[mode];
 
@@ -1324,7 +1324,7 @@ static int init_nic(struct s2io_nic *nic)
 		  &bar0->tx_fifo_partition_0, (unsigned long long)val64);
 
 	/*
-	 * Initialization of Tx_PA_CONFIG register to ignore packet
+	 * Initialization of Tx_PA_CONFIG register to igyesre packet
 	 * integrity checking.
 	 */
 	val64 = readq(&bar0->tx_pa_cfg);
@@ -1615,7 +1615,7 @@ static int init_nic(struct s2io_nic *nic)
 	 * desired by the user
 	 */
 	for (i = 0; i < config->rx_ring_num; i++) {
-		/* If rts_frm_len[i] == 0 then it is assumed that user not
+		/* If rts_frm_len[i] == 0 then it is assumed that user yest
 		 * specified frame length steering.
 		 * If the user provides the frame length then program
 		 * the rts_frm_len register for those values or else
@@ -1699,7 +1699,7 @@ static int init_nic(struct s2io_nic *nic)
 		 * Once the operation completes, the Strobe bit of the
 		 * command register will be reset. We poll for this
 		 * particular condition. We wait for a maximum of 500ms
-		 * for the operation to complete, if it's not complete
+		 * for the operation to complete, if it's yest complete
 		 * by then we return error.
 		 */
 		time = 0;
@@ -1795,7 +1795,7 @@ static int init_nic(struct s2io_nic *nic)
 
 	/*
 	 * Programming the Herc to split every write transaction
-	 * that does not start on an ADB to reduce disconnects.
+	 * that does yest start on an ADB to reduce disconnects.
 	 */
 	if (nic->device_type == XFRAME_II_DEVICE) {
 		val64 = FAULT_BEHAVIOUR | EXT_REQ_EN |
@@ -1999,7 +1999,7 @@ static void en_dis_able_nic_intrs(struct s2io_nic *nic, u16 mask, int flag)
 			/*
 			 * If Hercules adapter enable GPIO otherwise
 			 * disable all PCIX, Flash, MDIO, IIC and GPIO
-			 * interrupts for now.
+			 * interrupts for yesw.
 			 * TODO
 			 */
 			if (s2io_link_fault_indication(nic) ==
@@ -2065,7 +2065,7 @@ static void en_dis_able_nic_intrs(struct s2io_nic *nic, u16 mask, int flag)
 /**
  *  verify_pcc_quiescent- Checks for PCC quiescent state
  *  Return: 1 If PCC is quiescence
- *          0 If PCC is not quiescence
+ *          0 If PCC is yest quiescence
  */
 static int verify_pcc_quiescent(struct s2io_nic *sp, int flag)
 {
@@ -2099,12 +2099,12 @@ static int verify_pcc_quiescent(struct s2io_nic *sp, int flag)
 }
 /**
  *  verify_xena_quiescence - Checks whether the H/W is ready
- *  Description: Returns whether the H/W is ready to go or not. Depending
- *  on whether adapter enable bit was written or not the comparison
+ *  Description: Returns whether the H/W is ready to go or yest. Depending
+ *  on whether adapter enable bit was written or yest the comparison
  *  differs and the calling function passes the input argument flag to
  *  indicate this.
  *  Return: 1 If xena is quiescence
- *          0 If Xena is not quiescence
+ *          0 If Xena is yest quiescence
  */
 
 static int verify_xena_quiescence(struct s2io_nic *sp)
@@ -2115,52 +2115,52 @@ static int verify_xena_quiescence(struct s2io_nic *sp)
 	mode = s2io_verify_pci_mode(sp);
 
 	if (!(val64 & ADAPTER_STATUS_TDMA_READY)) {
-		DBG_PRINT(ERR_DBG, "TDMA is not ready!\n");
+		DBG_PRINT(ERR_DBG, "TDMA is yest ready!\n");
 		return 0;
 	}
 	if (!(val64 & ADAPTER_STATUS_RDMA_READY)) {
-		DBG_PRINT(ERR_DBG, "RDMA is not ready!\n");
+		DBG_PRINT(ERR_DBG, "RDMA is yest ready!\n");
 		return 0;
 	}
 	if (!(val64 & ADAPTER_STATUS_PFC_READY)) {
-		DBG_PRINT(ERR_DBG, "PFC is not ready!\n");
+		DBG_PRINT(ERR_DBG, "PFC is yest ready!\n");
 		return 0;
 	}
 	if (!(val64 & ADAPTER_STATUS_TMAC_BUF_EMPTY)) {
-		DBG_PRINT(ERR_DBG, "TMAC BUF is not empty!\n");
+		DBG_PRINT(ERR_DBG, "TMAC BUF is yest empty!\n");
 		return 0;
 	}
 	if (!(val64 & ADAPTER_STATUS_PIC_QUIESCENT)) {
-		DBG_PRINT(ERR_DBG, "PIC is not QUIESCENT!\n");
+		DBG_PRINT(ERR_DBG, "PIC is yest QUIESCENT!\n");
 		return 0;
 	}
 	if (!(val64 & ADAPTER_STATUS_MC_DRAM_READY)) {
-		DBG_PRINT(ERR_DBG, "MC_DRAM is not ready!\n");
+		DBG_PRINT(ERR_DBG, "MC_DRAM is yest ready!\n");
 		return 0;
 	}
 	if (!(val64 & ADAPTER_STATUS_MC_QUEUES_READY)) {
-		DBG_PRINT(ERR_DBG, "MC_QUEUES is not ready!\n");
+		DBG_PRINT(ERR_DBG, "MC_QUEUES is yest ready!\n");
 		return 0;
 	}
 	if (!(val64 & ADAPTER_STATUS_M_PLL_LOCK)) {
-		DBG_PRINT(ERR_DBG, "M_PLL is not locked!\n");
+		DBG_PRINT(ERR_DBG, "M_PLL is yest locked!\n");
 		return 0;
 	}
 
 	/*
-	 * In PCI 33 mode, the P_PLL is not used, and therefore,
+	 * In PCI 33 mode, the P_PLL is yest used, and therefore,
 	 * the the P_PLL_LOCK bit in the adapter_status register will
-	 * not be asserted.
+	 * yest be asserted.
 	 */
 	if (!(val64 & ADAPTER_STATUS_P_PLL_LOCK) &&
 	    sp->device_type == XFRAME_II_DEVICE &&
 	    mode != PCI_MODE_PCI_33) {
-		DBG_PRINT(ERR_DBG, "P_PLL is not locked!\n");
+		DBG_PRINT(ERR_DBG, "P_PLL is yest locked!\n");
 		return 0;
 	}
 	if (!((val64 & ADAPTER_STATUS_RC_PRC_QUIESCENT) ==
 	      ADAPTER_STATUS_RC_PRC_QUIESCENT)) {
-		DBG_PRINT(ERR_DBG, "RC_PRC is not QUIESCENT!\n");
+		DBG_PRINT(ERR_DBG, "RC_PRC is yest QUIESCENT!\n");
 		return 0;
 	}
 	return 1;
@@ -2264,7 +2264,7 @@ static int start_nic(struct s2io_nic *nic)
 	 */
 	val64 = readq(&bar0->adapter_status);
 	if (!verify_xena_quiescence(nic)) {
-		DBG_PRINT(ERR_DBG, "%s: device is not ready, "
+		DBG_PRINT(ERR_DBG, "%s: device is yest ready, "
 			  "Adapter status reads: 0x%llx\n",
 			  dev->name, (unsigned long long)val64);
 		return FAILURE;
@@ -2273,7 +2273,7 @@ static int start_nic(struct s2io_nic *nic)
 	/*
 	 * With some switches, link might be already up at this point.
 	 * Because of this weird behavior, when we enable laser,
-	 * we may not get link. We need to handle this. We cannot
+	 * we may yest get link. We need to handle this. We canyest
 	 * figure out which switch is misbehaving. So we are forced to
 	 * make a global change.
 	 */
@@ -2433,7 +2433,7 @@ static void stop_nic(struct s2io_nic *nic)
  *  Each mode defines how many fragments the received frame will be split
  *  up into by the NIC. The frame is split into L3 header, L4 Header,
  *  L4 payload in three buffer mode and in 5 buffer mode, L4 payload itself
- *  is split into 3 fragments. As of now only single buffer mode is
+ *  is split into 3 fragments. As of yesw only single buffer mode is
  *  supported.
  *   Return Value:
  *  SUCCESS on success or an appropriate -ve value on failure.
@@ -2443,7 +2443,7 @@ static int fill_rx_buffers(struct s2io_nic *nic, struct ring_info *ring,
 {
 	struct sk_buff *skb;
 	struct RxD_t *rxdp;
-	int off, size, block_no, block_no1;
+	int off, size, block_yes, block_yes1;
 	u32 alloc_tab = 0;
 	u32 alloc_cnt;
 	u64 tmp;
@@ -2456,15 +2456,15 @@ static int fill_rx_buffers(struct s2io_nic *nic, struct ring_info *ring,
 
 	alloc_cnt = ring->pkt_cnt - ring->rx_bufs_left;
 
-	block_no1 = ring->rx_curr_get_info.block_index;
+	block_yes1 = ring->rx_curr_get_info.block_index;
 	while (alloc_tab < alloc_cnt) {
-		block_no = ring->rx_curr_put_info.block_index;
+		block_yes = ring->rx_curr_put_info.block_index;
 
 		off = ring->rx_curr_put_info.offset;
 
-		rxdp = ring->rx_blocks[block_no].rxds[off].virt_addr;
+		rxdp = ring->rx_blocks[block_yes].rxds[off].virt_addr;
 
-		if ((block_no == block_no1) &&
+		if ((block_yes == block_yes1) &&
 		    (off == ring->rx_curr_get_info.offset) &&
 		    (rxdp->Host_Control)) {
 			DBG_PRINT(INTR_DBG, "%s: Get and Put info equated\n",
@@ -2476,10 +2476,10 @@ static int fill_rx_buffers(struct s2io_nic *nic, struct ring_info *ring,
 			if (ring->rx_curr_put_info.block_index ==
 			    ring->block_count)
 				ring->rx_curr_put_info.block_index = 0;
-			block_no = ring->rx_curr_put_info.block_index;
+			block_yes = ring->rx_curr_put_info.block_index;
 			off = 0;
 			ring->rx_curr_put_info.offset = off;
-			rxdp = ring->rx_blocks[block_no].block_virt_addr;
+			rxdp = ring->rx_blocks[block_yes].block_virt_addr;
 			DBG_PRINT(INTR_DBG, "%s: Next block at: %p\n",
 				  ring->dev->name, rxdp);
 
@@ -2503,7 +2503,7 @@ static int fill_rx_buffers(struct s2io_nic *nic, struct ring_info *ring,
 		/* allocate skb */
 		skb = netdev_alloc_skb(nic->dev, size);
 		if (!skb) {
-			DBG_PRINT(INFO_DBG, "%s: Could not allocate skb\n",
+			DBG_PRINT(INFO_DBG, "%s: Could yest allocate skb\n",
 				  ring->dev->name);
 			if (first_rxdp) {
 				dma_wmb();
@@ -2516,7 +2516,7 @@ static int fill_rx_buffers(struct s2io_nic *nic, struct ring_info *ring,
 		swstats->mem_allocated += skb->truesize;
 
 		if (ring->rxd_mode == RXD_MODE_1) {
-			/* 1 buffer mode - normal operation mode */
+			/* 1 buffer mode - yesrmal operation mode */
 			rxdp1 = (struct RxD1 *)rxdp;
 			memset(rxdp, 0, sizeof(struct RxD1));
 			skb_reserve(skb, NET_IP_ALIGN);
@@ -2547,7 +2547,7 @@ static int fill_rx_buffers(struct s2io_nic *nic, struct ring_info *ring,
 			rxdp3->Buffer0_ptr = Buffer0_ptr;
 			rxdp3->Buffer1_ptr = Buffer1_ptr;
 
-			ba = &ring->ba[block_no][off];
+			ba = &ring->ba[block_yes][off];
 			skb_reserve(skb, BUF0_LEN);
 			tmp = (u64)(unsigned long)skb->data;
 			tmp += ALIGN_SIZE;
@@ -2648,7 +2648,7 @@ pci_map_failed:
 	return -ENOMEM;
 }
 
-static void free_rxd_blk(struct s2io_nic *sp, int ring_no, int blk)
+static void free_rxd_blk(struct s2io_nic *sp, int ring_yes, int blk)
 {
 	struct net_device *dev = sp->dev;
 	int j;
@@ -2661,7 +2661,7 @@ static void free_rxd_blk(struct s2io_nic *sp, int ring_no, int blk)
 	struct swStat *swstats = &stats->sw_stat;
 
 	for (j = 0 ; j < rxd_count[sp->rxd_mode]; j++) {
-		rxdp = mac_control->rings[ring_no].
+		rxdp = mac_control->rings[ring_yes].
 			rx_blocks[blk].rxds[j].virt_addr;
 		skb = (struct sk_buff *)((unsigned long)rxdp->Host_Control);
 		if (!skb)
@@ -2693,7 +2693,7 @@ static void free_rxd_blk(struct s2io_nic *sp, int ring_no, int blk)
 		}
 		swstats->mem_freed += skb->truesize;
 		dev_kfree_skb(skb);
-		mac_control->rings[ring_no].rx_bufs_left -= 1;
+		mac_control->rings[ring_yes].rx_bufs_left -= 1;
 	}
 }
 
@@ -2745,7 +2745,7 @@ static int s2io_chk_rx_buffers(struct s2io_nic *nic, struct ring_info *ring)
  * during  one pass through the 'Poll" function.
  * Description:
  * Comes into picture only if NAPI support has been incorporated. It does
- * the same thing that rx_intr_handler does, but not in a interrupt context
+ * the same thing that rx_intr_handler does, but yest in a interrupt context
  * also It will process only a given number of packets.
  * Return value:
  * 0 on success and 1 if there are No Rx packets to be processed.
@@ -2772,8 +2772,8 @@ static int s2io_poll_msix(struct napi_struct *napi, int budget)
 		napi_complete_done(napi, pkts_processed);
 		/*Re Enable MSI-Rx Vector*/
 		addr = (u8 __iomem *)&bar0->xmsi_mask_reg;
-		addr += 7 - ring->ring_no;
-		val8 = (ring->ring_no == 0) ? 0x3f : 0xbf;
+		addr += 7 - ring->ring_yes;
+		val8 = (ring->ring_yes == 0) ? 0x3f : 0xbf;
 		writeb(val8, addr);
 		val8 = readb(addr);
 	}
@@ -3320,7 +3320,7 @@ static void s2io_updt_xpak_counter(struct net_device *dev)
  *  s2io_nic structure.
  *  Description: Function that waits for a command to Write into RMAC
  *  ADDR DATA registers to be completed and returns either success or
- *  error depending on whether the command was complete or not.
+ *  error depending on whether the command was complete or yest.
  *  Return value:
  *   SUCCESS on success and FAILURE on failure.
  */
@@ -3584,7 +3584,7 @@ static int s2io_set_swapper(struct s2io_nic *sp)
 #ifdef __BIG_ENDIAN
 	/*
 	 * The device by default set to a big endian format, so a
-	 * big endian driver need not set anything.
+	 * big endian driver need yest set anything.
 	 */
 	val64 |= (SWAPPER_CTRL_TXP_FE |
 		  SWAPPER_CTRL_TXP_SE |
@@ -3633,7 +3633,7 @@ static int s2io_set_swapper(struct s2io_nic *sp)
 	 */
 	val64 = readq(&bar0->pif_rd_swapper_fb);
 	if (val64 != 0x0123456789ABCDEFULL) {
-		/* Endian settings are incorrect, calls for another dekko. */
+		/* Endian settings are incorrect, calls for ayesther dekko. */
 		DBG_PRINT(ERR_DBG,
 			  "%s: Endian settings are wrong, feedback read %llx\n",
 			  dev->name, (unsigned long long)val64);
@@ -3819,7 +3819,7 @@ static int s2io_test_msi(struct s2io_nic *sp)
 	err = request_irq(sp->entries[1].vector, s2io_test_intr, 0,
 			  sp->name, sp);
 	if (err) {
-		DBG_PRINT(ERR_DBG, "%s: PCI %s: cannot assign irq %d\n",
+		DBG_PRINT(ERR_DBG, "%s: PCI %s: canyest assign irq %d\n",
 			  sp->dev->name, pci_name(pdev), pdev->irq);
 		return err;
 	}
@@ -3893,7 +3893,7 @@ static void remove_inta_isr(struct s2io_nic *sp)
  *  function to allocate Rx buffers and inserts them into the buffer
  *  descriptors and then enables the Rx part of the NIC.
  *  Return value:
- *  0 on success and an appropriate (-)ve integer as defined in errno.h
+ *  0 on success and an appropriate (-)ve integer as defined in erryes.h
  *   file on failure.
  */
 
@@ -3952,7 +3952,7 @@ hw_init_failed:
  *  as the close function.Among other things this function mainly stops the
  *  Rx side of the NIC and frees all the Rx buffers in the Rx rings.
  *  Return value:
- *  0 on success and an appropriate (-)ve integer as defined in errno.h
+ *  0 on success and an appropriate (-)ve integer as defined in erryes.h
  *  file on failure.
  */
 
@@ -3990,7 +3990,7 @@ static int s2io_close(struct net_device *dev)
  *  This function is the Tx entry point of the driver. S2IO NIC supports
  *  certain protocol assist features on Tx side, namely  CSO, S/G, LSO.
  *  NOTE: when device can't queue the pkt,just the trans_start variable will
- *  not be upadted.
+ *  yest be upadted.
  *  Return value:
  *  0 on success & 1 on failure.
  */
@@ -4015,7 +4015,7 @@ static netdev_tx_t s2io_xmit(struct sk_buff *skb, struct net_device *dev)
 	DBG_PRINT(TX_DBG, "%s: In Neterion Tx routine\n", dev->name);
 
 	if (unlikely(skb->len <= 0)) {
-		DBG_PRINT(TX_DBG, "%s: Buffer has no data..\n", dev->name);
+		DBG_PRINT(TX_DBG, "%s: Buffer has yes data..\n", dev->name);
 		dev_kfree_skb_any(skb);
 		return NETDEV_TX_OK;
 	}
@@ -4069,7 +4069,7 @@ static netdev_tx_t s2io_xmit(struct sk_buff *skb, struct net_device *dev)
 	spin_lock_irqsave(&fifo->tx_lock, flags);
 
 	if (sp->config.multiq) {
-		if (__netif_subqueue_stopped(dev, fifo->fifo_no)) {
+		if (__netif_subqueue_stopped(dev, fifo->fifo_yes)) {
 			spin_unlock_irqrestore(&fifo->tx_lock, flags);
 			return NETDEV_TX_BUSY;
 		}
@@ -4089,7 +4089,7 @@ static netdev_tx_t s2io_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (txdp->Host_Control ||
 	    ((put_off+1) == queue_len ? 0 : (put_off+1)) == get_off) {
 		DBG_PRINT(TX_DBG, "Error in xmit, No free TXDs.\n");
-		s2io_stop_tx_queue(sp, fifo->fifo_no);
+		s2io_stop_tx_queue(sp, fifo->fifo_yes);
 		dev_kfree_skb_any(skb);
 		spin_unlock_irqrestore(&fifo->tx_lock, flags);
 		return NETDEV_TX_OK;
@@ -4107,7 +4107,7 @@ static netdev_tx_t s2io_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 	txdp->Control_1 |= TXD_GATHER_CODE_FIRST;
 	txdp->Control_1 |= TXD_LIST_OWN_XENA;
-	txdp->Control_2 |= TXD_INT_NUMBER(fifo->fifo_no);
+	txdp->Control_2 |= TXD_INT_NUMBER(fifo->fifo_yes);
 	if (enable_per_list_interrupt)
 		if (put_off & (queue_len >> 5))
 			txdp->Control_2 |= TXD_INT_TYPE_PER_LIST;
@@ -4129,7 +4129,7 @@ static netdev_tx_t s2io_xmit(struct sk_buff *skb, struct net_device *dev)
 	/* For fragmented SKB. */
 	for (i = 0; i < frg_cnt; i++) {
 		const skb_frag_t *frag = &skb_shinfo(skb)->frags[i];
-		/* A '0' length fragment will be ignored */
+		/* A '0' length fragment will be igyesred */
 		if (!skb_frag_size(frag))
 			continue;
 		txdp++;
@@ -4163,7 +4163,7 @@ static netdev_tx_t s2io_xmit(struct sk_buff *skb, struct net_device *dev)
 		DBG_PRINT(TX_DBG,
 			  "No free TxDs for xmit, Put: 0x%x Get:0x%x\n",
 			  put_off, get_off);
-		s2io_stop_tx_queue(sp, fifo->fifo_no);
+		s2io_stop_tx_queue(sp, fifo->fifo_yes);
 	}
 	swstats->mem_allocated += skb->truesize;
 	spin_unlock_irqrestore(&fifo->tx_lock, flags);
@@ -4175,7 +4175,7 @@ static netdev_tx_t s2io_xmit(struct sk_buff *skb, struct net_device *dev)
 
 pci_map_failed:
 	swstats->pci_map_fail_cnt++;
-	s2io_stop_tx_queue(sp, fifo->fifo_no);
+	s2io_stop_tx_queue(sp, fifo->fifo_yes);
 	swstats->mem_freed += skb->truesize;
 	dev_kfree_skb_any(skb);
 	spin_unlock_irqrestore(&fifo->tx_lock, flags);
@@ -4206,8 +4206,8 @@ static irqreturn_t s2io_msix_ring_handle(int irq, void *dev_id)
 		u8 val8 = 0;
 
 		addr = (u8 __iomem *)&bar0->xmsi_mask_reg;
-		addr += (7 - ring->ring_no);
-		val8 = (ring->ring_no == 0) ? 0x7f : 0xff;
+		addr += (7 - ring->ring_yes);
+		val8 = (ring->ring_yes == 0) ? 0x7f : 0xff;
 		writeb(val8, addr);
 		val8 = readb(addr);
 		napi_schedule(&ring->napi);
@@ -4252,7 +4252,7 @@ static irqreturn_t s2io_msix_fifo_handle(int irq, void *dev_id)
 		readl(&bar0->general_int_status);
 		return IRQ_HANDLED;
 	}
-	/* The interrupt was not raised by us */
+	/* The interrupt was yest raised by us */
 	return IRQ_NONE;
 }
 
@@ -4324,7 +4324,7 @@ static void s2io_txpic_intr_handle(struct s2io_nic *sp)
  *  Description: Check for alarm and increment the counter
  *  Return Value:
  *  1 - if alarm bit set
- *  0 - if alarm bit is not set
+ *  0 - if alarm bit is yest set
  */
 static int do_s2io_chk_alarm_bit(u64 value, void __iomem *addr,
 				 unsigned long long *cnt)
@@ -4648,7 +4648,7 @@ reset:
  *  presently set to 25% of the original number of rcv buffers allocated.
  *  Return value:
  *   IRQ_HANDLED: will be returned if IRQ was handled by this routine
- *   IRQ_NONE: will be returned if interrupt is not from our device
+ *   IRQ_NONE: will be returned if interrupt is yest from our device
  */
 static irqreturn_t s2io_isr(int irq, void *dev_id)
 {
@@ -4739,7 +4739,7 @@ static irqreturn_t s2io_isr(int irq, void *dev_id)
 		return IRQ_HANDLED;
 
 	} else if (!reason) {
-		/* The interrupt was not raised by us */
+		/* The interrupt was yest raised by us */
 		return IRQ_NONE;
 	}
 
@@ -4795,7 +4795,7 @@ static struct net_device_stats *s2io_get_stats(struct net_device *dev)
 	 * This can be done while running by changing the MTU.  To prevent the
 	 * system from having the stats zero'ed, the driver keeps a copy of the
 	 * last update to the system (which is also zero'ed on reset).  This
-	 * enables the driver to accurately know the delta between the last
+	 * enables the driver to accurately kyesw the delta between the last
 	 * update and the current update.
 	 */
 	delta = ((u64) le32_to_cpu(stats->rmac_vld_frms_oflow) << 32 |
@@ -4836,7 +4836,7 @@ static struct net_device_stats *s2io_get_stats(struct net_device *dev)
 	dev->stats.tx_dropped += delta;
 
 	/* The adapter MAC interprets pause frames as multicast packets, but
-	 * does not pass them up.  This erroneously increases the multicast
+	 * does yest pass them up.  This erroneously increases the multicast
 	 * packet count and needs to be deducted when the multicast frame count
 	 * is queried.
 	 */
@@ -5097,7 +5097,7 @@ static int do_s2io_add_mc(struct s2io_nic *sp, u8 *addr)
 	}
 	if (i == config->max_mc_addr) {
 		DBG_PRINT(ERR_DBG,
-			  "CAM full no space left for multicast MAC\n");
+			  "CAM full yes space left for multicast MAC\n");
 		return FAILURE;
 	}
 	/* Update the internal structure with this new mac address */
@@ -5147,7 +5147,7 @@ static int do_s2io_delete_unicast_mc(struct s2io_nic *sp, u64 addr)
 			return SUCCESS;
 		}
 	}
-	DBG_PRINT(ERR_DBG, "MAC address 0x%llx not found in CAM\n",
+	DBG_PRINT(ERR_DBG, "MAC address 0x%llx yest found in CAM\n",
 		  (unsigned long long)addr);
 	return FAILURE;
 }
@@ -5198,7 +5198,7 @@ static int s2io_set_mac_addr(struct net_device *dev, void *p)
  *  Description : This procedure will program the Xframe to receive
  *  frames with new Mac Address
  *  Return value: SUCCESS on success and an appropriate (-)ve integer
- *  as defined in errno.h file on failure.
+ *  as defined in erryes.h file on failure.
  */
 
 static int do_s2io_prog_unicast(struct net_device *dev, u8 *addr)
@@ -5239,7 +5239,7 @@ static int do_s2io_prog_unicast(struct net_device *dev, u8 *addr)
 		}
 	}
 	if (i == config->max_mac_addr) {
-		DBG_PRINT(ERR_DBG, "CAM full no space left for Unicast MAC\n");
+		DBG_PRINT(ERR_DBG, "CAM full yes space left for Unicast MAC\n");
 		return FAILURE;
 	}
 	/* Update the internal structure with this new mac address */
@@ -5423,7 +5423,7 @@ static int s2io_ethtool_set_led(struct net_device *dev,
 	if ((sp->device_type == XFRAME_I_DEVICE) && ((subid & 0xFF) < 0x07)) {
 		u64 val64 = readq(&bar0->adapter_control);
 		if (!(val64 & ADAPTER_CNTL_EN)) {
-			pr_err("Adapter Link down, cannot blink LED\n");
+			pr_err("Adapter Link down, canyest blink LED\n");
 			return -EAGAIN;
 		}
 	}
@@ -5817,7 +5817,7 @@ static int s2io_ethtool_seeprom(struct net_device *dev,
 		if (write_eeprom(sp, (eeprom->offset + cnt), valid, 0)) {
 			DBG_PRINT(ERR_DBG,
 				  "ETHTOOL_WRITE_EEPROM Err: "
-				  "Cannot write into the specified offset\n");
+				  "Canyest write into the specified offset\n");
 			return -EFAULT;
 		}
 		cnt++;
@@ -6003,7 +6003,7 @@ static int s2io_eeprom_test(struct s2io_nic *sp, uint64_t *data)
  * the driver.
  * Description:
  * This invokes the MemBist test of the card. We give around
- * 2 secs time for the Test to complete. If it's still not complete
+ * 2 secs time for the Test to complete. If it's still yest complete
  * within this peiod, we consider that the test failed.
  * Return value:
  * 0 on success and -1 on failure.
@@ -6205,7 +6205,7 @@ static void s2io_ethtool_test(struct net_device *dev,
 	} else {
 		/* Online Tests. */
 		if (!orig_state) {
-			DBG_PRINT(ERR_DBG, "%s: is not up, cannot run test\n",
+			DBG_PRINT(ERR_DBG, "%s: is yest up, canyest run test\n",
 				  dev->name);
 			data[0] = -1;
 			data[1] = -1;
@@ -6447,7 +6447,7 @@ static void s2io_get_ethtool_stats(struct net_device *dev,
 		u64 tmp = swstats->sum_avg_pkts_aggregated;
 		int count = 0;
 		/*
-		 * Since 64-bit divide does not work on all platforms,
+		 * Since 64-bit divide does yest work on all platforms,
 		 * do repeated subtraction.
 		 */
 		while (tmp >= swstats->num_aggregations) {
@@ -6609,7 +6609,7 @@ static const struct ethtool_ops netdev_ethtool_ops = {
  *  @cmd :  This is used to distinguish between the different commands that
  *  can be passed to the IOCTL functions.
  *  Description:
- *  Currently there are no special functionality supported in IOCTL, hence
+ *  Currently there are yes special functionality supported in IOCTL, hence
  *  function always return EOPNOTSUPPORTED
  */
 
@@ -6625,7 +6625,7 @@ static int s2io_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
  *   Description: A driver entry point to change MTU size for the device.
  *   Before changing the MTU the device must be stopped.
  *  Return value:
- *   0 on success and an appropriate (-)ve integer as defined in errno.h
+ *   0 on success and an appropriate (-)ve integer as defined in erryes.h
  *   file on failure.
  */
 
@@ -6676,7 +6676,7 @@ static void s2io_set_link(struct work_struct *work)
 		goto out_unlock;
 
 	if (test_and_set_bit(__S2IO_STATE_LINK_TASK, &(nic->state))) {
-		/* The card is being reset, no point doing anything */
+		/* The card is being reset, yes point doing anything */
 		goto out_unlock;
 	}
 
@@ -6709,7 +6709,7 @@ static void s2io_set_link(struct work_struct *work)
 				nic->device_enabled_once = true;
 			} else {
 				DBG_PRINT(ERR_DBG,
-					  "%s: Error: device is not Quiescent\n",
+					  "%s: Error: device is yest Quiescent\n",
 					  dev->name);
 				s2io_stop_all_tx_queue(nic);
 			}
@@ -6750,9 +6750,9 @@ static int set_rxd_buffer_pointer(struct s2io_nic *sp, struct RxD_t *rxdp,
 		struct RxD1 *rxdp1 = (struct RxD1 *)rxdp;
 		/* allocate skb */
 		if (*skb) {
-			DBG_PRINT(INFO_DBG, "SKB is not NULL\n");
+			DBG_PRINT(INFO_DBG, "SKB is yest NULL\n");
 			/*
-			 * As Rx frame are not going to be processed,
+			 * As Rx frame are yest going to be processed,
 			 * using same mapped address for the Rxd
 			 * buffer pointer
 			 */
@@ -6816,7 +6816,7 @@ static int set_rxd_buffer_pointer(struct s2io_nic *sp, struct RxD_t *rxdp,
 			}
 			rxdp->Host_Control = (unsigned long) (*skb);
 
-			/* Buffer-1 will be dummy buffer not used */
+			/* Buffer-1 will be dummy buffer yest used */
 			rxdp3->Buffer1_ptr = *temp1 =
 				pci_map_single(sp->pdev, ba->ba_1, BUF1_LEN,
 					       PCI_DMA_FROMDEVICE);
@@ -7049,7 +7049,7 @@ static void do_s2io_card_down(struct s2io_nic *sp, int do_io)
 	while (do_io) {
 		/* As per the HW requirement we need to replenish the
 		 * receive buffer to avoid the ring bump. Since there is
-		 * no intention of processing the Rx frame at this pointwe are
+		 * yes intention of processing the Rx frame at this pointwe are
 		 * just setting the ownership bit of rxd in Each Rx
 		 * ring to HW and set the appropriate buffer size
 		 * based on the ring mode
@@ -7065,7 +7065,7 @@ static void do_s2io_card_down(struct s2io_nic *sp, int do_io)
 		msleep(50);
 		cnt++;
 		if (cnt == 10) {
-			DBG_PRINT(ERR_DBG, "Device not Quiescent - "
+			DBG_PRINT(ERR_DBG, "Device yest Quiescent - "
 				  "adapter status reads 0x%llx\n",
 				  (unsigned long long)val64);
 			break;
@@ -7107,7 +7107,7 @@ static int s2io_card_up(struct s2io_nic *sp)
 	}
 
 	/*
-	 * Initializing the Rx buffers. For now we are considering only 1
+	 * Initializing the Rx buffers. For yesw we are considering only 1
 	 * Rx ring and initializing buffers into 30 Rx blocks
 	 */
 	config = &sp->config;
@@ -7256,7 +7256,7 @@ static void s2io_tx_watchdog(struct net_device *dev)
  *   @skb : the socket buffer pointer.
  *   @len : length of the packet
  *   @cksum : FCS checksum of the frame.
- *   @ring_no : the ring from which this RxD was extracted.
+ *   @ring_yes : the ring from which this RxD was extracted.
  *   Description:
  *   This function is called by the Rx interrupt serivce routine to perform
  *   some OS related operations on the SKB before passing it to the upper
@@ -7273,7 +7273,7 @@ static int rx_osm_handler(struct ring_info *ring_data, struct RxD_t * rxdp)
 	struct net_device *dev = ring_data->dev;
 	struct sk_buff *skb = (struct sk_buff *)
 		((unsigned long)rxdp->Host_Control);
-	int ring_no = ring_data->ring_no;
+	int ring_yes = ring_data->ring_yes;
 	u16 l3_csum, l4_csum;
 	unsigned long long err = rxdp->Control_1 & RXD_T_CODE;
 	struct lro *uninitialized_var(lro);
@@ -7371,7 +7371,7 @@ static int rx_osm_handler(struct ring_info *ring_data, struct RxD_t * rxdp)
 		if ((l3_csum == L3_CKSUM_OK) && (l4_csum == L4_CKSUM_OK)) {
 			/*
 			 * NIC verifies if the Checksum of the received
-			 * frame is Ok or not and accordingly returns
+			 * frame is Ok or yest and accordingly returns
 			 * a flag in the RxD.
 			 */
 			skb->ip_summed = CHECKSUM_UNNECESSARY;
@@ -7406,9 +7406,9 @@ static int rx_osm_handler(struct ring_info *ring_data, struct RxD_t * rxdp)
 					clear_lro_session(lro);
 					goto send_up;
 				case 0: /* sessions exceeded */
-				case -1: /* non-TCP or not L2 aggregatable */
+				case -1: /* yesn-TCP or yest L2 aggregatable */
 				case 5: /*
-					 * First pkt in session not
+					 * First pkt in session yest
 					 * L3/L4 aggregatable
 					 */
 					break;
@@ -7424,17 +7424,17 @@ static int rx_osm_handler(struct ring_info *ring_data, struct RxD_t * rxdp)
 			 * Packet with erroneous checksum, let the
 			 * upper layers deal with it.
 			 */
-			skb_checksum_none_assert(skb);
+			skb_checksum_yesne_assert(skb);
 		}
 	} else
-		skb_checksum_none_assert(skb);
+		skb_checksum_yesne_assert(skb);
 
 	swstats->mem_freed += skb->truesize;
 send_up:
-	skb_record_rx_queue(skb, ring_no);
+	skb_record_rx_queue(skb, ring_yes);
 	queue_rx_frame(skb, RXD_GET_VLAN_TAG(rxdp->Control_2));
 aggregate:
-	sp->mac_control.rings[ring_no].rx_bufs_left -= 1;
+	sp->mac_control.rings[ring_yes].rx_bufs_left -= 1;
 	return SUCCESS;
 }
 
@@ -7517,7 +7517,7 @@ static int s2io_verify_parm(struct pci_dev *pdev, u8 *dev_intr_type,
 
 	if ((tx_fifo_num > MAX_TX_FIFOS) || (tx_fifo_num < 1)) {
 		DBG_PRINT(ERR_DBG, "Requested number of tx fifos "
-			  "(%d) not supported\n", tx_fifo_num);
+			  "(%d) yest supported\n", tx_fifo_num);
 
 		if (tx_fifo_num < 1)
 			tx_fifo_num = 1;
@@ -7533,7 +7533,7 @@ static int s2io_verify_parm(struct pci_dev *pdev, u8 *dev_intr_type,
 	if (tx_steering_type && (1 == tx_fifo_num)) {
 		if (tx_steering_type != TX_DEFAULT_STEERING)
 			DBG_PRINT(ERR_DBG,
-				  "Tx steering is not supported with "
+				  "Tx steering is yest supported with "
 				  "one fifo. Disabling Tx steering.\n");
 		tx_steering_type = NO_STEERING;
 	}
@@ -7541,14 +7541,14 @@ static int s2io_verify_parm(struct pci_dev *pdev, u8 *dev_intr_type,
 	if ((tx_steering_type < NO_STEERING) ||
 	    (tx_steering_type > TX_DEFAULT_STEERING)) {
 		DBG_PRINT(ERR_DBG,
-			  "Requested transmit steering not supported\n");
+			  "Requested transmit steering yest supported\n");
 		DBG_PRINT(ERR_DBG, "Disabling transmit steering\n");
 		tx_steering_type = NO_STEERING;
 	}
 
 	if (rx_ring_num > MAX_RX_RINGS) {
 		DBG_PRINT(ERR_DBG,
-			  "Requested number of rx rings not supported\n");
+			  "Requested number of rx rings yest supported\n");
 		DBG_PRINT(ERR_DBG, "Default to %d rx rings\n",
 			  MAX_RX_RINGS);
 		rx_ring_num = MAX_RX_RINGS;
@@ -7563,20 +7563,20 @@ static int s2io_verify_parm(struct pci_dev *pdev, u8 *dev_intr_type,
 	if ((*dev_intr_type == MSI_X) &&
 	    ((pdev->device != PCI_DEVICE_ID_HERC_WIN) &&
 	     (pdev->device != PCI_DEVICE_ID_HERC_UNI))) {
-		DBG_PRINT(ERR_DBG, "Xframe I does not support MSI_X. "
+		DBG_PRINT(ERR_DBG, "Xframe I does yest support MSI_X. "
 			  "Defaulting to INTA\n");
 		*dev_intr_type = INTA;
 	}
 
 	if ((rx_ring_mode != 1) && (rx_ring_mode != 2)) {
-		DBG_PRINT(ERR_DBG, "Requested ring mode not supported\n");
+		DBG_PRINT(ERR_DBG, "Requested ring mode yest supported\n");
 		DBG_PRINT(ERR_DBG, "Defaulting to 1-buffer mode\n");
 		rx_ring_mode = 1;
 	}
 
 	for (i = 0; i < MAX_RX_RINGS; i++)
 		if (rx_ring_sz[i] > MAX_RX_BLOCKS_PER_RING) {
-			DBG_PRINT(ERR_DBG, "Requested rx ring size not "
+			DBG_PRINT(ERR_DBG, "Requested rx ring size yest "
 				  "supported\nDefaulting to %d\n",
 				  MAX_RX_BLOCKS_PER_RING);
 			rx_ring_sz[i] = MAX_RX_BLOCKS_PER_RING;
@@ -7739,7 +7739,7 @@ s2io_init_nic(struct pci_dev *pdev, const struct pci_device_id *pre)
 	 * Setting the device configuration parameters.
 	 * Most of these parameters can be specified by the user during
 	 * module insertion as they are module loadable parameters. If
-	 * these parameters are not not specified during load time, they
+	 * these parameters are yest yest specified during load time, they
 	 * are initialized with default values.
 	 */
 	config = &sp->config;
@@ -7792,7 +7792,7 @@ s2io_init_nic(struct pci_dev *pdev, const struct pci_device_id *pre)
 	for (i = 0; i < config->tx_fifo_num; i++) {
 		struct tx_fifo_config *tx_cfg = &config->tx_cfg[i];
 
-		tx_cfg->f_no_snoop = (NO_SNOOP_TXD | NO_SNOOP_TXD_BUFFER);
+		tx_cfg->f_yes_syesop = (NO_SNOOP_TXD | NO_SNOOP_TXD_BUFFER);
 		if (tx_cfg->fifo_len < 65) {
 			config->tx_intr_type = TXD_INT_TYPE_PER_LIST;
 			break;
@@ -7820,7 +7820,7 @@ s2io_init_nic(struct pci_dev *pdev, const struct pci_device_id *pre)
 		struct rx_ring_config *rx_cfg = &config->rx_cfg[i];
 
 		rx_cfg->ring_org = RING_ORG_BUFF1;
-		rx_cfg->f_no_snoop = (NO_SNOOP_RXD | NO_SNOOP_RXD_BUFFER);
+		rx_cfg->f_yes_syesop = (NO_SNOOP_RXD | NO_SNOOP_RXD_BUFFER);
 	}
 
 	/*  Setting Mac Control parameters */
@@ -7838,7 +7838,7 @@ s2io_init_nic(struct pci_dev *pdev, const struct pci_device_id *pre)
 
 	sp->bar0 = pci_ioremap_bar(pdev, 0);
 	if (!sp->bar0) {
-		DBG_PRINT(ERR_DBG, "%s: Neterion: cannot remap io mem1\n",
+		DBG_PRINT(ERR_DBG, "%s: Neterion: canyest remap io mem1\n",
 			  dev->name);
 		ret = -ENOMEM;
 		goto bar0_remap_failed;
@@ -7846,7 +7846,7 @@ s2io_init_nic(struct pci_dev *pdev, const struct pci_device_id *pre)
 
 	sp->bar1 = pci_ioremap_bar(pdev, 2);
 	if (!sp->bar1) {
-		DBG_PRINT(ERR_DBG, "%s: Neterion: cannot remap io mem2\n",
+		DBG_PRINT(ERR_DBG, "%s: Neterion: canyest remap io mem2\n",
 			  dev->name);
 		ret = -ENOMEM;
 		goto bar1_remap_failed;
@@ -7931,7 +7931,7 @@ s2io_init_nic(struct pci_dev *pdev, const struct pci_device_id *pre)
 
 	/*
 	 * MAC address initialization.
-	 * For now only one mac address will be read and used.
+	 * For yesw only one mac address will be read and used.
 	 */
 	bar0 = sp->bar0;
 	val64 = RMAC_ADDR_CMD_MEM_RD | RMAC_ADDR_CMD_MEM_STROBE_NEW_CMD |
@@ -7980,7 +7980,7 @@ s2io_init_nic(struct pci_dev *pdev, const struct pci_device_id *pre)
 
 	/* Store the values of the MSIX table in the s2io_nic structure */
 	store_xmsi_data(sp);
-	/* reset Nic and bring it to known state */
+	/* reset Nic and bring it to kyeswn state */
 	s2io_reset(sp);
 
 	/*
@@ -8175,7 +8175,7 @@ static int check_L2_lro_capable(u8 *buffer, struct iphdr **ip,
 
 	if (!(rxdp->Control_1 & RXD_FRAME_PROTO_TCP)) {
 		DBG_PRINT(INIT_DBG,
-			  "%s: Non-TCP frames not supported for LRO\n",
+			  "%s: Non-TCP frames yest supported for LRO\n",
 			  __func__);
 		return -1;
 	}
@@ -8191,7 +8191,7 @@ static int check_L2_lro_capable(u8 *buffer, struct iphdr **ip,
 		    (rxdp->Control_1 & RXD_FRAME_VLAN_TAG))
 			ip_off += HEADER_VLAN_SIZE;
 	} else {
-		/* LLC, SNAP etc are considered non-mergeable */
+		/* LLC, SNAP etc are considered yesn-mergeable */
 		return -1;
 	}
 
@@ -8271,7 +8271,7 @@ static void update_L3L4_header(struct s2io_nic *sp, struct lro *lro)
 	}
 
 	/* Update counters required for calculation of
-	 * average no. of packets aggregated.
+	 * average yes. of packets aggregated.
 	 */
 	swstats->sum_avg_pkts_aggregated += lro->sg_num;
 	swstats->num_aggregations++;
@@ -8286,7 +8286,7 @@ static void aggregate_new_rx(struct lro *lro, struct iphdr *ip,
 	lro->tcp_next_seq += l4_pyld;
 	lro->sg_num++;
 
-	/* Update ack seq no. and window ad(from this pkt) in LRO object */
+	/* Update ack seq yes. and window ad(from this pkt) in LRO object */
 	lro->tcp_ack = tcp->ack_seq;
 	lro->window = tcp->window;
 
@@ -8314,11 +8314,11 @@ static int verify_l3_l4_lro_capable(struct lro *l_lro, struct iphdr *ip,
 	if (ip->ihl != 5) /* IP has options */
 		return -1;
 
-	/* If we see CE codepoint in IP header, packet is not mergeable */
+	/* If we see CE codepoint in IP header, packet is yest mergeable */
 	if (INET_ECN_is_ce(ipv4_get_dsfield(ip)))
 		return -1;
 
-	/* If we see ECE or CWR flags in TCP header, packet is not mergeable */
+	/* If we see ECE or CWR flags in TCP header, packet is yest mergeable */
 	if (tcp->urg || tcp->psh || tcp->rst ||
 	    tcp->syn || tcp->fin ||
 	    tcp->ece || tcp->cwr || !tcp->ack) {
@@ -8344,12 +8344,12 @@ static int verify_l3_l4_lro_capable(struct lro *l_lro, struct iphdr *ip,
 		if (*ptr != TCPOPT_TIMESTAMP || *(ptr+1) != TCPOLEN_TIMESTAMP)
 			return -1;
 
-		/* Ensure timestamp value increases monotonically */
+		/* Ensure timestamp value increases moyestonically */
 		if (l_lro)
 			if (l_lro->cur_tsval > ntohl(*((__be32 *)(ptr+2))))
 				return -1;
 
-		/* timestamp echo reply should be non-zero */
+		/* timestamp echo reply should be yesn-zero */
 		if (*((__be32 *)(ptr+6)) == 0)
 			return -1;
 	}
@@ -8408,7 +8408,7 @@ static int s2io_club_tcp_session(struct ring_info *ring_data, u8 *buffer,
 
 	if (ret == 0) {
 		/* Before searching for available LRO objects,
-		 * check if the pkt is L3/L4 aggregatable. If not
+		 * check if the pkt is L3/L4 aggregatable. If yest
 		 * don't create new LRO session. Just send this
 		 * packet up.
 		 */
@@ -8448,7 +8448,7 @@ static int s2io_club_tcp_session(struct ring_info *ring_data, u8 *buffer,
 		}
 		break;
 	default:
-		DBG_PRINT(ERR_DBG, "%s: Don't know, can't say!!\n", __func__);
+		DBG_PRINT(ERR_DBG, "%s: Don't kyesw, can't say!!\n", __func__);
 		break;
 	}
 
@@ -8537,7 +8537,7 @@ static pci_ers_result_t s2io_io_slot_reset(struct pci_dev *pdev)
 	struct s2io_nic *sp = netdev_priv(netdev);
 
 	if (pci_enable_device(pdev)) {
-		pr_err("Cannot re-enable PCI device after reset.\n");
+		pr_err("Canyest re-enable PCI device after reset.\n");
 		return PCI_ERS_RESULT_DISCONNECT;
 	}
 
@@ -8552,7 +8552,7 @@ static pci_ers_result_t s2io_io_slot_reset(struct pci_dev *pdev)
  * @pdev: Pointer to PCI device
  *
  * This callback is called when the error recovery driver tells
- * us that its OK to resume normal operation.
+ * us that its OK to resume yesrmal operation.
  */
 static void s2io_io_resume(struct pci_dev *pdev)
 {

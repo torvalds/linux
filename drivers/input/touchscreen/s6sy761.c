@@ -40,8 +40,8 @@
 
 /*
  * the functionalities are put as a reference
- * as in the device I am using none of them
- * works therefore not used in this driver yet.
+ * as in the device I am using yesne of them
+ * works therefore yest used in this driver yet.
  */
 /* touchscreen functionalities */
 #define S6SY761_MASK_TOUCH		BIT(0)
@@ -143,7 +143,7 @@ static void s6sy761_report_coordinates(struct s6sy761_data *sdata,
 				       u8 *event, u8 tid)
 {
 	u8 major = event[4];
-	u8 minor = event[5];
+	u8 miyesr = event[5];
 	u8 z = event[6] & S6SY761_MASK_Z;
 	u16 x = (event[1] << 3) | ((event[3] & S6SY761_MASK_X) >> 4);
 	u16 y = (event[2] << 3) | (event[3] & S6SY761_MASK_Y);
@@ -154,7 +154,7 @@ static void s6sy761_report_coordinates(struct s6sy761_data *sdata,
 	input_report_abs(sdata->input, ABS_MT_POSITION_X, x);
 	input_report_abs(sdata->input, ABS_MT_POSITION_Y, y);
 	input_report_abs(sdata->input, ABS_MT_TOUCH_MAJOR, major);
-	input_report_abs(sdata->input, ABS_MT_TOUCH_MINOR, minor);
+	input_report_abs(sdata->input, ABS_MT_TOUCH_MINOR, miyesr);
 	input_report_abs(sdata->input, ABS_MT_PRESSURE, z);
 
 	input_sync(sdata->input);
@@ -367,7 +367,7 @@ static int s6sy761_hw_init(struct s6sy761_data *sdata,
 	*max_x = get_unaligned_be16(buffer);
 	*max_y = get_unaligned_be16(buffer + 2);
 
-	/* if no tx channels defined, at least keep one */
+	/* if yes tx channels defined, at least keep one */
 	sdata->tx_channel = max_t(u8, buffer[8], 1);
 
 	ret = i2c_smbus_read_byte_data(sdata->client,
@@ -445,7 +445,7 @@ static int s6sy761_probe(struct i2c_client *client,
 
 	if (!input_abs_get_max(sdata->input, ABS_X) ||
 	    !input_abs_get_max(sdata->input, ABS_Y)) {
-		dev_warn(&client->dev, "the axis have not been set\n");
+		dev_warn(&client->dev, "the axis have yest been set\n");
 	}
 
 	err = input_mt_init_slots(sdata->input, sdata->tx_channel,

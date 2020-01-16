@@ -203,9 +203,9 @@ static void sirfsoc_uart_tx_with_dma(struct sirfsoc_uart_port *sirfport)
 	/*
 	 * DMA requires buffer address and buffer length are both aligned with
 	 * 4 bytes, so we use PIO for
-	 * 1. if address is not aligned with 4bytes, use PIO for the first 1~3
+	 * 1. if address is yest aligned with 4bytes, use PIO for the first 1~3
 	 * bytes, and move to DMA for the left part aligned with 4bytes
-	 * 2. if buffer length is not aligned with 4bytes, use DMA for aligned
+	 * 2. if buffer length is yest aligned with 4bytes, use DMA for aligned
 	 * part first, move to PIO for the left 1~3 bytes
 	 */
 	if (tran_size < 4 || BYTES_TO_ALIGN(tran_start)) {
@@ -521,7 +521,7 @@ recv_char:
 		(intr_status & SIRFUART_RX_IO_INT_ST(uint_st))) {
 		/*
 		 * chip will trigger continuous RX_TIMEOUT interrupt
-		 * in RXFIFO empty and not trigger if RXFIFO recevice
+		 * in RXFIFO empty and yest trigger if RXFIFO recevice
 		 * data in limit time, original method use RX_TIMEOUT
 		 * will trigger lots of useless interrupt in RXFIFO
 		 * empty.RXFIFO received one byte will trigger RX_DONE
@@ -737,7 +737,7 @@ static void sirfsoc_uart_set_termios(struct uart_port *port,
 
 	spin_lock_irqsave(&port->lock, flags);
 	port->read_status_mask = uint_en->sirfsoc_rx_oflow_en;
-	port->ignore_status_mask = 0;
+	port->igyesre_status_mask = 0;
 	if (sirfport->uart_reg->uart_type == SIRF_REAL_UART) {
 		if (termios->c_iflag & INPCK)
 			port->read_status_mask |= uint_en->sirfsoc_frm_err_en |
@@ -750,7 +750,7 @@ static void sirfsoc_uart_set_termios(struct uart_port *port,
 			port->read_status_mask |= uint_en->sirfsoc_rxd_brk_en;
 	if (sirfport->uart_reg->uart_type == SIRF_REAL_UART) {
 		if (termios->c_iflag & IGNPAR)
-			port->ignore_status_mask |=
+			port->igyesre_status_mask |=
 				uint_en->sirfsoc_frm_err_en |
 				uint_en->sirfsoc_parity_err_en;
 		if (termios->c_cflag & PARENB) {
@@ -768,21 +768,21 @@ static void sirfsoc_uart_set_termios(struct uart_port *port,
 		}
 	} else {
 		if (termios->c_iflag & IGNPAR)
-			port->ignore_status_mask |=
+			port->igyesre_status_mask |=
 				uint_en->sirfsoc_frm_err_en;
 		if (termios->c_cflag & PARENB)
 			dev_warn(port->dev,
-					"USP-UART not support parity err\n");
+					"USP-UART yest support parity err\n");
 	}
 	if (termios->c_iflag & IGNBRK) {
-		port->ignore_status_mask |=
+		port->igyesre_status_mask |=
 			uint_en->sirfsoc_rxd_brk_en;
 		if (termios->c_iflag & IGNPAR)
-			port->ignore_status_mask |=
+			port->igyesre_status_mask |=
 				uint_en->sirfsoc_rx_oflow_en;
 	}
 	if ((termios->c_cflag & CREAD) == 0)
-		port->ignore_status_mask |= SIRFUART_DUMMY_READ;
+		port->igyesre_status_mask |= SIRFUART_DUMMY_READ;
 	/* Hardware Flow Control Settings */
 	if (UART_ENABLE_MS(port, termios->c_cflag)) {
 		if (!sirfport->ms_enabled)
@@ -1156,7 +1156,7 @@ static struct uart_driver sirfsoc_uart_drv = {
 	.nr		= SIRFSOC_UART_NR,
 	.dev_name	= SIRFSOC_UART_NAME,
 	.major		= SIRFSOC_UART_MAJOR,
-	.minor		= SIRFSOC_UART_MINOR,
+	.miyesr		= SIRFSOC_UART_MINOR,
 #ifdef CONFIG_SERIAL_SIRFSOC_CONSOLE
 	.cons			= &sirfsoc_uart_console,
 #else
@@ -1248,7 +1248,7 @@ static enum hrtimer_restart
 		dmaengine_resume(sirfport->rx_dma_chan);
 	}
 next_hrt:
-	hrtimer_forward_now(hrt, ns_to_ktime(sirfport->rx_period_time));
+	hrtimer_forward_yesw(hrt, ns_to_ktime(sirfport->rx_period_time));
 	return HRTIMER_RESTART;
 }
 
@@ -1263,7 +1263,7 @@ MODULE_DEVICE_TABLE(of, sirfsoc_uart_ids);
 
 static int sirfsoc_uart_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	struct sirfsoc_uart_port *sirfport;
 	struct uart_port *port;
 	struct resource *res;
@@ -1276,7 +1276,7 @@ static int sirfsoc_uart_probe(struct platform_device *pdev)
 	};
 	const struct of_device_id *match;
 
-	match = of_match_node(sirfsoc_uart_ids, np);
+	match = of_match_yesde(sirfsoc_uart_ids, np);
 	sirfport = devm_kzalloc(&pdev->dev, sizeof(*sirfport), GFP_KERNEL);
 	if (!sirfport) {
 		ret = -ENOMEM;
@@ -1306,7 +1306,7 @@ static int sirfsoc_uart_probe(struct platform_device *pdev)
 	    of_device_is_compatible(np, "sirf,atlas7-usp-uart")) {
 		sirfport->uart_reg->uart_type =	SIRF_USP_UART;
 		if (!sirfport->hw_flow_ctrl)
-			goto usp_no_flow_control;
+			goto usp_yes_flow_control;
 		if (of_find_property(np, "cts-gpios", NULL))
 			sirfport->cts_gpio =
 				of_get_named_gpio(np, "cts-gpios", 0);
@@ -1340,14 +1340,14 @@ static int sirfsoc_uart_probe(struct platform_device *pdev)
 		}
 		gpio_direction_output(sirfport->rts_gpio, 1);
 	}
-usp_no_flow_control:
+usp_yes_flow_control:
 	if (of_device_is_compatible(np, "sirf,atlas7-uart") ||
 	    of_device_is_compatible(np, "sirf,atlas7-usp-uart"))
 		sirfport->is_atlas7 = true;
 
 	if (of_property_read_u32(np, "fifosize", &port->fifosize)) {
 		dev_err(&pdev->dev,
-			"Unable to find fifosize in uart node.\n");
+			"Unable to find fifosize in uart yesde.\n");
 		ret = -EFAULT;
 		goto err;
 	}
@@ -1362,7 +1362,7 @@ usp_no_flow_control:
 	port->membase = devm_ioremap(&pdev->dev,
 			res->start, resource_size(res));
 	if (!port->membase) {
-		dev_err(&pdev->dev, "Cannot remap resource.\n");
+		dev_err(&pdev->dev, "Canyest remap resource.\n");
 		ret = -ENOMEM;
 		goto err;
 	}
@@ -1387,7 +1387,7 @@ usp_no_flow_control:
 	platform_set_drvdata(pdev, sirfport);
 	ret = uart_add_one_port(&sirfsoc_uart_drv, port);
 	if (ret != 0) {
-		dev_err(&pdev->dev, "Cannot add UART port(%d).\n", pdev->id);
+		dev_err(&pdev->dev, "Canyest add UART port(%d).\n", pdev->id);
 		goto err;
 	}
 

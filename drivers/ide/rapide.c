@@ -5,7 +5,7 @@
 
 #include <linux/module.h>
 #include <linux/blkdev.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/ide.h>
 #include <linux/init.h>
 

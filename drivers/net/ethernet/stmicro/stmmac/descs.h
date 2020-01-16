@@ -45,10 +45,10 @@
 
 /* Enhanced receive descriptor defines */
 
-/* RDES0 (similar to normal RDES) */
+/* RDES0 (similar to yesrmal RDES) */
 #define	 ERDES0_RX_MAC_ADDR	BIT(0)
 
-/* RDES1: completely differ from normal desc definitions */
+/* RDES1: completely differ from yesrmal desc definitions */
 #define	ERDES1_BUFFER1_SIZE_MASK	GENMASK(12, 0)
 #define	ERDES1_SECOND_ADDRESS_CHAINED	BIT(14)
 #define	ERDES1_END_RING			BIT(15)
@@ -154,7 +154,7 @@
 #define RDES_PTP_SIGNALING		0xa
 #define RDES_PTP_PKT_RESERVED_TYPE	0xf
 
-/* Basic descriptor structure for normal and alternate descriptors */
+/* Basic descriptor structure for yesrmal and alternate descriptors */
 struct dma_desc {
 	__le32 des0;
 	__le32 des1;

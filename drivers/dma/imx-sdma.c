@@ -152,7 +152,7 @@
  *						1: HWE in EVENTS2 register
  *	30		---------		MUST BE 0
  *	31		CONT			1: Amount of samples to be
- *						transferred is unknown and
+ *						transferred is unkyeswn and
  *						script will keep on
  *						transferring samples as long as
  *						both events are detected and
@@ -182,7 +182,7 @@
 				 BIT(DMA_DEV_TO_DEV))
 
 /*
- * Mode/Count of data node descriptors - IPCv2
+ * Mode/Count of data yesde descriptors - IPCv2
  */
 struct sdma_mode_count {
 #define SDMA_BD_MAX_CNT	0xffff
@@ -256,7 +256,7 @@ struct sdma_state_registers {
  * @psa:		peripheral dma source address register
  * @ps:			peripheral dma status register
  * @pd:			peripheral dma data register
- * @ca:			CRC polynomial register
+ * @ca:			CRC polyyesmial register
  * @cs:			CRC accumulator register
  * @dda:		dedicated core destination address register
  * @dsa:		dedicated core source address register
@@ -344,7 +344,7 @@ struct sdma_desc {
  * @pc_to_device:	script address for those memory_2_device
  * @device_to_device:	script address for those device_2_device
  * @pc_to_pc:		script address for those memory_2_memory
- * @flags:		loop mode or not
+ * @flags:		loop mode or yest
  * @per_address:	peripheral source or destination address in common case
  *                      destination address in p_2_p case
  * @per_address2:	peripheral source address in p_2_p case
@@ -397,7 +397,7 @@ struct sdma_channel {
  * @magic:		"SDMA"
  * @version_major:	increased whenever layout of struct
  *			sdma_script_start_addrs changes.
- * @version_minor:	firmware minor version (for binary compatible changes)
+ * @version_miyesr:	firmware miyesr version (for binary compatible changes)
  * @script_addrs_start:	offset of struct sdma_script_start_addrs in this image
  * @num_script_addrs:	Number of script addresses in this image
  * @ram_code_start:	offset of SDMA ram image in this firmware image
@@ -408,7 +408,7 @@ struct sdma_channel {
 struct sdma_firmware_header {
 	u32	magic;
 	u32	version_major;
-	u32	version_minor;
+	u32	version_miyesr;
 	u32	script_addrs_start;
 	u32	num_script_addrs;
 	u32	ram_code_start;
@@ -761,11 +761,11 @@ static void sdma_start_desc(struct sdma_channel *sdmac)
 	}
 	sdmac->desc = desc = to_sdma_desc(&vd->tx);
 	/*
-	 * Do not delete the node in desc_issued list in cyclic mode, otherwise
+	 * Do yest delete the yesde in desc_issued list in cyclic mode, otherwise
 	 * the desc allocated will never be freed in vchan_dma_desc_free_list
 	 */
 	if (!(sdmac->flags & IMX_DMA_SG_LOOP))
-		list_del(&vd->node);
+		list_del(&vd->yesde);
 
 	sdma->channel_control[channel].base_bd_ptr = desc->bd_phys;
 	sdma->channel_control[channel].current_bd_ptr = desc->bd_phys;
@@ -822,7 +822,7 @@ static void sdma_update_channel_loop(struct sdma_channel *sdmac)
 	}
 }
 
-static void mxc_sdma_handle_channel_normal(struct sdma_channel *data)
+static void mxc_sdma_handle_channel_yesrmal(struct sdma_channel *data)
 {
 	struct sdma_channel *sdmac = (struct sdma_channel *) data;
 	struct sdma_buffer_descriptor *bd;
@@ -830,7 +830,7 @@ static void mxc_sdma_handle_channel_normal(struct sdma_channel *data)
 
 	sdmac->desc->chn_real_count = 0;
 	/*
-	 * non loop mode. Iterate over all descriptors, collect
+	 * yesn loop mode. Iterate over all descriptors, collect
 	 * errors and call callback function
 	 */
 	for (i = 0; i < sdmac->desc->num_bd; i++) {
@@ -854,7 +854,7 @@ static irqreturn_t sdma_int_handler(int irq, void *dev_id)
 
 	stat = readl_relaxed(sdma->regs + SDMA_H_INTR);
 	writel_relaxed(stat, sdma->regs + SDMA_H_INTR);
-	/* channel 0 is special and not handled here, see run_channel0() */
+	/* channel 0 is special and yest handled here, see run_channel0() */
 	stat &= ~1;
 
 	while (stat) {
@@ -868,7 +868,7 @@ static irqreturn_t sdma_int_handler(int irq, void *dev_id)
 			if (sdmac->flags & IMX_DMA_SG_LOOP) {
 				sdma_update_channel_loop(sdmac);
 			} else {
-				mxc_sdma_handle_channel_normal(sdmac);
+				mxc_sdma_handle_channel_yesrmal(sdmac);
 				vchan_cookie_complete(&desc->vd);
 				sdma_start_desc(sdmac);
 			}
@@ -1265,7 +1265,7 @@ static int sdma_alloc_chan_resources(struct dma_chan *chan)
 	/*
 	 * MEMCPY may never setup chan->private by filter function such as
 	 * dmatest, thus create 'struct imx_dma_data mem_data' for this case.
-	 * Please note in any other slave case, you have to setup chan->private
+	 * Please yeste in any other slave case, you have to setup chan->private
 	 * with 'struct imx_dma_data' in your own filter function if you want to
 	 * request dma channel by dma_request_channel() rather than
 	 * dma_request_slave_channel(). Othwise, 'MEMCPY in case?' will appear
@@ -1710,7 +1710,7 @@ static void sdma_add_scripts(struct sdma_engine *sdma,
 	if (sdma->script_number > sizeof(struct sdma_script_start_addrs)
 				  / sizeof(s32)) {
 		dev_err(sdma->dev,
-			"SDMA script number %d not match with firmware.\n",
+			"SDMA script number %d yest match with firmware.\n",
 			sdma->script_number);
 		return;
 	}
@@ -1728,7 +1728,7 @@ static void sdma_load_firmware(const struct firmware *fw, void *context)
 	unsigned short *ram_code;
 
 	if (!fw) {
-		dev_info(sdma->dev, "external firmware not found, using ROM firmware\n");
+		dev_info(sdma->dev, "external firmware yest found, using ROM firmware\n");
 		/* In this case we just use the ROM firmware. */
 		return;
 	}
@@ -1756,7 +1756,7 @@ static void sdma_load_firmware(const struct firmware *fw, void *context)
 		sdma->script_number = SDMA_SCRIPT_ADDRS_ARRAY_SIZE_V4;
 		break;
 	default:
-		dev_err(sdma->dev, "unknown firmware version\n");
+		dev_err(sdma->dev, "unkyeswn firmware version\n");
 		goto err_firmware;
 	}
 
@@ -1776,7 +1776,7 @@ static void sdma_load_firmware(const struct firmware *fw, void *context)
 
 	dev_info(sdma->dev, "loaded firmware %d.%d\n",
 			header->version_major,
-			header->version_minor);
+			header->version_miyesr);
 
 err_firmware:
 	release_firmware(fw);
@@ -1786,8 +1786,8 @@ err_firmware:
 
 static int sdma_event_remap(struct sdma_engine *sdma)
 {
-	struct device_node *np = sdma->dev->of_node;
-	struct device_node *gpr_np = of_parse_phandle(np, "gpr", 0);
+	struct device_yesde *np = sdma->dev->of_yesde;
+	struct device_yesde *gpr_np = of_parse_phandle(np, "gpr", 0);
 	struct property *event_remap;
 	struct regmap *gpr;
 	char propname[] = "fsl,sdma-event-remap";
@@ -1800,7 +1800,7 @@ static int sdma_event_remap(struct sdma_engine *sdma)
 	event_remap = of_find_property(np, propname, NULL);
 	num_map = event_remap ? (event_remap->length / sizeof(u32)) : 0;
 	if (!num_map) {
-		dev_dbg(sdma->dev, "no event needs to be remapped\n");
+		dev_dbg(sdma->dev, "yes event needs to be remapped\n");
 		goto out;
 	} else if (num_map % EVENT_REMAP_CELLS) {
 		dev_err(sdma->dev, "the property %s must modulo %d\n",
@@ -1809,7 +1809,7 @@ static int sdma_event_remap(struct sdma_engine *sdma)
 		goto out;
 	}
 
-	gpr = syscon_node_to_regmap(gpr_np);
+	gpr = syscon_yesde_to_regmap(gpr_np);
 	if (IS_ERR(gpr)) {
 		dev_err(sdma->dev, "failed to get gpr regmap\n");
 		ret = PTR_ERR(gpr);
@@ -1843,7 +1843,7 @@ static int sdma_event_remap(struct sdma_engine *sdma)
 
 out:
 	if (!IS_ERR(gpr_np))
-		of_node_put(gpr_np);
+		of_yesde_put(gpr_np);
 
 	return ret;
 }
@@ -1853,7 +1853,7 @@ static int sdma_get_firmware(struct sdma_engine *sdma,
 {
 	int ret;
 
-	ret = request_firmware_nowait(THIS_MODULE,
+	ret = request_firmware_yeswait(THIS_MODULE,
 			FW_ACTION_HOTPLUG, fw_name, sdma->dev,
 			GFP_KERNEL, sdma, sdma_load_firmware);
 
@@ -1876,7 +1876,7 @@ static int sdma_init(struct sdma_engine *sdma)
 	    (clk_get_rate(sdma->clk_ahb) == clk_get_rate(sdma->clk_ipg)))
 		sdma->clk_ratio = 1;
 
-	/* Be sure SDMA has not started yet */
+	/* Be sure SDMA has yest started yet */
 	writel_relaxed(0, sdma->regs + SDMA_H_C0PTR);
 
 	sdma->channel_control = dma_alloc_coherent(sdma->dev,
@@ -1963,7 +1963,7 @@ static struct dma_chan *sdma_xlate(struct of_phandle_args *dma_spec,
 	data.peripheral_type = dma_spec->args[1];
 	data.priority = dma_spec->args[2];
 	/*
-	 * init dma_request2 to zero, which is not used by the dts.
+	 * init dma_request2 to zero, which is yest used by the dts.
 	 * For P2P, dma_request2 is init from dma_request_channel(),
 	 * chan->private will point to the imx_dma_data, and in
 	 * device_alloc_chan_resources(), imx_dma_data.dma_request2 will
@@ -1972,15 +1972,15 @@ static struct dma_chan *sdma_xlate(struct of_phandle_args *dma_spec,
 	data.dma_request2 = 0;
 
 	return __dma_request_channel(&mask, sdma_filter_fn, &data,
-				     ofdma->of_node);
+				     ofdma->of_yesde);
 }
 
 static int sdma_probe(struct platform_device *pdev)
 {
 	const struct of_device_id *of_id =
 			of_match_device(sdma_dt_ids, &pdev->dev);
-	struct device_node *np = pdev->dev.of_node;
-	struct device_node *spba_bus;
+	struct device_yesde *np = pdev->dev.of_yesde;
+	struct device_yesde *spba_bus;
 	const char *fw_name;
 	int ret;
 	int irq;
@@ -2053,7 +2053,7 @@ static int sdma_probe(struct platform_device *pdev)
 		goto err_irq;
 	}
 
-	/* initially no scripts available */
+	/* initially yes scripts available */
 	saddr_arr = (s32 *)sdma->script_addrs;
 	for (i = 0; i < SDMA_SCRIPT_ADDRS_ARRAY_SIZE_V1; i++)
 		saddr_arr[i] = -EINVAL;
@@ -2074,7 +2074,7 @@ static int sdma_probe(struct platform_device *pdev)
 		INIT_WORK(&sdmac->terminate_worker,
 				sdma_channel_terminate_work);
 		/*
-		 * Add the channel to the DMAC list. Do not add channel 0 though
+		 * Add the channel to the DMAC list. Do yest add channel 0 though
 		 * because we need it internally in the SDMA driver. This also means
 		 * that channel 0 in dmaengine counting matches sdma channel 1.
 		 */
@@ -2130,18 +2130,18 @@ static int sdma_probe(struct platform_device *pdev)
 			goto err_register;
 		}
 
-		spba_bus = of_find_compatible_node(NULL, NULL, "fsl,spba-bus");
+		spba_bus = of_find_compatible_yesde(NULL, NULL, "fsl,spba-bus");
 		ret = of_address_to_resource(spba_bus, 0, &spba_res);
 		if (!ret) {
 			sdma->spba_start_addr = spba_res.start;
 			sdma->spba_end_addr = spba_res.end;
 		}
-		of_node_put(spba_bus);
+		of_yesde_put(spba_bus);
 	}
 
 	/*
 	 * Kick off firmware loading as the very last step:
-	 * attempt to load firmware only if we're not on the error path, because
+	 * attempt to load firmware only if we're yest on the error path, because
 	 * the firmware callback requires a fully functional and allocated sdma
 	 * instance.
 	 */
@@ -2151,7 +2151,7 @@ static int sdma_probe(struct platform_device *pdev)
 			dev_warn(&pdev->dev, "failed to get firmware from platform data\n");
 	} else {
 		/*
-		 * Because that device tree does not encode ROM script address,
+		 * Because that device tree does yest encode ROM script address,
 		 * the RAM script in firmware is mandatory for device tree
 		 * probe, otherwise it fails.
 		 */

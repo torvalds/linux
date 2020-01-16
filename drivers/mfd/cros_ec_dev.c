@@ -124,7 +124,7 @@ static void cros_ec_class_release(struct device *dev)
 static int ec_device_probe(struct platform_device *pdev)
 {
 	int retval = -ENOMEM;
-	struct device_node *node;
+	struct device_yesde *yesde;
 	struct device *dev = &pdev->dev;
 	struct cros_ec_platform *ec_platform = dev_get_platdata(dev);
 	struct cros_ec_dev *ec = kzalloc(sizeof(*ec), GFP_KERNEL);
@@ -203,7 +203,7 @@ static int ec_device_probe(struct platform_device *pdev)
 	}
 
 	/*
-	 * The following subdevices cannot be detected by sending the
+	 * The following subdevices canyest be detected by sending the
 	 * EC_FEATURE_GET_CMD to the Embedded Controller device.
 	 */
 	retval = mfd_add_hotplug_devices(ec->dev, cros_ec_platform_cells,
@@ -214,8 +214,8 @@ static int ec_device_probe(struct platform_device *pdev)
 			 retval);
 
 	/* Check whether this EC instance has a VBC NVRAM */
-	node = ec->ec_dev->dev->of_node;
-	if (of_property_read_bool(node, "google,has-vbc-nvram")) {
+	yesde = ec->ec_dev->dev->of_yesde;
+	if (of_property_read_bool(yesde, "google,has-vbc-nvram")) {
 		retval = mfd_add_hotplug_devices(ec->dev, cros_ec_vbc_cells,
 						ARRAY_SIZE(cros_ec_vbc_cells));
 		if (retval)

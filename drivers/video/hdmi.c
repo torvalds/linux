@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright yestice and this permission yestice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
  *
@@ -23,7 +23,7 @@
 
 #include <linux/bitops.h>
 #include <linux/bug.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/export.h>
 #include <linux/hdmi.h>
 #include <linux/string.h>
@@ -495,7 +495,7 @@ int hdmi_vendor_infoframe_init(struct hdmi_vendor_infoframe *frame)
 	frame->oui = HDMI_IEEE_OUI;
 
 	/*
-	 * 0 is a valid value for s3d_struct, so we use a special "not set"
+	 * 0 is a valid value for s3d_struct, so we use a special "yest set"
 	 * value
 	 */
 	frame->s3d_struct = HDMI_3D_STRUCTURE_INVALID;
@@ -806,7 +806,7 @@ hdmi_vendor_any_infoframe_check(union hdmi_vendor_any_infoframe *frame)
 	if (ret)
 		return ret;
 
-	/* we only know about HDMI vendor infoframes */
+	/* we only kyesw about HDMI vendor infoframes */
 	if (frame->any.oui != HDMI_IEEE_OUI)
 		return -EINVAL;
 
@@ -826,7 +826,7 @@ hdmi_vendor_any_infoframe_pack_only(const union hdmi_vendor_any_infoframe *frame
 	if (ret)
 		return ret;
 
-	/* we only know about HDMI vendor infoframes */
+	/* we only kyesw about HDMI vendor infoframes */
 	if (frame->any.oui != HDMI_IEEE_OUI)
 		return -EINVAL;
 
@@ -1152,7 +1152,7 @@ static const char *hdmi_nups_get_name(enum hdmi_nups nups)
 {
 	switch (nups) {
 	case HDMI_NUPS_UNKNOWN:
-		return "Unknown Non-uniform Scaling";
+		return "Unkyeswn Non-uniform Scaling";
 	case HDMI_NUPS_HORIZONTAL:
 		return "Horizontally Scaled";
 	case HDMI_NUPS_VERTICAL:
@@ -1231,7 +1231,7 @@ static const char *hdmi_spd_sdi_get_name(enum hdmi_spd_sdi sdi)
 		return "Invalid";
 	switch (sdi) {
 	case HDMI_SPD_SDI_UNKNOWN:
-		return "Unknown";
+		return "Unkyeswn";
 	case HDMI_SPD_SDI_DSTB:
 		return "Digital STB";
 	case HDMI_SPD_SDI_DVDP:
@@ -1487,7 +1487,7 @@ hdmi_vendor_any_infoframe_log(const char *level,
 				  (const struct hdmi_any_infoframe *)frame);
 
 	if (frame->any.oui != HDMI_IEEE_OUI) {
-		hdmi_log("    not a HDMI vendor infoframe\n");
+		hdmi_log("    yest a HDMI vendor infoframe\n");
 		return;
 	}
 	if (hvf->vic == 0 && hvf->s3d_struct == HDMI_3D_STRUCTURE_INVALID) {

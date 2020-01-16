@@ -53,7 +53,7 @@ config NO_IOPORT_MAP
 config TRACE_IRQFLAGS_SUPPORT
 	def_bool y
 
-# For now, use generic checksum functions
+# For yesw, use generic checksum functions
 #These can be reimplemented in assembly later if so inclined
 config GENERIC_CSUM
 	def_bool y
@@ -132,7 +132,7 @@ config SMP
 	  a system with only one CPU, say N. If you have a system with more
 	  than one CPU, say Y.
 
-	  If you don't know what to do here, say N.
+	  If you don't kyesw what to do here, say N.
 
 source "kernel/Kconfig.hz"
 
@@ -144,9 +144,9 @@ config OPENRISC_NO_SPR_SR_DSX
 	  the last exception has happened in delay slot.
 
 	  OpenRISC architecture makes it optional to have it implemented
-	  in hardware and the OR1200 does not have it.
+	  in hardware and the OR1200 does yest have it.
 
-	  Say N here if you know that your OpenRISC processor has
+	  Say N here if you kyesw that your OpenRISC processor has
 	  SPR_SR_DSX bit implemented. Say Y if you are unsure.
 
 config OPENRISC_HAVE_SHADOW_GPRS
@@ -164,7 +164,7 @@ config CMDLINE
 	string "Default kernel command string"
 	default ""
 	help
-	  On some architectures there is currently no way for the boot loader
+	  On some architectures there is currently yes way for the boot loader
 	  to pass arguments to the kernel. For these architectures, you should
 	  supply some command-line options at build time by entering them
 	  here.

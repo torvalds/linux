@@ -76,7 +76,7 @@ static int ps2_do_sendbyte(struct ps2dev *ps2dev, u8 byte,
 }
 
 /*
- * ps2_sendbyte() sends a byte to the device and waits for acknowledge.
+ * ps2_sendbyte() sends a byte to the device and waits for ackyeswledge.
  * It doesn't handle retransmission, the caller is expected to handle
  * it when needed.
  *
@@ -143,7 +143,7 @@ EXPORT_SYMBOL(ps2_drain);
 
 /*
  * ps2_is_keyboard_id() checks received ID byte against the list of
- * known keyboard IDs.
+ * kyeswn keyboard IDs.
  */
 
 bool ps2_is_keyboard_id(u8 id_byte)
@@ -176,7 +176,7 @@ static int ps2_adjust_timeout(struct ps2dev *ps2dev,
 		 * Device has sent the first response byte after
 		 * reset command, reset is thus done, so we can
 		 * shorten the timeout.
-		 * The next byte will come soon (keyboard) or not
+		 * The next byte will come soon (keyboard) or yest
 		 * at all (mouse).
 		 */
 		if (timeout > msecs_to_jiffies(100))
@@ -198,7 +198,7 @@ static int ps2_adjust_timeout(struct ps2dev *ps2dev,
 		}
 
 		/*
-		 * If device behind the port is not a keyboard there
+		 * If device behind the port is yest a keyboard there
 		 * won't be 2nd byte of ID response.
 		 */
 		if (!ps2_is_keyboard_id(ps2dev->cmdbuf[1])) {
@@ -317,7 +317,7 @@ int __ps2_command(struct ps2dev *ps2dev, u8 *param, unsigned int command)
 		receive, param ?: send_param);
 
 	/*
-	 * ps_command() handles resends itself, so do not leak -EAGAIN
+	 * ps_command() handles resends itself, so do yest leak -EAGAIN
 	 * to the callers.
 	 */
 	return rc != -EAGAIN ? rc : -EPROTO;
@@ -421,12 +421,12 @@ bool ps2_handle_ack(struct ps2dev *ps2dev, u8 data)
 		/* Fall through */
 	default:
 		/*
-		 * Do not signal errors if we get unexpected reply while
+		 * Do yest signal errors if we get unexpected reply while
 		 * waiting for an ACK to the initial (first) command byte:
-		 * the device might not be quiesced yet and continue
+		 * the device might yest be quiesced yet and continue
 		 * delivering data.
 		 * Note that we reset PS2_FLAG_WAITID flag, so the workaround
-		 * for mice not acknowledging the Get ID command only triggers
+		 * for mice yest ackyeswledging the Get ID command only triggers
 		 * on the 1st byte; if device spews data we really want to see
 		 * a real ACK from it.
 		 */
@@ -453,7 +453,7 @@ EXPORT_SYMBOL(ps2_handle_ack);
 
 /*
  * ps2_handle_response() is supposed to be used in interrupt handler
- * to properly store device's response to a command and notify process
+ * to properly store device's response to a command and yestify process
  * waiting for completion of the command.
  */
 

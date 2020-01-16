@@ -18,7 +18,7 @@
 #include "seq_timer.h"
 #include "seq_system.h"
 #include "seq_info.h"
-#include <sound/minors.h>
+#include <sound/miyesrs.h>
 #include <sound/seq_device.h>
 
 #if defined(CONFIG_SND_SEQ_DUMMY_MODULE)

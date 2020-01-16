@@ -11,7 +11,7 @@
 #include <linux/miscdevice.h>
 #include <linux/watchdog.h>
 #include <linux/ioport.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/reboot.h>
 #include <linux/init.h>
 #include <linux/fs.h>
@@ -36,10 +36,10 @@ MODULE_PARM_DESC(timeout,
 		"Watchdog timeout in seconds. (0 < timeout < 18000, default="
 				__MODULE_STRING(WATCHDOG_TIMEOUT) ")");
 
-static bool nowayout = WATCHDOG_NOWAYOUT;
-module_param(nowayout, bool, 0);
-MODULE_PARM_DESC(nowayout,
-		"Watchdog cannot be stopped once started (default="
+static bool yeswayout = WATCHDOG_NOWAYOUT;
+module_param(yeswayout, bool, 0);
+MODULE_PARM_DESC(yeswayout,
+		"Watchdog canyest be stopped once started (default="
 				__MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
 
 /*
@@ -139,14 +139,14 @@ static ssize_t ali_write(struct file *file, const char __user *data,
 {
 	/* See if we got the magic character 'V' and reload the timer */
 	if (len) {
-		if (!nowayout) {
+		if (!yeswayout) {
 			size_t i;
 
-			/* note: just in case someone wrote the
+			/* yeste: just in case someone wrote the
 			   magic character five months ago... */
 			ali_expect_release = 0;
 
-			/* scan to see whether or not we got
+			/* scan to see whether or yest we got
 			   the magic character */
 			for (i = 0; i != len; i++) {
 				char c;
@@ -230,14 +230,14 @@ static long ali_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 /*
  *	ali_open	-	handle open of ali watchdog
- *	@inode: inode from VFS
+ *	@iyesde: iyesde from VFS
  *	@file: file from VFS
  *
  *	Open the ALi watchdog device. Ensure only one person opens it
  *	at a time. Also start the watchdog running.
  */
 
-static int ali_open(struct inode *inode, struct file *file)
+static int ali_open(struct iyesde *iyesde, struct file *file)
 {
 	/* /dev/watchdog can only be opened once */
 	if (test_and_set_bit(0, &ali_is_open))
@@ -245,19 +245,19 @@ static int ali_open(struct inode *inode, struct file *file)
 
 	/* Activate */
 	ali_start();
-	return stream_open(inode, file);
+	return stream_open(iyesde, file);
 }
 
 /*
  *	ali_release	-	close an ALi watchdog
- *	@inode: inode from VFS
+ *	@iyesde: iyesde from VFS
  *	@file: file from VFS
  *
  *	Close the ALi watchdog device. Actual shutdown of the timer
  *	only occurs if the magic sequence has been set.
  */
 
-static int ali_release(struct inode *inode, struct file *file)
+static int ali_release(struct iyesde *iyesde, struct file *file)
 {
 	/*
 	 *      Shut off the timer.
@@ -265,7 +265,7 @@ static int ali_release(struct inode *inode, struct file *file)
 	if (ali_expect_release == 42)
 		ali_stop();
 	else {
-		pr_crit("Unexpected close, not stopping watchdog!\n");
+		pr_crit("Unexpected close, yest stopping watchdog!\n");
 		ali_keepalive();
 	}
 	clear_bit(0, &ali_is_open);
@@ -274,13 +274,13 @@ static int ali_release(struct inode *inode, struct file *file)
 }
 
 /*
- *	ali_notify_sys	-	System down notifier
+ *	ali_yestify_sys	-	System down yestifier
  *
  *	Notifier for system down
  */
 
 
-static int ali_notify_sys(struct notifier_block *this,
+static int ali_yestify_sys(struct yestifier_block *this,
 					unsigned long code, void *unused)
 {
 	if (code == SYS_DOWN || code == SYS_HALT)
@@ -292,9 +292,9 @@ static int ali_notify_sys(struct notifier_block *this,
  *	Data for PCI driver interface
  *
  *	This data only exists for exporting the supported
- *	PCI ids via MODULE_DEVICE_TABLE.  We do not actually
+ *	PCI ids via MODULE_DEVICE_TABLE.  We do yest actually
  *	register a pci_driver, because someone else might one day
- *	want to register another driver on the same PCI id.
+ *	want to register ayesther driver on the same PCI id.
  */
 
 static const struct pci_device_id ali_pci_tbl[] __used = {
@@ -359,7 +359,7 @@ static int __init ali_find_watchdog(void)
 
 static const struct file_operations ali_fops = {
 	.owner		=	THIS_MODULE,
-	.llseek		=	no_llseek,
+	.llseek		=	yes_llseek,
 	.write		=	ali_write,
 	.unlocked_ioctl =	ali_ioctl,
 	.compat_ioctl	= 	compat_ptr_ioctl,
@@ -368,32 +368,32 @@ static const struct file_operations ali_fops = {
 };
 
 static struct miscdevice ali_miscdev = {
-	.minor =	WATCHDOG_MINOR,
+	.miyesr =	WATCHDOG_MINOR,
 	.name =		"watchdog",
 	.fops =		&ali_fops,
 };
 
-static struct notifier_block ali_notifier = {
-	.notifier_call =	ali_notify_sys,
+static struct yestifier_block ali_yestifier = {
+	.yestifier_call =	ali_yestify_sys,
 };
 
 /*
  *	watchdog_init	-	module initialiser
  *
  *	Scan for a suitable watchdog and if so initialize it. Return an error
- *	if we cannot, the error causes the module to unload
+ *	if we canyest, the error causes the module to unload
  */
 
 static int __init watchdog_init(void)
 {
 	int ret;
 
-	/* Check whether or not the hardware watchdog is there */
+	/* Check whether or yest the hardware watchdog is there */
 	if (ali_find_watchdog() != 0)
 		return -ENODEV;
 
 	/* Check that the timeout value is within it's range;
-	   if not reset to the default */
+	   if yest reset to the default */
 	if (timeout < 1 || timeout >= 18000) {
 		timeout = WATCHDOG_TIMEOUT;
 		pr_info("timeout value must be 0 < timeout < 18000, using %d\n",
@@ -403,26 +403,26 @@ static int __init watchdog_init(void)
 	/* Calculate the watchdog's timeout */
 	ali_settimer(timeout);
 
-	ret = register_reboot_notifier(&ali_notifier);
+	ret = register_reboot_yestifier(&ali_yestifier);
 	if (ret != 0) {
-		pr_err("cannot register reboot notifier (err=%d)\n", ret);
+		pr_err("canyest register reboot yestifier (err=%d)\n", ret);
 		goto out;
 	}
 
 	ret = misc_register(&ali_miscdev);
 	if (ret != 0) {
-		pr_err("cannot register miscdev on minor=%d (err=%d)\n",
+		pr_err("canyest register miscdev on miyesr=%d (err=%d)\n",
 		       WATCHDOG_MINOR, ret);
 		goto unreg_reboot;
 	}
 
-	pr_info("initialized. timeout=%d sec (nowayout=%d)\n",
-		timeout, nowayout);
+	pr_info("initialized. timeout=%d sec (yeswayout=%d)\n",
+		timeout, yeswayout);
 
 out:
 	return ret;
 unreg_reboot:
-	unregister_reboot_notifier(&ali_notifier);
+	unregister_reboot_yestifier(&ali_yestifier);
 	goto out;
 }
 
@@ -439,7 +439,7 @@ static void __exit watchdog_exit(void)
 
 	/* Deregister */
 	misc_deregister(&ali_miscdev);
-	unregister_reboot_notifier(&ali_notifier);
+	unregister_reboot_yestifier(&ali_yestifier);
 	pci_dev_put(ali_pci);
 }
 

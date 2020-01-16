@@ -219,17 +219,17 @@ static int adsp_init_regulator(struct qcom_adsp *adsp)
 
 static int adsp_alloc_memory_region(struct qcom_adsp *adsp)
 {
-	struct device_node *node;
+	struct device_yesde *yesde;
 	struct resource r;
 	int ret;
 
-	node = of_parse_phandle(adsp->dev->of_node, "memory-region", 0);
-	if (!node) {
-		dev_err(adsp->dev, "no memory-region specified\n");
+	yesde = of_parse_phandle(adsp->dev->of_yesde, "memory-region", 0);
+	if (!yesde) {
+		dev_err(adsp->dev, "yes memory-region specified\n");
 		return -EINVAL;
 	}
 
-	ret = of_address_to_resource(node, 0, &r);
+	ret = of_address_to_resource(yesde, 0, &r);
 	if (ret)
 		return ret;
 
@@ -261,7 +261,7 @@ static int adsp_probe(struct platform_device *pdev)
 		return -EPROBE_DEFER;
 
 	fw_name = desc->firmware_name;
-	ret = of_property_read_string(pdev->dev.of_node, "firmware-name",
+	ret = of_property_read_string(pdev->dev.of_yesde, "firmware-name",
 				      &fw_name);
 	if (ret < 0 && ret != -EINVAL)
 		return ret;

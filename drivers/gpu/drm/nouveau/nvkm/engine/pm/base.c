@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -208,14 +208,14 @@ static int
 nvkm_perfdom_init(struct nvkm_perfdom *dom, void *data, u32 size)
 {
 	union {
-		struct nvif_perfdom_init none;
+		struct nvif_perfdom_init yesne;
 	} *args = data;
 	struct nvkm_object *object = &dom->object;
 	struct nvkm_pm *pm = dom->perfmon->pm;
 	int ret = -ENOSYS, i;
 
 	nvif_ioctl(object, "perfdom init size %d\n", size);
-	if (!(ret = nvif_unvers(ret, &data, &size, args->none))) {
+	if (!(ret = nvif_unvers(ret, &data, &size, args->yesne))) {
 		nvif_ioctl(object, "perfdom init\n");
 	} else
 		return ret;
@@ -238,14 +238,14 @@ static int
 nvkm_perfdom_sample(struct nvkm_perfdom *dom, void *data, u32 size)
 {
 	union {
-		struct nvif_perfdom_sample none;
+		struct nvif_perfdom_sample yesne;
 	} *args = data;
 	struct nvkm_object *object = &dom->object;
 	struct nvkm_pm *pm = dom->perfmon->pm;
 	int ret = -ENOSYS;
 
 	nvif_ioctl(object, "perfdom sample size %d\n", size);
-	if (!(ret = nvif_unvers(ret, &data, &size, args->none))) {
+	if (!(ret = nvif_unvers(ret, &data, &size, args->yesne))) {
 		nvif_ioctl(object, "perfdom sample\n");
 	} else
 		return ret;

@@ -4,7 +4,7 @@
 #define DISABLE_BRANCH_PROFILING
 #include <linux/atomic.h>
 #include <linux/compiler.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/export.h>
 #include <linux/types.h>
 #include <linux/file.h>
@@ -35,7 +35,7 @@
  * State transitions of the descriptor:
  *  - initial state after open()
  *  - then there must be a single ioctl(KCOV_INIT_TRACE) call
- *  - then, mmap() call (several calls are allowed but not useful)
+ *  - then, mmap() call (several calls are allowed but yest useful)
  *  - then, ioctl(KCOV_ENABLE, arg), where arg is
  *	KCOV_TRACE_PC - to trace only the PCs
  *	or
@@ -47,7 +47,7 @@ struct kcov {
 	/*
 	 * Reference counter. We keep one for:
 	 *  - opened file descriptor
-	 *  - task with enabled coverage (we can't unwire it from another task)
+	 *  - task with enabled coverage (we can't unwire it from ayesther task)
 	 *  - each code section for remote coverage collection
 	 */
 	refcount_t		refcount;
@@ -79,7 +79,7 @@ struct kcov_remote_area {
 struct kcov_remote {
 	u64			handle;
 	struct kcov		*kcov;
-	struct hlist_node	hnode;
+	struct hlist_yesde	hyesde;
 };
 
 static DEFINE_SPINLOCK(kcov_remote_lock);
@@ -91,7 +91,7 @@ static struct kcov_remote *kcov_remote_find(u64 handle)
 {
 	struct kcov_remote *remote;
 
-	hash_for_each_possible(kcov_remote_map, remote, hnode, handle) {
+	hash_for_each_possible(kcov_remote_map, remote, hyesde, handle) {
 		if (remote->handle == handle)
 			return remote;
 	}
@@ -109,7 +109,7 @@ static struct kcov_remote *kcov_remote_add(struct kcov *kcov, u64 handle)
 		return ERR_PTR(-ENOMEM);
 	remote->handle = handle;
 	remote->kcov = kcov;
-	hash_add(kcov_remote_map, &remote->hnode, handle);
+	hash_add(kcov_remote_map, &remote->hyesde, handle);
 	return remote;
 }
 
@@ -142,13 +142,13 @@ static void kcov_remote_area_put(struct kcov_remote_area *area,
 	list_add(&area->list, &kcov_remote_areas);
 }
 
-static notrace bool check_kcov_mode(enum kcov_mode needed_mode, struct task_struct *t)
+static yestrace bool check_kcov_mode(enum kcov_mode needed_mode, struct task_struct *t)
 {
 	unsigned int mode;
 
 	/*
 	 * We are interested in code coverage as a function of a syscall inputs,
-	 * so we ignore code executed in interrupts.
+	 * so we igyesre code executed in interrupts.
 	 */
 	if (!in_task())
 		return false;
@@ -164,7 +164,7 @@ static notrace bool check_kcov_mode(enum kcov_mode needed_mode, struct task_stru
 	return mode == needed_mode;
 }
 
-static notrace unsigned long canonicalize_ip(unsigned long ip)
+static yestrace unsigned long cayesnicalize_ip(unsigned long ip)
 {
 #ifdef CONFIG_RANDOMIZE_BASE
 	ip -= kaslr_offset();
@@ -176,11 +176,11 @@ static notrace unsigned long canonicalize_ip(unsigned long ip)
  * Entry point from instrumented code.
  * This is called once per basic-block/edge.
  */
-void notrace __sanitizer_cov_trace_pc(void)
+void yestrace __sanitizer_cov_trace_pc(void)
 {
 	struct task_struct *t;
 	unsigned long *area;
-	unsigned long ip = canonicalize_ip(_RET_IP_);
+	unsigned long ip = cayesnicalize_ip(_RET_IP_);
 	unsigned long pos;
 
 	t = current;
@@ -198,7 +198,7 @@ void notrace __sanitizer_cov_trace_pc(void)
 EXPORT_SYMBOL(__sanitizer_cov_trace_pc);
 
 #ifdef CONFIG_KCOV_ENABLE_COMPARISONS
-static void notrace write_comp_data(u64 type, u64 arg1, u64 arg2, u64 ip)
+static void yestrace write_comp_data(u64 type, u64 arg1, u64 arg2, u64 ip)
 {
 	struct task_struct *t;
 	u64 *area;
@@ -208,7 +208,7 @@ static void notrace write_comp_data(u64 type, u64 arg1, u64 arg2, u64 ip)
 	if (!check_kcov_mode(KCOV_MODE_TRACE_CMP, t))
 		return;
 
-	ip = canonicalize_ip(ip);
+	ip = cayesnicalize_ip(ip);
 
 	/*
 	 * We write all comparison arguments and types as u64.
@@ -231,59 +231,59 @@ static void notrace write_comp_data(u64 type, u64 arg1, u64 arg2, u64 ip)
 	}
 }
 
-void notrace __sanitizer_cov_trace_cmp1(u8 arg1, u8 arg2)
+void yestrace __sanitizer_cov_trace_cmp1(u8 arg1, u8 arg2)
 {
 	write_comp_data(KCOV_CMP_SIZE(0), arg1, arg2, _RET_IP_);
 }
 EXPORT_SYMBOL(__sanitizer_cov_trace_cmp1);
 
-void notrace __sanitizer_cov_trace_cmp2(u16 arg1, u16 arg2)
+void yestrace __sanitizer_cov_trace_cmp2(u16 arg1, u16 arg2)
 {
 	write_comp_data(KCOV_CMP_SIZE(1), arg1, arg2, _RET_IP_);
 }
 EXPORT_SYMBOL(__sanitizer_cov_trace_cmp2);
 
-void notrace __sanitizer_cov_trace_cmp4(u32 arg1, u32 arg2)
+void yestrace __sanitizer_cov_trace_cmp4(u32 arg1, u32 arg2)
 {
 	write_comp_data(KCOV_CMP_SIZE(2), arg1, arg2, _RET_IP_);
 }
 EXPORT_SYMBOL(__sanitizer_cov_trace_cmp4);
 
-void notrace __sanitizer_cov_trace_cmp8(u64 arg1, u64 arg2)
+void yestrace __sanitizer_cov_trace_cmp8(u64 arg1, u64 arg2)
 {
 	write_comp_data(KCOV_CMP_SIZE(3), arg1, arg2, _RET_IP_);
 }
 EXPORT_SYMBOL(__sanitizer_cov_trace_cmp8);
 
-void notrace __sanitizer_cov_trace_const_cmp1(u8 arg1, u8 arg2)
+void yestrace __sanitizer_cov_trace_const_cmp1(u8 arg1, u8 arg2)
 {
 	write_comp_data(KCOV_CMP_SIZE(0) | KCOV_CMP_CONST, arg1, arg2,
 			_RET_IP_);
 }
 EXPORT_SYMBOL(__sanitizer_cov_trace_const_cmp1);
 
-void notrace __sanitizer_cov_trace_const_cmp2(u16 arg1, u16 arg2)
+void yestrace __sanitizer_cov_trace_const_cmp2(u16 arg1, u16 arg2)
 {
 	write_comp_data(KCOV_CMP_SIZE(1) | KCOV_CMP_CONST, arg1, arg2,
 			_RET_IP_);
 }
 EXPORT_SYMBOL(__sanitizer_cov_trace_const_cmp2);
 
-void notrace __sanitizer_cov_trace_const_cmp4(u32 arg1, u32 arg2)
+void yestrace __sanitizer_cov_trace_const_cmp4(u32 arg1, u32 arg2)
 {
 	write_comp_data(KCOV_CMP_SIZE(2) | KCOV_CMP_CONST, arg1, arg2,
 			_RET_IP_);
 }
 EXPORT_SYMBOL(__sanitizer_cov_trace_const_cmp4);
 
-void notrace __sanitizer_cov_trace_const_cmp8(u64 arg1, u64 arg2)
+void yestrace __sanitizer_cov_trace_const_cmp8(u64 arg1, u64 arg2)
 {
 	write_comp_data(KCOV_CMP_SIZE(3) | KCOV_CMP_CONST, arg1, arg2,
 			_RET_IP_);
 }
 EXPORT_SYMBOL(__sanitizer_cov_trace_const_cmp8);
 
-void notrace __sanitizer_cov_trace_switch(u64 val, u64 *cases)
+void yestrace __sanitizer_cov_trace_switch(u64 val, u64 *cases)
 {
 	u64 i;
 	u64 count = cases[0];
@@ -360,14 +360,14 @@ static void kcov_remote_reset(struct kcov *kcov)
 {
 	int bkt;
 	struct kcov_remote *remote;
-	struct hlist_node *tmp;
+	struct hlist_yesde *tmp;
 
 	spin_lock(&kcov_remote_lock);
-	hash_for_each_safe(kcov_remote_map, bkt, tmp, remote, hnode) {
+	hash_for_each_safe(kcov_remote_map, bkt, tmp, remote, hyesde) {
 		if (remote->kcov != kcov)
 			continue;
 		kcov_debug("removing handle %llx\n", remote->handle);
-		hash_del(&remote->hnode);
+		hash_del(&remote->hyesde);
 		kfree(remote);
 	}
 	/* Do reset before unlock to prevent races with kcov_remote_start(). */
@@ -433,7 +433,7 @@ void kcov_task_exit(struct task_struct *t)
 		spin_unlock(&kcov->lock);
 		return;
 	}
-	/* Just to not leave dangling references behind. */
+	/* Just to yest leave dangling references behind. */
 	kcov_disable(t, kcov);
 	spin_unlock(&kcov->lock);
 	kcov_put(kcov);
@@ -475,7 +475,7 @@ exit:
 	return res;
 }
 
-static int kcov_open(struct inode *inode, struct file *filep)
+static int kcov_open(struct iyesde *iyesde, struct file *filep)
 {
 	struct kcov *kcov;
 
@@ -487,10 +487,10 @@ static int kcov_open(struct inode *inode, struct file *filep)
 	refcount_set(&kcov->refcount, 1);
 	spin_lock_init(&kcov->lock);
 	filep->private_data = kcov;
-	return nonseekable_open(inode, filep);
+	return yesnseekable_open(iyesde, filep);
 }
 
-static int kcov_close(struct inode *inode, struct file *filep)
+static int kcov_close(struct iyesde *iyesde, struct file *filep)
 {
 	kcov_put(filep->private_data);
 	return 0;
@@ -563,7 +563,7 @@ static int kcov_ioctl_locked(struct kcov *kcov, unsigned int cmd,
 		/*
 		 * Size must be at least 2 to hold current position and one PC.
 		 * Later we allocate size * sizeof(unsigned long) memory,
-		 * that must not overflow.
+		 * that must yest overflow.
 		 */
 		size = arg;
 		if (size < 2 || size > INT_MAX / sizeof(unsigned long))
@@ -578,7 +578,7 @@ static int kcov_ioctl_locked(struct kcov *kcov, unsigned int cmd,
 		 * At this point user must have been enabled trace mode,
 		 * and mmapped the file. Coverage collection is disabled only
 		 * at task exit or voluntary by KCOV_DISABLE. After that it can
-		 * be enabled for another task.
+		 * be enabled for ayesther task.
 		 */
 		if (kcov->mode != KCOV_MODE_INIT || !kcov->area)
 			return -EINVAL;
@@ -715,7 +715,7 @@ static const struct file_operations kcov_fops = {
 };
 
 /*
- * kcov_remote_start() and kcov_remote_stop() can be used to annotate a section
+ * kcov_remote_start() and kcov_remote_stop() can be used to anyestate a section
  * of code in a kernel background thread to allow kcov to be used to collect
  * coverage from that part of code.
  *
@@ -724,8 +724,8 @@ static const struct file_operations kcov_fops = {
  * KCOV_REMOTE_ENABLE ioctl to make the used kcov device start collecting
  * coverage for the code section identified by this handle.
  *
- * The usage of these annotations in the kernel code is different depending on
- * the type of the kernel thread whose code is being annotated.
+ * The usage of these anyestations in the kernel code is different depending on
+ * the type of the kernel thread whose code is being anyestated.
  *
  * For global kernel threads that are spawned in a limited number of instances
  * (e.g. one USB hub_event() worker thread is spawned per USB HCD), each
@@ -736,14 +736,14 @@ static const struct file_operations kcov_fops = {
  * For local kernel threads that are spawned from system calls handler when a
  * user interacts with some kernel interface (e.g. vhost workers), a handle is
  * passed from a userspace process as the common_handle field of the
- * kcov_remote_arg struct (note, that the user must generate a handle by using
+ * kcov_remote_arg struct (yeste, that the user must generate a handle by using
  * kcov_remote_handle() with KCOV_SUBSYSTEM_COMMON as the subsystem id and an
- * arbitrary 4-byte non-zero number as the instance id). This common handle
+ * arbitrary 4-byte yesn-zero number as the instance id). This common handle
  * then gets saved into the task_struct of the process that issued the
  * KCOV_REMOTE_ENABLE ioctl. When this proccess issues system calls that spawn
  * kernel threads, the common handle must be retrived via kcov_common_handle()
- * and passed to the spawned threads via custom annotations. Those kernel
- * threads must in turn be annotated with kcov_remote_start(common_handle) and
+ * and passed to the spawned threads via custom anyestations. Those kernel
+ * threads must in turn be anyestated with kcov_remote_start(common_handle) and
  * kcov_remote_stop(). All of the threads that are spawned by the same process
  * obtain the same handle, hence the name "common".
  *
@@ -771,8 +771,8 @@ void kcov_remote_start(u64 handle)
 		return;
 	t = current;
 	/*
-	 * Check that kcov_remote_start is not called twice
-	 * nor called by user tasks (with enabled kcov).
+	 * Check that kcov_remote_start is yest called twice
+	 * yesr called by user tasks (with enabled kcov).
 	 */
 	if (WARN_ON(t->kcov))
 		return;
@@ -782,7 +782,7 @@ void kcov_remote_start(u64 handle)
 	spin_lock(&kcov_remote_lock);
 	remote = kcov_remote_find(handle);
 	if (!remote) {
-		kcov_debug("no remote found");
+		kcov_debug("yes remote found");
 		spin_unlock(&kcov_remote_lock);
 		return;
 	}
@@ -882,7 +882,7 @@ void kcov_remote_stop(void)
 	int sequence = t->kcov_sequence;
 
 	if (!kcov) {
-		kcov_debug("no kcov found\n");
+		kcov_debug("yes kcov found\n");
 		return;
 	}
 
@@ -919,7 +919,7 @@ static int __init kcov_init(void)
 {
 	/*
 	 * The kcov debugfs file won't ever get removed and thus,
-	 * there is no need to protect it against removal races. The
+	 * there is yes need to protect it against removal races. The
 	 * use of debugfs_create_file_unsafe() is actually safe here.
 	 */
 	debugfs_create_file_unsafe("kcov", 0600, NULL, NULL, &kcov_fops);

@@ -48,7 +48,7 @@ static void xilly_dma_sync_single_for_device_of(struct xilly_endpoint *ep,
 	dma_sync_single_for_device(ep->dev, dma_handle, size, direction);
 }
 
-static void xilly_dma_sync_single_nop(struct xilly_endpoint *ep,
+static void xilly_dma_sync_single_yesp(struct xilly_endpoint *ep,
 				      dma_addr_t dma_handle,
 				      size_t size,
 				      int direction)
@@ -105,8 +105,8 @@ static struct xilly_endpoint_hardware of_hw = {
 
 static struct xilly_endpoint_hardware of_hw_coherent = {
 	.owner = THIS_MODULE,
-	.hw_sync_sgl_for_cpu = xilly_dma_sync_single_nop,
-	.hw_sync_sgl_for_device = xilly_dma_sync_single_nop,
+	.hw_sync_sgl_for_cpu = xilly_dma_sync_single_yesp,
+	.hw_sync_sgl_for_device = xilly_dma_sync_single_yesp,
 	.map_single = xilly_map_single_of,
 };
 
@@ -118,7 +118,7 @@ static int xilly_drv_probe(struct platform_device *op)
 	int irq;
 	struct xilly_endpoint_hardware *ephw = &of_hw;
 
-	if (of_property_read_bool(dev->of_node, "dma-coherent"))
+	if (of_property_read_bool(dev->of_yesde, "dma-coherent"))
 		ephw = &of_hw_coherent;
 
 	endpoint = xillybus_init_endpoint(NULL, dev, ephw);

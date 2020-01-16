@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0
 #
-# Makefile for triggers not associated with iio-devices
+# Makefile for triggers yest associated with iio-devices
 #
 
 # When adding new entries keep the list in alphabetical order

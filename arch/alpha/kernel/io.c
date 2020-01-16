@@ -324,7 +324,7 @@ EXPORT_SYMBOL(insl);
  * Like insb but in the opposite direction.
  * Don't worry as much about doing aligned memory transfers:
  * doing byte reads the "slow" way isn't nearly as slow as
- * doing byte writes the slow way (no r-m-w cycle).
+ * doing byte writes the slow way (yes r-m-w cycle).
  */
 void iowrite8_rep(void __iomem *port, const void *xsrc, unsigned long count)
 {

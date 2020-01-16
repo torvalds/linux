@@ -19,7 +19,7 @@ struct acx_header {
 	/* acx (or information element) header */
 	u16 id;
 
-	/* payload length (not including headers */
+	/* payload length (yest including headers */
 	u16 len;
 } __packed;
 
@@ -190,14 +190,14 @@ struct acx_rx_msdu_lifetime {
  * 31:14		Reserved
  * 13		Copy RX Status - when set, write three receive status words
  * 	 	to top of rx'd MPDUs.
- * 		When cleared, do not write three status words (added rev 1.5)
+ * 		When cleared, do yest write three status words (added rev 1.5)
  * 12		Reserved
  * 11		RX Complete upon FCS error - when set, give rx complete
  *	 	interrupt for FCS errors, after the rx filtering, e.g. unicast
- *	 	frames not to us with FCS error will not generate an interrupt.
+ *	 	frames yest to us with FCS error will yest generate an interrupt.
  * 10		SSID Filter Enable - When set, the WiLink discards all beacon,
  *	        probe request, and probe response frames with an SSID that does
- *		not match the SSID specified by the host in the START/JOIN
+ *		yest match the SSID specified by the host in the START/JOIN
  *		command.
  *		When clear, the WiLink receives frames with any SSID.
  * 9		Broadcast Filter Enable - When set, the WiLink discards all
@@ -205,11 +205,11 @@ struct acx_rx_msdu_lifetime {
  *		broadcast frames.
  * 8:6		Reserved
  * 5		BSSID Filter Enable - When set, the WiLink discards any frames
- * 	 	with a BSSID that does not match the BSSID specified by the
+ * 	 	with a BSSID that does yest match the BSSID specified by the
  *		host.
  *		When clear, the WiLink receives frames from any BSSID.
  * 4		MAC Addr Filter - When set, the WiLink discards any frames
- * 	 	with a destination address that does not match the MAC address
+ * 	 	with a destination address that does yest match the MAC address
  *		of the adaptor.
  *		When clear, the WiLink receives frames destined to any MAC
  *		address.
@@ -445,7 +445,7 @@ struct acx_beacon_filter_option {
 } __packed;
 
 /*
- * ACXBeaconFilterEntry (not 221)
+ * ACXBeaconFilterEntry (yest 221)
  * Byte Offset     Size (Bytes)    Definition
  * ===========     ============    ==========
  * 0				1               IE identifier
@@ -513,7 +513,7 @@ struct acx_bt_wlan_coex {
 	/*
 	 * 0 -> PTA enabled
 	 * 1 -> PTA disabled
-	 * 2 -> sense no active mode, i.e.
+	 * 2 -> sense yes active mode, i.e.
 	 *      an interrupt is sent upon
 	 *      BT activity.
 	 * 3 -> PTA is switched on in response
@@ -616,14 +616,14 @@ struct acx_bt_wlan_coex_param {
 
 	/*
 	 * BT AFH status
-	 * 0 -> no AFH
+	 * 0 -> yes AFH
 	 * 1 -> from dedicated GPIO
 	 * 2 -> AFH on (from host)
 	 */
 	u8 afh_leverage_on;
 
 	/*
-	 * The number of cycles during which no
+	 * The number of cycles during which yes
 	 * TX will be sent after 1 cycle of RX
 	 * transaction in protective mode
 	 */
@@ -920,7 +920,7 @@ struct acx_isr_statistics {
 	u32 hw_pm_mode_changes;
 
 	/* (INT_STS_ND & INT_TRIG_ACKNOWLEDGE) */
-	u32 host_acknowledges;
+	u32 host_ackyeswledges;
 
 	/* (INT_STS_ND & INT_TRIG_PM_PCI) */
 	u32 pci_pm;
@@ -941,8 +941,8 @@ struct acx_wep_statistics {
 
 	u32 reserved;
 
-	/* number of times that WEP key not found on lookup */
-	u32 key_not_found;
+	/* number of times that WEP key yest found on lookup */
+	u32 key_yest_found;
 
 	/* number of times that WEP key decryption failed */
 	u32 decrypt_fail;
@@ -988,7 +988,7 @@ struct acx_pwr_statistics {
 	u16 enable_ps;
 
 	/*
-	 * the number of exits from power save, not including failed PS
+	 * the number of exits from power save, yest including failed PS
 	 * transitions
 	 */
 	u16 disable_ps;
@@ -1099,7 +1099,7 @@ struct wl1251_acx_memory {
 	/*
 	 * Nmber of memory buffers for the RX mem pool.
 	 * The actual number may be less if there are
-	 * not enough blocks left for the minimum num
+	 * yest eyesugh blocks left for the minimum num
 	 * of TX ones.
 	 */
 	u8 rx_mem_block_num;
@@ -1227,9 +1227,9 @@ struct wl1251_acx_arp_filter {
 	u8 enable;	/* 1 - ARP filtering is enabled, 0 - disabled */
 	u8 padding[2];
 	u8 address[16];	/* The IP address used to filter ARP packets.
-			   ARP packets that do not match this address are
+			   ARP packets that do yest match this address are
 			   dropped. When the IP Version is 4, the last 12
-			   bytes of the the address are ignored. */
+			   bytes of the the address are igyesred. */
 } __attribute__((packed));
 
 struct wl1251_acx_ac_cfg {
@@ -1309,7 +1309,7 @@ struct wl1251_acx_tid_cfg {
 
 	u8 padding[3];
 
-	/* not supported */
+	/* yest supported */
 	u32 apsdconf[2];
 } __packed;
 

@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -38,7 +38,7 @@ typedef unsigned int (*npages_fn_t)(unsigned long n,
 				    unsigned long count,
 				    struct rnd_state *rnd);
 
-static noinline int expect_pfn_sg(struct pfn_table *pt,
+static yesinline int expect_pfn_sg(struct pfn_table *pt,
 				  npages_fn_t npages_fn,
 				  struct rnd_state *rnd,
 				  const char *who,
@@ -78,7 +78,7 @@ static noinline int expect_pfn_sg(struct pfn_table *pt,
 	return 0;
 }
 
-static noinline int expect_pfn_sg_page_iter(struct pfn_table *pt,
+static yesinline int expect_pfn_sg_page_iter(struct pfn_table *pt,
 					    const char *who,
 					    unsigned long timeout)
 {
@@ -109,7 +109,7 @@ static noinline int expect_pfn_sg_page_iter(struct pfn_table *pt,
 	return 0;
 }
 
-static noinline int expect_pfn_sgtiter(struct pfn_table *pt,
+static yesinline int expect_pfn_sgtiter(struct pfn_table *pt,
 				       const char *who,
 				       unsigned long timeout)
 {
@@ -271,7 +271,7 @@ static const npages_fn_t npages_funcs[] = {
 	NULL,
 };
 
-static int igt_sg_alloc(void *ignored)
+static int igt_sg_alloc(void *igyesred)
 {
 	IGT_TIMEOUT(end_time);
 	const unsigned long max_order = 20; /* approximating a 4GiB object */
@@ -318,10 +318,10 @@ static int igt_sg_alloc(void *ignored)
 	return 0;
 }
 
-static int igt_sg_trim(void *ignored)
+static int igt_sg_trim(void *igyesred)
 {
 	IGT_TIMEOUT(end_time);
-	const unsigned long max = PAGE_SIZE; /* not prime! */
+	const unsigned long max = PAGE_SIZE; /* yest prime! */
 	struct pfn_table pt;
 	unsigned long prime;
 	int alloc_error = -ENOMEM;

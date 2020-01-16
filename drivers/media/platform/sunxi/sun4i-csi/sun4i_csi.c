@@ -19,7 +19,7 @@
 
 #include <media/v4l2-dev.h>
 #include <media/v4l2-device.h>
-#include <media/v4l2-fwnode.h>
+#include <media/v4l2-fwyesde.h>
 #include <media/v4l2-ioctl.h>
 #include <media/v4l2-mediabus.h>
 
@@ -32,16 +32,16 @@ static const struct media_entity_operations sun4i_csi_video_entity_ops = {
 	.link_validate = v4l2_subdev_link_validate,
 };
 
-static int sun4i_csi_notify_bound(struct v4l2_async_notifier *notifier,
+static int sun4i_csi_yestify_bound(struct v4l2_async_yestifier *yestifier,
 				  struct v4l2_subdev *subdev,
 				  struct v4l2_async_subdev *asd)
 {
-	struct sun4i_csi *csi = container_of(notifier, struct sun4i_csi,
-					     notifier);
+	struct sun4i_csi *csi = container_of(yestifier, struct sun4i_csi,
+					     yestifier);
 
 	csi->src_subdev = subdev;
-	csi->src_pad = media_entity_get_fwnode_pad(&subdev->entity,
-						   subdev->fwnode,
+	csi->src_pad = media_entity_get_fwyesde_pad(&subdev->entity,
+						   subdev->fwyesde,
 						   MEDIA_PAD_FL_SOURCE);
 	if (csi->src_pad < 0) {
 		dev_err(csi->dev, "Couldn't find output pad for subdev %s\n",
@@ -53,10 +53,10 @@ static int sun4i_csi_notify_bound(struct v4l2_async_notifier *notifier,
 	return 0;
 }
 
-static int sun4i_csi_notify_complete(struct v4l2_async_notifier *notifier)
+static int sun4i_csi_yestify_complete(struct v4l2_async_yestifier *yestifier)
 {
-	struct sun4i_csi *csi = container_of(notifier, struct sun4i_csi,
-					     notifier);
+	struct sun4i_csi *csi = container_of(yestifier, struct sun4i_csi,
+					     yestifier);
 	struct v4l2_subdev *subdev = &csi->subdev;
 	struct video_device *vdev = &csi->vdev;
 	int ret;
@@ -88,7 +88,7 @@ static int sun4i_csi_notify_complete(struct v4l2_async_notifier *notifier)
 	if (ret)
 		goto err_clean_media;
 
-	ret = v4l2_device_register_subdev_nodes(&csi->v4l);
+	ret = v4l2_device_register_subdev_yesdes(&csi->v4l);
 	if (ret < 0)
 		goto err_clean_media;
 
@@ -100,41 +100,41 @@ err_clean_media:
 	return ret;
 }
 
-static const struct v4l2_async_notifier_operations sun4i_csi_notify_ops = {
-	.bound		= sun4i_csi_notify_bound,
-	.complete	= sun4i_csi_notify_complete,
+static const struct v4l2_async_yestifier_operations sun4i_csi_yestify_ops = {
+	.bound		= sun4i_csi_yestify_bound,
+	.complete	= sun4i_csi_yestify_complete,
 };
 
-static int sun4i_csi_notifier_init(struct sun4i_csi *csi)
+static int sun4i_csi_yestifier_init(struct sun4i_csi *csi)
 {
-	struct v4l2_fwnode_endpoint vep = {
+	struct v4l2_fwyesde_endpoint vep = {
 		.bus_type = V4L2_MBUS_PARALLEL,
 	};
-	struct fwnode_handle *ep;
+	struct fwyesde_handle *ep;
 	int ret;
 
-	v4l2_async_notifier_init(&csi->notifier);
+	v4l2_async_yestifier_init(&csi->yestifier);
 
-	ep = fwnode_graph_get_endpoint_by_id(dev_fwnode(csi->dev), 0, 0,
+	ep = fwyesde_graph_get_endpoint_by_id(dev_fwyesde(csi->dev), 0, 0,
 					     FWNODE_GRAPH_ENDPOINT_NEXT);
 	if (!ep)
 		return -EINVAL;
 
-	ret = v4l2_fwnode_endpoint_parse(ep, &vep);
+	ret = v4l2_fwyesde_endpoint_parse(ep, &vep);
 	if (ret)
 		goto out;
 
 	csi->bus = vep.bus.parallel;
 
-	ret = v4l2_async_notifier_add_fwnode_remote_subdev(&csi->notifier,
+	ret = v4l2_async_yestifier_add_fwyesde_remote_subdev(&csi->yestifier,
 							   ep, &csi->asd);
 	if (ret)
 		goto out;
 
-	csi->notifier.ops = &sun4i_csi_notify_ops;
+	csi->yestifier.ops = &sun4i_csi_yestify_ops;
 
 out:
-	fwnode_handle_put(ep);
+	fwyesde_handle_put(ep);
 	return ret;
 }
 
@@ -221,13 +221,13 @@ static int sun4i_csi_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_clean_pad;
 
-	ret = sun4i_csi_notifier_init(csi);
+	ret = sun4i_csi_yestifier_init(csi);
 	if (ret)
 		goto err_unregister_media;
 
-	ret = v4l2_async_notifier_register(&csi->v4l, &csi->notifier);
+	ret = v4l2_async_yestifier_register(&csi->v4l, &csi->yestifier);
 	if (ret) {
-		dev_err(csi->dev, "Couldn't register our notifier.\n");
+		dev_err(csi->dev, "Couldn't register our yestifier.\n");
 		goto err_unregister_media;
 	}
 
@@ -249,8 +249,8 @@ static int sun4i_csi_remove(struct platform_device *pdev)
 {
 	struct sun4i_csi *csi = platform_get_drvdata(pdev);
 
-	v4l2_async_notifier_unregister(&csi->notifier);
-	v4l2_async_notifier_cleanup(&csi->notifier);
+	v4l2_async_yestifier_unregister(&csi->yestifier);
+	v4l2_async_yestifier_cleanup(&csi->yestifier);
 	media_device_unregister(&csi->mdev);
 	sun4i_csi_dma_unregister(csi);
 	media_device_cleanup(&csi->mdev);

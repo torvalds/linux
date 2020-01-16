@@ -65,7 +65,7 @@ void _r8712_init_recv_priv(struct recv_priv *precvpriv,
 				GFP_ATOMIC);
 	if (precvpriv->pallocated_frame_buf == NULL)
 		return;
-	kmemleak_not_leak(precvpriv->pallocated_frame_buf);
+	kmemleak_yest_leak(precvpriv->pallocated_frame_buf);
 	precvpriv->precv_frame_buf = precvpriv->pallocated_frame_buf +
 				    RXFRAME_ALIGN_SZ -
 				    ((addr_t)(precvpriv->pallocated_frame_buf) &
@@ -265,7 +265,7 @@ union recv_frame *r8712_portctrl(struct _adapter *adapter,
 			 * frame if needed
 			 */
 			prtnframe = precv_frame;
-			/* check is the EAPOL frame or not (Rekey) */
+			/* check is the EAPOL frame or yest (Rekey) */
 			if (ether_type == 0x888e) {
 				/* check Rekey */
 				prtnframe = precv_frame;
@@ -332,8 +332,8 @@ static sint sta2sta_data_frame(struct _adapter *adapter,
 			 */
 			if (!is_multicast_ether_addr(pattrib->bssid))
 				return _FAIL;
-		} else { /* not mc-frame */
-			/* For AP mode, if DA is non-MCAST, then it must be
+		} else { /* yest mc-frame */
+			/* For AP mode, if DA is yesn-MCAST, then it must be
 			 * BSSID, and bssid == BSSID
 			 */
 			if (memcmp(pattrib->bssid, pattrib->dst, ETH_ALEN))
@@ -433,7 +433,7 @@ static sint sta2ap_data_frame(struct _adapter *adapter,
 	unsigned char *mybssid  = get_bssid(pmlmepriv);
 
 	if (check_fwstate(pmlmepriv, WIFI_AP_STATE)) {
-		/* For AP mode, if DA is non-MCAST, then it must be BSSID,
+		/* For AP mode, if DA is yesn-MCAST, then it must be BSSID,
 		 * and bssid == BSSID
 		 * For AP mode, RA=BSSID, TX=STA(SRC_ADDR), A3=DST_ADDR
 		 */

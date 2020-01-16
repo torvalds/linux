@@ -20,10 +20,10 @@ static int snd_emux_unuse(void *private_data, struct snd_seq_port_subscribe *inf
  * MIDI emulation operators
  */
 static struct snd_midi_op emux_ops = {
-	.note_on = snd_emux_note_on,
-	.note_off = snd_emux_note_off,
+	.yeste_on = snd_emux_yeste_on,
+	.yeste_off = snd_emux_yeste_off,
 	.key_press = snd_emux_key_press,
-	.note_terminate = snd_emux_terminate_note,
+	.yeste_terminate = snd_emux_terminate_yeste,
 	.control = snd_emux_control,
 	.nrpn = snd_emux_nrpn,
 	.sysex = snd_emux_sysex,

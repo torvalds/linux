@@ -5,7 +5,7 @@
  * Copyright 2016 Cisco Systems, Inc. and/or its affiliates. All rights reserved.
  */
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
@@ -31,54 +31,54 @@ MODULE_PARM_DESC(debug_phys_addr, "add CEC_CAP_PHYS_ADDR if set");
 static dev_t cec_dev_t;
 
 /* Active devices */
-static DEFINE_MUTEX(cec_devnode_lock);
-static DECLARE_BITMAP(cec_devnode_nums, CEC_NUM_DEVICES);
+static DEFINE_MUTEX(cec_devyesde_lock);
+static DECLARE_BITMAP(cec_devyesde_nums, CEC_NUM_DEVICES);
 
 static struct dentry *top_cec_dir;
 
-/* dev to cec_devnode */
-#define to_cec_devnode(cd) container_of(cd, struct cec_devnode, dev)
+/* dev to cec_devyesde */
+#define to_cec_devyesde(cd) container_of(cd, struct cec_devyesde, dev)
 
-int cec_get_device(struct cec_devnode *devnode)
+int cec_get_device(struct cec_devyesde *devyesde)
 {
 	/*
 	 * Check if the cec device is available. This needs to be done with
-	 * the devnode->lock held to prevent an open/unregister race:
+	 * the devyesde->lock held to prevent an open/unregister race:
 	 * without the lock, the device could be unregistered and freed between
-	 * the devnode->registered check and get_device() calls, leading to
+	 * the devyesde->registered check and get_device() calls, leading to
 	 * a crash.
 	 */
-	mutex_lock(&devnode->lock);
+	mutex_lock(&devyesde->lock);
 	/*
 	 * return ENXIO if the cec device has been removed
-	 * already or if it is not registered anymore.
+	 * already or if it is yest registered anymore.
 	 */
-	if (!devnode->registered) {
-		mutex_unlock(&devnode->lock);
+	if (!devyesde->registered) {
+		mutex_unlock(&devyesde->lock);
 		return -ENXIO;
 	}
 	/* and increase the device refcount */
-	get_device(&devnode->dev);
-	mutex_unlock(&devnode->lock);
+	get_device(&devyesde->dev);
+	mutex_unlock(&devyesde->lock);
 	return 0;
 }
 
-void cec_put_device(struct cec_devnode *devnode)
+void cec_put_device(struct cec_devyesde *devyesde)
 {
-	put_device(&devnode->dev);
+	put_device(&devyesde->dev);
 }
 
 /* Called when the last user of the cec device exits. */
-static void cec_devnode_release(struct device *cd)
+static void cec_devyesde_release(struct device *cd)
 {
-	struct cec_devnode *devnode = to_cec_devnode(cd);
+	struct cec_devyesde *devyesde = to_cec_devyesde(cd);
 
-	mutex_lock(&cec_devnode_lock);
-	/* Mark device node number as free */
-	clear_bit(devnode->minor, cec_devnode_nums);
-	mutex_unlock(&cec_devnode_lock);
+	mutex_lock(&cec_devyesde_lock);
+	/* Mark device yesde number as free */
+	clear_bit(devyesde->miyesr, cec_devyesde_nums);
+	mutex_unlock(&cec_devyesde_lock);
 
-	cec_delete_adapter(to_cec_adapter(devnode));
+	cec_delete_adapter(to_cec_adapter(devyesde));
 }
 
 static struct bus_type cec_bus_type = {
@@ -86,52 +86,52 @@ static struct bus_type cec_bus_type = {
 };
 
 /*
- * Register a cec device node
+ * Register a cec device yesde
  *
- * The registration code assigns minor numbers and registers the new device node
- * with the kernel. An error is returned if no free minor number can be found,
- * or if the registration of the device node fails.
+ * The registration code assigns miyesr numbers and registers the new device yesde
+ * with the kernel. An error is returned if yes free miyesr number can be found,
+ * or if the registration of the device yesde fails.
  *
  * Zero is returned on success.
  *
- * Note that if the cec_devnode_register call fails, the release() callback of
- * the cec_devnode structure is *not* called, so the caller is responsible for
+ * Note that if the cec_devyesde_register call fails, the release() callback of
+ * the cec_devyesde structure is *yest* called, so the caller is responsible for
  * freeing any data.
  */
-static int __must_check cec_devnode_register(struct cec_devnode *devnode,
+static int __must_check cec_devyesde_register(struct cec_devyesde *devyesde,
 					     struct module *owner)
 {
-	int minor;
+	int miyesr;
 	int ret;
 
-	/* Part 1: Find a free minor number */
-	mutex_lock(&cec_devnode_lock);
-	minor = find_next_zero_bit(cec_devnode_nums, CEC_NUM_DEVICES, 0);
-	if (minor == CEC_NUM_DEVICES) {
-		mutex_unlock(&cec_devnode_lock);
-		pr_err("could not get a free minor\n");
+	/* Part 1: Find a free miyesr number */
+	mutex_lock(&cec_devyesde_lock);
+	miyesr = find_next_zero_bit(cec_devyesde_nums, CEC_NUM_DEVICES, 0);
+	if (miyesr == CEC_NUM_DEVICES) {
+		mutex_unlock(&cec_devyesde_lock);
+		pr_err("could yest get a free miyesr\n");
 		return -ENFILE;
 	}
 
-	set_bit(minor, cec_devnode_nums);
-	mutex_unlock(&cec_devnode_lock);
+	set_bit(miyesr, cec_devyesde_nums);
+	mutex_unlock(&cec_devyesde_lock);
 
-	devnode->minor = minor;
-	devnode->dev.bus = &cec_bus_type;
-	devnode->dev.devt = MKDEV(MAJOR(cec_dev_t), minor);
-	devnode->dev.release = cec_devnode_release;
-	dev_set_name(&devnode->dev, "cec%d", devnode->minor);
-	device_initialize(&devnode->dev);
+	devyesde->miyesr = miyesr;
+	devyesde->dev.bus = &cec_bus_type;
+	devyesde->dev.devt = MKDEV(MAJOR(cec_dev_t), miyesr);
+	devyesde->dev.release = cec_devyesde_release;
+	dev_set_name(&devyesde->dev, "cec%d", devyesde->miyesr);
+	device_initialize(&devyesde->dev);
 
 	/* Part 2: Initialize and register the character device */
-	cdev_init(&devnode->cdev, &cec_devnode_fops);
-	devnode->cdev.owner = owner;
-	kobject_set_name(&devnode->cdev.kobj, "cec%d", devnode->minor);
+	cdev_init(&devyesde->cdev, &cec_devyesde_fops);
+	devyesde->cdev.owner = owner;
+	kobject_set_name(&devyesde->cdev.kobj, "cec%d", devyesde->miyesr);
 
-	devnode->registered = true;
-	ret = cdev_device_add(&devnode->cdev, &devnode->dev);
+	devyesde->registered = true;
+	ret = cdev_device_add(&devyesde->cdev, &devyesde->dev);
 	if (ret) {
-		devnode->registered = false;
+		devyesde->registered = false;
 		pr_err("%s: cdev_device_add failed\n", __func__);
 		goto clr_bit;
 	}
@@ -139,66 +139,66 @@ static int __must_check cec_devnode_register(struct cec_devnode *devnode,
 	return 0;
 
 clr_bit:
-	mutex_lock(&cec_devnode_lock);
-	clear_bit(devnode->minor, cec_devnode_nums);
-	mutex_unlock(&cec_devnode_lock);
+	mutex_lock(&cec_devyesde_lock);
+	clear_bit(devyesde->miyesr, cec_devyesde_nums);
+	mutex_unlock(&cec_devyesde_lock);
 	return ret;
 }
 
 /*
- * Unregister a cec device node
+ * Unregister a cec device yesde
  *
  * This unregisters the passed device. Future open calls will be met with
  * errors.
  *
- * This function can safely be called if the device node has never been
+ * This function can safely be called if the device yesde has never been
  * registered or has already been unregistered.
  */
-static void cec_devnode_unregister(struct cec_adapter *adap)
+static void cec_devyesde_unregister(struct cec_adapter *adap)
 {
-	struct cec_devnode *devnode = &adap->devnode;
+	struct cec_devyesde *devyesde = &adap->devyesde;
 	struct cec_fh *fh;
 
-	mutex_lock(&devnode->lock);
+	mutex_lock(&devyesde->lock);
 
-	/* Check if devnode was never registered or already unregistered */
-	if (!devnode->registered || devnode->unregistered) {
-		mutex_unlock(&devnode->lock);
+	/* Check if devyesde was never registered or already unregistered */
+	if (!devyesde->registered || devyesde->unregistered) {
+		mutex_unlock(&devyesde->lock);
 		return;
 	}
 
-	list_for_each_entry(fh, &devnode->fhs, list)
+	list_for_each_entry(fh, &devyesde->fhs, list)
 		wake_up_interruptible(&fh->wait);
 
-	devnode->registered = false;
-	devnode->unregistered = true;
-	mutex_unlock(&devnode->lock);
+	devyesde->registered = false;
+	devyesde->unregistered = true;
+	mutex_unlock(&devyesde->lock);
 
 	mutex_lock(&adap->lock);
 	__cec_s_phys_addr(adap, CEC_PHYS_ADDR_INVALID, false);
 	__cec_s_log_addrs(adap, NULL, false);
 	mutex_unlock(&adap->lock);
 
-	cdev_device_del(&devnode->cdev, &devnode->dev);
-	put_device(&devnode->dev);
+	cdev_device_del(&devyesde->cdev, &devyesde->dev);
+	put_device(&devyesde->dev);
 }
 
 #ifdef CONFIG_CEC_NOTIFIER
-static void cec_cec_notify(struct cec_adapter *adap, u16 pa)
+static void cec_cec_yestify(struct cec_adapter *adap, u16 pa)
 {
 	cec_s_phys_addr(adap, pa, false);
 }
 
-void cec_register_cec_notifier(struct cec_adapter *adap,
-			       struct cec_notifier *notifier)
+void cec_register_cec_yestifier(struct cec_adapter *adap,
+			       struct cec_yestifier *yestifier)
 {
 	if (WARN_ON(!cec_is_registered(adap)))
 		return;
 
-	adap->notifier = notifier;
-	cec_notifier_register(adap->notifier, adap, cec_cec_notify);
+	adap->yestifier = yestifier;
+	cec_yestifier_register(adap->yestifier, adap, cec_cec_yestify);
 }
-EXPORT_SYMBOL_GPL(cec_register_cec_notifier);
+EXPORT_SYMBOL_GPL(cec_register_cec_yestifier);
 #endif
 
 #ifdef CONFIG_DEBUG_FS
@@ -236,9 +236,9 @@ static int cec_error_inj_show(struct seq_file *sf, void *unused)
 	return adap->ops->error_inj_show(adap, sf);
 }
 
-static int cec_error_inj_open(struct inode *inode, struct file *file)
+static int cec_error_inj_open(struct iyesde *iyesde, struct file *file)
 {
-	return single_open(file, cec_error_inj_show, inode->i_private);
+	return single_open(file, cec_error_inj_show, iyesde->i_private);
 }
 
 static const struct file_operations cec_error_inj_fops = {
@@ -289,9 +289,9 @@ struct cec_adapter *cec_allocate_adapter(const struct cec_adap_ops *ops,
 	INIT_LIST_HEAD(&adap->wait_queue);
 	init_waitqueue_head(&adap->kthread_waitq);
 
-	/* adap->devnode initialization */
-	INIT_LIST_HEAD(&adap->devnode.fhs);
-	mutex_init(&adap->devnode.lock);
+	/* adap->devyesde initialization */
+	INIT_LIST_HEAD(&adap->devyesde.fhs);
+	mutex_init(&adap->devyesde.lock);
 
 	adap->kthread = kthread_run(cec_thread_func, adap, "cec-%s", name);
 	if (IS_ERR(adap->kthread)) {
@@ -346,7 +346,7 @@ int cec_register_adapter(struct cec_adapter *adap,
 		return -EINVAL;
 
 	adap->owner = parent->driver->owner;
-	adap->devnode.dev.parent = parent;
+	adap->devyesde.dev.parent = parent;
 
 #ifdef CONFIG_MEDIA_CEC_RC
 	if (adap->capabilities & CEC_CAP_RC) {
@@ -363,7 +363,7 @@ int cec_register_adapter(struct cec_adapter *adap,
 	}
 #endif
 
-	res = cec_devnode_register(&adap->devnode, adap->owner);
+	res = cec_devyesde_register(&adap->devyesde, adap->owner);
 	if (res) {
 #ifdef CONFIG_MEDIA_CEC_RC
 		/* Note: rc_unregister also calls rc_free */
@@ -373,17 +373,17 @@ int cec_register_adapter(struct cec_adapter *adap,
 		return res;
 	}
 
-	dev_set_drvdata(&adap->devnode.dev, adap);
+	dev_set_drvdata(&adap->devyesde.dev, adap);
 #ifdef CONFIG_DEBUG_FS
 	if (!top_cec_dir)
 		return 0;
 
-	adap->cec_dir = debugfs_create_dir(dev_name(&adap->devnode.dev), top_cec_dir);
+	adap->cec_dir = debugfs_create_dir(dev_name(&adap->devyesde.dev), top_cec_dir);
 	if (IS_ERR_OR_NULL(adap->cec_dir)) {
 		pr_warn("cec-%s: Failed to create debugfs dir\n", adap->name);
 		return 0;
 	}
-	adap->status_file = debugfs_create_devm_seqfile(&adap->devnode.dev,
+	adap->status_file = debugfs_create_devm_seqfile(&adap->devyesde.dev,
 		"status", adap->cec_dir, cec_adap_status);
 	if (IS_ERR_OR_NULL(adap->status_file)) {
 		pr_warn("cec-%s: Failed to create status file\n", adap->name);
@@ -416,10 +416,10 @@ void cec_unregister_adapter(struct cec_adapter *adap)
 #endif
 	debugfs_remove_recursive(adap->cec_dir);
 #ifdef CONFIG_CEC_NOTIFIER
-	if (adap->notifier)
-		cec_notifier_unregister(adap->notifier);
+	if (adap->yestifier)
+		cec_yestifier_unregister(adap->yestifier);
 #endif
-	cec_devnode_unregister(adap);
+	cec_devyesde_unregister(adap);
 }
 EXPORT_SYMBOL_GPL(cec_unregister_adapter);
 
@@ -442,7 +442,7 @@ EXPORT_SYMBOL_GPL(cec_delete_adapter);
 /*
  *	Initialise cec for linux
  */
-static int __init cec_devnode_init(void)
+static int __init cec_devyesde_init(void)
 {
 	int ret = alloc_chrdev_region(&cec_dev_t, 0, CEC_NUM_DEVICES, CEC_NAME);
 
@@ -469,16 +469,16 @@ static int __init cec_devnode_init(void)
 	return 0;
 }
 
-static void __exit cec_devnode_exit(void)
+static void __exit cec_devyesde_exit(void)
 {
 	debugfs_remove_recursive(top_cec_dir);
 	bus_unregister(&cec_bus_type);
 	unregister_chrdev_region(cec_dev_t, CEC_NUM_DEVICES);
 }
 
-subsys_initcall(cec_devnode_init);
-module_exit(cec_devnode_exit)
+subsys_initcall(cec_devyesde_init);
+module_exit(cec_devyesde_exit)
 
 MODULE_AUTHOR("Hans Verkuil <hans.verkuil@cisco.com>");
-MODULE_DESCRIPTION("Device node registration for cec drivers");
+MODULE_DESCRIPTION("Device yesde registration for cec drivers");
 MODULE_LICENSE("GPL");

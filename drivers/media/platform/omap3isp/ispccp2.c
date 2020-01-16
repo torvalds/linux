@@ -226,7 +226,7 @@ static int ccp2_phyif_config(struct isp_ccp2_device *ccp2,
 	val = isp_reg_readl(isp, OMAP3_ISP_IOMEM_CCP2, ISPCCP2_CTRL);
 	if (!(val & ISPCCP2_CTRL_MODE)) {
 		if (buscfg->ccp2_mode == ISP_CCP2_MODE_CCP2)
-			dev_warn(isp->dev, "OMAP3 CCP2 bus not available\n");
+			dev_warn(isp->dev, "OMAP3 CCP2 bus yest available\n");
 		if (buscfg->phy_layer == ISP_CCP2_PHY_DATA_STROBE)
 			/* Strobe mode requires CCP2 */
 			return -EIO;
@@ -408,7 +408,7 @@ static int ccp2_adjust_bandwidth(struct isp_ccp2_device *ccp2)
 
 	if (timeperframe->numerator) {
 		area = ofmt->width * ofmt->height;
-		bound = div_u64(area * timeperframe->denominator,
+		bound = div_u64(area * timeperframe->deyesminator,
 				timeperframe->numerator);
 		value = min_t(u64, bound, l3_ick);
 		vpclk_div = max_t(unsigned int, l3_ick / value, vpclk_div);
@@ -449,7 +449,7 @@ static void ccp2_mem_configure(struct isp_ccp2_device *ccp2,
 		       (config->hsize_count << ISPCCP2_LCM_HSIZE_SHIFT),
 		       OMAP3_ISP_IOMEM_CCP2, ISPCCP2_LCM_HSIZE);
 
-	/* Vsize, no. of lines */
+	/* Vsize, yes. of lines */
 	isp_reg_writel(isp, config->vsize_count << ISPCCP2_LCM_VSIZE_SHIFT,
 		       OMAP3_ISP_IOMEM_CCP2, ISPCCP2_LCM_VSIZE);
 
@@ -798,7 +798,7 @@ static int ccp2_set_format(struct v4l2_subdev *sd, struct v4l2_subdev_pad_config
  * @sd: ISP CCP2 V4L2 subdevice
  * @fh: V4L2 subdev file handle
  *
- * Initialize all pad formats with default values. If fh is not NULL, try
+ * Initialize all pad formats with default values. If fh is yest NULL, try
  * formats are initialized on the file handle. Otherwise active formats are
  * initialized on the device.
  */
@@ -918,7 +918,7 @@ static const struct v4l2_subdev_internal_ops ccp2_sd_internal_ops = {
 };
 
 /* --------------------------------------------------------------------------
- * ISP ccp2 video device node
+ * ISP ccp2 video device yesde
  */
 
 /*
@@ -1030,7 +1030,7 @@ int omap3isp_ccp2_register_entities(struct isp_ccp2_device *ccp2,
 {
 	int ret;
 
-	/* Register the subdev and video nodes. */
+	/* Register the subdev and video yesdes. */
 	ccp2->subdev.dev = vdev->mdev->dev;
 	ret = v4l2_device_register_subdev(vdev, &ccp2->subdev);
 	if (ret < 0)
@@ -1087,7 +1087,7 @@ static int ccp2_init_entities(struct isp_ccp2_device *ccp2)
 	/*
 	 * The CCP2 has weird line alignment requirements, possibly caused by
 	 * DPCM8 decompression. Line length for data read from memory must be a
-	 * multiple of 128 bits (16 bytes) in continuous mode (when no padding
+	 * multiple of 128 bits (16 bytes) in continuous mode (when yes padding
 	 * is present at end of lines). Additionally, if padding is used, the
 	 * padded line length must be a multiple of 32 bytes. To simplify the
 	 * implementation we use a fixed 32 bytes alignment regardless of the
@@ -1145,7 +1145,7 @@ int omap3isp_ccp2_init(struct isp_device *isp)
 				return -EPROBE_DEFER;
 			}
 			dev_dbg(isp->dev,
-				"Could not get regulator vdds_csib\n");
+				"Could yest get regulator vdds_csib\n");
 			ccp2->vdds_csib = NULL;
 		}
 		ccp2->phy = &isp->isp_csiphy2;

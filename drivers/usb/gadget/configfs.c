@@ -378,8 +378,8 @@ static int config_usb_cfg_link(
 
 	mutex_lock(&gi->lock);
 	/*
-	 * Make sure this function is from within our _this_ gadget and not
-	 * from another gadget or a random directory.
+	 * Make sure this function is from within our _this_ gadget and yest
+	 * from ayesther gadget or a random directory.
 	 * Also a function instance can only be linked once.
 	 */
 	list_for_each_entry(a_fi, &gi->available_func, cfs_list) {
@@ -1192,7 +1192,7 @@ struct config_group *usb_os_desc_prepare_interf_dir(
 }
 EXPORT_SYMBOL(usb_os_desc_prepare_interf_dir);
 
-static int configfs_do_nothing(struct usb_composite_dev *cdev)
+static int configfs_do_yesthing(struct usb_composite_dev *cdev)
 {
 	WARN_ON(1);
 	return -EINVAL;
@@ -1252,7 +1252,7 @@ static int configfs_composite_bind(struct usb_gadget *gadget,
 	ret = composite_dev_prepare(composite, cdev);
 	if (ret)
 		return ret;
-	/* and now the gadget bind */
+	/* and yesw the gadget bind */
 	ret = -EINVAL;
 
 	if (list_empty(&gi->cdev.configs)) {
@@ -1538,8 +1538,8 @@ static struct config_group *gadgets_make(
 			&os_desc_type);
 	configfs_add_default_group(&gi->os_desc_group, &gi->group);
 
-	gi->composite.bind = configfs_do_nothing;
-	gi->composite.unbind = configfs_do_nothing;
+	gi->composite.bind = configfs_do_yesthing;
+	gi->composite.unbind = configfs_do_yesthing;
 	gi->composite.suspend = NULL;
 	gi->composite.resume = NULL;
 	gi->composite.max_speed = USB_SPEED_SUPER;

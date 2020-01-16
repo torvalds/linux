@@ -125,7 +125,7 @@ static u32 add_dword(u32 **p_buffer, u32 value, u32 *used, u32 *avail)
  *
  * this routine verifies that the ROM OEM string is 'COMPAQ'
  *
- * returns 0 for non-Compaq ROM, 1 for Compaq ROM
+ * returns 0 for yesn-Compaq ROM, 1 for Compaq ROM
  */
 static int check_for_compaq_ROM(void __iomem *rom_start)
 {
@@ -427,10 +427,10 @@ int compaq_nvram_load(void __iomem *rom_start, struct controller *ctrl)
 	u8 nummem, numpmem, numio, numbus;
 	u32 rc;
 	u8 *p_byte;
-	struct pci_resource *mem_node;
-	struct pci_resource *p_mem_node;
-	struct pci_resource *io_node;
-	struct pci_resource *bus_node;
+	struct pci_resource *mem_yesde;
+	struct pci_resource *p_mem_yesde;
+	struct pci_resource *io_yesde;
+	struct pci_resource *bus_yesde;
 	struct ev_hrt_ctrl *p_ev_ctrl;
 	struct ev_hrt_header *p_EV_header;
 
@@ -442,7 +442,7 @@ int compaq_nvram_load(void __iomem *rom_start, struct controller *ctrl)
 		evbuffer_init = 1;
 	}
 
-	/* If we saved information in NVRAM, use it now */
+	/* If we saved information in NVRAM, use it yesw */
 	p_EV_header = (struct ev_hrt_header *) evbuffer;
 
 	/* The following code is for systems where version 1.0 of this
@@ -507,113 +507,113 @@ int compaq_nvram_load(void __iomem *rom_start, struct controller *ctrl)
 			return 2;
 
 		while (nummem--) {
-			mem_node = kmalloc(sizeof(struct pci_resource), GFP_KERNEL);
+			mem_yesde = kmalloc(sizeof(struct pci_resource), GFP_KERNEL);
 
-			if (!mem_node)
+			if (!mem_yesde)
 				break;
 
-			mem_node->base = *(u32 *)p_byte;
-			dbg("mem base = %8.8x\n", mem_node->base);
+			mem_yesde->base = *(u32 *)p_byte;
+			dbg("mem base = %8.8x\n", mem_yesde->base);
 			p_byte += 4;
 
 			if (p_byte > ((u8 *)p_EV_header + evbuffer_length)) {
-				kfree(mem_node);
+				kfree(mem_yesde);
 				return 2;
 			}
 
-			mem_node->length = *(u32 *)p_byte;
-			dbg("mem length = %8.8x\n", mem_node->length);
+			mem_yesde->length = *(u32 *)p_byte;
+			dbg("mem length = %8.8x\n", mem_yesde->length);
 			p_byte += 4;
 
 			if (p_byte > ((u8 *)p_EV_header + evbuffer_length)) {
-				kfree(mem_node);
+				kfree(mem_yesde);
 				return 2;
 			}
 
-			mem_node->next = ctrl->mem_head;
-			ctrl->mem_head = mem_node;
+			mem_yesde->next = ctrl->mem_head;
+			ctrl->mem_head = mem_yesde;
 		}
 
 		while (numpmem--) {
-			p_mem_node = kmalloc(sizeof(struct pci_resource), GFP_KERNEL);
+			p_mem_yesde = kmalloc(sizeof(struct pci_resource), GFP_KERNEL);
 
-			if (!p_mem_node)
+			if (!p_mem_yesde)
 				break;
 
-			p_mem_node->base = *(u32 *)p_byte;
-			dbg("pre-mem base = %8.8x\n", p_mem_node->base);
+			p_mem_yesde->base = *(u32 *)p_byte;
+			dbg("pre-mem base = %8.8x\n", p_mem_yesde->base);
 			p_byte += 4;
 
 			if (p_byte > ((u8 *)p_EV_header + evbuffer_length)) {
-				kfree(p_mem_node);
+				kfree(p_mem_yesde);
 				return 2;
 			}
 
-			p_mem_node->length = *(u32 *)p_byte;
-			dbg("pre-mem length = %8.8x\n", p_mem_node->length);
+			p_mem_yesde->length = *(u32 *)p_byte;
+			dbg("pre-mem length = %8.8x\n", p_mem_yesde->length);
 			p_byte += 4;
 
 			if (p_byte > ((u8 *)p_EV_header + evbuffer_length)) {
-				kfree(p_mem_node);
+				kfree(p_mem_yesde);
 				return 2;
 			}
 
-			p_mem_node->next = ctrl->p_mem_head;
-			ctrl->p_mem_head = p_mem_node;
+			p_mem_yesde->next = ctrl->p_mem_head;
+			ctrl->p_mem_head = p_mem_yesde;
 		}
 
 		while (numio--) {
-			io_node = kmalloc(sizeof(struct pci_resource), GFP_KERNEL);
+			io_yesde = kmalloc(sizeof(struct pci_resource), GFP_KERNEL);
 
-			if (!io_node)
+			if (!io_yesde)
 				break;
 
-			io_node->base = *(u32 *)p_byte;
-			dbg("io base = %8.8x\n", io_node->base);
+			io_yesde->base = *(u32 *)p_byte;
+			dbg("io base = %8.8x\n", io_yesde->base);
 			p_byte += 4;
 
 			if (p_byte > ((u8 *)p_EV_header + evbuffer_length)) {
-				kfree(io_node);
+				kfree(io_yesde);
 				return 2;
 			}
 
-			io_node->length = *(u32 *)p_byte;
-			dbg("io length = %8.8x\n", io_node->length);
+			io_yesde->length = *(u32 *)p_byte;
+			dbg("io length = %8.8x\n", io_yesde->length);
 			p_byte += 4;
 
 			if (p_byte > ((u8 *)p_EV_header + evbuffer_length)) {
-				kfree(io_node);
+				kfree(io_yesde);
 				return 2;
 			}
 
-			io_node->next = ctrl->io_head;
-			ctrl->io_head = io_node;
+			io_yesde->next = ctrl->io_head;
+			ctrl->io_head = io_yesde;
 		}
 
 		while (numbus--) {
-			bus_node = kmalloc(sizeof(struct pci_resource), GFP_KERNEL);
+			bus_yesde = kmalloc(sizeof(struct pci_resource), GFP_KERNEL);
 
-			if (!bus_node)
+			if (!bus_yesde)
 				break;
 
-			bus_node->base = *(u32 *)p_byte;
+			bus_yesde->base = *(u32 *)p_byte;
 			p_byte += 4;
 
 			if (p_byte > ((u8 *)p_EV_header + evbuffer_length)) {
-				kfree(bus_node);
+				kfree(bus_yesde);
 				return 2;
 			}
 
-			bus_node->length = *(u32 *)p_byte;
+			bus_yesde->length = *(u32 *)p_byte;
 			p_byte += 4;
 
 			if (p_byte > ((u8 *)p_EV_header + evbuffer_length)) {
-				kfree(bus_node);
+				kfree(bus_yesde);
 				return 2;
 			}
 
-			bus_node->next = ctrl->bus_head;
-			ctrl->bus_head = bus_node;
+			bus_yesde->next = ctrl->bus_head;
+			ctrl->bus_head = bus_yesde;
 		}
 
 		/* If all of the following fail, we don't have any resources for

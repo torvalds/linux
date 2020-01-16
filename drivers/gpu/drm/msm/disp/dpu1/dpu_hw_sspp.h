@@ -47,7 +47,7 @@ enum {
  * DPU_SSPP_RECT_1 - rect1 of a multirect pipe
  *
  * Note: HW supports multirect with either RECT0 or
- * RECT1. Considering no benefit of such configs over
+ * RECT1. Considering yes benefit of such configs over
  * SOLO mode and to keep the plane management simple,
  * we dont support single rect multirect configs.
  */
@@ -93,7 +93,7 @@ struct dpu_hw_sharp_cfg {
 	u32 strength;
 	u32 edge_thr;
 	u32 smooth_thr;
-	u32 noise_thr;
+	u32 yesise_thr;
 };
 
 struct dpu_hw_pixel_ext {

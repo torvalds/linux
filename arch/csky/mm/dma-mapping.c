@@ -4,7 +4,7 @@
 #include <linux/cache.h>
 #include <linux/dma-mapping.h>
 #include <linux/dma-contiguous.h>
-#include <linux/dma-noncoherent.h>
+#include <linux/dma-yesncoherent.h>
 #include <linux/genalloc.h>
 #include <linux/highmem.h>
 #include <linux/io.h>

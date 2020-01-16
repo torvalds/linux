@@ -16,7 +16,7 @@ static void putc(const char c)
 	int i;
 
 	for (i = 0; i < 0x1000; i++) {
-		/* Transmit fifo not full? */
+		/* Transmit fifo yest full? */
 		if (*UART_LSR & LSR_THRE)
 			break;
 	}
@@ -29,6 +29,6 @@ static void flush(void)
 }
 
 /*
- * nothing to do
+ * yesthing to do
  */
 #define arch_decomp_setup()

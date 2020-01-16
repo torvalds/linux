@@ -9,7 +9,7 @@ Required properties:
 Optional properties:
 - backlight: phandle of the backlight device attached to the panel
 
-Optional nodes:
+Optional yesdes:
 - Video port for LVDS panel input.
 
 Example:

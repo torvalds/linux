@@ -339,7 +339,7 @@
 			#size-cells = <1>;
 			ranges = <0x0 0x66000 0x1000>;
 
-			/* mmu_dsp cannot be moved before reset driver */
+			/* mmu_dsp canyest be moved before reset driver */
 			status = "disabled";
 		};
 	};
@@ -2228,7 +2228,7 @@
 			ti,sysc-mask = <(SYSC_OMAP2_SOFTRESET |
 					 SYSC_OMAP2_AUTOIDLE)>;
 			ti,syss-mask = <1>;
-			ti,no-reset-on-init;
+			ti,yes-reset-on-init;
 			/* Domains (V, P, C): core, l4per_pwrdm, l4_per_clkdm */
 			clocks = <&l4_per_clkctrl OMAP4_HDQ1W_CLKCTRL 0>;
 			clock-names = "fck";

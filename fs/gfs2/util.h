@@ -59,11 +59,11 @@ int gfs2_consist_i(struct gfs2_sbd *sdp, int cluster_wide,
 gfs2_consist_i((sdp), 0, __func__, __FILE__, __LINE__)
 
 
-int gfs2_consist_inode_i(struct gfs2_inode *ip, int cluster_wide,
+int gfs2_consist_iyesde_i(struct gfs2_iyesde *ip, int cluster_wide,
 			 const char *function, char *file, unsigned int line);
 
-#define gfs2_consist_inode(ip) \
-gfs2_consist_inode_i((ip), 0, __func__, __FILE__, __LINE__)
+#define gfs2_consist_iyesde(ip) \
+gfs2_consist_iyesde_i((ip), 0, __func__, __FILE__, __LINE__)
 
 
 int gfs2_consist_rgrpd_i(struct gfs2_rgrpd *rgd, int cluster_wide,
@@ -146,7 +146,7 @@ gfs2_io_error_bh_i((sdp), (bh), __func__, __FILE__, __LINE__, false);
 
 extern struct kmem_cache *gfs2_glock_cachep;
 extern struct kmem_cache *gfs2_glock_aspace_cachep;
-extern struct kmem_cache *gfs2_inode_cachep;
+extern struct kmem_cache *gfs2_iyesde_cachep;
 extern struct kmem_cache *gfs2_bufdata_cachep;
 extern struct kmem_cache *gfs2_rgrpd_cachep;
 extern struct kmem_cache *gfs2_quotad_cachep;

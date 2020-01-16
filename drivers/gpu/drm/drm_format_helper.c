@@ -30,7 +30,7 @@ static unsigned int clip_offset(struct drm_rect *clip,
  * @fb: DRM framebuffer
  * @clip: Clip rectangle area to copy
  *
- * This function does not apply clipping on dst, i.e. the destination
+ * This function does yest apply clipping on dst, i.e. the destination
  * is a small buffer containing the clip rect only.
  */
 void drm_fb_memcpy(void *dst, void *vaddr, struct drm_framebuffer *fb,
@@ -142,7 +142,7 @@ static void drm_fb_xrgb8888_to_rgb565_line(u16 *dbuf, u32 *sbuf,
  * Drivers can use this function for RGB565 devices that don't natively
  * support XRGB8888.
  *
- * This function does not apply clipping on dst, i.e. the destination
+ * This function does yest apply clipping on dst, i.e. the destination
  * is a small buffer containing the clip rect only.
  */
 void drm_fb_xrgb8888_to_rgb565(void *dst, void *vaddr,
@@ -275,11 +275,11 @@ EXPORT_SYMBOL(drm_fb_xrgb8888_to_rgb888_dstclip);
  * @fb: DRM framebuffer
  * @clip: Clip rectangle area to copy
  *
- * Drm doesn't have native monochrome or grayscale support.
- * Such drivers can announce the commonly supported XR24 format to userspace
+ * Drm doesn't have native moyeschrome or grayscale support.
+ * Such drivers can anyesunce the commonly supported XR24 format to userspace
  * and use this function to convert to the native format.
  *
- * Monochrome drivers will use the most significant bit,
+ * Moyeschrome drivers will use the most significant bit,
  * where 1 means foreground color and 0 background color.
  *
  * ITU BT.601 is used for the RGB -> luma (brightness) conversion.

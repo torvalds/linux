@@ -47,9 +47,9 @@ void update_cache(struct vm_area_struct *vma, unsigned long address,
 	int dirty = !test_and_set_bit(PG_dc_clean, &page->flags);
 
 	/*
-	 * Since icaches do not snoop for updated data on OpenRISC, we
+	 * Since icaches do yest syesop for updated data on OpenRISC, we
 	 * must write back and invalidate any dirty pages manually. We
-	 * can skip data pages, since they will not end up in icaches.
+	 * can skip data pages, since they will yest end up in icaches.
 	 */
 	if ((vma->vm_flags & VM_EXEC) && dirty)
 		sync_icache_dcache(page);

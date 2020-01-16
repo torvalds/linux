@@ -12,7 +12,7 @@
  * and to permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -112,7 +112,7 @@ struct blkif_x86_32_request_indirect {
 	 * The maximum number of indirect segments (and pages) that will
 	 * be used is determined by MAX_INDIRECT_SEGMENTS, this value
 	 * is also exported to the guest (via xenstore
-	 * feature-max-indirect-segments entry), so the frontend knows how
+	 * feature-max-indirect-segments entry), so the frontend kyesws how
 	 * many indirect segments the backend supports.
 	 */
 	uint64_t       _pad2;        /* make it 64 byte aligned */
@@ -168,7 +168,7 @@ struct blkif_x86_64_request_indirect {
 	 * The maximum number of indirect segments (and pages) that will
 	 * be used is determined by MAX_INDIRECT_SEGMENTS, this value
 	 * is also exported to the guest (via xenstore
-	 * feature-max-indirect-segments entry), so the frontend knows how
+	 * feature-max-indirect-segments entry), so the frontend kyesws how
 	 * many indirect segments the backend supports.
 	 */
 	uint32_t       _pad3;        /* make it 64 byte aligned */
@@ -242,8 +242,8 @@ struct persistent_gnt {
 	grant_handle_t handle;
 	unsigned long last_used;
 	bool active;
-	struct rb_node node;
-	struct list_head remove_node;
+	struct rb_yesde yesde;
+	struct list_head remove_yesde;
 };
 
 /* Per-ring information. */
@@ -435,7 +435,7 @@ static inline void blkif_get_x86_32_req(struct blkif_request *dst,
 		break;
 	default:
 		/*
-		 * Don't know how to translate this op. Only get the
+		 * Don't kyesw how to translate this op. Only get the
 		 * ID so failure can be reported to the frontend.
 		 */
 		dst->u.other.id = src->u.other.id;
@@ -483,7 +483,7 @@ static inline void blkif_get_x86_64_req(struct blkif_request *dst,
 		break;
 	default:
 		/*
-		 * Don't know how to translate this op. Only get the
+		 * Don't kyesw how to translate this op. Only get the
 		 * ID so failure can be reported to the frontend.
 		 */
 		dst->u.other.id = src->u.other.id;

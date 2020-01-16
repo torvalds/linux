@@ -21,7 +21,7 @@ int sof_core_debug;
 module_param_named(sof_debug, sof_core_debug, int, 0444);
 MODULE_PARM_DESC(sof_debug, "SOF core debug options (0x0 all off)");
 
-/* SOF defaults if not provided by the platform in ms */
+/* SOF defaults if yest provided by the platform in ms */
 #define TIMEOUT_DEFAULT_IPC_MS  500
 #define TIMEOUT_DEFAULT_BOOT_MS 2000
 
@@ -137,8 +137,8 @@ bool snd_sof_dsp_d0i3_on_suspend(struct snd_sof_dev *sdev)
 	struct snd_sof_pcm *spcm;
 
 	list_for_each_entry(spcm, &sdev->pcm_list, list) {
-		if (spcm->stream[SNDRV_PCM_STREAM_PLAYBACK].suspend_ignored ||
-		    spcm->stream[SNDRV_PCM_STREAM_CAPTURE].suspend_ignored)
+		if (spcm->stream[SNDRV_PCM_STREAM_PLAYBACK].suspend_igyesred ||
+		    spcm->stream[SNDRV_PCM_STREAM_CAPTURE].suspend_igyesred)
 			return true;
 	}
 
@@ -187,7 +187,7 @@ void snd_sof_get_status(struct snd_sof_dev *sdev, u32 panic_code,
 	if ((panic_code & SOF_IPC_PANIC_MAGIC_MASK) != SOF_IPC_PANIC_MAGIC) {
 		dev_err(sdev->dev, "error: unexpected fault 0x%8.8x trace 0x%8.8x\n",
 			panic_code, tracep_code);
-		return; /* no fault ? */
+		return; /* yes fault ? */
 	}
 
 	code = panic_code & (SOF_IPC_PANIC_MAGIC_MASK | SOF_IPC_PANIC_CODE_MASK);
@@ -201,8 +201,8 @@ void snd_sof_get_status(struct snd_sof_dev *sdev, u32 panic_code,
 		}
 	}
 
-	/* unknown error */
-	dev_err(sdev->dev, "error: unknown reason %8.8x\n", panic_code);
+	/* unkyeswn error */
+	dev_err(sdev->dev, "error: unkyeswn reason %8.8x\n", panic_code);
 	dev_err(sdev->dev, "error: trace point %8.8x\n", tracep_code);
 
 out:
@@ -286,16 +286,16 @@ static int sof_machine_check(struct snd_sof_dev *sdev)
 		return 0;
 
 #if !IS_ENABLED(CONFIG_SND_SOC_SOF_NOCODEC)
-	dev_err(sdev->dev, "error: no matching ASoC machine driver found - aborting probe\n");
+	dev_err(sdev->dev, "error: yes matching ASoC machine driver found - aborting probe\n");
 	return -ENODEV;
 #else
-	/* fallback to nocodec mode */
-	dev_warn(sdev->dev, "No ASoC machine driver found - using nocodec\n");
+	/* fallback to yescodec mode */
+	dev_warn(sdev->dev, "No ASoC machine driver found - using yescodec\n");
 	machine = devm_kzalloc(sdev->dev, sizeof(*machine), GFP_KERNEL);
 	if (!machine)
 		return -ENOMEM;
 
-	ret = sof_nocodec_setup(sdev->dev, plat_data, machine,
+	ret = sof_yescodec_setup(sdev->dev, plat_data, machine,
 				plat_data->desc, plat_data->desc->ops);
 	if (ret < 0)
 		return ret;
@@ -337,7 +337,7 @@ static int sof_probe_continue(struct snd_sof_dev *sdev)
 	if (ret < 0) {
 		/*
 		 * debugfs issues are suppressed in snd_sof_dbg_init() since
-		 * we cannot rely on debugfs
+		 * we canyest rely on debugfs
 		 * here we trap errors due to memory allocation only.
 		 */
 		dev_err(sdev->dev, "error: failed to init DSP trace/debug %d\n",
@@ -375,7 +375,7 @@ static int sof_probe_continue(struct snd_sof_dev *sdev)
 		/* init DMA trace */
 		ret = snd_sof_init_trace(sdev);
 		if (ret < 0) {
-			/* non fatal */
+			/* yesn fatal */
 			dev_warn(sdev->dev,
 				 "warning: failed to initialize trace %d\n",
 				 ret);
@@ -387,7 +387,7 @@ static int sof_probe_continue(struct snd_sof_dev *sdev)
 	/* hereafter all FW boot flows are for PM reasons */
 	sdev->first_boot = false;
 
-	/* now register audio DSP platform driver and dai */
+	/* yesw register audio DSP platform driver and dai */
 	ret = devm_snd_soc_register_component(sdev->dev, &sdev->plat_drv,
 					      sof_ops(sdev)->drv,
 					      sof_ops(sdev)->num_drv);
@@ -432,7 +432,7 @@ dbg_err:
 
 	/*
 	 * when the probe_continue is handled in a work queue, the
-	 * probe does not fail so we don't release resources here.
+	 * probe does yest fail so we don't release resources here.
 	 * They will be released with an explicit call to
 	 * snd_sof_device_remove() when the PCI/ACPI device is removed
 	 */
@@ -455,7 +455,7 @@ static void sof_probe_work(struct work_struct *work)
 
 	ret = sof_probe_continue(sdev);
 	if (ret < 0) {
-		/* errors cannot be propagated, log */
+		/* errors canyest be propagated, log */
 		dev_err(sdev->dev, "error: %s failed err: %d\n", __func__, ret);
 	}
 }
@@ -497,7 +497,7 @@ int snd_sof_device_probe(struct device *dev, struct snd_sof_pdata *plat_data)
 	if (IS_ENABLED(CONFIG_SND_SOC_SOF_PROBE_WORK_QUEUE))
 		INIT_WORK(&sdev->probe_work, sof_probe_work);
 
-	/* set default timeouts if none provided */
+	/* set default timeouts if yesne provided */
 	if (plat_data->desc->ipc_timeout == 0)
 		sdev->ipc_timeout = TIMEOUT_DEFAULT_IPC_MS;
 	else

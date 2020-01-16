@@ -1,11 +1,11 @@
 .. Permission is granted to copy, distribute and/or modify this
 .. document under the terms of the GNU Free Documentation License,
 .. Version 1.1 or any later version published by the Free Software
-.. Foundation, with no Invariant Sections, no Front-Cover Texts
-.. and no Back-Cover Texts. A copy of the license is included at
+.. Foundation, with yes Invariant Sections, yes Front-Cover Texts
+.. and yes Back-Cover Texts. A copy of the license is included at
 .. Documentation/media/uapi/fdl-appendix.rst.
 ..
-.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
+.. TODO: replace it to GFDL-1.1-or-later WITH yes-invariant-sections
 
 .. _lirc-write:
 
@@ -19,7 +19,7 @@ Name
 lirc-write - Write to a LIRC device
 
 
-Synopsis
+Syyespsis
 ========
 
 .. code-block:: c
@@ -66,8 +66,8 @@ When in :ref:`LIRC_MODE_SCANCODE <lirc-mode-scancode>` mode, one
 ``EINVAL`` is returned. Set the desired scancode in the ``scancode`` member,
 and the :ref:`IR protocol <Remote_controllers_Protocols>` in the
 :c:type:`rc_proto`: member. All other members must be
-set to 0, else ``EINVAL`` is returned. If there is no protocol encoder
-for the protocol or the scancode is not valid for the specified protocol,
+set to 0, else ``EINVAL`` is returned. If there is yes protocol encoder
+for the protocol or the scancode is yest valid for the specified protocol,
 ``EINVAL`` is returned. The write function blocks until the scancode
 is transmitted by the hardware.
 
@@ -75,8 +75,8 @@ is transmitted by the hardware.
 Return Value
 ============
 
-On success, the number of bytes written is returned. It is not an error if
+On success, the number of bytes written is returned. It is yest an error if
 this number is smaller than the number of bytes requested, or the amount
-of data required for one frame.  On error, -1 is returned, and the ``errno``
+of data required for one frame.  On error, -1 is returned, and the ``erryes``
 variable is set appropriately. The generic error codes are described at the
 :ref:`Generic Error Codes <gen-errors>` chapter.

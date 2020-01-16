@@ -1,27 +1,27 @@
-* Exynos Thermal Management Unit (TMU)
+* Exyyess Thermal Management Unit (TMU)
 
 ** Required properties:
 
 - compatible : One of the following:
-	       "samsung,exynos3250-tmu"
-	       "samsung,exynos4412-tmu"
-	       "samsung,exynos4210-tmu"
-	       "samsung,exynos5250-tmu"
-	       "samsung,exynos5260-tmu"
-	       "samsung,exynos5420-tmu" for TMU channel 0, 1 on Exynos5420
-	       "samsung,exynos5420-tmu-ext-triminfo" for TMU channels 2, 3 and 4
-			Exynos5420 (Must pass triminfo base and triminfo clock)
-               "samsung,exynos5433-tmu"
-	       "samsung,exynos7-tmu"
+	       "samsung,exyyess3250-tmu"
+	       "samsung,exyyess4412-tmu"
+	       "samsung,exyyess4210-tmu"
+	       "samsung,exyyess5250-tmu"
+	       "samsung,exyyess5260-tmu"
+	       "samsung,exyyess5420-tmu" for TMU channel 0, 1 on Exyyess5420
+	       "samsung,exyyess5420-tmu-ext-triminfo" for TMU channels 2, 3 and 4
+			Exyyess5420 (Must pass triminfo base and triminfo clock)
+               "samsung,exyyess5433-tmu"
+	       "samsung,exyyess7-tmu"
 - reg : Address range of the thermal registers. For soc's which has multiple
 	instances of TMU and some registers are shared across all TMU's like
 	interrupt related then 2 set of register has to supplied. First set
 	belongs	to register set of TMU instance and second set belongs to
 	registers shared with the TMU instance.
 
-  NOTE: On Exynos5420, the TRIMINFO register is misplaced for TMU
+  NOTE: On Exyyess5420, the TRIMINFO register is misplaced for TMU
 	channels 2, 3 and 4
-	Use "samsung,exynos5420-tmu-ext-triminfo" in cases, there is a misplaced
+	Use "samsung,exyyess5420-tmu-ext-triminfo" in cases, there is a misplaced
 	register, also provide clock to access that base.
 
 	TRIMINFO at 0x1006c000 contains data for TMU channel 3
@@ -40,35 +40,35 @@
 	-- "tmu_sclk" clock for functional operation of the current TMU
 		channel
 
-The Exynos TMU supports generating interrupts when reaching given
+The Exyyess TMU supports generating interrupts when reaching given
 temperature thresholds. Number of supported thermal trip points depends
 on the SoC (only first trip points defined in DT will be configured):
  - most of SoC: 4
- - samsung,exynos5433-tmu: 8
- - samsung,exynos7-tmu: 8
+ - samsung,exyyess5433-tmu: 8
+ - samsung,exyyess7-tmu: 8
 
 ** Optional properties:
 
-- vtmu-supply: This entry is optional and provides the regulator node supplying
+- vtmu-supply: This entry is optional and provides the regulator yesde supplying
 		voltage to TMU. If needed this entry can be placed inside
 		board/platform specific dts file.
 
 Example 1):
 
 	tmu@100c0000 {
-		compatible = "samsung,exynos4412-tmu";
+		compatible = "samsung,exyyess4412-tmu";
 		interrupt-parent = <&combiner>;
 		reg = <0x100C0000 0x100>;
 		interrupts = <2 4>;
 		clocks = <&clock 383>;
 		clock-names = "tmu_apbif";
-		vtmu-supply = <&tmu_regulator_node>;
+		vtmu-supply = <&tmu_regulator_yesde>;
 		#thermal-sensor-cells = <0>;
 	};
 
-Example 2): (In case of Exynos5420 "with misplaced TRIMINFO register")
+Example 2): (In case of Exyyess5420 "with misplaced TRIMINFO register")
 	tmu_cpu2: tmu@10068000 {
-		compatible = "samsung,exynos5420-tmu-ext-triminfo";
+		compatible = "samsung,exyyess5420-tmu-ext-triminfo";
 		reg = <0x10068000 0x100>, <0x1006c000 0x4>;
 		interrupts = <0 184 0>;
 		clocks = <&clock 318>, <&clock 318>;
@@ -77,7 +77,7 @@ Example 2): (In case of Exynos5420 "with misplaced TRIMINFO register")
 	};
 
 	tmu_cpu3: tmu@1006c000 {
-		compatible = "samsung,exynos5420-tmu-ext-triminfo";
+		compatible = "samsung,exyyess5420-tmu-ext-triminfo";
 		reg = <0x1006c000 0x100>, <0x100a0000 0x4>;
 		interrupts = <0 185 0>;
 		clocks = <&clock 318>, <&clock 319>;
@@ -86,7 +86,7 @@ Example 2): (In case of Exynos5420 "with misplaced TRIMINFO register")
 	};
 
 	tmu_gpu: tmu@100a0000 {
-		compatible = "samsung,exynos5420-tmu-ext-triminfo";
+		compatible = "samsung,exyyess5420-tmu-ext-triminfo";
 		reg = <0x100a0000 0x100>, <0x10068000 0x4>;
 		interrupts = <0 215 0>;
 		clocks = <&clock 319>, <&clock 318>;
@@ -95,7 +95,7 @@ Example 2): (In case of Exynos5420 "with misplaced TRIMINFO register")
 	};
 
 Note: For multi-instance tmu each instance should have an alias correctly
-numbered in "aliases" node.
+numbered in "aliases" yesde.
 
 Example:
 

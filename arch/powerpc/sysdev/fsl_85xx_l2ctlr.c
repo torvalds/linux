@@ -65,12 +65,12 @@ static int mpc85xx_l2ctlr_of_probe(struct platform_device *dev)
 	unsigned int l2cache_size;
 	struct sram_parameters sram_params;
 
-	if (!dev->dev.of_node) {
-		dev_err(&dev->dev, "Device's OF-node is NULL\n");
+	if (!dev->dev.of_yesde) {
+		dev_err(&dev->dev, "Device's OF-yesde is NULL\n");
 		return -EINVAL;
 	}
 
-	prop = of_get_property(dev->dev.of_node, "cache-size", NULL);
+	prop = of_get_property(dev->dev.of_yesde, "cache-size", NULL);
 	if (!prop) {
 		dev_err(&dev->dev, "Missing L2 cache-size\n");
 		return -EINVAL;
@@ -87,7 +87,7 @@ static int mpc85xx_l2ctlr_of_probe(struct platform_device *dev)
 		return -EINVAL;
 	}
 
-	l2ctlr = of_iomap(dev->dev.of_node, 0);
+	l2ctlr = of_iomap(dev->dev.of_yesde, 0);
 	if (!l2ctlr) {
 		dev_err(&dev->dev, "Can't map L2 controller\n");
 		return -EINVAL;

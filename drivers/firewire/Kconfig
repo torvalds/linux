@@ -1,8 +1,8 @@
 # SPDX-License-Identifier: GPL-2.0-only
 menu "IEEE 1394 (FireWire) support"
 	depends on PCI || COMPILE_TEST
-	# firewire-core does not depend on PCI but is
-	# not useful without PCI controller driver
+	# firewire-core does yest depend on PCI but is
+	# yest useful without PCI controller driver
 
 config FIREWIRE
 	tristate "FireWire driver stack"
@@ -65,18 +65,18 @@ config FIREWIRE_NOSY
 
 	  This driver lets you use a Texas Instruments PCILynx 1394 to PCI
 	  link layer controller TSB12LV21/A/B as a low-budget bus analyzer.
-	  PCILynx is a nowadays very rare IEEE 1394 controller which is
-	  not OHCI 1394 compliant.
+	  PCILynx is a yeswadays very rare IEEE 1394 controller which is
+	  yest OHCI 1394 compliant.
 
-	  The following cards are known to be based on PCILynx or PCILynx-2:
+	  The following cards are kyeswn to be based on PCILynx or PCILynx-2:
 	  IOI IOI-1394TT (PCI card), Unibrain Fireboard 400 PCI Lynx-2
-	  (PCI card), Newer Technology FireWire 2 Go (CardBus card),
+	  (PCI card), Newer Techyeslogy FireWire 2 Go (CardBus card),
 	  Apple Power Mac G3 blue & white and G4 with PCI graphics
 	  (onboard controller).
 
 	  To compile this driver as a module, say M here:  The module will be
-	  called nosy.  Source code of a userspace interface to nosy, called
-	  nosy-dump, can be found in tools/firewire/ of the kernel sources.
+	  called yessy.  Source code of a userspace interface to yessy, called
+	  yessy-dump, can be found in tools/firewire/ of the kernel sources.
 
 	  If unsure, say N.
 

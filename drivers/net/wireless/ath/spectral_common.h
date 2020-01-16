@@ -3,7 +3,7 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright yestice and this permission yestice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
@@ -20,7 +20,7 @@
 #define SPECTRAL_HT20_NUM_BINS		56
 #define SPECTRAL_HT20_40_NUM_BINS		128
 
-/* TODO: could possibly be 512, but no samples this large
+/* TODO: could possibly be 512, but yes samples this large
  * could be acquired so far.
  */
 #define SPECTRAL_ATH10K_MAX_NUM_BINS		256
@@ -28,7 +28,7 @@
 /* FFT sample format given to userspace via debugfs.
  *
  * Please keep the type/length at the front position and change
- * other fields after adding another sample type
+ * other fields after adding ayesther sample type
  *
  * TODO: this might need rework when switching to nl80211-based
  * interface.
@@ -52,7 +52,7 @@ struct fft_sample_ht20 {
 
 	__be16 freq;
 	s8 rssi;
-	s8 noise;
+	s8 yesise;
 
 	__be16 max_magnitude;
 	u8 max_index;
@@ -74,8 +74,8 @@ struct fft_sample_ht20_40 {
 
 	__be64 tsf;
 
-	s8 lower_noise;
-	s8 upper_noise;
+	s8 lower_yesise;
+	s8 upper_yesise;
 
 	__be16 lower_max_magnitude;
 	__be16 upper_max_magnitude;
@@ -96,7 +96,7 @@ struct fft_sample_ath10k {
 	u8 chan_width_mhz;
 	__be16 freq1;
 	__be16 freq2;
-	__be16 noise;
+	__be16 yesise;
 	__be16 max_magnitude;
 	__be16 total_gain_db;
 	__be16 base_pwr_db;

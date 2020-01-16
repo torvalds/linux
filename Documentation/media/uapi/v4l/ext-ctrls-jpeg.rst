@@ -1,11 +1,11 @@
 .. Permission is granted to copy, distribute and/or modify this
 .. document under the terms of the GNU Free Documentation License,
 .. Version 1.1 or any later version published by the Free Software
-.. Foundation, with no Invariant Sections, no Front-Cover Texts
-.. and no Back-Cover Texts. A copy of the license is included at
+.. Foundation, with yes Invariant Sections, yes Front-Cover Texts
+.. and yes Back-Cover Texts. A copy of the license is included at
 .. Documentation/media/uapi/fdl-appendix.rst.
 ..
-.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
+.. TODO: replace it to GFDL-1.1-or-later WITH yes-invariant-sections
 
 .. _jpeg-controls:
 
@@ -66,7 +66,7 @@ JPEG Control IDs
     interval unit is MCU (Minimum Coded Unit) and its value is contained
     in DRI (Define Restart Interval) marker. If
     ``V4L2_CID_JPEG_RESTART_INTERVAL`` control is set to 0, DRI and RSTm
-    markers will not be inserted.
+    markers will yest be inserted.
 
 .. _jpeg-quality-control:
 
@@ -81,7 +81,7 @@ JPEG Control IDs
     driver to 0.
 
     The value range of this control is driver-specific. Only positive,
-    non-zero values are meaningful. The recommended range is 1 - 100,
+    yesn-zero values are meaningful. The recommended range is 1 - 100,
     where larger values correspond to better image quality.
 
 .. _jpeg-active-marker-control:

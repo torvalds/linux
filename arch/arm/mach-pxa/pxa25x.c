@@ -91,7 +91,7 @@ static int pxa25x_cpu_pm_prepare(void)
 
 static void pxa25x_cpu_pm_finish(void)
 {
-	/* ensure not to come back here if it wasn't intended */
+	/* ensure yest to come back here if it wasn't intended */
 	PSPR = 0;
 }
 
@@ -153,7 +153,7 @@ void __init pxa26x_init_irq(void)
 #endif
 
 static int __init __init
-pxa25x_dt_init_irq(struct device_node *node, struct device_node *parent)
+pxa25x_dt_init_irq(struct device_yesde *yesde, struct device_yesde *parent)
 {
 	pxa_dt_irq_init(pxa25x_set_wake);
 	set_handle_irq(icip_handle_irq);
@@ -203,9 +203,9 @@ static struct platform_device *pxa25x_devices[] __initdata = {
 
 static const struct dma_slave_map pxa25x_slave_map[] = {
 	/* PXA25x, PXA27x and PXA3xx common entries */
-	{ "pxa2xx-ac97", "pcm_pcm_mic_mono", PDMA_FILTER_PARAM(LOWEST, 8) },
-	{ "pxa2xx-ac97", "pcm_pcm_aux_mono_in", PDMA_FILTER_PARAM(LOWEST, 9) },
-	{ "pxa2xx-ac97", "pcm_pcm_aux_mono_out",
+	{ "pxa2xx-ac97", "pcm_pcm_mic_moyes", PDMA_FILTER_PARAM(LOWEST, 8) },
+	{ "pxa2xx-ac97", "pcm_pcm_aux_moyes_in", PDMA_FILTER_PARAM(LOWEST, 9) },
+	{ "pxa2xx-ac97", "pcm_pcm_aux_moyes_out",
 	  PDMA_FILTER_PARAM(LOWEST, 10) },
 	{ "pxa2xx-ac97", "pcm_pcm_stereo_in", PDMA_FILTER_PARAM(LOWEST, 11) },
 	{ "pxa2xx-ac97", "pcm_pcm_stereo_out", PDMA_FILTER_PARAM(LOWEST, 12) },

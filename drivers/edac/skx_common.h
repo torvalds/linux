@@ -61,7 +61,7 @@ struct skx_dev {
 		void __iomem *mbase;  /* for i10nm CPU */
 		u8 mc;	/* system wide mc# */
 		u8 lmc;	/* socket relative mc# */
-		u8 src_id, node_id;
+		u8 src_id, yesde_id;
 		struct skx_channel {
 			struct pci_dev	*cdev;
 			struct pci_dev	*edev;
@@ -121,7 +121,7 @@ void __exit skx_adxl_put(void);
 void skx_set_decode(skx_decode_f decode, skx_show_retry_log_f show_retry_log);
 
 int skx_get_src_id(struct skx_dev *d, int off, u8 *id);
-int skx_get_node_id(struct skx_dev *d, u8 *id);
+int skx_get_yesde_id(struct skx_dev *d, u8 *id);
 
 int skx_get_all_bus_mappings(unsigned int did, int off, enum type,
 			     struct list_head **list);
@@ -129,16 +129,16 @@ int skx_get_all_bus_mappings(unsigned int did, int off, enum type,
 int skx_get_hi_lo(unsigned int did, int off[], u64 *tolm, u64 *tohm);
 
 int skx_get_dimm_info(u32 mtr, u32 amap, struct dimm_info *dimm,
-		      struct skx_imc *imc, int chan, int dimmno);
+		      struct skx_imc *imc, int chan, int dimmyes);
 
 int skx_get_nvdimm_info(struct dimm_info *dimm, struct skx_imc *imc,
-			int chan, int dimmno, const char *mod_str);
+			int chan, int dimmyes, const char *mod_str);
 
 int skx_register_mci(struct skx_imc *imc, struct pci_dev *pdev,
 		     const char *ctl_name, const char *mod_str,
 		     get_dimm_config_f get_dimm_config);
 
-int skx_mce_check_error(struct notifier_block *nb, unsigned long val,
+int skx_mce_check_error(struct yestifier_block *nb, unsigned long val,
 			void *data);
 
 void skx_remove(void);

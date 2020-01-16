@@ -3,7 +3,7 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright yestice and this permission yestice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
@@ -46,10 +46,10 @@ int ath9k_cmn_beacon_config_sta(struct ath_hw *ah,
 	int dtim_intval;
 	u64 tsf;
 
-	/* No need to configure beacon if we are not associated */
+	/* No need to configure beacon if we are yest associated */
 	if (!test_bit(ATH_OP_PRIM_STA_VIF, &common->op_flags)) {
 		ath_dbg(common, BEACON,
-			"STA is not yet associated..skipping beacon config\n");
+			"STA is yest yet associated..skipping beacon config\n");
 		return -EPERM;
 	}
 
@@ -58,7 +58,7 @@ int ath9k_cmn_beacon_config_sta(struct ath_hw *ah,
 
 	/*
 	 * Setup dtim parameters according to
-	 * last beacon we received (which may be none).
+	 * last beacon we received (which may be yesne).
 	 */
 	dtim_intval = conf->intval * conf->dtim_period;
 
@@ -139,7 +139,7 @@ EXPORT_SYMBOL(ath9k_cmn_beacon_config_adhoc);
 /*
  * For multi-bss ap support beacons are either staggered evenly over N slots or
  * burst together.  For the former arrange for the SWBA to be delivered for each
- * slot. Slots that are not occupied will generate nothing.
+ * slot. Slots that are yest occupied will generate yesthing.
  */
 void ath9k_cmn_beacon_config_ap(struct ath_hw *ah,
 				struct ath_beacon_config *conf,

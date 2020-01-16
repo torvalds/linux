@@ -130,7 +130,7 @@ static int v3d_get_param_ioctl(struct drm_device *dev, void *data,
 		args->value = 1;
 		return 0;
 	default:
-		DRM_DEBUG("Unknown parameter %d\n", args->param);
+		DRM_DEBUG("Unkyeswn parameter %d\n", args->param);
 		return -EINVAL;
 	}
 }
@@ -174,10 +174,10 @@ v3d_postclose(struct drm_device *dev, struct drm_file *file)
 
 DEFINE_DRM_GEM_FOPS(v3d_drm_fops);
 
-/* DRM_AUTH is required on SUBMIT_CL for now, while we don't have GMP
- * protection between clients.  Note that render nodes would be be
+/* DRM_AUTH is required on SUBMIT_CL for yesw, while we don't have GMP
+ * protection between clients.  Note that render yesdes would be be
  * able to submit CLs that could access BOs from clients authenticated
- * with the master node.  The TFU doesn't use the GMP, so it would
+ * with the master yesde.  The TFU doesn't use the GMP, so it would
  * need to stay DRM_AUTH until we do buffer size/offset validation.
  */
 static const struct drm_ioctl_desc v3d_drm_ioctls[] = {
@@ -217,7 +217,7 @@ static struct drm_driver v3d_drm_driver = {
 	.desc = DRIVER_DESC,
 	.date = DRIVER_DATE,
 	.major = DRIVER_MAJOR,
-	.minor = DRIVER_MINOR,
+	.miyesr = DRIVER_MINOR,
 	.patchlevel = DRIVER_PATCHLEVEL,
 };
 
@@ -272,7 +272,7 @@ static int v3d_platform_drm_probe(struct platform_device *pdev)
 	v3d->ver = (V3D_GET_FIELD(ident1, V3D_HUB_IDENT1_TVER) * 10 +
 		    V3D_GET_FIELD(ident1, V3D_HUB_IDENT1_REV));
 	v3d->cores = V3D_GET_FIELD(ident1, V3D_HUB_IDENT1_NCORES);
-	WARN_ON(v3d->cores > 1); /* multicore not yet implemented */
+	WARN_ON(v3d->cores > 1); /* multicore yest yet implemented */
 
 	v3d->reset = devm_reset_control_get_exclusive(dev, NULL);
 	if (IS_ERR(v3d->reset)) {

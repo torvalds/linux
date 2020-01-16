@@ -14,7 +14,7 @@
 #define DST_MAXBURST			4
 #define DMA_MIN				(DST_MAXBURST * sizeof(u32))
 
-#define _calc_walked(inout) (dd->inout##_walk.offset - dd->inout##_sg->offset)
+#define _calc_walked(iyesut) (dd->iyesut##_walk.offset - dd->iyesut##_sg->offset)
 
 /*
  * OMAP TRM gives bitfields as start:end, where start is the higher bit
@@ -96,7 +96,7 @@ struct omap_aes_ctx {
 	struct crypto_engine_ctx enginectx;
 	int		keylen;
 	u32		key[AES_KEYSIZE_256 / sizeof(u32)];
-	u8		nonce[4];
+	u8		yesnce[4];
 	struct crypto_sync_skcipher	*fallback;
 	struct crypto_skcipher	*ctr;
 };
@@ -145,8 +145,8 @@ struct omap_aes_pdata {
 
 	u32		major_mask;
 	u32		major_shift;
-	u32		minor_mask;
-	u32		minor_shift;
+	u32		miyesr_mask;
+	u32		miyesr_shift;
 };
 
 struct omap_aes_dev {

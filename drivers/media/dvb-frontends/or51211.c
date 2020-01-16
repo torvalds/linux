@@ -176,8 +176,8 @@ static int or51211_setmode(struct dvb_frontend* fe, int mode)
 	 *             Automatic NTSC rejection filter
 	 *             Enable  MPEG serial data output
 	 *             MPEG2tr
-	 *             High tuner phase noise
-	 *             normal +/-150kHz Carrier acquisition range
+	 *             High tuner phase yesise
+	 *             yesrmal +/-150kHz Carrier acquisition range
 	 */
 	if (i2c_writebytes(state,state->config->demod_address,cmd_buf,3)) {
 		pr_warn("error 3\n");
@@ -301,7 +301,7 @@ static int or51211_read_snr(struct dvb_frontend* fe, u16* snr)
 	state->snr = calculate_snr(rec_buf[0], 89599047);
 	*snr = (state->snr) >> 16;
 
-	dprintk("noise = 0x%02x, snr = %d.%02d dB\n", rec_buf[0],
+	dprintk("yesise = 0x%02x, snr = %d.%02d dB\n", rec_buf[0],
 		state->snr >> 24, (((state->snr>>8) & 0xffff) * 100) >> 16);
 
 	return 0;
@@ -363,7 +363,7 @@ static int or51211_init(struct dvb_frontend* fe)
 					       OR51211_DEFAULT_FIRMWARE);
 		pr_info("Got Hotplug firmware\n");
 		if (ret) {
-			pr_warn("No firmware uploaded (timeout or file not found?)\n");
+			pr_warn("No firmware uploaded (timeout or file yest found?)\n");
 			return ret;
 		}
 
@@ -381,8 +381,8 @@ static int or51211_init(struct dvb_frontend* fe)
 		 *             Automatic NTSC rejection filter
 		 *             Enable  MPEG serial data output
 		 *             MPEG2tr
-		 *             High tuner phase noise
-		 *             normal +/-150kHz Carrier acquisition range
+		 *             High tuner phase yesise
+		 *             yesrmal +/-150kHz Carrier acquisition range
 		 */
 		if (i2c_writebytes(state,state->config->demod_address,
 				   cmd_buf,3)) {

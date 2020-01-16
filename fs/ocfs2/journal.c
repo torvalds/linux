@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /* -*- mode: c; c-basic-offset: 8; -*-
- * vim: noexpandtab sw=8 ts=8 sts=0:
+ * vim: yesexpandtab sw=8 ts=8 sts=0:
  *
  * journal.c
  *
@@ -28,7 +28,7 @@
 #include "dlmglue.h"
 #include "extent_map.h"
 #include "heartbeat.h"
-#include "inode.h"
+#include "iyesde.h"
 #include "journal.h"
 #include "localalloc.h"
 #include "slot_map.h"
@@ -46,9 +46,9 @@ DEFINE_SPINLOCK(trans_inc_lock);
 
 #define ORPHAN_SCAN_SCHEDULE_TIMEOUT 300000
 
-static int ocfs2_force_read_journal(struct inode *inode);
-static int ocfs2_recover_node(struct ocfs2_super *osb,
-			      int node_num, int slot_num);
+static int ocfs2_force_read_journal(struct iyesde *iyesde);
+static int ocfs2_recover_yesde(struct ocfs2_super *osb,
+			      int yesde_num, int slot_num);
 static int __ocfs2_recovery_thread(void *arg);
 static int ocfs2_commit_cache(struct ocfs2_super *osb);
 static int __ocfs2_wait_on_mount(struct ocfs2_super *osb, int quota);
@@ -62,8 +62,8 @@ static int ocfs2_recover_orphans(struct ocfs2_super *osb,
 static int ocfs2_commit_thread(void *arg);
 static void ocfs2_queue_recovery_completion(struct ocfs2_journal *journal,
 					    int slot_num,
-					    struct ocfs2_dinode *la_dinode,
-					    struct ocfs2_dinode *tl_dinode,
+					    struct ocfs2_diyesde *la_diyesde,
+					    struct ocfs2_diyesde *tl_diyesde,
 					    struct ocfs2_quota_recovery *qrec,
 					    enum ocfs2_orphan_reco_type orphan_reco_type);
 
@@ -83,7 +83,7 @@ static inline int ocfs2_wait_on_quotas(struct ocfs2_super *osb)
  */
 
 enum ocfs2_replay_state {
-	REPLAY_UNNEEDED = 0,	/* Replay is not needed, so ignore this map */
+	REPLAY_UNNEEDED = 0,	/* Replay is yest needed, so igyesre this map */
 	REPLAY_NEEDED, 		/* Replay slots marked in rm_replay_slots */
 	REPLAY_DONE 		/* Replay was already queued */
 };
@@ -109,7 +109,7 @@ static void ocfs2_replay_map_set_state(struct ocfs2_super *osb, int state)
 int ocfs2_compute_replay_slots(struct ocfs2_super *osb)
 {
 	struct ocfs2_replay_map *replay_map;
-	int i, node_num;
+	int i, yesde_num;
 
 	/* If replay map is already set, we don't do it again */
 	if (osb->replay_map)
@@ -119,7 +119,7 @@ int ocfs2_compute_replay_slots(struct ocfs2_super *osb)
 			     (osb->max_slots * sizeof(char)), GFP_KERNEL);
 
 	if (!replay_map) {
-		mlog_errno(-ENOMEM);
+		mlog_erryes(-ENOMEM);
 		return -ENOMEM;
 	}
 
@@ -130,7 +130,7 @@ int ocfs2_compute_replay_slots(struct ocfs2_super *osb)
 
 	/* set rm_replay_slots for offline slot(s) */
 	for (i = 0; i < replay_map->rm_slots; i++) {
-		if (ocfs2_slot_to_node_num_locked(osb, i, &node_num) == -ENOENT)
+		if (ocfs2_slot_to_yesde_num_locked(osb, i, &yesde_num) == -ENOENT)
 			replay_map->rm_replay_slots[i] = 1;
 	}
 
@@ -183,7 +183,7 @@ int ocfs2_recovery_init(struct ocfs2_super *osb)
 		     osb->max_slots * sizeof(unsigned int),
 		     GFP_KERNEL);
 	if (!rm) {
-		mlog_errno(-ENOMEM);
+		mlog_erryes(-ENOMEM);
 		return -ENOMEM;
 	}
 
@@ -214,7 +214,7 @@ void ocfs2_recovery_exit(struct ocfs2_super *osb)
 	mutex_unlock(&osb->recovery_lock);
 	wait_event(osb->recovery_event, !ocfs2_recovery_thread_running(osb));
 
-	/* At this point, we know that no more recovery threads can be
+	/* At this point, we kyesw that yes more recovery threads can be
 	 * launched, so wait for any recovery completion work to
 	 * complete. */
 	if (osb->ocfs2_wq)
@@ -222,7 +222,7 @@ void ocfs2_recovery_exit(struct ocfs2_super *osb)
 
 	/*
 	 * Now that recovery is shut down, and the osb is about to be
-	 * freed,  the osb_lock is not taken here.
+	 * freed,  the osb_lock is yest taken here.
 	 */
 	rm = osb->recovery_map;
 	/* XXX: Should we bug if there are dirty entries? */
@@ -231,7 +231,7 @@ void ocfs2_recovery_exit(struct ocfs2_super *osb)
 }
 
 static int __ocfs2_recovery_map_test(struct ocfs2_super *osb,
-				     unsigned int node_num)
+				     unsigned int yesde_num)
 {
 	int i;
 	struct ocfs2_recovery_map *rm = osb->recovery_map;
@@ -239,7 +239,7 @@ static int __ocfs2_recovery_map_test(struct ocfs2_super *osb,
 	assert_spin_locked(&osb->osb_lock);
 
 	for (i = 0; i < rm->rm_used; i++) {
-		if (rm->rm_entries[i] == node_num)
+		if (rm->rm_entries[i] == yesde_num)
 			return 1;
 	}
 
@@ -248,12 +248,12 @@ static int __ocfs2_recovery_map_test(struct ocfs2_super *osb,
 
 /* Behaves like test-and-set.  Returns the previous value */
 static int ocfs2_recovery_map_set(struct ocfs2_super *osb,
-				  unsigned int node_num)
+				  unsigned int yesde_num)
 {
 	struct ocfs2_recovery_map *rm = osb->recovery_map;
 
 	spin_lock(&osb->osb_lock);
-	if (__ocfs2_recovery_map_test(osb, node_num)) {
+	if (__ocfs2_recovery_map_test(osb, yesde_num)) {
 		spin_unlock(&osb->osb_lock);
 		return 1;
 	}
@@ -261,7 +261,7 @@ static int ocfs2_recovery_map_set(struct ocfs2_super *osb,
 	/* XXX: Can this be exploited? Not from o2dlm... */
 	BUG_ON(rm->rm_used >= osb->max_slots);
 
-	rm->rm_entries[rm->rm_used] = node_num;
+	rm->rm_entries[rm->rm_used] = yesde_num;
 	rm->rm_used++;
 	spin_unlock(&osb->osb_lock);
 
@@ -269,7 +269,7 @@ static int ocfs2_recovery_map_set(struct ocfs2_super *osb,
 }
 
 static void ocfs2_recovery_map_clear(struct ocfs2_super *osb,
-				     unsigned int node_num)
+				     unsigned int yesde_num)
 {
 	int i;
 	struct ocfs2_recovery_map *rm = osb->recovery_map;
@@ -277,7 +277,7 @@ static void ocfs2_recovery_map_clear(struct ocfs2_super *osb,
 	spin_lock(&osb->osb_lock);
 
 	for (i = 0; i < rm->rm_used; i++) {
-		if (rm->rm_entries[i] == node_num)
+		if (rm->rm_entries[i] == yesde_num)
 			break;
 	}
 
@@ -314,7 +314,7 @@ static int ocfs2_commit_cache(struct ocfs2_super *osb)
 	jbd2_journal_unlock_updates(journal->j_journal);
 	if (status < 0) {
 		up_write(&journal->j_trans_barrier);
-		mlog_errno(status);
+		mlog_erryes(status);
 		goto finally;
 	}
 
@@ -358,7 +358,7 @@ handle_t *ocfs2_start_trans(struct ocfs2_super *osb, int max_buffs)
 		up_read(&osb->journal->j_trans_barrier);
 		sb_end_intwrite(osb->sb);
 
-		mlog_errno(PTR_ERR(handle));
+		mlog_erryes(PTR_ERR(handle));
 
 		if (is_journal_aborted(journal)) {
 			ocfs2_abort(osb->sb, "Detected aborted journal\n");
@@ -383,7 +383,7 @@ int ocfs2_commit_trans(struct ocfs2_super *osb,
 	nested = handle->h_ref > 1;
 	ret = jbd2_journal_stop(handle);
 	if (ret < 0)
-		mlog_errno(ret);
+		mlog_erryes(ret);
 
 	if (!nested) {
 		up_read(&journal->j_trans_barrier);
@@ -400,13 +400,13 @@ int ocfs2_commit_trans(struct ocfs2_super *osb,
  * and then restart the transaction. Before calling
  * ocfs2_extend_trans(), any changed blocks should have been
  * dirtied. After calling it, all blocks which need to be changed must
- * go through another set of journal_access/journal_dirty calls.
+ * go through ayesther set of journal_access/journal_dirty calls.
  *
- * WARNING: This will not release any semaphores or disk locks taken
+ * WARNING: This will yest release any semaphores or disk locks taken
  * during the transaction, so make sure they were taken *before*
  * start_trans or we'll have ordering deadlocks.
  *
- * WARNING2: Note that we do *not* drop j_trans_barrier here. This is
+ * WARNING2: Note that we do *yest* drop j_trans_barrier here. This is
  * good because transaction ids haven't yet been recorded on the
  * cluster locks associated with this handle.
  */
@@ -429,7 +429,7 @@ int ocfs2_extend_trans(handle_t *handle, int nblocks)
 #else
 	status = jbd2_journal_extend(handle, nblocks, 0);
 	if (status < 0) {
-		mlog_errno(status);
+		mlog_erryes(status);
 		goto bail;
 	}
 #endif
@@ -439,7 +439,7 @@ int ocfs2_extend_trans(handle_t *handle, int nblocks)
 		status = jbd2_journal_restart(handle,
 					      old_nblocks + nblocks);
 		if (status < 0) {
-			mlog_errno(status);
+			mlog_erryes(status);
 			goto bail;
 		}
 	}
@@ -469,14 +469,14 @@ int ocfs2_allocate_extend_trans(handle_t *handle, int thresh)
 
 	status = jbd2_journal_extend(handle, OCFS2_MAX_TRANS_DATA, 0);
 	if (status < 0) {
-		mlog_errno(status);
+		mlog_erryes(status);
 		goto bail;
 	}
 
 	if (status > 0) {
 		status = jbd2_journal_restart(handle, OCFS2_MAX_TRANS_DATA);
 		if (status < 0)
-			mlog_errno(status);
+			mlog_erryes(status);
 	}
 
 bail:
@@ -559,7 +559,7 @@ static void ocfs2_abort_trigger(struct jbd2_buffer_trigger_type *triggers,
 	     (unsigned long long)bh->b_blocknr);
 
 	ocfs2_error(bh->b_bdev->bd_super,
-		    "JBD2 has aborted our journal, ocfs2 cannot continue\n");
+		    "JBD2 has aborted our journal, ocfs2 canyest continue\n");
 }
 
 static struct ocfs2_triggers di_triggers = {
@@ -567,7 +567,7 @@ static struct ocfs2_triggers di_triggers = {
 		.t_frozen = ocfs2_frozen_trigger,
 		.t_abort = ocfs2_abort_trigger,
 	},
-	.ot_offset	= offsetof(struct ocfs2_dinode, i_check),
+	.ot_offset	= offsetof(struct ocfs2_diyesde, i_check),
 };
 
 static struct ocfs2_triggers eb_triggers = {
@@ -652,7 +652,7 @@ static int __ocfs2_journal_access(handle_t *handle,
 
 	/* we can safely remove this assertion after testing. */
 	if (!buffer_uptodate(bh)) {
-		mlog(ML_ERROR, "giving me a buffer that's not uptodate!\n");
+		mlog(ML_ERROR, "giving me a buffer that's yest uptodate!\n");
 		mlog(ML_ERROR, "b_blocknr=%llu, b_state=0x%lx\n",
 		     (unsigned long long)bh->b_blocknr, bh->b_state);
 
@@ -663,7 +663,7 @@ static int __ocfs2_journal_access(handle_t *handle,
 		 * For current transaction, the bh is just among those error
 		 * bhs which previous transaction handle. We can't just clear
 		 * its BH_Write_EIO and reuse directly, since other bhs are
-		 * not written to disk yet and that will cause metadata
+		 * yest written to disk yet and that will cause metadata
 		 * inconsistency. So we should set fs read-only to avoid
 		 * further damage.
 		 */
@@ -676,8 +676,8 @@ static int __ocfs2_journal_access(handle_t *handle,
 	}
 
 	/* Set the current transaction information on the ci so
-	 * that the locking code knows whether it can drop it's locks
-	 * on this ci or not. We're protected from the commit
+	 * that the locking code kyesws whether it can drop it's locks
+	 * on this ci or yest. We're protected from the commit
 	 * thread updating the current transaction id until
 	 * ocfs2_commit_trans() because ocfs2_start_trans() took
 	 * j_trans_barrier for us. */
@@ -696,7 +696,7 @@ static int __ocfs2_journal_access(handle_t *handle,
 
 	default:
 		status = -EINVAL;
-		mlog(ML_ERROR, "Unknown access type!\n");
+		mlog(ML_ERROR, "Unkyeswn access type!\n");
 	}
 	if (!status && ocfs2_meta_ecc(osb) && triggers)
 		jbd2_journal_set_triggers(bh, &triggers->ot_triggers);
@@ -778,7 +778,7 @@ void ocfs2_journal_dirty(handle_t *handle, struct buffer_head *bh)
 
 	status = jbd2_journal_dirty_metadata(handle, bh);
 	if (status) {
-		mlog_errno(status);
+		mlog_erryes(status);
 		if (!is_handle_aborted(handle)) {
 			journal_t *journal = handle->h_transaction->t_journal;
 			struct super_block *sb = bh->b_bdev->bd_super;
@@ -815,62 +815,62 @@ void ocfs2_set_journal_params(struct ocfs2_super *osb)
 int ocfs2_journal_init(struct ocfs2_journal *journal, int *dirty)
 {
 	int status = -1;
-	struct inode *inode = NULL; /* the journal inode */
+	struct iyesde *iyesde = NULL; /* the journal iyesde */
 	journal_t *j_journal = NULL;
-	struct ocfs2_dinode *di = NULL;
+	struct ocfs2_diyesde *di = NULL;
 	struct buffer_head *bh = NULL;
 	struct ocfs2_super *osb;
-	int inode_lock = 0;
+	int iyesde_lock = 0;
 
 	BUG_ON(!journal);
 
 	osb = journal->j_osb;
 
-	/* already have the inode for our journal */
-	inode = ocfs2_get_system_file_inode(osb, JOURNAL_SYSTEM_INODE,
+	/* already have the iyesde for our journal */
+	iyesde = ocfs2_get_system_file_iyesde(osb, JOURNAL_SYSTEM_INODE,
 					    osb->slot_num);
-	if (inode == NULL) {
+	if (iyesde == NULL) {
 		status = -EACCES;
-		mlog_errno(status);
+		mlog_erryes(status);
 		goto done;
 	}
-	if (is_bad_inode(inode)) {
-		mlog(ML_ERROR, "access error (bad inode)\n");
-		iput(inode);
-		inode = NULL;
+	if (is_bad_iyesde(iyesde)) {
+		mlog(ML_ERROR, "access error (bad iyesde)\n");
+		iput(iyesde);
+		iyesde = NULL;
 		status = -EACCES;
 		goto done;
 	}
 
-	SET_INODE_JOURNAL(inode);
-	OCFS2_I(inode)->ip_open_count++;
+	SET_INODE_JOURNAL(iyesde);
+	OCFS2_I(iyesde)->ip_open_count++;
 
-	/* Skip recovery waits here - journal inode metadata never
+	/* Skip recovery waits here - journal iyesde metadata never
 	 * changes in a live cluster so it can be considered an
 	 * exception to the rule. */
-	status = ocfs2_inode_lock_full(inode, &bh, 1, OCFS2_META_LOCK_RECOVERY);
+	status = ocfs2_iyesde_lock_full(iyesde, &bh, 1, OCFS2_META_LOCK_RECOVERY);
 	if (status < 0) {
 		if (status != -ERESTARTSYS)
-			mlog(ML_ERROR, "Could not get lock on journal!\n");
+			mlog(ML_ERROR, "Could yest get lock on journal!\n");
 		goto done;
 	}
 
-	inode_lock = 1;
-	di = (struct ocfs2_dinode *)bh->b_data;
+	iyesde_lock = 1;
+	di = (struct ocfs2_diyesde *)bh->b_data;
 
-	if (i_size_read(inode) <  OCFS2_MIN_JOURNAL_SIZE) {
+	if (i_size_read(iyesde) <  OCFS2_MIN_JOURNAL_SIZE) {
 		mlog(ML_ERROR, "Journal file size (%lld) is too small!\n",
-		     i_size_read(inode));
+		     i_size_read(iyesde));
 		status = -EINVAL;
 		goto done;
 	}
 
-	trace_ocfs2_journal_init(i_size_read(inode),
-				 (unsigned long long)inode->i_blocks,
-				 OCFS2_I(inode)->ip_clusters);
+	trace_ocfs2_journal_init(i_size_read(iyesde),
+				 (unsigned long long)iyesde->i_blocks,
+				 OCFS2_I(iyesde)->ip_clusters);
 
-	/* call the kernels journal init function now */
-	j_journal = jbd2_journal_init_inode(inode);
+	/* call the kernels journal init function yesw */
+	j_journal = jbd2_journal_init_iyesde(iyesde);
 	if (j_journal == NULL) {
 		mlog(ML_ERROR, "Linux journal layer error\n");
 		status = -EINVAL;
@@ -883,7 +883,7 @@ int ocfs2_journal_init(struct ocfs2_journal *journal, int *dirty)
 		  OCFS2_JOURNAL_DIRTY_FL);
 
 	journal->j_journal = j_journal;
-	journal->j_inode = inode;
+	journal->j_iyesde = iyesde;
 	journal->j_bh = bh;
 
 	ocfs2_set_journal_params(osb);
@@ -893,24 +893,24 @@ int ocfs2_journal_init(struct ocfs2_journal *journal, int *dirty)
 	status = 0;
 done:
 	if (status < 0) {
-		if (inode_lock)
-			ocfs2_inode_unlock(inode, 1);
+		if (iyesde_lock)
+			ocfs2_iyesde_unlock(iyesde, 1);
 		brelse(bh);
-		if (inode) {
-			OCFS2_I(inode)->ip_open_count--;
-			iput(inode);
+		if (iyesde) {
+			OCFS2_I(iyesde)->ip_open_count--;
+			iput(iyesde);
 		}
 	}
 
 	return status;
 }
 
-static void ocfs2_bump_recovery_generation(struct ocfs2_dinode *di)
+static void ocfs2_bump_recovery_generation(struct ocfs2_diyesde *di)
 {
 	le32_add_cpu(&(di->id1.journal1.ij_recovery_generation), 1);
 }
 
-static u32 ocfs2_get_recovery_generation(struct ocfs2_dinode *di)
+static u32 ocfs2_get_recovery_generation(struct ocfs2_diyesde *di)
 {
 	return le32_to_cpu(di->id1.journal1.ij_recovery_generation);
 }
@@ -922,12 +922,12 @@ static int ocfs2_journal_toggle_dirty(struct ocfs2_super *osb,
 	unsigned int flags;
 	struct ocfs2_journal *journal = osb->journal;
 	struct buffer_head *bh = journal->j_bh;
-	struct ocfs2_dinode *fe;
+	struct ocfs2_diyesde *fe;
 
-	fe = (struct ocfs2_dinode *)bh->b_data;
+	fe = (struct ocfs2_diyesde *)bh->b_data;
 
 	/* The journal bh on the osb always comes from ocfs2_journal_init()
-	 * and was validated there inside ocfs2_inode_lock_full().  It's a
+	 * and was validated there inside ocfs2_iyesde_lock_full().  It's a
 	 * code bug if we mess it up. */
 	BUG_ON(!OCFS2_IS_VALID_DINODE(fe));
 
@@ -942,9 +942,9 @@ static int ocfs2_journal_toggle_dirty(struct ocfs2_super *osb,
 		ocfs2_bump_recovery_generation(fe);
 
 	ocfs2_compute_meta_ecc(osb->sb, bh->b_data, &fe->i_check);
-	status = ocfs2_write_block(osb, bh, INODE_CACHE(journal->j_inode));
+	status = ocfs2_write_block(osb, bh, INODE_CACHE(journal->j_iyesde));
 	if (status < 0)
-		mlog_errno(status);
+		mlog_erryes(status);
 
 	return status;
 }
@@ -957,7 +957,7 @@ void ocfs2_journal_shutdown(struct ocfs2_super *osb)
 {
 	struct ocfs2_journal *journal = NULL;
 	int status = 0;
-	struct inode *inode = NULL;
+	struct iyesde *iyesde = NULL;
 	int num_running_trans = 0;
 
 	BUG_ON(!osb);
@@ -966,13 +966,13 @@ void ocfs2_journal_shutdown(struct ocfs2_super *osb)
 	if (!journal)
 		goto done;
 
-	inode = journal->j_inode;
+	iyesde = journal->j_iyesde;
 
 	if (journal->j_state != OCFS2_JOURNAL_LOADED)
 		goto done;
 
-	/* need to inc inode use count - jbd2_journal_destroy will iput. */
-	if (!igrab(inode))
+	/* need to inc iyesde use count - jbd2_journal_destroy will iput. */
+	if (!igrab(iyesde))
 		BUG();
 
 	num_running_trans = atomic_read(&(osb->journal->j_num_trans));
@@ -984,7 +984,7 @@ void ocfs2_journal_shutdown(struct ocfs2_super *osb)
 	 * the commit thread will take the trans lock for us below. */
 	journal->j_state = OCFS2_JOURNAL_IN_SHUTDOWN;
 
-	/* The OCFS2_JOURNAL_IN_SHUTDOWN will signal to commit_cache to not
+	/* The OCFS2_JOURNAL_IN_SHUTDOWN will signal to commit_cache to yest
 	 * drop the trans_lock (which we want to hold until we
 	 * completely destroy the journal. */
 	if (osb->commit_task) {
@@ -1001,25 +1001,25 @@ void ocfs2_journal_shutdown(struct ocfs2_super *osb)
 		status = jbd2_journal_flush(journal->j_journal);
 		jbd2_journal_unlock_updates(journal->j_journal);
 		if (status < 0)
-			mlog_errno(status);
+			mlog_erryes(status);
 	}
 
 	/* Shutdown the kernel journal system */
 	if (!jbd2_journal_destroy(journal->j_journal) && !status) {
 		/*
-		 * Do not toggle if flush was unsuccessful otherwise
+		 * Do yest toggle if flush was unsuccessful otherwise
 		 * will leave dirty metadata in a "clean" journal
 		 */
 		status = ocfs2_journal_toggle_dirty(osb, 0, 0);
 		if (status < 0)
-			mlog_errno(status);
+			mlog_erryes(status);
 	}
 	journal->j_journal = NULL;
 
-	OCFS2_I(inode)->ip_open_count--;
+	OCFS2_I(iyesde)->ip_open_count--;
 
 	/* unlock our journal */
-	ocfs2_inode_unlock(inode, 1);
+	ocfs2_iyesde_unlock(iyesde, 1);
 
 	brelse(journal->j_bh);
 	journal->j_bh = NULL;
@@ -1028,7 +1028,7 @@ void ocfs2_journal_shutdown(struct ocfs2_super *osb)
 
 //	up_write(&journal->j_trans_barrier);
 done:
-	iput(inode);
+	iput(iyesde);
 }
 
 static void ocfs2_clear_journal_error(struct super_block *sb,
@@ -1037,7 +1037,7 @@ static void ocfs2_clear_journal_error(struct super_block *sb,
 {
 	int olderr;
 
-	olderr = jbd2_journal_errno(journal);
+	olderr = jbd2_journal_erryes(journal);
 	if (olderr) {
 		mlog(ML_ERROR, "File system error %d recorded in "
 		     "journal %u.\n", olderr, slot);
@@ -1071,12 +1071,12 @@ int ocfs2_journal_load(struct ocfs2_journal *journal, int local, int replayed)
 		status = jbd2_journal_flush(journal->j_journal);
 		jbd2_journal_unlock_updates(journal->j_journal);
 		if (status < 0)
-			mlog_errno(status);
+			mlog_erryes(status);
 	}
 
 	status = ocfs2_journal_toggle_dirty(osb, 1, replayed);
 	if (status < 0) {
-		mlog_errno(status);
+		mlog_erryes(status);
 		goto done;
 	}
 
@@ -1109,13 +1109,13 @@ int ocfs2_journal_wipe(struct ocfs2_journal *journal, int full)
 
 	status = jbd2_journal_wipe(journal->j_journal, full);
 	if (status < 0) {
-		mlog_errno(status);
+		mlog_erryes(status);
 		goto bail;
 	}
 
 	status = ocfs2_journal_toggle_dirty(journal->j_osb, 0, 0);
 	if (status < 0)
-		mlog_errno(status);
+		mlog_erryes(status);
 
 bail:
 	return status;
@@ -1139,48 +1139,48 @@ void ocfs2_wait_for_recovery(struct ocfs2_super *osb)
 }
 
 /*
- * JBD Might read a cached version of another nodes journal file. We
- * don't want this as this file changes often and we get no
- * notification on those changes. The only way to be sure that we've
+ * JBD Might read a cached version of ayesther yesdes journal file. We
+ * don't want this as this file changes often and we get yes
+ * yestification on those changes. The only way to be sure that we've
  * got the most up to date version of those blocks then is to force
  * read them off disk. Just searching through the buffer cache won't
  * work as there may be pages backing this file which are still marked
- * up to date. We know things can't change on this file underneath us
- * as we have the lock by now :)
+ * up to date. We kyesw things can't change on this file underneath us
+ * as we have the lock by yesw :)
  */
-static int ocfs2_force_read_journal(struct inode *inode)
+static int ocfs2_force_read_journal(struct iyesde *iyesde)
 {
 	int status = 0;
 	int i;
-	u64 v_blkno, p_blkno, p_blocks, num_blocks;
+	u64 v_blkyes, p_blkyes, p_blocks, num_blocks;
 	struct buffer_head *bh = NULL;
-	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
+	struct ocfs2_super *osb = OCFS2_SB(iyesde->i_sb);
 
-	num_blocks = ocfs2_blocks_for_bytes(inode->i_sb, i_size_read(inode));
-	v_blkno = 0;
-	while (v_blkno < num_blocks) {
-		status = ocfs2_extent_map_get_blocks(inode, v_blkno,
-						     &p_blkno, &p_blocks, NULL);
+	num_blocks = ocfs2_blocks_for_bytes(iyesde->i_sb, i_size_read(iyesde));
+	v_blkyes = 0;
+	while (v_blkyes < num_blocks) {
+		status = ocfs2_extent_map_get_blocks(iyesde, v_blkyes,
+						     &p_blkyes, &p_blocks, NULL);
 		if (status < 0) {
-			mlog_errno(status);
+			mlog_erryes(status);
 			goto bail;
 		}
 
-		for (i = 0; i < p_blocks; i++, p_blkno++) {
-			bh = __find_get_block(osb->sb->s_bdev, p_blkno,
+		for (i = 0; i < p_blocks; i++, p_blkyes++) {
+			bh = __find_get_block(osb->sb->s_bdev, p_blkyes,
 					osb->sb->s_blocksize);
-			/* block not cached. */
+			/* block yest cached. */
 			if (!bh)
 				continue;
 
 			brelse(bh);
 			bh = NULL;
-			/* We are reading journal data which should not
+			/* We are reading journal data which should yest
 			 * be put in the uptodate cache.
 			 */
-			status = ocfs2_read_blocks_sync(osb, p_blkno, 1, &bh);
+			status = ocfs2_read_blocks_sync(osb, p_blkyes, 1, &bh);
 			if (status < 0) {
-				mlog_errno(status);
+				mlog_erryes(status);
 				goto bail;
 			}
 
@@ -1188,7 +1188,7 @@ static int ocfs2_force_read_journal(struct inode *inode)
 			bh = NULL;
 		}
 
-		v_blkno += p_blocks;
+		v_blkyes += p_blocks;
 	}
 
 bail:
@@ -1198,20 +1198,20 @@ bail:
 struct ocfs2_la_recovery_item {
 	struct list_head	lri_list;
 	int			lri_slot;
-	struct ocfs2_dinode	*lri_la_dinode;
-	struct ocfs2_dinode	*lri_tl_dinode;
+	struct ocfs2_diyesde	*lri_la_diyesde;
+	struct ocfs2_diyesde	*lri_tl_diyesde;
 	struct ocfs2_quota_recovery *lri_qrec;
 	enum ocfs2_orphan_reco_type  lri_orphan_reco_type;
 };
 
 /* Does the second half of the recovery process. By this point, the
- * node is marked clean and can actually be considered recovered,
- * hence it's no longer in the recovery map, but there's still some
+ * yesde is marked clean and can actually be considered recovered,
+ * hence it's yes longer in the recovery map, but there's still some
  * cleanup we can do which shouldn't happen within the recovery thread
  * as locking in that context becomes very difficult if we are to take
- * recovering nodes into account.
+ * recovering yesdes into account.
  *
- * NOTE: This function can and will sleep on recovery of other nodes
+ * NOTE: This function can and will sleep on recovery of other yesdes
  * during cluster locking, just like any other ocfs2 process.
  */
 void ocfs2_complete_recovery(struct work_struct *work)
@@ -1220,14 +1220,14 @@ void ocfs2_complete_recovery(struct work_struct *work)
 	struct ocfs2_journal *journal =
 		container_of(work, struct ocfs2_journal, j_recovery_work);
 	struct ocfs2_super *osb = journal->j_osb;
-	struct ocfs2_dinode *la_dinode, *tl_dinode;
+	struct ocfs2_diyesde *la_diyesde, *tl_diyesde;
 	struct ocfs2_la_recovery_item *item, *n;
 	struct ocfs2_quota_recovery *qrec;
 	enum ocfs2_orphan_reco_type orphan_reco_type;
 	LIST_HEAD(tmp_la_list);
 
 	trace_ocfs2_complete_recovery(
-		(unsigned long long)OCFS2_I(journal->j_inode)->ip_blkno);
+		(unsigned long long)OCFS2_I(journal->j_iyesde)->ip_blkyes);
 
 	spin_lock(&journal->j_lock);
 	list_splice_init(&journal->j_la_cleanups, &tmp_la_list);
@@ -1238,45 +1238,45 @@ void ocfs2_complete_recovery(struct work_struct *work)
 
 		ocfs2_wait_on_quotas(osb);
 
-		la_dinode = item->lri_la_dinode;
-		tl_dinode = item->lri_tl_dinode;
+		la_diyesde = item->lri_la_diyesde;
+		tl_diyesde = item->lri_tl_diyesde;
 		qrec = item->lri_qrec;
 		orphan_reco_type = item->lri_orphan_reco_type;
 
 		trace_ocfs2_complete_recovery_slot(item->lri_slot,
-			la_dinode ? le64_to_cpu(la_dinode->i_blkno) : 0,
-			tl_dinode ? le64_to_cpu(tl_dinode->i_blkno) : 0,
+			la_diyesde ? le64_to_cpu(la_diyesde->i_blkyes) : 0,
+			tl_diyesde ? le64_to_cpu(tl_diyesde->i_blkyes) : 0,
 			qrec);
 
-		if (la_dinode) {
+		if (la_diyesde) {
 			ret = ocfs2_complete_local_alloc_recovery(osb,
-								  la_dinode);
+								  la_diyesde);
 			if (ret < 0)
-				mlog_errno(ret);
+				mlog_erryes(ret);
 
-			kfree(la_dinode);
+			kfree(la_diyesde);
 		}
 
-		if (tl_dinode) {
+		if (tl_diyesde) {
 			ret = ocfs2_complete_truncate_log_recovery(osb,
-								   tl_dinode);
+								   tl_diyesde);
 			if (ret < 0)
-				mlog_errno(ret);
+				mlog_erryes(ret);
 
-			kfree(tl_dinode);
+			kfree(tl_diyesde);
 		}
 
 		ret = ocfs2_recover_orphans(osb, item->lri_slot,
 				orphan_reco_type);
 		if (ret < 0)
-			mlog_errno(ret);
+			mlog_erryes(ret);
 
 		if (qrec) {
 			ret = ocfs2_finish_quota_recovery(osb, qrec,
 							  item->lri_slot);
 			if (ret < 0)
-				mlog_errno(ret);
-			/* Recovery info is already freed now */
+				mlog_erryes(ret);
+			/* Recovery info is already freed yesw */
 		}
 
 		kfree(item);
@@ -1285,13 +1285,13 @@ void ocfs2_complete_recovery(struct work_struct *work)
 	trace_ocfs2_complete_recovery_end(ret);
 }
 
-/* NOTE: This function always eats your references to la_dinode and
- * tl_dinode, either manually on error, or by passing them to
+/* NOTE: This function always eats your references to la_diyesde and
+ * tl_diyesde, either manually on error, or by passing them to
  * ocfs2_complete_recovery */
 static void ocfs2_queue_recovery_completion(struct ocfs2_journal *journal,
 					    int slot_num,
-					    struct ocfs2_dinode *la_dinode,
-					    struct ocfs2_dinode *tl_dinode,
+					    struct ocfs2_diyesde *la_diyesde,
+					    struct ocfs2_diyesde *tl_diyesde,
 					    struct ocfs2_quota_recovery *qrec,
 					    enum ocfs2_orphan_reco_type orphan_reco_type)
 {
@@ -1302,20 +1302,20 @@ static void ocfs2_queue_recovery_completion(struct ocfs2_journal *journal,
 		/* Though we wish to avoid it, we are in fact safe in
 		 * skipping local alloc cleanup as fsck.ocfs2 is more
 		 * than capable of reclaiming unused space. */
-		kfree(la_dinode);
-		kfree(tl_dinode);
+		kfree(la_diyesde);
+		kfree(tl_diyesde);
 
 		if (qrec)
 			ocfs2_free_quota_recovery(qrec);
 
-		mlog_errno(-ENOMEM);
+		mlog_erryes(-ENOMEM);
 		return;
 	}
 
 	INIT_LIST_HEAD(&item->lri_list);
-	item->lri_la_dinode = la_dinode;
+	item->lri_la_diyesde = la_diyesde;
 	item->lri_slot = slot_num;
-	item->lri_tl_dinode = tl_dinode;
+	item->lri_tl_diyesde = tl_diyesde;
 	item->lri_qrec = qrec;
 	item->lri_orphan_reco_type = orphan_reco_type;
 
@@ -1364,7 +1364,7 @@ void ocfs2_complete_quota_recovery(struct ocfs2_super *osb)
 
 static int __ocfs2_recovery_thread(void *arg)
 {
-	int status, node_num, slot_num;
+	int status, yesde_num, slot_num;
 	struct ocfs2_super *osb = arg;
 	struct ocfs2_recovery_map *rm = osb->recovery_map;
 	int *rm_quota = NULL;
@@ -1392,13 +1392,13 @@ static int __ocfs2_recovery_thread(void *arg)
 restart:
 	status = ocfs2_super_lock(osb, 1);
 	if (status < 0) {
-		mlog_errno(status);
+		mlog_erryes(status);
 		goto bail;
 	}
 
 	status = ocfs2_compute_replay_slots(osb);
 	if (status < 0)
-		mlog_errno(status);
+		mlog_erryes(status);
 
 	/* queue recovery for our own slot */
 	ocfs2_queue_recovery_completion(osb->journal, osb->slot_num, NULL,
@@ -1407,21 +1407,21 @@ restart:
 	spin_lock(&osb->osb_lock);
 	while (rm->rm_used) {
 		/* It's always safe to remove entry zero, as we won't
-		 * clear it until ocfs2_recover_node() has succeeded. */
-		node_num = rm->rm_entries[0];
+		 * clear it until ocfs2_recover_yesde() has succeeded. */
+		yesde_num = rm->rm_entries[0];
 		spin_unlock(&osb->osb_lock);
-		slot_num = ocfs2_node_num_to_slot(osb, node_num);
-		trace_ocfs2_recovery_thread_node(node_num, slot_num);
+		slot_num = ocfs2_yesde_num_to_slot(osb, yesde_num);
+		trace_ocfs2_recovery_thread_yesde(yesde_num, slot_num);
 		if (slot_num == -ENOENT) {
 			status = 0;
 			goto skip_recovery;
 		}
 
-		/* It is a bit subtle with quota recovery. We cannot do it
+		/* It is a bit subtle with quota recovery. We canyest do it
 		 * immediately because we have to obtain cluster locks from
 		 * quota files and we also don't want to just skip it because
-		 * then quota usage would be out of sync until some node takes
-		 * the slot. So we remember which nodes need quota recovery
+		 * then quota usage would be out of sync until some yesde takes
+		 * the slot. So we remember which yesdes need quota recovery
 		 * and when everything else is done, we recover quotas. */
 		if (quota_enabled) {
 			for (i = 0; i < rm_quota_used
@@ -1432,14 +1432,14 @@ restart:
 				rm_quota[rm_quota_used++] = slot_num;
 		}
 
-		status = ocfs2_recover_node(osb, node_num, slot_num);
+		status = ocfs2_recover_yesde(osb, yesde_num, slot_num);
 skip_recovery:
 		if (!status) {
-			ocfs2_recovery_map_clear(osb, node_num);
+			ocfs2_recovery_map_clear(osb, yesde_num);
 		} else {
 			mlog(ML_ERROR,
-			     "Error %d recovering node %d on device (%u,%u)!\n",
-			     status, node_num,
+			     "Error %d recovering yesde %d on device (%u,%u)!\n",
+			     status, yesde_num,
 			     MAJOR(osb->sb->s_dev), MINOR(osb->sb->s_dev));
 			mlog(ML_ERROR, "Volume requires unmount.\n");
 		}
@@ -1450,20 +1450,20 @@ skip_recovery:
 	trace_ocfs2_recovery_thread_end(status);
 
 	/* Refresh all journal recovery generations from disk */
-	status = ocfs2_check_journals_nolocks(osb);
+	status = ocfs2_check_journals_yeslocks(osb);
 	status = (status == -EROFS) ? 0 : status;
 	if (status < 0)
-		mlog_errno(status);
+		mlog_erryes(status);
 
 	/* Now it is right time to recover quotas... We have to do this under
-	 * superblock lock so that no one can start using the slot (and crash)
+	 * superblock lock so that yes one can start using the slot (and crash)
 	 * before we recover it */
 	if (quota_enabled) {
 		for (i = 0; i < rm_quota_used; i++) {
 			qrec = ocfs2_begin_quota_recovery(osb, rm_quota[i]);
 			if (IS_ERR(qrec)) {
 				status = PTR_ERR(qrec);
-				mlog_errno(status);
+				mlog_erryes(status);
 				continue;
 			}
 			ocfs2_queue_recovery_completion(osb->journal,
@@ -1495,20 +1495,20 @@ bail:
 	if (quota_enabled)
 		kfree(rm_quota);
 
-	/* no one is callint kthread_stop() for us so the kthread() api
+	/* yes one is callint kthread_stop() for us so the kthread() api
 	 * requires that we call do_exit().  And it isn't exported, but
 	 * complete_and_exit() seems to be a minimal wrapper around it. */
 	complete_and_exit(NULL, status);
 }
 
-void ocfs2_recovery_thread(struct ocfs2_super *osb, int node_num)
+void ocfs2_recovery_thread(struct ocfs2_super *osb, int yesde_num)
 {
 	mutex_lock(&osb->recovery_lock);
 
-	trace_ocfs2_recovery_thread(node_num, osb->node_num,
+	trace_ocfs2_recovery_thread(yesde_num, osb->yesde_num,
 		osb->disable_recovery, osb->recovery_thread_task,
 		osb->disable_recovery ?
-		-1 : ocfs2_recovery_map_set(osb, node_num));
+		-1 : ocfs2_recovery_map_set(osb, yesde_num));
 
 	if (osb->disable_recovery)
 		goto out;
@@ -1519,7 +1519,7 @@ void ocfs2_recovery_thread(struct ocfs2_super *osb, int node_num)
 	osb->recovery_thread_task =  kthread_run(__ocfs2_recovery_thread, osb,
 			"ocfs2rec-%s", osb->uuid_str);
 	if (IS_ERR(osb->recovery_thread_task)) {
-		mlog_errno((int)PTR_ERR(osb->recovery_thread_task));
+		mlog_erryes((int)PTR_ERR(osb->recovery_thread_task));
 		osb->recovery_thread_task = NULL;
 	}
 
@@ -1528,75 +1528,75 @@ out:
 	wake_up(&osb->recovery_event);
 }
 
-static int ocfs2_read_journal_inode(struct ocfs2_super *osb,
+static int ocfs2_read_journal_iyesde(struct ocfs2_super *osb,
 				    int slot_num,
 				    struct buffer_head **bh,
-				    struct inode **ret_inode)
+				    struct iyesde **ret_iyesde)
 {
 	int status = -EACCES;
-	struct inode *inode = NULL;
+	struct iyesde *iyesde = NULL;
 
 	BUG_ON(slot_num >= osb->max_slots);
 
-	inode = ocfs2_get_system_file_inode(osb, JOURNAL_SYSTEM_INODE,
+	iyesde = ocfs2_get_system_file_iyesde(osb, JOURNAL_SYSTEM_INODE,
 					    slot_num);
-	if (!inode || is_bad_inode(inode)) {
-		mlog_errno(status);
+	if (!iyesde || is_bad_iyesde(iyesde)) {
+		mlog_erryes(status);
 		goto bail;
 	}
-	SET_INODE_JOURNAL(inode);
+	SET_INODE_JOURNAL(iyesde);
 
-	status = ocfs2_read_inode_block_full(inode, bh, OCFS2_BH_IGNORE_CACHE);
+	status = ocfs2_read_iyesde_block_full(iyesde, bh, OCFS2_BH_IGNORE_CACHE);
 	if (status < 0) {
-		mlog_errno(status);
+		mlog_erryes(status);
 		goto bail;
 	}
 
 	status = 0;
 
 bail:
-	if (inode) {
-		if (status || !ret_inode)
-			iput(inode);
+	if (iyesde) {
+		if (status || !ret_iyesde)
+			iput(iyesde);
 		else
-			*ret_inode = inode;
+			*ret_iyesde = iyesde;
 	}
 	return status;
 }
 
-/* Does the actual journal replay and marks the journal inode as
- * clean. Will only replay if the journal inode is marked dirty. */
+/* Does the actual journal replay and marks the journal iyesde as
+ * clean. Will only replay if the journal iyesde is marked dirty. */
 static int ocfs2_replay_journal(struct ocfs2_super *osb,
-				int node_num,
+				int yesde_num,
 				int slot_num)
 {
 	int status;
 	int got_lock = 0;
 	unsigned int flags;
-	struct inode *inode = NULL;
-	struct ocfs2_dinode *fe;
+	struct iyesde *iyesde = NULL;
+	struct ocfs2_diyesde *fe;
 	journal_t *journal = NULL;
 	struct buffer_head *bh = NULL;
 	u32 slot_reco_gen;
 
-	status = ocfs2_read_journal_inode(osb, slot_num, &bh, &inode);
+	status = ocfs2_read_journal_iyesde(osb, slot_num, &bh, &iyesde);
 	if (status) {
-		mlog_errno(status);
+		mlog_erryes(status);
 		goto done;
 	}
 
-	fe = (struct ocfs2_dinode *)bh->b_data;
+	fe = (struct ocfs2_diyesde *)bh->b_data;
 	slot_reco_gen = ocfs2_get_recovery_generation(fe);
 	brelse(bh);
 	bh = NULL;
 
 	/*
-	 * As the fs recovery is asynchronous, there is a small chance that
-	 * another node mounted (and recovered) the slot before the recovery
+	 * As the fs recovery is asynchroyesus, there is a small chance that
+	 * ayesther yesde mounted (and recovered) the slot before the recovery
 	 * thread could get the lock. To handle that, we dirty read the journal
-	 * inode for that slot to get the recovery generation. If it is
+	 * iyesde for that slot to get the recovery generation. If it is
 	 * different than what we expected, the slot has been recovered.
-	 * If not, it needs recovery.
+	 * If yest, it needs recovery.
 	 */
 	if (osb->slot_recovery_generations[slot_num] != slot_reco_gen) {
 		trace_ocfs2_replay_journal_recovered(slot_num,
@@ -1606,24 +1606,24 @@ static int ocfs2_replay_journal(struct ocfs2_super *osb,
 		goto done;
 	}
 
-	/* Continue with recovery as the journal has not yet been recovered */
+	/* Continue with recovery as the journal has yest yet been recovered */
 
-	status = ocfs2_inode_lock_full(inode, &bh, 1, OCFS2_META_LOCK_RECOVERY);
+	status = ocfs2_iyesde_lock_full(iyesde, &bh, 1, OCFS2_META_LOCK_RECOVERY);
 	if (status < 0) {
 		trace_ocfs2_replay_journal_lock_err(status);
 		if (status != -ERESTARTSYS)
-			mlog(ML_ERROR, "Could not lock journal!\n");
+			mlog(ML_ERROR, "Could yest lock journal!\n");
 		goto done;
 	}
 	got_lock = 1;
 
-	fe = (struct ocfs2_dinode *) bh->b_data;
+	fe = (struct ocfs2_diyesde *) bh->b_data;
 
 	flags = le32_to_cpu(fe->id1.journal1.ij_flags);
 	slot_reco_gen = ocfs2_get_recovery_generation(fe);
 
 	if (!(flags & OCFS2_JOURNAL_DIRTY_FL)) {
-		trace_ocfs2_replay_journal_skip(node_num);
+		trace_ocfs2_replay_journal_skip(yesde_num);
 		/* Refresh recovery generation for the slot */
 		osb->slot_recovery_generations[slot_num] = slot_reco_gen;
 		goto done;
@@ -1632,19 +1632,19 @@ static int ocfs2_replay_journal(struct ocfs2_super *osb,
 	/* we need to run complete recovery for offline orphan slots */
 	ocfs2_replay_map_set_state(osb, REPLAY_NEEDED);
 
-	printk(KERN_NOTICE "ocfs2: Begin replay journal (node %d, slot %d) on "\
-	       "device (%u,%u)\n", node_num, slot_num, MAJOR(osb->sb->s_dev),
+	printk(KERN_NOTICE "ocfs2: Begin replay journal (yesde %d, slot %d) on "\
+	       "device (%u,%u)\n", yesde_num, slot_num, MAJOR(osb->sb->s_dev),
 	       MINOR(osb->sb->s_dev));
 
-	OCFS2_I(inode)->ip_clusters = le32_to_cpu(fe->i_clusters);
+	OCFS2_I(iyesde)->ip_clusters = le32_to_cpu(fe->i_clusters);
 
-	status = ocfs2_force_read_journal(inode);
+	status = ocfs2_force_read_journal(iyesde);
 	if (status < 0) {
-		mlog_errno(status);
+		mlog_erryes(status);
 		goto done;
 	}
 
-	journal = jbd2_journal_init_inode(inode);
+	journal = jbd2_journal_init_iyesde(iyesde);
 	if (journal == NULL) {
 		mlog(ML_ERROR, "Linux journal layer error\n");
 		status = -EIO;
@@ -1653,8 +1653,8 @@ static int ocfs2_replay_journal(struct ocfs2_super *osb,
 
 	status = jbd2_journal_load(journal);
 	if (status < 0) {
-		mlog_errno(status);
-		if (!igrab(inode))
+		mlog_erryes(status);
+		if (!igrab(iyesde))
 			BUG();
 		jbd2_journal_destroy(journal);
 		goto done;
@@ -1667,9 +1667,9 @@ static int ocfs2_replay_journal(struct ocfs2_super *osb,
 	status = jbd2_journal_flush(journal);
 	jbd2_journal_unlock_updates(journal);
 	if (status < 0)
-		mlog_errno(status);
+		mlog_erryes(status);
 
-	/* This will mark the node clean */
+	/* This will mark the yesde clean */
 	flags = le32_to_cpu(fe->id1.journal1.ij_flags);
 	flags &= ~OCFS2_JOURNAL_DIRTY_FL;
 	fe->id1.journal1.ij_flags = cpu_to_le32(flags);
@@ -1680,84 +1680,84 @@ static int ocfs2_replay_journal(struct ocfs2_super *osb,
 					ocfs2_get_recovery_generation(fe);
 
 	ocfs2_compute_meta_ecc(osb->sb, bh->b_data, &fe->i_check);
-	status = ocfs2_write_block(osb, bh, INODE_CACHE(inode));
+	status = ocfs2_write_block(osb, bh, INODE_CACHE(iyesde));
 	if (status < 0)
-		mlog_errno(status);
+		mlog_erryes(status);
 
-	if (!igrab(inode))
+	if (!igrab(iyesde))
 		BUG();
 
 	jbd2_journal_destroy(journal);
 
-	printk(KERN_NOTICE "ocfs2: End replay journal (node %d, slot %d) on "\
-	       "device (%u,%u)\n", node_num, slot_num, MAJOR(osb->sb->s_dev),
+	printk(KERN_NOTICE "ocfs2: End replay journal (yesde %d, slot %d) on "\
+	       "device (%u,%u)\n", yesde_num, slot_num, MAJOR(osb->sb->s_dev),
 	       MINOR(osb->sb->s_dev));
 done:
-	/* drop the lock on this nodes journal */
+	/* drop the lock on this yesdes journal */
 	if (got_lock)
-		ocfs2_inode_unlock(inode, 1);
+		ocfs2_iyesde_unlock(iyesde, 1);
 
-	iput(inode);
+	iput(iyesde);
 	brelse(bh);
 
 	return status;
 }
 
 /*
- * Do the most important parts of node recovery:
+ * Do the most important parts of yesde recovery:
  *  - Replay it's journal
  *  - Stamp a clean local allocator file
  *  - Stamp a clean truncate log
- *  - Mark the node clean
+ *  - Mark the yesde clean
  *
- * If this function completes without error, a node in OCFS2 can be
+ * If this function completes without error, a yesde in OCFS2 can be
  * said to have been safely recovered. As a result, failure during the
- * second part of a nodes recovery process (local alloc recovery) is
+ * second part of a yesdes recovery process (local alloc recovery) is
  * far less concerning.
  */
-static int ocfs2_recover_node(struct ocfs2_super *osb,
-			      int node_num, int slot_num)
+static int ocfs2_recover_yesde(struct ocfs2_super *osb,
+			      int yesde_num, int slot_num)
 {
 	int status = 0;
-	struct ocfs2_dinode *la_copy = NULL;
-	struct ocfs2_dinode *tl_copy = NULL;
+	struct ocfs2_diyesde *la_copy = NULL;
+	struct ocfs2_diyesde *tl_copy = NULL;
 
-	trace_ocfs2_recover_node(node_num, slot_num, osb->node_num);
+	trace_ocfs2_recover_yesde(yesde_num, slot_num, osb->yesde_num);
 
-	/* Should not ever be called to recover ourselves -- in that
+	/* Should yest ever be called to recover ourselves -- in that
 	 * case we should've called ocfs2_journal_load instead. */
-	BUG_ON(osb->node_num == node_num);
+	BUG_ON(osb->yesde_num == yesde_num);
 
-	status = ocfs2_replay_journal(osb, node_num, slot_num);
+	status = ocfs2_replay_journal(osb, yesde_num, slot_num);
 	if (status < 0) {
 		if (status == -EBUSY) {
-			trace_ocfs2_recover_node_skip(slot_num, node_num);
+			trace_ocfs2_recover_yesde_skip(slot_num, yesde_num);
 			status = 0;
 			goto done;
 		}
-		mlog_errno(status);
+		mlog_erryes(status);
 		goto done;
 	}
 
 	/* Stamp a clean local alloc file AFTER recovering the journal... */
 	status = ocfs2_begin_local_alloc_recovery(osb, slot_num, &la_copy);
 	if (status < 0) {
-		mlog_errno(status);
+		mlog_erryes(status);
 		goto done;
 	}
 
-	/* An error from begin_truncate_log_recovery is not
-	 * serious enough to warrant halting the rest of
+	/* An error from begin_truncate_log_recovery is yest
+	 * serious eyesugh to warrant halting the rest of
 	 * recovery. */
 	status = ocfs2_begin_truncate_log_recovery(osb, slot_num, &tl_copy);
 	if (status < 0)
-		mlog_errno(status);
+		mlog_erryes(status);
 
-	/* Likewise, this would be a strange but ultimately not so
+	/* Likewise, this would be a strange but ultimately yest so
 	 * harmful place to get an error... */
 	status = ocfs2_clear_slot(osb, slot_num);
 	if (status < 0)
-		mlog_errno(status);
+		mlog_erryes(status);
 
 	/* This will kfree the memory pointed to by la_copy and tl_copy */
 	ocfs2_queue_recovery_completion(osb->journal, slot_num, la_copy,
@@ -1769,67 +1769,67 @@ done:
 	return status;
 }
 
-/* Test node liveness by trylocking his journal. If we get the lock,
- * we drop it here. Return 0 if we got the lock, -EAGAIN if node is
+/* Test yesde liveness by trylocking his journal. If we get the lock,
+ * we drop it here. Return 0 if we got the lock, -EAGAIN if yesde is
  * still alive (we couldn't get the lock) and < 0 on error. */
 static int ocfs2_trylock_journal(struct ocfs2_super *osb,
 				 int slot_num)
 {
 	int status, flags;
-	struct inode *inode = NULL;
+	struct iyesde *iyesde = NULL;
 
-	inode = ocfs2_get_system_file_inode(osb, JOURNAL_SYSTEM_INODE,
+	iyesde = ocfs2_get_system_file_iyesde(osb, JOURNAL_SYSTEM_INODE,
 					    slot_num);
-	if (inode == NULL) {
+	if (iyesde == NULL) {
 		mlog(ML_ERROR, "access error\n");
 		status = -EACCES;
 		goto bail;
 	}
-	if (is_bad_inode(inode)) {
-		mlog(ML_ERROR, "access error (bad inode)\n");
-		iput(inode);
-		inode = NULL;
+	if (is_bad_iyesde(iyesde)) {
+		mlog(ML_ERROR, "access error (bad iyesde)\n");
+		iput(iyesde);
+		iyesde = NULL;
 		status = -EACCES;
 		goto bail;
 	}
-	SET_INODE_JOURNAL(inode);
+	SET_INODE_JOURNAL(iyesde);
 
 	flags = OCFS2_META_LOCK_RECOVERY | OCFS2_META_LOCK_NOQUEUE;
-	status = ocfs2_inode_lock_full(inode, NULL, 1, flags);
+	status = ocfs2_iyesde_lock_full(iyesde, NULL, 1, flags);
 	if (status < 0) {
 		if (status != -EAGAIN)
-			mlog_errno(status);
+			mlog_erryes(status);
 		goto bail;
 	}
 
-	ocfs2_inode_unlock(inode, 1);
+	ocfs2_iyesde_unlock(iyesde, 1);
 bail:
-	iput(inode);
+	iput(iyesde);
 
 	return status;
 }
 
 /* Call this underneath ocfs2_super_lock. It also assumes that the
  * slot info struct has been updated from disk. */
-int ocfs2_mark_dead_nodes(struct ocfs2_super *osb)
+int ocfs2_mark_dead_yesdes(struct ocfs2_super *osb)
 {
-	unsigned int node_num;
+	unsigned int yesde_num;
 	int status, i;
 	u32 gen;
 	struct buffer_head *bh = NULL;
-	struct ocfs2_dinode *di;
+	struct ocfs2_diyesde *di;
 
 	/* This is called with the super block cluster lock, so we
-	 * know that the slot map can't change underneath us. */
+	 * kyesw that the slot map can't change underneath us. */
 
 	for (i = 0; i < osb->max_slots; i++) {
-		/* Read journal inode to get the recovery generation */
-		status = ocfs2_read_journal_inode(osb, i, &bh, NULL);
+		/* Read journal iyesde to get the recovery generation */
+		status = ocfs2_read_journal_iyesde(osb, i, &bh, NULL);
 		if (status) {
-			mlog_errno(status);
+			mlog_erryes(status);
 			goto bail;
 		}
-		di = (struct ocfs2_dinode *)bh->b_data;
+		di = (struct ocfs2_diyesde *)bh->b_data;
 		gen = ocfs2_get_recovery_generation(di);
 		brelse(bh);
 		bh = NULL;
@@ -1837,7 +1837,7 @@ int ocfs2_mark_dead_nodes(struct ocfs2_super *osb)
 		spin_lock(&osb->osb_lock);
 		osb->slot_recovery_generations[i] = gen;
 
-		trace_ocfs2_mark_dead_nodes(i,
+		trace_ocfs2_mark_dead_yesdes(i,
 					    osb->slot_recovery_generations[i]);
 
 		if (i == osb->slot_num) {
@@ -1845,29 +1845,29 @@ int ocfs2_mark_dead_nodes(struct ocfs2_super *osb)
 			continue;
 		}
 
-		status = ocfs2_slot_to_node_num_locked(osb, i, &node_num);
+		status = ocfs2_slot_to_yesde_num_locked(osb, i, &yesde_num);
 		if (status == -ENOENT) {
 			spin_unlock(&osb->osb_lock);
 			continue;
 		}
 
-		if (__ocfs2_recovery_map_test(osb, node_num)) {
+		if (__ocfs2_recovery_map_test(osb, yesde_num)) {
 			spin_unlock(&osb->osb_lock);
 			continue;
 		}
 		spin_unlock(&osb->osb_lock);
 
-		/* Ok, we have a slot occupied by another node which
-		 * is not in the recovery map. We trylock his journal
+		/* Ok, we have a slot occupied by ayesther yesde which
+		 * is yest in the recovery map. We trylock his journal
 		 * file here to test if he's alive. */
 		status = ocfs2_trylock_journal(osb, i);
 		if (!status) {
-			/* Since we're called from mount, we know that
+			/* Since we're called from mount, we kyesw that
 			 * the recovery thread can't race us on
 			 * setting / checking the recovery bits. */
-			ocfs2_recovery_thread(osb, node_num);
+			ocfs2_recovery_thread(osb, yesde_num);
 		} else if ((status < 0) && (status != -EAGAIN)) {
-			mlog_errno(status);
+			mlog_erryes(status);
 			goto bail;
 		}
 	}
@@ -1879,7 +1879,7 @@ bail:
 
 /*
  * Scan timer should get fired every ORPHAN_SCAN_SCHEDULE_TIMEOUT. Add some
- * randomness to the timeout to minimize multple nodes firing the timer at the
+ * randomness to the timeout to minimize multple yesdes firing the timer at the
  * same time.
  */
 static inline unsigned long ocfs2_orphan_scan_timeout(void)
@@ -1899,52 +1899,52 @@ static inline unsigned long ocfs2_orphan_scan_timeout(void)
  * It scans all slots, even ones that are in use. It does so to handle the
  * case described below:
  *
- *   Node 1 has an inode it was using. The dentry went away due to memory
- *   pressure.  Node 1 closes the inode, but it's on the free list. The node
+ *   Node 1 has an iyesde it was using. The dentry went away due to memory
+ *   pressure.  Node 1 closes the iyesde, but it's on the free list. The yesde
  *   has the open lock.
- *   Node 2 unlinks the inode. It grabs the dentry lock to notify others,
- *   but node 1 has no dentry and doesn't get the message. It trylocks the
- *   open lock, sees that another node has a PR, and does nothing.
- *   Later node 2 runs its orphan dir. It igets the inode, trylocks the
- *   open lock, sees the PR still, and does nothing.
- *   Basically, we have to trigger an orphan iput on node 1. The only way
- *   for this to happen is if node 1 runs node 2's orphan dir.
+ *   Node 2 unlinks the iyesde. It grabs the dentry lock to yestify others,
+ *   but yesde 1 has yes dentry and doesn't get the message. It trylocks the
+ *   open lock, sees that ayesther yesde has a PR, and does yesthing.
+ *   Later yesde 2 runs its orphan dir. It igets the iyesde, trylocks the
+ *   open lock, sees the PR still, and does yesthing.
+ *   Basically, we have to trigger an orphan iput on yesde 1. The only way
+ *   for this to happen is if yesde 1 runs yesde 2's orphan dir.
  *
  * ocfs2_queue_orphan_scan gets called every ORPHAN_SCAN_SCHEDULE_TIMEOUT
  * seconds.  It gets an EX lock on os_lockres and checks sequence number
  * stored in LVB. If the sequence number has changed, it means some other
- * node has done the scan.  This node skips the scan and tracks the
+ * yesde has done the scan.  This yesde skips the scan and tracks the
  * sequence number.  If the sequence number didn't change, it means a scan
- * hasn't happened.  The node queues a scan and increments the
+ * hasn't happened.  The yesde queues a scan and increments the
  * sequence number in the LVB.
  */
 static void ocfs2_queue_orphan_scan(struct ocfs2_super *osb)
 {
 	struct ocfs2_orphan_scan *os;
 	int status, i;
-	u32 seqno = 0;
+	u32 seqyes = 0;
 
 	os = &osb->osb_orphan_scan;
 
 	if (atomic_read(&os->os_state) == ORPHAN_SCAN_INACTIVE)
 		goto out;
 
-	trace_ocfs2_queue_orphan_scan_begin(os->os_count, os->os_seqno,
+	trace_ocfs2_queue_orphan_scan_begin(os->os_count, os->os_seqyes,
 					    atomic_read(&os->os_state));
 
-	status = ocfs2_orphan_scan_lock(osb, &seqno);
+	status = ocfs2_orphan_scan_lock(osb, &seqyes);
 	if (status < 0) {
 		if (status != -EAGAIN)
-			mlog_errno(status);
+			mlog_erryes(status);
 		goto out;
 	}
 
-	/* Do no queue the tasks if the volume is being umounted */
+	/* Do yes queue the tasks if the volume is being umounted */
 	if (atomic_read(&os->os_state) == ORPHAN_SCAN_INACTIVE)
 		goto unlock;
 
-	if (os->os_seqno != seqno) {
-		os->os_seqno = seqno;
+	if (os->os_seqyes != seqyes) {
+		os->os_seqyes = seqyes;
 		goto unlock;
 	}
 
@@ -1953,15 +1953,15 @@ static void ocfs2_queue_orphan_scan(struct ocfs2_super *osb)
 						NULL, ORPHAN_NO_NEED_TRUNCATE);
 	/*
 	 * We queued a recovery on orphan slots, increment the sequence
-	 * number and update LVB so other node will skip the scan for a while
+	 * number and update LVB so other yesde will skip the scan for a while
 	 */
-	seqno++;
+	seqyes++;
 	os->os_count++;
 	os->os_scantime = ktime_get_seconds();
 unlock:
-	ocfs2_orphan_scan_unlock(osb, seqno);
+	ocfs2_orphan_scan_unlock(osb, seqyes);
 out:
-	trace_ocfs2_queue_orphan_scan_end(os->os_count, os->os_seqno,
+	trace_ocfs2_queue_orphan_scan_end(os->os_count, os->os_seqyes,
 					  atomic_read(&os->os_state));
 	return;
 }
@@ -2004,7 +2004,7 @@ void ocfs2_orphan_scan_init(struct ocfs2_super *osb)
 	os = &osb->osb_orphan_scan;
 	os->os_osb = osb;
 	os->os_count = 0;
-	os->os_seqno = 0;
+	os->os_seqyes = 0;
 	mutex_init(&os->os_lock);
 	INIT_DELAYED_WORK(&os->os_orphan_scan_work, ocfs2_orphan_scan_work);
 }
@@ -2026,32 +2026,32 @@ void ocfs2_orphan_scan_start(struct ocfs2_super *osb)
 
 struct ocfs2_orphan_filldir_priv {
 	struct dir_context	ctx;
-	struct inode		*head;
+	struct iyesde		*head;
 	struct ocfs2_super	*osb;
 	enum ocfs2_orphan_reco_type orphan_reco_type;
 };
 
 static int ocfs2_orphan_filldir(struct dir_context *ctx, const char *name,
-				int name_len, loff_t pos, u64 ino,
+				int name_len, loff_t pos, u64 iyes,
 				unsigned type)
 {
 	struct ocfs2_orphan_filldir_priv *p =
 		container_of(ctx, struct ocfs2_orphan_filldir_priv, ctx);
-	struct inode *iter;
+	struct iyesde *iter;
 
 	if (name_len == 1 && !strncmp(".", name, 1))
 		return 0;
 	if (name_len == 2 && !strncmp("..", name, 2))
 		return 0;
 
-	/* do not include dio entry in case of orphan scan */
+	/* do yest include dio entry in case of orphan scan */
 	if ((p->orphan_reco_type == ORPHAN_NO_NEED_TRUNCATE) &&
 			(!strncmp(name, OCFS2_DIO_ORPHAN_PREFIX,
 			OCFS2_DIO_ORPHAN_PREFIX_LEN)))
 		return 0;
 
-	/* Skip bad inodes so that recovery can continue */
-	iter = ocfs2_iget(p->osb, ino,
+	/* Skip bad iyesdes so that recovery can continue */
+	iter = ocfs2_iget(p->osb, iyes,
 			  OCFS2_FI_FLAG_ORPHAN_RECOVERY, 0);
 	if (IS_ERR(iter))
 		return 0;
@@ -2060,14 +2060,14 @@ static int ocfs2_orphan_filldir(struct dir_context *ctx, const char *name,
 			OCFS2_DIO_ORPHAN_PREFIX_LEN))
 		OCFS2_I(iter)->ip_flags |= OCFS2_INODE_DIO_ORPHAN_ENTRY;
 
-	/* Skip inodes which are already added to recover list, since dio may
+	/* Skip iyesdes which are already added to recover list, since dio may
 	 * happen concurrently with unlink/rename */
 	if (OCFS2_I(iter)->ip_next_orphan) {
 		iput(iter);
 		return 0;
 	}
 
-	trace_ocfs2_orphan_filldir((unsigned long long)OCFS2_I(iter)->ip_blkno);
+	trace_ocfs2_orphan_filldir((unsigned long long)OCFS2_I(iter)->ip_blkyes);
 	/* No locking is required for the next_orphan queue as there
 	 * is only ever a single process doing orphan recovery. */
 	OCFS2_I(iter)->ip_next_orphan = p->head;
@@ -2078,11 +2078,11 @@ static int ocfs2_orphan_filldir(struct dir_context *ctx, const char *name,
 
 static int ocfs2_queue_orphans(struct ocfs2_super *osb,
 			       int slot,
-			       struct inode **head,
+			       struct iyesde **head,
 			       enum ocfs2_orphan_reco_type orphan_reco_type)
 {
 	int status;
-	struct inode *orphan_dir_inode = NULL;
+	struct iyesde *orphan_dir_iyesde = NULL;
 	struct ocfs2_orphan_filldir_priv priv = {
 		.ctx.actor = ocfs2_orphan_filldir,
 		.osb = osb,
@@ -2090,35 +2090,35 @@ static int ocfs2_queue_orphans(struct ocfs2_super *osb,
 		.orphan_reco_type = orphan_reco_type
 	};
 
-	orphan_dir_inode = ocfs2_get_system_file_inode(osb,
+	orphan_dir_iyesde = ocfs2_get_system_file_iyesde(osb,
 						       ORPHAN_DIR_SYSTEM_INODE,
 						       slot);
-	if  (!orphan_dir_inode) {
+	if  (!orphan_dir_iyesde) {
 		status = -ENOENT;
-		mlog_errno(status);
+		mlog_erryes(status);
 		return status;
 	}
 
-	inode_lock(orphan_dir_inode);
-	status = ocfs2_inode_lock(orphan_dir_inode, NULL, 0);
+	iyesde_lock(orphan_dir_iyesde);
+	status = ocfs2_iyesde_lock(orphan_dir_iyesde, NULL, 0);
 	if (status < 0) {
-		mlog_errno(status);
+		mlog_erryes(status);
 		goto out;
 	}
 
-	status = ocfs2_dir_foreach(orphan_dir_inode, &priv.ctx);
+	status = ocfs2_dir_foreach(orphan_dir_iyesde, &priv.ctx);
 	if (status) {
-		mlog_errno(status);
+		mlog_erryes(status);
 		goto out_cluster;
 	}
 
 	*head = priv.head;
 
 out_cluster:
-	ocfs2_inode_unlock(orphan_dir_inode, 0);
+	ocfs2_iyesde_unlock(orphan_dir_iyesde, 0);
 out:
-	inode_unlock(orphan_dir_inode);
-	iput(orphan_dir_inode);
+	iyesde_unlock(orphan_dir_iyesde);
+	iput(orphan_dir_iyesde);
 	return status;
 }
 
@@ -2137,9 +2137,9 @@ static void ocfs2_mark_recovering_orphan_dir(struct ocfs2_super *osb,
 					     int slot)
 {
 	spin_lock(&osb->osb_lock);
-	/* Mark ourselves such that new processes in delete_inode()
-	 * know to quit early. */
-	ocfs2_node_map_set_bit(osb, &osb->osb_recovering_orphan_dirs, slot);
+	/* Mark ourselves such that new processes in delete_iyesde()
+	 * kyesw to quit early. */
+	ocfs2_yesde_map_set_bit(osb, &osb->osb_recovering_orphan_dirs, slot);
 	while (osb->osb_orphan_wipes[slot]) {
 		/* If any processes are already in the middle of an
 		 * orphan wipe on this dir, then we need to wait for
@@ -2155,111 +2155,111 @@ static void ocfs2_mark_recovering_orphan_dir(struct ocfs2_super *osb,
 static void ocfs2_clear_recovering_orphan_dir(struct ocfs2_super *osb,
 					      int slot)
 {
-	ocfs2_node_map_clear_bit(osb, &osb->osb_recovering_orphan_dirs, slot);
+	ocfs2_yesde_map_clear_bit(osb, &osb->osb_recovering_orphan_dirs, slot);
 }
 
 /*
- * Orphan recovery. Each mounted node has it's own orphan dir which we
+ * Orphan recovery. Each mounted yesde has it's own orphan dir which we
  * must run during recovery. Our strategy here is to build a list of
- * the inodes in the orphan dir and iget/iput them. The VFS does
+ * the iyesdes in the orphan dir and iget/iput them. The VFS does
  * (most) of the rest of the work.
  *
- * Orphan recovery can happen at any time, not just mount so we have a
+ * Orphan recovery can happen at any time, yest just mount so we have a
  * couple of extra considerations.
  *
- * - We grab as many inodes as we can under the orphan dir lock -
+ * - We grab as many iyesdes as we can under the orphan dir lock -
  *   doing iget() outside the orphan dir risks getting a reference on
- *   an invalid inode.
- * - We must be sure not to deadlock with other processes on the
- *   system wanting to run delete_inode(). This can happen when they go
+ *   an invalid iyesde.
+ * - We must be sure yest to deadlock with other processes on the
+ *   system wanting to run delete_iyesde(). This can happen when they go
  *   to lock the orphan dir and the orphan recovery process attempts to
  *   iget() inside the orphan dir lock. This can be avoided by
- *   advertising our state to ocfs2_delete_inode().
+ *   advertising our state to ocfs2_delete_iyesde().
  */
 static int ocfs2_recover_orphans(struct ocfs2_super *osb,
 				 int slot,
 				 enum ocfs2_orphan_reco_type orphan_reco_type)
 {
 	int ret = 0;
-	struct inode *inode = NULL;
-	struct inode *iter;
-	struct ocfs2_inode_info *oi;
+	struct iyesde *iyesde = NULL;
+	struct iyesde *iter;
+	struct ocfs2_iyesde_info *oi;
 	struct buffer_head *di_bh = NULL;
-	struct ocfs2_dinode *di = NULL;
+	struct ocfs2_diyesde *di = NULL;
 
 	trace_ocfs2_recover_orphans(slot);
 
 	ocfs2_mark_recovering_orphan_dir(osb, slot);
-	ret = ocfs2_queue_orphans(osb, slot, &inode, orphan_reco_type);
+	ret = ocfs2_queue_orphans(osb, slot, &iyesde, orphan_reco_type);
 	ocfs2_clear_recovering_orphan_dir(osb, slot);
 
-	/* Error here should be noted, but we want to continue with as
-	 * many queued inodes as we've got. */
+	/* Error here should be yested, but we want to continue with as
+	 * many queued iyesdes as we've got. */
 	if (ret)
-		mlog_errno(ret);
+		mlog_erryes(ret);
 
-	while (inode) {
-		oi = OCFS2_I(inode);
+	while (iyesde) {
+		oi = OCFS2_I(iyesde);
 		trace_ocfs2_recover_orphans_iput(
-					(unsigned long long)oi->ip_blkno);
+					(unsigned long long)oi->ip_blkyes);
 
 		iter = oi->ip_next_orphan;
 		oi->ip_next_orphan = NULL;
 
 		if (oi->ip_flags & OCFS2_INODE_DIO_ORPHAN_ENTRY) {
-			inode_lock(inode);
-			ret = ocfs2_rw_lock(inode, 1);
+			iyesde_lock(iyesde);
+			ret = ocfs2_rw_lock(iyesde, 1);
 			if (ret < 0) {
-				mlog_errno(ret);
+				mlog_erryes(ret);
 				goto unlock_mutex;
 			}
 			/*
-			 * We need to take and drop the inode lock to
-			 * force read inode from disk.
+			 * We need to take and drop the iyesde lock to
+			 * force read iyesde from disk.
 			 */
-			ret = ocfs2_inode_lock(inode, &di_bh, 1);
+			ret = ocfs2_iyesde_lock(iyesde, &di_bh, 1);
 			if (ret) {
-				mlog_errno(ret);
+				mlog_erryes(ret);
 				goto unlock_rw;
 			}
 
-			di = (struct ocfs2_dinode *)di_bh->b_data;
+			di = (struct ocfs2_diyesde *)di_bh->b_data;
 
 			if (di->i_flags & cpu_to_le32(OCFS2_DIO_ORPHANED_FL)) {
-				ret = ocfs2_truncate_file(inode, di_bh,
-						i_size_read(inode));
+				ret = ocfs2_truncate_file(iyesde, di_bh,
+						i_size_read(iyesde));
 				if (ret < 0) {
 					if (ret != -ENOSPC)
-						mlog_errno(ret);
-					goto unlock_inode;
+						mlog_erryes(ret);
+					goto unlock_iyesde;
 				}
 
-				ret = ocfs2_del_inode_from_orphan(osb, inode,
+				ret = ocfs2_del_iyesde_from_orphan(osb, iyesde,
 						di_bh, 0, 0);
 				if (ret)
-					mlog_errno(ret);
+					mlog_erryes(ret);
 			}
-unlock_inode:
-			ocfs2_inode_unlock(inode, 1);
+unlock_iyesde:
+			ocfs2_iyesde_unlock(iyesde, 1);
 			brelse(di_bh);
 			di_bh = NULL;
 unlock_rw:
-			ocfs2_rw_unlock(inode, 1);
+			ocfs2_rw_unlock(iyesde, 1);
 unlock_mutex:
-			inode_unlock(inode);
+			iyesde_unlock(iyesde);
 
-			/* clear dio flag in ocfs2_inode_info */
+			/* clear dio flag in ocfs2_iyesde_info */
 			oi->ip_flags &= ~OCFS2_INODE_DIO_ORPHAN_ENTRY;
 		} else {
 			spin_lock(&oi->ip_lock);
 			/* Set the proper information to get us going into
-			 * ocfs2_delete_inode. */
+			 * ocfs2_delete_iyesde. */
 			oi->ip_flags |= OCFS2_INODE_MAYBE_ORPHANED;
 			spin_unlock(&oi->ip_lock);
 		}
 
-		iput(inode);
-		inode = iter;
+		iput(iyesde);
+		iyesde = iter;
 	}
 
 	return ret;
@@ -2294,9 +2294,9 @@ static int ocfs2_commit_thread(void *arg)
 	struct ocfs2_journal *journal = osb->journal;
 
 	/* we can trust j_num_trans here because _should_stop() is only set in
-	 * shutdown and nobody other than ourselves should be able to start
+	 * shutdown and yesbody other than ourselves should be able to start
 	 * transactions.  committing on shutdown might take a few iterations
-	 * as final transactions put deleted inodes on the list */
+	 * as final transactions put deleted iyesdes on the list */
 	while (!(kthread_should_stop() &&
 		 atomic_read(&journal->j_num_trans) == 0)) {
 
@@ -2314,7 +2314,7 @@ static int ocfs2_commit_thread(void *arg)
 						"already aborted.\n", status);
 			/*
 			 * After ocfs2_commit_cache() fails, j_num_trans has a
-			 * non-zero value.  Sleep here to avoid a busy-wait
+			 * yesn-zero value.  Sleep here to avoid a busy-wait
 			 * loop.
 			 */
 			msleep_interruptible(1000);
@@ -2331,27 +2331,27 @@ static int ocfs2_commit_thread(void *arg)
 	return 0;
 }
 
-/* Reads all the journal inodes without taking any cluster locks. Used
+/* Reads all the journal iyesdes without taking any cluster locks. Used
  * for hard readonly access to determine whether any journal requires
  * recovery. Also used to refresh the recovery generation numbers after
- * a journal has been recovered by another node.
+ * a journal has been recovered by ayesther yesde.
  */
-int ocfs2_check_journals_nolocks(struct ocfs2_super *osb)
+int ocfs2_check_journals_yeslocks(struct ocfs2_super *osb)
 {
 	int ret = 0;
 	unsigned int slot;
 	struct buffer_head *di_bh = NULL;
-	struct ocfs2_dinode *di;
+	struct ocfs2_diyesde *di;
 	int journal_dirty = 0;
 
 	for(slot = 0; slot < osb->max_slots; slot++) {
-		ret = ocfs2_read_journal_inode(osb, slot, &di_bh, NULL);
+		ret = ocfs2_read_journal_iyesde(osb, slot, &di_bh, NULL);
 		if (ret) {
-			mlog_errno(ret);
+			mlog_erryes(ret);
 			goto out;
 		}
 
-		di = (struct ocfs2_dinode *) di_bh->b_data;
+		di = (struct ocfs2_diyesde *) di_bh->b_data;
 
 		osb->slot_recovery_generations[slot] =
 					ocfs2_get_recovery_generation(di);

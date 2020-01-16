@@ -13,7 +13,7 @@
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright yestice and this permission yestice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
  *
@@ -117,7 +117,7 @@ struct drm_i915_gem_object;
 
 enum hpd_pin {
 	HPD_NONE = 0,
-	HPD_TV = HPD_NONE,     /* TV is known to be unreliable */
+	HPD_TV = HPD_NONE,     /* TV is kyeswn to be unreliable */
 	HPD_CRT,
 	HPD_SDVO_B,
 	HPD_SDVO_C,
@@ -164,15 +164,15 @@ struct i915_hotplug {
 	bool poll_enabled;
 
 	unsigned int hpd_storm_threshold;
-	/* Whether or not to count short HPD IRQs in HPD storms */
+	/* Whether or yest to count short HPD IRQs in HPD storms */
 	u8 hpd_short_storm_enabled;
 
 	/*
-	 * if we get a HPD irq from DP and a HPD irq from non-DP
-	 * the non-DP HPD could block the workqueue on a mode config
+	 * if we get a HPD irq from DP and a HPD irq from yesn-DP
+	 * the yesn-DP HPD could block the workqueue on a mode config
 	 * mutex getting, that userspace may have taken. However
 	 * userspace is waiting on the DP workqueue to run which is
-	 * blocked behind the non-DP one.
+	 * blocked behind the yesn-DP one.
 	 */
 	struct workqueue_struct *dp_wq;
 };
@@ -349,15 +349,15 @@ struct intel_csr {
 
 enum i915_cache_level {
 	I915_CACHE_NONE = 0,
-	I915_CACHE_LLC, /* also used for snoopable memory on non-LLC */
+	I915_CACHE_LLC, /* also used for syesopable memory on yesn-LLC */
 	I915_CACHE_L3_LLC, /* gen7+, L3 sits between the domain specifc
 			      caches, eg sampler/render caches, and the
 			      large Last-Level-Cache. LLC is coherent with
 			      the CPU, but L3 is only visible to the GPU. */
-	I915_CACHE_WT, /* hsw:gt3e WriteThrough for scanouts */
+	I915_CACHE_WT, /* hsw:gt3e WriteThrough for scayesuts */
 };
 
-#define I915_COLOR_UNEVICTABLE (-1) /* a non-vma sharing the address space */
+#define I915_COLOR_UNEVICTABLE (-1) /* a yesn-vma sharing the address space */
 
 struct intel_fbc {
 	/* This is always the inner lock when overlapping with struct_mutex and
@@ -369,8 +369,8 @@ struct intel_fbc {
 	unsigned int visible_pipes_mask;
 	struct intel_crtc *crtc;
 
-	struct drm_mm_node compressed_fb;
-	struct drm_mm_node *compressed_llb;
+	struct drm_mm_yesde compressed_fb;
+	struct drm_mm_yesde *compressed_llb;
 
 	bool false_color;
 
@@ -446,7 +446,7 @@ struct intel_fbc {
 		unsigned int gen9_wa_cfb_stride;
 	} params;
 
-	const char *no_fbc_reason;
+	const char *yes_fbc_reason;
 };
 
 /*
@@ -502,7 +502,7 @@ struct i915_psr {
 	u8 sink_sync_latency;
 	ktime_t last_entry_attempt;
 	ktime_t last_exit;
-	bool sink_not_reliable;
+	bool sink_yest_reliable;
 	bool irq_aux_error;
 	u16 su_x_granularity;
 	bool dc3co_enabled;
@@ -579,7 +579,7 @@ struct i915_gem_mm {
 	struct work_struct free_work;
 	/**
 	 * Count of objects pending destructions. Used to skip needlessly
-	 * waiting on an RCU barrier if no objects are waiting to be freed.
+	 * waiting on an RCU barrier if yes objects are waiting to be freed.
 	 */
 	atomic_t free_count;
 
@@ -595,8 +595,8 @@ struct i915_gem_mm {
 
 	struct intel_memory_region *regions[INTEL_REGION_UNKNOWN];
 
-	struct notifier_block oom_notifier;
-	struct notifier_block vmap_notifier;
+	struct yestifier_block oom_yestifier;
+	struct yestifier_block vmap_yestifier;
 	struct shrinker shrinker;
 
 	/**
@@ -616,10 +616,10 @@ struct i915_gem_mm {
 #define I915_RESET_TIMEOUT (10 * HZ) /* 10s */
 #define I915_FENCE_TIMEOUT (10 * HZ) /* 10s */
 
-#define I915_ENGINE_DEAD_TIMEOUT  (4 * HZ)  /* Seqno, head and subunits dead */
-#define I915_SEQNO_DEAD_TIMEOUT   (12 * HZ) /* Seqno dead with active head */
+#define I915_ENGINE_DEAD_TIMEOUT  (4 * HZ)  /* Seqyes, head and subunits dead */
+#define I915_SEQNO_DEAD_TIMEOUT   (12 * HZ) /* Seqyes dead with active head */
 
-#define I915_ENGINE_WEDGED_TIMEOUT  (60 * HZ)  /* Reset but no recovery? */
+#define I915_ENGINE_WEDGED_TIMEOUT  (60 * HZ)  /* Reset but yes recovery? */
 
 struct ddi_vbt_port_info {
 	/* Non-NULL if port present. */
@@ -647,7 +647,7 @@ struct ddi_vbt_port_info {
 
 	u8 dp_boost_level;
 	u8 hdmi_boost_level;
-	int dp_max_link_rate;		/* 0 for not limited by VBT */
+	int dp_max_link_rate;		/* 0 for yest limited by VBT */
 };
 
 enum psr_lines_to_wait {
@@ -817,7 +817,7 @@ struct skl_wm_level {
 	u16 plane_res_b;
 	u8 plane_res_l;
 	bool plane_en;
-	bool ignore_lines;
+	bool igyesre_lines;
 };
 
 /* Stores plane specific WM parameters */
@@ -874,7 +874,7 @@ struct i915_frontbuffer_tracking {
 };
 
 struct i915_virtual_gpu {
-	struct mutex lock; /* serialises sending of g2v_notify command pkts */
+	struct mutex lock; /* serialises sending of g2v_yestify command pkts */
 	bool active;
 	u32 caps;
 };
@@ -1037,7 +1037,7 @@ struct drm_i915_private {
 	/**
 	 * wq - Driver workqueue for GEM.
 	 *
-	 * NOTE: Work items scheduled here are not allowed to grab any modeset
+	 * NOTE: Work items scheduled here are yest allowed to grab any modeset
 	 * locks, for otherwise the flushing done in the pageflip code will
 	 * result in deadlocks.
 	 */
@@ -1116,7 +1116,7 @@ struct drm_i915_private {
 
 	/*
 	 * edram size in MB.
-	 * Cannot be determined by PCIID. You must always read a register.
+	 * Canyest be determined by PCIID. You must always read a register.
 	 */
 	u32 edram_size_mb;
 
@@ -1210,7 +1210,7 @@ struct drm_i915_private {
 
 		/*
 		 * Set during HW readout of watermarks/DDB.  Some platforms
-		 * need to know when we're still using BIOS-provided values
+		 * need to kyesw when we're still using BIOS-provided values
 		 * (which we don't fully trust).
 		 */
 		bool distrust_bios_wm;
@@ -1248,7 +1248,7 @@ struct drm_i915_private {
 	struct intel_gt gt;
 
 	struct {
-		struct notifier_block pm_notifier;
+		struct yestifier_block pm_yestifier;
 
 		struct i915_gem_contexts {
 			spinlock_t lock; /* locks list */
@@ -1332,12 +1332,12 @@ static inline struct drm_i915_private *pdev_to_i915(struct pci_dev *pdev)
 	     0;)
 
 #define rb_to_uabi_engine(rb) \
-	rb_entry_safe(rb, struct intel_engine_cs, uabi_node)
+	rb_entry_safe(rb, struct intel_engine_cs, uabi_yesde)
 
 #define for_each_uabi_engine(engine__, i915__) \
 	for ((engine__) = rb_to_uabi_engine(rb_first(&(i915__)->uabi_engines));\
 	     (engine__); \
-	     (engine__) = rb_to_uabi_engine(rb_next(&(engine__)->uabi_node)))
+	     (engine__) = rb_to_uabi_engine(rb_next(&(engine__)->uabi_yesde)))
 
 #define I915_GTT_OFFSET_NONE ((u32)-1)
 
@@ -1347,7 +1347,7 @@ static inline struct drm_i915_private *pdev_to_i915(struct pci_dev *pdev)
  * doesn't mean that the hw necessarily already scans it out, but that any
  * rendering (by the cpu or gpu) will land in the frontbuffer eventually.
  *
- * We have one bit per pipe and per scanout plane type.
+ * We have one bit per pipe and per scayesut plane type.
  */
 #define INTEL_FRONTBUFFER_BITS_PER_PIPE 8
 #define INTEL_FRONTBUFFER(pipe, plane_id) ({ \
@@ -1621,7 +1621,7 @@ IS_SUBPLATFORM(const struct drm_i915_private *i915,
 #define CMDPARSER_USES_GGTT(dev_priv) IS_GEN(dev_priv, 7)
 
 #define HAS_LLC(dev_priv)	(INTEL_INFO(dev_priv)->has_llc)
-#define HAS_SNOOP(dev_priv)	(INTEL_INFO(dev_priv)->has_snoop)
+#define HAS_SNOOP(dev_priv)	(INTEL_INFO(dev_priv)->has_syesop)
 #define HAS_EDRAM(dev_priv)	((dev_priv)->edram_size_mb)
 #define HAS_SECURE_BATCHES(dev_priv) (INTEL_GEN(dev_priv) < 6)
 #define HAS_WT(dev_priv)	((IS_HASWELL(dev_priv) || \
@@ -1710,7 +1710,7 @@ IS_SUBPLATFORM(const struct drm_i915_private *i915,
 
 #define HAS_GT_UC(dev_priv)	(INTEL_INFO(dev_priv)->has_gt_uc)
 
-/* Having GuC is not the same as using GuC */
+/* Having GuC is yest the same as using GuC */
 #define USES_GUC(dev_priv)		intel_uc_uses_guc(&(dev_priv)->gt.uc)
 #define USES_GUC_SUBMISSION(dev_priv)	intel_uc_uses_guc_submission(&(dev_priv)->gt.uc)
 
@@ -1747,7 +1747,7 @@ static inline bool intel_vtd_active(void)
 	return false;
 }
 
-static inline bool intel_scanout_needs_vtd_wa(struct drm_i915_private *dev_priv)
+static inline bool intel_scayesut_needs_vtd_wa(struct drm_i915_private *dev_priv)
 {
 	return INTEL_GEN(dev_priv) >= 6 && intel_vtd_active();
 }
@@ -1801,7 +1801,7 @@ static inline void i915_gem_drain_freed_objects(struct drm_i915_private *i915)
 {
 	/*
 	 * A single pass should suffice to release all the freed objects (along
-	 * most call paths) , but be a little more paranoid in that freeing
+	 * most call paths) , but be a little more parayesid in that freeing
 	 * the objects does take a little amount of time, during which the rcu
 	 * callbacks could have added new objects into the freed list, and
 	 * armed the work again.
@@ -1817,10 +1817,10 @@ static inline void i915_gem_drain_workqueue(struct drm_i915_private *i915)
 	/*
 	 * Similar to objects above (see i915_gem_drain_freed-objects), in
 	 * general we have workers that are armed by RCU and then rearm
-	 * themselves in their callbacks. To be paranoid, we need to
+	 * themselves in their callbacks. To be parayesid, we need to
 	 * drain the workqueue a second time after waiting for the RCU
 	 * grace period so that we catch work queued via RCU from the first
-	 * pass. As neither drain_workqueue() nor flush_workqueue() report
+	 * pass. As neither drain_workqueue() yesr flush_workqueue() report
 	 * a result, we make an assumption that we only don't require more
 	 * than 3 passes to catch all _recursive_ RCU delayed work.
 	 *
@@ -1868,7 +1868,7 @@ int i915_gem_mmap_gtt(struct drm_file *file_priv, struct drm_device *dev,
 		      u32 handle, u64 *offset);
 int i915_gem_mmap_gtt_version(void);
 
-int __must_check i915_gem_set_global_seqno(struct drm_device *dev, u32 seqno);
+int __must_check i915_gem_set_global_seqyes(struct drm_device *dev, u32 seqyes);
 
 static inline u32 i915_reset_count(struct i915_gpu_error *error)
 {
@@ -1928,8 +1928,8 @@ int __must_check i915_gem_evict_something(struct i915_address_space *vm,
 					  unsigned long color,
 					  u64 start, u64 end,
 					  unsigned flags);
-int __must_check i915_gem_evict_for_node(struct i915_address_space *vm,
-					 struct drm_mm_node *node,
+int __must_check i915_gem_evict_for_yesde(struct i915_address_space *vm,
+					 struct drm_mm_yesde *yesde,
 					 unsigned int flags);
 int i915_gem_evict_vm(struct i915_address_space *vm);
 
@@ -2002,7 +2002,7 @@ int i915_reg_read_ioctl(struct drm_device *dev, void *data,
  * spin_unlock_irq(&dev_priv->uncore.lock);
  *
  *
- * Note: some registers may not need forcewake held, so
+ * Note: some registers may yest need forcewake held, so
  * intel_uncore_forcewake_{get,put} can be omitted, see
  * intel_uncore_forcewake_for_reg().
  *

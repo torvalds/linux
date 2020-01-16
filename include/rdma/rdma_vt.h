@@ -25,12 +25,12 @@
  * are met:
  *
  *  - Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  *  - Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
+ *    yestice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
- *  - Neither the name of Intel Corporation nor the names of its
+ *  - Neither the name of Intel Corporation yesr the names of its
  *    contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
@@ -79,7 +79,7 @@ struct rvt_ibport {
 	struct rb_root mcast_tree;
 	spinlock_t lock;		/* protect changes in this struct */
 
-	/* non-zero when timer is set */
+	/* yesn-zero when timer is set */
 	unsigned long mkey_lease_timeout;
 	unsigned long trap_timeout;
 	__be64 gid_prefix;      /* in network order */
@@ -100,7 +100,7 @@ struct rvt_ibport {
 
 	/*
 	 * Driver is expected to keep these up to date. These
-	 * counters are informational only and not required to be
+	 * counters are informational only and yest required to be
 	 * completely accurate.
 	 */
 	u64 n_rc_resends;
@@ -142,7 +142,7 @@ struct rvt_ibport {
 	struct rvt_ah *sm_ah;
 
 	/*
-	 * Keep a list of traps that have not been repressed.  They will be
+	 * Keep a list of traps that have yest been repressed.  They will be
 	 * resent based on trap_timer.
 	 */
 	struct trap_list trap_lists[RVT_MAX_TRAP_LISTS];
@@ -162,7 +162,7 @@ struct rvt_driver_params {
 	struct ib_device_attr props;
 
 	/*
-	 * Anything driver specific that is not covered by props
+	 * Anything driver specific that is yest covered by props
 	 * For instance special module parameters. Goes here.
 	 */
 	unsigned int lkey_table_size;
@@ -176,7 +176,7 @@ struct rvt_driver_params {
 	int qpn_res_end;
 	int nports;
 	int npkeys;
-	int node;
+	int yesde;
 	int psn_mask;
 	int psn_shift;
 	int psn_modify_mask;
@@ -246,14 +246,14 @@ struct rvt_driver_provided {
 	/* hot path calldowns in a single cacheline */
 
 	/*
-	 * Give the driver a notice that there is send work to do. It is up to
+	 * Give the driver a yestice that there is send work to do. It is up to
 	 * the driver to generally push the packets out, this just queues the
-	 * work with the driver. There are two variants here. The no_lock
-	 * version requires the s_lock not to be held. The other assumes the
+	 * work with the driver. There are two variants here. The yes_lock
+	 * version requires the s_lock yest to be held. The other assumes the
 	 * s_lock is held.
 	 */
 	bool (*schedule_send)(struct rvt_qp *qp);
-	bool (*schedule_send_no_lock)(struct rvt_qp *qp);
+	bool (*schedule_send_yes_lock)(struct rvt_qp *qp);
 
 	/*
 	 * Driver specific work request setup and checking.
@@ -302,7 +302,7 @@ struct rvt_driver_provided {
 	 * Inform the driver the particular qp in quesiton has been reset so
 	 * that it can clean up anything it needs to.
 	 */
-	void (*notify_qp_reset)(struct rvt_qp *qp);
+	void (*yestify_qp_reset)(struct rvt_qp *qp);
 
 	/*
 	 * Get a path mtu from the driver based on qp attributes.
@@ -330,7 +330,7 @@ struct rvt_driver_provided {
 	/*
 	 * Inform the driver a qp has went to error state.
 	 */
-	void (*notify_error_qp)(struct rvt_qp *qp);
+	void (*yestify_error_qp)(struct rvt_qp *qp);
 
 	/*
 	 * Get an MTU for a qp.
@@ -363,19 +363,19 @@ struct rvt_driver_provided {
 	void (*cap_mask_chg)(struct rvt_dev_info *rdi, u8 port_num);
 
 	/*
-	 * The following functions can be safely ignored completely. Any use of
+	 * The following functions can be safely igyesred completely. Any use of
 	 * these is checked for NULL before blindly calling. Rdmavt should also
 	 * be functional if drivers omit these.
 	 */
 
-	/* Called to inform the driver that all qps should now be freed. */
+	/* Called to inform the driver that all qps should yesw be freed. */
 	unsigned (*free_all_qps)(struct rvt_dev_info *rdi);
 
 	/* Driver specific AH validation */
 	int (*check_ah)(struct ib_device *, struct rdma_ah_attr *);
 
 	/* Inform the driver a new AH has been created */
-	void (*notify_new_ah)(struct ib_device *, struct rdma_ah_attr *,
+	void (*yestify_new_ah)(struct ib_device *, struct rdma_ah_attr *,
 			      struct rvt_ah *);
 
 	/* Let the driver pick the next queue pair number*/
@@ -386,18 +386,18 @@ struct rvt_driver_provided {
 	int (*check_modify_qp)(struct rvt_qp *qp, struct ib_qp_attr *attr,
 			       int attr_mask, struct ib_udata *udata);
 
-	/* Driver specific QP modification/notification-of */
+	/* Driver specific QP modification/yestification-of */
 	void (*modify_qp)(struct rvt_qp *qp, struct ib_qp_attr *attr,
 			  int attr_mask, struct ib_udata *udata);
 
 	/* Notify driver a mad agent has been created */
-	void (*notify_create_mad_agent)(struct rvt_dev_info *rdi, int port_idx);
+	void (*yestify_create_mad_agent)(struct rvt_dev_info *rdi, int port_idx);
 
 	/* Notify driver a mad agent has been removed */
-	void (*notify_free_mad_agent)(struct rvt_dev_info *rdi, int port_idx);
+	void (*yestify_free_mad_agent)(struct rvt_dev_info *rdi, int port_idx);
 
 	/* Notify driver to restart rc */
-	void (*notify_restart_rc)(struct rvt_qp *qp, u32 psn, int wait);
+	void (*yestify_restart_rc)(struct rvt_qp *qp, u32 psn, int wait);
 
 	/* Get and return CPU to pin CQ processing thread */
 	int (*comp_vect_cpu_lookup)(struct rvt_dev_info *rdi, int comp_vect);

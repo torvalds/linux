@@ -68,7 +68,7 @@ DEFINE_EVENT(block_buffer, block_dirty_buffer,
  * @rq: block IO operation request
  *
  * The block operation request @rq is being placed back into queue
- * @q.  For some reason the request was not completed and needs to be
+ * @q.  For some reason the request was yest completed and needs to be
  * put back in the queue.
  */
 TRACE_EVENT(block_rq_requeue,
@@ -109,8 +109,8 @@ TRACE_EVENT(block_rq_requeue,
  *
  * The block_rq_complete tracepoint event indicates that some portion
  * of operation request has been completed by the device driver.  If
- * the @rq->bio is %NULL, then there is absolutely no additional work to
- * do for the request. If @rq->bio is non-NULL then there is
+ * the @rq->bio is %NULL, then there is absolutely yes additional work to
+ * do for the request. If @rq->bio is yesn-NULL then there is
  * additional work required to complete the request.
  */
 TRACE_EVENT(block_rq_complete,
@@ -256,7 +256,7 @@ TRACE_EVENT(block_bio_bounce,
  * @bio: block operation completed
  * @error: io error value
  *
- * This tracepoint indicates there is no further work to do on this
+ * This tracepoint indicates there is yes further work to do on this
  * block IO operation @bio.
  */
 TRACE_EVENT(block_bio_complete,
@@ -433,7 +433,7 @@ DEFINE_EVENT(block_get_rq, block_getrq,
  * @bio: pending block IO operation (can be %NULL)
  * @rw: low bit indicates a read (%0) or a write (%1)
  *
- * In the case where a request struct cannot be provided for queue @q
+ * In the case where a request struct canyest be provided for queue @q
  * the process needs to wait for an request struct to become
  * available.  This tracepoint event is generated each time the
  * process goes to sleep waiting for request struct become available.
@@ -449,7 +449,7 @@ DEFINE_EVENT(block_get_rq, block_sleeprq,
  * block_plug - keep operations requests in request queue
  * @q: request queue to plug
  *
- * Plug the request queue @q.  Do not allow block operation requests
+ * Plug the request queue @q.  Do yest allow block operation requests
  * to be sent to the device driver. Instead, accumulate requests in
  * the queue to improve throughput performance of the block device.
  */

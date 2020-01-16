@@ -35,12 +35,12 @@
  * are met:
  *
  *  * Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  *  * Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
+ *    yestice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
- *  * Neither the name Intel Corporation nor the names of its
+ *  * Neither the name Intel Corporation yesr the names of its
  *    contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
@@ -248,7 +248,7 @@ rs_fw_he_set_enabled_rates(const struct ieee80211_sta *sta,
 		u16 _tx_mcs_160 = (tx_mcs_160 >> (2 * i)) & 0x3;
 		u16 _tx_mcs_80 = (tx_mcs_80 >> (2 * i)) & 0x3;
 
-		/* If one side doesn't support - mark both as not supporting */
+		/* If one side doesn't support - mark both as yest supporting */
 		if (_mcs_80 == IEEE80211_HE_MCS_NOT_SUPPORTED ||
 		    _tx_mcs_80 == IEEE80211_HE_MCS_NOT_SUPPORTED) {
 			_mcs_80 = IEEE80211_HE_MCS_NOT_SUPPORTED;
@@ -259,7 +259,7 @@ rs_fw_he_set_enabled_rates(const struct ieee80211_sta *sta,
 		cmd->ht_rates[i][IWL_TLC_HT_BW_NONE_160] =
 			cpu_to_le16(rs_fw_he_ieee80211_mcs_to_rs_mcs(_mcs_80));
 
-		/* If one side doesn't support - mark both as not supporting */
+		/* If one side doesn't support - mark both as yest supporting */
 		if (_mcs_160 == IEEE80211_HE_MCS_NOT_SUPPORTED ||
 		    _tx_mcs_160 == IEEE80211_HE_MCS_NOT_SUPPORTED) {
 			_mcs_160 = IEEE80211_HE_MCS_NOT_SUPPORTED;
@@ -283,13 +283,13 @@ static void rs_fw_set_supp_rates(struct ieee80211_sta *sta,
 	const struct ieee80211_sta_vht_cap *vht_cap = &sta->vht_cap;
 	const struct ieee80211_sta_he_cap *he_cap = &sta->he_cap;
 
-	/* non HT rates */
+	/* yesn HT rates */
 	supp = 0;
 	tmp = sta->supp_rates[sband->band];
 	for_each_set_bit(i, &tmp, BITS_PER_LONG)
 		supp |= BIT(sband->bitrates[i].hw_value);
 
-	cmd->non_ht_rates = cpu_to_le16(supp);
+	cmd->yesn_ht_rates = cpu_to_le16(supp);
 	cmd->mode = IWL_TLC_MNG_MODE_NON_HT;
 
 	/* HT/VHT rates */
@@ -308,11 +308,11 @@ static void rs_fw_set_supp_rates(struct ieee80211_sta *sta,
 	}
 }
 
-void iwl_mvm_tlc_update_notif(struct iwl_mvm *mvm,
+void iwl_mvm_tlc_update_yestif(struct iwl_mvm *mvm,
 			      struct iwl_rx_cmd_buffer *rxb)
 {
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
-	struct iwl_tlc_update_notif *notif;
+	struct iwl_tlc_update_yestif *yestif;
 	struct ieee80211_sta *sta;
 	struct iwl_mvm_sta *mvmsta;
 	struct iwl_lq_sta_rs_fw *lq_sta;
@@ -320,36 +320,36 @@ void iwl_mvm_tlc_update_notif(struct iwl_mvm *mvm,
 
 	rcu_read_lock();
 
-	notif = (void *)pkt->data;
-	sta = rcu_dereference(mvm->fw_id_to_mac_id[notif->sta_id]);
+	yestif = (void *)pkt->data;
+	sta = rcu_dereference(mvm->fw_id_to_mac_id[yestif->sta_id]);
 	if (IS_ERR_OR_NULL(sta)) {
-		IWL_ERR(mvm, "Invalid sta id (%d) in FW TLC notification\n",
-			notif->sta_id);
+		IWL_ERR(mvm, "Invalid sta id (%d) in FW TLC yestification\n",
+			yestif->sta_id);
 		goto out;
 	}
 
 	mvmsta = iwl_mvm_sta_from_mac80211(sta);
 
 	if (!mvmsta) {
-		IWL_ERR(mvm, "Invalid sta id (%d) in FW TLC notification\n",
-			notif->sta_id);
+		IWL_ERR(mvm, "Invalid sta id (%d) in FW TLC yestification\n",
+			yestif->sta_id);
 		goto out;
 	}
 
-	flags = le32_to_cpu(notif->flags);
+	flags = le32_to_cpu(yestif->flags);
 
 	lq_sta = &mvmsta->lq_sta.rs_fw;
 
 	if (flags & IWL_TLC_NOTIF_FLAG_RATE) {
 		char pretty_rate[100];
-		lq_sta->last_rate_n_flags = le32_to_cpu(notif->rate);
+		lq_sta->last_rate_n_flags = le32_to_cpu(yestif->rate);
 		rs_pretty_print_rate(pretty_rate, sizeof(pretty_rate),
 				     lq_sta->last_rate_n_flags);
 		IWL_DEBUG_RATE(mvm, "new rate: %s\n", pretty_rate);
 	}
 
 	if (flags & IWL_TLC_NOTIF_FLAG_AMSDU && !mvmsta->orig_amsdu_len) {
-		u16 size = le32_to_cpu(notif->amsdu_size);
+		u16 size = le32_to_cpu(yestif->amsdu_size);
 		int i;
 
 		/*
@@ -361,7 +361,7 @@ void iwl_mvm_tlc_update_notif(struct iwl_mvm *mvm,
 			    mvmsta->orig_amsdu_len < size))
 			goto out;
 
-		mvmsta->amsdu_enabled = le32_to_cpu(notif->amsdu_enabled);
+		mvmsta->amsdu_enabled = le32_to_cpu(yestif->amsdu_enabled);
 		mvmsta->max_amsdu_len = size;
 		sta->max_rc_amsdu_len = mvmsta->max_amsdu_len;
 
@@ -379,7 +379,7 @@ void iwl_mvm_tlc_update_notif(struct iwl_mvm *mvm,
 
 		IWL_DEBUG_RATE(mvm,
 			       "AMSDU update. AMSDU size: %d, AMSDU selected size: %d, AMSDU TID bitmap 0x%X\n",
-			       le32_to_cpu(notif->amsdu_size), size,
+			       le32_to_cpu(yestif->amsdu_size), size,
 			       mvmsta->amsdu_enabled);
 	}
 out:
@@ -413,7 +413,7 @@ u16 rs_fw_get_max_amsdu_len(struct ieee80211_sta *sta)
 			return IEEE80211_MAX_MPDU_LEN_HT_3839;
 	}
 
-	/* in legacy mode no amsdu is enabled so return zero */
+	/* in legacy mode yes amsdu is enabled so return zero */
 	return 0;
 }
 
@@ -460,8 +460,8 @@ void rs_fw_rate_init(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 int rs_fw_tx_protection(struct iwl_mvm *mvm, struct iwl_mvm_sta *mvmsta,
 			bool enable)
 {
-	/* TODO: need to introduce a new FW cmd since LQ cmd is not relevant */
-	IWL_DEBUG_RATE(mvm, "tx protection - not implemented yet.\n");
+	/* TODO: need to introduce a new FW cmd since LQ cmd is yest relevant */
+	IWL_DEBUG_RATE(mvm, "tx protection - yest implemented yet.\n");
 	return 0;
 }
 

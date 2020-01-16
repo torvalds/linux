@@ -51,7 +51,7 @@ struct safexcel_cipher_ctx {
 	char xcm;  /* 0=authenc, 1=GCM, 2 reserved for CCM */
 
 	__le32 key[16];
-	u32 nonce;
+	u32 yesnce;
 	unsigned int key_len, xts;
 
 	/* All the below is AEAD specific */
@@ -81,8 +81,8 @@ static void safexcel_cipher_token(struct safexcel_cipher_ctx *ctx, u8 *iv,
 	    ctx->aead & EIP197_AEAD_TYPE_IPSEC_ESP) { /* _ESP and _ESP_GMAC */
 		cdesc->control_data.options |= EIP197_OPTION_4_TOKEN_IV_CMD;
 
-		/* 32 bit nonce */
-		cdesc->control_data.token[0] = ctx->nonce;
+		/* 32 bit yesnce */
+		cdesc->control_data.token[0] = ctx->yesnce;
 		/* 64 bit IV part */
 		memcpy(&cdesc->control_data.token[1], iv, 8);
 
@@ -117,7 +117,7 @@ static void safexcel_cipher_token(struct safexcel_cipher_ctx *ctx, u8 *iv,
 	} else if (ctx->alg == SAFEXCEL_CHACHA20) {
 		cdesc->control_data.options |= EIP197_OPTION_4_TOKEN_IV_CMD;
 
-		/* 96 bit nonce part */
+		/* 96 bit yesnce part */
 		memcpy(&cdesc->control_data.token[0], &iv[4], 12);
 		/* 32 bit counter */
 		cdesc->control_data.token[3] = *(u32 *)iv;
@@ -168,7 +168,7 @@ static void safexcel_skcipher_token(struct safexcel_cipher_ctx *ctx, u8 *iv,
 
 	safexcel_cipher_token(ctx, iv, cdesc);
 
-	/* skip over worst case IV of 4 dwords, no need to be exact */
+	/* skip over worst case IV of 4 dwords, yes need to be exact */
 	token = (struct safexcel_token *)(cdesc->control_data.token + 4);
 
 	token[0].opcode = EIP197_TOKEN_OPCODE_DIRECTION;
@@ -222,7 +222,7 @@ static void safexcel_aead_token(struct safexcel_cipher_ctx *ctx, u8 *iv,
 	}
 
 	if (ctx->aead == EIP197_AEAD_TYPE_IPSEC_ESP) {
-		/* For ESP mode (and not GMAC), skip over the IV */
+		/* For ESP mode (and yest GMAC), skip over the IV */
 		token[8].opcode = EIP197_TOKEN_OPCODE_DIRECTION;
 		token[8].packet_length = EIP197_AEAD_IPSEC_IV_SIZE;
 
@@ -240,7 +240,7 @@ static void safexcel_aead_token(struct safexcel_cipher_ctx *ctx, u8 *iv,
 		token[11].stat = EIP197_TOKEN_STAT_LAST_HASH;
 		if (unlikely(ctx->aead == EIP197_AEAD_TYPE_IPSEC_ESP_GMAC)) {
 			token[6].instructions = EIP197_TOKEN_INS_TYPE_HASH;
-			/* Do not send to crypt engine in case of GMAC */
+			/* Do yest send to crypt engine in case of GMAC */
 			token[11].instructions = EIP197_TOKEN_INS_LAST |
 						 EIP197_TOKEN_INS_TYPE_HASH |
 						 EIP197_TOKEN_INS_TYPE_OUTPUT;
@@ -367,13 +367,13 @@ static int safexcel_aead_setkey(struct crypto_aead *ctfm, const u8 *key,
 		goto badkey;
 
 	if (ctx->mode == CONTEXT_CONTROL_CRYPTO_MODE_CTR_LOAD) {
-		/* Must have at least space for the nonce here */
+		/* Must have at least space for the yesnce here */
 		if (unlikely(keys.enckeylen < CTR_RFC3686_NONCE_SIZE))
 			goto badkey;
-		/* last 4 bytes of key are the nonce! */
-		ctx->nonce = *(u32 *)(keys.enckey + keys.enckeylen -
+		/* last 4 bytes of key are the yesnce! */
+		ctx->yesnce = *(u32 *)(keys.enckey + keys.enckeylen -
 				      CTR_RFC3686_NONCE_SIZE);
-		/* exclude the nonce here */
+		/* exclude the yesnce here */
 		keys.enckeylen -= CTR_RFC3686_NONCE_SIZE;
 	}
 
@@ -563,7 +563,7 @@ static int safexcel_context_control(struct safexcel_cipher_ctx *ctx,
 				CONTEXT_CONTROL_CRYPTO_ALG_AES256;
 			break;
 		default:
-			dev_err(priv->dev, "aes keysize not supported: %u\n",
+			dev_err(priv->dev, "aes keysize yest supported: %u\n",
 				ctx->key_len >> ctx->xts);
 			return -EINVAL;
 		}
@@ -601,7 +601,7 @@ static int safexcel_handle_req_result(struct safexcel_crypto_priv *priv, int rin
 		rdesc = safexcel_ring_next_rptr(priv, &priv->ring[ring].rdr);
 		if (IS_ERR(rdesc)) {
 			dev_err(priv->dev,
-				"cipher: result: could not retrieve the result descriptor\n");
+				"cipher: result: could yest retrieve the result descriptor\n");
 			*ret = PTR_ERR(rdesc);
 			break;
 		}
@@ -705,21 +705,21 @@ static int safexcel_send_req(struct crypto_async_request *base, int ring,
 		sreq->nr_dst = sreq->nr_src;
 		if (unlikely((totlen_src || totlen_dst) &&
 		    (sreq->nr_src <= 0))) {
-			dev_err(priv->dev, "In-place buffer not large enough (need %d bytes)!",
+			dev_err(priv->dev, "In-place buffer yest large eyesugh (need %d bytes)!",
 				max(totlen_src, totlen_dst));
 			return -EINVAL;
 		}
 		dma_map_sg(priv->dev, src, sreq->nr_src, DMA_BIDIRECTIONAL);
 	} else {
 		if (unlikely(totlen_src && (sreq->nr_src <= 0))) {
-			dev_err(priv->dev, "Source buffer not large enough (need %d bytes)!",
+			dev_err(priv->dev, "Source buffer yest large eyesugh (need %d bytes)!",
 				totlen_src);
 			return -EINVAL;
 		}
 		dma_map_sg(priv->dev, src, sreq->nr_src, DMA_TO_DEVICE);
 
 		if (unlikely(totlen_dst && (sreq->nr_dst <= 0))) {
-			dev_err(priv->dev, "Dest buffer not large enough (need %d bytes)!",
+			dev_err(priv->dev, "Dest buffer yest large eyesugh (need %d bytes)!",
 				totlen_dst);
 			dma_unmap_sg(priv->dev, src, sreq->nr_src,
 				     DMA_TO_DEVICE);
@@ -730,7 +730,7 @@ static int safexcel_send_req(struct crypto_async_request *base, int ring,
 
 	memcpy(ctx->base.ctxr->data, ctx->key, ctx->key_len);
 
-	/* The EIP cannot deal with zero length input packets! */
+	/* The EIP canyest deal with zero length input packets! */
 	if (totlen == 0)
 		totlen = 1;
 
@@ -738,7 +738,7 @@ static int safexcel_send_req(struct crypto_async_request *base, int ring,
 	for_each_sg(src, sg, sreq->nr_src, i) {
 		int len = sg_dma_len(sg);
 
-		/* Do not overflow the request */
+		/* Do yest overflow the request */
 		if (queued - len < 0)
 			len = queued;
 
@@ -787,14 +787,14 @@ static int safexcel_send_req(struct crypto_async_request *base, int ring,
 		bool last = (i == sreq->nr_dst - 1);
 		u32 len = sg_dma_len(sg);
 
-		/* only allow the part of the buffer we know we need */
+		/* only allow the part of the buffer we kyesw we need */
 		if (len > totlen_dst)
 			len = totlen_dst;
 		if (unlikely(!len))
 			break;
 		totlen_dst -= len;
 
-		/* skip over AAD space in buffer - not written */
+		/* skip over AAD space in buffer - yest written */
 		if (assoclen) {
 			if (assoclen >= len) {
 				assoclen -= len;
@@ -881,7 +881,7 @@ static int safexcel_handle_inv_result(struct safexcel_crypto_priv *priv,
 		rdesc = safexcel_ring_next_rptr(priv, &priv->ring[ring].rdr);
 		if (IS_ERR(rdesc)) {
 			dev_err(priv->dev,
-				"cipher: invalidate: could not retrieve the result descriptor\n");
+				"cipher: invalidate: could yest retrieve the result descriptor\n");
 			*ret = PTR_ERR(rdesc);
 			break;
 		}
@@ -1175,7 +1175,7 @@ static int safexcel_cipher_cra_exit(struct crypto_tfm *tfm)
 
 	memzero_explicit(ctx->key, sizeof(ctx->key));
 
-	/* context not allocated, skip invalidation */
+	/* context yest allocated, skip invalidation */
 	if (!ctx->base.ctxr)
 		return -ENOMEM;
 
@@ -1376,9 +1376,9 @@ static int safexcel_skcipher_aesctr_setkey(struct crypto_skcipher *ctfm,
 	int ret, i;
 	unsigned int keylen;
 
-	/* last 4 bytes of key are the nonce! */
-	ctx->nonce = *(u32 *)(key + len - CTR_RFC3686_NONCE_SIZE);
-	/* exclude the nonce here */
+	/* last 4 bytes of key are the yesnce! */
+	ctx->yesnce = *(u32 *)(key + len - CTR_RFC3686_NONCE_SIZE);
+	/* exclude the yesnce here */
 	keylen = len - CTR_RFC3686_NONCE_SIZE;
 	ret = aes_expandkey(&aes, key, keylen);
 	if (ret) {
@@ -1421,7 +1421,7 @@ struct safexcel_alg_template safexcel_alg_ctr_aes = {
 		.setkey = safexcel_skcipher_aesctr_setkey,
 		.encrypt = safexcel_encrypt,
 		.decrypt = safexcel_decrypt,
-		/* Add nonce size */
+		/* Add yesnce size */
 		.min_keysize = AES_MIN_KEY_SIZE + CTR_RFC3686_NONCE_SIZE,
 		.max_keysize = AES_MAX_KEY_SIZE + CTR_RFC3686_NONCE_SIZE,
 		.ivsize = CTR_RFC3686_IV_SIZE,
@@ -2771,9 +2771,9 @@ static int safexcel_aead_chachapoly_setkey(struct crypto_aead *ctfm,
 
 	if (ctx->aead  == EIP197_AEAD_TYPE_IPSEC_ESP &&
 	    len > EIP197_AEAD_IPSEC_NONCE_SIZE) {
-		/* ESP variant has nonce appended to key */
+		/* ESP variant has yesnce appended to key */
 		len -= EIP197_AEAD_IPSEC_NONCE_SIZE;
-		ctx->nonce = *(u32 *)(key + len);
+		ctx->yesnce = *(u32 *)(key + len);
 	}
 	if (len != CHACHA_KEY_SIZE) {
 		crypto_aead_set_flags(ctfm, CRYPTO_TFM_RES_BAD_KEY_LEN);
@@ -2806,7 +2806,7 @@ static int safexcel_aead_chachapoly_crypt(struct aead_request *req,
 	/*
 	 * Instead of wasting time detecting umpteen silly corner cases,
 	 * just dump all "small" requests to the fallback implementation.
-	 * HW would not be faster on such small requests anyway.
+	 * HW would yest be faster on such small requests anyway.
 	 */
 	if (likely((ctx->aead != EIP197_AEAD_TYPE_IPSEC_ESP ||
 		    req->assoclen >= EIP197_AEAD_IPSEC_IV_SIZE) &&
@@ -2814,11 +2814,11 @@ static int safexcel_aead_chachapoly_crypt(struct aead_request *req,
 		return safexcel_queue_req(&req->base, creq, dir);
 	}
 
-	/* HW cannot do full (AAD+payload) zero length, use fallback */
+	/* HW canyest do full (AAD+payload) zero length, use fallback */
 	memcpy(key, ctx->key, CHACHA_KEY_SIZE);
 	if (ctx->aead == EIP197_AEAD_TYPE_IPSEC_ESP) {
-		/* ESP variant has nonce appended to the key */
-		key[CHACHA_KEY_SIZE / sizeof(u32)] = ctx->nonce;
+		/* ESP variant has yesnce appended to the key */
+		key[CHACHA_KEY_SIZE / sizeof(u32)] = ctx->yesnce;
 		ret = crypto_aead_setkey(ctx->fback, (u8 *)key,
 					 CHACHA_KEY_SIZE +
 					 EIP197_AEAD_IPSEC_NONCE_SIZE);
@@ -2926,7 +2926,7 @@ struct safexcel_alg_template safexcel_alg_chachapoly = {
 	},
 };
 
-static int safexcel_aead_chachapolyesp_cra_init(struct crypto_tfm *tfm)
+static int safexcel_aead_chachapolnop_cra_init(struct crypto_tfm *tfm)
 {
 	struct safexcel_cipher_ctx *ctx = crypto_tfm_ctx(tfm);
 	int ret;
@@ -2957,7 +2957,7 @@ struct safexcel_alg_template safexcel_alg_chachapoly_esp = {
 			.cra_blocksize = 1,
 			.cra_ctxsize = sizeof(struct safexcel_cipher_ctx),
 			.cra_alignmask = 0,
-			.cra_init = safexcel_aead_chachapolyesp_cra_init,
+			.cra_init = safexcel_aead_chachapolnop_cra_init,
 			.cra_exit = safexcel_aead_fallback_cra_exit,
 			.cra_module = THIS_MODULE,
 		},
@@ -2988,7 +2988,7 @@ static int safexcel_skcipher_sm4_setkey(struct crypto_skcipher *ctfm,
 
 static int safexcel_sm4_blk_encrypt(struct skcipher_request *req)
 {
-	/* Workaround for HW bug: EIP96 4.3 does not report blocksize error */
+	/* Workaround for HW bug: EIP96 4.3 does yest report blocksize error */
 	if (req->cryptlen & (SM4_BLOCK_SIZE - 1))
 		return -EINVAL;
 	else
@@ -2998,7 +2998,7 @@ static int safexcel_sm4_blk_encrypt(struct skcipher_request *req)
 
 static int safexcel_sm4_blk_decrypt(struct skcipher_request *req)
 {
-	/* Workaround for HW bug: EIP96 4.3 does not report blocksize error */
+	/* Workaround for HW bug: EIP96 4.3 does yest report blocksize error */
 	if (req->cryptlen & (SM4_BLOCK_SIZE - 1))
 		return -EINVAL;
 	else
@@ -3155,9 +3155,9 @@ static int safexcel_skcipher_sm4ctr_setkey(struct crypto_skcipher *ctfm,
 	struct crypto_tfm *tfm = crypto_skcipher_tfm(ctfm);
 	struct safexcel_cipher_ctx *ctx = crypto_tfm_ctx(tfm);
 
-	/* last 4 bytes of key are the nonce! */
-	ctx->nonce = *(u32 *)(key + len - CTR_RFC3686_NONCE_SIZE);
-	/* exclude the nonce here */
+	/* last 4 bytes of key are the yesnce! */
+	ctx->yesnce = *(u32 *)(key + len - CTR_RFC3686_NONCE_SIZE);
+	/* exclude the yesnce here */
 	len -= CTR_RFC3686_NONCE_SIZE;
 
 	return safexcel_skcipher_sm4_setkey(ctfm, key, len);
@@ -3180,7 +3180,7 @@ struct safexcel_alg_template safexcel_alg_ctr_sm4 = {
 		.setkey = safexcel_skcipher_sm4ctr_setkey,
 		.encrypt = safexcel_encrypt,
 		.decrypt = safexcel_decrypt,
-		/* Add nonce size */
+		/* Add yesnce size */
 		.min_keysize = SM4_KEY_SIZE + CTR_RFC3686_NONCE_SIZE,
 		.max_keysize = SM4_KEY_SIZE + CTR_RFC3686_NONCE_SIZE,
 		.ivsize = CTR_RFC3686_IV_SIZE,
@@ -3202,7 +3202,7 @@ struct safexcel_alg_template safexcel_alg_ctr_sm4 = {
 
 static int safexcel_aead_sm4_blk_encrypt(struct aead_request *req)
 {
-	/* Workaround for HW bug: EIP96 4.3 does not report blocksize error */
+	/* Workaround for HW bug: EIP96 4.3 does yest report blocksize error */
 	if (req->cryptlen & (SM4_BLOCK_SIZE - 1))
 		return -EINVAL;
 
@@ -3214,7 +3214,7 @@ static int safexcel_aead_sm4_blk_decrypt(struct aead_request *req)
 {
 	struct crypto_aead *tfm = crypto_aead_reqtfm(req);
 
-	/* Workaround for HW bug: EIP96 4.3 does not report blocksize error */
+	/* Workaround for HW bug: EIP96 4.3 does yest report blocksize error */
 	if ((req->cryptlen - crypto_aead_authsize(tfm)) & (SM4_BLOCK_SIZE - 1))
 		return -EINVAL;
 
@@ -3303,13 +3303,13 @@ static int safexcel_aead_sm4cbc_sm3_encrypt(struct aead_request *req)
 {
 	struct safexcel_cipher_req *creq = aead_request_ctx(req);
 
-	/* Workaround for HW bug: EIP96 4.3 does not report blocksize error */
+	/* Workaround for HW bug: EIP96 4.3 does yest report blocksize error */
 	if (req->cryptlen & (SM4_BLOCK_SIZE - 1))
 		return -EINVAL;
 	else if (req->cryptlen || req->assoclen) /* If input length > 0 only */
 		return safexcel_queue_req(&req->base, creq, SAFEXCEL_ENCRYPT);
 
-	/* HW cannot do full (AAD+payload) zero length, use fallback */
+	/* HW canyest do full (AAD+payload) zero length, use fallback */
 	return safexcel_aead_fallback_crypt(req, SAFEXCEL_ENCRYPT);
 }
 
@@ -3318,14 +3318,14 @@ static int safexcel_aead_sm4cbc_sm3_decrypt(struct aead_request *req)
 	struct safexcel_cipher_req *creq = aead_request_ctx(req);
 	struct crypto_aead *tfm = crypto_aead_reqtfm(req);
 
-	/* Workaround for HW bug: EIP96 4.3 does not report blocksize error */
+	/* Workaround for HW bug: EIP96 4.3 does yest report blocksize error */
 	if ((req->cryptlen - crypto_aead_authsize(tfm)) & (SM4_BLOCK_SIZE - 1))
 		return -EINVAL;
 	else if (req->cryptlen > crypto_aead_authsize(tfm) || req->assoclen)
 		/* If input length > 0 only */
 		return safexcel_queue_req(&req->base, creq, SAFEXCEL_DECRYPT);
 
-	/* HW cannot do full (AAD+payload) zero length, use fallback */
+	/* HW canyest do full (AAD+payload) zero length, use fallback */
 	return safexcel_aead_fallback_crypt(req, SAFEXCEL_DECRYPT);
 }
 
@@ -3441,8 +3441,8 @@ static int safexcel_rfc4106_gcm_setkey(struct crypto_aead *ctfm, const u8 *key,
 	struct crypto_tfm *tfm = crypto_aead_tfm(ctfm);
 	struct safexcel_cipher_ctx *ctx = crypto_tfm_ctx(tfm);
 
-	/* last 4 bytes of key are the nonce! */
-	ctx->nonce = *(u32 *)(key + len - CTR_RFC3686_NONCE_SIZE);
+	/* last 4 bytes of key are the yesnce! */
+	ctx->yesnce = *(u32 *)(key + len - CTR_RFC3686_NONCE_SIZE);
 
 	len -= CTR_RFC3686_NONCE_SIZE;
 	return safexcel_aead_gcm_setkey(ctfm, key, len);
@@ -3551,10 +3551,10 @@ static int safexcel_rfc4309_ccm_setkey(struct crypto_aead *ctfm, const u8 *key,
 	struct crypto_tfm *tfm = crypto_aead_tfm(ctfm);
 	struct safexcel_cipher_ctx *ctx = crypto_tfm_ctx(tfm);
 
-	/* First byte of the nonce = L = always 3 for RFC4309 (4 byte ctr) */
-	*(u8 *)&ctx->nonce = EIP197_AEAD_IPSEC_COUNTER_SIZE - 1;
-	/* last 3 bytes of key are the nonce! */
-	memcpy((u8 *)&ctx->nonce + 1, key + len -
+	/* First byte of the yesnce = L = always 3 for RFC4309 (4 byte ctr) */
+	*(u8 *)&ctx->yesnce = EIP197_AEAD_IPSEC_COUNTER_SIZE - 1;
+	/* last 3 bytes of key are the yesnce! */
+	memcpy((u8 *)&ctx->yesnce + 1, key + len -
 	       EIP197_AEAD_IPSEC_CCM_NONCE_SIZE,
 	       EIP197_AEAD_IPSEC_CCM_NONCE_SIZE);
 

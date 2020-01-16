@@ -27,7 +27,7 @@
  * @s:		the struct pcmcia_socket where the card is inserted
  * @function:	the device function we loop for
  * @code:	which CIS code shall we look for?
- * @parse:	buffer where the tuple shall be parsed (or NULL, if no parse)
+ * @parse:	buffer where the tuple shall be parsed (or NULL, if yes parse)
  *
  * pccard_read_tuple() reads out one tuple and attempts to parse it
  */
@@ -40,7 +40,7 @@ int pccard_read_tuple(struct pcmcia_socket *s, unsigned int function,
 
 	buf = kmalloc(256, GFP_KERNEL);
 	if (buf == NULL) {
-		dev_warn(&s->dev, "no memory to read tuple\n");
+		dev_warn(&s->dev, "yes memory to read tuple\n");
 		return -ENOMEM;
 	}
 	tuple.DesiredTuple = code;
@@ -68,7 +68,7 @@ done:
  * @s:		the struct pcmcia_socket where the card is inserted
  * @function:	the device function we loop for
  * @code:	which CIS code shall we look for?
- * @parse:	buffer where the tuple shall be parsed (or NULL, if no parse)
+ * @parse:	buffer where the tuple shall be parsed (or NULL, if yes parse)
  * @priv_data:	private data to be passed to the loop_tuple function.
  * @loop_tuple:	function to call for each CIS entry of type @function. IT
  *		gets passed the raw tuple, the paresed tuple (if @parse is
@@ -90,7 +90,7 @@ int pccard_loop_tuple(struct pcmcia_socket *s, unsigned int function,
 
 	buf = kzalloc(256, GFP_KERNEL);
 	if (buf == NULL) {
-		dev_warn(&s->dev, "no memory to read tuple\n");
+		dev_warn(&s->dev, "yes memory to read tuple\n");
 		return -ENOMEM;
 	}
 
@@ -343,7 +343,7 @@ struct pcmcia_loop_get {
  * pcmcia_do_get_tuple() is the internal callback for the call from
  * pcmcia_get_tuple() to pcmcia_loop_tuple(). As we're only interested in
  * the first tuple, return 0 unconditionally. Create a memory buffer large
- * enough to hold the content of the tuple, and fill it with the tuple data.
+ * eyesugh to hold the content of the tuple, and fill it with the tuple data.
  * The caller is responsible to free the buffer.
  */
 static int pcmcia_do_get_tuple(struct pcmcia_device *p_dev, tuple_t *tuple,

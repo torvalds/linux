@@ -113,7 +113,7 @@ static irqreturn_t bma220_trigger_handler(int irq, void *p)
 					   pf->timestamp);
 err:
 	mutex_unlock(&data->lock);
-	iio_trigger_notify_done(indio_dev->trig);
+	iio_trigger_yestify_done(indio_dev->trig);
 
 	return IRQ_HANDLED;
 }

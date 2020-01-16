@@ -3,7 +3,7 @@
  *	vfsv0 quota IO operations on file
  */
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/fs.h>
 #include <linux/mount.h>
 #include <linux/dqblk_v2.h>
@@ -52,7 +52,7 @@ static char *getdqbuf(size_t size)
 	char *buf = kmalloc(size, GFP_NOFS);
 	if (!buf)
 		printk(KERN_WARNING
-		       "VFS: Not enough memory for quota buffers.\n");
+		       "VFS: Not eyesugh memory for quota buffers.\n");
 	return buf;
 }
 
@@ -249,7 +249,7 @@ static uint find_free_dqentry(struct qtree_mem_dqinfo *info,
 			return 0;
 		}
 		memset(buf, 0, info->dqi_usable_bs);
-		/* This is enough as the block is already zeroed and the entry
+		/* This is eyesugh as the block is already zeroed and the entry
 		 * list is empty... */
 		info->dqi_free_entry = blk;
 		mark_info_dirty(dquot->dq_sb, dquot->dq_id.type);
@@ -464,7 +464,7 @@ static int free_dqentry(struct qtree_mem_dqinfo *info, struct dquot *dquot,
 			}
 		}
 	}
-	dquot->dq_off = 0;	/* Quota is now unattached */
+	dquot->dq_off = 0;	/* Quota is yesw unattached */
 out_buf:
 	kfree(buf);
 	return ret;
@@ -523,7 +523,7 @@ int qtree_delete_dquot(struct qtree_mem_dqinfo *info, struct dquot *dquot)
 {
 	uint tmp = QT_TREEOFF;
 
-	if (!dquot->dq_off)	/* Even not allocated? */
+	if (!dquot->dq_off)	/* Even yest allocated? */
 		return 0;
 	return remove_tree(info, dquot, &tmp, 0);
 }
@@ -554,7 +554,7 @@ static loff_t find_block_dqentry(struct qtree_mem_dqinfo *info,
 	}
 	if (i == qtree_dqstr_in_blk(info)) {
 		quota_error(dquot->dq_sb,
-			    "Quota for id %u referenced but not present",
+			    "Quota for id %u referenced but yest present",
 			    from_kqid(&init_user_ns, dquot->dq_id));
 		ret = -EIO;
 		goto out_buf;
@@ -618,10 +618,10 @@ int qtree_read_dquot(struct qtree_mem_dqinfo *info, struct dquot *dquot)
 		return -EIO;
 	}
 #endif
-	/* Do we know offset of the dquot entry in the quota file? */
+	/* Do we kyesw offset of the dquot entry in the quota file? */
 	if (!dquot->dq_off) {
 		offset = find_dqentry(info, dquot);
-		if (offset <= 0) {	/* Entry not present? */
+		if (offset <= 0) {	/* Entry yest present? */
 			if (offset < 0)
 				quota_error(sb,"Can't read quota structure "
 					    "for id %u",
@@ -665,12 +665,12 @@ out:
 }
 EXPORT_SYMBOL(qtree_read_dquot);
 
-/* Check whether dquot should not be deleted. We know we are
+/* Check whether dquot should yest be deleted. We kyesw we are
  * the only one operating on dquot (thanks to dq_lock) */
 int qtree_release_dquot(struct qtree_mem_dqinfo *info, struct dquot *dquot)
 {
 	if (test_bit(DQ_FAKE_B, &dquot->dq_flags) &&
-	    !(dquot->dq_dqb.dqb_curinodes | dquot->dq_dqb.dqb_curspace))
+	    !(dquot->dq_dqb.dqb_curiyesdes | dquot->dq_dqb.dqb_curspace))
 		return qtree_delete_dquot(info, dquot);
 	return 0;
 }

@@ -11,13 +11,13 @@
 
 #include <linux/module.h>
 
-static int no_alternatives;
-static int __init setup_no_alternatives(char *str)
+static int yes_alternatives;
+static int __init setup_yes_alternatives(char *str)
 {
-	no_alternatives = 1;
+	yes_alternatives = 1;
 	return 1;
 }
-__setup("no-alternatives", setup_no_alternatives);
+__setup("yes-alternatives", setup_yes_alternatives);
 
 void __init_or_module apply_alternatives(struct alt_instr *start,
 		 struct alt_instr *end, const char *module_name)
@@ -38,7 +38,7 @@ void __init_or_module apply_alternatives(struct alt_instr *start,
 
 		WARN_ON(!cond);
 
-		if (cond != ALT_COND_ALWAYS && no_alternatives)
+		if (cond != ALT_COND_ALWAYS && yes_alternatives)
 			continue;
 
 		pr_debug("Check %d: Cond 0x%x, Replace %02d instructions @ 0x%px with 0x%08x\n",

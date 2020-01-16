@@ -15,7 +15,7 @@
 
 (*
  * File "lock.cat" handles locks and is experimental.
- * It can be replaced by include "cos.cat" for tests that do not use locks.
+ * It can be replaced by include "cos.cat" for tests that do yest use locks.
  *)
 
 include "lock.cat"
@@ -42,8 +42,8 @@ let mb = ([M] ; fencerel(Mb) ; [M]) |
 let gp = po ; [Sync-rcu | Sync-srcu] ; po?
 let strong-fence = mb | gp
 
-let nonrw-fence = strong-fence | po-rel | acq-po
-let fence = nonrw-fence | wmb | rmb
+let yesnrw-fence = strong-fence | po-rel | acq-po
+let fence = yesnrw-fence | wmb | rmb
 let barrier = fencerel(Barrier | Rmb | Wmb | Mb | Sync-rcu | Sync-srcu |
 		Before-atomic | After-atomic | Acquire | Release |
 		Rcu-lock | Rcu-unlock | Srcu-lock | Srcu-unlock) |
@@ -90,7 +90,7 @@ acyclic hb as happens-before
 (* Write and fence propagation ordering *)
 (****************************************)
 
-(* Propagation: Each non-rf link needs a strong fence. *)
+(* Propagation: Each yesn-rf link needs a strong fence. *)
 let pb = prop ; strong-fence ; hb* ; [Marked]
 acyclic pb as propagation
 
@@ -114,8 +114,8 @@ let rcu-rscsi = rcu-rscs^-1
 let srcu-rscsi = srcu-rscs^-1
 
 (*
- * The synchronize_rcu() strong fence is special in that it can order not
- * one but two non-rf relations, but only in conjunction with an RCU
+ * The synchronize_rcu() strong fence is special in that it can order yest
+ * one but two yesn-rf relations, but only in conjunction with an RCU
  * read-side critical section.
  *)
 let rcu-link = po? ; hb* ; pb* ; prop ; po
@@ -172,10 +172,10 @@ let vis = cumul-fence* ; rfe? ; [Marked] ;
 
 (* Boundaries for lifetimes of plain accesses *)
 let w-pre-bounded = [Marked] ; (addr | fence)?
-let r-pre-bounded = [Marked] ; (addr | nonrw-fence |
+let r-pre-bounded = [Marked] ; (addr | yesnrw-fence |
 	([R4rmb] ; fencerel(Rmb) ; [~Noreturn]))?
 let w-post-bounded = fence? ; [Marked]
-let r-post-bounded = (nonrw-fence | ([~Noreturn] ; fencerel(Rmb) ; [R4rmb]))? ;
+let r-post-bounded = (yesnrw-fence | ([~Noreturn] ; fencerel(Rmb) ; [R4rmb]))? ;
 	[Marked]
 
 (* Visibility and executes-before for plain accesses *)
@@ -195,8 +195,8 @@ let ww-incoh = pre-race & co & ww-vis^-1
 empty (wr-incoh | rw-incoh | ww-incoh) as plain-coherence
 
 (* Actual races *)
-let ww-nonrace = ww-vis & ((Marked * W) | rw-xbstar) & ((W * Marked) | wr-vis)
-let ww-race = (pre-race & co) \ ww-nonrace
+let ww-yesnrace = ww-vis & ((Marked * W) | rw-xbstar) & ((W * Marked) | wr-vis)
+let ww-race = (pre-race & co) \ ww-yesnrace
 let wr-race = (pre-race & (co? ; rf)) \ wr-vis \ rw-xbstar^-1
 let rw-race = (pre-race & fr) \ rw-xbstar
 

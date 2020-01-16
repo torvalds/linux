@@ -10,7 +10,7 @@
 #include <linux/kernel.h>
 #include <linux/list.h>
 #include <linux/netdevice.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/crc32.h>
 #include <scsi/libfcoe.h>
 
@@ -27,7 +27,7 @@ static struct fcoe_transport *fcoe_transport_lookup(struct net_device *device);
 static struct fcoe_transport *fcoe_netdev_map_lookup(struct net_device *device);
 static int fcoe_transport_enable(const char *, const struct kernel_param *);
 static int fcoe_transport_disable(const char *, const struct kernel_param *);
-static int libfcoe_device_notification(struct notifier_block *notifier,
+static int libfcoe_device_yestification(struct yestifier_block *yestifier,
 				    ulong event, void *ptr);
 
 static LIST_HEAD(fcoe_transports);
@@ -51,7 +51,7 @@ MODULE_PARM_DESC(create, " Creates fcoe instance on an ethernet interface");
 module_param_call(create_vn2vn, fcoe_transport_create, NULL,
 		  (void *)FIP_MODE_VN2VN, S_IWUSR);
 __MODULE_PARM_TYPE(create_vn2vn, "string");
-MODULE_PARM_DESC(create_vn2vn, " Creates a VN_node to VN_node FCoE instance "
+MODULE_PARM_DESC(create_vn2vn, " Creates a VN_yesde to VN_yesde FCoE instance "
 		 "on an Ethernet interface");
 
 module_param_call(destroy, fcoe_transport_destroy, NULL, NULL, S_IWUSR);
@@ -66,9 +66,9 @@ module_param_call(disable, fcoe_transport_disable, NULL, NULL, S_IWUSR);
 __MODULE_PARM_TYPE(disable, "string");
 MODULE_PARM_DESC(disable, " Disables fcoe on an ethernet interface.");
 
-/* notification function for packets from net device */
-static struct notifier_block libfcoe_notifier = {
-	.notifier_call = libfcoe_device_notification,
+/* yestification function for packets from net device */
+static struct yestifier_block libfcoe_yestifier = {
+	.yestifier_call = libfcoe_device_yestification,
 };
 
 static const struct {
@@ -256,7 +256,7 @@ int fcoe_validate_vport_create(struct fc_vport *vport)
 	mutex_lock(&n_port->lp_mutex);
 
 	fcoe_wwn_to_str(vport->port_name, buf, sizeof(buf));
-	/* Check if the wwpn is not same as that of the lport */
+	/* Check if the wwpn is yest same as that of the lport */
 	if (!memcmp(&n_port->wwpn, &vport->port_name, sizeof(u64))) {
 		LIBFCOE_TRANSPORT_DBG("vport WWPN 0x%s is same as that of the "
 				      "base port WWPN\n", buf);
@@ -458,8 +458,8 @@ EXPORT_SYMBOL_GPL(fcoe_queue_timer);
  * @fps:  The fcoe context
  *
  * This routine allocates a page for frame trailers. The page is re-used if
- * there is enough room left on it for the current trailer. If there isn't
- * enough buffer left a new page is allocated for the trailer. Reference to
+ * there is eyesugh room left on it for the current trailer. If there isn't
+ * eyesugh buffer left a new page is allocated for the trailer. Reference to
  * the page from this function as well as the skbs using the page fragments
  * ensure that the page is freed at the appropriate time.
  *
@@ -503,7 +503,7 @@ EXPORT_SYMBOL_GPL(fcoe_get_paged_crc_eof);
  * @netdev: The netdev to look for from all attached transports
  *
  * Returns : ptr to the fcoe transport that supports this netdev or NULL
- * if not found.
+ * if yest found.
  *
  * The ft_mutex should be held when this is called
  */
@@ -607,13 +607,13 @@ static int fcoe_transport_show(char *buffer, const struct kernel_param *kp)
 	}
 	mutex_unlock(&ft_mutex);
 	if (i == j)
-		i += snprintf(&buffer[i], IFNAMSIZ, "none");
+		i += snprintf(&buffer[i], IFNAMSIZ, "yesne");
 	return i;
 }
 
 static int __init fcoe_transport_init(void)
 {
-	register_netdevice_notifier(&libfcoe_notifier);
+	register_netdevice_yestifier(&libfcoe_yestifier);
 	return 0;
 }
 
@@ -621,7 +621,7 @@ static int fcoe_transport_exit(void)
 {
 	struct fcoe_transport *ft;
 
-	unregister_netdevice_notifier(&libfcoe_notifier);
+	unregister_netdevice_yestifier(&libfcoe_yestifier);
 	mutex_lock(&ft_mutex);
 	list_for_each_entry(ft, &fcoe_transports, list)
 		printk(KERN_ERR "FCoE transport %s is still attached!\n",
@@ -674,7 +674,7 @@ static void fcoe_del_netdev_mapping(struct net_device *netdev)
  * it was created
  *
  * Returns : ptr to the fcoe transport that supports this netdev or NULL
- * if not found.
+ * if yest found.
  *
  * The ft_mutex should be held when this is called
  */
@@ -718,8 +718,8 @@ static struct net_device *fcoe_if_to_netdev(const char *buffer)
 }
 
 /**
- * libfcoe_device_notification() - Handler for net device events
- * @notifier: The context of the notification
+ * libfcoe_device_yestification() - Handler for net device events
+ * @yestifier: The context of the yestification
  * @event:    The type of event
  * @ptr:      The net device that the event was on
  *
@@ -727,10 +727,10 @@ static struct net_device *fcoe_if_to_netdev(const char *buffer)
  *
  * Returns: 0 for success
  */
-static int libfcoe_device_notification(struct notifier_block *notifier,
+static int libfcoe_device_yestification(struct yestifier_block *yestifier,
 				    ulong event, void *ptr)
 {
-	struct net_device *netdev = netdev_notifier_info_to_dev(ptr);
+	struct net_device *netdev = netdev_yestifier_info_to_dev(ptr);
 
 	switch (event) {
 	case NETDEV_UNREGISTER:
@@ -756,7 +756,7 @@ ssize_t fcoe_ctlr_create_store(struct bus_type *bus,
 	if (!netdev) {
 		LIBFCOE_TRANSPORT_DBG("Invalid device %s.\n", buf);
 		rc = -ENODEV;
-		goto out_nodev;
+		goto out_yesdev;
 	}
 
 	ft = fcoe_netdev_map_lookup(netdev);
@@ -770,7 +770,7 @@ ssize_t fcoe_ctlr_create_store(struct bus_type *bus,
 
 	ft = fcoe_transport_lookup(netdev);
 	if (!ft) {
-		LIBFCOE_TRANSPORT_DBG("no FCoE transport found for %s.\n",
+		LIBFCOE_TRANSPORT_DBG("yes FCoE transport found for %s.\n",
 				      netdev->name);
 		rc = -ENODEV;
 		goto out_putdev;
@@ -798,7 +798,7 @@ ssize_t fcoe_ctlr_create_store(struct bus_type *bus,
 
 out_putdev:
 	dev_put(netdev);
-out_nodev:
+out_yesdev:
 	mutex_unlock(&ft_mutex);
 	if (rc)
 		return rc;
@@ -817,12 +817,12 @@ ssize_t fcoe_ctlr_destroy_store(struct bus_type *bus,
 	netdev = fcoe_if_to_netdev(buf);
 	if (!netdev) {
 		LIBFCOE_TRANSPORT_DBG("invalid device %s.\n", buf);
-		goto out_nodev;
+		goto out_yesdev;
 	}
 
 	ft = fcoe_netdev_map_lookup(netdev);
 	if (!ft) {
-		LIBFCOE_TRANSPORT_DBG("no FCoE transport found for %s.\n",
+		LIBFCOE_TRANSPORT_DBG("yes FCoE transport found for %s.\n",
 				      netdev->name);
 		goto out_putdev;
 	}
@@ -839,7 +839,7 @@ ssize_t fcoe_ctlr_destroy_store(struct bus_type *bus,
 	rc = count; /* required for successful return */
 out_putdev:
 	dev_put(netdev);
-out_nodev:
+out_yesdev:
 	mutex_unlock(&ft_mutex);
 	return rc;
 }
@@ -867,7 +867,7 @@ static int fcoe_transport_create(const char *buffer,
 	netdev = fcoe_if_to_netdev(buffer);
 	if (!netdev) {
 		LIBFCOE_TRANSPORT_DBG("Invalid device %s.\n", buffer);
-		goto out_nodev;
+		goto out_yesdev;
 	}
 
 	ft = fcoe_netdev_map_lookup(netdev);
@@ -881,7 +881,7 @@ static int fcoe_transport_create(const char *buffer,
 
 	ft = fcoe_transport_lookup(netdev);
 	if (!ft) {
-		LIBFCOE_TRANSPORT_DBG("no FCoE transport found for %s.\n",
+		LIBFCOE_TRANSPORT_DBG("yes FCoE transport found for %s.\n",
 				      netdev->name);
 		goto out_putdev;
 	}
@@ -905,7 +905,7 @@ static int fcoe_transport_create(const char *buffer,
 
 out_putdev:
 	dev_put(netdev);
-out_nodev:
+out_yesdev:
 	mutex_unlock(&ft_mutex);
 	return rc;
 }
@@ -932,12 +932,12 @@ static int fcoe_transport_destroy(const char *buffer,
 	netdev = fcoe_if_to_netdev(buffer);
 	if (!netdev) {
 		LIBFCOE_TRANSPORT_DBG("invalid device %s.\n", buffer);
-		goto out_nodev;
+		goto out_yesdev;
 	}
 
 	ft = fcoe_netdev_map_lookup(netdev);
 	if (!ft) {
-		LIBFCOE_TRANSPORT_DBG("no FCoE transport found for %s.\n",
+		LIBFCOE_TRANSPORT_DBG("yes FCoE transport found for %s.\n",
 				      netdev->name);
 		goto out_putdev;
 	}
@@ -951,7 +951,7 @@ static int fcoe_transport_destroy(const char *buffer,
 
 out_putdev:
 	dev_put(netdev);
-out_nodev:
+out_yesdev:
 	mutex_unlock(&ft_mutex);
 	return rc;
 }
@@ -976,7 +976,7 @@ static int fcoe_transport_disable(const char *buffer,
 
 	netdev = fcoe_if_to_netdev(buffer);
 	if (!netdev)
-		goto out_nodev;
+		goto out_yesdev;
 
 	ft = fcoe_netdev_map_lookup(netdev);
 	if (!ft)
@@ -986,7 +986,7 @@ static int fcoe_transport_disable(const char *buffer,
 
 out_putdev:
 	dev_put(netdev);
-out_nodev:
+out_yesdev:
 	mutex_unlock(&ft_mutex);
 	return rc;
 }
@@ -1011,7 +1011,7 @@ static int fcoe_transport_enable(const char *buffer,
 
 	netdev = fcoe_if_to_netdev(buffer);
 	if (!netdev)
-		goto out_nodev;
+		goto out_yesdev;
 
 	ft = fcoe_netdev_map_lookup(netdev);
 	if (!ft)
@@ -1021,7 +1021,7 @@ static int fcoe_transport_enable(const char *buffer,
 
 out_putdev:
 	dev_put(netdev);
-out_nodev:
+out_yesdev:
 	mutex_unlock(&ft_mutex);
 	return rc;
 }

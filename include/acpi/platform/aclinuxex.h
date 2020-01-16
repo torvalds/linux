@@ -45,7 +45,7 @@ acpi_status acpi_os_terminate(void);
  * The irqs_disabled() check is for resume from RAM.
  * Interrupts are off during resume, just like they are for boot.
  * However, boot has  (system_state != SYSTEM_RUNNING)
- * to quiet __might_sleep() in kmalloc() and resume does not.
+ * to quiet __might_sleep() in kmalloc() and resume does yest.
  */
 static inline void *acpi_os_allocate(acpi_size size)
 {

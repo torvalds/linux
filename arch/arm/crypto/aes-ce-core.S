@@ -121,7 +121,7 @@
 	.endm
 
 	/*
-	 * Internal, non-AAPCS compliant functions that implement the core AES
+	 * Internal, yesn-AAPCS compliant functions that implement the core AES
 	 * transforms. These should preserve all registers except q0 - q2 and ip
 	 * Arguments:
 	 *   q0        : first in/output block

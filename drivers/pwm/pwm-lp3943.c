@@ -195,14 +195,14 @@ static int lp3943_pwm_parse_dt(struct device *dev,
 			       struct lp3943_pwm *lp3943_pwm)
 {
 	static const char * const name[] = { "ti,pwm0", "ti,pwm1", };
-	struct device_node *node = dev->of_node;
+	struct device_yesde *yesde = dev->of_yesde;
 	struct lp3943_platform_data *pdata;
 	struct lp3943_pwm_map *pwm_map;
 	enum lp3943_pwm_output *output;
 	int i, err, proplen, count = 0;
 	u32 num_outputs;
 
-	if (!node)
+	if (!yesde)
 		return -EINVAL;
 
 	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
@@ -215,7 +215,7 @@ static int lp3943_pwm_parse_dt(struct device *dev,
 	 */
 
 	for (i = 0; i < LP3943_NUM_PWMS; i++) {
-		if (!of_get_property(node, name[i], &proplen))
+		if (!of_get_property(yesde, name[i], &proplen))
 			continue;
 
 		num_outputs = proplen / sizeof(u32);
@@ -227,7 +227,7 @@ static int lp3943_pwm_parse_dt(struct device *dev,
 		if (!output)
 			return -ENOMEM;
 
-		err = of_property_read_u32_array(node, name[i], output,
+		err = of_property_read_u32_array(yesde, name[i], output,
 						 num_outputs);
 		if (err)
 			return err;

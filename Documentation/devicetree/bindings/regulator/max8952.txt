@@ -15,7 +15,7 @@ Optional properties:
     - 0: 26 MHz
     - 1: 13 MHz
     - 2: 19.2 MHz
-  Defaults to 26 MHz if not specified.
+  Defaults to 26 MHz if yest specified.
 - max8952,ramp-speed: voltage ramp speed, must be one of following values:
     - 0: 32mV/us
     - 1: 16mV/us
@@ -25,7 +25,7 @@ Optional properties:
     - 5: 1mV/us
     - 6: 0.5mV/us
     - 7: 0.25mV/us
-  Defaults to 32mV/us if not specified.
+  Defaults to 32mV/us if yest specified.
 - any available generic properties defined in regulator.txt
 
 Example:

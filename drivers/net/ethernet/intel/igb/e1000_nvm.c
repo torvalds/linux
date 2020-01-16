@@ -176,7 +176,7 @@ s32 igb_acquire_nvm(struct e1000_hw *hw)
 	if (!timeout) {
 		eecd &= ~E1000_EECD_REQ;
 		wr32(E1000_EECD, eecd);
-		hw_dbg("Could not acquire NVM grant\n");
+		hw_dbg("Could yest acquire NVM grant\n");
 		ret_val = -E1000_ERR_NVM;
 	}
 
@@ -268,7 +268,7 @@ static s32 igb_ready_nvm_eeprom(struct e1000_hw *hw)
 		/* Read "Status Register" repeatedly until the LSB is cleared.
 		 * The EEPROM will signal that the command has been completed
 		 * by clearing bit 0 of the internal status register.  If it's
-		 * not cleared within 'timeout', then error out.
+		 * yest cleared within 'timeout', then error out.
 		 */
 		while (timeout) {
 			igb_shift_out_eec_bits(hw, NVM_RDSR_OPCODE_SPI,
@@ -311,7 +311,7 @@ s32 igb_read_nvm_spi(struct e1000_hw *hw, u16 offset, u16 words, u16 *data)
 	u8 read_opcode = NVM_READ_OPCODE_SPI;
 
 	/* A check for invalid values:  offset too large, too many words,
-	 * and not enough words.
+	 * and yest eyesugh words.
 	 */
 	if ((offset >= nvm->word_size) || (words > (nvm->word_size - offset)) ||
 	    (words == 0)) {
@@ -369,7 +369,7 @@ s32 igb_read_nvm_eerd(struct e1000_hw *hw, u16 offset, u16 words, u16 *data)
 	s32 ret_val = 0;
 
 	/* A check for invalid values:  offset too large, too many words,
-	 * and not enough words.
+	 * and yest eyesugh words.
 	 */
 	if ((offset >= nvm->word_size) || (words > (nvm->word_size - offset)) ||
 	    (words == 0)) {
@@ -404,7 +404,7 @@ out:
  *
  *  Writes data to EEPROM at offset using SPI interface.
  *
- *  If e1000_update_nvm_checksum is not called after this function , the
+ *  If e1000_update_nvm_checksum is yest called after this function , the
  *  EEPROM will most likley contain an invalid checksum.
  **/
 s32 igb_write_nvm_spi(struct e1000_hw *hw, u16 offset, u16 words, u16 *data)
@@ -414,7 +414,7 @@ s32 igb_write_nvm_spi(struct e1000_hw *hw, u16 offset, u16 words, u16 *data)
 	u16 widx = 0;
 
 	/* A check for invalid values:  offset too large, too many words,
-	 * and not enough words.
+	 * and yest eyesugh words.
 	 */
 	if ((offset >= nvm->word_size) || (words > (nvm->word_size - offset)) ||
 	    (words == 0)) {
@@ -509,12 +509,12 @@ s32 igb_read_part_string(struct e1000_hw *hw, u8 *part_num, u32 part_num_size)
 		goto out;
 	}
 
-	/* if nvm_data is not ptr guard the PBA must be in legacy format which
+	/* if nvm_data is yest ptr guard the PBA must be in legacy format which
 	 * means pointer is actually our second data word for the PBA number
 	 * and we can decode it into an ascii string
 	 */
 	if (nvm_data != NVM_PBA_PTR_GUARD) {
-		hw_dbg("NVM PBA number is not stored as string\n");
+		hw_dbg("NVM PBA number is yest stored as string\n");
 
 		/* we will need 11 characters to store the PBA */
 		if (part_num_size < 11) {
@@ -559,7 +559,7 @@ s32 igb_read_part_string(struct e1000_hw *hw, u8 *part_num, u32 part_num_size)
 		ret_val = E1000_ERR_NVM_PBA_SECTION;
 		goto out;
 	}
-	/* check if part_num buffer is big enough */
+	/* check if part_num buffer is big eyesugh */
 	if (part_num_size < (((u32)length * 2) - 1)) {
 		hw_dbg("PBA string buffer too small\n");
 		ret_val = E1000_ERR_NO_SPACE;
@@ -710,7 +710,7 @@ void igb_get_fw_version(struct e1000_hw *hw, struct e1000_fw_version *fw_vers)
 			hw->nvm.ops.read(hw, NVM_VERSION, 1, &fw_version);
 			fw_vers->eep_major = (fw_version & NVM_MAJOR_MASK)
 					      >> NVM_MAJOR_SHIFT;
-			fw_vers->eep_minor = (fw_version & NVM_MINOR_MASK)
+			fw_vers->eep_miyesr = (fw_version & NVM_MINOR_MASK)
 					      >> NVM_MINOR_SHIFT;
 			fw_vers->eep_build = (fw_version & NVM_IMAGE_ID_MASK);
 			goto etrack_id;
@@ -763,14 +763,14 @@ void igb_get_fw_version(struct e1000_hw *hw, struct e1000_fw_version *fw_vers)
 		eeprom_verl = (fw_version & NVM_MINOR_MASK)
 				>> NVM_MINOR_SHIFT;
 	}
-	/* Convert minor value to hex before assigning to output struct
-	 * Val to be converted will not be higher than 99, per tool output
+	/* Convert miyesr value to hex before assigning to output struct
+	 * Val to be converted will yest be higher than 99, per tool output
 	 */
 	q = eeprom_verl / NVM_HEX_CONV;
 	hval = q * NVM_HEX_TENS;
 	rem = eeprom_verl % NVM_HEX_CONV;
 	result = hval + rem;
-	fw_vers->eep_minor = result;
+	fw_vers->eep_miyesr = result;
 
 etrack_id:
 	if ((etrack_test &  NVM_MAJOR_MASK) == NVM_ETRACK_VALID) {

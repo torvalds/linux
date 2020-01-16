@@ -14,7 +14,7 @@
 #include <linux/export.h>
 #include <linux/init.h>
 #include <linux/spinlock.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/err.h>
 #include <linux/slab.h>
 #include <linux/list.h>
@@ -100,7 +100,7 @@ static int snprint_alias(char *buf, size_t size,
 }
 
 /* Set up environment variables for ccw device uevent. Return 0 on success,
- * non-zero otherwise. */
+ * yesn-zero otherwise. */
 static int ccw_uevent(struct device *dev, struct kobj_uevent_env *env)
 {
 	struct ccw_device *cdev = to_ccwdev(dev);
@@ -280,7 +280,7 @@ static void io_subchannel_quiesce(struct subchannel *);
  * Returns:
  *   %0 on success and a negative error value on failure.
  * Context:
- *  enabled, ccw device lock not held
+ *  enabled, ccw device lock yest held
  */
 int ccw_device_set_offline(struct ccw_device *cdev)
 {
@@ -314,7 +314,7 @@ int ccw_device_set_offline(struct ccw_device *cdev)
 			break;
 		CIO_MSG_EVENT(0, "ccw_device_offline returned %d, device "
 			      "0.%x.%04x\n", ret, cdev->private->dev_id.ssid,
-			      cdev->private->dev_id.devno);
+			      cdev->private->dev_id.devyes);
 		if (ret != -EBUSY)
 			goto error;
 		state = cdev->private->state;
@@ -357,7 +357,7 @@ error:
  * Returns:
  *   %0 on success and a negative error value on failure.
  * Context:
- *  enabled, ccw device lock not held
+ *  enabled, ccw device lock yest held
  */
 int ccw_device_set_online(struct ccw_device *cdev)
 {
@@ -381,7 +381,7 @@ int ccw_device_set_online(struct ccw_device *cdev)
 		CIO_MSG_EVENT(0, "ccw_device_online returned %d, "
 			      "device 0.%x.%04x\n",
 			      ret, cdev->private->dev_id.ssid,
-			      cdev->private->dev_id.devno);
+			      cdev->private->dev_id.devyes);
 		/* Give up online reference since onlining failed. */
 		put_device(&cdev->dev);
 		return ret;
@@ -396,7 +396,7 @@ int ccw_device_set_online(struct ccw_device *cdev)
 			pr_warn("%s: Setting the device online failed because it is boxed\n",
 				dev_name(&cdev->dev));
 		} else if (cdev->private->state == DEV_STATE_NOT_OPER) {
-			pr_warn("%s: Setting the device online failed because it is not operational\n",
+			pr_warn("%s: Setting the device online failed because it is yest operational\n",
 				dev_name(&cdev->dev));
 		}
 		/* Give up online reference since onlining failed. */
@@ -438,7 +438,7 @@ error:
 	CIO_MSG_EVENT(0, "rollback ccw_device_offline returned %d, "
 		      "device 0.%x.%04x\n",
 		      ret2, cdev->private->dev_id.ssid,
-		      cdev->private->dev_id.devno);
+		      cdev->private->dev_id.devyes);
 	cdev->private->state = DEV_STATE_OFFLINE;
 	spin_unlock_irq(cdev->ccwlock);
 	/* Give up online reference since onlining failed. */
@@ -505,7 +505,7 @@ static ssize_t online_store (struct device *dev, struct device_attribute *attr,
 	unsigned long i;
 
 	/* Prevent conflict between multiple on-/offline processing requests. */
-	if (atomic_cmpxchg(&cdev->private->onoff, 0, 1) != 0)
+	if (atomic_cmpxchg(&cdev->private->oyesff, 0, 1) != 0)
 		return -EAGAIN;
 	/* Prevent conflict between internal I/Os and on-/offline processing. */
 	if (!dev_fsm_final_state(cdev) &&
@@ -543,7 +543,7 @@ static ssize_t online_store (struct device *dev, struct device_attribute *attr,
 	device_unlock(dev);
 
 out:
-	atomic_set(&cdev->private->onoff, 0);
+	atomic_set(&cdev->private->oyesff, 0);
 	return (ret < 0) ? ret : count;
 }
 
@@ -554,7 +554,7 @@ available_show (struct device *dev, struct device_attribute *attr, char *buf)
 	struct subchannel *sch;
 
 	if (ccw_device_is_orphan(cdev))
-		return sprintf(buf, "no device\n");
+		return sprintf(buf, "yes device\n");
 	switch (cdev->private->state) {
 	case DEV_STATE_BOXED:
 		return sprintf(buf, "boxed\n");
@@ -563,9 +563,9 @@ available_show (struct device *dev, struct device_attribute *attr, char *buf)
 	case DEV_STATE_NOT_OPER:
 		sch = to_subchannel(dev->parent);
 		if (!sch->lpm)
-			return sprintf(buf, "no path\n");
+			return sprintf(buf, "yes path\n");
 		else
-			return sprintf(buf, "no device\n");
+			return sprintf(buf, "yes device\n");
 	default:
 		/* All other states considered fine. */
 		return sprintf(buf, "good\n");
@@ -581,12 +581,12 @@ initiate_logging(struct device *dev, struct device_attribute *attr,
 
 	rc = chsc_siosl(sch->schid);
 	if (rc < 0) {
-		pr_warn("Logging for subchannel 0.%x.%04x failed with errno=%d\n",
-			sch->schid.ssid, sch->schid.sch_no, rc);
+		pr_warn("Logging for subchannel 0.%x.%04x failed with erryes=%d\n",
+			sch->schid.ssid, sch->schid.sch_yes, rc);
 		return rc;
 	}
-	pr_notice("Logging for subchannel 0.%x.%04x was triggered\n",
-		  sch->schid.ssid, sch->schid.sch_no);
+	pr_yestice("Logging for subchannel 0.%x.%04x was triggered\n",
+		  sch->schid.ssid, sch->schid.sch_yes);
 	return count;
 }
 
@@ -741,7 +741,7 @@ static int io_subchannel_initialize_dev(struct subchannel *sch,
 	priv->cdev = cdev;
 	priv->int_class = IRQIO_CIO;
 	priv->state = DEV_STATE_NOT_OPER;
-	priv->dev_id.devno = sch->schib.pmcw.dev;
+	priv->dev_id.devyes = sch->schib.pmcw.dev;
 	priv->dev_id.ssid = sch->schid.ssid;
 
 	INIT_WORK(&priv->todo_work, ccw_device_todo);
@@ -749,7 +749,7 @@ static int io_subchannel_initialize_dev(struct subchannel *sch,
 	init_waitqueue_head(&priv->wait_q);
 	timer_setup(&priv->timer, ccw_device_timeout, 0);
 
-	atomic_set(&priv->onoff, 0);
+	atomic_set(&priv->oyesff, 0);
 	cdev->ccwlock = sch->lock;
 	cdev->dev.parent = &sch->dev;
 	cdev->dev.release = ccw_device_release;
@@ -757,7 +757,7 @@ static int io_subchannel_initialize_dev(struct subchannel *sch,
 	/* Do first half of device_register. */
 	device_initialize(&cdev->dev);
 	ret = dev_set_name(&cdev->dev, "0.%x.%04x", cdev->private->dev_id.ssid,
-			   cdev->private->dev_id.devno);
+			   cdev->private->dev_id.devyes);
 	if (ret)
 		goto out_put;
 	if (!get_device(&sch->dev)) {
@@ -829,7 +829,7 @@ static void io_subchannel_register(struct ccw_device *cdev)
 	/*
 	 * io_subchannel_register() will also be called after device
 	 * recognition has been done for a boxed device (which will already
-	 * be registered). We need to reprobe since we may now have sense id
+	 * be registered). We need to reprobe since we may yesw have sense id
 	 * information.
 	 */
 	if (device_is_registered(&cdev->dev)) {
@@ -840,23 +840,23 @@ static void io_subchannel_register(struct ccw_device *cdev)
 				CIO_MSG_EVENT(0, "device_reprobe() returned"
 					      " %d for 0.%x.%04x\n", ret,
 					      cdev->private->dev_id.ssid,
-					      cdev->private->dev_id.devno);
+					      cdev->private->dev_id.devyes);
 		}
 		adjust_init_count = 0;
 		goto out;
 	}
 	/*
-	 * Now we know this subchannel will stay, we can throw
+	 * Now we kyesw this subchannel will stay, we can throw
 	 * our delayed uevent.
 	 */
 	dev_set_uevent_suppress(&sch->dev, 0);
 	kobject_uevent(&sch->dev.kobj, KOBJ_ADD);
-	/* make it known to the system */
+	/* make it kyeswn to the system */
 	ret = ccw_device_add(cdev);
 	if (ret) {
-		CIO_MSG_EVENT(0, "Could not register ccw dev 0.%x.%04x: %d\n",
+		CIO_MSG_EVENT(0, "Could yest register ccw dev 0.%x.%04x: %d\n",
 			      cdev->private->dev_id.ssid,
-			      cdev->private->dev_id.devno, ret);
+			      cdev->private->dev_id.devyes, ret);
 		spin_lock_irqsave(sch->lock, flags);
 		sch_set_cdev(sch, NULL);
 		spin_unlock_irqrestore(sch->lock, flags);
@@ -897,10 +897,10 @@ io_subchannel_recog_done(struct ccw_device *cdev)
 	}
 	switch (cdev->private->state) {
 	case DEV_STATE_BOXED:
-		/* Device did not respond in time. */
+		/* Device did yest respond in time. */
 	case DEV_STATE_NOT_OPER:
 		cdev->private->flags.recog_done = 1;
-		/* Remove device found not operational. */
+		/* Remove device found yest operational. */
 		ccw_device_sched_todo(cdev, CDEV_TODO_UNREG);
 		if (atomic_dec_and_test(&ccw_device_init_count))
 			wake_up(&ccw_device_init_wq);
@@ -957,7 +957,7 @@ static int ccw_device_move_to_sch(struct ccw_device *cdev,
 	if (rc) {
 		CIO_MSG_EVENT(0, "device_move(0.%x.%04x,0.%x.%04x)=%d\n",
 			      cdev->private->dev_id.ssid,
-			      cdev->private->dev_id.devno, sch->schid.ssid,
+			      cdev->private->dev_id.devyes, sch->schid.ssid,
 			      sch->schib.pmcw.dev, rc);
 		if (old_enabled) {
 			/* Try to reenable the old subchannel. */
@@ -1029,7 +1029,7 @@ static void io_subchannel_init_fields(struct subchannel *sch)
 	CIO_MSG_EVENT(6, "Detected device %04x on subchannel 0.%x.%04X"
 		      " - PIM = %02X, PAM = %02X, POM = %02X\n",
 		      sch->schib.pmcw.dev, sch->schid.ssid,
-		      sch->schid.sch_no, sch->schib.pmcw.pim,
+		      sch->schid.sch_yes, sch->schib.pmcw.pim,
 		      sch->schib.pmcw.pam, sch->schib.pmcw.pom);
 
 	io_subchannel_init_config(sch);
@@ -1052,7 +1052,7 @@ static int io_subchannel_probe(struct subchannel *sch)
 			CIO_MSG_EVENT(0, "Failed to create io subchannel "
 				      "attributes for subchannel "
 				      "0.%x.%04x (rc=%d)\n",
-				      sch->schid.ssid, sch->schid.sch_no, rc);
+				      sch->schid.ssid, sch->schid.sch_yes, rc);
 		/*
 		 * The console subchannel already has an associated ccw_device.
 		 * Throw the delayed uevent for the subchannel, register
@@ -1266,7 +1266,7 @@ static int recovery_check(struct device *dev, void *data)
 	case DEV_STATE_DISCONNECTED:
 		CIO_MSG_EVENT(3, "recovery: trigger 0.%x.%04x\n",
 			      cdev->private->dev_id.ssid,
-			      cdev->private->dev_id.devno);
+			      cdev->private->dev_id.devyes);
 		dev_fsm_event(cdev, DEV_EVENT_VERIFY);
 		*redo = 1;
 		break;
@@ -1302,7 +1302,7 @@ static DECLARE_WORK(recovery_work, recovery_work_func);
 static void recovery_func(struct timer_list *unused)
 {
 	/*
-	 * We can't do our recovery in softirq context and it's not
+	 * We can't do our recovery in softirq context and it's yest
 	 * performance critical, so we schedule it.
 	 */
 	schedule_work(&recovery_work);
@@ -1327,13 +1327,13 @@ static int purge_fn(struct device *dev, void *data)
 	struct ccw_dev_id *id = &cdev->private->dev_id;
 
 	spin_lock_irq(cdev->ccwlock);
-	if (is_blacklisted(id->ssid, id->devno) &&
+	if (is_blacklisted(id->ssid, id->devyes) &&
 	    (cdev->private->state == DEV_STATE_OFFLINE) &&
-	    (atomic_cmpxchg(&cdev->private->onoff, 0, 1) == 0)) {
+	    (atomic_cmpxchg(&cdev->private->oyesff, 0, 1) == 0)) {
 		CIO_MSG_EVENT(3, "ccw: purging 0.%x.%04x\n", id->ssid,
-			      id->devno);
+			      id->devyes);
 		ccw_device_sched_todo(cdev, CDEV_TODO_UNREG);
-		atomic_set(&cdev->private->onoff, 0);
+		atomic_set(&cdev->private->oyesff, 0);
 	}
 	spin_unlock_irq(cdev->ccwlock);
 	/* Abort loop in case of pending signal. */
@@ -1366,11 +1366,11 @@ void ccw_device_set_disconnected(struct ccw_device *cdev)
 		ccw_device_schedule_recovery();
 }
 
-void ccw_device_set_notoper(struct ccw_device *cdev)
+void ccw_device_set_yestoper(struct ccw_device *cdev)
 {
 	struct subchannel *sch = to_subchannel(cdev->dev.parent);
 
-	CIO_TRACE_EVENT(2, "notoper");
+	CIO_TRACE_EVENT(2, "yestoper");
 	CIO_TRACE_EVENT(2, dev_name(&sch->dev));
 	ccw_device_set_timeout(cdev, 0);
 	cio_disable_subchannel(sch);
@@ -1398,20 +1398,20 @@ static enum io_sch_action sch_get_action(struct subchannel *sch)
 		/* Not operational. */
 		if (!cdev)
 			return IO_SCH_UNREG;
-		if (ccw_device_notify(cdev, CIO_GONE) != NOTIFY_OK)
+		if (ccw_device_yestify(cdev, CIO_GONE) != NOTIFY_OK)
 			return IO_SCH_UNREG;
 		return IO_SCH_ORPH_UNREG;
 	}
 	/* Operational. */
 	if (!cdev)
 		return IO_SCH_ATTACH;
-	if (sch->schib.pmcw.dev != cdev->private->dev_id.devno) {
-		if (ccw_device_notify(cdev, CIO_GONE) != NOTIFY_OK)
+	if (sch->schib.pmcw.dev != cdev->private->dev_id.devyes) {
+		if (ccw_device_yestify(cdev, CIO_GONE) != NOTIFY_OK)
 			return IO_SCH_UNREG_ATTACH;
 		return IO_SCH_ORPH_ATTACH;
 	}
 	if ((sch->schib.pmcw.pam & sch->opm) == 0) {
-		if (ccw_device_notify(cdev, CIO_NO_PATH) != NOTIFY_OK)
+		if (ccw_device_yestify(cdev, CIO_NO_PATH) != NOTIFY_OK)
 			return IO_SCH_UNREG;
 		return IO_SCH_DISC;
 	}
@@ -1427,7 +1427,7 @@ static enum io_sch_action sch_get_action(struct subchannel *sch)
 /**
  * io_subchannel_sch_event - process subchannel event
  * @sch: subchannel
- * @process: non-zero if function is called in process context
+ * @process: yesn-zero if function is called in process context
  *
  * An unspecified event occurred for this subchannel. Adjust data according
  * to the current operational state of the subchannel and device. Return
@@ -1452,7 +1452,7 @@ static int io_subchannel_sch_event(struct subchannel *sch, int process)
 		goto out_unlock;
 	action = sch_get_action(sch);
 	CIO_MSG_EVENT(2, "event: sch 0.%x.%04x, process=%d, action=%d\n",
-		      sch->schid.ssid, sch->schid.sch_no, process,
+		      sch->schid.ssid, sch->schid.sch_yes, process,
 		      action);
 	/* Perform immediate actions while holding the lock. */
 	switch (action) {
@@ -1486,7 +1486,7 @@ static int io_subchannel_sch_event(struct subchannel *sch, int process)
 			 */
 			dev_fsm_event(cdev, DEV_EVENT_NOTOPER);
 		} else
-			ccw_device_set_notoper(cdev);
+			ccw_device_set_yestoper(cdev);
 		break;
 	case IO_SCH_NOP:
 		rc = 0;
@@ -1533,7 +1533,7 @@ static int io_subchannel_sch_event(struct subchannel *sch, int process)
 	case IO_SCH_UNREG_ATTACH:
 	case IO_SCH_ATTACH:
 		dev_id.ssid = sch->schid.ssid;
-		dev_id.devno = sch->schib.pmcw.dev;
+		dev_id.devyes = sch->schib.pmcw.dev;
 		cdev = get_ccwdev_by_dev_id(&dev_id);
 		if (!cdev) {
 			sch_create_and_recog_new_device(sch);
@@ -1567,7 +1567,7 @@ static void ccw_device_set_int_class(struct ccw_device *cdev)
 	struct ccw_driver *cdrv = cdev->drv;
 
 	/* Note: we interpret class 0 in this context as an uninitialized
-	 * field since it translates to a non-I/O interrupt class. */
+	 * field since it translates to a yesn-I/O interrupt class. */
 	if (cdrv->int_class != 0)
 		cdev->private->int_class = cdrv->int_class;
 	else
@@ -1670,7 +1670,7 @@ void __init ccw_device_destroy_console(struct ccw_device *cdev)
  * ccw_device_wait_idle() - busy wait for device to become idle
  * @cdev: ccw device
  *
- * Poll until activity control is zero, that is, no function or data
+ * Poll until activity control is zero, that is, yes function or data
  * transfer is pending/active.
  * Called with device lock being held.
  */
@@ -1767,7 +1767,7 @@ static int ccw_device_remove(struct device *dev)
 			CIO_MSG_EVENT(0, "ccw_device_offline returned %d, "
 				      "device 0.%x.%04x\n",
 				      ret, cdev->private->dev_id.ssid,
-				      cdev->private->dev_id.devno);
+				      cdev->private->dev_id.devyes);
 		/* Give up reference obtained in ccw_device_set_online(). */
 		put_device(&cdev->dev);
 		spin_lock_irq(cdev->ccwlock);
@@ -1800,7 +1800,7 @@ static int ccw_device_pm_prepare(struct device *dev)
 	if (work_pending(&cdev->private->todo_work))
 		return -EAGAIN;
 	/* Fail while device is being set online/offline. */
-	if (atomic_read(&cdev->private->onoff))
+	if (atomic_read(&cdev->private->oyesff))
 		return -EAGAIN;
 
 	if (cdev->online && cdev->drv && cdev->drv->prepare)
@@ -1920,7 +1920,7 @@ out_unlock:
 static int resume_handle_boxed(struct ccw_device *cdev)
 {
 	cdev->private->state = DEV_STATE_BOXED;
-	if (ccw_device_notify(cdev, CIO_BOXED) == NOTIFY_OK)
+	if (ccw_device_yestify(cdev, CIO_BOXED) == NOTIFY_OK)
 		return 0;
 	ccw_device_sched_todo(cdev, CDEV_TODO_UNREG);
 	return -ENODEV;
@@ -1929,7 +1929,7 @@ static int resume_handle_boxed(struct ccw_device *cdev)
 static int resume_handle_disc(struct ccw_device *cdev)
 {
 	cdev->private->state = DEV_STATE_DISCONNECTED;
-	if (ccw_device_notify(cdev, CIO_GONE) == NOTIFY_OK)
+	if (ccw_device_yestify(cdev, CIO_GONE) == NOTIFY_OK)
 		return 0;
 	ccw_device_sched_todo(cdev, CDEV_TODO_UNREG);
 	return -ENODEV;
@@ -1951,7 +1951,7 @@ static int ccw_device_pm_restore(struct device *dev)
 	switch (cdev->private->state) {
 	case DEV_STATE_OFFLINE:
 	case DEV_STATE_ONLINE:
-		cdev->private->flags.donotify = 0;
+		cdev->private->flags.doyestify = 0;
 		break;
 	case DEV_STATE_BOXED:
 		ret = resume_handle_boxed(cdev);
@@ -1984,7 +1984,7 @@ static int ccw_device_pm_restore(struct device *dev)
 	wait_event(cdev->private->wait_q, dev_fsm_final_state(cdev));
 	spin_lock_irq(sch->lock);
 
-	if (ccw_device_notify(cdev, CIO_OPER) == NOTIFY_BAD) {
+	if (ccw_device_yestify(cdev, CIO_OPER) == NOTIFY_BAD) {
 		ccw_device_sched_todo(cdev, CDEV_TODO_UNREG);
 		ret = -ENODEV;
 		goto out_unlock;
@@ -1998,7 +1998,7 @@ static int ccw_device_pm_restore(struct device *dev)
 		if (ret) {
 			CIO_MSG_EVENT(2, "resume: cdev 0.%x.%04x: cmf failed "
 				      "(rc=%d)\n", cdev->private->dev_id.ssid,
-				      cdev->private->dev_id.devno, ret);
+				      cdev->private->dev_id.devyes, ret);
 			ret = 0;
 		}
 	}
@@ -2075,7 +2075,7 @@ static void ccw_device_todo(struct work_struct *work)
 	todo = priv->todo;
 	priv->todo = CDEV_TODO_NOTHING;
 	CIO_MSG_EVENT(4, "cdev_todo: cdev=0.%x.%04x todo=%d\n",
-		      priv->dev_id.ssid, priv->dev_id.devno, todo);
+		      priv->dev_id.ssid, priv->dev_id.devyes, todo);
 	spin_unlock_irq(cdev->ccwlock);
 	/* Perform todo. */
 	switch (todo) {
@@ -2111,13 +2111,13 @@ static void ccw_device_todo(struct work_struct *work)
  * @todo: todo
  *
  * Schedule the operation identified by @todo to be performed on the slow path
- * workqueue. Do nothing if another operation with higher priority is already
+ * workqueue. Do yesthing if ayesther operation with higher priority is already
  * scheduled. Needs to be called with ccwdev lock held.
  */
 void ccw_device_sched_todo(struct ccw_device *cdev, enum cdev_todo todo)
 {
 	CIO_MSG_EVENT(4, "cdev_todo: sched cdev=0.%x.%04x todo=%d\n",
-		      cdev->private->dev_id.ssid, cdev->private->dev_id.devno,
+		      cdev->private->dev_id.ssid, cdev->private->dev_id.devyes,
 		      todo);
 	if (cdev->private->todo >= todo)
 		return;

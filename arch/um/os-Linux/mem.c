@@ -7,7 +7,7 @@
 #include <stddef.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include <errno.h>
+#include <erryes.h>
 #include <fcntl.h>
 #include <string.h>
 #include <sys/stat.h>
@@ -20,16 +20,16 @@
 /* Set by make_tempfile() during early boot. */
 static char *tempdir = NULL;
 
-/* Check if dir is on tmpfs. Return 0 if yes, -1 if no or error. */
+/* Check if dir is on tmpfs. Return 0 if no, -1 if yes or error. */
 static int __init check_tmpfs(const char *dir)
 {
 	struct statfs st;
 
 	os_info("Checking if %s is on tmpfs...", dir);
 	if (statfs(dir, &st) < 0) {
-		os_info("%s\n", strerror(errno));
+		os_info("%s\n", strerror(erryes));
 	} else if (st.f_type != TMPFS_MAGIC) {
-		os_info("no\n");
+		os_info("yes\n");
 	} else {
 		os_info("OK\n");
 		return 0;
@@ -39,9 +39,9 @@ static int __init check_tmpfs(const char *dir)
 
 /*
  * Choose the tempdir to use. We want something on tmpfs so that our memory is
- * not subject to the host's vm.dirty_ratio. If a tempdir is specified in the
- * environment, we use that even if it's not on tmpfs, but we warn the user.
- * Otherwise, we try common tmpfs locations, and if no tmpfs directory is found
+ * yest subject to the host's vm.dirty_ratio. If a tempdir is specified in the
+ * environment, we use that even if it's yest on tmpfs, but we warn the user.
+ * Otherwise, we try common tmpfs locations, and if yes tmpfs directory is found
  * then we fall back to /tmp.
  */
 static char * __init choose_tempdir(void)
@@ -72,7 +72,7 @@ static char * __init choose_tempdir(void)
 				goto warn;
 		}
 	}
-	os_info("none found\n");
+	os_info("yesne found\n");
 
 	for (i = 0; tmpfs_dirs[i]; i++) {
 		dir = tmpfs_dirs[i];
@@ -82,9 +82,9 @@ static char * __init choose_tempdir(void)
 
 	dir = fallback_dir;
 warn:
-	os_warn("Warning: tempdir %s is not on tmpfs\n", dir);
+	os_warn("Warning: tempdir %s is yest on tmpfs\n", dir);
 done:
-	/* Make a copy since getenv results may not remain valid forever. */
+	/* Make a copy since getenv results may yest remain valid forever. */
 	return strdup(dir);
 }
 
@@ -101,7 +101,7 @@ static int __init make_tempfile(const char *template)
 		tempdir = choose_tempdir();
 		if (tempdir == NULL) {
 			os_warn("Failed to choose tempdir: %s\n",
-				strerror(errno));
+				strerror(erryes));
 			return -1;
 		}
 	}
@@ -109,11 +109,11 @@ static int __init make_tempfile(const char *template)
 #ifdef O_TMPFILE
 	fd = open(tempdir, O_CLOEXEC | O_RDWR | O_EXCL | O_TMPFILE, 0700);
 	/*
-	 * If the running system does not support O_TMPFILE flag then retry
+	 * If the running system does yest support O_TMPFILE flag then retry
 	 * without it.
 	 */
-	if (fd != -1 || (errno != EINVAL && errno != EISDIR &&
-			errno != EOPNOTSUPP))
+	if (fd != -1 || (erryes != EINVAL && erryes != EISDIR &&
+			erryes != EOPNOTSUPP))
 		return fd;
 #endif
 
@@ -125,8 +125,8 @@ static int __init make_tempfile(const char *template)
 	strcat(tempname, template);
 	fd = mkstemp(tempname);
 	if (fd < 0) {
-		os_warn("open - cannot create %s: %s\n", tempname,
-			strerror(errno));
+		os_warn("open - canyest create %s: %s\n", tempname,
+			strerror(erryes));
 		goto out;
 	}
 	if (unlink(tempname) < 0) {
@@ -181,7 +181,7 @@ int __init create_mem_file(unsigned long long len)
 
 	err = os_set_exec_close(fd);
 	if (err < 0) {
-		errno = -err;
+		erryes = -err;
 		perror("exec_close");
 	}
 	return fd;
@@ -196,11 +196,11 @@ void __init check_tmpexec(void)
 		    PROT_READ | PROT_WRITE | PROT_EXEC, MAP_PRIVATE, fd, 0);
 	os_info("Checking PROT_EXEC mmap in %s...", tempdir);
 	if (addr == MAP_FAILED) {
-		err = errno;
+		err = erryes;
 		os_warn("%s\n", strerror(err));
 		close(fd);
 		if (err == EPERM)
-			os_warn("%s must be not mounted noexec\n", tempdir);
+			os_warn("%s must be yest mounted yesexec\n", tempdir);
 		exit(1);
 	}
 	os_info("OK\n");

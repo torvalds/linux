@@ -28,7 +28,7 @@
 #include <net/ipv6.h>
 #include <linux/sunrpc/xprtmultipath.h>
 
-struct rpc_inode;
+struct rpc_iyesde;
 
 /*
  * The high-level client handle
@@ -52,7 +52,7 @@ struct rpc_clnt {
 	unsigned int		cl_softrtry : 1,/* soft timeouts */
 				cl_softerr  : 1,/* Timeouts return errors */
 				cl_discrtry : 1,/* disconnect before retry */
-				cl_noretranstimeo: 1,/* No retransmit timeouts */
+				cl_yesretranstimeo: 1,/* No retransmit timeouts */
 				cl_autobind : 1,/* use getport() */
 				cl_chatty   : 1;/* be verbose */
 
@@ -60,8 +60,8 @@ struct rpc_clnt {
 	const struct rpc_timeout *cl_timeout;	/* Timeout strategy */
 
 	atomic_t		cl_swapper;	/* swapfile count */
-	int			cl_nodelen;	/* nodename length */
-	char 			cl_nodename[UNX_MAXNODENAME+1];
+	int			cl_yesdelen;	/* yesdename length */
+	char 			cl_yesdename[UNX_MAXNODENAME+1];
 	struct rpc_pipe_dir_head cl_pipedir_objects;
 	struct rpc_clnt *	cl_parent;	/* Points to parent of clones */
 	struct rpc_rtt		cl_rtt_default;
@@ -117,7 +117,7 @@ struct rpc_create_args {
 	struct sockaddr		*saddress;
 	const struct rpc_timeout *timeout;
 	const char		*servername;
-	const char		*nodename;
+	const char		*yesdename;
 	const struct rpc_program *program;
 	u32			prognumber;	/* overrides program->number */
 	u32			version;

@@ -23,7 +23,7 @@
  *  THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *  You should have received a copy of the  GNU General Public License along
- *  with this program; if not, write  to the Free Software Foundation, Inc.,
+ *  with this program; if yest, write  to the Free Software Foundation, Inc.,
  *  675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
@@ -256,18 +256,18 @@ struct au1100fb_device {
 
 /********************************************************************/
 
-/* List of panels known to work with the AU1100 LCD controller.
+/* List of panels kyeswn to work with the AU1100 LCD controller.
  * To add a new panel, enter the same specifications as the
  * Generic_TFT one, and MAKE SURE that it doesn't conflicts
  * with the controller restrictions. Restrictions are:
  *
  * STN color panels: max_bpp <= 12
- * STN mono panels: max_bpp <= 4
+ * STN moyes panels: max_bpp <= 4
  * TFT panels: max_bpp <= 16
  * max_xres <= 800
  * max_yres <= 600
  */
-static struct au1100fb_panel known_lcd_panels[] =
+static struct au1100fb_panel kyeswn_lcd_panels[] =
 {
 	/* 800x600x16bpp CRT */
 	[0] = {

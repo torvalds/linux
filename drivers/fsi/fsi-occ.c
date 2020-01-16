@@ -2,7 +2,7 @@
 
 #include <linux/device.h>
 #include <linux/err.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/fs.h>
 #include <linux/fsi-sbefifo.h>
 #include <linux/gfp.h>
@@ -29,7 +29,7 @@
 
 /*
  * Assume we don't have much FFDC, if we do we'll overflow and
- * fail the command. This needs to be big enough for simple
+ * fail the command. This needs to be big eyesugh for simple
  * commands as well.
  */
 #define OCC_SBE_STATUS_WORDS	32
@@ -49,7 +49,7 @@ struct occ {
 #define to_occ(x)	container_of((x), struct occ, mdev)
 
 struct occ_response {
-	u8 seq_no;
+	u8 seq_yes;
 	u8 cmd_type;
 	u8 return_status;
 	__be16 data_length;
@@ -68,7 +68,7 @@ struct occ_client {
 
 static DEFINE_IDA(occ_ida);
 
-static int occ_open(struct inode *inode, struct file *file)
+static int occ_open(struct iyesde *iyesde, struct file *file)
 {
 	struct occ_client *client = kzalloc(sizeof(*client), GFP_KERNEL);
 	struct miscdevice *mdev = file->private_data;
@@ -108,7 +108,7 @@ static ssize_t occ_read(struct file *file, char __user *buf, size_t len,
 
 	mutex_lock(&client->lock);
 
-	/* This should not be possible ... */
+	/* This should yest be possible ... */
 	if (WARN_ON_ONCE(client->read_offset > client->data_size)) {
 		rc = -EIO;
 		goto done;
@@ -196,7 +196,7 @@ static ssize_t occ_write(struct file *file, const char __user *buf,
 	return rc;
 }
 
-static int occ_release(struct inode *inode, struct file *file)
+static int occ_release(struct iyesde *iyesde, struct file *file)
 {
 	struct occ_client *client = file->private_data;
 
@@ -221,7 +221,7 @@ static int occ_verify_checksum(struct occ_response *resp, u16 data_length)
 	u16 checksum;
 	u16 i;
 
-	checksum = resp->seq_no;
+	checksum = resp->seq_yes;
 	checksum += resp->cmd_type;
 	checksum += resp->return_status;
 	checksum += (data_length >> 8) + (data_length & 0xFF);
@@ -297,7 +297,7 @@ static int occ_putsram(struct occ *occ, u32 address, const void *data,
 
 	/*
 	 * We use the same buffer for command and response, make
-	 * sure it's big enough
+	 * sure it's big eyesugh
 	 */
 	resp_len = OCC_SBE_STATUS_WORDS;
 	cmd_len = (data_len >> 2) + 5;
@@ -365,7 +365,7 @@ static int occ_trigger_attn(struct occ *occ)
 	buf[0] = cpu_to_be32(0x5 + 0x2);        /* Chip-op length in words */
 	buf[1] = cpu_to_be32(SBEFIFO_CMD_PUT_OCC_SRAM);
 	buf[2] = cpu_to_be32(0x3);              /* Mode: Circular */
-	buf[3] = cpu_to_be32(0x0);              /* Address: ignore in mode 3 */
+	buf[3] = cpu_to_be32(0x0);              /* Address: igyesre in mode 3 */
 	buf[4] = cpu_to_be32(0x8);              /* Data length in bytes */
 	buf[5] = cpu_to_be32(0x20010000);       /* Trigger OCC attention */
 	buf[6] = 0;
@@ -412,7 +412,7 @@ int fsi_occ_submit(struct device *dev, const void *request, size_t req_len,
 		msecs_to_jiffies(OCC_CMD_IN_PRG_WAIT_MS);
 	struct occ *occ = dev_get_drvdata(dev);
 	struct occ_response *resp = response;
-	u8 seq_no;
+	u8 seq_yes;
 	u16 resp_data_length;
 	unsigned long start;
 	int rc;
@@ -427,8 +427,8 @@ int fsi_occ_submit(struct device *dev, const void *request, size_t req_len,
 
 	mutex_lock(&occ->occ_lock);
 
-	/* Extract the seq_no from the command (first byte) */
-	seq_no = *(const u8 *)request;
+	/* Extract the seq_yes from the command (first byte) */
+	seq_yes = *(const u8 *)request;
 	rc = occ_putsram(occ, OCC_SRAM_CMD_ADDR, request, req_len);
 	if (rc)
 		goto done;
@@ -445,14 +445,14 @@ int fsi_occ_submit(struct device *dev, const void *request, size_t req_len,
 			goto done;
 
 		if (resp->return_status == OCC_RESP_CMD_IN_PRG ||
-		    resp->seq_no != seq_no) {
+		    resp->seq_yes != seq_yes) {
 			rc = -ETIMEDOUT;
 
 			if (time_after(jiffies, start + timeout)) {
 				dev_err(occ->dev, "resp timeout status=%02x "
-					"resp seq_no=%d our seq_no=%d\n",
-					resp->return_status, resp->seq_no,
-					seq_no);
+					"resp seq_yes=%d our seq_yes=%d\n",
+					resp->return_status, resp->seq_yes,
+					seq_yes);
 				goto done;
 			}
 
@@ -521,8 +521,8 @@ static int occ_probe(struct platform_device *pdev)
 	occ->sbefifo = dev->parent;
 	mutex_init(&occ->occ_lock);
 
-	if (dev->of_node) {
-		rc = of_property_read_u32(dev->of_node, "reg", &reg);
+	if (dev->of_yesde) {
+		rc = of_property_read_u32(dev->of_yesde, "reg", &reg);
 		if (!rc) {
 			/* make sure we don't have a duplicate from dts */
 			occ->idx = ida_simple_get(&occ_ida, reg, reg + 1,
@@ -542,7 +542,7 @@ static int occ_probe(struct platform_device *pdev)
 
 	snprintf(occ->name, sizeof(occ->name), "occ%d", occ->idx);
 	occ->mdev.fops = &occ_fops;
-	occ->mdev.minor = MISC_DYNAMIC_MINOR;
+	occ->mdev.miyesr = MISC_DYNAMIC_MINOR;
 	occ->mdev.name = occ->name;
 	occ->mdev.parent = dev;
 

@@ -34,13 +34,13 @@ The _fmt_ is printf-like format string, following arguments are supported:
 			Field 1 is the interrupt enabled state:
 				d : Interrupts are disabled
 				. : Interrupts are enabled
-				X : The architecture does not support this
+				X : The architecture does yest support this
 				    information
 			Field 2 is the "need resched" state.
 				N : The task is set to call the scheduler when
-				    possible, as another higher priority task
+				    possible, as ayesther higher priority task
 				    may need to be scheduled in.
-				. : The task is not set to call the scheduler.
+				. : The task is yest set to call the scheduler.
 			Field 3 is the context state.
 				. : Normal context
 				s : Soft interrupt context
@@ -54,9 +54,9 @@ The _fmt_ is printf-like format string, following arguments are supported:
 				. : The preempt count is zero.
 			On preemptible kernels (where the task can be scheduled
 			out in arbitrary locations while in kernel context), the
-			preempt count, when non zero, will prevent the kernel
+			preempt count, when yesn zero, will prevent the kernel
 			from scheduling out the current task. The preempt count
-			number is displayed when it is not zero.
+			number is displayed when it is yest zero.
 			Depending on the kernel, it may show other fields
 			(lock depth, or migration disabled, which are unique to
 			specialized kernels).
@@ -115,7 +115,7 @@ AUTHOR
 [verse]
 --
 *Steven Rostedt* <rostedt@goodmis.org>, author of *libtraceevent*.
-*Tzvetomir Stoyanov* <tz.stoyanov@gmail.com>, author of this man page.
+*Tzvetomir Stoyayesv* <tz.stoyayesv@gmail.com>, author of this man page.
 --
 REPORTING BUGS
 --------------

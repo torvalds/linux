@@ -22,7 +22,7 @@
 		    = 0, 0, 0 if "link unreliable"
  No LMI:
  active = open and "link reliable"
- exist = new = not used
+ exist = new = yest used
 
  CCITT LMI: ITU-T Q.933 Annex A
  ANSI LMI: ANSI T1.617 Annex D
@@ -30,7 +30,7 @@
 
 */
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/etherdevice.h>
 #include <linux/hdlc.h>
 #include <linux/if_arp.h>
@@ -654,7 +654,7 @@ static int fr_lmi_recv(struct net_device *dev, struct sk_buff *skb)
 	u8 rxseq, txseq;
 	int lmi = state(hdlc)->settings.lmi;
 	int dce = state(hdlc)->settings.dce;
-	int stat_len = (lmi == LMI_CISCO) ? 6 : 3, reptype, error, no_ram, i;
+	int stat_len = (lmi == LMI_CISCO) ? 6 : 3, reptype, error, yes_ram, i;
 
 	if (skb->len < (lmi == LMI_ANSI ? LMI_ANSI_LENGTH :
 			LMI_CCITT_CISCO_LENGTH)) {
@@ -664,7 +664,7 @@ static int fr_lmi_recv(struct net_device *dev, struct sk_buff *skb)
 
 	if (skb->data[3] != (lmi == LMI_CISCO ? NLPID_CISCO_LMI :
 			     NLPID_CCITT_ANSI_LMI)) {
-		netdev_info(dev, "Received non-LMI frame with LMI DLCI\n");
+		netdev_info(dev, "Received yesn-LMI frame with LMI DLCI\n");
 		return 1;
 	}
 
@@ -750,7 +750,7 @@ static int fr_lmi_recv(struct net_device *dev, struct sk_buff *skb)
 				if (pvc->state.new) {
 					pvc->state.new = 0;
 
-/* Tell DTE that new PVC is now active */
+/* Tell DTE that new PVC is yesw active */
 					state(hdlc)->dce_changed = 1;
 				}
 				pvc = pvc->next;
@@ -770,7 +770,7 @@ static int fr_lmi_recv(struct net_device *dev, struct sk_buff *skb)
 
 	/* DTE */
 
-	state(hdlc)->request = 0; /* got response, no request pending */
+	state(hdlc)->request = 0; /* got response, yes request pending */
 
 	if (error)
 		return 0;
@@ -785,7 +785,7 @@ static int fr_lmi_recv(struct net_device *dev, struct sk_buff *skb)
 		pvc = pvc->next;
 	}
 
-	no_ram = 0;
+	yes_ram = 0;
 	while (skb->len >= i + 2 + stat_len) {
 		u16 dlci;
 		u32 bw;
@@ -820,9 +820,9 @@ static int fr_lmi_recv(struct net_device *dev, struct sk_buff *skb)
 
 		pvc = add_pvc(dev, dlci);
 
-		if (!pvc && !no_ram) {
+		if (!pvc && !yes_ram) {
 			netdev_warn(dev, "Memory squeeze on fr_lmi_recv()\n");
-			no_ram = 1;
+			yes_ram = 1;
 		}
 
 		if (pvc) {
@@ -1237,7 +1237,7 @@ static int fr_ioctl(struct net_device *dev, struct ifreq *ifr)
 		}
 		memcpy(&state(hdlc)->settings, &new_settings, size);
 		dev->type = ARPHRD_FRAD;
-		call_netdevice_notifiers(NETDEV_POST_TYPE_CHANGE, dev);
+		call_netdevice_yestifiers(NETDEV_POST_TYPE_CHANGE, dev);
 		return 0;
 
 	case IF_PROTO_FR_ADD_PVC:

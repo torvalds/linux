@@ -35,7 +35,7 @@
 		BUILD_BUG_ON(!__builtin_constant_p(_weight_rcp));	\
 		/*							\
 		 * Even if you want to feed it just 0/1 you should have	\
-		 * some bits for the non-fractional part...		\
+		 * some bits for the yesn-fractional part...		\
 		 */							\
 		BUILD_BUG_ON((_precision) > 30);			\
 		BUILD_BUG_ON_NOT_POWER_OF_2(_weight_rcp);		\

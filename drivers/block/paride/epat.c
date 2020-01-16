@@ -3,7 +3,7 @@
                             Under the terms of the GNU General Public License.
 
 	This is the low level protocol driver for the EPAT parallel
-        to IDE adapter from Shuttle Technologies.  This adapter is
+        to IDE adapter from Shuttle Techyeslogies.  This adapter is
         used in many popular parallel port disk products such as the
         SyQuest EZ drives, the Avatar Shark and the Imation SuperDisk.
 	

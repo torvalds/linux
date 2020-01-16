@@ -126,7 +126,7 @@ static void xgene_rng_chk_overflow(struct xgene_rng_dev *ctx)
 		 * checking 20,000 bits (test T1 as specified in the
 		 * AIS-31 standard)
 		 */
-		dev_err(ctx->dev, "test monobit failure error 0x%08X\n", val);
+		dev_err(ctx->dev, "test moyesbit failure error 0x%08X\n", val);
 	if (val & POKER_FAIL_MASK)
 		/*
 		 * LFSR detected an out-of-bounds value in at least one
@@ -150,7 +150,7 @@ static void xgene_rng_chk_overflow(struct xgene_rng_dev *ctx)
 		dev_err(ctx->dev, "test run failure error 0x%08X\n", val);
 	if (val & NOISE_FAIL_MASK)
 		/* LFSR detected a sequence of 48 identical bits */
-		dev_err(ctx->dev, "noise failure error 0x%08X\n", val);
+		dev_err(ctx->dev, "yesise failure error 0x%08X\n", val);
 	if (val & STUCK_OUT_MASK)
 		/*
 		 * Detected output data registers generated same value twice
@@ -340,7 +340,7 @@ static int xgene_rng_probe(struct platform_device *pdev)
 	rc = devm_request_irq(&pdev->dev, ctx->irq, xgene_rng_irq_handler, 0,
 				dev_name(&pdev->dev), ctx);
 	if (rc) {
-		dev_err(&pdev->dev, "Could not request RNG alarm IRQ\n");
+		dev_err(&pdev->dev, "Could yest request RNG alarm IRQ\n");
 		return rc;
 	}
 

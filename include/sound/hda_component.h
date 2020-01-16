@@ -23,7 +23,7 @@ int snd_hdac_acomp_init(struct hdac_bus *bus,
 			int (*match_master)(struct device *, int, void *),
 			size_t extra_size);
 int snd_hdac_acomp_exit(struct hdac_bus *bus);
-int snd_hdac_acomp_register_notifier(struct hdac_bus *bus,
+int snd_hdac_acomp_register_yestifier(struct hdac_bus *bus,
 				    const struct drm_audio_component_audio_ops *ops);
 #else
 static inline int snd_hdac_set_codec_wakeup(struct hdac_bus *bus, bool enable)
@@ -57,7 +57,7 @@ static inline int snd_hdac_acomp_exit(struct hdac_bus *bus)
 {
 	return 0;
 }
-static inline int snd_hdac_acomp_register_notifier(struct hdac_bus *bus,
+static inline int snd_hdac_acomp_register_yestifier(struct hdac_bus *bus,
 						  const struct drm_audio_component_audio_ops *ops)
 {
 	return -ENODEV;

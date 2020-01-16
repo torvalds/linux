@@ -69,7 +69,7 @@ static void *ieee80211_tkip_init(int key_idx)
 
 	priv->tx_tfm_arc4 = crypto_alloc_sync_skcipher("ecb(arc4)", 0, 0);
 	if (IS_ERR(priv->tx_tfm_arc4)) {
-		printk(KERN_DEBUG "ieee80211_crypt_tkip: could not allocate "
+		printk(KERN_DEBUG "ieee80211_crypt_tkip: could yest allocate "
 				"crypto API arc4\n");
 		priv->tx_tfm_arc4 = NULL;
 		goto fail;
@@ -77,7 +77,7 @@ static void *ieee80211_tkip_init(int key_idx)
 
 	priv->tx_tfm_michael = crypto_alloc_shash("michael_mic", 0, 0);
 	if (IS_ERR(priv->tx_tfm_michael)) {
-		printk(KERN_DEBUG "ieee80211_crypt_tkip: could not allocate "
+		printk(KERN_DEBUG "ieee80211_crypt_tkip: could yest allocate "
 				"crypto API michael_mic\n");
 		priv->tx_tfm_michael = NULL;
 		goto fail;
@@ -85,7 +85,7 @@ static void *ieee80211_tkip_init(int key_idx)
 
 	priv->rx_tfm_arc4 = crypto_alloc_sync_skcipher("ecb(arc4)", 0, 0);
 	if (IS_ERR(priv->rx_tfm_arc4)) {
-		printk(KERN_DEBUG "ieee80211_crypt_tkip: could not allocate "
+		printk(KERN_DEBUG "ieee80211_crypt_tkip: could yest allocate "
 				"crypto API arc4\n");
 		priv->rx_tfm_arc4 = NULL;
 		goto fail;
@@ -93,7 +93,7 @@ static void *ieee80211_tkip_init(int key_idx)
 
 	priv->rx_tfm_michael = crypto_alloc_shash("michael_mic", 0, 0);
 	if (IS_ERR(priv->rx_tfm_michael)) {
-		printk(KERN_DEBUG "ieee80211_crypt_tkip: could not allocate "
+		printk(KERN_DEBUG "ieee80211_crypt_tkip: could yest allocate "
 				"crypto API michael_mic\n");
 		priv->rx_tfm_michael = NULL;
 		goto fail;
@@ -402,7 +402,7 @@ static int ieee80211_tkip_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 	if (!tkey->key_set) {
 		if (net_ratelimit()) {
 			printk(KERN_DEBUG "TKIP: received packet from %pM"
-			       " with keyid=%d that does not have a configured"
+			       " with keyid=%d that does yest have a configured"
 			       " key\n", hdr->addr2, keyidx);
 		}
 		return -3;
@@ -639,7 +639,7 @@ static int ieee80211_michael_mic_verify(struct sk_buff *skb, int keyidx,
 	}
 
 	/*
-	 * Update TSC counters for RX now that the packet verification has
+	 * Update TSC counters for RX yesw that the packet verification has
 	 * completed.
 	 */
 	tkey->rx_iv32 = tkey->rx_iv32_new;

@@ -363,7 +363,7 @@ static int intel_pt_get_ext(const unsigned char *buf, size_t len,
 		return intel_pt_get_tma(buf, len, packet);
 	case 0xC3: /* 3-byte header */
 		return intel_pt_get_3byte(buf, len, packet);
-	case 0x62: /* EXSTOP no IP */
+	case 0x62: /* EXSTOP yes IP */
 		return intel_pt_get_exstop(packet);
 	case 0xE2: /* EXSTOP with IP */
 		return intel_pt_get_exstop_ip(packet);
@@ -375,7 +375,7 @@ static int intel_pt_get_ext(const unsigned char *buf, size_t len,
 		return intel_pt_get_pwrx(buf, len, packet);
 	case 0x63: /* BBP */
 		return intel_pt_get_bbp(buf, len, packet);
-	case 0x33: /* BEP no IP */
+	case 0x33: /* BEP yes IP */
 		return intel_pt_get_bep(len, packet);
 	case 0xb3: /* BEP with IP */
 		return intel_pt_get_bep_ip(len, packet);
@@ -700,7 +700,7 @@ int intel_pt_pkt_desc(const struct intel_pt_pkt *packet, char *buf,
 	case INTEL_PT_TIP:
 	case INTEL_PT_FUP:
 		if (!(packet->count))
-			return snprintf(buf, buf_len, "%s no ip", name);
+			return snprintf(buf, buf_len, "%s yes ip", name);
 		__fallthrough;
 	case INTEL_PT_CYC:
 	case INTEL_PT_VMCS:

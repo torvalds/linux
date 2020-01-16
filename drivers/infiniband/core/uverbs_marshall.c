@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -118,7 +118,7 @@ void ib_copy_qp_attr_to_user(struct ib_device *device,
 
 	dst->pkey_index		= src->pkey_index;
 	dst->alt_pkey_index	= src->alt_pkey_index;
-	dst->en_sqd_async_notify = src->en_sqd_async_notify;
+	dst->en_sqd_async_yestify = src->en_sqd_async_yestify;
 	dst->sq_draining	= src->sq_draining;
 	dst->max_rd_atomic	= src->max_rd_atomic;
 	dst->max_dest_rd_atomic	= src->max_dest_rd_atomic;

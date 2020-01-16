@@ -29,7 +29,7 @@ raw_get_hashinfo(const struct inet_diag_req_v2 *r)
 }
 
 /*
- * Due to requirement of not breaking user API we can't simply
+ * Due to requirement of yest breaking user API we can't simply
  * rename @pad field in inet_diag_req_v2 structure, instead
  * use helper to figure it out.
  */

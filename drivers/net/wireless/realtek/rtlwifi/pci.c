@@ -143,13 +143,13 @@ static void _rtl_pci_update_default_setting(struct ieee80211_hw *hw)
 			ppsc->support_aspm = true;
 		break;
 	default:
-		pr_err("switch case %#x not processed\n",
+		pr_err("switch case %#x yest processed\n",
 		       rtlpci->const_support_pciaspm);
 		break;
 	}
 
 	/* toshiba aspm issue, toshiba will set aspm selfly
-	 * so we should not set aspm in driver
+	 * so we should yest set aspm in driver
 	 */
 	pci_read_config_byte(rtlpci->pdev, 0x80, &init_aspm);
 	if (rtlpriv->rtlhal.hw_type == HARDWARE_TYPE_RTL8192SE &&
@@ -469,7 +469,7 @@ static bool _rtl_update_earlymode_info(struct ieee80211_hw *hw,
 	return true;
 }
 
-/* just for early mode now */
+/* just for early mode yesw */
 static void _rtl_pci_tx_chk_waitq(struct ieee80211_hw *hw)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
@@ -511,7 +511,7 @@ static void _rtl_pci_tx_chk_waitq(struct ieee80211_hw *hw)
 			spin_unlock(&rtlpriv->locks.waitq_lock);
 
 			/* Some macaddr can't do early mode. like
-			 * multicast/broadcast/no_qos data
+			 * multicast/broadcast/yes_qos data
 			 */
 			info = IEEE80211_SKB_CB(skb);
 			if (info->flags & IEEE80211_TX_CTL_AMPDU)
@@ -569,7 +569,7 @@ static void _rtl_pci_tx_isr(struct ieee80211_hw *hw, int prio)
 		}
 
 		/* for sw LPS, just after NULL skb send out, we can
-		 * sure AP knows we are sleeping, we should not let
+		 * sure AP kyesws we are sleeping, we should yest let
 		 * rf sleep
 		 */
 		fc = rtl_get_fc(skb);
@@ -671,17 +671,17 @@ remap:
 	return 1;
 }
 
-/* inorder to receive 8K AMSDU we have set skb to
+/* iyesrder to receive 8K AMSDU we have set skb to
  * 9100bytes in init rx ring, but if this packet is
- * not a AMSDU, this large packet will be sent to
+ * yest a AMSDU, this large packet will be sent to
  * TCP/IP directly, this cause big packet ping fail
  * like: "ping -s 65507", so here we will realloc skb
  * based on the true size of packet, Mac80211
- * Probably will do it better, but does not yet.
+ * Probably will do it better, but does yest yet.
  *
  * Some platform will fail when alloc skb sometimes.
  * in this condition, we will send the old skb to
- * mac80211 directly, this will not cause any other
+ * mac80211 directly, this will yest cause any other
  * issues, but only this packet will be lost by TCP/IP
  */
 static void _rtl_pci_rx_to_mac80211(struct ieee80211_hw *hw,
@@ -779,7 +779,7 @@ static void _rtl_pci_rx_interrupt(struct ieee80211_hw *hw)
 		/* get a new skb - if fail, old one will be reused */
 		new_skb = dev_alloc_skb(rtlpci->rxbuffersize);
 		if (unlikely(!new_skb))
-			goto no_new;
+			goto yes_new;
 		memset(&rx_status, 0, sizeof(rx_status));
 		rtlpriv->cfg->ops->query_rx_desc(hw, &stats,
 						 &rx_status, (u8 *)pdesc, skb);
@@ -813,7 +813,7 @@ static void _rtl_pci_rx_interrupt(struct ieee80211_hw *hw)
 			goto new_trx_end;
 		}
 
-		/* NOTICE This can not be use for mac80211,
+		/* NOTICE This can yest be use for mac80211,
 		 * this is done in mac80211 code,
 		 * if done here sec DHCP will fail
 		 * skb_trim(skb, skb->len - 4);
@@ -877,7 +877,7 @@ new_trx_end:
 		      rtlpriv->link_info.num_rx_inperiod > 2)
 			rtl_lps_leave(hw);
 		skb = new_skb;
-no_new:
+yes_new:
 		if (rtlpriv->use_new_trx_flow) {
 			_rtl_pci_init_one_rxdesc(hw, skb, (u8 *)buffer_desc,
 						 rxring_idx,
@@ -1040,7 +1040,7 @@ static irqreturn_t _rtl_pci_interrupt(int irq, void *dev_id)
 	/* Only 8188EE & 8723BE Supported.
 	 * If Other ICs Come in, System will corrupt,
 	 * because maps[RTL_IMR_HSISR_IND] & maps[MAC_HSISR]
-	 * are not initialized
+	 * are yest initialized
 	 */
 	if (rtlhal->hw_type == HARDWARE_TYPE_RTL8188EE ||
 	    rtlhal->hw_type == HARDWARE_TYPE_RTL8723BE) {
@@ -1221,7 +1221,7 @@ static int _rtl_pci_init_tx_ring(struct ieee80211_hw *hw,
 					 &buffer_desc_dma);
 
 		if (!buffer_desc || (unsigned long)buffer_desc & 0xFF) {
-			pr_err("Cannot allocate TX ring (prio = %d)\n",
+			pr_err("Canyest allocate TX ring (prio = %d)\n",
 			       prio);
 			return -ENOMEM;
 		}
@@ -1238,7 +1238,7 @@ static int _rtl_pci_init_tx_ring(struct ieee80211_hw *hw,
 				     sizeof(*desc) * entries, &desc_dma);
 
 	if (!desc || (unsigned long)desc & 0xFF) {
-		pr_err("Cannot allocate TX ring (prio = %d)\n", prio);
+		pr_err("Canyest allocate TX ring (prio = %d)\n", prio);
 		return -ENOMEM;
 	}
 
@@ -1285,7 +1285,7 @@ static int _rtl_pci_init_rx_ring(struct ieee80211_hw *hw, int rxring_idx)
 					  &rtlpci->rx_ring[rxring_idx].dma);
 		if (!rtlpci->rx_ring[rxring_idx].buffer_desc ||
 		    (ulong)rtlpci->rx_ring[rxring_idx].buffer_desc & 0xFF) {
-			pr_err("Cannot allocate RX ring\n");
+			pr_err("Canyest allocate RX ring\n");
 			return -ENOMEM;
 		}
 
@@ -1308,7 +1308,7 @@ static int _rtl_pci_init_rx_ring(struct ieee80211_hw *hw, int rxring_idx)
 					  &rtlpci->rx_ring[rxring_idx].dma);
 		if (!rtlpci->rx_ring[rxring_idx].desc ||
 		    (unsigned long)rtlpci->rx_ring[rxring_idx].desc & 0xFF) {
-			pr_err("Cannot allocate RX ring\n");
+			pr_err("Canyest allocate RX ring\n");
 			return -ENOMEM;
 		}
 
@@ -1465,7 +1465,7 @@ int rtl_pci_reset_trx_ring(struct ieee80211_hw *hw)
 	for (rxring_idx = 0; rxring_idx < RTL_PCI_MAX_RX_QUEUE; rxring_idx++) {
 		/* force the rx_ring[RX_MPDU_QUEUE/
 		 * RX_CMD_QUEUE].idx to the first one
-		 *new trx flow, do nothing
+		 *new trx flow, do yesthing
 		 */
 		if (!rtlpriv->use_new_trx_flow &&
 		    rtlpci->rx_ring[rxring_idx].desc) {
@@ -1827,7 +1827,7 @@ static void rtl_pci_stop(struct ieee80211_hw *hw)
 	u8 rf_timeout = 0;
 
 	if (rtlpriv->cfg->ops->get_btc_status())
-		rtlpriv->btcoexist.btc_ops->btc_halt_notify(rtlpriv);
+		rtlpriv->btcoexist.btc_ops->btc_halt_yestify(rtlpriv);
 
 	if (rtlpriv->btcoexist.btc_ops)
 		rtlpriv->btcoexist.btc_ops->btc_deinit_variables(rtlpriv);
@@ -1856,7 +1856,7 @@ static void rtl_pci_stop(struct ieee80211_hw *hw)
 	spin_unlock_irqrestore(&rtlpriv->locks.rf_ps_lock, flags);
 
 	rtlpriv->cfg->ops->hw_disable(hw);
-	/* some things are not needed if firmware not available */
+	/* some things are yest needed if firmware yest available */
 	if (!rtlpriv->max_fw_size)
 		return;
 	rtlpriv->cfg->ops->led_control(hw, LED_CTL_POWER_OFF);
@@ -1920,7 +1920,7 @@ static bool _rtl_pci_find_adapter(struct pci_dev *pdev,
 			break;
 		default:
 			RT_TRACE(rtlpriv, COMP_ERR, DBG_WARNING,
-				 "Err: Unknown device - vid/did=%x/%x\n",
+				 "Err: Unkyeswn device - vid/did=%x/%x\n",
 				 venderid, deviceid);
 			rtlhal->hw_type = HARDWARE_TYPE_RTL8192SE;
 			break;
@@ -1971,7 +1971,7 @@ static bool _rtl_pci_find_adapter(struct pci_dev *pdev,
 			 "Find adapter, Hardware type is 8822BE\n");
 	} else {
 		RT_TRACE(rtlpriv, COMP_ERR, DBG_WARNING,
-			 "Err: Unknown device - vid/did=%x/%x\n",
+			 "Err: Unkyeswn device - vid/did=%x/%x\n",
 			 venderid, deviceid);
 
 		rtlhal->hw_type = RTL_DEFAULT_HARDWARE_TYPE;
@@ -1990,7 +1990,7 @@ static bool _rtl_pci_find_adapter(struct pci_dev *pdev,
 			}
 		} else {
 			RT_TRACE(rtlpriv, COMP_INIT, DBG_LOUD,
-				 "Unknown device - VendorID/DeviceID=%x/%x, Revision=%x\n",
+				 "Unkyeswn device - VendorID/DeviceID=%x/%x, Revision=%x\n",
 				 venderid, deviceid, revisionid);
 			rtlhal->interfaceindex = 0;
 		}
@@ -2015,7 +2015,7 @@ static bool _rtl_pci_find_adapter(struct pci_dev *pdev,
 
 	/*find bridge info */
 	pcipriv->ndis_adapter.pcibridge_vendor = PCI_BRIDGE_VENDOR_UNKNOWN;
-	/* some ARM have no bridge_pdev and will crash here
+	/* some ARM have yes bridge_pdev and will crash here
 	 * so we should check if bridge_pdev is NULL
 	 */
 	if (bridge_pdev) {
@@ -2164,7 +2164,7 @@ int rtl_pci_probe(struct pci_dev *pdev,
 
 	err = pci_enable_device(pdev);
 	if (err) {
-		WARN_ONCE(true, "%s : Cannot enable new PCI device\n",
+		WARN_ONCE(true, "%s : Canyest enable new PCI device\n",
 			  pci_name(pdev));
 		return err;
 	}
@@ -2408,7 +2408,7 @@ EXPORT_SYMBOL(rtl_pci_disconnect);
  * goes into suspend state mac80211 will
  * call rtl_mac_stop() from the mac80211
  * suspend function first, So there is
- * no need to call hw_disable here.
+ * yes need to call hw_disable here.
  ****************************************/
 int rtl_pci_suspend(struct device *dev)
 {

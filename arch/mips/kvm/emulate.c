@@ -5,11 +5,11 @@
  *
  * KVM/MIPS: Instruction/Exception emulation
  *
- * Copyright (C) 2012  MIPS Technologies, Inc.  All rights reserved.
+ * Copyright (C) 2012  MIPS Techyeslogies, Inc.  All rights reserved.
  * Authors: Sanjay Lal <sanjayl@kymasys.com>
  */
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/err.h>
 #include <linux/ktime.h>
 #include <linux/kvm_host.h>
@@ -119,7 +119,7 @@ static int kvm_compute_return_epc(struct kvm_vcpu *vcpu, unsigned long instpc,
 			break;
 		case bposge32_op:
 			if (!cpu_has_dsp) {
-				kvm_err("%s: DSP branch but not DSP ASE\n",
+				kvm_err("%s: DSP branch but yest DSP ASE\n",
 					__func__);
 				return -EINVAL;
 			}
@@ -196,7 +196,7 @@ static int kvm_compute_return_epc(struct kvm_vcpu *vcpu, unsigned long instpc,
 		nextpc = epc;
 		break;
 
-		/* And now the FPA/cp1 branch instructions. */
+		/* And yesw the FPA/cp1 branch instructions. */
 	case cop1_op:
 		kvm_err("%s: unsupported cop1_op\n", __func__);
 		return -EINVAL;
@@ -224,14 +224,14 @@ static int kvm_compute_return_epc(struct kvm_vcpu *vcpu, unsigned long instpc,
 compact_branch:
 		/*
 		 * If we've hit an exception on the forbidden slot, then
-		 * the branch must not have been taken.
+		 * the branch must yest have been taken.
 		 */
 		epc += 8;
 		nextpc = epc;
 		break;
 #else
 compact_branch:
-		/* Fall through - Compact branches not supported before R6 */
+		/* Fall through - Compact branches yest supported before R6 */
 #endif
 	default:
 		return -EINVAL;
@@ -320,24 +320,24 @@ int kvm_mips_count_disabled(struct kvm_vcpu *vcpu)
 /**
  * kvm_mips_ktime_to_count() - Scale ktime_t to a 32-bit count.
  *
- * Caches the dynamic nanosecond bias in vcpu->arch.count_dyn_bias.
+ * Caches the dynamic nayessecond bias in vcpu->arch.count_dyn_bias.
  *
  * Assumes !kvm_mips_count_disabled(@vcpu) (guest CP0_Count timer is running).
  */
-static u32 kvm_mips_ktime_to_count(struct kvm_vcpu *vcpu, ktime_t now)
+static u32 kvm_mips_ktime_to_count(struct kvm_vcpu *vcpu, ktime_t yesw)
 {
-	s64 now_ns, periods;
+	s64 yesw_ns, periods;
 	u64 delta;
 
-	now_ns = ktime_to_ns(now);
-	delta = now_ns + vcpu->arch.count_dyn_bias;
+	yesw_ns = ktime_to_ns(yesw);
+	delta = yesw_ns + vcpu->arch.count_dyn_bias;
 
 	if (delta >= vcpu->arch.count_period) {
 		/* If delta is out of safe range the bias needs adjusting */
-		periods = div64_s64(now_ns, vcpu->arch.count_period);
+		periods = div64_s64(yesw_ns, vcpu->arch.count_period);
 		vcpu->arch.count_dyn_bias = -periods * vcpu->arch.count_period;
 		/* Recalculate delta with new bias */
-		delta = now_ns + vcpu->arch.count_dyn_bias;
+		delta = yesw_ns + vcpu->arch.count_dyn_bias;
 	}
 
 	/*
@@ -357,11 +357,11 @@ static u32 kvm_mips_ktime_to_count(struct kvm_vcpu *vcpu, ktime_t now)
  * kvm_mips_count_time() - Get effective current time.
  * @vcpu:	Virtual CPU.
  *
- * Get effective monotonic ktime. This is usually a straightforward ktime_get(),
+ * Get effective moyestonic ktime. This is usually a straightforward ktime_get(),
  * except when the master disable bit is set in count_ctl, in which case it is
  * count_resume, i.e. the time that the count was disabled.
  *
- * Returns:	Effective monotonic ktime for CP0_Count.
+ * Returns:	Effective moyestonic ktime for CP0_Count.
  */
 static inline ktime_t kvm_mips_count_time(struct kvm_vcpu *vcpu)
 {
@@ -374,14 +374,14 @@ static inline ktime_t kvm_mips_count_time(struct kvm_vcpu *vcpu)
 /**
  * kvm_mips_read_count_running() - Read the current count value as if running.
  * @vcpu:	Virtual CPU.
- * @now:	Kernel time to read CP0_Count at.
+ * @yesw:	Kernel time to read CP0_Count at.
  *
- * Returns the current guest CP0_Count register at time @now and handles if the
+ * Returns the current guest CP0_Count register at time @yesw and handles if the
  * timer interrupt is pending and hasn't been handled yet.
  *
  * Returns:	The current value of the guest CP0_Count register.
  */
-static u32 kvm_mips_read_count_running(struct kvm_vcpu *vcpu, ktime_t now)
+static u32 kvm_mips_read_count_running(struct kvm_vcpu *vcpu, ktime_t yesw)
 {
 	struct mips_coproc *cop0 = vcpu->arch.cop0;
 	ktime_t expires, threshold;
@@ -389,12 +389,12 @@ static u32 kvm_mips_read_count_running(struct kvm_vcpu *vcpu, ktime_t now)
 	int running;
 
 	/* Calculate the biased and scaled guest CP0_Count */
-	count = vcpu->arch.count_bias + kvm_mips_ktime_to_count(vcpu, now);
+	count = vcpu->arch.count_bias + kvm_mips_ktime_to_count(vcpu, yesw);
 	compare = kvm_read_c0_guest_compare(cop0);
 
 	/*
 	 * Find whether CP0_Count has reached the closest timer interrupt. If
-	 * not, we shouldn't inject it.
+	 * yest, we shouldn't inject it.
 	 */
 	if ((s32)(count - compare) < 0)
 		return count;
@@ -406,10 +406,10 @@ static u32 kvm_mips_read_count_running(struct kvm_vcpu *vcpu, ktime_t now)
 	 * less than 1/4 of the timer period.
 	 */
 	expires = hrtimer_get_expires(&vcpu->arch.comparecount_timer);
-	threshold = ktime_add_ns(now, vcpu->arch.count_period / 4);
+	threshold = ktime_add_ns(yesw, vcpu->arch.count_period / 4);
 	if (ktime_before(expires, threshold)) {
 		/*
-		 * Cancel it while we handle it so there's no chance of
+		 * Cancel it while we handle it so there's yes chance of
 		 * interference with the timeout handler.
 		 */
 		running = hrtimer_cancel(&vcpu->arch.comparecount_timer);
@@ -459,7 +459,7 @@ u32 kvm_mips_read_count(struct kvm_vcpu *vcpu)
  *
  * Freeze the hrtimer safely and return both the ktime and the CP0_Count value
  * at the point it was frozen. It is guaranteed that any pending interrupts at
- * the point it was frozen are handled, and none after that point.
+ * the point it was frozen are handled, and yesne after that point.
  *
  * This is useful where the time/CP0_Count is needed in the calculation of the
  * new parameters.
@@ -470,36 +470,36 @@ u32 kvm_mips_read_count(struct kvm_vcpu *vcpu)
  */
 ktime_t kvm_mips_freeze_hrtimer(struct kvm_vcpu *vcpu, u32 *count)
 {
-	ktime_t now;
+	ktime_t yesw;
 
 	/* stop hrtimer before finding time */
 	hrtimer_cancel(&vcpu->arch.comparecount_timer);
-	now = ktime_get();
+	yesw = ktime_get();
 
 	/* find count at this point and handle pending hrtimer */
-	*count = kvm_mips_read_count_running(vcpu, now);
+	*count = kvm_mips_read_count_running(vcpu, yesw);
 
-	return now;
+	return yesw;
 }
 
 /**
  * kvm_mips_resume_hrtimer() - Resume hrtimer, updating expiry.
  * @vcpu:	Virtual CPU.
- * @now:	ktime at point of resume.
+ * @yesw:	ktime at point of resume.
  * @count:	CP0_Count at point of resume.
  *
- * Resumes the timer and updates the timer expiry based on @now and @count.
+ * Resumes the timer and updates the timer expiry based on @yesw and @count.
  * This can be used in conjunction with kvm_mips_freeze_timer() when timer
  * parameters need to be changed.
  *
  * It is guaranteed that a timer interrupt immediately after resume will be
- * handled, but not if CP_Compare is exactly at @count. That case is already
+ * handled, but yest if CP_Compare is exactly at @count. That case is already
  * handled by kvm_mips_freeze_timer().
  *
  * Assumes !kvm_mips_count_disabled(@vcpu) (guest CP0_Count timer is running).
  */
 static void kvm_mips_resume_hrtimer(struct kvm_vcpu *vcpu,
-				    ktime_t now, u32 count)
+				    ktime_t yesw, u32 count)
 {
 	struct mips_coproc *cop0 = vcpu->arch.cop0;
 	u32 compare;
@@ -510,7 +510,7 @@ static void kvm_mips_resume_hrtimer(struct kvm_vcpu *vcpu,
 	compare = kvm_read_c0_guest_compare(cop0);
 	delta = (u64)(u32)(compare - count - 1) + 1;
 	delta = div_u64(delta * NSEC_PER_SEC, vcpu->arch.count_hz);
-	expire = ktime_add_ns(now, delta);
+	expire = ktime_add_ns(yesw, delta);
 
 	/* Update hrtimer to use new timeout */
 	hrtimer_cancel(&vcpu->arch.comparecount_timer);
@@ -528,13 +528,13 @@ static void kvm_mips_resume_hrtimer(struct kvm_vcpu *vcpu,
  * Restores the timer from a particular @count, accounting for drift. This can
  * be used in conjunction with kvm_mips_freeze_timer() when a hardware timer is
  * to be used for a period of time, but the exact ktime corresponding to the
- * final Count that must be restored is not known.
+ * final Count that must be restored is yest kyeswn.
  *
  * It is gauranteed that a timer interrupt immediately after restore will be
- * handled, but not if CP0_Compare is exactly at @count. That case should
+ * handled, but yest if CP0_Compare is exactly at @count. That case should
  * already be handled when the hardware timer state is saved.
  *
- * Assumes !kvm_mips_count_disabled(@vcpu) (guest CP0_Count timer is not
+ * Assumes !kvm_mips_count_disabled(@vcpu) (guest CP0_Count timer is yest
  * stopped).
  *
  * Returns:	Amount of correction to count_bias due to drift.
@@ -542,8 +542,8 @@ static void kvm_mips_resume_hrtimer(struct kvm_vcpu *vcpu,
 int kvm_mips_restore_hrtimer(struct kvm_vcpu *vcpu, ktime_t before,
 			     u32 count, int min_drift)
 {
-	ktime_t now, count_time;
-	u32 now_count, before_count;
+	ktime_t yesw, count_time;
+	u32 yesw_count, before_count;
 	u64 delta;
 	int drift, ret = 0;
 
@@ -566,26 +566,26 @@ int kvm_mips_restore_hrtimer(struct kvm_vcpu *vcpu, ktime_t before,
 		goto resume;
 	}
 
-	/* Calculate expected count right now */
-	now = ktime_get();
-	now_count = vcpu->arch.count_bias + kvm_mips_ktime_to_count(vcpu, now);
+	/* Calculate expected count right yesw */
+	yesw = ktime_get();
+	yesw_count = vcpu->arch.count_bias + kvm_mips_ktime_to_count(vcpu, yesw);
 
 	/*
 	 * Detect positive drift, where count is higher than expected, and
 	 * adjust the bias to avoid guest time going backwards.
 	 */
-	drift = count - now_count;
+	drift = count - yesw_count;
 	if (drift > 0) {
-		count_time = now;
+		count_time = yesw;
 		vcpu->arch.count_bias += drift;
 		ret = drift;
 		goto resume;
 	}
 
-	/* Subtract nanosecond delta to find ktime when count was read */
-	delta = (u64)(u32)(now_count - count);
+	/* Subtract nayessecond delta to find ktime when count was read */
+	delta = (u64)(u32)(yesw_count - count);
 	delta = div_u64(delta * NSEC_PER_SEC, vcpu->arch.count_hz);
-	count_time = ktime_sub_ns(now, delta);
+	count_time = ktime_sub_ns(yesw, delta);
 
 resume:
 	/* Resume using the calculated ktime */
@@ -603,18 +603,18 @@ resume:
 void kvm_mips_write_count(struct kvm_vcpu *vcpu, u32 count)
 {
 	struct mips_coproc *cop0 = vcpu->arch.cop0;
-	ktime_t now;
+	ktime_t yesw;
 
 	/* Calculate bias */
-	now = kvm_mips_count_time(vcpu);
-	vcpu->arch.count_bias = count - kvm_mips_ktime_to_count(vcpu, now);
+	yesw = kvm_mips_count_time(vcpu);
+	vcpu->arch.count_bias = count - kvm_mips_ktime_to_count(vcpu, yesw);
 
 	if (kvm_mips_count_disabled(vcpu))
 		/* The timer's disabled, adjust the static count */
 		kvm_write_c0_guest_count(cop0, count);
 	else
 		/* Update timeout */
-		kvm_mips_resume_hrtimer(vcpu, now, count);
+		kvm_mips_resume_hrtimer(vcpu, yesw, count);
 }
 
 /**
@@ -641,7 +641,7 @@ void kvm_mips_init_count(struct kvm_vcpu *vcpu, unsigned long count_hz)
  * @count_hz:	Frequency of CP0_Count timer in Hz.
  *
  * Change the frequency of the CP0_Count timer. This is done atomically so that
- * CP0_Count is continuous and no timer interrupt is lost.
+ * CP0_Count is continuous and yes timer interrupt is lost.
  *
  * Returns:	-EINVAL if @count_hz is out of range.
  *		0 on success.
@@ -650,7 +650,7 @@ int kvm_mips_set_count_hz(struct kvm_vcpu *vcpu, s64 count_hz)
 {
 	struct mips_coproc *cop0 = vcpu->arch.cop0;
 	int dc;
-	ktime_t now;
+	ktime_t yesw;
 	u32 count;
 
 	/* ensure the frequency is in a sensible range... */
@@ -663,10 +663,10 @@ int kvm_mips_set_count_hz(struct kvm_vcpu *vcpu, s64 count_hz)
 	/* Safely freeze timer so we can keep it continuous */
 	dc = kvm_mips_count_disabled(vcpu);
 	if (dc) {
-		now = kvm_mips_count_time(vcpu);
+		yesw = kvm_mips_count_time(vcpu);
 		count = kvm_read_c0_guest_count(cop0);
 	} else {
-		now = kvm_mips_freeze_hrtimer(vcpu, &count);
+		yesw = kvm_mips_freeze_hrtimer(vcpu, &count);
 	}
 
 	/* Update the frequency */
@@ -675,11 +675,11 @@ int kvm_mips_set_count_hz(struct kvm_vcpu *vcpu, s64 count_hz)
 	vcpu->arch.count_dyn_bias = 0;
 
 	/* Calculate adjusted bias so dynamic count is unchanged */
-	vcpu->arch.count_bias = count - kvm_mips_ktime_to_count(vcpu, now);
+	vcpu->arch.count_bias = count - kvm_mips_ktime_to_count(vcpu, yesw);
 
 	/* Update and resume hrtimer */
 	if (!dc)
-		kvm_mips_resume_hrtimer(vcpu, now, count);
+		kvm_mips_resume_hrtimer(vcpu, yesw, count);
 	return 0;
 }
 
@@ -687,10 +687,10 @@ int kvm_mips_set_count_hz(struct kvm_vcpu *vcpu, s64 count_hz)
  * kvm_mips_write_compare() - Modify compare and update timer.
  * @vcpu:	Virtual CPU.
  * @compare:	New CP0_Compare value.
- * @ack:	Whether to acknowledge timer interrupt.
+ * @ack:	Whether to ackyeswledge timer interrupt.
  *
  * Update CP0_Compare to a new value and update the timeout.
- * If @ack, atomically acknowledge any pending timer interrupt, otherwise ensure
+ * If @ack, atomically ackyeswledge any pending timer interrupt, otherwise ensure
  * any pending timer interrupt is preserved.
  */
 void kvm_mips_write_compare(struct kvm_vcpu *vcpu, u32 compare, bool ack)
@@ -700,7 +700,7 @@ void kvm_mips_write_compare(struct kvm_vcpu *vcpu, u32 compare, bool ack)
 	u32 old_compare = kvm_read_c0_guest_compare(cop0);
 	s32 delta = compare - old_compare;
 	u32 cause;
-	ktime_t now = ktime_set(0, 0); /* silence bogus GCC warning */
+	ktime_t yesw = ktime_set(0, 0); /* silence bogus GCC warning */
 	u32 count;
 
 	/* if unchanged, must just be an ack */
@@ -730,7 +730,7 @@ void kvm_mips_write_compare(struct kvm_vcpu *vcpu, u32 compare, bool ack)
 	/* freeze_hrtimer() takes care of timer interrupts <= count */
 	dc = kvm_mips_count_disabled(vcpu);
 	if (!dc)
-		now = kvm_mips_freeze_hrtimer(vcpu, &count);
+		yesw = kvm_mips_freeze_hrtimer(vcpu, &count);
 
 	if (ack)
 		kvm_mips_callbacks->dequeue_timer_int(vcpu);
@@ -755,7 +755,7 @@ void kvm_mips_write_compare(struct kvm_vcpu *vcpu, u32 compare, bool ack)
 
 	/* resume_hrtimer() takes care of timer interrupts > count */
 	if (!dc)
-		kvm_mips_resume_hrtimer(vcpu, now, count);
+		kvm_mips_resume_hrtimer(vcpu, yesw, count);
 
 	/*
 	 * If guest CP0_Compare is moving backward, we delay CP0_GTOffset change
@@ -771,9 +771,9 @@ void kvm_mips_write_compare(struct kvm_vcpu *vcpu, u32 compare, bool ack)
  * @vcpu:	Virtual CPU.
  *
  * Disable the CP0_Count timer. A timer interrupt on or before the final stop
- * time will be handled but not after.
+ * time will be handled but yest after.
  *
- * Assumes CP0_Count was previously enabled but now Guest.CP0_Cause.DC or
+ * Assumes CP0_Count was previously enabled but yesw Guest.CP0_Cause.DC or
  * count_ctl.DC has been set (count disabled).
  *
  * Returns:	The time that the timer was stopped.
@@ -782,17 +782,17 @@ static ktime_t kvm_mips_count_disable(struct kvm_vcpu *vcpu)
 {
 	struct mips_coproc *cop0 = vcpu->arch.cop0;
 	u32 count;
-	ktime_t now;
+	ktime_t yesw;
 
 	/* Stop hrtimer */
 	hrtimer_cancel(&vcpu->arch.comparecount_timer);
 
 	/* Set the static count from the dynamic count, handling pending TI */
-	now = ktime_get();
-	count = kvm_mips_read_count_running(vcpu, now);
+	yesw = ktime_get();
+	count = kvm_mips_read_count_running(vcpu, yesw);
 	kvm_write_c0_guest_count(cop0, count);
 
-	return now;
+	return yesw;
 }
 
 /**
@@ -801,7 +801,7 @@ static ktime_t kvm_mips_count_disable(struct kvm_vcpu *vcpu)
  *
  * Disable the CP0_Count timer and set CP0_Cause.DC. A timer interrupt on or
  * before the final stop time will be handled if the timer isn't disabled by
- * count_ctl.DC, but not after.
+ * count_ctl.DC, but yest after.
  *
  * Assumes CP0_Cause.DC is clear (count enabled).
  */
@@ -821,7 +821,7 @@ void kvm_mips_count_disable_cause(struct kvm_vcpu *vcpu)
  * Enable the CP0_Count timer and clear CP0_Cause.DC. A timer interrupt after
  * the start time will be handled if the timer isn't disabled by count_ctl.DC,
  * potentially before even returning, so the caller should be careful with
- * ordering of CP0_Cause modifications so as not to lose it.
+ * ordering of CP0_Cause modifications so as yest to lose it.
  *
  * Assumes CP0_Cause.DC is set (count disabled).
  */
@@ -856,7 +856,7 @@ int kvm_mips_set_count_ctl(struct kvm_vcpu *vcpu, s64 count_ctl)
 	struct mips_coproc *cop0 = vcpu->arch.cop0;
 	s64 changed = count_ctl ^ vcpu->arch.count_ctl;
 	s64 delta;
-	ktime_t expire, now;
+	ktime_t expire, yesw;
 	u32 count, compare;
 
 	/* Only allow defined bits to be changed */
@@ -889,14 +889,14 @@ int kvm_mips_set_count_ctl(struct kvm_vcpu *vcpu, s64 count_ctl)
 			expire = ktime_add_ns(vcpu->arch.count_resume, delta);
 
 			/* Handle pending interrupt */
-			now = ktime_get();
-			if (ktime_compare(now, expire) >= 0)
+			yesw = ktime_get();
+			if (ktime_compare(yesw, expire) >= 0)
 				/* Nothing should be waiting on the timeout */
 				kvm_mips_callbacks->queue_timer_int(vcpu);
 
 			/* Resume hrtimer without changing bias */
-			count = kvm_mips_read_count_running(vcpu, now);
-			kvm_mips_resume_hrtimer(vcpu, now, count);
+			count = kvm_mips_read_count_running(vcpu, yesw);
+			kvm_mips_resume_hrtimer(vcpu, yesw, count);
 		}
 	}
 
@@ -910,7 +910,7 @@ int kvm_mips_set_count_ctl(struct kvm_vcpu *vcpu, s64 count_ctl)
  *
  * Set the count resume KVM register.
  *
- * Returns:	-EINVAL if out of valid range (0..now).
+ * Returns:	-EINVAL if out of valid range (0..yesw).
  *		0 on success.
  */
 int kvm_mips_set_count_resume(struct kvm_vcpu *vcpu, s64 count_resume)
@@ -1588,7 +1588,7 @@ done:
 dont_update_pc:
 	/*
 	 * This is for special instructions whose emulation
-	 * updates the PC, so do not overwrite the PC under
+	 * updates the PC, so do yest overwrite the PC under
 	 * any circumstances
 	 */
 
@@ -1661,7 +1661,7 @@ enum emulation_result kvm_mips_emulate_store(union mips_instruction inst,
 		break;
 
 	default:
-		kvm_err("Store not yet supported (inst=0x%08x)\n",
+		kvm_err("Store yest yet supported (inst=0x%08x)\n",
 			inst.word);
 		goto out_fail;
 	}
@@ -1689,7 +1689,7 @@ enum emulation_result kvm_mips_emulate_load(union mips_instruction inst,
 	op = inst.i_format.opcode;
 
 	/*
-	 * Find the resume PC now while we have safe and easy access to the
+	 * Find the resume PC yesw while we have safe and easy access to the
 	 * prior branch instruction, and save it for
 	 * kvm_mips_complete_mmio_load() to restore later.
 	 */
@@ -1737,7 +1737,7 @@ enum emulation_result kvm_mips_emulate_load(union mips_instruction inst,
 		break;
 
 	default:
-		kvm_err("Load not yet supported (inst=0x%08x)\n",
+		kvm_err("Load yest yet supported (inst=0x%08x)\n",
 			inst.word);
 		vcpu->mmio_needed = 0;
 		return EMULATE_FAIL;
@@ -1777,7 +1777,7 @@ static enum emulation_result kvm_mips_guest_cache_op(int (*fn)(unsigned long),
 			/* bad virtual or physical address */
 			return EMULATE_FAIL;
 		case KVM_MIPS_TLB:
-			/* no matching guest TLB */
+			/* yes matching guest TLB */
 			vcpu->arch.host_cp0_badvaddr = addr;
 			vcpu->arch.pc = curr_pc;
 			kvm_mips_emulate_tlbmiss_ld(cause, NULL, run, vcpu);
@@ -1830,7 +1830,7 @@ enum emulation_result kvm_mips_emulate_cache(union mips_instruction inst,
 		  cache, op, base, arch->gprs[base], offset);
 
 	/*
-	 * Treat INDEX_INV as a nop, basically issued by Linux on startup to
+	 * Treat INDEX_INV as a yesp, basically issued by Linux on startup to
 	 * invalidate the caches entirely by stepping through all the
 	 * ways/indexes
 	 */
@@ -1891,7 +1891,7 @@ enum emulation_result kvm_mips_emulate_cache(union mips_instruction inst,
 			goto done;
 #ifdef CONFIG_KVM_MIPS_DYN_TRANS
 		/*
-		 * Replace the CACHE instruction, with a SYNCI, not the same,
+		 * Replace the CACHE instruction, with a SYNCI, yest the same,
 		 * but avoids a trap
 		 */
 		kvm_mips_trans_cache_va(inst, opc, vcpu);
@@ -1964,14 +1964,14 @@ enum emulation_result kvm_mips_emulate_inst(u32 cause, u32 *opc,
 						    vcpu);
 			break;
 		default:
-			goto unknown;
+			goto unkyeswn;
 		};
 		break;
-unknown:
+unkyeswn:
 #endif
 
 	default:
-		kvm_err("Instruction emulation not supported (%p/%#x)\n", opc,
+		kvm_err("Instruction emulation yest supported (%p/%#x)\n", opc,
 			inst.word);
 		kvm_arch_vcpu_dump_regs(vcpu);
 		er = EMULATE_FAIL;
@@ -2506,7 +2506,7 @@ enum emulation_result kvm_mips_handle_ri(u32 cause, u32 *opc,
 		opc += 1;
 	err = kvm_get_badinstr(opc, vcpu, &inst.word);
 	if (err) {
-		kvm_err("%s: Cannot get inst @ %p (%d)\n", __func__, opc, err);
+		kvm_err("%s: Canyest get inst @ %p (%d)\n", __func__, opc, err);
 		return EMULATE_FAIL;
 	}
 
@@ -2551,14 +2551,14 @@ enum emulation_result kvm_mips_handle_ri(u32 cause, u32 *opc,
 			break;
 
 		default:
-			kvm_debug("RDHWR %#x not supported @ %p\n", rd, opc);
+			kvm_debug("RDHWR %#x yest supported @ %p\n", rd, opc);
 			goto emulate_ri;
 		}
 
 		trace_kvm_hwr(vcpu, KVM_TRACE_RDHWR, KVM_TRACE_HWR(rd, sel),
 			      vcpu->arch.gprs[rt]);
 	} else {
-		kvm_debug("Emulate RI not supported @ %p: %#x\n",
+		kvm_debug("Emulate RI yest supported @ %p: %#x\n",
 			  opc, inst.word);
 		goto emulate_ri;
 	}
@@ -2749,9 +2749,9 @@ enum emulation_result kvm_mips_check_privilege(u32 cause,
 
 /*
  * User Address (UA) fault, this could happen if
- * (1) TLB entry not present/valid in both Guest and shadow host TLBs, in this
+ * (1) TLB entry yest present/valid in both Guest and shadow host TLBs, in this
  *     case we pass on the fault to the guest kernel and let it handle it.
- * (2) TLB entry is present in the Guest TLB but not in the shadow, in this
+ * (2) TLB entry is present in the Guest TLB but yest in the shadow, in this
  *     case we inject the TLB from the Guest TLB into the shadow host TLB
  */
 enum emulation_result kvm_mips_handle_tlbmiss(u32 cause,
@@ -2769,8 +2769,8 @@ enum emulation_result kvm_mips_handle_tlbmiss(u32 cause,
 		  vcpu->arch.host_cp0_badvaddr);
 
 	/*
-	 * KVM would not have got the exception if this entry was valid in the
-	 * shadow host TLB. Check the Guest TLB, if the entry is not there then
+	 * KVM would yest have got the exception if this entry was valid in the
+	 * shadow host TLB. Check the Guest TLB, if the entry is yest there then
 	 * send the guest an exception. The guest exc handler should then inject
 	 * an entry into the guest TLB.
 	 */
@@ -2792,7 +2792,7 @@ enum emulation_result kvm_mips_handle_tlbmiss(u32 cause,
 		struct kvm_mips_tlb *tlb = &vcpu->arch.guest_tlb[index];
 
 		/*
-		 * Check if the entry is valid, if not then setup a TLB invalid
+		 * Check if the entry is valid, if yest then setup a TLB invalid
 		 * exception to the guest
 		 */
 		if (!TLB_IS_VALID(*tlb, va)) {
@@ -2811,7 +2811,7 @@ enum emulation_result kvm_mips_handle_tlbmiss(u32 cause,
 			kvm_debug("Injecting hi: %#lx, lo0: %#lx, lo1: %#lx into shadow host TLB\n",
 				  tlb->tlb_hi, tlb->tlb_lo[0], tlb->tlb_lo[1]);
 			/*
-			 * OK we have a Guest TLB entry, now inject it into the
+			 * OK we have a Guest TLB entry, yesw inject it into the
 			 * shadow host TLB
 			 */
 			if (kvm_mips_handle_mapped_seg_tlb_fault(vcpu, tlb, va,

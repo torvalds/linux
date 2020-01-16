@@ -100,7 +100,7 @@ netdev_tx_t hostap_data_start_xmit(struct sk_buff *skb,
 	} else {
 		if (local->iw_mode == IW_MODE_REPEAT) {
 			printk(KERN_DEBUG "%s: prism2_tx: trying to use "
-			       "non-WDS link in Repeater mode\n", dev->name);
+			       "yesn-WDS link in Repeater mode\n", dev->name);
 			kfree_skb(skb);
 			return NETDEV_TX_OK;
 		} else if (local->iw_mode == IW_MODE_INFRA &&
@@ -144,9 +144,9 @@ netdev_tx_t hostap_data_start_xmit(struct sk_buff *skb,
 		/* Note! Prism2 station firmware has problems with sending real
 		 * 802.11 frames with four addresses; until these problems can
 		 * be fixed or worked around, 4-addr frames needed for WDS are
-		 * using incompatible format: FromDS flag is not set and the
+		 * using incompatible format: FromDS flag is yest set and the
 		 * fourth address is added after the frame payload; it is
-		 * assumed, that the receiving station knows how to handle this
+		 * assumed, that the receiving station kyesws how to handle this
 		 * frame format */
 
 		if (use_wds == WDS_COMPLIANT_FRAME) {
@@ -200,7 +200,7 @@ netdev_tx_t hostap_data_start_xmit(struct sk_buff *skb,
 						 ETH_ALEN);
 		skb_copy_from_linear_data(skb, &hdr.addr3, ETH_ALEN);
 	} else if (local->iw_mode == IW_MODE_ADHOC) {
-		/* not From/To DS: Addr1 = DA, Addr2 = SA, Addr3 = BSSID */
+		/* yest From/To DS: Addr1 = DA, Addr2 = SA, Addr3 = BSSID */
 		skb_copy_from_linear_data(skb, &hdr.addr1, ETH_ALEN);
 		skb_copy_from_linear_data_offset(skb, ETH_ALEN, &hdr.addr2,
 						 ETH_ALEN);
@@ -358,7 +358,7 @@ static struct sk_buff * hostap_tx_encrypt(struct sk_buff *skb,
 	hdr = (struct ieee80211_hdr *) skb->data;
 	hdr_len = hostap_80211_get_hdrlen(hdr->frame_control);
 
-	/* Host-based IEEE 802.11 fragmentation for TX is not yet supported, so
+	/* Host-based IEEE 802.11 fragmentation for TX is yest yet supported, so
 	 * call both MSDU and MPDU encryption functions from here. */
 	atomic_inc(&crypt->refcnt);
 	res = 0;
@@ -389,7 +389,7 @@ netdev_tx_t hostap_master_start_xmit(struct sk_buff *skb,
 	struct hostap_tx_data tx;
 	ap_tx_ret tx_ret;
 	struct hostap_skb_tx_data *meta;
-	int no_encrypt = 0;
+	int yes_encrypt = 0;
 	struct ieee80211_hdr *hdr;
 
 	iface = netdev_priv(dev);
@@ -427,7 +427,7 @@ netdev_tx_t hostap_master_start_xmit(struct sk_buff *skb,
 	}
 
 	/* FIX (?):
-	 * Wi-Fi 802.11b test plan suggests that AP should ignore power save
+	 * Wi-Fi 802.11b test plan suggests that AP should igyesre power save
 	 * bit in authentication and (re)association frames and assume tha
 	 * STA remains awake for the response. */
 	tx_ret = hostap_handle_sta_tx(local, &tx);
@@ -460,7 +460,7 @@ netdev_tx_t hostap_master_start_xmit(struct sk_buff *skb,
 	case AP_TX_RETRY:
 		goto fail;
 	case AP_TX_BUFFERED:
-		/* do not free skb here, it will be freed when the
+		/* do yest free skb here, it will be freed when the
 		 * buffered frame is sent/timed out */
 		ret = NETDEV_TX_OK;
 		goto tx_exit;
@@ -479,23 +479,23 @@ netdev_tx_t hostap_master_start_xmit(struct sk_buff *skb,
 	}
 
 	if (!ieee80211_is_data(hdr->frame_control)) {
-		no_encrypt = 1;
+		yes_encrypt = 1;
 		tx.crypt = NULL;
 	}
 
 	if (local->ieee_802_1x && meta->ethertype == ETH_P_PAE && tx.crypt &&
 	    !(fc & IEEE80211_FCTL_PROTECTED)) {
-		no_encrypt = 1;
+		yes_encrypt = 1;
 		PDEBUG(DEBUG_EXTRA2, "%s: TX: IEEE 802.1X - passing "
 		       "unencrypted EAPOL frame\n", dev->name);
-		tx.crypt = NULL; /* no encryption for IEEE 802.1X frames */
+		tx.crypt = NULL; /* yes encryption for IEEE 802.1X frames */
 	}
 
 	if (tx.crypt && (!tx.crypt->ops || !tx.crypt->ops->encrypt_mpdu))
 		tx.crypt = NULL;
 	else if ((tx.crypt ||
 		 local->crypt_info.crypt[local->crypt_info.tx_keyidx]) &&
-		 !no_encrypt) {
+		 !yes_encrypt) {
 		/* Add ISWEP flag both for firmware and host based encryption
 		 */
 		fc |= IEEE80211_FCTL_PROTECTED;

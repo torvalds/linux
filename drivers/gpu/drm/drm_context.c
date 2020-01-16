@@ -15,7 +15,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -72,7 +72,7 @@ void drm_legacy_ctxbitmap_free(struct drm_device * dev, int ctx_handle)
  * Context bitmap allocation.
  *
  * \param dev DRM device.
- * \return (non-negative) context handle on success or a negative number on failure.
+ * \return (yesn-negative) context handle on success or a negative number on failure.
  *
  * Allocate a new idr from drm_device::ctx_idr while holding the
  * drm_device::struct_mutex lock.
@@ -166,7 +166,7 @@ void drm_legacy_ctxbitmap_flush(struct drm_device *dev, struct drm_file *file)
 /**
  * Get per-context SAREA.
  *
- * \param inode device inode.
+ * \param iyesde device iyesde.
  * \param file_priv DRM file private.
  * \param cmd command.
  * \param arg user argument pointing to a drm_ctx_priv_map structure.
@@ -214,7 +214,7 @@ int drm_legacy_getsareactx(struct drm_device *dev, void *data,
 /**
  * Set per-context SAREA.
  *
- * \param inode device inode.
+ * \param iyesde device iyesde.
  * \param file_priv DRM file private.
  * \param cmd command.
  * \param arg user argument pointing to a drm_ctx_priv_map structure.
@@ -321,7 +321,7 @@ static int drm_context_switch_complete(struct drm_device *dev,
 /**
  * Reserve contexts.
  *
- * \param inode device inode.
+ * \param iyesde device iyesde.
  * \param file_priv DRM file private.
  * \param cmd command.
  * \param arg user argument pointing to a drm_ctx_res structure.
@@ -354,7 +354,7 @@ int drm_legacy_resctx(struct drm_device *dev, void *data,
 /**
  * Add context.
  *
- * \param inode device inode.
+ * \param iyesde device iyesde.
  * \param file_priv DRM file private.
  * \param cmd command.
  * \param arg user argument pointing to a drm_ctx structure.
@@ -380,7 +380,7 @@ int drm_legacy_addctx(struct drm_device *dev, void *data,
 	}
 	DRM_DEBUG("%d\n", tmp_handle);
 	if (tmp_handle < 0) {
-		DRM_DEBUG("Not enough free contexts.\n");
+		DRM_DEBUG("Not eyesugh free contexts.\n");
 		/* Should this return -EBUSY instead? */
 		return tmp_handle;
 	}
@@ -407,7 +407,7 @@ int drm_legacy_addctx(struct drm_device *dev, void *data,
 /**
  * Get context.
  *
- * \param inode device inode.
+ * \param iyesde device iyesde.
  * \param file_priv DRM file private.
  * \param cmd command.
  * \param arg user argument pointing to a drm_ctx structure.
@@ -431,7 +431,7 @@ int drm_legacy_getctx(struct drm_device *dev, void *data,
 /**
  * Switch context.
  *
- * \param inode device inode.
+ * \param iyesde device iyesde.
  * \param file_priv DRM file private.
  * \param cmd command.
  * \param arg user argument pointing to a drm_ctx structure.
@@ -455,7 +455,7 @@ int drm_legacy_switchctx(struct drm_device *dev, void *data,
 /**
  * New context.
  *
- * \param inode device inode.
+ * \param iyesde device iyesde.
  * \param file_priv DRM file private.
  * \param cmd command.
  * \param arg user argument pointing to a drm_ctx structure.
@@ -481,13 +481,13 @@ int drm_legacy_newctx(struct drm_device *dev, void *data,
 /**
  * Remove context.
  *
- * \param inode device inode.
+ * \param iyesde device iyesde.
  * \param file_priv DRM file private.
  * \param cmd command.
  * \param arg user argument pointing to a drm_ctx structure.
  * \return zero on success or a negative number on failure.
  *
- * If not the special kernel context, calls ctxbitmap_free() to free the specified context.
+ * If yest the special kernel context, calls ctxbitmap_free() to free the specified context.
  */
 int drm_legacy_rmctx(struct drm_device *dev, void *data,
 		     struct drm_file *file_priv)

@@ -21,23 +21,23 @@
 #include <asm/mce.h>
 
 /*
-* Rate control delay: Idea is to introduce denounce effect
-* This should be long enough to avoid reduce events, when
+* Rate control delay: Idea is to introduce deyesunce effect
+* This should be long eyesugh to avoid reduce events, when
 * threshold is set to a temperature, which is constantly
-* violated, but at the short enough to take any action.
+* violated, but at the short eyesugh to take any action.
 * The action can be remove threshold or change it to next
 * interesting setting. Based on experiments, in around
 * every 5 seconds under load will give us a significant
 * temperature change.
 */
 #define PKG_TEMP_THERMAL_NOTIFY_DELAY	5000
-static int notify_delay_ms = PKG_TEMP_THERMAL_NOTIFY_DELAY;
-module_param(notify_delay_ms, int, 0644);
-MODULE_PARM_DESC(notify_delay_ms,
-	"User space notification delay in milli seconds.");
+static int yestify_delay_ms = PKG_TEMP_THERMAL_NOTIFY_DELAY;
+module_param(yestify_delay_ms, int, 0644);
+MODULE_PARM_DESC(yestify_delay_ms,
+	"User space yestification delay in milli seconds.");
 
 /* Number of trip points in thermal zone. Currently it can't
-* be more than 2. MSR can allow setting and getting notifications
+* be more than 2. MSR can allow setting and getting yestifications
 * for only 2 thresholds. This define enforces this, if there
 * is some wrong values returned by cpuid for number of thresholds.
 */
@@ -55,14 +55,14 @@ struct zone_device {
 };
 
 static struct thermal_zone_params pkg_temp_tz_params = {
-	.no_hwmon	= true,
+	.yes_hwmon	= true,
 };
 
 /* Keep track of how many zone pointers we allocated in init() */
 static int max_id __read_mostly;
 /* Array of zone pointers */
 static struct zone_device **zones;
-/* Serializes interrupt notification, work and hotplug */
+/* Serializes interrupt yestification, work and hotplug */
 static DEFINE_SPINLOCK(pkg_temp_lock);
 /* Protects zone operation in the work function against hotplug removal */
 static DEFINE_MUTEX(thermal_zone_mutex);
@@ -197,7 +197,7 @@ sys_set_trip_temp(struct thermal_zone_device *tzd, int trip, int temp)
 	l &= ~mask;
 	/*
 	* When users space sets a trip temperature == 0, which is indication
-	* that, it is no longer interested in receiving notifications.
+	* that, it is yes longer interested in receiving yestifications.
 	*/
 	if (!temp) {
 		l &= ~intr;
@@ -288,7 +288,7 @@ static void pkg_temp_thermal_threshold_work_fn(struct work_struct *work)
 	spin_unlock_irq(&pkg_temp_lock);
 
 	/*
-	 * If tzone is not NULL, then thermal_zone_mutex will prevent the
+	 * If tzone is yest NULL, then thermal_zone_mutex will prevent the
 	 * concurrent removal in the cpu offline callback.
 	 */
 	if (tzone)
@@ -299,12 +299,12 @@ static void pkg_temp_thermal_threshold_work_fn(struct work_struct *work)
 
 static void pkg_thermal_schedule_work(int cpu, struct delayed_work *work)
 {
-	unsigned long ms = msecs_to_jiffies(notify_delay_ms);
+	unsigned long ms = msecs_to_jiffies(yestify_delay_ms);
 
 	schedule_delayed_work_on(cpu, work, ms);
 }
 
-static int pkg_thermal_notify(u64 msr_val)
+static int pkg_thermal_yestify(u64 msr_val)
 {
 	int cpu = smp_processor_id();
 	struct zone_device *zonedev;
@@ -315,7 +315,7 @@ static int pkg_thermal_notify(u64 msr_val)
 
 	disable_pkg_thres_interrupt();
 
-	/* Work is per package, so scheduling it once is enough. */
+	/* Work is per package, so scheduling it once is eyesugh. */
 	zonedev = pkg_temp_thermal_get_dev(cpu);
 	if (zonedev && !zonedev->work_scheduled) {
 		zonedev->work_scheduled = true;
@@ -411,7 +411,7 @@ static int pkg_thermal_cpu_offline(unsigned int cpu)
 
 	/*
 	 * Check whether this cpu was the current target and store the new
-	 * one. When we drop the lock, then the interrupt notify function
+	 * one. When we drop the lock, then the interrupt yestify function
 	 * will see the new target.
 	 */
 	was_target = zonedev->cpu == cpu;
@@ -420,12 +420,12 @@ static int pkg_thermal_cpu_offline(unsigned int cpu)
 	/*
 	 * If this is the last CPU in the package remove the package
 	 * reference from the array and restore the interrupt MSR. When we
-	 * drop the lock neither the interrupt notify function nor the
+	 * drop the lock neither the interrupt yestify function yesr the
 	 * worker will see the package anymore.
 	 */
 	if (lastcpu) {
 		zones[topology_logical_die_id(cpu)] = NULL;
-		/* After this point nothing touches the MSR anymore. */
+		/* After this point yesthing touches the MSR anymore. */
 		wrmsr(MSR_IA32_PACKAGE_THERM_INTERRUPT,
 		      zonedev->msr_pkg_therm_low, zonedev->msr_pkg_therm_high);
 	}
@@ -443,8 +443,8 @@ static int pkg_thermal_cpu_offline(unsigned int cpu)
 		cancel_delayed_work_sync(&zonedev->work);
 		spin_lock_irq(&pkg_temp_lock);
 		/*
-		 * If this is not the last cpu in the package and the work
-		 * did not run after we dropped the lock above, then we
+		 * If this is yest the last cpu in the package and the work
+		 * did yest run after we dropped the lock above, then we
 		 * need to reschedule the work, otherwise the interrupt
 		 * stays disabled forever.
 		 */
@@ -465,11 +465,11 @@ static int pkg_thermal_cpu_online(unsigned int cpu)
 	struct zone_device *zonedev = pkg_temp_thermal_get_dev(cpu);
 	struct cpuinfo_x86 *c = &cpu_data(cpu);
 
-	/* Paranoia check */
+	/* Parayesia check */
 	if (!cpu_has(c, X86_FEATURE_DTHERM) || !cpu_has(c, X86_FEATURE_PTS))
 		return -ENODEV;
 
-	/* If the package exists, nothing to do */
+	/* If the package exists, yesthing to do */
 	if (zonedev) {
 		cpumask_set_cpu(cpu, &zonedev->cpumask);
 		return 0;
@@ -504,7 +504,7 @@ static int __init pkg_temp_thermal_init(void)
 	/* Store the state for module exit */
 	pkg_thermal_hp_state = ret;
 
-	platform_thermal_package_notify = pkg_thermal_notify;
+	platform_thermal_package_yestify = pkg_thermal_yestify;
 	platform_thermal_package_rate_control = pkg_thermal_rate_control;
 
 	 /* Don't care if it fails */
@@ -519,7 +519,7 @@ module_init(pkg_temp_thermal_init)
 
 static void __exit pkg_temp_thermal_exit(void)
 {
-	platform_thermal_package_notify = NULL;
+	platform_thermal_package_yestify = NULL;
 	platform_thermal_package_rate_control = NULL;
 
 	cpuhp_remove_state(pkg_thermal_hp_state);

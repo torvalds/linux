@@ -68,7 +68,7 @@ static int em_sti_enable(struct em_sti_priv *p)
 	/* enable clock */
 	ret = clk_enable(p->clk);
 	if (ret) {
-		dev_err(&p->pdev->dev, "cannot enable clock\n");
+		dev_err(&p->pdev->dev, "canyest enable clock\n");
 		return ret;
 	}
 
@@ -311,19 +311,19 @@ static int em_sti_probe(struct platform_device *pdev)
 	/* get hold of clock */
 	p->clk = devm_clk_get(&pdev->dev, "sclk");
 	if (IS_ERR(p->clk)) {
-		dev_err(&pdev->dev, "cannot get clock\n");
+		dev_err(&pdev->dev, "canyest get clock\n");
 		return PTR_ERR(p->clk);
 	}
 
 	ret = clk_prepare(p->clk);
 	if (ret < 0) {
-		dev_err(&pdev->dev, "cannot prepare clock\n");
+		dev_err(&pdev->dev, "canyest prepare clock\n");
 		return ret;
 	}
 
 	ret = clk_enable(p->clk);
 	if (ret < 0) {
-		dev_err(&p->pdev->dev, "cannot enable clock\n");
+		dev_err(&p->pdev->dev, "canyest enable clock\n");
 		clk_unprepare(p->clk);
 		return ret;
 	}
@@ -338,7 +338,7 @@ static int em_sti_probe(struct platform_device *pdev)
 
 static int em_sti_remove(struct platform_device *pdev)
 {
-	return -EBUSY; /* cannot unregister clockevent and clocksource */
+	return -EBUSY; /* canyest unregister clockevent and clocksource */
 }
 
 static const struct of_device_id em_sti_dt_ids[] = {

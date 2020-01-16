@@ -4,17 +4,17 @@ ccflags-y += -I $(srctree)/$(src)/disp/dpu1
 ccflags-$(CONFIG_DRM_MSM_DSI) += -I $(srctree)/$(src)/dsi
 
 msm-y := \
-	adreno/adreno_device.o \
-	adreno/adreno_gpu.o \
-	adreno/a2xx_gpu.o \
-	adreno/a3xx_gpu.o \
-	adreno/a4xx_gpu.o \
-	adreno/a5xx_gpu.o \
-	adreno/a5xx_power.o \
-	adreno/a5xx_preempt.o \
-	adreno/a6xx_gpu.o \
-	adreno/a6xx_gmu.o \
-	adreno/a6xx_hfi.o \
+	adreyes/adreyes_device.o \
+	adreyes/adreyes_gpu.o \
+	adreyes/a2xx_gpu.o \
+	adreyes/a3xx_gpu.o \
+	adreyes/a4xx_gpu.o \
+	adreyes/a5xx_gpu.o \
+	adreyes/a5xx_power.o \
+	adreyes/a5xx_preempt.o \
+	adreyes/a6xx_gpu.o \
+	adreyes/a6xx_gmu.o \
+	adreyes/a6xx_hfi.o \
 	hdmi/hdmi.o \
 	hdmi/hdmi_audio.o \
 	hdmi/hdmi_bridge.o \
@@ -94,9 +94,9 @@ msm-y := \
 	msm_gpu_tracepoints.o \
 	msm_gpummu.o
 
-msm-$(CONFIG_DEBUG_FS) += adreno/a5xx_debugfs.o
+msm-$(CONFIG_DEBUG_FS) += adreyes/a5xx_debugfs.o
 
-msm-$(CONFIG_DRM_MSM_GPU_STATE)	+= adreno/a6xx_gpu_state.o
+msm-$(CONFIG_DRM_MSM_GPU_STATE)	+= adreyes/a6xx_gpu_state.o
 
 msm-$(CONFIG_DRM_FBDEV_EMULATION) += msm_fbdev.o
 msm-$(CONFIG_COMMON_CLK) += disp/mdp4/mdp4_lvds_pll.o

@@ -87,8 +87,8 @@ static SOC_ENUM_SINGLE_DECL(da7213_adc_audio_hpf_corner,
 
 /* Gain ramping rate value */
 static const char * const da7213_gain_ramp_rate_txt[] = {
-	"nominal rate * 8", "nominal rate * 16", "nominal rate / 16",
-	"nominal rate / 32"
+	"yesminal rate * 8", "yesminal rate * 16", "yesminal rate / 16",
+	"yesminal rate / 32"
 };
 
 static SOC_ENUM_SINGLE_DECL(da7213_gain_ramp_rate,
@@ -96,7 +96,7 @@ static SOC_ENUM_SINGLE_DECL(da7213_gain_ramp_rate,
 			    DA7213_GAIN_RAMP_RATE_SHIFT,
 			    da7213_gain_ramp_rate_txt);
 
-/* DAC noise gate setup time value */
+/* DAC yesise gate setup time value */
 static const char * const da7213_dac_ng_setup_time_txt[] = {
 	"256 samples", "512 samples", "1024 samples", "2048 samples"
 };
@@ -106,7 +106,7 @@ static SOC_ENUM_SINGLE_DECL(da7213_dac_ng_setup_time,
 			    DA7213_DAC_NG_SETUP_TIME_SHIFT,
 			    da7213_dac_ng_setup_time_txt);
 
-/* DAC noise gate rampup rate value */
+/* DAC yesise gate rampup rate value */
 static const char * const da7213_dac_ng_rampup_txt[] = {
 	"0.02 ms/dB", "0.16 ms/dB"
 };
@@ -116,7 +116,7 @@ static SOC_ENUM_SINGLE_DECL(da7213_dac_ng_rampup_rate,
 			    DA7213_DAC_NG_RAMPUP_RATE_SHIFT,
 			    da7213_dac_ng_rampup_txt);
 
-/* DAC noise gate rampdown rate value */
+/* DAC yesise gate rampdown rate value */
 static const char * const da7213_dac_ng_rampdown_txt[] = {
 	"0.64 ms/dB", "20.48 ms/dB"
 };
@@ -511,7 +511,7 @@ static const struct snd_kcontrol_new da7213_snd_controls[] = {
 		   DA7213_NO_INVERT),
 
 	/* DAC Routing & Inversion */
-	SOC_DOUBLE("DAC Mono Switch", DA7213_DIG_ROUTING_DAC,
+	SOC_DOUBLE("DAC Moyes Switch", DA7213_DIG_ROUTING_DAC,
 		   DA7213_DAC_L_MONO_SHIFT, DA7213_DAC_R_MONO_SHIFT,
 		   DA7213_DAC_MONO_MAX, DA7213_NO_INVERT),
 	SOC_DOUBLE("DAC Invert Switch", DA7213_DIG_CTRL, DA7213_DAC_L_INV_SHIFT,
@@ -749,7 +749,7 @@ static int da7213_dai_event(struct snd_soc_dapm_widget *w,
 		snd_soc_component_update_bits(component, DA7213_PC_COUNT,
 				    DA7213_PC_FREERUN_MASK, 0);
 
-		/* If SRM not enabled then nothing more to do */
+		/* If SRM yest enabled then yesthing more to do */
 		pll_ctrl = snd_soc_component_read32(component, DA7213_PLL_CTRL);
 		if (!(pll_ctrl & DA7213_PLL_SRM_EN))
 			return 0;
@@ -1230,7 +1230,7 @@ static int da7213_set_dai_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
 		return -EINVAL;
 	}
 
-	/* Set clock normal/inverted */
+	/* Set clock yesrmal/inverted */
 	switch (fmt & SND_SOC_DAIFMT_FORMAT_MASK) {
 	case SND_SOC_DAIFMT_I2S:
 	case SND_SOC_DAIFMT_LEFT_J:
@@ -1361,7 +1361,7 @@ static int da7213_set_dai_sysclk(struct snd_soc_dai *codec_dai,
 				    DA7213_PLL_MCLK_SQR_EN);
 		break;
 	default:
-		dev_err(codec_dai->dev, "Unknown clock source %d\n", clk_id);
+		dev_err(codec_dai->dev, "Unkyeswn clock source %d\n", clk_id);
 		return -EINVAL;
 	}
 
@@ -1728,7 +1728,7 @@ static int da7213_probe(struct snd_soc_component *component)
 	 * well as headphone and line outs.
 	 * One to enable corresponding amplifier and other to enable its
 	 * output. As amplifier bits are related to power control, they are
-	 * being managed by DAPM while other (non power related) bits are
+	 * being managed by DAPM while other (yesn power related) bits are
 	 * enabled here
 	 */
 	snd_soc_component_update_bits(component, DA7213_MIXIN_L_CTRL,
@@ -1834,7 +1834,7 @@ static const struct snd_soc_component_driver soc_component_dev_da7213 = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
+	.yesn_legacy_dai_naming	= 1,
 };
 
 static const struct regmap_config da7213_regmap_config = {

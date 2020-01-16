@@ -29,7 +29,7 @@
  * struct ad7303_state - driver instance specific data
  * @spi:		the device for this driver instance
  * @config:		cached config register value
- * @dac_cache:		current DAC raw value (chip does not support readback)
+ * @dac_cache:		current DAC raw value (chip does yest support readback)
  * @data:		spi transfer buffer
  */
 
@@ -87,7 +87,7 @@ static ssize_t ad7303_write_dac_powerdown(struct iio_dev *indio_dev,
 	else
 		st->config &= ~AD7303_CFG_POWER_DOWN(chan->channel);
 
-	/* There is no noop cmd which allows us to only update the powerdown
+	/* There is yes yesop cmd which allows us to only update the powerdown
 	 * mode, so just write one of the DAC channels again */
 	ad7303_write(st, chan->channel, st->dac_cache[chan->channel]);
 
@@ -224,8 +224,8 @@ static int ad7303_probe(struct spi_device *spi)
 	if (ret)
 		return ret;
 
-	if (spi->dev.of_node) {
-		ext_ref = of_property_read_bool(spi->dev.of_node,
+	if (spi->dev.of_yesde) {
+		ext_ref = of_property_read_bool(spi->dev.of_yesde,
 				"REF-supply");
 	} else {
 		struct ad7303_platform_data *pdata = spi->dev.platform_data;

@@ -4,7 +4,7 @@
 
    This file is part of DRBD by Philipp Reisner and Lars Ellenberg.
 
-   Copyright (C) 2003-2008, LINBIT Information Technologies GmbH.
+   Copyright (C) 2003-2008, LINBIT Information Techyeslogies GmbH.
    Copyright (C) 2003-2008, Philipp Reisner <philipp.reisner@linbit.com>.
    Copyright (C) 2003-2008, Lars Ellenberg <lars.ellenberg@linbit.com>.
 
@@ -35,7 +35,7 @@ MODULE_LICENSE("GPL");
 	clear_bit_unlock(__LC_PARANOIA, &lc->flags); \
 	return x ; } while (0)
 
-/* BUG() if e is not one of the elements tracked by lc */
+/* BUG() if e is yest one of the elements tracked by lc */
 #define PARANOIA_LC_ELEMENT(lc, e) do {	\
 	struct lru_cache *lc_ = (lc);	\
 	struct lc_element *e_ = (e);	\
@@ -46,10 +46,10 @@ MODULE_LICENSE("GPL");
 
 /* We need to atomically
  *  - try to grab the lock (set LC_LOCKED)
- *  - only if there is no pending transaction
- *    (neither LC_DIRTY nor LC_STARVING is set)
+ *  - only if there is yes pending transaction
+ *    (neither LC_DIRTY yesr LC_STARVING is set)
  * Because of PARANOIA_ENTRY() above abusing lc->flags as well,
- * it is not sufficient to just say
+ * it is yest sufficient to just say
  *	return 0 == cmpxchg(&lc->flags, 0, LC_LOCKED);
  */
 int lc_try_lock(struct lru_cache *lc)
@@ -58,7 +58,7 @@ int lc_try_lock(struct lru_cache *lc)
 	do {
 		val = cmpxchg(&lc->flags, 0, LC_LOCKED);
 	} while (unlikely (val == LC_PARANOIA));
-	/* Spin until no-one is inside a PARANOIA_ENTRY()/RETURN() section. */
+	/* Spin until yes-one is inside a PARANOIA_ENTRY()/RETURN() section. */
 	return 0 == val;
 #if 0
 	/* Alternative approach, spin in case someone enters or leaves a
@@ -145,7 +145,7 @@ struct lru_cache *lc_create(const char *name, struct kmem_cache *cache,
 	if (i == e_count)
 		return lc;
 
-	/* else: could not allocate all elements, give up */
+	/* else: could yest allocate all elements, give up */
 	for (i--; i; i--) {
 		void *p = element[i];
 		kmem_cache_free(cache, p - e_off);
@@ -273,8 +273,8 @@ static struct lc_element *__lc_find(struct lru_cache *lc, unsigned int enr,
  *
  * Returns the pointer to an element, if the element with the requested
  * "label" or element number is present in the hash table,
- * or NULL if not found. Does not change the refcnt.
- * Ignores elements that are "about to be used", i.e. not yet in the active
+ * or NULL if yest found. Does yest change the refcnt.
+ * Igyesres elements that are "about to be used", i.e. yest yet in the active
  * set, but still pending transaction commit.
  */
 struct lc_element *lc_find(struct lru_cache *lc, unsigned int enr)
@@ -289,7 +289,7 @@ struct lc_element *lc_find(struct lru_cache *lc, unsigned int enr)
  *
  * Returns true, if the element with the requested "label" or element number is
  * present in the hash table, and is used (refcnt > 0).
- * Also finds elements that are not _currently_ used but only "about to be
+ * Also finds elements that are yest _currently_ used but only "about to be
  * used", i.e. on the "to_be_changed" list, pending transaction commit.
  */
 bool lc_is_used(struct lru_cache *lc, unsigned int enr)
@@ -376,7 +376,7 @@ static struct lc_element *__lc_get(struct lru_cache *lc, unsigned int enr, unsig
 	if (e) {
 		if (e->lc_new_number != e->lc_number) {
 			/* It has been found above, but on the "to_be_changed"
-			 * list, not yet committed.  Don't pull it in twice,
+			 * list, yest yet committed.  Don't pull it in twice,
 			 * wait for the transaction, then try again...
 			 */
 			if (!(flags & LC_GET_MAY_USE_UNCOMMITTED))
@@ -405,14 +405,14 @@ static struct lc_element *__lc_get(struct lru_cache *lc, unsigned int enr, unsig
 	test_and_set_bit(__LC_DIRTY, &lc->flags);
 
 	/* ... only then check if it is locked anyways. If lc_unlock clears
-	 * the dirty bit again, that's not a problem, we will come here again.
+	 * the dirty bit again, that's yest a problem, we will come here again.
 	 */
 	if (test_bit(__LC_LOCKED, &lc->flags)) {
 		++lc->locked;
 		RETURN(NULL);
 	}
 
-	/* In case there is nothing available and we can not kick out
+	/* In case there is yesthing available and we can yest kick out
 	 * the LRU element, we have to wait ...
 	 */
 	if (!lc_unused_element_available(lc)) {
@@ -420,7 +420,7 @@ static struct lc_element *__lc_get(struct lru_cache *lc, unsigned int enr, unsig
 		RETURN(NULL);
 	}
 
-	/* It was not present in the active set.  We are going to recycle an
+	/* It was yest present in the active set.  We are going to recycle an
 	 * unused (or even "free") element, but we won't accumulate more than
 	 * max_pending_changes changes.  */
 	if (lc->pending_changes >= lc->max_pending_changes)
@@ -445,17 +445,17 @@ static struct lc_element *__lc_get(struct lru_cache *lc, unsigned int enr, unsig
  * Finds an element in the cache, increases its usage count,
  * "touches" and returns it.
  *
- * In case the requested number is not present, it needs to be added to the
+ * In case the requested number is yest present, it needs to be added to the
  * cache. Therefore it is possible that an other element becomes evicted from
- * the cache. In either case, the user is notified so he is able to e.g. keep
+ * the cache. In either case, the user is yestified so he is able to e.g. keep
  * a persistent log of the cache changes, and therefore the objects in use.
  *
  * Return values:
  *  NULL
  *     The cache was marked %LC_STARVING,
- *     or the requested label was not in the active set
+ *     or the requested label was yest in the active set
  *     and a changing transaction is still pending (@lc was marked %LC_DIRTY).
- *     Or no unused or free element could be recycled (@lc will be marked as
+ *     Or yes unused or free element could be recycled (@lc will be marked as
  *     %LC_STARVING, blocking further lc_get() operations).
  *
  *  pointer to the element with the REQUESTED element number.
@@ -465,12 +465,12 @@ static struct lc_element *__lc_get(struct lru_cache *lc, unsigned int enr, unsig
  *          where that different number may also be %LC_FREE.
  *
  *          In this case, the cache is marked %LC_DIRTY,
- *          so lc_try_lock() will no longer succeed.
+ *          so lc_try_lock() will yes longer succeed.
  *          The returned element pointer is moved to the "to_be_changed" list,
  *          and registered with the new element number on the hash collision chains,
  *          so it is possible to pick it up from lc_is_used().
  *          Up to "max_pending_changes" (see lc_create()) can be accumulated.
- *          The user now should do whatever housekeeping is necessary,
+ *          The user yesw should do whatever housekeeping is necessary,
  *          typically serialize on lc_try_lock_for_transaction(), then call
  *          lc_committed(lc) and lc_unlock(), to finish the change.
  *
@@ -503,7 +503,7 @@ struct lc_element *lc_get_cumulative(struct lru_cache *lc, unsigned int enr)
 }
 
 /**
- * lc_try_get - get element by label, if present; do not change the active set
+ * lc_try_get - get element by label, if present; do yest change the active set
  * @lc: the lru cache to operate on
  * @enr: the label to look up
  *
@@ -513,7 +513,7 @@ struct lc_element *lc_get_cumulative(struct lru_cache *lc, unsigned int enr)
  * Return values:
  *  NULL
  *     The cache was marked %LC_STARVING,
- *     or the requested label was not in the active set
+ *     or the requested label was yest in the active set
  *
  *  pointer to the element with the REQUESTED element number.
  *     In this case, it can be used right away
@@ -537,7 +537,7 @@ void lc_committed(struct lru_cache *lc)
 
 	PARANOIA_ENTRY();
 	list_for_each_entry_safe(e, tmp, &lc->to_be_changed, list) {
-		/* count number of changes, not number of transactions */
+		/* count number of changes, yest number of transactions */
 		++lc->changed;
 		e->lc_number = e->lc_new_number;
 		list_move(&e->list, &lc->in_use);

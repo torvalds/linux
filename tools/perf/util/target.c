@@ -14,9 +14,9 @@
 #include <linux/kernel.h>
 #include <linux/string.h>
 
-enum target_errno target__validate(struct target *target)
+enum target_erryes target__validate(struct target *target)
 {
-	enum target_errno ret = TARGET_ERRNO__SUCCESS;
+	enum target_erryes ret = TARGET_ERRNO__SUCCESS;
 
 	if (target->pid)
 		target->tid = target->pid;
@@ -66,7 +66,7 @@ enum target_errno target__validate(struct target *target)
 	return ret;
 }
 
-enum target_errno target__parse_uid(struct target *target)
+enum target_erryes target__parse_uid(struct target *target)
 {
 	struct passwd pwd, *result;
 	char buf[1024];
@@ -81,7 +81,7 @@ enum target_errno target__parse_uid(struct target *target)
 
 	if (result == NULL) {
 		/*
-		 * The user name not found. Maybe it's a UID number.
+		 * The user name yest found. Maybe it's a UID number.
 		 */
 		char *endptr;
 		int uid = strtol(str, &endptr, 10);
@@ -100,7 +100,7 @@ enum target_errno target__parse_uid(struct target *target)
 }
 
 /*
- * This must have a same ordering as the enum target_errno.
+ * This must have a same ordering as the enum target_erryes.
  */
 static const char *target__error_str[] = {
 	"PID/TID switch overriding CPU",
@@ -144,7 +144,7 @@ int target__strerror(struct target *target, int errnum,
 		break;
 
 	default:
-		/* cannot reach here */
+		/* canyest reach here */
 		break;
 	}
 

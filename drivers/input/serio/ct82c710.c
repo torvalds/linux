@@ -16,7 +16,7 @@
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/serio.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/err.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
@@ -147,7 +147,7 @@ static int __init ct82c710_detect(void)
 	outb_p(0x1b, 0x2fa);				/* Inverse of e4 */
 	outb_p(0x0f, 0x390);				/* Write index */
 	if (inb_p(0x391) != 0xe4)			/* Config address found? */
-		return -ENODEV;				/* No: no 82C710 here */
+		return -ENODEV;				/* No: yes 82C710 here */
 
 	outb_p(0x0d, 0x390);				/* Write index */
 	ct82c710_iores.start = inb_p(0x391) << 2;	/* Get mouse I/O address */

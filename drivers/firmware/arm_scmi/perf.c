@@ -8,7 +8,7 @@
 #include <linux/bits.h>
 #include <linux/of.h>
 #include <linux/io.h>
-#include <linux/io-64-nonatomic-hi-lo.h>
+#include <linux/io-64-yesnatomic-hi-lo.h>
 #include <linux/platform_device.h>
 #include <linux/pm_opp.h>
 #include <linux/sort.h>
@@ -76,9 +76,9 @@ struct scmi_perf_set_level {
 	__le32 level;
 };
 
-struct scmi_perf_notify_level_or_limits {
+struct scmi_perf_yestify_level_or_limits {
 	__le32 domain;
-	__le32 notify_enable;
+	__le32 yestify_enable;
 };
 
 struct scmi_msg_resp_perf_describe_levels {
@@ -132,8 +132,8 @@ struct scmi_fc_info {
 struct perf_dom_info {
 	bool set_limits;
 	bool set_perf;
-	bool perf_limit_notify;
-	bool perf_level_notify;
+	bool perf_limit_yestify;
+	bool perf_level_yestify;
 	bool perf_fastchannels;
 	u32 opp_count;
 	u32 sustained_freq_khz;
@@ -204,8 +204,8 @@ scmi_perf_domain_attributes_get(const struct scmi_handle *handle, u32 domain,
 
 		dom_info->set_limits = SUPPORTS_SET_LIMITS(flags);
 		dom_info->set_perf = SUPPORTS_SET_PERF_LVL(flags);
-		dom_info->perf_limit_notify = SUPPORTS_PERF_LIMIT_NOTIFY(flags);
-		dom_info->perf_level_notify = SUPPORTS_PERF_LEVEL_NOTIFY(flags);
+		dom_info->perf_limit_yestify = SUPPORTS_PERF_LIMIT_NOTIFY(flags);
+		dom_info->perf_level_yestify = SUPPORTS_PERF_LEVEL_NOTIFY(flags);
 		dom_info->perf_fastchannels = SUPPORTS_PERF_FASTCHANNELS(flags);
 		dom_info->sustained_freq_khz =
 					le32_to_cpu(attr->sustained_freq_khz);
@@ -585,7 +585,7 @@ static int scmi_dev_domain_id(struct device *dev)
 {
 	struct of_phandle_args clkspec;
 
-	if (of_parse_phandle_with_args(dev->of_node, "clocks", "#clock-cells",
+	if (of_parse_phandle_with_args(dev->of_yesde, "clocks", "#clock-cells",
 				       0, &clkspec))
 		return -EINVAL;
 

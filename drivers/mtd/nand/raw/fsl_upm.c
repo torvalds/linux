@@ -149,12 +149,12 @@ static void fun_write_buf(struct nand_chip *chip, const uint8_t *buf, int len)
 }
 
 static int fun_chip_init(struct fsl_upm_nand *fun,
-			 const struct device_node *upm_np,
+			 const struct device_yesde *upm_np,
 			 const struct resource *io_res)
 {
 	struct mtd_info *mtd = nand_to_mtd(&fun->chip);
 	int ret;
-	struct device_node *flash_np;
+	struct device_yesde *flash_np;
 
 	fun->chip.legacy.IO_ADDR_R = fun->io_base;
 	fun->chip.legacy.IO_ADDR_W = fun->io_base;
@@ -177,7 +177,7 @@ static int fun_chip_init(struct fsl_upm_nand *fun,
 	if (!flash_np)
 		return -ENODEV;
 
-	nand_set_flash_node(&fun->chip, flash_np);
+	nand_set_flash_yesde(&fun->chip, flash_np);
 	mtd->name = kasprintf(GFP_KERNEL, "0x%llx.%pOFn", (u64)io_res->start,
 			      flash_np);
 	if (!mtd->name) {
@@ -191,7 +191,7 @@ static int fun_chip_init(struct fsl_upm_nand *fun,
 
 	ret = mtd_device_register(mtd, NULL, 0);
 err:
-	of_node_put(flash_np);
+	of_yesde_put(flash_np);
 	if (ret)
 		kfree(mtd->name);
 	return ret;
@@ -211,7 +211,7 @@ static int fun_probe(struct platform_device *ofdev)
 	if (!fun)
 		return -ENOMEM;
 
-	ret = of_address_to_resource(ofdev->dev.of_node, 0, &io_res);
+	ret = of_address_to_resource(ofdev->dev.of_yesde, 0, &io_res);
 	if (ret) {
 		dev_err(&ofdev->dev, "can't get IO base\n");
 		goto err1;
@@ -223,7 +223,7 @@ static int fun_probe(struct platform_device *ofdev)
 		goto err1;
 	}
 
-	prop = of_get_property(ofdev->dev.of_node, "fsl,upm-addr-offset",
+	prop = of_get_property(ofdev->dev.of_yesde, "fsl,upm-addr-offset",
 			       &size);
 	if (!prop || size != sizeof(uint32_t)) {
 		dev_err(&ofdev->dev, "can't get UPM address offset\n");
@@ -232,7 +232,7 @@ static int fun_probe(struct platform_device *ofdev)
 	}
 	fun->upm_addr_offset = *prop;
 
-	prop = of_get_property(ofdev->dev.of_node, "fsl,upm-cmd-offset", &size);
+	prop = of_get_property(ofdev->dev.of_yesde, "fsl,upm-cmd-offset", &size);
 	if (!prop || size != sizeof(uint32_t)) {
 		dev_err(&ofdev->dev, "can't get UPM command offset\n");
 		ret = -EINVAL;
@@ -240,7 +240,7 @@ static int fun_probe(struct platform_device *ofdev)
 	}
 	fun->upm_cmd_offset = *prop;
 
-	prop = of_get_property(ofdev->dev.of_node,
+	prop = of_get_property(ofdev->dev.of_yesde,
 			       "fsl,upm-addr-line-cs-offsets", &size);
 	if (prop && (size / sizeof(uint32_t)) > 0) {
 		fun->mchip_count = size / sizeof(uint32_t);
@@ -256,7 +256,7 @@ static int fun_probe(struct platform_device *ofdev)
 
 	for (i = 0; i < fun->mchip_count; i++) {
 		fun->rnb_gpio[i] = -1;
-		rnb_gpio = of_get_gpio(ofdev->dev.of_node, i);
+		rnb_gpio = of_get_gpio(ofdev->dev.of_yesde, i);
 		if (rnb_gpio >= 0) {
 			ret = gpio_request(rnb_gpio, dev_name(&ofdev->dev));
 			if (ret) {
@@ -272,20 +272,20 @@ static int fun_probe(struct platform_device *ofdev)
 		}
 	}
 
-	prop = of_get_property(ofdev->dev.of_node, "chip-delay", NULL);
+	prop = of_get_property(ofdev->dev.of_yesde, "chip-delay", NULL);
 	if (prop)
 		fun->chip_delay = be32_to_cpup(prop);
 	else
 		fun->chip_delay = 50;
 
-	prop = of_get_property(ofdev->dev.of_node, "fsl,upm-wait-flags", &size);
+	prop = of_get_property(ofdev->dev.of_yesde, "fsl,upm-wait-flags", &size);
 	if (prop && size == sizeof(uint32_t))
 		fun->wait_flags = be32_to_cpup(prop);
 	else
 		fun->wait_flags = FSL_UPM_WAIT_RUN_PATTERN |
 				  FSL_UPM_WAIT_WRITE_BYTE;
 
-	fun->io_base = devm_ioremap_nocache(&ofdev->dev, io_res.start,
+	fun->io_base = devm_ioremap_yescache(&ofdev->dev, io_res.start,
 					    resource_size(&io_res));
 	if (!fun->io_base) {
 		ret = -ENOMEM;
@@ -295,7 +295,7 @@ static int fun_probe(struct platform_device *ofdev)
 	fun->dev = &ofdev->dev;
 	fun->last_ctrl = NAND_CLE;
 
-	ret = fun_chip_init(fun, ofdev->dev.of_node, &io_res);
+	ret = fun_chip_init(fun, ofdev->dev.of_yesde, &io_res);
 	if (ret)
 		goto err2;
 

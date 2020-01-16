@@ -8,7 +8,7 @@
 #include <asm/linkage.h>
 #include <asm/asm-offsets.h>
 #include <asm/thread_info.h>
-#include <asm/errno.h>
+#include <asm/erryes.h>
 
 #if defined(CONFIG_CPU_H8300H)
 	.h8300h

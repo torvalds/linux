@@ -52,7 +52,7 @@ static void __init armada_8k_get_sharing_cpus(struct clk *cur_clk,
 
 		clk = clk_get(cpu_dev, 0);
 		if (IS_ERR(clk)) {
-			pr_warn("Cannot get clock for CPU %d\n", cpu);
+			pr_warn("Canyest get clock for CPU %d\n", cpu);
 		} else {
 			if (clk_is_match(clk, cur_clk))
 				cpumask_set_cpu(cpu, cpumask);
@@ -70,7 +70,7 @@ static int __init armada_8k_add_opp(struct clk *clk, struct device *cpu_dev,
 	unsigned int freq;
 	int i, ret;
 
-	/* Get nominal (current) CPU frequency. */
+	/* Get yesminal (current) CPU frequency. */
 	cur_frequency = clk_get_rate(clk);
 	if (!cur_frequency) {
 		dev_err(cpu_dev, "Failed to get clock rate for this CPU\n");
@@ -105,9 +105,9 @@ static void armada_8k_cpufreq_free_table(struct freq_table *freq_tables)
 
 		for (i = 0; i < ARRAY_SIZE(opps_div); i++) {
 			/*
-			 * A 0Hz frequency is not valid, this meant
-			 * that it was not yet initialized so there is
-			 * no more opp to free
+			 * A 0Hz frequency is yest valid, this meant
+			 * that it was yest yet initialized so there is
+			 * yes more opp to free
 			 */
 			if (freq_tables[opps_index].freq[i] == 0)
 				break;
@@ -124,15 +124,15 @@ static int __init armada_8k_cpufreq_init(void)
 {
 	int ret = 0, opps_index = 0, cpu, nb_cpus;
 	struct freq_table *freq_tables;
-	struct device_node *node;
+	struct device_yesde *yesde;
 	struct cpumask cpus;
 
-	node = of_find_compatible_node(NULL, NULL, "marvell,ap806-cpu-clock");
-	if (!node || !of_device_is_available(node)) {
-		of_node_put(node);
+	yesde = of_find_compatible_yesde(NULL, NULL, "marvell,ap806-cpu-clock");
+	if (!yesde || !of_device_is_available(yesde)) {
+		of_yesde_put(yesde);
 		return -ENODEV;
 	}
-	of_node_put(node);
+	of_yesde_put(yesde);
 
 	nb_cpus = num_possible_cpus();
 	freq_tables = kcalloc(nb_cpus, sizeof(*freq_tables), GFP_KERNEL);
@@ -142,7 +142,7 @@ static int __init armada_8k_cpufreq_init(void)
 
 	/*
 	 * For each CPU, this loop registers the operating points
-	 * supported (which are the nominal CPU frequency and full integer
+	 * supported (which are the yesminal CPU frequency and full integer
 	 * divisions of it).
 	 */
 	for_each_cpu(cpu, &cpus) {
@@ -153,14 +153,14 @@ static int __init armada_8k_cpufreq_init(void)
 		cpu_dev = get_cpu_device(cpu);
 
 		if (!cpu_dev) {
-			pr_err("Cannot get CPU %d\n", cpu);
+			pr_err("Canyest get CPU %d\n", cpu);
 			continue;
 		}
 
 		clk = clk_get(cpu_dev, 0);
 
 		if (IS_ERR(clk)) {
-			pr_err("Cannot get clock for CPU %d\n", cpu);
+			pr_err("Canyest get clock for CPU %d\n", cpu);
 			ret = PTR_ERR(clk);
 			goto remove_opp;
 		}
@@ -175,7 +175,7 @@ static int __init armada_8k_cpufreq_init(void)
 		cpumask_clear(&shared_cpus);
 		armada_8k_get_sharing_cpus(clk, &shared_cpus);
 		dev_pm_opp_set_sharing_cpus(cpu_dev, &shared_cpus);
-		cpumask_andnot(&cpus, &cpus, &shared_cpus);
+		cpumask_andyest(&cpus, &cpus, &shared_cpus);
 		clk_put(clk);
 	}
 

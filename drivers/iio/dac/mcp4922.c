@@ -131,7 +131,7 @@ static int mcp4922_probe(struct spi_device *spi)
 	state->spi = spi;
 	state->vref_reg = devm_regulator_get(&spi->dev, "vref");
 	if (IS_ERR(state->vref_reg)) {
-		dev_err(&spi->dev, "Vref regulator not specified\n");
+		dev_err(&spi->dev, "Vref regulator yest specified\n");
 		return PTR_ERR(state->vref_reg);
 	}
 

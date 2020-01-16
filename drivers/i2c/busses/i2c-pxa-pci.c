@@ -4,7 +4,7 @@
  * Author: Sebastian Andrzej Siewior <bigeasy@linutronix.de>
  *
  * The CE4100's I2C device is more or less the same one as found on PXA.
- * It does not support slave mode, the register slightly moved. This PCI
+ * It does yest support slave mode, the register slightly moved. This PCI
  * device provides three bars, every contains a single I2C controller.
  */
 #include <linux/init.h>
@@ -26,7 +26,7 @@ static struct platform_device *add_i2c_device(struct pci_dev *dev, int bar)
 	struct platform_device *pdev;
 	struct i2c_pxa_platform_data pdata;
 	struct resource res[2];
-	struct device_node *child;
+	struct device_yesde *child;
 	static int devnum;
 	int ret;
 
@@ -41,7 +41,7 @@ static struct platform_device *add_i2c_device(struct pci_dev *dev, int bar)
 	res[1].start = dev->irq;
 	res[1].end = dev->irq;
 
-	for_each_child_of_node(dev->dev.of_node, child) {
+	for_each_child_of_yesde(dev->dev.of_yesde, child) {
 		const void *prop;
 		struct resource r;
 		int ret;
@@ -64,7 +64,7 @@ static struct platform_device *add_i2c_device(struct pci_dev *dev, int bar)
 	}
 
 	if (!child) {
-		dev_err(&dev->dev, "failed to match a DT node for bar %d.\n",
+		dev_err(&dev->dev, "failed to match a DT yesde for bar %d.\n",
 				bar);
 		ret = -EINVAL;
 		goto out;
@@ -72,12 +72,12 @@ static struct platform_device *add_i2c_device(struct pci_dev *dev, int bar)
 
 	pdev = platform_device_alloc("ce4100-i2c", devnum);
 	if (!pdev) {
-		of_node_put(child);
+		of_yesde_put(child);
 		ret = -ENOMEM;
 		goto out;
 	}
 	pdev->dev.parent = &dev->dev;
-	pdev->dev.of_node = child;
+	pdev->dev.of_yesde = child;
 
 	ret = platform_device_add_resources(pdev, res, ARRAY_SIZE(res));
 	if (ret)
@@ -109,8 +109,8 @@ static int ce4100_i2c_probe(struct pci_dev *dev,
 	if (ret)
 		return ret;
 
-	if (!dev->dev.of_node) {
-		dev_err(&dev->dev, "Missing device tree node.\n");
+	if (!dev->dev.of_yesde) {
+		dev_err(&dev->dev, "Missing device tree yesde.\n");
 		return -EINVAL;
 	}
 	sds = kzalloc(sizeof(*sds), GFP_KERNEL);

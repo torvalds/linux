@@ -76,7 +76,7 @@ static int codec_fixup(struct snd_soc_pcm_runtime *rtd,
 	/*
 	 * Default mode for SSP configuration is TDM 4 slot, override config
 	 * with explicit setting to I2S 2ch 24-bit. The word length is set with
-	 * dai_set_tdm_slot() since there is no other API exposed
+	 * dai_set_tdm_slot() since there is yes other API exposed
 	 */
 	ret = snd_soc_dai_set_fmt(rtd->cpu_dai,
 				  SND_SOC_DAIFMT_I2S     |
@@ -172,7 +172,7 @@ static struct snd_soc_dai_link dailink[] = {
 	[MERR_DPCM_AUDIO] = {
 		.name = "Audio Port",
 		.stream_name = "Audio",
-		.nonatomic = true,
+		.yesnatomic = true,
 		.dynamic = 1,
 		.dpcm_playback = 1,
 		.dpcm_capture = 1,
@@ -182,7 +182,7 @@ static struct snd_soc_dai_link dailink[] = {
 	[MERR_DPCM_DEEP_BUFFER] = {
 		.name = "Deep-Buffer Audio Port",
 		.stream_name = "Deep-Buffer Audio",
-		.nonatomic = true,
+		.yesnatomic = true,
 		.dynamic = 1,
 		.dpcm_playback = 1,
 		.ops = &aif1_ops,
@@ -193,11 +193,11 @@ static struct snd_soc_dai_link dailink[] = {
 	{
 		.name = "SSP2-Codec",
 		.id = 0,
-		.no_pcm = 1,
+		.yes_pcm = 1,
 		.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF
 						| SND_SOC_DAIFMT_CBS_CFS,
 		.be_hw_params_fixup = codec_fixup,
-		.nonatomic = true,
+		.yesnatomic = true,
 		.dpcm_playback = 1,
 		.dpcm_capture = 1,
 		.ops = &ssp2_ops,

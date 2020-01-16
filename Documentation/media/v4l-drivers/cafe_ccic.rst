@@ -16,16 +16,16 @@ Current status: the core driver works.  It can generate data in YUV422,
 RGB565, and RGB444 formats.  (Anybody looking at the code will see RGB32 as
 well, but that is a debugging aid which will be removed shortly).  VGA and
 QVGA modes work; CIF is there but the colors remain funky.  Only the OV7670
-sensor is known to work with this controller at this time.
+sensor is kyeswn to work with this controller at this time.
 
 To try it out: either of these commands will work:
 
-.. code-block:: none
+.. code-block:: yesne
 
-     $ mplayer tv:// -tv driver=v4l2:width=640:height=480 -nosound
-     $ mplayer tv:// -tv driver=v4l2:width=640:height=480:outfmt=bgr16 -nosound
+     $ mplayer tv:// -tv driver=v4l2:width=640:height=480 -yessound
+     $ mplayer tv:// -tv driver=v4l2:width=640:height=480:outfmt=bgr16 -yessound
 
-The "xawtv" utility also works; gqcam does not, for unknown reasons.
+The "xawtv" utility also works; gqcam does yest, for unkyeswn reasons.
 
 Load time options
 -----------------
@@ -33,7 +33,7 @@ Load time options
 There are a few load-time options, most of which can be changed after
 loading via sysfs as well:
 
- - alloc_bufs_at_load:  Normally, the driver will not allocate any DMA
+ - alloc_bufs_at_load:  Normally, the driver will yest allocate any DMA
    buffers until the time comes to transfer data.  If this option is set,
    then worst-case-sized buffers will be allocated at module load time.
    This option nails down the memory for the life of the module, but
@@ -54,7 +54,7 @@ loading via sysfs as well:
    value (like six).
 
  - max_buffers: The maximum number of streaming I/O buffers; default is
-   ten.  That number was carefully picked out of a hat and should not be
+   ten.  That number was carefully picked out of a hat and should yest be
    assumed to actually mean much of anything.
 
  - flip: If this boolean parameter is set, the sensor will be instructed to

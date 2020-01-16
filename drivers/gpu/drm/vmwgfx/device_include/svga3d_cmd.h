@@ -10,7 +10,7 @@
  * of the Software, and to permit persons to whom the Software is
  * furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be
+ * The above copyright yestice and this permission yestice shall be
  * included in all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -44,7 +44,7 @@
  * Identifiers for commands in the command FIFO.
  *
  * IDs between 1000 and 1039 (inclusive) were used by obsolete versions of
- * the SVGA3D protocol and remain reserved; they should not be used in the
+ * the SVGA3D protocol and remain reserved; they should yest be used in the
  * future.
  *
  * IDs between 1040 and 2999 (inclusive) are available for use by the
@@ -344,8 +344,8 @@ struct {
    /*
     * Followed by an SVGA3dSize structure for each mip level in each face.
     *
-    * A note on surface sizes: Sizes are always specified in pixels,
-    * even if the true surface size is not a multiple of the minimum
+    * A yeste on surface sizes: Sizes are always specified in pixels,
+    * even if the true surface size is yest a multiple of the minimum
     * block size of the surface's format. For example, a 3x3x1 DXT1
     * compressed texture would actually be stored as a 4x4x1 image in
     * memory.
@@ -372,8 +372,8 @@ struct {
    /*
     * Followed by an SVGA3dSize structure for each mip level in each face.
     *
-    * A note on surface sizes: Sizes are always specified in pixels,
-    * even if the true surface size is not a multiple of the minimum
+    * A yeste on surface sizes: Sizes are always specified in pixels,
+    * even if the true surface size is yest a multiple of the minimum
     * block size of the surface's format. For example, a 3x3x1 DXT1
     * compressed texture would actually be stored as a 4x4x1 image in
     * memory.
@@ -634,7 +634,7 @@ struct {
     *
     * These are only hints. The SVGA3D device may use them for
     * performance optimization if possible, but it's also allowed to
-    * ignore these values.
+    * igyesre these values.
     */
    uint32               first;
    uint32               last;
@@ -654,7 +654,7 @@ struct {
     *
     * Index 0 in the array starts 'offset' bytes into the surface.
     * Index 1 begins at byte 'offset + stride', etc. Array indices may
-    * not be negative.
+    * yest be negative.
     */
    uint32               surfaceId;
    uint32               offset;
@@ -723,7 +723,7 @@ struct SVGA3dPrimitiveRange {
     * indexArray before they are used as vertex array indices. This
     * can be used in multiple ways:
     *
-    *  - When not using an indexArray, this bias can be used to
+    *  - When yest using an indexArray, this bias can be used to
     *    specify where in the vertex arrays to begin rendering.
     *
     *  - A positive number here is equivalent to increasing the
@@ -755,9 +755,9 @@ struct {
     * SVGA3dCmdDrawPrimitives structure. In order,
     * they are:
     *
-    * 1. SVGA3dVertexDecl, quantity 'numVertexDecls', but no more than
+    * 1. SVGA3dVertexDecl, quantity 'numVertexDecls', but yes more than
     *    SVGA3D_MAX_VERTEX_ARRAYS;
-    * 2. SVGA3dPrimitiveRange, quantity 'numRanges', but no more than
+    * 2. SVGA3dPrimitiveRange, quantity 'numRanges', but yes more than
     *    SVGA3D_MAX_DRAW_PRIMITIVE_RANGES;
     * 3. Optionally, SVGA3dVertexDivisor, quantity 'numVertexDecls' (contains
     *    the frequency divisor for the corresponding vertex decl).
@@ -789,8 +789,8 @@ struct {
 
    uint32 indexBufferSid;     /* Valid index buffer sid. */
    uint32 indexBufferOffset;  /* Byte offset into the vertex buffer, almost */
-			      /* always 0 for DX9 guests, non-zero for OpenGL */
-                              /* guests.  We can't represent non-multiple of */
+			      /* always 0 for DX9 guests, yesn-zero for OpenGL */
+                              /* guests.  We can't represent yesn-multiple of */
                               /* stride offsets in D3D9Renderer... */
    uint8 indexBufferStride;   /* Allowable values = 1, 2, or 4 */
 
@@ -828,7 +828,7 @@ SVGA3dVertexElement;
 /*
  * Should the vertex element respect the stream value?  The high bit of the
  * stream should be set to indicate that the stream should be respected.  If
- * the high bit is not set, the stream will be ignored and replaced by the index
+ * the high bit is yest set, the stream will be igyesred and replaced by the index
  * of the position of the currently considered vertex element.
  *
  * All guests should set this bit and correctly specify the stream going
@@ -847,7 +847,7 @@ struct {
     * Followed by numElements SVGA3dVertexElement structures.
     *
     * If numElements < SVGA3D_MAX_VERTEX_ARRAYS, the remaining elements
-    * are cleared and will not be used by following draws.
+    * are cleared and will yest be used by following draws.
     */
 }
 #include "vmware_pack_end.h"
@@ -873,7 +873,7 @@ struct {
     * Followed by numStream SVGA3dVertexStream structures.
     *
     * If numStreams < SVGA3D_MAX_VERTEX_ARRAYS, the remaining streams
-    * are cleared and will not be used by following draws.
+    * are cleared and will yest be used by following draws.
     */
 }
 #include "vmware_pack_end.h"
@@ -1080,7 +1080,7 @@ SVGA3dCmdEndQuery;                  /* SVGA_3D_CMD_END_QUERY */
  *
  *    Will read the SVGA3dQueryResult structure pointed to by guestResult,
  *    and if the state member is set to anything else than
- *    SVGA3D_QUERYSTATE_PENDING, this command will always be a no-op.
+ *    SVGA3D_QUERYSTATE_PENDING, this command will always be a yes-op.
  *
  *    Otherwise, in addition to the query explicitly waited for,
  *    All queries with the same type and issued with the same cid, for which
@@ -1092,7 +1092,7 @@ SVGA3dCmdEndQuery;                  /* SVGA_3D_CMD_END_QUERY */
  *    been sent previously with an indentical gmrId and offset, it will
  *    effectively end all queries with an identical type issued with the
  *    same cid, and the SVGA3dQueryResult structure pointed to by
- *    guestResult will not be written to. This property can be used to
+ *    guestResult will yest be written to. This property can be used to
  *    implement a query barrier for a given cid and query type.
  */
 
@@ -1131,8 +1131,8 @@ SVGA3dQueryResult;
  *    image to a rectangular region of a screen.
  *
  *    This command takes an optional variable-length list of clipping
- *    rectangles after the body of the command. If no rectangles are
- *    specified, there is no clipping region. The entire destRect is
+ *    rectangles after the body of the command. If yes rectangles are
+ *    specified, there is yes clipping region. The entire destRect is
  *    drawn to. If one or more rectangles are included, they describe
  *    a clipping region. The clip rectangle coordinates are measured
  *    relative to the top-left corner of destRect.
@@ -1186,7 +1186,7 @@ SVGA3dCmdDeactivateSurface;             /* SVGA_3D_CMD_DEACTIVATE_SURFACE */
  * Screen DMA command
  *
  * Available with SVGA_FIFO_CAP_SCREEN_OBJECT_2.  The SVGA_CAP_3D device
- * cap bit is not required.
+ * cap bit is yest required.
  *
  * - refBuffer and destBuffer are 32bit BGRX; refBuffer and destBuffer could
  *   be different, but it is required that guest makes sure refBuffer has
@@ -1831,7 +1831,7 @@ SVGA3dCmdReadbackGBSurface;   /* SVGA_3D_CMD_READBACK_GB_SURFACE */
  * Readback a sub rect of an image in a guest-backed surface.  After
  * issuing this command the driver is required to issue an update call
  * of the same region before issuing any other commands that reference
- * this surface or rendering is not guaranteed.
+ * this surface or rendering is yest guaranteed.
  */
 
 typedef
@@ -1875,7 +1875,7 @@ SVGA3dCmdInvalidateGBSurface; /* SVGA_3D_CMD_INVALIDATE_GB_SURFACE */
  * Invalidate a sub rect of an image in a guest-backed surface.  After
  * issuing this command the driver is required to issue an update call
  * of the same region before issuing any other commands that reference
- * this surface or rendering is not guaranteed.
+ * this surface or rendering is yest guaranteed.
  */
 
 typedef
@@ -2106,7 +2106,7 @@ struct {
    /*
     * The physical DPI that the guest expects this screen displayed at.
     *
-    * Guests which are not DPI-aware should set this to zero.
+    * Guests which are yest DPI-aware should set this to zero.
     */
    uint32 dpi;
 }

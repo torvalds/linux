@@ -64,7 +64,7 @@ static void led_timer_function(struct timer_list *t)
 	unsigned long delay;
 
 	if (!led_cdev->blink_delay_on || !led_cdev->blink_delay_off) {
-		led_set_brightness_nosleep(led_cdev, LED_OFF);
+		led_set_brightness_yessleep(led_cdev, LED_OFF);
 		clear_bit(LED_BLINK_SW, &led_cdev->work_flags);
 		return;
 	}
@@ -93,7 +93,7 @@ static void led_timer_function(struct timer_list *t)
 		delay = led_cdev->blink_delay_off;
 	}
 
-	led_set_brightness_nosleep(led_cdev, brightness);
+	led_set_brightness_yessleep(led_cdev, brightness);
 
 	/* Return in next iteration if led is in one-shot mode and we are in
 	 * the final blink state so that the led is toggled each delay_on +
@@ -154,13 +154,13 @@ static void led_set_software_blink(struct led_classdev *led_cdev,
 
 	/* never on - just set to off */
 	if (!delay_on) {
-		led_set_brightness_nosleep(led_cdev, LED_OFF);
+		led_set_brightness_yessleep(led_cdev, LED_OFF);
 		return;
 	}
 
 	/* never off - just set to brightness */
 	if (!delay_off) {
-		led_set_brightness_nosleep(led_cdev,
+		led_set_brightness_yessleep(led_cdev,
 					   led_cdev->blink_brightness);
 		return;
 	}
@@ -179,7 +179,7 @@ static void led_blink_setup(struct led_classdev *led_cdev,
 	    !led_cdev->blink_set(led_cdev, delay_on, delay_off))
 		return;
 
-	/* blink with 1 Hz as default if nothing specified */
+	/* blink with 1 Hz as default if yesthing specified */
 	if (!*delay_on && !*delay_off)
 		*delay_on = *delay_off = 500;
 
@@ -262,14 +262,14 @@ void led_set_brightness(struct led_classdev *led_cdev,
 		return;
 	}
 
-	led_set_brightness_nosleep(led_cdev, brightness);
+	led_set_brightness_yessleep(led_cdev, brightness);
 }
 EXPORT_SYMBOL_GPL(led_set_brightness);
 
-void led_set_brightness_nopm(struct led_classdev *led_cdev,
+void led_set_brightness_yespm(struct led_classdev *led_cdev,
 			      enum led_brightness value)
 {
-	/* Use brightness_set op if available, it is guaranteed not to sleep */
+	/* Use brightness_set op if available, it is guaranteed yest to sleep */
 	if (!__led_set_brightness(led_cdev, value))
 		return;
 
@@ -277,9 +277,9 @@ void led_set_brightness_nopm(struct led_classdev *led_cdev,
 	led_cdev->delayed_set_value = value;
 	schedule_work(&led_cdev->set_brightness_work);
 }
-EXPORT_SYMBOL_GPL(led_set_brightness_nopm);
+EXPORT_SYMBOL_GPL(led_set_brightness_yespm);
 
-void led_set_brightness_nosleep(struct led_classdev *led_cdev,
+void led_set_brightness_yessleep(struct led_classdev *led_cdev,
 				enum led_brightness value)
 {
 	led_cdev->brightness = min(value, led_cdev->max_brightness);
@@ -287,9 +287,9 @@ void led_set_brightness_nosleep(struct led_classdev *led_cdev,
 	if (led_cdev->flags & LED_SUSPENDED)
 		return;
 
-	led_set_brightness_nopm(led_cdev, led_cdev->brightness);
+	led_set_brightness_yespm(led_cdev, led_cdev->brightness);
 }
-EXPORT_SYMBOL_GPL(led_set_brightness_nosleep);
+EXPORT_SYMBOL_GPL(led_set_brightness_yessleep);
 
 int led_set_brightness_sync(struct led_classdev *led_cdev,
 			    enum led_brightness value)
@@ -324,11 +324,11 @@ EXPORT_SYMBOL_GPL(led_update_brightness);
 
 u32 *led_get_default_pattern(struct led_classdev *led_cdev, unsigned int *size)
 {
-	struct fwnode_handle *fwnode = led_cdev->dev->fwnode;
+	struct fwyesde_handle *fwyesde = led_cdev->dev->fwyesde;
 	u32 *pattern;
 	int count;
 
-	count = fwnode_property_count_u32(fwnode, "led-pattern");
+	count = fwyesde_property_count_u32(fwyesde, "led-pattern");
 	if (count < 0)
 		return NULL;
 
@@ -336,7 +336,7 @@ u32 *led_get_default_pattern(struct led_classdev *led_cdev, unsigned int *size)
 	if (!pattern)
 		return NULL;
 
-	if (fwnode_property_read_u32_array(fwnode, "led-pattern", pattern, count)) {
+	if (fwyesde_property_read_u32_array(fwyesde, "led-pattern", pattern, count)) {
 		kfree(pattern);
 		return NULL;
 	}
@@ -365,24 +365,24 @@ void led_sysfs_enable(struct led_classdev *led_cdev)
 }
 EXPORT_SYMBOL_GPL(led_sysfs_enable);
 
-static void led_parse_fwnode_props(struct device *dev,
-				   struct fwnode_handle *fwnode,
+static void led_parse_fwyesde_props(struct device *dev,
+				   struct fwyesde_handle *fwyesde,
 				   struct led_properties *props)
 {
 	int ret;
 
-	if (!fwnode)
+	if (!fwyesde)
 		return;
 
-	if (fwnode_property_present(fwnode, "label")) {
-		ret = fwnode_property_read_string(fwnode, "label", &props->label);
+	if (fwyesde_property_present(fwyesde, "label")) {
+		ret = fwyesde_property_read_string(fwyesde, "label", &props->label);
 		if (ret)
 			dev_err(dev, "Error parsing 'label' property (%d)\n", ret);
 		return;
 	}
 
-	if (fwnode_property_present(fwnode, "color")) {
-		ret = fwnode_property_read_u32(fwnode, "color", &props->color);
+	if (fwyesde_property_present(fwyesde, "color")) {
+		ret = fwyesde_property_read_u32(fwyesde, "color", &props->color);
 		if (ret)
 			dev_err(dev, "Error parsing 'color' property (%d)\n", ret);
 		else if (props->color >= LED_COLOR_ID_MAX)
@@ -392,20 +392,20 @@ static void led_parse_fwnode_props(struct device *dev,
 	}
 
 
-	if (!fwnode_property_present(fwnode, "function"))
+	if (!fwyesde_property_present(fwyesde, "function"))
 		return;
 
-	ret = fwnode_property_read_string(fwnode, "function", &props->function);
+	ret = fwyesde_property_read_string(fwyesde, "function", &props->function);
 	if (ret) {
 		dev_err(dev,
 			"Error parsing 'function' property (%d)\n",
 			ret);
 	}
 
-	if (!fwnode_property_present(fwnode, "function-enumerator"))
+	if (!fwyesde_property_present(fwyesde, "function-enumerator"))
 		return;
 
-	ret = fwnode_property_read_u32(fwnode, "function-enumerator",
+	ret = fwyesde_property_read_u32(fwyesde, "function-enumerator",
 				       &props->func_enum);
 	if (ret) {
 		dev_err(dev,
@@ -420,13 +420,13 @@ int led_compose_name(struct device *dev, struct led_init_data *init_data,
 		     char *led_classdev_name)
 {
 	struct led_properties props = {};
-	struct fwnode_handle *fwnode = init_data->fwnode;
+	struct fwyesde_handle *fwyesde = init_data->fwyesde;
 	const char *devicename = init_data->devicename;
 
 	if (!led_classdev_name)
 		return -EINVAL;
 
-	led_parse_fwnode_props(dev, fwnode, &props);
+	led_parse_fwyesde_props(dev, fwyesde, &props);
 
 	if (props.label) {
 		/*
@@ -468,8 +468,8 @@ int led_compose_name(struct device *dev, struct led_init_data *init_data,
 		}
 		snprintf(led_classdev_name, LED_MAX_NAME_SIZE, "%s:%s",
 			 devicename, init_data->default_label);
-	} else if (is_of_node(fwnode)) {
-		strscpy(led_classdev_name, to_of_node(fwnode)->name,
+	} else if (is_of_yesde(fwyesde)) {
+		strscpy(led_classdev_name, to_of_yesde(fwyesde)->name,
 			LED_MAX_NAME_SIZE);
 	} else
 		return -EINVAL;

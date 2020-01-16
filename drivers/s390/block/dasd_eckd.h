@@ -110,7 +110,7 @@
 #define DASD_ECKD_PG_GROUPED		 0x10
 
 /*
- * Size that is reportet for large volumes in the old 16-bit no_cyl field
+ * Size that is reportet for large volumes in the old 16-bit yes_cyl field
  */
 #define LV_COMPAT_CYL 0xFFFE
 
@@ -274,7 +274,7 @@ struct dasd_eckd_characteristics {
 	} __attribute__ ((packed)) facilities;
 	__u8 dev_class;
 	__u8 unit_type;
-	__u16 no_cyl;
+	__u16 yes_cyl;
 	__u16 trk_per_cyl;
 	__u8 sec_per_trk;
 	__u8 byte_per_track[3];
@@ -295,11 +295,11 @@ struct dasd_eckd_characteristics {
 		} __attribute__ ((packed)) f_0x02;
 	} __attribute__ ((packed)) factors;
 	__u16 first_alt_trk;
-	__u16 no_alt_trk;
+	__u16 yes_alt_trk;
 	__u16 first_dia_trk;
-	__u16 no_dia_trk;
+	__u16 yes_dia_trk;
 	__u16 first_sup_trk;
-	__u16 no_sup_trk;
+	__u16 yes_sup_trk;
 	__u8 MDR_ID;
 	__u8 OBR_ID;
 	__u8 director;
@@ -312,7 +312,7 @@ struct dasd_eckd_characteristics {
 	__u8 factor8;
 	__u8 reserved2[3];
 	__u8 reserved3[6];
-	__u32 long_no_cyl;
+	__u32 long_yes_cyl;
 } __attribute__ ((packed));
 
 /* elements of the configuration data */
@@ -320,8 +320,8 @@ struct dasd_ned {
 	struct {
 		__u8 identifier:2;
 		__u8 token_id:1;
-		__u8 sno_valid:1;
-		__u8 subst_sno:1;
+		__u8 syes_valid:1;
+		__u8 subst_syes:1;
 		__u8 recNED:1;
 		__u8 emuNED:1;
 		__u8 reserved:1;
@@ -333,7 +333,7 @@ struct dasd_ned {
 	__u8 dev_model[3];
 	__u8 HDA_manufacturer[3];
 	__u8 HDA_location[2];
-	__u8 HDA_seqno[12];
+	__u8 HDA_seqyes[12];
 	__u8 ID;
 	__u8 unit_addr;
 } __attribute__ ((packed));
@@ -398,7 +398,7 @@ struct dasd_rssd_messages {
 struct dasd_rssd_vsq {
 	struct {
 		__u8 tse:1;
-		__u8 space_not_available:1;
+		__u8 space_yest_available:1;
 		__u8 ese:1;
 		__u8 unused:5;
 	} __packed vol_info;
@@ -571,7 +571,7 @@ struct dasd_dso_ras_data {
 		/* Release Space by Extent */
 		__u8 by_extent:1;	/* 0 - entire volume, 1 - specified extents */
 		__u8 guarantee_init:1;
-		__u8 force_release:1;	/* Internal - will be ignored */
+		__u8 force_release:1;	/* Internal - will be igyesred */
 		__u16 reserved2:11;
 	} __packed op_flags;
 	__u8 lss;
@@ -688,7 +688,7 @@ struct dasd_eckd_private {
 
 
 
-int dasd_alias_make_device_known_to_lcu(struct dasd_device *);
+int dasd_alias_make_device_kyeswn_to_lcu(struct dasd_device *);
 void dasd_alias_disconnect_device_from_lcu(struct dasd_device *);
 int dasd_alias_add_device(struct dasd_device *);
 int dasd_alias_remove_device(struct dasd_device *);

@@ -17,7 +17,7 @@
 #include <linux/irq.h>
 #include <linux/kernel.h>
 #include <linux/delay.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/ioport.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
@@ -282,9 +282,9 @@ static void sa1111_unmask_irq(struct irq_data *d)
 
 /*
  * Attempt to re-trigger the interrupt.  The SA1111 contains a register
- * (INTSET) which claims to do this.  However, in practice no amount of
+ * (INTSET) which claims to do this.  However, in practice yes amount of
  * manipulation of INTEN and INTSET guarantees that the interrupt will
- * be triggered.  In fact, its very difficult, if not impossible to get
+ * be triggered.  In fact, its very difficult, if yest impossible to get
  * INTSET to re-trigger the interrupt.
  */
 static int sa1111_retrigger_irq(struct irq_data *d)
@@ -795,9 +795,9 @@ sa1111_init_one_child(struct sa1111 *sachip, struct resource *parent,
  *	before any other SA1111-specific code.
  *
  *	Returns:
- *	%-ENODEV	device not found.
+ *	%-ENODEV	device yest found.
  *	%-EBUSY		physical address already marked in-use.
- *	%-EINVAL	no platform data passed
+ *	%-EINVAL	yes platform data passed
  *	%0		successful.
  */
 static int __sa1111_probe(struct device *me, struct resource *mem, int irq)
@@ -847,7 +847,7 @@ static int __sa1111_probe(struct device *me, struct resource *mem, int irq)
 	 */
 	id = readl_relaxed(sachip->base + SA1111_SKID);
 	if ((id & SKID_ID_MASK) != SKID_SA1111_ID) {
-		printk(KERN_DEBUG "SA1111 not detected: ID = %08lx\n", id);
+		printk(KERN_DEBUG "SA1111 yest detected: ID = %08lx\n", id);
 		ret = -ENODEV;
 		goto err_unmap;
 	}
@@ -972,7 +972,7 @@ struct sa1111_save_data {
 
 #ifdef CONFIG_PM
 
-static int sa1111_suspend_noirq(struct device *dev)
+static int sa1111_suspend_yesirq(struct device *dev)
 {
 	struct sa1111 *sachip = dev_get_drvdata(dev);
 	struct sa1111_save_data *save;
@@ -1037,7 +1037,7 @@ static int sa1111_suspend_noirq(struct device *dev)
  *	restored by their respective drivers, and must be called
  *	via LDM after this function.
  */
-static int sa1111_resume_noirq(struct device *dev)
+static int sa1111_resume_yesirq(struct device *dev)
 {
 	struct sa1111 *sachip = dev_get_drvdata(dev);
 	struct sa1111_save_data *save;
@@ -1106,8 +1106,8 @@ static int sa1111_resume_noirq(struct device *dev)
 }
 
 #else
-#define sa1111_suspend_noirq NULL
-#define sa1111_resume_noirq  NULL
+#define sa1111_suspend_yesirq NULL
+#define sa1111_resume_yesirq  NULL
 #endif
 
 static int sa1111_probe(struct platform_device *pdev)
@@ -1142,12 +1142,12 @@ static int sa1111_remove(struct platform_device *pdev)
 }
 
 static struct dev_pm_ops sa1111_pm_ops = {
-	.suspend_noirq = sa1111_suspend_noirq,
-	.resume_noirq = sa1111_resume_noirq,
+	.suspend_yesirq = sa1111_suspend_yesirq,
+	.resume_yesirq = sa1111_resume_yesirq,
 };
 
 /*
- *	Not sure if this should be on the system bus or not yet.
+ *	Not sure if this should be on the system bus or yest yet.
  *	We really want some way to register a system device at
  *	the per-machine level, and then have this driver pick
  *	up the registered devices.
@@ -1174,7 +1174,7 @@ static inline struct sa1111 *sa1111_chip_driver(struct sa1111_dev *sadev)
 }
 
 /*
- * The bits in the opdiv field are non-linear.
+ * The bits in the opdiv field are yesn-linear.
  */
 static unsigned char opdiv_table[] = { 1, 4, 2, 8 };
 
@@ -1403,7 +1403,7 @@ EXPORT_SYMBOL(sa1111_driver_unregister);
  * on the configuration of the RAM, bit 10 may correspond to one
  * of several different (processor-relative) address bits.
  *
- * This routine only identifies whether or not a given DMA address
+ * This routine only identifies whether or yest a given DMA address
  * is susceptible to the bug.
  *
  * This should only get called for sa1111_device types due to the
@@ -1422,7 +1422,7 @@ static int sa1111_needs_bounce(struct device *dev, dma_addr_t addr, size_t size)
 		(addr >= 0xc8000000 || (addr + size) >= 0xc8000000);
 }
 
-static int sa1111_notifier_call(struct notifier_block *n, unsigned long action,
+static int sa1111_yestifier_call(struct yestifier_block *n, unsigned long action,
 	void *data)
 {
 	struct sa1111_dev *dev = to_sa1111_device(data);
@@ -1445,8 +1445,8 @@ static int sa1111_notifier_call(struct notifier_block *n, unsigned long action,
 	return NOTIFY_OK;
 }
 
-static struct notifier_block sa1111_bus_notifier = {
-	.notifier_call = sa1111_notifier_call,
+static struct yestifier_block sa1111_bus_yestifier = {
+	.yestifier_call = sa1111_yestifier_call,
 };
 #endif
 
@@ -1455,7 +1455,7 @@ static int __init sa1111_init(void)
 	int ret = bus_register(&sa1111_bus_type);
 #ifdef CONFIG_DMABOUNCE
 	if (ret == 0)
-		bus_register_notifier(&sa1111_bus_type, &sa1111_bus_notifier);
+		bus_register_yestifier(&sa1111_bus_type, &sa1111_bus_yestifier);
 #endif
 	if (ret == 0)
 		platform_driver_register(&sa1111_device_driver);
@@ -1466,7 +1466,7 @@ static void __exit sa1111_exit(void)
 {
 	platform_driver_unregister(&sa1111_device_driver);
 #ifdef CONFIG_DMABOUNCE
-	bus_unregister_notifier(&sa1111_bus_type, &sa1111_bus_notifier);
+	bus_unregister_yestifier(&sa1111_bus_type, &sa1111_bus_yestifier);
 #endif
 	bus_unregister(&sa1111_bus_type);
 }

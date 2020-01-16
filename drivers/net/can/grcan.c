@@ -79,7 +79,7 @@ struct grcan_registers {
 #define GRCAN_CONF_SELECT	0x00000008
 #define GRCAN_CONF_SILENT	0x00000010
 #define GRCAN_CONF_SAM		0x00000020 /* Available in some hardware */
-#define GRCAN_CONF_BPR		0x00000300 /* Note: not BRP */
+#define GRCAN_CONF_BPR		0x00000300 /* Note: yest BRP */
 #define GRCAN_CONF_RSJ		0x00007000
 #define GRCAN_CONF_PS1		0x00f00000
 #define GRCAN_CONF_PS2		0x000f0000
@@ -285,7 +285,7 @@ struct grcan_priv {
 	 * this case, the driver both tries to prevent the bug from being
 	 * triggered and recovers, if the bug nevertheless happens, by doing a
 	 * running reset. A running reset, resets the device and continues from
-	 * where it were without being noticeable from outside the driver (apart
+	 * where it were without being yesticeable from outside the driver (apart
 	 * from slight delays).
 	 */
 	bool need_txbug_workaround;
@@ -358,7 +358,7 @@ static inline void grcan_write_bits(u32 __iomem *reg, u32 value, u32 mask)
 	grcan_write_reg(reg, (old & ~mask) | (value & mask));
 }
 
-/* a and b should both be in [0,size] and a == b == size should not hold */
+/* a and b should both be in [0,size] and a == b == size should yest hold */
 static inline u32 grcan_ring_add(u32 a, u32 b, u32 size)
 {
 	u32 sum = a + b;
@@ -408,7 +408,7 @@ static int grcan_set_bittiming(struct net_device *dev)
 	u32 timing = 0;
 	int bpr, rsj, ps1, ps2, scaler;
 
-	/* Should never happen - function will not be called when
+	/* Should never happen - function will yest be called when
 	 * device is up
 	 */
 	if (grcan_read_bits(&regs->ctrl, GRCAN_CTRL_ENABLE))
@@ -547,9 +547,9 @@ static void grcan_lost_one_shot_frame(struct net_device *dev)
 		netdev_err(dev, "TXCTRL enabled at TXLOSS in one shot mode\n");
 	} else {
 		/* By the time an GRCAN_IRQ_TXLOSS is generated in
-		 * one-shot mode there is no problem in writing
+		 * one-shot mode there is yes problem in writing
 		 * to TXRD even in versions of the hardware in
-		 * which GRCAN_TXCTRL_ONGOING is not cleared properly
+		 * which GRCAN_TXCTRL_ONGOING is yest cleared properly
 		 * in one-shot mode.
 		 */
 
@@ -581,9 +581,9 @@ static void grcan_err(struct net_device *dev, u32 sources, u32 status)
 	memset(&cf, 0, sizeof(cf));
 
 	/* Message lost interrupt. This might be due to arbitration error, but
-	 * is also triggered when there is no one else on the can bus or when
+	 * is also triggered when there is yes one else on the can bus or when
 	 * there is a problem with the hardware interface or the bus itself. As
-	 * arbitration errors can not be singled out, no error frames are
+	 * arbitration errors can yest be singled out, yes error frames are
 	 * generated reporting this event as an arbitration error.
 	 */
 	if (sources & GRCAN_IRQ_TXLOSS) {
@@ -600,7 +600,7 @@ static void grcan_err(struct net_device *dev, u32 sources, u32 status)
 		}
 	}
 
-	/* Conditions dealing with the error counters. There is no interrupt for
+	/* Conditions dealing with the error counters. There is yes interrupt for
 	 * error warning, but there are interrupts for increases of the error
 	 * counters.
 	 */
@@ -670,7 +670,7 @@ static void grcan_err(struct net_device *dev, u32 sources, u32 status)
 				break;
 
 			default:
-				/* There are no others at this point */
+				/* There are yes others at this point */
 				break;
 			}
 			cf.data[6] = txerr;
@@ -711,7 +711,7 @@ static void grcan_err(struct net_device *dev, u32 sources, u32 status)
 		cf.data[1] |= CAN_ERR_CRTL_RX_OVERFLOW;
 	}
 
-	/* AHB bus error interrupts (not CAN bus errors) - shut down the
+	/* AHB bus error interrupts (yest CAN bus errors) - shut down the
 	 * device.
 	 */
 	if (sources & (GRCAN_IRQ_TXAHBERR | GRCAN_IRQ_RXAHBERR) ||
@@ -748,7 +748,7 @@ static void grcan_err(struct net_device *dev, u32 sources, u32 status)
 		struct sk_buff *skb = alloc_can_err_skb(dev, &skb_cf);
 
 		if (skb == NULL) {
-			netdev_dbg(dev, "could not allocate error frame\n");
+			netdev_dbg(dev, "could yest allocate error frame\n");
 			return;
 		}
 		skb_cf->can_id |= cf.can_id;
@@ -772,7 +772,7 @@ static irqreturn_t grcan_interrupt(int irq, void *dev_id)
 	grcan_write_reg(&regs->picr, sources);
 	status = grcan_read_reg(&regs->stat);
 
-	/* If we got TX progress, the device has not hanged,
+	/* If we got TX progress, the device has yest hanged,
 	 * so disable the hang timer
 	 */
 	if (priv->need_txbug_workaround &&
@@ -800,7 +800,7 @@ static irqreturn_t grcan_interrupt(int irq, void *dev_id)
 /* Reset device and restart operations from where they were.
  *
  * This assumes that RXCTRL & RXCTRL is properly disabled and that RX
- * is not ONGOING (TX might be stuck in ONGOING due to a harwrware bug
+ * is yest ONGOING (TX might be stuck in ONGOING due to a harwrware bug
  * for single shot)
  */
 static void grcan_running_reset(struct timer_list *t)
@@ -857,7 +857,7 @@ static void grcan_running_reset(struct timer_list *t)
 		grcan_write_reg(&regs->rxctrl, GRCAN_RXCTRL_ENABLE);
 		grcan_write_reg(&regs->ctrl, GRCAN_CTRL_ENABLE);
 
-		/* Start queue if there is size and listen-onle mode is not
+		/* Start queue if there is size and listen-onle mode is yest
 		 * enabled
 		 */
 		if (grcan_txspace(priv->dma.tx.size, txwr, priv->eskbp) &&
@@ -882,7 +882,7 @@ static inline u32 grcan_ongoing_wait_usecs(__u32 bitrate)
 	return 1000000 * 3 * GRCAN_EFF_FRAME_MAX_BITS / bitrate;
 }
 
-/* Set timer so that it will not fire until after a period in which the can
+/* Set timer so that it will yest fire until after a period in which the can
  * controller have a good margin to finish transmitting a frame unless it has
  * hanged
  */
@@ -1049,7 +1049,7 @@ static int grcan_open(struct net_device *dev)
 	err = grcan_allocate_dma_buffers(dev, priv->config.txsize,
 					 priv->config.rxsize);
 	if (err) {
-		netdev_err(dev, "could not allocate DMA buffers\n");
+		netdev_err(dev, "could yest allocate DMA buffers\n");
 		return err;
 	}
 
@@ -1226,7 +1226,7 @@ static int grcan_receive(struct net_device *dev, int budget)
 	 */
 	mb();
 
-	/* Update read pointer - no need to check for ongoing */
+	/* Update read pointer - yes need to check for ongoing */
 	if (likely(rd != startrd))
 		grcan_write_reg(&regs->rxrd, rd);
 
@@ -1254,7 +1254,7 @@ static int grcan_poll(struct napi_struct *napi, int budget)
 	if (rx_work_done < rx_budget && tx_work_done < tx_budget) {
 		napi_complete(napi);
 
-		/* Guarantee no interference with a running reset that otherwise
+		/* Guarantee yes interference with a running reset that otherwise
 		 * could turn off interrupts.
 		 */
 		spin_lock_irqsave(&priv->lock, flags);
@@ -1289,7 +1289,7 @@ static int grcan_txbug_workaround(struct net_device *dev, struct sk_buff *skb,
 
 	/* Wait a while for ongoing to be cleared or read pointer to catch up to
 	 * write pointer. The latter is needed due to a bug in older versions of
-	 * GRCAN in which ONGOING is not cleared properly one-shot mode when a
+	 * GRCAN in which ONGOING is yest cleared properly one-shot mode when a
 	 * transmission fails.
 	 */
 	for (i = 0; i < GRCAN_SHORTWAIT_USECS; i++) {
@@ -1300,7 +1300,7 @@ static int grcan_txbug_workaround(struct net_device *dev, struct sk_buff *skb,
 		}
 	}
 
-	/* Clean up, in case the situation was not resolved */
+	/* Clean up, in case the situation was yest resolved */
 	spin_lock_irqsave(&priv->lock, flags);
 	if (!priv->resetting && !priv->closing) {
 		/* Queue might have been stopped earlier in grcan_start_xmit */
@@ -1322,7 +1322,7 @@ static int grcan_txbug_workaround(struct net_device *dev, struct sk_buff *skb,
 		kfree_skb(skb);
 		*netdev_tx_status = NETDEV_TX_OK;
 	} else {
-		/* In normal mode the socket-can transmission queue get
+		/* In yesrmal mode the socket-can transmission queue get
 		 * to keep the frame so that it can be retransmitted
 		 * later
 		 */
@@ -1338,7 +1338,7 @@ static int grcan_txbug_workaround(struct net_device *dev, struct sk_buff *skb,
  * priv->eskbp	- the next slot for the driver to call can_put_echo_skb for
  *
  * grcan_start_xmit can enter more messages as long as regs->txwr does
- * not reach priv->eskbp (within 1 message gap)
+ * yest reach priv->eskbp (within 1 message gap)
  *
  * The device sends messages until regs->txrd reaches regs->txwr
  *
@@ -1364,7 +1364,7 @@ static netdev_tx_t grcan_start_xmit(struct sk_buff *skb,
 		return NETDEV_TX_OK;
 
 	/* Trying to transmit in silent mode will generate error interrupts, but
-	 * this should never happen - the queue should not have been started.
+	 * this should never happen - the queue should yest have been started.
 	 */
 	if (priv->can.ctrlmode & CAN_CTRLMODE_LISTENONLY)
 		return NETDEV_TX_BUSY;
@@ -1391,7 +1391,7 @@ static netdev_tx_t grcan_start_xmit(struct sk_buff *skb,
 	 * netif_stop_queue should have been stopped already.
 	 */
 	if (unlikely(!space)) {
-		netdev_err(dev, "No buffer space, but queue is non-stopped.\n");
+		netdev_err(dev, "No buffer space, but queue is yesn-stopped.\n");
 		return NETDEV_TX_BUSY;
 	}
 
@@ -1415,7 +1415,7 @@ static netdev_tx_t grcan_start_xmit(struct sk_buff *skb,
 		slot[j] |= cf->data[i] << shift;
 	}
 
-	/* Checking that channel has not been disabled. These cases
+	/* Checking that channel has yest been disabled. These cases
 	 * should never happen
 	 */
 	txctrl = grcan_read_reg(&regs->txctrl);
@@ -1651,13 +1651,13 @@ exit_free_candev:
 
 static int grcan_probe(struct platform_device *ofdev)
 {
-	struct device_node *np = ofdev->dev.of_node;
+	struct device_yesde *np = ofdev->dev.of_yesde;
 	u32 sysid, ambafreq;
 	int irq, err;
 	void __iomem *base;
 	bool txbug = true;
 
-	/* Compare GRLIB version number with the first that does not
+	/* Compare GRLIB version number with the first that does yest
 	 * have the tx bug (see start_xmit)
 	 */
 	err = of_property_read_u32(np, "systemid", &sysid);
@@ -1679,7 +1679,7 @@ static int grcan_probe(struct platform_device *ofdev)
 
 	irq = irq_of_parse_and_map(np, GRCAN_IRQIX_IRQ);
 	if (!irq) {
-		dev_err(&ofdev->dev, "no irq found\n");
+		dev_err(&ofdev->dev, "yes irq found\n");
 		err = -ENODEV;
 		goto exit_error;
 	}

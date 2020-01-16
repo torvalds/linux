@@ -215,7 +215,7 @@ static inline void sg_unmark_end(struct scatterlist *sg)
  *
  * Description:
  *   This calls page_to_phys() on the page in this sg entry, and adds the
- *   sg offset. The caller must know that it is legal to call page_to_phys()
+ *   sg offset. The caller must kyesw that it is legal to call page_to_phys()
  *   on the sg page.
  *
  **/
@@ -230,7 +230,7 @@ static inline dma_addr_t sg_phys(struct scatterlist *sg)
  *
  * Description:
  *   This calls page_address() on the page in this sg entry, and adds the
- *   sg offset. The caller must know that the sg page has a valid virtual
+ *   sg offset. The caller must kyesw that the sg page has a valid virtual
  *   mapping.
  *
  **/
@@ -364,7 +364,7 @@ struct sg_page_iter {
  *
  * This is the same as sg_page_iter however you can call
  * sg_page_iter_dma_address(@dma_iter) to get the page's DMA
- * address. sg_page_iter_page() cannot be called on this iterator.
+ * address. sg_page_iter_page() canyest be called on this iterator.
  */
 struct sg_dma_page_iter {
 	struct sg_page_iter base;
@@ -442,7 +442,7 @@ sg_page_iter_dma_address(struct sg_dma_page_iter *dma_iter)
 
 #define SG_MITER_ATOMIC		(1 << 0)	 /* use kmap_atomic */
 #define SG_MITER_TO_SG		(1 << 1)	/* flush back to phys on unmap */
-#define SG_MITER_FROM_SG	(1 << 2)	/* nop */
+#define SG_MITER_FROM_SG	(1 << 2)	/* yesp */
 
 struct sg_mapping_iter {
 	/* the following three fields can be accessed directly */

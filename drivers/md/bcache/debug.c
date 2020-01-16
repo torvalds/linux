@@ -61,7 +61,7 @@ void bch_btree_verify(struct btree *b)
 
 	memcpy(ondisk, sorted, KEY_SIZE(&v->key) << 9);
 
-	bch_btree_node_read_done(v);
+	bch_btree_yesde_read_done(v);
 	sorted = v->keys.set->data;
 
 	if (inmemory->keys != sorted->keys ||
@@ -88,7 +88,7 @@ void bch_btree_verify(struct btree *b)
 			bch_dump_bset(&b->keys, i, block);
 		}
 
-		pr_err("*** block %zu not written\n",
+		pr_err("*** block %zu yest written\n",
 		       ((void *) i - (void *) ondisk) / block_bytes(b->c));
 
 		for (j = 0; j < inmemory->keys; j++)
@@ -203,9 +203,9 @@ static ssize_t bch_dump_read(struct file *file, char __user *buf,
 	return ret;
 }
 
-static int bch_dump_open(struct inode *inode, struct file *file)
+static int bch_dump_open(struct iyesde *iyesde, struct file *file)
 {
-	struct cache_set *c = inode->i_private;
+	struct cache_set *c = iyesde->i_private;
 	struct dump_iterator *i;
 
 	i = kzalloc(sizeof(struct dump_iterator), GFP_KERNEL);
@@ -220,7 +220,7 @@ static int bch_dump_open(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static int bch_dump_release(struct inode *inode, struct file *file)
+static int bch_dump_release(struct iyesde *iyesde, struct file *file)
 {
 	kfree(file->private_data);
 	return 0;
@@ -255,7 +255,7 @@ void __init bch_debug_init(void)
 {
 	/*
 	 * it is unnecessary to check return value of
-	 * debugfs_create_file(), we should not care
+	 * debugfs_create_file(), we should yest care
 	 * about this.
 	 */
 	bcache_debug = debugfs_create_dir("bcache", NULL);

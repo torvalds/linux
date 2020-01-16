@@ -140,17 +140,17 @@ static const struct config_entry config_table[] = {
 #endif
 
 /*
- * CoffeeLake, CannonLake, CometLake, IceLake, TigerLake use legacy
+ * CoffeeLake, CanyesnLake, CometLake, IceLake, TigerLake use legacy
  * HDaudio driver except for Google Chromebooks and when DMICs are
- * present. Two cases are required since Coreboot does not expose NHLT
+ * present. Two cases are required since Coreboot does yest expose NHLT
  * tables.
  *
- * When the Chromebook quirk is not present, it's based on information
- * that no such device exists. When the quirk is present, it could be
+ * When the Chromebook quirk is yest present, it's based on information
+ * that yes such device exists. When the quirk is present, it could be
  * either based on product information or a placeholder.
  */
 
-/* Cannonlake */
+/* Canyesnlake */
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_CANNONLAKE)
 	{
 		.flags = FLAG_SOF,
@@ -316,7 +316,7 @@ int snd_intel_dsp_driver_probe(struct pci_dev *pci)
 
 	/*
 	 * detect DSP by checking class/subclass/prog-id information
-	 * class=04 subclass 03 prog-if 00: no DSP, use legacy driver
+	 * class=04 subclass 03 prog-if 00: yes DSP, use legacy driver
 	 * class=04 subclass 01 prog-if 00: DSP is present
 	 *  (and may be required e.g. for DMIC or SSP support)
 	 * class=04 subclass 03 prog-if 80: use DSP or legacy mode
@@ -324,7 +324,7 @@ int snd_intel_dsp_driver_probe(struct pci_dev *pci)
 	if (pci->class == 0x040300)
 		return SND_INTEL_DSP_DRIVER_LEGACY;
 	if (pci->class != 0x040100 && pci->class != 0x040380) {
-		dev_err(&pci->dev, "Unknown PCI class/subclass/prog-if information (0x%06x) found, selecting HDA legacy driver\n", pci->class);
+		dev_err(&pci->dev, "Unkyeswn PCI class/subclass/prog-if information (0x%06x) found, selecting HDA legacy driver\n", pci->class);
 		return SND_INTEL_DSP_DRIVER_LEGACY;
 	}
 

@@ -9,7 +9,7 @@
  * linux-wlan
  *
  *   The contents of this file are subject to the Mozilla Public
- *   License Version 1.1 (the "License"); you may not use this file
+ *   License Version 1.1 (the "License"); you may yest use this file
  *   except in compliance with the License. You may obtain a copy of
  *   the License at http://www.mozilla.org/MPL/
  *
@@ -22,10 +22,10 @@
  *   terms of the GNU Public License version 2 (the "GPL"), in which
  *   case the provisions of the GPL are applicable instead of the
  *   above.  If you wish to allow the use of your version of this file
- *   only under the terms of the GPL and not to allow others to use
+ *   only under the terms of the GPL and yest to allow others to use
  *   your version of this file under the MPL, indicate your decision
- *   by deleting the provisions above and replace them with the notice
- *   and other provisions required by the GPL.  If you do not delete
+ *   by deleting the provisions above and replace them with the yestice
+ *   and other provisions required by the GPL.  If you do yest delete
  *   the provisions above, a recipient may use your version of this
  *   file under either the MPL or the GPL.
  *
@@ -72,7 +72,7 @@ struct p80211_rxmeta {
 	unsigned int rxrate;	/* Receive data rate in 100kbps */
 	unsigned int priority;	/* 0-15, 0=contention, 6=CF */
 	int signal;		/* An SSI, see p80211netdev.h */
-	int noise;		/* An SSI, see p80211netdev.h */
+	int yesise;		/* An SSI, see p80211netdev.h */
 	unsigned int channel;	/* Receive channel (mostly for snifs) */
 	unsigned int preamble;	/* P80211ENUM_preambletype_* */
 	unsigned int encoding;	/* P80211ENUM_encoding_* */
@@ -117,7 +117,7 @@ struct p80211_caphdr {
 	__be32 priority;
 	__be32 ssi_type;
 	__be32 ssi_signal;
-	__be32 ssi_noise;
+	__be32 ssi_yesise;
 	__be32 preamble;
 	__be32 encoding;
 };

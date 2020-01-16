@@ -21,7 +21,7 @@ struct fregs_state {
 	/* 8*10 bytes for each FP-reg = 80 bytes:			*/
 	u32			st_space[20];
 
-	/* Software status information [not touched by FSAVE]:		*/
+	/* Software status information [yest touched by FSAVE]:		*/
 	u32			status;
 };
 
@@ -89,7 +89,7 @@ struct swregs_state {
 	u8			ftop;
 	u8			changed;
 	u8			lookahead;
-	u8			no_update;
+	u8			yes_update;
 	u8			rm;
 	u8			alimit;
 	struct math_emu_info	*info;
@@ -97,7 +97,7 @@ struct swregs_state {
 };
 
 /*
- * List of XSAVE features Linux knows about:
+ * List of XSAVE features Linux kyesws about:
  */
 enum xfeature {
 	XFEATURE_FP,
@@ -205,7 +205,7 @@ struct avx_512_opmask_state {
 
 /*
  * State component 6 is used for the upper 256 bits of the
- * registers ZMM0-ZMM15. These 16 256-bit values are denoted
+ * registers ZMM0-ZMM15. These 16 256-bit values are deyested
  * ZMM0_H-ZMM15_H (ZMM_Hi256 state).
  */
 struct avx_512_zmm_uppers_state {
@@ -263,7 +263,7 @@ struct xregs_state {
  * The size of the structure is determined by the largest
  * member - which is the xsave area.  The padding is there
  * to ensure that statically-allocated task_structs (just
- * the init_task today) have enough space.
+ * the init_task today) have eyesugh space.
  */
 union fpregs_state {
 	struct fregs_state		fsave;
@@ -285,7 +285,7 @@ struct fpu {
 	 * Records the last CPU on which this context was loaded into
 	 * FPU registers. (In the lazy-restore case we might be
 	 * able to reuse FPU registers across multiple context switches
-	 * this way, if no intermediate task used the FPU.)
+	 * this way, if yes intermediate task used the FPU.)
 	 *
 	 * A value of -1 is used to indicate that the FPU state in context
 	 * memory is newer than the FPU state in registers, and that the
@@ -311,7 +311,7 @@ struct fpu {
 	 */
 	union fpregs_state		state;
 	/*
-	 * WARNING: 'state' is dynamically-sized.  Do not put
+	 * WARNING: 'state' is dynamically-sized.  Do yest put
 	 * anything after it here.
 	 */
 };

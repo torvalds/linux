@@ -104,7 +104,7 @@ int wl1251_acx_wake_up_conditions(struct wl1251 *wl, u8 wake_up_event,
 	ret = wl1251_cmd_configure(wl, ACX_WAKE_UP_CONDITIONS,
 				   wake_up, sizeof(*wake_up));
 	if (ret < 0) {
-		wl1251_warning("could not set wake up conditions: %d", ret);
+		wl1251_warning("could yest set wake up conditions: %d", ret);
 		goto out;
 	}
 
@@ -340,7 +340,7 @@ int wl1251_acx_pd_threshold(struct wl1251 *wl)
 	if (!pd)
 		return -ENOMEM;
 
-	/* FIXME: threshold value not set */
+	/* FIXME: threshold value yest set */
 
 	ret = wl1251_cmd_configure(wl, ACX_PD_THRESHOLD, pd, sizeof(*pd));
 	if (ret < 0) {
@@ -850,7 +850,7 @@ int wl1251_acx_rate_policies(struct wl1251 *wl)
 	acx->rate_class[0].long_retry_limit = ACX_RATE_RETRY_LIMIT;
 	acx->rate_class[0].aflags = 0;
 
-	/* no-retry rate class */
+	/* yes-retry rate class */
 	acx->rate_class[1].enabled_rates = ACX_RATE_MASK_UNSPECIFIED;
 	acx->rate_class[1].short_retry_limit = 0;
 	acx->rate_class[1].long_retry_limit = 0;

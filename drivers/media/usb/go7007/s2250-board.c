@@ -18,7 +18,7 @@ MODULE_LICENSE("GPL v2");
 
 /*
  * Note: this board has two i2c devices: a vpx3226f and a tlv320aic23b.
- * Due to the unusual way these are accessed on this device we do not
+ * Due to the unusual way these are accessed on this device we do yest
  * reuse the i2c drivers, but instead they are implemented in this
  * driver. It would be nice to improve on this, though.
  */
@@ -341,14 +341,14 @@ static int s2250_s_video_routing(struct v4l2_subdev *sd, u32 input, u32 output,
 	return 0;
 }
 
-static int s2250_s_std(struct v4l2_subdev *sd, v4l2_std_id norm)
+static int s2250_s_std(struct v4l2_subdev *sd, v4l2_std_id yesrm)
 {
 	struct s2250 *state = to_state(sd);
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	u16 vidsource;
 
 	vidsource = (state->input == 1) ? 0x040 : 0x020;
-	if (norm & V4L2_STD_625_50) {
+	if (yesrm & V4L2_STD_625_50) {
 		write_regs_fp(client, vid_regs_fp);
 		write_regs_fp(client, vid_regs_fp_pal);
 		write_reg_fp(client, 0x20, vidsource);
@@ -356,7 +356,7 @@ static int s2250_s_std(struct v4l2_subdev *sd, v4l2_std_id norm)
 		write_regs_fp(client, vid_regs_fp);
 		write_reg_fp(client, 0x20, vidsource | 1);
 	}
-	state->std = norm;
+	state->std = yesrm;
 	return 0;
 }
 
@@ -451,7 +451,7 @@ static int s2250_log_status(struct v4l2_subdev *sd)
 	v4l2_info(sd, "Standard: %s\n", state->std == V4L2_STD_NTSC ? "NTSC" :
 					state->std == V4L2_STD_PAL ? "PAL" :
 					state->std == V4L2_STD_SECAM ? "SECAM" :
-					"unknown");
+					"unkyeswn");
 	v4l2_info(sd, "Input: %s\n", state->input == 0 ? "Composite" :
 					state->input == 1 ? "S-video" :
 					"error");

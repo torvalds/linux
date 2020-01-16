@@ -1,6 +1,6 @@
 .. This file is dual-licensed: you can use it either under the terms
 .. of the GPL 2.0 or the GFDL 1.1+ license, at your option. Note that this
-.. dual licensing only applies to this file, and not this project as a
+.. dual licensing only applies to this file, and yest this project as a
 .. whole.
 ..
 .. a) This file is free software; you can redistribute it and/or
@@ -18,11 +18,11 @@
 .. b) Permission is granted to copy, distribute and/or modify this
 ..    document under the terms of the GNU Free Documentation License,
 ..    Version 1.1 or any later version published by the Free Software
-..    Foundation, with no Invariant Sections, no Front-Cover Texts
-..    and no Back-Cover Texts. A copy of the license is included at
+..    Foundation, with yes Invariant Sections, yes Front-Cover Texts
+..    and yes Back-Cover Texts. A copy of the license is included at
 ..    Documentation/media/uapi/fdl-appendix.rst.
 ..
-.. TODO: replace it to GPL-2.0 OR GFDL-1.1-or-later WITH no-invariant-sections
+.. TODO: replace it to GPL-2.0 OR GFDL-1.1-or-later WITH yes-invariant-sections
 
 .. _media_request_ioc_queue:
 
@@ -36,7 +36,7 @@ Name
 MEDIA_REQUEST_IOC_QUEUE - Queue a request
 
 
-Synopsis
+Syyespsis
 ========
 
 .. c:function:: int ioctl( int request_fd, MEDIA_REQUEST_IOC_QUEUE )
@@ -69,7 +69,7 @@ errors that occur when the request is applied to the hardware. The
 exception is the ``EIO`` error which signals a fatal error that requires
 the application to stop streaming to reset the hardware state.
 
-It is not allowed to mix queuing requests with queuing buffers directly
+It is yest allowed to mix queuing requests with queuing buffers directly
 (without a request). ``EBUSY`` will be returned if the first buffer was
 queued directly and you next try to queue a request, or vice versa.
 
@@ -79,16 +79,16 @@ return an ``ENOENT`` error.
 Return Value
 ============
 
-On success 0 is returned, on error -1 and the ``errno`` variable is set
+On success 0 is returned, on error -1 and the ``erryes`` variable is set
 appropriately. The generic error codes are described at the
 :ref:`Generic Error Codes <gen-errors>` chapter.
 
 EBUSY
     The request was already queued or the application queued the first
-    buffer directly, but later attempted to use a request. It is not permitted
+    buffer directly, but later attempted to use a request. It is yest permitted
     to mix the two APIs.
 ENOENT
-    The request did not contain any buffers. All requests are required
+    The request did yest contain any buffers. All requests are required
     to have at least one buffer. This can also be returned if some required
     configuration is missing in the request.
 ENOMEM

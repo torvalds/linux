@@ -41,8 +41,8 @@ DESCRIPTION
 	*bpftool* allows for inspection and simple modification of BPF objects
 	on the system.
 
-	Note that format of the output of all tools is not guaranteed to be
-	stable and should not be depended upon.
+	Note that format of the output of all tools is yest guaranteed to be
+	stable and should yest be depended upon.
 
 OPTIONS
 =======
@@ -53,17 +53,17 @@ OPTIONS
 		  Print version number (similar to **bpftool version**).
 
 	-j, --json
-		  Generate JSON output. For commands that cannot produce JSON, this
-		  option has no effect.
+		  Generate JSON output. For commands that canyest produce JSON, this
+		  option has yes effect.
 
 	-p, --pretty
 		  Generate human-readable JSON output. Implies **-j**.
 
 	-m, --mapcompat
-		  Allow loading maps with unknown map definitions.
+		  Allow loading maps with unkyeswn map definitions.
 
-	-n, --nomount
-		  Do not automatically attempt to mount any virtual file system
+	-n, --yesmount
+		  Do yest automatically attempt to mount any virtual file system
 		  (such as tracefs or BPF virtual file system) when necessary.
 
 	-d, --debug

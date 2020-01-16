@@ -4,7 +4,7 @@
 #include <linux/of.h>
 #include <linux/export.h>
 #include <linux/mod_devicetable.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/irq.h>
 #include <linux/of_platform.h>
 #include <linux/of_address.h>
@@ -13,9 +13,9 @@
 
 #include "of_device_common.h"
 
-unsigned int irq_of_parse_and_map(struct device_node *node, int index)
+unsigned int irq_of_parse_and_map(struct device_yesde *yesde, int index)
 {
-	struct platform_device *op = of_find_device_by_node(node);
+	struct platform_device *op = of_find_device_by_yesde(yesde);
 
 	if (!op || index >= op->archdata.num_irqs)
 		return 0;
@@ -24,10 +24,10 @@ unsigned int irq_of_parse_and_map(struct device_node *node, int index)
 }
 EXPORT_SYMBOL(irq_of_parse_and_map);
 
-int of_address_to_resource(struct device_node *node, int index,
+int of_address_to_resource(struct device_yesde *yesde, int index,
 			   struct resource *r)
 {
-	struct platform_device *op = of_find_device_by_node(node);
+	struct platform_device *op = of_find_device_by_yesde(yesde);
 
 	if (!op || index >= op->num_resources)
 		return -EINVAL;
@@ -37,9 +37,9 @@ int of_address_to_resource(struct device_node *node, int index,
 }
 EXPORT_SYMBOL_GPL(of_address_to_resource);
 
-void __iomem *of_iomap(struct device_node *node, int index)
+void __iomem *of_iomap(struct device_yesde *yesde, int index)
 {
-	struct platform_device *op = of_find_device_by_node(node);
+	struct platform_device *op = of_find_device_by_yesde(yesde);
 	struct resource *r;
 
 	if (!op || index >= op->num_resources)
@@ -57,23 +57,23 @@ EXPORT_SYMBOL(of_iomap);
 void of_propagate_archdata(struct platform_device *bus)
 {
 	struct dev_archdata *bus_sd = &bus->dev.archdata;
-	struct device_node *bus_dp = bus->dev.of_node;
-	struct device_node *dp;
+	struct device_yesde *bus_dp = bus->dev.of_yesde;
+	struct device_yesde *dp;
 
 	for (dp = bus_dp->child; dp; dp = dp->sibling) {
-		struct platform_device *op = of_find_device_by_node(dp);
+		struct platform_device *op = of_find_device_by_yesde(dp);
 
 		op->dev.archdata.iommu = bus_sd->iommu;
 		op->dev.archdata.stc = bus_sd->stc;
 		op->dev.archdata.host_controller = bus_sd->host_controller;
-		op->dev.archdata.numa_node = bus_sd->numa_node;
+		op->dev.archdata.numa_yesde = bus_sd->numa_yesde;
 
 		if (dp->child)
 			of_propagate_archdata(op);
 	}
 }
 
-static void get_cells(struct device_node *dp, int *addrc, int *sizec)
+static void get_cells(struct device_yesde *dp, int *addrc, int *sizec)
 {
 	if (addrc)
 		*addrc = of_n_addr_cells(dp);
@@ -85,13 +85,13 @@ static void get_cells(struct device_node *dp, int *addrc, int *sizec)
  * Default translator (generic bus)
  */
 
-void of_bus_default_count_cells(struct device_node *dev, int *addrc, int *sizec)
+void of_bus_default_count_cells(struct device_yesde *dev, int *addrc, int *sizec)
 {
 	get_cells(dev, addrc, sizec);
 }
 
 /* Make sure the least significant 64-bits are in-range.  Even
- * for 3 or 4 cell values it is a good enough approximation.
+ * for 3 or 4 cell values it is a good eyesugh approximation.
  */
 int of_out_of_range(const u32 *addr, const u32 *base,
 		    const u32 *size, int na, int ns)
@@ -115,7 +115,7 @@ int of_bus_default_map(u32 *addr, const u32 *range, int na, int ns, int pna)
 	int i;
 
 	if (ns > 2) {
-		printk("of_device: Cannot handle size cells (%d) > 2.", ns);
+		printk("of_device: Canyest handle size cells (%d) > 2.", ns);
 		return -EINVAL;
 	}
 
@@ -147,13 +147,13 @@ unsigned long of_bus_default_get_flags(const u32 *addr, unsigned long flags)
  * SBUS bus specific translator
  */
 
-int of_bus_sbus_match(struct device_node *np)
+int of_bus_sbus_match(struct device_yesde *np)
 {
-	struct device_node *dp = np;
+	struct device_yesde *dp = np;
 
 	while (dp) {
-		if (of_node_name_eq(dp, "sbus") ||
-		    of_node_name_eq(dp, "sbi"))
+		if (of_yesde_name_eq(dp, "sbus") ||
+		    of_yesde_name_eq(dp, "sbi"))
 			return 1;
 
 		/* Have a look at use_1to1_mapping().  We're trying
@@ -170,7 +170,7 @@ int of_bus_sbus_match(struct device_node *np)
 	return 0;
 }
 
-void of_bus_sbus_count_cells(struct device_node *child, int *addrc, int *sizec)
+void of_bus_sbus_count_cells(struct device_yesde *child, int *addrc, int *sizec)
 {
 	if (addrc)
 		*addrc = 2;

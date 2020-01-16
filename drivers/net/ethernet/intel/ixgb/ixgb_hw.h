@@ -10,14 +10,14 @@
 
 /* Enums */
 typedef enum {
-	ixgb_mac_unknown = 0,
+	ixgb_mac_unkyeswn = 0,
 	ixgb_82597,
 	ixgb_num_macs
 } ixgb_mac_type;
 
 /* Types of physical layer modules */
 typedef enum {
-	ixgb_phy_type_unknown = 0,
+	ixgb_phy_type_unkyeswn = 0,
 	ixgb_phy_type_g6005,	/* 850nm, MM fiber, XPAK transceiver */
 	ixgb_phy_type_g6104,	/* 1310nm, SM fiber, XPAK transceiver */
 	ixgb_phy_type_txn17201,	/* 850nm, MM fiber, XPAK transceiver */
@@ -33,7 +33,7 @@ typedef enum {
 
 /* Media Types */
 typedef enum {
-	ixgb_media_type_unknown = 0,
+	ixgb_media_type_unkyeswn = 0,
 	ixgb_media_type_fiber = 1,
 	ixgb_media_type_copper = 2,
 	ixgb_num_media_types
@@ -41,7 +41,7 @@ typedef enum {
 
 /* Flow Control Settings */
 typedef enum {
-	ixgb_fc_none = 0,
+	ixgb_fc_yesne = 0,
 	ixgb_fc_rx_pause = 1,
 	ixgb_fc_tx_pause = 2,
 	ixgb_fc_full = 3,
@@ -50,14 +50,14 @@ typedef enum {
 
 /* PCI bus types */
 typedef enum {
-	ixgb_bus_type_unknown = 0,
+	ixgb_bus_type_unkyeswn = 0,
 	ixgb_bus_type_pci,
 	ixgb_bus_type_pcix
 } ixgb_bus_type;
 
 /* PCI bus speeds */
 typedef enum {
-	ixgb_bus_speed_unknown = 0,
+	ixgb_bus_speed_unkyeswn = 0,
 	ixgb_bus_speed_33,
 	ixgb_bus_speed_66,
 	ixgb_bus_speed_100,
@@ -67,7 +67,7 @@ typedef enum {
 
 /* PCI bus widths */
 typedef enum {
-	ixgb_bus_width_unknown = 0,
+	ixgb_bus_width_unkyeswn = 0,
 	ixgb_bus_width_32,
 	ixgb_bus_width_64
 } ixgb_bus_width;
@@ -210,8 +210,8 @@ typedef enum {
 #define IXGB_LFC     0x02190	/* Local Fault Count */
 #define IXGB_PFRC    0x02198	/* Pause Frame Receive Count */
 #define IXGB_PFTC    0x021A0	/* Pause Frame Transmit Count */
-#define IXGB_MCFRC   0x021A8	/* MAC Control Frames (non-Pause) Received Count */
-#define IXGB_MCFTC   0x021B0	/* MAC Control Frames (non-Pause) Transmitted Count */
+#define IXGB_MCFRC   0x021A8	/* MAC Control Frames (yesn-Pause) Received Count */
+#define IXGB_MCFTC   0x021B0	/* MAC Control Frames (yesn-Pause) Transmitted Count */
 #define IXGB_XONRXC  0x021B8	/* XON Received Count */
 #define IXGB_XONTXC  0x021C0	/* XON Transmitted Count */
 #define IXGB_XOFFRXC 0x021C8	/* XOFF Received Count */
@@ -596,7 +596,7 @@ struct ixgb_context_desc {
 /* Phy Addresses */
 #define IXGB_OPTICAL_PHY_ADDR 0x0	/* Optical Module phy address */
 #define IXGB_XAUII_PHY_ADDR   0x1	/* Xauii transceiver phy address */
-#define IXGB_DIAG_PHY_ADDR    0x1F	/* Diagnostic Device phy address */
+#define IXGB_DIAG_PHY_ADDR    0x1F	/* Diagyesstic Device phy address */
 
 /* This structure takes a 64k flash and maps it for identification commands */
 struct ixgb_flash_buffer {

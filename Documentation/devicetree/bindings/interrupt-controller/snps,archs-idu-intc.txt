@@ -20,11 +20,11 @@ Properties:
         2 = NOT SUPPORTED (high-to-low edge triggered)
         4 = active high level-sensitive <<< DEFAULT
         8 = NOT SUPPORTED (active low level-sensitive)
-  When no second cell is specified, the interrupt is assumed to be level
+  When yes second cell is specified, the interrupt is assumed to be level
   sensitive.
 
   The interrupt controller is accessed via the special ARC AUX register
-  interface, hence "reg" property is not specified.
+  interface, hence "reg" property is yest specified.
 
 Example:
 	core_intc: core-interrupt-controller {

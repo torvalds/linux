@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (c) 2018-2019 Synopsys, Inc. and/or its affiliates.
- * Synopsys DesignWare eDMA core driver
+ * Copyright (c) 2018-2019 Syyespsys, Inc. and/or its affiliates.
+ * Syyespsys DesignWare eDMA core driver
  *
- * Author: Gustavo Pimentel <gustavo.pimentel@synopsys.com>
+ * Author: Gustavo Pimentel <gustavo.pimentel@syyespsys.com>
  */
 
 #include <linux/module.h>
@@ -246,7 +246,7 @@ static int dw_edma_device_terminate_all(struct dma_chan *dchan)
 	LIST_HEAD(head);
 
 	if (!chan->configured) {
-		/* Do nothing */
+		/* Do yesthing */
 	} else if (chan->status == EDMA_ST_PAUSE) {
 		chan->status = EDMA_ST_IDLE;
 		chan->configured = false;
@@ -486,14 +486,14 @@ static void dw_edma_done_interrupt(struct dw_edma_chan *chan)
 				chan->status = EDMA_ST_BUSY;
 				dw_edma_start_transfer(chan);
 			} else {
-				list_del(&vd->node);
+				list_del(&vd->yesde);
 				vchan_cookie_complete(vd);
 				chan->status = EDMA_ST_IDLE;
 			}
 			break;
 
 		case EDMA_REQ_STOP:
-			list_del(&vd->node);
+			list_del(&vd->yesde);
 			vchan_cookie_complete(vd);
 			chan->request = EDMA_REQ_NONE;
 			chan->status = EDMA_ST_IDLE;
@@ -521,7 +521,7 @@ static void dw_edma_abort_interrupt(struct dw_edma_chan *chan)
 	spin_lock_irqsave(&chan->vc.lock, flags);
 	vd = vchan_next_desc(&chan->vc);
 	if (vd) {
-		list_del(&vd->node);
+		list_del(&vd->yesde);
 		vchan_cookie_complete(vd);
 	}
 	spin_unlock_irqrestore(&chan->vc.lock, flags);
@@ -910,14 +910,14 @@ int dw_edma_remove(struct dw_edma_chip *chip)
 	pm_runtime_disable(dev);
 
 	list_for_each_entry_safe(chan, _chan, &dw->wr_edma.channels,
-				 vc.chan.device_node) {
-		list_del(&chan->vc.chan.device_node);
+				 vc.chan.device_yesde) {
+		list_del(&chan->vc.chan.device_yesde);
 		tasklet_kill(&chan->vc.task);
 	}
 
 	list_for_each_entry_safe(chan, _chan, &dw->rd_edma.channels,
-				 vc.chan.device_node) {
-		list_del(&chan->vc.chan.device_node);
+				 vc.chan.device_yesde) {
+		list_del(&chan->vc.chan.device_yesde);
 		tasklet_kill(&chan->vc.task);
 	}
 
@@ -933,5 +933,5 @@ int dw_edma_remove(struct dw_edma_chip *chip)
 EXPORT_SYMBOL_GPL(dw_edma_remove);
 
 MODULE_LICENSE("GPL v2");
-MODULE_DESCRIPTION("Synopsys DesignWare eDMA controller core driver");
-MODULE_AUTHOR("Gustavo Pimentel <gustavo.pimentel@synopsys.com>");
+MODULE_DESCRIPTION("Syyespsys DesignWare eDMA controller core driver");
+MODULE_AUTHOR("Gustavo Pimentel <gustavo.pimentel@syyespsys.com>");

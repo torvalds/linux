@@ -250,9 +250,9 @@ static void mcp251x_clean(struct net_device *net)
 }
 
 /* Note about handling of error return of mcp251x_spi_trans: accessing
- * registers via SPI is not really different conceptually than using
- * normal I/O assembler instructions, although it's much more
- * complicated from a practical POV. So it's not advisable to always
+ * registers via SPI is yest really different conceptually than using
+ * yesrmal I/O assembler instructions, although it's much more
+ * complicated from a practical POV. So it's yest advisable to always
  * check the return value of this function. Imagine that every
  * read{b,l}, write{b,l} and friends would be bracketed in "if ( < 0)
  * error();", it would be a great mess (well there are some situation
@@ -423,7 +423,7 @@ static void mcp251x_hw_rx(struct spi_device *spi, int buf_idx)
 
 	skb = alloc_can_skb(priv->net, &frame);
 	if (!skb) {
-		dev_err(&spi->dev, "cannot allocate RX skb\n");
+		dev_err(&spi->dev, "canyest allocate RX skb\n");
 		priv->net->stats.rx_dropped++;
 		return;
 	}
@@ -543,7 +543,7 @@ static int mcp251x_do_set_mode(struct net_device *net, enum can_mode mode)
 	return 0;
 }
 
-static int mcp251x_set_normal_mode(struct spi_device *spi)
+static int mcp251x_set_yesrmal_mode(struct spi_device *spi)
 {
 	struct mcp251x_priv *priv = spi_get_drvdata(spi);
 	unsigned long timeout;
@@ -560,15 +560,15 @@ static int mcp251x_set_normal_mode(struct spi_device *spi)
 		/* Put device into listen-only mode */
 		mcp251x_write_reg(spi, CANCTRL, CANCTRL_REQOP_LISTEN_ONLY);
 	} else {
-		/* Put device into normal mode */
+		/* Put device into yesrmal mode */
 		mcp251x_write_reg(spi, CANCTRL, CANCTRL_REQOP_NORMAL);
 
-		/* Wait for the device to enter normal mode */
+		/* Wait for the device to enter yesrmal mode */
 		timeout = jiffies + HZ;
 		while (mcp251x_read_reg(spi, CANSTAT) & CANCTRL_REQOP_MASK) {
 			schedule();
 			if (time_after(jiffies, timeout)) {
-				dev_err(&spi->dev, "MCP251x didn't enter in normal mode\n");
+				dev_err(&spi->dev, "MCP251x didn't enter in yesrmal mode\n");
 				return -EBUSY;
 			}
 		}
@@ -719,7 +719,7 @@ static void mcp251x_error_skb(struct net_device *net, int can_id, int data1)
 		frame->data[1] = data1;
 		netif_rx_ni(skb);
 	} else {
-		netdev_err(net, "cannot allocate error skb\n");
+		netdev_err(net, "canyest allocate error skb\n");
 	}
 }
 
@@ -766,11 +766,11 @@ static void mcp251x_restart_work_handler(struct work_struct *ws)
 		}
 		priv->force_quit = 0;
 		if (priv->after_suspend & AFTER_SUSPEND_RESTART) {
-			mcp251x_set_normal_mode(spi);
+			mcp251x_set_yesrmal_mode(spi);
 		} else if (priv->after_suspend & AFTER_SUSPEND_UP) {
 			netif_device_attach(net);
 			mcp251x_clean(net);
-			mcp251x_set_normal_mode(spi);
+			mcp251x_set_yesrmal_mode(spi);
 			netif_wake_queue(net);
 		} else {
 			mcp251x_hw_sleep(spi);
@@ -940,7 +940,7 @@ static int mcp251x_open(struct net_device *net)
 	priv->tx_skb = NULL;
 	priv->tx_len = 0;
 
-	if (!dev_fwnode(&spi->dev))
+	if (!dev_fwyesde(&spi->dev))
 		flags = IRQF_TRIGGER_FALLING;
 
 	ret = request_threaded_irq(spi->irq, NULL, mcp251x_can_ist,
@@ -966,7 +966,7 @@ static int mcp251x_open(struct net_device *net)
 	ret = mcp251x_setup(net, spi);
 	if (ret)
 		goto out_free_wq;
-	ret = mcp251x_set_normal_mode(spi);
+	ret = mcp251x_set_yesrmal_mode(spi);
 	if (ret)
 		goto out_free_wq;
 
@@ -1119,11 +1119,11 @@ static int mcp251x_can_probe(struct spi_device *spi)
 
 	SET_NETDEV_DEV(net, &spi->dev);
 
-	/* Here is OK to not lock the MCP, no one knows about it yet */
+	/* Here is OK to yest lock the MCP, yes one kyesws about it yet */
 	ret = mcp251x_hw_probe(spi);
 	if (ret) {
 		if (ret == -ENODEV)
-			dev_err(&spi->dev, "Cannot initialize MCP%x. Wrong wiring?\n",
+			dev_err(&spi->dev, "Canyest initialize MCP%x. Wrong wiring?\n",
 				priv->model);
 		goto error_probe;
 	}
@@ -1176,8 +1176,8 @@ static int __maybe_unused mcp251x_can_suspend(struct device *dev)
 
 	priv->force_quit = 1;
 	disable_irq(spi->irq);
-	/* Note: at this point neither IST nor workqueues are running.
-	 * open/stop cannot be called anyway so locking is not needed
+	/* Note: at this point neither IST yesr workqueues are running.
+	 * open/stop canyest be called anyway so locking is yest needed
 	 */
 	if (netif_running(net)) {
 		netif_device_detach(net);

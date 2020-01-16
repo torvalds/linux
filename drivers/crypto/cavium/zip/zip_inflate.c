@@ -14,14 +14,14 @@
  * conditions are met:
  *
  *  * Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  *
  *  * Redistributions in binary form must reproduce the above
- *    copyright notice, this list of conditions and the following
+ *    copyright yestice, this list of conditions and the following
  *    disclaimer in the documentation and/or other materials provided
  *    with the distribution.
  *
- *  * Neither the name of Cavium Inc. nor the names of its contributors may be
+ *  * Neither the name of Cavium Inc. yesr the names of its contributors may be
  *    used to endorse or promote products derived from this software without
  *    specific prior written permission.
  *
@@ -59,7 +59,7 @@ static int prepare_inflate_zcmd(struct zip_operation *zip_ops,
 
 	/* IWORD#0 */
 
-	/* Decompression History Gather list - no gather list */
+	/* Decompression History Gather list - yes gather list */
 	zip_cmd->s.hg = 0;
 	/* For decompression, CE must be 0x0. */
 	zip_cmd->s.ce = 0;
@@ -152,7 +152,7 @@ int zip_inflate(struct zip_operation *zip_ops, struct zip_state *s,
 	zip_ops->compcode = result_ptr->s.compcode;
 	switch (zip_ops->compcode) {
 	case ZIP_CMD_NOTDONE:
-		zip_dbg("Zip Instruction not yet completed\n");
+		zip_dbg("Zip Instruction yest yet completed\n");
 		return ZIP_ERROR;
 
 	case ZIP_CMD_SUCCESS:

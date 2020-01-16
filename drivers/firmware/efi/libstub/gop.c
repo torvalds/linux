@@ -106,8 +106,8 @@ setup_gop32(efi_system_table_t *sys_table_arg, struct screen_info *si,
 	for (i = 0; i < nr_gops; i++) {
 		struct efi_graphics_output_protocol_mode_32 *mode;
 		struct efi_graphics_output_mode_info *info = NULL;
-		efi_guid_t conout_proto = EFI_CONSOLE_OUT_DEVICE_GUID;
-		bool conout_found = false;
+		efi_guid_t coyesut_proto = EFI_CONSOLE_OUT_DEVICE_GUID;
+		bool coyesut_found = false;
 		void *dummy = NULL;
 		efi_handle_t h = (efi_handle_t)(unsigned long)handles[i];
 		u64 current_fb_base;
@@ -118,19 +118,19 @@ setup_gop32(efi_system_table_t *sys_table_arg, struct screen_info *si,
 			continue;
 
 		status = efi_call_early(handle_protocol, h,
-					&conout_proto, &dummy);
+					&coyesut_proto, &dummy);
 		if (status == EFI_SUCCESS)
-			conout_found = true;
+			coyesut_found = true;
 
 		mode = (void *)(unsigned long)gop32->mode;
 		info = (void *)(unsigned long)mode->info;
 		current_fb_base = mode->frame_buffer_base;
 
-		if ((!first_gop || conout_found) &&
+		if ((!first_gop || coyesut_found) &&
 		    info->pixel_format != PIXEL_BLT_ONLY) {
 			/*
 			 * Systems that use the UEFI Console Splitter may
-			 * provide multiple GOP devices, not all of which are
+			 * provide multiple GOP devices, yest all of which are
 			 * backed by real hardware. The workaround is to search
 			 * for a GOP implementing the ConOut protocol, and if
 			 * one isn't found, to just fall back to the first GOP.
@@ -147,7 +147,7 @@ setup_gop32(efi_system_table_t *sys_table_arg, struct screen_info *si,
 			 * don't bother looking any further.
 			 */
 			first_gop = gop32;
-			if (conout_found)
+			if (coyesut_found)
 				break;
 		}
 	}
@@ -203,8 +203,8 @@ setup_gop64(efi_system_table_t *sys_table_arg, struct screen_info *si,
 	for (i = 0; i < nr_gops; i++) {
 		struct efi_graphics_output_protocol_mode_64 *mode;
 		struct efi_graphics_output_mode_info *info = NULL;
-		efi_guid_t conout_proto = EFI_CONSOLE_OUT_DEVICE_GUID;
-		bool conout_found = false;
+		efi_guid_t coyesut_proto = EFI_CONSOLE_OUT_DEVICE_GUID;
+		bool coyesut_found = false;
 		void *dummy = NULL;
 		efi_handle_t h = (efi_handle_t)(unsigned long)handles[i];
 		u64 current_fb_base;
@@ -215,19 +215,19 @@ setup_gop64(efi_system_table_t *sys_table_arg, struct screen_info *si,
 			continue;
 
 		status = efi_call_early(handle_protocol, h,
-					&conout_proto, &dummy);
+					&coyesut_proto, &dummy);
 		if (status == EFI_SUCCESS)
-			conout_found = true;
+			coyesut_found = true;
 
 		mode = (void *)(unsigned long)gop64->mode;
 		info = (void *)(unsigned long)mode->info;
 		current_fb_base = mode->frame_buffer_base;
 
-		if ((!first_gop || conout_found) &&
+		if ((!first_gop || coyesut_found) &&
 		    info->pixel_format != PIXEL_BLT_ONLY) {
 			/*
 			 * Systems that use the UEFI Console Splitter may
-			 * provide multiple GOP devices, not all of which are
+			 * provide multiple GOP devices, yest all of which are
 			 * backed by real hardware. The workaround is to search
 			 * for a GOP implementing the ConOut protocol, and if
 			 * one isn't found, to just fall back to the first GOP.
@@ -244,7 +244,7 @@ setup_gop64(efi_system_table_t *sys_table_arg, struct screen_info *si,
 			 * don't bother looking any further.
 			 */
 			first_gop = gop64;
-			if (conout_found)
+			if (coyesut_found)
 				break;
 		}
 	}

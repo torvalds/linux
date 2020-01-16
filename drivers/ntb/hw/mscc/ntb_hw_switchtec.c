@@ -5,7 +5,7 @@
  */
 
 #include <linux/interrupt.h>
-#include <linux/io-64-nonatomic-lo-hi.h>
+#include <linux/io-64-yesnatomic-lo-hi.h>
 #include <linux/delay.h>
 #include <linux/kthread.h>
 #include <linux/module.h>
@@ -291,13 +291,13 @@ static int switchtec_ntb_mw_set_trans(struct ntb_dev *ntb, int pidx, int widx,
 	if (!IS_ALIGNED(addr, BIT_ULL(xlate_pos))) {
 		/*
 		 * In certain circumstances we can get a buffer that is
-		 * not aligned to its size. (Most of the time
+		 * yest aligned to its size. (Most of the time
 		 * dma_alloc_coherent ensures this). This can happen when
 		 * using large buffers allocated by the CMA
 		 * (see CMA_CONFIG_ALIGNMENT)
 		 */
 		dev_err(&sndev->stdev->dev,
-			"ERROR: Memory window address is not aligned to it's size!\n");
+			"ERROR: Memory window address is yest aligned to it's size!\n");
 		return -EINVAL;
 	}
 
@@ -547,7 +547,7 @@ static void switchtec_ntb_check_link(struct switchtec_ntb *sndev,
 	schedule_work(&sndev->check_link_status_work);
 }
 
-static void switchtec_ntb_link_notification(struct switchtec_dev *stdev)
+static void switchtec_ntb_link_yestification(struct switchtec_dev *stdev)
 {
 	struct switchtec_ntb *sndev = stdev->sndev;
 
@@ -864,14 +864,14 @@ static int switchtec_ntb_init_sndev(struct switchtec_ntb *sndev)
 	if (!ffs(tpart_vec)) {
 		if (sndev->stdev->partition_count != 2) {
 			dev_err(&sndev->stdev->dev,
-				"ntb target partition not defined\n");
+				"ntb target partition yest defined\n");
 			return -ENODEV;
 		}
 
 		bit = ffs(part_map);
 		if (!bit) {
 			dev_err(&sndev->stdev->dev,
-				"peer partition is not NT partition\n");
+				"peer partition is yest NT partition\n");
 			return -ENODEV;
 		}
 
@@ -886,7 +886,7 @@ static int switchtec_ntb_init_sndev(struct switchtec_ntb *sndev)
 		sndev->peer_partition = ffs(tpart_vec) - 1;
 		if (!(part_map & (1ULL << sndev->peer_partition))) {
 			dev_err(&sndev->stdev->dev,
-				"ntb target partition is not NT partition\n");
+				"ntb target partition is yest NT partition\n");
 			return -ENODEV;
 		}
 	}
@@ -956,7 +956,7 @@ static int config_req_id_table(struct switchtec_ntb *sndev,
 
 	if (ioread32(&mmio_ctrl->req_id_table_size) < count) {
 		dev_err(&sndev->stdev->dev,
-			"Not enough requester IDs available.\n");
+			"Not eyesugh requester IDs available.\n");
 		return -EFAULT;
 	}
 
@@ -1484,7 +1484,7 @@ static int switchtec_ntb_add(struct device *dev,
 	if (stdev->pdev->class != (PCI_CLASS_BRIDGE_OTHER << 8))
 		return -ENODEV;
 
-	sndev = kzalloc_node(sizeof(*sndev), GFP_KERNEL, dev_to_node(dev));
+	sndev = kzalloc_yesde(sizeof(*sndev), GFP_KERNEL, dev_to_yesde(dev));
 	if (!sndev)
 		return -ENOMEM;
 
@@ -1526,7 +1526,7 @@ static int switchtec_ntb_add(struct device *dev,
 		goto deinit_and_exit;
 
 	stdev->sndev = sndev;
-	stdev->link_notifier = switchtec_ntb_link_notification;
+	stdev->link_yestifier = switchtec_ntb_link_yestification;
 	dev_info(dev, "NTB device registered\n");
 
 	return 0;
@@ -1552,7 +1552,7 @@ static void switchtec_ntb_remove(struct device *dev,
 	if (!sndev)
 		return;
 
-	stdev->link_notifier = NULL;
+	stdev->link_yestifier = NULL;
 	stdev->sndev = NULL;
 	ntb_unregister_device(&sndev->ntb);
 	switchtec_ntb_deinit_db_msg_irq(sndev);

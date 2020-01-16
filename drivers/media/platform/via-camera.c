@@ -50,7 +50,7 @@ MODULE_PARM_DESC(flip_image,
 static bool override_serial;
 module_param(override_serial, bool, 0444);
 MODULE_PARM_DESC(override_serial,
-		"The camera driver will normally refuse to load if the XO 1.5 serial port is enabled.  Set this option to force-enable the camera.");
+		"The camera driver will yesrmally refuse to load if the XO 1.5 serial port is enabled.  Set this option to force-enable the camera.");
 
 /*
  * The structure describing our camera.
@@ -111,7 +111,7 @@ struct via_buffer {
 
 /*
  * Yes, this is a hack, but there's only going to be one of these
- * on any system we know of.
+ * on any system we kyesw of.
  */
 static struct via_camera *via_cam_info;
 
@@ -141,8 +141,8 @@ static struct via_camera *via_cam_info;
 /*
  * Format handling.  This is ripped almost directly from Hans's changes
  * to cafe_ccic.c.  It's a little unfortunate; until this change, we
- * didn't need to know anything about the format except its byte depth;
- * now this information must be managed at this level too.
+ * didn't need to kyesw anything about the format except its byte depth;
+ * yesw this information must be managed at this level too.
  */
 static struct via_format {
 	__u32 pixelformat;
@@ -348,7 +348,7 @@ static irqreturn_t viacam_irq(int irq, void *data)
 
 	mutex_lock(&cam->lock);
 	/*
-	 * If there is no place to put the data frame, don't bother
+	 * If there is yes place to put the data frame, don't bother
 	 * with anything else.
 	 */
 	vb = viacam_next_buffer(cam);
@@ -362,7 +362,7 @@ static irqreturn_t viacam_irq(int irq, void *data)
 	if (bufn < 0)
 		bufn = cam->n_cap_bufs - 1;
 	/*
-	 * Copy over the data and let any waiters know.
+	 * Copy over the data and let any waiters kyesw.
 	 */
 	sgt = vb2_dma_sg_plane_desc(&vb->vbuf.vb2_buf, 0);
 	vb->vbuf.vb2_buf.timestamp = ktime_get_ns();
@@ -1084,7 +1084,7 @@ static struct viafb_pm_hooks viacam_pm_hooks = {
 
 static const struct video_device viacam_v4l_template = {
 	.name		= "via-camera",
-	.minor		= -1,
+	.miyesr		= -1,
 	.fops		= &viacam_fops,
 	.ioctl_ops	= &viacam_ioctl_ops,
 	.release	= video_device_release_empty, /* Check this */
@@ -1096,7 +1096,7 @@ static const struct video_device viacam_v4l_template = {
  * The OLPC folks put the serial port on the same pin as
  * the camera.	They also get grumpy if we break the
  * serial port and keep them from using it.  So we have
- * to check the serial enable bit and not step on it.
+ * to check the serial enable bit and yest step on it.
  */
 #define VIACAM_SERIAL_DEVFN 0x88
 #define VIACAM_SERIAL_CREG 0x46
@@ -1127,7 +1127,7 @@ static bool viacam_serial_is_enabled(void)
 }
 
 static struct ov7670_config sensor_cfg = {
-	/* The XO-1.5 (only known user) clocks the camera at 90MHz. */
+	/* The XO-1.5 (only kyeswn user) clocks the camera at 90MHz. */
 	.clock_speed = 90,
 };
 
@@ -1145,8 +1145,8 @@ static int viacam_probe(struct platform_device *pdev)
 
 	/*
 	 * Note that there are actually two capture channels on
-	 * the device.	We only deal with one for now.	That
-	 * is encoded here; nothing else assumes it's dealing with
+	 * the device.	We only deal with one for yesw.	That
+	 * is encoded here; yesthing else assumes it's dealing with
 	 * a unique capture device.
 	 */
 	struct via_camera *cam;
@@ -1164,7 +1164,7 @@ static int viacam_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 	if (viadev->engine_mmio == NULL) {
-		printk(KERN_ERR "viacam: No I/O memory, so no pictures\n");
+		printk(KERN_ERR "viacam: No I/O memory, so yes pictures\n");
 		return -ENOMEM;
 	}
 

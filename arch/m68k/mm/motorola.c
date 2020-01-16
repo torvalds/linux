@@ -37,7 +37,7 @@
 
 #ifndef mm_cachebits
 /*
- * Bits to add to page descriptors for "normal" caching mode.
+ * Bits to add to page descriptors for "yesrmal" caching mode.
  * For 68020/030 this is 0.
  * For 68040, this is _PAGE_CACHE040 (cachable, copyback)
  */
@@ -62,7 +62,7 @@ static pte_t * __init kernel_page_table(void)
 	clear_page(ptablep);
 	__flush_page_to_ram(ptablep);
 	flush_tlb_kernel_page(ptablep);
-	nocache_page(ptablep);
+	yescache_page(ptablep);
 
 	return ptablep;
 }
@@ -108,13 +108,13 @@ static pmd_t * __init kernel_ptr_table(void)
 		clear_page(last_pgtable);
 		__flush_page_to_ram(last_pgtable);
 		flush_tlb_kernel_page(last_pgtable);
-		nocache_page(last_pgtable);
+		yescache_page(last_pgtable);
 	}
 
 	return last_pgtable;
 }
 
-static void __init map_node(int node)
+static void __init map_yesde(int yesde)
 {
 #define PTRTREESIZE (256*1024)
 #define ROOTTREESIZE (32*1024*1024)
@@ -125,8 +125,8 @@ static void __init map_node(int node)
 	pmd_t *pmd_dir;
 	pte_t *pte_dir;
 
-	size = m68k_memory[node].size;
-	physaddr = m68k_memory[node].addr;
+	size = m68k_memory[yesde].size;
+	physaddr = m68k_memory[yesde].addr;
 	virtaddr = (unsigned long)phys_to_virt(physaddr);
 	physaddr |= m68k_supervisor_cachemode |
 		    _PAGE_PRESENT | _PAGE_ACCESSED | _PAGE_DIRTY;
@@ -243,7 +243,7 @@ void __init paging_init(void)
 	memblock_add(m68k_memory[0].addr, m68k_memory[0].size);
 	for (i = 1; i < m68k_num_memory;) {
 		if (m68k_memory[i].addr < min_addr) {
-			printk("Ignoring memory chunk at 0x%lx:0x%lx before the first chunk\n",
+			printk("Igyesring memory chunk at 0x%lx:0x%lx before the first chunk\n",
 				m68k_memory[i].addr, m68k_memory[i].size);
 			printk("Fix your bootloader or use a memfile to make use of this area!\n");
 			m68k_num_memory--;
@@ -258,7 +258,7 @@ void __init paging_init(void)
 		i++;
 	}
 	m68k_memoffset = min_addr - PAGE_OFFSET;
-	m68k_virt_to_node_shift = fls(max_addr - min_addr - 1) - 6;
+	m68k_virt_to_yesde_shift = fls(max_addr - min_addr - 1) - 6;
 
 	module_fixup(NULL, __start_fixup, __stop_fixup);
 	flush_icache();
@@ -273,14 +273,14 @@ void __init paging_init(void)
 
 	/*
 	 * Map the physical memory available into the kernel virtual
-	 * address space. Make sure memblock will not try to allocate
+	 * address space. Make sure memblock will yest try to allocate
 	 * pages beyond the memory we already mapped in head.S
 	 */
 	memblock_set_bottom_up(true);
 
 	for (i = 0; i < m68k_num_memory; i++) {
-		m68k_setup_node(i);
-		map_node(i);
+		m68k_setup_yesde(i);
+		map_yesde(i);
 	}
 
 	flush_tlb_all();
@@ -304,9 +304,9 @@ void __init paging_init(void)
 #endif
 	for (i = 0; i < m68k_num_memory; i++) {
 		zones_size[ZONE_DMA] = m68k_memory[i].size >> PAGE_SHIFT;
-		free_area_init_node(i, zones_size,
+		free_area_init_yesde(i, zones_size,
 				    m68k_memory[i].addr >> PAGE_SHIFT, NULL);
-		if (node_present_pages(i))
-			node_set_state(i, N_NORMAL_MEMORY);
+		if (yesde_present_pages(i))
+			yesde_set_state(i, N_NORMAL_MEMORY);
 	}
 }

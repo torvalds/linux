@@ -46,7 +46,7 @@ struct panel_drv_data {
 
 	struct omap_video_timings videomode;
 
-	/* used for non-DT boot, to be removed */
+	/* used for yesn-DT boot, to be removed */
 	int backlight_gpio;
 
 	struct gpio_desc *enable_gpio;
@@ -238,7 +238,7 @@ static struct omap_dss_driver lb035q02_ops = {
 
 static int lb035q02_probe_of(struct spi_device *spi)
 {
-	struct device_node *node = spi->dev.of_node;
+	struct device_yesde *yesde = spi->dev.of_yesde;
 	struct panel_drv_data *ddata = dev_get_drvdata(&spi->dev);
 	struct omap_dss_device *in;
 	struct gpio_desc *gpio;
@@ -253,7 +253,7 @@ static int lb035q02_probe_of(struct spi_device *spi)
 
 	ddata->backlight_gpio = -ENOENT;
 
-	in = omapdss_of_find_source_for_first_ep(node);
+	in = omapdss_of_find_source_for_first_ep(yesde);
 	if (IS_ERR(in)) {
 		dev_err(&spi->dev, "failed to find video source\n");
 		return PTR_ERR(in);
@@ -270,7 +270,7 @@ static int lb035q02_panel_spi_probe(struct spi_device *spi)
 	struct omap_dss_device *dssdev;
 	int r;
 
-	if (!spi->dev.of_node)
+	if (!spi->dev.of_yesde)
 		return -ENODEV;
 
 	ddata = devm_kzalloc(&spi->dev, sizeof(*ddata), GFP_KERNEL);

@@ -5,7 +5,7 @@
 // Copyright: (C) 2013 Petr Strnad.
 // URL: http://coccinelle.lip6.fr/
 // Keywords: pci_free_consistent, pci_alloc_consistent
-// Options: --no-includes --include-headers
+// Options: --yes-includes --include-headers
 
 virtual report
 virtual org

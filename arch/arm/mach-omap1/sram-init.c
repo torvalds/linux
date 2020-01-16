@@ -25,8 +25,8 @@
 
 /*
  * The amount of SRAM depends on the core type.
- * Note that we cannot try to test for SRAM here because writes
- * to secure SRAM will hang the system. Also the SRAM is not
+ * Note that we canyest try to test for SRAM here because writes
+ * to secure SRAM will hang the system. Also the SRAM is yest
  * yet mapped at this point.
  */
 static void __init omap_detect_and_map_sram(void)
@@ -43,7 +43,7 @@ static void __init omap_detect_and_map_sram(void)
 			cpu_is_omap1621() || cpu_is_omap1710())
 		omap_sram_size = 0x4000;	/* 16K */
 	else {
-		pr_err("Could not detect SRAM size\n");
+		pr_err("Could yest detect SRAM size\n");
 		omap_sram_size = 0x4000;
 	}
 

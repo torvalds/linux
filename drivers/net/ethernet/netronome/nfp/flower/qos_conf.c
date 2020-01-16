@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
-/* Copyright (C) 2019 Netronome Systems, Inc. */
+/* Copyright (C) 2019 Netroyesme Systems, Inc. */
 
 #include <linux/math64.h>
 #include <net/pkt_cls.h>
@@ -72,19 +72,19 @@ nfp_flower_install_rate_limiter(struct nfp_app *app, struct net_device *netdev,
 	u64 burst, rate;
 
 	if (!nfp_netdev_is_nfp_repr(netdev)) {
-		NL_SET_ERR_MSG_MOD(extack, "unsupported offload: qos rate limit offload not supported on higher level port");
+		NL_SET_ERR_MSG_MOD(extack, "unsupported offload: qos rate limit offload yest supported on higher level port");
 		return -EOPNOTSUPP;
 	}
 	repr = netdev_priv(netdev);
 	repr_priv = repr->app_priv;
 
 	if (repr_priv->block_shared) {
-		NL_SET_ERR_MSG_MOD(extack, "unsupported offload: qos rate limit offload not supported on shared blocks");
+		NL_SET_ERR_MSG_MOD(extack, "unsupported offload: qos rate limit offload yest supported on shared blocks");
 		return -EOPNOTSUPP;
 	}
 
 	if (repr->port->type != NFP_PORT_VF_PORT) {
-		NL_SET_ERR_MSG_MOD(extack, "unsupported offload: qos rate limit offload not supported on non-VF ports");
+		NL_SET_ERR_MSG_MOD(extack, "unsupported offload: qos rate limit offload yest supported on yesn-VF ports");
 		return -EOPNOTSUPP;
 	}
 
@@ -146,7 +146,7 @@ nfp_flower_remove_rate_limiter(struct nfp_app *app, struct net_device *netdev,
 	u32 netdev_port_id;
 
 	if (!nfp_netdev_is_nfp_repr(netdev)) {
-		NL_SET_ERR_MSG_MOD(extack, "unsupported offload: qos rate limit offload not supported on higher level port");
+		NL_SET_ERR_MSG_MOD(extack, "unsupported offload: qos rate limit offload yest supported on higher level port");
 		return -EOPNOTSUPP;
 	}
 	repr = netdev_priv(netdev);
@@ -155,7 +155,7 @@ nfp_flower_remove_rate_limiter(struct nfp_app *app, struct net_device *netdev,
 	repr_priv = repr->app_priv;
 
 	if (!repr_priv->qos_table.netdev_port_id) {
-		NL_SET_ERR_MSG_MOD(extack, "unsupported offload: cannot remove qos entry that does not exist");
+		NL_SET_ERR_MSG_MOD(extack, "unsupported offload: canyest remove qos entry that does yest exist");
 		return -EOPNOTSUPP;
 	}
 
@@ -299,14 +299,14 @@ nfp_flower_stats_rate_limiter(struct nfp_app *app, struct net_device *netdev,
 	struct nfp_repr *repr;
 
 	if (!nfp_netdev_is_nfp_repr(netdev)) {
-		NL_SET_ERR_MSG_MOD(extack, "unsupported offload: qos rate limit offload not supported on higher level port");
+		NL_SET_ERR_MSG_MOD(extack, "unsupported offload: qos rate limit offload yest supported on higher level port");
 		return -EOPNOTSUPP;
 	}
 	repr = netdev_priv(netdev);
 
 	repr_priv = repr->app_priv;
 	if (!repr_priv->qos_table.netdev_port_id) {
-		NL_SET_ERR_MSG_MOD(extack, "unsupported offload: cannot find qos entry for stats update");
+		NL_SET_ERR_MSG_MOD(extack, "unsupported offload: canyest find qos entry for stats update");
 		return -EOPNOTSUPP;
 	}
 
@@ -346,7 +346,7 @@ int nfp_flower_setup_qos_offload(struct nfp_app *app, struct net_device *netdev,
 	struct nfp_flower_priv *fl_priv = app->priv;
 
 	if (!(fl_priv->flower_ext_feats & NFP_FL_FEATS_VF_RLIM)) {
-		NL_SET_ERR_MSG_MOD(extack, "unsupported offload: loaded firmware does not support qos rate limit offload");
+		NL_SET_ERR_MSG_MOD(extack, "unsupported offload: loaded firmware does yest support qos rate limit offload");
 		return -EOPNOTSUPP;
 	}
 

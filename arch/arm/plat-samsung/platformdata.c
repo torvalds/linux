@@ -18,8 +18,8 @@ void __init *s3c_set_platdata(void *pd, size_t pdsize,
 	void *npd;
 
 	if (!pd) {
-		/* too early to use dev_name(), may not be registered */
-		printk(KERN_ERR "%s: no platform data supplied\n", pdev->name);
+		/* too early to use dev_name(), may yest be registered */
+		printk(KERN_ERR "%s: yes platform data supplied\n", pdev->name);
 		return NULL;
 	}
 

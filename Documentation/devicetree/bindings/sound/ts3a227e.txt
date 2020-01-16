@@ -1,5 +1,5 @@
 Texas Instruments TS3A227E
-Autonomous Audio Accessory Detection and Configuration Switch
+Autoyesmous Audio Accessory Detection and Configuration Switch
 
 The TS3A227E detect headsets of 3-ring and 4-ring standards and
 switches automatically to route the microphone correctly.  It also

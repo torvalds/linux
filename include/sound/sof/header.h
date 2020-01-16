@@ -23,10 +23,10 @@
  * 0xGCCCNNNN where
  * G is global cmd type (4 bits)
  * C is command type (12 bits)
- * I is the ID number (16 bits) - monotonic and overflows
+ * I is the ID number (16 bits) - moyestonic and overflows
  *
  * This is sent at the start of the IPM message in the mailbox. Messages should
- * not be sent in the doorbell (special exceptions for firmware .
+ * yest be sent in the doorbell (special exceptions for firmware .
  */
 
 /* Global Message - Generic */

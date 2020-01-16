@@ -46,7 +46,7 @@ do
 	then
 		if [ -z "$bad_branches" ]; then
 			echo "WARNING: Unrelocated relative branches"
-			bad_branches="yes"
+			bad_branches="no"
 		fi
 		echo "$from $branch-> $to $sym"
 	fi

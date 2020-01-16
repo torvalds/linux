@@ -31,7 +31,7 @@ struct stat64 {
 	unsigned char		__pad0[4];
 
 #define STAT64_HAS_BROKEN_ST_INO	1
-	unsigned int		__st_ino;
+	unsigned int		__st_iyes;
 
 	unsigned int		st_mode;
 	unsigned int		st_nlink;
@@ -54,7 +54,7 @@ struct stat64 {
 	unsigned 		st_ctime;
 	unsigned 		st_ctime_nsec;
 
-	unsigned long long	st_ino;
+	unsigned long long	st_iyes;
 } __attribute__((packed));
 
 #define IA32_STACK_TOP IA32_PAGE_OFFSET

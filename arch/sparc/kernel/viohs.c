@@ -45,7 +45,7 @@ static void init_tag(struct vio_msg_tag *tag, u8 type, u8 stype, u16 stype_env)
 	tag->stype_env = stype_env;
 }
 
-static int send_version(struct vio_driver_state *vio, u16 major, u16 minor)
+static int send_version(struct vio_driver_state *vio, u16 major, u16 miyesr)
 {
 	struct vio_ver_info pkt;
 
@@ -54,11 +54,11 @@ static int send_version(struct vio_driver_state *vio, u16 major, u16 minor)
 	memset(&pkt, 0, sizeof(pkt));
 	init_tag(&pkt.tag, VIO_TYPE_CTRL, VIO_SUBTYPE_INFO, VIO_VER_INFO);
 	pkt.major = major;
-	pkt.minor = minor;
+	pkt.miyesr = miyesr;
 	pkt.dev_class = vio->dev_class;
 
 	viodbg(HS, "SEND VERSION INFO maj[%u] min[%u] devclass[%u]\n",
-	       major, minor, vio->dev_class);
+	       major, miyesr, vio->dev_class);
 
 	return send_ctrl(vio, &pkt.tag, sizeof(pkt));
 }
@@ -73,7 +73,7 @@ static int start_handshake(struct vio_driver_state *vio)
 
 	err = send_version(vio,
 			   vio->ver_table[0].major,
-			   vio->ver_table[0].minor);
+			   vio->ver_table[0].miyesr);
 	if (err < 0)
 		return err;
 
@@ -158,7 +158,7 @@ static int handshake_failure(struct vio_driver_state *vio)
 	return -ECONNRESET;
 }
 
-static int process_unknown(struct vio_driver_state *vio, void *arg)
+static int process_unkyeswn(struct vio_driver_state *vio, void *arg)
 {
 	struct vio_msg_tag *pkt = arg;
 
@@ -259,7 +259,7 @@ static int process_ver_info(struct vio_driver_state *vio,
 	int err;
 
 	viodbg(HS, "GOT VERSION INFO maj[%u] min[%u] devclass[%u]\n",
-	       pkt->major, pkt->minor, pkt->dev_class);
+	       pkt->major, pkt->miyesr, pkt->dev_class);
 
 	if (vio->hs_state != VIO_HS_INVALID) {
 		/* XXX Perhaps invoke start_handshake? XXX */
@@ -274,28 +274,28 @@ static int process_ver_info(struct vio_driver_state *vio,
 	if (!vap) {
 		pkt->tag.stype = VIO_SUBTYPE_NACK;
 		pkt->major = 0;
-		pkt->minor = 0;
+		pkt->miyesr = 0;
 		viodbg(HS, "SEND VERSION NACK maj[0] min[0]\n");
 		err = send_ctrl(vio, &pkt->tag, sizeof(*pkt));
 	} else if (vap->major != pkt->major) {
 		pkt->tag.stype = VIO_SUBTYPE_NACK;
 		pkt->major = vap->major;
-		pkt->minor = vap->minor;
+		pkt->miyesr = vap->miyesr;
 		viodbg(HS, "SEND VERSION NACK maj[%u] min[%u]\n",
-		       pkt->major, pkt->minor);
+		       pkt->major, pkt->miyesr);
 		err = send_ctrl(vio, &pkt->tag, sizeof(*pkt));
 	} else {
 		struct vio_version ver = {
 			.major = pkt->major,
-			.minor = pkt->minor,
+			.miyesr = pkt->miyesr,
 		};
-		if (ver.minor > vap->minor)
-			ver.minor = vap->minor;
-		pkt->minor = ver.minor;
+		if (ver.miyesr > vap->miyesr)
+			ver.miyesr = vap->miyesr;
+		pkt->miyesr = ver.miyesr;
 		pkt->tag.stype = VIO_SUBTYPE_ACK;
 		pkt->dev_class = vio->dev_class;
 		viodbg(HS, "SEND VERSION ACK maj[%u] min[%u]\n",
-		       pkt->major, pkt->minor);
+		       pkt->major, pkt->miyesr);
 		err = send_ctrl(vio, &pkt->tag, sizeof(*pkt));
 		if (err > 0) {
 			vio->ver = ver;
@@ -312,18 +312,18 @@ static int process_ver_ack(struct vio_driver_state *vio,
 			   struct vio_ver_info *pkt)
 {
 	viodbg(HS, "GOT VERSION ACK maj[%u] min[%u] devclass[%u]\n",
-	       pkt->major, pkt->minor, pkt->dev_class);
+	       pkt->major, pkt->miyesr, pkt->dev_class);
 
 	if (vio->hs_state & VIO_HS_GOTVERS) {
 		if (vio->ver.major != pkt->major ||
-		    vio->ver.minor != pkt->minor) {
+		    vio->ver.miyesr != pkt->miyesr) {
 			pkt->tag.stype = VIO_SUBTYPE_NACK;
 			(void) send_ctrl(vio, &pkt->tag, sizeof(*pkt));
 			return handshake_failure(vio);
 		}
 	} else {
 		vio->ver.major = pkt->major;
-		vio->ver.minor = pkt->minor;
+		vio->ver.miyesr = pkt->miyesr;
 		vio->hs_state = VIO_HS_GOTVERS;
 	}
 
@@ -347,15 +347,15 @@ static int process_ver_nack(struct vio_driver_state *vio,
 	struct vio_version *nver;
 
 	viodbg(HS, "GOT VERSION NACK maj[%u] min[%u] devclass[%u]\n",
-	       pkt->major, pkt->minor, pkt->dev_class);
+	       pkt->major, pkt->miyesr, pkt->dev_class);
 
-	if (pkt->major == 0 && pkt->minor == 0)
+	if (pkt->major == 0 && pkt->miyesr == 0)
 		return handshake_failure(vio);
 	nver = find_by_major(vio, pkt->major);
 	if (!nver)
 		return handshake_failure(vio);
 
-	if (send_version(vio, nver->major, nver->minor) < 0)
+	if (send_version(vio, nver->major, nver->miyesr) < 0)
 		return handshake_failure(vio);
 
 	return 0;
@@ -659,7 +659,7 @@ int vio_control_pkt_engine(struct vio_driver_state *vio, void *pkt)
 		break;
 
 	default:
-		err = process_unknown(vio, pkt);
+		err = process_unkyeswn(vio, pkt);
 		break;
 	}
 
@@ -696,7 +696,7 @@ int vio_validate_sid(struct vio_driver_state *vio, struct vio_msg_tag *tp)
 	    tp->stype_env == VIO_VER_INFO)
 		return 0;
 
-	/* Ok, now figure out which SID to use.  */
+	/* Ok, yesw figure out which SID to use.  */
 	switch (vio->dev_class) {
 	case VDEV_NETWORK:
 	case VDEV_NETWORK_SWITCH:

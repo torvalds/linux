@@ -483,7 +483,7 @@ static int ina3221_write_enable(struct device *dev, int channel, bool enable)
 
 	config = enable ? mask : 0;
 
-	/* Bypass if enable status is not being changed */
+	/* Bypass if enable status is yest being changed */
 	if (config_old == config)
 		return 0;
 
@@ -610,7 +610,7 @@ static umode_t ina3221_is_visible(const void *drvdata,
 			return 0;
 		}
 	case hwmon_in:
-		/* Ignore in0_ */
+		/* Igyesre in0_ */
 		if (channel == 0)
 			return 0;
 
@@ -620,7 +620,7 @@ static umode_t ina3221_is_visible(const void *drvdata,
 				input = &ina->inputs[channel - 1];
 			else if (channel == 7)
 				return 0444;
-			/* Hide label node if label is not provided */
+			/* Hide label yesde if label is yest provided */
 			return (input && input->label) ? 0444 : 0;
 		case hwmon_in_input:
 			return 0444;
@@ -739,15 +739,15 @@ static struct attribute *ina3221_attrs[] = {
 };
 ATTRIBUTE_GROUPS(ina3221);
 
-static const struct regmap_range ina3221_yes_ranges[] = {
+static const struct regmap_range ina3221_no_ranges[] = {
 	regmap_reg_range(INA3221_CONFIG, INA3221_BUS3),
 	regmap_reg_range(INA3221_SHUNT_SUM, INA3221_SHUNT_SUM),
 	regmap_reg_range(INA3221_MASK_ENABLE, INA3221_MASK_ENABLE),
 };
 
 static const struct regmap_access_table ina3221_volatile_table = {
-	.yes_ranges = ina3221_yes_ranges,
-	.n_yes_ranges = ARRAY_SIZE(ina3221_yes_ranges),
+	.no_ranges = ina3221_no_ranges,
+	.n_no_ranges = ARRAY_SIZE(ina3221_no_ranges),
 };
 
 static const struct regmap_config ina3221_regmap_config = {
@@ -759,7 +759,7 @@ static const struct regmap_config ina3221_regmap_config = {
 };
 
 static int ina3221_probe_child_from_dt(struct device *dev,
-				       struct device_node *child,
+				       struct device_yesde *child,
 				       struct ina3221_data *ina)
 {
 	struct ina3221_input *input;
@@ -801,20 +801,20 @@ static int ina3221_probe_child_from_dt(struct device *dev,
 
 static int ina3221_probe_from_dt(struct device *dev, struct ina3221_data *ina)
 {
-	const struct device_node *np = dev->of_node;
-	struct device_node *child;
+	const struct device_yesde *np = dev->of_yesde;
+	struct device_yesde *child;
 	int ret;
 
-	/* Compatible with non-DT platforms */
+	/* Compatible with yesn-DT platforms */
 	if (!np)
 		return 0;
 
 	ina->single_shot = of_property_read_bool(np, "ti,single-shot");
 
-	for_each_child_of_node(np, child) {
+	for_each_child_of_yesde(np, child) {
 		ret = ina3221_probe_child_from_dt(dev, child, ina);
 		if (ret) {
-			of_node_put(child);
+			of_yesde_put(child);
 			return ret;
 		}
 	}
@@ -906,9 +906,9 @@ static int ina3221_probe(struct i2c_client *client,
 fail:
 	pm_runtime_disable(ina->pm_dev);
 	pm_runtime_set_suspended(ina->pm_dev);
-	/* pm_runtime_put_noidle() will decrease the PM refcount until 0 */
+	/* pm_runtime_put_yesidle() will decrease the PM refcount until 0 */
 	for (i = 0; i < INA3221_NUM_CHANNELS; i++)
-		pm_runtime_put_noidle(ina->pm_dev);
+		pm_runtime_put_yesidle(ina->pm_dev);
 	mutex_destroy(&ina->lock);
 
 	return ret;
@@ -922,9 +922,9 @@ static int ina3221_remove(struct i2c_client *client)
 	pm_runtime_disable(ina->pm_dev);
 	pm_runtime_set_suspended(ina->pm_dev);
 
-	/* pm_runtime_put_noidle() will decrease the PM refcount until 0 */
+	/* pm_runtime_put_yesidle() will decrease the PM refcount until 0 */
 	for (i = 0; i < INA3221_NUM_CHANNELS; i++)
-		pm_runtime_put_noidle(ina->pm_dev);
+		pm_runtime_put_yesidle(ina->pm_dev);
 
 	mutex_destroy(&ina->lock);
 
@@ -983,7 +983,7 @@ static int __maybe_unused ina3221_resume(struct device *dev)
 		/*
 		 * Take all three channels into summation by default
 		 * Shunt measurements of disconnected channels should
-		 * be 0, so it does not matter for summation.
+		 * be 0, so it does yest matter for summation.
 		 */
 		ret = regmap_update_bits(ina->regmap, INA3221_MASK_ENABLE,
 					 INA3221_MASK_ENABLE_SCC_MASK,

@@ -64,7 +64,7 @@ static void mfd_acpi_add_device(const struct mfd_cell *cell,
 	/*
 	 * MFD child device gets its ACPI handle either from the ACPI device
 	 * directly under the parent that matches the either _HID or _CID, or
-	 * _ADR or it will use the parent handle if is no ID is given.
+	 * _ADR or it will use the parent handle if is yes ID is given.
 	 *
 	 * Note that use of _ADR is a grey area in the ACPI specification,
 	 * though Intel Galileo Gen2 is using it to distinguish the children
@@ -76,7 +76,7 @@ static void mfd_acpi_add_device(const struct mfd_cell *cell,
 			struct acpi_device_id ids[2] = {};
 
 			strlcpy(ids[0].id, match->pnpid, sizeof(ids[0].id));
-			list_for_each_entry(child, &parent->children, node) {
+			list_for_each_entry(child, &parent->children, yesde) {
 				if (!acpi_match_device_ids(child, ids)) {
 					adev = child;
 					break;
@@ -86,7 +86,7 @@ static void mfd_acpi_add_device(const struct mfd_cell *cell,
 			unsigned long long adr;
 			acpi_status status;
 
-			list_for_each_entry(child, &parent->children, node) {
+			list_for_each_entry(child, &parent->children, yesde) {
 				status = acpi_evaluate_integer(child->handle,
 							       "_ADR", NULL,
 							       &adr);
@@ -114,7 +114,7 @@ static int mfd_add_device(struct device *parent, int id,
 {
 	struct resource *res;
 	struct platform_device *pdev;
-	struct device_node *np = NULL;
+	struct device_yesde *np = NULL;
 	int ret = -ENOMEM;
 	int platform_id;
 	int r;
@@ -149,16 +149,16 @@ static int mfd_add_device(struct device *parent, int id,
 	if (ret < 0)
 		goto fail_res;
 
-	if (parent->of_node && cell->of_compatible) {
-		for_each_child_of_node(parent->of_node, np) {
+	if (parent->of_yesde && cell->of_compatible) {
+		for_each_child_of_yesde(parent->of_yesde, np) {
 			if (of_device_is_compatible(np, cell->of_compatible)) {
 				if (!of_device_is_available(np)) {
-					/* Ignore disabled devices error free */
+					/* Igyesre disabled devices error free */
 					ret = 0;
 					goto fail_alias;
 				}
-				pdev->dev.of_node = np;
-				pdev->dev.fwnode = &np->fwnode;
+				pdev->dev.of_yesde = np;
+				pdev->dev.fwyesde = &np->fwyesde;
 				break;
 			}
 		}
@@ -209,7 +209,7 @@ static int mfd_add_device(struct device *parent, int id,
 			res[r].end   = cell->resources[r].end;
 		}
 
-		if (!cell->ignore_resource_conflicts) {
+		if (!cell->igyesre_resource_conflicts) {
 			if (has_acpi_companion(&pdev->dev)) {
 				ret = acpi_check_resource_conflict(&res[r]);
 				if (ret)
@@ -226,8 +226,8 @@ static int mfd_add_device(struct device *parent, int id,
 	if (ret)
 		goto fail_alias;
 
-	if (cell->pm_runtime_no_callbacks)
-		pm_runtime_no_callbacks(&pdev->dev);
+	if (cell->pm_runtime_yes_callbacks)
+		pm_runtime_yes_callbacks(&pdev->dev);
 
 	kfree(res);
 

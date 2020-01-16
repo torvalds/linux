@@ -10,11 +10,11 @@
 #define _LINUX_NVMEM_CONSUMER_H
 
 #include <linux/err.h>
-#include <linux/errno.h>
-#include <linux/notifier.h>
+#include <linux/erryes.h>
+#include <linux/yestifier.h>
 
 struct device;
-struct device_node;
+struct device_yesde;
 /* consumer cookie */
 struct nvmem_cell;
 struct nvmem_device;
@@ -42,7 +42,7 @@ struct nvmem_cell_lookup {
 	const char		*cell_name;
 	const char		*dev_id;
 	const char		*con_id;
-	struct list_head	node;
+	struct list_head	yesde;
 };
 
 enum {
@@ -86,8 +86,8 @@ void nvmem_add_cell_lookups(struct nvmem_cell_lookup *entries,
 void nvmem_del_cell_lookups(struct nvmem_cell_lookup *entries,
 			    size_t nentries);
 
-int nvmem_register_notifier(struct notifier_block *nb);
-int nvmem_unregister_notifier(struct notifier_block *nb);
+int nvmem_register_yestifier(struct yestifier_block *nb);
+int nvmem_unregister_yestifier(struct yestifier_block *nb);
 
 struct nvmem_device *nvmem_device_find(void *data,
 			int (*match)(struct device *dev, const void *data));
@@ -197,12 +197,12 @@ nvmem_add_cell_lookups(struct nvmem_cell_lookup *entries, size_t nentries) {}
 static inline void
 nvmem_del_cell_lookups(struct nvmem_cell_lookup *entries, size_t nentries) {}
 
-static inline int nvmem_register_notifier(struct notifier_block *nb)
+static inline int nvmem_register_yestifier(struct yestifier_block *nb)
 {
 	return -EOPNOTSUPP;
 }
 
-static inline int nvmem_unregister_notifier(struct notifier_block *nb)
+static inline int nvmem_unregister_yestifier(struct yestifier_block *nb)
 {
 	return -EOPNOTSUPP;
 }
@@ -216,18 +216,18 @@ static inline struct nvmem_device *nvmem_device_find(void *data,
 #endif /* CONFIG_NVMEM */
 
 #if IS_ENABLED(CONFIG_NVMEM) && IS_ENABLED(CONFIG_OF)
-struct nvmem_cell *of_nvmem_cell_get(struct device_node *np,
+struct nvmem_cell *of_nvmem_cell_get(struct device_yesde *np,
 				     const char *id);
-struct nvmem_device *of_nvmem_device_get(struct device_node *np,
+struct nvmem_device *of_nvmem_device_get(struct device_yesde *np,
 					 const char *name);
 #else
-static inline struct nvmem_cell *of_nvmem_cell_get(struct device_node *np,
+static inline struct nvmem_cell *of_nvmem_cell_get(struct device_yesde *np,
 						   const char *id)
 {
 	return ERR_PTR(-EOPNOTSUPP);
 }
 
-static inline struct nvmem_device *of_nvmem_device_get(struct device_node *np,
+static inline struct nvmem_device *of_nvmem_device_get(struct device_yesde *np,
 						       const char *name)
 {
 	return ERR_PTR(-EOPNOTSUPP);

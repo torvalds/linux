@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -48,25 +48,25 @@ static void rds_ib_send_complete(struct rds_message *rm,
 				 int wc_status,
 				 void (*complete)(struct rds_message *rm, int status))
 {
-	int notify_status;
+	int yestify_status;
 
 	switch (wc_status) {
 	case IB_WC_WR_FLUSH_ERR:
 		return;
 
 	case IB_WC_SUCCESS:
-		notify_status = RDS_RDMA_SUCCESS;
+		yestify_status = RDS_RDMA_SUCCESS;
 		break;
 
 	case IB_WC_REM_ACCESS_ERR:
-		notify_status = RDS_RDMA_REMOTE_ERROR;
+		yestify_status = RDS_RDMA_REMOTE_ERROR;
 		break;
 
 	default:
-		notify_status = RDS_RDMA_OTHER_ERROR;
+		yestify_status = RDS_RDMA_OTHER_ERROR;
 		break;
 	}
-	complete(rm, notify_status);
+	complete(rm, yestify_status);
 }
 
 static void rds_ib_send_unmap_data(struct rds_ib_connection *ic,
@@ -90,11 +90,11 @@ static void rds_ib_send_unmap_rdma(struct rds_ib_connection *ic,
 		op->op_mapped = 0;
 	}
 
-	/* If the user asked for a completion notification on this
+	/* If the user asked for a completion yestification on this
 	 * message, we can implement three different semantics:
 	 *  1.	Notify when we received the ACK on the RDS message
 	 *	that was queued with the RDMA. This provides reliable
-	 *	notification of RDMA status at the expense of a one-way
+	 *	yestification of RDMA status at the expense of a one-way
 	 *	packet delay.
 	 *  2.	Notify when the IB stack gives us the completion event for
 	 *	the RDMA operation.
@@ -102,10 +102,10 @@ static void rds_ib_send_unmap_rdma(struct rds_ib_connection *ic,
 	 *	the accompanying RDS messages.
 	 * Here, we implement approach #3. To implement approach #2,
 	 * we would need to take an event for the rdma WR. To implement #1,
-	 * don't call rds_rdma_send_complete at all, and fall back to the notify
+	 * don't call rds_rdma_send_complete at all, and fall back to the yestify
 	 * handling in the ACK processing code.
 	 *
-	 * Note: There's no need to explicitly sync any RDMA buffers using
+	 * Note: There's yes need to explicitly sync any RDMA buffers using
 	 * ib_dma_sync_sg_for_cpu - the completion for the RDMA
 	 * operation itself unmapped the RDMA buffers, which takes care
 	 * of synching.
@@ -142,7 +142,7 @@ static void rds_ib_send_unmap_atomic(struct rds_ib_connection *ic,
 /*
  * Unmap the resources associated with a struct send_work.
  *
- * Returns the rm for no good reason other than it is unobtainable
+ * Returns the rm for yes good reason other than it is uyesbtainable
  * other than by switching on wr.opcode, currently, and the caller,
  * the event handler, needs it.
  */
@@ -222,7 +222,7 @@ void rds_ib_send_clear_ring(struct rds_ib_connection *ic)
 }
 
 /*
- * The only fast path caller always has a non-zero nr, so we don't
+ * The only fast path caller always has a yesn-zero nr, so we don't
  * bother testing nr before performing the atomic sub.
  */
 static void rds_ib_sub_signaled(struct rds_ib_connection *ic, int nr)
@@ -280,7 +280,7 @@ void rds_ib_send_cqe_handler(struct rds_ib_connection *ic, struct ib_wc *wc)
 		if (send->s_op) {
 			if (send->s_op == rm->m_final_op) {
 				/* If anyone waited for this message to get
-				 * flushed out, wake them up now
+				 * flushed out, wake them up yesw
 				 */
 				rds_message_unmapped(rm);
 			}
@@ -338,7 +338,7 @@ void rds_ib_send_cqe_handler(struct rds_ib_connection *ic, struct ib_wc *wc)
  *
  * In the send path, we need to update the counters for send credits
  * and the counter of posted buffers atomically - when we use the
- * last available credit, we cannot allow another thread to race us
+ * last available credit, we canyest allow ayesther thread to race us
  * and grab the posted credits counter.  Hence, we have to use a
  * spinlock to protect the credit counter, or use atomics.
  *
@@ -388,7 +388,7 @@ try_again:
 	newval -= IB_SET_SEND_CREDITS(got);
 
 	/*
-	 * If need_posted is non-zero, then the caller wants
+	 * If need_posted is yesn-zero, then the caller wants
 	 * the posted regardless of whether any send credits are
 	 * available.
 	 */
@@ -435,7 +435,7 @@ void rds_ib_advertise_credits(struct rds_connection *conn, unsigned int posted)
 
 	atomic_add(IB_SET_POST_CREDITS(posted), &ic->i_credits);
 
-	/* Decide whether to send an update to the peer now.
+	/* Decide whether to send an update to the peer yesw.
 	 * If we would send a credit update for every single buffer we
 	 * post, we would end up with an ACK storm (ACK arrives,
 	 * consumes buffer, we refill the ring, send ACK to remote
@@ -453,14 +453,14 @@ void rds_ib_advertise_credits(struct rds_connection *conn, unsigned int posted)
 
 static inline int rds_ib_set_wr_signal_state(struct rds_ib_connection *ic,
 					     struct rds_ib_send_work *send,
-					     bool notify)
+					     bool yestify)
 {
 	/*
-	 * We want to delay signaling completions just enough to get
-	 * the batching benefits but not so much that we create dead time
+	 * We want to delay signaling completions just eyesugh to get
+	 * the batching benefits but yest so much that we create dead time
 	 * on the wire.
 	 */
-	if (ic->i_unsignaled_wrs-- == 0 || notify) {
+	if (ic->i_unsignaled_wrs-- == 0 || yestify) {
 		ic->i_unsignaled_wrs = rds_ib_sysctl_max_unsig_wrs;
 		send->s_wr.send_flags |= IB_SEND_SIGNALED;
 		return 1;
@@ -506,7 +506,7 @@ int rds_ib_xmit(struct rds_connection *conn, struct rds_message *rm,
 	BUG_ON(off % RDS_FRAG_SIZE);
 	BUG_ON(hdr_off != 0 && hdr_off != sizeof(struct rds_header));
 
-	/* Do not send cong updates to IB loopback */
+	/* Do yest send cong updates to IB loopback */
 	if (conn->c_loopback
 	    && rm->m_inc.i_hdr.h_flags & RDS_FLAG_CONG_BITMAP) {
 		rds_cong_map_updated(conn->c_fcong, ~(u64) 0);
@@ -590,7 +590,7 @@ int rds_ib_xmit(struct rds_connection *conn, struct rds_message *rm,
 		}
 
 		/* Note - rds_ib_piggyb_ack clears the ACK_REQUIRED bit, so
-		 * we should not do this unless we have a chance of at least
+		 * we should yest do this unless we have a chance of at least
 		 * sticking the header into the send ring. Which is why we
 		 * should call rds_ib_ring_alloc first. */
 		rm->m_inc.i_hdr.h_ack = cpu_to_be64(rds_ib_piggyb_ack(ic));
@@ -609,7 +609,7 @@ int rds_ib_xmit(struct rds_connection *conn, struct rds_message *rm,
 	/* Sometimes you want to put a fence between an RDMA
 	 * READ and the following SEND.
 	 * We could either do this all the time
-	 * or when requested by the user. Right now, we let
+	 * or when requested by the user. Right yesw, we let
 	 * the application choose.
 	 */
 	if (rm->rdma.op_active && rm->rdma.op_fence)
@@ -698,7 +698,7 @@ int rds_ib_xmit(struct rds_connection *conn, struct rds_message *rm,
 		 && scat != &rm->data.op_sg[rm->data.op_count]);
 
 	/* Account the RDS header in the number of bytes we sent, but just once.
-	 * The caller has no concept of fragmentation. */
+	 * The caller has yes concept of fragmentation. */
 	if (hdr_off == 0)
 		bytes_sent += sizeof(struct rds_header);
 
@@ -784,11 +784,11 @@ int rds_ib_xmit_atomic(struct rds_connection *conn, struct rm_atomic_op *op)
 		send->s_atomic_wr.wr.opcode = IB_WR_MASKED_ATOMIC_FETCH_AND_ADD;
 		send->s_atomic_wr.compare_add = op->op_m_fadd.add;
 		send->s_atomic_wr.swap = 0;
-		send->s_atomic_wr.compare_add_mask = op->op_m_fadd.nocarry_mask;
+		send->s_atomic_wr.compare_add_mask = op->op_m_fadd.yescarry_mask;
 		send->s_atomic_wr.swap_mask = 0;
 	}
 	send->s_wr.send_flags = 0;
-	nr_sig = rds_ib_set_wr_signal_state(ic, send, op->op_notify);
+	nr_sig = rds_ib_set_wr_signal_state(ic, send, op->op_yestify);
 	send->s_atomic_wr.wr.num_sge = 1;
 	send->s_atomic_wr.wr.next = NULL;
 	send->s_atomic_wr.remote_addr = op->op_remote_addr;
@@ -875,8 +875,8 @@ int rds_ib_xmit_rdma(struct rds_connection *conn, struct rm_rdma_op *op)
 	}
 
 	/*
-	 * Instead of knowing how to return a partial rdma read/write we insist that there
-	 * be enough work requests to send the entire message.
+	 * Instead of kyeswing how to return a partial rdma read/write we insist that there
+	 * be eyesugh work requests to send the entire message.
 	 */
 	i = DIV_ROUND_UP(op->op_count, max_sge);
 
@@ -900,9 +900,9 @@ int rds_ib_xmit_rdma(struct rds_connection *conn, struct rm_rdma_op *op)
 		send->s_queued = jiffies;
 		send->s_op = NULL;
 
-		if (!op->op_notify)
+		if (!op->op_yestify)
 			nr_sig += rds_ib_set_wr_signal_state(ic, send,
-							     op->op_notify);
+							     op->op_yestify);
 
 		send->s_wr.opcode = op->op_write ? IB_WR_RDMA_WRITE : IB_WR_RDMA_READ;
 		send->s_rdma_wr.remote_addr = remote_addr;

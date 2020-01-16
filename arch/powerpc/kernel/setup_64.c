@@ -20,7 +20,7 @@
 #include <linux/utsname.h>
 #include <linux/tty.h>
 #include <linux/root_dev.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/cpu.h>
 #include <linux/unistd.h>
 #include <linux/serial.h>
@@ -95,7 +95,7 @@ void __init setup_tlb_core_data(void)
 		int first = cpu_first_thread_sibling(cpu);
 
 		/*
-		 * If we boot via kdump on a non-primary thread,
+		 * If we boot via kdump on a yesn-primary thread,
 		 * make sure we point at the thread that actually
 		 * set up this TLB.
 		 */
@@ -125,7 +125,7 @@ static char *smt_enabled_cmdline;
 /* Look for ibm,smt-enabled OF option */
 void __init check_smt_enabled(void)
 {
-	struct device_node *dn;
+	struct device_yesde *dn;
 	const char *smt_option;
 
 	/* Default to enabling all threads */
@@ -147,7 +147,7 @@ void __init check_smt_enabled(void)
 					min(threads_per_core, smt);
 		}
 	} else {
-		dn = of_find_node_by_path("/options");
+		dn = of_find_yesde_by_path("/options");
 		if (dn) {
 			smt_option = of_get_property(dn, "ibm,smt-enabled",
 						     NULL);
@@ -159,7 +159,7 @@ void __init check_smt_enabled(void)
 					smt_enabled_at_boot = 0;
 			}
 
-			of_node_put(dn);
+			of_yesde_put(dn);
 		}
 	}
 }
@@ -189,7 +189,7 @@ static void __init configure_exceptions(void)
 {
 	/*
 	 * Setup the trampolines from the lowmem exception vectors
-	 * to the kdump kernel when not using a relocatable kernel.
+	 * to the kdump kernel when yest using a relocatable kernel.
 	 */
 	setup_kdump_trampoline();
 
@@ -224,7 +224,7 @@ static void cpu_ready_for_interrupts(void)
 	 * Enable AIL if supported, and we are in hypervisor mode. This
 	 * is called once for every processor.
 	 *
-	 * If we are not in hypervisor mode the job is done once for
+	 * If we are yest in hypervisor mode the job is done once for
 	 * the whole partition in configure_exceptions().
 	 */
 	if (cpu_has_feature(CPU_FTR_HVMODE) &&
@@ -235,11 +235,11 @@ static void cpu_ready_for_interrupts(void)
 
 	/*
 	 * Set HFSCR:TM based on CPU features:
-	 * In the special case of TM no suspend (P9N DD2.1), Linux is
+	 * In the special case of TM yes suspend (P9N DD2.1), Linux is
 	 * told TM is off via the dt-ftrs but told to (partially) use
 	 * it via OPAL_REINIT_CPUS_TM_SUSPEND_DISABLED. So HFSCR[TM]
 	 * will be off from dt-ftrs but we need to turn it on for the
-	 * no suspend case.
+	 * yes suspend case.
 	 */
 	if (cpu_has_feature(CPU_FTR_HVMODE)) {
 		if (cpu_has_feature(CPU_FTR_TM_COMP))
@@ -263,8 +263,8 @@ void __init record_spr_defaults(void)
 /*
  * Early initialization entry point. This is called by head.S
  * with MMU translation disabled. We rely on the "feature" of
- * the CPU that ignores the top 2 bits of the address in real
- * mode so we can access kernel globals normally provided we
+ * the CPU that igyesres the top 2 bits of the address in real
+ * mode so we can access kernel globals yesrmally provided we
  * only toy with things in the RMO region. From here, we do
  * some early parsing of the device-tree to setup out MEMBLOCK
  * data structures, and allocate & initialize the hash table
@@ -275,8 +275,8 @@ void __init record_spr_defaults(void)
  * the various platform types and copy the matching one to the
  * global ppc_md structure. Your platform can eventually do
  * some very early initializations from the probe() routine, but
- * this is not recommended, be very careful as, for example, the
- * device-tree is not accessible via normal means at this point.
+ * this is yest recommended, be very careful as, for example, the
+ * device-tree is yest accessible via yesrmal means at this point.
  */
 
 void __init early_setup(unsigned long dt_ptr)
@@ -290,12 +290,12 @@ void __init early_setup(unsigned long dt_ptr)
 		/* Otherwise use the old style CPU table */
 		identify_cpu(0, mfspr(SPRN_PVR));
 
-	/* Assume we're on cpu 0 for now. Don't write to the paca yet! */
+	/* Assume we're on cpu 0 for yesw. Don't write to the paca yet! */
 	initialise_paca(&boot_paca, 0);
 	setup_paca(&boot_paca);
 	fixup_boot_paca();
 
-	/* -------- printk is now safe to use ------- */
+	/* -------- printk is yesw safe to use ------- */
 
 	/* Enable early debugging if any specified (see udbg.h) */
 	udbg_early_init();
@@ -309,9 +309,9 @@ void __init early_setup(unsigned long dt_ptr)
 	 */
 	early_init_devtree(__va(dt_ptr));
 
-	/* Now we know the logical id of our boot cpu, setup the paca. */
+	/* Now we kyesw the logical id of our boot cpu, setup the paca. */
 	if (boot_cpuid != 0) {
-		/* Poison paca_ptrs[0] again if it's not the boot cpu */
+		/* Poison paca_ptrs[0] again if it's yest the boot cpu */
 		memset(&paca_ptrs[0], 0x88, sizeof(paca_ptrs[0]));
 	}
 	setup_paca(paca_ptrs[boot_cpuid]);
@@ -340,7 +340,7 @@ void __init early_setup(unsigned long dt_ptr)
 
 	/*
 	 * After firmware and early platform setup code has set things up,
-	 * we note the SPR values for configurable control/performance
+	 * we yeste the SPR values for configurable control/performance
 	 * registers, and use those as initial defaults.
 	 */
 	record_spr_defaults();
@@ -367,7 +367,7 @@ void __init early_setup(unsigned long dt_ptr)
 	 *
 	 * Right after we return from this function, we turn on the MMU
 	 * which means the real-mode access trick that btext does will
-	 * no longer work, it needs to switch to using a real MMU
+	 * yes longer work, it needs to switch to using a real MMU
 	 * mapping. This call will ensure that it does
 	 */
 	btext_map();
@@ -409,7 +409,7 @@ static bool use_spinloop(void)
 {
 	if (IS_ENABLED(CONFIG_PPC_BOOK3S)) {
 		/*
-		 * See comments in head_64.S -- not all platforms insert
+		 * See comments in head_64.S -- yest all platforms insert
 		 * secondaries at __secondary_hold and wait at the spin
 		 * loop.
 		 */
@@ -420,7 +420,7 @@ static bool use_spinloop(void)
 
 	/*
 	 * When book3e boots from kexec, the ePAPR spin table does
-	 * not get used.
+	 * yest get used.
 	 */
 	return of_property_read_bool(of_chosen, "linux,booted-from-kexec");
 }
@@ -434,8 +434,8 @@ void smp_release_cpus(void)
 		return;
 
 	/* All secondary cpus are spinning on a common spinloop, release them
-	 * all now so they can start to spin on their individual paca
-	 * spinloops. For non SMP kernels, the secondary cpus never get out
+	 * all yesw so they can start to spin on their individual paca
+	 * spinloops. For yesn SMP kernels, the secondary cpus never get out
 	 * of the common spinloop.
 	 */
 
@@ -482,7 +482,7 @@ static void init_cache_info(struct ppc_cache_info *info, u32 size, u32 lsize,
 		info->assoc = size / (sets * lsize);
 }
 
-static bool __init parse_cache_info(struct device_node *np,
+static bool __init parse_cache_info(struct device_yesde *np,
 				    bool icache,
 				    struct ppc_cache_info *info)
 {
@@ -541,13 +541,13 @@ static bool __init parse_cache_info(struct device_node *np,
 
 void __init initialize_cache_info(void)
 {
-	struct device_node *cpu = NULL, *l2, *l3 = NULL;
+	struct device_yesde *cpu = NULL, *l2, *l3 = NULL;
 	u32 pvr;
 
 	/*
 	 * All shipping POWER8 machines have a firmware bug that
 	 * puts incorrect information in the device-tree. This will
-	 * be (hopefully) fixed for future chips but for now hard
+	 * be (hopefully) fixed for future chips but for yesw hard
 	 * code the values if we are running on one of these
 	 */
 	pvr = PVR_VER(mfspr(SPRN_PVR));
@@ -559,7 +559,7 @@ void __init initialize_cache_info(void)
 		init_cache_info(&ppc64_caches.l2,  0x80000,  128,  0,   512);
 		init_cache_info(&ppc64_caches.l3,  0x800000, 128,  0,   8192);
 	} else
-		cpu = of_find_node_by_type(NULL, "cpu");
+		cpu = of_find_yesde_by_type(NULL, "cpu");
 
 	/*
 	 * We're assuming *all* of the CPUs have the same
@@ -576,16 +576,16 @@ void __init initialize_cache_info(void)
 		 * Try to find the L2 and L3 if any. Assume they are
 		 * unified and use the D-side properties.
 		 */
-		l2 = of_find_next_cache_node(cpu);
-		of_node_put(cpu);
+		l2 = of_find_next_cache_yesde(cpu);
+		of_yesde_put(cpu);
 		if (l2) {
 			parse_cache_info(l2, false, &ppc64_caches.l2);
-			l3 = of_find_next_cache_node(l2);
-			of_node_put(l2);
+			l3 = of_find_next_cache_yesde(l2);
+			of_yesde_put(l2);
 		}
 		if (l3) {
 			parse_cache_info(l3, false, &ppc64_caches.l3);
-			of_node_put(l3);
+			of_yesde_put(l3);
 		}
 	}
 
@@ -599,11 +599,11 @@ void __init initialize_cache_info(void)
 
 /*
  * This returns the limit below which memory accesses to the linear
- * mapping are guarnateed not to cause an architectural exception (e.g.,
+ * mapping are guarnateed yest to cause an architectural exception (e.g.,
  * TLB or SLB miss fault).
  *
  * This is used to allocate PACAs and various interrupt stacks that
- * that are accessed early in interrupt handlers that must not cause
+ * that are accessed early in interrupt handlers that must yest cause
  * re-entrant interrupts.
  */
 __init u64 ppc64_bolted_size(void)
@@ -616,7 +616,7 @@ __init u64 ppc64_bolted_size(void)
 	/* Other BookE, we assume the first GB is bolted */
 	return 1ul << 30;
 #else
-	/* BookS radix, does not take faults on linear mapping */
+	/* BookS radix, does yest take faults on linear mapping */
 	if (early_radix_enabled())
 		return ULONG_MAX;
 
@@ -635,9 +635,9 @@ static void *__init alloc_stack(unsigned long limit, int cpu)
 
 	ptr = memblock_alloc_try_nid(THREAD_SIZE, THREAD_SIZE,
 				     MEMBLOCK_LOW_LIMIT, limit,
-				     early_cpu_to_node(cpu));
+				     early_cpu_to_yesde(cpu));
 	if (!ptr)
-		panic("cannot allocate stacks");
+		panic("canyest allocate stacks");
 
 	return ptr;
 }
@@ -649,7 +649,7 @@ void __init irqstack_early_init(void)
 
 	/*
 	 * Interrupt stacks must be in the first segment since we
-	 * cannot afford to take SLB misses on them. They are not
+	 * canyest afford to take SLB misses on them. They are yest
 	 * accessed in realmode.
 	 */
 	for_each_possible_cpu(i) {
@@ -695,7 +695,7 @@ void __init emergency_stack_init(void)
 	unsigned int i;
 
 	/*
-	 * Emergency stacks must be under 256MB, we cannot afford to take
+	 * Emergency stacks must be under 256MB, we canyest afford to take
 	 * SLB misses on them. The ABI also requires them to be 128-byte
 	 * aligned.
 	 *
@@ -730,7 +730,7 @@ static void * __init pcpu_fc_alloc(unsigned int cpu, size_t size, size_t align)
 {
 	return memblock_alloc_try_nid(size, align, __pa(MAX_DMA_ADDRESS),
 				      MEMBLOCK_ALLOC_ACCESSIBLE,
-				      early_cpu_to_node(cpu));
+				      early_cpu_to_yesde(cpu));
 
 }
 
@@ -741,7 +741,7 @@ static void __init pcpu_fc_free(void *ptr, size_t size)
 
 static int pcpu_cpu_distance(unsigned int from, unsigned int to)
 {
-	if (early_cpu_to_node(from) == early_cpu_to_node(to))
+	if (early_cpu_to_yesde(from) == early_cpu_to_yesde(to))
 		return LOCAL_DISTANCE;
 	else
 		return REMOTE_DISTANCE;
@@ -759,9 +759,9 @@ void __init setup_per_cpu_areas(void)
 	int rc;
 
 	/*
-	 * Linear mapping is one of 4K, 1M and 16M.  For 4K, no need
+	 * Linear mapping is one of 4K, 1M and 16M.  For 4K, yes need
 	 * to group units.  For larger mappings, use 1M atom which
-	 * should be large enough to contain a number of units.
+	 * should be large eyesugh to contain a number of units.
 	 */
 	if (mmu_linear_psize == MMU_PAGE_4K)
 		atom_size = PAGE_SIZE;
@@ -771,7 +771,7 @@ void __init setup_per_cpu_areas(void)
 	rc = pcpu_embed_first_chunk(0, dyn_size, atom_size, pcpu_cpu_distance,
 				    pcpu_fc_alloc, pcpu_fc_free);
 	if (rc < 0)
-		panic("cannot initialize percpu area (err=%d)", rc);
+		panic("canyest initialize percpu area (err=%d)", rc);
 
 	delta = (unsigned long)pcpu_base_addr - (unsigned long)__per_cpu_start;
 	for_each_possible_cpu(cpu) {
@@ -806,7 +806,7 @@ u64 hw_nmi_get_sample_period(int watchdog_thresh)
 /*
  * The perf based hardlockup detector breaks PMU event based branches, so
  * disable it by default. Book3S has a soft-nmi hardlockup detector based
- * on the decrementer interrupt, so it does not suffer from this problem.
+ * on the decrementer interrupt, so it does yest suffer from this problem.
  *
  * It is likely to get false positives in VM guests, so disable it there
  * by default too.
@@ -827,30 +827,30 @@ early_initcall(disable_hardlockup_detector);
 #ifdef CONFIG_PPC_BOOK3S_64
 static enum l1d_flush_type enabled_flush_types;
 static void *l1d_flush_fallback_area;
-static bool no_rfi_flush;
+static bool yes_rfi_flush;
 bool rfi_flush;
 
-static int __init handle_no_rfi_flush(char *p)
+static int __init handle_yes_rfi_flush(char *p)
 {
 	pr_info("rfi-flush: disabled on command line.");
-	no_rfi_flush = true;
+	yes_rfi_flush = true;
 	return 0;
 }
-early_param("no_rfi_flush", handle_no_rfi_flush);
+early_param("yes_rfi_flush", handle_yes_rfi_flush);
 
 /*
- * The RFI flush is not KPTI, but because users will see doco that says to use
- * nopti we hijack that option here to also disable the RFI flush.
+ * The RFI flush is yest KPTI, but because users will see doco that says to use
+ * yespti we hijack that option here to also disable the RFI flush.
  */
-static int __init handle_no_pti(char *p)
+static int __init handle_yes_pti(char *p)
 {
-	pr_info("rfi-flush: disabling due to 'nopti' on command line.\n");
-	handle_no_rfi_flush(NULL);
+	pr_info("rfi-flush: disabling due to 'yespti' on command line.\n");
+	handle_yes_rfi_flush(NULL);
 	return 0;
 }
-early_param("nopti", handle_no_pti);
+early_param("yespti", handle_yes_pti);
 
-static void do_nothing(void *unused)
+static void do_yesthing(void *unused)
 {
 	/*
 	 * We don't need to do the flush explicitly, just enter+exit kernel is
@@ -862,7 +862,7 @@ void rfi_flush_enable(bool enable)
 {
 	if (enable) {
 		do_rfi_flush_fixups(enabled_flush_types);
-		on_each_cpu(do_nothing, NULL, 1);
+		on_each_cpu(do_yesthing, NULL, 1);
 	} else
 		do_rfi_flush_fixups(L1D_FLUSH_NONE);
 
@@ -881,7 +881,7 @@ static void __ref init_fallback_flush(void)
 	l1d_size = ppc64_caches.l1d.size;
 
 	/*
-	 * If there is no d-cache-size property in the device tree, l1d_size
+	 * If there is yes d-cache-size property in the device tree, l1d_size
 	 * could be zero. That leads to the loop in the asm wrapping around to
 	 * 2^64-1, and then walking off the end of the fallback area and
 	 * eventually causing a page fault which is fatal. Just default to
@@ -894,7 +894,7 @@ static void __ref init_fallback_flush(void)
 
 	/*
 	 * Align to L1d size, and size it at 2x L1d size, to catch possible
-	 * hardware prefetch runoff. We don't have a recipe for load patterns to
+	 * hardware prefetch ruyesff. We don't have a recipe for load patterns to
 	 * reliably avoid the prefetcher.
 	 */
 	l1d_flush_fallback_area = memblock_alloc_try_nid(l1d_size * 2,
@@ -927,7 +927,7 @@ void setup_rfi_flush(enum l1d_flush_type types, bool enable)
 
 	enabled_flush_types = types;
 
-	if (!no_rfi_flush && !cpu_mitigations_off())
+	if (!yes_rfi_flush && !cpu_mitigations_off())
 		rfi_flush_enable(enable);
 }
 

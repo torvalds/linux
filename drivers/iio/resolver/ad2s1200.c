@@ -25,7 +25,7 @@
 
 /* input clock on serial interface */
 #define AD2S1200_HZ	8192000
-/* clock period in nano second */
+/* clock period in nayes second */
 #define AD2S1200_TSCLK	(1000000000 / AD2S1200_HZ)
 
 /**
@@ -74,7 +74,7 @@ static int ad2s1200_read_raw(struct iio_dev *indio_dev,
 		mutex_lock(&st->lock);
 		gpiod_set_value(st->sample, 0);
 
-		/* delay (6 * AD2S1200_TSCLK + 20) nano seconds */
+		/* delay (6 * AD2S1200_TSCLK + 20) nayes seconds */
 		udelay(1);
 		gpiod_set_value(st->sample, 1);
 		gpiod_set_value(st->rdvel, !!(chan->type == IIO_ANGL));

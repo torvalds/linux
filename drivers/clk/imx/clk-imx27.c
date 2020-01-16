@@ -254,17 +254,17 @@ int __init mx27_clocks_init(unsigned long fref)
 	return 0;
 }
 
-static void __init mx27_clocks_init_dt(struct device_node *np)
+static void __init mx27_clocks_init_dt(struct device_yesde *np)
 {
-	struct device_node *refnp;
+	struct device_yesde *refnp;
 	u32 fref = 26000000; /* default */
 
-	for_each_compatible_node(refnp, NULL, "fixed-clock") {
+	for_each_compatible_yesde(refnp, NULL, "fixed-clock") {
 		if (!of_device_is_compatible(refnp, "fsl,imx-osc26m"))
 			continue;
 
 		if (!of_property_read_u32(refnp, "clock-frequency", &fref)) {
-			of_node_put(refnp);
+			of_yesde_put(refnp);
 			break;
 		}
 	}

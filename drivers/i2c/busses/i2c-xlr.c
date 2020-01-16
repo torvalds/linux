@@ -13,7 +13,7 @@
 #include <linux/slab.h>
 #include <linux/ioport.h>
 #include <linux/delay.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/i2c.h>
 #include <linux/io.h>
 #include <linux/platform_device.h>
@@ -260,7 +260,7 @@ retry:
 		i2c_status = xlr_i2c_rdreg(priv->iobase, XLR_I2C_STATUS);
 		if (i2c_status & XLR_I2C_RXRDY) {
 			if (nbytes >= len)
-				return -EIO;	/* should not happen */
+				return -EIO;	/* should yest happen */
 
 			buf[nbytes++] =
 				xlr_i2c_rdreg(priv->iobase, XLR_I2C_DATAIN);
@@ -402,7 +402,7 @@ static int xlr_i2c_probe(struct platform_device *pdev)
 		init_waitqueue_head(&priv->wait);
 	}
 
-	if (of_property_read_u32(pdev->dev.of_node, "clock-frequency",
+	if (of_property_read_u32(pdev->dev.of_yesde, "clock-frequency",
 				 &busfreq))
 		busfreq = 100000;
 
@@ -421,7 +421,7 @@ static int xlr_i2c_probe(struct platform_device *pdev)
 	}
 
 	priv->adap.dev.parent = &pdev->dev;
-	priv->adap.dev.of_node	= pdev->dev.of_node;
+	priv->adap.dev.of_yesde	= pdev->dev.of_yesde;
 	priv->adap.owner	= THIS_MODULE;
 	priv->adap.algo_data	= priv;
 	priv->adap.algo		= &xlr_i2c_algo;

@@ -43,9 +43,9 @@ Required properties:
   - ahb
   - dclk
 
-- iommus: required a iommu node
+- iommus: required a iommu yesde
 
-- port: A port node with endpoint definitions as defined in
+- port: A port yesde with endpoint definitions as defined in
   Documentation/devicetree/bindings/media/video-interfaces.txt.
 
 Example:

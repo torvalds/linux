@@ -4,6 +4,6 @@ KernelVersion:	3.13
 Description:	The purpose of this directory is to create and remove it.
 
 		A corresponding USB function instance is created/removed.
-		There are no attributes here.
+		There are yes attributes here.
 
 		All parameters are set through FunctionFS.

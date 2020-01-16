@@ -1,4 +1,4 @@
-Qualcomm APR (Asynchronous Packet Router) binding
+Qualcomm APR (Asynchroyesus Packet Router) binding
 
 This binding describes the Qualcomm APR. APR is a IPC protocol for
 communication between Application processor and QDSP. APR is mainly
@@ -23,8 +23,8 @@ used for audio/voice services on the QDSP.
 			7 - APPS2
 
 = APR SERVICES
-Each subnode of the APR node represents service tied to this apr. The name
-of the nodes are not important. The properties of these nodes are defined
+Each subyesde of the APR yesde represents service tied to this apr. The name
+of the yesdes are yest important. The properties of these yesdes are defined
 by the individual bindings for the specific service
 - All APR services MUST contain the following property:
 

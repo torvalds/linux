@@ -204,7 +204,7 @@ static void digital_wq_cmd(struct work_struct *work)
 		break;
 
 	default:
-		pr_err("Unknown cmd type %d\n", cmd->type);
+		pr_err("Unkyeswn cmd type %d\n", cmd->type);
 		return;
 	}
 
@@ -372,8 +372,8 @@ int digital_target_found(struct nfc_digital_dev *ddev,
 	ddev->curr_rf_tech = rf_tech;
 
 	if (DIGITAL_DRV_CAPS_IN_CRC(ddev)) {
-		ddev->skb_add_crc = digital_skb_add_crc_none;
-		ddev->skb_check_crc = digital_skb_check_crc_none;
+		ddev->skb_add_crc = digital_skb_add_crc_yesne;
+		ddev->skb_check_crc = digital_skb_check_crc_yesne;
 	} else {
 		ddev->skb_add_crc = add_crc;
 		ddev->skb_check_crc = check_crc;
@@ -460,7 +460,7 @@ static void digital_add_poll_tech(struct nfc_digital_dev *ddev, u8 rf_tech,
  * start_poll operation
  *
  * For every supported protocol, the corresponding polling function is added
- * to the table of polling technologies (ddev->poll_techs[]) using
+ * to the table of polling techyeslogies (ddev->poll_techs[]) using
  * digital_add_poll_tech().
  * When a polling function fails (by timeout or protocol error) the next one is
  * schedule by digital_poll_next_tech() on the poll workqueue (ddev->poll_work).
@@ -478,7 +478,7 @@ static int digital_start_poll(struct nfc_dev *nfc_dev, __u32 im_protocols,
 	matching_tm_protocols = ddev->protocols & tm_protocols;
 
 	if (!matching_im_protocols && !matching_tm_protocols) {
-		pr_err("Unknown protocol\n");
+		pr_err("Unkyeswn protocol\n");
 		return -EINVAL;
 	}
 
@@ -552,7 +552,7 @@ static void digital_stop_poll(struct nfc_dev *nfc_dev)
 	mutex_lock(&ddev->poll_lock);
 
 	if (!ddev->poll_tech_count) {
-		pr_err("Polling operation was not running\n");
+		pr_err("Polling operation was yest running\n");
 		mutex_unlock(&ddev->poll_lock);
 		return;
 	}

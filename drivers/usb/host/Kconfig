@@ -124,7 +124,7 @@ config USB_EHCI_ROOT_HUB_TT
 	depends on USB_EHCI_HCD
 	---help---
 	  Some EHCI chips have vendor-specific extensions to integrate
-	  transaction translators, so that no OHCI or UHCI companion
+	  transaction translators, so that yes OHCI or UHCI companion
 	  controller is needed.  It's safe to say "y" even if your
 	  controller doesn't support this feature.
 
@@ -144,7 +144,7 @@ config USB_EHCI_TT_NEWSCHED
 
 	  If you have multiple periodic low/fullspeed devices connected to a
 	  highspeed USB hub which is connected to a highspeed USB Host
-	  Controller, and some of those devices will not work correctly
+	  Controller, and some of those devices will yest work correctly
 	  (possibly due to "ENOSPC" or "-28" errors), say Y.  Conversely, if
 	  you have only one such device and it doesn't work, you could try
 	  saying N.
@@ -266,13 +266,13 @@ config USB_EHCI_SH
 	depends on SUPERH
 	---help---
 	  Enables support for the on-chip EHCI controller on the SuperH.
-	  If you use the PCI EHCI controller, this option is not necessary.
+	  If you use the PCI EHCI controller, this option is yest necessary.
 
 config USB_EHCI_EXYNOS
 	tristate "EHCI support for Samsung S5P/EXYNOS SoC Series"
 	depends on ARCH_S5PV210 || ARCH_EXYNOS
 	help
-	  Enable support for the Samsung Exynos SOC's on-chip EHCI controller.
+	  Enable support for the Samsung Exyyess SOC's on-chip EHCI controller.
 
 config USB_EHCI_MV
 	tristate "EHCI support for Marvell PXA/MMP USB controller"
@@ -282,7 +282,7 @@ config USB_EHCI_MV
 	  Enables support for Marvell (including PXA and MMP series) on-chip
 	  USB SPH and OTG controller. SPH is a single port host, and it can
 	  only be EHCI host. OTG is controller that can switch to host mode.
-	  Note that this driver will not work on Marvell's other EHCI
+	  Note that this driver will yest work on Marvell's other EHCI
 	  controller used by the EBU-type SoCs including Orion, Kirkwood,
 	  Dova, Armada 370 and Armada XP. See "Support for Marvell EBU
 	  on-chip EHCI USB controller" for those.
@@ -292,7 +292,7 @@ config USB_CNS3XXX_EHCI
 	depends on ARCH_CNS3XXX
 	select USB_EHCI_HCD_PLATFORM
 	---help---
-	  This option is deprecated now and the driver was removed, use
+	  This option is deprecated yesw and the driver was removed, use
 	  USB_EHCI_HCD_PLATFORM instead.
 
 	  Enable support for the CNS3XXX SOC's on-chip EHCI controller.
@@ -313,7 +313,7 @@ config USB_OCTEON_EHCI
 	select USB_EHCI_BIG_ENDIAN_MMIO if CPU_BIG_ENDIAN
 	select USB_EHCI_HCD_PLATFORM
 	help
-	  This option is deprecated now and the driver was removed, use
+	  This option is deprecated yesw and the driver was removed, use
 	  USB_EHCI_HCD_PLATFORM instead.
 
 	  Enable support for the Octeon II SOC's on-chip EHCI
@@ -330,8 +330,8 @@ config USB_OXU210HP_HCD
 	  The OXU210HP is an USB host/OTG/device controller. Enable this
 	  option if your board has this chip. If unsure, say N.
 
-	  This driver does not support isochronous transfers and doesn't
-	  implement OTG nor USB device controllers.
+	  This driver does yest support isochroyesus transfers and doesn't
+	  implement OTG yesr USB device controllers.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called oxu210hp-hcd.
@@ -343,7 +343,7 @@ config USB_ISP116X_HCD
 	  The ISP1160 and ISP1161 chips are USB host controllers. Enable this
 	  option if your board has this chip. If unsure, say N.
 
-	  This driver does not support isochronous transfers.
+	  This driver does yest support isochroyesus transfers.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called isp116x-hcd.
@@ -351,11 +351,11 @@ config USB_ISP116X_HCD
 config USB_ISP1362_HCD
 	tristate "ISP1362 HCD support"
 	depends on HAS_IOMEM
-	depends on COMPILE_TEST # nothing uses this
+	depends on COMPILE_TEST # yesthing uses this
 	---help---
 	  Supports the Philips ISP1362 chip as a host controller
 
-	  This driver does not support isochronous transfers.
+	  This driver does yest support isochroyesus transfers.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called isp1362-hcd.
@@ -366,7 +366,7 @@ config USB_FOTG210_HCD
 	---help---
 	  Faraday FOTG210 is an OTG controller which can be configured as
 	  an USB2.0 host. It is designed to meet USB2.0 EHCI specification
-	  with minor modification.
+	  with miyesr modification.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called fotg210-hcd.
@@ -389,10 +389,10 @@ config USB_OHCI_HCD
 	  The Open Host Controller Interface (OHCI) is a standard for accessing
 	  USB 1.1 host controller hardware.  It does more in hardware than Intel's
 	  UHCI specification.  If your USB host controller follows the OHCI spec,
-	  say Y.  On most non-x86 systems, and on x86 hardware that's not using a
+	  say Y.  On most yesn-x86 systems, and on x86 hardware that's yest using a
 	  USB controller from Intel or VIA, this is appropriate.  If your host
 	  controller doesn't use PCI, this is probably appropriate.  For a PCI
-	  based system where you're not sure, the "lspci -v" entry will list the
+	  based system where you're yest sure, the "lspci -v" entry will list the
 	  right "prog-if" for your USB controller(s):  EHCI, OHCI, or UHCI.
 
 	  To compile this driver as a module, choose M here: the
@@ -465,7 +465,7 @@ config USB_OHCI_HCD_OMAP3
 	select USB_OHCI_HCD_PLATFORM
 	default y
 	help
-	  This option is deprecated now and the driver was removed, use
+	  This option is deprecated yesw and the driver was removed, use
 	  USB_OHCI_HCD_PLATFORM instead.
 
 	  Enables support for the on-chip OHCI controller on
@@ -479,7 +479,7 @@ config USB_OHCI_HCD_DAVINCI
 	default y
 	help
 	  Enables support for the DaVinci DA8xx integrated OHCI
-	  controller. This driver cannot currently be a loadable
+	  controller. This driver canyest currently be a loadable
 	  module because it lacks a proper PHY abstraction.
 
 config USB_OHCI_HCD_PPC_OF_BE
@@ -519,7 +519,7 @@ config USB_OHCI_HCD_SSB
 	select USB_HCD_SSB
 	select USB_OHCI_HCD_PLATFORM
 	---help---
-	  This option is deprecated now and the driver was removed, use
+	  This option is deprecated yesw and the driver was removed, use
 	  USB_HCD_SSB and USB_OHCI_HCD_PLATFORM instead.
 
 	  Support for the Sonics Silicon Backplane (SSB) attached
@@ -535,24 +535,24 @@ config USB_OHCI_SH
 	depends on SUPERH
 	select USB_OHCI_HCD_PLATFORM
 	---help---
-	  This option is deprecated now and the driver was removed, use
+	  This option is deprecated yesw and the driver was removed, use
 	  USB_OHCI_HCD_PLATFORM instead.
 
 	  Enables support for the on-chip OHCI controller on the SuperH.
-	  If you use the PCI OHCI controller, this option is not necessary.
+	  If you use the PCI OHCI controller, this option is yest necessary.
 
 config USB_OHCI_EXYNOS
 	tristate "OHCI support for Samsung S5P/EXYNOS SoC Series"
 	depends on ARCH_S5PV210 || ARCH_EXYNOS
 	help
-	  Enable support for the Samsung Exynos SOC's on-chip OHCI controller.
+	  Enable support for the Samsung Exyyess SOC's on-chip OHCI controller.
 
 config USB_CNS3XXX_OHCI
 	bool "Cavium CNS3XXX OHCI Module (DEPRECATED)"
 	depends on ARCH_CNS3XXX
 	select USB_OHCI_HCD_PLATFORM
 	---help---
-	  This option is deprecated now and the driver was removed, use
+	  This option is deprecated yesw and the driver was removed, use
 	  USB_OHCI_HCD_PLATFORM instead.
 
 	  Enable support for the CNS3XXX SOC's on-chip OHCI controller.
@@ -574,7 +574,7 @@ config USB_OCTEON_OHCI
 	select USB_OHCI_LITTLE_ENDIAN
 	select USB_OHCI_HCD_PLATFORM
 	help
-	  This option is deprecated now and the driver was removed, use
+	  This option is deprecated yesw and the driver was removed, use
 	  USB_OHCI_HCD_PLATFORM instead.
 
 	  Enable support for the Octeon II SOC's on-chip OHCI
@@ -636,7 +636,7 @@ config USB_U132_HCD
 	  The U132 adapter is a USB to CardBus adapter specifically designed
 	  for PC cards that contain an OHCI host controller. Typical PC cards
 	  are the Orange Mobile 3G Option GlobeTrotter Fusion card. The U132
-	  adapter will *NOT* work with PC cards that do not contain an OHCI
+	  adapter will *NOT* work with PC cards that do yest contain an OHCI
 	  controller.
 
 	  For those PC cards that contain multiple OHCI controllers only the
@@ -674,7 +674,7 @@ config USB_SL811_HCD_ISO
 	help
 	  The driver doesn't support iso_frame_desc (yet), but for some simple
 	  devices that just queue one ISO frame per URB, then ISO transfers
-	  "should" work using the normal urb status fields.
+	  "should" work using the yesrmal urb status fields.
 
 	  If unsure, say N.
 
@@ -760,5 +760,5 @@ config USB_HCD_TEST_MODE
 	  to include other tests that require support from a HCD driver.
 
 	  This option is of interest only to developers who need to validate
-	  their USB hardware designs.  It is not needed for normal use.  If
+	  their USB hardware designs.  It is yest needed for yesrmal use.  If
 	  unsure, say N.

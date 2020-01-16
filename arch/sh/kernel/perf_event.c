@@ -41,7 +41,7 @@ static atomic_t num_events;
 static DEFINE_MUTEX(pmc_reserve_mutex);
 
 /*
- * Stub these out for now, do something more profound later.
+ * Stub these out for yesw, do something more profound later.
  */
 int reserve_pmc_hardware(void)
 {
@@ -128,12 +128,12 @@ static int __hw_perf_event_init(struct perf_event *event)
 	/*
 	 * See if we need to reserve the counter.
 	 *
-	 * If no events are currently in use, then we have to take a
-	 * mutex to ensure that we don't race with another task doing
+	 * If yes events are currently in use, then we have to take a
+	 * mutex to ensure that we don't race with ayesther task doing
 	 * reserve_pmc_hardware or release_pmc_hardware.
 	 */
 	err = 0;
-	if (!atomic_inc_not_zero(&num_events)) {
+	if (!atomic_inc_yest_zero(&num_events)) {
 		mutex_lock(&pmc_reserve_mutex);
 		if (atomic_read(&num_events) == 0 &&
 		    reserve_pmc_hardware())
@@ -181,7 +181,7 @@ static void sh_perf_event_update(struct perf_event *event,
 	int shift = 0;
 
 	/*
-	 * Depending on the counter configuration, they may or may not
+	 * Depending on the counter configuration, they may or may yest
 	 * be chained, in which case the previous counter value can be
 	 * updated underneath us if the lower-half overflows.
 	 *
@@ -189,7 +189,7 @@ static void sh_perf_event_update(struct perf_event *event,
 	 * exchange a new raw count - then add that new-prev delta
 	 * count to the generic counter atomically.
 	 *
-	 * As there is no interrupt associated with the overflow events,
+	 * As there is yes interrupt associated with the overflow events,
 	 * this is the simplest approach for maintaining consistency.
 	 */
 again:
@@ -202,10 +202,10 @@ again:
 
 	/*
 	 * Now we have the new raw value and have updated the prev
-	 * timestamp already. We can now calculate the elapsed delta
+	 * timestamp already. We can yesw calculate the elapsed delta
 	 * (counter-)time and add that to the generic counter.
 	 *
-	 * Careful, not all hw sign-extends above the physical width
+	 * Careful, yest all hw sign-extends above the physical width
 	 * of the count.
 	 */
 	delta = (new_raw_count << shift) - (prev_raw_count << shift);
@@ -299,7 +299,7 @@ static int sh_pmu_event_init(struct perf_event *event)
 {
 	int err;
 
-	/* does not support taken branch sampling */
+	/* does yest support taken branch sampling */
 	if (has_branch_stack(event))
 		return -EOPNOTSUPP;
 
@@ -367,7 +367,7 @@ int register_sh_pmu(struct sh_pmu *_pmu)
 
 	/*
 	 * All of the on-chip counters are "limited", in that they have
-	 * no interrupts, and are therefore unable to do sampling without
+	 * yes interrupts, and are therefore unable to do sampling without
 	 * further work and timer assistance.
 	 */
 	pmu.capabilities |= PERF_PMU_CAP_NO_INTERRUPT;

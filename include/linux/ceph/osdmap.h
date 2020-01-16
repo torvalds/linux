@@ -14,7 +14,7 @@
  * (desired) distribution of all data objects in the system at some
  * point in time.
  *
- * Each map version is identified by an epoch, which increases monotonically.
+ * Each map version is identified by an epoch, which increases moyestonically.
  *
  * The map can be updated either via an incremental map (diff) describing
  * the change between two successive epochs, or as a fully encoded map.
@@ -39,7 +39,7 @@ int ceph_spg_compare(const struct ceph_spg *lhs, const struct ceph_spg *rhs);
 #define CEPH_POOL_FLAG_FULL		(1ULL << 1) /* pool is full */
 
 struct ceph_pg_pool_info {
-	struct rb_node node;
+	struct rb_yesde yesde;
 	s64 id;
 	u8 type; /* CEPH_POOL_TYPE_* */
 	u8 size;
@@ -90,7 +90,7 @@ void ceph_oloc_copy(struct ceph_object_locator *dest,
 void ceph_oloc_destroy(struct ceph_object_locator *oloc);
 
 /*
- * 51-char inline_name is long enough for all cephfs and all but one
+ * 51-char inline_name is long eyesugh for all cephfs and all but one
  * rbd requests: <imgname> in "<imgname>.rbd"/"rbd_id.<imgname>" can be
  * arbitrarily long (~PAGE_SIZE).  It's done once during rbd map; all
  * other rbd requests fit into inline_name.
@@ -101,7 +101,7 @@ void ceph_oloc_destroy(struct ceph_object_locator *oloc);
 
 /*
  * Both inline and external buffers have space for a NUL-terminator,
- * which is carried around.  It's not required though - RADOS object
+ * which is carried around.  It's yest required though - RADOS object
  * names don't have to be NUL-terminated and may contain NULs.
  */
 struct ceph_object_id {
@@ -135,7 +135,7 @@ int ceph_oid_aprintf(struct ceph_object_id *oid, gfp_t gfp,
 void ceph_oid_destroy(struct ceph_object_id *oid);
 
 struct ceph_pg_mapping {
-	struct rb_node node;
+	struct rb_yesde yesde;
 	struct ceph_pg pgid;
 
 	union {
@@ -162,7 +162,7 @@ struct ceph_osdmap {
 
 	u32 max_osd;       /* size of osd_state, _offload, _addr arrays */
 	u32 *osd_state;    /* CEPH_OSD_* */
-	u32 *osd_weight;   /* 0 = failed, 0x10000 = 100% normal */
+	u32 *osd_weight;   /* 0 = failed, 0x10000 = 100% yesrmal */
 	struct ceph_entity_addr *osd_addr;
 
 	struct rb_root pg_temp;
@@ -225,7 +225,7 @@ static inline int ceph_decode_pgid(void **p, void *end, struct ceph_pg *pgid)
 	}
 	version = ceph_decode_8(p);
 	if (version > 1) {
-		pr_warn("do not understand pg encoding %d > 1\n",
+		pr_warn("do yest understand pg encoding %d > 1\n",
 			(int)version);
 		return -EINVAL;
 	}

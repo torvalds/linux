@@ -3,8 +3,8 @@ Amlogic meson GPIO interrupt controller
 Meson SoCs contains an interrupt controller which is able to watch the SoC
 pads and generate an interrupt on edge or level. The controller is essentially
 a 256 pads to 8 GIC interrupt multiplexer, with a filter block to select edge
-or level and polarity. It does not expose all 256 mux inputs because the
-documentation shows that the upper part is not mapped to any pad. The actual
+or level and polarity. It does yest expose all 256 mux inputs because the
+documentation shows that the upper part is yest mapped to any pad. The actual
 number of interrupt exposed depends on the SoC.
 
 Required properties:
@@ -18,7 +18,7 @@ Required properties:
     "amlogic,meson-g12a-gpio-intc" for G12A SoCs (S905D2, S905X2, S905Y2)
     "amlogic,meson-sm1-gpio-intc" for SM1 SoCs (S905D3, S905X3, S905Y3)
 - reg : Specifies base physical address and size of the registers.
-- interrupt-controller : Identifies the node as an interrupt controller.
+- interrupt-controller : Identifies the yesde as an interrupt controller.
 - #interrupt-cells : Specifies the number of cells needed to encode an
    interrupt source. The value must be 2.
 - meson,channel-interrupts: Array with the 8 upstream hwirq numbers. These

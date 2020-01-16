@@ -3,7 +3,7 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright yestice and this permission yestice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
@@ -121,7 +121,7 @@ static void ath9k_hw_btcoex_pin_init(struct ath_hw *ah, u8 wlanactive_gpio,
 	    btcoex_hw->scheme != ATH_BTCOEX_CFG_3WIRE)
 		return;
 
-	/* bt priority GPIO will be ignored by 2 wire scheme */
+	/* bt priority GPIO will be igyesred by 2 wire scheme */
 	if (pdata && (pdata->bt_active_pin || pdata->bt_priority_pin ||
 		      pdata->wlan_active_pin)) {
 		btcoex_hw->btactive_gpio = pdata->bt_active_pin;
@@ -235,8 +235,8 @@ void ath9k_hw_btcoex_init_mci(struct ath_hw *ah)
 	ah->btcoex_hw.mci.ready = false;
 	ah->btcoex_hw.mci.bt_state = 0;
 	ah->btcoex_hw.mci.bt_ver_major = 3;
-	ah->btcoex_hw.mci.bt_ver_minor = 0;
-	ah->btcoex_hw.mci.bt_version_known = false;
+	ah->btcoex_hw.mci.bt_ver_miyesr = 0;
+	ah->btcoex_hw.mci.bt_version_kyeswn = false;
 	ah->btcoex_hw.mci.update_2g5g = true;
 	ah->btcoex_hw.mci.is_2g = true;
 	ah->btcoex_hw.mci.wlan_channels_update = false;

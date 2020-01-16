@@ -38,7 +38,7 @@
  *   - If you try to run a command on both the AI and AO subdevices
  *     simultaneously, bad things will happen.  The driver needs to
  *     be fixed to check for this situation and return an error.
- *   - AO range is not programmable. The AO subdevice has a range_table
+ *   - AO range is yest programmable. The AO subdevice has a range_table
  *     containing all the possible analog output ranges. Use the range
  *     that matches your board configuration to convert between data
  *     values and physical units. The format of the data written to the
@@ -108,7 +108,7 @@
 #define DT2821_TMRCTR_DIVIDER(x)	((255 - ((x) & 0xff)) << 0)
 
 /* Pacer Clock */
-#define DT2821_OSC_BASE		250	/* 4 MHz (in nanoseconds) */
+#define DT2821_OSC_BASE		250	/* 4 MHz (in nayesseconds) */
 #define DT2821_PRESCALE(x)	BIT(x)
 #define DT2821_PRESCALE_MAX	15
 #define DT2821_DIVIDER_MAX	255
@@ -172,7 +172,7 @@ static const struct comedi_lrange range_dt282x_ai_hi_unipolar = {
 
 /*
  * The Analog Output range is set per-channel using jumpers on the board.
- * All of these ranges may not be available on some DT2821 series boards.
+ * All of these ranges may yest be available on some DT2821 series boards.
  * The default jumper setting has both channels set for +/-10V output.
  */
 static const struct comedi_lrange dt282x_ao_range = {
@@ -1073,7 +1073,7 @@ static int dt282x_initialize(struct comedi_device *dev)
 	inw(dev->iobase + DT2821_ADCSR_REG);
 
 	/*
-	 * At power up, some registers are in a well-known state.
+	 * At power up, some registers are in a well-kyeswn state.
 	 * Check them to see if a DT2821 series board is present.
 	 */
 	if (((inw(dev->iobase + DT2821_ADCSR_REG) & 0xfff0) != 0x7c00) ||
@@ -1081,7 +1081,7 @@ static int dt282x_initialize(struct comedi_device *dev)
 	    ((inw(dev->iobase + DT2821_DACSR_REG) & 0x7c93) != 0x7c90) ||
 	    ((inw(dev->iobase + DT2821_SUPCSR_REG) & 0xf8ff) != 0x0000) ||
 	    ((inw(dev->iobase + DT2821_TMRCTR_REG) & 0xff00) != 0xf000)) {
-		dev_err(dev->class_dev, "board not found\n");
+		dev_err(dev->class_dev, "board yest found\n");
 		return -EIO;
 	}
 	return 0;

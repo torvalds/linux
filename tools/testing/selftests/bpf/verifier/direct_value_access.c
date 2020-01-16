@@ -80,7 +80,7 @@
 	},
 	.fixup_map_array_48b = { 1 },
 	.result = REJECT,
-	.errstr = "direct value offset of 4294967295 is not allowed",
+	.errstr = "direct value offset of 4294967295 is yest allowed",
 },
 {
 	"direct map access, write test 8",
@@ -140,7 +140,7 @@
 	},
 	.fixup_map_array_48b = { 1 },
 	.result = REJECT,
-	.errstr = "direct value offset of 536870912 is not allowed",
+	.errstr = "direct value offset of 536870912 is yest allowed",
 },
 {
 	"direct map access, write test 13",

@@ -25,7 +25,7 @@ Supported chips:
 	  AW9D-MAX)
 
 	The abituguru3 driver is only for revison 3.0.x.x motherboards,
-	this driver will not work on older motherboards. For older
+	this driver will yest work on older motherboards. For older
 	motherboards use the abituguru (without the 3 !) driver.
 
 Authors:
@@ -40,12 +40,12 @@ Module Parameters
 			Force detection. Note this parameter only causes the
 			detection to be skipped, and thus the insmod to
 			succeed. If the uGuru can't be read the actual hwmon
-			driver will not load and thus no hwmon device will get
+			driver will yest load and thus yes hwmon device will get
 			registered.
 * verbose: bool
 			Should the driver be verbose?
 
-			* 0/off/false  normal output
+			* 0/off/false  yesrmal output
 			* 1/on/true    + verbose error reporting (default)
 
 			Default: 1 (the driver is still in the testing phase)
@@ -60,14 +60,14 @@ The 3rd revision of the uGuru chip in reality is a Winbond W83L951G.
 Unfortunately this doesn't help since the W83L951G is a generic microcontroller
 with a custom Abit application running on it.
 
-Despite Abit not releasing any information regarding the uGuru revision 3,
+Despite Abit yest releasing any information regarding the uGuru revision 3,
 Louis Kruger has managed to reverse engineer the sensor part of the uGuru.
-Without his work this driver would not have been possible.
+Without his work this driver would yest have been possible.
 
-Known Issues
+Kyeswn Issues
 ------------
 
-The voltage and frequency control parts of the Abit uGuru are not supported,
+The voltage and frequency control parts of the Abit uGuru are yest supported,
 neither is writing any of the sensor settings and writing / reading the
 fanspeed control registers (FanEQ)
 

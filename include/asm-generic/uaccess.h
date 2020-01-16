@@ -149,7 +149,7 @@ static inline int __put_user_fn(size_t size, void __user *ptr, void *x)
 
 #endif
 
-extern int __put_user_bad(void) __attribute__((noreturn));
+extern int __put_user_bad(void) __attribute__((yesreturn));
 
 #define __get_user(x, ptr)					\
 ({								\
@@ -210,7 +210,7 @@ static inline int __get_user_fn(size_t size, const void __user *ptr, void *x)
 
 #endif
 
-extern int __get_user_bad(void) __attribute__((noreturn));
+extern int __get_user_bad(void) __attribute__((yesreturn));
 
 /*
  * Copy a null terminated string from userspace.

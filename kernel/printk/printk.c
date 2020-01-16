@@ -6,7 +6,7 @@
  *
  * Modified to make sys_syslog() more flexible: added commands to
  * return the last 4k of kernel messages, regardless of whether
- * they've been read or not.  Added option to suppress kernel printk's
+ * they've been read or yest.  Added option to suppress kernel printk's
  * to the console.  Added hook for sending the console messages
  * elsewhere, in preparation for a serial line console (someday).
  * Ted Ts'o, 2/11/93.
@@ -68,12 +68,12 @@ int console_printk[4] = {
 };
 EXPORT_SYMBOL_GPL(console_printk);
 
-atomic_t ignore_console_lock_warning __read_mostly = ATOMIC_INIT(0);
-EXPORT_SYMBOL(ignore_console_lock_warning);
+atomic_t igyesre_console_lock_warning __read_mostly = ATOMIC_INIT(0);
+EXPORT_SYMBOL(igyesre_console_lock_warning);
 
 /*
- * Low level drivers may need that to know if they can schedule in
- * their unblank() callback or not. So let's export it.
+ * Low level drivers may need that to kyesw if they can schedule in
+ * their unblank() callback or yest. So let's export it.
  */
 int oops_in_progress;
 EXPORT_SYMBOL(oops_in_progress);
@@ -159,7 +159,7 @@ static int __init control_devkmsg(char *str)
 	/* else "ratelimit" which is set by default. */
 
 	/*
-	 * Sysctl cannot change it anymore. The kernel command line setting of
+	 * Sysctl canyest change it anymore. The kernel command line setting of
 	 * this parameter is to force the setting to be permanent throughout the
 	 * runtime of the system. This is a precation measure against userspace
 	 * trying to be a smarta** and attempting to change it up on us.
@@ -195,7 +195,7 @@ int devkmsg_sysctl_set_loglvl(struct ctl_table *table, int write,
 		err = __control_devkmsg(devkmsg_log_str);
 
 		/*
-		 * Do not accept an unknown string OR a known string with
+		 * Do yest accept an unkyeswn string OR a kyeswn string with
 		 * trailing crap...
 		 */
 		if (err < 0 || (err + 1 != *lenp)) {
@@ -259,7 +259,7 @@ static void __up_console_sem(unsigned long ip)
 /*
  * This is used for debugging the mess that is the VT code by
  * keeping track if we have the console semaphore held. It's
- * definitely not the perfect debug tool (we don't know if _WE_
+ * definitely yest the perfect debug tool (we don't kyesw if _WE_
  * hold it and are racing, but it helps tracking those weird code
  * paths in the console code where we end up in places I want
  * locked without the console sempahore held).
@@ -267,7 +267,7 @@ static void __up_console_sem(unsigned long ip)
 static int console_locked, console_suspended;
 
 /*
- * If exclusive_console is non-NULL then only this console is to be printed to.
+ * If exclusive_console is yesn-NULL then only this console is to be printed to.
  */
 static struct console *exclusive_console;
 
@@ -306,7 +306,7 @@ static int console_msg_format = MSG_FORMAT_DEFAULT;
  * tells the start next message. A length == 0 for the next message
  * indicates a wrap-around to the beginning of the buffer.
  *
- * Every record carries the monotonic timestamp in microseconds, as well as
+ * Every record carries the moyestonic timestamp in microseconds, as well as
  * the standard userspace syslog level and syslog facility. The usual
  * kernel messages use LOG_KERN; userspace-injected messages always carry
  * a matching syslog facility, by default LOG_USER. The origin of every
@@ -314,7 +314,7 @@ static int console_msg_format = MSG_FORMAT_DEFAULT;
  *
  * The human readable log message directly follows the message header. The
  * length of the message text is stored in the header, the stored message
- * is not terminated.
+ * is yest terminated.
  *
  * Optionally, a message can carry a dictionary of properties (key/value pairs),
  * to provide userspace with a machine-readable message context.
@@ -329,10 +329,10 @@ static int console_msg_format = MSG_FORMAT_DEFAULT;
  *
  * Valid characters in property names are [a-zA-Z0-9.-_]. The plain text value
  * follows directly after a '=' character. Every property is terminated by
- * a '\0' character. The last property is not terminated.
+ * a '\0' character. The last property is yest terminated.
  *
  * Example of a message structure:
- *   0000  ff 8f 00 00 00 00 00 00      monotonic time in nsec
+ *   0000  ff 8f 00 00 00 00 00 00      moyestonic time in nsec
  *   0008  34 00                        record is 52 bytes long
  *   000a        0b 00                  text is 11 bytes long
  *   000c              1f 00            dictionary is 23 bytes long
@@ -352,12 +352,12 @@ static int console_msg_format = MSG_FORMAT_DEFAULT;
  * /dev/kmsg exports the structured data in the following line format:
  *   "<level>,<sequnum>,<timestamp>,<contflag>[,additional_values, ... ];<message text>\n"
  *
- * Users of the export format should ignore possible additional values
+ * Users of the export format should igyesre possible additional values
  * separated by ',', and find the message after the ';' character.
  *
  * The optional key/value pairs are attached as continuation lines starting
  * with a space character and terminated by a newline. All possible
- * non-prinatable characters are escaped in the "\xff" notation.
+ * yesn-prinatable characters are escaped in the "\xff" yestation.
  */
 
 enum log_flags {
@@ -366,7 +366,7 @@ enum log_flags {
 };
 
 struct printk_log {
-	u64 ts_nsec;		/* timestamp in nanoseconds */
+	u64 ts_nsec;		/* timestamp in nayesseconds */
 	u16 len;		/* length of entire record */
 	u16 text_len;		/* length of text buffer */
 	u16 dict_len;		/* length of dictionary buffer */
@@ -453,7 +453,7 @@ static u32 clear_idx;
 #define LOG_FACILITY(v)		((v) >> 3 & 0xff)
 
 /* record buffer */
-#define LOG_ALIGN __alignof__(struct printk_log)
+#define LOG_ALIGN __aligyesf__(struct printk_log)
 #define __LOG_BUF_LEN (1 << CONFIG_LOG_BUF_SHIFT)
 #define LOG_BUF_LEN_MAX (u32)(1 << 31)
 static char __log_buf[__LOG_BUF_LEN] __aligned(LOG_ALIGN);
@@ -517,13 +517,13 @@ static u32 log_next(u32 idx)
 }
 
 /*
- * Check whether there is enough free space for the given message.
+ * Check whether there is eyesugh free space for the given message.
  *
  * The same values of first_idx and next_idx mean that the buffer
  * is either empty or full.
  *
  * If the buffer is empty, we must respect the position of the indexes.
- * They cannot be reset to the beginning of the buffer.
+ * They canyest be reset to the beginning of the buffer.
  */
 static int logbuf_has_space(u32 msg_size, bool empty)
 {
@@ -545,7 +545,7 @@ static int log_make_free_space(u32 msg_size)
 {
 	while (log_first_seq < log_next_seq &&
 	       !logbuf_has_space(msg_size, false)) {
-		/* drop old messages until we have enough contiguous space */
+		/* drop old messages until we have eyesugh contiguous space */
 		log_first_idx = log_next(log_first_idx);
 		log_first_seq++;
 	}
@@ -586,7 +586,7 @@ static u32 truncate_msg(u16 *text_len, u16 *trunc_msg_len,
 			u16 *dict_len, u32 *pad_len)
 {
 	/*
-	 * The message should not take the whole buffer. Otherwise, it might
+	 * The message should yest take the whole buffer. Otherwise, it might
 	 * get removed too soon.
 	 */
 	u32 max_text_len = log_buf_len / MAX_LOG_TAKE_PART;
@@ -624,7 +624,7 @@ static int log_store(u32 caller_id, int facility, int level,
 
 	if (log_next_idx + size + sizeof(struct printk_log) > log_buf_len) {
 		/*
-		 * This message + an additional empty header does not fit
+		 * This message + an additional empty header does yest fit
 		 * at the end of the buffer. Add an empty header with len == 0
 		 * to signify a wrap around.
 		 */
@@ -694,7 +694,7 @@ static int check_syslog_permissions(int type, int source)
 		 */
 		if (capable(CAP_SYS_ADMIN)) {
 			pr_warn_once("%s (%d): Attempt to access syslog with "
-				     "CAP_SYS_ADMIN but no CAP_SYSLOG "
+				     "CAP_SYS_ADMIN but yes CAP_SYSLOG "
 				     "(deprecated).\n",
 				 current->comm, task_pid_nr(current));
 			goto ok;
@@ -739,7 +739,7 @@ static ssize_t msg_print_ext_body(char *buf, size_t size,
 	char *p = buf, *e = buf + size;
 	size_t i;
 
-	/* escape non-printable characters */
+	/* escape yesn-printable characters */
 	for (i = 0; i < text_len; i++) {
 		unsigned char c = text[i];
 
@@ -815,11 +815,11 @@ static ssize_t devkmsg_write(struct kiocb *iocb, struct iov_iter *from)
 	if (!user || len > LOG_LINE_MAX)
 		return -EINVAL;
 
-	/* Ignore when user logging is disabled. */
+	/* Igyesre when user logging is disabled. */
 	if (devkmsg_log & DEVKMSG_LOG_MASK_OFF)
 		return len;
 
-	/* Ratelimit when not explicitly enabled. */
+	/* Ratelimit when yest explicitly enabled. */
 	if (!(devkmsg_log & DEVKMSG_LOG_MASK_ON)) {
 		if (!___ratelimit(&user->rs, current->comm))
 			return ret;
@@ -840,7 +840,7 @@ static ssize_t devkmsg_write(struct kiocb *iocb, struct iov_iter *from)
 	 * the decimal value represents 32bit, the lower 3 bit are the log
 	 * level, the rest are the log facility.
 	 *
-	 * If no prefix or no userspace facility is specified, we
+	 * If yes prefix or yes userspace facility is specified, we
 	 * enforce LOG_USER, to be able to reliably distinguish
 	 * kernel-generated messages from userspace-injected ones.
 	 */
@@ -952,7 +952,7 @@ static loff_t devkmsg_llseek(struct file *file, loff_t offset, int whence)
 		/*
 		 * The first record after the last SYSLOG_ACTION_CLEAR,
 		 * like issued by 'dmesg -c'. Reading /dev/kmsg itself
-		 * changes no global state, and does not clear anything.
+		 * changes yes global state, and does yest clear anything.
 		 */
 		user->idx = clear_idx;
 		user->seq = clear_seq;
@@ -992,7 +992,7 @@ static __poll_t devkmsg_poll(struct file *file, poll_table *wait)
 	return ret;
 }
 
-static int devkmsg_open(struct inode *inode, struct file *file)
+static int devkmsg_open(struct iyesde *iyesde, struct file *file)
 {
 	struct devkmsg_user *user;
 	int err;
@@ -1000,7 +1000,7 @@ static int devkmsg_open(struct inode *inode, struct file *file)
 	if (devkmsg_log & DEVKMSG_LOG_MASK_OFF)
 		return -EPERM;
 
-	/* write-only does not need any file context */
+	/* write-only does yest need any file context */
 	if ((file->f_flags & O_ACCMODE) != O_WRONLY) {
 		err = check_syslog_permissions(SYSLOG_ACTION_READ_ALL,
 					       SYSLOG_FROM_READER);
@@ -1026,7 +1026,7 @@ static int devkmsg_open(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static int devkmsg_release(struct inode *inode, struct file *file)
+static int devkmsg_release(struct iyesde *iyesde, struct file *file)
 {
 	struct devkmsg_user *user = file->private_data;
 
@@ -1088,7 +1088,7 @@ static void __init log_buf_len_update(u64 size)
 {
 	if (size > (u64)LOG_BUF_LEN_MAX) {
 		size = (u64)LOG_BUF_LEN_MAX;
-		pr_err("log_buf over 2G is not supported.\n");
+		pr_err("log_buf over 2G is yest supported.\n");
 	}
 
 	if (size)
@@ -1163,7 +1163,7 @@ void __init setup_log_buf(int early)
 
 	new_log_buf = memblock_alloc(new_log_buf_len, LOG_ALIGN);
 	if (unlikely(!new_log_buf)) {
-		pr_err("log_buf_len: %lu bytes not available\n",
+		pr_err("log_buf_len: %lu bytes yest available\n",
 			new_log_buf_len);
 		return;
 	}
@@ -1181,24 +1181,24 @@ void __init setup_log_buf(int early)
 		free, (free * 100) / __LOG_BUF_LEN);
 }
 
-static bool __read_mostly ignore_loglevel;
+static bool __read_mostly igyesre_loglevel;
 
-static int __init ignore_loglevel_setup(char *str)
+static int __init igyesre_loglevel_setup(char *str)
 {
-	ignore_loglevel = true;
-	pr_info("debug: ignoring loglevel setting.\n");
+	igyesre_loglevel = true;
+	pr_info("debug: igyesring loglevel setting.\n");
 
 	return 0;
 }
 
-early_param("ignore_loglevel", ignore_loglevel_setup);
-module_param(ignore_loglevel, bool, S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(ignore_loglevel,
-		 "ignore loglevel setting (prints all kernel messages to the console)");
+early_param("igyesre_loglevel", igyesre_loglevel_setup);
+module_param(igyesre_loglevel, bool, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(igyesre_loglevel,
+		 "igyesre loglevel setting (prints all kernel messages to the console)");
 
 static bool suppress_message_printing(int level)
 {
-	return (level >= console_loglevel && !ignore_loglevel);
+	return (level >= console_loglevel && !igyesre_loglevel);
 }
 
 #ifdef CONFIG_BOOT_PRINTK_DELAY
@@ -1243,7 +1243,7 @@ static void boot_delay_msec(int level)
 		/*
 		 * use (volatile) jiffies to prevent
 		 * compiler reduction; loop termination via jiffies
-		 * is secondary and may or may not happen.
+		 * is secondary and may or may yest happen.
 		 */
 		if (time_after(jiffies, timeout))
 			break;
@@ -1581,8 +1581,8 @@ int do_syslog(int type, char __user *buf, int len, int source)
 		if (source == SYSLOG_FROM_PROC) {
 			/*
 			 * Short-cut for poll(/"proc/kmsg") which simply checks
-			 * for pending data, not the size; return the count of
-			 * records, not the length.
+			 * for pending data, yest the size; return the count of
+			 * records, yest the length.
 			 */
 			error = log_next_seq - syslog_seq;
 		} else {
@@ -1622,7 +1622,7 @@ SYSCALL_DEFINE3(syslog, int, type, char __user *, buf, int, len)
 
 /*
  * Special console_lock variants that help to reduce the risk of soft-lockups.
- * They allow to pass console_lock to another printk() call using a busy wait.
+ * They allow to pass console_lock to ayesther printk() call using a busy wait.
  */
 
 #ifdef CONFIG_LOCKDEP
@@ -1636,11 +1636,11 @@ static struct task_struct *console_owner;
 static bool console_waiter;
 
 /**
- * console_lock_spinning_enable - mark beginning of code where another
+ * console_lock_spinning_enable - mark beginning of code where ayesther
  *	thread might safely busy wait
  *
  * This basically converts console_lock into a spinlock. This marks
- * the section where the console_lock owner can not sleep, because
+ * the section where the console_lock owner can yest sleep, because
  * there may be a waiter spinning (like a spinlock). Also it must be
  * ready to hand over the lock at the end of the section.
  */
@@ -1655,16 +1655,16 @@ static void console_lock_spinning_enable(void)
 }
 
 /**
- * console_lock_spinning_disable_and_check - mark end of code where another
+ * console_lock_spinning_disable_and_check - mark end of code where ayesther
  *	thread was able to busy wait and check if there is a waiter
  *
  * This is called at the end of the section where spinning is allowed.
- * It has two functions. First, it is a signal that it is no longer
+ * It has two functions. First, it is a signal that it is yes longer
  * safe to start busy waiting for the lock. Second, it checks if
  * there is a busy waiter and passes the lock rights to her.
  *
  * Important: Callers lose the lock if there was a busy waiter.
- *	They must not touch items synchronized by console_lock
+ *	They must yest touch items synchronized by console_lock
  *	in this case.
  *
  * Return: 1 if the lock rights were passed, 0 otherwise.
@@ -1683,7 +1683,7 @@ static int console_lock_spinning_disable_and_check(void)
 		return 0;
 	}
 
-	/* The waiter is now free to continue */
+	/* The waiter is yesw free to continue */
 	WRITE_ONCE(console_waiter, false);
 
 	spin_release(&console_owner_dep_map, _THIS_IP_);
@@ -1701,7 +1701,7 @@ static int console_lock_spinning_disable_and_check(void)
  *
  * This allows to busy wait for the console_lock when the current
  * owner is running in specially marked sections. It means that
- * the current owner is running and cannot reschedule until it
+ * the current owner is running and canyest reschedule until it
  * is ready to lose the lock.
  *
  * Return: 1 if we got the lock, 0 othrewise
@@ -1751,7 +1751,7 @@ static int console_trylock_spinning(void)
 	printk_safe_exit_irqrestore(flags);
 	/*
 	 * The owner passed the console lock to us.
-	 * Since we did not spin on console lock, annotate
+	 * Since we did yest spin on console lock, anyestate
 	 * this as a trylock. Otherwise lockdep will
 	 * complain.
 	 */
@@ -1813,7 +1813,7 @@ static inline u32 printk_caller_id(void)
 }
 
 /*
- * Continuation lines are buffered, and not committed to the record buffer
+ * Continuation lines are buffered, and yest committed to the record buffer
  * until the line is complete, or a race forces it. The line fragments
  * though, are printed immediately to the consoles to ensure everything has
  * reached the console in case of a kernel crash.
@@ -1979,7 +1979,7 @@ asmlinkage int vprintk_emit(int facility, int level,
 	pending_output = (curr_log_seq != log_next_seq);
 	logbuf_unlock_irqrestore(flags);
 
-	/* If called from the scheduler, we can not call up(). */
+	/* If called from the scheduler, we can yest call up(). */
 	if (!in_sched && pending_output) {
 		/*
 		 * Disable preemption to avoid being preempted while holding
@@ -2035,7 +2035,7 @@ EXPORT_SYMBOL_GPL(vprintk_default);
  * We try to grab the console_lock. If we succeed, it's easy - we log the
  * output and call the console drivers.  If we fail to get the semaphore, we
  * place the output into the log buffer and return. The current holder of
- * the console_sem will notice the new output in console_unlock(); and will
+ * the console_sem will yestice the new output in console_unlock(); and will
  * send it to the consoles before releasing the lock.
  *
  * One effect of this deferred printing is that code which calls printk() and
@@ -2121,7 +2121,7 @@ static int __add_preferred_console(char *name, int idx, char *options,
 	int i;
 
 	/*
-	 *	See if this tty is not yet registered, and
+	 *	See if this tty is yest yet registered, and
 	 *	if we have a slot free.
 	 */
 	for (i = 0, c = console_cmdline;
@@ -2210,7 +2210,7 @@ __setup("console=", console_setup);
  * above to handle user-supplied console arguments; however it can also
  * be used by arch-specific code either to override the user or more
  * commonly to provide a default console (ie from PROM variables) when
- * the user has not supplied one.
+ * the user has yest supplied one.
  */
 int add_preferred_console(char *name, int idx, char *options)
 {
@@ -2225,7 +2225,7 @@ static int __init console_suspend_disable(char *str)
 	console_suspend_enabled = false;
 	return 1;
 }
-__setup("no_console_suspend", console_suspend_disable);
+__setup("yes_console_suspend", console_suspend_disable);
 module_param_named(console_suspend, console_suspend_enabled,
 		bool, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(console_suspend, "suspend console during suspend"
@@ -2240,7 +2240,7 @@ void suspend_console(void)
 {
 	if (!console_suspend_enabled)
 		return;
-	pr_info("Suspending console(s) (use no_console_suspend to debug)\n");
+	pr_info("Suspending console(s) (use yes_console_suspend to debug)\n");
 	console_lock();
 	console_suspended = 1;
 	up_console_sem();
@@ -2256,15 +2256,15 @@ void resume_console(void)
 }
 
 /**
- * console_cpu_notify - print deferred console messages after CPU hotplug
+ * console_cpu_yestify - print deferred console messages after CPU hotplug
  * @cpu: unused
  *
- * If printk() is called from a CPU that is not online yet, the messages
+ * If printk() is called from a CPU that is yest online yet, the messages
  * will be printed on the console only if there are CON_ANYTIME consoles.
  * This function is called when a new CPU comes online (or fails to come
  * up) or goes offline.
  */
-static int console_cpu_notify(unsigned int cpu)
+static int console_cpu_yestify(unsigned int cpu)
 {
 	if (!cpuhp_tasks_frozen) {
 		/* If trylock fails, someone else is doing the printing */
@@ -2280,7 +2280,7 @@ static int console_cpu_notify(unsigned int cpu)
  * Acquires a lock which guarantees that the caller has
  * exclusive access to the console system and the console_drivers list.
  *
- * Can sleep, returns nothing.
+ * Can sleep, returns yesthing.
  */
 void console_lock(void)
 {
@@ -2386,7 +2386,7 @@ void console_unlock(void)
 	 * softlockup warnings which exacerbate the issue with more
 	 * messages practically incapacitating the system.
 	 *
-	 * console_trylock() is not able to detect the preemptive
+	 * console_trylock() is yest able to detect the preemptive
 	 * context reliably. Therefore the value must be stored before
 	 * and cleared after the the "again" goto label.
 	 */
@@ -2396,7 +2396,7 @@ again:
 
 	/*
 	 * We released the console_sem lock, so we need to recheck if
-	 * cpu is online and (if not) is there at least one CON_ANYTIME
+	 * cpu is online and (if yest) is there at least one CON_ANYTIME
 	 * console.
 	 */
 	if (!can_use_console()) {
@@ -2462,9 +2462,9 @@ skip:
 		raw_spin_unlock(&logbuf_lock);
 
 		/*
-		 * While actively printing out messages, if another printk()
-		 * were to occur on another CPU, it may wait for this one to
-		 * finish. This task can not be preempted if there is a
+		 * While actively printing out messages, if ayesther printk()
+		 * were to occur on ayesther CPU, it may wait for this one to
+		 * finish. This task can yest be preempted if there is a
 		 * waiter waiting to take over.
 		 */
 		console_lock_spinning_enable();
@@ -2492,9 +2492,9 @@ skip:
 
 	/*
 	 * Someone could have filled up the buffer again, so re-check if there's
-	 * something to flush. In case we cannot trylock the console_sem again,
+	 * something to flush. In case we canyest trylock the console_sem again,
 	 * there's a new owner and the console_unlock() from them will do the
-	 * flush, no worries.
+	 * flush, yes worries.
 	 */
 	raw_spin_lock(&logbuf_lock);
 	retry = console_seq != log_next_seq;
@@ -2510,7 +2510,7 @@ EXPORT_SYMBOL(console_unlock);
  * console_conditional_schedule - yield the CPU if required
  *
  * If the console code is currently allowed to sleep, and
- * if this CPU should yield the CPU to another task, do
+ * if this CPU should yield the CPU to ayesther task, do
  * so here.
  *
  * Must be called within console_lock();.
@@ -2527,7 +2527,7 @@ void console_unblank(void)
 	struct console *c;
 
 	/*
-	 * console_unblank can no longer be called in interrupt context unless
+	 * console_unblank can yes longer be called in interrupt context unless
 	 * oops_in_progress is set to 1..
 	 */
 	if (oops_in_progress) {
@@ -2548,13 +2548,13 @@ void console_unblank(void)
  * console_flush_on_panic - flush console content on panic
  * @mode: flush all messages in buffer or just the pending ones
  *
- * Immediately output all pending messages no matter what.
+ * Immediately output all pending messages yes matter what.
  */
 void console_flush_on_panic(enum con_flush_mode mode)
 {
 	/*
 	 * If someone else is holding the console lock, trylock will fail
-	 * and may_schedule may be set.  Ignore and proceed to unlock so
+	 * and may_schedule may be set.  Igyesre and proceed to unlock so
 	 * that messages are flushed out.  As this can be called from any
 	 * context and we don't want to get preempted while flushing,
 	 * ensure may_schedule is cleared.
@@ -2634,10 +2634,10 @@ early_param("keep_bootcon", keep_bootcon_setup);
  *
  * This can happen pretty early during the boot process (because of
  * early_printk) - sometimes before setup_arch() completes - be careful
- * of what kernel features are used - they may not be initialised yet.
+ * of what kernel features are used - they may yest be initialised yet.
  *
  * There are two types of consoles - bootconsoles (early_printk) and
- * "real" consoles (everything which is not a bootconsole) which are
+ * "real" consoles (everything which is yest a bootconsole) which are
  * handled differently.
  *  - Any number of bootconsoles can be registered at any time.
  *  - As soon as a "real" console is registered, all bootconsoles
@@ -2740,7 +2740,7 @@ void register_console(struct console *newcon)
 	/*
 	 * If we have a bootconsole, and are switching to a real console,
 	 * don't print everything out again, since when the boot console, and
-	 * the real console are the same physical device, it's annoying to
+	 * the real console are the same physical device, it's anyesying to
 	 * see the beginning boot messages twice
 	 */
 	if (bcon && ((newcon->flags & (CON_CONSDEV | CON_BOOT)) == CON_CONSDEV))
@@ -2779,21 +2779,21 @@ void register_console(struct console *newcon)
 		 *
 		 * Set exclusive_console with disabled interrupts to reduce
 		 * race window with eventual console_flush_on_panic() that
-		 * ignores console_lock.
+		 * igyesres console_lock.
 		 */
 		exclusive_console = newcon;
 		exclusive_console_stop_seq = console_seq;
 		logbuf_unlock_irqrestore(flags);
 	}
 	console_unlock();
-	console_sysfs_notify();
+	console_sysfs_yestify();
 
 	/*
 	 * By unregistering the bootconsoles after we enable the real console
 	 * we get the "console xxx enabled" message on all the consoles -
 	 * boot consoles, real consoles, etc - this is to ensure that end
-	 * users know there might be something in the kernel's log buffer that
-	 * went to the bootconsole (that they do not see on the real console)
+	 * users kyesw there might be something in the kernel's log buffer that
+	 * went to the bootconsole (that they do yest see on the real console)
 	 */
 	pr_info("%sconsole [%s%d] enabled\n",
 		(newcon->flags & CON_BOOT) ? "boot" : "" ,
@@ -2852,7 +2852,7 @@ int unregister_console(struct console *console)
 
 	console->flags &= ~CON_ENABLED;
 	console_unlock();
-	console_sysfs_notify();
+	console_sysfs_yestify();
 	return res;
 }
 EXPORT_SYMBOL(unregister_console);
@@ -2889,13 +2889,13 @@ void __init console_init(void)
 
 /*
  * Some boot consoles access data that is in the init section and which will
- * be discarded after the initcalls have been run. To make sure that no code
+ * be discarded after the initcalls have been run. To make sure that yes code
  * will access this data, unregister the boot consoles in a late initcall.
  *
  * If for some reason, such as deferred probe or the driver being a loadable
  * module, the real console hasn't registered yet at this point, there will
- * be a brief interval in which no messages are logged to the console, which
- * makes it difficult to diagnose problems that occur during this time.
+ * be a brief interval in which yes messages are logged to the console, which
+ * makes it difficult to diagyesse problems that occur during this time.
  *
  * To mitigate this problem somewhat, only unregister consoles whose memory
  * intersects with the init section. Note that all other boot consoles will
@@ -2926,11 +2926,11 @@ static int __init printk_late_init(void)
 			unregister_console(con);
 		}
 	}
-	ret = cpuhp_setup_state_nocalls(CPUHP_PRINTK_DEAD, "printk:dead", NULL,
-					console_cpu_notify);
+	ret = cpuhp_setup_state_yescalls(CPUHP_PRINTK_DEAD, "printk:dead", NULL,
+					console_cpu_yestify);
 	WARN_ON(ret < 0);
-	ret = cpuhp_setup_state_nocalls(CPUHP_AP_ONLINE_DYN, "printk:online",
-					console_cpu_notify, NULL);
+	ret = cpuhp_setup_state_yescalls(CPUHP_AP_ONLINE_DYN, "printk:online",
+					console_cpu_yestify, NULL);
 	WARN_ON(ret < 0);
 	return 0;
 }
@@ -3007,7 +3007,7 @@ int printk_deferred(const char *fmt, ...)
 /*
  * printk rate limiting, lifted from the networking subsystem.
  *
- * This enforces a rate limit: not more than 10 kernel messages
+ * This enforces a rate limit: yest more than 10 kernel messages
  * every 5s to make a denial-of-service attack impossible.
  */
 DEFINE_RATELIMIT_STATE(printk_ratelimit_state, 5 * HZ, 10);
@@ -3142,7 +3142,7 @@ void kmsg_dump(enum kmsg_dump_reason reason)
 }
 
 /**
- * kmsg_dump_get_line_nolock - retrieve one kmsg log line (unlocked version)
+ * kmsg_dump_get_line_yeslock - retrieve one kmsg log line (unlocked version)
  * @dumper: registered kmsg dumper
  * @syslog: include the "<4>" prefixes
  * @line: buffer to copy the line to
@@ -3155,12 +3155,12 @@ void kmsg_dump(enum kmsg_dump_reason reason)
  * Consecutive calls will return the next available record moving
  * towards the end of the buffer with the youngest messages.
  *
- * A return value of FALSE indicates that there are no more records to
+ * A return value of FALSE indicates that there are yes more records to
  * read.
  *
- * The function is similar to kmsg_dump_get_line(), but grabs no locks.
+ * The function is similar to kmsg_dump_get_line(), but grabs yes locks.
  */
-bool kmsg_dump_get_line_nolock(struct kmsg_dumper *dumper, bool syslog,
+bool kmsg_dump_get_line_yeslock(struct kmsg_dumper *dumper, bool syslog,
 			       char *line, size_t size, size_t *len)
 {
 	struct printk_log *msg;
@@ -3206,7 +3206,7 @@ out:
  * Consecutive calls will return the next available record moving
  * towards the end of the buffer with the youngest messages.
  *
- * A return value of FALSE indicates that there are no more records to
+ * A return value of FALSE indicates that there are yes more records to
  * read.
  */
 bool kmsg_dump_get_line(struct kmsg_dumper *dumper, bool syslog,
@@ -3216,7 +3216,7 @@ bool kmsg_dump_get_line(struct kmsg_dumper *dumper, bool syslog,
 	bool ret;
 
 	logbuf_lock_irqsave(flags);
-	ret = kmsg_dump_get_line_nolock(dumper, syslog, line, size, len);
+	ret = kmsg_dump_get_line_yeslock(dumper, syslog, line, size, len);
 	logbuf_unlock_irqrestore(flags);
 
 	return ret;
@@ -3233,13 +3233,13 @@ EXPORT_SYMBOL_GPL(kmsg_dump_get_line);
  *
  * Start at the end of the kmsg buffer and fill the provided buffer
  * with as many of the the *youngest* kmsg records that fit into it.
- * If the buffer is large enough, all available kmsg records will be
+ * If the buffer is large eyesugh, all available kmsg records will be
  * copied with a single call.
  *
  * Consecutive calls will fill the buffer with the next block of
- * available older records, not including the earlier retrieved ones.
+ * available older records, yest including the earlier retrieved ones.
  *
- * A return value of FALSE indicates that there are no more records to
+ * A return value of FALSE indicates that there are yes more records to
  * read.
  */
 bool kmsg_dump_get_buffer(struct kmsg_dumper *dumper, bool syslog,
@@ -3317,16 +3317,16 @@ out:
 EXPORT_SYMBOL_GPL(kmsg_dump_get_buffer);
 
 /**
- * kmsg_dump_rewind_nolock - reset the interator (unlocked version)
+ * kmsg_dump_rewind_yeslock - reset the interator (unlocked version)
  * @dumper: registered kmsg dumper
  *
  * Reset the dumper's iterator so that kmsg_dump_get_line() and
  * kmsg_dump_get_buffer() can be called again and used multiple
  * times within the same dumper.dump() callback.
  *
- * The function is similar to kmsg_dump_rewind(), but grabs no locks.
+ * The function is similar to kmsg_dump_rewind(), but grabs yes locks.
  */
-void kmsg_dump_rewind_nolock(struct kmsg_dumper *dumper)
+void kmsg_dump_rewind_yeslock(struct kmsg_dumper *dumper)
 {
 	dumper->cur_seq = clear_seq;
 	dumper->cur_idx = clear_idx;
@@ -3347,7 +3347,7 @@ void kmsg_dump_rewind(struct kmsg_dumper *dumper)
 	unsigned long flags;
 
 	logbuf_lock_irqsave(flags);
-	kmsg_dump_rewind_nolock(dumper);
+	kmsg_dump_rewind_yeslock(dumper);
 	logbuf_unlock_irqrestore(flags);
 }
 EXPORT_SYMBOL_GPL(kmsg_dump_rewind);

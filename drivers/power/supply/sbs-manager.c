@@ -225,9 +225,9 @@ static int sbsm_do_alert(struct device *dev, void *d)
 		if (driver->alert)
 			driver->alert(client, I2C_PROTOCOL_SMBUS_ALERT, 0);
 		else
-			dev_warn(&client->dev, "no driver alert()!\n");
+			dev_warn(&client->dev, "yes driver alert()!\n");
 	} else {
-		dev_dbg(&client->dev, "alert with no driver\n");
+		dev_dbg(&client->dev, "alert with yes driver\n");
 	}
 	device_unlock(dev);
 
@@ -382,7 +382,7 @@ static int sbsm_probe(struct i2c_client *client,
 		goto err_psy;
 
 	psy_cfg.drv_data = data;
-	psy_cfg.of_node = dev->of_node;
+	psy_cfg.of_yesde = dev->of_yesde;
 	data->psy = devm_power_supply_register(dev, psy_desc, &psy_cfg);
 	if (IS_ERR(data->psy)) {
 		ret = PTR_ERR(data->psy);

@@ -28,7 +28,7 @@
   I) APPLICATIONS
 
   Several applications have been ported successfully to UDP-Lite. Ethereal
-  (now called wireshark) has UDP-Litev4/v6 support by default. 
+  (yesw called wireshark) has UDP-Litev4/v6 support by default. 
   Porting applications to UDP-Lite is straightforward: only socket level and
   IPPROTO need to be changed; senders additionally set the checksum coverage
   length (default = header length = 8). Details are in the next section.
@@ -48,7 +48,7 @@
       s = socket(PF_INET6, SOCK_DGRAM, IPPROTO_UDPLITE);
 
   With just the above change you are able to run UDP-Lite services or connect
-  to UDP-Lite servers. The kernel will assume that you are not interested in
+  to UDP-Lite servers. The kernel will assume that you are yest interested in
   using partial checksum coverage and so emulate UDP mode (full coverage).
 
   To make use of the partial checksum coverage facilities requires setting a
@@ -69,7 +69,7 @@
 
     * Receiver checksum coverage: UDPLITE_RECV_CSCOV
 
-      This option is the receiver-side analogue. It is truly optional, i.e. not
+      This option is the receiver-side analogue. It is truly optional, i.e. yest
       required to enable traffic with partial checksum coverage. Its function is
       that of a traffic filter: when enabled, it instructs the kernel to drop
       all packets which have a coverage _less_ than this value. For example, if
@@ -79,8 +79,8 @@
         int min = 20;
         setsockopt(s, SOL_UDPLITE, UDPLITE_RECV_CSCOV, &min, sizeof(int));
 
-  The calls to getsockopt(2) are analogous. Being an extension and not a stand-
-  alone protocol, all socket options known from UDP can be used in exactly the
+  The calls to getsockopt(2) are analogous. Being an extension and yest a stand-
+  alone protocol, all socket options kyeswn from UDP can be used in exactly the
   same manner as before, e.g. UDP_CORK or UDP_ENCAP.
 
   A detailed discussion of UDP-Lite checksum coverage options is in section IV.
@@ -127,7 +127,7 @@
   always wants the whole of the packet covered. In this case, all
   partially covered packets are dropped and an error is logged.
 
-  It is not possible to specify illegal values (<0 and <8); in these
+  It is yest possible to specify illegal values (<0 and <8); in these
   cases the default of 8 is assumed.
 
   All packets arriving with a coverage value less than the specified
@@ -136,11 +136,11 @@
   3) Disabling the Checksum Computation
 
   On both sender and receiver, checksumming will always be performed
-  and cannot be disabled using SO_NO_CHECK. Thus
+  and canyest be disabled using SO_NO_CHECK. Thus
 
         setsockopt(sockfd, SOL_SOCKET, SO_NO_CHECK,  ... );
 
-  will always will be ignored, while the value of
+  will always will be igyesred, while the value of
 
         getsockopt(sockfd, SOL_SOCKET, SO_NO_CHECK, &value, ...);
 
@@ -218,8 +218,8 @@
   fragment only 598 (= 3062 - 2*1232) bytes are checksummed.
 
   While it is important that such cases are dealt with correctly, they
-  are (annoyingly) rare: UDP-Lite is designed for optimising multimedia
-  performance over wireless (or generally noisy) links and thus smaller
+  are (anyesyingly) rare: UDP-Lite is designed for optimising multimedia
+  performance over wireless (or generally yesisy) links and thus smaller
   coverage lengths are likely to be expected.
 
 
@@ -235,8 +235,8 @@
 
    InDatagrams:     The total number of datagrams delivered to users.
 
-   NoPorts:         Number of packets received to an unknown port.
-                    These cases are counted separately (not as InErrors).
+   NoPorts:         Number of packets received to an unkyeswn port.
+                    These cases are counted separately (yest as InErrors).
 
    InErrors:        Number of erroneous UDP-Lite packets. Errors include:
                       * internal socket queue receive errors

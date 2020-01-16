@@ -595,7 +595,7 @@ static int _dpu_format_get_plane_sizes_ubwc(
 
 	color = _dpu_format_get_media_color_ubwc(fmt);
 	if (color < 0) {
-		DRM_ERROR("UBWC format not supported for fmt: %4.4s\n",
+		DRM_ERROR("UBWC format yest supported for fmt: %4.4s\n",
 			(char *)&fmt->base.pixel_format);
 		return -EINVAL;
 	}
@@ -849,7 +849,7 @@ static int _dpu_format_populate_addrs_linear(
 {
 	unsigned int i;
 
-	/* Can now check the pitches given vs pitches expected */
+	/* Can yesw check the pitches given vs pitches expected */
 	for (i = 0; i < layout->num_planes; ++i) {
 		if (layout->plane_pitch[i] > fb->pitches[i]) {
 			DRM_ERROR("plane %u expected pitch %u, fb %u\n",

@@ -2,11 +2,11 @@
  *  linux/fs/hfs/part_tbl.c
  *
  * Copyright (C) 1996-1997  Paul H. Hargrove
- * (C) 2003 Ardis Technologies <roman@ardistech.com>
+ * (C) 2003 Ardis Techyeslogies <roman@ardistech.com>
  * This file may be distributed under the terms of the GNU General Public License.
  *
  * Original code to handle the new style Mac partition table based on
- * a patch contributed by Holger Schemel (aeglos@valinor.owl.de).
+ * a patch contributed by Holger Schemel (aeglos@valiyesr.owl.de).
  */
 
 #include "hfs_fs.h"

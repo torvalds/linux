@@ -33,7 +33,7 @@ static void dump_fir(int cpu)
 		return;
 
 	/* Todo: do some nicer parsing of bits and based on them go down
-	 * to other sub-units FIRs and not only IIC
+	 * to other sub-units FIRs and yest only IIC
 	 */
 	printk(KERN_ERR "Global Checkstop FIR    : 0x%016llx\n",
 	       in_be64(&pregs->checkstop_fir));
@@ -89,7 +89,7 @@ static int cbe_machine_check_handler(struct pt_regs *regs)
 	printk(KERN_ERR "Machine Check Interrupt on CPU %d !\n", cpu);
 	dump_fir(cpu);
 
-	/* No recovery from this code now, lets continue */
+	/* No recovery from this code yesw, lets continue */
 	return 0;
 }
 
@@ -104,7 +104,7 @@ static LIST_HEAD(ptcal_list);
 
 static int ptcal_start_tok, ptcal_stop_tok;
 
-static int __init cbe_ptcal_enable_on_node(int nid, int order)
+static int __init cbe_ptcal_enable_on_yesde(int nid, int order)
 {
 	struct ptcal_area *area;
 	int ret = -ENOMEM;
@@ -119,12 +119,12 @@ static int __init cbe_ptcal_enable_on_node(int nid, int order)
 
 	area->nid = nid;
 	area->order = order;
-	area->pages = __alloc_pages_node(area->nid,
+	area->pages = __alloc_pages_yesde(area->nid,
 						GFP_KERNEL|__GFP_THISNODE,
 						area->order);
 
 	if (!area->pages) {
-		printk(KERN_WARNING "%s: no page on node %d\n",
+		printk(KERN_WARNING "%s: yes page on yesde %d\n",
 			__func__, area->nid);
 		goto out_free_area;
 	}
@@ -135,14 +135,14 @@ static int __init cbe_ptcal_enable_on_node(int nid, int order)
 	 * functions stepping on it.
 	 */
 	addr = __pa(page_address(area->pages)) + (PAGE_SIZE >> 1);
-	printk(KERN_DEBUG "%s: enabling PTCAL on node %d address=0x%016lx\n",
+	printk(KERN_DEBUG "%s: enabling PTCAL on yesde %d address=0x%016lx\n",
 			__func__, area->nid, addr);
 
 	ret = -EIO;
 	if (rtas_call(ptcal_start_tok, 3, 1, NULL, area->nid,
 				(unsigned int)(addr >> 32),
 				(unsigned int)(addr & 0xffffffff))) {
-		printk(KERN_ERR "%s: error enabling PTCAL on node %d!\n",
+		printk(KERN_ERR "%s: error enabling PTCAL on yesde %d!\n",
 				__func__, nid);
 		goto out_free_pages;
 	}
@@ -162,41 +162,41 @@ out_err:
 static int __init cbe_ptcal_enable(void)
 {
 	const u32 *size;
-	struct device_node *np;
+	struct device_yesde *np;
 	int order, found_mic = 0;
 
-	np = of_find_node_by_path("/rtas");
+	np = of_find_yesde_by_path("/rtas");
 	if (!np)
 		return -ENODEV;
 
 	size = of_get_property(np, "ibm,cbe-ptcal-size", NULL);
 	if (!size) {
-		of_node_put(np);
+		of_yesde_put(np);
 		return -ENODEV;
 	}
 
 	pr_debug("%s: enabling PTCAL, size = 0x%x\n", __func__, *size);
 	order = get_order(*size);
-	of_node_put(np);
+	of_yesde_put(np);
 
-	/* support for malta device trees, with be@/mic@ nodes */
-	for_each_node_by_type(np, "mic-tm") {
-		cbe_ptcal_enable_on_node(of_node_to_nid(np), order);
+	/* support for malta device trees, with be@/mic@ yesdes */
+	for_each_yesde_by_type(np, "mic-tm") {
+		cbe_ptcal_enable_on_yesde(of_yesde_to_nid(np), order);
 		found_mic = 1;
 	}
 
 	if (found_mic)
 		return 0;
 
-	/* support for older device tree - use cpu nodes */
-	for_each_node_by_type(np, "cpu") {
-		const u32 *nid = of_get_property(np, "node-id", NULL);
+	/* support for older device tree - use cpu yesdes */
+	for_each_yesde_by_type(np, "cpu") {
+		const u32 *nid = of_get_property(np, "yesde-id", NULL);
 		if (!nid) {
-			printk(KERN_ERR "%s: node %pOF is missing node-id?\n",
+			printk(KERN_ERR "%s: yesde %pOF is missing yesde-id?\n",
 					__func__, np);
 			continue;
 		}
-		cbe_ptcal_enable_on_node(*nid, order);
+		cbe_ptcal_enable_on_yesde(*nid, order);
 		found_mic = 1;
 	}
 
@@ -211,10 +211,10 @@ static int cbe_ptcal_disable(void)
 	pr_debug("%s: disabling PTCAL\n", __func__);
 
 	list_for_each_entry_safe(area, tmp, &ptcal_list, list) {
-		/* disable ptcal on this node */
+		/* disable ptcal on this yesde */
 		if (rtas_call(ptcal_stop_tok, 1, 1, NULL, area->nid)) {
 			printk(KERN_ERR "%s: error disabling PTCAL "
-					"on node %d!\n", __func__,
+					"on yesde %d!\n", __func__,
 					area->nid);
 			ret = -EIO;
 			continue;
@@ -233,7 +233,7 @@ static int cbe_ptcal_disable(void)
 	return ret;
 }
 
-static int cbe_ptcal_notify_reboot(struct notifier_block *nb,
+static int cbe_ptcal_yestify_reboot(struct yestifier_block *nb,
 		unsigned long code, void *data)
 {
 	return cbe_ptcal_disable();
@@ -244,8 +244,8 @@ static void cbe_ptcal_crash_shutdown(void)
 	cbe_ptcal_disable();
 }
 
-static struct notifier_block cbe_ptcal_reboot_notifier = {
-	.notifier_call = cbe_ptcal_notify_reboot
+static struct yestifier_block cbe_ptcal_reboot_yestifier = {
+	.yestifier_call = cbe_ptcal_yestify_reboot
 };
 
 #ifdef CONFIG_PPC_IBM_CELL_RESETBUTTON
@@ -278,7 +278,7 @@ int cbe_sysreset_hack(void)
 
 	/*
 	 * The BMC can inject user triggered system reset exceptions,
-	 * but cannot set the system reset reason in srr1,
+	 * but canyest set the system reset reason in srr1,
 	 * so check an extra register here.
 	 */
 	if (sysreset_hack && (smp_processor_id() == 0)) {
@@ -304,7 +304,7 @@ static int __init cbe_ptcal_init(void)
 			|| ptcal_stop_tok == RTAS_UNKNOWN_SERVICE)
 		return -ENODEV;
 
-	ret = register_reboot_notifier(&cbe_ptcal_reboot_notifier);
+	ret = register_reboot_yestifier(&cbe_ptcal_reboot_yestifier);
 	if (ret)
 		goto out1;
 
@@ -315,9 +315,9 @@ static int __init cbe_ptcal_init(void)
 	return cbe_ptcal_enable();
 
 out2:
-	unregister_reboot_notifier(&cbe_ptcal_reboot_notifier);
+	unregister_reboot_yestifier(&cbe_ptcal_reboot_yestifier);
 out1:
-	printk(KERN_ERR "Can't disable PTCAL, so not enabling\n");
+	printk(KERN_ERR "Can't disable PTCAL, so yest enabling\n");
 	return ret;
 }
 
@@ -339,14 +339,14 @@ void __init cbe_ras_init(void)
 
 	/*
 	 * Install machine check handler. Leave setting of precise mode to
-	 * what the firmware did for now
+	 * what the firmware did for yesw
 	 */
 	ppc_md.machine_check_exception = cbe_machine_check_handler;
 	mb();
 
 	/*
-	 * For now, we assume that IOC_FIR is already set to forward some
-	 * error conditions to the System Error handler. If that is not true
+	 * For yesw, we assume that IOC_FIR is already set to forward some
+	 * error conditions to the System Error handler. If that is yest true
 	 * then it will have to be fixed up here.
 	 */
 }

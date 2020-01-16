@@ -89,7 +89,7 @@ nfsd4_block_encode_getdeviceinfo(struct xdr_stream *xdr,
 	for (i = 0; i < dev->nr_volumes; i++) {
 		ret = nfsd4_block_encode_volume(xdr, &dev->volumes[i]);
 		if (ret < 0)
-			return nfserrno(ret);
+			return nfserryes(ret);
 		len += ret;
 	}
 

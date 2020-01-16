@@ -331,7 +331,7 @@ static int tm6000_set_audio_std(struct tm6000_core *dev)
 		tm6000_set_reg(dev, TM6010_REQ08_R03_A_AUTO_GAIN_CTRL, 0x00);
 		tm6000_set_reg(dev, TM6010_REQ08_R04_A_SIF_AMP_CTRL, 0x80);
 		tm6000_set_reg(dev, TM6010_REQ08_R05_A_STANDARD_MOD, 0x0c);
-		/* set mono or stereo */
+		/* set moyes or stereo */
 		if (dev->amode == V4L2_TUNER_MODE_MONO)
 			tm6000_set_reg(dev, TM6010_REQ08_R06_A_SOUND_MOD, 0x00);
 		else if (dev->amode == V4L2_TUNER_MODE_STEREO)
@@ -350,34 +350,34 @@ static int tm6000_set_audio_std(struct tm6000_core *dev)
 	 * STD/MN shouldn't be affected by tm6010_a_mode, as there's just one
 	 * audio standard for each V4L2_STD type.
 	 */
-	if ((dev->norm & V4L2_STD_NTSC) == V4L2_STD_NTSC_M_KR) {
+	if ((dev->yesrm & V4L2_STD_NTSC) == V4L2_STD_NTSC_M_KR) {
 		areg_05 |= 0x04;
-	} else if ((dev->norm & V4L2_STD_NTSC) == V4L2_STD_NTSC_M_JP) {
+	} else if ((dev->yesrm & V4L2_STD_NTSC) == V4L2_STD_NTSC_M_JP) {
 		areg_05 |= 0x43;
-	} else if (dev->norm & V4L2_STD_MN) {
+	} else if (dev->yesrm & V4L2_STD_MN) {
 		areg_05 |= 0x22;
 	} else switch (tm6010_a_mode) {
 	/* auto */
 	case 0:
-		if ((dev->norm & V4L2_STD_SECAM) == V4L2_STD_SECAM_L)
+		if ((dev->yesrm & V4L2_STD_SECAM) == V4L2_STD_SECAM_L)
 			areg_05 |= 0x00;
 		else	/* Other PAL/SECAM standards */
 			areg_05 |= 0x10;
 		break;
 	/* A2 */
 	case 1:
-		if (dev->norm & V4L2_STD_DK)
+		if (dev->yesrm & V4L2_STD_DK)
 			areg_05 = 0x09;
 		else
 			areg_05 = 0x05;
 		break;
 	/* NICAM */
 	case 2:
-		if (dev->norm & V4L2_STD_DK) {
+		if (dev->yesrm & V4L2_STD_DK) {
 			areg_05 = 0x06;
-		} else if (dev->norm & V4L2_STD_PAL_I) {
+		} else if (dev->yesrm & V4L2_STD_PAL_I) {
 			areg_05 = 0x08;
-		} else if (dev->norm & V4L2_STD_SECAM_L) {
+		} else if (dev->yesrm & V4L2_STD_SECAM_L) {
 			areg_05 = 0x0a;
 			areg_02 = 0x02;
 		} else {
@@ -386,7 +386,7 @@ static int tm6000_set_audio_std(struct tm6000_core *dev)
 		break;
 	/* other */
 	case 3:
-		if (dev->norm & V4L2_STD_DK) {
+		if (dev->yesrm & V4L2_STD_DK) {
 			areg_05 = 0x0b;
 		} else {
 			areg_05 = 0x02;
@@ -434,7 +434,7 @@ static int tm6000_set_audio_std(struct tm6000_core *dev)
 void tm6000_get_std_res(struct tm6000_core *dev)
 {
 	/* Currently, those are the only supported resoltions */
-	if (dev->norm & V4L2_STD_525_60)
+	if (dev->yesrm & V4L2_STD_525_60)
 		dev->height = 480;
 	else
 		dev->height = 576;
@@ -592,7 +592,7 @@ int tm6000_set_standard(struct tm6000_core *dev)
 	}
 	if (input->type == TM6000_INPUT_SVIDEO) {
 		for (i = 0; i < ARRAY_SIZE(svideo_stds); i++) {
-			if (dev->norm & svideo_stds[i].id) {
+			if (dev->yesrm & svideo_stds[i].id) {
 				rc = tm6000_load_std(dev, svideo_stds[i].common);
 				goto ret;
 			}
@@ -600,7 +600,7 @@ int tm6000_set_standard(struct tm6000_core *dev)
 		return -EINVAL;
 	} else {
 		for (i = 0; i < ARRAY_SIZE(composite_stds); i++) {
-			if (dev->norm & composite_stds[i].id) {
+			if (dev->yesrm & composite_stds[i].id) {
 				rc = tm6000_load_std(dev, composite_stds[i].common);
 				goto ret;
 			}

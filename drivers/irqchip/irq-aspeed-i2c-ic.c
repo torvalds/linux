@@ -2,7 +2,7 @@
 /*
  *  Aspeed 24XX/25XX I2C Interrupt Controller.
  *
- *  Copyright (C) 2012-2017 ASPEED Technology Inc.
+ *  Copyright (C) 2012-2017 ASPEED Techyeslogy Inc.
  *  Copyright 2017 IBM Corporation
  *  Copyright 2017 Google, Inc.
  */
@@ -62,8 +62,8 @@ static const struct irq_domain_ops aspeed_i2c_ic_irq_domain_ops = {
 	.map = aspeed_i2c_ic_map_irq_domain,
 };
 
-static int __init aspeed_i2c_ic_of_init(struct device_node *node,
-					struct device_node *parent)
+static int __init aspeed_i2c_ic_of_init(struct device_yesde *yesde,
+					struct device_yesde *parent)
 {
 	struct aspeed_i2c_ic *i2c_ic;
 	int ret = 0;
@@ -72,19 +72,19 @@ static int __init aspeed_i2c_ic_of_init(struct device_node *node,
 	if (!i2c_ic)
 		return -ENOMEM;
 
-	i2c_ic->base = of_iomap(node, 0);
+	i2c_ic->base = of_iomap(yesde, 0);
 	if (!i2c_ic->base) {
 		ret = -ENOMEM;
 		goto err_free_ic;
 	}
 
-	i2c_ic->parent_irq = irq_of_parse_and_map(node, 0);
+	i2c_ic->parent_irq = irq_of_parse_and_map(yesde, 0);
 	if (i2c_ic->parent_irq < 0) {
 		ret = i2c_ic->parent_irq;
 		goto err_iounmap;
 	}
 
-	i2c_ic->irq_domain = irq_domain_add_linear(node, ASPEED_I2C_IC_NUM_BUS,
+	i2c_ic->irq_domain = irq_domain_add_linear(yesde, ASPEED_I2C_IC_NUM_BUS,
 						   &aspeed_i2c_ic_irq_domain_ops,
 						   NULL);
 	if (!i2c_ic->irq_domain) {

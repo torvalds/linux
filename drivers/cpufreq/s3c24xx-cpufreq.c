@@ -30,7 +30,7 @@
 
 #include <mach/regs-clock.h>
 
-/* note, cpufreq support deals in kHz, no Hz */
+/* yeste, cpufreq support deals in kHz, yes Hz */
 
 static struct cpufreq_driver s3c24xx_driver;
 static struct s3c_cpufreq_config cpu_cur;
@@ -85,7 +85,7 @@ static inline void s3c_cpufreq_calc(struct s3c_cpufreq_config *cfg)
 	cfg->freq.hclk = pll / cfg->divs.h_divisor;
 	cfg->freq.pclk = pll / cfg->divs.p_divisor;
 
-	/* convert hclk into 10ths of nanoseconds for io calcs */
+	/* convert hclk into 10ths of nayesseconds for io calcs */
 	cfg->freq.hclk_tns = 1000000000 / (cfg->freq.hclk / 10);
 }
 
@@ -174,8 +174,8 @@ static int s3c_cpufreq_settarget(struct cpufreq_policy *policy,
 	cpu_new.freq.fclk = cpu_new.pll.frequency;
 
 	if (s3c_cpufreq_calcdivs(&cpu_new) < 0) {
-		pr_err("no divisors for %d\n", target_freq);
-		goto err_notpossible;
+		pr_err("yes divisors for %d\n", target_freq);
+		goto err_yestpossible;
 	}
 
 	s3c_freq_dbg("%s: got divs\n", __func__);
@@ -186,8 +186,8 @@ static int s3c_cpufreq_settarget(struct cpufreq_policy *policy,
 
 	if (cpu_new.freq.hclk != cpu_cur.freq.hclk) {
 		if (s3c_cpufreq_calcio(&cpu_new) < 0) {
-			pr_err("%s: no IO timings\n", __func__);
-			goto err_notpossible;
+			pr_err("%s: yes IO timings\n", __func__);
+			goto err_yestpossible;
 		}
 	}
 
@@ -202,7 +202,7 @@ static int s3c_cpufreq_settarget(struct cpufreq_policy *policy,
 	freqs.freqs.new = cpu_new.freq.armclk / 1000;
 
 	/* update f/h/p clock settings before we issue the change
-	 * notification, so that drivers do not need to do anything
+	 * yestification, so that drivers do yest need to do anything
 	 * special if they want to recalculate on CPUFREQ_PRECHANGE. */
 
 	s3c_cpufreq_updateclk(_clk_mpll, cpu_new.pll.frequency);
@@ -213,7 +213,7 @@ static int s3c_cpufreq_settarget(struct cpufreq_policy *policy,
 	/* start the frequency change */
 	cpufreq_freq_transition_begin(policy, &freqs.freqs);
 
-	/* If hclk is staying the same, then we do not need to
+	/* If hclk is staying the same, then we do yest need to
 	 * re-write the IO or the refresh timings whilst we are changing
 	 * speed. */
 
@@ -226,7 +226,7 @@ static int s3c_cpufreq_settarget(struct cpufreq_policy *policy,
 	}
 
 	if (cpu_new.freq.fclk == cpu_cur.freq.fclk) {
-		/* not changing PLL, just set the divisors */
+		/* yest changing PLL, just set the divisors */
 
 		s3c_cpufreq_setdivs(&cpu_new);
 	} else {
@@ -254,14 +254,14 @@ static int s3c_cpufreq_settarget(struct cpufreq_policy *policy,
 
 	local_irq_restore(flags);
 
-	/* notify everyone we've done this */
+	/* yestify everyone we've done this */
 	cpufreq_freq_transition_end(policy, &freqs.freqs, 0);
 
 	s3c_freq_dbg("%s: finished\n", __func__);
 	return 0;
 
- err_notpossible:
-	pr_err("no compatible settings for %d\n", target_freq);
+ err_yestpossible:
+	pr_err("yes compatible settings for %d\n", target_freq);
 	return -EINVAL;
 }
 
@@ -303,7 +303,7 @@ static int s3c_cpufreq_target(struct cpufreq_policy *policy,
 	/* find the settings for our new frequency */
 
 	if (!pll_reg || cpu_cur.lock_pll) {
-		/* either we've not got any PLL values, or we've locked
+		/* either we've yest got any PLL values, or we've locked
 		 * to the current one. */
 		pll = NULL;
 	} else {
@@ -318,7 +318,7 @@ static int s3c_cpufreq_target(struct cpufreq_policy *policy,
 		tmp_policy.freq_table = pll_reg;
 
 		/* cpufreq_frequency_table_target returns the index
-		 * of the table entry, not the value of
+		 * of the table entry, yest the value of
 		 * the table entry's index field. */
 
 		index = cpufreq_frequency_table_target(&tmp_policy, target_freq,
@@ -365,7 +365,7 @@ static int __init s3c_cpufreq_initclks(void)
 
 	if (IS_ERR(clk_fclk) || IS_ERR(clk_hclk) || IS_ERR(clk_pclk) ||
 	    IS_ERR(_clk_mpll) || IS_ERR(clk_arm) || IS_ERR(_clk_xtal)) {
-		pr_err("%s: could not get clock(s)\n", __func__);
+		pr_err("%s: could yest get clock(s)\n", __func__);
 		return -ENOENT;
 	}
 
@@ -401,11 +401,11 @@ static int s3c_cpufreq_resume(struct cpufreq_policy *policy)
 	last_target = ~0;	/* invalidate last_target setting */
 
 	/* whilst we will be called later on, we try and re-set the
-	 * cpu frequencies as soon as possible so that we do not end
+	 * cpu frequencies as soon as possible so that we do yest end
 	 * up resuming devices and then immediately having to re-set
 	 * a number of settings once these devices have restarted.
 	 *
-	 * as a note, it is expected devices are not used until they
+	 * as a yeste, it is expected devices are yest used until they
 	 * have been un-suspended and at that time they should have
 	 * used the updated clock settings.
 	 */
@@ -465,7 +465,7 @@ int __init s3c_cpufreq_setboard(struct s3c_cpufreq_board *board)
 	struct s3c_cpufreq_board *ours;
 
 	if (!board) {
-		pr_info("%s: no board data\n", __func__);
+		pr_info("%s: yes board data\n", __func__);
 		return -EINVAL;
 	}
 
@@ -510,7 +510,7 @@ static int __init s3c_cpufreq_auto_io(void)
  * @b: The other argument.
  *
  * Create a minimum of each frequency entry in the 'struct s3c_freq',
- * unless the entry is zero when it is ignored and the non-zero argument
+ * unless the entry is zero when it is igyesred and the yesn-zero argument
  * used.
  */
 static void s3c_cpufreq_freq_min(struct s3c_freq *dst,
@@ -594,7 +594,7 @@ static int __init s3c_cpufreq_initcall(void)
 		}
 
 		if (cpu_cur.board->need_io && !cpu_cur.info->set_iotiming) {
-			pr_err("%s: no IO support registered\n", __func__);
+			pr_err("%s: yes IO support registered\n", __func__);
 			ret = -EINVAL;
 			goto out;
 		}
@@ -622,17 +622,17 @@ late_initcall(s3c_cpufreq_initcall);
 /**
  * s3c_plltab_register - register CPU PLL table.
  * @plls: The list of PLL entries.
- * @plls_no: The size of the PLL entries @plls.
+ * @plls_yes: The size of the PLL entries @plls.
  *
  * Register the given set of PLLs with the system.
  */
 int s3c_plltab_register(struct cpufreq_frequency_table *plls,
-			       unsigned int plls_no)
+			       unsigned int plls_yes)
 {
 	struct cpufreq_frequency_table *vals;
 	unsigned int size;
 
-	size = sizeof(*vals) * (plls_no + 1);
+	size = sizeof(*vals) * (plls_yes + 1);
 
 	vals = kzalloc(size, GFP_KERNEL);
 	if (vals) {
@@ -641,12 +641,12 @@ int s3c_plltab_register(struct cpufreq_frequency_table *plls,
 
 		/* write a terminating entry, we don't store it in the
 		 * table that is stored in the kernel */
-		vals += plls_no;
+		vals += plls_yes;
 		vals->frequency = CPUFREQ_TABLE_END;
 
-		pr_info("%d PLL entries\n", plls_no);
+		pr_info("%d PLL entries\n", plls_yes);
 	} else
-		pr_err("no memory for PLL tables\n");
+		pr_err("yes memory for PLL tables\n");
 
 	return vals ? 0 : -ENOMEM;
 }

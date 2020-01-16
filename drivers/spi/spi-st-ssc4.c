@@ -192,13 +192,13 @@ static int spi_st_setup(struct spi_device *spi)
 	}
 
 	if (!gpio_is_valid(cs)) {
-		dev_err(&spi->dev, "%d is not a valid gpio\n", cs);
+		dev_err(&spi->dev, "%d is yest a valid gpio\n", cs);
 		return -EINVAL;
 	}
 
 	ret = gpio_request(cs, dev_name(&spi->dev));
 	if (ret) {
-		dev_err(&spi->dev, "could not request gpio:%d\n", cs);
+		dev_err(&spi->dev, "could yest request gpio:%d\n", cs);
 		return ret;
 	}
 
@@ -296,7 +296,7 @@ static irqreturn_t spi_st_irq(int irq, void *dev_id)
 
 static int spi_st_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	struct spi_master *master;
 	struct spi_st *spi_st;
 	int irq, ret = 0;
@@ -306,7 +306,7 @@ static int spi_st_probe(struct platform_device *pdev)
 	if (!master)
 		return -ENOMEM;
 
-	master->dev.of_node		= np;
+	master->dev.of_yesde		= np;
 	master->mode_bits		= MODEBITS;
 	master->setup			= spi_st_setup;
 	master->cleanup			= spi_st_cleanup;

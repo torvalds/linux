@@ -56,7 +56,7 @@ ENTRY(exception_error)
 	sti
 	mov.l	1f, r0
 	jmp	@r0
-	 nop
+	 yesp
 
 	.align	2
 1:	.long	do_exception_error
@@ -86,33 +86,33 @@ ENTRY(ret_from_irq)
 
 #ifdef CONFIG_PREEMPT
 	bra	resume_userspace
-	 nop
+	 yesp
 ENTRY(resume_kernel)
 	cli
 	TRACE_IRQS_OFF
 	mov.l	@(TI_PRE_COUNT,r8), r0	! current_thread_info->preempt_count
 	tst	r0, r0
-	bf	noresched
+	bf	yesresched
 need_resched:
 	mov.l	@(TI_FLAGS,r8), r0	! current_thread_info->flags
 	tst	#_TIF_NEED_RESCHED, r0	! need_resched set?
-	bt	noresched
+	bt	yesresched
 
 	mov	#OFF_SR, r0
 	mov.l	@(r0,r15), r0		! get status register
 	shlr	r0
 	and	#(0xf0>>1), r0		! interrupts off (exception path)?
 	cmp/eq	#(0xf0>>1), r0
-	bt	noresched
+	bt	yesresched
 	mov.l	1f, r0
 	jsr	@r0			! call preempt_schedule_irq
-	 nop
+	 yesp
 	bra	need_resched
-	 nop
+	 yesp
 
-noresched:
+yesresched:
 	bra	__restore_all
-	 nop
+	 yesp
 
 	.align 2
 1:	.long	preempt_schedule_irq
@@ -134,7 +134,7 @@ work_pending:
 	! t:  result of "tst	#_TIF_NEED_RESCHED, r0"
 	bf/s	work_resched
 	 tst	#(_TIF_SIGPENDING | _TIF_NOTIFY_RESUME), r0
-work_notifysig:
+work_yestifysig:
 	bt/s	__restore_all
 	 mov	r15, r4
 	mov	r12, r5		! set arg1(save_r0)
@@ -147,7 +147,7 @@ work_notifysig:
 work_resched:
 	mov.l	1f, r1
 	jsr	@r1				! schedule
-	 nop
+	 yesp
 	cli
 	TRACE_IRQS_OFF
 	!
@@ -159,7 +159,7 @@ work_resched:
 
 	.align	2
 1:	.long	schedule
-2:	.long	do_notify_resume
+2:	.long	do_yestify_resume
 3:	.long	resume_userspace
 
 	.align	2
@@ -174,17 +174,17 @@ syscall_exit_work:
 	mov	r15, r4
 	mov.l	8f, r0			! do_syscall_trace_leave
 	jsr	@r0
-	 nop
+	 yesp
 	bra	resume_userspace
-	 nop
+	 yesp
 
 	.align	2
 syscall_trace_entry:
 	!                     	Yes it is traced.
 	mov     r15, r4
-	mov.l	7f, r11		! Call do_syscall_trace_enter which notifies
+	mov.l	7f, r11		! Call do_syscall_trace_enter which yestifies
 	jsr	@r11	    	! superior (will chomp R[0-7])
-	 nop
+	 yesp
 	mov.l	r0, @(OFF_R0,r15)	! Save return value
 	!			Reload R0-R4 from kernel stack, where the
 	!   	    	    	parent may have modified them using
@@ -216,13 +216,13 @@ __restore_all:
 	bt	1f
 	TRACE_IRQS_ON
 	bra	2f
-	 nop
+	 yesp
 1:
 	TRACE_IRQS_OFF
 2:
 	mov.l	3f, r0
 	jmp	@r0
-	 nop
+	 yesp
 
 	.align	2
 3:	.long	restore_all
@@ -237,7 +237,7 @@ syscall_badsys:			! Bad syscall number
 /*
  * The main debug trap handler.
  *
- * r8=TRA (not the trap number!)
+ * r8=TRA (yest the trap number!)
  *
  * Note: This assumes that the trapa value is left in its original
  * form (without the shlr2 shift) so the calculation for the jump
@@ -250,9 +250,9 @@ debug_trap:
 	add	r0, r8
 	mov.l	@r8, r8
 	jsr	@r8
-	 nop
+	 yesp
 	bra	ret_from_exception
-	 nop
+	 yesp
 	CFI_ENDPROC
 
 	.align	2
@@ -268,7 +268,7 @@ debug_trap:
  *
  * (TRA>>2)	Purpose
  * --------	-------
- * 0x00-0x0f	original SH-3/4 syscall ABI (not in general use).
+ * 0x00-0x0f	original SH-3/4 syscall ABI (yest in general use).
  * 0x10-0x1f	general SH-3/4 syscall ABI.
  *      0x1f	unified SH-2/3/4 syscall ABI (preferred).
  * 0x20-0x2f	original SH-2 syscall ABI.
@@ -299,7 +299,7 @@ ret_from_fork:
 	jsr	@r8
 	 mov	r0, r4
 	bra	syscall_exit
-	 nop
+	 yesp
 
 	.align	2
 	.globl	ret_from_kernel_thread
@@ -311,7 +311,7 @@ ret_from_kernel_thread:
 	jsr	@r5
 	 mov.l	@(OFF_R4,r15), r4   ! arg
 	bra	syscall_exit
-	 nop
+	 yesp
 
 	.align	2
 1:	.long	schedule_tail
@@ -337,7 +337,7 @@ ENTRY(system_call)
 	mov	#((0x20 << 2) - 1), r9
 	cmp/hi	r9, r8
 	bt/s	debug_trap		! it's a debug trap..
-	 nop
+	 yesp
 
 	TRACE_IRQS_ON
 	sti
@@ -369,7 +369,7 @@ syscall_call:
 	mov.l	r1, @-r15
 	mov.l	r0, @-r15
 	jsr	@r8	    	! jump to specific syscall handler
-	 nop
+	 yesp
 	add	#12, r15
 	mov.l	@(OFF_R0,r15), r12		! save r0
 	mov.l	r0, @(OFF_R0,r15)		! save the return value
@@ -387,7 +387,7 @@ syscall_exit:
 	tst	r0, r1
 	bf	syscall_exit_work
 	bra	__restore_all
-	 nop
+	 yesp
 	.align	2
 #if !defined(CONFIG_CPU_SH2)
 1:	.long	TRA

@@ -69,7 +69,7 @@ static int __init bcm63xx_detect_flash_type(void)
 	case BCM6338_CPU_ID:
 	case BCM6345_CPU_ID:
 	case BCM6348_CPU_ID:
-		/* no way to auto detect so assume parallel */
+		/* yes way to auto detect so assume parallel */
 		return BCM63XX_FLASH_TYPE_PARALLEL;
 	case BCM3368_CPU_ID:
 	case BCM6358_CPU_ID:

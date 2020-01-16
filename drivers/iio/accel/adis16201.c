@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * ADIS16201 Dual-Axis Digital Inclinometer and Accelerometer
+ * ADIS16201 Dual-Axis Digital Incliyesmeter and Accelerometer
  *
  * Copyright 2010 Analog Devices Inc.
  */
@@ -62,7 +62,7 @@
 /* Data-ready line selection: 1 = DIO1, 0 = DIO0 */
 #define  ADIS16201_MSC_CTRL_DATA_RDY_DIO1		BIT(0)
 
-/* Diagnostics System Status Register Definition */
+/* Diagyesstics System Status Register Definition */
 #define ADIS16201_DIAG_STAT_REG				0x3C
 #define  ADIS16201_DIAG_STAT_ALARM2			BIT(9)
 #define  ADIS16201_DIAG_STAT_ALARM1			BIT(8)
@@ -240,7 +240,7 @@ static const struct adis_data adis16201_data = {
 	.diag_stat_reg = ADIS16201_DIAG_STAT_REG,
 
 	.self_test_mask = ADIS16201_MSC_CTRL_SELF_TEST_EN,
-	.self_test_no_autoclear = true,
+	.self_test_yes_autoclear = true,
 	.startup_delay = ADIS16201_STARTUP_DELAY_MS,
 
 	.status_error_msgs = adis16201_status_error_msgs,
@@ -315,6 +315,6 @@ static struct spi_driver adis16201_driver = {
 module_spi_driver(adis16201_driver);
 
 MODULE_AUTHOR("Barry Song <21cnbao@gmail.com>");
-MODULE_DESCRIPTION("Analog Devices ADIS16201 Dual-Axis Digital Inclinometer and Accelerometer");
+MODULE_DESCRIPTION("Analog Devices ADIS16201 Dual-Axis Digital Incliyesmeter and Accelerometer");
 MODULE_LICENSE("GPL v2");
 MODULE_ALIAS("spi:adis16201");

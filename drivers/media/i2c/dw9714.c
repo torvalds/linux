@@ -89,7 +89,7 @@ static int dw9714_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 
 	rval = pm_runtime_get_sync(sd->dev);
 	if (rval < 0) {
-		pm_runtime_put_noidle(sd->dev);
+		pm_runtime_put_yesidle(sd->dev);
 		return rval;
 	}
 

@@ -5,7 +5,7 @@
  * Some definitions for the wl1273 radio receiver/transmitter chip.
  *
  * Copyright (C) 2010 Nokia Corporation
- * Author: Matti J. Aaltonen <matti.j.aaltonen@nokia.com>
+ * Author: Matti J. Aaltonen <matti.j.aaltonen@yeskia.com>
  */
 
 #ifndef WL1273_CORE_H

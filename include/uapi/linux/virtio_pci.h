@@ -16,11 +16,11 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
+ *    yestice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the name of IBM nor the names of its contributors
+ * 3. Neither the name of IBM yesr the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS ``AS IS'' AND
@@ -58,7 +58,7 @@
 /* A 16-bit r/w queue selector */
 #define VIRTIO_PCI_QUEUE_SEL		14
 
-/* A 16-bit r/w queue notifier */
+/* A 16-bit r/w queue yestifier */
 #define VIRTIO_PCI_QUEUE_NOTIFY		16
 
 /* An 8-bit device status register.  */
@@ -66,13 +66,13 @@
 
 /* An 8-bit r/o interrupt status register.  Reading the value will return the
  * current contents of the ISR and will also clear it.  This is effectively
- * a read-and-acknowledge. */
+ * a read-and-ackyeswledge. */
 #define VIRTIO_PCI_ISR			19
 
 /* MSI-X registers: only enabled if MSI-X is enabled. */
 /* A 16-bit vector for configuration changes. */
 #define VIRTIO_MSI_CONFIG_VECTOR        20
-/* A 16-bit vector for selected queue notifications. */
+/* A 16-bit vector for selected queue yestifications. */
 #define VIRTIO_MSI_QUEUE_VECTOR         22
 
 /* The remaining space is defined by each driver as the per-driver
@@ -126,9 +126,9 @@ struct virtio_pci_cap {
 	__le32 length;		/* Length of the structure, in bytes. */
 };
 
-struct virtio_pci_notify_cap {
+struct virtio_pci_yestify_cap {
 	struct virtio_pci_cap cap;
-	__le32 notify_off_multiplier;	/* Multiplier for queue_notify_off. */
+	__le32 yestify_off_multiplier;	/* Multiplier for queue_yestify_off. */
 };
 
 /* Fields in VIRTIO_PCI_CAP_COMMON_CFG: */
@@ -148,7 +148,7 @@ struct virtio_pci_common_cfg {
 	__le16 queue_size;		/* read-write, power of 2. */
 	__le16 queue_msix_vector;	/* read-write */
 	__le16 queue_enable;		/* read-write */
-	__le16 queue_notify_off;	/* read-only */
+	__le16 queue_yestify_off;	/* read-only */
 	__le32 queue_desc_lo;		/* read-write */
 	__le32 queue_desc_hi;		/* read-write */
 	__le32 queue_avail_lo;		/* read-write */

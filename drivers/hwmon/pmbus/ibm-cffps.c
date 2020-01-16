@@ -63,7 +63,7 @@ enum {
 	CFFPS_DEBUGFS_NUM_ENTRIES
 };
 
-enum versions { cffps1, cffps2, cffps_unknown };
+enum versions { cffps1, cffps2, cffps_unkyeswn };
 
 struct ibm_cffps_input_history {
 	struct mutex update_lock;
@@ -215,7 +215,7 @@ done:
 }
 
 static const struct file_operations ibm_cffps_fops = {
-	.llseek = noop_llseek,
+	.llseek = yesop_llseek,
 	.read = ibm_cffps_debugfs_op,
 	.open = simple_open,
 };
@@ -413,7 +413,7 @@ static int ibm_cffps_probe(struct i2c_client *client,
 			   const struct i2c_device_id *id)
 {
 	int i, rc;
-	enum versions vs = cffps_unknown;
+	enum versions vs = cffps_unkyeswn;
 	struct dentry *debugfs;
 	struct dentry *ibm_cffps_dir;
 	struct ibm_cffps *psu;
@@ -424,7 +424,7 @@ static int ibm_cffps_probe(struct i2c_client *client,
 	else if (id)
 		vs = (enum versions)id->driver_data;
 
-	if (vs == cffps_unknown) {
+	if (vs == cffps_unkyeswn) {
 		u16 ccin_version = CFFPS_CCIN_VERSION_1;
 		int ccin = i2c_smbus_read_word_swapped(client, CFFPS_CCIN_CMD);
 
@@ -451,7 +451,7 @@ static int ibm_cffps_probe(struct i2c_client *client,
 		return rc;
 
 	/*
-	 * Don't fail the probe if there isn't enough memory for leds and
+	 * Don't fail the probe if there isn't eyesugh memory for leds and
 	 * debugfs.
 	 */
 	psu = devm_kzalloc(&client->dev, sizeof(*psu), GFP_KERNEL);
@@ -502,7 +502,7 @@ static int ibm_cffps_probe(struct i2c_client *client,
 static const struct i2c_device_id ibm_cffps_id[] = {
 	{ "ibm_cffps1", cffps1 },
 	{ "ibm_cffps2", cffps2 },
-	{ "ibm_cffps", cffps_unknown },
+	{ "ibm_cffps", cffps_unkyeswn },
 	{}
 };
 MODULE_DEVICE_TABLE(i2c, ibm_cffps_id);
@@ -518,7 +518,7 @@ static const struct of_device_id ibm_cffps_of_match[] = {
 	},
 	{
 		.compatible = "ibm,cffps",
-		.data = (void *)cffps_unknown
+		.data = (void *)cffps_unkyeswn
 	},
 	{}
 };

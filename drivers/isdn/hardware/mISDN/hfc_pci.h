@@ -175,9 +175,9 @@ struct zt {
 
 struct dfifo {
 	u_char data[D_FIFO_SIZE]; /* FIFO data space */
-	u_char fill1[0x20A0 - D_FIFO_SIZE]; /* reserved, do not use */
+	u_char fill1[0x20A0 - D_FIFO_SIZE]; /* reserved, do yest use */
 	u_char f1, f2; /* f pointers */
-	u_char fill2[0x20C0 - 0x20A2]; /* reserved, do not use */
+	u_char fill2[0x20C0 - 0x20A2]; /* reserved, do yest use */
 	/* mask index with D_FREG_MASK for access */
 	struct zt za[MAX_D_FRAMES + 1];
 	u_char fill3[0x4000 - 0x2100]; /* align 16K */

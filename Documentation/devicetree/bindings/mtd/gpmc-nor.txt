@@ -1,7 +1,7 @@
 Device tree bindings for NOR flash connect to TI GPMC
 
 NOR flash connected to the TI GPMC (found on OMAP boards) are represented as
-child nodes of the GPMC controller with a name of "nor".
+child yesdes of the GPMC controller with a name of "yesr".
 
 All timing relevant properties as well as generic GPMC child properties are
 explained in a separate documents. Please refer to
@@ -48,7 +48,7 @@ gpmc: gpmc@6e000000 {
 
 	ranges = <0 0 0x10000000 0x08000000>;
 
-	nor@0,0 {
+	yesr@0,0 {
 		compatible = "cfi-flash";
 		linux,mtd-name= "intel,pf48f6000m0y1be";
 		#address-cells = <1>;
@@ -79,19 +79,19 @@ gpmc: gpmc@6e000000 {
 		gpmc,cycle2cycle-diffcsen;
 
 		partition@0 {
-			label = "bootloader-nor";
+			label = "bootloader-yesr";
 			reg = <0 0x40000>;
 		};
 		partition@40000 {
-			label = "params-nor";
+			label = "params-yesr";
 			reg = <0x40000 0x40000>;
 		};
 		partition@80000 {
-			label = "kernel-nor";
+			label = "kernel-yesr";
 			reg = <0x80000 0x200000>;
 		};
 		partition@280000 {
-			label = "filesystem-nor";
+			label = "filesystem-yesr";
 			reg = <0x240000 0x7d80000>;
 		};
 	};

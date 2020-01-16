@@ -3,8 +3,8 @@
  * SH7760/SH7763 LCDC Framebuffer driver.
  *
  * (c) 2006-2008 MSC Vertriebsges.m.b.H.,
- *             Manuel Lauss <mano@roarinelk.homelinux.net>
- * (c) 2008 Nobuhiro Iwamatsu <iwamatsu.nobuhiro@renesas.com>
+ *             Manuel Lauss <mayes@roarinelk.homelinux.net>
+ * (c) 2008 Nobuhiro Iwamatsu <iwamatsu.yesbuhiro@renesas.com>
  *
  * PLEASE HAVE A LOOK AT Documentation/fb/sh7760fb.rst!
  *
@@ -94,13 +94,13 @@ static int sh7760fb_blank(int blank, struct fb_info *info)
 	return wait_for_lps(par, lps);
 }
 
-static int sh7760_setcolreg (u_int regno,
+static int sh7760_setcolreg (u_int regyes,
 	u_int red, u_int green, u_int blue,
 	u_int transp, struct fb_info *info)
 {
 	u32 *palette = info->pseudo_palette;
 
-	if (regno >= 16)
+	if (regyes >= 16)
 		return -EINVAL;
 
 	/* only FB_VISUAL_TRUECOLOR supported */
@@ -110,7 +110,7 @@ static int sh7760_setcolreg (u_int regno,
 	blue >>= 16 - info->var.blue.length;
 	transp >>= 16 - info->var.transp.length;
 
-	palette[regno] = (red << info->var.red.offset) |
+	palette[regyes] = (red << info->var.red.offset) |
 		(green << info->var.green.offset) |
 		(blue << info->var.blue.offset) |
 		(transp << info->var.transp.offset);
@@ -228,7 +228,7 @@ static int sh7760fb_set_par(struct fb_info *info)
 
 	dev_dbg(info->dev, "%dx%d %dbpp %s (orientation %s)\n", hdcn,
 		vdln, bpp, gray ? "grayscale" : "color",
-		par->rot ? "rotated" : "normal");
+		par->rot ? "rotated" : "yesrmal");
 
 #ifdef CONFIG_CPU_LITTLE_ENDIAN
 	lddfr = par->pd->lddfr | (1 << 8);
@@ -287,7 +287,7 @@ static int sh7760fb_set_par(struct fb_info *info)
 			bit >>= 1;
 		}
 		if (stride & ~bit)
-			stride = bit << 1;	/* not P-o-2, round up */
+			stride = bit << 1;	/* yest P-o-2, round up */
 	}
 	iowrite16(stride, par->base + LDLAOR);
 
@@ -300,7 +300,7 @@ static int sh7760fb_set_par(struct fb_info *info)
 
 	/*
 	 * for DSTN need to set address for lower half.
-	 * I (mlau) don't know which address to set it to,
+	 * I (mlau) don't kyesw which address to set it to,
 	 * so I guessed at (stride * yres/2).
 	 */
 	if (((ldmtr & 0x003f) >= LDMTR_DSTN_MONO_8) &&
@@ -450,7 +450,7 @@ static int sh7760fb_probe(struct platform_device *pdev)
 
 	par->pd = pdev->dev.platform_data;
 	if (!par->pd) {
-		dev_dbg(info->dev, "no display setup data!\n");
+		dev_dbg(info->dev, "yes display setup data!\n");
 		ret = -ENODEV;
 		goto out_fb;
 	}
@@ -463,9 +463,9 @@ static int sh7760fb_probe(struct platform_device *pdev)
 		goto out_fb;
 	}
 
-	par->base = ioremap_nocache(res->start, resource_size(res));
+	par->base = ioremap_yescache(res->start, resource_size(res));
 	if (!par->base) {
-		dev_err(&pdev->dev, "cannot remap\n");
+		dev_err(&pdev->dev, "canyest remap\n");
 		ret = -ENODEV;
 		goto out_res;
 	}
@@ -476,10 +476,10 @@ static int sh7760fb_probe(struct platform_device *pdev)
 		ret = request_irq(par->irq, sh7760fb_irq, 0,
 				  "sh7760-lcdc", &par->vsync);
 		if (ret) {
-			dev_err(&pdev->dev, "cannot grab IRQ\n");
+			dev_err(&pdev->dev, "canyest grab IRQ\n");
 			par->irq = -ENXIO;
 		} else
-			disable_irq_nosync(par->irq);
+			disable_irq_yessync(par->irq);
 	}
 
 	fb_videomode_to_var(&info->var, par->pd->def_mode);
@@ -511,7 +511,7 @@ static int sh7760fb_probe(struct platform_device *pdev)
 
 	strcpy(info->fix.id, "sh7760-lcdc");
 
-	/* set the DON2 bit now, before cmap allocation, as it will randomize
+	/* set the DON2 bit yesw, before cmap allocation, as it will randomize
 	 * palette memory.
 	 */
 	iowrite16(LDCNTR_DON2, par->base + LDCNTR);
@@ -525,7 +525,7 @@ static int sh7760fb_probe(struct platform_device *pdev)
 
 	ret = register_framebuffer(info);
 	if (ret < 0) {
-		dev_dbg(info->dev, "cannot register fb!\n");
+		dev_dbg(info->dev, "canyest register fb!\n");
 		goto out_cmap;
 	}
 	platform_set_drvdata(pdev, info);

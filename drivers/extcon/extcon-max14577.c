@@ -83,9 +83,9 @@ struct max14577_muic_info {
 
 	/*
 	 * Use delayed workqueue to detect cable state and then
-	 * notify cable state to notifiee/platform through uevent.
+	 * yestify cable state to yestifiee/platform through uevent.
 	 * After completing the booting of platform, the extcon provider
-	 * driver should notify cable state to upper layer.
+	 * driver should yestify cable state to upper layer.
 	 */
 	struct delayed_work wq_detcable;
 
@@ -309,7 +309,7 @@ static int max14577_muic_get_cable_type(struct max14577_muic_info *info,
 
 		break;
 	default:
-		dev_err(info->dev, "Unknown cable group (%d)\n", group);
+		dev_err(info->dev, "Unkyeswn cable group (%d)\n", group);
 		cable_type = -EINVAL;
 		break;
 	}
@@ -513,7 +513,7 @@ static void max14577_muic_irq_work(struct work_struct *work)
 
 /*
  * Sets irq_adc or irq_chg in max14577_muic_info and returns 1.
- * Returns 0 if irq_type does not match registered IRQ for this device type.
+ * Returns 0 if irq_type does yest match registered IRQ for this device type.
  */
 static int max14577_parse_irq(struct max14577_muic_info *info, int irq_type)
 {
@@ -542,7 +542,7 @@ static int max14577_parse_irq(struct max14577_muic_info *info, int irq_type)
 
 /*
  * Sets irq_adc or irq_chg in max14577_muic_info and returns 1.
- * Returns 0 if irq_type does not match registered IRQ for this device type.
+ * Returns 0 if irq_type does yest match registered IRQ for this device type.
  */
 static int max77836_parse_irq(struct max14577_muic_info *info, int irq_type)
 {
@@ -572,7 +572,7 @@ static irqreturn_t max14577_muic_irq_handler(int irq, void *data)
 	/*
 	 * We may be called multiple times for different nested IRQ-s.
 	 * Including changes in INT1_ADC and INT2_CGHTYP at once.
-	 * However we only need to know whether it was ADC, charger
+	 * However we only need to kyesw whether it was ADC, charger
 	 * or both interrupts so decode IRQ and turn on proper flags.
 	 */
 	for (i = 0; i < info->muic_irqs_num; i++)
@@ -622,7 +622,7 @@ static int max14577_muic_detect_accessory(struct max14577_muic_info *info)
 	if (attached && adc != MAX14577_MUIC_ADC_OPEN) {
 		ret = max14577_muic_adc_handler(info);
 		if (ret < 0) {
-			dev_err(info->dev, "Cannot detect accessory\n");
+			dev_err(info->dev, "Canyest detect accessory\n");
 			mutex_unlock(&info->mutex);
 			return ret;
 		}
@@ -633,7 +633,7 @@ static int max14577_muic_detect_accessory(struct max14577_muic_info *info)
 	if (attached && chg_type != MAX14577_CHARGER_TYPE_NONE) {
 		ret = max14577_muic_chg_handler(info);
 		if (ret < 0) {
-			dev_err(info->dev, "Cannot detect charger accessory\n");
+			dev_err(info->dev, "Canyest detect charger accessory\n");
 			mutex_unlock(&info->mutex);
 			return ret;
 		}
@@ -731,7 +731,7 @@ static int max14577_muic_probe(struct platform_device *pdev)
 	ret = max14577_bulk_read(info->max14577->regmap,
 			MAX14577_MUIC_REG_STATUS1, info->status, 2);
 	if (ret) {
-		dev_err(info->dev, "Cannot read STATUS registers\n");
+		dev_err(info->dev, "Canyest read STATUS registers\n");
 		return ret;
 	}
 	cable_type = max14577_muic_get_cable_type(info, MAX14577_CABLE_GROUP_ADC,
@@ -755,9 +755,9 @@ static int max14577_muic_probe(struct platform_device *pdev)
 	 * Detect accessory after completing the initialization of platform
 	 *
 	 * - Use delayed workqueue to detect cable state and then
-	 * notify cable state to notifiee/platform through uevent.
+	 * yestify cable state to yestifiee/platform through uevent.
 	 * After completing the booting of platform, the extcon provider
-	 * driver should notify cable state to upper layer.
+	 * driver should yestify cable state to upper layer.
 	 */
 	INIT_DELAYED_WORK(&info->wq_detcable, max14577_muic_detect_cable_wq);
 	queue_delayed_work(system_power_efficient_wq, &info->wq_detcable,

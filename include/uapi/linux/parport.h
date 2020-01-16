@@ -82,7 +82,7 @@ typedef enum {
 						 * bits 0-6. */
 
 /* For the benefit of parport_read/write, you can use these with
- * parport_negotiate to use address operations.  They have no effect
+ * parport_negotiate to use address operations.  They have yes effect
  * other than to make parport_read/write use address transfers. */
 #define IEEE1284_ADDR			(1<<13)	/* This is a flag */
 #define IEEE1284_DATA			 0	/* So is this */

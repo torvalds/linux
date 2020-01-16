@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and /or other materials
  *        provided with the distribution.
  *
@@ -45,7 +45,7 @@ struct qed_iscsi_stats {
 	u32 iscsi_rq_threshold_cnt;
 	u32 iscsi_immq_threshold_cnt;
 
-	u64 iscsi_rx_dropped_pdus_task_not_valid;
+	u64 iscsi_rx_dropped_pdus_task_yest_valid;
 
 	u64 iscsi_rx_data_pdu_cnt;
 	u64 iscsi_rx_r2t_pdu_cnt;

@@ -12,7 +12,7 @@
 
 /*
  * This structure is used to keep track of the current state on each
- * channel.  All drivers for hardware that does not understand midi
+ * channel.  All drivers for hardware that does yest understand midi
  * directly will probably need to use this structure.
  */
 struct snd_midi_channel {
@@ -33,7 +33,7 @@ struct snd_midi_channel {
 	short midi_pitchbend;		/* Pitch bend amount */
 
 	unsigned char control[128];	/* Current value of all controls */
-	unsigned char note[128];	/* Current status for all notes */
+	unsigned char yeste[128];	/* Current status for all yestes */
 
 	short gm_rpn_pitch_bend_range;	/* Pitch bend range */
 	short gm_rpn_fine_tuning; 	/* Master fine tuning */
@@ -47,7 +47,7 @@ struct snd_midi_channel {
  * particular cases.
  * The channel set consists of information describing the client and
  * port for this midi synth and an array of snd_midi_channel structures.
- * A driver that had no need for snd_midi_channel could still use the
+ * A driver that had yes need for snd_midi_channel could still use the
  * channel set type if it wished with the channel array null.
  */
 struct snd_midi_channel_set {
@@ -66,10 +66,10 @@ struct snd_midi_channel_set {
 };
 
 struct snd_midi_op {
-	void (*note_on)(void *private_data, int note, int vel, struct snd_midi_channel *chan);
-	void (*note_off)(void *private_data,int note, int vel, struct snd_midi_channel *chan); /* release note */
-	void (*key_press)(void *private_data, int note, int vel, struct snd_midi_channel *chan);
-	void (*note_terminate)(void *private_data, int note, struct snd_midi_channel *chan); /* terminate note immediately */
+	void (*yeste_on)(void *private_data, int yeste, int vel, struct snd_midi_channel *chan);
+	void (*yeste_off)(void *private_data,int yeste, int vel, struct snd_midi_channel *chan); /* release yeste */
+	void (*key_press)(void *private_data, int yeste, int vel, struct snd_midi_channel *chan);
+	void (*yeste_terminate)(void *private_data, int yeste, struct snd_midi_channel *chan); /* terminate yeste immediately */
 	void (*control)(void *private_data, int type, struct snd_midi_channel *chan);
 	void (*nrpn)(void *private_data, struct snd_midi_channel *chan,
 		     struct snd_midi_channel_set *chset);
@@ -88,8 +88,8 @@ struct snd_midi_op {
 
 /*
  * These names exist to allow symbolic access to the controls array.
- * The usage is eg: chan->gm_bank_select.  Another implementation would
- * be really have these members in the struct, and not the array.
+ * The usage is eg: chan->gm_bank_select.  Ayesther implementation would
+ * be really have these members in the struct, and yest the array.
  */
 #define gm_bank_select		control[0]
 #define gm_modulation		control[1]
@@ -129,7 +129,7 @@ struct snd_midi_op {
 /*
  * These macros give the complete value of the controls that consist
  * of coarse and fine pairs.  Of course the fine controls are seldom used
- * but there is no harm in being complete.
+ * but there is yes harm in being complete.
  */
 #define SNDRV_GM_BANK_SELECT(cp)		(((cp)->control[0]<<7)|((cp)->control[32]))
 #define SNDRV_GM_MODULATION_WHEEL(cp)	(((cp)->control[1]<<7)|((cp)->control[33]))
@@ -150,7 +150,7 @@ struct snd_midi_op {
 #define SNDRV_MIDI_MODE_XG	3
 #define SNDRV_MIDI_MODE_MT32	4
 
-/* MIDI note state */
+/* MIDI yeste state */
 #define SNDRV_MIDI_NOTE_OFF		0x00
 #define SNDRV_MIDI_NOTE_ON		0x01
 #define SNDRV_MIDI_NOTE_RELEASED		0x02

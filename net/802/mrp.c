@@ -2,7 +2,7 @@
 /*
  *	IEEE 802.1Q Multiple Registration Protocol (MRP)
  *
- *	Copyright (c) 2012 Massachusetts Institute of Technology
+ *	Copyright (c) 2012 Massachusetts Institute of Techyeslogy
  *
  *	Adapted from code in net/802/garp.c
  *	Copyright (c) 2008 Patrick McHardy <kaber@trash.net>
@@ -236,12 +236,12 @@ static int mrp_attr_cmp(const struct mrp_attr *attr,
 static struct mrp_attr *mrp_attr_lookup(const struct mrp_applicant *app,
 					const void *value, u8 len, u8 type)
 {
-	struct rb_node *parent = app->mad.rb_node;
+	struct rb_yesde *parent = app->mad.rb_yesde;
 	struct mrp_attr *attr;
 	int d;
 
 	while (parent) {
-		attr = rb_entry(parent, struct mrp_attr, node);
+		attr = rb_entry(parent, struct mrp_attr, yesde);
 		d = mrp_attr_cmp(attr, value, len, type);
 		if (d > 0)
 			parent = parent->rb_left;
@@ -256,13 +256,13 @@ static struct mrp_attr *mrp_attr_lookup(const struct mrp_applicant *app,
 static struct mrp_attr *mrp_attr_create(struct mrp_applicant *app,
 					const void *value, u8 len, u8 type)
 {
-	struct rb_node *parent = NULL, **p = &app->mad.rb_node;
+	struct rb_yesde *parent = NULL, **p = &app->mad.rb_yesde;
 	struct mrp_attr *attr;
 	int d;
 
 	while (*p) {
 		parent = *p;
-		attr = rb_entry(parent, struct mrp_attr, node);
+		attr = rb_entry(parent, struct mrp_attr, yesde);
 		d = mrp_attr_cmp(attr, value, len, type);
 		if (d > 0)
 			p = &parent->rb_left;
@@ -281,14 +281,14 @@ static struct mrp_attr *mrp_attr_create(struct mrp_applicant *app,
 	attr->len   = len;
 	memcpy(attr->value, value, len);
 
-	rb_link_node(&attr->node, parent, p);
-	rb_insert_color(&attr->node, &app->mad);
+	rb_link_yesde(&attr->yesde, parent, p);
+	rb_insert_color(&attr->yesde, &app->mad);
 	return attr;
 }
 
 static void mrp_attr_destroy(struct mrp_applicant *app, struct mrp_attr *attr)
 {
-	rb_erase(&attr->node, &app->mad);
+	rb_erase(&attr->yesde, &app->mad);
 	kfree(attr);
 }
 
@@ -401,7 +401,7 @@ again:
 			return err;
 	}
 
-	/* If there is no Message header in the PDU, or the Message header is
+	/* If there is yes Message header in the PDU, or the Message header is
 	 * for a different attribute type, add an EndMark (if necessary) and a
 	 * new Message header to the PDU.
 	 */
@@ -412,8 +412,8 @@ again:
 			goto queue;
 	}
 
-	/* If there is no VectorAttribute header for this Message in the PDU,
-	 * or this attribute's value does not sequentially follow the previous
+	/* If there is yes VectorAttribute header for this Message in the PDU,
+	 * or this attribute's value does yest sequentially follow the previous
 	 * attribute's value, add a new VectorAttribute header to the PDU.
 	 */
 	if (!mrp_cb(app->pdu)->vah ||
@@ -564,13 +564,13 @@ EXPORT_SYMBOL_GPL(mrp_request_leave);
 
 static void mrp_mad_event(struct mrp_applicant *app, enum mrp_event event)
 {
-	struct rb_node *node, *next;
+	struct rb_yesde *yesde, *next;
 	struct mrp_attr *attr;
 
-	for (node = rb_first(&app->mad);
-	     next = node ? rb_next(node) : NULL, node != NULL;
-	     node = next) {
-		attr = rb_entry(node, struct mrp_attr, node);
+	for (yesde = rb_first(&app->mad);
+	     next = yesde ? rb_next(yesde) : NULL, yesde != NULL;
+	     yesde = next) {
+		attr = rb_entry(yesde, struct mrp_attr, yesde);
 		mrp_attr_event(app, attr, event);
 	}
 }
@@ -775,7 +775,7 @@ static int mrp_rcv(struct sk_buff *skb, struct net_device *dev,
 	int offset = skb_network_offset(skb);
 
 	/* If the interface is in promiscuous mode, drop the packet if
-	 * it was unicast to another host.
+	 * it was unicast to ayesther host.
 	 */
 	if (unlikely(skb->pkt_type == PACKET_OTHERHOST))
 		goto out;

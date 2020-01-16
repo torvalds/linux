@@ -28,11 +28,11 @@
     GNU General Public License for more details.
 
     You should have received a copy of the GNU General Public License
-    along with Atmel wireless lan drivers; if not, see
+    along with Atmel wireless lan drivers; if yest, see
     <http://www.gnu.org/licenses/>.
 
     For all queries about this code, please contact the current author,
-    Simon Kelley <simon@thekelleys.org.uk> and not Atmel Corporation.
+    Simon Kelley <simon@thekelleys.org.uk> and yest Atmel Corporation.
 
     Credit is due to HP UK and Cambridge Online Systems Ltd for supplying
     hardware used during development of this driver.
@@ -140,7 +140,7 @@ MODULE_FIRMWARE("atmel_at76c506.bin");
 #define GCR_SWRES     0x0080          /* BIU reset (ARM and PAI are NOT reset) */
 #define GCR_CORES     0x0060          /* Core Reset (ARM and PAI are reset) */
 #define GCR_ENINT     0x0002          /* Enable Interrupts */
-#define GCR_ACKINT    0x0008          /* Acknowledge Interrupts */
+#define GCR_ACKINT    0x0008          /* Ackyeswledge Interrupts */
 
 #define BSS_SRAM      0x0200          /* AMBA module selection --> SRAM */
 #define BSS_IRAM      0x0100          /* AMBA module selection --> IRAM */
@@ -241,7 +241,7 @@ struct tx_desc {
 #define TX_PACKET_TYPE_DATA     0x01
 #define TX_PACKET_TYPE_MGMT     0x02
 
-#define ISR_EMPTY               0x00        /* no bits set in ISR */
+#define ISR_EMPTY               0x00        /* yes bits set in ISR */
 #define ISR_TxCOMPLETE          0x01        /* packet transmitted */
 #define ISR_RxCOMPLETE          0x02        /* packet received */
 #define ISR_RxFRAMELOST         0x04        /* Rx Frame lost */
@@ -456,13 +456,13 @@ struct atmel_private {
 		CARD_TYPE_EEPROM
 	} card_type;
 	int do_rx_crc; /* If we need to CRC incoming packets */
-	int probe_crc; /* set if we don't yet know */
+	int probe_crc; /* set if we don't yet kyesw */
 	int crc_ok_cnt, crc_ko_cnt; /* counters for probing */
 	u16 rx_desc_head;
 	u16 tx_desc_free, tx_desc_head, tx_desc_tail, tx_desc_previous;
 	u16 tx_free_mem, tx_buff_head, tx_buff_tail;
 
-	u16 frag_seq, frag_len, frag_no;
+	u16 frag_seq, frag_len, frag_yes;
 	u8 frag_source[6];
 
 	u8 wep_is_on, default_key, exclude_unencrypted, encryption_level;
@@ -493,7 +493,7 @@ struct atmel_private {
 		u16 command_pos;
 
 		u16 major_version;
-		u16 minor_version;
+		u16 miyesr_version;
 
 		u16 func_ctrl;
 		u16 mac_status;
@@ -817,7 +817,7 @@ static netdev_tx_t start_tx(struct sk_buff *skb, struct net_device *dev)
 		return NETDEV_TX_OK;
 	}
 
-	/* first ensure the timer func cannot run */
+	/* first ensure the timer func canyest run */
 	spin_lock_bh(&priv->timerlock);
 	/* then stop the hardware ISR */
 	spin_lock_irqsave(&priv->irqlock, flags);
@@ -964,8 +964,8 @@ static int probe_crc(struct atmel_private *priv, u16 packet_loc, u16 msdu_size)
 
 static void frag_rx_path(struct atmel_private *priv,
 			 struct ieee80211_hdr *header,
-			 u16 msdu_size, u16 rx_packet_loc, u32 crc, u16 seq_no,
-			 u8 frag_no, int more_frags)
+			 u16 msdu_size, u16 rx_packet_loc, u32 crc, u16 seq_yes,
+			 u8 frag_yes, int more_frags)
 {
 	u8 mac4[ETH_ALEN];
 	u8 source[ETH_ALEN];
@@ -981,7 +981,7 @@ static void frag_rx_path(struct atmel_private *priv,
 	if (priv->do_rx_crc)
 		msdu_size -= 4;
 
-	if (frag_no == 0) { /* first fragment */
+	if (frag_yes == 0) { /* first fragment */
 		atmel_copy_to_host(priv->dev, mac4, rx_packet_loc, ETH_ALEN);
 		msdu_size -= ETH_ALEN;
 		rx_packet_loc += ETH_ALEN;
@@ -989,8 +989,8 @@ static void frag_rx_path(struct atmel_private *priv,
 		if (priv->do_rx_crc)
 			crc = crc32_le(crc, mac4, 6);
 
-		priv->frag_seq = seq_no;
-		priv->frag_no = 1;
+		priv->frag_seq = seq_yes;
+		priv->frag_yes = 1;
 		priv->frag_len = msdu_size;
 		memcpy(priv->frag_source, source, ETH_ALEN);
 		memcpy(&priv->rx_buf[ETH_ALEN], source, ETH_ALEN);
@@ -1008,8 +1008,8 @@ static void frag_rx_path(struct atmel_private *priv,
 			}
 		}
 
-	} else if (priv->frag_no == frag_no &&
-		   priv->frag_seq == seq_no &&
+	} else if (priv->frag_yes == frag_yes &&
+		   priv->frag_seq == seq_yes &&
 		   memcmp(priv->frag_source, source, ETH_ALEN) == 0) {
 
 		atmel_copy_to_host(priv->dev, &priv->rx_buf[12 + priv->frag_len],
@@ -1028,7 +1028,7 @@ static void frag_rx_path(struct atmel_private *priv,
 		}
 
 		priv->frag_len += msdu_size;
-		priv->frag_no++;
+		priv->frag_yes++;
 
 		if (!more_frags) { /* last one */
 			eth_broadcast_addr(priv->frag_source);
@@ -1085,7 +1085,7 @@ static void rx_done_irq(struct atmel_private *priv)
 		seq_control = le16_to_cpu(header.seq_ctrl);
 
 		/* probe for CRC use here if needed  once five packets have
-		   arrived with the same crc status, we assume we know what's
+		   arrived with the same crc status, we assume we kyesw what's
 		   happening and stop probing */
 		if (priv->probe_crc) {
 			if (!priv->wep_is_on || !(frame_ctl & IEEE80211_FCTL_PROTECTED)) {
@@ -1110,14 +1110,14 @@ static void rx_done_irq(struct atmel_private *priv)
 
 		if ((frame_ctl & IEEE80211_FCTL_FTYPE) == IEEE80211_FTYPE_DATA) {
 			int more_fragments = frame_ctl & IEEE80211_FCTL_MOREFRAGS;
-			u8 packet_fragment_no = seq_control & IEEE80211_SCTL_FRAG;
-			u16 packet_sequence_no = (seq_control & IEEE80211_SCTL_SEQ) >> 4;
+			u8 packet_fragment_yes = seq_control & IEEE80211_SCTL_FRAG;
+			u16 packet_sequence_yes = (seq_control & IEEE80211_SCTL_SEQ) >> 4;
 
-			if (!more_fragments && packet_fragment_no == 0) {
+			if (!more_fragments && packet_fragment_yes == 0) {
 				fast_rx_path(priv, &header, msdu_size, rx_packet_loc, crc);
 			} else {
 				frag_rx_path(priv, &header, msdu_size, rx_packet_loc, crc,
-					     packet_sequence_no, packet_fragment_no, more_fragments);
+					     packet_sequence_yes, packet_fragment_yes, more_fragments);
 			}
 		}
 
@@ -1199,7 +1199,7 @@ static irqreturn_t service_interrupt(int irq, void *dev_id)
 			return i == -1 ? IRQ_NONE : IRQ_HANDLED;
 		}
 
-		atmel_set_gcr(dev, GCR_ACKINT); /* acknowledge interrupt */
+		atmel_set_gcr(dev, GCR_ACKINT); /* ackyeswledge interrupt */
 
 		for (i = 0; i < ARRAY_SIZE(irq_order); i++)
 			if (isr & irq_order[i])
@@ -1264,7 +1264,7 @@ static struct iw_statistics *atmel_get_wireless_stats(struct net_device *dev)
 {
 	struct atmel_private *priv = netdev_priv(dev);
 
-	/* update the link quality here in case we are seeing no beacons
+	/* update the link quality here in case we are seeing yes beacons
 	   at all to drive the process */
 	atmel_smooth_qual(priv);
 
@@ -1277,14 +1277,14 @@ static struct iw_statistics *atmel_get_wireless_stats(struct net_device *dev)
 			priv->wstats.qual.updated = (IW_QUAL_QUAL_INVALID
 					| IW_QUAL_LEVEL_INVALID);
 		}
-		priv->wstats.qual.noise = 0;
+		priv->wstats.qual.yesise = 0;
 		priv->wstats.qual.updated |= IW_QUAL_NOISE_INVALID;
 	} else {
-		/* Quality levels cannot be determined in ad-hoc mode,
+		/* Quality levels canyest be determined in ad-hoc mode,
 		   because we can 'hear' more that one remote station. */
 		priv->wstats.qual.qual = 0;
 		priv->wstats.qual.level	= 0;
-		priv->wstats.qual.noise	= 0;
+		priv->wstats.qual.yesise	= 0;
 		priv->wstats.qual.updated = IW_QUAL_QUAL_INVALID
 					| IW_QUAL_LEVEL_INVALID
 					| IW_QUAL_NOISE_INVALID;
@@ -1309,10 +1309,10 @@ int atmel_open(struct net_device *dev)
 	struct atmel_private *priv = netdev_priv(dev);
 	int i, channel, err;
 
-	/* any scheduled timer is no longer needed and might screw things up.. */
+	/* any scheduled timer is yes longer needed and might screw things up.. */
 	del_timer_sync(&priv->management_timer);
 
-	/* Interrupts will not touch the card once in this state... */
+	/* Interrupts will yest touch the card once in this state... */
 	priv->station_state = STATION_STATE_DOWN;
 
 	if (priv->new_SSID_size) {
@@ -1413,7 +1413,7 @@ static int atmel_proc_show(struct seq_file *m, void *v)
 			   "Firmware version:\t%d.%d build %d\n"
 			   "Firmware location:\t",
 			   priv->host_info.major_version,
-			   priv->host_info.minor_version,
+			   priv->host_info.miyesr_version,
 			   priv->host_info.build_version);
 
 		if (priv->card_type != CARD_TYPE_EEPROM)
@@ -1434,10 +1434,10 @@ static int atmel_proc_show(struct seq_file *m, void *v)
 			c = "EEPROM";
 			break;
 		default:
-			c = "<unknown>";
+			c = "<unkyeswn>";
 		}
 
-		r = "<unknown>";
+		r = "<unkyeswn>";
 		for (i = 0; i < ARRAY_SIZE(channel_table); i++)
 			if (priv->reg_domain == channel_table[i].reg_domain)
 				r = channel_table[i].name;
@@ -1476,7 +1476,7 @@ static int atmel_proc_show(struct seq_file *m, void *v)
 		s = "Down";
 		break;
 	default:
-		s = "<unknown>";
+		s = "<unkyeswn>";
 	}
 
 	seq_printf(m, "Current state:\t\t%s\n", s);
@@ -1715,7 +1715,7 @@ static int atmel_set_encode(struct net_device *dev,
 	 * Note : with the new API, it's impossible to get a NULL pointer.
 	 * Therefore, we need to check a key size == 0 instead.
 	 * New version of iwconfig properly set the IW_ENCODE_NOKEY flag
-	 * when no key is present (only change flags), but older versions
+	 * when yes key is present (only change flags), but older versions
 	 * don't do it. - Jean II */
 	if (dwrq->length > 0) {
 		int index = (dwrq->flags & IW_ENCODE_INDEX) - 1;
@@ -1724,7 +1724,7 @@ static int atmel_set_encode(struct net_device *dev,
 		if (dwrq->length > 13) {
 			return -EINVAL;
 		}
-		/* Check the index (none -> use current) */
+		/* Check the index (yesne -> use current) */
 		if (index < 0 || index >= 4)
 			index = current_index;
 		else
@@ -1738,7 +1738,7 @@ static int atmel_set_encode(struct net_device *dev,
 			else
 				/* Disable the key */
 				priv->wep_key_len[index] = 0;
-		/* Check if the key is not marked as invalid */
+		/* Check if the key is yest marked as invalid */
 		if (!(dwrq->flags & IW_ENCODE_NOKEY)) {
 			/* Cleanup */
 			memset(priv->wep_keys[index], 0, 13);
@@ -1943,7 +1943,7 @@ static int atmel_set_auth(struct net_device *dev,
 	case IW_AUTH_RX_UNENCRYPTED_EAPOL:
 	case IW_AUTH_PRIVACY_INVOKED:
 		/*
-		 * atmel does not use these parameters
+		 * atmel does yest use these parameters
 		 */
 		break;
 
@@ -2291,9 +2291,9 @@ static int atmel_set_scan(struct net_device *dev,
 	unsigned long flags;
 
 	/* Note : you may have realised that, as this is a SET operation,
-	 * this is privileged and therefore a normal user can't
+	 * this is privileged and therefore a yesrmal user can't
 	 * perform scanning.
-	 * This is not an error, while the device perform scanning,
+	 * This is yest an error, while the device perform scanning,
 	 * traffic doesn't flow, so it's a perfect DoS...
 	 * Jean II */
 
@@ -2367,7 +2367,7 @@ static int atmel_get_scan(struct net_device *dev,
 		iwe.cmd = IWEVQUAL;
 		iwe.u.qual.level = priv->BSSinfo[i].RSSI;
 		iwe.u.qual.qual  = iwe.u.qual.level;
-		/* iwe.u.qual.noise  = SOMETHING */
+		/* iwe.u.qual.yesise  = SOMETHING */
 		current_ev = iwe_stream_add_event(info, current_ev,
 						  extra + IW_SCAN_MAX_DATA,
 						  &iwe, IW_EV_QUAL_LEN);
@@ -2424,12 +2424,12 @@ static int atmel_get_range(struct net_device *dev,
 
 	range->max_qual.qual = 100;
 	range->max_qual.level = 100;
-	range->max_qual.noise = 0;
+	range->max_qual.yesise = 0;
 	range->max_qual.updated = IW_QUAL_NOISE_INVALID;
 
 	range->avg_qual.qual = 50;
 	range->avg_qual.level = 50;
-	range->avg_qual.noise = 0;
+	range->avg_qual.yesise = 0;
 	range->avg_qual.updated = IW_QUAL_NOISE_INVALID;
 
 	range->sensitivity = 0;
@@ -2854,7 +2854,7 @@ static void send_authentication_request(struct atmel_private *priv, u16 system,
 	memcpy(header.addr3, priv->CurrentBSSID, ETH_ALEN);
 
 	if (priv->wep_is_on && priv->CurrentAuthentTransactionSeqNum != 1)
-		/* no WEP for authentication frames with TrSeqNo 1 */
+		/* yes WEP for authentication frames with TrSeqNo 1 */
 		header.frame_control |=  cpu_to_le16(IEEE80211_FCTL_PROTECTED);
 
 	auth.alg = cpu_to_le16(system);
@@ -2882,7 +2882,7 @@ static void send_association_request(struct atmel_private *priv, int is_reassoc)
 	struct ass_req_format {
 		__le16 capability;
 		__le16 listen_interval;
-		u8 ap[ETH_ALEN]; /* nothing after here directly accessible */
+		u8 ap[ETH_ALEN]; /* yesthing after here directly accessible */
 		u8 ssid_el_id;
 		u8 ssid_len;
 		u8 ssid[MAX_SSID_LENGTH];
@@ -2948,7 +2948,7 @@ static int retrieve_bss(struct atmel_private *priv)
 
 	if (priv->connect_to_any_BSS) {
 		/* Select a BSS with the max-RSSI but of the same type and of
-		   the same WEP mode and that it is not marked as 'bad' (i.e.
+		   the same WEP mode and that it is yest marked as 'bad' (i.e.
 		   we had previously failed to connect to this BSS with the
 		   settings that we currently use) */
 		priv->current_BSS = 0;
@@ -3026,11 +3026,11 @@ static void authenticate(struct atmel_private *priv, u16 frame_len)
 {
 	struct auth_body *auth = (struct auth_body *)priv->rx_buf;
 	u16 status = le16_to_cpu(auth->status);
-	u16 trans_seq_no = le16_to_cpu(auth->trans_seq);
+	u16 trans_seq_yes = le16_to_cpu(auth->trans_seq);
 	u16 system = le16_to_cpu(auth->alg);
 
 	if (status == WLAN_STATUS_SUCCESS && !priv->wep_is_on) {
-		/* no WEP */
+		/* yes WEP */
 		if (priv->station_was_associated) {
 			atmel_enter_state(priv, STATION_STATE_REASSOCIATING);
 			send_association_request(priv, 1);
@@ -3045,19 +3045,19 @@ static void authenticate(struct atmel_private *priv, u16 frame_len)
 	if (status == WLAN_STATUS_SUCCESS && priv->wep_is_on) {
 		int should_associate = 0;
 		/* WEP */
-		if (trans_seq_no != priv->ExpectedAuthentTransactionSeqNum)
+		if (trans_seq_yes != priv->ExpectedAuthentTransactionSeqNum)
 			return;
 
 		if (system == WLAN_AUTH_OPEN) {
-			if (trans_seq_no == 0x0002) {
+			if (trans_seq_yes == 0x0002) {
 				should_associate = 1;
 			}
 		} else if (system == WLAN_AUTH_SHARED_KEY) {
-			if (trans_seq_no == 0x0002 &&
+			if (trans_seq_yes == 0x0002 &&
 			    auth->el_id == WLAN_EID_CHALLENGE) {
 				send_authentication_request(priv, system, auth->chall_text, auth->chall_text_len);
 				return;
-			} else if (trans_seq_no == 0x0004) {
+			} else if (trans_seq_yes == 0x0004) {
 				should_associate = 1;
 			}
 		}
@@ -3270,7 +3270,7 @@ static void restart_search(struct atmel_private *priv)
 static void smooth_rssi(struct atmel_private *priv, u8 rssi)
 {
 	u8 old = priv->wstats.qual.level;
-	u8 max_rssi = 42; /* 502-rmfd-revd max by experiment, default for now */
+	u8 max_rssi = 42; /* 502-rmfd-revd max by experiment, default for yesw */
 
 	switch (priv->firmware_type) {
 	case ATMEL_FW_TYPE_502E:
@@ -3511,7 +3511,7 @@ static void atmel_command_irq(struct atmel_private *priv)
 			atmel_scan(priv, 1);
 		} else {
 			int bss_index = retrieve_bss(priv);
-			int notify_scan_complete = 1;
+			int yestify_scan_complete = 1;
 			if (bss_index != -1) {
 				atmel_join_bss(priv, bss_index);
 			} else if (priv->operating_mode == IW_MODE_ADHOC &&
@@ -3520,10 +3520,10 @@ static void atmel_command_irq(struct atmel_private *priv)
 			} else {
 				priv->fast_scan = !fast_scan;
 				atmel_scan(priv, 1);
-				notify_scan_complete = 0;
+				yestify_scan_complete = 0;
 			}
 			priv->site_survey_state = SITE_SURVEY_COMPLETED;
-			if (notify_scan_complete) {
+			if (yestify_scan_complete) {
 				wrqu.data.length = 0;
 				wrqu.data.flags = 0;
 				wireless_send_event(priv->dev, SIOCGIWSCAN, &wrqu, NULL);
@@ -3609,7 +3609,7 @@ static int atmel_wakeup_firmware(struct atmel_private *priv)
 		return -ENODEV;
 	}
 
-	/* now check for completion of MAC initialization through
+	/* yesw check for completion of MAC initialization through
 	   the FunCtrl field of the IFACE, poll MR1 to detect completion of
 	   MAC initialization, check completion status, set interrupt mask,
 	   enables interrupts and calls Tx and Rx initialization functions */
@@ -3659,7 +3659,7 @@ static int atmel_wakeup_firmware(struct atmel_private *priv)
 	iface->build_version = le16_to_cpu(iface->build_version);
 	iface->command_pos = le16_to_cpu(iface->command_pos);
 	iface->major_version = le16_to_cpu(iface->major_version);
-	iface->minor_version = le16_to_cpu(iface->minor_version);
+	iface->miyesr_version = le16_to_cpu(iface->miyesr_version);
 	iface->func_ctrl = le16_to_cpu(iface->func_ctrl);
 	iface->mac_status = le16_to_cpu(iface->mac_status);
 
@@ -3696,7 +3696,7 @@ static int probe_atmel_card(struct net_device *dev)
 			printk(KERN_ALERT "%s: MAC failed to boot MAC address reader.\n", dev->name);
 		} else {
 			atmel_copy_to_host(dev, dev->dev_addr, atmel_read16(dev, MR2), 6);
-			/* got address, now squash it again until the network
+			/* got address, yesw squash it again until the network
 			   interface is opened */
 			if (priv->bus_type == BUS_TYPE_PCCARD)
 				atmel_write16(dev, GCR, 0x0060);
@@ -3717,7 +3717,7 @@ static int probe_atmel_card(struct net_device *dev)
 		if (atmel_wakeup_firmware(priv) == 0) {
 			atmel_get_mib(priv, Mac_Address_Mib_Type, 0, dev->dev_addr, 6);
 
-			/* got address, now squash it again until the network
+			/* got address, yesw squash it again until the network
 			   interface is opened */
 			if (priv->bus_type == BUS_TYPE_PCCARD)
 				atmel_write16(dev, GCR, 0x0060);
@@ -3885,17 +3885,17 @@ static int reset_atmel_card(struct net_device *dev)
 			if (priv->firmware_type == ATMEL_FW_TYPE_NONE) {
 				if (strlen(priv->firmware_id) == 0) {
 					printk(KERN_INFO
-					       "%s: card type is unknown: assuming at76c502 firmware is OK.\n",
+					       "%s: card type is unkyeswn: assuming at76c502 firmware is OK.\n",
 					       dev->name);
 					printk(KERN_INFO
-					       "%s: if not, use the firmware= module parameter.\n",
+					       "%s: if yest, use the firmware= module parameter.\n",
 					       dev->name);
 					strcpy(priv->firmware_id, "atmel_at76c502.bin");
 				}
 				err = request_firmware(&fw_entry, priv->firmware_id, priv->sys_dev);
 				if (err != 0) {
 					printk(KERN_ALERT
-					       "%s: firmware %s is missing, cannot continue.\n",
+					       "%s: firmware %s is missing, canyest continue.\n",
 					       dev->name, priv->firmware_id);
 					return err;
 				}
@@ -3923,7 +3923,7 @@ static int reset_atmel_card(struct net_device *dev)
 				}
 				if (!success) {
 					printk(KERN_ALERT
-					       "%s: firmware %s is missing, cannot start.\n",
+					       "%s: firmware %s is missing, canyest start.\n",
 					       dev->name, priv->firmware_id);
 					priv->firmware_id[0] = '\0';
 					return -ENOENT;
@@ -3993,13 +3993,13 @@ static int reset_atmel_card(struct net_device *dev)
 	if (!priv->radio_on_broken) {
 		if (atmel_send_command_wait(priv, CMD_EnableRadio, NULL, 0) ==
 		    CMD_STATUS_REJECTED_RADIO_OFF) {
-			printk(KERN_INFO "%s: cannot turn the radio on.\n",
+			printk(KERN_INFO "%s: canyest turn the radio on.\n",
 			       dev->name);
 			return -EIO;
 		}
 	}
 
-	/* set up enough MIB values to run. */
+	/* set up eyesugh MIB values to run. */
 	atmel_set_mib8(priv, Local_Mib_Type, LOCAL_MIB_AUTO_TX_RATE_POS, priv->auto_tx_rate);
 	atmel_set_mib8(priv, Local_Mib_Type,  LOCAL_MIB_TX_PROMISCUOUS_POS,  PROM_MODE_OFF);
 	atmel_set_mib16(priv, Mac_Mib_Type, MAC_MIB_RTS_THRESHOLD_POS, priv->rts_threshold);
@@ -4243,7 +4243,7 @@ static void atmel_wmem32(struct atmel_private *priv, u16 pos, u32 data)
     GNU General Public License for more details.
 
     You should have received a copy of the GNU General Public License
-    along with AtmelMACFW; if not, see <http://www.gnu.org/licenses/>.
+    along with AtmelMACFW; if yest, see <http://www.gnu.org/licenses/>.
 
 ****************************************************************************/
 /* This firmware should work on the 76C502 RFMD, RFMD_D, and RFMD_E        */
@@ -4284,7 +4284,7 @@ static void atmel_wmem32(struct atmel_private *priv, u16 pos, u32 data)
 	.set NVRAM_CMD_READ, 3 /* read data */
 	.set NVRAM_SR_RDY, 1 /* RDY bit.  This bit is inverted */
 	.set SPI_8CLOCKS, 0xFF /* Writing this to the TDR doesn't do anything to the
-				  serial output, since SO is normally high.  But it
+				  serial output, since SO is yesrmally high.  But it
 				  does cause 8 clock cycles and thus 8 bits to be
 				  clocked in to the chip.  See Atmel's SPI
 				  controller (e.g. AT91M55800) timing and 4K
@@ -4358,7 +4358,7 @@ GET_WHOLE_NVRAM:
 	stmdb	sp!, {lr}
 	mov	r2, #0 /* 0th bytes of NVRAM */
 	mov	r3, #NVRAM_LENGTH
-	mov	r1, #0		/* not used in routine */
+	mov	r1, #0		/* yest used in routine */
 	ldr	r0, =NVRAM_IMAGE
 	bl	NVRAM_XFER
 	ldmia	sp!, {lr}
@@ -4370,7 +4370,7 @@ GET_MAC_ADDR:
 	stmdb	sp!, {lr}
 	mov	r2, #0x120	/* address of MAC Address within NVRAM */
 	mov	r3, #MAC_ADDRESS_LENGTH
-	mov	r1, #0		/* not used in routine */
+	mov	r1, #0		/* yest used in routine */
 	ldr	r0, =MAC_ADDRESS_MIB
 	bl	NVRAM_XFER
 	ldmia	sp!, {lr}
@@ -4446,7 +4446,7 @@ SP_loop3:
 
 .func NVRAM_Xfer, NVRAM_XFER
 	/* r0 = dest address */
-	/* r1 = not used */
+	/* r1 = yest used */
 	/* r2 = src address within NVRAM */
 	/* r3 = length */
 NVRAM_XFER:
@@ -4499,7 +4499,7 @@ _local5:
 	ldr	r0, [r4, #SP_SR]
 	tst	r0, #SP_RDRF
 	beq	_local5
-	ldr	r0, [r4, #SP_RDR] /* what's this byte?  It's the byte read while writing the TDR -- nonsense, because the NVRAM doesn't read and write at the same time */
+	ldr	r0, [r4, #SP_RDR] /* what's this byte?  It's the byte read while writing the TDR -- yesnsense, because the NVRAM doesn't read and write at the same time */
 	mov	r0, #0
 	cmp	r2, #0  /* r2 is # of bytes to copy in */
 	bls	_local6
@@ -4516,7 +4516,7 @@ _local8:
 	strb	r5, [r1], #1 /* postindexed */
 	add	r0, r0, #1
 	cmp	r0, r2
-	blo	_local7 /* since we don't send another address, the NVRAM must be capable of sequential reads */
+	blo	_local7 /* since we don't send ayesther address, the NVRAM must be capable of sequential reads */
 _local6:
 	mov	r0, #200
 	bl	DELAY9

@@ -780,7 +780,7 @@ struct r8152 {
 	struct mii_if_info mii;
 	struct mutex control;	/* use for hw setting */
 #ifdef CONFIG_PM_SLEEP
-	struct notifier_block pm_notifier;
+	struct yestifier_block pm_yestifier;
 #endif
 	struct tasklet_struct tx_tl;
 
@@ -1489,7 +1489,7 @@ static int determine_ethernet_addr(struct r8152 *tp, struct sockaddr *sa)
 		ret = pla_ocp_read(tp, PLA_IDR, 8, sa->sa_data);
 	} else {
 		/* if device doesn't support MAC pass through this will
-		 * be expected to be non-zero
+		 * be expected to be yesn-zero
 		 */
 		ret = vendor_mac_passthru_addr_read(tp, sa);
 		if (ret < 0)
@@ -1723,12 +1723,12 @@ static void free_rx_agg(struct r8152 *tp, struct rx_agg *agg)
 static struct rx_agg *alloc_rx_agg(struct r8152 *tp, gfp_t mflags)
 {
 	struct net_device *netdev = tp->netdev;
-	int node = netdev->dev.parent ? dev_to_node(netdev->dev.parent) : -1;
+	int yesde = netdev->dev.parent ? dev_to_yesde(netdev->dev.parent) : -1;
 	unsigned int order = get_order(tp->rx_buf_sz);
 	struct rx_agg *rx_agg;
 	unsigned long flags;
 
-	rx_agg = kmalloc_node(sizeof(*rx_agg), mflags, node);
+	rx_agg = kmalloc_yesde(sizeof(*rx_agg), mflags, yesde);
 	if (!rx_agg)
 		return NULL;
 
@@ -1798,9 +1798,9 @@ static int alloc_all_mem(struct r8152 *tp)
 	struct usb_interface *intf = tp->intf;
 	struct usb_host_interface *alt = intf->cur_altsetting;
 	struct usb_host_endpoint *ep_intr = alt->endpoint + 2;
-	int node, i;
+	int yesde, i;
 
-	node = netdev->dev.parent ? dev_to_node(netdev->dev.parent) : -1;
+	yesde = netdev->dev.parent ? dev_to_yesde(netdev->dev.parent) : -1;
 
 	spin_lock_init(&tp->rx_lock);
 	spin_lock_init(&tp->tx_lock);
@@ -1820,14 +1820,14 @@ static int alloc_all_mem(struct r8152 *tp)
 		struct urb *urb;
 		u8 *buf;
 
-		buf = kmalloc_node(agg_buf_sz, GFP_KERNEL, node);
+		buf = kmalloc_yesde(agg_buf_sz, GFP_KERNEL, yesde);
 		if (!buf)
 			goto err1;
 
 		if (buf != tx_agg_align(buf)) {
 			kfree(buf);
-			buf = kmalloc_node(agg_buf_sz + TX_ALIGN, GFP_KERNEL,
-					   node);
+			buf = kmalloc_yesde(agg_buf_sz + TX_ALIGN, GFP_KERNEL,
+					   yesde);
 			if (!buf)
 				goto err1;
 		}
@@ -2540,7 +2540,7 @@ static void _rtl8152_set_rx_mode(struct net_device *netdev)
 
 	if (netdev->flags & IFF_PROMISC) {
 		/* Unconditionally log net taps. */
-		netif_notice(tp, link, netdev, "Promiscuous mode enabled\n");
+		netif_yestice(tp, link, netdev, "Promiscuous mode enabled\n");
 		ocp_data |= RCR_AM | RCR_AAP;
 		mc_filter[1] = 0xffffffff;
 		mc_filter[0] = 0xffffffff;
@@ -3244,7 +3244,7 @@ static void r8153b_ups_en(struct r8152 *tp, bool enable)
 		default:
 			if (data != PHY_STAT_LAN_ON)
 				netif_warn(tp, link, tp->netdev,
-					   "PHY not ready");
+					   "PHY yest ready");
 			break;
 		}
 	}
@@ -3720,7 +3720,7 @@ static bool rtl8152_is_fw_mac_ok(struct r8152 *tp, struct fw_mac *mac)
 
 	for (i = __le16_to_cpu(mac->bp_num); i < max_bp; i++) {
 		if (mac->bp[i]) {
-			dev_err(&tp->intf->dev, "unused bp%u is not zero\n", i);
+			dev_err(&tp->intf->dev, "unused bp%u is yest zero\n", i);
 			goto out;
 		}
 	}
@@ -3896,7 +3896,7 @@ static long rtl8152_check_firmware(struct r8152 *tp, struct rtl_fw *rtl_fw)
 
 			break;
 		default:
-			dev_warn(&tp->intf->dev, "Unknown type %u is found\n",
+			dev_warn(&tp->intf->dev, "Unkyeswn type %u is found\n",
 				 type);
 			break;
 		}
@@ -5141,10 +5141,10 @@ static void rtl_hw_phy_work_func_t(struct work_struct *work)
 		tp->rtl_fw.retry = false;
 		tp->rtl_fw.fw = NULL;
 
-		/* Delay execution in case request_firmware() is not ready yet.
+		/* Delay execution in case request_firmware() is yest ready yet.
 		 */
 		queue_delayed_work(system_long_wq, &tp->hw_phy_work, HZ * 10);
-		goto ignore_once;
+		goto igyesre_once;
 	}
 
 	tp->rtl_ops.hw_phy_cfg(tp);
@@ -5152,17 +5152,17 @@ static void rtl_hw_phy_work_func_t(struct work_struct *work)
 	rtl8152_set_speed(tp, tp->autoneg, tp->speed, tp->duplex,
 			  tp->advertising);
 
-ignore_once:
+igyesre_once:
 	mutex_unlock(&tp->control);
 
 	usb_autopm_put_interface(tp->intf);
 }
 
 #ifdef CONFIG_PM_SLEEP
-static int rtl_notifier(struct notifier_block *nb, unsigned long action,
+static int rtl_yestifier(struct yestifier_block *nb, unsigned long action,
 			void *data)
 {
-	struct r8152 *tp = container_of(nb, struct r8152, pm_notifier);
+	struct r8152 *tp = container_of(nb, struct r8152, pm_yestifier);
 
 	switch (action) {
 	case PM_HIBERNATION_PREPARE:
@@ -5226,8 +5226,8 @@ static int rtl8152_open(struct net_device *netdev)
 
 	usb_autopm_put_interface(tp->intf);
 #ifdef CONFIG_PM_SLEEP
-	tp->pm_notifier.notifier_call = rtl_notifier;
-	register_pm_notifier(&tp->pm_notifier);
+	tp->pm_yestifier.yestifier_call = rtl_yestifier;
+	register_pm_yestifier(&tp->pm_yestifier);
 #endif
 	return 0;
 
@@ -5246,7 +5246,7 @@ static int rtl8152_close(struct net_device *netdev)
 	int res = 0;
 
 #ifdef CONFIG_PM_SLEEP
-	unregister_pm_notifier(&tp->pm_notifier);
+	unregister_pm_yestifier(&tp->pm_yestifier);
 #endif
 	tasklet_disable(&tp->tx_tl);
 	clear_bit(WORK_ENABLE, &tp->flags);
@@ -6473,7 +6473,7 @@ static int rtl_ops_init(struct r8152 *tp)
 
 	default:
 		ret = -ENODEV;
-		netif_err(tp, probe, tp->netdev, "Unknown Device\n");
+		netif_err(tp, probe, tp->netdev, "Unkyeswn Device\n");
 		break;
 	}
 
@@ -6571,7 +6571,7 @@ static u8 rtl_get_version(struct usb_interface *intf)
 		break;
 	default:
 		version = RTL_VER_UNKNOWN;
-		dev_info(&intf->dev, "Unknown version 0x%04x\n", ocp_data);
+		dev_info(&intf->dev, "Unkyeswn version 0x%04x\n", ocp_data);
 		break;
 	}
 
@@ -6706,7 +6706,7 @@ static int rtl8152_probe(struct usb_interface *intf,
 
 	tp->rtl_ops.init(tp);
 #if IS_BUILTIN(CONFIG_USB_RTL8152)
-	/* Retry in case request_firmware() is not ready yet. */
+	/* Retry in case request_firmware() is yest ready yet. */
 	tp->rtl_fw.retry = true;
 #endif
 	queue_delayed_work(system_long_wq, &tp->hw_phy_work, 0);

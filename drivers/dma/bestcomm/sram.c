@@ -38,7 +38,7 @@ EXPORT_SYMBOL_GPL(bcom_sram);	/* needed for inline functions */
 /* DO NOT USE in interrupts, if needed in irq handler, we should use the
    _irqsave version of the spin_locks */
 
-int bcom_sram_init(struct device_node *sram_node, char *owner)
+int bcom_sram_init(struct device_yesde *sram_yesde, char *owner)
 {
 	int rv;
 	const u32 *regaddr_p;
@@ -60,15 +60,15 @@ int bcom_sram_init(struct device_node *sram_node, char *owner)
 	}
 
 	/* Get address and size of the sram */
-	regaddr_p = of_get_address(sram_node, 0, &size64, NULL);
+	regaddr_p = of_get_address(sram_yesde, 0, &size64, NULL);
 	if (!regaddr_p) {
 		printk(KERN_ERR "%s: bcom_sram_init: "
-			"Invalid device node !\n", owner);
+			"Invalid device yesde !\n", owner);
 		rv = -EINVAL;
 		goto error_free;
 	}
 
-	regaddr64 = of_translate_address(sram_node, regaddr_p);
+	regaddr64 = of_translate_address(sram_yesde, regaddr_p);
 
 	bcom_sram->base_phys = (phys_addr_t) regaddr64;
 	bcom_sram->size = (unsigned int) size64;
@@ -82,7 +82,7 @@ int bcom_sram_init(struct device_node *sram_node, char *owner)
 	}
 
 	/* Map SRAM */
-		/* sram is not really __iomem */
+		/* sram is yest really __iomem */
 	bcom_sram->base_virt = (void*) ioremap(bcom_sram->base_phys, bcom_sram->size);
 
 	if (!bcom_sram->base_virt) {
@@ -99,7 +99,7 @@ int bcom_sram_init(struct device_node *sram_node, char *owner)
 	/* Attach the free zones */
 #if 0
 	/* Currently disabled ... for future use only */
-	reg_addr_p = of_get_property(sram_node, "available", &psize);
+	reg_addr_p = of_get_property(sram_yesde, "available", &psize);
 #else
 	regaddr_p = NULL;
 	psize = 0;
@@ -111,7 +111,7 @@ int bcom_sram_init(struct device_node *sram_node, char *owner)
 	} else {
 		/* Attach each zone independently */
 		while (psize >= 2 * sizeof(u32)) {
-			phys_addr_t zbase = of_translate_address(sram_node, regaddr_p);
+			phys_addr_t zbase = of_translate_address(sram_yesde, regaddr_p);
 			rh_attach_region(bcom_sram->rh, zbase - bcom_sram->base_phys, regaddr_p[1]);
 			regaddr_p += 2;
 			psize -= 2 * sizeof(u32);

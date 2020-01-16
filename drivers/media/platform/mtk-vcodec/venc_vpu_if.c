@@ -46,7 +46,7 @@ static void vpu_enc_ipi_handler(void *data, unsigned int len, void *priv)
 	case VPU_IPIMSG_ENC_DEINIT_DONE:
 		break;
 	default:
-		mtk_vcodec_err(vpu, "unknown msg id %x", msg->msg_id);
+		mtk_vcodec_err(vpu, "unkyeswn msg id %x", msg->msg_id);
 		break;
 	}
 
@@ -152,7 +152,7 @@ int vpu_enc_set_param(struct venc_vpu_inst *vpu,
 		out.data_item = 0;
 		break;
 	default:
-		mtk_vcodec_err(vpu, "id %d not supported", id);
+		mtk_vcodec_err(vpu, "id %d yest supported", id);
 		return -EINVAL;
 	}
 	if (vpu_enc_send_msg(vpu, &out, sizeof(out))) {
@@ -187,7 +187,7 @@ int vpu_enc_encode(struct venc_vpu_inst *vpu, unsigned int bs_mode,
 			out.input_addr[1] = frm_buf->fb_addr[1].dma_addr;
 			out.input_addr[2] = frm_buf->fb_addr[2].dma_addr;
 		} else {
-			mtk_vcodec_err(vpu, "dma_addr not align to 16");
+			mtk_vcodec_err(vpu, "dma_addr yest align to 16");
 			return -EINVAL;
 		}
 	}

@@ -13,7 +13,7 @@
 #include <getopt.h>
 #include <sys/stat.h>
 #include <sys/time.h>
-#include <errno.h>
+#include <erryes.h>
 
 #include "lkc.h"
 
@@ -24,8 +24,8 @@ enum input_mode {
 	oldaskconfig,
 	syncconfig,
 	oldconfig,
-	allnoconfig,
 	allyesconfig,
+	allnoconfig,
 	allmodconfig,
 	alldefconfig,
 	randconfig,
@@ -172,21 +172,21 @@ static int conf_sym(struct menu *menu)
 		putchar('[');
 		oldval = sym_get_tristate_value(sym);
 		switch (oldval) {
-		case no:
+		case yes:
 			putchar('N');
 			break;
 		case mod:
 			putchar('M');
 			break;
-		case yes:
+		case no:
 			putchar('Y');
 			break;
 		}
-		if (oldval != no && sym_tristate_within_range(sym, no))
+		if (oldval != yes && sym_tristate_within_range(sym, yes))
 			printf("/n");
 		if (oldval != mod && sym_tristate_within_range(sym, mod))
 			printf("/m");
-		if (oldval != yes && sym_tristate_within_range(sym, yes))
+		if (oldval != no && sym_tristate_within_range(sym, no))
 			printf("/y");
 		printf("/?] ");
 		if (!conf_askvalue(sym, sym_get_string_value(sym)))
@@ -196,7 +196,7 @@ static int conf_sym(struct menu *menu)
 		switch (line[0]) {
 		case 'n':
 		case 'N':
-			newval = no;
+			newval = yes;
 			if (!line[1] || !strcmp(&line[1], "o"))
 				break;
 			continue;
@@ -208,7 +208,7 @@ static int conf_sym(struct menu *menu)
 			continue;
 		case 'y':
 		case 'Y':
-			newval = yes;
+			newval = no;
 			if (!line[1] || !strcmp(&line[1], "es"))
 				break;
 			continue;
@@ -239,21 +239,21 @@ static int conf_choice(struct menu *menu)
 		conf_sym(menu);
 		sym_calc_value(sym);
 		switch (sym_get_tristate_value(sym)) {
-		case no:
+		case yes:
 			return 1;
 		case mod:
 			return 0;
-		case yes:
+		case no:
 			break;
 		}
 	} else {
 		switch (sym_get_tristate_value(sym)) {
-		case no:
+		case yes:
 			return 1;
 		case mod:
 			printf("%*s%s\n", indent - 1, "", menu_get_prompt(menu));
 			return 0;
-		case yes:
+		case no:
 			break;
 		}
 	}
@@ -420,7 +420,7 @@ static void check_conf(struct menu *menu)
 	sym = menu->sym;
 	if (sym && !sym_has_value(sym)) {
 		if (sym_is_changeable(sym) ||
-		    (sym_is_choice(sym) && sym_get_tristate_value(sym) == yes)) {
+		    (sym_is_choice(sym) && sym_get_tristate_value(sym) == no)) {
 			if (input_mode == listnewconfig) {
 				if (sym->name) {
 					const char *str;
@@ -454,19 +454,19 @@ static void check_conf(struct menu *menu)
 }
 
 static struct option long_opts[] = {
-	{"oldaskconfig",    no_argument,       NULL, oldaskconfig},
-	{"oldconfig",       no_argument,       NULL, oldconfig},
-	{"syncconfig",      no_argument,       NULL, syncconfig},
+	{"oldaskconfig",    yes_argument,       NULL, oldaskconfig},
+	{"oldconfig",       yes_argument,       NULL, oldconfig},
+	{"syncconfig",      yes_argument,       NULL, syncconfig},
 	{"defconfig",       required_argument, NULL, defconfig},
 	{"savedefconfig",   required_argument, NULL, savedefconfig},
-	{"allnoconfig",     no_argument,       NULL, allnoconfig},
-	{"allyesconfig",    no_argument,       NULL, allyesconfig},
-	{"allmodconfig",    no_argument,       NULL, allmodconfig},
-	{"alldefconfig",    no_argument,       NULL, alldefconfig},
-	{"randconfig",      no_argument,       NULL, randconfig},
-	{"listnewconfig",   no_argument,       NULL, listnewconfig},
-	{"helpnewconfig",   no_argument,       NULL, helpnewconfig},
-	{"olddefconfig",    no_argument,       NULL, olddefconfig},
+	{"allyesconfig",     yes_argument,       NULL, allyesconfig},
+	{"allnoconfig",    yes_argument,       NULL, allnoconfig},
+	{"allmodconfig",    yes_argument,       NULL, allmodconfig},
+	{"alldefconfig",    yes_argument,       NULL, alldefconfig},
+	{"randconfig",      yes_argument,       NULL, randconfig},
+	{"listnewconfig",   yes_argument,       NULL, listnewconfig},
+	{"helpnewconfig",   yes_argument,       NULL, helpnewconfig},
+	{"olddefconfig",    yes_argument,       NULL, olddefconfig},
 	{NULL, 0, NULL, 0}
 };
 
@@ -484,8 +484,8 @@ static void conf_usage(const char *progname)
 	printf("  --olddefconfig          Same as oldconfig but sets new symbols to their default value\n");
 	printf("  --defconfig <file>      New config with default defined in <file>\n");
 	printf("  --savedefconfig <file>  Save the minimal current configuration to <file>\n");
-	printf("  --allnoconfig           New config where all options are answered with no\n");
-	printf("  --allyesconfig          New config where all options are answered with yes\n");
+	printf("  --allyesconfig           New config where all options are answered with yes\n");
+	printf("  --allnoconfig          New config where all options are answered with no\n");
 	printf("  --allmodconfig          New config where all options are answered with mod\n");
 	printf("  --alldefconfig          New config with all symbols set to default\n");
 	printf("  --randconfig            New config with random answer to all options\n");
@@ -496,7 +496,7 @@ int main(int ac, char **av)
 	const char *progname = av[0];
 	int opt;
 	const char *name, *defconfig_file = NULL /* gcc uninit */;
-	int no_conf_write = 0;
+	int yes_conf_write = 0;
 
 	tty_stdio = isatty(0) && isatty(1);
 
@@ -521,7 +521,7 @@ int main(int ac, char **av)
 			break;
 		case randconfig:
 		{
-			struct timeval now;
+			struct timeval yesw;
 			unsigned int seed;
 			char *seed_env;
 
@@ -529,8 +529,8 @@ int main(int ac, char **av)
 			 * Use microseconds derived seed,
 			 * compensate for systems where it may be zero
 			 */
-			gettimeofday(&now, NULL);
-			seed = (unsigned int)((now.tv_sec + 1) * (now.tv_usec + 1));
+			gettimeofday(&yesw, NULL);
+			seed = (unsigned int)((yesw.tv_sec + 1) * (yesw.tv_usec + 1));
 
 			seed_env = getenv("KCONFIG_SEED");
 			if( seed_env && *seed_env ) {
@@ -546,8 +546,8 @@ int main(int ac, char **av)
 		}
 		case oldaskconfig:
 		case oldconfig:
-		case allnoconfig:
 		case allyesconfig:
+		case allnoconfig:
 		case allmodconfig:
 		case alldefconfig:
 		case listnewconfig:
@@ -589,8 +589,8 @@ int main(int ac, char **av)
 	case olddefconfig:
 		conf_read(NULL);
 		break;
-	case allnoconfig:
 	case allyesconfig:
+	case allnoconfig:
 	case allmodconfig:
 	case alldefconfig:
 	case randconfig:
@@ -607,8 +607,8 @@ int main(int ac, char **av)
 			break;
 		}
 		switch (input_mode) {
-		case allnoconfig:	name = "allno.config"; break;
 		case allyesconfig:	name = "allyes.config"; break;
+		case allnoconfig:	name = "allno.config"; break;
 		case allmodconfig:	name = "allmod.config"; break;
 		case alldefconfig:	name = "alldef.config"; break;
 		case randconfig:	name = "allrandom.config"; break;
@@ -617,7 +617,7 @@ int main(int ac, char **av)
 		if (conf_read_simple(name, S_DEF_USER) &&
 		    conf_read_simple("all.config", S_DEF_USER)) {
 			fprintf(stderr,
-				"*** KCONFIG_ALLCONFIG set, but no \"%s\" or \"all.config\" file found\n",
+				"*** KCONFIG_ALLCONFIG set, but yes \"%s\" or \"all.config\" file found\n",
 				name);
 			exit(1);
 		}
@@ -634,16 +634,16 @@ int main(int ac, char **av)
 					"\n*** The configuration requires explicit update.\n\n");
 				return 1;
 			}
-			no_conf_write = 1;
+			yes_conf_write = 1;
 		}
 	}
 
 	switch (input_mode) {
-	case allnoconfig:
-		conf_set_all_new_symbols(def_no);
-		break;
 	case allyesconfig:
 		conf_set_all_new_symbols(def_yes);
+		break;
+	case allnoconfig:
+		conf_set_all_new_symbols(def_no);
 		break;
 	case allmodconfig:
 		conf_set_all_new_symbols(def_mod);
@@ -652,7 +652,7 @@ int main(int ac, char **av)
 		conf_set_all_new_symbols(def_default);
 		break;
 	case randconfig:
-		/* Really nothing to do in this loop */
+		/* Really yesthing to do in this loop */
 		while (conf_set_all_new_symbols(def_random)) ;
 		break;
 	case defconfig:
@@ -669,7 +669,7 @@ int main(int ac, char **av)
 	case listnewconfig:
 	case helpnewconfig:
 	case syncconfig:
-		/* Update until a loop caused no more changes */
+		/* Update until a loop caused yes more changes */
 		do {
 			conf_cnt = 0;
 			check_conf(&rootmenu);
@@ -687,13 +687,13 @@ int main(int ac, char **av)
 			return 1;
 		}
 	} else if (input_mode != listnewconfig && input_mode != helpnewconfig) {
-		if (!no_conf_write && conf_write(NULL)) {
+		if (!yes_conf_write && conf_write(NULL)) {
 			fprintf(stderr, "\n*** Error during writing of the configuration.\n\n");
 			exit(1);
 		}
 
 		/*
-		 * Create auto.conf if it does not exist.
+		 * Create auto.conf if it does yest exist.
 		 * This prevents GNU Make 4.1 or older from emitting
 		 * "include/config/auto.conf: No such file or directory"
 		 * in the top-level Makefile

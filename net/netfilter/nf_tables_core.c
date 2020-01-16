@@ -21,7 +21,7 @@
 #include <net/netfilter/nf_log.h>
 #include <net/netfilter/nft_meta.h>
 
-static noinline void __nft_trace_packet(struct nft_traceinfo *info,
+static yesinline void __nft_trace_packet(struct nft_traceinfo *info,
 					const struct nft_chain *chain,
 					enum nft_trace_types type)
 {
@@ -33,7 +33,7 @@ static noinline void __nft_trace_packet(struct nft_traceinfo *info,
 	info->chain = chain;
 	info->type = type;
 
-	nft_trace_notify(info);
+	nft_trace_yestify(info);
 }
 
 static inline void nft_trace_packet(struct nft_traceinfo *info,
@@ -92,7 +92,7 @@ static bool nft_payload_fast_eval(const struct nft_expr *expr,
 
 DEFINE_STATIC_KEY_FALSE(nft_counters_enabled);
 
-static noinline void nft_update_chain_stats(const struct nft_chain *chain,
+static yesinline void nft_update_chain_stats(const struct nft_chain *chain,
 					    const struct nft_pktinfo *pkt)
 {
 	struct nft_base_chain *base_chain;

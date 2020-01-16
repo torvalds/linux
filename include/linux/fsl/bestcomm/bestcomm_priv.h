@@ -1,7 +1,7 @@
 /*
  * Private header for the MPC52xx processor BestComm driver
  *
- * By private, we mean that driver should not use it directly. It's meant
+ * By private, we mean that driver should yest use it directly. It's meant
  * to be used by the BestComm engine driver itself and by the intermediate
  * layer between the core and the drivers.
  *
@@ -66,7 +66,7 @@ struct bcom_tdt {
  * This holds all info needed globaly to handle the engine
  */
 struct bcom_engine {
-	struct device_node		*ofnode;
+	struct device_yesde		*ofyesde;
 	struct mpc52xx_sdma __iomem     *regs;
 	phys_addr_t                      regs_base;
 
@@ -118,7 +118,7 @@ struct bcom_task_header {
 
 	/* Looks like XLB speculative read generates XLB errors when a buffer
 	 * is at the end of the physical memory. i.e. when accessing the
-	 * lasts words, the engine tries to prefetch the next but there is no
+	 * lasts words, the engine tries to prefetch the next but there is yes
 	 * next ...
 	 */
 #define BCOM_STD_PRAGMA		((0 << BCOM_PRAGMA_BIT_RSV)		| \
@@ -245,9 +245,9 @@ extern void bcom_set_initiator(int task, int initiator);
  * bcom_disable_prefetch - Hook to disable bus prefetching
  *
  * ATA DMA and the original MPC5200 need this due to silicon bugs.  At the
- * moment disabling prefetch is a one-way street.  There is no mechanism
+ * moment disabling prefetch is a one-way street.  There is yes mechanism
  * in place to turn prefetch back on after it has been disabled.  There is
- * no reason it couldn't be done, it would just be more complex to implement.
+ * yes reason it couldn't be done, it would just be more complex to implement.
  */
 static inline void bcom_disable_prefetch(void)
 {

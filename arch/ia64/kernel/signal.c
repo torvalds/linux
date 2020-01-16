@@ -8,7 +8,7 @@
  * Derived from i386 and Alpha versions.
  */
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
 #include <linux/ptrace.h>
@@ -47,7 +47,7 @@ restore_sigcontext (struct sigcontext __user *sc, struct sigscratch *scr)
 	long err;
 
 	/* Always make any pending restarted system calls return -EINTR */
-	current->restart_block.fn = do_no_restart_syscall;
+	current->restart_block.fn = do_yes_restart_syscall;
 
 	/* restore scratch that always needs gets updated during signal delivery: */
 	err  = __get_user(flags, &sc->sc_flags);
@@ -78,7 +78,7 @@ restore_sigcontext (struct sigcontext __user *sc, struct sigscratch *scr)
 	scr->scratch_unat = ia64_put_scratch_nat_bits(&scr->pt, nat);
 
 	if (!(flags & IA64_SC_FLAG_IN_SYSCALL)) {
-		/* Restore most scratch-state only when not in syscall. */
+		/* Restore most scratch-state only when yest in syscall. */
 		err |= __get_user(scr->pt.ar_ccv, &sc->sc_ar_ccv);		/* ar.ccv */
 		err |= __get_user(scr->pt.b7, &sc->sc_br[7]);			/* b7 */
 		err |= __get_user(scr->pt.r14, &sc->sc_gr[14]);			/* r14 */
@@ -118,15 +118,15 @@ ia64_rt_sigreturn (struct sigscratch *scr)
 	/*
 	 * When we return to the previously executing context, r8 and r10 have already
 	 * been setup the way we want them.  Indeed, if the signal wasn't delivered while
-	 * in a system call, we must not touch r8 or r10 as otherwise user-level state
+	 * in a system call, we must yest touch r8 or r10 as otherwise user-level state
 	 * could be corrupted.
 	 */
 	retval = (long) &ia64_leave_kernel;
 	if (test_thread_flag(TIF_SYSCALL_TRACE)
 	    || test_thread_flag(TIF_SYSCALL_AUDIT))
 		/*
-		 * strace expects to be notified after sigreturn returns even though the
-		 * context to which we return may not be in the middle of a syscall.
+		 * strace expects to be yestified after sigreturn returns even though the
+		 * context to which we return may yest be in the middle of a syscall.
 		 * Thus, the return-value that strace displays for sigreturn is
 		 * meaningless.
 		 */
@@ -158,7 +158,7 @@ ia64_rt_sigreturn (struct sigscratch *scr)
 
 /*
  * This does just the minimum required setup of sigcontext.
- * Specifically, it only installs data that is either not knowable at
+ * Specifically, it only installs data that is either yest kyeswable at
  * the user-level or that gets modified before execution in the
  * trampoline starts.  Everything else is done at the user-level.
  */
@@ -292,11 +292,11 @@ setup_frame(struct ksignal *ksig, sigset_t *set, struct sigscratch *scr)
 	ia64_psr(&scr->pt)->ri = 0;			/* start executing in first slot */
 	ia64_psr(&scr->pt)->be = 0;			/* force little-endian byte-order */
 	/*
-	 * Force the interruption function mask to zero.  This has no effect when a
+	 * Force the interruption function mask to zero.  This has yes effect when a
 	 * system-call got interrupted by a signal (since, in that case, scr->pt_cr_ifs is
-	 * ignored), but it has the desirable effect of making it possible to deliver a
+	 * igyesred), but it has the desirable effect of making it possible to deliver a
 	 * signal with an incomplete register frame (which happens when a mandatory RSE
-	 * load faults).  Furthermore, it has no negative effect on the getting the user's
+	 * load faults).  Furthermore, it has yes negative effect on the getting the user's
 	 * dirty partition preserved, because that's governed by scr->pt.loadrs.
 	 */
 	scr->pt.cr_ifs = (1UL << 63);
@@ -327,13 +327,13 @@ handle_signal (struct ksignal *ksig, struct sigscratch *scr)
 
 /*
  * Note that `init' is a special process: it doesn't get signals it doesn't want to
- * handle.  Thus you cannot kill init even with a SIGKILL even by mistake.
+ * handle.  Thus you canyest kill init even with a SIGKILL even by mistake.
  */
 void
 ia64_do_signal (struct sigscratch *scr, long in_syscall)
 {
 	long restart = in_syscall;
-	long errno = scr->pt.r8;
+	long erryes = scr->pt.r8;
 	struct ksignal ksig;
 
 	/*
@@ -344,7 +344,7 @@ ia64_do_signal (struct sigscratch *scr, long in_syscall)
 		get_signal(&ksig);
 
 		/*
-		 * get_signal() may have run a debugger (via notify_parent())
+		 * get_signal() may have run a debugger (via yestify_parent())
 		 * and the debugger may have modified the state (e.g., to arrange for an
 		 * inferior call), thus it's important to check for restarting _after_
 		 * get_signal().
@@ -362,16 +362,16 @@ ia64_do_signal (struct sigscratch *scr, long in_syscall)
 			break;
 
 		if (unlikely(restart)) {
-			switch (errno) {
+			switch (erryes) {
 			case ERESTART_RESTARTBLOCK:
 			case ERESTARTNOHAND:
 				scr->pt.r8 = EINTR;
-				/* note: scr->pt.r10 is already -1 */
+				/* yeste: scr->pt.r10 is already -1 */
 				break;
 			case ERESTARTSYS:
 				if ((ksig.ka.sa.sa_flags & SA_RESTART) == 0) {
 					scr->pt.r8 = EINTR;
-					/* note: scr->pt.r10 is already -1 */
+					/* yeste: scr->pt.r10 is already -1 */
 					break;
 				}
 				/*FALLTHRU*/
@@ -391,9 +391,9 @@ ia64_do_signal (struct sigscratch *scr, long in_syscall)
 
 	/* Did we come from a system call? */
 	if (restart) {
-		/* Restart the system call - no handlers present */
-		if (errno == ERESTARTNOHAND || errno == ERESTARTSYS || errno == ERESTARTNOINTR
-		    || errno == ERESTART_RESTARTBLOCK)
+		/* Restart the system call - yes handlers present */
+		if (erryes == ERESTARTNOHAND || erryes == ERESTARTSYS || erryes == ERESTARTNOINTR
+		    || erryes == ERESTART_RESTARTBLOCK)
 		{
 			/*
 			 * Note: the syscall number is in r15 which is saved in
@@ -401,12 +401,12 @@ ia64_do_signal (struct sigscratch *scr, long in_syscall)
 			 * the "break" instruction gets re-executed.
 			 */
 			ia64_decrement_ip(&scr->pt);
-			if (errno == ERESTART_RESTARTBLOCK)
+			if (erryes == ERESTART_RESTARTBLOCK)
 				scr->pt.r15 = __NR_restart_syscall;
 		}
 	}
 
-	/* if there's no signal to deliver, we just put the saved sigmask
+	/* if there's yes signal to deliver, we just put the saved sigmask
 	 * back */
 	restore_saved_sigmask();
 }

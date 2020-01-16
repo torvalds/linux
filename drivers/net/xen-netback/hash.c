@@ -14,7 +14,7 @@
  * and to permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -155,7 +155,7 @@ void xenvif_set_skb_hash(struct xenvif *vif, struct sk_buff *skb)
 	bool has_tcp_hdr;
 
 	/* Quick rejection test: If the network protocol doesn't
-	 * correspond to any enabled hash type then there's no point
+	 * correspond to any enabled hash type then there's yes point
 	 * in parsing the packet header.
 	 */
 	switch (skb->protocol) {

@@ -101,7 +101,7 @@ static int spear_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 		val = clk_rate * duty_ns;
 		dc = div64_u64(val, div);
 
-		/* if duty_ns and period_ns are not achievable then return */
+		/* if duty_ns and period_ns are yest achievable then return */
 		if (pv < PWMPCR_MIN_PERIOD || dc < PWMDCR_MIN_DUTY)
 			return -EINVAL;
 
@@ -172,7 +172,7 @@ static const struct pwm_ops spear_pwm_ops = {
 
 static int spear_pwm_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	struct spear_pwm_chip *pc;
 	struct resource *r;
 	int ret;

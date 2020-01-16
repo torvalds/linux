@@ -264,7 +264,7 @@ static int fsa9480_probe(struct i2c_client *client,
 	int ret;
 
 	if (!client->irq) {
-		dev_err(&client->dev, "no interrupt provided\n");
+		dev_err(&client->dev, "yes interrupt provided\n");
 		return -EINVAL;
 	}
 

@@ -95,18 +95,18 @@ static inline s32 fixp_sin32(int degrees)
  * @twopi: value to be used for 2*pi
  *
  * Provides a variant for the cases where just 360
- * values is not enough. This function uses linear
+ * values is yest eyesugh. This function uses linear
  * interpolation to a wider range of values given by
  * twopi var.
  *
  * Experimental tests gave a maximum difference of
  * 0.000038 between the value calculated by sin() and
  * the one produced by this function, when twopi is
- * equal to 360000. That seems to be enough precision
+ * equal to 360000. That seems to be eyesugh precision
  * for practical purposes.
  *
- * Please notice that two high numbers for twopi could cause
- * overflows, so the routine will not allow values of twopi
+ * Please yestice that two high numbers for twopi could cause
+ * overflows, so the routine will yest allow values of twopi
  * bigger than 1^18.
  */
 static inline s32 fixp_sin32_rad(u32 radians, u32 twopi)

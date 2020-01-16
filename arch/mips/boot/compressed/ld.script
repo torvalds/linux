@@ -52,6 +52,6 @@ SECTIONS
 		*(.pdr)
 		*(.reginfo)
 		*(.comment)
-		*(.note)
+		*(.yeste)
 	}
 }

@@ -17,10 +17,10 @@ Also see these documents for generic binding information:
 This binding must be part of the Lochnagar MFD binding:
   [2] ../mfd/cirrus,lochnagar.txt
 
-Optional sub-nodes:
+Optional sub-yesdes:
 
   - VDDCORE : Initialisation data for the VDDCORE regulator, which
-    supplies the CODECs digital core if it has no build regulator for that
+    supplies the CODECs digital core if it has yes build regulator for that
     purpose.
       Required Properties:
       - compatible : One of the following strings:
@@ -42,7 +42,7 @@ Optional sub-nodes:
       - cirrus,micbias-input : A property selecting which of the CODEC
         minicard micbias outputs should be used, valid values are 1 - 4.
       - MICBIAS1-supply, MICBIAS2-supply: Regulator supplies for the
-        MICxVDD outputs, supplying the digital microphones, normally
+        MICxVDD outputs, supplying the digital microphones, yesrmally
         supplied from the attached CODEC.
 
   - VDD1V8 : Recommended fixed regulator for the VDD1V8 regulator, which supplies the

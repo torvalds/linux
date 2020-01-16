@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: GPL-2.0+
 
 /*
- * Multifunction core driver for Zodiac Inflight Innovations RAVE
+ * Multifunction core driver for Zodiac Inflight Inyesvations RAVE
  * Supervisory Processor(SP) MCU that is connected via dedicated UART
  * port
  *
- * Copyright (C) 2017 Zodiac Inflight Innovations
+ * Copyright (C) 2017 Zodiac Inflight Inyesvations
  */
 
 #include <linux/atomic.h>
@@ -37,7 +37,7 @@
  * - CHECKSUM - checksum calculated on <DATA>
  *
  * If <DATA> or <CHECKSUM> contain one of control characters, then it is
- * escaped using <DLE> control code. Added <DLE> does not participate in
+ * escaped using <DLE> control code. Added <DLE> does yest participate in
  * checksum calculation.
  */
 #define RAVE_SP_STX			0x02
@@ -120,7 +120,7 @@ struct rave_sp_checksum {
 struct rave_sp_version {
 	u8     hardware;
 	__le16 major;
-	u8     minor;
+	u8     miyesr;
 	u8     letter[2];
 } __packed;
 
@@ -180,7 +180,7 @@ struct rave_sp_variant {
  * @reply:			Pointer to memory to store reply payload
  *
  * @variant:			Device variant specific information
- * @event_notifier_list:	Input event notification chain
+ * @event_yestifier_list:	Input event yestification chain
  *
  * @part_number_firmware:	Firmware version
  * @part_number_bootloader:	Bootloader version
@@ -194,7 +194,7 @@ struct rave_sp {
 	struct rave_sp_reply *reply;
 
 	const struct rave_sp_variant *variant;
-	struct blocking_notifier_head event_notifier_list;
+	struct blocking_yestifier_head event_yestifier_list;
 
 	const char *part_number_firmware;
 	const char *part_number_bootloader;
@@ -205,28 +205,28 @@ static bool rave_sp_id_is_event(u8 code)
 	return (code & 0xF0) == RAVE_SP_EVNT_BASE;
 }
 
-static void rave_sp_unregister_event_notifier(struct device *dev, void *res)
+static void rave_sp_unregister_event_yestifier(struct device *dev, void *res)
 {
 	struct rave_sp *sp = dev_get_drvdata(dev->parent);
-	struct notifier_block *nb = *(struct notifier_block **)res;
-	struct blocking_notifier_head *bnh = &sp->event_notifier_list;
+	struct yestifier_block *nb = *(struct yestifier_block **)res;
+	struct blocking_yestifier_head *bnh = &sp->event_yestifier_list;
 
-	WARN_ON(blocking_notifier_chain_unregister(bnh, nb));
+	WARN_ON(blocking_yestifier_chain_unregister(bnh, nb));
 }
 
-int devm_rave_sp_register_event_notifier(struct device *dev,
-					 struct notifier_block *nb)
+int devm_rave_sp_register_event_yestifier(struct device *dev,
+					 struct yestifier_block *nb)
 {
 	struct rave_sp *sp = dev_get_drvdata(dev->parent);
-	struct notifier_block **rcnb;
+	struct yestifier_block **rcnb;
 	int ret;
 
-	rcnb = devres_alloc(rave_sp_unregister_event_notifier,
+	rcnb = devres_alloc(rave_sp_unregister_event_yestifier,
 			    sizeof(*rcnb), GFP_KERNEL);
 	if (!rcnb)
 		return -ENOMEM;
 
-	ret = blocking_notifier_chain_register(&sp->event_notifier_list, nb);
+	ret = blocking_yestifier_chain_register(&sp->event_yestifier_list, nb);
 	if (!ret) {
 		*rcnb = nb;
 		devres_add(dev, rcnb);
@@ -236,7 +236,7 @@ int devm_rave_sp_register_event_notifier(struct device *dev,
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(devm_rave_sp_register_event_notifier);
+EXPORT_SYMBOL_GPL(devm_rave_sp_register_event_yestifier);
 
 static void csum_8b2c(const u8 *buf, size_t size, u8 *crc)
 {
@@ -395,7 +395,7 @@ static void rave_sp_receive_event(struct rave_sp *sp,
 
 	rave_sp_write(sp, cmd, sizeof(cmd));
 
-	blocking_notifier_call_chain(&sp->event_notifier_list,
+	blocking_yestifier_call_chain(&sp->event_yestifier_list,
 				     rave_sp_action_pack(data[0], data[2]),
 				     NULL);
 }
@@ -414,14 +414,14 @@ static void rave_sp_receive_reply(struct rave_sp *sp,
 		if (reply->code == data[0] && reply->ackid == data[1] &&
 		    payload_length >= reply->length) {
 			/*
-			 * We are relying on memcpy(dst, src, 0) to be a no-op
-			 * when handling commands that have a no-payload reply
+			 * We are relying on memcpy(dst, src, 0) to be a yes-op
+			 * when handling commands that have a yes-payload reply
 			 */
 			memcpy(reply->data, &data[2], reply->length);
 			complete(&reply->received);
 			sp->reply = NULL;
 		} else {
-			dev_err(dev, "Ignoring incorrect reply\n");
+			dev_err(dev, "Igyesring incorrect reply\n");
 			dev_dbg(dev, "Code:   expected = 0x%08x received = 0x%08x\n",
 				reply->code, data[0]);
 			dev_dbg(dev, "ACK ID: expected = 0x%08x received = 0x%08x\n",
@@ -504,7 +504,7 @@ static int rave_sp_receive_buf(struct serdev_device *serdev,
 				 * and proceed to bailing out while
 				 * resetting the framer to initial
 				 * state, regardless if we've consumed
-				 * all of the stream or not.
+				 * all of the stream or yest.
 				 */
 				goto reset_framer;
 			case RAVE_SP_STX:
@@ -513,7 +513,7 @@ static int rave_sp_receive_buf(struct serdev_device *serdev,
 				 * If we encounter second "start of
 				 * the frame" marker before seeing
 				 * corresponding "end of frame", we
-				 * reset the framer and ignore both:
+				 * reset the framer and igyesre both:
 				 * frame started by first SOF and
 				 * frame started by current SOF.
 				 *
@@ -535,8 +535,8 @@ static int rave_sp_receive_buf(struct serdev_device *serdev,
 				continue;
 			}
 			/*
-			 * For the rest of the bytes, that are not
-			 * speical snoflakes, we do the same thing
+			 * For the rest of the bytes, that are yest
+			 * speical syesflakes, we do the same thing
 			 * that we do to escaped data - collect it in
 			 * deframer buffer
 			 */
@@ -551,7 +551,7 @@ static int rave_sp_receive_buf(struct serdev_device *serdev,
 				 * accumulated for current frame so
 				 * far starts to exceed the capacity
 				 * of deframer's buffer, there's
-				 * nothing else we can do but to
+				 * yesthing else we can do but to
 				 * discard that data and start
 				 * assemblying a new frame again
 				 */
@@ -561,7 +561,7 @@ static int rave_sp_receive_buf(struct serdev_device *serdev,
 			deframer->data[deframer->length++] = byte;
 
 			/*
-			 * We've extracted out special byte, now we
+			 * We've extracted out special byte, yesw we
 			 * can go back to regular data collecting
 			 */
 			deframer->state = RAVE_SP_EXPECT_DATA;
@@ -656,7 +656,7 @@ static const char *devm_rave_sp_version(struct device *dev,
 	return devm_kasprintf(dev, GFP_KERNEL, "%02d%02d%02d.%c%c\n",
 			      version->hardware,
 			      le16_to_cpu(version->major),
-			      version->minor,
+			      version->miyesr,
 			      version->letter[0],
 			      version->letter[1]);
 }
@@ -768,14 +768,14 @@ static const struct serdev_device_ops rave_sp_serdev_device_ops = {
 static int rave_sp_probe(struct serdev_device *serdev)
 {
 	struct device *dev = &serdev->dev;
-	const char *unknown = "unknown\n";
+	const char *unkyeswn = "unkyeswn\n";
 	struct rave_sp *sp;
 	u32 baud;
 	int ret;
 
-	if (of_property_read_u32(dev->of_node, "current-speed", &baud)) {
+	if (of_property_read_u32(dev->of_yesde, "current-speed", &baud)) {
 		dev_err(dev,
-			"'current-speed' is not specified in device node\n");
+			"'current-speed' is yest specified in device yesde\n");
 		return -EINVAL;
 	}
 
@@ -792,7 +792,7 @@ static int rave_sp_probe(struct serdev_device *serdev)
 
 	mutex_init(&sp->bus_lock);
 	mutex_init(&sp->reply_lock);
-	BLOCKING_INIT_NOTIFIER_HEAD(&sp->event_notifier_list);
+	BLOCKING_INIT_NOTIFIER_HEAD(&sp->event_yestifier_list);
 
 	serdev_device_set_client_ops(serdev, &rave_sp_serdev_device_ops);
 	ret = devm_serdev_device_open(dev, serdev);
@@ -811,12 +811,12 @@ static int rave_sp_probe(struct serdev_device *serdev)
 	ret = rave_sp_get_status(sp);
 	if (ret) {
 		dev_warn(dev, "Failed to get firmware status: %d\n", ret);
-		sp->part_number_firmware   = unknown;
-		sp->part_number_bootloader = unknown;
+		sp->part_number_firmware   = unkyeswn;
+		sp->part_number_bootloader = unkyeswn;
 	}
 
 	/*
-	 * Those strings already have a \n embedded, so there's no
+	 * Those strings already have a \n embedded, so there's yes
 	 * need to have one in format string.
 	 */
 	dev_info(dev, "Firmware version: %s",   sp->part_number_firmware);
@@ -839,5 +839,5 @@ module_serdev_device_driver(rave_sp_drv);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Andrey Vostrikov <andrey.vostrikov@cogentembedded.com>");
 MODULE_AUTHOR("Nikita Yushchenko <nikita.yoush@cogentembedded.com>");
-MODULE_AUTHOR("Andrey Smirnov <andrew.smirnov@gmail.com>");
+MODULE_AUTHOR("Andrey Smiryesv <andrew.smiryesv@gmail.com>");
 MODULE_DESCRIPTION("RAVE SP core driver");

@@ -44,7 +44,7 @@ int pci_fixup_pcic(struct pci_channel *chan)
 	bcr1 |= 0x40080000;	/* Enable Bit 19 BREQEN, set PCIC to slave */
 	pci_write_reg(chan, bcr1, SH4_PCIBCR1);
 
-	/* Enable all interrupts, so we known what to fix */
+	/* Enable all interrupts, so we kyeswn what to fix */
 	pci_write_reg(chan, 0x0000c3ff, SH4_PCIINTM);
 	pci_write_reg(chan, 0x0000380f, SH4_PCIAINTM);
 

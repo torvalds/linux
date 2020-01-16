@@ -10,7 +10,7 @@
  *
  * For technical documentation, see the HP SPPA Firmware EAS, Appendix F.
  *
- * ACPI does not define a mechanism for AML methods to call native firmware
+ * ACPI does yest define a mechanism for AML methods to call native firmware
  * interfaces such as PAL or SAL.  This OpRegion handler adds such a mechanism.
  * After the handler is installed, an AML method can call native firmware by
  * storing the arguments and firmware entry point to specific offsets in the
@@ -179,7 +179,7 @@ static int aml_nfw_remove_global_handler(void)
 static int aml_nfw_add(struct acpi_device *device)
 {
 	/*
-	 * We would normally allocate a new context structure and install
+	 * We would yesrmally allocate a new context structure and install
 	 * the address space handler for the specific device we found.
 	 * But the HP-UX implementation shares a single global context
 	 * and always puts the handler at the root, so we'll do the same.

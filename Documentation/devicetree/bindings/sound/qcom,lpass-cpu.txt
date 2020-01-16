@@ -1,6 +1,6 @@
-* Qualcomm Technologies LPASS CPU DAI
+* Qualcomm Techyeslogies LPASS CPU DAI
 
-This node models the Qualcomm Technologies Low-Power Audio SubSystem (LPASS).
+This yesde models the Qualcomm Techyeslogies Low-Power Audio SubSystem (LPASS).
 
 Required properties:
 
@@ -16,8 +16,8 @@ Required properties:
 				* "mi2s-bit-clk1"
 				* "mi2s-bit-clk2"
 				* "mi2s-bit-clk3"
-				* "pcnoc-mport-clk"
-				* "pcnoc-sway-clk"
+				* "pcyesc-mport-clk"
+				* "pcyesc-sway-clk"
 
 - interrupts		: Must contain an entry for each entry in
 			  interrupt-names.
@@ -35,7 +35,7 @@ Required properties:
 
 Optional properties:
 
-- qcom,adsp		: Phandle for the audio DSP node
+- qcom,adsp		: Phandle for the audio DSP yesde
 
 Example:
 

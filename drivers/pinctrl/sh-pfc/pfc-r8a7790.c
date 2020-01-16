@@ -5,10 +5,10 @@
  * Copyright (C) 2013  Renesas Electronics Corporation
  * Copyright (C) 2013  Magnus Damm
  * Copyright (C) 2012  Renesas Solutions Corp.
- * Copyright (C) 2012  Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
+ * Copyright (C) 2012  Kuniyesri Morimoto <kuniyesri.morimoto.gx@renesas.com>
  */
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/io.h>
 #include <linux/kernel.h>
 #include <linux/sys_soc.h>
@@ -1734,7 +1734,7 @@ static const u16 pinmux_data[] = {
 };
 
 /*
- * Pins not associated with a GPIO port.
+ * Pins yest associated with a GPIO port.
  */
 enum {
 	GP_ASSIGN_LAST(),

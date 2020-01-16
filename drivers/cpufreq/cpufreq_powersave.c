@@ -17,7 +17,7 @@ static void cpufreq_gov_powersave_limits(struct cpufreq_policy *policy)
 	__cpufreq_driver_target(policy, policy->min, CPUFREQ_RELATION_L);
 }
 
-static struct cpufreq_governor cpufreq_gov_powersave = {
+static struct cpufreq_goveryesr cpufreq_gov_powersave = {
 	.name		= "powersave",
 	.limits		= cpufreq_gov_powersave_limits,
 	.owner		= THIS_MODULE,
@@ -25,20 +25,20 @@ static struct cpufreq_governor cpufreq_gov_powersave = {
 
 static int __init cpufreq_gov_powersave_init(void)
 {
-	return cpufreq_register_governor(&cpufreq_gov_powersave);
+	return cpufreq_register_goveryesr(&cpufreq_gov_powersave);
 }
 
 static void __exit cpufreq_gov_powersave_exit(void)
 {
-	cpufreq_unregister_governor(&cpufreq_gov_powersave);
+	cpufreq_unregister_goveryesr(&cpufreq_gov_powersave);
 }
 
 MODULE_AUTHOR("Dominik Brodowski <linux@brodo.de>");
-MODULE_DESCRIPTION("CPUfreq policy governor 'powersave'");
+MODULE_DESCRIPTION("CPUfreq policy goveryesr 'powersave'");
 MODULE_LICENSE("GPL");
 
 #ifdef CONFIG_CPU_FREQ_DEFAULT_GOV_POWERSAVE
-struct cpufreq_governor *cpufreq_default_governor(void)
+struct cpufreq_goveryesr *cpufreq_default_goveryesr(void)
 {
 	return &cpufreq_gov_powersave;
 }

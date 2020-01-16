@@ -28,7 +28,7 @@ static int dwmac4_wrback_get_tx_status(void *data, struct stmmac_extra_stats *x,
 
 	/* Verify tx error by looking at the last segment. */
 	if (likely(!(tdes3 & TDES3_LAST_DESCRIPTOR)))
-		return tx_not_ls;
+		return tx_yest_ls;
 
 	if (unlikely(tdes3 & TDES3_ERROR_SUMMARY)) {
 		if (unlikely(tdes3 & TDES3_JABBER_TIMEOUT))
@@ -86,7 +86,7 @@ static int dwmac4_wrback_get_rx_status(void *data, struct stmmac_extra_stats *x,
 	if (unlikely(rdes3 & RDES3_CONTEXT_DESCRIPTOR))
 		return discard_frame;
 	if (likely(!(rdes3 & RDES3_LAST_DESCRIPTOR)))
-		return rx_not_ls;
+		return rx_yest_ls;
 
 	if (unlikely(rdes3 & RDES3_ERROR_SUMMARY)) {
 		if (unlikely(rdes3 & RDES3_GIANT_PACKET))
@@ -123,7 +123,7 @@ static int dwmac4_wrback_get_rx_status(void *data, struct stmmac_extra_stats *x,
 		x->ipv6_pkt_rcvd++;
 
 	if (message_type == RDES_EXT_NO_PTP)
-		x->no_ptp_rx_msg_type_ext++;
+		x->yes_ptp_rx_msg_type_ext++;
 	else if (message_type == RDES_EXT_SYNC)
 		x->ptp_rx_msg_type_sync++;
 	else if (message_type == RDES_EXT_FOLLOW_UP)
@@ -139,7 +139,7 @@ static int dwmac4_wrback_get_rx_status(void *data, struct stmmac_extra_stats *x,
 	else if (message_type == RDES_EXT_PDELAY_FOLLOW_UP)
 		x->ptp_rx_msg_type_pdelay_follow_up++;
 	else if (message_type == RDES_PTP_ANNOUNCE)
-		x->ptp_rx_msg_type_announce++;
+		x->ptp_rx_msg_type_anyesunce++;
 	else if (message_type == RDES_PTP_MANAGEMENT)
 		x->ptp_rx_msg_type_management++;
 	else if (message_type == RDES_PTP_PKT_RESERVED_TYPE)
@@ -167,7 +167,7 @@ static int dwmac4_wrback_get_rx_status(void *data, struct stmmac_extra_stats *x,
 		x->l4_filter_match++;
 	if ((rdes2 & RDES2_L3_L4_FILT_NB_MATCH_MASK)
 	    >> RDES2_L3_L4_FILT_NB_MATCH_SHIFT)
-		x->l3_l4_filter_no_match++;
+		x->l3_l4_filter_yes_match++;
 
 	return ret;
 }
@@ -230,7 +230,7 @@ static inline void dwmac4_get_timestamp(void *desc, u32 ats, u64 *ts)
 	u64 ns;
 
 	ns = le32_to_cpu(p->des0);
-	/* convert high/sec time stamp value to nanosecond */
+	/* convert high/sec time stamp value to nayessecond */
 	ns += le32_to_cpu(p->des1) * 1000000000ULL;
 
 	*ts = ns;
@@ -258,7 +258,7 @@ static int dwmac4_rx_check_timestamp(void *desc)
 			ret = 0;
 	}
 
-	/* Timestamp not ready */
+	/* Timestamp yest ready */
 	return ret;
 }
 
@@ -268,7 +268,7 @@ static int dwmac4_wrback_get_rx_timestamp_status(void *desc, void *next_desc,
 	struct dma_desc *p = (struct dma_desc *)desc;
 	int ret = -EINVAL;
 
-	/* Get the status from normal w/b descriptor */
+	/* Get the status from yesrmal w/b descriptor */
 	if (likely(le32_to_cpu(p->des3) & RDES3_RDES1_VALID)) {
 		if (likely(le32_to_cpu(p->des1) & RDES1_TIMESTAMP_AVAILABLE)) {
 			int i = 0;

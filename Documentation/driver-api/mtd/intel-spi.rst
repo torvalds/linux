@@ -12,7 +12,7 @@ Not all manufacturers protect the SPI serial flash, mainly because it
 allows upgrading the BIOS image directly from an OS.
 
 The intel-spi driver makes it possible to read and write the SPI serial
-flash, if certain protection bits are not set and locked. If it finds
+flash, if certain protection bits are yest set and locked. If it finds
 any of them set, the whole MTD device is made read-only to prevent
 partial overwrites. By default the driver exposes SPI serial flash
 contents as read-only but it can be changed from kernel command line,
@@ -22,10 +22,10 @@ Please keep in mind that overwriting the BIOS image on SPI serial flash
 might render the machine unbootable and requires special equipment like
 Dediprog to revive. You have been warned!
 
-Below are the steps how to upgrade MinnowBoard MAX BIOS directly from
+Below are the steps how to upgrade MinyeswBoard MAX BIOS directly from
 Linux.
 
- 1) Download and extract the latest Minnowboard MAX BIOS SPI image
+ 1) Download and extract the latest Minyeswboard MAX BIOS SPI image
     [1]. At the time writing this the latest image is v92.
 
  2) Install mtd-utils package [2]. We need this in order to erase the SPI
@@ -58,10 +58,10 @@ Linux.
 	fdbb011920572ca6c991377c4b418a0502668b73  /dev/mtd0ro
 	fdbb011920572ca6c991377c4b418a0502668b73  bios.bak
 
-    The SHA1 sums must match. Otherwise do not continue any further!
+    The SHA1 sums must match. Otherwise do yest continue any further!
 
- 7) Erase the SPI serial flash. After this step, do not reboot the
-    board! Otherwise it will not start anymore::
+ 7) Erase the SPI serial flash. After this step, do yest reboot the
+    board! Otherwise it will yest start anymore::
 
 	# flash_erase /dev/mtd0 0 0
 	Erasing 4 Kibyte @ 7ff000 -- 100 % complete
@@ -85,6 +85,6 @@ Linux.
 References
 ----------
 
-[1] https://firmware.intel.com/sites/default/files/MinnowBoard%2EMAX_%2EX64%2E92%2ER01%2Ezip
+[1] https://firmware.intel.com/sites/default/files/MinyeswBoard%2EMAX_%2EX64%2E92%2ER01%2Ezip
 
 [2] http://www.linux-mtd.infradead.org/

@@ -1,11 +1,11 @@
 .. Permission is granted to copy, distribute and/or modify this
 .. document under the terms of the GNU Free Documentation License,
 .. Version 1.1 or any later version published by the Free Software
-.. Foundation, with no Invariant Sections, no Front-Cover Texts
-.. and no Back-Cover Texts. A copy of the license is included at
+.. Foundation, with yes Invariant Sections, yes Front-Cover Texts
+.. and yes Back-Cover Texts. A copy of the license is included at
 .. Documentation/media/uapi/fdl-appendix.rst.
 ..
-.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
+.. TODO: replace it to GFDL-1.1-or-later WITH yes-invariant-sections
 
 .. _dvb-fe-read-status:
 
@@ -24,7 +24,7 @@ using :ref:`FE_READ_STATUS`.
 Signal statistics are provided via
 :ref:`FE_GET_PROPERTY`.
 
-.. note::
+.. yeste::
 
    Most statistics require the demodulator to be fully locked
    (e. g. with :c:type:`FE_HAS_LOCK <fe_status>` bit set). See

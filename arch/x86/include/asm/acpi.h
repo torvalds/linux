@@ -23,7 +23,7 @@
 #ifdef CONFIG_ACPI
 extern int acpi_lapic;
 extern int acpi_ioapic;
-extern int acpi_noirq;
+extern int acpi_yesirq;
 extern int acpi_strict;
 extern int acpi_disabled;
 extern int acpi_pci_disabled;
@@ -46,16 +46,16 @@ static inline void disable_acpi(void)
 {
 	acpi_disabled = 1;
 	acpi_pci_disabled = 1;
-	acpi_noirq = 1;
+	acpi_yesirq = 1;
 }
 
 extern int acpi_gsi_to_irq(u32 gsi, unsigned int *irq);
 
-static inline void acpi_noirq_set(void) { acpi_noirq = 1; }
+static inline void acpi_yesirq_set(void) { acpi_yesirq = 1; }
 static inline void acpi_disable_pci(void)
 {
 	acpi_pci_disabled = 1;
-	acpi_noirq_set();
+	acpi_yesirq_set();
 }
 
 /* Low-level suspend routine. */
@@ -70,7 +70,7 @@ extern int (*acpi_suspend_lowlevel)(void);
 static inline unsigned int acpi_processor_cstate_check(unsigned int max_cstate)
 {
 	/*
-	 * Early models (<=5) of AMD Opterons are not supposed to go into
+	 * Early models (<=5) of AMD Opterons are yest supposed to go into
 	 * C2 state.
 	 *
 	 * Steppings 0x0A and later are good
@@ -139,7 +139,7 @@ u64 x86_default_get_root_pointer(void);
 #define acpi_lapic 0
 #define acpi_ioapic 0
 #define acpi_disable_cmcff 0
-static inline void acpi_noirq_set(void) { }
+static inline void acpi_yesirq_set(void) { }
 static inline void acpi_disable_pci(void) { }
 static inline void disable_acpi(void) { }
 
@@ -166,7 +166,7 @@ extern int x86_acpi_numa_init(void);
 static inline pgprot_t arch_apei_get_mem_attribute(phys_addr_t addr)
 {
 	/*
-	 * We currently have no way to look up the EFI memory map
+	 * We currently have yes way to look up the EFI memory map
 	 * attributes for a region in a consistent way, because the
 	 * memmap is discarded after efi_free_boot_services(). So if
 	 * you call efi_mem_attributes() during boot and at runtime,
@@ -175,8 +175,8 @@ static inline pgprot_t arch_apei_get_mem_attribute(phys_addr_t addr)
 	 * We are yet to see any x86 platforms that require anything
 	 * other than PAGE_KERNEL (some ARM64 platforms require the
 	 * equivalent of PAGE_KERNEL_NOCACHE). Additionally, if SME
-	 * is active, the ACPI information will not be encrypted,
-	 * so return PAGE_KERNEL_NOENC until we know differently.
+	 * is active, the ACPI information will yest be encrypted,
+	 * so return PAGE_KERNEL_NOENC until we kyesw differently.
 	 */
 	return PAGE_KERNEL_NOENC;
 }

@@ -47,9 +47,9 @@ static atomic64_t trng_hwrng_counter = ATOMIC64_INIT(0);
 
 /* file io functions */
 
-static int trng_open(struct inode *inode, struct file *file)
+static int trng_open(struct iyesde *iyesde, struct file *file)
 {
-	return nonseekable_open(inode, file);
+	return yesnseekable_open(iyesde, file);
 }
 
 static ssize_t trng_read(struct file *file, char __user *ubuf,
@@ -148,12 +148,12 @@ static const struct file_operations trng_fops = {
 	.open		= &trng_open,
 	.release	= NULL,
 	.read		= &trng_read,
-	.llseek		= noop_llseek,
+	.llseek		= yesop_llseek,
 };
 
 static struct miscdevice trng_dev = {
 	.name	= "trng",
-	.minor	= MISC_DYNAMIC_MINOR,
+	.miyesr	= MISC_DYNAMIC_MINOR,
 	.mode	= 0444,
 	.fops	= &trng_fops,
 	.groups = trng_dev_attr_groups,
@@ -225,7 +225,7 @@ static int __init trng_init(void)
 
 	/* check if subfunction CPACF_PRNO_TRNG is available */
 	if (!cpacf_query_func(CPACF_PRNO, CPACF_PRNO_TRNG)) {
-		DEBUG_INFO("trng_init CPACF_PRNO_TRNG not available\n");
+		DEBUG_INFO("trng_init CPACF_PRNO_TRNG yest available\n");
 		ret = -ENODEV;
 		goto out_dbg;
 	}

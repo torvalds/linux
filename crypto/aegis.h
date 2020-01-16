@@ -21,7 +21,7 @@ union aegis_block {
 	u8 bytes[AEGIS_BLOCK_SIZE];
 };
 
-#define AEGIS_BLOCK_ALIGN (__alignof__(union aegis_block))
+#define AEGIS_BLOCK_ALIGN (__aligyesf__(union aegis_block))
 #define AEGIS_ALIGNED(p) IS_ALIGNED((uintptr_t)p, AEGIS_BLOCK_ALIGN)
 
 static __always_inline void crypto_aegis_block_xor(union aegis_block *dst,

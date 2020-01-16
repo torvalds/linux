@@ -190,7 +190,7 @@ static void gfs2_ail1_start(struct gfs2_sbd *sdp)
 }
 
 /**
- * gfs2_ail1_empty_one - Check whether or not a trans in the AIL has been synced
+ * gfs2_ail1_empty_one - Check whether or yest a trans in the AIL has been synced
  * @sdp: the filesystem
  * @ai: the AIL entry
  *
@@ -271,7 +271,7 @@ static void gfs2_ail1_wait(struct gfs2_sbd *sdp)
 }
 
 /**
- * gfs2_ail2_empty_one - Check whether or not a trans in the AIL has been synced
+ * gfs2_ail2_empty_one - Check whether or yest a trans in the AIL has been synced
  * @sdp: the filesystem
  * @ai: the AIL entry
  *
@@ -340,17 +340,17 @@ void gfs2_log_release(struct gfs2_sbd *sdp, unsigned int blks)
  *
  * Note that we never give out the last few blocks of the journal. Thats
  * due to the fact that there is a small number of header blocks
- * associated with each log flush. The exact number can't be known until
- * flush time, so we ensure that we have just enough free blocks at all
+ * associated with each log flush. The exact number can't be kyeswn until
+ * flush time, so we ensure that we have just eyesugh free blocks at all
  * times to avoid running out during a log flush.
  *
- * We no longer flush the log here, instead we wake up logd to do that
+ * We yes longer flush the log here, instead we wake up logd to do that
  * for us. To avoid the thundering herd and to ensure that we deal fairly
  * with queued waiters, we use an exclusive wait. This means that when we
- * get woken with enough journal space to get our reservation, we need to
+ * get woken with eyesugh journal space to get our reservation, we need to
  * wake the next waiter on the list.
  *
- * Returns: errno
+ * Returns: erryes
  */
 
 int gfs2_log_reserve(struct gfs2_sbd *sdp, unsigned int blks)
@@ -437,10 +437,10 @@ static inline unsigned int log_distance(struct gfs2_sbd *sdp, unsigned int newer
  * @sdp: The GFS2 superblock
  *
  * This is complex.  We need to reserve room for all our currently used
- * metadata buffers (e.g. normal file I/O rewriting file time stamps) and 
+ * metadata buffers (e.g. yesrmal file I/O rewriting file time stamps) and 
  * all our journaled data buffers for journaled files (e.g. files in the 
  * meta_fs like rindex, or files for which chattr +j was done.)
- * If we don't reserve enough space, gfs2_log_refund and gfs2_log_flush
+ * If we don't reserve eyesugh space, gfs2_log_refund and gfs2_log_flush
  * will count it as free space (sd_log_blks_free) and corruption will follow.
  *
  * We can have metadata bufs and jdata bufs in the same journal.  So each
@@ -533,35 +533,35 @@ static void log_flush_wait(struct gfs2_sbd *sdp)
 
 static int ip_cmp(void *priv, struct list_head *a, struct list_head *b)
 {
-	struct gfs2_inode *ipa, *ipb;
+	struct gfs2_iyesde *ipa, *ipb;
 
-	ipa = list_entry(a, struct gfs2_inode, i_ordered);
-	ipb = list_entry(b, struct gfs2_inode, i_ordered);
+	ipa = list_entry(a, struct gfs2_iyesde, i_ordered);
+	ipb = list_entry(b, struct gfs2_iyesde, i_ordered);
 
-	if (ipa->i_no_addr < ipb->i_no_addr)
+	if (ipa->i_yes_addr < ipb->i_yes_addr)
 		return -1;
-	if (ipa->i_no_addr > ipb->i_no_addr)
+	if (ipa->i_yes_addr > ipb->i_yes_addr)
 		return 1;
 	return 0;
 }
 
 static void gfs2_ordered_write(struct gfs2_sbd *sdp)
 {
-	struct gfs2_inode *ip;
+	struct gfs2_iyesde *ip;
 	LIST_HEAD(written);
 
 	spin_lock(&sdp->sd_ordered_lock);
 	list_sort(NULL, &sdp->sd_log_ordered, &ip_cmp);
 	while (!list_empty(&sdp->sd_log_ordered)) {
-		ip = list_entry(sdp->sd_log_ordered.next, struct gfs2_inode, i_ordered);
-		if (ip->i_inode.i_mapping->nrpages == 0) {
+		ip = list_entry(sdp->sd_log_ordered.next, struct gfs2_iyesde, i_ordered);
+		if (ip->i_iyesde.i_mapping->nrpages == 0) {
 			test_and_clear_bit(GIF_ORDERED, &ip->i_flags);
 			list_del(&ip->i_ordered);
 			continue;
 		}
 		list_move(&ip->i_ordered, &written);
 		spin_unlock(&sdp->sd_ordered_lock);
-		filemap_fdatawrite(ip->i_inode.i_mapping);
+		filemap_fdatawrite(ip->i_iyesde.i_mapping);
 		spin_lock(&sdp->sd_ordered_lock);
 	}
 	list_splice(&written, &sdp->sd_log_ordered);
@@ -570,25 +570,25 @@ static void gfs2_ordered_write(struct gfs2_sbd *sdp)
 
 static void gfs2_ordered_wait(struct gfs2_sbd *sdp)
 {
-	struct gfs2_inode *ip;
+	struct gfs2_iyesde *ip;
 
 	spin_lock(&sdp->sd_ordered_lock);
 	while (!list_empty(&sdp->sd_log_ordered)) {
-		ip = list_entry(sdp->sd_log_ordered.next, struct gfs2_inode, i_ordered);
+		ip = list_entry(sdp->sd_log_ordered.next, struct gfs2_iyesde, i_ordered);
 		list_del(&ip->i_ordered);
 		WARN_ON(!test_and_clear_bit(GIF_ORDERED, &ip->i_flags));
-		if (ip->i_inode.i_mapping->nrpages == 0)
+		if (ip->i_iyesde.i_mapping->nrpages == 0)
 			continue;
 		spin_unlock(&sdp->sd_ordered_lock);
-		filemap_fdatawait(ip->i_inode.i_mapping);
+		filemap_fdatawait(ip->i_iyesde.i_mapping);
 		spin_lock(&sdp->sd_ordered_lock);
 	}
 	spin_unlock(&sdp->sd_ordered_lock);
 }
 
-void gfs2_ordered_del_inode(struct gfs2_inode *ip)
+void gfs2_ordered_del_iyesde(struct gfs2_iyesde *ip)
 {
-	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
+	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_iyesde);
 
 	spin_lock(&sdp->sd_ordered_lock);
 	if (test_and_clear_bit(GIF_ORDERED, &ip->i_flags))
@@ -602,7 +602,7 @@ void gfs2_add_revoke(struct gfs2_sbd *sdp, struct gfs2_bufdata *bd)
 	struct gfs2_glock *gl = bd->bd_gl;
 
 	bh->b_private = NULL;
-	bd->bd_blkno = bh->b_blocknr;
+	bd->bd_blkyes = bh->b_blocknr;
 	gfs2_remove_from_ail(bd); /* drops ref on bh */
 	bd->bd_bh = NULL;
 	sdp->sd_log_num_revoke++;
@@ -646,7 +646,7 @@ done:
 	max_revokes -= sdp->sd_log_num_revoke;
 	if (!sdp->sd_log_num_revoke) {
 		atomic_dec(&sdp->sd_log_blks_free);
-		/* If no blocks have been reserved, we need to also
+		/* If yes blocks have been reserved, we need to also
 		 * reserve a block for the header */
 		if (!sdp->sd_log_blks_reserved)
 			atomic_dec(&sdp->sd_log_blks_free);
@@ -680,7 +680,7 @@ out_of_blocks:
  * @jd: journal descriptor of the journal to which we are writing
  * @seq: sequence number
  * @tail: tail of the log
- * @lblock: value for lh_blkno (block number relative to start of journal)
+ * @lblock: value for lh_blkyes (block number relative to start of journal)
  * @flags: log header flags GFS2_LOG_HEAD_*
  * @op_flags: flags to pass to the bio
  *
@@ -714,7 +714,7 @@ void gfs2_write_log_header(struct gfs2_sbd *sdp, struct gfs2_jdesc *jd,
 	lh->lh_sequence = cpu_to_be64(seq);
 	lh->lh_flags = cpu_to_be32(flags);
 	lh->lh_tail = cpu_to_be32(tail);
-	lh->lh_blkno = cpu_to_be32(lblock);
+	lh->lh_blkyes = cpu_to_be32(lblock);
 	hash = ~crc32(~0, lh, LH_V1_SIZE);
 	lh->lh_hash = cpu_to_be32(hash);
 
@@ -724,26 +724,26 @@ void gfs2_write_log_header(struct gfs2_sbd *sdp, struct gfs2_jdesc *jd,
 	if (!list_empty(&jd->extent_list))
 		dblock = gfs2_log_bmap(jd, lblock);
 	else {
-		int ret = gfs2_lblk_to_dblk(jd->jd_inode, lblock, &dblock);
+		int ret = gfs2_lblk_to_dblk(jd->jd_iyesde, lblock, &dblock);
 		if (gfs2_assert_withdraw(sdp, ret == 0))
 			return;
 	}
 	lh->lh_addr = cpu_to_be64(dblock);
-	lh->lh_jinode = cpu_to_be64(GFS2_I(jd->jd_inode)->i_no_addr);
+	lh->lh_jiyesde = cpu_to_be64(GFS2_I(jd->jd_iyesde)->i_yes_addr);
 
 	/* We may only write local statfs, quota, etc., when writing to our
 	   own journal. The values are left 0 when recovering a journal
 	   different from our own. */
 	if (!(flags & GFS2_LOG_HEAD_RECOVERY)) {
 		lh->lh_statfs_addr =
-			cpu_to_be64(GFS2_I(sdp->sd_sc_inode)->i_no_addr);
+			cpu_to_be64(GFS2_I(sdp->sd_sc_iyesde)->i_yes_addr);
 		lh->lh_quota_addr =
-			cpu_to_be64(GFS2_I(sdp->sd_qc_inode)->i_no_addr);
+			cpu_to_be64(GFS2_I(sdp->sd_qc_iyesde)->i_yes_addr);
 
 		spin_lock(&sdp->sd_statfs_spin);
 		lh->lh_local_total = cpu_to_be64(l_sc->sc_total);
 		lh->lh_local_free = cpu_to_be64(l_sc->sc_free);
-		lh->lh_local_dinodes = cpu_to_be64(l_sc->sc_dinodes);
+		lh->lh_local_diyesdes = cpu_to_be64(l_sc->sc_diyesdes);
 		spin_unlock(&sdp->sd_statfs_spin);
 	}
 
@@ -946,7 +946,7 @@ static void log_refund(struct gfs2_sbd *sdp, struct gfs2_trans *tr)
  * At mount time thresh1 is 1/3rd of journal size, thresh2 is 2/3rd of
  * journal size.
  *
- * Returns: errno
+ * Returns: erryes
  */
 
 void gfs2_log_commit(struct gfs2_sbd *sdp, struct gfs2_trans *tr)

@@ -9,7 +9,7 @@
  * Works for ALI M1439/1443/1445/1487/1489 chipsets.
  *
  * Adapted from code developed by derekn@vw.ece.cmu.edu.  -ml
- * Derek's notes follow:
+ * Derek's yestes follow:
  *
  * I think the code should be pretty understandable,
  * but I'll be happy to (try to) answer questions.
@@ -27,13 +27,13 @@
  *
  * Update 96-jul-13:
  *
- * I've since upgraded to two disks and a CD-ROM, with no trouble, and
+ * I've since upgraded to two disks and a CD-ROM, with yes trouble, and
  * I've also heard from several others who have used it successfully.
  * This driver appears to work with both the 1443/1445 and the 1487/1489
  * chipsets.  I've added support for PIO mode 4 for the 1487.  This
- * seems to work just fine on the 1443 also, although I'm not sure it's
+ * seems to work just fine on the 1443 also, although I'm yest sure it's
  * advertised as supporting mode 4.  (I've been running a WDC AC21200 in
- * mode 4 for a while now with no trouble.)  -Derek
+ * mode 4 for a while yesw with yes trouble.)  -Derek
  */
 
 #include <linux/module.h>
@@ -238,7 +238,7 @@ static int __init ali14xx_init(void)
 			return -ENODEV;
 		return 0;
 	}
-	printk(KERN_ERR "ali14xx: not found.\n");
+	printk(KERN_ERR "ali14xx: yest found.\n");
 out:
 	return -ENODEV;
 }

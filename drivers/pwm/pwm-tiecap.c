@@ -83,7 +83,7 @@ static int ecap_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 	writew(value, pc->mmio_base + ECCTL2);
 
 	if (!pwm_is_enabled(pwm)) {
-		/* Update active registers if not running */
+		/* Update active registers if yest running */
 		writel(duty_cycles, pc->mmio_base + CAP2);
 		writel(period_cycles, pc->mmio_base + CAP1);
 	} else {
@@ -194,7 +194,7 @@ MODULE_DEVICE_TABLE(of, ecap_of_match);
 
 static int ecap_pwm_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	struct ecap_pwm_chip *pc;
 	struct resource *r;
 	struct clk *clk;

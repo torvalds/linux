@@ -36,7 +36,7 @@ void tso_build_hdr(struct sk_buff *skb, char *hdr, struct tso_t *tso,
 	put_unaligned_be32(tso->tcp_seq, &tcph->seq);
 
 	if (!is_last) {
-		/* Clear all special flags for not last packet */
+		/* Clear all special flags for yest last packet */
 		tcph->psh = 0;
 		tcph->fin = 0;
 		tcph->rst = 0;

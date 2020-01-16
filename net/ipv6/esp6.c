@@ -5,7 +5,7 @@
  * Authors
  *
  *	Mitsuru KANDA @USAGI       : IPv6 Support
- *	Kazunori MIYAZAWA @USAGI   :
+ *	Kazuyesri MIYAZAWA @USAGI   :
  *	Kunihiro Ishiguro <kunihiro@ipinfusion.com>
  *
  *	This file is derived from net/ipv4/esp.c
@@ -65,7 +65,7 @@ static void *esp_alloc_tmp(struct crypto_aead *aead, int nfrags, int seqihlen)
 	}
 
 	len += sizeof(struct aead_request) + crypto_aead_reqsize(aead);
-	len = ALIGN(len, __alignof__(struct scatterlist));
+	len = ALIGN(len, __aligyesf__(struct scatterlist));
 
 	len += sizeof(struct scatterlist) * nfrags;
 
@@ -74,7 +74,7 @@ static void *esp_alloc_tmp(struct crypto_aead *aead, int nfrags, int seqihlen)
 
 static inline __be32 *esp_tmp_seqhi(void *tmp)
 {
-	return PTR_ALIGN((__be32 *)tmp, __alignof__(__be32));
+	return PTR_ALIGN((__be32 *)tmp, __aligyesf__(__be32));
 }
 
 static inline u8 *esp_tmp_iv(struct crypto_aead *aead, void *tmp, int seqhilen)
@@ -99,7 +99,7 @@ static inline struct scatterlist *esp_req_sg(struct crypto_aead *aead,
 {
 	return (void *)ALIGN((unsigned long)(req + 1) +
 			     crypto_aead_reqsize(aead),
-			     __alignof__(struct scatterlist));
+			     __aligyesf__(struct scatterlist));
 }
 
 static void esp_ssg_unref(struct xfrm_state *x, void *tmp)
@@ -165,7 +165,7 @@ static void esp_restore_header(struct sk_buff *skb, unsigned int offset)
 	void *tmp = ESP_SKB_CB(skb)->tmp;
 	__be32 *seqhi = esp_tmp_seqhi(tmp);
 
-	esph->seq_no = esph->spi;
+	esph->seq_yes = esph->spi;
 	esph->spi = *seqhi;
 }
 
@@ -189,9 +189,9 @@ static struct ip_esp_hdr *esp_output_set_esn(struct sk_buff *skb,
 		esph = (void *)(skb_transport_header(skb) - sizeof(__be32));
 		*seqhi = esph->spi;
 		if (xo)
-			esph->seq_no = htonl(xo->seq.hi);
+			esph->seq_yes = htonl(xo->seq.hi);
 		else
-			esph->seq_no = htonl(XFRM_SKB_CB(skb)->seq.output.hi);
+			esph->seq_yes = htonl(XFRM_SKB_CB(skb)->seq.output.hi);
 	}
 
 	esph->spi = x->id.spi;
@@ -393,7 +393,7 @@ int esp6_output_tail(struct xfrm_state *x, struct sk_buff *skb, struct esp_info 
 	aead_request_set_ad(req, assoclen);
 
 	memset(iv, 0, ivlen);
-	memcpy(iv + ivlen - min(ivlen, 8), (u8 *)&esp->seqno + 8 - min(ivlen, 8),
+	memcpy(iv + ivlen - min(ivlen, 8), (u8 *)&esp->seqyes + 8 - min(ivlen, 8),
 	       min(ivlen, 8));
 
 	ESP_SKB_CB(skb)->tmp = tmp;
@@ -461,8 +461,8 @@ static int esp6_output(struct xfrm_state *x, struct sk_buff *skb)
 	esph = ip_esp_hdr(skb);
 	esph->spi = x->id.spi;
 
-	esph->seq_no = htonl(XFRM_SKB_CB(skb)->seq.output.low);
-	esp.seqno = cpu_to_be64(XFRM_SKB_CB(skb)->seq.output.low +
+	esph->seq_yes = htonl(XFRM_SKB_CB(skb)->seq.output.low);
+	esp.seqyes = cpu_to_be64(XFRM_SKB_CB(skb)->seq.output.low +
 			    ((u64)XFRM_SKB_CB(skb)->seq.output.hi << 32));
 
 	skb_push(skb, -skb_network_offset(skb));
@@ -575,8 +575,8 @@ static void esp_input_set_header(struct sk_buff *skb, __be32 *seqhi)
 		struct ip_esp_hdr *esph = skb_push(skb, 4);
 
 		*seqhi = esph->spi;
-		esph->spi = esph->seq_no;
-		esph->seq_no = XFRM_SKB_CB(skb)->seq.input.hi;
+		esph->spi = esph->seq_yes;
+		esph->seq_yes = XFRM_SKB_CB(skb)->seq.input.hi;
 	}
 }
 
@@ -623,7 +623,7 @@ static int esp6_input(struct xfrm_state *x, struct sk_buff *skb)
 	}
 
 	if (!skb_cloned(skb)) {
-		if (!skb_is_nonlinear(skb)) {
+		if (!skb_is_yesnlinear(skb)) {
 			nfrags = 1;
 
 			goto skip_cow;

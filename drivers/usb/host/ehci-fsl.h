@@ -5,7 +5,7 @@
 #ifndef _EHCI_FSL_H
 #define _EHCI_FSL_H
 
-/* offsets for the non-ehci registers in the FSL SOC USB controller */
+/* offsets for the yesn-ehci registers in the FSL SOC USB controller */
 #define FSL_SOC_USB_SBUSCFG	0x90
 #define SBUSCFG_INCR8		0x02	/* INCR8, specified */
 #define FSL_SOC_USB_ULPIVP	0x170

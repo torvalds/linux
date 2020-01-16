@@ -55,7 +55,7 @@ undo_isolate_page_range(unsigned long start_pfn, unsigned long end_pfn,
 			unsigned migratetype);
 
 /*
- * Test all pages in [start_pfn, end_pfn) are isolated or not.
+ * Test all pages in [start_pfn, end_pfn) are isolated or yest.
  */
 int test_pages_isolated(unsigned long start_pfn, unsigned long end_pfn,
 			int isol_flags);

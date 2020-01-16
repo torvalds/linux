@@ -124,7 +124,7 @@ static void bch_data_invalidate(struct closure *cl)
 		bio->bi_iter.bi_size	-= sectors << 9;
 
 		bch_keylist_add(&op->insert_keys,
-				&KEY(op->inode,
+				&KEY(op->iyesde,
 				     bio->bi_iter.bi_sector,
 				     sectors));
 	}
@@ -216,7 +216,7 @@ static void bch_data_insert_start(struct closure *cl)
 
 		k = op->insert_keys.top;
 		bkey_init(k);
-		SET_KEY_INODE(k, op->inode);
+		SET_KEY_INODE(k, op->iyesde);
 		SET_KEY_OFFSET(k, bio->bi_iter.bi_sector);
 
 		if (!bch_alloc_sectors(op->c, k, bio_sectors(bio),
@@ -256,7 +256,7 @@ err:
 	BUG_ON(op->writeback);
 
 	/*
-	 * But if it's not a writeback write we'd rather just bail out if
+	 * But if it's yest a writeback write we'd rather just bail out if
 	 * there aren't any buckets ready to write to - it might take awhile and
 	 * we might be starving btree writes for gc or something.
 	 */
@@ -290,7 +290,7 @@ err:
  * @cl: closure pointer.
  *
  * This is the starting point for any data to end up in a cache device; it could
- * be from a normal write, or a writeback write, or a write to a flash only
+ * be from a yesrmal write, or a writeback write, or a write to a flash only
  * volume - it's also used by the moving garbage collector to compact data in
  * mostly empty buckets.
  *
@@ -300,16 +300,16 @@ err:
  * the next journal write they're inserted into the btree.
  *
  * It inserts the data in op->bio; bi_sector is used for the key offset,
- * and op->inode is used for the key inode.
+ * and op->iyesde is used for the key iyesde.
  *
  * If op->bypass is true, instead of inserting the data it invalidates the
- * region of the cache represented by op->bio and op->inode.
+ * region of the cache represented by op->bio and op->iyesde.
  */
 void bch_data_insert(struct closure *cl)
 {
 	struct data_insert_op *op = container_of(cl, struct data_insert_op, cl);
 
-	trace_bcache_write(op->c, op->inode, op->bio,
+	trace_bcache_write(op->c, op->iyesde, op->bio,
 			   op->writeback, op->bypass);
 
 	bch_keylist_init(&op->insert_keys);
@@ -318,7 +318,7 @@ void bch_data_insert(struct closure *cl)
 }
 
 /*
- * Congested?  Return 0 (not congested) or the limit (in sectors)
+ * Congested?  Return 0 (yest congested) or the limit (in sectors)
  * beyond which we should bypass the cache due to congestion.
  */
 unsigned int bch_get_congested(const struct cache_set *c)
@@ -482,7 +482,7 @@ static void bch_cache_read_endio(struct bio *bio)
 
 	/*
 	 * If the bucket was reused while our bio was in flight, we might have
-	 * read the wrong data. Set s->error but not error so it doesn't get
+	 * read the wrong data. Set s->error but yest error so it doesn't get
 	 * counted against the cache device, but we'll still reread the data
 	 * from the backing device.
 	 */
@@ -509,13 +509,13 @@ static int cache_lookup_fn(struct btree_op *op, struct btree *b, struct bkey *k)
 	struct bkey *bio_key;
 	unsigned int ptr;
 
-	if (bkey_cmp(k, &KEY(s->iop.inode, bio->bi_iter.bi_sector, 0)) <= 0)
+	if (bkey_cmp(k, &KEY(s->iop.iyesde, bio->bi_iter.bi_sector, 0)) <= 0)
 		return MAP_CONTINUE;
 
-	if (KEY_INODE(k) != s->iop.inode ||
+	if (KEY_INODE(k) != s->iop.iyesde ||
 	    KEY_START(k) > bio->bi_iter.bi_sector) {
 		unsigned int bio_sectors = bio_sectors(bio);
-		unsigned int sectors = KEY_INODE(k) == s->iop.inode
+		unsigned int sectors = KEY_INODE(k) == s->iop.iyesde
 			? min_t(uint64_t, INT_MAX,
 				KEY_START(k) - bio->bi_iter.bi_sector)
 			: INT_MAX;
@@ -546,8 +546,8 @@ static int cache_lookup_fn(struct btree_op *op, struct btree *b, struct bkey *k)
 	bio_key = &container_of(n, struct bbio, bio)->key;
 	bch_bkey_copy_single_ptr(bio_key, k, ptr);
 
-	bch_cut_front(&KEY(s->iop.inode, n->bi_iter.bi_sector, 0), bio_key);
-	bch_cut_back(&KEY(s->iop.inode, bio_end_sector(n), 0), bio_key);
+	bch_cut_front(&KEY(s->iop.iyesde, n->bi_iter.bi_sector, 0), bio_key);
+	bch_cut_back(&KEY(s->iop.iyesde, bio_end_sector(n), 0), bio_key);
 
 	n->bi_end_io	= bch_cache_read_endio;
 	n->bi_private	= &s->cl;
@@ -577,7 +577,7 @@ static void cache_lookup(struct closure *cl)
 	bch_btree_op_init(&s->op, -1);
 
 	ret = bch_btree_map_keys(&s->op, s->iop.c,
-				 &KEY(s->iop.inode, bio->bi_iter.bi_sector, 0),
+				 &KEY(s->iop.iyesde, bio->bi_iter.bi_sector, 0),
 				 cache_lookup_fn, MAP_END_KEY);
 	if (ret == -EAGAIN) {
 		continue_at(cl, cache_lookup, bcache_wq);
@@ -586,8 +586,8 @@ static void cache_lookup(struct closure *cl)
 
 	/*
 	 * We might meet err when searching the btree, If that happens, we will
-	 * get negative ret, in this scenario we should not recover data from
-	 * backing device (when cache device is dirty) because we don't know
+	 * get negative ret, in this scenario we should yest recover data from
+	 * backing device (when cache device is dirty) because we don't kyesw
 	 * whether bkeys the read request covered are all clean.
 	 *
 	 * And after that happened, s->iop.status is still its initial value
@@ -636,7 +636,7 @@ static void backing_request_endio(struct bio *bio)
 						     struct cached_dev, disk);
 		/*
 		 * If a bio has REQ_PREFLUSH for writeback mode, it is
-		 * speically assembled in cached_dev_write() for a non-zero
+		 * speically assembled in cached_dev_write() for a yesn-zero
 		 * write request which has REQ_PREFLUSH. we don't set
 		 * s->iop.status by this failure, the status will be decided
 		 * by result of bch_data_insert() operation.
@@ -727,7 +727,7 @@ static inline struct search *search_alloc(struct bio *bio,
 
 	s->iop.c		= d->c;
 	s->iop.bio		= NULL;
-	s->iop.inode		= d->id;
+	s->iop.iyesde		= d->id;
 	s->iop.write_point	= hash_long((unsigned long) current, 16);
 	s->iop.write_prio	= 0;
 	s->iop.status		= 0;
@@ -813,7 +813,7 @@ static void cached_dev_read_done(struct closure *cl)
 	struct cached_dev *dc = container_of(s->d, struct cached_dev, disk);
 
 	/*
-	 * We had a cache miss; cache_bio now contains data ready to be inserted
+	 * We had a cache miss; cache_bio yesw contains data ready to be inserted
 	 * into the cache.
 	 *
 	 * First, we copy the data we just read from cache_bio's bounce buffers
@@ -859,11 +859,11 @@ static void cached_dev_read_done_bh(struct closure *cl)
 	trace_bcache_read(s->orig_bio, !s->cache_missed, s->iop.bypass);
 
 	if (s->iop.status)
-		continue_at_nobarrier(cl, cached_dev_read_error, bcache_wq);
+		continue_at_yesbarrier(cl, cached_dev_read_error, bcache_wq);
 	else if (s->iop.bio || verify(dc))
-		continue_at_nobarrier(cl, cached_dev_read_done, bcache_wq);
+		continue_at_yesbarrier(cl, cached_dev_read_done, bcache_wq);
 	else
-		continue_at_nobarrier(cl, cached_dev_bio_complete, NULL);
+		continue_at_yesbarrier(cl, cached_dev_bio_complete, NULL);
 }
 
 static int cached_dev_cache_miss(struct btree *b, struct search *s,
@@ -890,7 +890,7 @@ static int cached_dev_cache_miss(struct btree *b, struct search *s,
 
 	s->insert_bio_sectors = min(sectors, bio_sectors(bio) + reada);
 
-	s->iop.replace_key = KEY(s->iop.inode,
+	s->iop.replace_key = KEY(s->iop.iyesde,
 				 bio->bi_iter.bi_sector + s->insert_bio_sectors,
 				 s->insert_bio_sectors);
 
@@ -902,7 +902,7 @@ static int cached_dev_cache_miss(struct btree *b, struct search *s,
 
 	miss = bio_next_split(bio, sectors, GFP_NOIO, &s->d->bio_split);
 
-	/* btree_search_recurse()'s btree iterator is no good anymore */
+	/* btree_search_recurse()'s btree iterator is yes good anymore */
 	ret = miss == bio ? MAP_DONE : -EINTR;
 
 	cache_bio = bio_alloc_bioset(GFP_NOWAIT,
@@ -957,7 +957,7 @@ static void cached_dev_write_complete(struct closure *cl)
 	struct search *s = container_of(cl, struct search, cl);
 	struct cached_dev *dc = container_of(s->d, struct cached_dev, disk);
 
-	up_read_non_owner(&dc->writeback_lock);
+	up_read_yesn_owner(&dc->writeback_lock);
 	cached_dev_bio_complete(cl);
 }
 
@@ -970,7 +970,7 @@ static void cached_dev_write(struct cached_dev *dc, struct search *s)
 
 	bch_keybuf_check_overlapping(&s->iop.c->moving_gc_keys, &start, &end);
 
-	down_read_non_owner(&dc->writeback_lock);
+	down_read_yesn_owner(&dc->writeback_lock);
 	if (bch_keybuf_check_overlapping(&dc->writeback_keys, &start, &end)) {
 		/*
 		 * We overlap with some dirty data undergoing background
@@ -1045,7 +1045,7 @@ insert_data:
 	continue_at(cl, cached_dev_write_complete, NULL);
 }
 
-static void cached_dev_nodata(struct closure *cl)
+static void cached_dev_yesdata(struct closure *cl)
 {
 	struct search *s = container_of(cl, struct search, cl);
 	struct bio *bio = &s->bio.bio;
@@ -1095,7 +1095,7 @@ static void detached_dev_do_request(struct bcache_device *d, struct bio *bio)
 	struct cached_dev *dc = container_of(d, struct cached_dev, disk);
 
 	/*
-	 * no need to call closure_get(&dc->disk.cl),
+	 * yes need to call closure_get(&dc->disk.cl),
 	 * because upper layer had already opened bcache device,
 	 * which would call closure_get(&dc->disk.cl)
 	 */
@@ -1127,7 +1127,7 @@ static void quit_max_writeback_rate(struct cache_set *c,
 	 * the mutex lock may increase I/O request latency for seconds or more.
 	 * To avoid such situation, if mutext_trylock() failed, only writeback
 	 * rate of current cached device is set to 1, and __update_write_back()
-	 * will decide writeback rate of other cached devices (remember now
+	 * will decide writeback rate of other cached devices (remember yesw
 	 * c->idle_counter is 0 already).
 	 */
 	if (mutex_trylock(&bch_register_lock)) {
@@ -1201,8 +1201,8 @@ static blk_qc_t cached_dev_make_request(struct request_queue *q,
 			 * can't call bch_journal_meta from under
 			 * generic_make_request
 			 */
-			continue_at_nobarrier(&s->cl,
-					      cached_dev_nodata,
+			continue_at_yesbarrier(&s->cl,
+					      cached_dev_yesdata,
 					      bcache_wq);
 		} else {
 			s->iop.bypass = check_should_bypass(dc, bio);
@@ -1284,7 +1284,7 @@ static int flash_dev_cache_miss(struct btree *b, struct search *s,
 	return MAP_CONTINUE;
 }
 
-static void flash_dev_nodata(struct closure *cl)
+static void flash_dev_yesdata(struct closure *cl)
 {
 	struct search *s = container_of(cl, struct search, cl);
 
@@ -1320,8 +1320,8 @@ static blk_qc_t flash_dev_make_request(struct request_queue *q,
 		 * can't call bch_journal_meta from under
 		 * generic_make_request
 		 */
-		continue_at_nobarrier(&s->cl,
-				      flash_dev_nodata,
+		continue_at_yesbarrier(&s->cl,
+				      flash_dev_yesdata,
 				      bcache_wq);
 		return BLK_QC_T_NONE;
 	} else if (bio_data_dir(bio)) {

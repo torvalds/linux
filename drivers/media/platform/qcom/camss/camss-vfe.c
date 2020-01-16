@@ -38,7 +38,7 @@
 #define VFE_HALT_TIMEOUT_MS 100
 /* Max number of frame drop updates per frame */
 #define VFE_FRAME_DROP_UPDATES 2
-/* Frame drop value. VAL + UPDATES - 1 should not exceed 31 */
+/* Frame drop value. VAL + UPDATES - 1 should yest exceed 31 */
 #define VFE_FRAME_DROP_VAL 30
 
 #define VFE_NEXT_SOF_MS 500
@@ -127,7 +127,7 @@ static u8 vfe_get_bpp(const struct vfe_format *formats,
 		if (code == formats[i].code)
 			return formats[i].bpp;
 
-	WARN(1, "Unknown format\n");
+	WARN(1, "Unkyeswn format\n");
 
 	return formats[0].bpp;
 }
@@ -614,7 +614,7 @@ static int vfe_get_output(struct vfe_line *line)
 	for (i = 0; i < output->wm_num; i++) {
 		wm_idx = vfe_reserve_wm(vfe, line->id);
 		if (wm_idx < 0) {
-			dev_err(vfe->camss->dev, "Can not reserve wm\n");
+			dev_err(vfe->camss->dev, "Can yest reserve wm\n");
 			goto error_get_wm;
 		}
 		output->wm_idx[i] = wm_idx;
@@ -685,7 +685,7 @@ static int vfe_enable_output(struct vfe_line *line)
 	ops->reg_update_clear(vfe, line->id);
 
 	if (output->state != VFE_OUTPUT_RESERVED) {
-		dev_err(vfe->camss->dev, "Output is not in reserved state %d\n",
+		dev_err(vfe->camss->dev, "Output is yest in reserved state %d\n",
 			output->state);
 		spin_unlock_irqrestore(&vfe->output_lock, flags);
 		return -EINVAL;
@@ -1161,7 +1161,7 @@ static int vfe_set_clock_rates(struct vfe_device *vfe)
 				return -EINVAL;
 			}
 
-			/* if sensor pixel clock is not available */
+			/* if sensor pixel clock is yest available */
 			/* set highest possible VFE clock rate */
 			if (min_rate == 0)
 				j = clock->nfreqs - 1;
@@ -1367,7 +1367,7 @@ static int vfe_queue_buffer(struct camss_video *vid,
  * @state: vb2 buffer state of the returned buffers
  *
  * Return all buffers to vb2. This includes queued pending buffers (still
- * unused) and any buffers given to the hardware but again still not used.
+ * unused) and any buffers given to the hardware but again still yest used.
  *
  * Return 0 on success or a negative error code otherwise
  */
@@ -1543,7 +1543,7 @@ static void vfe_try_format(struct vfe_line *line,
 			if (fmt->code == line->formats[i].code)
 				break;
 
-		/* If not found, use UYVY as default */
+		/* If yest found, use UYVY as default */
 		if (i >= line->nformats)
 			fmt->code = MEDIA_BUS_FMT_UYVY8_2X8;
 
@@ -2005,7 +2005,7 @@ int msm_vfe_subdev_init(struct camss *camss, struct vfe_device *vfe,
 	r = platform_get_resource_byname(pdev, IORESOURCE_MEM, res->reg[0]);
 	vfe->base = devm_ioremap_resource(dev, r);
 	if (IS_ERR(vfe->base)) {
-		dev_err(dev, "could not map memory\n");
+		dev_err(dev, "could yest map memory\n");
 		return PTR_ERR(vfe->base);
 	}
 
@@ -2216,13 +2216,13 @@ void msm_vfe_stop_streaming(struct vfe_device *vfe)
 }
 
 /*
- * msm_vfe_register_entities - Register subdev node for VFE module
+ * msm_vfe_register_entities - Register subdev yesde for VFE module
  * @vfe: VFE device
  * @v4l2_dev: V4L2 device
  *
- * Initialize and register a subdev node for the VFE module. Then
- * call msm_video_register() to register the video device node which
- * will be connected to this subdev node. Then actually create the
+ * Initialize and register a subdev yesde for the VFE module. Then
+ * call msm_video_register() to register the video device yesde which
+ * will be connected to this subdev yesde. Then actually create the
  * media link between them.
  *
  * Return 0 on success or a negative error code otherwise
@@ -2292,7 +2292,7 @@ int msm_vfe_register_entities(struct vfe_device *vfe,
 		ret = msm_video_register(video_out, v4l2_dev, name,
 					 i == VFE_LINE_PIX ? 1 : 0);
 		if (ret < 0) {
-			dev_err(dev, "Failed to register video node: %d\n",
+			dev_err(dev, "Failed to register video yesde: %d\n",
 				ret);
 			goto error_reg_video;
 		}
@@ -2334,7 +2334,7 @@ error_init:
 }
 
 /*
- * msm_vfe_unregister_entities - Unregister VFE module subdev node
+ * msm_vfe_unregister_entities - Unregister VFE module subdev yesde
  * @vfe: VFE device
  */
 void msm_vfe_unregister_entities(struct vfe_device *vfe)

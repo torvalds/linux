@@ -130,7 +130,7 @@ struct aem_data {
 	char			valid;
 	unsigned long		last_updated;	/* In jiffies */
 	u8			ver_major;
-	u8			ver_minor;
+	u8			ver_miyesr;
 	u8			module_handle;
 	int			id;
 	struct aem_ipmi_data	ipmi;
@@ -202,7 +202,7 @@ struct aem_find_instance_resp {
 	struct aem_iana_id	id;
 	u8			num_instances;
 	u8			major;
-	u8			minor;
+	u8			miyesr;
 	u8			module_handle;
 	u16			record_id;
 } __packed;
@@ -533,7 +533,7 @@ static int aem_init_aem1_inst(struct aem_ipmi_data *probe, u8 module_handle)
 
 	/* Copy instance data */
 	data->ver_major = 1;
-	data->ver_minor = 0;
+	data->ver_miyesr = 0;
 	data->module_handle = module_handle;
 	for (i = 0; i < AEM1_NUM_ENERGY_REGS; i++)
 		data->power_period[i] = AEM_DEFAULT_POWER_INTERVAL;
@@ -586,7 +586,7 @@ static int aem_init_aem1_inst(struct aem_ipmi_data *probe, u8 module_handle)
 	list_add_tail(&data->list, &driver_data.aem_devices);
 
 	dev_info(data->ipmi.bmc_device, "Found AEM v%d.%d at 0x%X\n",
-		 data->ver_major, data->ver_minor,
+		 data->ver_major, data->ver_miyesr,
 		 data->module_handle);
 	return 0;
 
@@ -673,7 +673,7 @@ static int aem_init_aem2_inst(struct aem_ipmi_data *probe,
 
 	/* Copy instance data */
 	data->ver_major = fi_resp->major;
-	data->ver_minor = fi_resp->minor;
+	data->ver_miyesr = fi_resp->miyesr;
 	data->module_handle = fi_resp->module_handle;
 	for (i = 0; i < AEM2_NUM_ENERGY_REGS; i++)
 		data->power_period[i] = AEM_DEFAULT_POWER_INTERVAL;
@@ -726,7 +726,7 @@ static int aem_init_aem2_inst(struct aem_ipmi_data *probe,
 	list_add_tail(&data->list, &driver_data.aem_devices);
 
 	dev_info(data->ipmi.bmc_device, "Found AEM v%d.%d at 0x%X\n",
-		 data->ver_major, data->ver_minor,
+		 data->ver_major, data->ver_miyesr,
 		 data->module_handle);
 	return 0;
 
@@ -757,7 +757,7 @@ static void aem_init_aem2(struct aem_ipmi_data *probe)
 	while (!aem_find_aem2(probe, &fi_resp, i)) {
 		if (fi_resp.major != 2) {
 			dev_err(probe->bmc_device,
-				"Unknown AEM v%d; please report this to the maintainer.\n",
+				"Unkyeswn AEM v%d; please report this to the maintainer.\n",
 				fi_resp.major);
 			i++;
 			continue;
@@ -780,7 +780,7 @@ static void aem_register_bmc(int iface, struct device *dev)
 	if (aem_init_ipmi_data(&probe, iface, dev))
 		return;
 
-	/* Ignore probe errors; they won't cause problems */
+	/* Igyesre probe errors; they won't cause problems */
 	aem_init_aem1(&probe);
 	aem_init_aem2(&probe);
 
@@ -815,7 +815,7 @@ static ssize_t version_show(struct device *dev,
 {
 	struct aem_data *data = dev_get_drvdata(dev);
 
-	return sprintf(buf, "%d.%d\n", data->ver_major, data->ver_minor);
+	return sprintf(buf, "%d.%d\n", data->ver_major, data->ver_miyesr);
 }
 static SENSOR_DEVICE_ATTR_RO(version, version, 0);
 

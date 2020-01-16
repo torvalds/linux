@@ -19,7 +19,7 @@
 #define CIF_ASCE_SECONDARY	2	/* secondary asce needs fixup / uaccess */
 #define CIF_NOHZ_DELAY		3	/* delay HZ disable for a tick */
 #define CIF_FPU			4	/* restore FPU registers */
-#define CIF_IGNORE_IRQ		5	/* ignore interrupt (for udelay) */
+#define CIF_IGNORE_IRQ		5	/* igyesre interrupt (for udelay) */
 #define CIF_ENABLED_WAIT	6	/* in enabled wait state */
 #define CIF_MCCK_GUEST		7	/* machine check happening in guest */
 #define CIF_DEDICATED_CPU	8	/* this CPU is dedicated */
@@ -63,8 +63,8 @@ static inline int test_cpu_flag(int flag)
 }
 
 /*
- * Test CIF flag of another CPU. The caller needs to ensure that
- * CPU hotplug can not happen, e.g. by disabling preemption.
+ * Test CIF flag of ayesther CPU. The caller needs to ensure that
+ * CPU hotplug can yest happen, e.g. by disabling preemption.
  */
 static inline int test_cpu_flag_of(int flag, int cpu)
 {
@@ -137,7 +137,7 @@ struct thread_struct {
 	struct runtime_instr_cb *ri_cb;
 	struct gs_cb *gs_cb;		/* Current guarded storage cb */
 	struct gs_cb *gs_bc_cb;		/* Broadcast guarded storage cb */
-	unsigned char trap_tdb[256];	/* Transaction abort diagnose block */
+	unsigned char trap_tdb[256];	/* Transaction abort diagyesse block */
 	/*
 	 * Warning: 'fpu' is dynamically-sized. It *MUST* be at
 	 * the end.
@@ -214,7 +214,7 @@ static __always_inline unsigned long current_stack_pointer(void)
 	return sp;
 }
 
-static __no_kasan_or_inline unsigned short stap(void)
+static __yes_kasan_or_inline unsigned short stap(void)
 {
 	unsigned short cpu_address;
 
@@ -253,7 +253,7 @@ static inline void __load_psw(psw_t psw)
  * Set PSW mask to specified value, while leaving the
  * PSW addr pointing to the next instruction.
  */
-static __no_kasan_or_inline void __load_psw_mask(unsigned long mask)
+static __yes_kasan_or_inline void __load_psw_mask(unsigned long mask)
 {
 	unsigned long addr;
 	psw_t psw;
@@ -310,7 +310,7 @@ void enabled_wait(void);
 /*
  * Function to drop a processor into disabled wait state
  */
-static __always_inline void __noreturn disabled_wait(void)
+static __always_inline void __yesreturn disabled_wait(void)
 {
 	psw_t psw;
 

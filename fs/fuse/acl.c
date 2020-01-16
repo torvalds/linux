@@ -1,6 +1,6 @@
 /*
  * FUSE: Filesystem in Userspace
- * Copyright (C) 2016 Canonical Ltd. <seth.forshee@canonical.com>
+ * Copyright (C) 2016 Cayesnical Ltd. <seth.forshee@cayesnical.com>
  *
  * This program can be distributed under the terms of the GNU GPL.
  * See the file COPYING.
@@ -11,15 +11,15 @@
 #include <linux/posix_acl.h>
 #include <linux/posix_acl_xattr.h>
 
-struct posix_acl *fuse_get_acl(struct inode *inode, int type)
+struct posix_acl *fuse_get_acl(struct iyesde *iyesde, int type)
 {
-	struct fuse_conn *fc = get_fuse_conn(inode);
+	struct fuse_conn *fc = get_fuse_conn(iyesde);
 	int size;
 	const char *name;
 	void *value = NULL;
 	struct posix_acl *acl;
 
-	if (!fc->posix_acl || fc->no_getxattr)
+	if (!fc->posix_acl || fc->yes_getxattr)
 		return NULL;
 
 	if (type == ACL_TYPE_ACCESS)
@@ -32,11 +32,11 @@ struct posix_acl *fuse_get_acl(struct inode *inode, int type)
 	value = kmalloc(PAGE_SIZE, GFP_KERNEL);
 	if (!value)
 		return ERR_PTR(-ENOMEM);
-	size = fuse_getxattr(inode, name, value, PAGE_SIZE);
+	size = fuse_getxattr(iyesde, name, value, PAGE_SIZE);
 	if (size > 0)
 		acl = posix_acl_from_xattr(fc->user_ns, value, size);
 	else if ((size == 0) || (size == -ENODATA) ||
-		 (size == -EOPNOTSUPP && fc->no_getxattr))
+		 (size == -EOPNOTSUPP && fc->yes_getxattr))
 		acl = NULL;
 	else if (size == -ERANGE)
 		acl = ERR_PTR(-E2BIG);
@@ -47,13 +47,13 @@ struct posix_acl *fuse_get_acl(struct inode *inode, int type)
 	return acl;
 }
 
-int fuse_set_acl(struct inode *inode, struct posix_acl *acl, int type)
+int fuse_set_acl(struct iyesde *iyesde, struct posix_acl *acl, int type)
 {
-	struct fuse_conn *fc = get_fuse_conn(inode);
+	struct fuse_conn *fc = get_fuse_conn(iyesde);
 	const char *name;
 	int ret;
 
-	if (!fc->posix_acl || fc->no_setxattr)
+	if (!fc->posix_acl || fc->yes_setxattr)
 		return -EOPNOTSUPP;
 
 	if (type == ACL_TYPE_ACCESS)
@@ -66,8 +66,8 @@ int fuse_set_acl(struct inode *inode, struct posix_acl *acl, int type)
 	if (acl) {
 		/*
 		 * Fuse userspace is responsible for updating access
-		 * permissions in the inode, if needed. fuse_setxattr
-		 * invalidates the inode attributes, which will force
+		 * permissions in the iyesde, if needed. fuse_setxattr
+		 * invalidates the iyesde attributes, which will force
 		 * them to be refreshed the next time they are used,
 		 * and it also updates i_ctime.
 		 */
@@ -87,13 +87,13 @@ int fuse_set_acl(struct inode *inode, struct posix_acl *acl, int type)
 			return ret;
 		}
 
-		ret = fuse_setxattr(inode, name, value, size, 0);
+		ret = fuse_setxattr(iyesde, name, value, size, 0);
 		kfree(value);
 	} else {
-		ret = fuse_removexattr(inode, name);
+		ret = fuse_removexattr(iyesde, name);
 	}
-	forget_all_cached_acls(inode);
-	fuse_invalidate_attr(inode);
+	forget_all_cached_acls(iyesde);
+	fuse_invalidate_attr(iyesde);
 
 	return ret;
 }

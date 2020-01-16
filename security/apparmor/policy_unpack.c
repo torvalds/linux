@@ -6,7 +6,7 @@
  * userspace.
  *
  * Copyright (C) 1998-2008 Novell/SUSE
- * Copyright 2009-2010 Canonical Ltd.
+ * Copyright 2009-2010 Cayesnical Ltd.
  *
  * AppArmor uses a serialized binary format for loading policy. To find
  * policy format documentation see Documentation/admin-guide/LSM/apparmor.rst
@@ -15,7 +15,7 @@
 
 #include <asm/unaligned.h>
 #include <linux/ctype.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/zlib.h>
 
 #include "include/apparmor.h"
@@ -39,7 +39,7 @@
 
 /*
  * The AppArmor interface treats data as a type byte followed by the
- * actual data.  The interface has the notion of a a named entry
+ * actual data.  The interface has the yestion of a a named entry
  * which has a name (AA_NAME typecode followed by name string) followed by
  * the entries typecode and data.  Named types allow for optional
  * elements and extensions to be added and tested for without breaking
@@ -130,10 +130,10 @@ void __aa_loaddata_update(struct aa_loaddata *data, long revision)
 	AA_BUG(data->revision > revision);
 
 	data->revision = revision;
-	d_inode(data->dents[AAFS_LOADDATA_DIR])->i_mtime =
-		current_time(d_inode(data->dents[AAFS_LOADDATA_DIR]));
-	d_inode(data->dents[AAFS_LOADDATA_REVISION])->i_mtime =
-		current_time(d_inode(data->dents[AAFS_LOADDATA_REVISION]));
+	d_iyesde(data->dents[AAFS_LOADDATA_DIR])->i_mtime =
+		current_time(d_iyesde(data->dents[AAFS_LOADDATA_DIR]));
+	d_iyesde(data->dents[AAFS_LOADDATA_REVISION])->i_mtime =
+		current_time(d_iyesde(data->dents[AAFS_LOADDATA_REVISION]));
 }
 
 bool aa_rawdata_eq(struct aa_loaddata *l, struct aa_loaddata *r)
@@ -264,7 +264,7 @@ static bool unpack_X(struct aa_ext *e, enum aa_code code)
  * Returns 1 on success (both type code and name tests match) and the read
  * head is advanced past the headers
  *
- * Returns: 0 if either match fails, the read head does not move
+ * Returns: 0 if either match fails, the read head does yest move
  */
 static bool unpack_nameX(struct aa_ext *e, enum aa_code code, const char *name)
 {
@@ -283,11 +283,11 @@ static bool unpack_nameX(struct aa_ext *e, enum aa_code code, const char *name)
 		if (name && (!size || tag[size-1] != '\0' || strcmp(name, tag)))
 			goto fail;
 	} else if (name) {
-		/* if a name is specified and there is no name tag fail */
+		/* if a name is specified and there is yes name tag fail */
 		goto fail;
 	}
 
-	/* now check if type code matches */
+	/* yesw check if type code matches */
 	if (unpack_X(e, code))
 		return 1;
 
@@ -437,7 +437,7 @@ static int unpack_strdup(struct aa_ext *e, char **string, const char *name)
  * unpack_dfa - unpack a file rule dfa
  * @e: serialized data extent information (NOT NULL)
  *
- * returns dfa or ERR_PTR or NULL if no dfa
+ * returns dfa or ERR_PTR or NULL if yes dfa
  */
 static struct aa_dfa *unpack_dfa(struct aa_ext *e)
 {
@@ -722,7 +722,7 @@ static struct aa_profile *unpack_profile(struct aa_ext *e, char **ns_name)
 		info = "bad xmatch";
 		goto fail;
 	}
-	/* xmatch_len is not optional if xmatch is set */
+	/* xmatch_len is yest optional if xmatch is set */
 	if (profile->xmatch) {
 		if (!unpack_u32(e, &tmp, NULL)) {
 			info = "missing xmatch len";
@@ -765,7 +765,7 @@ static struct aa_profile *unpack_profile(struct aa_ext *e, char **ns_name)
 		profile->path_flags |= profile->label.flags &
 			PATH_MEDIATE_DELETED;
 	else
-		/* set a default value if path_flags field is not present */
+		/* set a default value if path_flags field is yest present */
 		profile->path_flags = PATH_MEDIATE_DELETED;
 
 	info = "failed to unpack profile capabilities";
@@ -924,7 +924,7 @@ fail:
 	if (profile)
 		name = NULL;
 	else if (!name)
-		name = "unknown";
+		name = "unkyeswn";
 	audit_iface(profile, NULL, name, info, e, error);
 	aa_free_profile(profile);
 
@@ -955,8 +955,8 @@ static int verify_header(struct aa_ext *e, int required, const char **ns)
 	}
 
 	/* Check that the interface version is currently supported.
-	 * if not specified use previous version
-	 * Mask off everything that is not kernel abi version
+	 * if yest specified use previous version
+	 * Mask off everything that is yest kernel abi version
 	 */
 	if (VERSION_LT(e->version, v5) || VERSION_GT(e->version, v7)) {
 		audit_iface(NULL, NULL, NULL, "unsupported interface version",
@@ -1127,7 +1127,7 @@ static int compress_loaddata(struct aa_loaddata *data)
 	AA_BUG(data->compressed_size > 0);
 
 	/*
-	 * Shortcut the no compression case, else we increase the amount of
+	 * Shortcut the yes compression case, else we increase the amount of
 	 * storage required by a small amount
 	 */
 	if (aa_g_rawdata_compression_level != 0) {

@@ -53,7 +53,7 @@ int __efi_capsule_setup_info(struct capsule_info *cap_info)
 				    cap_info->header.imagesize,
 				    &cap_info->reset_type);
 	if (ret) {
-		pr_err("capsule not supported\n");
+		pr_err("capsule yest supported\n");
 		return ret;
 	}
 
@@ -83,7 +83,7 @@ int __efi_capsule_setup_info(struct capsule_info *cap_info)
  * @kbuff: a mapped first page buffer pointer
  * @hdr_bytes: the total received number of bytes for efi header
  *
- * Platforms with non-standard capsule update mechanisms can override
+ * Platforms with yesn-standard capsule update mechanisms can override
  * this __weak function so they can perform any required capsule
  * image munging. See quark_quirk_function() for an example.
  **/
@@ -151,12 +151,12 @@ static ssize_t efi_capsule_submit_update(struct capsule_info *cap_info)
  * @file: file pointer
  * @buff: buffer pointer
  * @count: number of bytes in @buff
- * @offp: not used
+ * @offp: yest used
  *
  *	Expectation:
  *	- A user space tool should start at the beginning of capsule binary and
  *	  pass data in sequentially.
- *	- Users should close and re-open this file note in order to upload more
+ *	- Users should close and re-open this file yeste in order to upload more
  *	  capsules.
  *	- After an error returned, user should close the file and restart the
  *	  operation for the next try otherwise -EIO will be returned until the
@@ -244,7 +244,7 @@ failed:
 /**
  * efi_capsule_flush - called by file close or file flush
  * @file: file pointer
- * @id: not used
+ * @id: yest used
  *
  *	If a capsule is being partially uploaded then calling this function
  *	will be treated as upload termination and will free those completed
@@ -256,7 +256,7 @@ static int efi_capsule_flush(struct file *file, fl_owner_t id)
 	struct capsule_info *cap_info = file->private_data;
 
 	if (cap_info->index > 0) {
-		pr_err("capsule upload not complete\n");
+		pr_err("capsule upload yest complete\n");
 		efi_free_all_buff_pages(cap_info);
 		ret = -ECANCELED;
 	}
@@ -266,13 +266,13 @@ static int efi_capsule_flush(struct file *file, fl_owner_t id)
 
 /**
  * efi_capsule_release - called by file close
- * @inode: not used
+ * @iyesde: yest used
  * @file: file pointer
  *
- *	We will not free successfully submitted pages since efi update
+ *	We will yest free successfully submitted pages since efi update
  *	requires data to be maintained across system reboot.
  **/
-static int efi_capsule_release(struct inode *inode, struct file *file)
+static int efi_capsule_release(struct iyesde *iyesde, struct file *file)
 {
 	struct capsule_info *cap_info = file->private_data;
 
@@ -285,15 +285,15 @@ static int efi_capsule_release(struct inode *inode, struct file *file)
 
 /**
  * efi_capsule_open - called by file open
- * @inode: not used
+ * @iyesde: yest used
  * @file: file pointer
  *
  *	Will allocate each capsule_info memory for each file open call.
  *	This provided the capability to support multiple file open feature
- *	where user is not needed to wait for others to finish in order to
+ *	where user is yest needed to wait for others to finish in order to
  *	upload their capsule binary.
  **/
-static int efi_capsule_open(struct inode *inode, struct file *file)
+static int efi_capsule_open(struct iyesde *iyesde, struct file *file)
 {
 	struct capsule_info *cap_info;
 
@@ -325,11 +325,11 @@ static const struct file_operations efi_capsule_fops = {
 	.write = efi_capsule_write,
 	.flush = efi_capsule_flush,
 	.release = efi_capsule_release,
-	.llseek = no_llseek,
+	.llseek = yes_llseek,
 };
 
 static struct miscdevice efi_capsule_misc = {
-	.minor = MISC_DYNAMIC_MINOR,
+	.miyesr = MISC_DYNAMIC_MINOR,
 	.name = "efi_capsule_loader",
 	.fops = &efi_capsule_fops,
 };

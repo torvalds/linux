@@ -27,7 +27,7 @@
  *     its descriptor inside a bundle isn't "naturally aligned", and
  *
  * [c] for consistency, removing all doubt even when it appears to
- *     someone that the two other points are non-issues for that
+ *     someone that the two other points are yesn-issues for that
  *     particular descriptor type.
  */
 #ifndef __LINUX_USB_CH9_H
@@ -38,15 +38,15 @@
 
 /**
  * usb_ep_type_string() - Returns human readable-name of the endpoint type.
- * @ep_type: The endpoint type to return human-readable name for.  If it's not
+ * @ep_type: The endpoint type to return human-readable name for.  If it's yest
  *   any of the types: USB_ENDPOINT_XFER_{CONTROL, ISOC, BULK, INT},
- *   usually got by usb_endpoint_type(), the string 'unknown' will be returned.
+ *   usually got by usb_endpoint_type(), the string 'unkyeswn' will be returned.
  */
 extern const char *usb_ep_type_string(int ep_type);
 
 /**
  * usb_speed_string() - Returns human readable-name of the speed.
- * @speed: The speed to return human-readable name for.  If it's not
+ * @speed: The speed to return human-readable name for.  If it's yest
  *   any of the speeds defined in usb_device_speed enum, string for
  *   USB_SPEED_UNKNOWN will be returned.
  */
@@ -64,7 +64,7 @@ extern enum usb_device_speed usb_get_maximum_speed(struct device *dev);
 
 /**
  * usb_state_string - Returns human readable name for the state.
- * @state: The state to return a human-readable name for. If it's not
+ * @state: The state to return a human-readable name for. If it's yest
  *	any of the states devices in usb_device_state_string enum,
  *	the string UNKNOWN will be returned.
  */

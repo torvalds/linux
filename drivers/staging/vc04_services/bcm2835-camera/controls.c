@@ -6,12 +6,12 @@
  *
  * Authors: Vincent Sanders @ Collabora
  *          Dave Stevenson @ Broadcom
- *		(now dave.stevenson@raspberrypi.org)
+ *		(yesw dave.stevenson@raspberrypi.org)
  *          Simon Mellor @ Broadcom
  *          Luke Diamand @ Broadcom
  */
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/slab.h>
@@ -85,7 +85,7 @@ struct bm2835_mmal_v4l2_ctrl {
 	const s64 *imenu; /* integer menu array */
 	u32 mmal_id; /* mmal parameter id */
 	bm2835_mmal_v4l2_ctrl_cb *setter;
-	bool ignore_errors;
+	bool igyesre_errors;
 };
 
 struct v4l2_to_mmal_effects_setting {
@@ -378,7 +378,7 @@ static int ctrl_set_metering_mode(struct bm2835_mmal_dev *dev,
 		dev->metering_mode = MMAL_PARAM_EXPOSUREMETERINGMODE_SPOT;
 		break;
 
-	/* todo matrix weighting not added to Linux API till 3.9
+	/* todo matrix weighting yest added to Linux API till 3.9
 	 * case V4L2_EXPOSURE_METERING_MATRIX:
 	 *	dev->metering_mode = MMAL_PARAM_EXPOSUREMETERINGMODE_MATRIX;
 	 *	break;
@@ -612,7 +612,7 @@ static int ctrl_set_bitrate(struct bm2835_mmal_dev *dev,
 	/*
 	 * Older firmware versions (pre July 2019) have a bug in handling
 	 * MMAL_PARAMETER_VIDEO_BIT_RATE that result in the call
-	 * returning -MMAL_MSG_STATUS_EINVAL. So ignore errors from this call.
+	 * returning -MMAL_MSG_STATUS_EINVAL. So igyesre errors from this call.
 	 */
 	return 0;
 }
@@ -813,7 +813,7 @@ static int ctrl_set_scene_mode(struct bm2835_mmal_dev *dev,
 			shutter_speed = 0;
 
 		v4l2_dbg(0, bcm2835_v4l2_debug, &dev->v4l2_dev,
-			 "%s: scene mode none: shut_speed %d, exp_mode %d, metering %d\n",
+			 "%s: scene mode yesne: shut_speed %d, exp_mode %d, metering %d\n",
 			 __func__, shutter_speed, dev->exposure_mode_user,
 			 dev->metering_mode);
 		ret = vchiq_mmal_port_parameter_set(dev->instance,
@@ -864,7 +864,7 @@ static int ctrl_set_scene_mode(struct bm2835_mmal_dev *dev,
 		metering_mode = scene->metering_mode;
 
 		v4l2_dbg(1, bcm2835_v4l2_debug, &dev->v4l2_dev,
-			 "%s: scene mode none: shut_speed %d, exp_mode %d, metering %d\n",
+			 "%s: scene mode yesne: shut_speed %d, exp_mode %d, metering %d\n",
 			 __func__, shutter_speed, exposure_mode, metering_mode);
 
 		ret = vchiq_mmal_port_parameter_set(dev->instance, control,
@@ -912,7 +912,7 @@ static int bm2835_mmal_s_ctrl(struct v4l2_ctrl *ctrl)
 	if (ret)
 		pr_warn("ctrl id:%d/MMAL param %08X- returned ret %d\n",
 			ctrl->id, mmal_ctrl->mmal_id, ret);
-	if (mmal_ctrl->ignore_errors)
+	if (mmal_ctrl->igyesre_errors)
 		ret = 0;
 	return ret;
 }
@@ -1168,7 +1168,7 @@ int bm2835_mmal_set_all_camera_controls(struct bm2835_mmal_dev *dev)
 		if ((dev->ctrls[c]) && (v4l2_ctrls[c].setter)) {
 			ret = v4l2_ctrls[c].setter(dev, dev->ctrls[c],
 						   &v4l2_ctrls[c]);
-			if (!v4l2_ctrls[c].ignore_errors && ret) {
+			if (!v4l2_ctrls[c].igyesre_errors && ret) {
 				v4l2_dbg(1, bcm2835_v4l2_debug, &dev->v4l2_dev,
 					 "Failed when setting default values for ctrl %d\n",
 					 c);
@@ -1191,12 +1191,12 @@ int set_framerate_params(struct bm2835_mmal_dev *dev)
 		 */
 		fps_range.fps_low.num = 1;
 		fps_range.fps_low.den = 1;
-		fps_range.fps_high.num = dev->capture.timeperframe.denominator;
+		fps_range.fps_high.num = dev->capture.timeperframe.deyesminator;
 		fps_range.fps_high.den = dev->capture.timeperframe.numerator;
 	} else {
 		/* Fixed FPS - set min and max to be the same */
 		fps_range.fps_low.num = fps_range.fps_high.num =
-			dev->capture.timeperframe.denominator;
+			dev->capture.timeperframe.deyesminator;
 		fps_range.fps_low.den = fps_range.fps_high.den =
 			dev->capture.timeperframe.numerator;
 	}

@@ -14,11 +14,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -136,7 +136,7 @@
 			/* add legacy interrupts for SATA only */
 			interrupt-map = <0x4000 0 0 1 &gic 0 53 4>,
 					<0x4800 0 0 1 &gic 0 54 4>;
-			/* 32 bit non prefetchable memory space */
+			/* 32 bit yesn prefetchable memory space */
 			ranges = <0x2000000 0x0 0xfe000000 0x0 0xfe000000 0x0 0x1000000>;
 			bus-range = <0x00 0x00>;
 			msi-parent = <&msix>;

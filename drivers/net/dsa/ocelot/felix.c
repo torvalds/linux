@@ -270,7 +270,7 @@ static int felix_init_structs(struct felix *felix, int num_phys_ports)
 /* Hardware initialization done here so that we can allocate structures with
  * devm without fear of dsa_register_switch returning -EPROBE_DEFER and causing
  * us to allocate structures twice (leak memory) and map PCI memory twice
- * (which will not work).
+ * (which will yest work).
  */
 static int felix_setup(struct dsa_switch *ds)
 {

@@ -173,7 +173,7 @@ static void sru_try_format(struct vsp1_sru *sru,
 
 	switch (pad) {
 	case SRU_PAD_SINK:
-		/* Default to YUV if the requested format is not supported. */
+		/* Default to YUV if the requested format is yest supported. */
 		if (fmt->code != MEDIA_BUS_FMT_ARGB8888_1X32 &&
 		    fmt->code != MEDIA_BUS_FMT_AYUV8_1X32)
 			fmt->code = MEDIA_BUS_FMT_AYUV8_1X32;
@@ -189,7 +189,7 @@ static void sru_try_format(struct vsp1_sru *sru,
 		fmt->code = format->code;
 
 		/*
-		 * We can upscale by 2 in both direction, but not independently.
+		 * We can upscale by 2 in both direction, but yest independently.
 		 * Compare the input and output rectangles areas (avoiding
 		 * integer overflows on the output): if the requested output
 		 * area is larger than 1.5^2 the input area upscale by two,

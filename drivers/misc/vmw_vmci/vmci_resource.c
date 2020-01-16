@@ -43,7 +43,7 @@ static struct vmci_resource *vmci_resource_lookup(struct vmci_handle handle,
 
 	rcu_read_lock();
 	hlist_for_each_entry_rcu(r,
-				 &vmci_resource_table.entries[idx], node) {
+				 &vmci_resource_table.entries[idx], yesde) {
 		u32 cid = r->handle.context;
 		u32 rid = r->handle.resource;
 
@@ -120,12 +120,12 @@ int vmci_resource_add(struct vmci_resource *resource,
 
 	resource->handle = handle;
 	resource->type = resource_type;
-	INIT_HLIST_NODE(&resource->node);
+	INIT_HLIST_NODE(&resource->yesde);
 	kref_init(&resource->kref);
 	init_completion(&resource->done);
 
 	idx = vmci_resource_hash(resource->handle);
-	hlist_add_head_rcu(&resource->node, &vmci_resource_table.entries[idx]);
+	hlist_add_head_rcu(&resource->yesde, &vmci_resource_table.entries[idx]);
 
 	result = VMCI_SUCCESS;
 
@@ -143,9 +143,9 @@ void vmci_resource_remove(struct vmci_resource *resource)
 	/* Remove resource from hash table. */
 	spin_lock(&vmci_resource_table.lock);
 
-	hlist_for_each_entry(r, &vmci_resource_table.entries[idx], node) {
+	hlist_for_each_entry(r, &vmci_resource_table.entries[idx], yesde) {
 		if (vmci_handle_is_equal(r->handle, resource->handle)) {
-			hlist_del_init_rcu(&r->node);
+			hlist_del_init_rcu(&r->yesde);
 			break;
 		}
 	}
@@ -193,22 +193,22 @@ static void vmci_release_resource(struct kref *kref)
 		container_of(kref, struct vmci_resource, kref);
 
 	/* Verify the resource has been unlinked from hash table */
-	WARN_ON(!hlist_unhashed(&resource->node));
+	WARN_ON(!hlist_unhashed(&resource->yesde));
 
-	/* Signal that container of this resource can now be destroyed */
+	/* Signal that container of this resource can yesw be destroyed */
 	complete(&resource->done);
 }
 
 /*
  * Resource's release function will get called if last reference.
- * If it is the last reference, then we are sure that nobody else
+ * If it is the last reference, then we are sure that yesbody else
  * can increment the count again (it's gone from the resource hash
- * table), so there's no need for locking here.
+ * table), so there's yes need for locking here.
  */
 int vmci_resource_put(struct vmci_resource *resource)
 {
 	/*
-	 * We propagate the information back to caller in case it wants to know
+	 * We propagate the information back to caller in case it wants to kyesw
 	 * whether entry was freed.
 	 */
 	return kref_put(&resource->kref, vmci_release_resource) ?

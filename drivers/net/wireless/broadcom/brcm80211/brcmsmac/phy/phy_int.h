@@ -19,7 +19,7 @@ struct phy_shim_info;
 struct brcms_phy_srom_fem {
 	/* TSSI positive slope, 1: positive, 0: negative */
 	u8 tssipos;
-	/* Ext PA gain-type: full-gain: 0, pa-lite: 1, no_pa: 2 */
+	/* Ext PA gain-type: full-gain: 0, pa-lite: 1, yes_pa: 2 */
 	u8 extpagain;
 	/* support 32 combinations of different Pdet dynamic ranges */
 	u8 pdetrange;
@@ -426,11 +426,11 @@ struct nphy_txgains {
 
 #define PHY_NOISEVAR_BUFSIZE 10
 
-struct nphy_noisevar_buf {
+struct nphy_yesisevar_buf {
 	int bufcount;
 	int tone_id[PHY_NOISEVAR_BUFSIZE];
-	u32 noise_vars[PHY_NOISEVAR_BUFSIZE];
-	u32 min_noise_vars[PHY_NOISEVAR_BUFSIZE];
+	u32 yesise_vars[PHY_NOISEVAR_BUFSIZE];
+	u32 min_yesise_vars[PHY_NOISEVAR_BUFSIZE];
 };
 
 struct rssical_cache {
@@ -475,7 +475,7 @@ struct shared_phy {
 	u32 machwcap;
 	bool up;
 	bool clk;
-	uint now;
+	uint yesw;
 	u16 vid;
 	u16 did;
 	uint chip;
@@ -490,8 +490,8 @@ struct shared_phy {
 	uint slow_timer;
 	uint glacial_timer;
 	u8 rx_antdiv;
-	s8 phy_noise_window[MA_WINDOW_SZ];
-	uint phy_noise_index;
+	s8 phy_yesise_window[MA_WINDOW_SZ];
+	uint phy_yesise_index;
 	u8 hw_phytxchain;
 	u8 hw_phyrxchain;
 	u8 phytxchain;
@@ -557,10 +557,10 @@ struct brcms_phy {
 	bool sbtml_gm;
 	uint refcnt;
 	bool watchdog_override;
-	u8 phynoise_state;
-	uint phynoise_now;
-	int phynoise_chan_watchdog;
-	bool phynoise_polling;
+	u8 phyyesise_state;
+	uint phyyesise_yesw;
+	int phyyesise_chan_watchdog;
+	bool phyyesise_polling;
 	bool disable_percal;
 	u32 measure_hold;
 
@@ -634,7 +634,7 @@ struct brcms_phy {
 	u32 phy_tx_tone_freq;
 	uint phy_lastcal;
 	bool phy_forcecal;
-	bool phy_fixed_noise;
+	bool phy_fixed_yesise;
 	u32 xtalfreq;
 	u8 pdiv;
 	s8 carrier_suppr_disable;
@@ -703,7 +703,7 @@ struct brcms_phy {
 	bool temppwrctrl_capable;
 
 	uint phycal_nslope;
-	uint phycal_noffset;
+	uint phycal_yesffset;
 	uint phycal_mlo;
 	uint phycal_txpower;
 
@@ -750,8 +750,8 @@ struct brcms_phy {
 	u8 nphy_papd_skip;
 	u8 nphy_tssi_slope;
 
-	s16 nphy_noise_win[PHY_CORE_MAX][PHY_NOISE_WINDOW_SZ];
-	u8 nphy_noise_index;
+	s16 nphy_yesise_win[PHY_CORE_MAX][PHY_NOISE_WINDOW_SZ];
+	u8 nphy_yesise_index;
 
 	bool nphy_gain_boost;
 	bool nphy_elna_gain_config;
@@ -821,10 +821,10 @@ struct brcms_phy {
 	bool nphy_aband_spurwar_en;
 	u16 nphy_rccal_value;
 	u16 nphy_crsminpwr[3];
-	struct nphy_noisevar_buf nphy_saved_noisevars;
+	struct nphy_yesisevar_buf nphy_saved_yesisevars;
 	bool nphy_anarxlpf_adjusted;
 	bool nphy_crsminpwr_adjusted;
-	bool nphy_noisevars_adjusted;
+	bool nphy_yesisevars_adjusted;
 
 	bool nphy_rxcal_active;
 	u16 radar_percal_mask;
@@ -837,12 +837,12 @@ struct brcms_phy {
 	u16 crsminpwr0;
 	u16 crsminpwrl0;
 	u16 crsminpwru0;
-	s16 noise_crsminpwr_index;
+	s16 yesise_crsminpwr_index;
 	u16 init_gain_core1;
 	u16 init_gain_core2;
 	u16 init_gainb_core1;
 	u16 init_gainb_core2;
-	u8 aci_noise_curr_channel;
+	u8 aci_yesise_curr_channel;
 	u16 init_gain_rfseq[4];
 
 	bool radio_is_on;
@@ -1077,7 +1077,7 @@ void wlc_phy_rx_iq_est_nphy(struct brcms_phy *pi, struct phy_iq_est *est,
 
 void wlc_phy_rx_iq_coeffs_nphy(struct brcms_phy *pi, u8 write,
 			       struct nphy_iq_comp *comp);
-void wlc_phy_aci_and_noise_reduction_nphy(struct brcms_phy *pi);
+void wlc_phy_aci_and_yesise_reduction_nphy(struct brcms_phy *pi);
 
 void wlc_phy_rxcore_setstate_nphy(struct brcms_phy_pub *pih, u8 rxcore_bitmask);
 u8 wlc_phy_rxcore_getstate_nphy(struct brcms_phy_pub *pih);

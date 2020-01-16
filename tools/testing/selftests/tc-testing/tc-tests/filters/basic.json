@@ -237,7 +237,7 @@
         "setup": [
             "$TC qdisc add dev $DEV1 ingress"
         ],
-        "cmdUnderTest": "$TC filter add dev $DEV1 parent ffff: handle 1 protocol ip prio 1 basic match 'not cmp(u8 at 0 layer link mask 0xff eq 3)' classid 1:1",
+        "cmdUnderTest": "$TC filter add dev $DEV1 parent ffff: handle 1 protocol ip prio 1 basic match 'yest cmp(u8 at 0 layer link mask 0xff eq 3)' classid 1:1",
         "expExitCode": "0",
         "verifyCmd": "$TC filter get dev $DEV1 parent ffff: handle 1 prio 1 protocol ip basic",
         "matchPattern": "^filter parent ffff: protocol ip pref 1 basic.*handle 0x1 flowid 1:1.*NOT cmp\\(u8 at 0 layer 0 mask 0xff eq 3\\)",
@@ -313,7 +313,7 @@
         "setup": [
             "$TC qdisc add dev $DEV1 ingress"
         ],
-        "cmdUnderTest": "$TC filter add dev $DEV1 parent ffff: handle 1 protocol ip prio 1 basic match 'cmp(u8 at 0 layer link mask 0xff eq 3) and cmp(u16 at 8 layer link mask 0x00ff gt 7) or not cmp(u32 at 4 layer network mask 0xa0a0 lt 3)' action gact drop",
+        "cmdUnderTest": "$TC filter add dev $DEV1 parent ffff: handle 1 protocol ip prio 1 basic match 'cmp(u8 at 0 layer link mask 0xff eq 3) and cmp(u16 at 8 layer link mask 0x00ff gt 7) or yest cmp(u32 at 4 layer network mask 0xa0a0 lt 3)' action gact drop",
         "expExitCode": "0",
         "verifyCmd": "$TC filter get dev $DEV1 parent ffff: handle 1 prio 1 protocol ip basic",
         "matchPattern": "^filter parent ffff: protocol ip pref 1 basic.*handle 0x1.*cmp\\(u8 at 0 layer 0 mask 0xff eq 3\\).*AND cmp\\(u16 at 8 layer 0 mask 0xff gt 7\\).*OR NOT cmp\\(u32 at 4 layer 1 mask 0xa0a0 lt 3\\).*action.*gact action drop",

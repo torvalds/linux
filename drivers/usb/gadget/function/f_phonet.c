@@ -100,8 +100,8 @@ pn_union_desc = {
 };
 
 static struct usb_interface_descriptor
-pn_data_nop_intf_desc = {
-	.bLength =		sizeof pn_data_nop_intf_desc,
+pn_data_yesp_intf_desc = {
+	.bLength =		sizeof pn_data_yesp_intf_desc,
 	.bDescriptorType =	USB_DT_INTERFACE,
 
 	/* .bInterfaceNumber =	DYNAMIC, */
@@ -164,7 +164,7 @@ static struct usb_descriptor_header *fs_pn_function[] = {
 	(struct usb_descriptor_header *) &pn_header_desc,
 	(struct usb_descriptor_header *) &pn_phonet_desc,
 	(struct usb_descriptor_header *) &pn_union_desc,
-	(struct usb_descriptor_header *) &pn_data_nop_intf_desc,
+	(struct usb_descriptor_header *) &pn_data_yesp_intf_desc,
 	(struct usb_descriptor_header *) &pn_data_intf_desc,
 	(struct usb_descriptor_header *) &pn_fs_sink_desc,
 	(struct usb_descriptor_header *) &pn_fs_source_desc,
@@ -176,7 +176,7 @@ static struct usb_descriptor_header *hs_pn_function[] = {
 	(struct usb_descriptor_header *) &pn_header_desc,
 	(struct usb_descriptor_header *) &pn_phonet_desc,
 	(struct usb_descriptor_header *) &pn_union_desc,
-	(struct usb_descriptor_header *) &pn_data_nop_intf_desc,
+	(struct usb_descriptor_header *) &pn_data_yesp_intf_desc,
 	(struct usb_descriptor_header *) &pn_data_intf_desc,
 	(struct usb_descriptor_header *) &pn_hs_sink_desc,
 	(struct usb_descriptor_header *) &pn_hs_source_desc,
@@ -350,7 +350,7 @@ static void pn_rx_complete(struct usb_ep *ep, struct usb_request *req)
 		}
 		break;
 
-	/* Do not resubmit in these cases: */
+	/* Do yest resubmit in these cases: */
 	case -ESHUTDOWN: /* disconnect */
 	case -ECONNABORTED: /* hw reset */
 	case -ECONNRESET: /* dequeued (unlink or netif down) */
@@ -397,7 +397,7 @@ static int pn_set_alt(struct usb_function *f, unsigned intf, unsigned alt)
 	struct usb_gadget *gadget = fp->function.config->cdev->gadget;
 
 	if (intf == pn_control_intf_desc.bInterfaceNumber)
-		/* control interface, no altsetting */
+		/* control interface, yes altsetting */
 		return (alt > 0) ? -EINVAL : 0;
 
 	if (intf == pn_data_intf_desc.bInterfaceNumber) {
@@ -491,7 +491,7 @@ static int pn_bind(struct usb_configuration *c, struct usb_function *f)
 	 * in drivers/usb/gadget/configfs.c:configfs_composite_bind()
 	 * configurations are bound in sequence with list_for_each_entry,
 	 * in each configuration its functions are bound in sequence
-	 * with list_for_each_entry, so we assume no race condition
+	 * with list_for_each_entry, so we assume yes race condition
 	 * with regard to phonet_opts->bound access
 	 */
 	if (!phonet_opts->bound) {
@@ -512,7 +512,7 @@ static int pn_bind(struct usb_configuration *c, struct usb_function *f)
 	status = usb_interface_id(c, f);
 	if (status < 0)
 		goto err;
-	pn_data_nop_intf_desc.bInterfaceNumber = status;
+	pn_data_yesp_intf_desc.bInterfaceNumber = status;
 	pn_data_intf_desc.bInterfaceNumber = status;
 	pn_union_desc.bSlaveInterface0 = status;
 
@@ -531,7 +531,7 @@ static int pn_bind(struct usb_configuration *c, struct usb_function *f)
 	pn_hs_sink_desc.bEndpointAddress = pn_fs_sink_desc.bEndpointAddress;
 	pn_hs_source_desc.bEndpointAddress = pn_fs_source_desc.bEndpointAddress;
 
-	/* Do not try to bind Phonet twice... */
+	/* Do yest try to bind Phonet twice... */
 	status = usb_assign_descriptors(f, fs_pn_function, hs_pn_function,
 			NULL, NULL);
 	if (status)
@@ -565,7 +565,7 @@ err_req:
 		usb_ep_free_request(fp->out_ep, fp->out_reqv[i]);
 	usb_free_all_descriptors(f);
 err:
-	ERROR(cdev, "USB CDC Phonet: cannot autoconfigure\n");
+	ERROR(cdev, "USB CDC Phonet: canyest autoconfigure\n");
 	return status;
 }
 

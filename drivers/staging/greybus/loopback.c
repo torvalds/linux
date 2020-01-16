@@ -135,7 +135,7 @@ static ssize_t name##_##field##_show(struct device *dev,	\
 			    char *buf)					\
 {									\
 	struct gb_loopback *gb = dev_get_drvdata(dev);			\
-	/* Report 0 for min and max if no transfer successed */		\
+	/* Report 0 for min and max if yes transfer successed */		\
 	if (!gb->requests_completed)					\
 		return sprintf(buf, "0\n");				\
 	return sprintf(buf, "%" #type "\n", gb->name.field);		\
@@ -244,7 +244,7 @@ static void gb_loopback_check_attr(struct gb_loopback *gb)
 
 	if (kfifo_depth < gb->iteration_max) {
 		dev_warn(gb->dev,
-			 "cannot log bytes %u kfifo_depth %u\n",
+			 "canyest log bytes %u kfifo_depth %u\n",
 			 gb->iteration_max, kfifo_depth);
 	}
 	kfifo_reset_out(&gb->kfifo_lat);
@@ -295,7 +295,7 @@ gb_loopback_ro_attr(timeout_max);
  * 2 => Send ping message continuously (message without payload)
  * 3 => Send transfer message continuously (message with payload,
  *					   payload returned in response)
- * 4 => Send a sink message (message with payload, no payload in response)
+ * 4 => Send a sink message (message with payload, yes payload in response)
  */
 gb_dev_loopback_rw_attr(type, d);
 /* Size of transfer message payload: 0-4096 bytes */
@@ -306,9 +306,9 @@ gb_dev_loopback_rw_attr(us_wait, d);
 gb_dev_loopback_rw_attr(iteration_max, u);
 /* The current index of the for (i = 0; i < iteration_max; i++) loop */
 gb_dev_loopback_ro_attr(iteration_count, false);
-/* A flag to indicate synchronous or asynchronous operations */
+/* A flag to indicate synchroyesus or asynchroyesus operations */
 gb_dev_loopback_rw_attr(async, u);
-/* Timeout of an individual asynchronous request */
+/* Timeout of an individual asynchroyesus request */
 gb_dev_loopback_rw_attr(timeout, u);
 /* Maximum number of in-flight operations before back-off */
 gb_dev_loopback_rw_attr(outstanding_operations_max, u);
@@ -387,7 +387,7 @@ static int gb_loopback_operation_sync(struct gb_loopback *gb, int type,
 	ret = gb_operation_request_send_sync(operation);
 	if (ret) {
 		dev_err(&gb->connection->bundle->dev,
-			"synchronous operation failed: %d\n", ret);
+			"synchroyesus operation failed: %d\n", ret);
 		goto out_put_operation;
 	} else {
 		if (response_size == operation->response->payload_size) {
@@ -870,7 +870,7 @@ static int gb_loopback_fn(void *data)
 		if (gb->send_count == gb->iteration_max) {
 			mutex_unlock(&gb->mutex);
 
-			/* Wait for synchronous and asynchronus completion */
+			/* Wait for synchroyesus and asynchronus completion */
 			gb_loopback_async_wait_all(gb);
 
 			/* Mark complete unless user-space has poked us */
@@ -878,7 +878,7 @@ static int gb_loopback_fn(void *data)
 			if (gb->iteration_count == gb->iteration_max) {
 				gb->type = 0;
 				gb->send_count = 0;
-				sysfs_notify(&gb->dev->kobj,  NULL,
+				sysfs_yestify(&gb->dev->kobj,  NULL,
 					     "iteration_count");
 				dev_dbg(&bundle->dev, "load test complete\n");
 			} else {
@@ -1099,7 +1099,7 @@ static void gb_loopback_disconnect(struct gb_bundle *bundle)
 
 	ret = gb_pm_runtime_get_sync(bundle);
 	if (ret)
-		gb_pm_runtime_get_noresume(bundle);
+		gb_pm_runtime_get_yesresume(bundle);
 
 	gb_connection_disable(gb->connection);
 
@@ -1111,7 +1111,7 @@ static void gb_loopback_disconnect(struct gb_bundle *bundle)
 	debugfs_remove(gb->file);
 
 	/*
-	 * FIXME: gb_loopback_async_wait_all() is redundant now, as connection
+	 * FIXME: gb_loopback_async_wait_all() is redundant yesw, as connection
 	 * is disabled at the beginning and so we can't have any more
 	 * incoming/outgoing requests.
 	 */

@@ -12,7 +12,7 @@ enum {
 	sent_ident	= 0x40,
 };
 
-/* (@) = not present on TMC1800, (#) = not present on TMC1800 and TMC18C50 */
+/* (@) = yest present on TMC1800, (#) = yest present on TMC1800 and TMC18C50 */
 #define REG_SCSI_DATA		0	/* R/W: SCSI Data (with ACK) */
 #define REG_BSTAT		1	/* R: SCSI Bus Status */
 #define		BSTAT_BSY	BIT(0)	 /* Busy */
@@ -21,7 +21,7 @@ enum {
 #define		BSTAT_CMD	BIT(3)	 /* Command/Data */
 #define		BSTAT_REQ	BIT(4)	 /* Request and Not Ack */
 #define		BSTAT_SEL	BIT(5)	 /* Select */
-#define		BSTAT_ACK	BIT(6)	 /* Acknowledge and Request */
+#define		BSTAT_ACK	BIT(6)	 /* Ackyeswledge and Request */
 #define		BSTAT_ATN	BIT(7)	 /* Attention */
 #define REG_BCTL		1	/* W: SCSI Bus Control */
 #define		BCTL_RST	BIT(0)	 /* Bus Reset */
@@ -48,16 +48,16 @@ enum {
 #define		ICTL_SEL	BIT(6)	 /* Int. on SCSI Select */
 #define		ICTL_REQ	BIT(7)	 /* Int. on SCSI Request */
 #define REG_FSTAT		3	/* R: Adapter Status 2 (FIFO) - (@) */
-#define		FSTAT_ONOTEMPTY	BIT(0)	 /* Output FIFO not empty */
-#define		FSTAT_INOTEMPTY	BIT(1)	 /* Input FIFO not empty */
-#define		FSTAT_NOTEMPTY	BIT(2)	 /* Main FIFO not empty */
-#define		FSTAT_NOTFULL	BIT(3)	 /* Main FIFO not full */
+#define		FSTAT_ONOTEMPTY	BIT(0)	 /* Output FIFO yest empty */
+#define		FSTAT_INOTEMPTY	BIT(1)	 /* Input FIFO yest empty */
+#define		FSTAT_NOTEMPTY	BIT(2)	 /* Main FIFO yest empty */
+#define		FSTAT_NOTFULL	BIT(3)	 /* Main FIFO yest full */
 #define REG_MCTL		3	/* W: SCSI Data Mode Control */
-#define		MCTL_ACK_MASK	0x0f	 /* Acknowledge period */
+#define		MCTL_ACK_MASK	0x0f	 /* Ackyeswledge period */
 #define		MCTL_ACTDEASS	BIT(4)	 /* Active deassert of REQ and ACK */
 #define		MCTL_TARGET	BIT(5)	 /* Enable target mode */
-#define		MCTL_FASTSYNC	BIT(6)	 /* Enable Fast Synchronous */
-#define		MCTL_SYNC	BIT(7)	 /* Enable Synchronous */
+#define		MCTL_FASTSYNC	BIT(6)	 /* Enable Fast Synchroyesus */
+#define		MCTL_SYNC	BIT(7)	 /* Enable Synchroyesus */
 #define REG_INTCOND		4	/* R: Interrupt Condition - (@) */
 #define		IRQ_FIFO	BIT(1)	 /* FIFO interrupt */
 #define		IRQ_REQ		BIT(2)	 /* SCSI Request interrupt */
@@ -81,7 +81,7 @@ enum {
 #define		ACTL2_SLEEP	BIT(7)	 /* Sleep mode */
 #define REG_ID_MSB		6	/* R: ID Code (MSB) */
 #define REG_LOOPBACK		7	/* R/W: Loopback */
-#define REG_SCSI_DATA_NOACK	8	/* R/W: SCSI Data (no ACK) */
+#define REG_SCSI_DATA_NOACK	8	/* R/W: SCSI Data (yes ACK) */
 #define REG_ASTAT3		9	/* R: Adapter Status 3 */
 #define		ASTAT3_ACTDEASS	BIT(0)	 /* Active deassert enabled */
 #define		ASTAT3_RAMOVRLY	BIT(1)	 /* RAM overlay enabled */

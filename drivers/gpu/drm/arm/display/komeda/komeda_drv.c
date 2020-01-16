@@ -79,20 +79,20 @@ static const struct component_master_ops komeda_master_ops = {
 
 static int compare_of(struct device *dev, void *data)
 {
-	return dev->of_node == data;
+	return dev->of_yesde == data;
 }
 
 static void komeda_add_slave(struct device *master,
 			     struct component_match **match,
-			     struct device_node *np,
+			     struct device_yesde *np,
 			     u32 port, u32 endpoint)
 {
-	struct device_node *remote;
+	struct device_yesde *remote;
 
-	remote = of_graph_get_remote_node(np, port, endpoint);
+	remote = of_graph_get_remote_yesde(np, port, endpoint);
 	if (remote) {
 		drm_of_component_match_add(master, match, compare_of, remote);
-		of_node_put(remote);
+		of_yesde_put(remote);
 	}
 }
 
@@ -100,13 +100,13 @@ static int komeda_platform_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct component_match *match = NULL;
-	struct device_node *child;
+	struct device_yesde *child;
 
-	if (!dev->of_node)
+	if (!dev->of_yesde)
 		return -ENODEV;
 
-	for_each_available_child_of_node(dev->of_node, child) {
-		if (of_node_cmp(child->name, "pipeline") != 0)
+	for_each_available_child_of_yesde(dev->of_yesde, child) {
+		if (of_yesde_cmp(child->name, "pipeline") != 0)
 			continue;
 
 		/* add connector */

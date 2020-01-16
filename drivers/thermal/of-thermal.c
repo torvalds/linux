@@ -29,7 +29,7 @@
  */
 
 struct __thermal_cooling_bind_param {
-	struct device_node *cooling_device;
+	struct device_yesde *cooling_device;
 	unsigned long min;
 	unsigned long max;
 };
@@ -116,7 +116,7 @@ static int of_thermal_set_trips(struct thermal_zone_device *tz,
  * This function is a globally visible wrapper to get number of trip points
  * stored in the local struct __thermal_zone
  *
- * Return: number of available trip points, -ENODEV when data not available
+ * Return: number of available trip points, -ENODEV when data yest available
  */
 int of_thermal_get_ntrips(struct thermal_zone_device *tz)
 {
@@ -410,8 +410,8 @@ static struct thermal_zone_device_ops of_thermal_ops = {
 /***   sensor API   ***/
 
 static struct thermal_zone_device *
-thermal_zone_of_add_sensor(struct device_node *zone,
-			   struct device_node *sensor, void *data,
+thermal_zone_of_add_sensor(struct device_yesde *zone,
+			   struct device_yesde *sensor, void *data,
 			   const struct thermal_zone_of_device_ops *ops)
 {
 	struct thermal_zone_device *tzd;
@@ -451,7 +451,7 @@ thermal_zone_of_add_sensor(struct device_node *zone,
 /**
  * thermal_zone_of_sensor_register - registers a sensor to a DT thermal zone
  * @dev: a valid struct device pointer of a sensor device. Must contain
- *       a valid .of_node, for the sensor node.
+ *       a valid .of_yesde, for the sensor yesde.
  * @sensor_id: a sensor identifier, in case the sensor IP has more
  *             than one sensors
  * @data: a private pointer (owned by the caller) that will be passed
@@ -460,8 +460,8 @@ thermal_zone_of_add_sensor(struct device_node *zone,
  *
  * This function will search the list of thermal zones described in device
  * tree and look for the zone that refer to the sensor device pointed by
- * @dev->of_node as temperature providers. For the zone pointing to the
- * sensor node, the sensor will be added to the DT thermal zone device.
+ * @dev->of_yesde as temperature providers. For the zone pointing to the
+ * sensor yesde, the sensor will be added to the DT thermal zone device.
  *
  * The thermal zone temperature is provided by the @get_temp function
  * pointer. When called, it will have the private pointer @data back.
@@ -484,25 +484,25 @@ struct thermal_zone_device *
 thermal_zone_of_sensor_register(struct device *dev, int sensor_id, void *data,
 				const struct thermal_zone_of_device_ops *ops)
 {
-	struct device_node *np, *child, *sensor_np;
+	struct device_yesde *np, *child, *sensor_np;
 	struct thermal_zone_device *tzd = ERR_PTR(-ENODEV);
 
-	np = of_find_node_by_name(NULL, "thermal-zones");
+	np = of_find_yesde_by_name(NULL, "thermal-zones");
 	if (!np)
 		return ERR_PTR(-ENODEV);
 
-	if (!dev || !dev->of_node) {
-		of_node_put(np);
+	if (!dev || !dev->of_yesde) {
+		of_yesde_put(np);
 		return ERR_PTR(-EINVAL);
 	}
 
-	sensor_np = of_node_get(dev->of_node);
+	sensor_np = of_yesde_get(dev->of_yesde);
 
-	for_each_available_child_of_node(np, child) {
+	for_each_available_child_of_yesde(np, child) {
 		struct of_phandle_args sensor_specs;
 		int ret, id;
 
-		/* For now, thermal framework supports only 1 sensor per zone */
+		/* For yesw, thermal framework supports only 1 sensor per zone */
 		ret = of_parse_phandle_with_args(child, "thermal-sensors",
 						 "#thermal-sensor-cells",
 						 0, &sensor_specs);
@@ -524,15 +524,15 @@ thermal_zone_of_sensor_register(struct device *dev, int sensor_id, void *data,
 			if (!IS_ERR(tzd))
 				tzd->ops->set_mode(tzd, THERMAL_DEVICE_ENABLED);
 
-			of_node_put(sensor_specs.np);
-			of_node_put(child);
+			of_yesde_put(sensor_specs.np);
+			of_yesde_put(child);
 			goto exit;
 		}
-		of_node_put(sensor_specs.np);
+		of_yesde_put(sensor_specs.np);
 	}
 exit:
-	of_node_put(sensor_np);
-	of_node_put(np);
+	of_yesde_put(sensor_np);
+	of_yesde_put(np);
 
 	return tzd;
 }
@@ -541,7 +541,7 @@ EXPORT_SYMBOL_GPL(thermal_zone_of_sensor_register);
 /**
  * thermal_zone_of_sensor_unregister - unregisters a sensor from a DT thermal zone
  * @dev: a valid struct device pointer of a sensor device. Must contain
- *       a valid .of_node, for the sensor node.
+ *       a valid .of_yesde, for the sensor yesde.
  * @tzd: a pointer to struct thermal_zone_device where the sensor is registered.
  *
  * This function removes the sensor callbacks and private data from the
@@ -563,7 +563,7 @@ void thermal_zone_of_sensor_unregister(struct device *dev,
 
 	tz = tzd->devdata;
 
-	/* no __thermal_zone, nothing to be done */
+	/* yes __thermal_zone, yesthing to be done */
 	if (!tz)
 		return;
 
@@ -599,7 +599,7 @@ static int devm_thermal_zone_of_sensor_match(struct device *dev, void *res,
  * devm_thermal_zone_of_sensor_register - Resource managed version of
  *				thermal_zone_of_sensor_register()
  * @dev: a valid struct device pointer of a sensor device. Must contain
- *       a valid .of_node, for the sensor node.
+ *       a valid .of_yesde, for the sensor yesde.
  * @sensor_id: a sensor identifier, in case the sensor IP has more
  *	       than one sensors
  * @data: a private pointer (owned by the caller) that will be passed
@@ -648,7 +648,7 @@ EXPORT_SYMBOL_GPL(devm_thermal_zone_of_sensor_register);
  * thermal zone device registered with devm_thermal_zone_of_sensor_register()
  * API. It will also silent the zone by remove the .get_temp() and .get_trend()
  * thermal zone device callbacks.
- * Normally this function will not need to be called and the resource
+ * Normally this function will yest need to be called and the resource
  * management code will ensure that the resource is freed.
  */
 void devm_thermal_zone_of_sensor_unregister(struct device *dev,
@@ -659,30 +659,30 @@ void devm_thermal_zone_of_sensor_unregister(struct device *dev,
 }
 EXPORT_SYMBOL_GPL(devm_thermal_zone_of_sensor_unregister);
 
-/***   functions parsing device tree nodes   ***/
+/***   functions parsing device tree yesdes   ***/
 
 /**
  * thermal_of_populate_bind_params - parse and fill cooling map data
- * @np: DT node containing a cooling-map node
+ * @np: DT yesde containing a cooling-map yesde
  * @__tbp: data structure to be filled with cooling map info
  * @trips: array of thermal zone trip points
  * @ntrips: number of trip points inside trips.
  *
- * This function parses a cooling-map type of node represented by
+ * This function parses a cooling-map type of yesde represented by
  * @np parameter and fills the read data into @__tbp data structure.
  * It needs the already parsed array of trip points of the thermal zone
  * in consideration.
  *
  * Return: 0 on success, proper error code otherwise
  */
-static int thermal_of_populate_bind_params(struct device_node *np,
+static int thermal_of_populate_bind_params(struct device_yesde *np,
 					   struct __thermal_bind_params *__tbp,
 					   struct thermal_trip *trips,
 					   int ntrips)
 {
 	struct of_phandle_args cooling_spec;
 	struct __thermal_cooling_bind_param *__tcbp;
-	struct device_node *trip;
+	struct device_yesde *trip;
 	int ret, i, count;
 	u32 prop;
 
@@ -698,7 +698,7 @@ static int thermal_of_populate_bind_params(struct device_node *np,
 		return -ENODEV;
 	}
 
-	/* match using device_node */
+	/* match using device_yesde */
 	for (i = 0; i < ntrips; i++)
 		if (trip == trips[i].np) {
 			__tbp->trip_id = i;
@@ -746,10 +746,10 @@ static int thermal_of_populate_bind_params(struct device_node *np,
 
 free_tcbp:
 	for (i = i - 1; i >= 0; i--)
-		of_node_put(__tcbp[i].cooling_device);
+		of_yesde_put(__tcbp[i].cooling_device);
 	kfree(__tcbp);
 end:
-	of_node_put(trip);
+	of_yesde_put(trip);
 
 	return ret;
 }
@@ -766,16 +766,16 @@ static const char * const trip_types[] = {
 };
 
 /**
- * thermal_of_get_trip_type - Get phy mode for given device_node
- * @np:	Pointer to the given device_node
+ * thermal_of_get_trip_type - Get phy mode for given device_yesde
+ * @np:	Pointer to the given device_yesde
  * @type: Pointer to resulting trip type
  *
  * The function gets trip type string from property 'type',
  * and store its index in trip_types table in @type,
  *
- * Return: 0 on success, or errno in error case.
+ * Return: 0 on success, or erryes in error case.
  */
-static int thermal_of_get_trip_type(struct device_node *np,
+static int thermal_of_get_trip_type(struct device_yesde *np,
 				    enum thermal_trip_type *type)
 {
 	const char *t;
@@ -796,15 +796,15 @@ static int thermal_of_get_trip_type(struct device_node *np,
 
 /**
  * thermal_of_populate_trip - parse and fill one trip point data
- * @np: DT node containing a trip point node
+ * @np: DT yesde containing a trip point yesde
  * @trip: trip point data structure to be filled up
  *
- * This function parses a trip point type of node represented by
+ * This function parses a trip point type of yesde represented by
  * @np parameter and fills the read data into @trip data structure.
  *
  * Return: 0 on success, proper error code otherwise
  */
-static int thermal_of_populate_trip(struct device_node *np,
+static int thermal_of_populate_trip(struct device_yesde *np,
 				    struct thermal_trip *trip)
 {
 	int prop;
@@ -832,16 +832,16 @@ static int thermal_of_populate_trip(struct device_node *np,
 
 	/* Required for cooling map matching */
 	trip->np = np;
-	of_node_get(np);
+	of_yesde_get(np);
 
 	return 0;
 }
 
 /**
  * thermal_of_build_thermal_zone - parse and fill one thermal zone data
- * @np: DT node containing a thermal zone node
+ * @np: DT yesde containing a thermal zone yesde
  *
- * This function parses a thermal zone type of node represented by
+ * This function parses a thermal zone type of yesde represented by
  * @np parameter and fills the read data into a __thermal_zone data structure
  * and return this pointer.
  *
@@ -852,15 +852,15 @@ static int thermal_of_populate_trip(struct device_node *np,
  * check the return value with help of IS_ERR() helper.
  */
 static struct __thermal_zone
-__init *thermal_of_build_thermal_zone(struct device_node *np)
+__init *thermal_of_build_thermal_zone(struct device_yesde *np)
 {
-	struct device_node *child = NULL, *gchild;
+	struct device_yesde *child = NULL, *gchild;
 	struct __thermal_zone *tz;
 	int ret, i;
 	u32 prop, coef[2];
 
 	if (!np) {
-		pr_err("no thermal zone np\n");
+		pr_err("yes thermal zone np\n");
 		return ERR_PTR(-EINVAL);
 	}
 
@@ -883,7 +883,7 @@ __init *thermal_of_build_thermal_zone(struct device_node *np)
 	tz->polling_delay = prop;
 
 	/*
-	 * REVIST: for now, the thermal framework supports only
+	 * REVIST: for yesw, the thermal framework supports only
 	 * one sensor per thermal zone. Thus, we are considering
 	 * only the first two values as slope and offset.
 	 */
@@ -914,18 +914,18 @@ __init *thermal_of_build_thermal_zone(struct device_node *np)
 	}
 
 	i = 0;
-	for_each_child_of_node(child, gchild) {
+	for_each_child_of_yesde(child, gchild) {
 		ret = thermal_of_populate_trip(gchild, &tz->trips[i++]);
 		if (ret)
 			goto free_trips;
 	}
 
-	of_node_put(child);
+	of_yesde_put(child);
 
 	/* cooling-maps */
 	child = of_get_child_by_name(np, "cooling-maps");
 
-	/* cooling-maps not provided */
+	/* cooling-maps yest provided */
 	if (!child)
 		goto finish;
 
@@ -940,7 +940,7 @@ __init *thermal_of_build_thermal_zone(struct device_node *np)
 	}
 
 	i = 0;
-	for_each_child_of_node(child, gchild) {
+	for_each_child_of_yesde(child, gchild) {
 		ret = thermal_of_populate_bind_params(gchild, &tz->tbps[i++],
 						      tz->trips, tz->ntrips);
 		if (ret)
@@ -948,7 +948,7 @@ __init *thermal_of_build_thermal_zone(struct device_node *np)
 	}
 
 finish:
-	of_node_put(child);
+	of_yesde_put(child);
 	tz->mode = THERMAL_DEVICE_DISABLED;
 
 	return tz;
@@ -959,7 +959,7 @@ free_tbps:
 		int j;
 
 		for (j = 0; j < tbp->count; j++)
-			of_node_put(tbp->tcbp[j].cooling_device);
+			of_yesde_put(tbp->tcbp[j].cooling_device);
 
 		kfree(tbp->tcbp);
 	}
@@ -967,12 +967,12 @@ free_tbps:
 	kfree(tz->tbps);
 free_trips:
 	for (i = 0; i < tz->ntrips; i++)
-		of_node_put(tz->trips[i].np);
+		of_yesde_put(tz->trips[i].np);
 	kfree(tz->trips);
-	of_node_put(gchild);
+	of_yesde_put(gchild);
 free_tz:
 	kfree(tz);
-	of_node_put(child);
+	of_yesde_put(child);
 
 	return ERR_PTR(ret);
 }
@@ -986,14 +986,14 @@ static inline void of_thermal_free_zone(struct __thermal_zone *tz)
 		tbp = tz->tbps + i;
 
 		for (j = 0; j < tbp->count; j++)
-			of_node_put(tbp->tcbp[j].cooling_device);
+			of_yesde_put(tbp->tcbp[j].cooling_device);
 
 		kfree(tbp->tcbp);
 	}
 
 	kfree(tz->tbps);
 	for (i = 0; i < tz->ntrips; i++)
-		of_node_put(tz->trips[i].np);
+		of_yesde_put(tz->trips[i].np);
 	kfree(tz->trips);
 	kfree(tz);
 }
@@ -1004,7 +1004,7 @@ static inline void of_thermal_free_zone(struct __thermal_zone *tz)
  * Initialization function that can be called by machine initialization
  * code to parse thermal data and populate the thermal framework
  * with hardware thermal zones info. This function only parses thermal zones.
- * Cooling devices and sensor devices nodes are supposed to be parsed
+ * Cooling devices and sensor devices yesdes are supposed to be parsed
  * by their respective drivers.
  *
  * Return: 0 on success, proper error code otherwise
@@ -1012,17 +1012,17 @@ static inline void of_thermal_free_zone(struct __thermal_zone *tz)
  */
 int __init of_parse_thermal_zones(void)
 {
-	struct device_node *np, *child;
+	struct device_yesde *np, *child;
 	struct __thermal_zone *tz;
 	struct thermal_zone_device_ops *ops;
 
-	np = of_find_node_by_name(NULL, "thermal-zones");
+	np = of_find_yesde_by_name(NULL, "thermal-zones");
 	if (!np) {
 		pr_debug("unable to find thermal zones\n");
 		return 0; /* Run successfully on systems without thermal DT */
 	}
 
-	for_each_available_child_of_node(np, child) {
+	for_each_available_child_of_yesde(np, child) {
 		struct thermal_zone_device *zone;
 		struct thermal_zone_params *tzp;
 		int i, mask = 0;
@@ -1047,7 +1047,7 @@ int __init of_parse_thermal_zones(void)
 		}
 
 		/* No hwmon because there might be hwmon drivers registering */
-		tzp->no_hwmon = true;
+		tzp->yes_hwmon = true;
 
 		if (!of_property_read_u32(child, "sustainable-power", &prop))
 			tzp->sustainable_power = prop;
@@ -1073,16 +1073,16 @@ int __init of_parse_thermal_zones(void)
 			/* attempting to build remaining zones still */
 		}
 	}
-	of_node_put(np);
+	of_yesde_put(np);
 
 	return 0;
 
 exit_free:
-	of_node_put(child);
-	of_node_put(np);
+	of_yesde_put(child);
+	of_yesde_put(np);
 	of_thermal_free_zone(tz);
 
-	/* no memory available, so free what we have built */
+	/* yes memory available, so free what we have built */
 	of_thermal_destroy_zones();
 
 	return -ENOMEM;
@@ -1097,15 +1097,15 @@ exit_free:
  */
 void of_thermal_destroy_zones(void)
 {
-	struct device_node *np, *child;
+	struct device_yesde *np, *child;
 
-	np = of_find_node_by_name(NULL, "thermal-zones");
+	np = of_find_yesde_by_name(NULL, "thermal-zones");
 	if (!np) {
 		pr_debug("unable to find thermal zones\n");
 		return;
 	}
 
-	for_each_available_child_of_node(np, child) {
+	for_each_available_child_of_yesde(np, child) {
 		struct thermal_zone_device *zone;
 
 		zone = thermal_zone_get_zone_by_name(child->name);
@@ -1117,5 +1117,5 @@ void of_thermal_destroy_zones(void)
 		kfree(zone->ops);
 		of_thermal_free_zone(zone->devdata);
 	}
-	of_node_put(np);
+	of_yesde_put(np);
 }

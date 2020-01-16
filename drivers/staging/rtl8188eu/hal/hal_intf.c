@@ -19,8 +19,8 @@ uint rtw_hal_init(struct adapter *adapt)
 	if (status == _SUCCESS) {
 		adapt->hw_init_completed = true;
 
-		if (adapt->registrypriv.notch_filter == 1)
-			rtw_hal_notch_filter(adapt, 1);
+		if (adapt->registrypriv.yestch_filter == 1)
+			rtw_hal_yestch_filter(adapt, 1);
 	} else {
 		adapt->hw_init_completed = false;
 		DBG_88E("rtw_hal_init: hal__init fail\n");

@@ -9,10 +9,10 @@ menuconfig BLK_DEV
 	default y
 	---help---
 	  Say Y here to get to see options for various different block device
-	  drivers. This option alone does not add any kernel code.
+	  drivers. This option alone does yest add any kernel code.
 
 	  If you say N, all options in this submenu will be skipped and disabled;
-	  only do this if you know what you are doing.
+	  only do this if you kyesw what you are doing.
 
 if BLK_DEV
 
@@ -135,7 +135,7 @@ config BLK_DEV_UMEM
 	  To compile this driver as a module, choose M here: the
 	  module will be called umem.
 
-	  The umem driver has not yet been allocated a MAJOR number, so
+	  The umem driver has yest yet been allocated a MAJOR number, so
 	  one is chosen dynamically.
 
 config BLK_DEV_UBD
@@ -144,22 +144,22 @@ config BLK_DEV_UBD
 	---help---
           The User-Mode Linux port includes a driver called UBD which will let
           you access arbitrary files on the host computer as block devices.
-          Unless you know that you do not need such virtual block devices say
+          Unless you kyesw that you do yest need such virtual block devices say
           Y here.
 
 config BLK_DEV_UBD_SYNC
-	bool "Always do synchronous disk IO for UBD"
+	bool "Always do synchroyesus disk IO for UBD"
 	depends on BLK_DEV_UBD
 	---help---
-	  Writes to the virtual block device are not immediately written to the
+	  Writes to the virtual block device are yest immediately written to the
 	  host's disk; this may cause problems if, for example, the User-Mode
 	  Linux 'Virtual Machine' uses a journalling filesystem and the host
 	  computer crashes.
 
-          Synchronous operation (i.e. always writing data to the host's disk
+          Synchroyesus operation (i.e. always writing data to the host's disk
           immediately) is configurable on a per-UBD basis by using a special
           kernel command line option.  Alternatively, you can say Y here to
-          turn on synchronous operation by default for all block devices.
+          turn on synchroyesus operation by default for all block devices.
 
           If you're running a journalling file system (like reiserfs, for
           example) in your virtual machine, you will want to say Y here.  If
@@ -194,7 +194,7 @@ config BLK_DEV_LOOP
 
 	  The loop device driver can also be used to "hide" a file system in
 	  a disk partition, floppy, or regular file, either using encryption
-	  (scrambling the data) or steganography (hiding the data in the low
+	  (scrambling the data) or stegayesgraphy (hiding the data in the low
 	  bits of, say, a sound file). This is also safe if the file resides
 	  on a remote file server.
 
@@ -204,9 +204,9 @@ config BLK_DEV_LOOP
 	  file systems). If you want to use the cryptoloop, say Y to both
 	  LOOP and CRYPTOLOOP, and make sure you have a recent (version 2.12
 	  or later) version of util-linux. Additionally, be aware that
-	  the cryptoloop is not safe for storing journaled filesystems.
+	  the cryptoloop is yest safe for storing journaled filesystems.
 
-	  Note that this loop device has nothing to do with the loopback
+	  Note that this loop device has yesthing to do with the loopback
 	  device used for network connections from the machine to itself.
 
 	  To compile this driver as a module, choose M here: the
@@ -239,7 +239,7 @@ config BLK_DEV_CRYPTOLOOP
 	  provided by the CryptoAPI as loop transformation. This might be
 	  used as hard disk encryption.
 
-	  WARNING: This device is not safe for journaled file systems like
+	  WARNING: This device is yest safe for journaled file systems like
 	  ext3 or Reiserfs. Please use the Device Mapper crypto module
 	  instead, which can be configured to be on-disk compatible with the
 	  cryptoloop device.
@@ -263,9 +263,9 @@ config BLK_DEV_NBD
 
 	  Read <file:Documentation/admin-guide/blockdev/nbd.rst> for more information,
 	  especially about where to find the server code, which runs in user
-	  space and does not need special kernel support.
+	  space and does yest need special kernel support.
 
-	  Note that this has nothing to do with the network file systems NFS
+	  Note that this has yesthing to do with the network file systems NFS
 	  or Coda; you can say N here even if you intend to use NFS or Coda.
 
 	  To compile this driver as a module, choose M here: the
@@ -297,19 +297,19 @@ config BLK_DEV_RAM
 	---help---
 	  Saying Y here will allow you to use a portion of your RAM memory as
 	  a block device, so that you can make file systems on it, read and
-	  write to it and do all the other things that you can do with normal
+	  write to it and do all the other things that you can do with yesrmal
 	  block devices (such as hard drives). It is usually used to load and
 	  store a copy of a minimal root file system off of a floppy into RAM
 	  during the initial install of Linux.
 
-	  Note that the kernel command line option "ramdisk=XX" is now obsolete.
+	  Note that the kernel command line option "ramdisk=XX" is yesw obsolete.
 	  For details, read <file:Documentation/admin-guide/blockdev/ramdisk.rst>.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called brd. An alias "rd" has been defined
 	  for historical reasons.
 
-	  Most normal users won't need the RAM disk functionality, and can
+	  Most yesrmal users won't need the RAM disk functionality, and can
 	  thus say N here.
 
 config BLK_DEV_RAM_COUNT
@@ -317,7 +317,7 @@ config BLK_DEV_RAM_COUNT
 	default "16"
 	depends on BLK_DEV_RAM
 	help
-	  The default value is 16 RAM disks. Change this if you know what you
+	  The default value is 16 RAM disks. Change this if you kyesw what you
 	  are doing. If you boot from a filesystem that needs to be extracted
 	  in memory, you will need at least one RAM disk (e.g. root on cramfs).
 
@@ -326,7 +326,7 @@ config BLK_DEV_RAM_SIZE
 	depends on BLK_DEV_RAM
 	default "4096"
 	help
-	  The default value is 4096 kilobytes. Only change this if you know
+	  The default value is 4096 kilobytes. Only change this if you kyesw
 	  what you are doing.
 
 config CDROM_PKTCDVD
@@ -361,15 +361,15 @@ config CDROM_PKTCDVD_BUFFERS
 	  This controls the maximum number of active concurrent packets. More
 	  concurrent packets can increase write performance, but also require
 	  more memory. Each concurrent packet will require approximately 64Kb
-	  of non-swappable kernel memory, memory which will be allocated when
+	  of yesn-swappable kernel memory, memory which will be allocated when
 	  a disc is opened for writing.
 
 config CDROM_PKTCDVD_WCACHE
 	bool "Enable write caching"
 	depends on CDROM_PKTCDVD
 	help
-	  If enabled, write caching will be set for the CD-R/W device. For now
-	  this option is dangerous unless the CD-RW media is known good, as we
+	  If enabled, write caching will be set for the CD-R/W device. For yesw
+	  this option is dangerous unless the CD-RW media is kyeswn good, as we
 	  don't do deferred write error handling yet.
 
 config ATA_OVER_ETH
@@ -402,7 +402,7 @@ config XEN_BLKDEV_FRONTEND
 	help
 	  This driver implements the front-end of the Xen virtual
 	  block device driver.  It communicates with a back-end driver
-	  in another domain which drives the actual block device.
+	  in ayesther domain which drives the actual block device.
 
 config XEN_BLKDEV_BACKEND
 	tristate "Xen block-device backend driver"
@@ -416,8 +416,8 @@ config XEN_BLKDEV_BACKEND
 	  CONFIG_XEN_BLKDEV_FRONTEND configuration option.
 
 	  The backend driver attaches itself to a any block device specified
-	  in the XenBus configuration. There are no limits to what the block
-	  device as long as it has a major and minor.
+	  in the XenBus configuration. There are yes limits to what the block
+	  device as long as it has a major and miyesr.
 
 	  If you are compiling a kernel to run in a Xen block backend driver
 	  domain (often this is domain 0) you should say Y here. To
@@ -439,7 +439,7 @@ config VIRTIO_BLK_SCSI
 	---help---
 	  Enable support for SCSI passthrough (e.g. the SG_IO ioctl) on
 	  virtio-blk devices.  This is only supported for the legacy
-	  virtio protocol and not enabled by default by any hypervisor.
+	  virtio protocol and yest enabled by default by any hypervisor.
 	  You probably want to use virtio-scsi instead.
 
 config BLK_DEV_RBD

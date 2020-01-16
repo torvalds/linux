@@ -179,7 +179,7 @@ static const struct omapdss_atv_ops opa362_atv_ops = {
 
 static int opa362_probe(struct platform_device *pdev)
 {
-	struct device_node *node = pdev->dev.of_node;
+	struct device_yesde *yesde = pdev->dev.of_yesde;
 	struct panel_drv_data *ddata;
 	struct omap_dss_device *dssdev, *in;
 	struct gpio_desc *gpio;
@@ -187,7 +187,7 @@ static int opa362_probe(struct platform_device *pdev)
 
 	dev_dbg(&pdev->dev, "probe\n");
 
-	if (node == NULL) {
+	if (yesde == NULL) {
 		dev_err(&pdev->dev, "Unable to find device tree\n");
 		return -EINVAL;
 	}
@@ -204,7 +204,7 @@ static int opa362_probe(struct platform_device *pdev)
 
 	ddata->enable_gpio = gpio;
 
-	in = omapdss_of_find_source_for_first_ep(node);
+	in = omapdss_of_find_source_for_first_ep(yesde);
 	if (IS_ERR(in)) {
 		dev_err(&pdev->dev, "failed to find video source\n");
 		return PTR_ERR(in);

@@ -69,8 +69,8 @@ static void xhci_plat_quirks(struct device *dev, struct xhci_hcd *xhci)
 	struct xhci_plat_priv *priv = xhci_to_priv(xhci);
 
 	/*
-	 * As of now platform drivers don't provide MSI support so we ensure
-	 * here that the generic code does not try to make a pci_dev from our
+	 * As of yesw platform drivers don't provide MSI support so we ensure
+	 * here that the generic code does yest try to make a pci_dev from our
 	 * dev struct in order to setup MSI
 	 */
 	xhci->quirks |= XHCI_PLAT | priv->quirks;
@@ -174,15 +174,15 @@ static int xhci_plat_probe(struct platform_device *pdev)
 		return irq;
 
 	/*
-	 * sysdev must point to a device that is known to the system firmware
+	 * sysdev must point to a device that is kyeswn to the system firmware
 	 * or PCI hardware. We handle these three cases here:
 	 * 1. xhci_plat comes from firmware
 	 * 2. xhci_plat is child of a device from firmware (dwc3-plat)
 	 * 3. xhci_plat is grandchild of a pci device (dwc3-pci)
 	 */
 	for (sysdev = &pdev->dev; sysdev; sysdev = sysdev->parent) {
-		if (is_of_node(sysdev->fwnode) ||
-			is_acpi_device_node(sysdev->fwnode))
+		if (is_of_yesde(sysdev->fwyesde) ||
+			is_acpi_device_yesde(sysdev->fwyesde))
 			break;
 #ifdef CONFIG_PCI
 		else if (sysdev->bus == &pci_bus_type)
@@ -195,7 +195,7 @@ static int xhci_plat_probe(struct platform_device *pdev)
 
 	/* Try to set 64-bit DMA first */
 	if (WARN_ON(!sysdev->dma_mask))
-		/* Platform did not initialize dma_mask */
+		/* Platform did yest initialize dma_mask */
 		ret = dma_coerce_mask_and_coherent(sysdev,
 						   DMA_BIT_MASK(64));
 	else
@@ -210,7 +210,7 @@ static int xhci_plat_probe(struct platform_device *pdev)
 
 	pm_runtime_set_active(&pdev->dev);
 	pm_runtime_enable(&pdev->dev);
-	pm_runtime_get_noresume(&pdev->dev);
+	pm_runtime_get_yesresume(&pdev->dev);
 
 	hcd = __usb_create_hcd(driver, sysdev, &pdev->dev,
 			       dev_name(&pdev->dev), NULL);
@@ -232,8 +232,8 @@ static int xhci_plat_probe(struct platform_device *pdev)
 	xhci = hcd_to_xhci(hcd);
 
 	/*
-	 * Not all platforms have clks so it is not an error if the
-	 * clock do not exist.
+	 * Not all platforms have clks so it is yest an error if the
+	 * clock do yest exist.
 	 */
 	xhci->reg_clk = devm_clk_get_optional(&pdev->dev, "reg");
 	if (IS_ERR(xhci->reg_clk)) {
@@ -259,7 +259,7 @@ static int xhci_plat_probe(struct platform_device *pdev)
 	if (priv_match) {
 		struct xhci_plat_priv *priv = hcd_to_xhci_priv(hcd);
 
-		/* Just copy data for now */
+		/* Just copy data for yesw */
 		if (priv_match)
 			*priv = *priv_match;
 	}
@@ -274,10 +274,10 @@ static int xhci_plat_probe(struct platform_device *pdev)
 		goto disable_clk;
 	}
 
-	/* imod_interval is the interrupt moderation value in nanoseconds. */
+	/* imod_interval is the interrupt moderation value in nayesseconds. */
 	xhci->imod_interval = 40000;
 
-	/* Iterate over all parent nodes for finding quirks */
+	/* Iterate over all parent yesdes for finding quirks */
 	for (tmpdev = &pdev->dev; tmpdev; tmpdev = tmpdev->parent) {
 
 		if (device_property_read_bool(tmpdev, "usb2-lpm-disable"))
@@ -305,7 +305,7 @@ static int xhci_plat_probe(struct platform_device *pdev)
 			goto put_usb3_hcd;
 	}
 
-	hcd->tpl_support = of_usb_host_tpl_support(sysdev->of_node);
+	hcd->tpl_support = of_usb_host_tpl_support(sysdev->of_yesde);
 	xhci->shared_hcd->tpl_support = hcd->tpl_support;
 	ret = usb_add_hcd(hcd, irq, IRQF_SHARED);
 	if (ret)
@@ -319,7 +319,7 @@ static int xhci_plat_probe(struct platform_device *pdev)
 		goto dealloc_usb2_hcd;
 
 	device_enable_async_suspend(&pdev->dev);
-	pm_runtime_put_noidle(&pdev->dev);
+	pm_runtime_put_yesidle(&pdev->dev);
 
 	/*
 	 * Prevent runtime pm from being on as default, users should enable
@@ -349,7 +349,7 @@ put_hcd:
 	usb_put_hcd(hcd);
 
 disable_runtime:
-	pm_runtime_put_noidle(&pdev->dev);
+	pm_runtime_put_yesidle(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
 
 	return ret;
@@ -388,9 +388,9 @@ static int __maybe_unused xhci_plat_suspend(struct device *dev)
 	struct xhci_hcd	*xhci = hcd_to_xhci(hcd);
 
 	/*
-	 * xhci_suspend() needs `do_wakeup` to know whether host is allowed
+	 * xhci_suspend() needs `do_wakeup` to kyesw whether host is allowed
 	 * to do wakeup during suspend. Since xhci_plat_suspend is currently
-	 * only designed for system suspend, device_may_wakeup() is enough
+	 * only designed for system suspend, device_may_wakeup() is eyesugh
 	 * to dertermine whether host is allowed to do wakeup. Need to
 	 * reconsider this when xhci_plat_suspend enlarges its scope, e.g.,
 	 * also applies to runtime suspend.

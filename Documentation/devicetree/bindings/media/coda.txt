@@ -17,7 +17,7 @@ Required properties:
 - clocks : Should contain the ahb and per clocks, in the order
   determined by the clock-names property.
 - clock-names : Should be "ahb", "per"
-- iram : phandle pointing to the SRAM device node
+- iram : phandle pointing to the SRAM device yesde
 
 Example:
 

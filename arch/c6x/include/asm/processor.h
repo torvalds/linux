@@ -23,7 +23,7 @@
  *
  *       addr = do_mmap(...)
  *       if ((unsigned long)addr >= TASK_SIZE)
- *            ... its an error code, not an address ...
+ *            ... its an error code, yest an address ...
  *
  * Here, we allow for 4096 error codes which means we really can't
  * use the last 4K page on systems with RAM extending all the way

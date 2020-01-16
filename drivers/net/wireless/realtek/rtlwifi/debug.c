@@ -79,9 +79,9 @@ static int rtl_debug_get_common(struct seq_file *m, void *v)
 	return debugfs_priv->cb_read(m, v);
 }
 
-static int dl_debug_open_common(struct inode *inode, struct file *file)
+static int dl_debug_open_common(struct iyesde *iyesde, struct file *file)
 {
-	return single_open(file, rtl_debug_get_common, inode->i_private);
+	return single_open(file, rtl_debug_get_common, iyesde->i_private);
 }
 
 static const struct file_operations file_ops_common = {
@@ -418,7 +418,7 @@ static struct rtl_debugfs_priv rtl_debug_priv_write_rfreg = {
 	.cb_write = rtl_debugfs_set_write_rfreg,
 };
 
-static int rtl_debugfs_close(struct inode *inode, struct file *filp)
+static int rtl_debugfs_close(struct iyesde *iyesde, struct file *filp)
 {
 	return 0;
 }

@@ -192,7 +192,7 @@ static inline unsigned int crypto_skcipher_alg_walksize(
  *
  * In some cases, algorithms can only perform optimally when operating on
  * multiple blocks in parallel. This is reflected by the walksize, which
- * must be a multiple of the chunksize (or equal if the concern does not
+ * must be a multiple of the chunksize (or equal if the concern does yest
  * apply)
  *
  * Return: walk size in bytes

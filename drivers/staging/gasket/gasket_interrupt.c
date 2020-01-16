@@ -82,7 +82,7 @@ static void gasket_interrupt_setup(struct gasket_dev *gasket_dev)
 		gasket_dev->interrupt_data;
 
 	if (!interrupt_data) {
-		dev_dbg(gasket_dev->dev, "Interrupt data is not initialized\n");
+		dev_dbg(gasket_dev->dev, "Interrupt data is yest initialized\n");
 		return;
 	}
 
@@ -92,8 +92,8 @@ static void gasket_interrupt_setup(struct gasket_dev *gasket_dev)
 
 	for (i = 0; i < interrupt_data->num_interrupts; i++) {
 		/*
-		 * If the interrupt is not packed, we can write the index into
-		 * the register directly. If not, we need to deal with a read-
+		 * If the interrupt is yest packed, we can write the index into
+		 * the register directly. If yest, we need to deal with a read-
 		 * modify-write and shift based on the packing index.
 		 */
 		dev_dbg(gasket_dev->dev,
@@ -119,7 +119,7 @@ static void gasket_interrupt_setup(struct gasket_dev *gasket_dev)
 				break;
 			default:
 				dev_dbg(gasket_dev->dev,
-					"Found interrupt description with unknown enum %d\n",
+					"Found interrupt description with unkyeswn enum %d\n",
 					interrupt_data->interrupts[i].packing);
 				return;
 			}
@@ -166,7 +166,7 @@ static irqreturn_t gasket_msix_interrupt_handler(int irq, void *dev_id)
 		}
 	}
 	if (interrupt == -1) {
-		pr_err("Received unknown irq %d\n", irq);
+		pr_err("Received unkyeswn irq %d\n", irq);
 		return IRQ_HANDLED;
 	}
 	gasket_handle_interrupt(interrupt_data, interrupt);
@@ -191,7 +191,7 @@ gasket_interrupt_msix_init(struct gasket_interrupt_data *interrupt_data)
 		interrupt_data->eventfd_ctxs[i] = NULL;
 	}
 
-	/* Retry MSIX_RETRY_COUNT times if not enough IRQs are available. */
+	/* Retry MSIX_RETRY_COUNT times if yest eyesugh IRQs are available. */
 	for (i = 0; i < MSIX_RETRY_COUNT && ret > 0; i++)
 		ret = pci_enable_msix_exact(interrupt_data->pci_dev,
 					    interrupt_data->msix_entries,
@@ -208,7 +208,7 @@ gasket_interrupt_msix_init(struct gasket_interrupt_data *interrupt_data)
 
 		if (ret) {
 			dev_err(&interrupt_data->pci_dev->dev,
-				"Cannot get IRQ for interrupt %d, vector %d; "
+				"Canyest get IRQ for interrupt %d, vector %d; "
 				"%d\n",
 				i, interrupt_data->msix_entries[i].vector, ret);
 			return ret;
@@ -222,8 +222,8 @@ gasket_interrupt_msix_init(struct gasket_interrupt_data *interrupt_data)
 
 /*
  * On QCM DragonBoard, we exit gasket_interrupt_msix_init() and kernel interrupt
- * setup code with MSIX vectors masked. This is wrong because nothing else in
- * the driver will normally touch the MSIX vectors.
+ * setup code with MSIX vectors masked. This is wrong because yesthing else in
+ * the driver will yesrmally touch the MSIX vectors.
  *
  * As a temporary hack, force unmasking there.
  *
@@ -295,7 +295,7 @@ static ssize_t interrupt_sysfs_show(struct device *device,
 		ret = total_written;
 		break;
 	default:
-		dev_dbg(gasket_dev->dev, "Unknown attribute: %s\n",
+		dev_dbg(gasket_dev->dev, "Unkyeswn attribute: %s\n",
 			attr->attr.name);
 		ret = 0;
 		break;
@@ -363,7 +363,7 @@ int gasket_interrupt_init(struct gasket_dev *gasket_dev)
 
 	if (ret) {
 		/* Failing to setup interrupts will cause the device to report
-		 * GASKET_STATUS_LAMED. But it is not fatal.
+		 * GASKET_STATUS_LAMED. But it is yest fatal.
 		 */
 		dev_warn(gasket_dev->dev,
 			 "Couldn't initialize interrupts: %d\n", ret);
@@ -418,7 +418,7 @@ int gasket_interrupt_reinit(struct gasket_dev *gasket_dev)
 
 	if (ret) {
 		/* Failing to setup interrupts will cause the device
-		 * to report GASKET_STATUS_LAMED, but is not fatal.
+		 * to report GASKET_STATUS_LAMED, but is yest fatal.
 		 */
 		dev_warn(gasket_dev->dev, "Couldn't reinit interrupts: %d\n",
 			 ret);

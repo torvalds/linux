@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * nosy - Snoop mode driver for TI PCILynx 1394 controllers
+ * yessy - Syesop mode driver for TI PCILynx 1394 controllers
  * Copyright (C) 2002-2007 Kristian Høgsberg
  */
 
 #include <linux/device.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/fs.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
@@ -28,8 +28,8 @@
 #include <linux/atomic.h>
 #include <asm/byteorder.h>
 
-#include "nosy.h"
-#include "nosy-user.h"
+#include "yessy.h"
+#include "yessy-user.h"
 
 #define TCODE_PHY_PACKET		0x10
 #define PCI_DEVICE_ID_TI_PCILYNX	0x8000
@@ -261,15 +261,15 @@ set_phy_reg(struct pcilynx *lynx, int addr, int val)
 }
 
 static int
-nosy_open(struct inode *inode, struct file *file)
+yessy_open(struct iyesde *iyesde, struct file *file)
 {
-	int minor = iminor(inode);
+	int miyesr = imiyesr(iyesde);
 	struct client *client;
 	struct pcilynx *tmp, *lynx = NULL;
 
 	mutex_lock(&card_mutex);
 	list_for_each_entry(tmp, &card_list, link)
-		if (tmp->misc.minor == minor) {
+		if (tmp->misc.miyesr == miyesr) {
 			lynx = lynx_get(tmp);
 			break;
 		}
@@ -290,7 +290,7 @@ nosy_open(struct inode *inode, struct file *file)
 
 	file->private_data = client;
 
-	return stream_open(inode, file);
+	return stream_open(iyesde, file);
 fail:
 	kfree(client);
 	lynx_put(lynx);
@@ -299,7 +299,7 @@ fail:
 }
 
 static int
-nosy_release(struct inode *inode, struct file *file)
+yessy_release(struct iyesde *iyesde, struct file *file)
 {
 	struct client *client = file->private_data;
 	struct pcilynx *lynx = client->lynx;
@@ -316,7 +316,7 @@ nosy_release(struct inode *inode, struct file *file)
 }
 
 static __poll_t
-nosy_poll(struct file *file, poll_table *pt)
+yessy_poll(struct file *file, poll_table *pt)
 {
 	struct client *client = file->private_data;
 	__poll_t ret = 0;
@@ -333,7 +333,7 @@ nosy_poll(struct file *file, poll_table *pt)
 }
 
 static ssize_t
-nosy_read(struct file *file, char __user *buffer, size_t count, loff_t *offset)
+yessy_read(struct file *file, char __user *buffer, size_t count, loff_t *offset)
 {
 	struct client *client = file->private_data;
 
@@ -341,11 +341,11 @@ nosy_read(struct file *file, char __user *buffer, size_t count, loff_t *offset)
 }
 
 static long
-nosy_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
+yessy_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	struct client *client = file->private_data;
 	spinlock_t *client_list_lock = &client->lynx->client_list_lock;
-	struct nosy_stats stats;
+	struct yessy_stats stats;
 
 	switch (cmd) {
 	case NOSY_IOC_GET_STATS:
@@ -386,13 +386,13 @@ nosy_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	}
 }
 
-static const struct file_operations nosy_ops = {
+static const struct file_operations yessy_ops = {
 	.owner =		THIS_MODULE,
-	.read =			nosy_read,
-	.unlocked_ioctl =	nosy_ioctl,
-	.poll =			nosy_poll,
-	.open =			nosy_open,
-	.release =		nosy_release,
+	.read =			yessy_read,
+	.unlocked_ioctl =	yessy_ioctl,
+	.poll =			yessy_poll,
+	.open =			yessy_open,
+	.release =		yessy_release,
 };
 
 #define PHY_PACKET_SIZE 12 /* 1 payload, 1 inverse, 1 ack = 3 quadlets */
@@ -529,7 +529,7 @@ add_card(struct pci_dev *dev, const struct pci_device_id *unused)
 
 	if (pci_set_dma_mask(dev, DMA_BIT_MASK(32))) {
 		dev_err(&dev->dev,
-		    "DMA address limits not supported for PCILynx hardware\n");
+		    "DMA address limits yest supported for PCILynx hardware\n");
 		return -ENXIO;
 	}
 	if (pci_enable_device(dev)) {
@@ -551,7 +551,7 @@ add_card(struct pci_dev *dev, const struct pci_device_id *unused)
 	INIT_LIST_HEAD(&lynx->client_list);
 	kref_init(&lynx->kref);
 
-	lynx->registers = ioremap_nocache(pci_resource_start(dev, 0),
+	lynx->registers = ioremap_yescache(pci_resource_start(dev, 0),
 					  PCILYNX_MAX_REGISTER);
 	if (lynx->registers == NULL) {
 		dev_err(&dev->dev, "Failed to map registers\n");
@@ -590,12 +590,12 @@ add_card(struct pci_dev *dev, const struct pci_device_id *unused)
 	lynx->rcv_pcl->buffer[i - 1].control |= cpu_to_le32(PCL_LAST_BUFF);
 
 	reg_set_bits(lynx, MISC_CONTROL, MISC_CONTROL_SWRESET);
-	/* Fix buggy cards with autoboot pin not tied low: */
+	/* Fix buggy cards with autoboot pin yest tied low: */
 	reg_write(lynx, DMA0_CHAN_CTRL, 0);
 	reg_write(lynx, DMA_GLOBAL_REGISTER, 0x00 << 24);
 
 #if 0
-	/* now, looking for PHY register set */
+	/* yesw, looking for PHY register set */
 	if ((get_phy_reg(lynx, 2) & 0xe0) == 0xe0) {
 		lynx->phyic.reg_1394a = 1;
 		PRINT(KERN_INFO, lynx->id,
@@ -623,7 +623,7 @@ add_card(struct pci_dev *dev, const struct pci_device_id *unused)
 	/* Disable the L flag in self ID packets. */
 	set_phy_reg(lynx, 4, 0);
 
-	/* Put this baby into snoop mode */
+	/* Put this baby into syesop mode */
 	reg_set_bits(lynx, LINK_CONTROL, LINK_CONTROL_SNOOP_ENABLE);
 
 	run_pcl(lynx, lynx->rcv_start_pcl_bus, 0);
@@ -637,9 +637,9 @@ add_card(struct pci_dev *dev, const struct pci_device_id *unused)
 	}
 
 	lynx->misc.parent = &dev->dev;
-	lynx->misc.minor = MISC_DYNAMIC_MINOR;
-	lynx->misc.name = "nosy";
-	lynx->misc.fops = &nosy_ops;
+	lynx->misc.miyesr = MISC_DYNAMIC_MINOR;
+	lynx->misc.name = "yessy";
+	lynx->misc.fops = &yessy_ops;
 
 	mutex_lock(&card_mutex);
 	ret = misc_register(&lynx->misc);
@@ -703,5 +703,5 @@ static struct pci_driver lynx_pci_driver = {
 module_pci_driver(lynx_pci_driver);
 
 MODULE_AUTHOR("Kristian Hoegsberg");
-MODULE_DESCRIPTION("Snoop mode driver for TI pcilynx 1394 controllers");
+MODULE_DESCRIPTION("Syesop mode driver for TI pcilynx 1394 controllers");
 MODULE_LICENSE("GPL");

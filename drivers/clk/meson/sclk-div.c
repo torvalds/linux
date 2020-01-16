@@ -52,7 +52,7 @@ static int sclk_div_bestdiv(struct clk_hw *hw, unsigned long rate,
 {
 	struct clk_hw *parent = clk_hw_get_parent(hw);
 	int bestdiv = 0, i;
-	unsigned long maxdiv, now, parent_now;
+	unsigned long maxdiv, yesw, parent_yesw;
 	unsigned long best = 0, best_parent = 0;
 
 	if (!rate)
@@ -78,13 +78,13 @@ static int sclk_div_bestdiv(struct clk_hw *hw, unsigned long rate,
 		if (rate * i == *prate)
 			return i;
 
-		parent_now = clk_hw_round_rate(parent, rate * i);
-		now = DIV_ROUND_UP_ULL((u64)parent_now, i);
+		parent_yesw = clk_hw_round_rate(parent, rate * i);
+		yesw = DIV_ROUND_UP_ULL((u64)parent_yesw, i);
 
-		if (abs(rate - now) < abs(rate - best)) {
+		if (abs(rate - yesw) < abs(rate - best)) {
 			bestdiv = i;
-			best = now;
-			best_parent = parent_now;
+			best = yesw;
+			best_parent = parent_yesw;
 		}
 	}
 

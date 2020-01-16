@@ -195,7 +195,7 @@ armpmu_stop(struct perf_event *event, int flags)
 	struct hw_perf_event *hwc = &event->hw;
 
 	/*
-	 * ARM pmu always has to update the counter, so ignore
+	 * ARM pmu always has to update the counter, so igyesre
 	 * PERF_EF_UPDATE, see comments in armpmu_start().
 	 */
 	if (!(hwc->state & PERF_HES_STOPPED)) {
@@ -211,7 +211,7 @@ static void armpmu_start(struct perf_event *event, int flags)
 	struct hw_perf_event *hwc = &event->hw;
 
 	/*
-	 * ARM pmu always has to reprogram the period, so ignore
+	 * ARM pmu always has to reprogram the period, so igyesre
 	 * PERF_EF_RELOAD, see the comment below.
 	 */
 	if (flags & PERF_EF_RELOAD)
@@ -368,7 +368,7 @@ __hw_perf_event_init(struct perf_event *event)
 	mapping = armpmu->map_event(event);
 
 	if (mapping < 0) {
-		pr_debug("event %x:%llx not supported\n", event->attr.type,
+		pr_debug("event %x:%llx yest supported\n", event->attr.type,
 			 event->attr.config);
 		return mapping;
 	}
@@ -389,7 +389,7 @@ __hw_perf_event_init(struct perf_event *event)
 	 */
 	if (armpmu->set_event_filter &&
 	    armpmu->set_event_filter(hwc, &event->attr)) {
-		pr_debug("ARM performance counters do not support "
+		pr_debug("ARM performance counters do yest support "
 			 "mode exclusion\n");
 		return -EOPNOTSUPP;
 	}
@@ -401,7 +401,7 @@ __hw_perf_event_init(struct perf_event *event)
 
 	if (!is_sampling_event(event)) {
 		/*
-		 * For non-sampling runs, limit the sample_period to half
+		 * For yesn-sampling runs, limit the sample_period to half
 		 * of the counter width. That way, the new counter value
 		 * is far less likely to overtake the previous one unless
 		 * you have some serious IRQ latency issues.
@@ -434,7 +434,7 @@ static int armpmu_event_init(struct perf_event *event)
 		!cpumask_test_cpu(event->cpu, &armpmu->supported_cpus))
 		return -ENOENT;
 
-	/* does not support taken branch sampling */
+	/* does yest support taken branch sampling */
 	if (has_branch_stack(event))
 		return -EOPNOTSUPP;
 
@@ -471,7 +471,7 @@ static void armpmu_disable(struct pmu *pmu)
 
 /*
  * In heterogeneous systems, events are specific to a particular
- * microarchitecture, and aren't suitable for another. Thus, only match CPUs of
+ * microarchitecture, and aren't suitable for ayesther. Thus, only match CPUs of
  * the same microarchitecture.
  */
 static int armpmu_filter_match(struct perf_event *event)
@@ -505,7 +505,7 @@ static struct attribute_group armpmu_common_attr_group = {
 	.attrs = armpmu_common_attrs,
 };
 
-/* Set at runtime when we know what CPU type we are. */
+/* Set at runtime when we kyesw what CPU type we are. */
 static struct arm_pmu *__oprofile_cpu_pmu;
 
 /*
@@ -612,9 +612,9 @@ static int armpmu_get_cpu_irq(struct arm_pmu *pmu, int cpu)
  * UNKNOWN at reset, the PMU must be explicitly reset to avoid reading
  * junk values out of them.
  */
-static int arm_perf_starting_cpu(unsigned int cpu, struct hlist_node *node)
+static int arm_perf_starting_cpu(unsigned int cpu, struct hlist_yesde *yesde)
 {
-	struct arm_pmu *pmu = hlist_entry_safe(node, struct arm_pmu, node);
+	struct arm_pmu *pmu = hlist_entry_safe(yesde, struct arm_pmu, yesde);
 	int irq;
 
 	if (!cpumask_test_cpu(cpu, &pmu->supported_cpus))
@@ -635,9 +635,9 @@ static int arm_perf_starting_cpu(unsigned int cpu, struct hlist_node *node)
 	return 0;
 }
 
-static int arm_perf_teardown_cpu(unsigned int cpu, struct hlist_node *node)
+static int arm_perf_teardown_cpu(unsigned int cpu, struct hlist_yesde *yesde)
 {
-	struct arm_pmu *pmu = hlist_entry_safe(node, struct arm_pmu, node);
+	struct arm_pmu *pmu = hlist_entry_safe(yesde, struct arm_pmu, yesde);
 	int irq;
 
 	if (!cpumask_test_cpu(cpu, &pmu->supported_cpus))
@@ -648,7 +648,7 @@ static int arm_perf_teardown_cpu(unsigned int cpu, struct hlist_node *node)
 		if (irq_is_percpu_devid(irq))
 			disable_percpu_irq(irq);
 		else
-			disable_irq_nosync(irq);
+			disable_irq_yessync(irq);
 	}
 
 	per_cpu(cpu_armpmu, cpu) = NULL;
@@ -685,7 +685,7 @@ static void cpu_pm_pmu_setup(struct arm_pmu *armpmu, unsigned long cmd)
 			  *
 			  * that requires RCU read locking to be functional,
 			  * wrap the call within RCU_NONIDLE to make the
-			  * RCU subsystem aware this cpu is not idle from
+			  * RCU subsystem aware this cpu is yest idle from
 			  * an RCU perspective for the armpmu_start() call
 			  * duration.
 			  */
@@ -697,7 +697,7 @@ static void cpu_pm_pmu_setup(struct arm_pmu *armpmu, unsigned long cmd)
 	}
 }
 
-static int cpu_pm_pmu_notify(struct notifier_block *b, unsigned long cmd,
+static int cpu_pm_pmu_yestify(struct yestifier_block *b, unsigned long cmd,
 			     void *v)
 {
 	struct arm_pmu *armpmu = container_of(b, struct arm_pmu, cpu_pm_nb);
@@ -709,7 +709,7 @@ static int cpu_pm_pmu_notify(struct notifier_block *b, unsigned long cmd,
 
 	/*
 	 * Always reset the PMU registers on power-up even if
-	 * there are no events running.
+	 * there are yes events running.
 	 */
 	if (cmd == CPU_PM_EXIT && armpmu->reset)
 		armpmu->reset(armpmu);
@@ -736,13 +736,13 @@ static int cpu_pm_pmu_notify(struct notifier_block *b, unsigned long cmd,
 
 static int cpu_pm_pmu_register(struct arm_pmu *cpu_pmu)
 {
-	cpu_pmu->cpu_pm_nb.notifier_call = cpu_pm_pmu_notify;
-	return cpu_pm_register_notifier(&cpu_pmu->cpu_pm_nb);
+	cpu_pmu->cpu_pm_nb.yestifier_call = cpu_pm_pmu_yestify;
+	return cpu_pm_register_yestifier(&cpu_pmu->cpu_pm_nb);
 }
 
 static void cpu_pm_pmu_unregister(struct arm_pmu *cpu_pmu)
 {
-	cpu_pm_unregister_notifier(&cpu_pmu->cpu_pm_nb);
+	cpu_pm_unregister_yestifier(&cpu_pmu->cpu_pm_nb);
 }
 #else
 static inline int cpu_pm_pmu_register(struct arm_pmu *cpu_pmu) { return 0; }
@@ -754,7 +754,7 @@ static int cpu_pmu_init(struct arm_pmu *cpu_pmu)
 	int err;
 
 	err = cpuhp_state_add_instance(CPUHP_AP_PERF_ARM_STARTING,
-				       &cpu_pmu->node);
+				       &cpu_pmu->yesde);
 	if (err)
 		goto out;
 
@@ -765,8 +765,8 @@ static int cpu_pmu_init(struct arm_pmu *cpu_pmu)
 	return 0;
 
 out_unregister:
-	cpuhp_state_remove_instance_nocalls(CPUHP_AP_PERF_ARM_STARTING,
-					    &cpu_pmu->node);
+	cpuhp_state_remove_instance_yescalls(CPUHP_AP_PERF_ARM_STARTING,
+					    &cpu_pmu->yesde);
 out:
 	return err;
 }
@@ -774,8 +774,8 @@ out:
 static void cpu_pmu_destroy(struct arm_pmu *cpu_pmu)
 {
 	cpu_pm_pmu_unregister(cpu_pmu);
-	cpuhp_state_remove_instance_nocalls(CPUHP_AP_PERF_ARM_STARTING,
-					    &cpu_pmu->node);
+	cpuhp_state_remove_instance_yescalls(CPUHP_AP_PERF_ARM_STARTING,
+					    &cpu_pmu->yesde);
 }
 
 static struct arm_pmu *__armpmu_alloc(gfp_t flags)
@@ -808,7 +808,7 @@ static struct arm_pmu *__armpmu_alloc(gfp_t flags)
 		.attr_groups	= pmu->attr_groups,
 		/*
 		 * This is a CPU PMU potentially in a heterogeneous
-		 * configuration (e.g. big.LITTLE). This is not an uncore PMU,
+		 * configuration (e.g. big.LITTLE). This is yest an uncore PMU,
 		 * and we have taken ctx sharing into account (e.g. with our
 		 * pmu::filter_match callback and pmu::event_init group
 		 * validation).
@@ -889,7 +889,7 @@ static int arm_pmu_hp_init(void)
 				      arm_perf_starting_cpu,
 				      arm_perf_teardown_cpu);
 	if (ret)
-		pr_err("CPU hotplug notifier for ARM PMU could not be registered: %d\n",
+		pr_err("CPU hotplug yestifier for ARM PMU could yest be registered: %d\n",
 		       ret);
 	return ret;
 }

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-yeste */
 /***************************************************************************
  * Linux PPP over L2TP (PPPoL2TP) Socket Implementation (RFC 2661)
  *

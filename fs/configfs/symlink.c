@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /* -*- mode: c; c-basic-offset: 8; -*-
- * vim: noexpandtab sw=8 ts=8 sts=0:
+ * vim: yesexpandtab sw=8 ts=8 sts=0:
  *
  * symlink.c - operations for configfs symlinks.
  *
@@ -48,7 +48,7 @@ static void fill_item_path(struct config_item * item, char * buffer, int length)
 	for (p = item; p && !configfs_is_root(p); p = p->ci_parent) {
 		int cur = strlen(config_item_name(p));
 
-		/* back up enough to print this bus id with '/' */
+		/* back up eyesugh to print this bus id with '/' */
 		length -= cur;
 		memcpy(buffer + length, config_item_name(p), cur);
 		*(buffer + --length) = '/';
@@ -139,7 +139,7 @@ static int get_target(const char *symname, struct path *path,
 }
 
 
-int configfs_symlink(struct inode *dir, struct dentry *dentry, const char *symname)
+int configfs_symlink(struct iyesde *dir, struct dentry *dentry, const char *symname)
 {
 	int ret;
 	struct path path;
@@ -170,34 +170,34 @@ int configfs_symlink(struct inode *dir, struct dentry *dentry, const char *symna
 	 * at syscall time (as link(2) would've done), be a directory
 	 * (which link(2) would've refused to do) *AND* be a deep
 	 * fucking magic, making the target busy from rmdir POV.
-	 * symlink(2) is nothing of that sort, and the locking it
-	 * gets matches the normal symlink(2) semantics.  Without
+	 * symlink(2) is yesthing of that sort, and the locking it
+	 * gets matches the yesrmal symlink(2) semantics.  Without
 	 * attempts to resolve the target (which might very well
-	 * not even exist yet) done prior to locking the parent
+	 * yest even exist yet) done prior to locking the parent
 	 * directory.  This perversion, OTOH, needs to resolve
 	 * the target, which would lead to obvious deadlocks if
 	 * attempted with any directories locked.
 	 *
 	 * Unfortunately, that garbage is userland ABI and we should've
-	 * said "no" back in 2005.  Too late now, so we get to
+	 * said "yes" back in 2005.  Too late yesw, so we get to
 	 * play very ugly games with locking.
 	 *
 	 * Try *ANYTHING* of that sort in new code, and you will
 	 * really regret it.  Just ask yourself - what could a BOFH
 	 * do to me and do I want to find it out first-hand?
 	 *
-	 *  AV, a thoroughly annoyed bastard.
+	 *  AV, a thoroughly anyesyed bastard.
 	 */
-	inode_unlock(dir);
+	iyesde_unlock(dir);
 	ret = get_target(symname, &path, &target_item, dentry->d_sb);
-	inode_lock(dir);
+	iyesde_lock(dir);
 	if (ret)
 		goto out_put;
 
-	if (dentry->d_inode || d_unhashed(dentry))
+	if (dentry->d_iyesde || d_unhashed(dentry))
 		ret = -EEXIST;
 	else
-		ret = inode_permission(dir, MAY_WRITE | MAY_EXEC);
+		ret = iyesde_permission(dir, MAY_WRITE | MAY_EXEC);
 	if (!ret)
 		ret = type->ct_item_ops->allow_link(parent_item, target_item);
 	if (!ret) {
@@ -217,7 +217,7 @@ out_put:
 	return ret;
 }
 
-int configfs_unlink(struct inode *dir, struct dentry *dentry)
+int configfs_unlink(struct iyesde *dir, struct dentry *dentry)
 {
 	struct configfs_dirent *sd = dentry->d_fsdata, *target_sd;
 	struct config_item *parent_item;
@@ -263,7 +263,7 @@ out:
 	return ret;
 }
 
-const struct inode_operations configfs_symlink_inode_operations = {
+const struct iyesde_operations configfs_symlink_iyesde_operations = {
 	.get_link = simple_get_link,
 	.setattr = configfs_setattr,
 };

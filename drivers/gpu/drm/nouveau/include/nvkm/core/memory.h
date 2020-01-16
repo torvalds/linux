@@ -7,7 +7,7 @@ struct nvkm_vma;
 struct nvkm_vmm;
 
 struct nvkm_tags {
-	struct nvkm_mm_node *mn;
+	struct nvkm_mm_yesde *mn;
 	refcount_t refcount;
 };
 
@@ -15,7 +15,7 @@ enum nvkm_memory_target {
 	NVKM_MEM_TARGET_INST, /* instance memory */
 	NVKM_MEM_TARGET_VRAM, /* video memory */
 	NVKM_MEM_TARGET_HOST, /* coherent system memory */
-	NVKM_MEM_TARGET_NCOH, /* non-coherent system memory */
+	NVKM_MEM_TARGET_NCOH, /* yesn-coherent system memory */
 };
 
 struct nvkm_memory {

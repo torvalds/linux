@@ -86,11 +86,11 @@ struct dpdmai_attr {
 	/**
 	 * struct version - DPDMAI version
 	 * @major: DPDMAI major version
-	 * @minor: DPDMAI minor version
+	 * @miyesr: DPDMAI miyesr version
 	 */
 	struct {
 		u16 major;
-		u16 minor;
+		u16 miyesr;
 	} version;
 	u8 num_of_priorities;
 };
@@ -98,13 +98,13 @@ struct dpdmai_attr {
 /**
  * enum dpdmai_dest - DPDMAI destination types
  * @DPDMAI_DEST_NONE: Unassigned destination; The queue is set in parked mode
- *	and does not generate FQDAN notifications; user is expected to dequeue
+ *	and does yest generate FQDAN yestifications; user is expected to dequeue
  *	from the queue based on polling or other user-defined method
  * @DPDMAI_DEST_DPIO: The queue is set in schedule mode and generates FQDAN
- *	notifications to the specified DPIO; user is expected to dequeue
- *	from the queue only after notification is received
- * @DPDMAI_DEST_DPCON: The queue is set in schedule mode and does not generate
- *	FQDAN notifications, but is connected to the specified DPCON object;
+ *	yestifications to the specified DPIO; user is expected to dequeue
+ *	from the queue only after yestification is received
+ * @DPDMAI_DEST_DPCON: The queue is set in schedule mode and does yest generate
+ *	FQDAN yestifications, but is connected to the specified DPCON object;
  *	user is expected to dequeue from the DPCON channel
  */
 enum dpdmai_dest {
@@ -119,7 +119,7 @@ enum dpdmai_dest {
  * @dest_id: Either DPIO ID or DPCON ID, depending on the destination type
  * @priority: Priority selection within the DPIO or DPCON channel; valid values
  *	are 0-1 or 0-7, depending on the number of priorities in that
- *	channel; not relevant for 'DPDMAI_DEST_NONE' option
+ *	channel; yest relevant for 'DPDMAI_DEST_NONE' option
  */
 struct dpdmai_dest_cfg {
 	enum dpdmai_dest dest_type;

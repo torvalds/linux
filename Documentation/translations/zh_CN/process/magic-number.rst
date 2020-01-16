@@ -38,7 +38,7 @@ Linux 魔术数
 
 现在应该最新的Linux 2.1.112.因为在特性冻结期间，不能在2.2.x前改变任何东西。这些条目被数域所排序。
 
-		Krzysztof G.Baranowski
+		Krzysztof G.Barayeswski
 	        <mailto: kgb@knm.org.pl>
 		29 Jul 1998
 
@@ -63,10 +63,10 @@ MKISS_DRIVER_MAGIC    0x04bf           mkiss_channel            ``drivers/net/mk
 HDLC_MAGIC            0x239e           n_hdlc                   ``drivers/char/n_hdlc.c``
 APM_BIOS_MAGIC        0x4101           apm_user                 ``arch/x86/kernel/apm_32.c``
 CYCLADES_MAGIC        0x4359           cyclades_port            ``include/linux/cyclades.h``
-DB_MAGIC              0x4442           fc_info                  ``drivers/net/iph5526_novram.c``
-DL_MAGIC              0x444d           fc_info                  ``drivers/net/iph5526_novram.c``
+DB_MAGIC              0x4442           fc_info                  ``drivers/net/iph5526_yesvram.c``
+DL_MAGIC              0x444d           fc_info                  ``drivers/net/iph5526_yesvram.c``
 FASYNC_MAGIC          0x4601           fasync_struct            ``include/linux/fs.h``
-FF_MAGIC              0x4646           fc_info                  ``drivers/net/iph5526_novram.c``
+FF_MAGIC              0x4646           fc_info                  ``drivers/net/iph5526_yesvram.c``
 ISICOM_MAGIC          0x4d54           isi_port                 ``include/linux/isicom.h``
 PTY_MAGIC             0x5001                                    ``drivers/char/pty.c``
 PPP_MAGIC             0x5002           ppp                      ``include/linux/if_pppvar.h``

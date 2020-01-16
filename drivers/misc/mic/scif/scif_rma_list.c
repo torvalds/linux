@@ -7,7 +7,7 @@
  * Intel SCIF driver.
  */
 #include "scif_main.h"
-#include <linux/mmu_notifier.h>
+#include <linux/mmu_yestifier.h>
 #include <linux/highmem.h>
 
 /*
@@ -84,7 +84,7 @@ int scif_query_tcw(struct scif_endpt *ep, struct scif_rma_req *req)
 		return -EINVAL;
 	/*
 	 * Avoid traversing the entire list to find out that there
-	 * is no entry that matches
+	 * is yes entry that matches
 	 */
 	if (!list_empty(head)) {
 		window = list_last_entry(head, struct scif_window, list);
@@ -147,7 +147,7 @@ int scif_query_window(struct scif_rma_req *req)
 		end_offset = window->offset +
 			(window->nr_pages << PAGE_SHIFT);
 		if (offset < window->offset)
-			/* Offset not found! */
+			/* Offset yest found! */
 			return -ENXIO;
 		if (offset >= end_offset)
 			continue;
@@ -266,7 +266,7 @@ retry:
 				__func__, __LINE__, err);
 		/*
 		 * Need to restart list traversal if there has been
-		 * an asynchronous list entry deletion.
+		 * an asynchroyesus list entry deletion.
 		 */
 		if (READ_ONCE(ep->rma_info.async_list_del))
 			goto retry;
@@ -274,9 +274,9 @@ retry:
 	mutex_unlock(&ep->rma_info.rma_lock);
 	if (!list_empty(&ep->rma_info.mmn_list)) {
 		spin_lock(&scif_info.rmalock);
-		list_add_tail(&ep->mmu_list, &scif_info.mmu_notif_cleanup);
+		list_add_tail(&ep->mmu_list, &scif_info.mmu_yestif_cleanup);
 		spin_unlock(&scif_info.rmalock);
-		schedule_work(&scif_info.mmu_notif_work);
+		schedule_work(&scif_info.mmu_yestif_work);
 	}
 	return err;
 }

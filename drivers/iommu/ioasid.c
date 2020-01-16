@@ -26,7 +26,7 @@ struct ioasid_data {
  *   Custom allocators that share the same helper functions also share the same
  *   XArray.
  * Rules:
- * 1. Default allocator is always available, not dynamically registered. This is
+ * 1. Default allocator is always available, yest dynamically registered. This is
  *    to prevent race conditions with early boot code that want to register
  *    custom allocators or allocate IOASIDs.
  * 2. Custom allocators take precedence over the default allocator.
@@ -156,7 +156,7 @@ int ioasid_register_allocator(struct ioasid_allocator_ops *ops)
 	 */
 	if (list_empty(&allocators_list)) {
 		WARN_ON(active_allocator != &default_allocator);
-		/* Use this new allocator if default is not active */
+		/* Use this new allocator if default is yest active */
 		if (xa_empty(&active_allocator->xa)) {
 			rcu_assign_pointer(active_allocator, ia_data);
 			list_add_tail(&ia_data->list, &allocators_list);
@@ -356,7 +356,7 @@ void ioasid_free(ioasid_t ioasid)
 	spin_lock(&ioasid_allocator_lock);
 	ioasid_data = xa_load(&active_allocator->xa, ioasid);
 	if (!ioasid_data) {
-		pr_err("Trying to free unknown IOASID %u\n", ioasid);
+		pr_err("Trying to free unkyeswn IOASID %u\n", ioasid);
 		goto exit_unlock;
 	}
 
@@ -383,8 +383,8 @@ EXPORT_SYMBOL_GPL(ioasid_free);
  * if @getter returns false, then the object is invalid and NULL is returned.
  *
  * If the IOASID exists, return the private pointer passed to ioasid_alloc.
- * Private data can be NULL if not set. Return an error if the IOASID is not
- * found, or if @set is not NULL and the IOASID does not belong to the set.
+ * Private data can be NULL if yest set. Return an error if the IOASID is yest
+ * found, or if @set is yest NULL and the IOASID does yest belong to the set.
  */
 void *ioasid_find(struct ioasid_set *set, ioasid_t ioasid,
 		  bool (*getter)(void *))
@@ -401,7 +401,7 @@ void *ioasid_find(struct ioasid_set *set, ioasid_t ioasid,
 		goto unlock;
 	}
 	if (set && ioasid_data->set != set) {
-		/* data found but does not belong to the set */
+		/* data found but does yest belong to the set */
 		priv = ERR_PTR(-EACCES);
 		goto unlock;
 	}

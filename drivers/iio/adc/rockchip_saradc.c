@@ -196,7 +196,7 @@ static void rockchip_saradc_reset_controller(struct reset_control *reset)
 static int rockchip_saradc_probe(struct platform_device *pdev)
 {
 	struct rockchip_saradc *info = NULL;
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	struct iio_dev *indio_dev = NULL;
 	struct resource	*mem;
 	const struct of_device_id *match;
@@ -237,7 +237,7 @@ static int rockchip_saradc_probe(struct platform_device *pdev)
 		if (ret != -ENOENT)
 			return ret;
 
-		dev_dbg(&pdev->dev, "no reset control found\n");
+		dev_dbg(&pdev->dev, "yes reset control found\n");
 		info->reset = NULL;
 	}
 
@@ -308,7 +308,7 @@ static int rockchip_saradc_probe(struct platform_device *pdev)
 
 	indio_dev->name = dev_name(&pdev->dev);
 	indio_dev->dev.parent = &pdev->dev;
-	indio_dev->dev.of_node = pdev->dev.of_node;
+	indio_dev->dev.of_yesde = pdev->dev.of_yesde;
 	indio_dev->info = &rockchip_saradc_iio_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 

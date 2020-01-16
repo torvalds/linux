@@ -7,7 +7,7 @@
  * Based on LM83 Driver by Jean Delvare <jdelvare@suse.de>
  *
  * Give only processor, motherboard temperatures and fan tachs
- * Very rare chip please let me know if you use it
+ * Very rare chip please let me kyesw if you use it
  *
  * http://www.analog.com/UploadedFiles/Data_Sheets/ADM1029.pdf
  */
@@ -26,7 +26,7 @@
  * Addresses to scan
  */
 
-static const unsigned short normal_i2c[] = { 0x28, 0x29, 0x2a, 0x2b, 0x2c, 0x2d,
+static const unsigned short yesrmal_i2c[] = { 0x28, 0x29, 0x2a, 0x2b, 0x2c, 0x2d,
 						0x2e, 0x2f, I2C_CLIENT_END
 };
 
@@ -119,7 +119,7 @@ static struct adm1029_data *adm1029_update_device(struct device *dev)
 	mutex_lock(&data->update_lock);
 	/*
 	 * Use the "cache" Luke, don't recheck values
-	 * if there are already checked not a long time later
+	 * if there are already checked yest a long time later
 	 */
 	if (time_after(jiffies, data->last_updated + HZ * 2) || !data->valid) {
 		int nr;
@@ -226,7 +226,7 @@ static ssize_t fan_div_store(struct device *dev,
 	default:
 		mutex_unlock(&data->update_lock);
 		dev_err(&client->dev,
-			"fan_div value %ld not supported. Choose one of 1, 2 or 4!\n",
+			"fan_div value %ld yest supported. Choose one of 1, 2 or 4!\n",
 			val);
 		return -EINVAL;
 	}
@@ -321,10 +321,10 @@ static int adm1029_detect(struct i2c_client *client,
 
 	if ((chip_id & 0xF0) != 0x00) {
 		/*
-		 * There are no "official" CHIP ID, so actually
-		 * we use Major/Minor revision for that
+		 * There are yes "official" CHIP ID, so actually
+		 * we use Major/Miyesr revision for that
 		 */
-		pr_info("Unknown major revision %x, please let us know\n",
+		pr_info("Unkyeswn major revision %x, please let us kyesw\n",
 			chip_id);
 		return -ENODEV;
 	}
@@ -393,7 +393,7 @@ static struct i2c_driver adm1029_driver = {
 	.probe		= adm1029_probe,
 	.id_table	= adm1029_id,
 	.detect		= adm1029_detect,
-	.address_list	= normal_i2c,
+	.address_list	= yesrmal_i2c,
 };
 
 module_i2c_driver(adm1029_driver);

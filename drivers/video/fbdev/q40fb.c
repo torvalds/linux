@@ -11,7 +11,7 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/string.h>
 #include <linux/mm.h>
 #include <linux/delay.h>
@@ -51,24 +51,24 @@ static const struct fb_var_screeninfo q40fb_var = {
 	.vmode		= FB_VMODE_NONINTERLACED,
 };
 
-static int q40fb_setcolreg(unsigned regno, unsigned red, unsigned green,
+static int q40fb_setcolreg(unsigned regyes, unsigned red, unsigned green,
 			   unsigned blue, unsigned transp,
 			   struct fb_info *info)
 {
     /*
      *  Set a single color register. The values supplied have a 16 bit
      *  magnitude.
-     *  Return != 0 for invalid regno.
+     *  Return != 0 for invalid regyes.
      */
 
-    if (regno > 255)
+    if (regyes > 255)
 	    return 1;
     red>>=11;
     green>>=11;
     blue>>=10;
 
-    if (regno < 16) {
-	((u32 *)info->pseudo_palette)[regno] = ((red & 31) <<6) |
+    if (regyes < 16) {
+	((u32 *)info->pseudo_palette)[regyes] = ((red & 31) <<6) |
 					       ((green & 31) << 11) |
 					       (blue & 63);
     }
@@ -100,7 +100,7 @@ static int q40fb_probe(struct platform_device *dev)
 	info->var = q40fb_var;
 	info->fix = q40fb_fix;
 	info->fbops = &q40fb_ops;
-	info->flags = FBINFO_DEFAULT;  /* not as module for now */
+	info->flags = FBINFO_DEFAULT;  /* yest as module for yesw */
 	info->pseudo_palette = info->par;
 	info->par = NULL;
 	info->screen_base = (char *) q40fb_fix.smem_start;

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /**
- * Copyright (C) 2008, Creative Technology Ltd. All Rights Reserved.
+ * Copyright (C) 2008, Creative Techyeslogy Ltd. All Rights Reserved.
  *
  * @File    ctvmem.c
  *
@@ -43,13 +43,13 @@ get_vm_block(struct ct_vm *vm, unsigned int size, struct ct_atc *atc)
 	list_for_each(pos, &vm->unused) {
 		entry = list_entry(pos, struct ct_vm_block, list);
 		if (entry->size >= size)
-			break; /* found a block that is big enough */
+			break; /* found a block that is big eyesugh */
 	}
 	if (pos == &vm->unused)
 		goto out;
 
 	if (entry->size == size) {
-		/* Move the vm node from unused list to used list directly */
+		/* Move the vm yesde from unused list to used list directly */
 		list_move(&entry->list, &vm->used);
 		vm->size -= size;
 		block = entry;
@@ -132,7 +132,7 @@ ct_vm_map(struct ct_vm *vm, struct snd_pcm_substream *substream, int size)
 	block = get_vm_block(vm, size, atc);
 	if (block == NULL) {
 		dev_err(atc->card->dev,
-			"No virtual memory block that is big enough to allocate!\n");
+			"No virtual memory block that is big eyesugh to allocate!\n");
 		return NULL;
 	}
 
@@ -189,7 +189,7 @@ int ct_vm_create(struct ct_vm **rvm, struct pci_dev *pci)
 			break;
 	}
 	if (err < 0) {
-		/* no page table pages are allocated */
+		/* yes page table pages are allocated */
 		ct_vm_destroy(vm);
 		return -ENOMEM;
 	}
@@ -210,7 +210,7 @@ int ct_vm_create(struct ct_vm **rvm, struct pci_dev *pci)
 	return 0;
 }
 
-/* The caller must ensure no mapping pages are being used
+/* The caller must ensure yes mapping pages are being used
  * by hardware before calling this function */
 void ct_vm_destroy(struct ct_vm *vm)
 {
@@ -218,7 +218,7 @@ void ct_vm_destroy(struct ct_vm *vm)
 	struct list_head *pos;
 	struct ct_vm_block *entry;
 
-	/* free used and unused list nodes */
+	/* free used and unused list yesdes */
 	while (!list_empty(&vm->used)) {
 		pos = vm->used.next;
 		list_del(pos);

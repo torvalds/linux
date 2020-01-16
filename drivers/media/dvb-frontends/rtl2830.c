@@ -574,16 +574,16 @@ static const struct dvb_frontend_ops rtl2830_ops = {
 	.read_signal_strength = rtl2830_read_signal_strength,
 };
 
-static int rtl2830_pid_filter_ctrl(struct dvb_frontend *fe, int onoff)
+static int rtl2830_pid_filter_ctrl(struct dvb_frontend *fe, int oyesff)
 {
 	struct i2c_client *client = fe->demodulator_priv;
 	int ret;
 	u8 u8tmp;
 
-	dev_dbg(&client->dev, "onoff=%d\n", onoff);
+	dev_dbg(&client->dev, "oyesff=%d\n", oyesff);
 
 	/* enable / disable PID filter */
-	if (onoff)
+	if (oyesff)
 		u8tmp = 0x80;
 	else
 		u8tmp = 0x00;
@@ -598,21 +598,21 @@ err:
 	return ret;
 }
 
-static int rtl2830_pid_filter(struct dvb_frontend *fe, u8 index, u16 pid, int onoff)
+static int rtl2830_pid_filter(struct dvb_frontend *fe, u8 index, u16 pid, int oyesff)
 {
 	struct i2c_client *client = fe->demodulator_priv;
 	struct rtl2830_dev *dev = i2c_get_clientdata(client);
 	int ret;
 	u8 buf[4];
 
-	dev_dbg(&client->dev, "index=%d pid=%04x onoff=%d\n",
-		index, pid, onoff);
+	dev_dbg(&client->dev, "index=%d pid=%04x oyesff=%d\n",
+		index, pid, oyesff);
 
 	/* skip invalid PIDs (0x2000) */
 	if (pid > 0x1fff || index > 32)
 		return 0;
 
-	if (onoff)
+	if (oyesff)
 		set_bit(index, &dev->filters);
 	else
 		clear_bit(index, &dev->filters);
@@ -654,7 +654,7 @@ static int rtl2830_select(struct i2c_mux_core *muxc, u32 chan_id)
 	dev_dbg(&client->dev, "\n");
 
 	/* open I2C repeater for 1 transfer, closes automatically */
-	/* XXX: regmap_update_bits() does not lock I2C adapter */
+	/* XXX: regmap_update_bits() does yest lock I2C adapter */
 	ret = regmap_update_bits(dev->regmap, 0x101, 0x08, 0x08);
 	if (ret)
 		goto err;

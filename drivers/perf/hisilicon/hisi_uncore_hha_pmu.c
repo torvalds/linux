@@ -28,7 +28,7 @@
 #define HHA_EVENT_TYPE0		0x1E80
 /*
  * Each counter is 48-bits and [48:63] are reserved
- * which are Read-As-Zero and Writes-Ignored.
+ * which are Read-As-Zero and Writes-Igyesred.
  */
 #define HHA_CNT0_LOWER		0x1F00
 
@@ -249,7 +249,7 @@ static int hisi_hha_pmu_init_data(struct platform_device *pdev,
 	 */
 	if (device_property_read_u32(&pdev->dev, "hisilicon,scl-id",
 				     &hha_pmu->sccl_id)) {
-		dev_err(&pdev->dev, "Can not read hha sccl-id!\n");
+		dev_err(&pdev->dev, "Can yest read hha sccl-id!\n");
 		return -EINVAL;
 	}
 	/* HHA PMUs only share the same SCCL */
@@ -380,7 +380,7 @@ static int hisi_hha_pmu_probe(struct platform_device *pdev)
 		return ret;
 
 	ret = cpuhp_state_add_instance(CPUHP_AP_PERF_ARM_HISI_HHA_ONLINE,
-				       &hha_pmu->node);
+				       &hha_pmu->yesde);
 	if (ret) {
 		dev_err(&pdev->dev, "Error %d registering hotplug\n", ret);
 		return ret;
@@ -407,7 +407,7 @@ static int hisi_hha_pmu_probe(struct platform_device *pdev)
 	if (ret) {
 		dev_err(hha_pmu->dev, "HHA PMU register failed!\n");
 		cpuhp_state_remove_instance(CPUHP_AP_PERF_ARM_HISI_HHA_ONLINE,
-					    &hha_pmu->node);
+					    &hha_pmu->yesde);
 	}
 
 	return ret;
@@ -419,7 +419,7 @@ static int hisi_hha_pmu_remove(struct platform_device *pdev)
 
 	perf_pmu_unregister(&hha_pmu->pmu);
 	cpuhp_state_remove_instance(CPUHP_AP_PERF_ARM_HISI_HHA_ONLINE,
-				    &hha_pmu->node);
+				    &hha_pmu->yesde);
 
 	return 0;
 }

@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -442,7 +442,7 @@ static int smu7_clear_voting_clients(struct pp_hwmgr *hwmgr)
 	return 0;
 }
 
-/* Copy one arb setting to another and then switch the active set.
+/* Copy one arb setting to ayesther and then switch the active set.
  * arb_src and arb_dest is one of the MC_CG_ARB_FREQ_Fx constants.
  */
 static int smu7_copy_and_switch_arb_sets(struct pp_hwmgr *hwmgr,
@@ -560,7 +560,7 @@ static int smu7_setup_default_pcie_table(struct pp_hwmgr *hwmgr)
 		/* max_entry is used to make sure we reserve one PCIE level
 		 * for boot level (fix for A+A PSPP issue).
 		 * If PCIE table from PPTable have ULV entry + 8 entries,
-		 * then ignore the last entry.*/
+		 * then igyesre the last entry.*/
 		max_entry = (tmp < pcie_table->count) ? tmp : pcie_table->count;
 		for (i = 1; i < max_entry; i++) {
 			phm_setup_pcie_table_entry(&data->dpm_table.pcie_speed_table, i - 1,
@@ -606,7 +606,7 @@ static int smu7_setup_default_pcie_table(struct pp_hwmgr *hwmgr)
 
 		data->dpm_table.pcie_speed_table.count = 6;
 	}
-	/* Populate last level for boot PCIE level, but do not increment count. */
+	/* Populate last level for boot PCIE level, but do yest increment count. */
 	if (hwmgr->chip_family == AMDGPU_FAMILY_CI) {
 		for (i = 0; i <= data->dpm_table.pcie_speed_table.count; i++)
 			phm_setup_pcie_table_entry(&data->dpm_table.pcie_speed_table, i,
@@ -1249,7 +1249,7 @@ static void smu7_set_dpm_event_sources(struct pp_hwmgr *hwmgr, uint32_t sources)
 
 	switch (sources) {
 	default:
-		pr_err("Unknown throttling event sources.");
+		pr_err("Unkyeswn throttling event sources.");
 		/* fall through */
 	case 0:
 		protection = false;
@@ -1729,7 +1729,7 @@ static int smu7_get_evv_voltages(struct pp_hwmgr *hwmgr)
 					/* need to make sure vddgfx is less than 2v or else, it could burn the ASIC. */
 					PP_ASSERT_WITH_CODE((vddgfx < 2000 && vddgfx != 0), "Invalid VDDGFX value!", return -EINVAL);
 
-					/* the voltage should not be zero nor equal to leakage ID */
+					/* the voltage should yest be zero yesr equal to leakage ID */
 					if (vddgfx != 0 && vddgfx != vv_id) {
 						data->vddcgfx_leakage.actual_voltage[data->vddcgfx_leakage.count] = vddgfx;
 						data->vddcgfx_leakage.leakage_id[data->vddcgfx_leakage.count] = vv_id;
@@ -1768,7 +1768,7 @@ static int smu7_get_evv_voltages(struct pp_hwmgr *hwmgr)
 					continue;
 				}
 
-				/* the voltage should not be zero nor equal to leakage ID */
+				/* the voltage should yest be zero yesr equal to leakage ID */
 				if (vddc != 0 && vddc != vv_id) {
 					data->vddc_leakage.actual_voltage[data->vddc_leakage.count] = (uint16_t)(vddc);
 					data->vddc_leakage.leakage_id[data->vddc_leakage.count] = vv_id;
@@ -1804,7 +1804,7 @@ static void smu7_patch_ppt_v1_with_vdd_leakage(struct pp_hwmgr *hwmgr,
 	}
 
 	if (*voltage > ATOM_VIRTUAL_VOLTAGE_ID0)
-		pr_err("Voltage value looks like a Leakage ID but it's not patched \n");
+		pr_err("Voltage value looks like a Leakage ID but it's yest patched \n");
 }
 
 /**
@@ -1915,7 +1915,7 @@ static int phm_add_voltage(struct pp_hwmgr *hwmgr,
 	look_up_table->entries[i].us_cac_low = record->us_cac_low;
 	look_up_table->entries[i].us_cac_mid = record->us_cac_mid;
 	look_up_table->entries[i].us_cac_high = record->us_cac_high;
-	/* Only increment the count when we're appending, not replacing duplicate entry. */
+	/* Only increment the count when we're appending, yest replacing duplicate entry. */
 	if (i == look_up_table->count)
 		look_up_table->count++;
 
@@ -2254,7 +2254,7 @@ static void smu7_patch_ppt_v0_with_vdd_leakage(struct pp_hwmgr *hwmgr,
 	}
 
 	if (*voltage > ATOM_VIRTUAL_VOLTAGE_ID0)
-		pr_err("Voltage value looks like a Leakage ID but it's not patched \n");
+		pr_err("Voltage value looks like a Leakage ID but it's yest patched \n");
 }
 
 
@@ -2588,7 +2588,7 @@ static int smu7_hwmgr_backend_init(struct pp_hwmgr *hwmgr)
 		hwmgr->platform_descriptor.clockStep.memoryClock = 500;
 		smu7_thermal_parameter_init(hwmgr);
 	} else {
-		/* Ignore return value in here, we are cleaning up a mess. */
+		/* Igyesre return value in here, we are cleaning up a mess. */
 		smu7_hwmgr_backend_fini(hwmgr);
 	}
 
@@ -3070,7 +3070,7 @@ static int smu7_dpm_patch_boot_state(struct pp_hwmgr *hwmgr,
 	fw_info = (ATOM_FIRMWARE_INFO_V2_2 *)smu_atom_get_data_table(hwmgr->adev, index,
 			&size, &frev, &crev);
 	if (!fw_info)
-		/* During a test, there is no firmware info table. */
+		/* During a test, there is yes firmware info table. */
 		return 0;
 
 	/* Patch the state. */
@@ -3135,13 +3135,13 @@ static int smu7_get_pp_table_entry_callback_func_v1(struct pp_hwmgr *hwmgr,
 			(((unsigned long)powerplay_table) +
 				le16_to_cpu(powerplay_table->usMclkDependencyTableOffset));
 
-	/* The following fields are not initialized here: id orderedList allStatesList */
+	/* The following fields are yest initialized here: id orderedList allStatesList */
 	power_state->classification.ui_label =
 			(le16_to_cpu(state_entry->usClassification) &
 			ATOM_PPLIB_CLASSIFICATION_UI_MASK) >>
 			ATOM_PPLIB_CLASSIFICATION_UI_SHIFT;
 	power_state->classification.flags = classification_flag;
-	/* NOTE: There is a classification2 flag in BIOS that is not being used right now */
+	/* NOTE: There is a classification2 flag in BIOS that is yest being used right yesw */
 
 	power_state->classification.temporary_state = false;
 	power_state->classification.to_be_deleted = false;
@@ -3238,11 +3238,11 @@ static int smu7_get_pp_table_entry_v1(struct pp_hwmgr *hwmgr,
 		if (dep_mclk_table->entries[0].clk !=
 				data->vbios_boot_state.mclk_bootup_value)
 			pr_debug("Single MCLK entry VDDCI/MCLK dependency table "
-					"does not match VBIOS boot MCLK level");
+					"does yest match VBIOS boot MCLK level");
 		if (dep_mclk_table->entries[0].vddci !=
 				data->vbios_boot_state.vddci_bootup_value)
 			pr_debug("Single VDDCI entry VDDCI/MCLK dependency table "
-					"does not match VBIOS boot VDDCI level");
+					"does yest match VBIOS boot VDDCI level");
 	}
 
 	/* set DC compatible flag if this state supports DC */
@@ -3386,11 +3386,11 @@ static int smu7_get_pp_table_entry_v0(struct pp_hwmgr *hwmgr,
 		if (dep_mclk_table->entries[0].clk !=
 				data->vbios_boot_state.mclk_bootup_value)
 			pr_debug("Single MCLK entry VDDCI/MCLK dependency table "
-					"does not match VBIOS boot MCLK level");
+					"does yest match VBIOS boot MCLK level");
 		if (dep_mclk_table->entries[0].v !=
 				data->vbios_boot_state.vddci_bootup_value)
 			pr_debug("Single VDDCI entry VDDCI/MCLK dependency table "
-					"does not match VBIOS boot VDDCI level");
+					"does yest match VBIOS boot VDDCI level");
 	}
 
 	/* set DC compatible flag if this state supports DC */
@@ -3485,7 +3485,7 @@ static int smu7_get_gpu_power(struct pp_hwmgr *hwmgr, u32 *query)
 		return -EINVAL;
 
 	/*
-	 * PPSMC_MSG_GetCurrPkgPwr is not supported on:
+	 * PPSMC_MSG_GetCurrPkgPwr is yest supported on:
 	 *  - Hawaii
 	 *  - Bonaire
 	 *  - Fiji
@@ -3687,7 +3687,7 @@ static int smu7_request_link_speed_change_before_state_change(
 		current_link_speed = data->force_pcie_gen;
 
 	data->force_pcie_gen = PP_PCIEGenInvalid;
-	data->pspp_notify_required = false;
+	data->pspp_yestify_required = false;
 
 	if (target_link_speed > current_link_speed) {
 		switch (target_link_speed) {
@@ -3710,7 +3710,7 @@ static int smu7_request_link_speed_change_before_state_change(
 		}
 	} else {
 		if (target_link_speed < current_link_speed)
-			data->pspp_notify_required = true;
+			data->pspp_yestify_required = true;
 	}
 
 	return 0;
@@ -3823,7 +3823,7 @@ static int smu7_trim_dpm_states(struct pp_hwmgr *hwmgr,
 	uint32_t high_limit_count;
 
 	PP_ASSERT_WITH_CODE((smu7_ps->performance_level_count >= 1),
-			"power state did not have any performance level",
+			"power state did yest have any performance level",
 			return -EINVAL);
 
 	high_limit_count = (1 == smu7_ps->performance_level_count) ? 0 : 1;
@@ -3903,7 +3903,7 @@ static int smu7_unfreeze_sclk_mclk_dpm(struct pp_hwmgr *hwmgr)
 	return 0;
 }
 
-static int smu7_notify_link_speed_change_after_state_change(
+static int smu7_yestify_link_speed_change_after_state_change(
 		struct pp_hwmgr *hwmgr, const void *input)
 {
 	const struct phm_set_power_state_input *states =
@@ -3914,7 +3914,7 @@ static int smu7_notify_link_speed_change_after_state_change(
 	uint16_t target_link_speed = smu7_get_maximum_link_speed(hwmgr, smu7_ps);
 	uint8_t  request;
 
-	if (data->pspp_notify_required) {
+	if (data->pspp_yestify_required) {
 		if (target_link_speed == PP_PCIEGen3)
 			request = PCIE_PERF_REQ_GEN3;
 		else if (target_link_speed == PP_PCIEGen2)
@@ -3939,7 +3939,7 @@ static int smu7_notify_link_speed_change_after_state_change(
 	return 0;
 }
 
-static int smu7_notify_smc_display(struct pp_hwmgr *hwmgr)
+static int smu7_yestify_smc_display(struct pp_hwmgr *hwmgr)
 {
 	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
 
@@ -4004,9 +4004,9 @@ static int smu7_set_power_state_tasks(struct pp_hwmgr *hwmgr, const void *input)
 			"Failed to update SCLK threshold!",
 			result = tmp_result);
 
-	tmp_result = smu7_notify_smc_display(hwmgr);
+	tmp_result = smu7_yestify_smc_display(hwmgr);
 	PP_ASSERT_WITH_CODE((0 == tmp_result),
-			"Failed to notify smc display settings!",
+			"Failed to yestify smc display settings!",
 			result = tmp_result);
 
 	tmp_result = smu7_unfreeze_sclk_mclk_dpm(hwmgr);
@@ -4022,9 +4022,9 @@ static int smu7_set_power_state_tasks(struct pp_hwmgr *hwmgr, const void *input)
 	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
 			PHM_PlatformCaps_PCIEPerformanceRequest)) {
 		tmp_result =
-			smu7_notify_link_speed_change_after_state_change(hwmgr, input);
+			smu7_yestify_link_speed_change_after_state_change(hwmgr, input);
 		PP_ASSERT_WITH_CODE((0 == tmp_result),
-				"Failed to notify link speed change after state change!",
+				"Failed to yestify link speed change after state change!",
 				result = tmp_result);
 	}
 	data->apply_optimized_settings = false;
@@ -4041,7 +4041,7 @@ static int smu7_set_max_fan_pwm_output(struct pp_hwmgr *hwmgr, uint16_t us_max_f
 }
 
 static int
-smu7_notify_smc_display_change(struct pp_hwmgr *hwmgr, bool has_display)
+smu7_yestify_smc_display_change(struct pp_hwmgr *hwmgr, bool has_display)
 {
 	PPSMC_Msg msg = has_display ? (PPSMC_Msg)PPSMC_HasDisplay : (PPSMC_Msg)PPSMC_NoDisplay;
 
@@ -4049,11 +4049,11 @@ smu7_notify_smc_display_change(struct pp_hwmgr *hwmgr, bool has_display)
 }
 
 static int
-smu7_notify_smc_display_config_after_ps_adjustment(struct pp_hwmgr *hwmgr)
+smu7_yestify_smc_display_config_after_ps_adjustment(struct pp_hwmgr *hwmgr)
 {
 	if (hwmgr->display_config->num_display > 1 &&
 			!hwmgr->display_config->multi_monitor_in_sync)
-		smu7_notify_smc_display_change(hwmgr, false);
+		smu7_yestify_smc_display_change(hwmgr, false);
 
 	return 0;
 }
@@ -4208,7 +4208,7 @@ static int smu7_check_states_equal(struct pp_hwmgr *hwmgr,
 
 	psa = cast_const_phw_smu7_power_state(pstate1);
 	psb = cast_const_phw_smu7_power_state(pstate2);
-	/* If the two states don't even have the same number of performance levels they cannot be the same state. */
+	/* If the two states don't even have the same number of performance levels they canyest be the same state. */
 	if (psa->performance_level_count != psb->performance_level_count) {
 		*equal = false;
 		return 0;
@@ -4243,7 +4243,7 @@ static int smu7_check_mc_firmware(struct pp_hwmgr *hwmgr)
 
 	/* Read MC indirect register offset 0x9F bits [3:0] to see
 	 * if VBIOS has already loaded a full version of MC ucode
-	 * or not.
+	 * or yest.
 	 */
 
 	smu7_get_mc_microcode_version(hwmgr);
@@ -4451,7 +4451,7 @@ static int smu7_print_clock_levels(struct pp_hwmgr *hwmgr,
 	struct smu7_odn_dpm_table *odn_table = &(data->odn_dpm_table);
 	struct phm_odn_clock_levels *odn_sclk_table = &(odn_table->odn_core_clock_dpm_levels);
 	struct phm_odn_clock_levels *odn_mclk_table = &(odn_table->odn_memory_clock_dpm_levels);
-	int i, now, size = 0;
+	int i, yesw, size = 0;
 	uint32_t clock, pcie_speed;
 
 	switch (type) {
@@ -4464,12 +4464,12 @@ static int smu7_print_clock_levels(struct pp_hwmgr *hwmgr,
 				continue;
 			break;
 		}
-		now = i;
+		yesw = i;
 
 		for (i = 0; i < sclk_table->count; i++)
 			size += sprintf(buf + size, "%d: %uMhz %s\n",
 					i, sclk_table->dpm_levels[i].value / 100,
-					(i == now) ? "*" : "");
+					(i == yesw) ? "*" : "");
 		break;
 	case PP_MCLK:
 		smum_send_msg_to_smc(hwmgr, PPSMC_MSG_API_GetMclkFrequency);
@@ -4480,12 +4480,12 @@ static int smu7_print_clock_levels(struct pp_hwmgr *hwmgr,
 				continue;
 			break;
 		}
-		now = i;
+		yesw = i;
 
 		for (i = 0; i < mclk_table->count; i++)
 			size += sprintf(buf + size, "%d: %uMhz %s\n",
 					i, mclk_table->dpm_levels[i].value / 100,
-					(i == now) ? "*" : "");
+					(i == yesw) ? "*" : "");
 		break;
 	case PP_PCIE:
 		pcie_speed = smu7_get_current_pcie_speed(hwmgr);
@@ -4494,14 +4494,14 @@ static int smu7_print_clock_levels(struct pp_hwmgr *hwmgr,
 				continue;
 			break;
 		}
-		now = i;
+		yesw = i;
 
 		for (i = 0; i < pcie_table->count; i++)
 			size += sprintf(buf + size, "%d: %s %s\n", i,
 					(pcie_table->dpm_levels[i].value == 0) ? "2.5GT/s, x8" :
 					(pcie_table->dpm_levels[i].value == 1) ? "5.0GT/s, x16" :
 					(pcie_table->dpm_levels[i].value == 2) ? "8.0GT/s, x16" : "",
-					(i == now) ? "*" : "");
+					(i == yesw) ? "*" : "");
 		break;
 	case OD_SCLK:
 		if (hwmgr->od_enabled) {
@@ -4732,7 +4732,7 @@ static int smu7_get_clock_by_type(struct pp_hwmgr *hwmgr, enum amd_pp_clock_type
 	return 0;
 }
 
-static int smu7_notify_cac_buffer_info(struct pp_hwmgr *hwmgr,
+static int smu7_yestify_cac_buffer_info(struct pp_hwmgr *hwmgr,
 					uint32_t virtual_addr_low,
 					uint32_t virtual_addr_hi,
 					uint32_t mc_addr_low,
@@ -4865,7 +4865,7 @@ static int smu7_odn_edit_dpm_table(struct pp_hwmgr *hwmgr,
 				return -EINVAL);
 
 	if (!hwmgr->od_enabled) {
-		pr_info("OverDrive feature not enabled\n");
+		pr_info("OverDrive feature yest enabled\n");
 		return -EINVAL;
 	}
 
@@ -5126,7 +5126,7 @@ static const struct pp_hwmgr_func smu7_hwmgr_funcs = {
 	.powergate_vce = smu7_powergate_vce,
 	.disable_clock_power_gating = smu7_disable_clock_power_gating,
 	.update_clock_gatings = smu7_update_clock_gatings,
-	.notify_smc_display_config_after_ps_adjustment = smu7_notify_smc_display_config_after_ps_adjustment,
+	.yestify_smc_display_config_after_ps_adjustment = smu7_yestify_smc_display_config_after_ps_adjustment,
 	.display_config_changed = smu7_display_configuration_changed_task,
 	.set_max_fan_pwm_output = smu7_set_max_fan_pwm_output,
 	.set_max_fan_rpm_output = smu7_set_max_fan_rpm_output,
@@ -5156,7 +5156,7 @@ static const struct pp_hwmgr_func smu7_hwmgr_funcs = {
 	.avfs_control = smu7_avfs_control,
 	.disable_smc_firmware_ctf = smu7_thermal_disable_alert,
 	.start_thermal_controller = smu7_start_thermal_controller,
-	.notify_cac_buffer_info = smu7_notify_cac_buffer_info,
+	.yestify_cac_buffer_info = smu7_yestify_cac_buffer_info,
 	.get_max_high_clocks = smu7_get_max_high_clocks,
 	.get_thermal_temperature_range = smu7_get_thermal_temperature_range,
 	.odn_edit_dpm_table = smu7_odn_edit_dpm_table,

@@ -12,7 +12,7 @@
  * legacy 'E271-140' 4-byte protocol and Elo legacy 'E261-280' 3-byte protocol.
  */
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/slab.h>

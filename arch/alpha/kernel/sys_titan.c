@@ -194,7 +194,7 @@ static struct irq_chip titan_irq_type = {
 };
 
 static irqreturn_t
-titan_intr_nop(int irq, void *dev_id)
+titan_intr_yesp(int irq, void *dev_id)
 {
       /*
        * This is a NOP interrupt handler for the purposes of
@@ -268,7 +268,7 @@ titan_request_irq(unsigned int irq, irq_handler_t handler,
 	int err;
 	err = request_irq(irq, handler, irqflags, devname, dev_id);
 	if (err) {
-		printk("titan_request_irq for IRQ %d returned %d; ignoring\n",
+		printk("titan_request_irq for IRQ %d returned %d; igyesring\n",
 		       irq, err);
 	}
 }
@@ -279,17 +279,17 @@ titan_late_init(void)
 	/*
 	 * Enable the system error interrupts. These interrupts are 
 	 * all reported to the kernel as machine checks, so the handler
-	 * is a nop so it can be called to count the individual events.
+	 * is a yesp so it can be called to count the individual events.
 	 */
-	titan_request_irq(63+16, titan_intr_nop, 0,
+	titan_request_irq(63+16, titan_intr_yesp, 0,
 		    "CChip Error", NULL);
-	titan_request_irq(62+16, titan_intr_nop, 0,
+	titan_request_irq(62+16, titan_intr_yesp, 0,
 		    "PChip 0 H_Error", NULL);
-	titan_request_irq(61+16, titan_intr_nop, 0,
+	titan_request_irq(61+16, titan_intr_yesp, 0,
 		    "PChip 1 H_Error", NULL);
-	titan_request_irq(60+16, titan_intr_nop, 0,
+	titan_request_irq(60+16, titan_intr_yesp, 0,
 		    "PChip 0 C_Error", NULL);
-	titan_request_irq(59+16, titan_intr_nop, 0,
+	titan_request_irq(59+16, titan_intr_yesp, 0,
 		    "PChip 1 C_Error", NULL);
 
 	/* 
@@ -349,9 +349,9 @@ privateer_init_pci(void)
 	 * Hook a couple of extra err interrupts that the
 	 * common titan code won't.
 	 */
-	titan_request_irq(53+16, titan_intr_nop, 0,
+	titan_request_irq(53+16, titan_intr_yesp, 0,
 		    "NMI", NULL);
-	titan_request_irq(50+16, titan_intr_nop, 0,
+	titan_request_irq(50+16, titan_intr_yesp, 0,
 		    "Temperature Warning", NULL);
 
 	/*
@@ -417,4 +417,4 @@ struct alpha_machine_vector privateer_mv __initmv = {
 	.pci_swizzle		= common_swizzle,
 };
 /* No alpha_mv alias for privateer since we compile it 
-   in unconditionally with titan; setup_arch knows how to cope. */
+   in unconditionally with titan; setup_arch kyesws how to cope. */

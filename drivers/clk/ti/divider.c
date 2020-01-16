@@ -110,7 +110,7 @@ static unsigned long ti_clk_divider_recalc_rate(struct clk_hw *hw,
 	div = _get_div(divider, val);
 	if (!div) {
 		WARN(!(divider->flags & CLK_DIVIDER_ALLOW_ZERO),
-		     "%s: Zero divisor and CLK_DIVIDER_ALLOW_ZERO not set\n",
+		     "%s: Zero divisor and CLK_DIVIDER_ALLOW_ZERO yest set\n",
 		     clk_hw_get_name(hw));
 		return parent_rate;
 	}
@@ -178,7 +178,7 @@ static int ti_clk_divider_bestdiv(struct clk_hw *hw, unsigned long rate,
 {
 	struct clk_omap_divider *divider = to_clk_omap_divider(hw);
 	int i, bestdiv = 0;
-	unsigned long parent_rate, best = 0, now, maxdiv;
+	unsigned long parent_rate, best = 0, yesw, maxdiv;
 	unsigned long parent_rate_saved = *best_parent_rate;
 
 	if (!rate)
@@ -214,10 +214,10 @@ static int ti_clk_divider_bestdiv(struct clk_hw *hw, unsigned long rate,
 		}
 		parent_rate = clk_hw_round_rate(clk_hw_get_parent(hw),
 				MULT_ROUND_UP(rate, i));
-		now = DIV_ROUND_UP(parent_rate, i);
-		if (now <= rate && now > best) {
+		yesw = DIV_ROUND_UP(parent_rate, i);
+		if (yesw <= rate && yesw > best) {
 			bestdiv = i;
-			best = now;
+			best = yesw;
 			*best_parent_rate = parent_rate;
 		}
 	}
@@ -313,7 +313,7 @@ const struct clk_ops ti_clk_divider_ops = {
 	.restore_context = clk_divider_restore_context,
 };
 
-static struct clk *_register_divider(struct device_node *node,
+static struct clk *_register_divider(struct device_yesde *yesde,
 				     u32 flags,
 				     struct clk_omap_divider *div)
 {
@@ -321,9 +321,9 @@ static struct clk *_register_divider(struct device_node *node,
 	struct clk_init_data init;
 	const char *parent_name;
 
-	parent_name = of_clk_get_parent_name(node, 0);
+	parent_name = of_clk_get_parent_name(yesde, 0);
 
-	init.name = node->name;
+	init.name = yesde->name;
 	init.ops = &ti_clk_divider_ops;
 	init.flags = flags;
 	init.parent_names = (parent_name ? &parent_name : NULL);
@@ -332,7 +332,7 @@ static struct clk *_register_divider(struct device_node *node,
 	div->hw.init = &init;
 
 	/* register the clock */
-	clk = ti_clk_register(NULL, &div->hw, node->name);
+	clk = ti_clk_register(NULL, &div->hw, yesde->name);
 
 	if (IS_ERR(clk))
 		kfree(div);
@@ -392,7 +392,7 @@ int ti_clk_parse_divider_data(int *div_table, int num_dividers, int max_div,
 	return 0;
 }
 
-static int __init ti_clk_get_div_table(struct device_node *node,
+static int __init ti_clk_get_div_table(struct device_yesde *yesde,
 				       struct clk_omap_divider *div)
 {
 	struct clk_div_table *table;
@@ -402,7 +402,7 @@ static int __init ti_clk_get_div_table(struct device_node *node,
 	u32 valid_div;
 	int i;
 
-	divspec = of_get_property(node, "ti,dividers", &num_div);
+	divspec = of_get_property(yesde, "ti,dividers", &num_div);
 
 	if (!divspec)
 		return 0;
@@ -413,13 +413,13 @@ static int __init ti_clk_get_div_table(struct device_node *node,
 
 	/* Determine required size for divider table */
 	for (i = 0; i < num_div; i++) {
-		of_property_read_u32_index(node, "ti,dividers", i, &val);
+		of_property_read_u32_index(yesde, "ti,dividers", i, &val);
 		if (val)
 			valid_div++;
 	}
 
 	if (!valid_div) {
-		pr_err("no valid dividers for %pOFn table\n", node);
+		pr_err("yes valid dividers for %pOFn table\n", yesde);
 		return -EINVAL;
 	}
 
@@ -430,7 +430,7 @@ static int __init ti_clk_get_div_table(struct device_node *node,
 	valid_div = 0;
 
 	for (i = 0; i < num_div; i++) {
-		of_property_read_u32_index(node, "ti,dividers", i, &val);
+		of_property_read_u32_index(yesde, "ti,dividers", i, &val);
 		if (val) {
 			table[valid_div].div = val;
 			table[valid_div].val = i;
@@ -443,7 +443,7 @@ static int __init ti_clk_get_div_table(struct device_node *node,
 	return 0;
 }
 
-static int _populate_divider_min_max(struct device_node *node,
+static int _populate_divider_min_max(struct device_yesde *yesde,
 				     struct clk_omap_divider *divider)
 {
 	u32 min_div = 0;
@@ -452,12 +452,12 @@ static int _populate_divider_min_max(struct device_node *node,
 	const struct clk_div_table *clkt;
 
 	if (!divider->table) {
-		/* Clk divider table not provided, determine min/max divs */
-		if (of_property_read_u32(node, "ti,min-div", &min_div))
+		/* Clk divider table yest provided, determine min/max divs */
+		if (of_property_read_u32(yesde, "ti,min-div", &min_div))
 			min_div = 1;
 
-		if (of_property_read_u32(node, "ti,max-div", &max_div)) {
-			pr_err("no max-div for %pOFn!\n", node);
+		if (of_property_read_u32(yesde, "ti,max-div", &max_div)) {
+			pr_err("yes max-div for %pOFn!\n", yesde);
 			return -EINVAL;
 		}
 	} else {
@@ -478,23 +478,23 @@ static int _populate_divider_min_max(struct device_node *node,
 	return 0;
 }
 
-static int __init ti_clk_divider_populate(struct device_node *node,
+static int __init ti_clk_divider_populate(struct device_yesde *yesde,
 					  struct clk_omap_divider *div,
 					  u32 *flags)
 {
 	u32 val;
 	int ret;
 
-	ret = ti_clk_get_reg_addr(node, 0, &div->reg);
+	ret = ti_clk_get_reg_addr(yesde, 0, &div->reg);
 	if (ret)
 		return ret;
 
-	if (!of_property_read_u32(node, "ti,bit-shift", &val))
+	if (!of_property_read_u32(yesde, "ti,bit-shift", &val))
 		div->shift = val;
 	else
 		div->shift = 0;
 
-	if (!of_property_read_u32(node, "ti,latch-bit", &val))
+	if (!of_property_read_u32(yesde, "ti,latch-bit", &val))
 		div->latch = val;
 	else
 		div->latch = -EINVAL;
@@ -502,29 +502,29 @@ static int __init ti_clk_divider_populate(struct device_node *node,
 	*flags = 0;
 	div->flags = 0;
 
-	if (of_property_read_bool(node, "ti,index-starts-at-one"))
+	if (of_property_read_bool(yesde, "ti,index-starts-at-one"))
 		div->flags |= CLK_DIVIDER_ONE_BASED;
 
-	if (of_property_read_bool(node, "ti,index-power-of-two"))
+	if (of_property_read_bool(yesde, "ti,index-power-of-two"))
 		div->flags |= CLK_DIVIDER_POWER_OF_TWO;
 
-	if (of_property_read_bool(node, "ti,set-rate-parent"))
+	if (of_property_read_bool(yesde, "ti,set-rate-parent"))
 		*flags |= CLK_SET_RATE_PARENT;
 
-	ret = ti_clk_get_div_table(node, div);
+	ret = ti_clk_get_div_table(yesde, div);
 	if (ret)
 		return ret;
 
-	return _populate_divider_min_max(node, div);
+	return _populate_divider_min_max(yesde, div);
 }
 
 /**
  * of_ti_divider_clk_setup - Setup function for simple div rate clock
- * @node: device node for this clock
+ * @yesde: device yesde for this clock
  *
  * Sets up a basic divider clock.
  */
-static void __init of_ti_divider_clk_setup(struct device_node *node)
+static void __init of_ti_divider_clk_setup(struct device_yesde *yesde)
 {
 	struct clk *clk;
 	u32 flags = 0;
@@ -534,13 +534,13 @@ static void __init of_ti_divider_clk_setup(struct device_node *node)
 	if (!div)
 		return;
 
-	if (ti_clk_divider_populate(node, div, &flags))
+	if (ti_clk_divider_populate(yesde, div, &flags))
 		goto cleanup;
 
-	clk = _register_divider(node, flags, div);
+	clk = _register_divider(yesde, flags, div);
 	if (!IS_ERR(clk)) {
-		of_clk_add_provider(node, of_clk_src_simple_get, clk);
-		of_ti_clk_autoidle_setup(node);
+		of_clk_add_provider(yesde, of_clk_src_simple_get, clk);
+		of_ti_clk_autoidle_setup(yesde);
 		return;
 	}
 
@@ -550,7 +550,7 @@ cleanup:
 }
 CLK_OF_DECLARE(divider_clk, "ti,divider-clock", of_ti_divider_clk_setup);
 
-static void __init of_ti_composite_divider_clk_setup(struct device_node *node)
+static void __init of_ti_composite_divider_clk_setup(struct device_yesde *yesde)
 {
 	struct clk_omap_divider *div;
 	u32 tmp;
@@ -559,10 +559,10 @@ static void __init of_ti_composite_divider_clk_setup(struct device_node *node)
 	if (!div)
 		return;
 
-	if (ti_clk_divider_populate(node, div, &tmp))
+	if (ti_clk_divider_populate(yesde, div, &tmp))
 		goto cleanup;
 
-	if (!ti_clk_add_component(node, &div->hw, CLK_COMPONENT_TYPE_DIVIDER))
+	if (!ti_clk_add_component(yesde, &div->hw, CLK_COMPONENT_TYPE_DIVIDER))
 		return;
 
 cleanup:

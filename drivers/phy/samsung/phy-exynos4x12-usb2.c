@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Samsung SoC USB 1.1/2.0 PHY driver - Exynos 4x12 support
+ * Samsung SoC USB 1.1/2.0 PHY driver - Exyyess 4x12 support
  *
  * Copyright (C) 2013 Samsung Electronics Co., Ltd.
  * Author: Kamil Debski <k.debski@samsung.com>
@@ -12,7 +12,7 @@
 #include <linux/regmap.h>
 #include "phy-samsung-usb2.h"
 
-/* Exynos USB PHY registers */
+/* Exyyess USB PHY registers */
 
 /* PHY power control */
 #define EXYNOS_4x12_UPHYPWR			0x0
@@ -86,7 +86,7 @@
 #define EXYNOS_4x12_URSTCON_OTG_PHYLINK		BIT(2)
 #define EXYNOS_4x12_URSTCON_HOST_PHY		BIT(3)
 /* The following bit defines are presented in the
- * order taken from the Exynos4412 reference manual.
+ * order taken from the Exyyess4412 reference manual.
  *
  * During experiments with the hardware and debugging
  * it was determined that the hardware behaves contrary
@@ -117,7 +117,7 @@
 #define EXYNOS_4x12_MODE_SWITCH_DEVICE		0
 #define EXYNOS_4x12_MODE_SWITCH_HOST		1
 
-enum exynos4x12_phy_id {
+enum exyyess4x12_phy_id {
 	EXYNOS4x12_DEVICE,
 	EXYNOS4x12_HOST,
 	EXYNOS4x12_HSIC0,
@@ -126,10 +126,10 @@ enum exynos4x12_phy_id {
 };
 
 /*
- * exynos4x12_rate_to_clk() converts the supplied clock rate to the value that
+ * exyyess4x12_rate_to_clk() converts the supplied clock rate to the value that
  * can be written to the phy register.
  */
-static int exynos4x12_rate_to_clk(unsigned long rate, u32 *reg)
+static int exyyess4x12_rate_to_clk(unsigned long rate, u32 *reg)
 {
 	/* EXYNOS_4x12_UPHYCLK_PHYFSEL_MASK */
 
@@ -162,7 +162,7 @@ static int exynos4x12_rate_to_clk(unsigned long rate, u32 *reg)
 	return 0;
 }
 
-static void exynos4x12_isol(struct samsung_usb2_phy_instance *inst, bool on)
+static void exyyess4x12_isol(struct samsung_usb2_phy_instance *inst, bool on)
 {
 	struct samsung_usb2_phy_driver *drv = inst->drv;
 	u32 offset;
@@ -189,7 +189,7 @@ static void exynos4x12_isol(struct samsung_usb2_phy_instance *inst, bool on)
 	regmap_update_bits(drv->reg_pmu, offset, mask, on ? 0 : mask);
 }
 
-static void exynos4x12_setup_clk(struct samsung_usb2_phy_instance *inst)
+static void exyyess4x12_setup_clk(struct samsung_usb2_phy_instance *inst)
 {
 	struct samsung_usb2_phy_driver *drv = inst->drv;
 	u32 clk;
@@ -205,7 +205,7 @@ static void exynos4x12_setup_clk(struct samsung_usb2_phy_instance *inst)
 	writel(clk, drv->reg_phy + EXYNOS_4x12_UPHYCLK);
 }
 
-static void exynos4x12_phy_pwr(struct samsung_usb2_phy_instance *inst, bool on)
+static void exyyess4x12_phy_pwr(struct samsung_usb2_phy_instance *inst, bool on)
 {
 	struct samsung_usb2_phy_driver *drv = inst->drv;
 	u32 rstbits = 0;
@@ -257,17 +257,17 @@ static void exynos4x12_phy_pwr(struct samsung_usb2_phy_instance *inst, bool on)
 	}
 }
 
-static void exynos4x12_power_on_int(struct samsung_usb2_phy_instance *inst)
+static void exyyess4x12_power_on_int(struct samsung_usb2_phy_instance *inst)
 {
 	if (inst->int_cnt++ > 0)
 		return;
 
-	exynos4x12_setup_clk(inst);
-	exynos4x12_isol(inst, 0);
-	exynos4x12_phy_pwr(inst, 1);
+	exyyess4x12_setup_clk(inst);
+	exyyess4x12_isol(inst, 0);
+	exyyess4x12_phy_pwr(inst, 1);
 }
 
-static int exynos4x12_power_on(struct samsung_usb2_phy_instance *inst)
+static int exyyess4x12_power_on(struct samsung_usb2_phy_instance *inst)
 {
 	struct samsung_usb2_phy_driver *drv = inst->drv;
 
@@ -278,7 +278,7 @@ static int exynos4x12_power_on(struct samsung_usb2_phy_instance *inst)
 		regmap_update_bits(drv->reg_sys, EXYNOS_4x12_MODE_SWITCH_OFFSET,
 						EXYNOS_4x12_MODE_SWITCH_MASK,
 						EXYNOS_4x12_MODE_SWITCH_HOST);
-		exynos4x12_power_on_int(&drv->instances[EXYNOS4x12_DEVICE]);
+		exyyess4x12_power_on_int(&drv->instances[EXYNOS4x12_DEVICE]);
 	}
 
 	if (inst->cfg->id == EXYNOS4x12_DEVICE && drv->cfg->has_mode_switch)
@@ -288,25 +288,25 @@ static int exynos4x12_power_on(struct samsung_usb2_phy_instance *inst)
 
 	if (inst->cfg->id == EXYNOS4x12_HSIC0 ||
 		inst->cfg->id == EXYNOS4x12_HSIC1) {
-		exynos4x12_power_on_int(&drv->instances[EXYNOS4x12_DEVICE]);
-		exynos4x12_power_on_int(&drv->instances[EXYNOS4x12_HOST]);
+		exyyess4x12_power_on_int(&drv->instances[EXYNOS4x12_DEVICE]);
+		exyyess4x12_power_on_int(&drv->instances[EXYNOS4x12_HOST]);
 	}
 
-	exynos4x12_power_on_int(inst);
+	exyyess4x12_power_on_int(inst);
 
 	return 0;
 }
 
-static void exynos4x12_power_off_int(struct samsung_usb2_phy_instance *inst)
+static void exyyess4x12_power_off_int(struct samsung_usb2_phy_instance *inst)
 {
 	if (inst->int_cnt-- > 1)
 		return;
 
-	exynos4x12_isol(inst, 1);
-	exynos4x12_phy_pwr(inst, 0);
+	exyyess4x12_isol(inst, 1);
+	exyyess4x12_phy_pwr(inst, 0);
 }
 
-static int exynos4x12_power_off(struct samsung_usb2_phy_instance *inst)
+static int exyyess4x12_power_off(struct samsung_usb2_phy_instance *inst)
 {
 	struct samsung_usb2_phy_driver *drv = inst->drv;
 
@@ -319,57 +319,57 @@ static int exynos4x12_power_off(struct samsung_usb2_phy_instance *inst)
 						EXYNOS_4x12_MODE_SWITCH_HOST);
 
 	if (inst->cfg->id == EXYNOS4x12_HOST)
-		exynos4x12_power_off_int(&drv->instances[EXYNOS4x12_DEVICE]);
+		exyyess4x12_power_off_int(&drv->instances[EXYNOS4x12_DEVICE]);
 
 	if (inst->cfg->id == EXYNOS4x12_HSIC0 ||
 		inst->cfg->id == EXYNOS4x12_HSIC1) {
-		exynos4x12_power_off_int(&drv->instances[EXYNOS4x12_DEVICE]);
-		exynos4x12_power_off_int(&drv->instances[EXYNOS4x12_HOST]);
+		exyyess4x12_power_off_int(&drv->instances[EXYNOS4x12_DEVICE]);
+		exyyess4x12_power_off_int(&drv->instances[EXYNOS4x12_HOST]);
 	}
 
-	exynos4x12_power_off_int(inst);
+	exyyess4x12_power_off_int(inst);
 
 	return 0;
 }
 
 
-static const struct samsung_usb2_common_phy exynos4x12_phys[] = {
+static const struct samsung_usb2_common_phy exyyess4x12_phys[] = {
 	{
 		.label		= "device",
 		.id		= EXYNOS4x12_DEVICE,
-		.power_on	= exynos4x12_power_on,
-		.power_off	= exynos4x12_power_off,
+		.power_on	= exyyess4x12_power_on,
+		.power_off	= exyyess4x12_power_off,
 	},
 	{
 		.label		= "host",
 		.id		= EXYNOS4x12_HOST,
-		.power_on	= exynos4x12_power_on,
-		.power_off	= exynos4x12_power_off,
+		.power_on	= exyyess4x12_power_on,
+		.power_off	= exyyess4x12_power_off,
 	},
 	{
 		.label		= "hsic0",
 		.id		= EXYNOS4x12_HSIC0,
-		.power_on	= exynos4x12_power_on,
-		.power_off	= exynos4x12_power_off,
+		.power_on	= exyyess4x12_power_on,
+		.power_off	= exyyess4x12_power_off,
 	},
 	{
 		.label		= "hsic1",
 		.id		= EXYNOS4x12_HSIC1,
-		.power_on	= exynos4x12_power_on,
-		.power_off	= exynos4x12_power_off,
+		.power_on	= exyyess4x12_power_on,
+		.power_off	= exyyess4x12_power_off,
 	},
 };
 
-const struct samsung_usb2_phy_config exynos3250_usb2_phy_config = {
+const struct samsung_usb2_phy_config exyyess3250_usb2_phy_config = {
 	.has_refclk_sel		= 1,
 	.num_phys		= 1,
-	.phys			= exynos4x12_phys,
-	.rate_to_clk		= exynos4x12_rate_to_clk,
+	.phys			= exyyess4x12_phys,
+	.rate_to_clk		= exyyess4x12_rate_to_clk,
 };
 
-const struct samsung_usb2_phy_config exynos4x12_usb2_phy_config = {
+const struct samsung_usb2_phy_config exyyess4x12_usb2_phy_config = {
 	.has_mode_switch	= 1,
 	.num_phys		= EXYNOS4x12_NUM_PHYS,
-	.phys			= exynos4x12_phys,
-	.rate_to_clk		= exynos4x12_rate_to_clk,
+	.phys			= exyyess4x12_phys,
+	.rate_to_clk		= exyyess4x12_rate_to_clk,
 };

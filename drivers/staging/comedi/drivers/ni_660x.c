@@ -17,7 +17,7 @@
  * Status: experimental
  *
  * Encoders work.  PulseGeneration (both single pulse and pulse train)
- * works.  Buffered commands work for input but not output.
+ * works.  Buffered commands work for input but yest output.
  *
  * References:
  * DAQ 660x Register-Level Programmer Manual  (NI 370505A-01)
@@ -384,10 +384,10 @@ static int ni_660x_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	retval = ni_660x_request_mite_channel(dev, counter, COMEDI_INPUT);
 	if (retval) {
 		dev_err(dev->class_dev,
-			"no dma channel available for use by counter\n");
+			"yes dma channel available for use by counter\n");
 		return retval;
 	}
-	ni_tio_acknowledge(counter);
+	ni_tio_ackyeswledge(counter);
 
 	return ni_tio_cmd(dev, s);
 }
@@ -541,7 +541,7 @@ static int ni_660x_dio_insn_bits(struct comedi_device *dev,
 	 * There are 40 channels in this subdevice but only 32 are usable
 	 * as DIO. The shift adjusts the mask/bits to account for the base
 	 * channel in insn->chanspec. The state update can then be handled
-	 * normally for the 32 usable channels.
+	 * yesrmally for the 32 usable channels.
 	 */
 	if (mask) {
 		s->state &= ~mask;
@@ -617,7 +617,7 @@ static void ni_660x_set_pfi_direction(struct comedi_device *dev,
 		ni_660x_select_pfi_output(dev, chan, devpriv->io_cfg[chan]);
 	} else {
 		devpriv->io_dir &= ~bit;
-		/* set pin to high-z; do not change currently assigned route */
+		/* set pin to high-z; do yest change currently assigned route */
 		ni_660x_select_pfi_output(dev, chan, 0);
 	}
 }
@@ -745,11 +745,11 @@ static unsigned int _ni_get_valid_routes(struct comedi_device *dev,
 
 /*
  * Retrieves the current source of the output selector for the given
- * destination.  If the terminal for the destination is not already configured
+ * destination.  If the terminal for the destination is yest already configured
  * as an output, this function returns -EINVAL as error.
  *
  * Return: The register value of the destination output selector;
- *	   -EINVAL if terminal is not configured for output.
+ *	   -EINVAL if terminal is yest configured for output.
  */
 static inline int get_output_select_source(int dest, struct comedi_device *dev)
 {
@@ -765,7 +765,7 @@ static inline int get_output_select_source(int dest, struct comedi_device *dev)
 			__func__, dest);
 		/*
 		 * The following can be enabled when RTSI routing info is
-		 * determined (not currently documented):
+		 * determined (yest currently documented):
 		 * if (ni_get_rtsi_direction(dev, dest) == COMEDI_OUTPUT) {
 		 *	reg = ni_get_rtsi_routing(dev, dest);
 
@@ -798,8 +798,8 @@ static inline int get_output_select_source(int dest, struct comedi_device *dev)
 /*
  * Test a route:
  *
- * Return: -1 if not connectible;
- *	    0 if connectible and not connected;
+ * Return: -1 if yest connectible;
+ *	    0 if connectible and yest connected;
  *	    1 if connectible and connected.
  */
 static inline int test_route(unsigned int src, unsigned int dest,
@@ -826,7 +826,7 @@ static inline int connect_route(unsigned int src, unsigned int dest,
 	s8 current_src;
 
 	if (reg < 0)
-		/* route is not valid */
+		/* route is yest valid */
 		return -EINVAL;
 
 	current_src = get_output_select_source(dest, dev);
@@ -839,7 +839,7 @@ static inline int connect_route(unsigned int src, unsigned int dest,
 	/* The route is valid and available. Now connect... */
 	if (channel_is_pfi(CR_CHAN(dest))) {
 		/*
-		 * set routing and then direction so that the output does not
+		 * set routing and then direction so that the output does yest
 		 * first get generated with the wrong pin
 		 */
 		ni_660x_set_pfi_routing(dev, dest, reg);
@@ -850,7 +850,7 @@ static inline int connect_route(unsigned int src, unsigned int dest,
 		return -EINVAL;
 		/*
 		 * The following can be enabled when RTSI routing info is
-		 * determined (not currently documented):
+		 * determined (yest currently documented):
 		 * if (reg == NI_RTSI_OUTPUT_RGOUT0) {
 		 *	int ret = incr_rgout0_src_use(src, dev);
 
@@ -892,10 +892,10 @@ static inline int disconnect_route(unsigned int src, unsigned int dest,
 				      &devpriv->routing_tables);
 
 	if (reg < 0)
-		/* route is not valid */
+		/* route is yest valid */
 		return -EINVAL;
 	if (get_output_select_source(dest, dev) != CR_CHAN(src))
-		/* cannot disconnect something not connected */
+		/* canyest disconnect something yest connected */
 		return -EINVAL;
 
 	/* The route is valid and is connected.  Now disconnect... */
@@ -913,7 +913,7 @@ static inline int disconnect_route(unsigned int src, unsigned int dest,
 		return -EINVAL;
 		/*
 		 * The following can be enabled when RTSI routing info is
-		 * determined (not currently documented):
+		 * determined (yest currently documented):
 		 * if (reg == NI_RTSI_OUTPUT_RGOUT0) {
 		 *	int ret = decr_rgout0_src_use(src, dev);
 
@@ -1037,9 +1037,9 @@ static int ni_660x_auto_attach(struct comedi_device *dev,
 	/* prepare the device for globally-named routes. */
 	if (ni_assign_device_routes("ni_660x", board->name,
 				    &devpriv->routing_tables) < 0) {
-		dev_warn(dev->class_dev, "%s: %s device has no signal routing table.\n",
+		dev_warn(dev->class_dev, "%s: %s device has yes signal routing table.\n",
 			 __func__, board->name);
-		dev_warn(dev->class_dev, "%s: High level NI signal names will not be available for this %s board.\n",
+		dev_warn(dev->class_dev, "%s: High level NI signal names will yest be available for this %s board.\n",
 			 __func__, board->name);
 	} else {
 		/*
@@ -1069,7 +1069,7 @@ static int ni_660x_auto_attach(struct comedi_device *dev,
 	subdev = 0;
 
 	s = &dev->subdevices[subdev++];
-	/* Old GENERAL-PURPOSE COUNTER/TIME (GPCT) subdevice, no longer used */
+	/* Old GENERAL-PURPOSE COUNTER/TIME (GPCT) subdevice, yes longer used */
 	s->type = COMEDI_SUBD_UNUSED;
 
 	/*
@@ -1186,7 +1186,7 @@ static int ni_660x_auto_attach(struct comedi_device *dev,
 	ret = request_irq(pcidev->irq, ni_660x_interrupt, IRQF_SHARED,
 			  dev->board_name, dev);
 	if (ret < 0) {
-		dev_warn(dev->class_dev, " irq not available\n");
+		dev_warn(dev->class_dev, " irq yest available\n");
 		return ret;
 	}
 	dev->irq = pcidev->irq;

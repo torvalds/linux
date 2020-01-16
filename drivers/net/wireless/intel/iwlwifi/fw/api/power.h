@@ -39,12 +39,12 @@
  * are met:
  *
  *  * Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  *  * Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
+ *    yestice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
- *  * Neither the name Intel Corporation nor the names of its
+ *  * Neither the name Intel Corporation yesr the names of its
  *    contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
@@ -134,15 +134,15 @@ struct iwl_ltr_config_cmd {
 /**
  * enum iwl_power_flags - masks for power table command flags
  * @POWER_FLAGS_POWER_SAVE_ENA_MSK: '1' Allow to save power by turning off
- *		receiver and transmitter. '0' - does not allow.
+ *		receiver and transmitter. '0' - does yest allow.
  * @POWER_FLAGS_POWER_MANAGEMENT_ENA_MSK: '0' Driver disables power management,
  *		'1' Driver enables PM (use rest of parameters)
  * @POWER_FLAGS_SKIP_OVER_DTIM_MSK: '0' PM have to walk up every DTIM,
  *		'1' PM could sleep over DTIM till listen Interval.
- * @POWER_FLAGS_SNOOZE_ENA_MSK: Enable snoozing only if uAPSD is enabled and all
+ * @POWER_FLAGS_SNOOZE_ENA_MSK: Enable syesozing only if uAPSD is enabled and all
  *		access categories are both delivery and trigger enabled.
  * @POWER_FLAGS_BT_SCO_ENA: Enable BT SCO coex only if uAPSD and
- *		PBW Snoozing enabled
+ *		PBW Syesozing enabled
  * @POWER_FLAGS_ADVANCE_PM_ENA_MSK: Advanced PM (uAPSD) enable mask
  * @POWER_FLAGS_LPRX_ENA_MSK: Low Power RX enable.
  * @POWER_FLAGS_UAPSD_MISBEHAVING_ENA_MSK: AP/GO's uAPSD misbehaving
@@ -176,7 +176,7 @@ enum iwl_power_flags {
  *			PSM transition - legacy PM
  * @tx_data_timeout:    Minimum time (usec) from last Tx packet for AM to
  *			PSM transition - legacy PM
- * @sleep_interval:	not in use
+ * @sleep_interval:	yest in use
  * @skip_dtim_periods:	Number of DTIM periods to skip if Skip over DTIM flag
  *			is set. For example, if it is required to skip over
  *			one DTIM, this value need to be set to 2 (DTIM periods).
@@ -199,7 +199,7 @@ struct iwl_powertable_cmd {
  * enum iwl_device_power_flags - masks for device power command flags
  * @DEVICE_POWER_FLAGS_POWER_SAVE_ENA_MSK:
  *	'1' Allow to save power by turning off
- *	receiver and transmitter. '0' - does not allow.
+ *	receiver and transmitter. '0' - does yest allow.
  * @DEVICE_POWER_FLAGS_ALLOW_MEM_RETENTION_MSK:
  *	Device Retention indication, '1' indicate retention is enabled.
  * @DEVICE_POWER_FLAGS_32K_CLK_VALID_MSK:
@@ -247,13 +247,13 @@ struct iwl_device_power_cmd {
  *			PSM transition - uAPSD
  * @lprx_rssi_threshold: Signal strength up to which LP RX can be enabled.
  *			Default: 80dbm
- * @snooze_interval:	Maximum time between attempts to retrieve buffered data
+ * @syesoze_interval:	Maximum time between attempts to retrieve buffered data
  *			from the AP [msec]
- * @snooze_window:	A window of time in which PBW snoozing insures that all
+ * @syesoze_window:	A window of time in which PBW syesozing insures that all
  *			packets received. It is also the minimum time from last
- *			received unicast RX packet, before client stops snoozing
+ *			received unicast RX packet, before client stops syesozing
  *			for data. [msec]
- * @snooze_step:	TBD
+ * @syesoze_step:	TBD
  * @qndp_tid:		TID client shall use for uAPSD QNDP triggers
  * @uapsd_ac_flags:	Set trigger-enabled and delivery-enabled indication for
  *			each corresponding AC.
@@ -280,9 +280,9 @@ struct iwl_mac_power_cmd {
 	__le32 tx_data_timeout_uapsd;
 	u8 lprx_rssi_threshold;
 	u8 skip_dtim_periods;
-	__le16 snooze_interval;
-	__le16 snooze_window;
-	u8 snooze_step;
+	__le16 syesoze_interval;
+	__le16 syesoze_window;
+	u8 syesoze_step;
 	u8 qndp_tid;
 	u8 uapsd_ac_flags;
 	u8 uapsd_max_sp;
@@ -295,13 +295,13 @@ struct iwl_mac_power_cmd {
 } __packed;
 
 /*
- * struct iwl_uapsd_misbehaving_ap_notif - FW sends this notification when
+ * struct iwl_uapsd_misbehaving_ap_yestif - FW sends this yestification when
  * associated AP is identified as improperly implementing uAPSD protocol.
  * PSM_UAPSD_AP_MISBEHAVING_NOTIFICATION = 0x78
  * @sta_id: index of station in uCode's station table - associated AP ID in
  *	    this context.
  */
-struct iwl_uapsd_misbehaving_ap_notif {
+struct iwl_uapsd_misbehaving_ap_yestif {
 	__le32 sta_id;
 	u8 mac_id;
 	u8 reserved[3];
@@ -376,7 +376,7 @@ struct iwl_dev_tx_power_cmd_v4 {
  * @per_chain_restriction_changed: is per_chain_restriction has changed
  *	from last command. used if set_mode is
  *	IWL_TX_POWER_MODE_SET_SAR_TIMER.
- *	note: if not changed, the command is used for keep alive only.
+ *	yeste: if yest changed, the command is used for keep alive only.
  * @reserved: reserved (padding)
  * @timer_period: timer in milliseconds. if expires FW will change to default
  *	BIOS values. relevant if setMode is IWL_TX_POWER_MODE_SET_SAR_TIMER
@@ -464,20 +464,20 @@ struct iwl_ppag_table_cmd {
 /**
  * struct iwl_beacon_filter_cmd
  * REPLY_BEACON_FILTERING_CMD = 0xd2 (command)
- * @bf_energy_delta: Used for RSSI filtering, if in 'normal' state. Send beacon
+ * @bf_energy_delta: Used for RSSI filtering, if in 'yesrmal' state. Send beacon
  *      to driver if delta in Energy values calculated for this and last
  *      passed beacon is greater than this threshold. Zero value means that
- *      the Energy change is ignored for beacon filtering, and beacon will
- *      not be forced to be sent to driver regardless of this delta. Typical
+ *      the Energy change is igyesred for beacon filtering, and beacon will
+ *      yest be forced to be sent to driver regardless of this delta. Typical
  *      energy delta 5dB.
  * @bf_roaming_energy_delta: Used for RSSI filtering, if in 'roaming' state.
  *      Send beacon to driver if delta in Energy values calculated for this
  *      and last passed beacon is greater than this threshold. Zero value
- *      means that the Energy change is ignored for beacon filtering while in
+ *      means that the Energy change is igyesred for beacon filtering while in
  *      Roaming state, typical energy delta 1dB.
  * @bf_roaming_state: Used for RSSI filtering. If absolute Energy values
  *      calculated for current beacon is less than the threshold, use
- *      Roaming Energy Delta Threshold, otherwise use normal Energy Delta
+ *      Roaming Energy Delta Threshold, otherwise use yesrmal Energy Delta
  *      Threshold. Typical energy threshold is -72dBm.
  * @bf_temp_threshold: This threshold determines the type of temperature
  *	filtering (Slow or Fast) that is selected (Units are in Celsuis):
@@ -486,19 +486,19 @@ struct iwl_ppag_table_cmd {
  *	Slow filter will be used.
  * @bf_temp_fast_filter: Send Beacon to driver if delta in temperature values
  *      calculated for this and the last passed beacon is greater than this
- *      threshold. Zero value means that the temperature change is ignored for
- *      beacon filtering; beacons will not be  forced to be sent to driver
+ *      threshold. Zero value means that the temperature change is igyesred for
+ *      beacon filtering; beacons will yest be  forced to be sent to driver
  *      regardless of whether its temerature has been changed.
  * @bf_temp_slow_filter: Send Beacon to driver if delta in temperature values
  *      calculated for this and the last passed beacon is greater than this
- *      threshold. Zero value means that the temperature change is ignored for
- *      beacon filtering; beacons will not be forced to be sent to driver
+ *      threshold. Zero value means that the temperature change is igyesred for
+ *      beacon filtering; beacons will yest be forced to be sent to driver
  *      regardless of whether its temerature has been changed.
  * @bf_enable_beacon_filter: 1, beacon filtering is enabled; 0, disabled.
  * @bf_debug_flag: beacon filtering debug configuration
- * @bf_escape_timer: Send beacons to to driver if no beacons were passed
+ * @bf_escape_timer: Send beacons to to driver if yes beacons were passed
  *      for a specific period of time. Units: Beacons.
- * @ba_escape_timer: Fully receive and parse beacon if no beacons were passed
+ * @ba_escape_timer: Fully receive and parse beacon if yes beacons were passed
  *      for a longer period of time then this escape-timeout. Units: Beacons.
  * @ba_enable_beacon_abort: 1, beacon abort is enabled; 0, disabled.
  * @bf_threshold_absolute_low: See below.
@@ -506,8 +506,8 @@ struct iwl_ppag_table_cmd {
  *      for this beacon crossed this absolute threshold. For the 'Increase'
  *      direction the bf_energy_absolute_low[i] is used. For the 'Decrease'
  *      direction the bf_energy_absolute_high[i] is used. Zero value means
- *      that this specific threshold is ignored for beacon filtering, and
- *      beacon will not be forced to be sent to driver due to this setting.
+ *      that this specific threshold is igyesred for beacon filtering, and
+ *      beacon will yest be forced to be sent to driver due to this setting.
  */
 struct iwl_beacon_filter_cmd {
 	__le32 bf_energy_delta;

@@ -15,9 +15,9 @@
  * are met:
  *
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
+ *    yestice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
  *
@@ -100,7 +100,7 @@ static int __send_message(struct bnxt_qplib_rcfw *rcfw, struct cmdq_base *req,
 	     opcode != CMDQ_BASE_OPCODE_INITIALIZE_FW &&
 	     opcode != CMDQ_BASE_OPCODE_QUERY_VERSION)) {
 		dev_err(&rcfw->pdev->dev,
-			"RCFW not initialized, reject opcode 0x%x\n", opcode);
+			"RCFW yest initialized, reject opcode 0x%x\n", opcode);
 		return -EINVAL;
 	}
 
@@ -164,7 +164,7 @@ static int __send_message(struct bnxt_qplib_rcfw *rcfw, struct cmdq_base *req,
 				[get_cmdq_idx(sw_prod, cmdq_depth)];
 		if (!cmdqe) {
 			dev_err(&rcfw->pdev->dev,
-				"RCFW request failed with no cmdqe!\n");
+				"RCFW request failed with yes cmdqe!\n");
 			goto done;
 		}
 		/* Copy a segment of the req cmd to the cmdq */
@@ -270,7 +270,7 @@ static int bnxt_qplib_process_func_event(struct bnxt_qplib_rcfw *rcfw,
 		break;
 	case CREQ_FUNC_EVENT_EVENT_CFCS_ERROR:
 		/* SRQ ctx error, call srq_handler??
-		 * But there's no SRQ handle!
+		 * But there's yes SRQ handle!
 		 */
 		break;
 	case CREQ_FUNC_EVENT_EVENT_CFCC_ERROR:
@@ -293,7 +293,7 @@ static int bnxt_qplib_process_qp_event(struct bnxt_qplib_rcfw *rcfw,
 				       struct creq_qp_event *qp_event)
 {
 	struct bnxt_qplib_hwq *cmdq = &rcfw->cmdq;
-	struct creq_qp_error_notification *err_event;
+	struct creq_qp_error_yestification *err_event;
 	struct bnxt_qplib_crsq *crsqe;
 	unsigned long flags;
 	struct bnxt_qplib_qp *qp;
@@ -304,11 +304,11 @@ static int bnxt_qplib_process_qp_event(struct bnxt_qplib_rcfw *rcfw,
 
 	switch (qp_event->event) {
 	case CREQ_QP_EVENT_EVENT_QP_ERROR_NOTIFICATION:
-		err_event = (struct creq_qp_error_notification *)qp_event;
+		err_event = (struct creq_qp_error_yestification *)qp_event;
 		qp_id = le32_to_cpu(err_event->xid);
 		qp = rcfw->qp_tbl[qp_id].qp_handle;
 		dev_dbg(&rcfw->pdev->dev,
-			"Received QP error notification\n");
+			"Received QP error yestification\n");
 		dev_dbg(&rcfw->pdev->dev,
 			"qpid 0x%x, req_err=0x%x, resp_err=0x%x\n",
 			qp_id, err_event->req_err_state_reason,
@@ -350,7 +350,7 @@ static int bnxt_qplib_process_qp_event(struct bnxt_qplib_rcfw *rcfw,
 		}
 		if (!test_and_clear_bit(cbit, rcfw->cmdq_bitmap))
 			dev_warn(&rcfw->pdev->dev,
-				 "CMD bit %d was not requested\n", cbit);
+				 "CMD bit %d was yest requested\n", cbit);
 		cmdq->cons += crsqe->req_size;
 		crsqe->req_size = 0;
 
@@ -404,7 +404,7 @@ static void bnxt_qplib_service_creq(unsigned long data)
 		default:
 			if (type != ASYNC_EVENT_CMPL_TYPE_HWRM_ASYNC_EVENT)
 				dev_warn(&rcfw->pdev->dev,
-					 "creqe with event 0x%x not handled\n",
+					 "creqe with event 0x%x yest handled\n",
 					 type);
 			break;
 		}
@@ -483,14 +483,14 @@ int bnxt_qplib_init_rcfw(struct bnxt_qplib_rcfw *rcfw,
 
 	RCFW_CMD_PREP(req, INITIALIZE_FW, cmd_flags);
 	/* Supply (log-base-2-of-host-page-size - base-page-shift)
-	 * to bono to adjust the doorbell page sizes.
+	 * to boyes to adjust the doorbell page sizes.
 	 */
 	req.log2_dbr_pg_size = cpu_to_le16(PAGE_SHIFT -
 					   RCFW_DBR_BASE_PAGE_SHIFT);
 	/*
 	 * Gen P5 devices doesn't require this allocation
 	 * as the L2 driver does the same for RoCE also.
-	 * Also, VFs need not setup the HW context area, PF
+	 * Also, VFs need yest setup the HW context area, PF
 	 * shall setup this area for VF. Skipping the
 	 * HW programming
 	 */
@@ -609,7 +609,7 @@ int bnxt_qplib_alloc_rcfw_channel(struct pci_dev *pdev,
 		goto fail;
 
 	rcfw->qp_tbl_size = qp_tbl_sz;
-	rcfw->qp_tbl = kcalloc(qp_tbl_sz, sizeof(struct bnxt_qplib_qp_node),
+	rcfw->qp_tbl = kcalloc(qp_tbl_sz, sizeof(struct bnxt_qplib_qp_yesde),
 			       GFP_KERNEL);
 	if (!rcfw->qp_tbl)
 		goto fail;
@@ -717,7 +717,7 @@ int bnxt_qplib_enable_rcfw_channel(struct pci_dev *pdev,
 	if (!res_base)
 		return -ENOMEM;
 
-	rcfw->cmdq_bar_reg_iomem = ioremap_nocache(res_base +
+	rcfw->cmdq_bar_reg_iomem = ioremap_yescache(res_base +
 					      RCFW_COMM_BASE_OFFSET,
 					      RCFW_COMM_SIZE);
 	if (!rcfw->cmdq_bar_reg_iomem) {
@@ -739,7 +739,7 @@ int bnxt_qplib_enable_rcfw_channel(struct pci_dev *pdev,
 			"CREQ BAR region %d resc start is 0!\n",
 			rcfw->creq_bar_reg);
 	/* Unconditionally map 8 bytes to support 57500 series */
-	rcfw->creq_bar_reg_iomem = ioremap_nocache(res_base + cp_bar_reg_off,
+	rcfw->creq_bar_reg_iomem = ioremap_yescache(res_base + cp_bar_reg_off,
 						   8);
 	if (!rcfw->creq_bar_reg_iomem) {
 		dev_err(&rcfw->pdev->dev, "CREQ BAR region %d mapping failed\n",
@@ -771,7 +771,7 @@ int bnxt_qplib_enable_rcfw_channel(struct pci_dev *pdev,
 		 CMDQ_INIT_CMDQ_LVL_MASK));
 	init.creq_ring_id = cpu_to_le16(rcfw->creq_ring_id);
 
-	/* Write to the Bono mailbox register */
+	/* Write to the Boyes mailbox register */
 	__iowrite32_copy(rcfw->cmdq_bar_reg_iomem, &init, sizeof(init) / 4);
 	return 0;
 }

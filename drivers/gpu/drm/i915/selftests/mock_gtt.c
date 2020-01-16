@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -70,7 +70,7 @@ struct i915_ppgtt *mock_ppgtt(struct drm_i915_private *i915, const char *name)
 
 	i915_address_space_init(&ppgtt->vm, VM_CLASS_PPGTT);
 
-	ppgtt->vm.clear_range = nop_clear_range;
+	ppgtt->vm.clear_range = yesp_clear_range;
 	ppgtt->vm.insert_page = mock_insert_page;
 	ppgtt->vm.insert_entries = mock_insert_entries;
 	ppgtt->vm.cleanup = mock_cleanup;
@@ -107,7 +107,7 @@ void mock_init_ggtt(struct drm_i915_private *i915, struct i915_ggtt *ggtt)
 	ggtt->mappable_end = resource_size(&ggtt->gmadr);
 	ggtt->vm.total = 4096 * PAGE_SIZE;
 
-	ggtt->vm.clear_range = nop_clear_range;
+	ggtt->vm.clear_range = yesp_clear_range;
 	ggtt->vm.insert_page = mock_insert_page;
 	ggtt->vm.insert_entries = mock_insert_entries;
 	ggtt->vm.cleanup = mock_cleanup;

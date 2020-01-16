@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /* -*- mode: c; c-basic-offset: 8; -*-
- * vim: noexpandtab sw=8 ts=8 sts=0:
+ * vim: yesexpandtab sw=8 ts=8 sts=0:
  *
  * dlmapi.h
  *
@@ -29,15 +29,15 @@ enum dlm_status {
 	DLM_NOSUPPORT,            /*  9: unsupported */
 	DLM_CANCELGRANT,          /* 10: can't cancel convert: already granted */
 	DLM_IVLOCKID,             /* 11: bad lockid */
-	DLM_SYNC,                 /* 12: synchronous request granted */
+	DLM_SYNC,                 /* 12: synchroyesus request granted */
 	DLM_BADTYPE,              /* 13: bad resource type */
 	DLM_BADRESOURCE,          /* 14: bad resource handle */
-	DLM_MAXHANDLES,           /* 15: no more resource handles */
+	DLM_MAXHANDLES,           /* 15: yes more resource handles */
 	DLM_NOCLINFO,             /* 16: can't contact cluster manager */
 	DLM_NOLOCKMGR,            /* 17: can't contact lock manager */
 	DLM_NOPURGED,             /* 18: can't contact purge daemon */
 	DLM_BADARGS,              /* 19: bad api args */
-	DLM_VOID,                 /* 20: no status */
+	DLM_VOID,                 /* 20: yes status */
 	DLM_NOTQUEUED,            /* 21: NOQUEUE was specified and request failed */
 	DLM_IVBUFLEN,             /* 22: invalid resource name length */
 	DLM_CVTUNGRANT,           /* 23: attempted to convert ungranted lock */
@@ -53,9 +53,9 @@ enum dlm_status {
 	DLM_TIMEOUT,              /* 33: timeout value for lock has expired */
 	DLM_IVGROUPID,            /* 34: invalid group specification */
 	DLM_VERS_CONFLICT,        /* 35: version conflicts prevent request handling */
-	DLM_BAD_DEVICE_PATH,      /* 36: Locks device does not exist or path wrong */
+	DLM_BAD_DEVICE_PATH,      /* 36: Locks device does yest exist or path wrong */
 	DLM_NO_DEVICE_PERMISSION, /* 37: Client has insufficient pers for device */
-	DLM_NO_CONTROL_DEVICE,    /* 38: Cannot set options on opened device */
+	DLM_NO_CONTROL_DEVICE,    /* 38: Canyest set options on opened device */
 
 	DLM_RECOVERING,           /* 39: extension, allows caller to fail a lock
 				     request if it is being recovered */
@@ -69,10 +69,10 @@ const char *dlm_errmsg(enum dlm_status err);
 /* for pretty-printing dlm_status error names */
 const char *dlm_errname(enum dlm_status err);
 
-/* Eventually the DLM will use standard errno values, but in the
+/* Eventually the DLM will use standard erryes values, but in the
  * meantime this lets us track dlm errors as they bubble up. When we
  * bring its error reporting into line with the rest of the stack,
- * these can just be replaced with calls to mlog_errno. */
+ * these can just be replaced with calls to mlog_erryes. */
 #define dlm_error(st) do {						\
 	if ((st) != DLM_RECOVERING &&					\
 	    (st) != DLM_MIGRATING &&					\
@@ -120,20 +120,20 @@ struct dlm_lockstatus {
 #define LKM_BLOCK        0x00000040  /* blocking lock request (U) */
 #define LKM_LOCAL        0x00000080  /* local lock request */
 #define LKM_VALBLK       0x00000100  /* lock value block request */
-#define LKM_NOQUEUE      0x00000200  /* non blocking request */
+#define LKM_NOQUEUE      0x00000200  /* yesn blocking request */
 #define LKM_CONVERT      0x00000400  /* conversion request */
 #define LKM_NODLCKWT     0x00000800  /* this lock wont deadlock (U) */
 #define LKM_UNLOCK       0x00001000  /* deallocate this lock */
 #define LKM_CANCEL       0x00002000  /* cancel conversion request */
 #define LKM_DEQALL       0x00004000  /* remove all locks held by proc (U) */
 #define LKM_INVVALBLK    0x00008000  /* invalidate lock value block */
-#define LKM_SYNCSTS      0x00010000  /* return synchronous status if poss (U) */
+#define LKM_SYNCSTS      0x00010000  /* return synchroyesus status if poss (U) */
 #define LKM_TIMEOUT      0x00020000  /* lock request contains timeout (U) */
 #define LKM_SNGLDLCK     0x00040000  /* request can self-deadlock (U) */
 #define LKM_FINDLOCAL    0x00080000  /* find local lock request (U) */
-#define LKM_PROC_OWNED   0x00100000  /* owned by process, not group (U) */
+#define LKM_PROC_OWNED   0x00100000  /* owned by process, yest group (U) */
 #define LKM_XID          0x00200000  /* use transaction id for deadlock (U) */
-#define LKM_XID_CONFLICT 0x00400000  /* do not allow lock inheritance (U) */
+#define LKM_XID_CONFLICT 0x00400000  /* do yest allow lock inheritance (U) */
 #define LKM_FORCE        0x00800000  /* force unlock flag */
 #define LKM_REVVALBLK    0x01000000  /* temporary solution: re-validate
 					lock value block (U) */
@@ -149,7 +149,7 @@ struct dlm_lockstatus {
 /* ocfs2 extensions: internal only
  * should never be used by caller */
 #define LKM_MIGRATION    0x10000000  /* extension: lockres is to be migrated
-					to another node */
+					to ayesther yesde */
 #define LKM_PUT_LVB      0x20000000  /* extension: lvb is being passed
 					should be applied to lockres */
 #define LKM_GET_LVB      0x40000000  /* extension: lvb should be copied
@@ -180,7 +180,7 @@ enum dlm_status dlmunlock(struct dlm_ctxt *dlm,
 
 struct dlm_protocol_version {
 	u8 pv_major;
-	u8 pv_minor;
+	u8 pv_miyesr;
 };
 struct dlm_ctxt * dlm_register_domain(const char *domain, u32 key,
 				      struct dlm_protocol_version *fs_proto);

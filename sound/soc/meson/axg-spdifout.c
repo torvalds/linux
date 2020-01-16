@@ -351,18 +351,18 @@ static int axg_spdifout_set_bias_level(struct snd_soc_component *component,
 				       enum snd_soc_bias_level level)
 {
 	struct axg_spdifout *priv = snd_soc_component_get_drvdata(component);
-	enum snd_soc_bias_level now =
+	enum snd_soc_bias_level yesw =
 		snd_soc_component_get_bias_level(component);
 	int ret = 0;
 
 	switch (level) {
 	case SND_SOC_BIAS_PREPARE:
-		if (now == SND_SOC_BIAS_STANDBY)
+		if (yesw == SND_SOC_BIAS_STANDBY)
 			ret = clk_prepare_enable(priv->mclk);
 		break;
 
 	case SND_SOC_BIAS_STANDBY:
-		if (now == SND_SOC_BIAS_PREPARE)
+		if (yesw == SND_SOC_BIAS_PREPARE)
 			clk_disable_unprepare(priv->mclk);
 		break;
 

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /* -*- mode: c; c-basic-offset: 8; -*-
- * vim: noexpandtab sw=8 ts=8 sts=0:
+ * vim: yesexpandtab sw=8 ts=8 sts=0:
  *
  * ocfs2_heartbeat.h
  *
@@ -14,7 +14,7 @@
 
 struct o2hb_disk_heartbeat_block {
 	__le64 hb_seq;
-	__u8  hb_node;
+	__u8  hb_yesde;
 	__u8  hb_pad1[3];
 	__le32 hb_cksum;
 	__le64 hb_generation;

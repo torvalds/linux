@@ -124,7 +124,7 @@ struct uea_softc {
 	union cmv_dsc cmv_dsc;
 
 	struct work_struct task;
-	u16 pageno;
+	u16 pageyes;
 	u16 ovl;
 
 	const struct firmware *dsp_firm;
@@ -607,7 +607,7 @@ static void uea_upload_pre_firmware(const struct firmware *fw_entry,
 
 	uea_enters(usb);
 	if (!fw_entry) {
-		uea_err(usb, "firmware is not available\n");
+		uea_err(usb, "firmware is yest available\n");
 		goto err;
 	}
 
@@ -701,11 +701,11 @@ static int uea_load_firmware(struct usb_device *usb, unsigned int ver)
 		break;
 	}
 
-	ret = request_firmware_nowait(THIS_MODULE, 1, fw_name, &usb->dev,
+	ret = request_firmware_yeswait(THIS_MODULE, 1, fw_name, &usb->dev,
 					GFP_KERNEL, usb,
 					uea_upload_pre_firmware);
 	if (ret)
-		uea_err(usb, "firmware %s is not available\n", fw_name);
+		uea_err(usb, "firmware %s is yest available\n", fw_name);
 	else
 		uea_info(usb, "loading firmware %s\n", fw_name);
 
@@ -729,7 +729,7 @@ static int check_dsp_e1(const u8 *dsp, unsigned int len)
 	pagecount = FW_GET_BYTE(dsp);
 	p = 1;
 
-	/* enough space for page offsets? */
+	/* eyesugh space for page offsets? */
 	if (p + 4 * pagecount > len)
 		return 1;
 
@@ -741,7 +741,7 @@ static int check_dsp_e1(const u8 *dsp, unsigned int len)
 		if (pageoffset == 0)
 			continue;
 
-		/* enough space for blockcount? */
+		/* eyesugh space for blockcount? */
 		if (pageoffset >= len)
 			return 1;
 
@@ -751,7 +751,7 @@ static int check_dsp_e1(const u8 *dsp, unsigned int len)
 
 		for (j = 0; j < blockcount; j++) {
 
-			/* enough space for block header? */
+			/* eyesugh space for block header? */
 			if (pp + 4 > len)
 				return 1;
 
@@ -759,7 +759,7 @@ static int check_dsp_e1(const u8 *dsp, unsigned int len)
 			blocksize = get_unaligned_le16(dsp + pp);
 			pp += 2;
 
-			/* enough space for block data? */
+			/* eyesugh space for block data? */
 			if (pp + blocksize > len)
 				return 1;
 
@@ -785,17 +785,17 @@ static int check_dsp_e4(const u8 *dsp, int len)
 
 	for (i = 0; i < E4_MAX_PAGE_NUMBER; i++) {
 		struct block_index *blockidx;
-		u8 blockno = p->page_number_to_block_index[i];
-		if (blockno >= E4_NO_SWAPPAGE_HEADERS)
+		u8 blockyes = p->page_number_to_block_index[i];
+		if (blockyes >= E4_NO_SWAPPAGE_HEADERS)
 			continue;
 
 		do {
 			u64 l;
 
-			if (blockno >= E4_NO_SWAPPAGE_HEADERS)
+			if (blockyes >= E4_NO_SWAPPAGE_HEADERS)
 				return 1;
 
-			blockidx = &p->page_header[blockno++];
+			blockidx = &p->page_header[blockyes++];
 			if ((u8 *)(blockidx + 1) - dsp  >= len)
 				return 1;
 
@@ -898,7 +898,7 @@ static int request_dsp(struct uea_softc *sc)
 static void uea_load_page_e1(struct work_struct *work)
 {
 	struct uea_softc *sc = container_of(work, struct uea_softc, task);
-	u16 pageno = sc->pageno;
+	u16 pageyes = sc->pageyes;
 	u16 ovl = sc->ovl;
 	struct block_info_e1 bi;
 
@@ -909,7 +909,7 @@ static void uea_load_page_e1(struct work_struct *work)
 	int i;
 
 	/* reload firmware when reboot start and it's loaded already */
-	if (ovl == 0 && pageno == 0) {
+	if (ovl == 0 && pageyes == 0) {
 		release_firmware(sc->dsp_firm);
 		sc->dsp_firm = NULL;
 	}
@@ -921,10 +921,10 @@ static void uea_load_page_e1(struct work_struct *work)
 	pagecount = FW_GET_BYTE(p);
 	p += 1;
 
-	if (pageno >= pagecount)
+	if (pageyes >= pagecount)
 		goto bad1;
 
-	p += 4 * pageno;
+	p += 4 * pageyes;
 	pageoffset = get_unaligned_le32(p);
 
 	if (pageoffset == 0)
@@ -935,7 +935,7 @@ static void uea_load_page_e1(struct work_struct *work)
 	p += 1;
 
 	uea_dbg(INS_TO_USBDEV(sc),
-	       "sending %u blocks for DSP page %u\n", blockcount, pageno);
+	       "sending %u blocks for DSP page %u\n", blockcount, pageyes);
 
 	bi.wHdr = cpu_to_le16(UEA_BIHDR);
 	bi.wOvl = cpu_to_le16(ovl);
@@ -969,26 +969,26 @@ bad2:
 	uea_err(INS_TO_USBDEV(sc), "sending DSP block %u failed\n", i);
 	return;
 bad1:
-	uea_err(INS_TO_USBDEV(sc), "invalid DSP page %u requested\n", pageno);
+	uea_err(INS_TO_USBDEV(sc), "invalid DSP page %u requested\n", pageyes);
 }
 
-static void __uea_load_page_e4(struct uea_softc *sc, u8 pageno, int boot)
+static void __uea_load_page_e4(struct uea_softc *sc, u8 pageyes, int boot)
 {
 	struct block_info_e4 bi;
 	struct block_index *blockidx;
 	struct l1_code *p = (struct l1_code *) sc->dsp_firm->data;
-	u8 blockno = p->page_number_to_block_index[pageno];
+	u8 blockyes = p->page_number_to_block_index[pageyes];
 
 	bi.wHdr = cpu_to_be16(UEA_BIHDR);
 	bi.bBootPage = boot;
-	bi.bPageNumber = pageno;
+	bi.bPageNumber = pageyes;
 	bi.wReserved = cpu_to_be16(UEA_RESERVED);
 
 	do {
 		const u8 *blockoffset;
 		unsigned int blocksize;
 
-		blockidx = &p->page_header[blockno];
+		blockidx = &p->page_header[blockyes];
 		blocksize = E4_PAGE_BYTES(blockidx->PageSize);
 		blockoffset = sc->dsp_firm->data + le32_to_cpu(
 							blockidx->PageOffset);
@@ -999,7 +999,7 @@ static void __uea_load_page_e4(struct uea_softc *sc, u8 pageno, int boot)
 		uea_dbg(INS_TO_USBDEV(sc),
 			"sending block %u for DSP page "
 			"%u size %u address %x\n",
-			blockno, pageno, blocksize,
+			blockyes, pageyes, blocksize,
 			le32_to_cpu(blockidx->PageAddress));
 
 		/* send block info through the IDMA pipe */
@@ -1010,28 +1010,28 @@ static void __uea_load_page_e4(struct uea_softc *sc, u8 pageno, int boot)
 		if (uea_idma_write(sc, blockoffset, blocksize))
 			goto bad;
 
-		blockno++;
+		blockyes++;
 	} while (blockidx->NotLastBlock);
 
 	return;
 
 bad:
-	uea_err(INS_TO_USBDEV(sc), "sending DSP block %u failed\n", blockno);
+	uea_err(INS_TO_USBDEV(sc), "sending DSP block %u failed\n", blockyes);
 	return;
 }
 
 static void uea_load_page_e4(struct work_struct *work)
 {
 	struct uea_softc *sc = container_of(work, struct uea_softc, task);
-	u8 pageno = sc->pageno;
+	u8 pageyes = sc->pageyes;
 	int i;
 	struct block_info_e4 bi;
 	struct l1_code *p;
 
-	uea_dbg(INS_TO_USBDEV(sc), "sending DSP page %u\n", pageno);
+	uea_dbg(INS_TO_USBDEV(sc), "sending DSP page %u\n", pageyes);
 
 	/* reload firmware when reboot start and it's loaded already */
-	if (pageno == 0) {
+	if (pageyes == 0) {
 		release_firmware(sc->dsp_firm);
 		sc->dsp_firm = NULL;
 	}
@@ -1040,14 +1040,14 @@ static void uea_load_page_e4(struct work_struct *work)
 		return;
 
 	p = (struct l1_code *) sc->dsp_firm->data;
-	if (pageno >= le16_to_cpu(p->page_header[0].PageNumber)) {
+	if (pageyes >= le16_to_cpu(p->page_header[0].PageNumber)) {
 		uea_err(INS_TO_USBDEV(sc), "invalid DSP "
-						"page %u requested\n", pageno);
+						"page %u requested\n", pageyes);
 		return;
 	}
 
-	if (pageno != 0) {
-		__uea_load_page_e4(sc, pageno, 0);
+	if (pageyes != 0) {
+		__uea_load_page_e4(sc, pageyes, 0);
 		return;
 	}
 
@@ -1302,9 +1302,9 @@ static int uea_stat_e1(struct uea_softc *sc)
 		return ret;
 
 	switch (GET_STATUS(sc->stats.phy.state)) {
-	case 0:		/* not yet synchronized */
+	case 0:		/* yest yet synchronized */
 		uea_dbg(INS_TO_USBDEV(sc),
-		       "modem not yet synchronized\n");
+		       "modem yest yet synchronized\n");
 		return 0;
 
 	case 1:		/* initialization */
@@ -1322,7 +1322,7 @@ static int uea_stat_e1(struct uea_softc *sc)
 
 	case 4 ... 6:	/* test state */
 		uea_warn(INS_TO_USBDEV(sc),
-				"modem in test mode - not supported\n");
+				"modem in test mode - yest supported\n");
 		return -EAGAIN;
 
 	case 7:		/* fast-retain ... */
@@ -1338,14 +1338,14 @@ static int uea_stat_e1(struct uea_softc *sc)
 		uea_request(sc, UEA_SET_MODE, UEA_LOOPBACK_OFF, 0, NULL);
 		uea_info(INS_TO_USBDEV(sc), "modem operational\n");
 
-		/* release the dsp firmware as it is not needed until
+		/* release the dsp firmware as it is yest needed until
 		 * the next failure
 		 */
 		release_firmware(sc->dsp_firm);
 		sc->dsp_firm = NULL;
 	}
 
-	/* always update it as atm layer could not be init when we switch to
+	/* always update it as atm layer could yest be init when we switch to
 	 * operational state
 	 */
 	UPDATE_ATM_SIGNAL(ATM_PHY_SIG_FOUND);
@@ -1446,11 +1446,11 @@ static int uea_stat_e4(struct uea_softc *sc)
 		return ret;
 
 	switch (sc->stats.phy.state) {
-	case 0x0:	/* not yet synchronized */
+	case 0x0:	/* yest yet synchronized */
 	case 0x1:
 	case 0x3:
 	case 0x4:
-		uea_dbg(INS_TO_USBDEV(sc), "modem not yet "
+		uea_dbg(INS_TO_USBDEV(sc), "modem yest yet "
 						"synchronized\n");
 		return 0;
 	case 0x5:	/* initialization */
@@ -1466,7 +1466,7 @@ static int uea_stat_e4(struct uea_softc *sc)
 	case 0x7:	/* operational */
 		break;
 	default:
-		uea_warn(INS_TO_USBDEV(sc), "unknown state: %x\n",
+		uea_warn(INS_TO_USBDEV(sc), "unkyeswn state: %x\n",
 						sc->stats.phy.state);
 		return 0;
 	}
@@ -1475,14 +1475,14 @@ static int uea_stat_e4(struct uea_softc *sc)
 		uea_request(sc, UEA_SET_MODE, UEA_LOOPBACK_OFF, 0, NULL);
 		uea_info(INS_TO_USBDEV(sc), "modem operational\n");
 
-		/* release the dsp firmware as it is not needed until
+		/* release the dsp firmware as it is yest needed until
 		 * the next failure
 		 */
 		release_firmware(sc->dsp_firm);
 		sc->dsp_firm = NULL;
 	}
 
-	/* always update it as atm layer could not be init when we switch to
+	/* always update it as atm layer could yest be init when we switch to
 	 * operational state
 	 */
 	UPDATE_ATM_SIGNAL(ATM_PHY_SIG_FOUND);
@@ -1723,7 +1723,7 @@ static int uea_send_cmvs_e1(struct uea_softc *sc)
 				goto out;
 		}
 	} else {
-		/* This really should not happen */
+		/* This really should yest happen */
 		uea_err(INS_TO_USBDEV(sc), "bad cmvs version %d\n", ver);
 		goto out;
 	}
@@ -1778,7 +1778,7 @@ static int uea_send_cmvs_e4(struct uea_softc *sc)
 				goto out;
 		}
 	} else {
-		/* This really should not happen */
+		/* This really should yest happen */
 		uea_err(INS_TO_USBDEV(sc), "bad cmvs version %d\n", ver);
 		goto out;
 	}
@@ -1856,7 +1856,7 @@ static int uea_start_reset(struct uea_softc *sc)
 	sc->booting = 0;
 
 	/* start loading DSP */
-	sc->pageno = 0;
+	sc->pageyes = 0;
 	sc->ovl = 0;
 	schedule_work(&sc->task);
 
@@ -1915,7 +1915,7 @@ static int load_XILINX_firmware(struct uea_softc *sc)
 
 	ret = request_firmware(&fw_entry, fw_name, &sc->usb_dev->dev);
 	if (ret) {
-		uea_err(INS_TO_USBDEV(sc), "firmware %s is not available\n",
+		uea_err(INS_TO_USBDEV(sc), "firmware %s is yest available\n",
 		       fw_name);
 		goto err0;
 	}
@@ -1974,7 +1974,7 @@ static void uea_dispatch_cmv_e1(struct uea_softc *sc, struct intr_pkt *intr)
 		goto bad1;
 
 	/* FIXME : ADI930 reply wrong preambule (func = 2, sub = 2) to
-	 * the first MEMACCESS cmv. Ignore it...
+	 * the first MEMACCESS cmv. Igyesre it...
 	 */
 	if (cmv->bFunction != dsc->function) {
 		if (UEA_CHIP_VERSION(sc) == ADI930
@@ -2068,7 +2068,7 @@ bad2:
 static void uea_schedule_load_page_e1(struct uea_softc *sc,
 						struct intr_pkt *intr)
 {
-	sc->pageno = intr->e1_bSwapPageNo;
+	sc->pageyes = intr->e1_bSwapPageNo;
 	sc->ovl = intr->e1_bOvl >> 4 | intr->e1_bOvl << 4;
 	schedule_work(&sc->task);
 }
@@ -2076,7 +2076,7 @@ static void uea_schedule_load_page_e1(struct uea_softc *sc,
 static void uea_schedule_load_page_e4(struct uea_softc *sc,
 						struct intr_pkt *intr)
 {
-	sc->pageno = intr->e4_bSwapPageNo;
+	sc->pageyes = intr->e4_bSwapPageNo;
 	schedule_work(&sc->task);
 }
 
@@ -2113,7 +2113,7 @@ static void uea_intr(struct urb *urb)
 		break;
 
 	default:
-		uea_err(INS_TO_USBDEV(sc), "unknown interrupt %u\n",
+		uea_err(INS_TO_USBDEV(sc), "unkyeswn interrupt %u\n",
 		       le16_to_cpu(intr->wInterrupt));
 	}
 
@@ -2218,7 +2218,7 @@ static void uea_stop(struct uea_softc *sc)
 	kfree(sc->urb_int->transfer_buffer);
 	usb_free_urb(sc->urb_int);
 
-	/* flush the work item, when no one can schedule it */
+	/* flush the work item, when yes one can schedule it */
 	flush_work(&sc->task);
 
 	release_firmware(sc->dsp_firm);
@@ -2291,7 +2291,7 @@ static ssize_t stat_human_status_show(struct device *dev,
 
 	if (UEA_CHIP_VERSION(sc) == EAGLE_IV) {
 		switch (sc->stats.phy.state) {
-		case 0x0:	/* not yet synchronized */
+		case 0x0:	/* yest yet synchronized */
 		case 0x1:
 		case 0x3:
 		case 0x4:
@@ -2309,7 +2309,7 @@ static ssize_t stat_human_status_show(struct device *dev,
 		case 0x2:	/* fail ... */
 			modem_state = 3;
 			break;
-		default:	/* unknown */
+		default:	/* unkyeswn */
 			modem_state = 4;
 			break;
 		}
@@ -2330,7 +2330,7 @@ static ssize_t stat_human_status_show(struct device *dev,
 		ret = sprintf(buf, "Modem synchronization failed\n");
 		break;
 	default:
-		ret = sprintf(buf, "Modem state is unknown\n");
+		ret = sprintf(buf, "Modem state is unkyeswn\n");
 		break;
 	}
 out:
@@ -2453,7 +2453,7 @@ static int claim_interface(struct usb_device *usb_dev,
 	struct usb_interface *intf = usb_ifnum_to_if(usb_dev, ifnum);
 
 	if (!intf) {
-		uea_err(usb_dev, "interface %d not found\n", ifnum);
+		uea_err(usb_dev, "interface %d yest found\n", ifnum);
 		return -ENODEV;
 	}
 

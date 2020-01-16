@@ -1,11 +1,11 @@
 .. Permission is granted to copy, distribute and/or modify this
 .. document under the terms of the GNU Free Documentation License,
 .. Version 1.1 or any later version published by the Free Software
-.. Foundation, with no Invariant Sections, no Front-Cover Texts
-.. and no Back-Cover Texts. A copy of the license is included at
+.. Foundation, with yes Invariant Sections, yes Front-Cover Texts
+.. and yes Back-Cover Texts. A copy of the license is included at
 .. Documentation/media/uapi/fdl-appendix.rst.
 ..
-.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
+.. TODO: replace it to GFDL-1.1-or-later WITH yes-invariant-sections
 
 .. _Remote_controllers_tables:
 
@@ -13,18 +13,18 @@
 Remote controller tables
 ************************
 
-Unfortunately, for several years, there was no effort to create uniform
+Unfortunately, for several years, there was yes effort to create uniform
 IR keycodes for different devices. This caused the same IR keyname to be
 mapped completely differently on different IR devices. This resulted
 that the same IR keyname to be mapped completely different on different
-IR's. Due to that, V4L2 API now specifies a standard for mapping Media
+IR's. Due to that, V4L2 API yesw specifies a standard for mapping Media
 keys on IR.
 
 This standard should be used by both V4L/DVB drivers and userspace
 applications
 
 The modules register the remote as keyboard within the linux input
-layer. This means that the IR key strokes will look like normal keyboard
+layer. This means that the IR key strokes will look like yesrmal keyboard
 key strokes (if CONFIG_INPUT_KEYBOARD is enabled). Using the event
 devices (CONFIG_INPUT_EVDEV) it is possible for applications to access
 the remote via /dev/input/event devices.
@@ -204,7 +204,7 @@ the remote via /dev/input/event devices.
 
        -  ``KEY_PLAY``
 
-       -  Play movie at the normal timeshift
+       -  Play movie at the yesrmal timeshift
 
        -  NORMAL TIMESHIFT / LIVE / >
 
@@ -734,11 +734,11 @@ the remote via /dev/input/event devices.
        -  FUNCTION
 
 
-It should be noted that, sometimes, there some fundamental missing keys
+It should be yested that, sometimes, there some fundamental missing keys
 at some cheaper IR's. Due to that, it is recommended to:
 
 
-.. _rc_keymap_notes:
+.. _rc_keymap_yestes:
 
 .. flat-table:: Notes
     :header-rows:  0

@@ -13,8 +13,8 @@
 #include <linux/uaccess.h>
 #include <linux/poll.h>
 #include <linux/wait.h>
-#include <linux/io-64-nonatomic-lo-hi.h>
-#include <linux/nospec.h>
+#include <linux/io-64-yesnatomic-lo-hi.h>
+#include <linux/yesspec.h>
 
 MODULE_DESCRIPTION("Microsemi Switchtec(tm) PCIe Management Driver");
 MODULE_VERSION("0.1");
@@ -35,7 +35,7 @@ module_param(nirqs, int, 0644);
 MODULE_PARM_DESC(nirqs, "number of interrupts to allocate (more may be useful for NTB applications)");
 
 static dev_t switchtec_devt;
-static DEFINE_IDA(switchtec_minor_ida);
+static DEFINE_IDA(switchtec_miyesr_ida);
 
 struct class *switchtec_class;
 EXPORT_SYMBOL_GPL(switchtec_class);
@@ -382,26 +382,26 @@ static struct attribute *switchtec_device_attrs[] = {
 
 ATTRIBUTE_GROUPS(switchtec_device);
 
-static int switchtec_dev_open(struct inode *inode, struct file *filp)
+static int switchtec_dev_open(struct iyesde *iyesde, struct file *filp)
 {
 	struct switchtec_dev *stdev;
 	struct switchtec_user *stuser;
 
-	stdev = container_of(inode->i_cdev, struct switchtec_dev, cdev);
+	stdev = container_of(iyesde->i_cdev, struct switchtec_dev, cdev);
 
 	stuser = stuser_create(stdev);
 	if (IS_ERR(stuser))
 		return PTR_ERR(stuser);
 
 	filp->private_data = stuser;
-	stream_open(inode, filp);
+	stream_open(iyesde, filp);
 
 	dev_dbg(&stdev->dev, "%s: %p\n", __func__, stuser);
 
 	return 0;
 }
 
-static int switchtec_dev_release(struct inode *inode, struct file *filp)
+static int switchtec_dev_release(struct iyesde *iyesde, struct file *filp)
 {
 	struct switchtec_user *stuser = filp->private_data;
 
@@ -737,7 +737,7 @@ static const struct event_reg {
 	EV_GLB(SWITCHTEC_IOCTL_EVENT_SYS_RESET, sys_reset_event_hdr),
 	EV_GLB(SWITCHTEC_IOCTL_EVENT_FW_EXC, fw_exception_hdr),
 	EV_GLB(SWITCHTEC_IOCTL_EVENT_FW_NMI, fw_nmi_hdr),
-	EV_GLB(SWITCHTEC_IOCTL_EVENT_FW_NON_FATAL, fw_non_fatal_hdr),
+	EV_GLB(SWITCHTEC_IOCTL_EVENT_FW_NON_FATAL, fw_yesn_fatal_hdr),
 	EV_GLB(SWITCHTEC_IOCTL_EVENT_FW_FATAL, fw_fatal_hdr),
 	EV_GLB(SWITCHTEC_IOCTL_EVENT_TWI_MRPC_COMP, twi_mrpc_comp_hdr),
 	EV_GLB(SWITCHTEC_IOCTL_EVENT_TWI_MRPC_COMP_ASYNC,
@@ -960,7 +960,7 @@ static int ioctl_port_to_pff(struct switchtec_dev *stdev,
 	default:
 		if (p.port > ARRAY_SIZE(pcfg->dsp_pff_inst_id))
 			return -EINVAL;
-		p.port = array_index_nospec(p.port,
+		p.port = array_index_yesspec(p.port,
 					ARRAY_SIZE(pcfg->dsp_pff_inst_id) + 1);
 		p.pff = ioread32(&pcfg->dsp_pff_inst_id[p.port - 1]);
 		break;
@@ -1034,8 +1034,8 @@ static void link_event_work(struct work_struct *work)
 
 	stdev = container_of(work, struct switchtec_dev, link_event_work);
 
-	if (stdev->link_notifier)
-		stdev->link_notifier(stdev);
+	if (stdev->link_yestifier)
+		stdev->link_yestifier(stdev);
 }
 
 static void check_link_state_events(struct switchtec_dev *stdev)
@@ -1120,13 +1120,13 @@ static void stdev_kill(struct switchtec_dev *stdev)
 static struct switchtec_dev *stdev_create(struct pci_dev *pdev)
 {
 	struct switchtec_dev *stdev;
-	int minor;
+	int miyesr;
 	struct device *dev;
 	struct cdev *cdev;
 	int rc;
 
-	stdev = kzalloc_node(sizeof(*stdev), GFP_KERNEL,
-			     dev_to_node(&pdev->dev));
+	stdev = kzalloc_yesde(sizeof(*stdev), GFP_KERNEL,
+			     dev_to_yesde(&pdev->dev));
 	if (!stdev)
 		return ERR_PTR(-ENOMEM);
 
@@ -1148,15 +1148,15 @@ static struct switchtec_dev *stdev_create(struct pci_dev *pdev)
 	dev->groups = switchtec_device_groups;
 	dev->release = stdev_release;
 
-	minor = ida_simple_get(&switchtec_minor_ida, 0, 0,
+	miyesr = ida_simple_get(&switchtec_miyesr_ida, 0, 0,
 			       GFP_KERNEL);
-	if (minor < 0) {
-		rc = minor;
+	if (miyesr < 0) {
+		rc = miyesr;
 		goto err_put;
 	}
 
-	dev->devt = MKDEV(MAJOR(switchtec_devt), minor);
-	dev_set_name(dev, "switchtec%d", minor);
+	dev->devt = MKDEV(MAJOR(switchtec_devt), miyesr);
+	dev_set_name(dev, "switchtec%d", miyesr);
 
 	cdev = &stdev->cdev;
 	cdev_init(cdev, &switchtec_fops);
@@ -1414,7 +1414,7 @@ static int switchtec_pci_probe(struct pci_dev *pdev,
 	int rc;
 
 	if (pdev->class == (PCI_CLASS_BRIDGE_OTHER << 8))
-		request_module_nowait("ntb_hw_switchtec");
+		request_module_yeswait("ntb_hw_switchtec");
 
 	stdev = stdev_create(pdev);
 	if (IS_ERR(stdev))
@@ -1449,7 +1449,7 @@ static int switchtec_pci_probe(struct pci_dev *pdev,
 err_devadd:
 	stdev_kill(stdev);
 err_put:
-	ida_simple_remove(&switchtec_minor_ida, MINOR(stdev->dev.devt));
+	ida_simple_remove(&switchtec_miyesr_ida, MINOR(stdev->dev.devt));
 	put_device(&stdev->dev);
 	return rc;
 }
@@ -1461,7 +1461,7 @@ static void switchtec_pci_remove(struct pci_dev *pdev)
 	pci_set_drvdata(pdev, NULL);
 
 	cdev_device_del(&stdev->cdev, &stdev->dev);
-	ida_simple_remove(&switchtec_minor_ida, MINOR(stdev->dev.devt));
+	ida_simple_remove(&switchtec_miyesr_ida, MINOR(stdev->dev.devt));
 	dev_info(&stdev->dev, "unregistered.\n");
 	stdev_kill(stdev);
 	put_device(&stdev->dev);
@@ -1565,7 +1565,7 @@ static void __exit switchtec_exit(void)
 	pci_unregister_driver(&switchtec_pci_driver);
 	class_destroy(switchtec_class);
 	unregister_chrdev_region(switchtec_devt, max_devices);
-	ida_destroy(&switchtec_minor_ida);
+	ida_destroy(&switchtec_miyesr_ida);
 
 	pr_info(KBUILD_MODNAME ": unloaded.\n");
 }

@@ -15,7 +15,7 @@
 #ifdef CONFIG_DYNAMIC_FTRACE_WITH_REGS
 /*
  * Due to -fpatchable-function-entry=2, the compiler has placed two NOPs before
- * the regular function prologue. For an enabled callsite, ftrace_init_nop() and
+ * the regular function prologue. For an enabled callsite, ftrace_init_yesp() and
  * ftrace_make_call() have patched those NOPs to:
  *
  * 	MOV	X9, LR
@@ -28,7 +28,7 @@
  *
  * We save the callsite's context into a pt_regs before invoking any ftrace
  * callbacks. So that we can get a sensible backtrace, we create a stack record
- * for the callsite and the ftrace entry assembly. This is not sufficient for
+ * for the callsite and the ftrace entry assembly. This is yest sufficient for
  * reliable stacktrace: until we create the callsite stack record, its caller
  * is missing from the LR and existing chain of frame records.
  */
@@ -96,7 +96,7 @@ GLOBAL(ftrace_call)
 
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
 GLOBAL(ftrace_graph_call)		// ftrace_graph_caller();
-	nop				// If enabled, this will be replaced
+	yesp				// If enabled, this will be replaced
 					// "b ftrace_graph_caller"
 #endif
 
@@ -145,7 +145,7 @@ ENDPROC(ftrace_graph_caller)
  * "bl _mcount" may be replaced to "bl ftrace_caller" or NOP if dynamic
  * ftrace is enabled.
  *
- * Please note that x0 as an argument will not be used here because we can
+ * Please yeste that x0 as an argument will yest be used here because we can
  * get lr(x30) of instrumented function at any time by winding up call stack
  * as long as the kernel is compiled without -fomit-frame-pointer.
  * (or CONFIG_FRAME_POINTER, this is forced on arm64)
@@ -275,12 +275,12 @@ ENTRY(ftrace_caller)
 	mcount_get_lr	x1		//     function's lr
 
 GLOBAL(ftrace_call)			// tracer(pc, lr);
-	nop				// This will be replaced with "bl xxx"
+	yesp				// This will be replaced with "bl xxx"
 					// where xxx can be any kind of tracer.
 
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
 GLOBAL(ftrace_graph_call)		// ftrace_graph_caller();
-	nop				// If enabled, this will be replaced
+	yesp				// If enabled, this will be replaced
 					// "b ftrace_graph_caller"
 #endif
 

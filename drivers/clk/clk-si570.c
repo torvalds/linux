@@ -87,7 +87,7 @@ enum clk_si570_variant {
  * @rfreq:	Fractional multiplier (output)
  * @n1:		Divider N1 (output)
  * @hs_div:	Divider HSDIV (output)
- * Returns 0 on success, negative errno otherwise.
+ * Returns 0 on success, negative erryes otherwise.
  *
  * Retrieve clock dividers and multipliers from the HW.
  */
@@ -123,7 +123,7 @@ static int si570_get_divs(struct clk_si570 *data, u64 *rfreq,
  * si570_get_defaults() - Get default values
  * @data:	Driver data structure
  * @fout:	Factory frequency output
- * Returns 0 on success, negative errno otherwise.
+ * Returns 0 on success, negative erryes otherwise.
  */
 static int si570_get_defaults(struct clk_si570 *data, u64 fout)
 {
@@ -178,7 +178,7 @@ static int si570_update_rfreq(struct clk_si570 *data)
  * @out_rfreq:	RFREG fractional multiplier (output)
  * @out_n1:	Clock divider N1 (output)
  * @out_hs_div:	Clock divider HSDIV (output)
- * Returns 0 on success, negative errno otherwise.
+ * Returns 0 on success, negative erryes otherwise.
  *
  * Calculate the clock dividers (@out_hs_div, @out_n1) and clock multiplier
  * (@out_rfreq) for a given target @frequency.
@@ -414,7 +414,7 @@ static int si570_probe(struct i2c_client *client,
 	data->i2c_client = client;
 
 	if (variant == si57x) {
-		err = of_property_read_u32(client->dev.of_node,
+		err = of_property_read_u32(client->dev.of_yesde,
 				"temperature-stability", &stability);
 		if (err) {
 			dev_err(&client->dev,
@@ -430,11 +430,11 @@ static int si570_probe(struct i2c_client *client,
 		data->max_freq = SI598_MAX_FREQ;
 	}
 
-	if (of_property_read_string(client->dev.of_node, "clock-output-names",
+	if (of_property_read_string(client->dev.of_yesde, "clock-output-names",
 			&init.name))
-		init.name = client->dev.of_node->name;
+		init.name = client->dev.of_yesde->name;
 
-	err = of_property_read_u32(client->dev.of_node, "factory-fout",
+	err = of_property_read_u32(client->dev.of_yesde, "factory-fout",
 			&factory_fout);
 	if (err) {
 		dev_err(&client->dev, "'factory-fout' property missing\n");
@@ -457,7 +457,7 @@ static int si570_probe(struct i2c_client *client,
 		dev_err(&client->dev, "clock registration failed\n");
 		return err;
 	}
-	err = of_clk_add_hw_provider(client->dev.of_node, of_clk_hw_simple_get,
+	err = of_clk_add_hw_provider(client->dev.of_yesde, of_clk_hw_simple_get,
 				     &data->hw);
 	if (err) {
 		dev_err(&client->dev, "unable to add clk provider\n");
@@ -465,11 +465,11 @@ static int si570_probe(struct i2c_client *client,
 	}
 
 	/* Read the requested initial output frequency from device tree */
-	if (!of_property_read_u32(client->dev.of_node, "clock-frequency",
+	if (!of_property_read_u32(client->dev.of_yesde, "clock-frequency",
 				&initial_fout)) {
 		err = clk_set_rate(data->hw.clk, initial_fout);
 		if (err) {
-			of_clk_del_provider(client->dev.of_node);
+			of_clk_del_provider(client->dev.of_yesde);
 			return err;
 		}
 	}
@@ -483,7 +483,7 @@ static int si570_probe(struct i2c_client *client,
 
 static int si570_remove(struct i2c_client *client)
 {
-	of_clk_del_provider(client->dev.of_node);
+	of_clk_del_provider(client->dev.of_yesde);
 	return 0;
 }
 

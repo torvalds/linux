@@ -85,9 +85,9 @@ struct hv_fc_wwn_packet {
 	u8	primary_active;
 	u8	reserved1[3];
 	u8	primary_port_wwn[8];
-	u8	primary_node_wwn[8];
+	u8	primary_yesde_wwn[8];
 	u8	secondary_port_wwn[8];
-	u8	secondary_node_wwn[8];
+	u8	secondary_yesde_wwn[8];
 };
 
 
@@ -130,7 +130,7 @@ struct hv_fc_wwn_packet {
 /*
  * Platform neutral description of a scsi request -
  * this remains the same across the write regardless of 32/64 bit
- * note: it's patterned off the SCSI_PASS_THROUGH structure
+ * yeste: it's patterned off the SCSI_PASS_THROUGH structure
  */
 #define STORVSC_MAX_CMD_LEN			0x10
 
@@ -287,12 +287,12 @@ struct vmstorage_channel_properties {
 
 /*  This structure is sent during the storage protocol negotiations. */
 struct vmstorage_protocol_version {
-	/* Major (MSW) and minor (LSW) version numbers. */
-	u16 major_minor;
+	/* Major (MSW) and miyesr (LSW) version numbers. */
+	u16 major_miyesr;
 
 	/*
 	 * Revision number is auto-incremented whenever this file is changed
-	 * (See FILL_VMSTOR_REVISION macro above).  Mismatch does not
+	 * (See FILL_VMSTOR_REVISION macro above).  Mismatch does yest
 	 * definitely indicate incompatibility--but it does indicate mismatched
 	 * builds.
 	 * This is only used on the windows side. Just set it to 0.
@@ -434,7 +434,7 @@ struct storvsc_device {
 	struct hv_device *device;
 
 	bool	 destroy;
-	bool	 drain_notify;
+	bool	 drain_yestify;
 	atomic_t num_outstanding_req;
 	struct Scsi_Host *host;
 
@@ -466,9 +466,9 @@ struct storvsc_device {
 	struct storvsc_cmd_request init_request;
 	struct storvsc_cmd_request reset_request;
 	/*
-	 * Currently active port and node names for FC devices.
+	 * Currently active port and yesde names for FC devices.
 	 */
-	u64 node_name;
+	u64 yesde_name;
 	u64 port_name;
 #if IS_ENABLED(CONFIG_SCSI_FC_ATTRS)
 	struct fc_rport *rport;
@@ -519,8 +519,8 @@ static void storvsc_host_scan(struct work_struct *work)
 	host = host_device->host;
 	/*
 	 * Before scanning the host, first check to see if any of the
-	 * currrently known devices have been hot removed. We issue a
-	 * "unit ready" command against all currently known devices.
+	 * currrently kyeswn devices have been hot removed. We issue a
+	 * "unit ready" command against all currently kyeswn devices.
 	 * This I/O will result in an error for devices that have been
 	 * removed. As part of handling the I/O error, we remove the device.
 	 *
@@ -561,9 +561,9 @@ done:
 
 
 /*
- * We can get incoming messages from the host that are not in response to
+ * We can get incoming messages from the host that are yest in response to
  * messages that we have sent out. An example of this would be messages
- * received by the guest to notify dynamic addition/removal of LUNs. To
+ * received by the guest to yestify dynamic addition/removal of LUNs. To
  * deal with potential race conditions where the driver may be in the
  * midst of being unloaded when we might receive an unsolicited message
  * from the host, we have implemented a mechanism to gurantee sequential
@@ -591,10 +591,10 @@ static inline struct storvsc_device *get_out_stor_device(
 
 static inline void storvsc_wait_to_drain(struct storvsc_device *dev)
 {
-	dev->drain_notify = true;
+	dev->drain_yestify = true;
 	wait_event(dev->waiting_to_drain,
 		   atomic_read(&dev->num_outstanding_req) == 0);
-	dev->drain_notify = false;
+	dev->drain_yestify = false;
 }
 
 static inline struct storvsc_device *get_in_stor_device(
@@ -666,7 +666,7 @@ static void  handle_multichannel_storage(struct hv_device *device, int max_chns)
 	 * If the number of CPUs is artificially restricted, such as
 	 * with maxcpus=1 on the kernel boot line, Hyper-V could offer
 	 * sub-channels >= the number of CPUs. These sub-channels
-	 * should not be created. The primary channel is already created
+	 * should yest be created. The primary channel is already created
 	 * and assigned to one CPU, so check against # CPUs - 1.
 	 */
 	num_sc = min((int)(num_online_cpus() - 1), max_chns);
@@ -721,7 +721,7 @@ static void  handle_multichannel_storage(struct hv_device *device, int max_chns)
 	}
 
 	/*
-	 * We need to do nothing here, because vmbus_process_offer()
+	 * We need to do yesthing here, because vmbus_process_offer()
 	 * invokes channel->sc_creation_callback, which will open and use
 	 * the sub-channel(s).
 	 */
@@ -731,16 +731,16 @@ static void cache_wwn(struct storvsc_device *stor_device,
 		      struct vstor_packet *vstor_packet)
 {
 	/*
-	 * Cache the currently active port and node ww names.
+	 * Cache the currently active port and yesde ww names.
 	 */
 	if (vstor_packet->wwn_packet.primary_active) {
-		stor_device->node_name =
-			wwn_to_u64(vstor_packet->wwn_packet.primary_node_wwn);
+		stor_device->yesde_name =
+			wwn_to_u64(vstor_packet->wwn_packet.primary_yesde_wwn);
 		stor_device->port_name =
 			wwn_to_u64(vstor_packet->wwn_packet.primary_port_wwn);
 	} else {
-		stor_device->node_name =
-			wwn_to_u64(vstor_packet->wwn_packet.secondary_node_wwn);
+		stor_device->yesde_name =
+			wwn_to_u64(vstor_packet->wwn_packet.secondary_yesde_wwn);
 		stor_device->port_name =
 			wwn_to_u64(vstor_packet->wwn_packet.secondary_port_wwn);
 	}
@@ -817,7 +817,7 @@ static int storvsc_channel_init(struct hv_device *device, bool is_fc)
 		vstor_packet->operation =
 			VSTOR_OPERATION_QUERY_PROTOCOL_VERSION;
 
-		vstor_packet->version.major_minor =
+		vstor_packet->version.major_miyesr =
 			vmstor_protocols[i].protocol_version;
 
 		/*
@@ -865,7 +865,7 @@ static int storvsc_channel_init(struct hv_device *device, bool is_fc)
 	/*
 	 * Allocate state to manage the sub-channels.
 	 * We allocate an array based on the numbers of possible CPUs
-	 * (Hyper-V does not support cpu online/offline).
+	 * (Hyper-V does yest support cpu online/offline).
 	 * This Array will be sparseley populated with unique
 	 * channels - primary + sub-channels.
 	 * We will however populate all the slots to evenly distribute
@@ -901,7 +901,7 @@ static int storvsc_channel_init(struct hv_device *device, bool is_fc)
 		return ret;
 
 	/*
-	 * Cache the currently active port and node ww names.
+	 * Cache the currently active port and yesde ww names.
 	 */
 	cache_wwn(stor_device, vstor_packet);
 
@@ -1017,7 +1017,7 @@ static void storvsc_command_completion(struct storvsc_cmd_request *cmd_request,
 	scmnd->result = vm_srb->scsi_status;
 
 	if (scmnd->result) {
-		if (scsi_normalize_sense(scmnd->sense_buffer,
+		if (scsi_yesrmalize_sense(scmnd->sense_buffer,
 				SCSI_SENSE_BUFFERSIZE, &sense_hdr) &&
 		    !(sense_hdr.sense_key == NOT_READY &&
 				 sense_hdr.asc == 0x03A) &&
@@ -1059,7 +1059,7 @@ static void storvsc_on_io_completion(struct storvsc_device *stor_device,
 
 	/*
 	 * The current SCSI handling on the host side does
-	 * not correctly handle:
+	 * yest correctly handle:
 	 * INQUIRY command with page code parameter set to 0x80
 	 * MODE_SENSE command with cmd[2] == 0x1c
 	 *
@@ -1112,7 +1112,7 @@ static void storvsc_on_io_completion(struct storvsc_device *stor_device,
 	storvsc_command_completion(request, stor_device);
 
 	if (atomic_dec_and_test(&stor_device->num_outstanding_req) &&
-		stor_device->drain_notify)
+		stor_device->drain_yestify)
 		wake_up(&stor_device->waiting_to_drain);
 
 
@@ -1138,7 +1138,7 @@ static void storvsc_on_receive(struct storvsc_device *stor_device,
 	case VSTOR_OPERATION_FCHBA_DATA:
 		cache_wwn(stor_device, vstor_packet);
 #if IS_ENABLED(CONFIG_SCSI_FC_ATTRS)
-		fc_host_node_name(stor_device->host) = stor_device->node_name;
+		fc_host_yesde_name(stor_device->host) = stor_device->yesde_name;
 		fc_host_port_name(stor_device->host) = stor_device->port_name;
 #endif
 		break;
@@ -1226,7 +1226,7 @@ static int storvsc_dev_remove(struct hv_device *device)
 	/*
 	 * Since we have already drained, we don't need to busy wait
 	 * as was done in final_release_stor_device()
-	 * Note that we cannot set the ext pointer to NULL until
+	 * Note that we canyest set the ext pointer to NULL until
 	 * we have drained - to drain the outgoing packets, we need to
 	 * allow incoming packets.
 	 */
@@ -1245,7 +1245,7 @@ static struct vmbus_channel *get_og_chn(struct storvsc_device *stor_device,
 {
 	u16 slot = 0;
 	u16 hash_qnum;
-	const struct cpumask *node_mask;
+	const struct cpumask *yesde_mask;
 	int num_channels, tgt_cpu;
 
 	if (stor_device->num_sc == 0)
@@ -1253,7 +1253,7 @@ static struct vmbus_channel *get_og_chn(struct storvsc_device *stor_device,
 
 	/*
 	 * Our channel array is sparsley populated and we
-	 * initiated I/O on a processor/hw-q that does not
+	 * initiated I/O on a processor/hw-q that does yest
 	 * currently have a designated channel. Fix this.
 	 * The strategy is simple:
 	 * I. Ensure NUMA locality
@@ -1261,11 +1261,11 @@ static struct vmbus_channel *get_og_chn(struct storvsc_device *stor_device,
 	 * III. Mapping is persistent.
 	 */
 
-	node_mask = cpumask_of_node(cpu_to_node(q_num));
+	yesde_mask = cpumask_of_yesde(cpu_to_yesde(q_num));
 
 	num_channels = 0;
 	for_each_cpu(tgt_cpu, &stor_device->alloced_cpus) {
-		if (cpumask_test_cpu(tgt_cpu, node_mask))
+		if (cpumask_test_cpu(tgt_cpu, yesde_mask))
 			num_channels++;
 	}
 	if (num_channels == 0)
@@ -1276,7 +1276,7 @@ static struct vmbus_channel *get_og_chn(struct storvsc_device *stor_device,
 		hash_qnum -= num_channels;
 
 	for_each_cpu(tgt_cpu, &stor_device->alloced_cpus) {
-		if (!cpumask_test_cpu(tgt_cpu, node_mask))
+		if (!cpumask_test_cpu(tgt_cpu, yesde_mask))
 			continue;
 		if (slot == hash_qnum)
 			break;
@@ -1296,7 +1296,7 @@ static int storvsc_do_io(struct hv_device *device,
 	struct vstor_packet *vstor_packet;
 	struct vmbus_channel *outgoing_channel, *channel;
 	int ret = 0;
-	const struct cpumask *node_mask;
+	const struct cpumask *yesde_mask;
 	int tgt_cpu;
 
 	vstor_packet = &request->vstor_packet;
@@ -1315,12 +1315,12 @@ static int storvsc_do_io(struct hv_device *device,
 		if (outgoing_channel->target_cpu == q_num) {
 			/*
 			 * Ideally, we want to pick a different channel if
-			 * available on the same NUMA node.
+			 * available on the same NUMA yesde.
 			 */
-			node_mask = cpumask_of_node(cpu_to_node(q_num));
+			yesde_mask = cpumask_of_yesde(cpu_to_yesde(q_num));
 			for_each_cpu_wrap(tgt_cpu,
 				 &stor_device->alloced_cpus, q_num + 1) {
-				if (!cpumask_test_cpu(tgt_cpu, node_mask))
+				if (!cpumask_test_cpu(tgt_cpu, yesde_mask))
 					continue;
 				if (tgt_cpu == q_num)
 					continue;
@@ -1334,7 +1334,7 @@ static int storvsc_do_io(struct hv_device *device,
 			}
 
 			/*
-			 * All the other channels on the same NUMA node are
+			 * All the other channels on the same NUMA yesde are
 			 * busy. Try to use the channel on the current CPU
 			 */
 			if (hv_get_avail_to_write_percent(
@@ -1344,11 +1344,11 @@ static int storvsc_do_io(struct hv_device *device,
 
 			/*
 			 * If we reach here, all the channels on the current
-			 * NUMA node are busy. Try to find a channel in
-			 * other NUMA nodes
+			 * NUMA yesde are busy. Try to find a channel in
+			 * other NUMA yesdes
 			 */
 			for_each_cpu(tgt_cpu, &stor_device->alloced_cpus) {
-				if (cpumask_test_cpu(tgt_cpu, node_mask))
+				if (cpumask_test_cpu(tgt_cpu, yesde_mask))
 					continue;
 				channel = stor_device->stor_chns[tgt_cpu];
 				if (hv_get_avail_to_write_percent(
@@ -1423,7 +1423,7 @@ static int storvsc_device_configure(struct scsi_device *sdevice)
 {
 	blk_queue_rq_timeout(sdevice->request_queue, (storvsc_timeout * HZ));
 
-	sdevice->no_write_same = 1;
+	sdevice->yes_write_same = 1;
 
 	/*
 	 * If the host is WIN8 or WIN8 R2, claim conformance to SPC-3
@@ -1439,7 +1439,7 @@ static int storvsc_device_configure(struct scsi_device *sdevice)
 		}
 
 		if (vmstor_proto_version >= VMSTOR_PROTO_VERSION_WIN10)
-			sdevice->no_write_same = 0;
+			sdevice->yes_write_same = 0;
 	}
 
 	return 0;
@@ -1539,10 +1539,10 @@ static bool storvsc_scsi_cmd_ok(struct scsi_cmnd *scmnd)
 	u8 scsi_op = scmnd->cmnd[0];
 
 	switch (scsi_op) {
-	/* the host does not handle WRITE_SAME, log accident usage */
+	/* the host does yest handle WRITE_SAME, log accident usage */
 	case WRITE_SAME:
 	/*
-	 * smartd sends this command and the host does not handle
+	 * smartd sends this command and the host does yest handle
 	 * this. So, don't send it.
 	 */
 	case SET_WINDOW:
@@ -1673,7 +1673,7 @@ static int storvsc_queuecommand(struct Scsi_Host *host, struct scsi_cmnd *scmnd)
 	if (ret == -EAGAIN) {
 		if (payload_sz > sizeof(cmd_request->mpb))
 			kfree(payload);
-		/* no more space */
+		/* yes more space */
 		return SCSI_MLQUEUE_DEVICE_BUSY;
 	}
 
@@ -1695,9 +1695,9 @@ static struct scsi_host_template scsi_driver = {
 	.this_id =		-1,
 	/* Make sure we dont get a sg segment crosses a page boundary */
 	.dma_boundary =		PAGE_SIZE-1,
-	/* Ensure there are no gaps in presented sgls */
+	/* Ensure there are yes gaps in presented sgls */
 	.virt_boundary_mask =	PAGE_SIZE-1,
-	.no_write_same =	1,
+	.yes_write_same =	1,
 	.track_queue_depth =	1,
 	.change_queue_depth =	storvsc_change_queue_depth,
 };
@@ -1786,7 +1786,7 @@ static int storvsc_probe(struct hv_device *device,
 	host_dev = shost_priv(host);
 	memset(host_dev, 0, sizeof(struct hv_host_device));
 
-	host_dev->port = host->host_no;
+	host_dev->port = host->host_yes;
 	host_dev->dev = device;
 	host_dev->host = host;
 
@@ -1803,7 +1803,7 @@ static int storvsc_probe(struct hv_device *device,
 	stor_device->host = host;
 	hv_set_drvdata(device, stor_device);
 
-	stor_device->port_number = host->host_no;
+	stor_device->port_number = host->host_yes;
 	ret = storvsc_connect_to_vsp(device, storvsc_ringbuffer_size, is_fc);
 	if (ret)
 		goto err_out1;
@@ -1852,7 +1852,7 @@ static int storvsc_probe(struct hv_device *device,
 	host_dev->handle_error_wq =
 			alloc_ordered_workqueue("storvsc_error_wq_%d",
 						WQ_MEM_RECLAIM,
-						host->host_no);
+						host->host_yes);
 	if (!host_dev->handle_error_wq)
 		goto err_out2;
 	INIT_WORK(&host_dev->host_scan_work, storvsc_host_scan);
@@ -1876,7 +1876,7 @@ static int storvsc_probe(struct hv_device *device,
 			.roles = FC_PORT_ROLE_FCP_DUMMY_INITIATOR,
 		};
 
-		fc_host_node_name(host) = stor_device->node_name;
+		fc_host_yesde_name(host) = stor_device->yesde_name;
 		fc_host_port_name(host) = stor_device->port_name;
 		stor_device->rport = fc_remote_port_add(host, 0, &ids);
 		if (!stor_device->rport) {
@@ -1987,7 +1987,7 @@ static struct hv_driver storvsc_drv = {
 
 #if IS_ENABLED(CONFIG_SCSI_FC_ATTRS)
 static struct fc_function_template fc_transport_functions = {
-	.show_host_node_name = 1,
+	.show_host_yesde_name = 1,
 	.show_host_port_name = 1,
 };
 #endif

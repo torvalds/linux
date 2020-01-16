@@ -161,7 +161,7 @@ void crypto4xx_free_sa(struct crypto4xx_ctx *ctx)
 
 /**
  * alloc memory for the gather ring
- * no need to alloc buf for the ring
+ * yes need to alloc buf for the ring
  * gdr_tail, gdr_head and gdr_count are initialized by this function
  */
 static u32 crypto4xx_build_pdr(struct crypto4xx_device *dev)
@@ -201,7 +201,7 @@ static u32 crypto4xx_build_pdr(struct crypto4xx_device *dev)
 		pd->sa = dev->shadow_sa_pool_pa +
 			sizeof(union shadow_sa_buf) * i;
 
-		/* alloc 256 bytes which is enough for any kind of dynamic sa */
+		/* alloc 256 bytes which is eyesugh for any kind of dynamic sa */
 		pd_uinfo->sa_va = &dev->shadow_sa_pool[i].sa;
 
 		/* alloc state record */
@@ -233,7 +233,7 @@ static void crypto4xx_destroy_pdr(struct crypto4xx_device *dev)
 	kfree(dev->pdr_uinfo);
 }
 
-static u32 crypto4xx_get_pd_from_pdr_nolock(struct crypto4xx_device *dev)
+static u32 crypto4xx_get_pd_from_pdr_yeslock(struct crypto4xx_device *dev)
 {
 	u32 retval;
 	u32 tmp;
@@ -270,7 +270,7 @@ static u32 crypto4xx_put_pd_to_pdr(struct crypto4xx_device *dev, u32 idx)
 
 /**
  * alloc memory for the gather ring
- * no need to alloc buf for the ring
+ * yes need to alloc buf for the ring
  * gdr_tail, gdr_head and gdr_count are initialized by this function
  */
 static u32 crypto4xx_build_gdr(struct crypto4xx_device *dev)
@@ -616,7 +616,7 @@ static void crypto4xx_aead_done(struct crypto4xx_device *dev,
 			if (pd->pd_ctl.bf.status & 4)
 				pr_err("seqnum fail\n");
 			if (pd->pd_ctl.bf.status & 8)
-				pr_err("error _notify\n");
+				pr_err("error _yestify\n");
 			pr_err("aead return err status = 0x%02x\n",
 				pd->pd_ctl.bf.status & 0xff);
 			pr_err("pd pad_ctl = 0x%08x\n",
@@ -710,7 +710,7 @@ int crypto4xx_build_pd(struct crypto_async_request *req,
 	 * operation modes for >>> "Block ciphers" <<<.
 	 *
 	 * To workaround this issue and stop the hardware from causing
-	 * "overran dst buffer" on crypttexts that are not a multiple
+	 * "overran dst buffer" on crypttexts that are yest a multiple
 	 * of 16 (AES_BLOCK_SIZE), we force the driver to use the
 	 * scatter buffers.
 	 */
@@ -754,7 +754,7 @@ int crypto4xx_build_pd(struct crypto_async_request *req,
 	 */
 	spin_lock_irqsave(&dev->core_dev->lock, flags);
 	/*
-	 * Let the caller know to slow down, once more than 13/16ths = 81%
+	 * Let the caller kyesw to slow down, once more than 13/16ths = 81%
 	 * of the available data contexts are being used simultaneously.
 	 *
 	 * With PPC4XX_NUM_PD = 256, this will leave a "backlog queue" for
@@ -765,8 +765,8 @@ int crypto4xx_build_pd(struct crypto_async_request *req,
 			((PPC4XX_NUM_PD * 13) / 16);
 	} else {
 		/*
-		 * To fix contention issues between ipsec (no blacklog) and
-		 * dm-crypto (backlog) reserve 32 entries for "no backlog"
+		 * To fix contention issues between ipsec (yes blacklog) and
+		 * dm-crypto (backlog) reserve 32 entries for "yes backlog"
 		 * data contexts.
 		 */
 		is_busy = ((dev->pdr_head - dev->pdr_tail) % PPC4XX_NUM_PD) >=
@@ -794,7 +794,7 @@ int crypto4xx_build_pd(struct crypto_async_request *req,
 			return -EAGAIN;
 		}
 	}
-	pd_entry = crypto4xx_get_pd_from_pdr_nolock(dev);
+	pd_entry = crypto4xx_get_pd_from_pdr_yeslock(dev);
 	if (pd_entry == ERING_WAS_FULL) {
 		if (num_gd)
 			dev->gdr_head = fst_gd;
@@ -864,14 +864,14 @@ int crypto4xx_build_pd(struct crypto_async_request *req,
 		 */
 		sa->sa_command_0.bf.gather = 0;
 		/*
-		 * Indicate gather array is not used
+		 * Indicate gather array is yest used
 		 */
 		pd_uinfo->first_gd = 0xffffffff;
 	}
 	if (!num_sd) {
 		/*
-		 * we know application give us dst a whole piece of memory
-		 * no need to use scatter ring.
+		 * we kyesw application give us dst a whole piece of memory
+		 * yes need to use scatter ring.
 		 */
 		pd_uinfo->first_sd = 0xffffffff;
 		sa->sa_command_0.bf.scatter = 0;
@@ -1090,7 +1090,7 @@ static void crypto4xx_bh_tasklet_cb(unsigned long data)
 			crypto4xx_pd_done(core_dev->dev, tail);
 			tail = crypto4xx_put_pd_to_pdr(core_dev->dev, tail);
 		} else {
-			/* if tail not done, break */
+			/* if tail yest done, break */
 			break;
 		}
 	} while (head != tail);
@@ -1134,7 +1134,7 @@ static int ppc4xx_prng_data_read(struct crypto4xx_device *dev,
 		       dev->ce_base + CRYPTO4XX_PRNG_CTRL);
 
 		for (i = 0; i < 1024; i++) {
-			/* usually 19 iterations are enough */
+			/* usually 19 iterations are eyesugh */
 			if ((readl(dev->ce_base + CRYPTO4XX_PRNG_STAT) &
 			     CRYPTO4XX_PRNG_STAT_BUSY))
 				continue;
@@ -1285,8 +1285,8 @@ static struct crypto4xx_alg_common crypto4xx_alg[] = {
 		.min_keysize = AES_MIN_KEY_SIZE,
 		.max_keysize = AES_MAX_KEY_SIZE,
 		.setkey	= crypto4xx_setkey_aes_ecb,
-		.encrypt = crypto4xx_encrypt_noiv_block,
-		.decrypt = crypto4xx_decrypt_noiv_block,
+		.encrypt = crypto4xx_encrypt_yesiv_block,
+		.decrypt = crypto4xx_decrypt_yesiv_block,
 		.init = crypto4xx_sk_init,
 		.exit = crypto4xx_sk_exit,
 	} },
@@ -1380,23 +1380,23 @@ static int crypto4xx_probe(struct platform_device *ofdev)
 	u32 pvr;
 	bool is_revb = true;
 
-	rc = of_address_to_resource(ofdev->dev.of_node, 0, &res);
+	rc = of_address_to_resource(ofdev->dev.of_yesde, 0, &res);
 	if (rc)
 		return -ENODEV;
 
-	if (of_find_compatible_node(NULL, NULL, "amcc,ppc460ex-crypto")) {
+	if (of_find_compatible_yesde(NULL, NULL, "amcc,ppc460ex-crypto")) {
 		mtdcri(SDR0, PPC460EX_SDR0_SRST,
 		       mfdcri(SDR0, PPC460EX_SDR0_SRST) | PPC460EX_CE_RESET);
 		mtdcri(SDR0, PPC460EX_SDR0_SRST,
 		       mfdcri(SDR0, PPC460EX_SDR0_SRST) & ~PPC460EX_CE_RESET);
-	} else if (of_find_compatible_node(NULL, NULL,
+	} else if (of_find_compatible_yesde(NULL, NULL,
 			"amcc,ppc405ex-crypto")) {
 		mtdcri(SDR0, PPC405EX_SDR0_SRST,
 		       mfdcri(SDR0, PPC405EX_SDR0_SRST) | PPC405EX_CE_RESET);
 		mtdcri(SDR0, PPC405EX_SDR0_SRST,
 		       mfdcri(SDR0, PPC405EX_SDR0_SRST) & ~PPC405EX_CE_RESET);
 		is_revb = false;
-	} else if (of_find_compatible_node(NULL, NULL,
+	} else if (of_find_compatible_yesde(NULL, NULL,
 			"amcc,ppc460sx-crypto")) {
 		mtdcri(SDR0, PPC460SX_SDR0_SRST,
 		       mfdcri(SDR0, PPC460SX_SDR0_SRST) | PPC460SX_CE_RESET);
@@ -1420,7 +1420,7 @@ static int crypto4xx_probe(struct platform_device *ofdev)
 
 	/*
 	 * Older version of 460EX/GT have a hardware bug.
-	 * Hence they do not support H/W based security intr coalescing
+	 * Hence they do yest support H/W based security intr coalescing
 	 */
 	pvr = mfspr(SPRN_PVR);
 	if (is_revb && ((pvr >> 4) == 0x130218A)) {
@@ -1455,7 +1455,7 @@ static int crypto4xx_probe(struct platform_device *ofdev)
 	tasklet_init(&core_dev->tasklet, crypto4xx_bh_tasklet_cb,
 		     (unsigned long) dev);
 
-	core_dev->dev->ce_base = of_iomap(ofdev->dev.of_node, 0);
+	core_dev->dev->ce_base = of_iomap(ofdev->dev.of_yesde, 0);
 	if (!core_dev->dev->ce_base) {
 		dev_err(dev, "failed to of_iomap\n");
 		rc = -ENOMEM;
@@ -1463,7 +1463,7 @@ static int crypto4xx_probe(struct platform_device *ofdev)
 	}
 
 	/* Register for Crypto isr, Crypto Engine IRQ */
-	core_dev->irq = irq_of_parse_and_map(ofdev->dev.of_node, 0);
+	core_dev->irq = irq_of_parse_and_map(ofdev->dev.of_yesde, 0);
 	rc = request_irq(core_dev->irq, is_revb ?
 			 crypto4xx_ce_interrupt_handler_revb :
 			 crypto4xx_ce_interrupt_handler, 0,

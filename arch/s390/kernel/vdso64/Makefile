@@ -1,9 +1,9 @@
 # SPDX-License-Identifier: GPL-2.0
-# List of files in the vdso, has to be asm only for now
+# List of files in the vdso, has to be asm only for yesw
 
 KCOV_INSTRUMENT := n
 
-obj-vdso64 = gettimeofday.o clock_getres.o clock_gettime.o note.o getcpu.o
+obj-vdso64 = gettimeofday.o clock_getres.o clock_gettime.o yeste.o getcpu.o
 
 # Build rules
 
@@ -17,8 +17,8 @@ KBUILD_AFLAGS_64 := $(filter-out -m64,$(KBUILD_AFLAGS))
 KBUILD_AFLAGS_64 += -m64 -s
 
 KBUILD_CFLAGS_64 := $(filter-out -m64,$(KBUILD_CFLAGS))
-KBUILD_CFLAGS_64 += -m64 -fPIC -shared -fno-common -fno-builtin
-KBUILD_CFLAGS_64 += -nostdlib -Wl,-soname=linux-vdso64.so.1 \
+KBUILD_CFLAGS_64 += -m64 -fPIC -shared -fyes-common -fyes-builtin
+KBUILD_CFLAGS_64 += -yesstdlib -Wl,-soname=linux-vdso64.so.1 \
 		    -Wl,--hash-style=both
 
 $(targets:%=$(obj)/%.dbg): KBUILD_CFLAGS = $(KBUILD_CFLAGS_64)

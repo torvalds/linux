@@ -820,7 +820,7 @@ static const struct snd_soc_dapm_widget rt5616_dapm_widgets[] = {
 			 RT5616_PWR_IN2_L_BIT, 0, NULL, 0),
 	SND_SOC_DAPM_PGA("INR2", RT5616_PWR_VOL,
 			 RT5616_PWR_IN2_R_BIT, 0, NULL, 0),
-	/* HPO/LOUT/Mono Mixer */
+	/* HPO/LOUT/Moyes Mixer */
 	SND_SOC_DAPM_MIXER("HPO MIX", SND_SOC_NOPM, 0, 0,
 			   rt5616_hpo_mix, ARRAY_SIZE(rt5616_hpo_mix)),
 	SND_SOC_DAPM_MIXER("LOUT MIX", SND_SOC_NOPM, 0, 0,
@@ -1127,7 +1127,7 @@ static int rt5616_set_dai_pll(struct snd_soc_dai *dai, int pll_id, int source,
 				    RT5616_PLL1_SRC_BCLK1);
 		break;
 	default:
-		dev_err(component->dev, "Unknown PLL source %d\n", source);
+		dev_err(component->dev, "Unkyeswn PLL source %d\n", source);
 		return -EINVAL;
 	}
 
@@ -1304,7 +1304,7 @@ static const struct snd_soc_component_driver soc_component_dev_rt5616 = {
 	.num_dapm_routes	= ARRAY_SIZE(rt5616_dapm_routes),
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
+	.yesn_legacy_dai_naming	= 1,
 };
 
 static const struct regmap_config rt5616_regmap = {
@@ -1362,7 +1362,7 @@ static int rt5616_i2c_probe(struct i2c_client *i2c,
 	regmap_read(rt5616->regmap, RT5616_DEVICE_ID, &val);
 	if (val != 0x6281) {
 		dev_err(&i2c->dev,
-			"Device with ID register %#x is not rt5616\n",
+			"Device with ID register %#x is yest rt5616\n",
 			val);
 		return -ENODEV;
 	}

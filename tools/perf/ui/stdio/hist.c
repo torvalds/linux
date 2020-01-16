@@ -47,7 +47,7 @@ static size_t ipchain__fprintf_graph_line(FILE *fp, int depth, int depth_mask,
 	return ret;
 }
 
-static size_t ipchain__fprintf_graph(FILE *fp, struct callchain_node *node,
+static size_t ipchain__fprintf_graph(FILE *fp, struct callchain_yesde *yesde,
 				     struct callchain_list *chain,
 				     int depth, int depth_mask, int period,
 				     u64 total_samples, int left_margin)
@@ -66,7 +66,7 @@ static size_t ipchain__fprintf_graph(FILE *fp, struct callchain_node *node,
 			ret += fprintf(fp, " ");
 		if (!period && i == depth - 1) {
 			ret += fprintf(fp, "--");
-			ret += callchain_node__fprintf_value(node, fp, total_samples);
+			ret += callchain_yesde__fprintf_value(yesde, fp, total_samples);
 			ret += fprintf(fp, "--");
 		} else
 			ret += fprintf(fp, "%s", "          ");
@@ -79,7 +79,7 @@ static size_t ipchain__fprintf_graph(FILE *fp, struct callchain_node *node,
 						    buf, sizeof(buf));
 
 		if (asprintf(&alloc_str, "%s%s", str, buf) < 0)
-			str = "Not enough memory!";
+			str = "Not eyesugh memory!";
 		else
 			str = alloc_str;
 	}
@@ -98,7 +98,7 @@ static void init_rem_hits(void)
 {
 	rem_sq_bracket = malloc(sizeof(*rem_sq_bracket) + 6);
 	if (!rem_sq_bracket) {
-		fprintf(stderr, "Not enough memory to display remaining hits\n");
+		fprintf(stderr, "Not eyesugh memory to display remaining hits\n");
 		return;
 	}
 
@@ -110,8 +110,8 @@ static size_t __callchain__fprintf_graph(FILE *fp, struct rb_root *root,
 					 u64 total_samples, int depth,
 					 int depth_mask, int left_margin)
 {
-	struct rb_node *node, *next;
-	struct callchain_node *child = NULL;
+	struct rb_yesde *yesde, *next;
+	struct callchain_yesde *child = NULL;
 	struct callchain_list *chain;
 	int new_depth_mask = depth_mask;
 	u64 remaining;
@@ -122,12 +122,12 @@ static size_t __callchain__fprintf_graph(FILE *fp, struct rb_root *root,
 
 	remaining = total_samples;
 
-	node = rb_first(root);
-	while (node) {
+	yesde = rb_first(root);
+	while (yesde) {
 		u64 new_total;
 		u64 cumul;
 
-		child = rb_entry(node, struct callchain_node, rb_node);
+		child = rb_entry(yesde, struct callchain_yesde, rb_yesde);
 		cumul = callchain_cumul_hits(child);
 		remaining -= cumul;
 		cumul_count += callchain_cumul_counts(child);
@@ -139,7 +139,7 @@ static size_t __callchain__fprintf_graph(FILE *fp, struct rb_root *root,
 		 * Except if we have remaining filtered hits. They will
 		 * supersede the last child
 		 */
-		next = rb_next(node);
+		next = rb_next(yesde);
 		if (!next && (callchain_param.mode != CHAIN_GRAPH_REL || !remaining))
 			new_depth_mask &= ~(1 << (depth - 1));
 
@@ -166,14 +166,14 @@ static size_t __callchain__fprintf_graph(FILE *fp, struct rb_root *root,
 						  depth + 1,
 						  new_depth_mask | (1 << depth),
 						  left_margin);
-		node = next;
+		yesde = next;
 		if (++entries_printed == callchain_param.print_limit)
 			break;
 	}
 
 	if (callchain_param.mode == CHAIN_GRAPH_REL &&
 		remaining && remaining != total_samples) {
-		struct callchain_node rem_node = {
+		struct callchain_yesde rem_yesde = {
 			.hit = remaining,
 		};
 
@@ -181,13 +181,13 @@ static size_t __callchain__fprintf_graph(FILE *fp, struct rb_root *root,
 			return ret;
 
 		if (callchain_param.value == CCVAL_COUNT && child && child->parent) {
-			rem_node.count = child->parent->children_count - cumul_count;
-			if (rem_node.count <= 0)
+			rem_yesde.count = child->parent->children_count - cumul_count;
+			if (rem_yesde.count <= 0)
 				return ret;
 		}
 
 		new_depth_mask &= ~(1 << (depth - 1));
-		ret += ipchain__fprintf_graph(fp, &rem_node, &rem_hits, depth,
+		ret += ipchain__fprintf_graph(fp, &rem_yesde, &rem_hits, depth,
 					      new_depth_mask, 0, total_samples,
 					      left_margin);
 	}
@@ -201,36 +201,36 @@ static size_t __callchain__fprintf_graph(FILE *fp, struct rb_root *root,
  * than the hist in graph mode). This also avoid one level of column.
  *
  * However when percent-limit applied, it's possible that single callchain
- * node have different (non-100% in fractal mode) percentage.
+ * yesde have different (yesn-100% in fractal mode) percentage.
  */
-static bool need_percent_display(struct rb_node *node, u64 parent_samples)
+static bool need_percent_display(struct rb_yesde *yesde, u64 parent_samples)
 {
-	struct callchain_node *cnode;
+	struct callchain_yesde *cyesde;
 
-	if (rb_next(node))
+	if (rb_next(yesde))
 		return true;
 
-	cnode = rb_entry(node, struct callchain_node, rb_node);
-	return callchain_cumul_hits(cnode) != parent_samples;
+	cyesde = rb_entry(yesde, struct callchain_yesde, rb_yesde);
+	return callchain_cumul_hits(cyesde) != parent_samples;
 }
 
 static size_t callchain__fprintf_graph(FILE *fp, struct rb_root *root,
 				       u64 total_samples, u64 parent_samples,
 				       int left_margin)
 {
-	struct callchain_node *cnode;
+	struct callchain_yesde *cyesde;
 	struct callchain_list *chain;
 	u32 entries_printed = 0;
 	bool printed = false;
-	struct rb_node *node;
+	struct rb_yesde *yesde;
 	int i = 0;
 	int ret = 0;
 	char bf[1024];
 
-	node = rb_first(root);
-	if (node && !need_percent_display(node, parent_samples)) {
-		cnode = rb_entry(node, struct callchain_node, rb_node);
-		list_for_each_entry(chain, &cnode->val, list) {
+	yesde = rb_first(root);
+	if (yesde && !need_percent_display(yesde, parent_samples)) {
+		cyesde = rb_entry(yesde, struct callchain_yesde, rb_yesde);
+		list_for_each_entry(chain, &cyesde->val, list) {
 			/*
 			 * If we sort by symbol, the first entry is the same than
 			 * the symbol. No need to print it otherwise it appears as
@@ -263,7 +263,7 @@ static size_t callchain__fprintf_graph(FILE *fp, struct rb_root *root,
 			if (++entries_printed == callchain_param.print_limit)
 				break;
 		}
-		root = &cnode->rb_root;
+		root = &cyesde->rb_root;
 	}
 
 	if (callchain_param.mode == CHAIN_GRAPH_REL)
@@ -272,27 +272,27 @@ static size_t callchain__fprintf_graph(FILE *fp, struct rb_root *root,
 	ret += __callchain__fprintf_graph(fp, root, total_samples,
 					  1, 1, left_margin);
 	if (ret) {
-		/* do not add a blank line if it printed nothing */
+		/* do yest add a blank line if it printed yesthing */
 		ret += fprintf(fp, "\n");
 	}
 
 	return ret;
 }
 
-static size_t __callchain__fprintf_flat(FILE *fp, struct callchain_node *node,
+static size_t __callchain__fprintf_flat(FILE *fp, struct callchain_yesde *yesde,
 					u64 total_samples)
 {
 	struct callchain_list *chain;
 	size_t ret = 0;
 	char bf[1024];
 
-	if (!node)
+	if (!yesde)
 		return 0;
 
-	ret += __callchain__fprintf_flat(fp, node->parent, total_samples);
+	ret += __callchain__fprintf_flat(fp, yesde->parent, total_samples);
 
 
-	list_for_each_entry(chain, &node->val, list) {
+	list_for_each_entry(chain, &yesde->val, list) {
 		if (chain->ip >= PERF_CONTEXT_MAX)
 			continue;
 		ret += fprintf(fp, "                %s\n", callchain_list__sym_name(chain,
@@ -307,27 +307,27 @@ static size_t callchain__fprintf_flat(FILE *fp, struct rb_root *tree,
 {
 	size_t ret = 0;
 	u32 entries_printed = 0;
-	struct callchain_node *chain;
-	struct rb_node *rb_node = rb_first(tree);
+	struct callchain_yesde *chain;
+	struct rb_yesde *rb_yesde = rb_first(tree);
 
-	while (rb_node) {
-		chain = rb_entry(rb_node, struct callchain_node, rb_node);
+	while (rb_yesde) {
+		chain = rb_entry(rb_yesde, struct callchain_yesde, rb_yesde);
 
 		ret += fprintf(fp, "           ");
-		ret += callchain_node__fprintf_value(chain, fp, total_samples);
+		ret += callchain_yesde__fprintf_value(chain, fp, total_samples);
 		ret += fprintf(fp, "\n");
 		ret += __callchain__fprintf_flat(fp, chain, total_samples);
 		ret += fprintf(fp, "\n");
 		if (++entries_printed == callchain_param.print_limit)
 			break;
 
-		rb_node = rb_next(rb_node);
+		rb_yesde = rb_next(rb_yesde);
 	}
 
 	return ret;
 }
 
-static size_t __callchain__fprintf_folded(FILE *fp, struct callchain_node *node)
+static size_t __callchain__fprintf_folded(FILE *fp, struct callchain_yesde *yesde)
 {
 	const char *sep = symbol_conf.field_sep ?: ";";
 	struct callchain_list *chain;
@@ -335,13 +335,13 @@ static size_t __callchain__fprintf_folded(FILE *fp, struct callchain_node *node)
 	char bf[1024];
 	bool first;
 
-	if (!node)
+	if (!yesde)
 		return 0;
 
-	ret += __callchain__fprintf_folded(fp, node->parent);
+	ret += __callchain__fprintf_folded(fp, yesde->parent);
 
 	first = (ret == 0);
-	list_for_each_entry(chain, &node->val, list) {
+	list_for_each_entry(chain, &yesde->val, list) {
 		if (chain->ip >= PERF_CONTEXT_MAX)
 			continue;
 		ret += fprintf(fp, "%s%s", first ? "" : sep,
@@ -358,21 +358,21 @@ static size_t callchain__fprintf_folded(FILE *fp, struct rb_root *tree,
 {
 	size_t ret = 0;
 	u32 entries_printed = 0;
-	struct callchain_node *chain;
-	struct rb_node *rb_node = rb_first(tree);
+	struct callchain_yesde *chain;
+	struct rb_yesde *rb_yesde = rb_first(tree);
 
-	while (rb_node) {
+	while (rb_yesde) {
 
-		chain = rb_entry(rb_node, struct callchain_node, rb_node);
+		chain = rb_entry(rb_yesde, struct callchain_yesde, rb_yesde);
 
-		ret += callchain_node__fprintf_value(chain, fp, total_samples);
+		ret += callchain_yesde__fprintf_value(chain, fp, total_samples);
 		ret += fprintf(fp, " ");
 		ret += __callchain__fprintf_folded(fp, chain);
 		ret += fprintf(fp, "\n");
 		if (++entries_printed == callchain_param.print_limit)
 			break;
 
-		rb_node = rb_next(rb_node);
+		rb_yesde = rb_next(rb_yesde);
 	}
 
 	return ret;
@@ -428,7 +428,7 @@ int __hist_entry__snprintf(struct hist_entry *he, struct perf_hpp *hpp,
 			continue;
 
 		/*
-		 * If there's no field_sep, we still need
+		 * If there's yes field_sep, we still need
 		 * to display initial '  '.
 		 */
 		if (!sep || !first) {
@@ -461,7 +461,7 @@ static int hist_entry__hierarchy_fprintf(struct hist_entry *he,
 {
 	const char *sep = symbol_conf.field_sep;
 	struct perf_hpp_fmt *fmt;
-	struct perf_hpp_list_node *fmt_node;
+	struct perf_hpp_list_yesde *fmt_yesde;
 	char *buf = hpp->buf;
 	size_t size = hpp->size;
 	int ret, printed = 0;
@@ -473,12 +473,12 @@ static int hist_entry__hierarchy_fprintf(struct hist_entry *he,
 	ret = scnprintf(hpp->buf, hpp->size, "%*s", he->depth * HIERARCHY_INDENT, "");
 	advance_hpp(hpp, ret);
 
-	/* the first hpp_list_node is for overhead columns */
-	fmt_node = list_first_entry(&hists->hpp_formats,
-				    struct perf_hpp_list_node, list);
-	perf_hpp_list__for_each_format(&fmt_node->hpp, fmt) {
+	/* the first hpp_list_yesde is for overhead columns */
+	fmt_yesde = list_first_entry(&hists->hpp_formats,
+				    struct perf_hpp_list_yesde, list);
+	perf_hpp_list__for_each_format(&fmt_yesde->hpp, fmt) {
 		/*
-		 * If there's no field_sep, we still need
+		 * If there's yes field_sep, we still need
 		 * to display initial '  '.
 		 */
 		if (!sep || !first) {
@@ -498,7 +498,7 @@ static int hist_entry__hierarchy_fprintf(struct hist_entry *he,
 
 	if (!sep)
 		ret = scnprintf(hpp->buf, hpp->size, "%*s",
-				(hists->nr_hpp_node - 2) * HIERARCHY_INDENT, "");
+				(hists->nr_hpp_yesde - 2) * HIERARCHY_INDENT, "");
 	advance_hpp(hpp, ret);
 
 	printed += fprintf(fp, "%s", buf);
@@ -580,7 +580,7 @@ static int hist_entry__individual_block_fprintf(struct hist_entry *he,
 
 static int hist_entry__fprintf(struct hist_entry *he, size_t size,
 			       char *bf, size_t bfsz, FILE *fp,
-			       bool ignore_callchains)
+			       bool igyesre_callchains)
 {
 	int ret;
 	int callchain_ret = 0;
@@ -607,7 +607,7 @@ static int hist_entry__fprintf(struct hist_entry *he, size_t size,
 
 	ret = fprintf(fp, "%s\n", bf);
 
-	if (hist_entry__has_callchains(he) && !ignore_callchains)
+	if (hist_entry__has_callchains(he) && !igyesre_callchains)
 		callchain_ret = hist_entry_callchain__fprintf(he, total_period,
 							      0, fp);
 
@@ -632,38 +632,38 @@ static int print_hierarchy_indent(const char *sep, int indent,
 static int hists__fprintf_hierarchy_headers(struct hists *hists,
 					    struct perf_hpp *hpp, FILE *fp)
 {
-	bool first_node, first_col;
+	bool first_yesde, first_col;
 	int indent;
 	int depth;
 	unsigned width = 0;
 	unsigned header_width = 0;
 	struct perf_hpp_fmt *fmt;
-	struct perf_hpp_list_node *fmt_node;
+	struct perf_hpp_list_yesde *fmt_yesde;
 	const char *sep = symbol_conf.field_sep;
 
-	indent = hists->nr_hpp_node;
+	indent = hists->nr_hpp_yesde;
 
 	/* preserve max indent depth for column headers */
 	print_hierarchy_indent(sep, indent, " ", fp);
 
-	/* the first hpp_list_node is for overhead columns */
-	fmt_node = list_first_entry(&hists->hpp_formats,
-				    struct perf_hpp_list_node, list);
+	/* the first hpp_list_yesde is for overhead columns */
+	fmt_yesde = list_first_entry(&hists->hpp_formats,
+				    struct perf_hpp_list_yesde, list);
 
-	perf_hpp_list__for_each_format(&fmt_node->hpp, fmt) {
+	perf_hpp_list__for_each_format(&fmt_yesde->hpp, fmt) {
 		fmt->header(fmt, hpp, hists, 0, NULL);
 		fprintf(fp, "%s%s", hpp->buf, sep ?: "  ");
 	}
 
 	/* combine sort headers with ' / ' */
-	first_node = true;
-	list_for_each_entry_continue(fmt_node, &hists->hpp_formats, list) {
-		if (!first_node)
+	first_yesde = true;
+	list_for_each_entry_continue(fmt_yesde, &hists->hpp_formats, list) {
+		if (!first_yesde)
 			header_width += fprintf(fp, " / ");
-		first_node = false;
+		first_yesde = false;
 
 		first_col = true;
-		perf_hpp_list__for_each_format(&fmt_node->hpp, fmt) {
+		perf_hpp_list__for_each_format(&fmt_yesde->hpp, fmt) {
 			if (perf_hpp__should_skip(fmt, hists))
 				continue;
 
@@ -682,12 +682,12 @@ static int hists__fprintf_hierarchy_headers(struct hists *hists,
 	/* preserve max indent depth for initial dots */
 	print_hierarchy_indent(sep, indent, dots, fp);
 
-	/* the first hpp_list_node is for overhead columns */
-	fmt_node = list_first_entry(&hists->hpp_formats,
-				    struct perf_hpp_list_node, list);
+	/* the first hpp_list_yesde is for overhead columns */
+	fmt_yesde = list_first_entry(&hists->hpp_formats,
+				    struct perf_hpp_list_yesde, list);
 
 	first_col = true;
-	perf_hpp_list__for_each_format(&fmt_node->hpp, fmt) {
+	perf_hpp_list__for_each_format(&fmt_yesde->hpp, fmt) {
 		if (!first_col)
 			fprintf(fp, "%s", sep ?: "..");
 		first_col = false;
@@ -697,11 +697,11 @@ static int hists__fprintf_hierarchy_headers(struct hists *hists,
 	}
 
 	depth = 0;
-	list_for_each_entry_continue(fmt_node, &hists->hpp_formats, list) {
+	list_for_each_entry_continue(fmt_yesde, &hists->hpp_formats, list) {
 		first_col = true;
 		width = depth * HIERARCHY_INDENT;
 
-		perf_hpp_list__for_each_format(&fmt_node->hpp, fmt) {
+		perf_hpp_list__for_each_format(&fmt_yesde->hpp, fmt) {
 			if (perf_hpp__should_skip(fmt, hists))
 				continue;
 
@@ -816,9 +816,9 @@ int hists__fprintf_headers(struct hists *hists, FILE *fp)
 
 size_t hists__fprintf(struct hists *hists, bool show_header, int max_rows,
 		      int max_cols, float min_pcnt, FILE *fp,
-		      bool ignore_callchains)
+		      bool igyesre_callchains)
 {
-	struct rb_node *nd;
+	struct rb_yesde *nd;
 	size_t ret = 0;
 	const char *sep = symbol_conf.field_sep;
 	int nr_rows = 0;
@@ -851,7 +851,7 @@ size_t hists__fprintf(struct hists *hists, bool show_header, int max_rows,
 
 	for (nd = rb_first_cached(&hists->entries); nd;
 	     nd = __rb_hierarchy_next(nd, HMD_FORCE_CHILD)) {
-		struct hist_entry *h = rb_entry(nd, struct hist_entry, rb_node);
+		struct hist_entry *h = rb_entry(nd, struct hist_entry, rb_yesde);
 		float percent;
 
 		if (h->filtered)
@@ -865,20 +865,20 @@ size_t hists__fprintf(struct hists *hists, bool show_header, int max_rows,
 		if (percent < min_pcnt)
 			continue;
 
-		ret += hist_entry__fprintf(h, max_cols, line, linesz, fp, ignore_callchains);
+		ret += hist_entry__fprintf(h, max_cols, line, linesz, fp, igyesre_callchains);
 
 		if (max_rows && ++nr_rows >= max_rows)
 			break;
 
 		/*
 		 * If all children are filtered out or percent-limited,
-		 * display "no entry >= x.xx%" message.
+		 * display "yes entry >= x.xx%" message.
 		 */
 		if (!h->leaf && !hist_entry__has_hierarchy_children(h, min_pcnt)) {
-			int depth = hists->nr_hpp_node + h->depth + 1;
+			int depth = hists->nr_hpp_yesde + h->depth + 1;
 
 			print_hierarchy_indent(sep, depth, " ", fp);
-			fprintf(fp, "%*sno entry >= %.2f%%\n", indent, "", min_pcnt);
+			fprintf(fp, "%*syes entry >= %.2f%%\n", indent, "", min_pcnt);
 
 			if (max_rows && ++nr_rows >= max_rows)
 				break;

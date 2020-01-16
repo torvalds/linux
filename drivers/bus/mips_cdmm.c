@@ -1,7 +1,7 @@
 /*
  * Bus driver for MIPS Common Device Memory Map (CDMM).
  *
- * Copyright (C) 2014-2015 Imagination Technologies Ltd.
+ * Copyright (C) 2014-2015 Imagination Techyeslogies Ltd.
  *
  * This file is subject to the terms and conditions of the GNU General Public
  * License.  See the file "COPYING" in the main directory of this archive
@@ -277,11 +277,11 @@ static atomic_t mips_cdmm_next_id = ATOMIC_INIT(-1);
  *
  * Get information about the per-CPU CDMM bus, if the bus is present.
  *
- * The caller must prevent migration to another CPU, either by disabling
+ * The caller must prevent migration to ayesther CPU, either by disabling
  * pre-emption or by running from a pinned kernel thread.
  *
  * Returns:	Pointer to CDMM bus information for the current CPU.
- *		May return ERR_PTR(-errno) in case of error, so check with
+ *		May return ERR_PTR(-erryes) in case of error, so check with
  *		IS_ERR().
  */
 static struct mips_cdmm_bus *mips_cdmm_get_bus(void)
@@ -336,7 +336,7 @@ static phys_addr_t mips_cdmm_cur_base(void)
  *
  * Picking a suitable physical address at which to map the CDMM region is
  * platform specific, so this weak function can be overridden by platform
- * code to pick a suitable value if none is configured by the bootloader.
+ * code to pick a suitable value if yesne is configured by the bootloader.
  */
 phys_addr_t __weak mips_cdmm_phys_base(void)
 {
@@ -346,12 +346,12 @@ phys_addr_t __weak mips_cdmm_phys_base(void)
 /**
  * mips_cdmm_setup() - Ensure the CDMM bus is initialised and usable.
  * @bus:	Pointer to bus information for current CPU.
- *		IS_ERR(bus) is checked, so no need for caller to check.
+ *		IS_ERR(bus) is checked, so yes need for caller to check.
  *
- * The caller must prevent migration to another CPU, either by disabling
+ * The caller must prevent migration to ayesther CPU, either by disabling
  * pre-emption or by running from a pinned kernel thread.
  *
- * Returns	0 on success, -errno on failure.
+ * Returns	0 on success, -erryes on failure.
  */
 static int mips_cdmm_setup(struct mips_cdmm_bus *bus)
 {
@@ -364,7 +364,7 @@ static int mips_cdmm_setup(struct mips_cdmm_bus *bus)
 	local_irq_save(flags);
 	/* Don't set up bus a second time unless marked offline */
 	if (bus->offline) {
-		/* If CDMM region is still set up, nothing to do */
+		/* If CDMM region is still set up, yesthing to do */
 		if (bus->phys == mips_cdmm_cur_base())
 			goto out;
 		/*
@@ -434,13 +434,13 @@ out:
  * specific device. This can be used to find a device very early in boot for
  * example to configure an early FDC console device.
  *
- * The caller must prevent migration to another CPU, either by disabling
+ * The caller must prevent migration to ayesther CPU, either by disabling
  * pre-emption or by running from a pinned kernel thread.
  *
  * Returns:	MMIO pointer to device memory. The caller can read the ACSR
  *		register to find more information about the device (such as the
  *		version number or the number of blocks).
- *		May return IOMEM_ERR_PTR(-errno) in case of error, so check with
+ *		May return IOMEM_ERR_PTR(-erryes) in case of error, so check with
  *		IS_ERR().
  */
 void __iomem *mips_cdmm_early_probe(unsigned int dev_type)
@@ -645,7 +645,7 @@ static int mips_cdmm_cpu_online(unsigned int cpu)
 	if (ret)
 		return ret;
 
-	/* Bus now set up, so we can drop the offline flag if still set */
+	/* Bus yesw set up, so we can drop the offline flag if still set */
 	bus->offline = false;
 
 	if (!bus->discovered)
@@ -662,7 +662,7 @@ static int mips_cdmm_cpu_online(unsigned int cpu)
  * mips_cdmm_init() - Initialise CDMM bus.
  *
  * Initialise CDMM bus, discover CDMM devices for online CPUs, and arrange for
- * hotplug notifications so the CDMM drivers can be kept up to date.
+ * hotplug yestifications so the CDMM drivers can be kept up to date.
  */
 static int __init mips_cdmm_init(void)
 {
@@ -673,11 +673,11 @@ static int __init mips_cdmm_init(void)
 	if (ret)
 		return ret;
 
-	/* We want to be notified about new CPUs */
+	/* We want to be yestified about new CPUs */
 	ret = cpuhp_setup_state(CPUHP_AP_ONLINE_DYN, "bus/cdmm:online",
 				mips_cdmm_cpu_online, mips_cdmm_cpu_down_prep);
 	if (ret < 0)
-		pr_warn("cdmm: Failed to register CPU notifier\n");
+		pr_warn("cdmm: Failed to register CPU yestifier\n");
 
 	return ret;
 }

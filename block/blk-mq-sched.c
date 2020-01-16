@@ -39,7 +39,7 @@ void blk_mq_sched_assign_ioc(struct request *rq)
 	struct io_cq *icq;
 
 	/*
-	 * May not have an IO context if it's a passthrough request
+	 * May yest have an IO context if it's a passthrough request
 	 */
 	ioc = current->io_context;
 	if (!ioc)
@@ -196,11 +196,11 @@ void blk_mq_sched_dispatch_requests(struct blk_mq_hw_ctx *hctx)
 	 * requests from the dispatch list. This is to avoid the case where
 	 * we only ever dispatch a fraction of the requests available because
 	 * of low device queue depth. Once we pull requests out of the IO
-	 * scheduler, we can no longer merge or sort them. So it's best to
+	 * scheduler, we can yes longer merge or sort them. So it's best to
 	 * leave them there for as long as we can. Mark the hw queue as
 	 * needing a restart in that case.
 	 *
-	 * We want to dispatch from the scheduler if there was nothing
+	 * We want to dispatch from the scheduler if there was yesthing
 	 * on the dispatch list or we were able to dispatch from the
 	 * dispatch list.
 	 */
@@ -301,7 +301,7 @@ EXPORT_SYMBOL_GPL(blk_mq_bio_list_merge);
 
 /*
  * Reverse check our software queue for entries that we could potentially
- * merge with. Currently includes a hand-wavy stop count of 8, to not spend
+ * merge with. Currently includes a hand-wavy stop count of 8, to yest spend
  * too much time checking for merges.
  */
 static bool blk_mq_attempt_merge(struct request_queue *q,
@@ -430,7 +430,7 @@ void blk_mq_sched_insert_requests(struct blk_mq_hw_ctx *hctx,
 	else {
 		/*
 		 * try to issue requests directly if the hw queue isn't
-		 * busy in case of 'none' scheduler, and this way may save
+		 * busy in case of 'yesne' scheduler, and this way may save
 		 * us one extra enqueue & dequeue to sw queue.
 		 */
 		if (!hctx->dispatch_busy && !e && !run_queue_async) {

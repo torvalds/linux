@@ -84,7 +84,7 @@
 #define XMIT_LCOL 	0x1000	/* Late collision */
 #define XMIT_RESERV 	0x2000	/* Reserved */
 #define XMIT_UFLO 	0x4000	/* Underflow (late memory) */
-#define XMIT_BUFF 	0x8000	/* Buffering error (no ENP) */
+#define XMIT_BUFF 	0x8000	/* Buffering error (yes ENP) */
 
 struct init_block {
 	unsigned short mode;

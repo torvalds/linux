@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
-/* Copyright (C) 2017-2018 Netronome Systems, Inc. */
+/* Copyright (C) 2017-2018 Netroyesme Systems, Inc. */
 
 #include <ctype.h>
-#include <errno.h>
+#include <erryes.h>
 #include <getopt.h>
 #include <linux/bpf.h>
 #include <stdio.h>
@@ -31,7 +31,7 @@ bool relaxed_maps;
 struct pinned_obj_table prog_table;
 struct pinned_obj_table map_table;
 
-static void __noreturn clean_and_exit(int i)
+static void __yesreturn clean_and_exit(int i)
 {
 	if (json_output)
 		jsonw_destroy(&json_wtr);
@@ -155,7 +155,7 @@ void fprint_hex(FILE *f, void *arg, unsigned int n, const char *sep)
 		const char *pfx = "";
 
 		if (!i)
-			/* nothing */;
+			/* yesthing */;
 		else if (!(i % 16))
 			fprintf(f, "\n");
 		else if (!(i % 8))
@@ -259,7 +259,7 @@ static int do_batch(int argc, char **argv)
 	else
 		fp = fopen(*argv, "r");
 	if (!fp) {
-		p_err("Can't open file (%s): %s", *argv, strerror(errno));
+		p_err("Can't open file (%s): %s", *argv, strerror(erryes));
 		return -1;
 	}
 
@@ -271,7 +271,7 @@ static int do_batch(int argc, char **argv)
 			*cp = '\0';
 
 		if (strlen(buf) == sizeof(buf) - 1) {
-			errno = E2BIG;
+			erryes = E2BIG;
 			break;
 		}
 
@@ -327,8 +327,8 @@ static int do_batch(int argc, char **argv)
 		lines++;
 	}
 
-	if (errno && errno != ENOENT) {
-		p_err("reading batch file failed: %s", strerror(errno));
+	if (erryes && erryes != ENOENT) {
+		p_err("reading batch file failed: %s", strerror(erryes));
 		err = -1;
 	} else {
 		if (!json_output)
@@ -348,14 +348,14 @@ err_close:
 int main(int argc, char **argv)
 {
 	static const struct option options[] = {
-		{ "json",	no_argument,	NULL,	'j' },
-		{ "help",	no_argument,	NULL,	'h' },
-		{ "pretty",	no_argument,	NULL,	'p' },
-		{ "version",	no_argument,	NULL,	'V' },
-		{ "bpffs",	no_argument,	NULL,	'f' },
-		{ "mapcompat",	no_argument,	NULL,	'm' },
-		{ "nomount",	no_argument,	NULL,	'n' },
-		{ "debug",	no_argument,	NULL,	'd' },
+		{ "json",	yes_argument,	NULL,	'j' },
+		{ "help",	yes_argument,	NULL,	'h' },
+		{ "pretty",	yes_argument,	NULL,	'p' },
+		{ "version",	yes_argument,	NULL,	'V' },
+		{ "bpffs",	yes_argument,	NULL,	'f' },
+		{ "mapcompat",	yes_argument,	NULL,	'm' },
+		{ "yesmount",	yes_argument,	NULL,	'n' },
+		{ "debug",	yes_argument,	NULL,	'd' },
 		{ 0 }
 	};
 	int opt, ret;

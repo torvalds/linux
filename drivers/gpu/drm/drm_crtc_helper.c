@@ -6,11 +6,11 @@
  *
  * Permission to use, copy, modify, distribute, and sell this software and its
  * documentation for any purpose is hereby granted without fee, provided that
- * the above copyright notice appear in all copies and that both that copyright
- * notice and this permission notice appear in supporting documentation, and
- * that the name of the copyright holders not be used in advertising or
+ * the above copyright yestice appear in all copies and that both that copyright
+ * yestice and this permission yestice appear in supporting documentation, and
+ * that the name of the copyright holders yest be used in advertising or
  * publicity pertaining to distribution of the software without specific,
- * written prior permission.  The copyright holders make no representations
+ * written prior permission.  The copyright holders make yes representations
  * about the suitability of this software for any purpose.  It is provided "as
  * is" without express or implied warranty.
  *
@@ -63,13 +63,13 @@
  *
  * The driver callbacks are mostly compatible with the atomic modeset helpers,
  * except for the handling of the primary plane: Atomic helpers require that the
- * primary plane is implemented as a real standalone plane and not directly tied
+ * primary plane is implemented as a real standalone plane and yest directly tied
  * to the CRTC state. For easier transition this library provides functions to
  * implement the old semantics required by the CRTC helpers using the new plane
  * and atomic helper callbacks.
  *
  * Drivers are strongly urged to convert to the atomic helpers (by way of first
- * converting to the plane helpers). New drivers must not use these functions
+ * converting to the plane helpers). New drivers must yest use these functions
  * but need to implement the atomic interface instead, potentially using the
  * atomic helpers for that.
  *
@@ -99,7 +99,7 @@ bool drm_helper_encoder_in_use(struct drm_encoder *encoder)
 	WARN_ON(drm_drv_uses_atomic_modeset(dev));
 
 	/*
-	 * We can expect this mutex to be locked if we are not panicking.
+	 * We can expect this mutex to be locked if we are yest panicking.
 	 * Locking is currently fubar in the panic handler.
 	 */
 	if (!oops_in_progress) {
@@ -139,7 +139,7 @@ bool drm_helper_crtc_in_use(struct drm_crtc *crtc)
 	WARN_ON(drm_drv_uses_atomic_modeset(dev));
 
 	/*
-	 * We can expect this mutex to be locked if we are not panicking.
+	 * We can expect this mutex to be locked if we are yest panicking.
 	 * Locking is currently fubar in the panic handler.
 	 */
 	if (!oops_in_progress)
@@ -171,7 +171,7 @@ static void __drm_helper_disable_unused_functions(struct drm_device *dev)
 	struct drm_encoder *encoder;
 	struct drm_crtc *crtc;
 
-	drm_warn_on_modeset_not_all_locked(dev);
+	drm_warn_on_modeset_yest_all_locked(dev);
 
 	drm_for_each_encoder(encoder, dev) {
 		if (!drm_helper_encoder_in_use(encoder)) {
@@ -285,7 +285,7 @@ bool drm_crtc_helper_set_mode(struct drm_crtc *crtc,
 
 	WARN_ON(drm_drv_uses_atomic_modeset(dev));
 
-	drm_warn_on_modeset_not_all_locked(dev);
+	drm_warn_on_modeset_yest_all_locked(dev);
 
 	saved_enabled = crtc->enabled;
 	crtc->enabled = drm_helper_crtc_in_use(crtc);
@@ -447,7 +447,7 @@ drm_crtc_helper_disable(struct drm_crtc *crtc)
 			 * drm_helper_disable_unused_functions() ought to be
 			 * doing this, but since we've decoupled the encoder
 			 * from the connector above, the required connection
-			 * between them is henceforth no longer available.
+			 * between them is henceforth yes longer available.
 			 */
 			connector->dpms = DRM_MODE_DPMS_OFF;
 
@@ -479,7 +479,7 @@ drm_connector_get_single_encoder(struct drm_connector *connector)
 /**
  * drm_crtc_helper_set_config - set a new config from userspace
  * @set: mode set configuration
- * @ctx: lock acquire context, not used here
+ * @ctx: lock acquire context, yest used here
  *
  * The drm_crtc_helper_set_config() helper function implements the of
  * &drm_crtc_funcs.set_config callback for drivers using the legacy CRTC
@@ -500,7 +500,7 @@ drm_connector_get_single_encoder(struct drm_connector *connector)
  * will call the CRTC &drm_crtc_helper_funcs.mode_set_base helper operation.
  *
  * If the adjusted mode differs from the current mode, or if the
- * ->mode_set_base() helper operation is not provided, the helper function
+ * ->mode_set_base() helper operation is yest provided, the helper function
  * performs a full mode set sequence by calling the ->prepare(), ->mode_set()
  * and ->commit() CRTC and encoder helper operations, in that order.
  * Alternatively it can also use the dpms and disable helper operations. For
@@ -512,7 +512,7 @@ drm_connector_get_single_encoder(struct drm_connector *connector)
  * drm_atomic_helper_set_config().
  *
  * Returns:
- * Returns 0 on success, negative errno numbers on failure.
+ * Returns 0 on success, negative erryes numbers on failure.
  */
 int drm_crtc_helper_set_config(struct drm_mode_set *set,
 			       struct drm_modeset_acquire_ctx *ctx)
@@ -560,10 +560,10 @@ int drm_crtc_helper_set_config(struct drm_mode_set *set,
 		return 0;
 	}
 
-	drm_warn_on_modeset_not_all_locked(dev);
+	drm_warn_on_modeset_yest_all_locked(dev);
 
 	/*
-	 * Allocate space for the backup of all (non-pointer) encoder and
+	 * Allocate space for the backup of all (yesn-pointer) encoder and
 	 * connector data.
 	 */
 	save_encoder_crtcs = kcalloc(dev->mode_config.num_encoder,
@@ -579,9 +579,9 @@ int drm_crtc_helper_set_config(struct drm_mode_set *set,
 	}
 
 	/*
-	 * Copy data. Note that driver private data is not affected.
+	 * Copy data. Note that driver private data is yest affected.
 	 * Should anything bad happen only the expected state is
-	 * restored, not the drivers personal bookkeeping.
+	 * restored, yest the drivers personal bookkeeping.
 	 */
 	count = 0;
 	drm_for_each_encoder(encoder, dev) {
@@ -603,9 +603,9 @@ int drm_crtc_helper_set_config(struct drm_mode_set *set,
 	/* We should be able to check here if the fb has the same properties
 	 * and then just flip_or_move it */
 	if (set->crtc->primary->fb != set->fb) {
-		/* If we have no fb then treat it as a full mode set */
+		/* If we have yes fb then treat it as a full mode set */
 		if (set->crtc->primary->fb == NULL) {
-			DRM_DEBUG_KMS("crtc has no fb, full mode set\n");
+			DRM_DEBUG_KMS("crtc has yes fb, full mode set\n");
 			mode_changed = true;
 		} else if (set->fb->format != set->crtc->primary->fb->format) {
 			mode_changed = true;
@@ -647,13 +647,13 @@ int drm_crtc_helper_set_config(struct drm_mode_set *set,
 					new_encoder = drm_connector_get_single_encoder(connector);
 
 				/* if we can't get an encoder for a connector
-				   we are setting now - then fail */
+				   we are setting yesw - then fail */
 				if (new_encoder == NULL)
 					/* don't break so fail path works correct */
 					fail = 1;
 
 				if (connector->dpms != DRM_MODE_DPMS_ON) {
-					DRM_DEBUG_KMS("connector dpms not on, full mode switch\n");
+					DRM_DEBUG_KMS("connector dpms yest on, full mode switch\n");
 					mode_changed = true;
 				}
 
@@ -664,7 +664,7 @@ int drm_crtc_helper_set_config(struct drm_mode_set *set,
 		if (new_encoder != connector->encoder) {
 			DRM_DEBUG_KMS("encoder changed, full mode switch\n");
 			mode_changed = true;
-			/* If the encoder is reused for another connector, then
+			/* If the encoder is reused for ayesther connector, then
 			 * the appropriate crtc will be set later.
 			 */
 			if (connector->encoder)
@@ -718,7 +718,7 @@ int drm_crtc_helper_set_config(struct drm_mode_set *set,
 	}
 	drm_connector_list_iter_end(&conn_iter);
 
-	/* mode_set_base is not a required function */
+	/* mode_set_base is yest a required function */
 	if (fb_changed && !crtc_funcs->mode_set_base)
 		mode_changed = true;
 
@@ -992,7 +992,7 @@ EXPORT_SYMBOL(drm_helper_resume_force_mode);
  * Drivers may want to call this on unload to ensure that all displays are
  * unlit and the GPU is in a consistent, low power state. Takes modeset locks.
  *
- * Note: This should only be used by non-atomic legacy drivers. For an atomic
+ * Note: This should only be used by yesn-atomic legacy drivers. For an atomic
  * version look at drm_atomic_helper_shutdown().
  *
  * Returns:

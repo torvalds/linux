@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -44,12 +44,12 @@ nv50_sor_power_wait(struct nvkm_device *device, u32 soff)
 }
 
 void
-nv50_sor_power(struct nvkm_ior *sor, bool normal, bool pu,
+nv50_sor_power(struct nvkm_ior *sor, bool yesrmal, bool pu,
 	       bool data, bool vsync, bool hsync)
 {
 	struct nvkm_device *device = sor->disp->engine.subdev.device;
 	const u32  soff = nv50_ior_base(sor);
-	const u32 shift = normal ? 0 : 16;
+	const u32 shift = yesrmal ? 0 : 16;
 	const u32 state = 0x80000000 | (0x00000001 * !!pu) << shift;
 	const u32 field = 0x80000000 | (0x00000001 << shift);
 

@@ -15,7 +15,7 @@ struct ovl_config {
 	const char *redirect_mode;
 	bool index;
 	bool nfs_export;
-	int xino;
+	int xiyes;
 	bool metacopy;
 };
 
@@ -28,8 +28,8 @@ struct ovl_sb {
 
 struct ovl_layer {
 	struct vfsmount *mnt;
-	/* Trap in ovl inode cache */
-	struct inode *trap;
+	/* Trap in ovl iyesde cache */
+	struct iyesde *trap;
 	struct ovl_sb *fs;
 	/* Index of this layer in fs root (upper idx == 0) */
 	int idx;
@@ -54,7 +54,7 @@ struct ovl_fs {
 	struct dentry *workbasedir;
 	/* workdir is the 'work' directory under workbasedir */
 	struct dentry *workdir;
-	/* index directory listing overlay inodes by origin file handle */
+	/* index directory listing overlay iyesdes by origin file handle */
 	struct dentry *indexdir;
 	long namelen;
 	/* pathnames of lower and upper dirs, for show_options */
@@ -62,17 +62,17 @@ struct ovl_fs {
 	/* creds of process who forced instantiation of super block */
 	const struct cred *creator_cred;
 	bool tmpfile;
-	bool noxattr;
+	bool yesxattr;
 	/* Did we take the inuse lock? */
 	bool upperdir_locked;
 	bool workdir_locked;
-	/* Traps in ovl inode cache */
-	struct inode *upperdir_trap;
-	struct inode *workbasedir_trap;
-	struct inode *workdir_trap;
-	struct inode *indexdir_trap;
-	/* Inode numbers in all layers do not use the high xino_bits */
-	unsigned int xino_bits;
+	/* Traps in ovl iyesde cache */
+	struct iyesde *upperdir_trap;
+	struct iyesde *workbasedir_trap;
+	struct iyesde *workdir_trap;
+	struct iyesde *indexdir_trap;
+	/* Iyesde numbers in all layers do yest use the high xiyes_bits */
+	unsigned int xiyes_bits;
 };
 
 /* private information held for every overlayfs dentry */
@@ -94,28 +94,28 @@ static inline struct ovl_entry *OVL_E(struct dentry *dentry)
 	return (struct ovl_entry *) dentry->d_fsdata;
 }
 
-struct ovl_inode {
+struct ovl_iyesde {
 	union {
 		struct ovl_dir_cache *cache;	/* directory */
-		struct inode *lowerdata;	/* regular file */
+		struct iyesde *lowerdata;	/* regular file */
 	};
 	const char *redirect;
 	u64 version;
 	unsigned long flags;
-	struct inode vfs_inode;
+	struct iyesde vfs_iyesde;
 	struct dentry *__upperdentry;
-	struct inode *lower;
+	struct iyesde *lower;
 
 	/* synchronize copy up and more */
 	struct mutex lock;
 };
 
-static inline struct ovl_inode *OVL_I(struct inode *inode)
+static inline struct ovl_iyesde *OVL_I(struct iyesde *iyesde)
 {
-	return container_of(inode, struct ovl_inode, vfs_inode);
+	return container_of(iyesde, struct ovl_iyesde, vfs_iyesde);
 }
 
-static inline struct dentry *ovl_upperdentry_dereference(struct ovl_inode *oi)
+static inline struct dentry *ovl_upperdentry_dereference(struct ovl_iyesde *oi)
 {
 	return READ_ONCE(oi->__upperdentry);
 }

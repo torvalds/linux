@@ -2,7 +2,7 @@
 /*
  * SL82C105/Winbond 553 IDE driver
  *
- * Maintainer unknown.
+ * Maintainer unkyeswn.
  *
  * Drive tuning added from Rebel.com's kernel sources
  *  -- Russell King (15/11/98) linux@arm.linux.org.uk
@@ -256,7 +256,7 @@ static u8 sl82c105_bridge_revision(struct pci_dev *dev)
 		return -1;
 	}
 	/*
-	 * We need to find function 0's revision, not function 1
+	 * We need to find function 0's revision, yest function 1
 	 */
 	pci_dev_put(bridge);
 
@@ -267,7 +267,7 @@ static u8 sl82c105_bridge_revision(struct pci_dev *dev)
  * Enable the PCI device
  * 
  * --BenH: It's arch fixup code that should enable channels that
- * have not been enabled by firmware. I decided we can still enable
+ * have yest been enabled by firmware. I decided we can still enable
  * channel 0 here at least, but channel 1 has to be enabled by
  * firmware or arch code. We still set both to 16 bits mode.
  */

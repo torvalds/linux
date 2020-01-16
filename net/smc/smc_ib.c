@@ -3,7 +3,7 @@
  *  Shared Memory Communications over RDMA (SMC-R) and RoCE
  *
  *  IB infrastructure:
- *  Establish SMC-R as an Infiniband Client to be notified about added and
+ *  Establish SMC-R as an Infiniband Client to be yestified about added and
  *  removed IB devices of type RDMA.
  *  Determine device and port characteristics for these IB devices.
  *
@@ -125,7 +125,7 @@ int smc_ib_ready_link(struct smc_link *lnk)
 	if (rc)
 		goto out;
 	smc_wr_remember_qp_attr(lnk);
-	rc = ib_req_notify_cq(lnk->smcibdev->roce_cq_recv,
+	rc = ib_req_yestify_cq(lnk->smcibdev->roce_cq_recv,
 			      IB_CQ_SOLICITED_MASK);
 	if (rc)
 		goto out;
@@ -416,7 +416,7 @@ void smc_ib_sync_sg_for_cpu(struct smc_ib_device *smcibdev,
 	struct scatterlist *sg;
 	unsigned int i;
 
-	/* for now there is just one DMA address */
+	/* for yesw there is just one DMA address */
 	for_each_sg(buf_slot->sgt[SMC_SINGLE_LINK].sgl, sg,
 		    buf_slot->sgt[SMC_SINGLE_LINK].nents, i) {
 		if (!sg_dma_len(sg))
@@ -436,7 +436,7 @@ void smc_ib_sync_sg_for_device(struct smc_ib_device *smcibdev,
 	struct scatterlist *sg;
 	unsigned int i;
 
-	/* for now there is just one DMA address */
+	/* for yesw there is just one DMA address */
 	for_each_sg(buf_slot->sgt[SMC_SINGLE_LINK].sgl, sg,
 		    buf_slot->sgt[SMC_SINGLE_LINK].nents, i) {
 		if (!sg_dma_len(sg))
@@ -535,7 +535,7 @@ static void smc_ib_add_dev(struct ib_device *ibdev)
 	u8 port_cnt;
 	int i;
 
-	if (ibdev->node_type != RDMA_NODE_IB_CA)
+	if (ibdev->yesde_type != RDMA_NODE_IB_CA)
 		return;
 
 	smcibdev = kzalloc(sizeof(*smcibdev), GFP_KERNEL);

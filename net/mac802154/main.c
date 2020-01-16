@@ -3,7 +3,7 @@
  * Copyright (C) 2007-2012 Siemens AG
  *
  * Written by:
- * Alexander Smirnov <alex.bluesman.smirnov@gmail.com>
+ * Alexander Smiryesv <alex.bluesman.smiryesv@gmail.com>
  */
 
 #include <linux/kernel.h>
@@ -28,14 +28,14 @@ static void ieee802154_tasklet_handler(unsigned long data)
 	while ((skb = skb_dequeue(&local->skb_queue))) {
 		switch (skb->pkt_type) {
 		case IEEE802154_RX_MSG:
-			/* Clear skb->pkt_type in order to not confuse kernel
+			/* Clear skb->pkt_type in order to yest confuse kernel
 			 * netstack.
 			 */
 			skb->pkt_type = 0;
 			ieee802154_rx(local, skb);
 			break;
 		default:
-			WARN(1, "mac802154: Packet is of unknown type %d\n",
+			WARN(1, "mac802154: Packet is of unkyeswn type %d\n",
 			     skb->pkt_type);
 			kfree_skb(skb);
 			break;

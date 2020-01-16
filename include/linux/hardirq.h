@@ -28,8 +28,8 @@ extern void rcu_nmi_exit(void);
 #endif
 
 /*
- * It is safe to do non-atomic ops on ->hardirq_context,
- * because NMI handlers may not preempt and the ops are
+ * It is safe to do yesn-atomic ops on ->hardirq_context,
+ * because NMI handlers may yest preempt and the ops are
  * always balanced, so the interrupted value of ->hardirq_context
  * will always be restored.
  */

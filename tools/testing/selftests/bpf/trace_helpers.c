@@ -3,7 +3,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
-#include <errno.h>
+#include <erryes.h>
 #include <poll.h>
 #include <unistd.h>
 #include <linux/perf_event.h>
@@ -50,7 +50,7 @@ struct ksym *ksym_search(long key)
 	int start = 0, end = sym_cnt;
 	int result;
 
-	/* kallsyms not loaded. return NULL */
+	/* kallsyms yest loaded. return NULL */
 	if (sym_cnt <= 0)
 		return NULL;
 

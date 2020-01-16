@@ -23,7 +23,7 @@
 
 #define SPT_COMMUNITY(b, s, e)				\
 	{						\
-		.barno = (b),				\
+		.baryes = (b),				\
 		.padown_offset = SPT_PAD_OWN,		\
 		.padcfglock_offset = SPT_PADCFGLOCK,	\
 		.hostown_offset = SPT_HOSTSW_OWN,	\
@@ -45,7 +45,7 @@
 
 #define SPTH_COMMUNITY(b, s, e, g)			\
 	{						\
-		.barno = (b),				\
+		.baryes = (b),				\
 		.padown_offset = SPT_PAD_OWN,		\
 		.padcfglock_offset = SPT_PADCFGLOCK,	\
 		.hostown_offset = SPT_HOSTSW_OWN,	\

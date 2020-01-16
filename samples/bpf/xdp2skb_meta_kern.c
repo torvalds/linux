@@ -6,7 +6,7 @@
  * This uses the XDP data_meta infrastructure, and is a cooperation
  * between two bpf-programs (1) XDP and (2) clsact at TC-ingress hook.
  *
- * Notice: This example does not use the BPF C-loader (bpf_load.c),
+ * Notice: This example does yest use the BPF C-loader (bpf_load.c),
  * but instead rely on the iproute2 TC tool for loading BPF-objects.
  */
 #include <uapi/linux/bpf.h>
@@ -36,7 +36,7 @@ int _xdp_mark(struct xdp_md *ctx)
 	int ret;
 
 	/* Reserve space in-front of data pointer for our meta info.
-	 * (Notice drivers not supporting data_meta will fail here!)
+	 * (Notice drivers yest supporting data_meta will fail here!)
 	 */
 	ret = bpf_xdp_adjust_meta(ctx, -(int)sizeof(*meta));
 	if (ret < 0)
@@ -70,7 +70,7 @@ int _tc_mark(struct __sk_buff *ctx)
 	/* Check XDP gave us some data_meta */
 	if (meta + 1 > data) {
 		ctx->mark = 41;
-		 /* Skip "accept" if no data_meta is avail */
+		 /* Skip "accept" if yes data_meta is avail */
 		return TC_ACT_OK;
 	}
 

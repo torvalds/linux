@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <dirent.h>
-#include <errno.h>
+#include <erryes.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -15,7 +15,7 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <inttypes.h>
-#include "annotate.h"
+#include "anyestate.h"
 #include "build-id.h"
 #include "cap.h"
 #include "dso.h"
@@ -49,7 +49,7 @@ int vmlinux_path__nr_entries;
 char **vmlinux_path;
 
 struct symbol_conf symbol_conf = {
-	.nanosecs		= false,
+	.nayessecs		= false,
 	.use_modules		= true,
 	.try_vmlinux_path	= true,
 	.demangle		= true,
@@ -105,7 +105,7 @@ void __weak arch__symbols__fixup_end(struct symbol *p, struct symbol *c)
 	p->end = c->start;
 }
 
-const char * __weak arch__normalize_symbol_name(const char *name)
+const char * __weak arch__yesrmalize_symbol_name(const char *name)
 {
 	return name;
 }
@@ -139,7 +139,7 @@ static int choose_best_symbol(struct symbol *syma, struct symbol *symb)
 	s64 b;
 	size_t na, nb;
 
-	/* Prefer a symbol with non zero length */
+	/* Prefer a symbol with yesn zero length */
 	a = syma->end - syma->start;
 	b = symb->end - symb->start;
 	if ((b == 0) && (a > 0))
@@ -147,7 +147,7 @@ static int choose_best_symbol(struct symbol *syma, struct symbol *symb)
 	else if ((a == 0) && (b > 0))
 		return SYMBOL_B;
 
-	/* Prefer a non weak symbol over a weak one */
+	/* Prefer a yesn weak symbol over a weak one */
 	a = syma->binding == STB_WEAK;
 	b = symb->binding == STB_WEAK;
 	if (b && !a)
@@ -155,7 +155,7 @@ static int choose_best_symbol(struct symbol *syma, struct symbol *symb)
 	if (a && !b)
 		return SYMBOL_B;
 
-	/* Prefer a global symbol over a non global one */
+	/* Prefer a global symbol over a yesn global one */
 	a = syma->binding == STB_GLOBAL;
 	b = symb->binding == STB_GLOBAL;
 	if (a && !b)
@@ -184,7 +184,7 @@ static int choose_best_symbol(struct symbol *syma, struct symbol *symb)
 
 void symbols__fixup_duplicate(struct rb_root_cached *symbols)
 {
-	struct rb_node *nd;
+	struct rb_yesde *nd;
 	struct symbol *curr, *next;
 
 	if (symbol_conf.allow_aliases)
@@ -193,10 +193,10 @@ void symbols__fixup_duplicate(struct rb_root_cached *symbols)
 	nd = rb_first_cached(symbols);
 
 	while (nd) {
-		curr = rb_entry(nd, struct symbol, rb_node);
+		curr = rb_entry(nd, struct symbol, rb_yesde);
 again:
-		nd = rb_next(&curr->rb_node);
-		next = rb_entry(nd, struct symbol, rb_node);
+		nd = rb_next(&curr->rb_yesde);
+		next = rb_entry(nd, struct symbol, rb_yesde);
 
 		if (!nd)
 			break;
@@ -205,12 +205,12 @@ again:
 			continue;
 
 		if (choose_best_symbol(curr, next) == SYMBOL_A) {
-			rb_erase_cached(&next->rb_node, symbols);
+			rb_erase_cached(&next->rb_yesde, symbols);
 			symbol__delete(next);
 			goto again;
 		} else {
-			nd = rb_next(&curr->rb_node);
-			rb_erase_cached(&curr->rb_node, symbols);
+			nd = rb_next(&curr->rb_yesde);
+			rb_erase_cached(&curr->rb_yesde, symbols);
 			symbol__delete(curr);
 		}
 	}
@@ -218,17 +218,17 @@ again:
 
 void symbols__fixup_end(struct rb_root_cached *symbols)
 {
-	struct rb_node *nd, *prevnd = rb_first_cached(symbols);
+	struct rb_yesde *nd, *prevnd = rb_first_cached(symbols);
 	struct symbol *curr, *prev;
 
 	if (prevnd == NULL)
 		return;
 
-	curr = rb_entry(prevnd, struct symbol, rb_node);
+	curr = rb_entry(prevnd, struct symbol, rb_yesde);
 
 	for (nd = rb_next(prevnd); nd; nd = rb_next(nd)) {
 		prev = curr;
-		curr = rb_entry(nd, struct symbol, rb_node);
+		curr = rb_entry(nd, struct symbol, rb_yesde);
 
 		if (prev->end == prev->start && prev->end != curr->start)
 			arch__symbols__fixup_end(prev, curr);
@@ -271,9 +271,9 @@ struct symbol *symbol__new(u64 start, u64 len, u8 binding, u8 type, const char *
 		return NULL;
 
 	if (symbol_conf.priv_size) {
-		if (symbol_conf.init_annotation) {
-			struct annotation *notes = (void *)sym;
-			pthread_mutex_init(&notes->lock, NULL);
+		if (symbol_conf.init_anyestation) {
+			struct anyestation *yestes = (void *)sym;
+			pthread_mutex_init(&yestes->lock, NULL);
 		}
 		sym = ((void *)sym) + symbol_conf.priv_size;
 	}
@@ -299,12 +299,12 @@ void symbol__delete(struct symbol *sym)
 void symbols__delete(struct rb_root_cached *symbols)
 {
 	struct symbol *pos;
-	struct rb_node *next = rb_first_cached(symbols);
+	struct rb_yesde *next = rb_first_cached(symbols);
 
 	while (next) {
-		pos = rb_entry(next, struct symbol, rb_node);
-		next = rb_next(&pos->rb_node);
-		rb_erase_cached(&pos->rb_node, symbols);
+		pos = rb_entry(next, struct symbol, rb_yesde);
+		next = rb_next(&pos->rb_yesde);
+		rb_erase_cached(&pos->rb_yesde, symbols);
 		symbol__delete(pos);
 	}
 }
@@ -312,8 +312,8 @@ void symbols__delete(struct rb_root_cached *symbols)
 void __symbols__insert(struct rb_root_cached *symbols,
 		       struct symbol *sym, bool kernel)
 {
-	struct rb_node **p = &symbols->rb_root.rb_node;
-	struct rb_node *parent = NULL;
+	struct rb_yesde **p = &symbols->rb_root.rb_yesde;
+	struct rb_yesde *parent = NULL;
 	const u64 ip = sym->start;
 	struct symbol *s;
 	bool leftmost = true;
@@ -331,7 +331,7 @@ void __symbols__insert(struct rb_root_cached *symbols,
 
 	while (*p != NULL) {
 		parent = *p;
-		s = rb_entry(parent, struct symbol, rb_node);
+		s = rb_entry(parent, struct symbol, rb_yesde);
 		if (ip < s->start)
 			p = &(*p)->rb_left;
 		else {
@@ -339,8 +339,8 @@ void __symbols__insert(struct rb_root_cached *symbols,
 			leftmost = false;
 		}
 	}
-	rb_link_node(&sym->rb_node, parent, p);
-	rb_insert_color_cached(&sym->rb_node, symbols, leftmost);
+	rb_link_yesde(&sym->rb_yesde, parent, p);
+	rb_insert_color_cached(&sym->rb_yesde, symbols, leftmost);
 }
 
 void symbols__insert(struct rb_root_cached *symbols, struct symbol *sym)
@@ -350,15 +350,15 @@ void symbols__insert(struct rb_root_cached *symbols, struct symbol *sym)
 
 static struct symbol *symbols__find(struct rb_root_cached *symbols, u64 ip)
 {
-	struct rb_node *n;
+	struct rb_yesde *n;
 
 	if (symbols == NULL)
 		return NULL;
 
-	n = symbols->rb_root.rb_node;
+	n = symbols->rb_root.rb_yesde;
 
 	while (n) {
-		struct symbol *s = rb_entry(n, struct symbol, rb_node);
+		struct symbol *s = rb_entry(n, struct symbol, rb_yesde);
 
 		if (ip < s->start)
 			n = n->rb_left;
@@ -373,46 +373,46 @@ static struct symbol *symbols__find(struct rb_root_cached *symbols, u64 ip)
 
 static struct symbol *symbols__first(struct rb_root_cached *symbols)
 {
-	struct rb_node *n = rb_first_cached(symbols);
+	struct rb_yesde *n = rb_first_cached(symbols);
 
 	if (n)
-		return rb_entry(n, struct symbol, rb_node);
+		return rb_entry(n, struct symbol, rb_yesde);
 
 	return NULL;
 }
 
 static struct symbol *symbols__last(struct rb_root_cached *symbols)
 {
-	struct rb_node *n = rb_last(&symbols->rb_root);
+	struct rb_yesde *n = rb_last(&symbols->rb_root);
 
 	if (n)
-		return rb_entry(n, struct symbol, rb_node);
+		return rb_entry(n, struct symbol, rb_yesde);
 
 	return NULL;
 }
 
 static struct symbol *symbols__next(struct symbol *sym)
 {
-	struct rb_node *n = rb_next(&sym->rb_node);
+	struct rb_yesde *n = rb_next(&sym->rb_yesde);
 
 	if (n)
-		return rb_entry(n, struct symbol, rb_node);
+		return rb_entry(n, struct symbol, rb_yesde);
 
 	return NULL;
 }
 
 static void symbols__insert_by_name(struct rb_root_cached *symbols, struct symbol *sym)
 {
-	struct rb_node **p = &symbols->rb_root.rb_node;
-	struct rb_node *parent = NULL;
-	struct symbol_name_rb_node *symn, *s;
+	struct rb_yesde **p = &symbols->rb_root.rb_yesde;
+	struct rb_yesde *parent = NULL;
+	struct symbol_name_rb_yesde *symn, *s;
 	bool leftmost = true;
 
-	symn = container_of(sym, struct symbol_name_rb_node, sym);
+	symn = container_of(sym, struct symbol_name_rb_yesde, sym);
 
 	while (*p != NULL) {
 		parent = *p;
-		s = rb_entry(parent, struct symbol_name_rb_node, rb_node);
+		s = rb_entry(parent, struct symbol_name_rb_yesde, rb_yesde);
 		if (strcmp(sym->name, s->sym.name) < 0)
 			p = &(*p)->rb_left;
 		else {
@@ -420,17 +420,17 @@ static void symbols__insert_by_name(struct rb_root_cached *symbols, struct symbo
 			leftmost = false;
 		}
 	}
-	rb_link_node(&symn->rb_node, parent, p);
-	rb_insert_color_cached(&symn->rb_node, symbols, leftmost);
+	rb_link_yesde(&symn->rb_yesde, parent, p);
+	rb_insert_color_cached(&symn->rb_yesde, symbols, leftmost);
 }
 
 static void symbols__sort_by_name(struct rb_root_cached *symbols,
 				  struct rb_root_cached *source)
 {
-	struct rb_node *nd;
+	struct rb_yesde *nd;
 
 	for (nd = rb_first_cached(source); nd; nd = rb_next(nd)) {
-		struct symbol *pos = rb_entry(nd, struct symbol, rb_node);
+		struct symbol *pos = rb_entry(nd, struct symbol, rb_yesde);
 		symbols__insert_by_name(symbols, pos);
 	}
 }
@@ -456,18 +456,18 @@ static struct symbol *symbols__find_by_name(struct rb_root_cached *symbols,
 					    const char *name,
 					    enum symbol_tag_include includes)
 {
-	struct rb_node *n;
-	struct symbol_name_rb_node *s = NULL;
+	struct rb_yesde *n;
+	struct symbol_name_rb_yesde *s = NULL;
 
 	if (symbols == NULL)
 		return NULL;
 
-	n = symbols->rb_root.rb_node;
+	n = symbols->rb_root.rb_yesde;
 
 	while (n) {
 		int cmp;
 
-		s = rb_entry(n, struct symbol_name_rb_node, rb_node);
+		s = rb_entry(n, struct symbol_name_rb_yesde, rb_yesde);
 		cmp = symbol__match_symbol_name(s->sym.name, name, includes);
 
 		if (cmp > 0)
@@ -484,9 +484,9 @@ static struct symbol *symbols__find_by_name(struct rb_root_cached *symbols,
 	if (includes != SYMBOL_TAG_INCLUDE__DEFAULT_ONLY)
 		/* return first symbol that has same name (if any) */
 		for (n = rb_prev(n); n; n = rb_prev(n)) {
-			struct symbol_name_rb_node *tmp;
+			struct symbol_name_rb_yesde *tmp;
 
-			tmp = rb_entry(n, struct symbol_name_rb_node, rb_node);
+			tmp = rb_entry(n, struct symbol_name_rb_yesde, rb_yesde);
 			if (arch__compare_symbol_names(tmp->sym.name, s->sym.name))
 				break;
 
@@ -541,10 +541,10 @@ struct symbol *dso__next_symbol(struct symbol *sym)
 
 struct symbol *symbol__next_by_name(struct symbol *sym)
 {
-	struct symbol_name_rb_node *s = container_of(sym, struct symbol_name_rb_node, sym);
-	struct rb_node *n = rb_next(&s->rb_node);
+	struct symbol_name_rb_yesde *s = container_of(sym, struct symbol_name_rb_yesde, sym);
+	struct rb_yesde *n = rb_next(&s->rb_yesde);
 
-	return n ? &rb_entry(n, struct symbol_name_rb_node, rb_node)->sym : NULL;
+	return n ? &rb_entry(n, struct symbol_name_rb_yesde, rb_yesde)->sym : NULL;
 }
 
  /*
@@ -671,7 +671,7 @@ static int map__process_kallsym_symbol(void *arg, const char *name,
 		return 0;
 
 	/*
-	 * module symbols are not sorted so we add all
+	 * module symbols are yest sorted so we add all
 	 * symbols, setting length to 0, and rely on
 	 * symbols__fixup_end() to fix it up.
 	 */
@@ -704,7 +704,7 @@ static int maps__split_kallsyms_for_kcore(struct maps *kmaps, struct dso *dso)
 	int count = 0;
 	struct rb_root_cached old_root = dso->symbols;
 	struct rb_root_cached *root = &dso->symbols;
-	struct rb_node *next = rb_first_cached(root);
+	struct rb_yesde *next = rb_first_cached(root);
 
 	if (!kmaps)
 		return -1;
@@ -714,11 +714,11 @@ static int maps__split_kallsyms_for_kcore(struct maps *kmaps, struct dso *dso)
 	while (next) {
 		char *module;
 
-		pos = rb_entry(next, struct symbol, rb_node);
-		next = rb_next(&pos->rb_node);
+		pos = rb_entry(next, struct symbol, rb_yesde);
+		next = rb_next(&pos->rb_yesde);
 
-		rb_erase_cached(&pos->rb_node, &old_root);
-		RB_CLEAR_NODE(&pos->rb_node);
+		rb_erase_cached(&pos->rb_yesde, &old_root);
+		RB_CLEAR_NODE(&pos->rb_yesde);
 		module = strchr(pos->name, '\t');
 		if (module)
 			*module = '\0';
@@ -746,7 +746,7 @@ static int maps__split_kallsyms_for_kcore(struct maps *kmaps, struct dso *dso)
 }
 
 /*
- * Split the symbols into maps, making sure there are no overlaps, i.e. the
+ * Split the symbols into maps, making sure there are yes overlaps, i.e. the
  * kernel range is broken in several maps, named [kernel].N, as we don't have
  * the original ELF section names vmlinux have.
  */
@@ -758,7 +758,7 @@ static int maps__split_kallsyms(struct maps *kmaps, struct dso *dso, u64 delta,
 	struct symbol *pos;
 	int count = 0, moved = 0;
 	struct rb_root_cached *root = &dso->symbols;
-	struct rb_node *next = rb_first_cached(root);
+	struct rb_yesde *next = rb_first_cached(root);
 	int kernel_range = 0;
 	bool x86_64;
 
@@ -772,8 +772,8 @@ static int maps__split_kallsyms(struct maps *kmaps, struct dso *dso, u64 delta,
 	while (next) {
 		char *module;
 
-		pos = rb_entry(next, struct symbol, rb_node);
-		next = rb_next(&pos->rb_node);
+		pos = rb_entry(next, struct symbol, rb_yesde);
+		next = rb_next(&pos->rb_yesde);
 
 		module = strchr(pos->name, '\t');
 		if (module) {
@@ -812,13 +812,13 @@ static int maps__split_kallsyms(struct maps *kmaps, struct dso *dso, u64 delta,
 			}
 			/*
 			 * So that we look just like we get from .ko files,
-			 * i.e. not prelinked, relative to initial_map->start.
+			 * i.e. yest prelinked, relative to initial_map->start.
 			 */
 			pos->start = curr_map->map_ip(curr_map, pos->start);
 			pos->end   = curr_map->map_ip(curr_map, pos->end);
 		} else if (x86_64 && is_entry_trampoline(pos->name)) {
 			/*
-			 * These symbols are not needed anymore since the
+			 * These symbols are yest needed anymore since the
 			 * trampoline maps refer to the text section and it's
 			 * symbols instead. Avoid having to deal with
 			 * relocations, and the assumption that the first symbol
@@ -872,7 +872,7 @@ static int maps__split_kallsyms(struct maps *kmaps, struct dso *dso, u64 delta,
 		}
 add_symbol:
 		if (curr_map != initial_map) {
-			rb_erase_cached(&pos->rb_node, root);
+			rb_erase_cached(&pos->rb_yesde, root);
 			symbols__insert(&curr_map->dso->symbols, pos);
 			++moved;
 		} else
@@ -880,7 +880,7 @@ add_symbol:
 
 		continue;
 discard_symbol:
-		rb_erase_cached(&pos->rb_node, root);
+		rb_erase_cached(&pos->rb_yesde, root);
 		symbol__delete(pos);
 	}
 
@@ -912,38 +912,38 @@ bool symbol__restricted_filename(const char *filename,
 }
 
 struct module_info {
-	struct rb_node rb_node;
+	struct rb_yesde rb_yesde;
 	char *name;
 	u64 start;
 };
 
 static void add_module(struct module_info *mi, struct rb_root *modules)
 {
-	struct rb_node **p = &modules->rb_node;
-	struct rb_node *parent = NULL;
+	struct rb_yesde **p = &modules->rb_yesde;
+	struct rb_yesde *parent = NULL;
 	struct module_info *m;
 
 	while (*p != NULL) {
 		parent = *p;
-		m = rb_entry(parent, struct module_info, rb_node);
+		m = rb_entry(parent, struct module_info, rb_yesde);
 		if (strcmp(mi->name, m->name) < 0)
 			p = &(*p)->rb_left;
 		else
 			p = &(*p)->rb_right;
 	}
-	rb_link_node(&mi->rb_node, parent, p);
-	rb_insert_color(&mi->rb_node, modules);
+	rb_link_yesde(&mi->rb_yesde, parent, p);
+	rb_insert_color(&mi->rb_yesde, modules);
 }
 
 static void delete_modules(struct rb_root *modules)
 {
 	struct module_info *mi;
-	struct rb_node *next = rb_first(modules);
+	struct rb_yesde *next = rb_first(modules);
 
 	while (next) {
-		mi = rb_entry(next, struct module_info, rb_node);
-		next = rb_next(&mi->rb_node);
-		rb_erase(&mi->rb_node, modules);
+		mi = rb_entry(next, struct module_info, rb_yesde);
+		next = rb_next(&mi->rb_yesde);
+		rb_erase(&mi->rb_yesde, modules);
 		zfree(&mi->name);
 		free(mi);
 	}
@@ -952,13 +952,13 @@ static void delete_modules(struct rb_root *modules)
 static struct module_info *find_module(const char *name,
 				       struct rb_root *modules)
 {
-	struct rb_node *n = modules->rb_node;
+	struct rb_yesde *n = modules->rb_yesde;
 
 	while (n) {
 		struct module_info *m;
 		int cmp;
 
-		m = rb_entry(n, struct module_info, rb_node);
+		m = rb_entry(n, struct module_info, rb_yesde);
 		cmp = strcmp(name, m->name);
 		if (cmp < 0)
 			n = n->rb_left;
@@ -1011,7 +1011,7 @@ int compare_proc_modules(const char *from, const char *to)
 {
 	struct rb_root from_modules = RB_ROOT;
 	struct rb_root to_modules = RB_ROOT;
-	struct rb_node *from_node, *to_node;
+	struct rb_yesde *from_yesde, *to_yesde;
 	struct module_info *from_m, *to_m;
 	int ret = -1;
 
@@ -1021,24 +1021,24 @@ int compare_proc_modules(const char *from, const char *to)
 	if (read_proc_modules(to, &to_modules))
 		goto out_delete_from;
 
-	from_node = rb_first(&from_modules);
-	to_node = rb_first(&to_modules);
-	while (from_node) {
-		if (!to_node)
+	from_yesde = rb_first(&from_modules);
+	to_yesde = rb_first(&to_modules);
+	while (from_yesde) {
+		if (!to_yesde)
 			break;
 
-		from_m = rb_entry(from_node, struct module_info, rb_node);
-		to_m = rb_entry(to_node, struct module_info, rb_node);
+		from_m = rb_entry(from_yesde, struct module_info, rb_yesde);
+		to_m = rb_entry(to_yesde, struct module_info, rb_yesde);
 
 		if (from_m->start != to_m->start ||
 		    strcmp(from_m->name, to_m->name))
 			break;
 
-		from_node = rb_next(from_node);
-		to_node = rb_next(to_node);
+		from_yesde = rb_next(from_yesde);
+		to_yesde = rb_next(to_yesde);
 	}
 
-	if (!from_node && !to_node)
+	if (!from_yesde && !to_yesde)
 		ret = 0;
 
 	delete_modules(&to_modules);
@@ -1159,7 +1159,7 @@ static int kcore_mapfn(u64 start, u64 len, u64 pgoff, void *data)
 	map->end = map->start + len;
 	map->pgoff = pgoff;
 
-	list_add(&map->node, &md->maps);
+	list_add(&map->yesde, &md->maps);
 
 	return 0;
 }
@@ -1174,7 +1174,7 @@ int maps__merge_in(struct maps *kmaps, struct map *new_map)
 	LIST_HEAD(merged);
 
 	maps__for_each_entry(kmaps, old_map) {
-		/* no overload with this one */
+		/* yes overload with this one */
 		if (new_map->end < old_map->start ||
 		    new_map->start >= old_map->end)
 			continue;
@@ -1201,7 +1201,7 @@ int maps__merge_in(struct maps *kmaps, struct map *new_map)
 					return -ENOMEM;
 
 				m->end = old_map->start;
-				list_add_tail(&m->node, &merged);
+				list_add_tail(&m->yesde, &merged);
 				new_map->start = old_map->end;
 			}
 		} else {
@@ -1228,8 +1228,8 @@ int maps__merge_in(struct maps *kmaps, struct map *new_map)
 	}
 
 	while (!list_empty(&merged)) {
-		old_map = list_entry(merged.next, struct map, node);
-		list_del_init(&old_map->node);
+		old_map = list_entry(merged.next, struct map, yesde);
+		list_del_init(&old_map->yesde);
 		maps__insert(kmaps, old_map);
 		map__put(old_map);
 	}
@@ -1306,7 +1306,7 @@ static int dso__load_kcore(struct dso *dso, struct map *map,
 
 	/* Find the kernel map using the '_stext' symbol */
 	if (!kallsyms__get_function_start(kallsyms_filename, "_stext", &stext)) {
-		list_for_each_entry(new_map, &md.maps, node) {
+		list_for_each_entry(new_map, &md.maps, yesde) {
 			if (stext >= new_map->start && stext < new_map->end) {
 				replacement_map = new_map;
 				break;
@@ -1315,12 +1315,12 @@ static int dso__load_kcore(struct dso *dso, struct map *map,
 	}
 
 	if (!replacement_map)
-		replacement_map = list_entry(md.maps.next, struct map, node);
+		replacement_map = list_entry(md.maps.next, struct map, yesde);
 
 	/* Add new maps */
 	while (!list_empty(&md.maps)) {
-		new_map = list_entry(md.maps.next, struct map, node);
-		list_del_init(&new_map->node);
+		new_map = list_entry(md.maps.next, struct map, yesde);
+		list_del_init(&new_map->yesde);
 		if (new_map == replacement_map) {
 			map->start	= new_map->start;
 			map->end	= new_map->end;
@@ -1378,8 +1378,8 @@ static int dso__load_kcore(struct dso *dso, struct map *map,
 
 out_err:
 	while (!list_empty(&md.maps)) {
-		map = list_entry(md.maps.next, struct map, node);
-		list_del_init(&map->node);
+		map = list_entry(md.maps.next, struct map, yesde);
+		list_del_init(&map->yesde);
 		map__put(map);
 	}
 	close(fd);
@@ -1405,7 +1405,7 @@ static int kallsyms__delta(struct kmap *kmap, const char *filename, u64 *delta)
 }
 
 int __dso__load_kallsyms(struct dso *dso, const char *filename,
-			 struct map *map, bool no_kcore)
+			 struct map *map, bool yes_kcore)
 {
 	struct kmap *kmap = map__kmap(map);
 	u64 delta = 0;
@@ -1430,7 +1430,7 @@ int __dso__load_kallsyms(struct dso *dso, const char *filename,
 	else
 		dso->symtab_type = DSO_BINARY_TYPE__KALLSYMS;
 
-	if (!no_kcore && !dso__load_kcore(dso, map, filename))
+	if (!yes_kcore && !dso__load_kcore(dso, map, filename))
 		return maps__split_kallsyms_for_kcore(kmap->kmaps, dso);
 	else
 		return maps__split_kallsyms(kmap->kmaps, dso, delta, map);
@@ -1527,7 +1527,7 @@ static bool dso__is_compatible_symtab_type(struct dso *dso, bool kmod,
 	case DSO_BINARY_TYPE__SYSTEM_PATH_KMODULE:
 	case DSO_BINARY_TYPE__SYSTEM_PATH_KMODULE_COMP:
 		/*
-		 * kernel modules know their symtab type - it's set when
+		 * kernel modules kyesw their symtab type - it's set when
 		 * creating a module dso in machine__addnew_module_map().
 		 */
 		return kmod && dso->symtab_type == type;
@@ -1545,7 +1545,7 @@ static bool dso__is_compatible_symtab_type(struct dso *dso, bool kmod,
 
 /* Checks for the existence of the perf-<pid>.map file in two different
  * locations.  First, if the process is a separate mount namespace, check in
- * that namespace using the pid of the innermost pid namespace.  If's not in a
+ * that namespace using the pid of the innermost pid namespace.  If's yest in a
  * namespace, or the file can't be found there, try in the mount namespace of
  * the tracing process using our view of its pid.
  */
@@ -1892,7 +1892,7 @@ int dso__load_vmlinux_path(struct dso *dso, struct map *map)
 			goto out;
 	}
 
-	if (!symbol_conf.ignore_vmlinux_buildid)
+	if (!symbol_conf.igyesre_vmlinux_buildid)
 		filename = dso__build_id_filename(dso, NULL, 0, false);
 	if (filename != NULL) {
 		err = dso__load_vmlinux(dso, map, filename, true);
@@ -1908,7 +1908,7 @@ static bool visible_dir_filter(const char *name, struct dirent *d)
 {
 	if (d->d_type != DT_DIR)
 		return false;
-	return lsdir_no_dot_filter(name, d);
+	return lsdir_yes_dot_filter(name, d);
 }
 
 static int find_matching_kcore(struct map *map, char *dir, size_t dir_sz)
@@ -1916,7 +1916,7 @@ static int find_matching_kcore(struct map *map, char *dir, size_t dir_sz)
 	char kallsyms_filename[PATH_MAX];
 	int ret = -1;
 	struct strlist *dirs;
-	struct str_node *nd;
+	struct str_yesde *nd;
 
 	dirs = lsdir(dir, visible_dir_filter);
 	if (!dirs)
@@ -1966,16 +1966,16 @@ static char *dso__find_kallsyms(struct dso *dso, struct map *map)
 		goto proc_kallsyms;
 	}
 
-	if (sysfs__read_build_id("/sys/kernel/notes", host_build_id,
+	if (sysfs__read_build_id("/sys/kernel/yestes", host_build_id,
 				 sizeof(host_build_id)) == 0)
 		is_host = dso__build_id_equal(dso, host_build_id);
 
 	/* Try a fast path for /proc/kallsyms if possible */
 	if (is_host) {
 		/*
-		 * Do not check the build-id cache, unless we know we cannot use
+		 * Do yest check the build-id cache, unless we kyesw we canyest use
 		 * /proc/kcore or module maps don't match to /proc/kallsyms.
-		 * To check readability of /proc/kcore, do not use access(R_OK)
+		 * To check readability of /proc/kcore, do yest use access(R_OK)
 		 * since /proc/kcore requires CAP_SYS_RAWIO to read and access
 		 * can't check it.
 		 */
@@ -2016,11 +2016,11 @@ static int dso__load_kernel_sym(struct dso *dso, struct map *map)
 	char *kallsyms_allocated_filename = NULL;
 	/*
 	 * Step 1: if the user specified a kallsyms or vmlinux filename, use
-	 * it and only it, reporting errors to the user if it cannot be used.
+	 * it and only it, reporting errors to the user if it canyest be used.
 	 *
 	 * For instance, try to analyse an ARM perf.data file _without_ a
 	 * build-id, or if the user specifies the wrong path to the right
-	 * vmlinux file, obviously we can't fallback to another vmlinux (a
+	 * vmlinux file, obviously we can't fallback to ayesther vmlinux (a
 	 * x86_86 one, on the machine where analysis is being performed, say),
 	 * or worse, /proc/kallsyms.
 	 *
@@ -2034,17 +2034,17 @@ static int dso__load_kernel_sym(struct dso *dso, struct map *map)
 		goto do_kallsyms;
 	}
 
-	if (!symbol_conf.ignore_vmlinux && symbol_conf.vmlinux_name != NULL) {
+	if (!symbol_conf.igyesre_vmlinux && symbol_conf.vmlinux_name != NULL) {
 		return dso__load_vmlinux(dso, map, symbol_conf.vmlinux_name, false);
 	}
 
-	if (!symbol_conf.ignore_vmlinux && vmlinux_path != NULL) {
+	if (!symbol_conf.igyesre_vmlinux && vmlinux_path != NULL) {
 		err = dso__load_vmlinux_path(dso, map);
 		if (err > 0)
 			return err;
 	}
 
-	/* do not try local files if a symfs was given */
+	/* do yest try local files if a symfs was given */
 	if (symbol_conf.symfs[0] != 0)
 		return -1;
 
@@ -2080,7 +2080,7 @@ static int dso__load_guest_kernel_sym(struct dso *dso, struct map *map)
 	if (machine__is_default_guest(machine)) {
 		/*
 		 * if the user specified a vmlinux filename, use it and only
-		 * it, reporting errors to the user if it cannot be used.
+		 * it, reporting errors to the user if it canyest be used.
 		 * Or use file guest_kallsyms inputted by user on commandline
 		 */
 		if (symbol_conf.default_guest_vmlinux_name != NULL) {
@@ -2159,7 +2159,7 @@ static int vmlinux_path__init(struct perf_env *env)
 		if (vmlinux_path__add(vmlinux_paths[i]) < 0)
 			goto out_fail;
 
-	/* only try kernel version if no symfs was given */
+	/* only try kernel version if yes symfs was given */
 	if (symbol_conf.symfs[0] != 0)
 		return 0;
 
@@ -2232,26 +2232,26 @@ static bool symbol__read_kptr_restrict(void)
 	}
 
 	/* Per kernel/kallsyms.c:
-	 * we also restrict when perf_event_paranoid > 1 w/o CAP_SYSLOG
+	 * we also restrict when perf_event_parayesid > 1 w/o CAP_SYSLOG
 	 */
-	if (perf_event_paranoid() > 1 && !perf_cap__capable(CAP_SYSLOG))
+	if (perf_event_parayesid() > 1 && !perf_cap__capable(CAP_SYSLOG))
 		value = true;
 
 	return value;
 }
 
-int symbol__annotation_init(void)
+int symbol__anyestation_init(void)
 {
-	if (symbol_conf.init_annotation)
+	if (symbol_conf.init_anyestation)
 		return 0;
 
 	if (symbol_conf.initialized) {
-		pr_err("Annotation needs to be init before symbol__init()\n");
+		pr_err("Anyestation needs to be init before symbol__init()\n");
 		return -1;
 	}
 
-	symbol_conf.priv_size += sizeof(struct annotation);
-	symbol_conf.init_annotation = true;
+	symbol_conf.priv_size += sizeof(struct anyestation);
+	symbol_conf.init_anyestation = true;
 	return 0;
 }
 
@@ -2267,14 +2267,14 @@ int symbol__init(struct perf_env *env)
 	symbol__elf_init();
 
 	if (symbol_conf.sort_by_name)
-		symbol_conf.priv_size += (sizeof(struct symbol_name_rb_node) -
+		symbol_conf.priv_size += (sizeof(struct symbol_name_rb_yesde) -
 					  sizeof(struct symbol));
 
 	if (symbol_conf.try_vmlinux_path && vmlinux_path__init(env) < 0)
 		return -1;
 
 	if (symbol_conf.field_sep && *symbol_conf.field_sep == '.') {
-		pr_err("'.' is the only non valid --field-separator argument\n");
+		pr_err("'.' is the only yesn valid --field-separator argument\n");
 		return -1;
 	}
 

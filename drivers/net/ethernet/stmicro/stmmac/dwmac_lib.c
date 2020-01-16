@@ -189,17 +189,17 @@ int dwmac_dma_interrupt(void __iomem *ioaddr,
 	}
 	/* TX/RX NORMAL interrupts */
 	if (likely(intr_status & DMA_STATUS_NIS)) {
-		x->normal_irq_n++;
+		x->yesrmal_irq_n++;
 		if (likely(intr_status & DMA_STATUS_RI)) {
 			u32 value = readl(ioaddr + DMA_INTR_ENA);
 			/* to schedule NAPI on real RIE event. */
 			if (likely(value & DMA_INTR_ENA_RIE)) {
-				x->rx_normal_irq_n++;
+				x->rx_yesrmal_irq_n++;
 				ret |= handle_rx;
 			}
 		}
 		if (likely(intr_status & DMA_STATUS_TI)) {
-			x->tx_normal_irq_n++;
+			x->tx_yesrmal_irq_n++;
 			ret |= handle_tx;
 		}
 		if (unlikely(intr_status & DMA_STATUS_ERI))
@@ -231,7 +231,7 @@ void stmmac_set_mac_addr(void __iomem *ioaddr, u8 addr[6],
 
 	data = (addr[5] << 8) | addr[4];
 	/* For MAC Addr registers we have to set the Address Enable (AE)
-	 * bit that has no effect on the High Reg 0 where the bit 31 (MO)
+	 * bit that has yes effect on the High Reg 0 where the bit 31 (MO)
 	 * is RO.
 	 */
 	writel(data | GMAC_HI_REG_AE, ioaddr + high);

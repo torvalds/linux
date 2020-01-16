@@ -2,7 +2,7 @@
 /*
  * Watchdog driver for Conexant Digicolor
  *
- * Copyright (C) 2015 Paradox Innovation Ltd.
+ * Copyright (C) 2015 Paradox Inyesvation Ltd.
  *
  */
 

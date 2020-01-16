@@ -1,5 +1,5 @@
 /*
- * Copyright 2000 ATI Technologies Inc., Markham, Ontario, and
+ * Copyright 2000 ATI Techyeslogies Inc., Markham, Ontario, and
  *                VA Linux Systems Inc., Fremont, California.
  *
  * All Rights Reserved.
@@ -12,7 +12,7 @@
  * and to permit persons to whom the Software is furnished to do so,
  * subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright yestice and this permission yestice (including the
  * next paragraph) shall be included in all copies or substantial
  * portions of the Software.
  *
@@ -36,12 +36,12 @@
  *
  * !!!! FIXME !!!!
  *   RAGE 128 VR/ RAGE 128 GL Register Reference Manual (Technical
- *   Reference Manual P/N RRG-G04100-C Rev. 0.04), ATI Technologies: April
+ *   Reference Manual P/N RRG-G04100-C Rev. 0.04), ATI Techyeslogies: April
  *   1999.
  *
  * !!!! FIXME !!!!
  *   RAGE 128 Software Development Manual (Technical Reference Manual P/N
- *   SDK-G04000 Rev. 0.01), ATI Technologies: June 1999.
+ *   SDK-G04000 Rev. 0.01), ATI Techyeslogies: June 1999.
  *
  */
 
@@ -807,9 +807,9 @@
 #       define RADEON_ROP3_DSon             0x00110000
 #       define RADEON_ROP3_DSxn             0x00990000
 #       define RADEON_ROP3_Dn               0x00550000
-#       define RADEON_ROP3_SDno             0x00dd0000
+#       define RADEON_ROP3_SDyes             0x00dd0000
 #       define RADEON_ROP3_Sn               0x00330000
-#       define RADEON_ROP3_DSno             0x00bb0000
+#       define RADEON_ROP3_DSyes             0x00bb0000
 #       define RADEON_ROP3_DSan             0x00770000
 #       define RADEON_ROP3_ONE              0x00ff0000
 #       define RADEON_ROP3_DPa              0x00a00000
@@ -821,9 +821,9 @@
 #       define RADEON_ROP3_DPo              0x00fa0000
 #       define RADEON_ROP3_DPon             0x00050000
 #       define RADEON_ROP3_PDxn             0x00a50000
-#       define RADEON_ROP3_PDno             0x00f50000
+#       define RADEON_ROP3_PDyes             0x00f50000
 #       define RADEON_ROP3_Pn               0x000f0000
-#       define RADEON_ROP3_DPno             0x00af0000
+#       define RADEON_ROP3_DPyes             0x00af0000
 #       define RADEON_ROP3_DPan             0x005f0000
 #define RADEON_DP_GUI_MASTER_CNTL_C         0x1c84
 #define RADEON_DP_MIX                       0x16c8
@@ -2093,7 +2093,7 @@
 #define RADEON_PP_TEX_PITCH_0               0x1d08  /* NPOT */
 #define RADEON_PP_TEX_PITCH_1               0x1d10  /* NPOT */
 #define RADEON_PP_TEX_PITCH_2               0x1d18  /* NPOT */
-/* note: bits 13-5: 32 byte aligned stride of texture map */
+/* yeste: bits 13-5: 32 byte aligned stride of texture map */
 
 #define RADEON_PP_TXCBLEND_0                0x1c60
 #define RADEON_PP_TXCBLEND_1                0x1c78

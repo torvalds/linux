@@ -12,15 +12,15 @@
  *
  *  1.7+:	- See the check-in logs
  *
- *  1.6:	- No longer opens a connection if the firmware is not loaded
+ *  1.6:	- No longer opens a connection if the firmware is yest loaded
  *  		- Added support for the speedtouch 330
  *  		- Removed the limit on the number of devices
- *  		- Module now autoloads on device plugin
+ *  		- Module yesw autoloads on device plugin
  *  		- Merged relevant parts of sarlib
  *  		- Replaced the kernel thread with a tasklet
  *  		- New packet transmission code
  *  		- Changed proc file contents
- *  		- Fixed all known SMP races
+ *  		- Fixed all kyeswn SMP races
  *  		- Many fixes and cleanups
  *  		- Various fixes by Oliver Neukum (oliver@neukum.name)
  *
@@ -41,7 +41,7 @@
  *
  *  1.3:	- Added multiple send urb support
  *		- fixed memory leak and vcc->tx_inuse starvation bug
- *		  when not enough memory left in vcc.
+ *		  when yest eyesugh memory left in vcc.
  *
  *  1.2:	- Fixed race condition in usbatm_usb_send_data()
  *  1.1:	- Turned off packet debugging
@@ -52,7 +52,7 @@
 
 #include <linux/uaccess.h>
 #include <linux/crc32.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
@@ -249,7 +249,7 @@ static void usbatm_complete(struct urb *urb)
 	/* vdbg("%s: urb 0x%p, status %d, actual_length %d",
 	     __func__, urb, status, urb->actual_length); */
 
-	/* usually in_interrupt(), but not always */
+	/* usually in_interrupt(), but yest always */
 	spin_lock_irqsave(&channel->lock, flags);
 
 	/* must add to the back when receiving; doesn't matter when sending */
@@ -303,7 +303,7 @@ static void usbatm_extract_one_cell(struct usbatm_data *instance, unsigned char 
 		instance->cached_vcc = usbatm_find_vcc(instance, vpi, vci);
 
 		if (!instance->cached_vcc)
-			atm_rldbg(instance, "%s: unknown vpi/vci (%hd/%d)!\n", __func__, vpi, vci);
+			atm_rldbg(instance, "%s: unkyeswn vpi/vci (%hd/%d)!\n", __func__, vpi, vci);
 	}
 
 	if (!instance->cached_vcc)
@@ -314,7 +314,7 @@ static void usbatm_extract_one_cell(struct usbatm_data *instance, unsigned char 
 	/* OAM F5 end-to-end */
 	if (pti == ATM_PTI_E2EF5) {
 		if (printk_ratelimit())
-			atm_warn(instance, "%s: OAM not supported (vpi %d, vci %d)!\n",
+			atm_warn(instance, "%s: OAM yest supported (vpi %d, vci %d)!\n",
 				__func__, vpi, vci);
 		atomic_inc(&vcc->stats->rx_err);
 		return;
@@ -370,7 +370,7 @@ static void usbatm_extract_one_cell(struct usbatm_data *instance, unsigned char 
 		skb = dev_alloc_skb(length);
 		if (!skb) {
 			if (printk_ratelimit())
-				atm_err(instance, "%s: no memory for skb (length: %u)!\n",
+				atm_err(instance, "%s: yes memory for skb (length: %u)!\n",
 					__func__, length);
 			atomic_inc(&vcc->stats->rx_drop);
 			goto out;
@@ -413,7 +413,7 @@ static void usbatm_extract_cells(struct usbatm_data *instance,
 	unsigned int buf_usage = instance->buf_usage;
 
 	/* extract cells from incoming data, taking into account that
-	 * the length of avail data may not be a multiple of stride */
+	 * the length of avail data may yest be a multiple of stride */
 
 	if (buf_usage > 0) {
 		/* we have a partially received atm cell */
@@ -428,7 +428,7 @@ static void usbatm_extract_cells(struct usbatm_data *instance,
 			usbatm_extract_one_cell(instance, cell_buf);
 			instance->buf_usage = 0;
 		} else {
-			/* not enough data to fill the cell */
+			/* yest eyesugh data to fill the cell */
 			memcpy(cell_buf + buf_usage, source, avail_data);
 			instance->buf_usage = buf_usage + avail_data;
 			return;
@@ -439,7 +439,7 @@ static void usbatm_extract_cells(struct usbatm_data *instance,
 		usbatm_extract_one_cell(instance, source);
 
 	if (avail_data > 0) {
-		/* length was not a multiple of stride -
+		/* length was yest a multiple of stride -
 		 * save remaining data for next call */
 		memcpy(instance->cell_buf, source, avail_data);
 		instance->buf_usage = avail_data;
@@ -580,7 +580,7 @@ static void usbatm_tx_process(unsigned long data)
 		if (!urb) {
 			urb = usbatm_pop_urb(&instance->tx_channel);
 			if (!urb)
-				break;		/* no more senders */
+				break;		/* yes more senders */
 			buffer = urb->transfer_buffer;
 			bytes_written = (urb->status == -EAGAIN) ?
 				urb->transfer_buffer_length : 0;
@@ -758,7 +758,7 @@ static int usbatm_atm_proc_read(struct atm_dev *atm_dev, loff_t *pos, char *page
 			case ATM_PHY_SIG_LOST:
 				return sprintf(page, "Line down\n");
 			default:
-				return sprintf(page, "Line state unknown\n");
+				return sprintf(page, "Line state unkyeswn\n");
 			}
 	}
 
@@ -814,7 +814,7 @@ static int usbatm_atm_open(struct atm_vcc *vcc)
 
 	new->sarb = alloc_skb(usbatm_pdu_length(vcc->qos.rxtp.max_sdu), GFP_KERNEL);
 	if (!new->sarb) {
-		atm_err(instance, "%s: no memory for SAR buffer!\n", __func__);
+		atm_err(instance, "%s: yes memory for SAR buffer!\n", __func__);
 		ret = -ENOMEM;
 		goto fail;
 	}
@@ -1235,8 +1235,8 @@ void usbatm_usb_disconnect(struct usb_interface *intf)
 	del_timer_sync(&instance->rx_channel.delay);
 	del_timer_sync(&instance->tx_channel.delay);
 
-	/* turn usbatm_[rt]x_process into something close to a no-op */
-	/* no need to take the spinlock */
+	/* turn usbatm_[rt]x_process into something close to a yes-op */
+	/* yes need to take the spinlock */
 	INIT_LIST_HEAD(&instance->rx_channel.list);
 	INIT_LIST_HEAD(&instance->tx_channel.list);
 

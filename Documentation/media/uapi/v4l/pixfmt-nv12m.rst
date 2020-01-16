@@ -1,11 +1,11 @@
 .. Permission is granted to copy, distribute and/or modify this
 .. document under the terms of the GNU Free Documentation License,
 .. Version 1.1 or any later version published by the Free Software
-.. Foundation, with no Invariant Sections, no Front-Cover Texts
-.. and no Back-Cover Texts. A copy of the license is included at
+.. Foundation, with yes Invariant Sections, yes Front-Cover Texts
+.. and yes Back-Cover Texts. A copy of the license is included at
 .. Documentation/media/uapi/fdl-appendix.rst.
 ..
-.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
+.. TODO: replace it to GFDL-1.1-or-later WITH yes-invariant-sections
 
 .. _V4L2-PIX-FMT-NV12M:
 .. _v4l2-pix-fmt-nv12mt-16x16:
@@ -19,7 +19,7 @@ V4L2_PIX_FMT_NV12M ('NM12'), V4L2_PIX_FMT_NV21M ('NM21'), V4L2_PIX_FMT_NV12MT_16
 V4L2_PIX_FMT_NV21M
 V4L2_PIX_FMT_NV12MT_16X16
 Variation of ``V4L2_PIX_FMT_NV12`` and ``V4L2_PIX_FMT_NV21`` with planes
-non contiguous in memory.
+yesn contiguous in memory.
 
 
 Description
@@ -28,7 +28,7 @@ Description
 This is a multi-planar, two-plane version of the YUV 4:2:0 format. The
 three components are separated into two sub-images or planes.
 ``V4L2_PIX_FMT_NV12M`` differs from ``V4L2_PIX_FMT_NV12`` in that the
-two planes are non-contiguous in memory, i.e. the chroma plane do not
+two planes are yesn-contiguous in memory, i.e. the chroma plane do yest
 necessarily immediately follows the luma plane. The luminance data
 occupies the first plane. The Y plane has one byte per pixel. In the
 second plane there is a chrominance data with alternating chroma

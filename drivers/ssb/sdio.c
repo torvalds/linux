@@ -474,7 +474,7 @@ int ssb_sdio_get_invariants(struct ssb_bus *bus,
 {
 	struct ssb_sprom *sprom = &iv->sprom;
 	struct ssb_boardinfo *bi = &iv->boardinfo;
-	const char *error_description = "none";
+	const char *error_description = "yesne";
 	struct sdio_func_tuple *tuple;
 	void *mac;
 

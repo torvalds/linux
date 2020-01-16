@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2007 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2007 Mellayesx Techyeslogies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -118,7 +118,7 @@ static const char main_strings[][ETH_GSTRING_LEN] = {
 	"tso_packets",
 	"xmit_more",
 	"queue_stopped", "wake_queue", "tx_timeout", "rx_alloc_pages",
-	"rx_csum_good", "rx_csum_none", "rx_csum_complete", "tx_chksum_offload",
+	"rx_csum_good", "rx_csum_yesne", "rx_csum_complete", "tx_chksum_offload",
 
 	/* pf statistics */
 	"pf_rx_packets",
@@ -184,7 +184,7 @@ static const char main_strings[][ETH_GSTRING_LEN] = {
 	"rx_prio_5_packets", "rx_prio_5_bytes",
 	"rx_prio_6_packets", "rx_prio_6_bytes",
 	"rx_prio_7_packets", "rx_prio_7_bytes",
-	"rx_novlan_packets", "rx_novlan_bytes",
+	"rx_yesvlan_packets", "rx_yesvlan_bytes",
 	"tx_prio_0_packets", "tx_prio_0_bytes",
 	"tx_prio_1_packets", "tx_prio_1_bytes",
 	"tx_prio_2_packets", "tx_prio_2_bytes",
@@ -193,7 +193,7 @@ static const char main_strings[][ETH_GSTRING_LEN] = {
 	"tx_prio_5_packets", "tx_prio_5_bytes",
 	"tx_prio_6_packets", "tx_prio_6_bytes",
 	"tx_prio_7_packets", "tx_prio_7_bytes",
-	"tx_novlan_packets", "tx_novlan_bytes",
+	"tx_yesvlan_packets", "tx_yesvlan_bytes",
 
 	/* xdp statistics */
 	"rx_xdp_drop",
@@ -308,7 +308,7 @@ struct bitmap_iterator {
 	unsigned long *stats_bitmap;
 	unsigned int count;
 	unsigned int iterator;
-	bool advance_array; /* if set, force no increments */
+	bool advance_array; /* if set, force yes increments */
 };
 
 static inline void bitmap_iterator_init(struct bitmap_iterator *h,
@@ -878,7 +878,7 @@ mlx4_en_get_link_ksettings(struct net_device *dev,
 
 	if (priv->mdev->dev->caps.flags2 & MLX4_DEV_CAP_FLAG2_ETH_PROT_CTRL)
 		ret = ethtool_get_ptys_link_ksettings(dev, link_ksettings);
-	if (ret) /* ETH PROT CRTL is not supported or PTYS CMD failed */
+	if (ret) /* ETH PROT CRTL is yest supported or PTYS CMD failed */
 		ethtool_get_default_link_ksettings(dev, link_ksettings);
 
 	if (netif_carrier_ok(dev)) {
@@ -966,7 +966,7 @@ mlx4_en_set_link_ksettings(struct net_device *dev,
 	proto_admin &= ptys_reg.eth_proto_cap;
 	if (!proto_admin) {
 		en_warn(priv, "Not supported link mode(s) requested, check supported link modes.\n");
-		return -EINVAL; /* nothing to change due to bad input */
+		return -EINVAL; /* yesthing to change due to bad input */
 	}
 
 	if ((proto_admin == ptys_reg.eth_proto_admin) &&
@@ -1355,7 +1355,7 @@ static int mlx4_en_validate_flow(struct net_device *dev,
 		break;
 	case ETHER_FLOW:
 		eth_mask = &cmd->fs.m_u.ether_spec;
-		/* source mac mask must not be set */
+		/* source mac mask must yest be set */
 		if (!is_zero_ether_addr(eth_mask->h_source))
 			return -EINVAL;
 
@@ -1930,7 +1930,7 @@ static int mlx4_en_set_priv_flags(struct net_device *dev, u32 flags)
 						priv->tx_ring[t][i]->bf_alloced;
 
 			if (!bf_supported) {
-				en_err(priv, "BlueFlame is not supported\n");
+				en_err(priv, "BlueFlame is yest supported\n");
 				return -EINVAL;
 			}
 

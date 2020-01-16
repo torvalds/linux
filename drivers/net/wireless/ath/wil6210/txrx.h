@@ -260,7 +260,7 @@ struct vring_tx_mac {
  * bit     22 : NC - No UDP Checksum
  * bit 23..29 : reserved
  * bit 30..31 : L4T - Layer 4 Type: 00 - UDP , 10 - TCP , 10, 11 - Reserved
- *		If L4Len equal 0, no L4 at all
+ *		If L4Len equal 0, yes L4 at all
  * [dword 1]
  * bit  0..31 : addr_low:32 The payload buffer low address
  * [dword 2]
@@ -446,7 +446,7 @@ struct wil_eapol_key {
 	__be16 key_info;
 	__be16 key_length;
 	u8 replay_counter[WIL_EAP_REPLAY_COUNTER_LEN];
-	u8 key_nonce[WIL_EAP_NONCE_LEN];
+	u8 key_yesnce[WIL_EAP_NONCE_LEN];
 	u8 key_iv[WIL_EAP_KEY_IV_LEN];
 	u8 key_rsc[WIL_EAP_KEY_RSC_LEN];
 	u8 key_id[WIL_EAP_KEY_ID_LEN];

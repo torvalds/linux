@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- *  linux/arch/m68knommu/kernel/setup.c
+ *  linux/arch/m68kyesmmu/kernel/setup.c
  *
  *  Copyright (C) 1999-2007  Greg Ungerer (gerg@snapgear.com)
  *  Copyright (C) 1998,1999  D. Jeff Dionne <jeff@uClinux.org>
  *  Copyleft  ()) 2000       James D. Schettine {james@telos-systems.com}
- *  Copyright (C) 1998       Kenneth Albanowski <kjahds@kjahds.com>
+ *  Copyright (C) 1998       Kenneth Albayeswski <kjahds@kjahds.com>
  *  Copyright (C) 1995       Hamish Macdonald
  *  Copyright (C) 2000       Lineo Inc. (www.lineo.com)
  *  Copyright (C) 2001 	     Lineo, Inc. <www.lineo.com>
@@ -25,7 +25,7 @@
 #include <linux/module.h>
 #include <linux/mm.h>
 #include <linux/console.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/string.h>
 #include <linux/memblock.h>
 #include <linux/seq_file.h>
@@ -119,7 +119,7 @@ void __init setup_arch(char **cmdline_p)
 	pr_info("Modified for M5206eLITE by Rob Scott, rscott@mtrob.fdns.net\n");
 #endif
 #endif
-	pr_info("Flat model support (C) 1998,1999 Kenneth Albanowski, D. Jeff Dionne\n");
+	pr_info("Flat model support (C) 1998,1999 Kenneth Albayeswski, D. Jeff Dionne\n");
 
 #if defined( CONFIG_PILOT ) && defined( CONFIG_M68328 )
 	pr_info("TRG SuperPilot FLASH card support <info@trgnet.com>\n");
@@ -178,8 +178,8 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 	u_long clockfreq;
 
 	cpu = CPU_NAME;
-	mmu = "none";
-	fpu = "none";
+	mmu = "yesne";
+	fpu = "yesne";
 	clockfreq = (loops_per_jiffy * HZ) * CPU_INSTR_PER_JIFFY;
 
 	seq_printf(m, "CPU:\t\t%s\n"

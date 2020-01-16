@@ -133,7 +133,7 @@ static int __init uc32_add_memory(unsigned long start, unsigned long size)
 
 	if (meminfo.nr_banks >= NR_BANKS) {
 		printk(KERN_CRIT "NR_BANKS too low, "
-			"ignoring memory at %#lx\n", start);
+			"igyesring memory at %#lx\n", start);
 		return -EINVAL;
 	}
 
@@ -147,8 +147,8 @@ static int __init uc32_add_memory(unsigned long start, unsigned long size)
 	bank->size  = size & PAGE_MASK;
 
 	/*
-	 * Check whether this memory region has non-zero size or
-	 * invalid node number.
+	 * Check whether this memory region has yesn-zero size or
+	 * invalid yesde number.
 	 */
 	if (bank->size == 0)
 		return -EINVAL;
@@ -321,7 +321,7 @@ static int c_show(struct seq_file *m, void *v)
 
 	seq_printf(m, "Cache type\t: write-back\n"
 			"Cache clean\t: cp0 c5 ops\n"
-			"Cache lockdown\t: not support\n"
+			"Cache lockdown\t: yest support\n"
 			"Cache format\t: Harvard\n");
 
 	seq_puts(m, "\n");

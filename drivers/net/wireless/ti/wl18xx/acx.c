@@ -153,11 +153,11 @@ int wl18xx_acx_set_peer_cap(struct wl1271 *wl,
 	}
 
 	if (allow_ht_operation && ht_cap->ht_supported) {
-		/* no need to translate capabilities - use the spec values */
+		/* yes need to translate capabilities - use the spec values */
 		ht_capabilites = ht_cap->cap;
 
 		/*
-		 * this bit is not employed by the spec but only by FW to
+		 * this bit is yest employed by the spec but only by FW to
 		 * indicate peer HT support
 		 */
 		ht_capabilites |= WL12XX_HT_CAP_HT_OPERATION;
@@ -184,12 +184,12 @@ out:
 
 /*
  * When the host is suspended, we don't want to get any fast-link/PSM
- * notifications
+ * yestifications
  */
-int wl18xx_acx_interrupt_notify_config(struct wl1271 *wl,
+int wl18xx_acx_interrupt_yestify_config(struct wl1271 *wl,
 				       bool action)
 {
-	struct wl18xx_acx_interrupt_notify *acx;
+	struct wl18xx_acx_interrupt_yestify *acx;
 	int ret = 0;
 
 	acx = kzalloc(sizeof(*acx), GFP_KERNEL);
@@ -201,7 +201,7 @@ int wl18xx_acx_interrupt_notify_config(struct wl1271 *wl,
 	acx->enable = action;
 	ret = wl1271_cmd_configure(wl, ACX_INTERRUPT_NOTIFY, acx, sizeof(*acx));
 	if (ret < 0) {
-		wl1271_warning("acx interrupt notify setting failed: %d", ret);
+		wl1271_warning("acx interrupt yestify setting failed: %d", ret);
 		goto out;
 	}
 
@@ -212,7 +212,7 @@ out:
 
 /*
  * When the host is suspended, we can configure the FW to disable RX BA
- * notifications.
+ * yestifications.
  */
 int wl18xx_acx_rx_ba_filter(struct wl1271 *wl, bool action)
 {

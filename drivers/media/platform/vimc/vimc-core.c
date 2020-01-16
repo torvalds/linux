@@ -223,11 +223,11 @@ static int vimc_register_devices(struct vimc_device *vimc)
 		goto err_rm_subdevs;
 	}
 
-	/* Expose all subdev's nodes*/
-	ret = v4l2_device_register_subdev_nodes(&vimc->v4l2_dev);
+	/* Expose all subdev's yesdes*/
+	ret = v4l2_device_register_subdev_yesdes(&vimc->v4l2_dev);
 	if (ret) {
 		dev_err(vimc->mdev.dev,
-			"vimc subdev nodes registration failed (err=%d)\n",
+			"vimc subdev yesdes registration failed (err=%d)\n",
 			ret);
 		goto err_mdev_unregister;
 	}

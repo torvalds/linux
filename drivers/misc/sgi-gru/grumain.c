@@ -37,7 +37,7 @@ struct device *grudev = &gru_device;
 /*
  * Select a gru fault map to be used by the current cpu. Note that
  * multiple cpus may be using the same map.
- *	ZZZ should be inline but did not work on emulator
+ *	ZZZ should be inline but did yest work on emulator
  */
 int gru_cpu_fault_map_id(void)
 {
@@ -204,10 +204,10 @@ static void free_gru_resources(struct gru_state *gru,
 
 /*
  * Check if a GRU has sufficient free resources to satisfy an allocation
- * request. Note: GRU locks may or may not be held when this is called. If
- * not held, recheck after acquiring the appropriate locks.
+ * request. Note: GRU locks may or may yest be held when this is called. If
+ * yest held, recheck after acquiring the appropriate locks.
  *
- * Returns 1 if sufficient resources, 0 if not
+ * Returns 1 if sufficient resources, 0 if yest
  */
 static int check_gru_resources(struct gru_state *gru, int cbr_au_count,
 			       int dsr_au_count, int max_active_contexts)
@@ -284,7 +284,7 @@ void gts_drop(struct gru_thread_state *gts)
 {
 	if (gts && atomic_dec_return(&gts->ts_refcnt) == 0) {
 		if (gts->ts_gms)
-			gru_drop_mmu_notifier(gts->ts_gms);
+			gru_drop_mmu_yestifier(gts->ts_gms);
 		kfree(gts);
 		STAT(gts_free);
 	}
@@ -293,7 +293,7 @@ void gts_drop(struct gru_thread_state *gts)
 /*
  * Locate the GTS structure for the current thread.
  */
-static struct gru_thread_state *gru_find_current_gts_nolock(struct gru_vma_data
+static struct gru_thread_state *gru_find_current_gts_yeslock(struct gru_vma_data
 			    *vdata, int tsid)
 {
 	struct gru_thread_state *gts;
@@ -339,7 +339,7 @@ struct gru_thread_state *gru_alloc_gts(struct vm_area_struct *vma,
 	if (vma) {
 		gts->ts_mm = current->mm;
 		gts->ts_vma = vma;
-		gms = gru_register_mmu_notifier();
+		gms = gru_register_mmu_yestifier();
 		if (IS_ERR(gms))
 			goto err;
 		gts->ts_gms = gms;
@@ -381,7 +381,7 @@ struct gru_thread_state *gru_find_thread_state(struct vm_area_struct *vma,
 	struct gru_thread_state *gts;
 
 	spin_lock(&vdata->vd_lock);
-	gts = gru_find_current_gts_nolock(vdata, tsid);
+	gts = gru_find_current_gts_yeslock(vdata, tsid);
 	spin_unlock(&vdata->vd_lock);
 	gru_dbg(grudev, "vma %p, gts %p\n", vma, gts);
 	return gts;
@@ -389,7 +389,7 @@ struct gru_thread_state *gru_find_thread_state(struct vm_area_struct *vma,
 
 /*
  * Allocate a new thread state for a GSEG. Note that races may allow
- * another thread to race to create a gts.
+ * ayesther thread to race to create a gts.
  */
 struct gru_thread_state *gru_alloc_thread_state(struct vm_area_struct *vma,
 					int tsid)
@@ -405,7 +405,7 @@ struct gru_thread_state *gru_alloc_thread_state(struct vm_area_struct *vma,
 		return gts;
 
 	spin_lock(&vdata->vd_lock);
-	ngts = gru_find_current_gts_nolock(vdata, tsid);
+	ngts = gru_find_current_gts_yeslock(vdata, tsid);
 	if (ngts) {
 		gts_drop(gts);
 		gts = ngts;
@@ -524,7 +524,7 @@ static void gru_unload_context_data(void *save, void *grubase, int ctxnum,
 	cbe = grubase + GRU_CBE_BASE;
 	length = hweight64(dsrmap) * GRU_DSR_AU_BYTES;
 
-	/* CBEs may not be coherent. Flush them from cache */
+	/* CBEs may yest be coherent. Flush them from cache */
 	for_each_cbr_in_allocation_map(i, &cbrmap, scr)
 		gru_flush_cache(cbe + i * GRU_HANDLE_STRIDE);
 	mb();		/* Let the CL flush complete */
@@ -605,7 +605,7 @@ void gru_load_context(struct gru_thread_state *gts)
 		cch->unmap_enable = 1;
 		cch->tfm_done_bit_enable = 1;
 		cch->cb_int_enable = 1;
-		cch->tlb_int_select = 0;	/* For now, ints go to cpu 0 */
+		cch->tlb_int_select = 0;	/* For yesw, ints go to cpu 0 */
 	} else {
 		cch->unmap_enable = 0;
 		cch->tfm_done_bit_enable = 0;
@@ -675,7 +675,7 @@ exit:
 /*
  * Update CCH tlb interrupt select. Required when all the following is true:
  * 	- task's GRU context is loaded into a GRU
- * 	- task is using interrupt notification for TLB faults
+ * 	- task is using interrupt yestification for TLB faults
  * 	- task has migrated to a different cpu on the same blade where
  * 	  it was previously running.
  */
@@ -712,7 +712,7 @@ static int gru_check_chiplet_assignment(struct gru_state *gru,
 }
 
 /*
- * Unload the gru context if it is not assigned to the correct blade or
+ * Unload the gru context if it is yest assigned to the correct blade or
  * chiplet. Misassignment can occur if the process migrates to a different
  * blade or if the user changes the selected blade/chiplet.
  */
@@ -722,8 +722,8 @@ void gru_check_context_placement(struct gru_thread_state *gts)
 
 	/*
 	 * If the current task is the context owner, verify that the
-	 * context is correctly placed. This test is skipped for non-owner
-	 * references. Pthread apps use non-owner references to the CBRs.
+	 * context is correctly placed. This test is skipped for yesn-owner
+	 * references. Pthread apps use yesn-owner references to the CBRs.
 	 */
 	gru = gts->ts_gru;
 	if (!gru || gts->ts_tgid_owner != current->tgid)
@@ -803,7 +803,7 @@ void gru_steal_context(struct gru_thread_state *gts)
 				ngts = gru->gs_gts[ctxnum];
 				/*
 			 	* We are grabbing locks out of order, so trylock is
-			 	* needed. GTSs are usually not locked, so the odds of
+			 	* needed. GTSs are usually yest locked, so the odds of
 			 	* success are high. If trylock fails, try to steal a
 			 	* different GSEG.
 			 	*/
@@ -907,7 +907,7 @@ again:
 }
 
 /*
- * gru_nopage
+ * gru_yespage
  *
  * Map the user's GRU segment
  *
@@ -923,7 +923,7 @@ vm_fault_t gru_fault(struct vm_fault *vmf)
 	vaddr = vmf->address;
 	gru_dbg(grudev, "vma %p, vaddr 0x%lx (0x%lx)\n",
 		vma, vaddr, GSEG_BASE(vaddr));
-	STAT(nopfn);
+	STAT(yespfn);
 
 	/* The following check ensures vaddr is a valid address in the VMA */
 	gts = gru_find_thread_state(vma, TSID(vaddr, vma));

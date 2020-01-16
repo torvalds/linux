@@ -66,17 +66,17 @@ MODULE_PARM_DESC(debug, "dm9000 debug level (0-6)");
  *
  * During interrupt and other critical calls, a spinlock is used to
  * protect the system, but the calls themselves save the address
- * in the address register in case they are interrupting another
+ * in the address register in case they are interrupting ayesther
  * access to the device.
  *
  * For general accesses a lock is provided so that calls which are
  * allowed to sleep are serialised so that the address register does
- * not need to be saved. This lock also serves to serialise access
+ * yest need to be saved. This lock also serves to serialise access
  * to the EEPROM and PHY access registers which are shared between
  * these two devices.
  */
 
-/* The driver supports the original DM9000E, and now the two newer
+/* The driver supports the original DM9000E, and yesw the two newer
  * devices, DM9000A and DM9000B.
  */
 
@@ -182,15 +182,15 @@ dm9000_reset(struct board_info *db)
 	 * instruction is to set LBK into MAC internal loopback mode.
 	 */
 	iow(db, DM9000_NCR, NCR_RST | NCR_MAC_LBK);
-	udelay(100); /* Application note says at least 20 us */
+	udelay(100); /* Application yeste says at least 20 us */
 	if (ior(db, DM9000_NCR) & 1)
-		dev_err(db->dev, "dm9000 did not respond to first reset\n");
+		dev_err(db->dev, "dm9000 did yest respond to first reset\n");
 
 	iow(db, DM9000_NCR, 0);
 	iow(db, DM9000_NCR, NCR_RST | NCR_MAC_LBK);
 	udelay(100);
 	if (ior(db, DM9000_NCR) & 1)
-		dev_err(db->dev, "dm9000 did not respond to second reset\n");
+		dev_err(db->dev, "dm9000 did yest respond to second reset\n");
 }
 
 /* routines for sending block to chip */
@@ -439,10 +439,10 @@ static int dm9000_wait_eeprom(struct board_info *db)
 	/* The DM9000 data sheets say we should be able to
 	 * poll the ERRE bit in EPCR to wait for the EEPROM
 	 * operation. From testing several chips, this bit
-	 * does not seem to work.
+	 * does yest seem to work.
 	 *
 	 * We attempt to use the bit, but fall back to the
-	 * timeout (which is why we do not return an error
+	 * timeout (which is why we do yest return an error
 	 * on expiry) to say that the EEPROM operation has
 	 * completed.
 	 */
@@ -691,7 +691,7 @@ static void dm9000_get_wol(struct net_device *dev, struct ethtool_wolinfo *w)
 
 	memset(w, 0, sizeof(struct ethtool_wolinfo));
 
-	/* note, we could probably support wake-phy too */
+	/* yeste, we could probably support wake-phy too */
 	w->supported = dm->wake_supported ? WAKE_MAGIC : 0;
 	w->wolopts = dm->wake_state;
 }
@@ -994,7 +994,7 @@ static void dm9000_send_packet(struct net_device *dev,
 {
 	struct board_info *dm = to_dm9000_board(dev);
 
-	/* The DM9000 is not smart enough to leave fragmented packets alone. */
+	/* The DM9000 is yest smart eyesugh to leave fragmented packets alone. */
 	if (dm->ip_summed != ip_summed) {
 		if (ip_summed == CHECKSUM_NONE)
 			iow(dm, DM9000_TCCR, 0);
@@ -1097,7 +1097,7 @@ dm9000_rx(struct net_device *dev)
 	bool GoodPacket;
 	int RxLen;
 
-	/* Check packet ready or not */
+	/* Check packet ready or yest */
 	do {
 		ior(db, DM9000_MRCMDX);	/* Dummy read */
 
@@ -1114,7 +1114,7 @@ dm9000_rx(struct net_device *dev)
 		if (!(rxbyte & DM9000_PKT_RDY))
 			return;
 
-		/* A packet ready now  & Get status/length */
+		/* A packet ready yesw  & Get status/length */
 		GoodPacket = true;
 		writeb(DM9000_MRCMD, db->io_addr);
 
@@ -1176,7 +1176,7 @@ dm9000_rx(struct net_device *dev)
 				if ((((rxbyte & 0x1c) << 3) & rxbyte) == 0)
 					skb->ip_summed = CHECKSUM_UNNECESSARY;
 				else
-					skb_checksum_none_assert(skb);
+					skb_checksum_yesne_assert(skb);
 			}
 			netif_rx(skb);
 			dev->stats.rx_packets++;
@@ -1264,7 +1264,7 @@ static irqreturn_t dm9000_wol_interrupt(int irq, void *dev_id)
 		if (wcr & WCR_MAGICST)
 			dev_info(db->dev, "wake by magic packet\n");
 		if (!(wcr & (WCR_LINKST | WCR_SAMPLEST | WCR_MAGICST)))
-			dev_err(db->dev, "wake signalled with no reason? "
+			dev_err(db->dev, "wake signalled with yes reason? "
 				"NSR=0x%02x, WSR=0x%02x\n", nsr, wcr);
 	}
 
@@ -1298,15 +1298,15 @@ dm9000_open(struct net_device *dev)
 	if (netif_msg_ifup(db))
 		dev_dbg(db->dev, "enabling %s\n", dev->name);
 
-	/* If there is no IRQ type specified, tell the user that this is a
+	/* If there is yes IRQ type specified, tell the user that this is a
 	 * problem
 	 */
 	if (irq_flags == IRQF_TRIGGER_NONE)
-		dev_warn(db->dev, "WARNING: no IRQ resource flags set.\n");
+		dev_warn(db->dev, "WARNING: yes IRQ resource flags set.\n");
 
 	irq_flags |= IRQF_SHARED;
 
-	/* GPIO0 on pre-activate PHY, Reg 1F is not set by reset */
+	/* GPIO0 on pre-activate PHY, Reg 1F is yest set by reset */
 	iow(db, DM9000_GPR, 0);	/* REG_1F bit0 activate phyxcer */
 	mdelay(1); /* delay needs by DM9000B */
 
@@ -1387,7 +1387,7 @@ static const struct net_device_ops dm9000_netdev_ops = {
 static struct dm9000_plat_data *dm9000_parse_dt(struct device *dev)
 {
 	struct dm9000_plat_data *pdata;
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 	const void *mac_addr;
 
 	if (!IS_ENABLED(CONFIG_OF) || !np)
@@ -1399,7 +1399,7 @@ static struct dm9000_plat_data *dm9000_parse_dt(struct device *dev)
 
 	if (of_find_property(np, "davicom,ext-phy", NULL))
 		pdata->flags |= DM9000_PLATF_EXT_PHY;
-	if (of_find_property(np, "davicom,no-eeprom", NULL))
+	if (of_find_property(np, "davicom,yes-eeprom", NULL))
 		pdata->flags |= DM9000_PLATF_NO_EEPROM;
 
 	mac_addr = of_get_mac_address(np);
@@ -1433,7 +1433,7 @@ dm9000_probe(struct platform_device *pdev)
 	if (IS_ERR(power)) {
 		if (PTR_ERR(power) == -EPROBE_DEFER)
 			return -EPROBE_DEFER;
-		dev_dbg(dev, "no regulator provided\n");
+		dev_dbg(dev, "yes regulator provided\n");
 	} else {
 		ret = regulator_enable(power);
 		if (ret != 0) {
@@ -1444,7 +1444,7 @@ dm9000_probe(struct platform_device *pdev)
 		dev_dbg(dev, "regulator enabled\n");
 	}
 
-	reset_gpios = of_get_named_gpio_flags(dev->of_node, "reset-gpios", 0,
+	reset_gpios = of_get_named_gpio_flags(dev->of_yesde, "reset-gpios", 0,
 					      &flags);
 	if (gpio_is_valid(reset_gpios)) {
 		ret = devm_gpio_request_one(dev, reset_gpios, flags,
@@ -1511,13 +1511,13 @@ dm9000_probe(struct platform_device *pdev)
 		ret = request_irq(db->irq_wake, dm9000_wol_interrupt,
 				  IRQF_SHARED, dev_name(db->dev), ndev);
 		if (ret) {
-			dev_err(db->dev, "cannot get wakeup irq (%d)\n", ret);
+			dev_err(db->dev, "canyest get wakeup irq (%d)\n", ret);
 		} else {
 
 			/* test to see if irq is really wakeup capable */
 			ret = irq_set_irq_wake(db->irq_wake, 1);
 			if (ret) {
-				dev_err(db->dev, "irq %d cannot set wakeup (%d)\n",
+				dev_err(db->dev, "irq %d canyest set wakeup (%d)\n",
 					db->irq_wake, ret);
 				ret = 0;
 			} else {
@@ -1532,7 +1532,7 @@ dm9000_probe(struct platform_device *pdev)
 					  pdev->name);
 
 	if (db->addr_req == NULL) {
-		dev_err(db->dev, "cannot claim address reg area\n");
+		dev_err(db->dev, "canyest claim address reg area\n");
 		ret = -EIO;
 		goto out;
 	}
@@ -1550,7 +1550,7 @@ dm9000_probe(struct platform_device *pdev)
 					  pdev->name);
 
 	if (db->data_req == NULL) {
-		dev_err(db->dev, "cannot claim data reg area\n");
+		dev_err(db->dev, "canyest claim data reg area\n");
 		ret = -EIO;
 		goto out;
 	}
@@ -1662,7 +1662,7 @@ dm9000_probe(struct platform_device *pdev)
 
 	mac_src = "eeprom";
 
-	/* try reading the node address from the attached EEPROM */
+	/* try reading the yesde address from the attached EEPROM */
 	for (i = 0; i < 6; i += 2)
 		dm9000_read_eeprom(db, i / 2, ndev->dev_addr+i);
 
@@ -1701,7 +1701,7 @@ dm9000_probe(struct platform_device *pdev)
 	return 0;
 
 out:
-	dev_err(db->dev, "not found (%d).\n", ret);
+	dev_err(db->dev, "yest found (%d).\n", ret);
 
 	dm9000_release_board(pdev, db);
 	free_netdev(ndev);
@@ -1724,7 +1724,7 @@ dm9000_drv_suspend(struct device *dev)
 
 		netif_device_detach(ndev);
 
-		/* only shutdown if not using WoL */
+		/* only shutdown if yest using WoL */
 		if (!db->wake_state)
 			dm9000_shutdown(ndev);
 	}
@@ -1739,8 +1739,8 @@ dm9000_drv_resume(struct device *dev)
 
 	if (ndev) {
 		if (netif_running(ndev)) {
-			/* reset if we were not in wake mode to ensure if
-			 * the device was powered off it is in a known state */
+			/* reset if we were yest in wake mode to ensure if
+			 * the device was powered off it is in a kyeswn state */
 			if (!db->wake_state) {
 				dm9000_init_dm9000(ndev);
 				dm9000_unmask_interrupts(db);

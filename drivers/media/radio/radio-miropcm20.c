@@ -125,7 +125,7 @@ static int rds_write(struct snd_miro_aci *aci, u8 byte)
 	return 0;
 }
 
-static int rds_readcycle_nowait(struct snd_miro_aci *aci)
+static int rds_readcycle_yeswait(struct snd_miro_aci *aci)
 {
 	outb(0, aci->aci_port + ACI_REG_RDS);
 	return rds_waitread(aci);
@@ -163,7 +163,7 @@ static int rds_cmd(struct snd_miro_aci *aci, u8 cmd, u8 databuffer[], u8 datasiz
 	if (datasize == 0)
 		return 0;
 
-	/* to be able to use rds_readcycle_nowait()
+	/* to be able to use rds_readcycle_yeswait()
 	   I have to waitread() here */
 	if (rds_waitread(aci) < 0)
 		return -1;
@@ -171,7 +171,7 @@ static int rds_cmd(struct snd_miro_aci *aci, u8 cmd, u8 databuffer[], u8 datasiz
 	memset(databuffer, 0, datasize);
 
 	for (i = 0; i < 8 * datasize; i++) {
-		j = rds_readcycle_nowait(aci);
+		j = rds_readcycle_yeswait(aci);
 		if (j < 0)
 			return -EIO;
 		databuffer[i / 8] |= RDS_DATA(j) << (7 - (i % 8));
@@ -187,7 +187,7 @@ static int pcm20_setfreq(struct pcm20 *dev, unsigned long freq)
 
 	freq /= 160;
 	if (!(aci->aci_version == 0x07 || aci->aci_version >= 0xb0))
-		freq /= 10;  /* I don't know exactly which version
+		freq /= 10;  /* I don't kyesw exactly which version
 			      * needs this hack */
 	freql = freq & 0xff;
 	freqh = freq >> 8;
@@ -236,8 +236,8 @@ static int vidioc_g_tuner(struct file *file, void *priv,
 	v->rangehigh = 108*16000;
 	res = snd_aci_cmd(dev->aci, ACI_READ_TUNERSTATION, -1, -1);
 	v->signal = (res & 0x80) ? 0 : 0xffff;
-	/* Note: stereo detection does not work if the audio is muted,
-	   it will default to mono in that case. */
+	/* Note: stereo detection does yest work if the audio is muted,
+	   it will default to moyes in that case. */
 	res = snd_aci_cmd(dev->aci, ACI_READ_TUNERSTEREO, -1, -1);
 	v->rxsubchans = (res & 0x40) ? V4L2_TUNER_SUB_MONO :
 					V4L2_TUNER_SUB_STEREO;
@@ -308,9 +308,9 @@ static int pcm20_s_ctrl(struct v4l2_ctrl *ctrl)
 static int pcm20_thread(void *data)
 {
 	struct pcm20 *dev = data;
-	const unsigned no_rds_start_counter = 5;
+	const unsigned yes_rds_start_counter = 5;
 	const unsigned sleep_msecs = 2000;
-	unsigned no_rds_counter = no_rds_start_counter;
+	unsigned yes_rds_counter = yes_rds_start_counter;
 
 	for (;;) {
 		char text_buffer[66];
@@ -326,14 +326,14 @@ static int pcm20_thread(void *data)
 		if (res)
 			continue;
 		if (buf == 0) {
-			if (no_rds_counter == 0)
+			if (yes_rds_counter == 0)
 				continue;
-			no_rds_counter--;
-			if (no_rds_counter)
+			yes_rds_counter--;
+			if (yes_rds_counter)
 				continue;
 
 			/*
-			 * No RDS seen for no_rds_start_counter * sleep_msecs
+			 * No RDS seen for yes_rds_start_counter * sleep_msecs
 			 * milliseconds, clear all RDS controls to their
 			 * default values.
 			 */
@@ -345,7 +345,7 @@ static int pcm20_thread(void *data)
 			v4l2_ctrl_s_ctrl_string(dev->rds_radio_test, "");
 			continue;
 		}
-		no_rds_counter = no_rds_start_counter;
+		yes_rds_counter = yes_rds_start_counter;
 
 		res = rds_cmd(dev->aci, RDS_STATUS, &buf, 1);
 		if (res)
@@ -447,7 +447,7 @@ static int __init pcm20_init(void)
 
 	res = v4l2_device_register(NULL, v4l2_dev);
 	if (res < 0) {
-		v4l2_err(v4l2_dev, "could not register v4l2_device\n");
+		v4l2_err(v4l2_dev, "could yest register v4l2_device\n");
 		return -EINVAL;
 	}
 
@@ -470,7 +470,7 @@ static int __init pcm20_init(void)
 	v4l2_dev->ctrl_handler = hdl;
 	if (hdl->error) {
 		res = hdl->error;
-		v4l2_err(v4l2_dev, "Could not register control\n");
+		v4l2_err(v4l2_dev, "Could yest register control\n");
 		goto err_hdl;
 	}
 	strscpy(dev->vdev.name, v4l2_dev->name, sizeof(dev->vdev.name));

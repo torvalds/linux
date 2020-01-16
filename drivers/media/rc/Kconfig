@@ -9,7 +9,7 @@ menuconfig RC_CORE
 	  standalone IR receivers/transmitters, and RF receivers.
 
 	  Enable this option if you have a video capture board even
-	  if you don't need IR, as otherwise, you may not be able to
+	  if you don't need IR, as otherwise, you may yest be able to
 	  compile the driver for your adapter.
 
 	  Say Y when you have a TV or an IR device.
@@ -37,7 +37,7 @@ config BPF_LIRC_MODE2
 	   receivers.
 
 	   These eBPF programs can be used to decode IR into scancodes, for
-	   IR protocols not supported by the kernel decoders.
+	   IR protocols yest supported by the kernel decoders.
 
 menuconfig RC_DECODERS
 	bool "Remote controller decoders"
@@ -95,7 +95,7 @@ config IR_SANYO_DECODER
 
 	help
 	   Enable this option if you have an infrared remote control which
-	   uses the Sanyo protocol (Sanyo, Aiwa, Chinon remotes),
+	   uses the Sanyo protocol (Sanyo, Aiwa, Chiyesn remotes),
 	   and you need software decoding support.
 
 config IR_SHARP_DECODER
@@ -104,7 +104,7 @@ config IR_SHARP_DECODER
 
 	help
 	   Enable this option if you have an infrared remote control which
-	   uses the Sharp protocol (Sharp, Denon), and you need software
+	   uses the Sharp protocol (Sharp, Deyesn), and you need software
 	   decoding support.
 
 config IR_MCE_KBD_DECODER
@@ -197,7 +197,7 @@ config IR_HIX5HD2
 	   To compile this driver as a module, choose M here: the module will be
 	   called ir-hix5hd2.
 
-	   If you're not sure, select N here
+	   If you're yest sure, select N here
 
 config IR_IMON
 	tristate "SoundGraph iMON Receiver and Display"
@@ -356,7 +356,7 @@ config IR_IGORPLUGUSB
 	   Igor Cesko. This device is included on the Fit-PC2.
 
 	   Note that this device can only record bursts of 36 IR pulses and
-	   spaces, which is not enough for the NEC, Sanyo and RC-6 protocol.
+	   spaces, which is yest eyesugh for the NEC, Sanyo and RC-6 protocol.
 
 	   To compile this driver as a module, choose M here: the module will
 	   be called igorplugusb.
@@ -378,14 +378,14 @@ config IR_IGUANA
 	   be called iguanair.
 
 config IR_TTUSBIR
-	tristate "TechnoTrend USB IR Receiver"
+	tristate "TechyesTrend USB IR Receiver"
 	depends on USB_ARCH_HAS_HCD
 	depends on RC_CORE
 	select USB
 	select NEW_LEDS
 	select LEDS_CLASS
 	help
-	   Say Y here if you want to use the TechnoTrend USB IR Receiver. The
+	   Say Y here if you want to use the TechyesTrend USB IR Receiver. The
 	   driver can control the led.
 
 	   To compile this driver as a module, choose M here: the module will
@@ -411,7 +411,7 @@ config RC_LOOPBACK
 	   driver which allows TX data to be sent back as RX data.
 	   This is mostly useful for debugging purposes.
 
-	   If you're not sure, select N here.
+	   If you're yest sure, select N here.
 
 	   To compile this driver as a module, choose M here: the module will
 	   be called rc_loopback.
@@ -460,7 +460,7 @@ config RC_ST
 	   which allows both IR and UHF RX.
 	   The driver passes raw pulse and space information to the LIRC decoder.
 
-	   If you're not sure, select N here.
+	   If you're yest sure, select N here.
 
 config IR_SUNXI
 	tristate "SUNXI IR remote control"

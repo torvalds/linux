@@ -20,14 +20,14 @@
 #include <linux/sys_soc.h>
 
 #include <media/v4l2-async.h>
-#include <media/v4l2-fwnode.h>
+#include <media/v4l2-fwyesde.h>
 #include <media/v4l2-mc.h>
 
 #include "rcar-vin.h"
 
 /*
- * The companion CSI-2 receiver driver (rcar-csi2) is known
- * and we know it has one source pad (pad 0) and four sink
+ * The companion CSI-2 receiver driver (rcar-csi2) is kyeswn
+ * and we kyesw it has one source pad (pad 0) and four sink
  * pads (pad 1-4). So to translate a pad on the remote
  * CSI-2 receiver to/from the VIN internal channel number simply
  * subtract/add one from the pad/channel number.
@@ -45,7 +45,7 @@
 #define v4l2_dev_to_vin(d)	container_of(d, struct rvin_dev, v4l2_dev)
 
 /* -----------------------------------------------------------------------------
- * Media Controller link notification
+ * Media Controller link yestification
  */
 
 /* group lock should be held when calling this function. */
@@ -88,12 +88,12 @@ static unsigned int rvin_group_get_mask(struct rvin_dev *vin,
 /*
  * Link setup for the links between a VIN and a CSI-2 receiver is a bit
  * complex. The reason for this is that the register controlling routing
- * is not present in each VIN instance. There are special VINs which
- * control routing for themselves and other VINs. There are not many
+ * is yest present in each VIN instance. There are special VINs which
+ * control routing for themselves and other VINs. There are yest many
  * different possible links combinations that can be enabled at the same
  * time, therefor all already enabled links which are controlled by a
  * master VIN need to be taken into account when making the decision
- * if a new link can be enabled or not.
+ * if a new link can be enabled or yest.
  *
  * 1. Find out which VIN the link the user tries to enable is connected to.
  * 2. Lookup which master VIN controls the links for this VIN.
@@ -102,15 +102,15 @@ static unsigned int rvin_group_get_mask(struct rvin_dev *vin,
  *    route mask (see documentation for mask in struct rvin_group_route)
  *    with the bitmask.
  * 5. Bitwise AND the mask for the link the user tries to enable to the bitmask.
- * 6. If the bitmask is not empty at this point the new link can be enabled
+ * 6. If the bitmask is yest empty at this point the new link can be enabled
  *    while keeping all previous links enabled. Update the CHSEL value of the
  *    master VIN and inform the user that the link could be enabled.
  *
- * Please note that no link can be enabled if any VIN in the group is
+ * Please yeste that yes link can be enabled if any VIN in the group is
  * currently open.
  */
-static int rvin_group_link_notify(struct media_link *link, u32 flags,
-				  unsigned int notification)
+static int rvin_group_link_yestify(struct media_link *link, u32 flags,
+				  unsigned int yestification)
 {
 	struct rvin_group *group = container_of(link->graph_obj.mdev,
 						struct rvin_group, mdev);
@@ -122,11 +122,11 @@ static int rvin_group_link_notify(struct media_link *link, u32 flags,
 	struct rvin_dev *vin = NULL;
 	int csi_id, ret;
 
-	ret = v4l2_pipeline_link_notify(link, flags, notification);
+	ret = v4l2_pipeline_link_yestify(link, flags, yestification);
 	if (ret)
 		return ret;
 
-	/* Only care about link enablement for VIN nodes. */
+	/* Only care about link enablement for VIN yesdes. */
 	if (!(flags & MEDIA_LNK_FL_ENABLED) ||
 	    !is_media_entity_v4l2_video_device(link->sink->entity))
 		return 0;
@@ -177,7 +177,7 @@ static int rvin_group_link_notify(struct media_link *link, u32 flags,
 
 		/*
 		 * Make sure the source entity subdevice is registered as
-		 * a parallel input of one of the enabled VINs if it is not
+		 * a parallel input of one of the enabled VINs if it is yest
 		 * one of the CSI-2 subdevices.
 		 *
 		 * No hardware configuration required for parallel inputs,
@@ -193,7 +193,7 @@ static int rvin_group_link_notify(struct media_link *link, u32 flags,
 			}
 		}
 
-		vin_err(vin, "Subdevice %s not registered to any VIN\n",
+		vin_err(vin, "Subdevice %s yest registered to any VIN\n",
 			link->source->entity->name);
 		ret = -ENODEV;
 		goto out;
@@ -222,7 +222,7 @@ out:
 }
 
 static const struct media_device_ops rvin_media_ops = {
-	.link_notify = rvin_group_link_notify,
+	.link_yestify = rvin_group_link_yestify,
 };
 
 /* -----------------------------------------------------------------------------
@@ -234,7 +234,7 @@ static const struct media_device_ops rvin_media_ops = {
  * list of groups. And eventually all of this should be replaced
  * with a global device allocator API.
  *
- * But for now this works as on all supported systems there will
+ * But for yesw this works as on all supported systems there will
  * be only one group for all instances.
  */
 
@@ -252,14 +252,14 @@ static int rvin_group_init(struct rvin_group *group, struct rvin_dev *vin)
 {
 	struct media_device *mdev = &group->mdev;
 	const struct of_device_id *match;
-	struct device_node *np;
+	struct device_yesde *np;
 	int ret;
 
 	mutex_init(&group->lock);
 
 	/* Count number of VINs in the system */
 	group->count = 0;
-	for_each_matching_node(np, vin->dev->driver->of_match_table)
+	for_each_matching_yesde(np, vin->dev->driver->of_match_table)
 		if (of_device_is_available(np))
 			group->count++;
 
@@ -268,8 +268,8 @@ static int rvin_group_init(struct rvin_group *group, struct rvin_dev *vin)
 	mdev->dev = vin->dev;
 	mdev->ops = &rvin_media_ops;
 
-	match = of_match_node(vin->dev->driver->of_match_table,
-			      vin->dev->of_node);
+	match = of_match_yesde(vin->dev->driver->of_match_table,
+			      vin->dev->of_yesde);
 
 	strscpy(mdev->driver_name, KBUILD_MODNAME, sizeof(mdev->driver_name));
 	strscpy(mdev->model, match->compatible, sizeof(mdev->model));
@@ -308,16 +308,16 @@ static int rvin_group_get(struct rvin_dev *vin)
 	int ret;
 
 	/* Make sure VIN id is present and sane */
-	ret = of_property_read_u32(vin->dev->of_node, "renesas,id", &id);
+	ret = of_property_read_u32(vin->dev->of_yesde, "renesas,id", &id);
 	if (ret) {
 		vin_err(vin, "%pOF: No renesas,id property found\n",
-			vin->dev->of_node);
+			vin->dev->of_yesde);
 		return -EINVAL;
 	}
 
 	if (id >= RCAR_VIN_NUM) {
 		vin_err(vin, "%pOF: Invalid renesas,id '%u'\n",
-			vin->dev->of_node, id);
+			vin->dev->of_yesde, id);
 		return -EINVAL;
 	}
 
@@ -412,7 +412,7 @@ static const struct v4l2_ctrl_ops rvin_ctrl_ops = {
 };
 
 /* -----------------------------------------------------------------------------
- * Async notifier
+ * Async yestifier
  */
 
 static int rvin_find_pad(struct v4l2_subdev *sd, int direction)
@@ -430,7 +430,7 @@ static int rvin_find_pad(struct v4l2_subdev *sd, int direction)
 }
 
 /* -----------------------------------------------------------------------------
- * Parallel async notifier
+ * Parallel async yestifier
  */
 
 /* The vin lock should be held when calling the subdevice attach and detach */
@@ -484,8 +484,8 @@ static int rvin_parallel_subdevice_attach(struct rvin_dev *vin,
 		return -EINVAL;
 	}
 
-	/* Read tvnorms */
-	ret = v4l2_subdev_call(subdev, video, g_tvnorms, &vin->vdev.tvnorms);
+	/* Read tvyesrms */
+	ret = v4l2_subdev_call(subdev, video, g_tvyesrms, &vin->vdev.tvyesrms);
 	if (ret < 0 && ret != -ENOIOCTLCMD && ret != -ENODEV)
 		return ret;
 
@@ -534,16 +534,16 @@ static void rvin_parallel_subdevice_detach(struct rvin_dev *vin)
 	}
 }
 
-static int rvin_parallel_notify_complete(struct v4l2_async_notifier *notifier)
+static int rvin_parallel_yestify_complete(struct v4l2_async_yestifier *yestifier)
 {
-	struct rvin_dev *vin = v4l2_dev_to_vin(notifier->v4l2_dev);
+	struct rvin_dev *vin = v4l2_dev_to_vin(yestifier->v4l2_dev);
 	struct media_entity *source;
 	struct media_entity *sink;
 	int ret;
 
-	ret = v4l2_device_register_subdev_nodes(&vin->v4l2_dev);
+	ret = v4l2_device_register_subdev_yesdes(&vin->v4l2_dev);
 	if (ret < 0) {
-		vin_err(vin, "Failed to register subdev nodes\n");
+		vin_err(vin, "Failed to register subdev yesdes\n");
 		return ret;
 	}
 
@@ -569,11 +569,11 @@ static int rvin_parallel_notify_complete(struct v4l2_async_notifier *notifier)
 	return ret;
 }
 
-static void rvin_parallel_notify_unbind(struct v4l2_async_notifier *notifier,
+static void rvin_parallel_yestify_unbind(struct v4l2_async_yestifier *yestifier,
 					struct v4l2_subdev *subdev,
 					struct v4l2_async_subdev *asd)
 {
-	struct rvin_dev *vin = v4l2_dev_to_vin(notifier->v4l2_dev);
+	struct rvin_dev *vin = v4l2_dev_to_vin(yestifier->v4l2_dev);
 
 	vin_dbg(vin, "unbind parallel subdev %s\n", subdev->name);
 
@@ -582,11 +582,11 @@ static void rvin_parallel_notify_unbind(struct v4l2_async_notifier *notifier,
 	mutex_unlock(&vin->lock);
 }
 
-static int rvin_parallel_notify_bound(struct v4l2_async_notifier *notifier,
+static int rvin_parallel_yestify_bound(struct v4l2_async_yestifier *yestifier,
 				      struct v4l2_subdev *subdev,
 				      struct v4l2_async_subdev *asd)
 {
-	struct rvin_dev *vin = v4l2_dev_to_vin(notifier->v4l2_dev);
+	struct rvin_dev *vin = v4l2_dev_to_vin(yestifier->v4l2_dev);
 	int ret;
 
 	mutex_lock(&vin->lock);
@@ -604,14 +604,14 @@ static int rvin_parallel_notify_bound(struct v4l2_async_notifier *notifier,
 	return 0;
 }
 
-static const struct v4l2_async_notifier_operations rvin_parallel_notify_ops = {
-	.bound = rvin_parallel_notify_bound,
-	.unbind = rvin_parallel_notify_unbind,
-	.complete = rvin_parallel_notify_complete,
+static const struct v4l2_async_yestifier_operations rvin_parallel_yestify_ops = {
+	.bound = rvin_parallel_yestify_bound,
+	.unbind = rvin_parallel_yestify_unbind,
+	.complete = rvin_parallel_yestify_complete,
 };
 
 static int rvin_parallel_parse_v4l2(struct device *dev,
-				    struct v4l2_fwnode_endpoint *vep,
+				    struct v4l2_fwyesde_endpoint *vep,
 				    struct v4l2_async_subdev *asd)
 {
 	struct rvin_dev *vin = dev_get_drvdata(dev);
@@ -634,7 +634,7 @@ static int rvin_parallel_parse_v4l2(struct device *dev,
 		vin->parallel->mbus_flags = 0;
 		break;
 	default:
-		vin_err(vin, "Unknown media bus type\n");
+		vin_err(vin, "Unkyeswn media bus type\n");
 		return -EINVAL;
 	}
 
@@ -645,26 +645,26 @@ static int rvin_parallel_init(struct rvin_dev *vin)
 {
 	int ret;
 
-	v4l2_async_notifier_init(&vin->notifier);
+	v4l2_async_yestifier_init(&vin->yestifier);
 
-	ret = v4l2_async_notifier_parse_fwnode_endpoints_by_port(
-		vin->dev, &vin->notifier, sizeof(struct rvin_parallel_entity),
+	ret = v4l2_async_yestifier_parse_fwyesde_endpoints_by_port(
+		vin->dev, &vin->yestifier, sizeof(struct rvin_parallel_entity),
 		0, rvin_parallel_parse_v4l2);
 	if (ret)
 		return ret;
 
-	/* If using mc, it's fine not to have any input registered. */
+	/* If using mc, it's fine yest to have any input registered. */
 	if (!vin->parallel)
 		return vin->info->use_mc ? 0 : -ENODEV;
 
 	vin_dbg(vin, "Found parallel subdevice %pOF\n",
-		to_of_node(vin->parallel->asd.match.fwnode));
+		to_of_yesde(vin->parallel->asd.match.fwyesde));
 
-	vin->notifier.ops = &rvin_parallel_notify_ops;
-	ret = v4l2_async_notifier_register(&vin->v4l2_dev, &vin->notifier);
+	vin->yestifier.ops = &rvin_parallel_yestify_ops;
+	ret = v4l2_async_yestifier_register(&vin->v4l2_dev, &vin->yestifier);
 	if (ret < 0) {
 		vin_err(vin, "Notifier registration failed\n");
-		v4l2_async_notifier_cleanup(&vin->notifier);
+		v4l2_async_yestifier_cleanup(&vin->yestifier);
 		return ret;
 	}
 
@@ -672,23 +672,23 @@ static int rvin_parallel_init(struct rvin_dev *vin)
 }
 
 /* -----------------------------------------------------------------------------
- * Group async notifier
+ * Group async yestifier
  */
 
-static int rvin_group_notify_complete(struct v4l2_async_notifier *notifier)
+static int rvin_group_yestify_complete(struct v4l2_async_yestifier *yestifier)
 {
-	struct rvin_dev *vin = v4l2_dev_to_vin(notifier->v4l2_dev);
+	struct rvin_dev *vin = v4l2_dev_to_vin(yestifier->v4l2_dev);
 	const struct rvin_group_route *route;
 	unsigned int i;
 	int ret;
 
-	ret = v4l2_device_register_subdev_nodes(&vin->v4l2_dev);
+	ret = v4l2_device_register_subdev_yesdes(&vin->v4l2_dev);
 	if (ret) {
-		vin_err(vin, "Failed to register subdev nodes\n");
+		vin_err(vin, "Failed to register subdev yesdes\n");
 		return ret;
 	}
 
-	/* Register all video nodes for the group. */
+	/* Register all video yesdes for the group. */
 	for (i = 0; i < RCAR_VIN_NUM; i++) {
 		if (vin->group->vin[i] &&
 		    !video_is_registered(&vin->group->vin[i]->vdev)) {
@@ -740,11 +740,11 @@ static int rvin_group_notify_complete(struct v4l2_async_notifier *notifier)
 	return ret;
 }
 
-static void rvin_group_notify_unbind(struct v4l2_async_notifier *notifier,
+static void rvin_group_yestify_unbind(struct v4l2_async_yestifier *yestifier,
 				     struct v4l2_subdev *subdev,
 				     struct v4l2_async_subdev *asd)
 {
-	struct rvin_dev *vin = v4l2_dev_to_vin(notifier->v4l2_dev);
+	struct rvin_dev *vin = v4l2_dev_to_vin(yestifier->v4l2_dev);
 	unsigned int i;
 
 	for (i = 0; i < RCAR_VIN_NUM; i++)
@@ -754,7 +754,7 @@ static void rvin_group_notify_unbind(struct v4l2_async_notifier *notifier,
 	mutex_lock(&vin->group->lock);
 
 	for (i = 0; i < RVIN_CSI_MAX; i++) {
-		if (vin->group->csi[i].fwnode != asd->match.fwnode)
+		if (vin->group->csi[i].fwyesde != asd->match.fwyesde)
 			continue;
 		vin->group->csi[i].subdev = NULL;
 		vin_dbg(vin, "Unbind CSI-2 %s from slot %u\n", subdev->name, i);
@@ -764,17 +764,17 @@ static void rvin_group_notify_unbind(struct v4l2_async_notifier *notifier,
 	mutex_unlock(&vin->group->lock);
 }
 
-static int rvin_group_notify_bound(struct v4l2_async_notifier *notifier,
+static int rvin_group_yestify_bound(struct v4l2_async_yestifier *yestifier,
 				   struct v4l2_subdev *subdev,
 				   struct v4l2_async_subdev *asd)
 {
-	struct rvin_dev *vin = v4l2_dev_to_vin(notifier->v4l2_dev);
+	struct rvin_dev *vin = v4l2_dev_to_vin(yestifier->v4l2_dev);
 	unsigned int i;
 
 	mutex_lock(&vin->group->lock);
 
 	for (i = 0; i < RVIN_CSI_MAX; i++) {
-		if (vin->group->csi[i].fwnode != asd->match.fwnode)
+		if (vin->group->csi[i].fwyesde != asd->match.fwyesde)
 			continue;
 		vin->group->csi[i].subdev = subdev;
 		vin_dbg(vin, "Bound CSI-2 %s to slot %u\n", subdev->name, i);
@@ -786,14 +786,14 @@ static int rvin_group_notify_bound(struct v4l2_async_notifier *notifier,
 	return 0;
 }
 
-static const struct v4l2_async_notifier_operations rvin_group_notify_ops = {
-	.bound = rvin_group_notify_bound,
-	.unbind = rvin_group_notify_unbind,
-	.complete = rvin_group_notify_complete,
+static const struct v4l2_async_yestifier_operations rvin_group_yestify_ops = {
+	.bound = rvin_group_yestify_bound,
+	.unbind = rvin_group_yestify_unbind,
+	.complete = rvin_group_yestify_complete,
 };
 
 static int rvin_mc_parse_of_endpoint(struct device *dev,
-				     struct v4l2_fwnode_endpoint *vep,
+				     struct v4l2_fwyesde_endpoint *vep,
 				     struct v4l2_async_subdev *asd)
 {
 	struct rvin_dev *vin = dev_get_drvdata(dev);
@@ -802,25 +802,25 @@ static int rvin_mc_parse_of_endpoint(struct device *dev,
 	if (vep->base.port != 1 || vep->base.id >= RVIN_CSI_MAX)
 		return -EINVAL;
 
-	if (!of_device_is_available(to_of_node(asd->match.fwnode))) {
-		vin_dbg(vin, "OF device %pOF disabled, ignoring\n",
-			to_of_node(asd->match.fwnode));
+	if (!of_device_is_available(to_of_yesde(asd->match.fwyesde))) {
+		vin_dbg(vin, "OF device %pOF disabled, igyesring\n",
+			to_of_yesde(asd->match.fwyesde));
 		return -ENOTCONN;
 	}
 
 	mutex_lock(&vin->group->lock);
 
-	if (vin->group->csi[vep->base.id].fwnode) {
+	if (vin->group->csi[vep->base.id].fwyesde) {
 		vin_dbg(vin, "OF device %pOF already handled\n",
-			to_of_node(asd->match.fwnode));
+			to_of_yesde(asd->match.fwyesde));
 		ret = -ENOTCONN;
 		goto out;
 	}
 
-	vin->group->csi[vep->base.id].fwnode = asd->match.fwnode;
+	vin->group->csi[vep->base.id].fwyesde = asd->match.fwyesde;
 
 	vin_dbg(vin, "Add group OF device %pOF to slot %u\n",
-		to_of_node(asd->match.fwnode), vep->base.id);
+		to_of_yesde(asd->match.fwyesde), vep->base.id);
 out:
 	mutex_unlock(&vin->group->lock);
 
@@ -835,7 +835,7 @@ static int rvin_mc_parse_of_graph(struct rvin_dev *vin)
 
 	mutex_lock(&vin->group->lock);
 
-	/* If not all VIN's are registered don't register the notifier. */
+	/* If yest all VIN's are registered don't register the yestifier. */
 	for (i = 0; i < RCAR_VIN_NUM; i++) {
 		if (vin->group->vin[i]) {
 			count++;
@@ -850,34 +850,34 @@ static int rvin_mc_parse_of_graph(struct rvin_dev *vin)
 
 	mutex_unlock(&vin->group->lock);
 
-	v4l2_async_notifier_init(&vin->group->notifier);
+	v4l2_async_yestifier_init(&vin->group->yestifier);
 
 	/*
 	 * Have all VIN's look for CSI-2 subdevices. Some subdevices will
 	 * overlap but the parser function can handle it, so each subdevice
-	 * will only be registered once with the group notifier.
+	 * will only be registered once with the group yestifier.
 	 */
 	for (i = 0; i < RCAR_VIN_NUM; i++) {
 		if (!(vin_mask & BIT(i)))
 			continue;
 
-		ret = v4l2_async_notifier_parse_fwnode_endpoints_by_port(
-				vin->group->vin[i]->dev, &vin->group->notifier,
+		ret = v4l2_async_yestifier_parse_fwyesde_endpoints_by_port(
+				vin->group->vin[i]->dev, &vin->group->yestifier,
 				sizeof(struct v4l2_async_subdev), 1,
 				rvin_mc_parse_of_endpoint);
 		if (ret)
 			return ret;
 	}
 
-	if (list_empty(&vin->group->notifier.asd_list))
+	if (list_empty(&vin->group->yestifier.asd_list))
 		return 0;
 
-	vin->group->notifier.ops = &rvin_group_notify_ops;
-	ret = v4l2_async_notifier_register(&vin->v4l2_dev,
-					   &vin->group->notifier);
+	vin->group->yestifier.ops = &rvin_group_yestify_ops;
+	ret = v4l2_async_yestifier_register(&vin->v4l2_dev,
+					   &vin->group->yestifier);
 	if (ret < 0) {
 		vin_err(vin, "Notifier registration failed\n");
-		v4l2_async_notifier_cleanup(&vin->group->notifier);
+		v4l2_async_yestifier_cleanup(&vin->group->yestifier);
 		return ret;
 	}
 
@@ -1334,7 +1334,7 @@ static int rcar_vin_probe(struct platform_device *pdev)
 	if (ret)
 		goto error_group_unregister;
 
-	pm_suspend_ignore_children(&pdev->dev, true);
+	pm_suspend_igyesre_children(&pdev->dev, true);
 	pm_runtime_enable(&pdev->dev);
 
 	return 0;
@@ -1344,9 +1344,9 @@ error_group_unregister:
 
 	if (vin->info->use_mc) {
 		mutex_lock(&vin->group->lock);
-		if (&vin->v4l2_dev == vin->group->notifier.v4l2_dev) {
-			v4l2_async_notifier_unregister(&vin->group->notifier);
-			v4l2_async_notifier_cleanup(&vin->group->notifier);
+		if (&vin->v4l2_dev == vin->group->yestifier.v4l2_dev) {
+			v4l2_async_yestifier_unregister(&vin->group->yestifier);
+			v4l2_async_yestifier_cleanup(&vin->group->yestifier);
 		}
 		mutex_unlock(&vin->group->lock);
 		rvin_group_put(vin);
@@ -1366,14 +1366,14 @@ static int rcar_vin_remove(struct platform_device *pdev)
 
 	rvin_v4l2_unregister(vin);
 
-	v4l2_async_notifier_unregister(&vin->notifier);
-	v4l2_async_notifier_cleanup(&vin->notifier);
+	v4l2_async_yestifier_unregister(&vin->yestifier);
+	v4l2_async_yestifier_cleanup(&vin->yestifier);
 
 	if (vin->info->use_mc) {
 		mutex_lock(&vin->group->lock);
-		if (&vin->v4l2_dev == vin->group->notifier.v4l2_dev) {
-			v4l2_async_notifier_unregister(&vin->group->notifier);
-			v4l2_async_notifier_cleanup(&vin->group->notifier);
+		if (&vin->v4l2_dev == vin->group->yestifier.v4l2_dev) {
+			v4l2_async_yestifier_unregister(&vin->group->yestifier);
+			v4l2_async_yestifier_cleanup(&vin->group->yestifier);
 		}
 		mutex_unlock(&vin->group->lock);
 		rvin_group_put(vin);

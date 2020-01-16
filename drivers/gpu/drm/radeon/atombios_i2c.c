@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -29,7 +29,7 @@
 
 #define TARGET_HW_I2C_CLOCK 50
 
-/* these are a limitation of ProcessI2cChannelTransaction not the hw */
+/* these are a limitation of ProcessI2cChannelTransaction yest the hw */
 #define ATOM_MAX_HW_I2C_WRITE 3
 #define ATOM_MAX_HW_I2C_READ  255
 
@@ -126,7 +126,7 @@ int radeon_atom_hw_i2c_xfer(struct i2c_adapter *i2c_adap,
 		p = &msgs[i];
 		remaining = p->len;
 		buffer_offset = 0;
-		/* max_bytes are a limitation of ProcessI2cChannelTransaction not the hw */
+		/* max_bytes are a limitation of ProcessI2cChannelTransaction yest the hw */
 		if (p->flags & I2C_M_RD) {
 			max_bytes = ATOM_MAX_HW_I2C_READ;
 			flags = HW_I2C_READ;

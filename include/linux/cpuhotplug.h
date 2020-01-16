@@ -224,17 +224,17 @@ static inline int cpuhp_setup_state_cpuslocked(enum cpuhp_state state,
 }
 
 /**
- * cpuhp_setup_state_nocalls - Setup hotplug state callbacks without calling the
+ * cpuhp_setup_state_yescalls - Setup hotplug state callbacks without calling the
  *			       callbacks
  * @state:	The state for which the calls are installed
  * @name:	Name of the callback.
  * @startup:	startup callback function
  * @teardown:	teardown callback function
  *
- * Same as @cpuhp_setup_state except that no calls are executed are invoked
+ * Same as @cpuhp_setup_state except that yes calls are executed are invoked
  * during installation of this callback. NOP if SMP=n or HOTPLUG_CPU=n.
  */
-static inline int cpuhp_setup_state_nocalls(enum cpuhp_state state,
+static inline int cpuhp_setup_state_yescalls(enum cpuhp_state state,
 					    const char *name,
 					    int (*startup)(unsigned int cpu),
 					    int (*teardown)(unsigned int cpu))
@@ -243,7 +243,7 @@ static inline int cpuhp_setup_state_nocalls(enum cpuhp_state state,
 				   false);
 }
 
-static inline int cpuhp_setup_state_nocalls_cpuslocked(enum cpuhp_state state,
+static inline int cpuhp_setup_state_yescalls_cpuslocked(enum cpuhp_state state,
 						     const char *name,
 						     int (*startup)(unsigned int cpu),
 						     int (*teardown)(unsigned int cpu))
@@ -262,61 +262,61 @@ static inline int cpuhp_setup_state_nocalls_cpuslocked(enum cpuhp_state state,
  * Sets the internal multi_instance flag and prepares a state to work as a multi
  * instance callback. No callbacks are invoked at this point. The callbacks are
  * invoked once an instance for this state are registered via
- * @cpuhp_state_add_instance or @cpuhp_state_add_instance_nocalls.
+ * @cpuhp_state_add_instance or @cpuhp_state_add_instance_yescalls.
  */
 static inline int cpuhp_setup_state_multi(enum cpuhp_state state,
 					  const char *name,
 					  int (*startup)(unsigned int cpu,
-							 struct hlist_node *node),
+							 struct hlist_yesde *yesde),
 					  int (*teardown)(unsigned int cpu,
-							  struct hlist_node *node))
+							  struct hlist_yesde *yesde))
 {
 	return __cpuhp_setup_state(state, name, false,
 				   (void *) startup,
 				   (void *) teardown, true);
 }
 
-int __cpuhp_state_add_instance(enum cpuhp_state state, struct hlist_node *node,
+int __cpuhp_state_add_instance(enum cpuhp_state state, struct hlist_yesde *yesde,
 			       bool invoke);
 int __cpuhp_state_add_instance_cpuslocked(enum cpuhp_state state,
-					  struct hlist_node *node, bool invoke);
+					  struct hlist_yesde *yesde, bool invoke);
 
 /**
  * cpuhp_state_add_instance - Add an instance for a state and invoke startup
  *                            callback.
  * @state:	The state for which the instance is installed
- * @node:	The node for this individual state.
+ * @yesde:	The yesde for this individual state.
  *
  * Installs the instance for the @state and invokes the startup callback on
  * the present cpus which have already reached the @state. The @state must have
  * been earlier marked as multi-instance by @cpuhp_setup_state_multi.
  */
 static inline int cpuhp_state_add_instance(enum cpuhp_state state,
-					   struct hlist_node *node)
+					   struct hlist_yesde *yesde)
 {
-	return __cpuhp_state_add_instance(state, node, true);
+	return __cpuhp_state_add_instance(state, yesde, true);
 }
 
 /**
- * cpuhp_state_add_instance_nocalls - Add an instance for a state without
+ * cpuhp_state_add_instance_yescalls - Add an instance for a state without
  *                                    invoking the startup callback.
  * @state:	The state for which the instance is installed
- * @node:	The node for this individual state.
+ * @yesde:	The yesde for this individual state.
  *
  * Installs the instance for the @state The @state must have been earlier
  * marked as multi-instance by @cpuhp_setup_state_multi.
  */
-static inline int cpuhp_state_add_instance_nocalls(enum cpuhp_state state,
-						   struct hlist_node *node)
+static inline int cpuhp_state_add_instance_yescalls(enum cpuhp_state state,
+						   struct hlist_yesde *yesde)
 {
-	return __cpuhp_state_add_instance(state, node, false);
+	return __cpuhp_state_add_instance(state, yesde, false);
 }
 
 static inline int
-cpuhp_state_add_instance_nocalls_cpuslocked(enum cpuhp_state state,
-					    struct hlist_node *node)
+cpuhp_state_add_instance_yescalls_cpuslocked(enum cpuhp_state state,
+					    struct hlist_yesde *yesde)
 {
-	return __cpuhp_state_add_instance_cpuslocked(state, node, false);
+	return __cpuhp_state_add_instance_cpuslocked(state, yesde, false);
 }
 
 void __cpuhp_remove_state(enum cpuhp_state state, bool invoke);
@@ -335,16 +335,16 @@ static inline void cpuhp_remove_state(enum cpuhp_state state)
 }
 
 /**
- * cpuhp_remove_state_nocalls - Remove hotplug state callbacks without invoking
+ * cpuhp_remove_state_yescalls - Remove hotplug state callbacks without invoking
  *				teardown
  * @state:	The state for which the calls are removed
  */
-static inline void cpuhp_remove_state_nocalls(enum cpuhp_state state)
+static inline void cpuhp_remove_state_yescalls(enum cpuhp_state state)
 {
 	__cpuhp_remove_state(state, false);
 }
 
-static inline void cpuhp_remove_state_nocalls_cpuslocked(enum cpuhp_state state)
+static inline void cpuhp_remove_state_yescalls_cpuslocked(enum cpuhp_state state)
 {
 	__cpuhp_remove_state_cpuslocked(state, false);
 }
@@ -363,35 +363,35 @@ static inline void cpuhp_remove_multi_state(enum cpuhp_state state)
 }
 
 int __cpuhp_state_remove_instance(enum cpuhp_state state,
-				  struct hlist_node *node, bool invoke);
+				  struct hlist_yesde *yesde, bool invoke);
 
 /**
  * cpuhp_state_remove_instance - Remove hotplug instance from state and invoke
  *                               the teardown callback
  * @state:	The state from which the instance is removed
- * @node:	The node for this individual state.
+ * @yesde:	The yesde for this individual state.
  *
  * Removes the instance and invokes the teardown callback on the present cpus
  * which have already reached the @state.
  */
 static inline int cpuhp_state_remove_instance(enum cpuhp_state state,
-					      struct hlist_node *node)
+					      struct hlist_yesde *yesde)
 {
-	return __cpuhp_state_remove_instance(state, node, true);
+	return __cpuhp_state_remove_instance(state, yesde, true);
 }
 
 /**
- * cpuhp_state_remove_instance_nocalls - Remove hotplug instance from state
+ * cpuhp_state_remove_instance_yescalls - Remove hotplug instance from state
  *					 without invoking the reatdown callback
  * @state:	The state from which the instance is removed
- * @node:	The node for this individual state.
+ * @yesde:	The yesde for this individual state.
  *
  * Removes the instance without invoking the teardown callback.
  */
-static inline int cpuhp_state_remove_instance_nocalls(enum cpuhp_state state,
-						      struct hlist_node *node)
+static inline int cpuhp_state_remove_instance_yescalls(enum cpuhp_state state,
+						      struct hlist_yesde *yesde)
 {
-	return __cpuhp_state_remove_instance(state, node, false);
+	return __cpuhp_state_remove_instance(state, yesde, false);
 }
 
 #ifdef CONFIG_SMP

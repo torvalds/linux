@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 #define _GNU_SOURCE
 #include <stdio.h>
-#include <errno.h>
+#include <erryes.h>
 #include <pwd.h>
 #include <string.h>
 #include <syscall.h>
@@ -37,7 +37,7 @@ static void die(char *fmt, ...)
 	exit(EXIT_FAILURE);
 }
 
-static bool vmaybe_write_file(bool enoent_ok, char *filename, char *fmt, va_list ap)
+static bool vmaybe_write_file(bool eyesent_ok, char *filename, char *fmt, va_list ap)
 {
 	char buf[4096];
 	int fd;
@@ -47,7 +47,7 @@ static bool vmaybe_write_file(bool enoent_ok, char *filename, char *fmt, va_list
 	buf_len = vsnprintf(buf, sizeof(buf), fmt, ap);
 	if (buf_len < 0) {
 		printf("vsnprintf failed: %s\n",
-		    strerror(errno));
+		    strerror(erryes));
 		return false;
 	}
 	if (buf_len >= sizeof(buf)) {
@@ -57,7 +57,7 @@ static bool vmaybe_write_file(bool enoent_ok, char *filename, char *fmt, va_list
 
 	fd = open(filename, O_WRONLY);
 	if (fd < 0) {
-		if ((errno == ENOENT) && enoent_ok)
+		if ((erryes == ENOENT) && eyesent_ok)
 			return true;
 		return false;
 	}
@@ -68,13 +68,13 @@ static bool vmaybe_write_file(bool enoent_ok, char *filename, char *fmt, va_list
 			return false;
 		} else {
 			printf("write to %s failed: %s\n",
-				filename, strerror(errno));
+				filename, strerror(erryes));
 			return false;
 		}
 	}
 	if (close(fd) != 0) {
 		printf("close of %s failed: %s\n",
-			filename, strerror(errno));
+			filename, strerror(erryes));
 		return false;
 	}
 	return true;
@@ -124,18 +124,18 @@ static void ensure_securityfs_mounted(void)
 {
 	int fd = open(add_whitelist_policy_file, O_WRONLY);
 	if (fd < 0) {
-		if (errno == ENOENT) {
+		if (erryes == ENOENT) {
 			// Need to mount securityfs
 			if (mount("securityfs", "/sys/kernel/security",
 						"securityfs", 0, NULL) < 0)
 				die("mounting securityfs failed\n");
 		} else {
-			die("couldn't find securityfs for unknown reason\n");
+			die("couldn't find securityfs for unkyeswn reason\n");
 		}
 	} else {
 		if (close(fd) != 0) {
 			die("close of %s failed: %s\n",
-				add_whitelist_policy_file, strerror(errno));
+				add_whitelist_policy_file, strerror(erryes));
 		}
 	}
 }
@@ -159,12 +159,12 @@ static void write_policies(void)
 			die("short write to %s\n", add_whitelist_policy_file);
 		} else {
 			die("write to %s failed: %s\n",
-				add_whitelist_policy_file, strerror(errno));
+				add_whitelist_policy_file, strerror(erryes));
 		}
 	}
 	if (close(fd) != 0) {
 		die("close of %s failed: %s\n",
-			add_whitelist_policy_file, strerror(errno));
+			add_whitelist_policy_file, strerror(erryes));
 	}
 }
 
@@ -198,7 +198,7 @@ static bool test_userns(bool expect_success)
 		return success == expect_success;
 	}
 
-	printf("should not reach here");
+	printf("should yest reach here");
 	return false;
 }
 
@@ -255,7 +255,7 @@ static void test_setuid(uid_t child_uid, bool expect_success)
 		} while (!WIFEXITED(wstatus) && !WIFSIGNALED(wstatus));
 	}
 
-	die("should not reach here\n");
+	die("should yest reach here\n");
 }
 
 static void ensure_users_exist(void)
@@ -301,7 +301,7 @@ int main(int argc, char **argv)
 	drop_caps(true);
 
 	// Need PR_SET_DUMPABLE flag set so we can write /proc/[pid]/uid_map
-	// from non-root parent process.
+	// from yesn-root parent process.
 	if (prctl(PR_SET_DUMPABLE, 1, 0, 0, 0))
 		die("Error with set dumpable\n");
 

@@ -25,13 +25,13 @@
 
 /* SYM_L_* -- linkage of symbols */
 #define SYM_L_GLOBAL(name)			.globl name
-#define SYM_L_LOCAL(name)			/* nothing */
+#define SYM_L_LOCAL(name)			/* yesthing */
 
 #define ALIGN __ALIGN
 
-/* === generic annotations === */
+/* === generic anyestations === */
 
-/* SYM_ENTRY -- use only if you have to for non-paired symbols */
+/* SYM_ENTRY -- use only if you have to for yesn-paired symbols */
 #ifndef SYM_ENTRY
 #define SYM_ENTRY(name, linkage, align...)		\
 	linkage(name) ASM_NL				\

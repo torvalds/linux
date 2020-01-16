@@ -22,13 +22,13 @@
  *	YOSHIFUJI Hideaki @USAGI:	added sysctl for icmp rate limit.
  *	Randy Dunlap and
  *	YOSHIFUJI Hideaki @USAGI:	Per-interface statistics support
- *	Kazunori MIYAZAWA @USAGI:       change output process to use ip6_append_data
+ *	Kazuyesri MIYAZAWA @USAGI:       change output process to use ip6_append_data
  */
 
 #define pr_fmt(fmt) "IPv6: " fmt
 
 #include <linux/module.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/types.h>
 #include <linux/socket.h>
 #include <linux/in.h>
@@ -83,7 +83,7 @@ static struct sock *icmpv6_sk(struct net *net)
 static int icmpv6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 		       u8 type, u8 code, int offset, __be32 info)
 {
-	/* icmpv6_notify checks 8 bytes can be pulled, icmp6hdr is 8 bytes */
+	/* icmpv6_yestify checks 8 bytes can be pulled, icmp6hdr is 8 bytes */
 	struct icmp6hdr *icmp6 = (struct icmp6hdr *) (skb->data + offset);
 	struct net *net = dev_net(skb->dev);
 
@@ -132,9 +132,9 @@ static __inline__ void icmpv6_xmit_unlock(struct sock *sk)
 /*
  * Figure out, may we reply to this packet with icmp error.
  *
- * We do not reply, if:
+ * We do yest reply, if:
  *	- it was icmp error message.
- *	- it is truncated, so that it is known, that protocol is ICMPV6
+ *	- it is truncated, so that it is kyeswn, that protocol is ICMPV6
  *	  (i.e. in the middle of some exthdr)
  *
  *	--ANK (980726)
@@ -203,7 +203,7 @@ static bool icmpv6_xrlim_allow(struct sock *sk, u8 type,
 	/*
 	 * Look up the output route.
 	 * XXX: perhaps the expire for routing entries cloned by
-	 * this lookup should be more aggressive (not longer than timeout).
+	 * this lookup should be more aggressive (yest longer than timeout).
 	 */
 	dst = ip6_route_output(net, sk, fl6);
 	if (dst->error) {
@@ -343,7 +343,7 @@ static struct dst_entry *icmpv6_route_lookup(struct net *net,
 		return ERR_PTR(err);
 
 	/*
-	 * We won't send icmp if the destination is known
+	 * We won't send icmp if the destination is kyeswn
 	 * anycast.
 	 */
 	if (ipv6_anycast_destination(dst, &fl6->daddr)) {
@@ -450,7 +450,7 @@ static void icmp6_send(struct sk_buff *skb, u8 type, u8 code, __u32 info,
 	/*
 	 *	Make sure we respect the rules
 	 *	i.e. RFC 1885 2.4(e)
-	 *	Rule (e.1) is enforced by not using icmp6_send
+	 *	Rule (e.1) is enforced by yest using icmp6_send
 	 *	in any code that processes icmp errors.
 	 */
 	addr_type = ipv6_addr_type(&hdr->daddr);
@@ -487,8 +487,8 @@ static void icmp6_send(struct sk_buff *skb, u8 type, u8 code, __u32 info,
 	}
 
 	/*
-	 *	Must not send error if the source does not uniquely
-	 *	identify a single node (RFC2463 Section 2.4).
+	 *	Must yest send error if the source does yest uniquely
+	 *	identify a single yesde (RFC2463 Section 2.4).
 	 *	We check unspecified / multicast addresses here,
 	 *	and anycast addresses will be checked later.
 	 */
@@ -502,7 +502,7 @@ static void icmp6_send(struct sk_buff *skb, u8 type, u8 code, __u32 info,
 	 *	Never answer to a ICMP packet.
 	 */
 	if (is_ineligible(skb)) {
-		net_dbg_ratelimited("icmp6_send: no reply to icmp error [%pI6c > %pI6c]\n",
+		net_dbg_ratelimited("icmp6_send: yes reply to icmp error [%pI6c > %pI6c]\n",
 				    &hdr->saddr, &hdr->daddr);
 		return;
 	}
@@ -698,13 +698,13 @@ static void icmpv6_echo_reply(struct sk_buff *skb)
 	bool acast;
 
 	if (ipv6_addr_is_multicast(&ipv6_hdr(skb)->daddr) &&
-	    net->ipv6.sysctl.icmpv6_echo_ignore_multicast)
+	    net->ipv6.sysctl.icmpv6_echo_igyesre_multicast)
 		return;
 
 	saddr = &ipv6_hdr(skb)->daddr;
 
 	acast = ipv6_anycast_destination(skb_dst(skb), saddr);
-	if (acast && net->ipv6.sysctl.icmpv6_echo_ignore_anycast)
+	if (acast && net->ipv6.sysctl.icmpv6_echo_igyesre_anycast)
 		return;
 
 	if (!ipv6_unicast_destination(skb) &&
@@ -779,7 +779,7 @@ out_bh_enable:
 	local_bh_enable();
 }
 
-void icmpv6_notify(struct sk_buff *skb, u8 type, u8 code, __be32 info)
+void icmpv6_yestify(struct sk_buff *skb, u8 type, u8 code, __be32 info)
 {
 	const struct inet6_protocol *ipprot;
 	int inner_offset;
@@ -792,7 +792,7 @@ void icmpv6_notify(struct sk_buff *skb, u8 type, u8 code, __be32 info)
 
 	nexthdr = ((struct ipv6hdr *)skb->data)->nexthdr;
 	if (ipv6_ext_hdr(nexthdr)) {
-		/* now skip over extension headers */
+		/* yesw skip over extension headers */
 		inner_offset = ipv6_skip_exthdr(skb, sizeof(struct ipv6hdr),
 						&nexthdr, &frag_off);
 		if (inner_offset < 0)
@@ -806,9 +806,9 @@ void icmpv6_notify(struct sk_buff *skb, u8 type, u8 code, __be32 info)
 		goto out;
 
 	/* BUGGG_FUTURE: we should try to parse exthdrs in this packet.
-	   Without this we will not able f.e. to make source routed
+	   Without this we will yest able f.e. to make source routed
 	   pmtu discovery.
-	   Corresponding argument (opt) to notifiers is already added.
+	   Corresponding argument (opt) to yestifiers is already added.
 	   --ANK (980726)
 	 */
 
@@ -843,16 +843,16 @@ static int icmpv6_rcv(struct sk_buff *skb)
 
 		if (!(sp && sp->xvec[sp->len - 1]->props.flags &
 				 XFRM_STATE_ICMP))
-			goto drop_no_count;
+			goto drop_yes_count;
 
 		if (!pskb_may_pull(skb, sizeof(*hdr) + sizeof(struct ipv6hdr)))
-			goto drop_no_count;
+			goto drop_yes_count;
 
 		nh = skb_network_offset(skb);
 		skb_set_network_header(skb, sizeof(*hdr));
 
 		if (!xfrm6_policy_check_reverse(NULL, XFRM_POLICY_IN, skb))
-			goto drop_no_count;
+			goto drop_yes_count;
 
 		skb_set_network_header(skb, nh);
 	}
@@ -879,7 +879,7 @@ static int icmpv6_rcv(struct sk_buff *skb)
 
 	switch (type) {
 	case ICMPV6_ECHO_REQUEST:
-		if (!net->ipv6.sysctl.icmpv6_echo_ignore_all)
+		if (!net->ipv6.sysctl.icmpv6_echo_igyesre_all)
 			icmpv6_echo_reply(skb);
 		break;
 
@@ -888,7 +888,7 @@ static int icmpv6_rcv(struct sk_buff *skb)
 		break;
 
 	case ICMPV6_PKT_TOOBIG:
-		/* BUGGG_FUTURE: if packet contains rthdr, we cannot update
+		/* BUGGG_FUTURE: if packet contains rthdr, we canyest update
 		   standard destination cache. Seems, only "advanced"
 		   destination cache will allow to solve this problem
 		   --ANK (980726)
@@ -897,12 +897,12 @@ static int icmpv6_rcv(struct sk_buff *skb)
 			goto discard_it;
 		hdr = icmp6_hdr(skb);
 
-		/* to notify */
+		/* to yestify */
 		/* fall through */
 	case ICMPV6_DEST_UNREACH:
 	case ICMPV6_TIME_EXCEED:
 	case ICMPV6_PARAMPROB:
-		icmpv6_notify(skb, type, hdr->icmp6_code, hdr->icmp6_mtu);
+		icmpv6_yestify(skb, type, hdr->icmp6_code, hdr->icmp6_mtu);
 		break;
 
 	case NDISC_ROUTER_SOLICITATION:
@@ -936,15 +936,15 @@ static int icmpv6_rcv(struct sk_buff *skb)
 		if (type & ICMPV6_INFOMSG_MASK)
 			break;
 
-		net_dbg_ratelimited("icmpv6: msg of unknown type [%pI6c > %pI6c]\n",
+		net_dbg_ratelimited("icmpv6: msg of unkyeswn type [%pI6c > %pI6c]\n",
 				    saddr, daddr);
 
 		/*
-		 * error of unknown type.
+		 * error of unkyeswn type.
 		 * must pass to upper level
 		 */
 
-		icmpv6_notify(skb, type, hdr->icmp6_code, hdr->icmp6_mtu);
+		icmpv6_yestify(skb, type, hdr->icmp6_code, hdr->icmp6_mtu);
 	}
 
 	/* until the v6 path can be better sorted assume failure and
@@ -961,7 +961,7 @@ csum_error:
 	__ICMP6_INC_STATS(dev_net(dev), idev, ICMP6_MIB_CSUMERRORS);
 discard_it:
 	__ICMP6_INC_STATS(dev_net(dev), idev, ICMP6_MIB_INERRORS);
-drop_no_count:
+drop_yes_count:
 	kfree_skb(skb);
 	return 0;
 }
@@ -1011,7 +1011,7 @@ static int __net_init icmpv6_sk_init(struct net *net)
 
 		*per_cpu_ptr(net->ipv6.icmp_sk, i) = sk;
 
-		/* Enough space for 2 64K ICMP packets, including
+		/* Eyesugh space for 2 64K ICMP packets, including
 		 * sk_buff struct overhead.
 		 */
 		sk->sk_sndbuf = 2 * SKB_TRUESIZE(64 * 1024);
@@ -1073,7 +1073,7 @@ static const struct icmp6_err {
 		.err	= EACCES,
 		.fatal	= 1,
 	},
-	{	/* Was NOT_NEIGHBOUR, now reserved */
+	{	/* Was NOT_NEIGHBOUR, yesw reserved */
 		.err	= EHOSTUNREACH,
 		.fatal	= 0,
 	},
@@ -1138,22 +1138,22 @@ static struct ctl_table ipv6_icmp_table_template[] = {
 		.proc_handler	= proc_dointvec_ms_jiffies,
 	},
 	{
-		.procname	= "echo_ignore_all",
-		.data		= &init_net.ipv6.sysctl.icmpv6_echo_ignore_all,
+		.procname	= "echo_igyesre_all",
+		.data		= &init_net.ipv6.sysctl.icmpv6_echo_igyesre_all,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler = proc_dointvec,
 	},
 	{
-		.procname	= "echo_ignore_multicast",
-		.data		= &init_net.ipv6.sysctl.icmpv6_echo_ignore_multicast,
+		.procname	= "echo_igyesre_multicast",
+		.data		= &init_net.ipv6.sysctl.icmpv6_echo_igyesre_multicast,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler = proc_dointvec,
 	},
 	{
-		.procname	= "echo_ignore_anycast",
-		.data		= &init_net.ipv6.sysctl.icmpv6_echo_ignore_anycast,
+		.procname	= "echo_igyesre_anycast",
+		.data		= &init_net.ipv6.sysctl.icmpv6_echo_igyesre_anycast,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler = proc_dointvec,
@@ -1178,9 +1178,9 @@ struct ctl_table * __net_init ipv6_icmp_sysctl_init(struct net *net)
 
 	if (table) {
 		table[0].data = &net->ipv6.sysctl.icmpv6_time;
-		table[1].data = &net->ipv6.sysctl.icmpv6_echo_ignore_all;
-		table[2].data = &net->ipv6.sysctl.icmpv6_echo_ignore_multicast;
-		table[3].data = &net->ipv6.sysctl.icmpv6_echo_ignore_anycast;
+		table[1].data = &net->ipv6.sysctl.icmpv6_echo_igyesre_all;
+		table[2].data = &net->ipv6.sysctl.icmpv6_echo_igyesre_multicast;
+		table[3].data = &net->ipv6.sysctl.icmpv6_echo_igyesre_anycast;
 		table[4].data = &net->ipv6.sysctl.icmpv6_ratemask_ptr;
 	}
 	return table;

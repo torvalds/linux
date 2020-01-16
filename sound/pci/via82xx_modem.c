@@ -176,7 +176,7 @@ DEFINE_VIA_REGSET(MI, 0x50);
 				 VIA_ACLINK_CTRL_PCM)
 #define VIA_FUNC_ENABLE		0x42
 #define  VIA_FUNC_MIDI_PNP	0x80 /* FIXME: it's 0x40 in the datasheet! */
-#define  VIA_FUNC_MIDI_IRQMASK	0x40 /* FIXME: not documented! */
+#define  VIA_FUNC_MIDI_IRQMASK	0x40 /* FIXME: yest documented! */
 #define  VIA_FUNC_RX2C_WRITE	0x20
 #define  VIA_FUNC_SB_FIFO_EMPTY	0x10
 #define  VIA_FUNC_ENABLE_GAME	0x08
@@ -232,7 +232,7 @@ struct via82xx_modem {
 	struct snd_card *card;
 
 	unsigned int num_devs;
-	unsigned int playback_devno, capture_devno;
+	unsigned int playback_devyes, capture_devyes;
 	struct viadev devs[VIA_MAX_MODEM_DEVS];
 
 	struct snd_pcm *pcms[2];
@@ -371,7 +371,7 @@ static int snd_via82xx_codec_ready(struct via82xx_modem *chip, int secondary)
 		if (!((val = snd_via82xx_codec_xread(chip)) & VIA_REG_AC97_BUSY))
 			return val & 0xffff;
 	}
-	dev_err(chip->card->dev, "codec_ready: codec %i is not ready [0x%x]\n",
+	dev_err(chip->card->dev, "codec_ready: codec %i is yest ready [0x%x]\n",
 		   secondary, snd_via82xx_codec_xread(chip));
 	return -EIO;
 }
@@ -433,7 +433,7 @@ static unsigned short snd_via82xx_codec_read(struct snd_ac97 *ac97, unsigned sho
       	while (1) {
       		if (again++ > 3) {
 			dev_err(chip->card->dev,
-				"codec_read: codec %i is not valid [0x%x]\n",
+				"codec_read: codec %i is yest valid [0x%x]\n",
 				   ac97->num, snd_via82xx_codec_xread(chip));
 		      	return 0xffff;
 		}
@@ -616,7 +616,7 @@ static snd_pcm_uframes_t snd_via686_pcm_pointer(struct snd_pcm_substream *substr
 
 	spin_lock(&chip->reg_lock);
 	count = inl(VIADEV_REG(viadev, OFFSET_CURR_COUNT)) & 0xffffff;
-	/* The via686a does not have the current index register,
+	/* The via686a does yest have the current index register,
 	 * so we need to calculate the index from CURR_PTR.
 	 */
 	ptr = inl(VIADEV_REG(viadev, OFFSET_CURR_PTR));
@@ -763,7 +763,7 @@ static int snd_via82xx_modem_pcm_open(struct via82xx_modem *chip, struct viadev 
 static int snd_via82xx_playback_open(struct snd_pcm_substream *substream)
 {
 	struct via82xx_modem *chip = snd_pcm_substream_chip(substream);
-	struct viadev *viadev = &chip->devs[chip->playback_devno + substream->number];
+	struct viadev *viadev = &chip->devs[chip->playback_devyes + substream->number];
 
 	return snd_via82xx_modem_pcm_open(chip, viadev, substream);
 }
@@ -774,7 +774,7 @@ static int snd_via82xx_playback_open(struct snd_pcm_substream *substream)
 static int snd_via82xx_capture_open(struct snd_pcm_substream *substream)
 {
 	struct via82xx_modem *chip = snd_pcm_substream_chip(substream);
-	struct viadev *viadev = &chip->devs[chip->capture_devno + substream->pcm->device];
+	struct viadev *viadev = &chip->devs[chip->capture_devyes + substream->pcm->device];
 
 	return snd_via82xx_modem_pcm_open(chip, viadev, substream);
 }
@@ -832,8 +832,8 @@ static int snd_via686_pcm_new(struct via82xx_modem *chip)
 	struct snd_pcm *pcm;
 	int err;
 
-	chip->playback_devno = 0;
-	chip->capture_devno = 1;
+	chip->playback_devyes = 0;
+	chip->capture_devyes = 1;
 	chip->num_devs = 2;
 	chip->intr_mask = 0x330000; /* FLAGS | EOL for MR, MW */
 
@@ -940,7 +940,7 @@ static int snd_via82xx_chip_init(struct via82xx_modem *chip)
 	}
 
 	pci_read_config_byte(chip->pci, VIA_ACLINK_STAT, &pval);
-	if (! (pval & VIA_ACLINK_C00_READY)) { /* codec not ready? */
+	if (! (pval & VIA_ACLINK_C00_READY)) { /* codec yest ready? */
 		/* deassert ACLink reset, force SYNC */
 		pci_write_config_byte(chip->pci, VIA_ACLINK_CTRL,
 				      VIA_ACLINK_CTRL_ENABLE |
@@ -979,7 +979,7 @@ static int snd_via82xx_chip_init(struct via82xx_modem *chip)
 
 	if ((val = snd_via82xx_codec_xread(chip)) & VIA_REG_AC97_BUSY)
 		dev_err(chip->card->dev,
-			"AC'97 codec is not ready [0x%x]\n", val);
+			"AC'97 codec is yest ready [0x%x]\n", val);
 
 	snd_via82xx_codec_xwrite(chip, VIA_REG_AC97_READ |
 				 VIA_REG_AC97_SECONDARY_VALID |
@@ -1126,9 +1126,9 @@ static int snd_via82xx_create(struct snd_card *card,
 		return err;
 	}
 
-	/* The 8233 ac97 controller does not implement the master bit
+	/* The 8233 ac97 controller does yest implement the master bit
 	 * in the pci command register. IMHO this is a violation of the PCI spec.
-	 * We call pci_set_master here because it does not hurt. */
+	 * We call pci_set_master here because it does yest hurt. */
 	pci_set_master(pci);
 
 	*r_via = chip;

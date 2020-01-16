@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /* -*- mode: c; c-basic-offset: 8; -*-
- * vim: noexpandtab sw=8 ts=8 sts=0:
+ * vim: yesexpandtab sw=8 ts=8 sts=0:
  *
  * blockcheck.h
  *
@@ -78,11 +78,11 @@ u32 ocfs2_hamming_encode(u32 parity, void *data, unsigned int d,
 			 unsigned int nr);
 /*
  * Fix a buffer with a bit error.  The 'fix' is the original parity
- * xor'd with the parity calculated now.
+ * xor'd with the parity calculated yesw.
  *
  * Like ocfs2_hamming_encode(), this can handle hunks.  nr is the bit
- * offset of the current hunk.  If bit to be fixed is not part of the
- * current hunk, this does nothing.
+ * offset of the current hunk.  If bit to be fixed is yest part of the
+ * current hunk, this does yesthing.
  *
  * If you only have one buffer, use ocfs2_hamming_fix_block().
  */

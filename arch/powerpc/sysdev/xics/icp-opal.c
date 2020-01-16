@@ -12,7 +12,7 @@
 
 #include <asm/smp.h>
 #include <asm/irq.h>
-#include <asm/errno.h>
+#include <asm/erryes.h>
 #include <asm/xics.h>
 #include <asm/io.h>
 #include <asm/opal.h>
@@ -76,7 +76,7 @@ static unsigned int icp_opal_get_irq(void)
 	}
 
 	/* We don't have a linux mapping, so have rtas mask it. */
-	xics_mask_unknown_vec(vec);
+	xics_mask_unkyeswn_vec(vec);
 
 	/* We might learn about it later, so EOI it */
 	if (opal_int_eoi(xirr) > 0)
@@ -88,9 +88,9 @@ static unsigned int icp_opal_get_irq(void)
 static void icp_opal_set_cpu_priority(unsigned char cppr)
 {
 	/*
-	 * Here be dragons. The caller has asked to allow only IPI's and not
+	 * Here be dragons. The caller has asked to allow only IPI's and yest
 	 * external interrupts. But OPAL XIVE doesn't support that. So instead
-	 * of allowing no interrupts allow all. That's still not right, but
+	 * of allowing yes interrupts allow all. That's still yest right, but
 	 * currently the only caller who does this is xics_migrate_irqs_away()
 	 * and it works in that case.
 	 */
@@ -113,7 +113,7 @@ static void icp_opal_eoi(struct irq_data *d)
 	/*
 	 * EOI tells us whether there are more interrupts to fetch.
 	 *
-	 * Some HW implementations might not be able to send us another
+	 * Some HW implementations might yest be able to send us ayesther
 	 * external interrupt in that case, so we force a replay.
 	 */
 	if (rc > 0)
@@ -162,7 +162,7 @@ void icp_opal_flush_interrupt(void)
 		} else {
 			pr_err("XICS: hw interrupt 0x%x to offline cpu, "
 			       "disabling\n", vec);
-			xics_mask_unknown_vec(vec);
+			xics_mask_unkyeswn_vec(vec);
 		}
 
 		/* EOI the interrupt */
@@ -185,9 +185,9 @@ static const struct icp_ops icp_opal_ops = {
 
 int icp_opal_init(void)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 
-	np = of_find_compatible_node(NULL, NULL, "ibm,opal-intc");
+	np = of_find_compatible_yesde(NULL, NULL, "ibm,opal-intc");
 	if (!np)
 		return -ENODEV;
 

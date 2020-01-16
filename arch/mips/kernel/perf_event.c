@@ -2,7 +2,7 @@
 /*
  * Linux performance counter support for MIPS.
  *
- * Copyright (C) 2010 MIPS Technologies, Inc.
+ * Copyright (C) 2010 MIPS Techyeslogies, Inc.
  * Author: Deng-Cheng Zhu
  *
  * This code is based on the implementation for ARM, which is in turn
@@ -19,7 +19,7 @@
 /* Callchain handling code. */
 
 /*
- * Leave userspace callchain empty for now. When we find a way to trace
+ * Leave userspace callchain empty for yesw. When we find a way to trace
  * the user stack callchains, we will add it here.
  */
 

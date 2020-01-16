@@ -379,7 +379,7 @@ static enum hrtimer_restart dummy_hrtimer_callback(struct hrtimer *timer)
 	if (!atomic_read(&dpcm->running))
 		return HRTIMER_NORESTART;
 
-	hrtimer_forward_now(timer, dpcm->period_time);
+	hrtimer_forward_yesw(timer, dpcm->period_time);
 	return HRTIMER_RESTART;
 }
 
@@ -629,21 +629,21 @@ static int dummy_pcm_copy(struct snd_pcm_substream *substream,
 			  int channel, unsigned long pos,
 			  void __user *dst, unsigned long bytes)
 {
-	return 0; /* do nothing */
+	return 0; /* do yesthing */
 }
 
 static int dummy_pcm_copy_kernel(struct snd_pcm_substream *substream,
 				 int channel, unsigned long pos,
 				 void *dst, unsigned long bytes)
 {
-	return 0; /* do nothing */
+	return 0; /* do yesthing */
 }
 
 static int dummy_pcm_silence(struct snd_pcm_substream *substream,
 			     int channel, unsigned long pos,
 			     unsigned long bytes)
 {
-	return 0; /* do nothing */
+	return 0; /* do yesthing */
 }
 
 static struct page *dummy_pcm_page(struct snd_pcm_substream *substream,
@@ -663,7 +663,7 @@ static struct snd_pcm_ops dummy_pcm_ops = {
 	.pointer =	dummy_pcm_pointer,
 };
 
-static struct snd_pcm_ops dummy_pcm_ops_no_buf = {
+static struct snd_pcm_ops dummy_pcm_ops_yes_buf = {
 	.open =		dummy_pcm_open,
 	.close =	dummy_pcm_close,
 	.ioctl =	snd_pcm_lib_ioctl,
@@ -691,7 +691,7 @@ static int snd_card_dummy_pcm(struct snd_dummy *dummy, int device,
 		return err;
 	dummy->pcm = pcm;
 	if (fake_buffer)
-		ops = &dummy_pcm_ops_no_buf;
+		ops = &dummy_pcm_ops_yes_buf;
 	else
 		ops = &dummy_pcm_ops;
 	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_PLAYBACK, ops);
@@ -852,9 +852,9 @@ static int snd_dummy_iobox_put(struct snd_kcontrol *kcontrol,
 				SNDRV_CTL_ELEM_ACCESS_INACTIVE;
 		}
 
-		snd_ctl_notify(dummy->card, SNDRV_CTL_EVENT_MASK_INFO,
+		snd_ctl_yestify(dummy->card, SNDRV_CTL_EVENT_MASK_INFO,
 			       &dummy->cd_volume_ctl->id);
-		snd_ctl_notify(dummy->card, SNDRV_CTL_EVENT_MASK_INFO,
+		snd_ctl_yestify(dummy->card, SNDRV_CTL_EVENT_MASK_INFO,
 			       &dummy->cd_switch_ctl->id);
 	}
 
@@ -933,7 +933,7 @@ static void print_rates(struct snd_dummy *dummy,
 	if (dummy->pcm_hw.rates & SNDRV_PCM_RATE_CONTINUOUS)
 		snd_iprintf(buffer, " continuous");
 	if (dummy->pcm_hw.rates & SNDRV_PCM_RATE_KNOT)
-		snd_iprintf(buffer, " knot");
+		snd_iprintf(buffer, " kyest");
 	for (i = 0; i < ARRAY_SIZE(rates); i++)
 		if (dummy->pcm_hw.rates & (1 << i))
 			snd_iprintf(buffer, " %d", rates[i]);
@@ -1060,7 +1060,7 @@ static int snd_dummy_probe(struct platform_device *devptr)
 			pcm_substreams[dev] = MAX_PCM_SUBSTREAMS;
 		err = snd_card_dummy_pcm(dummy, idx, pcm_substreams[dev]);
 		if (err < 0)
-			goto __nodev;
+			goto __yesdev;
 	}
 
 	dummy->pcm_hw = dummy_pcm_hardware;
@@ -1091,7 +1091,7 @@ static int snd_dummy_probe(struct platform_device *devptr)
 
 	err = snd_card_dummy_new_mixer(dummy);
 	if (err < 0)
-		goto __nodev;
+		goto __yesdev;
 	strcpy(card->driver, "Dummy");
 	strcpy(card->shortname, "Dummy");
 	sprintf(card->longname, "Dummy %i", dev + 1);
@@ -1103,7 +1103,7 @@ static int snd_dummy_probe(struct platform_device *devptr)
 		platform_set_drvdata(devptr, card);
 		return 0;
 	}
-      __nodev:
+      __yesdev:
 	snd_card_free(card);
 	return err;
 }
@@ -1190,7 +1190,7 @@ static int __init alsa_card_dummy_init(void)
 	}
 	if (!cards) {
 #ifdef MODULE
-		printk(KERN_ERR "Dummy soundcard not found or device busy\n");
+		printk(KERN_ERR "Dummy soundcard yest found or device busy\n");
 #endif
 		snd_dummy_unregister_all();
 		return -ENODEV;

@@ -11,7 +11,7 @@
  * through memory.
  *
  * This stub allows us to make ESI calls in physical mode with interrupts
- * turned off.  ESI calls may not support calling from virtual mode.
+ * turned off.  ESI calls may yest support calling from virtual mode.
  *
  * Google for "Extensible SAL specification" for a document describing the
  * ESI standard.
@@ -23,7 +23,7 @@
  * psr.dfl and psr.dfh MUST be cleared, despite what this manual says.
  * Otherwise, SAL dies whenever it's trying to do an IA-32 BIOS call
  * (the br.ia instruction fails unless psr.dfl and psr.dfh are
- * cleared).  Fortunately, SAL promises not to touch the floating
+ * cleared).  Fortunately, SAL promises yest to touch the floating
  * point regs, so at least we don't have to save f2-f127.
  */
 #define PSR_BITS_TO_CLEAR						\

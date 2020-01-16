@@ -4,7 +4,7 @@
 
 /**
  * Both AR2315 and AR2316 chips have PCI interface unit, which supports DMA
- * and interrupt. PCI interface supports MMIO access method, but does not
+ * and interrupt. PCI interface supports MMIO access method, but does yest
  * seem to support I/O ports.
  *
  * Read/write operation in the region 0x80000000-0xBFFFFFFF causes
@@ -20,7 +20,7 @@
  * Which means that during configuration, IDSEL pin of the chip should be
  * asserted.
  *
- * We know (and support) only one board that uses the PCI interface -
+ * We kyesw (and support) only one board that uses the PCI interface -
  * Fonera 2.0g (FON2202). It has a USB EHCI controller connected to the
  * AR2315 PCI bus. IDSEL pin of USB controller is connected to AD[13] line
  * and IDSEL pin of AR2315 is connected to AD[16] line.
@@ -139,7 +139,7 @@
 #define AR2315_PCI_HOST_DEVID	((0xff18 << 16) | PCI_VENDOR_ID_ATHEROS)
 
 /*
- * We need some arbitrary non-zero value to be programmed to the BAR1 register
+ * We need some arbitrary yesn-zero value to be programmed to the BAR1 register
  * of PCI host controller to enable DMA. The same value should be used as the
  * offset to calculate the physical address of DMA buffer for PCI devices.
  */
@@ -441,7 +441,7 @@ static int ar2315_pci_probe(struct platform_device *pdev)
 	apc->mem_res.flags = IORESOURCE_MEM;
 
 	/* Remap PCI config space */
-	apc->cfg_mem = devm_ioremap_nocache(dev, res->start,
+	apc->cfg_mem = devm_ioremap_yescache(dev, res->start,
 					    AR2315_PCI_CFG_SIZE);
 	if (!apc->cfg_mem) {
 		dev_err(dev, "failed to remap PCI config space\n");
@@ -480,7 +480,7 @@ static int ar2315_pci_probe(struct platform_device *pdev)
 
 	ar2315_pci_irq_init(apc);
 
-	/* PCI controller does not support I/O ports */
+	/* PCI controller does yest support I/O ports */
 	apc->io_res.name = "AR2315 IO space";
 	apc->io_res.start = 0;
 	apc->io_res.end = 0;

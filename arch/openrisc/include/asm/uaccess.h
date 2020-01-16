@@ -25,7 +25,7 @@
 
 /*
  * The fs value determines whether argument validity checking should be
- * performed or not.  If get_fs() == USER_DS, checking is performed, with
+ * performed or yest.  If get_fs() == USER_DS, checking is performed, with
  * get_fs() == KERNEL_DS, checking is bypassed.
  *
  * For historical reasons, these macros are grossly misnamed.
@@ -70,13 +70,13 @@
  * and hide all the uglyness from the user.
  *
  * The "__xxx" versions of the user access functions are versions that
- * do not verify the address space, that must have been done previously
+ * do yest verify the address space, that must have been done previously
  * with a separate "access_ok()" call (this is used when we do multiple
  * accesses to the same area of user memory).
  *
  * As we use the same address space for kernel and user data on the
  * PowerPC, we can just do these as direct assignments.  (Of course, the
- * exception handling means that it's no longer "just"...)
+ * exception handling means that it's yes longer "just"...)
  */
 #define get_user(x, ptr) \
 	__get_user_check((x), (ptr), sizeof(*(ptr)))
@@ -84,13 +84,13 @@
 	__put_user_check((__typeof__(*(ptr)))(x), (ptr), sizeof(*(ptr)))
 
 #define __get_user(x, ptr) \
-	__get_user_nocheck((x), (ptr), sizeof(*(ptr)))
+	__get_user_yescheck((x), (ptr), sizeof(*(ptr)))
 #define __put_user(x, ptr) \
-	__put_user_nocheck((__typeof__(*(ptr)))(x), (ptr), sizeof(*(ptr)))
+	__put_user_yescheck((__typeof__(*(ptr)))(x), (ptr), sizeof(*(ptr)))
 
 extern long __put_user_bad(void);
 
-#define __put_user_nocheck(x, ptr, size)		\
+#define __put_user_yescheck(x, ptr, size)		\
 ({							\
 	long __pu_err;					\
 	__put_user_size((x), (ptr), (size), __pu_err);	\
@@ -125,8 +125,8 @@ struct __large_struct {
 
 /*
  * We don't tell gcc that we are accessing memory, but this is OK
- * because we do not write to any memory gcc knows about, so there
- * are no aliasing issues.
+ * because we do yest write to any memory gcc kyesws about, so there
+ * are yes aliasing issues.
  */
 #define __put_user_asm(x, addr, err, op)			\
 	__asm__ __volatile__(					\
@@ -135,7 +135,7 @@ struct __large_struct {
 		".section .fixup,\"ax\"\n"			\
 		"3:	l.addi %0,r0,%3\n"			\
 		"	l.j 2b\n"				\
-		"	l.nop\n"				\
+		"	l.yesp\n"				\
 		".previous\n"					\
 		".section __ex_table,\"a\"\n"			\
 		"	.align 2\n"				\
@@ -152,7 +152,7 @@ struct __large_struct {
 		".section .fixup,\"ax\"\n"			\
 		"4:	l.addi %0,r0,%3\n"			\
 		"	l.j 3b\n"				\
-		"	l.nop\n"				\
+		"	l.yesp\n"				\
 		".previous\n"					\
 		".section __ex_table,\"a\"\n"			\
 		"	.align 2\n"				\
@@ -162,7 +162,7 @@ struct __large_struct {
 		: "=r"(err)					\
 		: "r"(x), "r"(addr), "i"(-EFAULT), "0"(err))
 
-#define __get_user_nocheck(x, ptr, size)			\
+#define __get_user_yescheck(x, ptr, size)			\
 ({								\
 	long __gu_err, __gu_val;				\
 	__get_user_size(__gu_val, (ptr), (size), __gu_err);	\
@@ -202,7 +202,7 @@ do {									\
 		"3:	l.addi %0,r0,%3\n"		\
 		"	l.addi %1,r0,0\n"		\
 		"	l.j 2b\n"			\
-		"	l.nop\n"			\
+		"	l.yesp\n"			\
 		".previous\n"				\
 		".section __ex_table,\"a\"\n"		\
 		"	.align 2\n"			\
@@ -221,7 +221,7 @@ do {									\
 		"	l.addi %1,r0,0\n"		\
 		"	l.addi %H1,r0,0\n"		\
 		"	l.j 3b\n"			\
-		"	l.nop\n"			\
+		"	l.yesp\n"			\
 		".previous\n"				\
 		".section __ex_table,\"a\"\n"		\
 		"	.align 2\n"			\

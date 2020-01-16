@@ -161,7 +161,7 @@ extern struct request *elv_rb_find(struct rb_root *, sector_t);
 #define ELEVATOR_INSERT_SORT_MERGE	6
 
 #define rq_end_sector(rq)	(blk_rq_pos(rq) + blk_rq_sectors(rq))
-#define rb_entry_rq(node)	rb_entry((node), struct request, rb_node)
+#define rb_entry_rq(yesde)	rb_entry((yesde), struct request, rb_yesde)
 
 #define rq_entry_fifo(ptr)	list_entry((ptr), struct request, queuelist)
 #define rq_fifo_clear(rq)	list_del_init(&(rq)->queuelist)

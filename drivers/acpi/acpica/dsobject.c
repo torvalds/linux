@@ -47,9 +47,9 @@ acpi_ds_build_internal_object(struct acpi_walk_state *walk_state,
 		/*
 		 * This is a named object reference. If this name was
 		 * previously looked up in the namespace, it was stored in
-		 * this op. Otherwise, go ahead and look it up now
+		 * this op. Otherwise, go ahead and look it up yesw
 		 */
-		if (!op->common.node) {
+		if (!op->common.yesde) {
 
 			/* Check if we are resolving a named reference within a package */
 
@@ -74,8 +74,8 @@ acpi_ds_build_internal_object(struct acpi_walk_state *walk_state,
 							NULL,
 							ACPI_CAST_INDIRECT_PTR
 							(struct
-							 acpi_namespace_node,
-							 &(op->common.node)));
+							 acpi_namespace_yesde,
+							 &(op->common.yesde)));
 				if (ACPI_FAILURE(status)) {
 					ACPI_ERROR_NAMESPACE(walk_state->
 							     scope_info,
@@ -115,13 +115,13 @@ create_new_object:
 		obj_desc->reference.resolved = TRUE;
 
 		if ((op->common.aml_opcode == AML_INT_NAMEPATH_OP) &&
-		    !obj_desc->reference.node) {
+		    !obj_desc->reference.yesde) {
 			/*
 			 * Name was unresolved above.
-			 * Get the prefix node for later lookup
+			 * Get the prefix yesde for later lookup
 			 */
-			obj_desc->reference.node =
-			    walk_state->scope_info->scope.node;
+			obj_desc->reference.yesde =
+			    walk_state->scope_info->scope.yesde;
 			obj_desc->reference.aml = op->common.aml;
 			obj_desc->reference.resolved = FALSE;
 		}
@@ -162,7 +162,7 @@ acpi_ds_build_internal_buffer_obj(struct acpi_walk_state *walk_state,
 
 	/*
 	 * If we are evaluating a Named buffer object "Name (xxxx, Buffer)".
-	 * The buffer object already exists (from the NS node), otherwise it must
+	 * The buffer object already exists (from the NS yesde), otherwise it must
 	 * be created.
 	 */
 	obj_desc = *obj_desc_ptr;
@@ -231,46 +231,46 @@ acpi_ds_build_internal_buffer_obj(struct acpi_walk_state *walk_state,
 	}
 
 	obj_desc->buffer.flags |= AOPOBJ_DATA_VALID;
-	op->common.node = ACPI_CAST_PTR(struct acpi_namespace_node, obj_desc);
+	op->common.yesde = ACPI_CAST_PTR(struct acpi_namespace_yesde, obj_desc);
 	return_ACPI_STATUS(AE_OK);
 }
 
 /*******************************************************************************
  *
- * FUNCTION:    acpi_ds_create_node
+ * FUNCTION:    acpi_ds_create_yesde
  *
  * PARAMETERS:  walk_state      - Current walk state
- *              node            - NS Node to be initialized
+ *              yesde            - NS Node to be initialized
  *              op              - Parser object to be translated
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Create the object to be associated with a namespace node
+ * DESCRIPTION: Create the object to be associated with a namespace yesde
  *
  ******************************************************************************/
 
 acpi_status
-acpi_ds_create_node(struct acpi_walk_state *walk_state,
-		    struct acpi_namespace_node *node,
+acpi_ds_create_yesde(struct acpi_walk_state *walk_state,
+		    struct acpi_namespace_yesde *yesde,
 		    union acpi_parse_object *op)
 {
 	acpi_status status;
 	union acpi_operand_object *obj_desc;
 
-	ACPI_FUNCTION_TRACE_PTR(ds_create_node, op);
+	ACPI_FUNCTION_TRACE_PTR(ds_create_yesde, op);
 
 	/*
-	 * Because of the execution pass through the non-control-method
+	 * Because of the execution pass through the yesn-control-method
 	 * parts of the table, we can arrive here twice. Only init
-	 * the named object node the first time through
+	 * the named object yesde the first time through
 	 */
-	if (acpi_ns_get_attached_object(node)) {
+	if (acpi_ns_get_attached_object(yesde)) {
 		return_ACPI_STATUS(AE_OK);
 	}
 
 	if (!op->common.value.arg) {
 
-		/* No arguments, there is nothing to do */
+		/* No arguments, there is yesthing to do */
 
 		return_ACPI_STATUS(AE_OK);
 	}
@@ -286,11 +286,11 @@ acpi_ds_create_node(struct acpi_walk_state *walk_state,
 
 	/* Re-type the object according to its argument */
 
-	node->type = obj_desc->common.type;
+	yesde->type = obj_desc->common.type;
 
-	/* Attach obj to node */
+	/* Attach obj to yesde */
 
-	status = acpi_ns_attach_object(node, obj_desc, node->type);
+	status = acpi_ns_attach_object(yesde, obj_desc, yesde->type);
 
 	/* Remove local reference to the object */
 
@@ -331,7 +331,7 @@ acpi_ds_init_object_from_op(struct acpi_walk_state *walk_state,
 	op_info = acpi_ps_get_opcode_info(opcode);
 	if (op_info->class == AML_CLASS_UNKNOWN) {
 
-		/* Unknown opcode */
+		/* Unkyeswn opcode */
 
 		return_ACPI_STATUS(AE_TYPE);
 	}
@@ -343,8 +343,8 @@ acpi_ds_init_object_from_op(struct acpi_walk_state *walk_state,
 		/*
 		 * Defer evaluation of Buffer term_arg operand
 		 */
-		obj_desc->buffer.node =
-		    ACPI_CAST_PTR(struct acpi_namespace_node,
+		obj_desc->buffer.yesde =
+		    ACPI_CAST_PTR(struct acpi_namespace_yesde,
 				  walk_state->operands[0]);
 		obj_desc->buffer.aml_start = op->named.data;
 		obj_desc->buffer.aml_length = op->named.length;
@@ -358,8 +358,8 @@ acpi_ds_init_object_from_op(struct acpi_walk_state *walk_state,
 		 * in order to provide compatibility with other ACPI
 		 * implementations.
 		 */
-		obj_desc->package.node =
-		    ACPI_CAST_PTR(struct acpi_namespace_node,
+		obj_desc->package.yesde =
+		    ACPI_CAST_PTR(struct acpi_namespace_yesde,
 				  walk_state->operands[0]);
 
 		if (!op->named.data) {
@@ -379,7 +379,7 @@ acpi_ds_init_object_from_op(struct acpi_walk_state *walk_state,
 			 * All constants are integers.
 			 * We mark the integer with a flag that indicates that it started
 			 * life as a constant -- so that stores to constants will perform
-			 * as expected (noop). zero_op is used as a placeholder for optional
+			 * as expected (yesop). zero_op is used as a placeholder for optional
 			 * target operands.
 			 */
 			obj_desc->common.flags = AOPOBJ_AML_CONSTANT;
@@ -412,7 +412,7 @@ acpi_ds_init_object_from_op(struct acpi_walk_state *walk_state,
 			default:
 
 				ACPI_ERROR((AE_INFO,
-					    "Unknown constant opcode 0x%X",
+					    "Unkyeswn constant opcode 0x%X",
 					    opcode));
 				status = AE_AML_OPERAND_TYPE;
 				break;
@@ -437,7 +437,7 @@ acpi_ds_init_object_from_op(struct acpi_walk_state *walk_state,
 
 		default:
 
-			ACPI_ERROR((AE_INFO, "Unknown Integer type 0x%X",
+			ACPI_ERROR((AE_INFO, "Unkyeswn Integer type 0x%X",
 				    op_info->type));
 			status = AE_AML_OPERAND_TYPE;
 			break;
@@ -471,12 +471,12 @@ acpi_ds_init_object_from_op(struct acpi_walk_state *walk_state,
 			obj_desc->reference.class = ACPI_REFCLASS_LOCAL;
 
 			status =
-			    acpi_ds_method_data_get_node(ACPI_REFCLASS_LOCAL,
+			    acpi_ds_method_data_get_yesde(ACPI_REFCLASS_LOCAL,
 							 obj_desc->reference.
 							 value, walk_state,
 							 ACPI_CAST_INDIRECT_PTR
 							 (struct
-							  acpi_namespace_node,
+							  acpi_namespace_yesde,
 							  &obj_desc->reference.
 							  object));
 			break;
@@ -489,13 +489,13 @@ acpi_ds_init_object_from_op(struct acpi_walk_state *walk_state,
 			    ((u32)opcode) - AML_FIRST_ARG_OP;
 			obj_desc->reference.class = ACPI_REFCLASS_ARG;
 
-			status = acpi_ds_method_data_get_node(ACPI_REFCLASS_ARG,
+			status = acpi_ds_method_data_get_yesde(ACPI_REFCLASS_ARG,
 							      obj_desc->
 							      reference.value,
 							      walk_state,
 							      ACPI_CAST_INDIRECT_PTR
 							      (struct
-							       acpi_namespace_node,
+							       acpi_namespace_yesde,
 							       &obj_desc->
 							       reference.
 							       object));
@@ -508,11 +508,11 @@ acpi_ds_init_object_from_op(struct acpi_walk_state *walk_state,
 
 				/* Node was saved in Op */
 
-				obj_desc->reference.node = op->common.node;
+				obj_desc->reference.yesde = op->common.yesde;
 				obj_desc->reference.class = ACPI_REFCLASS_NAME;
-				if (op->common.node) {
+				if (op->common.yesde) {
 					obj_desc->reference.object =
-					    op->common.node->object;
+					    op->common.yesde->object;
 				}
 				break;
 

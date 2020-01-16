@@ -23,12 +23,12 @@
   are met:
 
     * Redistributions of source code must retain the above copyright
-      notice, this list of conditions and the following disclaimer.
+      yestice, this list of conditions and the following disclaimer.
     * Redistributions in binary form must reproduce the above copyright
-      notice, this list of conditions and the following disclaimer in
+      yestice, this list of conditions and the following disclaimer in
       the documentation and/or other materials provided with the
       distribution.
-    * Neither the name of Intel Corporation nor the names of its
+    * Neither the name of Intel Corporation yesr the names of its
       contributors may be used to endorse or promote products derived
       from this software without specific prior written permission.
 
@@ -49,7 +49,7 @@
 #include <linux/types.h>
 #include <linux/pci.h>
 #include <linux/slab.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/interrupt.h>
 #include "adf_accel_devices.h"
 #include "adf_common_drv.h"
@@ -105,7 +105,7 @@ static irqreturn_t adf_msix_isr_ae(int irq, void *dev_ptr)
 	struct adf_accel_dev *accel_dev = dev_ptr;
 
 #ifdef CONFIG_PCI_IOV
-	/* If SR-IOV is enabled (vf_info is non-NULL), check for VF->PF ints */
+	/* If SR-IOV is enabled (vf_info is yesn-NULL), check for VF->PF ints */
 	if (accel_dev->pf.vf_info) {
 		struct adf_hw_device_data *hw_data = accel_dev->hw_device;
 		struct adf_bar *pmisc =
@@ -238,8 +238,8 @@ static int adf_isr_alloc_msix_entry_table(struct adf_accel_dev *accel_dev)
 	if (!accel_dev->pf.vf_info)
 		msix_num_entries += hw_data->num_banks;
 
-	entries = kcalloc_node(msix_num_entries, sizeof(*entries),
-			       GFP_KERNEL, dev_to_node(&GET_DEV(accel_dev)));
+	entries = kcalloc_yesde(msix_num_entries, sizeof(*entries),
+			       GFP_KERNEL, dev_to_yesde(&GET_DEV(accel_dev)));
 	if (!entries)
 		return -ENOMEM;
 

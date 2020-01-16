@@ -54,7 +54,7 @@ struct ddebug_query {
 	const char *module;
 	const char *function;
 	const char *format;
-	unsigned int first_lineno, last_lineno;
+	unsigned int first_lineyes, last_lineyes;
 };
 
 struct ddebug_iter {
@@ -122,19 +122,19 @@ static void vpr_info_dq(const struct ddebug_query *query, const char *msg)
 			fmtlen--;
 	}
 
-	vpr_info("%s: func=\"%s\" file=\"%s\" module=\"%s\" format=\"%.*s\" lineno=%u-%u\n",
+	vpr_info("%s: func=\"%s\" file=\"%s\" module=\"%s\" format=\"%.*s\" lineyes=%u-%u\n",
 		 msg,
 		 query->function ? query->function : "",
 		 query->filename ? query->filename : "",
 		 query->module ? query->module : "",
 		 fmtlen, query->format ? query->format : "",
-		 query->first_lineno, query->last_lineno);
+		 query->first_lineyes, query->last_lineyes);
 }
 
 /*
  * Search the tables for _ddebug's which match the given `query' and
  * apply the `flags' and `mask' to them.  Returns number of matching
- * callsites, normally the same as number of changes.  If verbose,
+ * callsites, yesrmally the same as number of changes.  If verbose,
  * logs the changes.  Takes ddebug_lock.
  */
 static int ddebug_change(const struct ddebug_query *query,
@@ -178,11 +178,11 @@ static int ddebug_change(const struct ddebug_query *query,
 				continue;
 
 			/* match against the line number range */
-			if (query->first_lineno &&
-			    dp->lineno < query->first_lineno)
+			if (query->first_lineyes &&
+			    dp->lineyes < query->first_lineyes)
 				continue;
-			if (query->last_lineno &&
-			    dp->lineno > query->last_lineno)
+			if (query->last_lineyes &&
+			    dp->lineyes > query->last_lineyes)
 				continue;
 
 			nfound++;
@@ -199,7 +199,7 @@ static int ddebug_change(const struct ddebug_query *query,
 #endif
 			dp->flags = newflags;
 			vpr_info("changed %s:%d [%s]%s =%s\n",
-				 trim_prefix(dp->filename), dp->lineno,
+				 trim_prefix(dp->filename), dp->lineyes,
 				 dt->mod_name, dp->function,
 				 ddebug_describe_flags(dp, flagbuf,
 						       sizeof(flagbuf)));
@@ -208,7 +208,7 @@ static int ddebug_change(const struct ddebug_query *query,
 	mutex_unlock(&ddebug_lock);
 
 	if (!nfound && verbose)
-		pr_info("no matches for query\n");
+		pr_info("yes matches for query\n");
 
 	return nfound;
 }
@@ -275,7 +275,7 @@ static int ddebug_tokenize(char *buf, char *words[], int maxwords)
  * is treated as a special case and converted to zero, which
  * is later treated as a "don't care" value.
  */
-static inline int parse_lineno(const char *str, unsigned int *val)
+static inline int parse_lineyes(const char *str, unsigned int *val)
 {
 	BUG_ON(str == NULL);
 	if (*str == '\0') {
@@ -311,8 +311,8 @@ static int check_set(const char **dest, char *src, char *name)
  * file <base-filename>
  * module <module-name>
  * format <escaped-string-to-find-in-format>
- * line <lineno>
- * line <first-lineno>-<last-lineno> // where either may be empty
+ * line <lineyes>
+ * line <first-lineyes>-<last-lineyes> // where either may be empty
  *
  * Only 1 of each type is allowed.
  * Returns 0 on success, <0 on error.
@@ -349,34 +349,34 @@ static int ddebug_parse_query(char *words[], int nwords,
 		} else if (!strcmp(words[i], "line")) {
 			char *first = words[i+1];
 			char *last = strchr(first, '-');
-			if (query->first_lineno || query->last_lineno) {
+			if (query->first_lineyes || query->last_lineyes) {
 				pr_err("match-spec: line used 2x\n");
 				return -EINVAL;
 			}
 			if (last)
 				*last++ = '\0';
-			if (parse_lineno(first, &query->first_lineno) < 0)
+			if (parse_lineyes(first, &query->first_lineyes) < 0)
 				return -EINVAL;
 			if (last) {
 				/* range <first>-<last> */
-				if (parse_lineno(last, &query->last_lineno) < 0)
+				if (parse_lineyes(last, &query->last_lineyes) < 0)
 					return -EINVAL;
 
-				/* special case for last lineno not specified */
-				if (query->last_lineno == 0)
-					query->last_lineno = UINT_MAX;
+				/* special case for last lineyes yest specified */
+				if (query->last_lineyes == 0)
+					query->last_lineyes = UINT_MAX;
 
-				if (query->last_lineno < query->first_lineno) {
+				if (query->last_lineyes < query->first_lineyes) {
 					pr_err("last-line:%d < 1st-line:%d\n",
-						query->last_lineno,
-						query->first_lineno);
+						query->last_lineyes,
+						query->first_lineyes);
 					return -EINVAL;
 				}
 			} else {
-				query->last_lineno = query->first_lineno;
+				query->last_lineyes = query->first_lineyes;
 			}
 		} else {
-			pr_err("unknown keyword \"%s\"\n", words[i]);
+			pr_err("unkyeswn keyword \"%s\"\n", words[i]);
 			return -EINVAL;
 		}
 		if (rc)
@@ -418,7 +418,7 @@ static int ddebug_parse_flags(const char *str, unsigned int *flagsp,
 			}
 		}
 		if (i < 0) {
-			pr_err("unknown flag '%c' in \"%s\"\n", *str, str);
+			pr_err("unkyeswn flag '%c' in \"%s\"\n", *str, str);
 			return -EINVAL;
 		}
 	}
@@ -467,7 +467,7 @@ static int ddebug_exec_query(char *query_string, const char *modname)
 	}
 	/* actually go and implement the change */
 	nfound = ddebug_change(&query, flags, mask);
-	vpr_info_dq(&query, nfound ? "applied" : "no-match");
+	vpr_info_dq(&query, nfound ? "applied" : "yes-match");
 
 	return nfound;
 }
@@ -541,7 +541,7 @@ static char *dynamic_emit_prefix(const struct _ddebug *desc, char *buf)
 				desc->function);
 	if (desc->flags & _DPRINTK_FLAGS_INCL_LINENO)
 		pos += snprintf(buf + pos, remaining(pos), "%d:",
-				desc->lineno);
+				desc->lineyes);
 	if (pos - pos_after_tid)
 		pos += snprintf(buf + pos, remaining(pos), " ");
 	if (pos >= PREFIX_SIZE)
@@ -722,7 +722,7 @@ static ssize_t ddebug_proc_write(struct file *file, const char __user *ubuf,
 /*
  * Set the iterator to point to the first _ddebug object
  * and return a pointer to that first object.  Returns
- * NULL if there are no _ddebugs at all.
+ * NULL if there are yes _ddebugs at all.
  */
 static struct _ddebug *ddebug_iter_first(struct ddebug_iter *iter)
 {
@@ -822,12 +822,12 @@ static int ddebug_proc_show(struct seq_file *m, void *p)
 
 	if (p == SEQ_START_TOKEN) {
 		seq_puts(m,
-			 "# filename:lineno [module]function flags format\n");
+			 "# filename:lineyes [module]function flags format\n");
 		return 0;
 	}
 
 	seq_printf(m, "%s:%u [%s]%s =%s \"",
-		   trim_prefix(dp->filename), dp->lineno,
+		   trim_prefix(dp->filename), dp->lineyes,
 		   iter->table->mod_name, dp->function,
 		   ddebug_describe_flags(dp, flagsbuf, sizeof(flagsbuf)));
 	seq_escape(m, dp->format, "\t\r\n\"");
@@ -857,10 +857,10 @@ static const struct seq_operations ddebug_proc_seqops = {
  * File_ops->open method for <debugfs>/dynamic_debug/control.  Does
  * the seq_file setup dance, and also creates an iterator to walk the
  * _ddebugs.  Note that we create a seq_file always, even for O_WRONLY
- * files where it's not needed, as doing so simplifies the ->release
+ * files where it's yest needed, as doing so simplifies the ->release
  * method.
  */
-static int ddebug_proc_open(struct inode *inode, struct file *file)
+static int ddebug_proc_open(struct iyesde *iyesde, struct file *file)
 {
 	vpr_info("called\n");
 	return seq_open_private(file, &ddebug_proc_seqops,
@@ -939,7 +939,7 @@ static int ddebug_dyndbg_boot_param_cb(char *param, char *val,
 
 /*
  * modprobe foo finds foo.params in boot-args, strips "foo.", and
- * passes them to load_module().  This callback gets unknown params,
+ * passes them to load_module().  This callback gets unkyeswn params,
  * processes dyndbg params, rejects others.
  */
 int ddebug_dyndbg_module_param_cb(char *param, char *val, const char *module)
@@ -1055,13 +1055,13 @@ static int __init dynamic_debug_init(void)
 		else
 			pr_info("%d changes by ddebug_query\n", ret);
 	}
-	/* now that ddebug tables are loaded, process all boot args
+	/* yesw that ddebug tables are loaded, process all boot args
 	 * again to find and activate queries given in dyndbg params.
-	 * While this has already been done for known boot params, it
-	 * ignored the unknown ones (dyndbg in particular).  Reusing
+	 * While this has already been done for kyeswn boot params, it
+	 * igyesred the unkyeswn ones (dyndbg in particular).  Reusing
 	 * parse_args avoids ad-hoc parsing.  This will also attempt
-	 * to activate queries for not-yet-loaded modules, which is
-	 * slightly noisy if verbose, but harmless.
+	 * to activate queries for yest-yet-loaded modules, which is
+	 * slightly yesisy if verbose, but harmless.
 	 */
 	cmdline = kstrdup(saved_command_line, GFP_KERNEL);
 	parse_args("dyndbg params", cmdline, NULL,

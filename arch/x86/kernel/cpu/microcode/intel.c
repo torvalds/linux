@@ -13,7 +13,7 @@
 
 /*
  * This needs to be before all headers so that pr_debug in printk.h doesn't turn
- * printk calls into no_printk().
+ * printk calls into yes_printk().
  *
  *#define DEBUG
  */
@@ -216,7 +216,7 @@ static void save_microcode_patch(void *data, unsigned int size)
 	 * paging has been enabled.
 	 */
 	if (IS_ENABLED(CONFIG_X86_32))
-		intel_ucode_patch = (struct microcode_intel *)__pa_nodebug(p->data);
+		intel_ucode_patch = (struct microcode_intel *)__pa_yesdebug(p->data);
 	else
 		intel_ucode_patch = p->data;
 }
@@ -240,7 +240,7 @@ static int microcode_sanity_check(void *mc, int print_err)
 
 	if (mc_header->ldrver != 1 || mc_header->hdrver != 1) {
 		if (print_err)
-			pr_err("Error: invalid/unknown microcode update format.\n");
+			pr_err("Error: invalid/unkyeswn microcode update format.\n");
 		return -EINVAL;
 	}
 
@@ -425,7 +425,7 @@ static void show_saved_mc(void)
 	struct ucode_patch *p;
 
 	if (list_empty(&microcode_cache)) {
-		pr_debug("no microcode data saved.\n");
+		pr_debug("yes microcode data saved.\n");
 		return;
 	}
 
@@ -545,7 +545,7 @@ void show_ucode_info_early(void)
 }
 
 /*
- * At this point, we can not call printk() yet. Delay printing microcode info in
+ * At this point, we can yest call printk() yet. Delay printing microcode info in
  * show_ucode_info_early() until printk() works.
  */
 static void print_ucode(struct ucode_cpu_info *uci)
@@ -558,8 +558,8 @@ static void print_ucode(struct ucode_cpu_info *uci)
 	if (!mc)
 		return;
 
-	delay_ucode_info_p = (int *)__pa_nodebug(&delay_ucode_info);
-	current_mc_date_p = (int *)__pa_nodebug(&current_mc_date);
+	delay_ucode_info_p = (int *)__pa_yesdebug(&delay_ucode_info);
+	current_mc_date_p = (int *)__pa_yesdebug(&current_mc_date);
 
 	*delay_ucode_info_p = 1;
 	*current_mc_date_p = mc->hdr.date;
@@ -659,7 +659,7 @@ static struct microcode_intel *__load_ucode_intel(struct ucode_cpu_info *uci)
 	bool use_pa;
 
 	if (IS_ENABLED(CONFIG_X86_32)) {
-		path	  = (const char *)__pa_nodebug(ucode_path);
+		path	  = (const char *)__pa_yesdebug(ucode_path);
 		use_pa	  = true;
 	} else {
 		path	  = ucode_path;
@@ -698,7 +698,7 @@ void load_ucode_intel_ap(void)
 	struct ucode_cpu_info uci;
 
 	if (IS_ENABLED(CONFIG_X86_32))
-		iup = (struct microcode_intel **) __pa_nodebug(&intel_ucode_patch);
+		iup = (struct microcode_intel **) __pa_yesdebug(&intel_ucode_patch);
 	else
 		iup = &intel_ucode_patch;
 
@@ -1035,7 +1035,7 @@ struct microcode_ops * __init init_intel_microcode(void)
 
 	if (c->x86_vendor != X86_VENDOR_INTEL || c->x86 < 6 ||
 	    cpu_has(c, X86_FEATURE_IA64)) {
-		pr_err("Intel CPU family 0x%x not supported\n", c->x86);
+		pr_err("Intel CPU family 0x%x yest supported\n", c->x86);
 		return NULL;
 	}
 

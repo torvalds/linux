@@ -5,7 +5,7 @@
  * Copyright (C) 2015, Google, Inc.,
  * Paul Turner <pjt@google.com> and Andrew Hunter <ahh@google.com>
  * Copyright (C) 2015-2018, EfficiOS Inc.,
- * Mathieu Desnoyers <mathieu.desnoyers@efficios.com>
+ * Mathieu Desyesyers <mathieu.desyesyers@efficios.com>
  */
 
 #include <linux/sched.h>
@@ -140,7 +140,7 @@ static int rseq_get_rseq_cs(struct task_struct *t, struct rseq_cs *rseq_cs)
 	/* Check for overflow. */
 	if (rseq_cs->start_ip + rseq_cs->post_commit_offset < rseq_cs->start_ip)
 		return -EINVAL;
-	/* Ensure that abort_ip is not in the critical section. */
+	/* Ensure that abort_ip is yest in the critical section. */
 	if (rseq_cs->abort_ip - rseq_cs->start_ip < rseq_cs->post_commit_offset)
 		return -EINVAL;
 
@@ -230,8 +230,8 @@ static int rseq_ip_fixup(struct pt_regs *regs)
 		return ret;
 
 	/*
-	 * Handle potentially not being within a critical section.
-	 * If not nested over a rseq critical section, restart is useless.
+	 * Handle potentially yest being within a critical section.
+	 * If yest nested over a rseq critical section, restart is useless.
 	 * Clear the rseq_cs pointer and return.
 	 */
 	if (!in_rseq_cs(ip, &rseq_cs))
@@ -259,7 +259,7 @@ static int rseq_ip_fixup(struct pt_regs *regs)
  * respect to other threads scheduled on the same CPU, and with respect
  * to signal handlers.
  */
-void __rseq_handle_notify_resume(struct ksignal *ksig, struct pt_regs *regs)
+void __rseq_handle_yestify_resume(struct ksignal *ksig, struct pt_regs *regs)
 {
 	struct task_struct *t = current;
 	int ret, sig;
@@ -343,10 +343,10 @@ SYSCALL_DEFINE4(rseq, struct rseq __user *, rseq, u32, rseq_len,
 	}
 
 	/*
-	 * If there was no rseq previously registered,
+	 * If there was yes rseq previously registered,
 	 * ensure the provided rseq is properly aligned and valid.
 	 */
-	if (!IS_ALIGNED((unsigned long)rseq, __alignof__(*rseq)) ||
+	if (!IS_ALIGNED((unsigned long)rseq, __aligyesf__(*rseq)) ||
 	    rseq_len != sizeof(*rseq))
 		return -EINVAL;
 	if (!access_ok(rseq, rseq_len))
@@ -358,7 +358,7 @@ SYSCALL_DEFINE4(rseq, struct rseq __user *, rseq, u32, rseq_len,
 	 * registered, ensure the cpu_id_start and cpu_id fields
 	 * are updated before returning to user-space.
 	 */
-	rseq_set_notify_resume(current);
+	rseq_set_yestify_resume(current);
 
 	return 0;
 }

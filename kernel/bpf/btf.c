@@ -8,9 +8,9 @@
 #include <linux/seq_file.h>
 #include <linux/compiler.h>
 #include <linux/ctype.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/slab.h>
-#include <linux/anon_inodes.h>
+#include <linux/ayesn_iyesdes.h>
 #include <linux/file.h>
 #include <linux/uaccess.h>
 #include <linux/kernel.h>
@@ -57,27 +57,27 @@
  * one has type_id 2...etc.  Hence, an earlier btf_type has
  * a smaller type_id.
  *
- * A btf_type object may refer to another btf_type object by using
+ * A btf_type object may refer to ayesther btf_type object by using
  * type_id (i.e. the "type" in the "struct btf_type").
  *
- * NOTE that we cannot assume any reference-order.
+ * NOTE that we canyest assume any reference-order.
  * A btf_type object can refer to an earlier btf_type object
  * but it can also refer to a later btf_type object.
  *
  * For example, to describe "const void *".  A btf_type
- * object describing "const" may refer to another btf_type
+ * object describing "const" may refer to ayesther btf_type
  * object describing "void *".  This type-reference is done
  * by specifying type_id:
  *
- * [1] CONST (anon) type_id=2
- * [2] PTR (anon) type_id=0
+ * [1] CONST (ayesn) type_id=2
+ * [2] PTR (ayesn) type_id=0
  *
  * The above is the btf_verifier debug log:
  *   - Each line started with "[?]" is a btf_type object
  *   - [?] is the type_id of the btf_type object.
  *   - CONST/PTR is the BTF_KIND_XXX
- *   - "(anon)" is the name of the type.  It just
- *     happens that CONST and PTR has no name.
+ *   - "(ayesn)" is the name of the type.  It just
+ *     happens that CONST and PTR has yes name.
  *   - type_id=XXX is the 'u32 type' in btf_type
  *
  * NOTE: "void" has type_id 0
@@ -91,7 +91,7 @@
  * Each string is '\0' terminated.
  *
  * The first character in the string section must be '\0'
- * which is used to mean 'anonymous'. Some btf_type may not
+ * which is used to mean 'ayesnymous'. Some btf_type may yest
  * have a name.
  */
 
@@ -105,13 +105,13 @@
  * an array: "btf->types".
  *
  * Depending on the C type that a btf_type is describing,
- * a btf_type may be followed by extra data.  We don't know
+ * a btf_type may be followed by extra data.  We don't kyesw
  * how many btf_type is there, and more importantly we don't
- * know where each btf_type is located in the type section.
+ * kyesw where each btf_type is located in the type section.
  *
- * Without knowing the location of each type_id, most verifications
- * cannot be done.  e.g. an earlier btf_type may refer to a later
- * btf_type (recall the "const void *" above), so we cannot
+ * Without kyeswing the location of each type_id, most verifications
+ * canyest be done.  e.g. an earlier btf_type may refer to a later
+ * btf_type (recall the "const void *" above), so we canyest
  * check this type-reference in the first pass.
  *
  * In the first pass, it still does some verifications (e.g.
@@ -120,11 +120,11 @@
  * Pass #2
  * ~~~~~~~
  * The main focus is to resolve a btf_type that is referring
- * to another type.
+ * to ayesther type.
  *
  * We have to ensure the referring type:
  * 1) does exist in the BTF (i.e. in btf->types[])
- * 2) does not cause a loop:
+ * 2) does yest cause a loop:
  *	struct A {
  *		struct B b;
  *	};
@@ -143,7 +143,7 @@
  * "RESOLVED" conditions.
  *
  * When resolving a BTF_KIND_STRUCT, we need to resolve all its
- * members because a member is always referring to another
+ * members because a member is always referring to ayesther
  * type.  A struct's member can be treated as "RESOLVED" if
  * it is referring to a BTF_KIND_PTR.  Otherwise, the
  * following valid C struct would be rejected:
@@ -154,7 +154,7 @@
  *	};
  *
  * When resolving a BTF_KIND_PTR, it needs to keep resolving if
- * it is referring to another BTF_KIND_PTR.  Otherwise, we cannot
+ * it is referring to ayesther BTF_KIND_PTR.  Otherwise, we canyest
  * detect a pointer loop, e.g.:
  * BTF_KIND_CONST -> BTF_KIND_PTR -> BTF_KIND_CONST -> BTF_KIND_PTR +
  *                        ^                                         |
@@ -209,7 +209,7 @@ struct btf {
 	u32 *resolved_ids;
 	u32 *resolved_sizes;
 	const char *strings;
-	void *nohdr_data;
+	void *yeshdr_data;
 	struct btf_header hdr;
 	u32 nr_types;
 	u32 types_size;
@@ -310,14 +310,14 @@ static int btf_resolve(struct btf_verifier_env *env,
 
 static bool btf_type_is_modifier(const struct btf_type *t)
 {
-	/* Some of them is not strictly a C modifier
+	/* Some of them is yest strictly a C modifier
 	 * but they are grouped into the same bucket
 	 * for BTF concern:
-	 *   A type (t) that refers to another
-	 *   type through t->type AND its size cannot
+	 *   A type (t) that refers to ayesther
+	 *   type through t->type AND its size canyest
 	 *   be determined without following the t->type.
 	 *
-	 * ptr does not fall into this bucket
+	 * ptr does yest fall into this bucket
 	 * because its size is always sizeof(void *).
 	 */
 	switch (BTF_INFO_KIND(t->info)) {
@@ -341,15 +341,15 @@ static bool btf_type_is_fwd(const struct btf_type *t)
 	return BTF_INFO_KIND(t->info) == BTF_KIND_FWD;
 }
 
-static bool btf_type_nosize(const struct btf_type *t)
+static bool btf_type_yessize(const struct btf_type *t)
 {
 	return btf_type_is_void(t) || btf_type_is_fwd(t) ||
 	       btf_type_is_func(t) || btf_type_is_func_proto(t);
 }
 
-static bool btf_type_nosize_or_null(const struct btf_type *t)
+static bool btf_type_yessize_or_null(const struct btf_type *t)
 {
-	return !t || btf_type_nosize(t);
+	return !t || btf_type_yessize(t);
 }
 
 /* union is only a special case of struct:
@@ -382,7 +382,7 @@ static bool btf_type_is_datasec(const struct btf_type *t)
 	return BTF_INFO_KIND(t->info) == BTF_KIND_DATASEC;
 }
 
-/* Types that act only as a source, not sink or intermediate
+/* Types that act only as a source, yest sink or intermediate
  * type when resolving.
  */
 static bool btf_type_is_resolve_source_only(const struct btf_type *t)
@@ -396,14 +396,14 @@ static bool btf_type_is_resolve_source_only(const struct btf_type *t)
  * btf_type_is_modifier() is an obvious one.
  *
  * btf_type_is_struct() because its member refers to
- * another type (through member->type).
+ * ayesther type (through member->type).
  *
  * btf_type_is_var() because the variable refers to
- * another type. btf_type_is_datasec() holds multiple
+ * ayesther type. btf_type_is_datasec() holds multiple
  * btf_type_is_var() types that need resolving.
  *
  * btf_type_is_array() because its element (array->type)
- * refers to another type.  Array can be thought of a
+ * refers to ayesther type.  Array can be thought of a
  * special case of struct while array just has the same
  * member-type repeated by array->nelems of times.
  */
@@ -435,7 +435,7 @@ static bool btf_type_has_size(const struct btf_type *t)
 static const char *btf_int_encoding_str(u8 encoding)
 {
 	if (encoding == 0)
-		return "(none)";
+		return "(yesne)";
 	else if (encoding == BTF_INT_SIGNED)
 		return "SIGNED";
 	else if (encoding == BTF_INT_CHAR)
@@ -559,7 +559,7 @@ static bool btf_name_valid_section(const struct btf *btf, u32 offset)
 static const char *__btf_name_by_offset(const struct btf *btf, u32 offset)
 {
 	if (!offset)
-		return "(anon)";
+		return "(ayesn)";
 	else if (offset < btf->hdr.str_len)
 		return &btf->strings[offset];
 	else
@@ -583,7 +583,7 @@ const struct btf_type *btf_type_by_id(const struct btf *btf, u32 type_id)
 }
 
 /*
- * Regular int is not a bit field and it must be either
+ * Regular int is yest a bit field and it must be either
  * u8/u16/u32/u64 or __int128.
  */
 static bool btf_type_int_is_regular(const struct btf_type *t)
@@ -817,8 +817,8 @@ static int btf_add_type(struct btf_verifier_env *env, struct btf_type *t)
 	struct btf *btf = env->btf;
 
 	/* < 2 because +1 for btf_void which is always in btf->types[0].
-	 * btf_void is not accounted in btf->nr_types because btf_void
-	 * does not come from the BTF file.
+	 * btf_void is yest accounted in btf->nr_types because btf_void
+	 * does yest come from the BTF file.
 	 */
 	if (btf->types_size - btf->nr_types < 2) {
 		/* Expand 'types' array */
@@ -928,17 +928,17 @@ static int env_resolve_init(struct btf_verifier_env *env)
 	resolved_sizes = kvcalloc(nr_types + 1, sizeof(*resolved_sizes),
 				  GFP_KERNEL | __GFP_NOWARN);
 	if (!resolved_sizes)
-		goto nomem;
+		goto yesmem;
 
 	resolved_ids = kvcalloc(nr_types + 1, sizeof(*resolved_ids),
 				GFP_KERNEL | __GFP_NOWARN);
 	if (!resolved_ids)
-		goto nomem;
+		goto yesmem;
 
 	visit_states = kvcalloc(nr_types + 1, sizeof(*visit_states),
 				GFP_KERNEL | __GFP_NOWARN);
 	if (!visit_states)
-		goto nomem;
+		goto yesmem;
 
 	btf->resolved_sizes = resolved_sizes;
 	btf->resolved_ids = resolved_ids;
@@ -946,7 +946,7 @@ static int env_resolve_init(struct btf_verifier_env *env)
 
 	return 0;
 
-nomem:
+yesmem:
 	kvfree(resolved_sizes);
 	kvfree(resolved_ids);
 	kvfree(visit_states);
@@ -1051,7 +1051,7 @@ static const struct resolve_vertex *env_stack_peak(struct btf_verifier_env *env)
  * *total_nelems: (x * y).  Hence, individual elem size is
  *                (*type_size / *total_nelems)
  *
- * type: is not an array (e.g. const struct X)
+ * type: is yest an array (e.g. const struct X)
  * return type: type "struct X"
  * *type_size: sizeof(struct X)
  * *elem_type: same as return type ("struct X")
@@ -1133,7 +1133,7 @@ const struct btf_type *btf_type_id_size(const struct btf *btf,
 	u32 size = 0;
 
 	size_type = btf_type_by_id(btf, size_type_id);
-	if (btf_type_nosize_or_null(size_type))
+	if (btf_type_yessize_or_null(size_type))
 		return NULL;
 
 	if (btf_type_has_size(size_type)) {
@@ -1149,7 +1149,7 @@ const struct btf_type *btf_type_id_size(const struct btf *btf,
 
 		size_type_id = btf->resolved_ids[size_type_id];
 		size_type = btf_type_by_id(btf, size_type_id);
-		if (btf_type_nosize_or_null(size_type))
+		if (btf_type_yessize_or_null(size_type))
 			return NULL;
 		else if (btf_type_has_size(size_type))
 			size = size_type->size;
@@ -1203,7 +1203,7 @@ static int btf_generic_check_kflag_member(struct btf_verifier_env *env,
 	}
 
 	/* bitfield size is 0, so member->offset represents bit offset only.
-	 * It is safe to call non kflag check_member variants.
+	 * It is safe to call yesn kflag check_member variants.
 	 */
 	return btf_type_ops(member_type)->check_member(env, struct_type,
 						       member,
@@ -1495,7 +1495,7 @@ static void btf_int_bits_seq_show(const struct btf *btf,
 
 	/*
 	 * bits_offset is at most 7.
-	 * BTF_INT_OFFSET() cannot exceed 128 bits.
+	 * BTF_INT_OFFSET() canyest exceed 128 bits.
 	 */
 	total_bits_offset = bits_offset + BTF_INT_OFFSET(int_data);
 	data += BITS_ROUNDDOWN_BYTES(total_bits_offset);
@@ -1623,7 +1623,7 @@ static int btf_ptr_check_member(struct btf_verifier_env *env,
 
 	if (BITS_PER_BYTE_MASKED(struct_bits_off)) {
 		btf_verifier_log_member(env, struct_type, member,
-					"Member is not byte aligned");
+					"Member is yest byte aligned");
 		return -EINVAL;
 	}
 
@@ -1750,7 +1750,7 @@ static int btf_var_resolve(struct btf_verifier_env *env,
 					      resolved_type_id);
 	}
 
-	/* We must resolve to something concrete at this point, no
+	/* We must resolve to something concrete at this point, yes
 	 * forward types or similar that would resolve to size of
 	 * zero is allowed.
 	 */
@@ -1786,8 +1786,8 @@ static int btf_ptr_resolve(struct btf_verifier_env *env,
 	 * the modifier may have stopped resolving when it was resolved
 	 * to a ptr (last-resolved-ptr).
 	 *
-	 * We now need to continue from the last-resolved-ptr to
-	 * ensure the last-resolved-ptr will not referring back to
+	 * We yesw need to continue from the last-resolved-ptr to
+	 * ensure the last-resolved-ptr will yest referring back to
 	 * the currenct ptr (t).
 	 */
 	if (btf_type_is_modifier(next_type)) {
@@ -1925,7 +1925,7 @@ static int btf_array_check_member(struct btf_verifier_env *env,
 
 	if (BITS_PER_BYTE_MASKED(struct_bits_off)) {
 		btf_verifier_log_member(env, struct_type, member,
-					"Member is not byte aligned");
+					"Member is yest byte aligned");
 		return -EINVAL;
 	}
 
@@ -1956,7 +1956,7 @@ static s32 btf_array_check_meta(struct btf_verifier_env *env,
 		return -EINVAL;
 	}
 
-	/* array type should not have a name */
+	/* array type should yest have a name */
 	if (t->name_off) {
 		btf_verifier_log_type(env, t, "Invalid name");
 		return -EINVAL;
@@ -1977,8 +1977,8 @@ static s32 btf_array_check_meta(struct btf_verifier_env *env,
 		return -EINVAL;
 	}
 
-	/* Array elem type and index type cannot be in type void,
-	 * so !array->type and !array->index_type are not allowed.
+	/* Array elem type and index type canyest be in type void,
+	 * so !array->type and !array->index_type are yest allowed.
 	 */
 	if (!array->type || !BTF_TYPE_ID_VALID(array->type)) {
 		btf_verifier_log_type(env, t, "Invalid elem");
@@ -2007,7 +2007,7 @@ static int btf_array_resolve(struct btf_verifier_env *env,
 	/* Check array->index_type */
 	index_type_id = array->index_type;
 	index_type = btf_type_by_id(btf, index_type_id);
-	if (btf_type_nosize_or_null(index_type) ||
+	if (btf_type_yessize_or_null(index_type) ||
 	    btf_type_is_resolve_source_only(index_type)) {
 		btf_verifier_log_type(env, v->t, "Invalid index");
 		return -EINVAL;
@@ -2027,7 +2027,7 @@ static int btf_array_resolve(struct btf_verifier_env *env,
 	/* Check array->type */
 	elem_type_id = array->type;
 	elem_type = btf_type_by_id(btf, elem_type_id);
-	if (btf_type_nosize_or_null(elem_type) ||
+	if (btf_type_yessize_or_null(elem_type) ||
 	    btf_type_is_resolve_source_only(elem_type)) {
 		btf_verifier_log_type(env, v->t,
 				      "Invalid elem");
@@ -2112,7 +2112,7 @@ static int btf_struct_check_member(struct btf_verifier_env *env,
 
 	if (BITS_PER_BYTE_MASKED(struct_bits_off)) {
 		btf_verifier_log_member(env, struct_type, member,
-					"Member is not byte aligned");
+					"Member is yest byte aligned");
 		return -EINVAL;
 	}
 
@@ -2147,7 +2147,7 @@ static s32 btf_struct_check_meta(struct btf_verifier_env *env,
 		return -EINVAL;
 	}
 
-	/* struct type either no name or a valid one */
+	/* struct type either yes name or a valid one */
 	if (t->name_off &&
 	    !btf_name_valid_identifier(env->btf, t->name_off)) {
 		btf_verifier_log_type(env, t, "Invalid name");
@@ -2165,13 +2165,13 @@ static s32 btf_struct_check_meta(struct btf_verifier_env *env,
 			return -EINVAL;
 		}
 
-		/* struct member either no name or a valid one */
+		/* struct member either yes name or a valid one */
 		if (member->name_off &&
 		    !btf_name_valid_identifier(btf, member->name_off)) {
 			btf_verifier_log_member(env, t, member, "Invalid name");
 			return -EINVAL;
 		}
-		/* A member cannot be in type void */
+		/* A member canyest be in type void */
 		if (!member->type || !BTF_TYPE_ID_VALID(member->type)) {
 			btf_verifier_log_member(env, t, member,
 						"Invalid type_id");
@@ -2249,7 +2249,7 @@ static int btf_struct_resolve(struct btf_verifier_env *env,
 		const struct btf_type *member_type = btf_type_by_id(env->btf,
 								member_type_id);
 
-		if (btf_type_nosize_or_null(member_type) ||
+		if (btf_type_yessize_or_null(member_type) ||
 		    btf_type_is_resolve_source_only(member_type)) {
 			btf_verifier_log_member(env, v->t, member,
 						"Invalid member");
@@ -2312,10 +2312,10 @@ int btf_find_spin_lock(const struct btf *btf, const struct btf_type *t)
 			return -E2BIG;
 		off = btf_member_bit_offset(t, member);
 		if (off % 8)
-			/* valid C code cannot generate such BTF */
+			/* valid C code canyest generate such BTF */
 			return -EINVAL;
 		off /= 8;
-		if (off % __alignof__(struct bpf_spin_lock))
+		if (off % __aligyesf__(struct bpf_spin_lock))
 			/* valid struct bpf_spin_lock will be 4 byte aligned */
 			return -EINVAL;
 	}
@@ -2377,7 +2377,7 @@ static int btf_enum_check_member(struct btf_verifier_env *env,
 
 	if (BITS_PER_BYTE_MASKED(struct_bits_off)) {
 		btf_verifier_log_member(env, struct_type, member,
-					"Member is not byte aligned");
+					"Member is yest byte aligned");
 		return -EINVAL;
 	}
 
@@ -2405,7 +2405,7 @@ static int btf_enum_check_kflag_member(struct btf_verifier_env *env,
 	if (!nr_bits) {
 		if (BITS_PER_BYTE_MASKED(struct_bits_off)) {
 			btf_verifier_log_member(env, struct_type, member,
-						"Member is not byte aligned");
+						"Member is yest byte aligned");
 			return -EINVAL;
 		}
 
@@ -2456,7 +2456,7 @@ static s32 btf_enum_check_meta(struct btf_verifier_env *env,
 		return -EINVAL;
 	}
 
-	/* enum type either no name or a valid one */
+	/* enum type either yes name or a valid one */
 	if (t->name_off &&
 	    !btf_name_valid_identifier(env->btf, t->name_off)) {
 		btf_verifier_log_type(env, t, "Invalid name");
@@ -2597,13 +2597,13 @@ static struct btf_kind_operations func_proto_ops = {
 	.check_meta = btf_func_proto_check_meta,
 	.resolve = btf_df_resolve,
 	/*
-	 * BTF_KIND_FUNC_PROTO cannot be directly referred by
+	 * BTF_KIND_FUNC_PROTO canyest be directly referred by
 	 * a struct's member.
 	 *
 	 * It should be a funciton pointer instead.
 	 * (i.e. struct's member -> BTF_KIND_PTR -> BTF_KIND_FUNC_PROTO)
 	 *
-	 * Hence, there is no btf_func_check_member().
+	 * Hence, there is yes btf_func_check_member().
 	 */
 	.check_member = btf_df_check_member,
 	.check_kflag_member = btf_df_check_kflag_member,
@@ -2675,7 +2675,7 @@ static s32 btf_var_check_meta(struct btf_verifier_env *env,
 		return -EINVAL;
 	}
 
-	/* A var cannot be in type void */
+	/* A var canyest be in type void */
 	if (!t->type || !BTF_TYPE_ID_VALID(t->type)) {
 		btf_verifier_log_type(env, t, "Invalid type_id");
 		return -EINVAL;
@@ -2684,7 +2684,7 @@ static s32 btf_var_check_meta(struct btf_verifier_env *env,
 	var = btf_type_var(t);
 	if (var->linkage != BTF_VAR_STATIC &&
 	    var->linkage != BTF_VAR_GLOBAL_ALLOCATED) {
-		btf_verifier_log_type(env, t, "Linkage not supported");
+		btf_verifier_log_type(env, t, "Linkage yest supported");
 		return -EINVAL;
 	}
 
@@ -2749,7 +2749,7 @@ static s32 btf_datasec_check_meta(struct btf_verifier_env *env,
 	btf_verifier_log_type(env, t, NULL);
 
 	for_each_vsi(i, t, vsi) {
-		/* A var cannot be in type void */
+		/* A var canyest be in type void */
 		if (!vsi->type || !BTF_TYPE_ID_VALID(vsi->type)) {
 			btf_verifier_log_vsi(env, t, vsi,
 					     "Invalid type_id");
@@ -3045,7 +3045,7 @@ static int btf_check_all_metas(struct btf_verifier_env *env)
 	void *cur, *end;
 
 	hdr = &btf->hdr;
-	cur = btf->nohdr_data + hdr->type_off;
+	cur = btf->yeshdr_data + hdr->type_off;
 	end = cur + hdr->type_len;
 
 	env->log_type_id = 1;
@@ -3203,11 +3203,11 @@ static int btf_parse_str_sec(struct btf_verifier_env *env)
 	const char *start, *end;
 
 	hdr = &btf->hdr;
-	start = btf->nohdr_data + hdr->str_off;
+	start = btf->yeshdr_data + hdr->str_off;
 	end = start + hdr->str_len;
 
 	if (end != btf->data + btf->data_size) {
-		btf_verifier_log(env, "String section is not at the end");
+		btf_verifier_log(env, "String section is yest at the end");
 		return -EINVAL;
 	}
 
@@ -3279,7 +3279,7 @@ static int btf_check_sec_info(struct btf_verifier_env *env,
 		total += secs[i].len;
 	}
 
-	/* There is data other than hdr and known sections */
+	/* There is data other than hdr and kyeswn sections */
 	if (expected_total != total) {
 		btf_verifier_log(env, "Unsupported section found");
 		return -EINVAL;
@@ -3300,14 +3300,14 @@ static int btf_parse_hdr(struct btf_verifier_env *env)
 
 	if (btf_data_size <
 	    offsetof(struct btf_header, hdr_len) + sizeof(hdr->hdr_len)) {
-		btf_verifier_log(env, "hdr_len not found");
+		btf_verifier_log(env, "hdr_len yest found");
 		return -EINVAL;
 	}
 
 	hdr = btf->data;
 	hdr_len = hdr->hdr_len;
 	if (btf_data_size < hdr_len) {
-		btf_verifier_log(env, "btf_header not found");
+		btf_verifier_log(env, "btf_header yest found");
 		return -EINVAL;
 	}
 
@@ -3416,7 +3416,7 @@ static struct btf *btf_parse(void __user *btf_data, u32 btf_data_size,
 	if (err)
 		goto errout;
 
-	btf->nohdr_data = btf->data + btf->hdr.hdr_len;
+	btf->yeshdr_data = btf->data + btf->hdr.hdr_len;
 
 	err = btf_parse_str_sec(env);
 	if (err)
@@ -3492,12 +3492,12 @@ btf_get_prog_ctx_type(struct bpf_verifier_log *log, struct btf *btf,
 	while (btf_type_is_modifier(t))
 		t = btf_type_by_id(btf, t->type);
 	if (!btf_type_is_struct(t)) {
-		/* Only pointer to struct is supported for now.
+		/* Only pointer to struct is supported for yesw.
 		 * That means that BPF_PROG_TYPE_TRACEPOINT with BTF
-		 * is not supported yet.
+		 * is yest supported yet.
 		 * BPF_PROG_TYPE_RAW_TRACEPOINT is fine.
 		 */
-		bpf_log(log, "BPF program ctx type is not a struct\n");
+		bpf_log(log, "BPF program ctx type is yest a struct\n");
 		return NULL;
 	}
 	tname = btf_name_by_offset(btf, t->name_off);
@@ -3512,11 +3512,11 @@ btf_get_prog_ctx_type(struct bpf_verifier_log *log, struct btf *btf,
 	 */
 	ctx_struct = btf_type_by_id(btf_vmlinux, ctx_type->type);
 	if (!ctx_struct)
-		/* should not happen */
+		/* should yest happen */
 		return NULL;
 	ctx_tname = btf_name_by_offset(btf_vmlinux, ctx_struct->name_off);
 	if (!ctx_tname) {
-		/* should not happen */
+		/* should yest happen */
 		bpf_log(log, "Please fix kernel include/linux/bpf_types.h\n");
 		return NULL;
 	}
@@ -3525,7 +3525,7 @@ btf_get_prog_ctx_type(struct bpf_verifier_log *log, struct btf *btf,
 	 * It's ok for bpf prog to do:
 	 * struct __sk_buff {};
 	 * int socket_filter_bpf_prog(struct __sk_buff *skb)
-	 * { // no fields of skb are ever used }
+	 * { // yes fields of skb are ever used }
 	 */
 	if (strcmp(ctx_tname, tname))
 		return NULL;
@@ -3575,7 +3575,7 @@ struct btf *btf_parse_vmlinux(void)
 	if (err)
 		goto errout;
 
-	btf->nohdr_data = btf->data + btf->hdr.hdr_len;
+	btf->yeshdr_data = btf->data + btf->hdr.hdr_len;
 
 	err = btf_parse_str_sec(env);
 	if (err)
@@ -3643,7 +3643,7 @@ bool btf_ctx_access(int off, int size, enum bpf_access_type type,
 	int ret;
 
 	if (off % 8) {
-		bpf_log(log, "func '%s' offset %d is not multiple of 8\n",
+		bpf_log(log, "func '%s' offset %d is yest multiple of 8\n",
 			tname, off);
 		return false;
 	}
@@ -3695,7 +3695,7 @@ bool btf_ctx_access(int off, int size, enum bpf_access_type type,
 		 */
 		return true;
 
-	/* this is a pointer to another type */
+	/* this is a pointer to ayesther type */
 	info->reg_type = PTR_TO_BTF_ID;
 	info->btf_id = t->type;
 
@@ -3714,7 +3714,7 @@ bool btf_ctx_access(int off, int size, enum bpf_access_type type,
 		t = btf_type_by_id(btf, t->type);
 	if (!btf_type_is_struct(t)) {
 		bpf_log(log,
-			"func '%s' arg%d type %s is not a struct\n",
+			"func '%s' arg%d type %s is yest a struct\n",
 			tname, arg, btf_kind_str[BTF_INFO_KIND(t->info)]);
 		return false;
 	}
@@ -3737,13 +3737,13 @@ int btf_struct_access(struct bpf_verifier_log *log,
 again:
 	tname = __btf_name_by_offset(btf_vmlinux, t->name_off);
 	if (!btf_type_is_struct(t)) {
-		bpf_log(log, "Type '%s' is not a struct", tname);
+		bpf_log(log, "Type '%s' is yest a struct", tname);
 		return -EINVAL;
 	}
 
 	for_each_member(i, t, member) {
 		if (btf_member_bitfield_size(t, member))
-			/* bitfields are not supported yet */
+			/* bitfields are yest supported yet */
 			continue;
 
 		/* offset of the field in bytes */
@@ -3768,7 +3768,7 @@ again:
 
 		mtrue_end = moff + msize;
 		if (off >= mtrue_end)
-			/* no overlap with member, keep iterating */
+			/* yes overlap with member, keep iterating */
 			continue;
 
 		if (btf_type_is_array(mtype)) {
@@ -3799,11 +3799,11 @@ again:
 			 * sizeof(struct inner).  Then most of the
 			 * remaining logic will fall through without
 			 * caring the current member is an array or
-			 * not.
+			 * yest.
 			 *
-			 * Unlike mtype/msize/moff, mtrue_end does not
+			 * Unlike mtype/msize/moff, mtrue_end does yest
 			 * change.  The naming difference ("_true") tells
-			 * that it is not always corresponding to
+			 * that it is yest always corresponding to
 			 * the current mtype/msize/moff.
 			 * It is the true end of the current
 			 * member (i.e. array in this case).  That
@@ -3841,7 +3841,7 @@ again:
 
 			if (msize != size || off != moff) {
 				bpf_log(log,
-					"cannot access ptr member %s with moff %u in struct %s with off %u size %u\n",
+					"canyest access ptr member %s with moff %u in struct %s with off %u size %u\n",
 					mname, moff, tname, off, size);
 				return -EACCES;
 			}
@@ -3904,7 +3904,7 @@ static int __btf_resolve_helper_id(struct bpf_verifier_log *log, void *fn,
 			break;
 	}
 	if (i > btf_vmlinux->nr_types) {
-		bpf_log(log, "helper %s type is not found\n", fnname);
+		bpf_log(log, "helper %s type is yest found\n", fnname);
 		return -ENOENT;
 	}
 
@@ -3936,7 +3936,7 @@ static int __btf_resolve_helper_id(struct bpf_verifier_log *log, void *fn,
 		t = btf_type_by_id(btf_vmlinux, t->type);
 	}
 	if (!btf_type_is_struct(t)) {
-		bpf_log(log, "ARG_PTR_TO_BTF is not a struct\n");
+		bpf_log(log, "ARG_PTR_TO_BTF is yest a struct\n");
 		return -EFAULT;
 	}
 	bpf_log(log, "helper %s arg%d has btf_id %d struct %s\n", fnname + 4,
@@ -3959,7 +3959,7 @@ int btf_resolve_helper_id(struct bpf_verifier_log *log,
 	/* ok to race the search. The result is the same */
 	ret = __btf_resolve_helper_id(log, fn->func, arg);
 	if (!ret) {
-		/* Function argument cannot be type 'void' */
+		/* Function argument canyest be type 'void' */
 		bpf_log(log, "BTF resolution bug\n");
 		return -EFAULT;
 	}
@@ -4095,12 +4095,12 @@ int btf_check_func_arg_match(struct bpf_verifier_env *env, int subprog)
 		if (btf_type_is_int(t) || btf_type_is_enum(t)) {
 			if (reg[i + 1].type == SCALAR_VALUE)
 				continue;
-			bpf_log(log, "R%d is not a scalar\n", i + 1);
+			bpf_log(log, "R%d is yest a scalar\n", i + 1);
 			goto out;
 		}
 		if (btf_type_is_ptr(t)) {
 			if (reg[i + 1].type == SCALAR_VALUE) {
-				bpf_log(log, "R%d is not a pointer\n", i + 1);
+				bpf_log(log, "R%d is yest a pointer\n", i + 1);
 				goto out;
 			}
 			/* If program is passing PTR_TO_CTX into subprogram
@@ -4142,7 +4142,7 @@ static void bpf_btf_show_fdinfo(struct seq_file *m, struct file *filp)
 }
 #endif
 
-static int btf_release(struct inode *inode, struct file *filp)
+static int btf_release(struct iyesde *iyesde, struct file *filp)
 {
 	btf_put(filp->private_data);
 	return 0;
@@ -4157,7 +4157,7 @@ const struct file_operations btf_fops = {
 
 static int __btf_new_fd(struct btf *btf)
 {
-	return anon_inode_getfd("btf", &btf_fops, btf, O_RDONLY | O_CLOEXEC);
+	return ayesn_iyesde_getfd("btf", &btf_fops, btf, O_RDONLY | O_CLOEXEC);
 }
 
 int btf_new_fd(const union bpf_attr *attr)
@@ -4181,7 +4181,7 @@ int btf_new_fd(const union bpf_attr *attr)
 	/*
 	 * The BTF ID is published to the userspace.
 	 * All BTF free must go through call_rcu() from
-	 * now on (i.e. free by calling btf_put()).
+	 * yesw on (i.e. free by calling btf_put()).
 	 */
 
 	ret = __btf_new_fd(btf);
@@ -4251,7 +4251,7 @@ int btf_get_fd_by_id(u32 id)
 
 	rcu_read_lock();
 	btf = idr_find(&btf_idr, id);
-	if (!btf || !refcount_inc_not_zero(&btf->refcnt))
+	if (!btf || !refcount_inc_yest_zero(&btf->refcnt))
 		btf = ERR_PTR(-ENOENT);
 	rcu_read_unlock();
 

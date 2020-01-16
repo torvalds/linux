@@ -26,41 +26,41 @@ static bool rtas_hp_event;
 
 unsigned long pseries_memory_block_size(void)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 	unsigned int memblock_size = MIN_MEMORY_BLOCK_SIZE;
 	struct resource r;
 
-	np = of_find_node_by_path("/ibm,dynamic-reconfiguration-memory");
+	np = of_find_yesde_by_path("/ibm,dynamic-reconfiguration-memory");
 	if (np) {
 		const __be64 *size;
 
 		size = of_get_property(np, "ibm,lmb-size", NULL);
 		if (size)
 			memblock_size = be64_to_cpup(size);
-		of_node_put(np);
+		of_yesde_put(np);
 	} else  if (machine_is(pseries)) {
 		/* This fallback really only applies to pseries */
 		unsigned int memzero_size = 0;
 
-		np = of_find_node_by_path("/memory@0");
+		np = of_find_yesde_by_path("/memory@0");
 		if (np) {
 			if (!of_address_to_resource(np, 0, &r))
 				memzero_size = resource_size(&r);
-			of_node_put(np);
+			of_yesde_put(np);
 		}
 
 		if (memzero_size) {
-			/* We now know the size of memory@0, use this to find
+			/* We yesw kyesw the size of memory@0, use this to find
 			 * the first memoryblock and get its size.
 			 */
 			char buf[64];
 
 			sprintf(buf, "/memory@%x", memzero_size);
-			np = of_find_node_by_path(buf);
+			np = of_find_yesde_by_path(buf);
 			if (np) {
 				if (!of_address_to_resource(np, 0, &r))
 					memblock_size = resource_size(&r);
-				of_node_put(np);
+				of_yesde_put(np);
 			}
 		}
 	}
@@ -97,7 +97,7 @@ static struct property *dlpar_clone_property(struct property *prop,
 	return new_prop;
 }
 
-static bool find_aa_index(struct device_node *dr_node,
+static bool find_aa_index(struct device_yesde *dr_yesde,
 			 struct property *ala_prop,
 			 const u32 *lmb_assoc, u32 *aa_index)
 {
@@ -142,7 +142,7 @@ static bool find_aa_index(struct device_node *dr_node,
 	index = aa_arrays * aa_array_entries + 2;
 	memcpy(&assoc_arrays[index], &lmb_assoc[1], aa_array_sz);
 
-	of_update_property(dr_node, new_prop);
+	of_update_property(dr_yesde, new_prop);
 
 	/*
 	 * The associativity lookup array index for this lmb is
@@ -155,49 +155,49 @@ static bool find_aa_index(struct device_node *dr_node,
 
 static int update_lmb_associativity_index(struct drmem_lmb *lmb)
 {
-	struct device_node *parent, *lmb_node, *dr_node;
+	struct device_yesde *parent, *lmb_yesde, *dr_yesde;
 	struct property *ala_prop;
 	const u32 *lmb_assoc;
 	u32 aa_index;
 	bool found;
 
-	parent = of_find_node_by_path("/");
+	parent = of_find_yesde_by_path("/");
 	if (!parent)
 		return -ENODEV;
 
-	lmb_node = dlpar_configure_connector(cpu_to_be32(lmb->drc_index),
+	lmb_yesde = dlpar_configure_connector(cpu_to_be32(lmb->drc_index),
 					     parent);
-	of_node_put(parent);
-	if (!lmb_node)
+	of_yesde_put(parent);
+	if (!lmb_yesde)
 		return -EINVAL;
 
-	lmb_assoc = of_get_property(lmb_node, "ibm,associativity", NULL);
+	lmb_assoc = of_get_property(lmb_yesde, "ibm,associativity", NULL);
 	if (!lmb_assoc) {
-		dlpar_free_cc_nodes(lmb_node);
+		dlpar_free_cc_yesdes(lmb_yesde);
 		return -ENODEV;
 	}
 
-	dr_node = of_find_node_by_path("/ibm,dynamic-reconfiguration-memory");
-	if (!dr_node) {
-		dlpar_free_cc_nodes(lmb_node);
+	dr_yesde = of_find_yesde_by_path("/ibm,dynamic-reconfiguration-memory");
+	if (!dr_yesde) {
+		dlpar_free_cc_yesdes(lmb_yesde);
 		return -ENODEV;
 	}
 
-	ala_prop = of_find_property(dr_node, "ibm,associativity-lookup-arrays",
+	ala_prop = of_find_property(dr_yesde, "ibm,associativity-lookup-arrays",
 				    NULL);
 	if (!ala_prop) {
-		of_node_put(dr_node);
-		dlpar_free_cc_nodes(lmb_node);
+		of_yesde_put(dr_yesde);
+		dlpar_free_cc_yesdes(lmb_yesde);
 		return -ENODEV;
 	}
 
-	found = find_aa_index(dr_node, ala_prop, lmb_assoc, &aa_index);
+	found = find_aa_index(dr_yesde, ala_prop, lmb_assoc, &aa_index);
 
-	of_node_put(dr_node);
-	dlpar_free_cc_nodes(lmb_node);
+	of_yesde_put(dr_yesde);
+	dlpar_free_cc_yesdes(lmb_yesde);
 
 	if (!found) {
-		pr_err("Could not find LMB associativity\n");
+		pr_err("Could yest find LMB associativity\n");
 		return -1;
 	}
 
@@ -308,7 +308,7 @@ out:
 	return 0;
 }
 
-static int pseries_remove_mem_node(struct device_node *np)
+static int pseries_remove_mem_yesde(struct device_yesde *np)
 {
 	const __be32 *regs;
 	unsigned long base;
@@ -318,7 +318,7 @@ static int pseries_remove_mem_node(struct device_node *np)
 	/*
 	 * Check to see if we are actually removing memory
 	 */
-	if (!of_node_is_type(np, "memory"))
+	if (!of_yesde_is_type(np, "memory"))
 		return 0;
 
 	/*
@@ -410,7 +410,7 @@ static int dlpar_memory_remove_by_count(u32 lmbs_to_remove)
 	if (lmbs_to_remove == 0)
 		return -EINVAL;
 
-	/* Validate that there are enough LMBs to satisfy the request */
+	/* Validate that there are eyesugh LMBs to satisfy the request */
 	for_each_drmem_lmb(lmb) {
 		if (lmb_is_removable(lmb))
 			lmbs_available++;
@@ -420,7 +420,7 @@ static int dlpar_memory_remove_by_count(u32 lmbs_to_remove)
 	}
 
 	if (lmbs_available < lmbs_to_remove) {
-		pr_info("Not enough LMBs available (%d of %d) to satisfy request\n",
+		pr_info("Not eyesugh LMBs available (%d of %d) to satisfy request\n",
 			lmbs_available, lmbs_to_remove);
 		return -EINVAL;
 	}
@@ -431,7 +431,7 @@ static int dlpar_memory_remove_by_count(u32 lmbs_to_remove)
 			continue;
 
 		/* Mark this lmb so we can add it later if all of the
-		 * requested LMBs cannot be removed.
+		 * requested LMBs canyest be removed.
 		 */
 		drmem_mark_lmb_reserved(lmb);
 
@@ -555,7 +555,7 @@ static int dlpar_memory_remove_by_ic(u32 lmbs_to_remove, u32 drc_index)
 	if (rc)
 		return -EINVAL;
 
-	/* Validate that there are enough LMBs to satisfy the request */
+	/* Validate that there are eyesugh LMBs to satisfy the request */
 	for_each_drmem_lmb_in_range(lmb, start_lmb, end_lmb) {
 		if (lmb->flags & DRCONF_MEM_RESERVED)
 			break;
@@ -615,7 +615,7 @@ static inline int pseries_remove_memblock(unsigned long base,
 {
 	return -EOPNOTSUPP;
 }
-static inline int pseries_remove_mem_node(struct device_node *np)
+static inline int pseries_remove_mem_yesde(struct device_yesde *np)
 {
 	return 0;
 }
@@ -694,7 +694,7 @@ static int dlpar_memory_add_by_count(u32 lmbs_to_add)
 	if (lmbs_to_add == 0)
 		return -EINVAL;
 
-	/* Validate that there are enough LMBs to satisfy the request */
+	/* Validate that there are eyesugh LMBs to satisfy the request */
 	for_each_drmem_lmb(lmb) {
 		if (!(lmb->flags & DRCONF_MEM_ASSIGNED))
 			lmbs_available++;
@@ -721,7 +721,7 @@ static int dlpar_memory_add_by_count(u32 lmbs_to_add)
 		}
 
 		/* Mark this lmb so we can remove it later if all of the
-		 * requested LMBs cannot be added.
+		 * requested LMBs canyest be added.
 		 */
 		drmem_mark_lmb_reserved(lmb);
 
@@ -812,7 +812,7 @@ static int dlpar_memory_add_by_ic(u32 lmbs_to_add, u32 drc_index)
 	if (rc)
 		return -EINVAL;
 
-	/* Validate that the LMBs in this range are not reserved */
+	/* Validate that the LMBs in this range are yest reserved */
 	for_each_drmem_lmb_in_range(lmb, start_lmb, end_lmb) {
 		if (lmb->flags & DRCONF_MEM_RESERVED)
 			break;
@@ -941,7 +941,7 @@ int dlpar_memory(struct pseries_hp_errorlog *hp_elog)
 	return rc;
 }
 
-static int pseries_add_mem_node(struct device_node *np)
+static int pseries_add_mem_yesde(struct device_yesde *np)
 {
 	const __be32 *regs;
 	unsigned long base;
@@ -951,7 +951,7 @@ static int pseries_add_mem_node(struct device_node *np)
 	/*
 	 * Check to see if we are actually adding memory
 	 */
-	if (!of_node_is_type(np, "memory"))
+	if (!of_yesde_is_type(np, "memory"))
 		return 0;
 
 	/*
@@ -1025,7 +1025,7 @@ static int pseries_update_drconf_memory(struct of_reconfig_data *pr)
 	return rc;
 }
 
-static int pseries_memory_notifier(struct notifier_block *nb,
+static int pseries_memory_yestifier(struct yestifier_block *nb,
 				   unsigned long action, void *data)
 {
 	struct of_reconfig_data *rd = data;
@@ -1033,27 +1033,27 @@ static int pseries_memory_notifier(struct notifier_block *nb,
 
 	switch (action) {
 	case OF_RECONFIG_ATTACH_NODE:
-		err = pseries_add_mem_node(rd->dn);
+		err = pseries_add_mem_yesde(rd->dn);
 		break;
 	case OF_RECONFIG_DETACH_NODE:
-		err = pseries_remove_mem_node(rd->dn);
+		err = pseries_remove_mem_yesde(rd->dn);
 		break;
 	case OF_RECONFIG_UPDATE_PROPERTY:
 		if (!strcmp(rd->prop->name, "ibm,dynamic-memory"))
 			err = pseries_update_drconf_memory(rd);
 		break;
 	}
-	return notifier_from_errno(err);
+	return yestifier_from_erryes(err);
 }
 
-static struct notifier_block pseries_mem_nb = {
-	.notifier_call = pseries_memory_notifier,
+static struct yestifier_block pseries_mem_nb = {
+	.yestifier_call = pseries_memory_yestifier,
 };
 
 static int __init pseries_memory_hotplug_init(void)
 {
 	if (firmware_has_feature(FW_FEATURE_LPAR))
-		of_reconfig_notifier_register(&pseries_mem_nb);
+		of_reconfig_yestifier_register(&pseries_mem_nb);
 
 	return 0;
 }

@@ -9,7 +9,7 @@
 #define pr_fmt(fmt)	"kexec_file(Image): " fmt
 
 #include <linux/err.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/kernel.h>
 #include <linux/kexec.h>
 #include <linux/pe.h>
@@ -54,7 +54,7 @@ static void *image_load(struct kimage *image,
 	/*
 	 * We require a kernel with an unambiguous Image header. Per
 	 * Documentation/arm64/booting.rst, this is the case when image_size
-	 * is non-zero (practically speaking, since v3.17).
+	 * is yesn-zero (practically speaking, since v3.17).
 	 */
 	h = (struct arm64_image_header *)kernel;
 	if (!h->image_size)

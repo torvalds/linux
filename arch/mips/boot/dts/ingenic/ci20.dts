@@ -31,7 +31,7 @@
 		led0 {
 			label = "ci20:red:led0";
 			gpios = <&gpc 3 GPIO_ACTIVE_HIGH>;
-			linux,default-trigger = "none";
+			linux,default-trigger = "yesne";
 		};
 
 		led1 {
@@ -89,7 +89,7 @@
 
 	bus-width = <4>;
 	max-frequency = <50000000>;
-	non-removable;
+	yesn-removable;
 
 	pinctrl-names = "default";
 	pinctrl-0 = <&pins_mmc1>;
@@ -336,7 +336,7 @@
 
 	dm9000@6 {
 		compatible = "davicom,dm9000";
-		davicom,no-eeprom;
+		davicom,yes-eeprom;
 
 		pinctrl-names = "default";
 		pinctrl-0 = <&pins_nemc_cs6>;

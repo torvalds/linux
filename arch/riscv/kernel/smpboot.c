@@ -15,7 +15,7 @@
 #include <linux/mm.h>
 #include <linux/sched.h>
 #include <linux/kernel_stat.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/cpu.h>
 #include <linux/percpu.h>
 #include <linux/delay.h>
@@ -47,7 +47,7 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 {
 	int cpuid;
 
-	/* This covers non-smp usecase mandated by "nosmp" option */
+	/* This covers yesn-smp usecase mandated by "yessmp" option */
 	if (max_cpus == 0)
 		return;
 
@@ -60,12 +60,12 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 
 void __init setup_smp(void)
 {
-	struct device_node *dn;
+	struct device_yesde *dn;
 	int hart;
 	bool found_boot_cpu = false;
 	int cpuid = 1;
 
-	for_each_of_cpu_node(dn) {
+	for_each_of_cpu_yesde(dn) {
 		hart = riscv_of_processor_hartid(dn);
 		if (hart < 0)
 			continue;
@@ -146,12 +146,12 @@ asmlinkage __visible void __init smp_callin(void)
 	current->active_mm = mm;
 
 	trap_init();
-	notify_cpu_starting(smp_processor_id());
+	yestify_cpu_starting(smp_processor_id());
 	update_siblings_masks(smp_processor_id());
 	set_cpu_online(smp_processor_id(), 1);
 	/*
-	 * Remote TLB flushes are ignored while the CPU is offline, so emit
-	 * a local TLB flush right now just in case.
+	 * Remote TLB flushes are igyesred while the CPU is offline, so emit
+	 * a local TLB flush right yesw just in case.
 	 */
 	local_flush_tlb_all();
 	complete(&cpu_running);

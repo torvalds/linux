@@ -454,7 +454,7 @@ int qlcnic_pinit_from_rom(struct qlcnic_adapter *adapter)
 	n = (n >> 16) & 0xffffU;
 
 	if (n >= 1024) {
-		dev_err(&pdev->dev, "QLOGIC card flash not initialized.\n");
+		dev_err(&pdev->dev, "QLOGIC card flash yest initialized.\n");
 		return -EIO;
 	}
 
@@ -491,7 +491,7 @@ int qlcnic_pinit_from_rom(struct qlcnic_adapter *adapter)
 			continue;
 		if (off == (QLCNIC_CRB_I2C0 + 0x1c))
 			continue;
-		if (off == (ROMUSB_GLB + 0xbc)) /* do not reset PCI */
+		if (off == (ROMUSB_GLB + 0xbc)) /* do yest reset PCI */
 			continue;
 		if (off == (ROMUSB_GLB + 0xa8))
 			continue;
@@ -571,7 +571,7 @@ static int qlcnic_cmd_peg_ready(struct qlcnic_adapter *adapter)
 			    PHAN_INITIALIZE_FAILED);
 
 out_err:
-	dev_err(&adapter->pdev->dev, "Command Peg initialization not "
+	dev_err(&adapter->pdev->dev, "Command Peg initialization yest "
 		      "complete, state: 0x%x.\n", val);
 	return -EIO;
 }
@@ -592,7 +592,7 @@ qlcnic_receive_peg_ready(struct qlcnic_adapter *adapter)
 
 	} while (--retries);
 
-	dev_err(&adapter->pdev->dev, "Receive Peg initialization not complete, state: 0x%x.\n",
+	dev_err(&adapter->pdev->dev, "Receive Peg initialization yest complete, state: 0x%x.\n",
 		val);
 	return -EIO;
 }
@@ -681,7 +681,7 @@ static int qlcnic_get_flt_entry(struct qlcnic_adapter *adapter, u8 region,
 	}
 	if (i >= (entry_size/sizeof(struct qlcnic_flt_entry))) {
 		dev_warn(&adapter->pdev->dev,
-			 "region=%x not found in %d regions\n", region, i);
+			 "region=%x yest found in %d regions\n", region, i);
 		ret = -EIO;
 		goto err_out;
 	}
@@ -721,8 +721,8 @@ qlcnic_check_flash_fw_ver(struct qlcnic_adapter *adapter)
 		dev_err(&adapter->pdev->dev,
 			"firmware version %d.%d.%d unsupported."
 			"Min supported version %d.%d.%d\n",
-			_major(ver), _minor(ver), _build(ver),
-			_major(min_ver), _minor(min_ver), _build(min_ver));
+			_major(ver), _miyesr(ver), _build(ver),
+			_major(min_ver), _miyesr(min_ver), _build(min_ver));
 		return -EINVAL;
 	}
 
@@ -878,7 +878,7 @@ qlcnic_validate_product_offs(struct qlcnic_adapter *adapter)
 	if (adapter->fw->size < tab_size)
 		return -EINVAL;
 
-nomn:
+yesmn:
 	for (i = 0; i < entries; i++) {
 
 		u32 flags, file_chiprev, offs;
@@ -902,7 +902,7 @@ nomn:
 	}
 	if (mn_present) {
 		mn_present = 0;
-		goto nomn;
+		goto yesmn;
 	}
 	return -EINVAL;
 }
@@ -1007,7 +1007,7 @@ static u32 qlcnic_get_fw_version(struct qlcnic_adapter *adapter)
 {
 	struct uni_data_desc *fw_data_desc;
 	const struct firmware *fw = adapter->fw;
-	u32 major, minor, sub;
+	u32 major, miyesr, sub;
 	__le32 version_offset;
 	const u8 *ver_str;
 	int i, ret;
@@ -1025,11 +1025,11 @@ static u32 qlcnic_get_fw_version(struct qlcnic_adapter *adapter)
 	for (i = 0; i < 12; i++) {
 		if (!strncmp(&ver_str[i], "REV=", 4)) {
 			ret = sscanf(&ver_str[i+4], "%u.%u.%u ",
-					&major, &minor, &sub);
+					&major, &miyesr, &sub);
 			if (ret != 3)
 				return 0;
 			else
-				return major + (minor << 8) + (sub << 16);
+				return major + (miyesr << 8) + (sub << 16);
 		}
 	}
 
@@ -1232,7 +1232,7 @@ qlcnic_validate_firmware(struct qlcnic_adapter *adapter)
 	if (ver < QLCNIC_MIN_FW_VERSION) {
 		dev_err(&pdev->dev,
 				"%s: firmware version %d.%d.%d unsupported\n",
-		fw_name[fw_type], _major(ver), _minor(ver), _build(ver));
+		fw_name[fw_type], _major(ver), _miyesr(ver), _build(ver));
 		return -EINVAL;
 	}
 

@@ -7,7 +7,7 @@
  */
 
 #include <linux/slab.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/highmem.h>
 #include <linux/crash_dump.h>
 
@@ -19,7 +19,7 @@ static inline bool is_crashed_pfn_valid(unsigned long pfn)
 {
 #ifndef CONFIG_X86_PAE
 	/*
-	 * non-PAE kdump kernel executed from a PAE one will crop high pte
+	 * yesn-PAE kdump kernel executed from a PAE one will crop high pte
 	 * bits and poke unwanted space counting again from address 0, we
 	 * don't want that. pte must fit into unsigned long. In fact the
 	 * test checks high 12 bits for being zero (pfn will be shifted left
@@ -41,12 +41,12 @@ static inline bool is_crashed_pfn_valid(unsigned long pfn)
  * @userbuf: if set, @buf is in user address space, use copy_to_user(),
  *	otherwise @buf is in kernel address space, use memcpy().
  *
- * Copy a page from "oldmem". For this page, there is no pte mapped
+ * Copy a page from "oldmem". For this page, there is yes pte mapped
  * in the current kernel. We stitch up a pte, similar to kmap_atomic.
  *
- * Calling copy_to_user() in atomic context is not desirable. Hence first
+ * Calling copy_to_user() in atomic context is yest desirable. Hence first
  * copying the data to a pre-allocated kernel page and then copying to user
- * space in non-atomic context.
+ * space in yesn-atomic context.
  */
 ssize_t copy_oldmem_page(unsigned long pfn, char *buf,
                                size_t csize, unsigned long offset, int userbuf)
@@ -66,7 +66,7 @@ ssize_t copy_oldmem_page(unsigned long pfn, char *buf,
 		kunmap_atomic(vaddr);
 	} else {
 		if (!kdump_buf_page) {
-			printk(KERN_WARNING "Kdump: Kdump buffer page not"
+			printk(KERN_WARNING "Kdump: Kdump buffer page yest"
 				" allocated\n");
 			kunmap_atomic(vaddr);
 			return -EFAULT;

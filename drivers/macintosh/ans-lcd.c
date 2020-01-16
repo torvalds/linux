@@ -4,7 +4,7 @@
  */
 
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/kernel.h>
 #include <linux/miscdevice.h>
 #include <linux/fcntl.h>
@@ -103,7 +103,7 @@ anslcd_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	case ANSLCD_SENDCTRL:
 		temp = (char __user *) arg;
 		__get_user(ch, temp);
-		for (; ch; temp++) { /* FIXME: This is ugly, but should work, as a \0 byte is not a valid command code */
+		for (; ch; temp++) { /* FIXME: This is ugly, but should work, as a \0 byte is yest a valid command code */
 			anslcd_write_byte_ctrl ( ch );
 			__get_user(ch, temp);
 		}
@@ -129,7 +129,7 @@ anslcd_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 }
 
 static int
-anslcd_open( struct inode * inode, struct file * file )
+anslcd_open( struct iyesde * iyesde, struct file * file )
 {
 	return 0;
 }
@@ -158,14 +158,14 @@ anslcd_init(void)
 {
 	int a;
 	int retval;
-	struct device_node* node;
+	struct device_yesde* yesde;
 
-	node = of_find_node_by_name(NULL, "lcd");
-	if (!node || !of_node_name_eq(node->parent, "gc")) {
-		of_node_put(node);
+	yesde = of_find_yesde_by_name(NULL, "lcd");
+	if (!yesde || !of_yesde_name_eq(yesde->parent, "gc")) {
+		of_yesde_put(yesde);
 		return -ENODEV;
 	}
-	of_node_put(node);
+	of_yesde_put(yesde);
 
 	anslcd_ptr = ioremap(ANSLCD_ADDR, 0x20);
 	

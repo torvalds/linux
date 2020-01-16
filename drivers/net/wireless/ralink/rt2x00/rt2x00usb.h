@@ -298,7 +298,7 @@ static inline void rt2x00usb_register_multiwrite(struct rt2x00_dev *rt2x00dev,
  * This function will read the given register, and checks if the
  * register is busy. If it is, it will sleep for a couple of
  * microseconds before reading the register again. If the register
- * is not read after a certain timeout, this function will return
+ * is yest read after a certain timeout, this function will return
  * FALSE.
  */
 int rt2x00usb_regbusy_read(struct rt2x00_dev *rt2x00dev,
@@ -307,7 +307,7 @@ int rt2x00usb_regbusy_read(struct rt2x00_dev *rt2x00dev,
 			   u32 *reg);
 
 /**
- * rt2x00usb_register_read_async - Asynchronously read 32bit register word
+ * rt2x00usb_register_read_async - Asynchroyesusly read 32bit register word
  * @rt2x00dev: Device pointer, see &struct rt2x00_dev.
  * @offset: Register offset
  * @callback: Functon to call when read completes.

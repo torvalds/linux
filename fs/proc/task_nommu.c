@@ -14,7 +14,7 @@
 
 /*
  * Logic: we've got two memory sums for each process, "shared", and
- * "non-shared". Shared memory may get counted more than once, for
+ * "yesn-shared". Shared memory may get counted more than once, for
  * each process that owns it. Non-shared memory is counted
  * accurately.
  */
@@ -22,7 +22,7 @@ void task_mem(struct seq_file *m, struct mm_struct *mm)
 {
 	struct vm_area_struct *vma;
 	struct vm_region *region;
-	struct rb_node *p;
+	struct rb_yesde *p;
 	unsigned long bytes = 0, sbytes = 0, slack = 0, size;
         
 	down_read(&mm->mmap_sem);
@@ -83,7 +83,7 @@ void task_mem(struct seq_file *m, struct mm_struct *mm)
 unsigned long task_vsize(struct mm_struct *mm)
 {
 	struct vm_area_struct *vma;
-	struct rb_node *p;
+	struct rb_yesde *p;
 	unsigned long vsize = 0;
 
 	down_read(&mm->mmap_sem);
@@ -101,7 +101,7 @@ unsigned long task_statm(struct mm_struct *mm,
 {
 	struct vm_area_struct *vma;
 	struct vm_region *region;
-	struct rb_node *p;
+	struct rb_yesde *p;
 	unsigned long size = kobjsize(mm);
 
 	down_read(&mm->mmap_sem);
@@ -131,8 +131,8 @@ static int is_stack(struct vm_area_struct *vma)
 	struct mm_struct *mm = vma->vm_mm;
 
 	/*
-	 * We make no effort to guess what a given thread considers to be
-	 * its "stack".  It's not even well-defined for programs written
+	 * We make yes effort to guess what a given thread considers to be
+	 * its "stack".  It's yest even well-defined for programs written
 	 * languages like Go.
 	 */
 	return vma->vm_start <= mm->start_stack &&
@@ -142,10 +142,10 @@ static int is_stack(struct vm_area_struct *vma)
 /*
  * display a single VMA to a sequenced file
  */
-static int nommu_vma_show(struct seq_file *m, struct vm_area_struct *vma)
+static int yesmmu_vma_show(struct seq_file *m, struct vm_area_struct *vma)
 {
 	struct mm_struct *mm = vma->vm_mm;
-	unsigned long ino = 0;
+	unsigned long iyes = 0;
 	struct file *file;
 	dev_t dev = 0;
 	int flags;
@@ -155,9 +155,9 @@ static int nommu_vma_show(struct seq_file *m, struct vm_area_struct *vma)
 	file = vma->vm_file;
 
 	if (file) {
-		struct inode *inode = file_inode(vma->vm_file);
-		dev = inode->i_sb->s_dev;
-		ino = inode->i_ino;
+		struct iyesde *iyesde = file_iyesde(vma->vm_file);
+		dev = iyesde->i_sb->s_dev;
+		iyes = iyesde->i_iyes;
 		pgoff = (loff_t)vma->vm_pgoff << PAGE_SHIFT;
 	}
 
@@ -171,7 +171,7 @@ static int nommu_vma_show(struct seq_file *m, struct vm_area_struct *vma)
 		   flags & VM_EXEC ? 'x' : '-',
 		   flags & VM_MAYSHARE ? flags & VM_SHARED ? 'S' : 's' : 'p',
 		   pgoff,
-		   MAJOR(dev), MINOR(dev), ino);
+		   MAJOR(dev), MINOR(dev), iyes);
 
 	if (file) {
 		seq_pad(m, ' ');
@@ -190,25 +190,25 @@ static int nommu_vma_show(struct seq_file *m, struct vm_area_struct *vma)
  */
 static int show_map(struct seq_file *m, void *_p)
 {
-	struct rb_node *p = _p;
+	struct rb_yesde *p = _p;
 
-	return nommu_vma_show(m, rb_entry(p, struct vm_area_struct, vm_rb));
+	return yesmmu_vma_show(m, rb_entry(p, struct vm_area_struct, vm_rb));
 }
 
 static void *m_start(struct seq_file *m, loff_t *pos)
 {
 	struct proc_maps_private *priv = m->private;
 	struct mm_struct *mm;
-	struct rb_node *p;
+	struct rb_yesde *p;
 	loff_t n = *pos;
 
 	/* pin the task and mm whilst we play with them */
-	priv->task = get_proc_task(priv->inode);
+	priv->task = get_proc_task(priv->iyesde);
 	if (!priv->task)
 		return ERR_PTR(-ESRCH);
 
 	mm = priv->mm;
-	if (!mm || !mmget_not_zero(mm))
+	if (!mm || !mmget_yest_zero(mm))
 		return NULL;
 
 	if (down_read_killable(&mm->mmap_sem)) {
@@ -242,7 +242,7 @@ static void m_stop(struct seq_file *m, void *_vml)
 
 static void *m_next(struct seq_file *m, void *_p, loff_t *pos)
 {
-	struct rb_node *p = _p;
+	struct rb_yesde *p = _p;
 
 	(*pos)++;
 	return p ? rb_next(p) : NULL;
@@ -255,7 +255,7 @@ static const struct seq_operations proc_pid_maps_ops = {
 	.show	= show_map
 };
 
-static int maps_open(struct inode *inode, struct file *file,
+static int maps_open(struct iyesde *iyesde, struct file *file,
 		     const struct seq_operations *ops)
 {
 	struct proc_maps_private *priv;
@@ -264,12 +264,12 @@ static int maps_open(struct inode *inode, struct file *file,
 	if (!priv)
 		return -ENOMEM;
 
-	priv->inode = inode;
-	priv->mm = proc_mem_open(inode, PTRACE_MODE_READ);
+	priv->iyesde = iyesde;
+	priv->mm = proc_mem_open(iyesde, PTRACE_MODE_READ);
 	if (IS_ERR(priv->mm)) {
 		int err = PTR_ERR(priv->mm);
 
-		seq_release_private(inode, file);
+		seq_release_private(iyesde, file);
 		return err;
 	}
 
@@ -277,7 +277,7 @@ static int maps_open(struct inode *inode, struct file *file,
 }
 
 
-static int map_release(struct inode *inode, struct file *file)
+static int map_release(struct iyesde *iyesde, struct file *file)
 {
 	struct seq_file *seq = file->private_data;
 	struct proc_maps_private *priv = seq->private;
@@ -285,12 +285,12 @@ static int map_release(struct inode *inode, struct file *file)
 	if (priv->mm)
 		mmdrop(priv->mm);
 
-	return seq_release_private(inode, file);
+	return seq_release_private(iyesde, file);
 }
 
-static int pid_maps_open(struct inode *inode, struct file *file)
+static int pid_maps_open(struct iyesde *iyesde, struct file *file)
 {
-	return maps_open(inode, file, &proc_pid_maps_ops);
+	return maps_open(iyesde, file, &proc_pid_maps_ops);
 }
 
 const struct file_operations proc_pid_maps_operations = {

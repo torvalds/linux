@@ -104,7 +104,7 @@ static const struct snd_kcontrol_new es8316_snd_controls[] = {
 	SOC_SINGLE("DAC Notch Filter Switch", ES8316_DAC_SET2, 6, 1, 0),
 	SOC_SINGLE("DAC Double Fs Switch", ES8316_DAC_SET2, 7, 1, 0),
 	SOC_SINGLE("DAC Stereo Enhancement", ES8316_DAC_SET3, 0, 7, 0),
-	SOC_SINGLE("DAC Mono Mix Switch", ES8316_DAC_SET3, 3, 1, 0),
+	SOC_SINGLE("DAC Moyes Mix Switch", ES8316_DAC_SET3, 3, 1, 0),
 
 	SOC_ENUM("Capture Polarity", adcpol),
 	SOC_SINGLE("Mic Boost Switch", ES8316_ADC_D2SEPGA, 0, 1, 0),
@@ -224,7 +224,7 @@ static const struct snd_soc_dapm_widget es8316_dapm_widgets[] = {
 	SND_SOC_DAPM_SUPPLY("ADC Clock", ES8316_CLKMGR_CLKSW, 3, 0, NULL, 0),
 	SND_SOC_DAPM_PGA("Line input PGA", ES8316_ADC_PDN_LINSEL,
 			 7, 1, NULL, 0),
-	SND_SOC_DAPM_ADC("Mono ADC", NULL, ES8316_ADC_PDN_LINSEL, 6, 1),
+	SND_SOC_DAPM_ADC("Moyes ADC", NULL, ES8316_ADC_PDN_LINSEL, 6, 1),
 	SND_SOC_DAPM_MUX("Digital Mic Mux", SND_SOC_NOPM, 0, 0,
 			 &es8316_dmic_src_controls),
 
@@ -298,17 +298,17 @@ static const struct snd_soc_dapm_route es8316_dapm_routes[] = {
 	{"Differential Mux", "lin2-rin2", "MIC2"},
 	{"Line input PGA", NULL, "Differential Mux"},
 
-	{"Mono ADC", NULL, "ADC Clock"},
-	{"Mono ADC", NULL, "ADC Vref"},
-	{"Mono ADC", NULL, "ADC bias"},
-	{"Mono ADC", NULL, "Line input PGA"},
+	{"Moyes ADC", NULL, "ADC Clock"},
+	{"Moyes ADC", NULL, "ADC Vref"},
+	{"Moyes ADC", NULL, "ADC bias"},
+	{"Moyes ADC", NULL, "Line input PGA"},
 
-	/* It's not clear why, but to avoid recording only silence,
+	/* It's yest clear why, but to avoid recording only silence,
 	 * the DAC clock must be running for the ADC to work.
 	 */
-	{"Mono ADC", NULL, "DAC Clock"},
+	{"Moyes ADC", NULL, "DAC Clock"},
 
-	{"Digital Mic Mux", "dmic disable", "Mono ADC"},
+	{"Digital Mic Mux", "dmic disable", "Moyes ADC"},
 
 	{"I2S OUT", NULL, "Digital Mic Mux"},
 
@@ -651,7 +651,7 @@ static void es8316_enable_jack_detect(struct snd_soc_component *component,
 	struct es8316_priv *es8316 = snd_soc_component_get_drvdata(component);
 
 	/*
-	 * Init es8316->jd_inverted here and not in the probe, as we cannot
+	 * Init es8316->jd_inverted here and yest in the probe, as we canyest
 	 * guarantee that the bytchr-es8316 driver, which might set this
 	 * property, will probe before us.
 	 */
@@ -770,7 +770,7 @@ static const struct snd_soc_component_driver soc_component_dev_es8316 = {
 	.num_dapm_routes	= ARRAY_SIZE(es8316_dapm_routes),
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
+	.yesn_legacy_dai_naming	= 1,
 };
 
 static const struct regmap_range es8316_volatile_ranges[] = {
@@ -778,8 +778,8 @@ static const struct regmap_range es8316_volatile_ranges[] = {
 };
 
 static const struct regmap_access_table es8316_volatile_table = {
-	.yes_ranges	= es8316_volatile_ranges,
-	.n_yes_ranges	= ARRAY_SIZE(es8316_volatile_ranges),
+	.no_ranges	= es8316_volatile_ranges,
+	.n_no_ranges	= ARRAY_SIZE(es8316_volatile_ranges),
 };
 
 static const struct regmap_config es8316_regmap = {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2017 Mellayesx Techyeslogies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -209,7 +209,7 @@ static inline int mlx5e_xfrm_validate_state(struct xfrm_state *x)
 	priv = netdev_priv(netdev);
 
 	if (x->props.aalgo != SADB_AALG_NONE) {
-		netdev_info(netdev, "Cannot offload authenticated xfrm states\n");
+		netdev_info(netdev, "Canyest offload authenticated xfrm states\n");
 		return -EINVAL;
 	}
 	if (x->props.ealgo != SADB_X_EALG_AES_GCM_ICV16) {
@@ -217,13 +217,13 @@ static inline int mlx5e_xfrm_validate_state(struct xfrm_state *x)
 		return -EINVAL;
 	}
 	if (x->props.calgo != SADB_X_CALG_NONE) {
-		netdev_info(netdev, "Cannot offload compressed xfrm states\n");
+		netdev_info(netdev, "Canyest offload compressed xfrm states\n");
 		return -EINVAL;
 	}
 	if (x->props.flags & XFRM_STATE_ESN &&
 	    !(mlx5_accel_ipsec_device_caps(priv->mdev) &
 	    MLX5_ACCEL_IPSEC_CAP_ESN)) {
-		netdev_info(netdev, "Cannot offload ESN xfrm states\n");
+		netdev_info(netdev, "Canyest offload ESN xfrm states\n");
 		return -EINVAL;
 	}
 	if (x->props.family != AF_INET &&
@@ -241,38 +241,38 @@ static inline int mlx5e_xfrm_validate_state(struct xfrm_state *x)
 		return -EINVAL;
 	}
 	if (x->encap) {
-		netdev_info(netdev, "Encapsulated xfrm state may not be offloaded\n");
+		netdev_info(netdev, "Encapsulated xfrm state may yest be offloaded\n");
 		return -EINVAL;
 	}
 	if (!x->aead) {
-		netdev_info(netdev, "Cannot offload xfrm states without aead\n");
+		netdev_info(netdev, "Canyest offload xfrm states without aead\n");
 		return -EINVAL;
 	}
 	if (x->aead->alg_icv_len != 128) {
-		netdev_info(netdev, "Cannot offload xfrm states with AEAD ICV length other than 128bit\n");
+		netdev_info(netdev, "Canyest offload xfrm states with AEAD ICV length other than 128bit\n");
 		return -EINVAL;
 	}
 	if ((x->aead->alg_key_len != 128 + 32) &&
 	    (x->aead->alg_key_len != 256 + 32)) {
-		netdev_info(netdev, "Cannot offload xfrm states with AEAD key length other than 128/256 bit\n");
+		netdev_info(netdev, "Canyest offload xfrm states with AEAD key length other than 128/256 bit\n");
 		return -EINVAL;
 	}
 	if (x->tfcpad) {
-		netdev_info(netdev, "Cannot offload xfrm states with tfc padding\n");
+		netdev_info(netdev, "Canyest offload xfrm states with tfc padding\n");
 		return -EINVAL;
 	}
 	if (!x->geniv) {
-		netdev_info(netdev, "Cannot offload xfrm states without geniv\n");
+		netdev_info(netdev, "Canyest offload xfrm states without geniv\n");
 		return -EINVAL;
 	}
 	if (strcmp(x->geniv, "seqiv")) {
-		netdev_info(netdev, "Cannot offload xfrm states with geniv other than seqiv\n");
+		netdev_info(netdev, "Canyest offload xfrm states with geniv other than seqiv\n");
 		return -EINVAL;
 	}
 	if (x->props.family == AF_INET6 &&
 	    !(mlx5_accel_ipsec_device_caps(priv->mdev) &
 	     MLX5_ACCEL_IPSEC_CAP_IPV6)) {
-		netdev_info(netdev, "IPv6 xfrm state offload is not supported by this device\n");
+		netdev_info(netdev, "IPv6 xfrm state offload is yest supported by this device\n");
 		return -EINVAL;
 	}
 	return 0;
@@ -414,7 +414,7 @@ int mlx5e_ipsec_init(struct mlx5e_priv *priv)
 	ida_init(&ipsec->halloc);
 	ipsec->en_priv = priv;
 	ipsec->en_priv->ipsec = ipsec;
-	ipsec->no_trailer = !!(mlx5_accel_ipsec_device_caps(priv->mdev) &
+	ipsec->yes_trailer = !!(mlx5_accel_ipsec_device_caps(priv->mdev) &
 			       MLX5_ACCEL_IPSEC_CAP_RX_NO_TRAILER);
 	ipsec->wq = alloc_ordered_workqueue("mlx5e_ipsec: %s", 0,
 					    priv->netdev->name);
@@ -444,11 +444,11 @@ void mlx5e_ipsec_cleanup(struct mlx5e_priv *priv)
 static bool mlx5e_ipsec_offload_ok(struct sk_buff *skb, struct xfrm_state *x)
 {
 	if (x->props.family == AF_INET) {
-		/* Offload with IPv4 options is not supported yet */
+		/* Offload with IPv4 options is yest supported yet */
 		if (ip_hdr(skb)->ihl > 5)
 			return false;
 	} else {
-		/* Offload with IPv6 extension headers is not support yet */
+		/* Offload with IPv6 extension headers is yest support yet */
 		if (ipv6_ext_hdr(ipv6_hdr(skb)->nexthdr))
 			return false;
 	}
@@ -520,7 +520,7 @@ void mlx5e_ipsec_build_netdev(struct mlx5e_priv *priv)
 
 	if (!(mlx5_accel_ipsec_device_caps(mdev) & MLX5_ACCEL_IPSEC_CAP_ESP) ||
 	    !MLX5_CAP_ETH(mdev, swp)) {
-		mlx5_core_dbg(mdev, "mlx5e: ESP and SWP offload not supported\n");
+		mlx5_core_dbg(mdev, "mlx5e: ESP and SWP offload yest supported\n");
 		return;
 	}
 
@@ -530,7 +530,7 @@ void mlx5e_ipsec_build_netdev(struct mlx5e_priv *priv)
 	netdev->hw_enc_features |= NETIF_F_HW_ESP;
 
 	if (!MLX5_CAP_ETH(mdev, swp_csum)) {
-		mlx5_core_dbg(mdev, "mlx5e: SWP checksum not supported\n");
+		mlx5_core_dbg(mdev, "mlx5e: SWP checksum yest supported\n");
 		return;
 	}
 
@@ -539,7 +539,7 @@ void mlx5e_ipsec_build_netdev(struct mlx5e_priv *priv)
 
 	if (!(mlx5_accel_ipsec_device_caps(mdev) & MLX5_ACCEL_IPSEC_CAP_LSO) ||
 	    !MLX5_CAP_ETH(mdev, swp_lso)) {
-		mlx5_core_dbg(mdev, "mlx5e: ESP LSO not supported\n");
+		mlx5_core_dbg(mdev, "mlx5e: ESP LSO yest supported\n");
 		return;
 	}
 

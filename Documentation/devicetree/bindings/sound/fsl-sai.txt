@@ -1,7 +1,7 @@
-Freescale Synchronous Audio Interface (SAI).
+Freescale Synchroyesus Audio Interface (SAI).
 
 The SAI is based on I2S module that used communicating with audio codecs,
-which provides a synchronous audio interface that supports fullduplex
+which provides a synchroyesus audio interface that supports fullduplex
 serial interfaces with frame synchronization such as I2S, AC97, TDM, and
 codec/DSP interfaces.
 
@@ -35,14 +35,14 @@ Required properties:
 			  the MSB is transmitted first as default, or the LSB
 			  is transmitted first.
 
-  - fsl,sai-synchronous-rx: This is a boolean property. If present, indicating
-			  that SAI will work in the synchronous mode (sync Tx
+  - fsl,sai-synchroyesus-rx: This is a boolean property. If present, indicating
+			  that SAI will work in the synchroyesus mode (sync Tx
 			  with Rx) which means both the transmitter and the
 			  receiver will send and receive data by following
 			  receiver's bit clocks and frame sync clocks.
 
-  - fsl,sai-asynchronous: This is a boolean property. If present, indicating
-			  that SAI will work in the asynchronous mode, which
+  - fsl,sai-asynchroyesus: This is a boolean property. If present, indicating
+			  that SAI will work in the asynchroyesus mode, which
 			  means both transmitter and receiver will send and
 			  receive data by following their own bit clocks and
 			  frame sync clocks separately.
@@ -58,11 +58,11 @@ Optional properties (for mx6ul):
 			 indicates that SAI will output the SAI MCLK clock.
 
 Note:
-- If both fsl,sai-asynchronous and fsl,sai-synchronous-rx are absent, the
-  default synchronous mode (sync Rx with Tx) will be used, which means both
+- If both fsl,sai-asynchroyesus and fsl,sai-synchroyesus-rx are absent, the
+  default synchroyesus mode (sync Rx with Tx) will be used, which means both
   transmitter and receiver will send and receive data by following clocks
   of transmitter.
-- fsl,sai-asynchronous and fsl,sai-synchronous-rx are exclusive.
+- fsl,sai-asynchroyesus and fsl,sai-synchroyesus-rx are exclusive.
 
 Example:
 sai2: sai@40031000 {

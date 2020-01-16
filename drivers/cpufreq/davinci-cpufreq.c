@@ -86,9 +86,9 @@ static int davinci_cpu_init(struct cpufreq_policy *policy)
 
 	/*
 	 * Time measurement across the target() function yields ~1500-1800us
-	 * time taken with no drivers on notification list.
+	 * time taken with yes drivers on yestification list.
 	 * Setting the latency to 2000 us to accommodate addition of drivers
-	 * to pre/post change notification list.
+	 * to pre/post change yestification list.
 	 */
 	cpufreq_generic_init(policy, freq_table, 2000 * 1000);
 	return 0;

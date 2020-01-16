@@ -51,10 +51,10 @@ unsigned long hub_pio_map(nasid_t nasid, xwidgetnum_t widget,
 		 *
 		 * We need to prevent other CPUs from seeing our updated
 		 * memory shadow of the ITTE (in the piomap) until the ITTE
-		 * entry is actually set up; otherwise, another CPU might
+		 * entry is actually set up; otherwise, ayesther CPU might
 		 * attempt a PIO prematurely.
 		 *
-		 * Also, the only way we can know that an entry has been
+		 * Also, the only way we can kyesw that an entry has been
 		 * received  by the hub and can be used by future PIO reads/
 		 * writes is by reading back the ITTE entry after writing it.
 		 *
@@ -117,17 +117,17 @@ static void hub_setup_prb(nasid_t nasid, int prbnum, int credits)
 /**
  * hub_set_piomode  -  set pio mode for a given hub
  *
- * @nasid:	physical node ID for the hub in question
+ * @nasid:	physical yesde ID for the hub in question
  *
  * Put the hub into either "PIO conveyor belt" mode or "fire-and-forget" mode.
- * To do this, we have to make absolutely sure that no PIOs are in progress
+ * To do this, we have to make absolutely sure that yes PIOs are in progress
  * so we turn off access to all widgets for the duration of the function.
  *
  * XXX - This code should really check what kind of widget we're talking
  * to.	Bridges can only handle three requests, but XG will do more.
  * How many can crossbow handle to widget 0?  We're assuming 1.
  *
- * XXX - There is a bug in the crossbow that link reset PIOs do not
+ * XXX - There is a bug in the crossbow that link reset PIOs do yest
  * return write responses.  The easiest solution to this problem is to
  * leave widget 0 (xbow) in fire-and-forget mode at all times.	This
  * only affects pio's to xbow registers, which should be rare.

@@ -19,7 +19,7 @@ enum {
 	 */
 	SCSI_DH_DEV_FAILED,	/* generic device error */
 	SCSI_DH_DEV_TEMP_BUSY,
-	SCSI_DH_DEV_UNSUPP,	/* device handler not supported */
+	SCSI_DH_DEV_UNSUPP,	/* device handler yest supported */
 	SCSI_DH_DEVICE_MAX,	/* max device blkerr definition */
 
 	/*
@@ -34,7 +34,7 @@ enum {
 	 */
 	SCSI_DH_IO = SCSI_DH_TRANSPORT_MAX + 1,	/* generic error */
 	SCSI_DH_INVALID_IO,
-	SCSI_DH_RETRY,		/* retry the req, but not immediately */
+	SCSI_DH_RETRY,		/* retry the req, but yest immediately */
 	SCSI_DH_IMM_RETRY,	/* immediately retry the req */
 	SCSI_DH_TIMED_OUT,
 	SCSI_DH_RES_TEMP_UNAVAIL,

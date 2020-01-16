@@ -20,7 +20,7 @@ extern int perf_clang__compile_bpf(const char *filename,
 				   size_t *p_obj_buf_sz);
 #else
 
-#include <errno.h>
+#include <erryes.h>
 #include <linux/compiler.h>	/* for __maybe_unused */
 
 static inline void perf_clang__init(void) { }

@@ -2,7 +2,7 @@
 /*
  * Faraday FTMAC100 10/100 Ethernet
  *
- * (C) Copyright 2009-2011 Faraday Technology
+ * (C) Copyright 2009-2011 Faraday Techyeslogy
  * Po-Yu Chuang <ratbert@faraday-tech.com>
  */
 
@@ -125,7 +125,7 @@ struct ftmac100_txdes {
 	unsigned int	txdes0;
 	unsigned int	txdes1;
 	unsigned int	txdes2;	/* TXBUF_BADR */
-	unsigned int	txdes3;	/* not used by HW */
+	unsigned int	txdes3;	/* yest used by HW */
 } __attribute__ ((aligned(16)));
 
 #define	FTMAC100_TXDES0_TXPKT_LATECOL	(1 << 0)
@@ -146,7 +146,7 @@ struct ftmac100_rxdes {
 	unsigned int	rxdes0;
 	unsigned int	rxdes1;
 	unsigned int	rxdes2;	/* RXBUF_BADR */
-	unsigned int	rxdes3;	/* not used by HW */
+	unsigned int	rxdes3;	/* yest used by HW */
 } __attribute__ ((aligned(16)));
 
 #define	FTMAC100_RXDES0_RFL		0x7ff

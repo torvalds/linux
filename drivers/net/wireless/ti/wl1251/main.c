@@ -58,12 +58,12 @@ static int wl1251_fetch_firmware(struct wl1251 *wl)
 	ret = request_firmware(&fw, WL1251_FW_NAME, dev);
 
 	if (ret < 0) {
-		wl1251_error("could not get firmware: %d", ret);
+		wl1251_error("could yest get firmware: %d", ret);
 		return ret;
 	}
 
 	if (fw->size % 4) {
-		wl1251_error("firmware size is not multiple of 32 bits: %zu",
+		wl1251_error("firmware size is yest multiple of 32 bits: %zu",
 			     fw->size);
 		ret = -EILSEQ;
 		goto out;
@@ -73,7 +73,7 @@ static int wl1251_fetch_firmware(struct wl1251 *wl)
 	wl->fw = vmalloc(wl->fw_len);
 
 	if (!wl->fw) {
-		wl1251_error("could not allocate memory for the firmware");
+		wl1251_error("could yest allocate memory for the firmware");
 		ret = -ENOMEM;
 		goto out;
 	}
@@ -97,12 +97,12 @@ static int wl1251_fetch_nvs(struct wl1251 *wl)
 	ret = request_firmware(&fw, WL1251_NVS_NAME, dev);
 
 	if (ret < 0) {
-		wl1251_error("could not get nvs file: %d", ret);
+		wl1251_error("could yest get nvs file: %d", ret);
 		return ret;
 	}
 
 	if (fw->size % 4) {
-		wl1251_error("nvs size is not multiple of 32 bits: %zu",
+		wl1251_error("nvs size is yest multiple of 32 bits: %zu",
 			     fw->size);
 		ret = -EILSEQ;
 		goto out;
@@ -111,7 +111,7 @@ static int wl1251_fetch_nvs(struct wl1251 *wl)
 	wl->nvs = kmemdup(fw->data, fw->size, GFP_KERNEL);
 
 	if (!wl->nvs) {
-		wl1251_error("could not allocate memory for the nvs file");
+		wl1251_error("could yest allocate memory for the nvs file");
 		ret = -ENOMEM;
 		goto out;
 	}
@@ -135,7 +135,7 @@ static void wl1251_fw_wakeup(struct wl1251 *wl)
 	elp_reg = wl1251_read_elp(wl, HW_ACCESS_ELP_CTRL_REG_ADDR);
 
 	if (!(elp_reg & ELPCTRL_WLAN_READY))
-		wl1251_warning("WLAN not ready");
+		wl1251_warning("WLAN yest ready");
 }
 
 static int wl1251_chip_wakeup(struct wl1251 *wl)
@@ -316,7 +316,7 @@ static int wl1251_join(struct wl1251 *wl, u8 bss_type, u8 channel,
 		goto out;
 
 	/*
-	 * Join command applies filters, and if we are not associated,
+	 * Join command applies filters, and if we are yest associated,
 	 * BSSID filter must be disabled for association to work.
 	 */
 	if (is_zero_ether_addr(wl->bssid))
@@ -346,7 +346,7 @@ static void wl1251_op_tx(struct ieee80211_hw *hw,
 
 	/*
 	 * The chip specific setup must run before the first TX packet -
-	 * before that, the tx_work will not be initialized!
+	 * before that, the tx_work will yest be initialized!
 	 */
 
 	ieee80211_queue_work(wl->hw, &wl->tx_work);
@@ -376,7 +376,7 @@ static int wl1251_op_start(struct ieee80211_hw *hw)
 	mutex_lock(&wl->mutex);
 
 	if (wl->state != WL1251_STATE_OFF) {
-		wl1251_error("cannot start because not in off state: %d",
+		wl1251_error("canyest start because yest in off state: %d",
 			     wl->state);
 		ret = -EBUSY;
 		goto out;
@@ -448,7 +448,7 @@ static void wl1251_op_stop(struct ieee80211_hw *hw)
 
 	mutex_lock(&wl->mutex);
 
-	/* let's notify MAC80211 about the remaining pending TX frames */
+	/* let's yestify MAC80211 about the remaining pending TX frames */
 	wl1251_tx_flush(wl);
 	wl1251_power_off(wl);
 
@@ -577,7 +577,7 @@ static int wl1251_build_qos_null_data(struct wl1251 *wl)
 					     IEEE80211_STYPE_QOS_NULLFUNC |
 					     IEEE80211_FCTL_TODS);
 
-	/* FIXME: not sure what priority to use here */
+	/* FIXME: yest sure what priority to use here */
 	template.qos_ctrl = cpu_to_le16(0);
 
 	return wl1251_cmd_template_set(wl, CMD_QOS_NULL_DATA, &template,
@@ -631,7 +631,7 @@ static int wl1251_op_config(struct ieee80211_hw *hw, u32 changed)
 		wl->channel = channel;
 
 		/*
-		 * Use ENABLE_RX command for channel switching when no
+		 * Use ENABLE_RX command for channel switching when yes
 		 * interface is present (monitor mode only).
 		 * This leaves the tx path disabled in firmware, whereas
 		 * the usual JOIN command seems to transmit some frames
@@ -768,7 +768,7 @@ static void wl1251_op_configure_filter(struct ieee80211_hw *hw,
 	changed &= WL1251_SUPPORTED_FILTERS;
 
 	if (changed == 0) {
-		/* no filters which we support changed */
+		/* yes filters which we support changed */
 		kfree(fp);
 		return;
 	}
@@ -856,7 +856,7 @@ static int wl1251_set_key_type(struct wl1251 *wl,
 		mac80211_key->flags |= IEEE80211_KEY_FLAG_GENERATE_IV;
 		break;
 	default:
-		wl1251_error("Unknown key cipher 0x%x", mac80211_key->cipher);
+		wl1251_error("Unkyeswn key cipher 0x%x", mac80211_key->cipher);
 		return -EOPNOTSUPP;
 	}
 
@@ -953,7 +953,7 @@ static int wl1251_op_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 
 	ret = wl1251_cmd_send(wl, CMD_SET_KEYS, wl_cmd, sizeof(*wl_cmd));
 	if (ret < 0) {
-		wl1251_warning("could not set keys");
+		wl1251_warning("could yest set keys");
 		goto out_sleep;
 	}
 
@@ -1141,7 +1141,7 @@ static void wl1251_op_bss_info_changed(struct ieee80211_hw *hw,
 			if (ret < 0)
 				goto out_sleep;
 		} else {
-			/* use defaults when not associated */
+			/* use defaults when yest associated */
 			wl->beacon_int = WL1251_DEFAULT_BEACON_INT;
 			wl->dtim_period = WL1251_DEFAULT_DTIM_PERIOD;
 		}
@@ -1336,7 +1336,7 @@ static int wl1251_op_get_survey(struct ieee80211_hw *hw, int idx,
  
 	survey->channel = conf->chandef.chan;
 	survey->filled = SURVEY_INFO_NOISE_DBM;
-	survey->noise = wl->noise;
+	survey->yesise = wl->yesise;
  
 	return 0;
 }
@@ -1498,7 +1498,7 @@ static int wl1251_register_hw(struct wl1251 *wl)
 
 	wl->mac80211_registered = true;
 
-	wl1251_notice("loaded");
+	wl1251_yestice("loaded");
 
 	return 0;
 }
@@ -1540,15 +1540,15 @@ int wl1251_init_ieee80211(struct wl1251 *wl)
 
 	if (ret < 0) {
 		/*
-		 * In case our MAC address is not correctly set,
+		 * In case our MAC address is yest correctly set,
 		 * we use a random but Nokia MAC.
 		 */
-		static const u8 nokia_oui[3] = {0x00, 0x1f, 0xdf};
-		memcpy(wl->mac_addr, nokia_oui, 3);
+		static const u8 yeskia_oui[3] = {0x00, 0x1f, 0xdf};
+		memcpy(wl->mac_addr, yeskia_oui, 3);
 		get_random_bytes(wl->mac_addr + 3, 3);
 		if (!wl->use_eeprom)
 			wl1251_write_nvs_mac(wl);
-		wl1251_warning("MAC address in eeprom or nvs data is not valid");
+		wl1251_warning("MAC address in eeprom or nvs data is yest valid");
 		wl1251_warning("Setting random MAC address: %pM", wl->mac_addr);
 	}
 
@@ -1557,7 +1557,7 @@ int wl1251_init_ieee80211(struct wl1251 *wl)
 		goto out;
 
 	wl1251_debugfs_init(wl);
-	wl1251_notice("initialized");
+	wl1251_yestice("initialized");
 
 	ret = 0;
 
@@ -1574,7 +1574,7 @@ struct ieee80211_hw *wl1251_alloc_hw(void)
 
 	hw = ieee80211_alloc_hw(sizeof(*wl), &wl1251_ops);
 	if (!hw) {
-		wl1251_error("could not alloc ieee80211_hw");
+		wl1251_error("could yest alloc ieee80211_hw");
 		return ERR_PTR(-ENOMEM);
 	}
 
@@ -1629,7 +1629,7 @@ struct ieee80211_hw *wl1251_alloc_hw(void)
 
 	wl->rx_descriptor = kmalloc(sizeof(*wl->rx_descriptor), GFP_KERNEL);
 	if (!wl->rx_descriptor) {
-		wl1251_error("could not allocate memory for rx descriptor");
+		wl1251_error("could yest allocate memory for rx descriptor");
 		ieee80211_free_hw(hw);
 		return ERR_PTR(-ENOMEM);
 	}

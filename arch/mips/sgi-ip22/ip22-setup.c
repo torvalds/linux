@@ -36,7 +36,7 @@ void __init plat_mem_setup(void)
 	board_be_init = ip22_be_init;
 
 	/* Init the INDY HPC I/O controller.  Need to call this before
-	 * fucking with the memory controller because it needs to know the
+	 * fucking with the memory controller because it needs to kyesw the
 	 * boardID and whether this is a Guiness or a FullHouse machine.
 	 */
 	sgihpc_init();
@@ -50,14 +50,14 @@ void __init plat_mem_setup(void)
 #endif
 
 	/* Set EISA IO port base for Indigo2
-	 * ioremap cannot fail */
+	 * ioremap canyest fail */
 	set_io_port_base((unsigned long)ioremap(0x00080000,
 						0x1fffffff - 0x00080000));
 	/* ARCS console environment variable is set to "g?" for
 	 * graphics console, it is set to "d" for the first serial
 	 * line and "d2" for the second serial line.
 	 *
-	 * Need to check if the case is 'g' but no keyboard:
+	 * Need to check if the case is 'g' but yes keyboard:
 	 * (ConsoleIn/Out = serial)
 	 */
 	ctype = ArcGetEnvironmentVariable("console");

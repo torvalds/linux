@@ -16,16 +16,16 @@ unsigned int do_csum(const void *voidptr, int len);
  * here even more important to align src and dst on a 32-bit (or even
  * better 64-bit) boundary
  */
-#define csum_partial_copy_nocheck csum_partial_copy_nocheck
-__wsum csum_partial_copy_nocheck(const void *src, void *dst,
+#define csum_partial_copy_yescheck csum_partial_copy_yescheck
+__wsum csum_partial_copy_yescheck(const void *src, void *dst,
 					int len, __wsum sum);
 
 /*
  * computes the checksum of the TCP/UDP pseudo-header
  * returns a 16-bit checksum, already complemented
  */
-#define csum_tcpudp_nofold csum_tcpudp_nofold
-__wsum csum_tcpudp_nofold(__be32 saddr, __be32 daddr,
+#define csum_tcpudp_yesfold csum_tcpudp_yesfold
+__wsum csum_tcpudp_yesfold(__be32 saddr, __be32 daddr,
 			  __u32 len, __u8 proto, __wsum sum);
 
 #define csum_tcpudp_magic csum_tcpudp_magic

@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -49,7 +49,7 @@ const char *usnic_transport_to_str(enum usnic_transport_type type)
 {
 	switch (type) {
 	case USNIC_TRANSPORT_UNKNOWN:
-		return "Unknown";
+		return "Unkyeswn";
 	case USNIC_TRANSPORT_ROCE_CUSTOM:
 		return "roce custom";
 	case USNIC_TRANSPORT_IPV4_UDP:
@@ -57,7 +57,7 @@ const char *usnic_transport_to_str(enum usnic_transport_type type)
 	case USNIC_TRANSPORT_MAX:
 		return "Max?";
 	default:
-		return "Not known";
+		return "Not kyeswn";
 	}
 }
 
@@ -203,7 +203,7 @@ int usnic_transport_init(void)
 	if (!roce_bitmap)
 		return -ENOMEM;
 
-	/* Do not ever allocate bit 0, hence set it here */
+	/* Do yest ever allocate bit 0, hence set it here */
 	bitmap_set(roce_bitmap, 0, 1);
 	return 0;
 }

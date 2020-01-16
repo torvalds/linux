@@ -47,7 +47,7 @@
 #include "lpfc_logmsg.h"
 
 #define LPFC_MBUF_POOL_SIZE     64      /* max elements in MBUF safety pool */
-#define LPFC_MEM_POOL_SIZE      64      /* max elem in non-DMA safety pool */
+#define LPFC_MEM_POOL_SIZE      64      /* max elem in yesn-DMA safety pool */
 #define LPFC_DEVICE_DATA_POOL_SIZE 64   /* max elements in device data pool */
 
 int
@@ -74,9 +74,9 @@ lpfc_mem_alloc_active_rrq_pool_s4(struct lpfc_hba *phba) {
  *
  * Description: Creates and allocates PCI pools lpfc_mbuf_pool,
  * lpfc_hrb_pool.  Creates and allocates kmalloc-backed mempools
- * for LPFC_MBOXQ_t and lpfc_nodelist.  Also allocates the VPI bitmask.
+ * for LPFC_MBOXQ_t and lpfc_yesdelist.  Also allocates the VPI bitmask.
  *
- * Notes: Not interrupt-safe.  Must be called with no locks held.  If any
+ * Notes: Not interrupt-safe.  Must be called with yes locks held.  If any
  * allocation fails, frees all successfully allocated memory before returning.
  *
  * Returns:
@@ -119,14 +119,14 @@ lpfc_mem_alloc(struct lpfc_hba *phba, int align)
 		goto fail_free_mbuf_pool;
 
 	phba->nlp_mem_pool = mempool_create_kmalloc_pool(LPFC_MEM_POOL_SIZE,
-						sizeof(struct lpfc_nodelist));
+						sizeof(struct lpfc_yesdelist));
 	if (!phba->nlp_mem_pool)
 		goto fail_free_mbox_pool;
 
 	if (phba->sli_rev == LPFC_SLI_REV4) {
 		phba->rrq_pool =
 			mempool_create_kmalloc_pool(LPFC_MEM_POOL_SIZE,
-						sizeof(struct lpfc_node_rrq));
+						sizeof(struct lpfc_yesde_rrq));
 		if (!phba->rrq_pool)
 			goto fail_free_nlp_mem_pool;
 		phba->lpfc_hrb_pool = dma_pool_create("lpfc_hrb_pool",
@@ -197,7 +197,7 @@ lpfc_nvmet_mem_alloc(struct lpfc_hba *phba)
 				SGL_ALIGN_SZ, 0);
 	if (!phba->lpfc_nvmet_drb_pool) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-				"6024 Can't enable NVME Target - no memory\n");
+				"6024 Can't enable NVME Target - yes memory\n");
 		return -ENOMEM;
 	}
 	return 0;
@@ -279,7 +279,7 @@ lpfc_mem_free(struct lpfc_hba *phba)
  *
  * Description: Free memory from PCI and driver memory pools and also those
  * used : lpfc_sg_dma_buf_pool, lpfc_mbuf_pool, lpfc_hrb_pool. Frees
- * kmalloc-backed mempools for LPFC_MBOXQ_t and lpfc_nodelist. Also frees
+ * kmalloc-backed mempools for LPFC_MBOXQ_t and lpfc_yesdelist. Also frees
  * the VPI bitmask.
  *
  * Returns: None
@@ -354,7 +354,7 @@ lpfc_mem_free_all(struct lpfc_hba *phba)
  * mem_flags has MEM_PRI set (the only defined flag), returns an mbuf from the
  * HBA's pool.
  *
- * Notes: Not interrupt-safe.  Must be called with no locks held.  Takes
+ * Notes: Not interrupt-safe.  Must be called with yes locks held.  Takes
  * phba->hbalock.
  *
  * Returns:
@@ -476,9 +476,9 @@ lpfc_nvmet_buf_free(struct lpfc_hba *phba, void *virt, dma_addr_t dma)
  * @phba: HBA to allocate HBQ buffer for
  *
  * Description: Allocates a DMA-mapped HBQ buffer from the lpfc_hrb_pool PCI
- * pool along a non-DMA-mapped container for it.
+ * pool along a yesn-DMA-mapped container for it.
  *
- * Notes: Not interrupt-safe.  Must be called with no locks held.
+ * Notes: Not interrupt-safe.  Must be called with yes locks held.
  *
  * Returns:
  *   pointer to HBQ on success
@@ -528,9 +528,9 @@ lpfc_els_hbq_free(struct lpfc_hba *phba, struct hbq_dmabuf *hbqbp)
  * @phba: HBA to allocate a receive buffer for
  *
  * Description: Allocates a DMA-mapped receive buffer from the lpfc_hrb_pool PCI
- * pool along a non-DMA-mapped container for it.
+ * pool along a yesn-DMA-mapped container for it.
  *
- * Notes: Not interrupt-safe.  Must be called with no locks held.
+ * Notes: Not interrupt-safe.  Must be called with yes locks held.
  *
  * Returns:
  *   pointer to HBQ on success
@@ -588,9 +588,9 @@ lpfc_sli4_rb_free(struct lpfc_hba *phba, struct hbq_dmabuf *dmab)
  * @phba: HBA to allocate a receive buffer for
  *
  * Description: Allocates a DMA-mapped receive buffer from the lpfc_hrb_pool PCI
- * pool along a non-DMA-mapped container for it.
+ * pool along a yesn-DMA-mapped container for it.
  *
- * Notes: Not interrupt-safe.  Must be called with no locks held.
+ * Notes: Not interrupt-safe.  Must be called with yes locks held.
  *
  * Returns:
  *   pointer to HBQ on success
@@ -726,7 +726,7 @@ lpfc_rq_buf_free(struct lpfc_hba *phba, struct lpfc_dmabuf *mp)
 	if (rc < 0) {
 		(rqbp->rqb_free_buffer)(phba, rqb_entry);
 		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-				"6409 Cannot post to HRQ %d: %x %x %x "
+				"6409 Canyest post to HRQ %d: %x %x %x "
 				"DRQ %x %x\n",
 				rqb_entry->hrq->queue_id,
 				rqb_entry->hrq->host_index,

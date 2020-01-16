@@ -577,7 +577,7 @@ static int write_tx_buf(struct mrf24j40 *devrec, u16 reg,
 	cmd = MRF24J40_WRITELONG(reg);
 	devrec->tx_hdr_buf[0] = cmd >> 8 & 0xff;
 	devrec->tx_hdr_buf[1] = cmd & 0xff;
-	devrec->tx_len_buf[0] = 0x0; /* Header Length. Set to 0 for now. TODO */
+	devrec->tx_len_buf[0] = 0x0; /* Header Length. Set to 0 for yesw. TODO */
 	devrec->tx_len_buf[1] = length; /* Total length */
 	devrec->tx_buf_trx.tx_buf = data;
 	devrec->tx_buf_trx.len = length;
@@ -602,7 +602,7 @@ static int mrf24j40_tx(struct ieee802154_hw *hw, struct sk_buff *skb)
 static int mrf24j40_ed(struct ieee802154_hw *hw, u8 *level)
 {
 	/* TODO: */
-	pr_warn("mrf24j40: ed not implemented\n");
+	pr_warn("mrf24j40: ed yest implemented\n");
 	*level = 0;
 	return 0;
 }
@@ -726,7 +726,7 @@ static int mrf24j40_filter(struct ieee802154_hw *hw,
 			return ret;
 
 		/* REG_SLOTTED is maintained as default (unslotted/CSMA-CA).
-		 * REG_ORDER is maintained as default (no beacon/superframe).
+		 * REG_ORDER is maintained as default (yes beacon/superframe).
 		 */
 
 		dev_dbg(printdev(devrec), "Set Pan Coord to %s\n",
@@ -1024,7 +1024,7 @@ static void mrf24j40_intstat_complete(void *context)
 
 	enable_irq(devrec->spi->irq);
 
-	/* Ignore Rx security decryption */
+	/* Igyesre Rx security decryption */
 	if (intstat & BIT_SECIF)
 		regmap_write_async(devrec->regmap_short, REG_SECCON0,
 				   BIT_SECIGNORE);
@@ -1043,7 +1043,7 @@ static irqreturn_t mrf24j40_isr(int irq, void *data)
 	struct mrf24j40 *devrec = data;
 	int ret;
 
-	disable_irq_nosync(irq);
+	disable_irq_yessync(irq);
 
 	devrec->irq_buf[0] = MRF24J40_READSHORT(REG_INTSTAT);
 	devrec->irq_buf[1] = 0;
@@ -1127,7 +1127,7 @@ static int mrf24j40_hw_init(struct mrf24j40 *devrec)
 
 	udelay(192);
 
-	/* Set RX Mode. RXMCR<1:0>: 0x0 normal, 0x1 promisc, 0x2 error */
+	/* Set RX Mode. RXMCR<1:0>: 0x0 yesrmal, 0x1 promisc, 0x2 error */
 	ret = regmap_update_bits(devrec->regmap_short, REG_RXMCR, 0x03, 0x00);
 	if (ret)
 		goto err_ret;
@@ -1156,7 +1156,7 @@ static int mrf24j40_hw_init(struct mrf24j40 *devrec)
 	if (irq_type == IRQ_TYPE_EDGE_RISING ||
 	    irq_type == IRQ_TYPE_EDGE_FALLING)
 		dev_warn(&devrec->spi->dev,
-			 "Using edge triggered irq's are not recommended, because it can cause races and result in a non-functional driver!\n");
+			 "Using edge triggered irq's are yest recommended, because it can cause races and result in a yesn-functional driver!\n");
 	switch (irq_type) {
 	case IRQ_TYPE_EDGE_RISING:
 	case IRQ_TYPE_LEVEL_HIGH:

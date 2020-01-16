@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause) */
-/* Copyright (C) 2016-2018 Netronome Systems, Inc. */
+/* Copyright (C) 2016-2018 Netroyesme Systems, Inc. */
 
 #ifndef __NFP_ASM_H__
 #define __NFP_ASM_H__ 1
@@ -313,7 +313,7 @@ enum nfp_bpf_lm_mode {
 #define reg_nnr(x)	__enc_swreg((x), NN_REG_NNR)
 #define reg_xfer(x)	__enc_swreg((x), NN_REG_XFER)
 #define reg_imm(x)	__enc_swreg((x), NN_REG_IMM)
-#define reg_none()	__enc_swreg(0, NN_REG_NONE)
+#define reg_yesne()	__enc_swreg(0, NN_REG_NONE)
 #define reg_lm(x, off)	__enc_swreg_lm((x), NN_LM_MOD_NONE, (off))
 #define reg_lm_inc(x)	__enc_swreg_lm((x), NN_LM_MOD_INC, 0)
 #define reg_lm_dec(x)	__enc_swreg_lm((x), NN_LM_MOD_DEC, 0)
@@ -394,7 +394,7 @@ int swreg_to_restricted(swreg dst, swreg lreg, swreg rreg,
 
 #define NFP_USTORE_PREFETCH_WINDOW	8
 
-int nfp_ustore_check_valid_no_ecc(u64 insn);
+int nfp_ustore_check_valid_yes_ecc(u64 insn);
 u64 nfp_ustore_calc_ecc_insn(u64 insn);
 
 #define NFP_IND_ME_REFL_WR_SIG_INIT	3

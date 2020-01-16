@@ -246,20 +246,20 @@ static const struct regulator_ops mc13892_gpo_regulator_ops;
 static const struct regulator_ops mc13892_sw_regulator_ops;
 
 
-#define MC13892_FIXED_DEFINE(name, node, reg, voltages)			\
-	MC13xxx_FIXED_DEFINE(MC13892_, name, node, reg, voltages,	\
+#define MC13892_FIXED_DEFINE(name, yesde, reg, voltages)			\
+	MC13xxx_FIXED_DEFINE(MC13892_, name, yesde, reg, voltages,	\
 			mc13xxx_fixed_regulator_ops)
 
-#define MC13892_GPO_DEFINE(name, node, reg, voltages)			\
-	MC13xxx_GPO_DEFINE(MC13892_, name, node, reg, voltages,		\
+#define MC13892_GPO_DEFINE(name, yesde, reg, voltages)			\
+	MC13xxx_GPO_DEFINE(MC13892_, name, yesde, reg, voltages,		\
 			mc13892_gpo_regulator_ops)
 
-#define MC13892_SW_DEFINE(name, node, reg, vsel_reg, voltages)		\
-	MC13xxx_DEFINE(MC13892_, name, node, reg, vsel_reg, voltages,	\
+#define MC13892_SW_DEFINE(name, yesde, reg, vsel_reg, voltages)		\
+	MC13xxx_DEFINE(MC13892_, name, yesde, reg, vsel_reg, voltages,	\
 			mc13892_sw_regulator_ops)
 
-#define MC13892_DEFINE_REGU(name, node, reg, vsel_reg, voltages)	\
-	MC13xxx_DEFINE(MC13892_, name, node, reg, vsel_reg, voltages, \
+#define MC13892_DEFINE_REGU(name, yesde, reg, vsel_reg, voltages)	\
+	MC13xxx_DEFINE(MC13892_, name, yesde, reg, vsel_reg, voltages, \
 			mc13xxx_regulator_ops)
 
 static struct mc13xxx_regulator mc13892_regulators[] = {
@@ -415,9 +415,9 @@ static int mc13892_sw_regulator_get_voltage_sel(struct regulator_dev *rdev)
 	 * since this means the selector value we return is at a different
 	 * offset into the selector table.
 	 *
-	 * According to the MC13892 documentation note 59 (Table 47) the SW1
-	 * buck switcher does not support output range programming therefore
-	 * the HI bit must always remain 0. So do not do anything strange if
+	 * According to the MC13892 documentation yeste 59 (Table 47) the SW1
+	 * buck switcher does yest support output range programming therefore
+	 * the HI bit must always remain 0. So do yest do anything strange if
 	 * our register is MC13892_SWITCHERS0.
 	 */
 
@@ -592,13 +592,13 @@ static int mc13892_regulator_probe(struct platform_device *pdev)
 	for (i = 0; i < priv->num_regulators; i++) {
 		struct regulator_init_data *init_data;
 		struct regulator_desc *desc;
-		struct device_node *node = NULL;
+		struct device_yesde *yesde = NULL;
 		int id;
 
 		if (mc13xxx_data) {
 			id = mc13xxx_data[i].id;
 			init_data = mc13xxx_data[i].init_data;
-			node = mc13xxx_data[i].node;
+			yesde = mc13xxx_data[i].yesde;
 		} else {
 			id = pdata->regulators[i].id;
 			init_data = pdata->regulators[i].init_data;
@@ -608,7 +608,7 @@ static int mc13892_regulator_probe(struct platform_device *pdev)
 		config.dev = &pdev->dev;
 		config.init_data = init_data;
 		config.driver_data = priv;
-		config.of_node = node;
+		config.of_yesde = yesde;
 
 		priv->regulators[i] = devm_regulator_register(&pdev->dev, desc,
 							      &config);

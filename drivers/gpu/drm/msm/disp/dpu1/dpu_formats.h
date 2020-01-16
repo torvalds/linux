@@ -34,7 +34,7 @@ const struct msm_format *dpu_get_msm_format(
 
 /**
  * dpu_format_check_modified_format - validate format and buffers for
- *                   dpu non-standard, i.e. modified format
+ *                   dpu yesn-standard, i.e. modified format
  * @kms:             kms driver
  * @msm_fmt:         pointer to the msm_fmt base pointer of an dpu_format
  * @cmd:             fb_cmd2 structure user request

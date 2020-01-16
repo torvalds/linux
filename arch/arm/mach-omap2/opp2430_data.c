@@ -14,7 +14,7 @@
  * respect to each other. These ratio sets are for a given voltage/DPLL
  * setting. All configurations can be described by a DPLL setting and a ratio.
  *
- * 2430 differs from 2420 in that there are no more phase synchronizers used.
+ * 2430 differs from 2420 in that there are yes more phase synchronizers used.
  * They both have a slightly different clock domain setup. 2420(iva1,dsp) vs
  * 2430 (iva2.1, NOdsp, mdm)
  *
@@ -45,7 +45,7 @@
  * When multiple values are defined the start up will try and choose
  * the fastest one. If a 'fast' value is defined, then automatically,
  * the /2 one should be included as it can be used.  Generally having
- * more than one fast set does not make sense, as static timings need
+ * more than one fast set does yest make sense, as static timings need
  * to be changed to change the set.  The exception is the bypass
  * setting which is available for low power bypass.
  *

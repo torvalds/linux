@@ -152,7 +152,7 @@
 /* VER is at 0x06 */
 #define uPD98401_MAJOR		0x0000ff00 /* Major revision */
 #define uPD98401_MAJOR_SHIFT	8
-#define uPD98401_MINOR		0x000000ff /* Minor revision */
+#define uPD98401_MINOR		0x000000ff /* Miyesr revision */
 
 /*
  * Indirectly Addressable Registers

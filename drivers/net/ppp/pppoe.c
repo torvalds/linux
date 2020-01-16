@@ -20,25 +20,25 @@
  *		and ppp_unregister_channel.
  * 040800 :	Respect reference count mechanisms on net-devices.
  * 200800 :	fix kfree(skb) in pppoe_rcv (acme)
- *		Module reference count is decremented in the right spot now,
- *		guards against sock_put not actually freeing the sk
+ *		Module reference count is decremented in the right spot yesw,
+ *		guards against sock_put yest actually freeing the sk
  *		in pppoe_release.
  * 051000 :	Initialization cleanup.
  * 111100 :	Fix recvmsg.
  * 050101 :	Fix PADT procesing.
  * 140501 :	Use pppoe_rcv_core to handle all backlog. (Alexey)
- * 170701 :	Do not lock_sock with rwlock held. (DaveM)
- *		Ignore discovery frames if user has socket
+ * 170701 :	Do yest lock_sock with rwlock held. (DaveM)
+ *		Igyesre discovery frames if user has socket
  *		locked. (DaveM)
- *		Ignore return value of dev_queue_xmit in __pppoe_xmit
+ *		Igyesre return value of dev_queue_xmit in __pppoe_xmit
  *		or else we may kfree an SKB twice. (DaveM)
  * 190701 :	When doing copies of skb's in __pppoe_xmit, always delete
  *		the original skb that was passed in on success, never on
  *		failure.  Delete the copy of the skb on failure to avoid
  *		a memory leak.
- * 081001 :	Misc. cleanup (licence string, non-blocking, prevent
+ * 081001 :	Misc. cleanup (licence string, yesn-blocking, prevent
  *		reference of device on close).
- * 121301 :	New ppp channels interface; cannot unregister a channel
+ * 121301 :	New ppp channels interface; canyest unregister a channel
  *		from interrupts.  Thus, we mark the socket as a ZOMBIE
  *		and do the unregistration later.
  * 081002 :	seq_file support for proc stuff -acme
@@ -56,7 +56,7 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/netdevice.h>
 #include <linux/net.h>
 #include <linux/inetdevice.h>
@@ -68,7 +68,7 @@
 #include <linux/ppp_channel.h>
 #include <linux/ppp_defs.h>
 #include <linux/ppp-ioctl.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/file.h>
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
@@ -107,7 +107,7 @@ struct pppoe_net {
 /*
  * PPPoE could be in the following stages:
  * 1) Discovery stage (to obtain remote MAC and Session ID)
- * 2) Session stage (MAC and SID are known)
+ * 2) Session stage (MAC and SID are kyeswn)
  *
  * Ethernet frames have a special tag for this but
  * we use simpler approach based on session id
@@ -327,10 +327,10 @@ static void pppoe_flush_dev(struct net_device *dev)
 	write_unlock_bh(&pn->hash_lock);
 }
 
-static int pppoe_device_event(struct notifier_block *this,
+static int pppoe_device_event(struct yestifier_block *this,
 			      unsigned long event, void *ptr)
 {
-	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
+	struct net_device *dev = netdev_yestifier_info_to_dev(ptr);
 
 	/* Only look at sockets that are using this specific device. */
 	switch (event) {
@@ -353,8 +353,8 @@ static int pppoe_device_event(struct notifier_block *this,
 	return NOTIFY_DONE;
 }
 
-static struct notifier_block pppoe_notifier = {
-	.notifier_call = pppoe_device_event,
+static struct yestifier_block pppoe_yestifier = {
+	.yestifier_call = pppoe_device_event,
 };
 
 /************************************************************************
@@ -442,7 +442,7 @@ static int pppoe_rcv(struct sk_buff *skb, struct net_device *dev,
 	pn = pppoe_pernet(dev_net(dev));
 
 	/* Note that get_item does a sock_hold(), so sk_pppox(po)
-	 * is known to be safe.
+	 * is kyeswn to be safe.
 	 */
 	po = get_item(pn, ph->sid, eth_hdr(skb)->h_source, dev->ifindex);
 	if (!po)
@@ -915,7 +915,7 @@ static int __pppoe_xmit(struct sock *sk, struct sk_buff *skb)
 
 	/* The higher-level PPP code (ppp_unregister_channel()) ensures the PPP
 	 * xmit operations conclude prior to an unregistration call.  Thus
-	 * sk->sk_state cannot change, so we don't need to do lock_sock().
+	 * sk->sk_state canyest change, so we don't need to do lock_sock().
 	 * But, we also can't do a lock_sock since that introduces a potential
 	 * deadlock as we'd reverse the lock ordering used when calling
 	 * ppp_unregister_channel().
@@ -927,7 +927,7 @@ static int __pppoe_xmit(struct sock *sk, struct sk_buff *skb)
 	if (!dev)
 		goto abort;
 
-	/* Copy the data if there is no space for the header or if it's
+	/* Copy the data if there is yes space for the header or if it's
 	 * read-only.
 	 */
 	if (skb_cow_head(skb, LL_RESERVED_SPACE(dev) + sizeof(*ph)))
@@ -1099,19 +1099,19 @@ static const struct proto_ops pppoe_ops = {
 	.family		= AF_PPPOX,
 	.owner		= THIS_MODULE,
 	.release	= pppoe_release,
-	.bind		= sock_no_bind,
+	.bind		= sock_yes_bind,
 	.connect	= pppoe_connect,
-	.socketpair	= sock_no_socketpair,
-	.accept		= sock_no_accept,
+	.socketpair	= sock_yes_socketpair,
+	.accept		= sock_yes_accept,
 	.getname	= pppoe_getname,
 	.poll		= datagram_poll,
-	.listen		= sock_no_listen,
-	.shutdown	= sock_no_shutdown,
-	.setsockopt	= sock_no_setsockopt,
-	.getsockopt	= sock_no_getsockopt,
+	.listen		= sock_yes_listen,
+	.shutdown	= sock_yes_shutdown,
+	.setsockopt	= sock_yes_setsockopt,
+	.getsockopt	= sock_yes_getsockopt,
 	.sendmsg	= pppoe_sendmsg,
 	.recvmsg	= pppoe_recvmsg,
-	.mmap		= sock_no_mmap,
+	.mmap		= sock_yes_mmap,
 	.ioctl		= pppox_ioctl,
 #ifdef CONFIG_COMPAT
 	.compat_ioctl	= pppox_compat_ioctl,
@@ -1171,7 +1171,7 @@ static int __init pppoe_init(void)
 
 	dev_add_pack(&pppoes_ptype);
 	dev_add_pack(&pppoed_ptype);
-	register_netdevice_notifier(&pppoe_notifier);
+	register_netdevice_yestifier(&pppoe_yestifier);
 
 	return 0;
 
@@ -1185,7 +1185,7 @@ out:
 
 static void __exit pppoe_exit(void)
 {
-	unregister_netdevice_notifier(&pppoe_notifier);
+	unregister_netdevice_yestifier(&pppoe_yestifier);
 	dev_remove_pack(&pppoed_ptype);
 	dev_remove_pack(&pppoes_ptype);
 	unregister_pppox_proto(PX_PROTO_OE);

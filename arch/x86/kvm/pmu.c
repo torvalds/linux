@@ -19,7 +19,7 @@
 #include "lapic.h"
 #include "pmu.h"
 
-/* This is enough to filter the vast majority of currently defined events. */
+/* This is eyesugh to filter the vast majority of currently defined events. */
 #define KVM_PMU_EVENT_FILTER_MAX_EVENTS 300
 
 /* NOTE:
@@ -33,7 +33,7 @@
  * - There are three types of index to access perf counters (PMC):
  *     1. MSR (named msr): For example Intel has MSR_IA32_PERFCTRn and AMD
  *        has MSR_K7_PERFCTRn.
- *     2. MSR Index (named idx): This normally is used by RDPMC instruction.
+ *     2. MSR Index (named idx): This yesrmally is used by RDPMC instruction.
  *        For instance AMD RDPMC instruction uses 0000_0003h in ECX to access
  *        C001_0007h (MSR_K7_PERCTR3). Intel has a similar mechanism, except
  *        that it also supports fixed counters. idx can be used to as index to
@@ -83,7 +83,7 @@ static void kvm_perf_overflow_intr(struct perf_event *perf_event,
 		 * Inject PMI. If vcpu was in a guest mode during NMI PMI
 		 * can be ejected on a guest mode re-entry. Otherwise we can't
 		 * be sure that vcpu wasn't executing hlt instruction at the
-		 * time of vmexit and is not going to re-enter guest mode until
+		 * time of vmexit and is yest going to re-enter guest mode until
 		 * woken up. So we should wake it, but this is impossible from
 		 * NMI context. Do it from irq work instead.
 		 */
@@ -117,7 +117,7 @@ static void pmc_reprogram_counter(struct kvm_pmc *pmc, u32 type,
 		attr.config |= HSW_IN_TX;
 	if (in_tx_cp) {
 		/*
-		 * HSW_IN_TX_CHECKPOINTED is not supported with nonzero
+		 * HSW_IN_TX_CHECKPOINTED is yest supported with yesnzero
 		 * period. Just clear the sample period so at least
 		 * allocating the counter doesn't fail.
 		 */
@@ -178,7 +178,7 @@ void reprogram_gp_counter(struct kvm_pmc *pmc, u64 eventsel)
 	bool allow_event = true;
 
 	if (eventsel & ARCH_PERFMON_EVENTSEL_PIN_CONTROL)
-		printk_once("kvm pmu: pin control bit is ignored\n");
+		printk_once("kvm pmu: pin control bit is igyesred\n");
 
 	pmc->eventsel = eventsel;
 
@@ -458,7 +458,7 @@ void kvm_pmu_cleanup(struct kvm_vcpu *vcpu)
 
 	pmu->need_cleanup = false;
 
-	bitmap_andnot(bitmask, pmu->all_valid_pmc_idx,
+	bitmap_andyest(bitmask, pmu->all_valid_pmc_idx,
 		      pmu->pmc_in_use, X86_PMC_IDX_MAX);
 
 	for_each_set_bit(i, bitmask, X86_PMC_IDX_MAX) {

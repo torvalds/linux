@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Synopsys DesignWare I2C adapter driver.
+ * Syyespsys DesignWare I2C adapter driver.
  *
  * Based on the TI DAVINCI I2C adapter driver.
  *
@@ -11,7 +11,7 @@
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/export.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/err.h>
 #include <linux/i2c.h>
 #include <linux/interrupt.h>
@@ -24,19 +24,19 @@
 
 static char *abort_sources[] = {
 	[ABRT_7B_ADDR_NOACK] =
-		"slave address not acknowledged (7bit mode)",
+		"slave address yest ackyeswledged (7bit mode)",
 	[ABRT_10ADDR1_NOACK] =
-		"first address byte not acknowledged (10bit mode)",
+		"first address byte yest ackyeswledged (10bit mode)",
 	[ABRT_10ADDR2_NOACK] =
-		"second address byte not acknowledged (10bit mode)",
+		"second address byte yest ackyeswledged (10bit mode)",
 	[ABRT_TXDATA_NOACK] =
-		"data not acknowledged",
+		"data yest ackyeswledged",
 	[ABRT_GCALL_NOACK] =
-		"no acknowledgement for a general call",
+		"yes ackyeswledgement for a general call",
 	[ABRT_GCALL_READ] =
 		"read after general call",
 	[ABRT_SBYTE_ACKDET] =
-		"start byte acknowledged",
+		"start byte ackyeswledged",
 	[ABRT_SBYTE_NORSTRT] =
 		"trying to send start byte when restart is disabled",
 	[ABRT_10B_RD_NORSTRT] =
@@ -109,7 +109,7 @@ int i2c_dw_set_reg_access(struct dw_i2c_dev *dev)
 		dev->flags |= ACCESS_16BIT;
 	} else if (reg != DW_IC_COMP_TYPE_VALUE) {
 		dev_err(dev->dev,
-			"Unknown Synopsys component type: 0x%08x\n", reg);
+			"Unkyeswn Syyespsys component type: 0x%08x\n", reg);
 		return -ENODEV;
 	}
 
@@ -184,14 +184,14 @@ int i2c_dw_set_sda_hold(struct dw_i2c_dev *dev)
 	reg = dw_readl(dev, DW_IC_COMP_VERSION);
 	if (reg >= DW_IC_SDA_HOLD_MIN_VERS) {
 		if (!dev->sda_hold_time) {
-			/* Keep previous hold time setting if no one set it */
+			/* Keep previous hold time setting if yes one set it */
 			dev->sda_hold_time = dw_readl(dev, DW_IC_SDA_HOLD);
 		}
 
 		/*
 		 * Workaround for avoiding TX arbitration lost in case I2C
 		 * slave pulls SDA down "too quickly" after falling egde of
-		 * SCL by enabling non-zero SDA RX hold. Specification says it
+		 * SCL by enabling yesn-zero SDA RX hold. Specification says it
 		 * extends incoming SDA low to high transition while SCL is
 		 * high but it apprears to help also above issue.
 		 */
@@ -219,7 +219,7 @@ void __i2c_dw_disable(struct dw_i2c_dev *dev)
 	int timeout = 100;
 
 	do {
-		__i2c_dw_disable_nowait(dev);
+		__i2c_dw_disable_yeswait(dev);
 		/*
 		 * The enable status register may be unimplemented, but
 		 * in that case this test reads zero and exits the loop.
@@ -241,7 +241,7 @@ void __i2c_dw_disable(struct dw_i2c_dev *dev)
 unsigned long i2c_dw_clk_rate(struct dw_i2c_dev *dev)
 {
 	/*
-	 * Clock is not necessary if we got LCNT/HCNT values directly from
+	 * Clock is yest necessary if we got LCNT/HCNT values directly from
 	 * the platform code.
 	 */
 	if (WARN_ON_ONCE(!dev->get_clk_rate_khz))
@@ -299,9 +299,9 @@ void i2c_dw_release_lock(struct dw_i2c_dev *dev)
 }
 
 /*
- * Waiting for bus not busy
+ * Waiting for bus yest busy
  */
-int i2c_dw_wait_bus_not_busy(struct dw_i2c_dev *dev)
+int i2c_dw_wait_bus_yest_busy(struct dw_i2c_dev *dev)
 {
 	int timeout = TIMEOUT;
 
@@ -372,5 +372,5 @@ u32 i2c_dw_read_comp_param(struct dw_i2c_dev *dev)
 }
 EXPORT_SYMBOL_GPL(i2c_dw_read_comp_param);
 
-MODULE_DESCRIPTION("Synopsys DesignWare I2C bus adapter core");
+MODULE_DESCRIPTION("Syyespsys DesignWare I2C bus adapter core");
 MODULE_LICENSE("GPL");

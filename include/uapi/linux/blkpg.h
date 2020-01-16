@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 #ifndef _UAPI__LINUX_BLKPG_H
 #define _UAPI__LINUX_BLKPG_H
 
@@ -11,7 +11,7 @@
  *    get_whole_disk()		(given the device number of a partition,
  *                               find the device number of the encompassing disk)
  *    get_all_partitions()	(given the device number of a disk, return the
- *				 device numbers of all its known partitions)
+ *				 device numbers of all its kyeswn partitions)
  *
  * Partition stuff:
  *    add_partition()
@@ -51,7 +51,7 @@ struct blkpg_ioctl_arg {
 struct blkpg_partition {
 	long long start;		/* starting offset in bytes */
 	long long length;		/* length in bytes */
-	int pno;			/* partition number */
+	int pyes;			/* partition number */
 	char devname[BLKPG_DEVNAMELTH];	/* partition name, like sda5 or c0d1p2,
 					   to be used in kernel messages */
 	char volname[BLKPG_VOLNAMELTH];	/* volume label */

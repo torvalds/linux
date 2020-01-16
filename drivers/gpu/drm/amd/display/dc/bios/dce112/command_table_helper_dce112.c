@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -152,7 +152,7 @@ static uint8_t dig_encoder_sel_to_atom(enum engine_id id)
 {
 	/* On any ASIC after DCE80, we manually program the DIG_FE
 	 * selection (see connect_dig_be_to_fe function of the link
-	 * encoder), so translation should always return 0 (no FE).
+	 * encoder), so translation should always return 0 (yes FE).
 	 */
 
 	return 0;
@@ -197,7 +197,7 @@ static bool clock_source_id_to_atom(
 			*atom_pll_id = ATOM_DP_DTO;
 			break;
 		case CLOCK_SOURCE_ID_UNDEFINED:
-			/* Should not happen */
+			/* Should yest happen */
 			*atom_pll_id = ATOM_PPLL_INVALID;
 			result = false;
 			break;

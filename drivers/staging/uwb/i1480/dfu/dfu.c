@@ -13,7 +13,7 @@
  * As well, provides common functions used by the rest of the code.
  */
 #include "i1480-dfu.h"
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/delay.h>
 #include <linux/pci.h>
 #include <linux/device.h>
@@ -30,7 +30,7 @@
  * @expected_type: expected event type
  * @expected_event: expected event
  *
- * If @cmd is NULL, do not print error messages, but still return an error
+ * If @cmd is NULL, do yest print error messages, but still return an error
  * code.
  *
  * Return 0 if @rceb matches the expected values, -EINVAL otherwise.
@@ -72,7 +72,7 @@ EXPORT_SYMBOL_GPL(i1480_rceb_check);
  *
  * Command data has to be in i1480->cmd_buf.
  *
- * @returns size of the reply data filled in i1480->evt_buf or < 0 errno
+ * @returns size of the reply data filled in i1480->evt_buf or < 0 erryes
  *          code on error.
  */
 ssize_t i1480_cmd(struct i1480 *i1480, const char *cmd_name, size_t cmd_size,
@@ -111,8 +111,8 @@ ssize_t i1480_cmd(struct i1480 *i1480, const char *cmd_name, size_t cmd_size,
 	}
 	/*
 	 * Firmware versions >= 1.4.12224 for IOGear GUWA100U generate a
-	 * spurious notification after firmware is downloaded. So check whether
-	 * the receibed RCEB is such notification before assuming that the
+	 * spurious yestification after firmware is downloaded. So check whether
+	 * the receibed RCEB is such yestification before assuming that the
 	 * command has failed.
 	 */
 	if (i1480_rceb_check(i1480, i1480->evt_buf, NULL,
@@ -146,7 +146,7 @@ int i1480_print_state(struct i1480 *i1480)
 
 	result = i1480->read(i1480, 0x80080000, 2 * sizeof(*buf));
 	if (result < 0) {
-		dev_err(i1480->dev, "cannot read U & L states: %d\n", result);
+		dev_err(i1480->dev, "canyest read U & L states: %d\n", result);
 		goto error;
 	}
 	dev_info(i1480->dev, "state U 0x%08x, L 0x%08x\n", buf[0], buf[1]);
@@ -172,7 +172,7 @@ int i1480_fw_upload(struct i1480 *i1480)
 	result = i1480_mac_fw_upload(i1480);	/* MAC fw */
 	if (result < 0) {
 		if (result == -ENOENT)
-			dev_err(i1480->dev, "Cannot locate MAC FW file '%s'\n",
+			dev_err(i1480->dev, "Canyest locate MAC FW file '%s'\n",
 				i1480->mac_fw_name);
 		else
 			i1480_print_state(i1480);
@@ -185,7 +185,7 @@ int i1480_fw_upload(struct i1480 *i1480)
 	}
 	/*
 	 * FIXME: find some reliable way to check whether firmware is running
-	 * properly. Maybe use some standard request that has no side effects?
+	 * properly. Maybe use some standard request that has yes side effects?
 	 */
 	dev_info(i1480->dev, "firmware uploaded successfully\n");
 error_rc_release:

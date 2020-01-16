@@ -22,7 +22,7 @@
 #include <linux/mm.h>
 #include <linux/interrupt.h>
 #include <linux/major.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/genhd.h>
 #include <linux/slab.h>
 #include <linux/delay.h>
@@ -224,7 +224,7 @@ static u64 idedisk_read_native_max_address(ide_drive_t *drive, int lba48)
 		cmd.tf_flags = IDE_TFLAG_LBA48;
 	}
 
-	ide_no_data_taskfile(drive, &cmd);
+	ide_yes_data_taskfile(drive, &cmd);
 
 	/* if OK, compute maximum address value */
 	if (!(tf->status & ATA_ERR))
@@ -268,7 +268,7 @@ static u64 idedisk_set_max_address(ide_drive_t *drive, u64 addr_req, int lba48)
 		cmd.tf_flags = IDE_TFLAG_LBA48;
 	}
 
-	ide_no_data_taskfile(drive, &cmd);
+	ide_yes_data_taskfile(drive, &cmd);
 
 	/* if OK, compute maximum address value */
 	if (!(tf->status & ATA_ERR))
@@ -384,10 +384,10 @@ static int ide_disk_get_capacity(ide_drive_t *drive)
 			idedisk_check_hpa(drive);
 	}
 
-	/* limit drive capacity to 137GB if LBA48 cannot be used */
+	/* limit drive capacity to 137GB if LBA48 canyest be used */
 	if ((drive->dev_flags & IDE_DFLAG_LBA48) == 0 &&
 	    drive->capacity64 > 1ULL << 28) {
-		printk(KERN_WARNING "%s: cannot use LBA48 - full capacity "
+		printk(KERN_WARNING "%s: canyest use LBA48 - full capacity "
 		       "%llu sectors (%llu MB)\n",
 		       drive->name, (unsigned long long)drive->capacity64,
 		       sectors_to_MB(drive->capacity64));
@@ -397,7 +397,7 @@ static int ide_disk_get_capacity(ide_drive_t *drive)
 	if ((drive->hwif->host_flags & IDE_HFLAG_NO_LBA48_DMA) &&
 	    (drive->dev_flags & IDE_DFLAG_LBA48)) {
 		if (drive->capacity64 > 1ULL << 28) {
-			printk(KERN_INFO "%s: cannot use LBA48 DMA - PIO mode"
+			printk(KERN_INFO "%s: canyest use LBA48 DMA - PIO mode"
 					 " will be used for accessing sectors "
 					 "> %u\n", drive->name, 1 << 28);
 		} else
@@ -464,7 +464,7 @@ static bool idedisk_prep_rq(ide_drive_t *drive, struct request *rq)
 ide_devset_get(multcount, mult_count);
 
 /*
- * This is tightly woven into the driver->do_special can not touch.
+ * This is tightly woven into the driver->do_special can yest touch.
  * DON'T do it again until a total personality rewrite is committed.
  */
 static int set_multcount(ide_drive_t *drive, int arg)
@@ -488,9 +488,9 @@ static int set_multcount(ide_drive_t *drive, int arg)
 	return (drive->mult_count == arg) ? 0 : -EIO;
 }
 
-ide_devset_get_flag(nowerr, IDE_DFLAG_NOWERR);
+ide_devset_get_flag(yeswerr, IDE_DFLAG_NOWERR);
 
-static int set_nowerr(ide_drive_t *drive, int arg)
+static int set_yeswerr(ide_drive_t *drive, int arg)
 {
 	if (arg < 0 || arg > 1)
 		return -EINVAL;
@@ -516,7 +516,7 @@ static int ide_do_setfeature(ide_drive_t *drive, u8 feature, u8 nsect)
 	cmd.valid.out.tf = IDE_VALID_OUT_TF | IDE_VALID_DEVICE;
 	cmd.valid.in.tf  = IDE_VALID_IN_TF  | IDE_VALID_DEVICE;
 
-	return ide_no_data_taskfile(drive, &cmd);
+	return ide_yes_data_taskfile(drive, &cmd);
 }
 
 static void update_flush(ide_drive_t *drive)
@@ -528,12 +528,12 @@ static void update_flush(ide_drive_t *drive)
 		unsigned long long capacity;
 		int barrier;
 		/*
-		 * We must avoid issuing commands a drive does not
+		 * We must avoid issuing commands a drive does yest
 		 * understand or we may crash it. We check flush cache
 		 * is supported. We also check we have the LBA48 flush
 		 * cache if the drive capacity is too large. By this
 		 * time we have trimmed the drive capacity if LBA48 is
-		 * not available so we don't need to recheck that.
+		 * yest available so we don't need to recheck that.
 		 */
 		capacity = ide_gd_capacity(drive);
 		barrier = ata_id_flush_enabled(id) &&
@@ -543,7 +543,7 @@ static void update_flush(ide_drive_t *drive)
 			 ata_id_flush_ext_enabled(id));
 
 		printk(KERN_INFO "%s: cache flushes %ssupported\n",
-		       drive->name, barrier ? "" : "not ");
+		       drive->name, barrier ? "" : "yest ");
 
 		if (barrier) {
 			wc = true;
@@ -591,7 +591,7 @@ static int do_idedisk_flushcache(ide_drive_t *drive)
 	cmd.valid.out.tf = IDE_VALID_OUT_TF | IDE_VALID_DEVICE;
 	cmd.valid.in.tf  = IDE_VALID_IN_TF  | IDE_VALID_DEVICE;
 
-	return ide_no_data_taskfile(drive, &cmd);
+	return ide_yes_data_taskfile(drive, &cmd);
 }
 
 ide_devset_get(acoustic, acoustic);
@@ -642,7 +642,7 @@ ide_ext_devset_rw(address, addressing);
 ide_ext_devset_rw(multcount, multcount);
 ide_ext_devset_rw(wcache, wcache);
 
-ide_ext_devset_rw_sync(nowerr, nowerr);
+ide_ext_devset_rw_sync(yeswerr, yeswerr);
 
 static int ide_disk_check(ide_drive_t *drive, const char *s)
 {
@@ -665,7 +665,7 @@ static void ide_disk_setup(ide_drive_t *drive)
 
 	if (drive->dev_flags & IDE_DFLAG_REMOVABLE) {
 		/*
-		 * Removable disks (eg. SYQUEST); ignore 'WD' drives
+		 * Removable disks (eg. SYQUEST); igyesre 'WD' drives
 		 */
 		if (m[0] != 'W' || m[1] != 'D')
 			drive->dev_flags |= IDE_DFLAG_DOORLOCKING;
@@ -776,7 +776,7 @@ static int ide_disk_set_doorlock(ide_drive_t *drive, struct gendisk *disk,
 	cmd.valid.out.tf = IDE_VALID_OUT_TF | IDE_VALID_DEVICE;
 	cmd.valid.in.tf  = IDE_VALID_IN_TF  | IDE_VALID_DEVICE;
 
-	ret = ide_no_data_taskfile(drive, &cmd);
+	ret = ide_yes_data_taskfile(drive, &cmd);
 
 	if (ret)
 		drive->dev_flags &= ~IDE_DFLAG_DOORLOCKING;

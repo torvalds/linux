@@ -21,7 +21,7 @@
  *	(Even though the technical memorandum forbids it)
  * 2004-07-14	 Christoph Lameter
  *	Added getnstimeofday to allow the posix timer functions to return
- *	with nanosecond accuracy
+ *	with nayessecond accuracy
  */
 
 #include <linux/export.h>
@@ -29,7 +29,7 @@
 #include <linux/timex.h>
 #include <linux/capability.h>
 #include <linux/timekeeper_internal.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/syscalls.h>
 #include <linux/security.h>
 #include <linux/fs.h>
@@ -56,7 +56,7 @@ EXPORT_SYMBOL(sys_tz);
 /*
  * sys_time() can be implemented in user-level using
  * sys_gettimeofday().  Is this for backwards compatibility?  If so,
- * why not move it into the appropriate arch directory (for those
+ * why yest move it into the appropriate arch directory (for those
  * architectures that need it).
  */
 SYSCALL_DEFINE1(time, __kernel_old_time_t __user *, tloc)
@@ -74,7 +74,7 @@ SYSCALL_DEFINE1(time, __kernel_old_time_t __user *, tloc)
 /*
  * sys_stime() can be implemented in user-level using
  * sys_settimeofday().  Is this for backwards compatibility?  If so,
- * why not move it into the appropriate arch directory (for those
+ * why yest move it into the appropriate arch directory (for those
  * architectures that need it).
  */
 
@@ -156,7 +156,7 @@ SYSCALL_DEFINE2(gettimeofday, struct __kernel_old_timeval __user *, tv,
 }
 
 /*
- * In case for some reason the CMOS clock has not already been running
+ * In case for some reason the CMOS clock has yest already been running
  * in UTC, but in some local time: The first time we set the timezone,
  * we will warp the clock so that it is ticking UTC time instead of
  * local time. Presumably, if someone is setting the timezone then we
@@ -411,7 +411,7 @@ EXPORT_SYMBOL(jiffies_to_usecs);
 /*
  * mktime64 - Converts date to seconds.
  * Converts Gregorian date to seconds since 1970-01-01 00:00:00.
- * Assumes input in normal date format, i.e. 1980-12-31 23:59:59
+ * Assumes input in yesrmal date format, i.e. 1980-12-31 23:59:59
  * => year=1980, mon=12, day=31, hour=23, min=59, sec=59.
  *
  * [For the Julian calendar (which was used in Russia before 1917,
@@ -443,15 +443,15 @@ time64_t mktime64(const unsigned int year0, const unsigned int mon0,
 	return ((((time64_t)
 		  (year/4 - year/100 + year/400 + 367*mon/12 + day) +
 		  year*365 - 719499
-	    )*24 + hour /* now have hours - midnight tomorrow handled here */
-	  )*60 + min /* now have minutes */
+	    )*24 + hour /* yesw have hours - midnight tomorrow handled here */
+	  )*60 + min /* yesw have minutes */
 	)*60 + sec; /* finally seconds */
 }
 EXPORT_SYMBOL(mktime64);
 
 /**
- * ns_to_timespec - Convert nanoseconds to timespec
- * @nsec:       the nanoseconds value to be converted
+ * ns_to_timespec - Convert nayesseconds to timespec
+ * @nsec:       the nayesseconds value to be converted
  *
  * Returns the timespec representation of the nsec parameter.
  */
@@ -475,8 +475,8 @@ struct timespec ns_to_timespec(const s64 nsec)
 EXPORT_SYMBOL(ns_to_timespec);
 
 /**
- * ns_to_timeval - Convert nanoseconds to timeval
- * @nsec:       the nanoseconds value to be converted
+ * ns_to_timeval - Convert nayesseconds to timeval
+ * @nsec:       the nayesseconds value to be converted
  *
  * Returns the timeval representation of the nsec parameter.
  */
@@ -505,20 +505,20 @@ struct __kernel_old_timeval ns_to_kernel_old_timeval(const s64 nsec)
 EXPORT_SYMBOL(ns_to_kernel_old_timeval);
 
 /**
- * set_normalized_timespec - set timespec sec and nsec parts and normalize
+ * set_yesrmalized_timespec - set timespec sec and nsec parts and yesrmalize
  *
  * @ts:		pointer to timespec variable to be set
  * @sec:	seconds to set
- * @nsec:	nanoseconds to set
+ * @nsec:	nayesseconds to set
  *
- * Set seconds and nanoseconds field of a timespec variable and
- * normalize to the timespec storage format
+ * Set seconds and nayesseconds field of a timespec variable and
+ * yesrmalize to the timespec storage format
  *
  * Note: The tv_nsec part is always in the range of
  *	0 <= tv_nsec < NSEC_PER_SEC
  * For negative values only the tv_sec field is negative !
  */
-void set_normalized_timespec64(struct timespec64 *ts, time64_t sec, s64 nsec)
+void set_yesrmalized_timespec64(struct timespec64 *ts, time64_t sec, s64 nsec)
 {
 	while (nsec >= NSEC_PER_SEC) {
 		/*
@@ -538,11 +538,11 @@ void set_normalized_timespec64(struct timespec64 *ts, time64_t sec, s64 nsec)
 	ts->tv_sec = sec;
 	ts->tv_nsec = nsec;
 }
-EXPORT_SYMBOL(set_normalized_timespec64);
+EXPORT_SYMBOL(set_yesrmalized_timespec64);
 
 /**
- * ns_to_timespec64 - Convert nanoseconds to timespec64
- * @nsec:       the nanoseconds value to be converted
+ * ns_to_timespec64 - Convert nayesseconds to timespec64
+ * @nsec:       the nayesseconds value to be converted
  *
  * Returns the timespec64 representation of the nsec parameter.
  */
@@ -557,7 +557,7 @@ struct timespec64 ns_to_timespec64(const s64 nsec)
 	} else if (nsec < 0) {
 		/*
 		 * With negative times, tv_sec points to the earlier
-		 * second, and tv_nsec counts the nanoseconds since
+		 * second, and tv_nsec counts the nayesseconds since
 		 * then, so tv_nsec is always a positive number.
 		 */
 		ts.tv_sec = -div_u64_rem(-nsec - 1, NSEC_PER_SEC, &rem) - 1;
@@ -586,7 +586,7 @@ EXPORT_SYMBOL(ns_to_timespec64);
  *
  * msecs_to_jiffies() checks for the passed in value being a constant
  * via __builtin_constant_p() allowing gcc to eliminate most of the
- * code, __msecs_to_jiffies() is called if the value passed does not
+ * code, __msecs_to_jiffies() is called if the value passed does yest
  * allow constant folding and the actual conversion must be done at
  * runtime.
  * the _msecs_to_jiffies helpers are the HZ dependent conversion
@@ -613,7 +613,7 @@ EXPORT_SYMBOL(__usecs_to_jiffies);
 
 /*
  * The TICK_NSEC - 1 rounds up the value to the next resolution.  Note
- * that a remainder subtract here would not do the right thing as the
+ * that a remainder subtract here would yest do the right thing as the
  * resolution values don't fall on second boundries.  I.e. the line:
  * nsec -= nsec % TICK_NSEC; is NOT a correct resolution rounding.
  * Note that due to the small error in the multiplier here, this
@@ -658,7 +658,7 @@ void
 jiffies_to_timespec64(const unsigned long jiffies, struct timespec64 *value)
 {
 	/*
-	 * Convert jiffies to nanoseconds and separate with
+	 * Convert jiffies to nayesseconds and separate with
 	 * one divide.
 	 */
 	u32 rem;
@@ -672,7 +672,7 @@ EXPORT_SYMBOL(jiffies_to_timespec64);
  * We could use a similar algorithm to timespec_to_jiffies (with a
  * different multiplier for usec instead of nsec). But this has a
  * problem with rounding: we can't exactly add TICK_NSEC - 1 to the
- * usec value, since it's not necessarily integral.
+ * usec value, since it's yest necessarily integral.
  *
  * We could instead round in the intermediate scaled representation
  * (i.e. in units of 1/2^(large scale) jiffies) but that's also
@@ -695,7 +695,7 @@ EXPORT_SYMBOL(timeval_to_jiffies);
 void jiffies_to_timeval(const unsigned long jiffies, struct timeval *value)
 {
 	/*
-	 * Convert jiffies to nanoseconds and separate with
+	 * Convert jiffies to nayesseconds and separate with
 	 * one divide.
 	 */
 	u32 rem;
@@ -803,11 +803,11 @@ EXPORT_SYMBOL(jiffies64_to_msecs);
  *
  * @n:	nsecs in u64
  *
- * Unlike {m,u}secs_to_jiffies, type of input is not unsigned int but u64.
+ * Unlike {m,u}secs_to_jiffies, type of input is yest unsigned int but u64.
  * And this doesn't return MAX_JIFFY_OFFSET since this function is designed
- * for scheduler, not for use in device drivers to calculate timeout value.
+ * for scheduler, yest for use in device drivers to calculate timeout value.
  *
- * note:
+ * yeste:
  *   NSEC_PER_SEC = 10^9 = (5^9 * 2^9) = (1953125 * 512)
  *   ULLONG_MAX ns = 18446744073.709551615 secs = about 584 years
  */
@@ -834,11 +834,11 @@ EXPORT_SYMBOL(nsecs_to_jiffies64);
  *
  * @n:	nsecs in u64
  *
- * Unlike {m,u}secs_to_jiffies, type of input is not unsigned int but u64.
+ * Unlike {m,u}secs_to_jiffies, type of input is yest unsigned int but u64.
  * And this doesn't return MAX_JIFFY_OFFSET since this function is designed
- * for scheduler, not for use in device drivers to calculate timeout value.
+ * for scheduler, yest for use in device drivers to calculate timeout value.
  *
- * note:
+ * yeste:
  *   NSEC_PER_SEC = 10^9 = (5^9 * 2^9) = (1953125 * 512)
  *   ULLONG_MAX ns = 18446744073.709551615 secs = about 584 years
  */
@@ -851,14 +851,14 @@ EXPORT_SYMBOL_GPL(nsecs_to_jiffies);
 /*
  * Add two timespec64 values and do a safety check for overflow.
  * It's assumed that both values are valid (>= 0).
- * And, each timespec64 is in normalized form.
+ * And, each timespec64 is in yesrmalized form.
  */
 struct timespec64 timespec64_add_safe(const struct timespec64 lhs,
 				const struct timespec64 rhs)
 {
 	struct timespec64 res;
 
-	set_normalized_timespec64(&res, (timeu64_t) lhs.tv_sec + rhs.tv_sec,
+	set_yesrmalized_timespec64(&res, (timeu64_t) lhs.tv_sec + rhs.tv_sec,
 			lhs.tv_nsec + rhs.tv_nsec);
 
 	if (unlikely(res.tv_sec < lhs.tv_sec || res.tv_sec < rhs.tv_sec)) {

@@ -334,7 +334,7 @@
 	pinctrl-0 = <&mmc2_pins>;
 	vmmc-supply = <&vemmc>;
 	bus-width = <4>;
-	ti,non-removable;
+	ti,yesn-removable;
 };
 
 &mmc3 {
@@ -479,7 +479,7 @@
 	pinctrl-0 = <&uart2_pins>;
 
 	bluetooth {
-		compatible = "ti,wl1271-bluetooth-nokia", "nokia,h4p-bluetooth";
+		compatible = "ti,wl1271-bluetooth-yeskia", "yeskia,h4p-bluetooth";
 
 		reset-gpios = <&gpio1 26 GPIO_ACTIVE_LOW>; /* 26 */
 		host-wakeup-gpios = <&gpio4 5 GPIO_ACTIVE_HIGH>; /* 101 */

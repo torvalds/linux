@@ -3,8 +3,8 @@
  * sh7760fb.h -- platform data for SH7760/SH7763 LCDC framebuffer driver.
  *
  * (c) 2006-2008 MSC Vertriebsges.m.b.H.,
- * 			Manuel Lauss <mano@roarinelk.homelinux.net>
- * (c) 2008 Nobuhiro Iwamatsu <iwamatsu.nobuhiro@renesas.com>
+ * 			Manuel Lauss <mayes@roarinelk.homelinux.net>
+ * (c) 2008 Nobuhiro Iwamatsu <iwamatsu.yesbuhiro@renesas.com>
  */
 
 #ifndef _ASM_SH_SH7760FB_H
@@ -136,7 +136,7 @@ struct sh7760fb_platdata {
 	 * xres, yres, hsync_len, vsync_len, sync,
 	 * {left,right,upper,lower}_margin.
 	 * The driver uses the above members to calculate register values
-	 * and memory requirements. Other members are ignored but may
+	 * and memory requirements. Other members are igyesred but may
 	 * be used by other framebuffer layer components.
 	 */
 	struct fb_videomode *def_mode;
@@ -169,7 +169,7 @@ struct sh7760fb_platdata {
 
 	/* LDACLNR contains the line numbers after which the AC modulation
 	 * signal is to toggle. Set to ZERO for TFTs or displays which
-	 * do not need it. (Chapter 30.3.15 in SH7760 Hardware Manual).
+	 * do yest need it. (Chapter 30.3.15 in SH7760 Hardware Manual).
 	 */
 	u16 ldaclnr;
 
@@ -186,7 +186,7 @@ struct sh7760fb_platdata {
 	int rotate;		/* set to 1 to rotate 90 CCW */
 
 	/* set this to 1 to suppress vsync irq use. */
-	int novsync;
+	int yesvsync;
 
 	/* blanking hook for platform. Set this if your platform can do
 	 * more than the LCDC in terms of blanking (e.g. disable clock

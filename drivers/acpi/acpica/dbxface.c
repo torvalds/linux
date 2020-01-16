@@ -63,7 +63,7 @@ acpi_db_start_command(struct acpi_walk_state *walk_state,
 
 		/* Notify the completion of the command */
 
-		status = acpi_os_notify_command_complete();
+		status = acpi_os_yestify_command_complete();
 		if (ACPI_FAILURE(status)) {
 			goto error_exit;
 		}
@@ -260,7 +260,7 @@ acpi_db_single_step(struct acpi_walk_state *walk_state,
 
 	switch (opcode_class) {
 	case AML_CLASS_UNKNOWN:
-	case AML_CLASS_ARGUMENT:	/* constants, literals, etc. do nothing */
+	case AML_CLASS_ARGUMENT:	/* constants, literals, etc. do yesthing */
 
 		return (AE_OK);
 
@@ -299,7 +299,7 @@ acpi_db_single_step(struct acpi_walk_state *walk_state,
 				    ACPI_UINT32_MAX);
 #else
 		/*
-		 * The AML Disassembler is not configured - at least we can
+		 * The AML Disassembler is yest configured - at least we can
 		 * display the opcode value and name
 		 */
 		acpi_os_printf("AML Opcode: %4.4X %s\n", op->common.aml_opcode,
@@ -331,7 +331,7 @@ acpi_db_single_step(struct acpi_walk_state *walk_state,
 		acpi_dbg_level = original_debug_level;
 	}
 
-	/* If we are not single stepping, just continue executing the method */
+	/* If we are yest single stepping, just continue executing the method */
 
 	if (!acpi_gbl_cm_single_step) {
 		return (AE_OK);
@@ -360,7 +360,7 @@ acpi_db_single_step(struct acpi_walk_state *walk_state,
 	 */
 	if (op->common.aml_opcode == AML_INT_METHODCALL_OP) {
 
-		/* Force no more single stepping while executing called method */
+		/* Force yes more single stepping while executing called method */
 
 		acpi_gbl_cm_single_step = FALSE;
 
@@ -368,7 +368,7 @@ acpi_db_single_step(struct acpi_walk_state *walk_state,
 		 * Set the breakpoint on/before the call, it will stop execution
 		 * as soon as we return
 		 */
-		walk_state->method_breakpoint = 1;	/* Must be non-zero! */
+		walk_state->method_breakpoint = 1;	/* Must be yesn-zero! */
 	}
 
 	acpi_ex_exit_interpreter();
@@ -408,7 +408,7 @@ acpi_status acpi_initialize_debugger(void)
 	acpi_gbl_db_console_debug_level = ACPI_NORMAL_DEFAULT | ACPI_LV_TABLES;
 	acpi_gbl_db_output_flags = ACPI_DB_CONSOLE_OUTPUT;
 
-	acpi_gbl_db_opt_no_ini_methods = FALSE;
+	acpi_gbl_db_opt_yes_ini_methods = FALSE;
 
 	acpi_gbl_db_buffer = acpi_os_allocate(ACPI_DEBUG_BUFFER_SIZE);
 	if (!acpi_gbl_db_buffer) {
@@ -420,7 +420,7 @@ acpi_status acpi_initialize_debugger(void)
 
 	acpi_gbl_db_scope_buf[0] = AML_ROOT_PREFIX;
 	acpi_gbl_db_scope_buf[1] = 0;
-	acpi_gbl_db_scope_node = acpi_gbl_root_node;
+	acpi_gbl_db_scope_yesde = acpi_gbl_root_yesde;
 
 	/* Initialize user commands loop */
 
@@ -428,8 +428,8 @@ acpi_status acpi_initialize_debugger(void)
 
 	/*
 	 * If configured for multi-thread support, the debug executor runs in
-	 * a separate thread so that the front end can be in another address
-	 * space, environment, or even another machine.
+	 * a separate thread so that the front end can be in ayesther address
+	 * space, environment, or even ayesther machine.
 	 */
 	if (acpi_gbl_debugger_configuration & DEBUGGER_MULTI_THREADED) {
 
@@ -437,7 +437,7 @@ acpi_status acpi_initialize_debugger(void)
 
 		status = acpi_os_initialize_debugger();
 		if (ACPI_FAILURE(status)) {
-			acpi_os_printf("Could not get debugger mutex\n");
+			acpi_os_printf("Could yest get debugger mutex\n");
 			return_ACPI_STATUS(status);
 		}
 
@@ -448,7 +448,7 @@ acpi_status acpi_initialize_debugger(void)
 					 acpi_db_execute_thread, NULL);
 		if (ACPI_FAILURE(status)) {
 			ACPI_EXCEPTION((AE_INFO, status,
-					"Could not start debugger thread"));
+					"Could yest start debugger thread"));
 			acpi_gbl_db_threads_terminated = TRUE;
 			return_ACPI_STATUS(status);
 		}
@@ -495,7 +495,7 @@ void acpi_terminate_debugger(void)
 		acpi_gbl_db_buffer = NULL;
 	}
 
-	/* Ensure that debug output is now disabled */
+	/* Ensure that debug output is yesw disabled */
 
 	acpi_gbl_db_output_flags = ACPI_DB_DISABLE_OUTPUT;
 }

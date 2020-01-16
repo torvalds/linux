@@ -7,7 +7,7 @@
  *		IP/TCP/UDP checksumming routines
  *
  * Authors:	Jorge Cwik, <jorge@laser.satlink.net>
- *		Arnt Gulbrandsen, <agulbra@nvg.unit.no>
+ *		Arnt Gulbrandsen, <agulbra@nvg.unit.yes>
  *		Tom May, <ftom@netcom.com>
  *		Andreas Schwab, <schwab@issan.informatik.uni-dortmund.de>
  *		Lots of code moved from tcp.c and ip.c; see those files
@@ -57,7 +57,7 @@ __wsum csum_partial(const void *buff, int len, __wsum sum)
 		/* unrolled loop for the main part: do 8 longs at once */
 		"movel %1,%3\n\t"	/* save len in tmp1 */
 		"lsrl #5,%1\n\t"	/* len/32 */
-		"jeq 2f\n\t"		/* not enough... */
+		"jeq 2f\n\t"		/* yest eyesugh... */
 		"subql #1,%1\n"
 	     "1:\t"
 		"movel %2@+,%4\n\t"
@@ -96,7 +96,7 @@ __wsum csum_partial(const void *buff, int len, __wsum sum)
 		"clrl %4\n\t"
 		"addxl %4,%0\n"		/* add X bit */
 	     "4:\t"
-		/* now check for rest bytes that do not fit into longs */
+		/* yesw check for rest bytes that do yest fit into longs */
 		"andw #3,%1\n\t"
 		"jeq 7f\n\t"
 		"clrl %4\n\t"		/* clear tmp2 for rest bytes */
@@ -104,13 +104,13 @@ __wsum csum_partial(const void *buff, int len, __wsum sum)
 		"jlt 5f\n\t"
 		"movew %2@+,%4\n\t"	/* have rest >= 2: get word */
 		"swap %4\n\t"		/* into bits 16..31 */
-		"tstw %1\n\t"		/* another byte? */
+		"tstw %1\n\t"		/* ayesther byte? */
 		"jeq 6f\n"
 	     "5:\t"
 		"moveb %2@,%4\n\t"	/* have odd rest: get byte */
 		"lslw #8,%4\n\t"	/* into bits 8..15; 16..31 untouched */
 	     "6:\t"
-		"addl %4,%0\n\t"	/* now add rest long to sum */
+		"addl %4,%0\n\t"	/* yesw add rest long to sum */
 		"clrl %4\n\t"
 		"addxl %4,%0\n"		/* add X bit */
 	     "7:\t"
@@ -157,7 +157,7 @@ csum_partial_copy_from_user(const void __user *src, void *dst,
 		/* unrolled loop for the main part: do 8 longs at once */
 		"movel %1,%4\n\t"	/* save len in tmp1 */
 		"lsrl #5,%1\n\t"	/* len/32 */
-		"jeq 2f\n\t"		/* not enough... */
+		"jeq 2f\n\t"		/* yest eyesugh... */
 		"subql #1,%1\n"
 	     "1:\n"
 	     "11:\t"
@@ -214,7 +214,7 @@ csum_partial_copy_from_user(const void __user *src, void *dst,
 		"clrl %5\n\t"
 		"addxl %5,%0\n"		/* add X bit */
 	     "4:\t"
-		/* now check for rest bytes that do not fit into longs */
+		/* yesw check for rest bytes that do yest fit into longs */
 		"andw #3,%1\n\t"
 		"jeq 7f\n\t"
 		"clrl %5\n\t"		/* clear tmp2 for rest bytes */
@@ -224,7 +224,7 @@ csum_partial_copy_from_user(const void __user *src, void *dst,
 		"movesw %2@+,%5\n\t"	/* have rest >= 2: get word */
 		"movew %5,%3@+\n\t"
 		"swap %5\n\t"		/* into bits 16..31 */
-		"tstw %1\n\t"		/* another byte? */
+		"tstw %1\n\t"		/* ayesther byte? */
 		"jeq 6f\n"
 	     "5:\n"
 	     "21:\t"
@@ -232,11 +232,11 @@ csum_partial_copy_from_user(const void __user *src, void *dst,
 		"moveb %5,%3@+\n\t"
 		"lslw #8,%5\n\t"	/* into bits 8..15; 16..31 untouched */
 	     "6:\t"
-		"addl %5,%0\n\t"	/* now add rest long to sum */
+		"addl %5,%0\n\t"	/* yesw add rest long to sum */
 		"clrl %5\n\t"
 		"addxl %5,%0\n\t"	/* add X bit */
 	     "7:\t"
-		"clrl %5\n"		/* no error - clear return value */
+		"clrl %5\n"		/* yes error - clear return value */
 	     "8:\n"
 		".section .fixup,\"ax\"\n"
 		".even\n"
@@ -324,7 +324,7 @@ EXPORT_SYMBOL(csum_partial_copy_from_user);
  */
 
 __wsum
-csum_partial_copy_nocheck(const void *src, void *dst, int len, __wsum sum)
+csum_partial_copy_yescheck(const void *src, void *dst, int len, __wsum sum)
 {
 	unsigned long tmp1, tmp2;
 	__asm__("movel %2,%4\n\t"
@@ -344,7 +344,7 @@ csum_partial_copy_nocheck(const void *src, void *dst, int len, __wsum sum)
 		/* unrolled loop for the main part: do 8 longs at once */
 		"movel %1,%4\n\t"	/* save len in tmp1 */
 		"lsrl #5,%1\n\t"	/* len/32 */
-		"jeq 2f\n\t"		/* not enough... */
+		"jeq 2f\n\t"		/* yest eyesugh... */
 		"subql #1,%1\n"
 	     "1:\t"
 		"movel %2@+,%5\n\t"
@@ -392,7 +392,7 @@ csum_partial_copy_nocheck(const void *src, void *dst, int len, __wsum sum)
 		"clrl %5\n\t"
 		"addxl %5,%0\n"		/* add X bit */
 	     "4:\t"
-		/* now check for rest bytes that do not fit into longs */
+		/* yesw check for rest bytes that do yest fit into longs */
 		"andw #3,%1\n\t"
 		"jeq 7f\n\t"
 		"clrl %5\n\t"		/* clear tmp2 for rest bytes */
@@ -401,14 +401,14 @@ csum_partial_copy_nocheck(const void *src, void *dst, int len, __wsum sum)
 		"movew %2@+,%5\n\t"	/* have rest >= 2: get word */
 		"movew %5,%3@+\n\t"
 		"swap %5\n\t"		/* into bits 16..31 */
-		"tstw %1\n\t"		/* another byte? */
+		"tstw %1\n\t"		/* ayesther byte? */
 		"jeq 6f\n"
 	     "5:\t"
 		"moveb %2@,%5\n\t"	/* have odd rest: get byte */
 		"moveb %5,%3@+\n\t"
 		"lslw #8,%5\n"		/* into bits 8..15; 16..31 untouched */
 	     "6:\t"
-		"addl %5,%0\n\t"	/* now add rest long to sum */
+		"addl %5,%0\n\t"	/* yesw add rest long to sum */
 		"clrl %5\n\t"
 		"addxl %5,%0\n"		/* add X bit */
 	     "7:\t"
@@ -418,4 +418,4 @@ csum_partial_copy_nocheck(const void *src, void *dst, int len, __wsum sum)
 	    );
     return(sum);
 }
-EXPORT_SYMBOL(csum_partial_copy_nocheck);
+EXPORT_SYMBOL(csum_partial_copy_yescheck);

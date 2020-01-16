@@ -304,7 +304,7 @@
 /* 	--------------|---------------------- */
 /*                 | */
 /*                TBTT */
-/*  Note: We cannot update beacon content to HW or send any AC packets during the time between Setup and Hold. */
+/*  Note: We canyest update beacon content to HW or send any AC packets during the time between Setup and Hold. */
 /*  Described by Designer Tim and Bruce, 2011-01-14. */
 /*  */
 #define REG_TBTT_PROHIBIT				0x0540
@@ -469,7 +469,7 @@
 #define REG_TEST_SIE_STRING			0xFE80		/*  0xFE80~0xFEB9 */
 
 
-/*  For normal chip */
+/*  For yesrmal chip */
 #define REG_NORMAL_SIE_VID				0xFE60		/*  0xFE60~0xFE61 */
 #define REG_NORMAL_SIE_PID				0xFE62		/*  0xFE62~0xFE63 */
 #define REG_NORMAL_SIE_OPTIONAL		0xFE64
@@ -942,7 +942,7 @@ Default: 00b.
 #define IMR_BCNDERR0_88E			BIT16		/*  Beacon Queue DMA Error 0 */
 #define IMR_HSISR_IND_ON_INT_88E	BIT15		/*  HSISR Indicator (HSIMR & HSISR is true, this bit is set to 1) */
 #define IMR_BCNDMAINT_E_88E		BIT14		/*  Beacon DMA Interrupt Extension for Win7 */
-#define IMR_ATIMEND_88E			BIT12		/*  CTWidnow End or ATIM Window End */
+#define IMR_ATIMEND_88E			BIT12		/*  CTWidyesw End or ATIM Window End */
 #define IMR_HISR1_IND_INT_88E		BIT11		/*  HISR1 Indicator (HISR1 & HIMR1 is true, this bit is set to 1) */
 #define IMR_C2HCMD_88E				BIT10		/*  CPU to Host Command INT Status, Write 1 clear */
 #define IMR_CPWM2_88E				BIT9			/*  CPU power Mode exchange INT Status, Write 1 clear */
@@ -981,7 +981,7 @@ Default: 00b.
 =====================================================================
 Here the register defines are for 92C. When the define is as same with 92C,
 we will use the 92C's define for the consistency
-So the following defines for 92C is not entire!!!!!!
+So the following defines for 92C is yest entire!!!!!!
 =====================================================================
 =====================================================================*/
 /*
@@ -1004,7 +1004,7 @@ Current IOREG MAP
 /*  Note: */
 /* 	The the bits of stoping AC(VO/VI/BE/BK) queue in datasheet RTL8192S/RTL8192C are wrong, */
 /* 	the correct arragement is VO - Bit0, VI - Bit1, BE - Bit2, and BK - Bit3. */
-/* 	8723 and 88E may be not correct either in the eralier version. Confirmed with DD Tim. */
+/* 	8723 and 88E may be yest correct either in the eralier version. Confirmed with DD Tim. */
 /*  By Bruce, 2011-09-22. */
 #define StopBecon		BIT6
 #define StopHigh			BIT5
@@ -1036,7 +1036,7 @@ Current IOREG MAP
 #define RCR_RSVD_BIT15			BIT15	/*  Reserved */
 #define RCR_HTC_LOC_CTRL		BIT14	/*  MFC<--HTC = 1 MFC-->HTC = 0 */
 #define RCR_AMF					BIT13	/*  Accept management type frame */
-#define RCR_ACF					BIT12	/*  Accept control type frame. Control frames BA, BAR, and PS-Poll (when in AP mode) are not controlled by this bit. They are controlled by ADF. */
+#define RCR_ACF					BIT12	/*  Accept control type frame. Control frames BA, BAR, and PS-Poll (when in AP mode) are yest controlled by this bit. They are controlled by ADF. */
 #define RCR_ADF					BIT11	/*  Accept data type frame. This bit also regulates BA, BAR, and PS-Poll (AP mode only). */
 #define RCR_RSVD_BIT10			BIT10	/*  Reserved */
 #define RCR_AICV					BIT9		/*  Accept ICV error packet */
@@ -1288,7 +1288,7 @@ Current IOREG MAP
 #define HQSEL_MGTQ				BIT(4)
 #define HQSEL_HIQ				BIT(5)
 
-/*  For normal driver, 0x10C */
+/*  For yesrmal driver, 0x10C */
 #define _TXDMA_CMQ_MAP(x)			(((x)&0x3) << 16)
 #define _TXDMA_HIQ_MAP(x)			(((x)&0x3) << 14)
 #define _TXDMA_MGQ_MAP(x)			(((x)&0x3) << 12)
@@ -1662,8 +1662,8 @@ Current IOREG MAP
 #define INT_BULK_SEL			BIT(4)
 
 /* 2REG_C2HEVT_CLEAR */
-#define C2H_EVT_HOST_CLOSE		0x00	/*  Set by driver and notify FW that the driver has read the C2H command message */
-#define C2H_EVT_FW_CLOSE		0xFF	/*  Set by FW indicating that FW had set the C2H command message and it's not yet read by driver. */
+#define C2H_EVT_HOST_CLOSE		0x00	/*  Set by driver and yestify FW that the driver has read the C2H command message */
+#define C2H_EVT_FW_CLOSE		0xFF	/*  Set by FW indicating that FW had set the C2H command message and it's yest yet read by driver. */
 
 
 /* 2REG_MULTI_FUNC_CTRL(For RTL8723 Only) */

@@ -31,7 +31,7 @@
 
 /*
  * The sd3078 has write protection
- * and we can choose whether or not to use it.
+ * and we can choose whether or yest to use it.
  * Write protection is turned off by default.
  */
 #define WRITE_PROTECT_EN	0

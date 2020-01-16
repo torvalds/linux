@@ -58,25 +58,25 @@ int __init ox820_boot_secondary(unsigned int cpu, struct task_struct *idle)
 
 static void __init ox820_smp_prepare_cpus(unsigned int max_cpus)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 	void __iomem *scu_base;
 
-	np = of_find_compatible_node(NULL, NULL, "arm,arm11mp-scu");
+	np = of_find_compatible_yesde(NULL, NULL, "arm,arm11mp-scu");
 	scu_base = of_iomap(np, 0);
-	of_node_put(np);
+	of_yesde_put(np);
 	if (!scu_base)
 		return;
 
 	/* Remap CPU Interrupt Interface Registers */
-	np = of_find_compatible_node(NULL, NULL, "arm,arm11mp-gic");
+	np = of_find_compatible_yesde(NULL, NULL, "arm,arm11mp-gic");
 	gic_cpu_ctrl = of_iomap(np, 1);
-	of_node_put(np);
+	of_yesde_put(np);
 	if (!gic_cpu_ctrl)
 		goto unmap_scu;
 
-	np = of_find_compatible_node(NULL, NULL, "oxsemi,ox820-sys-ctrl");
+	np = of_find_compatible_yesde(NULL, NULL, "oxsemi,ox820-sys-ctrl");
 	cpu_ctrl = of_iomap(np, 0);
-	of_node_put(np);
+	of_yesde_put(np);
 	if (!cpu_ctrl)
 		goto unmap_scu;
 

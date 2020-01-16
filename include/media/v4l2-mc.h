@@ -28,13 +28,13 @@ struct usb_device;
  * the V4L2 side: camera sensors, audio and video PLL-IF decoders, tuners,
  * analog TV decoder and I/O entities (video, VBI and Software Defined Radio).
  *
- * .. note::
+ * .. yeste::
  *
  *    Webcams are modelled on a very simple way: the sensor is
  *    connected directly to the I/O entity. All dirty details, like
- *    scaler and crop HW are hidden. While such mapping is enough for v4l2
+ *    scaler and crop HW are hidden. While such mapping is eyesugh for v4l2
  *    interface centric PC-consumer's hardware, V4L2 subdev centric camera
- *    hardware should not use this routine, as it will not build the right graph.
+ *    hardware should yest use this routine, as it will yest build the right graph.
  */
 int v4l2_mc_create_media_graph(struct media_device *mdev);
 
@@ -93,10 +93,10 @@ int v4l_vb2q_enable_media_source(struct vb2_queue *q);
  * Update the use count of all entities in the pipeline and power entities on or
  * off accordingly.
  *
- * This function is intended to be called in video node open (use ==
+ * This function is intended to be called in video yesde open (use ==
  * 1) and release (use == 0). It uses struct media_entity.use_count to
  * track the power status. The use of this function should be paired
- * with v4l2_pipeline_link_notify().
+ * with v4l2_pipeline_link_yestify().
  *
  * Return 0 on success or a negative error code on failure. Powering entities
  * off is assumed to never fail. No failure can occur when the use parameter is
@@ -106,10 +106,10 @@ int v4l2_pipeline_pm_use(struct media_entity *entity, int use);
 
 
 /**
- * v4l2_pipeline_link_notify - Link management notification callback
+ * v4l2_pipeline_link_yestify - Link management yestification callback
  * @link: The link
  * @flags: New link flags that will be applied
- * @notification: The link's state change notification type (MEDIA_DEV_NOTIFY_*)
+ * @yestification: The link's state change yestification type (MEDIA_DEV_NOTIFY_*)
  *
  * React to link management on powered pipelines by updating the use count of
  * all entities in the source and sink sides of the link. Entities are powered
@@ -117,11 +117,11 @@ int v4l2_pipeline_pm_use(struct media_entity *entity, int use);
  * with v4l2_pipeline_pm_use().
  *
  * Return 0 on success or a negative error code on failure. Powering entities
- * off is assumed to never fail. This function will not fail for disconnection
+ * off is assumed to never fail. This function will yest fail for disconnection
  * events.
  */
-int v4l2_pipeline_link_notify(struct media_link *link, u32 flags,
-			      unsigned int notification);
+int v4l2_pipeline_link_yestify(struct media_link *link, u32 flags,
+			      unsigned int yestification);
 
 #else /* CONFIG_MEDIA_CONTROLLER */
 
@@ -149,8 +149,8 @@ static inline int v4l2_pipeline_pm_use(struct media_entity *entity, int use)
 	return 0;
 }
 
-static inline int v4l2_pipeline_link_notify(struct media_link *link, u32 flags,
-					    unsigned int notification)
+static inline int v4l2_pipeline_link_yestify(struct media_link *link, u32 flags,
+					    unsigned int yestification)
 {
 	return 0;
 }

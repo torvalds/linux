@@ -117,18 +117,18 @@ static struct nfcmrvl_if_ops spi_ops = {
 	.nci_update_config = nfcmrvl_spi_nci_update_config,
 };
 
-static int nfcmrvl_spi_parse_dt(struct device_node *node,
+static int nfcmrvl_spi_parse_dt(struct device_yesde *yesde,
 				struct nfcmrvl_platform_data *pdata)
 {
 	int ret;
 
-	ret = nfcmrvl_parse_dt(node, pdata);
+	ret = nfcmrvl_parse_dt(yesde, pdata);
 	if (ret < 0) {
 		pr_err("Failed to get generic entries\n");
 		return ret;
 	}
 
-	ret = irq_of_parse_and_map(node, 0);
+	ret = irq_of_parse_and_map(yesde, 0);
 	if (ret < 0) {
 		pr_err("Unable to get irq, error: %d\n", ret);
 		return ret;
@@ -155,8 +155,8 @@ static int nfcmrvl_spi_probe(struct spi_device *spi)
 
 	pdata = spi->dev.platform_data;
 
-	if (!pdata && spi->dev.of_node)
-		if (nfcmrvl_spi_parse_dt(spi->dev.of_node, &config) == 0)
+	if (!pdata && spi->dev.of_yesde)
+		if (nfcmrvl_spi_parse_dt(spi->dev.of_yesde, &config) == 0)
 			pdata = &config;
 
 	if (!pdata)

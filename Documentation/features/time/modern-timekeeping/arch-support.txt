@@ -1,7 +1,7 @@
 #
 # Feature name:          modern-timekeeping
 #         Kconfig:       !ARCH_USES_GETTIMEOFFSET
-#         description:   arch does not use arch_gettimeoffset() anymore
+#         description:   arch does yest use arch_gettimeoffset() anymore
 #
     -----------------------
     |         arch |status|

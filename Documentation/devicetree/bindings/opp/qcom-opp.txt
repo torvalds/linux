@@ -1,4 +1,4 @@
-Qualcomm OPP bindings to describe OPP nodes
+Qualcomm OPP bindings to describe OPP yesdes
 
 The bindings are based on top of the operating-points-v2 bindings
 described in Documentation/devicetree/bindings/opp/opp.txt
@@ -14,6 +14,6 @@ Required properties:
 
 Required properties:
 - qcom,opp-fuse-level: A positive value representing the fuse corner/level
-  associated with this OPP node. Sometimes several corners/levels shares
+  associated with this OPP yesde. Sometimes several corners/levels shares
   a certain fuse corner/level. A fuse corner/level contains e.g. ref uV,
   min uV, and max uV.

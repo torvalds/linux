@@ -7,7 +7,7 @@ and watchdog.
 The TWD is usually attached to a GIC to deliver its two per-processor
 interrupts.
 
-** Timer node required properties:
+** Timer yesde required properties:
 
 - compatible : Should be one of:
 	"arm,cortex-a9-twd-timer"
@@ -32,7 +32,7 @@ Example:
 		interrupts = <1 13 0xf01>;
 	};
 
-** Watchdog node properties:
+** Watchdog yesde properties:
 
 - compatible : Should be one of:
 	"arm,cortex-a9-twd-wdt"

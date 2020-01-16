@@ -130,7 +130,7 @@
 		/* 192 KiB reserved for ARM Trusted Firmware (BL31) */
 		secmon_reserved: secmon@43000000 {
 			reg = <0 0x43000000 0 0x30000>;
-			no-map;
+			yes-map;
 		};
 	};
 
@@ -554,9 +554,9 @@
 		status = "disabled";
 	};
 
-	nor_flash: spi@11014000 {
-		compatible = "mediatek,mt7622-nor",
-			     "mediatek,mt8173-nor";
+	yesr_flash: spi@11014000 {
+		compatible = "mediatek,mt7622-yesr",
+			     "mediatek,mt8173-yesr";
 		reg = <0 0x11014000 0 0xe0>;
 		clocks = <&pericfg CLK_PERI_FLASH_PD>,
 			 <&topckgen CLK_TOP_FLASH_SEL>;

@@ -3,7 +3,7 @@
  *
  * This file is dual-licensed: you can use it either under the terms
  * of the GPL or the X11 license, at your option. Note that this dual
- * licensing only applies to this file, and not this project as a
+ * licensing only applies to this file, and yest this project as a
  * whole.
  *
  *  a) This library is free software; you can redistribute it and/or
@@ -27,7 +27,7 @@
  *     Software is furnished to do so, subject to the following
  *     conditions:
  *
- *     The above copyright notice and this permission notice shall be
+ *     The above copyright yestice and this permission yestice shall be
  *     included in all copies or substantial portions of the Software.
  *
  *     THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -45,8 +45,8 @@
 #include <dt-bindings/gpio/gpio.h>
 
 / {
-	model = "Sinovoip BPI-M2";
-	compatible = "sinovoip,bpi-m2", "allwinner,sun6i-a31s";
+	model = "Siyesvoip BPI-M2";
+	compatible = "siyesvoip,bpi-m2", "allwinner,sun6i-a31s";
 
 	aliases {
 		serial0 = &uart0;
@@ -126,7 +126,7 @@
 	vmmc-supply = <&reg_aldo1>;
 	mmc-pwrseq = <&mmc2_pwrseq>;
 	bus-width = <4>;
-	non-removable;
+	yesn-removable;
 	status = "okay";
 
 	brcmf: wifi@1 {

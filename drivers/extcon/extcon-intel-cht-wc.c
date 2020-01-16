@@ -3,7 +3,7 @@
  * Extcon charger detection driver for Intel Cherrytrail Whiskey Cove PMIC
  * Copyright (C) 2017 Hans de Goede <hdegoede@redhat.com>
  *
- * Based on various non upstream patches to support the CHT Whiskey Cove PMIC:
+ * Based on various yesn upstream patches to support the CHT Whiskey Cove PMIC:
  * Copyright (C) 2013-2015 Intel Corporation. All rights reserved.
  */
 
@@ -124,7 +124,7 @@ static int cht_wc_extcon_get_id(struct cht_wc_extcon_data *ext, int pwrsrc_sts)
 }
 
 static int cht_wc_extcon_get_charger(struct cht_wc_extcon_data *ext,
-				     bool ignore_errors)
+				     bool igyesre_errors)
 {
 	int ret, usbsrc, status;
 	unsigned long timeout;
@@ -147,11 +147,11 @@ static int cht_wc_extcon_get_charger(struct cht_wc_extcon_data *ext,
 	} while (time_before(jiffies, timeout));
 
 	if (status != CHT_WC_USBSRC_STS_SUCCESS) {
-		if (ignore_errors)
+		if (igyesre_errors)
 			return EXTCON_CHG_USB_SDP; /* Save fallback */
 
 		if (status == CHT_WC_USBSRC_STS_FAIL)
-			dev_warn(ext->dev, "Could not detect charger type\n");
+			dev_warn(ext->dev, "Could yest detect charger type\n");
 		else
 			dev_warn(ext->dev, "Timeout detecting charger type\n");
 		return EXTCON_CHG_USB_SDP; /* Save fallback */
@@ -195,7 +195,7 @@ static void cht_wc_extcon_set_5v_boost(struct cht_wc_extcon_data *ext,
 
 	/*
 	 * The 5V boost converter is enabled through a gpio on the PMIC, since
-	 * there currently is no gpio driver we access the gpio reg directly.
+	 * there currently is yes gpio driver we access the gpio reg directly.
 	 */
 	val = CHT_WC_VBUS_GPIO_CTLO_DRV_OD | CHT_WC_VBUS_GPIO_CTLO_DIR_OUT;
 	if (enable)
@@ -243,8 +243,8 @@ static void cht_wc_extcon_pwrsrc_event(struct cht_wc_extcon_data *ext)
 {
 	int ret, pwrsrc_sts, id;
 	unsigned int cable = EXTCON_NONE;
-	/* Ignore errors in host mode, as the 5v boost converter is on then */
-	bool ignore_get_charger_errors = ext->usb_host;
+	/* Igyesre errors in host mode, as the 5v boost converter is on then */
+	bool igyesre_get_charger_errors = ext->usb_host;
 
 	ret = regmap_read(ext->regmap, CHT_WC_PWRSRC_STS, &pwrsrc_sts);
 	if (ret) {
@@ -264,14 +264,14 @@ static void cht_wc_extcon_pwrsrc_event(struct cht_wc_extcon_data *ext)
 	cht_wc_extcon_set_otgmode(ext, false);
 	cht_wc_extcon_enable_charging(ext, true);
 
-	/* Plugged into a host/charger or not connected? */
+	/* Plugged into a host/charger or yest connected? */
 	if (!(pwrsrc_sts & CHT_WC_PWRSRC_VBUS)) {
 		/* Route D+ and D- to PMIC for future charger detection */
 		cht_wc_extcon_set_phymux(ext, MUX_SEL_PMIC);
 		goto set_state;
 	}
 
-	ret = cht_wc_extcon_get_charger(ext, ignore_get_charger_errors);
+	ret = cht_wc_extcon_get_charger(ext, igyesre_get_charger_errors);
 	if (ret >= 0)
 		cable = ret;
 
@@ -368,7 +368,7 @@ static int cht_wc_extcon_probe(struct platform_device *pdev)
 	 *    also tries to charge the battery causing even more feedback).
 	 * 2) This gets seen by the pwrsrc block as a SDP USB Vbus supply
 	 * Since the external battery charger has its own 5v boost converter
-	 * which does not have these issues, we simply turn the separate
+	 * which does yest have these issues, we simply turn the separate
 	 * external 5v boost converter off and leave it off entirely.
 	 */
 	cht_wc_extcon_set_5v_boost(ext, false);
@@ -395,7 +395,7 @@ static int cht_wc_extcon_probe(struct platform_device *pdev)
 	}
 
 	/*
-	 * If no USB host or device connected, route D+ and D- to PMIC for
+	 * If yes USB host or device connected, route D+ and D- to PMIC for
 	 * initial charger detection
 	 */
 	id = cht_wc_extcon_get_id(ext, pwrsrc_sts);

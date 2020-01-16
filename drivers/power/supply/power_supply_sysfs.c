@@ -26,7 +26,7 @@
  * The source of this definition is the device.h which calls __ATTR
  * macro in sysfs.h which calls the __stringify macro.
  *
- * Only modification that the name is not tried to be resolved
+ * Only modification that the name is yest tried to be resolved
  * (as a macro let's say).
  */
 
@@ -40,41 +40,41 @@
 static struct device_attribute power_supply_attrs[];
 
 static const char * const power_supply_type_text[] = {
-	"Unknown", "Battery", "UPS", "Mains", "USB",
+	"Unkyeswn", "Battery", "UPS", "Mains", "USB",
 	"USB_DCP", "USB_CDP", "USB_ACA", "USB_C",
 	"USB_PD", "USB_PD_DRP", "BrickID"
 };
 
 static const char * const power_supply_usb_type_text[] = {
-	"Unknown", "SDP", "DCP", "CDP", "ACA", "C",
+	"Unkyeswn", "SDP", "DCP", "CDP", "ACA", "C",
 	"PD", "PD_DRP", "PD_PPS", "BrickID"
 };
 
 static const char * const power_supply_status_text[] = {
-	"Unknown", "Charging", "Discharging", "Not charging", "Full"
+	"Unkyeswn", "Charging", "Discharging", "Not charging", "Full"
 };
 
 static const char * const power_supply_charge_type_text[] = {
-	"Unknown", "N/A", "Trickle", "Fast", "Standard", "Adaptive", "Custom"
+	"Unkyeswn", "N/A", "Trickle", "Fast", "Standard", "Adaptive", "Custom"
 };
 
 static const char * const power_supply_health_text[] = {
-	"Unknown", "Good", "Overheat", "Dead", "Over voltage",
+	"Unkyeswn", "Good", "Overheat", "Dead", "Over voltage",
 	"Unspecified failure", "Cold", "Watchdog timer expire",
 	"Safety timer expire", "Over current"
 };
 
-static const char * const power_supply_technology_text[] = {
-	"Unknown", "NiMH", "Li-ion", "Li-poly", "LiFe", "NiCd",
+static const char * const power_supply_techyeslogy_text[] = {
+	"Unkyeswn", "NiMH", "Li-ion", "Li-poly", "LiFe", "NiCd",
 	"LiMn"
 };
 
 static const char * const power_supply_capacity_level_text[] = {
-	"Unknown", "Critical", "Low", "Normal", "High", "Full"
+	"Unkyeswn", "Critical", "Low", "Normal", "High", "Full"
 };
 
 static const char * const power_supply_scope_text[] = {
-	"Unknown", "System", "Device"
+	"Unkyeswn", "System", "Device"
 };
 
 static ssize_t power_supply_show_usb_type(struct device *dev,
@@ -127,7 +127,7 @@ static ssize_t power_supply_show_property(struct device *dev,
 
 		if (ret < 0) {
 			if (ret == -ENODATA)
-				dev_dbg(dev, "driver has no data for `%s' property\n",
+				dev_dbg(dev, "driver has yes data for `%s' property\n",
 					attr->attr.name);
 			else if (ret != -ENODEV && ret != -EAGAIN)
 				dev_err_ratelimited(dev,
@@ -152,7 +152,7 @@ static ssize_t power_supply_show_property(struct device *dev,
 		break;
 	case POWER_SUPPLY_PROP_TECHNOLOGY:
 		ret = sprintf(buf, "%s\n",
-			      power_supply_technology_text[value.intval]);
+			      power_supply_techyeslogy_text[value.intval]);
 		break;
 	case POWER_SUPPLY_PROP_CAPACITY_LEVEL:
 		ret = sprintf(buf, "%s\n",
@@ -200,7 +200,7 @@ static ssize_t power_supply_store_property(struct device *dev,
 		ret = sysfs_match_string(power_supply_health_text, buf);
 		break;
 	case POWER_SUPPLY_PROP_TECHNOLOGY:
-		ret = sysfs_match_string(power_supply_technology_text, buf);
+		ret = sysfs_match_string(power_supply_techyeslogy_text, buf);
 		break;
 	case POWER_SUPPLY_PROP_CAPACITY_LEVEL:
 		ret = sysfs_match_string(power_supply_capacity_level_text, buf);
@@ -213,7 +213,7 @@ static ssize_t power_supply_store_property(struct device *dev,
 	}
 
 	/*
-	 * If no match was found, then check to see if it is an integer.
+	 * If yes match was found, then check to see if it is an integer.
 	 * Integer values are valid for enums in addition to the text value.
 	 */
 	if (ret < 0) {
@@ -244,27 +244,27 @@ static struct device_attribute power_supply_attrs[] = {
 	POWER_SUPPLY_ATTR(present),
 	POWER_SUPPLY_ATTR(online),
 	POWER_SUPPLY_ATTR(authentic),
-	POWER_SUPPLY_ATTR(technology),
+	POWER_SUPPLY_ATTR(techyeslogy),
 	POWER_SUPPLY_ATTR(cycle_count),
 	POWER_SUPPLY_ATTR(voltage_max),
 	POWER_SUPPLY_ATTR(voltage_min),
 	POWER_SUPPLY_ATTR(voltage_max_design),
 	POWER_SUPPLY_ATTR(voltage_min_design),
-	POWER_SUPPLY_ATTR(voltage_now),
+	POWER_SUPPLY_ATTR(voltage_yesw),
 	POWER_SUPPLY_ATTR(voltage_avg),
 	POWER_SUPPLY_ATTR(voltage_ocv),
 	POWER_SUPPLY_ATTR(voltage_boot),
 	POWER_SUPPLY_ATTR(current_max),
-	POWER_SUPPLY_ATTR(current_now),
+	POWER_SUPPLY_ATTR(current_yesw),
 	POWER_SUPPLY_ATTR(current_avg),
 	POWER_SUPPLY_ATTR(current_boot),
-	POWER_SUPPLY_ATTR(power_now),
+	POWER_SUPPLY_ATTR(power_yesw),
 	POWER_SUPPLY_ATTR(power_avg),
 	POWER_SUPPLY_ATTR(charge_full_design),
 	POWER_SUPPLY_ATTR(charge_empty_design),
 	POWER_SUPPLY_ATTR(charge_full),
 	POWER_SUPPLY_ATTR(charge_empty),
-	POWER_SUPPLY_ATTR(charge_now),
+	POWER_SUPPLY_ATTR(charge_yesw),
 	POWER_SUPPLY_ATTR(charge_avg),
 	POWER_SUPPLY_ATTR(charge_counter),
 	POWER_SUPPLY_ATTR(constant_charge_current),
@@ -282,7 +282,7 @@ static struct device_attribute power_supply_attrs[] = {
 	POWER_SUPPLY_ATTR(energy_empty_design),
 	POWER_SUPPLY_ATTR(energy_full),
 	POWER_SUPPLY_ATTR(energy_empty),
-	POWER_SUPPLY_ATTR(energy_now),
+	POWER_SUPPLY_ATTR(energy_yesw),
 	POWER_SUPPLY_ATTR(energy_avg),
 	POWER_SUPPLY_ATTR(capacity),
 	POWER_SUPPLY_ATTR(capacity_alert_min),
@@ -296,9 +296,9 @@ static struct device_attribute power_supply_attrs[] = {
 	POWER_SUPPLY_ATTR(temp_ambient),
 	POWER_SUPPLY_ATTR(temp_ambient_alert_min),
 	POWER_SUPPLY_ATTR(temp_ambient_alert_max),
-	POWER_SUPPLY_ATTR(time_to_empty_now),
+	POWER_SUPPLY_ATTR(time_to_empty_yesw),
 	POWER_SUPPLY_ATTR(time_to_empty_avg),
-	POWER_SUPPLY_ATTR(time_to_full_now),
+	POWER_SUPPLY_ATTR(time_to_full_yesw),
 	POWER_SUPPLY_ATTR(time_to_full_avg),
 	POWER_SUPPLY_ATTR(type),
 	POWER_SUPPLY_ATTR(usb_type),
@@ -317,20 +317,20 @@ __power_supply_attrs[ARRAY_SIZE(power_supply_attrs) + 1];
 
 static umode_t power_supply_attr_is_visible(struct kobject *kobj,
 					   struct attribute *attr,
-					   int attrno)
+					   int attryes)
 {
 	struct device *dev = container_of(kobj, struct device, kobj);
 	struct power_supply *psy = dev_get_drvdata(dev);
 	umode_t mode = S_IRUSR | S_IRGRP | S_IROTH;
 	int i;
 
-	if (attrno == POWER_SUPPLY_PROP_TYPE)
+	if (attryes == POWER_SUPPLY_PROP_TYPE)
 		return mode;
 
 	for (i = 0; i < psy->desc->num_properties; i++) {
 		int property = psy->desc->properties[i];
 
-		if (property == attrno) {
+		if (property == attryes) {
 			if (psy->desc->property_is_writeable &&
 			    psy->desc->property_is_writeable(psy, property) > 0)
 				mode |= S_IWUSR;

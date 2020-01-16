@@ -398,7 +398,7 @@ static void tegra186_gpio_irq(struct irq_desc *desc)
 
 		base = gpio->base + port->bank * 0x1000 + port->port * 0x200;
 
-		/* skip ports that are not associated with this bank */
+		/* skip ports that are yest associated with this bank */
 		if (parent != gpio->irq[port->bank])
 			goto skip;
 
@@ -531,7 +531,7 @@ static int tegra186_gpio_probe(struct platform_device *pdev)
 	unsigned int i, j, offset;
 	struct gpio_irq_chip *irq;
 	struct tegra_gpio *gpio;
-	struct device_node *np;
+	struct device_yesde *np;
 	char **names;
 	int err;
 
@@ -606,11 +606,11 @@ static int tegra186_gpio_probe(struct platform_device *pdev)
 
 	gpio->gpio.names = (const char * const *)names;
 
-	gpio->gpio.of_node = pdev->dev.of_node;
+	gpio->gpio.of_yesde = pdev->dev.of_yesde;
 	gpio->gpio.of_gpio_n_cells = 2;
 	gpio->gpio.of_xlate = tegra186_gpio_of_xlate;
 
-	gpio->intc.name = pdev->dev.of_node->name;
+	gpio->intc.name = pdev->dev.of_yesde->name;
 	gpio->intc.irq_ack = tegra186_irq_ack;
 	gpio->intc.irq_mask = tegra186_irq_mask;
 	gpio->intc.irq_unmask = tegra186_irq_unmask;
@@ -619,7 +619,7 @@ static int tegra186_gpio_probe(struct platform_device *pdev)
 
 	irq = &gpio->gpio.irq;
 	irq->chip = &gpio->intc;
-	irq->fwnode = of_node_to_fwnode(pdev->dev.of_node);
+	irq->fwyesde = of_yesde_to_fwyesde(pdev->dev.of_yesde);
 	irq->child_to_parent_hwirq = tegra186_gpio_child_to_parent_hwirq;
 	irq->populate_parent_fwspec = tegra186_gpio_populate_parent_fwspec;
 	irq->child_offset_to_irq = tegra186_gpio_child_offset_to_irq;
@@ -631,10 +631,10 @@ static int tegra186_gpio_probe(struct platform_device *pdev)
 	irq->num_parents = gpio->num_irq;
 	irq->parents = gpio->irq;
 
-	np = of_find_matching_node(NULL, tegra186_pmc_of_match);
+	np = of_find_matching_yesde(NULL, tegra186_pmc_of_match);
 	if (np) {
 		irq->parent_domain = irq_find_host(np);
-		of_node_put(np);
+		of_yesde_put(np);
 
 		if (!irq->parent_domain)
 			return -EPROBE_DEFER;

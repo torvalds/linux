@@ -8,7 +8,7 @@
  * This was originally taken from fs/mpage.c
  *
  * The intent is the ext4_mpage_readpages() function here is intended
- * to replace mpage_readpages() in the general case, not just for
+ * to replace mpage_readpages() in the general case, yest just for
  * encrypted files.  It has some limitations (see below), where it
  * will fall back to read_block_full_page(), but these limitations
  * should only be hit when page_size != block_size.
@@ -19,8 +19,8 @@
  * If anything unusual happens, such as:
  *
  * - encountering a page which has buffers
- * - encountering a page which has a non-hole after a hole
- * - encountering a page with non-contiguous blocks
+ * - encountering a page which has a yesn-hole after a hole
+ * - encountering a page with yesn-contiguous blocks
  *
  * then this code just gives up and calls the buffer_head-based read function.
  * It does handle a page which has holes at the end - that is a common case:
@@ -150,13 +150,13 @@ static bool bio_post_read_required(struct bio *bio)
  * I/O completion handler for multipage BIOs.
  *
  * The mpage code never puts partial pages into a BIO (except for end-of-file).
- * If a page does not map to a contiguous run of blocks then it simply falls
+ * If a page does yest map to a contiguous run of blocks then it simply falls
  * back to block_read_full_page().
  *
  * Why is this?  If a page's completion depends on a number of different BIOs
  * which can complete in any order (or at the same time) then determining the
  * status of that page is hard.  See end_buffer_async_read() for the details.
- * There is no point in duplicating all that complexity.
+ * There is yes point in duplicating all that complexity.
  */
 static void mpage_end_io(struct bio *bio)
 {
@@ -170,23 +170,23 @@ static void mpage_end_io(struct bio *bio)
 	__read_end_io(bio);
 }
 
-static inline bool ext4_need_verity(const struct inode *inode, pgoff_t idx)
+static inline bool ext4_need_verity(const struct iyesde *iyesde, pgoff_t idx)
 {
-	return fsverity_active(inode) &&
-	       idx < DIV_ROUND_UP(inode->i_size, PAGE_SIZE);
+	return fsverity_active(iyesde) &&
+	       idx < DIV_ROUND_UP(iyesde->i_size, PAGE_SIZE);
 }
 
-static struct bio_post_read_ctx *get_bio_post_read_ctx(struct inode *inode,
+static struct bio_post_read_ctx *get_bio_post_read_ctx(struct iyesde *iyesde,
 						       struct bio *bio,
 						       pgoff_t first_idx)
 {
 	unsigned int post_read_steps = 0;
 	struct bio_post_read_ctx *ctx = NULL;
 
-	if (IS_ENCRYPTED(inode) && S_ISREG(inode->i_mode))
+	if (IS_ENCRYPTED(iyesde) && S_ISREG(iyesde->i_mode))
 		post_read_steps |= 1 << STEP_DECRYPT;
 
-	if (ext4_need_verity(inode, first_idx))
+	if (ext4_need_verity(iyesde, first_idx))
 		post_read_steps |= 1 << STEP_VERITY;
 
 	if (post_read_steps) {
@@ -200,13 +200,13 @@ static struct bio_post_read_ctx *get_bio_post_read_ctx(struct inode *inode,
 	return ctx;
 }
 
-static inline loff_t ext4_readpage_limit(struct inode *inode)
+static inline loff_t ext4_readpage_limit(struct iyesde *iyesde)
 {
 	if (IS_ENABLED(CONFIG_FS_VERITY) &&
-	    (IS_VERITY(inode) || ext4_verity_in_progress(inode)))
-		return inode->i_sb->s_maxbytes;
+	    (IS_VERITY(iyesde) || ext4_verity_in_progress(iyesde)))
+		return iyesde->i_sb->s_maxbytes;
 
-	return i_size_read(inode);
+	return i_size_read(iyesde);
 }
 
 int ext4_mpage_readpages(struct address_space *mapping,
@@ -216,8 +216,8 @@ int ext4_mpage_readpages(struct address_space *mapping,
 	struct bio *bio = NULL;
 	sector_t last_block_in_bio = 0;
 
-	struct inode *inode = mapping->host;
-	const unsigned blkbits = inode->i_blkbits;
+	struct iyesde *iyesde = mapping->host;
+	const unsigned blkbits = iyesde->i_blkbits;
 	const unsigned blocks_per_page = PAGE_SIZE >> blkbits;
 	const unsigned blocksize = 1 << blkbits;
 	sector_t block_in_file;
@@ -225,7 +225,7 @@ int ext4_mpage_readpages(struct address_space *mapping,
 	sector_t last_block_in_file;
 	sector_t blocks[MAX_BUF_PER_PAGE];
 	unsigned page_block;
-	struct block_device *bdev = inode->i_sb->s_bdev;
+	struct block_device *bdev = iyesde->i_sb->s_bdev;
 	int length;
 	unsigned relative_block = 0;
 	struct ext4_map_blocks map;
@@ -254,7 +254,7 @@ int ext4_mpage_readpages(struct address_space *mapping,
 
 		block_in_file = (sector_t)page->index << (PAGE_SHIFT - blkbits);
 		last_block = block_in_file + nr_pages * blocks_per_page;
-		last_block_in_file = (ext4_readpage_limit(inode) +
+		last_block_in_file = (ext4_readpage_limit(iyesde) +
 				      blocksize - 1) >> blkbits;
 		if (last_block > last_block_in_file)
 			last_block = last_block_in_file;
@@ -293,7 +293,7 @@ int ext4_mpage_readpages(struct address_space *mapping,
 				map.m_lblk = block_in_file;
 				map.m_len = last_block - block_in_file;
 
-				if (ext4_map_blocks(NULL, inode, &map, 0) < 0) {
+				if (ext4_map_blocks(NULL, iyesde, &map, 0) < 0) {
 				set_error_page:
 					SetPageError(page);
 					zero_user_segment(page, 0,
@@ -311,7 +311,7 @@ int ext4_mpage_readpages(struct address_space *mapping,
 				continue;
 			}
 			if (first_hole != blocks_per_page)
-				goto confused;		/* hole -> non-hole */
+				goto confused;		/* hole -> yesn-hole */
 
 			/* Contiguous blocks? */
 			if (page_block && blocks[page_block-1] != map.m_pblk-1)
@@ -332,7 +332,7 @@ int ext4_mpage_readpages(struct address_space *mapping,
 			zero_user_segment(page, first_hole << blkbits,
 					  PAGE_SIZE);
 			if (first_hole == 0) {
-				if (ext4_need_verity(inode, page->index) &&
+				if (ext4_need_verity(iyesde, page->index) &&
 				    !fsverity_verify_page(page))
 					goto set_error_page;
 				SetPageUptodate(page);
@@ -366,7 +366,7 @@ int ext4_mpage_readpages(struct address_space *mapping,
 			 */
 			bio = bio_alloc(GFP_KERNEL,
 				min_t(int, nr_pages, BIO_MAX_PAGES));
-			ctx = get_bio_post_read_ctx(inode, bio, page->index);
+			ctx = get_bio_post_read_ctx(iyesde, bio, page->index);
 			if (IS_ERR(ctx)) {
 				bio_put(bio);
 				bio = NULL;

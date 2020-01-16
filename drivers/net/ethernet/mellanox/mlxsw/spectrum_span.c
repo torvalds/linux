@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0
-/* Copyright (c) 2018 Mellanox Technologies. All rights reserved */
+/* Copyright (c) 2018 Mellayesx Techyeslogies. All rights reserved */
 
 #include <linux/if_bridge.h>
 #include <linux/list.h>
@@ -154,7 +154,7 @@ static int mlxsw_sp_span_dmac(struct neigh_table *tbl,
 }
 
 static int
-mlxsw_sp_span_entry_unoffloadable(struct mlxsw_sp_span_parms *sparmsp)
+mlxsw_sp_span_entry_uyesffloadable(struct mlxsw_sp_span_parms *sparmsp)
 {
 	sparmsp->dest_port = NULL;
 	return 0;
@@ -269,7 +269,7 @@ mlxsw_sp_span_entry_tunnel_parms_common(struct net_device *edev,
 		gw = daddr;
 
 	if (!edev || mlxsw_sp_span_dmac(tbl, &gw, edev, dmac))
-		goto unoffloadable;
+		goto uyesffloadable;
 
 	if (is_vlan_dev(edev))
 		edev = mlxsw_sp_span_entry_vlan(edev, &vid);
@@ -277,25 +277,25 @@ mlxsw_sp_span_entry_tunnel_parms_common(struct net_device *edev,
 	if (netif_is_bridge_master(edev)) {
 		edev = mlxsw_sp_span_entry_bridge(edev, dmac, &vid);
 		if (!edev)
-			goto unoffloadable;
+			goto uyesffloadable;
 	}
 
 	if (is_vlan_dev(edev)) {
 		if (vid || !(edev->flags & IFF_UP))
-			goto unoffloadable;
+			goto uyesffloadable;
 		edev = mlxsw_sp_span_entry_vlan(edev, &vid);
 	}
 
 	if (netif_is_lag_master(edev)) {
 		if (!(edev->flags & IFF_UP))
-			goto unoffloadable;
+			goto uyesffloadable;
 		edev = mlxsw_sp_span_entry_lag(edev);
 		if (!edev)
-			goto unoffloadable;
+			goto uyesffloadable;
 	}
 
 	if (!mlxsw_sp_port_dev_check(edev))
-		goto unoffloadable;
+		goto uyesffloadable;
 
 	sparmsp->dest_port = netdev_priv(edev);
 	sparmsp->ttl = ttl;
@@ -306,8 +306,8 @@ mlxsw_sp_span_entry_tunnel_parms_common(struct net_device *edev,
 	sparmsp->vid = vid;
 	return 0;
 
-unoffloadable:
-	return mlxsw_sp_span_entry_unoffloadable(sparmsp);
+uyesffloadable:
+	return mlxsw_sp_span_entry_uyesffloadable(sparmsp);
 }
 
 #if IS_ENABLED(CONFIG_NET_IPGRE)
@@ -339,7 +339,7 @@ mlxsw_sp_span_gretap4_route(const struct net_device *to_dev,
 	*saddrp = fl4.saddr;
 	if (rt->rt_gw_family == AF_INET)
 		*daddrp = rt->rt_gw4;
-	/* can not offload if route has an IPv6 gateway */
+	/* can yest offload if route has an IPv6 gateway */
 	else if (rt->rt_gw_family == AF_INET6)
 		dev = NULL;
 
@@ -365,9 +365,9 @@ mlxsw_sp_span_entry_gretap4_parms(const struct net_device *to_dev,
 	    tparm.i_flags || tparm.o_flags ||
 	    /* Require a fixed TTL and a TOS copied from the mirrored packet. */
 	    inherit_ttl || !inherit_tos ||
-	    /* A destination address may not be "any". */
+	    /* A destination address may yest be "any". */
 	    mlxsw_sp_l3addr_is_zero(daddr))
-		return mlxsw_sp_span_entry_unoffloadable(sparmsp);
+		return mlxsw_sp_span_entry_uyesffloadable(sparmsp);
 
 	l3edev = mlxsw_sp_span_gretap4_route(to_dev, &saddr.addr4, &gw.addr4);
 	return mlxsw_sp_span_entry_tunnel_parms_common(l3edev, saddr, daddr, gw,
@@ -466,9 +466,9 @@ mlxsw_sp_span_entry_gretap6_parms(const struct net_device *to_dev,
 	    tparm.i_flags || tparm.o_flags ||
 	    /* Require a fixed TTL and a TOS copied from the mirrored packet. */
 	    inherit_ttl || !inherit_tos ||
-	    /* A destination address may not be "any". */
+	    /* A destination address may yest be "any". */
 	    mlxsw_sp_l3addr_is_zero(daddr))
-		return mlxsw_sp_span_entry_unoffloadable(sparmsp);
+		return mlxsw_sp_span_entry_uyesffloadable(sparmsp);
 
 	l3edev = mlxsw_sp_span_gretap6_route(to_dev, &saddr.addr6, &gw.addr6);
 	return mlxsw_sp_span_entry_tunnel_parms_common(l3edev, saddr, daddr, gw,
@@ -531,7 +531,7 @@ mlxsw_sp_span_entry_vlan_parms(const struct net_device *to_dev,
 	u16 vid;
 
 	if (!(to_dev->flags & IFF_UP))
-		return mlxsw_sp_span_entry_unoffloadable(sparmsp);
+		return mlxsw_sp_span_entry_uyesffloadable(sparmsp);
 
 	real_dev = mlxsw_sp_span_entry_vlan(to_dev, &vid);
 	sparmsp->dest_port = netdev_priv(real_dev);
@@ -584,28 +584,28 @@ struct mlxsw_sp_span_entry_ops *const mlxsw_sp_span_entry_types[] = {
 };
 
 static int
-mlxsw_sp_span_entry_nop_parms(const struct net_device *to_dev,
+mlxsw_sp_span_entry_yesp_parms(const struct net_device *to_dev,
 			      struct mlxsw_sp_span_parms *sparmsp)
 {
-	return mlxsw_sp_span_entry_unoffloadable(sparmsp);
+	return mlxsw_sp_span_entry_uyesffloadable(sparmsp);
 }
 
 static int
-mlxsw_sp_span_entry_nop_configure(struct mlxsw_sp_span_entry *span_entry,
+mlxsw_sp_span_entry_yesp_configure(struct mlxsw_sp_span_entry *span_entry,
 				  struct mlxsw_sp_span_parms sparms)
 {
 	return 0;
 }
 
 static void
-mlxsw_sp_span_entry_nop_deconfigure(struct mlxsw_sp_span_entry *span_entry)
+mlxsw_sp_span_entry_yesp_deconfigure(struct mlxsw_sp_span_entry *span_entry)
 {
 }
 
-static const struct mlxsw_sp_span_entry_ops mlxsw_sp_span_entry_ops_nop = {
-	.parms = mlxsw_sp_span_entry_nop_parms,
-	.configure = mlxsw_sp_span_entry_nop_configure,
-	.deconfigure = mlxsw_sp_span_entry_nop_deconfigure,
+static const struct mlxsw_sp_span_entry_ops mlxsw_sp_span_entry_ops_yesp = {
+	.parms = mlxsw_sp_span_entry_yesp_parms,
+	.configure = mlxsw_sp_span_entry_yesp_configure,
+	.deconfigure = mlxsw_sp_span_entry_yesp_deconfigure,
 };
 
 static void
@@ -615,7 +615,7 @@ mlxsw_sp_span_entry_configure(struct mlxsw_sp *mlxsw_sp,
 {
 	if (sparms.dest_port) {
 		if (sparms.dest_port->mlxsw_sp != mlxsw_sp) {
-			netdev_err(span_entry->to_dev, "Cannot mirror to %s, which belongs to a different mlxsw instance",
+			netdev_err(span_entry->to_dev, "Canyest mirror to %s, which belongs to a different mlxsw instance",
 				   sparms.dest_port->dev->name);
 			sparms.dest_port = NULL;
 		} else if (span_entry->ops->configure(span_entry, sparms)) {
@@ -686,7 +686,7 @@ void mlxsw_sp_span_entry_invalidate(struct mlxsw_sp *mlxsw_sp,
 				    struct mlxsw_sp_span_entry *span_entry)
 {
 	mlxsw_sp_span_entry_deconfigure(span_entry);
-	span_entry->ops = &mlxsw_sp_span_entry_ops_nop;
+	span_entry->ops = &mlxsw_sp_span_entry_ops_yesp;
 }
 
 static struct mlxsw_sp_span_entry *
@@ -769,7 +769,7 @@ int mlxsw_sp_span_port_mtu_update(struct mlxsw_sp_port *port, u16 mtu)
 		mlxsw_reg_sbib_pack(sbib_pl, port->local_port, buffsize);
 		err = mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(sbib), sbib_pl);
 		if (err) {
-			netdev_err(port->dev, "Could not update shared buffer for mirroring\n");
+			netdev_err(port->dev, "Could yest update shared buffer for mirroring\n");
 			return err;
 		}
 	}
@@ -842,7 +842,7 @@ mlxsw_sp_span_inspected_port_add(struct mlxsw_sp_port *port,
 		mlxsw_reg_sbib_pack(sbib_pl, port->local_port, buffsize);
 		err = mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(sbib), sbib_pl);
 		if (err) {
-			netdev_err(port->dev, "Could not create shared buffer for mirroring\n");
+			netdev_err(port->dev, "Could yest create shared buffer for mirroring\n");
 			return err;
 		}
 	}
@@ -934,7 +934,7 @@ int mlxsw_sp_span_mirror_add(struct mlxsw_sp_port *from,
 
 	ops = mlxsw_sp_span_entry_ops(mlxsw_sp, to_dev);
 	if (!ops) {
-		netdev_err(to_dev, "Cannot mirror to %s", to_dev->name);
+		netdev_err(to_dev, "Canyest mirror to %s", to_dev->name);
 		return -EOPNOTSUPP;
 	}
 
@@ -968,7 +968,7 @@ void mlxsw_sp_span_mirror_del(struct mlxsw_sp_port *from, int span_id,
 
 	span_entry = mlxsw_sp_span_entry_find_by_id(from->mlxsw_sp, span_id);
 	if (!span_entry) {
-		netdev_err(from->dev, "no span entry found\n");
+		netdev_err(from->dev, "yes span entry found\n");
 		return;
 	}
 

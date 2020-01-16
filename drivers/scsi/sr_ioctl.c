@@ -2,7 +2,7 @@
 #include <linux/kernel.h>
 #include <linux/mm.h>
 #include <linux/fs.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/string.h>
 #include <linux/blkdev.h>
 #include <linux/module.h>
@@ -179,7 +179,7 @@ static int sr_play_trkind(struct cdrom_device_info *cdi,
 	return result;
 }
 
-/* We do our own retries because we want to know what the specific
+/* We do our own retries because we want to kyesw what the specific
    error code is.  Normally the UNIT_ATTENTION code will automatically
    clear after one error */
 
@@ -204,7 +204,7 @@ int sr_do_ioctl(Scsi_CD *cd, struct packet_command *cgc)
 			      cgc->buffer, cgc->buflen, NULL, sshdr,
 			      cgc->timeout, IOCTL_RETRIES, 0, 0, NULL);
 
-	/* Minimal error checking.  Ignore cases we know about, and report the rest. */
+	/* Minimal error checking.  Igyesre cases we kyesw about, and report the rest. */
 	if (driver_byte(result) != 0) {
 		switch (sshdr->sense_key) {
 		case UNIT_ATTENTION:
@@ -216,26 +216,26 @@ int sr_do_ioctl(Scsi_CD *cd, struct packet_command *cgc)
 				goto retry;
 			err = -ENOMEDIUM;
 			break;
-		case NOT_READY:	/* This happens if there is no disc in drive */
+		case NOT_READY:	/* This happens if there is yes disc in drive */
 			if (sshdr->asc == 0x04 &&
 			    sshdr->ascq == 0x01) {
 				/* sense: Logical unit is in process of becoming ready */
 				if (!cgc->quiet)
 					sr_printk(KERN_INFO, cd,
-						  "CDROM not ready yet.\n");
+						  "CDROM yest ready yet.\n");
 				if (retries++ < 10) {
 					/* sleep 2 sec and try again */
 					ssleep(2);
 					goto retry;
 				} else {
-					/* 20 secs are enough? */
+					/* 20 secs are eyesugh? */
 					err = -ENOMEDIUM;
 					break;
 				}
 			}
 			if (!cgc->quiet)
 				sr_printk(KERN_INFO, cd,
-					  "CDROM not ready.  Make sure there "
+					  "CDROM yest ready.  Make sure there "
 					  "is a disc in the drive.\n");
 			err = -ENOMEDIUM;
 			break;
@@ -288,7 +288,7 @@ int sr_drive_status(struct cdrom_device_info *cdi, int slot)
 	struct media_event_desc med;
 
 	if (CDSL_CURRENT != slot) {
-		/* we have no changer support */
+		/* we have yes changer support */
 		return -EINVAL;
 	}
 	if (!scsi_test_unit_ready(cd->device, SR_TIMEOUT, MAX_RETRIES, &sshdr))
@@ -324,12 +324,12 @@ int sr_drive_status(struct cdrom_device_info *cdi, int slot)
 		return CDS_DISC_OK;
 
 	/*
-	 * If not using Mt Fuji extended media tray reports,
+	 * If yest using Mt Fuji extended media tray reports,
 	 * just return TRAY_OPEN since ATAPI doesn't provide
 	 * any other way to detect this...
 	 */
 	if (scsi_sense_valid(&sshdr) &&
-	    /* 0x3a is medium not present */
+	    /* 0x3a is medium yest present */
 	    sshdr.asc == 0x3a)
 		return CDS_NO_DISC;
 	else
@@ -517,11 +517,11 @@ static int sr_read_sector(Scsi_CD *cd, int lba, int blksize, unsigned char *dest
 	int rc;
 
 	/* we try the READ CD command first... */
-	if (cd->readcd_known) {
+	if (cd->readcd_kyeswn) {
 		rc = sr_read_cd(cd, dest, lba, 0, blksize);
 		if (-EDRIVE_CANT_DO_THIS != rc)
 			return rc;
-		cd->readcd_known = 0;
+		cd->readcd_kyeswn = 0;
 		sr_printk(KERN_INFO, cd,
 			  "CDROM does'nt support READ CD (0xbe) command\n");
 		/* fall & retry the other way */

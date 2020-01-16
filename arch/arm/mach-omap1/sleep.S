@@ -28,7 +28,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
+ * with this program; if yest, write to the Free Software Foundation, Inc.,
  * 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
@@ -71,7 +71,7 @@ ENTRY(omap7xx_cpu_suspend)
 	@ Drain write cache
 	mov	r4, #0
 	mcr	p15, 0, r0, c7, c10, 4
-	nop
+	yesp
 
 	@ load base address of Traffic Controller
 	mov	r6, #TCMIF_ASM_BASE & 0xff000000
@@ -95,7 +95,7 @@ ENTRY(omap7xx_cpu_suspend)
 	orr	r4, r4, #CLKGEN_REG_ASM_BASE & 0x0000ff00
 
 	@ turn off clock domains
-	@ do not disable PERCK (0x04)
+	@ do yest disable PERCK (0x04)
 	mov	r5, #OMAP7XX_IDLECT2_SLEEP_VAL & 0xff
 	orr	r5, r5, #OMAP7XX_IDLECT2_SLEEP_VAL & 0xff00
 	strh	r5, [r4, #ARM_IDLECT2_ASM_OFFSET & 0xff]
@@ -109,7 +109,7 @@ ENTRY(omap7xx_cpu_suspend)
 	mrc	p15, 0, r9, c1, c0, 0
 	bic	r2, r9, #0x1000
 	mcr	p15, 0, r2, c1, c0, 0
-	nop
+	yesp
 
 /*
  * Let's wait for the next wake up event to wake us up. r0 can't be
@@ -226,7 +226,7 @@ ENTRY(omap1610_cpu_suspend)
 	@ Drain write cache
 	mov	r4, #0
 	mcr	p15, 0, r0, c7, c10, 4
-	nop
+	yesp
 
 	@ Load base address of Traffic Controller
 	mov	r6, #TCMIF_ASM_BASE & 0xff000000
@@ -250,7 +250,7 @@ ENTRY(omap1610_cpu_suspend)
 	orr	r4, r4, #CLKGEN_REG_ASM_BASE & 0x0000ff00
 
 	@ Turn off clock domains
-	@ Do not disable PERCK (0x04)
+	@ Do yest disable PERCK (0x04)
 	mov	r5, #OMAP1610_IDLECT2_SLEEP_VAL & 0xff
 	orr	r5, r5, #OMAP1610_IDLECT2_SLEEP_VAL & 0xff00
 	strh	r5, [r4, #ARM_IDLECT2_ASM_OFFSET & 0xff]
@@ -267,87 +267,87 @@ ENTRY(omap1610_cpu_suspend)
 	mov	r2, #0
 	mcr	p15, 0, r2, c7, c0, 4		@ wait for interrupt
 
-	@ Errata (HEL3SU467, section 1.4.4) specifies nop-instructions
+	@ Errata (HEL3SU467, section 1.4.4) specifies yesp-instructions
 	@ according to this formula:
 	@ 2 + (4*DPLL_MULT)/DPLL_DIV/ARMDIV
 	@ Max DPLL_MULT = 18
 	@ DPLL_DIV = 1
 	@ ARMDIV = 1
-	@ => 74 nop-instructions
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop	@10
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop	@20
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop	@30
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop	@40
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop	@50
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop	@60
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop	@70
-	nop
-	nop
-	nop
-	nop	@74
+	@ => 74 yesp-instructions
+	yesp
+	yesp
+	yesp
+	yesp
+	yesp
+	yesp
+	yesp
+	yesp
+	yesp
+	yesp	@10
+	yesp
+	yesp
+	yesp
+	yesp
+	yesp
+	yesp
+	yesp
+	yesp
+	yesp
+	yesp	@20
+	yesp
+	yesp
+	yesp
+	yesp
+	yesp
+	yesp
+	yesp
+	yesp
+	yesp
+	yesp	@30
+	yesp
+	yesp
+	yesp
+	yesp
+	yesp
+	yesp
+	yesp
+	yesp
+	yesp
+	yesp	@40
+	yesp
+	yesp
+	yesp
+	yesp
+	yesp
+	yesp
+	yesp
+	yesp
+	yesp
+	yesp	@50
+	yesp
+	yesp
+	yesp
+	yesp
+	yesp
+	yesp
+	yesp
+	yesp
+	yesp
+	yesp	@60
+	yesp
+	yesp
+	yesp
+	yesp
+	yesp
+	yesp
+	yesp
+	yesp
+	yesp
+	yesp	@70
+	yesp
+	yesp
+	yesp
+	yesp	@74
 /*
  * omap1610_cpu_suspend()'s resume point.
  *

@@ -5,7 +5,7 @@
  */
 
 #include <endian.h>
-#include <errno.h>
+#include <erryes.h>
 #include <byteswap.h>
 #include <inttypes.h>
 #include <unistd.h>
@@ -116,7 +116,7 @@ static int arm_spe_process_auxtrace_event(struct perf_session *session,
 	} else {
 		data_offset = lseek(fd, 0, SEEK_CUR);
 		if (data_offset == -1)
-			return -errno;
+			return -erryes;
 	}
 
 	err = auxtrace_queues__add_event(&spe->queues, session, event,
@@ -124,7 +124,7 @@ static int arm_spe_process_auxtrace_event(struct perf_session *session,
 	if (err)
 		return err;
 
-	/* Dump here now we have copied a piped trace out of the pipe */
+	/* Dump here yesw we have copied a piped trace out of the pipe */
 	if (dump_trace) {
 		if (auxtrace_buffer__get_data(buffer, fd)) {
 			arm_spe_dump_event(spe, buffer->data,

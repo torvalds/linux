@@ -55,14 +55,14 @@ static struct powerdomain *mpu_pd, *core_pd, *per_pd, *cam_pd;
 #define OMAP_CPUIDLE_CX_NO_CLKDM_IDLE		BIT(0)
 
 /*
- * Prevent PER OFF if CORE is not in RETention or OFF as this would
+ * Prevent PER OFF if CORE is yest in RETention or OFF as this would
  * disable PER wakeups completely.
  */
 static struct omap3_idle_statedata omap3_idle_data[] = {
 	{
 		.mpu_state = PWRDM_POWER_ON,
 		.core_state = PWRDM_POWER_ON,
-		/* In C1 do not allow PER state lower than CORE state */
+		/* In C1 do yest allow PER state lower than CORE state */
 		.per_min_state = PWRDM_POWER_ON,
 		.flags = OMAP_CPUIDLE_CX_NO_CLKDM_IDLE,
 	},
@@ -122,7 +122,7 @@ static int omap3_enter_idle(struct cpuidle_device *dev,
 	}
 
 	/*
-	 * Call idle CPU PM enter notifier chain so that
+	 * Call idle CPU PM enter yestifier chain so that
 	 * VFP context is saved.
 	 */
 	if (cx->mpu_state == PWRDM_POWER_OFF)
@@ -132,7 +132,7 @@ static int omap3_enter_idle(struct cpuidle_device *dev,
 	omap_sram_idle();
 
 	/*
-	 * Call idle CPU PM enter notifier chain to restore
+	 * Call idle CPU PM enter yestifier chain to restore
 	 * VFP context.
 	 */
 	if (cx->mpu_state == PWRDM_POWER_OFF &&
@@ -174,7 +174,7 @@ static int next_valid_state(struct cpuidle_device *dev,
 		mpu_deepest_state = PWRDM_POWER_OFF;
 		/*
 		 * Erratum i583: valable for ES rev < Es1.2 on 3630.
-		 * CORE OFF mode is not supported in a stable form, restrict
+		 * CORE OFF mode is yest supported in a stable form, restrict
 		 * instead the CORE state to RET.
 		 */
 		if (!IS_PM34XX_ERRATUM(PM_SDRC_WAKEUP_ERRATUM_i583))
@@ -221,7 +221,7 @@ static int omap3_enter_idle_bm(struct cpuidle_device *dev,
 
 	/*
 	 * Use only C1 if CAM is active.
-	 * CAM does not have wakeup capability in OMAP3.
+	 * CAM does yest have wakeup capability in OMAP3.
 	 */
 	if (pwrdm_read_pwrst(cam_pd) == PWRDM_POWER_ON)
 		new_state_idx = drv->safe_state_index;

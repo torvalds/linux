@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-2.0
-ccflags-y := -Werror -Wno-sign-compare
+ccflags-y := -Werror -Wyes-sign-compare
 
 obj-$(CONFIG_OPROFILE) += oprofile.o
 

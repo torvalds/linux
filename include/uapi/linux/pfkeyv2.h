@@ -1,7 +1,7 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 /* PF_KEY user interface, this is defined by rfc2367 so
- * do not make arbitrary modifications or else this header
- * file will not be compliant.
+ * do yest make arbitrary modifications or else this header
+ * file will yest be compliant.
  */
 
 #ifndef _LINUX_PFKEY2_H
@@ -15,7 +15,7 @@
 struct sadb_msg {
 	__u8		sadb_msg_version;
 	__u8		sadb_msg_type;
-	__u8		sadb_msg_errno;
+	__u8		sadb_msg_erryes;
 	__u8		sadb_msg_satype;
 	__u16	sadb_msg_len;
 	__u16	sadb_msg_reserved;

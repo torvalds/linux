@@ -7,12 +7,12 @@
 #define EFI_ERROR	(~0UL)
 
 /*
- * __init annotations should not be used in the EFI stub, since the code is
- * either included in the decompressor (x86, ARM) where they have no effect,
- * or the whole stub is __init annotated at the section level (arm64), by
- * renaming the sections, in which case the __init annotation will be
+ * __init anyestations should yest be used in the EFI stub, since the code is
+ * either included in the decompressor (x86, ARM) where they have yes effect,
+ * or the whole stub is __init anyestated at the section level (arm64), by
+ * renaming the sections, in which case the __init anyestation will be
  * redundant, and will result in section names like .init.init.text, and our
- * linker script does not expect that.
+ * linker script does yest expect that.
  */
 #undef __init
 
@@ -25,9 +25,9 @@
 #define EFI_ALLOC_ALIGN		EFI_PAGE_SIZE
 #endif
 
-extern int __pure nokaslr(void);
+extern int __pure yeskaslr(void);
 extern int __pure is_quiet(void);
-extern int __pure novamap(void);
+extern int __pure yesvamap(void);
 
 #define pr_efi(sys_table, msg)		do {				\
 	if (!is_quiet()) efi_printk(sys_table, "EFI stub: "msg);	\
@@ -67,13 +67,13 @@ void *get_efi_config_table(efi_system_table_t *sys_table, efi_guid_t guid);
 
 /* Helper macros for the usual case of using simple C variables: */
 #ifndef fdt_setprop_inplace_var
-#define fdt_setprop_inplace_var(fdt, node_offset, name, var) \
-	fdt_setprop_inplace((fdt), (node_offset), (name), &(var), sizeof(var))
+#define fdt_setprop_inplace_var(fdt, yesde_offset, name, var) \
+	fdt_setprop_inplace((fdt), (yesde_offset), (name), &(var), sizeof(var))
 #endif
 
 #ifndef fdt_setprop_var
-#define fdt_setprop_var(fdt, node_offset, name, var) \
-	fdt_setprop((fdt), (node_offset), (name), &(var), sizeof(var))
+#define fdt_setprop_var(fdt, yesde_offset, name, var) \
+	fdt_setprop((fdt), (yesde_offset), (name), &(var), sizeof(var))
 #endif
 
 #endif

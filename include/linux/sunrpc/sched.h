@@ -130,7 +130,7 @@ struct rpc_task_setup {
 #define RPC_TASK_SOFTCONN	0x0400		/* Fail if can't connect */
 #define RPC_TASK_SENT		0x0800		/* message was sent */
 #define RPC_TASK_TIMEOUT	0x1000		/* fail with ETIMEDOUT on timeout */
-#define RPC_TASK_NOCONNECT	0x2000		/* return ENOTCONN if not connected */
+#define RPC_TASK_NOCONNECT	0x2000		/* return ENOTCONN if yest connected */
 #define RPC_TASK_NO_RETRANS_TIMEOUT	0x4000		/* wait forever for a reply */
 
 #define RPC_IS_ASYNC(t)		((t)->tk_flags & RPC_TASK_ASYNC)
@@ -194,7 +194,7 @@ struct rpc_timer {
 struct rpc_wait_queue {
 	spinlock_t		lock;
 	struct list_head	tasks[RPC_NR_PRIORITY];	/* task queue for each priority level */
-	unsigned char		maxpriority;		/* maximum priority (0 if queue is not a priority queue) */
+	unsigned char		maxpriority;		/* maximum priority (0 if queue is yest a priority queue) */
 	unsigned char		priority;		/* current priority */
 	unsigned char		nr;			/* # tasks remaining for cookie */
 	unsigned short		qlen;			/* total # tasks waiting in queue */
@@ -281,7 +281,7 @@ static inline int rpc_wait_for_completion_task(struct rpc_task *task)
 #if IS_ENABLED(CONFIG_SUNRPC_DEBUG) || IS_ENABLED(CONFIG_TRACEPOINTS)
 static inline const char * rpc_qname(const struct rpc_wait_queue *q)
 {
-	return ((q && q->name) ? q->name : "unknown");
+	return ((q && q->name) ? q->name : "unkyeswn");
 }
 
 static inline void rpc_assign_waitqueue_name(struct rpc_wait_queue *q,

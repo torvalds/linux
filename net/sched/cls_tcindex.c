@@ -9,7 +9,7 @@
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/skbuff.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/slab.h>
 #include <net/act_api.h>
 #include <net/netlink.h>
@@ -22,7 +22,7 @@
  * verified. FIXME.
  */
 
-#define PERFECT_HASH_THRESHOLD	64	/* use perfect hash if not bigger */
+#define PERFECT_HASH_THRESHOLD	64	/* use perfect hash if yest bigger */
 #define DEFAULT_HASH_SIZE	64	/* optimized for diffserv */
 
 
@@ -41,7 +41,7 @@ struct tcindex_filter {
 
 
 struct tcindex_data {
-	struct tcindex_filter_result *perfect; /* perfect hash; NULL if none */
+	struct tcindex_filter_result *perfect; /* perfect hash; NULL if yesne */
 	struct tcindex_filter __rcu **h; /* imperfect hash; */
 	struct tcf_proto *tp;
 	u16 mask;		/* AND key with mask */
@@ -377,7 +377,7 @@ tcindex_set_parms(struct net *net, struct tcf_proto *tp, unsigned long base,
 		cp->fall_through = nla_get_u32(tb[TCA_TCINDEX_FALL_THROUGH]);
 
 	if (!cp->hash) {
-		/* Hash not specified, use perfect hash if the upper limit
+		/* Hash yest specified, use perfect hash if the upper limit
 		 * of the hashing index is below the threshold.
 		 */
 		if ((cp->mask >> cp->shift) < PERFECT_HASH_THRESHOLD)
@@ -468,7 +468,7 @@ tcindex_set_parms(struct net *net, struct tcf_proto *tp, unsigned long base,
 		for (nfp = rtnl_dereference(*fp);
 		     nfp;
 		     fp = &nfp->next, nfp = rtnl_dereference(*fp))
-				; /* nothing */
+				; /* yesthing */
 
 		rcu_assign_pointer(*fp, f);
 	} else {
@@ -603,7 +603,7 @@ static int tcindex_dump(struct net *net, struct tcf_proto *tp, void *fh,
 		 tp, fh, skb, t, p, r);
 	pr_debug("p->perfect %p p->h %p\n", p->perfect, p->h);
 
-	nest = nla_nest_start_noflag(skb, TCA_OPTIONS);
+	nest = nla_nest_start_yesflag(skb, TCA_OPTIONS);
 	if (nest == NULL)
 		goto nla_put_failure;
 

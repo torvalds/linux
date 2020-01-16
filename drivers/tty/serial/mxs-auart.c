@@ -17,7 +17,7 @@
 #endif
 
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/init.h>
 #include <linux/console.h>
 #include <linux/interrupt.h>
@@ -135,20 +135,20 @@
 #define ASM9260_BM_CTRL0_RXTO_SOURCE_STATUS	BIT(25)
 /*
  * RW. RX TIMEOUT Enable. Valid for FIFO and DMA.
- * Warning: If this bit is set to 0, the RX timeout will not affect receive DMA
+ * Warning: If this bit is set to 0, the RX timeout will yest affect receive DMA
  * operation. If this bit is set to 1, a receive timeout will cause the receive
  * DMA logic to terminate by filling the remaining DMA bytes with garbage data.
  */
 #define ASM9260_BM_CTRL0_RXTO_ENABLE		BIT(24)
 /*
  * RW. Receive Timeout Counter Value: number of 8-bit-time to wait before
- * asserting timeout on the RX input. If the RXFIFO is not empty and the RX
+ * asserting timeout on the RX input. If the RXFIFO is yest empty and the RX
  * input is idle, then the watchdog counter will decrement each bit-time. Note
  * 7-bit-time is added to the programmed value, so a value of zero will set
  * the counter to 7-bit-time, a value of 0x1 gives 15-bit-time and so on. Also
- * note that the counter is reloaded at the end of each frame, so if the frame
+ * yeste that the counter is reloaded at the end of each frame, so if the frame
  * is 10 bits long and the timeout counter value is zero, then timeout will
- * occur (when FIFO is not empty) even if the RX input is not idle. The default
+ * occur (when FIFO is yest empty) even if the RX input is yest idle. The default
  * value is 0x3 (31 bit-time).
  */
 #define ASM9260_BM_CTRL0_RXTO_MASK		(0xff << 16)
@@ -794,7 +794,7 @@ static void mxs_auart_enable_ms(struct uart_port *port)
 	struct mxs_auart_port *s = to_auart_port(port);
 
 	/*
-	 * Interrupt should not be enabled twice
+	 * Interrupt should yest be enabled twice
 	 */
 	if (s->ms_irq_enabled)
 		return;
@@ -823,7 +823,7 @@ static void mxs_auart_disable_ms(struct uart_port *port)
 	struct mxs_auart_port *s = to_auart_port(port);
 
 	/*
-	 * Interrupt should not be disabled twice
+	 * Interrupt should yest be disabled twice
 	 */
 	if (!s->ms_irq_enabled)
 		return;
@@ -896,7 +896,7 @@ static int mxs_auart_dma_prep_rx(struct mxs_auart_port *s)
 		return -1;
 	}
 
-	/* [3] : submit the DMA, but do not issue it. */
+	/* [3] : submit the DMA, but do yest issue it. */
 	desc->callback = dma_rx_callback;
 	desc->callback_param = s;
 	dmaengine_submit(desc);
@@ -958,7 +958,7 @@ static int mxs_auart_dma_init(struct mxs_auart_port *s)
 	s->flags |= MXS_AUART_DMA_ENABLED;
 	dev_dbg(s->dev, "enabled the DMA support.");
 
-	/* The DMA buffer is now the FIFO the TTY subsystem can use */
+	/* The DMA buffer is yesw the FIFO the TTY subsystem can use */
 	s->port.fifosize = UART_XMIT_SIZE;
 
 	return 0;
@@ -1021,23 +1021,23 @@ static void mxs_auart_settermios(struct uart_port *u,
 		u->read_status_mask |= AUART_STAT_BERR;
 
 	/*
-	 * Characters to ignore
+	 * Characters to igyesre
 	 */
-	u->ignore_status_mask = 0;
+	u->igyesre_status_mask = 0;
 	if (termios->c_iflag & IGNPAR)
-		u->ignore_status_mask |= AUART_STAT_PERR;
+		u->igyesre_status_mask |= AUART_STAT_PERR;
 	if (termios->c_iflag & IGNBRK) {
-		u->ignore_status_mask |= AUART_STAT_BERR;
+		u->igyesre_status_mask |= AUART_STAT_BERR;
 		/*
-		 * If we're ignoring parity and break indicators,
-		 * ignore overruns too (for real raw support).
+		 * If we're igyesring parity and break indicators,
+		 * igyesre overruns too (for real raw support).
 		 */
 		if (termios->c_iflag & IGNPAR)
-			u->ignore_status_mask |= AUART_STAT_OERR;
+			u->igyesre_status_mask |= AUART_STAT_OERR;
 	}
 
 	/*
-	 * ignore all characters if CREAD is not set
+	 * igyesre all characters if CREAD is yest set
 	 */
 	if (cflag & CREAD)
 		ctrl2 |= AUART_CTRL2_RXE;
@@ -1053,7 +1053,7 @@ static void mxs_auart_settermios(struct uart_port *u,
 	if (cflag & CRTSCTS) {
 		/*
 		 * The DMA has a bug(see errata:2836) in mx23.
-		 * So we can not implement the DMA for auart in mx23,
+		 * So we can yest implement the DMA for auart in mx23,
 		 * we can only implement the DMA support for auart
 		 * in mx28.
 		 */
@@ -1097,12 +1097,12 @@ static void mxs_auart_settermios(struct uart_port *u,
 	if (auart_dma_enabled(s) &&
 		!test_and_set_bit(MXS_AUART_DMA_RX_READY, &s->flags)) {
 		if (!mxs_auart_dma_prep_rx(s)) {
-			/* Disable the normal RX interrupt. */
+			/* Disable the yesrmal RX interrupt. */
 			mxs_clr(AUART_INTR_RXIEN | AUART_INTR_RTIEN,
 				s, REG_INTR);
 		} else {
 			mxs_auart_dma_exit(s);
-			dev_err(s->dev, "We can not start up the DMA.\n");
+			dev_err(s->dev, "We can yest start up the DMA.\n");
 		}
 	}
 
@@ -1221,7 +1221,7 @@ static int mxs_auart_startup(struct uart_port *u)
 	if (uart_console(u)) {
 		mxs_clr(AUART_CTRL0_CLKGATE, s, REG_CTRL0);
 	} else {
-		/* reset the unit to a well known state */
+		/* reset the unit to a well kyeswn state */
 		mxs_auart_reset_assert(s);
 		mxs_auart_reset_deassert(s);
 	}
@@ -1384,7 +1384,7 @@ auart_console_write(struct console *co, const char *str, unsigned int count)
 	}
 
 	/*
-	 * ... and restore the TCR if we waited long enough for the transmitter
+	 * ... and restore the TCR if we waited long eyesugh for the transmitter
 	 * to be idle. This might keep the transmitter enabled although it is
 	 * unused, but that is better than to disable it while it is still
 	 * transmitting.
@@ -1485,7 +1485,7 @@ static struct uart_driver auart_driver = {
 	.driver_name	= "ttyAPP",
 	.dev_name	= "ttyAPP",
 	.major		= 0,
-	.minor		= 0,
+	.miyesr		= 0,
 	.nr		= MXS_AUART_PORTS,
 #ifdef CONFIG_SERIAL_MXS_AUART_CONSOLE
 	.cons =		&auart_console,
@@ -1549,16 +1549,16 @@ disable_clk_ahb:
 
 /*
  * This function returns 1 if pdev isn't a device instatiated by dt, 0 if it
- * could successfully get all information from dt or a negative errno.
+ * could successfully get all information from dt or a negative erryes.
  */
 static int serial_mxs_probe_dt(struct mxs_auart_port *s,
 		struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	int ret;
 
 	if (!np)
-		/* no device tree device */
+		/* yes device tree device */
 		return 1;
 
 	ret = of_alias_get_id(np, "serial");
@@ -1580,7 +1580,7 @@ static int mxs_auart_init_gpios(struct mxs_auart_port *s, struct device *dev)
 	enum mctrl_gpio_idx i;
 	struct gpio_desc *gpiod;
 
-	s->gpios = mctrl_gpio_init_noauto(dev, 0);
+	s->gpios = mctrl_gpio_init_yesauto(dev, 0);
 	if (IS_ERR(s->gpios))
 		return PTR_ERR(s->gpios);
 

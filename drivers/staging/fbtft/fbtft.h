@@ -101,7 +101,7 @@ struct fbtft_ops {
  * @gamma_len: Number of values per Gamma curve
  * @debug: Initial debug value
  *
- * This structure is not stored by FBTFT except for init_sequence.
+ * This structure is yest stored by FBTFT except for init_sequence.
  */
 struct fbtft_display {
 	unsigned int width;
@@ -148,7 +148,7 @@ struct fbtft_platform_data {
  *
  * This structure holds all relevant data to operate the display
  *
- * See sourcefile for documentation since nested structs is not
+ * See sourcefile for documentation since nested structs is yest
  * supported by kernel-doc.
  *
  */
@@ -168,14 +168,14 @@ struct fbtft_platform_data {
  * @dirty_lines_start: Where to begin updating display
  * @dirty_lines_end: Where to end updating display
  * @gpio.reset: GPIO used to reset display
- * @gpio.dc: Data/Command signal, also known as RS
+ * @gpio.dc: Data/Command signal, also kyeswn as RS
  * @gpio.rd: Read latching signal
  * @gpio.wr: Write latching signal
  * @gpio.latch: Bus latch signal, eg. 16->8 bit bus latch
  * @gpio.cs: LCD Chip Select with parallel interface bus
  * @gpio.db[16]: Parallel databus
  * @gpio.led[16]: Led control signals
- * @gpio.aux[16]: Auxiliary signals, not used by core
+ * @gpio.aux[16]: Auxiliary signals, yest used by core
  * @init_sequence: Pointer to LCD initialization array
  * @gamma.lock: Mutex for Gamma curve locking
  * @gamma.curves: Pointer to Gamma curve array

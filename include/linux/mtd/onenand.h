@@ -88,7 +88,7 @@ struct onenand_chip {
 	unsigned int		chipsize;
 	unsigned int		device_id;
 	unsigned int		version_id;
-	unsigned int		technology;
+	unsigned int		techyeslogy;
 	unsigned int		density_mask;
 	unsigned int		options;
 	unsigned int		badblockpos;
@@ -168,7 +168,7 @@ struct onenand_chip {
 	(this->device_id & ONENAND_DEVICE_IS_DDP)
 
 #define ONENAND_IS_MLC(this)						\
-	(this->technology & ONENAND_TECHNOLOGY_IS_MLC)
+	(this->techyeslogy & ONENAND_TECHNOLOGY_IS_MLC)
 
 #ifdef CONFIG_MTD_ONENAND_2X_PROGRAM
 #define ONENAND_IS_2PLANE(this)						\

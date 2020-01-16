@@ -36,7 +36,7 @@
 #include <linux/random.h>
 #include <linux/hw_breakpoint.h>
 #include <linux/personality.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <trace/events/power.h>
 #include <linux/percpu.h>
 #include <linux/thread_info.h>
@@ -101,8 +101,8 @@ static void __cpu_do_idle_irqprio(void)
  *	Idle the processor (wait for interrupt).
  *
  *	If the CPU supports priority masking we must do additional work to
- *	ensure that interrupts are not masked at the PMR (because the core will
- *	not wake up if we block the wake up signal in the interrupt controller).
+ *	ensure that interrupts are yest masked at the PMR (because the core will
+ *	yest wake up if we block the wake up signal in the interrupt controller).
  */
 void cpu_do_idle(void)
 {
@@ -138,14 +138,14 @@ void arch_cpu_idle_dead(void)
  * Called by kexec, immediately prior to machine_kexec().
  *
  * This must completely disable all secondary CPUs; simply causing those CPUs
- * to execute e.g. a RAM-based pin loop is not sufficient. This allows the
+ * to execute e.g. a RAM-based pin loop is yest sufficient. This allows the
  * kexec'd kernel to use any and all RAM as it sees fit, without having to
  * avoid any code or data used by any SW CPU pin loop. The CPU hotplug
- * functionality embodied in disable_nonboot_cpus() to achieve this.
+ * functionality embodied in disable_yesnboot_cpus() to achieve this.
  */
 void machine_shutdown(void)
 {
-	disable_nonboot_cpus();
+	disable_yesnboot_cpus();
 }
 
 /*
@@ -344,12 +344,12 @@ int arch_dup_task_struct(struct task_struct *dst, struct task_struct *src)
 	BUILD_BUG_ON(!IS_ENABLED(CONFIG_THREAD_INFO_IN_TASK));
 
 	/*
-	 * Detach src's sve_state (if any) from dst so that it does not
+	 * Detach src's sve_state (if any) from dst so that it does yest
 	 * get erroneously used or freed prematurely.  dst's sve_state
 	 * will be allocated on demand later on if dst uses SVE.
 	 * For consistency, also clear TIF_SVE here: this could be done
 	 * later in copy_process(), but to avoid tripping up future
-	 * maintainers it is best not to leave TIF_SVE and sve_state in
+	 * maintainers it is best yest to leave TIF_SVE and sve_state in
 	 * an inconsistent state, even temporarily.
 	 */
 	dst->thread.sve_state = NULL;
@@ -370,7 +370,7 @@ int copy_thread_tls(unsigned long clone_flags, unsigned long stack_start,
 	/*
 	 * In case p was allocated the same task_struct pointer as some
 	 * other recently-exited task, make sure p is disassociated from
-	 * any cpu that may have run that now-exited task recently.
+	 * any cpu that may have run that yesw-exited task recently.
 	 * Otherwise we could erroneously skip reloading the FPSIMD
 	 * registers for p.
 	 */
@@ -445,9 +445,9 @@ void uao_thread_switch(struct task_struct *next)
 {
 	if (IS_ENABLED(CONFIG_ARM64_UAO)) {
 		if (task_thread_info(next)->addr_limit == KERNEL_DS)
-			asm(ALTERNATIVE("nop", SET_PSTATE_UAO(1), ARM64_HAS_UAO));
+			asm(ALTERNATIVE("yesp", SET_PSTATE_UAO(1), ARM64_HAS_UAO));
 		else
-			asm(ALTERNATIVE("nop", SET_PSTATE_UAO(0), ARM64_HAS_UAO));
+			asm(ALTERNATIVE("yesp", SET_PSTATE_UAO(0), ARM64_HAS_UAO));
 	}
 }
 
@@ -481,7 +481,7 @@ static void ssbs_thread_switch(struct task_struct *next)
  * We store our current task in sp_el0, which is clobbered by userspace. Keep a
  * shadow copy so that we can restore this upon entry from userspace.
  *
- * This is *only* for exception entry from EL0, and is not valid until we
+ * This is *only* for exception entry from EL0, and is yest valid until we
  * __switch_to() a user task.
  */
 DEFINE_PER_CPU(struct task_struct *, __entry_task);
@@ -494,7 +494,7 @@ static void entry_task_switch(struct task_struct *next)
 /*
  * Thread switching.
  */
-__notrace_funcgraph struct task_struct *__switch_to(struct task_struct *prev,
+__yestrace_funcgraph struct task_struct *__switch_to(struct task_struct *prev,
 				struct task_struct *next)
 {
 	struct task_struct *last;
@@ -581,7 +581,7 @@ long set_tagged_addr_ctrl(unsigned long arg)
 		return -EINVAL;
 
 	/*
-	 * Do not allow the enabling of the tagged address ABI if globally
+	 * Do yest allow the enabling of the tagged address ABI if globally
 	 * disabled via sysctl abi.tagged_addr_disabled.
 	 */
 	if (arg & PR_TAGGED_ADDR_ENABLE && tagged_addr_disabled)
@@ -605,7 +605,7 @@ long get_tagged_addr_ctrl(void)
 
 /*
  * Global sysctl to disable the tagged user addresses support. This control
- * only prevents the tagged address ABI enabling via prctl() and does not
+ * only prevents the tagged address ABI enabling via prctl() and does yest
  * disable it for tasks that already opted in to the relaxed ABI.
  */
 static int zero;

@@ -28,8 +28,8 @@
 #define LX_GDBPARSED(x) LX_##x = gdb.parse_and_eval(XSTRING(x))
 
 /*
- * IS_ENABLED generates (a || b) which is not compatible with python
- * We can only switch on configuration items we know are available
+ * IS_ENABLED generates (a || b) which is yest compatible with python
+ * We can only switch on configuration items we kyesw are available
  * Therefore - IS_BUILTIN() is more appropriate
  */
 #define LX_CONFIG(x) LX_##x = IS_BUILTIN(x)

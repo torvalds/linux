@@ -27,7 +27,7 @@ config EDAC_LEGACY_SYSFS
 	bool "EDAC legacy sysfs"
 	default y
 	help
-	  Enable the compatibility sysfs nodes.
+	  Enable the compatibility sysfs yesdes.
 	  Use 'Y' if your edac utilities aren't ported to work with the newer
 	  structures.
 
@@ -41,7 +41,7 @@ config EDAC_DEBUG
 	  Usually you should select 'N' here.
 
 config EDAC_DECODE_MCE
-	tristate "Decode MCEs in human-readable form (only on AMD for now)"
+	tristate "Decode MCEs in human-readable form (only on AMD for yesw)"
 	depends on CPU_SUP_AMD && X86_MCE_AMD
 	default y
 	---help---
@@ -65,9 +65,9 @@ config EDAC_GHES
 	  mechanisms, if a GHES BIOS is detected, entering into the
 	  "Firmware First" mode.
 
-	  It should be noticed that keeping both GHES and a hardware-driven
+	  It should be yesticed that keeping both GHES and a hardware-driven
 	  error mechanism won't work well, as BIOS will race with OS, while
-	  reading the error registers. So, if you want to not use "Firmware
+	  reading the error registers. So, if you want to yest use "Firmware
 	  first" GHES error mechanism, you should disable GHES either at
 	  compilation time or by passing "ghes.disable=1" Kernel parameter
 	  at boot time.
@@ -238,7 +238,7 @@ config EDAC_SKX
 	help
 	  Support for error detection and correction the Intel
 	  Skylake server Integrated Memory Controllers. If your
-	  system has non-volatile DIMMs you should also manually
+	  system has yesn-volatile DIMMs you should also manually
 	  select CONFIG_ACPI_NFIT.
 
 config EDAC_I10NM
@@ -250,7 +250,7 @@ config EDAC_I10NM
 	help
 	  Support for error detection and correction the Intel
 	  10nm server Integrated Memory Controllers. If your
-	  system has non-volatile DIMMs you should also manually
+	  system has yesn-volatile DIMMs you should also manually
 	  select CONFIG_ACPI_NFIT.
 
 config EDAC_PND2
@@ -474,10 +474,10 @@ config EDAC_ARMADA_XP
 	  DDR RAM and L2 cache controllers.
 
 config EDAC_SYNOPSYS
-	tristate "Synopsys DDR Memory Controller"
+	tristate "Syyespsys DDR Memory Controller"
 	depends on ARCH_ZYNQ || ARCH_ZYNQMP
 	help
-	  Support for error detection and correction on the Synopsys DDR
+	  Support for error detection and correction on the Syyespsys DDR
 	  memory controller.
 
 config EDAC_XGENE
@@ -499,10 +499,10 @@ config EDAC_QCOM
 	depends on ARCH_QCOM && QCOM_LLCC
 	help
 	  Support for error detection and correction on the
-	  Qualcomm Technologies, Inc. SoCs.
+	  Qualcomm Techyeslogies, Inc. SoCs.
 
 	  This driver reports Single Bit Errors (SBEs) and Double Bit Errors (DBEs).
-	  As of now, it supports error reporting for Last Level Cache Controller (LLCC)
+	  As of yesw, it supports error reporting for Last Level Cache Controller (LLCC)
 	  of Tag RAM and Data RAM.
 
 	  For debugging issues having to do with stability and overall system
@@ -518,10 +518,10 @@ config EDAC_ASPEED
 	  will expose error counters via the EDAC kernel framework.
 
 config EDAC_BLUEFIELD
-	tristate "Mellanox BlueField Memory ECC"
+	tristate "Mellayesx BlueField Memory ECC"
 	depends on ARM64 && ((MELLANOX_PLATFORM && ACPI) || COMPILE_TEST)
 	help
 	  Support for error detection and correction on the
-	  Mellanox BlueField SoCs.
+	  Mellayesx BlueField SoCs.
 
 endif # EDAC

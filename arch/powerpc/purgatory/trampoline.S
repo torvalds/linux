@@ -43,7 +43,7 @@ master:
 	mr	%r17,%r3	/* save cpu id to r17 */
 	mr	%r15,%r4	/* save physical address in reg15 */
 
-	or	%r3,%r3,%r3	/* ok now to high priority, lets boot */
+	or	%r3,%r3,%r3	/* ok yesw to high priority, lets boot */
 	lis	%r6,0x1
 	mtctr	%r6		/* delay a bit for slaves to catch up */
 	bdnz	.		/* before we overwrite 0-100 again */

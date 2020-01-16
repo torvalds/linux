@@ -3,7 +3,7 @@
 Marvell Armada 37xx SoCs provide peripheral clocks which are
 used as clock source for the peripheral of the SoC.
 
-There are two different blocks associated to north bridge and south
+There are two different blocks associated to yesrth bridge and south
 bridge.
 
 The peripheral clock consumer should specify the desired clock by
@@ -51,7 +51,7 @@ ID	Clock name	Description
 Required properties:
 
 - compatible : shall be "marvell,armada-3700-periph-clock-nb" for the
-  north bridge block, or
+  yesrth bridge block, or
   "marvell,armada-3700-periph-clock-sb" for the south bridge block
 - reg : must be the register address of North/South Bridge Clock register
 - #clock-cells : from common clock binding; shall be set to 1

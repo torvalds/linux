@@ -148,7 +148,7 @@ static int gbphy_dev_probe(struct device *dev)
 
 	pm_runtime_set_autosuspend_delay(dev, GB_GBPHY_AUTOSUSPEND_MS);
 	pm_runtime_use_autosuspend(dev);
-	pm_runtime_get_noresume(dev);
+	pm_runtime_get_yesresume(dev);
 	pm_runtime_set_active(dev);
 	pm_runtime_enable(dev);
 
@@ -160,7 +160,7 @@ static int gbphy_dev_probe(struct device *dev)
 	if (ret) {
 		pm_runtime_disable(dev);
 		pm_runtime_set_suspended(dev);
-		pm_runtime_put_noidle(dev);
+		pm_runtime_put_yesidle(dev);
 		pm_runtime_dont_use_autosuspend(dev);
 	}
 
@@ -178,7 +178,7 @@ static int gbphy_dev_remove(struct device *dev)
 
 	pm_runtime_disable(dev);
 	pm_runtime_set_suspended(dev);
-	pm_runtime_put_noidle(dev);
+	pm_runtime_put_yesidle(dev);
 	pm_runtime_dont_use_autosuspend(dev);
 
 	return 0;
@@ -264,7 +264,7 @@ static void gb_gbphy_disconnect(struct gb_bundle *bundle)
 
 	ret = gb_pm_runtime_get_sync(bundle);
 	if (ret < 0)
-		gb_pm_runtime_get_noresume(bundle);
+		gb_pm_runtime_get_yesresume(bundle);
 
 	list_for_each_entry_safe(gbphy_dev, temp, &gbphy_host->devices, list) {
 		list_del(&gbphy_dev->list);

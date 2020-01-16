@@ -56,7 +56,7 @@
 	};
 
 	chosen {
-		bootargs = "ignore_loglevel rw root=/dev/nfs ip=on";
+		bootargs = "igyesre_loglevel rw root=/dev/nfs ip=on";
 		stdout-path = "serial0:115200n8";
 	};
 
@@ -302,7 +302,7 @@
 	 * instantiate the slave device at runtime according to the documentation.
 	 * You can then communicate with the slave via IIC3.
 	 *
-	 * IIC0/I2C0 does not appear to support fallback to GPIO.
+	 * IIC0/I2C0 does yest appear to support fallback to GPIO.
 	 */
 	i2cexio0: i2c-10 {
 		compatible = "i2c-demux-pinctrl";
@@ -419,7 +419,7 @@
 
 	/*
 	 * IIC3 and I2C3 may be switched using pinmux.
-	 * IIC3/I2C3 does not appear to support fallback to GPIO.
+	 * IIC3/I2C3 does yest appear to support fallback to GPIO.
 	 */
 	i2cpwr: i2c-13 {
 		compatible = "i2c-demux-pinctrl";
@@ -689,7 +689,7 @@
 
 	vmmc-supply = <&fixedregulator3v3>;
 	bus-width = <8>;
-	non-removable;
+	yesn-removable;
 	status = "okay";
 };
 
@@ -704,7 +704,7 @@
 	status = "okay";
 
 	flash: flash@0 {
-		compatible = "spansion,s25fl512s", "jedec,spi-nor";
+		compatible = "spansion,s25fl512s", "jedec,spi-yesr";
 		reg = <0>;
 		spi-max-frequency = <30000000>;
 		spi-tx-bus-width = <4>;

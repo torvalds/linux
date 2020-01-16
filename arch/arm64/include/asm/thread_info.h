@@ -60,7 +60,7 @@ void arch_release_task_struct(struct task_struct *tsk);
 #define TIF_SIGPENDING		0	/* signal pending */
 #define TIF_NEED_RESCHED	1	/* rescheduling necessary */
 #define TIF_NOTIFY_RESUME	2	/* callback before returning to user */
-#define TIF_FOREIGN_FPSTATE	3	/* CPU's FP state is not current's */
+#define TIF_FOREIGN_FPSTATE	3	/* CPU's FP state is yest current's */
 #define TIF_UPROBE		4	/* uprobe breakpoint or singlestep */
 #define TIF_FSCHECK		5	/* Check FS is USER_DS on return */
 #define TIF_NOHZ		7

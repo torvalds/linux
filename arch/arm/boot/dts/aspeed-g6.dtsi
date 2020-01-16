@@ -64,7 +64,7 @@
 			     <GIC_PPI 11 (GIC_CPU_MASK_SIMPLE(2) | IRQ_TYPE_LEVEL_LOW)>,
 			     <GIC_PPI 10 (GIC_CPU_MASK_SIMPLE(2) | IRQ_TYPE_LEVEL_LOW)>;
 		clocks = <&syscon ASPEED_CLK_HPLL>;
-		arm,cpu-registers-not-fw-configured;
+		arm,cpu-registers-yest-fw-configured;
 	};
 
 	ahb {
@@ -97,19 +97,19 @@
 			interrupts = <GIC_SPI 39 IRQ_TYPE_LEVEL_HIGH>;
 			flash@0 {
 				reg = < 0 >;
-				compatible = "jedec,spi-nor";
+				compatible = "jedec,spi-yesr";
 				spi-max-frequency = <50000000>;
 				status = "disabled";
 			};
 			flash@1 {
 				reg = < 1 >;
-				compatible = "jedec,spi-nor";
+				compatible = "jedec,spi-yesr";
 				spi-max-frequency = <50000000>;
 				status = "disabled";
 			};
 			flash@2 {
 				reg = < 2 >;
-				compatible = "jedec,spi-nor";
+				compatible = "jedec,spi-yesr";
 				spi-max-frequency = <50000000>;
 				status = "disabled";
 			};
@@ -125,13 +125,13 @@
 			status = "disabled";
 			flash@0 {
 				reg = < 0 >;
-				compatible = "jedec,spi-nor";
+				compatible = "jedec,spi-yesr";
 				spi-max-frequency = <50000000>;
 				status = "disabled";
 			};
 			flash@1 {
 				reg = < 1 >;
-				compatible = "jedec,spi-nor";
+				compatible = "jedec,spi-yesr";
 				spi-max-frequency = <50000000>;
 				status = "disabled";
 			};
@@ -147,19 +147,19 @@
 			status = "disabled";
 			flash@0 {
 				reg = < 0 >;
-				compatible = "jedec,spi-nor";
+				compatible = "jedec,spi-yesr";
 				spi-max-frequency = <50000000>;
 				status = "disabled";
 			};
 			flash@1 {
 				reg = < 1 >;
-				compatible = "jedec,spi-nor";
+				compatible = "jedec,spi-yesr";
 				spi-max-frequency = <50000000>;
 				status = "disabled";
 			};
 			flash@2 {
 				reg = < 2 >;
-				compatible = "jedec,spi-nor";
+				compatible = "jedec,spi-yesr";
 				spi-max-frequency = <50000000>;
 				status = "disabled";
 			};
@@ -353,7 +353,7 @@
 				interrupts = <GIC_SPI 47 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&syscon ASPEED_CLK_GATE_UART1CLK>;
 				resets = <&lpc_reset 4>;
-				no-loopback-test;
+				yes-loopback-test;
 				pinctrl-names = "default";
 				pinctrl-0 = <&pinctrl_txd1_default &pinctrl_rxd1_default>;
 				status = "disabled";
@@ -365,7 +365,7 @@
 				reg-shift = <2>;
 				interrupts = <GIC_SPI 8 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&syscon ASPEED_CLK_GATE_UART5CLK>;
-				no-loopback-test;
+				yes-loopback-test;
 			};
 
 			wdt1: watchdog@1e785000 {
@@ -451,8 +451,8 @@
 						status = "disabled";
 					};
 
-					lpc_snoop: lpc-snoop@0 {
-						compatible = "aspeed,ast2600-lpc-snoop";
+					lpc_syesop: lpc-syesop@0 {
+						compatible = "aspeed,ast2600-lpc-syesop";
 						reg = <0x0 0x80>;
 						interrupts = <GIC_SPI 144 IRQ_TYPE_LEVEL_HIGH>;
 						status = "disabled";
@@ -532,7 +532,7 @@
 				reg-shift = <2>;
 				interrupts = <GIC_SPI 147 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&syscon ASPEED_CLK_APB1>;
-				no-loopback-test;
+				yes-loopback-test;
 				status = "disabled";
 			};
 
@@ -542,7 +542,7 @@
 				reg-shift = <2>;
 				interrupts = <GIC_SPI 148 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&syscon ASPEED_CLK_APB1>;
-				no-loopback-test;
+				yes-loopback-test;
 				status = "disabled";
 			};
 
@@ -554,7 +554,7 @@
 				interrupts = <GIC_SPI 48 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&syscon ASPEED_CLK_GATE_UART2CLK>;
 				resets = <&lpc_reset 5>;
-				no-loopback-test;
+				yes-loopback-test;
 				pinctrl-names = "default";
 				pinctrl-0 = <&pinctrl_txd2_default &pinctrl_rxd2_default>;
 				status = "disabled";
@@ -568,7 +568,7 @@
 				interrupts = <GIC_SPI 49 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&syscon ASPEED_CLK_GATE_UART3CLK>;
 				resets = <&lpc_reset 6>;
-				no-loopback-test;
+				yes-loopback-test;
 				pinctrl-names = "default";
 				pinctrl-0 = <&pinctrl_txd3_default &pinctrl_rxd3_default>;
 				status = "disabled";
@@ -582,7 +582,7 @@
 				interrupts = <GIC_SPI 50 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&syscon ASPEED_CLK_GATE_UART4CLK>;
 				resets = <&lpc_reset 7>;
-				no-loopback-test;
+				yes-loopback-test;
 				pinctrl-names = "default";
 				pinctrl-0 = <&pinctrl_txd4_default &pinctrl_rxd4_default>;
 				status = "disabled";

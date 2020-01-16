@@ -3,7 +3,7 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright yestice and this permission yestice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
@@ -1100,7 +1100,7 @@ enum {
 #define AR_INTR_ASYNC_USED			 (AR_INTR_MAC_IRQ | \
 						  AR_INTR_ASYNC_CAUSE_MCI)
 
-/* Asynchronous Interrupt Enable Register */
+/* Asynchroyesus Interrupt Enable Register */
 #define AR_INTR_ASYNC_ENABLE_MCI         0x00000080
 #define AR_INTR_ASYNC_ENABLE_MCI_S       7
 
@@ -1678,7 +1678,7 @@ enum {
 #define AR_MCAST_FIL1       0x8044
 
 /*
- * AR_DIAG_SW - Register which can be used for diagnostics and testing purposes.
+ * AR_DIAG_SW - Register which can be used for diagyesstics and testing purposes.
  *
  * The force RX abort (AR_DIAG_RX_ABORT, bit 25) can be used in conjunction with
  * RX block (AR_DIAG_RX_DIS, bit 5) to help fast channel change to shut down
@@ -2116,12 +2116,12 @@ enum {
 #define AR9003_PHY_AGC_CONTROL			AR9300_SM_BASE + 0xc4
 #define AR_PHY_AGC_CONTROL			(AR_SREV_9300_20_OR_LATER(ah) ? AR9003_PHY_AGC_CONTROL : AR9002_PHY_AGC_CONTROL)
 #define AR_PHY_AGC_CONTROL_CAL			0x00000001  /* do internal calibration */
-#define AR_PHY_AGC_CONTROL_NF			0x00000002  /* do noise-floor calibration */
+#define AR_PHY_AGC_CONTROL_NF			0x00000002  /* do yesise-floor calibration */
 #define AR_PHY_AGC_CONTROL_OFFSET_CAL		0x00000800  /* allow offset calibration */
-#define AR_PHY_AGC_CONTROL_ENABLE_NF		0x00008000  /* enable noise floor calibration to happen */
+#define AR_PHY_AGC_CONTROL_ENABLE_NF		0x00008000  /* enable yesise floor calibration to happen */
 #define AR_PHY_AGC_CONTROL_FLTR_CAL		0x00010000  /* allow tx filter calibration */
-#define AR_PHY_AGC_CONTROL_NO_UPDATE_NF		0x00020000  /* don't update noise floor automatically */
-#define AR_PHY_AGC_CONTROL_EXT_NF_PWR_MEAS	0x00040000  /* extend noise floor power measurement */
+#define AR_PHY_AGC_CONTROL_NO_UPDATE_NF		0x00020000  /* don't update yesise floor automatically */
+#define AR_PHY_AGC_CONTROL_EXT_NF_PWR_MEAS	0x00040000  /* extend yesise floor power measurement */
 #define AR_PHY_AGC_CONTROL_CLC_SUCCESS		0x00080000  /* carrier leak calibration done */
 #define AR_PHY_AGC_CONTROL_PKDET_CAL		0x00100000
 #define AR_PHY_AGC_CONTROL_YCOK_MAX		0x000003c0

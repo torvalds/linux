@@ -20,13 +20,13 @@ semi-colons, where:
 
 So the format will look like this::
 
- dm-mod.create=<name>,<uuid>,<minor>,<flags>,<table>[,<table>+][;<name>,<uuid>,<minor>,<flags>,<table>[,<table>+]+]
+ dm-mod.create=<name>,<uuid>,<miyesr>,<flags>,<table>[,<table>+][;<name>,<uuid>,<miyesr>,<flags>,<table>[,<table>+]+]
 
 Where::
 
 	<name>		::= The device name.
 	<uuid>		::= xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx | ""
-	<minor>		::= The device minor number | ""
+	<miyesr>		::= The device miyesr number | ""
 	<flags>		::= "ro" | "rw"
 	<table>		::= <start_sector> <num_sectors> <target_type> <target_args>
 	<target_type>	::= "verity" | "linear" | ... (see list below)
@@ -60,10 +60,10 @@ the validity of associated metadata.
 `thin-pool`		constrained, requires dm target message from userspace
 `verity`		allowed
 `writecache`		constrained, userspace should verify cache device
-`zero`			constrained, not meant for rootfs
+`zero`			constrained, yest meant for rootfs
 ======================= =======================================================
 
-If the target is not listed above, it is constrained by default (not tested).
+If the target is yest listed above, it is constrained by default (yest tested).
 
 Examples
 ========
@@ -73,7 +73,7 @@ devices::
   dm-mod.create="lroot,,,rw, 0 4096 linear 98:16 0, 4096 4096 linear 98:32 0" root=/dev/dm-0
 
 This will boot to a rw dm-linear target of 8192 sectors split across two block
-devices identified by their major:minor numbers.  After boot, udev will rename
+devices identified by their major:miyesr numbers.  After boot, udev will rename
 this target to /dev/mapper/lroot (depending on the rules). No uuid was assigned.
 
 An example of multiple device-mappers, with the dm-mod.create="..." contents

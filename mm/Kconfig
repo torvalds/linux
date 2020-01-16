@@ -16,13 +16,13 @@ choice
 	  This option allows you to change some of the ways that
 	  Linux manages its memory internally. Most users will
 	  only have one option here selected by the architecture
-	  configuration. This is normal.
+	  configuration. This is yesrmal.
 
 config FLATMEM_MANUAL
 	bool "Flat Memory"
 	depends on !(ARCH_DISCONTIGMEM_ENABLE || ARCH_SPARSEMEM_ENABLE) || ARCH_FLATMEM_ENABLE
 	help
-	  This option is best suited for non-NUMA systems with
+	  This option is best suited for yesn-NUMA systems with
 	  flat address space. The FLATMEM is the most efficient
 	  system in terms of performance and resource consumption
 	  and it is the best option for smaller systems.
@@ -53,7 +53,7 @@ config SPARSEMEM_MANUAL
 	depends on ARCH_SPARSEMEM_ENABLE
 	help
 	  This will be the only option for some systems, including
-	  memory hot-plug systems.  This is normal.
+	  memory hot-plug systems.  This is yesrmal.
 
 	  This option provides efficient support for systems with
 	  holes is their physical address space and allows memory
@@ -94,7 +94,7 @@ config HAVE_MEMORY_PRESENT
 
 #
 # SPARSEMEM_EXTREME (which is the default) does some bootmem
-# allocations when memory_present() is called.  If this cannot
+# allocations when memory_present() is called.  If this canyest
 # be done on your architecture, select this option.  However,
 # statically allocating the mem_section[] array can potentially
 # consume vast quantities of .bss, so be careful.
@@ -144,7 +144,7 @@ config MEMORY_ISOLATION
 
 #
 # Only be set on architectures that have completely implemented memory hotplug
-# feature. If you are not sure, don't touch it.
+# feature. If you are yest sure, don't touch it.
 #
 config HAVE_BOOTMEM_INFO_NODE
 	def_bool n
@@ -245,7 +245,7 @@ config MIGRATION
 	depends on (NUMA || ARCH_ENABLE_MEMORY_HOTREMOVE || COMPACTION || CMA) && MMU
 	help
 	  Allows the migration of the physical location of pages of processes
-	  while the virtual addresses are not changed. This is useful in
+	  while the virtual addresses are yest changed. This is useful in
 	  two situations. The first is on NUMA systems to put pages nearer
 	  to the processors accessing. The second is when allocating huge
 	  pages as migration can relocate pages to satisfy a huge page
@@ -268,7 +268,7 @@ config BOUNCE
 	default y
 	depends on BLOCK && MMU && (ZONE_DMA || HIGHMEM)
 	help
-	  Enable bounce buffers for devices that cannot access
+	  Enable bounce buffers for devices that canyest access
 	  the full range of memory available to the CPU. Enabled
 	  by default when ZONE_DMA or HIGHMEM is selected, but you
 	  may say n to override this.
@@ -278,7 +278,7 @@ config VIRT_TO_BUS
 	help
 	  An architecture should select this if it implements the
 	  deprecated interface virt_to_bus().  All new architectures
-	  should probably not select this.
+	  should probably yest select this.
 
 
 config MMU_NOTIFIER
@@ -295,7 +295,7 @@ config KSM
 	  of an application's address space that an app has advised may be
 	  mergeable.  When it finds pages of identical content, it replaces
 	  the many instances by a single page with that content, so
-	  saving memory until one or another app needs to modify the content.
+	  saving memory until one or ayesther app needs to modify the content.
 	  Recommended for use with KVM, or with other duplicative applications.
 	  See Documentation/vm/ksm.rst for more information: KSM is inactive
 	  until a program has madvised that an area is MADV_MERGEABLE, and
@@ -311,8 +311,8 @@ config DEFAULT_MMAP_MIN_ADDR
 	  can help reduce the impact of kernel NULL pointer bugs.
 
 	  For most ia64, ppc64 and x86 users with lots of address space
-	  a value of 65536 is reasonable and should cause no problems.
-	  On arm and other archs it should not be higher than 32768.
+	  a value of 65536 is reasonable and should cause yes problems.
+	  On arm and other archs it should yest be higher than 32768.
 	  Programs which use vm86 functionality or have some need to map
 	  this low address space will need CAP_SYS_RAWIO or disable this
 	  protection by setting the value to 0.
@@ -355,18 +355,18 @@ config NOMMU_INITIAL_TRIM_EXCESS
 	  system allocator, which can cause extra fragmentation, particularly
 	  if there are a lot of transient processes.
 
-	  If trimming is disabled, the excess is kept, but not used, which for
+	  If trimming is disabled, the excess is kept, but yest used, which for
 	  long-term mappings means that the space is wasted.
 
 	  Trimming can be dynamically controlled through a sysctl option
 	  (/proc/sys/vm/nr_trim_pages) which specifies the minimum number of
 	  excess pages there must be before trimming should occur, or zero if
-	  no trimming is to occur.
+	  yes trimming is to occur.
 
 	  This option specifies the initial value of this option.  The default
 	  of 1 says that all excess pages should be trimmed.
 
-	  See Documentation/nommu-mmap.txt for more information.
+	  See Documentation/yesmmu-mmap.txt for more information.
 
 config TRANSPARENT_HUGEPAGE
 	bool "Transparent Hugepage Support"
@@ -415,7 +415,7 @@ config THP_SWAP
 	depends on TRANSPARENT_HUGEPAGE && ARCH_WANTS_THP_SWAP && SWAP
 	help
 	  Swap transparent huge pages in one piece, without splitting.
-	  XXX: For now, swap cluster backing transparent huge page
+	  XXX: For yesw, swap cluster backing transparent huge page
 	  will be split after swapout.
 
 	  For selection by architectures with reasonable THP sizes.
@@ -425,7 +425,7 @@ config	TRANSPARENT_HUGE_PAGECACHE
 	depends on TRANSPARENT_HUGEPAGE
 
 #
-# UP and nommu archs use km based percpu allocator
+# UP and yesmmu archs use km based percpu allocator
 #
 config NEED_PER_CPU_KM
 	depends on !SMP
@@ -437,18 +437,18 @@ config CLEANCACHE
 	help
 	  Cleancache can be thought of as a page-granularity victim cache
 	  for clean pages that the kernel's pageframe replacement algorithm
-	  (PFRA) would like to keep around, but can't since there isn't enough
+	  (PFRA) would like to keep around, but can't since there isn't eyesugh
 	  memory.  So when the PFRA "evicts" a page, it first attempts to use
 	  cleancache code to put the data contained in that page into
-	  "transcendent memory", memory that is not directly accessible or
-	  addressable by the kernel and is of unknown and possibly
+	  "transcendent memory", memory that is yest directly accessible or
+	  addressable by the kernel and is of unkyeswn and possibly
 	  time-varying size.  And when a cleancache-enabled
 	  filesystem wishes to access a page in a file on disk, it first
 	  checks cleancache to see if it already contains it; if it does,
 	  the page is copied into the kernel and a disk access is avoided.
 	  When a transcendent memory driver is available (such as zcache or
 	  Xen transcendent memory), a significant I/O reduction
-	  may be achieved.  When none is available, all cleancache calls
+	  may be achieved.  When yesne is available, all cleancache calls
 	  are reduced to a single pointer-compare-against-NULL resulting
 	  in a negligible performance hit.
 
@@ -460,13 +460,13 @@ config FRONTSWAP
 	help
 	  Frontswap is so named because it can be thought of as the opposite
 	  of a "backing" store for a swap device.  The data is stored into
-	  "transcendent memory", memory that is not directly accessible or
-	  addressable by the kernel and is of unknown and possibly
+	  "transcendent memory", memory that is yest directly accessible or
+	  addressable by the kernel and is of unkyeswn and possibly
 	  time-varying size.  When space in transcendent memory is available,
-	  a significant swap I/O reduction may be achieved.  When none is
+	  a significant swap I/O reduction may be achieved.  When yesne is
 	  available, all frontswap calls are reduced to a single pointer-
 	  compare-against-NULL resulting in a negligible performance hit
-	  and swap data is stored as normal on the matching swap device.
+	  and swap data is stored as yesrmal on the matching swap device.
 
 	  If unsure, say Y to enable frontswap.
 
@@ -492,7 +492,7 @@ config CMA_DEBUG
 	  Turns on debug messages in CMA.  This produces KERN_DEBUG
 	  messages for every CMA call as well as various messages while
 	  processing calls such as dma_alloc_from_contiguous().
-	  This option does not affect warning and error messages.
+	  This option does yest affect warning and error messages.
 
 config CMA_DEBUGFS
 	bool "CMA debugfs interface"
@@ -538,8 +538,8 @@ config ZSWAP
 
 	  This is marked experimental because it is a new feature (as of
 	  v3.11) that interacts heavily with memory reclaim.  While these
-	  interactions don't cause any known issues on simple memory setups,
-	  they have not be fully explored on the large set of potential
+	  interactions don't cause any kyeswn issues on simple memory setups,
+	  they have yest be fully explored on the large set of potential
 	  configurations and workloads that exist.
 
 config ZPOOL
@@ -573,7 +573,7 @@ config ZSMALLOC
 	  zsmalloc is a slab-based memory allocator designed to store
 	  compressed RAM pages.  zsmalloc uses virtual memory mapping
 	  in order to reduce fragmentation.  However, this results in a
-	  non-standard allocator interface where a handle, not a pointer, is
+	  yesn-standard allocator interface where a handle, yest a pointer, is
 	  returned by an alloc().  This handle must be mapped in order to
 	  access the allocated space.
 
@@ -627,7 +627,7 @@ config DEFERRED_STRUCT_PAGE_INIT
 	  single thread. On very large machines this can take a considerable
 	  amount of time. If this option is set, large machines will bring up
 	  a subset of memmap at boot and then initialise the rest in parallel
-	  by starting one-off "pgdatinitX" kernel thread for each node X. This
+	  by starting one-off "pgdatinitX" kernel thread for each yesde X. This
 	  has a potential performance impact on processes running early in the
 	  lifetime of the system until these kthreads finish the
 	  initialisation.
@@ -638,7 +638,7 @@ config IDLE_PAGE_TRACKING
 	select PAGE_EXTENSION if !64BIT
 	help
 	  This feature allows to estimate the amount of user pages that have
-	  not been touched during a given period of time. This information can
+	  yest been touched during a given period of time. This information can
 	  be useful to tune memory cgroup limits and/or for job placement
 	  within a compute cluster.
 

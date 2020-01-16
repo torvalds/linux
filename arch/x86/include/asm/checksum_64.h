@@ -18,7 +18,7 @@
  *
  * Fold a 32bit running checksum to 16bit and invert it. This is usually
  * the last step before putting a checksum into a packet.
- * Make sure not to mix with 64bit checksums.
+ * Make sure yest to mix with 64bit checksums.
  */
 static inline __sum16 csum_fold(__wsum sum)
 {
@@ -62,7 +62,7 @@ static inline __sum16 ip_fast_csum(const void *iph, unsigned int ihl)
 	    "  shrl $16, %0\n"
 	    "  addw %w2, %w0\n"
 	    "  adcl $0, %0\n"
-	    "  notl %0\n"
+	    "  yestl %0\n"
 	    "2:"
 	/* Since the input registers which are loaded with iph and ihl
 	   are modified, we must also specify them as outputs, or gcc
@@ -74,7 +74,7 @@ static inline __sum16 ip_fast_csum(const void *iph, unsigned int ihl)
 }
 
 /**
- * csum_tcpup_nofold - Compute an IPv4 pseudo header checksum.
+ * csum_tcpup_yesfold - Compute an IPv4 pseudo header checksum.
  * @saddr: source address
  * @daddr: destination address
  * @len: length of packet
@@ -85,7 +85,7 @@ static inline __sum16 ip_fast_csum(const void *iph, unsigned int ihl)
  * 32bit unfolded.
  */
 static inline __wsum
-csum_tcpudp_nofold(__be32 saddr, __be32 daddr, __u32 len,
+csum_tcpudp_yesfold(__be32 saddr, __be32 daddr, __u32 len,
 		   __u8 proto, __wsum sum)
 {
 	asm("  addl %1, %0\n"
@@ -114,7 +114,7 @@ static inline __sum16 csum_tcpudp_magic(__be32 saddr, __be32 daddr,
 					__u32 len, __u8 proto,
 					__wsum sum)
 {
-	return csum_fold(csum_tcpudp_nofold(saddr, daddr, len, proto, sum));
+	return csum_fold(csum_tcpudp_yesfold(saddr, daddr, len, proto, sum));
 }
 
 /**
@@ -133,7 +133,7 @@ extern __wsum csum_partial(const void *buff, int len, __wsum sum);
 #define HAVE_CSUM_COPY_USER 1
 
 
-/* Do not call this directly. Use the wrappers below */
+/* Do yest call this directly. Use the wrappers below */
 extern __visible __wsum csum_partial_copy_generic(const void *src, const void *dst,
 					int len, __wsum sum,
 					int *src_err_ptr, int *dst_err_ptr);
@@ -143,7 +143,7 @@ extern __wsum csum_partial_copy_from_user(const void __user *src, void *dst,
 					  int len, __wsum isum, int *errp);
 extern __wsum csum_partial_copy_to_user(const void *src, void __user *dst,
 					int len, __wsum isum, int *errp);
-extern __wsum csum_partial_copy_nocheck(const void *src, void *dst,
+extern __wsum csum_partial_copy_yescheck(const void *src, void *dst,
 					int len, __wsum sum);
 
 /* Old names. To be removed. */

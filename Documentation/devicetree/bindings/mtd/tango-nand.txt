@@ -10,7 +10,7 @@ Required properties:
 - #address-cells: <1>
 - #size-cells: <0>
 
-Children nodes represent the available NAND chips.
+Children yesdes represent the available NAND chips.
 See Documentation/devicetree/bindings/mtd/nand-controller.yaml for generic bindings.
 
 Example:

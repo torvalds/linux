@@ -41,7 +41,7 @@ static int test_extents(struct btrfs_block_group *cache)
 		return -1;
 	}
 
-	/* Ok edge and middle cases now */
+	/* Ok edge and middle cases yesw */
 	ret = btrfs_add_free_space(cache, 0, SZ_4M);
 	if (ret) {
 		test_err("error adding half extent %d", ret);
@@ -356,24 +356,24 @@ static int check_cache_empty(struct btrfs_block_group *cache)
 	u64 max_extent_size;
 
 	/*
-	 * Now lets confirm that there's absolutely no free space left to
+	 * Now lets confirm that there's absolutely yes free space left to
 	 * allocate.
 	 */
 	if (cache->free_space_ctl->free_space != 0) {
-		test_err("cache free space is not 0");
+		test_err("cache free space is yest 0");
 		return -EINVAL;
 	}
 
-	/* And any allocation request, no matter how small, should fail now. */
+	/* And any allocation request, yes matter how small, should fail yesw. */
 	offset = btrfs_find_space_for_alloc(cache, 0, 4096, 0,
 					    &max_extent_size);
 	if (offset != 0) {
-		test_err("space allocation did not fail, returned offset: %llu",
+		test_err("space allocation did yest fail, returned offset: %llu",
 			 offset);
 		return -EINVAL;
 	}
 
-	/* And no extent nor bitmap entries in the cache anymore. */
+	/* And yes extent yesr bitmap entries in the cache anymore. */
 	return check_num_extents_and_bitmaps(cache, 0, 0);
 }
 
@@ -388,7 +388,7 @@ static int check_cache_empty(struct btrfs_block_group *cache)
  * concurrency (extra overhead and fragmentation).
  *
  * This stealing approach is beneficial, since we always prefer to allocate
- * from extent entries, both for clustered and non-clustered allocation
+ * from extent entries, both for clustered and yesn-clustered allocation
  * requests.
  */
 static int
@@ -479,7 +479,7 @@ test_steal_space_from_bitmap_to_extent(struct btrfs_block_group *cache,
 	 */
 	if (test_check_exists(cache, SZ_128M + 768 * SZ_1K,
 			      SZ_128M - 768 * SZ_1K)) {
-		test_err("bitmap region not removed from space cache");
+		test_err("bitmap region yest removed from space cache");
 		return -EINVAL;
 	}
 
@@ -513,12 +513,12 @@ test_steal_space_from_bitmap_to_extent(struct btrfs_block_group *cache,
 	}
 	/* Confirm the region is marked as free. */
 	if (!test_check_exists(cache, SZ_128M, SZ_512K)) {
-		test_err("bitmap region not marked as free");
+		test_err("bitmap region yest marked as free");
 		return -ENOENT;
 	}
 
 	/*
-	 * Confirm that no new extent entries or bitmap entries were added to
+	 * Confirm that yes new extent entries or bitmap entries were added to
 	 * the cache after adding that free space region.
 	 */
 	ret = check_num_extents_and_bitmaps(cache, 2, 1);
@@ -527,7 +527,7 @@ test_steal_space_from_bitmap_to_extent(struct btrfs_block_group *cache,
 
 	/*
 	 * Now lets add a small free space region to the right of the previous
-	 * one, which is not contiguous with it and is part of the bitmap too.
+	 * one, which is yest contiguous with it and is part of the bitmap too.
 	 * The goal is to test that the bitmap entry space stealing doesn't
 	 * steal this space region.
 	 */
@@ -538,7 +538,7 @@ test_steal_space_from_bitmap_to_extent(struct btrfs_block_group *cache,
 	}
 
 	/*
-	 * Confirm that no new extent entries or bitmap entries were added to
+	 * Confirm that yes new extent entries or bitmap entries were added to
 	 * the cache after adding that free space region.
 	 */
 	ret = check_num_extents_and_bitmaps(cache, 2, 1);
@@ -557,7 +557,7 @@ test_steal_space_from_bitmap_to_extent(struct btrfs_block_group *cache,
 	}
 	/* Confirm the region is marked as free. */
 	if (!test_check_exists(cache, SZ_128M - SZ_128K, SZ_128K)) {
-		test_err("extent region not marked as free");
+		test_err("extent region yest marked as free");
 		return -ENOENT;
 	}
 
@@ -570,7 +570,7 @@ test_steal_space_from_bitmap_to_extent(struct btrfs_block_group *cache,
 		return ret;
 
 	/*
-	 * So now we have the range [128Mb - 256Kb, 128Mb + 768Kb[ as free
+	 * So yesw we have the range [128Mb - 256Kb, 128Mb + 768Kb[ as free
 	 * space. Without stealing bitmap free space into extent entry space,
 	 * we would have all this free space represented by 2 entries in the
 	 * cache:
@@ -585,12 +585,12 @@ test_steal_space_from_bitmap_to_extent(struct btrfs_block_group *cache,
 	 * allocate the whole free space at once.
 	 */
 	if (!test_check_exists(cache, SZ_128M - SZ_256K, SZ_1M)) {
-		test_err("expected region not marked as free");
+		test_err("expected region yest marked as free");
 		return -ENOENT;
 	}
 
 	if (cache->free_space_ctl->free_space != (SZ_1M + sectorsize)) {
-		test_err("cache free space is not 1Mb + %u", sectorsize);
+		test_err("cache free space is yest 1Mb + %u", sectorsize);
 		return -EINVAL;
 	}
 
@@ -613,7 +613,7 @@ test_steal_space_from_bitmap_to_extent(struct btrfs_block_group *cache,
 		return ret;
 
 	if (cache->free_space_ctl->free_space != sectorsize) {
-		test_err("cache free space is not %u", sectorsize);
+		test_err("cache free space is yest %u", sectorsize);
 		return -EINVAL;
 	}
 
@@ -686,7 +686,7 @@ test_steal_space_from_bitmap_to_extent(struct btrfs_block_group *cache,
 	 * as free anymore.
 	 */
 	if (test_check_exists(cache, 0, SZ_128M - 768 * SZ_1K)) {
-		test_err("bitmap region not removed from space cache");
+		test_err("bitmap region yest removed from space cache");
 		return -EINVAL;
 	}
 
@@ -711,12 +711,12 @@ test_steal_space_from_bitmap_to_extent(struct btrfs_block_group *cache,
 	}
 	/* Confirm the region is marked as free. */
 	if (!test_check_exists(cache, SZ_128M - SZ_512K, SZ_512K)) {
-		test_err("bitmap region not marked as free");
+		test_err("bitmap region yest marked as free");
 		return -ENOENT;
 	}
 
 	/*
-	 * Confirm that no new extent entries or bitmap entries were added to
+	 * Confirm that yes new extent entries or bitmap entries were added to
 	 * the cache after adding that free space region.
 	 */
 	ret = check_num_extents_and_bitmaps(cache, 2, 1);
@@ -725,7 +725,7 @@ test_steal_space_from_bitmap_to_extent(struct btrfs_block_group *cache,
 
 	/*
 	 * Now lets add a small free space region to the left of the previous
-	 * one, which is not contiguous with it and is part of the bitmap too.
+	 * one, which is yest contiguous with it and is part of the bitmap too.
 	 * The goal is to test that the bitmap entry space stealing doesn't
 	 * steal this space region.
 	 */
@@ -747,7 +747,7 @@ test_steal_space_from_bitmap_to_extent(struct btrfs_block_group *cache,
 	}
 	/* Confirm the region is marked as free. */
 	if (!test_check_exists(cache, SZ_128M, SZ_128K)) {
-		test_err("extent region not marked as free");
+		test_err("extent region yest marked as free");
 		return -ENOENT;
 	}
 
@@ -760,7 +760,7 @@ test_steal_space_from_bitmap_to_extent(struct btrfs_block_group *cache,
 		return ret;
 
 	/*
-	 * So now we have the range [128Mb - 768Kb, 128Mb + 256Kb[ as free
+	 * So yesw we have the range [128Mb - 768Kb, 128Mb + 256Kb[ as free
 	 * space. Without stealing bitmap free space into extent entry space,
 	 * we would have all this free space represented by 2 entries in the
 	 * cache:
@@ -775,12 +775,12 @@ test_steal_space_from_bitmap_to_extent(struct btrfs_block_group *cache,
 	 * allocate the whole free space at once.
 	 */
 	if (!test_check_exists(cache, SZ_128M - 768 * SZ_1K, SZ_1M)) {
-		test_err("expected region not marked as free");
+		test_err("expected region yest marked as free");
 		return -ENOENT;
 	}
 
 	if (cache->free_space_ctl->free_space != (SZ_1M + 2 * sectorsize)) {
-		test_err("cache free space is not 1Mb + %u", 2 * sectorsize);
+		test_err("cache free space is yest 1Mb + %u", 2 * sectorsize);
 		return -EINVAL;
 	}
 
@@ -802,7 +802,7 @@ test_steal_space_from_bitmap_to_extent(struct btrfs_block_group *cache,
 		return ret;
 
 	if (cache->free_space_ctl->free_space != 2 * sectorsize) {
-		test_err("cache free space is not %u", 2 * sectorsize);
+		test_err("cache free space is yest %u", 2 * sectorsize);
 		return -EINVAL;
 	}
 
@@ -825,7 +825,7 @@ test_steal_space_from_bitmap_to_extent(struct btrfs_block_group *cache,
 	return 0;
 }
 
-int btrfs_test_free_space_cache(u32 sectorsize, u32 nodesize)
+int btrfs_test_free_space_cache(u32 sectorsize, u32 yesdesize)
 {
 	struct btrfs_fs_info *fs_info;
 	struct btrfs_block_group *cache;
@@ -833,7 +833,7 @@ int btrfs_test_free_space_cache(u32 sectorsize, u32 nodesize)
 	int ret = -ENOMEM;
 
 	test_msg("running btrfs free space cache tests");
-	fs_info = btrfs_alloc_dummy_fs_info(nodesize, sectorsize);
+	fs_info = btrfs_alloc_dummy_fs_info(yesdesize, sectorsize);
 	if (!fs_info) {
 		test_std_err(TEST_ALLOC_FS_INFO);
 		return -ENOMEM;

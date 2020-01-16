@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2015, Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2013-2015, Mellayesx Techyeslogies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -34,7 +34,7 @@
 #include <linux/highmem.h>
 #include <linux/module.h>
 #include <linux/init.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/pci.h>
 #include <linux/dma-mapping.h>
 #include <linux/slab.h>
@@ -75,12 +75,12 @@
 #define DRIVER_NAME "mlx5_ib"
 #define DRIVER_VERSION "5.0-0"
 
-MODULE_AUTHOR("Eli Cohen <eli@mellanox.com>");
-MODULE_DESCRIPTION("Mellanox Connect-IB HCA IB driver");
+MODULE_AUTHOR("Eli Cohen <eli@mellayesx.com>");
+MODULE_DESCRIPTION("Mellayesx Connect-IB HCA IB driver");
 MODULE_LICENSE("Dual BSD/GPL");
 
 static char mlx5_version[] =
-	DRIVER_NAME ": Mellanox Connect-IB Infiniband driver v"
+	DRIVER_NAME ": Mellayesx Connect-IB Infiniband driver v"
 	DRIVER_VERSION "\n";
 
 struct mlx5_ib_event_work {
@@ -186,11 +186,11 @@ static struct mlx5_roce *mlx5_get_rep_roce(struct mlx5_ib_dev *dev,
 	return NULL;
 }
 
-static int mlx5_netdev_event(struct notifier_block *this,
+static int mlx5_netdev_event(struct yestifier_block *this,
 			     unsigned long event, void *ptr)
 {
 	struct mlx5_roce *roce = container_of(this, struct mlx5_roce, nb);
-	struct net_device *ndev = netdev_notifier_info_to_dev(ptr);
+	struct net_device *ndev = netdev_yestifier_info_to_dev(ptr);
 	u8 port_num = roce->native_port_num;
 	struct mlx5_core_dev *mdev;
 	struct mlx5_ib_dev *ibdev;
@@ -284,7 +284,7 @@ static struct net_device *mlx5_ib_get_netdev(struct ib_device *device,
 	if (ndev)
 		goto out;
 
-	/* Ensure ndev does not disappear before we invoke dev_hold()
+	/* Ensure ndev does yest disappear before we invoke dev_hold()
 	 */
 	read_lock(&ibdev->port[port_num - 1].roce.netdev_lock);
 	ndev = ibdev->port[port_num - 1].roce.netdev;
@@ -325,7 +325,7 @@ struct mlx5_core_dev *mlx5_ib_get_native_port_mdev(struct mlx5_ib_dev *ibdev,
 	mpi = ibdev->port[ib_port_num - 1].mp.mpi;
 	if (mpi && !mpi->unaffiliate) {
 		mdev = mpi->mdev;
-		/* If it's the master no need to refcount, it'll exist
+		/* If it's the master yes need to refcount, it'll exist
 		 * as long as the ib_dev exists.
 		 */
 		if (!mpi->is_master)
@@ -765,22 +765,22 @@ static int mlx5_query_vendor_id(struct ib_device *ibdev,
 	}
 }
 
-static int mlx5_query_node_guid(struct mlx5_ib_dev *dev,
-				__be64 *node_guid)
+static int mlx5_query_yesde_guid(struct mlx5_ib_dev *dev,
+				__be64 *yesde_guid)
 {
 	u64 tmp;
 	int err;
 
 	switch (mlx5_get_vport_access_method(&dev->ib_dev)) {
 	case MLX5_VPORT_ACCESS_METHOD_MAD:
-		return mlx5_query_mad_ifc_node_guid(dev, node_guid);
+		return mlx5_query_mad_ifc_yesde_guid(dev, yesde_guid);
 
 	case MLX5_VPORT_ACCESS_METHOD_HCA:
-		err = mlx5_query_hca_vport_node_guid(dev->mdev, &tmp);
+		err = mlx5_query_hca_vport_yesde_guid(dev->mdev, &tmp);
 		break;
 
 	case MLX5_VPORT_ACCESS_METHOD_NIC:
-		err = mlx5_query_nic_vport_node_guid(dev->mdev, &tmp);
+		err = mlx5_query_nic_vport_yesde_guid(dev->mdev, &tmp);
 		break;
 
 	default:
@@ -788,26 +788,26 @@ static int mlx5_query_node_guid(struct mlx5_ib_dev *dev,
 	}
 
 	if (!err)
-		*node_guid = cpu_to_be64(tmp);
+		*yesde_guid = cpu_to_be64(tmp);
 
 	return err;
 }
 
-struct mlx5_reg_node_desc {
+struct mlx5_reg_yesde_desc {
 	u8	desc[IB_DEVICE_NODE_DESC_MAX];
 };
 
-static int mlx5_query_node_desc(struct mlx5_ib_dev *dev, char *node_desc)
+static int mlx5_query_yesde_desc(struct mlx5_ib_dev *dev, char *yesde_desc)
 {
-	struct mlx5_reg_node_desc in;
+	struct mlx5_reg_yesde_desc in;
 
 	if (mlx5_use_mad_ifc(dev))
-		return mlx5_query_mad_ifc_node_desc(dev, node_desc);
+		return mlx5_query_mad_ifc_yesde_desc(dev, yesde_desc);
 
 	memset(&in, 0, sizeof(in));
 
-	return mlx5_core_access_reg(dev->mdev, &in, sizeof(in), node_desc,
-				    sizeof(struct mlx5_reg_node_desc),
+	return mlx5_core_access_reg(dev->mdev, &in, sizeof(in), yesde_desc,
+				    sizeof(struct mlx5_reg_yesde_desc),
 				    MLX5_REG_NODE_DESC, 0, 0);
 }
 
@@ -876,7 +876,7 @@ static int mlx5_ib_query_device(struct ib_device *ibdev,
 	props->device_cap_flags |= IB_DEVICE_MEM_MGT_EXTENSIONS;
 	if (MLX5_CAP_GEN(mdev, sho)) {
 		props->device_cap_flags |= IB_DEVICE_INTEGRITY_HANDOVER;
-		/* At this stage no support for signature handover */
+		/* At this stage yes support for signature handover */
 		props->sig_prot_cap = IB_PROT_T10DIF_TYPE_1 |
 				      IB_PROT_T10DIF_TYPE_2 |
 				      IB_PROT_T10DIF_TYPE_3;
@@ -939,7 +939,7 @@ static int mlx5_ib_query_device(struct ib_device *ibdev,
 	}
 
 	if (MLX5_CAP_GEN(dev->mdev, rq_delay_drop) &&
-	    MLX5_CAP_GEN(dev->mdev, general_notification_event) &&
+	    MLX5_CAP_GEN(dev->mdev, general_yestification_event) &&
 	    raw_support)
 		props->raw_packet_caps |= IB_RAW_PACKET_CAP_DELAY_DROP;
 
@@ -1005,7 +1005,7 @@ static int mlx5_ib_query_device(struct ib_device *ibdev,
 	props->max_mcast_qp_attach = MLX5_CAP_GEN(mdev, max_qp_mcg);
 	props->max_total_mcast_qp_attach = props->max_mcast_qp_attach *
 					   props->max_mcast_grp;
-	props->max_map_per_fmr = INT_MAX; /* no limit in ConnectIB */
+	props->max_map_per_fmr = INT_MAX; /* yes limit in ConnectIB */
 	props->max_ah = INT_MAX;
 	props->hca_core_clock = MLX5_CAP_GEN(mdev, device_frequency_khz);
 	props->timestamp_mask = 0x7FFFFFFFFFFFFFFFULL;
@@ -1488,8 +1488,8 @@ static int mlx5_ib_modify_device(struct ib_device *ibdev, int mask,
 				 struct ib_device_modify *props)
 {
 	struct mlx5_ib_dev *dev = to_mdev(ibdev);
-	struct mlx5_reg_node_desc in;
-	struct mlx5_reg_node_desc out;
+	struct mlx5_reg_yesde_desc in;
+	struct mlx5_reg_yesde_desc out;
 	int err;
 
 	if (mask & ~IB_DEVICE_MODIFY_NODE_DESC)
@@ -1499,16 +1499,16 @@ static int mlx5_ib_modify_device(struct ib_device *ibdev, int mask,
 		return 0;
 
 	/*
-	 * If possible, pass node desc to FW, so it can generate
-	 * a 144 trap.  If cmd fails, just ignore.
+	 * If possible, pass yesde desc to FW, so it can generate
+	 * a 144 trap.  If cmd fails, just igyesre.
 	 */
-	memcpy(&in, props->node_desc, IB_DEVICE_NODE_DESC_MAX);
+	memcpy(&in, props->yesde_desc, IB_DEVICE_NODE_DESC_MAX);
 	err = mlx5_core_access_reg(dev->mdev, &in, sizeof(in), &out,
 				   sizeof(out), MLX5_REG_NODE_DESC, 0, 1);
 	if (err)
 		return err;
 
-	memcpy(ibdev->node_desc, props->node_desc, IB_DEVICE_NODE_DESC_MAX);
+	memcpy(ibdev->yesde_desc, props->yesde_desc, IB_DEVICE_NODE_DESC_MAX);
 
 	return err;
 }
@@ -1595,7 +1595,7 @@ static void print_lib_caps(struct mlx5_ib_dev *dev, u64 caps)
 
 static u16 calc_dynamic_bfregs(int uars_per_sys_page)
 {
-	/* Large page with non 4k uar support might limit the dynamic size */
+	/* Large page with yesn 4k uar support might limit the dynamic size */
 	if (uars_per_sys_page == 1  && PAGE_SIZE > 4096)
 		return MLX5_MIN_DYN_BFREGS;
 
@@ -1632,8 +1632,8 @@ static int calc_total_bfregs(struct mlx5_ib_dev *dev, bool lib_uar_4k,
 	bfregi->num_sys_pages = bfregi->total_num_bfregs / bfregs_per_sys_page;
 
 	mlx5_ib_dbg(dev, "uar_4k: fw support %s, lib support %s, user requested %d bfregs, allocated %d, total bfregs %d, using %d sys pages\n",
-		    MLX5_CAP_GEN(dev->mdev, uar_4k) ? "yes" : "no",
-		    lib_uar_4k ? "yes" : "no", ref_bfregs,
+		    MLX5_CAP_GEN(dev->mdev, uar_4k) ? "no" : "yes",
+		    lib_uar_4k ? "no" : "yes", ref_bfregs,
 		    req->total_num_bfregs, bfregi->total_num_bfregs,
 		    bfregi->num_sys_pages);
 
@@ -2137,7 +2137,7 @@ static int uar_mmap(struct mlx5_ib_dev *dev, enum mlx5_ib_mmap_cmd cmd,
 		prot = pgprot_writecombine(vma->vm_page_prot);
 		break;
 	case MLX5_IB_MMAP_NC_PAGE:
-		prot = pgprot_noncached(vma->vm_page_prot);
+		prot = pgprot_yesncached(vma->vm_page_prot);
 		break;
 	default:
 		return -EINVAL;
@@ -2290,7 +2290,7 @@ static int mlx5_ib_mmap(struct ib_ucontext *ibcontext, struct vm_area_struct *vm
 			PAGE_SHIFT;
 		return rdma_user_mmap_io(&context->ibucontext, vma, pfn,
 					 PAGE_SIZE,
-					 pgprot_noncached(vma->vm_page_prot),
+					 pgprot_yesncached(vma->vm_page_prot),
 					 NULL);
 	case MLX5_IB_MMAP_CLOCK_INFO:
 		return mlx5_ib_mmap_clock_info_page(dev, vma, context);
@@ -3057,7 +3057,7 @@ static int parse_flow_attr(struct mlx5_core_dev *mdev,
 					 LAST_COUNTERS_FIELD))
 			return -EOPNOTSUPP;
 
-		/* for now support only one counters spec per flow */
+		/* for yesw support only one counters spec per flow */
 		if (action->action & MLX5_FLOW_CONTEXT_ACTION_COUNT)
 			return -EINVAL;
 
@@ -3498,7 +3498,7 @@ static int flow_counters_set_data(struct ib_counters *ibcounters,
 			goto free_hndl;
 
 	} else if (!mcounters->cntrs_max_index) {
-		/* counters not bound yet, must have udata passed */
+		/* counters yest bound yet, must have udata passed */
 		ret = -EINVAL;
 		goto free_hndl;
 	}
@@ -4356,7 +4356,7 @@ static int mlx5_ib_destroy_flow_action(struct ib_flow_action *action)
 	switch (action->type) {
 	case IB_FLOW_ACTION_ESP:
 		/*
-		 * We only support aes_gcm by now, so we implicitly know this is
+		 * We only support aes_gcm by yesw, so we implicitly kyesw this is
 		 * the underline crypto.
 		 */
 		mlx5_accel_esp_destroy_xfrm(maction->esp_aes_gcm.ctx);
@@ -4384,7 +4384,7 @@ static int mlx5_ib_mcg_attach(struct ib_qp *ibqp, union ib_gid *gid, u16 lid)
 		to_mpd(ibqp->pd)->uid : 0;
 
 	if (mqp->flags & MLX5_IB_QP_UNDERLAY) {
-		mlx5_ib_dbg(dev, "Attaching a multi cast group to underlay QP is not supported\n");
+		mlx5_ib_dbg(dev, "Attaching a multi cast group to underlay QP is yest supported\n");
 		return -EOPNOTSUPP;
 	}
 
@@ -4412,17 +4412,17 @@ static int mlx5_ib_mcg_detach(struct ib_qp *ibqp, union ib_gid *gid, u16 lid)
 	return err;
 }
 
-static int init_node_data(struct mlx5_ib_dev *dev)
+static int init_yesde_data(struct mlx5_ib_dev *dev)
 {
 	int err;
 
-	err = mlx5_query_node_desc(dev, dev->ib_dev.node_desc);
+	err = mlx5_query_yesde_desc(dev, dev->ib_dev.yesde_desc);
 	if (err)
 		return err;
 
 	dev->mdev->rev_id = dev->mdev->pdev->revision;
 
-	return mlx5_query_node_guid(dev, &dev->ib_dev.node_guid);
+	return mlx5_query_yesde_guid(dev, &dev->ib_dev.yesde_guid);
 }
 
 static ssize_t fw_pages_show(struct device *device,
@@ -4521,9 +4521,9 @@ static void mlx5_ib_handle_internal_error(struct mlx5_ib_dev *ibdev)
 			spin_lock_irqsave(&send_mcq->lock, flags_cq);
 			if (send_mcq->mcq.comp &&
 			    mqp->ibqp.send_cq->comp_handler) {
-				if (!send_mcq->mcq.reset_notify_added) {
-					send_mcq->mcq.reset_notify_added = 1;
-					list_add_tail(&send_mcq->mcq.reset_notify,
+				if (!send_mcq->mcq.reset_yestify_added) {
+					send_mcq->mcq.reset_yestify_added = 1;
+					list_add_tail(&send_mcq->mcq.reset_yestify,
 						      &cq_armed_list);
 				}
 			}
@@ -4531,16 +4531,16 @@ static void mlx5_ib_handle_internal_error(struct mlx5_ib_dev *ibdev)
 		}
 		spin_unlock_irqrestore(&mqp->sq.lock, flags_qp);
 		spin_lock_irqsave(&mqp->rq.lock, flags_qp);
-		/* no handling is needed for SRQ */
+		/* yes handling is needed for SRQ */
 		if (!mqp->ibqp.srq) {
 			if (mqp->rq.tail != mqp->rq.head) {
 				recv_mcq = to_mcq(mqp->ibqp.recv_cq);
 				spin_lock_irqsave(&recv_mcq->lock, flags_cq);
 				if (recv_mcq->mcq.comp &&
 				    mqp->ibqp.recv_cq->comp_handler) {
-					if (!recv_mcq->mcq.reset_notify_added) {
-						recv_mcq->mcq.reset_notify_added = 1;
-						list_add_tail(&recv_mcq->mcq.reset_notify,
+					if (!recv_mcq->mcq.reset_yestify_added) {
+						recv_mcq->mcq.reset_yestify_added = 1;
+						list_add_tail(&recv_mcq->mcq.reset_yestify,
 							      &cq_armed_list);
 					}
 				}
@@ -4553,7 +4553,7 @@ static void mlx5_ib_handle_internal_error(struct mlx5_ib_dev *ibdev)
 	/*At that point all inflight post send were put to be executed as of we
 	 * lock/unlock above locks Now need to arm all involved CQs.
 	 */
-	list_for_each_entry(mcq, &cq_armed_list, reset_notify) {
+	list_for_each_entry(mcq, &cq_armed_list, reset_yestify) {
 		mcq->comp(mcq, NULL);
 	}
 	spin_unlock_irqrestore(&ibdev->reset_flow_resource_lock, flags);
@@ -4590,7 +4590,7 @@ static void handle_general_event(struct mlx5_ib_dev *ibdev, struct mlx5_eqe *eqe
 					    IB_LINK_LAYER_ETHERNET)
 			schedule_work(&ibdev->delay_drop.delay_drop_work);
 		break;
-	default: /* do nothing */
+	default: /* do yesthing */
 		return;
 	}
 }
@@ -4690,7 +4690,7 @@ out:
 	kfree(work);
 }
 
-static int mlx5_ib_event(struct notifier_block *nb,
+static int mlx5_ib_event(struct yestifier_block *nb,
 			 unsigned long event, void *param)
 {
 	struct mlx5_ib_event_work *work;
@@ -4710,7 +4710,7 @@ static int mlx5_ib_event(struct notifier_block *nb,
 	return NOTIFY_OK;
 }
 
-static int mlx5_ib_event_slave_port(struct notifier_block *nb,
+static int mlx5_ib_event_slave_port(struct yestifier_block *nb,
 				    unsigned long event, void *param)
 {
 	struct mlx5_ib_event_work *work;
@@ -5006,7 +5006,7 @@ static int create_dev_resources(struct mlx5_ib_resources *devr)
 		goto error2;
 	}
 	devr->x0->device = &dev->ib_dev;
-	devr->x0->inode = NULL;
+	devr->x0->iyesde = NULL;
 	atomic_set(&devr->x0->usecnt, 0);
 	mutex_init(&devr->x0->tgt_qp_mutex);
 	INIT_LIST_HEAD(&devr->x0->tgt_qp_list);
@@ -5017,7 +5017,7 @@ static int create_dev_resources(struct mlx5_ib_resources *devr)
 		goto error3;
 	}
 	devr->x1->device = &dev->ib_dev;
-	devr->x1->inode = NULL;
+	devr->x1->iyesde = NULL;
 	atomic_set(&devr->x1->usecnt, 0);
 	mutex_init(&devr->x1->tgt_qp_mutex);
 	INIT_LIST_HEAD(&devr->x1->tgt_qp_list);
@@ -5115,7 +5115,7 @@ static void destroy_dev_resources(struct mlx5_ib_resources *devr)
 	mlx5_ib_dealloc_pd(devr->p0, NULL);
 	kfree(devr->p0);
 
-	/* Make sure no change P_Key work items are still executing */
+	/* Make sure yes change P_Key work items are still executing */
 	for (port = 0; port < ARRAY_SIZE(devr->ports); ++port)
 		cancel_work_sync(&devr->ports[port].pkey_change_work);
 }
@@ -5254,25 +5254,25 @@ static void mlx5_eth_lag_cleanup(struct mlx5_ib_dev *dev)
 	}
 }
 
-static int mlx5_add_netdev_notifier(struct mlx5_ib_dev *dev, u8 port_num)
+static int mlx5_add_netdev_yestifier(struct mlx5_ib_dev *dev, u8 port_num)
 {
 	int err;
 
-	dev->port[port_num].roce.nb.notifier_call = mlx5_netdev_event;
-	err = register_netdevice_notifier(&dev->port[port_num].roce.nb);
+	dev->port[port_num].roce.nb.yestifier_call = mlx5_netdev_event;
+	err = register_netdevice_yestifier(&dev->port[port_num].roce.nb);
 	if (err) {
-		dev->port[port_num].roce.nb.notifier_call = NULL;
+		dev->port[port_num].roce.nb.yestifier_call = NULL;
 		return err;
 	}
 
 	return 0;
 }
 
-static void mlx5_remove_netdev_notifier(struct mlx5_ib_dev *dev, u8 port_num)
+static void mlx5_remove_netdev_yestifier(struct mlx5_ib_dev *dev, u8 port_num)
 {
-	if (dev->port[port_num].roce.nb.notifier_call) {
-		unregister_netdevice_notifier(&dev->port[port_num].roce.nb);
-		dev->port[port_num].roce.nb.notifier_call = NULL;
+	if (dev->port[port_num].roce.nb.yestifier_call) {
+		unregister_netdevice_yestifier(&dev->port[port_num].roce.nb);
+		dev->port[port_num].roce.nb.yestifier_call = NULL;
 	}
 }
 
@@ -5334,7 +5334,7 @@ static const struct mlx5_ib_counter retrans_q_cnts[] = {
 		MLX5_BYTE_OFF(query_cong_statistics_out, _name ## _high)}
 
 static const struct mlx5_ib_counter cong_cnts[] = {
-	INIT_CONG_COUNTER(rp_cnp_ignored),
+	INIT_CONG_COUNTER(rp_cnp_igyesred),
 	INIT_CONG_COUNTER(rp_cnp_handled),
 	INIT_CONG_COUNTER(np_ecn_marked_roce_packets),
 	INIT_CONG_COUNTER(np_cnp_sent),
@@ -5524,7 +5524,7 @@ static const struct mlx5_ib_counters *get_counters(struct mlx5_ib_dev *dev,
  * @port_num:	Zero based port number
  *
  * mlx5_ib_get_counters_id() Returns counters set id to use for given
- * device port combination in switchdev and non switchdev mode of the
+ * device port combination in switchdev and yesn switchdev mode of the
  * parent device.
  */
 u16 mlx5_ib_get_counters_id(struct mlx5_ib_dev *dev, u8 port_num)
@@ -5639,9 +5639,9 @@ static int mlx5_ib_get_hw_stats(struct ib_device *ibdev,
 		mdev = mlx5_ib_get_native_port_mdev(dev, port_num,
 						    &mdev_port_num);
 		if (!mdev) {
-			/* If port is not affiliated yet, its in down state
+			/* If port is yest affiliated yet, its in down state
 			 * which doesn't have any counters yet, so it would be
-			 * zero. So no need to read from the HCA.
+			 * zero. So yes need to read from the HCA.
 			 */
 			goto done;
 		}
@@ -5847,10 +5847,10 @@ static void mlx5_ib_unbind_slave_port(struct mlx5_ib_dev *ibdev,
 	mpi->ibdev = NULL;
 
 	spin_unlock(&port->mp.mpi_lock);
-	if (mpi->mdev_events.notifier_call)
-		mlx5_notifier_unregister(mpi->mdev, &mpi->mdev_events);
-	mpi->mdev_events.notifier_call = NULL;
-	mlx5_remove_netdev_notifier(ibdev, port_num);
+	if (mpi->mdev_events.yestifier_call)
+		mlx5_yestifier_unregister(mpi->mdev, &mpi->mdev_events);
+	mpi->mdev_events.yestifier_call = NULL;
+	mlx5_remove_netdev_yestifier(ibdev, port_num);
 	spin_lock(&port->mp.mpi_lock);
 
 	comps = mpi->mdev_refcnt;
@@ -5903,7 +5903,7 @@ static bool mlx5_ib_bind_slave_port(struct mlx5_ib_dev *ibdev,
 
 	ibdev->port[port_num].mp.mpi = mpi;
 	mpi->ibdev = ibdev;
-	mpi->mdev_events.notifier_call = NULL;
+	mpi->mdev_events.yestifier_call = NULL;
 	spin_unlock(&ibdev->port[port_num].mp.mpi_lock);
 
 	err = mlx5_nic_vport_affiliate_multiport(ibdev->mdev, mpi->mdev);
@@ -5914,15 +5914,15 @@ static bool mlx5_ib_bind_slave_port(struct mlx5_ib_dev *ibdev,
 	if (err)
 		goto unbind;
 
-	err = mlx5_add_netdev_notifier(ibdev, port_num);
+	err = mlx5_add_netdev_yestifier(ibdev, port_num);
 	if (err) {
-		mlx5_ib_err(ibdev, "failed adding netdev notifier for port %u\n",
+		mlx5_ib_err(ibdev, "failed adding netdev yestifier for port %u\n",
 			    port_num + 1);
 		goto unbind;
 	}
 
-	mpi->mdev_events.notifier_call = mlx5_ib_event_slave_port;
-	mlx5_notifier_register(mpi->mdev, &mpi->mdev_events);
+	mpi->mdev_events.yestifier_call = mlx5_ib_event_slave_port;
+	mlx5_yestifier_register(mpi->mdev, &mpi->mdev_events);
 
 	mlx5_ib_init_cong_debugfs(ibdev, port_num);
 
@@ -5993,7 +5993,7 @@ static int mlx5_ib_init_multiport_master(struct mlx5_ib_dev *dev)
 		}
 		if (!bound) {
 			get_port_caps(dev, i + 1);
-			mlx5_ib_dbg(dev, "no free port found for port %d\n",
+			mlx5_ib_dbg(dev, "yes free port found for port %d\n",
 				    i + 1);
 		}
 	}
@@ -6186,8 +6186,8 @@ static int mlx5_ib_stage_init_init(struct mlx5_ib_dev *dev)
 	if (mlx5_use_mad_ifc(dev))
 		get_ext_port_caps(dev);
 
-	dev->ib_dev.node_type		= RDMA_NODE_IB_CA;
-	dev->ib_dev.local_dma_lkey	= 0 /* not supported for now */;
+	dev->ib_dev.yesde_type		= RDMA_NODE_IB_CA;
+	dev->ib_dev.local_dma_lkey	= 0 /* yest supported for yesw */;
 	dev->ib_dev.phys_port_cnt	= dev->num_ports;
 	dev->ib_dev.num_comp_vectors    = mlx5_comp_vectors_count(mdev);
 	dev->ib_dev.dev.parent		= mdev->device;
@@ -6291,7 +6291,7 @@ static const struct ib_device_ops mlx5_ib_dev_ops = {
 	.query_srq = mlx5_ib_query_srq,
 	.read_counters = mlx5_ib_read_counters,
 	.reg_user_mr = mlx5_ib_reg_user_mr,
-	.req_notify_cq = mlx5_ib_arm_cq,
+	.req_yestify_cq = mlx5_ib_arm_cq,
 	.rereg_user_mr = mlx5_ib_rereg_user_mr,
 	.resize_cq = mlx5_ib_resize_cq,
 
@@ -6413,7 +6413,7 @@ static int mlx5_ib_stage_caps_init(struct mlx5_ib_dev *dev)
 	if (IS_ENABLED(CONFIG_INFINIBAND_USER_ACCESS))
 		dev->ib_dev.driver_def = mlx5_ib_defs;
 
-	err = init_node_data(dev);
+	err = init_yesde_data(dev);
 	if (err)
 		return err;
 
@@ -6432,7 +6432,7 @@ static const struct ib_device_ops mlx5_ib_dev_port_ops = {
 	.query_port = mlx5_ib_query_port,
 };
 
-static int mlx5_ib_stage_non_default_cb(struct mlx5_ib_dev *dev)
+static int mlx5_ib_stage_yesn_default_cb(struct mlx5_ib_dev *dev)
 {
 	ib_set_device_ops(&dev->ib_dev, &mlx5_ib_dev_port_ops);
 	return 0;
@@ -6443,7 +6443,7 @@ static const struct ib_device_ops mlx5_ib_dev_port_rep_ops = {
 	.query_port = mlx5_ib_rep_query_port,
 };
 
-static int mlx5_ib_stage_raw_eth_non_default_cb(struct mlx5_ib_dev *dev)
+static int mlx5_ib_stage_raw_eth_yesn_default_cb(struct mlx5_ib_dev *dev)
 {
 	ib_set_device_ops(&dev->ib_dev, &mlx5_ib_dev_port_rep_ops);
 	return 0;
@@ -6473,14 +6473,14 @@ static int mlx5_ib_stage_common_roce_init(struct mlx5_ib_dev *dev)
 	port_num = mlx5_core_native_port_num(dev->mdev) - 1;
 
 	/* Register only for native ports */
-	return mlx5_add_netdev_notifier(dev, port_num);
+	return mlx5_add_netdev_yestifier(dev, port_num);
 }
 
 static void mlx5_ib_stage_common_roce_cleanup(struct mlx5_ib_dev *dev)
 {
 	u8 port_num = mlx5_core_native_port_num(dev->mdev) - 1;
 
-	mlx5_remove_netdev_notifier(dev, port_num);
+	mlx5_remove_netdev_yestifier(dev, port_num);
 }
 
 static int mlx5_ib_stage_raw_eth_roce_init(struct mlx5_ib_dev *dev)
@@ -6677,16 +6677,16 @@ static void mlx5_ib_stage_delay_drop_cleanup(struct mlx5_ib_dev *dev)
 	cancel_delay_drop(dev);
 }
 
-static int mlx5_ib_stage_dev_notifier_init(struct mlx5_ib_dev *dev)
+static int mlx5_ib_stage_dev_yestifier_init(struct mlx5_ib_dev *dev)
 {
-	dev->mdev_events.notifier_call = mlx5_ib_event;
-	mlx5_notifier_register(dev->mdev, &dev->mdev_events);
+	dev->mdev_events.yestifier_call = mlx5_ib_event;
+	mlx5_yestifier_register(dev->mdev, &dev->mdev_events);
 	return 0;
 }
 
-static void mlx5_ib_stage_dev_notifier_cleanup(struct mlx5_ib_dev *dev)
+static void mlx5_ib_stage_dev_yestifier_cleanup(struct mlx5_ib_dev *dev)
 {
-	mlx5_notifier_unregister(dev->mdev, &dev->mdev_events);
+	mlx5_yestifier_unregister(dev->mdev, &dev->mdev_events);
 }
 
 static int mlx5_ib_stage_devx_init(struct mlx5_ib_dev *dev)
@@ -6716,7 +6716,7 @@ int mlx5_ib_enable_driver(struct ib_device *dev)
 
 	ret = mlx5_ib_test_wc(mdev);
 	mlx5_ib_dbg(mdev, "Write-Combining %s",
-		    mdev->wc_support ? "supported" : "not supported");
+		    mdev->wc_support ? "supported" : "yest supported");
 
 	return ret;
 }
@@ -6772,7 +6772,7 @@ static const struct mlx5_ib_profile pf_profile = {
 		     mlx5_ib_stage_caps_init,
 		     NULL),
 	STAGE_CREATE(MLX5_IB_STAGE_NON_DEFAULT_CB,
-		     mlx5_ib_stage_non_default_cb,
+		     mlx5_ib_stage_yesn_default_cb,
 		     NULL),
 	STAGE_CREATE(MLX5_IB_STAGE_ROCE,
 		     mlx5_ib_stage_roce_init,
@@ -6784,8 +6784,8 @@ static const struct mlx5_ib_profile pf_profile = {
 		     mlx5_ib_stage_dev_res_init,
 		     mlx5_ib_stage_dev_res_cleanup),
 	STAGE_CREATE(MLX5_IB_STAGE_DEVICE_NOTIFIER,
-		     mlx5_ib_stage_dev_notifier_init,
-		     mlx5_ib_stage_dev_notifier_cleanup),
+		     mlx5_ib_stage_dev_yestifier_init,
+		     mlx5_ib_stage_dev_yestifier_cleanup),
 	STAGE_CREATE(MLX5_IB_STAGE_ODP,
 		     mlx5_ib_stage_odp_init,
 		     mlx5_ib_stage_odp_cleanup),
@@ -6829,7 +6829,7 @@ const struct mlx5_ib_profile raw_eth_profile = {
 		     mlx5_ib_stage_caps_init,
 		     NULL),
 	STAGE_CREATE(MLX5_IB_STAGE_NON_DEFAULT_CB,
-		     mlx5_ib_stage_raw_eth_non_default_cb,
+		     mlx5_ib_stage_raw_eth_yesn_default_cb,
 		     NULL),
 	STAGE_CREATE(MLX5_IB_STAGE_ROCE,
 		     mlx5_ib_stage_raw_eth_roce_init,
@@ -6841,8 +6841,8 @@ const struct mlx5_ib_profile raw_eth_profile = {
 		     mlx5_ib_stage_dev_res_init,
 		     mlx5_ib_stage_dev_res_cleanup),
 	STAGE_CREATE(MLX5_IB_STAGE_DEVICE_NOTIFIER,
-		     mlx5_ib_stage_dev_notifier_init,
-		     mlx5_ib_stage_dev_notifier_cleanup),
+		     mlx5_ib_stage_dev_yestifier_init,
+		     mlx5_ib_stage_dev_yestifier_cleanup),
 	STAGE_CREATE(MLX5_IB_STAGE_COUNTERS,
 		     mlx5_ib_stage_counters_init,
 		     mlx5_ib_stage_counters_cleanup),
@@ -6900,7 +6900,7 @@ static void *mlx5_ib_add_slave_port(struct mlx5_core_dev *mdev)
 	if (!bound) {
 		list_add_tail(&mpi->list, &mlx5_ib_unaffiliated_port_list);
 		dev_dbg(mdev->device,
-			"no suitable IB device found to bind to, added to unaffiliated list.\n");
+			"yes suitable IB device found to bind to, added to unaffiliated list.\n");
 	}
 	mutex_unlock(&mlx5_ib_multiport_mutex);
 

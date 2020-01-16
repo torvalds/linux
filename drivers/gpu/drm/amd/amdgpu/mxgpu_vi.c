@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -328,7 +328,7 @@ static void xgpu_vi_mailbox_send_ack(struct amdgpu_device *adev)
 	reg = RREG32_NO_KIQ(mmMAILBOX_CONTROL);
 	while (reg & mask) {
 		if (timeout <= 0) {
-			pr_err("RCV_MSG_VALID is not cleared\n");
+			pr_err("RCV_MSG_VALID is yest cleared\n");
 			break;
 		}
 		mdelay(1);
@@ -367,7 +367,7 @@ static int xgpu_vi_mailbox_rcv_msg(struct amdgpu_device *adev,
 	u32 reg;
 	u32 mask = REG_FIELD_MASK(MAILBOX_CONTROL, RCV_MSG_VALID);
 
-	/* workaround: host driver doesn't set VALID for CMPL now */
+	/* workaround: host driver doesn't set VALID for CMPL yesw */
 	if (event != IDH_FLR_NOTIFICATION_CMPL) {
 		reg = RREG32_NO_KIQ(mmMAILBOX_CONTROL);
 		if (!(reg & mask))
@@ -490,7 +490,7 @@ static int xgpu_vi_mailbox_ack_irq(struct amdgpu_device *adev,
 				   struct amdgpu_irq_src *source,
 				   struct amdgpu_iv_entry *entry)
 {
-	DRM_DEBUG("get ack intr and do nothing.\n");
+	DRM_DEBUG("get ack intr and do yesthing.\n");
 	return 0;
 }
 
@@ -549,7 +549,7 @@ static int xgpu_vi_mailbox_rcv_irq(struct amdgpu_device *adev,
 		/* see what event we get */
 		r = xgpu_vi_mailbox_rcv_msg(adev, IDH_FLR_NOTIFICATION);
 
-		/* only handle FLR_NOTIFY now */
+		/* only handle FLR_NOTIFY yesw */
 		if (!r)
 			schedule_work(&adev->virt.flr_work);
 	}
@@ -621,5 +621,5 @@ const struct amdgpu_virt_ops xgpu_vi_virt_ops = {
 	.rel_full_gpu		= xgpu_vi_release_full_gpu_access,
 	.reset_gpu		= xgpu_vi_request_reset,
 	.wait_reset             = xgpu_vi_wait_reset_cmpl,
-	.trans_msg		= NULL, /* Does not need to trans VF errors to host. */
+	.trans_msg		= NULL, /* Does yest need to trans VF errors to host. */
 };

@@ -15,7 +15,7 @@ struct wm8955_pdata {
 	unsigned int out2_speaker:1;
 
 	/* Configure MONOIN+/- in differential mode */
-	unsigned int monoin_diff:1;
+	unsigned int moyesin_diff:1;
 };
 
 #endif

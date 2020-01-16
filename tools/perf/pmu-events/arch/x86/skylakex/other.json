@@ -5,7 +5,7 @@
         "BriefDescription": "Core cycles where the core was running in a manner where Turbo may be clipped to the Non-AVX turbo schedule.",
         "Counter": "0,1,2,3",
         "EventName": "CORE_POWER.LVL0_TURBO_LICENSE",
-        "PublicDescription": "Core cycles where the core was running with power-delivery for baseline license level 0.  This includes non-AVX codes, SSE, AVX 128-bit, and low-current AVX 256-bit codes.",
+        "PublicDescription": "Core cycles where the core was running with power-delivery for baseline license level 0.  This includes yesn-AVX codes, SSE, AVX 128-bit, and low-current AVX 256-bit codes.",
         "SampleAfterValue": "200003",
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
@@ -154,10 +154,10 @@
     {
         "EventCode": "0xFE",
         "UMask": "0x4",
-        "BriefDescription": "Counts number of cache lines that are dropped and not written back to L3 as they are deemed to be less likely to be reused shortly",
+        "BriefDescription": "Counts number of cache lines that are dropped and yest written back to L3 as they are deemed to be less likely to be reused shortly",
         "Counter": "0,1,2,3",
         "EventName": "IDI_MISC.WB_DOWNGRADE",
-        "PublicDescription": "Counts number of cache lines that are dropped and not written back to L3 as they are deemed to be less likely to be reused shortly.",
+        "PublicDescription": "Counts number of cache lines that are dropped and yest written back to L3 as they are deemed to be less likely to be reused shortly.",
         "SampleAfterValue": "100003",
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     }

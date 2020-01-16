@@ -76,7 +76,7 @@ int rvu_npa_aq_enq_inst(struct rvu *rvu, struct npa_aq_enq_req *req,
 	block = &hw->block[blkaddr];
 	aq = block->aq;
 	if (!aq) {
-		dev_warn(rvu->dev, "%s: NPA AQ not initialized\n", __func__);
+		dev_warn(rvu->dev, "%s: NPA AQ yest initialized\n", __func__);
 		return NPA_AF_ERR_AQ_ENQUEUE;
 	}
 
@@ -89,7 +89,7 @@ int rvu_npa_aq_enq_inst(struct rvu *rvu, struct npa_aq_enq_req *req,
 	inst.lf = npalf;
 	inst.ctype = req->ctype;
 	inst.op = req->op;
-	/* Currently we are not supporting enqueuing multiple instructions,
+	/* Currently we are yest supporting enqueuing multiple instructions,
 	 * so always choose first entry in result memory.
 	 */
 	inst.res_addr = (u64)aq->res->iova;
@@ -372,7 +372,7 @@ int rvu_mbox_handler_npa_lf_alloc(struct rvu *rvu,
 	if (!pfvf->pool_bmap)
 		goto free_mem;
 
-	/* Get no of queue interrupts supported */
+	/* Get yes of queue interrupts supported */
 	cfg = rvu_read64(rvu, blkaddr, NPA_AF_CONST);
 	qints = (cfg >> 28) & 0xFFF;
 
@@ -462,7 +462,7 @@ static int npa_aq_init(struct rvu *rvu, struct rvu_block *block)
 	rvu_write64(rvu, block->addr, NPA_AF_GEN_CFG, cfg);
 #endif
 
-	/* Do not bypass NDC cache */
+	/* Do yest bypass NDC cache */
 	cfg = rvu_read64(rvu, block->addr, NPA_AF_NDC_CFG);
 	cfg &= ~0x03DULL;
 #ifdef CONFIG_NDC_DIS_DYNAMIC_CACHING

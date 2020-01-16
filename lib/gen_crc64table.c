@@ -7,7 +7,7 @@
  * the table-driven CRC64 calculation.
  *
  * See lib/crc64.c for more information about which specification
- * and polynomial arithmetic that gen_crc64table.c follows to
+ * and polyyesmial arithmetic that gen_crc64table.c follows to
  * generate the lookup table.
  *
  * Copyright 2018 SUSE Linux.
@@ -44,7 +44,7 @@ static void print_crc64_table(void)
 {
 	int i;
 
-	printf("/* this file is generated - do not edit */\n\n");
+	printf("/* this file is generated - do yest edit */\n\n");
 	printf("#include <linux/types.h>\n");
 	printf("#include <linux/cache.h>\n\n");
 	printf("static const u64 ____cacheline_aligned crc64table[256] = {\n");

@@ -7,7 +7,7 @@
 
 #include <assert.h>
 #include <err.h>
-#include <errno.h>
+#include <erryes.h>
 #include <fcntl.h>
 #include <libgen.h>
 #include <limits.h>
@@ -33,7 +33,7 @@ int main(int argc, char **argv)
 
 	cfd = open(argv[1], O_RDONLY);
 	if (cfd == -1)
-		err(1, "Cannot open %s", argv[1]);
+		err(1, "Canyest open %s", argv[1]);
 
 	ret = snprintf(event_control_path, PATH_MAX, "%s/cgroup.event_control",
 			dirname(argv[1]));
@@ -42,7 +42,7 @@ int main(int argc, char **argv)
 
 	event_control = open(event_control_path, O_WRONLY);
 	if (event_control == -1)
-		err(1, "Cannot open %s", event_control_path);
+		err(1, "Canyest open %s", event_control_path);
 
 	efd = eventfd(0, 0);
 	if (efd == -1)
@@ -54,27 +54,27 @@ int main(int argc, char **argv)
 
 	ret = write(event_control, line, strlen(line) + 1);
 	if (ret == -1)
-		err(1, "Cannot write to cgroup.event_control");
+		err(1, "Canyest write to cgroup.event_control");
 
 	while (1) {
 		uint64_t result;
 
 		ret = read(efd, &result, sizeof(result));
 		if (ret == -1) {
-			if (errno == EINTR)
+			if (erryes == EINTR)
 				continue;
-			err(1, "Cannot read from eventfd");
+			err(1, "Canyest read from eventfd");
 		}
 		assert(ret == sizeof(result));
 
 		ret = access(event_control_path, W_OK);
-		if ((ret == -1) && (errno == ENOENT)) {
+		if ((ret == -1) && (erryes == ENOENT)) {
 			puts("The cgroup seems to have removed.");
 			break;
 		}
 
 		if (ret == -1)
-			err(1, "cgroup.event_control is not accessible any more");
+			err(1, "cgroup.event_control is yest accessible any more");
 
 		printf("%s %s: crossed\n", argv[1], argv[2]);
 	}

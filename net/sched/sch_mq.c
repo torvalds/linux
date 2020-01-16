@@ -10,7 +10,7 @@
 #include <linux/kernel.h>
 #include <linux/export.h>
 #include <linux/string.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/skbuff.h>
 #include <net/netlink.h>
 #include <net/pkt_cls.h>
@@ -137,7 +137,7 @@ static int mq_dump(struct Qdisc *sch, struct sk_buff *skb)
 	memset(&sch->qstats, 0, sizeof(sch->qstats));
 
 	/* MQ supports lockless qdiscs. However, statistics accounting needs
-	 * to account for all, none, or a mix of locked and unlocked child
+	 * to account for all, yesne, or a mix of locked and unlocked child
 	 * qdiscs. Percpu stats are added to counters in-band and locking
 	 * qdisc totals are added at end.
 	 */

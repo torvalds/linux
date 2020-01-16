@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * Synopsys DesignWare PCIe host controller driver
+ * Syyespsys DesignWare PCIe host controller driver
  *
  * Copyright (C) 2013 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com
@@ -29,7 +29,7 @@
 #define LINK_WAIT_MAX_IATU_RETRIES	5
 #define LINK_WAIT_IATU			9
 
-/* Synopsys-specific PCIe configuration registers */
+/* Syyespsys-specific PCIe configuration registers */
 #define PCIE_PORT_LINK_CONTROL		0x710
 #define PORT_LINK_MODE_MASK		GENMASK(21, 16)
 #define PORT_LINK_MODE(n)		FIELD_PREP(PORT_LINK_MODE_MASK, n)
@@ -109,9 +109,9 @@
 
 /*
  * The default address offset between dbi_base and atu_base. Root controller
- * drivers are not required to initialize atu_base if the offset matches this
+ * drivers are yest required to initialize atu_base if the offset matches this
  * default; the driver core automatically derives atu_base from dbi_base using
- * this offset, if atu_base not set.
+ * this offset, if atu_base yest set.
  */
 #define DEFAULT_DBI_ATU_OFFSET (0x3 << 20)
 
@@ -203,7 +203,7 @@ enum dw_pcie_as_type {
 
 struct dw_pcie_ep_ops {
 	void	(*ep_init)(struct dw_pcie_ep *ep);
-	int	(*raise_irq)(struct dw_pcie_ep *ep, u8 func_no,
+	int	(*raise_irq)(struct dw_pcie_ep *ep, u8 func_yes,
 			     enum pci_epc_irq_type type, u16 interrupt_num);
 	const struct pci_epc_features* (*get_features)(struct dw_pcie_ep *ep);
 };
@@ -400,12 +400,12 @@ static inline int dw_pcie_allocate_domains(struct pcie_port *pp)
 void dw_pcie_ep_linkup(struct dw_pcie_ep *ep);
 int dw_pcie_ep_init(struct dw_pcie_ep *ep);
 void dw_pcie_ep_exit(struct dw_pcie_ep *ep);
-int dw_pcie_ep_raise_legacy_irq(struct dw_pcie_ep *ep, u8 func_no);
-int dw_pcie_ep_raise_msi_irq(struct dw_pcie_ep *ep, u8 func_no,
+int dw_pcie_ep_raise_legacy_irq(struct dw_pcie_ep *ep, u8 func_yes);
+int dw_pcie_ep_raise_msi_irq(struct dw_pcie_ep *ep, u8 func_yes,
 			     u8 interrupt_num);
-int dw_pcie_ep_raise_msix_irq(struct dw_pcie_ep *ep, u8 func_no,
+int dw_pcie_ep_raise_msix_irq(struct dw_pcie_ep *ep, u8 func_yes,
 			     u16 interrupt_num);
-void dw_pcie_ep_reset_bar(struct dw_pcie *pci, enum pci_barno bar);
+void dw_pcie_ep_reset_bar(struct dw_pcie *pci, enum pci_baryes bar);
 #else
 static inline void dw_pcie_ep_linkup(struct dw_pcie_ep *ep)
 {
@@ -420,24 +420,24 @@ static inline void dw_pcie_ep_exit(struct dw_pcie_ep *ep)
 {
 }
 
-static inline int dw_pcie_ep_raise_legacy_irq(struct dw_pcie_ep *ep, u8 func_no)
+static inline int dw_pcie_ep_raise_legacy_irq(struct dw_pcie_ep *ep, u8 func_yes)
 {
 	return 0;
 }
 
-static inline int dw_pcie_ep_raise_msi_irq(struct dw_pcie_ep *ep, u8 func_no,
+static inline int dw_pcie_ep_raise_msi_irq(struct dw_pcie_ep *ep, u8 func_yes,
 					   u8 interrupt_num)
 {
 	return 0;
 }
 
-static inline int dw_pcie_ep_raise_msix_irq(struct dw_pcie_ep *ep, u8 func_no,
+static inline int dw_pcie_ep_raise_msix_irq(struct dw_pcie_ep *ep, u8 func_yes,
 					   u16 interrupt_num)
 {
 	return 0;
 }
 
-static inline void dw_pcie_ep_reset_bar(struct dw_pcie *pci, enum pci_barno bar)
+static inline void dw_pcie_ep_reset_bar(struct dw_pcie *pci, enum pci_baryes bar)
 {
 }
 #endif

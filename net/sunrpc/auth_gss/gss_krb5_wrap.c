@@ -6,10 +6,10 @@
  * Permission is granted to use, copy, create derivative works
  * and redistribute this software and such derivative works
  * for any purpose, so long as the name of The University of
- * Michigan is not used in any advertising or publicity
+ * Michigan is yest used in any advertising or publicity
  * pertaining to the use of distribution of this software
  * without specific, written prior authorization.  If the
- * above copyright notice or any other identification of the
+ * above copyright yestice or any other identification of the
  * University of Michigan is included in any copy of any
  * portion of this software, then the disclaimer below must
  * also be included.
@@ -91,15 +91,15 @@ gss_krb5_remove_padding(struct xdr_buf *buf, int blocksize)
 	BUG_ON(len > buf->tail[0].iov_len);
 	pad = *(u8 *)(buf->tail[0].iov_base + len - 1);
 out:
-	/* XXX: NOTE: we do not adjust the page lengths--they represent
+	/* XXX: NOTE: we do yest adjust the page lengths--they represent
 	 * a range of data in the real filesystem page cache, and we need
-	 * to know that range so the xdr code can properly place read data.
+	 * to kyesw that range so the xdr code can properly place read data.
 	 * However adjusting the head length, as we do above, is harmless.
 	 * In the case of a request that fits into a single page, the server
 	 * also uses length and head length together to determine the original
 	 * start of the request to copy the request for deferal; so it's
 	 * easier on the server if we adjust head and tail length in tandem.
-	 * It's not really a problem that we don't fool with the page and
+	 * It's yest really a problem that we don't fool with the page and
 	 * tail lengths, though--at worst badly formed xdr might lead the
 	 * server to attempt to parse the padding.
 	 * XXX: Document all these weird requirements for gss mechanism
@@ -120,13 +120,13 @@ gss_krb5_make_confounder(char *p, u32 conflen)
 	u64 *q = (u64 *)p;
 
 	/* rfc1964 claims this should be "random".  But all that's really
-	 * necessary is that it be unique.  And not even that is necessary in
+	 * necessary is that it be unique.  And yest even that is necessary in
 	 * our case since our "gssapi" implementation exists only to support
-	 * rpcsec_gss, so we know that the only buffers we will ever encrypt
+	 * rpcsec_gss, so we kyesw that the only buffers we will ever encrypt
 	 * already begin with a unique sequence number.  Just to hedge my bets
 	 * I'll make a half-hearted attempt at something unique, but ensuring
 	 * uniqueness would mean worrying about atomicity and rollover, and I
-	 * don't care enough. */
+	 * don't care eyesugh. */
 
 	/* initialize to random value */
 	if (i == 0) {
@@ -163,7 +163,7 @@ gss_wrap_kerberos_v1(struct krb5_ctx *kctx, int offset,
 					    .data = cksumdata};
 	int			blocksize = 0, plainlen;
 	unsigned char		*ptr, *msg_start;
-	s32			now;
+	s32			yesw;
 	int			headlen;
 	struct page		**tmp_pages;
 	u32			seq_send;
@@ -172,7 +172,7 @@ gss_wrap_kerberos_v1(struct krb5_ctx *kctx, int offset,
 
 	dprintk("RPC:       %s\n", __func__);
 
-	now = get_seconds();
+	yesw = get_seconds();
 
 	blocksize = crypto_sync_skcipher_blocksize(kctx->enc);
 	gss_krb5_add_padding(buf, offset, blocksize);
@@ -195,7 +195,7 @@ gss_wrap_kerberos_v1(struct krb5_ctx *kctx, int offset,
 				kctx->gk5e->cksumlength + plainlen, &ptr);
 
 
-	/* ptr now at header described in rfc 1964, section 1.2.1: */
+	/* ptr yesw at header described in rfc 1964, section 1.2.1: */
 	ptr[0] = (unsigned char) ((KG_TOK_WRAP_MSG >> 8) & 0xff);
 	ptr[1] = (unsigned char) (KG_TOK_WRAP_MSG & 0xff);
 
@@ -257,7 +257,7 @@ gss_wrap_kerberos_v1(struct krb5_ctx *kctx, int offset,
 			return GSS_S_FAILURE;
 	}
 
-	return (kctx->endtime < now) ? GSS_S_CONTEXT_EXPIRED : GSS_S_COMPLETE;
+	return (kctx->endtime < yesw) ? GSS_S_CONTEXT_EXPIRED : GSS_S_COMPLETE;
 }
 
 static u32
@@ -268,7 +268,7 @@ gss_unwrap_kerberos_v1(struct krb5_ctx *kctx, int offset, struct xdr_buf *buf)
 	char			cksumdata[GSS_KRB5_MAX_CKSUM_LEN];
 	struct xdr_netobj	md5cksum = {.len = sizeof(cksumdata),
 					    .data = cksumdata};
-	s32			now;
+	s32			yesw;
 	int			direction;
 	s32			seqnum;
 	unsigned char		*ptr;
@@ -359,9 +359,9 @@ gss_unwrap_kerberos_v1(struct krb5_ctx *kctx, int offset, struct xdr_buf *buf)
 
 	/* it got through unscathed.  Make sure the context is unexpired */
 
-	now = get_seconds();
+	yesw = get_seconds();
 
-	if (now > kctx->endtime)
+	if (yesw > kctx->endtime)
 		return GSS_S_CONTEXT_EXPIRED;
 
 	/* do sequencing checks */
@@ -439,7 +439,7 @@ gss_wrap_kerberos_v2(struct krb5_ctx *kctx, u32 offset,
 		     struct xdr_buf *buf, struct page **pages)
 {
 	u8		*ptr, *plainhdr;
-	s32		now;
+	s32		yesw;
 	u8		flags = 0x00;
 	__be16		*be16ptr;
 	__be64		*be64ptr;
@@ -481,14 +481,14 @@ gss_wrap_kerberos_v2(struct krb5_ctx *kctx, u32 offset,
 	if (err)
 		return err;
 
-	now = get_seconds();
-	return (kctx->endtime < now) ? GSS_S_CONTEXT_EXPIRED : GSS_S_COMPLETE;
+	yesw = get_seconds();
+	return (kctx->endtime < yesw) ? GSS_S_CONTEXT_EXPIRED : GSS_S_COMPLETE;
 }
 
 static u32
 gss_unwrap_kerberos_v2(struct krb5_ctx *kctx, int offset, struct xdr_buf *buf)
 {
-	s32		now;
+	s32		yesw;
 	u8		*ptr;
 	u8		flags = 0x00;
 	u16		ec, rrc;
@@ -557,13 +557,13 @@ gss_unwrap_kerberos_v2(struct krb5_ctx *kctx, int offset, struct xdr_buf *buf)
 	/* do sequencing checks */
 
 	/* it got through unscathed.  Make sure the context is unexpired */
-	now = get_seconds();
-	if (now > kctx->endtime)
+	yesw = get_seconds();
+	if (yesw > kctx->endtime)
 		return GSS_S_CONTEXT_EXPIRED;
 
 	/*
 	 * Move the head data back to the right position in xdr_buf.
-	 * We ignore any "ec" data since it might be in the head or
+	 * We igyesre any "ec" data since it might be in the head or
 	 * the tail, and we really don't need to deal with it.
 	 * Note that buf->head[0].iov_len may indicate the available
 	 * head buffer space rather than that actually occupied.

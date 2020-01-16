@@ -41,7 +41,7 @@
 #define GPIO_9XX_OUTPUT_EN	0x14
 #define GPIO_9XX_PADDRV		0x24
 /*
- * Only for 4 interrupt enable reg are defined for now,
+ * Only for 4 interrupt enable reg are defined for yesw,
  * total reg available are 12.
  */
 #define GPIO_9XX_INT_EN00	0x44
@@ -309,7 +309,7 @@ static int xlp_gpio_probe(struct platform_device *pdev)
 	if (irq < 0)
 		return irq;
 
-	if (pdev->dev.of_node) {
+	if (pdev->dev.of_yesde) {
 		soc_type = (uintptr_t)of_device_get_match_data(&pdev->dev);
 	} else {
 		const struct acpi_device_id *acpi_id;
@@ -362,7 +362,7 @@ static int xlp_gpio_probe(struct platform_device *pdev)
 			ngpio = 70;
 		break;
 	default:
-		dev_err(&pdev->dev, "Unknown Processor type!\n");
+		dev_err(&pdev->dev, "Unkyeswn Processor type!\n");
 		return -ENODEV;
 	}
 
@@ -375,7 +375,7 @@ static int xlp_gpio_probe(struct platform_device *pdev)
 	gc->base = 0;
 	gc->parent = &pdev->dev;
 	gc->ngpio = ngpio;
-	gc->of_node = pdev->dev.of_node;
+	gc->of_yesde = pdev->dev.of_yesde;
 	gc->direction_output = xlp_gpio_dir_output;
 	gc->direction_input = xlp_gpio_dir_input;
 	gc->set = xlp_gpio_set;
@@ -383,7 +383,7 @@ static int xlp_gpio_probe(struct platform_device *pdev)
 
 	spin_lock_init(&priv->lock);
 
-	/* XLP(MIPS) has fixed range for GPIO IRQs, Vulcan(ARM64) does not */
+	/* XLP(MIPS) has fixed range for GPIO IRQs, Vulcan(ARM64) does yest */
 	if (soc_type != GPIO_VARIANT_VULCAN) {
 		irq_base = devm_irq_alloc_descs(&pdev->dev, -1,
 						XLP_GPIO_IRQ_BASE,

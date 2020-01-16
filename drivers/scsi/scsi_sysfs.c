@@ -89,7 +89,7 @@ static const struct {
 	char		*name;
 } sdev_access_states[] = {
 	{ SCSI_ACCESS_STATE_OPTIMAL, "active/optimized" },
-	{ SCSI_ACCESS_STATE_ACTIVE, "active/non-optimized" },
+	{ SCSI_ACCESS_STATE_ACTIVE, "active/yesn-optimized" },
 	{ SCSI_ACCESS_STATE_STANDBY, "standby" },
 	{ SCSI_ACCESS_STATE_UNAVAILABLE, "unavailable" },
 	{ SCSI_ACCESS_STATE_LBA, "lba-dependent" },
@@ -154,7 +154,7 @@ static int scsi_scan(struct Scsi_Host *shost, const char *str)
 
 /*
  * shost_show_function: macro to create an attr function that can be used to
- * show a non-bit field.
+ * show a yesn-bit field.
  */
 #define shost_show_function(name, field, format_string)			\
 static ssize_t								\
@@ -273,7 +273,7 @@ show_shost_active_mode(struct device *dev,
 	struct Scsi_Host *shost = class_to_shost(dev);
 
 	if (shost->active_mode == MODE_UNKNOWN)
-		return snprintf(buf, 20, "unknown\n");
+		return snprintf(buf, 20, "unkyeswn\n");
 	else
 		return show_shost_mode(shost->active_mode, buf);
 }
@@ -457,8 +457,8 @@ static void scsi_device_dev_release_usercontext(struct work_struct *work)
 	list_for_each_safe(this, tmp, &sdev->event_list) {
 		struct scsi_event *evt;
 
-		evt = list_entry(this, struct scsi_event, node);
-		list_del(&evt->node);
+		evt = list_entry(this, struct scsi_event, yesde);
+		list_del(&evt->yesde);
 		kfree(evt);
 	}
 
@@ -513,7 +513,7 @@ static int scsi_bus_match(struct device *dev, struct device_driver *gendrv)
 		return 0;
 
 	sdp = to_scsi_device(dev);
-	if (sdp->no_uld_attach)
+	if (sdp->yes_uld_attach)
 		return 0;
 	return (sdp->inq_periph_qual == SCSI_INQ_PQ_CON)? 1: 0;
 }
@@ -563,7 +563,7 @@ void scsi_sysfs_unregister(void)
 
 /*
  * sdev_show_function: macro to create an attr function that can be used to
- * show a non-bit field.
+ * show a yesn-bit field.
  */
 #define sdev_show_function(field, format_string)				\
 static ssize_t								\
@@ -738,7 +738,7 @@ static ssize_t
 sdev_store_delete(struct device *dev, struct device_attribute *attr,
 		  const char *buf, size_t count)
 {
-	struct kernfs_node *kn;
+	struct kernfs_yesde *kn;
 	struct scsi_device *sdev = to_scsi_device(dev);
 
 	/*
@@ -754,10 +754,10 @@ sdev_store_delete(struct device *dev, struct device_attribute *attr,
 	 * Concurrent writes into the "delete" sysfs attribute may trigger
 	 * concurrent calls to device_remove_file() and scsi_remove_device().
 	 * device_remove_file() handles concurrent removal calls by
-	 * serializing these and by ignoring the second and later removal
+	 * serializing these and by igyesring the second and later removal
 	 * attempts.  Concurrent calls of scsi_remove_device() are
 	 * serialized. The second and later calls of scsi_remove_device() are
-	 * ignored because the first call of that function changes the device
+	 * igyesred because the first call of that function changes the device
 	 * state into SDEV_DEL.
 	 */
 	device_remove_file(dev, attr);
@@ -825,7 +825,7 @@ show_queue_type_field(struct device *dev, struct device_attribute *attr,
 		      char *buf)
 {
 	struct scsi_device *sdev = to_scsi_device(dev);
-	const char *name = "none";
+	const char *name = "yesne";
 
 	if (sdev->simple_tags)
 		name = "simple";
@@ -843,7 +843,7 @@ store_queue_type_field(struct device *dev, struct device_attribute *attr,
 		return -EINVAL;
 		
 	sdev_printk(KERN_INFO, sdev,
-		    "ignoring write to deprecated queue_type attribute");
+		    "igyesring write to deprecated queue_type attribute");
 	return count;
 }
 
@@ -1126,7 +1126,7 @@ sdev_show_access_state(struct device *dev,
 	access_state_name = scsi_access_state_name(access_state);
 
 	return sprintf(buf, "%s\n",
-		       access_state_name ? access_state_name : "unknown");
+		       access_state_name ? access_state_name : "unkyeswn");
 }
 static DEVICE_ATTR(access_state, S_IRUGO, sdev_show_access_state, NULL);
 
@@ -1311,7 +1311,7 @@ static int scsi_target_add(struct scsi_target *starget)
  * @sdev:	scsi_device to add
  *
  * Return value:
- * 	0 on Success / non-zero on Failure
+ * 	0 on Success / yesn-zero on Failure
  **/
 int scsi_sysfs_add_sdev(struct scsi_device *sdev)
 {
@@ -1357,10 +1357,10 @@ int scsi_sysfs_add_sdev(struct scsi_device *sdev)
 
 	error = bsg_scsi_register_queue(rq, &sdev->sdev_gendev);
 	if (error)
-		/* we're treating error on bsg register as non-fatal,
-		 * so pretend nothing went wrong */
+		/* we're treating error on bsg register as yesn-fatal,
+		 * so pretend yesthing went wrong */
 		sdev_printk(KERN_INFO, sdev,
-			    "Failed to register bsg queue, errno=%d\n", error);
+			    "Failed to register bsg queue, erryes=%d\n", error);
 
 	/* add additional host specific attributes */
 	if (sdev->host->hostt->sdev_attrs) {
@@ -1389,7 +1389,7 @@ void __scsi_remove_device(struct scsi_device *sdev)
 	int res;
 
 	/*
-	 * This cleanup path is not reentrant and while it is impossible
+	 * This cleanup path is yest reentrant and while it is impossible
 	 * to get a new reference with scsi_device_get() someone can still
 	 * hold a previously acquired one.
 	 */
@@ -1479,7 +1479,7 @@ static void __scsi_remove_target(struct scsi_target *starget)
  restart:
 	list_for_each_entry(sdev, &shost->__devices, siblings) {
 		/*
-		 * We cannot call scsi_device_get() here, as
+		 * We canyest call scsi_device_get() here, as
 		 * we might've been called from rmmod() causing
 		 * scsi_device_get() to fail the module_is_live()
 		 * check.
@@ -1505,7 +1505,7 @@ static void __scsi_remove_target(struct scsi_target *starget)
  * @dev: generic starget or parent of generic stargets to be removed
  *
  * Note: This is slightly racy.  It is possible that if the user
- * requests the addition of another device then the target won't be
+ * requests the addition of ayesther device then the target won't be
  * removed.
  */
 void scsi_remove_target(struct device *dev)
@@ -1592,13 +1592,13 @@ void scsi_sysfs_device_initialize(struct scsi_device *sdev)
 	sdev->sdev_gendev.bus = &scsi_bus_type;
 	sdev->sdev_gendev.type = &scsi_dev_type;
 	dev_set_name(&sdev->sdev_gendev, "%d:%d:%d:%llu",
-		     sdev->host->host_no, sdev->channel, sdev->id, sdev->lun);
+		     sdev->host->host_yes, sdev->channel, sdev->id, sdev->lun);
 
 	device_initialize(&sdev->sdev_dev);
 	sdev->sdev_dev.parent = get_device(&sdev->sdev_gendev);
 	sdev->sdev_dev.class = &sdev_class;
 	dev_set_name(&sdev->sdev_dev, "%d:%d:%d:%llu",
-		     sdev->host->host_no, sdev->channel, sdev->id, sdev->lun);
+		     sdev->host->host_yes, sdev->channel, sdev->id, sdev->lun);
 	/*
 	 * Get a default scsi_level from the target (derived from sibling
 	 * devices).  This is the best we can do for guessing how to set
@@ -1609,7 +1609,7 @@ void scsi_sysfs_device_initialize(struct scsi_device *sdev)
 	sdev->scsi_level = starget->scsi_level;
 	if (sdev->scsi_level <= SCSI_2 &&
 			sdev->scsi_level != SCSI_UNKNOWN &&
-			!shost->no_scsi2_lun_in_cdb)
+			!shost->yes_scsi2_lun_in_cdb)
 		sdev->lun_in_cdb = 1;
 
 	transport_setup_device(&sdev->sdev_gendev);
@@ -1618,7 +1618,7 @@ void scsi_sysfs_device_initialize(struct scsi_device *sdev)
 	list_add_tail(&sdev->siblings, &shost->__devices);
 	spin_unlock_irqrestore(shost->host_lock, flags);
 	/*
-	 * device can now only be removed via __scsi_remove_device() so hold
+	 * device can yesw only be removed via __scsi_remove_device() so hold
 	 * the target.  Target will be held in CREATED state until something
 	 * beneath it becomes visible (in which case it moves to RUNNING)
 	 */

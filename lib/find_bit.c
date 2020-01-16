@@ -8,7 +8,7 @@
  * 'find_last_bit' is written by Rusty Russell <rusty@rustcorp.com.au>
  * (Inspired by David Howell's find_next_bit implementation)
  *
- * Rewritten by Yury Norov <yury.norov@gmail.com> to decrease
+ * Rewritten by Yury Norov <yury.yesrov@gmail.com> to decrease
  * size and improve performance, 2015.
  */
 
@@ -149,7 +149,7 @@ EXPORT_SYMBOL(find_last_bit);
 
 #ifdef __BIG_ENDIAN
 
-/* include/linux/byteorder does not support "unsigned long" type */
+/* include/linux/byteorder does yest support "unsigned long" type */
 static inline unsigned long ext2_swab(const unsigned long y)
 {
 #if BITS_PER_LONG == 64
@@ -157,7 +157,7 @@ static inline unsigned long ext2_swab(const unsigned long y)
 #elif BITS_PER_LONG == 32
 	return (unsigned long) __swab32((u32) y);
 #else
-#error BITS_PER_LONG not defined
+#error BITS_PER_LONG yest defined
 #endif
 }
 

@@ -25,7 +25,7 @@
 11	i386	execve			sys_execve			__ia32_compat_sys_execve
 12	i386	chdir			sys_chdir			__ia32_sys_chdir
 13	i386	time			sys_time32			__ia32_sys_time32
-14	i386	mknod			sys_mknod			__ia32_sys_mknod
+14	i386	mkyesd			sys_mkyesd			__ia32_sys_mkyesd
 15	i386	chmod			sys_chmod			__ia32_sys_chmod
 16	i386	lchown			sys_lchown16			__ia32_sys_lchown16
 17	i386	break
@@ -173,7 +173,7 @@
 159	i386	sched_get_priority_max	sys_sched_get_priority_max	__ia32_sys_sched_get_priority_max
 160	i386	sched_get_priority_min	sys_sched_get_priority_min	__ia32_sys_sched_get_priority_min
 161	i386	sched_rr_get_interval	sys_sched_rr_get_interval_time32	__ia32_sys_sched_rr_get_interval_time32
-162	i386	nanosleep		sys_nanosleep_time32		__ia32_sys_nanosleep_time32
+162	i386	nayessleep		sys_nayessleep_time32		__ia32_sys_nayessleep_time32
 163	i386	mremap			sys_mremap			__ia32_sys_mremap
 164	i386	setresuid		sys_setresuid16			__ia32_sys_setresuid16
 165	i386	getresuid		sys_getresuid16			__ia32_sys_getresuid16
@@ -278,7 +278,7 @@
 264	i386	clock_settime		sys_clock_settime32		__ia32_sys_clock_settime32
 265	i386	clock_gettime		sys_clock_gettime32		__ia32_sys_clock_gettime32
 266	i386	clock_getres		sys_clock_getres_time32		__ia32_sys_clock_getres_time32
-267	i386	clock_nanosleep		sys_clock_nanosleep_time32	__ia32_sys_clock_nanosleep_time32
+267	i386	clock_nayessleep		sys_clock_nayessleep_time32	__ia32_sys_clock_nayessleep_time32
 268	i386	statfs64		sys_statfs64			__ia32_compat_sys_statfs64
 269	i386	fstatfs64		sys_fstatfs64			__ia32_compat_sys_fstatfs64
 270	i386	tgkill			sys_tgkill			__ia32_sys_tgkill
@@ -292,7 +292,7 @@
 278	i386	mq_unlink		sys_mq_unlink			__ia32_sys_mq_unlink
 279	i386	mq_timedsend		sys_mq_timedsend_time32		__ia32_sys_mq_timedsend_time32
 280	i386	mq_timedreceive		sys_mq_timedreceive_time32	__ia32_sys_mq_timedreceive_time32
-281	i386	mq_notify		sys_mq_notify			__ia32_compat_sys_mq_notify
+281	i386	mq_yestify		sys_mq_yestify			__ia32_compat_sys_mq_yestify
 282	i386	mq_getsetattr		sys_mq_getsetattr		__ia32_compat_sys_mq_getsetattr
 283	i386	kexec_load		sys_kexec_load			__ia32_compat_sys_kexec_load
 284	i386	waitid			sys_waitid			__ia32_compat_sys_waitid
@@ -302,13 +302,13 @@
 288	i386	keyctl			sys_keyctl			__ia32_compat_sys_keyctl
 289	i386	ioprio_set		sys_ioprio_set			__ia32_sys_ioprio_set
 290	i386	ioprio_get		sys_ioprio_get			__ia32_sys_ioprio_get
-291	i386	inotify_init		sys_inotify_init		__ia32_sys_inotify_init
-292	i386	inotify_add_watch	sys_inotify_add_watch		__ia32_sys_inotify_add_watch
-293	i386	inotify_rm_watch	sys_inotify_rm_watch		__ia32_sys_inotify_rm_watch
+291	i386	iyestify_init		sys_iyestify_init		__ia32_sys_iyestify_init
+292	i386	iyestify_add_watch	sys_iyestify_add_watch		__ia32_sys_iyestify_add_watch
+293	i386	iyestify_rm_watch	sys_iyestify_rm_watch		__ia32_sys_iyestify_rm_watch
 294	i386	migrate_pages		sys_migrate_pages		__ia32_sys_migrate_pages
 295	i386	openat			sys_openat			__ia32_compat_sys_openat
 296	i386	mkdirat			sys_mkdirat			__ia32_sys_mkdirat
-297	i386	mknodat			sys_mknodat			__ia32_sys_mknodat
+297	i386	mkyesdat			sys_mkyesdat			__ia32_sys_mkyesdat
 298	i386	fchownat		sys_fchownat			__ia32_sys_fchownat
 299	i386	futimesat		sys_futimesat_time32		__ia32_sys_futimesat_time32
 300	i386	fstatat64		sys_fstatat64			__ia32_compat_sys_x86_fstatat
@@ -343,14 +343,14 @@
 329	i386	epoll_create1		sys_epoll_create1		__ia32_sys_epoll_create1
 330	i386	dup3			sys_dup3			__ia32_sys_dup3
 331	i386	pipe2			sys_pipe2			__ia32_sys_pipe2
-332	i386	inotify_init1		sys_inotify_init1		__ia32_sys_inotify_init1
+332	i386	iyestify_init1		sys_iyestify_init1		__ia32_sys_iyestify_init1
 333	i386	preadv			sys_preadv			__ia32_compat_sys_preadv
 334	i386	pwritev			sys_pwritev			__ia32_compat_sys_pwritev
 335	i386	rt_tgsigqueueinfo	sys_rt_tgsigqueueinfo		__ia32_compat_sys_rt_tgsigqueueinfo
 336	i386	perf_event_open		sys_perf_event_open		__ia32_sys_perf_event_open
 337	i386	recvmmsg		sys_recvmmsg_time32		__ia32_compat_sys_recvmmsg_time32
-338	i386	fanotify_init		sys_fanotify_init		__ia32_sys_fanotify_init
-339	i386	fanotify_mark		sys_fanotify_mark		__ia32_compat_sys_fanotify_mark
+338	i386	fayestify_init		sys_fayestify_init		__ia32_sys_fayestify_init
+339	i386	fayestify_mark		sys_fayestify_mark		__ia32_compat_sys_fayestify_mark
 340	i386	prlimit64		sys_prlimit64			__ia32_sys_prlimit64
 341	i386	name_to_handle_at	sys_name_to_handle_at		__ia32_sys_name_to_handle_at
 342	i386	open_by_handle_at	sys_open_by_handle_at		__ia32_compat_sys_open_by_handle_at
@@ -412,7 +412,7 @@
 404	i386	clock_settime64		sys_clock_settime		__ia32_sys_clock_settime
 405	i386	clock_adjtime64		sys_clock_adjtime		__ia32_sys_clock_adjtime
 406	i386	clock_getres_time64	sys_clock_getres		__ia32_sys_clock_getres
-407	i386	clock_nanosleep_time64	sys_clock_nanosleep		__ia32_sys_clock_nanosleep
+407	i386	clock_nayessleep_time64	sys_clock_nayessleep		__ia32_sys_clock_nayessleep
 408	i386	timer_gettime64		sys_timer_gettime		__ia32_sys_timer_gettime
 409	i386	timer_settime64		sys_timer_settime		__ia32_sys_timer_settime
 410	i386	timerfd_gettime64	sys_timerfd_gettime		__ia32_sys_timerfd_gettime

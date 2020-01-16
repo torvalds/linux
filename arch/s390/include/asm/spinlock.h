@@ -26,9 +26,9 @@ bool arch_vcpu_is_preempted(int cpu);
 
 /*
  * Simple spin lock operations.  There are two variants, one clears IRQ's
- * on the local processor, one does not.
+ * on the local processor, one does yest.
  *
- * We make no fairness assumptions. They have a cost.
+ * We make yes fairness assumptions. They have a cost.
  *
  * (the type definitions are in asm/spinlock_types.h)
  */
@@ -97,9 +97,9 @@ static inline void arch_spin_unlock(arch_spinlock_t *lp)
  * but only one writer.
  *
  * NOTE! it is quite common to have readers in interrupts
- * but no interrupt writers. For those circumstances we
+ * but yes interrupt writers. For those circumstances we
  * can "mix" irq-safe locks - any writer needs to get a
- * irq-safe write-lock, but readers can get non-irqsafe
+ * irq-safe write-lock, but readers can get yesn-irqsafe
  * read-locks.
  */
 

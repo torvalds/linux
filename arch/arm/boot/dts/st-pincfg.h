@@ -46,7 +46,7 @@
 #define BYPASS		(0)
 /*
  * R0, R1, R0D, R1D modes
- * single-edge data non inverted clock, retime data with clk
+ * single-edge data yesn inverted clock, retime data with clk
  */
 #define SE_NICLK_IO	(RT)
 /*
@@ -61,12 +61,12 @@
 #define DE_IO		(RT | DOUBLE_EDGE)
 /*
  * CIV0, CIV1 modes with inverted clock
- * Retiming the clk pins will park clock & reduce the noise within the core.
+ * Retiming the clk pins will park clock & reduce the yesise within the core.
  */
 #define ICLK		(RT | CLKNOTDATA | INVERTCLK)
 /*
- * CLK0, CLK1 modes with non-inverted clock
- * Retiming the clk pins will park clock & reduce the noise within the core.
+ * CLK0, CLK1 modes with yesn-inverted clock
+ * Retiming the clk pins will park clock & reduce the yesise within the core.
  */
 #define NICLK		(RT | CLKNOTDATA)
 #endif /* _ST_PINCFG_H_ */

@@ -118,7 +118,7 @@ static size_t pci_get_rom_size(struct pci_dev *pdev, void __iomem *rom,
 	} while (length && !last_image);
 
 	/* never return a size larger than the PCI resource window */
-	/* there are known ROMs that get the size wrong */
+	/* there are kyeswn ROMs that get the size wrong */
 	return min((size_t)(image - rom), size);
 }
 

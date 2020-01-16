@@ -122,10 +122,10 @@ static const struct i2c_hid_cmd hid_reset_cmd =		{ I2C_HID_CMD(0x01),
 static const struct i2c_hid_cmd hid_get_report_cmd =	{ I2C_HID_CMD(0x02) };
 static const struct i2c_hid_cmd hid_set_report_cmd =	{ I2C_HID_CMD(0x03) };
 static const struct i2c_hid_cmd hid_set_power_cmd =	{ I2C_HID_CMD(0x08) };
-static const struct i2c_hid_cmd hid_no_cmd =		{ .length = 0 };
+static const struct i2c_hid_cmd hid_yes_cmd =		{ .length = 0 };
 
 /*
- * These definitions are not used here, but are defined by the spec.
+ * These definitions are yest used here, but are defined by the spec.
  * Keeping them here for documentation purposes.
  *
  * static const struct i2c_hid_cmd hid_get_idle_cmd = { I2C_HID_CMD(0x04) };
@@ -359,7 +359,7 @@ static int i2c_hid_set_or_send_report(struct i2c_client *client, u8 reportType,
 	}
 
 	/*
-	 * use the data register for feature reports or if the device does not
+	 * use the data register for feature reports or if the device does yest
 	 * support the output register
 	 */
 	if (use_data) {
@@ -369,7 +369,7 @@ static int i2c_hid_set_or_send_report(struct i2c_client *client, u8 reportType,
 	} else {
 		args[index++] = outputRegister & 0xFF;
 		args[index++] = outputRegister >> 8;
-		hidcmd = &hid_no_cmd;
+		hidcmd = &hid_yes_cmd;
 	}
 
 	args[index++] = size & 0xFF;
@@ -400,7 +400,7 @@ static int i2c_hid_set_power(struct i2c_client *client, int power_state)
 	/*
 	 * Some devices require to send a command to wakeup before power on.
 	 * The call will get a return value (EREMOTEIO) but device will be
-	 * triggered and activated. After that, it goes like a normal device.
+	 * triggered and activated. After that, it goes like a yesrmal device.
 	 */
 	if (power_state == I2C_HID_PWR_ON &&
 	    ihid->quirks & I2C_HID_QUIRK_SET_PWR_WAKEUP_DEV) {
@@ -495,7 +495,7 @@ static void i2c_hid_get_input(struct i2c_hid *ihid)
 
 	if (ihid->quirks & I2C_HID_QUIRK_BOGUS_IRQ && ret_size == 0xffff) {
 		dev_warn_once(&ihid->client->dev, "%s: IRQ triggered but "
-			      "there's no data\n", __func__);
+			      "there's yes data\n", __func__);
 		return;
 	}
 
@@ -547,7 +547,7 @@ static void i2c_hid_find_max_report(struct hid_device *hid, unsigned int type,
 	struct hid_report *report;
 	unsigned int size;
 
-	/* We should not rely on wMaxInputLength, as some devices may set it to
+	/* We should yest rely on wMaxInputLength, as some devices may set it to
 	 * a wrong length. */
 	list_for_each_entry(report, &hid->report_enum[type].report_list, list) {
 		size = i2c_hid_get_report_length(report);
@@ -823,7 +823,7 @@ static int i2c_hid_init_irq(struct i2c_client *client)
 				   irqflags | IRQF_ONESHOT, client->name, ihid);
 	if (ret < 0) {
 		dev_warn(&client->dev,
-			"Could not register for %s interrupt, irq = %d,"
+			"Could yest register for %s interrupt, irq = %d,"
 			" ret = %d\n",
 			client->name, client->irq, ret);
 
@@ -882,7 +882,7 @@ static int i2c_hid_fetch_hid_descriptor(struct i2c_hid *ihid)
 static const struct acpi_device_id i2c_hid_acpi_blacklist[] = {
 	/*
 	 * The CHPN0001 ACPI device, which is used to describe the Chipone
-	 * ICN8505 controller, has a _CID of PNP0C50 but is not HID compatible.
+	 * ICN8505 controller, has a _CID of PNP0C50 but is yest HID compatible.
 	 */
 	{"CHPN0001", 0 },
 	{ },
@@ -900,7 +900,7 @@ static int i2c_hid_acpi_pdata(struct i2c_client *client,
 
 	handle = ACPI_HANDLE(&client->dev);
 	if (!handle || acpi_bus_get_device(handle, &adev)) {
-		dev_err(&client->dev, "Error could not get ACPI device\n");
+		dev_err(&client->dev, "Error could yest get ACPI device\n");
 		return -ENODEV;
 	}
 
@@ -953,9 +953,9 @@ static int i2c_hid_of_probe(struct i2c_client *client,
 	u32 val;
 	int ret;
 
-	ret = of_property_read_u32(dev->of_node, "hid-descr-addr", &val);
+	ret = of_property_read_u32(dev->of_yesde, "hid-descr-addr", &val);
 	if (ret) {
-		dev_err(&client->dev, "HID register address not provided\n");
+		dev_err(&client->dev, "HID register address yest provided\n");
 		return -ENODEV;
 	}
 	if (val >> 16) {
@@ -981,7 +981,7 @@ static inline int i2c_hid_of_probe(struct i2c_client *client,
 }
 #endif
 
-static void i2c_hid_fwnode_probe(struct i2c_client *client,
+static void i2c_hid_fwyesde_probe(struct i2c_client *client,
 				 struct i2c_hid_platform_data *pdata)
 {
 	u32 val;
@@ -1004,7 +1004,7 @@ static int i2c_hid_probe(struct i2c_client *client,
 
 	if (!client->irq) {
 		dev_err(&client->dev,
-			"HID over i2c has not been provided an Int IRQ\n");
+			"HID over i2c has yest been provided an Int IRQ\n");
 		return -EINVAL;
 	}
 
@@ -1019,7 +1019,7 @@ static int i2c_hid_probe(struct i2c_client *client,
 	if (!ihid)
 		return -ENOMEM;
 
-	if (client->dev.of_node) {
+	if (client->dev.of_yesde) {
 		ret = i2c_hid_of_probe(client, &ihid->pdata);
 		if (ret)
 			return ret;
@@ -1031,8 +1031,8 @@ static int i2c_hid_probe(struct i2c_client *client,
 		ihid->pdata = *platform_data;
 	}
 
-	/* Parse platform agnostic common properties from ACPI / device tree */
-	i2c_hid_fwnode_probe(client, &ihid->pdata);
+	/* Parse platform agyesstic common properties from ACPI / device tree */
+	i2c_hid_fwyesde_probe(client, &ihid->pdata);
 
 	ihid->pdata.supplies[0].supply = "vdd";
 	ihid->pdata.supplies[1].supply = "vddl";
@@ -1061,7 +1061,7 @@ static int i2c_hid_probe(struct i2c_client *client,
 	init_waitqueue_head(&ihid->wait);
 	mutex_init(&ihid->reset_lock);
 
-	/* we need to allocate the command buffer without knowing the maximum
+	/* we need to allocate the command buffer without kyeswing the maximum
 	 * size of the reports. Let's use HID_MIN_BUFFER_SIZE, then we do the
 	 * real computation later. */
 	ret = i2c_hid_alloc_buffers(ihid, HID_MIN_BUFFER_SIZE);
@@ -1075,7 +1075,7 @@ static int i2c_hid_probe(struct i2c_client *client,
 	/* Make sure there is something at this address */
 	ret = i2c_smbus_read_byte(client);
 	if (ret < 0) {
-		dev_dbg(&client->dev, "nothing at this address: %d\n", ret);
+		dev_dbg(&client->dev, "yesthing at this address: %d\n", ret);
 		ret = -ENXIO;
 		goto err_regulator;
 	}
@@ -1223,7 +1223,7 @@ static int i2c_hid_resume(struct device *dev)
 
 	/* Instead of resetting device, simply powers the device on. This
 	 * solves "incomplete reports" on Raydium devices 2386:3118 and
-	 * 2386:4B33 and fixes various SIS touchscreens no longer sending
+	 * 2386:4B33 and fixes various SIS touchscreens yes longer sending
 	 * data after a suspend/resume.
 	 *
 	 * However some ALPS touchpads generate IRQ storm without reset, so

@@ -95,8 +95,8 @@ static const struct regmap_range mcp23x08_volatile_range = {
 };
 
 static const struct regmap_access_table mcp23x08_volatile_table = {
-	.yes_ranges = &mcp23x08_volatile_range,
-	.n_yes_ranges = 1,
+	.no_ranges = &mcp23x08_volatile_range,
+	.n_no_ranges = 1,
 };
 
 static const struct regmap_range mcp23x08_precious_range = {
@@ -105,8 +105,8 @@ static const struct regmap_range mcp23x08_precious_range = {
 };
 
 static const struct regmap_access_table mcp23x08_precious_table = {
-	.yes_ranges = &mcp23x08_precious_range,
-	.n_yes_ranges = 1,
+	.no_ranges = &mcp23x08_precious_range,
+	.n_no_ranges = 1,
 };
 
 static const struct regmap_config mcp23x08_regmap = {
@@ -139,8 +139,8 @@ static const struct regmap_range mcp23x16_volatile_range = {
 };
 
 static const struct regmap_access_table mcp23x16_volatile_table = {
-	.yes_ranges = &mcp23x16_volatile_range,
-	.n_yes_ranges = 1,
+	.no_ranges = &mcp23x16_volatile_range,
+	.n_no_ranges = 1,
 };
 
 static const struct regmap_range mcp23x16_precious_range = {
@@ -149,8 +149,8 @@ static const struct regmap_range mcp23x16_precious_range = {
 };
 
 static const struct regmap_access_table mcp23x16_precious_table = {
-	.yes_ranges = &mcp23x16_precious_range,
-	.n_yes_ranges = 1,
+	.no_ranges = &mcp23x16_precious_range,
+	.n_no_ranges = 1,
 };
 
 static const struct regmap_config mcp23x17_regmap = {
@@ -246,7 +246,7 @@ static const struct pinctrl_ops mcp_pinctrl_ops = {
 	.get_group_name = mcp_pinctrl_get_group_name,
 	.get_group_pins = mcp_pinctrl_get_group_pins,
 #ifdef CONFIG_OF
-	.dt_node_to_map = pinconf_generic_dt_node_to_map_pin,
+	.dt_yesde_to_map = pinconf_generic_dt_yesde_to_map_pin,
 	.dt_free_map = pinconf_generic_dt_free_map,
 #endif
 };
@@ -373,7 +373,7 @@ static const struct regmap_bus mcp23sxx_spi_regmap = {
 
 /* A given spi_device can represent up to eight mcp23sxx chips
  * sharing the same chipselect but using different addresses
- * (e.g. chips #0 and #3 might be populated, but not #1 or $2).
+ * (e.g. chips #0 and #3 might be populated, but yest #1 or $2).
  * Driver data holds all the per-chip data.
  */
 struct mcp23s08_driver_data {
@@ -477,7 +477,7 @@ static irqreturn_t mcp23s08_irq(int irq, void *data)
 	mutex_unlock(&mcp->lock);
 
 	if (intf == 0) {
-		/* There is no interrupt pending */
+		/* There is yes interrupt pending */
 		return IRQ_HANDLED;
 	}
 
@@ -487,11 +487,11 @@ static irqreturn_t mcp23s08_irq(int irq, void *data)
 
 	for (i = 0; i < mcp->chip.ngpio; i++) {
 		/* We must check all of the inputs on the chip,
-		 * otherwise we may not notice a change on >=2 pins.
+		 * otherwise we may yest yestice a change on >=2 pins.
 		 *
 		 * On at least the mcp23s17, INTCAP is only updated
 		 * one byte at a time(INTCAPA and INTCAPB are
-		 * not written to at the same time - only on a per-bank
+		 * yest written to at the same time - only on a per-bank
 		 * basis).
 		 *
 		 * INTF only contains the single bit that caused the
@@ -643,7 +643,7 @@ static int mcp23s08_irqchip_setup(struct mcp23s08 *mcp)
 					   IRQ_TYPE_NONE);
 	if (err) {
 		dev_err(chip->parent,
-			"could not connect irqchip to gpiochip: %d\n", err);
+			"could yest connect irqchip to gpiochip: %d\n", err);
 		return err;
 	}
 
@@ -678,7 +678,7 @@ static int mcp23s08_probe_one(struct mcp23s08 *mcp, struct device *dev,
 	mcp->chip.set = mcp23s08_set;
 #ifdef CONFIG_OF_GPIO
 	mcp->chip.of_gpio_n_cells = 2;
-	mcp->chip.of_node = dev->of_node;
+	mcp->chip.of_yesde = dev->of_yesde;
 #endif
 
 	switch (type) {

@@ -67,7 +67,7 @@ int stv06xx_read_bridge(struct sd *sd, u16 address, u8 *i2c_data)
 	return (err < 0) ? err : 0;
 }
 
-/* Wraps the normal write sensor bytes / words functions for writing a
+/* Wraps the yesrmal write sensor bytes / words functions for writing a
    single value */
 int stv06xx_write_sensor(struct sd *sd, u8 address, u16 value)
 {
@@ -292,7 +292,7 @@ static int stv06xx_start(struct gspca_dev *gspca_dev)
 	if (err < 0)
 		goto out;
 
-	/* Start isochronous streaming */
+	/* Start isochroyesus streaming */
 	err = stv06xx_write_bridge(sd, STV_ISO_ENABLE, 1);
 
 out:
@@ -364,12 +364,12 @@ out:
  * Analyse an USB packet of the data stream and store it appropriately.
  * Each packet contains an integral number of chunks. Each chunk has
  * 2-bytes identification, followed by 2-bytes that describe the chunk
- * length. Known/guessed chunk identifications are:
+ * length. Kyeswn/guessed chunk identifications are:
  * 8001/8005/C001/C005 - Begin new frame
  * 8002/8006/C002/C006 - End frame
  * 0200/4200           - Contains actual image data, bayer or compressed
- * 0005                - 11 bytes of unknown data
- * 0100                - 2 bytes of unknown data
+ * 0005                - 11 bytes of unkyeswn data
+ * 0100                - 2 bytes of unkyeswn data
  * The 0005 and 0100 chunks seem to appear only in compressed stream.
  */
 static void stv06xx_pkt_scan(struct gspca_dev *gspca_dev,
@@ -407,7 +407,7 @@ static void stv06xx_pkt_scan(struct gspca_dev *gspca_dev,
 			return;
 		}
 
-		/* First byte seem to be 02=data 2nd byte is unknown??? */
+		/* First byte seem to be 02=data 2nd byte is unkyeswn??? */
 		if (sd->bridge == BRIDGE_ST6422 && (id & 0xff00) == 0x0200)
 			goto frame_data;
 
@@ -444,7 +444,7 @@ frame_data:
 				sd->to_skip = gspca_dev->pixfmt.width * 4;
 
 			if (chunk_len)
-				gspca_err(gspca_dev, "Chunk length is non-zero on a SOF\n");
+				gspca_err(gspca_dev, "Chunk length is yesn-zero on a SOF\n");
 			break;
 
 		case 0x8002:
@@ -457,19 +457,19 @@ frame_data:
 					NULL, 0);
 
 			if (chunk_len)
-				gspca_err(gspca_dev, "Chunk length is non-zero on a EOF\n");
+				gspca_err(gspca_dev, "Chunk length is yesn-zero on a EOF\n");
 			break;
 
 		case 0x0005:
 			gspca_dbg(gspca_dev, D_PACK, "Chunk 0x005 detected\n");
-			/* Unknown chunk with 11 bytes of data,
+			/* Unkyeswn chunk with 11 bytes of data,
 			   occurs just before end of each frame
 			   in compressed mode */
 			break;
 
 		case 0x0100:
 			gspca_dbg(gspca_dev, D_PACK, "Chunk 0x0100 detected\n");
-			/* Unknown chunk with 2 bytes of data,
+			/* Unkyeswn chunk with 2 bytes of data,
 			   occurs 2-3 times per USB interrupt */
 			break;
 		case 0x42ff:
@@ -477,9 +477,9 @@ frame_data:
 			/* Special chunk seen sometimes on the ST6422 */
 			break;
 		default:
-			gspca_dbg(gspca_dev, D_PACK, "Unknown chunk 0x%04x detected\n",
+			gspca_dbg(gspca_dev, D_PACK, "Unkyeswn chunk 0x%04x detected\n",
 				  id);
-			/* Unknown chunk */
+			/* Unkyeswn chunk */
 		}
 		data    += chunk_len;
 		len     -= chunk_len;

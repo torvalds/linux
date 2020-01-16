@@ -421,7 +421,7 @@ static int stk3310_set_state(struct stk3310_data *data, u8 state)
 	int ret;
 	struct i2c_client *client = data->client;
 
-	/* 3-bit state; 0b100 is not supported. */
+	/* 3-bit state; 0b100 is yest supported. */
 	if (state > 7 || state == 4)
 		return -EINVAL;
 

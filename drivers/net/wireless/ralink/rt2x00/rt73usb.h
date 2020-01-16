@@ -134,7 +134,7 @@ struct hw_pairwise_ta_entry {
 
 /*
  * MAC_CSR1: System control register.
- * SOFT_RESET: Software reset bit, 1: reset, 0: normal.
+ * SOFT_RESET: Software reset bit, 1: reset, 0: yesrmal.
  * BBP_RESET: Hardware reset BBP.
  * HOST_READY: Host is ready after initialization, 1: ready.
  */
@@ -178,7 +178,7 @@ struct hw_pairwise_ta_entry {
  * MAC_CSR5: BSSID register 1.
  * BSS_ID_MASK:
  *	This mask is used to mask off bits 0 and 1 of byte 5 of the
- *	BSSID. This will make sure that those bits will be ignored
+ *	BSSID. This will make sure that those bits will be igyesred
  *	when determining the MY_BSS of RX frames.
  *		0: 1-BSSID mode (BSS index = 0)
  *		1: 2-BSSID mode (BSS index: Byte5, bit 0)
@@ -279,7 +279,7 @@ struct hw_pairwise_ta_entry {
  * MAC_CSR14: LED control register.
  * ON_PERIOD: On period, default 70ms.
  * OFF_PERIOD: Off period, default 30ms.
- * HW_LED: HW TX activity, 1: normal OFF, 0: normal ON.
+ * HW_LED: HW TX activity, 1: yesrmal OFF, 0: yesrmal ON.
  * SW_LED: s/w LED, 1: ON, 0: OFF.
  * HW_LED_POLARITY: 0: active low, 1: active high.
  */
@@ -309,7 +309,7 @@ struct hw_pairwise_ta_entry {
  * DROP_CRC: Drop CRC error.
  * DROP_PHYSICAL: Drop physical error.
  * DROP_CONTROL: Drop control frame.
- * DROP_NOT_TO_ME: Drop not to me unicast frame.
+ * DROP_NOT_TO_ME: Drop yest to me unicast frame.
  * DROP_TO_DS: Drop fram ToDs bit is true.
  * DROP_VERSION_ERROR: Drop version error frame.
  * DROP_MULTICAST: Drop multicast frames.
@@ -806,7 +806,7 @@ struct hw_pairwise_ta_entry {
  * ANTENNA_NUM: Number of antennas.
  * TX_DEFAULT: Default antenna 0: diversity, 1: A, 2: B.
  * RX_DEFAULT: Default antenna 0: diversity, 1: A, 2: B.
- * FRAME_TYPE: 0: DPDT , 1: SPDT , noted this bit is valid for g only.
+ * FRAME_TYPE: 0: DPDT , 1: SPDT , yested this bit is valid for g only.
  * DYN_TXAGC: Dynamic TX AGC control.
  * HARDWARE_RADIO: 1: Hardware controlled radio. Read GPIO0.
  * RF_TYPE: Rf_type of this adapter.

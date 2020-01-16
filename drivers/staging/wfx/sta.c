@@ -139,7 +139,7 @@ static int wfx_set_uapsd_param(struct wfx_vif *wvif,
 	else
 		wvif->uapsd_info.trig_bckgrnd = 0;
 
-	/* Currently pseudo U-APSD operation is not supported, so setting
+	/* Currently pseudo U-APSD operation is yest supported, so setting
 	 * MinAutoTriggerInterval, MaxAutoTriggerInterval and
 	 * AutoTriggerStep to 0
 	 */
@@ -221,18 +221,18 @@ void wfx_update_filtering(struct wfx_vif *wvif)
 		{
 			.ie_id        = WLAN_EID_VENDOR_SPECIFIC,
 			.has_changed  = 1,
-			.no_longer    = 1,
+			.yes_longer    = 1,
 			.has_appeared = 1,
 			.oui          = { 0x50, 0x6F, 0x9A },
 		}, {
 			.ie_id        = WLAN_EID_HT_OPERATION,
 			.has_changed  = 1,
-			.no_longer    = 1,
+			.yes_longer    = 1,
 			.has_appeared = 1,
 		}, {
 			.ie_id        = WLAN_EID_ERP_INFO,
 			.has_changed  = 1,
-			.no_longer    = 1,
+			.yes_longer    = 1,
 			.has_appeared = 1,
 		}
 	};
@@ -480,7 +480,7 @@ static void wfx_event_report_rssi(struct wfx_vif *wvif, u8 raw_rcpi_rssi)
 		cqm_evt = NL80211_CQM_RSSI_THRESHOLD_EVENT_LOW;
 	else
 		cqm_evt = NL80211_CQM_RSSI_THRESHOLD_EVENT_HIGH;
-	ieee80211_cqm_rssi_notify(wvif->vif, cqm_evt, rcpi_rssi, GFP_KERNEL);
+	ieee80211_cqm_rssi_yestify(wvif->vif, cqm_evt, rcpi_rssi, GFP_KERNEL);
 }
 
 static void wfx_event_handler_work(struct work_struct *work)
@@ -741,7 +741,7 @@ static void wfx_do_join(struct wfx_vif *wvif)
 		wfx_upload_keys(wvif);
 
 		/* Due to beacon filtering it is possible that the
-		 * AP's beacon is not known for the mac80211 stack.
+		 * AP's beacon is yest kyeswn for the mac80211 stack.
 		 * Disable filtering temporary to make sure the stack
 		 * receives at least one
 		 */
@@ -1154,7 +1154,7 @@ void wfx_bss_info_changed(struct ieee80211_hw *hw,
 			th.upperthresh = 1;
 			th.lowerthresh = 1;
 		} else {
-			/* FIXME It's not a correct way of setting threshold.
+			/* FIXME It's yest a correct way of setting threshold.
 			 * Upper and lower must be set equal here and adjusted
 			 * in callback. However current implementation is much
 			 * more reliable and stable.
@@ -1183,7 +1183,7 @@ void wfx_bss_info_changed(struct ieee80211_hw *hw,
 	}
 }
 
-static void wfx_ps_notify(struct wfx_vif *wvif, enum sta_notify_cmd notify_cmd,
+static void wfx_ps_yestify(struct wfx_vif *wvif, enum sta_yestify_cmd yestify_cmd,
 			  int link_id)
 {
 	u32 bit, prev;
@@ -1192,15 +1192,15 @@ static void wfx_ps_notify(struct wfx_vif *wvif, enum sta_notify_cmd notify_cmd,
 	/* Zero link id means "for all link IDs" */
 	if (link_id) {
 		bit = BIT(link_id);
-	} else if (notify_cmd != STA_NOTIFY_AWAKE) {
-		dev_warn(wvif->wdev->dev, "unsupported notify command\n");
+	} else if (yestify_cmd != STA_NOTIFY_AWAKE) {
+		dev_warn(wvif->wdev->dev, "unsupported yestify command\n");
 		bit = 0;
 	} else {
 		bit = wvif->link_id_map;
 	}
 	prev = wvif->sta_asleep_mask & bit;
 
-	switch (notify_cmd) {
+	switch (yestify_cmd) {
 	case STA_NOTIFY_SLEEP:
 		if (!prev) {
 			if (wvif->mcast_buffered && !wvif->sta_asleep_mask)
@@ -1221,13 +1221,13 @@ static void wfx_ps_notify(struct wfx_vif *wvif, enum sta_notify_cmd notify_cmd,
 	spin_unlock_bh(&wvif->ps_state_lock);
 }
 
-void wfx_sta_notify(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
-		    enum sta_notify_cmd notify_cmd, struct ieee80211_sta *sta)
+void wfx_sta_yestify(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+		    enum sta_yestify_cmd yestify_cmd, struct ieee80211_sta *sta)
 {
 	struct wfx_vif *wvif = (struct wfx_vif *) vif->drv_priv;
 	struct wfx_sta_priv *sta_priv = (struct wfx_sta_priv *) &sta->drv_priv;
 
-	wfx_ps_notify(wvif, notify_cmd, sta_priv->link_id);
+	wfx_ps_yestify(wvif, yestify_cmd, sta_priv->link_id);
 }
 
 static int wfx_set_tim_impl(struct wfx_vif *wvif, bool aid0_bit_set)
@@ -1249,7 +1249,7 @@ static int wfx_set_tim_impl(struct wfx_vif *wvif, bool aid0_bit_set)
 	tim_ptr = skb->data + tim_offset;
 
 	if (tim_offset && tim_length >= 6) {
-		/* Ignore DTIM count from mac80211:
+		/* Igyesre DTIM count from mac80211:
 		 * firmware handles DTIM internally.
 		 */
 		tim_ptr[2] = 0;
@@ -1331,7 +1331,7 @@ int wfx_ampdu_action(struct ieee80211_hw *hw,
 		     struct ieee80211_ampdu_params *params)
 {
 	/* Aggregation is implemented fully in firmware,
-	 * including block ack negotiation. Do not allow
+	 * including block ack negotiation. Do yest allow
 	 * mac80211 stack to do anything: it interferes with
 	 * the firmware.
 	 */
@@ -1362,11 +1362,11 @@ void wfx_suspend_resume(struct wfx_vif *wvif,
 			del_timer_sync(&wvif->mcast_timeout);
 	} else if (arg->suspend_resume_flags.resume) {
 		// FIXME: should change each station status independently
-		wfx_ps_notify(wvif, STA_NOTIFY_AWAKE, 0);
+		wfx_ps_yestify(wvif, STA_NOTIFY_AWAKE, 0);
 		wfx_bh_request_tx(wvif->wdev);
 	} else {
 		// FIXME: should change each station status independently
-		wfx_ps_notify(wvif, STA_NOTIFY_SLEEP, 0);
+		wfx_ps_yestify(wvif, STA_NOTIFY_SLEEP, 0);
 	}
 }
 
@@ -1418,10 +1418,10 @@ int wfx_config(struct ieee80211_hw *hw, u32 changed)
 	struct ieee80211_conf *conf = &hw->conf;
 	struct wfx_vif *wvif;
 
-	// FIXME: Interface id should not been hardcoded
+	// FIXME: Interface id should yest been hardcoded
 	wvif = wdev_to_wvif(wdev, 0);
 	if (!wvif) {
-		WARN(1, "interface 0 does not exist anymore");
+		WARN(1, "interface 0 does yest exist anymore");
 		return 0;
 	}
 
@@ -1442,7 +1442,7 @@ int wfx_config(struct ieee80211_hw *hw, u32 changed)
 				if (conf->dynamic_ps_timeout > 0) {
 					wvif->powersave_mode.pm_mode.fast_psm = 1;
 					/*
-					 * Firmware does not support more than
+					 * Firmware does yest support more than
 					 * 128ms
 					 */
 					wvif->powersave_mode.fast_psm_idle_period =
@@ -1585,12 +1585,12 @@ int wfx_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 	wfx_tx_policy_init(wvif);
 	wvif = NULL;
 	while ((wvif = wvif_iterate(wdev, wvif)) != NULL) {
-		// Combo mode does not support Block Acks. We can re-enable them
+		// Combo mode does yest support Block Acks. We can re-enable them
 		if (wvif_count(wdev) == 1)
 			hif_set_block_ack_policy(wvif, 0xFF, 0xFF);
 		else
 			hif_set_block_ack_policy(wvif, 0x00, 0x00);
-		// Combo force powersave mode. We can re-enable it now
+		// Combo force powersave mode. We can re-enable it yesw
 		wfx_set_pm(wvif, &wvif->powersave_mode);
 	}
 	return 0;
@@ -1660,12 +1660,12 @@ void wfx_remove_interface(struct ieee80211_hw *hw,
 	mutex_unlock(&wdev->conf_mutex);
 	wvif = NULL;
 	while ((wvif = wvif_iterate(wdev, wvif)) != NULL) {
-		// Combo mode does not support Block Acks. We can re-enable them
+		// Combo mode does yest support Block Acks. We can re-enable them
 		if (wvif_count(wdev) == 1)
 			hif_set_block_ack_policy(wvif, 0xFF, 0xFF);
 		else
 			hif_set_block_ack_policy(wvif, 0x00, 0x00);
-		// Combo force powersave mode. We can re-enable it now
+		// Combo force powersave mode. We can re-enable it yesw
 		wfx_set_pm(wvif, &wvif->powersave_mode);
 	}
 }

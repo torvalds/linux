@@ -116,7 +116,7 @@ static unsigned long magician_pin_config[] __initdata = {
 	GPIO85_CIF_LV,
 
 	/* Magician specific input GPIOs */
-	GPIO9_GPIO,	/* unknown */
+	GPIO9_GPIO,	/* unkyeswn */
 	GPIO10_GPIO,	/* GSM_IRQ */
 	GPIO13_GPIO,	/* CPLD_IRQ */
 	GPIO107_GPIO,	/* DS1WM_IRQ */
@@ -374,7 +374,7 @@ static int magician_backlight_init(struct device *dev)
 	return gpio_request_array(ARRAY_AND_SIZE(magician_bl_gpios));
 }
 
-static int magician_backlight_notify(struct device *dev, int brightness)
+static int magician_backlight_yestify(struct device *dev, int brightness)
 {
 	pr_debug("Brightness = %i\n", brightness);
 	gpio_set_value(EGPIO_MAGICIAN_BL_POWER, brightness);
@@ -404,7 +404,7 @@ static struct platform_pwm_backlight_data backlight_data = {
 	.dft_brightness	= 100,
 	.enable_gpio	= -1,
 	.init		= magician_backlight_init,
-	.notify		= magician_backlight_notify,
+	.yestify		= magician_backlight_yestify,
 	.exit		= magician_backlight_exit,
 };
 
@@ -424,7 +424,7 @@ static struct platform_device backlight = {
 static struct gpio_led gpio_leds[] = {
 	{
 		.name = "magician::vibra",
-		.default_trigger = "none",
+		.default_trigger = "yesne",
 		.gpio = GPIO22_MAGICIAN_VIBRA_EN,
 	},
 	{
@@ -531,13 +531,13 @@ static int magician_supply_init(struct device *dev)
 
 	ret = gpio_request(EGPIO_MAGICIAN_CABLE_TYPE, "Cable is AC charger");
 	if (ret) {
-		pr_err("Cannot request AC/USB charger GPIO (%i)\n", ret);
+		pr_err("Canyest request AC/USB charger GPIO (%i)\n", ret);
 		goto err_ac;
 	}
 
 	ret = gpio_request(EGPIO_MAGICIAN_CABLE_INSERTED, "Cable inserted");
 	if (ret) {
-		pr_err("Cannot request cable detection GPIO (%i)\n", ret);
+		pr_err("Canyest request cable detection GPIO (%i)\n", ret);
 		goto err_usb;
 	}
 
@@ -826,13 +826,13 @@ static int magician_flash_init(struct platform_device *pdev)
 	int ret = gpio_request(EGPIO_MAGICIAN_FLASH_VPP, "flash Vpp enable");
 
 	if (ret) {
-		pr_err("Cannot request flash enable GPIO (%i)\n", ret);
+		pr_err("Canyest request flash enable GPIO (%i)\n", ret);
 		return ret;
 	}
 
 	ret = gpio_direction_output(EGPIO_MAGICIAN_FLASH_VPP, 1);
 	if (ret) {
-		pr_err("Cannot set direction for flash enable (%i)\n", ret);
+		pr_err("Canyest set direction for flash enable (%i)\n", ret);
 		gpio_free(EGPIO_MAGICIAN_FLASH_VPP);
 	}
 
@@ -1008,7 +1008,7 @@ static void __init magician_init(void)
 	pxa_set_udc_info(&magician_udc_info);
 
 	/* Check LCD type we have */
-	cpld = ioremap_nocache(PXA_CS3_PHYS, 0x1000);
+	cpld = ioremap_yescache(PXA_CS3_PHYS, 0x1000);
 	if (cpld) {
 		u8 board_id = __raw_readb(cpld + 0x14);
 

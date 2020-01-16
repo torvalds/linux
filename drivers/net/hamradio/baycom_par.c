@@ -6,7 +6,7 @@
  *
  *	Copyright (C) 1996-2000  Thomas Sailer (sailer@ife.ee.ethz.ch)
  *
- *  Please note that the GPL allows you to use the driver, NOT the radio.
+ *  Please yeste that the GPL allows you to use the driver, NOT the radio.
  *  In order to use the radio, you need a license from the communications
  *  authority of your country.
  *
@@ -19,7 +19,7 @@
  *          signalled. The PC then empties the shift register in a burst. This
  *          modem connects to the parallel port, hence the name. The modem
  *          leaves the implementation of the HDLC protocol and the scrambler
- *          polynomial to the PC. This modem is no longer available (at least
+ *          polyyesmial to the PC. This modem is yes longer available (at least
  *          from Baycom) and has been replaced by the PICPAR modem (see below).
  *          You may however still build one from the schematics published in
  *          cq-DL :-).
@@ -27,7 +27,7 @@
  *  picpar: This is a redesign of the par96 modem by Henning Rech, DF9IC. The
  *          modem is protocol compatible to par96, but uses only three low
  *          power ICs and can therefore be fed from the parallel port and
- *          does not require an additional power supply. It features
+ *          does yest require an additional power supply. It features
  *          built in DCD circuitry. The driver should therefore be configured
  *          for hardware DCD.
  *
@@ -62,7 +62,7 @@
 #include <linux/string.h>
 #include <linux/init.h>
 #include <linux/delay.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/netdevice.h>
 #include <linux/hdlcdrv.h>
 #include <linux/baycom.h>
@@ -215,7 +215,7 @@ static inline void par96_rx(struct net_device *dev, struct baycom_state *bc)
 			bc->modem.par96.descram |= 1;
 		descx = bc->modem.par96.descram ^
 			(bc->modem.par96.descram >> 1);
-		/* now the diff decoded data is inverted in descram */
+		/* yesw the diff decoded data is inverted in descram */
 		pp->ops->write_data(pp, PAR97_POWER | PAR96_PTT);
 		descx ^= ((descx >> PAR96_DESCRAM_TAPSH1) ^
 			  (descx >> PAR96_DESCRAM_TAPSH2));
@@ -236,7 +236,7 @@ static inline void par96_rx(struct net_device *dev, struct baycom_state *bc)
 		    i < PAR96_BURSTBITS; i++, mask <<= 1, mask2 <<= 1)
 			if ((bc->modem.par96.dcd_shreg & mask) == mask2)
 				bc->modem.par96.dcd_count = HDLCDRV_MAXFLEN+4;
-		/* check for abort/noise sequences */
+		/* check for abort/yesise sequences */
 		for(mask = 0x1fe00, mask2 = 0x1fe00, i = 0;
 		    i < PAR96_BURSTBITS; i++, mask <<= 1, mask2 <<= 1)
 			if (((bc->modem.par96.dcd_shreg & mask) == mask2) &&
@@ -303,16 +303,16 @@ static int par96_open(struct net_device *dev)
 		return -ENXIO;
 	pp = parport_find_base(dev->base_addr);
 	if (!pp) {
-		printk(KERN_ERR "baycom_par: parport at 0x%lx unknown\n", dev->base_addr);
+		printk(KERN_ERR "baycom_par: parport at 0x%lx unkyeswn\n", dev->base_addr);
 		return -ENXIO;
 	}
 	if (pp->irq < 0) {
-		printk(KERN_ERR "baycom_par: parport at 0x%lx has no irq\n", pp->base);
+		printk(KERN_ERR "baycom_par: parport at 0x%lx has yes irq\n", pp->base);
 		parport_put_port(pp);
 		return -ENXIO;
 	}
 	if ((~pp->modes) & (PARPORT_MODE_PCSPP | PARPORT_MODE_SAFEININT)) {
-		printk(KERN_ERR "baycom_par: parport at 0x%lx cannot be used\n", pp->base);
+		printk(KERN_ERR "baycom_par: parport at 0x%lx canyest be used\n", pp->base);
 		parport_put_port(pp);
 		return -ENXIO;
 	}
@@ -328,14 +328,14 @@ static int par96_open(struct net_device *dev)
 			break;
 
 	if (i == NR_PORTS) {
-		pr_err("%s: no device found\n", bc_drvname);
+		pr_err("%s: yes device found\n", bc_drvname);
 		parport_put_port(pp);
 		return -ENODEV;
 	}
 	bc->pdev = parport_register_dev_model(pp, dev->name, &par_cb, i);
 	parport_put_port(pp);
 	if (!bc->pdev) {
-		printk(KERN_ERR "baycom_par: cannot register parport at 0x%lx\n", dev->base_addr);
+		printk(KERN_ERR "baycom_par: canyest register parport at 0x%lx\n", dev->base_addr);
 		return -ENXIO;
 	}
 	if (parport_claim(bc->pdev)) {

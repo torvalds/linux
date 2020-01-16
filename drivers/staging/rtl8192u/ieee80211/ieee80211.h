@@ -10,8 +10,8 @@
  * <jkmaline@cc.hut.fi>
  * Copyright (c) 2002-2003, Jouni Malinen <jkmaline@cc.hut.fi>
  *
- * Adaption to a generic IEEE 802.11 stack by James Ketrenos
- * <jketreno@linux.intel.com>
+ * Adaption to a generic IEEE 802.11 stack by James Ketreyess
+ * <jketreyes@linux.intel.com>
  * Copyright (c) 2004, Intel Corporation
  *
  * Modified for Realtek's wi-fi cards by Andrea Merello
@@ -190,11 +190,11 @@ struct cb_desc {
 //It should consistent with the driver_XXX.c
 //   David, 2006.9.26
 #define IEEE_PARAM_WPAX_SELECT			7
-//Added for notify the encryption type selection
+//Added for yestify the encryption type selection
 //   David, 2006.9.26
 #define IEEE_PROTO_WPA				1
 #define IEEE_PROTO_RSN				2
-//Added for notify the encryption type selection
+//Added for yestify the encryption type selection
 //   David, 2006.9.26
 #define IEEE_WPAX_USEGROUP			0
 #define IEEE_WPAX_WEP40				1
@@ -252,7 +252,7 @@ struct cb_desc {
 #define ieee80211_ps_tx_ack		ieee80211_ps_tx_ack_rsl
 #define ieee80211_softmac_xmit		ieee80211_softmac_xmit_rsl
 #define ieee80211_stop_send_beacons	ieee80211_stop_send_beacons_rsl
-#define notify_wx_assoc_event		notify_wx_assoc_event_rsl
+#define yestify_wx_assoc_event		yestify_wx_assoc_event_rsl
 #define SendDisassociation		SendDisassociation_rsl
 #define ieee80211_disassociate		ieee80211_disassociate_rsl
 #define ieee80211_start_send_beacons	ieee80211_start_send_beacons_rsl
@@ -322,7 +322,7 @@ struct ieee_param {
 };
 
 
-// linux under 2.6.9 release may not support it, so modify it for common use
+// linux under 2.6.9 release may yest support it, so modify it for common use
 #define IEEE80211_DATA_LEN		2304
 /* Maximum size for the MA-UNITDATA primitive, 802.11 standard section
  *   6.2.1.1.2.
@@ -471,7 +471,7 @@ do { if (ieee80211_debug_level & (level)) \
 #define IEEE80211_DEBUG_DATA (level, data, datalen) do {} while (0)
 #endif	/* CONFIG_IEEE80211_DEBUG */
 
-/* debug macros not dependent on CONFIG_IEEE80211_DEBUG */
+/* debug macros yest dependent on CONFIG_IEEE80211_DEBUG */
 
 /*
  * To use the debug system;
@@ -494,7 +494,7 @@ do { if (ieee80211_debug_level & (level)) \
  *
  * you simply need to add your entry to the ipw_debug_levels array.
  *
- * If you do not see debug_level in /proc/net/ipw then you do not have
+ * If you do yest see debug_level in /proc/net/ipw then you do yest have
  * CONFIG_IEEE80211_DEBUG defined in your kernel configuration
  *
  */
@@ -518,7 +518,7 @@ do { if (ieee80211_debug_level & (level)) \
 #define IEEE80211_DL_REORDER	   (1<<14)
 #define IEEE80211_DL_IOT	   (1<<15)
 #define IEEE80211_DL_IPS	   (1<<16)
-#define IEEE80211_DL_TRACE	   (1<<29)  //trace function, need to user net_ratelimit() together in order not to print too much to the screen
+#define IEEE80211_DL_TRACE	   (1<<29)  //trace function, need to user net_ratelimit() together in order yest to print too much to the screen
 #define IEEE80211_DL_DATA	   (1<<30)   //use this flag to control whether print data buf out.
 #define IEEE80211_DL_ERR	   (1<<31)   //always open
 #define IEEE80211_ERROR(f, a...) printk(KERN_ERR "ieee80211: " f, ## a)
@@ -680,15 +680,15 @@ struct ieee_ibss_seq {
 	struct list_head list;
 };
 
-/* NOTE: This data is for statistical purposes; not all hardware provides this
- *       information for frames received.  Not setting these will not cause
+/* NOTE: This data is for statistical purposes; yest all hardware provides this
+ *       information for frames received.  Not setting these will yest cause
  *       any adverse affects.
  */
 struct ieee80211_rx_stats {
 	u32 mac_time[2];
 	s8 rssi;
 	u8 signal;
-	u8 noise;
+	u8 yesise;
 	u16 rate; /* in 100 kbps */
 	u8 received_channel;
 	u8 control;
@@ -701,7 +701,7 @@ struct ieee80211_rx_stats {
 	u16       Length;
 	//      u8        DataRate;      // In 0.5 Mbps
 	u8        SignalQuality; // in 0-100 index.
-	s32       RecvSignalPower; // Real power in dBm for this packet, no beautification and aggregation.
+	s32       RecvSignalPower; // Real power in dBm for this packet, yes beautification and aggregation.
 	s8        RxPower; // in dBm Translate from PWdB
 	u8        SignalStrength; // in 0-100 index.
 	u16       bHwError:1;
@@ -738,7 +738,7 @@ struct ieee80211_rx_stats {
 	//added by amy
 	u8        *virtual_address;
 	u16          packetlength;              // Total packet length: Must equal to sum of all FragLength
-	u16          fraglength;                        // FragLength should equal to PacketLength in non-fragment case
+	u16          fraglength;                        // FragLength should equal to PacketLength in yesn-fragment case
 	u16          fragoffset;                        // Data offset for this fragment
 	u16          ntotalfrag;
 	bool		  bisrxaggrsubframe;
@@ -751,7 +751,7 @@ struct ieee80211_rx_stats {
 
 /* IEEE 802.11 requires that STA supports concurrent reception of at least
  * three fragmented frames. This define can be increased to support more
- * concurrent frames, but it should be noted that each entry can consume about
+ * concurrent frames, but it should be yested that each entry can consume about
  * 2 kB of RAM and increasing cache size will slow down frame reassembly.
  */
 #define IEEE80211_FRAG_CACHE_LEN 4
@@ -782,7 +782,7 @@ struct ieee80211_stats {
 	unsigned int rx_unicast_octets;
 	unsigned int rx_multicast_octets;
 	unsigned int rx_fcs_errors;
-	unsigned int rx_discards_no_buffer;
+	unsigned int rx_discards_yes_buffer;
 	unsigned int tx_discards_wrong_sa;
 	unsigned int rx_discards_undecryptable;
 	unsigned int rx_message_in_msg_fragments;
@@ -1149,7 +1149,7 @@ struct ieee80211_wmm_ts_info {
 
 struct ieee80211_wmm_tspec_elem {
 	struct ieee80211_wmm_ts_info ts_info;
-	u16 norm_msdu_size;
+	u16 yesrm_msdu_size;
 	u16 max_msdu_size;
 	u32 min_serv_inter;
 	u32 max_serv_inter;
@@ -1183,7 +1183,7 @@ static const char *eap_types[] = {
 
 static inline const char *eap_get_type(int type)
 {
-	return ((u32)type >= ARRAY_SIZE(eap_types)) ? "Unknown" : eap_types[type];
+	return ((u32)type >= ARRAY_SIZE(eap_types)) ? "Unkyeswn" : eap_types[type];
 }
 //added by amy for reorder
 static inline u8 Frame_QoSTID(u8 *buf)
@@ -1215,8 +1215,8 @@ struct ieee80211_softmac_stats {
 	unsigned int rx_auth_rs_ok;
 	unsigned int rx_auth_rs_err;
 	unsigned int tx_auth_rq;
-	unsigned int no_auth_rs;
-	unsigned int no_ass_rs;
+	unsigned int yes_auth_rs;
+	unsigned int yes_ass_rs;
 	unsigned int tx_ass_rq;
 	unsigned int rx_ass_rq;
 	unsigned int tx_probe_rq;
@@ -1387,7 +1387,7 @@ struct ieee80211_network {
 	bool ralink_cap_exist;
 	bool atheros_cap_exist;
 	bool cisco_cap_exist;
-	bool unknown_cap_exist;
+	bool unkyeswn_cap_exist;
 //	u8	berp_info;
 	bool	berp_info_valid;
 	bool buseprotection;
@@ -1397,11 +1397,11 @@ struct ieee80211_network {
 
 enum ieee80211_state {
 
-	/* the card is not linked at all */
+	/* the card is yest linked at all */
 	IEEE80211_NOLINK = 0,
 
 	/* IEEE80211_ASSOCIATING* are for BSS client mode
-	 * the driver shall not perform RX filtering unless
+	 * the driver shall yest perform RX filtering unless
 	 * the state is LINKED.
 	 * The driver shall just check for the state LINKED and
 	 * defaults to NOLINK for ALL the other states (including
@@ -1554,7 +1554,7 @@ struct rt_power_save_control {
 	bool				bTmpIbpm;
 
 	//
-	// Leisre Poswer Save : Disable RF if connected but traffic is not busy
+	// Leisre Poswer Save : Disable RF if connected but traffic is yest busy
 	//
 	bool				bLeisurePs;
 
@@ -1565,7 +1565,7 @@ typedef u32 RT_RF_CHANGE_SOURCE;
 #define RF_CHANGE_BY_HW		BIT(30)
 #define RF_CHANGE_BY_PS		BIT(29)
 #define RF_CHANGE_BY_IPS	BIT(28)
-#define RF_CHANGE_BY_INIT	0	// Do not change the RFOff reason. Defined by Bruce, 2008-01-17.
+#define RF_CHANGE_BY_INIT	0	// Do yest change the RFOff reason. Defined by Bruce, 2008-01-17.
 
 typedef enum {
 	COUNTRY_CODE_FCC = 0,
@@ -1653,7 +1653,7 @@ struct ieee80211_device {
 	struct list_head		RxReorder_Unused_List;
 	// Qos related. Added by Annie, 2005-11-01.
 //	PSTA_QOS			pStaQos;
-	u8				ForcedPriority;		// Force per-packet priority 1~7. (default: 0, not to force it.)
+	u8				ForcedPriority;		// Force per-packet priority 1~7. (default: 0, yest to force it.)
 
 
 	/* Bookkeeping structures */
@@ -1739,7 +1739,7 @@ struct ieee80211_device {
 	 * Either the network we are associated in INFRASTRUCTURE
 	 * or the network that we are creating in MASTER mode.
 	 * ad-hoc is a mixture ;-).
-	 * Note that in infrastructure mode, even when not associated,
+	 * Note that in infrastructure mode, even when yest associated,
 	 * fields bssid and essid may be valid (if wpa_set and essid_set
 	 * are true) as thy carry the value set by the user via iwconfig
 	 */
@@ -1776,7 +1776,7 @@ struct ieee80211_device {
 	/* this contains flags for selectively enable softmac support */
 	u16 softmac_features;
 
-	/* if the sequence control field is not filled by HW */
+	/* if the sequence control field is yest filled by HW */
 	u16 seq_ctrl[5];
 
 	/* association procedure transaction sequence number */
@@ -1812,7 +1812,7 @@ struct ieee80211_device {
 	short ssid_set;
 
 	u8  wpax_type_set;    //{added by David, 2006.9.28}
-	u32 wpax_type_notify; //{added by David, 2006.9.26}
+	u32 wpax_type_yestify; //{added by David, 2006.9.26}
 
 	/* QoS related flag */
 	s8  init_wmmparam_flag;
@@ -1863,7 +1863,7 @@ struct ieee80211_device {
 	u32	fsync_firstdiff_ratethreshold;		// low threshold
 	u32	fsync_seconddiff_ratethreshold;	 // decrease threshold
 	Fsync_State			fsync_state;
-	bool		bis_any_nonbepkts;
+	bool		bis_any_yesnbepkts;
 	//20Mhz 40Mhz AutoSwitch Threshold
 	struct bandwidth_autoswitch bandwidth_auto_switch;
 	//for txpower tracking
@@ -1902,7 +1902,7 @@ struct ieee80211_device {
 			     struct ieee80211_security *sec);
 
 	/* Used to TX data frame by using txb structs.
-	 * this is not used if in the softmac_features
+	 * this is yest used if in the softmac_features
 	 * is set the flag IEEE_SOFTMAC_TX_QUEUE
 	 */
 	int (*hard_start_xmit)(struct ieee80211_txb *txb,
@@ -1917,7 +1917,7 @@ struct ieee80211_device {
 
 	/* Softmac-generated frames (management) are TXed via this
 	 * callback if the flag IEEE_SOFTMAC_SINGLE_QUEUE is
-	 * not set. As some cards may have different HW queues that
+	 * yest set. As some cards may have different HW queues that
 	 * one might want to use for data and management frames
 	 * the option to have two callbacks might be useful.
 	 * This function can't sleep.
@@ -1925,7 +1925,7 @@ struct ieee80211_device {
 	int (*softmac_hard_start_xmit)(struct sk_buff *skb,
 			       struct net_device *dev);
 
-	/* used instead of hard_start_xmit (not softmac_hard_start_xmit)
+	/* used instead of hard_start_xmit (yest softmac_hard_start_xmit)
 	 * if the IEEE_SOFTMAC_TX_QUEUE feature is used to TX data
 	 * frames. I the option IEEE_SOFTMAC_SINGLE_QUEUE is also set
 	 * then also management frames are sent via this callback.
@@ -1949,12 +1949,12 @@ struct ieee80211_device {
 	 */
 	void (*set_chan)(struct net_device *dev, short ch);
 
-	/* These are not used if the ieee stack takes care of
+	/* These are yest used if the ieee stack takes care of
 	 * scanning (IEEE_SOFTMAC_SCAN feature set).
 	 * In this case only the set_chan is used.
 	 *
 	 * The syncro version is similar to the start_scan but
-	 * does not return until all channels has been scanned.
+	 * does yest return until all channels has been scanned.
 	 * this is called in user context and should sleep,
 	 * it is called in a work_queue when switching to ad-hoc mode
 	 * or in behalf of iwlist scan when the card is associated
@@ -1969,7 +1969,7 @@ struct ieee80211_device {
 	void (*stop_scan)(struct net_device *dev);
 
 	/* indicate the driver that the link state is changed
-	 * for example it may indicate the card is associated now.
+	 * for example it may indicate the card is associated yesw.
 	 * Driver might be interested in this to apply RX filter
 	 * rules or simply light the LINK led
 	 */
@@ -1977,7 +1977,7 @@ struct ieee80211_device {
 
 	/* these two function indicates to the HW when to start
 	 * and stop to send beacons. This is used when the
-	 * IEEE_SOFTMAC_BEACONS is not set. For now the
+	 * IEEE_SOFTMAC_BEACONS is yest set. For yesw the
 	 * stop_send_bacons is NOT guaranteed to be called only
 	 * after start_send_beacons.
 	 */
@@ -1994,7 +1994,7 @@ struct ieee80211_device {
 
 
 	/* check whether Tx hw resource available */
-	short (*check_nic_enough_desc)(struct net_device *dev, int queue_index);
+	short (*check_nic_eyesugh_desc)(struct net_device *dev, int queue_index);
 	//added by wb for HT related
 //	void (*SwChnlByTimerHandler)(struct net_device *dev, int channel);
 	void (*SetBWModeHandler)(struct net_device *dev, enum ht_channel_width Bandwidth, enum ht_extension_chan_offset Offset);
@@ -2228,7 +2228,7 @@ void ieee80211_softmac_xmit(struct ieee80211_txb *txb,
 			    struct ieee80211_device *ieee);
 
 void ieee80211_stop_send_beacons(struct ieee80211_device *ieee);
-void notify_wx_assoc_event(struct ieee80211_device *ieee);
+void yestify_wx_assoc_event(struct ieee80211_device *ieee);
 void ieee80211_softmac_check_all_nets(struct ieee80211_device *ieee);
 void ieee80211_start_bss(struct ieee80211_device *ieee);
 void ieee80211_start_master_bss(struct ieee80211_device *ieee);
@@ -2252,7 +2252,7 @@ void ieee80211_start_send_beacons(struct ieee80211_device *ieee);
 void ieee80211_stop_send_beacons(struct ieee80211_device *ieee);
 int ieee80211_wpa_supplicant_ioctl(struct ieee80211_device *ieee,
 				   struct iw_point *p);
-void notify_wx_assoc_event(struct ieee80211_device *ieee);
+void yestify_wx_assoc_event(struct ieee80211_device *ieee);
 void ieee80211_ps_tx_ack(struct ieee80211_device *ieee, short success);
 
 void softmac_mgmt_xmit(struct sk_buff *skb, struct ieee80211_device *ieee);
@@ -2431,7 +2431,7 @@ static inline const char *escape_essid(const char *essid, u8 essid_len)
 /* For the function is more related to hardware setting, it's better to use the
  * ieee handler to refer to it.
  */
-short check_nic_enough_desc(struct net_device *dev, int queue_index);
+short check_nic_eyesugh_desc(struct net_device *dev, int queue_index);
 int ieee80211_data_xmit(struct sk_buff *skb, struct net_device *dev);
 int ieee80211_parse_info_param(struct ieee80211_device *ieee,
 			       struct ieee80211_info_element *info_element,

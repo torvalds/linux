@@ -11,9 +11,9 @@
 #include "ebb.h"
 
 
-/* Test that things work sanely if we have no handler */
+/* Test that things work sanely if we have yes handler */
 
-static int no_handler_test(void)
+static int yes_handler_test(void)
 {
 	struct event event;
 	u64 val;
@@ -59,5 +59,5 @@ static int no_handler_test(void)
 
 int main(void)
 {
-	return test_harness(no_handler_test,"no_handler_test");
+	return test_harness(yes_handler_test,"yes_handler_test");
 }

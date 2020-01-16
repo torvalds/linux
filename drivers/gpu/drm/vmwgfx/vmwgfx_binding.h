@@ -11,7 +11,7 @@
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright yestice and this permission yestice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
  *
@@ -60,7 +60,7 @@ enum vmw_ctx_binding_type {
  * @ctx_list: List head for the context's list of bindings.
  * @res_list: List head for a resource's list of bindings.
  * @ctx: Non-refcounted pointer to the context that owns the binding. NULL
- * indicates no binding present.
+ * indicates yes binding present.
  * @res: Non-refcounted pointer to the resource the binding points to. This
  * is typically a surface or a view.
  * @bt: Binding type.
@@ -177,8 +177,8 @@ struct vmw_ctx_bindinfo_ib {
  * @const_buffer: Const buffer bindings for this shader type.
  * @shader_res: Shader resource view bindings for this shader type.
  * @dirty_sr: Bitmap tracking individual shader resource bindings changes
- * that have not yet been emitted to the device.
- * @dirty: Bitmap tracking per-binding type binding changes that have not
+ * that have yest yet been emitted to the device.
+ * @dirty: Bitmap tracking per-binding type binding changes that have yest
  * yet been emitted to the device.
  */
 struct vmw_dx_shader_bindings {

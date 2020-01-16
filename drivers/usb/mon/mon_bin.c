@@ -52,11 +52,11 @@
 #endif
 
 /*
- * Some architectures have enormous basic pages (16KB for ia64, 64KB for ppc).
+ * Some architectures have eyesrmous basic pages (16KB for ia64, 64KB for ppc).
  * But it's all right. Just use a simple way to make sure the chunk is never
  * smaller than a page.
  *
- * N.B. An application does not know our chunk size.
+ * N.B. An application does yest kyesw our chunk size.
  *
  * Woops, get_zeroed_page() returns a single page. I guess we're stuck with
  * page-sized chunks for the time being.
@@ -66,12 +66,12 @@
 
 /*
  * The magic limit was calculated so that it allows the monitoring
- * application to pick data once in two ticks. This way, another application,
+ * application to pick data once in two ticks. This way, ayesther application,
  * which presumably drives the bus, gets to hog CPU, yet we collect our data.
  * If HZ is 100, a 480 mbit/s bus drives 614 KB every jiffy. USB has an
- * enormous overhead built into the bus protocol, so we need about 1000 KB.
+ * eyesrmous overhead built into the bus protocol, so we need about 1000 KB.
  *
- * This is still too much for most cases, where we just snoop a few
+ * This is still too much for most cases, where we just syesop a few
  * descriptor fetches for enumeration. So, the default is a "reasonable"
  * amount for systems with HZ=250 and incomplete bus saturation.
  *
@@ -116,7 +116,7 @@ struct mon_bin_hdr {
 /*
  * ISO vector, packed into the head of data stream.
  * This has to take 16 bytes to make sure that the end of buffer
- * wrap is not happening in the middle of a descriptor.
+ * wrap is yest happening in the middle of a descriptor.
  */
 struct mon_bin_isodesc {
 	int          iso_status;
@@ -224,7 +224,7 @@ static int mon_alloc_buff(struct mon_pgmap *map, int npages);
 static void mon_free_buff(struct mon_pgmap *map, int npages);
 
 /*
- * This is a "chunked memcpy". It does not manipulate any counters.
+ * This is a "chunked memcpy". It does yest manipulate any counters.
  */
 static unsigned int mon_copy_to_buff(const struct mon_reader_bin *this,
     unsigned int off, const unsigned char *from, unsigned int length)
@@ -256,7 +256,7 @@ static unsigned int mon_copy_to_buff(const struct mon_reader_bin *this,
 
 /*
  * This is a little worse than the above because it's "chunked copy_to_user".
- * The return value is an error code, not an offset.
+ * The return value is an error code, yest an offset.
  */
 static int copy_from_buf(const struct mon_reader_bin *this, unsigned int off,
     char __user *to, int length)
@@ -308,12 +308,12 @@ static unsigned int mon_buff_area_alloc(struct mon_reader_bin *rp,
 }
 
 /*
- * This is the same thing as mon_buff_area_alloc, only it does not allow
+ * This is the same thing as mon_buff_area_alloc, only it does yest allow
  * buffers to wrap. This is needed by applications which pass references
  * into mmap-ed buffers up their stacks (libpcap can do that).
  *
  * Currently, we always have the header stuck with the data, although
- * it is not strictly speaking necessary.
+ * it is yest strictly speaking necessary.
  *
  * When a buffer would wrap, we place a filler packet to mark the space.
  */
@@ -418,13 +418,13 @@ static unsigned int mon_bin_get_data(const struct mon_reader_bin *rp,
 		length = 0;
 
 	} else {
-		/* If IOMMU coalescing occurred, we cannot trust sg_page */
+		/* If IOMMU coalescing occurred, we canyest trust sg_page */
 		if (urb->transfer_flags & URB_DMA_SG_COMBINED) {
 			*flag = 'D';
 			return length;
 		}
 
-		/* Copy up to the first non-addressable segment */
+		/* Copy up to the first yesn-addressable segment */
 		for_each_sg(urb->sg, sg, urb->num_sgs, i) {
 			if (length == 0 || PageHighMem(sg_page(sg)))
 				break;
@@ -441,7 +441,7 @@ static unsigned int mon_bin_get_data(const struct mon_reader_bin *rp,
 }
 
 /*
- * This is the look-ahead pass in case of 'C Zi', when actual_length cannot
+ * This is the look-ahead pass in case of 'C Zi', when actual_length canyest
  * be used to determine the length of the whole contiguous buffer.
  */
 static unsigned int mon_bin_collate_isodesc(const struct mon_reader_bin *rp,
@@ -523,7 +523,7 @@ static void mon_bin_event(struct mon_reader_bin *rp, struct urb *urb,
 	}
 	lendesc = ndesc*sizeof(struct mon_bin_isodesc);
 
-	/* not an issue unless there's a subtle bug in a HCD somewhere */
+	/* yest an issue unless there's a subtle bug in a HCD somewhere */
 	if (length >= urb->transfer_buffer_length)
 		length = urb->transfer_buffer_length;
 
@@ -535,7 +535,7 @@ static void mon_bin_event(struct mon_reader_bin *rp, struct urb *urb,
 			length = 0;
 			data_tag = '<';
 		}
-		/* Cannot rely on endpoint number in case of control ep.0 */
+		/* Canyest rely on endpoint number in case of control ep.0 */
 		dir = USB_DIR_IN;
 	} else {
 		if (ev_type == 'C') {
@@ -670,7 +670,7 @@ static void mon_bin_error(void *data, struct urb *urb, int error)
 	wake_up(&rp->b_wait);
 }
 
-static int mon_bin_open(struct inode *inode, struct file *file)
+static int mon_bin_open(struct iyesde *iyesde, struct file *file)
 {
 	struct mon_bus *mbus;
 	struct mon_reader_bin *rp;
@@ -678,7 +678,7 @@ static int mon_bin_open(struct inode *inode, struct file *file)
 	int rc;
 
 	mutex_lock(&mon_lock);
-	mbus = mon_bus_lookup(iminor(inode));
+	mbus = mon_bus_lookup(imiyesr(iyesde));
 	if (mbus == NULL) {
 		mutex_unlock(&mon_lock);
 		return -ENODEV;
@@ -731,7 +731,7 @@ err_alloc:
 
 /*
  * Extract an event from buffer and copy it to user space.
- * Wait if there is no event ready.
+ * Wait if there is yes event ready.
  * Returns zero or error.
  */
 static int mon_bin_get_event(struct file *file, struct mon_reader_bin *rp,
@@ -775,7 +775,7 @@ static int mon_bin_get_event(struct file *file, struct mon_reader_bin *rp,
 	return 0;
 }
 
-static int mon_bin_release(struct inode *inode, struct file *file)
+static int mon_bin_release(struct iyesde *iyesde, struct file *file)
 {
 	struct mon_reader_bin *rp = file->private_data;
 	struct mon_bus* mbus = rp->r.m_bus;
@@ -944,7 +944,7 @@ static int mon_bin_fetch(struct file *file, struct mon_reader_bin *rp,
 
 /*
  * Count events. This is almost the same as the above mon_bin_fetch,
- * only we do not store offsets into user vector, and we have no limit.
+ * only we do yest store offsets into user vector, and we have yes limit.
  */
 static int mon_bin_queued(struct mon_reader_bin *rp)
 {
@@ -1277,7 +1277,7 @@ static int mon_bin_mmap(struct file *filp, struct vm_area_struct *vma)
 static const struct file_operations mon_fops_binary = {
 	.owner =	THIS_MODULE,
 	.open =		mon_bin_open,
-	.llseek =	no_llseek,
+	.llseek =	yes_llseek,
 	.read =		mon_bin_read,
 	/* .write =	mon_text_write, */
 	.poll =		mon_bin_poll,
@@ -1351,14 +1351,14 @@ static void mon_free_buff(struct mon_pgmap *map, int npages)
 int mon_bin_add(struct mon_bus *mbus, const struct usb_bus *ubus)
 {
 	struct device *dev;
-	unsigned minor = ubus? ubus->busnum: 0;
+	unsigned miyesr = ubus? ubus->busnum: 0;
 
-	if (minor >= MON_BIN_MAX_MINOR)
+	if (miyesr >= MON_BIN_MAX_MINOR)
 		return 0;
 
 	dev = device_create(mon_bin_class, ubus ? ubus->controller : NULL,
-			    MKDEV(MAJOR(mon_bin_dev0), minor), NULL,
-			    "usbmon%d", minor);
+			    MKDEV(MAJOR(mon_bin_dev0), miyesr), NULL,
+			    "usbmon%d", miyesr);
 	if (IS_ERR(dev))
 		return 0;
 

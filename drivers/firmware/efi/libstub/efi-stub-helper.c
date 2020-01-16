@@ -18,10 +18,10 @@
  *
  * Unfortunately, reading files in chunks triggers *other* bugs on some
  * platforms, so we provide a way to disable this workaround, which can
- * be done by passing "efi=nochunk" on the EFI boot stub command line.
+ * be done by passing "efi=yeschunk" on the EFI boot stub command line.
  *
  * If you experience issues with initrd images being corrupt it's worth
- * trying efi=nochunk, but chunking is enabled by default because there
+ * trying efi=yeschunk, but chunking is enabled by default because there
  * are far more machines that require the workaround than those that
  * break with it enabled.
  */
@@ -29,26 +29,26 @@
 
 static unsigned long __chunk_size = EFI_READ_CHUNK_SIZE;
 
-static int __section(.data) __nokaslr;
+static int __section(.data) __yeskaslr;
 static int __section(.data) __quiet;
-static int __section(.data) __novamap;
-static bool __section(.data) efi_nosoftreserve;
+static int __section(.data) __yesvamap;
+static bool __section(.data) efi_yessoftreserve;
 
-int __pure nokaslr(void)
+int __pure yeskaslr(void)
 {
-	return __nokaslr;
+	return __yeskaslr;
 }
 int __pure is_quiet(void)
 {
 	return __quiet;
 }
-int __pure novamap(void)
+int __pure yesvamap(void)
 {
-	return __novamap;
+	return __yesvamap;
 }
 bool __pure __efi_soft_reserve_enabled(void)
 {
-	return !efi_nosoftreserve;
+	return !efi_yessoftreserve;
 }
 
 #define EFI_MMAP_NR_SLACK_SLOTS	8
@@ -112,7 +112,7 @@ again:
 		/*
 		 * Make sure there is some entries of headroom so that the
 		 * buffer can be reused for a new map after allocations are
-		 * no longer permitted.  Its unlikely that the map will grow to
+		 * yes longer permitted.  Its unlikely that the map will grow to
 		 * exceed this headroom once we are ready to trigger
 		 * ExitBootServices()
 		 */
@@ -170,7 +170,7 @@ unsigned long get_dram_base(efi_system_table_t *sys_table_arg)
 }
 
 /*
- * Allocate at the highest possible address that is not above 'max'.
+ * Allocate at the highest possible address that is yest above 'max'.
  */
 efi_status_t efi_high_alloc(efi_system_table_t *sys_table_arg,
 			    unsigned long size, unsigned long align,
@@ -269,7 +269,7 @@ fail:
 }
 
 /*
- * Allocate at the lowest possible address that is not below 'min'.
+ * Allocate at the lowest possible address that is yest below 'min'.
  */
 efi_status_t efi_low_alloc_above(efi_system_table_t *sys_table_arg,
 				 unsigned long size, unsigned long align,
@@ -452,10 +452,10 @@ static efi_status_t efi_open_volume(efi_system_table_t *sys_table_arg,
 }
 
 /*
- * Parse the ASCII string 'cmdline' for EFI options, denoted by the efi=
- * option, e.g. efi=nochunk.
+ * Parse the ASCII string 'cmdline' for EFI options, deyested by the efi=
+ * option, e.g. efi=yeschunk.
  *
- * It should be noted that efi= is parsed in two very different
+ * It should be yested that efi= is parsed in two very different
  * environments, first in the early boot environment of the EFI boot
  * stub, and subsequently during the kernel boot.
  */
@@ -463,17 +463,17 @@ efi_status_t efi_parse_options(char const *cmdline)
 {
 	char *str;
 
-	str = strstr(cmdline, "nokaslr");
+	str = strstr(cmdline, "yeskaslr");
 	if (str == cmdline || (str && str > cmdline && *(str - 1) == ' '))
-		__nokaslr = 1;
+		__yeskaslr = 1;
 
 	str = strstr(cmdline, "quiet");
 	if (str == cmdline || (str && str > cmdline && *(str - 1) == ' '))
 		__quiet = 1;
 
 	/*
-	 * If no EFI parameters were specified on the cmdline we've got
-	 * nothing to do.
+	 * If yes EFI parameters were specified on the cmdline we've got
+	 * yesthing to do.
 	 */
 	str = strstr(cmdline, "efi=");
 	if (!str)
@@ -487,20 +487,20 @@ efi_status_t efi_parse_options(char const *cmdline)
 	 * skip over arguments we don't understand.
 	 */
 	while (*str && *str != ' ') {
-		if (!strncmp(str, "nochunk", 7)) {
-			str += strlen("nochunk");
+		if (!strncmp(str, "yeschunk", 7)) {
+			str += strlen("yeschunk");
 			__chunk_size = -1UL;
 		}
 
-		if (!strncmp(str, "novamap", 7)) {
-			str += strlen("novamap");
-			__novamap = 1;
+		if (!strncmp(str, "yesvamap", 7)) {
+			str += strlen("yesvamap");
+			__yesvamap = 1;
 		}
 
 		if (IS_ENABLED(CONFIG_EFI_SOFT_RESERVE) &&
-		    !strncmp(str, "nosoftreserve", 7)) {
-			str += strlen("nosoftreserve");
-			efi_nosoftreserve = 1;
+		    !strncmp(str, "yessoftreserve", 7)) {
+			str += strlen("yessoftreserve");
+			efi_yessoftreserve = 1;
 		}
 
 		/* Group words together, delimited by "," */
@@ -630,7 +630,7 @@ efi_status_t handle_cmdline_files(efi_system_table_t *sys_table_arg,
 
 		/*
 		 * Multiple files need to be at consecutive addresses in memory,
-		 * so allocate enough memory for all the files.  This is used
+		 * so allocate eyesugh memory for all the files.  This is used
 		 * for loading multiple files.
 		 */
 		status = efi_high_alloc(sys_table_arg, file_size_total, 0x1000,
@@ -704,7 +704,7 @@ fail:
  * allocate additional space for the BSS segment. Any low
  * memory that this function should avoid needs to be
  * unavailable in the EFI memory map, as if the preferred
- * address is not available the lowest available address will
+ * address is yest available the lowest available address will
  * be used.
  */
 efi_status_t efi_relocate_kernel(efi_system_table_t *sys_table_arg,
@@ -755,7 +755,7 @@ efi_status_t efi_relocate_kernel(efi_system_table_t *sys_table_arg,
 	}
 
 	/*
-	 * We know source/dest won't overlap since both memory ranges
+	 * We kyesw source/dest won't overlap since both memory ranges
 	 * have been allocated by UEFI, so we can safely use memcpy.
 	 */
 	memcpy((void *)new_addr, (void *)cur_image_addr, image_size);
@@ -776,7 +776,7 @@ static int efi_utf8_bytes(u16 c)
 }
 
 /*
- * Convert an UTF-16 string, not necessarily null terminated, to UTF-8.
+ * Convert an UTF-16 string, yest necessarily null terminated, to UTF-8.
  */
 static u8 *efi_utf16_to_utf8(u8 *dst, const u16 *src, int n)
 {
@@ -904,8 +904,8 @@ efi_status_t efi_exit_boot_services(efi_system_table_t *sys_table_arg,
 		 * updated map, and try again.  The spec implies one retry
 		 * should be sufficent, which is confirmed against the EDK2
 		 * implementation.  Per the spec, we can only invoke
-		 * get_memory_map() and exit_boot_services() - we cannot alloc
-		 * so efi_get_memory_map() cannot be used, and we must reuse
+		 * get_memory_map() and exit_boot_services() - we canyest alloc
+		 * so efi_get_memory_map() canyest be used, and we must reuse
 		 * the buffer.  For all practical purposes, the headroom in the
 		 * buffer should account for any changes in the map so the call
 		 * to get_memory_map() is expected to succeed here.
@@ -918,19 +918,19 @@ efi_status_t efi_exit_boot_services(efi_system_table_t *sys_table_arg,
 					map->desc_size,
 					map->desc_ver);
 
-		/* exit_boot_services() was called, thus cannot free */
+		/* exit_boot_services() was called, thus canyest free */
 		if (status != EFI_SUCCESS)
 			goto fail;
 
 		status = priv_func(sys_table_arg, map, priv);
-		/* exit_boot_services() was called, thus cannot free */
+		/* exit_boot_services() was called, thus canyest free */
 		if (status != EFI_SUCCESS)
 			goto fail;
 
 		status = efi_call_early(exit_boot_services, handle, *map->key_ptr);
 	}
 
-	/* exit_boot_services() was called, thus cannot free */
+	/* exit_boot_services() was called, thus canyest free */
 	if (status != EFI_SUCCESS)
 		goto fail;
 

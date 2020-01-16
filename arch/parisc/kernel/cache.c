@@ -127,7 +127,7 @@ show_cache_info(struct seq_file *m)
 #ifndef CONFIG_PA20
 	/* BTLB - Block TLB */
 	if (btlb_info.max_size==0) {
-		seq_printf(m, "BTLB\t\t: not supported\n" );
+		seq_printf(m, "BTLB\t\t: yest supported\n" );
 	} else {
 		seq_printf(m, 
 		"BTLB fixed\t: max. %d pages, pagesize=%d (%dMB)\n"
@@ -257,7 +257,7 @@ parisc_cache_init(void)
 						PDC_MODEL_NVA_UNSUPPORTED) {
 		printk(KERN_WARNING "parisc_cache_init: Only equivalent aliasing supported!\n");
 #if 0
-		panic("SMP kernel required to avoid non-equivalent aliasing");
+		panic("SMP kernel required to avoid yesn-equivalent aliasing");
 #endif
 	}
 }
@@ -356,8 +356,8 @@ void flush_dcache_page(struct page *page)
 		 * CPU is entitled to speculate any page with a TLB
 		 * mapping, so here we kill the mapping then flush the
 		 * page along a special flush only alias mapping.
-		 * This guarantees that the page is no-longer in the
-		 * cache for any process and nor may it be
+		 * This guarantees that the page is yes-longer in the
+		 * cache for any process and yesr may it be
 		 * speculatively read in (until the user or kernel
 		 * specifically accesses it, of course) */
 
@@ -533,13 +533,13 @@ static inline pte_t *get_ptep(pgd_t *pgd, unsigned long addr)
 {
 	pte_t *ptep = NULL;
 
-	if (!pgd_none(*pgd)) {
+	if (!pgd_yesne(*pgd)) {
 		p4d_t *p4d = p4d_offset(pgd, addr);
-		if (!p4d_none(*p4d)) {
+		if (!p4d_yesne(*p4d)) {
 			pud_t *pud = pud_offset(p4d, addr);
-			if (!pud_none(*pud)) {
+			if (!pud_yesne(*pud)) {
 				pmd_t *pmd = pmd_offset(pud, addr);
-				if (!pmd_none(*pmd))
+				if (!pmd_yesne(*pmd))
 					ptep = pte_offset_map(pmd, addr);
 			}
 		}

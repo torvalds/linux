@@ -23,7 +23,7 @@
 struct sst_acpi_desc {
 	const char *drv_name;
 	struct snd_soc_acpi_mach *machines;
-	/* Platform resource indexes. Must set to -1 if not used */
+	/* Platform resource indexes. Must set to -1 if yest used */
 	int resindex_lpe_base;
 	int resindex_pcicfg_base;
 	int resindex_fw_base;
@@ -55,7 +55,7 @@ static void sst_acpi_fw_cb(const struct firmware *fw, void *context)
 
 	sst_pdata->fw = fw;
 	if (!fw) {
-		dev_err(dev, "Cannot load firmware %s\n", mach->fw_filename);
+		dev_err(dev, "Canyest load firmware %s\n", mach->fw_filename);
 		return;
 	}
 
@@ -64,7 +64,7 @@ static void sst_acpi_fw_cb(const struct firmware *fw, void *context)
 		platform_device_register_data(dev, desc->drv_name, -1,
 					      sst_pdata, sizeof(*sst_pdata));
 	if (IS_ERR(sst_acpi->pdev_pcm)) {
-		dev_err(dev, "Cannot register device %s. Error %d\n",
+		dev_err(dev, "Canyest register device %s. Error %d\n",
 			desc->drv_name, (int)PTR_ERR(sst_acpi->pdev_pcm));
 	}
 
@@ -151,7 +151,7 @@ static int sst_acpi_probe(struct platform_device *pdev)
 		return PTR_ERR(sst_acpi->pdev_mach);
 
 	/* continue SST probing after firmware is loaded */
-	ret = request_firmware_nowait(THIS_MODULE, true, mach->fw_filename,
+	ret = request_firmware_yeswait(THIS_MODULE, true, mach->fw_filename,
 				      dev, GFP_KERNEL, pdev, sst_acpi_fw_cb);
 	if (ret)
 		platform_device_unregister(sst_acpi->pdev_mach);

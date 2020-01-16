@@ -25,7 +25,7 @@ pgd_t *resume_pg_dir;
 /*
  * Create a middle page table on a resume-safe page and put a pointer to it in
  * the given global directory entry.  This only returns the gd entry
- * in non-PAE compilation mode, since the middle layer is folded.
+ * in yesn-PAE compilation mode, since the middle layer is folded.
  */
 static pmd_t *resume_one_md_table_init(pgd_t *pgd)
 {
@@ -58,7 +58,7 @@ static pmd_t *resume_one_md_table_init(pgd_t *pgd)
  */
 static pte_t *resume_one_page_table_init(pmd_t *pmd)
 {
-	if (pmd_none(*pmd)) {
+	if (pmd_yesne(*pmd)) {
 		pte_t *page_table = (pte_t *)get_safe_page(GFP_ATOMIC);
 		if (!page_table)
 			return NULL;
@@ -103,7 +103,7 @@ static int resume_physical_mapping_init(pgd_t *pgd_base)
 				break;
 
 			/* Map with big pages if possible, otherwise create
-			 * normal page tables.
+			 * yesrmal page tables.
 			 * NOTE: We can mark everything as executable here
 			 */
 			if (boot_cpu_has(X86_FEATURE_PSE)) {
@@ -192,7 +192,7 @@ asmlinkage int swsusp_arch_resume(void)
 	if (error)
 		return error;
 
-	/* We have got enough memory and from now on we cannot recover */
+	/* We have got eyesugh memory and from yesw on we canyest recover */
 	restore_image();
 	return 0;
 }

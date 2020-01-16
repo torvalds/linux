@@ -3,9 +3,9 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  *
- * Copyright (C) 2005 MIPS Technologies, Inc.  All rights reserved.
+ * Copyright (C) 2005 MIPS Techyeslogies, Inc.  All rights reserved.
  * Copyright (C) 2005, 06 Ralf Baechle (ralf@linux-mips.org)
- * Copyright (C) 2013 Imagination Technologies Ltd.
+ * Copyright (C) 2013 Imagination Techyeslogies Ltd.
  */
 #include <linux/kernel.h>
 #include <linux/fs.h>
@@ -24,7 +24,7 @@
 static int sp_stopping;
 struct rtlx_info *rtlx;
 struct chan_waitqueues channel_wqs[RTLX_CHANNELS];
-struct vpe_notifications rtlx_notify;
+struct vpe_yestifications rtlx_yestify;
 void (*aprp_hook)(void) = NULL;
 EXPORT_SYMBOL(aprp_hook);
 
@@ -55,7 +55,7 @@ static void __used dump_rtlx(void)
 static int rtlx_init(struct rtlx_info *rtlxi)
 {
 	if (rtlxi->id != RTLX_ID) {
-		pr_err("no valid RTLX id at 0x%p 0x%lx\n", rtlxi, rtlxi->id);
+		pr_err("yes valid RTLX id at 0x%p 0x%lx\n", rtlxi, rtlxi->id);
 		return -ENOEXEC;
 	}
 
@@ -64,7 +64,7 @@ static int rtlx_init(struct rtlx_info *rtlxi)
 	return 0;
 }
 
-/* notifications */
+/* yestifications */
 void rtlx_starting(int vpe)
 {
 	int i;
@@ -326,33 +326,33 @@ out:
 }
 
 
-static int file_open(struct inode *inode, struct file *filp)
+static int file_open(struct iyesde *iyesde, struct file *filp)
 {
-	return rtlx_open(iminor(inode), (filp->f_flags & O_NONBLOCK) ? 0 : 1);
+	return rtlx_open(imiyesr(iyesde), (filp->f_flags & O_NONBLOCK) ? 0 : 1);
 }
 
-static int file_release(struct inode *inode, struct file *filp)
+static int file_release(struct iyesde *iyesde, struct file *filp)
 {
-	return rtlx_release(iminor(inode));
+	return rtlx_release(imiyesr(iyesde));
 }
 
 static __poll_t file_poll(struct file *file, poll_table *wait)
 {
-	int minor = iminor(file_inode(file));
+	int miyesr = imiyesr(file_iyesde(file));
 	__poll_t mask = 0;
 
-	poll_wait(file, &channel_wqs[minor].rt_queue, wait);
-	poll_wait(file, &channel_wqs[minor].lx_queue, wait);
+	poll_wait(file, &channel_wqs[miyesr].rt_queue, wait);
+	poll_wait(file, &channel_wqs[miyesr].lx_queue, wait);
 
 	if (rtlx == NULL)
 		return 0;
 
 	/* data available to read? */
-	if (rtlx_read_poll(minor, 0))
+	if (rtlx_read_poll(miyesr, 0))
 		mask |= EPOLLIN | EPOLLRDNORM;
 
 	/* space to write */
-	if (rtlx_write_poll(minor))
+	if (rtlx_write_poll(miyesr))
 		mask |= EPOLLOUT | EPOLLWRNORM;
 
 	return mask;
@@ -361,34 +361,34 @@ static __poll_t file_poll(struct file *file, poll_table *wait)
 static ssize_t file_read(struct file *file, char __user *buffer, size_t count,
 			 loff_t *ppos)
 {
-	int minor = iminor(file_inode(file));
+	int miyesr = imiyesr(file_iyesde(file));
 
 	/* data available? */
-	if (!rtlx_read_poll(minor, (file->f_flags & O_NONBLOCK) ? 0 : 1))
+	if (!rtlx_read_poll(miyesr, (file->f_flags & O_NONBLOCK) ? 0 : 1))
 		return 0;	/* -EAGAIN makes 'cat' whine */
 
-	return rtlx_read(minor, buffer, count);
+	return rtlx_read(miyesr, buffer, count);
 }
 
 static ssize_t file_write(struct file *file, const char __user *buffer,
 			  size_t count, loff_t *ppos)
 {
-	int minor = iminor(file_inode(file));
+	int miyesr = imiyesr(file_iyesde(file));
 
 	/* any space left... */
-	if (!rtlx_write_poll(minor)) {
+	if (!rtlx_write_poll(miyesr)) {
 		int ret;
 
 		if (file->f_flags & O_NONBLOCK)
 			return -EAGAIN;
 
-		ret = __wait_event_interruptible(channel_wqs[minor].rt_queue,
-					   rtlx_write_poll(minor));
+		ret = __wait_event_interruptible(channel_wqs[miyesr].rt_queue,
+					   rtlx_write_poll(miyesr));
 		if (ret)
 			return ret;
 	}
 
-	return rtlx_write(minor, buffer, count);
+	return rtlx_write(miyesr, buffer, count);
 }
 
 const struct file_operations rtlx_fops = {
@@ -398,12 +398,12 @@ const struct file_operations rtlx_fops = {
 	.write =   file_write,
 	.read =    file_read,
 	.poll =    file_poll,
-	.llseek =  noop_llseek,
+	.llseek =  yesop_llseek,
 };
 
 module_init(rtlx_module_init);
 module_exit(rtlx_module_exit);
 
 MODULE_DESCRIPTION("MIPS RTLX");
-MODULE_AUTHOR("Elizabeth Oldham, MIPS Technologies, Inc.");
+MODULE_AUTHOR("Elizabeth Oldham, MIPS Techyeslogies, Inc.");
 MODULE_LICENSE("GPL");

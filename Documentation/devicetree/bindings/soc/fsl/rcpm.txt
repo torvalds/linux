@@ -36,7 +36,7 @@ Optional properties:
    will be Big Endian (default case).
 
 Example:
-The RCPM node for T4240:
+The RCPM yesde for T4240:
 	rcpm: global-utilities@e2000 {
 		compatible = "fsl,t4240-rcpm", "fsl,qoriq-rcpm-2.0";
 		reg = <0xe2000 0x1000>;
@@ -45,12 +45,12 @@ The RCPM node for T4240:
 
 * Freescale RCPM Wakeup Source Device Tree Bindings
 -------------------------------------------
-Required fsl,rcpm-wakeup property should be added to a device node if the device
+Required fsl,rcpm-wakeup property should be added to a device yesde if the device
 can be used as a wakeup source.
 
-  - fsl,rcpm-wakeup: Consists of a phandle to the rcpm node and the IPPDEXPCR
+  - fsl,rcpm-wakeup: Consists of a phandle to the rcpm yesde and the IPPDEXPCR
 	register cells. The number of IPPDEXPCR register cells is defined in
-	"#fsl,rcpm-wakeup-cells" in the rcpm node. The first register cell is
+	"#fsl,rcpm-wakeup-cells" in the rcpm yesde. The first register cell is
 	the bit mask that should be set in IPPDEXPCR0, and the second register
 	cell is for IPPDEXPCR1, and so on.
 

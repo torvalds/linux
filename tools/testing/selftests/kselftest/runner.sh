@@ -11,7 +11,7 @@ export per_test_logging=
 # "timeout" how many seconds to let each test run before failing.
 export kselftest_default_timeout=45
 
-# There isn't a shell-agnostic way to find the path of a sourced file,
+# There isn't a shell-agyesstic way to find the path of a sourced file,
 # so we must rely on BASE_DIR being set to find other tools.
 if [ -z "$BASE_DIR" ]; then
 	echo "Error: BASE_DIR must be set before sourcing." >&2
@@ -66,9 +66,9 @@ run_one()
 		if [ ! -e "$TEST" ]; then
 			echo "missing!"
 		else
-			echo "not executable, correct this."
+			echo "yest executable, correct this."
 		fi
-		echo "not ok $test_num $TEST_HDR_MSG"
+		echo "yest ok $test_num $TEST_HDR_MSG"
 	else
 		cd `dirname $TEST` > /dev/null
 		((((( tap_timeout ./$BASENAME_TEST 2>&1; echo $? >&3) |
@@ -77,12 +77,12 @@ run_one()
 		echo "ok $test_num $TEST_HDR_MSG") ||
 		(rc=$?;	\
 		if [ $rc -eq $skip_rc ]; then	\
-			echo "not ok $test_num $TEST_HDR_MSG # SKIP"
+			echo "yest ok $test_num $TEST_HDR_MSG # SKIP"
 		elif [ $rc -eq $timeout_rc ]; then \
 			echo "#"
-			echo "not ok $test_num $TEST_HDR_MSG # TIMEOUT"
+			echo "yest ok $test_num $TEST_HDR_MSG # TIMEOUT"
 		else
-			echo "not ok $test_num $TEST_HDR_MSG # exit=$rc"
+			echo "yest ok $test_num $TEST_HDR_MSG # exit=$rc"
 		fi)
 		cd - >/dev/null
 	fi

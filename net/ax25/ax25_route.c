@@ -10,7 +10,7 @@
  */
 
 #include <linux/capability.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/types.h>
 #include <linux/socket.h>
 #include <linux/timer.h>
@@ -342,7 +342,7 @@ ax25_route *ax25_get_route(ax25_address *addr, struct net_device *dev)
 
 	/*
 	 *	Bind to the physical interface we heard them on, or the default
-	 *	route if none is found;
+	 *	route if yesne is found;
 	 */
 	for (ax25_rt = ax25_route_list; ax25_rt != NULL; ax25_rt = ax25_rt->next) {
 		if (dev == NULL) {

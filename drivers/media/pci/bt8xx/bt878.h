@@ -127,7 +127,7 @@ struct bt878 {
 extern struct bt878 bt878[BT878_MAX];
 
 void bt878_start(struct bt878 *bt, u32 controlreg, u32 op_sync_orin,
-		u32 irq_err_ignore);
+		u32 irq_err_igyesre);
 void bt878_stop(struct bt878 *bt);
 
 #define bmtwrite(dat,adr)  writel((dat), (adr))

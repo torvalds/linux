@@ -19,7 +19,7 @@
 
 #include <linux/debugfs.h>
 #include <linux/seq_file.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 
 #define DA9030_FAULT_LOG		0x0a
 #define DA9030_FAULT_LOG_OVER_TEMP	(1 << 7)
@@ -109,7 +109,7 @@ struct da9030_charger {
 	int mV;
 	bool is_on;
 
-	struct notifier_block nb;
+	struct yestifier_block nb;
 
 	/* platform callbacks for battery low and critical events */
 	void (*battery_low)(void);
@@ -172,9 +172,9 @@ static int bat_debug_show(struct seq_file *s, void *data)
 	return 0;
 }
 
-static int debug_open(struct inode *inode, struct file *file)
+static int debug_open(struct iyesde *iyesde, struct file *file)
 {
-	return single_open(file, bat_debug_show, inode->i_private);
+	return single_open(file, bat_debug_show, iyesde->i_private);
 }
 
 static const struct file_operations bat_debug_fops = {
@@ -349,7 +349,7 @@ static int da9030_battery_get_property(struct power_supply *psy,
 		da9030_battery_check_health(charger, val);
 		break;
 	case POWER_SUPPLY_PROP_TECHNOLOGY:
-		val->intval = charger->battery_info->technology;
+		val->intval = charger->battery_info->techyeslogy;
 		break;
 	case POWER_SUPPLY_PROP_VOLTAGE_MAX_DESIGN:
 		val->intval = charger->battery_info->voltage_max_design;
@@ -389,13 +389,13 @@ static void da9030_battery_vbat_event(struct da9030_charger *charger)
 			charger->battery_low();
 	} else if (charger->adc.vbat_res <
 		   charger->thresholds.vbat_crit) {
-		/* notify the system of battery critical */
+		/* yestify the system of battery critical */
 		if (charger->battery_critical)
 			charger->battery_critical();
 	}
 }
 
-static int da9030_battery_event(struct notifier_block *nb, unsigned long event,
+static int da9030_battery_event(struct yestifier_block *nb, unsigned long event,
 				void *data)
 {
 	struct da9030_charger *charger =
@@ -529,14 +529,14 @@ static int da9030_battery_probe(struct platform_device *pdev)
 	INIT_DELAYED_WORK(&charger->work, da9030_charging_monitor);
 	schedule_delayed_work(&charger->work, charger->interval);
 
-	charger->nb.notifier_call = da9030_battery_event;
-	ret = da903x_register_notifier(charger->master, &charger->nb,
+	charger->nb.yestifier_call = da9030_battery_event;
+	ret = da903x_register_yestifier(charger->master, &charger->nb,
 				       DA9030_EVENT_CHDET |
 				       DA9030_EVENT_VBATMON |
 				       DA9030_EVENT_CHIOVER |
 				       DA9030_EVENT_TBAT);
 	if (ret)
-		goto err_notifier;
+		goto err_yestifier;
 
 	da9030_battery_setup_psy(charger);
 	psy_cfg.drv_data = charger;
@@ -552,10 +552,10 @@ static int da9030_battery_probe(struct platform_device *pdev)
 	return 0;
 
 err_ps_register:
-	da903x_unregister_notifier(charger->master, &charger->nb,
+	da903x_unregister_yestifier(charger->master, &charger->nb,
 				   DA9030_EVENT_CHDET | DA9030_EVENT_VBATMON |
 				   DA9030_EVENT_CHIOVER | DA9030_EVENT_TBAT);
-err_notifier:
+err_yestifier:
 	cancel_delayed_work(&charger->work);
 
 err_charger_init:
@@ -568,7 +568,7 @@ static int da9030_battery_remove(struct platform_device *dev)
 
 	da9030_bat_remove_debugfs(charger);
 
-	da903x_unregister_notifier(charger->master, &charger->nb,
+	da903x_unregister_yestifier(charger->master, &charger->nb,
 				   DA9030_EVENT_CHDET | DA9030_EVENT_VBATMON |
 				   DA9030_EVENT_CHIOVER | DA9030_EVENT_TBAT);
 	cancel_delayed_work_sync(&charger->work);

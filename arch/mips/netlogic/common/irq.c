@@ -13,9 +13,9 @@
  * are met:
  *
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
+ *    yestice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
  *
@@ -44,7 +44,7 @@
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
 
-#include <asm/errno.h>
+#include <asm/erryes.h>
 #include <asm/signal.h>
 #include <asm/ptrace.h>
 #include <asm/mipsregs.h>
@@ -64,7 +64,7 @@
 #include <asm/netlogic/xlr/pic.h>
 #include <asm/netlogic/xlr/fmn.h>
 #else
-#error "Unknown CPU"
+#error "Unkyeswn CPU"
 #endif
 
 #ifdef CONFIG_SMP
@@ -78,7 +78,7 @@
 
 struct nlm_pic_irq {
 	void	(*extra_ack)(struct irq_data *);
-	struct	nlm_soc_info *node;
+	struct	nlm_soc_info *yesde;
 	int	picirq;
 	int	irt;
 	int	flags;
@@ -90,9 +90,9 @@ static void xlp_pic_enable(struct irq_data *d)
 	struct nlm_pic_irq *pd = irq_data_get_irq_chip_data(d);
 
 	BUG_ON(!pd);
-	spin_lock_irqsave(&pd->node->piclock, flags);
-	nlm_pic_enable_irt(pd->node->picbase, pd->irt);
-	spin_unlock_irqrestore(&pd->node->piclock, flags);
+	spin_lock_irqsave(&pd->yesde->piclock, flags);
+	nlm_pic_enable_irt(pd->yesde->picbase, pd->irt);
+	spin_unlock_irqrestore(&pd->yesde->piclock, flags);
 }
 
 static void xlp_pic_disable(struct irq_data *d)
@@ -101,9 +101,9 @@ static void xlp_pic_disable(struct irq_data *d)
 	unsigned long flags;
 
 	BUG_ON(!pd);
-	spin_lock_irqsave(&pd->node->piclock, flags);
-	nlm_pic_disable_irt(pd->node->picbase, pd->irt);
-	spin_unlock_irqrestore(&pd->node->piclock, flags);
+	spin_lock_irqsave(&pd->yesde->piclock, flags);
+	nlm_pic_disable_irt(pd->yesde->picbase, pd->irt);
+	spin_unlock_irqrestore(&pd->yesde->piclock, flags);
 }
 
 static void xlp_pic_mask_ack(struct irq_data *d)
@@ -126,8 +126,8 @@ static void xlp_pic_unmask(struct irq_data *d)
 	/* re-enable the intr on this cpu */
 	set_c0_eimr(pd->picirq);
 
-	/* Ack is a single write, no need to lock */
-	nlm_pic_ack(pd->node->picbase, pd->irt);
+	/* Ack is a single write, yes need to lock */
+	nlm_pic_ack(pd->yesde->picbase, pd->irt);
 }
 
 static struct irq_chip xlp_pic = {
@@ -181,73 +181,73 @@ static void __init nlm_init_percpu_irqs(void)
 }
 
 
-void nlm_setup_pic_irq(int node, int picirq, int irq, int irt)
+void nlm_setup_pic_irq(int yesde, int picirq, int irq, int irt)
 {
 	struct nlm_pic_irq *pic_data;
 	int xirq;
 
-	xirq = nlm_irq_to_xirq(node, irq);
+	xirq = nlm_irq_to_xirq(yesde, irq);
 	pic_data = kzalloc(sizeof(*pic_data), GFP_KERNEL);
 	BUG_ON(pic_data == NULL);
 	pic_data->irt = irt;
 	pic_data->picirq = picirq;
-	pic_data->node = nlm_get_node(node);
+	pic_data->yesde = nlm_get_yesde(yesde);
 	irq_set_chip_and_handler(xirq, &xlp_pic, handle_level_irq);
 	irq_set_chip_data(xirq, pic_data);
 }
 
-void nlm_set_pic_extra_ack(int node, int irq, void (*xack)(struct irq_data *))
+void nlm_set_pic_extra_ack(int yesde, int irq, void (*xack)(struct irq_data *))
 {
 	struct nlm_pic_irq *pic_data;
 	int xirq;
 
-	xirq = nlm_irq_to_xirq(node, irq);
+	xirq = nlm_irq_to_xirq(yesde, irq);
 	pic_data = irq_get_chip_data(xirq);
 	if (WARN_ON(!pic_data))
 		return;
 	pic_data->extra_ack = xack;
 }
 
-static void nlm_init_node_irqs(int node)
+static void nlm_init_yesde_irqs(int yesde)
 {
-	struct nlm_soc_info *nodep;
+	struct nlm_soc_info *yesdep;
 	int i, irt;
 
-	pr_info("Init IRQ for node %d\n", node);
-	nodep = nlm_get_node(node);
-	nodep->irqmask = PERCPU_IRQ_MASK;
+	pr_info("Init IRQ for yesde %d\n", yesde);
+	yesdep = nlm_get_yesde(yesde);
+	yesdep->irqmask = PERCPU_IRQ_MASK;
 	for (i = PIC_IRT_FIRST_IRQ; i <= PIC_IRT_LAST_IRQ; i++) {
 		irt = nlm_irq_to_irt(i);
 		if (irt == -1)		/* unused irq */
 			continue;
-		nodep->irqmask |= 1ull << i;
-		if (irt == -2)		/* not a direct PIC irq */
+		yesdep->irqmask |= 1ull << i;
+		if (irt == -2)		/* yest a direct PIC irq */
 			continue;
 
-		nlm_pic_init_irt(nodep->picbase, irt, i,
-				node * nlm_threads_per_node(), 0);
-		nlm_setup_pic_irq(node, i, i, irt);
+		nlm_pic_init_irt(yesdep->picbase, irt, i,
+				yesde * nlm_threads_per_yesde(), 0);
+		nlm_setup_pic_irq(yesde, i, i, irt);
 	}
 }
 
 void nlm_smp_irq_init(int hwtid)
 {
-	int cpu, node;
+	int cpu, yesde;
 
-	cpu = hwtid % nlm_threads_per_node();
-	node = hwtid / nlm_threads_per_node();
+	cpu = hwtid % nlm_threads_per_yesde();
+	yesde = hwtid / nlm_threads_per_yesde();
 
-	if (cpu == 0 && node != 0)
-		nlm_init_node_irqs(node);
-	write_c0_eimr(nlm_get_node(node)->irqmask);
+	if (cpu == 0 && yesde != 0)
+		nlm_init_yesde_irqs(yesde);
+	write_c0_eimr(nlm_get_yesde(yesde)->irqmask);
 }
 
 asmlinkage void plat_irq_dispatch(void)
 {
 	uint64_t eirr;
-	int i, node;
+	int i, yesde;
 
-	node = nlm_nodeid();
+	yesde = nlm_yesdeid();
 	eirr = read_c0_eirr_and_eimr();
 	if (eirr == 0)
 		return;
@@ -262,17 +262,17 @@ asmlinkage void plat_irq_dispatch(void)
 #if defined(CONFIG_PCI_MSI) && defined(CONFIG_CPU_XLP)
 	/* PCI interrupts need a second level dispatch for MSI bits */
 	if (i >= PIC_PCIE_LINK_MSI_IRQ(0) && i <= PIC_PCIE_LINK_MSI_IRQ(3)) {
-		nlm_dispatch_msi(node, i);
+		nlm_dispatch_msi(yesde, i);
 		return;
 	}
 	if (i >= PIC_PCIE_MSIX_IRQ(0) && i <= PIC_PCIE_MSIX_IRQ(3)) {
-		nlm_dispatch_msix(node, i);
+		nlm_dispatch_msix(yesde, i);
 		return;
 	}
 
 #endif
 	/* top level irq handling */
-	do_IRQ(nlm_irq_to_xirq(node, i));
+	do_IRQ(nlm_irq_to_xirq(yesde, i));
 }
 
 #ifdef CONFIG_CPU_XLP
@@ -280,8 +280,8 @@ static const struct irq_domain_ops xlp_pic_irq_domain_ops = {
 	.xlate = irq_domain_xlate_onetwocell,
 };
 
-static int __init xlp_of_pic_init(struct device_node *node,
-					struct device_node *parent)
+static int __init xlp_of_pic_init(struct device_yesde *yesde,
+					struct device_yesde *parent)
 {
 	const int n_picirqs = PIC_IRT_LAST_IRQ - PIC_IRQ_BASE + 1;
 	struct irq_domain *xlp_pic_domain;
@@ -289,44 +289,44 @@ static int __init xlp_of_pic_init(struct device_node *node,
 	int socid, ret, bus;
 
 	/* we need a hack to get the PIC's SoC chip id */
-	ret = of_address_to_resource(node, 0, &res);
+	ret = of_address_to_resource(yesde, 0, &res);
 	if (ret < 0) {
-		pr_err("PIC %pOFn: reg property not found!\n", node);
+		pr_err("PIC %pOFn: reg property yest found!\n", yesde);
 		return -EINVAL;
 	}
 
 	if (cpu_is_xlp9xx()) {
 		bus = (res.start >> 20) & 0xf;
 		for (socid = 0; socid < NLM_NR_NODES; socid++) {
-			if (!nlm_node_present(socid))
+			if (!nlm_yesde_present(socid))
 				continue;
-			if (nlm_get_node(socid)->socbus == bus)
+			if (nlm_get_yesde(socid)->socbus == bus)
 				break;
 		}
 		if (socid == NLM_NR_NODES) {
-			pr_err("PIC %pOFn: Node mapping for bus %d not found!\n",
-					node, bus);
+			pr_err("PIC %pOFn: Node mapping for bus %d yest found!\n",
+					yesde, bus);
 			return -EINVAL;
 		}
 	} else {
 		socid = (res.start >> 18) & 0x3;
-		if (!nlm_node_present(socid)) {
-			pr_err("PIC %pOFn: node %d does not exist!\n",
-							node, socid);
+		if (!nlm_yesde_present(socid)) {
+			pr_err("PIC %pOFn: yesde %d does yest exist!\n",
+							yesde, socid);
 			return -EINVAL;
 		}
 	}
 
-	if (!nlm_node_present(socid)) {
-		pr_err("PIC %pOFn: node %d does not exist!\n", node, socid);
+	if (!nlm_yesde_present(socid)) {
+		pr_err("PIC %pOFn: yesde %d does yest exist!\n", yesde, socid);
 		return -EINVAL;
 	}
 
-	xlp_pic_domain = irq_domain_add_legacy(node, n_picirqs,
+	xlp_pic_domain = irq_domain_add_legacy(yesde, n_picirqs,
 		nlm_irq_to_xirq(socid, PIC_IRQ_BASE), PIC_IRQ_BASE,
 		&xlp_pic_irq_domain_ops, NULL);
 	if (xlp_pic_domain == NULL) {
-		pr_err("PIC %pOFn: Creating legacy domain failed!\n", node);
+		pr_err("PIC %pOFn: Creating legacy domain failed!\n", yesde);
 		return -EINVAL;
 	}
 	pr_info("Node %d: IRQ domain created for PIC@%pR\n", socid, &res);
@@ -343,8 +343,8 @@ void __init arch_init_irq(void)
 {
 	/* Initialize the irq descriptors */
 	nlm_init_percpu_irqs();
-	nlm_init_node_irqs(0);
-	write_c0_eimr(nlm_current_node()->irqmask);
+	nlm_init_yesde_irqs(0);
+	write_c0_eimr(nlm_current_yesde()->irqmask);
 #if defined(CONFIG_CPU_XLR)
 	nlm_setup_fmn_irq();
 #endif

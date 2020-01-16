@@ -1,4 +1,4 @@
-* Synopsys DesignWare PCIe interface
+* Syyespsys DesignWare PCIe interface
 
 Required properties:
 - compatible:
@@ -40,10 +40,10 @@ Optional properties:
    Translation Unit) registers.
 RC mode:
 - num-viewport: number of view ports configured in hardware. If a platform
-  does not specify it, the driver assumes 2.
+  does yest specify it, the driver assumes 2.
 - bus-range: PCI bus numbers covered (it is recommended for new devicetrees
   to specify this property, to keep backwards compatibility a range of
-  0x00-0xff is assumed if not present)
+  0x00-0xff is assumed if yest present)
 
 EP mode:
 - max-functions: maximum number of functions that can be configured

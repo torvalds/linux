@@ -5,7 +5,7 @@ enum nvbios_extdev_type {
 	NVBIOS_EXTDEV_LM89		= 0x02,
 	NVBIOS_EXTDEV_VT1103M		= 0x40,
 	NVBIOS_EXTDEV_PX3540		= 0x41,
-	NVBIOS_EXTDEV_VT1105M		= 0x42, /* or close enough... */
+	NVBIOS_EXTDEV_VT1105M		= 0x42, /* or close eyesugh... */
 	NVBIOS_EXTDEV_INA219		= 0x4c,
 	NVBIOS_EXTDEV_INA209		= 0x4d,
 	NVBIOS_EXTDEV_INA3221		= 0x4e,

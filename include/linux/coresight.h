@@ -127,14 +127,14 @@ struct coresight_desc {
  * struct coresight_connection - representation of a single connection
  * @outport:	a connection's output port number.
  * @child_port:	remote component's port number @output is connected to.
- * @chid_fwnode: remote component's fwnode handle.
+ * @chid_fwyesde: remote component's fwyesde handle.
  * @child_dev:	a @coresight_device representation of the component
 		connected to @outport.
  */
 struct coresight_connection {
 	int outport;
 	int child_port;
-	struct fwnode_handle *child_fwnode;
+	struct fwyesde_handle *child_fwyesde;
 	struct coresight_device *child_dev;
 };
 
@@ -150,7 +150,7 @@ struct coresight_connection {
  * @orphan:	true if the component has connections that haven't been linked.
  * @enable:	'true' if component is currently part of an active path.
  * @activated:	'true' only if a _sink_ has been activated.  A sink can be
- *		activated but not yet enabled.  Enabling for a _sink_
+ *		activated but yest yet enabled.  Enabling for a _sink_
  *		appens when a source has been selected for that it.
  * @ea:		Device attribute for sink representation under PMU directory.
  */
@@ -174,20 +174,20 @@ struct coresight_device {
  *
  * @nr_idx:		Number of entries already allocated.
  * @pfx:		Prefix pattern for device name.
- * @fwnode_list:	Array of fwnode_handles associated with each allocated
+ * @fwyesde_list:	Array of fwyesde_handles associated with each allocated
  *			index, upto nr_idx entries.
  */
 struct coresight_dev_list {
 	int			nr_idx;
 	const char		*pfx;
-	struct fwnode_handle	**fwnode_list;
+	struct fwyesde_handle	**fwyesde_list;
 };
 
 #define DEFINE_CORESIGHT_DEVLIST(var, dev_pfx)				\
 static struct coresight_dev_list (var) = {				\
 						.pfx = dev_pfx,		\
 						.nr_idx = 0,		\
-						.fwnode_list = NULL,	\
+						.fwyesde_list = NULL,	\
 }
 
 #define to_coresight_device(d) container_of(d, struct coresight_device, dev)
@@ -234,7 +234,7 @@ struct coresight_ops_link {
  * Operations available for sources.
  * @cpu_id:	returns the value of the CPU number this component
  *		is associated to.
- * @trace_id:	returns the value of the component's trace ID as known
+ * @trace_id:	returns the value of the component's trace ID as kyeswn
  *		to the HW.
  * @enable:	enables tracing for a source.
  * @disable:	disables tracing for a source.

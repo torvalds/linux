@@ -17,7 +17,7 @@
  *
  *        XAUI PHYXS -- <appropriate PCS as above>
  *
- * and no switching of the host interface mode occurs.
+ * and yes switching of the host interface mode occurs.
  *
  * If both the fiber and copper ports are connected, the first to gain
  * link takes priority and the other port is completely locked out.
@@ -59,7 +59,7 @@ enum {
 	MV_V2_TEMP_CTRL_SAMPLE	= 0x0000,
 	MV_V2_TEMP_CTRL_DISABLE	= 0xc000,
 	MV_V2_TEMP		= 0xf08c,
-	MV_V2_TEMP_UNKNOWN	= 0x9600, /* unknown function */
+	MV_V2_TEMP_UNKNOWN	= 0x9600, /* unkyeswn function */
 };
 
 struct mv3310_priv {
@@ -284,7 +284,7 @@ static int mv3310_resume(struct phy_device *phydev)
  * don't set bit 14 in PMA Extended Abilities (1.11), although they do
  * support 2.5GBASET and 5GBASET. For these models, we can still read their
  * 2.5G/5G extended abilities register (1.21). We detect these models based on
- * the PMA device identifier, with a mask matching models known to have this
+ * the PMA device identifier, with a mask matching models kyeswn to have this
  * issue
  */
 static bool mv3310_has_pma_ngbaset_quirk(struct phy_device *phydev)
@@ -354,7 +354,7 @@ static int mv3310_config_aneg(struct phy_device *phydev)
 	if (ret > 0)
 		changed = true;
 
-	/* Clause 45 has no standardized support for 1000BaseT, therefore
+	/* Clause 45 has yes standardized support for 1000BaseT, therefore
 	 * use vendor registers for this mode.
 	 */
 	reg = linkmode_adv_to_mii_ctrl1000_t(phydev->advertising);
@@ -411,7 +411,7 @@ static void mv3310_update_interface(struct phy_device *phydev)
 	}
 }
 
-/* 10GBASE-ER,LR,LRM,SR do not support autonegotiation. */
+/* 10GBASE-ER,LR,LRM,SR do yest support autonegotiation. */
 static int mv3310_read_10gbr_status(struct phy_device *phydev)
 {
 	phydev->link = 1;
@@ -505,7 +505,7 @@ static struct phy_driver mv3310_drivers[] = {
 		.phy_id_mask	= MARVELL_PHY_ID_MASK,
 		.name		= "mv88x3310",
 		.get_features	= mv3310_get_features,
-		.soft_reset	= genphy_no_soft_reset,
+		.soft_reset	= genphy_yes_soft_reset,
 		.config_init	= mv3310_config_init,
 		.probe		= mv3310_probe,
 		.suspend	= mv3310_suspend,
@@ -521,7 +521,7 @@ static struct phy_driver mv3310_drivers[] = {
 		.probe		= mv3310_probe,
 		.suspend	= mv3310_suspend,
 		.resume		= mv3310_resume,
-		.soft_reset	= genphy_no_soft_reset,
+		.soft_reset	= genphy_yes_soft_reset,
 		.config_init	= mv3310_config_init,
 		.config_aneg	= mv3310_config_aneg,
 		.aneg_done	= mv3310_aneg_done,

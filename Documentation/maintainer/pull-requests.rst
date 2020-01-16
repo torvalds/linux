@@ -5,9 +5,9 @@ Creating Pull Requests
 
 This chapter describes how maintainers can create and submit pull requests
 to other maintainers. This is useful for transferring changes from one
-maintainers tree to another maintainers tree.
+maintainers tree to ayesther maintainers tree.
 
-This document was written by Tobin C. Harding (who at that time, was not an
+This document was written by Tobin C. Harding (who at that time, was yest an
 experienced maintainer) primarily from comments made by Greg Kroah-Hartman
 and Linus Torvalds on LKML. Suggestions and fixes by Jonathan Corbet and
 Mauro Carvalho Chehab.  Misrepresentation was unintentional but inevitable,
@@ -59,7 +59,7 @@ As said by Linus::
 	Anyway, at least to me, the important part is the *message*. I want
 	to understand what I'm pulling, and why I should pull it. I also
 	want to use that message as the message for the merge, so it should
-	not just make sense to me, but make sense as a historical record
+	yest just make sense to me, but make sense as a historical record
 	too.
 
 	Note that if there is something odd about the pull request, that
@@ -67,7 +67,7 @@ As said by Linus::
 	that you don't maintain, explain _why_. I will see it in the
 	diffstat anyway, and if you didn't mention it, I'll just be extra
 	suspicious.  And when you send me new stuff after the merge window
-	(or even bug-fixes, but ones that look scary), explain not just
+	(or even bug-fixes, but ones that look scary), explain yest just
 	what they do and why they do it, but explain the _timing_. What
 	happened that this didn't go through the merge window..
 
@@ -75,17 +75,17 @@ As said by Linus::
 	the signed tag, so depending on your workflow, you can either
 	describe your work in the signed tag (which will also automatically
 	make it into the pull request email), or you can make the signed
-	tag just a placeholder with nothing interesting in it, and describe
+	tag just a placeholder with yesthing interesting in it, and describe
 	the work later when you actually send me the pull request.
 
-	And yes, I will edit the message. Partly because I tend to do just
+	And no, I will edit the message. Partly because I tend to do just
 	trivial formatting (the whole indentation and quoting etc), but
 	partly because part of the message may make sense for me at pull
 	time (describing the conflicts and your personal issues for sending
-	it right now), but may not make sense in the context of a merge
+	it right yesw), but may yest make sense in the context of a merge
 	commit message, so I will try to make it all make sense. I will
-	also fix any speeling mistaeks and bad grammar I notice,
-	particularly for non-native speakers (but also for native ones
+	also fix any speeling mistaeks and bad grammar I yestice,
+	particularly for yesn-native speakers (but also for native ones
 	;^). But I may miss some, or even add some.
 
 			Linus
@@ -95,7 +95,7 @@ Greg gives, as an example pull request::
 	Char/Misc patches for 4.15-rc1
 
 	Here is the big char/misc patch set for the 4.15-rc1 merge window.
-	Contained in here is the normal set of new functions added to all
+	Contained in here is the yesrmal set of new functions added to all
 	of these crazy drivers, as well as the following brand new
 	subsystems:
 		- time_travel_controller: Finally a set of drivers for the
@@ -109,7 +109,7 @@ Greg gives, as an example pull request::
 		  threaten to suck CPUs into them.  This subsystem handles
 		  this in a way to successfully neutralize the problems.
 		  There is a Kconfig option to force these to be enabled
-		  when needed, so problems should not occur.
+		  when needed, so problems should yest occur.
 
 	All of these patches have been successfully tested in the latest
 	linux-next releases, and the original problems that it found have
@@ -147,11 +147,11 @@ Quoting Greg::
 	branch (which in my case points to the last location in Linus's
 	tree that I diverged from, usually a -rc release) and to use the
 	git:// protocol to pull from.  If you wish to use https://, that
-	can be used here instead as well (but note that some people behind
+	can be used here instead as well (but yeste that some people behind
 	firewalls will have problems with https git pulls).
 
-	If the char-misc-4.15-rc1 tag is not present in the repo that I am
-	asking to be pulled from, git will complain saying it is not there,
+	If the char-misc-4.15-rc1 tag is yest present in the repo that I am
+	asking to be pulled from, git will complain saying it is yest there,
 	a handy way to remember to actually push it to a public location.
 
 	The output of 'git request-pull' will contain the location of the
@@ -162,7 +162,7 @@ Quoting Greg::
 	pull request will provide.
 
 Linus responded that he tends to prefer the ``git://`` protocol. Other
-maintainers may have different preferences. Also, note that if you are
+maintainers may have different preferences. Also, yeste that if you are
 creating pull requests without a signed tag then ``https://`` may be a
 better choice. Please see the original thread for the full discussion.
 

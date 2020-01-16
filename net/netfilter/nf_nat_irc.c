@@ -48,7 +48,7 @@ static unsigned int help(struct sk_buff *skb,
 	exp->dir = IP_CT_DIR_REPLY;
 	exp->expectfn = nf_nat_follow_master;
 
-	/* Try to get same port: if not, try to change it. */
+	/* Try to get same port: if yest, try to change it. */
 	for (port = ntohs(exp->saved_proto.tcp.port); port != 0; port++) {
 		int ret;
 
@@ -80,14 +80,14 @@ static unsigned int help(struct sk_buff *skb,
 	 * S:         size       (min 1 d )
 	 * 0x01, \n:  terminators
 	 */
-	/* AAA = "us", ie. where server normally talks to. */
+	/* AAA = "us", ie. where server yesrmally talks to. */
 	snprintf(buffer, sizeof(buffer), "%u %u", ntohl(newaddr.ip), port);
 	pr_debug("inserting '%s' == %pI4, port %u\n",
 		 buffer, &newaddr.ip, port);
 
 	if (!nf_nat_mangle_tcp_packet(skb, ct, ctinfo, protoff, matchoff,
 				      matchlen, buffer, strlen(buffer))) {
-		nf_ct_helper_log(skb, ct, "cannot mangle packet");
+		nf_ct_helper_log(skb, ct, "canyest mangle packet");
 		nf_ct_unexpect_related(exp);
 		return NF_DROP;
 	}

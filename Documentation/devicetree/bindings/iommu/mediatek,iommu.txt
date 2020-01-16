@@ -51,7 +51,7 @@ in each larb. Take a example, There are many ports like MC, PP, VLD in the
 video decode local arbiter, all these ports are according to the video HW.
   In some SoCs, there may be a GALS(Global Async Local Sync) module between
 smi-common and m4u, and additional GALS module between smi-larb and
-smi-common. GALS can been seen as a "asynchronous fifo" which could help
+smi-common. GALS can been seen as a "asynchroyesus fifo" which could help
 synchronize for the modules in different clock frequency.
 
 Required properties:
@@ -70,7 +70,7 @@ Required properties:
   Here is the list which require this "bclk":
   - mt2701, mt2712, mt7623 and mt8173.
   Note that m4u use the EMI clock which always has been enabled before kernel
-  if there is no this "bclk".
+  if there is yes this "bclk".
 - mediatek,larbs : List of phandle to the local arbiters in the current Socs.
 	Refer to bindings/memory-controllers/mediatek,smi-larb.txt. It must sort
 	according to the local arbiter index, like larb0, larb1, larb2...

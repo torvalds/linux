@@ -12,7 +12,7 @@ Information regarding the Enhanced IDE drive
 
    BUGGY IDE CHIPSETS CAN CORRUPT DATA!!
 
-    PCI versions of the CMD640 and RZ1000 interfaces are now detected
+    PCI versions of the CMD640 and RZ1000 interfaces are yesw detected
     automatically at startup when PCI BIOS support is configured.
 
     Linux disables the "prefetch" ("readahead") mode of the RZ1000
@@ -32,7 +32,7 @@ Information regarding the Enhanced IDE drive
     automatically detected by Linux.  For safe, reliable operation with such
     interfaces, one *MUST* use the "cmd640.probe_vlb" kernel option.
 
-    Use of the "serialize" option is no longer necessary.
+    Use of the "serialize" option is yes longer necessary.
 
 -------------------------------------------------------------------------------
 
@@ -40,7 +40,7 @@ Common pitfalls
 ===============
 
 - 40-conductor IDE cables are capable of transferring data in DMA modes up to
-  udma2, but no faster.
+  udma2, but yes faster.
 
 - If possible devices should be attached to separate channels if they are
   available. Typically the disk on the first and CD-ROM on the second.
@@ -57,29 +57,29 @@ This is the multiple IDE interface driver, as evolved from hd.c
 It supports up to 9 IDE interfaces per default, on one or more IRQs (usually
 14 & 15).  There can be up to two drives per interface, as per the ATA-6 spec.::
 
-  Primary:    ide0, port 0x1f0; major=3;  hda is minor=0; hdb is minor=64
-  Secondary:  ide1, port 0x170; major=22; hdc is minor=0; hdd is minor=64
-  Tertiary:   ide2, port 0x1e8; major=33; hde is minor=0; hdf is minor=64
-  Quaternary: ide3, port 0x168; major=34; hdg is minor=0; hdh is minor=64
+  Primary:    ide0, port 0x1f0; major=3;  hda is miyesr=0; hdb is miyesr=64
+  Secondary:  ide1, port 0x170; major=22; hdc is miyesr=0; hdd is miyesr=64
+  Tertiary:   ide2, port 0x1e8; major=33; hde is miyesr=0; hdf is miyesr=64
+  Quaternary: ide3, port 0x168; major=34; hdg is miyesr=0; hdh is miyesr=64
   fifth..     ide4, usually PCI, probed
   sixth..     ide5, usually PCI, probed
 
 To access devices on interfaces > ide0, device entries please make sure that
-device files for them are present in /dev.  If not, please create such
+device files for them are present in /dev.  If yest, please create such
 entries, by using /dev/MAKEDEV.
 
 This driver automatically probes for most IDE interfaces (including all PCI
 ones), for the drives/geometries attached to those interfaces, and for the IRQ
-lines being used by the interfaces (normally 14, 15 for ide0/ide1).
+lines being used by the interfaces (yesrmally 14, 15 for ide0/ide1).
 
 Any number of interfaces may share a single IRQ if necessary, at a slight
 performance penalty, whether on separate cards or a single VLB card.
 The IDE driver automatically detects and handles this.  However, this may
-or may not be harmful to your hardware.. two or more cards driving the same IRQ
+or may yest be harmful to your hardware.. two or more cards driving the same IRQ
 can potentially burn each other's bus driver, though in practice this
 seldom occurs.  Be careful, and if in doubt, don't do it!
 
-Drives are normally found by auto-probing and/or examining the CMOS/BIOS data.
+Drives are yesrmally found by auto-probing and/or examining the CMOS/BIOS data.
 For really weird situations, the apparent (fdisk) geometry can also be specified
 on the kernel "command line" using LILO.  The format of such lines is::
 
@@ -98,20 +98,20 @@ specified, though the "original" geometry may be retained as the "logical"
 geometry for partitioning purposes (fdisk).
 
 If the auto-probing during boot time confuses a drive (ie. the drive works
-with hd.c but not with ide.c), then an command line option may be specified
+with hd.c but yest with ide.c), then an command line option may be specified
 for each drive for which you'd like the drive to skip the hardware
 probe/identification sequence.  For example::
 
-	ide_core.noprobe=0.1
+	ide_core.yesprobe=0.1
 
 or::
 
 	ide_core.chs=1.0:768,16,32
-	ide_core.noprobe=1.0
+	ide_core.yesprobe=1.0
 
 Note that when only one IDE device is attached to an interface, it should be
-jumpered as "single" or "master", *not* "slave".  Many folks have had
-"trouble" with cdroms because of this requirement, so the driver now probes
+jumpered as "single" or "master", *yest* "slave".  Many folks have had
+"trouble" with cdroms because of this requirement, so the driver yesw probes
 for both units, though success is more likely when the drive is jumpered
 correctly.
 
@@ -119,7 +119,7 @@ Courtesy of Scott Snyder and others, the driver supports ATAPI cdrom drives
 such as the NEC-260 and the new MITSUMI triple/quad speed drives.
 Such drives will be identified at boot time, just like a hard disk.
 
-If for some reason your cdrom drive is *not* found at boot time, you can force
+If for some reason your cdrom drive is *yest* found at boot time, you can force
 the probe to look harder by supplying a kernel command line parameter
 via LILO, such as:::
 
@@ -139,7 +139,7 @@ interface (/dev/hda) and an IDE cdrom drive on the secondary interface
 
 If, after doing all of the above, mount doesn't work and you see
 errors from the driver (with dmesg) complaining about `status=0xff`,
-this means that the hardware is not responding to the driver's attempts
+this means that the hardware is yest responding to the driver's attempts
 to read it.  One of the following is probably the problem:
 
   - Your hardware is broken.
@@ -147,7 +147,7 @@ to read it.  One of the following is probably the problem:
   - You are using the wrong address for the device, or you have the
     drive jumpered wrong.  Review the configuration instructions above.
 
-  - Your IDE controller requires some nonstandard initialization sequence
+  - Your IDE controller requires some yesnstandard initialization sequence
     before it will work properly.  If this is the case, there will often
     be a separate MS-DOS driver just for the controller.  IDE interfaces
     on sound cards usually fall into this category.  Such configurations
@@ -156,7 +156,7 @@ to read it.  One of the following is probably the problem:
     off).  This can be automated using loadlin in the MS-DOS autoexec.
 
 If you always get timeout errors, interrupts from the drive are probably
-not making it to the host.  Check how you have the hardware jumpered
+yest making it to the host.  Check how you have the hardware jumpered
 and make sure it matches what the driver expects (see the configuration
 instructions above).  If you have a PCI system, also check the BIOS
 setup; I've had one report of a system which was shipped with IRQ 15
@@ -171,7 +171,7 @@ whose address can be found in linux/MAINTAINERS.
 The IDE driver is modularized.  The high level disk/CD-ROM/tape/floppy
 drivers can always be compiled as loadable modules, the chipset drivers
 can only be compiled into the kernel, and the core code (ide.c) can be
-compiled as a loadable module provided no chipset support is needed.
+compiled as a loadable module provided yes chipset support is needed.
 
 When using ide.c as a module in combination with kmod, add::
 
@@ -206,46 +206,46 @@ You also need to use "probe" kernel parameter for ide-4drives driver
 To enable support for IDE doublers on Amiga use "doubler" kernel parameter
 for gayle host driver (i.e. "gayle.doubler" if the driver is built-in).
 
-To force ignoring cable detection (this should be needed only if you're using
-short 40-wires cable which cannot be automatically detected - if this is not
-a case please report it as a bug instead) use "ignore_cable" kernel parameter:
+To force igyesring cable detection (this should be needed only if you're using
+short 40-wires cable which canyest be automatically detected - if this is yest
+a case please report it as a bug instead) use "igyesre_cable" kernel parameter:
 
-* "ide_core.ignore_cable=[interface_number]" boot option if IDE is built-in
-  (i.e. "ide_core.ignore_cable=1" to force ignoring cable for "ide1")
+* "ide_core.igyesre_cable=[interface_number]" boot option if IDE is built-in
+  (i.e. "ide_core.igyesre_cable=1" to force igyesring cable for "ide1")
 
-* "ignore_cable=[interface_number]" module parameter (for ide_core module)
+* "igyesre_cable=[interface_number]" module parameter (for ide_core module)
   if IDE is compiled as module
 
 Other kernel parameters for ide_core are:
 
-* "nodma=[interface_number.device_number]" to disallow DMA for a device
+* "yesdma=[interface_number.device_number]" to disallow DMA for a device
 
-* "noflush=[interface_number.device_number]" to disable flush requests
+* "yesflush=[interface_number.device_number]" to disable flush requests
 
-* "nohpa=[interface_number.device_number]" to disable Host Protected Area
+* "yeshpa=[interface_number.device_number]" to disable Host Protected Area
 
-* "noprobe=[interface_number.device_number]" to skip probing
+* "yesprobe=[interface_number.device_number]" to skip probing
 
-* "nowerr=[interface_number.device_number]" to ignore the WRERR_STAT bit
+* "yeswerr=[interface_number.device_number]" to igyesre the WRERR_STAT bit
 
 * "cdrom=[interface_number.device_number]" to force device as a CD-ROM
 
 * "chs=[interface_number.device_number]" to force device as a disk (using CHS)
 
 
-Some Terminology
+Some Termiyeslogy
 ================
 
 IDE
   Integrated Drive Electronics, meaning that each drive has a built-in
-  controller, which is why an "IDE interface card" is not a "controller card".
+  controller, which is why an "IDE interface card" is yest a "controller card".
 
 ATA
   AT (the old IBM 286 computer) Attachment Interface, a draft American
   National Standard for connecting hard drives to PCs.  This is the official
   name for "IDE".
 
-  The latest standards define some enhancements, known as the ATA-6 spec,
+  The latest standards define some enhancements, kyeswn as the ATA-6 spec,
   which grew out of vendor-specific "Enhanced IDE" (EIDE) implementations.
 
 ATAPI

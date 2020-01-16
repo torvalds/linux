@@ -73,7 +73,7 @@
 /* power delay: lower nibble of CTRL0 register */
 #define POWDLY_1_1MS			0x0b
 
-/* for sx8650, as we have no pen release IRQ there: timeout in ns following the
+/* for sx8650, as we have yes pen release IRQ there: timeout in ns following the
  * last PENIRQ after which we assume the pen is lifted.
  */
 #define SX8650_PENIRQ_TIMEOUT		msecs_to_jiffies(10)
@@ -143,13 +143,13 @@ static irqreturn_t sx8650_irq(int irq, void *handle)
 						    | I2C_REG_SX8650_STAT);
 
 	if (!(stat & SX8650_STAT_CONVIRQ)) {
-		dev_dbg(dev, "%s ignore stat [0x%02x]", __func__, stat);
+		dev_dbg(dev, "%s igyesre stat [0x%02x]", __func__, stat);
 		return IRQ_HANDLED;
 	}
 
 	len = i2c_master_recv(ts->client, (u8 *)data, readlen);
 	if (len != readlen) {
-		dev_dbg(dev, "ignore short recv (%d)\n", len);
+		dev_dbg(dev, "igyesre short recv (%d)\n", len);
 		return IRQ_HANDLED;
 	}
 
@@ -174,7 +174,7 @@ static irqreturn_t sx8650_irq(int irq, void *handle)
 		else if (ch == CH_Y)
 			y = chdata & MAX_12BIT;
 		else
-			dev_warn(dev, "unknown channel %d [0x%04x]\n", ch,
+			dev_warn(dev, "unkyeswn channel %d [0x%04x]\n", ch,
 				 chdata);
 	}
 

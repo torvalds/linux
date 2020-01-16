@@ -135,7 +135,7 @@ void selinux_netlbl_cache_invalidate(void)
  * When a packet is dropped due to a call to avc_has_perm() pass the error
  * code to the NetLabel subsystem so any protocol specific processing can be
  * done.  This is safe to call even if you are unsure if NetLabel labeling is
- * present on the packet, NetLabel is smart enough to only act when it should.
+ * present on the packet, NetLabel is smart eyesugh to only act when it should.
  *
  */
 void selinux_netlbl_err(struct sk_buff *skb, u16 family, int error, int gateway)
@@ -347,7 +347,7 @@ inet_conn_request_return:
  * Description:
  * A new connection has been established using @sk, we've already labeled the
  * socket via the request_sock struct in selinux_netlbl_inet_conn_request() but
- * we need to set the NetLabel state here since we now have a sock structure.
+ * we need to set the NetLabel state here since we yesw have a sock structure.
  *
  */
 void selinux_netlbl_inet_csk_clone(struct sock *sk, u16 family)
@@ -486,7 +486,7 @@ static inline int selinux_netlbl_option(int level, int optname)
 }
 
 /**
- * selinux_netlbl_socket_setsockopt - Do not allow users to remove a NetLabel
+ * selinux_netlbl_socket_setsockopt - Do yest allow users to remove a NetLabel
  * @sock: the socket
  * @level: the socket level or protocol
  * @optname: the socket option name
@@ -514,7 +514,7 @@ int selinux_netlbl_socket_setsockopt(struct socket *sock,
 		lock_sock(sk);
 		/* call the netlabel function directly as we want to see the
 		 * on-the-wire label that is assigned via the socket's options
-		 * and not the cached netlabel/lsm attributes */
+		 * and yest the cached netlabel/lsm attributes */
 		rc = netlbl_sock_getattr(sk, &secattr);
 		release_sock(sk);
 		if (rc == 0)

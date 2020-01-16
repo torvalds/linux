@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -140,7 +140,7 @@ ovly507e_acquire(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw,
 	return 0;
 }
 
-#include "nouveau_bo.h"
+#include "yesuveau_bo.h"
 
 static const struct nv50_wndw_func
 ovly507e = {
@@ -167,7 +167,7 @@ ovly507e_format[] = {
 
 int
 ovly507e_new_(const struct nv50_wndw_func *func, const u32 *format,
-	      struct nouveau_drm *drm, int head, s32 oclass, u32 interlock_data,
+	      struct yesuveau_drm *drm, int head, s32 oclass, u32 interlock_data,
 	      struct nv50_wndw **pwndw)
 {
 	struct nv50_disp_overlay_channel_dma_v0 args = {
@@ -192,12 +192,12 @@ ovly507e_new_(const struct nv50_wndw_func *func, const u32 *format,
 		return ret;
 	}
 
-	ret = nvif_notify_init(&wndw->wndw.base.user, wndw->notify.func, false,
+	ret = nvif_yestify_init(&wndw->wndw.base.user, wndw->yestify.func, false,
 			       NV50_DISP_OVERLAY_CHANNEL_DMA_V0_NTFY_UEVENT,
-			       &(struct nvif_notify_uevent_req) {},
-			       sizeof(struct nvif_notify_uevent_req),
-			       sizeof(struct nvif_notify_uevent_rep),
-			       &wndw->notify);
+			       &(struct nvif_yestify_uevent_req) {},
+			       sizeof(struct nvif_yestify_uevent_req),
+			       sizeof(struct nvif_yestify_uevent_rep),
+			       &wndw->yestify);
 	if (ret)
 		return ret;
 
@@ -208,7 +208,7 @@ ovly507e_new_(const struct nv50_wndw_func *func, const u32 *format,
 }
 
 int
-ovly507e_new(struct nouveau_drm *drm, int head, s32 oclass,
+ovly507e_new(struct yesuveau_drm *drm, int head, s32 oclass,
 	     struct nv50_wndw **pwndw)
 {
 	return ovly507e_new_(&ovly507e, ovly507e_format, drm, head, oclass,

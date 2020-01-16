@@ -10,9 +10,9 @@ Required properties:
                     the interrupt.
 - interrupts:       interrupt specification for tcpci alert.
 
-Required sub-node:
+Required sub-yesde:
 - connector: The "usb-c-connector" attached to the tcpci chip, the bindings
-  of connector node are specified in
+  of connector yesde are specified in
   Documentation/devicetree/bindings/connector/usb-connector.txt
 
 Example:

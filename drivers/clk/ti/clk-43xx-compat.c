@@ -221,5 +221,5 @@ struct ti_dt_clk am43xx_compat_clks[] = {
 	DT_CLK(NULL, "synctimer_32kclk", "l4_wkup_cm:0210:8"),
 	DT_CLK(NULL, "usb_otg_ss0_refclk960m", "l4_per_cm:0240:8"),
 	DT_CLK(NULL, "usb_otg_ss1_refclk960m", "l4_per_cm:0248:8"),
-	{ .node_name = NULL },
+	{ .yesde_name = NULL },
 };

@@ -388,9 +388,9 @@ static const int uart_clk_ids[] __initconst = {
 
 static struct clk **uart_clks[ARRAY_SIZE(uart_clk_ids) + 1] __initdata;
 
-static void __init imx7d_clocks_init(struct device_node *ccm_node)
+static void __init imx7d_clocks_init(struct device_yesde *ccm_yesde)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 	void __iomem *base;
 	int i;
 
@@ -403,13 +403,13 @@ static void __init imx7d_clocks_init(struct device_node *ccm_node)
 	hws = clk_hw_data->hws;
 
 	hws[IMX7D_CLK_DUMMY] = imx_clk_hw_fixed("dummy", 0);
-	hws[IMX7D_OSC_24M_CLK] = imx_obtain_fixed_clk_hw(ccm_node, "osc");
-	hws[IMX7D_CKIL] = imx_obtain_fixed_clk_hw(ccm_node, "ckil");
+	hws[IMX7D_OSC_24M_CLK] = imx_obtain_fixed_clk_hw(ccm_yesde, "osc");
+	hws[IMX7D_CKIL] = imx_obtain_fixed_clk_hw(ccm_yesde, "ckil");
 
-	np = of_find_compatible_node(NULL, NULL, "fsl,imx7d-anatop");
+	np = of_find_compatible_yesde(NULL, NULL, "fsl,imx7d-anatop");
 	base = of_iomap(np, 0);
 	WARN_ON(!base);
-	of_node_put(np);
+	of_yesde_put(np);
 
 	hws[IMX7D_PLL_ARM_MAIN_SRC]  = imx_clk_hw_mux("pll_arm_main_src", base + 0x60, 14, 2, pll_bypass_src_sel, ARRAY_SIZE(pll_bypass_src_sel));
 	hws[IMX7D_PLL_DRAM_MAIN_SRC] = imx_clk_hw_mux("pll_dram_main_src", base + 0x70, 14, 2, pll_bypass_src_sel, ARRAY_SIZE(pll_bypass_src_sel));
@@ -497,7 +497,7 @@ static void __init imx7d_clocks_init(struct device_node *ccm_node)
 	hws[IMX7D_LVDS1_OUT_SEL] = imx_clk_hw_mux("lvds1_sel", base + 0x170, 0, 5, lvds1_sel, ARRAY_SIZE(lvds1_sel));
 	hws[IMX7D_LVDS1_OUT_CLK] = imx_clk_hw_gate_exclusive("lvds1_out", "lvds1_sel", base + 0x170, 5, BIT(6));
 
-	np = ccm_node;
+	np = ccm_yesde;
 	base = of_iomap(np, 0);
 	WARN_ON(!base);
 

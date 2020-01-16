@@ -2,7 +2,7 @@
 Using the Linux Kernel Tracepoints
 ==================================
 
-:Author: Mathieu Desnoyers
+:Author: Mathieu Desyesyers
 
 
 This document introduces Linux Kernel Tracepoints and their use. It
@@ -15,8 +15,8 @@ Purpose of tracepoints
 ----------------------
 A tracepoint placed in code provides a hook to call a function (probe)
 that you can provide at runtime. A tracepoint can be "on" (a probe is
-connected to it) or "off" (no probe is attached). When a tracepoint is
-"off" it has no effect, except for adding a tiny time penalty
+connected to it) or "off" (yes probe is attached). When a tracepoint is
+"off" it has yes effect, except for adding a tiny time penalty
 (checking a condition for a branch) and space penalty (adding a few
 bytes for the function call at the end of the instrumented function
 and adds a data structure in a separate section).  When a tracepoint
@@ -96,13 +96,13 @@ register_trace_subsys_eventname().  Removing a probe is done through
 unregister_trace_subsys_eventname(); it will remove the probe.
 
 tracepoint_synchronize_unregister() must be called before the end of
-the module exit function to make sure there is no caller left using
+the module exit function to make sure there is yes caller left using
 the probe. This, and the fact that preemption is disabled around the
 probe call, make sure that probe removal and module unload are safe.
 
 The tracepoint mechanism supports inserting multiple instances of the
 same tracepoint, but a single definition must be made of a given
-tracepoint name over all the kernel to make sure no type conflict will
+tracepoint name over all the kernel to make sure yes type conflict will
 occur. Name mangling of the tracepoints is done using the prototypes
 to make sure typing is correct. Verification of probe type correctness
 is done at the registration site by the compiler. Tracepoints can be
@@ -142,7 +142,7 @@ The advantage of using the trace_<tracepoint>_enabled() is that it uses
 the static_key of the tracepoint to allow the if statement to be implemented
 with jump labels and avoid conditional branches.
 
-.. note:: The convenience macro TRACE_EVENT provides an alternative way to
+.. yeste:: The convenience macro TRACE_EVENT provides an alternative way to
       define tracepoints. Check http://lwn.net/Articles/379903,
       http://lwn.net/Articles/381064 and http://lwn.net/Articles/383362
       for a series of articles with more details.

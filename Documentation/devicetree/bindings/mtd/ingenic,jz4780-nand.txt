@@ -2,8 +2,8 @@
 
 This file documents the device tree bindings for NAND flash devices on the
 JZ4780. NAND devices are connected to the NEMC controller (described in
-memory-controllers/ingenic,jz4780-nemc.txt), and thus NAND device nodes must
-be children of the NEMC node.
+memory-controllers/ingenic,jz4780-nemc.txt), and thus NAND device yesdes must
+be children of the NEMC yesde.
 
 Required NAND controller device properties:
 - compatible: Should be one of:
@@ -15,25 +15,25 @@ Required NAND controller device properties:
 
 Optional NAND controller device properties:
 - ecc-engine: To make use of the hardware ECC controller, this
-  property must contain a phandle for the ECC controller node. The required
-  properties for this node are described below. If this is not specified,
+  property must contain a phandle for the ECC controller yesde. The required
+  properties for this yesde are described below. If this is yest specified,
   software ECC will be used instead.
 
-Optional children nodes:
-- Individual NAND chips are children of the NAND controller node.
+Optional children yesdes:
+- Individual NAND chips are children of the NAND controller yesde.
 
-Required children node properties:
+Required children yesde properties:
 - reg: An integer ranging from 1 to 6 representing the CS line to use.
 
-Optional children node properties:
+Optional children yesde properties:
 - nand-ecc-step-size: ECC block size in bytes.
 - nand-ecc-strength: ECC strength (max number of correctable bits).
 - nand-ecc-mode: String, operation mode of the NAND ecc mode. "hw" by default
-- nand-on-flash-bbt: boolean to enable on flash bbt option, if not present false
+- nand-on-flash-bbt: boolean to enable on flash bbt option, if yest present false
 - rb-gpios: GPIO specifier for the busy pin.
 - wp-gpios: GPIO specifier for the write protect pin.
 
-Optional child node of NAND chip nodes:
+Optional child yesde of NAND chip yesdes:
 - partitions: see Documentation/devicetree/bindings/mtd/partition.txt
 
 Example:

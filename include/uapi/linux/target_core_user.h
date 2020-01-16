@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 #ifndef __TARGET_CORE_USER_H
 #define __TARGET_CORE_USER_H
 
@@ -42,7 +42,7 @@
  */
 
 #define TCMU_MAILBOX_VERSION 2
-#define ALIGN_SIZE 64 /* Should be enough for most CPUs */
+#define ALIGN_SIZE 64 /* Should be eyesugh for most CPUs */
 #define TCMU_MAILBOX_FLAG_CAP_OOOC (1 << 0) /* Out-of-order completions */
 #define TCMU_MAILBOX_FLAG_CAP_READ_LEN (1 << 1) /* Read data length */
 

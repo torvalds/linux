@@ -13,7 +13,7 @@ Original author: Richard Gooch <rgooch@atnf.csiro.au>
 Introduction
 ============
 
-The Virtual File System (also known as the Virtual Filesystem Switch) is
+The Virtual File System (also kyeswn as the Virtual Filesystem Switch) is
 the software layer in the kernel that provides the filesystem interface
 to userspace programs.  It also provides an abstraction within the
 kernel which allows different filesystem implementations to coexist.
@@ -28,55 +28,55 @@ Directory Entry Cache (dcache)
 
 The VFS implements the open(2), stat(2), chmod(2), and similar system
 calls.  The pathname argument that is passed to them is used by the VFS
-to search through the directory entry cache (also known as the dentry
+to search through the directory entry cache (also kyeswn as the dentry
 cache or dcache).  This provides a very fast look-up mechanism to
 translate a pathname (filename) into a specific dentry.  Dentries live
 in RAM and are never saved to disc: they exist only for performance.
 
 The dentry cache is meant to be a view into your entire filespace.  As
-most computers cannot fit all dentries in the RAM at the same time, some
+most computers canyest fit all dentries in the RAM at the same time, some
 bits of the cache are missing.  In order to resolve your pathname into a
 dentry, the VFS may have to resort to creating dentries along the way,
-and then loading the inode.  This is done by looking up the inode.
+and then loading the iyesde.  This is done by looking up the iyesde.
 
 
-The Inode Object
+The Iyesde Object
 ----------------
 
-An individual dentry usually has a pointer to an inode.  Inodes are
+An individual dentry usually has a pointer to an iyesde.  Iyesdes are
 filesystem objects such as regular files, directories, FIFOs and other
 beasts.  They live either on the disc (for block device filesystems) or
-in the memory (for pseudo filesystems).  Inodes that live on the disc
-are copied into the memory when required and changes to the inode are
-written back to disc.  A single inode can be pointed to by multiple
+in the memory (for pseudo filesystems).  Iyesdes that live on the disc
+are copied into the memory when required and changes to the iyesde are
+written back to disc.  A single iyesde can be pointed to by multiple
 dentries (hard links, for example, do this).
 
-To look up an inode requires that the VFS calls the lookup() method of
-the parent directory inode.  This method is installed by the specific
-filesystem implementation that the inode lives in.  Once the VFS has the
-required dentry (and hence the inode), we can do all those boring things
-like open(2) the file, or stat(2) it to peek at the inode data.  The
+To look up an iyesde requires that the VFS calls the lookup() method of
+the parent directory iyesde.  This method is installed by the specific
+filesystem implementation that the iyesde lives in.  Once the VFS has the
+required dentry (and hence the iyesde), we can do all those boring things
+like open(2) the file, or stat(2) it to peek at the iyesde data.  The
 stat(2) operation is fairly simple: once the VFS has the dentry, it
-peeks at the inode data and passes some of it back to userspace.
+peeks at the iyesde data and passes some of it back to userspace.
 
 
 The File Object
 ---------------
 
-Opening a file requires another operation: allocation of a file
+Opening a file requires ayesther operation: allocation of a file
 structure (this is the kernel-side implementation of file descriptors).
 The freshly allocated file structure is initialized with a pointer to
 the dentry and a set of file operation member functions.  These are
-taken from the inode data.  The open() file method is then called so the
+taken from the iyesde data.  The open() file method is then called so the
 specific filesystem implementation can do its work.  You can see that
-this is another switch performed by the VFS.  The file structure is
+this is ayesther switch performed by the VFS.  The file structure is
 placed into the file descriptor table for the process.
 
 Reading, writing and closing files (and other assorted VFS operations)
 is done by using the userspace file descriptor to grab the appropriate
 file structure, and then calling the required file structure method to
 do whatever is required.  For as long as the file is open, it keeps the
-dentry in use, which in turn means that the VFS inode is still in use.
+dentry in use, which in turn means that the VFS iyesde is still in use.
 
 
 Registering and Mounting a Filesystem
@@ -192,8 +192,8 @@ and provides a fill_super() callback instead.  The generic variants are:
 ``mount_bdev``
 	mount a filesystem residing on a block device
 
-``mount_nodev``
-	mount a filesystem that is not backed by a device
+``mount_yesdev``
+	mount a filesystem that is yest backed by a device
 
 ``mount_single``
 	mount a filesystem which shares the instance between all mounts
@@ -209,7 +209,7 @@ A fill_super() callback implementation has the following arguments:
 	"Mount Options" section)
 
 ``int silent``
-	whether or not to be silent on error
+	whether or yest to be silent on error
 
 
 The Superblock Object
@@ -227,20 +227,20 @@ filesystem.  As of kernel 2.6.22, the following members are defined:
 .. code-block:: c
 
 	struct super_operations {
-		struct inode *(*alloc_inode)(struct super_block *sb);
-		void (*destroy_inode)(struct inode *);
+		struct iyesde *(*alloc_iyesde)(struct super_block *sb);
+		void (*destroy_iyesde)(struct iyesde *);
 
-		void (*dirty_inode) (struct inode *, int flags);
-		int (*write_inode) (struct inode *, int);
-		void (*drop_inode) (struct inode *);
-		void (*delete_inode) (struct inode *);
+		void (*dirty_iyesde) (struct iyesde *, int flags);
+		int (*write_iyesde) (struct iyesde *, int);
+		void (*drop_iyesde) (struct iyesde *);
+		void (*delete_iyesde) (struct iyesde *);
 		void (*put_super) (struct super_block *);
 		int (*sync_fs)(struct super_block *sb, int wait);
 		int (*freeze_fs) (struct super_block *);
 		int (*unfreeze_fs) (struct super_block *);
 		int (*statfs) (struct dentry *, struct kstatfs *);
 		int (*remount_fs) (struct super_block *, int *, char *);
-		void (*clear_inode) (struct inode *);
+		void (*clear_iyesde) (struct iyesde *);
 		void (*umount_begin) (struct super_block *);
 
 		int (*show_options)(struct seq_file *, struct dentry *);
@@ -252,46 +252,46 @@ filesystem.  As of kernel 2.6.22, the following members are defined:
 	};
 
 All methods are called without any locks being held, unless otherwise
-noted.  This means that most methods can block safely.  All methods are
-only called from a process context (i.e. not from an interrupt handler
+yested.  This means that most methods can block safely.  All methods are
+only called from a process context (i.e. yest from an interrupt handler
 or bottom half).
 
-``alloc_inode``
-	this method is called by alloc_inode() to allocate memory for
-	struct inode and initialize it.  If this function is not
-	defined, a simple 'struct inode' is allocated.  Normally
-	alloc_inode will be used to allocate a larger structure which
-	contains a 'struct inode' embedded within it.
+``alloc_iyesde``
+	this method is called by alloc_iyesde() to allocate memory for
+	struct iyesde and initialize it.  If this function is yest
+	defined, a simple 'struct iyesde' is allocated.  Normally
+	alloc_iyesde will be used to allocate a larger structure which
+	contains a 'struct iyesde' embedded within it.
 
-``destroy_inode``
-	this method is called by destroy_inode() to release resources
-	allocated for struct inode.  It is only required if
-	->alloc_inode was defined and simply undoes anything done by
-	->alloc_inode.
+``destroy_iyesde``
+	this method is called by destroy_iyesde() to release resources
+	allocated for struct iyesde.  It is only required if
+	->alloc_iyesde was defined and simply undoes anything done by
+	->alloc_iyesde.
 
-``dirty_inode``
-	this method is called by the VFS to mark an inode dirty.
+``dirty_iyesde``
+	this method is called by the VFS to mark an iyesde dirty.
 
-``write_inode``
-	this method is called when the VFS needs to write an inode to
+``write_iyesde``
+	this method is called when the VFS needs to write an iyesde to
 	disc.  The second parameter indicates whether the write should
-	be synchronous or not, not all filesystems check this flag.
+	be synchroyesus or yest, yest all filesystems check this flag.
 
-``drop_inode``
-	called when the last access to the inode is dropped, with the
-	inode->i_lock spinlock held.
+``drop_iyesde``
+	called when the last access to the iyesde is dropped, with the
+	iyesde->i_lock spinlock held.
 
-	This method should be either NULL (normal UNIX filesystem
-	semantics) or "generic_delete_inode" (for filesystems that do
-	not want to cache inodes - causing "delete_inode" to always be
+	This method should be either NULL (yesrmal UNIX filesystem
+	semantics) or "generic_delete_iyesde" (for filesystems that do
+	yest want to cache iyesdes - causing "delete_iyesde" to always be
 	called regardless of the value of i_nlink)
 
-	The "generic_delete_inode()" behavior is equivalent to the old
-	practice of using "force_delete" in the put_inode() case, but
-	does not have the races that the "force_delete()" approach had.
+	The "generic_delete_iyesde()" behavior is equivalent to the old
+	practice of using "force_delete" in the put_iyesde() case, but
+	does yest have the races that the "force_delete()" approach had.
 
-``delete_inode``
-	called when the VFS wants to delete an inode
+``delete_iyesde``
+	called when the VFS wants to delete an iyesde
 
 ``put_super``
 	called when the VFS wishes to free the superblock
@@ -318,8 +318,8 @@ or bottom half).
 	called when the filesystem is remounted.  This is called with
 	the kernel lock held
 
-``clear_inode``
-	called then the VFS clears the inode.  Optional
+``clear_iyesde``
+	called then the VFS clears the iyesde.  Optional
 
 ``umount_begin``
 	called when the VFS is unmounting a filesystem.
@@ -349,7 +349,7 @@ or bottom half).
 	We can't do anything with any errors that the filesystem might
 	encountered, hence the void return type.  This will never be
 	called if the VM is trying to reclaim under GFP_NOFS conditions,
-	hence this method does not need to handle that situation itself.
+	hence this method does yest need to handle that situation itself.
 
 	Implementations must include conditional reschedule calls inside
 	any scanning loop that is done.  This allows the VFS to
@@ -357,9 +357,9 @@ or bottom half).
 	about whether implementations will cause holdoff problems due to
 	large scan batch sizes.
 
-Whoever sets up the inode is responsible for filling in the "i_op"
-field.  This is a pointer to a "struct inode_operations" which describes
-the methods that can be performed on individual inodes.
+Whoever sets up the iyesde is responsible for filling in the "i_op"
+field.  This is a pointer to a "struct iyesde_operations" which describes
+the methods that can be performed on individual iyesdes.
 
 
 struct xattr_handlers
@@ -395,74 +395,74 @@ Extended attributes are name:value pairs.
 	particular extended attribute.  This method is called by the the
 	setxattr(2) and removexattr(2) system calls.
 
-When none of the xattr handlers of a filesystem match the specified
+When yesne of the xattr handlers of a filesystem match the specified
 attribute name or when a filesystem doesn't support extended attributes,
 the various ``*xattr(2)`` system calls return -EOPNOTSUPP.
 
 
-The Inode Object
+The Iyesde Object
 ================
 
-An inode object represents an object within the filesystem.
+An iyesde object represents an object within the filesystem.
 
 
-struct inode_operations
+struct iyesde_operations
 -----------------------
 
-This describes how the VFS can manipulate an inode in your filesystem.
+This describes how the VFS can manipulate an iyesde in your filesystem.
 As of kernel 2.6.22, the following members are defined:
 
 .. code-block:: c
 
-	struct inode_operations {
-		int (*create) (struct inode *,struct dentry *, umode_t, bool);
-		struct dentry * (*lookup) (struct inode *,struct dentry *, unsigned int);
-		int (*link) (struct dentry *,struct inode *,struct dentry *);
-		int (*unlink) (struct inode *,struct dentry *);
-		int (*symlink) (struct inode *,struct dentry *,const char *);
-		int (*mkdir) (struct inode *,struct dentry *,umode_t);
-		int (*rmdir) (struct inode *,struct dentry *);
-		int (*mknod) (struct inode *,struct dentry *,umode_t,dev_t);
-		int (*rename) (struct inode *, struct dentry *,
-			       struct inode *, struct dentry *, unsigned int);
+	struct iyesde_operations {
+		int (*create) (struct iyesde *,struct dentry *, umode_t, bool);
+		struct dentry * (*lookup) (struct iyesde *,struct dentry *, unsigned int);
+		int (*link) (struct dentry *,struct iyesde *,struct dentry *);
+		int (*unlink) (struct iyesde *,struct dentry *);
+		int (*symlink) (struct iyesde *,struct dentry *,const char *);
+		int (*mkdir) (struct iyesde *,struct dentry *,umode_t);
+		int (*rmdir) (struct iyesde *,struct dentry *);
+		int (*mkyesd) (struct iyesde *,struct dentry *,umode_t,dev_t);
+		int (*rename) (struct iyesde *, struct dentry *,
+			       struct iyesde *, struct dentry *, unsigned int);
 		int (*readlink) (struct dentry *, char __user *,int);
-		const char *(*get_link) (struct dentry *, struct inode *,
+		const char *(*get_link) (struct dentry *, struct iyesde *,
 					 struct delayed_call *);
-		int (*permission) (struct inode *, int);
-		int (*get_acl)(struct inode *, int);
+		int (*permission) (struct iyesde *, int);
+		int (*get_acl)(struct iyesde *, int);
 		int (*setattr) (struct dentry *, struct iattr *);
 		int (*getattr) (const struct path *, struct kstat *, u32, unsigned int);
 		ssize_t (*listxattr) (struct dentry *, char *, size_t);
-		void (*update_time)(struct inode *, struct timespec *, int);
-		int (*atomic_open)(struct inode *, struct dentry *, struct file *,
+		void (*update_time)(struct iyesde *, struct timespec *, int);
+		int (*atomic_open)(struct iyesde *, struct dentry *, struct file *,
 				   unsigned open_flag, umode_t create_mode);
-		int (*tmpfile) (struct inode *, struct dentry *, umode_t);
+		int (*tmpfile) (struct iyesde *, struct dentry *, umode_t);
 	};
 
 Again, all methods are called without any locks being held, unless
-otherwise noted.
+otherwise yested.
 
 ``create``
 	called by the open(2) and creat(2) system calls.  Only required
 	if you want to support regular files.  The dentry you get should
-	not have an inode (i.e. it should be a negative dentry).  Here
+	yest have an iyesde (i.e. it should be a negative dentry).  Here
 	you will probably call d_instantiate() with the dentry and the
-	newly created inode
+	newly created iyesde
 
 ``lookup``
-	called when the VFS needs to look up an inode in a parent
+	called when the VFS needs to look up an iyesde in a parent
 	directory.  The name to look for is found in the dentry.  This
-	method must call d_add() to insert the found inode into the
-	dentry.  The "i_count" field in the inode structure should be
-	incremented.  If the named inode does not exist a NULL inode
+	method must call d_add() to insert the found iyesde into the
+	dentry.  The "i_count" field in the iyesde structure should be
+	incremented.  If the named iyesde does yest exist a NULL iyesde
 	should be inserted into the dentry (this is called a negative
 	dentry).  Returning an error code from this routine must only be
-	done on a real error, otherwise creating inodes with system
-	calls like create(2), mknod(2), mkdir(2) and so on will fail.
+	done on a real error, otherwise creating iyesdes with system
+	calls like create(2), mkyesd(2), mkdir(2) and so on will fail.
 	If you wish to overload the dentry methods then you should
 	initialise the "d_dop" field in the dentry; this is a pointer to
 	a struct "dentry_operations".  This method is called with the
-	directory inode semaphore held
+	directory iyesde semaphore held
 
 ``link``
 	called by the link(2) system call.  Only required if you want to
@@ -471,7 +471,7 @@ otherwise noted.
 
 ``unlink``
 	called by the unlink(2) system call.  Only required if you want
-	to support deleting inodes
+	to support deleting iyesdes
 
 ``symlink``
 	called by the symlink(2) system call.  Only required if you want
@@ -487,19 +487,19 @@ otherwise noted.
 	called by the rmdir(2) system call.  Only required if you want
 	to support deleting subdirectories
 
-``mknod``
-	called by the mknod(2) system call to create a device (char,
-	block) inode or a named pipe (FIFO) or socket.  Only required if
-	you want to support creating these types of inodes.  You will
+``mkyesd``
+	called by the mkyesd(2) system call to create a device (char,
+	block) iyesde or a named pipe (FIFO) or socket.  Only required if
+	you want to support creating these types of iyesdes.  You will
 	probably need to call d_instantiate() just as you would in the
 	create() method
 
 ``rename``
 	called by the rename(2) system call to rename the object to have
-	the parent and name given by the second inode and dentry.
+	the parent and name given by the second iyesde and dentry.
 
 	The filesystem must return -EINVAL for any unsupported or
-	unknown flags.  Currently the following flags are implemented:
+	unkyeswn flags.  Currently the following flags are implemented:
 	(1) RENAME_NOREPLACE: this flag indicates that if the target of
 	the rename exists the rename should fail with -EEXIST instead of
 	replacing the target.  The VFS already checks for existence, so
@@ -510,11 +510,11 @@ otherwise noted.
 	and target may be of different type.
 
 ``get_link``
-	called by the VFS to follow a symbolic link to the inode it
+	called by the VFS to follow a symbolic link to the iyesde it
 	points to.  Only required if you want to support symbolic links.
 	This method returns the symlink body to traverse (and possibly
 	resets the current position with nd_jump_link()).  If the body
-	won't go away until the inode is gone, nothing else is needed;
+	won't go away until the iyesde is gone, yesthing else is needed;
 	if it needs to be otherwise pinned, arrange for its release by
 	having get_link(..., ..., done) do set_delayed_call(done,
 	destructor, argument).  In that case destructor(argument) will
@@ -525,13 +525,13 @@ otherwise noted.
 
 	If the filesystem stores the symlink target in ->i_link, the
 	VFS may use it directly without calling ->get_link(); however,
-	->get_link() must still be provided.  ->i_link must not be
+	->get_link() must still be provided.  ->i_link must yest be
 	freed until after an RCU grace period.  Writing to ->i_link
 	post-iget() time requires a 'release' memory barrier.
 
 ``readlink``
-	this is now just an override for use by readlink(2) for the
-	cases when ->get_link uses nd_jump_link() or object is not in
+	this is yesw just an override for use by readlink(2) for the
+	cases when ->get_link uses nd_jump_link() or object is yest in
 	fact a symlink.  Normally filesystems should only implement
 	->get_link for symlinks and readlink(2) will automatically use
 	that.
@@ -542,9 +542,9 @@ otherwise noted.
 
 	May be called in rcu-walk mode (mask & MAY_NOT_BLOCK).  If in
 	rcu-walk mode, the filesystem must check the permission without
-	blocking or storing to the inode.
+	blocking or storing to the iyesde.
 
-	If a situation is encountered that rcu-walk cannot handle,
+	If a situation is encountered that rcu-walk canyest handle,
 	return
 	-ECHILD and it will be called again in ref-walk mode.
 
@@ -562,8 +562,8 @@ otherwise noted.
 
 ``update_time``
 	called by the VFS to update a specific time or the i_version of
-	an inode.  If this is not defined the VFS will update the inode
-	itself and call mark_inode_dirty_sync.
+	an iyesde.  If this is yest defined the VFS will update the iyesde
+	itself and call mark_iyesde_dirty_sync.
 
 ``atomic_open``
 	called on the last component of an open.  Using this optional
@@ -571,7 +571,7 @@ otherwise noted.
 	file in one atomic operation.  If it wants to leave actual
 	opening to the caller (e.g. if the file turned out to be a
 	symlink, device, or just something filesystem won't do atomic
-	open for), it may signal this by returning finish_no_open(file,
+	open for), it may signal this by returning finish_yes_open(file,
 	dentry).  This method is only called if the last component is
 	negative or needs lookup.  Cached positive dentries are still
 	handled by f_op->open().  If the file was created, FMODE_CREATED
@@ -602,23 +602,23 @@ The first can be used independently to the others.  The VM can try to
 either write dirty pages in order to clean them, or release clean pages
 in order to reuse them.  To do this it can call the ->writepage method
 on dirty pages, and ->releasepage on clean pages with PagePrivate set.
-Clean pages without PagePrivate and with no external references will be
-released without notice being given to the address_space.
+Clean pages without PagePrivate and with yes external references will be
+released without yestice being given to the address_space.
 
 To achieve this functionality, pages need to be placed on an LRU with
 lru_cache_add and mark_page_active needs to be called whenever the page
 is used.
 
-Pages are normally kept in a radix tree index by ->index.  This tree
+Pages are yesrmally kept in a radix tree index by ->index.  This tree
 maintains information about the PG_Dirty and PG_Writeback status of each
 page, so that pages with either of these flags can be found quickly.
 
 The Dirty tag is primarily used by mpage_writepages - the default
 ->writepages method.  It uses the tag to find dirty pages to call
-->writepage on.  If mpage_writepages is not used (i.e. the address
+->writepage on.  If mpage_writepages is yest used (i.e. the address
 provides its own ->writepages) , the PAGECACHE_TAG_DIRTY tag is almost
-unused.  write_inode_now and sync_inode do use it (through
-__sync_single_inode) to check if ->writepages has been successful in
+unused.  write_iyesde_yesw and sync_iyesde do use it (through
+__sync_single_iyesde) to check if ->writepages has been successful in
 writing out the whole address_space.
 
 The Writeback tag is used by filemap*wait* and sync_page* functions, via
@@ -643,12 +643,12 @@ set_page_dirty to write data into the address_space, and writepage and
 writepages to writeback data to storage.
 
 Adding and removing pages to/from an address_space is protected by the
-inode's i_mutex.
+iyesde's i_mutex.
 
 When data is written to a page, the PG_Dirty flag should be set.  It
 typically remains set until writepage asks for it to be written.  This
 should clear PG_Dirty and set PG_Writeback.  It can be actually written
-at any point after PG_Dirty is clear.  Once it is known to be safe,
+at any point after PG_Dirty is clear.  Once it is kyeswn to be safe,
 PG_Writeback is cleared.
 
 Writeback makes use of a writeback_control structure to direct the
@@ -673,16 +673,16 @@ syncronization.
 
 Ideally, the kernel would report errors only on file descriptions on
 which writes were done that subsequently failed to be written back.  The
-generic pagecache infrastructure does not track the file descriptions
+generic pagecache infrastructure does yest track the file descriptions
 that have dirtied each individual page however, so determining which
-file descriptors should get back an error is not possible.
+file descriptors should get back an error is yest possible.
 
 Instead, the generic writeback error tracking infrastructure in the
 kernel settles for reporting errors to fsync on all file descriptions
 that were open at the time that the error occurred.  In a situation with
 multiple writers, all of them will get back an error on a subsequent
 fsync, even if all of the writes done through that particular file
-descriptor succeeded (or even if there were no writes on that file
+descriptor succeeded (or even if there were yes writes on that file
 descriptor at all).
 
 Filesystems that wish to use this infrastructure should call
@@ -742,14 +742,14 @@ cache in your filesystem.  The following members are defined:
 	wbc->sync_mode.  The PG_Dirty flag has been cleared and
 	PageLocked is true.  writepage should start writeout, should set
 	PG_Writeback, and should make sure the page is unlocked, either
-	synchronously or asynchronously when the write operation
+	synchroyesusly or asynchroyesusly when the write operation
 	completes.
 
 	If wbc->sync_mode is WB_SYNC_NONE, ->writepage doesn't have to
 	try too hard if there are problems, and may choose to write out
 	other pages from the mapping if that is easier (e.g. due to
-	internal dependencies).  If it chooses not to start writeout, it
-	should return AOP_WRITEPAGE_ACTIVATE so that the VM will not
+	internal dependencies).  If it chooses yest to start writeout, it
+	should return AOP_WRITEPAGE_ACTIVATE so that the VM will yest
 	keep calling ->writepage on that page.
 
 	See the file "Locking" for more details.
@@ -768,7 +768,7 @@ cache in your filesystem.  The following members are defined:
 	address_space object.  If wbc->sync_mode is WBC_SYNC_ALL, then
 	the writeback_control will specify a range of pages that must be
 	written out.  If it is WBC_SYNC_NONE, then a nr_to_write is
-	given and that many pages should be written if possible.  If no
+	given and that many pages should be written if possible.  If yes
 	->writepages is given, then mpage_writepages is used instead.
 	This will choose pages from the address space that are tagged as
 	DIRTY and will pass them to ->writepage.
@@ -786,7 +786,7 @@ cache in your filesystem.  The following members are defined:
 	object.  This is essentially just a vector version of readpage.
 	Instead of just one page, several pages are requested.
 	readpages is only used for read-ahead, so read errors are
-	ignored.  If anything goes wrong, feel free to give up.
+	igyesred.  If anything goes wrong, feel free to give up.
 
 ``write_begin``
 	Called by the generic buffered write code to ask the filesystem
@@ -812,7 +812,7 @@ cache in your filesystem.  The following members are defined:
 	write_end.
 
 	Returns 0 on success; < 0 on failure (which is the error code),
-	in which case write_end is not called.
+	in which case write_end is yest called.
 
 ``write_end``
 	After a successful write_begin, and data copy, write_end must be
@@ -830,7 +830,7 @@ cache in your filesystem.  The following members are defined:
 	physical block number.  This method is used by the FIBMAP ioctl
 	and for working with swap-files.  To be able to swap to a file,
 	the file must have a stable mapping to a block device.  The swap
-	system does not go through the filesystem but instead uses bmap
+	system does yest go through the filesystem but instead uses bmap
 	to find out where the blocks in the file are and uses those
 	addresses directly.
 
@@ -854,7 +854,7 @@ cache in your filesystem.  The following members are defined:
 	If releasepage() fails for some reason, it must indicate failure
 	with a 0 return value.  releasepage() is used in two distinct
 	though related cases.  The first is when the VM finds a clean
-	page with no active users and wants to make it a free page.  If
+	page with yes active users and wants to make it a free page.  If
 	->releasepage succeeds, the page will be removed from the
 	address_space and become free.
 
@@ -863,17 +863,17 @@ cache in your filesystem.  The following members are defined:
 	the fadvise(POSIX_FADV_DONTNEED) system call or by the
 	filesystem explicitly requesting it as nfs and 9fs do (when they
 	believe the cache may be out of date with storage) by calling
-	invalidate_inode_pages2().  If the filesystem makes such a call,
+	invalidate_iyesde_pages2().  If the filesystem makes such a call,
 	and needs to be certain that all pages are invalidated, then its
 	releasepage will need to ensure this.  Possibly it can clear the
-	PageUptodate bit if it cannot free private data yet.
+	PageUptodate bit if it canyest free private data yet.
 
 ``freepage``
-	freepage is called once the page is no longer visible in the
+	freepage is called once the page is yes longer visible in the
 	page cache in order to allow the cleanup of any private data.
-	Since it may be called by the memory reclaimer, it should not
+	Since it may be called by the memory reclaimer, it should yest
 	assume that the original address_space mapping still exists, and
-	it should not block.
+	it should yest block.
 
 ``direct_IO``
 	called by the generic read/write routines to perform direct_IO -
@@ -882,7 +882,7 @@ cache in your filesystem.  The following members are defined:
 	space.
 
 ``isolate_page``
-	Called by the VM when isolating a movable non-lru page.  If page
+	Called by the VM when isolating a movable yesn-lru page.  If page
 	is successfully isolated, VM marks the page as PG_isolated via
 	__SetPageIsolated.
 
@@ -913,13 +913,13 @@ cache in your filesystem.  The following members are defined:
 	stall to allow flushers a chance to complete some IO.
 	Ordinarily it can use PageDirty and PageWriteback but some
 	filesystems have more complex state (unstable pages in NFS
-	prevent reclaim) or do not set those flags due to locking
+	prevent reclaim) or do yest set those flags due to locking
 	problems.  This callback allows a filesystem to indicate to the
 	VM if a page should be treated as dirty or writeback for the
 	purposes of stalling.
 
 ``error_remove_page``
-	normally set to generic_error_remove_page if truncation is ok
+	yesrmally set to generic_error_remove_page if truncation is ok
 	for this address space.  Used for memory failure handling.
 	Setting this implies you deal with pages going away under you,
 	unless you have them locked or reference counts increased.
@@ -938,7 +938,7 @@ cache in your filesystem.  The following members are defined:
 The File Object
 ===============
 
-A file object represents a file opened by a process.  This is also known
+A file object represents a file opened by a process.  This is also kyeswn
 as an "open file description" in POSIX parlance.
 
 
@@ -964,9 +964,9 @@ This describes how the VFS can manipulate an open file.  As of kernel
 		long (*unlocked_ioctl) (struct file *, unsigned int, unsigned long);
 		long (*compat_ioctl) (struct file *, unsigned int, unsigned long);
 		int (*mmap) (struct file *, struct vm_area_struct *);
-		int (*open) (struct inode *, struct file *);
+		int (*open) (struct iyesde *, struct file *);
 		int (*flush) (struct file *, fl_owner_t id);
-		int (*release) (struct inode *, struct file *);
+		int (*release) (struct iyesde *, struct file *);
 		int (*fsync) (struct file *, loff_t, loff_t, int datasync);
 		int (*fasync) (int, struct file *, int);
 		int (*lock) (struct file *, int, struct file_lock *);
@@ -974,8 +974,8 @@ This describes how the VFS can manipulate an open file.  As of kernel
 		unsigned long (*get_unmapped_area)(struct file *, unsigned long, unsigned long, unsigned long, unsigned long);
 		int (*check_flags)(int);
 		int (*flock) (struct file *, int, struct file_lock *);
-		ssize_t (*splice_write)(struct pipe_inode_info *, struct file *, loff_t *, size_t, unsigned int);
-		ssize_t (*splice_read)(struct file *, loff_t *, struct pipe_inode_info *, size_t, unsigned int);
+		ssize_t (*splice_write)(struct pipe_iyesde_info *, struct file *, loff_t *, size_t, unsigned int);
+		ssize_t (*splice_read)(struct file *, loff_t *, struct pipe_iyesde_info *, size_t, unsigned int);
 		int (*setlease)(struct file *, long, struct file_lock **, void **);
 		long (*fallocate)(struct file *file, int mode, loff_t offset,
 				  loff_t len);
@@ -991,7 +991,7 @@ This describes how the VFS can manipulate an open file.  As of kernel
 	};
 
 Again, all methods are called without any locks being held, unless
-otherwise noted.
+otherwise yested.
 
 ``llseek``
 	called when the VFS needs to move the file position index
@@ -1000,13 +1000,13 @@ otherwise noted.
 	called by read(2) and related system calls
 
 ``read_iter``
-	possibly asynchronous read with iov_iter as destination
+	possibly asynchroyesus read with iov_iter as destination
 
 ``write``
 	called by write(2) and related system calls
 
 ``write_iter``
-	possibly asynchronous write with iov_iter as source
+	possibly asynchroyesus write with iov_iter as source
 
 ``iopoll``
 	called when aio wants to poll for completions on HIPRI iocbs
@@ -1034,11 +1034,11 @@ otherwise noted.
 	called by the mmap(2) system call
 
 ``open``
-	called by the VFS when an inode should be opened.  When the VFS
+	called by the VFS when an iyesde should be opened.  When the VFS
 	opens a file, it creates a new "struct file".  It then calls the
 	open method for the newly allocated file structure.  You might
 	think that the open method really belongs in "struct
-	inode_operations", and you may be right.  I think it's done the
+	iyesde_operations", and you may be right.  I think it's done the
 	way it is because it makes filesystems simpler to implement.
 	The open() method is a good place to initialize the
 	"private_data" member in the file structure if you want to point
@@ -1055,8 +1055,8 @@ otherwise noted.
 	entitled "Handling errors during writeback".
 
 ``fasync``
-	called by the fcntl(2) system call when asynchronous
-	(non-blocking) mode is enabled for a file
+	called by the fcntl(2) system call when asynchroyesus
+	(yesn-blocking) mode is enabled for a file
 
 ``lock``
 	called by the fcntl(2) system call for F_GETLK, F_SETLK, and
@@ -1082,7 +1082,7 @@ otherwise noted.
 ``setlease``
 	called by the VFS to set or release a file lock lease.  setlease
 	implementations should call generic_setlease to record or remove
-	the lease in the inode after setting it.
+	the lease in the iyesde after setting it.
 
 ``fallocate``
 	called by the VFS to preallocate blocks or punch a hole.
@@ -1109,7 +1109,7 @@ otherwise noted.
 	possibly called by the fadvise64() system call.
 
 Note that the file operations are implemented by the specific
-filesystem in which the inode resides.  When opening a device node
+filesystem in which the iyesde resides.  When opening a device yesde
 (character or block special) most filesystems will call special
 support routines in the VFS which will locate the required device
 driver information.  These support routines replace the filesystem file
@@ -1128,7 +1128,7 @@ struct dentry_operations
 
 This describes how a filesystem can overload the standard dentry
 operations.  Dentries and the dcache are the domain of the VFS and the
-individual filesystem implementations.  Device drivers have no business
+individual filesystem implementations.  Device drivers have yes business
 here.  These methods may be set to NULL, as they are either optional or
 the VFS uses a default.  As of kernel 2.6.22, the following members are
 defined:
@@ -1144,11 +1144,11 @@ defined:
 		int (*d_delete)(const struct dentry *);
 		int (*d_init)(struct dentry *);
 		void (*d_release)(struct dentry *);
-		void (*d_iput)(struct dentry *, struct inode *);
+		void (*d_iput)(struct dentry *, struct iyesde *);
 		char *(*d_dname)(struct dentry *, char *, int);
 		struct vfsmount *(*d_automount)(struct path *);
 		int (*d_manage)(const struct path *, bool);
-		struct dentry *(*d_real)(struct dentry *, const struct inode *);
+		struct dentry *(*d_real)(struct dentry *, const struct iyesde *);
 	};
 
 ``d_revalidate``
@@ -1165,23 +1165,23 @@ defined:
 	d_revalidate may be called in rcu-walk mode (flags &
 	LOOKUP_RCU).  If in rcu-walk mode, the filesystem must
 	revalidate the dentry without blocking or storing to the dentry,
-	d_parent and d_inode should not be used without care (because
-	they can change and, in d_inode case, even become NULL under
+	d_parent and d_iyesde should yest be used without care (because
+	they can change and, in d_iyesde case, even become NULL under
 	us).
 
-	If a situation is encountered that rcu-walk cannot handle,
+	If a situation is encountered that rcu-walk canyest handle,
 	return
 	-ECHILD and it will be called again in ref-walk mode.
 
 ``_weak_revalidate``
 	called when the VFS needs to revalidate a "jumped" dentry.  This
-	is called when a path-walk ends at dentry that was not acquired
+	is called when a path-walk ends at dentry that was yest acquired
 	by doing a lookup in the parent directory.  This includes "/",
 	"." and "..", as well as procfs-style symlinks and mountpoint
 	traversal.
 
 	In this case, we are less concerned with whether the dentry is
-	still fully correct, but rather that the inode is still valid.
+	still fully correct, but rather that the iyesde is still valid.
 	As with d_revalidate, most local filesystems will set this to
 	NULL since their dcache entries are always valid.
 
@@ -1204,13 +1204,13 @@ defined:
 	the child dentry.  len and name string are properties of the
 	dentry to be compared.  qstr is the name to compare it with.
 
-	Must be constant and idempotent, and should not take locks if
-	possible, and should not or store into the dentry.  Should not
+	Must be constant and idempotent, and should yest take locks if
+	possible, and should yest or store into the dentry.  Should yest
 	dereference pointers outside the dentry without lots of care
-	(eg.  d_parent, d_inode, d_name should not be used).
+	(eg.  d_parent, d_iyesde, d_name should yest be used).
 
 	However, our vfsmount is pinned, and RCU held, so the dentries
-	and inodes won't disappear, neither will our sb or filesystem
+	and iyesdes won't disappear, neither will our sb or filesystem
 	module.  ->d_sb may be used.
 
 	It is a tricky calling convention because it needs to be called
@@ -1218,7 +1218,7 @@ defined:
 
 ``d_delete``
 	called when the last reference to a dentry is dropped and the
-	dcache is deciding whether or not to cache it.  Return 1 to
+	dcache is deciding whether or yest to cache it.  Return 1 to
 	delete immediately, or 0 to cache the dentry.  Default is NULL
 	which means to always cache a reachable dentry.  d_delete must
 	be constant and idempotent.
@@ -1230,7 +1230,7 @@ defined:
 	called when a dentry is really deallocated
 
 ``d_iput``
-	called when a dentry loses its inode (just prior to its being
+	called when a dentry loses its iyesde (just prior to its being
 	deallocated).  The default when this is NULL is that the VFS
 	calls iput().  If you define this method, you must call iput()
 	yourself
@@ -1242,7 +1242,7 @@ defined:
 	created, it's done only when the path is needed.).  Real
 	filesystems probably dont want to use it, because their dentries
 	are present in global dcache hash, so their hash should be an
-	invariant.  As no lock is held, d_dname() should not try to
+	invariant.  As yes lock is held, d_dname() should yest try to
 	modify the dentry itself, unless appropriate SMP safety is used.
 	CAUTION : d_path() logic is quite tricky.  The correct way to
 	return for example "Hello" is to put it at the end of the
@@ -1257,7 +1257,7 @@ defined:
 	static char *pipefs_dname(struct dentry *dent, char *buffer, int buflen)
 	{
 		return dynamic_dname(dentry, buffer, buflen, "pipe:[%lu]",
-				dentry->d_inode->i_ino);
+				dentry->d_iyesde->i_iyes);
 	}
 
 ``d_automount``
@@ -1280,7 +1280,7 @@ defined:
 
 	This function is only used if DCACHE_NEED_AUTOMOUNT is set on
 	the dentry.  This is set by __d_instantiate() if S_AUTOMOUNT is
-	set on the inode being added.
+	set on the iyesde being added.
 
 ``d_manage``
 	called to allow the filesystem to manage the transition from a
@@ -1289,15 +1289,15 @@ defined:
 	the daemon go past and construct the subtree there.  0 should be
 	returned to let the calling process continue.  -EISDIR can be
 	returned to tell pathwalk to use this directory as an ordinary
-	directory and to ignore anything mounted on it and not to check
+	directory and to igyesre anything mounted on it and yest to check
 	the automount flag.  Any other error code will abort pathwalk
 	completely.
 
 	If the 'rcu_walk' parameter is true, then the caller is doing a
-	pathwalk in RCU-walk mode.  Sleeping is not permitted in this
+	pathwalk in RCU-walk mode.  Sleeping is yest permitted in this
 	mode, and the caller can be asked to leave it and call again by
 	returning -ECHILD.  -EISDIR may also be returned to tell
-	pathwalk to ignore d_automount or any mounts.
+	pathwalk to igyesre d_automount or any mounts.
 
 	This function is only used if DCACHE_MANAGE_TRANSIT is set on
 	the dentry being transited from.
@@ -1308,11 +1308,11 @@ defined:
 	used in two different modes:
 
 	Called from file_dentry() it returns the real dentry matching
-	the inode argument.  The real dentry may be from a lower layer
+	the iyesde argument.  The real dentry may be from a lower layer
 	already copied up, but still referenced from the file.  This
-	mode is selected with a non-NULL inode argument.
+	mode is selected with a yesn-NULL iyesde argument.
 
-	With NULL inode the topmost real underlying dentry is returned.
+	With NULL iyesde the topmost real underlying dentry is returned.
 
 Each dentry has a pointer to its parent dentry, as well as a hash list
 of child dentries.  Child dentries are basically like files in a
@@ -1333,8 +1333,8 @@ manipulate dentries:
 	close a handle for a dentry (decrements the usage count).  If
 	the usage count drops to 0, and the dentry is still in its
 	parent's hash, the "d_delete" method is called to check whether
-	it should be cached.  If it should not be cached, or if the
-	dentry is not hashed, it is deleted.  Otherwise cached dentries
+	it should be cached.  If it should yest be cached, or if the
+	dentry is yest hashed, it is deleted.  Otherwise cached dentries
 	are put into an LRU list to be reclaimed on memory shortage.
 
 ``d_drop``
@@ -1343,7 +1343,7 @@ manipulate dentries:
 	drops to 0
 
 ``d_delete``
-	delete a dentry.  If there are no other open references to the
+	delete a dentry.  If there are yes other open references to the
 	dentry then the dentry is turned into a negative dentry (the
 	d_iput() method is called).  If there are other references, then
 	d_drop() is called instead
@@ -1353,11 +1353,11 @@ manipulate dentries:
 	d_instantiate()
 
 ``d_instantiate``
-	add a dentry to the alias hash list for the inode and updates
-	the "d_inode" member.  The "i_count" member in the inode
-	structure should be set/incremented.  If the inode pointer is
+	add a dentry to the alias hash list for the iyesde and updates
+	the "d_iyesde" member.  The "i_count" member in the iyesde
+	structure should be set/incremented.  If the iyesde pointer is
 	NULL, the dentry is called a "negative dentry".  This function
-	is commonly called when an inode is created for an existing
+	is commonly called when an iyesde is created for an existing
 	negative dentry
 
 ``d_lookup``
@@ -1393,7 +1393,7 @@ Showing options
 If a filesystem accepts mount options, it must define show_options() to
 show all the currently active options.  The rules are:
 
-  - options MUST be shown which are not default or their values differ
+  - options MUST be shown which are yest default or their values differ
     from the default
 
   - options MAY be shown which are enabled by default or have their
@@ -1412,7 +1412,7 @@ on the information found in /proc/mounts.
 Resources
 =========
 
-(Note some of these resources are not up-to-date with the latest kernel
+(Note some of these resources are yest up-to-date with the latest kernel
  version.)
 
 Creating Linux virtual filesystems. 2002

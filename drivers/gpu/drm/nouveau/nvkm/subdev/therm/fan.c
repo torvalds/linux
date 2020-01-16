@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -49,7 +49,7 @@ nvkm_fan_update(struct nvkm_fan *fan, bool immediate, int target)
 		fan->percent = target;
 	}
 
-	/* check that we're not already at the target duty cycle */
+	/* check that we're yest already at the target duty cycle */
 	duty = fan->get(therm);
 	if (duty == target) {
 		spin_unlock_irqrestore(&fan->lock, flags);
@@ -82,7 +82,7 @@ nvkm_fan_update(struct nvkm_fan *fan, bool immediate, int target)
 	 */
 	spin_unlock_irqrestore(&fan->lock, flags);
 
-	/* schedule next fan update, if not at target speed already */
+	/* schedule next fan update, if yest at target speed already */
 	if (target != duty) {
 		u16 bump_period = fan->bios.bump_period;
 		u16 slow_down_period = fan->bios.slow_down_period;
@@ -243,7 +243,7 @@ nvkm_therm_fan_ctor(struct nvkm_therm *therm)
 		}
 	}
 
-	/* no controllable fan found, create a dummy fan module */
+	/* yes controllable fan found, create a dummy fan module */
 	if (ret != 0) {
 		ret = nvkm_fannil_create(therm);
 		if (ret)

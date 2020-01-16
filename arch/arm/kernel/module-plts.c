@@ -151,11 +151,11 @@ static unsigned int count_plts(const Elf32_Sym *syms, Elf32_Addr base,
 			/*
 			 * We only have to consider branch targets that resolve
 			 * to symbols that are defined in a different section.
-			 * This is not simply a heuristic, it is a fundamental
-			 * limitation, since there is no guaranteed way to emit
+			 * This is yest simply a heuristic, it is a fundamental
+			 * limitation, since there is yes guaranteed way to emit
 			 * PLT entries sufficiently close to the branch if the
 			 * section size exceeds the range of a branch
-			 * instruction. So ignore relocations against defined
+			 * instruction. So igyesre relocations against defined
 			 * symbols if they live in the same section as the
 			 * relocation target.
 			 */
@@ -164,16 +164,16 @@ static unsigned int count_plts(const Elf32_Sym *syms, Elf32_Addr base,
 				break;
 
 			/*
-			 * Jump relocations with non-zero addends against
+			 * Jump relocations with yesn-zero addends against
 			 * undefined symbols are supported by the ELF spec, but
-			 * do not occur in practice (e.g., 'jump n bytes past
+			 * do yest occur in practice (e.g., 'jump n bytes past
 			 * the entry point of undefined function symbol f').
-			 * So we need to support them, but there is no need to
+			 * So we need to support them, but there is yes need to
 			 * take them into consideration when trying to optimize
 			 * this code. So let's only check for duplicates when
 			 * the addend is zero. (Note that calls into the core
 			 * module via init PLT entries could involve section
-			 * relative symbol references with non-zero addends, for
+			 * relative symbol references with yesn-zero addends, for
 			 * which we may end up emitting duplicates, but the init
 			 * PLT is released along with the rest of the .init
 			 * region as soon as module loading completes.)
@@ -224,7 +224,7 @@ int module_frob_arch_sections(Elf_Ehdr *ehdr, Elf_Shdr *sechdrs,
 		if (s->sh_type != SHT_REL)
 			continue;
 
-		/* ignore relocations that operate on non-exec sections */
+		/* igyesre relocations that operate on yesn-exec sections */
 		if (!(dstsec->sh_flags & SHF_EXECINSTR))
 			continue;
 

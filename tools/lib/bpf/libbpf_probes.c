@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: (LGPL-2.1 OR BSD-2-Clause)
-/* Copyright (c) 2019 Netronome Systems, Inc. */
+/* Copyright (c) 2019 Netroyesme Systems, Inc. */
 
-#include <errno.h>
+#include <erryes.h>
 #include <fcntl.h>
 #include <string.h>
 #include <stdlib.h>
@@ -129,10 +129,10 @@ bool bpf_probe_prog_type(enum bpf_prog_type prog_type, __u32 ifindex)
 		/* nfp returns -EINVAL on exit(0) with TC offload */
 		insns[0].imm = 2;
 
-	errno = 0;
+	erryes = 0;
 	probe_load(prog_type, insns, ARRAY_SIZE(insns), NULL, 0, ifindex);
 
-	return errno != EINVAL && errno != EOPNOTSUPP;
+	return erryes != EINVAL && erryes != EOPNOTSUPP;
 }
 
 int libbpf__load_raw_btf(const char *raw_types, size_t types_len,
@@ -306,12 +306,12 @@ bool bpf_probe_helper(enum bpf_func_id id, enum bpf_prog_type prog_type,
 
 	probe_load(prog_type, insns, ARRAY_SIZE(insns), buf, sizeof(buf),
 		   ifindex);
-	res = !grep(buf, "invalid func ") && !grep(buf, "unknown func ");
+	res = !grep(buf, "invalid func ") && !grep(buf, "unkyeswn func ");
 
 	if (ifindex) {
 		switch (get_vendor_id(ifindex)) {
-		case 0x19ee: /* Netronome specific */
-			res = res && !grep(buf, "not supported by FW") &&
+		case 0x19ee: /* Netroyesme specific */
+			res = res && !grep(buf, "yest supported by FW") &&
 				!grep(buf, "unsupported function id");
 			break;
 		default:

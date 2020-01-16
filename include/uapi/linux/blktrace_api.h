@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 #ifndef _UAPIBLKTRACE_H
 #define _UAPIBLKTRACE_H
 
@@ -59,7 +59,7 @@ enum blktrace_act {
 /*
  * Notify events.
  */
-enum blktrace_notify {
+enum blktrace_yestify {
 	__BLK_TN_PROCESS = 0,		/* establish pid/name mapping */
 	__BLK_TN_TIMESTAMP,		/* include system clock */
 	__BLK_TN_MESSAGE,		/* Character string message */
@@ -101,7 +101,7 @@ enum blktrace_notify {
 struct blk_io_trace {
 	__u32 magic;		/* MAGIC << 8 | version */
 	__u32 sequence;		/* event number */
-	__u64 time;		/* in nanoseconds */
+	__u64 time;		/* in nayesseconds */
 	__u64 sector;		/* disk offset */
 	__u32 bytes;		/* transfer length */
 	__u32 action;		/* what happened */

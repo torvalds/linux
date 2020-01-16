@@ -895,7 +895,7 @@ struct tps65910 {
 	struct tps65910_rtc *rtc;
 	struct tps65910_power *power;
 
-	/* Device node parsed board data */
+	/* Device yesde parsed board data */
 	struct tps65910_board *of_plat_data;
 
 	/* IRQ Handling */

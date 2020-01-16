@@ -33,7 +33,7 @@ module_param(nested_early_check, bool, S_IRUGO);
 	bool failed = kvm_set_msr(vcpu, idx, data);			\
 	if (failed)							\
 		pr_warn_ratelimited(					\
-				"%s cannot write MSR (0x%x, 0x%llx)\n",	\
+				"%s canyest write MSR (0x%x, 0x%llx)\n",	\
 				__func__, idx, data);			\
 	failed;								\
 })
@@ -122,7 +122,7 @@ static void init_vmcs_shadow_fields(void)
 
 		/*
 		 * PML and the preemption timer can be emulated, but the
-		 * processor cannot vmwrite to fields that don't exist
+		 * processor canyest vmwrite to fields that don't exist
 		 * on bare metal.
 		 */
 		switch (field) {
@@ -197,14 +197,14 @@ static int nested_vmx_failValid(struct kvm_vcpu *vcpu,
 	get_vmcs12(vcpu)->vm_instruction_error = vm_instruction_error;
 	/*
 	 * We don't need to force a shadow sync because
-	 * VM_INSTRUCTION_ERROR is not shadowed
+	 * VM_INSTRUCTION_ERROR is yest shadowed
 	 */
 	return kvm_skip_emulated_instruction(vcpu);
 }
 
 static void nested_vmx_abort(struct kvm_vcpu *vcpu, u32 indicator)
 {
-	/* TODO: not to reset guest simply here. */
+	/* TODO: yest to reset guest simply here. */
 	kvm_make_request(KVM_REQ_TRIPLE_FAULT, vcpu);
 	pr_debug_ratelimited("kvm: nested vmx abort, indicator %d\n", indicator);
 }
@@ -567,7 +567,7 @@ static inline void enable_x2apic_msr_intercepts(unsigned long *msr_bitmap) {
 
 /*
  * Merge L0's and L1's MSR bitmap, return false to indicate that
- * we do not use the hardware.
+ * we do yest use the hardware.
  */
 static inline bool nested_vmx_prepare_msr_bitmap(struct kvm_vcpu *vcpu,
 						 struct vmcs12 *vmcs12)
@@ -577,7 +577,7 @@ static inline bool nested_vmx_prepare_msr_bitmap(struct kvm_vcpu *vcpu,
 	unsigned long *msr_bitmap_l0 = to_vmx(vcpu)->nested.vmcs02.msr_bitmap;
 	struct kvm_host_map *map = &to_vmx(vcpu)->nested.msr_bitmap_map;
 
-	/* Nothing to do if the MSR bitmap is not in use.  */
+	/* Nothing to do if the MSR bitmap is yest in use.  */
 	if (!cpu_has_vmx_msr_bitmap() ||
 	    !nested_cpu_has(vmcs12, CPU_BASED_USE_MSR_BITMAPS))
 		return false;
@@ -597,7 +597,7 @@ static inline bool nested_vmx_prepare_msr_bitmap(struct kvm_vcpu *vcpu,
 	if (nested_cpu_has_virt_x2apic_mode(vmcs12)) {
 		if (nested_cpu_has_apic_reg_virt(vmcs12)) {
 			/*
-			 * L0 need not intercept reads for MSRs between 0x800
+			 * L0 need yest intercept reads for MSRs between 0x800
 			 * and 0x8ff, it just lets the processor take the value
 			 * from the virtual-APIC page; take those 256 bits
 			 * directly from the L1 bitmap.
@@ -640,7 +640,7 @@ static inline bool nested_vmx_prepare_msr_bitmap(struct kvm_vcpu *vcpu,
 	 * Checking the L0->L1 bitmap is trying to verify two things:
 	 *
 	 * 1. L0 gave a permission to L1 to actually passthrough the MSR. This
-	 *    ensures that we do not accidentally generate an L02 MSR bitmap
+	 *    ensures that we do yest accidentally generate an L02 MSR bitmap
 	 *    from the L12 MSR bitmap that is too permissive.
 	 * 2. That L1 or L2s have actually used the MSR. This avoids
 	 *    unnecessarily merging of the bitmap if the MSR is unused. This
@@ -856,7 +856,7 @@ static int nested_vmx_check_shadow_vmcs_controls(struct kvm_vcpu *vcpu,
 static int nested_vmx_msr_check_common(struct kvm_vcpu *vcpu,
 				       struct vmx_msr_entry *e)
 {
-	/* x2APIC MSR accesses are not allowed */
+	/* x2APIC MSR accesses are yest allowed */
 	if (CC(vcpu->arch.apic_base & X2APIC_ENABLE && e->index >> 8 == 0x8))
 		return -EINVAL;
 	if (CC(e->index == MSR_IA32_UCODE_WRITE) || /* SDM Table 35-2 */
@@ -872,7 +872,7 @@ static int nested_vmx_load_msr_check(struct kvm_vcpu *vcpu,
 {
 	if (CC(e->index == MSR_FS_BASE) ||
 	    CC(e->index == MSR_GS_BASE) ||
-	    CC(e->index == MSR_IA32_SMM_MONITOR_CTL) || /* SMM is not supported */
+	    CC(e->index == MSR_IA32_SMM_MONITOR_CTL) || /* SMM is yest supported */
 	    nested_vmx_msr_check_common(vcpu, e))
 		return -EINVAL;
 	return 0;
@@ -881,7 +881,7 @@ static int nested_vmx_load_msr_check(struct kvm_vcpu *vcpu,
 static int nested_vmx_store_msr_check(struct kvm_vcpu *vcpu,
 				      struct vmx_msr_entry *e)
 {
-	if (CC(e->index == MSR_IA32_SMBASE) || /* SMM is not supported */
+	if (CC(e->index == MSR_IA32_SMBASE) || /* SMM is yest supported */
 	    nested_vmx_msr_check_common(vcpu, e))
 		return -EINVAL;
 	return 0;
@@ -918,7 +918,7 @@ static u32 nested_vmx_load_msr(struct kvm_vcpu *vcpu, u64 gpa, u32 count)
 		if (kvm_vcpu_read_guest(vcpu, gpa + i * sizeof(e),
 					&e, sizeof(e))) {
 			pr_debug_ratelimited(
-				"%s cannot read MSR entry (%u, 0x%08llx)\n",
+				"%s canyest read MSR entry (%u, 0x%08llx)\n",
 				__func__, i, gpa + i * sizeof(e));
 			goto fail;
 		}
@@ -930,7 +930,7 @@ static u32 nested_vmx_load_msr(struct kvm_vcpu *vcpu, u64 gpa, u32 count)
 		}
 		if (kvm_set_msr(vcpu, e.index, e.value)) {
 			pr_debug_ratelimited(
-				"%s cannot write MSR (%u, 0x%x, 0x%llx)\n",
+				"%s canyest write MSR (%u, 0x%x, 0x%llx)\n",
 				__func__, i, e.index, e.value);
 			goto fail;
 		}
@@ -948,7 +948,7 @@ static bool nested_vmx_get_vmexit_msr_value(struct kvm_vcpu *vcpu,
 
 	/*
 	 * If the L0 hypervisor stored a more accurate value for the TSC that
-	 * does not include the time taken for emulation of the L2->L1
+	 * does yest include the time taken for emulation of the L2->L1
 	 * VM-exit in L0, use the more accurate value.
 	 */
 	if (msr_index == MSR_IA32_TSC) {
@@ -964,7 +964,7 @@ static bool nested_vmx_get_vmexit_msr_value(struct kvm_vcpu *vcpu,
 	}
 
 	if (kvm_get_msr(vcpu, msr_index, data)) {
-		pr_debug_ratelimited("%s cannot read MSR (0x%x)\n", __func__,
+		pr_debug_ratelimited("%s canyest read MSR (0x%x)\n", __func__,
 			msr_index);
 		return false;
 	}
@@ -978,7 +978,7 @@ static bool read_and_check_msr_entry(struct kvm_vcpu *vcpu, u64 gpa, int i,
 				gpa + i * sizeof(*e),
 				e, 2 * sizeof(u32))) {
 		pr_debug_ratelimited(
-			"%s cannot read MSR entry (%u, 0x%08llx)\n",
+			"%s canyest read MSR entry (%u, 0x%08llx)\n",
 			__func__, i, gpa + i * sizeof(*e));
 		return false;
 	}
@@ -1013,7 +1013,7 @@ static int nested_vmx_store_msr(struct kvm_vcpu *vcpu, u64 gpa, u32 count)
 					     offsetof(struct vmx_msr_entry, value),
 					 &data, sizeof(data))) {
 			pr_debug_ratelimited(
-				"%s cannot write MSR (%u, 0x%x, 0x%llx)\n",
+				"%s canyest write MSR (%u, 0x%x, 0x%llx)\n",
 				__func__, i, e.index, data);
 			return -EINVAL;
 		}
@@ -1056,14 +1056,14 @@ static void prepare_vmx_msr_autostore_list(struct kvm_vcpu *vcpu,
 	if (in_vmcs12_store_list && !in_autostore_list) {
 		if (autostore->nr == NR_LOADSTORE_MSRS) {
 			/*
-			 * Emulated VMEntry does not fail here.  Instead a less
+			 * Emulated VMEntry does yest fail here.  Instead a less
 			 * accurate value will be returned by
 			 * nested_vmx_get_vmexit_msr_value() using kvm_get_msr()
 			 * instead of reading the value from the vmcs02 VMExit
 			 * MSR-store area.
 			 */
 			pr_warn_ratelimited(
-				"Not enough msr entries in msr_autostore.  Can't add msr %x\n",
+				"Not eyesugh msr entries in msr_autostore.  Can't add msr %x\n",
 				msr_index);
 			return;
 		}
@@ -1099,8 +1099,8 @@ static int nested_vmx_load_cr3(struct kvm_vcpu *vcpu, unsigned long cr3, bool ne
 		}
 
 		/*
-		 * If PAE paging and EPT are both on, CR3 is not used by the CPU and
-		 * must not be dereferenced.
+		 * If PAE paging and EPT are both on, CR3 is yest used by the CPU and
+		 * must yest be dereferenced.
 		 */
 		if (is_pae_paging(vcpu) && !nested_ept) {
 			if (CC(!load_pdptrs(vcpu, vcpu->arch.walk_mmu, cr3))) {
@@ -1170,7 +1170,7 @@ static int vmx_restore_vmx_basic(struct vcpu_vmx *vmx, u64 data)
 		return -EINVAL;
 
 	/*
-	 * KVM does not emulate a version of VMX that constrains physical
+	 * KVM does yest emulate a version of VMX that constrains physical
 	 * addresses of VMX structures (e.g. VMCS) to 32-bits.
 	 */
 	if (data & BIT_ULL(48))
@@ -1315,7 +1315,7 @@ static int vmx_restore_fixed0_msr(struct vcpu_vmx *vmx, u32 msr_index, u64 data)
 /*
  * Called when userspace is restoring VMX MSRs.
  *
- * Returns 0 on success, non-0 otherwise.
+ * Returns 0 on success, yesn-0 otherwise.
  */
 int vmx_set_vmx_msr(struct kvm_vcpu *vcpu, u32 msr_index, u64 data)
 {
@@ -1336,8 +1336,8 @@ int vmx_set_vmx_msr(struct kvm_vcpu *vcpu, u32 msr_index, u64 data)
 	case MSR_IA32_VMX_EXIT_CTLS:
 	case MSR_IA32_VMX_ENTRY_CTLS:
 		/*
-		 * The "non-true" VMX capability MSRs are generated from the
-		 * "true" MSRs, so we do not support restoring them directly.
+		 * The "yesn-true" VMX capability MSRs are generated from the
+		 * "true" MSRs, so we do yest support restoring them directly.
 		 *
 		 * If userspace wants to emulate VMX_BASIC[55]=0, userspace
 		 * should restore the "true" MSRs with the must-be-1 bits
@@ -1360,7 +1360,7 @@ int vmx_set_vmx_msr(struct kvm_vcpu *vcpu, u32 msr_index, u64 data)
 	case MSR_IA32_VMX_CR4_FIXED1:
 		/*
 		 * These MSRs are generated based on the vCPU's CPUID, so we
-		 * do not support restoring them directly.
+		 * do yest support restoring them directly.
 		 */
 		return -EINVAL;
 	case MSR_IA32_VMX_EPT_VPID_CAP:
@@ -1375,13 +1375,13 @@ int vmx_set_vmx_msr(struct kvm_vcpu *vcpu, u32 msr_index, u64 data)
 		return 0;
 	default:
 		/*
-		 * The rest of the VMX capability MSRs do not support restore.
+		 * The rest of the VMX capability MSRs do yest support restore.
 		 */
 		return -EINVAL;
 	}
 }
 
-/* Returns 0 on success, non-0 otherwise. */
+/* Returns 0 on success, yesn-0 otherwise. */
 int vmx_get_vmx_msr(struct nested_vmx_msrs *msrs, u32 msr_index, u64 *pdata)
 {
 	switch (msr_index) {
@@ -1463,7 +1463,7 @@ int vmx_get_vmx_msr(struct nested_vmx_msrs *msrs, u32 msr_index, u64 *pdata)
  * Copy the writable VMCS shadow fields back to the VMCS12, in case they have
  * been modified by the L1 guest.  Note, "writable" in this context means
  * "writable by the guest", i.e. tagged SHADOW_FIELD_RW; the set of
- * fields tagged SHADOW_FIELD_RO may or may not align with the "read-only"
+ * fields tagged SHADOW_FIELD_RO may or may yest align with the "read-only"
  * VM-exit information fields (which are actually writable if the vCPU is
  * configured to support "VMWRITE to any supported field in the VMCS").
  */
@@ -1754,7 +1754,7 @@ static int copy_vmcs12_to_enlightened(struct vcpu_vmx *vmx)
 	struct hv_enlightened_vmcs *evmcs = vmx->nested.hv_evmcs;
 
 	/*
-	 * Should not be changed by KVM:
+	 * Should yest be changed by KVM:
 	 *
 	 * evmcs->host_es_selector = vmcs12->host_es_selector;
 	 * evmcs->host_cs_selector = vmcs12->host_cs_selector;
@@ -1977,10 +1977,10 @@ static int nested_vmx_handle_enlightened_vmptrld(struct kvm_vcpu *vcpu,
 
 		evmcs_gpa_changed = true;
 		/*
-		 * Unlike normal vmcs12, enlightened vmcs12 is not fully
-		 * reloaded from guest's memory (read only fields, fields not
+		 * Unlike yesrmal vmcs12, enlightened vmcs12 is yest fully
+		 * reloaded from guest's memory (read only fields, fields yest
 		 * present in struct hv_enlightened_vmcs, ...). Make sure there
-		 * are no leftovers.
+		 * are yes leftovers.
 		 */
 		if (from_launch) {
 			struct vmcs12 *vmcs12 = get_vmcs12(vcpu);
@@ -2006,7 +2006,7 @@ void nested_sync_vmcs12_to_shadow(struct kvm_vcpu *vcpu)
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
 
 	/*
-	 * hv_evmcs may end up being not mapped after migration (when
+	 * hv_evmcs may end up being yest mapped after migration (when
 	 * L2 was running), map it here to make sure vmcs12 changes are
 	 * properly reflected.
 	 */
@@ -2077,7 +2077,7 @@ static void prepare_vmcs02_constant_state(struct vcpu_vmx *vmx)
 	/*
 	 * If vmcs02 hasn't been initialized, set the constant vmcs02 state
 	 * according to L0's settings (vmcs12 is irrelevant here).  Host
-	 * fields that come from L0 and are not constant, e.g. HOST_CR3,
+	 * fields that come from L0 and are yest constant, e.g. HOST_CR3,
 	 * will be set as needed prior to VMLAUNCH/VMRESUME.
 	 */
 	if (vmx->nested.vmcs02_initialized)
@@ -2195,7 +2195,7 @@ static void prepare_vmcs02_early(struct vcpu_vmx *vmx, struct vmcs12 *vmcs12)
 
 	/*
 	 * This bit will be computed in nested_get_vmcs12_pages, because
-	 * we do not have access to L1's MSR bitmap yet.  For now, keep
+	 * we do yest have access to L1's MSR bitmap yet.  For yesw, keep
 	 * the same bit as before, hoping to avoid multiple VMWRITEs that
 	 * only set/clear this bit.
 	 */
@@ -2226,12 +2226,12 @@ static void prepare_vmcs02_early(struct vcpu_vmx *vmx, struct vmcs12 *vmcs12)
 			exec_control |= vmcs12_exec_ctrl;
 		}
 
-		/* VMCS shadowing for L2 is emulated for now */
+		/* VMCS shadowing for L2 is emulated for yesw */
 		exec_control &= ~SECONDARY_EXEC_SHADOW_VMCS;
 
 		/*
 		 * Preset *DT exiting when emulating UMIP, so that vmx_set_cr4()
-		 * will not have to rewrite the controls just for this bit.
+		 * will yest have to rewrite the controls just for this bit.
 		 */
 		if (!boot_cpu_has(X86_FEATURE_UMIP) && vmx_umip_emulated() &&
 		    (vmcs12->guest_cr4 & X86_CR4_UMIP))
@@ -2286,7 +2286,7 @@ static void prepare_vmcs02_early(struct vcpu_vmx *vmx, struct vmcs12 *vmcs12)
 			     vmcs12->vm_entry_instruction_len);
 		vmcs_write32(GUEST_INTERRUPTIBILITY_INFO,
 			     vmcs12->guest_interruptibility_info);
-		vmx->loaded_vmcs->nmi_known_unmasked =
+		vmx->loaded_vmcs->nmi_kyeswn_unmasked =
 			!(vmcs12->guest_interruptibility_info & GUEST_INTR_STATE_NMI);
 	} else {
 		vmcs_write32(VM_ENTRY_INTR_INFO_FIELD, 0);
@@ -2369,7 +2369,7 @@ static void prepare_vmcs02_rare(struct vcpu_vmx *vmx, struct vmcs12 *vmcs12)
 	 * 3 settings: PFEC_MASK, PFEC_MATCH and EXCEPTION_BITMAP.PF.
 	 * If enable_ept, L0 doesn't care about page faults and we should
 	 * set all of these to L1's desires. However, if !enable_ept, L0 does
-	 * care about (at least some) page faults, and because it is not easy
+	 * care about (at least some) page faults, and because it is yest easy
 	 * (if at all possible?) to merge L0 and L1's desires, we simply ask
 	 * to exit on each and every L2 page fault. This is done by setting
 	 * MASK=MATCH=0 and (see below) EB.PF=1.
@@ -2466,10 +2466,10 @@ static int prepare_vmcs02(struct kvm_vcpu *vcpu, struct vmcs12 *vmcs12,
 
 	if (enable_vpid) {
 		/*
-		 * There is no direct mapping between vpid02 and vpid12, the
+		 * There is yes direct mapping between vpid02 and vpid12, the
 		 * vpid02 is per-vCPU for L0 and reused while the value of
 		 * vpid12 is changed w/ one invvpid during nested vmentry.
-		 * The vpid12 is allocated by L1 for L2, so it will not
+		 * The vpid12 is allocated by L1 for L2, so it will yest
 		 * influence global bitmap(for vpid01 and vpid02 allocation)
 		 * even if spawn a lot of nested vCPUs.
 		 */
@@ -2498,7 +2498,7 @@ static int prepare_vmcs02(struct kvm_vcpu *vcpu, struct vmcs12 *vmcs12,
 	 * This sets GUEST_CR0 to vmcs12->guest_cr0, possibly modifying those
 	 * bits which we consider mandatory enabled.
 	 * The CR0_READ_SHADOW is what L2 should have expected to read given
-	 * the specifications by L1; It's not enough to take
+	 * the specifications by L1; It's yest eyesugh to take
 	 * vmcs12->cr0_read_shadow because on our cr0_guest_host_mask we we
 	 * have more bits than L1 expected.
 	 */
@@ -2537,7 +2537,7 @@ static int prepare_vmcs02(struct kvm_vcpu *vcpu, struct vmcs12 *vmcs12,
 	if (enable_ept)
 		vmcs_writel(GUEST_CR3, vmcs12->guest_cr3);
 
-	/* Late preparation of GUEST_PDPTRs now that EFER and CRs are set. */
+	/* Late preparation of GUEST_PDPTRs yesw that EFER and CRs are set. */
 	if (load_guest_pdptrs_vmcs12 && nested_cpu_has_ept(vmcs12) &&
 	    is_pae_paging(vcpu)) {
 		vmcs_write64(GUEST_PDPTR0, vmcs12->guest_pdptr0);
@@ -2595,7 +2595,7 @@ static bool valid_ept_address(struct kvm_vcpu *vcpu, u64 address)
 	if (CC((address & VMX_EPTP_PWL_MASK) != VMX_EPTP_PWL_4))
 		return false;
 
-	/* Reserved bits should not be set */
+	/* Reserved bits should yest be set */
 	if (CC(address >> maxphyaddr || ((address >> 7) & 0x1f)))
 		return false;
 
@@ -2780,8 +2780,8 @@ static int nested_vmx_check_host_state(struct kvm_vcpu *vcpu,
 	    CC(!nested_cr3_valid(vcpu, vmcs12->host_cr3)))
 		return -EINVAL;
 
-	if (CC(is_noncanonical_address(vmcs12->host_ia32_sysenter_esp, vcpu)) ||
-	    CC(is_noncanonical_address(vmcs12->host_ia32_sysenter_eip, vcpu)))
+	if (CC(is_yesncayesnical_address(vmcs12->host_ia32_sysenter_esp, vcpu)) ||
+	    CC(is_yesncayesnical_address(vmcs12->host_ia32_sysenter_eip, vcpu)))
 		return -EINVAL;
 
 	if ((vmcs12->vm_exit_controls & VM_EXIT_LOAD_IA32_PAT) &&
@@ -2824,12 +2824,12 @@ static int nested_vmx_check_host_state(struct kvm_vcpu *vcpu,
 		return -EINVAL;
 
 #ifdef CONFIG_X86_64
-	if (CC(is_noncanonical_address(vmcs12->host_fs_base, vcpu)) ||
-	    CC(is_noncanonical_address(vmcs12->host_gs_base, vcpu)) ||
-	    CC(is_noncanonical_address(vmcs12->host_gdtr_base, vcpu)) ||
-	    CC(is_noncanonical_address(vmcs12->host_idtr_base, vcpu)) ||
-	    CC(is_noncanonical_address(vmcs12->host_tr_base, vcpu)) ||
-	    CC(is_noncanonical_address(vmcs12->host_rip, vcpu)))
+	if (CC(is_yesncayesnical_address(vmcs12->host_fs_base, vcpu)) ||
+	    CC(is_yesncayesnical_address(vmcs12->host_gs_base, vcpu)) ||
+	    CC(is_yesncayesnical_address(vmcs12->host_gdtr_base, vcpu)) ||
+	    CC(is_yesncayesnical_address(vmcs12->host_idtr_base, vcpu)) ||
+	    CC(is_yesncayesnical_address(vmcs12->host_tr_base, vcpu)) ||
+	    CC(is_yesncayesnical_address(vmcs12->host_rip, vcpu)))
 		return -EINVAL;
 #endif
 
@@ -2878,7 +2878,7 @@ static int nested_vmx_check_vmcs_link_ptr(struct kvm_vcpu *vcpu,
 /*
  * Checks related to Guest Non-register State
  */
-static int nested_check_guest_non_reg_state(struct vmcs12 *vmcs12)
+static int nested_check_guest_yesn_reg_state(struct vmcs12 *vmcs12)
 {
 	if (CC(vmcs12->guest_activity_state != GUEST_ACTIVITY_ACTIVE &&
 	       vmcs12->guest_activity_state != GUEST_ACTIVITY_HLT))
@@ -2933,11 +2933,11 @@ static int nested_vmx_check_guest_state(struct kvm_vcpu *vcpu,
 	}
 
 	if ((vmcs12->vm_entry_controls & VM_ENTRY_LOAD_BNDCFGS) &&
-	    (CC(is_noncanonical_address(vmcs12->guest_bndcfgs & PAGE_MASK, vcpu)) ||
+	    (CC(is_yesncayesnical_address(vmcs12->guest_bndcfgs & PAGE_MASK, vcpu)) ||
 	     CC((vmcs12->guest_bndcfgs & MSR_IA32_BNDCFGS_RSVD))))
 		return -EINVAL;
 
-	if (nested_check_guest_non_reg_state(vmcs12))
+	if (nested_check_guest_yesn_reg_state(vmcs12))
 		return -EINVAL;
 
 	return 0;
@@ -2965,7 +2965,7 @@ static int nested_vmx_check_vmentry_hw(struct kvm_vcpu *vcpu)
 	 * Induce a consistency check VMExit by clearing bit 1 in GUEST_RFLAGS,
 	 * which is reserved to '1' by hardware.  GUEST_RFLAGS is guaranteed to
 	 * be written (by preparve_vmcs02()) before the "real" VMEnter, i.e.
-	 * there is no need to preserve other bits or save/restore the field.
+	 * there is yes need to preserve other bits or save/restore the field.
 	 */
 	vmcs_writel(GUEST_RFLAGS, 0);
 
@@ -3036,10 +3036,10 @@ static int nested_vmx_check_vmentry_hw(struct kvm_vcpu *vcpu)
 	preempt_enable();
 
 	/*
-	 * A non-failing VMEntry means we somehow entered guest mode with
+	 * A yesn-failing VMEntry means we somehow entered guest mode with
 	 * an illegal RIP, and that's just the tip of the iceberg.  There
-	 * is no telling what memory has been modified or what state has
-	 * been exposed to unknown code.  Hitting this all but guarantees
+	 * is yes telling what memory has been modified or what state has
+	 * been exposed to unkyeswn code.  Hitting this all but guarantees
 	 * a (very critical) hardware issue.
 	 */
 	WARN_ON(!(vmcs_read32(VM_EXIT_REASON) &
@@ -3076,7 +3076,7 @@ static bool nested_get_vmcs12_pages(struct kvm_vcpu *vcpu)
 			hpa = page_to_phys(vmx->nested.apic_access_page);
 			vmcs_write64(APIC_ACCESS_ADDR, hpa);
 		} else {
-			pr_debug_ratelimited("%s: no backing 'struct page' for APIC-access address in vmcs12\n",
+			pr_debug_ratelimited("%s: yes backing 'struct page' for APIC-access address in vmcs12\n",
 					     __func__);
 			vcpu->run->exit_reason = KVM_EXIT_INTERNAL_ERROR;
 			vcpu->run->internal.suberror =
@@ -3099,7 +3099,7 @@ static bool nested_get_vmcs12_pages(struct kvm_vcpu *vcpu)
 			 * clear the bit from the execution control.  Such a
 			 * configuration is useless, but it happens in tests.
 			 * For any other configuration, failing the vm entry is
-			 * _not_ what the processor does but it's basically the
+			 * _yest_ what the processor does but it's basically the
 			 * only possibility we have.
 			 */
 			exec_controls_clearbit(vmx, CPU_BASED_TPR_SHADOW);
@@ -3168,12 +3168,12 @@ static void load_vmcs12_host_state(struct kvm_vcpu *vcpu,
  * or KVM_SET_NESTED_STATE).  Otherwise it's called from vmlaunch/vmresume.
  *
  * Returns:
- *	NVMX_ENTRY_SUCCESS: Entered VMX non-root mode
+ *	NVMX_ENTRY_SUCCESS: Entered VMX yesn-root mode
  *	NVMX_ENTRY_VMFAIL:  Consistency check VMFail
  *	NVMX_ENTRY_VMEXIT:  Consistency check VMExit
  *	NVMX_ENTRY_KVM_INTERNAL_ERROR: KVM internal error
  */
-enum nvmx_vmentry_status nested_vmx_enter_non_root_mode(struct kvm_vcpu *vcpu,
+enum nvmx_vmentry_status nested_vmx_enter_yesn_root_mode(struct kvm_vcpu *vcpu,
 							bool from_vmentry)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
@@ -3196,9 +3196,9 @@ enum nvmx_vmentry_status nested_vmx_enter_non_root_mode(struct kvm_vcpu *vcpu,
 	/*
 	 * Overwrite vmcs01.GUEST_CR3 with L1's CR3 if EPT is disabled *and*
 	 * nested early checks are disabled.  In the event of a "late" VM-Fail,
-	 * i.e. a VM-Fail detected by hardware but not KVM, KVM must unwind its
+	 * i.e. a VM-Fail detected by hardware but yest KVM, KVM must unwind its
 	 * software model to the pre-VMEntry host state.  When EPT is disabled,
-	 * GUEST_CR3 holds KVM's shadow CR3, not L1's "real" CR3, which causes
+	 * GUEST_CR3 holds KVM's shadow CR3, yest L1's "real" CR3, which causes
 	 * nested_vmx_restore_host_state() to corrupt vcpu->arch.cr3.  Stuffing
 	 * vmcs01.GUEST_CR3 results in the unwind naturally setting arch.cr3 to
 	 * the correct value.  Smashing vmcs01.GUEST_CR3 is safe because nested
@@ -3206,7 +3206,7 @@ enum nvmx_vmentry_status nested_vmx_enter_non_root_mode(struct kvm_vcpu *vcpu,
 	 * guaranteed to be overwritten with a shadow CR3 prior to re-entering
 	 * L1.  Don't stuff vmcs01.GUEST_CR3 when using nested early checks as
 	 * KVM modifies vcpu->arch.cr3 if and only if the early hardware checks
-	 * pass, and early VM-Fails do not reset KVM's MMU, i.e. the VM-Fail
+	 * pass, and early VM-Fails do yest reset KVM's MMU, i.e. the VM-Fail
 	 * path would need to manually save/restore vmcs01.GUEST_CR3.
 	 */
 	if (!enable_ept && !nested_early_check)
@@ -3245,11 +3245,11 @@ enum nvmx_vmentry_status nested_vmx_enter_non_root_mode(struct kvm_vcpu *vcpu,
 			goto vmentry_fail_vmexit_guest_mode;
 	} else {
 		/*
-		 * The MMU is not initialized to point at the right entities yet and
+		 * The MMU is yest initialized to point at the right entities yet and
 		 * "get pages" would need to read data from the guest (i.e. we will
 		 * need to perform gpa to hpa translation). Request a call
 		 * to nested_get_vmcs12_pages before the next VM-entry.  The MSRs
-		 * have already been set at vmentry time and should not be reset.
+		 * have already been set at vmentry time and should yest be reset.
 		 */
 		kvm_make_request(KVM_REQ_GET_VMCS12_PAGES, vcpu);
 	}
@@ -3262,17 +3262,17 @@ enum nvmx_vmentry_status nested_vmx_enter_non_root_mode(struct kvm_vcpu *vcpu,
 	 * to L1 or delivered directly to L2 (e.g. In case L1 don't
 	 * intercept EXTERNAL_INTERRUPT).
 	 *
-	 * Usually this would be handled by the processor noticing an
+	 * Usually this would be handled by the processor yesticing an
 	 * IRQ/NMI window request, or checking RVI during evaluation of
 	 * pending virtual interrupts.  However, this setting was done
-	 * on VMCS01 and now VMCS02 is active instead. Thus, we force L0
+	 * on VMCS01 and yesw VMCS02 is active instead. Thus, we force L0
 	 * to perform pending event evaluation by requesting a KVM_REQ_EVENT.
 	 */
 	if (unlikely(evaluate_pending_interrupts))
 		kvm_make_request(KVM_REQ_EVENT, vcpu);
 
 	/*
-	 * Do not start the preemption timer hrtimer until after we know
+	 * Do yest start the preemption timer hrtimer until after we kyesw
 	 * we are successful, so that only nested_vmx_vmexit needs to cancel
 	 * the timer.
 	 */
@@ -3281,8 +3281,8 @@ enum nvmx_vmentry_status nested_vmx_enter_non_root_mode(struct kvm_vcpu *vcpu,
 		vmx_start_preemption_timer(vcpu);
 
 	/*
-	 * Note no nested_vmx_succeed or nested_vmx_fail here. At this point
-	 * we are no longer running L1, and VMLAUNCH/VMRESUME has not yet
+	 * Note yes nested_vmx_succeed or nested_vmx_fail here. At this point
+	 * we are yes longer running L1, and VMLAUNCH/VMRESUME has yest yet
 	 * returned as far as L1 is concerned. It will only return (and set
 	 * the success flag) when L2 exits (see nested_vmx_vmexit()).
 	 */
@@ -3290,7 +3290,7 @@ enum nvmx_vmentry_status nested_vmx_enter_non_root_mode(struct kvm_vcpu *vcpu,
 
 	/*
 	 * A failed consistency check that leads to a VMExit during L1's
-	 * VMEnter to L2 is a variation of a normal VMexit, as explained in
+	 * VMEnter to L2 is a variation of a yesrmal VMexit, as explained in
 	 * 26.7 "VM-entry failures during or after loading guest state".
 	 */
 vmentry_fail_vmexit_guest_mode:
@@ -3337,7 +3337,7 @@ static int nested_vmx_run(struct kvm_vcpu *vcpu, bool launch)
 	/*
 	 * Can't VMLAUNCH or VMRESUME a shadow VMCS. Despite the fact
 	 * that there *is* a valid VMCS pointer, RFLAGS.CF is set
-	 * rather than RFLAGS.ZF, and no error number is stored to the
+	 * rather than RFLAGS.ZF, and yes error number is stored to the
 	 * VM-instruction error field.
 	 */
 	if (vmcs12->hdr.shadow_vmcs)
@@ -3357,7 +3357,7 @@ static int nested_vmx_run(struct kvm_vcpu *vcpu, bool launch)
 	 * they fail: As the SDM explains, some conditions should cause the
 	 * instruction to fail, while others will cause the instruction to seem
 	 * to succeed, but return an EXIT_REASON_INVALID_STATE.
-	 * To speed up the normal (success) code path, we should avoid checking
+	 * To speed up the yesrmal (success) code path, we should avoid checking
 	 * for misconfigurations which will anyway be caught by the processor
 	 * when using the merged vmcs02.
 	 */
@@ -3381,7 +3381,7 @@ static int nested_vmx_run(struct kvm_vcpu *vcpu, bool launch)
 	 * the nested entry.
 	 */
 	vmx->nested.nested_run_pending = 1;
-	status = nested_vmx_enter_non_root_mode(vcpu, true);
+	status = nested_vmx_enter_yesn_root_mode(vcpu, true);
 	if (unlikely(status != NVMX_VMENTRY_SUCCESS))
 		goto vmentry_failed;
 
@@ -3389,13 +3389,13 @@ static int nested_vmx_run(struct kvm_vcpu *vcpu, bool launch)
 	vmx->vcpu.arch.l1tf_flush_l1d = true;
 
 	/*
-	 * Must happen outside of nested_vmx_enter_non_root_mode() as it will
+	 * Must happen outside of nested_vmx_enter_yesn_root_mode() as it will
 	 * also be used as part of restoring nVMX state for
 	 * snapshot restore (migration).
 	 *
 	 * In this flow, it is assumed that vmcs12 cache was
 	 * trasferred as part of captured nVMX state and should
-	 * therefore not be read from guest memory (which may not
+	 * therefore yest be read from guest memory (which may yest
 	 * exist on destination host yet).
 	 */
 	nested_cache_shadow_vmcs12(vcpu, vmcs12);
@@ -3426,15 +3426,15 @@ vmentry_failed:
 }
 
 /*
- * On a nested exit from L2 to L1, vmcs12.guest_cr0 might not be up-to-date
+ * On a nested exit from L2 to L1, vmcs12.guest_cr0 might yest be up-to-date
  * because L2 may have changed some cr0 bits directly (CRO_GUEST_HOST_MASK).
  * This function returns the new value we should put in vmcs12.guest_cr0.
- * It's not enough to just return the vmcs02 GUEST_CR0. Rather,
- *  1. Bits that neither L0 nor L1 trapped, were set directly by L2 and are now
- *     available in vmcs02 GUEST_CR0. (Note: It's enough to check that L0
+ * It's yest eyesugh to just return the vmcs02 GUEST_CR0. Rather,
+ *  1. Bits that neither L0 yesr L1 trapped, were set directly by L2 and are yesw
+ *     available in vmcs02 GUEST_CR0. (Note: It's eyesugh to check that L0
  *     didn't trap the bit, because if L1 did, so would L0).
- *  2. Bits that L1 asked to trap (and therefore L0 also did) could not have
- *     been modified by L2, and L1 knows it. So just leave the old value of
+ *  2. Bits that L1 asked to trap (and therefore L0 also did) could yest have
+ *     been modified by L2, and L1 kyesws it. So just leave the old value of
  *     the bit from vmcs12.guest_cr0. Note that the bit from vmcs02 GUEST_CR0
  *     isn't relevant, because if L0 traps this bit it can set it to anything.
  *  3. Bits that L1 didn't trap, but L0 did. L1 believes the guest could have
@@ -3820,7 +3820,7 @@ static void sync_vmcs02_to_vmcs12(struct kvm_vcpu *vcpu, struct vmcs12 *vmcs12)
 	 * In some cases (usually, nested EPT), L2 is allowed to change its
 	 * own CR3 without exiting. If it has changed it, we must keep it.
 	 * Of course, if L0 is using shadow page tables, GUEST_CR3 was defined
-	 * by L0, not L1 or L2, so we mustn't unconditionally copy it to vmcs12.
+	 * by L0, yest L1 or L2, so we mustn't unconditionally copy it to vmcs12.
 	 *
 	 * Additionally, restore L2's PDPTR to vmcs12.
 	 */
@@ -3856,7 +3856,7 @@ static void sync_vmcs02_to_vmcs12(struct kvm_vcpu *vcpu, struct vmcs12 *vmcs12)
  * and this function updates it to reflect the changes to the guest state while
  * L2 was running (and perhaps made some exits which were handled directly by L0
  * without going back to L1), and to reflect the exit reason.
- * Note that we do not have to copy here all VMCS fields, just those that
+ * Note that we do yest have to copy here all VMCS fields, just those that
  * could have changed by the L2 guest or the exit - i.e., the guest-state and
  * exit-information fields only. Other fields are modified by L1 with VMWRITE,
  * which already writes to vmcs12 directly.
@@ -3888,10 +3888,10 @@ static void prepare_vmcs12(struct kvm_vcpu *vcpu, struct vmcs12 *vmcs12,
 		vmcs12_save_pending_event(vcpu, vmcs12);
 
 		/*
-		 * According to spec, there's no need to store the guest's
+		 * According to spec, there's yes need to store the guest's
 		 * MSRs if the exit is due to a VM-entry failure that occurs
 		 * during or after loading the guest state. Since this exit
-		 * does not fall in that category, we need to save the MSRs.
+		 * does yest fall in that category, we need to save the MSRs.
 		 */
 		if (nested_vmx_store_msr(vcpu,
 					 vmcs12->vm_exit_msr_store_addr,
@@ -3913,7 +3913,7 @@ static void prepare_vmcs12(struct kvm_vcpu *vcpu, struct vmcs12 *vmcs12,
  * A part of what we need to when the nested L2 guest exits and we want to
  * run its L1 parent, is to reset L1's guest state to the host state specified
  * in vmcs12.
- * This function is to be called not only on normal nested exit, but also on
+ * This function is to be called yest only on yesrmal nested exit, but also on
  * a nested entry failure, as explained in Intel's spec, 3B.23.7 ("VM-Entry
  * Failures During or After Loading Guest State").
  * This function should be called when the active VMCS is L1's (vmcs01).
@@ -3947,7 +3947,7 @@ static void load_vmcs12_host_state(struct kvm_vcpu *vcpu,
 	vcpu->arch.cr0_guest_owned_bits = X86_CR0_TS;
 	vmx_set_cr0(vcpu, vmcs12->host_cr0);
 
-	/* Same as above - no reason to call set_cr4_guest_host_mask().  */
+	/* Same as above - yes reason to call set_cr4_guest_host_mask().  */
 	vcpu->arch.cr4_guest_owned_bits = ~vmcs_readl(CR4_GUEST_HOST_MASK);
 	vmx_set_cr4(vcpu, vmcs12->host_cr4);
 
@@ -3965,7 +3965,7 @@ static void load_vmcs12_host_state(struct kvm_vcpu *vcpu,
 
 	/*
 	 * If vmcs01 doesn't use VPID, CPU flushes TLB on every
-	 * VMEntry/VMExit. Thus, no need to flush TLB.
+	 * VMEntry/VMExit. Thus, yes need to flush TLB.
 	 *
 	 * If vmcs12 doesn't use VPID, L1 expects TLB to be
 	 * flushed on every VMEntry/VMExit.
@@ -3990,7 +3990,7 @@ static void load_vmcs12_host_state(struct kvm_vcpu *vcpu,
 	vmcs_write32(GUEST_IDTR_LIMIT, 0xFFFF);
 	vmcs_write32(GUEST_GDTR_LIMIT, 0xFFFF);
 
-	/* If not VM_EXIT_CLEAR_BNDCFGS, the L2 value propagates to L1.  */
+	/* If yest VM_EXIT_CLEAR_BNDCFGS, the L2 value propagates to L1.  */
 	if (vmcs12->vm_exit_controls & VM_EXIT_CLEAR_BNDCFGS)
 		vmcs_write64(GUEST_BNDCFGS, 0);
 
@@ -4096,8 +4096,8 @@ static void nested_vmx_restore_host_state(struct kvm_vcpu *vcpu)
 		/*
 		 * L1's host DR7 is lost if KVM_GUESTDBG_USE_HW_BP is set
 		 * as vmcs01.GUEST_DR7 contains a userspace defined value
-		 * and vcpu->arch.dr7 is not squirreled away before the
-		 * nested VMENTER (not worth adding a variable in nested_vmx).
+		 * and vcpu->arch.dr7 is yest squirreled away before the
+		 * nested VMENTER (yest worth adding a variable in nested_vmx).
 		 */
 		if (vcpu->guest_debug & KVM_GUESTDBG_USE_HW_BP)
 			kvm_set_dr(vcpu, 7, DR7_FIXED_1);
@@ -4123,7 +4123,7 @@ static void nested_vmx_restore_host_state(struct kvm_vcpu *vcpu)
 
 	/*
 	 * Use ept_save_pdptrs(vcpu) to load the MMU's cached PDPTRs
-	 * from vmcs01 (if necessary).  The PDPTRs are not loaded on
+	 * from vmcs01 (if necessary).  The PDPTRs are yest loaded on
 	 * VMFail, like everything else we just need to ensure our
 	 * software model is up-to-date.
 	 */
@@ -4144,7 +4144,7 @@ static void nested_vmx_restore_host_state(struct kvm_vcpu *vcpu)
 	 * MSR that was (prematurely) loaded from the nested VMEntry load
 	 * list, reload it from the exit load list if it exists and differs
 	 * from the guest value.  The intent is to stuff host state as
-	 * silently as possible, not to fully process the exit load list.
+	 * silently as possible, yest to fully process the exit load list.
 	 */
 	for (i = 0; i < vmcs12->vm_entry_msr_load_count; i++) {
 		gpa = vmcs12->vm_entry_msr_load_addr + (i * sizeof(g));
@@ -4268,7 +4268,7 @@ void nested_vmx_vmexit(struct kvm_vcpu *vcpu, u32 exit_reason,
 	vmx->nested.pi_desc = NULL;
 
 	/*
-	 * We are now running in L2, mmu_notifier will force to reload the
+	 * We are yesw running in L2, mmu_yestifier will force to reload the
 	 * page's hpa for L2 vmcs. Need to reload it for L1 before entering L1.
 	 */
 	kvm_make_request(KVM_REQ_APIC_PAGE_RELOAD, vcpu);
@@ -4281,7 +4281,7 @@ void nested_vmx_vmexit(struct kvm_vcpu *vcpu, u32 exit_reason,
 
 	if (likely(!vmx->fail)) {
 		/*
-		 * TODO: SDM says that with acknowledge interrupt on
+		 * TODO: SDM says that with ackyeswledge interrupt on
 		 * exit, bit 31 of the VM-exit interrupt information
 		 * (valid interrupt) is always set to 1 on
 		 * EXIT_REASON_EXTERNAL_INTERRUPT, so we shouldn't
@@ -4311,7 +4311,7 @@ void nested_vmx_vmexit(struct kvm_vcpu *vcpu, u32 exit_reason,
 	}
 
 	/*
-	 * After an early L2 VM-entry failure, we're now back
+	 * After an early L2 VM-entry failure, we're yesw back
 	 * in L1 which thinks it just finished a VMLAUNCH or
 	 * VMRESUME instruction, so we need to set the failure
 	 * flag and the VM-instruction error field of the VMCS
@@ -4395,7 +4395,7 @@ int get_vmx_mem_address(struct kvm_vcpu *vcpu, unsigned long exit_qualification,
 		/*
 		 * The virtual/linear address is never truncated in 64-bit
 		 * mode, e.g. a 32-bit address size can yield a 64-bit virtual
-		 * address when using FS/GS with a non-zero base.
+		 * address when using FS/GS with a yesn-zero base.
 		 */
 		if (seg_reg == VCPU_SREG_FS || seg_reg == VCPU_SREG_GS)
 			*ret = s.base + off;
@@ -4403,13 +4403,13 @@ int get_vmx_mem_address(struct kvm_vcpu *vcpu, unsigned long exit_qualification,
 			*ret = off;
 
 		/* Long mode: #GP(0)/#SS(0) if the memory address is in a
-		 * non-canonical form. This is the only check on the memory
+		 * yesn-cayesnical form. This is the only check on the memory
 		 * destination for long mode!
 		 */
-		exn = is_noncanonical_address(*ret, vcpu);
+		exn = is_yesncayesnical_address(*ret, vcpu);
 	} else {
 		/*
-		 * When not in long mode, the virtual/linear address is
+		 * When yest in long mode, the virtual/linear address is
 		 * unconditionally truncated to 32 bits regardless of the
 		 * address size.
 		 */
@@ -4441,7 +4441,7 @@ int get_vmx_mem_address(struct kvm_vcpu *vcpu, unsigned long exit_qualification,
 
 		/*
 		 * Protected mode: #GP(0)/#SS(0) if the memory operand is
-		 * outside the segment limit.  All CPUs that support VMX ignore
+		 * outside the segment limit.  All CPUs that support VMX igyesre
 		 * limit checks for flat segments, i.e. segments with base==0,
 		 * limit==0xffffffff and of type expand-up data or code.
 		 */
@@ -4576,10 +4576,10 @@ out_vmcs02:
 
 /*
  * Emulate the VMXON instruction.
- * Currently, we just remember that VMX is active, and do not save or even
+ * Currently, we just remember that VMX is active, and do yest save or even
  * inspect the argument to VMXON (the so-called "VMXON pointer") because we
- * do not currently need to store anything in that guest-allocated memory
- * region. Consequently, VMCLEAR and VMPTRLD also do not verify that the their
+ * do yest currently need to store anything in that guest-allocated memory
+ * region. Consequently, VMCLEAR and VMPTRLD also do yest verify that the their
  * argument is different from the VMXON pointer (which the spec says they do).
  */
 static int handle_vmon(struct kvm_vcpu *vcpu)
@@ -4593,12 +4593,12 @@ static int handle_vmon(struct kvm_vcpu *vcpu)
 
 	/*
 	 * The Intel VMX Instruction Reference lists a bunch of bits that are
-	 * prerequisite to running VMXON, most notably cr4.VMXE must be set to
+	 * prerequisite to running VMXON, most yestably cr4.VMXE must be set to
 	 * 1 (see vmx_set_cr4() for when we allow the guest to set this).
 	 * Otherwise, we should fail with #UD.  But most faulting conditions
 	 * have already been checked by hardware, prior to the VM-exit for
 	 * VMXON.  We do test guest cr4.VMXE because processor CR4 always has
-	 * that bit set to 1 in non-root mode.
+	 * that bit set to 1 in yesn-root mode.
 	 */
 	if (!kvm_read_cr4_bits(vcpu, X86_CR4_VMXE)) {
 		kvm_queue_exception(vcpu, UD_VECTOR);
@@ -4712,11 +4712,11 @@ static int handle_vmclear(struct kvm_vcpu *vcpu)
 
 	/*
 	 * When Enlightened VMEntry is enabled on the calling CPU we treat
-	 * memory area pointer by vmptr as Enlightened VMCS (as there's no good
-	 * way to distinguish it from VMCS12) and we must not corrupt it by
-	 * writing to the non-existent 'launch_state' field. The area doesn't
+	 * memory area pointer by vmptr as Enlightened VMCS (as there's yes good
+	 * way to distinguish it from VMCS12) and we must yest corrupt it by
+	 * writing to the yesn-existent 'launch_state' field. The area doesn't
 	 * have to be the currently active EVMCS on the calling CPU and there's
-	 * nothing KVM has to do to transition it from 'active' to 'non-active'
+	 * yesthing KVM has to do to transition it from 'active' to 'yesn-active'
 	 * state. It is possible that the area will stay mapped as
 	 * vmx->nested.hv_evmcs but this shouldn't be a problem.
 	 */
@@ -4796,7 +4796,7 @@ static int handle_vmread(struct kvm_vcpu *vcpu)
 	/*
 	 * Now copy part of this value to register or memory, as requested.
 	 * Note that the number of bits actually copied is 32 or 64 depending
-	 * on the guest's mode (32 or 64 bit), not on the given field's length.
+	 * on the guest's mode (32 or 64 bit), yest on the given field's length.
 	 */
 	if (vmx_instruction_info & (1u << 10)) {
 		kvm_register_writel(vcpu, (((vmx_instruction_info) >> 3) & 0xf),
@@ -4917,7 +4917,7 @@ static int handle_vmwrite(struct kvm_vcpu *vcpu)
 	 * Some Intel CPUs intentionally drop the reserved bits of the AR byte
 	 * fields on VMWRITE.  Emulate this behavior to ensure consistent KVM
 	 * behavior regardless of the underlying hardware, e.g. if an AR_BYTE
-	 * field is intercepted for VMWRITE but not VMREAD (in L1), then VMREAD
+	 * field is intercepted for VMWRITE but yest VMREAD (in L1), then VMREAD
 	 * from L1 will return a different value than VMREAD from L2 (L1 sees
 	 * the stripped down value, L2 sees the full value as stored by KVM).
 	 */
@@ -4927,7 +4927,7 @@ static int handle_vmwrite(struct kvm_vcpu *vcpu)
 	vmcs12_write_any(vmcs12, field, offset, field_value);
 
 	/*
-	 * Do not track vmcs12 dirty-state if in guest-mode as we actually
+	 * Do yest track vmcs12 dirty-state if in guest-mode as we actually
 	 * dirty shadow vmcs12 instead of vmcs12.  Fields that can be updated
 	 * by L1 without a vmexit are always updated in the vmcs02, i.e. don't
 	 * "dirty" vmcs12, all others go down the prepare_vmcs02() slow path.
@@ -4985,7 +4985,7 @@ static int handle_vmptrld(struct kvm_vcpu *vcpu)
 		return nested_vmx_failValid(vcpu,
 			VMXERR_VMPTRLD_VMXON_POINTER);
 
-	/* Forbid normal VMPTRLD if Enlightened version was used */
+	/* Forbid yesrmal VMPTRLD if Enlightened version was used */
 	if (vmx->nested.hv_evmcs)
 		return 1;
 
@@ -5017,7 +5017,7 @@ static int handle_vmptrld(struct kvm_vcpu *vcpu)
 		nested_release_vmcs12(vcpu);
 
 		/*
-		 * Load VMCS12 from guest memory since it is not already
+		 * Load VMCS12 from guest memory since it is yest already
 		 * cached.
 		 */
 		memcpy(vmx->nested.cached_vmcs12, new_vmcs12, VMCS12_SIZE);
@@ -5165,7 +5165,7 @@ static int handle_invvpid(struct kvm_vcpu *vcpu)
 	switch (type) {
 	case VMX_VPID_EXTENT_INDIVIDUAL_ADDR:
 		if (!operand.vpid ||
-		    is_noncanonical_address(operand.gla, vcpu))
+		    is_yesncayesnical_address(operand.gla, vcpu))
 			return nested_vmx_failValid(vcpu,
 				VMXERR_INVALID_OPERAND_TO_INVEPT_INVVPID);
 		if (cpu_has_vmx_invvpid_individual_addr()) {
@@ -5245,7 +5245,7 @@ static int handle_vmfunc(struct kvm_vcpu *vcpu)
 
 	/*
 	 * VMFUNC is only supported for nested guests, but we always enable the
-	 * secondary control for simplicity; for non-nested mode, fake that we
+	 * secondary control for simplicity; for yesn-nested mode, fake that we
 	 * didn't by injecting #UD.
 	 */
 	if (!is_guest_mode(vcpu)) {
@@ -5425,7 +5425,7 @@ static bool nested_vmx_exit_handled_cr(struct kvm_vcpu *vcpu,
 	case 3: /* lmsw */
 		/*
 		 * lmsw can change bits 1..3 of cr0, and only set bit 0 of
-		 * cr0. Other attempted changes are ignored, with no exit.
+		 * cr0. Other attempted changes are igyesred, with yes exit.
 		 */
 		val = (exit_qualification >> LMSW_SOURCE_DATA_SHIFT) & 0x0f;
 		if (vmcs12->cr0_guest_host_mask & 0xe &
@@ -5624,8 +5624,8 @@ bool nested_vmx_exit_reflected(struct kvm_vcpu *vcpu, u32 exit_reason)
 		return true;
 	case EXIT_REASON_XSAVES: case EXIT_REASON_XRSTORS:
 		/*
-		 * This should never happen, since it is not possible to
-		 * set XSS to a non-zero value---neither in L1 nor in L2.
+		 * This should never happen, since it is yest possible to
+		 * set XSS to a yesn-zero value---neither in L1 yesr in L2.
 		 * If if it were, XSS would have to be checked against
 		 * the XSS exit bitmap in vmcs12.
 		 */
@@ -5791,7 +5791,7 @@ static int vmx_set_nested_state(struct kvm_vcpu *vcpu,
 		 * be copied into eVMCS in guest memory.
 		 *
 		 * To preserve backwards compatability, allow user
-		 * to set this flag even when there is no VMXON region.
+		 * to set this flag even when there is yes VMXON region.
 		 */
 		if (kvm_state->flags & ~KVM_STATE_NESTED_EVMCS)
 			return -EINVAL;
@@ -5812,8 +5812,8 @@ static int vmx_set_nested_state(struct kvm_vcpu *vcpu,
 		return -EINVAL;
 
 	/*
-	 * SMM temporarily disables VMX, so we cannot be in guest mode,
-	 * nor can VMLAUNCH/VMRESUME be pending.  Outside SMM, SMM flags
+	 * SMM temporarily disables VMX, so we canyest be in guest mode,
+	 * yesr can VMLAUNCH/VMRESUME be pending.  Outside SMM, SMM flags
 	 * must be zero.
 	 */
 	if (is_smm(vcpu) ?
@@ -5852,7 +5852,7 @@ static int vmx_set_nested_state(struct kvm_vcpu *vcpu,
 		set_current_vmptr(vmx, kvm_state->hdr.vmx.vmcs12_pa);
 	} else if (kvm_state->flags & KVM_STATE_NESTED_EVMCS) {
 		/*
-		 * Sync eVMCS upon entry as we may not have
+		 * Sync eVMCS upon entry as we may yest have
 		 * HV_X64_MSR_VP_ASSIST_PAGE set up yet.
 		 */
 		vmx->nested.need_vmcs12_to_shadow_sync = true;
@@ -5909,7 +5909,7 @@ static int vmx_set_nested_state(struct kvm_vcpu *vcpu,
 		goto error_guest_mode;
 
 	vmx->nested.dirty_vmcs12 = true;
-	ret = nested_vmx_enter_non_root_mode(vcpu, false);
+	ret = nested_vmx_enter_yesn_root_mode(vcpu, false);
 	if (ret)
 		goto error_guest_mode;
 
@@ -5946,13 +5946,13 @@ void nested_vmx_setup_ctls_msrs(struct nested_vmx_msrs *msrs, u32 ept_caps,
 	 * the control fields which may be 1) should be initialized by the
 	 * intersection of the underlying hardware's MSR (i.e., features which
 	 * can be supported) and the list of features we want to expose -
-	 * because they are known to be properly supported in our code.
+	 * because they are kyeswn to be properly supported in our code.
 	 * Also, usually, the low half of the MSRs (bits which must be 1) can
 	 * be set to 0, meaning that L1 may turn off any of these bits. The
 	 * reason is that if one of these bits is necessary, it will appear
 	 * in vmcs01 and prepare_vmcs02, when it bitwise-or's the control
 	 * fields of vmcs01 and vmcs02, will turn these bits off - and
-	 * nested_vmx_exit_reflected() will not pass related exits to L1.
+	 * nested_vmx_exit_reflected() will yest pass related exits to L1.
 	 * These rules have exceptions below.
 	 */
 
@@ -6029,7 +6029,7 @@ void nested_vmx_setup_ctls_msrs(struct nested_vmx_msrs *msrs, u32 ept_caps,
 		CPU_BASED_RDTSC_EXITING | CPU_BASED_PAUSE_EXITING |
 		CPU_BASED_TPR_SHADOW | CPU_BASED_ACTIVATE_SECONDARY_CONTROLS;
 	/*
-	 * We can allow some features even when not supported by the
+	 * We can allow some features even when yest supported by the
 	 * hardware. For example, L1 can specify an MSR bitmap - and we
 	 * can use it to avoid exits to L1 - even when L0 runs L2
 	 * without MSR bitmaps.
@@ -6043,7 +6043,7 @@ void nested_vmx_setup_ctls_msrs(struct nested_vmx_msrs *msrs, u32 ept_caps,
 		~(CPU_BASED_CR3_LOAD_EXITING | CPU_BASED_CR3_STORE_EXITING);
 
 	/*
-	 * secondary cpu-based controls.  Do not include those that
+	 * secondary cpu-based controls.  Do yest include those that
 	 * depend on CPUID bits, they are added later by vmx_cpuid_update.
 	 */
 	if (msrs->procbased_ctls_high & CPU_BASED_ACTIVATE_SECONDARY_CONTROLS)
@@ -6107,7 +6107,7 @@ void nested_vmx_setup_ctls_msrs(struct nested_vmx_msrs *msrs, u32 ept_caps,
 	 * Old versions of KVM use the single-context version without
 	 * checking for support, so declare that it is supported even
 	 * though it is treated as global context.  The alternative is
-	 * not failing the single-context invvpid, and it is worse.
+	 * yest failing the single-context invvpid, and it is worse.
 	 */
 	if (enable_vpid) {
 		msrs->secondary_ctls_high |=
@@ -6138,7 +6138,7 @@ void nested_vmx_setup_ctls_msrs(struct nested_vmx_msrs *msrs, u32 ept_caps,
 	/*
 	 * This MSR reports some information about VMX support. We
 	 * should return information about the VMX we emulate for the
-	 * guest, and the VMCS structure we give it - not about the
+	 * guest, and the VMCS structure we give it - yest about the
 	 * VMX support of the underlying hardware.
 	 */
 	msrs->basic =
@@ -6147,7 +6147,7 @@ void nested_vmx_setup_ctls_msrs(struct nested_vmx_msrs *msrs, u32 ept_caps,
 		((u64)VMCS12_SIZE << VMX_BASIC_VMCS_SIZE_SHIFT) |
 		(VMX_BASIC_MEM_TYPE_WB << VMX_BASIC_MEM_TYPE_SHIFT);
 
-	if (cpu_has_vmx_basic_inout())
+	if (cpu_has_vmx_basic_iyesut())
 		msrs->basic |= VMX_BASIC_INOUT;
 
 	/*
@@ -6187,8 +6187,8 @@ __init int nested_vmx_hardware_setup(int (*exit_handlers[])(struct kvm_vcpu *))
 	if (enable_shadow_vmcs) {
 		for (i = 0; i < VMX_BITMAP_NR; i++) {
 			/*
-			 * The vmx_bitmap is not tied to a VM and so should
-			 * not be charged to a memcg.
+			 * The vmx_bitmap is yest tied to a VM and so should
+			 * yest be charged to a memcg.
 			 */
 			vmx_bitmap[i] = (unsigned long *)
 				__get_free_page(GFP_KERNEL);

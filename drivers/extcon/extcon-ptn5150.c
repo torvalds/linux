@@ -147,7 +147,7 @@ static void ptn5150_irq_work(struct work_struct *work)
 				break;
 			default:
 				dev_err(info->dev,
-					"Unknown Port status : %x\n",
+					"Unkyeswn Port status : %x\n",
 					port_status);
 				break;
 			}
@@ -225,7 +225,7 @@ static int ptn5150_i2c_probe(struct i2c_client *i2c,
 				 const struct i2c_device_id *id)
 {
 	struct device *dev = &i2c->dev;
-	struct device_node *np = i2c->dev.of_node;
+	struct device_yesde *np = i2c->dev.of_yesde;
 	struct ptn5150_info *info;
 	int ret;
 

@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and /or other materials
  *        provided with the distribution.
  *
@@ -275,7 +275,7 @@ qedr_iw_passive_complete(void *context,
 	struct qedr_dev *dev = ep->dev;
 
 	/* We will only reach the following state if MPA_REJECT was called on
-	 * passive. In this case there will be no associated QP.
+	 * passive. In this case there will be yes associated QP.
 	 */
 	if ((params->status == -ECONNREFUSED) && (!ep->qp)) {
 		DP_DEBUG(dev, QEDR_MSG_IWARP,
@@ -377,7 +377,7 @@ qedr_iw_event_handler(void *context, struct qed_iwarp_cm_event_params *params)
 		DP_NOTICE(dev, "Got terminate message\n");
 		break;
 	default:
-		DP_NOTICE(dev, "Unknown event received %d\n", params->event);
+		DP_NOTICE(dev, "Unkyeswn event received %d\n", params->event);
 		break;
 	}
 	return 0;

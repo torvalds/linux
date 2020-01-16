@@ -2,7 +2,7 @@
 /*
  * General Purpose I2C multiplexer
  *
- * Copyright (C) 2017 Axentia Technologies AB
+ * Copyright (C) 2017 Axentia Techyeslogies AB
  *
  * Author: Peter Rosin <peda@axentia.se>
  */
@@ -17,7 +17,7 @@
 struct mux {
 	struct mux_control *control;
 
-	bool do_not_deselect;
+	bool do_yest_deselect;
 };
 
 static int i2c_mux_select(struct i2c_mux_core *muxc, u32 chan)
@@ -26,7 +26,7 @@ static int i2c_mux_select(struct i2c_mux_core *muxc, u32 chan)
 	int ret;
 
 	ret = mux_control_select(mux->control, chan);
-	mux->do_not_deselect = ret < 0;
+	mux->do_yest_deselect = ret < 0;
 
 	return ret;
 }
@@ -35,7 +35,7 @@ static int i2c_mux_deselect(struct i2c_mux_core *muxc, u32 chan)
 {
 	struct mux *mux = i2c_mux_priv(muxc);
 
-	if (mux->do_not_deselect)
+	if (mux->do_yest_deselect)
 		return 0;
 
 	return mux_control_deselect(mux->control);
@@ -43,17 +43,17 @@ static int i2c_mux_deselect(struct i2c_mux_core *muxc, u32 chan)
 
 static struct i2c_adapter *mux_parent_adapter(struct device *dev)
 {
-	struct device_node *np = dev->of_node;
-	struct device_node *parent_np;
+	struct device_yesde *np = dev->of_yesde;
+	struct device_yesde *parent_np;
 	struct i2c_adapter *parent;
 
 	parent_np = of_parse_phandle(np, "i2c-parent", 0);
 	if (!parent_np) {
-		dev_err(dev, "Cannot parse i2c-parent\n");
+		dev_err(dev, "Canyest parse i2c-parent\n");
 		return ERR_PTR(-ENODEV);
 	}
-	parent = of_find_i2c_adapter_by_node(parent_np);
-	of_node_put(parent_np);
+	parent = of_find_i2c_adapter_by_yesde(parent_np);
+	of_yesde_put(parent_np);
 	if (!parent)
 		return ERR_PTR(-EPROBE_DEFER);
 
@@ -69,8 +69,8 @@ MODULE_DEVICE_TABLE(of, i2c_mux_of_match);
 static int i2c_mux_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
-	struct device_node *child;
+	struct device_yesde *np = dev->of_yesde;
+	struct device_yesde *child;
 	struct i2c_mux_core *muxc;
 	struct mux *mux;
 	struct i2c_adapter *parent;
@@ -112,12 +112,12 @@ static int i2c_mux_probe(struct platform_device *pdev)
 
 	muxc->mux_locked = of_property_read_bool(np, "mux-locked");
 
-	for_each_child_of_node(np, child) {
+	for_each_child_of_yesde(np, child) {
 		u32 chan;
 
 		ret = of_property_read_u32(child, "reg", &chan);
 		if (ret < 0) {
-			dev_err(dev, "no reg property for node '%pOFn'\n",
+			dev_err(dev, "yes reg property for yesde '%pOFn'\n",
 				child);
 			goto err_children;
 		}

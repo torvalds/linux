@@ -207,13 +207,13 @@ static long phantom_compat_ioctl(struct file *filp, unsigned int cmd,
 #define phantom_compat_ioctl NULL
 #endif
 
-static int phantom_open(struct inode *inode, struct file *file)
+static int phantom_open(struct iyesde *iyesde, struct file *file)
 {
-	struct phantom_device *dev = container_of(inode->i_cdev,
+	struct phantom_device *dev = container_of(iyesde->i_cdev,
 			struct phantom_device, cdev);
 
 	mutex_lock(&phantom_mutex);
-	nonseekable_open(inode, file);
+	yesnseekable_open(iyesde, file);
 
 	if (mutex_lock_interruptible(&dev->open_lock)) {
 		mutex_unlock(&phantom_mutex);
@@ -237,7 +237,7 @@ static int phantom_open(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static int phantom_release(struct inode *inode, struct file *file)
+static int phantom_release(struct iyesde *iyesde, struct file *file)
 {
 	struct phantom_device *dev = file->private_data;
 
@@ -276,7 +276,7 @@ static const struct file_operations phantom_file_ops = {
 	.unlocked_ioctl = phantom_ioctl,
 	.compat_ioctl = phantom_compat_ioctl,
 	.poll = phantom_poll,
-	.llseek = no_llseek,
+	.llseek = yes_llseek,
 };
 
 static irqreturn_t phantom_isr(int irq, void *data)
@@ -335,7 +335,7 @@ static int phantom_probe(struct pci_dev *pdev,
 	const struct pci_device_id *pci_id)
 {
 	struct phantom_device *pht;
-	unsigned int minor;
+	unsigned int miyesr;
 	int retval;
 
 	retval = pci_enable_device(pdev);
@@ -344,14 +344,14 @@ static int phantom_probe(struct pci_dev *pdev,
 		goto err;
 	}
 
-	minor = phantom_get_free();
-	if (minor == PHANTOM_MAX_MINORS) {
+	miyesr = phantom_get_free();
+	if (miyesr == PHANTOM_MAX_MINORS) {
 		dev_err(&pdev->dev, "too many devices found!\n");
 		retval = -EIO;
 		goto err_dis;
 	}
 
-	phantom_devices[minor] = 1;
+	phantom_devices[miyesr] = 1;
 
 	retval = pci_request_regions(pdev, "phantom");
 	if (retval) {
@@ -397,15 +397,15 @@ static int phantom_probe(struct pci_dev *pdev,
 		goto err_unmo;
 	}
 
-	retval = cdev_add(&pht->cdev, MKDEV(phantom_major, minor), 1);
+	retval = cdev_add(&pht->cdev, MKDEV(phantom_major, miyesr), 1);
 	if (retval) {
 		dev_err(&pdev->dev, "chardev registration failed\n");
 		goto err_irq;
 	}
 
 	if (IS_ERR(device_create(phantom_class, &pdev->dev,
-				 MKDEV(phantom_major, minor), NULL,
-				 "phantom%u", minor)))
+				 MKDEV(phantom_major, miyesr), NULL,
+				 "phantom%u", miyesr)))
 		dev_err(&pdev->dev, "can't create device\n");
 
 	pci_set_drvdata(pdev, pht);
@@ -424,7 +424,7 @@ err_fr:
 err_reg:
 	pci_release_regions(pdev);
 err_null:
-	phantom_devices[minor] = 0;
+	phantom_devices[miyesr] = 0;
 err_dis:
 	pci_disable_device(pdev);
 err:
@@ -434,9 +434,9 @@ err:
 static void phantom_remove(struct pci_dev *pdev)
 {
 	struct phantom_device *pht = pci_get_drvdata(pdev);
-	unsigned int minor = MINOR(pht->cdev.dev);
+	unsigned int miyesr = MINOR(pht->cdev.dev);
 
-	device_destroy(phantom_class, MKDEV(phantom_major, minor));
+	device_destroy(phantom_class, MKDEV(phantom_major, miyesr));
 
 	cdev_del(&pht->cdev);
 
@@ -452,7 +452,7 @@ static void phantom_remove(struct pci_dev *pdev)
 
 	pci_release_regions(pdev);
 
-	phantom_devices[minor] = 0;
+	phantom_devices[miyesr] = 0;
 
 	pci_disable_device(pdev);
 }

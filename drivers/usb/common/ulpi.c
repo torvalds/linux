@@ -71,7 +71,7 @@ static int ulpi_probe(struct device *dev)
 	struct ulpi_driver *drv = to_ulpi_driver(dev->driver);
 	int ret;
 
-	ret = of_clk_set_defaults(dev->of_node, false);
+	ret = of_clk_set_defaults(dev->of_yesde, false);
 	if (ret < 0)
 		return ret;
 
@@ -174,24 +174,24 @@ EXPORT_SYMBOL_GPL(ulpi_unregister_driver);
 
 static int ulpi_of_register(struct ulpi *ulpi)
 {
-	struct device_node *np = NULL, *child;
+	struct device_yesde *np = NULL, *child;
 	struct device *parent;
 
 	/* Find a ulpi bus underneath the parent or the grandparent */
 	parent = ulpi->dev.parent;
-	if (parent->of_node)
-		np = of_get_child_by_name(parent->of_node, "ulpi");
-	else if (parent->parent && parent->parent->of_node)
-		np = of_get_child_by_name(parent->parent->of_node, "ulpi");
+	if (parent->of_yesde)
+		np = of_get_child_by_name(parent->of_yesde, "ulpi");
+	else if (parent->parent && parent->parent->of_yesde)
+		np = of_get_child_by_name(parent->parent->of_yesde, "ulpi");
 	if (!np)
 		return 0;
 
 	child = of_get_next_available_child(np, NULL);
-	of_node_put(np);
+	of_yesde_put(np);
 	if (!child)
 		return -EINVAL;
 
-	ulpi->dev.of_node = child;
+	ulpi->dev.of_yesde = child;
 
 	return 0;
 }
@@ -297,7 +297,7 @@ EXPORT_SYMBOL_GPL(ulpi_register_interface);
  */
 void ulpi_unregister_interface(struct ulpi *ulpi)
 {
-	of_node_put(ulpi->dev.of_node);
+	of_yesde_put(ulpi->dev.of_yesde);
 	device_unregister(&ulpi->dev);
 }
 EXPORT_SYMBOL_GPL(ulpi_unregister_interface);

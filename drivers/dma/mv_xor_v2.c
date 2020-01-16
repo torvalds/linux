@@ -93,7 +93,7 @@
 
 /**
  * struct mv_xor_v2_descriptor - DMA HW descriptor
- * @desc_id: used by S/W and is not affected by H/W.
+ * @desc_id: used by S/W and is yest affected by H/W.
  * @flags: error and status flags
  * @crc32_result: CRC32 calculation result
  * @desc_ctrl: operation mode and control flags
@@ -146,7 +146,7 @@ struct mv_xor_v2_descriptor {
  * @sw_desq: SW descriptors queue
  * @desc_size: HW descriptor size
  * @npendings: number of pending descriptors (for which tx_submit has
- * been called, but not yet issue_pending)
+ * been called, but yest yet issue_pending)
  */
 struct mv_xor_v2_device {
 	spinlock_t lock;
@@ -172,7 +172,7 @@ struct mv_xor_v2_device {
  * @idx: descriptor index
  * @async_tx: support for the async_tx api
  * @hw_desc: assosiated HW descriptor
- * @free_list: node of the free SW descriprots list
+ * @free_list: yesde of the free SW descriprots list
 */
 struct mv_xor_v2_sw_desc {
 	int idx;
@@ -218,7 +218,7 @@ static void mv_xor_v2_set_data_buffers(struct mv_xor_v2_device *xor_dev,
 }
 
 /*
- * notify the engine of new descriptors, and update the available index.
+ * yestify the engine of new descriptors, and update the available index.
  */
 static void mv_xor_v2_add_desc_to_desq(struct mv_xor_v2_device *xor_dev,
 				       int num_of_desc)
@@ -572,7 +572,7 @@ static void mv_xor_v2_tasklet(unsigned long data)
 		/* call the callback */
 		if (next_pending_sw_desc->async_tx.cookie > 0) {
 			/*
-			 * update the channel's completed cookie - no
+			 * update the channel's completed cookie - yes
 			 * lock is required the IMSG threshold provide
 			 * the locking
 			 */
@@ -641,7 +641,7 @@ static int mv_xor_v2_descq_init(struct mv_xor_v2_device *xor_dev)
 	 * SMMU. Set the attributes for reading & writing data buffers
 	 * & descriptors to:
 	 *
-	 *  - OuterShareable - Snoops will be performed on CPU caches
+	 *  - OuterShareable - Syesops will be performed on CPU caches
 	 *  - Enable cacheable - Bufferable, Modifiable, Other Allocate
 	 *    and Allocate
 	 */
@@ -785,7 +785,7 @@ static int mv_xor_v2_probe(struct platform_device *pdev)
 
 	/*
 	 * allocate coherent memory for hardware descriptors
-	 * note: writecombine gives slightly better performance, but
+	 * yeste: writecombine gives slightly better performance, but
 	 * requires that we explicitly flush the writes
 	 */
 	xor_dev->hw_desq_virt =
@@ -848,7 +848,7 @@ static int mv_xor_v2_probe(struct platform_device *pdev)
 
 	xor_dev->dmachan.device = dma_dev;
 
-	list_add_tail(&xor_dev->dmachan.device_node,
+	list_add_tail(&xor_dev->dmachan.device_yesde,
 		      &dma_dev->channels);
 
 	mv_xor_v2_enable_imsg_thrd(xor_dev);
@@ -859,7 +859,7 @@ static int mv_xor_v2_probe(struct platform_device *pdev)
 	if (ret)
 		goto free_hw_desq;
 
-	dev_notice(&pdev->dev, "Marvell Version 2 XOR driver\n");
+	dev_yestice(&pdev->dev, "Marvell Version 2 XOR driver\n");
 
 	return 0;
 

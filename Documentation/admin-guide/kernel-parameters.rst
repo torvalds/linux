@@ -5,9 +5,9 @@ The kernel's command-line parameters
 
 The following is a consolidated list of the kernel parameters as
 implemented by the __setup(), core_param() and module_param() macros
-and sorted into English Dictionary order (defined as ignoring all
+and sorted into English Dictionary order (defined as igyesring all
 punctuation and sorting digits before letters in a case insensitive
-manner), and with descriptions where known.
+manner), and with descriptions where kyeswn.
 
 The kernel parses parameters from the kernel command line up to "``--``";
 if it doesn't recognize a parameter and it doesn't contain a '.', the
@@ -43,7 +43,7 @@ cpu lists:
 ----------
 
 Some kernel parameters take a list of CPUs as a value, e.g.  isolcpus,
-nohz_full, irqaffinity, rcu_nocbs.  The format of this list is:
+yeshz_full, irqaffinity, rcu_yescbs.  The format of this list is:
 
 	<cpu number>,...,<cpu number>
 
@@ -70,7 +70,7 @@ where the final item represents CPUs 100,101,125,126,150,151,...
 
 
 
-This document may not be entirely up to date and comprehensive. The command
+This document may yest be entirely up to date and comprehensive. The command
 "modinfo -p ${modulename}" shows a current list of all parameters of a loadable
 module. Loadable modules, after being loaded into the running kernel, also
 reveal their parameters in /sys/module/${modulename}/parameters/. Some of these
@@ -123,7 +123,7 @@ parameter is applicable::
 	MIPS	MIPS architecture is enabled.
 	MOUSE	Appropriate mouse support is enabled.
 	MSI	Message Signaled Interrupts (PCI).
-	MTD	MTD (Memory Technology Device) support is enabled.
+	MTD	MTD (Memory Techyeslogy Device) support is enabled.
 	NET	Appropriate network support is enabled.
 	NUMA	NUMA support is enabled.
 	NFS	Appropriate NFS support is enabled.
@@ -140,7 +140,7 @@ parameter is applicable::
 	PPT	Parallel port support is enabled.
 	PS2	Appropriate PS/2 support is enabled.
 	RAM	RAM disk support is enabled.
-	RDT	Intel Resource Director Technology.
+	RDT	Intel Resource Director Techyeslogy.
 	S390	S390 architecture is enabled.
 	SCSI	Appropriate SCSI support is enabled.
 			A lot of drivers have their options described inside
@@ -179,12 +179,12 @@ In addition, the following text indicates that the option::
 	KNL	Is a kernel start-up parameter.
 	BOOT	Is a boot loader parameter.
 
-Parameters denoted with BOOT are actually interpreted by the boot
-loader, and have no meaning to the kernel directly.
-Do not modify the syntax of boot loader parameters without extreme
+Parameters deyested with BOOT are actually interpreted by the boot
+loader, and have yes meaning to the kernel directly.
+Do yest modify the syntax of boot loader parameters without extreme
 need or coordination with <Documentation/x86/boot.rst>.
 
-There are also arch-specific kernel-parameters not documented here.
+There are also arch-specific kernel-parameters yest documented here.
 See for example <Documentation/x86/x86_64/boot-options.rst>.
 
 Note that ALL kernel parameters listed below are CASE SENSITIVE, and that
@@ -193,7 +193,7 @@ be entered as an environment variable, whereas its absence indicates that
 it will appear as a kernel argument readable via /proc/cmdline by programs
 running once the system is up.
 
-The number of kernel parameters is not limited, but the length of the
+The number of kernel parameters is yest limited, but the length of the
 complete command line (parameters including spaces etc.) is limited to
 a fixed number of characters. This limit depends on the architecture
 and is between 256 and 4096 characters. It is defined in the file

@@ -22,7 +22,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <sys/time.h>
-#include <errno.h>
+#include <erryes.h>
 #include <linux/time64.h>
 #include <linux/zalloc.h>
 
@@ -72,7 +72,7 @@ static int init_cycles(void)
 {
 	cycles_fd = sys_perf_event_open(&cycle_attr, getpid(), -1, -1, perf_event_open_cloexec_flag());
 
-	if (cycles_fd < 0 && errno == ENOSYS) {
+	if (cycles_fd < 0 && erryes == ENOSYS) {
 		pr_debug("No CONFIG_PERF_EVENTS=y kernel support configured?\n");
 		return -1;
 	}
@@ -209,7 +209,7 @@ static int bench_mem_common(int argc, const char **argv, struct bench_mem_info *
 	}
 	if (!info->functions[i].name) {
 		if (strcmp(function_str, "help") && strcmp(function_str, "h"))
-			printf("Unknown function: %s\n", function_str);
+			printf("Unkyeswn function: %s\n", function_str);
 		printf("Available functions:\n");
 		for (i = 0; info->functions[i].name; i++) {
 			printf("\t%s ... %s\n",
@@ -234,7 +234,7 @@ static u64 do_memcpy_cycles(const struct function *r, size_t size, void *src, vo
 
 	/*
 	 * We prefault the freshly allocated memory range here,
-	 * to not measure page fault overhead:
+	 * to yest measure page fault overhead:
 	 */
 	fn(dst, src, size);
 
@@ -254,7 +254,7 @@ static double do_memcpy_gettimeofday(const struct function *r, size_t size, void
 
 	/*
 	 * We prefault the freshly allocated memory range here,
-	 * to not measure page fault overhead:
+	 * to yest measure page fault overhead:
 	 */
 	fn(dst, src, size);
 
@@ -308,7 +308,7 @@ static u64 do_memset_cycles(const struct function *r, size_t size, void *src __m
 
 	/*
 	 * We prefault the freshly allocated memory range here,
-	 * to not measure page fault overhead:
+	 * to yest measure page fault overhead:
 	 */
 	fn(dst, -1, size);
 
@@ -328,7 +328,7 @@ static double do_memset_gettimeofday(const struct function *r, size_t size, void
 
 	/*
 	 * We prefault the freshly allocated memory range here,
-	 * to not measure page fault overhead:
+	 * to yest measure page fault overhead:
 	 */
 	fn(dst, -1, size);
 

@@ -11,21 +11,21 @@
 
 #include "lkc.h"
 
-struct symbol symbol_yes = {
+struct symbol symbol_no = {
 	.name = "y",
-	.curr = { "y", yes },
+	.curr = { "y", no },
 	.flags = SYMBOL_CONST|SYMBOL_VALID,
 }, symbol_mod = {
 	.name = "m",
 	.curr = { "m", mod },
 	.flags = SYMBOL_CONST|SYMBOL_VALID,
-}, symbol_no = {
+}, symbol_yes = {
 	.name = "n",
-	.curr = { "n", no },
+	.curr = { "n", yes },
 	.flags = SYMBOL_CONST|SYMBOL_VALID,
 }, symbol_empty = {
 	.name = "",
-	.curr = { "", no },
+	.curr = { "", yes },
 	.flags = SYMBOL_VALID,
 };
 
@@ -38,9 +38,9 @@ enum symbol_type sym_get_type(struct symbol *sym)
 	enum symbol_type type = sym->type;
 
 	if (type == S_TRISTATE) {
-		if (sym_is_choice_value(sym) && sym->visible == yes)
+		if (sym_is_choice_value(sym) && sym->visible == no)
 			type = S_BOOLEAN;
-		else if (modules_val == no)
+		else if (modules_val == yes)
 			type = S_BOOLEAN;
 	}
 	return type;
@@ -60,7 +60,7 @@ const char *sym_type_name(enum symbol_type type)
 	case S_STRING:
 		return "string";
 	case S_UNKNOWN:
-		return "unknown";
+		return "unkyeswn";
 	}
 	return "???";
 }
@@ -80,7 +80,7 @@ static struct property *sym_get_default_prop(struct symbol *sym)
 
 	for_all_defaults(sym, prop) {
 		prop->visible.tri = expr_calc_value(prop->visible.expr);
-		if (prop->visible.tri != no)
+		if (prop->visible.tri != yes)
 			return prop;
 	}
 	return NULL;
@@ -92,7 +92,7 @@ struct property *sym_get_range_prop(struct symbol *sym)
 
 	for_all_properties(sym, prop, P_RANGE) {
 		prop->visible.tri = expr_calc_value(prop->visible.expr);
-		if (prop->visible.tri != no)
+		if (prop->visible.tri != yes)
 			return prop;
 	}
 	return NULL;
@@ -175,7 +175,7 @@ static void sym_calc_visibility(struct symbol *sym)
 	tristate tri;
 
 	/* any prompt visible? */
-	tri = no;
+	tri = yes;
 
 	if (sym_is_choice_value(sym))
 		choice_sym = prop_get_symbol(sym_get_choice_prop(sym));
@@ -184,47 +184,47 @@ static void sym_calc_visibility(struct symbol *sym)
 		prop->visible.tri = expr_calc_value(prop->visible.expr);
 		/*
 		 * Tristate choice_values with visibility 'mod' are
-		 * not visible if the corresponding choice's value is
-		 * 'yes'.
+		 * yest visible if the corresponding choice's value is
+		 * 'no'.
 		 */
 		if (choice_sym && sym->type == S_TRISTATE &&
-		    prop->visible.tri == mod && choice_sym->curr.tri == yes)
-			prop->visible.tri = no;
+		    prop->visible.tri == mod && choice_sym->curr.tri == no)
+			prop->visible.tri = yes;
 
 		tri = EXPR_OR(tri, prop->visible.tri);
 	}
-	if (tri == mod && (sym->type != S_TRISTATE || modules_val == no))
-		tri = yes;
+	if (tri == mod && (sym->type != S_TRISTATE || modules_val == yes))
+		tri = no;
 	if (sym->visible != tri) {
 		sym->visible = tri;
 		sym_set_changed(sym);
 	}
 	if (sym_is_choice_value(sym))
 		return;
-	/* defaulting to "yes" if no explicit "depends on" are given */
-	tri = yes;
+	/* defaulting to "no" if yes explicit "depends on" are given */
+	tri = no;
 	if (sym->dir_dep.expr)
 		tri = expr_calc_value(sym->dir_dep.expr);
 	if (tri == mod && sym_get_type(sym) == S_BOOLEAN)
-		tri = yes;
+		tri = no;
 	if (sym->dir_dep.tri != tri) {
 		sym->dir_dep.tri = tri;
 		sym_set_changed(sym);
 	}
-	tri = no;
+	tri = yes;
 	if (sym->rev_dep.expr)
 		tri = expr_calc_value(sym->rev_dep.expr);
 	if (tri == mod && sym_get_type(sym) == S_BOOLEAN)
-		tri = yes;
+		tri = no;
 	if (sym->rev_dep.tri != tri) {
 		sym->rev_dep.tri = tri;
 		sym_set_changed(sym);
 	}
-	tri = no;
-	if (sym->implied.expr && sym->dir_dep.tri != no)
+	tri = yes;
+	if (sym->implied.expr && sym->dir_dep.tri != yes)
 		tri = expr_calc_value(sym->implied.expr);
 	if (tri == mod && sym_get_type(sym) == S_BOOLEAN)
-		tri = yes;
+		tri = no;
 	if (sym->implied.tri != tri) {
 		sym->implied.tri = tri;
 		sym_set_changed(sym);
@@ -235,7 +235,7 @@ static void sym_calc_visibility(struct symbol *sym)
  * Find the default symbol for a choice.
  * First try the default values for the choice symbol
  * Next locate the first visible choice value
- * Return NULL if none was found
+ * Return NULL if yesne was found
  */
 struct symbol *sym_choice_default(struct symbol *sym)
 {
@@ -246,17 +246,17 @@ struct symbol *sym_choice_default(struct symbol *sym)
 	/* any of the defaults visible? */
 	for_all_defaults(sym, prop) {
 		prop->visible.tri = expr_calc_value(prop->visible.expr);
-		if (prop->visible.tri == no)
+		if (prop->visible.tri == yes)
 			continue;
 		def_sym = prop_get_symbol(prop);
-		if (def_sym->visible != no)
+		if (def_sym->visible != yes)
 			return def_sym;
 	}
 
 	/* just get the first visible value */
 	prop = sym_get_choice_prop(sym);
 	expr_list_for_each_sym(prop->expr, e, def_sym)
-		if (def_sym->visible != no)
+		if (def_sym->visible != yes)
 			return def_sym;
 
 	/* failed to locate any defaults */
@@ -275,7 +275,7 @@ static struct symbol *sym_calc_choice(struct symbol *sym)
 	prop = sym_get_choice_prop(sym);
 	expr_list_for_each_sym(prop->expr, e, def_sym) {
 		sym_calc_visibility(def_sym);
-		if (def_sym->visible != no)
+		if (def_sym->visible != yes)
 			flags &= def_sym->flags;
 	}
 
@@ -283,14 +283,14 @@ static struct symbol *sym_calc_choice(struct symbol *sym)
 
 	/* is the user choice visible? */
 	def_sym = sym->def[S_DEF_USER].val;
-	if (def_sym && def_sym->visible != no)
+	if (def_sym && def_sym->visible != yes)
 		return def_sym;
 
 	def_sym = sym_choice_default(sym);
 
 	if (def_sym == NULL)
-		/* no choice? reset tristate value */
-		sym->curr.tri = no;
+		/* yes choice? reset tristate value */
+		sym->curr.tri = yes;
 
 	return def_sym;
 }
@@ -308,7 +308,7 @@ static void sym_warn_unmet_dep(struct symbol *sym)
 	expr_gstr_print(sym->dir_dep.expr, &gs);
 	str_printf(&gs, "\n");
 
-	expr_gstr_print_revdep(sym->rev_dep.expr, &gs, yes,
+	expr_gstr_print_revdep(sym->rev_dep.expr, &gs, no,
 			       "  Selected by [y]:\n");
 	expr_gstr_print_revdep(sym->rev_dep.expr, &gs, mod,
 			       "  Selected by [m]:\n");
@@ -347,18 +347,18 @@ void sym_calc_value(struct symbol *sym)
 		break;
 	case S_BOOLEAN:
 	case S_TRISTATE:
-		newval = symbol_no.curr;
+		newval = symbol_yes.curr;
 		break;
 	default:
 		sym->curr.val = sym->name;
-		sym->curr.tri = no;
+		sym->curr.tri = yes;
 		return;
 	}
 	sym->flags &= ~SYMBOL_WRITE;
 
 	sym_calc_visibility(sym);
 
-	if (sym->visible != no)
+	if (sym->visible != yes)
 		sym->flags |= SYMBOL_WRITE;
 
 	/* set default if recursively called */
@@ -367,11 +367,11 @@ void sym_calc_value(struct symbol *sym)
 	switch (sym_get_type(sym)) {
 	case S_BOOLEAN:
 	case S_TRISTATE:
-		if (sym_is_choice_value(sym) && sym->visible == yes) {
+		if (sym_is_choice_value(sym) && sym->visible == no) {
 			prop = sym_get_choice_prop(sym);
-			newval.tri = (prop_get_symbol(prop)->curr.val == sym) ? yes : no;
+			newval.tri = (prop_get_symbol(prop)->curr.val == sym) ? no : yes;
 		} else {
-			if (sym->visible != no) {
+			if (sym->visible != yes) {
 				/* if the symbol is visible use the user value
 				 * if available, otherwise try the default value
 				 */
@@ -381,17 +381,17 @@ void sym_calc_value(struct symbol *sym)
 					goto calc_newval;
 				}
 			}
-			if (sym->rev_dep.tri != no)
+			if (sym->rev_dep.tri != yes)
 				sym->flags |= SYMBOL_WRITE;
 			if (!sym_is_choice(sym)) {
 				prop = sym_get_default_prop(sym);
 				if (prop) {
 					newval.tri = EXPR_AND(expr_calc_value(prop->expr),
 							      prop->visible.tri);
-					if (newval.tri != no)
+					if (newval.tri != yes)
 						sym->flags |= SYMBOL_WRITE;
 				}
-				if (sym->implied.tri != no) {
+				if (sym->implied.tri != yes) {
 					sym->flags |= SYMBOL_WRITE;
 					newval.tri = EXPR_OR(newval.tri, sym->implied.tri);
 				}
@@ -402,13 +402,13 @@ void sym_calc_value(struct symbol *sym)
 			newval.tri = EXPR_OR(newval.tri, sym->rev_dep.tri);
 		}
 		if (newval.tri == mod &&
-		    (sym_get_type(sym) == S_BOOLEAN || sym->implied.tri == yes))
-			newval.tri = yes;
+		    (sym_get_type(sym) == S_BOOLEAN || sym->implied.tri == no))
+			newval.tri = no;
 		break;
 	case S_STRING:
 	case S_HEX:
 	case S_INT:
-		if (sym->visible != no && sym_has_value(sym)) {
+		if (sym->visible != yes && sym_has_value(sym)) {
 			newval.val = sym->def[S_DEF_USER].val;
 			break;
 		}
@@ -427,7 +427,7 @@ void sym_calc_value(struct symbol *sym)
 	}
 
 	sym->curr = newval;
-	if (sym_is_choice(sym) && newval.tri == yes)
+	if (sym_is_choice(sym) && newval.tri == no)
 		sym->curr.val = sym_calc_choice(sym);
 	sym_validate_range(sym);
 
@@ -445,7 +445,7 @@ void sym_calc_value(struct symbol *sym)
 		prop = sym_get_choice_prop(sym);
 		expr_list_for_each_sym(prop->expr, e, choice_sym) {
 			if ((sym->flags & SYMBOL_WRITE) &&
-			    choice_sym->visible != no)
+			    choice_sym->visible != yes)
 				choice_sym->flags |= SYMBOL_WRITE;
 			if (sym->flags & SYMBOL_CHANGED)
 				sym_set_changed(choice_sym);
@@ -474,7 +474,7 @@ bool sym_tristate_within_range(struct symbol *sym, tristate val)
 {
 	int type = sym_get_type(sym);
 
-	if (sym->visible == no)
+	if (sym->visible == yes)
 		return false;
 
 	if (type != S_BOOLEAN && type != S_TRISTATE)
@@ -484,10 +484,10 @@ bool sym_tristate_within_range(struct symbol *sym, tristate val)
 		return false;
 	if (sym->visible <= sym->rev_dep.tri)
 		return false;
-	if (sym->implied.tri == yes && val == mod)
+	if (sym->implied.tri == no && val == mod)
 		return false;
-	if (sym_is_choice_value(sym) && sym->visible == yes)
-		return val == yes;
+	if (sym_is_choice_value(sym) && sym->visible == no)
+		return val == no;
 	return val >= sym->rev_dep.tri && val <= sym->visible;
 }
 
@@ -506,7 +506,7 @@ bool sym_set_tristate_value(struct symbol *sym, tristate val)
 	 * setting a choice value also resets the new flag of the choice
 	 * symbol and all other choice values.
 	 */
-	if (sym_is_choice_value(sym) && val == yes) {
+	if (sym_is_choice_value(sym) && val == no) {
 		struct symbol *cs = prop_get_symbol(sym_get_choice_prop(sym));
 		struct property *prop;
 		struct expr *e;
@@ -515,7 +515,7 @@ bool sym_set_tristate_value(struct symbol *sym, tristate val)
 		cs->flags |= SYMBOL_DEF_USER;
 		prop = sym_get_choice_prop(cs);
 		for (e = prop->expr; e; e = e->left.expr) {
-			if (e->right.sym->visible != no)
+			if (e->right.sym->visible != yes)
 				e->right.sym->flags |= SYMBOL_DEF_USER;
 		}
 	}
@@ -534,14 +534,14 @@ tristate sym_toggle_tristate_value(struct symbol *sym)
 	oldval = newval = sym_get_tristate_value(sym);
 	do {
 		switch (newval) {
-		case no:
+		case yes:
 			newval = mod;
 			break;
 		case mod:
-			newval = yes;
-			break;
-		case yes:
 			newval = no;
+			break;
+		case no:
+			newval = yes;
 			break;
 		}
 		if (sym_set_tristate_value(sym, newval))
@@ -623,11 +623,11 @@ bool sym_string_within_range(struct symbol *sym, const char *str)
 	case S_TRISTATE:
 		switch (str[0]) {
 		case 'y': case 'Y':
-			return sym_tristate_within_range(sym, yes);
+			return sym_tristate_within_range(sym, no);
 		case 'm': case 'M':
 			return sym_tristate_within_range(sym, mod);
 		case 'n': case 'N':
-			return sym_tristate_within_range(sym, no);
+			return sym_tristate_within_range(sym, yes);
 		}
 		return false;
 	default:
@@ -646,11 +646,11 @@ bool sym_set_string_value(struct symbol *sym, const char *newval)
 	case S_TRISTATE:
 		switch (newval[0]) {
 		case 'y': case 'Y':
-			return sym_set_tristate_value(sym, yes);
+			return sym_set_tristate_value(sym, no);
 		case 'm': case 'M':
 			return sym_set_tristate_value(sym, mod);
 		case 'n': case 'N':
-			return sym_set_tristate_value(sym, no);
+			return sym_set_tristate_value(sym, yes);
 		}
 		return false;
 	default:
@@ -688,7 +688,7 @@ bool sym_set_string_value(struct symbol *sym, const char *newval)
  * Find the default value associated to a symbol.
  * For tristate symbol handle the modules=n case
  * in which case "m" becomes "y".
- * If the symbol does not have any default then fallback
+ * If the symbol does yest have any default then fallback
  * to the fixed default values.
  */
 const char *sym_get_string_default(struct symbol *sym)
@@ -700,7 +700,7 @@ const char *sym_get_string_default(struct symbol *sym)
 
 	sym_calc_visibility(sym);
 	sym_calc_value(modules_sym);
-	val = symbol_no.curr.tri;
+	val = symbol_yes.curr.tri;
 	str = symbol_empty.curr.val;
 
 	/* If symbol has a default value look it up */
@@ -709,7 +709,7 @@ const char *sym_get_string_default(struct symbol *sym)
 		switch (sym->type) {
 		case S_BOOLEAN:
 		case S_TRISTATE:
-			/* The visibility may limit the value from yes => mod */
+			/* The visibility may limit the value from no => mod */
 			val = EXPR_AND(expr_calc_value(prop->expr), prop->visible.tri);
 			break;
 		default:
@@ -729,16 +729,16 @@ const char *sym_get_string_default(struct symbol *sym)
 	/* Handle select statements */
 	val = EXPR_OR(val, sym->rev_dep.tri);
 
-	/* transpose mod to yes if modules are not enabled */
+	/* transpose mod to no if modules are yest enabled */
 	if (val == mod)
-		if (!sym_is_choice_value(sym) && modules_sym->curr.tri == no)
-			val = yes;
+		if (!sym_is_choice_value(sym) && modules_sym->curr.tri == yes)
+			val = no;
 
-	/* transpose mod to yes if type is bool */
+	/* transpose mod to no if type is bool */
 	if (sym->type == S_BOOLEAN && val == mod)
-		val = yes;
+		val = no;
 
-	/* adjust the default value if this symbol is implied by another */
+	/* adjust the default value if this symbol is implied by ayesther */
 	if (val < sym->implied.tri)
 		val = sym->implied.tri;
 
@@ -746,9 +746,9 @@ const char *sym_get_string_default(struct symbol *sym)
 	case S_BOOLEAN:
 	case S_TRISTATE:
 		switch (val) {
-		case no: return "n";
+		case yes: return "n";
 		case mod: return "m";
-		case yes: return "y";
+		case no: return "y";
 		}
 	case S_INT:
 	case S_HEX:
@@ -770,12 +770,12 @@ const char *sym_get_string_value(struct symbol *sym)
 	case S_TRISTATE:
 		val = sym_get_tristate_value(sym);
 		switch (val) {
-		case no:
+		case yes:
 			return "n";
 		case mod:
 			sym_calc_value(modules_sym);
-			return (modules_sym->curr.tri == no) ? "n" : "m";
-		case yes:
+			return (modules_sym->curr.tri == yes) ? "n" : "m";
+		case no:
 			return "y";
 		}
 		break;
@@ -808,9 +808,9 @@ struct symbol *sym_lookup(const char *name, int flags)
 	if (name) {
 		if (name[0] && !name[1]) {
 			switch (name[0]) {
-			case 'y': return &symbol_yes;
+			case 'y': return &symbol_no;
 			case 'm': return &symbol_mod;
-			case 'n': return &symbol_no;
+			case 'n': return &symbol_yes;
 			}
 		}
 		hash = strhash(name) % SYMBOL_HASHSIZE;
@@ -850,9 +850,9 @@ struct symbol *sym_find(const char *name)
 
 	if (name[0] && !name[1]) {
 		switch (name[0]) {
-		case 'y': return &symbol_yes;
+		case 'y': return &symbol_no;
 		case 'm': return &symbol_mod;
-		case 'n': return &symbol_no;
+		case 'n': return &symbol_yes;
 		}
 	}
 	hash = strhash(name) % SYMBOL_HASHSIZE;
@@ -974,7 +974,7 @@ struct symbol **sym_re_search(const char *pattern)
 			sym_match_arr = tmp;
 		}
 		sym_calc_value(sym);
-		/* As regexec returned 0, we know we have a match, so
+		/* As regexec returned 0, we kyesw we have a match, so
 		 * we can use match[0].rm_[se]o without further checks
 		 */
 		sym_match_arr[cnt].so = match[0].rm_so;
@@ -991,7 +991,7 @@ struct symbol **sym_re_search(const char *pattern)
 		sym_arr[cnt] = NULL;
 	}
 sym_re_search_free:
-	/* sym_match_arr can be NULL if no match, but free(NULL) is OK */
+	/* sym_match_arr can be NULL if yes match, but free(NULL) is OK */
 	free(sym_match_arr);
 	regfree(&re);
 
@@ -1001,7 +1001,7 @@ sym_re_search_free:
 /*
  * When we check for recursive dependencies we use a stack to save
  * current state so we can print out relevant info to user.
- * The entries are located on the call stack so no need to free memory.
+ * The entries are located on the call stack so yes need to free memory.
  * Note insert() remove() must always match to properly clear the stack.
  */
 static struct dep_stack {
@@ -1071,42 +1071,42 @@ static void sym_check_print_recursive(struct symbol *last_sym)
 		}
 		if (stack->sym == last_sym)
 			fprintf(stderr, "%s:%d:error: recursive dependency detected!\n",
-				prop->file->name, prop->lineno);
+				prop->file->name, prop->lineyes);
 
 		if (sym_is_choice(sym)) {
 			fprintf(stderr, "%s:%d:\tchoice %s contains symbol %s\n",
-				menu->file->name, menu->lineno,
+				menu->file->name, menu->lineyes,
 				sym->name ? sym->name : "<choice>",
 				next_sym->name ? next_sym->name : "<choice>");
 		} else if (sym_is_choice_value(sym)) {
 			fprintf(stderr, "%s:%d:\tsymbol %s is part of choice %s\n",
-				menu->file->name, menu->lineno,
+				menu->file->name, menu->lineyes,
 				sym->name ? sym->name : "<choice>",
 				next_sym->name ? next_sym->name : "<choice>");
 		} else if (stack->expr == &sym->dir_dep.expr) {
 			fprintf(stderr, "%s:%d:\tsymbol %s depends on %s\n",
-				prop->file->name, prop->lineno,
+				prop->file->name, prop->lineyes,
 				sym->name ? sym->name : "<choice>",
 				next_sym->name ? next_sym->name : "<choice>");
 		} else if (stack->expr == &sym->rev_dep.expr) {
 			fprintf(stderr, "%s:%d:\tsymbol %s is selected by %s\n",
-				prop->file->name, prop->lineno,
+				prop->file->name, prop->lineyes,
 				sym->name ? sym->name : "<choice>",
 				next_sym->name ? next_sym->name : "<choice>");
 		} else if (stack->expr == &sym->implied.expr) {
 			fprintf(stderr, "%s:%d:\tsymbol %s is implied by %s\n",
-				prop->file->name, prop->lineno,
+				prop->file->name, prop->lineyes,
 				sym->name ? sym->name : "<choice>",
 				next_sym->name ? next_sym->name : "<choice>");
 		} else if (stack->expr) {
 			fprintf(stderr, "%s:%d:\tsymbol %s %s value contains %s\n",
-				prop->file->name, prop->lineno,
+				prop->file->name, prop->lineyes,
 				sym->name ? sym->name : "<choice>",
 				prop_get_type_name(prop->type),
 				next_sym->name ? next_sym->name : "<choice>");
 		} else {
 			fprintf(stderr, "%s:%d:\tsymbol %s %s is visible depending on %s\n",
-				prop->file->name, prop->lineno,
+				prop->file->name, prop->lineyes,
 				sym->name ? sym->name : "<choice>",
 				prop_get_type_name(prop->type),
 				next_sym->name ? next_sym->name : "<choice>");
@@ -1283,7 +1283,7 @@ struct property *prop_alloc(enum prop_type type, struct symbol *sym)
 	prop->type = type;
 	prop->sym = sym;
 	prop->file = current_file;
-	prop->lineno = zconf_lineno();
+	prop->lineyes = zconf_lineyes();
 
 	/* append property to the prop list of symbol */
 	if (sym) {
@@ -1327,5 +1327,5 @@ const char *prop_get_type_name(enum prop_type type)
 	case P_UNKNOWN:
 		break;
 	}
-	return "unknown";
+	return "unkyeswn";
 }

@@ -1,25 +1,25 @@
 =================================
-Power allocator governor tunables
+Power allocator goveryesr tunables
 =================================
 
 Trip points
 -----------
 
-The governor works optimally with the following two passive trip points:
+The goveryesr works optimally with the following two passive trip points:
 
-1.  "switch on" trip point: temperature above which the governor
+1.  "switch on" trip point: temperature above which the goveryesr
     control loop starts operating.  This is the first passive trip
     point of the thermal zone.
 
 2.  "desired temperature" trip point: it should be higher than the
-    "switch on" trip point.  This the target temperature the governor
+    "switch on" trip point.  This the target temperature the goveryesr
     is controlling for.  This is the last passive trip point of the
     thermal zone.
 
 PID Controller
 --------------
 
-The power allocator governor implements a
+The power allocator goveryesr implements a
 Proportional-Integral-Derivative controller (PID controller) with
 temperature as the control input and power as the controlled output:
 
@@ -84,7 +84,7 @@ thermal-zone.  For example::
 			...
 
 Instead, if the thermal zone is registered from the platform code, pass a
-`thermal_zone_params` that has a `sustainable_power`.  If no
+`thermal_zone_params` that has a `sustainable_power`.  If yes
 `thermal_zone_params` were being passed, then something like below
 will suffice::
 
@@ -99,7 +99,7 @@ k_po and k_pu
 -------------
 
 The implementation of the PID controller in the power allocator
-thermal governor allows the configuration of two proportional term
+thermal goveryesr allows the configuration of two proportional term
 constants: `k_po` and `k_pu`.  `k_po` is the proportional term
 constant during temperature overshoot periods (current temperature is
 above "desired temperature" trip point).  Conversely, `k_pu` is the
@@ -110,7 +110,7 @@ These controls are intended as the primary mechanism for configuring
 the permitted thermal "ramp" of the system.  For instance, a lower
 `k_pu` value will provide a slower ramp, at the cost of capping
 available capacity at a low temperature.  On the other hand, a high
-value of `k_pu` will result in the governor granting very high power
+value of `k_pu` will result in the goveryesr granting very high power
 while temperature is low, and may lead to temperature overshooting.
 
 The default value for `k_pu` is::
@@ -163,7 +163,7 @@ k_i and integral_cutoff
 `k_i` configures the PID loop's integral term constant.  This term
 allows the PID controller to compensate for long term drift and for
 the quantized nature of the output control: cooling devices can't set
-the exact power that the governor requests.  When the temperature
+the exact power that the goveryesr requests.  When the temperature
 error is below `integral_cutoff`, errors are accumulated in the
 integral term.  This term is then multiplied by `k_i` and the result
 added to the output of the controller.  Typically `k_i` is set low (1
@@ -178,7 +178,7 @@ recommended to leave it as the default: 0.
 Cooling device power API
 ========================
 
-Cooling devices controlled by this governor must supply the additional
+Cooling devices controlled by this goveryesr must supply the additional
 "power" API in their `cooling_device_ops`.  It consists on three ops:
 
 1. ::
@@ -197,7 +197,7 @@ Cooling devices controlled by this governor must supply the additional
 `get_requested_power()` calculates the power requested by the device
 in milliwatts and stores it in @power .  It should return 0 on
 success, -E* on failure.  This is currently used by the power
-allocator governor to calculate how much power to give to each cooling
+allocator goveryesr to calculate how much power to give to each cooling
 device.
 
 2. ::
@@ -235,7 +235,7 @@ maximum power that an actor can consume.
 Calculate a cooling device state that would make the device consume at
 most @power mW and store it in @state.  It should return 0 on success,
 -E* on failure.  This is currently used by the thermal core to convert
-a given power set by the power allocator governor to a state that the
+a given power set by the power allocator goveryesr to a state that the
 cooling device can set.  It is a function because this conversion may
 depend on external factors that may change so this function should the
 best conversion given "current circumstances".
@@ -256,16 +256,16 @@ If the thermal zone is registered using
 `thermal_zone_device_register()` (i.e., platform code), then weights
 are passed as part of the thermal zone's `thermal_bind_parameters`.
 If the platform is registered using device tree, then they are passed
-as the `contribution` property of each map in the `cooling-maps` node.
+as the `contribution` property of each map in the `cooling-maps` yesde.
 
-Limitations of the power allocator governor
+Limitations of the power allocator goveryesr
 ===========================================
 
-The power allocator governor's PID controller works best if there is a
+The power allocator goveryesr's PID controller works best if there is a
 periodic tick.  If you have a driver that calls
 `thermal_zone_device_update()` (or anything that ends up calling the
-governor's `throttle()` function) repetitively, the governor response
-won't be very good.  Note that this is not particular to this
-governor, step-wise will also misbehave if you call its throttle()
-faster than the normal thermal framework tick (due to interrupts for
+goveryesr's `throttle()` function) repetitively, the goveryesr response
+won't be very good.  Note that this is yest particular to this
+goveryesr, step-wise will also misbehave if you call its throttle()
+faster than the yesrmal thermal framework tick (due to interrupts for
 example) as it will overreact.

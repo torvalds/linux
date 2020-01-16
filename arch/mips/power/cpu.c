@@ -33,10 +33,10 @@ void restore_processor_state(void)
 	restore_dsp(current);
 }
 
-int pfn_is_nosave(unsigned long pfn)
+int pfn_is_yessave(unsigned long pfn)
 {
-	unsigned long nosave_begin_pfn = PFN_DOWN(__pa(&__nosave_begin));
-	unsigned long nosave_end_pfn = PFN_UP(__pa(&__nosave_end));
+	unsigned long yessave_begin_pfn = PFN_DOWN(__pa(&__yessave_begin));
+	unsigned long yessave_end_pfn = PFN_UP(__pa(&__yessave_end));
 
-	return	(pfn >= nosave_begin_pfn) && (pfn < nosave_end_pfn);
+	return	(pfn >= yessave_begin_pfn) && (pfn < yessave_end_pfn);
 }

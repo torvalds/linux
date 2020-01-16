@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -124,7 +124,7 @@ host_recv:
 	and $r2 #rfifo_qmaskf
 	nv_iowr(NV_PPWR_RFIFO_PUT, $r2)
 
-	// notify host of pending message
+	// yestify host of pending message
 	mov $r2 NV_PPWR_INTR_TRIGGER_USER0
 	nv_iowr(NV_PPWR_INTR_TRIGGER, $r2)
 	ret

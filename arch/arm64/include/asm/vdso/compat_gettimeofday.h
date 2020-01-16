@@ -151,7 +151,7 @@ static __always_inline const struct vdso_data *__arch_get_vdso_data(void)
 	 * consuming: each relocation uses a word in the code section, and it
 	 * has to be loaded at runtime.
 	 *
-	 * This trick hides the assignment from the compiler. Since it cannot
+	 * This trick hides the assignment from the compiler. Since it canyest
 	 * track where the pointer comes from, it will only use one relocation
 	 * where __arch_get_vdso_data() is called, and then keep the result in
 	 * a register.

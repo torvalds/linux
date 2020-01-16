@@ -26,11 +26,11 @@ static const struct mtk_gate_regs audio1_cg_regs = {
 
 #define GATE_AUDIO0(_id, _name, _parent, _shift)		\
 	GATE_MTK(_id, _name, _parent, &audio0_cg_regs, _shift,	\
-		&mtk_clk_gate_ops_no_setclr)
+		&mtk_clk_gate_ops_yes_setclr)
 
 #define GATE_AUDIO1(_id, _name, _parent, _shift)		\
 	GATE_MTK(_id, _name, _parent, &audio1_cg_regs, _shift,	\
-		&mtk_clk_gate_ops_no_setclr)
+		&mtk_clk_gate_ops_yes_setclr)
 
 static const struct mtk_gate audio_clks[] = {
 	/* AUDIO0 */
@@ -71,20 +71,20 @@ static int clk_mt8183_audio_probe(struct platform_device *pdev)
 {
 	struct clk_onecell_data *clk_data;
 	int r;
-	struct device_node *node = pdev->dev.of_node;
+	struct device_yesde *yesde = pdev->dev.of_yesde;
 
 	clk_data = mtk_alloc_clk_data(CLK_AUDIO_NR_CLK);
 
-	mtk_clk_register_gates(node, audio_clks, ARRAY_SIZE(audio_clks),
+	mtk_clk_register_gates(yesde, audio_clks, ARRAY_SIZE(audio_clks),
 			clk_data);
 
-	r = of_clk_add_provider(node, of_clk_src_onecell_get, clk_data);
+	r = of_clk_add_provider(yesde, of_clk_src_onecell_get, clk_data);
 	if (r)
 		return r;
 
 	r = devm_of_platform_populate(&pdev->dev);
 	if (r)
-		of_clk_del_provider(node);
+		of_clk_del_provider(yesde);
 
 	return r;
 }

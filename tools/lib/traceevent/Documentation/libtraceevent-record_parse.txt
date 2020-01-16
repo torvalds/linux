@@ -48,7 +48,7 @@ context. Supported latency flags are:
 [verse]
 --
 	_TRACE_FLAG_IRQS_OFF_,		Interrupts are disabled.
-	_TRACE_FLAG_IRQS_NOSUPPORT_,	Reading IRQ flag is not supported by the architecture.
+	_TRACE_FLAG_IRQS_NOSUPPORT_,	Reading IRQ flag is yest supported by the architecture.
 	_TRACE_FLAG_NEED_RESCHED_,	Task needs rescheduling.
 	_TRACE_FLAG_HARDIRQ_,		Hard IRQ is running.
 	_TRACE_FLAG_SOFTIRQ_,		Soft IRQ is running.
@@ -122,7 +122,7 @@ AUTHOR
 [verse]
 --
 *Steven Rostedt* <rostedt@goodmis.org>, author of *libtraceevent*.
-*Tzvetomir Stoyanov* <tz.stoyanov@gmail.com>, author of this man page.
+*Tzvetomir Stoyayesv* <tz.stoyayesv@gmail.com>, author of this man page.
 --
 REPORTING BUGS
 --------------

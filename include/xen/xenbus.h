@@ -19,7 +19,7 @@
  * and to permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -35,7 +35,7 @@
 #define _XEN_XENBUS_H
 
 #include <linux/device.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/mutex.h>
 #include <linux/export.h>
 #include <linux/fs.h>
@@ -51,15 +51,15 @@
 #define XENBUS_MAX_RING_GRANTS      (1U << XENBUS_MAX_RING_GRANT_ORDER)
 #define INVALID_GRANT_HANDLE       (~0U)
 
-/* Register callback to watch this node. */
+/* Register callback to watch this yesde. */
 struct xenbus_watch
 {
 	struct list_head list;
 
 	/* Path being watched. */
-	const char *node;
+	const char *yesde;
 
-	/* Callback (executed in a process context with no locks held). */
+	/* Callback (executed in a process context with yes locks held). */
 	void (*callback)(struct xenbus_watch *,
 			 const char *path, const char *token);
 };
@@ -68,7 +68,7 @@ struct xenbus_watch
 /* A xenbus device. */
 struct xenbus_device {
 	const char *devicetype;
-	const char *nodename;
+	const char *yesdename;
 	const char *otherend;
 	int otherend_id;
 	struct xenbus_watch otherend_watch;
@@ -135,41 +135,41 @@ struct xenbus_transaction
 #define XBT_NIL ((struct xenbus_transaction) { 0 })
 
 char **xenbus_directory(struct xenbus_transaction t,
-			const char *dir, const char *node, unsigned int *num);
+			const char *dir, const char *yesde, unsigned int *num);
 void *xenbus_read(struct xenbus_transaction t,
-		  const char *dir, const char *node, unsigned int *len);
+		  const char *dir, const char *yesde, unsigned int *len);
 int xenbus_write(struct xenbus_transaction t,
-		 const char *dir, const char *node, const char *string);
+		 const char *dir, const char *yesde, const char *string);
 int xenbus_mkdir(struct xenbus_transaction t,
-		 const char *dir, const char *node);
+		 const char *dir, const char *yesde);
 int xenbus_exists(struct xenbus_transaction t,
-		  const char *dir, const char *node);
-int xenbus_rm(struct xenbus_transaction t, const char *dir, const char *node);
+		  const char *dir, const char *yesde);
+int xenbus_rm(struct xenbus_transaction t, const char *dir, const char *yesde);
 int xenbus_transaction_start(struct xenbus_transaction *t);
 int xenbus_transaction_end(struct xenbus_transaction t, int abort);
 
-/* Single read and scanf: returns -errno or num scanned if > 0. */
+/* Single read and scanf: returns -erryes or num scanned if > 0. */
 __scanf(4, 5)
 int xenbus_scanf(struct xenbus_transaction t,
-		 const char *dir, const char *node, const char *fmt, ...);
+		 const char *dir, const char *yesde, const char *fmt, ...);
 
 /* Read an (optional) unsigned value. */
-unsigned int xenbus_read_unsigned(const char *dir, const char *node,
+unsigned int xenbus_read_unsigned(const char *dir, const char *yesde,
 				  unsigned int default_val);
 
-/* Single printf and write: returns -errno or 0. */
+/* Single printf and write: returns -erryes or 0. */
 __printf(4, 5)
 int xenbus_printf(struct xenbus_transaction t,
-		  const char *dir, const char *node, const char *fmt, ...);
+		  const char *dir, const char *yesde, const char *fmt, ...);
 
 /* Generic read function: NULL-terminated triples of name,
- * sprintf-style type string, and pointer. Returns 0 or errno.*/
+ * sprintf-style type string, and pointer. Returns 0 or erryes.*/
 int xenbus_gather(struct xenbus_transaction t, const char *dir, ...);
 
-/* notifer routines for when the xenstore comes up */
+/* yestifer routines for when the xenstore comes up */
 extern int xenstored_ready;
-int register_xenstore_notifier(struct notifier_block *nb);
-void unregister_xenstore_notifier(struct notifier_block *nb);
+int register_xenstore_yestifier(struct yestifier_block *nb);
+void unregister_xenstore_yestifier(struct yestifier_block *nb);
 
 int register_xenbus_watch(struct xenbus_watch *watch);
 void unregister_xenbus_watch(struct xenbus_watch *watch);

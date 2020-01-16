@@ -122,12 +122,12 @@
 static DEFINE_SPINLOCK(on_stat_lock);
 static u8 turn_on_stat_mask = 0xFF;
 static u8 turn_on_stat_set;
-static bool no_bm; /* No battery management */
+static bool yes_bm; /* No battery management */
 /*
- * not really modular, but the easiest way to keep compat with existing
+ * yest really modular, but the easiest way to keep compat with existing
  * bootargs behaviour is to continue using module_param here.
  */
-module_param(no_bm, bool, S_IRUGO);
+module_param(yes_bm, bool, S_IRUGO);
 
 #define AB9540_MODEM_CTRL2_REG			0x23
 #define AB9540_MODEM_CTRL2_SWDBBRSTN_BIT	BIT(2)
@@ -425,7 +425,7 @@ static void ab8500_irq_unmask(struct irq_data *data)
 		else
 			ab8500->mask[index] &= ~mask;
 	} else {
-		/* Satisfies the case where type is not set. */
+		/* Satisfies the case where type is yest set. */
 		ab8500->mask[index] &= ~mask;
 	}
 }
@@ -467,12 +467,12 @@ static int ab8500_handle_hierarchical_line(struct ab8500 *ab8500,
 			break;
 
 	if (i >= ab8500->mask_size) {
-		dev_err(ab8500->dev, "Register offset 0x%2x not declared\n",
+		dev_err(ab8500->dev, "Register offset 0x%2x yest declared\n",
 				latch_offset);
 		return -ENXIO;
 	}
 
-	/* ignore masked out interrupts */
+	/* igyesre masked out interrupts */
 	latch_val &= ~ab8500->mask[i];
 
 	while (latch_val) {
@@ -565,7 +565,7 @@ static int ab8500_irq_map(struct irq_domain *d, unsigned int virq,
 	irq_set_chip_and_handler(virq, &ab8500_irq_chip,
 				handle_simple_irq);
 	irq_set_nested_thread(virq, 1);
-	irq_set_noprobe(virq);
+	irq_set_yesprobe(virq);
 
 	return 0;
 }
@@ -575,7 +575,7 @@ static const struct irq_domain_ops ab8500_irq_ops = {
 	.xlate  = irq_domain_xlate_twocell,
 };
 
-static int ab8500_irq_init(struct ab8500 *ab8500, struct device_node *np)
+static int ab8500_irq_init(struct ab8500 *ab8500, struct device_yesde *np)
 {
 	int num_irqs;
 
@@ -589,7 +589,7 @@ static int ab8500_irq_init(struct ab8500 *ab8500, struct device_node *np)
 		num_irqs = AB8500_NR_IRQS;
 
 	/* If ->irq_base is zero this will give a linear mapping */
-	ab8500->domain = irq_domain_add_simple(ab8500->dev->of_node,
+	ab8500->domain = irq_domain_add_simple(ab8500->dev->of_yesde,
 					       num_irqs, 0,
 					       &ab8500_irq_ops, ab8500);
 
@@ -895,7 +895,7 @@ static ssize_t show_turn_on_status(struct device *dev,
 		return ret;
 
 	/*
-	 * In L9540, turn_on_status register is not updated correctly if
+	 * In L9540, turn_on_status register is yest updated correctly if
 	 * the device is rebooted with AC/USB charger connected. Due to
 	 * this, the device boots android instead of entering into charge
 	 * only mode. Read the AC/USB status register to detect the charger
@@ -1039,7 +1039,7 @@ static int ab8500_probe(struct platform_device *pdev)
 		"UART Factory Mode Detect"};
 	const struct platform_device_id *platid = platform_get_device_id(pdev);
 	enum ab8500_version version = AB8500_VERSION_UNDEFINED;
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	struct ab8500 *ab8500;
 	struct resource *resource;
 	int ret;
@@ -1054,7 +1054,7 @@ static int ab8500_probe(struct platform_device *pdev)
 
 	resource = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
 	if (!resource) {
-		dev_err(&pdev->dev, "no IRQ resource\n");
+		dev_err(&pdev->dev, "yes IRQ resource\n");
 		return -ENODEV;
 	}
 
@@ -1079,7 +1079,7 @@ static int ab8500_probe(struct platform_device *pdev)
 		ret = get_register_interruptible(ab8500, AB8500_MISC,
 			AB8500_IC_NAME_REG, &value);
 		if (ret < 0) {
-			dev_err(&pdev->dev, "could not probe HW\n");
+			dev_err(&pdev->dev, "could yest probe HW\n");
 			return ret;
 		}
 
@@ -1246,7 +1246,7 @@ static int ab8500_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	if (!no_bm) {
+	if (!yes_bm) {
 		/* Add battery management devices */
 		ret = mfd_add_devices(ab8500->dev, 0, ab8500_bm_devs,
 				      ARRAY_SIZE(ab8500_bm_devs), NULL,

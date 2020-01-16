@@ -37,7 +37,7 @@
  * parameter to enable cmf during boot, possible uses are:
  *  "s390cmf" -- enable cmf and allocate 2 MB of ram so measuring can be
  *               used on any subchannel
- *  "s390cmf=<num>" -- enable cmf and allocate enough memory to measure
+ *  "s390cmf=<num>" -- enable cmf and allocate eyesugh memory to measure
  *                     <num> subchannel, where <num> is an integer
  *                     between 1 and 65535, default is 1024
  */
@@ -122,7 +122,7 @@ struct cmb_data {
 };
 
 /*
- * Our user interface is designed in terms of nanoseconds,
+ * Our user interface is designed in terms of nayesseconds,
  * while the hardware measures total times in its own
  * unit.
  */
@@ -133,7 +133,7 @@ static inline u64 time_to_nsec(u32 value)
 
 /*
  * Users are usually interested in average times,
- * not accumulated time.
+ * yest accumulated time.
  * This also helps us with atomicity problems
  * when reading sinlge values.
  */
@@ -141,7 +141,7 @@ static inline u64 time_to_avg_nsec(u32 value, u32 count)
 {
 	u64 ret;
 
-	/* no samples yet, avoid division by 0 */
+	/* yes samples yet, avoid division by 0 */
 	if (count == 0)
 		return 0;
 
@@ -161,13 +161,13 @@ static inline u64 time_to_avg_nsec(u32 value, u32 count)
  * be active in order to measure subchannels, which also need
  * to be enabled.
  */
-static inline void cmf_activate(void *area, unsigned int onoff)
+static inline void cmf_activate(void *area, unsigned int oyesff)
 {
 	register void * __gpr2 asm("2");
 	register long __gpr1 asm("1");
 
 	__gpr2 = area;
-	__gpr1 = onoff;
+	__gpr1 = oyesff;
 	/* activate channel measurement */
 	asm("schm" : : "d" (__gpr2), "d" (__gpr1) );
 }
@@ -222,7 +222,7 @@ static int set_schib_wait(struct ccw_device *cdev, u32 mme,
 	if (ret != -EBUSY)
 		goto out;
 
-	/* if the device is not online, don't even try again */
+	/* if the device is yest online, don't even try again */
 	if (cdev->private->state != DEV_STATE_ONLINE)
 		goto out;
 
@@ -390,7 +390,7 @@ static struct cmb_area cmb_area = {
 
 /*
  * Basic channel measurement blocks are allocated in one contiguous
- * block of memory, which can not be moved as long as any channel
+ * block of memory, which can yest be moved as long as any channel
  * is active. Therefore, a maximum number of subchannels needs to
  * be defined somewhere. This is a module parameter, defaulting to
  * a reasonable value of 1024, or 32 kb of memory.
@@ -415,7 +415,7 @@ module_param_named(maxchannels, cmb_area.num_channels, uint, 0444);
  * further in z/Architecture Principles of Operation, chapter 17.
  *
  * The cmb area made up from these blocks must be a contiguous array and may
- * not be reallocated or freed.
+ * yest be reallocated or freed.
  * Only one cmb area can be present in the system.
  */
 struct cmb {
@@ -437,7 +437,7 @@ static int alloc_cmb_single(struct ccw_device *cdev,
 			    struct cmb_data *cmb_data)
 {
 	struct cmb *cmb;
-	struct ccw_device_private *node;
+	struct ccw_device_private *yesde;
 	int ret;
 
 	spin_lock_irq(cdev->ccwlock);
@@ -452,9 +452,9 @@ static int alloc_cmb_single(struct ccw_device *cdev,
 	 * remains sorted by ->cmb->hw_data pointers.
 	 */
 	cmb = cmb_area.mem;
-	list_for_each_entry(node, &cmb_area.list, cmb_list) {
+	list_for_each_entry(yesde, &cmb_area.list, cmb_list) {
 		struct cmb_data *data;
-		data = node->cmb;
+		data = yesde->cmb;
 		if ((struct cmb*)data->hw_block > cmb)
 			break;
 		cmb++;
@@ -465,7 +465,7 @@ static int alloc_cmb_single(struct ccw_device *cdev,
 	}
 
 	/* insert new cmb */
-	list_add_tail(&cdev->private->cmb_list, &node->cmb_list);
+	list_add_tail(&cdev->private->cmb_list, &yesde->cmb_list);
 	cmb_data->hw_block = cmb;
 	cdev->private->cmb = cmb_data;
 	ret = 0;
@@ -495,7 +495,7 @@ static int alloc_cmb(struct ccw_device *cdev)
 	spin_lock(&cmb_area.lock);
 
 	if (!cmb_area.mem) {
-		/* there is no user yet, so we need a new area */
+		/* there is yes user yet, so we need a new area */
 		size = sizeof(struct cmb) * cmb_area.num_channels;
 		WARN_ON(!list_empty(&cmb_area.list));
 
@@ -505,10 +505,10 @@ static int alloc_cmb(struct ccw_device *cdev)
 		spin_lock(&cmb_area.lock);
 
 		if (cmb_area.mem) {
-			/* ok, another thread was faster */
+			/* ok, ayesther thread was faster */
 			free_pages((unsigned long)mem, get_order(size));
 		} else if (!mem) {
-			/* no luck */
+			/* yes luck */
 			ret = -ENOMEM;
 			goto out;
 		} else {
@@ -669,7 +669,7 @@ static int readall_cmb(struct ccw_device *cdev, struct cmbdata *data)
 
 	memset(data, 0, sizeof(struct cmbdata));
 
-	/* we only know values before device_busy_time */
+	/* we only kyesw values before device_busy_time */
 	data->size = offsetof(struct cmbdata, device_busy_time);
 
 	data->elapsed_time = tod_to_ns(time);
@@ -678,7 +678,7 @@ static int readall_cmb(struct ccw_device *cdev, struct cmbdata *data)
 	data->ssch_rsch_count = cmb->ssch_rsch_count;
 	data->sample_count = cmb->sample_count;
 
-	/* time fields are converted to nanoseconds while copying */
+	/* time fields are converted to nayesseconds while copying */
 	data->device_connect_time = time_to_nsec(cmb->device_connect_time);
 	data->function_pending_time = time_to_nsec(cmb->function_pending_time);
 	data->device_disconnect_time =
@@ -928,7 +928,7 @@ static int readall_cmbe(struct ccw_device *cdev, struct cmbdata *data)
 
 	memset (data, 0, sizeof(struct cmbdata));
 
-	/* we only know values before device_busy_time */
+	/* we only kyesw values before device_busy_time */
 	data->size = offsetof(struct cmbdata, device_busy_time);
 
 	data->elapsed_time = tod_to_ns(time);
@@ -938,7 +938,7 @@ static int readall_cmbe(struct ccw_device *cdev, struct cmbdata *data)
 	data->ssch_rsch_count = cmb->ssch_rsch_count;
 	data->sample_count = cmb->sample_count;
 
-	/* time fields are converted to nanoseconds while copying */
+	/* time fields are converted to nayesseconds while copying */
 	data->device_connect_time = time_to_nsec(cmb->device_connect_time);
 	data->function_pending_time = time_to_nsec(cmb->function_pending_time);
 	data->device_disconnect_time =
@@ -1123,7 +1123,7 @@ int ccw_set_cmf(struct ccw_device *cdev, int enable)
  *  measurement data is triggered.
  *  Returns: %0 for success or a negative error value.
  *  Context:
- *    non-atomic
+ *    yesn-atomic
  */
 int enable_cmf(struct ccw_device *cdev)
 {
@@ -1164,7 +1164,7 @@ out_unlock:
  *  Returns: %0 for success or a negative error value.
  *
  *  Context:
- *    non-atomic, device_lock() held.
+ *    yesn-atomic, device_lock() held.
  */
 int __disable_cmf(struct ccw_device *cdev)
 {
@@ -1188,7 +1188,7 @@ int __disable_cmf(struct ccw_device *cdev)
  *  Returns: %0 for success or a negative error value.
  *
  *  Context:
- *    non-atomic
+ *    yesn-atomic
  */
 int disable_cmf(struct ccw_device *cdev)
 {
@@ -1206,7 +1206,7 @@ int disable_cmf(struct ccw_device *cdev)
  * @cdev:	the channel to be read
  * @index:	the index of the value to be read
  *
- * Returns: The value read or %0 if the value cannot be read.
+ * Returns: The value read or %0 if the value canyest be read.
  *
  *  Context:
  *    any
@@ -1254,7 +1254,7 @@ void cmf_reactivate(void)
 static int __init init_cmbe(void)
 {
 	cmbe_cache = kmem_cache_create("cmbe_cache", sizeof(struct cmbe),
-				       __alignof__(struct cmbe), 0, NULL);
+				       __aligyesf__(struct cmbe), 0, NULL);
 
 	return cmbe_cache ? 0 : -ENOMEM;
 }
@@ -1266,7 +1266,7 @@ static int __init init_cmf(void)
 	int ret;
 
 	/*
-	 * If the user did not give a parameter, see if we are running on a
+	 * If the user did yest give a parameter, see if we are running on a
 	 * machine supporting extended measurement blocks, otherwise fall back
 	 * to basic mode.
 	 */

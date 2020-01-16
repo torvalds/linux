@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Copyright (C) 2010 Loongson Inc. & Lemote Inc. &
- *                    Institute of Computing Technology
+ *                    Institute of Computing Techyeslogy
  * Author:  Xiang Gao, gaoxiang@ict.ac.cn
  *          Huacai Chen, chenhc@lemote.com
  *          Xiaofu Meng, Shuangshuang Zhang
@@ -19,9 +19,9 @@
 #define pa_to_nid(addr)  (((addr) & 0xf00000000000) >> NODE_ADDRSPACE_SHIFT)
 #define nid_to_addrbase(nid) ((nid) << NODE_ADDRSPACE_SHIFT)
 
-extern struct pglist_data *__node_data[];
+extern struct pglist_data *__yesde_data[];
 
-#define NODE_DATA(n)		(__node_data[n])
+#define NODE_DATA(n)		(__yesde_data[n])
 
 extern void setup_zero_pages(void);
 extern void __init prom_init_numa_memory(void);

@@ -17,10 +17,10 @@
  * o	The driver currently assumes a single device only. If you need to
  *	change this then look for saved_ifx_dev and add a device lookup
  * o	The driver is intended to be big-endian safe but has never been
- *	tested that way (no suitable hardware). There are a couple of FIXME
- *	notes by areas that may need addressing
+ *	tested that way (yes suitable hardware). There are a couple of FIXME
+ *	yestes by areas that may need addressing
  * o	Some of the GPIO naming/setup assumptions may need revisiting if
- *	you need to use this driver for another platform.
+ *	you need to use this driver for ayesther platform.
  *
  *****************************************************************************/
 #include <linux/dma-mapping.h>
@@ -65,7 +65,7 @@
 
 /* forward reference */
 static void ifx_spi_handle_srdy(struct ifx_spi_device *ifx_dev);
-static int ifx_modem_reboot_callback(struct notifier_block *nfb,
+static int ifx_modem_reboot_callback(struct yestifier_block *nfb,
 				unsigned long event, void *data);
 static int ifx_modem_power_off(struct ifx_spi_device *ifx_dev);
 
@@ -75,8 +75,8 @@ static struct tty_driver *tty_drv;
 static struct ifx_spi_device *saved_ifx_dev;
 static struct lock_class_key ifx_spi_key;
 
-static struct notifier_block ifx_modem_reboot_notifier_block = {
-	.notifier_call = ifx_modem_reboot_callback,
+static struct yestifier_block ifx_modem_reboot_yestifier_block = {
+	.yestifier_call = ifx_modem_reboot_callback,
 };
 
 static int ifx_modem_power_off(struct ifx_spi_device *ifx_dev)
@@ -87,13 +87,13 @@ static int ifx_modem_power_off(struct ifx_spi_device *ifx_dev)
 	return 0;
 }
 
-static int ifx_modem_reboot_callback(struct notifier_block *nfb,
+static int ifx_modem_reboot_callback(struct yestifier_block *nfb,
 				 unsigned long event, void *data)
 {
 	if (saved_ifx_dev)
 		ifx_modem_power_off(saved_ifx_dev);
 	else
-		pr_warn("no ifx modem active;\n");
+		pr_warn("yes ifx modem active;\n");
 
 	return NOTIFY_OK;
 }
@@ -125,7 +125,7 @@ static inline void mrdy_set_low(struct ifx_spi_device *ifx)
  *	@ifx_dev: our SPI device
  *	@val: bits to set
  *
- *	Set bit in power status and signal power system if status becomes non-0
+ *	Set bit in power status and signal power system if status becomes yesn-0
  */
 static void
 ifx_spi_power_state_set(struct ifx_spi_device *ifx_dev, unsigned char val)
@@ -135,7 +135,7 @@ ifx_spi_power_state_set(struct ifx_spi_device *ifx_dev, unsigned char val)
 	spin_lock_irqsave(&ifx_dev->power_lock, flags);
 
 	/*
-	 * if power status is already non-0, just update, else
+	 * if power status is already yesn-0, just update, else
 	 * tell power system
 	 */
 	if (!ifx_dev->power_status)
@@ -171,7 +171,7 @@ ifx_spi_power_state_clear(struct ifx_spi_device *ifx_dev, unsigned char val)
 /**
  *	swap_buf_8
  *	@buf: our buffer
- *	@len : number of bytes (not words) in the buffer
+ *	@len : number of bytes (yest words) in the buffer
  *	@end: end of buffer
  *
  *	Swap the contents of a buffer into big endian format
@@ -185,7 +185,7 @@ static inline void swap_buf_8(unsigned char *buf, int len, void *end)
 /**
  *	swap_buf_16
  *	@buf: our buffer
- *	@len : number of bytes (not words) in the buffer
+ *	@len : number of bytes (yest words) in the buffer
  *	@end: end of buffer
  *
  *	Swap the contents of a buffer into big endian format
@@ -210,7 +210,7 @@ static inline void swap_buf_16(unsigned char *buf, int len, void *end)
 /**
  *	swap_buf_32
  *	@buf: our buffer
- *	@len : number of bytes (not words) in the buffer
+ *	@len : number of bytes (yest words) in the buffer
  *	@end: end of buffer
  *
  *	Swap the contents of a buffer into big endian format
@@ -238,7 +238,7 @@ static inline void swap_buf_32(unsigned char *buf, int len, void *end)
  *	@ifx_dev: our SPI device
  *
  *	Assert mrdy and set timer to wait for SRDY interrupt, if SRDY is low
- *	now.
+ *	yesw.
  *
  *	FIXME: Can SRDY even go high as we are running this code ?
  */
@@ -439,7 +439,7 @@ static int ifx_spi_prepare_tx_buffer(struct ifx_spi_device *ifx_dev)
 	tx_buffer += IFX_SPI_HEADER_OVERHEAD;
 	tx_count = IFX_SPI_HEADER_OVERHEAD;
 
-	/* clear to signal no more data if this turns out to be the
+	/* clear to signal yes more data if this turns out to be the
 	 * last buffer sent in a sequence */
 	ifx_dev->spi_more = 0;
 
@@ -465,7 +465,7 @@ static int ifx_spi_prepare_tx_buffer(struct ifx_spi_device *ifx_dev)
 		}
 	}
 	/* have data and info for header -- set up SPI header in buffer */
-	/* spi header needs payload size, not entire buffer size */
+	/* spi header needs payload size, yest entire buffer size */
 	ifx_spi_setup_spi_header(ifx_dev->tx_buffer,
 					tx_count-IFX_SPI_HEADER_OVERHEAD,
 					ifx_dev->spi_more);
@@ -482,7 +482,7 @@ static int ifx_spi_prepare_tx_buffer(struct ifx_spi_device *ifx_dev)
  *	@count: size of buffer
  *
  *	Write the characters we have been given into the FIFO. If the device
- *	is not active then activate it, when the SRDY line is asserted back
+ *	is yest active then activate it, when the SRDY line is asserted back
  *	this will commence I/O
  */
 static int ifx_spi_write(struct tty_struct *tty, const unsigned char *buf,
@@ -617,7 +617,7 @@ static const struct tty_operations ifx_spi_serial_ops = {
  *	@size: number of chars reeived
  *
  *	Queue bytes to the tty assuming the tty side is currently open. If
- *	not the discard the data.
+ *	yest the discard the data.
  */
 static void ifx_spi_insert_flip_string(struct ifx_spi_device *ifx_dev,
 				    unsigned char *chars, size_t size)
@@ -655,12 +655,12 @@ static void ifx_spi_complete(void *ctx)
 				&length, &more, &cts);
 		if (decode_result == IFX_SPI_HEADER_0) {
 			dev_dbg(&ifx_dev->spi_dev->dev,
-				"ignore input: invalid header 0");
+				"igyesre input: invalid header 0");
 			ifx_dev->spi_slave_cts = 0;
 			goto complete_exit;
 		} else if (decode_result == IFX_SPI_HEADER_F) {
 			dev_dbg(&ifx_dev->spi_dev->dev,
-				"ignore input: invalid header F");
+				"igyesre input: invalid header F");
 			goto complete_exit;
 		}
 
@@ -709,8 +709,8 @@ complete_exit:
 		} else {
 			/*
 			 * poke line discipline driver if any for more data
-			 * may or may not get more data to write
-			 * for now, say not busy
+			 * may or may yest get more data to write
+			 * for yesw, say yest busy
 			 */
 			ifx_spi_power_state_clear(ifx_dev,
 						  IFX_SPI_POWER_DATA_PENDING);
@@ -745,7 +745,7 @@ static void ifx_spi_io(unsigned long data)
 		ifx_dev->spi_msg.complete = ifx_spi_complete;
 
 		/* set up our spi transfer */
-		/* note len is BYTES, not transfers */
+		/* yeste len is BYTES, yest transfers */
 		ifx_dev->spi_xfer.len = IFX_SPI_TRANSFER_SIZE;
 		ifx_dev->spi_xfer.cs_change = 0;
 		ifx_dev->spi_xfer.speed_hz = ifx_dev->spi_dev->max_speed_hz;
@@ -800,7 +800,7 @@ static void ifx_spi_io(unsigned long data)
 static void ifx_spi_free_port(struct ifx_spi_device *ifx_dev)
 {
 	if (ifx_dev->tty_dev)
-		tty_unregister_device(tty_drv, ifx_dev->minor);
+		tty_unregister_device(tty_drv, ifx_dev->miyesr);
 	tty_port_destroy(&ifx_dev->tty_port);
 	kfifo_free(&ifx_dev->tx_fifo);
 }
@@ -828,9 +828,9 @@ static int ifx_spi_create_port(struct ifx_spi_device *ifx_dev)
 
 	tty_port_init(pport);
 	pport->ops = &ifx_tty_port_ops;
-	ifx_dev->minor = IFX_SPI_TTY_ID;
+	ifx_dev->miyesr = IFX_SPI_TTY_ID;
 	ifx_dev->tty_dev = tty_port_register_device(pport, tty_drv,
-			ifx_dev->minor, &ifx_dev->spi_dev->dev);
+			ifx_dev->miyesr, &ifx_dev->spi_dev->dev);
 	if (IS_ERR(ifx_dev->tty_dev)) {
 		dev_dbg(&ifx_dev->spi_dev->dev,
 			"%s: registering tty device failed", __func__);
@@ -994,7 +994,7 @@ static int ifx_spi_spi_probe(struct spi_device *spi)
 	struct ifx_spi_device *ifx_dev;
 
 	if (saved_ifx_dev) {
-		dev_dbg(&spi->dev, "ignoring subsequent detection");
+		dev_dbg(&spi->dev, "igyesring subsequent detection");
 		return -ENODEV;
 	}
 
@@ -1187,7 +1187,7 @@ static int ifx_spi_spi_probe(struct spi_device *spi)
 	pm_runtime_enable(&spi->dev);
 
 	/* handle case that modem is already signaling SRDY */
-	/* no outgoing tty open at this point, this just satisfies the
+	/* yes outgoing tty open at this point, this just satisfies the
 	 * modem's read and should reset communication properly
 	 */
 	srdy = gpio_get_value(ifx_dev->gpio.srdy);
@@ -1221,7 +1221,7 @@ error_ret:
  *	ifx_spi_spi_remove	-	SPI device was removed
  *	@spi: SPI device
  *
- *	FIXME: We should be shutting the device down here not in
+ *	FIXME: We should be shutting the device down here yest in
  *	the module unload path.
  */
 
@@ -1265,8 +1265,8 @@ static void ifx_spi_spi_shutdown(struct spi_device *spi)
 }
 
 /*
- * various suspends and resumes have nothing to do
- * no hardware to save state for
+ * various suspends and resumes have yesthing to do
+ * yes hardware to save state for
  */
 
 /**
@@ -1373,7 +1373,7 @@ static void __exit ifx_spi_exit(void)
 	spi_unregister_driver(&ifx_spi_driver);
 	tty_unregister_driver(tty_drv);
 	put_tty_driver(tty_drv);
-	unregister_reboot_notifier(&ifx_modem_reboot_notifier_block);
+	unregister_reboot_yestifier(&ifx_modem_reboot_yestifier_block);
 }
 
 /**
@@ -1396,7 +1396,7 @@ static int __init ifx_spi_init(void)
 
 	tty_drv->driver_name = DRVNAME;
 	tty_drv->name = TTYNAME;
-	tty_drv->minor_start = IFX_SPI_TTY_ID;
+	tty_drv->miyesr_start = IFX_SPI_TTY_ID;
 	tty_drv->type = TTY_DRIVER_TYPE_SERIAL;
 	tty_drv->subtype = SERIAL_TYPE_NORMAL;
 	tty_drv->flags = TTY_DRIVER_REAL_RAW | TTY_DRIVER_DYNAMIC_DEV;
@@ -1418,9 +1418,9 @@ static int __init ifx_spi_init(void)
 		goto err_unreg_tty;
 	}
 
-	result = register_reboot_notifier(&ifx_modem_reboot_notifier_block);
+	result = register_reboot_yestifier(&ifx_modem_reboot_yestifier_block);
 	if (result) {
-		pr_err("%s: register ifx modem reboot notifier failed(%d)",
+		pr_err("%s: register ifx modem reboot yestifier failed(%d)",
 			DRVNAME, result);
 		goto err_unreg_spi;
 	}

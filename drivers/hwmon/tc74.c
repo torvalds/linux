@@ -6,7 +6,7 @@
  *
  * Based on ad7414.c:
  *	Copyright 2006 Stefan Roese, DENX Software Engineering
- *	Copyright 2008 Sean MacLennan, PIKA Technologies
+ *	Copyright 2008 Sean MacLennan, PIKA Techyeslogies
  *	Copyright 2008 Frank Edelhaeuser, Spansion Inc.
  */
 
@@ -56,7 +56,7 @@ static int tc74_update_device(struct device *dev)
 		}
 
 		if (!(value & BIT(6))) {
-			/* not ready yet */
+			/* yest ready yet */
 
 			ret = -EAGAIN;
 			goto ret_unlock;

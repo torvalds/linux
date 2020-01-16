@@ -481,8 +481,8 @@ static int init_card(struct snd_usb_caiaqdev *cdev)
 	strlcpy(card->shortname, cdev->product_name, sizeof(card->shortname));
 	strlcpy(card->mixername, cdev->product_name, sizeof(card->mixername));
 
-	/* if the id was not passed as module option, fill it with a shortened
-	 * version of the product string which does not contain any
+	/* if the id was yest passed as module option, fill it with a shortened
+	 * version of the product string which does yest contain any
 	 * whitespaces */
 
 	if (*card->id == '\0') {

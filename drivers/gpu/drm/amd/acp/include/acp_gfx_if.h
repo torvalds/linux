@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -28,6 +28,6 @@
 #include "cgs_common.h"
 
 int amd_acp_hw_init(struct cgs_device *cgs_device,
-		    unsigned acp_version_major, unsigned acp_version_minor);
+		    unsigned acp_version_major, unsigned acp_version_miyesr);
 
 #endif /* _ACP_GFX_IF_H */

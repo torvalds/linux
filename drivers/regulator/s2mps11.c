@@ -268,7 +268,7 @@ static int s2mps11_regulator_set_suspend_disable(struct regulator_dev *rdev)
 	struct s2mps11_info *s2mps11 = rdev_get_drvdata(rdev);
 	int rdev_id = rdev_get_id(rdev);
 
-	/* Below LDO should be always on or does not support suspend mode. */
+	/* Below LDO should be always on or does yest support suspend mode. */
 	switch (s2mps11->dev_type) {
 	case S2MPS11X:
 		switch (rdev_id) {
@@ -841,11 +841,11 @@ static void s2mps14_pmic_dt_parse_ext_control_gpio(struct platform_device *pdev,
 	for (i = 0; i < ARRAY_SIZE(valid_regulators); i++) {
 		unsigned int reg = valid_regulators[i];
 
-		if (!rdata[reg].init_data || !rdata[reg].of_node)
+		if (!rdata[reg].init_data || !rdata[reg].of_yesde)
 			continue;
 
-		gpio[reg] = devm_fwnode_gpiod_get(&pdev->dev,
-				of_fwnode_handle(rdata[reg].of_node),
+		gpio[reg] = devm_fwyesde_gpiod_get(&pdev->dev,
+				of_fwyesde_handle(rdata[reg].of_yesde),
 				"samsung,ext-control",
 				GPIOD_OUT_HIGH | GPIOD_FLAGS_BIT_NONEXCLUSIVE,
 				"s2mps11-regulator");
@@ -867,11 +867,11 @@ static int s2mps11_pmic_dt_parse(struct platform_device *pdev,
 		struct of_regulator_match *rdata, struct s2mps11_info *s2mps11,
 		unsigned int rdev_num)
 {
-	struct device_node *reg_np;
+	struct device_yesde *reg_np;
 
-	reg_np = of_get_child_by_name(pdev->dev.parent->of_node, "regulators");
+	reg_np = of_get_child_by_name(pdev->dev.parent->of_yesde, "regulators");
 	if (!reg_np) {
-		dev_err(&pdev->dev, "could not find regulators sub-node\n");
+		dev_err(&pdev->dev, "could yest find regulators sub-yesde\n");
 		return -EINVAL;
 	}
 
@@ -879,7 +879,7 @@ static int s2mps11_pmic_dt_parse(struct platform_device *pdev,
 	if (s2mps11->dev_type == S2MPS14X)
 		s2mps14_pmic_dt_parse_ext_control_gpio(pdev, rdata, s2mps11);
 
-	of_node_put(reg_np);
+	of_yesde_put(reg_np);
 
 	return 0;
 }
@@ -1171,13 +1171,13 @@ static int s2mps11_pmic_probe(struct platform_device *pdev)
 	if (!s2mps11->ext_control_gpiod)
 		return -ENOMEM;
 
-	if (!iodev->dev->of_node) {
+	if (!iodev->dev->of_yesde) {
 		if (iodev->pdata) {
 			pdata = iodev->pdata;
 			goto common_reg;
 		} else {
 			dev_err(pdev->dev.parent,
-				"Platform data or DT node not supplied\n");
+				"Platform data or DT yesde yest supplied\n");
 			return -ENODEV;
 		}
 	}
@@ -1204,10 +1204,10 @@ common_reg:
 
 		if (pdata) {
 			config.init_data = pdata->regulators[i].initdata;
-			config.of_node = pdata->regulators[i].reg_node;
+			config.of_yesde = pdata->regulators[i].reg_yesde;
 		} else {
 			config.init_data = rdata[i].init_data;
-			config.of_node = rdata[i].of_node;
+			config.of_yesde = rdata[i].of_yesde;
 		}
 		config.ena_gpiod = s2mps11->ext_control_gpiod[i];
 		/*

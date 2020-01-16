@@ -9,7 +9,7 @@
 #include "reg.h"
 #include "io.h"
 
-/* FIXME: this is static data nowadays and the table can be removed */
+/* FIXME: this is static data yeswadays and the table can be removed */
 static enum wl12xx_acx_int_reg wl1251_io_reg_table[ACX_REG_TABLE_LEN] = {
 	[ACX_REG_INTERRUPT_TRIG]     = (REGISTERS_BASE + 0x0474),
 	[ACX_REG_INTERRUPT_TRIG_H]   = (REGISTERS_BASE + 0x0478),
@@ -89,7 +89,7 @@ void wl1251_reg_write32(struct wl1251 *wl, int addr, u32 val)
  * There are two VIRTUAL partitions (the memory partition and the
  * registers partition), which are mapped to two different areas of the
  * PHYSICAL (hardware) memory.  This function also makes other checks to
- * ensure that the partitions are not overlapping.  In the diagram below, the
+ * ensure that the partitions are yest overlapping.  In the diagram below, the
  * memory partition comes before the register partition, but the opposite is
  * also supported.
  *

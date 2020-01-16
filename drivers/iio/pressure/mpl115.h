@@ -3,7 +3,7 @@
  * Freescale MPL115A pressure/temperature sensor
  *
  * Copyright (c) 2014 Peter Meerwald <pmeerw@pmeerw.net>
- * Copyright (c) 2016 Akinobu Mita <akinobu.mita@gmail.com>
+ * Copyright (c) 2016 Akiyesbu Mita <akiyesbu.mita@gmail.com>
  */
 
 #ifndef _MPL115_H_

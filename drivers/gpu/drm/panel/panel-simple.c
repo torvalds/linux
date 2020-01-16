@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright yestice and this permission yestice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
  *
@@ -41,10 +41,10 @@
 /**
  * @modes: Pointer to array of fixed modes appropriate for this panel.  If
  *         only one mode then this can just be the address of this the mode.
- *         NOTE: cannot be used with "timings" and also if this is specified
- *         then you cannot override the mode in the device tree.
+ *         NOTE: canyest be used with "timings" and also if this is specified
+ *         then you canyest override the mode in the device tree.
  * @num_modes: Number of elements in modes array.
- * @timings: Pointer to array of display timings.  NOTE: cannot be used with
+ * @timings: Pointer to array of display timings.  NOTE: canyest be used with
  *           "modes" and also these will be used to validate a device tree
  *           override if one is present.
  * @num_timings: Number of elements in timings array.
@@ -74,13 +74,13 @@ struct panel_desc {
 	/**
 	 * @prepare: the time (in milliseconds) that it takes for the panel to
 	 *           become ready and start receiving video data
-	 * @hpd_absent_delay: Add this to the prepare delay if we know Hot
+	 * @hpd_absent_delay: Add this to the prepare delay if we kyesw Hot
 	 *                    Plug Detect isn't used.
 	 * @enable: the time (in milliseconds) that it takes for the panel to
 	 *          display the first valid frame after starting to receive
 	 *          video data
 	 * @disable: the time (in milliseconds) that it takes for the panel to
-	 *           turn the display off (no content is visible)
+	 *           turn the display off (yes content is visible)
 	 * @unprepare: the time (in milliseconds) that it takes for the panel
 	 *             to power itself down completely
 	 */
@@ -101,7 +101,7 @@ struct panel_simple {
 	struct drm_panel base;
 	bool prepared;
 	bool enabled;
-	bool no_hpd;
+	bool yes_hpd;
 
 	const struct panel_desc *desc;
 
@@ -183,7 +183,7 @@ static unsigned int panel_simple_get_display_modes(struct panel_simple *panel)
 	return num;
 }
 
-static int panel_simple_get_non_edid_modes(struct panel_simple *panel)
+static int panel_simple_get_yesn_edid_modes(struct panel_simple *panel)
 {
 	struct drm_connector *connector = panel->base.connector;
 	struct drm_device *drm = panel->base.drm;
@@ -204,12 +204,12 @@ static int panel_simple_get_non_edid_modes(struct panel_simple *panel)
 		}
 	}
 
-	/* Only add timings if override was not there or failed to validate */
+	/* Only add timings if override was yest there or failed to validate */
 	if (num == 0 && panel->desc->num_timings)
 		num = panel_simple_get_timings_modes(panel);
 
 	/*
-	 * Only add fixed modes if timings/override added no mode.
+	 * Only add fixed modes if timings/override added yes mode.
 	 *
 	 * We should only ever have either the display timings specified
 	 * or a fixed mode. Anything else is rather bogus.
@@ -287,7 +287,7 @@ static int panel_simple_prepare(struct drm_panel *panel)
 	gpiod_set_value_cansleep(p->enable_gpio, 1);
 
 	delay = p->desc->delay.prepare;
-	if (p->no_hpd)
+	if (p->yes_hpd)
 		delay += p->desc->delay.hpd_absent_delay;
 	if (delay)
 		msleep(delay);
@@ -334,7 +334,7 @@ static int panel_simple_get_modes(struct drm_panel *panel)
 	}
 
 	/* add hard-coded panel modes */
-	num += panel_simple_get_non_edid_modes(p);
+	num += panel_simple_get_yesn_edid_modes(p);
 
 	return num;
 }
@@ -368,7 +368,7 @@ static const struct drm_panel_funcs panel_simple_funcs = {
 #define PANEL_SIMPLE_BOUNDS_CHECK(to_check, bounds, field) \
 	(to_check->field.typ >= bounds->field.min && \
 	 to_check->field.typ <= bounds->field.max)
-static void panel_simple_parse_panel_timing_node(struct device *dev,
+static void panel_simple_parse_panel_timing_yesde(struct device *dev,
 						 struct panel_simple *panel,
 						 const struct display_timing *ot)
 {
@@ -381,7 +381,7 @@ static void panel_simple_parse_panel_timing_node(struct device *dev,
 		return;
 	}
 	if (WARN_ON(!desc->num_timings)) {
-		dev_err(dev, "Reject override mode: no timings specified\n");
+		dev_err(dev, "Reject override mode: yes timings specified\n");
 		return;
 	}
 
@@ -414,7 +414,7 @@ static void panel_simple_parse_panel_timing_node(struct device *dev,
 
 static int panel_simple_probe(struct device *dev, const struct panel_desc *desc)
 {
-	struct device_node *backlight, *ddc;
+	struct device_yesde *backlight, *ddc;
 	struct panel_simple *panel;
 	struct display_timing dt;
 	int err;
@@ -427,7 +427,7 @@ static int panel_simple_probe(struct device *dev, const struct panel_desc *desc)
 	panel->prepared = false;
 	panel->desc = desc;
 
-	panel->no_hpd = of_property_read_bool(dev->of_node, "no-hpd");
+	panel->yes_hpd = of_property_read_bool(dev->of_yesde, "yes-hpd");
 
 	panel->supply = devm_regulator_get(dev, "power");
 	if (IS_ERR(panel->supply))
@@ -442,19 +442,19 @@ static int panel_simple_probe(struct device *dev, const struct panel_desc *desc)
 		return err;
 	}
 
-	backlight = of_parse_phandle(dev->of_node, "backlight", 0);
+	backlight = of_parse_phandle(dev->of_yesde, "backlight", 0);
 	if (backlight) {
-		panel->backlight = of_find_backlight_by_node(backlight);
-		of_node_put(backlight);
+		panel->backlight = of_find_backlight_by_yesde(backlight);
+		of_yesde_put(backlight);
 
 		if (!panel->backlight)
 			return -EPROBE_DEFER;
 	}
 
-	ddc = of_parse_phandle(dev->of_node, "ddc-i2c-bus", 0);
+	ddc = of_parse_phandle(dev->of_yesde, "ddc-i2c-bus", 0);
 	if (ddc) {
-		panel->ddc = of_find_i2c_adapter_by_node(ddc);
-		of_node_put(ddc);
+		panel->ddc = of_find_i2c_adapter_by_yesde(ddc);
+		of_yesde_put(ddc);
 
 		if (!panel->ddc) {
 			err = -EPROBE_DEFER;
@@ -462,8 +462,8 @@ static int panel_simple_probe(struct device *dev, const struct panel_desc *desc)
 		}
 	}
 
-	if (!of_get_display_timing(dev->of_node, "panel-timing", &dt))
-		panel_simple_parse_panel_timing_node(dev, panel, &dt);
+	if (!of_get_display_timing(dev->of_yesde, "panel-timing", &dt))
+		panel_simple_parse_panel_timing_yesde(dev, panel, &dt);
 
 	drm_panel_init(&panel->base, dev, &panel_simple_funcs,
 		       desc->connector_type);
@@ -1561,7 +1561,7 @@ static const struct panel_desc hitachi_tx23d38vm0caa = {
 	},
 };
 
-static const struct drm_display_mode innolux_at043tn24_mode = {
+static const struct drm_display_mode inyeslux_at043tn24_mode = {
 	.clock = 9000,
 	.hdisplay = 480,
 	.hsync_start = 480 + 2,
@@ -1575,8 +1575,8 @@ static const struct drm_display_mode innolux_at043tn24_mode = {
 	.flags = DRM_MODE_FLAG_NHSYNC | DRM_MODE_FLAG_NVSYNC,
 };
 
-static const struct panel_desc innolux_at043tn24 = {
-	.modes = &innolux_at043tn24_mode,
+static const struct panel_desc inyeslux_at043tn24 = {
+	.modes = &inyeslux_at043tn24_mode,
 	.num_modes = 1,
 	.bpc = 8,
 	.size = {
@@ -1587,7 +1587,7 @@ static const struct panel_desc innolux_at043tn24 = {
 	.bus_flags = DRM_BUS_FLAG_DE_HIGH | DRM_BUS_FLAG_PIXDATA_DRIVE_POSEDGE,
 };
 
-static const struct drm_display_mode innolux_at070tn92_mode = {
+static const struct drm_display_mode inyeslux_at070tn92_mode = {
 	.clock = 33333,
 	.hdisplay = 800,
 	.hsync_start = 800 + 210,
@@ -1600,8 +1600,8 @@ static const struct drm_display_mode innolux_at070tn92_mode = {
 	.vrefresh = 60,
 };
 
-static const struct panel_desc innolux_at070tn92 = {
-	.modes = &innolux_at070tn92_mode,
+static const struct panel_desc inyeslux_at070tn92 = {
+	.modes = &inyeslux_at070tn92_mode,
 	.num_modes = 1,
 	.size = {
 		.width = 154,
@@ -1610,7 +1610,7 @@ static const struct panel_desc innolux_at070tn92 = {
 	.bus_format = MEDIA_BUS_FMT_RGB888_1X24,
 };
 
-static const struct display_timing innolux_g070y2_l01_timing = {
+static const struct display_timing inyeslux_g070y2_l01_timing = {
 	.pixelclock = { 28000000, 29500000, 32000000 },
 	.hactive = { 800, 800, 800 },
 	.hfront_porch = { 61, 91, 141 },
@@ -1623,8 +1623,8 @@ static const struct display_timing innolux_g070y2_l01_timing = {
 	.flags = DISPLAY_FLAGS_DE_HIGH,
 };
 
-static const struct panel_desc innolux_g070y2_l01 = {
-	.timings = &innolux_g070y2_l01_timing,
+static const struct panel_desc inyeslux_g070y2_l01 = {
+	.timings = &inyeslux_g070y2_l01_timing,
 	.num_timings = 1,
 	.bpc = 6,
 	.size = {
@@ -1641,7 +1641,7 @@ static const struct panel_desc innolux_g070y2_l01 = {
 	.connector_type = DRM_MODE_CONNECTOR_LVDS,
 };
 
-static const struct display_timing innolux_g101ice_l01_timing = {
+static const struct display_timing inyeslux_g101ice_l01_timing = {
 	.pixelclock = { 60400000, 71100000, 74700000 },
 	.hactive = { 1280, 1280, 1280 },
 	.hfront_porch = { 41, 80, 100 },
@@ -1654,8 +1654,8 @@ static const struct display_timing innolux_g101ice_l01_timing = {
 	.flags = DISPLAY_FLAGS_DE_HIGH,
 };
 
-static const struct panel_desc innolux_g101ice_l01 = {
-	.timings = &innolux_g101ice_l01_timing,
+static const struct panel_desc inyeslux_g101ice_l01 = {
+	.timings = &inyeslux_g101ice_l01_timing,
 	.num_timings = 1,
 	.bpc = 8,
 	.size = {
@@ -1670,7 +1670,7 @@ static const struct panel_desc innolux_g101ice_l01 = {
 	.connector_type = DRM_MODE_CONNECTOR_LVDS,
 };
 
-static const struct display_timing innolux_g121i1_l01_timing = {
+static const struct display_timing inyeslux_g121i1_l01_timing = {
 	.pixelclock = { 67450000, 71000000, 74550000 },
 	.hactive = { 1280, 1280, 1280 },
 	.hfront_porch = { 40, 80, 160 },
@@ -1682,8 +1682,8 @@ static const struct display_timing innolux_g121i1_l01_timing = {
 	.vsync_len = { 1, 1, 1 },
 };
 
-static const struct panel_desc innolux_g121i1_l01 = {
-	.timings = &innolux_g121i1_l01_timing,
+static const struct panel_desc inyeslux_g121i1_l01 = {
+	.timings = &inyeslux_g121i1_l01_timing,
 	.num_timings = 1,
 	.bpc = 6,
 	.size = {
@@ -1698,7 +1698,7 @@ static const struct panel_desc innolux_g121i1_l01 = {
 	.connector_type = DRM_MODE_CONNECTOR_LVDS,
 };
 
-static const struct drm_display_mode innolux_g121x1_l03_mode = {
+static const struct drm_display_mode inyeslux_g121x1_l03_mode = {
 	.clock = 65000,
 	.hdisplay = 1024,
 	.hsync_start = 1024 + 0,
@@ -1712,8 +1712,8 @@ static const struct drm_display_mode innolux_g121x1_l03_mode = {
 	.flags = DRM_MODE_FLAG_NHSYNC | DRM_MODE_FLAG_NVSYNC,
 };
 
-static const struct panel_desc innolux_g121x1_l03 = {
-	.modes = &innolux_g121x1_l03_mode,
+static const struct panel_desc inyeslux_g121x1_l03 = {
+	.modes = &inyeslux_g121x1_l03_mode,
 	.num_modes = 1,
 	.bpc = 6,
 	.size = {
@@ -1733,11 +1733,11 @@ static const struct panel_desc innolux_g121x1_l03 = {
  * - total vertical time: { 788, 800, 868 }
  *
  * ...but doesn't go into exactly how that should be split into a front
- * porch, back porch, or sync length.  For now we'll leave a single setting
+ * porch, back porch, or sync length.  For yesw we'll leave a single setting
  * here which allows a bit of tweaking of the pixel clock at the expense of
  * refresh rate.
  */
-static const struct display_timing innolux_n116bge_timing = {
+static const struct display_timing inyeslux_n116bge_timing = {
 	.pixelclock = { 72600000, 76420000, 80240000 },
 	.hactive = { 1366, 1366, 1366 },
 	.hfront_porch = { 136, 136, 136 },
@@ -1750,8 +1750,8 @@ static const struct display_timing innolux_n116bge_timing = {
 	.flags = DISPLAY_FLAGS_VSYNC_LOW | DISPLAY_FLAGS_HSYNC_LOW,
 };
 
-static const struct panel_desc innolux_n116bge = {
-	.timings = &innolux_n116bge_timing,
+static const struct panel_desc inyeslux_n116bge = {
+	.timings = &inyeslux_n116bge_timing,
 	.num_timings = 1,
 	.bpc = 6,
 	.size = {
@@ -1760,7 +1760,7 @@ static const struct panel_desc innolux_n116bge = {
 	},
 };
 
-static const struct drm_display_mode innolux_n156bge_l21_mode = {
+static const struct drm_display_mode inyeslux_n156bge_l21_mode = {
 	.clock = 69300,
 	.hdisplay = 1366,
 	.hsync_start = 1366 + 16,
@@ -1773,8 +1773,8 @@ static const struct drm_display_mode innolux_n156bge_l21_mode = {
 	.vrefresh = 60,
 };
 
-static const struct panel_desc innolux_n156bge_l21 = {
-	.modes = &innolux_n156bge_l21_mode,
+static const struct panel_desc inyeslux_n156bge_l21 = {
+	.modes = &inyeslux_n156bge_l21_mode,
 	.num_modes = 1,
 	.bpc = 6,
 	.size = {
@@ -1783,7 +1783,7 @@ static const struct panel_desc innolux_n156bge_l21 = {
 	},
 };
 
-static const struct drm_display_mode innolux_p120zdg_bf1_mode = {
+static const struct drm_display_mode inyeslux_p120zdg_bf1_mode = {
 	.clock = 206016,
 	.hdisplay = 2160,
 	.hsync_start = 2160 + 48,
@@ -1797,8 +1797,8 @@ static const struct drm_display_mode innolux_p120zdg_bf1_mode = {
 	.flags = DRM_MODE_FLAG_PHSYNC | DRM_MODE_FLAG_PVSYNC,
 };
 
-static const struct panel_desc innolux_p120zdg_bf1 = {
-	.modes = &innolux_p120zdg_bf1_mode,
+static const struct panel_desc inyeslux_p120zdg_bf1 = {
+	.modes = &inyeslux_p120zdg_bf1_mode,
 	.num_modes = 1,
 	.bpc = 8,
 	.size = {
@@ -1811,7 +1811,7 @@ static const struct panel_desc innolux_p120zdg_bf1 = {
 	},
 };
 
-static const struct drm_display_mode innolux_zj070na_01p_mode = {
+static const struct drm_display_mode inyeslux_zj070na_01p_mode = {
 	.clock = 51501,
 	.hdisplay = 1024,
 	.hsync_start = 1024 + 128,
@@ -1824,8 +1824,8 @@ static const struct drm_display_mode innolux_zj070na_01p_mode = {
 	.vrefresh = 60,
 };
 
-static const struct panel_desc innolux_zj070na_01p = {
-	.modes = &innolux_zj070na_01p_mode,
+static const struct panel_desc inyeslux_zj070na_01p = {
+	.modes = &inyeslux_zj070na_01p_mode,
 	.num_modes = 1,
 	.bpc = 6,
 	.size = {
@@ -2265,7 +2265,7 @@ static const struct panel_desc okaya_rs800480t_7x0gp = {
 	.bus_format = MEDIA_BUS_FMT_RGB666_1X18,
 };
 
-static const struct drm_display_mode olimex_lcd_olinuxino_43ts_mode = {
+static const struct drm_display_mode olimex_lcd_olinuxiyes_43ts_mode = {
 	.clock = 9000,
 	.hdisplay = 480,
 	.hsync_start = 480 + 5,
@@ -2278,8 +2278,8 @@ static const struct drm_display_mode olimex_lcd_olinuxino_43ts_mode = {
 	.vrefresh = 60,
 };
 
-static const struct panel_desc olimex_lcd_olinuxino_43ts = {
-	.modes = &olimex_lcd_olinuxino_43ts_mode,
+static const struct panel_desc olimex_lcd_olinuxiyes_43ts = {
+	.modes = &olimex_lcd_olinuxiyes_43ts_mode,
 	.num_modes = 1,
 	.size = {
 		.width = 95,
@@ -3231,35 +3231,35 @@ static const struct of_device_id platform_of_match[] = {
 		.compatible = "hit,tx23d38vm0caa",
 		.data = &hitachi_tx23d38vm0caa
 	}, {
-		.compatible = "innolux,at043tn24",
-		.data = &innolux_at043tn24,
+		.compatible = "inyeslux,at043tn24",
+		.data = &inyeslux_at043tn24,
 	}, {
-		.compatible = "innolux,at070tn92",
-		.data = &innolux_at070tn92,
+		.compatible = "inyeslux,at070tn92",
+		.data = &inyeslux_at070tn92,
 	}, {
-		.compatible = "innolux,g070y2-l01",
-		.data = &innolux_g070y2_l01,
+		.compatible = "inyeslux,g070y2-l01",
+		.data = &inyeslux_g070y2_l01,
 	}, {
-		.compatible = "innolux,g101ice-l01",
-		.data = &innolux_g101ice_l01
+		.compatible = "inyeslux,g101ice-l01",
+		.data = &inyeslux_g101ice_l01
 	}, {
-		.compatible = "innolux,g121i1-l01",
-		.data = &innolux_g121i1_l01
+		.compatible = "inyeslux,g121i1-l01",
+		.data = &inyeslux_g121i1_l01
 	}, {
-		.compatible = "innolux,g121x1-l03",
-		.data = &innolux_g121x1_l03,
+		.compatible = "inyeslux,g121x1-l03",
+		.data = &inyeslux_g121x1_l03,
 	}, {
-		.compatible = "innolux,n116bge",
-		.data = &innolux_n116bge,
+		.compatible = "inyeslux,n116bge",
+		.data = &inyeslux_n116bge,
 	}, {
-		.compatible = "innolux,n156bge-l21",
-		.data = &innolux_n156bge_l21,
+		.compatible = "inyeslux,n156bge-l21",
+		.data = &inyeslux_n156bge_l21,
 	}, {
-		.compatible = "innolux,p120zdg-bf1",
-		.data = &innolux_p120zdg_bf1,
+		.compatible = "inyeslux,p120zdg-bf1",
+		.data = &inyeslux_p120zdg_bf1,
 	}, {
-		.compatible = "innolux,zj070na-01p",
-		.data = &innolux_zj070na_01p,
+		.compatible = "inyeslux,zj070na-01p",
+		.data = &inyeslux_zj070na_01p,
 	}, {
 		.compatible = "koe,tx14d24vm1bpa",
 		.data = &koe_tx14d24vm1bpa,
@@ -3312,8 +3312,8 @@ static const struct of_device_id platform_of_match[] = {
 		.compatible = "okaya,rs800480t-7x0gp",
 		.data = &okaya_rs800480t_7x0gp,
 	}, {
-		.compatible = "olimex,lcd-olinuxino-43-ts",
-		.data = &olimex_lcd_olinuxino_43ts,
+		.compatible = "olimex,lcd-olinuxiyes-43-ts",
+		.data = &olimex_lcd_olinuxiyes_43ts,
 	}, {
 		.compatible = "ontat,yx700wv03",
 		.data = &ontat_yx700wv03,
@@ -3432,7 +3432,7 @@ static int panel_simple_platform_probe(struct platform_device *pdev)
 {
 	const struct of_device_id *id;
 
-	id = of_match_node(platform_of_match, pdev->dev.of_node);
+	id = of_match_yesde(platform_of_match, pdev->dev.of_yesde);
 	if (!id)
 		return -ENODEV;
 
@@ -3703,7 +3703,7 @@ static int panel_simple_dsi_probe(struct mipi_dsi_device *dsi)
 	const struct of_device_id *id;
 	int err;
 
-	id = of_match_node(dsi_of_match, dsi->dev.of_node);
+	id = of_match_yesde(dsi_of_match, dsi->dev.of_yesde);
 	if (!id)
 		return -ENODEV;
 

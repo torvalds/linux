@@ -179,12 +179,12 @@ __die_if_kernel(const char *str, struct pt_regs *regs, long err)
 
 void do_unhandled(struct pt_regs *regs, unsigned long exccause)
 {
-	__die_if_kernel("Caught unhandled exception - should not happen",
+	__die_if_kernel("Caught unhandled exception - should yest happen",
 			regs, SIGKILL);
 
 	/* If in user mode, send SIGILL signal to current process */
 	pr_info_ratelimited("Caught unhandled exception in '%s' "
-			    "(pid = %d, pc = %#010lx) - should not happen\n"
+			    "(pid = %d, pc = %#010lx) - should yest happen\n"
 			    "\tEXCCAUSE is %ld\n",
 			    current->comm, task_pid_nr(current), regs->pc,
 			    exccause);
@@ -317,7 +317,7 @@ do_illegal_instruction(struct pt_regs *regs)
 /*
  * Handle unaligned memory accesses from user space. Kill task.
  *
- * If CONFIG_UNALIGNED_USER is not set, we don't allow unaligned memory
+ * If CONFIG_UNALIGNED_USER is yest set, we don't allow unaligned memory
  * accesses causes from user space.
  */
 

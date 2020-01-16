@@ -20,26 +20,26 @@
 #include <asm/octeon/cvmx.h>
 #include <asm/mipsregs.h>
 
-extern int register_co_cache_error_notifier(struct notifier_block *nb);
-extern int unregister_co_cache_error_notifier(struct notifier_block *nb);
+extern int register_co_cache_error_yestifier(struct yestifier_block *nb);
+extern int unregister_co_cache_error_yestifier(struct yestifier_block *nb);
 
 extern unsigned long long cache_err_dcache[NR_CPUS];
 
 struct co_cache_error {
-	struct notifier_block notifier;
+	struct yestifier_block yestifier;
 	struct edac_device_ctl_info *ed;
 };
 
 /**
  * EDAC CPU cache error callback
  *
- * @event: non-zero if unrecoverable.
+ * @event: yesn-zero if unrecoverable.
  */
-static int  co_cache_error_event(struct notifier_block *this,
+static int  co_cache_error_event(struct yestifier_block *this,
 	unsigned long event, void *ptr)
 {
 	struct co_cache_error *p = container_of(this, struct co_cache_error,
-						notifier);
+						yestifier);
 
 	unsigned int core = cvmx_get_core_num();
 	unsigned int cpu = smp_processor_id();
@@ -88,7 +88,7 @@ static int co_cache_error_probe(struct platform_device *pdev)
 	if (!p)
 		return -ENOMEM;
 
-	p->notifier.notifier_call = co_cache_error_event;
+	p->yestifier.yestifier_call = co_cache_error_event;
 	platform_set_drvdata(pdev, p);
 
 	p->ed = edac_device_alloc_ctl_info(0, "cpu", num_possible_cpus(),
@@ -109,7 +109,7 @@ static int co_cache_error_probe(struct platform_device *pdev)
 		goto err1;
 	}
 
-	register_co_cache_error_notifier(&p->notifier);
+	register_co_cache_error_yestifier(&p->yestifier);
 
 	return 0;
 
@@ -123,7 +123,7 @@ static int co_cache_error_remove(struct platform_device *pdev)
 {
 	struct co_cache_error *p = platform_get_drvdata(pdev);
 
-	unregister_co_cache_error_notifier(&p->notifier);
+	unregister_co_cache_error_yestifier(&p->yestifier);
 	edac_device_del_device(&pdev->dev);
 	edac_device_free_ctl_info(p->ed);
 	return 0;

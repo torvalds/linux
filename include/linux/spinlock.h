@@ -29,17 +29,17 @@
  *
  *  linux/spinlock_type_up.h:
  *                        contains the generic, simplified UP spinlock type.
- *                        (which is an empty structure on non-debug builds)
+ *                        (which is an empty structure on yesn-debug builds)
  *
  *  linux/spinlock_types.h:
  *                        defines the generic type and initializers
  *
  *  linux/spinlock_up.h:
  *                        contains the arch_spin_*()/etc. version of UP
- *                        builds. (which are NOPs on non-debug, non-preempt
+ *                        builds. (which are NOPs on yesn-debug, yesn-preempt
  *                        builds)
  *
- *   (included on UP-non-debug builds:)
+ *   (included on UP-yesn-debug builds:)
  *
  *  linux/spinlock_api_up.h:
  *                        builds the _spin_*() APIs.
@@ -83,7 +83,7 @@
 #include <linux/spinlock_types.h>
 
 /*
- * Pull the arch_spin*() functions/declarations (UP-nondebug doesn't need them):
+ * Pull the arch_spin*() functions/declarations (UP-yesndebug doesn't need them):
  */
 #ifdef CONFIG_SMP
 # include <asm/spinlock.h>
@@ -133,8 +133,8 @@ do {								\
  *	  r0 = READ_ONCE(Y);
  *	  spin_unlock(S);
  *
- *      it is forbidden that CPU0 does not observe CPU1's store to Y (r0 = 0)
- *      and CPU1 does not observe CPU0's store to X (r1 = 0); see the comments
+ *      it is forbidden that CPU0 does yest observe CPU1's store to Y (r0 = 0)
+ *      and CPU1 does yest observe CPU0's store to X (r1 = 0); see the comments
  *      preceding the call to smp_mb__after_spinlock() in __schedule() and in
  *      try_to_wake_up().
  *
@@ -152,14 +152,14 @@ do {								\
  *
  *      it is forbidden that CPU0's critical section executes before CPU1's
  *      critical section (r0 = 1), CPU2 observes CPU1's store to Y (r1 = 1)
- *      and CPU2 does not observe CPU0's store to X (r2 = 0); see the comments
+ *      and CPU2 does yest observe CPU0's store to X (r2 = 0); see the comments
  *      preceding the calls to smp_rmb() in try_to_wake_up() for similar
  *      snippets but "projected" onto two CPUs.
  *
  * Property (2) upgrades the lock to an RCsc lock.
  *
  * Since most load-store architectures implement ACQUIRE with an smp_mb() after
- * the LL/SC loop, they need no further barriers. Similarly all our TSO
+ * the LL/SC loop, they need yes further barriers. Similarly all our TSO
  * architectures imply an smp_mb() for each atomic instruction and equally don't
  * need more.
  *
@@ -215,7 +215,7 @@ static inline void do_raw_spin_unlock(raw_spinlock_t *lock) __releases(lock)
 /*
  * Define the various spin_lock methods.  Note we define these
  * regardless of whether CONFIG_SMP or CONFIG_PREEMPTION are set. The
- * various methods are defined as nops in the case they are not
+ * various methods are defined as yesps in the case they are yest
  * required.
  */
 #define raw_spin_trylock(lock)	__cond_lock(lock, _raw_spin_trylock(lock))
@@ -234,7 +234,7 @@ static inline void do_raw_spin_unlock(raw_spinlock_t *lock) __releases(lock)
 #else
 /*
  * Always evaluate the 'subclass' argument to avoid that the compiler
- * warns about set-but-not-used variables when building with
+ * warns about set-but-yest-used variables when building with
  * CONFIG_DEBUG_LOCK_ALLOC=n and with W=1.
  */
 # define raw_spin_lock_nested(lock, subclass)		\
@@ -420,11 +420,11 @@ static __always_inline int spin_trylock_irq(spinlock_t *lock)
  * Returns: 1 if @lock is locked, 0 otherwise.
  *
  * Note that the function only tells you that the spinlock is
- * seen to be locked, not that it is locked on your CPU.
+ * seen to be locked, yest that it is locked on your CPU.
  *
  * Further, on CONFIG_SMP=n builds with CONFIG_DEBUG_SPINLOCK=n,
  * the return value is always 0 (see include/linux/spinlock_up.h).
- * Therefore you should not rely heavily on the return value.
+ * Therefore you should yest rely heavily on the return value.
  */
 static __always_inline int spin_is_locked(spinlock_t *lock)
 {

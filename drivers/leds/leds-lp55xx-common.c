@@ -41,7 +41,7 @@ static void lp55xx_reset_device(struct lp55xx_chip *chip)
 	u8 addr = cfg->reset.addr;
 	u8 val  = cfg->reset.val;
 
-	/* no error checking here because no ACK from the device after reset */
+	/* yes error checking here because yes ACK from the device after reset */
 	lp55xx_write(chip, addr, val);
 }
 
@@ -221,7 +221,7 @@ static int lp55xx_request_firmware(struct lp55xx_chip *chip)
 	const char *name = chip->cl->name;
 	struct device *dev = &chip->cl->dev;
 
-	return request_firmware_nowait(THIS_MODULE, false, name, dev,
+	return request_firmware_yeswait(THIS_MODULE, false, name, dev,
 				GFP_KERNEL, chip, lp55xx_firmware_loaded);
 }
 
@@ -399,7 +399,7 @@ int lp55xx_init_device(struct lp55xx_chip *chip)
 		ret = devm_gpio_request_one(dev, pdata->enable_gpio,
 					    GPIOF_DIR_OUT, "lp5523_enable");
 		if (ret < 0) {
-			dev_err(dev, "could not acquire enable gpio (err=%d)\n",
+			dev_err(dev, "could yest acquire enable gpio (err=%d)\n",
 				ret);
 			goto err;
 		}
@@ -413,8 +413,8 @@ int lp55xx_init_device(struct lp55xx_chip *chip)
 	lp55xx_reset_device(chip);
 
 	/*
-	 * Exact value is not available. 10 - 20ms
-	 * appears to be enough for reset.
+	 * Exact value is yest available. 10 - 20ms
+	 * appears to be eyesugh for reset.
 	 */
 	usleep_range(10000, 20000);
 
@@ -469,7 +469,7 @@ int lp55xx_register_leds(struct lp55xx_led *led, struct lp55xx_chip *chip)
 
 	for (i = 0; i < num_channels; i++) {
 
-		/* do not initialize channels that are not connected */
+		/* do yest initialize channels that are yest connected */
 		if (pdata->led_config[i].led_current == 0)
 			continue;
 
@@ -539,9 +539,9 @@ void lp55xx_unregister_sysfs(struct lp55xx_chip *chip)
 EXPORT_SYMBOL_GPL(lp55xx_unregister_sysfs);
 
 struct lp55xx_platform_data *lp55xx_of_populate_pdata(struct device *dev,
-						      struct device_node *np)
+						      struct device_yesde *np)
 {
-	struct device_node *child;
+	struct device_yesde *child;
 	struct lp55xx_platform_data *pdata;
 	struct lp55xx_led_config *cfg;
 	int num_channels;
@@ -553,7 +553,7 @@ struct lp55xx_platform_data *lp55xx_of_populate_pdata(struct device *dev,
 
 	num_channels = of_get_child_count(np);
 	if (num_channels == 0) {
-		dev_err(dev, "no LED channels\n");
+		dev_err(dev, "yes LED channels\n");
 		return ERR_PTR(-EINVAL);
 	}
 
@@ -564,7 +564,7 @@ struct lp55xx_platform_data *lp55xx_of_populate_pdata(struct device *dev,
 	pdata->led_config = &cfg[0];
 	pdata->num_channels = num_channels;
 
-	for_each_child_of_node(np, child) {
+	for_each_child_of_yesde(np, child) {
 		cfg[i].chan_nr = i;
 
 		of_property_read_string(child, "chan-name", &cfg[i].name);

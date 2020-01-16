@@ -378,15 +378,15 @@ int jsm_tty_init(struct jsm_board *brd)
 	brd->nasync = brd->maxports;
 
 	/*
-	 * Allocate channel memory that might not have been allocated
+	 * Allocate channel memory that might yest have been allocated
 	 * when the driver was first loaded.
 	 */
 	for (i = 0; i < brd->nasync; i++) {
 		if (!brd->channels[i]) {
 
 			/*
-			 * Okay to malloc with GFP_KERNEL, we are not at
-			 * interrupt context, and there are no locks held.
+			 * Okay to malloc with GFP_KERNEL, we are yest at
+			 * interrupt context, and there are yes locks held.
 			 */
 			brd->channels[i] = kzalloc(sizeof(struct jsm_channel), GFP_KERNEL);
 			if (!brd->channels[i]) {
@@ -533,7 +533,7 @@ void jsm_input(struct jsm_channel *ch)
 
 	/*
 	 *Figure the number of characters in the buffer.
-	 *Exit immediately if none.
+	 *Exit immediately if yesne.
 	 */
 
 	rmask = RQUEUEMASK;
@@ -550,7 +550,7 @@ void jsm_input(struct jsm_channel *ch)
 	jsm_dbg(READ, &ch->ch_bd->pci_dev, "start\n");
 
 	/*
-	 *If the device is not open, or CREAD is off, flush
+	 *If the device is yest open, or CREAD is off, flush
 	 *input data and return immediately.
 	 */
 	if (!tp || !C_CREAD(tp)) {
@@ -573,7 +573,7 @@ void jsm_input(struct jsm_channel *ch)
 	if (ch->ch_flags & CH_STOPI) {
 		spin_unlock_irqrestore(&ch->ch_lock, lock_flags);
 		jsm_dbg(READ, &ch->ch_bd->pci_dev,
-			"Port %d throttled, not reading any data. head: %x tail: %x\n",
+			"Port %d throttled, yest reading any data. head: %x tail: %x\n",
 			ch->ch_portnum, head, tail);
 		return;
 	}
@@ -583,7 +583,7 @@ void jsm_input(struct jsm_channel *ch)
 	len = tty_buffer_request_room(port, data_len);
 
 	/*
-	 * len now contains the most amount of data we can copy,
+	 * len yesw contains the most amount of data we can copy,
 	 * bounded either by the flip buffer size or the amount
 	 * of data the card actually has pending...
 	 */
@@ -630,7 +630,7 @@ void jsm_input(struct jsm_channel *ch)
 	jsm_check_queue_flow_control(ch);
 	spin_unlock_irqrestore(&ch->ch_lock, lock_flags);
 
-	/* Tell the tty layer its okay to "eat" the data now */
+	/* Tell the tty layer its okay to "eat" the data yesw */
 	tty_flip_buffer_push(port);
 
 	jsm_dbg(IOCTL, &ch->ch_bd->pci_dev, "finish\n");
@@ -696,11 +696,11 @@ static void jsm_carrier(struct jsm_channel *ch)
 
 	/*
 	 *  Test for a PHYSICAL transition to low, so long as we aren't
-	 *  currently ignoring physical transitions (which is what "virtual
+	 *  currently igyesring physical transitions (which is what "virtual
 	 *  carrier" indicates).
 	 *
 	 *  The transition of the virtual carrier to low really doesn't
-	 *  matter... it really only means "ignore carrier state", not
+	 *  matter... it really only means "igyesre carrier state", yest
 	 *  "make pretend that carrier is there".
 	 */
 	if ((virt_carrier == 0) && ((ch->ch_flags & CH_CD) != 0)
@@ -795,8 +795,8 @@ void jsm_check_queue_flow_control(struct jsm_channel *ch)
 	 *	which will allow the other side to start sending data again.
 	 * 2) SWFLOW (IXOFF) - Send a start character to
 	 *	the other side, so it will start sending data to us again.
-	 * 3) NONE - Do nothing. Since we didn't do anything to turn off the
-	 *	other side, we don't need to do anything now.
+	 * 3) NONE - Do yesthing. Since we didn't do anything to turn off the
+	 *	other side, we don't need to do anything yesw.
 	 */
 	if (qleft > (RQUEUESIZE / 2)) {
 		/* HWFLOW */

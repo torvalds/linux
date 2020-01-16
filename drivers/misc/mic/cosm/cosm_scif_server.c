@@ -12,7 +12,7 @@
 #include "cosm_main.h"
 
 /*
- * The COSM driver uses SCIF to communicate between the management node and the
+ * The COSM driver uses SCIF to communicate between the management yesde and the
  * MIC cards. SCIF is used to (a) Send a shutdown command to the card (b)
  * receive a shutdown status back from the card upon completion of shutdown and
  * (c) receive periodic heartbeat messages from the card used to deduce if the
@@ -36,7 +36,7 @@
  *    message from the host.
  * 2. Card driver shutdown callback invokes scif_unregister_device(..) resulting
  *    in scif_remove(..) getting called on the card
- * 3. scif_remove -> scif_stop -> scif_handle_remove_node ->
+ * 3. scif_remove -> scif_stop -> scif_handle_remove_yesde ->
  *    scif_peer_unregister_device -> device_unregister for the host peer device
  * 4. During device_unregister remove(..) method of cosm_client is invoked which
  *    closes the COSM SCIF endpoint on the card. This results in a SCIF_DISCNCT
@@ -55,13 +55,13 @@
  *
  * Card reset
  * ----------
- * The case of interest here is when the card has not been previously shut down
+ * The case of interest here is when the card has yest been previously shut down
  * since most of the steps below are skipped in that case:
 
  * 1. cosm_stop(..) invokes hw_ops->stop(..) method of the base PCIe driver
  *    which unregisters the SCIF HW device resulting in scif_remove(..) being
  *    called on the host.
- * 2. scif_remove(..) calls scif_disconnect_node(..) which results in a
+ * 2. scif_remove(..) calls scif_disconnect_yesde(..) which results in a
  *    SCIF_EXIT message being sent to the card.
  * 3. The card executes scif_stop() as part of SCIF_EXIT message
  *    processing. This results in the COSM endpoint on the card being closed and
@@ -73,7 +73,7 @@
  *
  * Card crash
  * ----------
- * If a reset is issued after the card has crashed, there is no SCIF_DISCNT
+ * If a reset is issued after the card has crashed, there is yes SCIF_DISCNT
  * message from the card which would result in scif_poll(..) returning
  * EPOLLHUP. In this case when the host SCIF driver sends a SCIF_REMOVE_NODE
  * message to itself resulting in the card SCIF peer device being unregistered,
@@ -148,7 +148,7 @@ static void cosm_scif_recv(struct cosm_device *cdev)
 			/* Nothing to do, heartbeat only unblocks scif_poll */
 			break;
 		default:
-			dev_err(&cdev->dev, "%s: %d unknown msg.id %lld\n",
+			dev_err(&cdev->dev, "%s: %d unkyeswn msg.id %lld\n",
 				__func__, __LINE__, msg.id);
 			break;
 		}
@@ -158,7 +158,7 @@ static void cosm_scif_recv(struct cosm_device *cdev)
 /* Publish crashed status for this MIC card */
 static void cosm_set_crashed(struct cosm_device *cdev)
 {
-	dev_err(&cdev->dev, "node alive timeout\n");
+	dev_err(&cdev->dev, "yesde alive timeout\n");
 	cosm_shutdown_status_int(cdev, MIC_CRASHED);
 	cosm_update_mic_status(cdev);
 }
@@ -189,7 +189,7 @@ static void cosm_scif_close(struct cosm_device *cdev)
 {
 	/*
 	 * Because SHUTDOWN_STATUS message is sent by the MIC cards in the
-	 * reboot notifier when shutdown is still not complete, we notify mpssd
+	 * reboot yestifier when shutdown is still yest complete, we yestify mpssd
 	 * to reset the card when SCIF endpoint is closed.
 	 */
 	cosm_update_mic_status(cdev);
@@ -215,7 +215,7 @@ static int cosm_set_online(struct cosm_device *cdev)
 		cosm_send_time(cdev);
 		dev_dbg(&cdev->dev, "%s %d\n", __func__, __LINE__);
 	} else {
-		dev_warn(&cdev->dev, "%s %d not going online in state: %s\n",
+		dev_warn(&cdev->dev, "%s %d yest going online in state: %s\n",
 			 __func__, __LINE__, cosm_state_string[cdev->state]);
 		rc = -EINVAL;
 	}
@@ -301,9 +301,9 @@ static int cosm_scif_server(void *unused)
 
 		/*
 		 * Associate the incoming connection with a particular
-		 * cosm_device, COSM device ID == SCIF node ID - 1
+		 * cosm_device, COSM device ID == SCIF yesde ID - 1
 		 */
-		cdev = cosm_find_cdev_by_id(port_id.node - 1);
+		cdev = cosm_find_cdev_by_id(port_id.yesde - 1);
 		if (!cdev)
 			continue;
 		cdev->newepd = newepd;

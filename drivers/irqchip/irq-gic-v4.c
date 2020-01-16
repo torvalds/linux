@@ -16,22 +16,22 @@
  * WARNING: The blurb below assumes that you understand the
  * intricacies of GICv3, GICv4, and how a guest's view of a GICv3 gets
  * translated into GICv4 commands. So it effectively targets at most
- * two individuals. You know who you are.
+ * two individuals. You kyesw who you are.
  *
  * The core GICv4 code is designed to *avoid* exposing too much of the
  * core GIC code (that would in turn leak into the hypervisor code),
- * and instead provide a hypervisor agnostic interface to the HW (of
+ * and instead provide a hypervisor agyesstic interface to the HW (of
  * course, the astute reader will quickly realize that hypervisor
- * agnostic actually means KVM-specific - what were you thinking?).
+ * agyesstic actually means KVM-specific - what were you thinking?).
  *
  * In order to achieve a modicum of isolation, we try to hide most of
- * the GICv4 "stuff" behind normal irqchip operations:
+ * the GICv4 "stuff" behind yesrmal irqchip operations:
  *
  * - Any guest-visible VLPI is backed by a Linux interrupt (and a
  *   physical LPI which gets unmapped when the guest maps the
  *   VLPI). This allows the same DevID/EventID pair to be either
  *   mapped to the LPI (host) or the VLPI (guest). Note that this is
- *   exclusive, and you cannot have both.
+ *   exclusive, and you canyest have both.
  *
  * - Enabling/disabling a VLPI is done by issuing mask/unmask calls.
  *
@@ -46,36 +46,36 @@
  *   about setting the affinity of a VLPI to a vcpu, so only INV is
  *   majorly out of place. So there.
  *
- * A number of commands are simply not provided by this interface, as
- * they do not make direct sense. For example, MAPD is purely local to
+ * A number of commands are simply yest provided by this interface, as
+ * they do yest make direct sense. For example, MAPD is purely local to
  * the virtual ITS (because it references a virtual device, and the
  * physical ITS is still very much in charge of the physical
  * device). Same goes for things like MAPC (the physical ITS deals
- * with the actual vPE affinity, and not the braindead concept of
- * collection). SYNC is not provided either, as each and every command
+ * with the actual vPE affinity, and yest the braindead concept of
+ * collection). SYNC is yest provided either, as each and every command
  * is followed by a VSYNC. This could be relaxed in the future, should
- * this be seen as a bottleneck (yes, this means *never*).
+ * this be seen as a bottleneck (no, this means *never*).
  *
  * But handling VLPIs is only one side of the job of the GICv4
  * code. The other (darker) side is to take care of the doorbell
- * interrupts which are delivered when a VLPI targeting a non-running
+ * interrupts which are delivered when a VLPI targeting a yesn-running
  * vcpu is being made pending.
  *
- * The choice made here is that each vcpu (VPE in old northern GICv4
- * dialect) gets a single doorbell LPI, no matter how many interrupts
+ * The choice made here is that each vcpu (VPE in old yesrthern GICv4
+ * dialect) gets a single doorbell LPI, yes matter how many interrupts
  * are targeting it. This has a nice property, which is that the
  * interrupt becomes a handle for the VPE, and that the hypervisor
- * code can manipulate it through the normal interrupt API:
+ * code can manipulate it through the yesrmal interrupt API:
  *
  * - VMs (or rather the VM abstraction that matters to the GIC)
  *   contain an irq domain where each interrupt maps to a VPE. In
- *   turn, this domain sits on top of the normal LPI allocator, and a
+ *   turn, this domain sits on top of the yesrmal LPI allocator, and a
  *   specially crafted irq_chip implementation.
  *
  * - mask/unmask do what is expected on the doorbell interrupt.
  *
  * - irq_set_affinity is used to move a VPE from one redistributor to
- *   another.
+ *   ayesther.
  *
  * - irq_set_vcpu_affinity once again gets hijacked for the purpose of
  *   creating a new sub-API, namely scheduling/descheduling a VPE
@@ -90,13 +90,13 @@ int its_alloc_vcpu_irqs(struct its_vm *vm)
 {
 	int vpe_base_irq, i;
 
-	vm->fwnode = irq_domain_alloc_named_id_fwnode("GICv4-vpe",
+	vm->fwyesde = irq_domain_alloc_named_id_fwyesde("GICv4-vpe",
 						      task_pid_nr(current));
-	if (!vm->fwnode)
+	if (!vm->fwyesde)
 		goto err;
 
 	vm->domain = irq_domain_create_hierarchy(gic_domain, 0, vm->nr_vpes,
-						 vm->fwnode, vpe_domain_ops,
+						 vm->fwyesde, vpe_domain_ops,
 						 vm);
 	if (!vm->domain)
 		goto err;
@@ -120,8 +120,8 @@ int its_alloc_vcpu_irqs(struct its_vm *vm)
 err:
 	if (vm->domain)
 		irq_domain_remove(vm->domain);
-	if (vm->fwnode)
-		irq_domain_free_fwnode(vm->fwnode);
+	if (vm->fwyesde)
+		irq_domain_free_fwyesde(vm->fwyesde);
 
 	return -ENOMEM;
 }
@@ -130,7 +130,7 @@ void its_free_vcpu_irqs(struct its_vm *vm)
 {
 	irq_domain_free_irqs(vm->vpes[0]->irq, vm->nr_vpes);
 	irq_domain_remove(vm->domain);
-	irq_domain_free_fwnode(vm->fwnode);
+	irq_domain_free_fwyesde(vm->fwyesde);
 }
 
 static int its_send_vpe_cmd(struct its_vpe *vpe, struct its_cmd_info *info)

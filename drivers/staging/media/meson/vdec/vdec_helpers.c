@@ -339,7 +339,7 @@ void amvdec_dst_buf_done_offset(struct amvdec_session *sess,
 
 		/* Offsets reported by codecs usually differ slightly,
 		 * so we need some wiggle room.
-		 * 4KiB being the minimum packet size, there is no risk here.
+		 * 4KiB being the minimum packet size, there is yes risk here.
 		 */
 		if (delta > (-1 * (s32)SZ_4K) && delta < SZ_4K) {
 			match = tmp;
@@ -350,7 +350,7 @@ void amvdec_dst_buf_done_offset(struct amvdec_session *sess,
 			continue;
 
 		/* Delete any timestamp entry that appears before our target
-		 * (not all src packets/timestamps lead to a frame)
+		 * (yest all src packets/timestamps lead to a frame)
 		 */
 		if (delta > 0 || delta < -1 * (s32)sess->vififo_size) {
 			atomic_dec(&sess->esparser_queued_bufs);
@@ -404,10 +404,10 @@ void amvdec_set_par_from_dar(struct amvdec_session *sess,
 	u32 div;
 
 	sess->pixelaspect.numerator = sess->height * dar_num;
-	sess->pixelaspect.denominator = sess->width * dar_den;
-	div = gcd(sess->pixelaspect.numerator, sess->pixelaspect.denominator);
+	sess->pixelaspect.deyesminator = sess->width * dar_den;
+	div = gcd(sess->pixelaspect.numerator, sess->pixelaspect.deyesminator);
 	sess->pixelaspect.numerator /= div;
-	sess->pixelaspect.denominator /= div;
+	sess->pixelaspect.deyesminator /= div;
 }
 EXPORT_SYMBOL_GPL(amvdec_set_par_from_dar);
 
@@ -421,7 +421,7 @@ void amvdec_src_change(struct amvdec_session *sess, u32 width,
 	v4l2_ctrl_s_ctrl(sess->ctrl_min_buf_capture, dpb_size);
 
 	/* Check if the capture queue is already configured well for our
-	 * usecase. If so, keep decoding with it and do not send the event
+	 * usecase. If so, keep decoding with it and do yest send the event
 	 */
 	if (sess->width == width &&
 	    sess->height == height &&

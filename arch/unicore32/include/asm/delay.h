@@ -16,7 +16,7 @@
 extern void __delay(int loops);
 
 /*
- * This function intentionally does not exist; if you see references to
+ * This function intentionally does yest exist; if you see references to
  * it, it means that you're calling udelay() with an out of range value.
  *
  * With currently imposed limits, this means that we support a max delay

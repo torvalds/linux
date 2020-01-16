@@ -2,7 +2,7 @@
  *  linux/drivers/scsi/esas2r/esas2r_ioctl.c
  *      For use with ATTO ExpressSAS R6xx SAS/SATA RAID controllers
  *
- *  Copyright (c) 2001-2013 ATTO Technology, Inc.
+ *  Copyright (c) 2001-2013 ATTO Techyeslogy, Inc.
  *  (mailto:linuxdrivers@attotech.com)
  *
  * This program is free software; you can redistribute it and/or
@@ -22,7 +22,7 @@
  * MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE. Each Recipient is
  * solely responsible for determining the appropriateness of using and
  * distributing the Program and assumes all risks associated with its
- * exercise of rights under this Agreement, including but not limited to
+ * exercise of rights under this Agreement, including but yest limited to
  * the risks and costs of program errors, damage to or loss of data,
  * programs or equipment, and unavailability or interruption of operations.
  *
@@ -36,7 +36,7 @@
  * HEREUNDER, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGES
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
+ * along with this program; if yest, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301,
  * USA.
  */
@@ -237,7 +237,7 @@ allocate_buffer:
 
 	if (!esas2r_buffered_ioctl) {
 		esas2r_log(ESAS2R_LOG_CRIT,
-			   "could not allocate %d bytes of consistent memory "
+			   "could yest allocate %d bytes of consistent memory "
 			   "for a buffered ioctl!",
 			   bi->length);
 
@@ -251,10 +251,10 @@ allocate_buffer:
 	rq = esas2r_alloc_request(a);
 	if (rq == NULL) {
 		esas2r_log(ESAS2R_LOG_CRIT,
-			   "could not allocate an internal request");
+			   "could yest allocate an internal request");
 
 		result = IOCTL_OUT_OF_RESOURCES;
-		esas2r_debug("buffered ioctl - no requests");
+		esas2r_debug("buffered ioctl - yes requests");
 		goto exit_cleanly;
 	}
 
@@ -265,12 +265,12 @@ allocate_buffer:
 	sgc.length = esas2r_buffered_ioctl_size;
 
 	if (!(*bi->callback)(a, rq, &sgc, bi->context)) {
-		/* completed immediately, no need to wait */
+		/* completed immediately, yes need to wait */
 		a->buffered_ioctl_done = 0;
 		goto free_andexit_cleanly;
 	}
 
-	/* now wait around for it to complete. */
+	/* yesw wait around for it to complete. */
 	while (!a->buffered_ioctl_done)
 		wait_event_interruptible(a->buffered_ioctl_waiter,
 					 a->buffered_ioctl_done);
@@ -431,7 +431,7 @@ static int csmi_ioctl_callback(struct esas2r_adapter *a,
 
 		strcpy(gdi->description, esas2r_get_model_name(a));
 		gdi->csmi_major_rev = CSMI_MAJOR_REV;
-		gdi->csmi_minor_rev = CSMI_MINOR_REV;
+		gdi->csmi_miyesr_rev = CSMI_MINOR_REV;
 		break;
 	}
 
@@ -456,11 +456,11 @@ static int csmi_ioctl_callback(struct esas2r_adapter *a,
 		memset(gcc->serial_num, 0, sizeof(gcc->serial_num));
 
 		gcc->major_rev = LOBYTE(LOWORD(a->fw_version));
-		gcc->minor_rev = HIBYTE(LOWORD(a->fw_version));
+		gcc->miyesr_rev = HIBYTE(LOWORD(a->fw_version));
 		gcc->build_rev = LOBYTE(HIWORD(a->fw_version));
 		gcc->release_rev = HIBYTE(HIWORD(a->fw_version));
 		gcc->bios_major_rev = HIBYTE(HIWORD(a->flash_ver));
-		gcc->bios_minor_rev = LOBYTE(HIWORD(a->flash_ver));
+		gcc->bios_miyesr_rev = LOBYTE(HIWORD(a->flash_ver));
 		gcc->bios_build_rev = LOWORD(a->flash_ver);
 
 		if (test_bit(AF2_THUNDERLINK, &a->flags2))
@@ -471,11 +471,11 @@ static int csmi_ioctl_callback(struct esas2r_adapter *a,
 					   | CSMI_CNTLRF_SATA_RAID;
 
 		gcc->rrom_major_rev = 0;
-		gcc->rrom_minor_rev = 0;
+		gcc->rrom_miyesr_rev = 0;
 		gcc->rrom_build_rev = 0;
 		gcc->rrom_release_rev = 0;
 		gcc->rrom_biosmajor_rev = 0;
-		gcc->rrom_biosminor_rev = 0;
+		gcc->rrom_biosmiyesr_rev = 0;
 		gcc->rrom_biosbuild_rev = 0;
 		gcc->rrom_biosrelease_rev = 0;
 		break;
@@ -619,7 +619,7 @@ static void csmi_ioctl_done_callback(struct esas2r_adapter *a,
 		strcpy(gdi->name, ESAS2R_VERSION_STR);
 
 		gdi->major_rev = ESAS2R_MAJOR_REV;
-		gdi->minor_rev = ESAS2R_MINOR_REV;
+		gdi->miyesr_rev = ESAS2R_MINOR_REV;
 		gdi->build_rev = 0;
 		gdi->release_rev = 0;
 		break;
@@ -967,7 +967,7 @@ static int hba_ioctl_callback(struct esas2r_adapter *a,
 			trc->current_offset = 0;
 			trc->total_length = ESAS2R_FWCOREDUMP_SZ;
 
-			/* Return zero length buffer if core dump not present */
+			/* Return zero length buffer if core dump yest present */
 			if (!test_bit(AF2_COREDUMP_SAVED, &a->flags2))
 				trc->total_length = 0;
 		} else {
@@ -1015,7 +1015,7 @@ static int hba_ioctl_callback(struct esas2r_adapter *a,
 		rq->vrq->scsi.length = cpu_to_le32(hi->data_length);
 		rq->sense_len = spt->sense_length;
 		rq->sense_buf = (u8 *)spt->sense_data;
-		/* NOTE: we ignore spt->timeout */
+		/* NOTE: we igyesre spt->timeout */
 
 		/*
 		 * always usurp the completion callback since the interrupt
@@ -1215,7 +1215,7 @@ static void hba_ioctl_done_callback(struct esas2r_adapter *a,
 		esas2r_debug("ATTO_FUNC_GET_ADAP_INFO");
 
 		gai->drvr_rev_major = ESAS2R_MAJOR_REV;
-		gai->drvr_rev_minor = ESAS2R_MINOR_REV;
+		gai->drvr_rev_miyesr = ESAS2R_MINOR_REV;
 
 		strcpy(gai->drvr_rev_ascii, ESAS2R_VERSION_STR);
 		strcpy(gai->drvr_name, ESAS2R_DRVR_NAME);
@@ -1255,7 +1255,7 @@ int esas2r_write_params(struct esas2r_adapter *a, struct esas2r_request *rq,
 	rq->comp_cb = complete_nvr_req;
 
 	if (esas2r_nvram_write(a, rq, data)) {
-		/* now wait around for it to complete. */
+		/* yesw wait around for it to complete. */
 		while (!a->nvram_command_done)
 			wait_event_interruptible(a->nvram_waiter,
 						 a->nvram_command_done);
@@ -1399,7 +1399,7 @@ int esas2r_ioctl_handler(void *hostdata, unsigned int cmd, void __user *arg)
 		if (rq == NULL) {
 			kfree(ioctl);
 			esas2r_log(ESAS2R_LOG_WARN,
-			   "could not allocate an internal request");
+			   "could yest allocate an internal request");
 			return -ENOMEM;
 		}
 
@@ -1421,7 +1421,7 @@ int esas2r_ioctl_handler(void *hostdata, unsigned int cmd, void __user *arg)
 	case EXPRESS_IOCTL_CHAN_INFO:
 
 		ioctl->data.chaninfo.major_rev = ESAS2R_MAJOR_REV;
-		ioctl->data.chaninfo.minor_rev = ESAS2R_MINOR_REV;
+		ioctl->data.chaninfo.miyesr_rev = ESAS2R_MINOR_REV;
 		ioctl->data.chaninfo.IRQ = a->pcid->irq;
 		ioctl->data.chaninfo.device_id = a->pcid->device;
 		ioctl->data.chaninfo.vendor_id = a->pcid->vendor;
@@ -1430,7 +1430,7 @@ int esas2r_ioctl_handler(void *hostdata, unsigned int cmd, void __user *arg)
 		ioctl->data.chaninfo.pci_bus = a->pcid->bus->number;
 		ioctl->data.chaninfo.pci_dev_func = a->pcid->devfn;
 		ioctl->data.chaninfo.core_rev = 0;
-		ioctl->data.chaninfo.host_no = a->host->host_no;
+		ioctl->data.chaninfo.host_yes = a->host->host_yes;
 		ioctl->data.chaninfo.hbaapi_rev = 0;
 		break;
 
@@ -1476,7 +1476,7 @@ int esas2r_ioctl_handler(void *hostdata, unsigned int cmd, void __user *arg)
 		ioctl->data.modinfo.adapter = a;
 		ioctl->data.modinfo.pci_dev = a->pcid;
 		ioctl->data.modinfo.scsi_host = a->host;
-		ioctl->data.modinfo.host_no = a->host->host_no;
+		ioctl->data.modinfo.host_yes = a->host->host_yes;
 
 		break;
 
@@ -1625,7 +1625,7 @@ int esas2r_read_fw(struct esas2r_adapter *a, char *buf, long off, int count)
 
 		if (!a->firmware.data) {
 			esas2r_debug(
-				"read: nonzero offset but no buffer available!");
+				"read: yesnzero offset but yes buffer available!");
 			return -ENOMEM;
 		}
 
@@ -1760,7 +1760,7 @@ int esas2r_write_fw(struct esas2r_adapter *a, const char *buf, long off,
 
 		/*
 		 * On a full upload, the system tries sending the whole buffer.
-		 * there's nothing to do with it, so just drop it here, before
+		 * there's yesthing to do with it, so just drop it here, before
 		 * trying to copy over into unallocated memory!
 		 */
 		if (a->firmware.header.action == FI_ACT_UP)
@@ -1768,7 +1768,7 @@ int esas2r_write_fw(struct esas2r_adapter *a, const char *buf, long off,
 
 		if (!a->firmware.data) {
 			esas2r_debug(
-				"write: nonzero offset but no buffer available!");
+				"write: yesnzero offset but yes buffer available!");
 			return -ENOMEM;
 		}
 
@@ -1836,7 +1836,7 @@ int esas2r_read_vda(struct esas2r_adapter *a, char *buf, long off, int count)
 
 		/*
 		 * Presumeably, someone has already written to the vda_buffer,
-		 * and now they are reading the node the response, so now we
+		 * and yesw they are reading the yesde the response, so yesw we
 		 * will actually issue the request to the chip and reply.
 		 */
 
@@ -1860,7 +1860,7 @@ int esas2r_read_vda(struct esas2r_adapter *a, char *buf, long off, int count)
 			esas2r_process_vda_ioctl(a, vi, rq, &sgc);
 
 		if (wait_for_completion) {
-			/* now wait around for it to complete. */
+			/* yesw wait around for it to complete. */
 
 			while (!a->vda_command_done)
 				wait_event_interruptible(a->vda_waiter,
@@ -1889,7 +1889,7 @@ int esas2r_write_vda(struct esas2r_adapter *a, const char *buf, long off,
 		     int count)
 {
 	/*
-	 * allocate memory for it, if not already done.  once allocated,
+	 * allocate memory for it, if yest already done.  once allocated,
 	 * we will keep it around until the driver is unloaded.
 	 */
 
@@ -1955,7 +1955,7 @@ int esas2r_read_fs(struct esas2r_adapter *a, char *buf, long off, int count)
 		struct esas2r_ioctl_fs *fs =
 			(struct esas2r_ioctl_fs *)a->fs_api_buffer;
 
-		/* If another flash request is already in progress, return. */
+		/* If ayesther flash request is already in progress, return. */
 		if (mutex_lock_interruptible(&a->fs_api_mutex)) {
 busy:
 			fs->status = ATTO_STS_OUT_OF_RSRC;
@@ -1964,8 +1964,8 @@ busy:
 
 		/*
 		 * Presumeably, someone has already written to the
-		 * fs_api_buffer, and now they are reading the node the
-		 * response, so now we will actually issue the request to the
+		 * fs_api_buffer, and yesw they are reading the yesde the
+		 * response, so yesw we will actually issue the request to the
 		 * chip and reply. Allocate a request
 		 */
 
@@ -2034,7 +2034,7 @@ int esas2r_write_fs(struct esas2r_adapter *a, const char *buf, long off,
 
 		/*
 		 * Special case, for BEGIN commands, the length field
-		 * is lying to us, so just get enough for the header.
+		 * is lying to us, so just get eyesugh for the header.
 		 */
 
 		if (fs->command.command == ESAS2R_FS_CMD_BEGINW)
@@ -2042,7 +2042,7 @@ int esas2r_write_fs(struct esas2r_adapter *a, const char *buf, long off,
 
 		/*
 		 * Beginning a command.  We assume we'll get at least
-		 * enough in the first write so we can look at the
+		 * eyesugh in the first write so we can look at the
 		 * header and see how much we need to alloc.
 		 */
 

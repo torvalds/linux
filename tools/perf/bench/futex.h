@@ -18,7 +18,7 @@
  * @uaddr:	address of first futex
  * @op:		futex op code
  * @val:	typically expected value of uaddr, but varies by op
- * @timeout:	typically an absolute struct timespec (except where noted
+ * @timeout:	typically an absolute struct timespec (except where yested
  *		otherwise). Overloaded by some ops
  * @uaddr2:	address of second futex for some ops\
  * @val3:	varies by op
@@ -31,7 +31,7 @@
  * example).
  *
  * These argument descriptions are the defaults for all
- * like-named arguments in the following wrappers except where noted below.
+ * like-named arguments in the following wrappers except where yested below.
  */
 #define futex(uaddr, op, val, timeout, uaddr2, val3, opflags) \
 	syscall(SYS_futex, uaddr, op | opflags, val, timeout, uaddr2, val3)

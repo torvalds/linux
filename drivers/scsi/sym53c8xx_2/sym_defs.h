@@ -84,12 +84,12 @@ struct sym_chip {
 struct sym_reg {
 /*00*/  u8	nc_scntl0;	/* full arb., ena parity, par->ATN  */
 
-/*01*/  u8	nc_scntl1;	/* no reset                         */
+/*01*/  u8	nc_scntl1;	/* yes reset                         */
         #define   ISCON   0x10  /* connected to scsi		    */
         #define   CRST    0x08  /* force reset                      */
         #define   IARB    0x02  /* immediate arbitration            */
 
-/*02*/  u8	nc_scntl2;	/* no disconnect expected           */
+/*02*/  u8	nc_scntl2;	/* yes disconnect expected           */
 	#define   SDU     0x80  /* cmd: disconnect will raise error */
 	#define   CHM     0x40  /* sta: chained mode                */
 	#define   WSS     0x08  /* sta: wide scsi send           [W]*/
@@ -247,8 +247,8 @@ struct sym_reg {
         #define   HTH     0x0100/* sta: timeout (handshake)         */
         #define   MA      0x80  /* sta: phase mismatch              */
         #define   CMP     0x40  /* sta: arbitration complete        */
-        #define   SEL     0x20  /* sta: selected by another device  */
-        #define   RSL     0x10  /* sta: reselected by another device*/
+        #define   SEL     0x20  /* sta: selected by ayesther device  */
+        #define   RSL     0x10  /* sta: reselected by ayesther device*/
         #define   SGE     0x08  /* sta: gross error (over/underflow)*/
         #define   UDC     0x04  /* sta: unexpected disconnect       */
         #define   RST     0x02  /* sta: scsi bus reset detected     */
@@ -386,7 +386,7 @@ struct sym_reg {
 #define	SCR_DT_DATA_IN	0x05000000
 #define SCR_MSG_OUT	0x06000000
 #define SCR_MSG_IN      0x07000000
-/* DT phases are illegal for non Ultra3 mode */
+/* DT phases are illegal for yesn Ultra3 mode */
 #define SCR_ILG_OUT	0x04000000
 #define SCR_ILG_IN	0x05000000
 
@@ -527,9 +527,9 @@ struct sym_tblsel {
  *	<< destination_address >>
  *
  *	SCR_COPY   sets the NO FLUSH option by default.
- *	SCR_COPY_F does not set this option.
+ *	SCR_COPY_F does yest set this option.
  *
- *	For chips which do not support this option,
+ *	For chips which do yest support this option,
  *	sym_fw_bind_script() will remove this bit.
  *
  *-----------------------------------------------------------

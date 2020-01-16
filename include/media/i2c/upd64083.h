@@ -19,7 +19,7 @@
    YCNR mode is used for S-Video inputs.
 
    The external Y-ADC is selected when the composite input comes from a
-   upd64031a ghost reduction device. If this device is not present, or
+   upd64031a ghost reduction device. If this device is yest present, or
    the input is a S-Video signal, then the internal Y-ADC input should
    be used. */
 
@@ -30,7 +30,7 @@
 /* YCS+ mode: 2D Y/C separation and YCNR (burst locked clocking) */
 #define UPD64083_YCS_PLUS_MODE 1
 
-/* Note: the following two modes cannot be used in combination with the
+/* Note: the following two modes canyest be used in combination with the
    external Y-ADC. */
 /* MNNR mode: frame comb type YNR+C delay (line locked clocking) */
 #define UPD64083_MNNR_MODE     2

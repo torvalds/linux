@@ -25,7 +25,7 @@ enum {
 
 /*
  * 4 16 bit channels are allowed.
- * Good enough for current sensors, they use up to 3 16 bit vectors.
+ * Good eyesugh for current sensors, they use up to 3 16 bit vectors.
  */
 #define CROS_EC_SAMPLE_SIZE  (sizeof(s64) * 2)
 
@@ -75,7 +75,7 @@ struct cros_ec_sensors_core_state {
 
 	int curr_sampl_freq;
 
-	/* Table of known available frequencies : 0, Min and Max in mHz */
+	/* Table of kyeswn available frequencies : 0, Min and Max in mHz */
 	int frequencies[3];
 };
 
@@ -86,9 +86,9 @@ struct cros_ec_sensors_core_state {
  * @data:	location to store data
  *
  * This is the safe function for reading the EC data. It guarantees that the
- * data sampled was not modified by the EC while being read.
+ * data sampled was yest modified by the EC while being read.
  *
- * Return: 0 on success, -errno on failure.
+ * Return: 0 on success, -erryes on failure.
  */
 int cros_ec_sensors_read_lpc(struct iio_dev *indio_dev, unsigned long scan_mask,
 			     s16 *data);
@@ -99,7 +99,7 @@ int cros_ec_sensors_read_lpc(struct iio_dev *indio_dev, unsigned long scan_mask,
  * @scan_mask:	bitmap of the sensor indices to scan
  * @data:	location to store data
  *
- * Return: 0 on success, -errno on failure.
+ * Return: 0 on success, -erryes on failure.
  */
 int cros_ec_sensors_read_cmd(struct iio_dev *indio_dev, unsigned long scan_mask,
 			     s16 *data);
@@ -111,7 +111,7 @@ struct platform_device;
  * @indio_dev:		iio device structure of the device
  * @physical_device:	true if the device refers to a physical device
  *
- * Return: 0 on success, -errno on failure.
+ * Return: 0 on success, -erryes on failure.
  */
 int cros_ec_sensors_core_init(struct platform_device *pdev,
 			      struct iio_dev *indio_dev, bool physical_device);
@@ -138,7 +138,7 @@ irqreturn_t cros_ec_sensors_capture(int irq, void *p);
  *
  * When called, the sub-command is assumed to be set in param->cmd.
  *
- * Return: 0 on success, -errno on failure.
+ * Return: 0 on success, -erryes on failure.
  */
 int cros_ec_motion_send_host_cmd(struct cros_ec_sensors_core_state *st,
 				 u16 opt_length);
@@ -148,7 +148,7 @@ int cros_ec_motion_send_host_cmd(struct cros_ec_sensors_core_state *st,
  * @st:		pointer to state information for device
  * @chan:	channel specification structure table
  * @val:	will contain one element making up the returned value
- * @val2:	will contain another element making up the returned value
+ * @val2:	will contain ayesther element making up the returned value
  * @mask:	specifies which values to be requested
  *
  * Return:	the type of value returned by the device

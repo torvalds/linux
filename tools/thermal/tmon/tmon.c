@@ -28,7 +28,7 @@
 #include "tmon.h"
 
 unsigned long ticktime = 1; /* seconds */
-unsigned long no_control = 1; /* monitoring only or use cooling device for
+unsigned long yes_control = 1; /* monitoring only or use cooling device for
 			       * temperature control.
 			       */
 double time_elapsed = 0.0;
@@ -50,7 +50,7 @@ void usage()
 {
 	printf("Usage: tmon [OPTION...]\n");
 	printf("  -c, --control         cooling device in control\n");
-	printf("  -d, --daemon          run as daemon, no TUI\n");
+	printf("  -d, --daemon          run as daemon, yes TUI\n");
 	printf("  -g, --debug           debug message in syslog\n");
 	printf("  -h, --help            show this help message\n");
 	printf("  -l, --log             log data to /var/tmp/tmon.log\n");
@@ -83,12 +83,12 @@ static void tmon_cleanup(void)
 		pthread_mutex_destroy(&input_lock);
 	}
 	closelog();
-	/* relax control knobs, undo throttling */
+	/* relax control kyesbs, undo throttling */
 	set_ctrl_state(0);
 
 	keypad(stdscr, FALSE);
 	echo();
-	nocbreak();
+	yescbreak();
 	close_windows();
 	endwin();
 	free_thermal_data();
@@ -154,7 +154,7 @@ static void prepare_logging(void)
 
 	/* The log file must be a regular file owned by us */
 	if (S_ISLNK(logstat.st_mode)) {
-		syslog(LOG_ERR, "Log file is a symlink.  Will not log\n");
+		syslog(LOG_ERR, "Log file is a symlink.  Will yest log\n");
 		fclose(tmon_log);
 		tmon_log = NULL;
 		return;
@@ -235,7 +235,7 @@ int main(int argc, char **argv)
 	while ((c = getopt_long(argc, argv, "c:dlht:T:vgz:", opts, &id2)) != -1) {
 		switch (c) {
 		case 'c':
-			no_control = 0;
+			yes_control = 0;
 			strncpy(ctrl_cdev, optarg, CDEV_NAME_SIZE);
 			break;
 		case 'd':
@@ -281,9 +281,9 @@ int main(int argc, char **argv)
 	}
 	start_syslog();
 	if (signal(SIGINT, tmon_sig_handler) == SIG_ERR)
-		syslog(LOG_DEBUG, "Cannot handle SIGINT\n");
+		syslog(LOG_DEBUG, "Canyest handle SIGINT\n");
 	if (signal(SIGTERM, tmon_sig_handler) == SIG_ERR)
-		syslog(LOG_DEBUG, "Cannot handle SIGINT\n");
+		syslog(LOG_DEBUG, "Canyest handle SIGINT\n");
 
 	if (probe_thermal_sysfs()) {
 		pthread_mutex_destroy(&input_lock);
@@ -301,7 +301,7 @@ int main(int argc, char **argv)
 	prepare_logging();
 	init_thermal_controller();
 
-	nodelay(stdscr, TRUE);
+	yesdelay(stdscr, TRUE);
 	err = pthread_create(&event_tid, NULL, &handle_tui_events, NULL);
 	if (err != 0) {
 		printf("\ncan't create thread :[%s]", strerror(err));
@@ -315,7 +315,7 @@ int main(int argc, char **argv)
 	target_tz_index = zone_instance_to_index(target_thermal_zone);
 	if (target_tz_index < 0) {
 		target_thermal_zone = ptdata.tzi[0].instance;
-		syslog(LOG_ERR, "target zone is not found, default to %d\n",
+		syslog(LOG_ERR, "target zone is yest found, default to %d\n",
 			target_thermal_zone);
 	}
 	while (1) {
@@ -351,7 +351,7 @@ static void start_daemon_mode()
 		/* kill parent */
 		exit(EXIT_SUCCESS);
 
-	/* disable TUI, it may not be necessary, but saves some resource */
+	/* disable TUI, it may yest be necessary, but saves some resource */
 	disable_tui();
 
 	/* change the file mode mask */

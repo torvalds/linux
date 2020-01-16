@@ -62,7 +62,7 @@ static int pacpi_cable_detect(struct ata_port *ap)
 }
 
 /**
- *	pacpi_discover_modes	-	filter non ACPI modes
+ *	pacpi_discover_modes	-	filter yesn ACPI modes
  *	@adev: ATA device
  *	@mask: proposed modes
  *
@@ -100,7 +100,7 @@ static unsigned long pacpi_discover_modes(struct ata_port *ap, struct ata_device
 static unsigned long pacpi_mode_filter(struct ata_device *adev, unsigned long mask)
 {
 	struct pata_acpi *acpi = adev->link->ap->private_data;
-	return mask & acpi->mask[adev->devno];
+	return mask & acpi->mask[adev->devyes];
 }
 
 /**
@@ -111,7 +111,7 @@ static unsigned long pacpi_mode_filter(struct ata_device *adev, unsigned long ma
 
 static void pacpi_set_piomode(struct ata_port *ap, struct ata_device *adev)
 {
-	int unit = adev->devno;
+	int unit = adev->devyes;
 	struct pata_acpi *acpi = ap->private_data;
 	const struct ata_timing *t;
 
@@ -134,7 +134,7 @@ static void pacpi_set_piomode(struct ata_port *ap, struct ata_device *adev)
 
 static void pacpi_set_dmamode(struct ata_port *ap, struct ata_device *adev)
 {
-	int unit = adev->devno;
+	int unit = adev->devyes;
 	struct pata_acpi *acpi = ap->private_data;
 	const struct ata_timing *t;
 

@@ -2,8 +2,8 @@
 /*
  * Linux performance counter support for ARC
  *
- * Copyright (C) 2014-2015 Synopsys, Inc. (www.synopsys.com)
- * Copyright (C) 2011-2013 Synopsys, Inc. (www.synopsys.com)
+ * Copyright (C) 2014-2015 Syyespsys, Inc. (www.syyespsys.com)
+ * Copyright (C) 2011-2013 Syyespsys, Inc. (www.syyespsys.com)
  */
 
 #ifndef __ASM_PERF_EVENT_H
@@ -69,7 +69,7 @@ struct arc_reg_cc_build {
  * PERF_COUNT_HW_STALLED_CYCLES_BACKEND
  * PERF_COUNT_HW_STALLED_CYCLES_FRONTEND
  *	The ARC 700 can either measure stalls per pipeline stage, or all stalls
- *	combined; for now we assign all stalls to STALLED_CYCLES_BACKEND
+ *	combined; for yesw we assign all stalls to STALLED_CYCLES_BACKEND
  *	and all pipeline flushes (e.g. caused by mispredicts, etc.) to
  *	STALLED_CYCLES_FRONTEND.
  *
@@ -171,7 +171,7 @@ static const unsigned arc_pmu_cache_map[C(MAX)][C(OP_MAX)][C(RESULT_MAX)] = {
 			[C(RESULT_ACCESS)]	= PERF_COUNT_ARC_LDC,
 			[C(RESULT_MISS)]	= PERF_COUNT_ARC_EDTLB,
 		},
-			/* DTLB LD/ST Miss not segregated by h/w*/
+			/* DTLB LD/ST Miss yest segregated by h/w*/
 		[C(OP_WRITE)] = {
 			[C(RESULT_ACCESS)]	= CACHE_OP_UNSUPPORTED,
 			[C(RESULT_MISS)]	= CACHE_OP_UNSUPPORTED,

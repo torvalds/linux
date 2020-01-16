@@ -9,7 +9,7 @@
  *
  *  Written by Ilan Elias <ilane@ti.com>
  *
- *  Acknowledgements:
+ *  Ackyeswledgements:
  *  This file is based on hci_core.h, which was written
  *  by Maxim Krasnyansky.
  */
@@ -380,9 +380,9 @@ int nci_get_conn_info_by_dest_type_params(struct nci_dev *ndev, u8 dest_type,
 					  struct dest_spec_params *params);
 
 /* ----- NCI status code ----- */
-int nci_to_errno(__u8 code);
+int nci_to_erryes(__u8 code);
 
-/* ----- NCI over SPI acknowledge modes ----- */
+/* ----- NCI over SPI ackyeswledge modes ----- */
 #define NCI_SPI_CRC_DISABLED	0x00
 #define NCI_SPI_CRC_ENABLED	0x01
 
@@ -399,7 +399,7 @@ struct nci_spi {
 						* 0 => default clock
 						*/
 
-	u8			acknowledge_mode;
+	u8			ackyeswledge_mode;
 
 	struct completion	req_completion;
 	u8			req_result;
@@ -407,7 +407,7 @@ struct nci_spi {
 
 /* ----- NCI SPI ----- */
 struct nci_spi *nci_spi_allocate_spi(struct spi_device *spi,
-				     u8 acknowledge_mode, unsigned int delay,
+				     u8 ackyeswledge_mode, unsigned int delay,
 				     struct nci_dev *ndev);
 int nci_spi_send(struct nci_spi *nspi,
 		 struct completion *write_handshake_completion,

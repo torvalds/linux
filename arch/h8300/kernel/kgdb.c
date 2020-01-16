@@ -1,7 +1,7 @@
 /*
  * H8/300 KGDB support
  *
- * Copyright (C) 2015 Yoshinori Sato <ysato@users.sourceforge.jp>
+ * Copyright (C) 2015 Yoshiyesri Sato <ysato@users.sourceforge.jp>
  *
  * This file is subject to the terms and conditions of the GNU General Public
  * License.  See the file "COPYING" in the main directory of this archive
@@ -32,46 +32,46 @@ struct dbg_reg_def_t dbg_reg_def[DBG_MAX_REG_NUM] = {
 	{ "inst", GDB_SIZEOF_REG, -1 },
 };
 
-char *dbg_get_reg(int regno, void *mem, struct pt_regs *regs)
+char *dbg_get_reg(int regyes, void *mem, struct pt_regs *regs)
 {
-	if (regno >= DBG_MAX_REG_NUM || regno < 0)
+	if (regyes >= DBG_MAX_REG_NUM || regyes < 0)
 		return NULL;
 
-	switch (regno) {
+	switch (regyes) {
 	case GDB_CCR:
 #if defined(CONFIG_CPU_H8S)
 	case GDB_EXR:
 #endif
 		*(u32 *)mem = *(u16 *)((void *)regs +
-				       dbg_reg_def[regno].offset);
+				       dbg_reg_def[regyes].offset);
 		break;
 	default:
-		if (dbg_reg_def[regno].offset >= 0)
-			memcpy(mem, (void *)regs + dbg_reg_def[regno].offset,
-			       dbg_reg_def[regno].size);
+		if (dbg_reg_def[regyes].offset >= 0)
+			memcpy(mem, (void *)regs + dbg_reg_def[regyes].offset,
+			       dbg_reg_def[regyes].size);
 		else
-			memset(mem, 0, dbg_reg_def[regno].size);
+			memset(mem, 0, dbg_reg_def[regyes].size);
 		break;
 	}
-	return dbg_reg_def[regno].name;
+	return dbg_reg_def[regyes].name;
 }
 
-int dbg_set_reg(int regno, void *mem, struct pt_regs *regs)
+int dbg_set_reg(int regyes, void *mem, struct pt_regs *regs)
 {
-	if (regno >= DBG_MAX_REG_NUM || regno < 0)
+	if (regyes >= DBG_MAX_REG_NUM || regyes < 0)
 		return -EINVAL;
 
-	switch (regno) {
+	switch (regyes) {
 	case GDB_CCR:
 #if defined(CONFIG_CPU_H8S)
 	case GDB_EXR:
 #endif
 		*(u16 *)((void *)regs +
-			 dbg_reg_def[regno].offset) = *(u32 *)mem;
+			 dbg_reg_def[regyes].offset) = *(u32 *)mem;
 		break;
 	default:
-		memcpy((void *)regs + dbg_reg_def[regno].offset, mem,
-		       dbg_reg_def[regno].size);
+		memcpy((void *)regs + dbg_reg_def[regyes].offset, mem,
+		       dbg_reg_def[regyes].size);
 	}
 	return 0;
 }
@@ -98,7 +98,7 @@ void kgdb_arch_set_pc(struct pt_regs *regs, unsigned long pc)
 	regs->pc = pc;
 }
 
-int kgdb_arch_handle_exception(int vector, int signo, int err_code,
+int kgdb_arch_handle_exception(int vector, int sigyes, int err_code,
 				char *remcom_in_buffer, char *remcom_out_buffer,
 				struct pt_regs *regs)
 {
@@ -116,7 +116,7 @@ int kgdb_arch_handle_exception(int vector, int signo, int err_code,
 		return 0;
 	}
 
-	return -1; /* this means that we do not want to exit from the handler */
+	return -1; /* this means that we do yest want to exit from the handler */
 }
 
 int kgdb_arch_init(void)

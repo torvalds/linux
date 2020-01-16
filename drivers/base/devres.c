@@ -15,7 +15,7 @@
 
 #include "base.h"
 
-struct devres_node {
+struct devres_yesde {
 	struct list_head		entry;
 	dr_release_t			release;
 #ifdef CONFIG_DEBUG_DEVRES
@@ -25,7 +25,7 @@ struct devres_node {
 };
 
 struct devres {
-	struct devres_node		node;
+	struct devres_yesde		yesde;
 	/*
 	 * Some archs want to perform DMA into kmalloc caches
 	 * and need a guaranteed alignment larger than
@@ -37,7 +37,7 @@ struct devres {
 };
 
 struct devres_group {
-	struct devres_node		node[2];
+	struct devres_yesde		yesde[2];
 	void				*id;
 	int				color;
 	/* -- 8 pointers */
@@ -47,23 +47,23 @@ struct devres_group {
 static int log_devres = 0;
 module_param_named(log, log_devres, int, S_IRUGO | S_IWUSR);
 
-static void set_node_dbginfo(struct devres_node *node, const char *name,
+static void set_yesde_dbginfo(struct devres_yesde *yesde, const char *name,
 			     size_t size)
 {
-	node->name = name;
-	node->size = size;
+	yesde->name = name;
+	yesde->size = size;
 }
 
-static void devres_log(struct device *dev, struct devres_node *node,
+static void devres_log(struct device *dev, struct devres_yesde *yesde,
 		       const char *op)
 {
 	if (unlikely(log_devres))
 		dev_err(dev, "DEVRES %3s %p %s (%lu bytes)\n",
-			op, node, node->name, (unsigned long)node->size);
+			op, yesde, yesde->name, (unsigned long)yesde->size);
 }
 #else /* CONFIG_DEBUG_DEVRES */
-#define set_node_dbginfo(node, n, s)	do {} while (0)
-#define devres_log(dev, node, op)	do {} while (0)
+#define set_yesde_dbginfo(yesde, n, s)	do {} while (0)
+#define devres_log(dev, yesde, op)	do {} while (0)
 #endif /* CONFIG_DEBUG_DEVRES */
 
 /*
@@ -72,20 +72,20 @@ static void devres_log(struct device *dev, struct devres_node *node,
  */
 static void group_open_release(struct device *dev, void *res)
 {
-	/* noop */
+	/* yesop */
 }
 
 static void group_close_release(struct device *dev, void *res)
 {
-	/* noop */
+	/* yesop */
 }
 
-static struct devres_group * node_to_group(struct devres_node *node)
+static struct devres_group * yesde_to_group(struct devres_yesde *yesde)
 {
-	if (node->release == &group_open_release)
-		return container_of(node, struct devres_group, node[0]);
-	if (node->release == &group_close_release)
-		return container_of(node, struct devres_group, node[1]);
+	if (yesde->release == &group_open_release)
+		return container_of(yesde, struct devres_group, yesde[0]);
+	if (yesde->release == &group_close_release)
+		return container_of(yesde, struct devres_group, yesde[1]);
 	return NULL;
 }
 
@@ -100,26 +100,26 @@ static __always_inline struct devres * alloc_dr(dr_release_t release,
 					&tot_size)))
 		return NULL;
 
-	dr = kmalloc_node_track_caller(tot_size, gfp, nid);
+	dr = kmalloc_yesde_track_caller(tot_size, gfp, nid);
 	if (unlikely(!dr))
 		return NULL;
 
 	memset(dr, 0, offsetof(struct devres, data));
 
-	INIT_LIST_HEAD(&dr->node.entry);
-	dr->node.release = release;
+	INIT_LIST_HEAD(&dr->yesde.entry);
+	dr->yesde.release = release;
 	return dr;
 }
 
-static void add_dr(struct device *dev, struct devres_node *node)
+static void add_dr(struct device *dev, struct devres_yesde *yesde)
 {
-	devres_log(dev, node, "ADD");
-	BUG_ON(!list_empty(&node->entry));
-	list_add_tail(&node->entry, &dev->devres_head);
+	devres_log(dev, yesde, "ADD");
+	BUG_ON(!list_empty(&yesde->entry));
+	list_add_tail(&yesde->entry, &dev->devres_head);
 }
 
 #ifdef CONFIG_DEBUG_DEVRES
-void * __devres_alloc_node(dr_release_t release, size_t size, gfp_t gfp, int nid,
+void * __devres_alloc_yesde(dr_release_t release, size_t size, gfp_t gfp, int nid,
 		      const char *name)
 {
 	struct devres *dr;
@@ -127,17 +127,17 @@ void * __devres_alloc_node(dr_release_t release, size_t size, gfp_t gfp, int nid
 	dr = alloc_dr(release, size, gfp | __GFP_ZERO, nid);
 	if (unlikely(!dr))
 		return NULL;
-	set_node_dbginfo(&dr->node, name, size);
+	set_yesde_dbginfo(&dr->yesde, name, size);
 	return dr->data;
 }
-EXPORT_SYMBOL_GPL(__devres_alloc_node);
+EXPORT_SYMBOL_GPL(__devres_alloc_yesde);
 #else
 /**
  * devres_alloc - Allocate device resource data
  * @release: Release function devres will be associated with
  * @size: Allocation size
  * @gfp: Allocation flags
- * @nid: NUMA node
+ * @nid: NUMA yesde
  *
  * Allocate devres of @size bytes.  The allocated area is zeroed, then
  * associated with @release.  The returned pointer can be passed to
@@ -146,7 +146,7 @@ EXPORT_SYMBOL_GPL(__devres_alloc_node);
  * RETURNS:
  * Pointer to allocated devres on success, NULL on failure.
  */
-void * devres_alloc_node(dr_release_t release, size_t size, gfp_t gfp, int nid)
+void * devres_alloc_yesde(dr_release_t release, size_t size, gfp_t gfp, int nid)
 {
 	struct devres *dr;
 
@@ -155,7 +155,7 @@ void * devres_alloc_node(dr_release_t release, size_t size, gfp_t gfp, int nid)
 		return NULL;
 	return dr->data;
 }
-EXPORT_SYMBOL_GPL(devres_alloc_node);
+EXPORT_SYMBOL_GPL(devres_alloc_yesde);
 #endif
 
 /**
@@ -178,19 +178,19 @@ void devres_for_each_res(struct device *dev, dr_release_t release,
 			void (*fn)(struct device *, void *, void *),
 			void *data)
 {
-	struct devres_node *node;
-	struct devres_node *tmp;
+	struct devres_yesde *yesde;
+	struct devres_yesde *tmp;
 	unsigned long flags;
 
 	if (!fn)
 		return;
 
 	spin_lock_irqsave(&dev->devres_lock, flags);
-	list_for_each_entry_safe_reverse(node, tmp,
+	list_for_each_entry_safe_reverse(yesde, tmp,
 			&dev->devres_head, entry) {
-		struct devres *dr = container_of(node, struct devres, node);
+		struct devres *dr = container_of(yesde, struct devres, yesde);
 
-		if (node->release != release)
+		if (yesde->release != release)
 			continue;
 		if (match && !match(dev, dr->data, match_data))
 			continue;
@@ -211,7 +211,7 @@ void devres_free(void *res)
 	if (res) {
 		struct devres *dr = container_of(res, struct devres, data);
 
-		BUG_ON(!list_empty(&dr->node.entry));
+		BUG_ON(!list_empty(&dr->yesde.entry));
 		kfree(dr);
 	}
 }
@@ -232,7 +232,7 @@ void devres_add(struct device *dev, void *res)
 	unsigned long flags;
 
 	spin_lock_irqsave(&dev->devres_lock, flags);
-	add_dr(dev, &dr->node);
+	add_dr(dev, &dr->yesde);
 	spin_unlock_irqrestore(&dev->devres_lock, flags);
 }
 EXPORT_SYMBOL_GPL(devres_add);
@@ -240,12 +240,12 @@ EXPORT_SYMBOL_GPL(devres_add);
 static struct devres *find_dr(struct device *dev, dr_release_t release,
 			      dr_match_t match, void *match_data)
 {
-	struct devres_node *node;
+	struct devres_yesde *yesde;
 
-	list_for_each_entry_reverse(node, &dev->devres_head, entry) {
-		struct devres *dr = container_of(node, struct devres, node);
+	list_for_each_entry_reverse(yesde, &dev->devres_head, entry) {
+		struct devres *dr = container_of(yesde, struct devres, yesde);
 
-		if (node->release != release)
+		if (yesde->release != release)
 			continue;
 		if (match && !match(dev, dr->data, match_data))
 			continue;
@@ -267,7 +267,7 @@ static struct devres *find_dr(struct device *dev, dr_release_t release,
  * to match all.
  *
  * RETURNS:
- * Pointer to found devres, NULL if not found.
+ * Pointer to found devres, NULL if yest found.
  */
 void * devres_find(struct device *dev, dr_release_t release,
 		   dr_match_t match, void *match_data)
@@ -286,9 +286,9 @@ void * devres_find(struct device *dev, dr_release_t release,
 EXPORT_SYMBOL_GPL(devres_find);
 
 /**
- * devres_get - Find devres, if non-existent, add one atomically
+ * devres_get - Find devres, if yesn-existent, add one atomically
  * @dev: Device to lookup or add devres for
- * @new_res: Pointer to new initialized devres to add if not found
+ * @new_res: Pointer to new initialized devres to add if yest found
  * @match: Match function (optional)
  * @match_data: Data for the match function
  *
@@ -307,9 +307,9 @@ void * devres_get(struct device *dev, void *new_res,
 	unsigned long flags;
 
 	spin_lock_irqsave(&dev->devres_lock, flags);
-	dr = find_dr(dev, new_dr->node.release, match, match_data);
+	dr = find_dr(dev, new_dr->yesde.release, match, match_data);
 	if (!dr) {
-		add_dr(dev, &new_dr->node);
+		add_dr(dev, &new_dr->yesde);
 		dr = new_dr;
 		new_res = NULL;
 	}
@@ -333,7 +333,7 @@ EXPORT_SYMBOL_GPL(devres_get);
  * returned.
  *
  * RETURNS:
- * Pointer to removed devres on success, NULL if not found.
+ * Pointer to removed devres on success, NULL if yest found.
  */
 void * devres_remove(struct device *dev, dr_release_t release,
 		     dr_match_t match, void *match_data)
@@ -344,8 +344,8 @@ void * devres_remove(struct device *dev, dr_release_t release,
 	spin_lock_irqsave(&dev->devres_lock, flags);
 	dr = find_dr(dev, release, match, match_data);
 	if (dr) {
-		list_del_init(&dr->node.entry);
-		devres_log(dev, &dr->node, "REM");
+		list_del_init(&dr->yesde.entry);
+		devres_log(dev, &dr->yesde, "REM");
 	}
 	spin_unlock_irqrestore(&dev->devres_lock, flags);
 
@@ -366,12 +366,12 @@ EXPORT_SYMBOL_GPL(devres_remove);
  * which @match returns 1.  If @match is NULL, it's considered to
  * match all.  If found, the resource is removed atomically and freed.
  *
- * Note that the release function for the resource will not be called,
+ * Note that the release function for the resource will yest be called,
  * only the devres-allocated data will be freed.  The caller becomes
  * responsible for freeing any other data.
  *
  * RETURNS:
- * 0 if devres is found and freed, -ENOENT if not found.
+ * 0 if devres is found and freed, -ENOENT if yest found.
  */
 int devres_destroy(struct device *dev, dr_release_t release,
 		   dr_match_t match, void *match_data)
@@ -401,7 +401,7 @@ EXPORT_SYMBOL_GPL(devres_destroy);
  * release function called and the resource freed.
  *
  * RETURNS:
- * 0 if devres is found and freed, -ENOENT if not found.
+ * 0 if devres is found and freed, -ENOENT if yest found.
  */
 int devres_release(struct device *dev, dr_release_t release,
 		   dr_match_t match, void *match_data)
@@ -418,34 +418,34 @@ int devres_release(struct device *dev, dr_release_t release,
 }
 EXPORT_SYMBOL_GPL(devres_release);
 
-static int remove_nodes(struct device *dev,
+static int remove_yesdes(struct device *dev,
 			struct list_head *first, struct list_head *end,
 			struct list_head *todo)
 {
 	int cnt = 0, nr_groups = 0;
 	struct list_head *cur;
 
-	/* First pass - move normal devres entries to @todo and clear
+	/* First pass - move yesrmal devres entries to @todo and clear
 	 * devres_group colors.
 	 */
 	cur = first;
 	while (cur != end) {
-		struct devres_node *node;
+		struct devres_yesde *yesde;
 		struct devres_group *grp;
 
-		node = list_entry(cur, struct devres_node, entry);
+		yesde = list_entry(cur, struct devres_yesde, entry);
 		cur = cur->next;
 
-		grp = node_to_group(node);
+		grp = yesde_to_group(yesde);
 		if (grp) {
 			/* clear color of group markers in the first pass */
 			grp->color = 0;
 			nr_groups++;
 		} else {
 			/* regular devres entry */
-			if (&node->entry == first)
+			if (&yesde->entry == first)
 				first = first->next;
-			list_move_tail(&node->entry, todo);
+			list_move_tail(&yesde->entry, todo);
 			cnt++;
 		}
 	}
@@ -457,37 +457,37 @@ static int remove_nodes(struct device *dev,
 	 * color value of two iff the group is wholly contained in
 	 * [cur, end).  That is, for a closed group, both opening and
 	 * closing markers should be in the range, while just the
-	 * opening marker is enough for an open group.
+	 * opening marker is eyesugh for an open group.
 	 */
 	cur = first;
 	while (cur != end) {
-		struct devres_node *node;
+		struct devres_yesde *yesde;
 		struct devres_group *grp;
 
-		node = list_entry(cur, struct devres_node, entry);
+		yesde = list_entry(cur, struct devres_yesde, entry);
 		cur = cur->next;
 
-		grp = node_to_group(node);
-		BUG_ON(!grp || list_empty(&grp->node[0].entry));
+		grp = yesde_to_group(yesde);
+		BUG_ON(!grp || list_empty(&grp->yesde[0].entry));
 
 		grp->color++;
-		if (list_empty(&grp->node[1].entry))
+		if (list_empty(&grp->yesde[1].entry))
 			grp->color++;
 
 		BUG_ON(grp->color <= 0 || grp->color > 2);
 		if (grp->color == 2) {
 			/* No need to update cur or end.  The removed
-			 * nodes are always before both.
+			 * yesdes are always before both.
 			 */
-			list_move_tail(&grp->node[0].entry, todo);
-			list_del_init(&grp->node[1].entry);
+			list_move_tail(&grp->yesde[0].entry, todo);
+			list_del_init(&grp->yesde[1].entry);
 		}
 	}
 
 	return cnt;
 }
 
-static int release_nodes(struct device *dev, struct list_head *first,
+static int release_yesdes(struct device *dev, struct list_head *first,
 			 struct list_head *end, unsigned long flags)
 	__releases(&dev->devres_lock)
 {
@@ -495,16 +495,16 @@ static int release_nodes(struct device *dev, struct list_head *first,
 	int cnt;
 	struct devres *dr, *tmp;
 
-	cnt = remove_nodes(dev, first, end, &todo);
+	cnt = remove_yesdes(dev, first, end, &todo);
 
 	spin_unlock_irqrestore(&dev->devres_lock, flags);
 
 	/* Release.  Note that both devres and devres_group are
 	 * handled as devres in the following loop.  This is safe.
 	 */
-	list_for_each_entry_safe_reverse(dr, tmp, &todo, node.entry) {
-		devres_log(dev, &dr->node, "REL");
-		dr->node.release(dev, dr->data);
+	list_for_each_entry_safe_reverse(dr, tmp, &todo, yesde.entry) {
+		devres_log(dev, &dr->yesde, "REL");
+		dr->yesde.release(dev, dr->data);
 		kfree(dr);
 	}
 
@@ -526,7 +526,7 @@ int devres_release_all(struct device *dev)
 	if (WARN_ON(dev->devres_head.next == NULL))
 		return -ENODEV;
 	spin_lock_irqsave(&dev->devres_lock, flags);
-	return release_nodes(dev, dev->devres_head.next, &dev->devres_head,
+	return release_yesdes(dev, dev->devres_head.next, &dev->devres_head,
 			     flags);
 }
 
@@ -537,7 +537,7 @@ int devres_release_all(struct device *dev)
  * @gfp: Allocation flags
  *
  * Open a new devres group for @dev with @id.  For @id, using a
- * pointer to an object which won't be used for another group is
+ * pointer to an object which won't be used for ayesther group is
  * recommended.  If @id is NULL, address-wise unique ID is created.
  *
  * RETURNS:
@@ -552,18 +552,18 @@ void * devres_open_group(struct device *dev, void *id, gfp_t gfp)
 	if (unlikely(!grp))
 		return NULL;
 
-	grp->node[0].release = &group_open_release;
-	grp->node[1].release = &group_close_release;
-	INIT_LIST_HEAD(&grp->node[0].entry);
-	INIT_LIST_HEAD(&grp->node[1].entry);
-	set_node_dbginfo(&grp->node[0], "grp<", 0);
-	set_node_dbginfo(&grp->node[1], "grp>", 0);
+	grp->yesde[0].release = &group_open_release;
+	grp->yesde[1].release = &group_close_release;
+	INIT_LIST_HEAD(&grp->yesde[0].entry);
+	INIT_LIST_HEAD(&grp->yesde[1].entry);
+	set_yesde_dbginfo(&grp->yesde[0], "grp<", 0);
+	set_yesde_dbginfo(&grp->yesde[1], "grp>", 0);
 	grp->id = grp;
 	if (id)
 		grp->id = id;
 
 	spin_lock_irqsave(&dev->devres_lock, flags);
-	add_dr(dev, &grp->node[0]);
+	add_dr(dev, &grp->yesde[0]);
 	spin_unlock_irqrestore(&dev->devres_lock, flags);
 	return grp->id;
 }
@@ -572,20 +572,20 @@ EXPORT_SYMBOL_GPL(devres_open_group);
 /* Find devres group with ID @id.  If @id is NULL, look for the latest. */
 static struct devres_group * find_group(struct device *dev, void *id)
 {
-	struct devres_node *node;
+	struct devres_yesde *yesde;
 
-	list_for_each_entry_reverse(node, &dev->devres_head, entry) {
+	list_for_each_entry_reverse(yesde, &dev->devres_head, entry) {
 		struct devres_group *grp;
 
-		if (node->release != &group_open_release)
+		if (yesde->release != &group_open_release)
 			continue;
 
-		grp = container_of(node, struct devres_group, node[0]);
+		grp = container_of(yesde, struct devres_group, yesde[0]);
 
 		if (id) {
 			if (grp->id == id)
 				return grp;
-		} else if (list_empty(&grp->node[1].entry))
+		} else if (list_empty(&grp->yesde[1].entry))
 			return grp;
 	}
 
@@ -609,7 +609,7 @@ void devres_close_group(struct device *dev, void *id)
 
 	grp = find_group(dev, id);
 	if (grp)
-		add_dr(dev, &grp->node[1]);
+		add_dr(dev, &grp->yesde[1]);
 	else
 		WARN_ON(1);
 
@@ -635,9 +635,9 @@ void devres_remove_group(struct device *dev, void *id)
 
 	grp = find_group(dev, id);
 	if (grp) {
-		list_del_init(&grp->node[0].entry);
-		list_del_init(&grp->node[1].entry);
-		devres_log(dev, &grp->node[0], "REM");
+		list_del_init(&grp->yesde[0].entry);
+		list_del_init(&grp->yesde[1].entry);
+		devres_log(dev, &grp->yesde[0], "REM");
 	} else
 		WARN_ON(1);
 
@@ -657,7 +657,7 @@ EXPORT_SYMBOL_GPL(devres_remove_group);
  * groups properly nested inside the selected group are removed.
  *
  * RETURNS:
- * The number of released non-group resources.
+ * The number of released yesn-group resources.
  */
 int devres_release_group(struct device *dev, void *id)
 {
@@ -669,13 +669,13 @@ int devres_release_group(struct device *dev, void *id)
 
 	grp = find_group(dev, id);
 	if (grp) {
-		struct list_head *first = &grp->node[0].entry;
+		struct list_head *first = &grp->yesde[0].entry;
 		struct list_head *end = &dev->devres_head;
 
-		if (!list_empty(&grp->node[1].entry))
-			end = grp->node[1].entry.next;
+		if (!list_empty(&grp->yesde[1].entry))
+			end = grp->yesde[1].entry.next;
 
-		cnt = release_nodes(dev, first, end, flags);
+		cnt = release_yesdes(dev, first, end, flags);
 	} else {
 		WARN_ON(1);
 		spin_unlock_irqrestore(&dev->devres_lock, flags);
@@ -786,7 +786,7 @@ EXPORT_SYMBOL_GPL(devm_release_action);
  */
 static void devm_kmalloc_release(struct device *dev, void *res)
 {
-	/* noop */
+	/* yesop */
 }
 
 static int devm_kmalloc_match(struct device *dev, void *res, void *data)
@@ -812,15 +812,15 @@ void * devm_kmalloc(struct device *dev, size_t size, gfp_t gfp)
 	struct devres *dr;
 
 	/* use raw alloc_dr for kmalloc caller tracing */
-	dr = alloc_dr(devm_kmalloc_release, size, gfp, dev_to_node(dev));
+	dr = alloc_dr(devm_kmalloc_release, size, gfp, dev_to_yesde(dev));
 	if (unlikely(!dr))
 		return NULL;
 
 	/*
 	 * This is named devm_kzalloc_release for historical reasons
-	 * The initial implementation did not support kmalloc, only kzalloc
+	 * The initial implementation did yest support kmalloc, only kzalloc
 	 */
-	set_node_dbginfo(&dr->node, "devm_kzalloc_release", size);
+	set_yesde_dbginfo(&dr->yesde, "devm_kzalloc_release", size);
 	devres_add(dev, dr->data);
 	return dr->data;
 }
@@ -1040,7 +1040,7 @@ EXPORT_SYMBOL_GPL(devm_get_free_pages);
  * @addr: Memory to free
  *
  * Free memory allocated with devm_get_free_pages(). Unlike free_pages,
- * there is no need to supply the @order.
+ * there is yes need to supply the @order.
  */
 void devm_free_pages(struct device *dev, unsigned long addr)
 {

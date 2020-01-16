@@ -39,7 +39,7 @@
 #define _ACAST64_
 #else
 #define _ACAST32_		(_ATYPE_)(_ATYPE32_)	/* widen if necessary */
-#define _ACAST64_		(_ATYPE64_)		/* do _not_ narrow */
+#define _ACAST64_		(_ATYPE64_)		/* do _yest_ narrow */
 #endif
 
 /*

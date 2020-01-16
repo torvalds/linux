@@ -148,7 +148,7 @@ static int c67x00_drv_probe(struct platform_device *pdev)
 
 	ret = request_irq(res2->start, c67x00_irq, 0, pdev->name, c67x00);
 	if (ret) {
-		dev_err(&pdev->dev, "Cannot claim IRQ\n");
+		dev_err(&pdev->dev, "Canyest claim IRQ\n");
 		goto request_irq_failed;
 	}
 

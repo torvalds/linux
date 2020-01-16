@@ -8,7 +8,7 @@
  * that.
  */
 #include <unistd.h>
-#include <errno.h>
+#include <erryes.h>
 #include <string.h>
 #include <arpa/inet.h>
 #include <endian.h>
@@ -32,7 +32,7 @@ struct cow_header_v1 {
  * Define PATH_LEN_V3 as the usual value of MAXPATHLEN, just hard-code it in
  * case other systems have different values for MAXPATHLEN.
  *
- * The same must hold for V2 - we want file format compatibility, not anything
+ * The same must hold for V2 - we want file format compatibility, yest anything
  * else.
  */
 #define PATH_LEN_V3 4096
@@ -57,7 +57,7 @@ struct cow_header_v2 {
  *	Add alignment field so that different alignments can be used for the
  *		bitmap and data
  * 	Add cow_format field to allow for the possibility of different ways
- *		of specifying the COW blocks.  For now, the only value is 0,
+ *		of specifying the COW blocks.  For yesw, the only value is 0,
  * 		for the traditional COW bitmap.
  *	Move the backing_file field to the end of the header.  This allows
  *		for the possibility of expanding it into the padding required
@@ -75,11 +75,11 @@ struct cow_header_v2 {
 /*
  * Until Dec2005, __attribute__((packed)) was left out from the below
  * definition, leading on 64-bit systems to 4 bytes of padding after mtime, to
- * align size to 8-byte alignment.  This shifted all fields above (no padding
- * was present on 32-bit, no other padding was added).
+ * align size to 8-byte alignment.  This shifted all fields above (yes padding
+ * was present on 32-bit, yes other padding was added).
  *
  * However, this _can be detected_: it means that cow_format (always 0 until
- * now) is shifted onto the first 4 bytes of backing_file, where it is otherwise
+ * yesw) is shifted onto the first 4 bytes of backing_file, where it is otherwise
  * impossible to find 4 zeros. -bb */
 
 struct cow_header_v3 {
@@ -105,7 +105,7 @@ struct cow_header_v3_broken {
 	char backing_file[PATH_LEN_V3];
 };
 
-/* COW format definitions - for now, we have only the usual COW bitmap */
+/* COW format definitions - for yesw, we have only the usual COW bitmap */
 #define COW_BITMAP 0
 
 union cow_header {
@@ -148,8 +148,8 @@ static int absolutize(char *to, int size, char *from)
 	int remaining;
 
 	if (getcwd(save_cwd, sizeof(save_cwd)) == NULL) {
-		cow_printf("absolutize : unable to get cwd - errno = %d\n",
-			   errno);
+		cow_printf("absolutize : unable to get cwd - erryes = %d\n",
+			   erryes);
 		return -1;
 	}
 	slash = strrchr(from, '/');
@@ -158,13 +158,13 @@ static int absolutize(char *to, int size, char *from)
 		if (chdir(from)) {
 			*slash = '/';
 			cow_printf("absolutize : Can't cd to '%s' - "
-				   "errno = %d\n", from, errno);
+				   "erryes = %d\n", from, erryes);
 			return -1;
 		}
 		*slash = '/';
 		if (getcwd(to, size) == NULL) {
 			cow_printf("absolutize : unable to get cwd of '%s' - "
-			       "errno = %d\n", from, errno);
+			       "erryes = %d\n", from, erryes);
 			return -1;
 		}
 		remaining = size - strlen(to);
@@ -187,7 +187,7 @@ static int absolutize(char *to, int size, char *from)
 	}
 	if (chdir(save_cwd)) {
 		cow_printf("absolutize : Can't cd to '%s' - "
-			   "errno = %d\n", save_cwd, errno);
+			   "erryes = %d\n", save_cwd, erryes);
 		return -1;
 	}
 	return 0;
@@ -302,7 +302,7 @@ int read_cow_header(int (*reader)(__u64, char *, int, void *), void *arg,
 		version = header->v1.version;
 	else if (magic == be32toh(COW_MAGIC))
 		version = be32toh(header->v1.version);
-	/* No error printed because the non-COW case comes through here */
+	/* No error printed because the yesn-COW case comes through here */
 	else goto out;
 
 	*version_out = version;
@@ -424,7 +424,7 @@ int init_cow_file(int fd, char *cow_file, char *backing_file, int sectorsize,
 	}
 
 	/*
-	 * does not really matter how much we write it is just to set EOF
+	 * does yest really matter how much we write it is just to set EOF
 	 * this also sets the entire COW bitmap
 	 * to zero without having to allocate it
 	 */

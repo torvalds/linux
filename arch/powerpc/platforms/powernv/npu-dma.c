@@ -6,7 +6,7 @@
  * Copyright Alistair Popple, IBM Corporation 2015.
  */
 
-#include <linux/mmu_notifier.h>
+#include <linux/mmu_yestifier.h>
 #include <linux/mmu_context.h>
 #include <linux/of.h>
 #include <linux/pci.h>
@@ -19,19 +19,19 @@
 
 #include "pci.h"
 
-static struct pci_dev *get_pci_dev(struct device_node *dn)
+static struct pci_dev *get_pci_dev(struct device_yesde *dn)
 {
 	struct pci_dn *pdn = PCI_DN(dn);
 	struct pci_dev *pdev;
 
 	pdev = pci_get_domain_bus_and_slot(pci_domain_nr(pdn->phb->bus),
-					   pdn->busno, pdn->devfn);
+					   pdn->busyes, pdn->devfn);
 
 	/*
 	 * pci_get_domain_bus_and_slot() increased the reference count of
 	 * the PCI device, but callers don't need that actually as the PE
 	 * already holds a reference to the device. Since callers aren't
-	 * aware of the reference count change, call pci_dev_put() now to
+	 * aware of the reference count change, call pci_dev_put() yesw to
 	 * avoid leaks.
 	 */
 	if (pdev)
@@ -43,22 +43,22 @@ static struct pci_dev *get_pci_dev(struct device_node *dn)
 /* Given a NPU device get the associated PCI device. */
 struct pci_dev *pnv_pci_get_gpu_dev(struct pci_dev *npdev)
 {
-	struct device_node *dn;
+	struct device_yesde *dn;
 	struct pci_dev *gpdev;
 
 	if (WARN_ON(!npdev))
 		return NULL;
 
-	if (WARN_ON(!npdev->dev.of_node))
+	if (WARN_ON(!npdev->dev.of_yesde))
 		return NULL;
 
 	/* Get assoicated PCI device */
-	dn = of_parse_phandle(npdev->dev.of_node, "ibm,gpu", 0);
+	dn = of_parse_phandle(npdev->dev.of_yesde, "ibm,gpu", 0);
 	if (!dn)
 		return NULL;
 
 	gpdev = get_pci_dev(dn);
-	of_node_put(dn);
+	of_yesde_put(dn);
 
 	return gpdev;
 }
@@ -67,23 +67,23 @@ EXPORT_SYMBOL(pnv_pci_get_gpu_dev);
 /* Given the real PCI device get a linked NPU device. */
 struct pci_dev *pnv_pci_get_npu_dev(struct pci_dev *gpdev, int index)
 {
-	struct device_node *dn;
+	struct device_yesde *dn;
 	struct pci_dev *npdev;
 
 	if (WARN_ON(!gpdev))
 		return NULL;
 
-	/* Not all PCI devices have device-tree nodes */
-	if (!gpdev->dev.of_node)
+	/* Not all PCI devices have device-tree yesdes */
+	if (!gpdev->dev.of_yesde)
 		return NULL;
 
 	/* Get assoicated PCI device */
-	dn = of_parse_phandle(gpdev->dev.of_node, "ibm,npu", index);
+	dn = of_parse_phandle(gpdev->dev.of_yesde, "ibm,npu", index);
 	if (!dn)
 		return NULL;
 
 	npdev = get_pci_dev(dn);
-	of_node_put(dn);
+	of_yesde_put(dn);
 
 	return npdev;
 }
@@ -137,7 +137,7 @@ static long pnv_npu_set_window(struct iommu_table_group *table_group, int num,
 	const __u64 win_size = tbl->it_size << tbl->it_page_shift;
 	int num2 = (num == 0) ? 1 : 0;
 
-	/* NPU has just one TVE so if there is another table, remove it first */
+	/* NPU has just one TVE so if there is ayesther table, remove it first */
 	if (npe->table_group.tables[num2])
 		pnv_npu_unset_window(&npe->table_group, num2);
 
@@ -159,7 +159,7 @@ static long pnv_npu_set_window(struct iommu_table_group *table_group, int num,
 	pnv_pci_ioda2_tce_invalidate_entire(phb, false);
 
 	/* Add the table to the list so its TCE cache will get invalidated */
-	pnv_pci_link_table_and_group(phb->hose->node, num,
+	pnv_pci_link_table_and_group(phb->hose->yesde, num,
 			tbl, &npe->table_group);
 
 	return 0;
@@ -440,7 +440,7 @@ struct iommu_table_group *pnv_try_setup_npu_table_group(struct pnv_ioda_pe *pe)
 	}
 
 	if (!npdev)
-		/* It is not an NPU attached device, skip */
+		/* It is yest an NPU attached device, skip */
 		return NULL;
 
 	hose = pci_bus_to_host(npdev->bus);
@@ -492,8 +492,8 @@ struct iommu_table_group *pnv_npu_compound_attach(struct pnv_ioda_pe *pe)
 
 	/*
 	 * IODA2 bridges get this set up from pci_controller_ops::setup_bridge
-	 * but NPU bridges do not have this hook defined so we do it here.
-	 * We do not setup other table group parameters as they won't be used
+	 * but NPU bridges do yest have this hook defined so we do it here.
+	 * We do yest setup other table group parameters as they won't be used
 	 * anyway - NVLink bridges are subordinate PEs.
 	 */
 	pe->table_group.ops = &pnv_pci_npu_ops;
@@ -565,7 +565,7 @@ int pnv_npu2_map_lpar_dev(struct pci_dev *gpdev, unsigned int lparid,
 	dev_dbg(&gpdev->dev, "Map LPAR opalid=%llu lparid=%u\n",
 			nphb->opal_id, lparid);
 	/*
-	 * Currently we only support radix and non-zero LPCR only makes sense
+	 * Currently we only support radix and yesn-zero LPCR only makes sense
 	 * for hash tables so skiboot expects the LPCR parameter to be a zero.
 	 */
 	ret = opal_npu_map_lpar(nphb->opal_id, pci_dev_id(gpdev), lparid,

@@ -1,15 +1,15 @@
-# SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
+# SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste
 #
 # system call numbers and entry vectors for powerpc
 #
 # The format is:
 # <number> <abi> <name> <entry point> <compat entry point>
 #
-# The <abi> can be common, spu, nospu, 64, or 32 for this file.
+# The <abi> can be common, spu, yesspu, 64, or 32 for this file.
 #
-0	nospu	restart_syscall			sys_restart_syscall
-1	nospu	exit				sys_exit
-2	nospu	fork				ppc_fork
+0	yesspu	restart_syscall			sys_restart_syscall
+1	yesspu	exit				sys_exit
+2	yesspu	fork				ppc_fork
 3	common	read				sys_read
 4	common	write				sys_write
 5	common	open				sys_open			compat_sys_open
@@ -18,12 +18,12 @@
 8	common	creat				sys_creat
 9	common	link				sys_link
 10	common	unlink				sys_unlink
-11	nospu	execve				sys_execve			compat_sys_execve
+11	yesspu	execve				sys_execve			compat_sys_execve
 12	common	chdir				sys_chdir
 13	32	time				sys_time32
 13	64	time				sys_time
 13	spu	time				sys_time
-14	common	mknod				sys_mknod
+14	common	mkyesd				sys_mkyesd
 15	common	chmod				sys_chmod
 16	common	lchown				sys_lchown
 17	common	break				sys_ni_syscall
@@ -32,7 +32,7 @@
 18	spu	oldstat				sys_ni_syscall
 19	common	lseek				sys_lseek			compat_sys_lseek
 20	common	getpid				sys_getpid
-21	nospu	mount				sys_mount			compat_sys_mount
+21	yesspu	mount				sys_mount			compat_sys_mount
 22	32	umount				sys_oldumount
 22	64	umount				sys_ni_syscall
 22	spu	umount				sys_ni_syscall
@@ -41,12 +41,12 @@
 25	32	stime				sys_stime32
 25	64	stime				sys_stime
 25	spu	stime				sys_stime
-26	nospu	ptrace				sys_ptrace			compat_sys_ptrace
+26	yesspu	ptrace				sys_ptrace			compat_sys_ptrace
 27	common	alarm				sys_alarm
 28	32	oldfstat			sys_fstat			sys_ni_syscall
 28	64	oldfstat			sys_ni_syscall
 28	spu	oldfstat			sys_ni_syscall
-29	nospu	pause				sys_pause
+29	yesspu	pause				sys_pause
 30	32	utime				sys_utime32
 30	64	utime				sys_utime
 31	common	stty				sys_ni_syscall
@@ -66,11 +66,11 @@
 45	common	brk				sys_brk
 46	common	setgid				sys_setgid
 47	common	getgid				sys_getgid
-48	nospu	signal				sys_signal
+48	yesspu	signal				sys_signal
 49	common	geteuid				sys_geteuid
 50	common	getegid				sys_getegid
-51	nospu	acct				sys_acct
-52	nospu	umount2				sys_umount
+51	yesspu	acct				sys_acct
+52	yesspu	umount2				sys_umount
 53	common	lock				sys_ni_syscall
 54	common	ioctl				sys_ioctl			compat_sys_ioctl
 55	common	fcntl				sys_fcntl			compat_sys_fcntl
@@ -82,7 +82,7 @@
 59	spu	oldolduname			sys_ni_syscall
 60	common	umask				sys_umask
 61	common	chroot				sys_chroot
-62	nospu	ustat				sys_ustat			compat_sys_ustat
+62	yesspu	ustat				sys_ustat			compat_sys_ustat
 63	common	dup2				sys_dup2
 64	common	getppid				sys_getppid
 65	common	getpgrp				sys_getpgrp
@@ -118,9 +118,9 @@
 84	64	oldlstat			sys_ni_syscall
 84	spu	oldlstat			sys_ni_syscall
 85	common	readlink			sys_readlink
-86	nospu	uselib				sys_uselib
-87	nospu	swapon				sys_swapon
-88	nospu	reboot				sys_reboot
+86	yesspu	uselib				sys_uselib
+87	yesspu	swapon				sys_swapon
+88	yesspu	reboot				sys_reboot
 89	32	readdir				sys_old_readdir			compat_sys_old_readdir
 89	64	readdir				sys_ni_syscall
 89	spu	readdir				sys_ni_syscall
@@ -133,8 +133,8 @@
 96	common	getpriority			sys_getpriority
 97	common	setpriority			sys_setpriority
 98	common	profil				sys_ni_syscall
-99	nospu	statfs				sys_statfs			compat_sys_statfs
-100	nospu	fstatfs				sys_fstatfs			compat_sys_fstatfs
+99	yesspu	statfs				sys_statfs			compat_sys_statfs
+100	yesspu	fstatfs				sys_fstatfs			compat_sys_fstatfs
 101	common	ioperm				sys_ni_syscall
 102	common	socketcall			sys_socketcall			compat_sys_socketcall
 103	common	syslog				sys_syslog
@@ -151,14 +151,14 @@
 112	common	idle				sys_ni_syscall
 113	common	vm86				sys_ni_syscall
 114	common	wait4				sys_wait4			compat_sys_wait4
-115	nospu	swapoff				sys_swapoff
+115	yesspu	swapoff				sys_swapoff
 116	common	sysinfo				sys_sysinfo			compat_sys_sysinfo
-117	nospu	ipc				sys_ipc				compat_sys_ipc
+117	yesspu	ipc				sys_ipc				compat_sys_ipc
 118	common	fsync				sys_fsync
 119	32	sigreturn			sys_sigreturn			compat_sys_sigreturn
 119	64	sigreturn			sys_ni_syscall
 119	spu	sigreturn			sys_ni_syscall
-120	nospu	clone				ppc_clone
+120	yesspu	clone				ppc_clone
 121	common	setdomainname			sys_setdomainname
 122	common	uname				sys_newuname
 123	common	modify_ldt			sys_ni_syscall
@@ -170,10 +170,10 @@
 126	64	sigprocmask			sys_ni_syscall
 126	spu	sigprocmask			sys_ni_syscall
 127	common	create_module			sys_ni_syscall
-128	nospu	init_module			sys_init_module
-129	nospu	delete_module			sys_delete_module
+128	yesspu	init_module			sys_init_module
+129	yesspu	delete_module			sys_delete_module
 130	common	get_kernel_syms			sys_ni_syscall
-131	nospu	quotactl			sys_quotactl
+131	yesspu	quotactl			sys_quotactl
 132	common	getpgid				sys_getpgid
 133	common	fchdir				sys_fchdir
 134	common	bdflush				sys_bdflush
@@ -193,7 +193,7 @@
 146	common	writev				sys_writev			compat_sys_writev
 147	common	getsid				sys_getsid
 148	common	fdatasync			sys_fdatasync
-149	nospu	_sysctl				sys_sysctl			compat_sys_sysctl
+149	yesspu	_sysctl				sys_sysctl			compat_sys_sysctl
 150	common	mlock				sys_mlock
 151	common	munlock				sys_munlock
 152	common	mlockall			sys_mlockall
@@ -208,9 +208,9 @@
 161	32	sched_rr_get_interval		sys_sched_rr_get_interval_time32
 161	64	sched_rr_get_interval		sys_sched_rr_get_interval
 161	spu	sched_rr_get_interval		sys_sched_rr_get_interval
-162	32	nanosleep			sys_nanosleep_time32
-162	64	nanosleep			sys_nanosleep
-162	spu	nanosleep			sys_nanosleep
+162	32	nayessleep			sys_nayessleep_time32
+162	64	nayessleep			sys_nayessleep
+162	spu	nayessleep			sys_nayessleep
 163	common	mremap				sys_mremap
 164	common	setresuid			sys_setresuid
 165	common	getresuid			sys_getresuid
@@ -220,27 +220,27 @@
 169	common	setresgid			sys_setresgid
 170	common	getresgid			sys_getresgid
 171	common	prctl				sys_prctl
-172	nospu	rt_sigreturn			sys_rt_sigreturn		compat_sys_rt_sigreturn
-173	nospu	rt_sigaction			sys_rt_sigaction		compat_sys_rt_sigaction
-174	nospu	rt_sigprocmask			sys_rt_sigprocmask		compat_sys_rt_sigprocmask
-175	nospu	rt_sigpending			sys_rt_sigpending		compat_sys_rt_sigpending
+172	yesspu	rt_sigreturn			sys_rt_sigreturn		compat_sys_rt_sigreturn
+173	yesspu	rt_sigaction			sys_rt_sigaction		compat_sys_rt_sigaction
+174	yesspu	rt_sigprocmask			sys_rt_sigprocmask		compat_sys_rt_sigprocmask
+175	yesspu	rt_sigpending			sys_rt_sigpending		compat_sys_rt_sigpending
 176	32	rt_sigtimedwait			sys_rt_sigtimedwait_time32	compat_sys_rt_sigtimedwait_time32
 176	64	rt_sigtimedwait			sys_rt_sigtimedwait
-177	nospu 	rt_sigqueueinfo			sys_rt_sigqueueinfo		compat_sys_rt_sigqueueinfo
-178	nospu 	rt_sigsuspend			sys_rt_sigsuspend		compat_sys_rt_sigsuspend
+177	yesspu 	rt_sigqueueinfo			sys_rt_sigqueueinfo		compat_sys_rt_sigqueueinfo
+178	yesspu 	rt_sigsuspend			sys_rt_sigsuspend		compat_sys_rt_sigsuspend
 179	common	pread64				sys_pread64			compat_sys_pread64
 180	common	pwrite64			sys_pwrite64			compat_sys_pwrite64
 181	common	chown				sys_chown
 182	common	getcwd				sys_getcwd
 183	common	capget				sys_capget
 184	common	capset				sys_capset
-185	nospu	sigaltstack			sys_sigaltstack			compat_sys_sigaltstack
+185	yesspu	sigaltstack			sys_sigaltstack			compat_sys_sigaltstack
 186	32	sendfile			sys_sendfile			compat_sys_sendfile
 186	64	sendfile			sys_sendfile64
 186	spu	sendfile			sys_sendfile64
 187	common	getpmsg				sys_ni_syscall
 188	common 	putpmsg				sys_ni_syscall
-189	nospu	vfork				ppc_vfork
+189	yesspu	vfork				ppc_vfork
 190	common	ugetrlimit			sys_getrlimit			compat_sys_getrlimit
 191	common	readahead			sys_readahead			compat_sys_readahead
 192	32	mmap2				sys_mmap2			compat_sys_mmap2
@@ -249,9 +249,9 @@
 195	32	stat64				sys_stat64
 196	32	lstat64				sys_lstat64
 197	32	fstat64				sys_fstat64
-198	nospu 	pciconfig_read			sys_pciconfig_read
-199	nospu 	pciconfig_write			sys_pciconfig_write
-200	nospu 	pciconfig_iobase		sys_pciconfig_iobase
+198	yesspu 	pciconfig_read			sys_pciconfig_read
+199	yesspu 	pciconfig_write			sys_pciconfig_write
+200	yesspu 	pciconfig_iobase		sys_pciconfig_iobase
 201	common 	multiplexer			sys_ni_syscall
 202	common	getdents64			sys_getdents64
 203	common	pivot_root			sys_pivot_root
@@ -287,10 +287,10 @@
 229	spu	io_getevents			sys_io_getevents
 230	common	io_submit			sys_io_submit			compat_sys_io_submit
 231	common	io_cancel			sys_io_cancel
-232	nospu	set_tid_address			sys_set_tid_address
+232	yesspu	set_tid_address			sys_set_tid_address
 233	common	fadvise64			sys_fadvise64			ppc32_fadvise64
-234	nospu	exit_group			sys_exit_group
-235	nospu	lookup_dcookie			sys_lookup_dcookie		compat_sys_lookup_dcookie
+234	yesspu	exit_group			sys_exit_group
+235	yesspu	lookup_dcookie			sys_lookup_dcookie		compat_sys_lookup_dcookie
 236	common	epoll_create			sys_epoll_create
 237	common	epoll_ctl			sys_epoll_ctl
 238	common	epoll_wait			sys_epoll_wait
@@ -313,9 +313,9 @@
 247	32	clock_getres			sys_clock_getres_time32
 247	64	clock_getres			sys_clock_getres
 247	spu	clock_getres			sys_clock_getres
-248	32	clock_nanosleep			sys_clock_nanosleep_time32
-248	64	clock_nanosleep			sys_clock_nanosleep
-248	spu	clock_nanosleep			sys_clock_nanosleep
+248	32	clock_nayessleep			sys_clock_nayessleep_time32
+248	64	clock_nayessleep			sys_clock_nayessleep
+248	spu	clock_nayessleep			sys_clock_nayessleep
 249	32	swapcontext			ppc_swapcontext			ppc32_swapcontext
 249	64	swapcontext			ppc64_swapcontext
 249	spu	swapcontext			sys_ni_syscall
@@ -332,30 +332,30 @@
 256	64	sys_debug_setcontext		sys_ni_syscall
 256	spu	sys_debug_setcontext		sys_ni_syscall
 # 257 reserved for vserver
-258	nospu	migrate_pages			sys_migrate_pages		compat_sys_migrate_pages
-259	nospu	mbind				sys_mbind			compat_sys_mbind
-260	nospu	get_mempolicy			sys_get_mempolicy		compat_sys_get_mempolicy
-261	nospu	set_mempolicy			sys_set_mempolicy		compat_sys_set_mempolicy
-262	nospu	mq_open				sys_mq_open			compat_sys_mq_open
-263	nospu	mq_unlink			sys_mq_unlink
+258	yesspu	migrate_pages			sys_migrate_pages		compat_sys_migrate_pages
+259	yesspu	mbind				sys_mbind			compat_sys_mbind
+260	yesspu	get_mempolicy			sys_get_mempolicy		compat_sys_get_mempolicy
+261	yesspu	set_mempolicy			sys_set_mempolicy		compat_sys_set_mempolicy
+262	yesspu	mq_open				sys_mq_open			compat_sys_mq_open
+263	yesspu	mq_unlink			sys_mq_unlink
 264	32	mq_timedsend			sys_mq_timedsend_time32
 264	64	mq_timedsend			sys_mq_timedsend
 265	32	mq_timedreceive			sys_mq_timedreceive_time32
 265	64	mq_timedreceive			sys_mq_timedreceive
-266	nospu	mq_notify			sys_mq_notify			compat_sys_mq_notify
-267	nospu	mq_getsetattr			sys_mq_getsetattr		compat_sys_mq_getsetattr
-268	nospu	kexec_load			sys_kexec_load			compat_sys_kexec_load
-269	nospu	add_key				sys_add_key
-270	nospu	request_key			sys_request_key
-271	nospu	keyctl				sys_keyctl			compat_sys_keyctl
-272	nospu	waitid				sys_waitid			compat_sys_waitid
-273	nospu	ioprio_set			sys_ioprio_set
-274	nospu	ioprio_get			sys_ioprio_get
-275	nospu	inotify_init			sys_inotify_init
-276	nospu	inotify_add_watch		sys_inotify_add_watch
-277	nospu	inotify_rm_watch		sys_inotify_rm_watch
-278	nospu	spu_run				sys_spu_run
-279	nospu	spu_create			sys_spu_create
+266	yesspu	mq_yestify			sys_mq_yestify			compat_sys_mq_yestify
+267	yesspu	mq_getsetattr			sys_mq_getsetattr		compat_sys_mq_getsetattr
+268	yesspu	kexec_load			sys_kexec_load			compat_sys_kexec_load
+269	yesspu	add_key				sys_add_key
+270	yesspu	request_key			sys_request_key
+271	yesspu	keyctl				sys_keyctl			compat_sys_keyctl
+272	yesspu	waitid				sys_waitid			compat_sys_waitid
+273	yesspu	ioprio_set			sys_ioprio_set
+274	yesspu	ioprio_get			sys_ioprio_get
+275	yesspu	iyestify_init			sys_iyestify_init
+276	yesspu	iyestify_add_watch		sys_iyestify_add_watch
+277	yesspu	iyestify_rm_watch		sys_iyestify_rm_watch
+278	yesspu	spu_run				sys_spu_run
+279	yesspu	spu_create			sys_spu_create
 280	32	pselect6			sys_pselect6_time32		compat_sys_pselect6_time32
 280	64	pselect6			sys_pselect6
 281	32	ppoll				sys_ppoll_time32		compat_sys_ppoll_time32
@@ -366,7 +366,7 @@
 285	common	vmsplice			sys_vmsplice			compat_sys_vmsplice
 286	common	openat				sys_openat			compat_sys_openat
 287	common	mkdirat				sys_mkdirat
-288	common	mknodat				sys_mknodat
+288	common	mkyesdat				sys_mkyesdat
 289	common	fchownat			sys_fchownat
 290	32	futimesat			sys_futimesat_time32
 290	64	futimesat			sys_futimesat
@@ -385,7 +385,7 @@
 300	common	set_robust_list			sys_set_robust_list		compat_sys_set_robust_list
 301	common	move_pages			sys_move_pages			compat_sys_move_pages
 302	common	getcpu				sys_getcpu
-303	nospu	epoll_pwait			sys_epoll_pwait			compat_sys_epoll_pwait
+303	yesspu	epoll_pwait			sys_epoll_pwait			compat_sys_epoll_pwait
 304	32	utimensat			sys_utimensat_time32
 304	64	utimensat			sys_utimensat
 304	spu	utimensat			sys_utimensat
@@ -393,8 +393,8 @@
 306	common	timerfd_create			sys_timerfd_create
 307	common	eventfd				sys_eventfd
 308	common	sync_file_range2		sys_sync_file_range2		compat_sys_sync_file_range2
-309	nospu	fallocate			sys_fallocate			compat_sys_fallocate
-310	nospu	subpage_prot			sys_subpage_prot
+309	yesspu	fallocate			sys_fallocate			compat_sys_fallocate
+310	yesspu	subpage_prot			sys_subpage_prot
 311	32	timerfd_settime			sys_timerfd_settime32
 311	64	timerfd_settime			sys_timerfd_settime
 311	spu	timerfd_settime			sys_timerfd_settime
@@ -406,13 +406,13 @@
 315	common	epoll_create1			sys_epoll_create1
 316	common	dup3				sys_dup3
 317	common	pipe2				sys_pipe2
-318	nospu	inotify_init1			sys_inotify_init1
+318	yesspu	iyestify_init1			sys_iyestify_init1
 319	common	perf_event_open			sys_perf_event_open
 320	common	preadv				sys_preadv			compat_sys_preadv
 321	common	pwritev				sys_pwritev			compat_sys_pwritev
-322	nospu	rt_tgsigqueueinfo		sys_rt_tgsigqueueinfo		compat_sys_rt_tgsigqueueinfo
-323	nospu	fanotify_init			sys_fanotify_init
-324	nospu	fanotify_mark			sys_fanotify_mark		compat_sys_fanotify_mark
+322	yesspu	rt_tgsigqueueinfo		sys_rt_tgsigqueueinfo		compat_sys_rt_tgsigqueueinfo
+323	yesspu	fayestify_init			sys_fayestify_init
+324	yesspu	fayestify_mark			sys_fayestify_mark		compat_sys_fayestify_mark
 325	common	prlimit64			sys_prlimit64
 326	common	socket				sys_socket
 327	common	bind				sys_bind
@@ -443,10 +443,10 @@
 348	common	syncfs				sys_syncfs
 349	common	sendmmsg			sys_sendmmsg			compat_sys_sendmmsg
 350	common	setns				sys_setns
-351	nospu	process_vm_readv		sys_process_vm_readv		compat_sys_process_vm_readv
-352	nospu	process_vm_writev		sys_process_vm_writev		compat_sys_process_vm_writev
-353	nospu	finit_module			sys_finit_module
-354	nospu	kcmp				sys_kcmp
+351	yesspu	process_vm_readv		sys_process_vm_readv		compat_sys_process_vm_readv
+352	yesspu	process_vm_writev		sys_process_vm_writev		compat_sys_process_vm_writev
+353	yesspu	finit_module			sys_finit_module
+354	yesspu	kcmp				sys_kcmp
 355	common	sched_setattr			sys_sched_setattr
 356	common	sched_getattr			sys_sched_getattr
 357	common	renameat2			sys_renameat2
@@ -454,23 +454,23 @@
 359	common	getrandom			sys_getrandom
 360	common	memfd_create			sys_memfd_create
 361	common	bpf				sys_bpf
-362	nospu	execveat			sys_execveat			compat_sys_execveat
+362	yesspu	execveat			sys_execveat			compat_sys_execveat
 363	32	switch_endian			sys_ni_syscall
 363	64	switch_endian			ppc_switch_endian
 363	spu	switch_endian			sys_ni_syscall
 364	common	userfaultfd			sys_userfaultfd
 365	common	membarrier			sys_membarrier
-# 366-377 originally left for IPC, now unused
-378	nospu	mlock2				sys_mlock2
-379	nospu	copy_file_range			sys_copy_file_range
+# 366-377 originally left for IPC, yesw unused
+378	yesspu	mlock2				sys_mlock2
+379	yesspu	copy_file_range			sys_copy_file_range
 380	common	preadv2				sys_preadv2			compat_sys_preadv2
 381	common	pwritev2			sys_pwritev2			compat_sys_pwritev2
-382	nospu	kexec_file_load			sys_kexec_file_load
-383	nospu	statx				sys_statx
-384	nospu	pkey_alloc			sys_pkey_alloc
-385	nospu	pkey_free			sys_pkey_free
-386	nospu	pkey_mprotect			sys_pkey_mprotect
-387	nospu	rseq				sys_rseq
+382	yesspu	kexec_file_load			sys_kexec_file_load
+383	yesspu	statx				sys_statx
+384	yesspu	pkey_alloc			sys_pkey_alloc
+385	yesspu	pkey_free			sys_pkey_free
+386	yesspu	pkey_mprotect			sys_pkey_mprotect
+387	yesspu	rseq				sys_rseq
 388	32	io_pgetevents			sys_io_pgetevents_time32	compat_sys_io_pgetevents
 388	64	io_pgetevents			sys_io_pgetevents
 # room for arch specific syscalls
@@ -489,7 +489,7 @@
 404	32	clock_settime64			sys_clock_settime		sys_clock_settime
 405	32	clock_adjtime64			sys_clock_adjtime		sys_clock_adjtime
 406	32	clock_getres_time64		sys_clock_getres		sys_clock_getres
-407	32	clock_nanosleep_time64		sys_clock_nanosleep		sys_clock_nanosleep
+407	32	clock_nayessleep_time64		sys_clock_nayessleep		sys_clock_nayessleep
 408	32	timer_gettime64			sys_timer_gettime		sys_timer_gettime
 409	32	timer_settime64			sys_timer_settime		sys_timer_settime
 410	32	timerfd_gettime64		sys_timerfd_gettime		sys_timerfd_gettime
@@ -516,4 +516,4 @@
 432	common	fsmount				sys_fsmount
 433	common	fspick				sys_fspick
 434	common	pidfd_open			sys_pidfd_open
-435	nospu	clone3				ppc_clone3
+435	yesspu	clone3				ppc_clone3

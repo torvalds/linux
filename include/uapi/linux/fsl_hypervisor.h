@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: ((GPL-2.0+ WITH Linux-syscall-note) OR BSD-3-Clause) */
+/* SPDX-License-Identifier: ((GPL-2.0+ WITH Linux-syscall-yeste) OR BSD-3-Clause) */
 /*
  * Freescale hypervisor ioctl and kernel interface
  *
@@ -8,11 +8,11 @@
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
  *     * Redistributions of source code must retain the above copyright
- *       notice, this list of conditions and the following disclaimer.
+ *       yestice, this list of conditions and the following disclaimer.
  *     * Redistributions in binary form must reproduce the above copyright
- *       notice, this list of conditions and the following disclaimer in the
+ *       yestice, this list of conditions and the following disclaimer in the
  *       documentation and/or other materials provided with the distribution.
- *     * Neither the name of Freescale Semiconductor nor the
+ *     * Neither the name of Freescale Semiconductor yesr the
  *       names of its contributors may be used to endorse or promote products
  *       derived from this software without specific prior written permission.
  *
@@ -23,11 +23,11 @@
  * later version.
  *
  * This software is provided by Freescale Semiconductor "as is" and any
- * express or implied warranties, including, but not limited to, the implied
+ * express or implied warranties, including, but yest limited to, the implied
  * warranties of merchantability and fitness for a particular purpose are
- * disclaimed. In no event shall Freescale Semiconductor be liable for any
+ * disclaimed. In yes event shall Freescale Semiconductor be liable for any
  * direct, indirect, incidental, special, exemplary, or consequential damages
- * (including, but not limited to, procurement of substitute goods or services;
+ * (including, but yest limited to, procurement of substitute goods or services;
  * loss of use, data, or profits; or business interruption) however caused and
  * on any theory of liability, whether in contract, strict liability, or tort
  * (including negligence or otherwise) arising in any way out of the use of this
@@ -82,7 +82,7 @@ struct fsl_hv_ioctl_status {
  * @ret: return error code from the hypervisor
  * @partition: the ID of the partition to control
  * @entry_point: The offset within the guest IMA to start execution
- * @load: If non-zero, reload the partition's images before starting
+ * @load: If yesn-zero, reload the partition's images before starting
  *
  * Used by FSL_HV_IOCTL_PARTITION_START
  */
@@ -130,9 +130,9 @@ struct fsl_hv_ioctl_stop {
  * The buffer in the remote partition must be guest physically
  * contiguous.
  *
- * This ioctl does not support copying memory between two remote
+ * This ioctl does yest support copying memory between two remote
  * partitions or within the same partition, so either 'source' or
- * 'target' (but not both) must be -1.  In other words, either
+ * 'target' (but yest both) must be -1.  In other words, either
  *
  *      source == local and target == remote
  * or
@@ -164,7 +164,7 @@ struct fsl_hv_ioctl_doorbell {
  * struct fsl_hv_ioctl_prop - get/set a device tree property
  * @ret: return error code from the hypervisor
  * @handle: handle of partition whose tree to access
- * @path: virtual address of path name of node to access
+ * @path: virtual address of path name of yesde to access
  * @propname: virtual address of name of property to access
  * @propval: virtual address of property data buffer
  * @proplen: Size of property data buffer
@@ -185,7 +185,7 @@ struct fsl_hv_ioctl_prop {
 /* The ioctl type, documented in ioctl-number.txt */
 #define FSL_HV_IOCTL_TYPE	0xAF
 
-/* Restart another partition */
+/* Restart ayesther partition */
 #define FSL_HV_IOCTL_PARTITION_RESTART \
 	_IOWR(FSL_HV_IOCTL_TYPE, 1, struct fsl_hv_ioctl_restart)
 
@@ -193,15 +193,15 @@ struct fsl_hv_ioctl_prop {
 #define FSL_HV_IOCTL_PARTITION_GET_STATUS \
 	_IOWR(FSL_HV_IOCTL_TYPE, 2, struct fsl_hv_ioctl_status)
 
-/* Boot another partition */
+/* Boot ayesther partition */
 #define FSL_HV_IOCTL_PARTITION_START \
 	_IOWR(FSL_HV_IOCTL_TYPE, 3, struct fsl_hv_ioctl_start)
 
-/* Stop this or another partition */
+/* Stop this or ayesther partition */
 #define FSL_HV_IOCTL_PARTITION_STOP \
 	_IOWR(FSL_HV_IOCTL_TYPE, 4, struct fsl_hv_ioctl_stop)
 
-/* Copy data from one partition to another */
+/* Copy data from one partition to ayesther */
 #define FSL_HV_IOCTL_MEMCPY \
 	_IOWR(FSL_HV_IOCTL_TYPE, 5, struct fsl_hv_ioctl_memcpy)
 
@@ -209,11 +209,11 @@ struct fsl_hv_ioctl_prop {
 #define FSL_HV_IOCTL_DOORBELL \
 	_IOWR(FSL_HV_IOCTL_TYPE, 6, struct fsl_hv_ioctl_doorbell)
 
-/* Get a property from another guest's device tree */
+/* Get a property from ayesther guest's device tree */
 #define FSL_HV_IOCTL_GETPROP \
 	_IOWR(FSL_HV_IOCTL_TYPE, 7, struct fsl_hv_ioctl_prop)
 
-/* Set a property in another guest's device tree */
+/* Set a property in ayesther guest's device tree */
 #define FSL_HV_IOCTL_SETPROP \
 	_IOWR(FSL_HV_IOCTL_TYPE, 8, struct fsl_hv_ioctl_prop)
 

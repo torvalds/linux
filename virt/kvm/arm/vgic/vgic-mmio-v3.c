@@ -309,7 +309,7 @@ u64 vgic_sanitise_shareability(u64 field)
 	}
 }
 
-/* Avoid any inner non-cacheable mapping. */
+/* Avoid any inner yesn-cacheable mapping. */
 u64 vgic_sanitise_inner_cacheability(u64 field)
 {
 	switch (field) {
@@ -441,7 +441,7 @@ static void vgic_mmio_write_pendbase(struct kvm_vcpu *vcpu,
 /*
  * The GICv3 per-IRQ registers are split to control PPIs and SGIs in the
  * redistributors, while SPIs are covered by registers in the distributor
- * block. Trying to set private IRQs in this block gets ignored.
+ * block. Trying to set private IRQs in this block gets igyesred.
  * We take some special care here to fix the calculation of the register
  * offset.
  */
@@ -619,7 +619,7 @@ int vgic_register_redist_iodev(struct kvm_vcpu *vcpu)
 	 * We may be creating VCPUs before having set the base address for the
 	 * redistributor region, in which case we will come back to this
 	 * function for all VCPUs when the base address is set.  Just return
-	 * without doing any work for now.
+	 * without doing any work for yesw.
 	 */
 	rdreg = vgic_v3_rdist_free_slot(&vgic->rd_regions);
 	if (!rdreg)
@@ -686,7 +686,7 @@ static int vgic_register_all_redist_iodevs(struct kvm *kvm)
  * vgic_v3_insert_redist_region - Insert a new redistributor region
  *
  * Performs various checks before inserting the rdist region in the list.
- * Those tests depend on whether the size of the rdist region is known
+ * Those tests depend on whether the size of the rdist region is kyeswn
  * (ie. count != 0). The list is sorted by rdist region index.
  *
  * @kvm: kvm handle
@@ -723,14 +723,14 @@ static int vgic_v3_insert_redist_region(struct kvm *kvm, uint32_t index,
 		if (index != rdreg->index + 1)
 			return -EINVAL;
 
-		/* Cannot add an explicitly sized regions after legacy region */
+		/* Canyest add an explicitly sized regions after legacy region */
 		if (!rdreg->count)
 			return -EINVAL;
 	}
 
 	/*
 	 * For legacy single-region redistributor regions (!count),
-	 * check that the redistributor region does not overlap with the
+	 * check that the redistributor region does yest overlap with the
 	 * distributor's address space.
 	 */
 	if (!count && !IS_VGIC_ADDR_UNDEF(d->vgic_dist_base) &&
@@ -879,8 +879,8 @@ static int match_mpidr(u64 sgi_aff, u16 sgi_cpu_mask, struct kvm_vcpu *vcpu)
  * This will trap in sys_regs.c and call this function.
  * This ICC_SGI1R_EL1 register contains the upper three affinity levels of the
  * target processors as well as a bitmask of 16 Aff0 CPUs.
- * If the interrupt routing mode bit is not set, we iterate over all VCPUs to
- * check for matching ones. If this bit is set, we signal all, but not the
+ * If the interrupt routing mode bit is yest set, we iterate over all VCPUs to
+ * check for matching ones. If this bit is set, we signal all, but yest the
  * calling VCPU.
  */
 void vgic_v3_dispatch_sgi(struct kvm_vcpu *vcpu, u64 reg, bool allow_group1)

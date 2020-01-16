@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /* -*- mode: c; c-basic-offset: 8; -*-
- * vim: noexpandtab sw=8 ts=8 sts=0:
+ * vim: yesexpandtab sw=8 ts=8 sts=0:
  *
- * inode.c - basic inode and dentry operations.
+ * iyesde.c - basic iyesde and dentry operations.
  *
  * Based on sysfs:
  * 	sysfs is Copyright (C) 2001, 2002, 2003 Patrick Mochel
@@ -36,13 +36,13 @@ static const struct address_space_operations configfs_aops = {
 	.write_end	= simple_write_end,
 };
 
-static const struct inode_operations configfs_inode_operations ={
+static const struct iyesde_operations configfs_iyesde_operations ={
 	.setattr	= configfs_setattr,
 };
 
 int configfs_setattr(struct dentry * dentry, struct iattr * iattr)
 {
-	struct inode * inode = d_inode(dentry);
+	struct iyesde * iyesde = d_iyesde(dentry);
 	struct configfs_dirent * sd = dentry->d_fsdata;
 	struct iattr * sd_iattr;
 	unsigned int ia_valid = iattr->ia_valid;
@@ -53,7 +53,7 @@ int configfs_setattr(struct dentry * dentry, struct iattr * iattr)
 
 	sd_iattr = sd->s_iattr;
 	if (!sd_iattr) {
-		/* setting attributes for the first time, allocate now */
+		/* setting attributes for the first time, allocate yesw */
 		sd_iattr = kzalloc(sizeof(struct iattr), GFP_KERNEL);
 		if (!sd_iattr)
 			return -ENOMEM;
@@ -62,7 +62,7 @@ int configfs_setattr(struct dentry * dentry, struct iattr * iattr)
 		sd_iattr->ia_uid = GLOBAL_ROOT_UID;
 		sd_iattr->ia_gid = GLOBAL_ROOT_GID;
 		sd_iattr->ia_atime = sd_iattr->ia_mtime =
-			sd_iattr->ia_ctime = current_time(inode);
+			sd_iattr->ia_ctime = current_time(iyesde);
 		sd->s_iattr = sd_iattr;
 	}
 	/* attributes were changed atleast once in past */
@@ -77,17 +77,17 @@ int configfs_setattr(struct dentry * dentry, struct iattr * iattr)
 		sd_iattr->ia_gid = iattr->ia_gid;
 	if (ia_valid & ATTR_ATIME)
 		sd_iattr->ia_atime = timestamp_truncate(iattr->ia_atime,
-						      inode);
+						      iyesde);
 	if (ia_valid & ATTR_MTIME)
 		sd_iattr->ia_mtime = timestamp_truncate(iattr->ia_mtime,
-						      inode);
+						      iyesde);
 	if (ia_valid & ATTR_CTIME)
 		sd_iattr->ia_ctime = timestamp_truncate(iattr->ia_ctime,
-						      inode);
+						      iyesde);
 	if (ia_valid & ATTR_MODE) {
 		umode_t mode = iattr->ia_mode;
 
-		if (!in_group_p(inode->i_gid) && !capable(CAP_FSETID))
+		if (!in_group_p(iyesde->i_gid) && !capable(CAP_FSETID))
 			mode &= ~S_ISGID;
 		sd_iattr->ia_mode = sd->s_mode = mode;
 	}
@@ -95,61 +95,61 @@ int configfs_setattr(struct dentry * dentry, struct iattr * iattr)
 	return error;
 }
 
-static inline void set_default_inode_attr(struct inode * inode, umode_t mode)
+static inline void set_default_iyesde_attr(struct iyesde * iyesde, umode_t mode)
 {
-	inode->i_mode = mode;
-	inode->i_atime = inode->i_mtime =
-		inode->i_ctime = current_time(inode);
+	iyesde->i_mode = mode;
+	iyesde->i_atime = iyesde->i_mtime =
+		iyesde->i_ctime = current_time(iyesde);
 }
 
-static inline void set_inode_attr(struct inode * inode, struct iattr * iattr)
+static inline void set_iyesde_attr(struct iyesde * iyesde, struct iattr * iattr)
 {
-	inode->i_mode = iattr->ia_mode;
-	inode->i_uid = iattr->ia_uid;
-	inode->i_gid = iattr->ia_gid;
-	inode->i_atime = iattr->ia_atime;
-	inode->i_mtime = iattr->ia_mtime;
-	inode->i_ctime = iattr->ia_ctime;
+	iyesde->i_mode = iattr->ia_mode;
+	iyesde->i_uid = iattr->ia_uid;
+	iyesde->i_gid = iattr->ia_gid;
+	iyesde->i_atime = iattr->ia_atime;
+	iyesde->i_mtime = iattr->ia_mtime;
+	iyesde->i_ctime = iattr->ia_ctime;
 }
 
-struct inode *configfs_new_inode(umode_t mode, struct configfs_dirent *sd,
+struct iyesde *configfs_new_iyesde(umode_t mode, struct configfs_dirent *sd,
 				 struct super_block *s)
 {
-	struct inode * inode = new_inode(s);
-	if (inode) {
-		inode->i_ino = get_next_ino();
-		inode->i_mapping->a_ops = &configfs_aops;
-		inode->i_op = &configfs_inode_operations;
+	struct iyesde * iyesde = new_iyesde(s);
+	if (iyesde) {
+		iyesde->i_iyes = get_next_iyes();
+		iyesde->i_mapping->a_ops = &configfs_aops;
+		iyesde->i_op = &configfs_iyesde_operations;
 
 		if (sd->s_iattr) {
-			/* sysfs_dirent has non-default attributes
-			 * get them for the new inode from persistent copy
+			/* sysfs_dirent has yesn-default attributes
+			 * get them for the new iyesde from persistent copy
 			 * in sysfs_dirent
 			 */
-			set_inode_attr(inode, sd->s_iattr);
+			set_iyesde_attr(iyesde, sd->s_iattr);
 		} else
-			set_default_inode_attr(inode, mode);
+			set_default_iyesde_attr(iyesde, mode);
 	}
-	return inode;
+	return iyesde;
 }
 
 #ifdef CONFIG_LOCKDEP
 
-static void configfs_set_inode_lock_class(struct configfs_dirent *sd,
-					  struct inode *inode)
+static void configfs_set_iyesde_lock_class(struct configfs_dirent *sd,
+					  struct iyesde *iyesde)
 {
 	int depth = sd->s_depth;
 
 	if (depth > 0) {
 		if (depth <= ARRAY_SIZE(default_group_class)) {
-			lockdep_set_class(&inode->i_rwsem,
+			lockdep_set_class(&iyesde->i_rwsem,
 					  &default_group_class[depth - 1]);
 		} else {
 			/*
 			 * In practice the maximum level of locking depth is
 			 * already reached. Just inform about possible reasons.
 			 */
-			pr_info("Too many levels of inodes for the locking correctness validator.\n");
+			pr_info("Too many levels of iyesdes for the locking correctness validator.\n");
 			pr_info("Spurious warnings may appear.\n");
 		}
 	}
@@ -157,18 +157,18 @@ static void configfs_set_inode_lock_class(struct configfs_dirent *sd,
 
 #else /* CONFIG_LOCKDEP */
 
-static void configfs_set_inode_lock_class(struct configfs_dirent *sd,
-					  struct inode *inode)
+static void configfs_set_iyesde_lock_class(struct configfs_dirent *sd,
+					  struct iyesde *iyesde)
 {
 }
 
 #endif /* CONFIG_LOCKDEP */
 
-struct inode *configfs_create(struct dentry *dentry, umode_t mode)
+struct iyesde *configfs_create(struct dentry *dentry, umode_t mode)
 {
-	struct inode *inode = NULL;
+	struct iyesde *iyesde = NULL;
 	struct configfs_dirent *sd;
-	struct inode *p_inode;
+	struct iyesde *p_iyesde;
 
 	if (!dentry)
 		return ERR_PTR(-ENOENT);
@@ -177,14 +177,14 @@ struct inode *configfs_create(struct dentry *dentry, umode_t mode)
 		return ERR_PTR(-EEXIST);
 
 	sd = dentry->d_fsdata;
-	inode = configfs_new_inode(mode, sd, dentry->d_sb);
-	if (!inode)
+	iyesde = configfs_new_iyesde(mode, sd, dentry->d_sb);
+	if (!iyesde)
 		return ERR_PTR(-ENOMEM);
 
-	p_inode = d_inode(dentry->d_parent);
-	p_inode->i_mtime = p_inode->i_ctime = current_time(p_inode);
-	configfs_set_inode_lock_class(sd, inode);
-	return inode;
+	p_iyesde = d_iyesde(dentry->d_parent);
+	p_iyesde->i_mtime = p_iyesde->i_ctime = current_time(p_iyesde);
+	configfs_set_iyesde_lock_class(sd, iyesde);
+	return iyesde;
 }
 
 /*
@@ -210,7 +210,7 @@ const unsigned char * configfs_get_name(struct configfs_dirent *sd)
 
 /*
  * Unhashes the dentry corresponding to given configfs_dirent
- * Called with parent inode's i_mutex held.
+ * Called with parent iyesde's i_mutex held.
  */
 void configfs_drop_dentry(struct configfs_dirent * sd, struct dentry * parent)
 {
@@ -222,7 +222,7 @@ void configfs_drop_dentry(struct configfs_dirent * sd, struct dentry * parent)
 			dget_dlock(dentry);
 			__d_drop(dentry);
 			spin_unlock(&dentry->d_lock);
-			simple_unlink(d_inode(parent), dentry);
+			simple_unlink(d_iyesde(parent), dentry);
 		} else
 			spin_unlock(&dentry->d_lock);
 	}
@@ -234,10 +234,10 @@ void configfs_hash_and_remove(struct dentry * dir, const char * name)
 	struct configfs_dirent * parent_sd = dir->d_fsdata;
 
 	if (d_really_is_negative(dir))
-		/* no inode means this hasn't been made visible yet */
+		/* yes iyesde means this hasn't been made visible yet */
 		return;
 
-	inode_lock(d_inode(dir));
+	iyesde_lock(d_iyesde(dir));
 	list_for_each_entry(sd, &parent_sd->s_children, s_sibling) {
 		if (!sd->s_element)
 			continue;
@@ -250,5 +250,5 @@ void configfs_hash_and_remove(struct dentry * dir, const char * name)
 			break;
 		}
 	}
-	inode_unlock(d_inode(dir));
+	iyesde_unlock(d_iyesde(dir));
 }

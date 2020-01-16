@@ -43,7 +43,7 @@ enum xscale_perf_types {
 	XSCALE_PERFCTR_BCU_ECC_NO_ELOG		= 0x14,
 	XSCALE_PERFCTR_BCU_1_BIT_ERR		= 0x15,
 	XSCALE_PERFCTR_RMW			= 0x16,
-	/* XSCALE_PERFCTR_CCNT is not hardware defined */
+	/* XSCALE_PERFCTR_CCNT is yest hardware defined */
 	XSCALE_PERFCTR_CCNT			= 0xFE,
 	XSCALE_PERFCTR_UNUSED			= 0xFF,
 };
@@ -152,8 +152,8 @@ xscale1pmu_handle_irq(struct arm_pmu *cpu_pmu)
 
 	/*
 	 * NOTE: there's an A stepping erratum that states if an overflow
-	 *       bit already exists and another occurs, the previous
-	 *       Overflow bit gets cleared. There's no workaround.
+	 *       bit already exists and ayesther occurs, the previous
+	 *       Overflow bit gets cleared. There's yes workaround.
 	 *	 Fixed in B stepping or later.
 	 */
 	pmnc = xscale1pmu_read_pmnc();
@@ -417,7 +417,7 @@ xscale2pmu_read_pmnc(void)
 static inline void
 xscale2pmu_write_pmnc(u32 val)
 {
-	/* bits 4-23 are write-as-0, 24-31 are write ignored */
+	/* bits 4-23 are write-as-0, 24-31 are write igyesred */
 	val &= 0xf;
 	asm volatile("mcr p14, 0, %0, c0, c1, 0" : : "r" (val));
 }

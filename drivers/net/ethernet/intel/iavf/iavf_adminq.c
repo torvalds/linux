@@ -111,7 +111,7 @@ static enum iavf_status iavf_alloc_arq_bufs(struct iavf_hw *hw)
 	 * allocate the mapped buffers for the event processing
 	 */
 
-	/* buffer_info structures do not need alignment */
+	/* buffer_info structures do yest need alignment */
 	ret_code = iavf_allocate_virt_mem(hw, &hw->aq.arq.dma_head,
 					  (hw->aq.num_arq_entries *
 					   sizeof(struct iavf_dma_mem)));
@@ -129,14 +129,14 @@ static enum iavf_status iavf_alloc_arq_bufs(struct iavf_hw *hw)
 		if (ret_code)
 			goto unwind_alloc_arq_bufs;
 
-		/* now configure the descriptors for use */
+		/* yesw configure the descriptors for use */
 		desc = IAVF_ADMINQ_DESC(hw->aq.arq, i);
 
 		desc->flags = cpu_to_le16(IAVF_AQ_FLAG_BUF);
 		if (hw->aq.arq_buf_size > IAVF_AQ_LARGE_BUF)
 			desc->flags |= cpu_to_le16(IAVF_AQ_FLAG_LB);
 		desc->opcode = 0;
-		/* This is in accordance with Admin queue design, there is no
+		/* This is in accordance with Admin queue design, there is yes
 		 * register for buffer size configuration
 		 */
 		desc->datalen = cpu_to_le16((u16)bi->size);
@@ -232,7 +232,7 @@ static void iavf_free_asq_bufs(struct iavf_hw *hw)
 {
 	int i;
 
-	/* only unmap if the address is non-NULL */
+	/* only unmap if the address is yesn-NULL */
 	for (i = 0; i < hw->aq.num_asq_entries; i++)
 		if (hw->aq.asq.r.asq_bi[i].pa)
 			iavf_free_dma_mem(hw, &hw->aq.asq.r.asq_bi[i]);
@@ -319,7 +319,7 @@ static enum iavf_status iavf_config_arq_regs(struct iavf_hw *hw)
  *     - hw->aq.arq_buf_size
  *
  *  Do *NOT* hold the lock when calling this as the memory allocation routines
- *  called are not going to be atomic context safe
+ *  called are yest going to be atomic context safe
  **/
 static enum iavf_status iavf_init_asq(struct iavf_hw *hw)
 {
@@ -378,7 +378,7 @@ init_adminq_exit:
  *     - hw->aq.arq_buf_size
  *
  *  Do *NOT* hold the lock when calling this as the memory allocation routines
- *  called are not going to be atomic context safe
+ *  called are yest going to be atomic context safe
  **/
 static enum iavf_status iavf_init_arq(struct iavf_hw *hw)
 {
@@ -621,7 +621,7 @@ bool iavf_asq_done(struct iavf_hw *hw)
 /**
  *  iavf_asq_send_command - send command to Admin Queue
  *  @hw: pointer to the hw struct
- *  @desc: prefilled descriptor describing the command (non DMA mem)
+ *  @desc: prefilled descriptor describing the command (yesn DMA mem)
  *  @buff: buffer to use for indirect commands
  *  @buff_size: size of buffer for indirect commands
  *  @cmd_details: pointer to command details structure
@@ -647,7 +647,7 @@ enum iavf_status iavf_asq_send_command(struct iavf_hw *hw,
 
 	if (hw->aq.asq.count == 0) {
 		iavf_debug(hw, IAVF_DEBUG_AQ_MESSAGE,
-			   "AQTX: Admin queue not initialized.\n");
+			   "AQTX: Admin queue yest initialized.\n");
 		status = IAVF_ERR_QUEUE_EMPTY;
 		goto asq_send_command_error;
 	}
@@ -667,7 +667,7 @@ enum iavf_status iavf_asq_send_command(struct iavf_hw *hw,
 		*details = *cmd_details;
 
 		/* If the cmd_details are defined copy the cookie.  The
-		 * cpu_to_le32 is not needed here because the data is ignored
+		 * cpu_to_le32 is yest needed here because the data is igyesred
 		 * by the FW, only used by the driver
 		 */
 		if (details->cookie) {
@@ -696,7 +696,7 @@ enum iavf_status iavf_asq_send_command(struct iavf_hw *hw,
 	if (details->postpone && !details->async) {
 		iavf_debug(hw,
 			   IAVF_DEBUG_AQ_MESSAGE,
-			   "AQTX: Async flag not set along with postpone flag");
+			   "AQTX: Async flag yest set along with postpone flag");
 		status = IAVF_ERR_PARAM;
 		goto asq_send_command_error;
 	}
@@ -706,7 +706,7 @@ enum iavf_status iavf_asq_send_command(struct iavf_hw *hw,
 	 * number of desc available
 	 */
 	/* the clean function called here could be called in a separate thread
-	 * in case of asynchronous completions
+	 * in case of asynchroyesus completions
 	 */
 	if (iavf_clean_asq(hw) == 0) {
 		iavf_debug(hw,
@@ -722,7 +722,7 @@ enum iavf_status iavf_asq_send_command(struct iavf_hw *hw,
 	/* if the desc is available copy the temp desc to the right place */
 	*desc_on_ring = *desc;
 
-	/* if buff is not NULL assume indirect command */
+	/* if buff is yest NULL assume indirect command */
 	if (buff) {
 		dma_buff = &hw->aq.asq.r.asq_bi[hw->aq.asq.next_to_use];
 		/* copy the user buff into the respective DMA buff */
@@ -748,7 +748,7 @@ enum iavf_status iavf_asq_send_command(struct iavf_hw *hw,
 	if (!details->postpone)
 		wr32(hw, hw->aq.asq.tail, hw->aq.asq.next_to_use);
 
-	/* if cmd_details are not defined or async flag is not set,
+	/* if cmd_details are yest defined or async flag is yest set,
 	 * we need to wait for desc write back
 	 */
 	if (!details->async && !details->postpone) {
@@ -819,7 +819,7 @@ asq_send_command_error:
 
 /**
  *  iavf_fill_default_direct_cmd_desc - AQ descriptor helper function
- *  @desc:     pointer to the temp descriptor (non DMA mem)
+ *  @desc:     pointer to the temp descriptor (yesn DMA mem)
  *  @opcode:   the opcode can be used to decide which flags to turn off or on
  *
  *  Fill the desc with default values
@@ -863,7 +863,7 @@ enum iavf_status iavf_clean_arq_element(struct iavf_hw *hw,
 
 	if (hw->aq.arq.count == 0) {
 		iavf_debug(hw, IAVF_DEBUG_AQ_MESSAGE,
-			   "AQRX: Admin queue not initialized.\n");
+			   "AQRX: Admin queue yest initialized.\n");
 		ret_code = IAVF_ERR_QUEUE_EMPTY;
 		goto clean_arq_element_err;
 	}
@@ -871,12 +871,12 @@ enum iavf_status iavf_clean_arq_element(struct iavf_hw *hw,
 	/* set next_to_use to head */
 	ntu = rd32(hw, hw->aq.arq.head) & IAVF_VF_ARQH1_ARQH_MASK;
 	if (ntu == ntc) {
-		/* nothing to do - shouldn't need to update ring's values */
+		/* yesthing to do - shouldn't need to update ring's values */
 		ret_code = IAVF_ERR_ADMIN_QUEUE_NO_WORK;
 		goto clean_arq_element_out;
 	}
 
-	/* now clean the next descriptor */
+	/* yesw clean the next descriptor */
 	desc = IAVF_ADMINQ_DESC(hw->aq.arq, ntc);
 	desc_idx = ntc;
 

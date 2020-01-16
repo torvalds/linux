@@ -61,13 +61,13 @@ void test_bpf_verif_scale(void)
 		 */
 		{ "pyperf600.o", BPF_PROG_TYPE_RAW_TRACEPOINT },
 
-		/* no unroll at all.
+		/* yes unroll at all.
 		 * C loop count -> 600.
 		 * ASM loop count -> 600.
 		 * ~110 insns in loop body.
 		 * Total of 5 such loops. Total program size ~1500 insns.
 		 */
-		{ "pyperf600_nounroll.o", BPF_PROG_TYPE_RAW_TRACEPOINT },
+		{ "pyperf600_yesunroll.o", BPF_PROG_TYPE_RAW_TRACEPOINT },
 
 		{ "loop1.o", BPF_PROG_TYPE_RAW_TRACEPOINT },
 		{ "loop2.o", BPF_PROG_TYPE_RAW_TRACEPOINT },
@@ -80,9 +80,9 @@ void test_bpf_verif_scale(void)
 		 */
 		{ "strobemeta.o", BPF_PROG_TYPE_RAW_TRACEPOINT },
 
-		/* no unroll, tiny loops */
-		{ "strobemeta_nounroll1.o", BPF_PROG_TYPE_RAW_TRACEPOINT },
-		{ "strobemeta_nounroll2.o", BPF_PROG_TYPE_RAW_TRACEPOINT },
+		/* yes unroll, tiny loops */
+		{ "strobemeta_yesunroll1.o", BPF_PROG_TYPE_RAW_TRACEPOINT },
+		{ "strobemeta_yesunroll2.o", BPF_PROG_TYPE_RAW_TRACEPOINT },
 
 		{ "test_sysctl_loop1.o", BPF_PROG_TYPE_CGROUP_SYSCTL },
 		{ "test_sysctl_loop2.o", BPF_PROG_TYPE_CGROUP_SYSCTL },

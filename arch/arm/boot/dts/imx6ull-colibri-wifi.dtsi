@@ -44,8 +44,8 @@
 	cap-power-off-card;
 	keep-power-in-suspend;
 	mmc-pwrseq = <&wifi_pwrseq>;
-	no-1-8-v;
-	non-removable;
+	yes-1-8-v;
+	yesn-removable;
 	vmmc-supply = <&reg_module_3v3>;
 	wakeup-source;
 	status = "okay";

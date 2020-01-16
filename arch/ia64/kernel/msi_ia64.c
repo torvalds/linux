@@ -172,7 +172,7 @@ msi_compose_msg(struct pci_dev *pdev, unsigned int irq, struct msi_msg *msg)
 		MSI_DATA_VECTOR(cfg->vector);
 }
 
-int dmar_alloc_hwirq(int id, int node, void *arg)
+int dmar_alloc_hwirq(int id, int yesde, void *arg)
 {
 	int irq;
 	struct msi_msg msg;

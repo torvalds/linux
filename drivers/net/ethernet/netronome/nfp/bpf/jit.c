@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
-/* Copyright (C) 2016-2018 Netronome Systems, Inc. */
+/* Copyright (C) 2016-2018 Netroyesme Systems, Inc. */
 
 #define pr_fmt(fmt)	"NFP net bpf: " fmt
 
@@ -17,7 +17,7 @@
 
 /* --- NFP prog --- */
 /* Foreach "multiple" entries macros provide pos and next<n> pointers.
- * It's safe to modify the next pointers (but not pos).
+ * It's safe to modify the next pointers (but yest pos).
  */
 #define nfp_for_each_insn_walk2(nfp_prog, pos, next)			\
 	for (pos = list_first_entry(&(nfp_prog)->insns, typeof(*pos), l), \
@@ -103,7 +103,7 @@ emit_cmd_any(struct nfp_prog *nfp_prog, enum cmd_tgt_map op, u8 mode, u8 xfer,
 	struct nfp_insn_re_regs reg;
 	int err;
 
-	err = swreg_to_restricted(reg_none(), lreg, rreg, &reg, false);
+	err = swreg_to_restricted(reg_yesne(), lreg, rreg, &reg, false);
 	if (err) {
 		nfp_prog->error = err;
 		return;
@@ -217,7 +217,7 @@ emit_br_bit_relo(struct nfp_prog *nfp_prog, swreg src, u8 bit, u16 addr,
 	 */
 	bit += 1;
 
-	err = swreg_to_restricted(reg_none(), src, reg_imm(bit), &reg, false);
+	err = swreg_to_restricted(reg_yesne(), src, reg_imm(bit), &reg, false);
 	if (err) {
 		nfp_prog->error = err;
 		return;
@@ -258,7 +258,7 @@ static void emit_rtn(struct nfp_prog *nfp_prog, swreg base, u8 defer)
 	struct nfp_insn_ur_regs reg;
 	int err;
 
-	err = swreg_to_unrestricted(reg_none(), base, reg_imm(0), &reg);
+	err = swreg_to_unrestricted(reg_yesne(), base, reg_imm(0), &reg);
 	if (err) {
 		nfp_prog->error = err;
 		return;
@@ -332,7 +332,7 @@ __emit_shf(struct nfp_prog *nfp_prog, u16 dst, enum alu_dst_ab dst_ab,
 	 * left then shift amount of 1 to 31 is specified as 32 minus the amount
 	 * to shift.
 	 *
-	 * But no need to do this for indirect shift which has shift amount be
+	 * But yes need to do this for indirect shift which has shift amount be
 	 * 0. Even after we do this subtraction, shift amount 0 will be turned
 	 * into 32 which will eventually be encoded the same as 0 because only
 	 * low 5 bits are encoded, but shift amount be 32 will fail the
@@ -382,7 +382,7 @@ emit_shf_indir(struct nfp_prog *nfp_prog, swreg dst,
 	       swreg lreg, enum shf_op op, swreg rreg, enum shf_sc sc)
 {
 	if (sc == SHF_SC_R_ROT) {
-		pr_err("indirect shift is not allowed on rotation\n");
+		pr_err("indirect shift is yest allowed on rotation\n");
 		nfp_prog->error = -EFAULT;
 		return;
 	}
@@ -467,10 +467,10 @@ emit_mul(struct nfp_prog *nfp_prog, swreg lreg, enum mul_type type,
 		/* When type is step and step Number is LAST or LAST2, left
 		 * source is used as destination.
 		 */
-		err = swreg_to_unrestricted(lreg, reg_none(), rreg, &reg);
+		err = swreg_to_unrestricted(lreg, reg_yesne(), rreg, &reg);
 		areg = reg.dst;
 	} else {
-		err = swreg_to_unrestricted(reg_none(), lreg, rreg, &reg);
+		err = swreg_to_unrestricted(reg_yesne(), lreg, rreg, &reg);
 		areg = reg.areg;
 	}
 
@@ -555,16 +555,16 @@ static void emit_csr_wr(struct nfp_prog *nfp_prog, swreg src, u16 addr)
 	struct nfp_insn_ur_regs reg;
 	int err;
 
-	/* This instruction takes immeds instead of reg_none() for the ignored
-	 * operand, but we can't encode 2 immeds in one instr with our normal
-	 * swreg infra so if param is an immed, we encode as reg_none() and
+	/* This instruction takes immeds instead of reg_yesne() for the igyesred
+	 * operand, but we can't encode 2 immeds in one instr with our yesrmal
+	 * swreg infra so if param is an immed, we encode as reg_yesne() and
 	 * copy the immed to both operands.
 	 */
 	if (swreg_type(src) == NN_REG_IMM) {
-		err = swreg_to_unrestricted(reg_none(), src, reg_none(), &reg);
+		err = swreg_to_unrestricted(reg_yesne(), src, reg_yesne(), &reg);
 		reg.breg = reg.areg;
 	} else {
-		err = swreg_to_unrestricted(reg_none(), src, reg_imm(0), &reg);
+		err = swreg_to_unrestricted(reg_yesne(), src, reg_imm(0), &reg);
 	}
 	if (err) {
 		nfp_prog->error = err;
@@ -581,7 +581,7 @@ static void __emit_csr_rd(struct nfp_prog *nfp_prog, u16 addr)
 	__emit_lcsr(nfp_prog, 0, 0, false, addr, false, false);
 }
 
-static void emit_nop(struct nfp_prog *nfp_prog)
+static void emit_yesp(struct nfp_prog *nfp_prog)
 {
 	__emit_immed(nfp_prog, UR_REG_IMM, UR_REG_IMM, 0, 0, 0, 0, 0, 0, 0);
 }
@@ -645,7 +645,7 @@ wrp_immed_relo(struct nfp_prog *nfp_prog, swreg dst, u32 imm,
 }
 
 /* ur_load_imm_any() - encode immediate or use tmp register (unrestricted)
- * If the @imm is small enough encode it directly in operand and return
+ * If the @imm is small eyesugh encode it directly in operand and return
  * otherwise load @imm to a spare register and return its encoding.
  */
 static swreg ur_load_imm_any(struct nfp_prog *nfp_prog, u32 imm, swreg tmp_reg)
@@ -658,7 +658,7 @@ static swreg ur_load_imm_any(struct nfp_prog *nfp_prog, u32 imm, swreg tmp_reg)
 }
 
 /* re_load_imm_any() - encode immediate or use tmp register (restricted)
- * If the @imm is small enough encode it directly in operand and return
+ * If the @imm is small eyesugh encode it directly in operand and return
  * otherwise load @imm to a spare register and return its encoding.
  */
 static swreg re_load_imm_any(struct nfp_prog *nfp_prog, u32 imm, swreg tmp_reg)
@@ -670,15 +670,15 @@ static swreg re_load_imm_any(struct nfp_prog *nfp_prog, u32 imm, swreg tmp_reg)
 	return tmp_reg;
 }
 
-static void wrp_nops(struct nfp_prog *nfp_prog, unsigned int count)
+static void wrp_yesps(struct nfp_prog *nfp_prog, unsigned int count)
 {
 	while (count--)
-		emit_nop(nfp_prog);
+		emit_yesp(nfp_prog);
 }
 
 static void wrp_mov(struct nfp_prog *nfp_prog, swreg dst, swreg src)
 {
-	emit_alu(nfp_prog, dst, reg_none(), ALU_OP_NONE, src);
+	emit_alu(nfp_prog, dst, reg_yesne(), ALU_OP_NONE, src);
 }
 
 static void wrp_reg_mov(struct nfp_prog *nfp_prog, u16 dst, u16 src)
@@ -700,7 +700,7 @@ wrp_reg_subpart(struct nfp_prog *nfp_prog, swreg dst, swreg src, u8 field_len,
 }
 
 /* wrp_reg_or_subpart() - load @field_len bytes from low end of @src, or the
- * result to @dst from offset, there is no change on the other bits of @dst.
+ * result to @dst from offset, there is yes change on the other bits of @dst.
  */
 static void
 wrp_reg_or_subpart(struct nfp_prog *nfp_prog, swreg dst, swreg src,
@@ -750,7 +750,7 @@ static int nfp_cpp_memcpy(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 
 	/* Setup PREV_ALU fields to override memory read length. */
 	if (len > 32)
-		wrp_immed(nfp_prog, reg_none(),
+		wrp_immed(nfp_prog, reg_yesne(),
 			  CMD_OVE_LEN | FIELD_PREP(CMD_OV_LEN, xfer_num - 1));
 
 	/* Memory read from source addr into transfer-in registers. */
@@ -776,21 +776,21 @@ static int nfp_cpp_memcpy(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 			 CMD_CTX_SWAP);
 	} else if (len <= 32) {
 		/* Use single indirect_ref write8. */
-		wrp_immed(nfp_prog, reg_none(),
+		wrp_immed(nfp_prog, reg_yesne(),
 			  CMD_OVE_LEN | FIELD_PREP(CMD_OV_LEN, len - 1));
 		emit_cmd_indir(nfp_prog, CMD_TGT_WRITE8_SWAP, CMD_MODE_32b, 0,
 			       reg_a(meta->paired_st->dst_reg * 2), off,
 			       len - 1, CMD_CTX_SWAP);
 	} else if (IS_ALIGNED(len, 4)) {
 		/* Use single indirect_ref write32. */
-		wrp_immed(nfp_prog, reg_none(),
+		wrp_immed(nfp_prog, reg_yesne(),
 			  CMD_OVE_LEN | FIELD_PREP(CMD_OV_LEN, xfer_num - 1));
 		emit_cmd_indir(nfp_prog, CMD_TGT_WRITE32_SWAP, CMD_MODE_32b, 0,
 			       reg_a(meta->paired_st->dst_reg * 2), off,
 			       xfer_num - 1, CMD_CTX_SWAP);
 	} else if (len <= 40) {
 		/* Use one direct_ref write32 to write the first 32-bytes, then
-		 * another direct_ref write8 to write the remaining bytes.
+		 * ayesther direct_ref write8 to write the remaining bytes.
 		 */
 		emit_cmd(nfp_prog, CMD_TGT_WRITE32_SWAP, CMD_MODE_32b, 0,
 			 reg_a(meta->paired_st->dst_reg * 2), off, 7,
@@ -803,11 +803,11 @@ static int nfp_cpp_memcpy(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 			 CMD_CTX_SWAP);
 	} else {
 		/* Use one indirect_ref write32 to write 4-bytes aligned length,
-		 * then another direct_ref write8 to write the remaining bytes.
+		 * then ayesther direct_ref write8 to write the remaining bytes.
 		 */
 		u8 new_off;
 
-		wrp_immed(nfp_prog, reg_none(),
+		wrp_immed(nfp_prog, reg_yesne(),
 			  CMD_OVE_LEN | FIELD_PREP(CMD_OV_LEN, xfer_num - 2));
 		emit_cmd_indir(nfp_prog, CMD_TGT_WRITE32_SWAP, CMD_MODE_32b, 0,
 			       reg_a(meta->paired_st->dst_reg * 2), off,
@@ -822,7 +822,7 @@ static int nfp_cpp_memcpy(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 	/* TODO: The following extra load is to make sure data flow be identical
 	 *  before and after we do memory copy optimization.
 	 *
-	 *  The load destination register is not guaranteed to be dead, so we
+	 *  The load destination register is yest guaranteed to be dead, so we
 	 *  need to make sure it is loaded with the value the same as before
 	 *  this transformation.
 	 *
@@ -882,7 +882,7 @@ data_ld(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta, swreg offset,
 
 	i = 0;
 	if (shift)
-		emit_shf(nfp_prog, reg_both(dst_gpr), reg_none(), SHF_OP_NONE,
+		emit_shf(nfp_prog, reg_both(dst_gpr), reg_yesne(), SHF_OP_NONE,
 			 reg_xfer(0), SHF_SC_R_SHF, shift * 8);
 	else
 		for (; i * 4 < size; i++)
@@ -958,7 +958,7 @@ construct_data_ind_ld(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta,
 	/* Check packet length (size guaranteed to fit b/c it's u8) */
 	emit_alu(nfp_prog, imm_a(nfp_prog),
 		 imm_a(nfp_prog), ALU_OP_ADD, reg_imm(size));
-	emit_alu(nfp_prog, reg_none(),
+	emit_alu(nfp_prog, reg_yesne(),
 		 plen_reg(nfp_prog), ALU_OP_SUB, imm_a(nfp_prog));
 	emit_br_relo(nfp_prog, BR_BLO, BR_OFF_RELO, 0, RELO_BR_GO_ABORT);
 
@@ -974,7 +974,7 @@ construct_data_ld(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta,
 
 	/* Check packet length */
 	tmp_reg = ur_load_imm_any(nfp_prog, offset + size, imm_a(nfp_prog));
-	emit_alu(nfp_prog, reg_none(), plen_reg(nfp_prog), ALU_OP_SUB, tmp_reg);
+	emit_alu(nfp_prog, reg_yesne(), plen_reg(nfp_prog), ALU_OP_SUB, tmp_reg);
 	emit_br_relo(nfp_prog, BR_BLO, BR_OFF_RELO, 0, RELO_BR_GO_ABORT);
 
 	/* Load data */
@@ -1068,7 +1068,7 @@ wrp_lmem_load(struct nfp_prog *nfp_prog, u8 dst, u8 dst_byte, s32 off,
 		reg = reg_lm(lm3 ? 3 : 0, idx);
 	} else {
 		reg = imm_a(nfp_prog);
-		/* If it's not the first part of the load and we start a new GPR
+		/* If it's yest the first part of the load and we start a new GPR
 		 * that means we are loading a second part of the LMEM word into
 		 * a new GPR.  IOW we've already looked that LMEM word and
 		 * therefore it has been loaded into imm_a().
@@ -1080,7 +1080,7 @@ wrp_lmem_load(struct nfp_prog *nfp_prog, u8 dst, u8 dst_byte, s32 off,
 	emit_ld_field_any(nfp_prog, reg_both(dst), mask, reg, sc, shf, new_gpr);
 
 	if (should_inc)
-		wrp_mov(nfp_prog, reg_none(), reg_lm_inc(3));
+		wrp_mov(nfp_prog, reg_yesne(), reg_lm_inc(3));
 
 	return 0;
 }
@@ -1151,7 +1151,7 @@ wrp_lmem_store(struct nfp_prog *nfp_prog, u8 src, u8 src_byte, s32 off,
 		if (idx > RE_REG_LM_IDX_MAX)
 			wrp_mov(nfp_prog, reg_lm(0, idx), reg);
 		if (should_inc)
-			wrp_mov(nfp_prog, reg_none(), reg_lm_inc(3));
+			wrp_mov(nfp_prog, reg_yesne(), reg_lm_inc(3));
 	}
 
 	return 0;
@@ -1171,7 +1171,7 @@ mem_op_stack(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta,
 	bool lm3 = true;
 	int ret;
 
-	if (meta->ptr_not_const ||
+	if (meta->ptr_yest_const ||
 	    meta->flags & FLAG_INSN_PTR_CALLER_STACK_FRAME) {
 		/* Use of the last encountered ptr_off is OK, they all have
 		 * the same alignment.  Depend on low bits of value being
@@ -1188,11 +1188,11 @@ mem_op_stack(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta,
 		/* We can reach bottom 64B with LMaddr0 */
 		lm3 = false;
 	} else if (round_down(off, 32) == round_down(off + size - 1, 32)) {
-		/* We have to set up a new pointer.  If we know the offset
+		/* We have to set up a new pointer.  If we kyesw the offset
 		 * and the entire access falls into a single 32 byte aligned
 		 * window we won't have to increment the LM pointer.
 		 * The 32 byte alignment is imporant because offset is ORed in
-		 * not added when doing *l$indexN[off].
+		 * yest added when doing *l$indexN[off].
 		 */
 		stack_off_reg = ur_load_imm_any(nfp_prog, round_down(off, 32),
 						stack_imm(nfp_prog));
@@ -1213,15 +1213,15 @@ mem_op_stack(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta,
 	narrow_ld = clr_gpr && size < 8;
 
 	if (lm3) {
-		unsigned int nop_cnt;
+		unsigned int yesp_cnt;
 
 		emit_csr_wr(nfp_prog, imm_b(nfp_prog), NFP_CSR_ACT_LM_ADDR3);
 		/* For size < 4 one slot will be filled by zeroing of upper,
 		 * but be careful, that zeroing could be eliminated by zext
 		 * optimization.
 		 */
-		nop_cnt = narrow_ld && meta->flags & FLAG_INSN_DO_ZEXT ? 2 : 3;
-		wrp_nops(nfp_prog, nop_cnt);
+		yesp_cnt = narrow_ld && meta->flags & FLAG_INSN_DO_ZEXT ? 2 : 3;
+		wrp_yesps(nfp_prog, yesp_cnt);
 	}
 
 	if (narrow_ld)
@@ -1280,7 +1280,7 @@ wrp_alu_imm(struct nfp_prog *nfp_prog, u8 dst, enum alu_op alu_op, u32 imm)
 	}
 	if (alu_op == ALU_OP_XOR) {
 		if (!~imm)
-			emit_alu(nfp_prog, reg_both(dst), reg_none(),
+			emit_alu(nfp_prog, reg_both(dst), reg_yesne(),
 				 ALU_OP_NOT, reg_b(dst));
 		if (!imm || !~imm)
 			return;
@@ -1350,7 +1350,7 @@ static void
 wrp_test_reg_one(struct nfp_prog *nfp_prog, u8 dst, enum alu_op alu_op, u8 src,
 		 enum br_mask br_mask, u16 off)
 {
-	emit_alu(nfp_prog, reg_none(), reg_a(dst), alu_op, reg_b(src));
+	emit_alu(nfp_prog, reg_yesne(), reg_a(dst), alu_op, reg_b(src));
 	emit_br(nfp_prog, br_mask, off, 0);
 }
 
@@ -1391,7 +1391,7 @@ static const struct jmp_code_map *nfp_jmp_code_get(struct nfp_insn_meta *meta)
 	/* br_mask of 0 is BR_BEQ which we don't use in jump code table */
 	if (WARN_ONCE(op >= ARRAY_SIZE(jmp_code_map) ||
 		      !jmp_code_map[op].br_mask,
-		      "no code found for jump instruction"))
+		      "yes code found for jump instruction"))
 		return NULL;
 
 	return &jmp_code_map[op];
@@ -1415,17 +1415,17 @@ static int cmp_imm(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 
 	tmp_reg = ur_load_imm_any(nfp_prog, imm & ~0U, imm_b(nfp_prog));
 	if (!code->swap)
-		emit_alu(nfp_prog, reg_none(), reg_a(reg), alu_op, tmp_reg);
+		emit_alu(nfp_prog, reg_yesne(), reg_a(reg), alu_op, tmp_reg);
 	else
-		emit_alu(nfp_prog, reg_none(), tmp_reg, alu_op, reg_a(reg));
+		emit_alu(nfp_prog, reg_yesne(), tmp_reg, alu_op, reg_a(reg));
 
 	if (is_mbpf_jmp64(meta)) {
 		tmp_reg = ur_load_imm_any(nfp_prog, imm >> 32, imm_b(nfp_prog));
 		if (!code->swap)
-			emit_alu(nfp_prog, reg_none(),
+			emit_alu(nfp_prog, reg_yesne(),
 				 reg_a(reg + 1), carry_op, tmp_reg);
 		else
-			emit_alu(nfp_prog, reg_none(),
+			emit_alu(nfp_prog, reg_yesne(),
 				 tmp_reg, carry_op, reg_a(reg + 1));
 	}
 
@@ -1453,9 +1453,9 @@ static int cmp_reg(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 		areg ^= breg;
 	}
 
-	emit_alu(nfp_prog, reg_none(), reg_a(areg), ALU_OP_SUB, reg_b(breg));
+	emit_alu(nfp_prog, reg_yesne(), reg_a(areg), ALU_OP_SUB, reg_b(breg));
 	if (is_mbpf_jmp64(meta))
-		emit_alu(nfp_prog, reg_none(),
+		emit_alu(nfp_prog, reg_yesne(),
 			 reg_a(areg + 1), ALU_OP_SUB_C, reg_b(breg + 1));
 	emit_br(nfp_prog, code->br_mask, insn->off, 0);
 
@@ -1479,10 +1479,10 @@ wrp_mul_u32(struct nfp_prog *nfp_prog, swreg dst_hi, swreg dst_lo, swreg lreg,
 	emit_mul(nfp_prog, lreg, MUL_TYPE_STEP_32x32, MUL_STEP_2, rreg);
 	emit_mul(nfp_prog, lreg, MUL_TYPE_STEP_32x32, MUL_STEP_3, rreg);
 	emit_mul(nfp_prog, lreg, MUL_TYPE_STEP_32x32, MUL_STEP_4, rreg);
-	emit_mul(nfp_prog, dst_lo, MUL_TYPE_STEP_32x32, MUL_LAST, reg_none());
+	emit_mul(nfp_prog, dst_lo, MUL_TYPE_STEP_32x32, MUL_LAST, reg_yesne());
 	if (gen_high_half)
 		emit_mul(nfp_prog, dst_hi, MUL_TYPE_STEP_32x32, MUL_LAST_2,
-			 reg_none());
+			 reg_yesne());
 	else
 		wrp_immed(nfp_prog, dst_hi, 0);
 }
@@ -1494,7 +1494,7 @@ wrp_mul_u16(struct nfp_prog *nfp_prog, swreg dst_hi, swreg dst_lo, swreg lreg,
 	emit_mul(nfp_prog, lreg, MUL_TYPE_START, MUL_STEP_NONE, rreg);
 	emit_mul(nfp_prog, lreg, MUL_TYPE_STEP_16x16, MUL_STEP_1, rreg);
 	emit_mul(nfp_prog, lreg, MUL_TYPE_STEP_16x16, MUL_STEP_2, rreg);
-	emit_mul(nfp_prog, dst_lo, MUL_TYPE_STEP_16x16, MUL_LAST, reg_none());
+	emit_mul(nfp_prog, dst_lo, MUL_TYPE_STEP_16x16, MUL_LAST, reg_yesne());
 }
 
 static int
@@ -1555,7 +1555,7 @@ static int wrp_div_imm(struct nfp_prog *nfp_prog, u8 dst, u64 imm)
 	if (imm > 1U << 31) {
 		swreg tmp_b = ur_load_imm_any(nfp_prog, imm, imm_b(nfp_prog));
 
-		emit_alu(nfp_prog, reg_none(), dst_a, ALU_OP_SUB, tmp_b);
+		emit_alu(nfp_prog, reg_yesne(), dst_a, ALU_OP_SUB, tmp_b);
 		wrp_immed(nfp_prog, imm_a(nfp_prog), 0);
 		emit_alu(nfp_prog, dst_both, imm_a(nfp_prog), ALU_OP_ADD_C,
 			 reg_imm(0));
@@ -1572,25 +1572,25 @@ static int wrp_div_imm(struct nfp_prog *nfp_prog, u8 dst, u64 imm)
 	}
 	magic = ur_load_imm_any(nfp_prog, rvalue.m, imm_b(nfp_prog));
 	if (imm == 1U << exp) {
-		emit_shf(nfp_prog, dst_both, reg_none(), SHF_OP_NONE, dst_b,
+		emit_shf(nfp_prog, dst_both, reg_yesne(), SHF_OP_NONE, dst_b,
 			 SHF_SC_R_SHF, exp);
 	} else if (rvalue.is_wide_m) {
-		wrp_mul_u32(nfp_prog, imm_both(nfp_prog), reg_none(), dst_a,
+		wrp_mul_u32(nfp_prog, imm_both(nfp_prog), reg_yesne(), dst_a,
 			    magic, true);
 		emit_alu(nfp_prog, dst_both, dst_a, ALU_OP_SUB,
 			 imm_b(nfp_prog));
-		emit_shf(nfp_prog, dst_both, reg_none(), SHF_OP_NONE, dst_b,
+		emit_shf(nfp_prog, dst_both, reg_yesne(), SHF_OP_NONE, dst_b,
 			 SHF_SC_R_SHF, 1);
 		emit_alu(nfp_prog, dst_both, dst_a, ALU_OP_ADD,
 			 imm_b(nfp_prog));
-		emit_shf(nfp_prog, dst_both, reg_none(), SHF_OP_NONE, dst_b,
+		emit_shf(nfp_prog, dst_both, reg_yesne(), SHF_OP_NONE, dst_b,
 			 SHF_SC_R_SHF, rvalue.sh - 1);
 	} else {
 		if (pre_shift)
-			emit_shf(nfp_prog, dst_both, reg_none(), SHF_OP_NONE,
+			emit_shf(nfp_prog, dst_both, reg_yesne(), SHF_OP_NONE,
 				 dst_b, SHF_SC_R_SHF, pre_shift);
-		wrp_mul_u32(nfp_prog, dst_both, reg_none(), dst_a, magic, true);
-		emit_shf(nfp_prog, dst_both, reg_none(), SHF_OP_NONE,
+		wrp_mul_u32(nfp_prog, dst_both, reg_yesne(), dst_a, magic, true);
+		emit_shf(nfp_prog, dst_both, reg_yesne(), SHF_OP_NONE,
 			 dst_b, SHF_SC_R_SHF, rvalue.sh);
 	}
 
@@ -1635,17 +1635,17 @@ static int adjust_head(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 		 reg_a(2 * 2), ALU_OP_ADD_2B, pptr_reg(nfp_prog));
 
 	/* Validate result will fit within FW datapath constraints */
-	emit_alu(nfp_prog, reg_none(),
+	emit_alu(nfp_prog, reg_yesne(),
 		 tmp, ALU_OP_SUB, reg_imm(adjust_head->off_min));
 	emit_br(nfp_prog, BR_BLO, ret_einval, 0);
-	emit_alu(nfp_prog, reg_none(),
+	emit_alu(nfp_prog, reg_yesne(),
 		 reg_imm(adjust_head->off_max), ALU_OP_SUB, tmp);
 	emit_br(nfp_prog, BR_BLO, ret_einval, 0);
 
 	/* Validate the length is at least ETH_HLEN */
 	emit_alu(nfp_prog, tmp_len,
 		 plen_reg(nfp_prog), ALU_OP_SUB, reg_a(2 * 2));
-	emit_alu(nfp_prog, reg_none(),
+	emit_alu(nfp_prog, reg_yesne(),
 		 tmp_len, ALU_OP_SUB, reg_imm(ETH_HLEN));
 	emit_br(nfp_prog, BR_BMI, ret_einval, 0);
 
@@ -1692,13 +1692,13 @@ static int adjust_tail(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 
 	/* Calculate resulting length */
 	emit_alu(nfp_prog, plen, plen_reg(nfp_prog), ALU_OP_ADD, delta);
-	/* delta == 0 is not allowed by the kernel, add must overflow to make
+	/* delta == 0 is yest allowed by the kernel, add must overflow to make
 	 * length smaller.
 	 */
 	emit_br(nfp_prog, BR_BCC, ret_einval, 0);
 
 	/* if (new_len < 14) then -EINVAL */
-	emit_alu(nfp_prog, reg_none(), plen, ALU_OP_SUB, reg_imm(ETH_HLEN));
+	emit_alu(nfp_prog, reg_yesne(), plen, ALU_OP_SUB, reg_imm(ETH_HLEN));
 	emit_br(nfp_prog, BR_BMI, ret_einval, 0);
 
 	emit_alu(nfp_prog, plen_reg(nfp_prog),
@@ -1729,7 +1729,7 @@ map_call_stack_common(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 	u32 ret_tgt;
 	s64 lm_off;
 
-	/* We only have to reload LM0 if the key is not at start of stack */
+	/* We only have to reload LM0 if the key is yest at start of stack */
 	lm_off = nfp_prog->stack_frame_depth;
 	lm_off += meta->arg2.reg.var_off.value + meta->arg2.reg.off;
 	load_lm_ptr = meta->arg2.var_off || lm_off;
@@ -1758,7 +1758,7 @@ map_call_stack_common(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 		return 0;
 
 	emit_csr_wr(nfp_prog, stack_reg(nfp_prog), NFP_CSR_ACT_LM_ADDR0);
-	wrp_nops(nfp_prog, 3);
+	wrp_yesps(nfp_prog, 3);
 
 	return 0;
 }
@@ -1808,7 +1808,7 @@ nfp_queue_select(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 	jmp_tgt = nfp_prog_current_offset(nfp_prog) + 5;
 
 	/* Make sure the queue id fits into FW field */
-	emit_alu(nfp_prog, reg_none(), reg_a(meta->insn.src_reg * 2),
+	emit_alu(nfp_prog, reg_yesne(), reg_a(meta->insn.src_reg * 2),
 		 ALU_OP_AND_NOT_B, reg_imm(0xff));
 	emit_br(nfp_prog, BR_BEQ, jmp_tgt, 2);
 
@@ -1966,7 +1966,7 @@ static int div_imm64(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 static int div_reg64(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 {
 	/* NOTE: verifier hook has rejected cases for which verifier doesn't
-	 * know whether the source operand is constant or not.
+	 * kyesw whether the source operand is constant or yest.
 	 */
 	return wrp_div_imm(nfp_prog, meta->insn.dst_reg * 2, meta->umin_src);
 }
@@ -2002,13 +2002,13 @@ static int __shl_imm64(struct nfp_prog *nfp_prog, u8 dst, u8 shift_amt)
 		emit_shf(nfp_prog, reg_both(dst + 1), reg_a(dst + 1),
 			 SHF_OP_NONE, reg_b(dst), SHF_SC_R_DSHF,
 			 32 - shift_amt);
-		emit_shf(nfp_prog, reg_both(dst), reg_none(), SHF_OP_NONE,
+		emit_shf(nfp_prog, reg_both(dst), reg_yesne(), SHF_OP_NONE,
 			 reg_b(dst), SHF_SC_L_SHF, shift_amt);
 	} else if (shift_amt == 32) {
 		wrp_reg_mov(nfp_prog, dst + 1, dst);
 		wrp_immed(nfp_prog, reg_both(dst), 0);
 	} else if (shift_amt > 32) {
-		emit_shf(nfp_prog, reg_both(dst + 1), reg_none(), SHF_OP_NONE,
+		emit_shf(nfp_prog, reg_both(dst + 1), reg_yesne(), SHF_OP_NONE,
 			 reg_b(dst), SHF_SC_L_SHF, shift_amt - 32);
 		wrp_immed(nfp_prog, reg_both(dst), 0);
 	}
@@ -2028,7 +2028,7 @@ static void shl_reg64_lt32_high(struct nfp_prog *nfp_prog, u8 dst, u8 src)
 {
 	emit_alu(nfp_prog, imm_both(nfp_prog), reg_imm(32), ALU_OP_SUB,
 		 reg_b(src));
-	emit_alu(nfp_prog, reg_none(), imm_a(nfp_prog), ALU_OP_OR, reg_imm(0));
+	emit_alu(nfp_prog, reg_yesne(), imm_a(nfp_prog), ALU_OP_OR, reg_imm(0));
 	emit_shf_indir(nfp_prog, reg_both(dst + 1), reg_a(dst + 1), SHF_OP_NONE,
 		       reg_b(dst), SHF_SC_R_DSHF);
 }
@@ -2036,8 +2036,8 @@ static void shl_reg64_lt32_high(struct nfp_prog *nfp_prog, u8 dst, u8 src)
 /* NOTE: for indirect left shift, HIGH part should be calculated first. */
 static void shl_reg64_lt32_low(struct nfp_prog *nfp_prog, u8 dst, u8 src)
 {
-	emit_alu(nfp_prog, reg_none(), reg_a(src), ALU_OP_OR, reg_imm(0));
-	emit_shf_indir(nfp_prog, reg_both(dst), reg_none(), SHF_OP_NONE,
+	emit_alu(nfp_prog, reg_yesne(), reg_a(src), ALU_OP_OR, reg_imm(0));
+	emit_shf_indir(nfp_prog, reg_both(dst), reg_yesne(), SHF_OP_NONE,
 		       reg_b(dst), SHF_SC_L_SHF);
 }
 
@@ -2049,8 +2049,8 @@ static void shl_reg64_lt32(struct nfp_prog *nfp_prog, u8 dst, u8 src)
 
 static void shl_reg64_ge32(struct nfp_prog *nfp_prog, u8 dst, u8 src)
 {
-	emit_alu(nfp_prog, reg_none(), reg_a(src), ALU_OP_OR, reg_imm(0));
-	emit_shf_indir(nfp_prog, reg_both(dst + 1), reg_none(), SHF_OP_NONE,
+	emit_alu(nfp_prog, reg_yesne(), reg_a(src), ALU_OP_OR, reg_imm(0));
+	emit_shf_indir(nfp_prog, reg_both(dst + 1), reg_yesne(), SHF_OP_NONE,
 		       reg_b(dst), SHF_SC_L_SHF);
 	wrp_immed(nfp_prog, reg_both(dst), 0);
 }
@@ -2116,13 +2116,13 @@ static int __shr_imm64(struct nfp_prog *nfp_prog, u8 dst, u8 shift_amt)
 	if (shift_amt < 32) {
 		emit_shf(nfp_prog, reg_both(dst), reg_a(dst + 1), SHF_OP_NONE,
 			 reg_b(dst), SHF_SC_R_DSHF, shift_amt);
-		emit_shf(nfp_prog, reg_both(dst + 1), reg_none(), SHF_OP_NONE,
+		emit_shf(nfp_prog, reg_both(dst + 1), reg_yesne(), SHF_OP_NONE,
 			 reg_b(dst + 1), SHF_SC_R_SHF, shift_amt);
 	} else if (shift_amt == 32) {
 		wrp_reg_mov(nfp_prog, dst, dst + 1);
 		wrp_immed(nfp_prog, reg_both(dst + 1), 0);
 	} else if (shift_amt > 32) {
-		emit_shf(nfp_prog, reg_both(dst), reg_none(), SHF_OP_NONE,
+		emit_shf(nfp_prog, reg_both(dst), reg_yesne(), SHF_OP_NONE,
 			 reg_b(dst + 1), SHF_SC_R_SHF, shift_amt - 32);
 		wrp_immed(nfp_prog, reg_both(dst + 1), 0);
 	}
@@ -2141,14 +2141,14 @@ static int shr_imm64(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 /* NOTE: for indirect right shift, LOW part should be calculated first. */
 static void shr_reg64_lt32_high(struct nfp_prog *nfp_prog, u8 dst, u8 src)
 {
-	emit_alu(nfp_prog, reg_none(), reg_a(src), ALU_OP_OR, reg_imm(0));
-	emit_shf_indir(nfp_prog, reg_both(dst + 1), reg_none(), SHF_OP_NONE,
+	emit_alu(nfp_prog, reg_yesne(), reg_a(src), ALU_OP_OR, reg_imm(0));
+	emit_shf_indir(nfp_prog, reg_both(dst + 1), reg_yesne(), SHF_OP_NONE,
 		       reg_b(dst + 1), SHF_SC_R_SHF);
 }
 
 static void shr_reg64_lt32_low(struct nfp_prog *nfp_prog, u8 dst, u8 src)
 {
-	emit_alu(nfp_prog, reg_none(), reg_a(src), ALU_OP_OR, reg_imm(0));
+	emit_alu(nfp_prog, reg_yesne(), reg_a(src), ALU_OP_OR, reg_imm(0));
 	emit_shf_indir(nfp_prog, reg_both(dst), reg_a(dst + 1), SHF_OP_NONE,
 		       reg_b(dst), SHF_SC_R_DSHF);
 }
@@ -2161,8 +2161,8 @@ static void shr_reg64_lt32(struct nfp_prog *nfp_prog, u8 dst, u8 src)
 
 static void shr_reg64_ge32(struct nfp_prog *nfp_prog, u8 dst, u8 src)
 {
-	emit_alu(nfp_prog, reg_none(), reg_a(src), ALU_OP_OR, reg_imm(0));
-	emit_shf_indir(nfp_prog, reg_both(dst), reg_none(), SHF_OP_NONE,
+	emit_alu(nfp_prog, reg_yesne(), reg_a(src), ALU_OP_OR, reg_imm(0));
+	emit_shf_indir(nfp_prog, reg_both(dst), reg_yesne(), SHF_OP_NONE,
 		       reg_b(dst + 1), SHF_SC_R_SHF);
 	wrp_immed(nfp_prog, reg_both(dst + 1), 0);
 }
@@ -2221,21 +2221,21 @@ static int __ashr_imm64(struct nfp_prog *nfp_prog, u8 dst, u8 shift_amt)
 		emit_shf(nfp_prog, reg_both(dst), reg_a(dst + 1), SHF_OP_NONE,
 			 reg_b(dst), SHF_SC_R_DSHF, shift_amt);
 		/* Set signedness bit. */
-		emit_alu(nfp_prog, reg_none(), reg_a(dst + 1), ALU_OP_OR,
+		emit_alu(nfp_prog, reg_yesne(), reg_a(dst + 1), ALU_OP_OR,
 			 reg_imm(0));
-		emit_shf(nfp_prog, reg_both(dst + 1), reg_none(), SHF_OP_ASHR,
+		emit_shf(nfp_prog, reg_both(dst + 1), reg_yesne(), SHF_OP_ASHR,
 			 reg_b(dst + 1), SHF_SC_R_SHF, shift_amt);
 	} else if (shift_amt == 32) {
 		/* NOTE: this also helps setting signedness bit. */
 		wrp_reg_mov(nfp_prog, dst, dst + 1);
-		emit_shf(nfp_prog, reg_both(dst + 1), reg_none(), SHF_OP_ASHR,
+		emit_shf(nfp_prog, reg_both(dst + 1), reg_yesne(), SHF_OP_ASHR,
 			 reg_b(dst + 1), SHF_SC_R_SHF, 31);
 	} else if (shift_amt > 32) {
-		emit_alu(nfp_prog, reg_none(), reg_a(dst + 1), ALU_OP_OR,
+		emit_alu(nfp_prog, reg_yesne(), reg_a(dst + 1), ALU_OP_OR,
 			 reg_imm(0));
-		emit_shf(nfp_prog, reg_both(dst), reg_none(), SHF_OP_ASHR,
+		emit_shf(nfp_prog, reg_both(dst), reg_yesne(), SHF_OP_ASHR,
 			 reg_b(dst + 1), SHF_SC_R_SHF, shift_amt - 32);
-		emit_shf(nfp_prog, reg_both(dst + 1), reg_none(), SHF_OP_ASHR,
+		emit_shf(nfp_prog, reg_both(dst + 1), reg_yesne(), SHF_OP_ASHR,
 			 reg_b(dst + 1), SHF_SC_R_SHF, 31);
 	}
 
@@ -2255,8 +2255,8 @@ static void ashr_reg64_lt32_high(struct nfp_prog *nfp_prog, u8 dst, u8 src)
 	/* NOTE: the first insn will set both indirect shift amount (source A)
 	 * and signedness bit (MSB of result).
 	 */
-	emit_alu(nfp_prog, reg_none(), reg_a(src), ALU_OP_OR, reg_b(dst + 1));
-	emit_shf_indir(nfp_prog, reg_both(dst + 1), reg_none(), SHF_OP_ASHR,
+	emit_alu(nfp_prog, reg_yesne(), reg_a(src), ALU_OP_OR, reg_b(dst + 1));
+	emit_shf_indir(nfp_prog, reg_both(dst + 1), reg_yesne(), SHF_OP_ASHR,
 		       reg_b(dst + 1), SHF_SC_R_SHF);
 }
 
@@ -2276,10 +2276,10 @@ static void ashr_reg64_lt32(struct nfp_prog *nfp_prog, u8 dst, u8 src)
 
 static void ashr_reg64_ge32(struct nfp_prog *nfp_prog, u8 dst, u8 src)
 {
-	emit_alu(nfp_prog, reg_none(), reg_a(src), ALU_OP_OR, reg_b(dst + 1));
-	emit_shf_indir(nfp_prog, reg_both(dst), reg_none(), SHF_OP_ASHR,
+	emit_alu(nfp_prog, reg_yesne(), reg_a(src), ALU_OP_OR, reg_b(dst + 1));
+	emit_shf_indir(nfp_prog, reg_both(dst), reg_yesne(), SHF_OP_ASHR,
 		       reg_b(dst + 1), SHF_SC_R_SHF);
-	emit_shf(nfp_prog, reg_both(dst + 1), reg_none(), SHF_OP_ASHR,
+	emit_shf(nfp_prog, reg_both(dst + 1), reg_yesne(), SHF_OP_ASHR,
 		 reg_b(dst + 1), SHF_SC_R_SHF, 31);
 }
 
@@ -2429,9 +2429,9 @@ __ashr_imm(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta, u8 dst,
 {
 	if (shift_amt) {
 		/* Set signedness bit (MSB of result). */
-		emit_alu(nfp_prog, reg_none(), reg_a(dst), ALU_OP_OR,
+		emit_alu(nfp_prog, reg_yesne(), reg_a(dst), ALU_OP_OR,
 			 reg_imm(0));
-		emit_shf(nfp_prog, reg_both(dst), reg_none(), SHF_OP_ASHR,
+		emit_shf(nfp_prog, reg_both(dst), reg_yesne(), SHF_OP_ASHR,
 			 reg_b(dst), SHF_SC_R_SHF, shift_amt);
 	}
 	wrp_zext(nfp_prog, meta, dst);
@@ -2455,8 +2455,8 @@ static int ashr_reg(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 	/* NOTE: the first insn will set both indirect shift amount (source A)
 	 * and signedness bit (MSB of result).
 	 */
-	emit_alu(nfp_prog, reg_none(), reg_a(src), ALU_OP_OR, reg_b(dst));
-	emit_shf_indir(nfp_prog, reg_both(dst), reg_none(), SHF_OP_ASHR,
+	emit_alu(nfp_prog, reg_yesne(), reg_a(src), ALU_OP_OR, reg_b(dst));
+	emit_shf_indir(nfp_prog, reg_both(dst), reg_yesne(), SHF_OP_ASHR,
 		       reg_b(dst), SHF_SC_R_SHF);
 	wrp_zext(nfp_prog, meta, dst);
 
@@ -2476,7 +2476,7 @@ __shr_imm(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta, u8 dst,
 	  u8 shift_amt)
 {
 	if (shift_amt)
-		emit_shf(nfp_prog, reg_both(dst), reg_none(), SHF_OP_NONE,
+		emit_shf(nfp_prog, reg_both(dst), reg_yesne(), SHF_OP_NONE,
 			 reg_b(dst), SHF_SC_R_SHF, shift_amt);
 	wrp_zext(nfp_prog, meta, dst);
 	return 0;
@@ -2503,8 +2503,8 @@ static int shr_reg(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 		return __shr_imm(nfp_prog, meta, dst, umin);
 
 	src = insn->src_reg * 2;
-	emit_alu(nfp_prog, reg_none(), reg_a(src), ALU_OP_OR, reg_imm(0));
-	emit_shf_indir(nfp_prog, reg_both(dst), reg_none(), SHF_OP_NONE,
+	emit_alu(nfp_prog, reg_yesne(), reg_a(src), ALU_OP_OR, reg_imm(0));
+	emit_shf_indir(nfp_prog, reg_both(dst), reg_yesne(), SHF_OP_NONE,
 		       reg_b(dst), SHF_SC_R_SHF);
 	wrp_zext(nfp_prog, meta, dst);
 	return 0;
@@ -2515,7 +2515,7 @@ __shl_imm(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta, u8 dst,
 	  u8 shift_amt)
 {
 	if (shift_amt)
-		emit_shf(nfp_prog, reg_both(dst), reg_none(), SHF_OP_NONE,
+		emit_shf(nfp_prog, reg_both(dst), reg_yesne(), SHF_OP_NONE,
 			 reg_b(dst), SHF_SC_L_SHF, shift_amt);
 	wrp_zext(nfp_prog, meta, dst);
 	return 0;
@@ -2744,7 +2744,7 @@ mem_ldx_data_init_pktcache(struct nfp_prog *nfp_prog,
 	indir = len > 8 * REG_WIDTH;
 	/* Setup PREV_ALU for indirect mode. */
 	if (indir)
-		wrp_immed(nfp_prog, reg_none(),
+		wrp_immed(nfp_prog, reg_yesne(),
 			  CMD_OVE_LEN | FIELD_PREP(CMD_OV_LEN, xfer_num - 1));
 
 	/* Cache memory into transfer-in registers. */
@@ -3024,7 +3024,7 @@ mem_xadd(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta, bool is64)
 
 	off = ur_load_imm_any(nfp_prog, meta->insn.off, imm_b(nfp_prog));
 
-	/* We can fit 16 bits into command immediate, if we know the immediate
+	/* We can fit 16 bits into command immediate, if we kyesw the immediate
 	 * is guaranteed to either always or never fit into 16 bit we only
 	 * generate code to handle that particular case, otherwise generate
 	 * code for both.
@@ -3052,9 +3052,9 @@ mem_xadd(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta, bool is64)
 		swreg max_imm = imm_a(nfp_prog);
 
 		wrp_immed(nfp_prog, max_imm, 0xffff);
-		emit_alu(nfp_prog, reg_none(),
+		emit_alu(nfp_prog, reg_yesne(),
 			 max_imm, ALU_OP_SUB, reg_b(src_gpr));
-		emit_alu(nfp_prog, reg_none(),
+		emit_alu(nfp_prog, reg_yesne(),
 			 reg_imm(0), ALU_OP_SUB_C, reg_b(src_gpr + 1));
 		emit_br(nfp_prog, BR_BLO, full_add, meta->insn.off ? 2 : 0);
 		/* defer for add */
@@ -3092,7 +3092,7 @@ mem_xadd(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta, bool is64)
 	if (!nfp_prog_confirm_current_offset(nfp_prog, full_add))
 		return -EINVAL;
 
-	/* Generate the add if 16 bits are not guaranteed */
+	/* Generate the add if 16 bits are yest guaranteed */
 	if (meta->xadd_over_16bit) {
 		emit_cmd(nfp_prog, CMD_TGT_ADD, CMD_MODE_40b_BA, 0,
 			 addra, addrb, is64 << 2,
@@ -3149,7 +3149,7 @@ static int jeq_imm(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 		or2 = imm_b(nfp_prog);
 	}
 
-	emit_alu(nfp_prog, reg_none(), or1, ALU_OP_OR, or2);
+	emit_alu(nfp_prog, reg_yesne(), or1, ALU_OP_OR, or2);
 	emit_br(nfp_prog, BR_BEQ, insn->off, 0);
 
 	return 0;
@@ -3161,7 +3161,7 @@ static int jeq32_imm(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 	swreg tmp_reg;
 
 	tmp_reg = ur_load_imm_any(nfp_prog, insn->imm, imm_b(nfp_prog));
-	emit_alu(nfp_prog, reg_none(),
+	emit_alu(nfp_prog, reg_yesne(),
 		 reg_a(insn->dst_reg * 2), ALU_OP_XOR, tmp_reg);
 	emit_br(nfp_prog, BR_BEQ, insn->off, 0);
 
@@ -3179,10 +3179,10 @@ static int jset_imm(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 	emit_alu(nfp_prog, imm_b(nfp_prog),
 		 reg_a(dst_gpr), ALU_OP_AND, tmp_reg);
 	/* Upper word of the mask can only be 0 or ~0 from sign extension,
-	 * so either ignore it or OR the whole thing in.
+	 * so either igyesre it or OR the whole thing in.
 	 */
 	if (is_mbpf_jmp64(meta) && imm >> 32) {
-		emit_alu(nfp_prog, reg_none(),
+		emit_alu(nfp_prog, reg_yesne(),
 			 reg_a(dst_gpr + 1), ALU_OP_OR, imm_b(nfp_prog));
 	}
 	emit_br(nfp_prog, BR_BNE, insn->off, 0);
@@ -3199,17 +3199,17 @@ static int jne_imm(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 
 	if (!imm) {
 		if (is_jmp32)
-			emit_alu(nfp_prog, reg_none(), reg_none(), ALU_OP_NONE,
+			emit_alu(nfp_prog, reg_yesne(), reg_yesne(), ALU_OP_NONE,
 				 reg_b(insn->dst_reg * 2));
 		else
-			emit_alu(nfp_prog, reg_none(), reg_a(insn->dst_reg * 2),
+			emit_alu(nfp_prog, reg_yesne(), reg_a(insn->dst_reg * 2),
 				 ALU_OP_OR, reg_b(insn->dst_reg * 2 + 1));
 		emit_br(nfp_prog, BR_BNE, insn->off, 0);
 		return 0;
 	}
 
 	tmp_reg = ur_load_imm_any(nfp_prog, imm & ~0U, imm_b(nfp_prog));
-	emit_alu(nfp_prog, reg_none(),
+	emit_alu(nfp_prog, reg_yesne(),
 		 reg_a(insn->dst_reg * 2), ALU_OP_XOR, tmp_reg);
 	emit_br(nfp_prog, BR_BNE, insn->off, 0);
 
@@ -3217,7 +3217,7 @@ static int jne_imm(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 		return 0;
 
 	tmp_reg = ur_load_imm_any(nfp_prog, imm >> 32, imm_b(nfp_prog));
-	emit_alu(nfp_prog, reg_none(),
+	emit_alu(nfp_prog, reg_yesne(),
 		 reg_a(insn->dst_reg * 2 + 1), ALU_OP_XOR, tmp_reg);
 	emit_br(nfp_prog, BR_BNE, insn->off, 0);
 
@@ -3234,7 +3234,7 @@ static int jeq_reg(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 		emit_alu(nfp_prog, imm_b(nfp_prog),
 			 reg_a(insn->dst_reg * 2 + 1), ALU_OP_XOR,
 			 reg_b(insn->src_reg * 2 + 1));
-		emit_alu(nfp_prog, reg_none(), imm_a(nfp_prog), ALU_OP_OR,
+		emit_alu(nfp_prog, reg_yesne(), imm_a(nfp_prog), ALU_OP_OR,
 			 imm_b(nfp_prog));
 	}
 	emit_br(nfp_prog, BR_BEQ, insn->off, 0);
@@ -3275,7 +3275,7 @@ bpf_to_bpf_call(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 	 *
 	 * - If callee uses and needs to save R6~R9 then:
 	 *     1. Put the start offset of the callee into imm_b(). This will
-	 *        require a fixup step, as we do not necessarily know this
+	 *        require a fixup step, as we do yest necessarily kyesw this
 	 *        address yet.
 	 *     2. Put the return address from the callee to the caller into
 	 *        register ret_reg().
@@ -3284,7 +3284,7 @@ bpf_to_bpf_call(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 	 *   The subroutine acts as a trampoline, and returns to the address in
 	 *   imm_b(), i.e. jumps to the callee.
 	 *
-	 * - If callee does not need to save R6~R9 then just load return
+	 * - If callee does yest need to save R6~R9 then just load return
 	 *   address to the caller in ret_reg(), and jump to the callee
 	 *   directly.
 	 *
@@ -3296,14 +3296,14 @@ bpf_to_bpf_call(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 	 * - It looks cleaner.
 	 * - If the called function is called multiple time, we get a lower
 	 *   program size.
-	 * - We save two no-op instructions that should be added just before
-	 *   the emit_br() when stack depth is not null otherwise.
+	 * - We save two yes-op instructions that should be added just before
+	 *   the emit_br() when stack depth is yest null otherwise.
 	 * - If we ever find a register to hold the return address during whole
-	 *   execution of the callee, we will not have to push the return
+	 *   execution of the callee, we will yest have to push the return
 	 *   address to the stack for leaf functions.
 	 */
 	if (!meta->jmp_dst) {
-		pr_err("BUG: BPF-to-BPF call has no destination recorded\n");
+		pr_err("BUG: BPF-to-BPF call has yes destination recorded\n");
 		return -ELOOP;
 	}
 	if (nfp_prog->subprog[meta->jmp_dst->subprog_idx].needs_reg_push) {
@@ -3329,7 +3329,7 @@ bpf_to_bpf_call(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 			 stack_reg(nfp_prog), ALU_OP_SUB, tmp_reg);
 		emit_csr_wr(nfp_prog, stack_reg(nfp_prog),
 			    NFP_CSR_ACT_LM_ADDR0);
-		wrp_nops(nfp_prog, 3);
+		wrp_yesps(nfp_prog, 3);
 	}
 
 	meta->num_insns_after_br = nfp_prog_current_offset(nfp_prog);
@@ -3385,7 +3385,7 @@ nfp_subprog_epilogue(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 	if (nfp_prog->subprog[meta->subprog_idx].needs_reg_push) {
 		/* Pop R6~R9 to the stack via related subroutine.
 		 * We loaded the return address to the caller into ret_reg().
-		 * This means that the subroutine does not come back here, we
+		 * This means that the subroutine does yest come back here, we
 		 * make it jump back to the subprogram caller directly!
 		 */
 		emit_br_relo(nfp_prog, BR_UNC, BR_OFF_RELO, 1,
@@ -3395,7 +3395,7 @@ nfp_subprog_epilogue(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 	} else {
 		/* Pop return address from the stack. */
 		wrp_mov(nfp_prog, ret_reg(nfp_prog), reg_lm(0, 0));
-		/* Jump back to caller if no callee-saved registers were used
+		/* Jump back to caller if yes callee-saved registers were used
 		 * by the subprogram.
 		 */
 		emit_rtn(nfp_prog, ret_reg(nfp_prog), 0);
@@ -3576,7 +3576,7 @@ static int nfp_fixup_branches(struct nfp_prog *nfp_prog)
 			br_idx -= meta->num_insns_after_br;
 
 		if (!nfp_is_br(nfp_prog->prog[br_idx])) {
-			pr_err("Fixup found block not ending in branch %d %02x %016llx!!\n",
+			pr_err("Fixup found block yest ending in branch %d %02x %016llx!!\n",
 			       br_idx, meta->insn.code, nfp_prog->prog[br_idx]);
 			return -ELOOP;
 		}
@@ -3673,11 +3673,11 @@ static void nfp_outro_tc_da(struct nfp_prog *nfp_prog)
 	wrp_mov(nfp_prog, reg_a(0), NFP_BPF_ABI_FLAGS);
 	emit_ld_field(nfp_prog, reg_a(0), 0xc, reg_imm(0x11), SHF_SC_L_SHF, 16);
 
-	/* Target for normal exits */
+	/* Target for yesrmal exits */
 	nfp_prog->tgt_out = nfp_prog_current_offset(nfp_prog);
 
 	/* if R0 > 7 jump to abort */
-	emit_alu(nfp_prog, reg_none(), reg_imm(7), ALU_OP_SUB, reg_b(0));
+	emit_alu(nfp_prog, reg_yesne(), reg_imm(7), ALU_OP_SUB, reg_b(0));
 	emit_br(nfp_prog, BR_BLO, nfp_prog->tgt_abort, 0);
 	wrp_mov(nfp_prog, reg_a(0), NFP_BPF_ABI_FLAGS);
 
@@ -3685,13 +3685,13 @@ static void nfp_outro_tc_da(struct nfp_prog *nfp_prog)
 	wrp_immed(nfp_prog, reg_b(3), 0x41001211);
 
 	emit_shf(nfp_prog, reg_a(1),
-		 reg_none(), SHF_OP_NONE, reg_b(0), SHF_SC_L_SHF, 2);
+		 reg_yesne(), SHF_OP_NONE, reg_b(0), SHF_SC_L_SHF, 2);
 
-	emit_alu(nfp_prog, reg_none(), reg_a(1), ALU_OP_OR, reg_imm(0));
+	emit_alu(nfp_prog, reg_yesne(), reg_a(1), ALU_OP_OR, reg_imm(0));
 	emit_shf(nfp_prog, reg_a(2),
 		 reg_imm(0xf), SHF_OP_AND, reg_b(2), SHF_SC_R_SHF, 0);
 
-	emit_alu(nfp_prog, reg_none(), reg_a(1), ALU_OP_OR, reg_imm(0));
+	emit_alu(nfp_prog, reg_yesne(), reg_a(1), ALU_OP_OR, reg_imm(0));
 	emit_shf(nfp_prog, reg_b(2),
 		 reg_imm(0xf), SHF_OP_AND, reg_b(3), SHF_SC_R_SHF, 0);
 
@@ -3709,7 +3709,7 @@ static void nfp_outro_xdp(struct nfp_prog *nfp_prog)
 	 *   1    drop  0x22 -> drop,  count as stat1
 	 *   2    pass  0x11 -> pass,  count as stat0
 	 *   3      tx  0x44 -> redir, count as stat2
-	 *   * unknown  0x82 -> drop,  count as stat3
+	 *   * unkyeswn  0x82 -> drop,  count as stat3
 	 */
 	/* Target for aborts */
 	nfp_prog->tgt_abort = nfp_prog_current_offset(nfp_prog);
@@ -3719,19 +3719,19 @@ static void nfp_outro_xdp(struct nfp_prog *nfp_prog)
 	wrp_mov(nfp_prog, reg_a(0), NFP_BPF_ABI_FLAGS);
 	emit_ld_field(nfp_prog, reg_a(0), 0xc, reg_imm(0x82), SHF_SC_L_SHF, 16);
 
-	/* Target for normal exits */
+	/* Target for yesrmal exits */
 	nfp_prog->tgt_out = nfp_prog_current_offset(nfp_prog);
 
 	/* if R0 > 3 jump to abort */
-	emit_alu(nfp_prog, reg_none(), reg_imm(3), ALU_OP_SUB, reg_b(0));
+	emit_alu(nfp_prog, reg_yesne(), reg_imm(3), ALU_OP_SUB, reg_b(0));
 	emit_br(nfp_prog, BR_BLO, nfp_prog->tgt_abort, 0);
 
 	wrp_immed(nfp_prog, reg_b(2), 0x44112282);
 
 	emit_shf(nfp_prog, reg_a(1),
-		 reg_none(), SHF_OP_NONE, reg_b(0), SHF_SC_L_SHF, 3);
+		 reg_yesne(), SHF_OP_NONE, reg_b(0), SHF_SC_L_SHF, 3);
 
-	emit_alu(nfp_prog, reg_none(), reg_a(1), ALU_OP_OR, reg_imm(0));
+	emit_alu(nfp_prog, reg_yesne(), reg_a(1), ALU_OP_OR, reg_imm(0));
 	emit_shf(nfp_prog, reg_b(2),
 		 reg_imm(0xff), SHF_OP_AND, reg_b(2), SHF_SC_R_SHF, 0);
 
@@ -3871,7 +3871,7 @@ static int nfp_translate(struct nfp_prog *nfp_prog)
 	if (nfp_prog->error)
 		return nfp_prog->error;
 
-	wrp_nops(nfp_prog, NFP_USTORE_PREFETCH_WINDOW);
+	wrp_yesps(nfp_prog, NFP_USTORE_PREFETCH_WINDOW);
 	if (nfp_prog->error)
 		return nfp_prog->error;
 
@@ -3891,7 +3891,7 @@ static void nfp_bpf_opt_reg_init(struct nfp_prog *nfp_prog)
 		    insn.src_reg == insn.dst_reg)
 			continue;
 
-		/* Programs start with R6 = R1 but we ignore the skb pointer */
+		/* Programs start with R6 = R1 but we igyesre the skb pointer */
 		if (insn.code == (BPF_ALU64 | BPF_MOV | BPF_X) &&
 		    insn.src_reg == 1 && insn.dst_reg == 6)
 			meta->flags |= FLAG_INSN_SKIP_PREC_DEPENDENT;
@@ -3948,7 +3948,7 @@ static void nfp_bpf_opt_neg_add_sub(struct nfp_prog *nfp_prog)
 	}
 }
 
-/* Remove masking after load since our load guarantees this is not needed */
+/* Remove masking after load since our load guarantees this is yest needed */
 static void nfp_bpf_opt_ld_mask(struct nfp_prog *nfp_prog)
 {
 	struct nfp_insn_meta *meta1, *meta2;
@@ -4074,7 +4074,7 @@ curr_pair_is_memcpy(struct nfp_insn_meta *ld_meta,
  *  - Their address base registers are the same.
  *  - Their address offsets are in the same order.
  *  - They operate at the same memory width.
- *  - There is no jump into the middle of them.
+ *  - There is yes jump into the middle of them.
  */
 static bool
 curr_pair_chain_with_previous(struct nfp_insn_meta *ld_meta,
@@ -4136,7 +4136,7 @@ cross_mem_access(struct bpf_insn *ld, struct nfp_insn_meta *head_ld_meta,
 {
 	s16 head_ld_off, head_st_off, ld_off;
 
-	/* Different pointer types does not overlap. */
+	/* Different pointer types does yest overlap. */
 	if (head_ld_meta->ptr.type != head_st_meta->ptr.type)
 		return false;
 
@@ -4144,7 +4144,7 @@ cross_mem_access(struct bpf_insn *ld, struct nfp_insn_meta *head_ld_meta,
 	if (head_ld_meta->ptr.id != head_st_meta->ptr.id)
 		return true;
 
-	/* Canonicalize the offsets. Turn all of them against the original
+	/* Cayesnicalize the offsets. Turn all of them against the original
 	 * base register.
 	 */
 	head_ld_off = head_ld_meta->insn.off + head_ld_meta->ptr.off;
@@ -4191,7 +4191,7 @@ static void nfp_bpf_opt_ldst_gather(struct nfp_prog *nfp_prog)
 		struct bpf_insn *st = &meta2->insn;
 
 		/* Reset record status if any of the following if true:
-		 *   - The current insn pair is not load/store.
+		 *   - The current insn pair is yest load/store.
 		 *   - The load/store pair doesn't chain with previous one.
 		 *   - The chained load/store pair crossed with previous pair.
 		 *   - The chained load/store pair has a total size of memory
@@ -4269,7 +4269,7 @@ static void nfp_bpf_opt_ldst_gather(struct nfp_prog *nfp_prog)
 
 static void nfp_bpf_opt_pkt_cache(struct nfp_prog *nfp_prog)
 {
-	struct nfp_insn_meta *meta, *range_node = NULL;
+	struct nfp_insn_meta *meta, *range_yesde = NULL;
 	s16 range_start = 0, range_end = 0;
 	bool cache_avail = false;
 	struct bpf_insn *insn;
@@ -4303,7 +4303,7 @@ static void nfp_bpf_opt_pkt_cache(struct nfp_prog *nfp_prog)
 
 		if (!cache_avail) {
 			cache_avail = true;
-			if (range_node)
+			if (range_yesde)
 				goto end_current_then_start_new;
 			goto start_new;
 		}
@@ -4315,7 +4315,7 @@ static void nfp_bpf_opt_pkt_cache(struct nfp_prog *nfp_prog)
 		 *
 		 * OFFs don't really need to be the same, because they
 		 * are the constant offsets against PTR_TO_PACKET, so
-		 * for different OFFs, we could canonicalize them to
+		 * for different OFFs, we could cayesnicalize them to
 		 * offsets against original packet pointer. We don't
 		 * support this.
 		 */
@@ -4349,20 +4349,20 @@ static void nfp_bpf_opt_pkt_cache(struct nfp_prog *nfp_prog)
 		}
 
 end_current_then_start_new:
-		range_node->pkt_cache.range_start = range_start;
-		range_node->pkt_cache.range_end = range_end;
+		range_yesde->pkt_cache.range_start = range_start;
+		range_yesde->pkt_cache.range_end = range_end;
 start_new:
-		range_node = meta;
-		range_node->pkt_cache.do_init = true;
-		range_ptr_id = range_node->ptr.id;
-		range_ptr_off = range_node->ptr.off;
+		range_yesde = meta;
+		range_yesde->pkt_cache.do_init = true;
+		range_ptr_id = range_yesde->ptr.id;
+		range_ptr_off = range_yesde->ptr.off;
 		range_start = insn->off;
 		range_end = insn->off + BPF_LDST_BYTES(insn);
 	}
 
-	if (range_node) {
-		range_node->pkt_cache.range_start = range_start;
-		range_node->pkt_cache.range_end = range_end;
+	if (range_yesde) {
+		range_yesde->pkt_cache.range_start = range_start;
+		range_yesde->pkt_cache.range_end = range_end;
 	}
 
 	list_for_each_entry(meta, &nfp_prog->insns, l) {
@@ -4434,7 +4434,7 @@ static int nfp_bpf_ustore_calc(u64 *prog, unsigned int len)
 	for (i = 0; i < len; i++) {
 		int err;
 
-		err = nfp_ustore_check_valid_no_ecc(prog[i]);
+		err = nfp_ustore_check_valid_yes_ecc(prog[i]);
 		if (err)
 			return err;
 
@@ -4486,7 +4486,7 @@ void nfp_bpf_jit_prepare(struct nfp_prog *nfp_prog)
 {
 	struct nfp_insn_meta *meta;
 
-	/* Another pass to record jump information. */
+	/* Ayesther pass to record jump information. */
 	list_for_each_entry(meta, &nfp_prog->insns, l) {
 		struct nfp_insn_meta *dst_meta;
 		u64 code = meta->insn.code;
@@ -4594,7 +4594,7 @@ void *nfp_bpf_relo_for_vnic(struct nfp_prog *nfp_prog, struct nfp_bpf_vnic *bv)
 				val = nfp_prog->bpf->helpers.perf_event_output;
 				break;
 			default:
-				pr_err("relocation of unknown helper %d\n",
+				pr_err("relocation of unkyeswn helper %d\n",
 				       val);
 				err = -EINVAL;
 				goto err_free_prog;

@@ -5,7 +5,7 @@
 
 #include <linux/clk.h>
 #include <linux/delay.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/gpio/consumer.h>
 #include <linux/hwmon.h>
 #include <linux/hwmon-sysfs.h>
@@ -801,7 +801,7 @@ static const struct thermal_cooling_device_ops aspeed_pwm_cool_ops = {
 };
 
 static int aspeed_create_pwm_cooling(struct device *dev,
-				     struct device_node *child,
+				     struct device_yesde *child,
 				     struct aspeed_pwm_tacho_data *priv,
 				     u32 pwm_port, u8 num_levels)
 {
@@ -822,7 +822,7 @@ static int aspeed_create_pwm_cooling(struct device *dev,
 					cdev->cooling_levels,
 					num_levels);
 	if (ret) {
-		dev_err(dev, "Property 'cooling-levels' cannot be read.\n");
+		dev_err(dev, "Property 'cooling-levels' canyest be read.\n");
 		return ret;
 	}
 	snprintf(cdev->name, MAX_CDEV_NAME_LEN, "%pOFn%d", child, pwm_port);
@@ -841,7 +841,7 @@ static int aspeed_create_pwm_cooling(struct device *dev,
 }
 
 static int aspeed_create_fan(struct device *dev,
-			     struct device_node *child,
+			     struct device_yesde *child,
 			     struct aspeed_pwm_tacho_data *priv)
 {
 	u8 *fan_tach_ch;
@@ -888,14 +888,14 @@ static void aspeed_pwm_tacho_remove(void *data)
 static int aspeed_pwm_tacho_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *np, *child;
+	struct device_yesde *np, *child;
 	struct aspeed_pwm_tacho_data *priv;
 	void __iomem *regs;
 	struct device *hwmon;
 	struct clk *clk;
 	int ret;
 
-	np = dev->of_node;
+	np = dev->of_yesde;
 	regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(regs))
 		return PTR_ERR(regs);
@@ -931,10 +931,10 @@ static int aspeed_pwm_tacho_probe(struct platform_device *pdev)
 
 	aspeed_create_type(priv);
 
-	for_each_child_of_node(np, child) {
+	for_each_child_of_yesde(np, child) {
 		ret = aspeed_create_fan(dev, child, priv);
 		if (ret) {
-			of_node_put(child);
+			of_yesde_put(child);
 			return ret;
 		}
 	}

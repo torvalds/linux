@@ -181,7 +181,7 @@ void sc_config_scaler(struct sc_data *sc, u32 *sc_reg0, u32 *sc_reg8,
 		return;
 	}
 
-	/* we only support linear scaling for now */
+	/* we only support linear scaling for yesw */
 	val |= CFG_LINEAR;
 
 	/* configure horizontal scaler */
@@ -205,7 +205,7 @@ void sc_config_scaler(struct sc_data *sc, u32 *sc_reg0, u32 *sc_reg8,
 
 	dev_dbg(dev, "hs config: src_w = %d, dst_w = %d, decimation = %s, lin_acc_inc = %08x\n",
 		src_w, dst_w, dcm_shift == 2 ? "4x" :
-		(dcm_shift == 1 ? "2x" : "none"), lin_acc_inc);
+		(dcm_shift == 1 ? "2x" : "yesne"), lin_acc_inc);
 
 	/* configure vertical scaler */
 

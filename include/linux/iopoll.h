@@ -10,7 +10,7 @@
 #include <linux/types.h>
 #include <linux/ktime.h>
 #include <linux/delay.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/io.h>
 
 /**
@@ -25,7 +25,7 @@
  * @timeout_us: Timeout in us, 0 means never timeout
  *
  * Returns 0 on success and -ETIMEDOUT upon a timeout. In either
- * case, the last read value at @addr is stored in @val. Must not
+ * case, the last read value at @addr is stored in @val. Must yest
  * be called from atomic context if sleep_us or timeout_us are used.
  *
  * When available, you'll probably want to use one of the specialized

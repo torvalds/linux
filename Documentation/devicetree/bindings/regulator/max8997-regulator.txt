@@ -22,7 +22,7 @@ Required properties:
   units for buck5 when changing voltage using gpio dvs. Refer to [1] below
   for additional information.
 
-[1] If none of the 'max8997,pmic-buck[1/2/5]-uses-gpio-dvs' optional
+[1] If yesne of the 'max8997,pmic-buck[1/2/5]-uses-gpio-dvs' optional
     property is specified, the 'max8997,pmic-buck[1/2/5]-dvs-voltage'
     property should specify atleast one voltage level (which would be a
     safe operating voltage).
@@ -40,22 +40,22 @@ Optional properties:
 - max8997,pmic-buck5-uses-gpio-dvs: 'buck5' can be controlled by gpio dvs.
 
 Additional properties required if either of the optional properties are used:
-- max8997,pmic-ignore-gpiodvs-side-effect: When GPIO-DVS mode is used for
+- max8997,pmic-igyesre-gpiodvs-side-effect: When GPIO-DVS mode is used for
   multiple bucks, changing the voltage value of one of the bucks may affect
-  that of another buck, which is the side effect of the change (set_voltage).
-  Use this property to ignore such side effects and change the voltage.
+  that of ayesther buck, which is the side effect of the change (set_voltage).
+  Use this property to igyesre such side effects and change the voltage.
 
 - max8997,pmic-buck125-default-dvs-idx: Default voltage setting selected from
   the possible 8 options selectable by the dvs gpios. The value of this
-  property should be between 0 and 7. If not specified or if out of range, the
+  property should be between 0 and 7. If yest specified or if out of range, the
   default value of this property is set to 0.
 
 - max8997,pmic-buck125-dvs-gpios: GPIO specifiers for three host gpio's used
   for dvs. The format of the gpio specifier depends in the gpio controller.
 
 Regulators: The regulators of max8997 that have to be instantiated should be
-included in a sub-node named 'regulators'. Regulator nodes included in this
-sub-node should be of the format as listed below.
+included in a sub-yesde named 'regulators'. Regulator yesdes included in this
+sub-yesde should be of the format as listed below.
 
 	regulator_name {
 		standard regulator bindings here
@@ -82,7 +82,7 @@ as per the datasheet of max8997.
 	- CHARGER: main battery charger current control
 	- CHARGER_TOPOFF: end of charge current threshold level
 
-The bindings inside the regulator nodes use the standard regulator bindings
+The bindings inside the regulator yesdes use the standard regulator bindings
 which are documented elsewhere.
 
 Example:
@@ -97,7 +97,7 @@ Example:
 		max8997,pmic-buck2-uses-gpio-dvs;
 		max8997,pmic-buck5-uses-gpio-dvs;
 
-		max8997,pmic-ignore-gpiodvs-side-effect;
+		max8997,pmic-igyesre-gpiodvs-side-effect;
 		max8997,pmic-buck125-default-dvs-idx = <0>;
 
 		max8997,pmic-buck125-dvs-gpios = <&gpx0 0 1 0 0>, /* SET1 */

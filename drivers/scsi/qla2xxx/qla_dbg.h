@@ -276,8 +276,8 @@ struct qla2xxx_fw_dump {
 	uint32_t version;
 
 	uint32_t fw_major_version;
-	uint32_t fw_minor_version;
-	uint32_t fw_subminor_version;
+	uint32_t fw_miyesr_version;
+	uint32_t fw_submiyesr_version;
 	uint32_t fw_attributes;
 
 	uint32_t vendor;
@@ -354,12 +354,12 @@ ql_log_qp(uint32_t, struct qla_qpair *, int32_t, const char *fmt, ...);
 #define ql_dbg_p3p	0x00080000 /* P3P specific Debug */
 #define ql_dbg_vport	0x00040000 /* Virtual Port Debug */
 #define ql_dbg_buffer	0x00020000 /* For dumping the buffer/regs */
-#define ql_dbg_misc	0x00010000 /* For dumping everything that is not
-				    * not covered by upper categories
+#define ql_dbg_misc	0x00010000 /* For dumping everything that is yest
+				    * yest covered by upper categories
 				    */
 #define ql_dbg_verbose	0x00008000 /* More verbosity for each level
 				    * This is to be used with other levels where
-				    * more verbosity is required. It might not
+				    * more verbosity is required. It might yest
 				    * be applicable to all the levels.
 				    */
 #define ql_dbg_tgt	0x00004000 /* Target mode */

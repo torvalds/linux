@@ -11,7 +11,7 @@
 	compatible = "st,stih410-b2120", "st,stih410";
 
 	chosen {
-		bootargs = "clk_ignore_unused";
+		bootargs = "clk_igyesre_unused";
 		stdout-path = &sbc_serial0;
 	};
 

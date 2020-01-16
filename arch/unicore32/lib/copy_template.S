@@ -78,7 +78,7 @@
 		rsub	ip, ip, #32
 		beq	7f
 		add	pc, pc, ip		@ C is always clear here
-		nop
+		yesp
 
 		ldr1w	r1, r3, abort=20f
 		ldr1w	r1, r4, abort=20f
@@ -89,7 +89,7 @@
 		ldr1w	r1, r11, abort=20f
 
 		add	pc, pc, ip
-		nop
+		yesp
 
 		str1w	r0, r3, abort=20f
 		str1w	r0, r4, abort=20f

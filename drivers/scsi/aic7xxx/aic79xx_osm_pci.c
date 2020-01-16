@@ -8,14 +8,14 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions, and the following disclaimer,
+ *    yestice, this list of conditions, and the following disclaimer,
  *    without modification.
  * 2. Redistributions in binary form must reproduce at minimum a disclaimer
  *    substantially similar to the "NO WARRANTY" disclaimer below
  *    ("Disclaimer") and any redistribution must be conditioned upon
  *    including a substantially similar Disclaimer requirement for further
  *    binary redistribution.
- * 3. Neither the names of the above-listed copyright holders nor the names
+ * 3. Neither the names of the above-listed copyright holders yesr the names
  *    of any contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
@@ -65,7 +65,7 @@ static const struct pci_device_id ahd_linux_pci_id_table[] = {
 	ID(ID_AHA_39320D_HP),
 	ID(ID_AHA_39320D_B),
 	ID(ID_AHA_39320D_B_HP),
-	/* Generic chip probes for devices we don't know exactly. */
+	/* Generic chip probes for devices we don't kyesw exactly. */
 	ID16(ID_AIC7901 & ID_9005_GENERIC_MASK),
 	ID(ID_AIC7901A & ID_DEV_VENDOR_MASK),
 	ID16(ID_AIC7902 & ID_9005_GENERIC_MASK),
@@ -148,7 +148,7 @@ ahd_linux_pci_inherit_flags(struct ahd_softc *ahd)
 			ahd->flags &= ~AHD_BIOS_ENABLED;
 			ahd->flags |= master->flags & AHD_BIOS_ENABLED;
 		} else
-			printk(KERN_ERR "aic79xx: no multichannel peer found!\n");
+			printk(KERN_ERR "aic79xx: yes multichannel peer found!\n");
 		pci_dev_put(master_pdev);
 	}
 }
@@ -254,7 +254,7 @@ ahd_linux_pci_reserve_io_regions(struct ahd_softc *ahd, resource_size_t *base,
 	*base = pci_resource_start(ahd->dev_softc, 0);
 	/*
 	 * This is really the 3rd bar and should be at index 2,
-	 * but the Linux PCI code doesn't know how to "count" 64bit
+	 * but the Linux PCI code doesn't kyesw how to "count" 64bit
 	 * bars.
 	 */
 	*base2 = pci_resource_start(ahd->dev_softc, 3);
@@ -293,7 +293,7 @@ ahd_linux_pci_reserve_mem_region(struct ahd_softc *ahd,
 		if (!request_mem_region(start, 0x1000, "aic79xx"))
 			error = ENOMEM;
 		if (!error) {
-			*maddr = ioremap_nocache(base_page, base_offset + 512);
+			*maddr = ioremap_yescache(base_page, base_offset + 512);
 			if (*maddr == NULL) {
 				error = ENOMEM;
 				release_mem_region(start, 0x1000);
@@ -346,7 +346,7 @@ ahd_pci_map_registers(struct ahd_softc *ahd)
 			command |= PCIM_CMD_MEMEN;
 	} else if (bootverbose) {
 		printk("aic79xx: PCI%d:%d:%d MEM region 0x%llx "
-		       "unavailable. Cannot memory map device.\n",
+		       "unavailable. Canyest memory map device.\n",
 		       ahd_get_pci_bus(ahd->dev_softc),
 		       ahd_get_pci_slot(ahd->dev_softc),
 		       ahd_get_pci_function(ahd->dev_softc),
@@ -365,7 +365,7 @@ ahd_pci_map_registers(struct ahd_softc *ahd)
 			command |= PCIM_CMD_PORTEN;
 		} else {
 			printk("aic79xx: PCI%d:%d:%d IO regions 0x%llx and "
-			       "0x%llx unavailable. Cannot map device.\n",
+			       "0x%llx unavailable. Canyest map device.\n",
 			       ahd_get_pci_bus(ahd->dev_softc),
 			       ahd_get_pci_slot(ahd->dev_softc),
 			       ahd_get_pci_function(ahd->dev_softc),

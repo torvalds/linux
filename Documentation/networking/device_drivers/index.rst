@@ -22,8 +22,8 @@ Contents:
    intel/iavf
    intel/ice
    google/gve
-   mellanox/mlx5
-   netronome/nfp
+   mellayesx/mlx5
+   netroyesme/nfp
    pensando/ionic
 
 .. only::  subproject and html

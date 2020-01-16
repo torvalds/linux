@@ -220,7 +220,7 @@ int m41t81_probe(void)
 {
 	unsigned int tmp;
 
-	/* enable chip if it is not enabled yet */
+	/* enable chip if it is yest enabled yet */
 	tmp = m41t81_read(M41T81REG_SC);
 	m41t81_write(M41T81REG_SC, tmp & 0x7f);
 

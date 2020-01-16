@@ -59,7 +59,7 @@ static irqreturn_t sa1100_rtc_interrupt(int irq, void *dev_id)
 	 * See also the comments in sa1100_rtc_probe(). */
 	if (rtsr & (RTSR_ALE | RTSR_HZE)) {
 		/* This is the original code, before there was the if test
-		 * above. This code does not clear interrupts that were not
+		 * above. This code does yest clear interrupts that were yest
 		 * enabled. */
 		writel_relaxed((RTSR_AL | RTSR_HZ) & (rtsr >> 2), info->rtsr);
 	} else {
@@ -227,19 +227,19 @@ int sa1100_rtc_init(struct platform_device *pdev, struct sa1100_rtc *info)
 	 * Sometimes bit 1 of the RTSR (RTSR_HZ) will wake up 1, which means an
 	 * interrupt pending, even though interrupts were never enabled.
 	 * In this case, this bit it must be reset before enabling
-	 * interruptions to avoid a nonexistent interrupt to occur.
+	 * interruptions to avoid a yesnexistent interrupt to occur.
 	 *
 	 * In principle, the same problem would apply to bit 0, although it has
 	 * never been observed to happen.
 	 *
 	 * This issue is addressed both here and in sa1100_rtc_interrupt().
-	 * If the issue is not addressed here, in the times when the processor
+	 * If the issue is yest addressed here, in the times when the processor
 	 * wakes up with the bit set there will be one spurious interrupt.
 	 *
 	 * The issue is also dealt with in sa1100_rtc_interrupt() to be on the
 	 * safe side, once the condition that lead to this strange
-	 * initialization is unknown and could in principle happen during
-	 * normal processing.
+	 * initialization is unkyeswn and could in principle happen during
+	 * yesrmal processing.
 	 *
 	 * Notice that clearing bit 1 and 0 is accomplished by writting ONES to
 	 * the corresponding bits in RTSR. */
@@ -285,7 +285,7 @@ static int sa1100_rtc_probe(struct platform_device *pdev)
 		return PTR_ERR(base);
 
 	if (IS_ENABLED(CONFIG_ARCH_SA1100) ||
-	    of_device_is_compatible(pdev->dev.of_node, "mrvl,sa1100-rtc")) {
+	    of_device_is_compatible(pdev->dev.of_yesde, "mrvl,sa1100-rtc")) {
 		info->rcnr = base + 0x04;
 		info->rtsr = base + 0x10;
 		info->rtar = base + 0x00;

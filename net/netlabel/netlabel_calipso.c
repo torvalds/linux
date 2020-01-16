@@ -63,7 +63,7 @@ static const struct nla_policy calipso_genl_policy[NLBL_CALIPSO_A_MAX + 1] = {
  *
  * Description:
  * Create a new CALIPSO_MAP_PASS DOI definition based on the given ADD message
- * and add it to the CALIPSO engine.  Return zero on success and non-zero on
+ * and add it to the CALIPSO engine.  Return zero on success and yesn-zero on
  * error.
  *
  */
@@ -393,7 +393,7 @@ static const struct netlbl_calipso_ops *netlbl_calipso_ops_get(void)
  * function to add it to the list of acceptable domains.  The caller must
  * ensure that the mapping table specified in @doi_def->map meets all of the
  * requirements of the mapping type (see calipso.h for details).  Returns
- * zero on success and non-zero on failure.
+ * zero on success and yesn-zero on failure.
  *
  */
 int calipso_doi_add(struct calipso_doi *doi_def,
@@ -513,7 +513,7 @@ int calipso_doi_walk(u32 *skip_cnt,
  * Description:
  * Query @sk to see if there is a CALIPSO option attached to the sock and if
  * there is return the CALIPSO security attributes in @secattr.  This function
- * requires that @sk be locked, or privately held, but it does not do any
+ * requires that @sk be locked, or privately held, but it does yest do any
  * locking itself.  Returns zero on success and negative values on failure.
  *
  */
@@ -615,7 +615,7 @@ void calipso_req_delattr(struct request_sock *req)
  *
  * Description:
  * Parse the packet's IP header looking for a CALIPSO option.  Returns a pointer
- * to the start of the CALIPSO option on success, NULL if one if not found.
+ * to the start of the CALIPSO option on success, NULL if one if yest found.
  *
  */
 unsigned char *calipso_optptr(const struct sk_buff *skb)

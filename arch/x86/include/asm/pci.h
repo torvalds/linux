@@ -14,7 +14,7 @@
 
 struct pci_sysdata {
 	int		domain;		/* PCI domain */
-	int		node;		/* NUMA node */
+	int		yesde;		/* NUMA yesde */
 #ifdef CONFIG_ACPI
 	struct acpi_device *companion;	/* ACPI companion device */
 #endif
@@ -22,7 +22,7 @@ struct pci_sysdata {
 	void		*iommu;		/* IOMMU private data */
 #endif
 #ifdef CONFIG_PCI_MSI_IRQ_DOMAIN
-	void		*fwnode;	/* IRQ domain for MSI assignment */
+	void		*fwyesde;	/* IRQ domain for MSI assignment */
 #endif
 #if IS_ENABLED(CONFIG_VMD)
 	bool vmd_domain;		/* True if in Intel VMD domain */
@@ -30,8 +30,8 @@ struct pci_sysdata {
 };
 
 extern int pci_routeirq;
-extern int noioapicquirk;
-extern int noioapicreroute;
+extern int yesioapicquirk;
+extern int yesioapicreroute;
 
 #ifdef CONFIG_PCI
 
@@ -50,14 +50,14 @@ static inline int pci_proc_domain(struct pci_bus *bus)
 #endif
 
 #ifdef CONFIG_PCI_MSI_IRQ_DOMAIN
-static inline void *_pci_root_bus_fwnode(struct pci_bus *bus)
+static inline void *_pci_root_bus_fwyesde(struct pci_bus *bus)
 {
 	struct pci_sysdata *sd = bus->sysdata;
 
-	return sd->fwnode;
+	return sd->fwyesde;
 }
 
-#define pci_root_bus_fwnode	_pci_root_bus_fwnode
+#define pci_root_bus_fwyesde	_pci_root_bus_fwyesde
 #endif
 
 static inline bool is_vmd(struct pci_bus *bus)
@@ -121,22 +121,22 @@ void native_restore_msi_irqs(struct pci_dev *dev);
 #include <asm-generic/pci.h>
 
 #ifdef CONFIG_NUMA
-/* Returns the node based on pci bus */
-static inline int __pcibus_to_node(const struct pci_bus *bus)
+/* Returns the yesde based on pci bus */
+static inline int __pcibus_to_yesde(const struct pci_bus *bus)
 {
 	const struct pci_sysdata *sd = bus->sysdata;
 
-	return sd->node;
+	return sd->yesde;
 }
 
 static inline const struct cpumask *
 cpumask_of_pcibus(const struct pci_bus *bus)
 {
-	int node;
+	int yesde;
 
-	node = __pcibus_to_node(bus);
-	return (node == NUMA_NO_NODE) ? cpu_online_mask :
-			      cpumask_of_node(node);
+	yesde = __pcibus_to_yesde(bus);
+	return (yesde == NUMA_NO_NODE) ? cpu_online_mask :
+			      cpumask_of_yesde(yesde);
 }
 #endif
 

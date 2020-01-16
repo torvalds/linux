@@ -13,7 +13,7 @@
 
 /*
  * The Spreadtrum DMA controller supports channel 2-stage tansfer, that means
- * we can request 2 dma channels, one for source channel, and another one for
+ * we can request 2 dma channels, one for source channel, and ayesther one for
  * destination channel. Each channel is independent, and has its own
  * configurations. Once the source channel's transaction is done, it will
  * trigger the destination channel's transaction automatically by hardware
@@ -85,7 +85,7 @@ enum sprd_dma_req_mode {
 
 /*
  * enum sprd_dma_int_type: define the DMA interrupt type
- * @SPRD_DMA_NO_INT: do not need generate DMA interrupts.
+ * @SPRD_DMA_NO_INT: do yest need generate DMA interrupts.
  * @SPRD_DMA_FRAG_INT: fragment done interrupt when one fragment request
  * is done.
  * @SPRD_DMA_BLK_INT: block done interrupt when one block request is done.
@@ -116,7 +116,7 @@ enum sprd_dma_int_type {
 
 /*
  * struct sprd_dma_linklist - DMA link-list address structure
- * @virt_addr: link-list virtual address to configure link-list node
+ * @virt_addr: link-list virtual address to configure link-list yesde
  * @phy_addr: link-list physical address to link DMA transfer
  * @wrap_addr: the wrap address for link-list mode, which means once the
  * transfer address reaches the wrap address, the next transfer address

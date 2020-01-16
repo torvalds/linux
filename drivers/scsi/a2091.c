@@ -63,7 +63,7 @@ static int dma_setup(struct scsi_cmnd *cmd, int dir_in)
 		/* get the physical address of the bounce buffer */
 		addr = virt_to_bus(wh->dma_bounce_buffer);
 
-		/* the bounce buffer may not be in the first 16M of physmem */
+		/* the bounce buffer may yest be in the first 16M of physmem */
 		if (addr & A2091_XFER_MASK) {
 			/* we could use chipmem... maybe later */
 			kfree(wh->dma_bounce_buffer);
@@ -192,7 +192,7 @@ static int a2091_probe(struct zorro_dev *z, const struct zorro_device_id *ent)
 	wdregs.SCMD = &regs->SCMD;
 
 	hdata = shost_priv(instance);
-	hdata->wh.no_sync = 0xff;
+	hdata->wh.yes_sync = 0xff;
 	hdata->wh.fast = 0;
 	hdata->wh.dma_mode = CTRL_DMA;
 	hdata->regs = regs;

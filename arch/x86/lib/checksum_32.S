@@ -7,11 +7,11 @@
  *		IP/TCP/UDP checksumming routines
  *
  * Authors:	Jorge Cwik, <jorge@laser.satlink.net>
- *		Arnt Gulbrandsen, <agulbra@nvg.unit.no>
+ *		Arnt Gulbrandsen, <agulbra@nvg.unit.yes>
  *		Tom May, <ftom@netcom.com>
  *              Pentium Pro/II routines:
- *              Alexander Kjeldaas <astor@guardian.no>
- *              Finn Arne Gangstad <finnag@guardian.no>
+ *              Alexander Kjeldaas <astor@guardian.yes>
+ *              Finn Arne Gangstad <finnag@guardian.yes>
  *		Lots of code moved from tcp.c and ip.c; see those files
  *		for more names.
  *
@@ -22,10 +22,10 @@
  */
 
 #include <linux/linkage.h>
-#include <asm/errno.h>
+#include <asm/erryes.h>
 #include <asm/asm.h>
 #include <asm/export.h>
-#include <asm/nospec-branch.h>
+#include <asm/yesspec-branch.h>
 
 /*
  * computes a partial checksum, e.g. for TCP/UDP fragments
@@ -231,7 +231,7 @@ SYM_FUNC_START(csum_partial)
 	jz 80f
 
 	# Handle the last 1-3 bytes without jumping
-	notl %ecx		# 1->2, 2->1, 3->0, higher bits are masked
+	yestl %ecx		# 1->2, 2->1, 3->0, higher bits are masked
 	movl $0xffffff,%ebx	# by the shll and shrl instructions
 	shll $3,%ecx
 	shrl %cl,%ebx
@@ -264,7 +264,7 @@ unsigned int csum_partial_copy_generic (const char *src, char *dst,
  *
  * FIXME: could someone double-check whether I haven't mixed up some SRC and
  *	  DST definitions? It's damn hard to trigger all cases.  I hope I got
- *	  them all but there's no guarantee.
+ *	  them all but there's yes guarantee.
  */
 
 #define SRC(y...)			\

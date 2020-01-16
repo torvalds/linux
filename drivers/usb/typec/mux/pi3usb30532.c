@@ -133,7 +133,7 @@ static int pi3usb30532_probe(struct i2c_client *client)
 	pi->conf = ret;
 
 	sw_desc.drvdata = pi;
-	sw_desc.fwnode = dev->fwnode;
+	sw_desc.fwyesde = dev->fwyesde;
 	sw_desc.set = pi3usb30532_sw_set;
 
 	pi->sw = typec_switch_register(dev, &sw_desc);
@@ -144,7 +144,7 @@ static int pi3usb30532_probe(struct i2c_client *client)
 	}
 
 	mux_desc.drvdata = pi;
-	mux_desc.fwnode = dev->fwnode;
+	mux_desc.fwyesde = dev->fwyesde;
 	mux_desc.set = pi3usb30532_mux_set;
 
 	pi->mux = typec_mux_register(dev, &mux_desc);

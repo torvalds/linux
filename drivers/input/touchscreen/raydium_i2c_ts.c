@@ -4,8 +4,8 @@
  *
  * Copyright (C) 2012-2014, Raydium Semiconductor Corporation.
  *
- * Raydium reserves the right to make changes without further notice
- * to the materials described herein. Raydium does not assume any
+ * Raydium reserves the right to make changes without further yestice
+ * to the materials described herein. Raydium does yest assume any
  * liability arising out of the application described herein.
  *
  * Contact Raydium Semiconductor Corporation at www.rad-ic.com
@@ -1057,7 +1057,7 @@ static int raydium_i2c_probe(struct i2c_client *client,
 	/* Make sure there is something at this address */
 	if (i2c_smbus_xfer(client->adapter, client->addr, 0,
 			   I2C_SMBUS_READ, 0, I2C_SMBUS_BYTE, &dummy) < 0) {
-		dev_err(&client->dev, "nothing at this address\n");
+		dev_err(&client->dev, "yesthing at this address\n");
 		return -ENXIO;
 	}
 
@@ -1142,7 +1142,7 @@ static int __maybe_unused raydium_i2c_suspend(struct device *dev)
 	struct i2c_client *client = to_i2c_client(dev);
 	struct raydium_data *ts = i2c_get_clientdata(client);
 
-	/* Sleep is not available in BLDR recovery mode */
+	/* Sleep is yest available in BLDR recovery mode */
 	if (ts->boot_mode != RAYDIUM_TS_MAIN)
 		return -EBUSY;
 

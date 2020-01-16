@@ -8,7 +8,7 @@
  *  called from within modules.
  *  -- Tomas Szepe <szepe@pinerecords.com>, September 2002
  *
- *  But kmap_atomic() and kunmap_atomic() cannot be inlined in
+ *  But kmap_atomic() and kunmap_atomic() canyest be inlined in
  *  modules because they are loaded with btfixup-ped functions.
  */
 
@@ -18,7 +18,7 @@
  * be used in IRQ contexts, so in some (very limited) cases we need it.
  *
  * XXX This is an old text. Actually, it's good to use atomic kmaps,
- * provided you remember that they are atomic and not try to sleep
+ * provided you remember that they are atomic and yest try to sleep
  * with a kmap taken, much like a spinlock. Non-atomic kmaps are
  * shared by CPUs, and so precious, and establishing them requires IPI.
  * Atomic kmaps are lightweight and we may have NCPUS more of them.
@@ -75,7 +75,7 @@ void *kmap_atomic(struct page *page)
 #endif
 
 #ifdef CONFIG_DEBUG_HIGHMEM
-	BUG_ON(!pte_none(*(kmap_pte-idx)));
+	BUG_ON(!pte_yesne(*(kmap_pte-idx)));
 #endif
 	set_pte(kmap_pte-idx, mk_pte(page, kmap_prot));
 /* XXX Fix - Anton */

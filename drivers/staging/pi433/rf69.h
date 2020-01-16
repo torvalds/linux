@@ -56,7 +56,7 @@ int rf69_disable_crc(struct spi_device *spi);
 int rf69_set_address_filtering(struct spi_device *spi,
 			       enum address_filtering address_filtering);
 int rf69_set_payload_length(struct spi_device *spi, u8 payload_length);
-int rf69_set_node_address(struct spi_device *spi, u8 node_address);
+int rf69_set_yesde_address(struct spi_device *spi, u8 yesde_address);
 int rf69_set_broadcast_address(struct spi_device *spi, u8 broadcast_address);
 int rf69_set_tx_start_condition(struct spi_device *spi,
 				enum tx_start_condition tx_start_condition);

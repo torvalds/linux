@@ -237,7 +237,7 @@ static int tango_pcie_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct tango_pcie *pcie;
 	struct resource *res;
-	struct fwnode_handle *fwnode = of_node_to_fwnode(dev->of_node);
+	struct fwyesde_handle *fwyesde = of_yesde_to_fwyesde(dev->of_yesde);
 	struct irq_domain *msi_dom, *irq_dom;
 	struct of_pci_range_parser parser;
 	struct of_pci_range range;
@@ -260,7 +260,7 @@ static int tango_pcie_probe(struct platform_device *pdev)
 	if (!tango_pcie_link_up(pcie))
 		return -ENODEV;
 
-	if (of_pci_dma_range_parser_init(&parser, dev->of_node) < 0)
+	if (of_pci_dma_range_parser_init(&parser, dev->of_yesde) < 0)
 		return -ENOENT;
 
 	if (of_pci_range_parser_one(&parser, &range) == NULL)
@@ -278,13 +278,13 @@ static int tango_pcie_probe(struct platform_device *pdev)
 		return -ENXIO;
 	}
 
-	irq_dom = irq_domain_create_linear(fwnode, MSI_MAX, &dom_ops, pcie);
+	irq_dom = irq_domain_create_linear(fwyesde, MSI_MAX, &dom_ops, pcie);
 	if (!irq_dom) {
 		dev_err(dev, "Failed to create IRQ domain\n");
 		return -ENOMEM;
 	}
 
-	msi_dom = pci_msi_create_irq_domain(fwnode, &msi_dom_info, irq_dom);
+	msi_dom = pci_msi_create_irq_domain(fwyesde, &msi_dom_info, irq_dom);
 	if (!msi_dom) {
 		dev_err(dev, "Failed to create MSI domain\n");
 		irq_domain_remove(irq_dom);
@@ -327,14 +327,14 @@ DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_SIGMA, 0x0028, tango_fixup_class);
 /*
  * The root complex exposes a "fake" BAR, which is used to filter
  * bus-to-system accesses.  Only accesses within the range defined by this
- * BAR are forwarded to the host, others are ignored.
+ * BAR are forwarded to the host, others are igyesred.
  *
  * By default, the DMA framework expects an identity mapping, and DRAM0 is
  * mapped at 0x80000000.
  */
 static void tango_fixup_bar(struct pci_dev *dev)
 {
-	dev->non_compliant_bars = true;
+	dev->yesn_compliant_bars = true;
 	pci_write_config_dword(dev, PCI_BASE_ADDRESS_0, 0x80000000);
 }
 DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_SIGMA, 0x0024, tango_fixup_bar);

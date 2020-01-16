@@ -21,7 +21,7 @@
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-event.h>
-#include <media/v4l2-fwnode.h>
+#include <media/v4l2-fwyesde.h>
 #include <media/v4l2-mc.h>
 #include <media/v4l2-subdev.h>
 #include <media/videobuf2-dma-contig.h>
@@ -168,7 +168,7 @@ struct imx7_csi {
 
 	struct media_entity *sink;
 
-	struct v4l2_fwnode_endpoint upstream_ep;
+	struct v4l2_fwyesde_endpoint upstream_ep;
 
 	struct v4l2_mbus_framefmt format_mbus[IMX7_CSI_PADS_NUM];
 	const struct imx_media_pixfmt *cc[IMX7_CSI_PADS_NUM];
@@ -429,10 +429,10 @@ static void imx7_csi_deinit(struct imx7_csi *csi)
 }
 
 static int imx7_csi_get_upstream_endpoint(struct imx7_csi *csi,
-					  struct v4l2_fwnode_endpoint *ep,
+					  struct v4l2_fwyesde_endpoint *ep,
 					  bool skip_mux)
 {
-	struct device_node *endpoint, *port;
+	struct device_yesde *endpoint, *port;
 	struct media_entity *src;
 	struct v4l2_subdev *sd;
 	struct media_pad *pad;
@@ -468,17 +468,17 @@ skip_video_mux:
 	 * NOTE: this assumes an OF-graph port id is the same as a
 	 * media pad index.
 	 */
-	port = of_graph_get_port_by_id(sd->dev->of_node, pad->index);
+	port = of_graph_get_port_by_id(sd->dev->of_yesde, pad->index);
 	if (!port)
 		return -ENODEV;
 
 	endpoint = of_get_next_child(port, NULL);
-	of_node_put(port);
+	of_yesde_put(port);
 	if (!endpoint)
 		return -ENODEV;
 
-	v4l2_fwnode_endpoint_parse(of_fwnode_handle(endpoint), ep);
-	of_node_put(endpoint);
+	v4l2_fwyesde_endpoint_parse(of_fwyesde_handle(endpoint), ep);
+	of_yesde_put(endpoint);
 
 	return 0;
 }
@@ -549,7 +549,7 @@ static int imx7_csi_pad_link_validate(struct v4l2_subdev *sd,
 				      struct v4l2_subdev_format *sink_fmt)
 {
 	struct imx7_csi *csi = v4l2_get_subdevdata(sd);
-	struct v4l2_fwnode_endpoint upstream_ep = {};
+	struct v4l2_fwyesde_endpoint upstream_ep = {};
 	int ret;
 
 	ret = v4l2_subdev_link_validate_default(sd, link, source_fmt, sink_fmt);
@@ -684,7 +684,7 @@ static irqreturn_t imx7_csi_irq_handler(int irq, void *data)
 		/*
 		 * For both FB1 and FB2 interrupter bits set case,
 		 * CSI DMA is work in one of FB1 and FB2 buffer,
-		 * but software can not know the state.
+		 * but software can yest kyesw the state.
 		 * Skip it to avoid base address updated
 		 * when csi work in field0 and field1 will write to
 		 * new base address.
@@ -1109,7 +1109,7 @@ static int imx7_csi_registered(struct v4l2_subdev *sd)
 
 		/* init default frame interval */
 		csi->frame_interval[i].numerator = 1;
-		csi->frame_interval[i].denominator = 30;
+		csi->frame_interval[i].deyesminator = 30;
 	}
 
 	csi->vdev = imx_media_capture_device_init(csi->sd.dev, &csi->sd,
@@ -1180,16 +1180,16 @@ static const struct v4l2_subdev_internal_ops imx7_csi_internal_ops = {
 };
 
 static int imx7_csi_parse_endpoint(struct device *dev,
-				   struct v4l2_fwnode_endpoint *vep,
+				   struct v4l2_fwyesde_endpoint *vep,
 				   struct v4l2_async_subdev *asd)
 {
-	return fwnode_device_is_available(asd->match.fwnode) ? 0 : -EINVAL;
+	return fwyesde_device_is_available(asd->match.fwyesde) ? 0 : -EINVAL;
 }
 
 static int imx7_csi_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *node = dev->of_node;
+	struct device_yesde *yesde = dev->of_yesde;
 	struct imx_media_dev *imxmd;
 	struct imx7_csi *csi;
 	int i, ret;
@@ -1234,11 +1234,11 @@ static int imx7_csi_probe(struct platform_device *pdev)
 	}
 	platform_set_drvdata(pdev, &csi->sd);
 
-	ret = imx_media_of_add_csi(imxmd, node);
+	ret = imx_media_of_add_csi(imxmd, yesde);
 	if (ret < 0 && ret != -ENODEV && ret != -EEXIST)
 		goto cleanup;
 
-	ret = imx_media_dev_notifier_register(imxmd, NULL);
+	ret = imx_media_dev_yestifier_register(imxmd, NULL);
 	if (ret < 0)
 		goto cleanup;
 
@@ -1266,7 +1266,7 @@ static int imx7_csi_probe(struct platform_device *pdev)
 	if (ret < 0)
 		goto free;
 
-	ret = v4l2_async_register_fwnode_subdev(&csi->sd,
+	ret = v4l2_async_register_fwyesde_subdev(&csi->sd,
 						sizeof(struct v4l2_async_subdev),
 						NULL, 0,
 						imx7_csi_parse_endpoint);
@@ -1279,7 +1279,7 @@ free:
 	v4l2_ctrl_handler_free(&csi->ctrl_hdlr);
 
 cleanup:
-	v4l2_async_notifier_cleanup(&imxmd->notifier);
+	v4l2_async_yestifier_cleanup(&imxmd->yestifier);
 	v4l2_device_unregister(&imxmd->v4l2_dev);
 	media_device_unregister(&imxmd->md);
 	media_device_cleanup(&imxmd->md);
@@ -1296,8 +1296,8 @@ static int imx7_csi_remove(struct platform_device *pdev)
 	struct imx7_csi *csi = v4l2_get_subdevdata(sd);
 	struct imx_media_dev *imxmd = csi->imxmd;
 
-	v4l2_async_notifier_unregister(&imxmd->notifier);
-	v4l2_async_notifier_cleanup(&imxmd->notifier);
+	v4l2_async_yestifier_unregister(&imxmd->yestifier);
+	v4l2_async_yestifier_cleanup(&imxmd->yestifier);
 
 	media_device_unregister(&imxmd->md);
 	v4l2_device_unregister(&imxmd->v4l2_dev);

@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * ST M48T86 / Dallas DS12887 RTC driver
- * Copyright (c) 2006 Tower Technologies
+ * Copyright (c) 2006 Tower Techyeslogies
  *
  * Author: Alessandro Zummo <a.zummo@towertech.it>
  *
  * This drivers only supports the clock running in BCD and 24H mode.
  * If it will be ever adapted to binary and 12H mode, care must be taken
- * to not introduce bugs.
+ * to yest introduce bugs.
  */
 
 #include <linux/module.h>
@@ -185,7 +185,7 @@ static int m48t86_nvram_write(void *priv, unsigned int off, void *buf,
 }
 
 /*
- * The RTC is an optional feature at purchase time on some Technologic Systems
+ * The RTC is an optional feature at purchase time on some Techyeslogic Systems
  * boards. Verify that it actually exists by checking if the last two bytes
  * of the NVRAM can be changed.
  *
@@ -245,7 +245,7 @@ static int m48t86_rtc_probe(struct platform_device *pdev)
 	dev_set_drvdata(&pdev->dev, info);
 
 	if (!m48t86_verify_chip(pdev)) {
-		dev_info(&pdev->dev, "RTC not present\n");
+		dev_info(&pdev->dev, "RTC yest present\n");
 		return -ENODEV;
 	}
 

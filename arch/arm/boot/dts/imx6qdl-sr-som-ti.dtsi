@@ -3,7 +3,7 @@
  *
  * This file is dual-licensed: you can use it either under the terms
  * of the GPL or the X11 license, at your option. Note that this dual
- * licensing only applies to this file, and not this project as a
+ * licensing only applies to this file, and yest this project as a
  * whole.
  *
  *  a) This file is free software; you can redistribute it and/or
@@ -26,7 +26,7 @@
  *     Software is furnished to do so, subject to the following
  *     conditions:
  *
- *     The above copyright notice and this permission notice shall be
+ *     The above copyright yestice and this permission yestice shall be
  *     included in all copies or substantial portions of the Software.
  *
  *     THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -52,8 +52,8 @@
 
 	clk_ti_wifi: ti-wifi-clock {
 		/* This is a hack around the kernel - using "fixed clock"
-		 * results in the "pinctrl" properties being ignored, and
-		 * the clock not being output.  Instead, use a gated clock
+		 * results in the "pinctrl" properties being igyesred, and
+		 * the clock yest being output.  Instead, use a gated clock
 		 * and the unrouted WL_XTAL_PU gpio.
 		 */
 		compatible = "gpio-gate-clock";
@@ -153,7 +153,7 @@
 	bus-width = <4>;
 	keep-power-in-suspend;
 	mmc-pwrseq = <&pwrseq_ti_wifi>;
-	non-removable;
+	yesn-removable;
 	vmmc-supply = <&vcc_3v3>;
 	/* vqmmc-supply = <&nvcc_sd1>; - MMC layer doesn't like it! */
 	status = "okay";

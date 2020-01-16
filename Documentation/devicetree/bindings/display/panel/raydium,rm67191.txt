@@ -6,7 +6,7 @@ Required properties:
 			must be <0>
 - dsi-lanes:		number of DSI lanes to be used
 			must be <3> or <4>
-- port: 		input port node with endpoint definition as
+- port: 		input port yesde with endpoint definition as
 			defined in Documentation/devicetree/bindings/graph.txt;
 			the input port should be connected to a MIPI-DSI device
 			driver
@@ -18,8 +18,8 @@ Optional properties:
 - width-mm:		see panel-common.txt
 - height-mm:		see panel-common.txt
 - video-mode:		0 - burst-mode
-			1 - non-burst with sync event
-			2 - non-burst with sync pulse
+			1 - yesn-burst with sync event
+			2 - yesn-burst with sync pulse
 
 Example:
 

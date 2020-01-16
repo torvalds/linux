@@ -173,8 +173,8 @@ static void zynq_step_dma(struct zynq_fpga_priv *priv)
 		len = sg_dma_len(priv->cur_sg);
 		if (priv->dma_elm + 1 == priv->dma_nelms) {
 			/* The last transfer waits for the PCAP to finish too,
-			 * notice this also changes the irq_mask to ignore
-			 * IXR_DMA_DONE_MASK which ensures we do not trigger
+			 * yestice this also changes the irq_mask to igyesre
+			 * IXR_DMA_DONE_MASK which ensures we do yest trigger
 			 * the completion too early.
 			 */
 			addr |= DMA_SRC_LAST_TRANSFER;
@@ -193,7 +193,7 @@ static void zynq_step_dma(struct zynq_fpga_priv *priv)
 	/* Once the first transfer is queued we can turn on the ISR, future
 	 * calls to zynq_step_dma will happen from the ISR context. The
 	 * dma_lock spinlock guarentees this handover is done coherently, the
-	 * ISR enable is put at the end to avoid another CPU spinning in the
+	 * ISR enable is put at the end to avoid ayesther CPU spinning in the
 	 * ISR on this lock.
 	 */
 	if (first && priv->cur_sg) {
@@ -201,7 +201,7 @@ static void zynq_step_dma(struct zynq_fpga_priv *priv)
 				  IXR_DMA_DONE_MASK | IXR_ERROR_FLAGS_MASK);
 	} else if (!priv->cur_sg) {
 		/* The last transfer changes to DMA & PCAP mode since we do
-		 * not want to continue until everything has been flushed into
+		 * yest want to continue until everything has been flushed into
 		 * the PCAP.
 		 */
 		zynq_fpga_set_irq(priv,
@@ -267,7 +267,7 @@ static int zynq_fpga_ops_write_init(struct fpga_manager *mgr,
 		ctrl = zynq_fpga_read(priv, CTRL_OFFSET);
 		if (!(ctrl & CTRL_SEC_EN_MASK)) {
 			dev_err(&mgr->dev,
-				"System not secure, can't use crypted bitstreams\n");
+				"System yest secure, can't use crypted bitstreams\n");
 			err = -EINVAL;
 			goto out_err;
 		}
@@ -277,7 +277,7 @@ static int zynq_fpga_ops_write_init(struct fpga_manager *mgr,
 	if (!(info->flags & FPGA_MGR_PARTIAL_RECONFIG)) {
 		if (!zynq_fpga_has_sync(buf, count)) {
 			dev_err(&mgr->dev,
-				"Invalid bitstream, could not find a sync word. Bitstream must be a byte swapped .bin file\n");
+				"Invalid bitstream, could yest find a sync word. Bitstream must be a byte swapped .bin file\n");
 			err = -EINVAL;
 			goto out_err;
 		}
@@ -344,7 +344,7 @@ static int zynq_fpga_ops_write_init(struct fpga_manager *mgr,
 
 	/* set configuration register with following options:
 	 * - enable PCAP interface
-	 * - set throughput for maximum speed (if bistream not crypted)
+	 * - set throughput for maximum speed (if bistream yest crypted)
 	 * - set CPU in user mode
 	 */
 	ctrl = zynq_fpga_read(priv, CTRL_OFFSET);
@@ -358,11 +358,11 @@ static int zynq_fpga_ops_write_init(struct fpga_manager *mgr,
 				 | ctrl));
 
 
-	/* We expect that the command queue is empty right now. */
+	/* We expect that the command queue is empty right yesw. */
 	status = zynq_fpga_read(priv, STATUS_OFFSET);
 	if ((status & STATUS_DMA_Q_F) ||
 	    (status & STATUS_DMA_Q_E) != STATUS_DMA_Q_E) {
-		dev_err(&mgr->dev, "DMA command queue not right\n");
+		dev_err(&mgr->dev, "DMA command queue yest right\n");
 		err = -EBUSY;
 		goto out_err;
 	}
@@ -455,7 +455,7 @@ static int zynq_fpga_ops_write(struct fpga_manager *mgr, struct sg_table *sgt)
 		if (timeout == 0)
 			why = "DMA timed out";
 		else
-			why = "DMA did not complete";
+			why = "DMA did yest complete";
 		err = -EIO;
 		goto out_report;
 	}
@@ -568,7 +568,7 @@ static int zynq_fpga_probe(struct platform_device *pdev)
 	if (IS_ERR(priv->io_base))
 		return PTR_ERR(priv->io_base);
 
-	priv->slcr = syscon_regmap_lookup_by_phandle(dev->of_node,
+	priv->slcr = syscon_regmap_lookup_by_phandle(dev->of_yesde,
 		"syscon");
 	if (IS_ERR(priv->slcr)) {
 		dev_err(dev, "unable to get zynq-slcr regmap\n");
@@ -583,7 +583,7 @@ static int zynq_fpga_probe(struct platform_device *pdev)
 
 	priv->clk = devm_clk_get(dev, "ref_clk");
 	if (IS_ERR(priv->clk)) {
-		dev_err(dev, "input clock not found\n");
+		dev_err(dev, "input clock yest found\n");
 		return PTR_ERR(priv->clk);
 	}
 

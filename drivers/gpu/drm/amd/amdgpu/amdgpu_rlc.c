@@ -10,7 +10,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -39,7 +39,7 @@ void amdgpu_gfx_rlc_enter_safe_mode(struct amdgpu_device *adev)
 	if (adev->gfx.rlc.in_safe_mode)
 		return;
 
-	/* if RLC is not enabled, do nothing */
+	/* if RLC is yest enabled, do yesthing */
 	if (!adev->gfx.rlc.funcs->is_rlc_enabled(adev))
 		return;
 
@@ -63,7 +63,7 @@ void amdgpu_gfx_rlc_exit_safe_mode(struct amdgpu_device *adev)
 	if (!(adev->gfx.rlc.in_safe_mode))
 		return;
 
-	/* if RLC is not enabled, do nothing */
+	/* if RLC is yest enabled, do yesthing */
 	if (!adev->gfx.rlc.funcs->is_rlc_enabled(adev))
 		return;
 

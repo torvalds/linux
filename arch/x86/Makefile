@@ -33,12 +33,12 @@ M16_CFLAGS	 := $(call cc-option, -m16, $(CODE16GCC_CFLAGS))
 
 REALMODE_CFLAGS	:= $(M16_CFLAGS) -g -Os -DDISABLE_BRANCH_PROFILING \
 		   -Wall -Wstrict-prototypes -march=i386 -mregparm=3 \
-		   -fno-strict-aliasing -fomit-frame-pointer -fno-pic \
-		   -mno-mmx -mno-sse
+		   -fyes-strict-aliasing -fomit-frame-pointer -fyes-pic \
+		   -myes-mmx -myes-sse
 
 REALMODE_CFLAGS += $(call __cc-option, $(CC), $(REALMODE_CFLAGS), -ffreestanding)
-REALMODE_CFLAGS += $(call __cc-option, $(CC), $(REALMODE_CFLAGS), -fno-stack-protector)
-REALMODE_CFLAGS += $(call __cc-option, $(CC), $(REALMODE_CFLAGS), -Wno-address-of-packed-member)
+REALMODE_CFLAGS += $(call __cc-option, $(CC), $(REALMODE_CFLAGS), -fyes-stack-protector)
+REALMODE_CFLAGS += $(call __cc-option, $(CC), $(REALMODE_CFLAGS), -Wyes-address-of-packed-member)
 REALMODE_CFLAGS += $(call __cc-option, $(CC), $(REALMODE_CFLAGS), $(cc_stack_align4))
 export REALMODE_CFLAGS
 
@@ -48,7 +48,7 @@ export REALMODE_CFLAGS
 export BITS
 
 ifdef CONFIG_X86_NEED_RELOCS
-        LDFLAGS_vmlinux := --emit-relocs --discard-none
+        LDFLAGS_vmlinux := --emit-relocs --discard-yesne
 endif
 
 #
@@ -58,8 +58,8 @@ endif
 #
 #    https://gcc.gnu.org/bugzilla/show_bug.cgi?id=53383
 #
-KBUILD_CFLAGS += -mno-sse -mno-mmx -mno-sse2 -mno-3dnow
-KBUILD_CFLAGS += $(call cc-option,-mno-avx,)
+KBUILD_CFLAGS += -myes-sse -myes-mmx -myes-sse2 -myes-3dyesw
+KBUILD_CFLAGS += $(call cc-option,-myes-avx,)
 
 ifeq ($(CONFIG_X86_32),y)
         BITS := 32
@@ -73,8 +73,8 @@ ifeq ($(CONFIG_X86_32),y)
         KBUILD_CFLAGS += -msoft-float -mregparm=3 -freg-struct-return
 
         # Never want PIC in a 32-bit kernel, prevent breakage with GCC built
-        # with nonstandard options
-        KBUILD_CFLAGS += -fno-pic
+        # with yesnstandard options
+        KBUILD_CFLAGS += -fyes-pic
 
         # Align the stack to the register width instead of using the default
         # alignment of 16 bytes. This reduces stack usage and the number of
@@ -96,15 +96,15 @@ else
         KBUILD_AFLAGS += -m64
         KBUILD_CFLAGS += -m64
 
-        # Align jump targets to 1 byte, not the default 16 bytes:
+        # Align jump targets to 1 byte, yest the default 16 bytes:
         KBUILD_CFLAGS += $(call cc-option,-falign-jumps=1)
 
         # Pack loops tightly as well:
         KBUILD_CFLAGS += $(call cc-option,-falign-loops=1)
 
         # Don't autogenerate traditional x87 instructions
-        KBUILD_CFLAGS += $(call cc-option,-mno-80387)
-        KBUILD_CFLAGS += $(call cc-option,-mno-fp-ret-in-387)
+        KBUILD_CFLAGS += $(call cc-option,-myes-80387)
+        KBUILD_CFLAGS += $(call cc-option,-myes-fp-ret-in-387)
 
         # By default gcc and clang use a stack alignment of 16 bytes for x86.
         # However the standard kernel entry on x86-64 leaves the stack on an
@@ -120,7 +120,7 @@ else
 
         # FIXME - should be integrated in Makefile.cpu (Makefile_32.cpu)
         cflags-$(CONFIG_MK8) += $(call cc-option,-march=k8)
-        cflags-$(CONFIG_MPSC) += $(call cc-option,-march=nocona)
+        cflags-$(CONFIG_MPSC) += $(call cc-option,-march=yescona)
 
         cflags-$(CONFIG_MCORE2) += \
                 $(call cc-option,-march=core2,$(call cc-option,-mtune=generic))
@@ -129,7 +129,7 @@ else
         cflags-$(CONFIG_GENERIC_CPU) += $(call cc-option,-mtune=generic)
         KBUILD_CFLAGS += $(cflags-y)
 
-        KBUILD_CFLAGS += -mno-red-zone
+        KBUILD_CFLAGS += -myes-red-zone
         KBUILD_CFLAGS += -mcmodel=kernel
 endif
 
@@ -144,7 +144,7 @@ ifdef CONFIG_X86_X32
                 KBUILD_AFLAGS += -DCONFIG_X86_X32_ABI
                 KBUILD_CFLAGS += -DCONFIG_X86_X32_ABI
         else
-                $(warning CONFIG_X86_X32 enabled but no binutils support)
+                $(warning CONFIG_X86_X32 enabled but yes binutils support)
         endif
 endif
 export CONFIG_X86_X32_ABI
@@ -161,11 +161,11 @@ ifdef CONFIG_FUNCTION_GRAPH_TRACER
     ifeq ($(call cc-option-yn, -mfentry), n)
 	ACCUMULATE_OUTGOING_ARGS := 1
 
-	# GCC ignores '-maccumulate-outgoing-args' when used with '-Os'.
+	# GCC igyesres '-maccumulate-outgoing-args' when used with '-Os'.
 	# If '-Os' is enabled, disable it and print a warning.
         ifdef CONFIG_CC_OPTIMIZE_FOR_SIZE
           undefine CONFIG_CC_OPTIMIZE_FOR_SIZE
-          $(warning Disabling CONFIG_CC_OPTIMIZE_FOR_SIZE.  Your compiler does not have -mfentry so you cannot optimize for size with CONFIG_FUNCTION_GRAPH_TRACER.)
+          $(warning Disabling CONFIG_CC_OPTIMIZE_FOR_SIZE.  Your compiler does yest have -mfentry so you canyest optimize for size with CONFIG_FUNCTION_GRAPH_TRACER.)
         endif
 
     endif
@@ -173,7 +173,7 @@ ifdef CONFIG_FUNCTION_GRAPH_TRACER
 endif
 
 ifeq ($(ACCUMULATE_OUTGOING_ARGS), 1)
-	# This compiler flag is not supported by Clang:
+	# This compiler flag is yest supported by Clang:
 	KBUILD_CFLAGS += $(call cc-option,-maccumulate-outgoing-args,)
 endif
 
@@ -210,9 +210,9 @@ KBUILD_LDFLAGS += $(call ld-option, -z max-page-size=0x200000)
 endif
 
 # Workaround for a gcc prelease that unfortunately was shipped in a suse release
-KBUILD_CFLAGS += -Wno-sign-compare
+KBUILD_CFLAGS += -Wyes-sign-compare
 #
-KBUILD_CFLAGS += -fno-asynchronous-unwind-tables
+KBUILD_CFLAGS += -fyes-asynchroyesus-unwind-tables
 
 # Avoid indirect branches in kernel to deal with Spectre
 ifdef CONFIG_RETPOLINE
@@ -220,11 +220,11 @@ ifdef CONFIG_RETPOLINE
   # Additionally, avoid generating expensive indirect jumps which
   # are subject to retpolines for small number of switch cases.
   # clang turns off jump table generation by default when under
-  # retpoline builds, however, gcc does not for x86. This has
+  # retpoline builds, however, gcc does yest for x86. This has
   # only been fixed starting from gcc stable version 8.4.0 and
-  # onwards, but not for older ones. See gcc bug #86952.
+  # onwards, but yest for older ones. See gcc bug #86952.
   ifndef CONFIG_CC_IS_CLANG
-    KBUILD_CFLAGS += $(call cc-option,-fno-jump-tables)
+    KBUILD_CFLAGS += $(call cc-option,-fyes-jump-tables)
   endif
 endif
 
@@ -304,7 +304,7 @@ ifndef CONFIG_CC_HAS_ASM_GOTO
 endif
 ifdef CONFIG_RETPOLINE
 ifeq ($(RETPOLINE_CFLAGS),)
-	@echo "You are building kernel with non-retpoline compiler." >&2
+	@echo "You are building kernel with yesn-retpoline compiler." >&2
 	@echo "Please update your compiler." >&2
 	@false
 endif

@@ -32,7 +32,7 @@ xfs_readlink_by_handle(
 
 extern int
 xfs_attrmulti_attr_get(
-	struct inode		*inode,
+	struct iyesde		*iyesde,
 	unsigned char		*name,
 	unsigned char		__user *ubuf,
 	uint32_t		*len,
@@ -40,7 +40,7 @@ xfs_attrmulti_attr_get(
 
 extern int
 xfs_attrmulti_attr_set(
-	struct inode		*inode,
+	struct iyesde		*iyesde,
 	unsigned char		*name,
 	const unsigned char	__user *ubuf,
 	uint32_t		len,
@@ -48,7 +48,7 @@ xfs_attrmulti_attr_set(
 
 extern int
 xfs_attrmulti_attr_remove(
-	struct inode		*inode,
+	struct iyesde		*iyesde,
 	unsigned char		*name,
 	uint32_t		flags);
 
@@ -72,7 +72,7 @@ xfs_file_compat_ioctl(
 
 struct xfs_ibulk;
 struct xfs_bstat;
-struct xfs_inogrp;
+struct xfs_iyesgrp;
 
 int xfs_fsbulkstat_one_fmt(struct xfs_ibulk *breq,
 			   const struct xfs_bulkstat *bstat);

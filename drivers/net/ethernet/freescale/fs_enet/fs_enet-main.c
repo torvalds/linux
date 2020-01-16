@@ -20,7 +20,7 @@
 #include <linux/types.h>
 #include <linux/string.h>
 #include <linux/ptrace.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/ioport.h>
 #include <linux/slab.h>
 #include <linux/interrupt.h>
@@ -172,7 +172,7 @@ static int fs_enet_napi(struct napi_struct *napi, int budget)
 			bdp = fep->tx_bd_base;
 
 		/*
-		 * Since we have freed up a buffer, the ring is no longer
+		 * Since we have freed up a buffer, the ring is yes longer
 		 * full.
 		 */
 		if (++fep->tx_free == MAX_SKB_FRAGS)
@@ -205,7 +205,7 @@ static int fs_enet_napi(struct napi_struct *napi, int budget)
 		 * the last indicator should be set.
 		 */
 		if ((sc & BD_ENET_RX_LAST) == 0)
-			dev_warn(fep->dev, "rcv is not +last\n");
+			dev_warn(fep->dev, "rcv is yest +last\n");
 
 		/*
 		 * Check for errors.
@@ -535,7 +535,7 @@ fs_enet_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 		/*
 		 * Ooops.  All transmit buffers are full.  Bail out.
-		 * This should not happen, since the tx queue should be stopped.
+		 * This should yest happen, since the tx queue should be stopped.
 		 */
 		dev_warn(fep->dev, "tx queue full!.\n");
 		return NETDEV_TX_BUSY;
@@ -549,7 +549,7 @@ fs_enet_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		len -= skb->data_len;
 	fep->tx_free -= nr_frags + 1;
 	/*
-	 * Push the data cache so the CPM does not get stale memory data.
+	 * Push the data cache so the CPM does yest get stale memory data.
 	 */
 	CBDW_BUFADDR(bdp, dma_map_single(fep->dev,
 				skb->data, len, DMA_TO_DEVICE));
@@ -584,7 +584,7 @@ fs_enet_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	sc = BD_ENET_TX_READY | BD_ENET_TX_INTR |
 	     BD_ENET_TX_LAST | BD_ENET_TX_TC;
 
-	/* note that while FEC does not have this bit
+	/* yeste that while FEC does yest have this bit
 	 * it marks it as available for software use
 	 * yay for hw reuse :) */
 	if (skb->len <= 60)
@@ -716,10 +716,10 @@ static int fs_init_phy(struct net_device *dev)
 	iface = fep->fpi->use_rmii ?
 		PHY_INTERFACE_MODE_RMII : PHY_INTERFACE_MODE_MII;
 
-	phydev = of_phy_connect(dev, fep->fpi->phy_node, &fs_adjust_link, 0,
+	phydev = of_phy_connect(dev, fep->fpi->phy_yesde, &fs_adjust_link, 0,
 				iface);
 	if (!phydev) {
-		dev_err(&dev->dev, "Could not attach to PHY\n");
+		dev_err(&dev->dev, "Could yest attach to PHY\n");
 		return -ENODEV;
 	}
 
@@ -733,7 +733,7 @@ static int fs_enet_open(struct net_device *dev)
 	int err;
 
 	/* to initialize the fep->cur_rx,... */
-	/* not doing this, will cause a crash in fs_enet_napi */
+	/* yest doing this, will cause a crash in fs_enet_napi */
 	fs_init_bds(fep->ndev);
 
 	napi_enable(&fep->napi);
@@ -742,7 +742,7 @@ static int fs_enet_open(struct net_device *dev)
 	r = request_irq(fep->interrupt, fs_enet_interrupt, IRQF_SHARED,
 			"fs_enet-mac", dev);
 	if (r != 0) {
-		dev_err(fep->dev, "Could not allocate FS_ENET IRQ!");
+		dev_err(fep->dev, "Could yest allocate FS_ENET IRQ!");
 		napi_disable(&fep->napi);
 		return -EINVAL;
 	}
@@ -938,7 +938,7 @@ static int fs_enet_probe(struct platform_device *ofdev)
 		return -ENOMEM;
 
 	if (!IS_FEC(match)) {
-		data = of_get_property(ofdev->dev.of_node, "fsl,cpm-command", &len);
+		data = of_get_property(ofdev->dev.of_yesde, "fsl,cpm-command", &len);
 		if (!data || len != 4)
 			goto out_free_fpi;
 
@@ -949,26 +949,26 @@ static int fs_enet_probe(struct platform_device *ofdev)
 	fpi->tx_ring = TX_RING_SIZE;
 	fpi->rx_copybreak = 240;
 	fpi->napi_weight = 17;
-	fpi->phy_node = of_parse_phandle(ofdev->dev.of_node, "phy-handle", 0);
-	if (!fpi->phy_node && of_phy_is_fixed_link(ofdev->dev.of_node)) {
-		err = of_phy_register_fixed_link(ofdev->dev.of_node);
+	fpi->phy_yesde = of_parse_phandle(ofdev->dev.of_yesde, "phy-handle", 0);
+	if (!fpi->phy_yesde && of_phy_is_fixed_link(ofdev->dev.of_yesde)) {
+		err = of_phy_register_fixed_link(ofdev->dev.of_yesde);
 		if (err)
 			goto out_free_fpi;
 
-		/* In the case of a fixed PHY, the DT node associated
-		 * to the PHY is the Ethernet MAC DT node.
+		/* In the case of a fixed PHY, the DT yesde associated
+		 * to the PHY is the Ethernet MAC DT yesde.
 		 */
-		fpi->phy_node = of_node_get(ofdev->dev.of_node);
+		fpi->phy_yesde = of_yesde_get(ofdev->dev.of_yesde);
 	}
 
-	if (of_device_is_compatible(ofdev->dev.of_node, "fsl,mpc5125-fec")) {
-		phy_connection_type = of_get_property(ofdev->dev.of_node,
+	if (of_device_is_compatible(ofdev->dev.of_yesde, "fsl,mpc5125-fec")) {
+		phy_connection_type = of_get_property(ofdev->dev.of_yesde,
 						"phy-connection-type", NULL);
 		if (phy_connection_type && !strcmp("rmii", phy_connection_type))
 			fpi->use_rmii = 1;
 	}
 
-	/* make clock lookup non-fatal (the driver is shared among platforms),
+	/* make clock lookup yesn-fatal (the driver is shared among platforms),
 	 * but require enable to succeed when a clock was specified/found,
 	 * keep a reference to the clock upon successful acquisition
 	 */
@@ -1013,7 +1013,7 @@ static int fs_enet_probe(struct platform_device *ofdev)
 	spin_lock_init(&fep->lock);
 	spin_lock_init(&fep->tx_lock);
 
-	mac_addr = of_get_mac_address(ofdev->dev.of_node);
+	mac_addr = of_get_mac_address(ofdev->dev.of_yesde);
 	if (!IS_ERR(mac_addr))
 		ether_addr_copy(ndev->dev_addr, mac_addr);
 
@@ -1056,9 +1056,9 @@ out_put:
 	if (fpi->clk_per)
 		clk_disable_unprepare(fpi->clk_per);
 out_deregister_fixed_link:
-	of_node_put(fpi->phy_node);
-	if (of_phy_is_fixed_link(ofdev->dev.of_node))
-		of_phy_deregister_fixed_link(ofdev->dev.of_node);
+	of_yesde_put(fpi->phy_yesde);
+	if (of_phy_is_fixed_link(ofdev->dev.of_yesde))
+		of_phy_deregister_fixed_link(ofdev->dev.of_yesde);
 out_free_fpi:
 	kfree(fpi);
 	return ret;
@@ -1074,11 +1074,11 @@ static int fs_enet_remove(struct platform_device *ofdev)
 	fep->ops->free_bd(ndev);
 	fep->ops->cleanup_data(ndev);
 	dev_set_drvdata(fep->dev, NULL);
-	of_node_put(fep->fpi->phy_node);
+	of_yesde_put(fep->fpi->phy_yesde);
 	if (fep->fpi->clk_per)
 		clk_disable_unprepare(fep->fpi->clk_per);
-	if (of_phy_is_fixed_link(ofdev->dev.of_node))
-		of_phy_deregister_fixed_link(ofdev->dev.of_node);
+	if (of_phy_is_fixed_link(ofdev->dev.of_yesde))
+		of_phy_deregister_fixed_link(ofdev->dev.of_yesde);
 	free_netdev(ndev);
 	return 0;
 }

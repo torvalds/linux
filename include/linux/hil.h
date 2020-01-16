@@ -11,9 +11,9 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions, and the following disclaimer,
+ *    yestice, this list of conditions, and the following disclaimer,
  *    without modification.
- * 2. The name of the author may not be used to endorse or promote products
+ * 2. The name of the author may yest be used to endorse or promote products
  *    derived from this software without specific prior written permission.
  *
  * Alternatively, this software may be distributed under the terms of the
@@ -32,7 +32,7 @@
  * References:
  * HP-HIL Technical Reference Manual.  Hewlett Packard Product No. 45918A
  *
- * A note of thanks to HP for providing and shipping reference materials
+ * A yeste of thanks to HP for providing and shipping reference materials
  * free of charge to help in the development of HIL support for Linux.
  *
  */
@@ -54,7 +54,7 @@
 
 
 /* Actual wire line coding.  These will only be useful if someone is 
- * implementing a software MLC to run HIL devices on a non-parisc machine.
+ * implementing a software MLC to run HIL devices on a yesn-parisc machine.
  */
 
 #define HIL_WIRE_PACKET_LEN	15
@@ -100,16 +100,16 @@ enum hil_pkt_bitpos {
 
 /* The HIL MLC also has several error/status/control bits.  We extend the 
  * "packet" to include these when direct access to the MLC is available,
- * or emulate them in cases where they are not available. 
+ * or emulate them in cases where they are yest available. 
  *
- * This way the device driver knows that the underlying MLC driver
+ * This way the device driver kyesws that the underlying MLC driver
  * has had to deal with loop errors.
  */
 enum hil_error_bitpos {
 	HIL_ERR_OB	= 0x00000800, /* MLC is busy sending an auto-poll, 
 					 or we have filled up the output 
 					 buffer and must wait. */
-	HIL_ERR_INT	= 0x00010000, /* A normal interrupt has occurred. */
+	HIL_ERR_INT	= 0x00010000, /* A yesrmal interrupt has occurred. */
 	HIL_ERR_NMI	= 0x00020000, /* An NMI has occurred. */
 	HIL_ERR_LERR	= 0x00040000, /* A poll didn't come back. */
 	HIL_ERR_PERR	= 0x01000000, /* There was a Parity Error. */
@@ -168,14 +168,14 @@ enum hil_command {
 	HIL_CMD_PR6	= 0x45,	/* Prompt6 */
 	HIL_CMD_PR7	= 0x46,	/* Prompt7 */
 	HIL_CMD_PRM	= 0x47,	/* Prompt (General Purpose) */
-	HIL_CMD_AK1	= 0x48,	/* Acknowledge1 */  
-	HIL_CMD_AK2	= 0x49,	/* Acknowledge2 */
-	HIL_CMD_AK3	= 0x4a,	/* Acknowledge3 */
-	HIL_CMD_AK4	= 0x4b,	/* Acknowledge4 */
-	HIL_CMD_AK5	= 0x4c,	/* Acknowledge5 */
-	HIL_CMD_AK6	= 0x4d,	/* Acknowledge6 */
-	HIL_CMD_AK7	= 0x4e,	/* Acknowledge7 */
-	HIL_CMD_ACK	= 0x4f,	/* Acknowledge (General Purpose) */
+	HIL_CMD_AK1	= 0x48,	/* Ackyeswledge1 */  
+	HIL_CMD_AK2	= 0x49,	/* Ackyeswledge2 */
+	HIL_CMD_AK3	= 0x4a,	/* Ackyeswledge3 */
+	HIL_CMD_AK4	= 0x4b,	/* Ackyeswledge4 */
+	HIL_CMD_AK5	= 0x4c,	/* Ackyeswledge5 */
+	HIL_CMD_AK6	= 0x4d,	/* Ackyeswledge6 */
+	HIL_CMD_AK7	= 0x4e,	/* Ackyeswledge7 */
+	HIL_CMD_ACK	= 0x4f,	/* Ackyeswledge (General Purpose) */
 
 	/* 0x50 to 0x78 reserved for future use  */
 	/* 0x80 to 0xEF device-specific commands */
@@ -348,7 +348,7 @@ enum hil_command {
 /* Device locale codes. */ 
 
 /* Last defined locale code.  Everything above this is "Reserved",
-   and note that this same table applies to the Device ID Byte where 
+   and yeste that this same table applies to the Device ID Byte where 
    keyboards may have a nationality code which is only 5 bits. */
 #define HIL_LOCALE_MAX 0x1f
 
@@ -382,7 +382,7 @@ enum hil_command {
 "english.uk",		/* 0x17 United Kingdom */	\
 "french.canadian",	/* 0x18 French/Canadian */	\
 "swiss.german",		/* 0x19 Swiss/German */		\
-"norwegian",		/* 0x1a Norwegian */		\
+"yesrwegian",		/* 0x1a Norwegian */		\
 "french",		/* 0x1b French */		\
 "danish",		/* 0x1c Danish */		\
 "japanese",		/* 0x1d Katakana */		\

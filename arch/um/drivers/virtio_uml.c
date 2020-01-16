@@ -227,7 +227,7 @@ static int vhost_user_send(struct virtio_uml_device *vu_dev,
 	return 0;
 }
 
-static int vhost_user_send_no_payload(struct virtio_uml_device *vu_dev,
+static int vhost_user_send_yes_payload(struct virtio_uml_device *vu_dev,
 				      bool need_response, u32 request)
 {
 	struct vhost_user_msg msg = {
@@ -237,7 +237,7 @@ static int vhost_user_send_no_payload(struct virtio_uml_device *vu_dev,
 	return vhost_user_send(vu_dev, need_response, &msg, NULL, 0);
 }
 
-static int vhost_user_send_no_payload_fd(struct virtio_uml_device *vu_dev,
+static int vhost_user_send_yes_payload_fd(struct virtio_uml_device *vu_dev,
 					 u32 request, int fd)
 {
 	struct vhost_user_msg msg = {
@@ -261,13 +261,13 @@ static int vhost_user_send_u64(struct virtio_uml_device *vu_dev,
 
 static int vhost_user_set_owner(struct virtio_uml_device *vu_dev)
 {
-	return vhost_user_send_no_payload(vu_dev, false, VHOST_USER_SET_OWNER);
+	return vhost_user_send_yes_payload(vu_dev, false, VHOST_USER_SET_OWNER);
 }
 
 static int vhost_user_get_features(struct virtio_uml_device *vu_dev,
 				   u64 *features)
 {
-	int rc = vhost_user_send_no_payload(vu_dev, true,
+	int rc = vhost_user_send_yes_payload(vu_dev, true,
 					    VHOST_USER_GET_FEATURES);
 
 	if (rc)
@@ -284,7 +284,7 @@ static int vhost_user_set_features(struct virtio_uml_device *vu_dev,
 static int vhost_user_get_protocol_features(struct virtio_uml_device *vu_dev,
 					    u64 *protocol_features)
 {
-	int rc = vhost_user_send_no_payload(vu_dev, true,
+	int rc = vhost_user_send_yes_payload(vu_dev, true,
 			VHOST_USER_GET_PROTOCOL_FEATURES);
 
 	if (rc)
@@ -344,9 +344,9 @@ static irqreturn_t vu_req_interrupt(int irq, void *data)
 		response = 0;
 		break;
 	case VHOST_USER_SLAVE_IOTLB_MSG:
-		/* not supported - VIRTIO_F_IOMMU_PLATFORM */
+		/* yest supported - VIRTIO_F_IOMMU_PLATFORM */
 	case VHOST_USER_SLAVE_VRING_HOST_NOTIFIER_MSG:
-		/* not supported - VHOST_USER_PROTOCOL_F_HOST_NOTIFIER */
+		/* yest supported - VHOST_USER_PROTOCOL_F_HOST_NOTIFIER */
 	default:
 		vu_err(vu_dev, "unexpected slave request %d\n",
 		       msg.msg.header.request);
@@ -362,7 +362,7 @@ static int vhost_user_init_slave_req(struct virtio_uml_device *vu_dev)
 {
 	int rc, req_fds[2];
 
-	/* Use a pipe for slave req fd, SIGIO is not supported for eventfd */
+	/* Use a pipe for slave req fd, SIGIO is yest supported for eventfd */
 	rc = os_pipe(req_fds, true, true);
 	if (rc < 0)
 		return rc;
@@ -374,7 +374,7 @@ static int vhost_user_init_slave_req(struct virtio_uml_device *vu_dev)
 	if (rc)
 		goto err_close;
 
-	rc = vhost_user_send_no_payload_fd(vu_dev, VHOST_USER_SET_SLAVE_REQ_FD,
+	rc = vhost_user_send_yes_payload_fd(vu_dev, VHOST_USER_SET_SLAVE_REQ_FD,
 					   req_fds[1]);
 	if (rc)
 		goto err_free_irq;
@@ -541,33 +541,33 @@ static int vhost_user_set_mem_table(struct virtio_uml_device *vu_dev)
 	 *
 	 * Essentially, setup_physmem() uses a file to mmap() our physmem,
 	 * but the code and data we *already* have is omitted. To us, this
-	 * is no difference, since they both become part of our address
+	 * is yes difference, since they both become part of our address
 	 * space and memory consumption. To somebody looking in from the
 	 * outside, however, it is different because the part of our memory
-	 * consumption that's already part of the binary (code/data) is not
-	 * mapped from the file, so it's not visible to another mmap from
+	 * consumption that's already part of the binary (code/data) is yest
+	 * mapped from the file, so it's yest visible to ayesther mmap from
 	 * the file descriptor.
 	 *
 	 * Thus, don't advertise this space to the vhost-user slave. This
 	 * means that the slave will likely abort or similar when we give
-	 * it an address from the hidden range, since it's not marked as
+	 * it an address from the hidden range, since it's yest marked as
 	 * a valid address, but at least that way we detect the issue and
 	 * don't just have the slave read an all-zeroes buffer from the
 	 * shared memory file, or write something there that we can never
 	 * see (depending on the direction of the virtqueue traffic.)
 	 *
 	 * Since we usually don't want to use .text for virtio buffers,
-	 * this effectively means that you cannot use
-	 *  1) global variables, which are in the .bss and not in the shm
+	 * this effectively means that you canyest use
+	 *  1) global variables, which are in the .bss and yest in the shm
 	 *     file-backed memory
 	 *  2) the stack in some processes, depending on where they have
-	 *     their stack (or maybe only no interrupt stack?)
+	 *     their stack (or maybe only yes interrupt stack?)
 	 *
-	 * The stack is already not typically valid for DMA, so this isn't
+	 * The stack is already yest typically valid for DMA, so this isn't
 	 * much of a restriction, but global variables might be encountered.
 	 *
 	 * It might be possible to fix it by copying around the data that's
-	 * between bss_start and where we map the file now, but it's not
+	 * between bss_start and where we map the file yesw, but it's yest
 	 * something that you typically encounter with virtio drivers, so
 	 * it didn't seem worthwhile.
 	 */
@@ -678,7 +678,7 @@ static int vhost_user_set_vring_enable(struct virtio_uml_device *vu_dev,
 
 /* Virtio interface */
 
-static bool vu_notify(struct virtqueue *vq)
+static bool vu_yestify(struct virtqueue *vq)
 {
 	struct virtio_uml_vq_info *info = vq->priv;
 	const uint64_t n = 1;
@@ -782,7 +782,7 @@ static int vu_setup_vq_call_fd(struct virtio_uml_device *vu_dev,
 	int call_fds[2];
 	int rc;
 
-	/* Use a pipe for call fd, since SIGIO is not supported for eventfd */
+	/* Use a pipe for call fd, since SIGIO is yest supported for eventfd */
 	rc = os_pipe(call_fds, true, true);
 	if (rc < 0)
 		return rc;
@@ -830,7 +830,7 @@ static struct virtqueue *vu_setup_vq(struct virtio_device *vdev,
 		 pdev->id, name);
 
 	vq = vring_create_virtqueue(index, num, PAGE_SIZE, vdev, true, true,
-				    ctx, vu_notify, callback, info->name);
+				    ctx, vu_yestify, callback, info->name);
 	if (!vq) {
 		rc = -ENOMEM;
 		goto error_create;
@@ -969,7 +969,7 @@ static void virtio_uml_release_dev(struct device *d)
 			container_of(d, struct virtio_device, dev);
 	struct virtio_uml_device *vu_dev = to_virtio_uml_device(vdev);
 
-	/* might not have been opened due to not negotiating the feature */
+	/* might yest have been opened due to yest negotiating the feature */
 	if (vu_dev->req_fd >= 0) {
 		um_free_irq(VIRTIO_IRQ, vu_dev);
 		os_close_file(vu_dev->req_fd);

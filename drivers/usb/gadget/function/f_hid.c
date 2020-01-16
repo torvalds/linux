@@ -22,7 +22,7 @@
 
 #define HIDG_MINORS	4
 
-static int major, minors;
+static int major, miyesrs;
 static struct class *hidg_class;
 static DEFINE_IDA(hidg_ida);
 static DEFINE_MUTEX(hidg_ida_lock); /* protects access to hidg_ida */
@@ -57,7 +57,7 @@ struct f_hidg {
 	wait_queue_head_t		write_queue;
 	struct usb_request		*req;
 
-	int				minor;
+	int				miyesr;
 	struct cdev			cdev;
 	struct usb_function		func;
 
@@ -433,16 +433,16 @@ static __poll_t f_hidg_poll(struct file *file, poll_table *wait)
 #undef WRITE_COND
 #undef READ_COND
 
-static int f_hidg_release(struct inode *inode, struct file *fd)
+static int f_hidg_release(struct iyesde *iyesde, struct file *fd)
 {
 	fd->private_data = NULL;
 	return 0;
 }
 
-static int f_hidg_open(struct inode *inode, struct file *fd)
+static int f_hidg_open(struct iyesde *iyesde, struct file *fd)
 {
 	struct f_hidg *hidg =
-		container_of(inode->i_cdev, struct f_hidg, cdev);
+		container_of(iyesde->i_cdev, struct f_hidg, cdev);
 
 	fd->private_data = hidg;
 
@@ -579,7 +579,7 @@ static int hidg_setup(struct usb_function *f,
 			break;
 
 		default:
-			VDBG(cdev, "Unknown descriptor request 0x%x\n",
+			VDBG(cdev, "Unkyeswn descriptor request 0x%x\n",
 				 value >> 8);
 			goto stall;
 			break;
@@ -587,7 +587,7 @@ static int hidg_setup(struct usb_function *f,
 		break;
 
 	default:
-		VDBG(cdev, "Unknown request 0x%x\n",
+		VDBG(cdev, "Unkyeswn request 0x%x\n",
 			 ctrl->bRequest);
 		goto stall;
 		break;
@@ -738,7 +738,7 @@ static const struct file_operations f_hidg_fops = {
 	.write		= f_hidg_write,
 	.read		= f_hidg_read,
 	.poll		= f_hidg_poll,
-	.llseek		= noop_llseek,
+	.llseek		= yesop_llseek,
 };
 
 static int hidg_bind(struct usb_configuration *c, struct usb_function *f)
@@ -790,7 +790,7 @@ static int hidg_bind(struct usb_configuration *c, struct usb_function *f)
 	hidg_hs_out_ep_desc.wMaxPacketSize = cpu_to_le16(hidg->report_length);
 	hidg_fs_out_ep_desc.wMaxPacketSize = cpu_to_le16(hidg->report_length);
 	/*
-	 * We can use hidg_desc struct here but we should not relay
+	 * We can use hidg_desc struct here but we should yest relay
 	 * that its content won't change after returning from this function.
 	 */
 	hidg_desc.desc[0].bDescriptorType = HID_DT_REPORT;
@@ -822,13 +822,13 @@ static int hidg_bind(struct usb_configuration *c, struct usb_function *f)
 
 	/* create char device */
 	cdev_init(&hidg->cdev, &f_hidg_fops);
-	dev = MKDEV(major, hidg->minor);
+	dev = MKDEV(major, hidg->miyesr);
 	status = cdev_add(&hidg->cdev, dev, 1);
 	if (status)
 		goto fail_free_descs;
 
 	device = device_create(hidg_class, NULL, dev, NULL,
-			       "%s%d", "hidg", hidg->minor);
+			       "%s%d", "hidg", hidg->miyesr);
 	if (IS_ERR(device)) {
 		status = PTR_ERR(device);
 		goto del;
@@ -847,7 +847,7 @@ fail:
 	return status;
 }
 
-static inline int hidg_get_minor(void)
+static inline int hidg_get_miyesr(void)
 {
 	int ret;
 
@@ -974,7 +974,7 @@ static ssize_t f_hid_opts_dev_show(struct config_item *item, char *page)
 {
 	struct f_hid_opts *opts = to_f_hid_opts(item);
 
-	return sprintf(page, "%d:%d\n", major, opts->minor);
+	return sprintf(page, "%d:%d\n", major, opts->miyesr);
 }
 
 CONFIGFS_ATTR_RO(f_hid_opts_, dev);
@@ -994,9 +994,9 @@ static const struct config_item_type hid_func_type = {
 	.ct_owner	= THIS_MODULE,
 };
 
-static inline void hidg_put_minor(int minor)
+static inline void hidg_put_miyesr(int miyesr)
 {
-	ida_simple_remove(&hidg_ida, minor);
+	ida_simple_remove(&hidg_ida, miyesr);
 }
 
 static void hidg_free_inst(struct usb_function_instance *f)
@@ -1007,7 +1007,7 @@ static void hidg_free_inst(struct usb_function_instance *f)
 
 	mutex_lock(&hidg_ida_lock);
 
-	hidg_put_minor(opts->minor);
+	hidg_put_miyesr(opts->miyesr);
 	if (ida_is_empty(&hidg_ida))
 		ghid_cleanup();
 
@@ -1043,9 +1043,9 @@ static struct usb_function_instance *hidg_alloc_inst(void)
 		}
 	}
 
-	opts->minor = hidg_get_minor();
-	if (opts->minor < 0) {
-		ret = ERR_PTR(opts->minor);
+	opts->miyesr = hidg_get_miyesr();
+	if (opts->miyesr < 0) {
+		ret = ERR_PTR(opts->miyesr);
 		kfree(opts);
 		if (ida_is_empty(&hidg_ida))
 			ghid_cleanup();
@@ -1076,7 +1076,7 @@ static void hidg_unbind(struct usb_configuration *c, struct usb_function *f)
 {
 	struct f_hidg *hidg = func_to_hidg(f);
 
-	device_destroy(hidg_class, MKDEV(major, hidg->minor));
+	device_destroy(hidg_class, MKDEV(major, hidg->miyesr));
 	cdev_del(&hidg->cdev);
 
 	usb_free_all_descriptors(f);
@@ -1097,7 +1097,7 @@ static struct usb_function *hidg_alloc(struct usb_function_instance *fi)
 	mutex_lock(&opts->lock);
 	++opts->refcnt;
 
-	hidg->minor = opts->minor;
+	hidg->miyesr = opts->miyesr;
 	hidg->bInterfaceSubClass = opts->subclass;
 	hidg->bInterfaceProtocol = opts->protocol;
 	hidg->report_length = opts->report_length;
@@ -1153,7 +1153,7 @@ int ghid_setup(struct usb_gadget *g, int count)
 	}
 
 	major = MAJOR(dev);
-	minors = count;
+	miyesrs = count;
 
 	return 0;
 }
@@ -1161,8 +1161,8 @@ int ghid_setup(struct usb_gadget *g, int count)
 void ghid_cleanup(void)
 {
 	if (major) {
-		unregister_chrdev_region(MKDEV(major, 0), minors);
-		major = minors = 0;
+		unregister_chrdev_region(MKDEV(major, 0), miyesrs);
+		major = miyesrs = 0;
 	}
 
 	class_destroy(hidg_class);

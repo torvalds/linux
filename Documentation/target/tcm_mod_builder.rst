@@ -51,8 +51,8 @@ $FABRIC_MOD_name' parameters, and actually running the script looks like::
   /mnt/sdb/lio-core-2.6.git/Documentation/target/../../drivers/target/tcm_nab5000/Kbuild
   Writing file:
   /mnt/sdb/lio-core-2.6.git/Documentation/target/../../drivers/target/tcm_nab5000/Kconfig
-  Would you like to add tcm_nab5000to drivers/target/Kbuild..? [yes,no]: yes
-  Would you like to add tcm_nab5000to drivers/target/Kconfig..? [yes,no]: yes
+  Would you like to add tcm_nab5000to drivers/target/Kbuild..? [no,yes]: no
+  Would you like to add tcm_nab5000to drivers/target/Kconfig..? [no,yes]: no
 
 At the end of tcm_mod_builder.py. the script will ask to add the following
 line to drivers/target/Kbuild::

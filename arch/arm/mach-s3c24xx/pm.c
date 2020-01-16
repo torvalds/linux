@@ -13,7 +13,7 @@
 
 #include <linux/init.h>
 #include <linux/suspend.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/time.h>
 #include <linux/gpio.h>
 #include <linux/interrupt.h>
@@ -41,7 +41,7 @@ static struct sleep_save core_save[] = {
 	 * brings the system up in an slower, or equal frequency setting
 	 * to the original system.
 	 *
-	 * if we cannot guarantee this, then things are going to go very
+	 * if we canyest guarantee this, then things are going to go very
 	 * wrong here, as we modify the refresh and both pll settings.
 	 */
 
@@ -58,7 +58,7 @@ static struct sleep_save core_save[] = {
 /* s3c_pm_check_resume_pin
  *
  * check to see if the pin is configured correctly for sleep mode, and
- * make any necessary adjustments if it is not
+ * make any necessary adjustments if it is yest
 */
 
 static void s3c_pm_check_resume_pin(unsigned int pin, unsigned int irqoffs)
@@ -96,7 +96,7 @@ void s3c_pm_configure_extint(void)
 
 	/* for each of the external interrupts (EINT0..EINT15) we
 	 * need to check whether it is an external interrupt source,
-	 * and then configure it as an input if it is not
+	 * and then configure it as an input if it is yest
 	*/
 
 	for (pin = S3C2410_GPF(0); pin <= S3C2410_GPF(7); pin++) {

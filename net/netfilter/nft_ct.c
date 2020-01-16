@@ -428,7 +428,7 @@ static int nft_ct_get_init(const struct nft_ctx *ctx,
 
 	case NFT_CT_L3PROTOCOL:
 	case NFT_CT_PROTOCOL:
-		/* For compatibility, do not report error if NFTA_CT_DIRECTION
+		/* For compatibility, do yest report error if NFTA_CT_DIRECTION
 		 * attribute is specified.
 		 */
 		len = sizeof(u8);
@@ -759,7 +759,7 @@ static struct nft_expr_type nft_ct_type __read_mostly = {
 	.owner		= THIS_MODULE,
 };
 
-static void nft_notrack_eval(const struct nft_expr *expr,
+static void nft_yestrack_eval(const struct nft_expr *expr,
 			     struct nft_regs *regs,
 			     const struct nft_pktinfo *pkt)
 {
@@ -768,23 +768,23 @@ static void nft_notrack_eval(const struct nft_expr *expr,
 	struct nf_conn *ct;
 
 	ct = nf_ct_get(pkt->skb, &ctinfo);
-	/* Previously seen (loopback or untracked)?  Ignore. */
+	/* Previously seen (loopback or untracked)?  Igyesre. */
 	if (ct || ctinfo == IP_CT_UNTRACKED)
 		return;
 
 	nf_ct_set(skb, ct, IP_CT_UNTRACKED);
 }
 
-static struct nft_expr_type nft_notrack_type;
-static const struct nft_expr_ops nft_notrack_ops = {
-	.type		= &nft_notrack_type,
+static struct nft_expr_type nft_yestrack_type;
+static const struct nft_expr_ops nft_yestrack_ops = {
+	.type		= &nft_yestrack_type,
 	.size		= NFT_EXPR_SIZE(0),
-	.eval		= nft_notrack_eval,
+	.eval		= nft_yestrack_eval,
 };
 
-static struct nft_expr_type nft_notrack_type __read_mostly = {
-	.name		= "notrack",
-	.ops		= &nft_notrack_ops,
+static struct nft_expr_type nft_yestrack_type __read_mostly = {
+	.name		= "yestrack",
+	.ops		= &nft_yestrack_ops,
 	.owner		= THIS_MODULE,
 };
 
@@ -850,7 +850,7 @@ static void nft_ct_timeout_obj_eval(struct nft_object *obj,
 	rcu_assign_pointer(timeout->timeout, priv->timeout);
 
 	/* adjust the timeout as per 'new' state. ct is unconfirmed,
-	 * so the current timestamp must not be added.
+	 * so the current timestamp must yest be added.
 	 */
 	values = nf_ct_timeout_data(timeout);
 	if (values)
@@ -1293,7 +1293,7 @@ static int __init nft_ct_module_init(void)
 	if (err < 0)
 		return err;
 
-	err = nft_register_expr(&nft_notrack_type);
+	err = nft_register_expr(&nft_yestrack_type);
 	if (err < 0)
 		goto err1;
 
@@ -1318,7 +1318,7 @@ err4:
 err3:
 	nft_unregister_obj(&nft_ct_helper_obj_type);
 err2:
-	nft_unregister_expr(&nft_notrack_type);
+	nft_unregister_expr(&nft_yestrack_type);
 err1:
 	nft_unregister_expr(&nft_ct_type);
 	return err;
@@ -1331,7 +1331,7 @@ static void __exit nft_ct_module_exit(void)
 #endif
 	nft_unregister_obj(&nft_ct_expect_obj_type);
 	nft_unregister_obj(&nft_ct_helper_obj_type);
-	nft_unregister_expr(&nft_notrack_type);
+	nft_unregister_expr(&nft_yestrack_type);
 	nft_unregister_expr(&nft_ct_type);
 }
 
@@ -1341,7 +1341,7 @@ module_exit(nft_ct_module_exit);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Patrick McHardy <kaber@trash.net>");
 MODULE_ALIAS_NFT_EXPR("ct");
-MODULE_ALIAS_NFT_EXPR("notrack");
+MODULE_ALIAS_NFT_EXPR("yestrack");
 MODULE_ALIAS_NFT_OBJ(NFT_OBJECT_CT_HELPER);
 MODULE_ALIAS_NFT_OBJ(NFT_OBJECT_CT_TIMEOUT);
 MODULE_ALIAS_NFT_OBJ(NFT_OBJECT_CT_EXPECT);

@@ -19,14 +19,14 @@ struct debug_obj_descr;
 
 /**
  * struct debug_obj - representaion of an tracked object
- * @node:	hlist node to link the object into the tracker list
+ * @yesde:	hlist yesde to link the object into the tracker list
  * @state:	tracked object state
  * @astate:	current active state
  * @object:	pointer to the real object
  * @descr:	pointer to an object type specific debug description structure
  */
 struct debug_obj {
-	struct hlist_node	node;
+	struct hlist_yesde	yesde;
 	enum debug_obj_state	state;
 	unsigned int		astate;
 	void			*object;
@@ -105,10 +105,10 @@ static inline void debug_objects_mem_init(void) { }
 #endif
 
 #ifdef CONFIG_DEBUG_OBJECTS_FREE
-extern void debug_check_no_obj_freed(const void *address, unsigned long size);
+extern void debug_check_yes_obj_freed(const void *address, unsigned long size);
 #else
 static inline void
-debug_check_no_obj_freed(const void *address, unsigned long size) { }
+debug_check_yes_obj_freed(const void *address, unsigned long size) { }
 #endif
 
 #endif

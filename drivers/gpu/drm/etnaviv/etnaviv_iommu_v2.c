@@ -162,7 +162,7 @@ static void etnaviv_iommuv2_dump(struct etnaviv_iommu_context *context, void *bu
 		}
 }
 
-static void etnaviv_iommuv2_restore_nonsec(struct etnaviv_gpu *gpu,
+static void etnaviv_iommuv2_restore_yesnsec(struct etnaviv_gpu *gpu,
 	struct etnaviv_iommu_context *context)
 {
 	struct etnaviv_iommuv2_context *v2_context = to_v2_context(context);
@@ -238,7 +238,7 @@ static void etnaviv_iommuv2_restore(struct etnaviv_gpu *gpu,
 {
 	switch (gpu->sec_mode) {
 	case ETNA_SEC_NONE:
-		etnaviv_iommuv2_restore_nonsec(gpu, context);
+		etnaviv_iommuv2_restore_yesnsec(gpu, context);
 		break;
 	case ETNA_SEC_KERNEL:
 		etnaviv_iommuv2_restore_sec(gpu, context);

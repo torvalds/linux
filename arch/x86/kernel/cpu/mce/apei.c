@@ -35,7 +35,7 @@ void apei_mce_report_mem_error(int severity, struct cper_sec_mem_err *mem_err)
 
 	mce_setup(&m);
 	m.bank = -1;
-	/* Fake a memory read error with unknown channel */
+	/* Fake a memory read error with unkyeswn channel */
 	m.status = MCI_STATUS_VAL | MCI_STATUS_EN | MCI_STATUS_ADDRV | 0x9f;
 
 	if (severity >= GHES_SEV_RECOVERABLE)
@@ -82,7 +82,7 @@ int apei_write_mce(struct mce *m)
 	rcd.hdr.validation_bits = 0;
 	rcd.hdr.record_length = sizeof(rcd);
 	rcd.hdr.creator_id = CPER_CREATOR_MCE;
-	rcd.hdr.notification_type = CPER_NOTIFY_MCE;
+	rcd.hdr.yestification_type = CPER_NOTIFY_MCE;
 	rcd.hdr.record_id = cper_next_record_id();
 	rcd.hdr.flags = CPER_HW_ERROR_FLAGS_PREVERR;
 
@@ -112,7 +112,7 @@ retry:
 	rc = erst_get_record_id_next(&pos, record_id);
 	if (rc)
 		goto out;
-	/* no more record */
+	/* yes more record */
 	if (*record_id == APEI_ERST_INVALID_RECORD_ID)
 		goto out;
 	rc = erst_read(*record_id, &rcd.hdr, sizeof(rcd));

@@ -36,7 +36,7 @@
  * shorter keys, and we don't want to force users of those modes to provide
  * unnecessarily long master keys.  Thus fscrypt still does HKDF-Extract.  No
  * salt is used, since fscrypt master keys should already be pseudorandom and
- * there's no way to persist a random salt per master key from kernel mode.
+ * there's yes way to persist a random salt per master key from kernel mode.
  */
 
 /* HKDF-Extract (RFC 5869 section 2.2), unsalted */

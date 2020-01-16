@@ -144,7 +144,7 @@ union ieee754dp ieee754dp_mul(union ieee754dp x, union ieee754dp y)
 	rm = hrm | (lrm != 0);
 
 	/*
-	 * Sticky shift down to normal rounding precision.
+	 * Sticky shift down to yesrmal rounding precision.
 	 */
 	if ((s64) rm < 0) {
 		rm = (rm >> (64 - (DP_FBITS + 1 + 3))) |

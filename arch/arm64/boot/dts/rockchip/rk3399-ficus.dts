@@ -52,7 +52,7 @@
 			label = "red:user4";
 			gpios = <&gpio1 0 0>;
 			panic-indicator;
-			linux,default-trigger = "none";
+			linux,default-trigger = "yesne";
 		};
 
 		wlan_active_led {
@@ -102,46 +102,46 @@
 	pcie {
 		pcie_drv: pcie-drv {
 			rockchip,pins =
-				<1 RK_PD0 RK_FUNC_GPIO &pcfg_pull_none>;
+				<1 RK_PD0 RK_FUNC_GPIO &pcfg_pull_yesne>;
 			};
 	};
 
 	usb2 {
 		host_vbus_drv: host-vbus-drv {
 			rockchip,pins =
-				<4 RK_PD3 RK_FUNC_GPIO &pcfg_pull_none>;
+				<4 RK_PD3 RK_FUNC_GPIO &pcfg_pull_yesne>;
 		};
 	};
 
 	leds {
 		user_led1: user_led1 {
 			rockchip,pins =
-				<4 RK_PD1 RK_FUNC_GPIO &pcfg_pull_none>;
+				<4 RK_PD1 RK_FUNC_GPIO &pcfg_pull_yesne>;
 		};
 
 		user_led2: user_led2 {
 			rockchip,pins =
-				<4 RK_PD2 RK_FUNC_GPIO &pcfg_pull_none>;
+				<4 RK_PD2 RK_FUNC_GPIO &pcfg_pull_yesne>;
 		};
 
 		user_led3: user_led3 {
 			rockchip,pins =
-				<4 RK_PD6 RK_FUNC_GPIO &pcfg_pull_none>;
+				<4 RK_PD6 RK_FUNC_GPIO &pcfg_pull_yesne>;
 		};
 
 		user_led4: user_led4 {
 			rockchip,pins =
-				<1 RK_PA0 RK_FUNC_GPIO &pcfg_pull_none>;
+				<1 RK_PA0 RK_FUNC_GPIO &pcfg_pull_yesne>;
 		};
 
 		wlan_led: wlan_led {
 			rockchip,pins =
-				<1 RK_PA1 RK_FUNC_GPIO &pcfg_pull_none>;
+				<1 RK_PA1 RK_FUNC_GPIO &pcfg_pull_yesne>;
 		};
 
 		bt_led: bt_led {
 			rockchip,pins =
-				<1 RK_PA4 RK_FUNC_GPIO &pcfg_pull_none>;
+				<1 RK_PA4 RK_FUNC_GPIO &pcfg_pull_yesne>;
 		};
 	};
 };

@@ -96,7 +96,7 @@ EXPORT_SYMBOL(strcpy);
  *
  * Compatible with *BSD: the result is always a valid
  * NUL-terminated string that fits in the buffer (unless,
- * of course, the buffer size is zero). It does not pad
+ * of course, the buffer size is zero). It does yest pad
  * out the result like strncpy() does.
  */
 #ifdef __HAVE_ARCH_STRLCPY
@@ -120,7 +120,7 @@ EXPORT_SYMBOL(strlcpy);
  * @src: Where to copy the string from
  * @n: The maximum number of bytes to copy
  *
- * The result is not %NUL-terminated if the source exceeds
+ * The result is yest %NUL-terminated if the source exceeds
  * @n bytes.
  */
 #ifdef __HAVE_ARCH_STRNCPY
@@ -135,7 +135,7 @@ EXPORT_SYMBOL(strncpy);
 #endif
 
 /**
- * strcat - Append one %NUL-terminated string to another
+ * strcat - Append one %NUL-terminated string to ayesther
  * @dest: The string to be appended to
  * @src: The string to append to it
  *
@@ -160,7 +160,7 @@ EXPORT_SYMBOL(strcat);
 #endif
 
 /**
- * strlcat - Append a length-limited, %NUL-terminated string to another
+ * strlcat - Append a length-limited, %NUL-terminated string to ayesther
  * @dest: The string to be appended to
  * @src: The string to append to it
  * @n: The size of the destination buffer.
@@ -186,7 +186,7 @@ EXPORT_SYMBOL(strlcat);
 #endif
 
 /**
- * strncat - Append a length-limited, %NUL-terminated string to another
+ * strncat - Append a length-limited, %NUL-terminated string to ayesther
  * @dest: The string to be appended to
  * @src: The string to append to it
  * @n: The maximum numbers of bytes to copy
@@ -212,7 +212,7 @@ EXPORT_SYMBOL(strncat);
 /**
  * strcmp - Compare two strings
  * @s1: One string
- * @s2: Another string
+ * @s2: Ayesther string
  *
  * returns   0 if @s1 and @s2 are equal,
  *	   < 0 if @s1 is less than @s2
@@ -310,7 +310,7 @@ EXPORT_SYMBOL(strstr);
  * @n: The size of the area.
  *
  * returns the address of the first occurrence of @c, or %NULL
- * if @c is not found
+ * if @c is yest found
  */
 #ifdef __HAVE_ARCH_MEMCHR
 void *memchr(const void *s, int c, size_t n)
@@ -332,7 +332,7 @@ EXPORT_SYMBOL(memchr);
 /**
  * memcmp - Compare two areas of memory
  * @s1: One area of memory
- * @s2: Another area of memory
+ * @s2: Ayesther area of memory
  * @count: The size of the area.
  */
 #ifdef __HAVE_ARCH_MEMCMP
@@ -355,7 +355,7 @@ EXPORT_SYMBOL(memcmp);
  * @n: The size of the area.
  *
  * returns the address of the first occurrence of @c, or 1 byte past
- * the area if @c is not found
+ * the area if @c is yest found
  */
 #ifdef __HAVE_ARCH_MEMSCAN
 void *memscan(void *s, int c, size_t n)

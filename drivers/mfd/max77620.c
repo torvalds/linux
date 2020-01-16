@@ -10,8 +10,8 @@
  *	Mallikarjun Kasoju <mkasoju@nvidia.com>
  */
 
-/****************** Teminology used in driver ********************
- * Here are some terminology used from datasheet for quick reference:
+/****************** Temiyeslogy used in driver ********************
+ * Here are some termiyeslogy used from datasheet for quick reference:
  * Flexible Power Sequence (FPS):
  * The Flexible Power Sequencer (FPS) allows each regulator to power up under
  * hardware or software control. Additionally, each regulator can power on
@@ -21,7 +21,7 @@
  * sequenced along with internal regulators. 32KHz clock can be programmed to
  * be part of a sequence.
  * There is 3 FPS confguration registers and all resources are configured to
- * any of these FPS or no FPS.
+ * any of these FPS or yes FPS.
  */
 
 #include <linux/i2c.h>
@@ -135,8 +135,8 @@ static const struct regmap_range max77620_readable_ranges[] = {
 };
 
 static const struct regmap_access_table max77620_readable_table = {
-	.yes_ranges = max77620_readable_ranges,
-	.n_yes_ranges = ARRAY_SIZE(max77620_readable_ranges),
+	.no_ranges = max77620_readable_ranges,
+	.n_no_ranges = ARRAY_SIZE(max77620_readable_ranges),
 };
 
 static const struct regmap_range max20024_readable_ranges[] = {
@@ -145,8 +145,8 @@ static const struct regmap_range max20024_readable_ranges[] = {
 };
 
 static const struct regmap_access_table max20024_readable_table = {
-	.yes_ranges = max20024_readable_ranges,
-	.n_yes_ranges = ARRAY_SIZE(max20024_readable_ranges),
+	.no_ranges = max20024_readable_ranges,
+	.n_no_ranges = ARRAY_SIZE(max20024_readable_ranges),
 };
 
 static const struct regmap_range max77620_writable_ranges[] = {
@@ -154,8 +154,8 @@ static const struct regmap_range max77620_writable_ranges[] = {
 };
 
 static const struct regmap_access_table max77620_writable_table = {
-	.yes_ranges = max77620_writable_ranges,
-	.n_yes_ranges = ARRAY_SIZE(max77620_writable_ranges),
+	.no_ranges = max77620_writable_ranges,
+	.n_no_ranges = ARRAY_SIZE(max77620_writable_ranges),
 };
 
 static const struct regmap_range max77620_cacheable_ranges[] = {
@@ -164,8 +164,8 @@ static const struct regmap_range max77620_cacheable_ranges[] = {
 };
 
 static const struct regmap_access_table max77620_volatile_table = {
-	.no_ranges = max77620_cacheable_ranges,
-	.n_no_ranges = ARRAY_SIZE(max77620_cacheable_ranges),
+	.yes_ranges = max77620_cacheable_ranges,
+	.n_yes_ranges = ARRAY_SIZE(max77620_cacheable_ranges),
 };
 
 static const struct regmap_config max77620_regmap_config = {
@@ -195,8 +195,8 @@ static const struct regmap_range max77663_readable_ranges[] = {
 };
 
 static const struct regmap_access_table max77663_readable_table = {
-	.yes_ranges = max77663_readable_ranges,
-	.n_yes_ranges = ARRAY_SIZE(max77663_readable_ranges),
+	.no_ranges = max77663_readable_ranges,
+	.n_no_ranges = ARRAY_SIZE(max77663_readable_ranges),
 };
 
 static const struct regmap_range max77663_writable_ranges[] = {
@@ -204,8 +204,8 @@ static const struct regmap_range max77663_writable_ranges[] = {
 };
 
 static const struct regmap_access_table max77663_writable_table = {
-	.yes_ranges = max77663_writable_ranges,
-	.n_yes_ranges = ARRAY_SIZE(max77663_writable_ranges),
+	.no_ranges = max77663_writable_ranges,
+	.n_no_ranges = ARRAY_SIZE(max77663_writable_ranges),
 };
 
 static const struct regmap_config max77663_regmap_config = {
@@ -308,7 +308,7 @@ static int max77620_get_fps_period_reg_value(struct max77620_chip *chip,
  *			based on platform specific information.
  */
 static int max77620_config_fps(struct max77620_chip *chip,
-			       struct device_node *fps_np)
+			       struct device_yesde *fps_np)
 {
 	struct device *dev = chip->dev;
 	unsigned int mask = 0, config = 0;
@@ -334,12 +334,12 @@ static int max77620_config_fps(struct max77620_chip *chip,
 
 	for (fps_id = 0; fps_id < MAX77620_FPS_COUNT; fps_id++) {
 		sprintf(fps_name, "fps%d", fps_id);
-		if (of_node_name_eq(fps_np, fps_name))
+		if (of_yesde_name_eq(fps_np, fps_name))
 			break;
 	}
 
 	if (fps_id == MAX77620_FPS_COUNT) {
-		dev_err(dev, "FPS node name %pOFn is not valid\n", fps_np);
+		dev_err(dev, "FPS yesde name %pOFn is yest valid\n", fps_np);
 		return -EINVAL;
 	}
 
@@ -400,7 +400,7 @@ static int max77620_config_fps(struct max77620_chip *chip,
 static int max77620_initialise_fps(struct max77620_chip *chip)
 {
 	struct device *dev = chip->dev;
-	struct device_node *fps_np, *fps_child;
+	struct device_yesde *fps_np, *fps_child;
 	u8 config;
 	int fps_id;
 	int ret;
@@ -410,14 +410,14 @@ static int max77620_initialise_fps(struct max77620_chip *chip)
 		chip->suspend_fps_period[fps_id] = -1;
 	}
 
-	fps_np = of_get_child_by_name(dev->of_node, "fps");
+	fps_np = of_get_child_by_name(dev->of_yesde, "fps");
 	if (!fps_np)
 		goto skip_fps;
 
-	for_each_child_of_node(fps_np, fps_child) {
+	for_each_child_of_yesde(fps_np, fps_child) {
 		ret = max77620_config_fps(chip, fps_child);
 		if (ret < 0) {
-			of_node_put(fps_child);
+			of_yesde_put(fps_child);
 			return ret;
 		}
 	}
@@ -564,7 +564,7 @@ static int max77620_probe(struct i2c_client *client,
 		return ret;
 	}
 
-	pm_off = of_device_is_system_power_controller(client->dev.of_node);
+	pm_off = of_device_is_system_power_controller(client->dev.of_yesde);
 	if (pm_off && !pm_power_off) {
 		max77620_scratch = chip;
 		pm_power_off = max77620_pm_power_off;

@@ -224,7 +224,7 @@ static const struct snd_soc_dapm_route audio_map[] = {
 
 	/*
 	 * Note that the mic bias is coming from Retu/Vilma and we don't have
-	 * control over it atm. The analog HS mic is not working. <- TODO
+	 * control over it atm. The analog HS mic is yest working. <- TODO
 	 */
 	{"LINE1L", NULL, "HS Mic"},
 };
@@ -287,8 +287,8 @@ static int __init n810_soc_init(void)
 	struct device *dev;
 
 	if (!of_have_populated_dt() ||
-	    (!of_machine_is_compatible("nokia,n810") &&
-	     !of_machine_is_compatible("nokia,n810-wimax")))
+	    (!of_machine_is_compatible("yeskia,n810") &&
+	     !of_machine_is_compatible("yeskia,n810-wimax")))
 		return -ENODEV;
 
 	n810_snd_device = platform_device_alloc("soc-audio", -1);
@@ -304,13 +304,13 @@ static int __init n810_soc_init(void)
 
 	sys_clkout2_src = clk_get(dev, "sys_clkout2_src");
 	if (IS_ERR(sys_clkout2_src)) {
-		dev_err(dev, "Could not get sys_clkout2_src clock\n");
+		dev_err(dev, "Could yest get sys_clkout2_src clock\n");
 		err = PTR_ERR(sys_clkout2_src);
 		goto err2;
 	}
 	sys_clkout2 = clk_get(dev, "sys_clkout2");
 	if (IS_ERR(sys_clkout2)) {
-		dev_err(dev, "Could not get sys_clkout2\n");
+		dev_err(dev, "Could yest get sys_clkout2\n");
 		err = PTR_ERR(sys_clkout2);
 		goto err3;
 	}
@@ -320,7 +320,7 @@ static int __init n810_soc_init(void)
 	 */
 	func96m_clk = clk_get(dev, "func_96m_ck");
 	if (IS_ERR(func96m_clk)) {
-		dev_err(dev, "Could not get func 96M clock\n");
+		dev_err(dev, "Could yest get func 96M clock\n");
 		err = PTR_ERR(func96m_clk);
 		goto err4;
 	}

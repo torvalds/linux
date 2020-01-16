@@ -22,7 +22,7 @@
 static char *create;
 
 /*
- * Format: dm-mod.create=<name>,<uuid>,<minor>,<flags>,<table>[,<table>+][;<name>,<uuid>,<minor>,<flags>,<table>[,<table>+]+]
+ * Format: dm-mod.create=<name>,<uuid>,<miyesr>,<flags>,<table>[,<table>+][;<name>,<uuid>,<miyesr>,<flags>,<table>[,<table>+]+]
  * Table format: <start_sector> <num_sectors> <target_type> <target_args>
  *
  * See Documentation/admin-guide/device-mapper/dm-init.rst for dm-mod.create="..." format
@@ -179,14 +179,14 @@ static int __init dm_parse_table(struct dm_device *dev, char *str)
  * dm_parse_device_entry - parse a device entry
  * @dev: device to store the parsed information.
  * @str: the pointer to a string with the format:
- *	name,uuid,minor,flags,table[; ...]
+ *	name,uuid,miyesr,flags,table[; ...]
  *
  * Return the remainder string after the table entry, i.e, after the semi-colon
  * which delimits the entry or NULL if reached the end of the string.
  */
 static char __init *dm_parse_device_entry(struct dm_device *dev, char *str)
 {
-	/* There are 5 fields: name,uuid,minor,flags,table; */
+	/* There are 5 fields: name,uuid,miyesr,flags,table; */
 	char *field[5];
 	unsigned int i;
 	char *next;
@@ -205,7 +205,7 @@ static char __init *dm_parse_device_entry(struct dm_device *dev, char *str)
 	strscpy(dev->dmi.name, field[0], sizeof(dev->dmi.name));
 	/* uuid */
 	strscpy(dev->dmi.uuid, field[1], sizeof(dev->dmi.uuid));
-	/* minor */
+	/* miyesr */
 	if (strlen(field[2])) {
 		if (kstrtoull(field[2], 0, &dev->dmi.dev))
 			return ERR_PTR(-EINVAL);

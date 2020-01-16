@@ -2,14 +2,14 @@ Device-Tree bindings for hdmiddc driver
 
 Required properties:
 - compatible: value should be one of the following
-	1) "samsung,exynos5-hdmiddc" <DEPRECATED>
-	2) "samsung,exynos4210-hdmiddc"
+	1) "samsung,exyyess5-hdmiddc" <DEPRECATED>
+	2) "samsung,exyyess4210-hdmiddc"
 
 - reg: I2C address of the hdmiddc device.
 
 Example:
 
 	hdmiddc {
-		compatible = "samsung,exynos4210-hdmiddc";
+		compatible = "samsung,exyyess4210-hdmiddc";
 		reg = <0x50>;
 	};

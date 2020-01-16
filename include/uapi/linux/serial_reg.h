@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-1.0+ WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-1.0+ WITH Linux-syscall-yeste */
 /*
  * include/linux/serial_reg.h
  *
@@ -98,7 +98,7 @@
 #define UART_LCR	3	/* Out: Line Control Register */
 /*
  * Note: if the word length is 5 bits (UART_LCR_WLEN5), then setting 
- * UART_LCR_STOP will select 1.5 stop bits, not 2 stop bits.
+ * UART_LCR_STOP will select 1.5 stop bits, yest 2 stop bits.
  */
 #define UART_LCR_DLAB		0x80 /* Divisor latch access bit */
 #define UART_LCR_SBC		0x40 /* Set break control */
@@ -305,12 +305,12 @@
 
 #define UART_RSA_SRR ((UART_RSA_BASE) + 2) /* IN: Status Read Register */
 
-#define UART_RSA_SRR_Tx_FIFO_NEMP (1 << 0) /* Tx FIFO is not empty (1) */
-#define UART_RSA_SRR_Tx_FIFO_NHFL (1 << 1) /* Tx FIFO is not half full (1) */
-#define UART_RSA_SRR_Tx_FIFO_NFUL (1 << 2) /* Tx FIFO is not full (1) */
-#define UART_RSA_SRR_Rx_FIFO_NEMP (1 << 3) /* Rx FIFO is not empty (1) */
-#define UART_RSA_SRR_Rx_FIFO_NHFL (1 << 4) /* Rx FIFO is not half full (1) */
-#define UART_RSA_SRR_Rx_FIFO_NFUL (1 << 5) /* Rx FIFO is not full (1) */
+#define UART_RSA_SRR_Tx_FIFO_NEMP (1 << 0) /* Tx FIFO is yest empty (1) */
+#define UART_RSA_SRR_Tx_FIFO_NHFL (1 << 1) /* Tx FIFO is yest half full (1) */
+#define UART_RSA_SRR_Tx_FIFO_NFUL (1 << 2) /* Tx FIFO is yest full (1) */
+#define UART_RSA_SRR_Rx_FIFO_NEMP (1 << 3) /* Rx FIFO is yest empty (1) */
+#define UART_RSA_SRR_Rx_FIFO_NHFL (1 << 4) /* Rx FIFO is yest half full (1) */
+#define UART_RSA_SRR_Rx_FIFO_NFUL (1 << 5) /* Rx FIFO is yest full (1) */
 #define UART_RSA_SRR_Rx_TOUT (1 << 6) /* Character reception timeout occurred (1) */
 #define UART_RSA_SRR_TIMER (1 << 7) /* Timer interrupt occurred */
 

@@ -5,7 +5,7 @@
  *  Copyright 2007 IBM, Inc.
  *  by Konrad Rzeszutek <konradr@linux.vnet.ibm.com>
  *  Copyright 2008
- *  by Konrad Rzeszutek <ketuzsezr@darnok.org>
+ *  by Konrad Rzeszutek <ketuzsezr@daryesk.org>
  *
  * This code finds the iSCSI Boot Format Table.
  */
@@ -68,7 +68,7 @@ static int __init find_ibft_in_mem(void)
 				    (unsigned long *)isa_bus_to_virt(pos + 4);
 				len = *addr;
 				/* if the length of the table extends past 1M,
-				 * the table cannot be valid. */
+				 * the table canyest be valid. */
 				if (pos + len <= (IBFT_END-1)) {
 					ibft_addr = (struct acpi_table_ibft *)virt;
 					pr_info("iBFT found at 0x%lx.\n", pos);

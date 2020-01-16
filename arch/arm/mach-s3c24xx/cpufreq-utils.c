@@ -7,7 +7,7 @@
 // S3C24XX CPU Frequency scaling - utils for S3C2410/S3C2440/S3C2442
 
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/cpufreq.h>
 #include <linux/io.h>
 #include <linux/clk.h>
@@ -33,7 +33,7 @@ void s3c2410_cpufreq_setrefresh(struct s3c_cpufreq_config *cfg)
 	unsigned long refval;
 
 	/* Reduce both the refresh time (in ns) and the frequency (in MHz)
-	 * down to ensure that we do not overflow 32 bit numbers.
+	 * down to ensure that we do yest overflow 32 bit numbers.
 	 *
 	 * This should work for HCLK up to 133MHz and refresh period up
 	 * to 30usec.

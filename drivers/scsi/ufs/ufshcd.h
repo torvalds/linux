@@ -25,10 +25,10 @@
  * without warranty of any kind. You are solely responsible for
  * determining the appropriateness of using and distributing
  * the program and assume all risks associated with your exercise
- * of rights with respect to the program, including but not limited
+ * of rights with respect to the program, including but yest limited
  * to infringement of third party rights, the risks and costs of
  * program errors, damage to or loss of data, programs or equipment,
- * and unavailability or interruption of operations. Under no
+ * and unavailability or interruption of operations. Under yes
  * circumstances will the contributor of this Program be liable for
  * any damages of any kind arising from your use or distribution of
  * this program.
@@ -47,7 +47,7 @@
 #include <linux/spinlock.h>
 #include <linux/rwsem.h>
 #include <linux/workqueue.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/types.h>
 #include <linux/wait.h>
 #include <linux/bitops.h>
@@ -235,7 +235,7 @@ struct ufs_desc_size {
 /**
  * struct ufs_clk_info - UFS clock related info
  * @list: list headed by hba->clk_list_head
- * @clk: clock node
+ * @clk: clock yesde
  * @name: clock name
  * @max_freq: maximum frequency supported by the clock
  * @min_freq: min frequency that can be used for clock scaling
@@ -252,7 +252,7 @@ struct ufs_clk_info {
 	bool enabled;
 };
 
-enum ufs_notify_change_status {
+enum ufs_yestify_change_status {
 	PRE_CHANGE,
 	POST_CHANGE,
 };
@@ -278,21 +278,21 @@ struct ufs_pwr_mode_info {
  * @init: called when the driver is initialized
  * @exit: called to cleanup everything done in init
  * @get_ufs_hci_version: called to get UFS HCI version
- * @clk_scale_notify: notifies that clks are scaled up/down
+ * @clk_scale_yestify: yestifies that clks are scaled up/down
  * @setup_clocks: called before touching any of the controller registers
  * @setup_regulators: called before accessing the host controller
- * @hce_enable_notify: called before and after HCE enable bit is set to allow
+ * @hce_enable_yestify: called before and after HCE enable bit is set to allow
  *                     variant specific Uni-Pro initialization.
- * @link_startup_notify: called before and after Link startup is carried out
+ * @link_startup_yestify: called before and after Link startup is carried out
  *                       to allow variant specific Uni-Pro initialization.
- * @pwr_change_notify: called before and after a power mode change
+ * @pwr_change_yestify: called before and after a power mode change
  *			is carried out to allow vendor spesific capabilities
  *			to be set.
  * @setup_xfer_req: called before any transfer request is issued
  *                  to set some things
  * @setup_task_mgmt: called before any task management request is issued
  *                  to set some things
- * @hibern8_notify: called around hibern8 enter/exit
+ * @hibern8_yestify: called around hibern8 enter/exit
  * @apply_dev_quirks: called to apply device specific quirks
  * @suspend: called during host controller PM callback
  * @resume: called during host controller PM callback
@@ -305,23 +305,23 @@ struct ufs_hba_variant_ops {
 	int	(*init)(struct ufs_hba *);
 	void    (*exit)(struct ufs_hba *);
 	u32	(*get_ufs_hci_version)(struct ufs_hba *);
-	int	(*clk_scale_notify)(struct ufs_hba *, bool,
-				    enum ufs_notify_change_status);
+	int	(*clk_scale_yestify)(struct ufs_hba *, bool,
+				    enum ufs_yestify_change_status);
 	int	(*setup_clocks)(struct ufs_hba *, bool,
-				enum ufs_notify_change_status);
+				enum ufs_yestify_change_status);
 	int     (*setup_regulators)(struct ufs_hba *, bool);
-	int	(*hce_enable_notify)(struct ufs_hba *,
-				     enum ufs_notify_change_status);
-	int	(*link_startup_notify)(struct ufs_hba *,
-				       enum ufs_notify_change_status);
-	int	(*pwr_change_notify)(struct ufs_hba *,
-					enum ufs_notify_change_status status,
+	int	(*hce_enable_yestify)(struct ufs_hba *,
+				     enum ufs_yestify_change_status);
+	int	(*link_startup_yestify)(struct ufs_hba *,
+				       enum ufs_yestify_change_status);
+	int	(*pwr_change_yestify)(struct ufs_hba *,
+					enum ufs_yestify_change_status status,
 					struct ufs_pa_layer_attr *,
 					struct ufs_pa_layer_attr *);
 	void	(*setup_xfer_req)(struct ufs_hba *, int, bool);
 	void	(*setup_task_mgmt)(struct ufs_hba *, int, u8);
-	void    (*hibern8_notify)(struct ufs_hba *, enum uic_cmd_dme,
-					enum ufs_notify_change_status);
+	void    (*hibern8_yestify)(struct ufs_hba *, enum uic_cmd_dme,
+					enum ufs_yestify_change_status);
 	int	(*apply_dev_quirks)(struct ufs_hba *);
 	int     (*suspend)(struct ufs_hba *, enum ufs_pm_op);
 	int     (*resume)(struct ufs_hba *, enum ufs_pm_op);
@@ -386,9 +386,9 @@ struct ufs_saved_pwr_info {
  * @workq: workqueue to schedule devfreq suspend/resume work
  * @suspend_work: worker to suspend devfreq
  * @resume_work: worker to resume devfreq
- * @is_allowed: tracks if scaling is currently allowed or not
- * @is_busy_started: tracks if busy period has started or not
- * @is_suspended: tracks if devfreq is suspended or not
+ * @is_allowed: tracks if scaling is currently allowed or yest
+ * @is_busy_started: tracks if busy period has started or yest
+ * @is_suspended: tracks if devfreq is suspended or yest
  */
 struct ufs_clk_scaling {
 	int active_reqs;
@@ -465,7 +465,7 @@ struct ufs_stats {
 	struct ufs_err_reg_hist resume_err;
 	struct ufs_err_reg_hist suspend_err;
 
-	/* abnormal events */
+	/* abyesrmal events */
 	struct ufs_err_reg_hist dev_reset;
 	struct ufs_err_reg_hist host_reset;
 	struct ufs_err_reg_hist task_abort;
@@ -517,13 +517,13 @@ struct ufs_stats {
  * @last_dme_cmd_tstamp: time stamp of the last completed DME command
  * @auto_bkops_enabled: to track whether bkops is enabled in device
  * @vreg_info: UFS device voltage regulator information
- * @clk_list_head: UFS host controller clocks list node head
+ * @clk_list_head: UFS host controller clocks list yesde head
  * @pwr_info: holds current power mode
  * @max_pwr_info: keeps the device max valid pwm
  * @desc_size: descriptor sizes reported by device
  * @urgent_bkops_lvl: keeps track of urgent bkops level for device
  * @is_urgent_bkops_lvl_checked: keeps track if the urgent bkops level for
- *  device is known or not.
+ *  device is kyeswn or yest.
  * @scsi_block_reqs_cnt: reference counting for scsi block requests
  */
 struct ufs_hba {
@@ -595,7 +595,7 @@ struct ufs_hba {
 	#define UFSHCD_QUIRK_BROKEN_LCC				0x4
 
 	/*
-	 * The attribute PA_RXHSUNTERMCAP specifies whether or not the
+	 * The attribute PA_RXHSUNTERMCAP specifies whether or yest the
 	 * inbound Link supports unterminated line in HS mode. Setting this
 	 * attribute to 1 fixes moving to HS gear.
 	 */
@@ -634,7 +634,7 @@ struct ufs_hba {
 	#define UFSHCI_QUIRK_SKIP_RESET_INTR_AGGR		0x200
 
 	/*
-	 * This quirks needs to be enabled if host controller cannot be
+	 * This quirks needs to be enabled if host controller canyest be
 	 * enabled via HCE register.
 	 */
 	#define UFSHCI_QUIRK_BROKEN_HCE				0x400
@@ -762,7 +762,7 @@ static inline bool ufshcd_is_rpm_autosuspend_allowed(struct ufs_hba *hba)
 
 static inline bool ufshcd_is_intr_aggr_allowed(struct ufs_hba *hba)
 {
-/* DWC UFS Core has the Interrupt aggregation feature but is not detectable*/
+/* DWC UFS Core has the Interrupt aggregation feature but is yest detectable*/
 #ifndef CONFIG_SCSI_UFS_DWC
 	if ((hba->caps & UFSHCD_CAP_INTR_AGGR) &&
 	    !(hba->quirks & UFSHCD_QUIRK_BROKEN_INTR_AGGR))
@@ -980,16 +980,16 @@ static inline u32 ufshcd_vops_get_ufs_hci_version(struct ufs_hba *hba)
 	return ufshcd_readl(hba, REG_UFS_VERSION);
 }
 
-static inline int ufshcd_vops_clk_scale_notify(struct ufs_hba *hba,
-			bool up, enum ufs_notify_change_status status)
+static inline int ufshcd_vops_clk_scale_yestify(struct ufs_hba *hba,
+			bool up, enum ufs_yestify_change_status status)
 {
-	if (hba->vops && hba->vops->clk_scale_notify)
-		return hba->vops->clk_scale_notify(hba, up, status);
+	if (hba->vops && hba->vops->clk_scale_yestify)
+		return hba->vops->clk_scale_yestify(hba, up, status);
 	return 0;
 }
 
 static inline int ufshcd_vops_setup_clocks(struct ufs_hba *hba, bool on,
-					enum ufs_notify_change_status status)
+					enum ufs_yestify_change_status status)
 {
 	if (hba->vops && hba->vops->setup_clocks)
 		return hba->vops->setup_clocks(hba, on, status);
@@ -1004,30 +1004,30 @@ static inline int ufshcd_vops_setup_regulators(struct ufs_hba *hba, bool status)
 	return 0;
 }
 
-static inline int ufshcd_vops_hce_enable_notify(struct ufs_hba *hba,
+static inline int ufshcd_vops_hce_enable_yestify(struct ufs_hba *hba,
 						bool status)
 {
-	if (hba->vops && hba->vops->hce_enable_notify)
-		return hba->vops->hce_enable_notify(hba, status);
+	if (hba->vops && hba->vops->hce_enable_yestify)
+		return hba->vops->hce_enable_yestify(hba, status);
 
 	return 0;
 }
-static inline int ufshcd_vops_link_startup_notify(struct ufs_hba *hba,
+static inline int ufshcd_vops_link_startup_yestify(struct ufs_hba *hba,
 						bool status)
 {
-	if (hba->vops && hba->vops->link_startup_notify)
-		return hba->vops->link_startup_notify(hba, status);
+	if (hba->vops && hba->vops->link_startup_yestify)
+		return hba->vops->link_startup_yestify(hba, status);
 
 	return 0;
 }
 
-static inline int ufshcd_vops_pwr_change_notify(struct ufs_hba *hba,
+static inline int ufshcd_vops_pwr_change_yestify(struct ufs_hba *hba,
 				  bool status,
 				  struct ufs_pa_layer_attr *dev_max_params,
 				  struct ufs_pa_layer_attr *dev_req_params)
 {
-	if (hba->vops && hba->vops->pwr_change_notify)
-		return hba->vops->pwr_change_notify(hba, status,
+	if (hba->vops && hba->vops->pwr_change_yestify)
+		return hba->vops->pwr_change_yestify(hba, status,
 					dev_max_params, dev_req_params);
 
 	return -ENOTSUPP;
@@ -1047,12 +1047,12 @@ static inline void ufshcd_vops_setup_task_mgmt(struct ufs_hba *hba,
 		return hba->vops->setup_task_mgmt(hba, tag, tm_function);
 }
 
-static inline void ufshcd_vops_hibern8_notify(struct ufs_hba *hba,
+static inline void ufshcd_vops_hibern8_yestify(struct ufs_hba *hba,
 					enum uic_cmd_dme cmd,
-					enum ufs_notify_change_status status)
+					enum ufs_yestify_change_status status)
 {
-	if (hba->vops && hba->vops->hibern8_notify)
-		return hba->vops->hibern8_notify(hba, cmd, status);
+	if (hba->vops && hba->vops->hibern8_yestify)
+		return hba->vops->hibern8_yestify(hba, cmd, status);
 }
 
 static inline int ufshcd_vops_apply_dev_quirks(struct ufs_hba *hba)

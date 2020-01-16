@@ -102,7 +102,7 @@
 		status = "okay";
 		bus-width = <4>;
 		cd-gpios = <&gpio TEGRA_GPIO(C, 7) GPIO_ACTIVE_LOW>; /* MMCD */
-		no-1-8-v;
+		yes-1-8-v;
 	};
 
 	/* EHCI instance 0: USB1_DP/N -> USBC_P/N */

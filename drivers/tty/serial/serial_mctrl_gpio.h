@@ -59,7 +59,7 @@ struct gpio_desc *mctrl_gpio_to_gpiod(struct mctrl_gpios *gpios,
 /*
  * Request and set direction of modem control line GPIOs and set up irq
  * handling.
- * devm_* functions are used, so there's no need to call mctrl_gpio_free().
+ * devm_* functions are used, so there's yes need to call mctrl_gpio_free().
  * Returns a pointer to the allocated mctrl structure if ok, -ENOMEM on
  * allocation error.
  */
@@ -67,16 +67,16 @@ struct mctrl_gpios *mctrl_gpio_init(struct uart_port *port, unsigned int idx);
 
 /*
  * Request and set direction of modem control line GPIOs.
- * devm_* functions are used, so there's no need to call mctrl_gpio_free().
+ * devm_* functions are used, so there's yes need to call mctrl_gpio_free().
  * Returns a pointer to the allocated mctrl structure if ok, -ENOMEM on
  * allocation error.
  */
-struct mctrl_gpios *mctrl_gpio_init_noauto(struct device *dev,
+struct mctrl_gpios *mctrl_gpio_init_yesauto(struct device *dev,
 					   unsigned int idx);
 
 /*
  * Free the mctrl_gpios structure.
- * Normally, this function will not be called, as the GPIOs will
+ * Normally, this function will yest be called, as the GPIOs will
  * be disposed of by the resource management code.
  */
 void mctrl_gpio_free(struct device *dev, struct mctrl_gpios *gpios);
@@ -124,7 +124,7 @@ struct mctrl_gpios *mctrl_gpio_init(struct uart_port *port, unsigned int idx)
 }
 
 static inline
-struct mctrl_gpios *mctrl_gpio_init_noauto(struct device *dev, unsigned int idx)
+struct mctrl_gpios *mctrl_gpio_init_yesauto(struct device *dev, unsigned int idx)
 {
 	return NULL;
 }

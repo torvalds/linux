@@ -83,24 +83,24 @@ static const char* macio_ata_names[] = {
  * Timing configuration register definitions
  */
 
-/* Number of IDE_SYSCLK_NS ticks, argument is in nanoseconds */
+/* Number of IDE_SYSCLK_NS ticks, argument is in nayesseconds */
 #define SYSCLK_TICKS(t)		(((t) + IDE_SYSCLK_NS - 1) / IDE_SYSCLK_NS)
 #define SYSCLK_TICKS_66(t)	(((t) + IDE_SYSCLK_66_NS - 1) / IDE_SYSCLK_66_NS)
 #define IDE_SYSCLK_NS		30	/* 33Mhz cell */
 #define IDE_SYSCLK_66_NS	15	/* 66Mhz cell */
 
 /* 133Mhz cell, found in shasta.
- * See comments about 100 Mhz Uninorth 2...
+ * See comments about 100 Mhz Uniyesrth 2...
  * Note that PIO_MASK and MDMA_MASK seem to overlap, that's just
- * weird and I don't now why .. at this stage
+ * weird and I don't yesw why .. at this stage
  */
 #define TR_133_PIOREG_PIO_MASK		0xff000fff
 #define TR_133_PIOREG_MDMA_MASK		0x00fff800
 #define TR_133_UDMAREG_UDMA_MASK	0x0003ffff
 #define TR_133_UDMAREG_UDMA_EN		0x00000001
 
-/* 100Mhz cell, found in Uninorth 2 and K2. It appears as a pci device
- * (106b/0033) on uninorth or K2 internal PCI bus and it's clock is
+/* 100Mhz cell, found in Uniyesrth 2 and K2. It appears as a pci device
+ * (106b/0033) on uniyesrth or K2 internal PCI bus and it's clock is
  * controlled like gem or fw. It appears to be an evolution of keylargo
  * ATA4 with a timing register extended to 2x32bits registers (one
  * for PIO & MWDMA and one for UDMA, and a similar DBDMA channel.
@@ -110,7 +110,7 @@ static const char* macio_ata_names[] = {
  * and MDMA, I think I've figured the format of the timing register,
  * though I use pre-calculated tables for UDMA as usual...
  */
-#define TR_100_PIO_ADDRSETUP_MASK	0xff000000 /* Size of field unknown */
+#define TR_100_PIO_ADDRSETUP_MASK	0xff000000 /* Size of field unkyeswn */
 #define TR_100_PIO_ADDRSETUP_SHIFT	24
 #define TR_100_MDMA_MASK		0x00fff000
 #define TR_100_MDMA_RECOVERY_MASK	0x00fc0000
@@ -169,7 +169,7 @@ static const char* macio_ata_names[] = {
  * Darwin code base limit OHare to 150ns cycle time. I decided to do
  * the same here fore safety against broken old hardware ;)
  * The HalfTick bit, when set, adds half a clock (15ns) to the access
- * time and removes one from recovery. It's not supported on KeyLargo
+ * time and removes one from recovery. It's yest supported on KeyLargo
  * implementation afaik. The E bit appears to be set for PIO mode 0 and
  * is used to reach long timings used in this mode.
  */
@@ -216,7 +216,7 @@ static const char* macio_ata_names[] = {
  * the BSY bit (typically some combo drives slave on the UDMA
  * bus) after a hard reset. Since we hard reset all drives on
  * KeyLargo ATA66, we have to keep that delay around. I may end
- * up not hard resetting anymore on these and keep the delay only
+ * up yest hard resetting anymore on these and keep the delay only
  * for older interfaces instead (we have to reset when coming
  * from MacOS...) --BenH.
  */
@@ -228,7 +228,7 @@ struct pata_macio_priv {
 	int				kind;
 	int				aapl_bus_id;
 	int				mediabay : 1;
-	struct device_node		*node;
+	struct device_yesde		*yesde;
 	struct macio_dev		*mdev;
 	struct pci_dev			*pdev;
 	struct device			*dev;
@@ -252,8 +252,8 @@ struct pata_macio_priv {
  *
  * I decided to entirely rely on a table instead for this version
  * of the driver. Also, because I don't really care about derated
- * modes and really old HW other than making it work, I'm not going
- * to calculate / snoop timing values for something else than the
+ * modes and really old HW other than making it work, I'm yest going
+ * to calculate / syesop timing values for something else than the
  * standard modes.
  */
 struct pata_macio_timing {
@@ -395,14 +395,14 @@ static void pata_macio_set_timings(struct ata_port *ap,
 	const struct pata_macio_timing *t;
 
 	dev_dbg(priv->dev, "Set timings: DEV=%d,PIO=0x%x (%s),DMA=0x%x (%s)\n",
-		adev->devno,
+		adev->devyes,
 		adev->pio_mode,
 		ata_mode_string(ata_xfer_mode2mask(adev->pio_mode)),
 		adev->dma_mode,
 		ata_mode_string(ata_xfer_mode2mask(adev->dma_mode)));
 
 	/* First clear timings */
-	priv->treg[adev->devno][0] = priv->treg[adev->devno][1] = 0;
+	priv->treg[adev->devyes][0] = priv->treg[adev->devyes][1] = 0;
 
 	/* Now get the PIO timings */
 	t = pata_macio_find_timing(priv, adev->pio_mode);
@@ -414,30 +414,30 @@ static void pata_macio_set_timings(struct ata_port *ap,
 	BUG_ON(t == NULL);
 
 	/* PIO timings only ever use the first treg */
-	priv->treg[adev->devno][0] |= t->reg1;
+	priv->treg[adev->devyes][0] |= t->reg1;
 
 	/* Now get DMA timings */
 	t = pata_macio_find_timing(priv, adev->dma_mode);
 	if (t == NULL || (t->reg1 == 0 && t->reg2 == 0)) {
-		dev_dbg(priv->dev, "DMA timing not set yet, using MW_DMA_0\n");
+		dev_dbg(priv->dev, "DMA timing yest set yet, using MW_DMA_0\n");
 		t = pata_macio_find_timing(priv, XFER_MW_DMA_0);
 	}
 	BUG_ON(t == NULL);
 
 	/* DMA timings can use both tregs */
-	priv->treg[adev->devno][0] |= t->reg1;
-	priv->treg[adev->devno][1] |= t->reg2;
+	priv->treg[adev->devyes][0] |= t->reg1;
+	priv->treg[adev->devyes][1] |= t->reg2;
 
 	dev_dbg(priv->dev, " -> %08x %08x\n",
-		priv->treg[adev->devno][0],
-		priv->treg[adev->devno][1]);
+		priv->treg[adev->devyes][0],
+		priv->treg[adev->devyes][1]);
 
 	/* Apply to hardware */
-	pata_macio_apply_timings(ap, adev->devno);
+	pata_macio_apply_timings(ap, adev->devyes);
 }
 
 /*
- * Blast some well known "safe" values to the timing registers at init or
+ * Blast some well kyeswn "safe" values to the timing registers at init or
  * wakeup from sleep time, before we do real calculation
  */
 static void pata_macio_default_timings(struct pata_macio_priv *priv)
@@ -479,12 +479,12 @@ static int pata_macio_cable_detect(struct ata_port *ap)
 	    priv->kind == controller_un_ata6 ||
 	    priv->kind == controller_k2_ata6 ||
 	    priv->kind == controller_sh_ata6) {
-		const char* cable = of_get_property(priv->node, "cable-type",
+		const char* cable = of_get_property(priv->yesde, "cable-type",
 						    NULL);
-		struct device_node *root = of_find_node_by_path("/");
+		struct device_yesde *root = of_find_yesde_by_path("/");
 		const char *model = of_get_property(root, "model", NULL);
 
-		of_node_put(root);
+		of_yesde_put(root);
 
 		if (cable && !strncmp(cable, "80-", 3)) {
 			/* Some drives fail to detect 80c cable in PowerBook
@@ -502,8 +502,8 @@ static int pata_macio_cable_detect(struct ata_port *ap)
 	 * Let's assume they always have a 80 conductor cable, this seem to
 	 * be always the case unless the user mucked around
 	 */
-	if (of_device_is_compatible(priv->node, "K2-UATA") ||
-	    of_device_is_compatible(priv->node, "shasta-ata"))
+	if (of_device_is_compatible(priv->yesde, "K2-UATA") ||
+	    of_device_is_compatible(priv->yesde, "shasta-ata"))
 		return ATA_CBL_PATA80;
 
 	/* Anything else is 40 connectors */
@@ -520,7 +520,7 @@ static enum ata_completion_errors pata_macio_qc_prep(struct ata_queued_cmd *qc)
 	unsigned int si, pi;
 
 	dev_dbgdma(priv->dev, "%s: qc %p flags %lx, write %d dev %d\n",
-		   __func__, qc, qc->flags, write, qc->dev->devno);
+		   __func__, qc, qc->flags, write, qc->dev->devyes);
 
 	if (!(qc->flags & ATA_QCFLAG_DMAMAP))
 		return AC_ERR_OK;
@@ -595,7 +595,7 @@ static void pata_macio_bmdma_setup(struct ata_queued_cmd *qc)
 	struct ata_port *ap = qc->ap;
 	struct pata_macio_priv *priv = ap->private_data;
 	struct dbdma_regs __iomem *dma_regs = ap->ioaddr.bmdma_addr;
-	int dev = qc->dev->devno;
+	int dev = qc->dev->devyes;
 
 	dev_dbgdma(priv->dev, "%s: qc %p\n", __func__, qc);
 
@@ -628,7 +628,7 @@ static void pata_macio_bmdma_start(struct ata_queued_cmd *qc)
 	dev_dbgdma(priv->dev, "%s: qc %p\n", __func__, qc);
 
 	writel((RUN << 16) | RUN, &dma_regs->control);
-	/* Make sure it gets to the controller right now */
+	/* Make sure it gets to the controller right yesw */
 	(void)readl(&dma_regs->control);
 }
 
@@ -675,7 +675,7 @@ static u8 pata_macio_bmdma_status(struct ata_port *ap)
 		rstat |= ATA_DMA_ERR;
 
 	/* If ACTIVE is cleared, the STOP command has been hit and
-	 * the transfer is complete. If not, we have to flush the
+	 * the transfer is complete. If yest, we have to flush the
 	 * channel.
 	 */
 	if ((dstat & ACTIVE) == 0)
@@ -752,20 +752,20 @@ static void pata_macio_reset_hw(struct pata_macio_priv *priv, int resume)
 		 * (timing related ?). Until I can put my hand on one of these
 		 * units, I keep the old way
 		 */
-		ppc_md.feature_call(PMAC_FTR_IDE_ENABLE, priv->node, 0, 1);
+		ppc_md.feature_call(PMAC_FTR_IDE_ENABLE, priv->yesde, 0, 1);
 	} else {
 		int rc;
 
  		/* Reset and enable controller */
 		rc = ppc_md.feature_call(PMAC_FTR_IDE_RESET,
-					 priv->node, priv->aapl_bus_id, 1);
+					 priv->yesde, priv->aapl_bus_id, 1);
 		ppc_md.feature_call(PMAC_FTR_IDE_ENABLE,
-				    priv->node, priv->aapl_bus_id, 1);
+				    priv->yesde, priv->aapl_bus_id, 1);
 		msleep(10);
 		/* Only bother waiting if there's a reset control */
 		if (rc == 0) {
 			ppc_md.feature_call(PMAC_FTR_IDE_RESET,
-					    priv->node, priv->aapl_bus_id, 0);
+					    priv->yesde, priv->aapl_bus_id, 0);
 			msleep(IDE_WAKEUP_DELAY_MS);
 		}
 	}
@@ -812,7 +812,7 @@ static int pata_macio_slave_config(struct scsi_device *sdev)
 	/* This is lifted from sata_nv */
 	dev = &ap->link.device[sdev->id];
 
-	/* OHare has issues with non cache aligned DMA on some chipsets */
+	/* OHare has issues with yesn cache aligned DMA on some chipsets */
 	if (priv->kind == controller_ohare) {
 		blk_queue_update_dma_alignment(sdev->request_queue, 31);
 		blk_queue_update_dma_pad(sdev->request_queue, 31);
@@ -833,9 +833,9 @@ static int pata_macio_slave_config(struct scsi_device *sdev)
 		blk_queue_update_dma_pad(sdev->request_queue, 15);
 
 		/* We enable MWI and hack cache line size directly here, this
-		 * is specific to this chipset and not normal values, we happen
-		 * to somewhat know what we are doing here (which is basically
-		 * to do the same Apple does and pray they did not get it wrong :-)
+		 * is specific to this chipset and yest yesrmal values, we happen
+		 * to somewhat kyesw what we are doing here (which is basically
+		 * to do the same Apple does and pray they did yest get it wrong :-)
 		 */
 		BUG_ON(!priv->pdev);
 		pci_write_config_byte(priv->pdev, PCI_CACHE_LINE_SIZE, 0x08);
@@ -864,7 +864,7 @@ static int pata_macio_do_suspend(struct pata_macio_priv *priv, pm_message_t mesg
 	pata_macio_default_timings(priv);
 
 	/* Mask interrupt. Not strictly necessary but old driver did
-	 * it and I'd rather not change that here */
+	 * it and I'd rather yest change that here */
 	disable_irq(priv->irq);
 
 	/* The media bay will handle itself just fine */
@@ -889,7 +889,7 @@ static int pata_macio_do_suspend(struct pata_macio_priv *priv, pm_message_t mesg
 	}
 
 	/* Disable the bus on older machines and the cell on kauai */
-	ppc_md.feature_call(PMAC_FTR_IDE_ENABLE, priv->node,
+	ppc_md.feature_call(PMAC_FTR_IDE_ENABLE, priv->yesde,
 			    priv->aapl_bus_id, 0);
 
 	return 0;
@@ -916,9 +916,9 @@ static int pata_macio_do_resume(struct pata_macio_priv *priv)
 static struct scsi_host_template pata_macio_sht = {
 	ATA_BASE_SHT(DRV_NAME),
 	.sg_tablesize		= MAX_DCMDS,
-	/* We may not need that strict one */
+	/* We may yest need that strict one */
 	.dma_boundary		= ATA_DMA_BOUNDARY,
-	/* Not sure what the real max is but we know it's less than 64K, let's
+	/* Not sure what the real max is but we kyesw it's less than 64K, let's
 	 * use 64K minus 256
 	 */
 	.max_segment_size	= MAX_DBDMA_SEG,
@@ -947,24 +947,24 @@ static void pata_macio_invariants(struct pata_macio_priv *priv)
 	const int *bidp;
 
 	/* Identify the type of controller */
-	if (of_device_is_compatible(priv->node, "shasta-ata")) {
+	if (of_device_is_compatible(priv->yesde, "shasta-ata")) {
 		priv->kind = controller_sh_ata6;
 	        priv->timings = pata_macio_shasta_timings;
-	} else if (of_device_is_compatible(priv->node, "kauai-ata")) {
+	} else if (of_device_is_compatible(priv->yesde, "kauai-ata")) {
 		priv->kind = controller_un_ata6;
 	        priv->timings = pata_macio_kauai_timings;
-	} else if (of_device_is_compatible(priv->node, "K2-UATA")) {
+	} else if (of_device_is_compatible(priv->yesde, "K2-UATA")) {
 		priv->kind = controller_k2_ata6;
 	        priv->timings = pata_macio_kauai_timings;
-	} else if (of_device_is_compatible(priv->node, "keylargo-ata")) {
-		if (of_node_name_eq(priv->node, "ata-4")) {
+	} else if (of_device_is_compatible(priv->yesde, "keylargo-ata")) {
+		if (of_yesde_name_eq(priv->yesde, "ata-4")) {
 			priv->kind = controller_kl_ata4;
 			priv->timings = pata_macio_kl66_timings;
 		} else {
 			priv->kind = controller_kl_ata3;
 			priv->timings = pata_macio_kl33_timings;
 		}
-	} else if (of_device_is_compatible(priv->node, "heathrow-ata")) {
+	} else if (of_device_is_compatible(priv->yesde, "heathrow-ata")) {
 		priv->kind = controller_heathrow;
 		priv->timings = pata_macio_heathrow_timings;
 	} else {
@@ -975,7 +975,7 @@ static void pata_macio_invariants(struct pata_macio_priv *priv)
 	/* XXX FIXME --- setup priv->mediabay here */
 
 	/* Get Apple bus ID (for clock and ASIC control) */
-	bidp = of_get_property(priv->node, "AAPL,bus-id", NULL);
+	bidp = of_get_property(priv->yesde, "AAPL,bus-id", NULL);
 	priv->aapl_bus_id =  bidp ? *bidp : 0;
 
 	/* Fixup missing Apple bus ID in case of media-bay */
@@ -1138,14 +1138,14 @@ static int pata_macio_attach(struct macio_dev *mdev,
 	if (!priv)
 		return -ENOMEM;
 
-	priv->node = of_node_get(mdev->ofdev.dev.of_node);
+	priv->yesde = of_yesde_get(mdev->ofdev.dev.of_yesde);
 	priv->mdev = mdev;
 	priv->dev = &mdev->ofdev.dev;
 
 	/* Request memory resource for taskfile registers */
 	if (macio_request_resource(mdev, 0, "pata-macio")) {
 		dev_err(&mdev->ofdev.dev,
-			"Cannot obtain taskfile resource\n");
+			"Canyest obtain taskfile resource\n");
 		return -EBUSY;
 	}
 	tfregs = macio_resource_start(mdev, 0);
@@ -1154,7 +1154,7 @@ static int pata_macio_attach(struct macio_dev *mdev,
 	if (macio_resource_count(mdev) >= 2) {
 		if (macio_request_resource(mdev, 1, "pata-macio-dma"))
 			dev_err(&mdev->ofdev.dev,
-				"Cannot obtain DMA resource\n");
+				"Canyest obtain DMA resource\n");
 		else
 			dmaregs = macio_resource_start(mdev, 1);
 	}
@@ -1165,8 +1165,8 @@ static int pata_macio_attach(struct macio_dev *mdev,
 	 *
 	 * This is a bit bogus, it should be fixed in the device-tree itself,
 	 * via the existing macio fixups, based on the type of interrupt
-	 * controller in the machine. However, I have no test HW for this case,
-	 * and this trick works well enough on those old machines...
+	 * controller in the machine. However, I have yes test HW for this case,
+	 * and this trick works well eyesugh on those old machines...
 	 */
 	if (macio_irq_count(mdev) == 0) {
 		dev_warn(&mdev->ofdev.dev,
@@ -1258,21 +1258,21 @@ static int pata_macio_pci_attach(struct pci_dev *pdev,
 				 const struct pci_device_id *id)
 {
 	struct pata_macio_priv	*priv;
-	struct device_node	*np;
+	struct device_yesde	*np;
 	resource_size_t		rbase;
 
-	/* We cannot use a MacIO controller without its OF device node */
-	np = pci_device_to_OF_node(pdev);
+	/* We canyest use a MacIO controller without its OF device yesde */
+	np = pci_device_to_OF_yesde(pdev);
 	if (np == NULL) {
 		dev_err(&pdev->dev,
-			"Cannot find OF device node for controller\n");
+			"Canyest find OF device yesde for controller\n");
 		return -ENODEV;
 	}
 
 	/* Check that it can be enabled */
 	if (pcim_enable_device(pdev)) {
 		dev_err(&pdev->dev,
-			"Cannot enable controller PCI device\n");
+			"Canyest enable controller PCI device\n");
 		return -ENXIO;
 	}
 
@@ -1282,14 +1282,14 @@ static int pata_macio_pci_attach(struct pci_dev *pdev,
 	if (!priv)
 		return -ENOMEM;
 
-	priv->node = of_node_get(np);
+	priv->yesde = of_yesde_get(np);
 	priv->pdev = pdev;
 	priv->dev = &pdev->dev;
 
 	/* Get MMIO regions */
 	if (pci_request_regions(pdev, "pata-macio")) {
 		dev_err(&pdev->dev,
-			"Cannot obtain PCI resources\n");
+			"Canyest obtain PCI resources\n");
 		return -EBUSY;
 	}
 

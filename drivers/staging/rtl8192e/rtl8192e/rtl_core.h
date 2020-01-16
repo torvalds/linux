@@ -162,7 +162,7 @@ enum rt_customer_id {
 	RT_CID_819x_ALPHA       = 15,
 	RT_CID_819x_Sitecom     = 16,
 	RT_CID_CCX	      = 17,
-	RT_CID_819x_Lenovo      = 18,
+	RT_CID_819x_Leyesvo      = 18,
 	RT_CID_819x_QMI	 = 19,
 	RT_CID_819x_Edimax_Belkin = 20,
 	RT_CID_819x_Sercomm_Belkin = 21,
@@ -208,7 +208,7 @@ struct rt_stats {
 	unsigned long txbkokint;
 	unsigned long txviokint;
 	unsigned long txvookint;
-	unsigned long txbeaconokint;
+	unsigned long txbeacoyeskint;
 	unsigned long txbeaconerr;
 	unsigned long txmanageokint;
 	unsigned long txcmdpktokint;
@@ -528,7 +528,7 @@ struct r8192_priv {
 
 	struct init_gain initgain_backup;
 	u8		DefaultInitialGain[4];
-	bool		bis_any_nonbepkts;
+	bool		bis_any_yesnbepkts;
 	bool		bcurrent_turbo_EDCA;
 	bool		bis_cur_rdlstate;
 

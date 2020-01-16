@@ -368,7 +368,7 @@
 					regulator-always-on;
 				};
 
-				/* LDO0 is not connected to anything */
+				/* LDO0 is yest connected to anything */
 
 				ldo1 {
 					regulator-name = "+1.1vs_ldo1,avdd_pll*";
@@ -508,7 +508,7 @@
 	sdhci@c8000600 {
 		status = "okay";
 		bus-width = <8>;
-		non-removable;
+		yesn-removable;
 	};
 
 	backlight: backlight {

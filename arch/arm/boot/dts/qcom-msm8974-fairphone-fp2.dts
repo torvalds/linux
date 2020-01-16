@@ -296,7 +296,7 @@
 		vqmmc-supply = <&pm8941_s3>;
 
 		bus-width = <8>;
-		non-removable;
+		yesn-removable;
 
 		pinctrl-names = "default";
 		pinctrl-0 = <&sdhc1_pin_a>;
@@ -343,7 +343,7 @@
 		status = "okay";
 
 		reboot-mode {
-			mode-normal	= <0x77665501>;
+			mode-yesrmal	= <0x77665501>;
 			mode-bootloader	= <0x77665500>;
 			mode-recovery	= <0x77665502>;
 		};
@@ -355,7 +355,7 @@
 		gpios@c000 {
 			gpio_keys_pin_a: gpio-keys-active {
 				pins = "gpio1", "gpio2", "gpio5";
-				function = "normal";
+				function = "yesrmal";
 
 				bias-pull-up;
 				power-source = <PM8941_GPIO_S3>;

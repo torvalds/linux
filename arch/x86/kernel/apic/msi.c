@@ -132,17 +132,17 @@ static struct msi_domain_info pci_msi_domain_info = {
 
 void __init arch_init_msi_domain(struct irq_domain *parent)
 {
-	struct fwnode_handle *fn;
+	struct fwyesde_handle *fn;
 
 	if (disable_apic)
 		return;
 
-	fn = irq_domain_alloc_named_fwnode("PCI-MSI");
+	fn = irq_domain_alloc_named_fwyesde("PCI-MSI");
 	if (fn) {
 		msi_default_domain =
 			pci_msi_create_irq_domain(fn, &pci_msi_domain_info,
 						  parent);
-		irq_domain_free_fwnode(fn);
+		irq_domain_free_fwyesde(fn);
 	}
 	if (!msi_default_domain)
 		pr_warn("failed to initialize irqdomain for MSI/MSI-x.\n");
@@ -171,14 +171,14 @@ static struct msi_domain_info pci_msi_ir_domain_info = {
 struct irq_domain *arch_create_remap_msi_irq_domain(struct irq_domain *parent,
 						    const char *name, int id)
 {
-	struct fwnode_handle *fn;
+	struct fwyesde_handle *fn;
 	struct irq_domain *d;
 
-	fn = irq_domain_alloc_named_id_fwnode(name, id);
+	fn = irq_domain_alloc_named_id_fwyesde(name, id);
 	if (!fn)
 		return NULL;
 	d = pci_msi_create_irq_domain(fn, &pci_msi_ir_domain_info, parent);
-	irq_domain_free_fwnode(fn);
+	irq_domain_free_fwyesde(fn);
 	return d;
 }
 #endif
@@ -231,24 +231,24 @@ static struct irq_domain *dmar_get_irq_domain(void)
 {
 	static struct irq_domain *dmar_domain;
 	static DEFINE_MUTEX(dmar_lock);
-	struct fwnode_handle *fn;
+	struct fwyesde_handle *fn;
 
 	mutex_lock(&dmar_lock);
 	if (dmar_domain)
 		goto out;
 
-	fn = irq_domain_alloc_named_fwnode("DMAR-MSI");
+	fn = irq_domain_alloc_named_fwyesde("DMAR-MSI");
 	if (fn) {
 		dmar_domain = msi_create_irq_domain(fn, &dmar_msi_domain_info,
 						    x86_vector_domain);
-		irq_domain_free_fwnode(fn);
+		irq_domain_free_fwyesde(fn);
 	}
 out:
 	mutex_unlock(&dmar_lock);
 	return dmar_domain;
 }
 
-int dmar_alloc_hwirq(int id, int node, void *arg)
+int dmar_alloc_hwirq(int id, int yesde, void *arg)
 {
 	struct irq_domain *domain = dmar_get_irq_domain();
 	struct irq_alloc_info info;
@@ -261,7 +261,7 @@ int dmar_alloc_hwirq(int id, int node, void *arg)
 	info.dmar_id = id;
 	info.dmar_data = arg;
 
-	return irq_domain_alloc_irqs(domain, 1, node, &info);
+	return irq_domain_alloc_irqs(domain, 1, yesde, &info);
 }
 
 void dmar_free_hwirq(int irq)
@@ -337,7 +337,7 @@ struct irq_domain *hpet_create_irq_domain(int hpet_id)
 	struct msi_domain_info *domain_info;
 	struct irq_domain *parent, *d;
 	struct irq_alloc_info info;
-	struct fwnode_handle *fn;
+	struct fwyesde_handle *fn;
 
 	if (x86_vector_domain == NULL)
 		return NULL;
@@ -358,7 +358,7 @@ struct irq_domain *hpet_create_irq_domain(int hpet_id)
 	else
 		hpet_msi_controller.name = "IR-HPET-MSI";
 
-	fn = irq_domain_alloc_named_id_fwnode(hpet_msi_controller.name,
+	fn = irq_domain_alloc_named_id_fwyesde(hpet_msi_controller.name,
 					      hpet_id);
 	if (!fn) {
 		kfree(domain_info);
@@ -366,7 +366,7 @@ struct irq_domain *hpet_create_irq_domain(int hpet_id)
 	}
 
 	d = msi_create_irq_domain(fn, domain_info, parent);
-	irq_domain_free_fwnode(fn);
+	irq_domain_free_fwyesde(fn);
 	return d;
 }
 

@@ -8,7 +8,7 @@
  */
 #include <linux/kernel.h>
 #include <linux/init.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/reboot.h>
 #include <linux/slab.h>
 #include <linux/stddef.h>
@@ -103,7 +103,7 @@ static void uic_mask_ack_irq(struct irq_data *d)
 	er &= ~sr;
 	mtdcr(uic->dcrbase + UIC_ER, er);
  	/* On the UIC, acking (i.e. clearing the SR bit)
-	 * a level irq will have no effect if the interrupt
+	 * a level irq will have yes effect if the interrupt
 	 * is still asserted by the device, even if
 	 * the interrupt is already masked. Therefore
 	 * we only ack the egde interrupts here, while
@@ -225,41 +225,41 @@ uic_irq_ret:
 	raw_spin_unlock(&desc->lock);
 }
 
-static struct uic * __init uic_init_one(struct device_node *node)
+static struct uic * __init uic_init_one(struct device_yesde *yesde)
 {
 	struct uic *uic;
 	const u32 *indexp, *dcrreg;
 	int len;
 
-	BUG_ON(! of_device_is_compatible(node, "ibm,uic"));
+	BUG_ON(! of_device_is_compatible(yesde, "ibm,uic"));
 
 	uic = kzalloc(sizeof(*uic), GFP_KERNEL);
 	if (! uic)
 		return NULL; /* FIXME: panic? */
 
 	raw_spin_lock_init(&uic->lock);
-	indexp = of_get_property(node, "cell-index", &len);
+	indexp = of_get_property(yesde, "cell-index", &len);
 	if (!indexp || (len != sizeof(u32))) {
-		printk(KERN_ERR "uic: Device node %pOF has missing or invalid "
-		       "cell-index property\n", node);
+		printk(KERN_ERR "uic: Device yesde %pOF has missing or invalid "
+		       "cell-index property\n", yesde);
 		return NULL;
 	}
 	uic->index = *indexp;
 
-	dcrreg = of_get_property(node, "dcr-reg", &len);
+	dcrreg = of_get_property(yesde, "dcr-reg", &len);
 	if (!dcrreg || (len != 2*sizeof(u32))) {
-		printk(KERN_ERR "uic: Device node %pOF has missing or invalid "
-		       "dcr-reg property\n", node);
+		printk(KERN_ERR "uic: Device yesde %pOF has missing or invalid "
+		       "dcr-reg property\n", yesde);
 		return NULL;
 	}
 	uic->dcrbase = *dcrreg;
 
-	uic->irqhost = irq_domain_add_linear(node, NR_UIC_INTS, &uic_host_ops,
+	uic->irqhost = irq_domain_add_linear(yesde, NR_UIC_INTS, &uic_host_ops,
 					     uic);
 	if (! uic->irqhost)
 		return NULL; /* FIXME: panic? */
 
-	/* Start with all interrupts disabled, level and non-critical */
+	/* Start with all interrupts disabled, level and yesn-critical */
 	mtdcr(uic->dcrbase + UIC_ER, 0);
 	mtdcr(uic->dcrbase + UIC_CR, 0);
 	mtdcr(uic->dcrbase + UIC_TR, 0);
@@ -274,12 +274,12 @@ static struct uic * __init uic_init_one(struct device_node *node)
 
 void __init uic_init_tree(void)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 	struct uic *uic;
 	const u32 *interrupts;
 
 	/* First locate and initialize the top-level UIC */
-	for_each_compatible_node(np, NULL, "ibm,uic") {
+	for_each_compatible_yesde(np, NULL, "ibm,uic") {
 		interrupts = of_get_property(np, "interrupts", NULL);
 		if (!interrupts)
 			break;
@@ -292,10 +292,10 @@ void __init uic_init_tree(void)
 		panic("Unable to initialize primary UIC %pOF\n", np);
 
 	irq_set_default_host(primary_uic->irqhost);
-	of_node_put(np);
+	of_yesde_put(np);
 
 	/* The scan again for cascaded UICs */
-	for_each_compatible_node(np, NULL, "ibm,uic") {
+	for_each_compatible_yesde(np, NULL, "ibm,uic") {
 		interrupts = of_get_property(np, "interrupts", NULL);
 		if (interrupts) {
 			/* Secondary UIC */
@@ -316,7 +316,7 @@ void __init uic_init_tree(void)
 	}
 }
 
-/* Return an interrupt vector or 0 if no interrupt is pending. */
+/* Return an interrupt vector or 0 if yes interrupt is pending. */
 unsigned int uic_get_irq(void)
 {
 	u32 msr;

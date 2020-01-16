@@ -12,9 +12,9 @@ Optional properties:
 	- autorepeat: Boolean, Enable auto repeat feature of Linux input
 	  subsystem.
 
-Each button (key) is represented as a sub-node of "adc-keys":
+Each button (key) is represented as a sub-yesde of "adc-keys":
 
-Required subnode-properties:
+Required subyesde-properties:
 	- label: Descriptive name of the key.
 	- linux,code: Keycode to emit.
 	- press-threshold-microvolt: Voltage ADC input when this key is pressed.

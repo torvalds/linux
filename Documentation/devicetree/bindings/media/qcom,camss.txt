@@ -119,7 +119,7 @@ Qualcomm Camera Subsystem
 			Value type: <u32>
 			Definition: Selects CSI2 PHY interface - PHY0, PHY1
 				    or PHY2 (8996 only)
-	Endpoint node properties:
+	Endpoint yesde properties:
 		- clock-lanes:
 			Usage: required
 			Value type: <u32>

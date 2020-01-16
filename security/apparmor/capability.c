@@ -5,11 +5,11 @@
  * This file contains AppArmor capability mediation functions
  *
  * Copyright (C) 1998-2008 Novell/SUSE
- * Copyright 2009-2010 Canonical Ltd.
+ * Copyright 2009-2010 Cayesnical Ltd.
  */
 
 #include <linux/capability.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/gfp.h>
 #include <linux/security.h>
 
@@ -107,7 +107,7 @@ static int audit_caps(struct common_audit_data *sa, struct aa_profile *profile,
  * @profile: profile being enforced    (NOT NULL, NOT unconfined)
  * @cap: capability to test if allowed
  * @opts: CAP_OPT_NOAUDIT bit determines whether audit record is generated
- * @sa: audit data (MAY BE NULL indicating no auditing)
+ * @sa: audit data (MAY BE NULL indicating yes auditing)
  *
  * Returns: 0 if allowed else -EPERM
  */
@@ -125,10 +125,10 @@ static int profile_capable(struct aa_profile *profile, int cap,
 	if (opts & CAP_OPT_NOAUDIT) {
 		if (!COMPLAIN_MODE(profile))
 			return error;
-		/* audit the cap request in complain mode but note that it
+		/* audit the cap request in complain mode but yeste that it
 		 * should be optional.
 		 */
-		aad(sa)->info = "optional: no audit";
+		aad(sa)->info = "optional: yes audit";
 	}
 
 	return audit_caps(sa, profile, cap, error);

@@ -51,8 +51,8 @@
 
 /*
   Define the maximum, maximum automatic, minimum automatic, and default Queue
-  Depth to allow for Target Devices depending on whether or not they support
-  Tagged Queuing and whether or not ISA Bounce Buffers are required.
+  Depth to allow for Target Devices depending on whether or yest they support
+  Tagged Queuing and whether or yest ISA Bounce Buffers are required.
 */
 
 #define BLOGIC_MAX_TAG_DEPTH		64
@@ -76,8 +76,8 @@
 /*
   Define the maximum number of Mailboxes that should be used for MultiMaster
   Host Adapters.  This number is chosen to be larger than the maximum Host
-  Adapter Queue Depth and small enough so that the Host Adapter structure
-  does not cross an allocation block size boundary.
+  Adapter Queue Depth and small eyesugh so that the Host Adapter structure
+  does yest cross an allocation block size boundary.
 */
 
 #define BLOGIC_MAX_MAILBOX		211
@@ -118,13 +118,13 @@ static char *blogic_msglevelmap[] = { KERN_NOTICE, KERN_NOTICE, KERN_NOTICE, KER
   Define Driver Message macros.
 */
 
-#define blogic_announce(format, args...) \
+#define blogic_anyesunce(format, args...) \
 	blogic_msg(BLOGIC_ANNOUNCE_LEVEL, format, ##args)
 
 #define blogic_info(format, args...) \
 	blogic_msg(BLOGIC_INFO_LEVEL, format, ##args)
 
-#define blogic_notice(format, args...) \
+#define blogic_yestice(format, args...) \
 	blogic_msg(BLOGIC_NOTICE_LEVEL, format, ##args)
 
 #define blogic_warn(format, args...) \
@@ -183,7 +183,7 @@ enum blogic_adapter_bus_type {
 	BLOGIC_MCA_BUS = 5
 } PACKED;
 
-static char *blogic_adapter_busnames[] = { "Unknown", "ISA", "EISA", "PCI", "VESA", "MCA" };
+static char *blogic_adapter_busnames[] = { "Unkyeswn", "ISA", "EISA", "PCI", "VESA", "MCA" };
 
 static enum blogic_adapter_bus_type blogic_adater_bus_types[] = {
 	BLOGIC_VESA_BUS,	/* BT-4xx */
@@ -236,10 +236,10 @@ struct blogic_probeinfo {
 */
 
 struct blogic_probe_options {
-	bool noprobe:1;			/* Bit 0 */
-	bool noprobe_isa:1;		/* Bit 1 */
-	bool noprobe_pci:1;		/* Bit 2 */
-	bool nosort_pci:1;		/* Bit 3 */
+	bool yesprobe:1;			/* Bit 0 */
+	bool yesprobe_isa:1;		/* Bit 1 */
+	bool yesprobe_pci:1;		/* Bit 2 */
+	bool yessort_pci:1;		/* Bit 3 */
 	bool multimaster_first:1;	/* Bit 4 */
 	bool flashpoint_first:1;	/* Bit 5 */
 	bool limited_isa:1;		/* Bit 6 */
@@ -563,7 +563,7 @@ struct blogic_autoscsi {
 	bool low_term:1;			/* Byte 15 Bit 0 */
 	bool parity:1;				/* Byte 15 Bit 1 */
 	bool high_term:1;			/* Byte 15 Bit 2 */
-	bool noisy_cable:1;			/* Byte 15 Bit 3 */
+	bool yesisy_cable:1;			/* Byte 15 Bit 3 */
 	bool fast_sync_neg:1;			/* Byte 15 Bit 4 */
 	bool reset_enabled:1;			/* Byte 15 Bit 5 */
 	bool:1;					/* Byte 15 Bit 6 */
@@ -584,7 +584,7 @@ struct blogic_autoscsi {
 	unsigned short sync_ok;			/* Bytes 25-26 */
 	unsigned short discon_ok;		/* Bytes 27-28 */
 	unsigned short send_start_unit;		/* Bytes 29-30 */
-	unsigned short ignore_bios_scan;	/* Bytes 31-32 */
+	unsigned short igyesre_bios_scan;	/* Bytes 31-32 */
 	unsigned char pci_int_pin:2;		/* Byte 33 Bits 0-1 */
 	unsigned char adapter_ioport:2;		/* Byte 33 Bits 2-3 */
 	bool strict_rr_enabled:1;		/* Byte 33 Bit 4 */
@@ -608,7 +608,7 @@ struct blogic_autoscsi {
 	unsigned char boot_ch:4;		/* Byte 44 Bits 4-7 */
 	unsigned char force_scan_order:1;	/* Byte 45 Bit 0 */
 	unsigned char:7;			/* Byte 45 Bits 1-7 */
-	unsigned short nontagged_to_alt_ok;	/* Bytes 46-47 */
+	unsigned short yesntagged_to_alt_ok;	/* Bytes 46-47 */
 	unsigned short reneg_sync_on_check;	/* Bytes 48-49 */
 	unsigned char rsvd[10];			/* Bytes 50-59 */
 	unsigned char manuf_diag[2];		/* Bytes 60-61 */
@@ -660,7 +660,7 @@ enum blogic_action {
 
 /*
   Define the Incoming Mailbox Completion Codes.  The MultiMaster Firmware
-  only uses codes 0 - 4.  The FlashPoint SCCB Manager has no mailboxes, so
+  only uses codes 0 - 4.  The FlashPoint SCCB Manager has yes mailboxes, so
   completion codes are stored in the CCB; it only uses codes 1, 2, 4, and 5.
 */
 
@@ -700,7 +700,7 @@ enum blogic_datadir {
 
 
 /*
-  Define the Host Adapter Status Codes.  The MultiMaster Firmware does not
+  Define the Host Adapter Status Codes.  The MultiMaster Firmware does yest
   return status code 0x0C; it uses 0x12 for both overruns and underruns.
 */
 
@@ -990,7 +990,7 @@ struct blogic_adapter {
 	unsigned long io_addr;
 	unsigned long pci_addr;
 	unsigned short addr_count;
-	unsigned char host_no;
+	unsigned char host_yes;
 	unsigned char model[9];
 	unsigned char fw_ver[6];
 	unsigned char full_model[18];
@@ -1186,7 +1186,7 @@ static inline unsigned char blogic_rdgeom(struct blogic_adapter *adapter)
 
 /*
   blogic_execmbox issues an Execute Mailbox Command, which
-  notifies the Host Adapter that an entry has been made in an Outgoing
+  yestifies the Host Adapter that an entry has been made in an Outgoing
   Mailbox.
 */
 

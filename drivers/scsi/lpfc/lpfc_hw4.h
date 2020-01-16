@@ -308,9 +308,9 @@ struct lpfc_eqe {
 #define lpfc_eqe_resource_id_SHIFT	16
 #define lpfc_eqe_resource_id_MASK	0x0000FFFF
 #define lpfc_eqe_resource_id_WORD	word0
-#define lpfc_eqe_minor_code_SHIFT	4
-#define lpfc_eqe_minor_code_MASK	0x00000FFF
-#define lpfc_eqe_minor_code_WORD	word0
+#define lpfc_eqe_miyesr_code_SHIFT	4
+#define lpfc_eqe_miyesr_code_MASK	0x00000FFF
+#define lpfc_eqe_miyesr_code_WORD	word0
 #define lpfc_eqe_major_code_SHIFT	1
 #define lpfc_eqe_major_code_MASK	0x00000007
 #define lpfc_eqe_major_code_WORD	word0
@@ -1172,7 +1172,7 @@ struct lpfc_mbx_eq_destroy {
 	} u;
 };
 
-struct lpfc_mbx_nop {
+struct lpfc_mbx_yesp {
 	struct mbox_header header;
 	uint32_t context[2];
 };
@@ -1295,9 +1295,9 @@ struct lpfc_mbx_cq_create_set {
 #define lpfc_mbx_cq_create_set_autovalid_SHIFT	15
 #define lpfc_mbx_cq_create_set_autovalid_MASK	0x0000001
 #define lpfc_mbx_cq_create_set_autovalid_WORD	word1
-#define lpfc_mbx_cq_create_set_nodelay_SHIFT	14
-#define lpfc_mbx_cq_create_set_nodelay_MASK	0x00000001
-#define lpfc_mbx_cq_create_set_nodelay_WORD	word1
+#define lpfc_mbx_cq_create_set_yesdelay_SHIFT	14
+#define lpfc_mbx_cq_create_set_yesdelay_MASK	0x00000001
+#define lpfc_mbx_cq_create_set_yesdelay_WORD	word1
 #define lpfc_mbx_cq_create_set_clswm_SHIFT	12
 #define lpfc_mbx_cq_create_set_clswm_MASK	0x00000003
 #define lpfc_mbx_cq_create_set_clswm_WORD	word1
@@ -1985,10 +1985,10 @@ struct lpfc_mbx_alloc_rsrc_extents {
 };
 
 /*
- * This is the non-embedded version of ALLOC or GET RSRC_EXTENTS. Word4 in this
+ * This is the yesn-embedded version of ALLOC or GET RSRC_EXTENTS. Word4 in this
  * structure shares the same SHIFT/MASK/WORD defines provided in the
  * mbx_alloc_rsrc_extents and mbx_get_alloc_rsrc_extents, word4, provided in
- * the structures defined above.  This non-embedded structure provides for the
+ * the structures defined above.  This yesn-embedded structure provides for the
  * maximum number of extents supported by the port.
  */
 struct lpfc_mbx_nembed_rsrc_extent {
@@ -2050,13 +2050,13 @@ struct sli4_sge {	/* SLI-4 */
 };
 
 struct sli4_hybrid_sgl {
-	struct list_head list_node;
+	struct list_head list_yesde;
 	struct sli4_sge *dma_sgl;
 	dma_addr_t dma_phys_sgl;
 };
 
 struct fcp_cmd_rsp_buf {
-	struct list_head list_node;
+	struct list_head list_yesde;
 
 	/* for storing cmd/rsp dma alloc'ed virt_addr */
 	struct fcp_cmnd *fcp_cmnd;
@@ -3036,9 +3036,9 @@ struct lpfc_mbx_memory_dump_type3 {
 #define lpfc_mbx_memory_dump_type3_link_MASK     0x000000ff
 #define lpfc_mbx_memory_dump_type3_link_WORD     word1
 	uint32_t word2;
-#define lpfc_mbx_memory_dump_type3_page_no_SHIFT  0
-#define lpfc_mbx_memory_dump_type3_page_no_MASK   0x0000ffff
-#define lpfc_mbx_memory_dump_type3_page_no_WORD   word2
+#define lpfc_mbx_memory_dump_type3_page_yes_SHIFT  0
+#define lpfc_mbx_memory_dump_type3_page_yes_MASK   0x0000ffff
+#define lpfc_mbx_memory_dump_type3_page_yes_WORD   word2
 #define lpfc_mbx_memory_dump_type3_offset_SHIFT   16
 #define lpfc_mbx_memory_dump_type3_offset_MASK    0x0000ffff
 #define lpfc_mbx_memory_dump_type3_offset_WORD    word2
@@ -3063,7 +3063,7 @@ struct lpfc_mbx_memory_dump_type3 {
 /*
  *  * SFF-8472 TABLE 3.4
  *   */
-#define  SFF_PG0_CONNECTOR_UNKNOWN    0x00   /* Unknown  */
+#define  SFF_PG0_CONNECTOR_UNKNOWN    0x00   /* Unkyeswn  */
 #define  SFF_PG0_CONNECTOR_SC         0x01   /* SC       */
 #define  SFF_PG0_CONNECTOR_FC_COPPER1 0x02   /* FC style 1 copper connector */
 #define  SFF_PG0_CONNECTOR_FC_COPPER2 0x03   /* FC style 2 copper connector */
@@ -3080,7 +3080,7 @@ struct lpfc_mbx_memory_dump_type3 {
 #define  SFF_PG0_CONNECTOR_COPPER_PIGTAIL 0x21 /* Copper pigtail */
 #define  SFF_PG0_CONNECTOR_RJ45       0x22  /* RJ45 */
 
-/* SFF-8472 Table 3.1 Diagnostics: Data Fields Address/Page A0 */
+/* SFF-8472 Table 3.1 Diagyesstics: Data Fields Address/Page A0 */
 
 #define SSF_IDENTIFIER			0
 #define SSF_EXT_IDENTIFIER		1
@@ -3121,7 +3121,7 @@ struct lpfc_mbx_memory_dump_type3 {
 #define SSF_CC_EXT			95
 #define SSF_A0_VENDOR_SPECIFIC		96
 
-/* SFF-8472 Table 3.1a Diagnostics: Data Fields Address/Page A2 */
+/* SFF-8472 Table 3.1a Diagyesstics: Data Fields Address/Page A2 */
 
 #define SSF_TEMP_HIGH_ALARM		0
 #define SSF_TEMP_LOW_ALARM		2
@@ -3231,7 +3231,7 @@ struct sff_trasnceiver_codes_byte7 {
 	uint8_t fc_sp_1200MB:1;  /* 1200 MB/sec */
 };
 
-/* User writable non-volatile memory, SFF-8472 Table 3.20 */
+/* User writable yesn-volatile memory, SFF-8472 Table 3.20 */
 struct user_eeprom {
 	uint8_t vendor_name[16];
 	uint8_t vendor_oui[3];
@@ -3481,9 +3481,9 @@ struct lpfc_sli4_parameters {
 #define cfg_eqdr_SHIFT				8
 #define cfg_eqdr_MASK				0x00000001
 #define cfg_eqdr_WORD				word19
-#define cfg_nosr_SHIFT				9
-#define cfg_nosr_MASK				0x00000001
-#define cfg_nosr_WORD				word19
+#define cfg_yessr_SHIFT				9
+#define cfg_yessr_MASK				0x00000001
+#define cfg_yessr_WORD				word19
 
 #define cfg_bv1s_SHIFT                          10
 #define cfg_bv1s_MASK                           0x00000001
@@ -3994,7 +3994,7 @@ struct lpfc_mqe {
 		struct lpfc_mbx_memory_dump_type3 mem_dump_type3;
 		struct lpfc_mbx_set_host_data set_host_data;
 		struct lpfc_mbx_set_trunk_mode set_trunk_mode;
-		struct lpfc_mbx_nop nop;
+		struct lpfc_mbx_yesp yesp;
 		struct lpfc_mbx_set_ras_fwlog ras_fwlog;
 	} un;
 };

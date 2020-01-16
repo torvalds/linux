@@ -252,7 +252,7 @@ config MARCH_Z900
 	depends on $(cc-option,-march=z900)
 	help
 	  Select this to enable optimizations for model z800/z900 (2064 and
-	  2066 series). This will enable some optimizations that are not
+	  2066 series). This will enable some optimizations that are yest
 	  available on older ESA/390 (31 Bit) only CPUs.
 
 config MARCH_Z990
@@ -261,7 +261,7 @@ config MARCH_Z990
 	depends on $(cc-option,-march=z990)
 	help
 	  Select this to enable optimizations for model z890/z990 (2084 and
-	  2086 series). The kernel will be slightly faster but will not work
+	  2086 series). The kernel will be slightly faster but will yest work
 	  on older machines.
 
 config MARCH_Z9_109
@@ -270,7 +270,7 @@ config MARCH_Z9_109
 	depends on $(cc-option,-march=z9-109)
 	help
 	  Select this to enable optimizations for IBM System z9 (2094 and
-	  2096 series). The kernel will be slightly faster but will not work
+	  2096 series). The kernel will be slightly faster but will yest work
 	  on older machines.
 
 config MARCH_Z10
@@ -279,7 +279,7 @@ config MARCH_Z10
 	depends on $(cc-option,-march=z10)
 	help
 	  Select this to enable optimizations for IBM System z10 (2097 and
-	  2098 series). The kernel will be slightly faster but will not work
+	  2098 series). The kernel will be slightly faster but will yest work
 	  on older machines.
 
 config MARCH_Z196
@@ -289,7 +289,7 @@ config MARCH_Z196
 	help
 	  Select this to enable optimizations for IBM zEnterprise 114 and 196
 	  (2818 and 2817 series). The kernel will be slightly faster but will
-	  not work on older machines.
+	  yest work on older machines.
 
 config MARCH_ZEC12
 	bool "IBM zBC12 and zEC12"
@@ -297,7 +297,7 @@ config MARCH_ZEC12
 	depends on $(cc-option,-march=zEC12)
 	help
 	  Select this to enable optimizations for IBM zBC12 and zEC12 (2828 and
-	  2827 series). The kernel will be slightly faster but will not work on
+	  2827 series). The kernel will be slightly faster but will yest work on
 	  older machines.
 
 config MARCH_Z13
@@ -306,7 +306,7 @@ config MARCH_Z13
 	depends on $(cc-option,-march=z13)
 	help
 	  Select this to enable optimizations for IBM z13s and z13 (2965 and
-	  2964 series). The kernel will be slightly faster but will not work on
+	  2964 series). The kernel will be slightly faster but will yest work on
 	  older machines.
 
 config MARCH_Z14
@@ -315,7 +315,7 @@ config MARCH_Z14
 	depends on $(cc-option,-march=z14)
 	help
 	  Select this to enable optimizations for IBM z14 ZR1 and z14 (3907
-	  and 3906 series). The kernel will be slightly faster but will not
+	  and 3906 series). The kernel will be slightly faster but will yest
 	  work on older machines.
 
 config MARCH_Z15
@@ -324,7 +324,7 @@ config MARCH_Z15
 	depends on $(cc-option,-march=z15)
 	help
 	  Select this to enable optimizations for IBM z15 (8562
-	  and 8561 series). The kernel will be slightly faster but will not
+	  and 8561 series). The kernel will be slightly faster but will yest
 	  work on older machines.
 
 endchoice
@@ -363,7 +363,7 @@ choice
 	  Cause the compiler to tune (-mtune) the generated code for a machine.
 	  This will make the code run faster on the selected machine but
 	  somewhat slower on other machines.
-	  This option only changes how the compiler emits instructions, not the
+	  This option only changes how the compiler emits instructions, yest the
 	  selection of instructions itself, so the resulting kernel will run on
 	  all other machines.
 
@@ -449,10 +449,10 @@ config NR_CPUS
 config HOTPLUG_CPU
 	def_bool y
 
-# Some NUMA nodes have memory ranges that span
-# other nodes.	Even though a pfn is valid and
-# between a node's start and end pfns, it may not
-# reside on that node.	See memmap_init_zone()
+# Some NUMA yesdes have memory ranges that span
+# other yesdes.	Even though a pfn is valid and
+# between a yesde's start and end pfns, it may yest
+# reside on that yesde.	See memmap_init_zone()
 # for details. <- They meant memory holes!
 config NODES_SPAN_OTHER_NODES
 	def_bool NUMA
@@ -470,16 +470,16 @@ config NUMA
 	  numa=<method> to the kernel command line.
 
 	  The default behaviour is identical to appending numa=plain to
-	  the command line. This will create just one node with all
+	  the command line. This will create just one yesde with all
 	  available memory and all CPUs in it.
 
 config NODES_SHIFT
-	int "Maximum NUMA nodes (as a power of 2)"
+	int "Maximum NUMA yesdes (as a power of 2)"
 	range 1 10
 	depends on NUMA
 	default "4"
 	help
-	  Specify the maximum number of NUMA nodes available on the target
+	  Specify the maximum number of NUMA yesdes available on the target
 	  system. Increases memory reserved to accommodate various tables.
 
 menu "Select NUMA modes"
@@ -491,15 +491,15 @@ config NUMA_EMU
 	help
 	  Numa emulation mode will split the available system memory into
 	  equal chunks which then are distributed over the configured number
-	  of nodes in a round-robin manner.
+	  of yesdes in a round-robin manner.
 
-	  The number of fake nodes is limited by the number of available memory
+	  The number of fake yesdes is limited by the number of available memory
 	  chunks (i.e. memory size / fake size) and the number of supported
-	  nodes in the kernel.
+	  yesdes in the kernel.
 
-	  The CPUs are assigned to the nodes in a way that partially respects
+	  The CPUs are assigned to the yesdes in a way that partially respects
 	  the original machine topology (if supported by the machine).
-	  Fair distribution of the CPUs is not guaranteed.
+	  Fair distribution of the CPUs is yest guaranteed.
 
 config EMU_SIZE
 	hex "NUMA emulation memory chunk size"
@@ -508,7 +508,7 @@ config EMU_SIZE
 	depends on NUMA_EMU
 	help
 	  Select the default size by which the memory is chopped and then
-	  assigned to emulated NUMA nodes.
+	  assigned to emulated NUMA yesdes.
 
 	  This can be overridden by specifying
 
@@ -557,7 +557,7 @@ config KEXEC_FILE
 	depends on CRYPTO_SHA256
 	depends on CRYPTO_SHA256_S390
 	help
-	  Enable the kexec file based system call. In contrast to the normal
+	  Enable the kexec file based system call. In contrast to the yesrmal
 	  kexec system call this system call takes file descriptors for the
 	  kernel and initramfs as arguments.
 
@@ -600,11 +600,11 @@ config KERNEL_NOBP
 	  The modified branch prediction mode improves the behaviour in
 	  regard to speculative execution.
 
-	  With the option enabled the kernel parameter "nobp=0" or "nospec"
-	  can be used to run the kernel in the normal branch prediction mode.
+	  With the option enabled the kernel parameter "yesbp=0" or "yesspec"
+	  can be used to run the kernel in the yesrmal branch prediction mode.
 
 	  With the option disabled the modified branch prediction mode is
-	  enabled with the "nobp=1" kernel parameter.
+	  enabled with the "yesbp=1" kernel parameter.
 
 	  If unsure, say N.
 
@@ -657,7 +657,7 @@ config RANDOMIZE_BASE
 	  In support of Kernel Address Space Layout Randomization (KASLR),
 	  this randomizes the address at which the kernel image is loaded,
 	  as a security feature that deters exploit attempts relying on
-	  knowledge of the location of kernel internals.
+	  kyeswledge of the location of kernel internals.
 
 endmenu
 
@@ -701,7 +701,7 @@ config PACK_STACK
 	  This option enables the compiler option -mkernel-backchain if it
 	  is available. If the option is available the compiler supports
 	  the new stack layout which dramatically reduces the minimum stack
-	  frame size. With an old compiler a non-leaf function needs a
+	  frame size. With an old compiler a yesn-leaf function needs a
 	  minimum of 96 bytes on 31 bit and 160 bytes on 64 bit. With
 	  -mkernel-backchain the minimum size drops to 16 byte on 31 bit
 	  and 24 byte on 64 bit.
@@ -783,7 +783,7 @@ config CHSC_SCH
 	  is usually present on LPAR only.
 	  The driver creates a device /dev/chsc, which may be used to
 	  obtain I/O configuration information about the machine and
-	  to issue asynchronous chsc commands (DANGEROUS).
+	  to issue asynchroyesus chsc commands (DANGEROUS).
 	  You will usually only want to use this interface on a special
 	  LPAR designated for system management.
 
@@ -859,7 +859,7 @@ config SECCOMP
 	  the process as file descriptors supporting the read/write
 	  syscalls, it's possible to isolate those applications in
 	  their own address space using seccomp. Once seccomp is
-	  enabled via /proc/<pid>/seccomp, it cannot be disabled
+	  enabled via /proc/<pid>/seccomp, it canyest be disabled
 	  and the task is only allowed to execute a few safe syscalls
 	  defined by each seccomp mode.
 
@@ -900,7 +900,7 @@ config PFAULT
 	help
 	  Select this option, if you want to use PFAULT pseudo page fault
 	  handling under VM. If running native or in LPAR, this option
-	  has no effect. If your VM does not support PFAULT, PAGEEX
+	  has yes effect. If your VM does yest support PFAULT, PAGEEX
 	  pseudo page fault handling will be used.
 	  Note that VM 4.2 supports PFAULT but has a bug in its
 	  implementation that causes some problems.
@@ -982,7 +982,7 @@ config APPLDATA_NET_SUM
 	depends on APPLDATA_BASE && NET
 	help
 	  This provides network related data to the Linux - VM Monitor Stream,
-	  currently there is only a total sum of network I/O statistics, no
+	  currently there is only a total sum of network I/O statistics, yes
 	  per-interface data.
 	  Writing 1 or 0 to /proc/appldata/net_sum creates(1) or removes(0) a z/VM
 	  APPLDATA monitor record, i.e. enables or disables monitoring this record
@@ -1025,7 +1025,7 @@ config S390_UNWIND_SELFTEST
 	prompt "Test unwind functions"
 	help
 	  This option enables s390 specific stack unwinder testing kernel
-	  module. This option is not useful for distributions or general
+	  module. This option is yest useful for distributions or general
 	  kernels, but only for kernel developers working on architecture code.
 
 	  Say N if you are unsure.

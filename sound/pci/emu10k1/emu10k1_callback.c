@@ -85,7 +85,7 @@ snd_emu10k1_synth_get_voice(struct snd_emu10k1 *hw)
 
 	emu = hw->synth;
 
-	lookup_voices(emu, hw, best, 1); /* no OFF voices */
+	lookup_voices(emu, hw, best, 1); /* yes OFF voices */
 	for (i = 0; i < V_END; i++) {
 		if (best[i].voice >= 0) {
 			int ch;
@@ -104,13 +104,13 @@ snd_emu10k1_synth_get_voice(struct snd_emu10k1 *hw)
 		}
 	}
 
-	/* not found */
+	/* yest found */
 	return -ENOMEM;
 }
 
 
 /*
- * turn off the voice (not terminated)
+ * turn off the voice (yest terminated)
  */
 static void
 release_voice(struct snd_emux_voice *vp)
@@ -250,7 +250,7 @@ lookup_voices(struct snd_emux *emu, struct snd_emu10k1 *hw,
 		else
 			continue;
 
-		/* check if sample is finished playing (non-looping only) */
+		/* check if sample is finished playing (yesn-looping only) */
 		if (bp != best + V_OFF && bp != best + V_FREE &&
 		    (vp->reg.sample_mode & SNDRV_SFNT_SAMPLE_SINGLESHOT)) {
 			val = snd_emu10k1_ptr_read(hw, CCCA_CURRADDR, vp->ch);
@@ -296,7 +296,7 @@ get_voice(struct snd_emux *emu, struct snd_emux_port *port)
 		}
 	}
 
-	/* not found */
+	/* yest found */
 	return NULL;
 }
 
@@ -324,7 +324,7 @@ start_voice(struct snd_emux_voice *vp)
 		return -EINVAL;
 	emem->map_locked++;
 	if (snd_emu10k1_memblk_map(hw, emem) < 0) {
-		/* dev_err(hw->card->devK, "emu: cannot map!\n"); */
+		/* dev_err(hw->card->devK, "emu: canyest map!\n"); */
 		return -ENOMEM;
 	}
 	mapped_offset = snd_emu10k1_memblk_offset(emem) >> 1;
@@ -470,7 +470,7 @@ trigger_voice(struct snd_emux_voice *vp)
 
 	emem = (struct snd_emu10k1_memblk *)vp->block;
 	if (! emem || emem->mapped_page < 0)
-		return; /* not mapped */
+		return; /* yest mapped */
 
 #if 0
 	ptarget = (unsigned int)vp->ptarget << 16;

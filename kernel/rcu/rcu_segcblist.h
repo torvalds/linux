@@ -34,8 +34,8 @@ struct rcu_head *rcu_cblist_dequeue(struct rcu_cblist *rclp);
 /*
  * Is the specified rcu_segcblist structure empty?
  *
- * But careful!  The fact that the ->head field is NULL does not
- * necessarily imply that there are no callbacks associated with
+ * But careful!  The fact that the ->head field is NULL does yest
+ * necessarily imply that there are yes callbacks associated with
  * this structure.  When callbacks are being invoked, they are
  * removed as a group.  If callback invocation must be preempted,
  * the remaining callbacks will be added back to the list.  Either
@@ -66,13 +66,13 @@ static inline long rcu_segcblist_n_lazy_cbs(struct rcu_segcblist *rsclp)
 }
 
 /* Return number of lazy callbacks in segmented callback list. */
-static inline long rcu_segcblist_n_nonlazy_cbs(struct rcu_segcblist *rsclp)
+static inline long rcu_segcblist_n_yesnlazy_cbs(struct rcu_segcblist *rsclp)
 {
 	return rcu_segcblist_n_cbs(rsclp) - rsclp->len_lazy;
 }
 
 /*
- * Is the specified rcu_segcblist enabled, for example, not corresponding
+ * Is the specified rcu_segcblist enabled, for example, yest corresponding
  * to an offline CPU?
  */
 static inline bool rcu_segcblist_is_enabled(struct rcu_segcblist *rsclp)

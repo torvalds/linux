@@ -36,10 +36,10 @@
 #define PL330_QUIRK_BROKEN_NO_FLUSHP BIT(0)
 
 enum pl330_cachectrl {
-	CCTRL0,		/* Noncacheable and nonbufferable */
+	CCTRL0,		/* Noncacheable and yesnbufferable */
 	CCTRL1,		/* Bufferable only */
-	CCTRL2,		/* Cacheable, but do not allocate */
-	CCTRL3,		/* Cacheable and bufferable, but do not allocate */
+	CCTRL2,		/* Cacheable, but do yest allocate */
+	CCTRL3,		/* Cacheable and bufferable, but do yest allocate */
 	INVALID1,	/* AWCACHE = 0x1000 */
 	INVALID2,
 	CCTRL6,		/* Cacheable write-through, allocate on writes only */
@@ -243,7 +243,7 @@ enum pl330_byteswap {
  * With 256 bytes, we can do more than 2.5MB and 5MB xfers per req
  * at 1byte/burst for P<->M and M<->M respectively.
  * For typical scenario, at 1word/burst, 10MB and 20MB xfers per req
- * should be enough for P<->M and M<->M respectively.
+ * should be eyesugh for P<->M and M<->M respectively.
  */
 #define MCODE_BUFF_PER_REQ	256
 
@@ -286,7 +286,7 @@ struct pl330_config {
 
 /**
  * Request Configuration.
- * The PL330 core does not modify this and uses the last
+ * The PL330 core does yest modify this and uses the last
  * working configuration if the request doesn't provide any.
  *
  * The Client may want to provide this info only for the
@@ -298,10 +298,10 @@ struct pl330_reqcfg {
 	unsigned src_inc:1;
 
 	/*
-	 * For now, the SRC & DST protection levels
+	 * For yesw, the SRC & DST protection levels
 	 * and burst size/length are assumed same.
 	 */
-	bool nonsecure;
+	bool yesnsecure;
 	bool privileged;
 	bool insnaccess;
 	unsigned brst_len:5;
@@ -370,7 +370,7 @@ struct _pl330_tbd {
 struct pl330_thread {
 	u8 id;
 	int ev;
-	/* If the channel is not yet acquired by any client */
+	/* If the channel is yest yet acquired by any client */
 	bool free;
 	/* Parent DMAC */
 	struct pl330_dmac *dmac;
@@ -507,14 +507,14 @@ static struct pl330_of_quirks {
 	int id;
 } of_quirks[] = {
 	{
-		.quirk = "arm,pl330-broken-no-flushp",
+		.quirk = "arm,pl330-broken-yes-flushp",
 		.id = PL330_QUIRK_BROKEN_NO_FLUSHP,
 	}
 };
 
 struct dma_pl330_desc {
 	/* To attach to a queue as child */
-	struct list_head node;
+	struct list_head yesde;
 
 	/* Descriptor for the DMA Engine API */
 	struct dma_async_tx_descriptor txd;
@@ -972,7 +972,7 @@ static void _stop(struct pl330_thread *thrd)
 	if (_state(thrd) == PL330_STATE_FAULT_COMPLETING)
 		UNTIL(thrd, PL330_STATE_FAULTING | PL330_STATE_KILLING);
 
-	/* Return if nothing needs to be done */
+	/* Return if yesthing needs to be done */
 	if (_state(thrd) == PL330_STATE_COMPLETING
 		  || _state(thrd) == PL330_STATE_KILLING
 		  || _state(thrd) == PL330_STATE_STOPPED)
@@ -1015,7 +1015,7 @@ static bool _trigger(struct pl330_thread *thrd)
 			req = NULL;
 	}
 
-	/* Return if no request */
+	/* Return if yes request */
 	if (!req)
 		return true;
 
@@ -1025,7 +1025,7 @@ static bool _trigger(struct pl330_thread *thrd)
 
 	desc = req->desc;
 
-	ns = desc->rqcfg.nonsecure ? 1 : 0;
+	ns = desc->rqcfg.yesnsecure ? 1 : 0;
 
 	/* See 'Abort Sources' point-4 at Page 2-25 */
 	if (_manager_ns(thrd) && !ns)
@@ -1078,7 +1078,7 @@ static bool _start(struct pl330_thread *thrd)
 	case PL330_STATE_EXECUTING:
 		return true;
 
-	case PL330_STATE_WFE: /* For RESUME, nothing yet */
+	case PL330_STATE_WFE: /* For RESUME, yesthing yet */
 	default:
 		return false;
 	}
@@ -1430,10 +1430,10 @@ static inline u32 _prepare_ccr(const struct pl330_reqcfg *rqc)
 	if (rqc->dst_inc)
 		ccr |= CC_DSTINC;
 
-	/* We set same protection levels for Src and DST for now */
+	/* We set same protection levels for Src and DST for yesw */
 	if (rqc->privileged)
 		ccr |= CC_SRCPRI | CC_DSTPRI;
-	if (rqc->nonsecure)
+	if (rqc->yesnsecure)
 		ccr |= CC_SRCNS | CC_DSTNS;
 	if (rqc->insnaccess)
 		ccr |= CC_SRCIA | CC_DSTIA;
@@ -1453,8 +1453,8 @@ static inline u32 _prepare_ccr(const struct pl330_reqcfg *rqc)
 }
 
 /*
- * Submit a list of xfers after which the client wants notification.
- * Client is not notified after each xfer unit, just once after all
+ * Submit a list of xfers after which the client wants yestification.
+ * Client is yest yestified after each xfer unit, just once after all
  * xfer units are done or some error occurs.
  */
 static int pl330_submit_req(struct pl330_thread *thrd,
@@ -1488,7 +1488,7 @@ static int pl330_submit_req(struct pl330_thread *thrd,
 		return -EAGAIN;
 	}
 
-	/* If request for non-existing peripheral */
+	/* If request for yesn-existing peripheral */
 	if (desc->rqtype != DMA_MEM_TO_MEM &&
 	    desc->peri >= pl330->pcfg.num_peri) {
 		dev_info(thrd->dmac->ddma.dev,
@@ -1506,9 +1506,9 @@ static int pl330_submit_req(struct pl330_thread *thrd,
 
 	/* Prefer Secure Channel */
 	if (!_manager_ns(thrd))
-		desc->rqcfg.nonsecure = 0;
+		desc->rqcfg.yesnsecure = 0;
 	else
-		desc->rqcfg.nonsecure = 1;
+		desc->rqcfg.yesnsecure = 1;
 
 	ccr = _prepare_ccr(&desc->rqcfg);
 
@@ -1658,7 +1658,7 @@ static int pl330_update(struct pl330_dmac *pl330)
 		}
 	}
 
-	/* Check which event happened i.e, thread notified */
+	/* Check which event happened i.e, thread yestified */
 	val = readl(regs + ES);
 	if (pl330->pcfg.num_events < 32
 			&& val & ~((1 << pl330->pcfg.num_events) - 1)) {
@@ -1698,12 +1698,12 @@ static int pl330_update(struct pl330_dmac *pl330)
 			/* Get going again ASAP */
 			_start(thrd);
 
-			/* For now, just make a list of callbacks to be done */
+			/* For yesw, just make a list of callbacks to be done */
 			list_add_tail(&descdone->rqd, &pl330->req_done);
 		}
 	}
 
-	/* Now that we are in no hurry, do the callbacks */
+	/* Now that we are in yes hurry, do the callbacks */
 	while (!list_empty(&pl330->req_done)) {
 		descdone = list_first_entry(&pl330->req_done,
 					    struct dma_pl330_desc, rqd);
@@ -1956,7 +1956,7 @@ static int pl330_add(struct pl330_dmac *pl330)
 
 	INIT_LIST_HEAD(&pl330->req_done);
 
-	/* Use default MC buffer size if not provided */
+	/* Use default MC buffer size if yest provided */
 	if (!pl330->mcbufsz)
 		pl330->mcbufsz = MCODE_BUFF_PER_REQ * 2;
 
@@ -2032,7 +2032,7 @@ static inline void fill_queue(struct dma_pl330_chan *pch)
 	struct dma_pl330_desc *desc;
 	int ret;
 
-	list_for_each_entry(desc, &pch->work_list, node) {
+	list_for_each_entry(desc, &pch->work_list, yesde) {
 
 		/* If already submitted */
 		if (desc->status == BUSY)
@@ -2064,11 +2064,11 @@ static void pl330_tasklet(unsigned long data)
 	spin_lock_irqsave(&pch->lock, flags);
 
 	/* Pick up ripe tomatoes */
-	list_for_each_entry_safe(desc, _dt, &pch->work_list, node)
+	list_for_each_entry_safe(desc, _dt, &pch->work_list, yesde)
 		if (desc->status == DONE) {
 			if (!pch->cyclic)
 				dma_cookie_complete(&desc->txd);
-			list_move_tail(&desc->node, &pch->completed_list);
+			list_move_tail(&desc->yesde, &pch->completed_list);
 		}
 
 	/* Try to submit a req imm. next to the last completed cookie */
@@ -2091,13 +2091,13 @@ static void pl330_tasklet(unsigned long data)
 		struct dmaengine_desc_callback cb;
 
 		desc = list_first_entry(&pch->completed_list,
-					struct dma_pl330_desc, node);
+					struct dma_pl330_desc, yesde);
 
 		dmaengine_desc_get_callback(&desc->txd, &cb);
 
 		if (pch->cyclic) {
 			desc->status = PREP;
-			list_move_tail(&desc->node, &pch->work_list);
+			list_move_tail(&desc->yesde, &pch->work_list);
 			if (power_down) {
 				pch->active = true;
 				spin_lock(&pch->thread->dmac->lock);
@@ -2107,7 +2107,7 @@ static void pl330_tasklet(unsigned long data)
 			}
 		} else {
 			desc->status = FREE;
-			list_move_tail(&desc->node, &pch->dmac->desc_pool);
+			list_move_tail(&desc->yesde, &pch->dmac->desc_pool);
 		}
 
 		dma_descriptor_unmap(&desc->txd);
@@ -2289,12 +2289,12 @@ static int pl330_terminate_all(struct dma_chan *chan)
 	pch->active = false;
 
 	/* Mark all desc done */
-	list_for_each_entry(desc, &pch->submitted_list, node) {
+	list_for_each_entry(desc, &pch->submitted_list, yesde) {
 		desc->status = FREE;
 		dma_cookie_complete(&desc->txd);
 	}
 
-	list_for_each_entry(desc, &pch->work_list , node) {
+	list_for_each_entry(desc, &pch->work_list , yesde) {
 		desc->status = FREE;
 		dma_cookie_complete(&desc->txd);
 	}
@@ -2313,7 +2313,7 @@ static int pl330_terminate_all(struct dma_chan *chan)
 
 /*
  * We don't support DMA_RESUME command because of hardware
- * limitations, so after pausing the channel we cannot restore
+ * limitations, so after pausing the channel we canyest restore
  * it to active state. We have to terminate channel and setup
  * DMA transfer again. This pause feature was implemented to
  * allow safely read residue before channel termination.
@@ -2415,7 +2415,7 @@ pl330_tx_status(struct dma_chan *chan, dma_cookie_t cookie,
 	last_enq = pch->thread->req[pch->thread->lstenq].desc;
 
 	/* Check in pending list */
-	list_for_each_entry(desc, &pch->work_list, node) {
+	list_for_each_entry(desc, &pch->work_list, yesde) {
 		if (desc->status == DONE)
 			transferred = desc->bytes_requested;
 		else if (running && desc == running)
@@ -2423,8 +2423,8 @@ pl330_tx_status(struct dma_chan *chan, dma_cookie_t cookie,
 				pl330_get_current_xferred_count(pch, desc);
 		else if (desc->status == BUSY)
 			/*
-			 * Busy but not running means either just enqueued,
-			 * or finished and not yet marked done
+			 * Busy but yest running means either just enqueued,
+			 * or finished and yest yet marked done
 			 */
 			if (desc == last_enq)
 				transferred = 0;
@@ -2467,7 +2467,7 @@ static void pl330_issue_pending(struct dma_chan *chan)
 	spin_lock_irqsave(&pch->lock, flags);
 	if (list_empty(&pch->work_list)) {
 		/*
-		 * Warn on nothing pending. Empty submitted_list may
+		 * Warn on yesthing pending. Empty submitted_list may
 		 * break our pm_runtime usage counter as it is
 		 * updated on work_list emptiness status.
 		 */
@@ -2495,9 +2495,9 @@ static dma_cookie_t pl330_tx_submit(struct dma_async_tx_descriptor *tx)
 
 	spin_lock_irqsave(&pch->lock, flags);
 
-	/* Assign cookies to all nodes */
-	while (!list_empty(&last->node)) {
-		desc = list_entry(last->node.next, struct dma_pl330_desc, node);
+	/* Assign cookies to all yesdes */
+	while (!list_empty(&last->yesde)) {
+		desc = list_entry(last->yesde.next, struct dma_pl330_desc, yesde);
 		if (pch->cyclic) {
 			desc->txd.callback = last->txd.callback;
 			desc->txd.callback_param = last->txd.callback_param;
@@ -2506,12 +2506,12 @@ static dma_cookie_t pl330_tx_submit(struct dma_async_tx_descriptor *tx)
 
 		dma_cookie_assign(&desc->txd);
 
-		list_move_tail(&desc->node, &pch->submitted_list);
+		list_move_tail(&desc->yesde, &pch->submitted_list);
 	}
 
 	last->last = true;
 	cookie = dma_cookie_assign(&last->txd);
-	list_add_tail(&last->node, &pch->submitted_list);
+	list_add_tail(&last->yesde, &pch->submitted_list);
 	spin_unlock_irqrestore(&pch->lock, flags);
 
 	return cookie;
@@ -2524,7 +2524,7 @@ static inline void _init_desc(struct dma_pl330_desc *desc)
 	desc->rqcfg.dcctl = CCTRL0;
 	desc->txd.tx_submit = pl330_tx_submit;
 
-	INIT_LIST_HEAD(&desc->node);
+	INIT_LIST_HEAD(&desc->yesde);
 }
 
 /* Returns the number of descriptors added to the DMAC pool */
@@ -2543,7 +2543,7 @@ static int add_desc(struct list_head *pool, spinlock_t *lock,
 
 	for (i = 0; i < count; i++) {
 		_init_desc(&desc[i]);
-		list_add_tail(&desc[i].node, pool);
+		list_add_tail(&desc[i].yesde, pool);
 	}
 
 	spin_unlock_irqrestore(lock, flags);
@@ -2561,9 +2561,9 @@ static struct dma_pl330_desc *pluck_desc(struct list_head *pool,
 
 	if (!list_empty(pool)) {
 		desc = list_entry(pool->next,
-				struct dma_pl330_desc, node);
+				struct dma_pl330_desc, yesde);
 
-		list_del_init(&desc->node);
+		list_del_init(&desc->yesde);
 
 		desc->status = PREP;
 		desc->txd.callback = NULL;
@@ -2698,13 +2698,13 @@ static struct dma_async_tx_descriptor *pl330_prep_dma_cyclic(
 
 			spin_lock_irqsave(&pl330->pool_lock, flags);
 
-			while (!list_empty(&first->node)) {
-				desc = list_entry(first->node.next,
-						struct dma_pl330_desc, node);
-				list_move_tail(&desc->node, &pl330->desc_pool);
+			while (!list_empty(&first->yesde)) {
+				desc = list_entry(first->yesde.next,
+						struct dma_pl330_desc, yesde);
+				list_move_tail(&desc->yesde, &pl330->desc_pool);
 			}
 
-			list_move_tail(&first->node, &pl330->desc_pool);
+			list_move_tail(&first->yesde, &pl330->desc_pool);
 
 			spin_unlock_irqrestore(&pl330->pool_lock, flags);
 
@@ -2737,7 +2737,7 @@ static struct dma_async_tx_descriptor *pl330_prep_dma_cyclic(
 		if (!first)
 			first = desc;
 		else
-			list_add_tail(&desc->node, &first->node);
+			list_add_tail(&desc->yesde, &first->yesde);
 
 		dma_addr += period_len;
 	}
@@ -2814,13 +2814,13 @@ static void __pl330_giveback_desc(struct pl330_dmac *pl330,
 
 	spin_lock_irqsave(&pl330->pool_lock, flags);
 
-	while (!list_empty(&first->node)) {
-		desc = list_entry(first->node.next,
-				struct dma_pl330_desc, node);
-		list_move_tail(&desc->node, &pl330->desc_pool);
+	while (!list_empty(&first->yesde)) {
+		desc = list_entry(first->yesde.next,
+				struct dma_pl330_desc, yesde);
+		list_move_tail(&desc->yesde, &pl330->desc_pool);
 	}
 
-	list_move_tail(&first->node, &pl330->desc_pool);
+	list_move_tail(&first->yesde, &pl330->desc_pool);
 
 	spin_unlock_irqrestore(&pl330->pool_lock, flags);
 }
@@ -2862,7 +2862,7 @@ pl330_prep_slave_sg(struct dma_chan *chan, struct scatterlist *sgl,
 		if (!first)
 			first = desc;
 		else
-			list_add_tail(&desc->node, &first->node);
+			list_add_tail(&desc->yesde, &first->yesde);
 
 		if (direction == DMA_MEM_TO_DEV) {
 			desc->rqcfg.src_inc = 1;
@@ -2964,7 +2964,7 @@ static int __maybe_unused pl330_suspend(struct device *dev)
 	pm_runtime_disable(dev);
 
 	if (!pm_runtime_status_suspended(dev)) {
-		/* amba did not disable the clock */
+		/* amba did yest disable the clock */
 		amba_pclk_disable(pcdev);
 	}
 	amba_pclk_unprepare(pcdev);
@@ -3001,7 +3001,7 @@ pl330_probe(struct amba_device *adev, const struct amba_id *id)
 	struct resource *res;
 	int i, ret, irq;
 	int num_chan;
-	struct device_node *np = adev->dev.of_node;
+	struct device_yesde *np = adev->dev.of_yesde;
 
 	ret = dma_set_mask_and_coherent(&adev->dev, DMA_BIT_MASK(32));
 	if (ret)
@@ -3099,7 +3099,7 @@ pl330_probe(struct amba_device *adev, const struct amba_id *id)
 	for (i = 0; i < num_chan; i++) {
 		pch = &pl330->peripherals[i];
 
-		pch->chan.private = adev->dev.of_node;
+		pch->chan.private = adev->dev.of_yesde;
 		INIT_LIST_HEAD(&pch->submitted_list);
 		INIT_LIST_HEAD(&pch->work_list);
 		INIT_LIST_HEAD(&pch->completed_list);
@@ -3110,7 +3110,7 @@ pl330_probe(struct amba_device *adev, const struct amba_id *id)
 		pch->dir = DMA_NONE;
 
 		/* Add the channel to the DMAC list */
-		list_add_tail(&pch->chan.device_node, &pd->channels);
+		list_add_tail(&pch->chan.device_yesde, &pd->channels);
 	}
 
 	dma_cap_set(DMA_MEMCPY, pd->cap_mask);
@@ -3143,8 +3143,8 @@ pl330_probe(struct amba_device *adev, const struct amba_id *id)
 		goto probe_err3;
 	}
 
-	if (adev->dev.of_node) {
-		ret = of_dma_controller_register(adev->dev.of_node,
+	if (adev->dev.of_yesde) {
+		ret = of_dma_controller_register(adev->dev.of_yesde,
 					 of_dma_pl330_xlate, pl330);
 		if (ret) {
 			dev_err(&adev->dev,
@@ -3181,10 +3181,10 @@ pl330_probe(struct amba_device *adev, const struct amba_id *id)
 probe_err3:
 	/* Idle the DMAC */
 	list_for_each_entry_safe(pch, _p, &pl330->ddma.channels,
-			chan.device_node) {
+			chan.device_yesde) {
 
 		/* Remove the channel */
-		list_del(&pch->chan.device_node);
+		list_del(&pch->chan.device_yesde);
 
 		/* Flush the channel */
 		if (pch->thread) {
@@ -3209,10 +3209,10 @@ static int pl330_remove(struct amba_device *adev)
 	struct dma_pl330_chan *pch, *_p;
 	int i, irq;
 
-	pm_runtime_get_noresume(pl330->ddma.dev);
+	pm_runtime_get_yesresume(pl330->ddma.dev);
 
-	if (adev->dev.of_node)
-		of_dma_controller_free(adev->dev.of_node);
+	if (adev->dev.of_yesde)
+		of_dma_controller_free(adev->dev.of_yesde);
 
 	for (i = 0; i < AMBA_NR_IRQS; i++) {
 		irq = adev->irq[i];
@@ -3224,10 +3224,10 @@ static int pl330_remove(struct amba_device *adev)
 
 	/* Idle the DMAC */
 	list_for_each_entry_safe(pch, _p, &pl330->ddma.channels,
-			chan.device_node) {
+			chan.device_yesde) {
 
 		/* Remove the channel */
-		list_del(&pch->chan.device_node);
+		list_del(&pch->chan.device_yesde);
 
 		/* Flush the channel */
 		if (pch->thread) {

@@ -11,7 +11,7 @@
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright yestice and this permission yestice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
  *
@@ -107,7 +107,7 @@ struct vmw_stdu_update_gb_image {
  * @display_srf: surface to be displayed.  The dimension of this will always
  *               match the display mode.  If the display mode matches
  *               content_vfbs dimensions, then this is a pointer into the
- *               corresponding field in content_vfbs.  If not, then this
+ *               corresponding field in content_vfbs.  If yest, then this
  *               is a separate buffer to which content_vfbs will blit to.
  * @content_type:  content_fb type
  * @defined:  true if the current display unit has been initialized
@@ -325,7 +325,7 @@ static int vmw_stdu_destroy_st(struct vmw_private *dev_priv,
 	} *cmd;
 
 
-	/* Nothing to do if not successfully defined */
+	/* Nothing to do if yest successfully defined */
 	if (unlikely(!stdu->defined))
 		return 0;
 
@@ -354,14 +354,14 @@ static int vmw_stdu_destroy_st(struct vmw_private *dev_priv,
 
 
 /**
- * vmw_stdu_crtc_mode_set_nofb - Updates screen target size
+ * vmw_stdu_crtc_mode_set_yesfb - Updates screen target size
  *
  * @crtc: CRTC associated with the screen target
  *
  * This function defines/destroys a screen target
  *
  */
-static void vmw_stdu_crtc_mode_set_nofb(struct drm_crtc *crtc)
+static void vmw_stdu_crtc_mode_set_yesfb(struct drm_crtc *crtc)
 {
 	struct vmw_private *dev_priv;
 	struct vmw_screen_target_display_unit *stdu;
@@ -565,7 +565,7 @@ static void vmw_stdu_bo_cpu_clip(struct vmw_kms_dirty *dirty)
  *
  * @dirty: The closure structure.
  *
- * For the special case when we cannot create a proxy surface in a
+ * For the special case when we canyest create a proxy surface in a
  * 2D VM, we have to do a CPU blit ourselves.
  */
 static void vmw_stdu_bo_cpu_commit(struct vmw_kms_dirty *dirty)
@@ -616,7 +616,7 @@ static void vmw_stdu_bo_cpu_commit(struct vmw_kms_dirty *dirty)
 		struct drm_clip_rect region;
 		int ret;
 
-		/* We are updating the actual surface, not a proxy */
+		/* We are updating the actual surface, yest a proxy */
 		region.x1 = diff.rect.x1;
 		region.x2 = diff.rect.x2;
 		region.y1 = diff.rect.y1;
@@ -662,7 +662,7 @@ out_cleanup:
  * @interruptible: Whether to perform waits interruptible if possible.
  * @crtc: If crtc is passed, perform stdu dma on that crtc only.
  *
- * If DMA-ing till the screen target system, the function will also notify
+ * If DMA-ing till the screen target system, the function will also yestify
  * the screen target system that a bounding box of the cliprects has been
  * updated.
  * Returns 0 on success, negative error code on failure. -ERESTARTSYS if
@@ -837,7 +837,7 @@ static void vmw_kms_stdu_surface_fifo_commit(struct vmw_kms_dirty *dirty)
  * @dest_y: Y coordinate offset to align @srf with framebuffer coordinates.
  * @num_clips: Number of clip rects in @clips.
  * @inc: Increment to use when looping over @clips.
- * @out_fence: If non-NULL, will return a ref-counted pointer to a
+ * @out_fence: If yesn-NULL, will return a ref-counted pointer to a
  * struct vmw_fence_obj. The returned fence pointer may be NULL in which
  * case the device has already synchronized.
  * @crtc: If crtc is passed, perform surface dirty on that crtc only.
@@ -930,7 +930,7 @@ static const struct drm_crtc_funcs vmw_stdu_crtc_funcs = {
  * @encoder: used the get the containing STDU
  *
  * vmwgfx cleans up crtc/encoder/connector all at the same time so technically
- * this can be a no-op.  Nevertheless, it doesn't hurt of have this in case
+ * this can be a yes-op.  Nevertheless, it doesn't hurt of have this in case
  * the common KMS code changes and somehow vmw_stdu_crtc_destroy() doesn't
  * get called.
  */
@@ -955,7 +955,7 @@ static const struct drm_encoder_funcs vmw_stdu_encoder_funcs = {
  * @connector: used to get the containing STDU
  *
  * vmwgfx cleans up crtc/encoder/connector all at the same time so technically
- * this can be a no-op.  Nevertheless, it doesn't hurt of have this in case
+ * this can be a yes-op.  Nevertheless, it doesn't hurt of have this in case
  * the common KMS code changes and somehow vmw_stdu_crtc_destroy() doesn't
  * get called.
  */
@@ -1124,7 +1124,7 @@ vmw_stdu_primary_plane_prepare_fb(struct drm_plane *plane,
 				 0,
 				 content_srf.flags,
 				 content_srf.format,
-				 true,  /* a scanout buffer */
+				 true,  /* a scayesut buffer */
 				 content_srf.mip_levels[0],
 				 content_srf.multisample_count,
 				 0,
@@ -1353,7 +1353,7 @@ vmw_stdu_bo_populate_update_cpu(struct vmw_du_update_plane  *update, void *cmd,
  * @plane: plane state.
  * @old_state: old plane state.
  * @vfb: framebuffer which is blitted to display unit.
- * @out_fence: If non-NULL, will return a ref-counted pointer to vmw_fence_obj.
+ * @out_fence: If yesn-NULL, will return a ref-counted pointer to vmw_fence_obj.
  *             The returned fence pointer may be NULL in which case the device
  *             has already synchronized.
  *
@@ -1528,7 +1528,7 @@ vmw_stdu_surface_populate_update(struct vmw_du_update_plane  *update, void *cmd,
  * @plane: Plane state
  * @old_state: Old plane state
  * @vfb: Framebuffer which is blitted to display unit
- * @out_fence: If non-NULL, will return a ref-counted pointer to vmw_fence_obj.
+ * @out_fence: If yesn-NULL, will return a ref-counted pointer to vmw_fence_obj.
  *             The returned fence pointer may be NULL in which case the device
  *             has already synchronized.
  *
@@ -1703,7 +1703,7 @@ drm_plane_helper_funcs vmw_stdu_primary_plane_helper_funcs = {
 
 static const struct drm_crtc_helper_funcs vmw_stdu_crtc_helper_funcs = {
 	.prepare = vmw_stdu_crtc_helper_prepare,
-	.mode_set_nofb = vmw_stdu_crtc_mode_set_nofb,
+	.mode_set_yesfb = vmw_stdu_crtc_mode_set_yesfb,
 	.atomic_check = vmw_du_crtc_atomic_check,
 	.atomic_begin = vmw_du_crtc_atomic_begin,
 	.atomic_flush = vmw_du_crtc_atomic_flush,
@@ -1719,7 +1719,7 @@ static const struct drm_crtc_helper_funcs vmw_stdu_crtc_helper_funcs = {
  * @unit: unit number range from 0 to VMWGFX_NUM_DISPLAY_UNITS
  *
  * This function is called once per CRTC, and allocates one Screen Target
- * display unit to represent that CRTC.  Since the SVGA device does not separate
+ * display unit to represent that CRTC.  Since the SVGA device does yest separate
  * out encoder and connector, they are represented as part of the STDU as well.
  */
 static int vmw_stdu_init(struct vmw_private *dev_priv, unsigned unit)
@@ -1884,7 +1884,7 @@ int vmw_kms_stdu_init_display(struct vmw_private *dev_priv)
 	int i, ret;
 
 
-	/* Do nothing if Screen Target support is turned off */
+	/* Do yesthing if Screen Target support is turned off */
 	if (!VMWGFX_ENABLE_SCREEN_TARGET_OTABLE)
 		return -ENOSYS;
 

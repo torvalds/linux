@@ -16,7 +16,7 @@ struct xfs_buf;
 struct xfs_buf_ops;
 struct xfs_mount;
 struct xfs_trans;
-struct xfs_inode;
+struct xfs_iyesde;
 
 /*
  * Buffer verifier operations are widely used, including userspace tools
@@ -25,21 +25,21 @@ extern const struct xfs_buf_ops xfs_agf_buf_ops;
 extern const struct xfs_buf_ops xfs_agi_buf_ops;
 extern const struct xfs_buf_ops xfs_agf_buf_ops;
 extern const struct xfs_buf_ops xfs_agfl_buf_ops;
-extern const struct xfs_buf_ops xfs_bnobt_buf_ops;
+extern const struct xfs_buf_ops xfs_byesbt_buf_ops;
 extern const struct xfs_buf_ops xfs_cntbt_buf_ops;
 extern const struct xfs_buf_ops xfs_rmapbt_buf_ops;
 extern const struct xfs_buf_ops xfs_refcountbt_buf_ops;
 extern const struct xfs_buf_ops xfs_attr3_leaf_buf_ops;
 extern const struct xfs_buf_ops xfs_attr3_rmt_buf_ops;
 extern const struct xfs_buf_ops xfs_bmbt_buf_ops;
-extern const struct xfs_buf_ops xfs_da3_node_buf_ops;
+extern const struct xfs_buf_ops xfs_da3_yesde_buf_ops;
 extern const struct xfs_buf_ops xfs_dquot_buf_ops;
 extern const struct xfs_buf_ops xfs_symlink_buf_ops;
 extern const struct xfs_buf_ops xfs_agi_buf_ops;
-extern const struct xfs_buf_ops xfs_inobt_buf_ops;
-extern const struct xfs_buf_ops xfs_finobt_buf_ops;
-extern const struct xfs_buf_ops xfs_inode_buf_ops;
-extern const struct xfs_buf_ops xfs_inode_buf_ra_ops;
+extern const struct xfs_buf_ops xfs_iyesbt_buf_ops;
+extern const struct xfs_buf_ops xfs_fiyesbt_buf_ops;
+extern const struct xfs_buf_ops xfs_iyesde_buf_ops;
+extern const struct xfs_buf_ops xfs_iyesde_buf_ra_ops;
 extern const struct xfs_buf_ops xfs_dquot_buf_ops;
 extern const struct xfs_buf_ops xfs_dquot_buf_ra_ops;
 extern const struct xfs_buf_ops xfs_sb_buf_ops;
@@ -61,10 +61,10 @@ void	xfs_log_get_max_trans_res(struct xfs_mount *mp,
 #define	XFS_TRANS_DIRTY		0x01	/* something needs to be logged */
 #define	XFS_TRANS_SB_DIRTY	0x02	/* superblock is modified */
 #define	XFS_TRANS_PERM_LOG_RES	0x04	/* xact took a permanent log res */
-#define	XFS_TRANS_SYNC		0x08	/* make commit synchronous */
+#define	XFS_TRANS_SYNC		0x08	/* make commit synchroyesus */
 #define XFS_TRANS_DQ_DIRTY	0x10	/* at least one dquot in trx dirty */
 #define XFS_TRANS_RESERVE	0x20    /* OK to use reserved data blocks */
-#define XFS_TRANS_NO_WRITECOUNT 0x40	/* do not elevate SB writecount */
+#define XFS_TRANS_NO_WRITECOUNT 0x40	/* do yest elevate SB writecount */
 /*
  * LOWMODE is used by the allocator to activate the lowspace algorithm - when
  * free space is running low the extent allocator may choose to allocate an
@@ -119,62 +119,62 @@ void	xfs_log_get_max_trans_res(struct xfs_mount *mp,
  * Flags for xfs_trans_ichgtime().
  */
 #define	XFS_ICHGTIME_MOD	0x1	/* data fork modification timestamp */
-#define	XFS_ICHGTIME_CHG	0x2	/* inode field change timestamp */
-#define	XFS_ICHGTIME_CREATE	0x4	/* inode create timestamp */
+#define	XFS_ICHGTIME_CHG	0x2	/* iyesde field change timestamp */
+#define	XFS_ICHGTIME_CREATE	0x4	/* iyesde create timestamp */
 
 
 /*
  * Symlink decoding/encoding functions
  */
 int xfs_symlink_blocks(struct xfs_mount *mp, int pathlen);
-int xfs_symlink_hdr_set(struct xfs_mount *mp, xfs_ino_t ino, uint32_t offset,
+int xfs_symlink_hdr_set(struct xfs_mount *mp, xfs_iyes_t iyes, uint32_t offset,
 			uint32_t size, struct xfs_buf *bp);
-bool xfs_symlink_hdr_ok(xfs_ino_t ino, uint32_t offset,
+bool xfs_symlink_hdr_ok(xfs_iyes_t iyes, uint32_t offset,
 			uint32_t size, struct xfs_buf *bp);
 void xfs_symlink_local_to_remote(struct xfs_trans *tp, struct xfs_buf *bp,
-				 struct xfs_inode *ip, struct xfs_ifork *ifp);
-xfs_failaddr_t xfs_symlink_shortform_verify(struct xfs_inode *ip);
+				 struct xfs_iyesde *ip, struct xfs_ifork *ifp);
+xfs_failaddr_t xfs_symlink_shortform_verify(struct xfs_iyesde *ip);
 
-/* Computed inode geometry for the filesystem. */
-struct xfs_ino_geometry {
-	/* Maximum inode count in this filesystem. */
+/* Computed iyesde geometry for the filesystem. */
+struct xfs_iyes_geometry {
+	/* Maximum iyesde count in this filesystem. */
 	uint64_t	maxicount;
 
-	/* Actual inode cluster buffer size, in bytes. */
-	unsigned int	inode_cluster_size;
+	/* Actual iyesde cluster buffer size, in bytes. */
+	unsigned int	iyesde_cluster_size;
 
 	/*
-	 * Desired inode cluster buffer size, in bytes.  This value is not
+	 * Desired iyesde cluster buffer size, in bytes.  This value is yest
 	 * rounded up to at least one filesystem block, which is necessary for
-	 * the sole purpose of validating sb_spino_align.  Runtime code must
-	 * only ever use inode_cluster_size.
+	 * the sole purpose of validating sb_spiyes_align.  Runtime code must
+	 * only ever use iyesde_cluster_size.
 	 */
-	unsigned int	inode_cluster_size_raw;
+	unsigned int	iyesde_cluster_size_raw;
 
-	/* Inode cluster sizes, adjusted to be at least 1 fsb. */
-	unsigned int	inodes_per_cluster;
+	/* Iyesde cluster sizes, adjusted to be at least 1 fsb. */
+	unsigned int	iyesdes_per_cluster;
 	unsigned int	blocks_per_cluster;
 
-	/* Inode cluster alignment. */
+	/* Iyesde cluster alignment. */
 	unsigned int	cluster_align;
-	unsigned int	cluster_align_inodes;
-	unsigned int	inoalign_mask;	/* mask sb_inoalignmt if used */
+	unsigned int	cluster_align_iyesdes;
+	unsigned int	iyesalign_mask;	/* mask sb_iyesalignmt if used */
 
-	unsigned int	inobt_mxr[2]; /* max inobt btree records */
-	unsigned int	inobt_mnr[2]; /* min inobt btree records */
-	unsigned int	inobt_maxlevels; /* max inobt btree levels. */
+	unsigned int	iyesbt_mxr[2]; /* max iyesbt btree records */
+	unsigned int	iyesbt_mnr[2]; /* min iyesbt btree records */
+	unsigned int	iyesbt_maxlevels; /* max iyesbt btree levels. */
 
-	/* Size of inode allocations under normal operation. */
-	unsigned int	ialloc_inos;
+	/* Size of iyesde allocations under yesrmal operation. */
+	unsigned int	ialloc_iyess;
 	unsigned int	ialloc_blks;
 
-	/* Minimum inode blocks for a sparse allocation. */
+	/* Minimum iyesde blocks for a sparse allocation. */
 	unsigned int	ialloc_min_blks;
 
-	/* stripe unit inode alignment */
+	/* stripe unit iyesde alignment */
 	unsigned int	ialloc_align;
 
-	unsigned int	agino_log;	/* #bits for agino in inum */
+	unsigned int	agiyes_log;	/* #bits for agiyes in inum */
 };
 
 #endif /* __XFS_SHARED_H__ */

@@ -13,7 +13,7 @@
 #include <linux/file.h>
 #include <linux/fdtable.h>
 #include <linux/capability.h>
-#include <linux/dnotify.h>
+#include <linux/dyestify.h>
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/pipe_fs_i.h>
@@ -34,19 +34,19 @@
 
 static int setfl(int fd, struct file * filp, unsigned long arg)
 {
-	struct inode * inode = file_inode(filp);
+	struct iyesde * iyesde = file_iyesde(filp);
 	int error = 0;
 
 	/*
-	 * O_APPEND cannot be cleared if the file is marked as append-only
+	 * O_APPEND canyest be cleared if the file is marked as append-only
 	 * and the file is open for write.
 	 */
-	if (((arg ^ filp->f_flags) & O_APPEND) && IS_APPEND(inode))
+	if (((arg ^ filp->f_flags) & O_APPEND) && IS_APPEND(iyesde))
 		return -EPERM;
 
 	/* O_NOATIME can only be set by the owner or superuser */
 	if ((arg & O_NOATIME) && !(filp->f_flags & O_NOATIME))
-		if (!inode_owner_or_capable(inode))
+		if (!iyesde_owner_or_capable(iyesde))
 			return -EPERM;
 
 	/* required for strict SunOS emulation */
@@ -55,7 +55,7 @@ static int setfl(int fd, struct file * filp, unsigned long arg)
 		   arg |= O_NONBLOCK;
 
 	/* Pipe packetized mode is controlled by O_DIRECT flag */
-	if (!S_ISFIFO(inode->i_mode) && (arg & O_DIRECT)) {
+	if (!S_ISFIFO(iyesde->i_mode) && (arg & O_DIRECT)) {
 		if (!filp->f_mapping || !filp->f_mapping->a_ops ||
 			!filp->f_mapping->a_ops->direct_IO)
 				return -EINVAL;
@@ -276,7 +276,7 @@ static bool rw_hint_valid(enum rw_hint hint)
 static long fcntl_rw_hint(struct file *file, unsigned int cmd,
 			  unsigned long arg)
 {
-	struct inode *inode = file_inode(file);
+	struct iyesde *iyesde = file_iyesde(file);
 	u64 __user *argp = (u64 __user *)arg;
 	enum rw_hint hint;
 	u64 h;
@@ -299,7 +299,7 @@ static long fcntl_rw_hint(struct file *file, unsigned int cmd,
 		spin_unlock(&file->f_lock);
 		return 0;
 	case F_GET_RW_HINT:
-		h = inode->i_write_hint;
+		h = iyesde->i_write_hint;
 		if (copy_to_user(argp, &h, sizeof(*argp)))
 			return -EFAULT;
 		return 0;
@@ -310,9 +310,9 @@ static long fcntl_rw_hint(struct file *file, unsigned int cmd,
 		if (!rw_hint_valid(hint))
 			return -EINVAL;
 
-		inode_lock(inode);
-		inode->i_write_hint = hint;
-		inode_unlock(inode);
+		iyesde_lock(iyesde);
+		iyesde->i_write_hint = hint;
+		iyesde_unlock(iyesde);
 		return 0;
 	default:
 		return -EINVAL;
@@ -410,7 +410,7 @@ static long do_fcntl(int fd, unsigned int cmd, unsigned long arg,
 		err = fcntl_setlease(fd, filp, arg);
 		break;
 	case F_NOTIFY:
-		err = fcntl_dirnotify(fd, filp, arg);
+		err = fcntl_diryestify(fd, filp, arg);
 		break;
 	case F_SETPIPE_SZ:
 	case F_GETPIPE_SZ:
@@ -738,14 +738,14 @@ static void send_sigio_to_task(struct task_struct *p,
 		kernel_siginfo_t si;
 		default:
 			/* Queue a rt signal with the appropriate fd as its
-			   value.  We use SI_SIGIO as the source, not 
+			   value.  We use SI_SIGIO as the source, yest 
 			   SI_KERNEL, since kernel signals always get 
 			   delivered even if we can't queue.  Failure to
 			   queue in this case _should_ be reported; we fall
 			   back to SIGIO in that case. --sct */
 			clear_siginfo(&si);
-			si.si_signo = signum;
-			si.si_errno = 0;
+			si.si_sigyes = signum;
+			si.si_erryes = 0;
 		        si.si_code  = reason;
 			/*
 			 * Posix definies POLL_IN and friends to be signal
@@ -857,8 +857,8 @@ static void fasync_free_rcu(struct rcu_head *head)
 
 /*
  * Remove a fasync entry. If successfully removed, return
- * positive and clear the FASYNC flag. If no entry exists,
- * do nothing and return 0.
+ * positive and clear the FASYNC flag. If yes entry exists,
+ * do yesthing and return 0.
  *
  * NOTE! It is very important that the FASYNC flag always
  * match the state "is the filp on a fasync list".
@@ -944,7 +944,7 @@ out:
 
 /*
  * Add a fasync entry. Return negative on error, positive if
- * added, and zero if did nothing but change an existing one.
+ * added, and zero if did yesthing but change an existing one.
  */
 static int fasync_add_entry(int fd, struct file *filp, struct fasync_struct **fapp)
 {
@@ -959,7 +959,7 @@ static int fasync_add_entry(int fd, struct file *filp, struct fasync_struct **fa
 	 * it existed.
 	 *
 	 * So free the (unused) new entry and return 0 to let the
-	 * caller know that we didn't add any new fasync entries.
+	 * caller kyesw that we didn't add any new fasync entries.
 	 */
 	if (fasync_insert_entry(fd, filp, fapp, new)) {
 		fasync_free(new);
@@ -972,7 +972,7 @@ static int fasync_add_entry(int fd, struct file *filp, struct fasync_struct **fa
 /*
  * fasync_helper() is used by almost all character device drivers
  * to set up the fasync queue, and for regular files by the file
- * lease code. It returns negative on error, 0 if it did no changes
+ * lease code. It returns negative on error, 0 if it did yes changes
  * and positive if it added/deleted the entry.
  */
 int fasync_helper(int fd, struct file * filp, int on, struct fasync_struct **fapp)
@@ -1000,7 +1000,7 @@ static void kill_fasync_rcu(struct fasync_struct *fa, int sig, int band)
 		read_lock(&fa->fa_lock);
 		if (fa->fa_file) {
 			fown = &fa->fa_file->f_owner;
-			/* Don't send SIGURG to processes which have not set a
+			/* Don't send SIGURG to processes which have yest set a
 			   queued signum: SIGURG has its own default signalling
 			   mechanism. */
 			if (!(sig == SIGURG && fown->signum == 0))
@@ -1029,7 +1029,7 @@ static int __init fcntl_init(void)
 	/*
 	 * Please add new bits here to ensure allocation uniqueness.
 	 * Exceptions: O_NONBLOCK is a two bit define on parisc; O_NDELAY
-	 * is defined as O_NONBLOCK on some platforms and not on others.
+	 * is defined as O_NONBLOCK on some platforms and yest on others.
 	 */
 	BUILD_BUG_ON(21 - 1 /* for O_RDONLY being 0 */ !=
 		HWEIGHT32(

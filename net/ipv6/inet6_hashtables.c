@@ -42,7 +42,7 @@ u32 inet6_ehashfn(const struct net *net,
 
 /*
  * Sockets in TCP_CLOSE state are _always_ taken out of the hash, so
- * we need not check it for TCP lookups anymore, thanks Alexey. -DaveM
+ * we need yest check it for TCP lookups anymore, thanks Alexey. -DaveM
  *
  * The sockhash lock must be held as a reader here.
  */
@@ -55,7 +55,7 @@ struct sock *__inet6_lookup_established(struct net *net,
 					   const int dif, const int sdif)
 {
 	struct sock *sk;
-	const struct hlist_nulls_node *node;
+	const struct hlist_nulls_yesde *yesde;
 	const __portpair ports = INET_COMBINED_PORTS(sport, hnum);
 	/* Optimize here for direct hit, only listening connections can
 	 * have wildcards anyways.
@@ -66,12 +66,12 @@ struct sock *__inet6_lookup_established(struct net *net,
 
 
 begin:
-	sk_nulls_for_each_rcu(sk, node, &head->chain) {
+	sk_nulls_for_each_rcu(sk, yesde, &head->chain) {
 		if (sk->sk_hash != hash)
 			continue;
 		if (!INET6_MATCH(sk, net, saddr, daddr, ports, dif, sdif))
 			continue;
-		if (unlikely(!refcount_inc_not_zero(&sk->sk_refcnt)))
+		if (unlikely(!refcount_inc_yest_zero(&sk->sk_refcnt)))
 			goto out;
 
 		if (unlikely(!INET6_MATCH(sk, net, saddr, daddr, ports, dif, sdif))) {
@@ -80,7 +80,7 @@ begin:
 		}
 		goto found;
 	}
-	if (get_nulls_value(node) != slot)
+	if (get_nulls_value(yesde) != slot)
 		goto begin;
 out:
 	sk = NULL;
@@ -191,7 +191,7 @@ struct sock *inet6_lookup(struct net *net, struct inet_hashinfo *hashinfo,
 
 	sk = __inet6_lookup(net, hashinfo, skb, doff, saddr, sport, daddr,
 			    ntohs(dport), dif, 0, &refcounted);
-	if (sk && !refcounted && !refcount_inc_not_zero(&sk->sk_refcnt))
+	if (sk && !refcounted && !refcount_inc_yest_zero(&sk->sk_refcnt))
 		sk = NULL;
 	return sk;
 }
@@ -214,12 +214,12 @@ static int __inet6_check_established(struct inet_timewait_death_row *death_row,
 	struct inet_ehash_bucket *head = inet_ehash_bucket(hinfo, hash);
 	spinlock_t *lock = inet_ehash_lockp(hinfo, hash);
 	struct sock *sk2;
-	const struct hlist_nulls_node *node;
+	const struct hlist_nulls_yesde *yesde;
 	struct inet_timewait_sock *tw = NULL;
 
 	spin_lock(lock);
 
-	sk_nulls_for_each(sk2, node, &head->chain) {
+	sk_nulls_for_each(sk2, yesde, &head->chain) {
 		if (sk2->sk_hash != hash)
 			continue;
 
@@ -230,20 +230,20 @@ static int __inet6_check_established(struct inet_timewait_death_row *death_row,
 				if (twsk_unique(sk, sk2, twp))
 					break;
 			}
-			goto not_unique;
+			goto yest_unique;
 		}
 	}
 
-	/* Must record num and sport now. Otherwise we will see
+	/* Must record num and sport yesw. Otherwise we will see
 	 * in hash table socket with a funny identity.
 	 */
 	inet->inet_num = lport;
 	inet->inet_sport = htons(lport);
 	sk->sk_hash = hash;
 	WARN_ON(!sk_unhashed(sk));
-	__sk_nulls_add_node_rcu(sk, &head->chain);
+	__sk_nulls_add_yesde_rcu(sk, &head->chain);
 	if (tw) {
-		sk_nulls_del_node_init_rcu((struct sock *)tw);
+		sk_nulls_del_yesde_init_rcu((struct sock *)tw);
 		__NET_INC_STATS(net, LINUX_MIB_TIMEWAITRECYCLED);
 	}
 	spin_unlock(lock);
@@ -257,7 +257,7 @@ static int __inet6_check_established(struct inet_timewait_death_row *death_row,
 	}
 	return 0;
 
-not_unique:
+yest_unique:
 	spin_unlock(lock);
 	return -EADDRNOTAVAIL;
 }

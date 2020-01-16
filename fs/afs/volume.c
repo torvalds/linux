@@ -101,10 +101,10 @@ static struct afs_vldb_entry *afs_vl_lookup_vldb(struct afs_cell *cell,
  *
  * See "The Rules of Mount Point Traversal" in Chapter 5 of the AFS SysAdmin
  * Guide
- * - Rule 1: Explicit type suffix forces access of that type or nothing
- *           (no suffix, then use Rule 2 & 3)
+ * - Rule 1: Explicit type suffix forces access of that type or yesthing
+ *           (yes suffix, then use Rule 2 & 3)
  * - Rule 2: If parent volume is R/O, then mount R/O volume by preference, R/W
- *           if not available
+ *           if yest available
  * - Rule 3: If parent volume is R/W, then only mount R/W volume unless
  *           explicitly told otherwise
  */
@@ -257,7 +257,7 @@ static int afs_update_volume_status(struct afs_volume *volume, struct key *key)
 
 	discard = new;
 	old = volume->servers;
-	if (afs_annotate_server_list(new, old)) {
+	if (afs_anyestate_server_list(new, old)) {
 		new->seq = volume->servers_seq + 1;
 		volume->servers = new;
 		smp_wmb();
@@ -283,12 +283,12 @@ error:
  */
 int afs_check_volume_status(struct afs_volume *volume, struct key *key)
 {
-	time64_t now = ktime_get_real_seconds();
+	time64_t yesw = ktime_get_real_seconds();
 	int ret, retries = 0;
 
 	_enter("");
 
-	if (volume->update_at <= now)
+	if (volume->update_at <= yesw)
 		set_bit(AFS_VOLUME_NEEDS_UPDATE, &volume->flags);
 
 retry:
@@ -308,7 +308,7 @@ retry:
 	}
 
 	if (!test_bit(AFS_VOLUME_WAIT, &volume->flags)) {
-		_leave(" = 0 [no wait]");
+		_leave(" = 0 [yes wait]");
 		return 0;
 	}
 

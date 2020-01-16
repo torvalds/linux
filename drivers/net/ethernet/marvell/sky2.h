@@ -314,7 +314,7 @@ enum csr_regs {
 /* Yukon-2: use RAM_BUFFER() to access the RAM buffer */
 /*
  * The HW-Spec. calls this registers Timeout Value 0..11. But this names are
- * not usable in SW. Please notice these are NOT real timeouts, these are
+ * yest usable in SW. Please yestice these are NOT real timeouts, these are
  * the number of qWords transferred continuously.
  */
 #define RAM_BUFFER(port, reg)	(reg | (port <<6))
@@ -426,7 +426,7 @@ enum {
 	Y2_IS_CHK_TXS2	= 1<<9,		/* Descriptor error TXS 2 */
 	Y2_IS_CHK_TXA2	= 1<<8,		/* Descriptor error TXA 2 */
 
-	Y2_IS_PSM_ACK	= 1<<7,		/* PSM Acknowledge (Yukon-Optima only) */
+	Y2_IS_PSM_ACK	= 1<<7,		/* PSM Ackyeswledge (Yukon-Optima only) */
 	Y2_IS_PTP_TIST	= 1<<6,		/* PTP Time Stamp (Yukon-Optima only) */
 	Y2_IS_PHY_QLNK	= 1<<5,		/* PHY Quick Link (Yukon-Optima only) */
 
@@ -765,7 +765,7 @@ enum {
 	/* Receive */
 	F_M_RX_RAM_DIS	= 1<<24, /* MAC Rx RAM Read Port disable */
 
-	/* Hardware testbits not used */
+	/* Hardware testbits yest used */
 };
 
 /* Queue Prefetch Unit Offsets, use Y2_QADDR() to address (Yukon-2 only)*/
@@ -810,10 +810,10 @@ enum {
 enum {
 	Q_R1	= 0x0000,	/* Receive Queue 1 */
 	Q_R2	= 0x0080,	/* Receive Queue 2 */
-	Q_XS1	= 0x0200,	/* Synchronous Transmit Queue 1 */
-	Q_XA1	= 0x0280,	/* Asynchronous Transmit Queue 1 */
-	Q_XS2	= 0x0300,	/* Synchronous Transmit Queue 2 */
-	Q_XA2	= 0x0380,	/* Asynchronous Transmit Queue 2 */
+	Q_XS1	= 0x0200,	/* Synchroyesus Transmit Queue 1 */
+	Q_XA1	= 0x0280,	/* Asynchroyesus Transmit Queue 1 */
+	Q_XS2	= 0x0300,	/* Synchroyesus Transmit Queue 2 */
+	Q_XA2	= 0x0380,	/* Asynchroyesus Transmit Queue 2 */
 };
 
 /* Different PHY Types */
@@ -945,7 +945,7 @@ enum {
 /* PREF_UNIT_CTRL	32 bit	Prefetch Control register */
 enum {
 	PREF_UNIT_OP_ON		= 1<<3,	/* prefetch unit operational */
-	PREF_UNIT_OP_OFF	= 1<<2,	/* prefetch unit not operational */
+	PREF_UNIT_OP_OFF	= 1<<2,	/* prefetch unit yest operational */
 	PREF_UNIT_RST_CLR	= 1<<1,	/* Clear Prefetch Unit Reset */
 	PREF_UNIT_RST_SET	= 1<<0,	/* Set   Prefetch Unit Reset */
 };
@@ -1166,7 +1166,7 @@ enum {
 	PHY_MARV_LED_OVER	= 0x19,/* 16 bit r/w	Manual LED Override Reg */
 	PHY_MARV_EXT_CTRL_2	= 0x1a,/* 16 bit r/w	Ext. PHY Specific Ctrl 2 */
 	PHY_MARV_EXT_P_STAT	= 0x1b,/* 16 bit r/w	Ext. PHY Spec. Stat Reg */
-	PHY_MARV_CABLE_DIAG	= 0x1c,/* 16 bit r/o	Cable Diagnostic Reg */
+	PHY_MARV_CABLE_DIAG	= 0x1c,/* 16 bit r/o	Cable Diagyesstic Reg */
 	PHY_MARV_PAGE_ADDR	= 0x1d,/* 16 bit r/w	Extended Page Address Reg */
 	PHY_MARV_PAGE_DATA	= 0x1e,/* 16 bit r/w	Extended Page Data Reg */
 
@@ -1235,7 +1235,7 @@ enum {
 /* Advertisement register bits */
 enum {
 	PHY_AN_NXT_PG	= 1<<15, /* Bit 15:	Request Next Page */
-	PHY_AN_ACK	= 1<<14, /* Bit 14:	(ro) Acknowledge Received */
+	PHY_AN_ACK	= 1<<14, /* Bit 14:	(ro) Ackyeswledge Received */
 	PHY_AN_RF	= 1<<13, /* Bit 13:	Remote Fault Bits */
 
 	PHY_AN_PAUSE_ASYM = 1<<11,/* Bit 11:	Try for asymmetric */
@@ -1268,7 +1268,7 @@ enum {
 /** Marvell-Specific */
 enum {
 	PHY_M_AN_NXT_PG	= 1<<15, /* Request Next Page */
-	PHY_M_AN_ACK	= 1<<14, /* (ro)	Acknowledge Received */
+	PHY_M_AN_ACK	= 1<<14, /* (ro)	Ackyeswledge Received */
 	PHY_M_AN_RF	= 1<<13, /* Remote Fault */
 
 	PHY_M_AN_ASP	= 1<<11, /* Asymmetric Pause */
@@ -1291,7 +1291,7 @@ enum {
 
 /* Pause Bits (PHY_M_AN_ASP_X and PHY_M_AN_PC_X) encoding */
 enum {
-	PHY_M_P_NO_PAUSE_X	= 0<<7,/* Bit  8.. 7:	no Pause Mode */
+	PHY_M_P_NO_PAUSE_X	= 0<<7,/* Bit  8.. 7:	yes Pause Mode */
 	PHY_M_P_SYM_MD_X	= 1<<7, /* Bit  8.. 7:	symmetric Pause Mode */
 	PHY_M_P_ASYM_MD_X	= 2<<7,/* Bit  8.. 7:	asymmetric Pause Mode */
 	PHY_M_P_BOTH_MD_X	= 3<<7,/* Bit  8.. 7:	both Pause Mode */
@@ -1499,7 +1499,7 @@ enum {
 #define PHY_M_POLC_STA0_CTRL(x)	(((x)<<0) & PHY_M_POLC_STA0_MSK)
 
 enum {
-	PULS_NO_STR	= 0,/* no pulse stretching */
+	PULS_NO_STR	= 0,/* yes pulse stretching */
 	PULS_21MS	= 1,/* 21 ms to 42 ms */
 	PULS_42MS	= 2,/* 42 ms to 84 ms */
 	PULS_84MS	= 3,/* 84 ms to 170 ms */
@@ -2159,7 +2159,7 @@ enum status_css {
 	CSS_TCPUDPCSOK	= 1<<7,	/* TCP / UDP checksum is ok */
 	CSS_ISUDP	= 1<<6, /* packet is a UDP packet */
 	CSS_ISTCP	= 1<<5, /* packet is a TCP packet */
-	CSS_ISIPFRAG	= 1<<4, /* packet is a TCP/UDP frag, CS calc not done */
+	CSS_ISIPFRAG	= 1<<4, /* packet is a TCP/UDP frag, CS calc yest done */
 	CSS_ISIPV6	= 1<<3, /* packet is a IPv6 packet */
 	CSS_IPV4CSUMOK	= 1<<2, /* IP v4: TCP header checksum is ok */
 	CSS_ISIPV4	= 1<<1, /* packet is a IPv4 packet */
@@ -2375,7 +2375,7 @@ static inline u64 gma_read64(struct sky2_hw *hw, unsigned port, unsigned reg)
 		| (u64) sky2_read16(hw, base+12) << 48;
 }
 
-/* There is no way to atomically read32 bit values from PHY, so retry */
+/* There is yes way to atomically read32 bit values from PHY, so retry */
 static inline u32 get_stats32(struct sky2_hw *hw, unsigned port, unsigned reg)
 {
 	u32 val;

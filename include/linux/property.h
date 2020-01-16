@@ -11,7 +11,7 @@
 #define _LINUX_PROPERTY_H_
 
 #include <linux/bits.h>
-#include <linux/fwnode.h>
+#include <linux/fwyesde.h>
 #include <linux/types.h>
 
 struct device;
@@ -30,7 +30,7 @@ enum dev_dma_attr {
 	DEV_DMA_COHERENT,
 };
 
-struct fwnode_handle *dev_fwnode(struct device *dev);
+struct fwyesde_handle *dev_fwyesde(struct device *dev);
 
 bool device_property_present(struct device *dev, const char *propname);
 int device_property_read_u8_array(struct device *dev, const char *propname,
@@ -48,76 +48,76 @@ int device_property_read_string(struct device *dev, const char *propname,
 int device_property_match_string(struct device *dev,
 				 const char *propname, const char *string);
 
-bool fwnode_device_is_available(const struct fwnode_handle *fwnode);
-bool fwnode_property_present(const struct fwnode_handle *fwnode,
+bool fwyesde_device_is_available(const struct fwyesde_handle *fwyesde);
+bool fwyesde_property_present(const struct fwyesde_handle *fwyesde,
 			     const char *propname);
-int fwnode_property_read_u8_array(const struct fwnode_handle *fwnode,
+int fwyesde_property_read_u8_array(const struct fwyesde_handle *fwyesde,
 				  const char *propname, u8 *val,
 				  size_t nval);
-int fwnode_property_read_u16_array(const struct fwnode_handle *fwnode,
+int fwyesde_property_read_u16_array(const struct fwyesde_handle *fwyesde,
 				   const char *propname, u16 *val,
 				   size_t nval);
-int fwnode_property_read_u32_array(const struct fwnode_handle *fwnode,
+int fwyesde_property_read_u32_array(const struct fwyesde_handle *fwyesde,
 				   const char *propname, u32 *val,
 				   size_t nval);
-int fwnode_property_read_u64_array(const struct fwnode_handle *fwnode,
+int fwyesde_property_read_u64_array(const struct fwyesde_handle *fwyesde,
 				   const char *propname, u64 *val,
 				   size_t nval);
-int fwnode_property_read_string_array(const struct fwnode_handle *fwnode,
+int fwyesde_property_read_string_array(const struct fwyesde_handle *fwyesde,
 				      const char *propname, const char **val,
 				      size_t nval);
-int fwnode_property_read_string(const struct fwnode_handle *fwnode,
+int fwyesde_property_read_string(const struct fwyesde_handle *fwyesde,
 				const char *propname, const char **val);
-int fwnode_property_match_string(const struct fwnode_handle *fwnode,
+int fwyesde_property_match_string(const struct fwyesde_handle *fwyesde,
 				 const char *propname, const char *string);
-int fwnode_property_get_reference_args(const struct fwnode_handle *fwnode,
+int fwyesde_property_get_reference_args(const struct fwyesde_handle *fwyesde,
 				       const char *prop, const char *nargs_prop,
 				       unsigned int nargs, unsigned int index,
-				       struct fwnode_reference_args *args);
+				       struct fwyesde_reference_args *args);
 
-struct fwnode_handle *fwnode_find_reference(const struct fwnode_handle *fwnode,
+struct fwyesde_handle *fwyesde_find_reference(const struct fwyesde_handle *fwyesde,
 					    const char *name,
 					    unsigned int index);
 
-const char *fwnode_get_name(const struct fwnode_handle *fwnode);
-const char *fwnode_get_name_prefix(const struct fwnode_handle *fwnode);
-struct fwnode_handle *fwnode_get_parent(const struct fwnode_handle *fwnode);
-struct fwnode_handle *fwnode_get_next_parent(
-	struct fwnode_handle *fwnode);
-unsigned int fwnode_count_parents(const struct fwnode_handle *fwn);
-struct fwnode_handle *fwnode_get_nth_parent(struct fwnode_handle *fwn,
+const char *fwyesde_get_name(const struct fwyesde_handle *fwyesde);
+const char *fwyesde_get_name_prefix(const struct fwyesde_handle *fwyesde);
+struct fwyesde_handle *fwyesde_get_parent(const struct fwyesde_handle *fwyesde);
+struct fwyesde_handle *fwyesde_get_next_parent(
+	struct fwyesde_handle *fwyesde);
+unsigned int fwyesde_count_parents(const struct fwyesde_handle *fwn);
+struct fwyesde_handle *fwyesde_get_nth_parent(struct fwyesde_handle *fwn,
 					    unsigned int depth);
-struct fwnode_handle *fwnode_get_next_child_node(
-	const struct fwnode_handle *fwnode, struct fwnode_handle *child);
-struct fwnode_handle *fwnode_get_next_available_child_node(
-	const struct fwnode_handle *fwnode, struct fwnode_handle *child);
+struct fwyesde_handle *fwyesde_get_next_child_yesde(
+	const struct fwyesde_handle *fwyesde, struct fwyesde_handle *child);
+struct fwyesde_handle *fwyesde_get_next_available_child_yesde(
+	const struct fwyesde_handle *fwyesde, struct fwyesde_handle *child);
 
-#define fwnode_for_each_child_node(fwnode, child)			\
-	for (child = fwnode_get_next_child_node(fwnode, NULL); child;	\
-	     child = fwnode_get_next_child_node(fwnode, child))
+#define fwyesde_for_each_child_yesde(fwyesde, child)			\
+	for (child = fwyesde_get_next_child_yesde(fwyesde, NULL); child;	\
+	     child = fwyesde_get_next_child_yesde(fwyesde, child))
 
-#define fwnode_for_each_available_child_node(fwnode, child)		       \
-	for (child = fwnode_get_next_available_child_node(fwnode, NULL); child;\
-	     child = fwnode_get_next_available_child_node(fwnode, child))
+#define fwyesde_for_each_available_child_yesde(fwyesde, child)		       \
+	for (child = fwyesde_get_next_available_child_yesde(fwyesde, NULL); child;\
+	     child = fwyesde_get_next_available_child_yesde(fwyesde, child))
 
-struct fwnode_handle *device_get_next_child_node(
-	struct device *dev, struct fwnode_handle *child);
+struct fwyesde_handle *device_get_next_child_yesde(
+	struct device *dev, struct fwyesde_handle *child);
 
-#define device_for_each_child_node(dev, child)				\
-	for (child = device_get_next_child_node(dev, NULL); child;	\
-	     child = device_get_next_child_node(dev, child))
+#define device_for_each_child_yesde(dev, child)				\
+	for (child = device_get_next_child_yesde(dev, NULL); child;	\
+	     child = device_get_next_child_yesde(dev, child))
 
-struct fwnode_handle *fwnode_get_named_child_node(
-	const struct fwnode_handle *fwnode, const char *childname);
-struct fwnode_handle *device_get_named_child_node(struct device *dev,
+struct fwyesde_handle *fwyesde_get_named_child_yesde(
+	const struct fwyesde_handle *fwyesde, const char *childname);
+struct fwyesde_handle *device_get_named_child_yesde(struct device *dev,
 						  const char *childname);
 
-struct fwnode_handle *fwnode_handle_get(struct fwnode_handle *fwnode);
-void fwnode_handle_put(struct fwnode_handle *fwnode);
+struct fwyesde_handle *fwyesde_handle_get(struct fwyesde_handle *fwyesde);
+void fwyesde_handle_put(struct fwyesde_handle *fwyesde);
 
-int fwnode_irq_get(struct fwnode_handle *fwnode, unsigned int index);
+int fwyesde_irq_get(struct fwyesde_handle *fwyesde, unsigned int index);
 
-unsigned int device_get_child_node_count(struct device *dev);
+unsigned int device_get_child_yesde_count(struct device *dev);
 
 static inline bool device_property_read_bool(struct device *dev,
 					     const char *propname)
@@ -169,58 +169,58 @@ static inline int device_property_count_u64(struct device *dev, const char *prop
 	return device_property_read_u64_array(dev, propname, NULL, 0);
 }
 
-static inline bool fwnode_property_read_bool(const struct fwnode_handle *fwnode,
+static inline bool fwyesde_property_read_bool(const struct fwyesde_handle *fwyesde,
 					     const char *propname)
 {
-	return fwnode_property_present(fwnode, propname);
+	return fwyesde_property_present(fwyesde, propname);
 }
 
-static inline int fwnode_property_read_u8(const struct fwnode_handle *fwnode,
+static inline int fwyesde_property_read_u8(const struct fwyesde_handle *fwyesde,
 					  const char *propname, u8 *val)
 {
-	return fwnode_property_read_u8_array(fwnode, propname, val, 1);
+	return fwyesde_property_read_u8_array(fwyesde, propname, val, 1);
 }
 
-static inline int fwnode_property_read_u16(const struct fwnode_handle *fwnode,
+static inline int fwyesde_property_read_u16(const struct fwyesde_handle *fwyesde,
 					   const char *propname, u16 *val)
 {
-	return fwnode_property_read_u16_array(fwnode, propname, val, 1);
+	return fwyesde_property_read_u16_array(fwyesde, propname, val, 1);
 }
 
-static inline int fwnode_property_read_u32(const struct fwnode_handle *fwnode,
+static inline int fwyesde_property_read_u32(const struct fwyesde_handle *fwyesde,
 					   const char *propname, u32 *val)
 {
-	return fwnode_property_read_u32_array(fwnode, propname, val, 1);
+	return fwyesde_property_read_u32_array(fwyesde, propname, val, 1);
 }
 
-static inline int fwnode_property_read_u64(const struct fwnode_handle *fwnode,
+static inline int fwyesde_property_read_u64(const struct fwyesde_handle *fwyesde,
 					   const char *propname, u64 *val)
 {
-	return fwnode_property_read_u64_array(fwnode, propname, val, 1);
+	return fwyesde_property_read_u64_array(fwyesde, propname, val, 1);
 }
 
-static inline int fwnode_property_count_u8(const struct fwnode_handle *fwnode,
+static inline int fwyesde_property_count_u8(const struct fwyesde_handle *fwyesde,
 					   const char *propname)
 {
-	return fwnode_property_read_u8_array(fwnode, propname, NULL, 0);
+	return fwyesde_property_read_u8_array(fwyesde, propname, NULL, 0);
 }
 
-static inline int fwnode_property_count_u16(const struct fwnode_handle *fwnode,
+static inline int fwyesde_property_count_u16(const struct fwyesde_handle *fwyesde,
 					    const char *propname)
 {
-	return fwnode_property_read_u16_array(fwnode, propname, NULL, 0);
+	return fwyesde_property_read_u16_array(fwyesde, propname, NULL, 0);
 }
 
-static inline int fwnode_property_count_u32(const struct fwnode_handle *fwnode,
+static inline int fwyesde_property_count_u32(const struct fwyesde_handle *fwyesde,
 					    const char *propname)
 {
-	return fwnode_property_read_u32_array(fwnode, propname, NULL, 0);
+	return fwyesde_property_read_u32_array(fwyesde, propname, NULL, 0);
 }
 
-static inline int fwnode_property_count_u64(const struct fwnode_handle *fwnode,
+static inline int fwyesde_property_count_u64(const struct fwyesde_handle *fwyesde,
 					    const char *propname)
 {
-	return fwnode_property_read_u64_array(fwnode, propname, NULL, 0);
+	return fwyesde_property_read_u64_array(fwyesde, propname, NULL, 0);
 }
 
 /**
@@ -250,8 +250,8 @@ struct property_entry {
 };
 
 /*
- * Note: the below initializers for the anonymous union are carefully
- * crafted to avoid gcc-4.4.4's problems with initialization of anon unions
+ * Note: the below initializers for the ayesnymous union are carefully
+ * crafted to avoid gcc-4.4.4's problems with initialization of ayesn unions
  * and structs.
  */
 
@@ -332,27 +332,27 @@ int device_get_phy_mode(struct device *dev);
 
 void *device_get_mac_address(struct device *dev, char *addr, int alen);
 
-int fwnode_get_phy_mode(struct fwnode_handle *fwnode);
-void *fwnode_get_mac_address(struct fwnode_handle *fwnode,
+int fwyesde_get_phy_mode(struct fwyesde_handle *fwyesde);
+void *fwyesde_get_mac_address(struct fwyesde_handle *fwyesde,
 			     char *addr, int alen);
-struct fwnode_handle *fwnode_graph_get_next_endpoint(
-	const struct fwnode_handle *fwnode, struct fwnode_handle *prev);
-struct fwnode_handle *
-fwnode_graph_get_port_parent(const struct fwnode_handle *fwnode);
-struct fwnode_handle *fwnode_graph_get_remote_port_parent(
-	const struct fwnode_handle *fwnode);
-struct fwnode_handle *fwnode_graph_get_remote_port(
-	const struct fwnode_handle *fwnode);
-struct fwnode_handle *fwnode_graph_get_remote_endpoint(
-	const struct fwnode_handle *fwnode);
-struct fwnode_handle *
-fwnode_graph_get_remote_node(const struct fwnode_handle *fwnode, u32 port,
+struct fwyesde_handle *fwyesde_graph_get_next_endpoint(
+	const struct fwyesde_handle *fwyesde, struct fwyesde_handle *prev);
+struct fwyesde_handle *
+fwyesde_graph_get_port_parent(const struct fwyesde_handle *fwyesde);
+struct fwyesde_handle *fwyesde_graph_get_remote_port_parent(
+	const struct fwyesde_handle *fwyesde);
+struct fwyesde_handle *fwyesde_graph_get_remote_port(
+	const struct fwyesde_handle *fwyesde);
+struct fwyesde_handle *fwyesde_graph_get_remote_endpoint(
+	const struct fwyesde_handle *fwyesde);
+struct fwyesde_handle *
+fwyesde_graph_get_remote_yesde(const struct fwyesde_handle *fwyesde, u32 port,
 			     u32 endpoint);
 
 /*
- * Fwnode lookup flags
+ * Fwyesde lookup flags
  *
- * @FWNODE_GRAPH_ENDPOINT_NEXT: In the case of no exact match, look for the
+ * @FWNODE_GRAPH_ENDPOINT_NEXT: In the case of yes exact match, look for the
  *				closest endpoint ID greater than the specified
  *				one.
  * @FWNODE_GRAPH_DEVICE_DISABLED: That the device to which the remote
@@ -362,79 +362,79 @@ fwnode_graph_get_remote_node(const struct fwnode_handle *fwnode, u32 port,
 #define FWNODE_GRAPH_ENDPOINT_NEXT	BIT(0)
 #define FWNODE_GRAPH_DEVICE_DISABLED	BIT(1)
 
-struct fwnode_handle *
-fwnode_graph_get_endpoint_by_id(const struct fwnode_handle *fwnode,
+struct fwyesde_handle *
+fwyesde_graph_get_endpoint_by_id(const struct fwyesde_handle *fwyesde,
 				u32 port, u32 endpoint, unsigned long flags);
 
-#define fwnode_graph_for_each_endpoint(fwnode, child)			\
+#define fwyesde_graph_for_each_endpoint(fwyesde, child)			\
 	for (child = NULL;						\
-	     (child = fwnode_graph_get_next_endpoint(fwnode, child)); )
+	     (child = fwyesde_graph_get_next_endpoint(fwyesde, child)); )
 
-int fwnode_graph_parse_endpoint(const struct fwnode_handle *fwnode,
-				struct fwnode_endpoint *endpoint);
+int fwyesde_graph_parse_endpoint(const struct fwyesde_handle *fwyesde,
+				struct fwyesde_endpoint *endpoint);
 
 /* -------------------------------------------------------------------------- */
-/* Software fwnode support - when HW description is incomplete or missing */
+/* Software fwyesde support - when HW description is incomplete or missing */
 
-struct software_node;
+struct software_yesde;
 
 /**
- * struct software_node_ref_args - Reference with additional arguments
- * @node: Reference to a software node
+ * struct software_yesde_ref_args - Reference with additional arguments
+ * @yesde: Reference to a software yesde
  * @nargs: Number of elements in @args array
  * @args: Integer arguments
  */
-struct software_node_ref_args {
-	const struct software_node *node;
+struct software_yesde_ref_args {
+	const struct software_yesde *yesde;
 	unsigned int nargs;
 	u64 args[NR_FWNODE_REFERENCE_ARGS];
 };
 
 /**
- * struct software_node_reference - Named software node reference property
+ * struct software_yesde_reference - Named software yesde reference property
  * @name: Name of the property
  * @nrefs: Number of elements in @refs array
  * @refs: Array of references with optional arguments
  */
-struct software_node_reference {
+struct software_yesde_reference {
 	const char *name;
 	unsigned int nrefs;
-	const struct software_node_ref_args *refs;
+	const struct software_yesde_ref_args *refs;
 };
 
 /**
- * struct software_node - Software node description
- * @name: Name of the software node
- * @parent: Parent of the software node
+ * struct software_yesde - Software yesde description
+ * @name: Name of the software yesde
+ * @parent: Parent of the software yesde
  * @properties: Array of device properties
- * @references: Array of software node reference properties
+ * @references: Array of software yesde reference properties
  */
-struct software_node {
+struct software_yesde {
 	const char *name;
-	const struct software_node *parent;
+	const struct software_yesde *parent;
 	const struct property_entry *properties;
-	const struct software_node_reference *references;
+	const struct software_yesde_reference *references;
 };
 
-bool is_software_node(const struct fwnode_handle *fwnode);
-const struct software_node *
-to_software_node(const struct fwnode_handle *fwnode);
-struct fwnode_handle *software_node_fwnode(const struct software_node *node);
+bool is_software_yesde(const struct fwyesde_handle *fwyesde);
+const struct software_yesde *
+to_software_yesde(const struct fwyesde_handle *fwyesde);
+struct fwyesde_handle *software_yesde_fwyesde(const struct software_yesde *yesde);
 
-const struct software_node *
-software_node_find_by_name(const struct software_node *parent,
+const struct software_yesde *
+software_yesde_find_by_name(const struct software_yesde *parent,
 			   const char *name);
 
-int software_node_register_nodes(const struct software_node *nodes);
-void software_node_unregister_nodes(const struct software_node *nodes);
+int software_yesde_register_yesdes(const struct software_yesde *yesdes);
+void software_yesde_unregister_yesdes(const struct software_yesde *yesdes);
 
-int software_node_register(const struct software_node *node);
+int software_yesde_register(const struct software_yesde *yesde);
 
-int software_node_notify(struct device *dev, unsigned long action);
+int software_yesde_yestify(struct device *dev, unsigned long action);
 
-struct fwnode_handle *
-fwnode_create_software_node(const struct property_entry *properties,
-			    const struct fwnode_handle *parent);
-void fwnode_remove_software_node(struct fwnode_handle *fwnode);
+struct fwyesde_handle *
+fwyesde_create_software_yesde(const struct property_entry *properties,
+			    const struct fwyesde_handle *parent);
+void fwyesde_remove_software_yesde(struct fwyesde_handle *fwyesde);
 
 #endif /* _LINUX_PROPERTY_H_ */

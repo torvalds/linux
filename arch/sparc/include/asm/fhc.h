@@ -14,7 +14,7 @@
 #define CLOCK_PWRSTAT	0x30UL	/* Power status */
 #define CLOCK_PWRPRES	0x40UL	/* Power presence */
 #define CLOCK_TEMP	0x50UL	/* Temperature */
-#define CLOCK_IRQDIAG	0x60UL	/* IRQ diagnostics */
+#define CLOCK_IRQDIAG	0x60UL	/* IRQ diagyesstics */
 #define CLOCK_PWRSTAT2	0x70UL	/* Power status two */
 
 #define CLOCK_CTRL_LLED		0x04	/* Left LED, 0 == on */
@@ -37,7 +37,7 @@
 #define  FHC_RCS_CFATAL		0x02000000 /* Centerplane Fatal Error signalled	*/
 #define  FHC_RCS_FENAB		0x01000000 /* Fatal errors elicit system reset	*/
 #define FHC_PREGS_CTRL	0x20UL	/* FHC Control Register */
-#define  FHC_CONTROL_ICS	0x00100000 /* Ignore Centerplane Signals	*/
+#define  FHC_CONTROL_ICS	0x00100000 /* Igyesre Centerplane Signals	*/
 #define  FHC_CONTROL_FRST	0x00080000 /* Fatal Error Reset Enable		*/
 #define  FHC_CONTROL_LFAT	0x00040000 /* AC/DC signalled a local error	*/
 #define  FHC_CONTROL_SLINE	0x00010000 /* Firmware Synchronization Line	*/
@@ -66,7 +66,7 @@
 #define FHC_PREGS_ECC	0x40UL	/* FHC ECC Control Register (16 bits) */
 #define FHC_PREGS_JCTRL	0xf0UL	/* FHC JTAG Control Register */
 #define  FHC_JTAG_CTRL_MENAB	0x80000000 /* Indicates this is JTAG Master	 */
-#define  FHC_JTAG_CTRL_MNONE	0x40000000 /* Indicates no JTAG Master present	 */
+#define  FHC_JTAG_CTRL_MNONE	0x40000000 /* Indicates yes JTAG Master present	 */
 #define FHC_PREGS_JCMD	0x100UL	/* FHC JTAG Command Register */
 #define FHC_IREG_IGN	0x00UL	/* This FHC's IGN */
 #define FHC_FFREGS_IMAP	0x00UL	/* FHC Fanfail IMAP */

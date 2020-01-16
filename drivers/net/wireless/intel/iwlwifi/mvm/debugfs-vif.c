@@ -37,12 +37,12 @@
  * are met:
  *
  *  * Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  *  * Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
+ *    yestice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
- *  * Neither the name Intel Corporation nor the names of its
+ *  * Neither the name Intel Corporation yesr the names of its
  *    contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
@@ -110,8 +110,8 @@ static void iwl_dbgfs_update_pm(struct iwl_mvm *mvm,
 		dbgfs_pm->lprx_rssi_threshold = val;
 		break;
 	case MVM_DEBUGFS_PM_SNOOZE_ENABLE:
-		IWL_DEBUG_POWER(mvm, "snooze_enable=%d\n", val);
-		dbgfs_pm->snooze_ena = val;
+		IWL_DEBUG_POWER(mvm, "syesoze_enable=%d\n", val);
+		dbgfs_pm->syesoze_ena = val;
 		break;
 	case MVM_DEBUGFS_PM_UAPSD_MISBEHAVING:
 		IWL_DEBUG_POWER(mvm, "uapsd_misbehaving_enable=%d\n", val);
@@ -163,7 +163,7 @@ static ssize_t iwl_dbgfs_pm_params_write(struct ieee80211_vif *vif, char *buf,
 		    POWER_LPRX_RSSI_THRESHOLD_MIN)
 			return -EINVAL;
 		param = MVM_DEBUGFS_PM_LPRX_RSSI_THRESHOLD;
-	} else if (!strncmp("snooze_enable=", buf, 14)) {
+	} else if (!strncmp("syesoze_enable=", buf, 14)) {
 		if (sscanf(buf + 14, "%d", &val) != 1)
 			return -EINVAL;
 		param = MVM_DEBUGFS_PM_SNOOZE_ENABLE;
@@ -586,7 +586,7 @@ static ssize_t iwl_dbgfs_low_latency_read(struct file *file,
 			"dbgfs_force_enable=%d\ndbgfs_force=%d\nactual=%d\n";
 
 	/*
-	 * all values in format are boolean so the size of format is enough
+	 * all values in format are boolean so the size of format is eyesugh
 	 * for holding the result string
 	 */
 	char buf[sizeof(format) + 1] = {};

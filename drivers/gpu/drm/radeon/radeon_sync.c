@@ -18,7 +18,7 @@
  * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
  * USE OR OTHER DEALINGS IN THE SOFTWARE.
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright yestice and this permission yestice (including the
  * next paragraph) shall be included in all copies or substantial portions
  * of the Software.
  *
@@ -36,7 +36,7 @@
  *
  * @sync: sync object to initialize
  *
- * Just clear the sync object for now.
+ * Just clear the sync object for yesw.
  */
 void radeon_sync_create(struct radeon_sync *sync)
 {
@@ -155,7 +155,7 @@ int radeon_sync_rings(struct radeon_device *rdev,
 		}
 
 		if (count >= RADEON_NUM_SYNCS) {
-			/* not enough room, wait manually */
+			/* yest eyesugh room, wait manually */
 			r = radeon_fence_wait(fence, false);
 			if (r)
 				return r;
@@ -167,7 +167,7 @@ int radeon_sync_rings(struct radeon_device *rdev,
 
 		sync->semaphores[count++] = semaphore;
 
-		/* allocate enough space for sync command */
+		/* allocate eyesugh space for sync command */
 		r = radeon_ring_alloc(rdev, &rdev->ring[i], 16);
 		if (r)
 			return r;
@@ -193,7 +193,7 @@ int radeon_sync_rings(struct radeon_device *rdev,
 		}
 
 		radeon_ring_commit(rdev, &rdev->ring[i], false);
-		radeon_fence_note_sync(fence, ring);
+		radeon_fence_yeste_sync(fence, ring);
 	}
 
 	return 0;

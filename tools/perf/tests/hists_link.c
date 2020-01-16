@@ -9,7 +9,7 @@
 #include "parse-events.h"
 #include "hists_common.h"
 #include "util/mmap.h"
-#include <errno.h>
+#include <erryes.h>
 #include <linux/kernel.h>
 
 struct sample {
@@ -122,7 +122,7 @@ static int add_hist_entries(struct evlist *evlist, struct machine *machine)
 	return 0;
 
 out:
-	pr_debug("Not enough memory for adding a hist entry\n");
+	pr_debug("Not eyesugh memory for adding a hist entry\n");
 	return -1;
 }
 
@@ -142,7 +142,7 @@ static int __validate_match(struct hists *hists)
 {
 	size_t count = 0;
 	struct rb_root_cached *root;
-	struct rb_node *node;
+	struct rb_yesde *yesde;
 
 	/*
 	 * Only entries from fake_common_samples should have a pair.
@@ -152,11 +152,11 @@ static int __validate_match(struct hists *hists)
 	else
 		root = hists->entries_in;
 
-	node = rb_first_cached(root);
-	while (node) {
+	yesde = rb_first_cached(root);
+	while (yesde) {
 		struct hist_entry *he;
 
-		he = rb_entry(node, struct hist_entry, rb_node_in);
+		he = rb_entry(yesde, struct hist_entry, rb_yesde_in);
 
 		if (hist_entry__has_pairs(he)) {
 			if (find_sample(fake_common_samples,
@@ -169,7 +169,7 @@ static int __validate_match(struct hists *hists)
 			}
 		}
 
-		node = rb_next(node);
+		yesde = rb_next(yesde);
 	}
 
 	if (count != ARRAY_SIZE(fake_common_samples)) {
@@ -192,11 +192,11 @@ static int __validate_link(struct hists *hists, int idx)
 	size_t count_pair = 0;
 	size_t count_dummy = 0;
 	struct rb_root_cached *root;
-	struct rb_node *node;
+	struct rb_yesde *yesde;
 
 	/*
 	 * Leader hists (idx = 0) will have dummy entries from other,
-	 * and some entries will have no pair.  However every entry
+	 * and some entries will have yes pair.  However every entry
 	 * in other hists should have (dummy) pair.
 	 */
 	if (hists__has(hists, need_collapse))
@@ -204,11 +204,11 @@ static int __validate_link(struct hists *hists, int idx)
 	else
 		root = hists->entries_in;
 
-	node = rb_first_cached(root);
-	while (node) {
+	yesde = rb_first_cached(root);
+	while (yesde) {
 		struct hist_entry *he;
 
-		he = rb_entry(node, struct hist_entry, rb_node_in);
+		he = rb_entry(yesde, struct hist_entry, rb_yesde_in);
 
 		if (hist_entry__has_pairs(he)) {
 			if (!find_sample(fake_common_samples,
@@ -226,7 +226,7 @@ static int __validate_link(struct hists *hists, int idx)
 		}
 
 		count++;
-		node = rb_next(node);
+		yesde = rb_next(yesde);
 	}
 
 	/*
@@ -250,7 +250,7 @@ static int __validate_link(struct hists *hists, int idx)
 			return -1;
 		}
 		if (count_dummy > 0) {
-			pr_debug("Other hists should not have dummy entries: %zd\n",
+			pr_debug("Other hists should yest have dummy entries: %zd\n",
 				 count_dummy);
 			return -1;
 		}

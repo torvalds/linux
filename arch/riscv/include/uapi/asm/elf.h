@@ -50,7 +50,7 @@ typedef union __riscv_fp_state elf_fpregset_t;
 #define R_RISCV_TLS_TPREL32	10
 #define R_RISCV_TLS_TPREL64	11
 
-/* Relocation types not used by the dynamic linker */
+/* Relocation types yest used by the dynamic linker */
 #define R_RISCV_BRANCH		16
 #define R_RISCV_JAL		17
 #define R_RISCV_CALL		18

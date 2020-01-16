@@ -74,8 +74,8 @@ void hda_dsp_ipc_get_reply(struct snd_sof_dev *sdev)
 
 	/*
 	 * Sometimes, there is unexpected reply ipc arriving. The reply
-	 * ipc belongs to none of the ipcs sent from driver.
-	 * In this case, the driver must ignore the ipc.
+	 * ipc belongs to yesne of the ipcs sent from driver.
+	 * In this case, the driver must igyesre the ipc.
 	 */
 	if (!msg) {
 		dev_warn(sdev->dev, "unexpected ipc interrupt raised!\n");
@@ -163,18 +163,18 @@ irqreturn_t hda_dsp_ipc_irq_thread(int irq, void *context)
 					HDA_DSP_REG_HIPCCTL_DONE, 0);
 
 		/*
-		 * Make sure the interrupt thread cannot be preempted between
+		 * Make sure the interrupt thread canyest be preempted between
 		 * waking up the sender and re-enabling the interrupt. Also
 		 * protect against a theoretical race with sof_ipc_tx_message():
-		 * if the DSP is fast enough to receive an IPC message, reply to
+		 * if the DSP is fast eyesugh to receive an IPC message, reply to
 		 * it, and the host interrupt processing calls this function on
 		 * a different core from the one, where the sending is taking
-		 * place, the message might not yet be marked as expecting a
+		 * place, the message might yest yet be marked as expecting a
 		 * reply.
 		 */
 		spin_lock_irq(&sdev->ipc_lock);
 
-		/* handle immediate reply from DSP core - ignore ROM messages */
+		/* handle immediate reply from DSP core - igyesre ROM messages */
 		if (hda_dsp_ipc_is_sof(msg)) {
 			hda_dsp_ipc_get_reply(sdev);
 			snd_sof_ipc_reply(sdev, msg);
@@ -213,7 +213,7 @@ irqreturn_t hda_dsp_ipc_irq_thread(int irq, void *context)
 			/* this is a PANIC message !! */
 			snd_sof_dsp_panic(sdev, HDA_DSP_PANIC_OFFSET(msg_ext));
 		} else {
-			/* normal message - process normally */
+			/* yesrmal message - process yesrmally */
 			snd_sof_ipc_msgs_rx(sdev);
 		}
 
@@ -224,10 +224,10 @@ irqreturn_t hda_dsp_ipc_irq_thread(int irq, void *context)
 
 	if (!ipc_irq) {
 		/*
-		 * This interrupt is not shared so no need to return IRQ_NONE.
+		 * This interrupt is yest shared so yes need to return IRQ_NONE.
 		 */
 		dev_dbg_ratelimited(sdev->dev,
-				    "nothing to do in IPC IRQ thread\n");
+				    "yesthing to do in IPC IRQ thread\n");
 	}
 
 	/* re-enable IPC interrupt */

@@ -290,7 +290,7 @@ static struct core_reloc_test_case test_cases[] = {
 
 	/* various struct/enum nesting and resolution scenarios */
 	NESTING_CASE(nesting),
-	NESTING_CASE(nesting___anon_embed),
+	NESTING_CASE(nesting___ayesn_embed),
 	NESTING_CASE(nesting___struct_union_mixup),
 	NESTING_CASE(nesting___extra_nesting),
 	NESTING_CASE(nesting___dup_compat_types),
@@ -298,7 +298,7 @@ static struct core_reloc_test_case test_cases[] = {
 	NESTING_ERR_CASE(nesting___err_missing_field),
 	NESTING_ERR_CASE(nesting___err_array_field),
 	NESTING_ERR_CASE(nesting___err_missing_container),
-	NESTING_ERR_CASE(nesting___err_nonstruct_container),
+	NESTING_ERR_CASE(nesting___err_yesnstruct_container),
 	NESTING_ERR_CASE(nesting___err_array_container),
 	NESTING_ERR_CASE(nesting___err_dup_incompat_types),
 	NESTING_ERR_CASE(nesting___err_partial_match_dups),
@@ -311,7 +311,7 @@ static struct core_reloc_test_case test_cases[] = {
 
 	ARRAYS_ERR_CASE(arrays___err_too_small),
 	ARRAYS_ERR_CASE(arrays___err_too_shallow),
-	ARRAYS_ERR_CASE(arrays___err_non_array),
+	ARRAYS_ERR_CASE(arrays___err_yesn_array),
 	ARRAYS_ERR_CASE(arrays___err_wrong_val_type1),
 	ARRAYS_ERR_CASE(arrays___err_wrong_val_type2),
 
@@ -321,9 +321,9 @@ static struct core_reloc_test_case test_cases[] = {
 	PRIMITIVES_CASE(primitives___diff_func_proto),
 	PRIMITIVES_CASE(primitives___diff_ptr_type),
 
-	PRIMITIVES_ERR_CASE(primitives___err_non_enum),
-	PRIMITIVES_ERR_CASE(primitives___err_non_int),
-	PRIMITIVES_ERR_CASE(primitives___err_non_ptr),
+	PRIMITIVES_ERR_CASE(primitives___err_yesn_enum),
+	PRIMITIVES_ERR_CASE(primitives___err_yesn_int),
+	PRIMITIVES_ERR_CASE(primitives___err_yesn_ptr),
 
 	/* const/volatile/restrict and typedefs scenarios */
 	MODS_CASE(mods),
@@ -346,7 +346,7 @@ static struct core_reloc_test_case test_cases[] = {
 		.btf_src_file = "btf__core_reloc_misc.o",
 		.input = (const char *)&(struct core_reloc_misc_extensible[]){
 			{ .a = 1 },
-			{ .a = 2 }, /* not read */
+			{ .a = 2 }, /* yest read */
 			{ .a = 3 },
 		},
 		.input_len = 4 * sizeof(int),
@@ -439,7 +439,7 @@ static struct core_reloc_test_case test_cases[] = {
 		.u32 = -0x76543,
 		.s32 = 0x0ADEADBEEFBADB0B,
 	}),
-	BITFIELDS_CASE(bitfields___just_big_enough, {
+	BITFIELDS_CASE(bitfields___just_big_eyesugh, {
 		.ub1 = 0xF,
 		.ub2 = 0x0812345678FEDCBA,
 	}),
@@ -504,7 +504,7 @@ void test_core_reloc(void)
 
 		prog = bpf_object__find_program_by_title(obj, probe_name);
 		if (CHECK(!prog, "find_probe",
-			  "prog '%s' not found\n", probe_name))
+			  "prog '%s' yest found\n", probe_name))
 			goto cleanup;
 
 		load_attr.obj = obj;
@@ -523,13 +523,13 @@ void test_core_reloc(void)
 		}
 
 		data_map = bpf_object__find_map_by_name(obj, "test_cor.bss");
-		if (CHECK(!data_map, "find_data_map", "data map not found\n"))
+		if (CHECK(!data_map, "find_data_map", "data map yest found\n"))
 			goto cleanup;
 
 		mmap_data = mmap(NULL, mmap_sz, PROT_READ | PROT_WRITE,
 				 MAP_SHARED, bpf_map__fd(data_map), 0);
 		if (CHECK(mmap_data == MAP_FAILED, "mmap",
-			  ".bss mmap failed: %d", errno)) {
+			  ".bss mmap failed: %d", erryes)) {
 			mmap_data = NULL;
 			goto cleanup;
 		}

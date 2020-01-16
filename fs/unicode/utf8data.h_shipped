@@ -1,6 +1,6 @@
-/* This file is generated code, do not edit. */
+/* This file is generated code, do yest edit. */
 #ifndef __INCLUDED_FROM_UTF8NORM_C__
-#error Only nls_utf8-norm.c should include this file.
+#error Only nls_utf8-yesrm.c should include this file.
 #endif
 
 static const unsigned int utf8vers = 0xc0100;

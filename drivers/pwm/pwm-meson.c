@@ -6,9 +6,9 @@
  * PWM output is achieved by calculating a clock that permits calculating
  * two periods (low and high). The counter then has to be set to switch after
  * N cycles for the first half period.
- * The hardware has no "polarity" setting. This driver reverses the period
+ * The hardware has yes "polarity" setting. This driver reverses the period
  * cycles (the low length is inverted with the high length) for
- * PWM_POLARITY_INVERSED. This means that .get_state cannot read the polarity
+ * PWM_POLARITY_INVERSED. This means that .get_state canyest read the polarity
  * from the hardware.
  * Setting the duty cycle will disable and re-enable the PWM output.
  * Disabling the PWM stops the output immediately (without waiting for the

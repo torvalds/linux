@@ -1,8 +1,8 @@
 Common MDIO bus multiplexer/switch properties.
 
 An MDIO bus multiplexer/switch will have several child busses that are
-numbered uniquely in a device dependent manner.  The nodes for an MDIO
-bus multiplexer/switch will have one child node for each child bus.
+numbered uniquely in a device dependent manner.  The yesdes for an MDIO
+bus multiplexer/switch will have one child yesde for each child bus.
 
 Required properties:
 - #address-cells = <1>;
@@ -13,7 +13,7 @@ Optional properties:
 
 - Other properties specific to the multiplexer/switch hardware.
 
-Required properties for child nodes:
+Required properties for child yesdes:
 - #address-cells = <1>;
 - #size-cells = <0>;
 - reg : The sub-bus number.

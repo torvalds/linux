@@ -14,25 +14,25 @@
  * temperature measurement accuracy (1 degree), and the LM99
  * additionally shifts remote temperatures (measured and limits) by 16
  * degrees, which allows for higher temperatures measurement.
- * Note that there is no way to differentiate between both chips.
+ * Note that there is yes way to differentiate between both chips.
  * When device is auto-detected, the driver will assume an LM99.
  *
- * This driver also supports the LM86, another sensor chip made by
+ * This driver also supports the LM86, ayesther sensor chip made by
  * National Semiconductor. It is exactly similar to the LM90 except it
  * has a higher accuracy.
  *
  * This driver also supports the ADM1032, a sensor chip made by Analog
  * Devices. That chip is similar to the LM90, with a few differences
- * that are not handled by this driver. Among others, it has a higher
+ * that are yest handled by this driver. Among others, it has a higher
  * accuracy than the LM90, much like the LM86 does.
  *
  * This driver also supports the MAX6657, MAX6658 and MAX6659 sensor
  * chips made by Maxim. These chips are similar to the LM86.
- * Note that there is no easy way to differentiate between the three
+ * Note that there is yes easy way to differentiate between the three
  * variants. We use the device address to detect MAX6659, which will result
  * in a detection as max6657 if it is on address 0x4c. The extra address
  * and features of the MAX6659 are only supported if the chip is configured
- * explicitly as max6659, or if its address is not 0x4c.
+ * explicitly as max6659, or if its address is yest 0x4c.
  * These chips lack the remote temperature offset feature.
  *
  * This driver also supports the MAX6646, MAX6647, MAX6648, MAX6649 and
@@ -42,13 +42,13 @@
  *
  * This driver also supports the MAX6680 and MAX6681, two other sensor
  * chips made by Maxim. These are quite similar to the other Maxim
- * chips. The MAX6680 and MAX6681 only differ in the pinout so they can
+ * chips. The MAX6680 and MAX6681 only differ in the piyesut so they can
  * be treated identically.
  *
  * This driver also supports the MAX6695 and MAX6696, two other sensor
  * chips made by Maxim. These are also quite similar to other Maxim
  * chips, but support three temperature sensors instead of two. MAX6695
- * and MAX6696 only differ in the pinout so they can be treated identically.
+ * and MAX6696 only differ in the piyesut so they can be treated identically.
  *
  * This driver also supports ADT7461 and ADT7461A from Analog Devices as well as
  * NCT1008 from ON Semiconductor. The chips are supported in both compatibility
@@ -86,7 +86,7 @@
 
 /*
  * Addresses to scan
- * Address is fully defined internally and cannot be changed except for
+ * Address is fully defined internally and canyest be changed except for
  * MAX6659, MAX6680 and MAX6681.
  * LM86, LM89, LM90, LM99, ADM1032, ADM1032-1, ADT7461, ADT7461A, MAX6649,
  * MAX6657, MAX6658, NCT1008 and W83L771 have address 0x4c.
@@ -99,7 +99,7 @@
  * SA56004 can have address 0x48 through 0x4F.
  */
 
-static const unsigned short normal_i2c[] = {
+static const unsigned short yesrmal_i2c[] = {
 	0x18, 0x19, 0x1a, 0x29, 0x2a, 0x2b, 0x48, 0x49, 0x4a, 0x4b, 0x4c,
 	0x4d, 0x4e, 0x4f, I2C_CLIENT_END };
 
@@ -479,7 +479,7 @@ struct lm90_data {
  */
 
 /*
- * The ADM1032 supports PEC but not on write byte transactions, so we need
+ * The ADM1032 supports PEC but yest on write byte transactions, so we need
  * to explicitly ask for a transaction without PEC.
  */
 static inline s32 adm1032_write_byte(struct i2c_client *client, u8 value)
@@ -523,7 +523,7 @@ static int lm90_read16(struct i2c_client *client, u8 regh, u8 regl)
 	 * exact same time). So the solution used here is to read the high
 	 * byte once, then the low byte, then the high byte again. If the new
 	 * high byte matches the old one, then we have a valid reading. Else
-	 * we have to read the low byte again, and now we believe we have a
+	 * we have to read the low byte again, and yesw we believe we have a
 	 * correct reading.
 	 */
 	oldh = lm90_read_reg(client, regh);
@@ -564,7 +564,7 @@ static int lm90_update_confreg(struct lm90_data *data, u8 config)
  * than channel 0 is selected. Also, calling code must make sure to re-select
  * external channel 0 before releasing the lock. This is necessary because
  * various registers have different meanings as a result of selecting a
- * non-default remote channel.
+ * yesn-default remote channel.
  */
 static int lm90_select_remote_channel(struct lm90_data *data, int channel)
 {
@@ -1460,7 +1460,7 @@ static int lm90_detect(struct i2c_client *client,
 			name = "adm1032";
 			/*
 			 * The ADM1032 supports PEC, but only if combined
-			 * transactions are not used.
+			 * transactions are yest used.
 			 */
 			if (i2c_check_functionality(adapter,
 						    I2C_FUNC_SMBUS_BYTE))
@@ -1520,7 +1520,7 @@ static int lm90_detect(struct i2c_client *client,
 				name = "max6659";
 		} else
 		/*
-		 * Even though MAX6695 and MAX6696 do not have a chip ID
+		 * Even though MAX6695 and MAX6696 do yest have a chip ID
 		 * register, reading it returns 0x01. Bit 4 of the config1
 		 * register is unused and should return zero when read. Bit 0 of
 		 * the status2 register is unused and should return zero when
@@ -1776,7 +1776,7 @@ static int lm90_probe(struct i2c_client *client,
 	mutex_init(&data->update_lock);
 
 	/* Set the device type */
-	if (client->dev.of_node)
+	if (client->dev.of_yesde)
 		data->kind = (enum chips)of_device_get_match_data(&client->dev);
 	else
 		data->kind = id->driver_data;
@@ -1875,7 +1875,7 @@ static int lm90_probe(struct i2c_client *client,
 						IRQF_TRIGGER_LOW | IRQF_ONESHOT,
 						"lm90", client);
 		if (err < 0) {
-			dev_err(dev, "cannot request IRQ %d\n", client->irq);
+			dev_err(dev, "canyest request IRQ %d\n", client->irq);
 			return err;
 		}
 	}
@@ -1919,7 +1919,7 @@ static struct i2c_driver lm90_driver = {
 	.alert		= lm90_alert,
 	.id_table	= lm90_id,
 	.detect		= lm90_detect,
-	.address_list	= normal_i2c,
+	.address_list	= yesrmal_i2c,
 };
 
 module_i2c_driver(lm90_driver);

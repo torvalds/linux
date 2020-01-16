@@ -136,7 +136,7 @@ static int __init setup_tcm_bank(u8 type, u8 bank, u8 banks,
 
 	tcm_size = tcm_sizes[(tcm_region >> 2) & 0x0f];
 	if (tcm_size < 0) {
-		pr_err("CPU: %sTCM%d of unknown size\n",
+		pr_err("CPU: %sTCM%d of unkyeswn size\n",
 		       type ? "I" : "D", bank);
 		return -EINVAL;
 	} else if (tcm_size > 32) {
@@ -149,7 +149,7 @@ static int __init setup_tcm_bank(u8 type, u8 bank, u8 banks,
 			bank,
 			tcm_size,
 			(tcm_region & 0xfffff000U),
-			(tcm_region & 1) ? "" : "not ");
+			(tcm_region & 1) ? "" : "yest ");
 	}
 
 	/* Not much fun you can do with a size 0 bank */
@@ -180,8 +180,8 @@ static int __init setup_tcm_bank(u8 type, u8 bank, u8 banks,
 }
 
 /*
- * When we are running in the non-secure world and the secure world
- * has not explicitly given us access to the TCM we will get an
+ * When we are running in the yesn-secure world and the secure world
+ * has yest explicitly given us access to the TCM we will get an
  * undefined error when reading the TCM region register in the
  * setup_tcm_bank function (above).
  *
@@ -267,13 +267,13 @@ void __init tcm_init(void)
 	int i;
 
 	/*
-	 * Prior to ARMv5 there is no TCM, and trying to read the status
+	 * Prior to ARMv5 there is yes TCM, and trying to read the status
 	 * register will hang the processor.
 	 */
 	if (cpu_architecture() < CPU_ARCH_ARMv5) {
 		if (dtcm_code_sz || itcm_code_sz)
 			pr_info("CPU TCM: %u bytes of DTCM and %u bytes of "
-				"ITCM code compiled in, but no TCM present "
+				"ITCM code compiled in, but yes TCM present "
 				"in pre-v5 CPU\n", dtcm_code_sz, itcm_code_sz);
 		return;
 	}
@@ -309,14 +309,14 @@ void __init tcm_init(void)
 			pr_info("CPU DTCM: %u bytes of code compiled to "
 				"DTCM but only %lu bytes of DTCM present\n",
 				dtcm_code_sz, (dtcm_end - DTCM_OFFSET));
-			goto no_dtcm;
+			goto yes_dtcm;
 		}
 		/*
 		 * This means that the DTCM sizes were 0 or the DTCM banks
 		 * were inaccessible due to TrustZone configuration.
 		 */
 		if (!(dtcm_end - DTCM_OFFSET))
-			goto no_dtcm;
+			goto yes_dtcm;
 		dtcm_res.end = dtcm_end - 1;
 		request_resource(&iomem_resource, &dtcm_res);
 		dtcm_iomap[0].length = dtcm_end - DTCM_OFFSET;
@@ -330,11 +330,11 @@ void __init tcm_init(void)
 			 start, end);
 		dtcm_present = true;
 	} else if (dtcm_code_sz) {
-		pr_info("CPU DTCM: %u bytes of code compiled to DTCM but no "
+		pr_info("CPU DTCM: %u bytes of code compiled to DTCM but yes "
 			"DTCM banks present in CPU\n", dtcm_code_sz);
 	}
 
-no_dtcm:
+yes_dtcm:
 	/* Setup ITCM if present */
 	if (itcm_banks > 0) {
 		for (i = 0; i < itcm_banks; i++) {
@@ -368,7 +368,7 @@ no_dtcm:
 			 start, end);
 		itcm_present = true;
 	} else if (itcm_code_sz) {
-		pr_info("CPU ITCM: %u bytes of code compiled to ITCM but no "
+		pr_info("CPU ITCM: %u bytes of code compiled to ITCM but yes "
 			"ITCM banks present in CPU\n", itcm_code_sz);
 	}
 
@@ -378,7 +378,7 @@ unregister:
 
 /*
  * This creates the TCM memory pool and has to be done later,
- * during the core_initicalls, since the allocator is not yet
+ * during the core_initicalls, since the allocator is yest yet
  * up and running when the first initialization runs.
  */
 static int __init setup_tcm_pool(void)
@@ -390,7 +390,7 @@ static int __init setup_tcm_pool(void)
 	/*
 	 * Set up malloc pool, 2^2 = 4 bytes granularity since
 	 * the TCM is sometimes just 4 KiB. NB: pages and cache
-	 * line alignments does not matter in TCM!
+	 * line alignments does yest matter in TCM!
 	 */
 	tcm_pool = gen_pool_create(2, -1);
 
@@ -402,7 +402,7 @@ static int __init setup_tcm_pool(void)
 			ret = gen_pool_add(tcm_pool, dtcm_pool_start,
 					   dtcm_end - dtcm_pool_start, -1);
 			if (ret) {
-				pr_err("CPU DTCM: could not add DTCM " \
+				pr_err("CPU DTCM: could yest add DTCM " \
 				       "remainder to pool!\n");
 				return ret;
 			}
@@ -419,7 +419,7 @@ static int __init setup_tcm_pool(void)
 			ret = gen_pool_add(tcm_pool, itcm_pool_start,
 					   itcm_end - itcm_pool_start, -1);
 			if (ret) {
-				pr_err("CPU ITCM: could not add ITCM " \
+				pr_err("CPU ITCM: could yest add ITCM " \
 				       "remainder to pool!\n");
 				return ret;
 			}

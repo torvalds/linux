@@ -591,7 +591,7 @@ static int max77620_regulator_set_ramp_delay(struct regulator_dev *rdev,
 
 	/* Device specific ramp rate setting tells that platform has
 	 * different ramp rate from advertised value. In this case,
-	 * do not configure anything and just return success.
+	 * do yest configure anything and just return success.
 	 */
 	if (rpdata->ramp_rate_setting)
 		return 0;
@@ -599,7 +599,7 @@ static int max77620_regulator_set_ramp_delay(struct regulator_dev *rdev,
 	return max77620_set_slew_rate(pmic, id, ramp_delay);
 }
 
-static int max77620_of_parse_cb(struct device_node *np,
+static int max77620_of_parse_cb(struct device_yesde *np,
 				const struct regulator_desc *desc,
 				struct regulator_config *config)
 {
@@ -671,7 +671,7 @@ static const struct regulator_ops max77620_regulator_ops = {
 		.desc = {						\
 			.name = max77620_rails(_name),			\
 			.of_match = of_match_ptr(#_name),		\
-			.regulators_node = of_match_ptr("regulators"),	\
+			.regulators_yesde = of_match_ptr("regulators"),	\
 			.of_parse_cb = max77620_of_parse_cb,		\
 			.supply_name = _sname,				\
 			.id = MAX77620_REGULATOR_ID_##_id,		\
@@ -703,7 +703,7 @@ static const struct regulator_ops max77620_regulator_ops = {
 		.desc = {						\
 			.name = max77620_rails(_name),			\
 			.of_match = of_match_ptr(#_name),		\
-			.regulators_node = of_match_ptr("regulators"),	\
+			.regulators_yesde = of_match_ptr("regulators"),	\
 			.of_parse_cb = max77620_of_parse_cb,		\
 			.supply_name = _sname,				\
 			.id = MAX77620_REGULATOR_ID_##_id,		\
@@ -793,8 +793,8 @@ static int max77620_regulator_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, pmic);
 	pmic->dev = dev;
 	pmic->rmap = max77620_chip->rmap;
-	if (!dev->of_node)
-		dev->of_node = pdev->dev.parent->of_node;
+	if (!dev->of_yesde)
+		dev->of_yesde = pdev->dev.parent->of_yesde;
 
 	switch (max77620_chip->chip_id) {
 	case MAX77620:

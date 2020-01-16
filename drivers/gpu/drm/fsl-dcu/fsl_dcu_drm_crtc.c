@@ -77,7 +77,7 @@ static void fsl_dcu_drm_crtc_atomic_enable(struct drm_crtc *crtc,
 	drm_crtc_vblank_on(crtc);
 }
 
-static void fsl_dcu_drm_crtc_mode_set_nofb(struct drm_crtc *crtc)
+static void fsl_dcu_drm_crtc_mode_set_yesfb(struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
 	struct fsl_dcu_drm_device *fsl_dev = dev->dev_private;
@@ -127,7 +127,7 @@ static const struct drm_crtc_helper_funcs fsl_dcu_drm_crtc_helper_funcs = {
 	.atomic_disable = fsl_dcu_drm_crtc_atomic_disable,
 	.atomic_flush = fsl_dcu_drm_crtc_atomic_flush,
 	.atomic_enable = fsl_dcu_drm_crtc_atomic_enable,
-	.mode_set_nofb = fsl_dcu_drm_crtc_mode_set_nofb,
+	.mode_set_yesfb = fsl_dcu_drm_crtc_mode_set_yesfb,
 };
 
 static int fsl_dcu_drm_crtc_enable_vblank(struct drm_crtc *crtc)

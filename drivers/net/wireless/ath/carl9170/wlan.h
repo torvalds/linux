@@ -16,16 +16,16 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; see the file COPYING.  If not, see
+ * along with this program; see the file COPYING.  If yest, see
  * http://www.gnu.org/licenses/.
  *
  * This file incorporates work covered by the following copyright and
- * permission notice:
+ * permission yestice:
  *    Copyright (c) 2007-2008 Atheros Communications, Inc.
  *
  *    Permission to use, copy, modify, and/or distribute this software for any
  *    purpose with or without fee is hereby granted, provided that the above
- *    copyright notice and this permission notice appear in all copies.
+ *    copyright yestice and this permission yestice appear in all copies.
  *
  *    THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  *    WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
@@ -187,7 +187,7 @@ struct ar9170_tx_hw_mac_control {
 			 */
 
 			u8 erp_prot:2;
-			u8 no_ack:1;
+			u8 yes_ack:1;
 			u8 backoff:1;
 			u8 burst:1;
 			u8 ampdu:1;
@@ -407,17 +407,17 @@ static inline u8 ar9170_get_decrypt_type(struct ar9170_rx_macstatus *t)
 /*
  * This is an workaround for several undocumented bugs.
  * Don't mess with the QoS/AC <-> HW Queue map, if you don't
- * know what you are doing.
+ * kyesw what you are doing.
  *
- * Known problems [hardware]:
- *  * The MAC does not aggregate frames on anything other
+ * Kyeswn problems [hardware]:
+ *  * The MAC does yest aggregate frames on anything other
  *    than the first HW queue.
  *  * when an AMPDU is placed [in the first hw queue] and
  *    additional frames are already queued on a different
  *    hw queue, the MAC will ALWAYS freeze.
  *
  * In a nutshell: The hardware can either do QoS or
- * Aggregation but not both at the same time. As a
+ * Aggregation but yest both at the same time. As a
  * result, this makes the device pretty much useless
  * for any serious 802.11n setup.
  */

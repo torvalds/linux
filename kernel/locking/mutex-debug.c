@@ -82,9 +82,9 @@ void debug_mutex_init(struct mutex *lock, const char *name,
 {
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
 	/*
-	 * Make sure we are not reinitializing a held lock:
+	 * Make sure we are yest reinitializing a held lock:
 	 */
-	debug_check_no_locks_freed((void *)lock, sizeof(*lock));
+	debug_check_yes_locks_freed((void *)lock, sizeof(*lock));
 	lockdep_init_map(&lock->dep_map, name, key, 0);
 #endif
 	lock->magic = lock;
@@ -95,7 +95,7 @@ void debug_mutex_init(struct mutex *lock, const char *name,
  * @lock: the mutex to be destroyed
  *
  * This function marks the mutex uninitialized, and any subsequent
- * use of the mutex is forbidden. The mutex must not be locked when
+ * use of the mutex is forbidden. The mutex must yest be locked when
  * this function is called.
  */
 void mutex_destroy(struct mutex *lock)

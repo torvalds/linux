@@ -36,7 +36,7 @@ enum dpkg_extract_from_hdr_type {
 /**
  * enum dpkg_extract_type - Enumeration for selecting extraction type
  * @DPKG_EXTRACT_FROM_HDR: Extract from the header
- * @DPKG_EXTRACT_FROM_DATA: Extract from data not in specific header
+ * @DPKG_EXTRACT_FROM_DATA: Extract from data yest in specific header
  * @DPKG_EXTRACT_FROM_PARSE: Extract from parser-result;
  *	e.g. can be used to extract header existence;
  *	please refer to 'Parse Result definition' section in the parser BG
@@ -424,7 +424,7 @@ enum net_prot {
  * @extract.from_hdr.field: One of the supported fields (NH_FLD_)
  * @extract.from_hdr.size: Size in bytes
  * @extract.from_hdr.offset: Byte offset
- * @extract.from_hdr.hdr_index: Clear for cases not listed below;
+ * @extract.from_hdr.hdr_index: Clear for cases yest listed below;
  *	Used for protocols that may have more than a single
  *	header, 0 indicates an outer header;
  *	Supported protocols (possible values):

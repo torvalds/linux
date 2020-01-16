@@ -19,7 +19,7 @@ static int mdp4_hw_init(struct msm_kms *kms)
 {
 	struct mdp4_kms *mdp4_kms = to_mdp4_kms(to_mdp_kms(kms));
 	struct drm_device *dev = mdp4_kms->dev;
-	uint32_t version, major, minor, dmap_cfg, vg_cfg;
+	uint32_t version, major, miyesr, dmap_cfg, vg_cfg;
 	unsigned long clk;
 	int ret = 0;
 
@@ -30,18 +30,18 @@ static int mdp4_hw_init(struct msm_kms *kms)
 	mdp4_disable(mdp4_kms);
 
 	major = FIELD(version, MDP4_VERSION_MAJOR);
-	minor = FIELD(version, MDP4_VERSION_MINOR);
+	miyesr = FIELD(version, MDP4_VERSION_MINOR);
 
-	DBG("found MDP4 version v%d.%d", major, minor);
+	DBG("found MDP4 version v%d.%d", major, miyesr);
 
 	if (major != 4) {
 		DRM_DEV_ERROR(dev->dev, "unexpected MDP version: v%d.%d\n",
-				major, minor);
+				major, miyesr);
 		ret = -ENXIO;
 		goto out;
 	}
 
-	mdp4_kms->rev = minor;
+	mdp4_kms->rev = miyesr;
 
 	if (mdp4_kms->rev > 1) {
 		mdp4_write(mdp4_kms, REG_MDP4_CS_CONTROLLER0, 0x0707ffff);
@@ -238,21 +238,21 @@ static int mdp4_modeset_init_intf(struct mdp4_kms *mdp4_kms,
 	struct msm_drm_private *priv = dev->dev_private;
 	struct drm_encoder *encoder;
 	struct drm_connector *connector;
-	struct device_node *panel_node;
+	struct device_yesde *panel_yesde;
 	int dsi_id;
 	int ret;
 
 	switch (intf_type) {
 	case DRM_MODE_ENCODER_LVDS:
 		/*
-		 * bail out early if there is no panel node (no need to
+		 * bail out early if there is yes panel yesde (yes need to
 		 * initialize LCDC encoder and LVDS connector)
 		 */
-		panel_node = of_graph_get_remote_node(dev->dev->of_node, 0, 0);
-		if (!panel_node)
+		panel_yesde = of_graph_get_remote_yesde(dev->dev->of_yesde, 0, 0);
+		if (!panel_yesde)
 			return 0;
 
-		encoder = mdp4_lcdc_encoder_init(dev, panel_node);
+		encoder = mdp4_lcdc_encoder_init(dev, panel_yesde);
 		if (IS_ERR(encoder)) {
 			DRM_DEV_ERROR(dev->dev, "failed to construct LCDC encoder\n");
 			return PTR_ERR(encoder);
@@ -261,7 +261,7 @@ static int mdp4_modeset_init_intf(struct mdp4_kms *mdp4_kms,
 		/* LCDC can be hooked to DMA_P (TODO: Add DMA_S later?) */
 		encoder->possible_crtcs = 1 << DMA_P;
 
-		connector = mdp4_lvds_connector_init(dev, panel_node, encoder);
+		connector = mdp4_lvds_connector_init(dev, panel_yesde, encoder);
 		if (IS_ERR(connector)) {
 			DRM_DEV_ERROR(dev->dev, "failed to initialize LVDS connector\n");
 			return PTR_ERR(connector);
@@ -294,7 +294,7 @@ static int mdp4_modeset_init_intf(struct mdp4_kms *mdp4_kms,
 
 		break;
 	case DRM_MODE_ENCODER_DSI:
-		/* only DSI1 supported for now */
+		/* only DSI1 supported for yesw */
 		dsi_id = 0;
 
 		if (!priv->dsi[dsi_id])
@@ -353,7 +353,7 @@ static int modeset_init(struct mdp4_kms *mdp4_kms)
 		DRM_MODE_ENCODER_TMDS,
 	};
 
-	/* construct non-private planes: */
+	/* construct yesn-private planes: */
 	for (i = 0; i < ARRAY_SIZE(vg_planes); i++) {
 		plane = mdp4_plane_init(dev, vg_planes[i], false);
 		if (IS_ERR(plane)) {
@@ -449,7 +449,7 @@ struct msm_kms *mdp4_kms_init(struct drm_device *dev)
 	kms->irq = irq;
 
 	/* NOTE: driver for this regulator still missing upstream.. use
-	 * _get_exclusive() and ignore the error if it does not exist
+	 * _get_exclusive() and igyesre the error if it does yest exist
 	 * (and hope that the bootloader left it on for us)
 	 */
 	mdp4_kms->vdd = devm_regulator_get_exclusive(&pdev->dev, "vdd");
@@ -523,8 +523,8 @@ struct msm_kms *mdp4_kms_init(struct drm_device *dev)
 		if (ret)
 			goto fail;
 	} else {
-		DRM_DEV_INFO(dev->dev, "no iommu, fallback to phys "
-				"contig buffers for scanout\n");
+		DRM_DEV_INFO(dev->dev, "yes iommu, fallback to phys "
+				"contig buffers for scayesut\n");
 		aspace = NULL;
 	}
 
@@ -537,7 +537,7 @@ struct msm_kms *mdp4_kms_init(struct drm_device *dev)
 	mdp4_kms->blank_cursor_bo = msm_gem_new(dev, SZ_16K, MSM_BO_WC | MSM_BO_SCANOUT);
 	if (IS_ERR(mdp4_kms->blank_cursor_bo)) {
 		ret = PTR_ERR(mdp4_kms->blank_cursor_bo);
-		DRM_DEV_ERROR(dev->dev, "could not allocate blank-cursor bo: %d\n", ret);
+		DRM_DEV_ERROR(dev->dev, "could yest allocate blank-cursor bo: %d\n", ret);
 		mdp4_kms->blank_cursor_bo = NULL;
 		goto fail;
 	}
@@ -545,7 +545,7 @@ struct msm_kms *mdp4_kms_init(struct drm_device *dev)
 	ret = msm_gem_get_and_pin_iova(mdp4_kms->blank_cursor_bo, kms->aspace,
 			&mdp4_kms->blank_cursor_iova);
 	if (ret) {
-		DRM_DEV_ERROR(dev->dev, "could not pin blank-cursor bo: %d\n", ret);
+		DRM_DEV_ERROR(dev->dev, "could yest pin blank-cursor bo: %d\n", ret);
 		goto fail;
 	}
 

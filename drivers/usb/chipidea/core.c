@@ -2,7 +2,7 @@
 /*
  * core.c - ChipIdea USB IP core family device controller
  *
- * Copyright (C) 2008 Chipidea - MIPS Technologies, Inc. All rights reserved.
+ * Copyright (C) 2008 Chipidea - MIPS Techyeslogies, Inc. All rights reserved.
  *
  * Author: David Lopo
  */
@@ -20,7 +20,7 @@
  * - BUS:    bus glue code, bus abstraction layer
  *
  * Compile Options
- * - STALL_IN:  non-empty bulk-in pipes cannot be halted
+ * - STALL_IN:  yesn-empty bulk-in pipes canyest be halted
  *              if defined mass storage compliance succeeds but with warnings
  *              => case 4: Hi >  Dn
  *              => case 5: Hi >  Di
@@ -71,7 +71,7 @@
 #include "otg_fsm.h"
 
 /* Controller register map */
-static const u8 ci_regs_nolpm[] = {
+static const u8 ci_regs_yeslpm[] = {
 	[CAP_CAPLENGTH]		= 0x00U,
 	[CAP_HCCPARAMS]		= 0x08U,
 	[CAP_DCCPARAMS]		= 0x24U,
@@ -128,14 +128,14 @@ static void hw_alloc_regmap(struct ci_hdrc *ci, bool is_lpm)
 	for (i = 0; i < OP_ENDPTCTRL; i++)
 		ci->hw_bank.regmap[i] =
 			(i <= CAP_LAST ? ci->hw_bank.cap : ci->hw_bank.op) +
-			(is_lpm ? ci_regs_lpm[i] : ci_regs_nolpm[i]);
+			(is_lpm ? ci_regs_lpm[i] : ci_regs_yeslpm[i]);
 
 	for (; i <= OP_LAST; i++)
 		ci->hw_bank.regmap[i] = ci->hw_bank.op +
 			4 * (i - OP_ENDPTCTRL) +
 			(is_lpm
 			 ? ci_regs_lpm[OP_ENDPTCTRL]
-			 : ci_regs_nolpm[OP_ENDPTCTRL]);
+			 : ci_regs_yeslpm[OP_ENDPTCTRL]);
 
 }
 
@@ -509,8 +509,8 @@ int hw_device_reset(struct ci_hdrc *ci)
 		return ret;
 	}
 
-	if (ci->platdata->notify_event) {
-		ret = ci->platdata->notify_event(ci,
+	if (ci->platdata->yestify_event) {
+		ret = ci->platdata->yestify_event(ci,
 			CI_HDRC_CONTROLLER_RESET_EVENT);
 		if (ret)
 			return ret;
@@ -523,7 +523,7 @@ int hw_device_reset(struct ci_hdrc *ci)
 	hw_write(ci, OP_USBMODE, USBMODE_SLOM, USBMODE_SLOM);
 
 	if (hw_read(ci, OP_USBMODE, USBMODE_CM) != USBMODE_CM_DC) {
-		dev_err(ci->dev, "cannot enter in %s device mode\n",
+		dev_err(ci->dev, "canyest enter in %s device mode\n",
 			ci_role(ci)->name);
 		dev_err(ci->dev, "lpm = %i\n", ci->hw_bank.lpm);
 		return -ENODEV;
@@ -541,7 +541,7 @@ static irqreturn_t ci_irq(int irq, void *data)
 	u32 otgsc = 0;
 
 	if (ci->in_lpm) {
-		disable_irq_nosync(irq);
+		disable_irq_yessync(irq);
 		ci->wakeup_int = true;
 		pm_runtime_get(ci->dev);
 		return IRQ_HANDLED;
@@ -587,7 +587,7 @@ static irqreturn_t ci_irq(int irq, void *data)
 	return ret;
 }
 
-static int ci_cable_notifier(struct notifier_block *nb, unsigned long event,
+static int ci_cable_yestifier(struct yestifier_block *nb, unsigned long event,
 			     void *ptr)
 {
 	struct ci_hdrc_cable *cbl = container_of(nb, struct ci_hdrc_cable, nb);
@@ -673,7 +673,7 @@ static int ci_get_platdata(struct device *dev,
 	int ret;
 
 	if (!platdata->phy_mode)
-		platdata->phy_mode = of_usb_get_phy_mode(dev->of_node);
+		platdata->phy_mode = of_usb_get_phy_mode(dev->of_yesde);
 
 	if (!platdata->dr_mode)
 		platdata->dr_mode = usb_get_dr_mode(dev);
@@ -687,7 +687,7 @@ static int ci_get_platdata(struct device *dev,
 		if (PTR_ERR(platdata->reg_vbus) == -EPROBE_DEFER) {
 			return -EPROBE_DEFER;
 		} else if (PTR_ERR(platdata->reg_vbus) == -ENODEV) {
-			/* no vbus regulator is needed */
+			/* yes vbus regulator is needed */
 			platdata->reg_vbus = NULL;
 		} else if (IS_ERR(platdata->reg_vbus)) {
 			dev_err(dev, "Getting regulator error: %ld\n",
@@ -697,7 +697,7 @@ static int ci_get_platdata(struct device *dev,
 		/* Get TPL support */
 		if (!platdata->tpl_support)
 			platdata->tpl_support =
-				of_usb_host_tpl_support(dev->of_node);
+				of_usb_host_tpl_support(dev->of_yesde);
 	}
 
 	if (platdata->dr_mode == USB_DR_MODE_OTG) {
@@ -707,7 +707,7 @@ static int ci_get_platdata(struct device *dev,
 		platdata->ci_otg_caps.srp_support = true;
 
 		/* Update otg capabilities by DT properties */
-		ret = of_usb_update_otg_caps(dev->of_node,
+		ret = of_usb_update_otg_caps(dev->of_yesde,
 					&platdata->ci_otg_caps);
 		if (ret)
 			return ret;
@@ -716,15 +716,15 @@ static int ci_get_platdata(struct device *dev,
 	if (usb_get_maximum_speed(dev) == USB_SPEED_FULL)
 		platdata->flags |= CI_HDRC_FORCE_FULLSPEED;
 
-	of_property_read_u32(dev->of_node, "phy-clkgate-delay-us",
+	of_property_read_u32(dev->of_yesde, "phy-clkgate-delay-us",
 				     &platdata->phy_clkgate_delay_us);
 
 	platdata->itc_setting = 1;
 
-	of_property_read_u32(dev->of_node, "itc-setting",
+	of_property_read_u32(dev->of_yesde, "itc-setting",
 					&platdata->itc_setting);
 
-	ret = of_property_read_u32(dev->of_node, "ahb-burst-config",
+	ret = of_property_read_u32(dev->of_yesde, "ahb-burst-config",
 				&platdata->ahb_burst_config);
 	if (!ret) {
 		platdata->flags |= CI_HDRC_OVERRIDE_AHB_BURST;
@@ -733,7 +733,7 @@ static int ci_get_platdata(struct device *dev,
 		return ret;
 	}
 
-	ret = of_property_read_u32(dev->of_node, "tx-burst-size-dword",
+	ret = of_property_read_u32(dev->of_yesde, "tx-burst-size-dword",
 				&platdata->tx_burst_size);
 	if (!ret) {
 		platdata->flags |= CI_HDRC_OVERRIDE_TX_BURST;
@@ -742,7 +742,7 @@ static int ci_get_platdata(struct device *dev,
 		return ret;
 	}
 
-	ret = of_property_read_u32(dev->of_node, "rx-burst-size-dword",
+	ret = of_property_read_u32(dev->of_yesde, "rx-burst-size-dword",
 				&platdata->rx_burst_size);
 	if (!ret) {
 		platdata->flags |= CI_HDRC_OVERRIDE_RX_BURST;
@@ -751,13 +751,13 @@ static int ci_get_platdata(struct device *dev,
 		return ret;
 	}
 
-	if (of_find_property(dev->of_node, "non-zero-ttctrl-ttha", NULL))
+	if (of_find_property(dev->of_yesde, "yesn-zero-ttctrl-ttha", NULL))
 		platdata->flags |= CI_HDRC_SET_NON_ZERO_TTHA;
 
 	ext_id = ERR_PTR(-ENODEV);
 	ext_vbus = ERR_PTR(-ENODEV);
-	if (of_property_read_bool(dev->of_node, "extcon")) {
-		/* Each one of them is not mandatory */
+	if (of_property_read_bool(dev->of_yesde, "extcon")) {
+		/* Each one of them is yest mandatory */
 		ext_vbus = extcon_get_edev_by_phandle(dev, 0);
 		if (IS_ERR(ext_vbus) && PTR_ERR(ext_vbus) != -ENODEV)
 			return PTR_ERR(ext_vbus);
@@ -768,7 +768,7 @@ static int ci_get_platdata(struct device *dev,
 	}
 
 	cable = &platdata->vbus_extcon;
-	cable->nb.notifier_call = ci_cable_notifier;
+	cable->nb.yestifier_call = ci_cable_yestifier;
 	cable->edev = ext_vbus;
 
 	if (!IS_ERR(ext_vbus)) {
@@ -780,7 +780,7 @@ static int ci_get_platdata(struct device *dev,
 	}
 
 	cable = &platdata->id_extcon;
-	cable->nb.notifier_call = ci_cable_notifier;
+	cable->nb.yestifier_call = ci_cable_yestifier;
 	cable->edev = ext_id;
 
 	if (!IS_ERR(ext_id)) {
@@ -792,7 +792,7 @@ static int ci_get_platdata(struct device *dev,
 	}
 
 	if (device_property_read_bool(dev, "usb-role-switch"))
-		ci_role_switch.fwnode = dev->fwnode;
+		ci_role_switch.fwyesde = dev->fwyesde;
 
 	platdata->pctl = devm_pinctrl_get(dev);
 	if (!IS_ERR(platdata->pctl)) {
@@ -822,7 +822,7 @@ static int ci_extcon_register(struct ci_hdrc *ci)
 	id = &ci->platdata->id_extcon;
 	id->ci = ci;
 	if (!IS_ERR_OR_NULL(id->edev)) {
-		ret = devm_extcon_register_notifier(ci->dev, id->edev,
+		ret = devm_extcon_register_yestifier(ci->dev, id->edev,
 						EXTCON_USB_HOST, &id->nb);
 		if (ret < 0) {
 			dev_err(ci->dev, "register ID failed\n");
@@ -833,7 +833,7 @@ static int ci_extcon_register(struct ci_hdrc *ci)
 	vbus = &ci->platdata->vbus_extcon;
 	vbus->ci = ci;
 	if (!IS_ERR_OR_NULL(vbus->edev)) {
-		ret = devm_extcon_register_notifier(ci->dev, vbus->edev,
+		ret = devm_extcon_register_yestifier(ci->dev, vbus->edev,
 						EXTCON_USB, &vbus->nb);
 		if (ret < 0) {
 			dev_err(ci->dev, "register VBUS failed\n");
@@ -942,7 +942,7 @@ static ssize_t role_store(struct device *dev,
 	int ret;
 
 	if (!(ci->roles[CI_ROLE_HOST] && ci->roles[CI_ROLE_GADGET])) {
-		dev_warn(dev, "Current configuration is not dual-role, quit\n");
+		dev_warn(dev, "Current configuration is yest dual-role, quit\n");
 		return -EPERM;
 	}
 
@@ -1102,7 +1102,7 @@ static int ci_hdrc_probe(struct platform_device *pdev)
 	}
 
 	if (!ci->roles[CI_ROLE_HOST] && !ci->roles[CI_ROLE_GADGET]) {
-		dev_err(dev, "no supported roles\n");
+		dev_err(dev, "yes supported roles\n");
 		ret = -ENODEV;
 		goto deinit_gadget;
 	}
@@ -1115,7 +1115,7 @@ static int ci_hdrc_probe(struct platform_device *pdev)
 		}
 	}
 
-	if (ci_role_switch.fwnode) {
+	if (ci_role_switch.fwyesde) {
 		ci->role_switch = usb_role_switch_register(dev,
 					&ci_role_switch);
 		if (IS_ERR(ci->role_switch)) {
@@ -1131,7 +1131,7 @@ static int ci_hdrc_probe(struct platform_device *pdev)
 			hw_write_otgsc(ci, OTGSC_IDIE, OTGSC_IDIE);
 		} else {
 			/*
-			 * If the controller is not OTG capable, but support
+			 * If the controller is yest OTG capable, but support
 			 * role switch, the defalt role is gadget, and the
 			 * user can switch it through debugfs.
 			 */
@@ -1209,7 +1209,7 @@ static int ci_hdrc_remove(struct platform_device *pdev)
 	if (ci->supports_runtime_pm) {
 		pm_runtime_get_sync(&pdev->dev);
 		pm_runtime_disable(&pdev->dev);
-		pm_runtime_put_noidle(&pdev->dev);
+		pm_runtime_put_yesidle(&pdev->dev);
 	}
 
 	dbg_remove_files(ci);
@@ -1308,7 +1308,7 @@ static int ci_suspend(struct device *dev)
 	/*
 	 * Controller needs to be active during suspend, otherwise the core
 	 * may run resume when the parent is at suspend if other driver's
-	 * suspend fails, it occurs before parent's suspend has not started,
+	 * suspend fails, it occurs before parent's suspend has yest started,
 	 * but the core suspend has finished.
 	 */
 	if (ci->in_lpm)

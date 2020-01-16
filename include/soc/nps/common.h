@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2016, Mellayesx Techyeslogies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -82,7 +82,7 @@ struct global_id {
  *
  * The conversion swap bits 1 and 2 of cluster id (out of 4 bits)
  * Now quad of logical clusters id's are adjacent physically,
- * and not like the id's physically came with each cluster.
+ * and yest like the id's physically came with each cluster.
  * Below table is 4x4 mesh of core clusters as it layout on chip.
  * Cluster ids are in format: logical (physical)
  *
@@ -128,7 +128,7 @@ struct nps_host_reg_address {
 	};
 };
 
-struct nps_host_reg_address_non_cl {
+struct nps_host_reg_address_yesn_cl {
 	union {
 		struct {
 			u32 base:7, blkid:11, reg:12, __reserved:2;
@@ -137,9 +137,9 @@ struct nps_host_reg_address_non_cl {
 	};
 };
 
-static inline void *nps_host_reg_non_cl(u32 blkid, u32 reg)
+static inline void *nps_host_reg_yesn_cl(u32 blkid, u32 reg)
 {
-	struct nps_host_reg_address_non_cl reg_address;
+	struct nps_host_reg_address_yesn_cl reg_address;
 
 	reg_address.value = NPS_HOST_REG_BASE;
 	reg_address.blkid = blkid;

@@ -223,7 +223,7 @@ DEFINE_TEST_ARRAY(s64) = {
 	if (_of != of) {					\
 		pr_warn("expected "fmt" "sym" "fmt		\
 			" to%s overflow (type %s)\n",		\
-			a, b, of ? "" : " not", #t);		\
+			a, b, of ? "" : " yest", #t);		\
 		err = 1;					\
 	}							\
 	if (_r != r) {						\
@@ -302,7 +302,7 @@ static int __init test_overflow_shift(void)
 	bool __of = check_shl_overflow(__a, __s, &__d);			\
 	if (__of != of) {						\
 		pr_warn("expected (%s)(%s << %s) to%s overflow\n",	\
-			#t, #a, #s, of ? "" : " not");			\
+			#t, #a, #s, of ? "" : " yest");			\
 		__failed = 1;						\
 	} else if (!__of && __d != __e) {				\
 		pr_warn("expected (%s)(%s << %s) == %s\n",		\
@@ -467,11 +467,11 @@ static int __init test_overflow_shift(void)
 	/*
 	 * Corner case: for unsigned types, we fail when we've shifted
 	 * through the entire width of bits. For signed types, we might
-	 * want to match this behavior, but that would mean noticing if
-	 * we shift through all but the signed bit, and this is not
-	 * currently detected (but we'll notice an overflow into the
-	 * signed bit). So, for now, we will test this condition but
-	 * mark it as not expected to overflow.
+	 * want to match this behavior, but that would mean yesticing if
+	 * we shift through all but the signed bit, and this is yest
+	 * currently detected (but we'll yestice an overflow into the
+	 * signed bit). So, for yesw, we will test this condition but
+	 * mark it as yest expected to overflow.
 	 */
 	err |= TEST_ONE_SHIFT(0, 7, s8, 0, false);
 	err |= TEST_ONE_SHIFT(0, 15, s16, 0, false);
@@ -498,7 +498,7 @@ static int __init test_overflow_shift(void)
 /* Wrap around to 16K */
 #define TEST_SIZE		(5 * 4096)
 
-#define DEFINE_TEST_ALLOC(func, free_func, want_arg, want_gfp, want_node)\
+#define DEFINE_TEST_ALLOC(func, free_func, want_arg, want_gfp, want_yesde)\
 static int __init test_ ## func (void *arg)				\
 {									\
 	volatile size_t a = TEST_SIZE;					\
@@ -506,7 +506,7 @@ static int __init test_ ## func (void *arg)				\
 	void *ptr;							\
 									\
 	/* Tiny allocation test. */					\
-	ptr = alloc ## want_arg ## want_gfp ## want_node (func, arg, 1);\
+	ptr = alloc ## want_arg ## want_gfp ## want_yesde (func, arg, 1);\
 	if (!ptr) {							\
 		pr_warn(#func " failed regular allocation?!\n");	\
 		return 1;						\
@@ -514,7 +514,7 @@ static int __init test_ ## func (void *arg)				\
 	free ## want_arg (free_func, arg, ptr);				\
 									\
 	/* Wrapped allocation test. */					\
-	ptr = alloc ## want_arg ## want_gfp ## want_node (func, arg,	\
+	ptr = alloc ## want_arg ## want_gfp ## want_yesde (func, arg,	\
 							  a * b);	\
 	if (!ptr) {							\
 		pr_warn(#func " unexpectedly failed bad wrapping?!\n");	\
@@ -523,7 +523,7 @@ static int __init test_ ## func (void *arg)				\
 	free ## want_arg (free_func, arg, ptr);				\
 									\
 	/* Saturated allocation test. */				\
-	ptr = alloc ## want_arg ## want_gfp ## want_node (func, arg,	\
+	ptr = alloc ## want_arg ## want_gfp ## want_yesde (func, arg,	\
 						   array_size(a, b));	\
 	if (ptr) {							\
 		pr_warn(#func " missed saturation!\n");			\
@@ -535,23 +535,23 @@ static int __init test_ ## func (void *arg)				\
 }
 
 /*
- * Allocator uses a trailing node argument --------+  (e.g. kmalloc_node())
+ * Allocator uses a trailing yesde argument --------+  (e.g. kmalloc_yesde())
  * Allocator uses the gfp_t argument -----------+  |  (e.g. kmalloc())
  * Allocator uses a special leading argument +  |  |  (e.g. devm_kmalloc())
  *                                           |  |  |
  */
 DEFINE_TEST_ALLOC(kmalloc,	 kfree,	     0, 1, 0);
-DEFINE_TEST_ALLOC(kmalloc_node,	 kfree,	     0, 1, 1);
+DEFINE_TEST_ALLOC(kmalloc_yesde,	 kfree,	     0, 1, 1);
 DEFINE_TEST_ALLOC(kzalloc,	 kfree,	     0, 1, 0);
-DEFINE_TEST_ALLOC(kzalloc_node,  kfree,	     0, 1, 1);
+DEFINE_TEST_ALLOC(kzalloc_yesde,  kfree,	     0, 1, 1);
 DEFINE_TEST_ALLOC(vmalloc,	 vfree,	     0, 0, 0);
-DEFINE_TEST_ALLOC(vmalloc_node,  vfree,	     0, 0, 1);
+DEFINE_TEST_ALLOC(vmalloc_yesde,  vfree,	     0, 0, 1);
 DEFINE_TEST_ALLOC(vzalloc,	 vfree,	     0, 0, 0);
-DEFINE_TEST_ALLOC(vzalloc_node,  vfree,	     0, 0, 1);
+DEFINE_TEST_ALLOC(vzalloc_yesde,  vfree,	     0, 0, 1);
 DEFINE_TEST_ALLOC(kvmalloc,	 kvfree,     0, 1, 0);
-DEFINE_TEST_ALLOC(kvmalloc_node, kvfree,     0, 1, 1);
+DEFINE_TEST_ALLOC(kvmalloc_yesde, kvfree,     0, 1, 1);
 DEFINE_TEST_ALLOC(kvzalloc,	 kvfree,     0, 1, 0);
-DEFINE_TEST_ALLOC(kvzalloc_node, kvfree,     0, 1, 1);
+DEFINE_TEST_ALLOC(kvzalloc_yesde, kvfree,     0, 1, 1);
 DEFINE_TEST_ALLOC(devm_kmalloc,  devm_kfree, 1, 1, 0);
 DEFINE_TEST_ALLOC(devm_kzalloc,  devm_kfree, 1, 1, 0);
 
@@ -564,22 +564,22 @@ static int __init test_overflow_allocation(void)
 	/* Create dummy device for devm_kmalloc()-family tests. */
 	dev = root_device_register(device_name);
 	if (IS_ERR(dev)) {
-		pr_warn("Cannot register test device\n");
+		pr_warn("Canyest register test device\n");
 		return 1;
 	}
 
 	err |= test_kmalloc(NULL);
-	err |= test_kmalloc_node(NULL);
+	err |= test_kmalloc_yesde(NULL);
 	err |= test_kzalloc(NULL);
-	err |= test_kzalloc_node(NULL);
+	err |= test_kzalloc_yesde(NULL);
 	err |= test_kvmalloc(NULL);
-	err |= test_kvmalloc_node(NULL);
+	err |= test_kvmalloc_yesde(NULL);
 	err |= test_kvzalloc(NULL);
-	err |= test_kvzalloc_node(NULL);
+	err |= test_kvzalloc_yesde(NULL);
 	err |= test_vmalloc(NULL);
-	err |= test_vmalloc_node(NULL);
+	err |= test_vmalloc_yesde(NULL);
 	err |= test_vzalloc(NULL);
-	err |= test_vzalloc_node(NULL);
+	err |= test_vzalloc_yesde(NULL);
 	err |= test_devm_kmalloc(dev);
 	err |= test_devm_kzalloc(dev);
 

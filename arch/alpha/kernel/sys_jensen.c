@@ -43,7 +43,7 @@
  *
  *	0x660 - NMI
  *
- *	0x800 - IRQ0  interval timer (not used, as we use the RTC timer)
+ *	0x800 - IRQ0  interval timer (yest used, as we use the RTC timer)
  *	0x810 - IRQ1  line printer (duh..)
  *	0x860 - IRQ6  floppy disk
  *
@@ -53,8 +53,8 @@
  *	0x990 - mouse
  *
  * PCI-based systems are more sane: they don't have the local
- * interrupts at all, and have only normal PCI interrupts from
- * devices.  Happily it's easy enough to do a sane mapping from the
+ * interrupts at all, and have only yesrmal PCI interrupts from
+ * devices.  Happily it's easy eyesugh to do a sane mapping from the
  * Jensen.
  * 
  * Note that this means that we may have to do a hardware
@@ -112,7 +112,7 @@ jensen_device_interrupt(unsigned long vector)
 
 	default:
 		if (vector > 0x900) {
-			printk("Unknown local interrupt %lx\n", vector);
+			printk("Unkyeswn local interrupt %lx\n", vector);
 			return;
 		}
 
@@ -122,9 +122,9 @@ jensen_device_interrupt(unsigned long vector)
 		break;
 	}
 
-	/* If there is no handler yet... */
+	/* If there is yes handler yet... */
 	if (!irq_has_action(irq)) {
-	    /* If it is a local interrupt that cannot be masked... */
+	    /* If it is a local interrupt that canyest be masked... */
 	    if (vector >= 0x900)
 	    {
 	        /* Clear keyboard/mouse state */

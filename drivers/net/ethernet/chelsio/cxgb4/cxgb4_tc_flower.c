@@ -14,11 +14,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -556,7 +556,7 @@ int cxgb4_validate_flow_actions(struct net_device *dev,
 		switch (act->id) {
 		case FLOW_ACTION_ACCEPT:
 		case FLOW_ACTION_DROP:
-			/* Do nothing */
+			/* Do yesthing */
 			break;
 		case FLOW_ACTION_REDIRECT: {
 			struct adapter *adap = netdev2adap(dev);
@@ -574,7 +574,7 @@ int cxgb4_validate_flow_actions(struct net_device *dev,
 			}
 
 			/* If interface doesn't belong to our hw, then
-			 * the provided output port is not valid
+			 * the provided output port is yest valid
 			 */
 			if (!found) {
 				netdev_err(dev, "%s: Out port invalid\n",
@@ -714,7 +714,7 @@ int cxgb4_tc_flower_replace(struct net_device *dev,
 
 	ch_flower->tc_flower_cookie = cls->cookie;
 	ch_flower->filter_id = ctx.tid;
-	ret = rhashtable_insert_fast(&adap->flower_tbl, &ch_flower->node,
+	ret = rhashtable_insert_fast(&adap->flower_tbl, &ch_flower->yesde,
 				     adap->flower_ht_params);
 	if (ret)
 		goto del_filter;
@@ -744,7 +744,7 @@ int cxgb4_tc_flower_destroy(struct net_device *dev,
 	if (ret)
 		goto err;
 
-	ret = rhashtable_remove_fast(&adap->flower_tbl, &ch_flower->node,
+	ret = rhashtable_remove_fast(&adap->flower_tbl, &ch_flower->yesde,
 				     adap->flower_ht_params);
 	if (ret) {
 		netdev_err(dev, "Flow remove from rhashtable failed");
@@ -847,7 +847,7 @@ err:
 
 static const struct rhashtable_params cxgb4_tc_flower_ht_params = {
 	.nelem_hint = 384,
-	.head_offset = offsetof(struct ch_tc_flower_entry, node),
+	.head_offset = offsetof(struct ch_tc_flower_entry, yesde),
 	.key_offset = offsetof(struct ch_tc_flower_entry, tc_flower_cookie),
 	.key_len = sizeof(((struct ch_tc_flower_entry *)0)->tc_flower_cookie),
 	.max_size = 524288,

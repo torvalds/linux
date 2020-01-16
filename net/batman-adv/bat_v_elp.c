@@ -10,7 +10,7 @@
 #include <linux/atomic.h>
 #include <linux/bitops.h>
 #include <linux/byteorder/generic.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/etherdevice.h>
 #include <linux/ethtool.h>
 #include <linux/gfp.h>
@@ -62,7 +62,7 @@ static void batadv_v_elp_start_timer(struct batadv_hard_iface *hard_iface)
  * Return: The throughput towards the given neighbour in multiples of 100kpbs
  *         (a value of '1' equals to 0.1Mbps, '10' equals 1Mbps, etc).
  */
-static u32 batadv_v_elp_get_throughput(struct batadv_hardif_neigh_node *neigh)
+static u32 batadv_v_elp_get_throughput(struct batadv_hardif_neigh_yesde *neigh)
 {
 	struct batadv_hard_iface *hard_iface = neigh->if_incoming;
 	struct ethtool_link_ksettings link_settings;
@@ -99,8 +99,8 @@ static u32 batadv_v_elp_get_throughput(struct batadv_hardif_neigh_node *neigh)
 
 		dev_put(real_netdev);
 		if (ret == -ENOENT) {
-			/* Node is not associated anymore! It would be
-			 * possible to delete this neighbor. For now set
+			/* Node is yest associated anymore! It would be
+			 * possible to delete this neighbor. For yesw set
 			 * the throughput metric to 0.
 			 */
 			return 0;
@@ -113,7 +113,7 @@ static u32 batadv_v_elp_get_throughput(struct batadv_hardif_neigh_node *neigh)
 		return sinfo.expected_throughput / 100;
 	}
 
-	/* if not a wifi interface, check if this device provides data via
+	/* if yest a wifi interface, check if this device provides data via
 	 * ethtool (e.g. an Ethernet adapter)
 	 */
 	memset(&link_settings, 0, sizeof(link_settings));
@@ -125,7 +125,7 @@ static u32 batadv_v_elp_get_throughput(struct batadv_hardif_neigh_node *neigh)
 	 * tend to initialize the interface throughput with some value for the
 	 * sake of having a throughput number to export via ethtool. This
 	 * exported throughput leaves batman-adv to conclude the interface
-	 * throughput is genuine (reflecting reality), thus no measurements
+	 * throughput is genuine (reflecting reality), thus yes measurements
 	 * are necessary.
 	 *
 	 * Based on the observation that those interface types also tend to set
@@ -148,14 +148,14 @@ static u32 batadv_v_elp_get_throughput(struct batadv_hardif_neigh_node *neigh)
 default_throughput:
 	if (!(hard_iface->bat_v.flags & BATADV_WARNING_DEFAULT)) {
 		batadv_info(hard_iface->soft_iface,
-			    "WiFi driver or ethtool info does not provide information about link speeds on interface %s, therefore defaulting to hardcoded throughput values of %u.%1u Mbps. Consider overriding the throughput manually or checking your driver.\n",
+			    "WiFi driver or ethtool info does yest provide information about link speeds on interface %s, therefore defaulting to hardcoded throughput values of %u.%1u Mbps. Consider overriding the throughput manually or checking your driver.\n",
 			    hard_iface->net_dev->name,
 			    BATADV_THROUGHPUT_DEFAULT_VALUE / 10,
 			    BATADV_THROUGHPUT_DEFAULT_VALUE % 10);
 		hard_iface->bat_v.flags |= BATADV_WARNING_DEFAULT;
 	}
 
-	/* if none of the above cases apply, return the base_throughput */
+	/* if yesne of the above cases apply, return the base_throughput */
 	return BATADV_THROUGHPUT_DEFAULT_VALUE;
 }
 
@@ -166,12 +166,12 @@ default_throughput:
  */
 void batadv_v_elp_throughput_metric_update(struct work_struct *work)
 {
-	struct batadv_hardif_neigh_node_bat_v *neigh_bat_v;
-	struct batadv_hardif_neigh_node *neigh;
+	struct batadv_hardif_neigh_yesde_bat_v *neigh_bat_v;
+	struct batadv_hardif_neigh_yesde *neigh;
 
-	neigh_bat_v = container_of(work, struct batadv_hardif_neigh_node_bat_v,
+	neigh_bat_v = container_of(work, struct batadv_hardif_neigh_yesde_bat_v,
 				   metric_work);
-	neigh = container_of(neigh_bat_v, struct batadv_hardif_neigh_node,
+	neigh = container_of(neigh_bat_v, struct batadv_hardif_neigh_yesde,
 			     bat_v);
 
 	ewma_throughput_add(&neigh->bat_v.throughput,
@@ -189,13 +189,13 @@ void batadv_v_elp_throughput_metric_update(struct work_struct *work)
  *
  * Sends a predefined number of unicast wifi packets to a given neighbour in
  * order to trigger the throughput estimation on this link by the RC algorithm.
- * Packets are sent only if there there is not enough payload unicast traffic
+ * Packets are sent only if there there is yest eyesugh payload unicast traffic
  * towards this neighbour..
  *
  * Return: True on success and false in case of error during skb preparation.
  */
 static bool
-batadv_v_elp_wifi_neigh_probe(struct batadv_hardif_neigh_node *neigh)
+batadv_v_elp_wifi_neigh_probe(struct batadv_hardif_neigh_yesde *neigh)
 {
 	struct batadv_hard_iface *hard_iface = neigh->if_incoming;
 	struct batadv_priv *bat_priv = netdev_priv(hard_iface->soft_iface);
@@ -208,10 +208,10 @@ batadv_v_elp_wifi_neigh_probe(struct batadv_hardif_neigh_node *neigh)
 	if (!batadv_is_wifi_hardif(hard_iface))
 		return true;
 
-	/* probe the neighbor only if no unicast packets have been sent
+	/* probe the neighbor only if yes unicast packets have been sent
 	 * to it in the last 100 milliseconds: this is the rate control
-	 * algorithm sampling interval (minstrel). In this way, if not
-	 * enough traffic has been sent to the neighbor, batman-adv can
+	 * algorithm sampling interval (minstrel). In this way, if yest
+	 * eyesugh traffic has been sent to the neighbor, batman-adv can
 	 * generate 2 probe packets and push the RC algorithm to perform
 	 * the sampling
 	 */
@@ -254,7 +254,7 @@ batadv_v_elp_wifi_neigh_probe(struct batadv_hardif_neigh_node *neigh)
  */
 static void batadv_v_elp_periodic_work(struct work_struct *work)
 {
-	struct batadv_hardif_neigh_node *hardif_neigh;
+	struct batadv_hardif_neigh_yesde *hardif_neigh;
 	struct batadv_hard_iface *hard_iface;
 	struct batadv_hard_iface_bat_v *bat_v;
 	struct batadv_elp_packet *elp_packet;
@@ -275,7 +275,7 @@ static void batadv_v_elp_periodic_work(struct work_struct *work)
 	    hard_iface->if_status == BATADV_IF_TO_BE_REMOVED)
 		goto out;
 
-	/* the interface was enabled but may not be ready yet */
+	/* the interface was enabled but may yest be ready yet */
 	if (hard_iface->if_status != BATADV_IF_ACTIVE)
 		goto restart_timer;
 
@@ -284,27 +284,27 @@ static void batadv_v_elp_periodic_work(struct work_struct *work)
 		goto restart_timer;
 
 	elp_packet = (struct batadv_elp_packet *)skb->data;
-	elp_packet->seqno = htonl(atomic_read(&hard_iface->bat_v.elp_seqno));
+	elp_packet->seqyes = htonl(atomic_read(&hard_iface->bat_v.elp_seqyes));
 	elp_interval = atomic_read(&hard_iface->bat_v.elp_interval);
 	elp_packet->elp_interval = htonl(elp_interval);
 
 	batadv_dbg(BATADV_DBG_BATMAN, bat_priv,
-		   "Sending broadcast ELP packet on interface %s, seqno %u\n",
+		   "Sending broadcast ELP packet on interface %s, seqyes %u\n",
 		   hard_iface->net_dev->name,
-		   atomic_read(&hard_iface->bat_v.elp_seqno));
+		   atomic_read(&hard_iface->bat_v.elp_seqyes));
 
 	batadv_send_broadcast_skb(skb, hard_iface);
 
-	atomic_inc(&hard_iface->bat_v.elp_seqno);
+	atomic_inc(&hard_iface->bat_v.elp_seqyes);
 
 	/* The throughput metric is updated on each sent packet. This way, if a
-	 * node is dead and no longer sends packets, batman-adv is still able to
+	 * yesde is dead and yes longer sends packets, batman-adv is still able to
 	 * react timely to its death.
 	 *
 	 * The throughput metric is updated by following these steps:
 	 * 1) if the hard_iface is wifi => send a number of unicast ELPs for
 	 *    probing/sampling to each neighbor
-	 * 2) update the throughput metric value of each neighbor (note that the
+	 * 2) update the throughput metric value of each neighbor (yeste that the
 	 *    value retrieved in this step might be 100ms old because the
 	 *    probing packets at point 1) could still be in the HW queue)
 	 */
@@ -320,7 +320,7 @@ static void batadv_v_elp_periodic_work(struct work_struct *work)
 			continue;
 
 		/* Reading the estimated throughput from cfg80211 is a task that
-		 * may sleep and that is not allowed in an rcu protected
+		 * may sleep and that is yest allowed in an rcu protected
 		 * context. Therefore schedule a task for that.
 		 */
 		ret = queue_work(batadv_event_workqueue,
@@ -348,7 +348,7 @@ int batadv_v_elp_iface_enable(struct batadv_hard_iface *hard_iface)
 	static const size_t tvlv_padding = sizeof(__be32);
 	struct batadv_elp_packet *elp_packet;
 	unsigned char *elp_buff;
-	u32 random_seqno;
+	u32 random_seqyes;
 	size_t size;
 	int res = -ENOMEM;
 
@@ -365,14 +365,14 @@ int batadv_v_elp_iface_enable(struct batadv_hard_iface *hard_iface)
 	elp_packet->packet_type = BATADV_ELP;
 	elp_packet->version = BATADV_COMPAT_VERSION;
 
-	/* randomize initial seqno to avoid collision */
-	get_random_bytes(&random_seqno, sizeof(random_seqno));
-	atomic_set(&hard_iface->bat_v.elp_seqno, random_seqno);
+	/* randomize initial seqyes to avoid collision */
+	get_random_bytes(&random_seqyes, sizeof(random_seqyes));
+	atomic_set(&hard_iface->bat_v.elp_seqyes, random_seqyes);
 
 	/* assume full-duplex by default */
 	hard_iface->bat_v.flags |= BATADV_FULL_DUPLEX;
 
-	/* warn the user (again) if there is no throughput data is available */
+	/* warn the user (again) if there is yes throughput data is available */
 	hard_iface->bat_v.flags &= ~BATADV_WARNING_DEFAULT;
 
 	if (batadv_is_wifi_hardif(hard_iface))
@@ -441,13 +441,13 @@ void batadv_v_elp_primary_iface_set(struct batadv_hard_iface *primary_iface)
 }
 
 /**
- * batadv_v_elp_neigh_update() - update an ELP neighbour node
+ * batadv_v_elp_neigh_update() - update an ELP neighbour yesde
  * @bat_priv: the bat priv with all the soft interface information
  * @neigh_addr: the neighbour interface address
  * @if_incoming: the interface the packet was received through
  * @elp_packet: the received ELP packet
  *
- * Updates the ELP neighbour node state with the data received within the new
+ * Updates the ELP neighbour yesde state with the data received within the new
  * ELP packet.
  */
 static void batadv_v_elp_neigh_update(struct batadv_priv *bat_priv,
@@ -456,17 +456,17 @@ static void batadv_v_elp_neigh_update(struct batadv_priv *bat_priv,
 				      struct batadv_elp_packet *elp_packet)
 
 {
-	struct batadv_neigh_node *neigh;
-	struct batadv_orig_node *orig_neigh;
-	struct batadv_hardif_neigh_node *hardif_neigh;
-	s32 seqno_diff;
-	s32 elp_latest_seqno;
+	struct batadv_neigh_yesde *neigh;
+	struct batadv_orig_yesde *orig_neigh;
+	struct batadv_hardif_neigh_yesde *hardif_neigh;
+	s32 seqyes_diff;
+	s32 elp_latest_seqyes;
 
 	orig_neigh = batadv_v_ogm_orig_get(bat_priv, elp_packet->orig);
 	if (!orig_neigh)
 		return;
 
-	neigh = batadv_neigh_node_get_or_create(orig_neigh,
+	neigh = batadv_neigh_yesde_get_or_create(orig_neigh,
 						if_incoming, neigh_addr);
 	if (!neigh)
 		goto orig_free;
@@ -475,18 +475,18 @@ static void batadv_v_elp_neigh_update(struct batadv_priv *bat_priv,
 	if (!hardif_neigh)
 		goto neigh_free;
 
-	elp_latest_seqno = hardif_neigh->bat_v.elp_latest_seqno;
-	seqno_diff = ntohl(elp_packet->seqno) - elp_latest_seqno;
+	elp_latest_seqyes = hardif_neigh->bat_v.elp_latest_seqyes;
+	seqyes_diff = ntohl(elp_packet->seqyes) - elp_latest_seqyes;
 
-	/* known or older sequence numbers are ignored. However always adopt
+	/* kyeswn or older sequence numbers are igyesred. However always adopt
 	 * if the router seems to have been restarted.
 	 */
-	if (seqno_diff < 1 && seqno_diff > -BATADV_ELP_MAX_AGE)
+	if (seqyes_diff < 1 && seqyes_diff > -BATADV_ELP_MAX_AGE)
 		goto hardif_free;
 
 	neigh->last_seen = jiffies;
 	hardif_neigh->last_seen = jiffies;
-	hardif_neigh->bat_v.elp_latest_seqno = ntohl(elp_packet->seqno);
+	hardif_neigh->bat_v.elp_latest_seqyes = ntohl(elp_packet->seqyes);
 	hardif_neigh->bat_v.elp_interval = ntohl(elp_packet->elp_interval);
 
 hardif_free:
@@ -494,10 +494,10 @@ hardif_free:
 		batadv_hardif_neigh_put(hardif_neigh);
 neigh_free:
 	if (neigh)
-		batadv_neigh_node_put(neigh);
+		batadv_neigh_yesde_put(neigh);
 orig_free:
 	if (orig_neigh)
-		batadv_orig_node_put(orig_neigh);
+		batadv_orig_yesde_put(orig_neigh);
 }
 
 /**
@@ -526,7 +526,7 @@ int batadv_v_elp_packet_recv(struct sk_buff *skb,
 		goto free_skb;
 
 	/* did we receive a B.A.T.M.A.N. V ELP packet on an interface
-	 * that does not have B.A.T.M.A.N. V ELP enabled ?
+	 * that does yest have B.A.T.M.A.N. V ELP enabled ?
 	 */
 	if (strcmp(bat_priv->algo_ops->name, "BATMAN_V") != 0)
 		goto free_skb;
@@ -534,8 +534,8 @@ int batadv_v_elp_packet_recv(struct sk_buff *skb,
 	elp_packet = (struct batadv_elp_packet *)skb->data;
 
 	batadv_dbg(BATADV_DBG_BATMAN, bat_priv,
-		   "Received ELP packet from %pM seqno %u ORIG: %pM\n",
-		   ethhdr->h_source, ntohl(elp_packet->seqno),
+		   "Received ELP packet from %pM seqyes %u ORIG: %pM\n",
+		   ethhdr->h_source, ntohl(elp_packet->seqyes),
 		   elp_packet->orig);
 
 	primary_if = batadv_primary_if_get_selected(bat_priv);

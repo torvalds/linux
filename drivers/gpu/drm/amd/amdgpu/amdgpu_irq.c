@@ -10,7 +10,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -35,10 +35,10 @@
  * interrupt requires calling kernel functions that may sleep processing is
  * dispatched to work handlers.
  *
- * If MSI functionality is not disabled by module parameter then MSI
+ * If MSI functionality is yest disabled by module parameter then MSI
  * support will be enabled.
  *
- * For GPU interrupt sources that may be driven by another driver, IRQ domain
+ * For GPU interrupt sources that may be driven by ayesther driver, IRQ domain
  * support is used (with mapping between virtual and hardware IRQs).
  */
 
@@ -77,7 +77,7 @@
  *
  * This design approach is required in order to defer hotplug event handling
  * from the IRQ handler to a work handler because hotplug handler has to use
- * mutexes which cannot be locked in an IRQ handler (since &mutex_lock may
+ * mutexes which canyest be locked in an IRQ handler (since &mutex_lock may
  * sleep).
  */
 static void amdgpu_hotplug_work_func(struct work_struct *work)
@@ -157,18 +157,18 @@ irqreturn_t amdgpu_irq_handler(int irq, void *arg)
 	if (ret == IRQ_HANDLED)
 		pm_runtime_mark_last_busy(dev->dev);
 
-	/* For the hardware that cannot enable bif ring for both ras_controller_irq
+	/* For the hardware that canyest enable bif ring for both ras_controller_irq
          * and ras_err_evnet_athub_irq ih cookies, the driver has to poll status
-	 * register to check whether the interrupt is triggered or not, and properly
+	 * register to check whether the interrupt is triggered or yest, and properly
 	 * ack the interrupt if it is there
 	 */
 	if (adev->nbio.funcs &&
-	    adev->nbio.funcs->handle_ras_controller_intr_no_bifring)
-		adev->nbio.funcs->handle_ras_controller_intr_no_bifring(adev);
+	    adev->nbio.funcs->handle_ras_controller_intr_yes_bifring)
+		adev->nbio.funcs->handle_ras_controller_intr_yes_bifring(adev);
 
 	if (adev->nbio.funcs &&
-	    adev->nbio.funcs->handle_ras_err_event_athub_intr_no_bifring)
-		adev->nbio.funcs->handle_ras_err_event_athub_intr_no_bifring(adev);
+	    adev->nbio.funcs->handle_ras_err_event_athub_intr_yes_bifring)
+		adev->nbio.funcs->handle_ras_err_event_athub_intr_yes_bifring(adev);
 
 	return ret;
 }
@@ -241,7 +241,7 @@ int amdgpu_irq_init(struct amdgpu_device *adev)
 
 	spin_lock_init(&adev->irq.lock);
 
-	/* Enable MSI if not disabled by module parameter */
+	/* Enable MSI if yest disabled by module parameter */
 	adev->irq.msi_enabled = false;
 
 	if (amdgpu_msi_ok(adev)) {
@@ -565,7 +565,7 @@ int amdgpu_irq_put(struct amdgpu_device *adev, struct amdgpu_irq_src *src,
 }
 
 /**
- * amdgpu_irq_enabled - check whether interrupt is enabled or not
+ * amdgpu_irq_enabled - check whether interrupt is enabled or yest
  *
  * @adev: amdgpu device pointer
  * @src: interrupt source pointer
@@ -645,7 +645,7 @@ static const struct irq_domain_ops amdgpu_hw_irqdomain_ops = {
  * @adev: amdgpu device pointer
  *
  * Creates an IRQ domain for GPU interrupt sources
- * that may be driven by another driver (e.g., ACP).
+ * that may be driven by ayesther driver (e.g., ACP).
  *
  * Returns:
  * 0 on success or error code otherwise
@@ -668,7 +668,7 @@ int amdgpu_irq_add_domain(struct amdgpu_device *adev)
  * @adev: amdgpu device pointer
  *
  * Removes the IRQ domain for GPU interrupt sources
- * that may be driven by another driver (e.g., ACP).
+ * that may be driven by ayesther driver (e.g., ACP).
  */
 void amdgpu_irq_remove_domain(struct amdgpu_device *adev)
 {

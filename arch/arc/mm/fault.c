@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /* Page Fault Handling for ARC (TLB Miss / ProtV)
  *
- * Copyright (C) 2004, 2007-2010, 2011-2012 Synopsys, Inc. (www.synopsys.com)
+ * Copyright (C) 2004, 2007-2010, 2011-2012 Syyespsys, Inc. (www.syyespsys.com)
  */
 
 #include <linux/signal.h>
 #include <linux/interrupt.h>
 #include <linux/sched/signal.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/ptrace.h>
 #include <linux/uaccess.h>
 #include <linux/kdebug.h>
@@ -23,7 +23,7 @@
  * It simply copies the PMD entry (pointer to 2nd level page table or hugepage)
  * from swapper pgdir to task pgdir. The 2nd level table/page is thus shared
  */
-noinline static int handle_kernel_vaddr_fault(unsigned long address)
+yesinline static int handle_kernel_vaddr_fault(unsigned long address)
 {
 	/*
 	 * Synchronize this task's top level page-table
@@ -78,21 +78,21 @@ void do_page_fault(unsigned long address, struct pt_regs *regs)
 	 * NOTE! We MUST NOT take any locks for this case. We may
 	 * be in an interrupt or a critical region, and should
 	 * only copy the information from the master page table,
-	 * nothing more.
+	 * yesthing more.
 	 */
 	if (address >= VMALLOC_START && !user_mode(regs)) {
 		if (unlikely(handle_kernel_vaddr_fault(address)))
-			goto no_context;
+			goto yes_context;
 		else
 			return;
 	}
 
 	/*
-	 * If we're in an interrupt or have no user
-	 * context, we must not take the fault..
+	 * If we're in an interrupt or have yes user
+	 * context, we must yest take the fault..
 	 */
 	if (faulthandler_disabled() || !mm)
-		goto no_context;
+		goto yes_context;
 
 	if (regs->ecr_cause & ECR_C_PROTV_STORE)	/* ST/EX */
 		write = 1;
@@ -118,7 +118,7 @@ retry:
 	}
 
 	/*
-	 * vm_area is good, now check permissions for this memory access
+	 * vm_area is good, yesw check permissions for this memory access
 	 */
 	mask = VM_READ;
 	if (write)
@@ -145,7 +145,7 @@ retry:
 		 */
 		if (fatal_signal_pending(current)) {
 			if (!user_mode(regs))
-				goto no_context;
+				goto yes_context;
 			return;
 		}
 		/*
@@ -162,7 +162,7 @@ bad_area:
 	up_read(&mm->mmap_sem);
 
 	/*
-	 * Major/minor page fault accounting
+	 * Major/miyesr page fault accounting
 	 * (in case of retry we only land here once)
 	 */
 	perf_sw_event(PERF_COUNT_SW_PAGE_FAULTS, 1, regs, address);
@@ -183,7 +183,7 @@ bad_area:
 	}
 
 	if (!user_mode(regs))
-		goto no_context;
+		goto yes_context;
 
 	if (fault & VM_FAULT_OOM) {
 		pagefault_out_of_memory();
@@ -202,7 +202,7 @@ bad_area:
 	force_sig_fault(sig, si_code, (void __user *)address);
 	return;
 
-no_context:
+yes_context:
 	if (fixup_exception(regs))
 		return;
 

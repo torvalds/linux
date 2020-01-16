@@ -4,9 +4,9 @@
  * for more details.
  *
  * Carsten Langgaard, carstenl@mips.com
- * Copyright (C) 2000, 2001, 2004 MIPS Technologies, Inc.
+ * Copyright (C) 2000, 2001, 2004 MIPS Techyeslogies, Inc.
  * Copyright (C) 2001 Ralf Baechle
- * Copyright (C) 2013 Imagination Technologies Ltd.
+ * Copyright (C) 2013 Imagination Techyeslogies Ltd.
  *
  * Routines for generic manipulation of the interrupts found on the MIPS
  * Malta board. The interrupt controller is located in the South Bridge
@@ -44,7 +44,7 @@ static inline int mips_pcibios_iack(void)
 
 	/*
 	 * Determine highest priority pending interrupt by performing
-	 * a PCI Interrupt Acknowledge cycle.
+	 * a PCI Interrupt Ackyeswledge cycle.
 	 */
 	switch (mips_revision_sconid) {
 	case MIPS_REVISION_SCON_SOCIT:
@@ -76,7 +76,7 @@ static inline int mips_pcibios_iack(void)
 		BONITO_PCIMAP_CFG = 0;
 		break;
 	default:
-		pr_emerg("Unknown system controller.\n");
+		pr_emerg("Unkyeswn system controller.\n");
 		return -1;
 	}
 	return irq;
@@ -183,8 +183,8 @@ void __init arch_init_irq(void)
 	 * of the i8259 will fail.
 	 */
 	WARN(irq_alloc_descs(I8259A_IRQ_BASE, I8259A_IRQ_BASE,
-			    16, numa_node_id()) < 0,
-		"Cannot reserve i8259 virqs at IRQ%d\n", I8259A_IRQ_BASE);
+			    16, numa_yesde_id()) < 0,
+		"Canyest reserve i8259 virqs at IRQ%d\n", I8259A_IRQ_BASE);
 
 	i8259_set_poll(mips_pcibios_iack);
 	irqchip_init();

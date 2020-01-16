@@ -21,7 +21,7 @@ Required properties :
 		 offset from the clock domain base and the second being the
 		 clock index
 
-Example: Clock controller node on omap 4430:
+Example: Clock controller yesde on omap 4430:
 
 &cm2 {
 	l4per: cm@1400 {
@@ -48,7 +48,7 @@ Example: Preprocessor helper macros in dt-bindings/clock/ti-clkctrl.h
 ...
 #define OMAP4_GPIO2_CLKCTRL		OMAP_CLKCTRL_INDEX(0x60)
 
-Example: Clock consumer node for GPIO2:
+Example: Clock consumer yesde for GPIO2:
 
 &gpio2 {
        clocks = <&cm_l4per_clkctrl OMAP4_GPIO2_CLKCTRL 0

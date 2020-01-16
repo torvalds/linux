@@ -102,7 +102,7 @@ static struct xen_gem_object *gem_create(struct drm_device *dev, size_t size)
 		ret = alloc_xenballooned_pages(xen_obj->num_pages,
 					       xen_obj->pages);
 		if (ret < 0) {
-			DRM_ERROR("Cannot allocate %zu ballooned pages: %d\n",
+			DRM_ERROR("Canyest allocate %zu ballooned pages: %d\n",
 				  xen_obj->num_pages, ret);
 			gem_free_pages_array(xen_obj);
 			goto fail;
@@ -112,7 +112,7 @@ static struct xen_gem_object *gem_create(struct drm_device *dev, size_t size)
 		return xen_obj;
 	}
 	/*
-	 * need to allocate backing pages now, so we can share those
+	 * need to allocate backing pages yesw, so we can share those
 	 * with the backend
 	 */
 	xen_obj->num_pages = DIV_ROUND_UP(size, PAGE_SIZE);
@@ -245,9 +245,9 @@ static int gem_mmap_obj(struct xen_gem_object *xen_obj,
 	/*
 	 * vm_operations_struct.fault handler will be called if CPU access
 	 * to VM is here. For GPUs this isn't the case, because CPU
-	 * doesn't touch the memory. Insert pages now, so both CPU and GPU are
+	 * doesn't touch the memory. Insert pages yesw, so both CPU and GPU are
 	 * happy.
-	 * FIXME: as we insert all the pages now then no .fault handler must
+	 * FIXME: as we insert all the pages yesw then yes .fault handler must
 	 * be called, so don't provide one
 	 */
 	ret = vm_map_pages(vma, xen_obj->pages, xen_obj->num_pages);

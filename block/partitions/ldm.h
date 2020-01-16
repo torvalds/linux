@@ -100,7 +100,7 @@ struct frag {				/* VBLK Fragment handling */
 
 struct privhead {			/* Offsets and sizes are in sectors. */
 	u16	ver_major;
-	u16	ver_minor;
+	u16	ver_miyesr;
 	u64	logical_disk_start;
 	u64	logical_disk_size;
 	u64	config_start;
@@ -119,7 +119,7 @@ struct tocblock {			/* We have exactly two bitmaps. */
 
 struct vmdb {				/* VMDB: The database header */
 	u16	ver_major;
-	u16	ver_minor;
+	u16	ver_miyesr;
 	u32	vblk_size;
 	u32	vblk_offset;
 	u32	last_vblk_seq;

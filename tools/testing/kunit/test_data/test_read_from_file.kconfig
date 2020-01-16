@@ -12,6 +12,6 @@ CONFIG_MMU=y
 #
 # Host processor type and features
 #
-# CONFIG_MK8 is not set
+# CONFIG_MK8 is yest set
 CONFIG_TEST=y
 CONFIG_EXAMPLE_TEST=y

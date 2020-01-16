@@ -11,7 +11,7 @@
 #include <linux/uaccess.h>
 #include <linux/syscalls.h>
 #include <linux/security.h>
-#include <linux/anon_inodes.h>
+#include <linux/ayesn_iyesdes.h>
 #include <linux/namei.h>
 #include <linux/file.h>
 #include <uapi/linux/mount.h>
@@ -64,7 +64,7 @@ err_free:
 	return ret;
 }
 
-static int fscontext_release(struct inode *inode, struct file *file)
+static int fscontext_release(struct iyesde *iyesde, struct file *file)
 {
 	struct fs_context *fc = file->private_data;
 
@@ -78,7 +78,7 @@ static int fscontext_release(struct inode *inode, struct file *file)
 const struct file_operations fscontext_fops = {
 	.read		= fscontext_read,
 	.release	= fscontext_release,
-	.llseek		= no_llseek,
+	.llseek		= yes_llseek,
 };
 
 /*
@@ -88,7 +88,7 @@ static int fscontext_create_fd(struct fs_context *fc, unsigned int o_flags)
 {
 	int fd;
 
-	fd = anon_inode_getfd("[fscontext]", &fscontext_fops, fc,
+	fd = ayesn_iyesde_getfd("[fscontext]", &fscontext_fops, fc,
 			      O_RDWR | o_flags);
 	if (fd < 0)
 		put_fs_context(fc);
@@ -109,7 +109,7 @@ static int fscontext_alloc_log(struct fs_context *fc)
  * Open a filesystem by name so that it can be configured for mounting.
  *
  * We are allowed to specify a container in which the filesystem will be
- * opened, thereby indicating which namespaces will be used (notably, which
+ * opened, thereby indicating which namespaces will be used (yestably, which
  * network namespace will be used for network filesystems).
  */
 SYSCALL_DEFINE2(fsopen, const char __user *, _fs_name, unsigned int, flags)
@@ -288,7 +288,7 @@ static int vfs_fsconfig_locked(struct fs_context *fc, int cmd,
  * @_value and @aux are used to specify the value, should a value be required:
  *
  * (*) fsconfig_set_flag: No value is specified.  The parameter must be boolean
- *     in nature.  The key may be prefixed with "no" to invert the
+ *     in nature.  The key may be prefixed with "yes" to invert the
  *     setting. @_value must be NULL and @aux must be 0.
  *
  * (*) fsconfig_set_string: A string value is specified.  The parameter can be
@@ -300,7 +300,7 @@ static int vfs_fsconfig_locked(struct fs_context *fc, int cmd,
  *     blob and @aux indicates its size.  The parameter must be expecting a
  *     blob.
  *
- * (*) fsconfig_set_path: A non-empty path is specified.  The parameter must be
+ * (*) fsconfig_set_path: A yesn-empty path is specified.  The parameter must be
  *     expecting a path object.  @_value points to a NUL-terminated string that
  *     is the path and @aux is a file descriptor at which to start a relative
  *     lookup or AT_FDCWD.

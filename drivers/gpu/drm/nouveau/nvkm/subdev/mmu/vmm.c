@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -153,7 +153,7 @@ nvkm_vmm_unref_pdes(struct nvkm_vmm_iter *it)
 		TRA(it, "PDE unmap %s", nvkm_vmm_desc_type(&desc[it->lvl - 1]));
 		pgt->pt[type] = NULL;
 		if (!pgt->refs[!type]) {
-			/* PDE no longer required. */
+			/* PDE yes longer required. */
 			if (pgd->pt[0]) {
 				if (pgt->sparse) {
 					func->sparse(vmm, pgd->pt[0], pdei, 1);
@@ -164,7 +164,7 @@ nvkm_vmm_unref_pdes(struct nvkm_vmm_iter *it)
 				}
 			} else {
 				/* Special handling for Tesla-class GPUs,
-				 * where there's no central PD, but each
+				 * where there's yes central PD, but each
 				 * instance has its own embedded PD.
 				 */
 				func->pde(vmm, pgd, pdei);
@@ -181,7 +181,7 @@ nvkm_vmm_unref_pdes(struct nvkm_vmm_iter *it)
 		nvkm_vmm_flush_mark(it);
 		nvkm_vmm_flush(it);
 	} else {
-		/* PD has no valid PDEs left, so we can just destroy it. */
+		/* PD has yes valid PDEs left, so we can just destroy it. */
 		nvkm_vmm_unref_pdes(it);
 	}
 
@@ -212,7 +212,7 @@ nvkm_vmm_unref_sptes(struct nvkm_vmm_iter *it, struct nvkm_vmm_pt *pgt,
 		ptes -= pten;
 	}
 
-	/* We're done here if there's no corresponding LPT. */
+	/* We're done here if there's yes corresponding LPT. */
 	if (!pgt->refs[0])
 		return;
 
@@ -226,7 +226,7 @@ nvkm_vmm_unref_sptes(struct nvkm_vmm_iter *it, struct nvkm_vmm_pt *pgt,
 			continue;
 		}
 
-		/* As there's no more non-UNMAPPED SPTEs left in the range
+		/* As there's yes more yesn-UNMAPPED SPTEs left in the range
 		 * covered by a number of LPTEs, the LPTEs once again take
 		 * control over their address range.
 		 *
@@ -245,7 +245,7 @@ nvkm_vmm_unref_sptes(struct nvkm_vmm_iter *it, struct nvkm_vmm_pt *pgt,
 		} else
 		if (pair->func->invalid) {
 			/* If the MMU supports it, restore the LPTE to the
-			 * INVALID state to tell the MMU there is no point
+			 * INVALID state to tell the MMU there is yes point
 			 * trying to fetch the corresponding SPTEs.
 			 */
 			TRA(it, "LPTE %05x: U -> I %d PTEs", pteb, ptes);
@@ -280,13 +280,13 @@ nvkm_vmm_unref_ptes(struct nvkm_vmm_iter *it, bool pfn, u32 ptei, u32 ptes)
 	if (desc->type == SPT && (pgt->refs[0] || pgt->refs[1]))
 		nvkm_vmm_unref_sptes(it, pgt, desc, ptei, ptes);
 
-	/* PT no longer neeed?  Destroy it. */
+	/* PT yes longer neeed?  Destroy it. */
 	if (!pgt->refs[type]) {
 		it->lvl++;
 		TRA(it, "%s empty", nvkm_vmm_desc_type(desc));
 		it->lvl--;
 		nvkm_vmm_unref_pdes(it);
-		return false; /* PTE writes for unmap() not necessary. */
+		return false; /* PTE writes for unmap() yest necessary. */
 	}
 
 	return true;
@@ -311,7 +311,7 @@ nvkm_vmm_ref_sptes(struct nvkm_vmm_iter *it, struct nvkm_vmm_pt *pgt,
 		ptes -= pten;
 	}
 
-	/* We're done here if there's no corresponding LPT. */
+	/* We're done here if there's yes corresponding LPT. */
 	if (!pgt->refs[0])
 		return;
 
@@ -325,7 +325,7 @@ nvkm_vmm_ref_sptes(struct nvkm_vmm_iter *it, struct nvkm_vmm_pt *pgt,
 			continue;
 		}
 
-		/* As there are now non-UNMAPPED SPTEs in the range covered
+		/* As there are yesw yesn-UNMAPPED SPTEs in the range covered
 		 * by a number of LPTEs, we need to transfer control of the
 		 * address range to the SPTEs.
 		 *
@@ -798,8 +798,8 @@ nvkm_vmm_free_delete(struct nvkm_vmm *vmm, struct nvkm_vma *vma)
 static void
 nvkm_vmm_free_insert(struct nvkm_vmm *vmm, struct nvkm_vma *vma)
 {
-	struct rb_node **ptr = &vmm->free.rb_node;
-	struct rb_node *parent = NULL;
+	struct rb_yesde **ptr = &vmm->free.rb_yesde;
+	struct rb_yesde *parent = NULL;
 
 	while (*ptr) {
 		struct nvkm_vma *this = rb_entry(*ptr, typeof(*this), tree);
@@ -819,29 +819,29 @@ nvkm_vmm_free_insert(struct nvkm_vmm *vmm, struct nvkm_vma *vma)
 			BUG();
 	}
 
-	rb_link_node(&vma->tree, parent, ptr);
+	rb_link_yesde(&vma->tree, parent, ptr);
 	rb_insert_color(&vma->tree, &vmm->free);
 }
 
 static inline void
-nvkm_vmm_node_remove(struct nvkm_vmm *vmm, struct nvkm_vma *vma)
+nvkm_vmm_yesde_remove(struct nvkm_vmm *vmm, struct nvkm_vma *vma)
 {
 	rb_erase(&vma->tree, &vmm->root);
 }
 
 static inline void
-nvkm_vmm_node_delete(struct nvkm_vmm *vmm, struct nvkm_vma *vma)
+nvkm_vmm_yesde_delete(struct nvkm_vmm *vmm, struct nvkm_vma *vma)
 {
-	nvkm_vmm_node_remove(vmm, vma);
+	nvkm_vmm_yesde_remove(vmm, vma);
 	list_del(&vma->head);
 	kfree(vma);
 }
 
 static void
-nvkm_vmm_node_insert(struct nvkm_vmm *vmm, struct nvkm_vma *vma)
+nvkm_vmm_yesde_insert(struct nvkm_vmm *vmm, struct nvkm_vma *vma)
 {
-	struct rb_node **ptr = &vmm->root.rb_node;
-	struct rb_node *parent = NULL;
+	struct rb_yesde **ptr = &vmm->root.rb_yesde;
+	struct rb_yesde *parent = NULL;
 
 	while (*ptr) {
 		struct nvkm_vma *this = rb_entry(*ptr, typeof(*this), tree);
@@ -855,65 +855,65 @@ nvkm_vmm_node_insert(struct nvkm_vmm *vmm, struct nvkm_vma *vma)
 			BUG();
 	}
 
-	rb_link_node(&vma->tree, parent, ptr);
+	rb_link_yesde(&vma->tree, parent, ptr);
 	rb_insert_color(&vma->tree, &vmm->root);
 }
 
 struct nvkm_vma *
-nvkm_vmm_node_search(struct nvkm_vmm *vmm, u64 addr)
+nvkm_vmm_yesde_search(struct nvkm_vmm *vmm, u64 addr)
 {
-	struct rb_node *node = vmm->root.rb_node;
-	while (node) {
-		struct nvkm_vma *vma = rb_entry(node, typeof(*vma), tree);
+	struct rb_yesde *yesde = vmm->root.rb_yesde;
+	while (yesde) {
+		struct nvkm_vma *vma = rb_entry(yesde, typeof(*vma), tree);
 		if (addr < vma->addr)
-			node = node->rb_left;
+			yesde = yesde->rb_left;
 		else
 		if (addr >= vma->addr + vma->size)
-			node = node->rb_right;
+			yesde = yesde->rb_right;
 		else
 			return vma;
 	}
 	return NULL;
 }
 
-#define node(root, dir) (((root)->head.dir == &vmm->list) ? NULL :             \
+#define yesde(root, dir) (((root)->head.dir == &vmm->list) ? NULL :             \
 	list_entry((root)->head.dir, struct nvkm_vma, head))
 
 static struct nvkm_vma *
-nvkm_vmm_node_merge(struct nvkm_vmm *vmm, struct nvkm_vma *prev,
+nvkm_vmm_yesde_merge(struct nvkm_vmm *vmm, struct nvkm_vma *prev,
 		    struct nvkm_vma *vma, struct nvkm_vma *next, u64 size)
 {
 	if (next) {
 		if (vma->size == size) {
 			vma->size += next->size;
-			nvkm_vmm_node_delete(vmm, next);
+			nvkm_vmm_yesde_delete(vmm, next);
 			if (prev) {
 				prev->size += vma->size;
-				nvkm_vmm_node_delete(vmm, vma);
+				nvkm_vmm_yesde_delete(vmm, vma);
 				return prev;
 			}
 			return vma;
 		}
 		BUG_ON(prev);
 
-		nvkm_vmm_node_remove(vmm, next);
+		nvkm_vmm_yesde_remove(vmm, next);
 		vma->size -= size;
 		next->addr -= size;
 		next->size += size;
-		nvkm_vmm_node_insert(vmm, next);
+		nvkm_vmm_yesde_insert(vmm, next);
 		return next;
 	}
 
 	if (prev) {
 		if (vma->size != size) {
-			nvkm_vmm_node_remove(vmm, vma);
+			nvkm_vmm_yesde_remove(vmm, vma);
 			prev->size += size;
 			vma->addr += size;
 			vma->size -= size;
-			nvkm_vmm_node_insert(vmm, vma);
+			nvkm_vmm_yesde_insert(vmm, vma);
 		} else {
 			prev->size += vma->size;
-			nvkm_vmm_node_delete(vmm, vma);
+			nvkm_vmm_yesde_delete(vmm, vma);
 		}
 		return prev;
 	}
@@ -922,7 +922,7 @@ nvkm_vmm_node_merge(struct nvkm_vmm *vmm, struct nvkm_vma *prev,
 }
 
 struct nvkm_vma *
-nvkm_vmm_node_split(struct nvkm_vmm *vmm,
+nvkm_vmm_yesde_split(struct nvkm_vmm *vmm,
 		    struct nvkm_vma *vma, u64 addr, u64 size)
 {
 	struct nvkm_vma *prev = NULL;
@@ -932,17 +932,17 @@ nvkm_vmm_node_split(struct nvkm_vmm *vmm,
 		if (!(vma = nvkm_vma_tail(vma, vma->size + vma->addr - addr)))
 			return NULL;
 		vma->part = true;
-		nvkm_vmm_node_insert(vmm, vma);
+		nvkm_vmm_yesde_insert(vmm, vma);
 	}
 
 	if (vma->size != size) {
 		struct nvkm_vma *tmp;
 		if (!(tmp = nvkm_vma_tail(vma, vma->size - size))) {
-			nvkm_vmm_node_merge(vmm, prev, vma, NULL, vma->size);
+			nvkm_vmm_yesde_merge(vmm, prev, vma, NULL, vma->size);
 			return NULL;
 		}
 		tmp->part = true;
-		nvkm_vmm_node_insert(vmm, tmp);
+		nvkm_vmm_yesde_insert(vmm, tmp);
 	}
 
 	return vma;
@@ -978,13 +978,13 @@ static void
 nvkm_vmm_dtor(struct nvkm_vmm *vmm)
 {
 	struct nvkm_vma *vma;
-	struct rb_node *node;
+	struct rb_yesde *yesde;
 
 	if (0)
 		nvkm_vmm_dump(vmm);
 
-	while ((node = rb_first(&vmm->root))) {
-		struct nvkm_vma *vma = rb_entry(node, typeof(*vma), tree);
+	while ((yesde = rb_first(&vmm->root))) {
+		struct nvkm_vma *vma = rb_entry(yesde, typeof(*vma), tree);
 		nvkm_vmm_put(vmm, &vma);
 	}
 
@@ -1025,7 +1025,7 @@ nvkm_vmm_ctor_managed(struct nvkm_vmm *vmm, u64 addr, u64 size)
 	vma->sparse = false;
 	vma->used = true;
 	vma->user = true;
-	nvkm_vmm_node_insert(vmm, vma);
+	nvkm_vmm_yesde_insert(vmm, vma);
 	list_add_tail(&vma->head, &vmm->list);
 	return 0;
 }
@@ -1154,26 +1154,26 @@ nvkm_vmm_pfn_split_merge(struct nvkm_vmm *vmm, struct nvkm_vma *vma,
 	struct nvkm_vma *prev = NULL;
 	struct nvkm_vma *next = NULL;
 
-	if (vma->addr == addr && vma->part && (prev = node(vma, prev))) {
+	if (vma->addr == addr && vma->part && (prev = yesde(vma, prev))) {
 		if (prev->memory || prev->mapped != map)
 			prev = NULL;
 	}
 
-	if (vma->addr + vma->size == addr + size && (next = node(vma, next))) {
+	if (vma->addr + vma->size == addr + size && (next = yesde(vma, next))) {
 		if (!next->part ||
 		    next->memory || next->mapped != map)
 			next = NULL;
 	}
 
 	if (prev || next)
-		return nvkm_vmm_node_merge(vmm, prev, vma, next, size);
-	return nvkm_vmm_node_split(vmm, vma, addr, size);
+		return nvkm_vmm_yesde_merge(vmm, prev, vma, next, size);
+	return nvkm_vmm_yesde_split(vmm, vma, addr, size);
 }
 
 int
 nvkm_vmm_pfn_unmap(struct nvkm_vmm *vmm, u64 addr, u64 size)
 {
-	struct nvkm_vma *vma = nvkm_vmm_node_search(vmm, addr);
+	struct nvkm_vma *vma = nvkm_vmm_yesde_search(vmm, addr);
 	struct nvkm_vma *next;
 	u64 limit = addr + size;
 	u64 start = addr;
@@ -1196,7 +1196,7 @@ nvkm_vmm_pfn_unmap(struct nvkm_vmm *vmm, u64 addr, u64 size)
 			vma->refd = NVKM_VMA_PAGE_NONE;
 			vma->mapped = false;
 		}
-	} while ((vma = node(vma, next)) && (start = vma->addr) < limit);
+	} while ((vma = yesde(vma, next)) && (start = vma->addr) < limit);
 
 	return 0;
 }
@@ -1232,7 +1232,7 @@ nvkm_vmm_pfn_map(struct nvkm_vmm *vmm, u8 shift, u64 addr, u64 size, u64 *pfn)
 		return -EINVAL;
 	}
 
-	if (!(vma = nvkm_vmm_node_search(vmm, addr)))
+	if (!(vma = nvkm_vmm_yesde_search(vmm, addr)))
 		return -ENOENT;
 
 	do {
@@ -1243,7 +1243,7 @@ nvkm_vmm_pfn_map(struct nvkm_vmm *vmm, u8 shift, u64 addr, u64 size, u64 *pfn)
 		int pn, ret = 0;
 
 		/* Narrow the operation window to cover a single action (page
-		 * should be mapped or not) within a single VMA.
+		 * should be mapped or yest) within a single VMA.
 		 */
 		for (pn = 0; pi + pn < pm; pn++) {
 			if (map != !!(pfn[pi + pn] & NVKM_VMM_PFN_V))
@@ -1261,7 +1261,7 @@ nvkm_vmm_pfn_map(struct nvkm_vmm *vmm, u8 shift, u64 addr, u64 size, u64 *pfn)
 		}
 
 		/* In order to both properly refcount GPU page tables, and
-		 * prevent "normal" mappings and these direct mappings from
+		 * prevent "yesrmal" mappings and these direct mappings from
 		 * interfering with each other, we need to track contiguous
 		 * ranges that have been mapped with this interface.
 		 *
@@ -1269,7 +1269,7 @@ nvkm_vmm_pfn_map(struct nvkm_vmm *vmm, u8 shift, u64 addr, u64 size, u64 *pfn)
 		 * able to flag the region as either unmapped/mapped, or to
 		 * merge with adjacent VMAs that are already compatible.
 		 *
-		 * If the region is already compatible, nothing is required.
+		 * If the region is already compatible, yesthing is required.
 		 */
 		if (map != mapped) {
 			tmp = nvkm_vmm_pfn_split_merge(vmm, vma, addr, size,
@@ -1311,7 +1311,7 @@ nvkm_vmm_pfn_map(struct nvkm_vmm *vmm, u8 shift, u64 addr, u64 size, u64 *pfn)
 next:
 		/* Iterate to next operation. */
 		if (vma->addr + vma->size == addr + size)
-			vma = node(vma, next);
+			vma = yesde(vma, next);
 		start += size;
 
 		if (ret) {
@@ -1340,11 +1340,11 @@ nvkm_vmm_unmap_region(struct nvkm_vmm *vmm, struct nvkm_vma *vma)
 	nvkm_memory_unref(&vma->memory);
 	vma->mapped = false;
 
-	if (vma->part && (prev = node(vma, prev)) && prev->mapped)
+	if (vma->part && (prev = yesde(vma, prev)) && prev->mapped)
 		prev = NULL;
-	if ((next = node(vma, next)) && (!next->part || next->mapped))
+	if ((next = yesde(vma, next)) && (!next->part || next->mapped))
 		next = NULL;
-	nvkm_vmm_node_merge(vmm, prev, vma, next, vma->size);
+	nvkm_vmm_yesde_merge(vmm, prev, vma, next, vma->size);
 }
 
 void
@@ -1523,13 +1523,13 @@ nvkm_vmm_put_region(struct nvkm_vmm *vmm, struct nvkm_vma *vma)
 {
 	struct nvkm_vma *prev, *next;
 
-	if ((prev = node(vma, prev)) && !prev->used) {
+	if ((prev = yesde(vma, prev)) && !prev->used) {
 		vma->addr  = prev->addr;
 		vma->size += prev->size;
 		nvkm_vmm_free_delete(vmm, prev);
 	}
 
-	if ((next = node(vma, next)) && !next->used) {
+	if ((next = yesde(vma, next)) && !next->used) {
 		vma->size += next->size;
 		nvkm_vmm_free_delete(vmm, next);
 	}
@@ -1554,7 +1554,7 @@ nvkm_vmm_put_locked(struct nvkm_vmm *vmm, struct nvkm_vma *vma)
 			u64 size = next->size;
 
 			/* Merge regions that are in the same state. */
-			while ((next = node(next, next)) && next->part &&
+			while ((next = yesde(next, next)) && next->part &&
 			       (next->mapped == map) &&
 			       (next->memory != NULL) == mem &&
 			       (next->refd == refd))
@@ -1584,7 +1584,7 @@ nvkm_vmm_put_locked(struct nvkm_vmm *vmm, struct nvkm_vma *vma)
 	do {
 		if (next->mapped)
 			nvkm_vmm_unmap_region(vmm, next);
-	} while ((next = node(vma, next)) && next->part);
+	} while ((next = yesde(vma, next)) && next->part);
 
 	if (vma->sparse && !vma->mapref) {
 		/* Sparse region that was allocated with a fixed page size,
@@ -1609,8 +1609,8 @@ nvkm_vmm_put_locked(struct nvkm_vmm *vmm, struct nvkm_vma *vma)
 		nvkm_vmm_ptes_sparse(vmm, vma->addr, vma->size, false);
 	}
 
-	/* Remove VMA from the list of allocated nodes. */
-	nvkm_vmm_node_remove(vmm, vma);
+	/* Remove VMA from the list of allocated yesdes. */
+	nvkm_vmm_yesde_remove(vmm, vma);
 
 	/* Merge VMA back into the free list. */
 	vma->page = NVKM_VMA_PAGE_NONE;
@@ -1637,7 +1637,7 @@ nvkm_vmm_get_locked(struct nvkm_vmm *vmm, bool getref, bool mapref, bool sparse,
 		    u8 shift, u8 align, u64 size, struct nvkm_vma **pvma)
 {
 	const struct nvkm_vmm_page *page = &vmm->func->page[NVKM_VMA_PAGE_NONE];
-	struct rb_node *node = NULL, *temp;
+	struct rb_yesde *yesde = NULL, *temp;
 	struct nvkm_vma *vma = NULL, *tmp;
 	u64 addr, tail;
 	int ret;
@@ -1646,7 +1646,7 @@ nvkm_vmm_get_locked(struct nvkm_vmm *vmm, bool getref, bool mapref, bool sparse,
 		       "shift: %d align: %d size: %016llx",
 		  getref, mapref, sparse, shift, align, size);
 
-	/* Zero-sized, or lazily-allocated sparse VMAs, make no sense. */
+	/* Zero-sized, or lazily-allocated sparse VMAs, make yes sense. */
 	if (unlikely(!size || (!getref && !mapref && sparse))) {
 		VMM_DEBUG(vmm, "args %016llx %d %d %d",
 			  size, getref, mapref, sparse);
@@ -1654,7 +1654,7 @@ nvkm_vmm_get_locked(struct nvkm_vmm *vmm, bool getref, bool mapref, bool sparse,
 	}
 
 	/* Tesla-class GPUs can only select page size per-PDE, which means
-	 * we're required to know the mapping granularity up-front to find
+	 * we're required to kyesw the mapping granularity up-front to find
 	 * a suitable region of address-space.
 	 *
 	 * The same goes if we're requesting up-front allocation of PTES.
@@ -1684,27 +1684,27 @@ nvkm_vmm_get_locked(struct nvkm_vmm *vmm, bool getref, bool mapref, bool sparse,
 	}
 
 	/* Locate smallest block that can possibly satisfy the allocation. */
-	temp = vmm->free.rb_node;
+	temp = vmm->free.rb_yesde;
 	while (temp) {
 		struct nvkm_vma *this = rb_entry(temp, typeof(*this), tree);
 		if (this->size < size) {
 			temp = temp->rb_right;
 		} else {
-			node = temp;
+			yesde = temp;
 			temp = temp->rb_left;
 		}
 	}
 
-	if (unlikely(!node))
+	if (unlikely(!yesde))
 		return -ENOSPC;
 
 	/* Take into account alignment restrictions, trying larger blocks
 	 * in turn until we find a suitable free block.
 	 */
 	do {
-		struct nvkm_vma *this = rb_entry(node, typeof(*this), tree);
-		struct nvkm_vma *prev = node(this, prev);
-		struct nvkm_vma *next = node(this, next);
+		struct nvkm_vma *this = rb_entry(yesde, typeof(*this), tree);
+		struct nvkm_vma *prev = yesde(this, prev);
+		struct nvkm_vma *next = yesde(this, next);
 		const int p = page - vmm->func->page;
 
 		addr = this->addr;
@@ -1721,7 +1721,7 @@ nvkm_vmm_get_locked(struct nvkm_vmm *vmm, bool getref, bool mapref, bool sparse,
 			vma = this;
 			break;
 		}
-	} while ((node = rb_next(node)));
+	} while ((yesde = rb_next(yesde)));
 
 	if (unlikely(!vma))
 		return -ENOSPC;
@@ -1765,7 +1765,7 @@ nvkm_vmm_get_locked(struct nvkm_vmm *vmm, bool getref, bool mapref, bool sparse,
 	vma->page = page - vmm->func->page;
 	vma->refd = getref ? vma->page : NVKM_VMA_PAGE_NONE;
 	vma->used = true;
-	nvkm_vmm_node_insert(vmm, vma);
+	nvkm_vmm_yesde_insert(vmm, vma);
 	*pvma = vma;
 	return 0;
 }

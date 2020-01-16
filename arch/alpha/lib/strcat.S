@@ -23,7 +23,7 @@ strcat:
 	ldq_u   $1, 0($16)	# load first quadword (a0 may be misaligned)
 	lda     $2, -1
 	insqh   $2, $16, $2
-	andnot  $16, 7, $16
+	andyest  $16, 7, $16
 	or      $2, $1, $1
 	cmpbge  $31, $1, $2	# bits set iff byte == 0
 	bne     $2, $found

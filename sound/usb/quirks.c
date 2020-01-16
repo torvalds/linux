@@ -62,7 +62,7 @@ static int create_composite_quirk(struct snd_usb_audio *chip,
 	return 0;
 }
 
-static int ignore_interface_quirk(struct snd_usb_audio *chip,
+static int igyesre_interface_quirk(struct snd_usb_audio *chip,
 				  struct usb_interface *iface,
 				  struct usb_driver *driver,
 				  const struct snd_usb_audio_quirk *quirk)
@@ -111,7 +111,7 @@ static int create_standard_audio_quirk(struct snd_usb_audio *chip,
 	altsd = get_iface_desc(alts);
 	err = snd_usb_parse_audio_interface(chip, altsd->bInterfaceNumber);
 	if (err < 0) {
-		usb_audio_err(chip, "cannot setup if %d: error %d\n",
+		usb_audio_err(chip, "canyest setup if %d: error %d\n",
 			   altsd->bInterfaceNumber, err);
 		return err;
 	}
@@ -205,13 +205,13 @@ static int create_auto_pcm_quirk(struct snd_usb_audio *chip,
 	 * interface doesn't look exactly right.
 	 */
 
-	/* must have a non-zero altsetting for streaming */
+	/* must have a yesn-zero altsetting for streaming */
 	if (iface->num_altsetting < 2)
 		return -ENODEV;
 	alts = &iface->altsetting[1];
 	altsd = get_iface_desc(alts);
 
-	/* must have an isochronous endpoint for streaming */
+	/* must have an isochroyesus endpoint for streaming */
 	if (altsd->bNumEndpoints < 1)
 		return -ENODEV;
 	epd = get_endpoint(alts, 0);
@@ -375,7 +375,7 @@ static int create_autodetect_quirks(struct snd_usb_audio *chip,
 		return err;
 
 	/*
-	 * ALSA PCM playback/capture devices cannot be registered in two steps,
+	 * ALSA PCM playback/capture devices canyest be registered in two steps,
 	 * so we have to claim the other corresponding interface here.
 	 */
 	ifcount = chip->dev->actconfig->desc.bNumInterfaces;
@@ -477,7 +477,7 @@ static int create_uaxx_quirk(struct snd_usb_audio *chip,
 		fp->rate_max = fp->rate_min = 96000;
 		break;
 	default:
-		usb_audio_err(chip, "unknown sample rate\n");
+		usb_audio_err(chip, "unkyeswn sample rate\n");
 		kfree(fp);
 		return -ENXIO;
 	}
@@ -521,7 +521,7 @@ static int setup_fmt_after_resume_quirk(struct snd_usb_audio *chip,
 /*
  * audio-interface quirks
  *
- * returns zero if no standard audio/MIDI parsing is needed.
+ * returns zero if yes standard audio/MIDI parsing is needed.
  * returns a positive value if standard audio/midi interfaces are parsed
  * after this.
  * returns a negative value at error.
@@ -536,7 +536,7 @@ int snd_usb_create_quirk(struct snd_usb_audio *chip,
 				    struct usb_driver *,
 				    const struct snd_usb_audio_quirk *);
 	static const quirk_func_t quirk_funcs[] = {
-		[QUIRK_IGNORE_INTERFACE] = ignore_interface_quirk,
+		[QUIRK_IGNORE_INTERFACE] = igyesre_interface_quirk,
 		[QUIRK_COMPOSITE] = create_composite_quirk,
 		[QUIRK_AUTODETECT] = create_autodetect_quirks,
 		[QUIRK_MIDI_STANDARD_INTERFACE] = create_any_midi_quirk,
@@ -626,7 +626,7 @@ static int snd_usb_fasttrackpro_boot_quirk(struct usb_device *dev)
 		dev_info(&dev->dev,
 			   "Fast Track Pro switching to config #2\n");
 		/* This function has to be available by the usb core module.
-		 * if it is not avialable the boot quirk has to be left out
+		 * if it is yest avialable the boot quirk has to be left out
 		 * and the configuration has to be set by udev or hotplug
 		 * rules
 		 */
@@ -762,7 +762,7 @@ static int snd_usb_cm6206_boot_quirk(struct usb_device *dev)
 		 * Values here are chosen based on sniffing USB traffic
 		 * under Windows.
 		 *
-		 * REG0: DAC is master, sample rate 48kHz, no copyright
+		 * REG0: DAC is master, sample rate 48kHz, yes copyright
 		 */
 		CM6206_REG0_SPDIFO_RATE_48K |
 		CM6206_REG0_SPDIFO_COPYRIGHT_NA,
@@ -824,10 +824,10 @@ static int snd_usb_gamecon780_boot_quirk(struct usb_device *dev)
  * Novation Twitch DJ controller
  * Focusrite Novation Saffire 6 USB audio card
  */
-static int snd_usb_novation_boot_quirk(struct usb_device *dev)
+static int snd_usb_yesvation_boot_quirk(struct usb_device *dev)
 {
 	/* preemptively set up the device because otherwise the
-	 * raw MIDI endpoints are not active */
+	 * raw MIDI endpoints are yest active */
 	usb_set_interface(dev, 0, 1);
 	return 0;
 }
@@ -835,7 +835,7 @@ static int snd_usb_novation_boot_quirk(struct usb_device *dev)
 /*
  * This call will put the synth in "USB send" mode, i.e it will send MIDI
  * messages through USB (this is disabled at startup). The synth will
- * acknowledge by sending a sysex on endpoint 0x85 and by displaying a USB
+ * ackyeswledge by sending a sysex on endpoint 0x85 and by displaying a USB
  * sign on its LCD. Values here are chosen based on sniffing USB traffic
  * under Windows.
  */
@@ -866,9 +866,9 @@ static int snd_usb_accessmusic_boot_quirk(struct usb_device *dev)
  * they come up as vendor-specific device when first connected.
  *
  * However, they can be told to come up with a new set of descriptors
- * upon their next enumeration, and the interfaces announced by the new
+ * upon their next enumeration, and the interfaces anyesunced by the new
  * descriptors will then be handled by the kernel's class drivers. As the
- * product ID will also change, no further checks are required.
+ * product ID will also change, yes further checks are required.
  */
 
 static int snd_usb_nativeinstruments_boot_quirk(struct usb_device *dev)
@@ -948,12 +948,12 @@ static int snd_usb_mbox2_boot_quirk(struct usb_device *dev)
 			0x85, 0xc0, 0x0001, 0x0000, &bootresponse, 0x0012);
 		if (bootresponse[0] == MBOX2_BOOT_READY)
 			break;
-		dev_dbg(&dev->dev, "device not ready, resending boot sequence...\n");
+		dev_dbg(&dev->dev, "device yest ready, resending boot sequence...\n");
 		count++;
 	}
 
 	if (bootresponse[0] != MBOX2_BOOT_READY) {
-		dev_err(&dev->dev, "Unknown bootresponse=%d, or timed out, ignoring device.\n", bootresponse[0]);
+		dev_err(&dev->dev, "Unkyeswn bootresponse=%d, or timed out, igyesring device.\n", bootresponse[0]);
 		return -ENODEV;
 	}
 
@@ -986,7 +986,7 @@ static int snd_usb_axefx3_boot_quirk(struct usb_device *dev)
 
 	if (snd_usb_pipe_sanity_check(dev, usb_sndctrlpipe(dev, 0)))
 		return -EINVAL;
-	/* If the Axe-Fx III has not fully booted, it will timeout when trying
+	/* If the Axe-Fx III has yest fully booted, it will timeout when trying
 	 * to enable the audio streaming interface. A more generous timeout is
 	 * used here to detect when the Axe-Fx III has finished booting as the
 	 * set interface message will be acked once it has
@@ -1000,7 +1000,7 @@ static int snd_usb_axefx3_boot_quirk(struct usb_device *dev)
 		return err;
 	}
 
-	dev_dbg(&dev->dev, "Axe-Fx III is now ready\n");
+	dev_dbg(&dev->dev, "Axe-Fx III is yesw ready\n");
 
 	err = usb_set_interface(dev, 1, 0);
 	if (err < 0)
@@ -1097,7 +1097,7 @@ static int snd_usb_motu_microbookii_boot_quirk(struct usb_device *dev)
 		/* the device signals its readiness through a message of the
 		 * form
 		 *           XX 06 00 00 00 00 0b 18  00 00 00 01
-		 * If the device is not yet ready to accept audio data, the
+		 * If the device is yest yet ready to accept audio data, the
 		 * last byte of that sequence is 00.
 		 */
 		if (actual_length == 12 && buf[actual_length - 1] == 1)
@@ -1129,7 +1129,7 @@ free_buf:
 #define MAUDIO_SET_16B_48K_NOTDI 0x01 /* 16bits+48KHz+No Digital Input */
 
 static int quattro_skip_setting_quirk(struct snd_usb_audio *chip,
-				      int iface, int altno)
+				      int iface, int altyes)
 {
 	/* Reset ALL ifaces to 0 altsetting.
 	 * Call it for every possible altsetting of every interface.
@@ -1143,26 +1143,26 @@ static int quattro_skip_setting_quirk(struct snd_usb_audio *chip,
 			unsigned int mask;
 			if (iface == 1 || iface == 2)
 				return 1; /* skip interfaces 1 and 2 */
-			if ((chip->setup & MAUDIO_SET_96K) && altno != 1)
+			if ((chip->setup & MAUDIO_SET_96K) && altyes != 1)
 				return 1; /* skip this altsetting */
 			mask = chip->setup & MAUDIO_SET_MASK;
-			if (mask == MAUDIO_SET_24B_48K_DI && altno != 2)
+			if (mask == MAUDIO_SET_24B_48K_DI && altyes != 2)
 				return 1; /* skip this altsetting */
-			if (mask == MAUDIO_SET_24B_48K_NOTDI && altno != 3)
+			if (mask == MAUDIO_SET_24B_48K_NOTDI && altyes != 3)
 				return 1; /* skip this altsetting */
-			if (mask == MAUDIO_SET_16B_48K_NOTDI && altno != 4)
+			if (mask == MAUDIO_SET_16B_48K_NOTDI && altyes != 4)
 				return 1; /* skip this altsetting */
 		}
 	}
 	usb_audio_dbg(chip,
 		    "using altsetting %d for interface %d config %d\n",
-		    altno, iface, chip->setup);
+		    altyes, iface, chip->setup);
 	return 0; /* keep this altsetting */
 }
 
 static int audiophile_skip_setting_quirk(struct snd_usb_audio *chip,
 					 int iface,
-					 int altno)
+					 int altyes)
 {
 	/* Reset ALL ifaces to 0 altsetting.
 	 * Call it for every possible altsetting of every interface.
@@ -1171,18 +1171,18 @@ static int audiophile_skip_setting_quirk(struct snd_usb_audio *chip,
 
 	if (chip->setup & MAUDIO_SET) {
 		unsigned int mask;
-		if ((chip->setup & MAUDIO_SET_DTS) && altno != 6)
+		if ((chip->setup & MAUDIO_SET_DTS) && altyes != 6)
 			return 1; /* skip this altsetting */
-		if ((chip->setup & MAUDIO_SET_96K) && altno != 1)
+		if ((chip->setup & MAUDIO_SET_96K) && altyes != 1)
 			return 1; /* skip this altsetting */
 		mask = chip->setup & MAUDIO_SET_MASK;
-		if (mask == MAUDIO_SET_24B_48K_DI && altno != 2)
+		if (mask == MAUDIO_SET_24B_48K_DI && altyes != 2)
 			return 1; /* skip this altsetting */
-		if (mask == MAUDIO_SET_24B_48K_NOTDI && altno != 3)
+		if (mask == MAUDIO_SET_24B_48K_NOTDI && altyes != 3)
 			return 1; /* skip this altsetting */
-		if (mask == MAUDIO_SET_16B_48K_DI && altno != 4)
+		if (mask == MAUDIO_SET_16B_48K_DI && altyes != 4)
 			return 1; /* skip this altsetting */
-		if (mask == MAUDIO_SET_16B_48K_NOTDI && altno != 5)
+		if (mask == MAUDIO_SET_16B_48K_NOTDI && altyes != 5)
 			return 1; /* skip this altsetting */
 	}
 
@@ -1190,7 +1190,7 @@ static int audiophile_skip_setting_quirk(struct snd_usb_audio *chip,
 }
 
 static int fasttrackpro_skip_setting_quirk(struct snd_usb_audio *chip,
-					   int iface, int altno)
+					   int iface, int altyes)
 {
 	/* Reset ALL ifaces to 0 altsetting.
 	 * Call it for every possible altsetting of every interface.
@@ -1198,48 +1198,48 @@ static int fasttrackpro_skip_setting_quirk(struct snd_usb_audio *chip,
 	usb_set_interface(chip->dev, iface, 0);
 
 	/* possible configuration where both inputs and only one output is
-	 *used is not supported by the current setup
+	 *used is yest supported by the current setup
 	 */
 	if (chip->setup & (MAUDIO_SET | MAUDIO_SET_24B)) {
 		if (chip->setup & MAUDIO_SET_96K) {
-			if (altno != 3 && altno != 6)
+			if (altyes != 3 && altyes != 6)
 				return 1;
 		} else if (chip->setup & MAUDIO_SET_DI) {
 			if (iface == 4)
-				return 1; /* no analog input */
-			if (altno != 2 && altno != 5)
+				return 1; /* yes analog input */
+			if (altyes != 2 && altyes != 5)
 				return 1; /* enable only altsets 2 and 5 */
 		} else {
 			if (iface == 5)
 				return 1; /* disable digialt input */
-			if (altno != 2 && altno != 5)
+			if (altyes != 2 && altyes != 5)
 				return 1; /* enalbe only altsets 2 and 5 */
 		}
 	} else {
 		/* keep only 16-Bit mode */
-		if (altno != 1)
+		if (altyes != 1)
 			return 1;
 	}
 
 	usb_audio_dbg(chip,
 		    "using altsetting %d for interface %d config %d\n",
-		    altno, iface, chip->setup);
+		    altyes, iface, chip->setup);
 	return 0; /* keep this altsetting */
 }
 
 int snd_usb_apply_interface_quirk(struct snd_usb_audio *chip,
 				  int iface,
-				  int altno)
+				  int altyes)
 {
 	/* audiophile usb: skip altsets incompatible with device_setup */
 	if (chip->usb_id == USB_ID(0x0763, 0x2003))
-		return audiophile_skip_setting_quirk(chip, iface, altno);
+		return audiophile_skip_setting_quirk(chip, iface, altyes);
 	/* quattro usb: skip altsets incompatible with device_setup */
 	if (chip->usb_id == USB_ID(0x0763, 0x2001))
-		return quattro_skip_setting_quirk(chip, iface, altno);
+		return quattro_skip_setting_quirk(chip, iface, altyes);
 	/* fasttrackpro usb: skip altsets incompatible with device_setup */
 	if (chip->usb_id == USB_ID(0x0763, 0x2012))
-		return fasttrackpro_skip_setting_quirk(chip, iface, altno);
+		return fasttrackpro_skip_setting_quirk(chip, iface, altyes);
 
 	return 0;
 }
@@ -1274,7 +1274,7 @@ int snd_usb_apply_boot_quirk(struct usb_device *dev,
 
 	case USB_ID(0x1235, 0x0010): /* Focusrite Novation Saffire 6 USB */
 	case USB_ID(0x1235, 0x0018): /* Focusrite Novation Twitch */
-		return snd_usb_novation_boot_quirk(dev);
+		return snd_usb_yesvation_boot_quirk(dev);
 
 	case USB_ID(0x133e, 0x0815):
 		/* Access Music VirusTI Desktop */
@@ -1302,7 +1302,7 @@ int snd_usb_apply_boot_quirk(struct usb_device *dev,
  */
 int snd_usb_is_big_endian_format(struct snd_usb_audio *chip, struct audioformat *fp)
 {
-	/* it depends on altsetting whether the device is big-endian or not */
+	/* it depends on altsetting whether the device is big-endian or yest */
 	switch (chip->usb_id) {
 	case USB_ID(0x0763, 0x2001): /* M-Audio Quattro: captured data only */
 		if (fp->altsetting == 2 || fp->altsetting == 3 ||
@@ -1326,7 +1326,7 @@ int snd_usb_is_big_endian_format(struct snd_usb_audio *chip, struct audioformat 
 
 /*
  * For E-Mu 0404USB/0202USB/TrackerPre/0204 sample rate should be set for device,
- * not for interface.
+ * yest for interface.
  */
 
 enum {
@@ -1391,7 +1391,7 @@ void snd_usb_set_format_quirk(struct snd_usb_substream *subs,
 
 bool snd_usb_get_sample_rate_quirk(struct snd_usb_audio *chip)
 {
-	/* devices which do not support reading the sample rate. */
+	/* devices which do yest support reading the sample rate. */
 	switch (chip->usb_id) {
 	case USB_ID(0x041E, 0x4080): /* Creative Live Cam VF0610 */
 	case USB_ID(0x04D8, 0xFEEA): /* Benchmark DAC1 Pre */
@@ -1422,7 +1422,7 @@ bool snd_usb_get_sample_rate_quirk(struct snd_usb_audio *chip)
 static bool is_itf_usb_dsd_dac(unsigned int id)
 {
 	switch (id) {
-	case USB_ID(0x154e, 0x1003): /* Denon DA-300USB */
+	case USB_ID(0x154e, 0x1003): /* Deyesn DA-300USB */
 	case USB_ID(0x154e, 0x3005): /* Marantz HD-DAC1 */
 	case USB_ID(0x154e, 0x3006): /* Marantz SA-14S1 */
 	case USB_ID(0x1852, 0x5065): /* Luxman DA-06 */
@@ -1442,7 +1442,7 @@ int snd_usb_select_mode_quirk(struct snd_usb_substream *subs,
 
 	if (is_itf_usb_dsd_dac(subs->stream->chip->usb_id)) {
 		/* First switch to alt set 0, otherwise the mode switch cmd
-		 * will not be accepted by the DAC
+		 * will yest be accepted by the DAC
 		 */
 		err = usb_set_interface(dev, fmt->iface, 0);
 		if (err < 0)
@@ -1478,14 +1478,14 @@ void snd_usb_endpoint_start_quirk(struct snd_usb_endpoint *ep)
 {
 	/*
 	 * "Playback Design" products send bogus feedback data at the start
-	 * of the stream. Ignore them.
+	 * of the stream. Igyesre them.
 	 */
 	if (USB_ID_VENDOR(ep->chip->usb_id) == 0x23ba &&
 	    ep->type == SND_USB_ENDPOINT_TYPE_SYNC)
 		ep->skip_packets = 4;
 
 	/*
-	 * M-Audio Fast Track C400/C600 - when packets are not skipped, real
+	 * M-Audio Fast Track C400/C600 - when packets are yest skipped, real
 	 * world latency varies by approx. +/- 50 frames (at 96KHz) each time
 	 * the stream is (re)started. When skipping packets 16 at endpoint
 	 * start up, the real world latency is stable within +/- 1 frame (also
@@ -1500,7 +1500,7 @@ void snd_usb_endpoint_start_quirk(struct snd_usb_endpoint *ep)
 	if ((ep->chip->usb_id == USB_ID(0x0644, 0x8038) ||  /* TEAC UD-H01 */
 	     ep->chip->usb_id == USB_ID(0x1852, 0x5034)) && /* T+A Dac8 */
 	    ep->syncmaxsize == 4)
-		ep->tenor_fb_quirk = 1;
+		ep->teyesr_fb_quirk = 1;
 }
 
 void snd_usb_set_interface_quirk(struct usb_device *dev)
@@ -1521,7 +1521,7 @@ void snd_usb_set_interface_quirk(struct usb_device *dev)
 	}
 }
 
-/* quirk applied after snd_usb_ctl_msg(); not applied during boot quirks */
+/* quirk applied after snd_usb_ctl_msg(); yest applied during boot quirks */
 void snd_usb_ctl_msg_quirk(struct usb_device *dev, unsigned int pipe,
 			   __u8 request, __u8 requesttype, __u16 value,
 			   __u16 index, void *data, __u16 size)
@@ -1567,8 +1567,8 @@ void snd_usb_ctl_msg_quirk(struct usb_device *dev, unsigned int pipe,
 /*
  * snd_usb_interface_dsd_format_quirks() is called from format.c to
  * augment the PCM format bit-field for DSD types. The UAC standards
- * don't have a designated bit field to denote DSD-capable interfaces,
- * hence all hardware that is known to support this format has to be
+ * don't have a designated bit field to deyeste DSD-capable interfaces,
+ * hence all hardware that is kyeswn to support this format has to be
  * listed here.
  */
 u64 snd_usb_interface_dsd_format_quirks(struct snd_usb_audio *chip,
@@ -1615,7 +1615,7 @@ u64 snd_usb_interface_dsd_format_quirks(struct snd_usb_audio *chip,
 	case USB_ID(0x2622, 0x0041): /* Audiolab M-DAC+ */
 	case USB_ID(0x27f7, 0x3002): /* W4S DAC-2v2SE */
 	case USB_ID(0x29a2, 0x0086): /* Mutec MC3+ USB */
-	case USB_ID(0x6b42, 0x0042): /* MSB Technology */
+	case USB_ID(0x6b42, 0x0042): /* MSB Techyeslogy */
 		if (fp->altsetting == 3)
 			return SNDRV_PCM_FMTBIT_DSD_U32_BE;
 		break;
@@ -1691,7 +1691,7 @@ void snd_usb_audioformat_attributes_quirk(struct snd_usb_audio *chip,
 	switch (chip->usb_id) {
 	case USB_ID(0x0a92, 0x0053): /* AudioTrak Optoplay */
 		/* Optoplay sets the sample rate attribute although
-		 * it seems not supporting it in fact.
+		 * it seems yest supporting it in fact.
 		 */
 		fp->attributes &= ~UAC_EP_CS_ATTR_SAMPLE_RATE;
 		break;
@@ -1703,11 +1703,11 @@ void snd_usb_audioformat_attributes_quirk(struct snd_usb_audio *chip,
 	case USB_ID(0x0763, 0x2001):  /* M-Audio Quattro USB */
 	case USB_ID(0x0763, 0x2012):  /* M-Audio Fast Track Pro USB */
 	case USB_ID(0x047f, 0x0ca1): /* plantronics headset */
-	case USB_ID(0x077d, 0x07af): /* Griffin iMic (note that there is
+	case USB_ID(0x077d, 0x07af): /* Griffin iMic (yeste that there is
 					an older model 77d:223) */
 	/*
 	 * plantronics headset and Griffin iMic have set adaptive-in
-	 * although it's really not...
+	 * although it's really yest...
 	 */
 		fp->ep_attr &= ~USB_ENDPOINT_SYNCTYPE;
 		if (stream == SNDRV_PCM_STREAM_PLAYBACK)

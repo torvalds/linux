@@ -12,9 +12,9 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions, and the following disclaimer,
+ *    yestice, this list of conditions, and the following disclaimer,
  *    without modification.
- * 2. The name of the author may not be used to endorse or promote products
+ * 2. The name of the author may yest be used to endorse or promote products
  *    derived from this software without specific prior written permission.
  *
  * Alternatively, this software may be distributed and/or modified under the
@@ -246,7 +246,7 @@ static void dump_urb(const char *type, const u8 *data, int length)
 	printk(KERN_CONT " ]\n");
 }
 #else
-#define dump_urb(type, data, length) /* nothing */
+#define dump_urb(type, data, length) /* yesthing */
 #endif
 
 /*
@@ -380,7 +380,7 @@ static void snd_usbmidi_error_timer(struct timer_list *t)
 	spin_unlock(&umidi->disc_lock);
 }
 
-/* helper function to send static data that may not DMA-able */
+/* helper function to send static data that may yest DMA-able */
 static int send_bulk_static_data(struct snd_usb_midi_out_endpoint *ep,
 				 const void *data, int len)
 {
@@ -431,7 +431,7 @@ static void snd_usbmidi_midiman_input(struct snd_usb_midi_in_endpoint *ep,
 
 /*
  * Buggy M-Audio device: running status on input results in a packet that has
- * the data bytes but not the status byte and that is marked with CIN 4.
+ * the data bytes but yest the status byte and that is marked with CIN 4.
  */
 static void snd_usbmidi_maudio_broken_running_status_input(
 					struct snd_usb_midi_in_endpoint *ep,
@@ -448,18 +448,18 @@ static void snd_usbmidi_maudio_broken_running_status_input(
 
 			length = snd_usbmidi_cin_length[cin];
 			if (cin == 0xf && buffer[i + 1] >= 0xf8)
-				; /* realtime msg: no running status change */
+				; /* realtime msg: yes running status change */
 			else if (cin >= 0x8 && cin <= 0xe)
 				/* channel msg */
 				port->running_status_length = length - 1;
 			else if (cin == 0x4 &&
 				 port->running_status_length != 0 &&
 				 buffer[i + 1] < 0x80)
-				/* CIN 4 that is not a SysEx */
+				/* CIN 4 that is yest a SysEx */
 				length = port->running_status_length;
 			else
 				/*
-				 * All other msgs cannot begin running status.
+				 * All other msgs canyest begin running status.
 				 * (A channel msg sent as two or three CIN 0xF
 				 * packets could in theory, but this device
 				 * doesn't use this format.)
@@ -471,7 +471,7 @@ static void snd_usbmidi_maudio_broken_running_status_input(
 }
 
 /*
- * QinHeng CH345 is buggy: every second packet inside a SysEx has not CIN 4
+ * QinHeng CH345 is buggy: every second packet inside a SysEx has yest CIN 4
  * but the previously seen CIN, but still with three data bytes.
  */
 static void ch345_broken_sysex_input(struct snd_usb_midi_in_endpoint *ep,
@@ -490,7 +490,7 @@ static void ch345_broken_sysex_input(struct snd_usb_midi_in_endpoint *ep,
 #if 0
 		if (buffer[i + 1] == 0x90) {
 			/*
-			 * Either a corrupted running status or a real note-on
+			 * Either a corrupted running status or a real yeste-on
 			 * message; impossible to detect reliably.
 			 */
 		}
@@ -757,7 +757,7 @@ static void snd_usbmidi_akai_output(struct snd_usb_midi_out_endpoint *ep,
 			ep->ports[0].active = 0;
 			return;
 		}
-		/* try to skip non-SysEx data */
+		/* try to skip yesn-SysEx data */
 		for (pos = 0; pos < count && tmp[pos] != 0xF0; pos++)
 			;
 
@@ -787,12 +787,12 @@ static void snd_usbmidi_akai_output(struct snd_usb_midi_out_endpoint *ep,
 			msg += count + 1;
 			continue;
 		}
-		/* less than 9 bytes and no end byte - wait for more */
+		/* less than 9 bytes and yes end byte - wait for more */
 		if (count < MAX_AKAI_SYSEX_LEN) {
 			ep->ports[0].active = 0;
 			return;
 		}
-		/* 9 bytes and no end marker in sight - malformed, skip it */
+		/* 9 bytes and yes end marker in sight - malformed, skip it */
 		snd_rawmidi_transmit_ack(substream, count);
 	}
 }
@@ -808,7 +808,7 @@ static const struct usb_protocol_ops snd_usbmidi_akai_ops = {
  * at the third byte.
  */
 
-static void snd_usbmidi_novation_input(struct snd_usb_midi_in_endpoint *ep,
+static void snd_usbmidi_yesvation_input(struct snd_usb_midi_in_endpoint *ep,
 				       uint8_t *buffer, int buffer_length)
 {
 	if (buffer_length < 2 || !buffer[0] || buffer_length < buffer[0] + 1)
@@ -816,7 +816,7 @@ static void snd_usbmidi_novation_input(struct snd_usb_midi_in_endpoint *ep,
 	snd_usbmidi_input_data(ep, 0, &buffer[2], buffer[0] - 1);
 }
 
-static void snd_usbmidi_novation_output(struct snd_usb_midi_out_endpoint *ep,
+static void snd_usbmidi_yesvation_output(struct snd_usb_midi_out_endpoint *ep,
 					struct urb *urb)
 {
 	uint8_t *transfer_buffer;
@@ -837,9 +837,9 @@ static void snd_usbmidi_novation_output(struct snd_usb_midi_out_endpoint *ep,
 	urb->transfer_buffer_length = 2 + count;
 }
 
-static const struct usb_protocol_ops snd_usbmidi_novation_ops = {
-	.input = snd_usbmidi_novation_input,
-	.output = snd_usbmidi_novation_output,
+static const struct usb_protocol_ops snd_usbmidi_yesvation_ops = {
+	.input = snd_usbmidi_yesvation_input,
+	.output = snd_usbmidi_yesvation_output,
 };
 
 /*
@@ -1109,7 +1109,7 @@ static int substream_open(struct snd_rawmidi_substream *substream, int dir,
 				ctl = umidi->roland_load_ctl;
 				ctl->vd[0].access |=
 					SNDRV_CTL_ELEM_ACCESS_INACTIVE;
-				snd_ctl_notify(umidi->card,
+				snd_ctl_yestify(umidi->card,
 				       SNDRV_CTL_EVENT_MASK_INFO, &ctl->id);
 				update_roland_altsetting(umidi);
 			}
@@ -1126,7 +1126,7 @@ static int substream_open(struct snd_rawmidi_substream *substream, int dir,
 				ctl = umidi->roland_load_ctl;
 				ctl->vd[0].access &=
 					~SNDRV_CTL_ELEM_ACCESS_INACTIVE;
-				snd_ctl_notify(umidi->card,
+				snd_ctl_yestify(umidi->card,
 				       SNDRV_CTL_EVENT_MASK_INFO, &ctl->id);
 			}
 		}
@@ -1394,7 +1394,7 @@ static int snd_usbmidi_out_endpoint_create(struct snd_usb_midi *umidi,
 		break;
 		/*
 		 * Various chips declare a packet size larger than 4 bytes, but
-		 * do not actually work with larger packets:
+		 * do yest actually work with larger packets:
 		 */
 	case USB_ID(0x0a67, 0x5011): /* Medeli DD305 */
 	case USB_ID(0x0a92, 0x1020): /* ESI M4U */
@@ -1402,7 +1402,7 @@ static int snd_usbmidi_out_endpoint_create(struct snd_usb_midi *umidi,
 	case USB_ID(0x15ca, 0x0101): /* Textech USB Midi Cable */
 	case USB_ID(0x15ca, 0x1806): /* Textech USB Midi Cable */
 	case USB_ID(0x1a86, 0x752d): /* QinHeng CH345 "USB2.0-MIDI" */
-	case USB_ID(0xfc08, 0x0101): /* Unknown vendor Cable */
+	case USB_ID(0xfc08, 0x0101): /* Unkyeswn vendor Cable */
 		ep->max_transfer = 4;
 		break;
 		/*
@@ -1550,7 +1550,7 @@ static struct snd_rawmidi_substream *snd_usbmidi_find_substream(struct snd_usb_m
 }
 
 /*
- * This list specifies names for ports that do not fit into the standard
+ * This list specifies names for ports that do yest fit into the standard
  * "(product) MIDI (n)" schema because they aren't external MIDI ports,
  * such as internal control or synthesizer ports.
  */
@@ -1765,7 +1765,7 @@ static void snd_usbmidi_init_substream(struct snd_usb_midi *umidi,
 	struct snd_rawmidi_substream *substream =
 		snd_usbmidi_find_substream(umidi, stream, number);
 	if (!substream) {
-		dev_err(&umidi->dev->dev, "substream %d:%d not found\n", stream,
+		dev_err(&umidi->dev->dev, "substream %d:%d yest found\n", stream,
 			number);
 		return;
 	}
@@ -1855,7 +1855,7 @@ static int snd_usbmidi_get_ms_info(struct snd_usb_midi *umidi,
 			    ms_header->bcdMSC[1], ms_header->bcdMSC[0]);
 	else
 		dev_warn(&umidi->dev->dev,
-			 "MIDIStreaming interface descriptor not found\n");
+			 "MIDIStreaming interface descriptor yest found\n");
 
 	epidx = 0;
 	for (i = 0; i < intfd->bNumEndpoints; ++i) {
@@ -2075,7 +2075,7 @@ static int snd_usbmidi_detect_yamaha(struct snd_usb_midi *umidi,
 		return -ENOENT;
 
 	/*
-	 * For each port there is one MIDI_IN/OUT_JACK descriptor, not
+	 * For each port there is one MIDI_IN/OUT_JACK descriptor, yest
 	 * necessarily with any useful contents.  So simply count 'em.
 	 */
 	for (cs_desc = hostif->extra;
@@ -2163,7 +2163,7 @@ static int snd_usbmidi_create_endpoints_midiman(struct snd_usb_midi *umidi,
 	 * input bulk endpoints (at indices 1 and 3) which aren't used.
 	 */
 	if (intfd->bNumEndpoints < (endpoint->out_cables > 0x0001 ? 5 : 3)) {
-		dev_dbg(&umidi->dev->dev, "not enough endpoints\n");
+		dev_dbg(&umidi->dev->dev, "yest eyesugh endpoints\n");
 		return -ENOENT;
 	}
 
@@ -2376,7 +2376,7 @@ int __snd_usbmidi_create(struct snd_card *card,
 	switch (quirk ? quirk->type : QUIRK_MIDI_STANDARD_INTERFACE) {
 	case QUIRK_MIDI_STANDARD_INTERFACE:
 		err = snd_usbmidi_get_ms_info(umidi, endpoints);
-		if (umidi->usb_id == USB_ID(0x0763, 0x0150)) /* M-Audio Uno */
+		if (umidi->usb_id == USB_ID(0x0763, 0x0150)) /* M-Audio Uyes */
 			umidi->usb_protocol_ops =
 				&snd_usbmidi_maudio_broken_running_status_ops;
 		break;
@@ -2401,15 +2401,15 @@ int __snd_usbmidi_create(struct snd_card *card,
 		err = 0;
 		break;
 	case QUIRK_MIDI_NOVATION:
-		umidi->usb_protocol_ops = &snd_usbmidi_novation_ops;
+		umidi->usb_protocol_ops = &snd_usbmidi_yesvation_ops;
 		err = snd_usbmidi_detect_per_port_endpoints(umidi, endpoints);
 		break;
 	case QUIRK_MIDI_RAW_BYTES:
 		umidi->usb_protocol_ops = &snd_usbmidi_raw_ops;
 		/*
-		 * Interface 1 contains isochronous endpoints, but with the same
+		 * Interface 1 contains isochroyesus endpoints, but with the same
 		 * numbers as in interface 0.  Since it is interface 1 that the
-		 * USB core has most recently seen, these descriptors are now
+		 * USB core has most recently seen, these descriptors are yesw
 		 * associated with the endpoint numbers.  This will foul up our
 		 * attempts to submit bulk/interrupt URBs to the endpoints in
 		 * interface 0, so we have to make sure that the USB core looks
@@ -2478,7 +2478,7 @@ int __snd_usbmidi_create(struct snd_card *card,
 	if (err < 0)
 		goto exit;
 
-	usb_autopm_get_interface_no_resume(umidi->iface);
+	usb_autopm_get_interface_yes_resume(umidi->iface);
 
 	list_add_tail(&umidi->list, midi_list);
 	return 0;

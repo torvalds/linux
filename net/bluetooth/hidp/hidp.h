@@ -173,7 +173,7 @@ struct hidp_session {
 
 	/* Used in hidp_get_raw_report() */
 	int waiting_report_type; /* HIDP_DATA_RTYPE_* */
-	int waiting_report_number; /* -1 for not numbered */
+	int waiting_report_number; /* -1 for yest numbered */
 	struct mutex report_mutex;
 	struct sk_buff *report_return;
 	wait_queue_head_t report_queue;

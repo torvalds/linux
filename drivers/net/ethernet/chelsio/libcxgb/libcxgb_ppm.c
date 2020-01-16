@@ -14,11 +14,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -40,7 +40,7 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/types.h>
 #include <linux/debugfs.h>
 #include <linux/export.h>
@@ -76,7 +76,7 @@ int cxgbi_ppm_find_page_index(struct cxgbi_ppm *ppm, unsigned long pgsz)
 			return i;
 		}
 	}
-	pr_info("ippm: ddp page size %lu not supported.\n", pgsz);
+	pr_info("ippm: ddp page size %lu yest supported.\n", pgsz);
 	return DDP_PGIDX_MAX;
 }
 
@@ -267,7 +267,7 @@ int cxgbi_ppm_ppods_reserve(struct cxgbi_ppm *ppm, unsigned short nr_pages,
 	if (idx < 0)
 		idx = ppm_get_entries(ppm, npods, caller_data);
 	if (idx < 0) {
-		pr_debug("ippm: pages %u, nospc %u, nxt %u, 0x%lx.\n",
+		pr_debug("ippm: pages %u, yesspc %u, nxt %u, 0x%lx.\n",
 			 nr_pages, npods, ppm->next, caller_data);
 		return idx;
 	}
@@ -296,7 +296,7 @@ void cxgbi_ppm_make_ppod_hdr(struct cxgbi_ppm *ppm, u32 tag,
 			     struct cxgbi_pagepod_hdr *hdr)
 {
 	/* The ddp tag in pagepod should be with bit 31:30 set to 0.
-	 * The ddp Tag on the wire should be with non-zero 31:30 to the peer
+	 * The ddp Tag on the wire should be with yesn-zero 31:30 to the peer
 	 */
 	tag &= 0x3FFFFFFF;
 
@@ -366,7 +366,7 @@ static struct cxgbi_ppm_pool *ppm_alloc_cpu_pool(unsigned int *total,
 	ppmax = (bmap * sizeof(unsigned long)) << 3;
 
 	alloc_sz = sizeof(*pools) + sizeof(unsigned long) * bmap;
-	pools = __alloc_percpu(alloc_sz, __alignof__(struct cxgbi_ppm_pool));
+	pools = __alloc_percpu(alloc_sz, __aligyesf__(struct cxgbi_ppm_pool));
 
 	if (!pools)
 		return NULL;
@@ -405,7 +405,7 @@ int cxgbi_ppm_init(void **ppm_pp, struct net_device *ndev,
 
 	if (iscsi_edram_size &&
 	    ((iscsi_edram_start + iscsi_edram_size) != start)) {
-		pr_err("iscsi ppod region not contiguous: EDRAM start 0x%x "
+		pr_err("iscsi ppod region yest contiguous: EDRAM start 0x%x "
 			"size 0x%x DDR start 0x%x\n",
 			iscsi_edram_start, iscsi_edram_size, start);
 		return -EINVAL;

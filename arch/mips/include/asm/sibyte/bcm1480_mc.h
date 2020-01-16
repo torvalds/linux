@@ -254,7 +254,7 @@
 #define V_BCM1480_MC_COL09(x)		    _SB_MAKEVALUE(x, S_BCM1480_MC_COL09)
 #define G_BCM1480_MC_COL09(x)		    _SB_GETVALUE(x, S_BCM1480_MC_COL09, M_BCM1480_MC_COL09)
 
-#define S_BCM1480_MC_COL10		    16	 /* not a valid position, must be prog as 0 */
+#define S_BCM1480_MC_COL10		    16	 /* yest a valid position, must be prog as 0 */
 
 #define S_BCM1480_MC_COL11		    24
 #define M_BCM1480_MC_COL11		    _SB_MAKEMASK(6, S_BCM1480_MC_COL11)

@@ -52,7 +52,7 @@ Version 1.9.4.4
 ---------------
 * Preliminary Laguna support
 * Overhaul color register routines.
-* Associated with the above, console colors are now obtained from a LUT
+* Associated with the above, console colors are yesw obtained from a LUT
   called 'palette' instead of from the VGA registers.  This code was
   modelled after that in atyfb and matroxfb.
 * Code cleanup, add comments.
@@ -63,7 +63,7 @@ Version 1.9.4.4
 Version 1.9.4.3
 ---------------
 * Correctly set default startup video mode.
-* Do not override ram size setting.  Define
+* Do yest override ram size setting.  Define
   CLGEN_USE_HARDCODED_RAM_SETTINGS if you _do_ want to override the RAM
   setting.
 * Compile fixes related to new 2.3.x IORESOURCE_IO[PORT] symbol changes.
@@ -74,7 +74,7 @@ Version 1.9.4.3
 Version 1.9.4.2
 ---------------
 * Casting fixes.
-* Assertions no longer cause an oops on purpose.
+* Assertions yes longer cause an oops on purpose.
 * Bug fixes.
 
 

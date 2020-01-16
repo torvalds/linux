@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, Mellanox Technologies inc.  All rights reserved.
+ * Copyright (c) 2014, Mellayesx Techyeslogies inc.  All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -43,19 +43,19 @@ static int sriov_restore_guids(struct mlx5_core_dev *dev, int vf)
 	int err = 0;
 
 	/* Restore sriov guid and policy settings */
-	if (sriov->vfs_ctx[vf].node_guid ||
+	if (sriov->vfs_ctx[vf].yesde_guid ||
 	    sriov->vfs_ctx[vf].port_guid ||
 	    sriov->vfs_ctx[vf].policy != MLX5_POLICY_INVALID) {
 		in = kzalloc(sizeof(*in), GFP_KERNEL);
 		if (!in)
 			return -ENOMEM;
 
-		in->node_guid = sriov->vfs_ctx[vf].node_guid;
+		in->yesde_guid = sriov->vfs_ctx[vf].yesde_guid;
 		in->port_guid = sriov->vfs_ctx[vf].port_guid;
 		in->policy = sriov->vfs_ctx[vf].policy;
 		in->field_select =
 			!!(in->port_guid) * MLX5_HCA_VPORT_SEL_PORT_GUID |
-			!!(in->node_guid) * MLX5_HCA_VPORT_SEL_NODE_GUID |
+			!!(in->yesde_guid) * MLX5_HCA_VPORT_SEL_NODE_GUID |
 			!!(in->policy) * MLX5_HCA_VPORT_SEL_STATE_POLICY;
 
 		err = mlx5_core_modify_hca_vport_context(dev, 1, 1, vf + 1, in);

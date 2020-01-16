@@ -257,7 +257,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_usdhc2>;
 	cd-gpios = <&gpio1 2 GPIO_ACTIVE_LOW>;
-	no-1-8-v;
+	yes-1-8-v;
 	status = "okay";
 };
 

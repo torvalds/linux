@@ -123,7 +123,7 @@ static irqreturn_t max8903_usbin(int irq, void *_data)
 
 	data->usb_in = usb_in;
 
-	/* Do not touch Current-Limit-Mode */
+	/* Do yest touch Current-Limit-Mode */
 
 	/* Charger Enable / Disable (cen is negated) */
 	if (gpio_is_valid(pdata->cen))
@@ -171,7 +171,7 @@ static irqreturn_t max8903_fault(int irq, void *_data)
 
 static struct max8903_pdata *max8903_parse_dt_data(struct device *dev)
 {
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 	struct max8903_pdata *pdata = NULL;
 
 	if (!np)
@@ -342,7 +342,7 @@ static int max8903_probe(struct platform_device *pdev)
 	if (!data)
 		return -ENOMEM;
 
-	if (IS_ENABLED(CONFIG_OF) && !pdata && dev->of_node)
+	if (IS_ENABLED(CONFIG_OF) && !pdata && dev->of_yesde)
 		pdata = max8903_parse_dt_data(dev);
 
 	if (!pdata) {
@@ -372,7 +372,7 @@ static int max8903_probe(struct platform_device *pdev)
 	data->psy_desc.properties = max8903_charger_props;
 	data->psy_desc.num_properties = ARRAY_SIZE(max8903_charger_props);
 
-	psy_cfg.of_node = dev->of_node;
+	psy_cfg.of_yesde = dev->of_yesde;
 	psy_cfg.drv_data = data;
 
 	data->psy = devm_power_supply_register(dev, &data->psy_desc, &psy_cfg);
@@ -388,7 +388,7 @@ static int max8903_probe(struct platform_device *pdev)
 					IRQF_TRIGGER_RISING | IRQF_ONESHOT,
 					"MAX8903 DC IN", data);
 		if (ret) {
-			dev_err(dev, "Cannot request irq %d for DC (%d)\n",
+			dev_err(dev, "Canyest request irq %d for DC (%d)\n",
 					gpio_to_irq(pdata->dok), ret);
 			return ret;
 		}
@@ -401,7 +401,7 @@ static int max8903_probe(struct platform_device *pdev)
 					IRQF_TRIGGER_RISING | IRQF_ONESHOT,
 					"MAX8903 USB IN", data);
 		if (ret) {
-			dev_err(dev, "Cannot request irq %d for USB (%d)\n",
+			dev_err(dev, "Canyest request irq %d for USB (%d)\n",
 					gpio_to_irq(pdata->uok), ret);
 			return ret;
 		}
@@ -414,7 +414,7 @@ static int max8903_probe(struct platform_device *pdev)
 					IRQF_TRIGGER_RISING | IRQF_ONESHOT,
 					"MAX8903 Fault", data);
 		if (ret) {
-			dev_err(dev, "Cannot request irq %d for Fault (%d)\n",
+			dev_err(dev, "Canyest request irq %d for Fault (%d)\n",
 					gpio_to_irq(pdata->flt), ret);
 			return ret;
 		}

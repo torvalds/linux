@@ -31,7 +31,7 @@ __init int mips_machtype_setup(char *id)
 		}
 	}
 
-	pr_err("MIPS: no machine found for id '%s', supported machines:\n", id);
+	pr_err("MIPS: yes machine found for id '%s', supported machines:\n", id);
 	pr_err("%-24s %s\n", "id", "name");
 	for_each_machine(mach)
 		pr_err("%-24s %s\n", mach->mach_id, mach->mach_name);

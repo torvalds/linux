@@ -117,7 +117,7 @@ static int mv88e6060_setup_port(struct mv88e6060_priv *priv, int p)
 	int addr = REG_PORT(p);
 	int ret;
 
-	/* Do not force flow control, disable Ingress and Egress
+	/* Do yest force flow control, disable Ingress and Egress
 	 * Header tagging, disable VLAN tunneling, and set the port
 	 * state to Forwarding.  Additionally, if this is the CPU
 	 * port, enable Ingress and Egress Trailer tagging mode.

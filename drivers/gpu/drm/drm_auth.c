@@ -15,7 +15,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -43,16 +43,16 @@
  * DOC: master and authentication
  *
  * &struct drm_master is used to track groups of clients with open
- * primary/legacy device nodes. For every &struct drm_file which has had at
+ * primary/legacy device yesdes. For every &struct drm_file which has had at
  * least once successfully became the device master (either through the
- * SET_MASTER IOCTL, or implicitly through opening the primary device node when
- * no one else is the current master that time) there exists one &drm_master.
- * This is noted in &drm_file.is_master. All other clients have just a pointer
+ * SET_MASTER IOCTL, or implicitly through opening the primary device yesde when
+ * yes one else is the current master that time) there exists one &drm_master.
+ * This is yested in &drm_file.is_master. All other clients have just a pointer
  * to the &drm_master they are associated with.
  *
  * In addition only one &drm_master can be the current master for a &drm_device.
  * It can be switched through the DROP_MASTER and SET_MASTER IOCTL, or
- * implicitly through closing/openeing the primary device node. See also
+ * implicitly through closing/openeing the primary device yesde. See also
  * drm_is_current_master().
  *
  * Clients can authenticate against the current master (if it matches their own)
@@ -250,10 +250,10 @@ out_unlock:
 
 int drm_master_open(struct drm_file *file_priv)
 {
-	struct drm_device *dev = file_priv->minor->dev;
+	struct drm_device *dev = file_priv->miyesr->dev;
 	int ret = 0;
 
-	/* if there is no current master make this fd it, but do not create
+	/* if there is yes current master make this fd it, but do yest create
 	 * any master object for render clients */
 	mutex_lock(&dev->master_mutex);
 	if (!dev->master)
@@ -267,7 +267,7 @@ int drm_master_open(struct drm_file *file_priv)
 
 void drm_master_release(struct drm_file *file_priv)
 {
-	struct drm_device *dev = file_priv->minor->dev;
+	struct drm_device *dev = file_priv->miyesr->dev;
 	struct drm_master *master = file_priv->master;
 
 	mutex_lock(&dev->master_mutex);
@@ -303,11 +303,11 @@ out:
  * client is allowed to run DRM_MASTER IOCTLs.
  *
  * Most of the modern IOCTL which require DRM_MASTER are for kernel modesetting
- * - the current master is assumed to own the non-shareable display hardware.
+ * - the current master is assumed to own the yesn-shareable display hardware.
  */
 bool drm_is_current_master(struct drm_file *fpriv)
 {
-	return fpriv->is_master && drm_lease_owner(fpriv->master) == fpriv->minor->dev->master;
+	return fpriv->is_master && drm_lease_owner(fpriv->master) == fpriv->miyesr->dev->master;
 }
 EXPORT_SYMBOL(drm_is_current_master);
 

@@ -69,7 +69,7 @@ SECTIONS
   _got_end = .;
 
   /* ensure the zImage file size is always a multiple of 64 bits */
-  /* (without a dummy byte, ld just ignores the empty section) */
+  /* (without a dummy byte, ld just igyesres the empty section) */
   .pad			: { BYTE(0); . = ALIGN(8); }
 
 #ifdef CONFIG_EFI_STUB
@@ -101,8 +101,8 @@ SECTIONS
   .image_end (NOLOAD) : {
     /*
      * EFI requires that the image is aligned to 512 bytes, and appended
-     * DTB requires that we know where the end of the image is.  Ensure
-     * that both are satisfied by ensuring that there are no additional
+     * DTB requires that we kyesw where the end of the image is.  Ensure
+     * that both are satisfied by ensuring that there are yes additional
      * sections emitted into the decompressor image.
      */
     _edata_real = .;

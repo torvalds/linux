@@ -53,10 +53,10 @@ void nf_ct_unlink_expect_report(struct nf_conntrack_expect *exp,
 	WARN_ON(!master_help);
 	WARN_ON(timer_pending(&exp->timeout));
 
-	hlist_del_rcu(&exp->hnode);
+	hlist_del_rcu(&exp->hyesde);
 	net->ct.expect_count--;
 
-	hlist_del_rcu(&exp->lnode);
+	hlist_del_rcu(&exp->lyesde);
 	master_help->expecting[exp->class]--;
 
 	nf_ct_expect_event_report(IPEXP_DESTROY, exp, portid, report);
@@ -125,7 +125,7 @@ __nf_ct_expect_find(struct net *net,
 		return NULL;
 
 	h = nf_ct_expect_dst_hash(net, tuple);
-	hlist_for_each_entry_rcu(i, &nf_ct_expect_hash[h], hnode) {
+	hlist_for_each_entry_rcu(i, &nf_ct_expect_hash[h], hyesde) {
 		if (nf_ct_exp_equal(tuple, i, zone, net))
 			return i;
 	}
@@ -143,7 +143,7 @@ nf_ct_expect_find_get(struct net *net,
 
 	rcu_read_lock();
 	i = __nf_ct_expect_find(net, zone, tuple);
-	if (i && !refcount_inc_not_zero(&i->use))
+	if (i && !refcount_inc_yest_zero(&i->use))
 		i = NULL;
 	rcu_read_unlock();
 
@@ -165,7 +165,7 @@ nf_ct_find_expectation(struct net *net,
 		return NULL;
 
 	h = nf_ct_expect_dst_hash(net, tuple);
-	hlist_for_each_entry(i, &nf_ct_expect_hash[h], hnode) {
+	hlist_for_each_entry(i, &nf_ct_expect_hash[h], hyesde) {
 		if (!(i->flags & NF_CT_EXPECT_INACTIVE) &&
 		    nf_ct_exp_equal(tuple, i, zone, net)) {
 			exp = i;
@@ -175,9 +175,9 @@ nf_ct_find_expectation(struct net *net,
 	if (!exp)
 		return NULL;
 
-	/* If master is not in hash table yet (ie. packet hasn't left
-	   this machine yet), how can other end know about expected?
-	   Hence these are not the droids you are looking for (if
+	/* If master is yest in hash table yet (ie. packet hasn't left
+	   this machine yet), how can other end kyesw about expected?
+	   Hence these are yest the droids you are looking for (if
 	   master ct never got confirmed, we'd hold a reference to it
 	   and weird things would happen to future packets). */
 	if (!nf_ct_is_confirmed(exp->master))
@@ -187,12 +187,12 @@ nf_ct_find_expectation(struct net *net,
 	 * about to invoke ->destroy(), or nf_ct_delete() via timeout
 	 * or early_drop().
 	 *
-	 * The atomic_inc_not_zero() check tells:  If that fails, we
-	 * know that the ct is being destroyed.  If it succeeds, we
-	 * can be sure the ct cannot disappear underneath.
+	 * The atomic_inc_yest_zero() check tells:  If that fails, we
+	 * kyesw that the ct is being destroyed.  If it succeeds, we
+	 * can be sure the ct canyest disappear underneath.
 	 */
 	if (unlikely(nf_ct_is_dying(exp->master) ||
-		     !atomic_inc_not_zero(&exp->master->ct_general.use)))
+		     !atomic_inc_yest_zero(&exp->master->ct_general.use)))
 		return NULL;
 
 	if (exp->flags & NF_CT_EXPECT_PERMANENT) {
@@ -213,14 +213,14 @@ void nf_ct_remove_expectations(struct nf_conn *ct)
 {
 	struct nf_conn_help *help = nfct_help(ct);
 	struct nf_conntrack_expect *exp;
-	struct hlist_node *next;
+	struct hlist_yesde *next;
 
 	/* Optimization: most connection never expect any others. */
 	if (!help)
 		return;
 
 	spin_lock_bh(&nf_conntrack_expect_lock);
-	hlist_for_each_entry_safe(exp, next, &help->expectations, lnode) {
+	hlist_for_each_entry_safe(exp, next, &help->expectations, lyesde) {
 		nf_ct_remove_expect(exp);
 	}
 	spin_unlock_bh(&nf_conntrack_expect_lock);
@@ -276,7 +276,7 @@ void nf_ct_unexpect_related(struct nf_conntrack_expect *exp)
 }
 EXPORT_SYMBOL_GPL(nf_ct_unexpect_related);
 
-/* We don't increase the master conntrack refcount for non-fulfilled
+/* We don't increase the master conntrack refcount for yesn-fulfilled
  * conntracks. During the conntrack destruction, the expectations are
  * always killed before the conntrack itself */
 struct nf_conntrack_expect *nf_ct_expect_alloc(struct nf_conn *me)
@@ -385,23 +385,23 @@ static void nf_ct_expect_insert(struct nf_conntrack_expect *exp)
 	}
 	add_timer(&exp->timeout);
 
-	hlist_add_head_rcu(&exp->lnode, &master_help->expectations);
+	hlist_add_head_rcu(&exp->lyesde, &master_help->expectations);
 	master_help->expecting[exp->class]++;
 
-	hlist_add_head_rcu(&exp->hnode, &nf_ct_expect_hash[h]);
+	hlist_add_head_rcu(&exp->hyesde, &nf_ct_expect_hash[h]);
 	net->ct.expect_count++;
 
 	NF_CT_STAT_INC(net, expect_create);
 }
 
-/* Race with expectations being used means we could have none to find; OK. */
+/* Race with expectations being used means we could have yesne to find; OK. */
 static void evict_oldest_expect(struct nf_conn *master,
 				struct nf_conntrack_expect *new)
 {
 	struct nf_conn_help *master_help = nfct_help(master);
 	struct nf_conntrack_expect *exp, *last = NULL;
 
-	hlist_for_each_entry(exp, &master_help->expectations, lnode) {
+	hlist_for_each_entry(exp, &master_help->expectations, lyesde) {
 		if (exp->class == new->class)
 			last = exp;
 	}
@@ -419,7 +419,7 @@ static inline int __nf_ct_expect_check(struct nf_conntrack_expect *expect,
 	struct nf_conn_help *master_help = nfct_help(master);
 	struct nf_conntrack_helper *helper;
 	struct net *net = nf_ct_exp_net(expect);
-	struct hlist_node *next;
+	struct hlist_yesde *next;
 	unsigned int h;
 	int ret = 0;
 
@@ -428,7 +428,7 @@ static inline int __nf_ct_expect_check(struct nf_conntrack_expect *expect,
 		goto out;
 	}
 	h = nf_ct_expect_dst_hash(net, &expect->tuple);
-	hlist_for_each_entry_safe(i, next, &nf_ct_expect_hash[h], hnode) {
+	hlist_for_each_entry_safe(i, next, &nf_ct_expect_hash[h], hyesde) {
 		if (master_matches(i, expect, flags) &&
 		    expect_matches(i, expect)) {
 			if (i->class != expect->class ||
@@ -491,7 +491,7 @@ void nf_ct_expect_iterate_destroy(bool (*iter)(struct nf_conntrack_expect *e, vo
 				  void *data)
 {
 	struct nf_conntrack_expect *exp;
-	const struct hlist_node *next;
+	const struct hlist_yesde *next;
 	unsigned int i;
 
 	spin_lock_bh(&nf_conntrack_expect_lock);
@@ -499,7 +499,7 @@ void nf_ct_expect_iterate_destroy(bool (*iter)(struct nf_conntrack_expect *e, vo
 	for (i = 0; i < nf_ct_expect_hsize; i++) {
 		hlist_for_each_entry_safe(exp, next,
 					  &nf_ct_expect_hash[i],
-					  hnode) {
+					  hyesde) {
 			if (iter(exp, data) && del_timer(&exp->timeout)) {
 				nf_ct_unlink_expect(exp);
 				nf_ct_expect_put(exp);
@@ -517,7 +517,7 @@ void nf_ct_expect_iterate_net(struct net *net,
 			      u32 portid, int report)
 {
 	struct nf_conntrack_expect *exp;
-	const struct hlist_node *next;
+	const struct hlist_yesde *next;
 	unsigned int i;
 
 	spin_lock_bh(&nf_conntrack_expect_lock);
@@ -525,7 +525,7 @@ void nf_ct_expect_iterate_net(struct net *net,
 	for (i = 0; i < nf_ct_expect_hsize; i++) {
 		hlist_for_each_entry_safe(exp, next,
 					  &nf_ct_expect_hash[i],
-					  hnode) {
+					  hyesde) {
 
 			if (!net_eq(nf_ct_exp_net(exp), net))
 				continue;
@@ -547,10 +547,10 @@ struct ct_expect_iter_state {
 	unsigned int bucket;
 };
 
-static struct hlist_node *ct_expect_get_first(struct seq_file *seq)
+static struct hlist_yesde *ct_expect_get_first(struct seq_file *seq)
 {
 	struct ct_expect_iter_state *st = seq->private;
-	struct hlist_node *n;
+	struct hlist_yesde *n;
 
 	for (st->bucket = 0; st->bucket < nf_ct_expect_hsize; st->bucket++) {
 		n = rcu_dereference(hlist_first_rcu(&nf_ct_expect_hash[st->bucket]));
@@ -560,8 +560,8 @@ static struct hlist_node *ct_expect_get_first(struct seq_file *seq)
 	return NULL;
 }
 
-static struct hlist_node *ct_expect_get_next(struct seq_file *seq,
-					     struct hlist_node *head)
+static struct hlist_yesde *ct_expect_get_next(struct seq_file *seq,
+					     struct hlist_yesde *head)
 {
 	struct ct_expect_iter_state *st = seq->private;
 
@@ -574,9 +574,9 @@ static struct hlist_node *ct_expect_get_next(struct seq_file *seq,
 	return head;
 }
 
-static struct hlist_node *ct_expect_get_idx(struct seq_file *seq, loff_t pos)
+static struct hlist_yesde *ct_expect_get_idx(struct seq_file *seq, loff_t pos)
 {
-	struct hlist_node *head = ct_expect_get_first(seq);
+	struct hlist_yesde *head = ct_expect_get_first(seq);
 
 	if (head)
 		while (pos && (head = ct_expect_get_next(seq, head)))
@@ -607,10 +607,10 @@ static int exp_seq_show(struct seq_file *s, void *v)
 {
 	struct nf_conntrack_expect *expect;
 	struct nf_conntrack_helper *helper;
-	struct hlist_node *n = v;
+	struct hlist_yesde *n = v;
 	char *delim = "";
 
-	expect = hlist_entry(n, struct nf_conntrack_expect, hnode);
+	expect = hlist_entry(n, struct nf_conntrack_expect, hyesde);
 
 	if (expect->timeout.function)
 		seq_printf(s, "%ld ", timer_pending(&expect->timeout)

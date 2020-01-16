@@ -104,7 +104,7 @@ static void __init csky_memblock_init(void)
 
 	dma_contiguous_reserve(0);
 
-	free_area_init_node(0, zone_size, min_low_pfn, zhole_size);
+	free_area_init_yesde(0, zone_size, min_low_pfn, zhole_size);
 }
 
 void __init setup_arch(char **cmdline_p)

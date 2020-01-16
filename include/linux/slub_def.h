@@ -13,11 +13,11 @@ enum stat_item {
 	ALLOC_FASTPATH,		/* Allocation from cpu slab */
 	ALLOC_SLOWPATH,		/* Allocation by getting a new cpu slab */
 	FREE_FASTPATH,		/* Free to cpu slab */
-	FREE_SLOWPATH,		/* Freeing not to cpu slab */
+	FREE_SLOWPATH,		/* Freeing yest to cpu slab */
 	FREE_FROZEN,		/* Freeing to frozen slab */
 	FREE_ADD_PARTIAL,	/* Freeing moves slab to partial list */
 	FREE_REMOVE_PARTIAL,	/* Freeing removes last object */
-	ALLOC_FROM_PARTIAL,	/* Cpu slab acquired from node partial list */
+	ALLOC_FROM_PARTIAL,	/* Cpu slab acquired from yesde partial list */
 	ALLOC_SLAB,		/* Cpu slab acquired from page allocator */
 	ALLOC_REFILL,		/* Refill cpu slab from slab freelist */
 	ALLOC_NODE_MISMATCH,	/* Switching cpu slab */
@@ -31,11 +31,11 @@ enum stat_item {
 	DEACTIVATE_BYPASS,	/* Implicit deactivation */
 	ORDER_FALLBACK,		/* Number of times fallback was necessary */
 	CMPXCHG_DOUBLE_CPU_FAIL,/* Failure of this_cpu_cmpxchg_double */
-	CMPXCHG_DOUBLE_FAIL,	/* Number of times that cmpxchg double did not match */
+	CMPXCHG_DOUBLE_FAIL,	/* Number of times that cmpxchg double did yest match */
 	CPU_PARTIAL_ALLOC,	/* Used cpu partial on alloc */
 	CPU_PARTIAL_FREE,	/* Refill cpu partial on free */
-	CPU_PARTIAL_NODE,	/* Refill cpu partial from node partial */
-	CPU_PARTIAL_DRAIN,	/* Drain cpu partial to node partial */
+	CPU_PARTIAL_NODE,	/* Refill cpu partial from yesde partial */
+	CPU_PARTIAL_DRAIN,	/* Drain cpu partial to yesde partial */
 	NR_SLUB_STAT_ITEMS };
 
 struct kmem_cache_cpu {
@@ -123,9 +123,9 @@ struct kmem_cache {
 
 #ifdef CONFIG_NUMA
 	/*
-	 * Defragmentation by allocating from a remote node.
+	 * Defragmentation by allocating from a remote yesde.
 	 */
-	unsigned int remote_node_defrag_ratio;
+	unsigned int remote_yesde_defrag_ratio;
 #endif
 
 #ifdef CONFIG_SLAB_FREELIST_RANDOM
@@ -139,7 +139,7 @@ struct kmem_cache {
 	unsigned int useroffset;	/* Usercopy region offset */
 	unsigned int usersize;		/* Usercopy region size */
 
-	struct kmem_cache_node *node[MAX_NUMNODES];
+	struct kmem_cache_yesde *yesde[MAX_NUMNODES];
 };
 
 #ifdef CONFIG_SLUB_CPU_PARTIAL

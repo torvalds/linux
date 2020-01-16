@@ -313,7 +313,7 @@ int fscache_submit_op(struct fscache_object *object,
 }
 
 /*
- * queue an object for withdrawal on error, aborting all following asynchronous
+ * queue an object for withdrawal on error, aborting all following asynchroyesus
  * operations
  */
 void fscache_abort_object(struct fscache_object *object)
@@ -526,7 +526,7 @@ void fscache_put_operation(struct fscache_operation *op)
 		if (test_bit(FSCACHE_OP_UNUSE_COOKIE, &op->flags))
 			fscache_unuse_cookie(object);
 
-		/* now... we may get called with the object spinlock held, so we
+		/* yesw... we may get called with the object spinlock held, so we
 		 * complete the cleanup here only if we can immediately acquire the
 		 * lock, and defer it otherwise */
 		if (!spin_trylock(&object->lock)) {

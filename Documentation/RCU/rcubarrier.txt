@@ -6,8 +6,8 @@ RCU (read-copy update) is a synchronization mechanism that can be thought
 of as a replacement for read-writer locking (among other things), but with
 very low-overhead readers that are immune to deadlock, priority inversion,
 and unbounded latency. RCU read-side critical sections are delimited
-by rcu_read_lock() and rcu_read_unlock(), which, in non-CONFIG_PREEMPT
-kernels, generate no code whatsoever.
+by rcu_read_lock() and rcu_read_unlock(), which, in yesn-CONFIG_PREEMPT
+kernels, generate yes code whatsoever.
 
 This means that RCU writers are unaware of the presence of concurrent
 readers, so that RCU updates to shared data must be undertaken quite
@@ -17,7 +17,7 @@ such readers might hold a reference to them. RCU updates can therefore be
 rather expensive, and RCU is thus best suited for read-mostly situations.
 
 How can an RCU writer possibly determine when all readers are finished,
-given that readers might well leave absolutely no trace of their
+given that readers might well leave absolutely yes trace of their
 presence? There is a synchronize_rcu() primitive that blocks until all
 pre-existing readers have completed. An updater wishing to delete an
 element p from a linked list might do the following, while holding an
@@ -27,10 +27,10 @@ appropriate lock, of course:
 	synchronize_rcu();
 	kfree(p);
 
-But the above code cannot be used in IRQ context -- the call_rcu()
+But the above code canyest be used in IRQ context -- the call_rcu()
 primitive must be used instead. This primitive takes a pointer to an
 rcu_head struct placed within the RCU-protected data structure and
-another pointer to a function that may be invoked later to free that
+ayesther pointer to a function that may be invoked later to free that
 structure. Code to delete an element p from the linked list from IRQ
 context might then be as follows:
 
@@ -58,11 +58,11 @@ disappointed when they are later invoked, as fancifully depicted at
 http://lwn.net/images/ns/kernel/rcu-drop.jpg.
 
 We could try placing a synchronize_rcu() in the module-exit code path,
-but this is not sufficient. Although synchronize_rcu() does wait for a
-grace period to elapse, it does not wait for the callbacks to complete.
+but this is yest sufficient. Although synchronize_rcu() does wait for a
+grace period to elapse, it does yest wait for the callbacks to complete.
 
 One might be tempted to try several back-to-back synchronize_rcu()
-calls, but this is still not guaranteed to work. If there is a very
+calls, but this is still yest guaranteed to work. If there is a very
 heavy RCU-callback load, then some of the callbacks might be deferred
 in order to allow other processing to proceed. Such deferral is required
 in realtime kernels in order to avoid excessive scheduling latencies.
@@ -72,8 +72,8 @@ rcu_barrier()
 
 We instead need the rcu_barrier() primitive.  Rather than waiting for
 a grace period to elapse, rcu_barrier() waits for all outstanding RCU
-callbacks to complete.  Please note that rcu_barrier() does -not- imply
-synchronize_rcu(), in particular, if there are no RCU callbacks queued
+callbacks to complete.  Please yeste that rcu_barrier() does -yest- imply
+synchronize_rcu(), in particular, if there are yes RCU callbacks queued
 anywhere, rcu_barrier() is within its rights to return immediately,
 without waiting for a grace period to elapse.
 
@@ -163,13 +163,13 @@ as follows:
 63 }
 
 Line 6 sets a global variable that prevents any RCU callbacks from
-re-posting themselves. This will not be necessary in most cases, since
+re-posting themselves. This will yest be necessary in most cases, since
 RCU callbacks rarely include calls to call_rcu(). However, the rcutorture
 module is an exception to this rule, and therefore needs to set this
 global variable.
 
 Lines 7-50 stop all the kernel tasks associated with the rcutorture
-module. Therefore, once execution reaches line 53, no more rcutorture
+module. Therefore, once execution reaches line 53, yes more rcutorture
 RCU callbacks will be posted. The rcu_barrier() call on line 53 waits
 for any pre-existing callbacks to complete.
 
@@ -228,7 +228,7 @@ still gives the general idea.
 The rcu_barrier_func() runs on each CPU, where it invokes call_rcu()
 to post an RCU callback, as follows:
 
- 1 static void rcu_barrier_func(void *notused)
+ 1 static void rcu_barrier_func(void *yestused)
  2 {
  3 int cpu = smp_processor_id();
  4 struct rcu_data *rdp = &per_cpu(rcu_data, cpu);
@@ -250,7 +250,7 @@ The rcu_barrier_callback() function simply atomically decrements the
 rcu_barrier_cpu_count variable and finalizes the completion when it
 reaches zero, as follows:
 
- 1 static void rcu_barrier_callback(struct rcu_head *notused)
+ 1 static void rcu_barrier_callback(struct rcu_head *yestused)
  2 {
  3 if (atomic_dec_and_test(&rcu_barrier_cpu_count))
  4 complete(&rcu_barrier_completion);
@@ -264,7 +264,7 @@ Quick Quiz #2: What happens if CPU 0's rcu_barrier_func() executes
 
 The current rcu_barrier() implementation is more complex, due to the need
 to avoid disturbing idle CPUs (especially on battery-powered systems)
-and the need to minimally disturb non-idle CPUs in real-time systems.
+and the need to minimally disturb yesn-idle CPUs in real-time systems.
 However, the code above illustrates the concepts.
 
 
@@ -281,7 +281,7 @@ Answers to Quick Quizzes
 Quick Quiz #1: Is there any other situation where rcu_barrier() might
 	be required?
 
-Answer: Interestingly enough, rcu_barrier() was not originally
+Answer: Interestingly eyesugh, rcu_barrier() was yest originally
 	implemented for module unloading. Nikita Danilov was using
 	RCU in a filesystem, which resulted in a similar situation at
 	filesystem-unmount time. Dipankar Sarma coded up rcu_barrier()
@@ -298,15 +298,15 @@ Quick Quiz #2: What happens if CPU 0's rcu_barrier_func() executes
 	are delayed for a full grace period? Couldn't this result in
 	rcu_barrier() returning prematurely?
 
-Answer: This cannot happen. The reason is that on_each_cpu() has its last
+Answer: This canyest happen. The reason is that on_each_cpu() has its last
 	argument, the wait flag, set to "1". This flag is passed through
 	to smp_call_function() and further to smp_call_function_on_cpu(),
 	causing this latter to spin until the cross-CPU invocation of
 	rcu_barrier_func() has completed. This by itself would prevent
-	a grace period from completing on non-CONFIG_PREEMPT kernels,
+	a grace period from completing on yesn-CONFIG_PREEMPT kernels,
 	since each CPU must undergo a context switch (or other quiescent
 	state) before the grace period can complete. However, this is
-	of no use in CONFIG_PREEMPT kernels.
+	of yes use in CONFIG_PREEMPT kernels.
 
 	Therefore, on_each_cpu() disables preemption across its call
 	to smp_call_function() and also across the local call to
@@ -317,9 +317,9 @@ Answer: This cannot happen. The reason is that on_each_cpu() has its last
 	preventing rcu_barrier_cpu_count from prematurely reaching zero.
 
 	Currently, -rt implementations of RCU keep but a single global
-	queue for RCU callbacks, and thus do not suffer from this
+	queue for RCU callbacks, and thus do yest suffer from this
 	problem. However, when the -rt RCU eventually does have per-CPU
 	callback queues, things will have to change. One simple change
 	is to add an rcu_read_lock() before line 8 of rcu_barrier()
 	and an rcu_read_unlock() after line 8 of this same function. If
-	you can think of a better change, please let me know!
+	you can think of a better change, please let me kyesw!

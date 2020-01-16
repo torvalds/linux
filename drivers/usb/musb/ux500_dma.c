@@ -371,7 +371,7 @@ ux500_dma_controller_create(struct musb *musb, void __iomem *base)
 	/* Save physical address for DMA controller. */
 	iomem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!iomem) {
-		dev_err(musb->controller, "no memory resource defined\n");
+		dev_err(musb->controller, "yes memory resource defined\n");
 		goto plat_get_fail;
 	}
 

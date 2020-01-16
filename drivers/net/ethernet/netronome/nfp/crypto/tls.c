@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
-/* Copyright (C) 2019 Netronome Systems, Inc. */
+/* Copyright (C) 2019 Netroyesme Systems, Inc. */
 
 #include <linux/bitfield.h>
 #include <linux/ipv6.h>
@@ -339,7 +339,7 @@ nfp_net_tls_add(struct net_device *netdev, struct sock *sk,
 	       sizeof(back->key) - TLS_CIPHER_AES_GCM_128_KEY_SIZE);
 	memcpy(back->iv, tls_ci->iv, TLS_CIPHER_AES_GCM_128_IV_SIZE);
 	memcpy(&back->salt, tls_ci->salt, TLS_CIPHER_AES_GCM_128_SALT_SIZE);
-	memcpy(back->rec_no, tls_ci->rec_seq, sizeof(tls_ci->rec_seq));
+	memcpy(back->rec_yes, tls_ci->rec_seq, sizeof(tls_ci->rec_seq));
 
 	/* Get an extra ref on the skb so we can wipe the key after */
 	skb_get(skb);
@@ -348,7 +348,7 @@ nfp_net_tls_add(struct net_device *netdev, struct sock *sk,
 				       sizeof(*reply), sizeof(*reply));
 	reply = (void *)skb->data;
 
-	/* We depend on CCM MBOX code not reallocating skb we sent
+	/* We depend on CCM MBOX code yest reallocating skb we sent
 	 * so we can clear the key material out of the memory.
 	 */
 	if (!WARN_ON_ONCE((u8 *)back < skb->head ||
@@ -367,7 +367,7 @@ nfp_net_tls_add(struct net_device *netdev, struct sock *sk,
 	err = -be32_to_cpu(reply->error);
 	if (err) {
 		if (err == -ENOSPC) {
-			if (!atomic_fetch_inc(&nn->ktls_no_space))
+			if (!atomic_fetch_inc(&nn->ktls_yes_space))
 				nn_info(nn, "HW TLS table full\n");
 		} else {
 			nn_dp_warn(&nn->dp,
@@ -440,7 +440,7 @@ nfp_net_tls_resync(struct net_device *netdev, struct sock *sk, u32 seq,
 	memset(req->resv, 0, sizeof(req->resv));
 	memcpy(req->handle, ntls->fw_handle, sizeof(ntls->fw_handle));
 	req->tcp_seq = cpu_to_be32(seq);
-	memcpy(req->rec_no, rcd_sn, sizeof(req->rec_no));
+	memcpy(req->rec_yes, rcd_sn, sizeof(req->rec_yes));
 
 	if (direction == TLS_OFFLOAD_CTX_DIR_TX) {
 		err = nfp_net_tls_communicate_simple(nn, skb, "sync",

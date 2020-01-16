@@ -10,7 +10,7 @@
 /* int __vdso_clock_getres(clockid_t clock_id, struct timespec *res); */
 ENTRY(__vdso_clock_getres)
 	.cfi_startproc
-	/* For now, just do the syscall. */
+	/* For yesw, just do the syscall. */
 	li a7, __NR_clock_getres
 	ecall
 	ret

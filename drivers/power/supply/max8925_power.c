@@ -76,8 +76,8 @@ struct max8925_power_info {
 	unsigned		batt_detect:1;	/* detecing MB by ID pin */
 	unsigned		topoff_threshold:2;
 	unsigned		fast_charge:3;
-	unsigned		no_temp_support:1;
-	unsigned		no_insert_detect:1;
+	unsigned		yes_temp_support:1;
+	unsigned		yes_insert_detect:1;
 
 	int (*set_charger) (int);
 };
@@ -119,7 +119,7 @@ static irqreturn_t max8925_charger_handler(int irq, void *data)
 		dev_dbg(chip->dev, "Adapter removed\n");
 		break;
 	case MAX8925_IRQ_VCHG_THM_OK_F:
-		/* Battery is not ready yet */
+		/* Battery is yest ready yet */
 		dev_dbg(chip->dev, "Battery temperature is out of range\n");
 		/* Fall through */
 	case MAX8925_IRQ_VCHG_DC_OVP:
@@ -127,7 +127,7 @@ static irqreturn_t max8925_charger_handler(int irq, void *data)
 		__set_charger(info, 0);
 		break;
 	case MAX8925_IRQ_VCHG_THM_OK_R:
-		/* Battery is ready now */
+		/* Battery is ready yesw */
 		dev_dbg(chip->dev, "Battery temperature is in range\n");
 		break;
 	case MAX8925_IRQ_VCHG_SYSLOW_R:
@@ -385,11 +385,11 @@ static int max8925_init_charger(struct max8925_chip *chip,
 	int ret;
 
 	REQUEST_IRQ(MAX8925_IRQ_VCHG_DC_OVP, "ac-ovp");
-	if (!info->no_insert_detect) {
+	if (!info->yes_insert_detect) {
 		REQUEST_IRQ(MAX8925_IRQ_VCHG_DC_F, "ac-remove");
 		REQUEST_IRQ(MAX8925_IRQ_VCHG_DC_R, "ac-insert");
 	}
-	if (!info->no_temp_support) {
+	if (!info->yes_temp_support) {
 		REQUEST_IRQ(MAX8925_IRQ_VCHG_THM_OK_R, "batt-temp-in-range");
 		REQUEST_IRQ(MAX8925_IRQ_VCHG_THM_OK_F, "batt-temp-out-range");
 	}
@@ -453,13 +453,13 @@ static int max8925_deinit_charger(struct max8925_power_info *info)
 static struct max8925_power_pdata *
 max8925_power_dt_init(struct platform_device *pdev)
 {
-	struct device_node *nproot = pdev->dev.parent->of_node;
-	struct device_node *np;
+	struct device_yesde *nproot = pdev->dev.parent->of_yesde;
+	struct device_yesde *np;
 	int batt_detect;
 	int topoff_threshold;
 	int fast_charge;
-	int no_temp_support;
-	int no_insert_detect;
+	int yes_temp_support;
+	int yes_insert_detect;
 	struct max8925_power_pdata *pdata;
 
 	if (!nproot)
@@ -467,7 +467,7 @@ max8925_power_dt_init(struct platform_device *pdev)
 
 	np = of_get_child_by_name(nproot, "charger");
 	if (!np) {
-		dev_err(&pdev->dev, "failed to find charger node\n");
+		dev_err(&pdev->dev, "failed to find charger yesde\n");
 		return NULL;
 	}
 
@@ -480,17 +480,17 @@ max8925_power_dt_init(struct platform_device *pdev)
 	of_property_read_u32(np, "topoff-threshold", &topoff_threshold);
 	of_property_read_u32(np, "batt-detect", &batt_detect);
 	of_property_read_u32(np, "fast-charge", &fast_charge);
-	of_property_read_u32(np, "no-insert-detect", &no_insert_detect);
-	of_property_read_u32(np, "no-temp-support", &no_temp_support);
+	of_property_read_u32(np, "yes-insert-detect", &yes_insert_detect);
+	of_property_read_u32(np, "yes-temp-support", &yes_temp_support);
 
 	pdata->batt_detect = batt_detect;
 	pdata->fast_charge = fast_charge;
 	pdata->topoff_threshold = topoff_threshold;
-	pdata->no_insert_detect = no_insert_detect;
-	pdata->no_temp_support = no_temp_support;
+	pdata->yes_insert_detect = yes_insert_detect;
+	pdata->yes_temp_support = yes_temp_support;
 
 ret:
-	of_node_put(np);
+	of_yesde_put(np);
 	return pdata;
 }
 #else
@@ -553,8 +553,8 @@ static int max8925_power_probe(struct platform_device *pdev)
 	info->topoff_threshold = pdata->topoff_threshold;
 	info->fast_charge = pdata->fast_charge;
 	info->set_charger = pdata->set_charger;
-	info->no_temp_support = pdata->no_temp_support;
-	info->no_insert_detect = pdata->no_insert_detect;
+	info->yes_temp_support = pdata->yes_temp_support;
+	info->yes_insert_detect = pdata->yes_insert_detect;
 
 	max8925_init_charger(chip, info);
 	return 0;

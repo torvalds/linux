@@ -154,7 +154,7 @@ static enum pci_bus_speed get_max_bus_speed(struct slot *slot)
 	return speed;
 }
 
-static int get_children_props(struct device_node *dn, const __be32 **drc_indexes,
+static int get_children_props(struct device_yesde *dn, const __be32 **drc_indexes,
 			      const __be32 **drc_names, const __be32 **drc_types,
 			      const __be32 **drc_power_domains)
 {
@@ -166,7 +166,7 @@ static int get_children_props(struct device_node *dn, const __be32 **drc_indexes
 	domains = of_get_property(dn, "ibm,drc-power-domains", NULL);
 
 	if (!indexes || !names || !types || !domains) {
-		/* Slot does not have dynamically-removable children */
+		/* Slot does yest have dynamically-removable children */
 		return -EINVAL;
 	}
 	if (drc_indexes)
@@ -185,12 +185,12 @@ static int get_children_props(struct device_node *dn, const __be32 **drc_indexes
 
 
 /* Verify the existence of 'drc_name' and/or 'drc_type' within the
- * current node.  First obtain its my-drc-index property.  Next,
+ * current yesde.  First obtain its my-drc-index property.  Next,
  * obtain the DRC info from its parent.  Use the my-drc-index for
  * correlation, and obtain/validate the requested properties.
  */
 
-static int rpaphp_check_drc_props_v1(struct device_node *dn, char *drc_name,
+static int rpaphp_check_drc_props_v1(struct device_yesde *dn, char *drc_name,
 				char *drc_type, unsigned int my_index)
 {
 	char *name_tmp, *type_tmp;
@@ -222,7 +222,7 @@ static int rpaphp_check_drc_props_v1(struct device_node *dn, char *drc_name,
 	return -EINVAL;
 }
 
-static int rpaphp_check_drc_props_v2(struct device_node *dn, char *drc_name,
+static int rpaphp_check_drc_props_v2(struct device_yesde *dn, char *drc_name,
 				char *drc_type, unsigned int my_index)
 {
 	struct property *info;
@@ -245,7 +245,7 @@ static int rpaphp_check_drc_props_v2(struct device_node *dn, char *drc_name,
 	for (j = 0; j < entries; j++) {
 		of_read_drc_info_cell(&info, &value, &drc);
 
-		/* Should now know end of current entry */
+		/* Should yesw kyesw end of current entry */
 
 		/* Found it */
 		if (my_index >= drc.drc_index_start && my_index <= drc.last_drc_index) {
@@ -265,7 +265,7 @@ static int rpaphp_check_drc_props_v2(struct device_node *dn, char *drc_name,
 	return -EINVAL;
 }
 
-int rpaphp_check_drc_props(struct device_node *dn, char *drc_name,
+int rpaphp_check_drc_props(struct device_yesde *dn, char *drc_name,
 			char *drc_type)
 {
 	const __be32 *my_index;
@@ -291,7 +291,7 @@ static int is_php_type(char *drc_type)
 	unsigned long value;
 	char *endptr;
 
-	/* PCI Hotplug nodes have an integer for drc_type */
+	/* PCI Hotplug yesdes have an integer for drc_type */
 	value = simple_strtoul(drc_type, &endptr, 10);
 	if (endptr == drc_type)
 		return 0;
@@ -301,18 +301,18 @@ static int is_php_type(char *drc_type)
 
 /**
  * is_php_dn() - return 1 if this is a hotpluggable pci slot, else 0
- * @dn: target &device_node
+ * @dn: target &device_yesde
  * @indexes: passed to get_children_props()
  * @names: passed to get_children_props()
  * @types: returned from get_children_props()
  * @power_domains:
  *
- * This routine will return true only if the device node is
+ * This routine will return true only if the device yesde is
  * a hotpluggable slot. This routine will return false
  * for built-in pci slots (even when the built-in slots are
  * dlparable.)
  */
-static int is_php_dn(struct device_node *dn, const __be32 **indexes,
+static int is_php_dn(struct device_yesde *dn, const __be32 **indexes,
 		     const __be32 **names, const __be32 **types,
 		     const __be32 **power_domains)
 {
@@ -330,7 +330,7 @@ static int is_php_dn(struct device_node *dn, const __be32 **indexes,
 	return 1;
 }
 
-static int rpaphp_drc_info_add_slot(struct device_node *dn)
+static int rpaphp_drc_info_add_slot(struct device_yesde *dn)
 {
 	struct slot *slot;
 	struct property *info;
@@ -371,7 +371,7 @@ static int rpaphp_drc_info_add_slot(struct device_node *dn)
 	return retval;
 }
 
-static int rpaphp_drc_add_slot(struct device_node *dn)
+static int rpaphp_drc_add_slot(struct device_yesde *dn)
 {
 	struct slot *slot;
 	int retval = 0;
@@ -379,7 +379,7 @@ static int rpaphp_drc_add_slot(struct device_node *dn)
 	const __be32 *indexes, *names, *types, *power_domains;
 	char *name, *type;
 
-	/* If this is not a hotplug slot, return without doing anything. */
+	/* If this is yest a hotplug slot, return without doing anything. */
 	if (!is_php_dn(dn, &indexes, &names, &types, &power_domains))
 		return 0;
 
@@ -420,7 +420,7 @@ static int rpaphp_drc_add_slot(struct device_node *dn)
 
 /**
  * rpaphp_add_slot -- declare a hotplug slot to the hotplug subsystem.
- * @dn: device node of slot
+ * @dn: device yesde of slot
  *
  * This subroutine will register a hotpluggable slot with the
  * PCI hotplug infrastructure. This routine is typically called
@@ -428,13 +428,13 @@ static int rpaphp_drc_add_slot(struct device_node *dn)
  * or is called later, by the dlpar add code, if the slot is
  * being dynamically added during runtime.
  *
- * If the device node points at an embedded (built-in) slot, this
+ * If the device yesde points at an embedded (built-in) slot, this
  * routine will just return without doing anything, since embedded
- * slots cannot be hotplugged.
+ * slots canyest be hotplugged.
  *
  * To remove a slot, it suffices to call rpaphp_deregister_slot().
  */
-int rpaphp_add_slot(struct device_node *dn)
+int rpaphp_add_slot(struct device_yesde *dn)
 {
 	if (!dn->name || strcmp(dn->name, "pci"))
 		return 0;
@@ -465,11 +465,11 @@ static void __exit cleanup_slots(void)
 
 static int __init rpaphp_init(void)
 {
-	struct device_node *dn;
+	struct device_yesde *dn;
 
 	info(DRIVER_DESC " version: " DRIVER_VERSION "\n");
 
-	for_each_node_by_name(dn, "pci")
+	for_each_yesde_by_name(dn, "pci")
 		rpaphp_add_slot(dn);
 
 	return 0;

@@ -2,7 +2,7 @@
 /*
  * EPSON TOYOCOM RTC-7301SF/DG Driver
  *
- * Copyright (c) 2016 Akinobu Mita <akinobu.mita@gmail.com>
+ * Copyright (c) 2016 Akiyesbu Mita <akiyesbu.mita@gmail.com>
  *
  * Based on rtc-rp5c01.c
  *
@@ -444,7 +444,7 @@ static struct platform_driver rtc7301_rtc_driver = {
 
 module_platform_driver_probe(rtc7301_rtc_driver, rtc7301_rtc_probe);
 
-MODULE_AUTHOR("Akinobu Mita <akinobu.mita@gmail.com>");
+MODULE_AUTHOR("Akiyesbu Mita <akiyesbu.mita@gmail.com>");
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("EPSON TOYOCOM RTC-7301SF/DG Driver");
 MODULE_ALIAS("platform:rtc-r7301");

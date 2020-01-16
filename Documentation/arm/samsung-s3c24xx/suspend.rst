@@ -50,7 +50,7 @@ Machine Support
   A board can do its own setup before calling s3c_pm_init, if it
   needs to setup anything else for power management support.
 
-  There is currently no support for over-riding the default method of
+  There is currently yes support for over-riding the default method of
   saving the resume address, if your board requires it, then contact
   the maintainer and discuss what is required.
 

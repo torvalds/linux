@@ -578,6 +578,6 @@ struct dpsw_fdb_attr {
 int dpsw_get_api_version(struct fsl_mc_io *mc_io,
 			 u32 cmd_flags,
 			 u16 *major_ver,
-			 u16 *minor_ver);
+			 u16 *miyesr_ver);
 
 #endif /* __FSL_DPSW_H */

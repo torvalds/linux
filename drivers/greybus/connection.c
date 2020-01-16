@@ -70,7 +70,7 @@ found:
 }
 
 /*
- * Callback from the host driver to let us know that data has been
+ * Callback from the host driver to let us kyesw that data has been
  * received on the bundle.
  */
 void greybus_data_rcvd(struct gb_host_device *hd, u16 cport_id,
@@ -83,7 +83,7 @@ void greybus_data_rcvd(struct gb_host_device *hd, u16 cport_id,
 	connection = gb_connection_hd_find(hd, cport_id);
 	if (!connection) {
 		dev_err(&hd->dev,
-			"nonexistent connection (%zu bytes dropped)\n", length);
+			"yesnexistent connection (%zu bytes dropped)\n", length);
 		return;
 	}
 	gb_connection_recv(connection, data, length);
@@ -129,7 +129,7 @@ static void gb_connection_init_name(struct gb_connection *connection)
  *
  * Create a Greybus connection, representing the bidirectional link
  * between a CPort on a (local) Greybus host device and a CPort on
- * another Greybus interface.
+ * ayesther Greybus interface.
  *
  * A connection also maintains the state of operations sent over the
  * connection.
@@ -409,7 +409,7 @@ gb_connection_svc_connection_create(struct gb_connection *connection)
 	intf = connection->intf;
 
 	/*
-	 * Enable either E2EFC or CSD, unless no flow control is requested.
+	 * Enable either E2EFC or CSD, unless yes flow control is requested.
 	 */
 	cport_flags = GB_SVC_CPORT_FLAG_CSV_N;
 	if (gb_connection_flow_control_disabled(connection)) {
@@ -599,7 +599,7 @@ gb_connection_cport_shutdown_phase_2(struct gb_connection *connection)
  * DISCONNECTING.
  */
 static void gb_connection_cancel_operations(struct gb_connection *connection,
-					    int errno)
+					    int erryes)
 	__must_hold(&connection->lock)
 {
 	struct gb_operation *operation;
@@ -611,9 +611,9 @@ static void gb_connection_cancel_operations(struct gb_connection *connection,
 		spin_unlock_irq(&connection->lock);
 
 		if (gb_operation_is_incoming(operation))
-			gb_operation_cancel_incoming(operation, errno);
+			gb_operation_cancel_incoming(operation, erryes);
 		else
-			gb_operation_cancel(operation, errno);
+			gb_operation_cancel(operation, erryes);
 
 		gb_operation_put(operation);
 
@@ -628,7 +628,7 @@ static void gb_connection_cancel_operations(struct gb_connection *connection,
  */
 static void
 gb_connection_flush_incoming_operations(struct gb_connection *connection,
-					int errno)
+					int erryes)
 	__must_hold(&connection->lock)
 {
 	struct gb_operation *operation;
@@ -650,8 +650,8 @@ gb_connection_flush_incoming_operations(struct gb_connection *connection,
 
 		spin_unlock_irq(&connection->lock);
 
-		/* FIXME: flush, not cancel? */
-		gb_operation_cancel_incoming(operation, errno);
+		/* FIXME: flush, yest cancel? */
+		gb_operation_cancel_incoming(operation, erryes);
 		gb_operation_put(operation);
 
 		spin_lock_irq(&connection->lock);

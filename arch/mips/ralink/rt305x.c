@@ -207,8 +207,8 @@ void __init ralink_clk_init(void)
 
 void __init ralink_of_remap(void)
 {
-	rt_sysc_membase = plat_of_remap_node("ralink,rt3050-sysc");
-	rt_memc_membase = plat_of_remap_node("ralink,rt3050-memc");
+	rt_sysc_membase = plat_of_remap_yesde("ralink,rt3050-sysc");
+	rt_memc_membase = plat_of_remap_yesde("ralink,rt3050-memc");
 
 	if (!rt_sysc_membase || !rt_memc_membase)
 		panic("Failed to remap core resources");
@@ -251,7 +251,7 @@ void prom_soc_init(struct ralink_soc_info *soc_info)
 		name = "RT5350";
 		soc_info->compatible = "ralink,rt5350-soc";
 	} else {
-		panic("rt305x: unknown SoC, n0:%08x n1:%08x", n0, n1);
+		panic("rt305x: unkyeswn SoC, n0:%08x n1:%08x", n0, n1);
 	}
 
 	id = __raw_readl(sysc + SYSC_REG_CHIP_ID);

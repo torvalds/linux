@@ -26,13 +26,13 @@ int qce_dma_request(struct device *dev, struct qce_dma_data *dma)
 				  GFP_KERNEL);
 	if (!dma->result_buf) {
 		ret = -ENOMEM;
-		goto error_nomem;
+		goto error_yesmem;
 	}
 
-	dma->ignore_buf = dma->result_buf + QCE_RESULT_BUF_SZ;
+	dma->igyesre_buf = dma->result_buf + QCE_RESULT_BUF_SZ;
 
 	return 0;
-error_nomem:
+error_yesmem:
 	dma_release_channel(dma->rxchan);
 error_rx:
 	dma_release_channel(dma->txchan);

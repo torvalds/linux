@@ -83,7 +83,7 @@ struct dln2_spi {
 
 	/*
 	 * This buffer will be used mainly for read/write operations. Since
-	 * they're quite large, we cannot use the stack. Protection is not
+	 * they're quite large, we canyest use the stack. Protection is yest
 	 * needed because all SPI communication is serialized by the SPI core.
 	 */
 	void *buf;
@@ -660,7 +660,7 @@ static int dln2_spi_transfer_one(struct spi_master *master,
 					 xfer->bits_per_word,
 					 spi->mode);
 	if (status < 0) {
-		dev_err(&dln2->pdev->dev, "Cannot setup transfer\n");
+		dev_err(&dln2->pdev->dev, "Canyest setup transfer\n");
 		return status;
 	}
 
@@ -698,7 +698,7 @@ static int dln2_spi_probe(struct platform_device *pdev)
 	}
 
 	dln2->master = master;
-	dln2->master->dev.of_node = dev->of_node;
+	dln2->master->dev.of_yesde = dev->of_yesde;
 	dln2->pdev = pdev;
 	dln2->port = pdata->port;
 	/* cs/mode can never be 0xff, so the first transfer will set them */

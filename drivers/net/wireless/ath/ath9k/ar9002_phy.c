@@ -3,7 +3,7 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright yestice and this permission yestice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
@@ -174,7 +174,7 @@ static void ar9002_hw_spur_mitigate(struct ath_hw *ah,
 	int bb_spur_off, spur_subchannel_sd;
 	int spur_freq_sd;
 	int spur_delta_phase;
-	int denominator;
+	int deyesminator;
 	int tmp, newVal;
 	int i;
 	struct chan_centers centers;
@@ -261,8 +261,8 @@ static void ar9002_hw_spur_mitigate(struct ath_hw *ah,
 			((bb_spur * 524288) /
 			 10) & AR_PHY_TIMING11_SPUR_DELTA_PHASE;
 
-	denominator = IS_CHAN_2GHZ(chan) ? 44 : 40;
-	spur_freq_sd = ((bb_spur_off * 2048) / denominator) & 0x3ff;
+	deyesminator = IS_CHAN_2GHZ(chan) ? 44 : 40;
+	spur_freq_sd = ((bb_spur_off * 2048) / deyesminator) & 0x3ff;
 
 	newVal = (AR_PHY_TIMING11_USE_SPUR_IN_AGC |
 		  SM(spur_freq_sd, AR_PHY_TIMING11_SPUR_FREQ_SD) |
@@ -356,22 +356,22 @@ static void ar9002_hw_set_nf_limits(struct ath_hw *ah)
 	if (AR_SREV_9285(ah)) {
 		ah->nf_2g.max = AR_PHY_CCA_MAX_GOOD_VAL_9285_2GHZ;
 		ah->nf_2g.min = AR_PHY_CCA_MIN_GOOD_VAL_9285_2GHZ;
-		ah->nf_2g.nominal = AR_PHY_CCA_NOM_VAL_9285_2GHZ;
+		ah->nf_2g.yesminal = AR_PHY_CCA_NOM_VAL_9285_2GHZ;
 	} else if (AR_SREV_9287(ah)) {
 		ah->nf_2g.max = AR_PHY_CCA_MAX_GOOD_VAL_9287_2GHZ;
 		ah->nf_2g.min = AR_PHY_CCA_MIN_GOOD_VAL_9287_2GHZ;
-		ah->nf_2g.nominal = AR_PHY_CCA_NOM_VAL_9287_2GHZ;
+		ah->nf_2g.yesminal = AR_PHY_CCA_NOM_VAL_9287_2GHZ;
 	} else if (AR_SREV_9271(ah)) {
 		ah->nf_2g.max = AR_PHY_CCA_MAX_GOOD_VAL_9271_2GHZ;
 		ah->nf_2g.min = AR_PHY_CCA_MIN_GOOD_VAL_9271_2GHZ;
-		ah->nf_2g.nominal = AR_PHY_CCA_NOM_VAL_9271_2GHZ;
+		ah->nf_2g.yesminal = AR_PHY_CCA_NOM_VAL_9271_2GHZ;
 	} else {
 		ah->nf_2g.max = AR_PHY_CCA_MAX_GOOD_VAL_9280_2GHZ;
 		ah->nf_2g.min = AR_PHY_CCA_MIN_GOOD_VAL_9280_2GHZ;
-		ah->nf_2g.nominal = AR_PHY_CCA_NOM_VAL_9280_2GHZ;
+		ah->nf_2g.yesminal = AR_PHY_CCA_NOM_VAL_9280_2GHZ;
 		ah->nf_5g.max = AR_PHY_CCA_MAX_GOOD_VAL_9280_5GHZ;
 		ah->nf_5g.min = AR_PHY_CCA_MIN_GOOD_VAL_9280_5GHZ;
-		ah->nf_5g.nominal = AR_PHY_CCA_NOM_VAL_9280_5GHZ;
+		ah->nf_5g.yesminal = AR_PHY_CCA_NOM_VAL_9280_5GHZ;
 	}
 }
 

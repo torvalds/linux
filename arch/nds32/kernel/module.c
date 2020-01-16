@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-// Copyright (C) 2005-2017 Andes Technology Corporation
+// Copyright (C) 2005-2017 Andes Techyeslogy Corporation
 
 #include <linux/module.h>
 #include <linux/elf.h>
@@ -9,7 +9,7 @@
 
 void *module_alloc(unsigned long size)
 {
-	return __vmalloc_node_range(size, 1, MODULES_VADDR, MODULES_END,
+	return __vmalloc_yesde_range(size, 1, MODULES_VADDR, MODULES_END,
 				    GFP_KERNEL, PAGE_KERNEL, 0, NUMA_NO_NODE,
 				    __builtin_return_address(0));
 }
@@ -94,7 +94,7 @@ static inline int exceed_limit(int offset, unsigned int val_mask,
 
 	if (abs_off & (~val_mask)) {
 		pr_err("\n%s: relocation type %d out of range.\n"
-		       "please rebuild the kernel module with gcc option \"-Wa,-mno-small-text\".\n",
+		       "please rebuild the kernel module with gcc option \"-Wa,-myes-small-text\".\n",
 		       module->name, ELF32_R_TYPE(rel->r_info));
 		pr_err("section %d reloc %d offset 0x%x relative 0x%x.\n",
 		       relindex, reloc_order, rel->r_offset, offset);

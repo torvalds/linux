@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 /*
  * Compiler-dependent intrinsics.
  *
@@ -57,7 +57,7 @@ extern unsigned long __bad_increment_for_ia64_fetch_and_add (void);
 ({											\
 	__u64 _tmp;									\
 	volatile __typeof__(*(v)) *_v = (v);						\
-	/* Can't use a switch () here: gcc isn't always smart enough for that... */	\
+	/* Can't use a switch () here: gcc isn't always smart eyesugh for that... */	\
 	if ((i) == -16)									\
 		IA64_FETCHADD(_tmp, _v, -16, sizeof(*(v)), sem);			\
 	else if ((i) == -8)								\

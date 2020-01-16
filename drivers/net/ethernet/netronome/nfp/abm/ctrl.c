@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
-/* Copyright (C) 2018 Netronome Systems, Inc. */
+/* Copyright (C) 2018 Netroyesme Systems, Inc. */
 
 #include <linux/bitops.h>
 #include <linux/kernel.h>
@@ -138,7 +138,7 @@ int nfp_abm_ctrl_set_q_act(struct nfp_abm_link *alink, unsigned int band,
 	return __nfp_abm_ctrl_set_q_act(alink->abm, qid, act);
 }
 
-u64 nfp_abm_ctrl_stat_non_sto(struct nfp_abm_link *alink, unsigned int queue)
+u64 nfp_abm_ctrl_stat_yesn_sto(struct nfp_abm_link *alink, unsigned int queue)
 {
 	unsigned int band;
 	u64 val, sum = 0;
@@ -330,7 +330,7 @@ nfp_abm_ctrl_find_rtsym(struct nfp_pf *pf, const char *name, unsigned int size)
 
 	sym = nfp_rtsym_lookup(pf->rtbl, name);
 	if (!sym) {
-		nfp_err(pf->cpp, "Symbol '%s' not found\n", name);
+		nfp_err(pf->cpp, "Symbol '%s' yest found\n", name);
 		return ERR_PTR(-ENOENT);
 	}
 	if (nfp_rtsym_size(sym) != size) {

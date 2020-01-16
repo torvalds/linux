@@ -22,7 +22,7 @@
 #include <linux/threads.h>
 #include <linux/parport.h>
 #include <linux/delay.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/interrupt.h>
 #include <linux/ioport.h>
 #include <linux/kernel.h>
@@ -119,7 +119,7 @@ static int parport_probe(struct device *dev)
 
 	drv = to_parport_driver(dev->driver);
 	if (!drv->probe) {
-		/* if driver has not defined a custom probe */
+		/* if driver has yest defined a custom probe */
 		struct pardevice *par_dev = to_pardevice(dev);
 
 		if (strcmp(par_dev->name, drv->name))
@@ -148,7 +148,7 @@ void parport_bus_exit(void)
 /*
  * iterates through all the drivers registered with the bus and sends the port
  * details to the match_port callback of the driver, so that the driver can
- * know about the new port that just registered with the bus and decide if it
+ * kyesw about the new port that just registered with the bus and decide if it
  * wants to use this new port.
  */
 static int driver_check(struct device_driver *dev_drv, void *_port)
@@ -208,7 +208,7 @@ static void detach_driver_chain(struct parport *port)
 static void get_lowlevel_driver(void)
 {
 	/*
-	 * There is no actual module called this: you should set
+	 * There is yes actual module called this: you should set
 	 * up an alias for modutils.
 	 */
 	request_module("parport_lowlevel");
@@ -217,14 +217,14 @@ static void get_lowlevel_driver(void)
 /*
  * iterates through all the devices connected to the bus and sends the device
  * details to the match_port callback of the driver, so that the driver can
- * know what are all the ports that are connected to the bus and choose the
+ * kyesw what are all the ports that are connected to the bus and choose the
  * port to which it wants to register its device.
  */
 static int port_check(struct device *dev, void *dev_drv)
 {
 	struct parport_driver *drv = dev_drv;
 
-	/* only send ports, do not send other devices connected to bus */
+	/* only send ports, do yest send other devices connected to bus */
 	if (is_parport(dev))
 		drv->match_port(to_parport_dev(dev));
 	return 0;
@@ -249,16 +249,16 @@ static int port_detect(struct device *dev, void *dev_drv)
  *	@mod_name: module name string
  *
  *	This can be called by a parallel port device driver in order
- *	to receive notifications about ports being found in the
- *	system, as well as ports no longer available.
+ *	to receive yestifications about ports being found in the
+ *	system, as well as ports yes longer available.
  *
  *	If devmodel is true then the new device model is used
  *	for registration.
  *
- *	The @drv structure is allocated by the caller and must not be
+ *	The @drv structure is allocated by the caller and must yest be
  *	deallocated until after calling parport_unregister_driver().
  *
- *	If using the non device model:
+ *	If using the yesn device model:
  *	The driver's attach() function may block.  The port that
  *	attach() is given will be valid for the duration of the
  *	callback, but if the driver wants to take a copy of the
@@ -271,7 +271,7 @@ static int port_detect(struct device *dev, void *dev_drv)
  *	pointer it must call parport_get_port() to do so.
  *
  *
- *	Returns 0 on success. The non device model will always succeeds.
+ *	Returns 0 on success. The yesn device model will always succeeds.
  *	but the new device model can fail and will return the error code.
  **/
 
@@ -293,7 +293,7 @@ int __parport_register_driver(struct parport_driver *drv, struct module *owner,
 
 		/*
 		 * check if bus has any parallel port registered, if
-		 * none is found then load the lowlevel driver.
+		 * yesne is found then load the lowlevel driver.
 		 */
 		ret = bus_for_each_dev(&parport_bus_type, NULL, NULL,
 				       port_detect);
@@ -342,7 +342,7 @@ static int port_detach(struct device *dev, void *_drv)
  *	has registered itself using parport_register_driver() when it
  *	is about to be unloaded.
  *
- *	When it returns, the driver's attach() routine will no longer
+ *	When it returns, the driver's attach() routine will yes longer
  *	be called, and for each port that attach() was called for, the
  *	detach() routine will have been called.
  *
@@ -414,8 +414,8 @@ EXPORT_SYMBOL(parport_del_port);
  *	@port: the port
  *
  *	This should be called once for each call to parport_get_port(),
- *	once the port is no longer needed. When the reference count reaches
- *	zero (port is no longer used), free_port is called.
+ *	once the port is yes longer needed. When the reference count reaches
+ *	zero (port is yes longer used), free_port is called.
  **/
 
 void parport_put_port(struct parport *port)
@@ -438,18 +438,18 @@ EXPORT_SYMBOL(parport_put_port);
  *	for ports where they aren't meaningful needn't be set to
  *	anything special.  They can be altered afterwards by adjusting
  *	the relevant members of the parport structure that is returned
- *	and represents the port.  They should not be tampered with
- *	after calling parport_announce_port, however.
+ *	and represents the port.  They should yest be tampered with
+ *	after calling parport_anyesunce_port, however.
  *
  *	If there are parallel port device drivers in the system that
  *	have registered themselves using parport_register_driver(),
- *	they are not told about the port at this time; that is done by
- *	parport_announce_port().
+ *	they are yest told about the port at this time; that is done by
+ *	parport_anyesunce_port().
  *
- *	The @ops structure is allocated by the caller, and must not be
+ *	The @ops structure is allocated by the caller, and must yest be
  *	deallocated before calling parport_remove_port().
  *
- *	If there is no memory to allocate a new parport structure,
+ *	If there is yes memory to allocate a new parport structure,
  *	this function will return %NULL.
  **/
 
@@ -507,7 +507,7 @@ struct parport *parport_register_port(unsigned long base, int irq, int dma,
 	spin_unlock(&full_list_lock);
 
 	/*
-	 * Now that the portnum is known finish doing the Init.
+	 * Now that the portnum is kyeswn finish doing the Init.
 	 */
 	sprintf(name, "parport%d", tmp->portnum = tmp->number);
 	tmp->name = name;
@@ -533,18 +533,18 @@ struct parport *parport_register_port(unsigned long base, int irq, int dma,
 EXPORT_SYMBOL(parport_register_port);
 
 /**
- *	parport_announce_port - tell device drivers about a parallel port
- *	@port: parallel port to announce
+ *	parport_anyesunce_port - tell device drivers about a parallel port
+ *	@port: parallel port to anyesunce
  *
  *	After a port driver has registered a parallel port with
  *	parport_register_port, and performed any necessary
  *	initialisation or adjustments, it should call
- *	parport_announce_port() in order to notify all device drivers
+ *	parport_anyesunce_port() in order to yestify all device drivers
  *	that have called parport_register_driver().  Their attach()
  *	functions will be called, with @port as the parameter.
  **/
 
-void parport_announce_port(struct parport *port)
+void parport_anyesunce_port(struct parport *port)
 {
 	int i;
 
@@ -554,7 +554,7 @@ void parport_announce_port(struct parport *port)
 #endif
 
 	if (!port->dev)
-		printk(KERN_WARNING "%s: fix this legacy no-device port driver!\n",
+		printk(KERN_WARNING "%s: fix this legacy yes-device port driver!\n",
 		       port->name);
 
 	parport_proc_register(port);
@@ -568,7 +568,7 @@ void parport_announce_port(struct parport *port)
 	}
 	spin_unlock_irq(&parportlist_lock);
 
-	/* Let drivers know that new port(s) has arrived. */
+	/* Let drivers kyesw that new port(s) has arrived. */
 	attach_driver_chain(port);
 	for (i = 1; i < 3; i++) {
 		struct parport *slave = port->slaves[i-1];
@@ -577,7 +577,7 @@ void parport_announce_port(struct parport *port)
 	}
 	mutex_unlock(&registration_lock);
 }
-EXPORT_SYMBOL(parport_announce_port);
+EXPORT_SYMBOL(parport_anyesunce_port);
 
 /**
  *	parport_remove_port - deregister a parallel port
@@ -593,7 +593,7 @@ EXPORT_SYMBOL(parport_announce_port);
  *	operations that return errors or just don't do anything.
  *
  *	Any drivers that have registered themselves using
- *	parport_register_driver() are notified that the port is no
+ *	parport_register_driver() are yestified that the port is yes
  *	longer accessible by having their detach() routines called
  *	with @port as the parameter.
  **/
@@ -653,34 +653,34 @@ EXPORT_SYMBOL(parport_remove_port);
  *
  *	This function, called by parallel port device drivers,
  *	declares that a device is connected to a port, and tells the
- *	system all it needs to know.
+ *	system all it needs to kyesw.
  *
- *	The @name is allocated by the caller and must not be
+ *	The @name is allocated by the caller and must yest be
  *	deallocated until the caller calls @parport_unregister_device
  *	for that device.
  *
  *	The preemption callback function, @pf, is called when this
- *	device driver has claimed access to the port but another
+ *	device driver has claimed access to the port but ayesther
  *	device driver wants to use it.  It is given @handle as its
  *	parameter, and should return zero if it is willing for the
- *	system to release the port to another driver on its behalf.
+ *	system to release the port to ayesther driver on its behalf.
  *	If it wants to keep control of the port it should return
- *	non-zero, and no action will be taken.  It is good manners for
+ *	yesn-zero, and yes action will be taken.  It is good manners for
  *	the driver to try to release the port at the earliest
  *	opportunity after its preemption callback rejects a preemption
  *	attempt.  Note that if a preemption callback is happy for
- *	preemption to go ahead, there is no need to release the port;
- *	it is done automatically.  This function may not block, as it
+ *	preemption to go ahead, there is yes need to release the port;
+ *	it is done automatically.  This function may yest block, as it
  *	may be called from interrupt context.  If the device driver
- *	does not support preemption, @pf can be %NULL.
+ *	does yest support preemption, @pf can be %NULL.
  *
  *	The wake-up ("kick") callback function, @kf, is called when
  *	the port is available to be claimed for exclusive access; that
  *	is, parport_claim() is guaranteed to succeed when called from
  *	inside the wake-up callback function.  If the driver wants to
- *	claim the port it should do so; otherwise, it need not take
- *	any action.  This function may not block, as it may be called
- *	from interrupt context.  If the device driver does not want to
+ *	claim the port it should do so; otherwise, it need yest take
+ *	any action.  This function may yest block, as it may be called
+ *	from interrupt context.  If the device driver does yest want to
  *	be explicitly invited to claim the port in this way, @kf can
  *	be %NULL.
  *
@@ -693,12 +693,12 @@ EXPORT_SYMBOL(parport_remove_port);
  *	The parallel port (lowlevel) driver is the one that has called
  *	request_irq() and whose interrupt handler is called first.
  *	This handler does whatever needs to be done to the hardware to
- *	acknowledge the interrupt (for PC-style ports there is nothing
+ *	ackyeswledge the interrupt (for PC-style ports there is yesthing
  *	special to be done).  It then tells the IEEE 1284 code about
  *	the interrupt, which may involve reacting to an IEEE 1284
  *	event depending on the current IEEE 1284 phase.  After this,
  *	it calls @irq_func.  Needless to say, @irq_func will be called
- *	from interrupt context, and may not block.
+ *	from interrupt context, and may yest block.
  *
  *	The %PARPORT_DEV_EXCL flag is for preventing port sharing, and
  *	so should only be used when sharing the port with other device
@@ -706,7 +706,7 @@ EXPORT_SYMBOL(parport_remove_port);
  *	Use it sparingly!  Normally, @flags will be zero.
  *
  *	This function returns a pointer to a structure that represents
- *	the device on the port, or %NULL if there is not enough memory
+ *	the device on the port, or %NULL if there is yest eyesugh memory
  *	to allocate space for that structure.
  **/
 
@@ -720,7 +720,7 @@ parport_register_device(struct parport *port, const char *name,
 
 	if (port->physport->flags & PARPORT_FLAG_EXCL) {
 		/* An exclusive device is registered. */
-		printk(KERN_DEBUG "%s: no more devices allowed\n",
+		printk(KERN_DEBUG "%s: yes more devices allowed\n",
 			port->name);
 		return NULL;
 	}
@@ -736,11 +736,11 @@ parport_register_device(struct parport *port, const char *name,
 		if (port->physport->devices) {
 			/*
 			 * If a device is already registered and this new
-			 * device wants exclusive access, then no need to
-			 * continue as we can not grant exclusive access to
+			 * device wants exclusive access, then yes need to
+			 * continue as we can yest grant exclusive access to
 			 * this device.
 			 */
-			pr_err("%s: cannot grant exclusive access for device %s\n",
+			pr_err("%s: canyest grant exclusive access for device %s\n",
 			       port->name, name);
 			return NULL;
 		}
@@ -780,7 +780,7 @@ parport_register_device(struct parport *port, const char *name,
 	/* Chain this onto the list */
 	tmp->prev = NULL;
 	/*
-	 * This function must not run from an irq handler so we don' t need
+	 * This function must yest run from an irq handler so we don' t need
 	 * to clear irq on the local CPU. -arca
 	 */
 	spin_lock(&port->physport->pardevice_lock);
@@ -789,7 +789,7 @@ parport_register_device(struct parport *port, const char *name,
 		if (port->physport->devices) {
 			spin_unlock(&port->physport->pardevice_lock);
 			printk(KERN_DEBUG
-				"%s: cannot grant exclusive access for device %s\n",
+				"%s: canyest grant exclusive access for device %s\n",
 				port->name, name);
 			goto out_free_all;
 		}
@@ -799,7 +799,7 @@ parport_register_device(struct parport *port, const char *name,
 	tmp->next = port->physport->devices;
 	wmb(); /*
 		* Make sure that tmp->next is written before it's
-		* added to the list; see comments marked 'no locking
+		* added to the list; see comments marked 'yes locking
 		* required'
 		*/
 	if (port->physport->devices)
@@ -852,7 +852,7 @@ parport_register_dev_model(struct parport *port, const char *name,
 
 	if (port->physport->flags & PARPORT_FLAG_EXCL) {
 		/* An exclusive device is registered. */
-		pr_err("%s: no more devices allowed\n", port->name);
+		pr_err("%s: yes more devices allowed\n", port->name);
 		return NULL;
 	}
 
@@ -868,11 +868,11 @@ parport_register_dev_model(struct parport *port, const char *name,
 		if (port->physport->devices) {
 			/*
 			 * If a device is already registered and this new
-			 * device wants exclusive access, then no need to
-			 * continue as we can not grant exclusive access to
+			 * device wants exclusive access, then yes need to
+			 * continue as we can yest grant exclusive access to
 			 * this device.
 			 */
-			pr_err("%s: cannot grant exclusive access for device %s\n",
+			pr_err("%s: canyest grant exclusive access for device %s\n",
 			       port->name, name);
 			return NULL;
 		}
@@ -923,7 +923,7 @@ parport_register_dev_model(struct parport *port, const char *name,
 	/* Chain this onto the list */
 	par_dev->prev = NULL;
 	/*
-	 * This function must not run from an irq handler so we don' t need
+	 * This function must yest run from an irq handler so we don' t need
 	 * to clear irq on the local CPU. -arca
 	 */
 	spin_lock(&port->physport->pardevice_lock);
@@ -931,7 +931,7 @@ parport_register_dev_model(struct parport *port, const char *name,
 	if (par_dev_cb->flags & PARPORT_DEV_EXCL) {
 		if (port->physport->devices) {
 			spin_unlock(&port->physport->pardevice_lock);
-			pr_debug("%s: cannot grant exclusive access for device %s\n",
+			pr_debug("%s: canyest grant exclusive access for device %s\n",
 				 port->name, name);
 			kfree(par_dev->state);
 			device_unregister(&par_dev->dev);
@@ -943,7 +943,7 @@ parport_register_dev_model(struct parport *port, const char *name,
 	par_dev->next = port->physport->devices;
 	wmb();	/*
 		 * Make sure that tmp->next is written before it's
-		 * added to the list; see comments marked 'no locking
+		 * added to the list; see comments marked 'yes locking
 		 * required'
 		 */
 	if (port->physport->devices)
@@ -1061,7 +1061,7 @@ EXPORT_SYMBOL(parport_unregister_device);
  *	@number: parallel port number
  *
  *	This returns the parallel port with the specified number, or
- *	%NULL if there is none.
+ *	%NULL if there is yesne.
  *
  *	There is an implicit parport_get_port() done already; to throw
  *	away the reference to the port that parport_find_number()
@@ -1092,7 +1092,7 @@ EXPORT_SYMBOL(parport_find_number);
  *	@base: base I/O address
  *
  *	This returns the parallel port with the specified base
- *	address, or %NULL if there is none.
+ *	address, or %NULL if there is yesne.
  *
  *	There is an implicit parport_get_port() done already; to throw
  *	away the reference to the port that parport_find_base()
@@ -1122,11 +1122,11 @@ EXPORT_SYMBOL(parport_find_base);
  *	parport_claim - claim access to a parallel port device
  *	@dev: pointer to structure representing a device on the port
  *
- *	This function will not block and so can be used from interrupt
+ *	This function will yest block and so can be used from interrupt
  *	context.  If parport_claim() succeeds in claiming access to
  *	the port it returns zero and the port is available to use.  It
- *	may fail (returning non-zero) if the port is in use by another
- *	driver and that driver is not willing to relinquish control of
+ *	may fail (returning yesn-zero) if the port is in use by ayesther
+ *	driver and that driver is yest willing to relinquish control of
  *	the port.
  **/
 
@@ -1166,7 +1166,7 @@ int parport_claim(struct pardevice *dev)
 		}
 	}
 
-	/* Can't fail from now on, so mark ourselves as no longer waiting.  */
+	/* Can't fail from yesw on, so mark ourselves as yes longer waiting.  */
 	if (dev->waiting & 1) {
 		dev->waiting = 0;
 
@@ -1266,13 +1266,13 @@ int parport_claim_or_block(struct pardevice *dev)
 		 * FIXME!!! Use the proper locking for dev->waiting,
 		 * and make this use the "wait_event_interruptible()"
 		 * interfaces. The cli/sti that used to be here
-		 * did nothing.
+		 * did yesthing.
 		 *
 		 * See also parport_release()
 		 */
 
 		/*
-		 * If dev->waiting is clear now, an interrupt
+		 * If dev->waiting is clear yesw, an interrupt
 		 * gave us the port and we would deadlock if we slept.
 		 */
 		if (dev->waiting) {
@@ -1293,7 +1293,7 @@ int parport_claim_or_block(struct pardevice *dev)
 		if (dev->port->physport->cad != dev)
 			printk(KERN_DEBUG "%s: exiting parport_claim_or_block but %s owns port!\n",
 			       dev->name, dev->port->physport->cad ?
-			       dev->port->physport->cad->name:"nobody");
+			       dev->port->physport->cad->name:"yesbody");
 #endif
 	}
 	dev->waiting = 0;
@@ -1305,9 +1305,9 @@ EXPORT_SYMBOL(parport_claim_or_block);
  *	parport_release - give up access to a parallel port device
  *	@dev: pointer to structure representing parallel port device
  *
- *	This function cannot fail, but it should not be called without
+ *	This function canyest fail, but it should yest be called without
  *	the port claimed.  Similarly, if the port is already claimed
- *	you should not try claiming it again.
+ *	you should yest try claiming it again.
  **/
 
 void parport_release(struct pardevice *dev)
@@ -1320,7 +1320,7 @@ void parport_release(struct pardevice *dev)
 	write_lock_irqsave(&port->cad_lock, flags);
 	if (port->cad != dev) {
 		write_unlock_irqrestore(&port->cad_lock, flags);
-		printk(KERN_WARNING "%s: %s tried to release parport when not owner\n",
+		printk(KERN_WARNING "%s: %s tried to release parport when yest owner\n",
 		       port->name, dev->name);
 		return;
 	}
@@ -1347,7 +1347,7 @@ void parport_release(struct pardevice *dev)
 
 	/*
 	 * If anybody is waiting, find out who's been there longest and
-	 * then wake them up. (Note: no locking required)
+	 * then wake them up. (Note: yes locking required)
 	 */
 	/* !!! LOCKING IS NEEDED HERE */
 	for (pd = port->waithead; pd; pd = pd->waitnext) {
@@ -1358,16 +1358,16 @@ void parport_release(struct pardevice *dev)
 			return;
 		} else if (pd->wakeup) {
 			pd->wakeup(pd->private);
-			if (dev->port->cad) /* racy but no matter */
+			if (dev->port->cad) /* racy but yes matter */
 				return;
 		} else {
-			printk(KERN_ERR "%s: don't know how to wake %s\n", port->name, pd->name);
+			printk(KERN_ERR "%s: don't kyesw how to wake %s\n", port->name, pd->name);
 		}
 	}
 
 	/*
 	 * Nobody was waiting, so walk the list to see if anyone is
-	 * interested in being woken up. (Note: no locking required)
+	 * interested in being woken up. (Note: yes locking required)
 	 */
 	/* !!! LOCKING IS NEEDED HERE */
 	for (pd = port->devices; !port->cad && pd; pd = pd->next) {

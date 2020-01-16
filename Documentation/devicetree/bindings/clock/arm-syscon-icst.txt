@@ -1,7 +1,7 @@
 ARM System Controller ICST clocks
 
 The ICS525 and ICS307 oscillators are produced by Integrated Devices
-Technology (IDT). ARM integrated these oscillators deeply into their
+Techyeslogy (IDT). ARM integrated these oscillators deeply into their
 reference designs by adding special control registers that manage such
 oscillators to their system controllers.
 
@@ -9,13 +9,13 @@ The various ARM system controllers contain logic to serialize and initialize
 an ICST clock request after a write to the 32 bit register at an offset
 into the system controller. Furthermore, to even be able to alter one of
 these frequencies, the system controller must first be unlocked by
-writing a special token to another offset in the system controller.
+writing a special token to ayesther offset in the system controller.
 
 Some ARM hardware contain special versions of the serial interface that only
 connects the low 8 bits of the VDW (missing one bit), hardwires RDW to
 different values and sometimes also hardwire the output divider. They
 therefore have special compatible strings as per this table (the OD value is
-the value on the pins, not the resulting output divider):
+the value on the pins, yest the resulting output divider):
 
 Hardware variant:        RDW     OD          VDW
 
@@ -34,7 +34,7 @@ integratorcp-cm-core
 Integrator/CP            22      variable    Bit 8 0, rest variable
 integratorcp-cm-mem
 
-The ICST oscillator must be provided inside a system controller node.
+The ICST oscillator must be provided inside a system controller yesde.
 
 Required properties:
 - compatible: must be one of

@@ -15,9 +15,9 @@
  * are met:
  *
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
+ *    yestice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
  *
@@ -124,7 +124,7 @@ struct bnxt_re_dev {
 #define BNXT_RE_FLAG_RESOURCES_INITIALIZED	8
 #define BNXT_RE_FLAG_ISSUE_ROCE_STATS          29
 	struct net_device		*netdev;
-	unsigned int			version, major, minor;
+	unsigned int			version, major, miyesr;
 	struct bnxt_qplib_chip_ctx	chip_ctx;
 	struct bnxt_en_dev		*en_dev;
 	struct bnxt_msix_entry		msix_entries[BNXT_RE_MAX_MSIX];

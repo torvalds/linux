@@ -35,26 +35,26 @@ extern int gfs2_rgrp_go_lock(struct gfs2_holder *gh);
 extern void gfs2_rgrp_brelse(struct gfs2_rgrpd *rgd);
 extern void gfs2_rgrp_go_unlock(struct gfs2_holder *gh);
 
-extern struct gfs2_alloc *gfs2_alloc_get(struct gfs2_inode *ip);
+extern struct gfs2_alloc *gfs2_alloc_get(struct gfs2_iyesde *ip);
 
 #define GFS2_AF_ORLOV 1
-extern int gfs2_inplace_reserve(struct gfs2_inode *ip,
+extern int gfs2_inplace_reserve(struct gfs2_iyesde *ip,
 				struct gfs2_alloc_parms *ap);
-extern void gfs2_inplace_release(struct gfs2_inode *ip);
+extern void gfs2_inplace_release(struct gfs2_iyesde *ip);
 
-extern int gfs2_alloc_blocks(struct gfs2_inode *ip, u64 *bn, unsigned int *n,
-			     bool dinode, u64 *generation);
+extern int gfs2_alloc_blocks(struct gfs2_iyesde *ip, u64 *bn, unsigned int *n,
+			     bool diyesde, u64 *generation);
 
-extern int gfs2_rsqa_alloc(struct gfs2_inode *ip);
+extern int gfs2_rsqa_alloc(struct gfs2_iyesde *ip);
 extern void gfs2_rs_deltree(struct gfs2_blkreserv *rs);
-extern void gfs2_rsqa_delete(struct gfs2_inode *ip, atomic_t *wcount);
-extern void __gfs2_free_blocks(struct gfs2_inode *ip, struct gfs2_rgrpd *rgd,
+extern void gfs2_rsqa_delete(struct gfs2_iyesde *ip, atomic_t *wcount);
+extern void __gfs2_free_blocks(struct gfs2_iyesde *ip, struct gfs2_rgrpd *rgd,
 			       u64 bstart, u32 blen, int meta);
-extern void gfs2_free_meta(struct gfs2_inode *ip, struct gfs2_rgrpd *rgd,
+extern void gfs2_free_meta(struct gfs2_iyesde *ip, struct gfs2_rgrpd *rgd,
 			   u64 bstart, u32 blen);
-extern void gfs2_free_di(struct gfs2_rgrpd *rgd, struct gfs2_inode *ip);
-extern void gfs2_unlink_di(struct inode *inode);
-extern int gfs2_check_blk_type(struct gfs2_sbd *sdp, u64 no_addr,
+extern void gfs2_free_di(struct gfs2_rgrpd *rgd, struct gfs2_iyesde *ip);
+extern void gfs2_unlink_di(struct iyesde *iyesde);
+extern int gfs2_check_blk_type(struct gfs2_sbd *sdp, u64 yes_addr,
 			       unsigned int type);
 
 struct gfs2_rgrp_list {
@@ -64,7 +64,7 @@ struct gfs2_rgrp_list {
 	struct gfs2_holder *rl_ghs;
 };
 
-extern void gfs2_rlist_add(struct gfs2_inode *ip, struct gfs2_rgrp_list *rlist,
+extern void gfs2_rlist_add(struct gfs2_iyesde *ip, struct gfs2_rgrp_list *rlist,
 			   u64 block);
 extern void gfs2_rlist_alloc(struct gfs2_rgrp_list *rlist);
 extern void gfs2_rlist_free(struct gfs2_rgrp_list *rlist);
@@ -79,7 +79,7 @@ extern int gfs2_fitrim(struct file *filp, void __user *argp);
 /* This is how to tell if a reservation is in the rgrp tree: */
 static inline bool gfs2_rs_active(const struct gfs2_blkreserv *rs)
 {
-	return rs && !RB_EMPTY_NODE(&rs->rs_node);
+	return rs && !RB_EMPTY_NODE(&rs->rs_yesde);
 }
 
 static inline int rgrp_contains_block(struct gfs2_rgrpd *rgd, u64 block)
@@ -89,5 +89,5 @@ static inline int rgrp_contains_block(struct gfs2_rgrpd *rgd, u64 block)
 	return first <= block && block < last;
 }
 
-extern void check_and_update_goal(struct gfs2_inode *ip);
+extern void check_and_update_goal(struct gfs2_iyesde *ip);
 #endif /* __RGRP_DOT_H__ */

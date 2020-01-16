@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Synopsys DesignWare I2C adapter driver.
+ * Syyespsys DesignWare I2C adapter driver.
  *
  * Based on the TI DAVINCI I2C adapter driver.
  *
@@ -14,7 +14,7 @@
 #include <linux/delay.h>
 #include <linux/dmi.h>
 #include <linux/err.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/i2c.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
@@ -44,7 +44,7 @@ static u32 i2c_dw_get_clk_rate_khz(struct dw_i2c_dev *dev)
  * for given platform. However, some systems get it wrong. On such systems
  * we get better results by calculating those based on the input clock.
  */
-static const struct dmi_system_id dw_i2c_no_acpi_params[] = {
+static const struct dmi_system_id dw_i2c_yes_acpi_params[] = {
 	{
 		.ident = "Dell Inspiron 7348",
 		.matches = {
@@ -62,7 +62,7 @@ static void dw_i2c_acpi_params(struct platform_device *pdev, char method[],
 	acpi_handle handle = ACPI_HANDLE(&pdev->dev);
 	union acpi_object *obj;
 
-	if (dmi_check_system(dw_i2c_no_acpi_params))
+	if (dmi_check_system(dw_i2c_yes_acpi_params))
 		return;
 
 	if (ACPI_FAILURE(acpi_evaluate_object(handle, method, NULL, &buf)))
@@ -223,7 +223,7 @@ static void dw_i2c_set_fifo_size(struct dw_i2c_dev *dev)
 	u32 param, tx_fifo_depth, rx_fifo_depth;
 
 	/*
-	 * Try to detect the FIFO depth if not set by interface driver,
+	 * Try to detect the FIFO depth if yest set by interface driver,
 	 * the depth could be from 2 to 256 from HW spec.
 	 */
 	param = i2c_dw_read_comp_param(dev);
@@ -245,7 +245,7 @@ static void dw_i2c_plat_pm_cleanup(struct dw_i2c_dev *dev)
 	pm_runtime_disable(dev->dev);
 
 	if (dev->shared_with_punit)
-		pm_runtime_put_noidle(dev->dev);
+		pm_runtime_put_yesidle(dev->dev);
 }
 
 static int dw_i2c_plat_probe(struct platform_device *pdev)
@@ -292,7 +292,7 @@ static int dw_i2c_plat_probe(struct platform_device *pdev)
 
 	acpi_speed = i2c_acpi_find_bus_speed(&pdev->dev);
 	/*
-	 * Some DSTDs use a non standard speed, round down to the lowest
+	 * Some DSTDs use a yesn standard speed, round down to the lowest
 	 * standard speed.
 	 */
 	for (i = 1; i < ARRAY_SIZE(supported_speeds); i++) {
@@ -314,7 +314,7 @@ static int dw_i2c_plat_probe(struct platform_device *pdev)
 
 	dev->flags |= (uintptr_t)device_get_match_data(&pdev->dev);
 
-	if (pdev->dev.of_node)
+	if (pdev->dev.of_yesde)
 		dw_i2c_of_configure(pdev);
 
 	if (has_acpi_companion(&pdev->dev))
@@ -367,7 +367,7 @@ static int dw_i2c_plat_probe(struct platform_device *pdev)
 	adap->owner = THIS_MODULE;
 	adap->class = I2C_CLASS_DEPRECATED;
 	ACPI_COMPANION_SET(&adap->dev, ACPI_COMPANION(&pdev->dev));
-	adap->dev.of_node = pdev->dev.of_node;
+	adap->dev.of_yesde = pdev->dev.of_yesde;
 	adap->nr = -1;
 
 	dev_pm_set_driver_flags(&pdev->dev,
@@ -383,7 +383,7 @@ static int dw_i2c_plat_probe(struct platform_device *pdev)
 	pm_runtime_set_active(&pdev->dev);
 
 	if (dev->shared_with_punit)
-		pm_runtime_get_noresume(&pdev->dev);
+		pm_runtime_get_yesresume(&pdev->dev);
 
 	pm_runtime_enable(&pdev->dev);
 
@@ -438,7 +438,7 @@ static int dw_i2c_plat_prepare(struct device *dev)
 static void dw_i2c_plat_complete(struct device *dev)
 {
 	/*
-	 * The device can only be in runtime suspend at this point if it has not
+	 * The device can only be in runtime suspend at this point if it has yest
 	 * been resumed throughout the ending system suspend/resume cycle, so if
 	 * the platform firmware might mess up with it, request the runtime PM
 	 * framework to resume it.
@@ -519,5 +519,5 @@ static void __exit dw_i2c_exit_driver(void)
 module_exit(dw_i2c_exit_driver);
 
 MODULE_AUTHOR("Baruch Siach <baruch@tkos.co.il>");
-MODULE_DESCRIPTION("Synopsys DesignWare I2C bus adapter");
+MODULE_DESCRIPTION("Syyespsys DesignWare I2C bus adapter");
 MODULE_LICENSE("GPL");

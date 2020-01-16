@@ -75,7 +75,7 @@ static void simdisk_transfer(struct simdisk *dev, unsigned long sector,
 	unsigned long nbytes = nsect << SECTOR_SHIFT;
 
 	if (offset > dev->size || dev->size - offset < nbytes) {
-		pr_notice("Beyond-end %s (%ld %ld)\n",
+		pr_yestice("Beyond-end %s (%ld %ld)\n",
 				write ? "write" : "read", offset, nbytes);
 		return;
 	}
@@ -91,7 +91,7 @@ static void simdisk_transfer(struct simdisk *dev, unsigned long sector,
 		else
 			io = simc_read(dev->fd, buffer, nbytes);
 		if (io == -1) {
-			pr_err("SIMDISK: IO error %d\n", errno);
+			pr_err("SIMDISK: IO error %d\n", erryes);
 			break;
 		}
 		buffer += io;
@@ -167,7 +167,7 @@ static int simdisk_attach(struct simdisk *dev, const char *filename)
 	}
 	dev->fd = simc_open(filename, O_RDWR, 0);
 	if (dev->fd == -1) {
-		pr_err("SIMDISK: Can't open %s: %d\n", filename, errno);
+		pr_err("SIMDISK: Can't open %s: %d\n", filename, erryes);
 		err = -ENODEV;
 		goto out;
 	}
@@ -194,7 +194,7 @@ static int simdisk_detach(struct simdisk *dev)
 	} else if (dev->fd != -1) {
 		if (simc_close(dev->fd)) {
 			pr_err("SIMDISK: error closing %s: %d\n",
-					dev->filename, errno);
+					dev->filename, erryes);
 			err = -EIO;
 		} else {
 			pr_info("SIMDISK: %s detached from %s\n",
@@ -211,7 +211,7 @@ static int simdisk_detach(struct simdisk *dev)
 static ssize_t proc_read_simdisk(struct file *file, char __user *buf,
 			size_t size, loff_t *ppos)
 {
-	struct simdisk *dev = PDE_DATA(file_inode(file));
+	struct simdisk *dev = PDE_DATA(file_iyesde(file));
 	const char *s = dev->filename;
 	if (s) {
 		ssize_t n = simple_read_from_buffer(buf, size, ppos,
@@ -228,7 +228,7 @@ static ssize_t proc_write_simdisk(struct file *file, const char __user *buf,
 			size_t count, loff_t *ppos)
 {
 	char *tmp = memdup_user_nul(buf, count);
-	struct simdisk *dev = PDE_DATA(file_inode(file));
+	struct simdisk *dev = PDE_DATA(file_iyesde(file));
 	int err;
 
 	if (IS_ERR(tmp))
@@ -282,7 +282,7 @@ static int __init simdisk_setup(struct simdisk *dev, int which,
 		goto out_alloc_disk;
 	}
 	dev->gd->major = simdisk_major;
-	dev->gd->first_minor = which;
+	dev->gd->first_miyesr = which;
 	dev->gd->fops = &simdisk_ops;
 	dev->gd->queue = dev->queue;
 	dev->gd->private_data = dev;

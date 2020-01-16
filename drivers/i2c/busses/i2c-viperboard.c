@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- *  Nano River Technologies viperboard i2c master driver
+ *  Nayes River Techyeslogies viperboard i2c master driver
  *
  *  (C) 2012 by Lemonage GmbH
  *  Author: Lars Poeschel <poeschel@lemonage.de>
@@ -8,7 +8,7 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/types.h>
@@ -288,10 +288,10 @@ static int vprbrd_i2c_xfer(struct i2c_adapter *i2c, struct i2c_msg *msgs,
 		if (pmsg->flags & I2C_M_RD) {
 			/* read data */
 			amsg->cmd = VPRBRD_I2C_CMD_ADDR;
-			amsg->unknown2 = 0x00;
-			amsg->unknown3 = 0x00;
+			amsg->unkyeswn2 = 0x00;
+			amsg->unkyeswn3 = 0x00;
 			amsg->addr = pmsg->addr;
-			amsg->unknown1 = 0x01;
+			amsg->unkyeswn1 = 0x01;
 			amsg->len = cpu_to_le16(pmsg->len);
 			/* send the addr and len, we're interested to board */
 			ret = vprbrd_i2c_addr(vb->usb_dev, amsg);
@@ -313,10 +313,10 @@ static int vprbrd_i2c_xfer(struct i2c_adapter *i2c, struct i2c_msg *msgs,
 			ret = vprbrd_i2c_write(vb, pmsg);
 
 			amsg->cmd = VPRBRD_I2C_CMD_ADDR;
-			amsg->unknown2 = 0x00;
-			amsg->unknown3 = 0x00;
+			amsg->unkyeswn2 = 0x00;
+			amsg->unkyeswn3 = 0x00;
 			amsg->addr = pmsg->addr;
-			amsg->unknown1 = 0x00;
+			amsg->unkyeswn1 = 0x00;
 			amsg->len = cpu_to_le16(pmsg->len);
 			/* send the addr, the data goes to to board */
 			ret = vprbrd_i2c_addr(vb->usb_dev, amsg);
@@ -463,6 +463,6 @@ static void __exit vprbrd_i2c_exit(void)
 module_exit(vprbrd_i2c_exit);
 
 MODULE_AUTHOR("Lars Poeschel <poeschel@lemonage.de>");
-MODULE_DESCRIPTION("I2C master driver for Nano River Techs Viperboard");
+MODULE_DESCRIPTION("I2C master driver for Nayes River Techs Viperboard");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("platform:viperboard-i2c");

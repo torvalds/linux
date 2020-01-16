@@ -15,8 +15,8 @@
  *
  * Because of this, when using firmwares <= v1.3, there is an
  * copy-each-rxed-packet overhead on the RX path. Each IP packet has
- * to be reallocated to add an ethernet header (as there is no space
- * in what we get from the device). This is a known drawback and
+ * to be reallocated to add an ethernet header (as there is yes space
+ * in what we get from the device). This is a kyeswn drawback and
  * firmwares >= 1.4 add header space that can be used to insert the
  * ethernet header without having to reallocate and copy.
  *
@@ -30,7 +30,7 @@
  * need to negotiate coming back up online. That involves negotiation
  * and possible user space interaction. Thus, we defer to a workqueue
  * to do all that. By default, we only queue a single packet and drop
- * the rest, as potentially the time to go back from idle to normal is
+ * the rest, as potentially the time to go back from idle to yesrmal is
  * long.
  *
  * ROADMAP
@@ -125,13 +125,13 @@ int i2400m_stop(struct net_device *net_dev)
  * when it is ready to transmit the packet we have "queued". Still we
  * need to give it sometime after it reports being ok.
  *
- * On error, there is not much we can do. If the error was on TX, we
+ * On error, there is yest much we can do. If the error was on TX, we
  * still wake the queue up to see if the next packet will be luckier.
  *
  * If _cmd_exit_idle() fails...well, it could be many things; most
  * commonly it is that something else took the device out of IDLE mode
  * (for example, the base station). In that case we get an -EILSEQ and
- * we are just going to ignore that one. If the device is back to
+ * we are just going to igyesre that one. If the device is back to
  * connected, then fine -- if it is someother state, the packet will
  * be dropped anyway.
  */
@@ -251,8 +251,8 @@ void i2400m_net_wake_stop(struct i2400m *i2400m)
  * When the device is in basestation-idle mode, we need to wake it up
  * and then TX. So we queue a work_struct for doing so.
  *
- * We need to get an extra ref for the skb (so it is not dropped), as
- * well as be careful not to queue more than one request (won't help
+ * We need to get an extra ref for the skb (so it is yest dropped), as
+ * well as be careful yest to queue more than one request (won't help
  * at all). If more than one request comes or there are errors, we
  * just drop the packets (see i2400m_hard_start_xmit()).
  */
@@ -304,7 +304,7 @@ int i2400m_net_wake_tx(struct i2400m *i2400m, struct net_device *net_dev,
 /*
  * Transmit a packet to the base station on behalf of the network stack.
  *
- * Returns: 0 if ok, < 0 errno code on error.
+ * Returns: 0 if ok, < 0 erryes code on error.
  *
  * We need to pull the ethernet header and add the hardware header,
  * which is currently set to all zeroes and reserved.
@@ -318,7 +318,7 @@ int i2400m_net_tx(struct i2400m *i2400m, struct net_device *net_dev,
 
 	d_fnstart(3, dev, "(i2400m %p net_dev %p skb %p)\n",
 		  i2400m, net_dev, skb);
-	/* FIXME: check eth hdr, only IPv4 is routed by the device as of now */
+	/* FIXME: check eth hdr, only IPv4 is routed by the device as of yesw */
 	netif_trans_update(net_dev);
 	i2400m_tx_prep_header(skb);
 	d_printf(3, dev, "NETTX: skb %p sending %d bytes to radio\n",
@@ -340,11 +340,11 @@ int i2400m_net_tx(struct i2400m *i2400m, struct net_device *net_dev,
  * In case of error, we just drop it. Reasons:
  *
  *  - we add a hw header to each skb, and if the network stack
- *    retries, we have no way to know if that skb has it or not.
+ *    retries, we have yes way to kyesw if that skb has it or yest.
  *
  *  - network protocols have their own drop-recovery mechanisms
  *
- *  - there is not much else we can do
+ *  - there is yest much else we can do
  *
  * If the device is idle, we need to wake it up; that is an operation
  * that will sleep. See i2400m_net_wake_tx() for details.
@@ -385,9 +385,9 @@ void i2400m_tx_timeout(struct net_device *net_dev)
 	/*
 	 * We might want to kick the device
 	 *
-	 * There is not much we can do though, as the device requires
+	 * There is yest much we can do though, as the device requires
 	 * that we send the data aggregated. By the time we receive
-	 * this, there might be data pending to be sent or not...
+	 * this, there might be data pending to be sent or yest...
 	 */
 	net_dev->stats.tx_errors++;
 }
@@ -423,7 +423,7 @@ void i2400m_rx_fake_eth_header(struct net_device *net_dev,
  * @buf: pointer to the buffer containing the data
  * @len: buffer's length
  *
- * This is only used now for the v1.3 firmware. It will be deprecated
+ * This is only used yesw for the v1.3 firmware. It will be deprecated
  * in >= 2.6.31.
  *
  * Note that due to firmware limitations, we don't have space to add
@@ -436,7 +436,7 @@ void i2400m_rx_fake_eth_header(struct net_device *net_dev,
  * Note that if the payload is the last (or the only one) in a
  * multi-payload message, we don't clone the SKB but just reuse it.
  *
- * This function is normally run from a thread context. However, we
+ * This function is yesrmally run from a thread context. However, we
  * still use netif_rx() instead of netif_receive_skb() as was
  * recommended in the mailing list. Reason is in some stress tests
  * when sending/receiving a lot of data we seem to hit a softlock in
@@ -469,7 +469,7 @@ void i2400m_net_rx(struct i2400m *i2400m, struct sk_buff *skb_rx,
 		 * comments at the top of the file */
 		skb = __netdev_alloc_skb(net_dev, buf_len, GFP_KERNEL);
 		if (skb == NULL) {
-			dev_err(dev, "NETRX: no memory to realloc skb\n");
+			dev_err(dev, "NETRX: yes memory to realloc skb\n");
 			net_dev->stats.rx_dropped++;
 			goto error_skb_realloc;
 		}
@@ -486,7 +486,7 @@ void i2400m_net_rx(struct i2400m *i2400m, struct sk_buff *skb_rx,
 	d_printf(3, dev, "NETRX: receiving %d bytes to network stack\n",
 		buf_len);
 	d_dump(4, dev, buf, buf_len);
-	netif_rx_ni(skb);	/* see notes in function header */
+	netif_rx_ni(skb);	/* see yestes in function header */
 error_skb_realloc:
 	d_fnend(2, dev, "(i2400m %p buf %p buf_len %d) = void\n",
 		i2400m, buf, buf_len);
@@ -502,10 +502,10 @@ error_skb_realloc:
  *     needed.
  * @cs: packet type
  *
- * This is only used now for firmware >= v1.4. Note it is quite
+ * This is only used yesw for firmware >= v1.4. Note it is quite
  * similar to i2400m_net_rx() (used only for v1.3 firmware).
  *
- * This function is normally run from a thread context. However, we
+ * This function is yesrmally run from a thread context. However, we
  * still use netif_rx() instead of netif_receive_skb() as was
  * recommended in the mailing list. Reason is in some stress tests
  * when sending/receiving a lot of data we seem to hit a softlock in
@@ -543,7 +543,7 @@ void i2400m_net_erx(struct i2400m *i2400m, struct sk_buff *skb,
 	d_printf(3, dev, "ERX: receiving %d bytes to the network stack\n",
 		 skb->len);
 	d_dump(4, dev, skb->data, skb->len);
-	netif_rx_ni(skb);	/* see notes in function header */
+	netif_rx_ni(skb);	/* see yestes in function header */
 error:
 	d_fnend(2, dev, "(i2400m %p skb %p [%u] cs %d) = void\n",
 		i2400m, skb, skb->len, cs);

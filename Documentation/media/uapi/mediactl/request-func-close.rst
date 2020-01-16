@@ -1,6 +1,6 @@
 .. This file is dual-licensed: you can use it either under the terms
 .. of the GPL 2.0 or the GFDL 1.1+ license, at your option. Note that this
-.. dual licensing only applies to this file, and not this project as a
+.. dual licensing only applies to this file, and yest this project as a
 .. whole.
 ..
 .. a) This file is free software; you can redistribute it and/or
@@ -18,11 +18,11 @@
 .. b) Permission is granted to copy, distribute and/or modify this
 ..    document under the terms of the GNU Free Documentation License,
 ..    Version 1.1 or any later version published by the Free Software
-..    Foundation, with no Invariant Sections, no Front-Cover Texts
-..    and no Back-Cover Texts. A copy of the license is included at
+..    Foundation, with yes Invariant Sections, yes Front-Cover Texts
+..    and yes Back-Cover Texts. A copy of the license is included at
 ..    Documentation/media/uapi/fdl-appendix.rst.
 ..
-.. TODO: replace it to GPL-2.0 OR GFDL-1.1-or-later WITH no-invariant-sections
+.. TODO: replace it to GPL-2.0 OR GFDL-1.1-or-later WITH yes-invariant-sections
 
 .. _request-func-close:
 
@@ -36,7 +36,7 @@ Name
 request-close - Close a request file descriptor
 
 
-Synopsis
+Syyespsis
 ========
 
 .. code-block:: c
@@ -67,7 +67,7 @@ Return Value
 ============
 
 :ref:`close() <request-func-close>` returns 0 on success. On error, -1 is
-returned, and ``errno`` is set appropriately. Possible error codes are:
+returned, and ``erryes`` is set appropriately. Possible error codes are:
 
 EBADF
-    ``fd`` is not a valid open file descriptor.
+    ``fd`` is yest a valid open file descriptor.

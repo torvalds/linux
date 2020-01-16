@@ -51,7 +51,7 @@ static void symbol_int_callback(struct urb *urb)
 			__func__, status);
 		return;
 	default:
-		dev_dbg(&port->dev, "%s - nonzero urb status received: %d\n",
+		dev_dbg(&port->dev, "%s - yesnzero urb status received: %d\n",
 			__func__, status);
 		goto exit;
 	}

@@ -238,7 +238,7 @@ static int phy_meson8b_usb2_probe(struct platform_device *pdev)
 	if (PTR_ERR(priv->reset) == -EPROBE_DEFER)
 		return PTR_ERR(priv->reset);
 
-	priv->dr_mode = of_usb_get_dr_mode_by_phy(pdev->dev.of_node, -1);
+	priv->dr_mode = of_usb_get_dr_mode_by_phy(pdev->dev.of_yesde, -1);
 	if (priv->dr_mode == USB_DR_MODE_UNKNOWN) {
 		dev_err(&pdev->dev,
 			"missing dual role configuration of the controller\n");

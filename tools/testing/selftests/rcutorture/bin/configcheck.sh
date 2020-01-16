@@ -13,7 +13,7 @@ mkdir $T
 
 cat $1 > $T/.config
 
-cat $2 | sed -e 's/\(.*\)=n/# \1 is not set/' -e 's/^#CHECK#//' |
+cat $2 | sed -e 's/\(.*\)=n/# \1 is yest set/' -e 's/^#CHECK#//' |
 grep -v '^CONFIG_INITRAMFS_SOURCE' |
 awk	'
 {

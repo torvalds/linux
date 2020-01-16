@@ -45,7 +45,7 @@
 #include "common.h"
 
 static struct map_desc nexcoder_iodesc[] __initdata = {
-	/* nothing here yet */
+	/* yesthing here yet */
 };
 
 #define UCON S3C2410_UCON_DEFAULT
@@ -78,22 +78,22 @@ static struct s3c2410_uartcfg nexcoder_uartcfgs[] __initdata = {
 
 /* NOR Flash on NexVision NexCoder 2440 board */
 
-static struct resource nexcoder_nor_resource[] = {
+static struct resource nexcoder_yesr_resource[] = {
 	[0] = DEFINE_RES_MEM(S3C2410_CS0, SZ_8M),
 };
 
-static struct map_info nexcoder_nor_map = {
+static struct map_info nexcoder_yesr_map = {
 	.bankwidth = 2,
 };
 
-static struct platform_device nexcoder_device_nor = {
+static struct platform_device nexcoder_device_yesr = {
 	.name		= "mtd-flash",
 	.id		= -1,
-	.num_resources	= ARRAY_SIZE(nexcoder_nor_resource),
-	.resource	= nexcoder_nor_resource,
+	.num_resources	= ARRAY_SIZE(nexcoder_yesr_resource),
+	.resource	= nexcoder_yesr_resource,
 	.dev =
 	{
-		.platform_data = &nexcoder_nor_map,
+		.platform_data = &nexcoder_yesr_map,
 	}
 };
 
@@ -109,7 +109,7 @@ static struct platform_device *nexcoder_devices[] __initdata = {
 	&s3c_device_camif,
 	&s3c_device_spi0,
 	&s3c_device_spi1,
-	&nexcoder_device_nor,
+	&nexcoder_device_yesr,
 };
 
 static void __init nexcoder_sensorboard_init(void)

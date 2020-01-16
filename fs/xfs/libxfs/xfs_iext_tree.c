@@ -8,7 +8,7 @@
 #include "xfs_format.h"
 #include "xfs_bit.h"
 #include "xfs_log_format.h"
-#include "xfs_inode.h"
+#include "xfs_iyesde.h"
 #include "xfs_trans_resv.h"
 #include "xfs_mount.h"
 #include "xfs_trace.h"
@@ -95,14 +95,14 @@ enum {
 /*
  * In-core extent btree block layout:
  *
- * There are two types of blocks in the btree: leaf and inner (non-leaf) blocks.
+ * There are two types of blocks in the btree: leaf and inner (yesn-leaf) blocks.
  *
  * The leaf blocks are made up by %KEYS_PER_NODE extent records, which each
  * contain the startoffset, blockcount, startblock and unwritten extent flag.
  * See above for the exact format, followed by pointers to the previous and next
  * leaf blocks (if there are any).
  *
- * The inner (non-leaf) blocks first contain KEYS_PER_NODE lookup keys, followed
+ * The inner (yesn-leaf) blocks first contain KEYS_PER_NODE lookup keys, followed
  * by an equal number of pointers to the btree blocks at the next lower level.
  *
  *		+-------+-------+-------+-------+-------+----------+----------+
@@ -113,7 +113,7 @@ enum {
  * Inner:	| key 1 | key 2 | key 3 | key N | ptr 1 | ptr 2 | ptr3 | ptr N |
  *		+-------+-------+-------+-------+-------+-------+------+-------+
  */
-struct xfs_iext_node {
+struct xfs_iext_yesde {
 	uint64_t		keys[KEYS_PER_NODE];
 #define XFS_IEXT_KEY_INVALID	(1ULL << 63)
 	void			*ptrs[KEYS_PER_NODE];
@@ -158,25 +158,25 @@ static void *
 xfs_iext_find_first_leaf(
 	struct xfs_ifork	*ifp)
 {
-	struct xfs_iext_node	*node = ifp->if_u1.if_root;
+	struct xfs_iext_yesde	*yesde = ifp->if_u1.if_root;
 	int			height;
 
 	if (!ifp->if_height)
 		return NULL;
 
 	for (height = ifp->if_height; height > 1; height--) {
-		node = node->ptrs[0];
-		ASSERT(node);
+		yesde = yesde->ptrs[0];
+		ASSERT(yesde);
 	}
 
-	return node;
+	return yesde;
 }
 
 static void *
 xfs_iext_find_last_leaf(
 	struct xfs_ifork	*ifp)
 {
-	struct xfs_iext_node	*node = ifp->if_u1.if_root;
+	struct xfs_iext_yesde	*yesde = ifp->if_u1.if_root;
 	int			height, i;
 
 	if (!ifp->if_height)
@@ -184,13 +184,13 @@ xfs_iext_find_last_leaf(
 
 	for (height = ifp->if_height; height > 1; height--) {
 		for (i = 1; i < KEYS_PER_NODE; i++)
-			if (!node->ptrs[i])
+			if (!yesde->ptrs[i])
 				break;
-		node = node->ptrs[i - 1];
-		ASSERT(node);
+		yesde = yesde->ptrs[i - 1];
+		ASSERT(yesde);
 	}
 
-	return node;
+	return yesde;
 }
 
 void
@@ -274,13 +274,13 @@ recurse:
 
 static inline int
 xfs_iext_key_cmp(
-	struct xfs_iext_node	*node,
+	struct xfs_iext_yesde	*yesde,
 	int			n,
 	xfs_fileoff_t		offset)
 {
-	if (node->keys[n] > offset)
+	if (yesde->keys[n] > offset)
 		return 1;
-	if (node->keys[n] < offset)
+	if (yesde->keys[n] < offset)
 		return -1;
 	return 0;
 }
@@ -306,7 +306,7 @@ xfs_iext_find_level(
 	xfs_fileoff_t		offset,
 	int			level)
 {
-	struct xfs_iext_node	*node = ifp->if_u1.if_root;
+	struct xfs_iext_yesde	*yesde = ifp->if_u1.if_root;
 	int			height, i;
 
 	if (!ifp->if_height)
@@ -314,26 +314,26 @@ xfs_iext_find_level(
 
 	for (height = ifp->if_height; height > level; height--) {
 		for (i = 1; i < KEYS_PER_NODE; i++)
-			if (xfs_iext_key_cmp(node, i, offset) > 0)
+			if (xfs_iext_key_cmp(yesde, i, offset) > 0)
 				break;
 
-		node = node->ptrs[i - 1];
-		if (!node)
+		yesde = yesde->ptrs[i - 1];
+		if (!yesde)
 			break;
 	}
 
-	return node;
+	return yesde;
 }
 
 static int
-xfs_iext_node_pos(
-	struct xfs_iext_node	*node,
+xfs_iext_yesde_pos(
+	struct xfs_iext_yesde	*yesde,
 	xfs_fileoff_t		offset)
 {
 	int			i;
 
 	for (i = 1; i < KEYS_PER_NODE; i++) {
-		if (xfs_iext_key_cmp(node, i, offset) > 0)
+		if (xfs_iext_key_cmp(yesde, i, offset) > 0)
 			break;
 	}
 
@@ -341,14 +341,14 @@ xfs_iext_node_pos(
 }
 
 static int
-xfs_iext_node_insert_pos(
-	struct xfs_iext_node	*node,
+xfs_iext_yesde_insert_pos(
+	struct xfs_iext_yesde	*yesde,
 	xfs_fileoff_t		offset)
 {
 	int			i;
 
 	for (i = 0; i < KEYS_PER_NODE; i++) {
-		if (xfs_iext_key_cmp(node, i, offset) > 0)
+		if (xfs_iext_key_cmp(yesde, i, offset) > 0)
 			return i;
 	}
 
@@ -356,14 +356,14 @@ xfs_iext_node_insert_pos(
 }
 
 static int
-xfs_iext_node_nr_entries(
-	struct xfs_iext_node	*node,
+xfs_iext_yesde_nr_entries(
+	struct xfs_iext_yesde	*yesde,
 	int			start)
 {
 	int			i;
 
 	for (i = start; i < KEYS_PER_NODE; i++) {
-		if (node->keys[i] == XFS_IEXT_KEY_INVALID)
+		if (yesde->keys[i] == XFS_IEXT_KEY_INVALID)
 			break;
 	}
 
@@ -398,70 +398,70 @@ static void
 xfs_iext_grow(
 	struct xfs_ifork	*ifp)
 {
-	struct xfs_iext_node	*node = kmem_zalloc(NODE_SIZE, KM_NOFS);
+	struct xfs_iext_yesde	*yesde = kmem_zalloc(NODE_SIZE, KM_NOFS);
 	int			i;
 
 	if (ifp->if_height == 1) {
 		struct xfs_iext_leaf *prev = ifp->if_u1.if_root;
 
-		node->keys[0] = xfs_iext_leaf_key(prev, 0);
-		node->ptrs[0] = prev;
+		yesde->keys[0] = xfs_iext_leaf_key(prev, 0);
+		yesde->ptrs[0] = prev;
 	} else  {
-		struct xfs_iext_node *prev = ifp->if_u1.if_root;
+		struct xfs_iext_yesde *prev = ifp->if_u1.if_root;
 
 		ASSERT(ifp->if_height > 1);
 
-		node->keys[0] = prev->keys[0];
-		node->ptrs[0] = prev;
+		yesde->keys[0] = prev->keys[0];
+		yesde->ptrs[0] = prev;
 	}
 
 	for (i = 1; i < KEYS_PER_NODE; i++)
-		node->keys[i] = XFS_IEXT_KEY_INVALID;
+		yesde->keys[i] = XFS_IEXT_KEY_INVALID;
 
-	ifp->if_u1.if_root = node;
+	ifp->if_u1.if_root = yesde;
 	ifp->if_height++;
 }
 
 static void
-xfs_iext_update_node(
+xfs_iext_update_yesde(
 	struct xfs_ifork	*ifp,
 	xfs_fileoff_t		old_offset,
 	xfs_fileoff_t		new_offset,
 	int			level,
 	void			*ptr)
 {
-	struct xfs_iext_node	*node = ifp->if_u1.if_root;
+	struct xfs_iext_yesde	*yesde = ifp->if_u1.if_root;
 	int			height, i;
 
 	for (height = ifp->if_height; height > level; height--) {
 		for (i = 0; i < KEYS_PER_NODE; i++) {
-			if (i > 0 && xfs_iext_key_cmp(node, i, old_offset) > 0)
+			if (i > 0 && xfs_iext_key_cmp(yesde, i, old_offset) > 0)
 				break;
-			if (node->keys[i] == old_offset)
-				node->keys[i] = new_offset;
+			if (yesde->keys[i] == old_offset)
+				yesde->keys[i] = new_offset;
 		}
-		node = node->ptrs[i - 1];
-		ASSERT(node);
+		yesde = yesde->ptrs[i - 1];
+		ASSERT(yesde);
 	}
 
-	ASSERT(node == ptr);
+	ASSERT(yesde == ptr);
 }
 
-static struct xfs_iext_node *
-xfs_iext_split_node(
-	struct xfs_iext_node	**nodep,
+static struct xfs_iext_yesde *
+xfs_iext_split_yesde(
+	struct xfs_iext_yesde	**yesdep,
 	int			*pos,
 	int			*nr_entries)
 {
-	struct xfs_iext_node	*node = *nodep;
-	struct xfs_iext_node	*new = kmem_zalloc(NODE_SIZE, KM_NOFS);
+	struct xfs_iext_yesde	*yesde = *yesdep;
+	struct xfs_iext_yesde	*new = kmem_zalloc(NODE_SIZE, KM_NOFS);
 	const int		nr_move = KEYS_PER_NODE / 2;
 	int			nr_keep = nr_move + (KEYS_PER_NODE & 1);
 	int			i = 0;
 
-	/* for sequential append operations just spill over into the new node */
+	/* for sequential append operations just spill over into the new yesde */
 	if (*pos == KEYS_PER_NODE) {
-		*nodep = new;
+		*yesdep = new;
 		*pos = 0;
 		*nr_entries = 0;
 		goto done;
@@ -469,15 +469,15 @@ xfs_iext_split_node(
 
 
 	for (i = 0; i < nr_move; i++) {
-		new->keys[i] = node->keys[nr_keep + i];
-		new->ptrs[i] = node->ptrs[nr_keep + i];
+		new->keys[i] = yesde->keys[nr_keep + i];
+		new->ptrs[i] = yesde->ptrs[nr_keep + i];
 
-		node->keys[nr_keep + i] = XFS_IEXT_KEY_INVALID;
-		node->ptrs[nr_keep + i] = NULL;
+		yesde->keys[nr_keep + i] = XFS_IEXT_KEY_INVALID;
+		yesde->ptrs[nr_keep + i] = NULL;
 	}
 
 	if (*pos >= nr_keep) {
-		*nodep = new;
+		*yesdep = new;
 		*pos -= nr_keep;
 		*nr_entries = nr_move;
 	} else {
@@ -490,13 +490,13 @@ done:
 }
 
 static void
-xfs_iext_insert_node(
+xfs_iext_insert_yesde(
 	struct xfs_ifork	*ifp,
 	uint64_t		offset,
 	void			*ptr,
 	int			level)
 {
-	struct xfs_iext_node	*node, *new;
+	struct xfs_iext_yesde	*yesde, *new;
 	int			i, pos, nr_entries;
 
 again:
@@ -504,29 +504,29 @@ again:
 		xfs_iext_grow(ifp);
 
 	new = NULL;
-	node = xfs_iext_find_level(ifp, offset, level);
-	pos = xfs_iext_node_insert_pos(node, offset);
-	nr_entries = xfs_iext_node_nr_entries(node, pos);
+	yesde = xfs_iext_find_level(ifp, offset, level);
+	pos = xfs_iext_yesde_insert_pos(yesde, offset);
+	nr_entries = xfs_iext_yesde_nr_entries(yesde, pos);
 
-	ASSERT(pos >= nr_entries || xfs_iext_key_cmp(node, pos, offset) != 0);
+	ASSERT(pos >= nr_entries || xfs_iext_key_cmp(yesde, pos, offset) != 0);
 	ASSERT(nr_entries <= KEYS_PER_NODE);
 
 	if (nr_entries == KEYS_PER_NODE)
-		new = xfs_iext_split_node(&node, &pos, &nr_entries);
+		new = xfs_iext_split_yesde(&yesde, &pos, &nr_entries);
 
 	/*
 	 * Update the pointers in higher levels if the first entry changes
-	 * in an existing node.
+	 * in an existing yesde.
 	 */
-	if (node != new && pos == 0 && nr_entries > 0)
-		xfs_iext_update_node(ifp, node->keys[0], offset, level, node);
+	if (yesde != new && pos == 0 && nr_entries > 0)
+		xfs_iext_update_yesde(ifp, yesde->keys[0], offset, level, yesde);
 
 	for (i = nr_entries; i > pos; i--) {
-		node->keys[i] = node->keys[i - 1];
-		node->ptrs[i] = node->ptrs[i - 1];
+		yesde->keys[i] = yesde->keys[i - 1];
+		yesde->ptrs[i] = yesde->ptrs[i - 1];
 	}
-	node->keys[pos] = offset;
-	node->ptrs[pos] = ptr;
+	yesde->keys[pos] = offset;
+	yesde->ptrs[pos] = ptr;
 
 	if (new) {
 		offset = new->keys[0];
@@ -547,7 +547,7 @@ xfs_iext_split_leaf(
 	int			nr_keep = nr_move + (RECS_PER_LEAF & 1);
 	int			i;
 
-	/* for sequential append operations just spill over into the new node */
+	/* for sequential append operations just spill over into the new yesde */
 	if (cur->pos == RECS_PER_LEAF) {
 		cur->leaf = new;
 		cur->pos = 0;
@@ -586,7 +586,7 @@ xfs_iext_alloc_root(
 	ifp->if_u1.if_root = kmem_zalloc(sizeof(struct xfs_iext_rec), KM_NOFS);
 	ifp->if_height = 1;
 
-	/* now that we have a node step into it */
+	/* yesw that we have a yesde step into it */
 	cur->leaf = ifp->if_u1.if_root;
 	cur->pos = 0;
 }
@@ -623,7 +623,7 @@ static inline void xfs_iext_inc_seq(struct xfs_ifork *ifp)
 
 void
 xfs_iext_insert(
-	struct xfs_inode	*ip,
+	struct xfs_iyesde	*ip,
 	struct xfs_iext_cursor	*cur,
 	struct xfs_bmbt_irec	*irec,
 	int			state)
@@ -650,10 +650,10 @@ xfs_iext_insert(
 
 	/*
 	 * Update the pointers in higher levels if the first entry changes
-	 * in an existing node.
+	 * in an existing yesde.
 	 */
 	if (cur->leaf != new && cur->pos == 0 && nr_entries > 0) {
-		xfs_iext_update_node(ifp, xfs_iext_leaf_key(cur->leaf, 0),
+		xfs_iext_update_yesde(ifp, xfs_iext_leaf_key(cur->leaf, 0),
 				offset, 1, cur->leaf);
 	}
 
@@ -665,50 +665,50 @@ xfs_iext_insert(
 	trace_xfs_iext_insert(ip, cur, state, _RET_IP_);
 
 	if (new)
-		xfs_iext_insert_node(ifp, xfs_iext_leaf_key(new, 0), new, 2);
+		xfs_iext_insert_yesde(ifp, xfs_iext_leaf_key(new, 0), new, 2);
 }
 
-static struct xfs_iext_node *
-xfs_iext_rebalance_node(
-	struct xfs_iext_node	*parent,
+static struct xfs_iext_yesde *
+xfs_iext_rebalance_yesde(
+	struct xfs_iext_yesde	*parent,
 	int			*pos,
-	struct xfs_iext_node	*node,
+	struct xfs_iext_yesde	*yesde,
 	int			nr_entries)
 {
 	/*
-	 * If the neighbouring nodes are completely full, or have different
-	 * parents, we might never be able to merge our node, and will only
+	 * If the neighbouring yesdes are completely full, or have different
+	 * parents, we might never be able to merge our yesde, and will only
 	 * delete it once the number of entries hits zero.
 	 */
 	if (nr_entries == 0)
-		return node;
+		return yesde;
 
 	if (*pos > 0) {
-		struct xfs_iext_node *prev = parent->ptrs[*pos - 1];
-		int nr_prev = xfs_iext_node_nr_entries(prev, 0), i;
+		struct xfs_iext_yesde *prev = parent->ptrs[*pos - 1];
+		int nr_prev = xfs_iext_yesde_nr_entries(prev, 0), i;
 
 		if (nr_prev + nr_entries <= KEYS_PER_NODE) {
 			for (i = 0; i < nr_entries; i++) {
-				prev->keys[nr_prev + i] = node->keys[i];
-				prev->ptrs[nr_prev + i] = node->ptrs[i];
+				prev->keys[nr_prev + i] = yesde->keys[i];
+				prev->ptrs[nr_prev + i] = yesde->ptrs[i];
 			}
-			return node;
+			return yesde;
 		}
 	}
 
-	if (*pos + 1 < xfs_iext_node_nr_entries(parent, *pos)) {
-		struct xfs_iext_node *next = parent->ptrs[*pos + 1];
-		int nr_next = xfs_iext_node_nr_entries(next, 0), i;
+	if (*pos + 1 < xfs_iext_yesde_nr_entries(parent, *pos)) {
+		struct xfs_iext_yesde *next = parent->ptrs[*pos + 1];
+		int nr_next = xfs_iext_yesde_nr_entries(next, 0), i;
 
 		if (nr_entries + nr_next <= KEYS_PER_NODE) {
 			/*
-			 * Merge the next node into this node so that we don't
+			 * Merge the next yesde into this yesde so that we don't
 			 * have to do an additional update of the keys in the
 			 * higher levels.
 			 */
 			for (i = 0; i < nr_next; i++) {
-				node->keys[nr_entries + i] = next->keys[i];
-				node->ptrs[nr_entries + i] = next->ptrs[i];
+				yesde->keys[nr_entries + i] = next->keys[i];
+				yesde->ptrs[nr_entries + i] = next->ptrs[i];
 			}
 
 			++*pos;
@@ -720,34 +720,34 @@ xfs_iext_rebalance_node(
 }
 
 static void
-xfs_iext_remove_node(
+xfs_iext_remove_yesde(
 	struct xfs_ifork	*ifp,
 	xfs_fileoff_t		offset,
 	void			*victim)
 {
-	struct xfs_iext_node	*node, *parent;
+	struct xfs_iext_yesde	*yesde, *parent;
 	int			level = 2, pos, nr_entries, i;
 
 	ASSERT(level <= ifp->if_height);
-	node = xfs_iext_find_level(ifp, offset, level);
-	pos = xfs_iext_node_pos(node, offset);
+	yesde = xfs_iext_find_level(ifp, offset, level);
+	pos = xfs_iext_yesde_pos(yesde, offset);
 again:
-	ASSERT(node->ptrs[pos]);
-	ASSERT(node->ptrs[pos] == victim);
+	ASSERT(yesde->ptrs[pos]);
+	ASSERT(yesde->ptrs[pos] == victim);
 	kmem_free(victim);
 
-	nr_entries = xfs_iext_node_nr_entries(node, pos) - 1;
-	offset = node->keys[0];
+	nr_entries = xfs_iext_yesde_nr_entries(yesde, pos) - 1;
+	offset = yesde->keys[0];
 	for (i = pos; i < nr_entries; i++) {
-		node->keys[i] = node->keys[i + 1];
-		node->ptrs[i] = node->ptrs[i + 1];
+		yesde->keys[i] = yesde->keys[i + 1];
+		yesde->ptrs[i] = yesde->ptrs[i + 1];
 	}
-	node->keys[nr_entries] = XFS_IEXT_KEY_INVALID;
-	node->ptrs[nr_entries] = NULL;
+	yesde->keys[nr_entries] = XFS_IEXT_KEY_INVALID;
+	yesde->ptrs[nr_entries] = NULL;
 
 	if (pos == 0 && nr_entries > 0) {
-		xfs_iext_update_node(ifp, offset, node->keys[0], level, node);
-		offset = node->keys[0];
+		xfs_iext_update_yesde(ifp, offset, yesde->keys[0], level, yesde);
+		offset = yesde->keys[0];
 	}
 
 	if (nr_entries >= KEYS_PER_NODE / 2)
@@ -755,32 +755,32 @@ again:
 
 	if (level < ifp->if_height) {
 		/*
-		 * If we aren't at the root yet try to find a neighbour node to
-		 * merge with (or delete the node if it is empty), and then
+		 * If we aren't at the root yet try to find a neighbour yesde to
+		 * merge with (or delete the yesde if it is empty), and then
 		 * recurse up to the next level.
 		 */
 		level++;
 		parent = xfs_iext_find_level(ifp, offset, level);
-		pos = xfs_iext_node_pos(parent, offset);
+		pos = xfs_iext_yesde_pos(parent, offset);
 
 		ASSERT(pos != KEYS_PER_NODE);
-		ASSERT(parent->ptrs[pos] == node);
+		ASSERT(parent->ptrs[pos] == yesde);
 
-		node = xfs_iext_rebalance_node(parent, &pos, node, nr_entries);
-		if (node) {
-			victim = node;
-			node = parent;
+		yesde = xfs_iext_rebalance_yesde(parent, &pos, yesde, nr_entries);
+		if (yesde) {
+			victim = yesde;
+			yesde = parent;
 			goto again;
 		}
 	} else if (nr_entries == 1) {
 		/*
 		 * If we are at the root and only one entry is left we can just
-		 * free this node and update the root pointer.
+		 * free this yesde and update the root pointer.
 		 */
-		ASSERT(node == ifp->if_u1.if_root);
-		ifp->if_u1.if_root = node->ptrs[0];
+		ASSERT(yesde == ifp->if_u1.if_root);
+		ifp->if_u1.if_root = yesde->ptrs[0];
 		ifp->if_height--;
-		kmem_free(node);
+		kmem_free(yesde);
 	}
 }
 
@@ -793,12 +793,12 @@ xfs_iext_rebalance_leaf(
 	int			nr_entries)
 {
 	/*
-	 * If the neighbouring nodes are completely full we might never be able
-	 * to merge our node, and will only delete it once the number of
+	 * If the neighbouring yesdes are completely full we might never be able
+	 * to merge our yesde, and will only delete it once the number of
 	 * entries hits zero.
 	 */
 	if (nr_entries == 0)
-		goto remove_node;
+		goto remove_yesde;
 
 	if (leaf->prev) {
 		int nr_prev = xfs_iext_leaf_nr_entries(ifp, leaf->prev, 0), i;
@@ -811,7 +811,7 @@ xfs_iext_rebalance_leaf(
 				cur->leaf = leaf->prev;
 				cur->pos += nr_prev;
 			}
-			goto remove_node;
+			goto remove_yesde;
 		}
 	}
 
@@ -820,7 +820,7 @@ xfs_iext_rebalance_leaf(
 
 		if (nr_entries + nr_next <= RECS_PER_LEAF) {
 			/*
-			 * Merge the next node into this node so that we don't
+			 * Merge the next yesde into this yesde so that we don't
 			 * have to do an additional update of the keys in the
 			 * higher levels.
 			 */
@@ -836,17 +836,17 @@ xfs_iext_rebalance_leaf(
 
 			offset = xfs_iext_leaf_key(leaf->next, 0);
 			leaf = leaf->next;
-			goto remove_node;
+			goto remove_yesde;
 		}
 	}
 
 	return;
-remove_node:
+remove_yesde:
 	if (leaf->prev)
 		leaf->prev->next = leaf->next;
 	if (leaf->next)
 		leaf->next->prev = leaf->prev;
-	xfs_iext_remove_node(ifp, offset, leaf);
+	xfs_iext_remove_yesde(ifp, offset, leaf);
 }
 
 static void
@@ -860,7 +860,7 @@ xfs_iext_free_last_leaf(
 
 void
 xfs_iext_remove(
-	struct xfs_inode	*ip,
+	struct xfs_iyesde	*ip,
 	struct xfs_iext_cursor	*cur,
 	int			state)
 {
@@ -884,7 +884,7 @@ xfs_iext_remove(
 	ifp->if_bytes -= sizeof(struct xfs_iext_rec);
 
 	if (cur->pos == 0 && nr_entries > 0) {
-		xfs_iext_update_node(ifp, offset, xfs_iext_leaf_key(leaf, 0), 1,
+		xfs_iext_update_yesde(ifp, offset, xfs_iext_leaf_key(leaf, 0), 1,
 				leaf);
 		offset = xfs_iext_leaf_key(leaf, 0);
 	} else if (cur->pos == nr_entries) {
@@ -905,19 +905,19 @@ xfs_iext_remove(
 }
 
 /*
- * Lookup the extent covering bno.
+ * Lookup the extent covering byes.
  *
- * If there is an extent covering bno return the extent index, and store the
+ * If there is an extent covering byes return the extent index, and store the
  * expanded extent structure in *gotp, and the extent cursor in *cur.
- * If there is no extent covering bno, but there is an extent after it (e.g.
+ * If there is yes extent covering byes, but there is an extent after it (e.g.
  * it lies in a hole) return that extent in *gotp and its cursor in *cur
  * instead.
- * If bno is beyond the last extent return false, and return an invalid
+ * If byes is beyond the last extent return false, and return an invalid
  * cursor value.
  */
 bool
 xfs_iext_lookup_extent(
-	struct xfs_inode	*ip,
+	struct xfs_iyesde	*ip,
 	struct xfs_ifork	*ifp,
 	xfs_fileoff_t		offset,
 	struct xfs_iext_cursor	*cur,
@@ -940,7 +940,7 @@ xfs_iext_lookup_extent(
 			goto found;
 	}
 
-	/* Try looking in the next node for an entry > offset */
+	/* Try looking in the next yesde for an entry > offset */
 	if (ifp->if_height == 1 || !cur->leaf->next)
 		return false;
 	cur->leaf = cur->leaf->next;
@@ -958,13 +958,13 @@ found:
  */
 bool
 xfs_iext_lookup_extent_before(
-	struct xfs_inode	*ip,
+	struct xfs_iyesde	*ip,
 	struct xfs_ifork	*ifp,
 	xfs_fileoff_t		*end,
 	struct xfs_iext_cursor	*cur,
 	struct xfs_bmbt_irec	*gotp)
 {
-	/* could be optimized to not even look up the next on a match.. */
+	/* could be optimized to yest even look up the next on a match.. */
 	if (xfs_iext_lookup_extent(ip, ifp, *end - 1, cur, gotp) &&
 	    gotp->br_startoff <= *end - 1)
 		return true;
@@ -976,7 +976,7 @@ xfs_iext_lookup_extent_before(
 
 void
 xfs_iext_update_extent(
-	struct xfs_inode	*ip,
+	struct xfs_iyesde	*ip,
 	int			state,
 	struct xfs_iext_cursor	*cur,
 	struct xfs_bmbt_irec	*new)
@@ -990,7 +990,7 @@ xfs_iext_update_extent(
 
 		xfs_iext_get(&old, cur_rec(cur));
 		if (new->br_startoff != old.br_startoff) {
-			xfs_iext_update_node(ifp, old.br_startoff,
+			xfs_iext_update_yesde(ifp, old.br_startoff,
 					new->br_startoff, 1, cur->leaf);
 		}
 	}
@@ -1021,28 +1021,28 @@ xfs_iext_get_extent(
  * careful with stack usage.
  */
 static void
-xfs_iext_destroy_node(
-	struct xfs_iext_node	*node,
+xfs_iext_destroy_yesde(
+	struct xfs_iext_yesde	*yesde,
 	int			level)
 {
 	int			i;
 
 	if (level > 1) {
 		for (i = 0; i < KEYS_PER_NODE; i++) {
-			if (node->keys[i] == XFS_IEXT_KEY_INVALID)
+			if (yesde->keys[i] == XFS_IEXT_KEY_INVALID)
 				break;
-			xfs_iext_destroy_node(node->ptrs[i], level - 1);
+			xfs_iext_destroy_yesde(yesde->ptrs[i], level - 1);
 		}
 	}
 
-	kmem_free(node);
+	kmem_free(yesde);
 }
 
 void
 xfs_iext_destroy(
 	struct xfs_ifork	*ifp)
 {
-	xfs_iext_destroy_node(ifp->if_u1.if_root, ifp->if_height);
+	xfs_iext_destroy_yesde(ifp->if_u1.if_root, ifp->if_height);
 
 	ifp->if_bytes = 0;
 	ifp->if_height = 0;

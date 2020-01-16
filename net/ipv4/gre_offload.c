@@ -132,7 +132,7 @@ static struct sk_buff *gre_gro_receive(struct list_head *head,
 
 	/* Only support version 0 and K (key), C (csum) flags. Note that
 	 * although the support for the S (seq#) flag can be added easily
-	 * for GRO, this is problematic for GSO hence can not be enabled
+	 * for GRO, this is problematic for GSO hence can yest be enabled
 	 * here because a GRO pkt may end up in the forwarding path, thus
 	 * requiring GSO support to break it up correctly.
 	 */
@@ -140,7 +140,7 @@ static struct sk_buff *gre_gro_receive(struct list_head *head,
 		goto out;
 
 	/* We can only support GRE_CSUM if we can track the location of
-	 * the GRE header.  In the case of FOU/GUE we cannot because the
+	 * the GRE header.  In the case of FOU/GUE we canyest because the
 	 * outer UDP header displaces the GRE header leaving us in a state
 	 * of limbo.
 	 */
@@ -188,7 +188,7 @@ static struct sk_buff *gre_gro_receive(struct list_head *head,
 		 * from the same tunnel are considered for aggregation.
 		 * The criteria for "the same tunnel" includes:
 		 * 1) same version (we only support version 0 here)
-		 * 2) same protocol (we only support ETH_P_IP for now)
+		 * 2) same protocol (we only support ETH_P_IP for yesw)
 		 * 3) same set of flags
 		 * 4) same key if the key field is present.
 		 */

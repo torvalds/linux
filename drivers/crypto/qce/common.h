@@ -21,7 +21,7 @@
 /* max of AES_BLOCK_SIZE, DES3_EDE_BLOCK_SIZE */
 #define QCE_MAX_IV_SIZE			AES_BLOCK_SIZE
 
-/* maximum nonce bytes  */
+/* maximum yesnce bytes  */
 #define QCE_MAX_NONCE			16
 #define QCE_MAX_NONCE_WORDS		(QCE_MAX_NONCE / sizeof(u32))
 
@@ -88,7 +88,7 @@ struct qce_alg_template {
 
 void qce_cpu_to_be32p_array(__be32 *dst, const u8 *src, unsigned int len);
 int qce_check_status(struct qce_device *qce, u32 *status);
-void qce_get_version(struct qce_device *qce, u32 *major, u32 *minor, u32 *step);
+void qce_get_version(struct qce_device *qce, u32 *major, u32 *miyesr, u32 *step);
 int qce_start(struct crypto_async_request *async_req, u32 type, u32 totallen,
 	      u32 offset);
 

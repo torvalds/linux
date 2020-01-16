@@ -401,7 +401,7 @@ static struct snd_soc_component_driver sti_sas_driver = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
+	.yesn_legacy_dai_naming	= 1,
 };
 
 static const struct of_device_id sti_sas_dev_match[] = {
@@ -414,7 +414,7 @@ static const struct of_device_id sti_sas_dev_match[] = {
 
 static int sti_sas_driver_probe(struct platform_device *pdev)
 {
-	struct device_node *pnode = pdev->dev.of_node;
+	struct device_yesde *pyesde = pdev->dev.of_yesde;
 	struct sti_sas_data *drvdata;
 	const struct of_device_id *of_id;
 
@@ -425,7 +425,7 @@ static int sti_sas_driver_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	/* Populate data structure depending on compatibility */
-	of_id = of_match_node(sti_sas_dev_match, pnode);
+	of_id = of_match_yesde(sti_sas_dev_match, pyesde);
 	if (!of_id->data) {
 		dev_err(&pdev->dev, "data associated to device is missing\n");
 		return -EINVAL;
@@ -440,15 +440,15 @@ static int sti_sas_driver_probe(struct platform_device *pdev)
 	drvdata->dac.virt_regmap = devm_regmap_init(&pdev->dev, NULL, drvdata,
 						    drvdata->dev_data->regmap);
 	if (IS_ERR(drvdata->dac.virt_regmap)) {
-		dev_err(&pdev->dev, "audio registers not enabled\n");
+		dev_err(&pdev->dev, "audio registers yest enabled\n");
 		return PTR_ERR(drvdata->dac.virt_regmap);
 	}
 
 	/* Request the syscon region */
 	drvdata->dac.regmap =
-		syscon_regmap_lookup_by_phandle(pnode, "st,syscfg");
+		syscon_regmap_lookup_by_phandle(pyesde, "st,syscfg");
 	if (IS_ERR(drvdata->dac.regmap)) {
-		dev_err(&pdev->dev, "syscon registers not available\n");
+		dev_err(&pdev->dev, "syscon registers yest available\n");
 		return PTR_ERR(drvdata->dac.regmap);
 	}
 	drvdata->spdif.regmap = drvdata->dac.regmap;

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 /*
  * Copyright (C) 2015 CNEX Labs.  All rights reserved.
  *
@@ -12,7 +12,7 @@
  * General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; see the file COPYING.  If not, write to
+ * along with this program; see the file COPYING.  If yest, write to
  * the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139,
  * USA.
  */
@@ -45,7 +45,7 @@ struct nvm_ioctl_info_tgt {
 };
 
 struct nvm_ioctl_info {
-	__u32 version[3];	/* in/out - major, minor, patch */
+	__u32 version[3];	/* in/out - major, miyesr, patch */
 	__u16 tgtsize;		/* number of targets */
 	__u16 reserved16;	/* pad to 4K page */
 	__u32 reserved[12];

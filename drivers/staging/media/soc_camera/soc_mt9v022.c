@@ -26,7 +26,7 @@
 
 static char *sensor_type;
 module_param(sensor_type, charp, S_IRUGO);
-MODULE_PARM_DESC(sensor_type, "Sensor type: \"colour\" or \"monochrome\"");
+MODULE_PARM_DESC(sensor_type, "Sensor type: \"colour\" or \"moyeschrome\"");
 
 /* mt9v022 selected register addresses */
 #define MT9V022_CHIP_VERSION		0x00
@@ -107,7 +107,7 @@ static const struct mt9v022_datafmt mt9v022_colour_fmts[] = {
 	{MEDIA_BUS_FMT_SBGGR8_1X8, V4L2_COLORSPACE_SRGB},
 };
 
-static const struct mt9v022_datafmt mt9v022_monochrome_fmts[] = {
+static const struct mt9v022_datafmt mt9v022_moyeschrome_fmts[] = {
 	/* Order important - see above */
 	{MEDIA_BUS_FMT_Y10_1X10, V4L2_COLORSPACE_JPEG},
 	{MEDIA_BUS_FMT_Y8_1X8, V4L2_COLORSPACE_JPEG},
@@ -206,8 +206,8 @@ static int mt9v022_init(struct i2c_client *client)
 
 	/*
 	 * Almost the default mode: master, parallel, simultaneous, and an
-	 * undocumented bit 0x200, which is present in table 7, but not in 8,
-	 * plus snapshot mode to disable scan for now
+	 * undocumented bit 0x200, which is present in table 7, but yest in 8,
+	 * plus snapshot mode to disable scan for yesw
 	 */
 	mt9v022->chip_control |= 0x10;
 	ret = reg_write(client, MT9V022_CHIP_CONTROL, mt9v022->chip_control);
@@ -241,13 +241,13 @@ static int mt9v022_s_stream(struct v4l2_subdev *sd, int enable)
 	struct mt9v022 *mt9v022 = to_mt9v022(client);
 
 	if (enable) {
-		/* Switch to master "normal" mode */
+		/* Switch to master "yesrmal" mode */
 		mt9v022->chip_control &= ~0x10;
 		if (is_mt9v022_rev3(mt9v022->chip_version) ||
 		    is_mt9v024(mt9v022->chip_version)) {
 			/*
 			 * Unset snapshot mode specific settings: clear bit 9
-			 * and bit 2 in reg. 0x20 when in normal mode.
+			 * and bit 2 in reg. 0x20 when in yesrmal mode.
 			 */
 			if (reg_clear(client, MT9V022_REG32, 0x204))
 				return -EIO;
@@ -306,7 +306,7 @@ static int mt9v022_set_selection(struct v4l2_subdev *sd,
 			ret = reg_write(client, mt9v022->reg->max_total_shutter_width,
 					rect.height + mt9v022->y_skip_top + 43);
 		/*
-		 * If autoexposure is off, there is no need to set
+		 * If autoexposure is off, there is yes need to set
 		 * MT9V022_TOTAL_SHUTTER_WIDTH here. Autoexposure can be off
 		 * only if the user has set exposure manually, using the
 		 * V4L2_CID_EXPOSURE_AUTO with the value V4L2_EXPOSURE_MANUAL.
@@ -606,7 +606,7 @@ static int mt9v022_s_ctrl(struct v4l2_ctrl *ctrl)
 
 			/*
 			 * The user wants to set gain manually, hope, she
-			 * knows, what she's doing... Switch AGC off.
+			 * kyesws, what she's doing... Switch AGC off.
 			 */
 			if (reg_clear(client, MT9V022_AEC_AGC_ENABLE, 0x2) < 0)
 				return -EIO;
@@ -628,7 +628,7 @@ static int mt9v022_s_ctrl(struct v4l2_ctrl *ctrl)
 
 			/*
 			 * The user wants to set shutter width manually, hope,
-			 * she knows, what she's doing... Switch AEC off.
+			 * she kyesws, what she's doing... Switch AEC off.
 			 */
 			data = reg_clear(client, MT9V022_AEC_AGC_ENABLE, 0x1);
 			if (data < 0)
@@ -700,7 +700,7 @@ static int mt9v022_video_probe(struct i2c_client *client)
 		goto ei2c;
 	}
 
-	/* Set monochrome or colour sensor type */
+	/* Set moyeschrome or colour sensor type */
 	if (sensor_type && (!strcmp("colour", sensor_type) ||
 			    !strcmp("color", sensor_type))) {
 		ret = reg_write(client, MT9V022_PIXEL_OPERATION_MODE, 4 | 0x11);
@@ -709,7 +709,7 @@ static int mt9v022_video_probe(struct i2c_client *client)
 	} else {
 		ret = reg_write(client, MT9V022_PIXEL_OPERATION_MODE, 0x11);
 		mt9v022->model = MT9V022IX7ATM;
-		mt9v022->fmts = mt9v022_monochrome_fmts;
+		mt9v022->fmts = mt9v022_moyeschrome_fmts;
 	}
 
 	if (ret < 0)
@@ -739,7 +739,7 @@ static int mt9v022_video_probe(struct i2c_client *client)
 
 	dev_info(&client->dev, "Detected a MT9V022 chip ID %x, %s sensor\n",
 		 data, mt9v022->model == MT9V022IX7ATM ?
-		 "monochrome" : "colour");
+		 "moyeschrome" : "colour");
 
 	ret = mt9v022_init(client);
 	if (ret < 0)

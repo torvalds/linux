@@ -255,7 +255,7 @@ static int au8522_set_if(struct dvb_frontend *fe, enum au8522_if_freq if_freq)
 		r0b7 = 0x39;
 		break;
 	default:
-		dprintk("%s() IF Frequency not supported\n", __func__);
+		dprintk("%s() IF Frequency yest supported\n", __func__);
 		return -EINVAL;
 	}
 	dprintk("%s() %s MHz\n", __func__, ifmhz);
@@ -715,7 +715,7 @@ static int au8522_led_status(struct au8522_state *state, const u16 *snr)
 
 	if ((state->led_state) &&
 	    (((strong < *snr) ? (*snr - strong) : (strong - *snr)) <= 10))
-		/* snr didn't change enough to bother
+		/* snr didn't change eyesugh to bother
 		 * changing the color of the led */
 		return 0;
 

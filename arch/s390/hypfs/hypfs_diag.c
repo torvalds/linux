@@ -11,7 +11,7 @@
 #define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
 
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/vmalloc.h>
@@ -38,7 +38,7 @@ static struct dentry *dbfs_d204_file;
  * DIAG 204 member access functions.
  *
  * Since we have two different diag 204 data formats for old and new s390
- * machines, we do not access the structs directly, but use getter functions for
+ * machines, we do yest access the structs directly, but use getter functions for
  * each struct member instead. This should make the code more readable.
  */
 
@@ -153,7 +153,7 @@ static inline __u64 cpu_info__lp_time(enum diag204_format type, void *hdr)
 static inline __u64 cpu_info__online_time(enum diag204_format type, void *hdr)
 {
 	if (type == DIAG204_INFO_SIMPLE)
-		return 0;	/* online_time not available in simple info */
+		return 0;	/* online_time yest available in simple info */
 	else /* DIAG204_INFO_EXT */
 		return ((struct diag204_x_cpu_info *)hdr)->online_time;
 }
@@ -210,7 +210,7 @@ static inline __u64 phys_cpu__ctidx(enum diag204_format type, void *hdr)
 		return ((struct diag204_x_phys_cpu *)hdr)->ctidx;
 }
 
-/* Diagnose 204 functions */
+/* Diagyesse 204 functions */
 /*
  * For the old diag subcode 4 with simple data format we have to use real
  * memory. If we use subcode 6 or 7 with extended data format, we can (and
@@ -276,7 +276,7 @@ static void *diag204_get_buffer(enum diag204_format fmt, int *pages)
 }
 
 /*
- * diag204_probe() has to find out, which type of diagnose 204 implementation
+ * diag204_probe() has to find out, which type of diagyesse 204 implementation
  * we have on our machine. Currently there are three possible scanarios:
  *   - subcode 4   + simple data format (only one page)
  *   - subcode 4-6 + extended data format
@@ -311,7 +311,7 @@ static int diag204_probe(void)
 		diag204_free_buffer();
 	}
 
-	/* subcodes 6 and 7 failed, now try subcode 4 */
+	/* subcodes 6 and 7 failed, yesw try subcode 4 */
 
 	buf = diag204_get_buffer(DIAG204_INFO_SIMPLE, &pages);
 	if (IS_ERR(buf)) {
@@ -359,7 +359,7 @@ out:
 	return buf;
 }
 
-/* Diagnose 224 functions */
+/* Diagyesse 224 functions */
 
 static int diag224_get_name_table(void)
 {
@@ -437,7 +437,7 @@ __init int hypfs_diag_init(void)
 	int rc;
 
 	if (diag204_probe()) {
-		pr_err("The hardware system does not support hypfs\n");
+		pr_err("The hardware system does yest support hypfs\n");
 		return -ENODATA;
 	}
 
@@ -447,7 +447,7 @@ __init int hypfs_diag_init(void)
 	if (MACHINE_IS_LPAR) {
 		rc = diag224_get_name_table();
 		if (rc) {
-			pr_err("The hardware system does not provide all "
+			pr_err("The hardware system does yest provide all "
 			       "functions required by hypfs\n");
 			debugfs_remove(dbfs_d204_file);
 			return rc;

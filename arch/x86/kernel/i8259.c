@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <linux/linkage.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/signal.h>
 #include <linux/sched.h>
 #include <linux/ioport.h>
@@ -46,11 +46,11 @@ unsigned int cached_irq_mask = 0xffff;
 
 /*
  * Not all IRQs can be routed through the IO-APIC, eg. on certain (older)
- * boards the timer interrupt is not really connected to any IO-APIC pin,
+ * boards the timer interrupt is yest really connected to any IO-APIC pin,
  * it's fed to the master 8259A's IR0 line only.
  *
  * Any '1' bit in this mask means the IRQ is routed through the IO-APIC.
- * this 'mixed mode' IRQ handling costs nothing because it's only used
+ * this 'mixed mode' IRQ handling costs yesthing because it's only used
  * at IRQ setup time.
  */
 unsigned long io_apic_irqs;
@@ -111,7 +111,7 @@ static int i8259A_irq_pending(unsigned int irq)
 
 static void make_8259A_irq(unsigned int irq)
 {
-	disable_irq_nosync(irq);
+	disable_irq_yessync(irq);
 	io_apic_irqs &= ~(1<<irq);
 	irq_set_chip_and_handler(irq, &i8259A_chip, handle_level_irq);
 	enable_irq(irq);
@@ -155,7 +155,7 @@ static void mask_and_ack_8259A(struct irq_data *data)
 
 	raw_spin_lock_irqsave(&i8259A_lock, flags);
 	/*
-	 * Lightweight spurious IRQ detection. We do not want
+	 * Lightweight spurious IRQ detection. We do yest want
 	 * to overdo spurious IRQ handling - it's usually a sign
 	 * of hardware problems, so we only do the checks we can
 	 * do without slowing down good hardware unnecessarily.
@@ -165,8 +165,8 @@ static void mask_and_ack_8259A(struct irq_data *data)
 	 * even if the IRQ is masked in the 8259A. Thus we
 	 * can check spurious 8259A IRQs without doing the
 	 * quite slow i8259A_irq_real() call for every IRQ.
-	 * This does not cover 100% of spurious interrupts,
-	 * but should be enough to warn the user that there
+	 * This does yest cover 100% of spurious interrupts,
+	 * but should be eyesugh to warn the user that there
 	 * is something bad going on ...
 	 */
 	if (cached_irq_mask & irqmask)
@@ -196,7 +196,7 @@ spurious_8259A_irq:
 	if (i8259A_irq_real(irq))
 		/*
 		 * oops, the IRQ _is_ in service according to the
-		 * 8259A - not spurious, go handle it.
+		 * 8259A - yest spurious, go handle it.
 		 */
 		goto handle_real_irq;
 
@@ -213,8 +213,8 @@ spurious_8259A_irq:
 		}
 		atomic_inc(&irq_err_count);
 		/*
-		 * Theoretically we do not have to handle this IRQ,
-		 * but in Linux this does not cause problems and is
+		 * Theoretically we do yest have to handle this IRQ,
+		 * but in Linux this does yest cause problems and is
 		 * simpler for us.
 		 */
 		goto handle_real_irq;
@@ -347,7 +347,7 @@ static void init_8259A(int auto_eoi)
 
 	if (auto_eoi)	/* master does Auto EOI */
 		outb_pic(MASTER_ICW4_DEFAULT | PIC_ICW4_AEOI, PIC_MASTER_IMR);
-	else		/* master expects normal EOI */
+	else		/* master expects yesrmal EOI */
 		outb_pic(MASTER_ICW4_DEFAULT, PIC_MASTER_IMR);
 
 	outb_pic(0x11, PIC_SLAVE_CMD);	/* ICW1: select 8259A-2 init */
@@ -378,14 +378,14 @@ static void init_8259A(int auto_eoi)
 
 /*
  * make i8259 a driver so that we can select pic functions at run time. the goal
- * is to make x86 binary compatible among pc compatible and non-pc compatible
+ * is to make x86 binary compatible among pc compatible and yesn-pc compatible
  * platforms, such as x86 MID.
  */
 
-static void legacy_pic_noop(void) { };
-static void legacy_pic_uint_noop(unsigned int unused) { };
-static void legacy_pic_int_noop(int unused) { };
-static int legacy_pic_irq_pending_noop(unsigned int irq)
+static void legacy_pic_yesop(void) { };
+static void legacy_pic_uint_yesop(unsigned int unused) { };
+static void legacy_pic_int_yesop(int unused) { };
+static int legacy_pic_irq_pending_yesop(unsigned int irq)
 {
 	return 0;
 }
@@ -397,14 +397,14 @@ static int legacy_pic_probe(void)
 struct legacy_pic null_legacy_pic = {
 	.nr_legacy_irqs = 0,
 	.chip = &dummy_irq_chip,
-	.mask = legacy_pic_uint_noop,
-	.unmask = legacy_pic_uint_noop,
-	.mask_all = legacy_pic_noop,
-	.restore_mask = legacy_pic_noop,
-	.init = legacy_pic_int_noop,
+	.mask = legacy_pic_uint_yesop,
+	.unmask = legacy_pic_uint_yesop,
+	.mask_all = legacy_pic_yesop,
+	.restore_mask = legacy_pic_yesop,
+	.init = legacy_pic_int_yesop,
 	.probe = legacy_pic_probe,
-	.irq_pending = legacy_pic_irq_pending_noop,
-	.make_irq = legacy_pic_uint_noop,
+	.irq_pending = legacy_pic_irq_pending_yesop,
+	.make_irq = legacy_pic_uint_yesop,
 };
 
 struct legacy_pic default_legacy_pic = {

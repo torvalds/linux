@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -68,8 +68,8 @@ struct i915_subtest {
 	const char *name;
 };
 
-int __i915_nop_setup(void *data);
-int __i915_nop_teardown(int err, void *data);
+int __i915_yesp_setup(void *data);
+int __i915_yesp_teardown(int err, void *data);
 
 int __i915_live_setup(void *data);
 int __i915_live_teardown(int err, void *data);
@@ -85,7 +85,7 @@ int __i915_subtests(const char *caller,
 		    void *data);
 #define i915_subtests(T, data) \
 	__i915_subtests(__func__, \
-			__i915_nop_setup, __i915_nop_teardown, \
+			__i915_yesp_setup, __i915_yesp_teardown, \
 			T, ARRAY_SIZE(T), data)
 #define i915_live_subtests(T, data) ({ \
 	typecheck(struct drm_i915_private *, data); \

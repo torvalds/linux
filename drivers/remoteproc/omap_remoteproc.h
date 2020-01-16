@@ -10,12 +10,12 @@
  * are met:
  *
  * * Redistributions of source code must retain the above copyright
- *   notice, this list of conditions and the following disclaimer.
+ *   yestice, this list of conditions and the following disclaimer.
  * * Redistributions in binary form must reproduce the above copyright
- *   notice, this list of conditions and the following disclaimer in
+ *   yestice, this list of conditions and the following disclaimer in
  *   the documentation and/or other materials provided with the
  *   distribution.
- * * Neither the name Texas Instruments nor the names of its
+ * * Neither the name Texas Instruments yesr the names of its
  *   contributors may be used to endorse or promote products derived
  *   from this software without specific prior written permission.
  *
@@ -43,7 +43,7 @@
  * after it is booted.
  *
  * @RP_MBOX_PENDING_MSG: informs the receiver that there is an inbound
- * message waiting in its own receive-side vring. please note that currently
+ * message waiting in its own receive-side vring. please yeste that currently
  * this message is optional: alternatively, one can explicitly send the index
  * of the triggered virtqueue itself. the preferred approach will be decided
  * as we progress and experiment with those two different approaches.

@@ -45,7 +45,7 @@ const char *phy_speed_to_str(int speed)
 	case SPEED_400000:
 		return "400Gbps";
 	case SPEED_UNKNOWN:
-		return "Unknown";
+		return "Unkyeswn";
 	default:
 		return "Unsupported (update phy-core.c)";
 	}
@@ -59,7 +59,7 @@ const char *phy_duplex_to_str(unsigned int duplex)
 	if (duplex == DUPLEX_FULL)
 		return "Full";
 	if (duplex == DUPLEX_UNKNOWN)
-		return "Unknown";
+		return "Unkyeswn";
 	return "Unsupported (update phy-core.c)";
 }
 EXPORT_SYMBOL_GPL(phy_duplex_to_str);
@@ -161,7 +161,7 @@ static const struct phy_setting settings[] = {
  * Search the settings array for a setting that matches the speed and
  * duplex, and which is supported.
  *
- * If @exact is unset, either an exact match or %NULL for no match will
+ * If @exact is unset, either an exact match or %NULL for yes match will
  * be returned.
  *
  * If @exact is set, an exact match, the fastest supported setting at
@@ -251,41 +251,41 @@ EXPORT_SYMBOL(phy_set_max_speed);
 
 void of_set_phy_supported(struct phy_device *phydev)
 {
-	struct device_node *node = phydev->mdio.dev.of_node;
+	struct device_yesde *yesde = phydev->mdio.dev.of_yesde;
 	u32 max_speed;
 
 	if (!IS_ENABLED(CONFIG_OF_MDIO))
 		return;
 
-	if (!node)
+	if (!yesde)
 		return;
 
-	if (!of_property_read_u32(node, "max-speed", &max_speed))
+	if (!of_property_read_u32(yesde, "max-speed", &max_speed))
 		__set_phy_supported(phydev, max_speed);
 }
 
 void of_set_phy_eee_broken(struct phy_device *phydev)
 {
-	struct device_node *node = phydev->mdio.dev.of_node;
+	struct device_yesde *yesde = phydev->mdio.dev.of_yesde;
 	u32 broken = 0;
 
 	if (!IS_ENABLED(CONFIG_OF_MDIO))
 		return;
 
-	if (!node)
+	if (!yesde)
 		return;
 
-	if (of_property_read_bool(node, "eee-broken-100tx"))
+	if (of_property_read_bool(yesde, "eee-broken-100tx"))
 		broken |= MDIO_EEE_100TX;
-	if (of_property_read_bool(node, "eee-broken-1000t"))
+	if (of_property_read_bool(yesde, "eee-broken-1000t"))
 		broken |= MDIO_EEE_1000T;
-	if (of_property_read_bool(node, "eee-broken-10gt"))
+	if (of_property_read_bool(yesde, "eee-broken-10gt"))
 		broken |= MDIO_EEE_10GT;
-	if (of_property_read_bool(node, "eee-broken-1000kx"))
+	if (of_property_read_bool(yesde, "eee-broken-1000kx"))
 		broken |= MDIO_EEE_1000KX;
-	if (of_property_read_bool(node, "eee-broken-10gkx4"))
+	if (of_property_read_bool(yesde, "eee-broken-10gkx4"))
 		broken |= MDIO_EEE_10GKX4;
-	if (of_property_read_bool(node, "eee-broken-10gkr"))
+	if (of_property_read_bool(yesde, "eee-broken-10gkr"))
 		broken |= MDIO_EEE_10GKR;
 
 	phydev->eee_broken_modes = broken;
@@ -366,7 +366,7 @@ static void mmd_phy_indirect(struct mii_bus *bus, int phy_addr, int devad,
 	/* Write the desired MMD register address */
 	__mdiobus_write(bus, phy_addr, MII_MMD_DATA, regnum);
 
-	/* Select the Function : DATA with no post increment */
+	/* Select the Function : DATA with yes post increment */
 	__mdiobus_write(bus, phy_addr, MII_MMD_CTRL,
 			devad | MII_MMD_CTRL_NOINCR);
 }
@@ -498,7 +498,7 @@ EXPORT_SYMBOL(phy_write_mmd);
  * Unlocked helper function which allows a PHY register to be modified as
  * new register value = (old register value & ~mask) | set
  *
- * Returns negative errno, 0 if there was no change, and 1 in case of change
+ * Returns negative erryes, 0 if there was yes change, and 1 in case of change
  */
 int __phy_modify_changed(struct phy_device *phydev, u32 regnum, u16 mask,
 			 u16 set)
@@ -530,7 +530,7 @@ EXPORT_SYMBOL_GPL(__phy_modify_changed);
  * because the bus read/write functions may wait for an interrupt
  * to conclude the operation.
  *
- * Returns negative errno, 0 if there was no change, and 1 in case of change
+ * Returns negative erryes, 0 if there was yes change, and 1 in case of change
  */
 int phy_modify_changed(struct phy_device *phydev, u32 regnum, u16 mask, u16 set)
 {
@@ -599,7 +599,7 @@ EXPORT_SYMBOL_GPL(phy_modify);
  * Unlocked helper function which allows a MMD register to be modified as
  * new register value = (old register value & ~mask) | set
  *
- * Returns negative errno, 0 if there was no change, and 1 in case of change
+ * Returns negative erryes, 0 if there was yes change, and 1 in case of change
  */
 int __phy_modify_mmd_changed(struct phy_device *phydev, int devad, u32 regnum,
 			     u16 mask, u16 set)
@@ -632,7 +632,7 @@ EXPORT_SYMBOL_GPL(__phy_modify_mmd_changed);
  * because the bus read/write functions may wait for an interrupt
  * to conclude the operation.
  *
- * Returns negative errno, 0 if there was no change, and 1 in case of change
+ * Returns negative erryes, 0 if there was yes change, and 1 in case of change
  */
 int phy_modify_mmd_changed(struct phy_device *phydev, int devad, u32 regnum,
 			   u16 mask, u16 set)
@@ -697,7 +697,7 @@ EXPORT_SYMBOL_GPL(phy_modify_mmd);
 
 static int __phy_read_page(struct phy_device *phydev)
 {
-	if (WARN_ONCE(!phydev->drv->read_page, "read_page callback not available, PHY driver not loaded?\n"))
+	if (WARN_ONCE(!phydev->drv->read_page, "read_page callback yest available, PHY driver yest loaded?\n"))
 		return -EOPNOTSUPP;
 
 	return phydev->drv->read_page(phydev);
@@ -705,7 +705,7 @@ static int __phy_read_page(struct phy_device *phydev)
 
 static int __phy_write_page(struct phy_device *phydev, int page)
 {
-	if (WARN_ONCE(!phydev->drv->write_page, "write_page callback not available, PHY driver not loaded?\n"))
+	if (WARN_ONCE(!phydev->drv->write_page, "write_page callback yest available, PHY driver yest loaded?\n"))
 		return -EOPNOTSUPP;
 
 	return phydev->drv->write_page(phydev, page);
@@ -716,7 +716,7 @@ static int __phy_write_page(struct phy_device *phydev, int page)
  * @phydev: a pointer to a &struct phy_device
  *
  * Take the MDIO bus lock, and return the current page number. On error,
- * returns a negative errno. phy_restore_page() must always be called
+ * returns a negative erryes. phy_restore_page() must always be called
  * after this, irrespective of success or failure of this call.
  */
 int phy_save_page(struct phy_device *phydev)
@@ -733,7 +733,7 @@ EXPORT_SYMBOL_GPL(phy_save_page);
  *
  * Take the MDIO bus lock to protect against concurrent access, save the
  * current PHY page, and set the current page.  On error, returns a
- * negative errno, otherwise returns the previous page number.
+ * negative erryes, otherwise returns the previous page number.
  * phy_restore_page() must always be called after this, irrespective
  * of success or failure of this call.
  */
@@ -767,7 +767,7 @@ EXPORT_SYMBOL_GPL(phy_select_page);
  *
  * Returns:
  *   @oldpage if it was a negative value, otherwise
- *   @ret if it was a negative errno value, otherwise
+ *   @ret if it was a negative erryes value, otherwise
  *   phy_write_page()'s negative value if it were in error, otherwise
  *   @ret.
  */
@@ -843,7 +843,7 @@ EXPORT_SYMBOL(phy_write_paged);
  * @mask: bit mask of bits to clear
  * @set: bit mask of bits to set
  *
- * Returns negative errno, 0 if there was no change, and 1 in case of change
+ * Returns negative erryes, 0 if there was yes change, and 1 in case of change
  */
 int phy_modify_paged_changed(struct phy_device *phydev, int page, u32 regnum,
 			     u16 mask, u16 set)

@@ -32,7 +32,7 @@ static void bnx2fc_upld_timer(struct timer_list *t)
 
 	struct bnx2fc_rport *tgt = from_timer(tgt, t, upld_timer);
 
-	BNX2FC_TGT_DBG(tgt, "upld_timer - Upload compl not received!!\n");
+	BNX2FC_TGT_DBG(tgt, "upld_timer - Upload compl yest received!!\n");
 	/* fake upload completion */
 	clear_bit(BNX2FC_FLAG_OFFLOADED, &tgt->flags);
 	clear_bit(BNX2FC_FLAG_ENABLED, &tgt->flags);
@@ -137,7 +137,7 @@ retry_ofld:
 		goto ofld_err;
 	}
 	if (bnx2fc_map_doorbell(tgt)) {
-		printk(KERN_ERR PFX "map doorbell failed - no mem\n");
+		printk(KERN_ERR PFX "map doorbell failed - yes mem\n");
 		goto ofld_err;
 	}
 	clear_bit(BNX2FC_FLAG_OFLD_REQ_CMPL, &tgt->flags);
@@ -196,7 +196,7 @@ void bnx2fc_flush_active_ios(struct bnx2fc_rport *tgt)
 		set_bit(BNX2FC_FLAG_IO_COMPL, &io_req->req_flags);
 		set_bit(BNX2FC_FLAG_IO_CLEANUP, &io_req->req_flags);
 
-		/* Do not issue cleanup when disable request failed */
+		/* Do yest issue cleanup when disable request failed */
 		if (test_bit(BNX2FC_FLAG_DISABLE_FAILED, &tgt->flags))
 			bnx2fc_process_cleanup_compl(io_req, io_req->task, 0);
 		else {
@@ -230,7 +230,7 @@ void bnx2fc_flush_active_ios(struct bnx2fc_rport *tgt)
 			io_req->cb_arg = NULL;
 		}
 
-		/* Do not issue cleanup when disable request failed */
+		/* Do yest issue cleanup when disable request failed */
 		if (test_bit(BNX2FC_FLAG_DISABLE_FAILED, &tgt->flags))
 			bnx2fc_process_cleanup_compl(io_req, io_req->task, 0);
 		else {
@@ -336,10 +336,10 @@ static void bnx2fc_upload_session(struct fcoe_port *port,
 
 	} else if (test_bit(BNX2FC_FLAG_DISABLE_FAILED, &tgt->flags)) {
 		printk(KERN_ERR PFX "ERROR!! DISABLE req failed, destroy"
-				" not sent to FW\n");
+				" yest sent to FW\n");
 	} else {
 		printk(KERN_ERR PFX "ERROR!! DISABLE req timed out, destroy"
-				" not sent to FW\n");
+				" yest sent to FW\n");
 	}
 
 	/* Free session resources */
@@ -462,7 +462,7 @@ void bnx2fc_rport_event_handler(struct fc_lport *lport,
 			/*
 			 * bnx2fc_rport structure doesn't exist for
 			 * directory server.
-			 * We should not come here, as lport will
+			 * We should yest come here, as lport will
 			 * take care of fabric login
 			 */
 			printk(KERN_ERR PFX "%x - rport_event_handler ERROR\n",
@@ -471,13 +471,13 @@ void bnx2fc_rport_event_handler(struct fc_lport *lport,
 		}
 
 		if (rdata->spp_type != FC_TYPE_FCP) {
-			BNX2FC_HBA_DBG(lport, "not FCP type target."
-				   " not offloading\n");
+			BNX2FC_HBA_DBG(lport, "yest FCP type target."
+				   " yest offloading\n");
 			break;
 		}
 		if (!(rdata->ids.roles & FC_RPORT_ROLE_FCP_TARGET)) {
-			BNX2FC_HBA_DBG(lport, "not FCP_TARGET"
-				   " not offloading\n");
+			BNX2FC_HBA_DBG(lport, "yest FCP_TARGET"
+				   " yest offloading\n");
 			break;
 		}
 
@@ -518,7 +518,7 @@ void bnx2fc_rport_event_handler(struct fc_lport *lport,
 			 * rport would have already been removed
 			 */
 			BNX2FC_TGT_DBG(tgt, "Port is being logged off as "
-				   "offloaded flag not set\n");
+				   "offloaded flag yest set\n");
 		}
 		mutex_unlock(&hba->hba_mutex);
 		break;
@@ -530,7 +530,7 @@ void bnx2fc_rport_event_handler(struct fc_lport *lport,
 			break;
 
 		if (!rport) {
-			printk(KERN_INFO PFX "%x - rport not created Yet!!\n",
+			printk(KERN_INFO PFX "%x - rport yest created Yet!!\n",
 				port_id);
 			break;
 		}

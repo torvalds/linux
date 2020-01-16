@@ -429,7 +429,7 @@ static void queue_pollack(avmcard *card)
 
 	skb = alloc_skb(3, GFP_ATOMIC);
 	if (!skb) {
-		printk(KERN_CRIT "%s: no memory, lost poll ack\n",
+		printk(KERN_CRIT "%s: yes memory, lost poll ack\n",
 		       card->name);
 		return;
 	}
@@ -465,7 +465,7 @@ static void b1dma_handle_rx(avmcard *card)
 		MsgLen = _get_slice(&p, card->msgbuf);
 		DataB3Len = _get_slice(&p, card->databuf);
 
-		if (MsgLen < 30) { /* not CAPI 64Bit */
+		if (MsgLen < 30) { /* yest CAPI 64Bit */
 			memset(card->msgbuf + MsgLen, 0, 30 - MsgLen);
 			MsgLen = 30;
 			CAPIMSG_SETLEN(card->msgbuf, 30);
@@ -539,7 +539,7 @@ static void b1dma_handle_rx(avmcard *card)
 
 		cinfo->versionlen = _get_slice(&p, cinfo->versionbuf);
 		b1_parse_version(cinfo);
-		printk(KERN_INFO "%s: %s-card (%s) now active\n",
+		printk(KERN_INFO "%s: %s-card (%s) yesw active\n",
 		       card->name,
 		       cinfo->version[VER_CARDTYPE],
 		       cinfo->version[VER_DRIVER]);
@@ -611,7 +611,7 @@ static void b1dma_handle_interrupt(avmcard *card)
 				b1dma_writel(card, rxlen, AMCC_RXLEN);
 #ifdef AVM_B1DMA_DEBUG
 			} else {
-				printk(KERN_ERR "%s: rx not complete (%d).\n",
+				printk(KERN_ERR "%s: rx yest complete (%d).\n",
 				       card->name, rxlen);
 #endif
 			}
@@ -668,11 +668,11 @@ static int b1dma_loaded(avmcard *card)
 			if ((ans = b1_get_byte(base)) == RECEIVE_POLLDWORD) {
 				return 1;
 			}
-			printk(KERN_ERR "%s: b1dma_loaded: got 0x%x, firmware not running in dword mode\n", card->name, ans);
+			printk(KERN_ERR "%s: b1dma_loaded: got 0x%x, firmware yest running in dword mode\n", card->name, ans);
 			return 0;
 		}
 	}
-	printk(KERN_ERR "%s: b1dma_loaded: firmware not running\n", card->name);
+	printk(KERN_ERR "%s: b1dma_loaded: firmware yest running\n", card->name);
 	return 0;
 }
 
@@ -685,7 +685,7 @@ static void b1dma_send_init(avmcard *card)
 
 	skb = alloc_skb(15, GFP_ATOMIC);
 	if (!skb) {
-		printk(KERN_CRIT "%s: no memory, lost register appl.\n",
+		printk(KERN_CRIT "%s: yes memory, lost register appl.\n",
 		       card->name);
 		return;
 	}
@@ -784,7 +784,7 @@ void b1dma_register_appl(struct capi_ctr *ctrl,
 
 	skb = alloc_skb(23, GFP_ATOMIC);
 	if (!skb) {
-		printk(KERN_CRIT "%s: no memory, lost register appl.\n",
+		printk(KERN_CRIT "%s: yes memory, lost register appl.\n",
 		       card->name);
 		return;
 	}
@@ -818,7 +818,7 @@ void b1dma_release_appl(struct capi_ctr *ctrl, u16 appl)
 
 	skb = alloc_skb(7, GFP_ATOMIC);
 	if (!skb) {
-		printk(KERN_CRIT "%s: no memory, lost release appl.\n",
+		printk(KERN_CRIT "%s: yes memory, lost release appl.\n",
 		       card->name);
 		return;
 	}

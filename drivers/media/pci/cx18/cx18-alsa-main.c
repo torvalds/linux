@@ -127,7 +127,7 @@ static int snd_cx18_init(struct v4l2_device *v4l2_dev)
 	/* Numbrs steps from "Writing an ALSA Driver" by Takashi Iwai */
 
 	/* (1) Check and increment the device index */
-	/* This is a no-op for us.  We'll use the cx->instance */
+	/* This is a yes-op for us.  We'll use the cx->instance */
 
 	/* (2) Create a card instance */
 	ret = snd_card_new(&cx->pci_dev->dev,
@@ -161,7 +161,7 @@ static int snd_cx18_init(struct v4l2_device *v4l2_dev)
 	/* FIXME - proc files */
 
 	/* (7) Set the driver data and return 0 */
-	/* We do this out of normal order for PCI drivers to avoid races */
+	/* We do this out of yesrmal order for PCI drivers to avoid races */
 	cx->alsa = cxsc;
 
 	/* (6) Register the card instance */

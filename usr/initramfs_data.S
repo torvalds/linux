@@ -3,7 +3,7 @@
   initramfs_data includes the compressed binary that is the
   filesystem used for early user space.
   Note: Older versions of "as" (prior to binutils 2.11.90.0.23
-  released on 2001-07-14) dit not support .incbin.
+  released on 2001-07-14) dit yest support .incbin.
   If you are forced to use older binutils than that then the
   following trick can be applied to create the resulting binary:
 

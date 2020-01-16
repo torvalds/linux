@@ -1,12 +1,12 @@
 /* SPDX-License-Identifier: GPL-2.0+ */
 /*
- * RCU node combining tree definitions.  These are used to compute
+ * RCU yesde combining tree definitions.  These are used to compute
  * global attributes while avoiding common-case global contention.  A key
  * property that these computations rely on is a tournament-style approach
  * where only one of the tasks contending a lower level in the tree need
  * advance to the next higher level.  If properly configured, this allows
  * unlimited scalability while maintaining a constant level of contention
- * on the root node.
+ * on the root yesde.
  *
  * This seemingly RCU-private file must be available to SRCU users
  * because the size of the TREE SRCU srcu_struct structure depends
@@ -54,16 +54,16 @@
 #  define NUM_RCU_LVL_0	      1
 #  define NUM_RCU_NODES	      NUM_RCU_LVL_0
 #  define NUM_RCU_LVL_INIT    { NUM_RCU_LVL_0 }
-#  define RCU_NODE_NAME_INIT  { "rcu_node_0" }
-#  define RCU_FQS_NAME_INIT   { "rcu_node_fqs_0" }
+#  define RCU_NODE_NAME_INIT  { "rcu_yesde_0" }
+#  define RCU_FQS_NAME_INIT   { "rcu_yesde_fqs_0" }
 #elif NR_CPUS <= RCU_FANOUT_2
 #  define RCU_NUM_LVLS	      2
 #  define NUM_RCU_LVL_0	      1
 #  define NUM_RCU_LVL_1	      DIV_ROUND_UP(NR_CPUS, RCU_FANOUT_1)
 #  define NUM_RCU_NODES	      (NUM_RCU_LVL_0 + NUM_RCU_LVL_1)
 #  define NUM_RCU_LVL_INIT    { NUM_RCU_LVL_0, NUM_RCU_LVL_1 }
-#  define RCU_NODE_NAME_INIT  { "rcu_node_0", "rcu_node_1" }
-#  define RCU_FQS_NAME_INIT   { "rcu_node_fqs_0", "rcu_node_fqs_1" }
+#  define RCU_NODE_NAME_INIT  { "rcu_yesde_0", "rcu_yesde_1" }
+#  define RCU_FQS_NAME_INIT   { "rcu_yesde_fqs_0", "rcu_yesde_fqs_1" }
 #elif NR_CPUS <= RCU_FANOUT_3
 #  define RCU_NUM_LVLS	      3
 #  define NUM_RCU_LVL_0	      1
@@ -71,8 +71,8 @@
 #  define NUM_RCU_LVL_2	      DIV_ROUND_UP(NR_CPUS, RCU_FANOUT_1)
 #  define NUM_RCU_NODES	      (NUM_RCU_LVL_0 + NUM_RCU_LVL_1 + NUM_RCU_LVL_2)
 #  define NUM_RCU_LVL_INIT    { NUM_RCU_LVL_0, NUM_RCU_LVL_1, NUM_RCU_LVL_2 }
-#  define RCU_NODE_NAME_INIT  { "rcu_node_0", "rcu_node_1", "rcu_node_2" }
-#  define RCU_FQS_NAME_INIT   { "rcu_node_fqs_0", "rcu_node_fqs_1", "rcu_node_fqs_2" }
+#  define RCU_NODE_NAME_INIT  { "rcu_yesde_0", "rcu_yesde_1", "rcu_yesde_2" }
+#  define RCU_FQS_NAME_INIT   { "rcu_yesde_fqs_0", "rcu_yesde_fqs_1", "rcu_yesde_fqs_2" }
 #elif NR_CPUS <= RCU_FANOUT_4
 #  define RCU_NUM_LVLS	      4
 #  define NUM_RCU_LVL_0	      1
@@ -81,8 +81,8 @@
 #  define NUM_RCU_LVL_3	      DIV_ROUND_UP(NR_CPUS, RCU_FANOUT_1)
 #  define NUM_RCU_NODES	      (NUM_RCU_LVL_0 + NUM_RCU_LVL_1 + NUM_RCU_LVL_2 + NUM_RCU_LVL_3)
 #  define NUM_RCU_LVL_INIT    { NUM_RCU_LVL_0, NUM_RCU_LVL_1, NUM_RCU_LVL_2, NUM_RCU_LVL_3 }
-#  define RCU_NODE_NAME_INIT  { "rcu_node_0", "rcu_node_1", "rcu_node_2", "rcu_node_3" }
-#  define RCU_FQS_NAME_INIT   { "rcu_node_fqs_0", "rcu_node_fqs_1", "rcu_node_fqs_2", "rcu_node_fqs_3" }
+#  define RCU_NODE_NAME_INIT  { "rcu_yesde_0", "rcu_yesde_1", "rcu_yesde_2", "rcu_yesde_3" }
+#  define RCU_FQS_NAME_INIT   { "rcu_yesde_fqs_0", "rcu_yesde_fqs_1", "rcu_yesde_fqs_2", "rcu_yesde_fqs_3" }
 #else
 # error "CONFIG_RCU_FANOUT insufficient for NR_CPUS"
 #endif /* #if (NR_CPUS) <= RCU_FANOUT_1 */

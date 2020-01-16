@@ -28,11 +28,11 @@
  * Driver overview
  *
  * Unit record device support is implemented as a character device driver.
- * We can fit at least 16 bits into a device minor number and use the
- * simple method of mapping a character device number with minor abcd
- * to the unit record device with devno abcd.
+ * We can fit at least 16 bits into a device miyesr number and use the
+ * simple method of mapping a character device number with miyesr abcd
+ * to the unit record device with devyes abcd.
  * I/O to virtual unit record devices is handled as follows:
- * Reads: Diagnose code 0x14 (input spool file manipulation)
+ * Reads: Diagyesse code 0x14 (input spool file manipulation)
  * is used to read spool data page-wise.
  * Writes: The CCW used is WRITE_CCW_CMD (0x01). The device's record length
  * is available by reading sysfs attr reclen. Each write() to the device
@@ -143,13 +143,13 @@ static struct urdev *urdev_get_from_cdev(struct ccw_device *cdev)
 	return urd;
 }
 
-static struct urdev *urdev_get_from_devno(u16 devno)
+static struct urdev *urdev_get_from_devyes(u16 devyes)
 {
 	char bus_id[16];
 	struct ccw_device *cdev;
 	struct urdev *urd;
 
-	sprintf(bus_id, "0.0.%04x", devno);
+	sprintf(bus_id, "0.0.%04x", devyes);
 	cdev = get_ccwdev_by_busid(&ur_driver, bus_id);
 	if (!cdev)
 		return NULL;
@@ -169,9 +169,9 @@ static void urdev_put(struct urdev *urd)
  * CP commands such as PURGE or TRANSFER, while the Linux guest is suspended.
  * Also the Linux guest might be logged off, which causes all active spool
  * files to be closed.
- * So we cannot guarantee that spool files are still the same when the Linux
+ * So we canyest guarantee that spool files are still the same when the Linux
  * guest is resumed. In order to avoid unpredictable results at resume time
- * we simply refuse to suspend if a ur device node is open.
+ * we simply refuse to suspend if a ur device yesde is open.
  */
 static int ur_pm_suspend(struct ccw_device *cdev)
 {
@@ -199,7 +199,7 @@ static int ur_pm_suspend(struct ccw_device *cdev)
  * do_ur_io issues the channel program to the device and blocks waiting
  * on a completion event it publishes at urd->io_done. The function
  * serialises itself on the device's mutex so that only one I/O
- * is issued at a time (and that I/O is synchronous).
+ * is issued at a time (and that I/O is synchroyesus).
  *
  * ur_int_handler catches the "I/O done" interrupt, writes the
  * subchannel status word into the scsw member of the urdev structure
@@ -359,18 +359,18 @@ static void ur_remove_attributes(struct device *dev)
 }
 
 /*
- * diagnose code 0x210 - retrieve device information
- * cc=0  normal completion, we have a real device
+ * diagyesse code 0x210 - retrieve device information
+ * cc=0  yesrmal completion, we have a real device
  * cc=1  CP paging error
- * cc=2  The virtual device exists, but is not associated with a real device
- * cc=3  Invalid device address, or the virtual device does not exist
+ * cc=2  The virtual device exists, but is yest associated with a real device
+ * cc=3  Invalid device address, or the virtual device does yest exist
  */
 static int get_urd_class(struct urdev *urd)
 {
 	static struct diag210 ur_diag210;
 	int cc;
 
-	ur_diag210.vrdcdvno = urd->dev_id.devno;
+	ur_diag210.vrdcdvyes = urd->dev_id.devyes;
 	ur_diag210.vrdclen = sizeof(struct diag210);
 
 	cc = diag210(&ur_diag210);
@@ -459,17 +459,17 @@ static ssize_t ur_write(struct file *file, const char __user *udata,
 }
 
 /*
- * diagnose code 0x14 subcode 0x0028 - position spool file to designated
+ * diagyesse code 0x14 subcode 0x0028 - position spool file to designated
  *				       record
- * cc=0  normal completion
- * cc=2  no file active on the virtual reader or device not ready
+ * cc=0  yesrmal completion
+ * cc=2  yes file active on the virtual reader or device yest ready
  * cc=3  record specified is beyond EOF
  */
-static int diag_position_to_record(int devno, int record)
+static int diag_position_to_record(int devyes, int record)
 {
 	int cc;
 
-	cc = diag14(record, devno, 0x28);
+	cc = diag14(record, devyes, 0x28);
 	switch (cc) {
 	case 0:
 		return 0;
@@ -483,18 +483,18 @@ static int diag_position_to_record(int devno, int record)
 }
 
 /*
- * diagnose code 0x14 subcode 0x0000 - read next spool file buffer
- * cc=0  normal completion
+ * diagyesse code 0x14 subcode 0x0000 - read next spool file buffer
+ * cc=0  yesrmal completion
  * cc=1  EOF reached
- * cc=2  no file active on the virtual reader, and no file eligible
+ * cc=2  yes file active on the virtual reader, and yes file eligible
  * cc=3  file already active on the virtual reader or specified virtual
- *	 reader does not exist or is not a reader
+ *	 reader does yest exist or is yest a reader
  */
-static int diag_read_file(int devno, char *buf)
+static int diag_read_file(int devyes, char *buf)
 {
 	int cc;
 
-	cc = diag14((unsigned long) buf, devno, 0x00);
+	cc = diag14((unsigned long) buf, devyes, 0x00);
 	switch (cc) {
 	case 0:
 		return 0;
@@ -519,7 +519,7 @@ static ssize_t diag14_read(struct file *file, char __user *ubuf, size_t count,
 	urd = ((struct urfile *) file->private_data)->urd;
 	reclen = ((struct urfile *) file->private_data)->file_reclen;
 
-	rc = diag_position_to_record(urd->dev_id.devno, *offs / PAGE_SIZE + 1);
+	rc = diag_position_to_record(urd->dev_id.devyes, *offs / PAGE_SIZE + 1);
 	if (rc == -ENODATA)
 		return 0;
 	if (rc)
@@ -533,7 +533,7 @@ static ssize_t diag14_read(struct file *file, char __user *ubuf, size_t count,
 	copied = 0;
 	res = (size_t) (*offs % PAGE_SIZE);
 	do {
-		rc = diag_read_file(urd->dev_id.devno, buf);
+		rc = diag_read_file(urd->dev_id.devyes, buf);
 		if (rc == -ENODATA) {
 			break;
 		}
@@ -578,9 +578,9 @@ static ssize_t ur_read(struct file *file, char __user *ubuf, size_t count,
 }
 
 /*
- * diagnose code 0x14 subcode 0x0fff - retrieve next file descriptor
- * cc=0  normal completion
- * cc=1  no files on reader queue or no subsequent file
+ * diagyesse code 0x14 subcode 0x0fff - retrieve next file descriptor
+ * cc=0  yesrmal completion
+ * cc=1  yes files on reader queue or yes subsequent file
  * cc=2  spid specified is invalid
  */
 static int diag_read_next_file_info(struct file_control_block *buf, int spid)
@@ -611,7 +611,7 @@ static int verify_uri_device(struct urdev *urd)
 	if (rc)
 		goto fail_free_fcb;
 
-	/* if file is in hold status, we do not read it */
+	/* if file is in hold status, we do yest read it */
 	if (fcb->file_stat & (FLG_SYSTEM_HOLD | FLG_USER_HOLD)) {
 		rc = -EPERM;
 		goto fail_free_fcb;
@@ -623,11 +623,11 @@ static int verify_uri_device(struct urdev *urd)
 		rc = -ENOMEM;
 		goto fail_free_fcb;
 	}
-	rc = diag_read_file(urd->dev_id.devno, buf);
-	if ((rc != 0) && (rc != -ENODATA)) /* EOF does not hurt */
+	rc = diag_read_file(urd->dev_id.devyes, buf);
+	if ((rc != 0) && (rc != -ENODATA)) /* EOF does yest hurt */
 		goto fail_free_buf;
 
-	/* check if the file on top of the queue is open now */
+	/* check if the file on top of the queue is open yesw */
 	rc = diag_read_next_file_info(fcb, 0);
 	if (rc)
 		goto fail_free_buf;
@@ -648,7 +648,7 @@ static int verify_device(struct urdev *urd)
 {
 	switch (urd->class) {
 	case DEV_CLASS_UR_O:
-		return 0; /* no check needed here */
+		return 0; /* yes check needed here */
 	case DEV_CLASS_UR_I:
 		return verify_uri_device(urd);
 	default:
@@ -689,9 +689,9 @@ static int get_file_reclen(struct urdev *urd)
 	}
 }
 
-static int ur_open(struct inode *inode, struct file *file)
+static int ur_open(struct iyesde *iyesde, struct file *file)
 {
-	u16 devno;
+	u16 devyes;
 	struct urdev *urd;
 	struct urfile *urf;
 	unsigned short accmode;
@@ -702,12 +702,12 @@ static int ur_open(struct inode *inode, struct file *file)
 	if (accmode == O_RDWR)
 		return -EACCES;
 	/*
-	 * We treat the minor number as the devno of the ur device
+	 * We treat the miyesr number as the devyes of the ur device
 	 * to find in the driver tree.
 	 */
-	devno = MINOR(file_inode(file)->i_rdev);
+	devyes = MINOR(file_iyesde(file)->i_rdev);
 
-	urd = urdev_get_from_devno(devno);
+	urd = urdev_get_from_devyes(devyes);
 	if (!urd) {
 		rc = -ENXIO;
 		goto out;
@@ -768,7 +768,7 @@ out:
 	return rc;
 }
 
-static int ur_release(struct inode *inode, struct file *file)
+static int ur_release(struct iyesde *iyesde, struct file *file)
 {
 	struct urfile *urf = file->private_data;
 
@@ -788,7 +788,7 @@ static loff_t ur_llseek(struct file *file, loff_t offset, int whence)
 		return -ESPIPE; /* seek allowed only for reader */
 	if (offset % PAGE_SIZE)
 		return -ESPIPE; /* only multiples of 4K allowed */
-	return no_seek_end_llseek(file, offset, whence);
+	return yes_seek_end_llseek(file, offset, whence);
 }
 
 static const struct file_operations ur_fops = {
@@ -864,8 +864,8 @@ fail_unlock:
 static int ur_set_online(struct ccw_device *cdev)
 {
 	struct urdev *urd;
-	int minor, major, rc;
-	char node_id[16];
+	int miyesr, major, rc;
+	char yesde_id[16];
 
 	TRACE("ur_set_online: cdev=%p\n", cdev);
 
@@ -878,12 +878,12 @@ static int ur_set_online(struct ccw_device *cdev)
 	}
 
 	if (urd->char_device) {
-		/* Another ur_set_online was faster */
+		/* Ayesther ur_set_online was faster */
 		rc = -EBUSY;
 		goto fail_urdev_put;
 	}
 
-	minor = urd->dev_id.devno;
+	miyesr = urd->dev_id.devyes;
 	major = MAJOR(ur_first_dev_maj_min);
 
 	urd->char_device = cdev_alloc();
@@ -895,23 +895,23 @@ static int ur_set_online(struct ccw_device *cdev)
 	urd->char_device->ops = &ur_fops;
 	urd->char_device->owner = ur_fops.owner;
 
-	rc = cdev_add(urd->char_device, MKDEV(major, minor), 1);
+	rc = cdev_add(urd->char_device, MKDEV(major, miyesr), 1);
 	if (rc)
 		goto fail_free_cdev;
 	if (urd->cdev->id.cu_type == READER_PUNCH_DEVTYPE) {
 		if (urd->class == DEV_CLASS_UR_I)
-			sprintf(node_id, "vmrdr-%s", dev_name(&cdev->dev));
+			sprintf(yesde_id, "vmrdr-%s", dev_name(&cdev->dev));
 		if (urd->class == DEV_CLASS_UR_O)
-			sprintf(node_id, "vmpun-%s", dev_name(&cdev->dev));
+			sprintf(yesde_id, "vmpun-%s", dev_name(&cdev->dev));
 	} else if (urd->cdev->id.cu_type == PRINTER_DEVTYPE) {
-		sprintf(node_id, "vmprt-%s", dev_name(&cdev->dev));
+		sprintf(yesde_id, "vmprt-%s", dev_name(&cdev->dev));
 	} else {
 		rc = -EOPNOTSUPP;
 		goto fail_free_cdev;
 	}
 
 	urd->device = device_create(vmur_class, &cdev->dev,
-				    urd->char_device->dev, NULL, "%s", node_id);
+				    urd->char_device->dev, NULL, "%s", yesde_id);
 	if (IS_ERR(urd->device)) {
 		rc = PTR_ERR(urd->device);
 		TRACE("ur_set_online: device_create rc=%d\n", rc);
@@ -942,7 +942,7 @@ static int ur_set_offline_force(struct ccw_device *cdev, int force)
 		/* ur_remove already deleted our urd */
 		return -ENODEV;
 	if (!urd->char_device) {
-		/* Another ur_set_offline was faster */
+		/* Ayesther ur_set_offline was faster */
 		rc = -EBUSY;
 		goto fail_urdev_put;
 	}
@@ -1001,7 +1001,7 @@ static int __init ur_init(void)
 	dev_t dev;
 
 	if (!MACHINE_IS_VM) {
-		pr_err("The %s cannot be loaded without z/VM\n",
+		pr_err("The %s canyest be loaded without z/VM\n",
 		       ur_banner);
 		return -ENODEV;
 	}

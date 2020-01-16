@@ -305,7 +305,7 @@ mwifiex_11n_find_last_seq_num(struct reorder_tmr_cnxt *ctx)
  * This function flushes all the packets in Rx reordering table.
  *
  * The function checks if any packets are currently buffered in the
- * table or not. In case there are packets available, it dispatches
+ * table or yest. In case there are packets available, it dispatches
  * them and then dumps the Rx reordering table.
  */
 static void
@@ -342,9 +342,9 @@ mwifiex_11n_create_rx_reorder_tbl(struct mwifiex_private *priv, u8 *ta,
 				  int tid, int win_size, int seq_num)
 {
 	int i;
-	struct mwifiex_rx_reorder_tbl *tbl, *new_node;
+	struct mwifiex_rx_reorder_tbl *tbl, *new_yesde;
 	u16 last_seq = 0;
-	struct mwifiex_sta_node *node;
+	struct mwifiex_sta_yesde *yesde;
 
 	/*
 	 * If we get a TID, ta pair which is already present dispatch all the
@@ -356,28 +356,28 @@ mwifiex_11n_create_rx_reorder_tbl(struct mwifiex_private *priv, u8 *ta,
 		return;
 	}
 	/* if !tbl then create one */
-	new_node = kzalloc(sizeof(struct mwifiex_rx_reorder_tbl), GFP_KERNEL);
-	if (!new_node)
+	new_yesde = kzalloc(sizeof(struct mwifiex_rx_reorder_tbl), GFP_KERNEL);
+	if (!new_yesde)
 		return;
 
-	INIT_LIST_HEAD(&new_node->list);
-	new_node->tid = tid;
-	memcpy(new_node->ta, ta, ETH_ALEN);
-	new_node->start_win = seq_num;
-	new_node->init_win = seq_num;
-	new_node->flags = 0;
+	INIT_LIST_HEAD(&new_yesde->list);
+	new_yesde->tid = tid;
+	memcpy(new_yesde->ta, ta, ETH_ALEN);
+	new_yesde->start_win = seq_num;
+	new_yesde->init_win = seq_num;
+	new_yesde->flags = 0;
 
 	spin_lock_bh(&priv->sta_list_spinlock);
 	if (mwifiex_queuing_ra_based(priv)) {
 		if (priv->bss_role == MWIFIEX_BSS_ROLE_UAP) {
-			node = mwifiex_get_sta_entry(priv, ta);
-			if (node)
-				last_seq = node->rx_seq[tid];
+			yesde = mwifiex_get_sta_entry(priv, ta);
+			if (yesde)
+				last_seq = yesde->rx_seq[tid];
 		}
 	} else {
-		node = mwifiex_get_sta_entry(priv, ta);
-		if (node)
-			last_seq = node->rx_seq[tid];
+		yesde = mwifiex_get_sta_entry(priv, ta);
+		if (yesde)
+			last_seq = yesde->rx_seq[tid];
 		else
 			last_seq = priv->rx_seq[tid];
 	}
@@ -385,36 +385,36 @@ mwifiex_11n_create_rx_reorder_tbl(struct mwifiex_private *priv, u8 *ta,
 
 	mwifiex_dbg(priv->adapter, INFO,
 		    "info: last_seq=%d start_win=%d\n",
-		    last_seq, new_node->start_win);
+		    last_seq, new_yesde->start_win);
 
 	if (last_seq != MWIFIEX_DEF_11N_RX_SEQ_NUM &&
-	    last_seq >= new_node->start_win) {
-		new_node->start_win = last_seq + 1;
-		new_node->flags |= RXREOR_INIT_WINDOW_SHIFT;
+	    last_seq >= new_yesde->start_win) {
+		new_yesde->start_win = last_seq + 1;
+		new_yesde->flags |= RXREOR_INIT_WINDOW_SHIFT;
 	}
 
-	new_node->win_size = win_size;
+	new_yesde->win_size = win_size;
 
-	new_node->rx_reorder_ptr = kcalloc(win_size, sizeof(void *),
+	new_yesde->rx_reorder_ptr = kcalloc(win_size, sizeof(void *),
 					   GFP_KERNEL);
-	if (!new_node->rx_reorder_ptr) {
-		kfree((u8 *) new_node);
+	if (!new_yesde->rx_reorder_ptr) {
+		kfree((u8 *) new_yesde);
 		mwifiex_dbg(priv->adapter, ERROR,
 			    "%s: failed to alloc reorder_ptr\n", __func__);
 		return;
 	}
 
-	new_node->timer_context.ptr = new_node;
-	new_node->timer_context.priv = priv;
-	new_node->timer_context.timer_is_set = false;
+	new_yesde->timer_context.ptr = new_yesde;
+	new_yesde->timer_context.priv = priv;
+	new_yesde->timer_context.timer_is_set = false;
 
-	timer_setup(&new_node->timer_context.timer, mwifiex_flush_data, 0);
+	timer_setup(&new_yesde->timer_context.timer, mwifiex_flush_data, 0);
 
 	for (i = 0; i < win_size; ++i)
-		new_node->rx_reorder_ptr[i] = NULL;
+		new_yesde->rx_reorder_ptr[i] = NULL;
 
 	spin_lock_bh(&priv->rx_reorder_tbl_lock);
-	list_add_tail(&new_node->list, &priv->rx_reorder_tbl_ptr);
+	list_add_tail(&new_yesde->list, &priv->rx_reorder_tbl_ptr);
 	spin_unlock_bh(&priv->rx_reorder_tbl_lock);
 }
 
@@ -467,7 +467,7 @@ int mwifiex_cmd_11n_addba_rsp_gen(struct mwifiex_private *priv,
 				  *cmd_addba_req)
 {
 	struct host_cmd_ds_11n_addba_rsp *add_ba_rsp = &cmd->params.add_ba_rsp;
-	struct mwifiex_sta_node *sta_ptr;
+	struct mwifiex_sta_yesde *sta_ptr;
 	u32 rx_win_size = priv->add_ba_param.rx_win_size;
 	u8 tid;
 	int win_size;
@@ -483,7 +483,7 @@ int mwifiex_cmd_11n_addba_rsp_gen(struct mwifiex_private *priv,
 		if (!sta_ptr) {
 			spin_unlock_bh(&priv->sta_list_spinlock);
 			mwifiex_dbg(priv->adapter, ERROR,
-				    "BA setup with unknown TDLS peer %pM!\n",
+				    "BA setup with unkyeswn TDLS peer %pM!\n",
 				    cmd_addba_req->peer_mac_addr);
 			return -1;
 		}
@@ -550,7 +550,7 @@ int mwifiex_cmd_11n_delba(struct host_cmd_ds_command *cmd, void *data_buf)
  * before sending it to kernel.
  *
  * The Rx reorder table is checked first with the received TID/TA pair. If
- * not found, the received packet is dispatched immediately. But if found,
+ * yest found, the received packet is dispatched immediately. But if found,
  * the packet is reordered and all the packets in the updated Rx reordering
  * table is dispatched until a hole is found.
  *
@@ -600,7 +600,7 @@ int mwifiex_11n_rx_reorder_pkt(struct mwifiex_private *priv,
 		end_win = ((start_win + win_size) - 1) & (MAX_TID_VALUE - 1);
 	} else {
 		/*
-		 * If seq_num is less then starting win then ignore and drop
+		 * If seq_num is less then starting win then igyesre and drop
 		 * the packet
 		 */
 		if ((start_win + TWOPOW11) > (MAX_TID_VALUE - 1)) {
@@ -691,7 +691,7 @@ mwifiex_del_ba_tbl(struct mwifiex_private *priv, int tid, u8 *peer_mac,
 								 peer_mac);
 		if (!tbl) {
 			mwifiex_dbg(priv->adapter, EVENT,
-				    "event: TID, TA not found in table\n");
+				    "event: TID, TA yest found in table\n");
 			return;
 		}
 		mwifiex_del_rx_reorder_entry(priv, tbl);
@@ -699,12 +699,12 @@ mwifiex_del_ba_tbl(struct mwifiex_private *priv, int tid, u8 *peer_mac,
 		ptx_tbl = mwifiex_get_ba_tbl(priv, tid, peer_mac);
 		if (!ptx_tbl) {
 			mwifiex_dbg(priv->adapter, EVENT,
-				    "event: TID, RA not found in table\n");
+				    "event: TID, RA yest found in table\n");
 			return;
 		}
 
 		tid_down = mwifiex_wmm_downgrade_tid(priv, tid);
-		ra_list = mwifiex_wmm_get_ralist_node(priv, tid_down, peer_mac);
+		ra_list = mwifiex_wmm_get_ralist_yesde(priv, tid_down, peer_mac);
 		if (ra_list) {
 			ra_list->amsdu_in_ampdu = false;
 			ra_list->ba_status = BA_SETUP_NONE;
@@ -734,7 +734,7 @@ int mwifiex_ret_11n_addba_resp(struct mwifiex_private *priv,
 	tid = (block_ack_param_set & IEEE80211_ADDBA_PARAM_TID_MASK)
 		>> BLOCKACKPARAM_TID_POS;
 	/*
-	 * Check if we had rejected the ADDBA, if yes then do not create
+	 * Check if we had rejected the ADDBA, if no then do yest create
 	 * the stream
 	 */
 	if (le16_to_cpu(add_ba_rsp->status_code) != BA_RESULT_SUCCESS) {
@@ -796,10 +796,10 @@ void mwifiex_11n_ba_stream_timeout(struct mwifiex_private *priv,
  */
 void mwifiex_11n_cleanup_reorder_tbl(struct mwifiex_private *priv)
 {
-	struct mwifiex_rx_reorder_tbl *del_tbl_ptr, *tmp_node;
+	struct mwifiex_rx_reorder_tbl *del_tbl_ptr, *tmp_yesde;
 
 	spin_lock_bh(&priv->rx_reorder_tbl_lock);
-	list_for_each_entry_safe(del_tbl_ptr, tmp_node,
+	list_for_each_entry_safe(del_tbl_ptr, tmp_yesde,
 				 &priv->rx_reorder_tbl_ptr, list) {
 		spin_unlock_bh(&priv->rx_reorder_tbl_lock);
 		mwifiex_del_rx_reorder_entry(priv, del_tbl_ptr);
@@ -951,7 +951,7 @@ void mwifiex_11n_rxba_sync_event(struct mwifiex_private *priv,
 						       tlv_rxba->mac);
 		if (!rx_reor_tbl_ptr) {
 			mwifiex_dbg(priv->adapter, ERROR,
-				    "Can not find rx_reorder_tbl!");
+				    "Can yest find rx_reorder_tbl!");
 			return;
 		}
 

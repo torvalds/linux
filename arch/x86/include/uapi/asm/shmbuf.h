@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 #ifndef __ASM_X86_SHMBUF_H
 #define __ASM_X86_SHMBUF_H
 
@@ -21,7 +21,7 @@ struct shmid64_ds {
 	__kernel_long_t		shm_ctime;	/* last change time */
 	__kernel_pid_t		shm_cpid;	/* pid of creator */
 	__kernel_pid_t		shm_lpid;	/* pid of last operator */
-	__kernel_ulong_t	shm_nattch;	/* no. of current attaches */
+	__kernel_ulong_t	shm_nattch;	/* yes. of current attaches */
 	__kernel_ulong_t	__unused4;
 	__kernel_ulong_t	__unused5;
 };

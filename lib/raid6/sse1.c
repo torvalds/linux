@@ -12,7 +12,7 @@
  *
  * This is really an MMX implementation, but it requires SSE-1 or
  * AMD MMXEXT for prefetch support and a few other features.  The
- * support for nontemporal memory accesses is enough to make this
+ * support for yesntemporal memory accesses is eyesugh to make this
  * worthwhile as a separate implementation.
  */
 
@@ -87,7 +87,7 @@ static void raid6_sse11_gen_syndrome(int disks, size_t bytes, void **ptrs)
 
 const struct raid6_calls raid6_sse1x1 = {
 	raid6_sse11_gen_syndrome,
-	NULL,			/* XOR not yet implemented */
+	NULL,			/* XOR yest yet implemented */
 	raid6_have_sse1_or_mmxext,
 	"sse1x1",
 	1			/* Has cache hints */
@@ -150,7 +150,7 @@ static void raid6_sse12_gen_syndrome(int disks, size_t bytes, void **ptrs)
 
 const struct raid6_calls raid6_sse1x2 = {
 	raid6_sse12_gen_syndrome,
-	NULL,			/* XOR not yet implemented */
+	NULL,			/* XOR yest yet implemented */
 	raid6_have_sse1_or_mmxext,
 	"sse1x2",
 	1			/* Has cache hints */

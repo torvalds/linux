@@ -251,7 +251,7 @@
 		reg = <0>;
 		#address-cells = <1>;
 		#size-cells = <1>;
-		compatible = "micron,n25q256a", "jedec,spi-nor";
+		compatible = "micron,n25q256a", "jedec,spi-yesr";
 		spi-max-frequency = <29000000>;
 	};
 };
@@ -293,9 +293,9 @@
 	pinctrl-2 = <&pinctrl_usdhc1_200mhz>;
 	vqmmc-supply = <&sw4_reg>;
 	bus-width = <8>;
-	non-removable;
-	no-sd;
-	no-sdio;
+	yesn-removable;
+	yes-sd;
+	yes-sdio;
 	status = "okay";
 };
 

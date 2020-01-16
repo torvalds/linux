@@ -204,7 +204,7 @@ static int da9055_regulator_set_voltage_sel(struct regulator_dev *rdev,
 	int ret;
 
 	/*
-	 * Regulator register set A/B is not selected through GPIO therefore
+	 * Regulator register set A/B is yest selected through GPIO therefore
 	 * we use default register set A for voltage ramping.
 	 */
 	if (regulator->reg_rselect == NO_GPIO) {
@@ -333,7 +333,7 @@ static const struct regulator_ops da9055_ldo_ops = {
 	.reg_desc = {\
 		.name = #_id,\
 		.of_match = of_match_ptr(#_id),\
-		.regulators_node = of_match_ptr("regulators"),\
+		.regulators_yesde = of_match_ptr("regulators"),\
 		.ops = &da9055_ldo_ops,\
 		.type = REGULATOR_VOLTAGE,\
 		.id = DA9055_ID_##_id,\
@@ -363,7 +363,7 @@ static const struct regulator_ops da9055_ldo_ops = {
 	.reg_desc = {\
 		.name = #_id,\
 		.of_match = of_match_ptr(#_id),\
-		.regulators_node = of_match_ptr("regulators"),\
+		.regulators_yesde = of_match_ptr("regulators"),\
 		.ops = &da9055_buck_ops,\
 		.type = REGULATOR_VOLTAGE,\
 		.id = DA9055_ID_##_id,\
@@ -440,7 +440,7 @@ static int da9055_gpio_init(struct da9055_regulator *regulator,
 			goto err;
 
 		/*
-		 * Let the regulator know that its state is controlled
+		 * Let the regulator kyesw that its state is controlled
 		 * through GPI.
 		 */
 		ret = da9055_reg_update(regulator->da9055, info->conf.reg,
@@ -468,7 +468,7 @@ static int da9055_gpio_init(struct da9055_regulator *regulator,
 			goto err;
 
 		/*
-		 * Let the regulator know that its register set A/B
+		 * Let the regulator kyesw that its register set A/B
 		 * will be selected through GPI for voltage ramping.
 		 */
 		ret = da9055_reg_update(regulator->da9055, info->conf.reg,
@@ -486,7 +486,7 @@ static irqreturn_t da9055_ldo5_6_oc_irq(int irq, void *data)
 	struct da9055_regulator *regulator = data;
 
 	regulator_lock(regulator->rdev);
-	regulator_notifier_call_chain(regulator->rdev,
+	regulator_yestifier_call_chain(regulator->rdev,
 				      REGULATOR_EVENT_OVER_CURRENT, NULL);
 	regulator_unlock(regulator->rdev);
 

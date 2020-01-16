@@ -3,7 +3,7 @@
 |
 |	The entry point satanh computes the inverse
 |	hyperbolic tangent of
-|	an input argument; satanhd does the same except for denormalized
+|	an input argument; satanhd does the same except for deyesrmalized
 |	input.
 |
 |	Input: Double-extended number X in location pointed to
@@ -11,10 +11,10 @@
 |
 |	Output: The value arctanh(X) returned in floating-point register Fp0.
 |
-|	Accuracy and Monotonicity: The returned result is within 3 ulps in
+|	Accuracy and Moyestonicity: The returned result is within 3 ulps in
 |		64 significant bit, i.e. within 0.5001 ulp to 53 bits if the
 |		result is subsequently rounded to double precision. The
-|		result is provably monotonic in double precision.
+|		result is provably moyestonic in double precision.
 |
 |	Speed: The program satanh takes approximately 270 cycles.
 |

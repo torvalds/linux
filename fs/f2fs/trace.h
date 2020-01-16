@@ -22,7 +22,7 @@ enum file_type {
 };
 
 struct last_io_info {
-	int major, minor;
+	int major, miyesr;
 	pid_t pid;
 	enum file_type type;
 	struct f2fs_io_info fio;

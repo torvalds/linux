@@ -81,12 +81,12 @@
 
 /* Define default for DRV_PCM_STATE_CHANGE */
 #ifndef	DRV_PCM_STATE_CHANGE
-#define	DRV_PCM_STATE_CHANGE(smc,plc,p_state)	/* nothing */
+#define	DRV_PCM_STATE_CHANGE(smc,plc,p_state)	/* yesthing */
 #endif
 
 /* Define default for DRV_RMT_INDICATION */
 #ifndef	DRV_RMT_INDICATION
-#define	DRV_RMT_INDICATION(smc,i)	/* nothing */
+#define	DRV_RMT_INDICATION(smc,i)	/* yesthing */
 #endif
 
 #endif	/* n_SKFBIINC_ */

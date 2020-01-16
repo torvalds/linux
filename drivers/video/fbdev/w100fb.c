@@ -153,7 +153,7 @@ static ssize_t fastpllclk_store(struct device *dev, struct device_attribute *att
 		printk("w100fb: Using fast system clock (if possible)\n");
 	} else {
 		par->fastpll_mode=0;
-		printk("w100fb: Using normal system clock\n");
+		printk("w100fb: Using yesrmal system clock\n");
 	}
 
 	w100_init_clocks(par);
@@ -199,7 +199,7 @@ static void w100fb_clear_screen(struct w100fb_par *par)
 /*
  * Set a palette value from rgb components
  */
-static int w100fb_setcolreg(u_int regno, u_int red, u_int green, u_int blue,
+static int w100fb_setcolreg(u_int regyes, u_int red, u_int green, u_int blue,
 			     u_int trans, struct fb_info *info)
 {
 	unsigned int val;
@@ -207,7 +207,7 @@ static int w100fb_setcolreg(u_int regno, u_int red, u_int green, u_int blue,
 
 	/*
 	 * If greyscale is true, then we convert the RGB value
-	 * to greyscale no matter what visual we are using.
+	 * to greyscale yes matter what visual we are using.
 	 */
 	if (info->var.grayscale)
 		red = green = blue = (19595 * red + 38470 * green + 7471 * blue) >> 16;
@@ -216,11 +216,11 @@ static int w100fb_setcolreg(u_int regno, u_int red, u_int green, u_int blue,
 	 * 16-bit True Colour.  We encode the RGB value
 	 * according to the RGB bitfield information.
 	 */
-	if (regno < MAX_PALETTES) {
+	if (regyes < MAX_PALETTES) {
 		u32 *pal = info->pseudo_palette;
 
 		val = (red & 0xf800) | ((green & 0xfc00) >> 5) | ((blue & 0xf800) >> 11);
-		pal[regno] = val;
+		pal[regyes] = val;
 		ret = 0;
 	}
 	return ret;
@@ -500,7 +500,7 @@ static int w100fb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 	var->blue.length = 5;
 	var->transp.offset = var->transp.length = 0;
 
-	var->nonstd = 0;
+	var->yesnstd = 0;
 	var->height = -1;
 	var->width = -1;
 	var->vmode = FB_VMODE_NONINTERLACED;
@@ -648,12 +648,12 @@ int w100fb_probe(struct platform_device *pdev)
 		return -EINVAL;
 
 	/* Remap the chip base address */
-	remapped_base = ioremap_nocache(mem->start+W100_CFG_BASE, W100_CFG_LEN);
+	remapped_base = ioremap_yescache(mem->start+W100_CFG_BASE, W100_CFG_LEN);
 	if (remapped_base == NULL)
 		goto out;
 
 	/* Map the register space */
-	remapped_regs = ioremap_nocache(mem->start+W100_REG_BASE, W100_REG_LEN);
+	remapped_regs = ioremap_yescache(mem->start+W100_REG_BASE, W100_REG_LEN);
 	if (remapped_regs == NULL)
 		goto out;
 
@@ -665,14 +665,14 @@ int w100fb_probe(struct platform_device *pdev)
 		case CHIP_ID_W3200: printk("w3200"); break;
 		case CHIP_ID_W3220: printk("w3220"); break;
 		default:
-			printk("Unknown imageon chip ID\n");
+			printk("Unkyeswn imageon chip ID\n");
 			err = -ENODEV;
 			goto out;
 	}
 	printk(" at 0x%08lx.\n", (unsigned long) mem->start+W100_CFG_BASE);
 
 	/* Remap the framebuffer */
-	remapped_fbuf = ioremap_nocache(mem->start+MEM_WINDOW_BASE, MEM_WINDOW_SIZE);
+	remapped_fbuf = ioremap_yescache(mem->start+MEM_WINDOW_BASE, MEM_WINDOW_SIZE);
 	if (remapped_fbuf == NULL)
 		goto out;
 
@@ -708,7 +708,7 @@ int w100fb_probe(struct platform_device *pdev)
 	info->fbops = &w100fb_ops;
 	info->flags = FBINFO_DEFAULT | FBINFO_HWACCEL_COPYAREA |
 		FBINFO_HWACCEL_FILLRECT;
-	info->node = -1;
+	info->yesde = -1;
 	info->screen_base = remapped_fbuf + (W100_FB_BASE-MEM_WINDOW_BASE);
 	info->screen_size = REMAPPED_FB_LEN;
 
@@ -1064,7 +1064,7 @@ static int w100_pll_adjust(struct w100_pll_info *pll)
 
 	/* Initial Settings */
 	w100_pwr_state.pll_cntl.f.pll_pwdn = 0x0;     /* power down */
-	w100_pwr_state.pll_cntl.f.pll_reset = 0x0;    /* not reset */
+	w100_pwr_state.pll_cntl.f.pll_reset = 0x0;    /* yest reset */
 	w100_pwr_state.pll_cntl.f.pll_tcpoff = 0x1;   /* Hi-Z */
 	w100_pwr_state.pll_cntl.f.pll_pvg = 0x0;      /* VCO gain = 0 */
 	w100_pwr_state.pll_cntl.f.pll_vcofr = 0x0;    /* VCO frequency range control = off */
@@ -1129,7 +1129,7 @@ static int w100_pll_calibration(struct w100_pll_info *pll)
 	udelay(1);  /* reset time */
 
 	/* enable charge pump */
-	w100_pwr_state.pll_cntl.f.pll_tcpoff = 0x0;  /* normal */
+	w100_pwr_state.pll_cntl.f.pll_tcpoff = 0x0;  /* yesrmal */
 	writel((u32) (w100_pwr_state.pll_cntl.val), remapped_regs + mmPLL_CNTL);
 
 	/* set VCO input = Hi-Z, disable DAC */
@@ -1150,8 +1150,8 @@ static int w100_pll_set_clk(struct w100_pll_info *pll)
 
 	if (w100_pwr_state.auto_mode == 1)  /* auto mode */
 	{
-		w100_pwr_state.pwrmgt_cntl.f.pwm_fast_noml_hw_en = 0x0;  /* disable fast to normal */
-		w100_pwr_state.pwrmgt_cntl.f.pwm_noml_fast_hw_en = 0x0;  /* disable normal to fast */
+		w100_pwr_state.pwrmgt_cntl.f.pwm_fast_yesml_hw_en = 0x0;  /* disable fast to yesrmal */
+		w100_pwr_state.pwrmgt_cntl.f.pwm_yesml_fast_hw_en = 0x0;  /* disable yesrmal to fast */
 		writel((u32) (w100_pwr_state.pwrmgt_cntl.val), remapped_regs + mmPWRMGT_CNTL);
 	}
 
@@ -1172,8 +1172,8 @@ static int w100_pll_set_clk(struct w100_pll_info *pll)
 
 	if (w100_pwr_state.auto_mode == 1)  /* auto mode */
 	{
-		w100_pwr_state.pwrmgt_cntl.f.pwm_fast_noml_hw_en = 0x1;  /* reenable fast to normal */
-		w100_pwr_state.pwrmgt_cntl.f.pwm_noml_fast_hw_en = 0x1;  /* reenable normal to fast  */
+		w100_pwr_state.pwrmgt_cntl.f.pwm_fast_yesml_hw_en = 0x1;  /* reenable fast to yesrmal */
+		w100_pwr_state.pwrmgt_cntl.f.pwm_yesml_fast_hw_en = 0x1;  /* reenable yesrmal to fast  */
 		writel((u32) (w100_pwr_state.pwrmgt_cntl.val), remapped_regs + mmPWRMGT_CNTL);
 	}
 	return status;
@@ -1258,12 +1258,12 @@ static void w100_pwm_setup(struct w100fb_par *par)
 	writel((u32) (w100_pwr_state.pll_cntl.val), remapped_regs + mmPLL_CNTL);
 
 	w100_pwr_state.pwrmgt_cntl.f.pwm_enable = 0x0;
-	w100_pwr_state.pwrmgt_cntl.f.pwm_mode_req = 0x1;  /* normal mode (0, 1, 3) */
+	w100_pwr_state.pwrmgt_cntl.f.pwm_mode_req = 0x1;  /* yesrmal mode (0, 1, 3) */
 	w100_pwr_state.pwrmgt_cntl.f.pwm_wakeup_cond = 0x0;
-	w100_pwr_state.pwrmgt_cntl.f.pwm_fast_noml_hw_en = 0x0;
-	w100_pwr_state.pwrmgt_cntl.f.pwm_noml_fast_hw_en = 0x0;
-	w100_pwr_state.pwrmgt_cntl.f.pwm_fast_noml_cond = 0x1;  /* PM4,ENG */
-	w100_pwr_state.pwrmgt_cntl.f.pwm_noml_fast_cond = 0x1;  /* PM4,ENG */
+	w100_pwr_state.pwrmgt_cntl.f.pwm_fast_yesml_hw_en = 0x0;
+	w100_pwr_state.pwrmgt_cntl.f.pwm_yesml_fast_hw_en = 0x0;
+	w100_pwr_state.pwrmgt_cntl.f.pwm_fast_yesml_cond = 0x1;  /* PM4,ENG */
+	w100_pwr_state.pwrmgt_cntl.f.pwm_yesml_fast_cond = 0x1;  /* PM4,ENG */
 	w100_pwr_state.pwrmgt_cntl.f.pwm_idle_timer = 0xFF;
 	w100_pwr_state.pwrmgt_cntl.f.pwm_busy_timer = 0xFF;
 	writel((u32) (w100_pwr_state.pwrmgt_cntl.val), remapped_regs + mmPWRMGT_CNTL);
@@ -1480,7 +1480,7 @@ static void w100_set_dispregs(struct w100fb_par *par)
 			graphic_ctrl.f_w32xx.lcd_sclk_on=1;
 			graphic_ctrl.f_w32xx.low_power_on=0;
 			graphic_ctrl.f_w32xx.req_freq=0;
-			graphic_ctrl.f_w32xx.total_req_graphic=par->mode->xres >> 1; /* panel xres, not mode */
+			graphic_ctrl.f_w32xx.total_req_graphic=par->mode->xres >> 1; /* panel xres, yest mode */
 			graphic_ctrl.f_w32xx.portrait_mode=rot;
 			break;
 	}

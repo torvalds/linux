@@ -11,7 +11,7 @@
 #define _LINUX_PSTORE_H
 
 #include <linux/compiler.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/kmsg_dump.h>
 #include <linux/mutex.h>
 #include <linux/semaphore.h>
@@ -55,13 +55,13 @@ struct pstore_info;
  * @time:	timestamp of the record
  * @buf:	pointer to record contents
  * @size:	size of @buf
- * @ecc_notice_size:
+ * @ecc_yestice_size:
  *		ECC information for @buf
  *
  * Valid for PSTORE_TYPE_DMESG @type:
  *
  * @count:	Oops count since boot
- * @reason:	kdump reason for notification
+ * @reason:	kdump reason for yestification
  * @part:	position in a multipart record
  * @compressed:	whether the buffer is compressed
  *
@@ -73,7 +73,7 @@ struct pstore_record {
 	struct timespec64	time;
 	char			*buf;
 	ssize_t			size;
-	ssize_t			ecc_notice_size;
+	ssize_t			ecc_yestice_size;
 
 	int			count;
 	enum kmsg_dump_reason	reason;
@@ -106,7 +106,7 @@ struct pstore_record {
  *
  *	@psi:	in: pointer to the struct pstore_info for the backend
  *
- *	Returns 0 on success, and non-zero on error.
+ *	Returns 0 on success, and yesn-zero on error.
  *
  * @close:
  *	Notify backend that pstore has finished a full read of backend
@@ -115,8 +115,8 @@ struct pstore_record {
  *
  *	@psi:	in: pointer to the struct pstore_info for the backend
  *
- *	Returns 0 on success, and non-zero on error. (Though pstore will
- *	ignore the error.)
+ *	Returns 0 on success, and yesn-zero on error. (Though pstore will
+ *	igyesre the error.)
  *
  * @read:
  *	Read next available backend record. Called after a successful
@@ -128,7 +128,7 @@ struct pstore_record {
  *		be populated, since these are used when creating pstorefs
  *		file names.
  *
- *	Returns record size on success, zero when no more records are
+ *	Returns record size on success, zero when yes more records are
  *	available, or negative on error.
  *
  * @write:
@@ -145,7 +145,7 @@ struct pstore_record {
  *		when available. The @size field will have the size of data
  *		in @buf.
  *
- *	Returns 0 on success, and non-zero on error.
+ *	Returns 0 on success, and yesn-zero on error.
  *
  * @write_user:
  *	Perform a frontend write to a backend record, using a specified
@@ -155,7 +155,7 @@ struct pstore_record {
  *	@record:	pointer to record metadata.
  *	@buf:		pointer to userspace contents to write to backend
  *
- *	Returns 0 on success, and non-zero on error.
+ *	Returns 0 on success, and yesn-zero on error.
  *
  * @erase:
  *	Delete a record from backend storage.  Different backends
@@ -165,7 +165,7 @@ struct pstore_record {
  *
  *	@record:	pointer to record metadata.
  *
- *	Returns 0 on success, and non-zero on error.
+ *	Returns 0 on success, and yesn-zero on error.
  *
  */
 struct pstore_info {

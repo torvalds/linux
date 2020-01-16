@@ -77,11 +77,11 @@ struct vfio_iommu_driver_ops {
 				     unsigned long *phys_pfn);
 	int		(*unpin_pages)(void *iommu_data,
 				       unsigned long *user_pfn, int npage);
-	int		(*register_notifier)(void *iommu_data,
+	int		(*register_yestifier)(void *iommu_data,
 					     unsigned long *events,
-					     struct notifier_block *nb);
-	int		(*unregister_notifier)(void *iommu_data,
-					       struct notifier_block *nb);
+					     struct yestifier_block *nb);
+	int		(*unregister_yestifier)(void *iommu_data,
+					       struct yestifier_block *nb);
 };
 
 extern int vfio_register_iommu_driver(const struct vfio_iommu_driver_ops *ops);
@@ -108,7 +108,7 @@ extern int vfio_unpin_pages(struct device *dev, unsigned long *user_pfn,
 			    int npage);
 
 /* each type has independent events */
-enum vfio_notify_type {
+enum vfio_yestify_type {
 	VFIO_IOMMU_NOTIFY = 0,
 	VFIO_GROUP_NOTIFY = 1,
 };
@@ -119,13 +119,13 @@ enum vfio_notify_type {
 /* events for VFIO_GROUP_NOTIFY */
 #define VFIO_GROUP_NOTIFY_SET_KVM	BIT(0)
 
-extern int vfio_register_notifier(struct device *dev,
-				  enum vfio_notify_type type,
+extern int vfio_register_yestifier(struct device *dev,
+				  enum vfio_yestify_type type,
 				  unsigned long *required_events,
-				  struct notifier_block *nb);
-extern int vfio_unregister_notifier(struct device *dev,
-				    enum vfio_notify_type type,
-				    struct notifier_block *nb);
+				  struct yestifier_block *nb);
+extern int vfio_unregister_yestifier(struct device *dev,
+				    enum vfio_yestify_type type,
+				    struct yestifier_block *nb);
 
 struct kvm;
 extern void vfio_group_set_kvm(struct vfio_group *group, struct kvm *kvm);

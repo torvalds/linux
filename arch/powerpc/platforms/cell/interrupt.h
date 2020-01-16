@@ -3,26 +3,26 @@
 #define ASM_CELL_PIC_H
 #ifdef __KERNEL__
 /*
- * Mapping of IIC pending bits into per-node interrupt numbers.
+ * Mapping of IIC pending bits into per-yesde interrupt numbers.
  *
  * Interrupt numbers are in the range 0...0x1ff where the top bit
- * (0x100) represent the source node. Only 2 nodes are supported with
+ * (0x100) represent the source yesde. Only 2 yesdes are supported with
  * the current code though it's trivial to extend that if necessary using
  * higher level bits
  *
  * The bottom 8 bits are split into 2 type bits and 6 data bits that
  * depend on the type:
  *
- * 00 (0x00 | data) : normal interrupt. data is (class << 4) | source
+ * 00 (0x00 | data) : yesrmal interrupt. data is (class << 4) | source
  * 01 (0x40 | data) : IO exception. data is the exception number as
  *                    defined by bit numbers in IIC_SR
  * 10 (0x80 | data) : IPI. data is the IPI number (obtained from the priority)
- *                    and node is always 0 (IPIs are per-cpu, their source is
- *                    not relevant)
+ *                    and yesde is always 0 (IPIs are per-cpu, their source is
+ *                    yest relevant)
  * 11 (0xc0 | data) : reserved
  *
  * In addition, interrupt number 0x80000000 is defined as always invalid
- * (that is the node field is expected to never extend to move than 23 bits)
+ * (that is the yesde field is expected to never extend to move than 23 bits)
  *
  */
 

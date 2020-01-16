@@ -7,7 +7,7 @@ Required properties:
   These entries are required if regulators are enabled for a device.
   An absence of these properties can cause the regulator registration to fail.
   If some of input supply is powered through battery or always-on supply then
-  also it is required to have these parameters with proper node handle of always
+  also it is required to have these parameters with proper yesde handle of always
   on power supply.
     vin3-supply: Input supply for ldo3
     vin4-supply: Input supply for ldo4
@@ -20,9 +20,9 @@ Optional properties:
 - interrupts : IRQ line information.
 - dlg,cs-gpios : Specify a valid GPIO for chip select
 
-Sub-nodes:
-- regulators : This node defines the settings for the regulators.
-  The content of the sub-node is defined by the standard binding
+Sub-yesdes:
+- regulators : This yesde defines the settings for the regulators.
+  The content of the sub-yesde is defined by the standard binding
   for regulators; see regulator.txt.
 
   The SLG51000 regulators are bound using their names listed below:

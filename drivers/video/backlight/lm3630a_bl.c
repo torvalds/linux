@@ -373,19 +373,19 @@ static const struct regmap_config lm3630a_regmap = {
 	.max_register = REG_MAX,
 };
 
-static int lm3630a_parse_led_sources(struct fwnode_handle *node,
+static int lm3630a_parse_led_sources(struct fwyesde_handle *yesde,
 				     int default_led_sources)
 {
 	u32 sources[LM3630A_NUM_SINKS];
 	int ret, num_sources, i;
 
-	num_sources = fwnode_property_count_u32(node, "led-sources");
+	num_sources = fwyesde_property_count_u32(yesde, "led-sources");
 	if (num_sources < 0)
 		return default_led_sources;
 	else if (num_sources > ARRAY_SIZE(sources))
 		return -EINVAL;
 
-	ret = fwnode_property_read_u32_array(node, "led-sources", sources,
+	ret = fwyesde_property_read_u32_array(yesde, "led-sources", sources,
 					     num_sources);
 	if (ret)
 		return ret;
@@ -401,21 +401,21 @@ static int lm3630a_parse_led_sources(struct fwnode_handle *node,
 }
 
 static int lm3630a_parse_bank(struct lm3630a_platform_data *pdata,
-			      struct fwnode_handle *node, int *seen_led_sources)
+			      struct fwyesde_handle *yesde, int *seen_led_sources)
 {
 	int led_sources, ret;
 	const char *label;
 	u32 bank, val;
 	bool linear;
 
-	ret = fwnode_property_read_u32(node, "reg", &bank);
+	ret = fwyesde_property_read_u32(yesde, "reg", &bank);
 	if (ret)
 		return ret;
 
 	if (bank < LM3630A_BANK_0 || bank > LM3630A_BANK_1)
 		return -EINVAL;
 
-	led_sources = lm3630a_parse_led_sources(node, BIT(bank));
+	led_sources = lm3630a_parse_led_sources(yesde, BIT(bank));
 	if (led_sources < 0)
 		return led_sources;
 
@@ -424,7 +424,7 @@ static int lm3630a_parse_bank(struct lm3630a_platform_data *pdata,
 
 	*seen_led_sources |= led_sources;
 
-	linear = fwnode_property_read_bool(node,
+	linear = fwyesde_property_read_bool(yesde,
 					   "ti,linear-mapping-mode");
 	if (bank) {
 		if (led_sources & BIT(LM3630A_SINK_0) ||
@@ -446,7 +446,7 @@ static int lm3630a_parse_bank(struct lm3630a_platform_data *pdata,
 			pdata->ledb_ctrl = LM3630A_LEDB_ON_A;
 	}
 
-	ret = fwnode_property_read_string(node, "label", &label);
+	ret = fwyesde_property_read_string(yesde, "label", &label);
 	if (!ret) {
 		if (bank)
 			pdata->ledb_label = label;
@@ -454,7 +454,7 @@ static int lm3630a_parse_bank(struct lm3630a_platform_data *pdata,
 			pdata->leda_label = label;
 	}
 
-	ret = fwnode_property_read_u32(node, "default-brightness",
+	ret = fwyesde_property_read_u32(yesde, "default-brightness",
 				       &val);
 	if (!ret) {
 		if (bank)
@@ -463,7 +463,7 @@ static int lm3630a_parse_bank(struct lm3630a_platform_data *pdata,
 			pdata->leda_init_brt = val;
 	}
 
-	ret = fwnode_property_read_u32(node, "max-brightness", &val);
+	ret = fwyesde_property_read_u32(yesde, "max-brightness", &val);
 	if (!ret) {
 		if (bank)
 			pdata->ledb_max_brt = val;
@@ -474,14 +474,14 @@ static int lm3630a_parse_bank(struct lm3630a_platform_data *pdata,
 	return 0;
 }
 
-static int lm3630a_parse_node(struct lm3630a_chip *pchip,
+static int lm3630a_parse_yesde(struct lm3630a_chip *pchip,
 			      struct lm3630a_platform_data *pdata)
 {
 	int ret = -ENODEV, seen_led_sources = 0;
-	struct fwnode_handle *node;
+	struct fwyesde_handle *yesde;
 
-	device_for_each_child_node(pchip->dev, node) {
-		ret = lm3630a_parse_bank(pdata, node, &seen_led_sources);
+	device_for_each_child_yesde(pchip->dev, yesde) {
+		ret = lm3630a_parse_bank(pdata, yesde, &seen_led_sources);
 		if (ret)
 			return ret;
 	}
@@ -528,9 +528,9 @@ static int lm3630a_probe(struct i2c_client *client,
 		pdata->leda_init_brt = LM3630A_MAX_BRIGHTNESS;
 		pdata->ledb_init_brt = LM3630A_MAX_BRIGHTNESS;
 
-		rval = lm3630a_parse_node(pchip, pdata);
+		rval = lm3630a_parse_yesde(pchip, pdata);
 		if (rval) {
-			dev_err(&client->dev, "fail : parse node\n");
+			dev_err(&client->dev, "fail : parse yesde\n");
 			return rval;
 		}
 	}
@@ -570,7 +570,7 @@ static int lm3630a_probe(struct i2c_client *client,
 		pwm_apply_args(pchip->pwmd);
 	}
 
-	/* interrupt enable  : irq 0 is not allowed */
+	/* interrupt enable  : irq 0 is yest allowed */
 	pchip->irq = client->irq;
 	if (pchip->irq) {
 		rval = lm3630a_intr_config(pchip);

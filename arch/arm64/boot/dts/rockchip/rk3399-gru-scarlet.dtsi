@@ -469,15 +469,15 @@ camera: &i2c7 {
 };
 
 &ap_fw_wp {
-	rockchip,pins = <0 RK_PB5 RK_FUNC_GPIO &pcfg_pull_none>;
+	rockchip,pins = <0 RK_PB5 RK_FUNC_GPIO &pcfg_pull_yesne>;
 };
 
 &bl_en {
-	rockchip,pins = <4 RK_PC5 RK_FUNC_GPIO &pcfg_pull_none>;
+	rockchip,pins = <4 RK_PC5 RK_FUNC_GPIO &pcfg_pull_yesne>;
 };
 
 &bt_host_wake_l {
-	rockchip,pins = <1 RK_PA2 RK_FUNC_GPIO &pcfg_pull_none>;
+	rockchip,pins = <1 RK_PA2 RK_FUNC_GPIO &pcfg_pull_yesne>;
 };
 
 &ec_ap_int_l {
@@ -490,15 +490,15 @@ camera: &i2c7 {
 
 &i2s0_8ch_bus {
 	rockchip,pins =
-		<3 RK_PD0 1 &pcfg_pull_none_6ma>,
-		<3 RK_PD1 1 &pcfg_pull_none_6ma>,
-		<3 RK_PD2 1 &pcfg_pull_none_6ma>,
-		<3 RK_PD3 1 &pcfg_pull_none_6ma>,
-		<3 RK_PD7 1 &pcfg_pull_none_6ma>,
-		<4 RK_PA0 1 &pcfg_pull_none_6ma>;
+		<3 RK_PD0 1 &pcfg_pull_yesne_6ma>,
+		<3 RK_PD1 1 &pcfg_pull_yesne_6ma>,
+		<3 RK_PD2 1 &pcfg_pull_yesne_6ma>,
+		<3 RK_PD3 1 &pcfg_pull_yesne_6ma>,
+		<3 RK_PD7 1 &pcfg_pull_yesne_6ma>,
+		<4 RK_PA0 1 &pcfg_pull_yesne_6ma>;
 };
 
-/* there is no external pull up, so need to set this pin pull up */
+/* there is yes external pull up, so need to set this pin pull up */
 &sdmmc_cd_gpio {
 	rockchip,pins = <1 RK_PB3 RK_FUNC_GPIO &pcfg_pull_up>;
 };
@@ -526,26 +526,26 @@ camera: &i2c7 {
 		&wlan_rf_kill_1v8_l
 	>;
 
-	pcfg_pull_none_6ma: pcfg-pull-none-6ma {
+	pcfg_pull_yesne_6ma: pcfg-pull-yesne-6ma {
 		bias-disable;
 		drive-strength = <6>;
 	};
 
 	camera {
 		pp1250_cam_en: pp1250-dvdd {
-			rockchip,pins = <2 RK_PA4 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <2 RK_PA4 RK_FUNC_GPIO &pcfg_pull_yesne>;
 		};
 
 		pp2800_cam_en: pp2800-avdd {
-			rockchip,pins = <2 RK_PD0 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <2 RK_PD0 RK_FUNC_GPIO &pcfg_pull_yesne>;
 		};
 
 		ucam_rst: ucam_rst {
-			rockchip,pins = <2 RK_PA3 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <2 RK_PA3 RK_FUNC_GPIO &pcfg_pull_yesne>;
 		};
 
 		wcam_rst: wcam_rst {
-			rockchip,pins = <2 RK_PA5 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <2 RK_PA5 RK_FUNC_GPIO &pcfg_pull_yesne>;
 		};
 	};
 
@@ -555,7 +555,7 @@ camera: &i2c7 {
 		};
 
 		pen_reset_l: pen-reset-l {
-			rockchip,pins = <0 RK_PB4 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <0 RK_PB4 RK_FUNC_GPIO &pcfg_pull_yesne>;
 		};
 	};
 
@@ -565,17 +565,17 @@ camera: &i2c7 {
 		};
 
 		ppvarp_lcd_en: ppvarp-lcd-en {
-			rockchip,pins = <4 RK_PD3 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <4 RK_PD3 RK_FUNC_GPIO &pcfg_pull_yesne>;
 		};
 
 		ppvarn_lcd_en: ppvarn-lcd-en {
-			rockchip,pins = <4 RK_PD4 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <4 RK_PD4 RK_FUNC_GPIO &pcfg_pull_yesne>;
 		};
 	};
 
 	dmic {
 		dmic_en: dmic-en {
-			rockchip,pins = <4 RK_PA3 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <4 RK_PA3 RK_FUNC_GPIO &pcfg_pull_yesne>;
 		};
 	};
 
@@ -594,11 +594,11 @@ camera: &i2c7 {
 
 &wifi {
 	bt_en_1v8_l: bt-en-1v8-l {
-		rockchip,pins = <0 RK_PB0 RK_FUNC_GPIO &pcfg_pull_none>;
+		rockchip,pins = <0 RK_PB0 RK_FUNC_GPIO &pcfg_pull_yesne>;
 	};
 
 	wlan_pd_1v8_l: wlan-pd-1v8-l {
-		rockchip,pins = <0 RK_PA4 RK_FUNC_GPIO &pcfg_pull_none>;
+		rockchip,pins = <0 RK_PA4 RK_FUNC_GPIO &pcfg_pull_yesne>;
 	};
 
 	/* Default pull-up, but just to be clear */
@@ -607,7 +607,7 @@ camera: &i2c7 {
 	};
 
 	wifi_perst_l: wifi-perst-l {
-		rockchip,pins = <0 RK_PA3 RK_FUNC_GPIO &pcfg_pull_none>;
+		rockchip,pins = <0 RK_PA3 RK_FUNC_GPIO &pcfg_pull_yesne>;
 	};
 
 	wlan_host_wake_l: wlan-host-wake-l {

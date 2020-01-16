@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 /*
  * <linux/gpio.h> - userspace ABI for the GPIO character devices
  *
@@ -46,7 +46,7 @@ struct gpiochip_info {
  * chip, a rail or a pin header name on a board, as specified by the gpio
  * chip, may be NULL
  * @consumer: a functional name for the consumer of this GPIO line as set by
- * whatever is using it, will be NULL if there is no current user but may
+ * whatever is using it, will be NULL if there is yes current user but may
  * also be NULL if the consumer doesn't set this up
  */
 struct gpioline_info {
@@ -87,7 +87,7 @@ struct gpioline_info {
  * such as "my-bitbanged-relay"
  * @lines: number of lines requested in this request, i.e. the number of
  * valid fields in the above arrays, set to 1 to request a single line
- * @fd: if successful this field will contain a valid anonymous file handle
+ * @fd: if successful this field will contain a valid ayesnymous file handle
  * after a GPIO_GET_LINEHANDLE_IOCTL operation, zero or negative value
  * means error
  */
@@ -146,7 +146,7 @@ struct gpiohandle_data {
  * GPIOEVENT_REQUEST_RISING_EDGE or GPIOEVENT_REQUEST_FALLING_EDGE
  * @consumer_label: a desired consumer label for the selected GPIO line(s)
  * such as "my-listener"
- * @fd: if successful this field will contain a valid anonymous file handle
+ * @fd: if successful this field will contain a valid ayesnymous file handle
  * after a GPIO_GET_LINEEVENT_IOCTL operation, zero or negative value
  * means error
  */
@@ -166,7 +166,7 @@ struct gpioevent_request {
 
 /**
  * struct gpioevent_data - The actual event being pushed to userspace
- * @timestamp: best estimate of time of event occurrence, in nanoseconds
+ * @timestamp: best estimate of time of event occurrence, in nayesseconds
  * @id: event identifier
  */
 struct gpioevent_data {

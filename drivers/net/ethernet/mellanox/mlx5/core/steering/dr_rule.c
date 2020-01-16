@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
-/* Copyright (c) 2019 Mellanox Technologies. */
+/* Copyright (c) 2019 Mellayesx Techyeslogies. */
 
 #include "dr_types.h"
 
@@ -18,7 +18,7 @@ static int dr_rule_append_to_miss_list(struct mlx5dr_ste *new_last_ste,
 	struct mlx5dr_ste *last_ste;
 
 	/* The new entry will be inserted after the last */
-	last_ste = list_last_entry(miss_list, struct mlx5dr_ste, miss_list_node);
+	last_ste = list_last_entry(miss_list, struct mlx5dr_ste, miss_list_yesde);
 	WARN_ON(!last_ste);
 
 	ste_info_last = kzalloc(sizeof(*ste_info_last), GFP_KERNEL);
@@ -27,7 +27,7 @@ static int dr_rule_append_to_miss_list(struct mlx5dr_ste *new_last_ste,
 
 	mlx5dr_ste_set_miss_addr(last_ste->hw_ste,
 				 mlx5dr_ste_get_icm_addr(new_last_ste));
-	list_add_tail(&new_last_ste->miss_list_node, miss_list);
+	list_add_tail(&new_last_ste->miss_list_yesde, miss_list);
 
 	mlx5dr_send_fill_and_append_ste_send_info(last_ste, DR_STE_SIZE_REDUCED,
 						  0, last_ste->hw_ste,
@@ -154,7 +154,7 @@ dr_rule_find_ste_in_miss_list(struct list_head *miss_list, u8 *hw_ste)
 		return NULL;
 
 	/* Check if hw_ste is present in the list */
-	list_for_each_entry(ste, miss_list, miss_list_node) {
+	list_for_each_entry(ste, miss_list, miss_list_yesde) {
 		if (mlx5dr_ste_equal_tag(ste->hw_ste, hw_ste))
 			return ste;
 	}
@@ -242,9 +242,9 @@ dr_rule_rehash_copy_ste(struct mlx5dr_matcher *matcher,
 	new_idx = mlx5dr_ste_calc_hash_index(hw_ste, new_htbl);
 	new_ste = &new_htbl->ste_arr[new_idx];
 
-	if (mlx5dr_ste_not_used_ste(new_ste)) {
+	if (mlx5dr_ste_yest_used_ste(new_ste)) {
 		mlx5dr_htbl_get(new_htbl);
-		list_add_tail(&new_ste->miss_list_node,
+		list_add_tail(&new_ste->miss_list_yesde,
 			      mlx5dr_ste_get_miss_list(new_ste));
 	} else {
 		new_ste = dr_rule_rehash_handle_collision(matcher,
@@ -295,7 +295,7 @@ static int dr_rule_rehash_copy_miss_list(struct mlx5dr_matcher *matcher,
 	if (list_empty(cur_miss_list))
 		return 0;
 
-	list_for_each_entry_safe(cur_ste, tmp_ste, cur_miss_list, miss_list_node) {
+	list_for_each_entry_safe(cur_ste, tmp_ste, cur_miss_list, miss_list_yesde) {
 		new_ste = dr_rule_rehash_copy_ste(matcher,
 						  nic_matcher,
 						  cur_ste,
@@ -304,7 +304,7 @@ static int dr_rule_rehash_copy_miss_list(struct mlx5dr_matcher *matcher,
 		if (!new_ste)
 			goto err_insert;
 
-		list_del(&cur_ste->miss_list_node);
+		list_del(&cur_ste->miss_list_yesde);
 		mlx5dr_htbl_put(cur_ste->htbl);
 	}
 	return 0;
@@ -335,7 +335,7 @@ static int dr_rule_rehash_copy_htbl(struct mlx5dr_matcher *matcher,
 
 	for (i = 0; i < cur_entries; i++) {
 		cur_ste = &cur_htbl->ste_arr[i];
-		if (mlx5dr_ste_not_used_ste(cur_ste)) /* Empty, nothing to copy */
+		if (mlx5dr_ste_yest_used_ste(cur_ste)) /* Empty, yesthing to copy */
 			continue;
 
 		err = dr_rule_rehash_copy_miss_list(matcher,
@@ -564,7 +564,7 @@ free_action_members:
 	return -ENOMEM;
 }
 
-/* While the pointer of ste is no longer valid, like while moving ste to be
+/* While the pointer of ste is yes longer valid, like while moving ste to be
  * the first in the miss_list, and to be in the origin table,
  * all rule-members that are attached to this ste should update their ste member
  * to the new pointer
@@ -684,7 +684,7 @@ static int dr_rule_handle_action_stes(struct mlx5dr_rule *rule,
 		mlx5dr_ste_get(action_ste);
 
 		/* While free ste we go over the miss list, so add this ste to the list */
-		list_add_tail(&action_ste->miss_list_node,
+		list_add_tail(&action_ste->miss_list_yesde,
 			      mlx5dr_ste_get_miss_list(action_ste));
 
 		ste_info_arr[k] = kzalloc(sizeof(*ste_info_arr[k]),
@@ -729,7 +729,7 @@ static int dr_rule_handle_empty_entry(struct mlx5dr_matcher *matcher,
 	mlx5dr_htbl_get(cur_htbl);
 
 	/* new entry -> new branch */
-	list_add_tail(&ste->miss_list_node, miss_list);
+	list_add_tail(&ste->miss_list_yesde, miss_list);
 
 	mlx5dr_ste_set_miss_addr(hw_ste, nic_matcher->e_anchor->chunk->icm_addr);
 
@@ -758,7 +758,7 @@ static int dr_rule_handle_empty_entry(struct mlx5dr_matcher *matcher,
 clean_ste_info:
 	kfree(ste_info);
 clean_ste_setting:
-	list_del_init(&ste->miss_list_node);
+	list_del_init(&ste->miss_list_yesde);
 	mlx5dr_htbl_put(cur_htbl);
 
 	return -ENOMEM;
@@ -792,7 +792,7 @@ again:
 	miss_list = &cur_htbl->chunk->miss_list[index];
 	ste = &cur_htbl->ste_arr[index];
 
-	if (mlx5dr_ste_not_used_ste(ste)) {
+	if (mlx5dr_ste_yest_used_ste(ste)) {
 		if (dr_rule_handle_empty_entry(matcher, nic_matcher, cur_htbl,
 					       ste, ste_location,
 					       hw_ste, miss_list,
@@ -833,7 +833,7 @@ again:
 			}
 			goto again;
 		} else {
-			/* Hash table index in use, add another collision (miss) */
+			/* Hash table index in use, add ayesther collision (miss) */
 			ste = dr_rule_handle_collision(matcher,
 						       nic_matcher,
 						       ste,
@@ -857,7 +857,7 @@ static bool dr_rule_cmp_value_to_mask(u8 *mask, u8 *value,
 
 	for (i = s_idx; i < e_idx; i++) {
 		if (value[i] & ~mask[i]) {
-			pr_info("Rule parameters contains a value not specified by mask\n");
+			pr_info("Rule parameters contains a value yest specified by mask\n");
 			return false;
 		}
 	}
@@ -888,7 +888,7 @@ static bool dr_rule_verify(struct mlx5dr_matcher *matcher,
 		e_idx = min(s_idx + sizeof(param->outer), value_size);
 
 		if (!dr_rule_cmp_value_to_mask(mask_p, param_p, s_idx, e_idx)) {
-			mlx5dr_dbg(matcher->tbl->dmn, "Rule outer parameters contains a value not specified by mask\n");
+			mlx5dr_dbg(matcher->tbl->dmn, "Rule outer parameters contains a value yest specified by mask\n");
 			return false;
 		}
 	}
@@ -898,7 +898,7 @@ static bool dr_rule_verify(struct mlx5dr_matcher *matcher,
 		e_idx = min(s_idx + sizeof(param->misc), value_size);
 
 		if (!dr_rule_cmp_value_to_mask(mask_p, param_p, s_idx, e_idx)) {
-			mlx5dr_dbg(matcher->tbl->dmn, "Rule misc parameters contains a value not specified by mask\n");
+			mlx5dr_dbg(matcher->tbl->dmn, "Rule misc parameters contains a value yest specified by mask\n");
 			return false;
 		}
 	}
@@ -908,7 +908,7 @@ static bool dr_rule_verify(struct mlx5dr_matcher *matcher,
 		e_idx = min(s_idx + sizeof(param->inner), value_size);
 
 		if (!dr_rule_cmp_value_to_mask(mask_p, param_p, s_idx, e_idx)) {
-			mlx5dr_dbg(matcher->tbl->dmn, "Rule inner parameters contains a value not specified by mask\n");
+			mlx5dr_dbg(matcher->tbl->dmn, "Rule inner parameters contains a value yest specified by mask\n");
 			return false;
 		}
 	}
@@ -918,7 +918,7 @@ static bool dr_rule_verify(struct mlx5dr_matcher *matcher,
 		e_idx = min(s_idx + sizeof(param->misc2), value_size);
 
 		if (!dr_rule_cmp_value_to_mask(mask_p, param_p, s_idx, e_idx)) {
-			mlx5dr_dbg(matcher->tbl->dmn, "Rule misc2 parameters contains a value not specified by mask\n");
+			mlx5dr_dbg(matcher->tbl->dmn, "Rule misc2 parameters contains a value yest specified by mask\n");
 			return false;
 		}
 	}
@@ -928,7 +928,7 @@ static bool dr_rule_verify(struct mlx5dr_matcher *matcher,
 		e_idx = min(s_idx + sizeof(param->misc3), value_size);
 
 		if (!dr_rule_cmp_value_to_mask(mask_p, param_p, s_idx, e_idx)) {
-			mlx5dr_dbg(matcher->tbl->dmn, "Rule misc3 parameters contains a value not specified by mask\n");
+			mlx5dr_dbg(matcher->tbl->dmn, "Rule misc3 parameters contains a value yest specified by mask\n");
 			return false;
 		}
 	}

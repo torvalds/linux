@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) 2013 BayHub Technology Ltd.
+ * Copyright (C) 2013 BayHub Techyeslogy Ltd.
  *
  * Authors: Peter Guo <peter.guo@bayhubtech.com>
- *          Adam Lee <adam.lee@canonical.com>
+ *          Adam Lee <adam.lee@cayesnical.com>
  *          Ernest Zhang <ernest.zhang@bayhubtech.com>
  */
 
@@ -383,7 +383,7 @@ static void sdhci_pci_o2_fujin2_pci_init(struct sdhci_pci_chip *chip)
 	scratch_32 &= ~((1 << 12) | (1 << 13) | (1 << 14));
 	pci_write_config_dword(chip->pdev, O2_SD_DEV_CTRL, scratch_32);
 
-	/* Enable Link abnormal reset generating Reset */
+	/* Enable Link abyesrmal reset generating Reset */
 	ret = pci_read_config_dword(chip->pdev, O2_SD_MISC_REG5, &scratch_32);
 	if (ret)
 		return;

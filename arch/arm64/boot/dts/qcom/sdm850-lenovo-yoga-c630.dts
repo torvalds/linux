@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BSD-3-Clause
 /*
- * Lenovo Yoga C630
+ * Leyesvo Yoga C630
  *
  * Copyright (c) 2019, Linaro Ltd.
  */
@@ -12,8 +12,8 @@
 #include "pm8998.dtsi"
 
 / {
-	model = "Lenovo Yoga C630";
-	compatible = "lenovo,yoga-c630", "qcom,sdm845";
+	model = "Leyesvo Yoga C630";
+	compatible = "leyesvo,yoga-c630", "qcom,sdm845";
 
 	aliases {
 		hsuart0 = &uart6;

@@ -12,7 +12,7 @@ Required properties:
 - #gpio-cells : Should be two.  The first cell is the pin number and
   the second cell is used to specify optional parameters (currently
   unused).
-- gpio-controller : Marks the device node as a gpio controller.
+- gpio-controller : Marks the device yesde as a gpio controller.
 
 Optional properties:
 - lantiq,shadow : The default value that we shall assume as already set on the

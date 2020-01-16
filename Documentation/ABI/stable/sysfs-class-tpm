@@ -112,7 +112,7 @@ KernelVersion:	2.6.12
 Contact:	tpmdd-devel@lists.sf.net
 Description:	The "pubek" property will return the TPM's public endorsement
 		key if possible. If the TPM has had ownership established and
-		is version 1.2, the pubek will not be available without the
+		is version 1.2, the pubek will yest be available without the
 		owner's authorization. Since the TPM driver doesn't store any
 		secrets, it can't authorize its own request for the pubek,
 		making it unaccessible. The public endorsement key is gener-

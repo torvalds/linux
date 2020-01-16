@@ -11,14 +11,14 @@ Required properties:
 		"nxp,pca9533"
 	- reg -  I2C slave address
 
-Each led is represented as a sub-node of the nxp,pca9530.
+Each led is represented as a sub-yesde of the nxp,pca9530.
 
-Optional sub-node properties:
+Optional sub-yesde properties:
 	- label: see Documentation/devicetree/bindings/leds/common.txt
 	- type: Output configuration, see dt-bindings/leds/leds-pca9532.h (default NONE)
 	- linux,default-trigger: see Documentation/devicetree/bindings/leds/common.txt
 	- default-state: see Documentation/devicetree/bindings/leds/common.txt
-	  This property is only valid for sub-nodes of type <PCA9532_TYPE_LED>.
+	  This property is only valid for sub-yesdes of type <PCA9532_TYPE_LED>.
 
 Example:
   #include <dt-bindings/leds/leds-pca9532.h>

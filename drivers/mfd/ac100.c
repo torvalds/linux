@@ -57,13 +57,13 @@ static const struct regmap_range ac100_volatile_ranges[] = {
 };
 
 static const struct regmap_access_table ac100_writeable_table = {
-	.yes_ranges	= ac100_writeable_ranges,
-	.n_yes_ranges	= ARRAY_SIZE(ac100_writeable_ranges),
+	.no_ranges	= ac100_writeable_ranges,
+	.n_no_ranges	= ARRAY_SIZE(ac100_writeable_ranges),
 };
 
 static const struct regmap_access_table ac100_volatile_table = {
-	.yes_ranges	= ac100_volatile_ranges,
-	.n_yes_ranges	= ARRAY_SIZE(ac100_volatile_ranges),
+	.no_ranges	= ac100_volatile_ranges,
+	.n_no_ranges	= ARRAY_SIZE(ac100_volatile_ranges),
 };
 
 static const struct regmap_config ac100_regmap_config = {

@@ -91,8 +91,8 @@ static int ipv4_local_port_range(struct ctl_table *table, int write,
 	ret = proc_dointvec_minmax(&tmp, write, buffer, lenp, ppos);
 
 	if (write && ret == 0) {
-		/* Ensure that the upper limit is not smaller than the lower,
-		 * and that the lower does not encroach upon the privileged
+		/* Ensure that the upper limit is yest smaller than the lower,
+		 * and that the lower does yest encroach upon the privileged
 		 * port limit.
 		 */
 		if ((range[1] < range[0]) ||
@@ -214,7 +214,7 @@ static int ipv4_fwd_update_priority(struct ctl_table *table, int write,
 			   ipv4.sysctl_ip_fwd_update_priority);
 	ret = proc_dointvec_minmax(table, write, buffer, lenp, ppos);
 	if (write && ret == 0)
-		call_netevent_notifiers(NETEVENT_IPV4_FWD_UPDATE_PRIORITY_UPDATE,
+		call_netevent_yestifiers(NETEVENT_IPV4_FWD_UPDATE_PRIORITY_UPDATE,
 					net);
 
 	return ret;
@@ -475,7 +475,7 @@ static int proc_fib_multipath_hash_policy(struct ctl_table *table, int write,
 
 	ret = proc_dointvec_minmax(table, write, buffer, lenp, ppos);
 	if (write && ret == 0)
-		call_netevent_notifiers(NETEVENT_IPV4_MPATH_HASH_UPDATE, net);
+		call_netevent_yestifiers(NETEVENT_IPV4_MPATH_HASH_UPDATE, net);
 
 	return ret;
 }
@@ -621,22 +621,22 @@ static struct ctl_table ipv4_table[] = {
 
 static struct ctl_table ipv4_net_table[] = {
 	{
-		.procname	= "icmp_echo_ignore_all",
-		.data		= &init_net.ipv4.sysctl_icmp_echo_ignore_all,
+		.procname	= "icmp_echo_igyesre_all",
+		.data		= &init_net.ipv4.sysctl_icmp_echo_igyesre_all,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec
 	},
 	{
-		.procname	= "icmp_echo_ignore_broadcasts",
-		.data		= &init_net.ipv4.sysctl_icmp_echo_ignore_broadcasts,
+		.procname	= "icmp_echo_igyesre_broadcasts",
+		.data		= &init_net.ipv4.sysctl_icmp_echo_igyesre_broadcasts,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec
 	},
 	{
-		.procname	= "icmp_ignore_bogus_error_responses",
-		.data		= &init_net.ipv4.sysctl_icmp_ignore_bogus_error_responses,
+		.procname	= "icmp_igyesre_bogus_error_responses",
+		.data		= &init_net.ipv4.sysctl_icmp_igyesre_bogus_error_responses,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec
@@ -746,8 +746,8 @@ static struct ctl_table ipv4_net_table[] = {
 		.proc_handler	= proc_do_large_bitmap,
 	},
 	{
-		.procname	= "ip_no_pmtu_disc",
-		.data		= &init_net.ipv4.sysctl_ip_no_pmtu_disc,
+		.procname	= "ip_yes_pmtu_disc",
+		.data		= &init_net.ipv4.sysctl_ip_yes_pmtu_disc,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec
@@ -769,8 +769,8 @@ static struct ctl_table ipv4_net_table[] = {
 		.extra2		= SYSCTL_ONE,
 	},
 	{
-		.procname	= "ip_nonlocal_bind",
-		.data		= &init_net.ipv4.sysctl_ip_nonlocal_bind,
+		.procname	= "ip_yesnlocal_bind",
+		.data		= &init_net.ipv4.sysctl_ip_yesnlocal_bind,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec
@@ -968,8 +968,8 @@ static struct ctl_table ipv4_net_table[] = {
 		.proc_handler	= proc_dointvec_jiffies,
 	},
 	{
-		.procname	= "tcp_notsent_lowat",
-		.data		= &init_net.ipv4.sysctl_tcp_notsent_lowat,
+		.procname	= "tcp_yestsent_lowat",
+		.data		= &init_net.ipv4.sysctl_tcp_yestsent_lowat,
 		.maxlen		= sizeof(unsigned int),
 		.mode		= 0644,
 		.proc_handler	= proc_douintvec,
@@ -1186,8 +1186,8 @@ static struct ctl_table ipv4_net_table[] = {
 		.proc_handler	= proc_dointvec
 	},
 	{
-		.procname	= "tcp_no_metrics_save",
-		.data		= &init_net.ipv4.sysctl_tcp_nometrics_save,
+		.procname	= "tcp_yes_metrics_save",
+		.data		= &init_net.ipv4.sysctl_tcp_yesmetrics_save,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec,

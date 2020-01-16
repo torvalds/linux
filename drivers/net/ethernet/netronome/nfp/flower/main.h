@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause) */
-/* Copyright (C) 2017-2018 Netronome Systems, Inc. */
+/* Copyright (C) 2017-2018 Netroyesme Systems, Inc. */
 
 #ifndef __NFP_FLOWER_H__
 #define __NFP_FLOWER_H__ 1
@@ -75,7 +75,7 @@ struct nfp_fl_tunnel_offloads {
 	struct mutex ipv4_off_lock;
 	spinlock_t neigh_off_lock;
 	struct ida mac_off_ids;
-	struct notifier_block neigh_nb;
+	struct yestifier_block neigh_nb;
 };
 
 /**
@@ -83,7 +83,7 @@ struct nfp_fl_tunnel_offloads {
  * @portnum:		NFP port number of repr with requested MTU change
  * @requested_val:	MTU value requested for repr
  * @ack:		Received ack that MTU has been correctly set
- * @wait_q:		Wait queue for MTU acknowledgements
+ * @wait_q:		Wait queue for MTU ackyeswledgements
  * @lock:		Lock for setting/reading MTU variables
  */
 struct nfp_mtu_conf {
@@ -104,7 +104,7 @@ struct nfp_mtu_conf {
  * @batch_ver:		Incremented for each batch of config packets
  * @global_inst:	Instance allocator for groups
  * @rst_cfg:		Marker to reset HW LAG config
- * @retrans_skbs:	Cmsgs that could not be processed by HW and require
+ * @retrans_skbs:	Cmsgs that could yest be processed by HW and require
  *			retransmission
  */
 struct nfp_fl_lag {
@@ -156,7 +156,7 @@ struct nfp_fl_internal_ports {
  * @mtu_conf:		Configuration of repr MTU value
  * @nfp_lag:		Link aggregation data block
  * @indr_block_cb_priv:	List of priv data passed to indirect block cbs
- * @non_repr_priv:	List of offloaded non-repr ports and their priv data
+ * @yesn_repr_priv:	List of offloaded yesn-repr ports and their priv data
  * @active_mem_unit:	Current active memory unit for flower rules
  * @total_mem_units:	Total number of available memory units for flower rules
  * @internal_ports:	Internal port ids used in offloaded rules
@@ -188,7 +188,7 @@ struct nfp_flower_priv {
 	struct nfp_mtu_conf mtu_conf;
 	struct nfp_fl_lag nfp_lag;
 	struct list_head indr_block_cb_priv;
-	struct list_head non_repr_priv;
+	struct list_head yesn_repr_priv;
 	unsigned int active_mem_unit;
 	unsigned int total_mem_units;
 	struct nfp_fl_internal_ports internal_ports;
@@ -235,14 +235,14 @@ struct nfp_flower_repr_priv {
 };
 
 /**
- * struct nfp_flower_non_repr_priv - Priv data for non-repr offloaded ports
+ * struct nfp_flower_yesn_repr_priv - Priv data for yesn-repr offloaded ports
  * @list:		List entry of offloaded reprs
- * @netdev:		Pointer to non-repr net_device
+ * @netdev:		Pointer to yesn-repr net_device
  * @ref_count:		Number of references held for this priv data
  * @mac_offloaded:	Flag indicating a MAC address is offloaded for device
  * @offloaded_mac_addr:	MAC address that has been offloaded for dev
  */
-struct nfp_flower_non_repr_priv {
+struct nfp_flower_yesn_repr_priv {
 	struct list_head list;
 	struct net_device *netdev;
 	int ref_count;
@@ -276,7 +276,7 @@ struct nfp_fl_stats {
 struct nfp_fl_payload {
 	struct nfp_fl_rule_metadata meta;
 	unsigned long tc_flower_cookie;
-	struct rhash_head fl_node;
+	struct rhash_head fl_yesde;
 	struct rcu_head rcu;
 	__be32 nfp_tun_ipv4_addr;
 	struct net_device *ingress_dev;
@@ -336,7 +336,7 @@ nfp_flower_internal_port_can_offload(struct nfp_app *app,
 
 /* The address of the merged flow acts as its cookie.
  * Cookies supplied to us by TC flower are also addresses to allocated
- * memory and thus this scheme should not generate any collisions.
+ * memory and thus this scheme should yest generate any collisions.
  */
 static inline bool nfp_flower_is_merge_flow(struct nfp_fl_payload *flow_pay)
 {
@@ -421,13 +421,13 @@ int nfp_flower_reg_indir_block_handler(struct nfp_app *app,
 				       unsigned long event);
 
 void
-__nfp_flower_non_repr_priv_get(struct nfp_flower_non_repr_priv *non_repr_priv);
-struct nfp_flower_non_repr_priv *
-nfp_flower_non_repr_priv_get(struct nfp_app *app, struct net_device *netdev);
+__nfp_flower_yesn_repr_priv_get(struct nfp_flower_yesn_repr_priv *yesn_repr_priv);
+struct nfp_flower_yesn_repr_priv *
+nfp_flower_yesn_repr_priv_get(struct nfp_app *app, struct net_device *netdev);
 void
-__nfp_flower_non_repr_priv_put(struct nfp_flower_non_repr_priv *non_repr_priv);
+__nfp_flower_yesn_repr_priv_put(struct nfp_flower_yesn_repr_priv *yesn_repr_priv);
 void
-nfp_flower_non_repr_priv_put(struct nfp_app *app, struct net_device *netdev);
+nfp_flower_yesn_repr_priv_put(struct nfp_app *app, struct net_device *netdev);
 u32 nfp_flower_get_port_id_from_netdev(struct nfp_app *app,
 				       struct net_device *netdev);
 int nfp_flower_xmit_pre_tun_flow(struct nfp_app *app,

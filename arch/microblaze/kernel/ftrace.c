@@ -35,7 +35,7 @@ void prepare_ftrace_return(unsigned long *parent, unsigned long self_addr)
 	/*
 	 * Protect against fault, even if it shouldn't
 	 * happen. This tool is too much intrusive to
-	 * ignore such a protection.
+	 * igyesre such a protection.
 	 */
 	asm volatile("	1:	lwi	%0, %2, 0;"		\
 			"2:	swi	%3, %2, 0;"		\
@@ -99,17 +99,17 @@ static int ftrace_modify_code(unsigned long addr, unsigned int value)
 #define MICROBLAZE_NOP 0x80000000
 #define MICROBLAZE_BRI 0xb800000C
 
-static unsigned int recorded; /* if save was or not */
+static unsigned int recorded; /* if save was or yest */
 static unsigned int imm; /* saving whole imm instruction */
 
-/* There are two approaches howto solve ftrace_make nop function - look below */
+/* There are two approaches howto solve ftrace_make yesp function - look below */
 #undef USE_FTRACE_NOP
 
 #ifdef USE_FTRACE_NOP
 static unsigned int bralid; /* saving whole bralid instruction */
 #endif
 
-int ftrace_make_nop(struct module *mod,
+int ftrace_make_yesp(struct module *mod,
 			struct dyn_ftrace *rec, unsigned long addr)
 {
 	/* we have this part of code which we are working with
@@ -123,7 +123,7 @@ int ftrace_make_nop(struct module *mod,
 	 * 80000000        or      r0, r0, r0
 	 * any other instruction
 	 *
-	 * The second solution (USE_FTRACE_NOP) - no jump just nops
+	 * The second solution (USE_FTRACE_NOP) - yes jump just yesps
 	 * 80000000        or      r0, r0, r0
 	 * 80000000        or      r0, r0, r0
 	 * 80000000        or      r0, r0, r0
@@ -149,7 +149,7 @@ int ftrace_make_nop(struct module *mod,
 	return ret;
 }
 
-/* I believe that first is called ftrace_make_nop before this function */
+/* I believe that first is called ftrace_make_yesp before this function */
 int ftrace_make_call(struct dyn_ftrace *rec, unsigned long addr)
 {
 	int ret;

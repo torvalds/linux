@@ -314,7 +314,7 @@ void analogix_dp_set_analog_power_down(struct analogix_dp_device *dp,
 		break;
 	case ANALOG_TOTAL:
 		/*
-		 * There is no bit named DP_PHY_PD, so We used DP_INC_BG
+		 * There is yes bit named DP_PHY_PD, so We used DP_INC_BG
 		 * to power off everything instead of DP_PHY_PD in
 		 * Rockchip
 		 */
@@ -859,7 +859,7 @@ int analogix_dp_is_slave_video_stream_clock_on(struct analogix_dp_device *dp)
 	reg = readl(dp->reg_base + ANALOGIX_DP_SYS_CTL_1);
 
 	if (!(reg & DET_STA)) {
-		dev_dbg(dp->dev, "Input stream clock not detected.\n");
+		dev_dbg(dp->dev, "Input stream clock yest detected.\n");
 		return -EINVAL;
 	}
 
@@ -961,7 +961,7 @@ int analogix_dp_is_video_stream_on(struct analogix_dp_device *dp)
 
 	reg = readl(dp->reg_base + ANALOGIX_DP_SYS_CTL_3);
 	if (!(reg & STRM_VALID)) {
-		dev_dbg(dp->dev, "Input video stream is not detected.\n");
+		dev_dbg(dp->dev, "Input video stream is yest detected.\n");
 		return -EINVAL;
 	}
 

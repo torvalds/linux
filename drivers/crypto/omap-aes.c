@@ -5,7 +5,7 @@
  * Support for OMAP AES HW acceleration.
  *
  * Copyright (c) 2010 Nokia Corporation
- * Author: Dmitry Kasatkin <dmitry.kasatkin@nokia.com>
+ * Author: Dmitry Kasatkin <dmitry.kasatkin@yeskia.com>
  * Copyright (c) 2011 Texas Instruments Incorporated
  */
 
@@ -16,7 +16,7 @@
 #include <linux/err.h>
 #include <linux/module.h>
 #include <linux/init.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/kernel.h>
 #include <linux/platform_device.h>
 #include <linux/scatterlist.h>
@@ -132,7 +132,7 @@ int omap_aes_write_ctrl(struct omap_aes_dev *dd)
 
 	key32 = dd->ctx->keylen / sizeof(u32);
 
-	/* RESET the key as previous HASH keys should not get affected*/
+	/* RESET the key as previous HASH keys should yest get affected*/
 	if (dd->flags & FLAGS_GCM)
 		for (i = 0; i < 0x40; i = i + 4)
 			omap_aes_write(dd, i, 0x0);
@@ -650,7 +650,7 @@ static int omap_aes_gcm_cra_init(struct crypto_aead *tfm)
 	tfm->reqsize = sizeof(struct omap_aes_reqctx);
 	ctx->ctr = crypto_alloc_skcipher("ecb(aes)", 0, 0);
 	if (IS_ERR(ctx->ctr)) {
-		pr_warn("could not load aes driver for encrypting IV\n");
+		pr_warn("could yest load aes driver for encrypting IV\n");
 		return PTR_ERR(ctx->ctr);
 	}
 
@@ -817,8 +817,8 @@ static const struct omap_aes_pdata omap_aes_pdata_omap2 = {
 	.dma_start	= BIT(5),
 	.major_mask	= 0xf0,
 	.major_shift	= 4,
-	.minor_mask	= 0x0f,
-	.minor_shift	= 0,
+	.miyesr_mask	= 0x0f,
+	.miyesr_shift	= 0,
 };
 
 #ifdef CONFIG_OF
@@ -848,8 +848,8 @@ static const struct omap_aes_pdata omap_aes_pdata_omap3 = {
 	.dma_start	= BIT(5),
 	.major_mask	= 0xf0,
 	.major_shift	= 4,
-	.minor_mask	= 0x0f,
-	.minor_shift	= 0,
+	.miyesr_mask	= 0x0f,
+	.miyesr_shift	= 0,
 };
 
 static const struct omap_aes_pdata omap_aes_pdata_omap4 = {
@@ -869,8 +869,8 @@ static const struct omap_aes_pdata omap_aes_pdata_omap4 = {
 	.dma_enable_out	= BIT(6),
 	.major_mask	= 0x0700,
 	.major_shift	= 8,
-	.minor_mask	= 0x003f,
-	.minor_shift	= 0,
+	.miyesr_mask	= 0x003f,
+	.miyesr_shift	= 0,
 };
 
 static irqreturn_t omap_aes_irq(int irq, void *dev_id)
@@ -975,19 +975,19 @@ MODULE_DEVICE_TABLE(of, omap_aes_of_match);
 static int omap_aes_get_res_of(struct omap_aes_dev *dd,
 		struct device *dev, struct resource *res)
 {
-	struct device_node *node = dev->of_node;
+	struct device_yesde *yesde = dev->of_yesde;
 	int err = 0;
 
 	dd->pdata = of_device_get_match_data(dev);
 	if (!dd->pdata) {
-		dev_err(dev, "no compatible OF match\n");
+		dev_err(dev, "yes compatible OF match\n");
 		err = -EINVAL;
 		goto err;
 	}
 
-	err = of_address_to_resource(node, 0, res);
+	err = of_address_to_resource(yesde, 0, res);
 	if (err < 0) {
-		dev_err(dev, "can't translate OF node address\n");
+		dev_err(dev, "can't translate OF yesde address\n");
 		err = -EINVAL;
 		goto err;
 	}
@@ -1017,13 +1017,13 @@ static int omap_aes_get_res_pdev(struct omap_aes_dev *dd,
 	/* Get the base address */
 	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!r) {
-		dev_err(dev, "no MEM resource info\n");
+		dev_err(dev, "yes MEM resource info\n");
 		err = -ENODEV;
 		goto err;
 	}
 	memcpy(res, r, sizeof(*res));
 
-	/* Only OMAP2/3 can be non-DT */
+	/* Only OMAP2/3 can be yesn-DT */
 	dd->pdata = &omap_aes_pdata_omap2;
 
 err:
@@ -1083,8 +1083,8 @@ static ssize_t queue_len_store(struct device *dev,
 
 	/*
 	 * Changing the queue size in fly is safe, if size becomes smaller
-	 * than current size, it will just not accept new entries until
-	 * it has shrank enough.
+	 * than current size, it will just yest accept new entries until
+	 * it has shrank eyesugh.
 	 */
 	spin_lock_bh(&list_lock);
 	list_for_each_entry(dd, &dev_list, list) {
@@ -1131,7 +1131,7 @@ static int omap_aes_probe(struct platform_device *pdev)
 
 	aead_init_queue(&dd->aead_queue, OMAP_AES_QUEUE_LENGTH);
 
-	err = (dev->of_node) ? omap_aes_get_res_of(dd, dev, &res) :
+	err = (dev->of_yesde) ? omap_aes_get_res_of(dd, dev, &res) :
 			       omap_aes_get_res_pdev(dd, pdev, &res);
 	if (err)
 		goto err_res;
@@ -1162,7 +1162,7 @@ static int omap_aes_probe(struct platform_device *pdev)
 
 	dev_info(dev, "OMAP AES hw accel rev: %u.%u\n",
 		 (reg & dd->pdata->major_mask) >> dd->pdata->major_shift,
-		 (reg & dd->pdata->minor_mask) >> dd->pdata->minor_shift);
+		 (reg & dd->pdata->miyesr_mask) >> dd->pdata->miyesr_shift);
 
 	tasklet_init(&dd->done_task, omap_aes_done_task, (unsigned long)dd);
 
@@ -1237,7 +1237,7 @@ static int omap_aes_probe(struct platform_device *pdev)
 
 	err = sysfs_create_group(&dev->kobj, &omap_aes_attr_group);
 	if (err) {
-		dev_err(dev, "could not create sysfs device attrs\n");
+		dev_err(dev, "could yest create sysfs device attrs\n");
 		goto err_aead_algs;
 	}
 

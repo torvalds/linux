@@ -16,7 +16,7 @@
  * conversion, the .shift value could be zero. However
  * this would make NTP adjustments impossible as they are
  * in units of 1/2^.shift. Thus we use JIFFIES_SHIFT to
- * shift both the nominator and denominator the same
+ * shift both the yesminator and deyesminator the same
  * amount, and give ntp adjustments in units of 1/2^8
  *
  * The value 8 is somewhat carefully chosen, as anything
@@ -39,13 +39,13 @@ static u64 jiffies_read(struct clocksource *cs)
 
 /*
  * The Jiffies based clocksource is the lowest common
- * denominator clock source which should function on
+ * deyesminator clock source which should function on
  * all systems. It has the same coarse resolution as
  * the timer interrupt frequency HZ and it suffers
  * inaccuracies caused by missed or lost timer
  * interrupts and the inability for the timer
  * interrupt hardware to accuratly tick at the
- * requested HZ value. It is also not recommended
+ * requested HZ value. It is also yest recommended
  * for "tick-less" systems.
  */
 static struct clocksource clocksource_jiffies = {

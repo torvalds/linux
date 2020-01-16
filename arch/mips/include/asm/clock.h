@@ -19,7 +19,7 @@ struct clk_ops {
 };
 
 struct clk {
-	struct list_head node;
+	struct list_head yesde;
 	const char *name;
 	int id;
 	struct module *owner;

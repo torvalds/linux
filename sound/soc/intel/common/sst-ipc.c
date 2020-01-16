@@ -67,7 +67,7 @@ static int tx_wait_done(struct sst_generic_ipc *ipc,
 			if (reply->data)
 				memcpy(reply->data, msg->rx.data, msg->rx.size);
 		}
-		ret = msg->errno;
+		ret = msg->erryes;
 	}
 
 	list_add_tail(&msg->list, &ipc->empty_list);
@@ -95,7 +95,7 @@ static int ipc_tx_message(struct sst_generic_ipc *ipc,
 	msg->rx.header = 0;
 	msg->rx.size = reply ? reply->size : 0;
 	msg->wait = wait;
-	msg->errno = 0;
+	msg->erryes = 0;
 	msg->pending = false;
 	msg->complete = false;
 
@@ -201,19 +201,19 @@ int sst_ipc_tx_message_wait(struct sst_generic_ipc *ipc,
 }
 EXPORT_SYMBOL_GPL(sst_ipc_tx_message_wait);
 
-int sst_ipc_tx_message_nowait(struct sst_generic_ipc *ipc,
+int sst_ipc_tx_message_yeswait(struct sst_generic_ipc *ipc,
 	struct sst_ipc_message request)
 {
 	return ipc_tx_message(ipc, request, NULL, 0);
 }
-EXPORT_SYMBOL_GPL(sst_ipc_tx_message_nowait);
+EXPORT_SYMBOL_GPL(sst_ipc_tx_message_yeswait);
 
-int sst_ipc_tx_message_nopm(struct sst_generic_ipc *ipc,
+int sst_ipc_tx_message_yespm(struct sst_generic_ipc *ipc,
 	struct sst_ipc_message request, struct sst_ipc_message *reply)
 {
 	return ipc_tx_message(ipc, request, reply, 1);
 }
-EXPORT_SYMBOL_GPL(sst_ipc_tx_message_nopm);
+EXPORT_SYMBOL_GPL(sst_ipc_tx_message_yespm);
 
 struct ipc_message *sst_ipc_reply_find_msg(struct sst_generic_ipc *ipc,
 	u64 header)

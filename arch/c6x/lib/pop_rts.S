@@ -16,5 +16,5 @@ ENTRY(__c6xabi_pop_rts)
 	lddw	.d2t1	*++B15, A15:A14
 ||	b	.s2	B3
 	ldw	.d2t2	*++B15[2], B14
-	nop	4
+	yesp	4
 ENDPROC(__c6xabi_pop_rts)

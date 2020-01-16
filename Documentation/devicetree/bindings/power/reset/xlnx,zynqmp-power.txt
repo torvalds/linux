@@ -1,7 +1,7 @@
 --------------------------------------------------------------------
 Device Tree Bindings for the Xilinx Zynq MPSoC Power Management
 --------------------------------------------------------------------
-The zynqmp-power node describes the power management configurations.
+The zynqmp-power yesde describes the power management configurations.
 It will control remote suspend/shutdown interfaces.
 
 Required properties:

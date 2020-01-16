@@ -57,9 +57,9 @@ struct hda_bus {
 	unsigned int shutdown :1;	/* being unloaded */
 	unsigned int response_reset:1;	/* controller was reset */
 	unsigned int in_reset:1;	/* during reset operation */
-	unsigned int no_response_fallback:1; /* don't fallback at RIRB error */
+	unsigned int yes_response_fallback:1; /* don't fallback at RIRB error */
 	unsigned int bus_probing :1;	/* during probing process */
-	unsigned int keep_power:1;	/* keep power up for notification */
+	unsigned int keep_power:1;	/* keep power up for yestification */
 
 	int primary_dig_out_type;	/* primary digital out PCM type */
 	unsigned int mixer_assigned;	/* codec addr for mixer name */
@@ -71,7 +71,7 @@ struct hda_bus {
 /*
  * codec preset
  *
- * Known codecs have the patch to build and set up the controls/PCMs
+ * Kyeswn codecs have the patch to build and set up the controls/PCMs
  * better than the generic parser.
  */
 typedef int (*hda_codec_patch_t)(struct hda_codec *);
@@ -115,7 +115,7 @@ struct hda_codec_ops {
 	int (*resume)(struct hda_codec *codec);
 	int (*check_power_status)(struct hda_codec *codec, hda_nid_t nid);
 #endif
-	void (*reboot_notify)(struct hda_codec *codec);
+	void (*reboot_yestify)(struct hda_codec *codec);
 	void (*stream_pm)(struct hda_codec *codec, hda_nid_t nid, bool on);
 };
 
@@ -137,7 +137,7 @@ struct hda_pcm_ops {
 
 /* PCM information for each substream */
 struct hda_pcm_stream {
-	unsigned int substreams;	/* number of substreams, 0 = not exist*/
+	unsigned int substreams;	/* number of substreams, 0 = yest exist*/
 	unsigned int channels_min;	/* min. number of channels */
 	unsigned int channels_max;	/* max. number of channels */
 	hda_nid_t nid;	/* default NID to query rates/formats/bps, or set up */
@@ -236,25 +236,25 @@ struct hda_codec {
 	unsigned int pin_amp_workaround:1; /* pin out-amp takes index
 					    * (e.g. Conexant codecs)
 					    */
-	unsigned int single_adc_amp:1; /* adc in-amp takes no index
+	unsigned int single_adc_amp:1; /* adc in-amp takes yes index
 					* (e.g. CX20549 codec)
 					*/
-	unsigned int no_sticky_stream:1; /* no sticky-PCM stream assignment */
+	unsigned int yes_sticky_stream:1; /* yes sticky-PCM stream assignment */
 	unsigned int pins_shutup:1;	/* pins are shut up */
-	unsigned int no_trigger_sense:1; /* don't trigger at pin-sensing */
-	unsigned int no_jack_detect:1;	/* Machine has no jack-detection */
+	unsigned int yes_trigger_sense:1; /* don't trigger at pin-sensing */
+	unsigned int yes_jack_detect:1;	/* Machine has yes jack-detection */
 	unsigned int inv_eapd:1; /* broken h/w: inverted EAPD control */
 	unsigned int inv_jack_detect:1;	/* broken h/w: inverted detection bit */
 	unsigned int pcm_format_first:1; /* PCM format must be set first */
 	unsigned int cached_write:1;	/* write only to caches */
 	unsigned int dp_mst:1; /* support DP1.2 Multi-stream transport */
 	unsigned int dump_coef:1; /* dump processing coefs in codec proc file */
-	unsigned int power_save_node:1; /* advanced PM for each widget */
+	unsigned int power_save_yesde:1; /* advanced PM for each widget */
 	unsigned int auto_runtime_pm:1; /* enable automatic codec runtime pm */
 	unsigned int force_pin_prefix:1; /* Add location prefix */
 	unsigned int link_down_at_suspend:1; /* link down at runtime suspend */
 	unsigned int relaxed_resume:1;	/* don't resume forcibly for jack */
-	unsigned int mst_no_extra_pcms:1; /* no backup PCMs for DP-MST */
+	unsigned int mst_yes_extra_pcms:1; /* yes backup PCMs for DP-MST */
 
 #ifdef CONFIG_PM
 	unsigned long power_on_acct;
@@ -272,7 +272,7 @@ struct hda_codec {
 
 	/* jack detection */
 	struct snd_array jacktbl;
-	unsigned long jackpoll_interval; /* In jiffies. Zero means no poll, rely on unsol events */
+	unsigned long jackpoll_interval; /* In jiffies. Zero means yes poll, rely on unsol events */
 	struct delayed_work jackpoll_work;
 
 	int depop_delay; /* depop delay in ms, -1 for default delay time */
@@ -327,8 +327,8 @@ snd_hda_codec_write(struct hda_codec *codec, hda_nid_t nid, int flags,
 
 #define snd_hda_param_read(codec, nid, param) \
 	snd_hdac_read_parm(&(codec)->core, nid, param)
-#define snd_hda_get_sub_nodes(codec, nid, start_nid) \
-	snd_hdac_get_sub_nodes(&(codec)->core, nid, start_nid)
+#define snd_hda_get_sub_yesdes(codec, nid, start_nid) \
+	snd_hdac_get_sub_yesdes(&(codec)->core, nid, start_nid)
 int snd_hda_get_connections(struct hda_codec *codec, hda_nid_t nid,
 			    hda_nid_t *conn_list, int max_conns);
 static inline int
@@ -438,7 +438,7 @@ void snd_hda_codec_setup_stream(struct hda_codec *codec, hda_nid_t nid,
 				u32 stream_tag,
 				int channel_id, int format);
 void __snd_hda_codec_cleanup_stream(struct hda_codec *codec, hda_nid_t nid,
-				    int do_now);
+				    int do_yesw);
 #define snd_hda_codec_cleanup_stream(codec, nid) \
 	__snd_hda_codec_cleanup_stream(codec, nid, 0)
 

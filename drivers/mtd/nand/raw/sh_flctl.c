@@ -177,7 +177,7 @@ static void flctl_setup_dma(struct sh_flctl *flctl)
 	if (pdata->slave_id_fifo0_tx <= 0 || pdata->slave_id_fifo0_rx <= 0)
 		return;
 
-	/* We can only either use DMA for both Tx and Rx or not use it at all */
+	/* We can only either use DMA for both Tx and Rx or yest use it at all */
 	dma_cap_zero(mask);
 	dma_cap_set(DMA_SLAVE, mask);
 
@@ -314,7 +314,7 @@ static enum flctl_ecc_res_t wait_recfifo_ready
 
 		/* check for an uncorrectable error */
 		if (readl(FL4ECCCR(flctl)) & _4ECCFA) {
-			/* check if we face a non-empty page */
+			/* check if we face a yesn-empty page */
 			for (i = 0; i < 512; i++) {
 				if (flctl->done_buff[i] != 0xff) {
 					state = FL_ERROR; /* can't correct */
@@ -324,7 +324,7 @@ static enum flctl_ecc_res_t wait_recfifo_ready
 
 			if (state == FL_SUCCESS)
 				dev_dbg(&flctl->pdev->dev,
-				"reading empty sector %d, ecc error ignored\n",
+				"reading empty sector %d, ecc error igyesred\n",
 				sector_number);
 
 			writel(0, FL4ECCCR(flctl));
@@ -768,7 +768,7 @@ static void flctl_cmdfunc(struct nand_chip *chip, unsigned int command,
 		if (flctl->chip.options & NAND_BUSWIDTH_16)
 			column >>= 1;
 		flctl->index += column;
-		goto read_normal_exit;
+		goto read_yesrmal_exit;
 
 	case NAND_CMD_READOOB:
 		if (flctl->hwecc) {
@@ -786,7 +786,7 @@ static void flctl_cmdfunc(struct nand_chip *chip, unsigned int command,
 			set_addr(mtd, 0, page_addr);
 		}
 		flctl->read_bytes = mtd->oobsize;
-		goto read_normal_exit;
+		goto read_yesrmal_exit;
 
 	case NAND_CMD_RNDOUT:
 		if (flctl->hwecc)
@@ -801,7 +801,7 @@ static void flctl_cmdfunc(struct nand_chip *chip, unsigned int command,
 		set_addr(mtd, column, 0);
 
 		flctl->read_bytes = mtd->writesize + mtd->oobsize - column;
-		goto read_normal_exit;
+		goto read_yesrmal_exit;
 
 	case NAND_CMD_READID:
 		set_cmd_regs(mtd, command, command);
@@ -901,7 +901,7 @@ static void flctl_cmdfunc(struct nand_chip *chip, unsigned int command,
 	}
 	goto runtime_exit;
 
-read_normal_exit:
+read_yesrmal_exit:
 	writel(flctl->read_bytes, FLDTCNTR(flctl));	/* set read size */
 	empty_fifo(flctl);
 	start_translation(flctl);
@@ -1091,7 +1091,7 @@ static struct sh_flctl_platform_data *flctl_parse_dt(struct device *dev)
 
 	config = of_device_get_match_data(dev);
 	if (!config) {
-		dev_err(dev, "%s: no OF configuration attached\n", __func__);
+		dev_err(dev, "%s: yes OF configuration attached\n", __func__);
 		return NULL;
 	}
 
@@ -1139,20 +1139,20 @@ static int flctl_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	if (pdev->dev.of_node)
+	if (pdev->dev.of_yesde)
 		pdata = flctl_parse_dt(&pdev->dev);
 	else
 		pdata = dev_get_platdata(&pdev->dev);
 
 	if (!pdata) {
-		dev_err(&pdev->dev, "no setup data defined\n");
+		dev_err(&pdev->dev, "yes setup data defined\n");
 		return -EINVAL;
 	}
 
 	platform_set_drvdata(pdev, flctl);
 	nand = &flctl->chip;
 	flctl_mtd = nand_to_mtd(nand);
-	nand_set_flash_node(nand, pdev->dev.of_node);
+	nand_set_flash_yesde(nand, pdev->dev.of_yesde);
 	flctl_mtd->dev.parent = &pdev->dev;
 	flctl->pdev = pdev;
 	flctl->hwecc = pdata->has_hwecc;
@@ -1169,8 +1169,8 @@ static int flctl_probe(struct platform_device *pdev)
 	nand->legacy.read_buf = flctl_read_buf;
 	nand->legacy.select_chip = flctl_select_chip;
 	nand->legacy.cmdfunc = flctl_cmdfunc;
-	nand->legacy.set_features = nand_get_set_features_notsupp;
-	nand->legacy.get_features = nand_get_set_features_notsupp;
+	nand->legacy.set_features = nand_get_set_features_yestsupp;
+	nand->legacy.get_features = nand_get_set_features_yestsupp;
 
 	if (pdata->flcmncr_val & SEL_16BIT)
 		nand->options |= NAND_BUSWIDTH_16;

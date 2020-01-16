@@ -141,8 +141,8 @@ static int rza2_chip_get_direction(struct gpio_chip *chip, unsigned int offset)
 		return 1;
 
 	/*
-	 * This GPIO controller has a default Hi-Z state that is not input or
-	 * output, so force the pin to input now.
+	 * This GPIO controller has a default Hi-Z state that is yest input or
+	 * output, so force the pin to input yesw.
 	 */
 	rza2_pin_to_gpio(priv->base, offset, 1);
 
@@ -216,7 +216,7 @@ static const char * const rza2_gpio_names[] = {
 	"PF_0", "PF_1", "PF_2", "PF_3", "PF_4", "PF_5", "PF_6", "PF_7",
 	"PG_0", "PG_1", "PG_2", "PG_3", "PG_4", "PG_5", "PG_6", "PG_7",
 	"PH_0", "PH_1", "PH_2", "PH_3", "PH_4", "PH_5", "PH_6", "PH_7",
-	/* port I does not exist */
+	/* port I does yest exist */
 	"PJ_0", "PJ_1", "PJ_2", "PJ_3", "PJ_4", "PJ_5", "PJ_6", "PJ_7",
 	"PK_0", "PK_1", "PK_2", "PK_3", "PK_4", "PK_5", "PK_6", "PK_7",
 	"PL_0", "PL_1", "PL_2", "PL_3", "PL_4", "PL_5", "PL_6", "PL_7",
@@ -235,12 +235,12 @@ static struct gpio_chip chip = {
 
 static int rza2_gpio_register(struct rza2_pinctrl_priv *priv)
 {
-	struct device_node *np = priv->dev->of_node;
+	struct device_yesde *np = priv->dev->of_yesde;
 	struct of_phandle_args of_args;
 	int ret;
 
 	chip.label = devm_kasprintf(priv->dev, GFP_KERNEL, "%pOFn", np);
-	chip.of_node = np;
+	chip.of_yesde = np;
 	chip.parent = priv->dev;
 	chip.ngpio = priv->npins;
 
@@ -254,7 +254,7 @@ static int rza2_gpio_register(struct rza2_pinctrl_priv *priv)
 	if ((of_args.args[0] != 0) ||
 	    (of_args.args[1] != 0) ||
 	    (of_args.args[2] != priv->npins)) {
-		dev_err(priv->dev, "gpio-ranges does not match selected SOC\n");
+		dev_err(priv->dev, "gpio-ranges does yest match selected SOC\n");
 		return -EINVAL;
 	}
 	priv->gpio_range.id = 0;
@@ -318,12 +318,12 @@ static int rza2_pinctrl_register(struct rza2_pinctrl_priv *priv)
 }
 
 /*
- * For each DT node, create a single pin mapping. That pin mapping will only
+ * For each DT yesde, create a single pin mapping. That pin mapping will only
  * contain a single group of pins, and that group of pins will only have a
  * single function that can be selected.
  */
-static int rza2_dt_node_to_map(struct pinctrl_dev *pctldev,
-			       struct device_node *np,
+static int rza2_dt_yesde_to_map(struct pinctrl_dev *pctldev,
+			       struct device_yesde *np,
 			       struct pinctrl_map **map,
 			       unsigned int *num_maps)
 {
@@ -399,7 +399,7 @@ remove_function:
 remove_group:
 	pinctrl_generic_remove_group(pctldev, gsel);
 
-	dev_err(priv->dev, "Unable to parse DT node %s\n", np->name);
+	dev_err(priv->dev, "Unable to parse DT yesde %s\n", np->name);
 
 	return ret;
 }
@@ -414,7 +414,7 @@ static const struct pinctrl_ops rza2_pinctrl_ops = {
 	.get_groups_count	= pinctrl_generic_get_group_count,
 	.get_group_name		= pinctrl_generic_get_group_name,
 	.get_group_pins		= pinctrl_generic_get_group_pins,
-	.dt_node_to_map		= rza2_dt_node_to_map,
+	.dt_yesde_to_map		= rza2_dt_yesde_to_map,
 	.dt_free_map		= rza2_dt_free_map,
 };
 

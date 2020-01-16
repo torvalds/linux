@@ -1,7 +1,7 @@
 QCOM Top Control and Status Register
 
 Qualcomm devices have a set of registers that provide various control and status
-functions for their peripherals.  This node is intended to allow access to these
+functions for their peripherals.  This yesde is intended to allow access to these
 registers via syscon.
 
 Required properties:

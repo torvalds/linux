@@ -26,8 +26,8 @@ enum can_led_event {
 
 void can_led_event(struct net_device *netdev, enum can_led_event event);
 void devm_can_led_init(struct net_device *netdev);
-int __init can_led_notifier_init(void);
-void __exit can_led_notifier_exit(void);
+int __init can_led_yestifier_init(void);
+void __exit can_led_yestifier_exit(void);
 
 #else
 
@@ -38,11 +38,11 @@ static inline void can_led_event(struct net_device *netdev,
 static inline void devm_can_led_init(struct net_device *netdev)
 {
 }
-static inline int can_led_notifier_init(void)
+static inline int can_led_yestifier_init(void)
 {
 	return 0;
 }
-static inline void can_led_notifier_exit(void)
+static inline void can_led_yestifier_exit(void)
 {
 }
 

@@ -28,13 +28,13 @@
 #include "rt2800mmio.h"
 
 /* Allow hardware encryption to be disabled. */
-static bool modparam_nohwcrypt;
-module_param_named(nohwcrypt, modparam_nohwcrypt, bool, 0444);
-MODULE_PARM_DESC(nohwcrypt, "Disable hardware encryption.");
+static bool modparam_yeshwcrypt;
+module_param_named(yeshwcrypt, modparam_yeshwcrypt, bool, 0444);
+MODULE_PARM_DESC(yeshwcrypt, "Disable hardware encryption.");
 
 static bool rt2800soc_hwcrypt_disabled(struct rt2x00_dev *rt2x00dev)
 {
-	return modparam_nohwcrypt;
+	return modparam_yeshwcrypt;
 }
 
 static void rt2800soc_disable_radio(struct rt2x00_dev *rt2x00dev)
@@ -74,7 +74,7 @@ static int rt2800soc_set_device_state(struct rt2x00_dev *rt2x00dev,
 	case STATE_SLEEP:
 	case STATE_STANDBY:
 	case STATE_AWAKE:
-		/* These states are not supported, but don't report an error */
+		/* These states are yest supported, but don't report an error */
 		retval = 0;
 		break;
 

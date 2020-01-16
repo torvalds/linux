@@ -29,13 +29,13 @@ enum NDIS_802_11_NETWORK_TYPE {
 	Ndis802_11DS,
 	Ndis802_11OFDM5,
 	Ndis802_11OFDM24,
-	Ndis802_11NetworkTypeMax    /*  not a real type, defined as an upper bound */
+	Ndis802_11NetworkTypeMax    /*  yest a real type, defined as an upper bound */
 };
 
 struct ndis_802_11_conf_fh {
 	u32 Length;             /*  Length of structure */
 	u32 HopPattern;         /*  As defined by 802.11, MSB set */
-	u32 HopSet;             /*  to one if non-802.11 */
+	u32 HopSet;             /*  to one if yesn-802.11 */
 	u32 DwellTime;          /*  units are Kusec */
 };
 
@@ -54,7 +54,7 @@ struct ndis_802_11_conf {
 enum NDIS_802_11_NETWORK_INFRASTRUCTURE {
 	Ndis802_11IBSS,
 	Ndis802_11Infrastructure,
-	Ndis802_11AutoUnknown,
+	Ndis802_11AutoUnkyeswn,
 	Ndis802_11InfrastructureMax,     /*  Not a real value, defined as upper bound */
 	Ndis802_11APMode,
 };
@@ -231,7 +231,7 @@ static inline uint get_wlan_bssid_ex_sz(struct wlan_bssid_ex *bss)
 struct	wlan_network {
 	struct list_head	list;
 	int	network_type;	/* refer to ieee80211.h for WIRELESS_11A/B/G */
-	int	fixed;			/*  set to fixed when not to be removed as site-surveying */
+	int	fixed;			/*  set to fixed when yest to be removed as site-surveying */
 	unsigned long	last_scanned; /* timestamp for the network */
 	int	aid;			/* will only be valid when a BSS is joinned. */
 	int	join_res;

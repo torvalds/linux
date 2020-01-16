@@ -272,7 +272,7 @@ struct samsung_pll_clock {
 	      _con, _rtable)
 
 struct samsung_clock_reg_cache {
-	struct list_head node;
+	struct list_head yesde;
 	void __iomem *reg_base;
 	struct samsung_clk_reg_dump *rdump;
 	unsigned int rd_num;
@@ -314,9 +314,9 @@ struct samsung_cmu_info {
 };
 
 extern struct samsung_clk_provider *__init samsung_clk_init(
-			struct device_node *np, void __iomem *base,
+			struct device_yesde *np, void __iomem *base,
 			unsigned long nr_clks);
-extern void __init samsung_clk_of_add_provider(struct device_node *np,
+extern void __init samsung_clk_of_add_provider(struct device_yesde *np,
 			struct samsung_clk_provider *ctx);
 extern void __init samsung_clk_of_register_fixed_ext(
 			struct samsung_clk_provider *ctx,
@@ -352,7 +352,7 @@ extern void __init samsung_clk_register_pll(struct samsung_clk_provider *ctx,
 			unsigned int nr_clk, void __iomem *base);
 
 extern struct samsung_clk_provider __init *samsung_cmu_register_one(
-			struct device_node *,
+			struct device_yesde *,
 			const struct samsung_cmu_info *);
 
 extern unsigned long _get_rate(const char *clk_name);

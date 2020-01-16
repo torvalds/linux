@@ -94,7 +94,7 @@ static int gl861_i2c_master_xfer(struct i2c_adapter *adap, struct i2c_msg msg[],
 	u8 request, *data;
 	u16 value, index, size;
 
-	/* XXX: I2C adapter maximum data lengths are not tested */
+	/* XXX: I2C adapter maximum data lengths are yest tested */
 	if (num == 1 && !(msg[0].flags & I2C_M_RD)) {
 		/* I2C write */
 		if (msg[0].len < 2 || msg[0].len > sizeof(ctx->buf)) {
@@ -145,7 +145,7 @@ static int gl861_i2c_master_xfer(struct i2c_adapter *adap, struct i2c_msg msg[],
 				     msg[0].buf, msg[0].len);
 	} else {
 		/* Unsupported I2C message */
-		dev_dbg(&intf->dev, "unknown i2c msg, num %u\n", num);
+		dev_dbg(&intf->dev, "unkyeswn i2c msg, num %u\n", num);
 		ret = -EOPNOTSUPP;
 	}
 	if (ret)
@@ -170,7 +170,7 @@ static struct i2c_algorithm gl861_i2c_algo = {
 /* Callbacks for DVB USB */
 static struct zl10353_config gl861_zl10353_config = {
 	.demod_address = 0x0f,
-	.no_tuner = 1,
+	.yes_tuner = 1,
 	.parallel_ts = 1,
 };
 
@@ -312,7 +312,7 @@ static int friio_ext_ctl(struct dvb_usb_device *d,
 
 /* init/config of gl861 for Friio */
 /* NOTE:
- * This function cannot be moved to friio_init()/dvb_usbv2_init(),
+ * This function canyest be moved to friio_init()/dvb_usbv2_init(),
  * because the init defined here includes a whole device reset,
  * it must be run early before any activities like I2C,
  * but friio_init() is called by dvb-usbv2 after {_frontend, _tuner}_attach(),
@@ -321,8 +321,8 @@ static int friio_ext_ctl(struct dvb_usb_device *d,
  * Thus this function is set to be called from _power_ctl().
  *
  * Since it will be called on the early init stage
- * where the i2c adapter is not initialized yet,
- * we cannot use i2c_transfer() here.
+ * where the i2c adapter is yest initialized yet,
+ * we canyest use i2c_transfer() here.
  */
 static int friio_reset(struct dvb_usb_device *d)
 {
@@ -350,7 +350,7 @@ static int friio_reset(struct dvb_usb_device *d)
 
 	/*
 	 * Check if the dev is really a Friio White, since it might be
-	 * another device, Friio Black, with the same VID/PID.
+	 * ayesther device, Friio Black, with the same VID/PID.
 	 */
 
 	usleep_range(1000, 2000);
@@ -405,9 +405,9 @@ static int friio_reset(struct dvb_usb_device *d)
  * DVB callbacks for Friio
  */
 
-static int friio_power_ctrl(struct dvb_usb_device *d, int onoff)
+static int friio_power_ctrl(struct dvb_usb_device *d, int oyesff)
 {
-	return onoff ? friio_reset(d) : 0;
+	return oyesff ? friio_reset(d) : 0;
 }
 
 static int friio_frontend_attach(struct dvb_usb_adapter *adap)
@@ -513,11 +513,11 @@ static void friio_exit(struct dvb_usb_device *d)
 	friio_ext_ctl(d, FRIIO_LED_STOPPED, false);
 }
 
-static int friio_streaming_ctrl(struct dvb_frontend *fe, int onoff)
+static int friio_streaming_ctrl(struct dvb_frontend *fe, int oyesff)
 {
 	u32 led_color;
 
-	led_color = onoff ? FRIIO_LED_RUNNING : FRIIO_LED_STOPPED;
+	led_color = oyesff ? FRIIO_LED_RUNNING : FRIIO_LED_STOPPED;
 	return friio_ext_ctl(fe_to_d(fe), led_color, true);
 }
 
@@ -566,7 +566,7 @@ static struct usb_driver gl861_usb_driver = {
 	.suspend = dvb_usbv2_suspend,
 	.resume = dvb_usbv2_resume,
 	.reset_resume = dvb_usbv2_reset_resume,
-	.no_dynamic_id = 1,
+	.yes_dynamic_id = 1,
 	.soft_unbind = 1,
 };
 

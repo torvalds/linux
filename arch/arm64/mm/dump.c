@@ -10,7 +10,7 @@
  * Author: Arjan van de Ven <arjan@linux.intel.com>
  */
 #include <linux/debugfs.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/fs.h>
 #include <linux/io.h>
 #include <linux/init.h>
@@ -212,7 +212,7 @@ static void dump_prot(struct pg_state *st, const struct prot_bits *bits,
 	}
 }
 
-static void note_prot_uxn(struct pg_state *st, unsigned long addr)
+static void yeste_prot_uxn(struct pg_state *st, unsigned long addr)
 {
 	if (!st->check_wx)
 		return;
@@ -220,13 +220,13 @@ static void note_prot_uxn(struct pg_state *st, unsigned long addr)
 	if ((st->current_prot & PTE_UXN) == PTE_UXN)
 		return;
 
-	WARN_ONCE(1, "arm64/mm: Found non-UXN mapping at address %p/%pS\n",
+	WARN_ONCE(1, "arm64/mm: Found yesn-UXN mapping at address %p/%pS\n",
 		  (void *)st->start_address, (void *)st->start_address);
 
 	st->uxn_pages += (addr - st->start_address) / PAGE_SIZE;
 }
 
-static void note_prot_wx(struct pg_state *st, unsigned long addr)
+static void yeste_prot_wx(struct pg_state *st, unsigned long addr)
 {
 	if (!st->check_wx)
 		return;
@@ -241,7 +241,7 @@ static void note_prot_wx(struct pg_state *st, unsigned long addr)
 	st->wx_pages += (addr - st->start_address) / PAGE_SIZE;
 }
 
-static void note_page(struct pg_state *st, unsigned long addr, unsigned level,
+static void yeste_page(struct pg_state *st, unsigned long addr, unsigned level,
 				u64 val)
 {
 	static const char units[] = "KMGTPE";
@@ -258,8 +258,8 @@ static void note_page(struct pg_state *st, unsigned long addr, unsigned level,
 		unsigned long delta;
 
 		if (st->current_prot) {
-			note_prot_uxn(st, addr);
-			note_prot_wx(st, addr);
+			yeste_prot_uxn(st, addr);
+			yeste_prot_wx(st, addr);
 			pt_dump_seq_printf(st->seq, "0x%016lx-0x%016lx   ",
 				   st->start_address, addr);
 
@@ -300,7 +300,7 @@ static void walk_pte(struct pg_state *st, pmd_t *pmdp, unsigned long start,
 	pte_t *ptep = pte_offset_kernel(pmdp, start);
 
 	do {
-		note_page(st, addr, 4, READ_ONCE(pte_val(*ptep)));
+		yeste_page(st, addr, 4, READ_ONCE(pte_val(*ptep)));
 	} while (ptep++, addr += PAGE_SIZE, addr != end);
 }
 
@@ -314,8 +314,8 @@ static void walk_pmd(struct pg_state *st, pud_t *pudp, unsigned long start,
 		pmd_t pmd = READ_ONCE(*pmdp);
 		next = pmd_addr_end(addr, end);
 
-		if (pmd_none(pmd) || pmd_sect(pmd)) {
-			note_page(st, addr, 3, pmd_val(pmd));
+		if (pmd_yesne(pmd) || pmd_sect(pmd)) {
+			yeste_page(st, addr, 3, pmd_val(pmd));
 		} else {
 			BUG_ON(pmd_bad(pmd));
 			walk_pte(st, pmdp, addr, next);
@@ -333,8 +333,8 @@ static void walk_pud(struct pg_state *st, pgd_t *pgdp, unsigned long start,
 		pud_t pud = READ_ONCE(*pudp);
 		next = pud_addr_end(addr, end);
 
-		if (pud_none(pud) || pud_sect(pud)) {
-			note_page(st, addr, 2, pud_val(pud));
+		if (pud_yesne(pud) || pud_sect(pud)) {
+			yeste_page(st, addr, 2, pud_val(pud));
 		} else {
 			BUG_ON(pud_bad(pud));
 			walk_pmd(st, pudp, addr, next);
@@ -353,8 +353,8 @@ static void walk_pgd(struct pg_state *st, struct mm_struct *mm,
 		pgd_t pgd = READ_ONCE(*pgdp);
 		next = pgd_addr_end(addr, end);
 
-		if (pgd_none(pgd)) {
-			note_page(st, addr, 1, pgd_val(pgd));
+		if (pgd_yesne(pgd)) {
+			yeste_page(st, addr, 1, pgd_val(pgd));
 		} else {
 			BUG_ON(pgd_bad(pgd));
 			walk_pud(st, pgdp, addr, next);
@@ -371,7 +371,7 @@ void ptdump_walk_pgd(struct seq_file *m, struct ptdump_info *info)
 
 	walk_pgd(&st, info->mm, info->base_addr);
 
-	note_page(&st, 0, 0, 0);
+	yeste_page(&st, 0, 0, 0);
 }
 
 static void ptdump_initialize(void)
@@ -402,12 +402,12 @@ void ptdump_check_wx(void)
 	};
 
 	walk_pgd(&st, &init_mm, PAGE_OFFSET);
-	note_page(&st, 0, 0, 0);
+	yeste_page(&st, 0, 0, 0);
 	if (st.wx_pages || st.uxn_pages)
-		pr_warn("Checked W+X mappings: FAILED, %lu W+X pages found, %lu non-UXN pages found\n",
+		pr_warn("Checked W+X mappings: FAILED, %lu W+X pages found, %lu yesn-UXN pages found\n",
 			st.wx_pages, st.uxn_pages);
 	else
-		pr_info("Checked W+X mappings: passed, no W+X pages found\n");
+		pr_info("Checked W+X mappings: passed, yes W+X pages found\n");
 }
 
 static int ptdump_init(void)

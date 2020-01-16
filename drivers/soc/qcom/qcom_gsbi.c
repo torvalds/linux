@@ -124,8 +124,8 @@ static const struct of_device_id tcsr_dt_match[] = {
 
 static int gsbi_probe(struct platform_device *pdev)
 {
-	struct device_node *node = pdev->dev.of_node;
-	struct device_node *tcsr_node;
+	struct device_yesde *yesde = pdev->dev.of_yesde;
+	struct device_yesde *tcsr_yesde;
 	const struct of_device_id *match;
 	struct resource *res;
 	void __iomem *base;
@@ -144,23 +144,23 @@ static int gsbi_probe(struct platform_device *pdev)
 	if (IS_ERR(base))
 		return PTR_ERR(base);
 
-	/* get the tcsr node and setup the config and regmap */
-	gsbi->tcsr = syscon_regmap_lookup_by_phandle(node, "syscon-tcsr");
+	/* get the tcsr yesde and setup the config and regmap */
+	gsbi->tcsr = syscon_regmap_lookup_by_phandle(yesde, "syscon-tcsr");
 
 	if (!IS_ERR(gsbi->tcsr)) {
-		tcsr_node = of_parse_phandle(node, "syscon-tcsr", 0);
-		if (tcsr_node) {
-			match = of_match_node(tcsr_dt_match, tcsr_node);
+		tcsr_yesde = of_parse_phandle(yesde, "syscon-tcsr", 0);
+		if (tcsr_yesde) {
+			match = of_match_yesde(tcsr_dt_match, tcsr_yesde);
 			if (match)
 				config = match->data;
 			else
-				dev_warn(&pdev->dev, "no matching TCSR\n");
+				dev_warn(&pdev->dev, "yes matching TCSR\n");
 
-			of_node_put(tcsr_node);
+			of_yesde_put(tcsr_yesde);
 		}
 	}
 
-	if (of_property_read_u32(node, "cell-index", &gsbi_num)) {
+	if (of_property_read_u32(yesde, "cell-index", &gsbi_num)) {
 		dev_err(&pdev->dev, "missing cell-index\n");
 		return -EINVAL;
 	}
@@ -170,13 +170,13 @@ static int gsbi_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	if (of_property_read_u32(node, "qcom,mode", &gsbi->mode)) {
+	if (of_property_read_u32(yesde, "qcom,mode", &gsbi->mode)) {
 		dev_err(&pdev->dev, "missing mode configuration\n");
 		return -EINVAL;
 	}
 
-	/* not required, so default to 0 if not present */
-	of_property_read_u32(node, "qcom,crci", &gsbi->crci);
+	/* yest required, so default to 0 if yest present */
+	of_property_read_u32(yesde, "qcom,crci", &gsbi->crci);
 
 	dev_info(&pdev->dev, "GSBI port protocol: %d crci: %d\n",
 		 gsbi->mode, gsbi->crci);
@@ -208,12 +208,12 @@ static int gsbi_probe(struct platform_device *pdev)
 		}
 	}
 
-	/* make sure the gsbi control write is not reordered */
+	/* make sure the gsbi control write is yest reordered */
 	wmb();
 
 	platform_set_drvdata(pdev, gsbi);
 
-	ret = of_platform_populate(node, NULL, NULL, &pdev->dev);
+	ret = of_platform_populate(yesde, NULL, NULL, &pdev->dev);
 	if (ret)
 		clk_disable_unprepare(gsbi->hclk);
 	return ret;

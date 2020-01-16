@@ -288,7 +288,7 @@ int onfi_fill_data_interface(struct nand_chip *chip,
 	*iface = onfi_sdr_timings[timing_mode];
 
 	/*
-	 * Initialize timings that cannot be deduced from timing mode:
+	 * Initialize timings that canyest be deduced from timing mode:
 	 * tPROG, tBERS, tR and tCCS.
 	 * These information are part of the ONFI parameter page.
 	 */
@@ -300,12 +300,12 @@ int onfi_fill_data_interface(struct nand_chip *chip,
 		timings->tBERS_max = 1000000ULL * onfi->tBERS;
 		timings->tR_max = 1000000ULL * onfi->tR;
 
-		/* nanoseconds -> picoseconds */
+		/* nayesseconds -> picoseconds */
 		timings->tCCS_min = 1000UL * onfi->tCCS;
 	} else {
 		struct nand_sdr_timings *timings = &iface->timings.sdr;
 		/*
-		 * For non-ONFI chips we use the highest possible value for
+		 * For yesn-ONFI chips we use the highest possible value for
 		 * tPROG and tBERS. tR and tCCS will take the default values
 		 * precised in the ONFI specification for timing mode 0,
 		 * respectively 200us and 500ns.
@@ -316,7 +316,7 @@ int onfi_fill_data_interface(struct nand_chip *chip,
 		timings->tBERS_max = 1000000ULL * ONFI_DYN_TIMING_MAX;
 		timings->tR_max = 1000000ULL * 200000000ULL;
 
-		/* nanoseconds -> picoseconds */
+		/* nayesseconds -> picoseconds */
 		timings->tCCS_min = 1000UL * 500000;
 	}
 

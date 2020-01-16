@@ -105,7 +105,7 @@ static void free_hpc_access(void);
 static int poll_hpc(void *data);
 static int process_changeinstatus(struct slot *, struct slot *);
 static int process_changeinlatch(u8, u8, struct controller *);
-static int hpc_wait_ctlr_notworking(int, struct controller *, void __iomem *, u8 *);
+static int hpc_wait_ctlr_yestworking(int, struct controller *, void __iomem *, u8 *);
 //----------------------------------------------------------------------------
 
 
@@ -147,7 +147,7 @@ static u8 i2c_ctrl_read(struct controller *ctlr_ptr, void __iomem *WPGBbar, u8 i
 		ultemp = ultemp << 8;
 		data |= ultemp;
 	} else {
-		err("this controller type is not supported \n");
+		err("this controller type is yest supported \n");
 		return HPC_ERROR;
 	}
 
@@ -258,7 +258,7 @@ static u8 i2c_ctrl_write(struct controller *ctlr_ptr, void __iomem *WPGBbar, u8 
 		ultemp = ultemp << 8;
 		data |= ultemp;
 	} else {
-		err("this controller type is not supported \n");
+		err("this controller type is yest supported \n");
 		return HPC_ERROR;
 	}
 
@@ -497,7 +497,7 @@ static u8 hpc_readcmdtoindex(u8 cmd, u8 index)
 *
 * Action:  issue a READ command to HPC
 *
-* Input:   pslot   - cannot be NULL for READ_ALLSTAT
+* Input:   pslot   - canyest be NULL for READ_ALLSTAT
 *          pstatus - can be NULL for READ_ALLSTAT
 *
 * Return   0 or error codes
@@ -551,14 +551,14 @@ int ibmphp_hpc_readslot(struct slot *pslot, u8 cmd, u8 *pstatus)
 	//--------------------------------------------------------------------
 	// check controller status before reading
 	//--------------------------------------------------------------------
-	rc = hpc_wait_ctlr_notworking(HPC_CTLR_WORKING_TOUT, ctlr_ptr, wpg_bbar, &status);
+	rc = hpc_wait_ctlr_yestworking(HPC_CTLR_WORKING_TOUT, ctlr_ptr, wpg_bbar, &status);
 	if (!rc) {
 		switch (cmd) {
 		case READ_ALLSTAT:
 			// update the slot structure
 			pslot->ctrl->status = status;
 			pslot->status = ctrl_read(ctlr_ptr, wpg_bbar, index);
-			rc = hpc_wait_ctlr_notworking(HPC_CTLR_WORKING_TOUT, ctlr_ptr, wpg_bbar,
+			rc = hpc_wait_ctlr_yestworking(HPC_CTLR_WORKING_TOUT, ctlr_ptr, wpg_bbar,
 						       &status);
 			if (!rc)
 				pslot->ext_status = ctrl_read(ctlr_ptr, wpg_bbar, index + WPG_1ST_EXTSLOT_INDEX);
@@ -599,11 +599,11 @@ int ibmphp_hpc_readslot(struct slot *pslot, u8 cmd, u8 *pstatus)
 			list_for_each_entry(pslot, &ibmphp_slot_head,
 					    ibm_slot_list) {
 				index = pslot->ctlr_index;
-				rc = hpc_wait_ctlr_notworking(HPC_CTLR_WORKING_TOUT, ctlr_ptr,
+				rc = hpc_wait_ctlr_yestworking(HPC_CTLR_WORKING_TOUT, ctlr_ptr,
 								wpg_bbar, &status);
 				if (!rc) {
 					pslot->status = ctrl_read(ctlr_ptr, wpg_bbar, index);
-					rc = hpc_wait_ctlr_notworking(HPC_CTLR_WORKING_TOUT,
+					rc = hpc_wait_ctlr_yestworking(HPC_CTLR_WORKING_TOUT,
 									ctlr_ptr, wpg_bbar, &status);
 					if (!rc)
 						pslot->ext_status =
@@ -695,18 +695,18 @@ int ibmphp_hpc_writeslot(struct slot *pslot, u8 cmd)
 	//--------------------------------------------------------------------
 	// check controller status before writing
 	//--------------------------------------------------------------------
-	rc = hpc_wait_ctlr_notworking(HPC_CTLR_WORKING_TOUT, ctlr_ptr, wpg_bbar, &status);
+	rc = hpc_wait_ctlr_yestworking(HPC_CTLR_WORKING_TOUT, ctlr_ptr, wpg_bbar, &status);
 	if (!rc) {
 
 		ctrl_write(ctlr_ptr, wpg_bbar, index, cmd);
 
 		//--------------------------------------------------------------------
-		// check controller is still not working on the command
+		// check controller is still yest working on the command
 		//--------------------------------------------------------------------
 		timeout = CMD_COMPLETE_TOUT_SEC;
 		done = 0;
 		while (!done) {
-			rc = hpc_wait_ctlr_notworking(HPC_CTLR_WORKING_TOUT, ctlr_ptr, wpg_bbar,
+			rc = hpc_wait_ctlr_yestworking(HPC_CTLR_WORKING_TOUT, ctlr_ptr, wpg_bbar,
 							&status);
 			if (!rc) {
 				if (NEEDTOCHECK_CMDSTATUS(cmd)) {
@@ -910,7 +910,7 @@ static int process_changeinstatus(struct slot *pslot, struct slot *poldslot)
 		update = 1;
 
 	// bit 1 - HPC_SLOT_CONNECT
-	// ignore
+	// igyesre
 
 	// bit 2 - HPC_SLOT_ATTN
 	if ((pslot->status & 0x04) != (poldslot->status & 0x04))
@@ -924,12 +924,12 @@ static int process_changeinstatus(struct slot *pslot, struct slot *poldslot)
 
 	// bit 5 - HPC_SLOT_PWRGD
 	if ((pslot->status & 0x20) != (poldslot->status & 0x20))
-		// OFF -> ON: ignore, ON -> OFF: disable slot
+		// OFF -> ON: igyesre, ON -> OFF: disable slot
 		if ((poldslot->status & 0x20) && (SLOT_CONNECT(poldslot->status) == HPC_SLOT_CONNECTED) && (SLOT_PRESENT(poldslot->status)))
 			disable = 1;
 
 	// bit 6 - HPC_SLOT_BUS_SPEED
-	// ignore
+	// igyesre
 
 	// bit 7 - HPC_SLOT_LATCH
 	if ((pslot->status & 0x80) != (poldslot->status & 0x80)) {
@@ -952,7 +952,7 @@ static int process_changeinstatus(struct slot *pslot, struct slot *poldslot)
 			&& (SLOT_CONNECT(poldslot->status) == HPC_SLOT_CONNECTED) && (SLOT_PRESENT(poldslot->status))) {
 			disable = 1;
 		}
-		// else - ignore
+		// else - igyesre
 	}
 	// bit 4 - HPC_SLOT_BLINK_ATTN
 	if ((pslot->ext_status & 0x08) != (poldslot->ext_status & 0x08))
@@ -1022,7 +1022,7 @@ int __init ibmphp_hpc_start_poll_thread(void)
 
 	ibmphp_poll_thread = kthread_run(poll_hpc, NULL, "hpc_poll");
 	if (IS_ERR(ibmphp_poll_thread)) {
-		err("%s - Error, thread not started\n", __func__);
+		err("%s - Error, thread yest started\n", __func__);
 		return PTR_ERR(ibmphp_poll_thread);
 	}
 	return 0;
@@ -1058,20 +1058,20 @@ void __exit ibmphp_hpc_stop_poll_thread(void)
 }
 
 /*----------------------------------------------------------------------
-* Name:    hpc_wait_ctlr_notworking
+* Name:    hpc_wait_ctlr_yestworking
 *
-* Action:  wait until the controller is in a not working state
+* Action:  wait until the controller is in a yest working state
 *
 * Return   0, HPC_ERROR
 * Value:
 *---------------------------------------------------------------------*/
-static int hpc_wait_ctlr_notworking(int timeout, struct controller *ctlr_ptr, void __iomem *wpg_bbar,
+static int hpc_wait_ctlr_yestworking(int timeout, struct controller *ctlr_ptr, void __iomem *wpg_bbar,
 				    u8 *pstatus)
 {
 	int rc = 0;
 	u8 done = 0;
 
-	debug_polling("hpc_wait_ctlr_notworking - Entry timeout[%d]\n", timeout);
+	debug_polling("hpc_wait_ctlr_yestworking - Entry timeout[%d]\n", timeout);
 
 	while (!done) {
 		*pstatus = ctrl_read(ctlr_ptr, wpg_bbar, WPG_CTLR_INDEX);
@@ -1091,6 +1091,6 @@ static int hpc_wait_ctlr_notworking(int timeout, struct controller *ctlr_ptr, vo
 				timeout--;
 		}
 	}
-	debug_polling("hpc_wait_ctlr_notworking - Exit rc[%x] status[%x]\n", rc, *pstatus);
+	debug_polling("hpc_wait_ctlr_yestworking - Exit rc[%x] status[%x]\n", rc, *pstatus);
 	return rc;
 }

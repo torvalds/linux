@@ -56,7 +56,7 @@ struct hwahc {
 /*
  * FIXME should be wusbhc
  *
- * NOTE: we need to cache the Cluster ID because later...there is no
+ * NOTE: we need to cache the Cluster ID because later...there is yes
  *       way to get it :)
  */
 static int __hwahc_set_cluster_id(struct hwahc *hwahc, u8 cluster_id)
@@ -73,7 +73,7 @@ static int __hwahc_set_cluster_id(struct hwahc *hwahc, u8 cluster_id)
 			wa->usb_iface->cur_altsetting->desc.bInterfaceNumber,
 			NULL, 0, USB_CTRL_SET_TIMEOUT);
 	if (result < 0)
-		dev_err(dev, "Cannot set WUSB Cluster ID to 0x%02x: %d\n",
+		dev_err(dev, "Canyest set WUSB Cluster ID to 0x%02x: %d\n",
 			cluster_id, result);
 	else
 		wusbhc->cluster_id = cluster_id;
@@ -149,9 +149,9 @@ static int hwahc_op_start(struct usb_hcd *usb_hcd)
 
 	/*
 	 * prevent USB core from suspending the root hub since
-	 * bus_suspend and bus_resume are not yet supported.
+	 * bus_suspend and bus_resume are yest yet supported.
 	 */
-	pm_runtime_get_noresume(&usb_hcd->self.root_hub->dev);
+	pm_runtime_get_yesresume(&usb_hcd->self.root_hub->dev);
 
 	result = 0;
 out:
@@ -187,8 +187,8 @@ static int hwahc_op_get_frame_number(struct usb_hcd *usb_hcd)
 	struct wahc *wa = &hwahc->wa;
 
 	/*
-	 * We cannot query the HWA for the WUSB time since that requires sending
-	 * a synchronous URB and this function can be called in_interrupt.
+	 * We canyest query the HWA for the WUSB time since that requires sending
+	 * a synchroyesus URB and this function can be called in_interrupt.
 	 * Instead, query the USB frame number for our parent and use that.
 	 */
 	return usb_get_current_frame_number(wa->usb_dev);
@@ -244,12 +244,12 @@ static int __hwahc_op_wusbhc_start(struct wusbhc *wusbhc)
 	}
 	result = wa_nep_arm(&hwahc->wa, GFP_KERNEL);
 	if (result < 0) {
-		dev_err(dev, "cannot listen to notifications: %d\n", result);
+		dev_err(dev, "canyest listen to yestifications: %d\n", result);
 		goto error_stop;
 	}
 	/*
 	 * If WUSB_QUIRK_ALEREON_HWA_DISABLE_XFER_NOTIFICATIONS is set,
-	 *  disable transfer notifications.
+	 *  disable transfer yestifications.
 	 */
 	if (hwahc->wa.quirks &
 		WUSB_QUIRK_ALEREON_HWA_DISABLE_XFER_NOTIFICATIONS) {
@@ -267,16 +267,16 @@ static int __hwahc_op_wusbhc_start(struct wusbhc *wusbhc)
 				USB_CTRL_SET_TIMEOUT);
 		/*
 		 * If we successfully sent the control message, start DTI here
-		 * because no transfer notifications will be received which is
-		 * where DTI is normally started.
+		 * because yes transfer yestifications will be received which is
+		 * where DTI is yesrmally started.
 		 */
 		if (result == 0)
 			result = wa_dti_start(&hwahc->wa);
 		else
-			result = 0;	/* OK.  Continue normally. */
+			result = 0;	/* OK.  Continue yesrmally. */
 
 		if (result < 0) {
-			dev_err(dev, "cannot start DTI: %d\n", result);
+			dev_err(dev, "canyest start DTI: %d\n", result);
 			goto error_dti_start;
 		}
 	}
@@ -294,14 +294,14 @@ static void __hwahc_op_wusbhc_stop(struct wusbhc *wusbhc, int delay)
 {
 	struct hwahc *hwahc = container_of(wusbhc, struct hwahc, wusbhc);
 	struct wahc *wa = &hwahc->wa;
-	u8 iface_no = wa->usb_iface->cur_altsetting->desc.bInterfaceNumber;
+	u8 iface_yes = wa->usb_iface->cur_altsetting->desc.bInterfaceNumber;
 	int ret;
 
 	ret = usb_control_msg(wa->usb_dev, usb_sndctrlpipe(wa->usb_dev, 0),
 			      WUSB_REQ_CHAN_STOP,
 			      USB_DIR_OUT | USB_TYPE_CLASS | USB_RECIP_INTERFACE,
 			      delay * 1000,
-			      iface_no,
+			      iface_yes,
 			      NULL, 0, USB_CTRL_SET_TIMEOUT);
 	if (ret == 0)
 		msleep(delay);
@@ -333,7 +333,7 @@ static int __hwahc_op_bwa_set(struct wusbhc *wusbhc, s8 stream_index,
 			wa->usb_iface->cur_altsetting->desc.bInterfaceNumber,
 			NULL, 0, USB_CTRL_SET_TIMEOUT);
 	if (result < 0) {
-		dev_err(dev, "Cannot set WUSB stream index: %d\n", result);
+		dev_err(dev, "Canyest set WUSB stream index: %d\n", result);
 		goto out;
 	}
 	uwb_mas_bm_copy_le(mas_le, mas);
@@ -344,7 +344,7 @@ static int __hwahc_op_bwa_set(struct wusbhc *wusbhc, s8 stream_index,
 			0, wa->usb_iface->cur_altsetting->desc.bInterfaceNumber,
 			mas_le, 32, USB_CTRL_SET_TIMEOUT);
 	if (result < 0)
-		dev_err(dev, "Cannot set WUSB MAS allocation: %d\n", result);
+		dev_err(dev, "Canyest set WUSB MAS allocation: %d\n", result);
 out:
 	return result;
 }
@@ -356,11 +356,11 @@ out:
  * @repeat_cnt:  See WUSB1.0[8.5.3.1]
  * @handle:      See WUSB1.0[8.5.3.1]
  * @wuie:        Pointer to the header of the WUSB IE data to add.
- *               MUST BE allocated in a kmalloc buffer (no stack or
+ *               MUST BE allocated in a kmalloc buffer (yes stack or
  *               vmalloc).
  *
  * NOTE: the format of the WUSB IEs for MMCs are different to the
- *       normal MBOA MAC IEs (IE Id + Length in MBOA MAC vs. Length +
+ *       yesrmal MBOA MAC IEs (IE Id + Length in MBOA MAC vs. Length +
  *       Id in WUSB IEs). Standards...you gotta love'em.
  */
 static int __hwahc_op_mmcie_add(struct wusbhc *wusbhc, u8 interval,
@@ -369,13 +369,13 @@ static int __hwahc_op_mmcie_add(struct wusbhc *wusbhc, u8 interval,
 {
 	struct hwahc *hwahc = container_of(wusbhc, struct hwahc, wusbhc);
 	struct wahc *wa = &hwahc->wa;
-	u8 iface_no = wa->usb_iface->cur_altsetting->desc.bInterfaceNumber;
+	u8 iface_yes = wa->usb_iface->cur_altsetting->desc.bInterfaceNumber;
 
 	return usb_control_msg(wa->usb_dev, usb_sndctrlpipe(wa->usb_dev, 0),
 			WUSB_REQ_ADD_MMC_IE,
 			USB_DIR_OUT | USB_TYPE_CLASS | USB_RECIP_INTERFACE,
 			interval << 8 | repeat_cnt,
-			handle << 8 | iface_no,
+			handle << 8 | iface_yes,
 			wuie, wuie->bLength, USB_CTRL_SET_TIMEOUT);
 }
 
@@ -388,18 +388,18 @@ static int __hwahc_op_mmcie_rm(struct wusbhc *wusbhc, u8 handle)
 {
 	struct hwahc *hwahc = container_of(wusbhc, struct hwahc, wusbhc);
 	struct wahc *wa = &hwahc->wa;
-	u8 iface_no = wa->usb_iface->cur_altsetting->desc.bInterfaceNumber;
+	u8 iface_yes = wa->usb_iface->cur_altsetting->desc.bInterfaceNumber;
 	return usb_control_msg(wa->usb_dev, usb_sndctrlpipe(wa->usb_dev, 0),
 			WUSB_REQ_REMOVE_MMC_IE,
 			USB_DIR_OUT | USB_TYPE_CLASS | USB_RECIP_INTERFACE,
-			0, handle << 8 | iface_no,
+			0, handle << 8 | iface_yes,
 			NULL, 0, USB_CTRL_SET_TIMEOUT);
 }
 
 /*
  * Update device information for a given fake port
  *
- * @port_idx: Fake port to which device is connected (wusbhc index, not
+ * @port_idx: Fake port to which device is connected (wusbhc index, yest
  *            USB port number).
  */
 static int __hwahc_op_dev_info_set(struct wusbhc *wusbhc,
@@ -407,7 +407,7 @@ static int __hwahc_op_dev_info_set(struct wusbhc *wusbhc,
 {
 	struct hwahc *hwahc = container_of(wusbhc, struct hwahc, wusbhc);
 	struct wahc *wa = &hwahc->wa;
-	u8 iface_no = wa->usb_iface->cur_altsetting->desc.bInterfaceNumber;
+	u8 iface_yes = wa->usb_iface->cur_altsetting->desc.bInterfaceNumber;
 	struct hwa_dev_info *dev_info;
 	int ret;
 
@@ -434,7 +434,7 @@ static int __hwahc_op_dev_info_set(struct wusbhc *wusbhc,
 	ret = usb_control_msg(wa->usb_dev, usb_sndctrlpipe(wa->usb_dev, 0),
 			WUSB_REQ_SET_DEV_INFO,
 			USB_DIR_OUT | USB_TYPE_CLASS | USB_RECIP_INTERFACE,
-			0, wusb_dev->port_idx << 8 | iface_no,
+			0, wusb_dev->port_idx << 8 | iface_yes,
 			dev_info, sizeof(struct hwa_dev_info),
 			USB_CTRL_SET_TIMEOUT);
 	kfree(dev_info);
@@ -455,7 +455,7 @@ static int __hwahc_dev_set_key(struct wusbhc *wusbhc, u8 port_idx, u32 tkid,
 	int result = -ENOMEM;
 	struct hwahc *hwahc = container_of(wusbhc, struct hwahc, wusbhc);
 	struct wahc *wa = &hwahc->wa;
-	u8 iface_no = wa->usb_iface->cur_altsetting->desc.bInterfaceNumber;
+	u8 iface_yes = wa->usb_iface->cur_altsetting->desc.bInterfaceNumber;
 	struct usb_key_descriptor *keyd;
 	size_t keyd_len;
 
@@ -475,7 +475,7 @@ static int __hwahc_dev_set_key(struct wusbhc *wusbhc, u8 port_idx, u32 tkid,
 			USB_REQ_SET_DESCRIPTOR,
 			USB_DIR_OUT | USB_TYPE_CLASS | USB_RECIP_INTERFACE,
 			USB_DT_KEY << 8 | key_idx,
-			port_idx << 8 | iface_no,
+			port_idx << 8 | iface_yes,
 			keyd, keyd_len, USB_CTRL_SET_TIMEOUT);
 
 	kzfree(keyd); /* clear keys etc. */
@@ -495,7 +495,7 @@ static int __hwahc_op_set_ptk(struct wusbhc *wusbhc, u8 port_idx, u32 tkid,
 	int result = -ENOMEM;
 	struct hwahc *hwahc = container_of(wusbhc, struct hwahc, wusbhc);
 	struct wahc *wa = &hwahc->wa;
-	u8 iface_no = wa->usb_iface->cur_altsetting->desc.bInterfaceNumber;
+	u8 iface_yes = wa->usb_iface->cur_altsetting->desc.bInterfaceNumber;
 	u8 encryption_value;
 
 	/* Tell the host which key to use to talk to the device */
@@ -517,7 +517,7 @@ static int __hwahc_op_set_ptk(struct wusbhc *wusbhc, u8 port_idx, u32 tkid,
 	result = usb_control_msg(wa->usb_dev, usb_sndctrlpipe(wa->usb_dev, 0),
 			USB_REQ_SET_ENCRYPTION,
 			USB_DIR_OUT | USB_TYPE_CLASS | USB_RECIP_INTERFACE,
-			encryption_value, port_idx << 8 | iface_no,
+			encryption_value, port_idx << 8 | iface_yes,
 			NULL, 0, USB_CTRL_SET_TIMEOUT);
 	if (result < 0)
 		dev_err(wusbhc->dev, "Can't set host's WUSB encryption for "
@@ -575,7 +575,7 @@ static int wa_fill_descr(struct wahc *wa)
 		itr += hdr->bLength;
 		itr_size -= hdr->bLength;
 	}
-	dev_err(dev, "cannot find Wire Adapter Class descriptor\n");
+	dev_err(dev, "canyest find Wire Adapter Class descriptor\n");
 	return -ENODEV;
 
 found:
@@ -642,19 +642,19 @@ static int hwahc_security_create(struct hwahc *hwahc)
 			le16_to_cpu(usb_dev->actconfig->desc.wTotalLength),
 			USB_DT_SECURITY, (void **) &secd, sizeof(*secd));
 	if (result == -1) {
-		dev_warn(dev, "BUG? WUSB host has no security descriptors\n");
+		dev_warn(dev, "BUG? WUSB host has yes security descriptors\n");
 		return 0;
 	}
 	needed = sizeof(*secd);
 	if (top - (void *)secd < needed) {
-		dev_err(dev, "BUG? Not enough data to process security "
+		dev_err(dev, "BUG? Not eyesugh data to process security "
 			"descriptor header (%zu bytes left vs %zu needed)\n",
 			top - (void *) secd, needed);
 		return 0;
 	}
 	needed = le16_to_cpu(secd->wTotalLength);
 	if (top - (void *)secd < needed) {
-		dev_err(dev, "BUG? Not enough data to process security "
+		dev_err(dev, "BUG? Not eyesugh data to process security "
 			"descriptors (%zu bytes left vs %zu needed)\n",
 			top - (void *) secd, needed);
 		return 0;
@@ -668,7 +668,7 @@ static int hwahc_security_create(struct hwahc *hwahc)
 		etd = itr;
 		if (top - itr < sizeof(*etd)) {
 			dev_err(dev, "BUG: bad host security descriptor; "
-				"not enough data (%zu vs %zu left)\n",
+				"yest eyesugh data (%zu vs %zu left)\n",
 				top - itr, sizeof(*etd));
 			break;
 		}
@@ -697,7 +697,7 @@ static int hwahc_security_create(struct hwahc *hwahc)
 
 static void hwahc_security_release(struct hwahc *hwahc)
 {
-	/* nothing to do here so far... */
+	/* yesthing to do here so far... */
 }
 
 static int hwahc_create(struct hwahc *hwahc, struct usb_interface *iface,
@@ -713,7 +713,7 @@ static int hwahc_create(struct hwahc *hwahc, struct usb_interface *iface,
 	wa->usb_iface = usb_get_intf(iface);
 	wusbhc->dev = dev;
 	/* defer getting the uwb_rc handle until it is needed since it
-	 * may not have been registered by the hwa_rc driver yet. */
+	 * may yest have been registered by the hwa_rc driver yet. */
 	wusbhc->uwb_rc = NULL;
 	result = wa_fill_descr(wa);	/* Get the device descriptor */
 	if (result < 0)
@@ -754,7 +754,7 @@ static int hwahc_create(struct hwahc *hwahc, struct usb_interface *iface,
 error_wa_create:
 	wusbhc_destroy(&hwahc->wusbhc);
 error_wusbhc_create:
-	/* WA Descr fill allocs no resources */
+	/* WA Descr fill allocs yes resources */
 error_security_create:
 error_fill_descriptor:
 	usb_put_intf(iface);
@@ -804,18 +804,18 @@ static int hwahc_probe(struct usb_interface *usb_iface,
 	hwahc_init(hwahc);
 	result = hwahc_create(hwahc, usb_iface, id->driver_info);
 	if (result < 0) {
-		dev_err(dev, "Cannot initialize internals: %d\n", result);
+		dev_err(dev, "Canyest initialize internals: %d\n", result);
 		goto error_hwahc_create;
 	}
 	result = usb_add_hcd(usb_hcd, 0, 0);
 	if (result < 0) {
-		dev_err(dev, "Cannot add HCD: %d\n", result);
+		dev_err(dev, "Canyest add HCD: %d\n", result);
 		goto error_add_hcd;
 	}
 	device_wakeup_enable(usb_hcd->self.controller);
 	result = wusbhc_b_create(&hwahc->wusbhc);
 	if (result < 0) {
-		dev_err(dev, "Cannot setup phase B of WUSBHC: %d\n", result);
+		dev_err(dev, "Canyest setup phase B of WUSBHC: %d\n", result);
 		goto error_wusbhc_b_create;
 	}
 	return 0;

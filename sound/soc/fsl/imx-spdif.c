@@ -13,7 +13,7 @@ struct imx_spdif_data {
 
 static int imx_spdif_audio_probe(struct platform_device *pdev)
 {
-	struct device_node *spdif_np, *np = pdev->dev.of_node;
+	struct device_yesde *spdif_np, *np = pdev->dev.of_yesde;
 	struct imx_spdif_data *data;
 	struct snd_soc_dai_link_component *comp;
 	int ret = 0;
@@ -44,8 +44,8 @@ static int imx_spdif_audio_probe(struct platform_device *pdev)
 	data->dai.stream_name = "S/PDIF PCM";
 	data->dai.codecs->dai_name = "snd-soc-dummy-dai";
 	data->dai.codecs->name = "snd-soc-dummy";
-	data->dai.cpus->of_node = spdif_np;
-	data->dai.platforms->of_node = spdif_np;
+	data->dai.cpus->of_yesde = spdif_np;
+	data->dai.platforms->of_yesde = spdif_np;
 	data->dai.playback_only = true;
 	data->dai.capture_only = true;
 
@@ -56,7 +56,7 @@ static int imx_spdif_audio_probe(struct platform_device *pdev)
 		data->dai.playback_only = false;
 
 	if (data->dai.playback_only && data->dai.capture_only) {
-		dev_err(&pdev->dev, "no enabled S/PDIF DAI link\n");
+		dev_err(&pdev->dev, "yes enabled S/PDIF DAI link\n");
 		goto end;
 	}
 
@@ -74,7 +74,7 @@ static int imx_spdif_audio_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "snd_soc_register_card failed: %d\n", ret);
 
 end:
-	of_node_put(spdif_np);
+	of_yesde_put(spdif_np);
 
 	return ret;
 }

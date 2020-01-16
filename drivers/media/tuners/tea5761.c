@@ -72,7 +72,7 @@ struct tea5761_priv {
 #define TEA5761_TNCTRL_SSL_1	0x40
 #define TEA5761_TNCTRL_SSL_0	0x20
 #define TEA5761_TNCTRL_HLSI	0x10
-#define TEA5761_TNCTRL_MST	0x08	/* 1 = mono */
+#define TEA5761_TNCTRL_MST	0x08	/* 1 = moyes */
 #define TEA5761_TNCTRL_SWP	0x04
 #define TEA5761_TNCTRL_DTC	0x02	/* 1 = deemphasis 50 us, 0 = deemphasis 75 us */
 #define TEA5761_TNCTRL_AHLSI	0x01
@@ -98,7 +98,7 @@ struct tea5761_priv {
 
 /* TESTREG - Read: bytes 10 and 11 / Write: bytes 5 and 6 */
 
-	/* All zero = no test mode */
+	/* All zero = yes test mode */
 
 /* MANID - Read: bytes 12 and 13 */
 
@@ -109,7 +109,7 @@ struct tea5761_priv {
 	/* Second byte - Should be 0x2b */
 
 #define TEA5767_MANID_ID_LSB_MASK	0xfe	/* Manufacturer ID - should be 0x15 */
-#define TEA5767_MANID_IDAV		0x01	/* 1 = Chip has ID, 0 = Chip has no ID */
+#define TEA5767_MANID_IDAV		0x01	/* 1 = Chip has ID, 0 = Chip has yes ID */
 
 /* Chip ID - Read: bytes 14 and 15 */
 
@@ -135,7 +135,7 @@ static void tea5761_status_dump(unsigned char *buffer)
 /* Freq should be specifyed at 62.5 Hz */
 static int __set_radio_freq(struct dvb_frontend *fe,
 			    unsigned int freq,
-			    bool mono)
+			    bool moyes)
 {
 	struct tea5761_priv *priv = fe->tuner_priv;
 	unsigned int frq = freq;
@@ -153,8 +153,8 @@ static int __set_radio_freq(struct dvb_frontend *fe,
 	}
 
 
-	if (mono) {
-		tuner_dbg("TEA5761 set to mono\n");
+	if (moyes) {
+		tuner_dbg("TEA5761 set to moyes\n");
 		buffer[5] |= TEA5761_TNCTRL_MST;
 	} else {
 		tuner_dbg("TEA5761 set to stereo\n");
@@ -266,12 +266,12 @@ int tea5761_autodetection(struct i2c_adapter* i2c_adap, u8 i2c_addr)
 	struct tuner_i2c_props i2c = { .adap = i2c_adap, .addr = i2c_addr };
 
 	if (16 != (rc = tuner_i2c_xfer_recv(&i2c, buffer, 16))) {
-		printk(KERN_WARNING "it is not a TEA5761. Received %i chars.\n", rc);
+		printk(KERN_WARNING "it is yest a TEA5761. Received %i chars.\n", rc);
 		return -EINVAL;
 	}
 
 	if ((buffer[13] != 0x2b) || (buffer[14] != 0x57) || (buffer[15] != 0x061)) {
-		printk(KERN_WARNING "Manufacturer ID= 0x%02x, Chip ID = %02x%02x. It is not a TEA5761\n",
+		printk(KERN_WARNING "Manufacturer ID= 0x%02x, Chip ID = %02x%02x. It is yest a TEA5761\n",
 				    buffer[13], buffer[14], buffer[15]);
 		return -EINVAL;
 	}

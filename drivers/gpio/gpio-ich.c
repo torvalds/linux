@@ -71,7 +71,7 @@ struct ichx_desc {
 	bool uses_gpe0;
 
 	/* USE_SEL is bogus on some chipsets, eg 3100 */
-	u32 use_sel_ignore[3];
+	u32 use_sel_igyesre[3];
 
 	/* Some chipsets have quirks, let these use their own request/get */
 	int (*request)(struct gpio_chip *chip, unsigned offset);
@@ -234,7 +234,7 @@ static int ichx_gpio_request(struct gpio_chip *chip, unsigned nr)
 	 * the chipset's USE value can be trusted for this specific bit.
 	 * If it can't be trusted, assume that the pin can be used as a GPIO.
 	 */
-	if (ichx_priv.desc->use_sel_ignore[nr / 32] & BIT(nr & 0x1f))
+	if (ichx_priv.desc->use_sel_igyesre[nr / 32] & BIT(nr & 0x1f))
 		return 0;
 
 	return ichx_read_bit(GPIO_USE_SEL, nr) ? 0 : -ENODEV;
@@ -303,7 +303,7 @@ static struct ichx_desc i3100_desc = {
 	 * the Intel 3100.  See "Table 712. GPIO Summary Table" of 3100
 	 * Datasheet for more info.
 	 */
-	.use_sel_ignore = {0x00130000, 0x00010000, 0x0},
+	.use_sel_igyesre = {0x00130000, 0x00010000, 0x0},
 
 	/* The 3100 needs fixups for GPIO 0 - 17 */
 	.request = ich6_gpio_request,

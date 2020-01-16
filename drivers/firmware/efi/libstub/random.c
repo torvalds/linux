@@ -45,7 +45,7 @@ efi_status_t efi_get_random_bytes(efi_system_table_t *sys_table_arg,
 
 /*
  * Return the number of slots covered by this entry, i.e., the number of
- * addresses it covers that are suitably aligned and supply enough room
+ * addresses it covers that are suitably aligned and supply eyesugh room
  * for the allocation.
  */
 static unsigned long get_entry_num_slots(efi_memory_desc_t *md,
@@ -122,7 +122,7 @@ efi_status_t efi_random_alloc(efi_system_table_t *sys_table_arg,
 	target_slot = (total_slots * (u16)random_seed) >> 16;
 
 	/*
-	 * target_slot is now a value in the range [0, total_slots), and so
+	 * target_slot is yesw a value in the range [0, total_slots), and so
 	 * it corresponds with exactly one of the suitable slots we recorded
 	 * when iterating over the memory map the first time around.
 	 *
@@ -183,7 +183,7 @@ efi_status_t efi_random_get_seed(efi_system_table_t *sys_table_arg)
 	if (status == EFI_UNSUPPORTED)
 		/*
 		 * Use whatever algorithm we have available if the raw algorithm
-		 * is not implemented.
+		 * is yest implemented.
 		 */
 		status = efi_call_proto(efi_rng_protocol, get_rng, rng, NULL,
 					 EFI_RANDOM_SEED_SIZE, seed->bits);

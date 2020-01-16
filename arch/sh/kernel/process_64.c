@@ -6,7 +6,7 @@
  *
  * Copyright (C) 2000, 2001  Paolo Alberelli
  * Copyright (C) 2003 - 2007  Paul Mundt
- * Copyright (C) 2003, 2004 Richard Curnow
+ * Copyright (C) 2003, 2004 Richard Curyesw
  *
  * Started from SH3/4 version:
  *   Copyright (C) 1999, 2000  Niibe Yutaka & Kaz Kojima
@@ -296,14 +296,14 @@ void exit_thread(struct task_struct *tsk)
 	 *
 	 * The SH-5 FPU save/restore approach relies on
 	 * last_task_used_math pointing to a live task_struct.  When
-	 * another task tries to use the FPU for the 1st time, the FPUDIS
+	 * ayesther task tries to use the FPU for the 1st time, the FPUDIS
 	 * trap handling (see arch/sh/kernel/cpu/sh5/fpu.c) will save the
 	 * existing FPU state to the FP regs field within
 	 * last_task_used_math before re-loading the new task's FPU state
 	 * (or initialising it if the FPU has been used before).  So if
 	 * last_task_used_math is stale, and its page has already been
-	 * re-allocated for another use, the consequences are rather
-	 * grim. Unless we null it here, there is no other path through
+	 * re-allocated for ayesther use, the consequences are rather
+	 * grim. Unless we null it here, there is yes other path through
 	 * which it would get safely nulled.
 	 */
 #ifdef CONFIG_SH_FPU
@@ -337,7 +337,7 @@ void flush_thread(void)
 
 void release_thread(struct task_struct *dead_task)
 {
-	/* do nothing */
+	/* do yesthing */
 }
 
 /* Fill in the fpu structure for a core dump.. */
@@ -393,7 +393,7 @@ int copy_thread(unsigned long clone_flags, unsigned long usp,
 		memset(childregs, 0, sizeof(struct pt_regs));
 		childregs->regs[2] = (unsigned long)arg;
 		childregs->regs[3] = (unsigned long)usp;
-		childregs->sr = (1 << 30); /* not user_mode */
+		childregs->sr = (1 << 30); /* yest user_mode */
 		childregs->sr |= SR_FD; /* Invalidate FPU flag */
 		p->thread.pc = (unsigned long) ret_from_kernel_thread;
 		return 0;

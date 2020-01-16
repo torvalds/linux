@@ -137,7 +137,7 @@ static const struct snd_soc_component_driver soc_dmic = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
+	.yesn_legacy_dai_naming	= 1,
 };
 
 static int dmic_dev_probe(struct platform_device *pdev)
@@ -146,8 +146,8 @@ static int dmic_dev_probe(struct platform_device *pdev)
 	u32 chans;
 	struct snd_soc_dai_driver *dai_drv = &dmic_dai;
 
-	if (pdev->dev.of_node) {
-		err = of_property_read_u32(pdev->dev.of_node, "num-channels", &chans);
+	if (pdev->dev.of_yesde) {
+		err = of_property_read_u32(pdev->dev.of_yesde, "num-channels", &chans);
 		if (err && (err != -EINVAL))
 			return err;
 

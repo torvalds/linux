@@ -46,7 +46,7 @@ void ir_lirc_raw_event(struct rc_dev *dev, struct ir_raw_event ev)
 		/*
 		 * Userspace expects a long space event before the start of
 		 * the signal to use as a sync.  This may be done with repeat
-		 * packets and normal samples.  But if a reset has been sent
+		 * packets and yesrmal samples.  But if a reset has been sent
 		 * then we assume that a long time has passed, so we send a
 		 * space with the maximum time value.
 		 */
@@ -96,7 +96,7 @@ void ir_lirc_raw_event(struct rc_dev *dev, struct ir_raw_event ev)
 	}
 
 	/*
-	 * bpf does not care about the gap generated above; that exists
+	 * bpf does yest care about the gap generated above; that exists
 	 * for backwards compatibility
 	 */
 	lirc_bpf_run(dev, sample);
@@ -133,9 +133,9 @@ void ir_lirc_scancode_event(struct rc_dev *dev, struct lirc_scancode *lsc)
 }
 EXPORT_SYMBOL_GPL(ir_lirc_scancode_event);
 
-static int ir_lirc_open(struct inode *inode, struct file *file)
+static int ir_lirc_open(struct iyesde *iyesde, struct file *file)
 {
-	struct rc_dev *dev = container_of(inode->i_cdev, struct rc_dev,
+	struct rc_dev *dev = container_of(iyesde->i_cdev, struct rc_dev,
 					  lirc_cdev);
 	struct lirc_fh *fh = kzalloc(sizeof(*fh), GFP_KERNEL);
 	unsigned long flags;
@@ -185,7 +185,7 @@ static int ir_lirc_open(struct inode *inode, struct file *file)
 	list_add(&fh->list, &dev->lirc_fh);
 	spin_unlock_irqrestore(&dev->lirc_fh_lock, flags);
 
-	stream_open(inode, file);
+	stream_open(iyesde, file);
 
 	return 0;
 out_kfifo:
@@ -201,7 +201,7 @@ out_fh:
 	return retval;
 }
 
-static int ir_lirc_close(struct inode *inode, struct file *file)
+static int ir_lirc_close(struct iyesde *iyesde, struct file *file)
 {
 	struct lirc_fh *fh = file->private_data;
 	struct rc_dev *dev = fh->rc;
@@ -272,7 +272,7 @@ static ssize_t ir_lirc_transmit_ir(struct file *file, const char __user *buf,
 		/*
 		 * The scancode field in lirc_scancode is 64-bit simply
 		 * to future-proof it, since there are IR protocols encode
-		 * use more than 32 bits. For now only 32-bit protocols
+		 * use more than 32 bits. For yesw only 32-bit protocols
 		 * are supported.
 		 */
 		if (scan.scancode > U32_MAX ||
@@ -725,7 +725,7 @@ static const struct file_operations lirc_fops = {
 	.poll		= ir_lirc_poll,
 	.open		= ir_lirc_open,
 	.release	= ir_lirc_close,
-	.llseek		= no_llseek,
+	.llseek		= yes_llseek,
 };
 
 static void lirc_release_device(struct device *ld)
@@ -738,18 +738,18 @@ static void lirc_release_device(struct device *ld)
 int ir_lirc_register(struct rc_dev *dev)
 {
 	const char *rx_type, *tx_type;
-	int err, minor;
+	int err, miyesr;
 
-	minor = ida_simple_get(&lirc_ida, 0, RC_DEV_MAX, GFP_KERNEL);
-	if (minor < 0)
-		return minor;
+	miyesr = ida_simple_get(&lirc_ida, 0, RC_DEV_MAX, GFP_KERNEL);
+	if (miyesr < 0)
+		return miyesr;
 
 	device_initialize(&dev->lirc_dev);
 	dev->lirc_dev.class = lirc_class;
 	dev->lirc_dev.parent = &dev->dev;
 	dev->lirc_dev.release = lirc_release_device;
-	dev->lirc_dev.devt = MKDEV(MAJOR(lirc_base_dev), minor);
-	dev_set_name(&dev->lirc_dev, "lirc%d", minor);
+	dev->lirc_dev.devt = MKDEV(MAJOR(lirc_base_dev), miyesr);
+	dev_set_name(&dev->lirc_dev, "lirc%d", miyesr);
 
 	INIT_LIST_HEAD(&dev->lirc_fh);
 	spin_lock_init(&dev->lirc_fh_lock);
@@ -770,22 +770,22 @@ int ir_lirc_register(struct rc_dev *dev)
 		rx_type = "raw IR";
 		break;
 	default:
-		rx_type = "no";
+		rx_type = "yes";
 		break;
 	}
 
 	if (dev->tx_ir)
 		tx_type = "raw IR";
 	else
-		tx_type = "no";
+		tx_type = "yes";
 
-	dev_info(&dev->dev, "lirc_dev: driver %s registered at minor = %d, %s receiver, %s transmitter",
-		 dev->driver_name, minor, rx_type, tx_type);
+	dev_info(&dev->dev, "lirc_dev: driver %s registered at miyesr = %d, %s receiver, %s transmitter",
+		 dev->driver_name, miyesr, rx_type, tx_type);
 
 	return 0;
 
 out_ida:
-	ida_simple_remove(&lirc_ida, minor);
+	ida_simple_remove(&lirc_ida, miyesr);
 	return err;
 }
 
@@ -794,7 +794,7 @@ void ir_lirc_unregister(struct rc_dev *dev)
 	unsigned long flags;
 	struct lirc_fh *fh;
 
-	dev_dbg(&dev->dev, "lirc_dev: driver %s unregistered from minor = %d\n",
+	dev_dbg(&dev->dev, "lirc_dev: driver %s unregistered from miyesr = %d\n",
 		dev->driver_name, MINOR(dev->lirc_dev.devt));
 
 	spin_lock_irqsave(&dev->lirc_fh_lock, flags);

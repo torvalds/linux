@@ -15,7 +15,7 @@
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include <linux/timer.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/ioport.h>
 #include <linux/slab.h>
 #include <linux/interrupt.h>
@@ -34,7 +34,7 @@
 #include <asm/io.h>
 #include <asm/processor.h>	/* Processor type for cache alignment. */
 
-/* Operational parameters that usually are not changed. */
+/* Operational parameters that usually are yest changed. */
 
 #define CONFIG_SBMAC_COALESCE
 
@@ -48,7 +48,7 @@ MODULE_DESCRIPTION("Broadcom SiByte SOC GB Ethernet driver");
 /* A few user-configurable values which may be modified when a driver
    module is loaded. */
 
-/* 1 normal messages, 0 quiet .. 7 verbose. */
+/* 1 yesrmal messages, 0 quiet .. 7 verbose. */
 static int debug = 1;
 module_param(debug, int, 0444);
 MODULE_PARM_DESC(debug, "Debug messages");
@@ -106,20 +106,20 @@ MODULE_PARM_DESC(int_timeout_rx, "RX timeout value");
  ********************************************************************* */
 
 enum sbmac_speed {
-	sbmac_speed_none = 0,
+	sbmac_speed_yesne = 0,
 	sbmac_speed_10 = SPEED_10,
 	sbmac_speed_100 = SPEED_100,
 	sbmac_speed_1000 = SPEED_1000,
 };
 
 enum sbmac_duplex {
-	sbmac_duplex_none = -1,
+	sbmac_duplex_yesne = -1,
 	sbmac_duplex_half = DUPLEX_HALF,
 	sbmac_duplex_full = DUPLEX_FULL,
 };
 
 enum sbmac_fc {
-	sbmac_fc_none,
+	sbmac_fc_yesne,
 	sbmac_fc_disabled,
 	sbmac_fc_frame,
 	sbmac_fc_collision,
@@ -251,7 +251,7 @@ struct sbmac_softc {
 
 	unsigned char		sbm_hwaddr[ETH_ALEN];
 
-	struct sbmacdma		sbm_txdma;	/* only channel 0 for now */
+	struct sbmacdma		sbm_txdma;	/* only channel 0 for yesw */
 	struct sbmacdma		sbm_rxdma;
 	int			rx_hw_checksum;
 	int			sbe_idx;
@@ -283,7 +283,7 @@ static void sbmac_channel_start(struct sbmac_softc *s);
 static void sbmac_channel_stop(struct sbmac_softc *s);
 static enum sbmac_state sbmac_set_channel_state(struct sbmac_softc *,
 						enum sbmac_state);
-static void sbmac_promiscuous_mode(struct sbmac_softc *sc, int onoff);
+static void sbmac_promiscuous_mode(struct sbmac_softc *sc, int oyesff);
 static uint64_t sbmac_addr2reg(unsigned char *ptr);
 static irqreturn_t sbmac_intr(int irq, void *dev_instance);
 static netdev_tx_t sbmac_start_tx(struct sk_buff *skb, struct net_device *dev);
@@ -344,7 +344,7 @@ static char sbmac_mdio_string[] = "sb1250-mac-mdio";
  *  	   sbm_mdio - address of the MAC's MDIO register
  *
  *  Return value:
- *  	   nothing
+ *  	   yesthing
  ********************************************************************* */
 
 static void sbmac_mii_sync(void __iomem *sbm_mdio)
@@ -428,7 +428,7 @@ static int sbmac_mii_read(struct mii_bus *bus, int phyaddr, int regidx)
 	int mac_mdio_genc;
 
 	/*
-	 * Synchronize ourselves so that the PHY knows the next
+	 * Synchronize ourselves so that the PHY kyesws the next
 	 * thing coming down is a command
 	 */
 	sbmac_mii_sync(sbm_mdio);
@@ -546,12 +546,12 @@ static int sbmac_mii_write(struct mii_bus *bus, int phyaddr, int regidx,
  *  Input parameters:
  *  	   d - struct sbmacdma (DMA channel context)
  *  	   s - struct sbmac_softc (pointer to a MAC)
- *  	   chan - channel number (0..1 right now)
+ *  	   chan - channel number (0..1 right yesw)
  *  	   txrx - Identifies DMA_TX or DMA_RX for channel direction
  *      maxdescr - number of descriptors
  *
  *  Return value:
- *  	   nothing
+ *  	   yesthing
  ********************************************************************* */
 
 static void sbdma_initctx(struct sbmacdma *d, struct sbmac_softc *s, int chan,
@@ -677,7 +677,7 @@ static void sbdma_initctx(struct sbmacdma *d, struct sbmac_softc *s, int chan,
  *         rxtx - DMA_RX or DMA_TX depending on what type of channel
  *
  *  Return value:
- *  	   nothing
+ *  	   yesthing
  ********************************************************************* */
 
 static void sbdma_channel_start(struct sbmacdma *d, int rxtx)
@@ -718,7 +718,7 @@ static void sbdma_channel_start(struct sbmacdma *d, int rxtx)
  *  	   d - DMA channel to init (context must be previously init'd
  *
  *  Return value:
- *  	   nothing
+ *  	   yesthing
  ********************************************************************* */
 
 static void sbdma_channel_stop(struct sbmacdma *d)
@@ -763,7 +763,7 @@ static inline void sbdma_align_skb(struct sk_buff *skb,
  * 	   sb - sk_buff to add, or NULL if we should allocate one
  *
  *  Return value:
- *  	   0 if buffer could not be added (ring is full)
+ *  	   0 if buffer could yest be added (ring is full)
  *  	   1 if buffer added successfully
  ********************************************************************* */
 
@@ -797,11 +797,11 @@ static int sbdma_add_rcvbuffer(struct sbmac_softc *sc, struct sbmacdma *d,
 	 * If we do have an sk_buff, reset it so that it's empty.
 	 *
 	 * Note: sk_buffs don't seem to be guaranteed to have any sort
-	 * of alignment when they are allocated.  Therefore, allocate enough
+	 * of alignment when they are allocated.  Therefore, allocate eyesugh
 	 * extra space to make sure that:
 	 *
-	 *    1. the data does not start in the middle of a cache line.
-	 *    2. The data does not end in the middle of a cache line
+	 *    1. the data does yest start in the middle of a cache line.
+	 *    2. The data does yest end in the middle of a cache line
 	 *    3. The buffer can be aligned such that the IP addresses are
 	 *       naturally aligned.
 	 *
@@ -823,7 +823,7 @@ static int sbdma_add_rcvbuffer(struct sbmac_softc *sc, struct sbmacdma *d,
 	else {
 		sb_new = sb;
 		/*
-		 * nothing special to reinit buffer, it's already aligned
+		 * yesthing special to reinit buffer, it's already aligned
 		 * and sb->data already points to a good place.
 		 */
 	}
@@ -834,7 +834,7 @@ static int sbdma_add_rcvbuffer(struct sbmac_softc *sc, struct sbmacdma *d,
 
 #ifdef CONFIG_SBMAC_COALESCE
 	/*
-	 * Do not interrupt per DMA transfer.
+	 * Do yest interrupt per DMA transfer.
 	 */
 	dsc->dscr_a = virt_to_phys(sb_new->data) |
 		V_DMA_DSCRA_A_SIZE(NUMCACHEBLKS(pktsize + NET_IP_ALIGN)) | 0;
@@ -844,7 +844,7 @@ static int sbdma_add_rcvbuffer(struct sbmac_softc *sc, struct sbmacdma *d,
 		M_DMA_DSCRA_INTERRUPT;
 #endif
 
-	/* receiving: no options */
+	/* receiving: yes options */
 	dsc->dscr_b = 0;
 
 	/*
@@ -908,9 +908,9 @@ static int sbdma_add_txbuffer(struct sbmacdma *d, struct sk_buff *sb)
 	}
 
 	/*
-	 * Under Linux, it's not necessary to copy/coalesce buffers
+	 * Under Linux, it's yest necessary to copy/coalesce buffers
 	 * like it is on NetBSD.  We think they're all contiguous,
-	 * but that may not be true for GBE.
+	 * but that may yest be true for GBE.
 	 */
 
 	length = sb->len;
@@ -970,7 +970,7 @@ static int sbdma_add_txbuffer(struct sbmacdma *d, struct sk_buff *sb)
  *  	   d  - DMA channel
  *
  *  Return value:
- *  	   nothing
+ *  	   yesthing
  ********************************************************************* */
 
 static void sbdma_emptyring(struct sbmacdma *d)
@@ -999,7 +999,7 @@ static void sbdma_emptyring(struct sbmacdma *d)
  *  	    d - DMA channel
  *
  *  Return value:
- *  	   nothing
+ *  	   yesthing
  ********************************************************************* */
 
 static void sbdma_fillring(struct sbmac_softc *sc, struct sbmacdma *d)
@@ -1041,12 +1041,12 @@ static void sbmac_netpoll(struct net_device *netdev)
  *  Input parameters:
  *            sc - softc structure
  *  	       d - DMA channel context
- *    work_to_do - no. of packets to process before enabling interrupt
+ *    work_to_do - yes. of packets to process before enabling interrupt
  *                 again (for NAPI)
  *          poll - 1: using polling (for NAPI)
  *
  *  Return value:
- *  	   nothing
+ *  	   yesthing
  ********************************************************************* */
 
 static int sbdma_rx_process(struct sbmac_softc *sc, struct sbmacdma *d,
@@ -1093,8 +1093,8 @@ again:
 
 		/*
 		 * If they're the same, that means we've processed all
-		 * of the descriptors up to (but not including) the one that
-		 * the hardware is working on right now.
+		 * of the descriptors up to (but yest including) the one that
+		 * the hardware is working on right yesw.
 		 */
 
 		if (curidx == hwidx)
@@ -1111,7 +1111,7 @@ again:
 
 		/*
 		 * Check packet status.  If good, process it.
-		 * If not, silently drop it and put it back on the
+		 * If yest, silently drop it and put it back on the
 		 * receive ring.
 		 */
 
@@ -1151,7 +1151,7 @@ again:
 						sb->ip_summed = CHECKSUM_UNNECESSARY;
 						/* don't need to set sb->csum */
 					} else {
-						skb_checksum_none_assert(sb);
+						skb_checksum_yesne_assert(sb);
 					}
 				}
 				prefetch(sb->data);
@@ -1200,7 +1200,7 @@ done:
  *  SBDMA_TX_PROCESS(sc,d)
  *
  *  Process "completed" transmit buffers on the specified DMA channel.
- *  This is normally called within the interrupt service routine.
+ *  This is yesrmally called within the interrupt service routine.
  *  Note that this isn't really ideal for priority channels, since
  *  it processes all of the packets on a given channel before
  *  returning.
@@ -1211,7 +1211,7 @@ done:
  *    poll - 1: using polling (for NAPI)
  *
  *  Return value:
- *  	   nothing
+ *  	   yesthing
  ********************************************************************* */
 
 static void sbdma_tx_process(struct sbmac_softc *sc, struct sbmacdma *d,
@@ -1249,8 +1249,8 @@ static void sbdma_tx_process(struct sbmac_softc *sc, struct sbmacdma *d,
 
 		/*
 		 * If they're the same, that means we've processed all
-		 * of the descriptors up to (but not including) the one that
-		 * the hardware is working on right now.
+		 * of the descriptors up to (but yest including) the one that
+		 * the hardware is working on right yesw.
 		 */
 
 		if (curidx == hwidx)
@@ -1288,7 +1288,7 @@ static void sbdma_tx_process(struct sbmac_softc *sc, struct sbmacdma *d,
 	}
 
 	/*
-	 * Decide if we should wake up the protocol or not.
+	 * Decide if we should wake up the protocol or yest.
 	 * Other drivers seem to do this when we reach a low
 	 * watermark on the transmit queue.
 	 */
@@ -1335,7 +1335,7 @@ static int sbmac_initctx(struct sbmac_softc *s)
 	s->sbm_mdio      = s->sbm_base + R_MAC_MDIO;
 
 	/*
-	 * Initialize the DMA channels.  Right now, only one per MAC is used
+	 * Initialize the DMA channels.  Right yesw, only one per MAC is used
 	 * Note: Only do this _once_, as it allocates memory from the kernel!
 	 */
 
@@ -1378,7 +1378,7 @@ static void sbmac_uninitctx(struct sbmac_softc *sc)
  *  	   s - sbmac structure
  *
  *  Return value:
- *  	   nothing
+ *  	   yesthing
  ********************************************************************* */
 
 static void sbmac_channel_start(struct sbmac_softc *s)
@@ -1402,7 +1402,7 @@ static void sbmac_channel_start(struct sbmac_softc *s)
 	__raw_writeq(0, s->sbm_macenable);
 
 	/*
-	 * Ignore all received packets
+	 * Igyesre all received packets
 	 */
 
 	__raw_writeq(0, s->sbm_rxfilter);
@@ -1493,7 +1493,7 @@ static void sbmac_channel_start(struct sbmac_softc *s)
 	__raw_writeq(reg, port);
 
 	/*
-	 * Set the receive filter for no packets, and write values
+	 * Set the receive filter for yes packets, and write values
 	 * to the various config registers
 	 */
 
@@ -1504,7 +1504,7 @@ static void sbmac_channel_start(struct sbmac_softc *s)
 	__raw_writeq(cfg, s->sbm_maccfg);
 
 	/*
-	 * Initialize DMA channels (rings should be ok now)
+	 * Initialize DMA channels (rings should be ok yesw)
 	 */
 
 	sbdma_channel_start(&(s->sbm_rxdma), DMA_RX);
@@ -1554,7 +1554,7 @@ static void sbmac_channel_start(struct sbmac_softc *s)
 	__raw_writeq(M_MAC_UCAST_EN | M_MAC_BCAST_EN, s->sbm_rxfilter);
 
 	/*
-	 * we're running now.
+	 * we're running yesw.
 	 */
 
 	s->sbm_state = sbmac_state_on;
@@ -1585,7 +1585,7 @@ static void sbmac_channel_start(struct sbmac_softc *s)
  *  	   s - sbmac structure
  *
  *  Return value:
- *  	   nothing
+ *  	   yesthing
  ********************************************************************* */
 
 static void sbmac_channel_stop(struct sbmac_softc *s)
@@ -1608,12 +1608,12 @@ static void sbmac_channel_stop(struct sbmac_softc *s)
 
 	__raw_writeq(0, s->sbm_macenable);
 
-	/* We're stopped now. */
+	/* We're stopped yesw. */
 
 	s->sbm_state = sbmac_state_off;
 
 	/*
-	 * Stop DMA channels (rings should be ok now)
+	 * Stop DMA channels (rings should be ok yesw)
 	 */
 
 	sbdma_channel_stop(&(s->sbm_rxdma));
@@ -1670,26 +1670,26 @@ static enum sbmac_state sbmac_set_channel_state(struct sbmac_softc *sc,
 
 
 /**********************************************************************
- *  SBMAC_PROMISCUOUS_MODE(sc,onoff)
+ *  SBMAC_PROMISCUOUS_MODE(sc,oyesff)
  *
  *  Turn on or off promiscuous mode
  *
  *  Input parameters:
  *  	   sc - softc
- *      onoff - 1 to turn on, 0 to turn off
+ *      oyesff - 1 to turn on, 0 to turn off
  *
  *  Return value:
- *  	   nothing
+ *  	   yesthing
  ********************************************************************* */
 
-static void sbmac_promiscuous_mode(struct sbmac_softc *sc,int onoff)
+static void sbmac_promiscuous_mode(struct sbmac_softc *sc,int oyesff)
 {
 	uint64_t reg;
 
 	if (sc->sbm_state != sbmac_state_on)
 		return;
 
-	if (onoff) {
+	if (oyesff) {
 		reg = __raw_readq(sc->sbm_rxfilter);
 		reg |= M_MAC_ALLPKT_EN;
 		__raw_writeq(reg, sc->sbm_rxfilter);
@@ -1702,7 +1702,7 @@ static void sbmac_promiscuous_mode(struct sbmac_softc *sc,int onoff)
 }
 
 /**********************************************************************
- *  SBMAC_SETIPHDR_OFFSET(sc,onoff)
+ *  SBMAC_SETIPHDR_OFFSET(sc,oyesff)
  *
  *  Set the iphdr offset as 15 assuming ethernet encapsulation
  *
@@ -1710,14 +1710,14 @@ static void sbmac_promiscuous_mode(struct sbmac_softc *sc,int onoff)
  *  	   sc - softc
  *
  *  Return value:
- *  	   nothing
+ *  	   yesthing
  ********************************************************************* */
 
 static void sbmac_set_iphdr_offset(struct sbmac_softc *sc)
 {
 	uint64_t reg;
 
-	/* Hard code the off set to 15 for now */
+	/* Hard code the off set to 15 for yesw */
 	reg = __raw_readq(sc->sbm_rxfilter);
 	reg &= ~M_MAC_IPHDR_OFFSET | V_MAC_IPHDR_OFFSET(15);
 	__raw_writeq(reg, sc->sbm_rxfilter);
@@ -1913,7 +1913,7 @@ static int sbmac_set_duplex(struct sbmac_softc *s, enum sbmac_duplex duplex,
 			cfg |= M_MAC_HDX_EN | V_MAC_FC_CMD_ENAB_FALSECARR;
 			break;
 
-		case sbmac_fc_frame:		/* not valid in half duplex */
+		case sbmac_fc_frame:		/* yest valid in half duplex */
 		default:			/* invalid selection */
 			return 0;
 		}
@@ -1929,8 +1929,8 @@ static int sbmac_set_duplex(struct sbmac_softc *s, enum sbmac_duplex duplex,
 			cfg |= V_MAC_FC_CMD_ENABLED;
 			break;
 
-		case sbmac_fc_collision:	/* not valid in full duplex */
-		case sbmac_fc_carrier:		/* not valid in full duplex */
+		case sbmac_fc_collision:	/* yest valid in full duplex */
+		case sbmac_fc_carrier:		/* yest valid in full duplex */
 		default:
 			return 0;
 		}
@@ -1960,7 +1960,7 @@ static int sbmac_set_duplex(struct sbmac_softc *s, enum sbmac_duplex duplex,
  *  	   MAC structure
  *
  *  Return value:
- *  	   nothing
+ *  	   yesthing
  ********************************************************************* */
 static irqreturn_t sbmac_intr(int irq,void *dev_instance)
 {
@@ -2013,7 +2013,7 @@ static irqreturn_t sbmac_intr(int irq,void *dev_instance)
  *
  *
  *  Return value:
- *  	   nothing
+ *  	   yesthing
  ********************************************************************* */
 static netdev_tx_t sbmac_start_tx(struct sk_buff *skb, struct net_device *dev)
 {
@@ -2029,7 +2029,7 @@ static netdev_tx_t sbmac_start_tx(struct sk_buff *skb, struct net_device *dev)
 	 */
 
 	if (sbdma_add_txbuffer(&(sc->sbm_txdma),skb)) {
-		/* XXX save skb that we could not send */
+		/* XXX save skb that we could yest send */
 		netif_stop_queue(dev);
 		spin_unlock_irqrestore(&sc->sbm_lock, flags);
 
@@ -2052,7 +2052,7 @@ static netdev_tx_t sbmac_start_tx(struct sk_buff *skb, struct net_device *dev)
  *  	   sc - softc
  *
  *  Return value:
- *  	   nothing
+ *  	   yesthing
  ********************************************************************* */
 
 static void sbmac_setmulti(struct sbmac_softc *sc)
@@ -2100,12 +2100,12 @@ static void sbmac_setmulti(struct sbmac_softc *sc)
 
 
 	/*
-	 * Progam new multicast entries.  For now, only use the
+	 * Progam new multicast entries.  For yesw, only use the
 	 * perfect filter.  In the future we'll need to use the
 	 * hash filter if the perfect filter overflows
 	 */
 
-	/* XXX only using perfect filter for now, need to use hash
+	/* XXX only using perfect filter for yesw, need to use hash
 	 * XXX if the table overflows */
 
 	idx = 1;		/* skip station address */
@@ -2290,9 +2290,9 @@ static int sbmac_open(struct net_device *dev)
 		goto out_err;
 	}
 
-	sc->sbm_speed = sbmac_speed_none;
-	sc->sbm_duplex = sbmac_duplex_none;
-	sc->sbm_fc = sbmac_fc_none;
+	sc->sbm_speed = sbmac_speed_yesne;
+	sc->sbm_duplex = sbmac_duplex_yesne;
+	sc->sbm_fc = sbmac_fc_yesne;
 	sc->sbm_pause = -1;
 	sc->sbm_link = 0;
 
@@ -2332,18 +2332,18 @@ static int sbmac_mii_probe(struct net_device *dev)
 
 	phy_dev = phy_find_first(sc->mii_bus);
 	if (!phy_dev) {
-		printk(KERN_ERR "%s: no PHY found\n", dev->name);
+		printk(KERN_ERR "%s: yes PHY found\n", dev->name);
 		return -ENXIO;
 	}
 
 	phy_dev = phy_connect(dev, dev_name(&phy_dev->mdio.dev),
 			      &sbmac_mii_poll, PHY_INTERFACE_MODE_GMII);
 	if (IS_ERR(phy_dev)) {
-		printk(KERN_ERR "%s: could not attach to PHY\n", dev->name);
+		printk(KERN_ERR "%s: could yest attach to PHY\n", dev->name);
 		return PTR_ERR(phy_dev);
 	}
 
-	/* Remove any features not supported by the controller */
+	/* Remove any features yest supported by the controller */
 	phy_set_max_speed(phy_dev, SPEED_1000);
 	phy_support_asym_pause(phy_dev);
 
@@ -2374,8 +2374,8 @@ static void sbmac_mii_poll(struct net_device *dev)
 	if (!phy_dev->link) {
 		if (link_chg) {
 			sc->sbm_link = phy_dev->link;
-			sc->sbm_speed = sbmac_speed_none;
-			sc->sbm_duplex = sbmac_duplex_none;
+			sc->sbm_speed = sbmac_speed_yesne;
+			sc->sbm_duplex = sbmac_duplex_yesne;
 			sc->sbm_fc = sbmac_fc_disabled;
 			sc->sbm_pause = -1;
 			pr_info("%s: link unavailable\n", dev->name);
@@ -2537,7 +2537,7 @@ static int sbmac_probe(struct platform_device *pldev)
 
 	res = platform_get_resource(pldev, IORESOURCE_MEM, 0);
 	BUG_ON(!res);
-	sbm_base = ioremap_nocache(res->start, resource_size(res));
+	sbm_base = ioremap_yescache(res->start, resource_size(res));
 	if (!sbm_base) {
 		printk(KERN_ERR "%s: unable to map device registers\n",
 		       dev_name(&pldev->dev));
@@ -2546,13 +2546,13 @@ static int sbmac_probe(struct platform_device *pldev)
 	}
 
 	/*
-	 * The R_MAC_ETHERNET_ADDR register will be set to some nonzero
+	 * The R_MAC_ETHERNET_ADDR register will be set to some yesnzero
 	 * value for us by the firmware if we're going to use this MAC.
 	 * If we find a zero, skip this MAC.
 	 */
 	sbmac_orig_hwaddr = __raw_readq(sbm_base + R_MAC_ETHERNET_ADDR);
 	pr_debug("%s: %sconfiguring MAC at 0x%08Lx\n", dev_name(&pldev->dev),
-		 sbmac_orig_hwaddr ? "" : "not ", (long long)res->start);
+		 sbmac_orig_hwaddr ? "" : "yest ", (long long)res->start);
 	if (sbmac_orig_hwaddr == 0) {
 		err = 0;
 		goto out_unmap;

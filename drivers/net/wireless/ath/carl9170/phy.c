@@ -16,16 +16,16 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; see the file COPYING.  If not, see
+ * along with this program; see the file COPYING.  If yest, see
  * http://www.gnu.org/licenses/.
  *
  * This file incorporates work covered by the following copyright and
- * permission notice:
+ * permission yestice:
  *    Copyright (c) 2007-2008 Atheros Communications, Inc.
  *
  *    Permission to use, copy, modify, and/or distribute this software for any
  *    purpose with or without fee is hereby granted, provided that the above
- *    copyright notice and this permission notice appear in all copies.
+ *    copyright yestice and this permission yestice appear in all copies.
  *
  *    THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  *    WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
@@ -401,7 +401,7 @@ static struct carl9170_phy_init ar5416_phy_init[] = {
 
 /*
  * look up a certain register in ar5416_phy_init[] and return the init. value
- * for the band and bandwidth given. Return 0 if register address not found.
+ * for the band and bandwidth given. Return 0 if register address yest found.
  */
 static u32 carl9170_def_val(u32 reg, bool is_2ghz, bool is_40mhz)
 {
@@ -1067,7 +1067,7 @@ static int carl9170_find_freq_idx(int nfreqs, u8 *freqs, u8 f)
 
 static s32 carl9170_interpolate_s32(s32 x, s32 x1, s32 y1, s32 x2, s32 y2)
 {
-	/* nothing to interpolate, it's horizontal */
+	/* yesthing to interpolate, it's horizontal */
 	if (y2 == y1)
 		return y1;
 
@@ -1332,7 +1332,7 @@ static void carl9170_calc_ctl(struct ar9170 *ar, u32 freq, enum carl9170_bw bw)
 	ctl_grp = ath_regd_get_band_ctl(&ar->common.regulatory,
 					ar->hw->conf.chandef.chan->band);
 
-	/* ctl group not found - either invalid band (NO_CTL) or ww roaming */
+	/* ctl group yest found - either invalid band (NO_CTL) or ww roaming */
 	if (ctl_grp == NO_CTL || ctl_grp == SD_NO_CTL)
 		ctl_grp = CTL_FCC;
 
@@ -1388,7 +1388,7 @@ static void carl9170_calc_ctl(struct ar9170 *ar, u32 freq, enum carl9170_bw bw)
 		} else {
 			/*
 			 * Workaround in otus driver, hpmain.c, line 3906:
-			 * if no data for 5GHT20 are found, take the
+			 * if yes data for 5GHT20 are found, take the
 			 * legacy 5G value. We extend this here to fallback
 			 * from any other HT* or 11G, too.
 			 */
@@ -1480,7 +1480,7 @@ static void carl9170_set_power_cal(struct ar9170 *ar, u32 freq,
 				ctpl[idx + 1].freq, ctpl[idx + 1].power[n]);
 	}
 
-	/* HT modes now: 5G HT20, 5G HT40, 2G CCK, 2G OFDM, 2G HT20, 2G HT40 */
+	/* HT modes yesw: 5G HT20, 5G HT40, 2G CCK, 2G OFDM, 2G HT20, 2G HT40 */
 	for (i = 0; i < 4; i++) {
 		switch (i) {
 		case 0: /* 5 GHz HT 20 */
@@ -1524,7 +1524,7 @@ static void carl9170_set_power_cal(struct ar9170 *ar, u32 freq,
 	carl9170_calc_ctl(ar, freq, bw);
 }
 
-int carl9170_get_noisefloor(struct ar9170 *ar)
+int carl9170_get_yesisefloor(struct ar9170 *ar)
 {
 	static const u32 phy_regs[] = {
 		AR9170_PHY_REG_CCA, AR9170_PHY_REG_CH2_CCA,
@@ -1532,22 +1532,22 @@ int carl9170_get_noisefloor(struct ar9170 *ar)
 	u32 phy_res[ARRAY_SIZE(phy_regs)];
 	int err, i;
 
-	BUILD_BUG_ON(ARRAY_SIZE(phy_regs) != ARRAY_SIZE(ar->noise));
+	BUILD_BUG_ON(ARRAY_SIZE(phy_regs) != ARRAY_SIZE(ar->yesise));
 
 	err = carl9170_read_mreg(ar, ARRAY_SIZE(phy_regs), phy_regs, phy_res);
 	if (err)
 		return err;
 
 	for (i = 0; i < 2; i++) {
-		ar->noise[i] = sign_extend32(GET_VAL(
+		ar->yesise[i] = sign_extend32(GET_VAL(
 			AR9170_PHY_CCA_MIN_PWR, phy_res[i]), 8);
 
-		ar->noise[i + 2] = sign_extend32(GET_VAL(
+		ar->yesise[i + 2] = sign_extend32(GET_VAL(
 			AR9170_PHY_EXT_CCA_MIN_PWR, phy_res[i + 2]), 8);
 	}
 
 	if (ar->channel)
-		ar->survey[ar->channel->hw_value].noise = ar->noise[0];
+		ar->survey[ar->channel->hw_value].yesise = ar->yesise[0];
 
 	return 0;
 }
@@ -1693,9 +1693,9 @@ int carl9170_set_channel(struct ar9170 *ar, struct ieee80211_channel *channel,
 			  err);
 
 		if (ar->chan_fail > 3) {
-			/* We have tried very hard to change to _another_
+			/* We have tried very hard to change to _ayesther_
 			 * channel and we've failed to do so!
-			 * Chances are that the PHY/RF is no longer
+			 * Chances are that the PHY/RF is yes longer
 			 * operable (due to corruptions/fatal events/bugs?)
 			 * and we need to reset at a higher level.
 			 */

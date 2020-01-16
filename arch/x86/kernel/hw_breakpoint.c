@@ -18,7 +18,7 @@
 #include <linux/perf_event.h>
 #include <linux/hw_breakpoint.h>
 #include <linux/irqflags.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/kallsyms.h>
 #include <linux/kprobes.h>
 #include <linux/percpu.h>
@@ -244,8 +244,8 @@ static int arch_build_bp_info(struct perf_event *bp,
 		break;
 	case HW_BREAKPOINT_X:
 		/*
-		 * We don't allow kernel breakpoints in places that are not
-		 * acceptable for kprobes.  On non-kprobes kernels, we don't
+		 * We don't allow kernel breakpoints in places that are yest
+		 * acceptable for kprobes.  On yesn-kprobes kernels, we don't
 		 * allow kernel breakpoints at all.
 		 */
 		if (attr->bp_addr >= TASK_SIZE_MAX) {
@@ -256,7 +256,7 @@ static int arch_build_bp_info(struct perf_event *bp,
 		hw->type = X86_BREAKPOINT_EXECUTE;
 		/*
 		 * x86 inst breakpoints need to have a specific undefined len.
-		 * But we still need to check userspace is not trying to setup
+		 * But we still need to check userspace is yest trying to setup
 		 * an unsupported length, to get a range breakpoint for example.
 		 */
 		if (attr->bp_len == sizeof(long)) {
@@ -361,7 +361,7 @@ int hw_breakpoint_arch_parse(struct perf_event *bp,
  * may contain cpu wide breakpoint, something that
  * doesn't belong to the current task.
  *
- * TODO: include non-ptrace user breakpoints (perf)
+ * TODO: include yesn-ptrace user breakpoints (perf)
  */
 void aout_dump_debugregs(struct user *dump)
 {
@@ -420,13 +420,13 @@ void hw_breakpoint_restore(void)
 EXPORT_SYMBOL_GPL(hw_breakpoint_restore);
 
 /*
- * Handle debug exception notifications.
+ * Handle debug exception yestifications.
  *
  * Return value is either NOTIFY_STOP or NOTIFY_DONE as explained below.
  *
  * NOTIFY_DONE returned if one of the following conditions is true.
  * i) When the causative address is from user-space and the exception
- * is a valid one, i.e. not triggered as a result of lazy debug register
+ * is a valid one, i.e. yest triggered as a result of lazy debug register
  * switching
  * ii) When there are more bits than trap<n> set in DR6 register (such
  * as BD, BS or BT) indicating that more than one debug condition is
@@ -450,7 +450,7 @@ static int hw_breakpoint_handler(struct die_args *args)
 	if (dr6 & DR_STEP)
 		return NOTIFY_DONE;
 
-	/* Do an early return if no trap bits are set in DR6 */
+	/* Do an early return if yes trap bits are set in DR6 */
 	if ((dr6 & DR_TRAP_BITS) == 0)
 		return NOTIFY_DONE;
 
@@ -480,7 +480,7 @@ static int hw_breakpoint_handler(struct die_args *args)
 
 		bp = per_cpu(bp_per_reg[i], cpu);
 		/*
-		 * Reset the 'i'th TRAP bit in dr6 to denote completion of
+		 * Reset the 'i'th TRAP bit in dr6 to deyeste completion of
 		 * exception handling
 		 */
 		(*dr6_p) &= ~(DR_TRAP0 << i);
@@ -520,10 +520,10 @@ static int hw_breakpoint_handler(struct die_args *args)
 }
 
 /*
- * Handle debug exception notifications.
+ * Handle debug exception yestifications.
  */
-int hw_breakpoint_exceptions_notify(
-		struct notifier_block *unused, unsigned long val, void *data)
+int hw_breakpoint_exceptions_yestify(
+		struct yestifier_block *unused, unsigned long val, void *data)
 {
 	if (val != DIE_DEBUG)
 		return NOTIFY_DONE;

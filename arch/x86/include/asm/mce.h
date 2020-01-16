@@ -47,14 +47,14 @@
 #define MCI_STATUS_TCC		BIT_ULL(55)  /* Task context corrupt */
 #define MCI_STATUS_SYNDV	BIT_ULL(53)  /* synd reg. valid */
 #define MCI_STATUS_DEFERRED	BIT_ULL(44)  /* uncorrected error, deferred exception */
-#define MCI_STATUS_POISON	BIT_ULL(43)  /* access poisonous data */
+#define MCI_STATUS_POISON	BIT_ULL(43)  /* access poisoyesus data */
 #define MCI_STATUS_SCRUB	BIT_ULL(40)  /* Error detected during scrub operation */
 
 /*
  * McaX field if set indicates a given bank supports MCA extensions:
  *  - Deferred error interrupt type is specifiable by bank.
  *  - MCx_MISC0[BlkPtr] field indicates presence of extended MISC registers,
- *    But should not be used to determine MSR numbers.
+ *    But should yest be used to determine MSR numbers.
  *  - TCC bit is present in MCx_STATUS.
  */
 #define MCI_CONFIG_MCAX		0x1
@@ -142,7 +142,7 @@ struct mce_log_buffer {
 	struct mce entry[MCE_LOG_LEN];
 };
 
-enum mce_notifier_prios {
+enum mce_yestifier_prios {
 	MCE_PRIO_FIRST		= INT_MAX,
 	MCE_PRIO_SRAO		= INT_MAX - 1,
 	MCE_PRIO_EXTLOG		= INT_MAX - 2,
@@ -152,9 +152,9 @@ enum mce_notifier_prios {
 	MCE_PRIO_LOWEST		= 0,
 };
 
-struct notifier_block;
-extern void mce_register_decode_chain(struct notifier_block *nb);
-extern void mce_unregister_decode_chain(struct notifier_block *nb);
+struct yestifier_block;
+extern void mce_register_decode_chain(struct yestifier_block *nb);
+extern void mce_unregister_decode_chain(struct yestifier_block *nb);
 
 #include <linux/percpu.h>
 #include <linux/atomic.h>
@@ -228,7 +228,7 @@ enum mcp_flags {
 };
 bool machine_check_poll(enum mcp_flags flags, mce_banks_t *b);
 
-int mce_notify_irq(void);
+int mce_yestify_irq(void);
 
 DECLARE_PER_CPU(struct mce, injectm);
 
@@ -258,10 +258,10 @@ extern void (*deferred_error_int_vector)(void);
 void intel_init_thermal(struct cpuinfo_x86 *c);
 
 /* Interrupt Handler for core thermal thresholds */
-extern int (*platform_thermal_notify)(__u64 msr_val);
+extern int (*platform_thermal_yestify)(__u64 msr_val);
 
 /* Interrupt Handler for package thermal thresholds */
-extern int (*platform_thermal_package_notify)(__u64 msr_val);
+extern int (*platform_thermal_package_yestify)(__u64 msr_val);
 
 /* Callback support of rate control, return true, if
  * callback has rate control */
@@ -336,7 +336,7 @@ extern int mce_threshold_create_device(unsigned int cpu);
 extern int mce_threshold_remove_device(unsigned int cpu);
 
 void mce_amd_feature_init(struct cpuinfo_x86 *c);
-int umc_normaddr_to_sysaddr(u64 norm_addr, u16 nid, u8 umc, u64 *sys_addr);
+int umc_yesrmaddr_to_sysaddr(u64 yesrm_addr, u16 nid, u8 umc, u64 *sys_addr);
 
 #else
 
@@ -345,7 +345,7 @@ static inline int mce_threshold_remove_device(unsigned int cpu)		{ return 0; };
 static inline bool amd_mce_is_memory_error(struct mce *m)		{ return false; };
 static inline void mce_amd_feature_init(struct cpuinfo_x86 *c)		{ }
 static inline int
-umc_normaddr_to_sysaddr(u64 norm_addr, u16 nid, u8 umc, u64 *sys_addr)	{ return -EINVAL; };
+umc_yesrmaddr_to_sysaddr(u64 yesrm_addr, u16 nid, u8 umc, u64 *sys_addr)	{ return -EINVAL; };
 #endif
 
 static inline void mce_hygon_feature_init(struct cpuinfo_x86 *c)	{ return mce_amd_feature_init(c); }

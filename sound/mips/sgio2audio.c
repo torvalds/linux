@@ -97,7 +97,7 @@ struct snd_sgio2audio {
 /*
  * read_ad1843_reg returns the current contents of a 16 bit AD1843 register.
  *
- * Returns unsigned register value on success, -errno on failure.
+ * Returns unsigned register value on success, -erryes on failure.
  */
 static int read_ad1843_reg(void *priv, int reg)
 {
@@ -719,7 +719,7 @@ static int snd_sgio2audio_new_pcm(struct snd_sgio2audio *chip)
 	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_VMALLOC,
 					      NULL, 0, 0);
 
-	/* create second  pcm device with one outputs and no input */
+	/* create second  pcm device with one outputs and yes input */
 	err = snd_pcm_new(chip->card, "SGI O2 Audio", 1, 1, 0, &pcm);
 	if (err < 0)
 		return err;
@@ -834,7 +834,7 @@ static int snd_sgio2audio_create(struct snd_card *card,
 					     &chip->ring_base_dma, GFP_KERNEL);
 	if (chip->ring_base == NULL) {
 		printk(KERN_ERR
-		       "sgio2audio: could not allocate ring buffers\n");
+		       "sgio2audio: could yest allocate ring buffers\n");
 		kfree(chip);
 		return -ENOMEM;
 	}
@@ -855,7 +855,7 @@ static int snd_sgio2audio_create(struct snd_card *card,
 				snd_sgio2_isr_table[i].desc,
 				&chip->channel[snd_sgio2_isr_table[i].idx])) {
 			snd_sgio2audio_free(chip);
-			printk(KERN_ERR "sgio2audio: cannot allocate irq %d\n",
+			printk(KERN_ERR "sgio2audio: canyest allocate irq %d\n",
 			       snd_sgio2_isr_table[i].irq);
 			return -EBUSY;
 		}

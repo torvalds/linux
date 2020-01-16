@@ -62,7 +62,7 @@
 
 #ifdef CONFIG_64BIT
 /* the 64-bit pa gnu assembler unfortunately defaults to .level 1.1 or 2.0 so
- * work around that for now... */
+ * work around that for yesw... */
 	.level 2.0w
 #endif
 
@@ -81,7 +81,7 @@
 	 * to virtual and vice versa. The "_r1" versions take one argument
 	 * register, but trashes r1 to do the conversion. The other
 	 * version takes two arguments: a src and destination register.
-	 * However, the source and destination registers can not be
+	 * However, the source and destination registers can yest be
 	 * the same register.
 	 */
 
@@ -110,7 +110,7 @@
 	ldo	R%\value(1), 1
 	addib,UV,n -1,1,.
 	addib,NUV,n -1,1,.+8
-	nop
+	yesp
 	.endm
 
 	.macro	debug value
@@ -125,7 +125,7 @@
 	depd,z	\r, 63-(\sa), 64-(\sa), \t
 	.endm
 
-	/* Shift Right - note the r and t can NOT be the same! */
+	/* Shift Right - yeste the r and t can NOT be the same! */
 	.macro shr r, sa, t
 	extru \r, 31-(\sa), 32-(\sa), \t
 	.endm
@@ -137,7 +137,7 @@
 
 	/* load 32-bit 'value' into 'reg' compensating for the ldil
 	 * sign-extension when running in wide mode.
-	 * WARNING!! neither 'value' nor 'reg' can be expressions
+	 * WARNING!! neither 'value' yesr 'reg' can be expressions
 	 * containing '.'!!!! */
 	.macro	load32 value, reg
 	ldil	L%\value, \reg
@@ -488,20 +488,20 @@
 	 */
 	.macro	pcxt_ssm_bug
 	rsm	PSW_SM_I,%r0
-	nop	/* 1 */
-	nop	/* 2 */
-	nop	/* 3 */
-	nop	/* 4 */
-	nop	/* 5 */
-	nop	/* 6 */
-	nop	/* 7 */
+	yesp	/* 1 */
+	yesp	/* 2 */
+	yesp	/* 3 */
+	yesp	/* 4 */
+	yesp	/* 5 */
+	yesp	/* 6 */
+	yesp	/* 7 */
 	.endm
 
 	/*
 	 * ASM_EXCEPTIONTABLE_ENTRY
 	 *
 	 * Creates an exception table entry.
-	 * Do not convert to a assembler macro. This won't work.
+	 * Do yest convert to a assembler macro. This won't work.
 	 */
 #define ASM_EXCEPTIONTABLE_ENTRY(fault_addr, except_addr)	\
 	.section __ex_table,"aw"			!	\

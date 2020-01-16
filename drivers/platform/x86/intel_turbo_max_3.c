@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Intel Turbo Boost Max Technology 3.0 legacy (non HWP) enumeration driver
+ * Intel Turbo Boost Max Techyeslogy 3.0 legacy (yesn HWP) enumeration driver
  * Copyright (c) 2017, Intel Corporation.
  * All rights reserved.
  *

@@ -10,7 +10,7 @@
 #include <linux/platform_device.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
-#include <media/v4l2-fwnode.h>
+#include <media/v4l2-fwyesde.h>
 #include <media/v4l2-subdev.h>
 #include <media/videobuf2-dma-contig.h>
 #include <video/imx-ipu-v3.h>
@@ -140,12 +140,12 @@ struct imx_media_dev {
 	struct ipu_soc *ipu[2];
 
 	/* for async subdev registration */
-	struct v4l2_async_notifier notifier;
+	struct v4l2_async_yestifier yestifier;
 
 	/* IC scaler/CSC mem2mem video device */
 	struct imx_media_video_dev *m2m_vdev;
 
-	/* the IPU internal subdev's registered synchronously */
+	/* the IPU internal subdev's registered synchroyesusly */
 	struct v4l2_subdev *sync_sd[2][NUM_IPU_SUBDEVS];
 };
 
@@ -184,8 +184,8 @@ int imx_media_ipu_image_to_mbus_fmt(struct v4l2_mbus_framefmt *mbus,
 void imx_media_grp_id_to_sd_name(char *sd_name, int sz,
 				 u32 grp_id, int ipu_id);
 struct v4l2_subdev *
-imx_media_find_subdev_by_fwnode(struct imx_media_dev *imxmd,
-				struct fwnode_handle *fwnode);
+imx_media_find_subdev_by_fwyesde(struct imx_media_dev *imxmd,
+				struct fwyesde_handle *fwyesde);
 struct v4l2_subdev *
 imx_media_find_subdev_by_devname(struct imx_media_dev *imxmd,
 				 const char *devname);
@@ -219,11 +219,11 @@ int imx_media_pipeline_set_stream(struct imx_media_dev *imxmd,
 				  bool on);
 
 /* imx-media-dev-common.c */
-int imx_media_probe_complete(struct v4l2_async_notifier *notifier);
+int imx_media_probe_complete(struct v4l2_async_yestifier *yestifier);
 struct imx_media_dev *imx_media_dev_init(struct device *dev,
 					 const struct media_device_ops *ops);
-int imx_media_dev_notifier_register(struct imx_media_dev *imxmd,
-			    const struct v4l2_async_notifier_operations *ops);
+int imx_media_dev_yestifier_register(struct imx_media_dev *imxmd,
+			    const struct v4l2_async_yestifier_operations *ops);
 
 /* imx-media-fim.c */
 struct imx_media_fim;
@@ -242,13 +242,13 @@ void imx_media_unregister_ipu_internal_subdevs(struct imx_media_dev *imxmd);
 
 /* imx-media-of.c */
 int imx_media_add_of_subdevs(struct imx_media_dev *dev,
-			     struct device_node *np);
+			     struct device_yesde *np);
 int imx_media_create_of_links(struct imx_media_dev *imxmd,
 			      struct v4l2_subdev *sd);
 int imx_media_create_csi_of_links(struct imx_media_dev *imxmd,
 				  struct v4l2_subdev *csi);
 int imx_media_of_add_csi(struct imx_media_dev *imxmd,
-			 struct device_node *csi_np);
+			 struct device_yesde *csi_np);
 
 /* imx-media-vdic.c */
 struct v4l2_subdev *imx_media_vdic_register(struct v4l2_device *v4l2_dev,

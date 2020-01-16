@@ -5,7 +5,7 @@ Required properties:
 - compatible: "rockchip,rk3328-codec"
 - reg: physical base address of the controller and length of memory mapped
   region.
-- rockchip,grf: the phandle of the syscon node for GRF register.
+- rockchip,grf: the phandle of the syscon yesde for GRF register.
 - clocks: a list of phandle + clock-specifer pairs, one for each entry in clock-names.
 - clock-names: should be "pclk".
 - spk-depop-time-ms: speak depop time msec.

@@ -55,7 +55,7 @@ static struct mesh_table *mesh_table_alloc(void)
 	if (!newtbl)
 		return NULL;
 
-	INIT_HLIST_HEAD(&newtbl->known_gates);
+	INIT_HLIST_HEAD(&newtbl->kyeswn_gates);
 	INIT_HLIST_HEAD(&newtbl->walk_head);
 	atomic_set(&newtbl->entries,  0);
 	spin_lock_init(&newtbl->gates_lock);
@@ -141,7 +141,7 @@ static void prepare_for_gate(struct sk_buff *skb, char *dst_addr,
 
 /**
  *
- * mesh_path_move_to_queue - Move or copy frames from one mpath queue to another
+ * mesh_path_move_to_queue - Move or copy frames from one mpath queue to ayesther
  *
  * This function is used to transfer or copy frames from an unresolved mpath to
  * a gate mpath.  The function also adds the Address Extension field and
@@ -229,7 +229,7 @@ static struct mesh_path *mpath_lookup(struct mesh_table *tbl, const u8 *dst,
  * @sdata: local subif
  * @dst: hardware address (ETH_ALEN length) of destination
  *
- * Returns: pointer to the mesh path structure, or NULL if not found
+ * Returns: pointer to the mesh path structure, or NULL if yest found
  *
  * Locking: must be called within a read rcu section.
  */
@@ -272,7 +272,7 @@ __mesh_path_lookup_by_idx(struct mesh_table *tbl, int idx)
  * @idx: index
  * @sdata: local subif, or NULL for all entries
  *
- * Returns: pointer to the mesh path structure, or NULL if not found.
+ * Returns: pointer to the mesh path structure, or NULL if yest found.
  *
  * Locking: must be called within a read rcu section.
  */
@@ -287,7 +287,7 @@ mesh_path_lookup_by_idx(struct ieee80211_sub_if_data *sdata, int idx)
  * @idx: index
  * @sdata: local subif, or NULL for all entries
  *
- * Returns: pointer to the proxy path structure, or NULL if not found.
+ * Returns: pointer to the proxy path structure, or NULL if yest found.
  *
  * Locking: must be called within a read rcu section.
  */
@@ -319,13 +319,13 @@ int mesh_path_add_gate(struct mesh_path *mpath)
 	mpath->sdata->u.mesh.num_gates++;
 
 	spin_lock(&tbl->gates_lock);
-	hlist_add_head_rcu(&mpath->gate_list, &tbl->known_gates);
+	hlist_add_head_rcu(&mpath->gate_list, &tbl->kyeswn_gates);
 	spin_unlock(&tbl->gates_lock);
 
 	spin_unlock_bh(&mpath->state_lock);
 
 	mpath_dbg(mpath->sdata,
-		  "Mesh path: Recorded new gate: %pM. %d known gates\n",
+		  "Mesh path: Recorded new gate: %pM. %d kyeswn gates\n",
 		  mpath->dst, mpath->sdata->u.mesh.num_gates);
 	err = 0;
 err_rcu:
@@ -334,8 +334,8 @@ err_rcu:
 }
 
 /**
- * mesh_gate_del - remove a mesh gate from the list of known gates
- * @tbl: table which holds our list of known gates
+ * mesh_gate_del - remove a mesh gate from the list of kyeswn gates
+ * @tbl: table which holds our list of kyeswn gates
  * @mpath: gate mpath
  */
 static void mesh_gate_del(struct mesh_table *tbl, struct mesh_path *mpath)
@@ -351,12 +351,12 @@ static void mesh_gate_del(struct mesh_table *tbl, struct mesh_path *mpath)
 	spin_unlock_bh(&tbl->gates_lock);
 
 	mpath_dbg(mpath->sdata,
-		  "Mesh path: Deleted gate: %pM. %d known gates\n",
+		  "Mesh path: Deleted gate: %pM. %d kyeswn gates\n",
 		  mpath->dst, mpath->sdata->u.mesh.num_gates);
 }
 
 /**
- * mesh_gate_num - number of gates known to this interface
+ * mesh_gate_num - number of gates kyeswn to this interface
  * @sdata: subif data
  */
 int mesh_gate_num(struct ieee80211_sub_if_data *sdata)
@@ -481,8 +481,8 @@ int mpp_path_add(struct ieee80211_sub_if_data *sdata,
  *
  * @sta: broken peer link
  *
- * This function must be called from the rate control algorithm if enough
- * delivery errors suggest that a peer link is no longer usable.
+ * This function must be called from the rate control algorithm if eyesugh
+ * delivery errors suggest that a peer link is yes longer usable.
  */
 void mesh_plink_broken(struct sta_info *sta)
 {
@@ -536,7 +536,7 @@ static void __mesh_path_del(struct mesh_table *tbl, struct mesh_path *mpath)
  *
  * @sta: mesh peer to match
  *
- * RCU notes: this function is called when a mesh plink transitions from
+ * RCU yestes: this function is called when a mesh plink transitions from
  * PLINK_ESTAB to any other state, since PLINK_ESTAB state is the only one that
  * allows path creation. This will happen before the sta can be freed (because
  * sta_info_destroy() calls this) so any reader in a rcu read block will be
@@ -547,7 +547,7 @@ void mesh_path_flush_by_nexthop(struct sta_info *sta)
 	struct ieee80211_sub_if_data *sdata = sta->sdata;
 	struct mesh_table *tbl = sdata->u.mesh.mesh_paths;
 	struct mesh_path *mpath;
-	struct hlist_node *n;
+	struct hlist_yesde *n;
 
 	spin_lock_bh(&tbl->walk_lock);
 	hlist_for_each_entry_safe(mpath, n, &tbl->walk_head, walk_list) {
@@ -562,7 +562,7 @@ static void mpp_flush_by_proxy(struct ieee80211_sub_if_data *sdata,
 {
 	struct mesh_table *tbl = sdata->u.mesh.mpp_paths;
 	struct mesh_path *mpath;
-	struct hlist_node *n;
+	struct hlist_yesde *n;
 
 	spin_lock_bh(&tbl->walk_lock);
 	hlist_for_each_entry_safe(mpath, n, &tbl->walk_head, walk_list) {
@@ -575,7 +575,7 @@ static void mpp_flush_by_proxy(struct ieee80211_sub_if_data *sdata,
 static void table_flush_by_iface(struct mesh_table *tbl)
 {
 	struct mesh_path *mpath;
-	struct hlist_node *n;
+	struct hlist_yesde *n;
 
 	spin_lock_bh(&tbl->walk_lock);
 	hlist_for_each_entry_safe(mpath, n, &tbl->walk_head, walk_list) {
@@ -662,7 +662,7 @@ void mesh_path_tx_pending(struct mesh_path *mpath)
 }
 
 /**
- * mesh_path_send_to_gates - sends pending frames to all known mesh gates
+ * mesh_path_send_to_gates - sends pending frames to all kyeswn mesh gates
  *
  * @mpath: mesh path whose queue will be emptied
  *
@@ -682,7 +682,7 @@ int mesh_path_send_to_gates(struct mesh_path *mpath)
 	tbl = sdata->u.mesh.mesh_paths;
 
 	rcu_read_lock();
-	hlist_for_each_entry_rcu(gate, &tbl->known_gates, gate_list) {
+	hlist_for_each_entry_rcu(gate, &tbl->kyeswn_gates, gate_list) {
 		if (gate->flags & MESH_PATH_ACTIVE) {
 			mpath_dbg(sdata, "Forwarding to %pM\n", gate->dst);
 			mesh_path_move_to_queue(gate, from_mpath, copy);
@@ -695,7 +695,7 @@ int mesh_path_send_to_gates(struct mesh_path *mpath)
 		}
 	}
 
-	hlist_for_each_entry_rcu(gate, &tbl->known_gates, gate_list) {
+	hlist_for_each_entry_rcu(gate, &tbl->kyeswn_gates, gate_list) {
 		mpath_dbg(sdata, "Sending to %pM\n", gate->dst);
 		mesh_path_tx_pending(gate);
 	}
@@ -705,7 +705,7 @@ int mesh_path_send_to_gates(struct mesh_path *mpath)
 }
 
 /**
- * mesh_path_discard_frame - discard a frame whose path could not be resolved
+ * mesh_path_discard_frame - discard a frame whose path could yest be resolved
  *
  * @skb: frame to discard
  * @sdata: network subif the frame was to be sent through
@@ -716,7 +716,7 @@ void mesh_path_discard_frame(struct ieee80211_sub_if_data *sdata,
 			     struct sk_buff *skb)
 {
 	kfree_skb(skb);
-	sdata->u.mesh.mshstats.dropped_frames_no_route++;
+	sdata->u.mesh.mshstats.dropped_frames_yes_route++;
 }
 
 /**
@@ -792,7 +792,7 @@ void mesh_path_tbl_expire(struct ieee80211_sub_if_data *sdata,
 			  struct mesh_table *tbl)
 {
 	struct mesh_path *mpath;
-	struct hlist_node *n;
+	struct hlist_yesde *n;
 
 	spin_lock_bh(&tbl->walk_lock);
 	hlist_for_each_entry_safe(mpath, n, &tbl->walk_head, walk_list) {

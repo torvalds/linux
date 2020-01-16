@@ -379,7 +379,7 @@ int sun4i_csi_v4l2_register(struct sun4i_csi *csi)
 		return ret;
 
 	dev_info(csi->dev, "Device registered as %s\n",
-		 video_device_node_name(vdev));
+		 video_device_yesde_name(vdev));
 
 	return 0;
 }

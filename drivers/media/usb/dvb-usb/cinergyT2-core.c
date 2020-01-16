@@ -128,7 +128,7 @@ static struct rc_map_table rc_map_cinergyt2_table[] = {
 	{ 0x045c, KEY_NEXT }
 };
 
-/* Number of keypresses to ignore before detect repeating */
+/* Number of keypresses to igyesre before detect repeating */
 #define RC_REPEAT_DELAY 3
 
 static int repeatable_keys[] = {
@@ -169,7 +169,7 @@ static int cinergyt2_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
 					goto ret;
 				}
 			}
-			deb_rc("repeated key (non repeatable)\n");
+			deb_rc("repeated key (yesn repeatable)\n");
 		}
 		goto ret;
 	}

@@ -8,7 +8,7 @@
 
 #include <asm/vfp.h>
 
-@ Macros to allow building with old toolkits (with no VFP support)
+@ Macros to allow building with old toolkits (with yes VFP support)
 	.macro	VFPFMRX, rd, sysreg, cond
 	MRC\cond	p10, 7, \rd, \sysreg, cr0, 0	@ FMRX	\rd, \sysreg
 	.endm
@@ -26,7 +26,7 @@
 #endif
 #ifdef CONFIG_VFPv3
 #if __LINUX_ARM_ARCH__ <= 6
-	ldr	\tmp, =elf_hwcap		    @ may not have MVFR regs
+	ldr	\tmp, =elf_hwcap		    @ may yest have MVFR regs
 	ldr	\tmp, [\tmp, #0]
 	tst	\tmp, #HWCAP_VFPD32
 	ldclne	p11, cr0, [\base],#32*4		    @ FLDMIAD \base!, {d16-d31}
@@ -50,7 +50,7 @@
 #endif
 #ifdef CONFIG_VFPv3
 #if __LINUX_ARM_ARCH__ <= 6
-	ldr	\tmp, =elf_hwcap		    @ may not have MVFR regs
+	ldr	\tmp, =elf_hwcap		    @ may yest have MVFR regs
 	ldr	\tmp, [\tmp, #0]
 	tst	\tmp, #HWCAP_VFPD32
 	stclne	p11, cr0, [\base],#32*4		    @ FSTMIAD \base!, {d16-d31}

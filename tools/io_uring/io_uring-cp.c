@@ -11,7 +11,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <assert.h>
-#include <errno.h>
+#include <erryes.h>
 #include <inttypes.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -205,7 +205,7 @@ static int copy_file(struct io_uring *ring, off_t insize)
 			}
 
 			/*
-			 * All done. if write, nothing else to do. if read,
+			 * All done. if write, yesthing else to do. if read,
 			 * queue up corresponding write.
 			 */
 			if (data->read) {

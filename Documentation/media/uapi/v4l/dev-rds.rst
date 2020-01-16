@@ -1,11 +1,11 @@
 .. Permission is granted to copy, distribute and/or modify this
 .. document under the terms of the GNU Free Documentation License,
 .. Version 1.1 or any later version published by the Free Software
-.. Foundation, with no Invariant Sections, no Front-Cover Texts
-.. and no Back-Cover Texts. A copy of the license is included at
+.. Foundation, with yes Invariant Sections, yes Front-Cover Texts
+.. and yes Back-Cover Texts. A copy of the license is included at
 .. Documentation/media/uapi/fdl-appendix.rst.
 ..
-.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
+.. TODO: replace it to GFDL-1.1-or-later WITH yes-invariant-sections
 
 .. _rds:
 
@@ -21,7 +21,7 @@ at devices capable of receiving and/or transmitting RDS information.
 For more information see the core RDS standard :ref:`iec62106` and the
 RBDS standard :ref:`nrsc4`.
 
-.. note::
+.. yeste::
 
    Note that the RBDS standard as is used in the USA is almost
    identical to the RDS standard. Any RDS decoder/encoder can also handle
@@ -30,7 +30,7 @@ RBDS standard :ref:`nrsc4`.
 
 The RBDS standard also specifies support for MMBS (Modified Mobile
 Search). This is a proprietary format which seems to be discontinued.
-The RDS interface does not support this format. Should support for MMBS
+The RDS interface does yest support this format. Should support for MMBS
 (or the so-called 'E blocks' in general) be needed, then please contact
 the linux-media mailing list:
 `https://linuxtv.org/lists.php <https://linuxtv.org/lists.php>`__.
@@ -49,7 +49,7 @@ driver only passes RDS blocks without interpreting the data the
 ``V4L2_TUNER_CAP_RDS_BLOCK_IO`` flag has to be set, see
 :ref:`Reading RDS data <reading-rds-data>`. For future use the flag
 ``V4L2_TUNER_CAP_RDS_CONTROLS`` has also been defined. However, a driver
-for a radio tuner with this capability does not yet exist, so if you are
+for a radio tuner with this capability does yest yet exist, so if you are
 planning to write such a driver you should discuss this on the
 linux-media mailing list:
 `https://linuxtv.org/lists.php <https://linuxtv.org/lists.php>`__.
@@ -133,7 +133,7 @@ RDS datastructures
     * - Bits 0-2
       - Block (aka offset) of the received data.
     * - Bits 3-5
-      - Deprecated. Currently identical to bits 0-2. Do not use these
+      - Deprecated. Currently identical to bits 0-2. Do yest use these
 	bits.
     * - Bit 6
       - Corrected bit. Indicates that an error was corrected for this data

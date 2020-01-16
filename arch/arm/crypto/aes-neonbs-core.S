@@ -731,7 +731,7 @@ ENTRY(aesbs_cbc_decrypt)
 	vld1.8		{q13}, [r1]!
 	vld1.8		{q14}, [r1]!
 	vld1.8		{q15}, [r1]!
-	W(nop)
+	W(yesp)
 
 1:	__adr		ip, 2f
 	sub		ip, ip, lr, lsl #3

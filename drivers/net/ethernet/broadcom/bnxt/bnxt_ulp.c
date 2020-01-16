@@ -10,7 +10,7 @@
 #include <linux/module.h>
 
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/interrupt.h>
 #include <linux/pci.h>
 #include <linux/netdevice.h>
@@ -74,7 +74,7 @@ static int bnxt_unregister_dev(struct bnxt_en_dev *edev, int ulp_id)
 
 	ulp = &edev->ulp_tbl[ulp_id];
 	if (!rcu_access_pointer(ulp->ulp_ops)) {
-		netdev_err(bp->dev, "ulp id %d not registered\n", ulp_id);
+		netdev_err(bp->dev, "ulp id %d yest registered\n", ulp_id);
 		return -EINVAL;
 	}
 	if (ulp_id == BNXT_ROCE_ULP && ulp->msix_requested)
@@ -416,7 +416,7 @@ void bnxt_ulp_async_events(struct bnxt *bp, struct hwrm_async_event_cmpl *cmpl)
 		struct bnxt_ulp *ulp = &edev->ulp_tbl[i];
 
 		ops = rcu_dereference(ulp->ulp_ops);
-		if (!ops || !ops->ulp_async_notifier)
+		if (!ops || !ops->ulp_async_yestifier)
 			continue;
 		if (!ulp->async_events_bmap ||
 		    event_id > ulp->max_async_event_id)
@@ -425,7 +425,7 @@ void bnxt_ulp_async_events(struct bnxt *bp, struct hwrm_async_event_cmpl *cmpl)
 		/* Read max_async_event_id first before testing the bitmap. */
 		smp_rmb();
 		if (test_bit(event_id, ulp->async_events_bmap))
-			ops->ulp_async_notifier(ulp->handle, cmpl);
+			ops->ulp_async_yestifier(ulp->handle, cmpl);
 	}
 	rcu_read_unlock();
 }

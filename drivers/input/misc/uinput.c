@@ -126,7 +126,7 @@ static struct uinput_request *uinput_request_find(struct uinput_device *udev,
 static int uinput_request_reserve_slot(struct uinput_device *udev,
 				       struct uinput_request *request)
 {
-	/* Allocate slot. If none are available right away, wait. */
+	/* Allocate slot. If yesne are available right away, wait. */
 	return wait_event_interruptible(udev->requests_waitq,
 					uinput_request_alloc_id(udev, request));
 }
@@ -239,11 +239,11 @@ static int uinput_dev_upload_effect(struct input_dev *dev,
 	struct uinput_request request;
 
 	/*
-	 * uinput driver does not currently support periodic effects with
-	 * custom waveform since it does not have a way to pass buffer of
+	 * uinput driver does yest currently support periodic effects with
+	 * custom waveform since it does yest have a way to pass buffer of
 	 * samples (custom_data) to userspace. If ever there is a device
 	 * supporting custom waveforms we would need to define an additional
-	 * ioctl (UI_UPLOAD_SAMPLES) but for now we just bail out.
+	 * ioctl (UI_UPLOAD_SAMPLES) but for yesw we just bail out.
 	 */
 	if (effect->type == FF_PERIODIC &&
 			effect->u.periodic.waveform == FF_CUSTOM)
@@ -274,10 +274,10 @@ static int uinput_dev_flush(struct input_dev *dev, struct file *file)
 {
 	/*
 	 * If we are called with file == NULL that means we are tearing
-	 * down the device, and therefore we can not handle FF erase
+	 * down the device, and therefore we can yest handle FF erase
 	 * requests: either we are handling UI_DEV_DESTROY (and holding
 	 * the udev->mutex), or the file descriptor is closed and there is
-	 * nobody on the other side anymore.
+	 * yesbody on the other side anymore.
 	 */
 	return file ? input_ff_flush(dev, file) : 0;
 }
@@ -333,7 +333,7 @@ static int uinput_create_device(struct uinput_device *udev)
 	}
 
 	if (test_bit(EV_FF, dev->evbit) && !udev->ff_effects_max) {
-		printk(KERN_DEBUG "%s: ff_effects_max should be non-zero when FF_BIT is set\n",
+		printk(KERN_DEBUG "%s: ff_effects_max should be yesn-zero when FF_BIT is set\n",
 			UINPUT_NAME);
 		error = -EINVAL;
 		goto fail1;
@@ -351,7 +351,7 @@ static int uinput_create_device(struct uinput_device *udev)
 		dev->ff->set_autocenter = uinput_dev_set_autocenter;
 		/*
 		 * The standard input_ff_flush() implementation does
-		 * not quite work for uinput as we can't reasonably
+		 * yest quite work for uinput as we can't reasonably
 		 * handle FF requests during device teardown.
 		 */
 		dev->flush = uinput_dev_flush;
@@ -374,7 +374,7 @@ static int uinput_create_device(struct uinput_device *udev)
 	return error;
 }
 
-static int uinput_open(struct inode *inode, struct file *file)
+static int uinput_open(struct iyesde *iyesde, struct file *file)
 {
 	struct uinput_device *newdev;
 
@@ -389,7 +389,7 @@ static int uinput_open(struct inode *inode, struct file *file)
 	newdev->state = UIST_NEW_DEVICE;
 
 	file->private_data = newdev;
-	stream_open(inode, file);
+	stream_open(iyesde, file);
 
 	return 0;
 }
@@ -582,7 +582,7 @@ static ssize_t uinput_inject_events(struct uinput_device *udev,
 		/*
 		 * Note that even if some events were fetched successfully
 		 * we are still going to return EFAULT instead of partial
-		 * count to let userspace know that it got it's buffers
+		 * count to let userspace kyesw that it got it's buffers
 		 * all wrong.
 		 */
 		if (input_event_from_user(buffer + bytes, &ev))
@@ -703,7 +703,7 @@ static __poll_t uinput_poll(struct file *file, poll_table *wait)
 	return mask;
 }
 
-static int uinput_release(struct inode *inode, struct file *file)
+static int uinput_release(struct iyesde *iyesde, struct file *file)
 {
 	struct uinput_device *udev = file->private_data;
 
@@ -733,7 +733,7 @@ static int uinput_ff_upload_to_user(char __user *buffer,
 		 * It so happens that the pointer that gives us the trouble
 		 * is the last field in the structure. Since we don't support
 		 * custom waveforms in uinput anyway we can just copy the whole
-		 * thing (to the compat size) and ignore the pointer.
+		 * thing (to the compat size) and igyesre the pointer.
 		 */
 		memcpy(&ff_up_compat.effect, &ff_up->effect,
 			sizeof(struct ff_effect_compat));
@@ -1084,12 +1084,12 @@ static const struct file_operations uinput_fops = {
 #ifdef CONFIG_COMPAT
 	.compat_ioctl	= uinput_compat_ioctl,
 #endif
-	.llseek		= no_llseek,
+	.llseek		= yes_llseek,
 };
 
 static struct miscdevice uinput_misc = {
 	.fops		= &uinput_fops,
-	.minor		= UINPUT_MINOR,
+	.miyesr		= UINPUT_MINOR,
 	.name		= UINPUT_NAME,
 };
 module_misc_device(uinput_misc);

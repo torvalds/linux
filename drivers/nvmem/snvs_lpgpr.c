@@ -88,14 +88,14 @@ static int snvs_lpgpr_read(void *context, unsigned int offset, void *val,
 static int snvs_lpgpr_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *node = dev->of_node;
-	struct device_node *syscon_node;
+	struct device_yesde *yesde = dev->of_yesde;
+	struct device_yesde *syscon_yesde;
 	struct snvs_lpgpr_priv *priv;
 	struct nvmem_config *cfg;
 	struct nvmem_device *nvmem;
 	const struct snvs_lpgpr_cfg *dcfg;
 
-	if (!node)
+	if (!yesde)
 		return -ENOENT;
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
@@ -106,12 +106,12 @@ static int snvs_lpgpr_probe(struct platform_device *pdev)
 	if (!dcfg)
 		return -EINVAL;
 
-	syscon_node = of_get_parent(node);
-	if (!syscon_node)
+	syscon_yesde = of_get_parent(yesde);
+	if (!syscon_yesde)
 		return -ENODEV;
 
-	priv->regmap = syscon_node_to_regmap(syscon_node);
-	of_node_put(syscon_node);
+	priv->regmap = syscon_yesde_to_regmap(syscon_yesde);
+	of_yesde_put(syscon_yesde);
 	if (IS_ERR(priv->regmap))
 		return PTR_ERR(priv->regmap);
 

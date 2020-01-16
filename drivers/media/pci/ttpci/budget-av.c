@@ -3,7 +3,7 @@
  * budget-av.c: driver for the SAA7146 based Budget DVB cards
  *              with analog video in
  *
- * Compiled from various sources by Michael Hunold <michael@mihu.de>
+ * Compiled from various sources by Michael Huyesld <michael@mihu.de>
  *
  * CI interface support (c) 2004 Olivier Gournet <ogournet@anevia.com> &
  *                               Andrew de Quincey <adq_dvb@lidskialf.net>
@@ -31,7 +31,7 @@
 #include "dvb-pll.h"
 #include <media/drv-intf/saa7146_vv.h>
 #include <linux/module.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/slab.h>
 #include <linux/interrupt.h>
 #include <linux/input.h>
@@ -281,10 +281,10 @@ static int ciintf_poll_slot_status(struct dvb_ca_en50221 *ca, int slot, int open
 	}
 
 	/* We also try and read from IO memory to work round the above detection bug. If
-	 * there is no CAM, we will get a timeout. Only done if there is no cam
+	 * there is yes CAM, we will get a timeout. Only done if there is yes cam
 	 * present, since this test actually breaks some cams :(
 	 *
-	 * if the CI interface is not open, we also do the above test since we
+	 * if the CI interface is yest open, we also do the above test since we
 	 * don't care if the cam has problems - we'll be resetting it on open() anyway */
 	if ((budget_av->slot_status == SLOTSTATUS_NONE) || (!open)) {
 		saa7146_setgpio(budget_av->budget.dev, 1, SAA7146_GPIO_OUTLO);
@@ -301,7 +301,7 @@ static int ciintf_poll_slot_status(struct dvb_ca_en50221 *ca, int slot, int open
 		}
 	}
 
-	/* read from attribute memory in reset/ready state to know when the CAM is ready */
+	/* read from attribute memory in reset/ready state to kyesw when the CAM is ready */
 	if (budget_av->slot_status == SLOTSTATUS_RESET) {
 		result = ciintf_read_attribute_mem(ca, slot, 0);
 		if (result == 0x1d) {
@@ -418,7 +418,7 @@ static int saa7113_init(struct budget_av *budget_av)
 	msleep(200);
 
 	if (i2c_writereg(&budget->i2c_adap, 0x4a, 0x01, 0x08) != 1) {
-		dprintk(1, "saa7113 not found on KNC card\n");
+		dprintk(1, "saa7113 yest found on KNC card\n");
 		return -ENODEV;
 	}
 
@@ -527,7 +527,7 @@ static u8 typhoon_cinergy1200s_inittab[] = {
 	0x03, 0x00,
 	0x04, 0x7d,		/* F22FR = 0x7d, F22 = f_VCO / 128 / 0x7d = 22 kHz */
 	0x05, 0x35,		/* I2CT = 0, SCLT = 1, SDAT = 1 */
-	0x06, 0x40,		/* DAC not used, set to high impendance mode */
+	0x06, 0x40,		/* DAC yest used, set to high impendance mode */
 	0x07, 0x00,		/* DAC LSB */
 	0x08, 0x40,		/* DiSEqC off */
 	0x09, 0x00,		/* FIFO */
@@ -548,7 +548,7 @@ static u8 typhoon_cinergy1200s_inittab[] = {
 	0x21, 0x00,
 	0x22, 0x00,
 	0x23, 0x00,
-	0x28, 0x00,		// out imp: normal  out type: parallel FEC mode:0
+	0x28, 0x00,		// out imp: yesrmal  out type: parallel FEC mode:0
 	0x29, 0x1e,		// 1/2 threshold
 	0x2a, 0x14,		// 2/3 threshold
 	0x2b, 0x0f,		// 3/4 threshold
@@ -1116,8 +1116,8 @@ static struct stb0899_config knc1_dvbs2_config = {
 	.lo_clk			= 76500000,
 	.hi_clk			= 90000000,
 
-	.esno_ave		= STB0899_DVBS2_ESNO_AVE,
-	.esno_quant		= STB0899_DVBS2_ESNO_QUANT,
+	.esyes_ave		= STB0899_DVBS2_ESNO_AVE,
+	.esyes_quant		= STB0899_DVBS2_ESNO_QUANT,
 	.avframes_coarse	= STB0899_DVBS2_AVFRAMES_COARSE,
 	.avframes_fine		= STB0899_DVBS2_AVFRAMES_FINE,
 	.miss_threshold		= STB0899_DVBS2_MISS_THRESHOLD,
@@ -1331,7 +1331,7 @@ static void frontend_init(struct budget_av *budget_av)
 	}
 
 	if (fe == NULL) {
-		pr_err("A frontend driver was not found for device [%04x:%04x] subsystem [%04x:%04x]\n",
+		pr_err("A frontend driver was yest found for device [%04x:%04x] subsystem [%04x:%04x]\n",
 		       saa->pci->vendor,
 		       saa->pci->device,
 		       saa->pci->subsystem_vendor,
@@ -1463,7 +1463,7 @@ static int budget_av_attach(struct saa7146_dev *dev, struct saa7146_pci_extensio
 		err = saa7146_vv_init(dev, &vv_data);
 		if (err != 0) {
 			/* fixme: proper cleanup here */
-			ERR("cannot init vv subsystem\n");
+			ERR("canyest init vv subsystem\n");
 			return err;
 		}
 		vv_data.vid_ops.vidioc_enum_input = vidioc_enum_input;
@@ -1472,7 +1472,7 @@ static int budget_av_attach(struct saa7146_dev *dev, struct saa7146_pci_extensio
 
 		if ((err = saa7146_register_device(&budget_av->vd, dev, "knc1", VFL_TYPE_GRABBER))) {
 			/* fixme: proper cleanup here */
-			ERR("cannot register capture v4l2 device\n");
+			ERR("canyest register capture v4l2 device\n");
 			saa7146_vv_release(dev);
 			return err;
 		}
@@ -1489,7 +1489,7 @@ static int budget_av_attach(struct saa7146_dev *dev, struct saa7146_pci_extensio
 
 	mac = budget_av->budget.dvb_adapter.proposed_mac;
 	if (i2c_readregs(&budget_av->budget.i2c_adap, 0xa0, 0x30, mac, 6)) {
-		pr_err("KNC1-%d: Could not read MAC from KNC1 card\n",
+		pr_err("KNC1-%d: Could yest read MAC from KNC1 card\n",
 		       budget_av->budget.dvb_adapter.num);
 		eth_zero_addr(mac);
 	} else {
@@ -1618,5 +1618,5 @@ module_init(budget_av_init);
 module_exit(budget_av_exit);
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Ralph Metzler, Marcus Metzler, Michael Hunold, others");
+MODULE_AUTHOR("Ralph Metzler, Marcus Metzler, Michael Huyesld, others");
 MODULE_DESCRIPTION("driver for the SAA7146 based so-called budget PCI DVB w/ analog input and CI-module (e.g. the KNC cards)");

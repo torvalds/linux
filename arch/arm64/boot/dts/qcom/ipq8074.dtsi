@@ -7,7 +7,7 @@
 #include <dt-bindings/clock/qcom,gcc-ipq8074.h>
 
 / {
-	model = "Qualcomm Technologies, Inc. IPQ8074";
+	model = "Qualcomm Techyeslogies, Inc. IPQ8074";
 	compatible = "qcom,ipq8074";
 
 	soc: soc {
@@ -306,7 +306,7 @@
 			ranges = <0x81000000 0 0x20200000 0x20200000
 				  0 0x100000   /* downstream I/O */
 				  0x82000000 0 0x20300000 0x20300000
-				  0 0xd00000>; /* non-prefetchable memory */
+				  0 0xd00000>; /* yesn-prefetchable memory */
 
 			interrupts = <GIC_SPI 52 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-names = "msi";
@@ -384,7 +384,7 @@
 			ranges = <0x81000000 0 0x10200000 0x10200000
 				  0 0x100000   /* downstream I/O */
 				  0x82000000 0 0x10300000 0x10300000
-				  0 0xd00000>; /* non-prefetchable memory */
+				  0 0xd00000>; /* yesn-prefetchable memory */
 
 			interrupts = <GIC_SPI 85 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-names = "msi";

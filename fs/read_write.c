@@ -11,7 +11,7 @@
 #include <linux/fcntl.h>
 #include <linux/file.h>
 #include <linux/uio.h>
-#include <linux/fsnotify.h>
+#include <linux/fsyestify.h>
 #include <linux/security.h>
 #include <linux/export.h>
 #include <linux/syscalls.h>
@@ -47,7 +47,7 @@ static inline bool unsigned_offsets(struct file *file)
  *
  * This is a low-level filesystem helper for updating the file offset to
  * the value specified by @offset if the given offset is valid and it is
- * not equal to the current file offset.
+ * yest equal to the current file offset.
  *
  * Return the specified offset on success and -EINVAL on invalid offset.
  */
@@ -79,7 +79,7 @@ EXPORT_SYMBOL(vfs_setpos);
  *
  * Synchronization:
  * SEEK_SET and SEEK_END are unsynchronized (but atomic on 64bit platforms)
- * SEEK_CUR is synchronized against other SEEK_CURs, but not read/writes.
+ * SEEK_CUR is synchronized against other SEEK_CURs, but yest read/writes.
  * read/writes behave like SEEK_SET against seeks.
  */
 loff_t
@@ -137,17 +137,17 @@ EXPORT_SYMBOL(generic_file_llseek_size);
  * @offset:	file offset to seek to
  * @whence:	type of seek
  *
- * This is a generic implemenation of ->llseek useable for all normal local
+ * This is a generic implemenation of ->llseek useable for all yesrmal local
  * filesystems.  It just updates the file offset to the value specified by
  * @offset and @whence.
  */
 loff_t generic_file_llseek(struct file *file, loff_t offset, int whence)
 {
-	struct inode *inode = file->f_mapping->host;
+	struct iyesde *iyesde = file->f_mapping->host;
 
 	return generic_file_llseek_size(file, offset, whence,
-					inode->i_sb->s_maxbytes,
-					i_size_read(inode));
+					iyesde->i_sb->s_maxbytes,
+					i_size_read(iyesde));
 }
 EXPORT_SYMBOL(generic_file_llseek);
 
@@ -172,13 +172,13 @@ loff_t fixed_size_llseek(struct file *file, loff_t offset, int whence, loff_t si
 EXPORT_SYMBOL(fixed_size_llseek);
 
 /**
- * no_seek_end_llseek - llseek implementation for fixed-sized devices
+ * yes_seek_end_llseek - llseek implementation for fixed-sized devices
  * @file:	file structure to seek on
  * @offset:	file offset to seek to
  * @whence:	type of seek
  *
  */
-loff_t no_seek_end_llseek(struct file *file, loff_t offset, int whence)
+loff_t yes_seek_end_llseek(struct file *file, loff_t offset, int whence)
 {
 	switch (whence) {
 	case SEEK_SET: case SEEK_CUR:
@@ -188,17 +188,17 @@ loff_t no_seek_end_llseek(struct file *file, loff_t offset, int whence)
 		return -EINVAL;
 	}
 }
-EXPORT_SYMBOL(no_seek_end_llseek);
+EXPORT_SYMBOL(yes_seek_end_llseek);
 
 /**
- * no_seek_end_llseek_size - llseek implementation for fixed-sized devices
+ * yes_seek_end_llseek_size - llseek implementation for fixed-sized devices
  * @file:	file structure to seek on
  * @offset:	file offset to seek to
  * @whence:	type of seek
  * @size:	maximal offset allowed
  *
  */
-loff_t no_seek_end_llseek_size(struct file *file, loff_t offset, int whence, loff_t size)
+loff_t yes_seek_end_llseek_size(struct file *file, loff_t offset, int whence, loff_t size)
 {
 	switch (whence) {
 	case SEEK_SET: case SEEK_CUR:
@@ -208,40 +208,40 @@ loff_t no_seek_end_llseek_size(struct file *file, loff_t offset, int whence, lof
 		return -EINVAL;
 	}
 }
-EXPORT_SYMBOL(no_seek_end_llseek_size);
+EXPORT_SYMBOL(yes_seek_end_llseek_size);
 
 /**
- * noop_llseek - No Operation Performed llseek implementation
+ * yesop_llseek - No Operation Performed llseek implementation
  * @file:	file structure to seek on
  * @offset:	file offset to seek to
  * @whence:	type of seek
  *
  * This is an implementation of ->llseek useable for the rare special case when
- * userspace expects the seek to succeed but the (device) file is actually not
- * able to perform the seek. In this case you use noop_llseek() instead of
+ * userspace expects the seek to succeed but the (device) file is actually yest
+ * able to perform the seek. In this case you use yesop_llseek() instead of
  * falling back to the default implementation of ->llseek.
  */
-loff_t noop_llseek(struct file *file, loff_t offset, int whence)
+loff_t yesop_llseek(struct file *file, loff_t offset, int whence)
 {
 	return file->f_pos;
 }
-EXPORT_SYMBOL(noop_llseek);
+EXPORT_SYMBOL(yesop_llseek);
 
-loff_t no_llseek(struct file *file, loff_t offset, int whence)
+loff_t yes_llseek(struct file *file, loff_t offset, int whence)
 {
 	return -ESPIPE;
 }
-EXPORT_SYMBOL(no_llseek);
+EXPORT_SYMBOL(yes_llseek);
 
 loff_t default_llseek(struct file *file, loff_t offset, int whence)
 {
-	struct inode *inode = file_inode(file);
+	struct iyesde *iyesde = file_iyesde(file);
 	loff_t retval;
 
-	inode_lock(inode);
+	iyesde_lock(iyesde);
 	switch (whence) {
 		case SEEK_END:
-			offset += i_size_read(inode);
+			offset += i_size_read(iyesde);
 			break;
 		case SEEK_CUR:
 			if (offset == 0) {
@@ -256,7 +256,7 @@ loff_t default_llseek(struct file *file, loff_t offset, int whence)
 			 * long as offset isn't at the end of the file then the
 			 * offset is data.
 			 */
-			if (offset >= inode->i_size) {
+			if (offset >= iyesde->i_size) {
 				retval = -ENXIO;
 				goto out;
 			}
@@ -267,11 +267,11 @@ loff_t default_llseek(struct file *file, loff_t offset, int whence)
 			 * as long as offset isn't i_size or larger, return
 			 * i_size.
 			 */
-			if (offset >= inode->i_size) {
+			if (offset >= iyesde->i_size) {
 				retval = -ENXIO;
 				goto out;
 			}
-			offset = inode->i_size;
+			offset = iyesde->i_size;
 			break;
 	}
 	retval = -EINVAL;
@@ -283,7 +283,7 @@ loff_t default_llseek(struct file *file, loff_t offset, int whence)
 		retval = offset;
 	}
 out:
-	inode_unlock(inode);
+	iyesde_unlock(iyesde);
 	return retval;
 }
 EXPORT_SYMBOL(default_llseek);
@@ -292,7 +292,7 @@ loff_t vfs_llseek(struct file *file, loff_t offset, int whence)
 {
 	loff_t (*fn)(struct file *, loff_t, int);
 
-	fn = no_llseek;
+	fn = yes_llseek;
 	if (file->f_mode & FMODE_LSEEK) {
 		if (file->f_op->llseek)
 			fn = file->f_op->llseek;
@@ -364,15 +364,15 @@ out_putf:
 
 int rw_verify_area(int read_write, struct file *file, const loff_t *ppos, size_t count)
 {
-	struct inode *inode;
+	struct iyesde *iyesde;
 	int retval = -EINVAL;
 
-	inode = file_inode(file);
+	iyesde = file_iyesde(file);
 	if (unlikely((ssize_t) count < 0))
 		return retval;
 
 	/*
-	 * ranged mandatory locking does not apply to streams - it makes sense
+	 * ranged mandatory locking does yest apply to streams - it makes sense
 	 * only for files where position has a meaning.
 	 */
 	if (ppos) {
@@ -388,8 +388,8 @@ int rw_verify_area(int read_write, struct file *file, const loff_t *ppos, size_t
 				return retval;
 		}
 
-		if (unlikely(inode->i_flctx && mandatory_lock(inode))) {
-			retval = locks_mandatory_area(inode, file, pos, pos + count - 1,
+		if (unlikely(iyesde->i_flctx && mandatory_lock(iyesde))) {
+			retval = locks_mandatory_area(iyesde, file, pos, pos + count - 1,
 					read_write == READ ? F_RDLCK : F_WRLCK);
 			if (retval < 0)
 				return retval;
@@ -460,7 +460,7 @@ ssize_t vfs_read(struct file *file, char __user *buf, size_t count, loff_t *pos)
 			count =  MAX_RW_COUNT;
 		ret = __vfs_read(file, buf, count, pos);
 		if (ret > 0) {
-			fsnotify_access(file);
+			fsyestify_access(file);
 			add_rchar(current, ret);
 		}
 		inc_syscr(current);
@@ -515,7 +515,7 @@ ssize_t __kernel_write(struct file *file, const void *buf, size_t count, loff_t 
 	ret = __vfs_write(file, p, count, pos);
 	set_fs(old_fs);
 	if (ret > 0) {
-		fsnotify_modify(file);
+		fsyestify_modify(file);
 		add_wchar(current, ret);
 	}
 	inc_syscw(current);
@@ -557,7 +557,7 @@ ssize_t vfs_write(struct file *file, const char __user *buf, size_t count, loff_
 		file_start_write(file);
 		ret = __vfs_write(file, buf, count, pos);
 		if (ret > 0) {
-			fsnotify_modify(file);
+			fsyestify_modify(file);
 			add_wchar(current, ret);
 		}
 		inc_syscw(current);
@@ -747,7 +747,7 @@ static ssize_t do_loop_readv_writev(struct file *filp, struct iov_iter *iter,
  *
  * This function copies an array of &struct iovec of @nr_segs from
  * userspace into the kernel and checks that each element is valid (e.g.
- * it does not point to a kernel address or cause overflow by being too
+ * it does yest point to a kernel address or cause overflow by being too
  * large, etc.).
  *
  * As an optimization, the caller may provide a pointer to a small
@@ -755,7 +755,7 @@ static ssize_t do_loop_readv_writev(struct file *filp, struct iov_iter *iter,
  * (the size of this array, or 0 if unused, should be given in @fast_segs).
  *
  * @ret_pointer will always point to the array that was used, so the
- * caller must take care not to call kfree() on it e.g. in case the
+ * caller must take care yest to call kfree() on it e.g. in case the
  * @fast_pointer array was used and it was allocated on the stack.
  *
  * Return: The total number of bytes covered by the iovec array on success
@@ -872,11 +872,11 @@ ssize_t compat_rw_copy_check_uvector(int type,
 
 	/*
 	 * Single unix specification:
-	 * We should -EINVAL if an element length is not >= 0 and fitting an
+	 * We should -EINVAL if an element length is yest >= 0 and fitting an
 	 * ssize_t.
 	 *
 	 * In Linux, the total length is limited to MAX_RW_COUNT, there is
-	 * no overflow possibility.
+	 * yes overflow possibility.
 	 */
 	tot_len = 0;
 	ret = -EINVAL;
@@ -889,7 +889,7 @@ ssize_t compat_rw_copy_check_uvector(int type,
 			ret = -EFAULT;
 			goto out;
 		}
-		if (len < 0)	/* size_t not fitting in compat_ssize_t .. */
+		if (len < 0)	/* size_t yest fitting in compat_ssize_t .. */
 			goto out;
 		if (type >= 0 &&
 		    !access_ok(compat_ptr(buf), len)) {
@@ -935,7 +935,7 @@ static ssize_t do_iter_read(struct file *file, struct iov_iter *iter,
 		ret = do_loop_readv_writev(file, iter, pos, READ, flags);
 out:
 	if (ret >= 0)
-		fsnotify_access(file);
+		fsyestify_access(file);
 	return ret;
 }
 
@@ -971,7 +971,7 @@ static ssize_t do_iter_write(struct file *file, struct iov_iter *iter,
 	else
 		ret = do_loop_readv_writev(file, iter, pos, WRITE, flags);
 	if (ret > 0)
-		fsnotify_modify(file);
+		fsyestify_modify(file);
 	return ret;
 }
 
@@ -1394,7 +1394,7 @@ static ssize_t do_sendfile(int out_fd, int in_fd, loff_t *ppos,
 		  	   size_t count, loff_t max)
 {
 	struct fd in, out;
-	struct inode *in_inode, *out_inode;
+	struct iyesde *in_iyesde, *out_iyesde;
 	loff_t pos;
 	loff_t out_pos;
 	ssize_t retval;
@@ -1432,15 +1432,15 @@ static ssize_t do_sendfile(int out_fd, int in_fd, loff_t *ppos,
 		goto fput_in;
 	if (!(out.file->f_mode & FMODE_WRITE))
 		goto fput_out;
-	in_inode = file_inode(in.file);
-	out_inode = file_inode(out.file);
+	in_iyesde = file_iyesde(in.file);
+	out_iyesde = file_iyesde(out.file);
 	out_pos = out.file->f_pos;
 	retval = rw_verify_area(WRITE, out.file, &out_pos, count);
 	if (retval < 0)
 		goto fput_out;
 
 	if (!max)
-		max = min(in_inode->i_sb->s_maxbytes, out_inode->i_sb->s_maxbytes);
+		max = min(in_iyesde->i_sb->s_maxbytes, out_iyesde->i_sb->s_maxbytes);
 
 	if (unlikely(pos + count > max)) {
 		retval = -EOVERFLOW;
@@ -1452,10 +1452,10 @@ static ssize_t do_sendfile(int out_fd, int in_fd, loff_t *ppos,
 	fl = 0;
 #if 0
 	/*
-	 * We need to debate whether we can enable this or not. The
+	 * We need to debate whether we can enable this or yest. The
 	 * man page documents EAGAIN return for the output at least,
 	 * and the application is arguably buggy if it doesn't expect
-	 * EAGAIN on a non-blocking file descriptor.
+	 * EAGAIN on a yesn-blocking file descriptor.
 	 */
 	if (in.file->f_flags & O_NONBLOCK)
 		fl = SPLICE_F_NONBLOCK;
@@ -1467,8 +1467,8 @@ static ssize_t do_sendfile(int out_fd, int in_fd, loff_t *ppos,
 	if (retval > 0) {
 		add_rchar(current, retval);
 		add_wchar(current, retval);
-		fsnotify_access(in.file);
-		fsnotify_modify(out.file);
+		fsyestify_access(in.file);
+		fsyestify_modify(out.file);
 		out.file->f_pos = out_pos;
 		if (ppos)
 			*ppos = pos;
@@ -1574,8 +1574,8 @@ COMPAT_SYSCALL_DEFINE4(sendfile64, int, out_fd, int, in_fd,
  * @len:	amount of data to copy
  * @flags:	copy flags
  *
- * This is a generic filesystem helper to copy data from one file to another.
- * It has no constraints on the source or destination file owners - the files
+ * This is a generic filesystem helper to copy data from one file to ayesther.
+ * It has yes constraints on the source or destination file owners - the files
  * can belong to different superblocks and different filesystem types. Short
  * copies are allowed.
  *
@@ -1600,7 +1600,7 @@ static ssize_t do_copy_file_range(struct file *file_in, loff_t pos_in,
 				  size_t len, unsigned int flags)
 {
 	/*
-	 * Although we now allow filesystems to handle cross sb copy, passing
+	 * Although we yesw allow filesystems to handle cross sb copy, passing
 	 * a file of the wrong filesystem type to filesystem driver can result
 	 * in an attempt to dereference the wrong type of ->private_data, so
 	 * avoid doing that until we really have a good reason.  NFS defines
@@ -1654,7 +1654,7 @@ ssize_t vfs_copy_file_range(struct file *file_in, loff_t pos_in,
 	 * more efficient if both clone and copy are supported (e.g. NFS).
 	 */
 	if (file_in->f_op->remap_file_range &&
-	    file_inode(file_in)->i_sb == file_inode(file_out)->i_sb) {
+	    file_iyesde(file_in)->i_sb == file_iyesde(file_out)->i_sb) {
 		loff_t cloned;
 
 		cloned = file_in->f_op->remap_file_range(file_in, pos_in,
@@ -1672,9 +1672,9 @@ ssize_t vfs_copy_file_range(struct file *file_in, loff_t pos_in,
 	WARN_ON_ONCE(ret == -EOPNOTSUPP);
 done:
 	if (ret > 0) {
-		fsnotify_access(file_in);
+		fsyestify_access(file_in);
 		add_rchar(current, ret);
-		fsnotify_modify(file_out);
+		fsyestify_modify(file_out);
 		add_wchar(current, ret);
 	}
 
@@ -1752,7 +1752,7 @@ out2:
 static int remap_verify_area(struct file *file, loff_t pos, loff_t len,
 			     bool write)
 {
-	struct inode *inode = file_inode(file);
+	struct iyesde *iyesde = file_iyesde(file);
 
 	if (unlikely(pos < 0 || len < 0))
 		return -EINVAL;
@@ -1760,11 +1760,11 @@ static int remap_verify_area(struct file *file, loff_t pos, loff_t len,
 	 if (unlikely((loff_t) (pos + len) < 0))
 		return -EINVAL;
 
-	if (unlikely(inode->i_flctx && mandatory_lock(inode))) {
+	if (unlikely(iyesde->i_flctx && mandatory_lock(iyesde))) {
 		loff_t end = len ? pos + len - 1 : OFFSET_MAX;
 		int retval;
 
-		retval = locks_mandatory_area(inode, file, pos, end,
+		retval = locks_mandatory_area(iyesde, file, pos, end,
 				write ? F_WRLCK : F_RDLCK);
 		if (retval < 0)
 			return retval;
@@ -1784,20 +1784,20 @@ static int remap_verify_area(struct file *file, loff_t pos, loff_t len,
  *
  * Shorten the request if possible.
  */
-static int generic_remap_check_len(struct inode *inode_in,
-				   struct inode *inode_out,
+static int generic_remap_check_len(struct iyesde *iyesde_in,
+				   struct iyesde *iyesde_out,
 				   loff_t pos_out,
 				   loff_t *len,
 				   unsigned int remap_flags)
 {
-	u64 blkmask = i_blocksize(inode_in) - 1;
+	u64 blkmask = i_blocksize(iyesde_in) - 1;
 	loff_t new_len = *len;
 
 	if ((*len & blkmask) == 0)
 		return 0;
 
 	if ((remap_flags & REMAP_FILE_DEDUP) ||
-	    pos_out + *len < i_size_read(inode_out))
+	    pos_out + *len < i_size_read(iyesde_out))
 		new_len &= ~blkmask;
 
 	if (new_len == *len)
@@ -1812,11 +1812,11 @@ static int generic_remap_check_len(struct inode *inode_in,
 }
 
 /* Read a page's worth of file data into the page cache. */
-static struct page *vfs_dedupe_get_page(struct inode *inode, loff_t offset)
+static struct page *vfs_dedupe_get_page(struct iyesde *iyesde, loff_t offset)
 {
 	struct page *page;
 
-	page = read_mapping_page(inode->i_mapping, offset >> PAGE_SHIFT, NULL);
+	page = read_mapping_page(iyesde->i_mapping, offset >> PAGE_SHIFT, NULL);
 	if (IS_ERR(page))
 		return page;
 	if (!PageUptodate(page)) {
@@ -1841,7 +1841,7 @@ static void vfs_lock_two_pages(struct page *page1, struct page *page2)
 		lock_page(page2);
 }
 
-/* Unlock two pages, being careful not to unlock the same page twice. */
+/* Unlock two pages, being careful yest to unlock the same page twice. */
 static void vfs_unlock_two_pages(struct page *page1, struct page *page2)
 {
 	unlock_page(page1);
@@ -1851,10 +1851,10 @@ static void vfs_unlock_two_pages(struct page *page1, struct page *page2)
 
 /*
  * Compare extents of two files to see if they are the same.
- * Caller must have locked both inodes to prevent write races.
+ * Caller must have locked both iyesdes to prevent write races.
  */
-static int vfs_dedupe_file_range_compare(struct inode *src, loff_t srcoff,
-					 struct inode *dest, loff_t destoff,
+static int vfs_dedupe_file_range_compare(struct iyesde *src, loff_t srcoff,
+					 struct iyesde *dest, loff_t destoff,
 					 loff_t len, bool *is_same)
 {
 	loff_t src_poff;
@@ -1894,7 +1894,7 @@ static int vfs_dedupe_file_range_compare(struct inode *src, loff_t srcoff,
 
 		/*
 		 * Now that we've locked both pages, make sure they're still
-		 * mapped to the file data we're interested in.  If not,
+		 * mapped to the file data we're interested in.  If yest,
 		 * someone is invalidating pages on us and we lose.
 		 */
 		if (!PageUptodate(src_page) || !PageUptodate(dest_page) ||
@@ -1936,9 +1936,9 @@ out_error:
 }
 
 /*
- * Check that the two inodes are eligible for cloning, the ranges make
+ * Check that the two iyesdes are eligible for cloning, the ranges make
  * sense, and then flush all dirty data.  Caller must ensure that the
- * inodes have been locked against any other modifications.
+ * iyesdes have been locked against any other modifications.
  *
  * If there's an error, then the usual negative error code is returned.
  * Otherwise returns 0 with *len set to the request length.
@@ -1947,27 +1947,27 @@ int generic_remap_file_range_prep(struct file *file_in, loff_t pos_in,
 				  struct file *file_out, loff_t pos_out,
 				  loff_t *len, unsigned int remap_flags)
 {
-	struct inode *inode_in = file_inode(file_in);
-	struct inode *inode_out = file_inode(file_out);
-	bool same_inode = (inode_in == inode_out);
+	struct iyesde *iyesde_in = file_iyesde(file_in);
+	struct iyesde *iyesde_out = file_iyesde(file_out);
+	bool same_iyesde = (iyesde_in == iyesde_out);
 	int ret;
 
-	/* Don't touch certain kinds of inodes */
-	if (IS_IMMUTABLE(inode_out))
+	/* Don't touch certain kinds of iyesdes */
+	if (IS_IMMUTABLE(iyesde_out))
 		return -EPERM;
 
-	if (IS_SWAPFILE(inode_in) || IS_SWAPFILE(inode_out))
+	if (IS_SWAPFILE(iyesde_in) || IS_SWAPFILE(iyesde_out))
 		return -ETXTBSY;
 
 	/* Don't reflink dirs, pipes, sockets... */
-	if (S_ISDIR(inode_in->i_mode) || S_ISDIR(inode_out->i_mode))
+	if (S_ISDIR(iyesde_in->i_mode) || S_ISDIR(iyesde_out->i_mode))
 		return -EISDIR;
-	if (!S_ISREG(inode_in->i_mode) || !S_ISREG(inode_out->i_mode))
+	if (!S_ISREG(iyesde_in->i_mode) || !S_ISREG(iyesde_out->i_mode))
 		return -EINVAL;
 
 	/* Zero length dedupe exits immediately; reflink goes to EOF. */
 	if (*len == 0) {
-		loff_t isize = i_size_read(inode_in);
+		loff_t isize = i_size_read(iyesde_in);
 
 		if ((remap_flags & REMAP_FILE_DEDUP) || pos_in == isize)
 			return 0;
@@ -1985,16 +1985,16 @@ int generic_remap_file_range_prep(struct file *file_in, loff_t pos_in,
 		return ret;
 
 	/* Wait for the completion of any pending IOs on both files */
-	inode_dio_wait(inode_in);
-	if (!same_inode)
-		inode_dio_wait(inode_out);
+	iyesde_dio_wait(iyesde_in);
+	if (!same_iyesde)
+		iyesde_dio_wait(iyesde_out);
 
-	ret = filemap_write_and_wait_range(inode_in->i_mapping,
+	ret = filemap_write_and_wait_range(iyesde_in->i_mapping,
 			pos_in, pos_in + *len - 1);
 	if (ret)
 		return ret;
 
-	ret = filemap_write_and_wait_range(inode_out->i_mapping,
+	ret = filemap_write_and_wait_range(iyesde_out->i_mapping,
 			pos_out, pos_out + *len - 1);
 	if (ret)
 		return ret;
@@ -2005,15 +2005,15 @@ int generic_remap_file_range_prep(struct file *file_in, loff_t pos_in,
 	if (remap_flags & REMAP_FILE_DEDUP) {
 		bool		is_same = false;
 
-		ret = vfs_dedupe_file_range_compare(inode_in, pos_in,
-				inode_out, pos_out, *len, &is_same);
+		ret = vfs_dedupe_file_range_compare(iyesde_in, pos_in,
+				iyesde_out, pos_out, *len, &is_same);
 		if (ret)
 			return ret;
 		if (!is_same)
 			return -EBADE;
 	}
 
-	ret = generic_remap_check_len(inode_in, inode_out, pos_out, len,
+	ret = generic_remap_check_len(iyesde_in, iyesde_out, pos_out, len,
 			remap_flags);
 	if (ret)
 		return ret;
@@ -2039,7 +2039,7 @@ loff_t do_clone_file_range(struct file *file_in, loff_t pos_in,
 	 * the same mount. Practically, they only need to be on the same file
 	 * system.
 	 */
-	if (file_inode(file_in)->i_sb != file_inode(file_out)->i_sb)
+	if (file_iyesde(file_in)->i_sb != file_iyesde(file_out)->i_sb)
 		return -EXDEV;
 
 	ret = generic_file_rw_checks(file_in, file_out);
@@ -2062,8 +2062,8 @@ loff_t do_clone_file_range(struct file *file_in, loff_t pos_in,
 	if (ret < 0)
 		return ret;
 
-	fsnotify_access(file_in);
-	fsnotify_modify(file_out);
+	fsyestify_access(file_in);
+	fsyestify_modify(file_out);
 	return ret;
 }
 EXPORT_SYMBOL(do_clone_file_range);
@@ -2090,9 +2090,9 @@ static bool allow_file_dedupe(struct file *file)
 		return true;
 	if (file->f_mode & FMODE_WRITE)
 		return true;
-	if (uid_eq(current_fsuid(), file_inode(file)->i_uid))
+	if (uid_eq(current_fsuid(), file_iyesde(file)->i_uid))
 		return true;
-	if (!inode_permission(file_inode(file), MAY_WRITE))
+	if (!iyesde_permission(file_iyesde(file), MAY_WRITE))
 		return true;
 	return false;
 }
@@ -2123,7 +2123,7 @@ loff_t vfs_dedupe_file_range_one(struct file *src_file, loff_t src_pos,
 		goto out_drop_write;
 
 	ret = -EISDIR;
-	if (S_ISDIR(file_inode(dst_file)->i_mode))
+	if (S_ISDIR(file_iyesde(dst_file)->i_mode))
 		goto out_drop_write;
 
 	ret = -EINVAL;
@@ -2147,7 +2147,7 @@ EXPORT_SYMBOL(vfs_dedupe_file_range_one);
 int vfs_dedupe_file_range(struct file *file, struct file_dedupe_range *same)
 {
 	struct file_dedupe_range_info *info;
-	struct inode *src = file_inode(file);
+	struct iyesde *src = file_iyesde(file);
 	u64 off;
 	u64 len;
 	int i;

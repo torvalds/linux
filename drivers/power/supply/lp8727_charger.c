@@ -224,18 +224,18 @@ static void lp8727_delayed_func(struct work_struct *_work)
 	struct lp8727_chg *pchg = container_of(_work, struct lp8727_chg,
 						work.work);
 	u8 intstat[LP8788_NUM_INTREGS];
-	u8 idno;
+	u8 idyes;
 	u8 vbus;
 
 	if (lp8727_read_bytes(pchg, LP8727_INT1, intstat, LP8788_NUM_INTREGS)) {
-		dev_err(pchg->dev, "can not read INT registers\n");
+		dev_err(pchg->dev, "can yest read INT registers\n");
 		return;
 	}
 
-	idno = intstat[0] & LP8727_IDNO;
+	idyes = intstat[0] & LP8727_IDNO;
 	vbus = intstat[0] & LP8727_VBUS;
 
-	lp8727_id_detection(pchg, idno, vbus);
+	lp8727_id_detection(pchg, idyes, vbus);
 	lp8727_enable_chgdet(pchg);
 
 	power_supply_changed(pchg->psy->ac);
@@ -401,7 +401,7 @@ static void lp8727_charger_changed(struct power_supply *psy)
 	u8 ichg;
 	u8 val;
 
-	/* skip if no charger exists */
+	/* skip if yes charger exists */
 	if (!lp8727_is_charger_attached(psy->desc->name, pchg->devid))
 		return;
 
@@ -490,7 +490,7 @@ static void lp8727_unregister_psy(struct lp8727_chg *pchg)
 
 #ifdef CONFIG_OF
 static struct lp8727_chg_param
-*lp8727_parse_charge_pdata(struct device *dev, struct device_node *np)
+*lp8727_parse_charge_pdata(struct device *dev, struct device_yesde *np)
 {
 	struct lp8727_chg_param *param;
 
@@ -506,8 +506,8 @@ out:
 
 static struct lp8727_platform_data *lp8727_parse_dt(struct device *dev)
 {
-	struct device_node *np = dev->of_node;
-	struct device_node *child;
+	struct device_yesde *np = dev->of_yesde;
+	struct device_yesde *child;
 	struct lp8727_platform_data *pdata;
 	const char *type;
 
@@ -517,11 +517,11 @@ static struct lp8727_platform_data *lp8727_parse_dt(struct device *dev)
 
 	of_property_read_u32(np, "debounce-ms", &pdata->debounce_msec);
 
-	/* If charging parameter is not defined, just skip parsing the dt */
+	/* If charging parameter is yest defined, just skip parsing the dt */
 	if (of_get_child_count(np) == 0)
 		return pdata;
 
-	for_each_child_of_node(np, child) {
+	for_each_child_of_yesde(np, child) {
 		of_property_read_string(child, "charger-type", &type);
 
 		if (!strcmp(type, "ac"))
@@ -549,7 +549,7 @@ static int lp8727_probe(struct i2c_client *cl, const struct i2c_device_id *id)
 	if (!i2c_check_functionality(cl->adapter, I2C_FUNC_SMBUS_I2C_BLOCK))
 		return -EIO;
 
-	if (cl->dev.of_node) {
+	if (cl->dev.of_yesde) {
 		pdata = lp8727_parse_dt(&cl->dev);
 		if (IS_ERR(pdata))
 			return PTR_ERR(pdata);

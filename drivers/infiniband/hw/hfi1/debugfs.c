@@ -22,12 +22,12 @@
  * are met:
  *
  *  - Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  *  - Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
+ *    yestice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
- *  - Neither the name of Intel Corporation nor the names of its
+ *  - Neither the name of Intel Corporation yesr the names of its
  *    contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
@@ -92,8 +92,8 @@ loff_t hfi1_seq_lseek(struct file *file, loff_t offset, int whence)
 	return r;
 }
 
-#define private2dd(file) (file_inode(file)->i_private)
-#define private2ppd(file) (file_inode(file)->i_private)
+#define private2dd(file) (file_iyesde(file)->i_private)
+#define private2ppd(file) (file_iyesde(file)->i_private)
 
 static void *_opcode_stats_seq_start(struct seq_file *s, loff_t *pos)
 {
@@ -217,7 +217,7 @@ static void *_ctx_stats_seq_next(struct seq_file *s, void *v, loff_t *pos)
 
 static void _ctx_stats_seq_stop(struct seq_file *s, void *v)
 {
-	/* nothing allocated */
+	/* yesthing allocated */
 }
 
 static int _ctx_stats_seq_show(struct seq_file *s, void *v)
@@ -491,8 +491,8 @@ struct counter_info {
 };
 
 /*
- * Could use file_inode(file)->i_ino to figure out which file,
- * instead of separate routine for each, but for now, this works...
+ * Could use file_iyesde(file)->i_iyes to figure out which file,
+ * instead of separate routine for each, but for yesw, this works...
  */
 
 /* read the per-port names (same for each port) */
@@ -619,7 +619,7 @@ static ssize_t asic_flags_write(struct file *file, const char __user *buf,
 	scratch0 = read_csr(dd, ASIC_CFG_SCRATCH);
 	scratch0 &= ~clear;
 	write_csr(dd, ASIC_CFG_SCRATCH, scratch0);
-	/* force write to be visible to other HFI on another OS */
+	/* force write to be visible to other HFI on ayesther OS */
 	(void)read_csr(dd, ASIC_CFG_SCRATCH);
 
 	release_hw_mutex(dd);
@@ -690,7 +690,7 @@ static ssize_t debugfs_lcb_read(struct file *file, char __user *buf,
 	/* offset must be 8-byte aligned */
 	if ((*ppos % 8) != 0)
 		return -EINVAL;
-	/* do nothing if out of range or zero count */
+	/* do yesthing if out of range or zero count */
 	if (*ppos >= (LCB_END - LCB_START) || !count)
 		return 0;
 	/* reduce count if needed */
@@ -723,7 +723,7 @@ static ssize_t debugfs_lcb_write(struct file *file, const char __user *buf,
 	/* offset must be 8-byte aligned */
 	if ((*ppos % 8) != 0)
 		return -EINVAL;
-	/* do nothing if out of range or zero count */
+	/* do yesthing if out of range or zero count */
 	if (*ppos >= (LCB_END - LCB_START) || !count)
 		return 0;
 	/* reduce count if needed */
@@ -982,7 +982,7 @@ static ssize_t qsfp2_debugfs_read(struct file *file, char __user *buf,
 	return __qsfp_debugfs_read(file, buf, count, ppos, 1);
 }
 
-static int __i2c_debugfs_open(struct inode *in, struct file *fp, u32 target)
+static int __i2c_debugfs_open(struct iyesde *in, struct file *fp, u32 target)
 {
 	struct hfi1_pportdata *ppd;
 	int ret;
@@ -996,17 +996,17 @@ static int __i2c_debugfs_open(struct inode *in, struct file *fp, u32 target)
 	return ret;
 }
 
-static int i2c1_debugfs_open(struct inode *in, struct file *fp)
+static int i2c1_debugfs_open(struct iyesde *in, struct file *fp)
 {
 	return __i2c_debugfs_open(in, fp, 0);
 }
 
-static int i2c2_debugfs_open(struct inode *in, struct file *fp)
+static int i2c2_debugfs_open(struct iyesde *in, struct file *fp)
 {
 	return __i2c_debugfs_open(in, fp, 1);
 }
 
-static int __i2c_debugfs_release(struct inode *in, struct file *fp, u32 target)
+static int __i2c_debugfs_release(struct iyesde *in, struct file *fp, u32 target)
 {
 	struct hfi1_pportdata *ppd;
 
@@ -1018,17 +1018,17 @@ static int __i2c_debugfs_release(struct inode *in, struct file *fp, u32 target)
 	return 0;
 }
 
-static int i2c1_debugfs_release(struct inode *in, struct file *fp)
+static int i2c1_debugfs_release(struct iyesde *in, struct file *fp)
 {
 	return __i2c_debugfs_release(in, fp, 0);
 }
 
-static int i2c2_debugfs_release(struct inode *in, struct file *fp)
+static int i2c2_debugfs_release(struct iyesde *in, struct file *fp)
 {
 	return __i2c_debugfs_release(in, fp, 1);
 }
 
-static int __qsfp_debugfs_open(struct inode *in, struct file *fp, u32 target)
+static int __qsfp_debugfs_open(struct iyesde *in, struct file *fp, u32 target)
 {
 	struct hfi1_pportdata *ppd;
 	int ret;
@@ -1045,17 +1045,17 @@ static int __qsfp_debugfs_open(struct inode *in, struct file *fp, u32 target)
 	return ret;
 }
 
-static int qsfp1_debugfs_open(struct inode *in, struct file *fp)
+static int qsfp1_debugfs_open(struct iyesde *in, struct file *fp)
 {
 	return __qsfp_debugfs_open(in, fp, 0);
 }
 
-static int qsfp2_debugfs_open(struct inode *in, struct file *fp)
+static int qsfp2_debugfs_open(struct iyesde *in, struct file *fp)
 {
 	return __qsfp_debugfs_open(in, fp, 1);
 }
 
-static int __qsfp_debugfs_release(struct inode *in, struct file *fp, u32 target)
+static int __qsfp_debugfs_release(struct iyesde *in, struct file *fp, u32 target)
 {
 	struct hfi1_pportdata *ppd;
 
@@ -1067,12 +1067,12 @@ static int __qsfp_debugfs_release(struct inode *in, struct file *fp, u32 target)
 	return 0;
 }
 
-static int qsfp1_debugfs_release(struct inode *in, struct file *fp)
+static int qsfp1_debugfs_release(struct iyesde *in, struct file *fp)
 {
 	return __qsfp_debugfs_release(in, fp, 0);
 }
 
-static int qsfp2_debugfs_release(struct inode *in, struct file *fp)
+static int qsfp2_debugfs_release(struct iyesde *in, struct file *fp)
 {
 	return __qsfp_debugfs_release(in, fp, 1);
 }
@@ -1129,7 +1129,7 @@ static ssize_t exprom_wp_debugfs_write(struct file *file,
 
 static unsigned long exprom_in_use;
 
-static int exprom_wp_debugfs_open(struct inode *in, struct file *fp)
+static int exprom_wp_debugfs_open(struct iyesde *in, struct file *fp)
 {
 	if (test_and_set_bit(0, &exprom_in_use))
 		return -EBUSY;
@@ -1137,7 +1137,7 @@ static int exprom_wp_debugfs_open(struct inode *in, struct file *fp)
 	return 0;
 }
 
-static int exprom_wp_debugfs_release(struct inode *in, struct file *fp)
+static int exprom_wp_debugfs_release(struct iyesde *in, struct file *fp)
 {
 	struct hfi1_pportdata *ppd = private2ppd(fp);
 
@@ -1216,7 +1216,7 @@ static void *_sdma_cpu_list_seq_next(struct seq_file *s, void *v, loff_t *pos)
 
 static void _sdma_cpu_list_seq_stop(struct seq_file *s, void *v)
 {
-	/* nothing allocated */
+	/* yesthing allocated */
 }
 
 static int _sdma_cpu_list_seq_show(struct seq_file *s, void *v)

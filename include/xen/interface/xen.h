@@ -10,7 +10,7 @@
  * sell copies of the Software, and to permit persons to whom the Software is
  * furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -39,7 +39,7 @@
  *         (argument registers may be clobbered on return)
  * x86_64: RAX = vector; RDI, RSI, RDX, R10, R8, R9 = args 1, 2, 3, 4, 5, 6.
  *         RAX = return value
- *         (argument registers not clobbered on return; RCX, R11 are)
+ *         (argument registers yest clobbered on return; RCX, R11 are)
  */
 #define __HYPERVISOR_set_trap_table        0
 #define __HYPERVISOR_mmu_update            1
@@ -71,7 +71,7 @@
 #define __HYPERVISOR_nmi_op               28
 #define __HYPERVISOR_sched_op             29
 #define __HYPERVISOR_callback_op          30
-#define __HYPERVISOR_xenoprof_op          31
+#define __HYPERVISOR_xeyesprof_op          31
 #define __HYPERVISOR_event_channel_op     32
 #define __HYPERVISOR_physdev_op           33
 #define __HYPERVISOR_hvm_op               34
@@ -97,8 +97,8 @@
  * VIRTUAL INTERRUPTS
  *
  * Virtual interrupts that a guest OS may receive from Xen.
- * In the side comments, 'V.' denotes a per-VCPU VIRQ while 'G.' denotes a
- * global VIRQ. The former can be bound once per VCPU and cannot be re-bound.
+ * In the side comments, 'V.' deyestes a per-VCPU VIRQ while 'G.' deyestes a
+ * global VIRQ. The former can be bound once per VCPU and canyest be re-bound.
  * The latter can be allocated only once per guest: they must initially be
  * allocated to VCPU0 but can subsequently be re-bound.
  */
@@ -129,7 +129,7 @@
 #define NR_VIRQS       24
 
 /*
- * enum neg_errnoval HYPERVISOR_mmu_update(const struct mmu_update reqs[],
+ * enum neg_erryesval HYPERVISOR_mmu_update(const struct mmu_update reqs[],
  *                                         unsigned count, unsigned *done_out,
  *                                         unsigned foreigndom)
  * @reqs is an array of mmu_update_t structures ((ptr, val) pairs).
@@ -179,7 +179,7 @@
  *      number of the PGD (L4)). And this point the HYPERVISOR_mmuext_op(
  *      MMUEXT_NEW_BASEPTR, guest physical frame number of the PGD (L4)) can be
  *      issued.
- * For 32-bit guests, the L4 is not used (as there is less pagetables), so
+ * For 32-bit guests, the L4 is yest used (as there is less pagetables), so
  * instead use L3.
  * At this point the pagetables can be modified using the MMU_NORMAL_PT_UPDATE
  * hypercall. Also if so desired the OS can also try to write to the PTE
@@ -187,7 +187,7 @@
  *
  * To deallocate the pages, the operations are the reverse of the steps
  * mentioned above. The argument is MMUEXT_UNPIN_TABLE for all levels and the
- * pagetable MUST not be in use (meaning that the cr3 is not set to it).
+ * pagetable MUST yest be in use (meaning that the cr3 is yest set to it).
  *
  * ptr[1:0] == MMU_MACHPHYS_UPDATE:
  * Updates an entry in the machine->pseudo-physical mapping table.
@@ -219,12 +219,12 @@
  *  - 1 writeable
  *  - 0 present
  *
- *  The one bits that does not fit with the default layout is the PAGE_PSE
+ *  The one bits that does yest fit with the default layout is the PAGE_PSE
  *  also called PAGE_PAT). The MMUEXT_[UN]MARK_SUPER arguments to the
  *  HYPERVISOR_mmuext_op serve as mechanism to set a pagetable to be 4MB
  *  (or 2MB) instead of using the PAGE_PSE bit.
  *
- *  The reason that the PAGE_PSE (bit 7) is not being utilized is due to Xen
+ *  The reason that the PAGE_PSE (bit 7) is yest being utilized is due to Xen
  *  using it as the Page Attribute Table (PAT) bit - for details on it please
  *  refer to Intel SDM 10.12. The PAT allows to set the caching attributes of
  *  pages instead of using MTRRs.
@@ -253,7 +253,7 @@
  *  set. For example, under Linux it only uses PAT0, PAT1, and PAT2 for the
  *  caching as:
  *
- *   WB = none (so PAT0)
+ *   WB = yesne (so PAT0)
  *   WC = PWT (bit 3 on)
  *   UC = PWT | PCD (bit 3 and 4 are on).
  *
@@ -273,13 +273,13 @@
 /*
  * MMU EXTENDED OPERATIONS
  *
- * enum neg_errnoval HYPERVISOR_mmuext_op(mmuext_op_t uops[],
+ * enum neg_erryesval HYPERVISOR_mmuext_op(mmuext_op_t uops[],
  *                                        unsigned int count,
  *                                        unsigned int *pdone,
  *                                        unsigned int foreigndom)
  */
 /* HYPERVISOR_mmuext_op() accepts a list of mmuext_op structures.
- * A foreigndom (FD) can be specified (or DOMID_SELF for none).
+ * A foreigndom (FD) can be specified (or DOMID_SELF for yesne).
  * Where the FD has some effect, it is described below.
  *
  * cmd: MMUEXT_(UN)PIN_*_TABLE
@@ -403,11 +403,11 @@ DEFINE_GUEST_HANDLE_STRUCT(mmuext_op);
 #define VMASST_TYPE_4gb_segments         0
 
 /* x86/32 guests: trap (vector 15) whenever above vmassist is used. */
-#define VMASST_TYPE_4gb_segments_notify  1
+#define VMASST_TYPE_4gb_segments_yestify  1
 
 /*
  * x86 guests: support writes to bottom-level PTEs.
- * NB1. Page-directory entries cannot be written.
+ * NB1. Page-directory entries canyest be written.
  * NB2. Guest must continue to remove all writable mappings of PTEs.
  */
 #define VMASST_TYPE_writable_pagetables  2
@@ -436,7 +436,7 @@ DEFINE_GUEST_HANDLE_STRUCT(mmuext_op);
 
 typedef uint16_t domid_t;
 
-/* Domain ids >= DOMID_FIRST_RESERVED cannot be used for ordinary domains. */
+/* Domain ids >= DOMID_FIRST_RESERVED canyest be used for ordinary domains. */
 #define DOMID_FIRST_RESERVED (0x7FF0U)
 
 /* DOMID_SELF is used in certain contexts to refer to oneself. */
@@ -444,8 +444,8 @@ typedef uint16_t domid_t;
 
 /*
  * DOMID_IO is used to restrict page-table updates to mapping I/O memory.
- * Although no Foreign Domain need be specified to map I/O pages, DOMID_IO
- * is useful to ensure that no mappings to the OS's own heap are accidentally
+ * Although yes Foreign Domain need be specified to map I/O pages, DOMID_IO
+ * is useful to ensure that yes mappings to the OS's own heap are accidentally
  * installed. (e.g., in Linux this could cause havoc as reference counts
  * aren't adjusted on the I/O-mapping code path).
  * This only makes sense in MMUEXT_SET_FOREIGNDOM, but in that context can
@@ -464,7 +464,7 @@ typedef uint16_t domid_t;
 /* DOMID_COW is used as the owner of sharable pages */
 #define DOMID_COW  (0x7FF3U)
 
-/* DOMID_INVALID is used to identify pages with unknown owner. */
+/* DOMID_INVALID is used to identify pages with unkyeswn owner. */
 #define DOMID_INVALID (0x7FF4U)
 
 /* Idle domain. */
@@ -507,7 +507,7 @@ struct vcpu_time_info {
 	uint32_t version;
 	uint32_t pad0;
 	uint64_t tsc_timestamp;   /* TSC at last update of time vals.  */
-	uint64_t system_time;     /* Time, in nanosecs, since boot.    */
+	uint64_t system_time;     /* Time, in nayessecs, since boot.    */
 	/*
 	 * Current system time:
 	 *   system_time + ((tsc - tsc_timestamp) << tsc_shift) * tsc_to_system_mul
@@ -521,18 +521,18 @@ struct vcpu_time_info {
 
 struct vcpu_info {
 	/*
-	 * 'evtchn_upcall_pending' is written non-zero by Xen to indicate
-	 * a pending notification for a particular VCPU. It is then cleared
+	 * 'evtchn_upcall_pending' is written yesn-zero by Xen to indicate
+	 * a pending yestification for a particular VCPU. It is then cleared
 	 * by the guest OS /before/ checking for pending work, thus avoiding
 	 * a set-and-check race. Note that the mask is only accessed by Xen
 	 * on the CPU that is currently hosting the VCPU. This means that the
 	 * pending and mask flags can be updated by the guest without special
-	 * synchronisation (i.e., no need for the x86 LOCK prefix).
+	 * synchronisation (i.e., yes need for the x86 LOCK prefix).
 	 * This may seem suboptimal because if the pending flag is set by
 	 * a different CPU then an IPI may be scheduled even when the mask
-	 * is set. However, note:
+	 * is set. However, yeste:
 	 *  1. The task of 'interrupt holdoff' is covered by the per-event-
-	 *     channel mask bits. A 'noisy' event that is continually being
+	 *     channel mask bits. A 'yesisy' event that is continually being
 	 *     triggered can be masked at source at this very precise
 	 *     granularity.
 	 *  2. The main purpose of the per-VCPU mask is therefore to restrict
@@ -541,7 +541,7 @@ struct vcpu_info {
 	 *     that the mask will be asserted only for short periods at a time,
 	 *     and so the likelihood of a 'spurious' IPI is suitably small.
 	 * The mask is read before making an event upcall to the guest: a
-	 * non-zero mask therefore guarantees that the VCPU will not receive
+	 * yesn-zero mask therefore guarantees that the VCPU will yest receive
 	 * an upcall activation. The mask is cleared when the VCPU requests
 	 * to block: this avoids wakeup-waiting races.
 	 */
@@ -561,7 +561,7 @@ struct shared_info {
 
 	/*
 	 * A domain can create "event channels" on which it can send and receive
-	 * asynchronous event notifications. There are three classes of event that
+	 * asynchroyesus event yestifications. There are three classes of event that
 	 * are delivered by this mechanism:
 	 *  1. Bi-directional inter- and intra-domain connections. Domains must
 	 *     arrange out-of-band to set up a connection (usually by allocating
@@ -576,16 +576,16 @@ struct shared_info {
 	 *
 	 * Event channels are addressed by a "port index". Each channel is
 	 * associated with two bits of information:
-	 *  1. PENDING -- notifies the domain that there is a pending notification
+	 *  1. PENDING -- yestifies the domain that there is a pending yestification
 	 *     to be processed. This bit is cleared by the guest.
 	 *  2. MASK -- if this bit is clear then a 0->1 transition of PENDING
-	 *     will cause an asynchronous upcall to be scheduled. This bit is only
+	 *     will cause an asynchroyesus upcall to be scheduled. This bit is only
 	 *     updated by the guest. It is read-only within Xen. If a channel
 	 *     becomes pending while the channel is masked then the 'edge' is lost
 	 *     (i.e., when the channel is unmasked, the guest must manually handle
-	 *     pending notifications as no upcall will be scheduled by Xen).
+	 *     pending yestifications as yes upcall will be scheduled by Xen).
 	 *
-	 * To expedite scanning of pending notifications, any 0->1 pending
+	 * To expedite scanning of pending yestifications, any 0->1 pending
 	 * transition on an unmasked channel causes a corresponding bit in a
 	 * per-vcpu selector word to be set. Each bit in the selector covers a
 	 * 'C long' in the PENDING bitfield array.
@@ -774,7 +774,7 @@ DEFINE_GUEST_HANDLE(u64);
 
 #else /* __ASSEMBLY__ */
 
-/* In assembly code we cannot use C numeric constant suffixes. */
+/* In assembly code we canyest use C numeric constant suffixes. */
 #define mk_unsigned_long(x) x
 
 #endif /* !__ASSEMBLY__ */

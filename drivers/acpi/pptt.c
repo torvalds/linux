@@ -9,7 +9,7 @@
  * Due to the relative pointers used throughout the table, this doesn't
  * leverage the existing subtable parsing in the kernel.
  *
- * The PPTT structure is an inverted tree, with each node potentially
+ * The PPTT structure is an inverted tree, with each yesde potentially
  * holding one or two inverted tree data structures describing
  * the caches available at that level. Each cache structure optionally
  * contains properties describing the cache at a given level which can be
@@ -44,7 +44,7 @@ static struct acpi_subtable_header *fetch_pptt_subtable(struct acpi_table_header
 	return entry;
 }
 
-static struct acpi_pptt_processor *fetch_pptt_node(struct acpi_table_header *table_hdr,
+static struct acpi_pptt_processor *fetch_pptt_yesde(struct acpi_table_header *table_hdr,
 						   u32 pptt_ref)
 {
 	return (struct acpi_pptt_processor *)fetch_pptt_subtable(table_hdr, pptt_ref);
@@ -57,15 +57,15 @@ static struct acpi_pptt_cache *fetch_pptt_cache(struct acpi_table_header *table_
 }
 
 static struct acpi_subtable_header *acpi_get_pptt_resource(struct acpi_table_header *table_hdr,
-							   struct acpi_pptt_processor *node,
+							   struct acpi_pptt_processor *yesde,
 							   int resource)
 {
 	u32 *ref;
 
-	if (resource >= node->number_of_priv_resources)
+	if (resource >= yesde->number_of_priv_resources)
 		return NULL;
 
-	ref = ACPI_ADD_PTR(u32, node, sizeof(struct acpi_pptt_processor));
+	ref = ACPI_ADD_PTR(u32, yesde, sizeof(struct acpi_pptt_processor));
 	ref += resource;
 
 	return fetch_pptt_subtable(table_hdr, *ref);
@@ -87,9 +87,9 @@ static inline bool acpi_pptt_match_type(int table_type, int type)
  * @type: the requested cache type
  *
  * Attempt to find a given cache level, while counting the max number
- * of cache levels for the cache node.
+ * of cache levels for the cache yesde.
  *
- * Given a pptt resource, verify that it is a cache node, then walk
+ * Given a pptt resource, verify that it is a cache yesde, then walk
  * down each level of caches, counting how many levels are found
  * as well as checking the cache type (icache, dcache, unified). If a
  * level & type match, then we set found, and continue the search.
@@ -122,9 +122,9 @@ static int acpi_pptt_walk_cache(struct acpi_table_header *table_hdr,
 			pr_debug("Found cache @ level %d\n", level);
 			*found = cache;
 			/*
-			 * continue looking at this node's resource list
+			 * continue looking at this yesde's resource list
 			 * to verify that we don't find a duplicate
-			 * cache node.
+			 * cache yesde.
 			 */
 		}
 		cache = fetch_pptt_cache(table_hdr, cache->next_level_of_cache);
@@ -133,7 +133,7 @@ static int acpi_pptt_walk_cache(struct acpi_table_header *table_hdr,
 }
 
 static struct acpi_pptt_cache *acpi_find_cache_level(struct acpi_table_header *table_hdr,
-						     struct acpi_pptt_processor *cpu_node,
+						     struct acpi_pptt_processor *cpu_yesde,
 						     int *starting_level, int level,
 						     int type)
 {
@@ -143,15 +143,15 @@ static struct acpi_pptt_cache *acpi_find_cache_level(struct acpi_table_header *t
 	struct acpi_pptt_cache *ret = NULL;
 	int local_level;
 
-	/* walk down from processor node */
-	while ((res = acpi_get_pptt_resource(table_hdr, cpu_node, resource))) {
+	/* walk down from processor yesde */
+	while ((res = acpi_get_pptt_resource(table_hdr, cpu_yesde, resource))) {
 		resource++;
 
 		local_level = acpi_pptt_walk_cache(table_hdr, *starting_level,
 						   res, &ret, level, type);
 		/*
 		 * we are looking for the max depth. Since its potentially
-		 * possible for a given node to have resources with differing
+		 * possible for a given yesde to have resources with differing
 		 * depths verify that the depth we have found is the largest.
 		 */
 		if (number_of_levels < local_level)
@@ -164,64 +164,64 @@ static struct acpi_pptt_cache *acpi_find_cache_level(struct acpi_table_header *t
 }
 
 /**
- * acpi_count_levels() - Given a PPTT table, and a CPU node, count the caches
+ * acpi_count_levels() - Given a PPTT table, and a CPU yesde, count the caches
  * @table_hdr: Pointer to the head of the PPTT table
- * @cpu_node: processor node we wish to count caches for
+ * @cpu_yesde: processor yesde we wish to count caches for
  *
- * Given a processor node containing a processing unit, walk into it and count
+ * Given a processor yesde containing a processing unit, walk into it and count
  * how many levels exist solely for it, and then walk up each level until we hit
- * the root node (ignore the package level because it may be possible to have
+ * the root yesde (igyesre the package level because it may be possible to have
  * caches that exist across packages). Count the number of cache levels that
  * exist at each level on the way up.
  *
  * Return: Total number of levels found.
  */
 static int acpi_count_levels(struct acpi_table_header *table_hdr,
-			     struct acpi_pptt_processor *cpu_node)
+			     struct acpi_pptt_processor *cpu_yesde)
 {
 	int total_levels = 0;
 
 	do {
-		acpi_find_cache_level(table_hdr, cpu_node, &total_levels, 0, 0);
-		cpu_node = fetch_pptt_node(table_hdr, cpu_node->parent);
-	} while (cpu_node);
+		acpi_find_cache_level(table_hdr, cpu_yesde, &total_levels, 0, 0);
+		cpu_yesde = fetch_pptt_yesde(table_hdr, cpu_yesde->parent);
+	} while (cpu_yesde);
 
 	return total_levels;
 }
 
 /**
- * acpi_pptt_leaf_node() - Given a processor node, determine if its a leaf
+ * acpi_pptt_leaf_yesde() - Given a processor yesde, determine if its a leaf
  * @table_hdr: Pointer to the head of the PPTT table
- * @node: passed node is checked to see if its a leaf
+ * @yesde: passed yesde is checked to see if its a leaf
  *
- * Determine if the *node parameter is a leaf node by iterating the
- * PPTT table, looking for nodes which reference it.
+ * Determine if the *yesde parameter is a leaf yesde by iterating the
+ * PPTT table, looking for yesdes which reference it.
  *
- * Return: 0 if we find a node referencing the passed node (or table error),
+ * Return: 0 if we find a yesde referencing the passed yesde (or table error),
  * or 1 if we don't.
  */
-static int acpi_pptt_leaf_node(struct acpi_table_header *table_hdr,
-			       struct acpi_pptt_processor *node)
+static int acpi_pptt_leaf_yesde(struct acpi_table_header *table_hdr,
+			       struct acpi_pptt_processor *yesde)
 {
 	struct acpi_subtable_header *entry;
 	unsigned long table_end;
-	u32 node_entry;
-	struct acpi_pptt_processor *cpu_node;
+	u32 yesde_entry;
+	struct acpi_pptt_processor *cpu_yesde;
 	u32 proc_sz;
 
 	if (table_hdr->revision > 1)
-		return (node->flags & ACPI_PPTT_ACPI_LEAF_NODE);
+		return (yesde->flags & ACPI_PPTT_ACPI_LEAF_NODE);
 
 	table_end = (unsigned long)table_hdr + table_hdr->length;
-	node_entry = ACPI_PTR_DIFF(node, table_hdr);
+	yesde_entry = ACPI_PTR_DIFF(yesde, table_hdr);
 	entry = ACPI_ADD_PTR(struct acpi_subtable_header, table_hdr,
 			     sizeof(struct acpi_table_pptt));
 	proc_sz = sizeof(struct acpi_pptt_processor *);
 
 	while ((unsigned long)entry + proc_sz < table_end) {
-		cpu_node = (struct acpi_pptt_processor *)entry;
+		cpu_yesde = (struct acpi_pptt_processor *)entry;
 		if (entry->type == ACPI_PPTT_TYPE_PROCESSOR &&
-		    cpu_node->parent == node_entry)
+		    cpu_yesde->parent == yesde_entry)
 			return 0;
 		if (entry->length == 0)
 			return 0;
@@ -233,25 +233,25 @@ static int acpi_pptt_leaf_node(struct acpi_table_header *table_hdr,
 }
 
 /**
- * acpi_find_processor_node() - Given a PPTT table find the requested processor
+ * acpi_find_processor_yesde() - Given a PPTT table find the requested processor
  * @table_hdr:  Pointer to the head of the PPTT table
  * @acpi_cpu_id: CPU we are searching for
  *
  * Find the subtable entry describing the provided processor.
- * This is done by iterating the PPTT table looking for processor nodes
+ * This is done by iterating the PPTT table looking for processor yesdes
  * which have an acpi_processor_id that matches the acpi_cpu_id parameter
- * passed into the function. If we find a node that matches this criteria
- * we verify that its a leaf node in the topology rather than depending
- * on the valid flag, which doesn't need to be set for leaf nodes.
+ * passed into the function. If we find a yesde that matches this criteria
+ * we verify that its a leaf yesde in the topology rather than depending
+ * on the valid flag, which doesn't need to be set for leaf yesdes.
  *
  * Return: NULL, or the processors acpi_pptt_processor*
  */
-static struct acpi_pptt_processor *acpi_find_processor_node(struct acpi_table_header *table_hdr,
+static struct acpi_pptt_processor *acpi_find_processor_yesde(struct acpi_table_header *table_hdr,
 							    u32 acpi_cpu_id)
 {
 	struct acpi_subtable_header *entry;
 	unsigned long table_end;
-	struct acpi_pptt_processor *cpu_node;
+	struct acpi_pptt_processor *cpu_yesde;
 	u32 proc_sz;
 
 	table_end = (unsigned long)table_hdr + table_hdr->length;
@@ -261,15 +261,15 @@ static struct acpi_pptt_processor *acpi_find_processor_node(struct acpi_table_he
 
 	/* find the processor structure associated with this cpuid */
 	while ((unsigned long)entry + proc_sz < table_end) {
-		cpu_node = (struct acpi_pptt_processor *)entry;
+		cpu_yesde = (struct acpi_pptt_processor *)entry;
 
 		if (entry->length == 0) {
 			pr_warn("Invalid zero length subtable\n");
 			break;
 		}
 		if (entry->type == ACPI_PPTT_TYPE_PROCESSOR &&
-		    acpi_cpu_id == cpu_node->acpi_processor_id &&
-		     acpi_pptt_leaf_node(table_hdr, cpu_node)) {
+		    acpi_cpu_id == cpu_yesde->acpi_processor_id &&
+		     acpi_pptt_leaf_yesde(table_hdr, cpu_yesde)) {
 			return (struct acpi_pptt_processor *)entry;
 		}
 
@@ -286,7 +286,7 @@ static int acpi_find_cache_levels(struct acpi_table_header *table_hdr,
 	int number_of_levels = 0;
 	struct acpi_pptt_processor *cpu;
 
-	cpu = acpi_find_processor_node(table_hdr, acpi_cpu_id);
+	cpu = acpi_find_processor_yesde(table_hdr, acpi_cpu_id);
 	if (cpu)
 		number_of_levels = acpi_count_levels(table_hdr, cpu);
 
@@ -315,27 +315,27 @@ static u8 acpi_cache_type(enum cache_type type)
 	}
 }
 
-static struct acpi_pptt_cache *acpi_find_cache_node(struct acpi_table_header *table_hdr,
+static struct acpi_pptt_cache *acpi_find_cache_yesde(struct acpi_table_header *table_hdr,
 						    u32 acpi_cpu_id,
 						    enum cache_type type,
 						    unsigned int level,
-						    struct acpi_pptt_processor **node)
+						    struct acpi_pptt_processor **yesde)
 {
 	int total_levels = 0;
 	struct acpi_pptt_cache *found = NULL;
-	struct acpi_pptt_processor *cpu_node;
+	struct acpi_pptt_processor *cpu_yesde;
 	u8 acpi_type = acpi_cache_type(type);
 
 	pr_debug("Looking for CPU %d's level %d cache type %d\n",
 		 acpi_cpu_id, level, acpi_type);
 
-	cpu_node = acpi_find_processor_node(table_hdr, acpi_cpu_id);
+	cpu_yesde = acpi_find_processor_yesde(table_hdr, acpi_cpu_id);
 
-	while (cpu_node && !found) {
-		found = acpi_find_cache_level(table_hdr, cpu_node,
+	while (cpu_yesde && !found) {
+		found = acpi_find_cache_level(table_hdr, cpu_yesde,
 					      &total_levels, level, acpi_type);
-		*node = cpu_node;
-		cpu_node = fetch_pptt_node(table_hdr, cpu_node->parent);
+		*yesde = cpu_yesde;
+		cpu_yesde = fetch_pptt_yesde(table_hdr, cpu_yesde->parent);
 	}
 
 	return found;
@@ -344,20 +344,20 @@ static struct acpi_pptt_cache *acpi_find_cache_node(struct acpi_table_header *ta
 /**
  * update_cache_properties() - Update cacheinfo for the given processor
  * @this_leaf: Kernel cache info structure being updated
- * @found_cache: The PPTT node describing this cache instance
- * @cpu_node: A unique reference to describe this cache instance
+ * @found_cache: The PPTT yesde describing this cache instance
+ * @cpu_yesde: A unique reference to describe this cache instance
  *
  * The ACPI spec implies that the fields in the cache structures are used to
  * extend and correct the information probed from the hardware. Lets only
  * set fields that we determine are VALID.
  *
- * Return: nothing. Side effect of updating the global cacheinfo
+ * Return: yesthing. Side effect of updating the global cacheinfo
  */
 static void update_cache_properties(struct cacheinfo *this_leaf,
 				    struct acpi_pptt_cache *found_cache,
-				    struct acpi_pptt_processor *cpu_node)
+				    struct acpi_pptt_processor *cpu_yesde)
 {
-	this_leaf->fw_token = cpu_node;
+	this_leaf->fw_token = cpu_yesde;
 	if (found_cache->flags & ACPI_PPTT_SIZE_PROPERTY_VALID)
 		this_leaf->size = found_cache->size;
 	if (found_cache->flags & ACPI_PPTT_LINE_SIZE_VALID)
@@ -397,7 +397,7 @@ static void update_cache_properties(struct cacheinfo *this_leaf,
 	 * provided.
 	 *
 	 * Note, we assume such caches are unified based on conventional system
-	 * design and known examples.  Significant work is required elsewhere to
+	 * design and kyeswn examples.  Significant work is required elsewhere to
 	 * fully support data/instruction only type caches which are only
 	 * specified in PPTT.
 	 */
@@ -414,19 +414,19 @@ static void cache_setup_acpi_cpu(struct acpi_table_header *table,
 	u32 acpi_cpu_id = get_acpi_id_for_cpu(cpu);
 	struct cacheinfo *this_leaf;
 	unsigned int index = 0;
-	struct acpi_pptt_processor *cpu_node = NULL;
+	struct acpi_pptt_processor *cpu_yesde = NULL;
 
 	while (index < get_cpu_cacheinfo(cpu)->num_leaves) {
 		this_leaf = this_cpu_ci->info_list + index;
-		found_cache = acpi_find_cache_node(table, acpi_cpu_id,
+		found_cache = acpi_find_cache_yesde(table, acpi_cpu_id,
 						   this_leaf->type,
 						   this_leaf->level,
-						   &cpu_node);
-		pr_debug("found = %p %p\n", found_cache, cpu_node);
+						   &cpu_yesde);
+		pr_debug("found = %p %p\n", found_cache, cpu_yesde);
 		if (found_cache)
 			update_cache_properties(this_leaf,
 						found_cache,
-						cpu_node);
+						cpu_yesde);
 
 		index++;
 	}
@@ -441,9 +441,9 @@ static bool flag_identical(struct acpi_table_header *table_hdr,
 	if (table_hdr->revision < 2)
 		return false;
 
-	/* Locate the last node in the tree with IDENTICAL set */
+	/* Locate the last yesde in the tree with IDENTICAL set */
 	if (cpu->flags & ACPI_PPTT_ACPI_IDENTICAL) {
-		next = fetch_pptt_node(table_hdr, cpu->parent);
+		next = fetch_pptt_yesde(table_hdr, cpu->parent);
 		if (!(next && next->flags & ACPI_PPTT_ACPI_IDENTICAL))
 			return true;
 	}
@@ -458,7 +458,7 @@ static struct acpi_pptt_processor *acpi_find_processor_tag(struct acpi_table_hea
 							   struct acpi_pptt_processor *cpu,
 							   int level, int flag)
 {
-	struct acpi_pptt_processor *prev_node;
+	struct acpi_pptt_processor *prev_yesde;
 
 	while (cpu && level) {
 		/* special case the identical flag to find last identical */
@@ -468,10 +468,10 @@ static struct acpi_pptt_processor *acpi_find_processor_tag(struct acpi_table_hea
 		} else if (cpu->flags & flag)
 			break;
 		pr_debug("level %d\n", level);
-		prev_node = fetch_pptt_node(table_hdr, cpu->parent);
-		if (prev_node == NULL)
+		prev_yesde = fetch_pptt_yesde(table_hdr, cpu->parent);
+		if (prev_yesde == NULL)
 			break;
-		cpu = prev_node;
+		cpu = prev_yesde;
 		level--;
 	}
 	return cpu;
@@ -498,12 +498,12 @@ static void acpi_pptt_warn_missing(void)
 static int topology_get_acpi_cpu_tag(struct acpi_table_header *table,
 				     unsigned int cpu, int level, int flag)
 {
-	struct acpi_pptt_processor *cpu_node;
+	struct acpi_pptt_processor *cpu_yesde;
 	u32 acpi_cpu_id = get_acpi_id_for_cpu(cpu);
 
-	cpu_node = acpi_find_processor_node(table, acpi_cpu_id);
-	if (cpu_node) {
-		cpu_node = acpi_find_processor_tag(table, cpu_node,
+	cpu_yesde = acpi_find_processor_yesde(table, acpi_cpu_id);
+	if (cpu_yesde) {
+		cpu_yesde = acpi_find_processor_tag(table, cpu_yesde,
 						   level, flag);
 		/*
 		 * As per specification if the processor structure represents
@@ -512,9 +512,9 @@ static int topology_get_acpi_cpu_tag(struct acpi_table_header *table,
 		 * should be set if the UID is valid
 		 */
 		if (level == 0 ||
-		    cpu_node->flags & ACPI_PPTT_ACPI_PROCESSOR_ID_VALID)
-			return cpu_node->acpi_processor_id;
-		return ACPI_PTR_DIFF(cpu_node, table);
+		    cpu_yesde->flags & ACPI_PPTT_ACPI_PROCESSOR_ID_VALID)
+			return cpu_yesde->acpi_processor_id;
+		return ACPI_PTR_DIFF(cpu_yesde, table);
 	}
 	pr_warn_once("PPTT table found, but unable to locate core %d (%d)\n",
 		    cpu, acpi_cpu_id);
@@ -541,15 +541,15 @@ static int find_acpi_cpu_topology_tag(unsigned int cpu, int level, int flag)
 }
 
 /**
- * check_acpi_cpu_flag() - Determine if CPU node has a flag set
+ * check_acpi_cpu_flag() - Determine if CPU yesde has a flag set
  * @cpu: Kernel logical CPU number
  * @rev: The minimum PPTT revision defining the flag
  * @flag: The flag itself
  *
- * Check the node representing a CPU for a given flag.
+ * Check the yesde representing a CPU for a given flag.
  *
- * Return: -ENOENT if the PPTT doesn't exist, the CPU cannot be found or
- *	   the table revision isn't new enough.
+ * Return: -ENOENT if the PPTT doesn't exist, the CPU canyest be found or
+ *	   the table revision isn't new eyesugh.
  *	   1, any passed flag set
  *	   0, flag unset
  */
@@ -558,7 +558,7 @@ static int check_acpi_cpu_flag(unsigned int cpu, int rev, u32 flag)
 	struct acpi_table_header *table;
 	acpi_status status;
 	u32 acpi_cpu_id = get_acpi_id_for_cpu(cpu);
-	struct acpi_pptt_processor *cpu_node = NULL;
+	struct acpi_pptt_processor *cpu_yesde = NULL;
 	int ret = -ENOENT;
 
 	status = acpi_get_table(ACPI_SIG_PPTT, 0, &table);
@@ -568,10 +568,10 @@ static int check_acpi_cpu_flag(unsigned int cpu, int rev, u32 flag)
 	}
 
 	if (table->revision >= rev)
-		cpu_node = acpi_find_processor_node(table, acpi_cpu_id);
+		cpu_yesde = acpi_find_processor_yesde(table, acpi_cpu_id);
 
-	if (cpu_node)
-		ret = (cpu_node->flags & flag) != 0;
+	if (cpu_yesde)
+		ret = (cpu_yesde->flags & flag) != 0;
 
 	acpi_put_table(table);
 
@@ -615,10 +615,10 @@ int acpi_find_last_cache_level(unsigned int cpu)
  * @cpu: Kernel logical CPU number
  *
  * Updates the global cache info provided by cpu_get_cacheinfo()
- * when there are valid properties in the acpi_pptt_cache nodes. A
- * successful parse may not result in any updates if none of the
+ * when there are valid properties in the acpi_pptt_cache yesdes. A
+ * successful parse may yest result in any updates if yesne of the
  * cache levels have any valid flags set.  Further, a unique value is
- * associated with each known CPU cache entry. This unique value
+ * associated with each kyeswn CPU cache entry. This unique value
  * can be used to determine whether caches are shared between CPUs.
  *
  * Return: -ENOENT on failure to find table, or 0 on success
@@ -647,9 +647,9 @@ int cache_setup_acpi(unsigned int cpu)
  * @cpu: Kernel logical CPU number
  *
  * Return: 1, a thread
- *         0, not a thread
- *         -ENOENT ,if the PPTT doesn't exist, the CPU cannot be found or
- *         the table revision isn't new enough.
+ *         0, yest a thread
+ *         -ENOENT ,if the PPTT doesn't exist, the CPU canyest be found or
+ *         the table revision isn't new eyesugh.
  */
 int acpi_pptt_cpu_is_thread(unsigned int cpu)
 {
@@ -666,12 +666,12 @@ int acpi_pptt_cpu_is_thread(unsigned int cpu)
  * matching ids.
  *
  * The search terminates when either the requested level is found or
- * we reach a root node. Levels beyond the termination point will return the
+ * we reach a root yesde. Levels beyond the termination point will return the
  * same unique ID. The unique id for level 0 is the acpi processor id. All
  * other levels beyond this use a generated value to uniquely identify
  * a topological feature.
  *
- * Return: -ENOENT if the PPTT doesn't exist, or the CPU cannot be found.
+ * Return: -ENOENT if the PPTT doesn't exist, or the CPU canyest be found.
  * Otherwise returns a value which represents a unique topological feature.
  */
 int find_acpi_cpu_topology(unsigned int cpu, int level)
@@ -686,7 +686,7 @@ int find_acpi_cpu_topology(unsigned int cpu, int level)
  *
  * Determine a unique ID for each unified cache in the system
  *
- * Return: -ENOENT if the PPTT doesn't exist, or the CPU cannot be found.
+ * Return: -ENOENT if the PPTT doesn't exist, or the CPU canyest be found.
  * Otherwise returns a value which represents a unique topological feature.
  */
 int find_acpi_cpu_cache_topology(unsigned int cpu, int level)
@@ -695,7 +695,7 @@ int find_acpi_cpu_cache_topology(unsigned int cpu, int level)
 	struct acpi_pptt_cache *found_cache;
 	acpi_status status;
 	u32 acpi_cpu_id = get_acpi_id_for_cpu(cpu);
-	struct acpi_pptt_processor *cpu_node = NULL;
+	struct acpi_pptt_processor *cpu_yesde = NULL;
 	int ret = -1;
 
 	status = acpi_get_table(ACPI_SIG_PPTT, 0, &table);
@@ -704,12 +704,12 @@ int find_acpi_cpu_cache_topology(unsigned int cpu, int level)
 		return -ENOENT;
 	}
 
-	found_cache = acpi_find_cache_node(table, acpi_cpu_id,
+	found_cache = acpi_find_cache_yesde(table, acpi_cpu_id,
 					   CACHE_TYPE_UNIFIED,
 					   level,
-					   &cpu_node);
+					   &cpu_yesde);
 	if (found_cache)
-		ret = ACPI_PTR_DIFF(cpu_node, table);
+		ret = ACPI_PTR_DIFF(cpu_yesde, table);
 
 	acpi_put_table(table);
 
@@ -724,9 +724,9 @@ int find_acpi_cpu_cache_topology(unsigned int cpu, int level)
  * This ID can then be used to group peers, which will have matching ids.
  *
  * The search terminates when either a level is found with the PHYSICAL_PACKAGE
- * flag set or we reach a root node.
+ * flag set or we reach a root yesde.
  *
- * Return: -ENOENT if the PPTT doesn't exist, or the CPU cannot be found.
+ * Return: -ENOENT if the PPTT doesn't exist, or the CPU canyest be found.
  * Otherwise returns a value which represents the package for this CPU.
  */
 int find_acpi_cpu_topology_package(unsigned int cpu)
@@ -745,13 +745,13 @@ int find_acpi_cpu_topology_package(unsigned int cpu)
  * The returned tag can be used to group peers with identical implementation.
  *
  * The search terminates when a level is found with the identical implementation
- * flag set or we reach a root node.
+ * flag set or we reach a root yesde.
  *
  * Due to limitations in the PPTT data structure, there may be rare situations
  * where two cores in a heterogeneous machine may be identical, but won't have
  * the same tag.
  *
- * Return: -ENOENT if the PPTT doesn't exist, or the CPU cannot be found.
+ * Return: -ENOENT if the PPTT doesn't exist, or the CPU canyest be found.
  * Otherwise returns a value which represents a group of identical cores
  * similar to this CPU.
  */

@@ -235,7 +235,7 @@ static void altera_gpio_irq_leveL_high_handler(struct irq_desc *desc)
 
 static int altera_gpio_probe(struct platform_device *pdev)
 {
-	struct device_node *node = pdev->dev.of_node;
+	struct device_yesde *yesde = pdev->dev.of_yesde;
 	int reg, ret;
 	struct altera_gpio_chip *altera_gc;
 	struct gpio_irq_chip *girq;
@@ -246,7 +246,7 @@ static int altera_gpio_probe(struct platform_device *pdev)
 
 	raw_spin_lock_init(&altera_gc->gpio_lock);
 
-	if (of_property_read_u32(node, "altr,ngpio", &reg))
+	if (of_property_read_u32(yesde, "altr,ngpio", &reg))
 		/* By default assume maximum ngpio */
 		altera_gc->mmchip.gc.ngpio = ALTERA_GPIO_MAX_NGPIO;
 	else
@@ -271,9 +271,9 @@ static int altera_gpio_probe(struct platform_device *pdev)
 	if (altera_gc->mapped_irq < 0)
 		goto skip_irq;
 
-	if (of_property_read_u32(node, "altr,interrupt-type", &reg)) {
+	if (of_property_read_u32(yesde, "altr,interrupt-type", &reg)) {
 		dev_err(&pdev->dev,
-			"altr,interrupt-type value not set in device tree\n");
+			"altr,interrupt-type value yest set in device tree\n");
 		return -EINVAL;
 	}
 	altera_gc->interrupt_trigger = reg;
@@ -301,7 +301,7 @@ static int altera_gpio_probe(struct platform_device *pdev)
 	girq->parents[0] = altera_gc->mapped_irq;
 
 skip_irq:
-	ret = of_mm_gpiochip_add_data(node, &altera_gc->mmchip, altera_gc);
+	ret = of_mm_gpiochip_add_data(yesde, &altera_gc->mmchip, altera_gc);
 	if (ret) {
 		dev_err(&pdev->dev, "Failed adding memory mapped gpiochip\n");
 		return ret;

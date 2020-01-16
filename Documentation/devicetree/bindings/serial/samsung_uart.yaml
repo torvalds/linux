@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/serial/samsung_uart.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Samsung S3C, S5P and Exynos SoC UART Controller
+title: Samsung S3C, S5P and Exyyess SoC UART Controller
 
 maintainers:
   - Krzysztof Kozlowski <krzk@kernel.org>
@@ -12,7 +12,7 @@ maintainers:
 
 description: |+
   Each Samsung UART should have an alias correctly numbered in the "aliases"
-  node, according to serialN format, where N is the port number (non-negative
+  yesde, according to serialN format, where N is the port number (yesn-negative
   decimal integer) as specified by User's Manual of respective SoC.
 
 properties:
@@ -24,7 +24,7 @@ properties:
           - samsung,s3c2440-uart
           - samsung,s3c6400-uart
           - samsung,s5pv210-uart
-          - samsung,exynos4210-uart
+          - samsung,exyyess4210-uart
 
   reg:
     maxItems: 1
@@ -88,7 +88,7 @@ allOf:
         compatible:
           contains:
             enum:
-              - samsung,exynos4210-uart
+              - samsung,exyyess4210-uart
     then:
       properties:
         clocks:

@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -79,8 +79,8 @@ struct amdgpu_nbio_funcs {
 	void (*init_registers)(struct amdgpu_device *adev);
 	void (*detect_hw_virt)(struct amdgpu_device *adev);
 	void (*remap_hdp_registers)(struct amdgpu_device *adev);
-	void (*handle_ras_controller_intr_no_bifring)(struct amdgpu_device *adev);
-	void (*handle_ras_err_event_athub_intr_no_bifring)(struct amdgpu_device *adev);
+	void (*handle_ras_controller_intr_yes_bifring)(struct amdgpu_device *adev);
+	void (*handle_ras_err_event_athub_intr_yes_bifring)(struct amdgpu_device *adev);
 	int (*init_ras_controller_interrupt)(struct amdgpu_device *adev);
 	int (*init_ras_err_event_athub_interrupt)(struct amdgpu_device *adev);
 	void (*query_ras_error_count)(struct amdgpu_device *adev,

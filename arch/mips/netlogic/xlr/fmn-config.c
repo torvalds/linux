@@ -13,9 +13,9 @@
  * are met:
  *
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
+ *    yestice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
  *
@@ -83,7 +83,7 @@ static void check_credit_distribution(void)
 	struct xlr_board_fmn_config *cfg = &xlr_board_fmn_config;
 	int bkt, n, total_credits, ncores;
 
-	ncores = hweight32(nlm_current_node()->coremask);
+	ncores = hweight32(nlm_current_yesde()->coremask);
 	for (bkt = 0; bkt < 128; bkt++) {
 		total_credits = 0;
 		for (n = 0; n < ncores; n++)
@@ -122,7 +122,7 @@ static void setup_fmn_cc(struct xlr_fmn_info *dev_info, int start_stn_id,
 	int i, j, num_core, n, credits_per_cpu;
 	struct xlr_fmn_info *cpu = xlr_board_fmn_config.cpu;
 
-	num_core = hweight32(nlm_current_node()->coremask);
+	num_core = hweight32(nlm_current_yesde()->coremask);
 	dev_info->num_buckets	= num_buckets;
 	dev_info->start_stn_id	= start_stn_id;
 	dev_info->end_stn_id	= end_stn_id;
@@ -187,7 +187,7 @@ void xlr_board_info_setup(void)
 	struct xlr_fmn_info *sae = &xlr_board_fmn_config.sae;
 	int processor_id, num_core;
 
-	num_core = hweight32(nlm_current_node()->coremask);
+	num_core = hweight32(nlm_current_yesde()->coremask);
 	processor_id = read_c0_prid() & PRID_IMP_MASK;
 
 	setup_cpu_fmninfo(cpu, num_core);
@@ -280,8 +280,8 @@ void xlr_board_info_setup(void)
 					FMN_STNID_SEC1, 2, 4, 128);
 		break;
 	default:
-		pr_err("Unknown CPU with processor ID [%d]\n", processor_id);
-		pr_err("Error: Cannot initialize FMN credits.\n");
+		pr_err("Unkyeswn CPU with processor ID [%d]\n", processor_id);
+		pr_err("Error: Canyest initialize FMN credits.\n");
 	}
 
 	check_credit_distribution();

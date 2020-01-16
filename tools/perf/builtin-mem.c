@@ -115,7 +115,7 @@ static int __cmd_record(int argc, const char **argv, struct perf_mem *mem)
 			continue;
 
 		if (!perf_mem_events[j].supported) {
-			pr_err("failed: event '%s' not supported\n",
+			pr_err("failed: event '%s' yest supported\n",
 			       perf_mem_events__name(j));
 			free(rec_argv);
 			return -1;
@@ -294,7 +294,7 @@ static int report_events(int argc, const char **argv, struct perf_mem *mem)
 	rep_argv[i++] = "-n"; /* display number of samples */
 
 	/*
-	 * there is no weight (cost) associated with stores, so don't print
+	 * there is yes weight (cost) associated with stores, so don't print
 	 * the column
 	 */
 	if (!(mem->operation & MEM_OPERATION_LOAD)) {
@@ -306,7 +306,7 @@ static int report_events(int argc, const char **argv, struct perf_mem *mem)
 					"dso_daddr,tlb,locked";
 	} else if (mem->phys_addr)
 		rep_argv[i++] = "--sort=local_weight,mem,sym,dso,symbol_daddr,"
-				"dso_daddr,snoop,tlb,locked,phys_daddr";
+				"dso_daddr,syesop,tlb,locked,phys_daddr";
 
 	for (j = 1; j < argc; j++, i++)
 		rep_argv[i] = argv[j];
@@ -343,7 +343,7 @@ parse_mem_ops(const struct option *opt, const char *str, int unset)
 	if (unset)
 		return 0;
 
-	/* str may be NULL in case no arg is passed to -t */
+	/* str may be NULL in case yes arg is passed to -t */
 	if (str) {
 		/* because str is read-only */
 		s = os = strdup(str);
@@ -363,7 +363,7 @@ parse_mem_ops(const struct option *opt, const char *str, int unset)
 					break;
 			}
 			if (!m->name) {
-				fprintf(stderr, "unknown sampling op %s,"
+				fprintf(stderr, "unkyeswn sampling op %s,"
 					    " check man page\n", s);
 				goto error;
 			}
@@ -420,7 +420,7 @@ int cmd_mem(int argc, const char **argv)
 		   "list of cpus to profile"),
 	OPT_STRING_NOEMPTY('x', "field-separator", &symbol_conf.field_sep,
 		   "separator",
-		   "separator for columns, no spaces will be added"
+		   "separator for columns, yes spaces will be added"
 		   " between columns '.' is reserved."),
 	OPT_BOOLEAN('f', "force", &mem.force, "don't complain, do it"),
 	OPT_BOOLEAN('p', "phys-data", &mem.phys_addr, "Record/Report sample physical addresses"),
@@ -433,7 +433,7 @@ int cmd_mem(int argc, const char **argv)
 	};
 
 	if (perf_mem_events__init()) {
-		pr_err("failed: memory events not supported\n");
+		pr_err("failed: memory events yest supported\n");
 		return -1;
 	}
 

@@ -353,7 +353,7 @@ static const struct snd_kcontrol_new memif_ul4_ch2_mix[] = {
 				    I_ADDA_UL_CH2, 1, 0),
 };
 
-static const struct snd_kcontrol_new memif_ul_mono_1_mix[] = {
+static const struct snd_kcontrol_new memif_ul_moyes_1_mix[] = {
 	SOC_DAPM_SINGLE_AUTODISABLE("ADDA_UL_CH1", AFE_CONN12,
 				    I_ADDA_UL_CH1, 1, 0),
 	SOC_DAPM_SINGLE_AUTODISABLE("ADDA_UL_CH2", AFE_CONN12,
@@ -383,8 +383,8 @@ static const struct snd_soc_dapm_widget mt8183_memif_widgets[] = {
 			   memif_ul4_ch2_mix, ARRAY_SIZE(memif_ul4_ch2_mix)),
 
 	SND_SOC_DAPM_MIXER("UL_MONO_1_CH1", SND_SOC_NOPM, 0, 0,
-			   memif_ul_mono_1_mix,
-			   ARRAY_SIZE(memif_ul_mono_1_mix)),
+			   memif_ul_moyes_1_mix,
+			   ARRAY_SIZE(memif_ul_moyes_1_mix)),
 };
 
 static const struct snd_soc_dapm_route mt8183_memif_routes[] = {
@@ -433,8 +433,8 @@ static const struct mtk_base_memif_data memif_data[MT8183_MEMIF_NUM] = {
 		.fs_reg = AFE_DAC_CON1,
 		.fs_shift = DL1_MODE_SFT,
 		.fs_maskbit = DL1_MODE_MASK,
-		.mono_reg = AFE_DAC_CON1,
-		.mono_shift = DL1_DATA_SFT,
+		.moyes_reg = AFE_DAC_CON1,
+		.moyes_shift = DL1_DATA_SFT,
 		.enable_reg = AFE_DAC_CON0,
 		.enable_shift = DL1_ON_SFT,
 		.hd_reg = AFE_MEMIF_HD_MODE,
@@ -454,8 +454,8 @@ static const struct mtk_base_memif_data memif_data[MT8183_MEMIF_NUM] = {
 		.fs_reg = AFE_DAC_CON1,
 		.fs_shift = DL2_MODE_SFT,
 		.fs_maskbit = DL2_MODE_MASK,
-		.mono_reg = AFE_DAC_CON1,
-		.mono_shift = DL2_DATA_SFT,
+		.moyes_reg = AFE_DAC_CON1,
+		.moyes_shift = DL2_DATA_SFT,
 		.enable_reg = AFE_DAC_CON0,
 		.enable_shift = DL2_ON_SFT,
 		.hd_reg = AFE_MEMIF_HD_MODE,
@@ -475,8 +475,8 @@ static const struct mtk_base_memif_data memif_data[MT8183_MEMIF_NUM] = {
 		.fs_reg = AFE_DAC_CON2,
 		.fs_shift = DL3_MODE_SFT,
 		.fs_maskbit = DL3_MODE_MASK,
-		.mono_reg = AFE_DAC_CON1,
-		.mono_shift = DL3_DATA_SFT,
+		.moyes_reg = AFE_DAC_CON1,
+		.moyes_shift = DL3_DATA_SFT,
 		.enable_reg = AFE_DAC_CON0,
 		.enable_shift = DL3_ON_SFT,
 		.hd_reg = AFE_MEMIF_HD_MODE,
@@ -496,8 +496,8 @@ static const struct mtk_base_memif_data memif_data[MT8183_MEMIF_NUM] = {
 		.fs_reg = AFE_DAC_CON2,
 		.fs_shift = VUL2_MODE_SFT,
 		.fs_maskbit = VUL2_MODE_MASK,
-		.mono_reg = AFE_DAC_CON2,
-		.mono_shift = VUL2_DATA_SFT,
+		.moyes_reg = AFE_DAC_CON2,
+		.moyes_shift = VUL2_DATA_SFT,
 		.enable_reg = AFE_DAC_CON0,
 		.enable_shift = VUL2_ON_SFT,
 		.hd_reg = AFE_MEMIF_HD_MODE,
@@ -517,8 +517,8 @@ static const struct mtk_base_memif_data memif_data[MT8183_MEMIF_NUM] = {
 		.fs_reg = AFE_DAC_CON1,
 		.fs_shift = AWB_MODE_SFT,
 		.fs_maskbit = AWB_MODE_MASK,
-		.mono_reg = AFE_DAC_CON1,
-		.mono_shift = AWB_DATA_SFT,
+		.moyes_reg = AFE_DAC_CON1,
+		.moyes_shift = AWB_DATA_SFT,
 		.enable_reg = AFE_DAC_CON0,
 		.enable_shift = AWB_ON_SFT,
 		.hd_reg = AFE_MEMIF_HD_MODE,
@@ -538,8 +538,8 @@ static const struct mtk_base_memif_data memif_data[MT8183_MEMIF_NUM] = {
 		.fs_reg = AFE_DAC_CON2,
 		.fs_shift = AWB2_MODE_SFT,
 		.fs_maskbit = AWB2_MODE_MASK,
-		.mono_reg = AFE_DAC_CON2,
-		.mono_shift = AWB2_DATA_SFT,
+		.moyes_reg = AFE_DAC_CON2,
+		.moyes_shift = AWB2_DATA_SFT,
 		.enable_reg = AFE_DAC_CON0,
 		.enable_shift = AWB2_ON_SFT,
 		.hd_reg = AFE_MEMIF_HD_MODE,
@@ -559,8 +559,8 @@ static const struct mtk_base_memif_data memif_data[MT8183_MEMIF_NUM] = {
 		.fs_reg = AFE_DAC_CON0,
 		.fs_shift = VUL12_MODE_SFT,
 		.fs_maskbit = VUL12_MODE_MASK,
-		.mono_reg = AFE_DAC_CON0,
-		.mono_shift = VUL12_MONO_SFT,
+		.moyes_reg = AFE_DAC_CON0,
+		.moyes_shift = VUL12_MONO_SFT,
 		.enable_reg = AFE_DAC_CON0,
 		.enable_shift = VUL12_ON_SFT,
 		.hd_reg = AFE_MEMIF_HD_MODE,
@@ -580,8 +580,8 @@ static const struct mtk_base_memif_data memif_data[MT8183_MEMIF_NUM] = {
 		.fs_reg = AFE_DAC_CON1,
 		.fs_shift = MOD_DAI_MODE_SFT,
 		.fs_maskbit = MOD_DAI_MODE_MASK,
-		.mono_reg = -1,
-		.mono_shift = 0,
+		.moyes_reg = -1,
+		.moyes_shift = 0,
 		.enable_reg = AFE_DAC_CON0,
 		.enable_shift = MOD_DAI_ON_SFT,
 		.hd_reg = AFE_MEMIF_HD_MODE,
@@ -601,8 +601,8 @@ static const struct mtk_base_memif_data memif_data[MT8183_MEMIF_NUM] = {
 		.fs_reg = -1,
 		.fs_shift = -1,
 		.fs_maskbit = -1,
-		.mono_reg = -1,
-		.mono_shift = -1,
+		.moyes_reg = -1,
+		.moyes_shift = -1,
 		.enable_reg = -1,	/* control in tdm for sync start */
 		.enable_shift = -1,
 		.hd_reg = AFE_MEMIF_HD_MODE,
@@ -765,7 +765,7 @@ static const struct mtk_base_irq_data irq_data[MT8183_IRQ_NUM] = {
 static bool mt8183_is_volatile_reg(struct device *dev, unsigned int reg)
 {
 	/* these auto-gen reg has read-only bit, so put it as volatile */
-	/* volatile reg cannot be cached, so cannot be set when power off */
+	/* volatile reg canyest be cached, so canyest be set when power off */
 	switch (reg) {
 	case AUDIO_TOP_CON0:	/* reg bit controlled by CCF */
 	case AUDIO_TOP_CON1:	/* reg bit controlled by CCF */
@@ -1118,9 +1118,9 @@ static int mt8183_afe_pcm_dev_probe(struct platform_device *pdev)
 	pm_runtime_enable(dev);
 
 	/* regmap init */
-	afe->regmap = syscon_node_to_regmap(dev->parent->of_node);
+	afe->regmap = syscon_yesde_to_regmap(dev->parent->of_yesde);
 	if (IS_ERR(afe->regmap)) {
-		dev_err(dev, "could not get regmap from parent\n");
+		dev_err(dev, "could yest get regmap from parent\n");
 		return PTR_ERR(afe->regmap);
 	}
 	ret = regmap_attach_dev(dev, afe->regmap, &mt8183_afe_regmap_config);
@@ -1132,7 +1132,7 @@ static int mt8183_afe_pcm_dev_probe(struct platform_device *pdev)
 	rstc = devm_reset_control_get(dev, "audiosys");
 	if (IS_ERR(rstc)) {
 		ret = PTR_ERR(rstc);
-		dev_err(dev, "could not get audiosys reset:%d\n", ret);
+		dev_err(dev, "could yest get audiosys reset:%d\n", ret);
 		return ret;
 	}
 
@@ -1189,13 +1189,13 @@ static int mt8183_afe_pcm_dev_probe(struct platform_device *pdev)
 	/* request irq */
 	irq_id = platform_get_irq(pdev, 0);
 	if (!irq_id) {
-		dev_err(dev, "%pOFn no irq found\n", dev->of_node);
+		dev_err(dev, "%pOFn yes irq found\n", dev->of_yesde);
 		return -ENXIO;
 	}
 	ret = devm_request_irq(dev, irq_id, mt8183_afe_irq_handler,
 			       IRQF_TRIGGER_NONE, "asys-isr", (void *)afe);
 	if (ret) {
-		dev_err(dev, "could not request_irq for asys-isr\n");
+		dev_err(dev, "could yest request_irq for asys-isr\n");
 		return ret;
 	}
 

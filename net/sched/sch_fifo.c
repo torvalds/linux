@@ -9,7 +9,7 @@
 #include <linux/slab.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/skbuff.h>
 #include <net/pkt_sched.h>
 
@@ -144,7 +144,7 @@ int fifo_set_limit(struct Qdisc *q, unsigned int limit)
 	struct nlattr *nla;
 	int ret = -ENOMEM;
 
-	/* Hack to avoid sending change message to non-FIFO */
+	/* Hack to avoid sending change message to yesn-FIFO */
 	if (strncmp(q->ops->id + 1, "fifo", 4) != 0)
 		return 0;
 

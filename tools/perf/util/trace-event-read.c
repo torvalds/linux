@@ -13,7 +13,7 @@
 #include <sys/mman.h>
 #include <fcntl.h>
 #include <unistd.h>
-#include <errno.h>
+#include <erryes.h>
 
 #include "trace-event.h"
 #include "debug.h"
@@ -112,7 +112,7 @@ static char *read_string(void)
 		}
 
 		if (!r) {
-			pr_debug("no data");
+			pr_debug("yes data");
 			goto out;
 		}
 
@@ -148,7 +148,7 @@ static int read_proc_kallsyms(struct tep_handle *pevent)
 	if (!size)
 		return 0;
 	/*
-	 * Just skip it, now that we configure libtraceevent to use the
+	 * Just skip it, yesw that we configure libtraceevent to use the
 	 * tools/perf/ symbol resolver.
 	 *
 	 * We need to skip it so that we can continue parsing old perf.data
@@ -156,7 +156,7 @@ static int read_proc_kallsyms(struct tep_handle *pevent)
 	 *
 	 * Newer perf.data files will have just the 4-bytes zeros "kallsyms
 	 * payload", so that older tools can continue reading it and interpret
-	 * it as "no kallsyms payload is present".
+	 * it as "yes kallsyms payload is present".
 	 */
 	lseek(input_fd, size, SEEK_CUR);
 	trace_data_size += size;
@@ -201,7 +201,7 @@ static int read_header_files(struct tep_handle *pevent)
 		return -1;
 
 	if (memcmp(buf, "header_page", 12) != 0) {
-		pr_debug("did not read header page");
+		pr_debug("did yest read header page");
 		return -1;
 	}
 
@@ -212,7 +212,7 @@ static int read_header_files(struct tep_handle *pevent)
 		return -1;
 
 	if (do_read(header_page, size) < 0) {
-		pr_debug("did not read header page");
+		pr_debug("did yest read header page");
 		free(header_page);
 		return -1;
 	}
@@ -231,7 +231,7 @@ static int read_header_files(struct tep_handle *pevent)
 		return -1;
 
 	if (memcmp(buf, "header_event", 13) != 0) {
-		pr_debug("did not read header event");
+		pr_debug("did yest read header event");
 		return -1;
 	}
 
@@ -391,14 +391,14 @@ ssize_t trace_report(int fd, struct trace_event *tevent, bool __repipe)
 	if (do_read(buf, 3) < 0)
 		return -1;
 	if (memcmp(buf, test, 3) != 0) {
-		pr_debug("no trace data in the file");
+		pr_debug("yes trace data in the file");
 		return -1;
 	}
 
 	if (do_read(buf, 7) < 0)
 		return -1;
 	if (memcmp(buf, "tracing", 7) != 0) {
-		pr_debug("not a trace file (missing 'tracing' tag)");
+		pr_debug("yest a trace file (missing 'tracing' tag)");
 		return -1;
 	}
 

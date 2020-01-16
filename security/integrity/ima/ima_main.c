@@ -39,8 +39,8 @@ int ima_appraise;
 int ima_hash_algo = HASH_ALGO_SHA1;
 static int hash_setup_done;
 
-static struct notifier_block ima_lsm_policy_notifier = {
-	.notifier_call = ima_lsm_policy_change,
+static struct yestifier_block ima_lsm_policy_yestifier = {
+	.yestifier_call = ima_lsm_policy_change,
 };
 
 static int __init hash_setup(char *str)
@@ -77,17 +77,17 @@ static int mmap_violation_check(enum ima_hooks func, struct file *file,
 				char **pathbuf, const char **pathname,
 				char *filename)
 {
-	struct inode *inode;
+	struct iyesde *iyesde;
 	int rc = 0;
 
 	if ((func == MMAP_CHECK) && mapping_writably_mapped(file->f_mapping)) {
 		rc = -ETXTBSY;
-		inode = file_inode(file);
+		iyesde = file_iyesde(file);
 
 		if (!*pathbuf)	/* ima_rdwr_violation possibly pre-fetched */
 			*pathname = ima_d_path(&file->f_path, pathbuf,
 					       filename);
-		integrity_audit_msg(AUDIT_INTEGRITY_DATA, inode, *pathname,
+		integrity_audit_msg(AUDIT_INTEGRITY_DATA, iyesde, *pathname,
 				    "mmap_file", "mmapped_writers", rc, 0);
 	}
 	return rc;
@@ -110,14 +110,14 @@ static void ima_rdwr_violation_check(struct file *file,
 				     const char **pathname,
 				     char *filename)
 {
-	struct inode *inode = file_inode(file);
+	struct iyesde *iyesde = file_iyesde(file);
 	fmode_t mode = file->f_mode;
 	bool send_tomtou = false, send_writers = false;
 
 	if (mode & FMODE_WRITE) {
-		if (atomic_read(&inode->i_readcount) && IS_IMA(inode)) {
+		if (atomic_read(&iyesde->i_readcount) && IS_IMA(iyesde)) {
 			if (!iint)
-				iint = integrity_iint_find(inode);
+				iint = integrity_iint_find(iyesde);
 			/* IMA_MEASURE is set from reader side */
 			if (iint && test_bit(IMA_MUST_MEASURE,
 						&iint->atomic_flags))
@@ -126,7 +126,7 @@ static void ima_rdwr_violation_check(struct file *file,
 	} else {
 		if (must_measure)
 			set_bit(IMA_MUST_MEASURE, &iint->atomic_flags);
-		if (inode_is_open_for_write(inode) && must_measure)
+		if (iyesde_is_open_for_write(iyesde) && must_measure)
 			send_writers = true;
 	}
 
@@ -144,7 +144,7 @@ static void ima_rdwr_violation_check(struct file *file,
 }
 
 static void ima_check_last_writer(struct integrity_iint_cache *iint,
-				  struct inode *inode, struct file *file)
+				  struct iyesde *iyesde, struct file *file)
 {
 	fmode_t mode = file->f_mode;
 	bool update;
@@ -153,11 +153,11 @@ static void ima_check_last_writer(struct integrity_iint_cache *iint,
 		return;
 
 	mutex_lock(&iint->mutex);
-	if (atomic_read(&inode->i_writecount) == 1) {
+	if (atomic_read(&iyesde->i_writecount) == 1) {
 		update = test_and_clear_bit(IMA_UPDATE_XATTR,
 					    &iint->atomic_flags);
-		if (!IS_I_VERSION(inode) ||
-		    !inode_eq_iversion(inode, iint->version) ||
+		if (!IS_I_VERSION(iyesde) ||
+		    !iyesde_eq_iversion(iyesde, iint->version) ||
 		    (iint->flags & IMA_NEW_FILE)) {
 			iint->flags &= ~(IMA_DONE_MASK | IMA_NEW_FILE);
 			iint->measured_pcrs = 0;
@@ -176,24 +176,24 @@ static void ima_check_last_writer(struct integrity_iint_cache *iint,
  */
 void ima_file_free(struct file *file)
 {
-	struct inode *inode = file_inode(file);
+	struct iyesde *iyesde = file_iyesde(file);
 	struct integrity_iint_cache *iint;
 
-	if (!ima_policy_flag || !S_ISREG(inode->i_mode))
+	if (!ima_policy_flag || !S_ISREG(iyesde->i_mode))
 		return;
 
-	iint = integrity_iint_find(inode);
+	iint = integrity_iint_find(iyesde);
 	if (!iint)
 		return;
 
-	ima_check_last_writer(iint, inode, file);
+	ima_check_last_writer(iint, iyesde, file);
 }
 
 static int process_measurement(struct file *file, const struct cred *cred,
 			       u32 secid, char *buf, loff_t size, int mask,
 			       enum ima_hooks func)
 {
-	struct inode *inode = file_inode(file);
+	struct iyesde *iyesde = file_iyesde(file);
 	struct integrity_iint_cache *iint = NULL;
 	struct ima_template_desc *template_desc = NULL;
 	char *pathbuf = NULL;
@@ -207,14 +207,14 @@ static int process_measurement(struct file *file, const struct cred *cred,
 	bool violation_check;
 	enum hash_algo hash_algo;
 
-	if (!ima_policy_flag || !S_ISREG(inode->i_mode))
+	if (!ima_policy_flag || !S_ISREG(iyesde->i_mode))
 		return 0;
 
 	/* Return an IMA_MEASURE, IMA_APPRAISE, IMA_AUDIT action
 	 * bitmask based on the appraise/audit/measurement policy.
 	 * Included is the appraise submask.
 	 */
-	action = ima_get_action(inode, cred, secid, mask, func, &pcr,
+	action = ima_get_action(iyesde, cred, secid, mask, func, &pcr,
 				&template_desc);
 	violation_check = ((func == FILE_CHECK || func == MMAP_CHECK) &&
 			   (ima_policy_flag & IMA_MEASURE));
@@ -227,10 +227,10 @@ static int process_measurement(struct file *file, const struct cred *cred,
 	if (action & IMA_FILE_APPRAISE)
 		func = FILE_CHECK;
 
-	inode_lock(inode);
+	iyesde_lock(iyesde);
 
 	if (action) {
-		iint = integrity_inode_get(inode);
+		iint = integrity_iyesde_get(iyesde);
 		if (!iint)
 			rc = -ENOMEM;
 	}
@@ -239,7 +239,7 @@ static int process_measurement(struct file *file, const struct cred *cred,
 		ima_rdwr_violation_check(file, iint, action & IMA_MEASURE,
 					 &pathbuf, &pathname, filename);
 
-	inode_unlock(inode);
+	iyesde_unlock(iyesde);
 
 	if (rc)
 		goto out;
@@ -249,19 +249,19 @@ static int process_measurement(struct file *file, const struct cred *cred,
 	mutex_lock(&iint->mutex);
 
 	if (test_and_clear_bit(IMA_CHANGE_ATTR, &iint->atomic_flags))
-		/* reset appraisal flags if ima_inode_post_setattr was called */
+		/* reset appraisal flags if ima_iyesde_post_setattr was called */
 		iint->flags &= ~(IMA_APPRAISE | IMA_APPRAISED |
 				 IMA_APPRAISE_SUBMASK | IMA_APPRAISED_SUBMASK |
 				 IMA_ACTION_FLAGS);
 
 	/*
 	 * Re-evaulate the file if either the xattr has changed or the
-	 * kernel has no way of detecting file change on the filesystem.
+	 * kernel has yes way of detecting file change on the filesystem.
 	 * (Limited to privileged mounted filesystems.)
 	 */
 	if (test_and_clear_bit(IMA_CHANGE_XATTR, &iint->atomic_flags) ||
-	    ((inode->i_sb->s_iflags & SB_I_IMA_UNVERIFIABLE_SIGNATURE) &&
-	     !(inode->i_sb->s_iflags & SB_I_UNTRUSTED_MOUNTER) &&
+	    ((iyesde->i_sb->s_iflags & SB_I_IMA_UNVERIFIABLE_SIGNATURE) &&
+	     !(iyesde->i_sb->s_iflags & SB_I_UNTRUSTED_MOUNTER) &&
 	     !(action & IMA_FAIL_UNVERIFIABLE_SIGS))) {
 		iint->flags &= ~IMA_DONE_MASK;
 		iint->measured_pcrs = 0;
@@ -279,7 +279,7 @@ static int process_measurement(struct file *file, const struct cred *cred,
 	if ((action & IMA_MEASURE) && (iint->measured_pcrs & (0x1 << pcr)))
 		action ^= IMA_MEASURE;
 
-	/* HASH sets the digital signature and update flags, nothing else */
+	/* HASH sets the digital signature and update flags, yesthing else */
 	if ((action & IMA_HASH) &&
 	    !(test_bit(IMA_DIGSIG, &iint->atomic_flags))) {
 		xattr_len = ima_read_xattr(file_dentry(file), &xattr_value);
@@ -337,11 +337,11 @@ static int process_measurement(struct file *file, const struct cred *cred,
 	if (rc == 0 && (action & IMA_APPRAISE_SUBMASK)) {
 		rc = ima_check_blacklist(iint, modsig, pcr);
 		if (rc != -EPERM) {
-			inode_lock(inode);
+			iyesde_lock(iyesde);
 			rc = ima_appraise_measurement(func, iint, file,
 						      pathname, xattr_value,
 						      xattr_len, modsig);
-			inode_unlock(inode);
+			iyesde_unlock(iyesde);
 		}
 		if (!rc)
 			rc = mmap_violation_check(func, file, &pathbuf,
@@ -453,17 +453,17 @@ EXPORT_SYMBOL_GPL(ima_file_check);
  * Skip calling process_measurement(), but indicate which newly, created
  * tmpfiles are in policy.
  */
-void ima_post_create_tmpfile(struct inode *inode)
+void ima_post_create_tmpfile(struct iyesde *iyesde)
 {
 	struct integrity_iint_cache *iint;
 	int must_appraise;
 
-	must_appraise = ima_must_appraise(inode, MAY_ACCESS, FILE_CHECK);
+	must_appraise = ima_must_appraise(iyesde, MAY_ACCESS, FILE_CHECK);
 	if (!must_appraise)
 		return;
 
 	/* Nothing to do if we can't allocate memory */
-	iint = integrity_inode_get(inode);
+	iint = integrity_iyesde_get(iyesde);
 	if (!iint)
 		return;
 
@@ -473,24 +473,24 @@ void ima_post_create_tmpfile(struct inode *inode)
 }
 
 /**
- * ima_post_path_mknod - mark as a new inode
+ * ima_post_path_mkyesd - mark as a new iyesde
  * @dentry: newly created dentry
  *
- * Mark files created via the mknodat syscall as new, so that the
+ * Mark files created via the mkyesdat syscall as new, so that the
  * file data can be written later.
  */
-void ima_post_path_mknod(struct dentry *dentry)
+void ima_post_path_mkyesd(struct dentry *dentry)
 {
 	struct integrity_iint_cache *iint;
-	struct inode *inode = dentry->d_inode;
+	struct iyesde *iyesde = dentry->d_iyesde;
 	int must_appraise;
 
-	must_appraise = ima_must_appraise(inode, MAY_ACCESS, FILE_CHECK);
+	must_appraise = ima_must_appraise(iyesde, MAY_ACCESS, FILE_CHECK);
 	if (!must_appraise)
 		return;
 
 	/* Nothing to do if we can't allocate memory */
-	iint = integrity_inode_get(inode);
+	iint = integrity_iyesde_get(iyesde);
 	if (!iint)
 		return;
 
@@ -579,7 +579,7 @@ int ima_post_read_file(struct file *file, void *buf, loff_t size,
  * ima_load_data - appraise decision based on policy
  * @id: kernel load data caller identifier
  *
- * Callers of this LSM hook can not measure, appraise, or audit the
+ * Callers of this LSM hook can yest measure, appraise, or audit the
  * data provided by userspace.  Enforce policy rules requring a file
  * signature (eg. kexec'ed kernel image).
  *
@@ -712,7 +712,7 @@ out:
  * @buf: pointer to buffer
  * @size: size of buffer
  *
- * Buffers can only be measured, not appraised.
+ * Buffers can only be measured, yest appraised.
  */
 void ima_kexec_cmdline(const void *buf, int size)
 {
@@ -738,9 +738,9 @@ static int __init init_ima(void)
 		error = ima_init();
 	}
 
-	error = register_blocking_lsm_notifier(&ima_lsm_policy_notifier);
+	error = register_blocking_lsm_yestifier(&ima_lsm_policy_yestifier);
 	if (error)
-		pr_warn("Couldn't register LSM notifier, error %d\n", error);
+		pr_warn("Couldn't register LSM yestifier, error %d\n", error);
 
 	if (!error)
 		ima_update_policy_flag();

@@ -911,7 +911,7 @@ static void fdp1_configure_rpf(struct fdp1_ctx *ctx,
 		smsk_addr = ctx->smsk_addr[1];
 	}
 
-	/* Deint mode is non-zero when deinterlacing */
+	/* Deint mode is yesn-zero when deinterlacing */
 	if (ctx->deint_mode)
 		format |= FD1_RPF_FORMAT_CIPM;
 
@@ -1076,8 +1076,8 @@ static int fdp1_device_process(struct fdp1_ctx *ctx)
 	job = get_queued_job(fdp1);
 	if (!job) {
 		/*
-		 * VINT can call us to see if we can queue another job.
-		 * If we have no work to do, we simply return.
+		 * VINT can call us to see if we can queue ayesther job.
+		 * If we have yes work to do, we simply return.
 		 */
 		spin_unlock_irqrestore(&fdp1->device_process_lock, flags);
 		return 0;
@@ -1109,7 +1109,7 @@ static int fdp1_device_process(struct fdp1_ctx *ctx)
 
 	/* Finally, the Immediate Registers */
 
-	/* This job is now in the HW queue */
+	/* This job is yesw in the HW queue */
 	queue_hw_job(fdp1, job);
 
 	/* Start the command */
@@ -1150,7 +1150,7 @@ static int fdp1_m2m_job_ready(void *priv)
 
 	if (v4l2_m2m_num_src_bufs_ready(ctx->fh.m2m_ctx) < srcbufs
 	    || v4l2_m2m_num_dst_bufs_ready(ctx->fh.m2m_ctx) < dstbufs) {
-		dprintk(ctx->fdp1, "Not enough buffers available\n");
+		dprintk(ctx->fdp1, "Not eyesugh buffers available\n");
 		return 0;
 	}
 
@@ -1382,7 +1382,7 @@ static int fdp1_enum_fmt(struct v4l2_fmtdesc *f, u32 type)
 		}
 	}
 
-	/* Format not found */
+	/* Format yest found */
 	if (i >= ARRAY_SIZE(fdp1_formats))
 		return -EINVAL;
 
@@ -1633,7 +1633,7 @@ static void fdp1_set_format(struct fdp1_ctx *ctx,
 		q_data->stride_c *= 2;
 	}
 
-	/* Propagate the format from the output node to the capture node. */
+	/* Propagate the format from the output yesde to the capture yesde. */
 	if (type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE) {
 		struct fdp1_q_data *dst_data = &ctx->cap_q;
 
@@ -1807,7 +1807,7 @@ static void fdp1_buf_prepare_field(struct fdp1_q_data *q_data,
 	case V4L2_FIELD_INTERLACED:
 		/*
 		 * Interlaced means bottom-top for 60Hz TV standards (NTSC) and
-		 * top-bottom for 50Hz. As TV standards are not applicable to
+		 * top-bottom for 50Hz. As TV standards are yest applicable to
 		 * the mem-to-mem API, use the height as a heuristic.
 		 */
 		fbuf->field = (q_data->format.height < 576) == field_num
@@ -1898,13 +1898,13 @@ static int fdp1_buf_prepare(struct vb2_buffer *vb)
 
 		if (vb2_plane_size(vb, i) < size) {
 			dprintk(ctx->fdp1,
-				"data will not fit into plane [%u/%u] (%lu < %lu)\n",
+				"data will yest fit into plane [%u/%u] (%lu < %lu)\n",
 				i, q_data->format.num_planes,
 				vb2_plane_size(vb, i), size);
 			return -EINVAL;
 		}
 
-		/* We have known size formats all around */
+		/* We have kyeswn size formats all around */
 		vb2_set_plane_payload(vb, i, size);
 	}
 
@@ -1931,7 +1931,7 @@ static int fdp1_start_streaming(struct vb2_queue *q, unsigned int count)
 	if (V4L2_TYPE_IS_OUTPUT(q->type)) {
 		/*
 		 * Force our deint_mode when we are progressive,
-		 * ignoring any setting on the device from the user,
+		 * igyesring any setting on the device from the user,
 		 * Otherwise, lock in the requested de-interlace mode.
 		 */
 		if (q_data->format.field == V4L2_FIELD_NONE)
@@ -2001,7 +2001,7 @@ static void fdp1_stop_streaming(struct vb2_queue *q)
 		}
 
 		WARN(!list_empty(&ctx->fields_queue),
-		     "Buffer queue not empty");
+		     "Buffer queue yest empty");
 	} else {
 		/* Empty Capture queues (Jobs) */
 		struct fdp1_job *job;
@@ -2023,10 +2023,10 @@ static void fdp1_stop_streaming(struct vb2_queue *q)
 		fdp1_field_complete(ctx, ctx->previous);
 
 		WARN(!list_empty(&ctx->fdp1->queued_job_list),
-		     "Queued Job List not empty");
+		     "Queued Job List yest empty");
 
 		WARN(!list_empty(&ctx->fdp1->hw_job_list),
-		     "HW Job list not empty");
+		     "HW Job list yest empty");
 	}
 }
 
@@ -2191,7 +2191,7 @@ static const struct video_device fdp1_videodev = {
 	.fops		= &fdp1_fops,
 	.device_caps	= V4L2_CAP_VIDEO_M2M_MPLANE | V4L2_CAP_STREAMING,
 	.ioctl_ops	= &fdp1_ioctl_ops,
-	.minor		= -1,
+	.miyesr		= -1,
 	.release	= video_device_release_empty,
 };
 
@@ -2254,7 +2254,7 @@ static int fdp1_probe(struct platform_device *pdev)
 {
 	struct fdp1_dev *fdp1;
 	struct video_device *vfd;
-	struct device_node *fcp_node;
+	struct device_yesde *fcp_yesde;
 	struct resource *res;
 	struct clk *clk;
 	unsigned int i;
@@ -2290,24 +2290,24 @@ static int fdp1_probe(struct platform_device *pdev)
 	/* Interrupt service routine registration */
 	fdp1->irq = ret = platform_get_irq(pdev, 0);
 	if (ret < 0) {
-		dev_err(&pdev->dev, "cannot find IRQ\n");
+		dev_err(&pdev->dev, "canyest find IRQ\n");
 		return ret;
 	}
 
 	ret = devm_request_irq(&pdev->dev, fdp1->irq, fdp1_irq_handler, 0,
 			       dev_name(&pdev->dev), fdp1);
 	if (ret) {
-		dev_err(&pdev->dev, "cannot claim IRQ %d\n", fdp1->irq);
+		dev_err(&pdev->dev, "canyest claim IRQ %d\n", fdp1->irq);
 		return ret;
 	}
 
 	/* FCP */
-	fcp_node = of_parse_phandle(pdev->dev.of_node, "renesas,fcp", 0);
-	if (fcp_node) {
-		fdp1->fcp = rcar_fcp_get(fcp_node);
-		of_node_put(fcp_node);
+	fcp_yesde = of_parse_phandle(pdev->dev.of_yesde, "renesas,fcp", 0);
+	if (fcp_yesde) {
+		fdp1->fcp = rcar_fcp_get(fcp_yesde);
+		of_yesde_put(fcp_yesde);
 		if (IS_ERR(fdp1->fcp)) {
-			dev_dbg(&pdev->dev, "FCP not found (%ld)\n",
+			dev_dbg(&pdev->dev, "FCP yest found (%ld)\n",
 				PTR_ERR(fdp1->fcp));
 			return PTR_ERR(fdp1->fcp);
 		}

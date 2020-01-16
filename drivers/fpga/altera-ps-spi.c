@@ -2,7 +2,7 @@
 /*
  * Altera Passive Serial SPI Driver
  *
- *  Copyright (c) 2017 United Western Technologies, Corporation
+ *  Copyright (c) 2017 United Western Techyeslogies, Corporation
  *
  *  Joshua Clayton <stillcompiling@gmail.com>
  *
@@ -114,7 +114,7 @@ static int altera_ps_write_init(struct fpga_manager *mgr,
 	conf->info_flags = info->flags;
 
 	if (info->flags & FPGA_MGR_PARTIAL_RECONFIG) {
-		dev_err(&mgr->dev, "Partial reconfiguration not supported.\n");
+		dev_err(&mgr->dev, "Partial reconfiguration yest supported.\n");
 		return -EINVAL;
 	}
 
@@ -146,7 +146,7 @@ static int altera_ps_write_init(struct fpga_manager *mgr,
 		}
 	}
 
-	dev_err(&mgr->dev, "Status pin not ready.\n");
+	dev_err(&mgr->dev, "Status pin yest ready.\n");
 	return -EIO;
 }
 
@@ -263,7 +263,7 @@ static int altera_ps_probe(struct spi_device *spi)
 	if (!conf)
 		return -ENOMEM;
 
-	if (spi->dev.of_node) {
+	if (spi->dev.of_yesde) {
 		of_id = of_match_device(of_ef_match, &spi->dev);
 		if (!of_id)
 			return -ENODEV;

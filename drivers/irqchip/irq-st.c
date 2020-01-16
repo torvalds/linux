@@ -111,7 +111,7 @@ static int st_irq_xlate(struct platform_device *pdev,
 
 static int st_irq_syscfg_enable(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	struct st_irq_syscfg *ddata = dev_get_drvdata(&pdev->dev);
 	int channels, ret, i;
 	u32 device, invert;
@@ -152,7 +152,7 @@ static int st_irq_syscfg_enable(struct platform_device *pdev)
 
 static int st_irq_syscfg_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	const struct of_device_id *match;
 	struct st_irq_syscfg *ddata;
 

@@ -19,28 +19,28 @@
 
 #include "board.h"
 
-static struct device_node *irqc_node __initdata;
+static struct device_yesde *irqc_yesde __initdata;
 static unsigned int irqc_base __initdata;
 
 static bool find_by_address(u64 base_address)
 {
-	struct device_node *dn = of_find_all_nodes(NULL);
+	struct device_yesde *dn = of_find_all_yesdes(NULL);
 	struct resource res;
 
 	while (dn) {
 		if (!of_address_to_resource(dn, 0, &res)) {
 			if (res.start == base_address) {
-				of_node_put(dn);
+				of_yesde_put(dn);
 				return true;
 			}
 		}
-		dn = of_find_all_nodes(dn);
+		dn = of_find_all_yesdes(dn);
 	}
 
 	return false;
 }
 
-bool __init board_staging_dt_node_available(const struct resource *resource,
+bool __init board_staging_dt_yesde_available(const struct resource *resource,
 					    unsigned int num_resources)
 {
 	unsigned int i;
@@ -50,7 +50,7 @@ bool __init board_staging_dt_node_available(const struct resource *resource,
 
 		if (resource_type(r) == IORESOURCE_MEM)
 			if (find_by_address(r->start))
-				return true; /* DT node available */
+				return true; /* DT yesde available */
 	}
 
 	return false; /* Nothing found */
@@ -59,12 +59,12 @@ bool __init board_staging_dt_node_available(const struct resource *resource,
 int __init board_staging_gic_setup_xlate(const char *gic_match,
 					 unsigned int base)
 {
-	WARN_ON(irqc_node);
+	WARN_ON(irqc_yesde);
 
-	irqc_node = of_find_compatible_node(NULL, NULL, gic_match);
+	irqc_yesde = of_find_compatible_yesde(NULL, NULL, gic_match);
 
-	WARN_ON(!irqc_node);
-	if (!irqc_node)
+	WARN_ON(!irqc_yesde);
+	if (!irqc_yesde)
 		return -ENOENT;
 
 	irqc_base = base;
@@ -77,10 +77,10 @@ static void __init gic_fixup_resource(struct resource *res)
 	unsigned int hwirq = res->start;
 	unsigned int virq;
 
-	if (resource_type(res) != IORESOURCE_IRQ || !irqc_node)
+	if (resource_type(res) != IORESOURCE_IRQ || !irqc_yesde)
 		return;
 
-	irq_data.np = irqc_node;
+	irq_data.np = irqc_yesde;
 	irq_data.args_count = 3;
 	irq_data.args[0] = 0;
 	irq_data.args[1] = hwirq - irqc_base;
@@ -137,11 +137,11 @@ static int board_staging_add_dev_domain(struct platform_device *pdev,
 					const char *domain)
 {
 	struct of_phandle_args pd_args;
-	struct device_node *np;
+	struct device_yesde *np;
 
-	np = of_find_node_by_path(domain);
+	np = of_find_yesde_by_path(domain);
 	if (!np) {
-		pr_err("Cannot find domain node %s\n", domain);
+		pr_err("Canyest find domain yesde %s\n", domain);
 		return -ENOENT;
 	}
 
@@ -165,7 +165,7 @@ int __init board_staging_register_device(const struct board_staging_dev *dev)
 	int error;
 
 	pr_debug("Trying to register device %s\n", pdev->name);
-	if (board_staging_dt_node_available(pdev->resource,
+	if (board_staging_dt_yesde_available(pdev->resource,
 					    pdev->num_resources)) {
 		pr_warn("Skipping %s, already in DT\n", pdev->name);
 		return -EEXIST;

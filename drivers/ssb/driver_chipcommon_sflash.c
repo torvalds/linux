@@ -155,7 +155,7 @@ int ssb_sflash_init(struct ssb_chipcommon *cc)
 		e->name, sflash->size / 1024, e->blocksize, e->numblocks);
 
 	/* Prepare platform device, but don't register it yet. It's too early,
-	 * malloc (required by device_private_init) is not available yet. */
+	 * malloc (required by device_private_init) is yest available yet. */
 	ssb_sflash_dev.resource[0].end = ssb_sflash_dev.resource[0].start +
 					 sflash->size;
 	ssb_sflash_dev.dev.platform_data = sflash;

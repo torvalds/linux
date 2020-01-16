@@ -70,7 +70,7 @@ static enum power_supply_type gpio_charger_get_type(struct device *dev)
 	const char *chargetype;
 
 	if (!device_property_read_string(dev, "charger-type", &chargetype)) {
-		if (!strcmp("unknown", chargetype))
+		if (!strcmp("unkyeswn", chargetype))
 			return POWER_SUPPLY_TYPE_UNKNOWN;
 		if (!strcmp("battery", chargetype))
 			return POWER_SUPPLY_TYPE_BATTERY;
@@ -87,7 +87,7 @@ static enum power_supply_type gpio_charger_get_type(struct device *dev)
 		if (!strcmp("usb-aca", chargetype))
 			return POWER_SUPPLY_TYPE_USB;
 	}
-	dev_warn(dev, "unknown charger type %s\n", chargetype);
+	dev_warn(dev, "unkyeswn charger type %s\n", chargetype);
 
 	return POWER_SUPPLY_TYPE_UNKNOWN;
 }
@@ -129,7 +129,7 @@ static int gpio_charger_probe(struct platform_device *pdev)
 	unsigned long flags;
 	int ret;
 
-	if (!pdata && !dev->of_node) {
+	if (!pdata && !dev->of_yesde) {
 		dev_err(dev, "No platform data\n");
 		return -ENOENT;
 	}
@@ -145,10 +145,10 @@ static int gpio_charger_probe(struct platform_device *pdev)
 	gpio_charger->gpiod = devm_gpiod_get(dev, NULL, GPIOD_IN);
 
 	/*
-	 * If this fails and we're not using device tree, try the
+	 * If this fails and we're yest using device tree, try the
 	 * legacy platform data method.
 	 */
-	if (IS_ERR(gpio_charger->gpiod) && !dev->of_node) {
+	if (IS_ERR(gpio_charger->gpiod) && !dev->of_yesde) {
 		/* Non-DT: use legacy GPIO numbers */
 		if (!gpio_is_valid(pdata->gpio)) {
 			dev_err(dev, "Invalid gpio pin in pdata\n");
@@ -163,7 +163,7 @@ static int gpio_charger_probe(struct platform_device *pdev)
 			dev_err(dev, "Failed to request gpio pin: %d\n", ret);
 			return ret;
 		}
-		/* Then convert this to gpiod for now */
+		/* Then convert this to gpiod for yesw */
 		gpio_charger->gpiod = gpio_to_desc(pdata->gpio);
 	} else if (IS_ERR(gpio_charger->gpiod)) {
 		/* Just try again if this happens */
@@ -186,7 +186,7 @@ static int gpio_charger_probe(struct platform_device *pdev)
 		charger_desc->num_properties -= 1;
 	charger_desc->get_property = gpio_charger_get_property;
 
-	psy_cfg.of_node = dev->of_node;
+	psy_cfg.of_yesde = dev->of_yesde;
 	psy_cfg.drv_data = gpio_charger;
 
 	if (pdata) {
@@ -195,7 +195,7 @@ static int gpio_charger_probe(struct platform_device *pdev)
 		psy_cfg.supplied_to = pdata->supplied_to;
 		psy_cfg.num_supplicants = pdata->num_supplicants;
 	} else {
-		charger_desc->name = dev->of_node->name;
+		charger_desc->name = dev->of_yesde->name;
 		charger_desc->type = gpio_charger_get_type(dev);
 	}
 

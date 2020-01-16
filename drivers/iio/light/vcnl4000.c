@@ -213,7 +213,7 @@ static int vcnl4000_measure(struct vcnl4000_data *data, u8 req_mask,
 
 	if (tries < 0) {
 		dev_err(&data->client->dev,
-			"vcnl4000_measure() failed, data not ready\n");
+			"vcnl4000_measure() failed, data yest ready\n");
 		ret = -EIO;
 		goto fail;
 	}

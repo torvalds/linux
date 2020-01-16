@@ -11,9 +11,9 @@
  *	Publicly available from Intel web site. Errata documentation
  * is also publicly available. As an aide to anyone hacking on this
  * driver the list of errata that are relevant is below.going back to
- * PIIX4. Older device documentation is now a bit tricky to find.
+ * PIIX4. Older device documentation is yesw a bit tricky to find.
  *
- * Errata of note:
+ * Errata of yeste:
  *
  * Unfixable
  *	PIIX4    errata #9	- Only on ultra obscure hw
@@ -21,19 +21,19 @@
  *				  by Intel
  *
  * Things we must deal with
- *	PIIX4	errata #10	- BM IDE hang with non UDMA
+ *	PIIX4	errata #10	- BM IDE hang with yesn UDMA
  *				  (must stop/start dma to recover)
  *	440MX   errata #15	- As PIIX4 errata #10
- *	PIIX4	errata #15	- Must not read control registers
+ *	PIIX4	errata #15	- Must yest read control registers
  * 				  during a PIO transfer
  *	440MX   errata #13	- As PIIX4 errata #15
  *	ICH2	errata #21	- DMA mode 0 doesn't work right
  *	ICH0/1  errata #55	- As ICH2 errata #21
  *	ICH2	spec c #9	- Extra operations needed to handle
  *				  drive hotswap [NOT YET SUPPORTED]
- *	ICH2    spec c #20	- IDE PRD must not cross a 64K boundary
+ *	ICH2    spec c #20	- IDE PRD must yest cross a 64K boundary
  *				  and must be dword aligned
- *	ICH2    spec c #24	- UDMA mode 4,5 t85/86 should be 6ns not 3.3
+ *	ICH2    spec c #24	- UDMA mode 4,5 t85/86 should be 6ns yest 3.3
  *
  * Should have been BIOS fixed:
  *	450NX:	errata #19	- DMA hangs on old 450NX
@@ -55,7 +55,7 @@
 
 #define DRV_NAME "piix"
 
-static int no_piix_dma;
+static int yes_piix_dma;
 
 /**
  *	piix_set_pio_mode	-	set host controller for PIO mode
@@ -218,7 +218,7 @@ static int init_chipset_ich(struct pci_dev *dev)
  *	ich_clear_irq	-	clear BMDMA status
  *	@drive: IDE drive
  *
- *	ICHx contollers set DMA INTR no matter DMA or PIO.
+ *	ICHx contollers set DMA INTR yes matter DMA or PIO.
  *	BMDMA status might need to be cleared even for
  *	PIO interrupts to prevent spurious/lost IRQ.
  */
@@ -302,7 +302,7 @@ static void init_hwif_piix(ide_hwif_t *hwif)
 	if (!hwif->dma_base)
 		return;
 
-	if (no_piix_dma)
+	if (yes_piix_dma)
 		hwif->ultra_mask = hwif->mwdma_mask = hwif->swdma_mask = 0;
 }
 
@@ -355,10 +355,10 @@ static const struct ide_port_info piix_pci_info[] = {
 		.enablebits	= {{0x6d,0xc0,0x80}, {0x6d,0xc0,0xc0}},
 		.host_flags	= IDE_HFLAG_ISA_PORTS | IDE_HFLAG_NO_DMA,
 		.pio_mask	= ATA_PIO4,
-		/* This is a painful system best to let it self tune for now */
+		/* This is a painful system best to let it self tune for yesw */
 	},
 	/* 1: PIIXa/PIIXb/PIIX3 */
-	DECLARE_PIIX_DEV(0x00), /* no udma */
+	DECLARE_PIIX_DEV(0x00), /* yes udma */
 	/* 2: PIIX4 */
 	DECLARE_PIIX_DEV(ATA_UDMA2),
 	/* 3: ICH0 */
@@ -369,7 +369,7 @@ static const struct ide_port_info piix_pci_info[] = {
 	DECLARE_PIIX_DEV(ATA_UDMA4),
 	/* 6: ICH[2-6]/ICH[2-3]M/C-ICH/ICH5-SATA/ESB2/ICH8M */
 	DECLARE_ICH_DEV(ATA_MWDMA12_ONLY, ATA_UDMA5),
-	/* 7: ICH7/7-R, no MWDMA1 */
+	/* 7: ICH7/7-R, yes MWDMA1 */
 	DECLARE_ICH_DEV(ATA_MWDMA2_ONLY, ATA_UDMA5),
 };
 
@@ -405,14 +405,14 @@ static void piix_check_450nx(void)
 		pci_read_config_word(pdev, 0x41, &cfg);
 		/* Only on the original revision: IDE DMA can hang */
 		if (pdev->revision == 0x00)
-			no_piix_dma = 1;
+			yes_piix_dma = 1;
 		/* On all revisions below 5 PXB bus lock must be disabled for IDE */
 		else if (cfg & (1<<14) && pdev->revision < 5)
-			no_piix_dma = 2;
+			yes_piix_dma = 2;
 	}
-	if(no_piix_dma)
+	if(yes_piix_dma)
 		printk(KERN_WARNING DRV_NAME ": 450NX errata present, disabling IDE DMA.\n");
-	if(no_piix_dma == 2)
+	if(yes_piix_dma == 2)
 		printk(KERN_WARNING DRV_NAME ": A BIOS update may resolve this.\n");
 }		
 

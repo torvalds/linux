@@ -128,7 +128,7 @@ u8 shpchp_handle_presence_change(u8 hp_slot, struct controller *ctrl)
 		/*
 		 * Not Present
 		 */
-		ctrl_info(ctrl, "Card not present on Slot(%s)\n",
+		ctrl_info(ctrl, "Card yest present on Slot(%s)\n",
 			  slot_name(p_slot));
 		event_type = INT_PRESENCE_OFF;
 	}
@@ -197,7 +197,7 @@ static int fix_bus_speed(struct controller *ctrl, struct slot *pslot,
 	int rc = 0;
 
 	/*
-	 * If other slots on the same bus are occupied, we cannot
+	 * If other slots on the same bus are occupied, we canyest
 	 * change the bus speed.
 	 */
 	if (flag) {
@@ -229,7 +229,7 @@ static int fix_bus_speed(struct controller *ctrl, struct slot *pslot,
 static int board_added(struct slot *p_slot)
 {
 	u8 hp_slot;
-	u8 slots_not_empty = 0;
+	u8 slots_yest_empty = 0;
 	int rc = 0;
 	enum pci_bus_speed asp, bsp, msp;
 	struct controller *ctrl = p_slot->ctrl;
@@ -274,13 +274,13 @@ static int board_added(struct slot *p_slot)
 
 	/* Check if there are other slots or devices on the same bus */
 	if (!list_empty(&ctrl->pci_dev->subordinate->devices))
-		slots_not_empty = 1;
+		slots_yest_empty = 1;
 
-	ctrl_dbg(ctrl, "%s: slots_not_empty %d, adapter_speed %d, bus_speed %d, max_bus_speed %d\n",
-		 __func__, slots_not_empty, asp,
+	ctrl_dbg(ctrl, "%s: slots_yest_empty %d, adapter_speed %d, bus_speed %d, max_bus_speed %d\n",
+		 __func__, slots_yest_empty, asp,
 		 bsp, msp);
 
-	rc = fix_bus_speed(ctrl, p_slot, slots_not_empty, asp, bsp, msp);
+	rc = fix_bus_speed(ctrl, p_slot, slots_yest_empty, asp, bsp, msp);
 	if (rc)
 		return rc;
 
@@ -305,7 +305,7 @@ static int board_added(struct slot *p_slot)
 	}
 
 	if (shpchp_configure_device(p_slot)) {
-		ctrl_err(ctrl, "Cannot add device at %04x:%02x:%02x\n",
+		ctrl_err(ctrl, "Canyest add device at %04x:%02x:%02x\n",
 			 pci_domain_nr(parent), p_slot->bus, p_slot->device);
 		goto err_exit;
 	}
@@ -422,7 +422,7 @@ void shpchp_queue_pushbutton_work(struct work_struct *work)
 
 	info = kmalloc(sizeof(*info), GFP_KERNEL);
 	if (!info) {
-		ctrl_err(p_slot->ctrl, "%s: Cannot allocate memory\n",
+		ctrl_err(p_slot->ctrl, "%s: Canyest allocate memory\n",
 			 __func__);
 		return;
 	}
@@ -502,11 +502,11 @@ static void handle_button_press_event(struct slot *p_slot)
 	case POWEROFF_STATE:
 	case POWERON_STATE:
 		/*
-		 * Ignore if the slot is on power-on or power-off state;
+		 * Igyesre if the slot is on power-on or power-off state;
 		 * this means that the previous attention button action
 		 * to hot-add or hot-remove is undergoing
 		 */
-		ctrl_info(ctrl, "Button ignore on Slot(%s)\n",
+		ctrl_info(ctrl, "Button igyesre on Slot(%s)\n",
 			  slot_name(p_slot));
 		update_slot_info(p_slot);
 		break;

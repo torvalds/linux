@@ -77,7 +77,7 @@ enum garp_action {
 };
 
 struct garp_attr {
-	struct rb_node			node;
+	struct rb_yesde			yesde;
 	enum garp_applicant_state	state;
 	u8				type;
 	u8				dlen;

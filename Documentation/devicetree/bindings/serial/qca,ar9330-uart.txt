@@ -14,7 +14,7 @@ Required properties:
 Additional requirements:
 
   Each UART port must have an alias correctly numbered in "aliases"
-  node.
+  yesde.
 
 Example:
 

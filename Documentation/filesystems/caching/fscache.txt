@@ -30,7 +30,7 @@ filesystems:
 	|         |                        +--------------+
 	+---------+
 
-Or to look at it another way, FS-Cache is a module that provides a caching
+Or to look at it ayesther way, FS-Cache is a module that provides a caching
 facility to a network filesystem such that the cache is transparent to the
 user:
 
@@ -67,19 +67,19 @@ user:
 	+---------+                                           +--------------+
 
 
-FS-Cache does not follow the idea of completely loading every netfs file
+FS-Cache does yest follow the idea of completely loading every netfs file
 opened in its entirety into a cache before permitting it to be accessed and
-then serving the pages out of that cache rather than the netfs inode because:
+then serving the pages out of that cache rather than the netfs iyesde because:
 
  (1) It must be practical to operate without a cache.
 
- (2) The size of any accessible file must not be limited to the size of the
+ (2) The size of any accessible file must yest be limited to the size of the
      cache.
 
  (3) The combined size of all opened files (this includes mapped libraries)
-     must not be limited to the size of the cache.
+     must yest be limited to the size of the cache.
 
- (4) The user should not be forced to download an entire file just to do a
+ (4) The user should yest be forced to download an entire file just to do a
      one-off access of a small portion of it (such as might be done with the
      "file" program).
 
@@ -101,7 +101,7 @@ FS-Cache provides the following facilities:
      rather to let the netfs remain oblivious.
 
  (5) Cookies are used to represent indices, files and other objects to the
-     netfs.  The simplest cookie is just a NULL pointer - indicating nothing
+     netfs.  The simplest cookie is just a NULL pointer - indicating yesthing
      cached there.
 
  (6) The netfs is allowed to propose - dynamically - any index hierarchy it
@@ -112,19 +112,19 @@ FS-Cache provides the following facilities:
  (7) Data I/O is done direct to and from the netfs's pages.  The netfs
      indicates that page A is at index B of the data-file represented by cookie
      C, and that it should be read or written.  The cache backend may or may
-     not start I/O on that page, but if it does, a netfs callback will be
-     invoked to indicate completion.  The I/O may be either synchronous or
-     asynchronous.
+     yest start I/O on that page, but if it does, a netfs callback will be
+     invoked to indicate completion.  The I/O may be either synchroyesus or
+     asynchroyesus.
 
  (8) Cookies can be "retired" upon release.  At this point FS-Cache will mark
      them as obsolete and the index hierarchy rooted at that point will get
      recycled.
 
  (9) The netfs provides a "match" function for index searches.  In addition to
-     saying whether a match was made or not, this can also specify that an
+     saying whether a match was made or yest, this can also specify that an
      entry should be updated or deleted.
 
-(10) As much as possible is done asynchronously.
+(10) As much as possible is done asynchroyesusly.
 
 
 FS-Cache maintains a virtual indexing tree in which all indices, files, objects
@@ -169,14 +169,14 @@ have different index hierarchies:
  (*) The AFS primary index contains per-cell indices.  Each cell index contains
      per-logical-volume indices.  Each of volume index contains up to three
      indices for the read-write, read-only and backup mirrors of those volumes.
-     Each of these contains vnode data file objects, each of which contains an
+     Each of these contains vyesde data file objects, each of which contains an
      array of pages.
 
 The very top index is the FS-Cache master index in which individual netfs's
 have entries.
 
 Any index object may reside in more than one cache, provided it only has index
-children.  Any index with non-index object children will be assumed to only
+children.  Any index with yesn-index object children will be assumed to only
 reside in one cache.
 
 
@@ -219,7 +219,7 @@ proc files.
 		nal=N	Number of object allocation failures
 		avl=N	Number of objects that reached the available state
 		ded=N	Number of objects that reached the dead state
-	ChkAux	non=N	Number of objects that didn't have a coherency check
+	ChkAux	yesn=N	Number of objects that didn't have a coherency check
 		ok=N	Number of objects that passed a coherency check
 		upd=N	Number of objects that needed a coherency data update
 		obs=N	Number of objects that were declared obsolete
@@ -227,7 +227,7 @@ proc files.
 		unc=N	Number of uncache page requests seen
 	Acquire	n=N	Number of acquire cookie requests seen
 		nul=N	Number of acq reqs given a NULL parent
-		noc=N	Number of acq reqs rejected due to no cache available
+		yesc=N	Number of acq reqs rejected due to yes cache available
 		ok=N	Number of acq reqs succeeded
 		nbf=N	Number of acq reqs rejected due to error
 		oom=N	Number of acq reqs failed on ENOMEM
@@ -258,7 +258,7 @@ proc files.
 	Retrvls	n=N	Number of retrieval (read) requests seen
 		ok=N	Number of successful retr reqs
 		wt=N	Number of retr reqs that waited on lookup completion
-		nod=N	Number of retr reqs returned -ENODATA
+		yesd=N	Number of retr reqs returned -ENODATA
 		nbf=N	Number of retr reqs rejected -ENOBUFS
 		int=N	Number of retr reqs aborted -ERESTARTSYS
 		oom=N	Number of retr reqs failed -ENOMEM
@@ -275,9 +275,9 @@ proc files.
 		pgs=N	Number of pages given store req processing time
 		rxd=N	Number of store reqs deleted from tracking tree
 		olm=N	Number of store reqs over store limit
-	VmScan	nos=N	Number of release reqs against pages with no pending store
+	VmScan	yess=N	Number of release reqs against pages with yes pending store
 		gon=N	Number of release reqs against pages stored by time lock granted
-		bsy=N	Number of release reqs ignored due to in-progress store
+		bsy=N	Number of release reqs igyesred due to in-progress store
 		can=N	Number of page stores cancelled due to release req
 	Ops	pend=N	Number of times async ops added to pending queues
 		run=N	Number of times async ops given CPU time
@@ -387,8 +387,8 @@ before viewing the file.  Something like:
 
 where <restrictions> are a selection of the following letters:
 
-	K	Show hexdump of object key (don't show if not given)
-	A	Show hexdump of object aux data (don't show if not given)
+	K	Show hexdump of object key (don't show if yest given)
+	A	Show hexdump of object aux data (don't show if yest given)
 
 and the following paired letters:
 
@@ -407,9 +407,9 @@ If neither side of a letter pair is given, then both are implied.  For example:
 
 	keyctl add user fscache:objlist KB @s
 
-shows objects that are busy, and lists their object keys, but does not dump
+shows objects that are busy, and lists their object keys, but does yest dump
 their auxiliary data.  It also implies "CcWwRrSs", but as 'B' is given, 'b' is
-not implied.
+yest implied.
 
 By default all objects and all fields will be shown.
 

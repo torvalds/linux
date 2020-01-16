@@ -11,7 +11,7 @@
 
 #define csub	cmpsub
 #define cand	cmpand
-#define nop8	nop; nop; nop; nop; nop; nop; nop; nop
+#define yesp8	yesp; yesp; yesp; yesp; yesp; yesp; yesp; yesp
 
 		.section ".start", #alloc, #execinstr
 		.text
@@ -31,7 +31,7 @@ start:
 		 * if delta is zero, we are running at the address
 		 * we were linked at.
 		 */
-		beq	not_relocated
+		beq	yest_relocated
 
 		/*
 		 * We're running at a different address.  We need to fix
@@ -66,7 +66,7 @@ start:
 		csub.a	r7, r8
 		bub	1001b
 
-not_relocated:
+yest_relocated:
 		/*
 		 * Clear BSS region.
 		 *   r2 - BSS start
@@ -82,13 +82,13 @@ not_relocated:
 		 */
                 mov     r0, #0
                 movc    p0.c5, r0, #28		@ cache invalidate all
-                nop8
+                yesp8
                 movc    p0.c6, r0, #6		@ tlb invalidate all
-                nop8
+                yesp8
 
                 mov     r0, #0x1c		@ en icache and wb dcache
                 movc    p0.c1, r0, #0
-                nop8
+                yesp8
 
 		/*
 		 * Set up some pointers, for starting decompressing.
@@ -120,7 +120,7 @@ not_relocated:
 		b	__error_overwrite
 
 		/*
-		 * We're not in danger of overwriting ourselves.
+		 * We're yest in danger of overwriting ourselves.
 		 * Do this the simple way.
 		 */
 wont_overwrite:
@@ -138,16 +138,16 @@ wont_overwrite:
 		 */
 		mov	r0, #0
                 movc    p0.c5, r0, #14		@ flush dcache
-		nop8
+		yesp8
                 movc    p0.c5, r0, #20		@ icache invalidate all
-                nop8
+                yesp8
 
 		/*
 		 * Turn off the Cache and MMU.
 		 */
 		mov	r0, #0			@ disable i/d cache and MMU
 		movc	p0.c1, r0, #0
-                nop8
+                yesp8
 
 		mov	r0, #0			@ must be zero
 		ldw	r4, =KERNEL_IMAGE_START
@@ -188,7 +188,7 @@ print_string:
 __error_overwrite:
 		adr	r0, str_error
 		b.l	print_string
-2001:		nop8
+2001:		yesp8
 		b	2001b
 str_error:	.asciz	"\nError: Kernel address OVERWRITE\n"
 		.align
@@ -196,6 +196,6 @@ str_error:	.asciz	"\nError: Kernel address OVERWRITE\n"
 		.ltorg
 
 		.align	4
-		.section ".stack", "aw", %nobits
+		.section ".stack", "aw", %yesbits
 decompress_stack:	.space	4096
 decompress_stack_end:

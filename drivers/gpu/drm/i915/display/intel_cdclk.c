@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -35,7 +35,7 @@
  * are the core display clock (CDCLK) and RAWCLK.
  *
  * CDCLK clocks most of the display pipe logic, and thus its frequency
- * must be high enough to support the rate at which pixels are flowing
+ * must be high eyesugh to support the rate at which pixels are flowing
  * through the pipes. Downscaling must also be accounted as that increases
  * the effective pixel rate.
  *
@@ -45,12 +45,12 @@
  * to be shut down while the frequency is being changed.
  *
  * On SKL+ the DMC will toggle the CDCLK off/on during DC5/6 entry/exit.
- * DMC will not change the active CDCLK frequency however, so that part
+ * DMC will yest change the active CDCLK frequency however, so that part
  * will still be performed by the driver directly.
  *
  * RAWCLK is a fixed frequency clock, often used by various auxiliary
  * blocks such as AUX CH or backlight PWM. Hence the only thing we
- * really need to know about RAWCLK is its frequency so that various
+ * really need to kyesw about RAWCLK is its frequency so that various
  * dividers can be programmed correctly.
  */
 
@@ -319,7 +319,7 @@ static void pnv_get_cdclk(struct drm_i915_private *dev_priv,
 		cdclk_state->cdclk = 200000;
 		break;
 	default:
-		DRM_ERROR("Unknown pnv display core clock 0x%04x\n", gcfgc);
+		DRM_ERROR("Unkyeswn pnv display core clock 0x%04x\n", gcfgc);
 		/* fall through */
 	case GC_DISPLAY_CLOCK_133_MHZ_PNV:
 		cdclk_state->cdclk = 133333;
@@ -429,7 +429,7 @@ static int vlv_calc_cdclk(struct drm_i915_private *dev_priv, int min_cdclk)
 
 	/*
 	 * We seem to get an unstable or solid color picture at 200MHz.
-	 * Not sure what's wrong. For now use 200MHz only when all pipes
+	 * Not sure what's wrong. For yesw use 200MHz only when all pipes
 	 * are off.
 	 */
 	if (IS_VALLEYVIEW(dev_priv) && min_cdclk > freq_320)
@@ -724,7 +724,7 @@ static void bdw_set_cdclk(struct drm_i915_private *dev_priv,
 		   LCPLL_CD_CLOCK_DISABLE | LCPLL_ROOT_CD_CLOCK_DISABLE |
 		   LCPLL_CD2X_CLOCK_DISABLE | LCPLL_POWER_DOWN_ALLOW |
 		   LCPLL_CD_SOURCE_FCLK)) != LCPLL_PLL_LOCK,
-		 "trying to change cdclk frequency with cdclk not enabled\n"))
+		 "trying to change cdclk frequency with cdclk yest enabled\n"))
 		return;
 
 	ret = sandybridge_pcode_write(dev_priv,
@@ -739,7 +739,7 @@ static void bdw_set_cdclk(struct drm_i915_private *dev_priv,
 	I915_WRITE(LCPLL_CTL, val);
 
 	/*
-	 * According to the spec, it should be enough to poll for this 1 us.
+	 * According to the spec, it should be eyesugh to poll for this 1 us.
 	 * However, extensive testing shows that this can take longer.
 	 */
 	if (wait_for_us(I915_READ(LCPLL_CTL) &
@@ -971,11 +971,11 @@ static void skl_dpll0_enable(struct drm_i915_private *dev_priv, int vco)
 	I915_WRITE(LCPLL1_CTL, I915_READ(LCPLL1_CTL) | LCPLL_PLL_ENABLE);
 
 	if (intel_de_wait_for_set(dev_priv, LCPLL1_CTL, LCPLL_PLL_LOCK, 5))
-		DRM_ERROR("DPLL0 not locked\n");
+		DRM_ERROR("DPLL0 yest locked\n");
 
 	dev_priv->cdclk.hw.vco = vco;
 
-	/* We'll want to keep using the current vco from now on. */
+	/* We'll want to keep using the current vco from yesw on. */
 	skl_set_preferred_cdclk_vco(dev_priv, vco);
 }
 
@@ -1000,7 +1000,7 @@ static void skl_set_cdclk(struct drm_i915_private *dev_priv,
 	/*
 	 * Based on WA#1183 CDCLK rates 308 and 617MHz CDCLK rates are
 	 * unsupported on SKL. In theory this should never happen since only
-	 * the eDP1.4 2.16 and 4.32Gbps rates require it, but eDP1.4 is not
+	 * the eDP1.4 2.16 and 4.32Gbps rates require it, but eDP1.4 is yest
 	 * supported on SKL either, see the above WA. WARN whenever trying to
 	 * use the corresponding VCO freq as that always leads to using the
 	 * minimum 308MHz CDCLK.
@@ -1103,14 +1103,14 @@ static void skl_sanitize_cdclk(struct drm_i915_private *dev_priv)
 	/* DPLL okay; verify the cdclock
 	 *
 	 * Noticed in some instances that the freq selection is correct but
-	 * decimal part is programmed wrong from BIOS where pre-os does not
+	 * decimal part is programmed wrong from BIOS where pre-os does yest
 	 * enable display. Verify the same as well.
 	 */
 	cdctl = I915_READ(CDCLK_CTL);
 	expected = (cdctl & CDCLK_FREQ_SEL_MASK) |
 		skl_cdclk_decimal(dev_priv->cdclk.hw.cdclk);
 	if (cdctl == expected)
-		/* All well; nothing to sanitize */
+		/* All well; yesthing to sanitize */
 		return;
 
 sanitize:
@@ -1223,7 +1223,7 @@ static int bxt_calc_cdclk(struct drm_i915_private *dev_priv, int min_cdclk)
 		    table[i].cdclk >= min_cdclk)
 			return table[i].cdclk;
 
-	WARN(1, "Cannot satisfy minimum cdclk %d with refclk %u\n",
+	WARN(1, "Canyest satisfy minimum cdclk %d with refclk %u\n",
 	     min_cdclk, dev_priv->cdclk.hw.ref);
 	return 0;
 }
@@ -1241,7 +1241,7 @@ static int bxt_calc_cdclk_pll_vco(struct drm_i915_private *dev_priv, int cdclk)
 		    table[i].cdclk == cdclk)
 			return dev_priv->cdclk.hw.ref * table[i].ratio;
 
-	WARN(1, "cdclk %d not valid for refclk %u\n",
+	WARN(1, "cdclk %d yest valid for refclk %u\n",
 	     cdclk, dev_priv->cdclk.hw.ref);
 	return 0;
 }
@@ -1623,8 +1623,8 @@ static void bxt_sanitize_cdclk(struct drm_i915_private *dev_priv)
 	 */
 	cdctl = I915_READ(CDCLK_CTL);
 	/*
-	 * Let's ignore the pipe field, since BIOS could have configured the
-	 * dividers both synching to an active pipe, or asynchronously
+	 * Let's igyesre the pipe field, since BIOS could have configured the
+	 * dividers both synching to an active pipe, or asynchroyesusly
 	 * (PIPE_NONE).
 	 */
 	cdctl &= ~bxt_cdclk_cd2x_pipe(dev_priv, INVALID_PIPE);
@@ -1668,7 +1668,7 @@ static void bxt_sanitize_cdclk(struct drm_i915_private *dev_priv)
 		expected |= BXT_CDCLK_SSA_PRECHARGE_ENABLE;
 
 	if (cdctl == expected)
-		/* All well; nothing to sanitize */
+		/* All well; yesthing to sanitize */
 		return;
 
 sanitize:
@@ -1756,7 +1756,7 @@ void intel_cdclk_uninit(struct drm_i915_private *i915)
  * @b: second CDCLK state
  *
  * Returns:
- * True if the CDCLK states require pipes to be off during reprogramming, false if not.
+ * True if the CDCLK states require pipes to be off during reprogramming, false if yest.
  */
 bool intel_cdclk_needs_modeset(const struct intel_cdclk_state *a,
 			       const struct intel_cdclk_state *b)
@@ -1773,7 +1773,7 @@ bool intel_cdclk_needs_modeset(const struct intel_cdclk_state *a,
  * @b: second CDCLK state
  *
  * Returns:
- * True if the CDCLK states require just a cd2x divider update, false if not.
+ * True if the CDCLK states require just a cd2x divider update, false if yest.
  */
 static bool intel_cdclk_needs_cd2x_update(struct drm_i915_private *dev_priv,
 					  const struct intel_cdclk_state *a,
@@ -1808,7 +1808,7 @@ static bool intel_cdclk_changed(const struct intel_cdclk_state *a,
  * @state: atomic state
  *
  * This is the CDCLK version of drm_atomic_helper_swap_state() since the
- * helper does not handle driver-specific global state.
+ * helper does yest handle driver-specific global state.
  *
  * Similarly to the atomic helpers this function does a complete swap,
  * i.e. it also puts the old state into @state. This is used by the commit
@@ -1948,7 +1948,7 @@ int intel_crtc_compute_min_cdclk(const struct intel_crtc_state *crtc_state)
 	if (IS_BROADWELL(dev_priv) && hsw_crtc_state_ips_capable(crtc_state))
 		min_cdclk = DIV_ROUND_UP(min_cdclk * 100, 95);
 
-	/* BSpec says "Do not use DisplayPort with CDCLK less than 432 MHz,
+	/* BSpec says "Do yest use DisplayPort with CDCLK less than 432 MHz,
 	 * audio enabled, port width x4, and link rate HBR2 (5.4 GHz), or else
 	 * there may be audio corruption or screen corruption." This cdclk
 	 * restriction for GLK is 316.8 MHz.
@@ -2057,7 +2057,7 @@ static int intel_compute_min_cdclk(struct intel_atomic_state *state)
  * the lowest voltage value, and higher values
  * correspond to increasingly higher voltages.
  *
- * Should that relationship no longer hold on
+ * Should that relationship yes longer hold on
  * future platforms this code will need to be
  * adjusted.
  */
@@ -2470,7 +2470,7 @@ void intel_update_max_cdclk(struct drm_i915_private *dev_priv)
 		/*
 		 * FIXME with extra cooling we can allow
 		 * 540 MHz for ULX and 675 Mhz for ULT.
-		 * How can we know if extra cooling is
+		 * How can we kyesw if extra cooling is
 		 * available? PCI ID, VTB, something else?
 		 */
 		if (I915_READ(FUSE_STRAP) & HSW_CDCLK_LIMIT)
@@ -2511,7 +2511,7 @@ void intel_update_cdclk(struct drm_i915_private *dev_priv)
 
 	/*
 	 * 9:0 CMBUS [sic] CDCLK frequency (cdfreq):
-	 * Programmng [sic] note: bit[9:2] should be programmed to the number
+	 * Programmng [sic] yeste: bit[9:2] should be programmed to the number
 	 * of cdclk that generates 4MHz reference clock freq which is used to
 	 * generate GMBus clock. This will vary with the cdclk freq.
 	 */
@@ -2605,7 +2605,7 @@ void intel_update_rawclk(struct drm_i915_private *dev_priv)
 	else if (IS_G4X(dev_priv) || IS_PINEVIEW(dev_priv))
 		dev_priv->rawclk_freq = g4x_hrawclk(dev_priv);
 	else
-		/* no rawclk on other platforms, or no need to know it */
+		/* yes rawclk on other platforms, or yes need to kyesw it */
 		return;
 
 	DRM_DEBUG_DRIVER("rawclk rate: %d kHz\n", dev_priv->rawclk_freq);
@@ -2698,7 +2698,7 @@ void intel_init_cdclk_hooks(struct drm_i915_private *dev_priv)
 		dev_priv->display.get_cdclk = fixed_200mhz_get_cdclk;
 	else { /* 830 */
 		WARN(!IS_I830(dev_priv),
-		     "Unknown platform. Assuming 133 MHz CDCLK\n");
+		     "Unkyeswn platform. Assuming 133 MHz CDCLK\n");
 		dev_priv->display.get_cdclk = fixed_133mhz_get_cdclk;
 	}
 }

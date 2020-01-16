@@ -7,11 +7,11 @@
  * modification, are permitted provided that the following conditions are met:
  *
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
+ *    yestice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the names of the copyright holders nor the names of its
+ * 3. Neither the names of the copyright holders yesr the names of its
  *    contributors may be used to endorse or promote products derived from
  *    this software without specific prior written permission.
  *
@@ -265,7 +265,7 @@ out:
 	return err;
 }
 
-static bool tipc_udp_is_known_peer(struct tipc_bearer *b,
+static bool tipc_udp_is_kyeswn_peer(struct tipc_bearer *b,
 				   struct udp_media_addr *addr)
 {
 	struct udp_replicast *rcast, *tmp;
@@ -273,7 +273,7 @@ static bool tipc_udp_is_known_peer(struct tipc_bearer *b,
 
 	ub = rcu_dereference_rtnl(b->media_ptr);
 	if (!ub) {
-		pr_err_ratelimited("UDP bearer instance not found\n");
+		pr_err_ratelimited("UDP bearer instance yest found\n");
 		return false;
 	}
 
@@ -348,7 +348,7 @@ static int tipc_udp_rcast_disc(struct tipc_bearer *b, struct sk_buff *skb)
 		return 0;
 	}
 
-	if (likely(tipc_udp_is_known_peer(b, &src)))
+	if (likely(tipc_udp_is_kyeswn_peer(b, &src)))
 		return 0;
 
 	return tipc_udp_rcast_add(b, &src);
@@ -536,7 +536,7 @@ int tipc_udp_nl_add_bearer_data(struct tipc_nl_msg *msg, struct tipc_bearer *b)
 	if (!ub)
 		return -ENODEV;
 
-	nest = nla_nest_start_noflag(msg->skb, TIPC_NLA_BEARER_UDP_OPTS);
+	nest = nla_nest_start_yesflag(msg->skb, TIPC_NLA_BEARER_UDP_OPTS);
 	if (!nest)
 		goto msg_full;
 
@@ -563,7 +563,7 @@ msg_full:
  * tipc_parse_udp_addr - build udp media address from netlink data
  * @nlattr:	netlink attribute containing sockaddr storage aligned address
  * @addr:	tipc media address to fill with address, port and protocol type
- * @scope_id:	IPv6 scope id pointer, not NULL indicates it's required
+ * @scope_id:	IPv6 scope id pointer, yest NULL indicates it's required
  */
 
 static int tipc_parse_udp_addr(struct nlattr *nla, struct udp_media_addr *addr,
@@ -630,7 +630,7 @@ int tipc_udp_nl_bearer_add(struct tipc_bearer *b, struct nlattr *attr)
 		return -EINVAL;
 	}
 
-	if (tipc_udp_is_known_peer(b, &addr))
+	if (tipc_udp_is_kyeswn_peer(b, &addr))
 		return 0;
 
 	return tipc_udp_rcast_add(b, &addr);
@@ -655,7 +655,7 @@ static int tipc_udp_enable(struct net *net, struct tipc_bearer *b,
 	struct udp_port_cfg udp_conf = {0};
 	struct udp_tunnel_sock_cfg tuncfg = {NULL};
 	struct nlattr *opts[TIPC_NLA_UDP_MAX + 1];
-	u8 node_id[NODE_ID_LEN] = {0,};
+	u8 yesde_id[NODE_ID_LEN] = {0,};
 	int rmcast = 0;
 
 	ub = kzalloc(sizeof(*ub), GFP_ATOMIC);
@@ -693,13 +693,13 @@ static int tipc_udp_enable(struct net *net, struct tipc_bearer *b,
 	/* Checking remote ip address */
 	rmcast = tipc_udp_is_mcast_addr(&remote);
 
-	/* Autoconfigure own node identity if needed */
+	/* Autoconfigure own yesde identity if needed */
 	if (!tipc_own_id(net)) {
-		memcpy(node_id, local.ipv6.in6_u.u6_addr8, 16);
-		tipc_net_init(net, node_id, 0);
+		memcpy(yesde_id, local.ipv6.in6_u.u6_addr8, 16);
+		tipc_net_init(net, yesde_id, 0);
 	}
 	if (!tipc_own_id(net)) {
-		pr_warn("Failed to set node id, please configure manually\n");
+		pr_warn("Failed to set yesde id, please configure manually\n");
 		err = -EINVAL;
 		goto err;
 	}
@@ -808,7 +808,7 @@ static void tipc_udp_disable(struct tipc_bearer *b)
 
 	ub = rtnl_dereference(b->media_ptr);
 	if (!ub) {
-		pr_err("UDP bearer instance not found\n");
+		pr_err("UDP bearer instance yest found\n");
 		return;
 	}
 	sock_set_flag(ub->ubsock->sk, SOCK_DEAD);

@@ -1259,7 +1259,7 @@ static int ov13858_set_ctrl(struct v4l2_ctrl *ctrl)
 		break;
 	default:
 		dev_info(&client->dev,
-			 "ctrl(id:0x%x,val:0x%x) is not handled\n",
+			 "ctrl(id:0x%x,val:0x%x) is yest handled\n",
 			 ctrl->id, ctrl->val);
 		break;
 	}
@@ -1473,7 +1473,7 @@ static int ov13858_set_stream(struct v4l2_subdev *sd, int enable)
 	if (enable) {
 		ret = pm_runtime_get_sync(&client->dev);
 		if (ret < 0) {
-			pm_runtime_put_noidle(&client->dev);
+			pm_runtime_put_yesidle(&client->dev);
 			goto err_unlock;
 		}
 

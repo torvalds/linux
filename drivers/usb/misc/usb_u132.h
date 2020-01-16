@@ -19,7 +19,7 @@
 * for PC cards that contain an OHCI host controller. Typical PC cards
 * are the Orange Mobile 3G Option GlobeTrotter Fusion card.
 *
-* The U132 adapter will *NOT *work with PC cards that do not contain
+* The U132 adapter will *NOT *work with PC cards that do yest contain
 * an OHCI controller. A simple way to test whether a PC card has an
 * OHCI controller as an interface is to insert the PC card directly
 * into a laptop(or desktop) with a CardBus slot and if "lspci" shows
@@ -29,7 +29,7 @@
 *
 * Please inform the Author and Maintainer about any PC cards that
 * contain OHCI Host Controller and work when directly connected to
-* an embedded CardBus slot but do not work when they are connected
+* an embedded CardBus slot but do yest work when they are connected
 * via an ELAN U132 adapter.
 *
 * The driver consists of two modules, the "ftdi-u132" module is
@@ -54,7 +54,7 @@
 * of the "ftdi-u132" module.
 *
 */
-int ftdi_elan_switch_on_diagnostics(int number);
+int ftdi_elan_switch_on_diagyesstics(int number);
 void ftdi_elan_gone_away(struct platform_device *pdev);
 void start_usb_lock_device_tracing(void);
 struct u132_platform_data {
@@ -68,27 +68,27 @@ int usb_ftdi_elan_edset_single(struct platform_device *pdev, u8 ed_number,
         void *endp, struct urb *urb, u8 address, u8 ep_number, u8 toggle_bits,
         void (*callback) (void *endp, struct urb *urb, u8 *buf, int len,
         int toggle_bits, int error_count, int condition_code, int repeat_number,
-         int halted, int skipped, int actual, int non_null));
+         int halted, int skipped, int actual, int yesn_null));
 int usb_ftdi_elan_edset_output(struct platform_device *pdev, u8 ed_number,
         void *endp, struct urb *urb, u8 address, u8 ep_number, u8 toggle_bits,
         void (*callback) (void *endp, struct urb *urb, u8 *buf, int len,
         int toggle_bits, int error_count, int condition_code, int repeat_number,
-         int halted, int skipped, int actual, int non_null));
+         int halted, int skipped, int actual, int yesn_null));
 int usb_ftdi_elan_edset_empty(struct platform_device *pdev, u8 ed_number,
         void *endp, struct urb *urb, u8 address, u8 ep_number, u8 toggle_bits,
         void (*callback) (void *endp, struct urb *urb, u8 *buf, int len,
         int toggle_bits, int error_count, int condition_code, int repeat_number,
-         int halted, int skipped, int actual, int non_null));
+         int halted, int skipped, int actual, int yesn_null));
 int usb_ftdi_elan_edset_input(struct platform_device *pdev, u8 ed_number,
         void *endp, struct urb *urb, u8 address, u8 ep_number, u8 toggle_bits,
         void (*callback) (void *endp, struct urb *urb, u8 *buf, int len,
         int toggle_bits, int error_count, int condition_code, int repeat_number,
-         int halted, int skipped, int actual, int non_null));
+         int halted, int skipped, int actual, int yesn_null));
 int usb_ftdi_elan_edset_setup(struct platform_device *pdev, u8 ed_number,
         void *endp, struct urb *urb, u8 address, u8 ep_number, u8 toggle_bits,
         void (*callback) (void *endp, struct urb *urb, u8 *buf, int len,
         int toggle_bits, int error_count, int condition_code, int repeat_number,
-         int halted, int skipped, int actual, int non_null));
+         int halted, int skipped, int actual, int yesn_null));
 int usb_ftdi_elan_edset_flush(struct platform_device *pdev, u8 ed_number,
         void *endp);
 int usb_ftdi_elan_read_pcimem(struct platform_device *pdev, int mem_offset,

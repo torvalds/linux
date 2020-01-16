@@ -2,7 +2,7 @@
  * arch/sh/mm/tlb-sh5.c
  *
  * Copyright (C) 2003  Paul Mundt <lethal@linux-sh.org>
- * Copyright (C) 2003  Richard Curnow <richard.curnow@superh.com>
+ * Copyright (C) 2003  Richard Curyesw <richard.curyesw@superh.com>
  *
  * This file is subject to the terms and conditions of the GNU General Public
  * License.  See the file "COPYING" in the main directory of this archive

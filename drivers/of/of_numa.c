@@ -9,25 +9,25 @@
 
 #include <linux/of.h>
 #include <linux/of_address.h>
-#include <linux/nodemask.h>
+#include <linux/yesdemask.h>
 
 #include <asm/numa.h>
 
-/* define default numa node to 0 */
+/* define default numa yesde to 0 */
 #define DEFAULT_NODE 0
 
 /*
  * Even though we connect cpus to numa domains later in SMP
- * init, we need to know the node ids now for all cpus.
+ * init, we need to kyesw the yesde ids yesw for all cpus.
 */
-static void __init of_numa_parse_cpu_nodes(void)
+static void __init of_numa_parse_cpu_yesdes(void)
 {
 	u32 nid;
 	int r;
-	struct device_node *np;
+	struct device_yesde *np;
 
-	for_each_of_cpu_node(np) {
-		r = of_property_read_u32(np, "numa-node-id", &nid);
+	for_each_of_cpu_yesde(np) {
+		r = of_property_read_u32(np, "numa-yesde-id", &nid);
 		if (r)
 			continue;
 
@@ -35,24 +35,24 @@ static void __init of_numa_parse_cpu_nodes(void)
 		if (nid >= MAX_NUMNODES)
 			pr_warn("Node id %u exceeds maximum value\n", nid);
 		else
-			node_set(nid, numa_nodes_parsed);
+			yesde_set(nid, numa_yesdes_parsed);
 	}
 }
 
-static int __init of_numa_parse_memory_nodes(void)
+static int __init of_numa_parse_memory_yesdes(void)
 {
-	struct device_node *np = NULL;
+	struct device_yesde *np = NULL;
 	struct resource rsrc;
 	u32 nid;
 	int i, r;
 
-	for_each_node_by_type(np, "memory") {
-		r = of_property_read_u32(np, "numa-node-id", &nid);
+	for_each_yesde_by_type(np, "memory") {
+		r = of_property_read_u32(np, "numa-yesde-id", &nid);
 		if (r == -EINVAL)
 			/*
 			 * property doesn't exist if -EINVAL, continue
-			 * looking for more memory nodes with
-			 * "numa-node-id" property
+			 * looking for more memory yesdes with
+			 * "numa-yesde-id" property
 			 */
 			continue;
 
@@ -65,8 +65,8 @@ static int __init of_numa_parse_memory_nodes(void)
 			r = numa_add_memblk(nid, rsrc.start, rsrc.end + 1);
 
 		if (!i || r) {
-			of_node_put(np);
-			pr_err("bad property in memory node\n");
+			of_yesde_put(np);
+			pr_err("bad property in memory yesde\n");
 			return r ? : -EINVAL;
 		}
 	}
@@ -74,7 +74,7 @@ static int __init of_numa_parse_memory_nodes(void)
 	return 0;
 }
 
-static int __init of_numa_parse_distance_map_v1(struct device_node *map)
+static int __init of_numa_parse_distance_map_v1(struct device_yesde *map)
 {
 	const __be32 *matrix;
 	int entry_count;
@@ -95,27 +95,27 @@ static int __init of_numa_parse_distance_map_v1(struct device_node *map)
 	}
 
 	for (i = 0; i + 2 < entry_count; i += 3) {
-		u32 nodea, nodeb, distance;
+		u32 yesdea, yesdeb, distance;
 
-		nodea = of_read_number(matrix, 1);
+		yesdea = of_read_number(matrix, 1);
 		matrix++;
-		nodeb = of_read_number(matrix, 1);
+		yesdeb = of_read_number(matrix, 1);
 		matrix++;
 		distance = of_read_number(matrix, 1);
 		matrix++;
 
-		if ((nodea == nodeb && distance != LOCAL_DISTANCE) ||
-		    (nodea != nodeb && distance <= LOCAL_DISTANCE)) {
-			pr_err("Invalid distance[node%d -> node%d] = %d\n",
-			       nodea, nodeb, distance);
+		if ((yesdea == yesdeb && distance != LOCAL_DISTANCE) ||
+		    (yesdea != yesdeb && distance <= LOCAL_DISTANCE)) {
+			pr_err("Invalid distance[yesde%d -> yesde%d] = %d\n",
+			       yesdea, yesdeb, distance);
 			return -EINVAL;
 		}
 
-		numa_set_distance(nodea, nodeb, distance);
+		numa_set_distance(yesdea, yesdeb, distance);
 
-		/* Set default distance of node B->A same as A->B */
-		if (nodeb > nodea)
-			numa_set_distance(nodeb, nodea, distance);
+		/* Set default distance of yesde B->A same as A->B */
+		if (yesdeb > yesdea)
+			numa_set_distance(yesdeb, yesdea, distance);
 	}
 
 	return 0;
@@ -124,31 +124,31 @@ static int __init of_numa_parse_distance_map_v1(struct device_node *map)
 static int __init of_numa_parse_distance_map(void)
 {
 	int ret = 0;
-	struct device_node *np;
+	struct device_yesde *np;
 
-	np = of_find_compatible_node(NULL, NULL,
+	np = of_find_compatible_yesde(NULL, NULL,
 				     "numa-distance-map-v1");
 	if (np)
 		ret = of_numa_parse_distance_map_v1(np);
 
-	of_node_put(np);
+	of_yesde_put(np);
 	return ret;
 }
 
-int of_node_to_nid(struct device_node *device)
+int of_yesde_to_nid(struct device_yesde *device)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 	u32 nid;
 	int r = -ENODATA;
 
-	np = of_node_get(device);
+	np = of_yesde_get(device);
 
 	while (np) {
-		r = of_property_read_u32(np, "numa-node-id", &nid);
+		r = of_property_read_u32(np, "numa-yesde-id", &nid);
 		/*
-		 * -EINVAL indicates the property was not found, and
+		 * -EINVAL indicates the property was yest found, and
 		 *  we walk up the tree trying to find a parent with a
-		 *  "numa-node-id".  Any other type of error indicates
+		 *  "numa-yesde-id".  Any other type of error indicates
 		 *  a bad device tree and we give up.
 		 */
 		if (r != -EINVAL)
@@ -157,16 +157,16 @@ int of_node_to_nid(struct device_node *device)
 		np = of_get_next_parent(np);
 	}
 	if (np && r)
-		pr_warn("Invalid \"numa-node-id\" property in node %pOFn\n",
+		pr_warn("Invalid \"numa-yesde-id\" property in yesde %pOFn\n",
 			np);
-	of_node_put(np);
+	of_yesde_put(np);
 
 	/*
 	 * If numa=off passed on command line, or with a defective
-	 * device tree, the nid may not be in the set of possible
-	 * nodes.  Check for this case and return NUMA_NO_NODE.
+	 * device tree, the nid may yest be in the set of possible
+	 * yesdes.  Check for this case and return NUMA_NO_NODE.
 	 */
-	if (!r && nid < MAX_NUMNODES && node_possible(nid))
+	if (!r && nid < MAX_NUMNODES && yesde_possible(nid))
 		return nid;
 
 	return NUMA_NO_NODE;
@@ -176,8 +176,8 @@ int __init of_numa_init(void)
 {
 	int r;
 
-	of_numa_parse_cpu_nodes();
-	r = of_numa_parse_memory_nodes();
+	of_numa_parse_cpu_yesdes();
+	r = of_numa_parse_memory_yesdes();
 	if (r)
 		return r;
 	return of_numa_parse_distance_map();

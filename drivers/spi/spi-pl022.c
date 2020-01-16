@@ -17,7 +17,7 @@
 #include <linux/module.h>
 #include <linux/device.h>
 #include <linux/ioport.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/interrupt.h>
 #include <linux/spi/spi.h>
 #include <linux/delay.h>
@@ -131,8 +131,8 @@
  * SSP Status Register - SSP_SR
  */
 #define SSP_SR_MASK_TFE		(0x1UL << 0) /* Transmit FIFO empty */
-#define SSP_SR_MASK_TNF		(0x1UL << 1) /* Transmit FIFO not full */
-#define SSP_SR_MASK_RNE		(0x1UL << 2) /* Receive FIFO not empty */
+#define SSP_SR_MASK_TNF		(0x1UL << 1) /* Transmit FIFO yest full */
+#define SSP_SR_MASK_RNE		(0x1UL << 2) /* Receive FIFO yest empty */
 #define SSP_SR_MASK_RFF		(0x1UL << 3) /* Receive FIFO full */
 #define SSP_SR_MASK_BSY		(0x1UL << 4) /* Busy Flag */
 
@@ -405,7 +405,7 @@ struct pl022 {
  * @dmacr: Value of DMA control Register of SSP
  * @cpsr: Value of Clock prescale register
  * @n_bytes: how many bytes(power of 2) reqd for a given data width of client
- * @enable_dma: Whether to enable DMA or not
+ * @enable_dma: Whether to enable DMA or yest
  * @read: function ptr to be used to read when doing xfer for this chip
  * @write: function ptr to be used to write when doing xfer for this chip
  * @cs_control: chip select callback provided by chip
@@ -431,7 +431,7 @@ struct chip_data {
  * null_cs_control - Dummy chip select function
  * @command: select/delect the chip
  *
- * If no chip select function is provided by client this is used as dummy
+ * If yes chip select function is provided by client this is used as dummy
  * chip select
  */
 static void null_cs_control(u32 command)
@@ -495,11 +495,11 @@ static void giveback(struct pl022 *pl022)
 		struct spi_message *next_msg;
 
 		/*
-		 * cs_change was not set. We can keep the chip select
+		 * cs_change was yest set. We can keep the chip select
 		 * enabled if there is message in the queue and it is
 		 * for the same spi device.
 		 *
-		 * We cannot postpone this until pump_messages, because
+		 * We canyest postpone this until pump_messages, because
 		 * after calling msg->complete (below) the driver that
 		 * sent the current message could be unloaded, which
 		 * could invalidate the cs_control() callback...
@@ -617,7 +617,7 @@ static void restore_state(struct pl022 *pl022)
 )
 
 /*
- * The PL023 variant has further differences: no loopback mode, no microwire
+ * The PL023 variant has further differences: yes loopback mode, yes microwire
  * support, and a new clock feedback delay setting.
  */
 #define DEFAULT_SSP_REG_CR1_ST_PL023 ( \
@@ -940,7 +940,7 @@ static int configure_dma(struct pl022 *pl022)
 	/*
 	 * If supplied, the DMA burstsize should equal the FIFO trigger level.
 	 * Notice that the DMA engine uses one-to-one mapping. Since we can
-	 * not trigger on 2 elements this needs explicit mapping rather than
+	 * yest trigger on 2 elements this needs explicit mapping rather than
 	 * calculation.
 	 */
 	switch (pl022->rx_lev_trig) {
@@ -1111,28 +1111,28 @@ static int pl022_dma_probe(struct pl022 *pl022)
 	dma_cap_zero(mask);
 	dma_cap_set(DMA_SLAVE, mask);
 	/*
-	 * We need both RX and TX channels to do DMA, else do none
+	 * We need both RX and TX channels to do DMA, else do yesne
 	 * of them.
 	 */
 	pl022->dma_rx_channel = dma_request_channel(mask,
 					    pl022->master_info->dma_filter,
 					    pl022->master_info->dma_rx_param);
 	if (!pl022->dma_rx_channel) {
-		dev_dbg(&pl022->adev->dev, "no RX DMA channel!\n");
-		goto err_no_rxchan;
+		dev_dbg(&pl022->adev->dev, "yes RX DMA channel!\n");
+		goto err_yes_rxchan;
 	}
 
 	pl022->dma_tx_channel = dma_request_channel(mask,
 					    pl022->master_info->dma_filter,
 					    pl022->master_info->dma_tx_param);
 	if (!pl022->dma_tx_channel) {
-		dev_dbg(&pl022->adev->dev, "no TX DMA channel!\n");
-		goto err_no_txchan;
+		dev_dbg(&pl022->adev->dev, "yes TX DMA channel!\n");
+		goto err_yes_txchan;
 	}
 
 	pl022->dummypage = kmalloc(PAGE_SIZE, GFP_KERNEL);
 	if (!pl022->dummypage)
-		goto err_no_dummypage;
+		goto err_yes_dummypage;
 
 	dev_info(&pl022->adev->dev, "setup for DMA on RX %s, TX %s\n",
 		 dma_chan_name(pl022->dma_rx_channel),
@@ -1140,12 +1140,12 @@ static int pl022_dma_probe(struct pl022 *pl022)
 
 	return 0;
 
-err_no_dummypage:
+err_yes_dummypage:
 	dma_release_channel(pl022->dma_tx_channel);
-err_no_txchan:
+err_yes_txchan:
 	dma_release_channel(pl022->dma_rx_channel);
 	pl022->dma_rx_channel = NULL;
-err_no_rxchan:
+err_yes_rxchan:
 	dev_err(&pl022->adev->dev,
 			"Failed to work in dma mode, work without dma!\n");
 	return -ENODEV;
@@ -1157,11 +1157,11 @@ static int pl022_dma_autoprobe(struct pl022 *pl022)
 	struct dma_chan *chan;
 	int err;
 
-	/* automatically configure DMA channels from platform, normally using DT */
+	/* automatically configure DMA channels from platform, yesrmally using DT */
 	chan = dma_request_chan(dev, "rx");
 	if (IS_ERR(chan)) {
 		err = PTR_ERR(chan);
-		goto err_no_rxchan;
+		goto err_yes_rxchan;
 	}
 
 	pl022->dma_rx_channel = chan;
@@ -1169,7 +1169,7 @@ static int pl022_dma_autoprobe(struct pl022 *pl022)
 	chan = dma_request_chan(dev, "tx");
 	if (IS_ERR(chan)) {
 		err = PTR_ERR(chan);
-		goto err_no_txchan;
+		goto err_yes_txchan;
 	}
 
 	pl022->dma_tx_channel = chan;
@@ -1177,18 +1177,18 @@ static int pl022_dma_autoprobe(struct pl022 *pl022)
 	pl022->dummypage = kmalloc(PAGE_SIZE, GFP_KERNEL);
 	if (!pl022->dummypage) {
 		err = -ENOMEM;
-		goto err_no_dummypage;
+		goto err_yes_dummypage;
 	}
 
 	return 0;
 
-err_no_dummypage:
+err_yes_dummypage:
 	dma_release_channel(pl022->dma_tx_channel);
 	pl022->dma_tx_channel = NULL;
-err_no_txchan:
+err_yes_txchan:
 	dma_release_channel(pl022->dma_rx_channel);
 	pl022->dma_rx_channel = NULL;
-err_no_rxchan:
+err_yes_rxchan:
 	return err;
 }
 		
@@ -1242,8 +1242,8 @@ static inline void pl022_dma_remove(struct pl022 *pl022)
  * If a receive overrun (ROR) interrupt is there then we disable SSP, flag the
  * current message's state as STATE_ERROR and schedule the tasklet
  * pump_transfers which will do the postprocessing of the current message by
- * calling giveback(). Otherwise it reads data from RX FIFO till there is no
- * more data, and writes data in TX FIFO till it is not full. If we complete
+ * calling giveback(). Otherwise it reads data from RX FIFO till there is yes
+ * more data, and writes data in TX FIFO till it is yest full. If we complete
  * the transfer we move to the next transfer and schedule the tasklet.
  */
 static irqreturn_t pl022_interrupt_handler(int irq, void *dev_id)
@@ -1267,7 +1267,7 @@ static irqreturn_t pl022_interrupt_handler(int irq, void *dev_id)
 
 	/*
 	 * This handles the FIFO interrupts, the timeout
-	 * interrupts are flatly ignored, they cannot be
+	 * interrupts are flatly igyesred, they canyest be
 	 * trusted.
 	 */
 	if (unlikely(irq_status & SSP_MIS_MASK_RORMIS)) {
@@ -1445,7 +1445,7 @@ static void do_interrupt_dma_transfer(struct pl022 *pl022)
 	 */
 	u32 irqflags = (u32)(ENABLE_ALL_INTERRUPTS & ~SSP_IMSC_MASK_RXIM);
 
-	/* Enable target chip, if not already active */
+	/* Enable target chip, if yest already active */
 	if (!pl022->next_msg_cs_active)
 		pl022_cs_control(pl022, SSP_CHIP_SELECT);
 
@@ -1607,7 +1607,7 @@ static int pl022_unprepare_transfer_hardware(struct spi_master *master)
 {
 	struct pl022 *pl022 = spi_master_get_devdata(master);
 
-	/* nothing more to do - disable spi/ssp and power off */
+	/* yesthing more to do - disable spi/ssp and power off */
 	writew((readw(SSP_CR1(pl022->virtbase)) &
 		(~SSP_CR1_MASK_SSE)), SSP_CR1(pl022->virtbase));
 
@@ -1626,7 +1626,7 @@ static int verify_controller_parameters(struct pl022 *pl022,
 	if ((chip_info->iface == SSP_INTERFACE_UNIDIRECTIONAL) &&
 	    (!pl022->vendor->unidir)) {
 		dev_err(&pl022->adev->dev,
-			"unidirectional mode not supported in this "
+			"unidirectional mode yest supported in this "
 			"hardware version\n");
 		return -EINVAL;
 	}
@@ -1786,7 +1786,7 @@ static int calculate_effective_freq(struct pl022 *pl022, int freq, struct
 					found = 1;
 			}
 			/*
-			 * increased scr will give lower rates, which are not
+			 * increased scr will give lower rates, which are yest
 			 * required
 			 */
 			break;
@@ -1795,7 +1795,7 @@ static int calculate_effective_freq(struct pl022 *pl022, int freq, struct
 		scr = SCR_MIN;
 	}
 
-	WARN(!best_freq, "pl022: Matching cpsdvsr and scr not found for %d Hz rate \n",
+	WARN(!best_freq, "pl022: Matching cpsdvsr and scr yest found for %d Hz rate \n",
 			freq);
 
 	clk_freq->cpsdvsr = (u8) (best_cpsdvsr & 0xFF);
@@ -1835,7 +1835,7 @@ static const struct pl022_config_chip pl022_default_chip_info = {
  * this function will initialize the runtime state for this chip and save
  * the same in the device structure. Else it will update the runtime info
  * with the updated chip info. Nothing is really being written to the
- * controller hardware here, that is not done until the actual transfer
+ * controller hardware here, that is yest done until the actual transfer
  * commence.
  */
 static int pl022_setup(struct spi_device *spi)
@@ -1848,7 +1848,7 @@ static int pl022_setup(struct spi_device *spi)
 	struct pl022 *pl022 = spi_master_get_devdata(spi->master);
 	unsigned int bits = spi->bits_per_word;
 	u32 tmp;
-	struct device_node *np = spi->dev.of_node;
+	struct device_yesde *np = spi->dev.of_yesde;
 
 	if (!spi->max_speed_hz)
 		return -EINVAL;
@@ -1890,7 +1890,7 @@ static int pl022_setup(struct spi_device *spi)
 			chip_info = &chip_info_dt;
 		} else {
 			chip_info = &pl022_default_chip_info;
-			/* spi_board_info.controller_data not is supplied */
+			/* spi_board_info.controller_data yest is supplied */
 			dev_dbg(&spi->dev,
 				"using default controller_data settings\n");
 		}
@@ -1999,7 +1999,7 @@ static int pl022_setup(struct spi_device *spi)
 			SSP_WRITE_BITS(chip->cr1, chip_info->clkdelay,
 				       SSP_CR1_MASK_FBCLKDEL_ST, 13);
 		} else {
-			/* These bits are in the PL022 but not PL023 */
+			/* These bits are in the PL022 but yest PL023 */
 			SSP_WRITE_BITS(chip->cr0, chip_info->duplex,
 				       SSP_CR0_MASK_HALFDUP_ST, 5);
 			SSP_WRITE_BITS(chip->cr0, chip_info->ctrl_len,
@@ -2086,12 +2086,12 @@ static void pl022_cleanup(struct spi_device *spi)
 static struct pl022_ssp_controller *
 pl022_platform_data_dt_get(struct device *dev)
 {
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 	struct pl022_ssp_controller *pd;
 	u32 tmp = 0;
 
 	if (!np) {
-		dev_err(dev, "no dt node defined\n");
+		dev_err(dev, "yes dt yesde defined\n");
 		return NULL;
 	}
 
@@ -2117,7 +2117,7 @@ static int pl022_probe(struct amba_device *adev, const struct amba_id *id)
 			dev_get_platdata(&adev->dev);
 	struct spi_master *master;
 	struct pl022 *pl022 = NULL;	/*Data for this driver */
-	struct device_node *np = adev->dev.of_node;
+	struct device_yesde *np = adev->dev.of_yesde;
 	int status = 0, i, num_cs;
 
 	dev_info(&adev->dev,
@@ -2126,21 +2126,21 @@ static int pl022_probe(struct amba_device *adev, const struct amba_id *id)
 		platform_info = pl022_platform_data_dt_get(dev);
 
 	if (!platform_info) {
-		dev_err(dev, "probe: no platform data defined\n");
+		dev_err(dev, "probe: yes platform data defined\n");
 		return -ENODEV;
 	}
 
 	if (platform_info->num_chipselect) {
 		num_cs = platform_info->num_chipselect;
 	} else {
-		dev_err(dev, "probe: no chip select defined\n");
+		dev_err(dev, "probe: yes chip select defined\n");
 		return -ENODEV;
 	}
 
 	/* Allocate master with space for data */
 	master = spi_alloc_master(dev, sizeof(struct pl022));
 	if (master == NULL) {
-		dev_err(&adev->dev, "probe - cannot alloc SPI master\n");
+		dev_err(&adev->dev, "probe - canyest alloc SPI master\n");
 		return -ENOMEM;
 	}
 
@@ -2153,7 +2153,7 @@ static int pl022_probe(struct amba_device *adev, const struct amba_id *id)
 					  GFP_KERNEL);
 	if (!pl022->chipselects) {
 		status = -ENOMEM;
-		goto err_no_mem;
+		goto err_yes_mem;
 	}
 
 	/*
@@ -2168,7 +2168,7 @@ static int pl022_probe(struct amba_device *adev, const struct amba_id *id)
 	master->transfer_one_message = pl022_transfer_one_message;
 	master->unprepare_transfer_hardware = pl022_unprepare_transfer_hardware;
 	master->rt = platform_info->rt;
-	master->dev.of_node = dev->of_node;
+	master->dev.of_yesde = dev->of_yesde;
 
 	if (platform_info->num_chipselect && platform_info->chipselects) {
 		for (i = 0; i < num_cs; i++)
@@ -2182,7 +2182,7 @@ static int pl022_probe(struct amba_device *adev, const struct amba_id *id)
 
 			if (cs_gpio == -EPROBE_DEFER) {
 				status = -EPROBE_DEFER;
-				goto err_no_gpio;
+				goto err_yes_gpio;
 			}
 
 			pl022->chipselects[i] = cs_gpio;
@@ -2190,11 +2190,11 @@ static int pl022_probe(struct amba_device *adev, const struct amba_id *id)
 			if (gpio_is_valid(cs_gpio)) {
 				if (devm_gpio_request(dev, cs_gpio, "ssp-pl022"))
 					dev_err(&adev->dev,
-						"could not request %d gpio\n",
+						"could yest request %d gpio\n",
 						cs_gpio);
 				else if (gpio_direction_output(cs_gpio, 1))
 					dev_err(&adev->dev,
-						"could not set gpio %d as output\n",
+						"could yest set gpio %d as output\n",
 						cs_gpio);
 			}
 		}
@@ -2212,14 +2212,14 @@ static int pl022_probe(struct amba_device *adev, const struct amba_id *id)
 
 	status = amba_request_regions(adev, NULL);
 	if (status)
-		goto err_no_ioregion;
+		goto err_yes_ioregion;
 
 	pl022->phybase = adev->res.start;
 	pl022->virtbase = devm_ioremap(dev, adev->res.start,
 				       resource_size(&adev->res));
 	if (pl022->virtbase == NULL) {
 		status = -ENOMEM;
-		goto err_no_ioremap;
+		goto err_yes_ioremap;
 	}
 	dev_info(&adev->dev, "mapped registers from %pa to %p\n",
 		&adev->res.start, pl022->virtbase);
@@ -2227,14 +2227,14 @@ static int pl022_probe(struct amba_device *adev, const struct amba_id *id)
 	pl022->clk = devm_clk_get(&adev->dev, NULL);
 	if (IS_ERR(pl022->clk)) {
 		status = PTR_ERR(pl022->clk);
-		dev_err(&adev->dev, "could not retrieve SSP/SPI bus clock\n");
-		goto err_no_clk;
+		dev_err(&adev->dev, "could yest retrieve SSP/SPI bus clock\n");
+		goto err_yes_clk;
 	}
 
 	status = clk_prepare_enable(pl022->clk);
 	if (status) {
-		dev_err(&adev->dev, "could not enable SSP/SPI bus clock\n");
-		goto err_no_clk_en;
+		dev_err(&adev->dev, "could yest enable SSP/SPI bus clock\n");
+		goto err_yes_clk_en;
 	}
 
 	/* Initialize transfer pump */
@@ -2249,15 +2249,15 @@ static int pl022_probe(struct amba_device *adev, const struct amba_id *id)
 	status = devm_request_irq(dev, adev->irq[0], pl022_interrupt_handler,
 				  0, "pl022", pl022);
 	if (status < 0) {
-		dev_err(&adev->dev, "probe - cannot get IRQ (%d)\n", status);
-		goto err_no_irq;
+		dev_err(&adev->dev, "probe - canyest get IRQ (%d)\n", status);
+		goto err_yes_irq;
 	}
 
 	/* Get DMA channels, try autoconfiguration first */
 	status = pl022_dma_autoprobe(pl022);
 	if (status == -EPROBE_DEFER) {
 		dev_dbg(dev, "deferring probe to get DMA channel\n");
-		goto err_no_irq;
+		goto err_yes_irq;
 	}
 
 	/* If that failed, use channels from platform_info */
@@ -2295,15 +2295,15 @@ static int pl022_probe(struct amba_device *adev, const struct amba_id *id)
  err_spi_register:
 	if (platform_info->enable_dma)
 		pl022_dma_remove(pl022);
- err_no_irq:
+ err_yes_irq:
 	clk_disable_unprepare(pl022->clk);
- err_no_clk_en:
- err_no_clk:
- err_no_ioremap:
+ err_yes_clk_en:
+ err_yes_clk:
+ err_yes_ioremap:
 	amba_release_regions(adev);
- err_no_ioregion:
- err_no_gpio:
- err_no_mem:
+ err_yes_ioregion:
+ err_yes_gpio:
+ err_yes_mem:
 	spi_master_put(master);
 	return status;
 }
@@ -2317,10 +2317,10 @@ pl022_remove(struct amba_device *adev)
 		return 0;
 
 	/*
-	 * undo pm_runtime_put() in probe.  I assume that we're not
+	 * undo pm_runtime_put() in probe.  I assume that we're yest
 	 * accessing the primecell here.
 	 */
-	pm_runtime_get_noresume(&adev->dev);
+	pm_runtime_get_yesresume(&adev->dev);
 
 	load_ssp_default_config(pl022);
 	if (pl022->master_info->enable_dma)
@@ -2460,10 +2460,10 @@ static const struct amba_id pl022_ids[] = {
 	},
 	{
 		/*
-		 * ST-Ericsson derivative "PL023" (this is not
+		 * ST-Ericsson derivative "PL023" (this is yest
 		 * an official ARM number), this is a PL022 SSP block
 		 * stripped to SPI mode only, it has 32bit wide
-		 * and 32 locations deep TX/RX FIFO but no extended
+		 * and 32 locations deep TX/RX FIFO but yes extended
 		 * CR0/CR1 register
 		 */
 		.id	= 0x00080023,

@@ -9,7 +9,7 @@
 
 #include <linux/kernel.h>
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/err.h>
 #include <linux/io.h>
 
@@ -93,7 +93,7 @@ u32 omap4_prminst_rmw_inst_reg_bits(u32 mask, u32 bits, u8 part, s16 inst,
  * @shift: register bit shift corresponding to the reset line to check
  *
  * Returns 1 if the (sub)module hardreset line is currently asserted,
- * 0 if the (sub)module hardreset line is not currently asserted, or
+ * 0 if the (sub)module hardreset line is yest currently asserted, or
  * -EINVAL upon parameter error.
  */
 int omap4_prminst_is_hardreset_asserted(u8 shift, u8 part, s16 inst,
@@ -147,7 +147,7 @@ int omap4_prminst_assert_hardreset(u8 shift, u8 part, s16 inst,
  * take the submodule out of reset and wait until the PRCM indicates
  * that the reset has completed before returning.  Returns 0 upon success or
  * -EINVAL upon an argument error, -EEXIST if the submodule was already out
- * of reset, or -EBUSY if the submodule did not exit reset promptly.
+ * of reset, or -EBUSY if the submodule did yest exit reset promptly.
  */
 int omap4_prminst_deassert_hardreset(u8 shift, u8 st_shift, u8 part, s16 inst,
 				     u16 rstctrl_offs, u16 rstst_offs)

@@ -30,7 +30,7 @@ static int nmk_rng_read(struct hwrng *rng, void *data, size_t max, bool wait)
 
 /* we have at most one RNG per machine, granted */
 static struct hwrng nmk_rng = {
-	.name		= "nomadik",
+	.name		= "yesmadik",
 	.read		= nmk_rng_read,
 };
 
@@ -41,7 +41,7 @@ static int nmk_rng_probe(struct amba_device *dev, const struct amba_id *id)
 
 	rng_clk = devm_clk_get(&dev->dev, NULL);
 	if (IS_ERR(rng_clk)) {
-		dev_err(&dev->dev, "could not get rng clock\n");
+		dev_err(&dev->dev, "could yest get rng clock\n");
 		ret = PTR_ERR(rng_clk);
 		return ret;
 	}

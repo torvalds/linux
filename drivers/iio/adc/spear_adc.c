@@ -70,7 +70,7 @@ struct adc_regs_spear6xx {
 };
 
 struct spear_adc_state {
-	struct device_node *np;
+	struct device_yesde *np;
 	struct adc_regs_spear3xx __iomem *adc_base_spear3xx;
 	struct adc_regs_spear6xx __iomem *adc_base_spear6xx;
 	struct clk *clk;
@@ -257,7 +257,7 @@ static const struct iio_info spear_adc_info = {
 
 static int spear_adc_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	struct device *dev = &pdev->dev;
 	struct spear_adc_state *st;
 	struct iio_dev *indio_dev = NULL;

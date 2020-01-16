@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /* 
  * Copyright (C) 2002 Jeff Dike (jdike@karaya.com)
- * Copyright (C) 2015 Richard Weinberger (richard@nod.at)
+ * Copyright (C) 2015 Richard Weinberger (richard@yesd.at)
  */
 
 #ifndef __UM_UACCESS_H
@@ -18,7 +18,7 @@
 	  ((unsigned long) (addr) + (size) <= FIXADDR_USER_END) && \
 	  ((unsigned long) (addr) + (size) >= (unsigned long)(addr)))
 
-#define __addr_range_nowrap(addr, size) \
+#define __addr_range_yeswrap(addr, size) \
 	((unsigned long) (addr) <= ((unsigned long) (addr) + (size)))
 
 extern unsigned long raw_copy_from_user(void *to, const void __user *from, unsigned long n);
@@ -40,7 +40,7 @@ static inline int __access_ok(unsigned long addr, unsigned long size);
 
 static inline int __access_ok(unsigned long addr, unsigned long size)
 {
-	return __addr_range_nowrap(addr, size) &&
+	return __addr_range_yeswrap(addr, size) &&
 		(__under_task_size(addr, size) ||
 		__access_ok_vsyscall(addr, size) ||
 		uaccess_kernel());

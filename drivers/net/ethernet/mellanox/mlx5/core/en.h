@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015-2016, Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2015-2016, Mellayesx Techyeslogies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -291,7 +291,7 @@ struct mlx5e_dcbx {
 	struct mlx5e_cee_config    cee_cfg; /* pending configuration */
 	u8                         dscp_app_cnt;
 
-	/* The only setting that cannot be read from FW */
+	/* The only setting that canyest be read from FW */
 	u8                         tc_tsa[IEEE_8021QAZ_MAX_TCS];
 	u8                         cap;
 
@@ -438,7 +438,7 @@ struct mlx5e_dma_info {
  * distinguish between them to clean up things in a proper way.
  */
 enum mlx5e_xdp_xmit_mode {
-	/* An xdp_frame was transmitted due to either XDP_REDIRECT from another
+	/* An xdp_frame was transmitted due to either XDP_REDIRECT from ayesther
 	 * device or XDP_TX from an XSK RQ. The frame has to be unmapped and
 	 * returned.
 	 */
@@ -584,7 +584,7 @@ struct mlx5e_mpw_info {
 
 #define MLX5E_MAX_RX_FRAGS 4
 
-/* a single cache unit is capable to serve one napi call (for non-striding rq)
+/* a single cache unit is capable to serve one napi call (for yesn-striding rq)
  * or a MPWQE (for striding rq).
  */
 #define MLX5E_CACHE_UNIT	(MLX5_MPWRQ_PAGES_PER_WQE > NAPI_POLL_WEIGHT ? \
@@ -805,7 +805,7 @@ struct mlx5e_hv_vhca_stats_agent {
 struct mlx5e_xsk {
 	/* UMEMs are stored separately from channels, because we don't want to
 	 * lose them when channels are recreated. The kernel also stores UMEMs,
-	 * but it doesn't distinguish between zero-copy and non-zero-copy UMEMs,
+	 * but it doesn't distinguish between zero-copy and yesn-zero-copy UMEMs,
 	 * so rely on our mechanism.
 	 */
 	struct xdp_umem **umems;
@@ -856,7 +856,7 @@ struct mlx5e_priv {
 	struct hwtstamp_config     tstamp;
 	u16                        q_counter;
 	u16                        drop_rq_q_counter;
-	struct notifier_block      events_nb;
+	struct yestifier_block      events_nb;
 
 #ifdef CONFIG_MLX5_CORE_EN_DCB
 	struct mlx5e_dcbx          dcbx;
@@ -955,13 +955,13 @@ struct sk_buff *
 mlx5e_skb_from_cqe_mpwrq_linear(struct mlx5e_rq *rq, struct mlx5e_mpw_info *wi,
 				u16 cqe_bcnt, u32 head_offset, u32 page_idx);
 struct sk_buff *
-mlx5e_skb_from_cqe_mpwrq_nonlinear(struct mlx5e_rq *rq, struct mlx5e_mpw_info *wi,
+mlx5e_skb_from_cqe_mpwrq_yesnlinear(struct mlx5e_rq *rq, struct mlx5e_mpw_info *wi,
 				   u16 cqe_bcnt, u32 head_offset, u32 page_idx);
 struct sk_buff *
 mlx5e_skb_from_cqe_linear(struct mlx5e_rq *rq, struct mlx5_cqe64 *cqe,
 			  struct mlx5e_wqe_frag_info *wi, u32 cqe_bcnt);
 struct sk_buff *
-mlx5e_skb_from_cqe_nonlinear(struct mlx5e_rq *rq, struct mlx5_cqe64 *cqe,
+mlx5e_skb_from_cqe_yesnlinear(struct mlx5e_rq *rq, struct mlx5_cqe64 *cqe,
 			     struct mlx5e_wqe_frag_info *wi, u32 cqe_bcnt);
 
 void mlx5e_update_stats(struct mlx5e_priv *priv);

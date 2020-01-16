@@ -108,11 +108,11 @@ static void owl_fw_cb(const struct firmware *fw, void *context)
 	complete(&ctx->eeprom_load);
 
 	if (!fw) {
-		dev_err(&pdev->dev, "no eeprom data received.\n");
+		dev_err(&pdev->dev, "yes eeprom data received.\n");
 		goto release;
 	}
 
-	/* also note that we are doing *u16 operations on the file */
+	/* also yeste that we are doing *u16 operations on the file */
 	if (fw->size > 4096 || fw->size < 0x200 || (fw->size & 1) == 1) {
 		dev_err(&pdev->dev, "eeprom file has an invalid size.\n");
 		goto release;
@@ -166,7 +166,7 @@ static int owl_probe(struct pci_dev *pdev,
 
 	eeprom_name = owl_get_eeprom_name(pdev);
 	if (!eeprom_name) {
-		dev_err(&pdev->dev, "no eeprom filename found.\n");
+		dev_err(&pdev->dev, "yes eeprom filename found.\n");
 		return -ENODEV;
 	}
 
@@ -177,7 +177,7 @@ static int owl_probe(struct pci_dev *pdev,
 	init_completion(&ctx->eeprom_load);
 
 	pci_set_drvdata(pdev, ctx);
-	err = request_firmware_nowait(THIS_MODULE, true, eeprom_name,
+	err = request_firmware_yeswait(THIS_MODULE, true, eeprom_name,
 				      &pdev->dev, GFP_KERNEL, pdev, owl_fw_cb);
 	if (err)
 		dev_err(&pdev->dev, "failed to request caldata (%d).\n", err);

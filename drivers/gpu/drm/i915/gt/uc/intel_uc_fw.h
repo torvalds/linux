@@ -39,11 +39,11 @@ struct intel_gt;
  */
 
 enum intel_uc_fw_status {
-	INTEL_UC_FIRMWARE_NOT_SUPPORTED = -1, /* no uc HW */
+	INTEL_UC_FIRMWARE_NOT_SUPPORTED = -1, /* yes uc HW */
 	INTEL_UC_FIRMWARE_UNINITIALIZED = 0, /* used to catch checks done too early */
 	INTEL_UC_FIRMWARE_DISABLED, /* disabled */
 	INTEL_UC_FIRMWARE_SELECTED, /* selected the blob we want to load */
-	INTEL_UC_FIRMWARE_MISSING, /* blob not found on the system */
+	INTEL_UC_FIRMWARE_MISSING, /* blob yest found on the system */
 	INTEL_UC_FIRMWARE_ERROR, /* invalid format or version */
 	INTEL_UC_FIRMWARE_AVAILABLE, /* blob found and copied in mem */
 	INTEL_UC_FIRMWARE_FAIL, /* failed to xfer or init/auth the fw */
@@ -65,7 +65,7 @@ struct intel_uc_fw {
 	enum intel_uc_fw_type type;
 	union {
 		const enum intel_uc_fw_status status;
-		enum intel_uc_fw_status __status; /* no accidental overwrites */
+		enum intel_uc_fw_status __status; /* yes accidental overwrites */
 	};
 	const char *path;
 	bool user_overridden;
@@ -74,13 +74,13 @@ struct intel_uc_fw {
 
 	/*
 	 * The firmware build process will generate a version header file with major and
-	 * minor version defined. The versions are built into CSS header of firmware.
+	 * miyesr version defined. The versions are built into CSS header of firmware.
 	 * i915 kernel driver set the minimal firmware version required per platform.
 	 */
 	u16 major_ver_wanted;
-	u16 minor_ver_wanted;
+	u16 miyesr_ver_wanted;
 	u16 major_ver_found;
-	u16 minor_ver_found;
+	u16 miyesr_ver_found;
 
 	u32 rsa_size;
 	u32 ucode_size;

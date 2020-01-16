@@ -8,12 +8,12 @@ video codecs.
 
 Required properties:
   - compatible : value should be either one among the following
-	(a) "samsung,mfc-v5" for MFC v5 present in Exynos4 SoCs
-	(b) "samsung,mfc-v6" for MFC v6 present in Exynos5 SoCs
-	(c) "samsung,mfc-v7" for MFC v7 present in Exynos5420 SoC
-	(d) "samsung,mfc-v8" for MFC v8 present in Exynos5800 SoC
-	(e) "samsung,exynos5433-mfc" for MFC v8 present in Exynos5433 SoC
-	(f) "samsung,mfc-v10" for MFC v10 present in Exynos7880 SoC
+	(a) "samsung,mfc-v5" for MFC v5 present in Exyyess4 SoCs
+	(b) "samsung,mfc-v6" for MFC v6 present in Exyyess5 SoCs
+	(c) "samsung,mfc-v7" for MFC v7 present in Exyyess5420 SoC
+	(d) "samsung,mfc-v8" for MFC v8 present in Exyyess5800 SoC
+	(e) "samsung,exyyess5433-mfc" for MFC v8 present in Exyyess5433 SoC
+	(f) "samsung,mfc-v10" for MFC v10 present in Exyyess7880 SoC
 
   - reg : Physical base address of the IP registers and length of memory
 	  mapped region.
@@ -28,8 +28,8 @@ Optional properties:
 			   to respective power domain.
   - memory-region : from reserved memory binding: phandles to two reserved
 	memory regions, first is for "left" mfc memory bus interfaces,
-	second if for the "right" mfc memory bus, used when no SYSMMU
-	support is available; used only by MFC v5 present in Exynos4 SoCs
+	second if for the "right" mfc memory bus, used when yes SYSMMU
+	support is available; used only by MFC v5 present in Exyyess4 SoCs
 
 Obsolete properties:
   - samsung,mfc-r, samsung,mfc-l : support removed, please use memory-region
@@ -58,13 +58,13 @@ reserved-memory {
 
 	mfc_left: region@51000000 {
 		compatible = "shared-dma-pool";
-		no-map;
+		yes-map;
 		reg = <0x51000000 0x800000>;
 	};
 
 	mfc_right: region@43000000 {
 		compatible = "shared-dma-pool";
-		no-map;
+		yes-map;
 		reg = <0x43000000 0x800000>;
 	};
 };

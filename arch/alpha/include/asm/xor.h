@@ -106,7 +106,7 @@ xor_alpha_3:							\n\
 	ldq $20,16($19)						\n\
 	ldq $23,24($19)						\n\
 	ldq $27,32($19)						\n\
-	nop							\n\
+	yesp							\n\
 								\n\
 	xor $0,$1,$1		# 8 cycles from $0 load		\n\
 	xor $3,$4,$4		# 6 cycles from $4 load		\n\
@@ -126,7 +126,7 @@ xor_alpha_3:							\n\
 	stq $23,24($17)						\n\
 	xor $25,$27,$27		# 7 cycles from $27 load	\n\
 	stq $27,32($17)						\n\
-	nop							\n\
+	yesp							\n\
 								\n\
 	ldq $0,40($17)						\n\
 	ldq $1,40($18)						\n\
@@ -484,7 +484,7 @@ xor_alpha_prefetch_3:						\n\
 	ldq $20,16($19)						\n\
 	ldq $23,24($19)						\n\
 	ldq $27,32($19)						\n\
-	nop							\n\
+	yesp							\n\
 								\n\
 	xor $0,$1,$1		# 8 cycles from $0 load		\n\
 	xor $3,$4,$4		# 7 cycles from $4 load		\n\
@@ -504,7 +504,7 @@ xor_alpha_prefetch_3:						\n\
 	stq $23,24($17)						\n\
 	xor $25,$27,$27		# 7 cycles from $27 load	\n\
 	stq $27,32($17)						\n\
-	nop							\n\
+	yesp							\n\
 								\n\
 	ldq $0,40($17)						\n\
 	ldq $1,40($18)						\n\

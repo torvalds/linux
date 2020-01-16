@@ -5,7 +5,7 @@
 #include <linux/in.h>
 #include <linux/pim.h>
 #include <net/fib_rules.h>
-#include <net/fib_notifier.h>
+#include <net/fib_yestifier.h>
 #include <uapi/linux/mroute.h>
 #include <linux/mroute_base.h>
 

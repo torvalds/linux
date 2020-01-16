@@ -36,7 +36,7 @@ struct snd_soc_dapm_route;
 
 /* dynamic object type */
 enum snd_soc_dobj_type {
-	SND_SOC_DOBJ_NONE		= 0,	/* object is not dynamic */
+	SND_SOC_DOBJ_NONE		= 0,	/* object is yest dynamic */
 	SND_SOC_DOBJ_MIXER,
 	SND_SOC_DOBJ_BYTES,
 	SND_SOC_DOBJ_ENUM,
@@ -70,7 +70,7 @@ struct snd_soc_dobj {
 		struct snd_soc_dobj_control control;
 		struct snd_soc_dobj_widget widget;
 	};
-	void *private; /* core does not touch this */
+	void *private; /* core does yest touch this */
 };
 
 /*

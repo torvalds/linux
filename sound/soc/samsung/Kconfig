@@ -77,7 +77,7 @@ config SND_SOC_SAMSUNG_S3C24XX_UDA134X
 config SND_SOC_SAMSUNG_SIMTEC
 	tristate
 	help
-	  Internal node for common S3C24XX/Simtec suppor
+	  Internal yesde for common S3C24XX/Simtec suppor
 
 config SND_SOC_SAMSUNG_SIMTEC_TLV320AIC23
 	tristate "SoC I2S Audio support for TLV320AIC23 on Simtec boards"
@@ -177,14 +177,14 @@ config SND_SOC_LITTLEMILL
 	select SND_SOC_WM8994
 
 config SND_SOC_SNOW
-	tristate "Audio support for Google Snow boards"
+	tristate "Audio support for Google Syesw boards"
 	depends on I2C
 	select SND_SOC_MAX98090
 	select SND_SOC_MAX98095
 	select SND_SAMSUNG_I2S
 	help
-	  Say Y if you want to add audio support for various Snow
-	  boards based on Exynos5 series of SoCs.
+	  Say Y if you want to add audio support for various Syesw
+	  boards based on Exyyess5 series of SoCs.
 
 config SND_SOC_ODROID
 	tristate "Audio support for Odroid XU3/XU4"

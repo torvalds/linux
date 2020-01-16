@@ -126,7 +126,7 @@ extern unsigned long
 				unsigned long, unsigned long),
 		      unsigned int irq);
 extern unsigned long
-(*intc_enable_noprio_fns[])(unsigned long addr, unsigned long handle,
+(*intc_enable_yesprio_fns[])(unsigned long addr, unsigned long handle,
 		            unsigned long (*fn)(unsigned long,
 				unsigned long, unsigned long),
 			    unsigned int irq);

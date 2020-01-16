@@ -29,7 +29,7 @@
 /*
  *  Difference in LOCK_CS between imx23 and imx28 :
  *  This bit may impact the _POWER_ consumption. So some chips
- *  do not set it.
+ *  do yest set it.
  */
 #define MX23_BP_GPMI_CTRL0_LOCK_CS			22
 #define MX28_BP_GPMI_CTRL0_LOCK_CS			27

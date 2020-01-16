@@ -15,7 +15,7 @@ static void hl_ctx_fini(struct hl_ctx *ctx)
 	int i;
 
 	/*
-	 * If we arrived here, there are no jobs waiting for this context
+	 * If we arrived here, there are yes jobs waiting for this context
 	 * on its queues so we can safely remove it.
 	 * This is because for each CS, we increment the ref count and for
 	 * every CS that was finished we decrement it and we won't arrive
@@ -26,7 +26,7 @@ static void hl_ctx_fini(struct hl_ctx *ctx)
 		dma_fence_put(ctx->cs_pending[i]);
 
 	if (ctx->asid != HL_KERNEL_ASID_ID) {
-		/* The engines are stopped as there is no executing CS, but the
+		/* The engines are stopped as there is yes executing CS, but the
 		 * Coresight might be still working by accessing addresses
 		 * related to the stopped engines. Hence stop it explicitly.
 		 * Stop only if this is the compute context, as there can be
@@ -176,7 +176,7 @@ struct dma_fence *hl_ctx_get_fence(struct hl_ctx *ctx, u64 seq)
 	spin_lock(&ctx->cs_lock);
 
 	if (seq >= ctx->cs_sequence) {
-		dev_notice_ratelimited(hdev->dev,
+		dev_yestice_ratelimited(hdev->dev,
 			"Can't wait on seq %llu because current CS is at seq %llu\n",
 			seq, ctx->cs_sequence);
 		spin_unlock(&ctx->cs_lock);

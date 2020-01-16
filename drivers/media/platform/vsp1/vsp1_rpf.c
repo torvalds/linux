@@ -140,13 +140,13 @@ static void rpf_configure_stream(struct vsp1_entity *entity,
 	 * As alpha premultiplication is available in the BRx for both Gen2 and
 	 * Gen3 we handle it there and use the Gen3 alpha multiplier for global
 	 * alpha multiplication only. This however prevents conversion to
-	 * premultiplied alpha if no BRx is present in the pipeline. If that use
+	 * premultiplied alpha if yes BRx is present in the pipeline. If that use
 	 * case turns out to be useful we will revisit the implementation (for
 	 * Gen3 only).
 	 *
 	 * We enable alpha multiplication on Gen3 using the fixed alpha value
 	 * set through the V4L2_CID_ALPHA_COMPONENT control when the input
-	 * contains an alpha channel. On Gen2 the global alpha is ignored in
+	 * contains an alpha channel. On Gen2 the global alpha is igyesred in
 	 * that case.
 	 *
 	 * In all cases, disable color keying.
@@ -301,7 +301,7 @@ static void rpf_configure_partition(struct vsp1_entity *entity,
 	}
 
 	/*
-	 * On Gen3 hardware the SPUVS bit has no effect on 3-planar
+	 * On Gen3 hardware the SPUVS bit has yes effect on 3-planar
 	 * formats. Swap the U and V planes manually in that case.
 	 */
 	if (vsp1->info->gen == 3 && format->num_planes == 3 &&

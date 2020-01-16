@@ -27,12 +27,12 @@
   {
     "EventCode": "0x4D140",
     "EventName": "PM_MRK_DATA_FROM_ON_CHIP_CACHE",
-    "BriefDescription": "The processor's data cache was reloaded either shared or modified data from another core's L2/L3 on the same chip due to a marked load"
+    "BriefDescription": "The processor's data cache was reloaded either shared or modified data from ayesther core's L2/L3 on the same chip due to a marked load"
   },
   {
     "EventCode": "0x3F14C",
     "EventName": "PM_MRK_DPTEG_FROM_DL4",
-    "BriefDescription": "A Page Table Entry was loaded into the TLB from another chip's L4 on a different Node or Group (Distant) due to a marked data side request. When using Radix Page Translation, this count excludes PDE reloads. Only PTE reloads are included"
+    "BriefDescription": "A Page Table Entry was loaded into the TLB from ayesther chip's L4 on a different Node or Group (Distant) due to a marked data side request. When using Radix Page Translation, this count excludes PDE reloads. Only PTE reloads are included"
   },
   {
     "EventCode": "0x1E040",
@@ -47,7 +47,7 @@
   {
     "EventCode": "0x1E054",
     "EventName": "PM_CMPLU_STALL",
-    "BriefDescription": "Nothing completed and ICT not empty"
+    "BriefDescription": "Nothing completed and ICT yest empty"
   },
   {
     "EventCode": "0x2",
@@ -77,7 +77,7 @@
   {
     "EventCode": "0x4F146",
     "EventName": "PM_MRK_DPTEG_FROM_L21_MOD",
-    "BriefDescription": "A Page Table Entry was loaded into the TLB with Modified (M) data from another core's L2 on the same chip due to a marked data side request. When using Radix Page Translation, this count excludes PDE reloads. Only PTE reloads are included"
+    "BriefDescription": "A Page Table Entry was loaded into the TLB with Modified (M) data from ayesther core's L2 on the same chip due to a marked data side request. When using Radix Page Translation, this count excludes PDE reloads. Only PTE reloads are included"
   },
   {
     "EventCode": "0x10056",
@@ -87,22 +87,22 @@
   {
     "EventCode": "0x3C04C",
     "EventName": "PM_DATA_FROM_DL4",
-    "BriefDescription": "The processor's data cache was reloaded from another chip's L4 on a different Node or Group (Distant) due to a demand load"
+    "BriefDescription": "The processor's data cache was reloaded from ayesther chip's L4 on a different Node or Group (Distant) due to a demand load"
   },
   {
     "EventCode": "0x4E046",
     "EventName": "PM_DPTEG_FROM_L21_MOD",
-    "BriefDescription": "A Page Table Entry was loaded into the TLB with Modified (M) data from another core's L2 on the same chip due to a data side request. When using Radix Page Translation, this count excludes PDE reloads. Only PTE reloads are included"
+    "BriefDescription": "A Page Table Entry was loaded into the TLB with Modified (M) data from ayesther core's L2 on the same chip due to a data side request. When using Radix Page Translation, this count excludes PDE reloads. Only PTE reloads are included"
   },
   {
     "EventCode": "0x2E016",
     "EventName": "PM_NTC_ISSUE_HELD_ARB",
-    "BriefDescription": "The NTC instruction is being held at dispatch because it lost arbitration onto the issue pipe to another instruction (from the same thread or a different thread)"
+    "BriefDescription": "The NTC instruction is being held at dispatch because it lost arbitration onto the issue pipe to ayesther instruction (from the same thread or a different thread)"
   },
   {
     "EventCode": "0x15156",
     "EventName": "PM_SYNC_MRK_FX_DIVIDE",
-    "BriefDescription": "Marked fixed point divide that can cause a synchronous interrupt"
+    "BriefDescription": "Marked fixed point divide that can cause a synchroyesus interrupt"
   },
   {
     "EventCode": "0x1C056",
@@ -142,7 +142,7 @@
   {
     "EventCode": "0x4E010",
     "EventName": "PM_ICT_NOSLOT_IC_L3MISS",
-    "BriefDescription": "Ict empty for this thread due to icache misses that were sourced from beyond the local L3. The source could be local/remote/distant memory or another core's cache"
+    "BriefDescription": "Ict empty for this thread due to icache misses that were sourced from beyond the local L3. The source could be local/remote/distant memory or ayesther core's cache"
   },
   {
     "EventCode": "0x4D01C",
@@ -157,7 +157,7 @@
   {
     "EventCode": "0x4F14A",
     "EventName": "PM_MRK_DPTEG_FROM_OFF_CHIP_CACHE",
-    "BriefDescription": "A Page Table Entry was loaded into the TLB either shared or modified data from another core's L2/L3 on a different chip (remote or distant) due to a marked data side request. When using Radix Page Translation, this count excludes PDE reloads. Only PTE reloads are included"
+    "BriefDescription": "A Page Table Entry was loaded into the TLB either shared or modified data from ayesther core's L2/L3 on a different chip (remote or distant) due to a marked data side request. When using Radix Page Translation, this count excludes PDE reloads. Only PTE reloads are included"
   },
   {
     "EventCode": "0x30058",
@@ -167,7 +167,7 @@
   {
     "EventCode": "0x100F8",
     "EventName": "PM_ICT_NOSLOT_CYC",
-    "BriefDescription": "Number of cycles the ICT has no itags assigned to this thread"
+    "BriefDescription": "Number of cycles the ICT has yes itags assigned to this thread"
   },
   {
     "EventCode": "0x3E042",
@@ -182,12 +182,12 @@
   {
     "EventCode": "0x1F058",
     "EventName": "PM_RADIX_PWC_L2_PTE_FROM_L2",
-    "BriefDescription": "A Page Table Entry was reloaded to a level 2 page walk cache from the core's L2 data cache. This implies that level 3 and level 4 PWC accesses were not necessary for this translation"
+    "BriefDescription": "A Page Table Entry was reloaded to a level 2 page walk cache from the core's L2 data cache. This implies that level 3 and level 4 PWC accesses were yest necessary for this translation"
   },
   {
     "EventCode": "0x1D14A",
     "EventName": "PM_MRK_DATA_FROM_RL2L3_MOD",
-    "BriefDescription": "The processor's data cache was reloaded with Modified (M) data from another chip's L2 or L3 on the same Node or Group (Remote), as this chip due to a marked load"
+    "BriefDescription": "The processor's data cache was reloaded with Modified (M) data from ayesther chip's L2 or L3 on the same Node or Group (Remote), as this chip due to a marked load"
   },
   {
     "EventCode": "0x10050",
@@ -217,7 +217,7 @@
   {
     "EventCode": "0x2000A",
     "EventName": "PM_HV_CYC",
-    "BriefDescription": "Cycles in which msr_hv is high. Note that this event does not take msr_pr into consideration"
+    "BriefDescription": "Cycles in which msr_hv is high. Note that this event does yest take msr_pr into consideration"
   },
   {
     "EventCode": "0x1F144",
@@ -232,7 +232,7 @@
   {
     "EventCode": "0x2C046",
     "EventName": "PM_DATA_FROM_RL2L3_MOD",
-    "BriefDescription": "The processor's data cache was reloaded with Modified (M) data from another chip's L2 or L3 on the same Node or Group (Remote), as this chip due to a demand load"
+    "BriefDescription": "The processor's data cache was reloaded with Modified (M) data from ayesther chip's L2 or L3 on the same Node or Group (Remote), as this chip due to a demand load"
   },
   {
     "EventCode": "0x20052",
@@ -247,7 +247,7 @@
   {
     "EventCode": "0x1E04A",
     "EventName": "PM_DPTEG_FROM_RL2L3_SHR",
-    "BriefDescription": "A Page Table Entry was loaded into the TLB with Shared (S) data from another chip's L2 or L3 on the same Node or Group (Remote), as this chip due to a data side request. When using Radix Page Translation, this count excludes PDE reloads. Only PTE reloads are included"
+    "BriefDescription": "A Page Table Entry was loaded into the TLB with Shared (S) data from ayesther chip's L2 or L3 on the same Node or Group (Remote), as this chip due to a data side request. When using Radix Page Translation, this count excludes PDE reloads. Only PTE reloads are included"
   },
   {
     "EventCode": "0x10064",
@@ -257,12 +257,12 @@
   {
     "EventCode": "0x2E046",
     "EventName": "PM_DPTEG_FROM_RL2L3_MOD",
-    "BriefDescription": "A Page Table Entry was loaded into the TLB with Modified (M) data from another chip's L2 or L3 on the same Node or Group (Remote), as this chip due to a data side request. When using Radix Page Translation, this count excludes PDE reloads. Only PTE reloads are included"
+    "BriefDescription": "A Page Table Entry was loaded into the TLB with Modified (M) data from ayesther chip's L2 or L3 on the same Node or Group (Remote), as this chip due to a data side request. When using Radix Page Translation, this count excludes PDE reloads. Only PTE reloads are included"
   },
   {
     "EventCode": "0x4F14C",
     "EventName": "PM_MRK_DPTEG_FROM_DMEM",
-    "BriefDescription": "A Page Table Entry was loaded into the TLB from another chip's memory on the same Node or Group (Distant) due to a marked data side request. When using Radix Page Translation, this count excludes PDE reloads. Only PTE reloads are included"
+    "BriefDescription": "A Page Table Entry was loaded into the TLB from ayesther chip's memory on the same Node or Group (Distant) due to a marked data side request. When using Radix Page Translation, this count excludes PDE reloads. Only PTE reloads are included"
   },
   {
     "EventCode": "0x2E042",
@@ -282,7 +282,7 @@
   {
     "EventCode": "0x4C04C",
     "EventName": "PM_DATA_FROM_DMEM",
-    "BriefDescription": "The processor's data cache was reloaded from another chip's memory on the same Node or Group (Distant) due to a demand load"
+    "BriefDescription": "The processor's data cache was reloaded from ayesther chip's memory on the same Node or Group (Distant) due to a demand load"
   },
   {
     "EventCode": "0x30022",
@@ -302,12 +302,12 @@
   {
     "EventCode": "0x3D148",
     "EventName": "PM_MRK_DATA_FROM_L21_MOD_CYC",
-    "BriefDescription": "Duration in cycles to reload with Modified (M) data from another core's L2 on the same chip due to a marked load"
+    "BriefDescription": "Duration in cycles to reload with Modified (M) data from ayesther core's L2 on the same chip due to a marked load"
   },
   {
     "EventCode": "0x2F146",
     "EventName": "PM_MRK_DPTEG_FROM_RL2L3_MOD",
-    "BriefDescription": "A Page Table Entry was loaded into the TLB with Modified (M) data from another chip's L2 or L3 on the same Node or Group (Remote), as this chip due to a marked data side request. When using Radix Page Translation, this count excludes PDE reloads. Only PTE reloads are included"
+    "BriefDescription": "A Page Table Entry was loaded into the TLB with Modified (M) data from ayesther chip's L2 or L3 on the same Node or Group (Remote), as this chip due to a marked data side request. When using Radix Page Translation, this count excludes PDE reloads. Only PTE reloads are included"
   },
   {
     "EventCode": "0x4E01A",
@@ -322,7 +322,7 @@
   {
     "EventCode": "0x35150",
     "EventName": "PM_MRK_DATA_FROM_RL2L3_SHR",
-    "BriefDescription": "The processor's data cache was reloaded with Shared (S) data from another chip's L2 or L3 on the same Node or Group (Remote), as this chip due to a marked load"
+    "BriefDescription": "The processor's data cache was reloaded with Shared (S) data from ayesther chip's L2 or L3 on the same Node or Group (Remote), as this chip due to a marked load"
   },
   {
     "EventCode": "0x3E052",
@@ -347,7 +347,7 @@
   {
     "EventCode": "0x2404C",
     "EventName": "PM_INST_FROM_MEMORY",
-    "BriefDescription": "The processor's Instruction cache was reloaded from a memory location including L4 from local remote or distant due to an instruction fetch (not prefetch)"
+    "BriefDescription": "The processor's Instruction cache was reloaded from a memory location including L4 from local remote or distant due to an instruction fetch (yest prefetch)"
   },
   {
     "EventCode": "0x30024",
@@ -367,7 +367,7 @@
   {
     "EventCode": "0x30020",
     "EventName": "PM_PMC2_REWIND",
-    "BriefDescription": "PMC2 Rewind Event (did not match condition)"
+    "BriefDescription": "PMC2 Rewind Event (did yest match condition)"
   },
   {
     "EventCode": "0x40064",
@@ -377,7 +377,7 @@
   {
     "EventCode": "0x3F148",
     "EventName": "PM_MRK_DPTEG_FROM_DL2L3_SHR",
-    "BriefDescription": "A Page Table Entry was loaded into the TLB with Shared (S) data from another chip's L2 or L3 on a different Node or Group (Distant), as this chip due to a marked data side request. When using Radix Page Translation, this count excludes PDE reloads. Only PTE reloads are included"
+    "BriefDescription": "A Page Table Entry was loaded into the TLB with Shared (S) data from ayesther chip's L2 or L3 on a different Node or Group (Distant), as this chip due to a marked data side request. When using Radix Page Translation, this count excludes PDE reloads. Only PTE reloads are included"
   },
   {
     "EventCode": "0x4D01E",
@@ -387,17 +387,17 @@
   {
     "EventCode": "0x1F148",
     "EventName": "PM_MRK_DPTEG_FROM_ON_CHIP_CACHE",
-    "BriefDescription": "A Page Table Entry was loaded into the TLB either shared or modified data from another core's L2/L3 on the same chip due to a marked data side request.. When using Radix Page Translation, this count excludes PDE reloads. Only PTE reloads are included"
+    "BriefDescription": "A Page Table Entry was loaded into the TLB either shared or modified data from ayesther core's L2/L3 on the same chip due to a marked data side request.. When using Radix Page Translation, this count excludes PDE reloads. Only PTE reloads are included"
   },
   {
     "EventCode": "0x3E046",
     "EventName": "PM_DPTEG_FROM_L21_SHR",
-    "BriefDescription": "A Page Table Entry was loaded into the TLB with Shared (S) data from another core's L2 on the same chip due to a data side request. When using Radix Page Translation, this count excludes PDE reloads. Only PTE reloads are included"
+    "BriefDescription": "A Page Table Entry was loaded into the TLB with Shared (S) data from ayesther core's L2 on the same chip due to a data side request. When using Radix Page Translation, this count excludes PDE reloads. Only PTE reloads are included"
   },
   {
     "EventCode": "0x2F144",
     "EventName": "PM_MRK_DPTEG_FROM_L31_MOD",
-    "BriefDescription": "A Page Table Entry was loaded into the TLB with Modified (M) data from another core's L3 on the same chip due to a marked data side request. When using Radix Page Translation, this count excludes PDE reloads. Only PTE reloads are included"
+    "BriefDescription": "A Page Table Entry was loaded into the TLB with Modified (M) data from ayesther core's L3 on the same chip due to a marked data side request. When using Radix Page Translation, this count excludes PDE reloads. Only PTE reloads are included"
   },
   {
     "EventCode": "0x14052",
@@ -417,7 +417,7 @@
   {
     "EventCode": "0x40004",
     "EventName": "PM_FXU_FIN",
-    "BriefDescription": "The fixed point unit Unit finished an instruction. Instructions that finish may not necessary complete."
+    "BriefDescription": "The fixed point unit Unit finished an instruction. Instructions that finish may yest necessary complete."
   },
   {
     "EventCode": "0x2C054",
@@ -432,7 +432,7 @@
   {
     "EventCode": "0x2D14E",
     "EventName": "PM_MRK_DATA_FROM_L21_SHR",
-    "BriefDescription": "The processor's data cache was reloaded with Shared (S) data from another core's L2 on the same chip due to a marked load"
+    "BriefDescription": "The processor's data cache was reloaded with Shared (S) data from ayesther core's L2 on the same chip due to a marked load"
   },
   {
     "EventCode": "0x3405C",
@@ -512,7 +512,7 @@
   {
     "EventCode": "0x4D124",
     "EventName": "PM_MRK_DATA_FROM_L31_SHR",
-    "BriefDescription": "The processor's data cache was reloaded with Shared (S) data from another core's L3 on the same chip due to a marked load"
+    "BriefDescription": "The processor's data cache was reloaded with Shared (S) data from ayesther core's L3 on the same chip due to a marked load"
   },
   {
     "EventCode": "0x400F8",
@@ -527,6 +527,6 @@
   {
     "EventCode": "0x1D154",
     "EventName": "PM_MRK_DATA_FROM_L21_SHR_CYC",
-    "BriefDescription": "Duration in cycles to reload with Shared (S) data from another core's L2 on the same chip due to a marked load"
+    "BriefDescription": "Duration in cycles to reload with Shared (S) data from ayesther core's L2 on the same chip due to a marked load"
   }
 ]

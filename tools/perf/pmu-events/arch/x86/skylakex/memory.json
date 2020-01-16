@@ -21,27 +21,27 @@
     {
         "EventCode": "0x54",
         "UMask": "0x4",
-        "BriefDescription": "Number of times a HLE transactional region aborted due to a non XRELEASE prefixed instruction writing to an elided lock in the elision buffer",
+        "BriefDescription": "Number of times a HLE transactional region aborted due to a yesn XRELEASE prefixed instruction writing to an elided lock in the elision buffer",
         "Counter": "0,1,2,3",
         "EventName": "TX_MEM.ABORT_HLE_STORE_TO_ELIDED_LOCK",
-        "PublicDescription": "Number of times a TSX Abort was triggered due to a non-release/commit store to lock.",
+        "PublicDescription": "Number of times a TSX Abort was triggered due to a yesn-release/commit store to lock.",
         "SampleAfterValue": "2000003",
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
     {
         "EventCode": "0x54",
         "UMask": "0x8",
-        "BriefDescription": "Number of times an HLE transactional execution aborted due to NoAllocatedElisionBuffer being non-zero.",
+        "BriefDescription": "Number of times an HLE transactional execution aborted due to NoAllocatedElisionBuffer being yesn-zero.",
         "Counter": "0,1,2,3",
         "EventName": "TX_MEM.ABORT_HLE_ELISION_BUFFER_NOT_EMPTY",
-        "PublicDescription": "Number of times a TSX Abort was triggered due to commit but Lock Buffer not empty.",
+        "PublicDescription": "Number of times a TSX Abort was triggered due to commit but Lock Buffer yest empty.",
         "SampleAfterValue": "2000003",
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
     {
         "EventCode": "0x54",
         "UMask": "0x10",
-        "BriefDescription": "Number of times an HLE transactional execution aborted due to XRELEASE lock not satisfying the address and value requirements in the elision buffer",
+        "BriefDescription": "Number of times an HLE transactional execution aborted due to XRELEASE lock yest satisfying the address and value requirements in the elision buffer",
         "Counter": "0,1,2,3",
         "EventName": "TX_MEM.ABORT_HLE_ELISION_BUFFER_MISMATCH",
         "PublicDescription": "Number of times a TSX Abort was triggered due to release/commit but data and address mismatch.",
@@ -61,17 +61,17 @@
     {
         "EventCode": "0x54",
         "UMask": "0x40",
-        "BriefDescription": "Number of times HLE lock could not be elided due to ElisionBufferAvailable being zero.",
+        "BriefDescription": "Number of times HLE lock could yest be elided due to ElisionBufferAvailable being zero.",
         "Counter": "0,1,2,3",
         "EventName": "TX_MEM.HLE_ELISION_BUFFER_FULL",
-        "PublicDescription": "Number of times we could not allocate Lock Buffer.",
+        "PublicDescription": "Number of times we could yest allocate Lock Buffer.",
         "SampleAfterValue": "2000003",
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
     {
         "EventCode": "0x5d",
         "UMask": "0x1",
-        "BriefDescription": "Counts the number of times a class of instructions that may cause a transactional abort was executed. Since this is the count of execution, it may not always cause a transactional abort.",
+        "BriefDescription": "Counts the number of times a class of instructions that may cause a transactional abort was executed. Since this is the count of execution, it may yest always cause a transactional abort.",
         "Counter": "0,1,2,3",
         "EventName": "TX_EXEC.MISC1",
         "SampleAfterValue": "2000003",
@@ -183,7 +183,7 @@
         "Counter": "0,1,2,3",
         "EventName": "MACHINE_CLEARS.MEMORY_ORDERING",
         "Errata": "SKL089",
-        "PublicDescription": "Counts the number of memory ordering Machine Clears detected. Memory Ordering Machine Clears can result from one of the following:a. memory disambiguation,b. external snoop, orc. cross SMT-HW-thread snoop (stores) hitting load buffer.",
+        "PublicDescription": "Counts the number of memory ordering Machine Clears detected. Memory Ordering Machine Clears can result from one of the following:a. memory disambiguation,b. external syesop, orc. cross SMT-HW-thread syesop (stores) hitting load buffer.",
         "SampleAfterValue": "100003",
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
@@ -193,7 +193,7 @@
         "BriefDescription": "Number of times an HLE execution started.",
         "Counter": "0,1,2,3",
         "EventName": "HLE_RETIRED.START",
-        "PublicDescription": "Number of times we entered an HLE region. Does not count nested transactions.",
+        "PublicDescription": "Number of times we entered an HLE region. Does yest count nested transactions.",
         "SampleAfterValue": "2000003",
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
@@ -271,7 +271,7 @@
         "BriefDescription": "Number of times an RTM execution started.",
         "Counter": "0,1,2,3",
         "EventName": "RTM_RETIRED.START",
-        "PublicDescription": "Number of times we entered an RTM region. Does not count nested transactions.",
+        "PublicDescription": "Number of times we entered an RTM region. Does yest count nested transactions.",
         "SampleAfterValue": "2000003",
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
@@ -338,10 +338,10 @@
     {
         "EventCode": "0xC9",
         "UMask": "0x80",
-        "BriefDescription": "Number of times an RTM execution aborted due to none of the previous 4 categories (e.g. interrupt)",
+        "BriefDescription": "Number of times an RTM execution aborted due to yesne of the previous 4 categories (e.g. interrupt)",
         "Counter": "0,1,2,3",
         "EventName": "RTM_RETIRED.ABORTED_EVENTS",
-        "PublicDescription": "Number of times an RTM execution aborted due to none of the previous 4 categories (e.g. interrupt).",
+        "PublicDescription": "Number of times an RTM execution aborted due to yesne of the previous 4 categories (e.g. interrupt).",
         "SampleAfterValue": "2000003",
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },

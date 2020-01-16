@@ -43,7 +43,7 @@ static int iomap_to_fiemap(struct fiemap_extent_info *fi,
 }
 
 static loff_t
-iomap_fiemap_actor(struct inode *inode, loff_t pos, loff_t length, void *data,
+iomap_fiemap_actor(struct iyesde *iyesde, loff_t pos, loff_t length, void *data,
 		struct iomap *iomap, struct iomap *srcmap)
 {
 	struct fiemap_ctx *ctx = data;
@@ -64,7 +64,7 @@ iomap_fiemap_actor(struct inode *inode, loff_t pos, loff_t length, void *data,
 	}
 }
 
-int iomap_fiemap(struct inode *inode, struct fiemap_extent_info *fi,
+int iomap_fiemap(struct iyesde *iyesde, struct fiemap_extent_info *fi,
 		loff_t start, loff_t len, const struct iomap_ops *ops)
 {
 	struct fiemap_ctx ctx;
@@ -79,15 +79,15 @@ int iomap_fiemap(struct inode *inode, struct fiemap_extent_info *fi,
 		return ret;
 
 	if (fi->fi_flags & FIEMAP_FLAG_SYNC) {
-		ret = filemap_write_and_wait(inode->i_mapping);
+		ret = filemap_write_and_wait(iyesde->i_mapping);
 		if (ret)
 			return ret;
 	}
 
 	while (len > 0) {
-		ret = iomap_apply(inode, start, len, IOMAP_REPORT, ops, &ctx,
+		ret = iomap_apply(iyesde, start, len, IOMAP_REPORT, ops, &ctx,
 				iomap_fiemap_actor);
-		/* inode with no (attribute) mapping will give ENOENT */
+		/* iyesde with yes (attribute) mapping will give ENOENT */
 		if (ret == -ENOENT)
 			break;
 		if (ret < 0)
@@ -110,39 +110,39 @@ int iomap_fiemap(struct inode *inode, struct fiemap_extent_info *fi,
 EXPORT_SYMBOL_GPL(iomap_fiemap);
 
 static loff_t
-iomap_bmap_actor(struct inode *inode, loff_t pos, loff_t length,
+iomap_bmap_actor(struct iyesde *iyesde, loff_t pos, loff_t length,
 		void *data, struct iomap *iomap, struct iomap *srcmap)
 {
-	sector_t *bno = data, addr;
+	sector_t *byes = data, addr;
 
 	if (iomap->type == IOMAP_MAPPED) {
-		addr = (pos - iomap->offset + iomap->addr) >> inode->i_blkbits;
+		addr = (pos - iomap->offset + iomap->addr) >> iyesde->i_blkbits;
 		if (addr > INT_MAX)
 			WARN(1, "would truncate bmap result\n");
 		else
-			*bno = addr;
+			*byes = addr;
 	}
 	return 0;
 }
 
 /* legacy ->bmap interface.  0 is the error return (!) */
 sector_t
-iomap_bmap(struct address_space *mapping, sector_t bno,
+iomap_bmap(struct address_space *mapping, sector_t byes,
 		const struct iomap_ops *ops)
 {
-	struct inode *inode = mapping->host;
-	loff_t pos = bno << inode->i_blkbits;
-	unsigned blocksize = i_blocksize(inode);
+	struct iyesde *iyesde = mapping->host;
+	loff_t pos = byes << iyesde->i_blkbits;
+	unsigned blocksize = i_blocksize(iyesde);
 	int ret;
 
 	if (filemap_write_and_wait(mapping))
 		return 0;
 
-	bno = 0;
-	ret = iomap_apply(inode, pos, blocksize, 0, ops, &bno,
+	byes = 0;
+	ret = iomap_apply(iyesde, pos, blocksize, 0, ops, &byes,
 			  iomap_bmap_actor);
 	if (ret)
 		return 0;
-	return bno;
+	return byes;
 }
 EXPORT_SYMBOL_GPL(iomap_bmap);

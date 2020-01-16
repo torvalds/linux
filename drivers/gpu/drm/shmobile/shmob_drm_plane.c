@@ -186,7 +186,7 @@ shmob_drm_plane_update(struct drm_plane *plane, struct drm_crtc *crtc,
 	}
 
 	if (src_w >> 16 != crtc_w || src_h >> 16 != crtc_h) {
-		dev_dbg(sdev->dev, "%s: scaling not supported\n", __func__);
+		dev_dbg(sdev->dev, "%s: scaling yest supported\n", __func__);
 		return -EINVAL;
 	}
 

@@ -10,7 +10,7 @@ maintainers:
   - Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 
 properties:
-  $nodename:
+  $yesdename:
     pattern: "^usb(@.*)?"
 
   phys:

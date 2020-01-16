@@ -44,7 +44,7 @@ xfs_efi_item_free(
 
 /*
  * Freeing the efi requires that we remove it from the AIL if it has already
- * been placed there. However, the EFI may not yet have been placed in the AIL
+ * been placed there. However, the EFI may yest yet have been placed in the AIL
  * when called by xfs_efi_release() from EFD processing due to the ordering of
  * committed vs unpin operations in bulk insert operations. Hence the reference
  * count to ensure only the last caller frees the EFI.
@@ -116,7 +116,7 @@ xfs_efi_item_format(
  * either case, the EFI transaction has been successfully committed to make it
  * this far. Therefore, we expect whoever committed the EFI to either construct
  * and commit the EFD or drop the EFD's reference in the event of error. Simply
- * drop the log's EFI reference now that the log is done with it.
+ * drop the log's EFI reference yesw that the log is done with it.
  */
 STATIC void
 xfs_efi_item_unpin(
@@ -318,7 +318,7 @@ static const struct xfs_item_ops xfs_efd_item_ops = {
 
 /*
  * Allocate an "extent free done" log item that will hold nextents worth of
- * extents.  The caller must use all nextents extents, because we are not
+ * extents.  The caller must use all nextents extents, because we are yest
  * flexible about this at all.
  */
 static struct xfs_efd_log_item *
@@ -366,12 +366,12 @@ xfs_trans_free_extent(
 	struct xfs_mount		*mp = tp->t_mountp;
 	struct xfs_extent		*extp;
 	uint				next_extent;
-	xfs_agnumber_t			agno = XFS_FSB_TO_AGNO(mp, start_block);
-	xfs_agblock_t			agbno = XFS_FSB_TO_AGBNO(mp,
+	xfs_agnumber_t			agyes = XFS_FSB_TO_AGNO(mp, start_block);
+	xfs_agblock_t			agbyes = XFS_FSB_TO_AGBNO(mp,
 								start_block);
 	int				error;
 
-	trace_xfs_bmap_free_deferred(tp->t_mountp, agno, 0, agbno, ext_len);
+	trace_xfs_bmap_free_deferred(tp->t_mountp, agyes, 0, agbyes, ext_len);
 
 	error = __xfs_free_extent(tp, start_block, ext_len,
 				  oinfo, XFS_AG_RESV_NONE, skip_discard);
@@ -523,7 +523,7 @@ const struct xfs_defer_op_type xfs_extent_free_defer_type = {
 };
 
 /*
- * AGFL blocks are accounted differently in the reserve pools and are not
+ * AGFL blocks are accounted differently in the reserve pools and are yest
  * inserted into the busy extent list.
  */
 STATIC int
@@ -539,20 +539,20 @@ xfs_agfl_free_finish_item(
 	struct xfs_extent		*extp;
 	struct xfs_buf			*agbp;
 	int				error;
-	xfs_agnumber_t			agno;
-	xfs_agblock_t			agbno;
+	xfs_agnumber_t			agyes;
+	xfs_agblock_t			agbyes;
 	uint				next_extent;
 
 	free = container_of(item, struct xfs_extent_free_item, xefi_list);
 	ASSERT(free->xefi_blockcount == 1);
-	agno = XFS_FSB_TO_AGNO(mp, free->xefi_startblock);
-	agbno = XFS_FSB_TO_AGBNO(mp, free->xefi_startblock);
+	agyes = XFS_FSB_TO_AGNO(mp, free->xefi_startblock);
+	agbyes = XFS_FSB_TO_AGBNO(mp, free->xefi_startblock);
 
-	trace_xfs_agfl_free_deferred(mp, agno, 0, agbno, free->xefi_blockcount);
+	trace_xfs_agfl_free_deferred(mp, agyes, 0, agbyes, free->xefi_blockcount);
 
-	error = xfs_alloc_read_agf(mp, tp, agno, 0, &agbp);
+	error = xfs_alloc_read_agf(mp, tp, agyes, 0, &agbp);
 	if (!error)
-		error = xfs_free_agfl_block(tp, agno, agbno, agbp,
+		error = xfs_free_agfl_block(tp, agyes, agbyes, agbp,
 					    &free->xefi_oinfo);
 
 	/*

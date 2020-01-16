@@ -76,7 +76,7 @@ static int get_pm_api_id(char *pm_api_req, u32 *pm_id)
 		}
 	}
 
-	/* If no name was entered look for PM-API ID instead */
+	/* If yes name was entered look for PM-API ID instead */
 	if (i == ARRAY_SIZE(pm_api_list) && kstrtouint(pm_api_req, 10, pm_id))
 		return -EINVAL;
 
@@ -175,7 +175,7 @@ static ssize_t zynqmp_pm_debugfs_api_write(struct file *file,
 	if (ret < 0)
 		goto err;
 
-	/* Read node_id and arguments from the PM-API request */
+	/* Read yesde_id and arguments from the PM-API request */
 	pm_api_req = strsep(&kern_buff, " ");
 	while ((i < ARRAY_SIZE(pm_api_arg)) && pm_api_req) {
 		pm_api_arg[i++] = zynqmp_pm_argument_value(pm_api_req);

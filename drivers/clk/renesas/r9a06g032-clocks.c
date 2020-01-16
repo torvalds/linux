@@ -34,7 +34,7 @@ struct r9a06g032_clkdesc {
 	uint32_t managed: 1;
 	uint32_t type: 3;
 	uint32_t index: 8;
-	uint32_t source : 8; /* source index + 1 (0 == none) */
+	uint32_t source : 8; /* source index + 1 (0 == yesne) */
 	/* these are used to populate the bitsel struct */
 	union {
 		struct r9a06g032_gate gate;
@@ -168,7 +168,7 @@ static const struct r9a06g032_clkdesc r9a06g032_clocks[] = {
 	D_GATE(CLK_I2C1, "clk_i2c1", DIV_I2C, 0x1e8, 0x1e9, 0, 0, 0, 0, 0),
 	D_GATE(CLK_MII_REF, "clk_mii_ref", CLKOUT_D40, 0x342, 0, 0, 0, 0, 0, 0),
 	D_GATE(CLK_NAND, "clk_nand", DIV_NAND, 0x284, 0x285, 0, 0, 0, 0, 0),
-	D_GATE(CLK_NOUSBP2_PG6, "clk_nousbp2_pg6", DIV_P2_PG, 0x774, 0x775, 0, 0, 0, 0, 0),
+	D_GATE(CLK_NOUSBP2_PG6, "clk_yesusbp2_pg6", DIV_P2_PG, 0x774, 0x775, 0, 0, 0, 0, 0),
 	D_GATE(CLK_P1_PG2, "clk_p1_pg2", DIV_P1_PG, 0x862, 0x863, 0, 0, 0, 0, 0),
 	D_GATE(CLK_P1_PG3, "clk_p1_pg3", DIV_P1_PG, 0x864, 0x865, 0, 0, 0, 0, 0),
 	D_GATE(CLK_P1_PG4, "clk_p1_pg4", DIV_P1_PG, 0x866, 0x867, 0, 0, 0, 0, 0),
@@ -277,7 +277,7 @@ static const struct r9a06g032_clkdesc r9a06g032_clocks[] = {
 	D_MODULE(HCLK_UART6, "hclk_uart6", CLK_REF_SYNC_D4, 0x223, 0x224, 0x225, 0, 0, 0, 0),
 	D_MODULE(HCLK_UART7, "hclk_uart7", CLK_REF_SYNC_D4, 0x226, 0x227, 0x228, 0, 0, 0, 0),
 	/*
-	 * These are not hardware clocks, but are needed to handle the special
+	 * These are yest hardware clocks, but are needed to handle the special
 	 * case where we have a 'selector bit' that doesn't just change the
 	 * parent for a clock, but also the gate it's suposed to use.
 	 */
@@ -338,7 +338,7 @@ clk_rdesc_get(struct r9a06g032_priv *clocks,
 }
 
 /*
- * This implements the R9A09G032 clock gate 'driver'. We cannot use the system's
+ * This implements the R9A09G032 clock gate 'driver'. We canyest use the system's
  * clock gate framework as the gates on the R9A09G032 have a special enabling
  * sequence, therefore we use this little proxy.
  */
@@ -380,7 +380,7 @@ static int create_add_module_clock(struct of_phandle_args *clkspec,
 static int r9a06g032_attach_dev(struct generic_pm_domain *pd,
 				struct device *dev)
 {
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 	struct of_phandle_args clkspec;
 	int i = 0;
 	int error;
@@ -388,14 +388,14 @@ static int r9a06g032_attach_dev(struct generic_pm_domain *pd,
 
 	while (!of_parse_phandle_with_args(np, "clocks", "#clock-cells", i,
 					   &clkspec)) {
-		if (clkspec.np != pd->dev.of_node)
+		if (clkspec.np != pd->dev.of_yesde)
 			continue;
 
 		index = clkspec.args[0];
 		if (index < R9A06G032_CLOCK_COUNT &&
 		    r9a06g032_clocks[index].managed) {
 			error = create_add_module_clock(&clkspec, dev);
-			of_node_put(clkspec.np);
+			of_yesde_put(clkspec.np);
 			if (error)
 				return error;
 		}
@@ -407,13 +407,13 @@ static int r9a06g032_attach_dev(struct generic_pm_domain *pd,
 
 static void r9a06g032_detach_dev(struct generic_pm_domain *unused, struct device *dev)
 {
-	if (!pm_clk_no_clocks(dev))
+	if (!pm_clk_yes_clocks(dev))
 		pm_clk_destroy(dev);
 }
 
 static int r9a06g032_add_clk_domain(struct device *dev)
 {
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 	struct generic_pm_domain *pd;
 
 	pd = devm_kzalloc(dev, sizeof(*pd), GFP_KERNEL);
@@ -484,7 +484,7 @@ static int r9a06g032_clk_gate_is_enabled(struct clk_hw *hw)
 {
 	struct r9a06g032_clk_gate *g = to_r9a06g032_gate(hw);
 
-	/* if clock is in reset, the gate might be on, and still not 'be' on */
+	/* if clock is in reset, the gate might be on, and still yest 'be' on */
 	if (g->gate.reset && !clk_rdesc_get(g->clocks, g->gate.reset))
 		return 0;
 
@@ -523,7 +523,7 @@ r9a06g032_register_gate(struct r9a06g032_priv *clocks,
 
 	/*
 	 * important here, some clocks are already in use by the CM3, we
-	 * have to assume they are not Linux's to play with and try to disable
+	 * have to assume they are yest Linux's to play with and try to disable
 	 * at the end of the boot!
 	 */
 	if (r9a06g032_clk_gate_is_enabled(&g->hw)) {
@@ -546,7 +546,7 @@ struct r9a06g032_clk_div {
 	u16 reg;
 	u16 min, max;
 	u8 table_size;
-	u16 table[8];	/* we know there are no more than 8 */
+	u16 table[8];	/* we kyesw there are yes more than 8 */
 };
 
 #define to_r9a06g032_div(_hw) \
@@ -621,7 +621,7 @@ r9a06g032_div_round_rate(struct clk_hw *hw,
 	/*
 	 * this is a hack. Currently the serial driver asks for a clock rate
 	 * that is 16 times the baud rate -- and that is wildly outside the
-	 * range of the UART divider, somehow there is no provision for that
+	 * range of the UART divider, somehow there is yes provision for that
 	 * case of 'let the divider as is if outside range'.
 	 * The serial driver *shouldn't* play with these clocks anyway, there's
 	 * several uarts attached to this divider, and changing this impacts
@@ -716,8 +716,8 @@ r9a06g032_register_div(struct r9a06g032_priv *clocks,
  * active gate (and turn the others off) and force a recalculation of the rates.
  *
  * This implements two clock providers, one 'bitselect' that
- * handles the switch between both parents, and another 'dualgate'
- * that knows which gate to poke at, depending on the parent's bit position.
+ * handles the switch between both parents, and ayesther 'dualgate'
+ * that kyesws which gate to poke at, depending on the parent's bit position.
  */
 struct r9a06g032_clk_bitsel {
 	struct clk_hw	hw;
@@ -871,7 +871,7 @@ r9a06g032_register_dualgate(struct r9a06g032_priv *clocks,
 	g->hw.init = &init;
 	/*
 	 * important here, some clocks are already in use by the CM3, we
-	 * have to assume they are not Linux's to play with and try to disable
+	 * have to assume they are yest Linux's to play with and try to disable
 	 * at the end of the boot!
 	 */
 	if (r9a06g032_clk_dualgate_is_enabled(&g->hw)) {
@@ -895,7 +895,7 @@ static void r9a06g032_clocks_del_clk_provider(void *data)
 static int __init r9a06g032_clocks_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 	struct r9a06g032_priv *clocks;
 	struct clk **clks;
 	struct clk *mclk;

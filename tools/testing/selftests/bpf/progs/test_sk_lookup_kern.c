@@ -134,7 +134,7 @@ int bpf_sk_lookup_modptr_or_null(struct __sk_buff *skb)
 	return 0;
 }
 
-SEC("classifier/fail_no_release")
+SEC("classifier/fail_yes_release")
 int bpf_sk_lookup_test2(struct __sk_buff *skb)
 {
 	struct bpf_sock_tuple tuple = {};
@@ -166,15 +166,15 @@ int bpf_sk_lookup_test4(struct __sk_buff *skb)
 	return 0;
 }
 
-void lookup_no_release(struct __sk_buff *skb)
+void lookup_yes_release(struct __sk_buff *skb)
 {
 	struct bpf_sock_tuple tuple = {};
 	bpf_sk_lookup_tcp(skb, &tuple, sizeof(tuple), BPF_F_CURRENT_NETNS, 0);
 }
 
-SEC("classifier/fail_no_release_subcall")
+SEC("classifier/fail_yes_release_subcall")
 int bpf_sk_lookup_test5(struct __sk_buff *skb)
 {
-	lookup_no_release(skb);
+	lookup_yes_release(skb);
 	return 0;
 }

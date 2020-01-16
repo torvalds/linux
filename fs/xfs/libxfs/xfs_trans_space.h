@@ -57,8 +57,8 @@
 	XFS_DAREMOVE_SPACE_RES(mp, XFS_DATA_FORK)
 #define	XFS_IALLOC_SPACE_RES(mp)	\
 	(M_IGEO(mp)->ialloc_blks + \
-	 (xfs_sb_version_hasfinobt(&mp->m_sb) ? 2 : 1 * \
-	  (M_IGEO(mp)->inobt_maxlevels - 1)))
+	 (xfs_sb_version_hasfiyesbt(&mp->m_sb) ? 2 : 1 * \
+	  (M_IGEO(mp)->iyesbt_maxlevels - 1)))
 
 /*
  * Space reservation values for various transactions.
@@ -67,7 +67,7 @@
 	((mp)->m_dir_geo->fsbcount + XFS_DAENTER_BMAP1B(mp, XFS_DATA_FORK))
 #define	XFS_ATTRRM_SPACE_RES(mp)	\
 	XFS_DAREMOVE_SPACE_RES(mp, XFS_ATTR_FORK)
-/* This macro is not used - see inline code in xfs_attr_set */
+/* This macro is yest used - see inline code in xfs_attr_set */
 #define	XFS_ATTRSET_SPACE_RES(mp, v)	\
 	(XFS_DAENTER_SPACE_RES(mp, XFS_ATTR_FORK) + XFS_B_TO_FSB(mp, v))
 #define	XFS_CREATE_SPACE_RES(mp,nl)	\
@@ -94,8 +94,8 @@
 #define	XFS_SYMLINK_SPACE_RES(mp,nl,b)	\
 	(XFS_IALLOC_SPACE_RES(mp) + XFS_DIRENTER_SPACE_RES(mp,nl) + (b))
 #define XFS_IFREE_SPACE_RES(mp)		\
-	(xfs_sb_version_hasfinobt(&mp->m_sb) ? \
-			M_IGEO(mp)->inobt_maxlevels : 0)
+	(xfs_sb_version_hasfiyesbt(&mp->m_sb) ? \
+			M_IGEO(mp)->iyesbt_maxlevels : 0)
 
 
 #endif	/* __XFS_TRANS_SPACE_H__ */

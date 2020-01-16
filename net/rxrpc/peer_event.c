@@ -185,7 +185,7 @@ void rxrpc_error_report(struct sock *sk)
 	if (!peer) {
 		rcu_read_unlock();
 		rxrpc_free_skb(skb, rxrpc_skb_freed);
-		_leave(" [no peer]");
+		_leave(" [yes peer]");
 		return;
 	}
 
@@ -224,7 +224,7 @@ static void rxrpc_store_error(struct rxrpc_peer *peer,
 
 	ee = &serr->ee;
 
-	err = ee->ee_errno;
+	err = ee->ee_erryes;
 
 	switch (ee->ee_origin) {
 	case SO_EE_ORIGIN_ICMP:
@@ -241,10 +241,10 @@ static void rxrpc_store_error(struct rxrpc_peer *peer,
 				_net("Rx Received ICMP Port Unreachable");
 				break;
 			case ICMP_NET_UNKNOWN:
-				_net("Rx Received ICMP Unknown Network");
+				_net("Rx Received ICMP Unkyeswn Network");
 				break;
 			case ICMP_HOST_UNKNOWN:
-				_net("Rx Received ICMP Unknown Host");
+				_net("Rx Received ICMP Unkyeswn Host");
 				break;
 			default:
 				_net("Rx Received ICMP DestUnreach code=%u",
@@ -291,7 +291,7 @@ static void rxrpc_distribute_error(struct rxrpc_peer *peer, int error,
 		rxrpc_see_call(call);
 		if (call->state < RXRPC_CALL_COMPLETE &&
 		    rxrpc_set_call_completion(call, compl, 0, -error))
-			rxrpc_notify_socket(call);
+			rxrpc_yestify_socket(call);
 	}
 }
 
@@ -399,14 +399,14 @@ void rxrpc_peer_keepalive_worker(struct work_struct *work)
 	struct rxrpc_net *rxnet =
 		container_of(work, struct rxrpc_net, peer_keepalive_work);
 	const u8 mask = ARRAY_SIZE(rxnet->peer_keepalive) - 1;
-	time64_t base, now, delay;
+	time64_t base, yesw, delay;
 	u8 cursor, stop;
 	LIST_HEAD(collector);
 
-	now = ktime_get_seconds();
+	yesw = ktime_get_seconds();
 	base = rxnet->peer_keepalive_base;
 	cursor = rxnet->peer_keepalive_cursor;
-	_enter("%lld,%u", base - now, cursor);
+	_enter("%lld,%u", base - yesw, cursor);
 
 	if (!rxnet->live)
 		return;
@@ -415,21 +415,21 @@ void rxrpc_peer_keepalive_worker(struct work_struct *work)
 	 * in expired buckets plus all new peers.
 	 *
 	 * Everything in the bucket at the cursor is processed this
-	 * second; the bucket at cursor + 1 goes at now + 1s and so
+	 * second; the bucket at cursor + 1 goes at yesw + 1s and so
 	 * on...
 	 */
 	spin_lock_bh(&rxnet->peer_hash_lock);
 	list_splice_init(&rxnet->peer_keepalive_new, &collector);
 
 	stop = cursor + ARRAY_SIZE(rxnet->peer_keepalive);
-	while (base <= now && (s8)(cursor - stop) < 0) {
+	while (base <= yesw && (s8)(cursor - stop) < 0) {
 		list_splice_tail_init(&rxnet->peer_keepalive[cursor & mask],
 				      &collector);
 		base++;
 		cursor++;
 	}
 
-	base = now;
+	base = yesw;
 	spin_unlock_bh(&rxnet->peer_hash_lock);
 
 	rxnet->peer_keepalive_base = base;
@@ -446,8 +446,8 @@ void rxrpc_peer_keepalive_worker(struct work_struct *work)
 		base++;
 	}
 
-	now = ktime_get_seconds();
-	delay = base - now;
+	yesw = ktime_get_seconds();
+	delay = base - yesw;
 	if (delay < 1)
 		delay = 1;
 	delay *= HZ;

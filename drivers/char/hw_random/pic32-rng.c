@@ -3,7 +3,7 @@
  * PIC32 RNG driver
  *
  * Joshua Henderson <joshua.henderson@microchip.com>
- * Copyright (C) 2016 Microchip Technology Inc.  All rights reserved.
+ * Copyright (C) 2016 Microchip Techyeslogy Inc.  All rights reserved.
  */
 
 #include <linux/clk.h>
@@ -41,7 +41,7 @@ struct pic32_rng {
 
 /*
  * The TRNG can generate up to 24Mbps. This is a timeout that should be safe
- * enough given the instructions in the loop and that the TRNG may not always
+ * eyesugh given the instructions in the loop and that the TRNG may yest always
  * be at maximum rate.
  */
 #define RNG_TIMEOUT 500

@@ -13,7 +13,7 @@ struct datalink_proto {
                                 struct packet_type *, struct net_device *);
 	int     (*request)(struct datalink_proto *, struct sk_buff *,
                                         unsigned char *);
-	struct list_head node;
+	struct list_head yesde;
 };
 
 struct datalink_proto *make_EII_client(void);

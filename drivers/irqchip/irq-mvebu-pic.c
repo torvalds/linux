@@ -121,7 +121,7 @@ static void mvebu_pic_disable_percpu_irq(void *data)
 
 static int mvebu_pic_probe(struct platform_device *pdev)
 {
-	struct device_node *node = pdev->dev.of_node;
+	struct device_yesde *yesde = pdev->dev.of_yesde;
 	struct mvebu_pic *pic;
 	struct irq_chip *irq_chip;
 	struct resource *res;
@@ -141,13 +141,13 @@ static int mvebu_pic_probe(struct platform_device *pdev)
 	irq_chip->irq_unmask = mvebu_pic_unmask_irq;
 	irq_chip->irq_eoi = mvebu_pic_eoi_irq;
 
-	pic->parent_irq = irq_of_parse_and_map(node, 0);
+	pic->parent_irq = irq_of_parse_and_map(yesde, 0);
 	if (pic->parent_irq <= 0) {
 		dev_err(&pdev->dev, "Failed to parse parent interrupt\n");
 		return -EINVAL;
 	}
 
-	pic->domain = irq_domain_add_linear(node, PIC_MAX_IRQS,
+	pic->domain = irq_domain_add_linear(yesde, PIC_MAX_IRQS,
 					    &mvebu_pic_domain_ops, pic);
 	if (!pic->domain) {
 		dev_err(&pdev->dev, "Failed to allocate irq domain\n");

@@ -31,7 +31,7 @@
 
 /*
  * IPR_MAX_CMD_PER_LUN: This defines the maximum number of outstanding
- *	ops per device for devices not running tagged command queuing.
+ *	ops per device for devices yest running tagged command queuing.
  *	This can be adjusted at runtime through sysfs device attributes.
  */
 #define IPR_MAX_CMD_PER_LUN				6
@@ -466,7 +466,7 @@ struct ipr_config_table_entry_wrapper {
 	} u;
 };
 
-struct ipr_hostrcb_cfg_ch_not {
+struct ipr_hostrcb_cfg_ch_yest {
 	union {
 		struct ipr_config_table_entry cfgte;
 		struct ipr_config_table_entry64 cfgte64;
@@ -697,7 +697,7 @@ struct ipr_ioasa_hdr {
 	__be16 avail_stat_len;	/* Total Length of status available. */
 
 	__be32 residual_data_len;	/* number of bytes in the host data */
-	/* buffers that were not used by the IOARCB command. */
+	/* buffers that were yest used by the IOARCB command. */
 
 	__be32 ilid;
 #define IPR_NO_ILID			0
@@ -818,7 +818,7 @@ struct ipr_inquiry_page3 {
 	u8 load_id[4];
 	u8 major_release;
 	u8 card_type;
-	u8 minor_release[2];
+	u8 miyesr_release[2];
 	u8 ptf_number[4];
 	u8 patch_number[4];
 }__attribute__((packed));
@@ -1178,14 +1178,14 @@ struct ipr_hcam {
 #define IPR_HOST_RCB_OP_CODE_CONFIG_CHANGE			0xE1
 #define IPR_HOST_RCB_OP_CODE_LOG_DATA				0xE2
 
-	u8 notify_type;
+	u8 yestify_type;
 #define IPR_HOST_RCB_NOTIF_TYPE_EXISTING_CHANGED	0x00
 #define IPR_HOST_RCB_NOTIF_TYPE_NEW_ENTRY			0x01
 #define IPR_HOST_RCB_NOTIF_TYPE_REM_ENTRY			0x02
 #define IPR_HOST_RCB_NOTIF_TYPE_ERROR_LOG_ENTRY		0x10
 #define IPR_HOST_RCB_NOTIF_TYPE_INFORMATION_ENTRY	0x11
 
-	u8 notifications_lost;
+	u8 yestifications_lost;
 #define IPR_HOST_RCB_NO_NOTIFICATIONS_LOST			0
 #define IPR_HOST_RCB_NOTIFICATIONS_LOST				0x80
 
@@ -1223,7 +1223,7 @@ struct ipr_hcam {
 	union {
 		struct ipr_hostrcb_error error;
 		struct ipr_hostrcb64_error error64;
-		struct ipr_hostrcb_cfg_ch_not ccn;
+		struct ipr_hostrcb_cfg_ch_yest ccn;
 		struct ipr_hostrcb_raw raw;
 	} u;
 }__attribute__((packed, aligned (4)));
@@ -1743,7 +1743,7 @@ struct ipr_ucode_image_header {
 	__be32 lid_table_offset;
 	u8 major_release;
 	u8 card_type;
-	u8 minor_release[2];
+	u8 miyesr_release[2];
 	u8 reserved[20];
 	char eyecatcher[16];
 	__be32 num_lids;
@@ -1779,14 +1779,14 @@ struct ipr_ucode_image_header {
 #define ipr_dbg(...) IPR_DBG_CMD(printk(KERN_INFO IPR_NAME ": "__VA_ARGS__))
 
 #define ipr_res_printk(level, ioa_cfg, bus, target, lun, fmt, ...) \
-	printk(level IPR_NAME ": %d:%d:%d:%d: " fmt, (ioa_cfg)->host->host_no, \
+	printk(level IPR_NAME ": %d:%d:%d:%d: " fmt, (ioa_cfg)->host->host_yes, \
 		bus, target, lun, ##__VA_ARGS__)
 
 #define ipr_res_err(ioa_cfg, res, fmt, ...) \
 	ipr_res_printk(KERN_ERR, ioa_cfg, (res)->bus, (res)->target, (res)->lun, fmt, ##__VA_ARGS__)
 
 #define ipr_ra_printk(level, ioa_cfg, ra, fmt, ...) \
-	printk(level IPR_NAME ": %d:%d:%d:%d: " fmt, (ioa_cfg)->host->host_no, \
+	printk(level IPR_NAME ": %d:%d:%d:%d: " fmt, (ioa_cfg)->host->host_yes, \
 		(ra).bus, (ra).target, (ra).lun, ##__VA_ARGS__)
 
 #define ipr_ra_err(ioa_cfg, ra, fmt, ...) \
@@ -1795,10 +1795,10 @@ struct ipr_ucode_image_header {
 #define ipr_phys_res_err(ioa_cfg, res, fmt, ...)			\
 {									\
 	if ((res).bus >= IPR_MAX_NUM_BUSES) {				\
-		ipr_err(fmt": unknown\n", ##__VA_ARGS__);		\
+		ipr_err(fmt": unkyeswn\n", ##__VA_ARGS__);		\
 	} else {							\
 		ipr_err(fmt": %d:%d:%d:%d\n",				\
-			##__VA_ARGS__, (ioa_cfg)->host->host_no,	\
+			##__VA_ARGS__, (ioa_cfg)->host->host_yes,	\
 			(res).bus, (res).target, (res).lun);		\
 	}								\
 }
@@ -1842,7 +1842,7 @@ ipr_err("----------------------------------------------------------\n")
  * @res:	resource entry struct
  *
  * Return value:
- * 	1 if IOA / 0 if not IOA
+ * 	1 if IOA / 0 if yest IOA
  **/
 static inline int ipr_is_ioa_resource(struct ipr_resource_entry *res)
 {
@@ -1854,7 +1854,7 @@ static inline int ipr_is_ioa_resource(struct ipr_resource_entry *res)
  * @res:	resource entry struct
  *
  * Return value:
- * 	1 if AF DASD / 0 if not AF DASD
+ * 	1 if AF DASD / 0 if yest AF DASD
  **/
 static inline int ipr_is_af_dasd_device(struct ipr_resource_entry *res)
 {
@@ -1867,7 +1867,7 @@ static inline int ipr_is_af_dasd_device(struct ipr_resource_entry *res)
  * @res:	resource entry struct
  *
  * Return value:
- * 	1 if VSET / 0 if not VSET
+ * 	1 if VSET / 0 if yest VSET
  **/
 static inline int ipr_is_vset_device(struct ipr_resource_entry *res)
 {
@@ -1879,7 +1879,7 @@ static inline int ipr_is_vset_device(struct ipr_resource_entry *res)
  * @res:	resource entry struct
  *
  * Return value:
- * 	1 if GSCSI / 0 if not GSCSI
+ * 	1 if GSCSI / 0 if yest GSCSI
  **/
 static inline int ipr_is_gscsi(struct ipr_resource_entry *res)
 {
@@ -1891,7 +1891,7 @@ static inline int ipr_is_gscsi(struct ipr_resource_entry *res)
  * @res:	resource entry struct
  *
  * Return value:
- * 	1 if SCSI disk / 0 if not SCSI disk
+ * 	1 if SCSI disk / 0 if yest SCSI disk
  **/
 static inline int ipr_is_scsi_disk(struct ipr_resource_entry *res)
 {
@@ -1907,7 +1907,7 @@ static inline int ipr_is_scsi_disk(struct ipr_resource_entry *res)
  * @res:	resource entry struct
  *
  * Return value:
- * 	1 if GATA / 0 if not GATA
+ * 	1 if GATA / 0 if yest GATA
  **/
 static inline int ipr_is_gata(struct ipr_resource_entry *res)
 {
@@ -1919,7 +1919,7 @@ static inline int ipr_is_gata(struct ipr_resource_entry *res)
  * @res:	resource entry struct
  *
  * Return value:
- * 	1 if NACA queueing model / 0 if not NACA queueing model
+ * 	1 if NACA queueing model / 0 if yest NACA queueing model
  **/
 static inline int ipr_is_naca_model(struct ipr_resource_entry *res)
 {
@@ -1933,7 +1933,7 @@ static inline int ipr_is_naca_model(struct ipr_resource_entry *res)
  * @hostrcb:	host resource control blocks struct
  *
  * Return value:
- * 	1 if AF / 0 if not AF
+ * 	1 if AF / 0 if yest AF
  **/
 static inline int ipr_is_device(struct ipr_hostrcb *hostrcb)
 {
@@ -1960,7 +1960,7 @@ static inline int ipr_is_device(struct ipr_hostrcb *hostrcb)
  * @sdt_word:	SDT address
  *
  * Return value:
- * 	1 if format 2 / 0 if not
+ * 	1 if format 2 / 0 if yest
  **/
 static inline int ipr_sdt_is_fmt2(u32 sdt_word)
 {

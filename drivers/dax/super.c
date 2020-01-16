@@ -20,7 +20,7 @@
 static dev_t dax_devt;
 DEFINE_STATIC_SRCU(dax_srcu);
 static struct vfsmount *dax_mnt;
-static DEFINE_IDA(dax_minor_ida);
+static DEFINE_IDA(dax_miyesr_ida);
 static struct kmem_cache *dax_cache __read_mostly;
 static struct super_block *dax_superblock __read_mostly;
 
@@ -116,7 +116,7 @@ bool __generic_fsdax_supported(struct dax_device *dax_dev,
 		 * An arch that has enabled the pmem api should also
 		 * have its drivers support pfn_t_devmap()
 		 *
-		 * This is a developer warning and should not trigger in
+		 * This is a developer warning and should yest trigger in
 		 * production. dax_flush() will crash since it depends
 		 * on being able to do (page_address(pfn_to_page())).
 		 */
@@ -139,7 +139,7 @@ bool __generic_fsdax_supported(struct dax_device *dax_dev,
 	}
 
 	if (!dax_enabled) {
-		pr_debug("%s: error: dax support not enabled\n",
+		pr_debug("%s: error: dax support yest enabled\n",
 				bdevname(bdev, buf));
 		return false;
 	}
@@ -174,14 +174,14 @@ bool __bdev_dax_supported(struct block_device *bdev, int blocksize)
 
 	dax_dev = dax_get_by_host(bdev->bd_disk->disk_name);
 	if (!dax_dev) {
-		pr_debug("%s: error: device does not support dax\n",
+		pr_debug("%s: error: device does yest support dax\n",
 				bdevname(bdev, buf));
 		return false;
 	}
 
 	id = dax_read_lock();
 	ret = dax_supported(dax_dev, bdev, blocksize, 0,
-			i_size_read(bdev->bd_inode) / 512);
+			i_size_read(bdev->bd_iyesde) / 512);
 	dax_read_unlock(id);
 
 	put_dax(dax_dev);
@@ -192,25 +192,25 @@ EXPORT_SYMBOL_GPL(__bdev_dax_supported);
 #endif
 
 enum dax_device_flags {
-	/* !alive + rcu grace period == no new operations / mappings */
+	/* !alive + rcu grace period == yes new operations / mappings */
 	DAXDEV_ALIVE,
 	/* gate whether dax_flush() calls the low level flush routine */
 	DAXDEV_WRITE_CACHE,
-	/* flag to check if device supports synchronous flush */
+	/* flag to check if device supports synchroyesus flush */
 	DAXDEV_SYNC,
 };
 
 /**
  * struct dax_device - anchor object for dax services
- * @inode: core vfs
+ * @iyesde: core vfs
  * @cdev: optional character interface for "device dax"
- * @host: optional name for lookups where the device path is not available
+ * @host: optional name for lookups where the device path is yest available
  * @private: dax driver private data
  * @flags: state and boolean properties
  */
 struct dax_device {
-	struct hlist_node list;
-	struct inode inode;
+	struct hlist_yesde list;
+	struct iyesde iyesde;
 	struct cdev cdev;
 	const char *host;
 	void *private;
@@ -290,7 +290,7 @@ EXPORT_SYMBOL_GPL(dax_attribute_group);
  * @kaddr: output parameter that returns a virtual address mapping of pfn
  * @pfn: output parameter that returns an absolute pfn translation of @pgoff
  *
- * Return: negative errno if an error occurs, otherwise the number of
+ * Return: negative erryes if an error occurs, otherwise the number of
  * pages accessible at the device relative @pgoff.
  */
 long dax_direct_access(struct dax_device *dax_dev, pgoff_t pgoff, long nr_pages,
@@ -375,17 +375,17 @@ bool dax_write_cache_enabled(struct dax_device *dax_dev)
 }
 EXPORT_SYMBOL_GPL(dax_write_cache_enabled);
 
-bool __dax_synchronous(struct dax_device *dax_dev)
+bool __dax_synchroyesus(struct dax_device *dax_dev)
 {
 	return test_bit(DAXDEV_SYNC, &dax_dev->flags);
 }
-EXPORT_SYMBOL_GPL(__dax_synchronous);
+EXPORT_SYMBOL_GPL(__dax_synchroyesus);
 
-void __set_dax_synchronous(struct dax_device *dax_dev)
+void __set_dax_synchroyesus(struct dax_device *dax_dev)
 {
 	set_bit(DAXDEV_SYNC, &dax_dev->flags);
 }
-EXPORT_SYMBOL_GPL(__set_dax_synchronous);
+EXPORT_SYMBOL_GPL(__set_dax_synchroyesus);
 
 bool dax_alive(struct dax_device *dax_dev)
 {
@@ -400,7 +400,7 @@ static int dax_host_hash(const char *host)
 }
 
 /*
- * Note, rcu is not protecting the liveness of dax_dev, rcu is ensuring
+ * Note, rcu is yest protecting the liveness of dax_dev, rcu is ensuring
  * that any fault handlers or operations that might have seen
  * dax_alive(), have completed.  Any operations that start after
  * synchronize_srcu() has run will abort upon seeing !dax_alive().
@@ -426,48 +426,48 @@ void run_dax(struct dax_device *dax_dev)
 }
 EXPORT_SYMBOL_GPL(run_dax);
 
-static struct inode *dax_alloc_inode(struct super_block *sb)
+static struct iyesde *dax_alloc_iyesde(struct super_block *sb)
 {
 	struct dax_device *dax_dev;
-	struct inode *inode;
+	struct iyesde *iyesde;
 
 	dax_dev = kmem_cache_alloc(dax_cache, GFP_KERNEL);
 	if (!dax_dev)
 		return NULL;
 
-	inode = &dax_dev->inode;
-	inode->i_rdev = 0;
-	return inode;
+	iyesde = &dax_dev->iyesde;
+	iyesde->i_rdev = 0;
+	return iyesde;
 }
 
-static struct dax_device *to_dax_dev(struct inode *inode)
+static struct dax_device *to_dax_dev(struct iyesde *iyesde)
 {
-	return container_of(inode, struct dax_device, inode);
+	return container_of(iyesde, struct dax_device, iyesde);
 }
 
-static void dax_free_inode(struct inode *inode)
+static void dax_free_iyesde(struct iyesde *iyesde)
 {
-	struct dax_device *dax_dev = to_dax_dev(inode);
+	struct dax_device *dax_dev = to_dax_dev(iyesde);
 	kfree(dax_dev->host);
 	dax_dev->host = NULL;
-	if (inode->i_rdev)
-		ida_simple_remove(&dax_minor_ida, MINOR(inode->i_rdev));
+	if (iyesde->i_rdev)
+		ida_simple_remove(&dax_miyesr_ida, MINOR(iyesde->i_rdev));
 	kmem_cache_free(dax_cache, dax_dev);
 }
 
-static void dax_destroy_inode(struct inode *inode)
+static void dax_destroy_iyesde(struct iyesde *iyesde)
 {
-	struct dax_device *dax_dev = to_dax_dev(inode);
+	struct dax_device *dax_dev = to_dax_dev(iyesde);
 	WARN_ONCE(test_bit(DAXDEV_ALIVE, &dax_dev->flags),
 			"kill_dax() must be called before final iput()\n");
 }
 
 static const struct super_operations dax_sops = {
 	.statfs = simple_statfs,
-	.alloc_inode = dax_alloc_inode,
-	.destroy_inode = dax_destroy_inode,
-	.free_inode = dax_free_inode,
-	.drop_inode = generic_delete_inode,
+	.alloc_iyesde = dax_alloc_iyesde,
+	.destroy_iyesde = dax_destroy_iyesde,
+	.free_iyesde = dax_free_iyesde,
+	.drop_iyesde = generic_delete_iyesde,
 };
 
 static int dax_init_fs_context(struct fs_context *fc)
@@ -482,43 +482,43 @@ static int dax_init_fs_context(struct fs_context *fc)
 static struct file_system_type dax_fs_type = {
 	.name		= "dax",
 	.init_fs_context = dax_init_fs_context,
-	.kill_sb	= kill_anon_super,
+	.kill_sb	= kill_ayesn_super,
 };
 
-static int dax_test(struct inode *inode, void *data)
+static int dax_test(struct iyesde *iyesde, void *data)
 {
 	dev_t devt = *(dev_t *) data;
 
-	return inode->i_rdev == devt;
+	return iyesde->i_rdev == devt;
 }
 
-static int dax_set(struct inode *inode, void *data)
+static int dax_set(struct iyesde *iyesde, void *data)
 {
 	dev_t devt = *(dev_t *) data;
 
-	inode->i_rdev = devt;
+	iyesde->i_rdev = devt;
 	return 0;
 }
 
 static struct dax_device *dax_dev_get(dev_t devt)
 {
 	struct dax_device *dax_dev;
-	struct inode *inode;
+	struct iyesde *iyesde;
 
-	inode = iget5_locked(dax_superblock, hash_32(devt + DAXFS_MAGIC, 31),
+	iyesde = iget5_locked(dax_superblock, hash_32(devt + DAXFS_MAGIC, 31),
 			dax_test, dax_set, &devt);
 
-	if (!inode)
+	if (!iyesde)
 		return NULL;
 
-	dax_dev = to_dax_dev(inode);
-	if (inode->i_state & I_NEW) {
+	dax_dev = to_dax_dev(iyesde);
+	if (iyesde->i_state & I_NEW) {
 		set_bit(DAXDEV_ALIVE, &dax_dev->flags);
-		inode->i_cdev = &dax_dev->cdev;
-		inode->i_mode = S_IFCHR;
-		inode->i_flags = S_DAX;
-		mapping_set_gfp_mask(&inode->i_data, GFP_USER);
-		unlock_new_inode(inode);
+		iyesde->i_cdev = &dax_dev->cdev;
+		iyesde->i_mode = S_IFCHR;
+		iyesde->i_flags = S_DAX;
+		mapping_set_gfp_mask(&iyesde->i_data, GFP_USER);
+		unlock_new_iyesde(iyesde);
 	}
 
 	return dax_dev;
@@ -530,7 +530,7 @@ static void dax_add_host(struct dax_device *dax_dev, const char *host)
 
 	/*
 	 * Unconditionally init dax_dev since it's coming from a
-	 * non-zeroed slab cache
+	 * yesn-zeroed slab cache
 	 */
 	INIT_HLIST_NODE(&dax_dev->list);
 	dax_dev->host = host;
@@ -549,17 +549,17 @@ struct dax_device *alloc_dax(void *private, const char *__host,
 	struct dax_device *dax_dev;
 	const char *host;
 	dev_t devt;
-	int minor;
+	int miyesr;
 
 	host = kstrdup(__host, GFP_KERNEL);
 	if (__host && !host)
 		return NULL;
 
-	minor = ida_simple_get(&dax_minor_ida, 0, MINORMASK+1, GFP_KERNEL);
-	if (minor < 0)
-		goto err_minor;
+	miyesr = ida_simple_get(&dax_miyesr_ida, 0, MINORMASK+1, GFP_KERNEL);
+	if (miyesr < 0)
+		goto err_miyesr;
 
-	devt = MKDEV(MAJOR(dax_devt), minor);
+	devt = MKDEV(MAJOR(dax_devt), miyesr);
 	dax_dev = dax_dev_get(devt);
 	if (!dax_dev)
 		goto err_dev;
@@ -568,13 +568,13 @@ struct dax_device *alloc_dax(void *private, const char *__host,
 	dax_dev->ops = ops;
 	dax_dev->private = private;
 	if (flags & DAXDEV_F_SYNC)
-		set_dax_synchronous(dax_dev);
+		set_dax_synchroyesus(dax_dev);
 
 	return dax_dev;
 
  err_dev:
-	ida_simple_remove(&dax_minor_ida, minor);
- err_minor:
+	ida_simple_remove(&dax_miyesr_ida, miyesr);
+ err_miyesr:
 	kfree(host);
 	return NULL;
 }
@@ -584,7 +584,7 @@ void put_dax(struct dax_device *dax_dev)
 {
 	if (!dax_dev)
 		return;
-	iput(&dax_dev->inode);
+	iput(&dax_dev->iyesde);
 }
 EXPORT_SYMBOL_GPL(put_dax);
 
@@ -609,7 +609,7 @@ struct dax_device *dax_get_by_host(const char *host)
 				|| strcmp(host, dax_dev->host) != 0)
 			continue;
 
-		if (igrab(&dax_dev->inode))
+		if (igrab(&dax_dev->iyesde))
 			found = dax_dev;
 		break;
 	}
@@ -621,25 +621,25 @@ struct dax_device *dax_get_by_host(const char *host)
 EXPORT_SYMBOL_GPL(dax_get_by_host);
 
 /**
- * inode_dax: convert a public inode into its dax_dev
- * @inode: An inode with i_cdev pointing to a dax_dev
+ * iyesde_dax: convert a public iyesde into its dax_dev
+ * @iyesde: An iyesde with i_cdev pointing to a dax_dev
  *
- * Note this is not equivalent to to_dax_dev() which is for private
- * internal use where we know the inode filesystem type == dax_fs_type.
+ * Note this is yest equivalent to to_dax_dev() which is for private
+ * internal use where we kyesw the iyesde filesystem type == dax_fs_type.
  */
-struct dax_device *inode_dax(struct inode *inode)
+struct dax_device *iyesde_dax(struct iyesde *iyesde)
 {
-	struct cdev *cdev = inode->i_cdev;
+	struct cdev *cdev = iyesde->i_cdev;
 
 	return container_of(cdev, struct dax_device, cdev);
 }
-EXPORT_SYMBOL_GPL(inode_dax);
+EXPORT_SYMBOL_GPL(iyesde_dax);
 
-struct inode *dax_inode(struct dax_device *dax_dev)
+struct iyesde *dax_iyesde(struct dax_device *dax_dev)
 {
-	return &dax_dev->inode;
+	return &dax_dev->iyesde;
 }
-EXPORT_SYMBOL_GPL(dax_inode);
+EXPORT_SYMBOL_GPL(dax_iyesde);
 
 void *dax_get_private(struct dax_device *dax_dev)
 {
@@ -652,10 +652,10 @@ EXPORT_SYMBOL_GPL(dax_get_private);
 static void init_once(void *_dax_dev)
 {
 	struct dax_device *dax_dev = _dax_dev;
-	struct inode *inode = &dax_dev->inode;
+	struct iyesde *iyesde = &dax_dev->iyesde;
 
 	memset(dax_dev, 0, sizeof(*dax_dev));
-	inode_init_once(inode);
+	iyesde_init_once(iyesde);
 }
 
 static int dax_fs_init(void)
@@ -717,7 +717,7 @@ err_chrdev:
 static void __exit dax_core_exit(void)
 {
 	unregister_chrdev_region(dax_devt, MINORMASK+1);
-	ida_destroy(&dax_minor_ida);
+	ida_destroy(&dax_miyesr_ida);
 	dax_fs_exit();
 }
 

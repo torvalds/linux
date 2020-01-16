@@ -165,7 +165,7 @@ static int cros_ec_baro_probe(struct platform_device *pdev)
 		channel->type = IIO_PRESSURE;
 		break;
 	default:
-		dev_warn(dev, "Unknown motion sensor\n");
+		dev_warn(dev, "Unkyeswn motion sensor\n");
 		return -EINVAL;
 	}
 

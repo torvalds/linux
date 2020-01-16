@@ -4,7 +4,7 @@
  *
  * Copyright (c) 2014 - 2017 Jes Sorensen <Jes.Sorensen@gmail.com>
  *
- * Portions, notably calibration code:
+ * Portions, yestably calibration code:
  * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
  *
  * This driver was written as a replacement for the vendor provided
@@ -16,7 +16,7 @@
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/spinlock.h>
@@ -1592,7 +1592,7 @@ static void rtl8xxxu_print_chipinfo(struct rtl8xxxu_priv *priv)
 		cut = "E";
 		break;
 	default:
-		cut = "unknown";
+		cut = "unkyeswn";
 	}
 
 	dev_info(dev,
@@ -1701,7 +1701,7 @@ static int rtl8xxxu_identify_chip(struct rtl8xxxu_priv *priv)
 			priv->vendor_umc = 1;
 			break;
 		default:
-			sprintf(priv->chip_vendor, "unknown");
+			sprintf(priv->chip_vendor, "unkyeswn");
 		}
 		break;
 	default:
@@ -1723,7 +1723,7 @@ static int rtl8xxxu_identify_chip(struct rtl8xxxu_priv *priv)
 	}
 
 	if (val16 & NORMAL_SIE_EP_TX_NORMAL_MASK) {
-		priv->ep_tx_normal_queue = 1;
+		priv->ep_tx_yesrmal_queue = 1;
 		priv->ep_tx_count++;
 	}
 
@@ -1733,7 +1733,7 @@ static int rtl8xxxu_identify_chip(struct rtl8xxxu_priv *priv)
 	}
 
 	/*
-	 * Fallback for devices that do not provide REG_NORMAL_SIE_EP_TX
+	 * Fallback for devices that do yest provide REG_NORMAL_SIE_EP_TX
 	 */
 	if (!priv->ep_tx_count) {
 		switch (priv->nr_out_eps) {
@@ -1743,7 +1743,7 @@ static int rtl8xxxu_identify_chip(struct rtl8xxxu_priv *priv)
 			priv->ep_tx_count++;
 			/* fall through */
 		case 2:
-			priv->ep_tx_normal_queue = 1;
+			priv->ep_tx_yesrmal_queue = 1;
 			priv->ep_tx_count++;
 			/* fall through */
 		case 1:
@@ -2076,7 +2076,7 @@ int rtl8xxxu_load_firmware(struct rtl8xxxu_priv *priv, char *fw_name)
 		goto exit;
 	}
 	if (!fw) {
-		dev_warn(dev, "Firmware data not available\n");
+		dev_warn(dev, "Firmware data yest available\n");
 		ret = -EINVAL;
 		goto exit;
 	}
@@ -2104,7 +2104,7 @@ int rtl8xxxu_load_firmware(struct rtl8xxxu_priv *priv, char *fw_name)
 
 	dev_info(dev, "Firmware revision %i.%i (signature 0x%04x)\n",
 		 le16_to_cpu(priv->fw_data->major_version),
-		 priv->fw_data->minor_version, signature);
+		 priv->fw_data->miyesr_version, signature);
 
 exit:
 	release_firmware(fw);
@@ -2539,7 +2539,7 @@ static int rtl8xxxu_init_queue_priority(struct rtl8xxxu_priv *priv)
 			hi = TRXDMA_QUEUE_HIGH;
 		} else if (priv->ep_tx_low_queue) {
 			hi = TRXDMA_QUEUE_LOW;
-		} else if (priv->ep_tx_normal_queue) {
+		} else if (priv->ep_tx_yesrmal_queue) {
 			hi = TRXDMA_QUEUE_NORMAL;
 		} else {
 			hi = 0;
@@ -2564,10 +2564,10 @@ static int rtl8xxxu_init_queue_priority(struct rtl8xxxu_priv *priv)
 		if (priv->ep_tx_high_queue && priv->ep_tx_low_queue) {
 			hi = TRXDMA_QUEUE_HIGH;
 			lo = TRXDMA_QUEUE_LOW;
-		} else if (priv->ep_tx_normal_queue && priv->ep_tx_low_queue) {
+		} else if (priv->ep_tx_yesrmal_queue && priv->ep_tx_low_queue) {
 			hi = TRXDMA_QUEUE_NORMAL;
 			lo = TRXDMA_QUEUE_LOW;
-		} else if (priv->ep_tx_high_queue && priv->ep_tx_normal_queue) {
+		} else if (priv->ep_tx_high_queue && priv->ep_tx_yesrmal_queue) {
 			hi = TRXDMA_QUEUE_HIGH;
 			lo = TRXDMA_QUEUE_NORMAL;
 		} else {
@@ -3056,7 +3056,7 @@ static int rtl8xxxu_iqk_path_a(struct rtl8xxxu_priv *priv)
 	    ((reg_e94 & 0x03ff0000) != 0x01420000) &&
 	    ((reg_e9c & 0x03ff0000) != 0x00420000))
 		result |= 0x01;
-	else	/* If TX not OK, ignore RX */
+	else	/* If TX yest OK, igyesre RX */
 		goto out;
 
 	/* If TX is OK, check whether RX is OK */
@@ -3171,7 +3171,7 @@ static void rtl8xxxu_phy_iqcalibrate(struct rtl8xxxu_priv *priv,
 	rtl8xxxu_write32(priv, REG_OFDM0_TR_MUX_PAR, 0x000800e4);
 	rtl8xxxu_write32(priv, REG_FPGA0_XCD_RF_SW_CTRL, 0x22204000);
 
-	if (!priv->no_pape) {
+	if (!priv->yes_pape) {
 		val32 = rtl8xxxu_read32(priv, REG_FPGA0_XAB_RF_SW_CTRL);
 		val32 |= (FPGA0_RF_PAPE |
 			  (FPGA0_RF_PAPE << FPGA0_RF_BD_CTRL_SHIFT));
@@ -3733,7 +3733,7 @@ void rtl8xxxu_gen1_usb_quirks(struct rtl8xxxu_priv *priv)
 	rtl8xxxu_write8(priv, 0xfe42, 0x80);
 	/*
 	 * This sets TXDMA_OFFSET_DROP_DATA_EN (bit 9) as well as bits
-	 * 8 and 5, for which I have found no documentation.
+	 * 8 and 5, for which I have found yes documentation.
 	 */
 	rtl8xxxu_write32(priv, REG_TXDMA_OFFSET_CHK, 0xfd0320);
 
@@ -3859,8 +3859,8 @@ static void rtl8xxxu_init_queue_reserved_page(struct rtl8xxxu_priv *priv)
 		hq = fops->page_num_hi;
 	if (priv->ep_tx_low_queue)
 		lq = fops->page_num_lo;
-	if (priv->ep_tx_normal_queue)
-		nq = fops->page_num_norm;
+	if (priv->ep_tx_yesrmal_queue)
+		nq = fops->page_num_yesrm;
 
 	val32 = (nq << RQPN_NPQ_SHIFT) | (eq << RQPN_EPQ_SHIFT);
 	rtl8xxxu_write32(priv, REG_RQPN_NPQ, val32);
@@ -3891,7 +3891,7 @@ static int rtl8xxxu_init_device(struct ieee80211_hw *hw)
 	val16 = rtl8xxxu_read16(priv, REG_SYS_CLKR);
 
 	/*
-	 * Fix 92DU-VC S3 hang with the reason is that secondary mac is not
+	 * Fix 92DU-VC S3 hang with the reason is that secondary mac is yest
 	 * initialized. First MAC returns 0xea, second MAC returns 0x00
 	 */
 	if (val8 == 0xea || !(val16 & SYS_CLK_MAC_CLK_ENABLE))
@@ -3955,7 +3955,7 @@ static int rtl8xxxu_init_device(struct ieee80211_hw *hw)
 	val32 = FPGA0_RF_TRSW | FPGA0_RF_TRSWB | FPGA0_RF_ANTSW |
 		FPGA0_RF_ANTSWB |
 		((FPGA0_RF_ANTSW | FPGA0_RF_ANTSWB) << FPGA0_RF_BD_CTRL_SHIFT);
-	if (!priv->no_pape) {
+	if (!priv->yes_pape) {
 		val32 |= (FPGA0_RF_PAPE |
 			  (FPGA0_RF_PAPE << FPGA0_RF_BD_CTRL_SHIFT));
 	}
@@ -3980,7 +3980,7 @@ static int rtl8xxxu_init_device(struct ieee80211_hw *hw)
 
 	/*
 	 * The vendor drivers set PBP for all devices, except 8192e.
-	 * There is no explanation for this in any of the sources.
+	 * There is yes explanation for this in any of the sources.
 	 */
 	val8 = (fops->pbp_rx << PBP_PAGE_SIZE_RX_SHIFT) |
 		(fops->pbp_tx << PBP_PAGE_SIZE_TX_SHIFT);
@@ -4020,7 +4020,7 @@ static int rtl8xxxu_init_device(struct ieee80211_hw *hw)
 	}
 
 	/*
-	 * Unit in 8 bytes, not obvious what it is used for
+	 * Unit in 8 bytes, yest obvious what it is used for
 	 */
 	rtl8xxxu_write8(priv, REG_RX_DRVINFO_SZ, 4);
 
@@ -4029,7 +4029,7 @@ static int rtl8xxxu_init_device(struct ieee80211_hw *hw)
 		rtl8xxxu_write32(priv, REG_HIMR1, 0x00);
 	} else {
 		/*
-		 * Enable all interrupts - not obvious USB needs to do this
+		 * Enable all interrupts - yest obvious USB needs to do this
 		 */
 		rtl8xxxu_write32(priv, REG_HISR, 0xffffffff);
 		rtl8xxxu_write32(priv, REG_HIMR, 0xffffffff);
@@ -4167,7 +4167,7 @@ static int rtl8xxxu_init_device(struct ieee80211_hw *hw)
 
 	rtl8xxxu_write8(priv, REG_HWSEQ_CTRL, 0xff);
 
-	/* Disable BAR - not sure if this has any effect on USB */
+	/* Disable BAR - yest sure if this has any effect on USB */
 	rtl8xxxu_write32(priv, REG_BAR_MODE_CTRL, 0x0201ffff);
 
 	rtl8xxxu_write16(priv, REG_FAST_EDCA_CTRL, 0);
@@ -4375,7 +4375,7 @@ void rtl8xxxu_gen2_report_connect(struct rtl8xxxu_priv *priv,
 	 * Barry Day reports this causes issues with 8192eu and 8723bu
 	 * devices reconnecting. The reason for this is unclear, but
 	 * until it is better understood, leave the code in place but
-	 * disabled, so it is not lost.
+	 * disabled, so it is yest lost.
 	 */
 	struct h2c_cmd h2c;
 
@@ -4530,7 +4530,7 @@ rtl8xxxu_bss_info_changed(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 			rcu_read_lock();
 			sta = ieee80211_find_sta(vif, bss_conf->bssid);
 			if (!sta) {
-				dev_info(dev, "%s: ASSOC no sta found\n",
+				dev_info(dev, "%s: ASSOC yes sta found\n",
 					 __func__);
 				rcu_read_unlock();
 				goto error;
@@ -4850,7 +4850,7 @@ rtl8xxxu_fill_txdesc_v1(struct ieee80211_hw *hw, struct ieee80211_hdr *hdr,
 		tx_desc->txdw5 |= cpu_to_le32(TXDESC32_SHORT_GI);
 
 	/*
-	 * rts_rate is zero if RTS/CTS or CTS to SELF are not enabled
+	 * rts_rate is zero if RTS/CTS or CTS to SELF are yest enabled
 	 */
 	tx_desc->txdw4 |= cpu_to_le32(rts_rate << TXDESC32_RTS_RATE_SHIFT);
 	if (rate_flags & IEEE80211_TX_RC_USE_RTS_CTS) {
@@ -4920,7 +4920,7 @@ rtl8xxxu_fill_txdesc_v2(struct ieee80211_hw *hw, struct ieee80211_hdr *hdr,
 
 	tx_desc40->txdw4 |= cpu_to_le32(rts_rate << TXDESC40_RTS_RATE_SHIFT);
 	/*
-	 * rts_rate is zero if RTS/CTS or CTS to SELF are not enabled
+	 * rts_rate is zero if RTS/CTS or CTS to SELF are yest enabled
 	 */
 	if (rate_flags & IEEE80211_TX_RC_USE_RTS_CTS) {
 		tx_desc40->txdw3 |= cpu_to_le32(TXDESC40_RTS_CTS_ENABLE);
@@ -4955,7 +4955,7 @@ static void rtl8xxxu_tx(struct ieee80211_hw *hw,
 
 	if (skb_headroom(skb) < tx_desc_size) {
 		dev_warn(dev,
-			 "%s: Not enough headroom (%i) for tx descriptor\n",
+			 "%s: Not eyesugh headroom (%i) for tx descriptor\n",
 			 __func__, skb_headroom(skb));
 		goto error;
 	}
@@ -5464,9 +5464,9 @@ static void rtl8723bu_handle_c2h(struct rtl8xxxu_priv *priv,
 		break;
 	case C2H_8723B_RA_REPORT:
 		dev_dbg(dev,
-			"C2H RA RPT: rate %02x, unk %i, macid %02x, noise %i\n",
+			"C2H RA RPT: rate %02x, unk %i, macid %02x, yesise %i\n",
 			c2h->ra_report.rate, c2h->ra_report.dummy0_0,
-			c2h->ra_report.macid, c2h->ra_report.noisy_state);
+			c2h->ra_report.macid, c2h->ra_report.yesisy_state);
 		break;
 	default:
 		dev_info(dev, "Unhandled C2H event %02x seq %02x\n",
@@ -5521,7 +5521,7 @@ int rtl8xxxu_parse_rxdesc16(struct rtl8xxxu_priv *priv, struct sk_buff *skb)
 				     sizeof(struct rtl8xxxu_rxdesc16), 128);
 
 		/*
-		 * Only clone the skb if there's enough data at the end to
+		 * Only clone the skb if there's eyesugh data at the end to
 		 * at least cover the rx descriptor
 		 */
 		if (pkt_cnt > 1 &&
@@ -5896,7 +5896,7 @@ static void rtl8xxxu_configure_filter(struct ieee80211_hw *hw,
 		__func__, changed_flags, *total_flags);
 
 	/*
-	 * FIF_ALLMULTI ignored as all multicast frames are accepted (REG_MAR)
+	 * FIF_ALLMULTI igyesred as all multicast frames are accepted (REG_MAR)
 	 */
 
 	if (*total_flags & FIF_FCSFAIL)
@@ -5905,7 +5905,7 @@ static void rtl8xxxu_configure_filter(struct ieee80211_hw *hw,
 		rcr &= ~RCR_ACCEPT_CRC32;
 
 	/*
-	 * FIF_PLCPFAIL not supported?
+	 * FIF_PLCPFAIL yest supported?
 	 */
 
 	if (*total_flags & FIF_BCN_PRBRESP_PROMISC)
@@ -5932,7 +5932,7 @@ static void rtl8xxxu_configure_filter(struct ieee80211_hw *hw,
 		rcr &= ~RCR_ACCEPT_PM;
 
 	/*
-	 * FIF_PROBE_REQ ignored as probe requests always seem to be accepted
+	 * FIF_PROBE_REQ igyesred as probe requests always seem to be accepted
 	 */
 
 	rtl8xxxu_write32(priv, REG_RCR, rcr);
@@ -6227,7 +6227,7 @@ static void rtl8xxxu_watchdog_callback(struct work_struct *work)
 		if (!sta) {
 			struct device *dev = &priv->udev->dev;
 
-			dev_dbg(dev, "%s: no sta found\n", __func__);
+			dev_dbg(dev, "%s: yes sta found\n", __func__);
 			rcu_read_unlock();
 			goto out;
 		}
@@ -6584,7 +6584,7 @@ static int rtl8xxxu_probe(struct usb_interface *interface,
 	}
 	sband->ht_cap.mcs.tx_params = IEEE80211_HT_MCS_TX_DEFINED;
 	/*
-	 * Some APs will negotiate HT20_40 in a noisy environment leading
+	 * Some APs will negotiate HT20_40 in a yesisy environment leading
 	 * to miserable performance. Rather than defaulting to this, only
 	 * enable it if explicitly requested at module load time.
 	 */
@@ -6701,7 +6701,7 @@ static const struct usb_device_id dev_table[] = {
 /* Tested by Jocelyn Mayer */
 {USB_DEVICE_AND_INTERFACE_INFO(0x20f4, 0x648b, 0xff, 0xff, 0xff),
 	.driver_info = (unsigned long)&rtl8192cu_fops},
-/* Tested by Stefano Bravi */
+/* Tested by Stefayes Bravi */
 {USB_DEVICE_AND_INTERFACE_INFO(0x2001, 0x3308, 0xff, 0xff, 0xff),
 	.driver_info = (unsigned long)&rtl8192cu_fops},
 /* Currently untested 8188 series devices */
@@ -6848,7 +6848,7 @@ static struct usb_driver rtl8xxxu_driver = {
 	.probe = rtl8xxxu_probe,
 	.disconnect = rtl8xxxu_disconnect,
 	.id_table = dev_table,
-	.no_dynamic_id = 1,
+	.yes_dynamic_id = 1,
 	.disable_hub_initiated_lpm = 1,
 };
 

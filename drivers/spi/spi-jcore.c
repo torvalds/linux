@@ -10,7 +10,7 @@
  */
 #include <linux/init.h>
 #include <linux/interrupt.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/spi/spi.h>
@@ -139,7 +139,7 @@ static int jcore_spi_txrx(struct spi_master *master, struct spi_device *spi,
 
 static int jcore_spi_probe(struct platform_device *pdev)
 {
-	struct device_node *node = pdev->dev.of_node;
+	struct device_yesde *yesde = pdev->dev.of_yesde;
 	struct jcore_spi *hw;
 	struct spi_master *master;
 	struct resource *res;
@@ -156,7 +156,7 @@ static int jcore_spi_probe(struct platform_device *pdev)
 	master->mode_bits = SPI_CPOL | SPI_CPHA | SPI_CS_HIGH;
 	master->transfer_one = jcore_spi_txrx;
 	master->set_cs = jcore_spi_chipsel;
-	master->dev.of_node = node;
+	master->dev.of_yesde = yesde;
 	master->bus_num = pdev->id;
 
 	hw = spi_master_get_devdata(master);
@@ -170,7 +170,7 @@ static int jcore_spi_probe(struct platform_device *pdev)
 	if (!devm_request_mem_region(&pdev->dev, res->start,
 				     resource_size(res), pdev->name))
 		goto exit_busy;
-	hw->base = devm_ioremap_nocache(&pdev->dev, res->start,
+	hw->base = devm_ioremap_yescache(&pdev->dev, res->start,
 					resource_size(res));
 	if (!hw->base)
 		goto exit_busy;
@@ -190,7 +190,7 @@ static int jcore_spi_probe(struct platform_device *pdev)
 			clock_freq = clk_get_rate(clk);
 			clk_disable_unprepare(clk);
 		} else
-			dev_warn(&pdev->dev, "could not enable ref_clk\n");
+			dev_warn(&pdev->dev, "could yest enable ref_clk\n");
 	}
 	hw->clock_freq = clock_freq;
 

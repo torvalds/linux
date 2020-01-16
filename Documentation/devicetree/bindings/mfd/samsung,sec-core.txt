@@ -11,8 +11,8 @@ to the host controller using an I2C interface. Each sub-block is usually
 addressed by the host system using different I2C slave addresses.
 
 
-This document describes bindings for main device node. Optional sub-blocks
-must be a sub-nodes to it. Bindings for them can be found in:
+This document describes bindings for main device yesde. Optional sub-blocks
+must be a sub-yesdes to it. Bindings for them can be found in:
  - bindings/regulator/samsung,s2mpa01.txt
  - bindings/regulator/samsung,s2mps11.txt
  - bindings/regulator/samsung,s5m8767.txt

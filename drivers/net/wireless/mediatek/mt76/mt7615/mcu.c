@@ -517,7 +517,7 @@ static int mt7615_load_firmware(struct mt7615_dev *dev)
 	val = mt76_get_field(dev, MT_TOP_MISC2, MT_TOP_MISC2_FW_STATE);
 
 	if (val != FW_STATE_FW_DOWNLOAD) {
-		dev_err(dev->mt76.dev, "Firmware is not ready for download\n");
+		dev_err(dev->mt76.dev, "Firmware is yest ready for download\n");
 		return -EIO;
 	}
 
@@ -1262,7 +1262,7 @@ int mt7615_mcu_rdd_send_pattern(struct mt7615_dev *dev)
 	if (dev->radar_pattern.n_pulses > ARRAY_SIZE(req.pattern))
 		return -EINVAL;
 
-	/* TODO: add some noise here */
+	/* TODO: add some yesise here */
 	for (i = 0; i < dev->radar_pattern.n_pulses; i++) {
 		req.pattern[i].width = dev->radar_pattern.width;
 		req.pattern[i].power = dev->radar_pattern.power;

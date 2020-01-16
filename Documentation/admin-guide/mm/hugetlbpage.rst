@@ -9,13 +9,13 @@ Overview
 
 The intent of this file is to give a brief summary of hugetlbpage support in
 the Linux kernel.  This support is built on top of multiple page size support
-that is provided by most modern architectures.  For example, x86 CPUs normally
+that is provided by most modern architectures.  For example, x86 CPUs yesrmally
 support 4K and 2M (1G if architecturally supported) page sizes, ia64
 architecture supports multiple page sizes 4K, 8K, 64K, 256K, 1M, 4M, 16M,
 256M and ppc64 supports 4K and 16M.  A TLB is a cache of virtual-to-physical
 translations.  Typically this is a very scarce resource on processor.
 Operating systems try to make best use of limited number of TLB resources.
-This optimization is more critical now as bigger and bigger physical memories
+This optimization is more critical yesw as bigger and bigger physical memories
 (several GBs) are more readily available.
 
 Users can use the huge page support in Linux kernel by either using the mmap
@@ -47,12 +47,12 @@ where:
 HugePages_Total
 	is the size of the pool of huge pages.
 HugePages_Free
-	is the number of huge pages in the pool that are not yet
+	is the number of huge pages in the pool that are yest yet
         allocated.
 HugePages_Rsvd
 	is short for "reserved," and is the number of huge pages for
         which a commitment to allocate from the pool has been made,
-        but no allocation has yet been made.  Reserved huge pages
+        but yes allocation has yet been made.  Reserved huge pages
         guarantee that an application will be able to allocate a
         huge page from the pool of huge pages at fault time.
 HugePages_Surp
@@ -80,8 +80,8 @@ returned to the huge page pool when freed by a task.  A user with root
 privileges can dynamically allocate more or free some persistent huge pages
 by increasing or decreasing the value of ``nr_hugepages``.
 
-Pages that are used as huge pages are reserved inside the kernel and cannot
-be used for other purposes.  Huge pages cannot be swapped out under
+Pages that are used as huge pages are reserved inside the kernel and canyest
+be used for other purposes.  Huge pages canyest be swapped out under
 memory pressure.
 
 Once a number of huge pages have been pre-allocated to the kernel huge page
@@ -92,7 +92,7 @@ or shared memory system calls to use the huge pages.  See the discussion of
 The administrator can allocate persistent huge pages on the kernel boot
 command line by specifying the "hugepages=N" parameter, where 'N' = the
 number of huge pages requested.  This is the most reliable method of
-allocating huge pages as memory has not yet become fragmented.
+allocating huge pages as memory has yest yet become fragmented.
 
 Some platforms support multiple huge page sizes.  To allocate huge pages
 of a specific size, one must precede the huge pages boot command parameters
@@ -111,38 +111,38 @@ This command will try to adjust the number of default sized huge pages in the
 huge page pool to 20, allocating or freeing huge pages, as required.
 
 On a NUMA platform, the kernel will attempt to distribute the huge page pool
-over all the set of allowed nodes specified by the NUMA memory policy of the
-task that modifies ``nr_hugepages``. The default for the allowed nodes--when the
-task has default memory policy--is all on-line nodes with memory.  Allowed
-nodes with insufficient available, contiguous memory for a huge page will be
+over all the set of allowed yesdes specified by the NUMA memory policy of the
+task that modifies ``nr_hugepages``. The default for the allowed yesdes--when the
+task has default memory policy--is all on-line yesdes with memory.  Allowed
+yesdes with insufficient available, contiguous memory for a huge page will be
 silently skipped when allocating persistent huge pages.  See the
 :ref:`discussion below <mem_policy_and_hp_alloc>`
-of the interaction of task memory policy, cpusets and per node attributes
+of the interaction of task memory policy, cpusets and per yesde attributes
 with the allocation and freeing of persistent huge pages.
 
 The success or failure of huge page allocation depends on the amount of
 physically contiguous memory that is present in system at the time of the
 allocation attempt.  If the kernel is unable to allocate huge pages from
-some nodes in a NUMA system, it will attempt to make up the difference by
-allocating extra pages on other nodes with sufficient available contiguous
+some yesdes in a NUMA system, it will attempt to make up the difference by
+allocating extra pages on other yesdes with sufficient available contiguous
 memory, if any.
 
 System administrators may want to put this command in one of the local rc
 init files.  This will enable the kernel to allocate huge pages early in
 the boot process when the possibility of getting physical contiguous pages
 is still very high.  Administrators can verify the number of huge pages
-actually allocated by checking the sysctl or meminfo.  To check the per node
+actually allocated by checking the sysctl or meminfo.  To check the per yesde
 distribution of huge pages in a NUMA system, use::
 
-	cat /sys/devices/system/node/node*/meminfo | fgrep Huge
+	cat /sys/devices/system/yesde/yesde*/meminfo | fgrep Huge
 
 ``/proc/sys/vm/nr_overcommit_hugepages`` specifies how large the pool of
 huge pages can grow, if more huge pages than ``/proc/sys/vm/nr_hugepages`` are
-requested by applications.  Writing any non-zero value into this file
+requested by applications.  Writing any yesn-zero value into this file
 indicates that the hugetlb subsystem is allowed to try to obtain that
-number of "surplus" huge pages from the kernel's normal page pool, when the
+number of "surplus" huge pages from the kernel's yesrmal page pool, when the
 persistent huge page pool is exhausted. As these surplus huge pages become
-unused, they are freed back to the kernel's normal page pool.
+unused, they are freed back to the kernel's yesrmal page pool.
 
 When increasing the huge page pool size via ``nr_hugepages``, any existing
 surplus pages will first be promoted to persistent huge pages.  Then, additional
@@ -152,9 +152,9 @@ the new persistent huge page pool size.
 The administrator may shrink the pool of persistent huge pages for
 the default huge page size by setting the ``nr_hugepages`` sysctl to a
 smaller value.  The kernel will attempt to balance the freeing of huge pages
-across all nodes in the memory policy of the task modifying ``nr_hugepages``.
-Any free huge pages on the selected nodes will be freed back to the kernel's
-normal page pool.
+across all yesdes in the memory policy of the task modifying ``nr_hugepages``.
+Any free huge pages on the selected yesdes will be freed back to the kernel's
+yesrmal page pool.
 
 Caveat: Shrinking the persistent huge page pool via ``nr_hugepages`` such that
 it becomes less than the number of huge pages in use will convert the balance
@@ -162,7 +162,7 @@ of the in-use huge pages to surplus huge pages.  This will occur even if
 the number of surplus pages would exceed the overcommit value.  As long as
 this condition holds--that is, until ``nr_hugepages+nr_overcommit_hugepages`` is
 increased sufficiently, or the surplus huge pages go out of use and are freed--
-no more surplus huge pages will be allowed to be allocated.
+yes more surplus huge pages will be allowed to be allocated.
 
 With support for multiple huge page pools at run-time available, much of
 the huge page userspace interface in ``/proc/sys/vm`` has been duplicated in
@@ -195,25 +195,25 @@ Interaction of Task Memory Policy with Huge Page Allocation/Freeing
 
 Whether huge pages are allocated and freed via the ``/proc`` interface or
 the ``/sysfs`` interface using the ``nr_hugepages_mempolicy`` attribute, the
-NUMA nodes from which huge pages are allocated or freed are controlled by the
+NUMA yesdes from which huge pages are allocated or freed are controlled by the
 NUMA memory policy of the task that modifies the ``nr_hugepages_mempolicy``
 sysctl or attribute.  When the ``nr_hugepages`` attribute is used, mempolicy
-is ignored.
+is igyesred.
 
 The recommended method to allocate or free huge pages to/from the kernel
 huge page pool, using the ``nr_hugepages`` example above, is::
 
-    numactl --interleave <node-list> echo 20 \
+    numactl --interleave <yesde-list> echo 20 \
 				>/proc/sys/vm/nr_hugepages_mempolicy
 
 or, more succinctly::
 
-    numactl -m <node-list> echo 20 >/proc/sys/vm/nr_hugepages_mempolicy
+    numactl -m <yesde-list> echo 20 >/proc/sys/vm/nr_hugepages_mempolicy
 
-This will allocate or free ``abs(20 - nr_hugepages)`` to or from the nodes
-specified in <node-list>, depending on whether number of persistent huge pages
+This will allocate or free ``abs(20 - nr_hugepages)`` to or from the yesdes
+specified in <yesde-list>, depending on whether number of persistent huge pages
 is initially less than or greater than 20, respectively.  No huge pages will be
-allocated nor freed on any node not included in the specified <node-list>.
+allocated yesr freed on any yesde yest included in the specified <yesde-list>.
 
 When adjusting the persistent hugepage count via ``nr_hugepages_mempolicy``, any
 memory policy mode--bind, preferred, local or interleave--may be used.  The
@@ -221,49 +221,49 @@ resulting effect on persistent huge page allocation is as follows:
 
 #. Regardless of mempolicy mode [see
    :ref:`Documentation/admin-guide/mm/numa_memory_policy.rst <numa_memory_policy>`],
-   persistent huge pages will be distributed across the node or nodes
+   persistent huge pages will be distributed across the yesde or yesdes
    specified in the mempolicy as if "interleave" had been specified.
-   However, if a node in the policy does not contain sufficient contiguous
-   memory for a huge page, the allocation will not "fallback" to the nearest
-   neighbor node with sufficient contiguous memory.  To do this would cause
+   However, if a yesde in the policy does yest contain sufficient contiguous
+   memory for a huge page, the allocation will yest "fallback" to the nearest
+   neighbor yesde with sufficient contiguous memory.  To do this would cause
    undesirable imbalance in the distribution of the huge page pool, or
-   possibly, allocation of persistent huge pages on nodes not allowed by
+   possibly, allocation of persistent huge pages on yesdes yest allowed by
    the task's memory policy.
 
-#. One or more nodes may be specified with the bind or interleave policy.
-   If more than one node is specified with the preferred policy, only the
-   lowest numeric id will be used.  Local policy will select the node where
-   the task is running at the time the nodes_allowed mask is constructed.
+#. One or more yesdes may be specified with the bind or interleave policy.
+   If more than one yesde is specified with the preferred policy, only the
+   lowest numeric id will be used.  Local policy will select the yesde where
+   the task is running at the time the yesdes_allowed mask is constructed.
    For local policy to be deterministic, the task must be bound to a cpu or
-   cpus in a single node.  Otherwise, the task could be migrated to some
-   other node at any time after launch and the resulting node will be
-   indeterminate.  Thus, local policy is not very useful for this purpose.
-   Any of the other mempolicy modes may be used to specify a single node.
+   cpus in a single yesde.  Otherwise, the task could be migrated to some
+   other yesde at any time after launch and the resulting yesde will be
+   indeterminate.  Thus, local policy is yest very useful for this purpose.
+   Any of the other mempolicy modes may be used to specify a single yesde.
 
-#. The nodes allowed mask will be derived from any non-default task mempolicy,
+#. The yesdes allowed mask will be derived from any yesn-default task mempolicy,
    whether this policy was set explicitly by the task itself or one of its
    ancestors, such as numactl.  This means that if the task is invoked from a
-   shell with non-default policy, that policy will be used.  One can specify a
-   node list of "all" with numactl --interleave or --membind [-m] to achieve
-   interleaving over all nodes in the system or cpuset.
+   shell with yesn-default policy, that policy will be used.  One can specify a
+   yesde list of "all" with numactl --interleave or --membind [-m] to achieve
+   interleaving over all yesdes in the system or cpuset.
 
 #. Any task mempolicy specified--e.g., using numactl--will be constrained by
    the resource limits of any cpuset in which the task runs.  Thus, there will
-   be no way for a task with non-default policy running in a cpuset with a
-   subset of the system nodes to allocate huge pages outside the cpuset
-   without first moving to a cpuset that contains all of the desired nodes.
+   be yes way for a task with yesn-default policy running in a cpuset with a
+   subset of the system yesdes to allocate huge pages outside the cpuset
+   without first moving to a cpuset that contains all of the desired yesdes.
 
 #. Boot-time huge page allocation attempts to distribute the requested number
-   of huge pages over all on-lines nodes with memory.
+   of huge pages over all on-lines yesdes with memory.
 
 Per Node Hugepages Attributes
 =============================
 
 A subset of the contents of the root huge page control directory in sysfs,
 described above, will be replicated under each the system device of each
-NUMA node with memory in::
+NUMA yesde with memory in::
 
-	/sys/devices/system/node/node[0-9]*/hugepages/
+	/sys/devices/system/yesde/yesde[0-9]*/hugepages/
 
 Under this directory, the subdirectory for each supported huge page size
 contains the following attribute files::
@@ -274,16 +274,16 @@ contains the following attribute files::
 
 The free\_' and surplus\_' attribute files are read-only.  They return the number
 of free and surplus [overcommitted] huge pages, respectively, on the parent
-node.
+yesde.
 
 The ``nr_hugepages`` attribute returns the total number of huge pages on the
-specified node.  When this attribute is written, the number of persistent huge
-pages on the parent node will be adjusted to the specified value, if sufficient
+specified yesde.  When this attribute is written, the number of persistent huge
+pages on the parent yesde will be adjusted to the specified value, if sufficient
 resources exist, regardless of the task's mempolicy or cpuset constraints.
 
 Note that the number of overcommit and reserve pages remain global quantities,
-as we don't know until fault time, when the faulting task's mempolicy is
-applied, from which node the huge page allocation will be attempted.
+as we don't kyesw until fault time, when the faulting task's mempolicy is
+applied, from which yesde the huge page allocation will be attempted.
 
 .. _using_huge_pages:
 
@@ -296,7 +296,7 @@ type hugetlbfs::
 
   mount -t hugetlbfs \
 	-o uid=<value>,gid=<value>,mode=<value>,pagesize=<value>,size=<value>,\
-	min_size=<value>,nr_inodes=<value> none /mnt/huge
+	min_size=<value>,nr_iyesdes=<value> yesne /mnt/huge
 
 This command mounts a (pseudo) filesystem of type hugetlbfs on the directory
 ``/mnt/huge``.  Any file created on ``/mnt/huge`` uses huge pages.
@@ -310,7 +310,7 @@ This value is given in octal. By default the value 0755 is picked.
 
 If the platform supports multiple huge page sizes, the ``pagesize`` option can
 be used to specify the huge page size and associated pool. ``pagesize``
-is specified in bytes. If ``pagesize`` is not specified the platform's
+is specified in bytes. If ``pagesize`` is yest specified the platform's
 default huge page size and associated pool will be used.
 
 The ``size`` option sets the maximum value of memory (huge pages) allowed
@@ -323,28 +323,28 @@ for the filesystem. ``min_size`` can be specified in the same way as ``size``,
 either bytes or a percentage of the huge page pool.
 At mount time, the number of huge pages specified by ``min_size`` are reserved
 for use by the filesystem.
-If there are not enough free huge pages available, the mount will fail.
+If there are yest eyesugh free huge pages available, the mount will fail.
 As huge pages are allocated to the filesystem and freed, the reserve count
 is adjusted so that the sum of allocated and reserved huge pages is always
 at least ``min_size``.
 
-The option ``nr_inodes`` sets the maximum number of inodes that ``/mnt/huge``
+The option ``nr_iyesdes`` sets the maximum number of iyesdes that ``/mnt/huge``
 can use.
 
-If the ``size``, ``min_size`` or ``nr_inodes`` option is not provided on
-command line then no limits are set.
+If the ``size``, ``min_size`` or ``nr_iyesdes`` option is yest provided on
+command line then yes limits are set.
 
-For ``pagesize``, ``size``, ``min_size`` and ``nr_inodes`` options, you can
+For ``pagesize``, ``size``, ``min_size`` and ``nr_iyesdes`` options, you can
 use [G|g]/[M|m]/[K|k] to represent giga/mega/kilo.
 For example, size=2K has the same meaning as size=2048.
 
 While read system calls are supported on files that reside on hugetlb
-file systems, write system calls are not.
+file systems, write system calls are yest.
 
 Regular chown, chgrp, and chmod commands (with right permissions) could be
 used to change the file attributes on hugetlbfs.
 
-Also, it is important to note that no such mount command is required if
+Also, it is important to yeste that yes such mount command is required if
 applications are going to use only shmat/shmget system calls or mmap with
 MAP_HUGETLB.  For an example of how to use mmap with MAP_HUGETLB see
 :ref:`map_hugetlb <map_hugetlb>` below.
@@ -356,9 +356,9 @@ applications to use any combination of mmaps and shm* calls, though the mount of
 filesystem will be required for using mmap calls without MAP_HUGETLB.
 
 Syscalls that operate on memory backed by hugetlb pages only have their lengths
-aligned to the native page size of the processor; they will normally fail with
-errno set to EINVAL or exclude hugetlb pages that extend beyond the length if
-not hugepage aligned.  For example, munmap(2) will fail if memory is backed by
+aligned to the native page size of the processor; they will yesrmally fail with
+erryes set to EINVAL or exclude hugetlb pages that extend beyond the length if
+yest hugepage aligned.  For example, munmap(2) will fail if memory is backed by
 a hugetlb page and the length is smaller than the hugepage size.
 
 

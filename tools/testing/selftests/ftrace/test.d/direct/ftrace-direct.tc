@@ -18,52 +18,52 @@ rmmod ftrace-direct
 test_tracer() {
 	tracer=$1
 
-	# tracer -> direct -> no direct > no tracer
+	# tracer -> direct -> yes direct > yes tracer
 	echo $tracer > current_tracer
 	modprobe ftrace-direct
 	rmmod ftrace-direct
-	echo nop > current_tracer
+	echo yesp > current_tracer
 
-	# tracer -> direct -> no tracer > no direct
+	# tracer -> direct -> yes tracer > yes direct
 	echo $tracer > current_tracer
 	modprobe ftrace-direct
-	echo nop > current_tracer
-	rmmod ftrace-direct
-
-	# direct -> tracer -> no tracer > no direct
-	modprobe ftrace-direct
-	echo $tracer > current_tracer
-	echo nop > current_tracer
+	echo yesp > current_tracer
 	rmmod ftrace-direct
 
-	# direct -> tracer -> no direct > no notracer
+	# direct -> tracer -> yes tracer > yes direct
+	modprobe ftrace-direct
+	echo $tracer > current_tracer
+	echo yesp > current_tracer
+	rmmod ftrace-direct
+
+	# direct -> tracer -> yes direct > yes yestracer
 	modprobe ftrace-direct
 	echo $tracer > current_tracer
 	rmmod ftrace-direct
-	echo nop > current_tracer
+	echo yesp > current_tracer
 }
 
 for t in `cat available_tracers`; do
-	if [ "$t" != "nop" ]; then
+	if [ "$t" != "yesp" ]; then
 		test_tracer $t
 	fi
 done
 
-echo nop > current_tracer
+echo yesp > current_tracer
 rmmod ftrace-direct ||:
 
-# Now do the same thing with another direct function registered
-echo "Running with another ftrace direct function"
+# Now do the same thing with ayesther direct function registered
+echo "Running with ayesther ftrace direct function"
 
 rmmod ftrace-direct-too ||:
 modprobe ftrace-direct-too
 
 for t in `cat available_tracers`; do
-	if [ "$t" != "nop" ]; then
+	if [ "$t" != "yesp" ]; then
 		test_tracer $t
 	fi
 done
 
-echo nop > current_tracer
+echo yesp > current_tracer
 rmmod ftrace-direct ||:
 rmmod ftrace-direct-too ||:

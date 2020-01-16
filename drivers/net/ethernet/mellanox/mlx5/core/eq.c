@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2015, Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2013-2015, Mellayesx Techyeslogies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -31,7 +31,7 @@
  */
 
 #include <linux/interrupt.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/module.h>
 #include <linux/mlx5/driver.h>
 #include <linux/mlx5/vport.h>
@@ -77,7 +77,7 @@ struct mlx5_eq_table {
 	struct mlx5_eq_async    cmd_eq;
 	struct mlx5_eq_async    async_eq;
 
-	struct atomic_notifier_head nh[MLX5_EVENT_TYPE_MAX];
+	struct atomic_yestifier_head nh[MLX5_EVENT_TYPE_MAX];
 
 	/* Since CQ DB is stored in async_eq */
 	struct mlx5_nb          cq_err_nb;
@@ -125,7 +125,7 @@ static struct mlx5_core_cq *mlx5_eq_cq_get(struct mlx5_eq *eq, u32 cqn)
 	return cq;
 }
 
-static int mlx5_eq_comp_int(struct notifier_block *nb,
+static int mlx5_eq_comp_int(struct yestifier_block *nb,
 			    __always_unused unsigned long action,
 			    __always_unused void *data)
 {
@@ -174,7 +174,7 @@ out:
 
 /* Some architectures don't latch interrupts when they are disabled, so using
  * mlx5_eq_poll_irq_disabled could end up losing interrupts while trying to
- * avoid losing them.  It is not recommended to use it, unless this is the last
+ * avoid losing them.  It is yest recommended to use it, unless this is the last
  * resort.
  */
 u32 mlx5_eq_poll_irq_disabled(struct mlx5_eq_comp *eq)
@@ -190,7 +190,7 @@ u32 mlx5_eq_poll_irq_disabled(struct mlx5_eq_comp *eq)
 	return count_eqe;
 }
 
-static int mlx5_eq_async_int(struct notifier_block *nb,
+static int mlx5_eq_async_int(struct yestifier_block *nb,
 			     unsigned long action, void *data)
 {
 	struct mlx5_eq_async *eq_async =
@@ -215,8 +215,8 @@ static int mlx5_eq_async_int(struct notifier_block *nb,
 		 */
 		dma_rmb();
 
-		atomic_notifier_call_chain(&eqt->nh[eqe->type], eqe->type, eqe);
-		atomic_notifier_call_chain(&eqt->nh[MLX5_EVENT_TYPE_NOTIFY_ANY], eqe->type, eqe);
+		atomic_yestifier_call_chain(&eqt->nh[eqe->type], eqe->type, eqe);
+		atomic_yestifier_call_chain(&eqt->nh[MLX5_EVENT_TYPE_NOTIFY_ANY], eqe->type, eqe);
 
 		++eq->cons_index;
 
@@ -330,10 +330,10 @@ err_buf:
  *
  * Must be called after EQ is created in device.
  *
- * @return: 0 if no error
+ * @return: 0 if yes error
  */
 int mlx5_eq_enable(struct mlx5_core_dev *dev, struct mlx5_eq *eq,
-		   struct notifier_block *nb)
+		   struct yestifier_block *nb)
 {
 	struct mlx5_eq_table *eq_table = dev->priv.eq_table;
 	int err;
@@ -355,7 +355,7 @@ EXPORT_SYMBOL(mlx5_eq_enable);
  * Must be called before EQ is destroyed.
  */
 void mlx5_eq_disable(struct mlx5_core_dev *dev, struct mlx5_eq *eq,
-		     struct notifier_block *nb)
+		     struct yestifier_block *nb)
 {
 	struct mlx5_eq_table *eq_table = dev->priv.eq_table;
 
@@ -402,7 +402,7 @@ void mlx5_eq_del_cq(struct mlx5_eq *eq, struct mlx5_core_cq *cq)
 	spin_unlock(&table->lock);
 
 	if (!tmp) {
-		mlx5_core_dbg(eq->dev, "cq 0x%x not found in eq 0x%x tree\n",
+		mlx5_core_dbg(eq->dev, "cq 0x%x yest found in eq 0x%x tree\n",
 			      eq->eqn, cq->cqn);
 		return;
 	}
@@ -471,7 +471,7 @@ static int destroy_async_eq(struct mlx5_core_dev *dev, struct mlx5_eq *eq)
 	return err;
 }
 
-static int cq_err_event_notifier(struct notifier_block *nb,
+static int cq_err_event_yestifier(struct yestifier_block *nb,
 				 unsigned long type, void *data)
 {
 	struct mlx5_eq_table *eqt;
@@ -527,13 +527,13 @@ static void gather_async_events_mask(struct mlx5_core_dev *dev, u64 mask[4])
 	if (MLX5_VPORT_MANAGER(dev))
 		async_event_mask |= (1ull << MLX5_EVENT_TYPE_NIC_VPORT_CHANGE);
 
-	if (MLX5_CAP_GEN(dev, general_notification_event))
+	if (MLX5_CAP_GEN(dev, general_yestification_event))
 		async_event_mask |= (1ull << MLX5_EVENT_TYPE_GENERAL_EVENT);
 
 	if (MLX5_CAP_GEN(dev, port_module_event))
 		async_event_mask |= (1ull << MLX5_EVENT_TYPE_PORT_MODULE_EVENT);
 	else
-		mlx5_core_dbg(dev, "port_module_event is not set\n");
+		mlx5_core_dbg(dev, "port_module_event is yest set\n");
 
 	if (MLX5_PPS_CAP(dev))
 		async_event_mask |= (1ull << MLX5_EVENT_TYPE_PPS_EVENT);
@@ -569,10 +569,10 @@ static int create_async_eqs(struct mlx5_core_dev *dev)
 	struct mlx5_eq_param param = {};
 	int err;
 
-	MLX5_NB_INIT(&table->cq_err_nb, cq_err_event_notifier, CQ_ERROR);
-	mlx5_eq_notifier_register(dev, &table->cq_err_nb);
+	MLX5_NB_INIT(&table->cq_err_nb, cq_err_event_yestifier, CQ_ERROR);
+	mlx5_eq_yestifier_register(dev, &table->cq_err_nb);
 
-	table->cmd_eq.irq_nb.notifier_call = mlx5_eq_async_int;
+	table->cmd_eq.irq_nb.yestifier_call = mlx5_eq_async_int;
 	param = (struct mlx5_eq_param) {
 		.irq_index = 0,
 		.nent = MLX5_NUM_CMD_EQE,
@@ -591,7 +591,7 @@ static int create_async_eqs(struct mlx5_core_dev *dev)
 	}
 	mlx5_cmd_use_events(dev);
 
-	table->async_eq.irq_nb.notifier_call = mlx5_eq_async_int;
+	table->async_eq.irq_nb.yestifier_call = mlx5_eq_async_int;
 	param = (struct mlx5_eq_param) {
 		.irq_index = 0,
 		.nent = MLX5_NUM_ASYNC_EQE,
@@ -610,7 +610,7 @@ static int create_async_eqs(struct mlx5_core_dev *dev)
 		goto err3;
 	}
 
-	table->pages_eq.irq_nb.notifier_call = mlx5_eq_async_int;
+	table->pages_eq.irq_nb.yestifier_call = mlx5_eq_async_int;
 	param = (struct mlx5_eq_param) {
 		.irq_index = 0,
 		.nent = /* TODO: sriov max_vf + */ 1,
@@ -643,7 +643,7 @@ err2:
 err1:
 	destroy_async_eq(dev, &table->cmd_eq.core);
 err0:
-	mlx5_eq_notifier_unregister(dev, &table->cq_err_nb);
+	mlx5_eq_yestifier_unregister(dev, &table->cq_err_nb);
 	return err;
 }
 
@@ -672,7 +672,7 @@ static void destroy_async_eqs(struct mlx5_core_dev *dev)
 		mlx5_core_err(dev, "failed to destroy command eq, err(%d)\n",
 			      err);
 
-	mlx5_eq_notifier_unregister(dev, &table->cq_err_nb);
+	mlx5_eq_yestifier_unregister(dev, &table->cq_err_nb);
 }
 
 struct mlx5_eq *mlx5_get_async_eq(struct mlx5_core_dev *dev)
@@ -691,7 +691,7 @@ void mlx5_eq_synchronize_cmd_irq(struct mlx5_core_dev *dev)
 }
 
 /* Generic EQ API for mlx5_core consumers
- * Needed For RDMA ODP EQ for now
+ * Needed For RDMA ODP EQ for yesw
  */
 struct mlx5_eq *
 mlx5_eq_create_generic(struct mlx5_core_dev *dev,
@@ -756,7 +756,7 @@ void mlx5_eq_update_ci(struct mlx5_eq *eq, u32 cc, bool arm)
 	val = (eq->cons_index & 0xffffff) | (eq->eqn << 24);
 
 	__raw_writel((__force u32)cpu_to_be32(val), addr);
-	/* We still want ordering, just not swabbing, so add a barrier */
+	/* We still want ordering, just yest swabbing, so add a barrier */
 	wmb();
 }
 EXPORT_SYMBOL(mlx5_eq_update_ci);
@@ -805,7 +805,7 @@ static int create_comp_eqs(struct mlx5_core_dev *dev)
 		tasklet_init(&eq->tasklet_ctx.task, mlx5_cq_tasklet_cb,
 			     (unsigned long)&eq->tasklet_ctx);
 
-		eq->irq_nb.notifier_call = mlx5_eq_comp_int;
+		eq->irq_nb.yestifier_call = mlx5_eq_comp_int;
 		param = (struct mlx5_eq_param) {
 			.irq_index = vecidx,
 			.nent = nent,
@@ -934,18 +934,18 @@ void mlx5_eq_table_destroy(struct mlx5_core_dev *dev)
 	destroy_async_eqs(dev);
 }
 
-int mlx5_eq_notifier_register(struct mlx5_core_dev *dev, struct mlx5_nb *nb)
+int mlx5_eq_yestifier_register(struct mlx5_core_dev *dev, struct mlx5_nb *nb)
 {
 	struct mlx5_eq_table *eqt = dev->priv.eq_table;
 
-	return atomic_notifier_chain_register(&eqt->nh[nb->event_type], &nb->nb);
+	return atomic_yestifier_chain_register(&eqt->nh[nb->event_type], &nb->nb);
 }
-EXPORT_SYMBOL(mlx5_eq_notifier_register);
+EXPORT_SYMBOL(mlx5_eq_yestifier_register);
 
-int mlx5_eq_notifier_unregister(struct mlx5_core_dev *dev, struct mlx5_nb *nb)
+int mlx5_eq_yestifier_unregister(struct mlx5_core_dev *dev, struct mlx5_nb *nb)
 {
 	struct mlx5_eq_table *eqt = dev->priv.eq_table;
 
-	return atomic_notifier_chain_unregister(&eqt->nh[nb->event_type], &nb->nb);
+	return atomic_yestifier_chain_unregister(&eqt->nh[nb->event_type], &nb->nb);
 }
-EXPORT_SYMBOL(mlx5_eq_notifier_unregister);
+EXPORT_SYMBOL(mlx5_eq_yestifier_unregister);

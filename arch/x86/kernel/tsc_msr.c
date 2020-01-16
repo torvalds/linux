@@ -31,7 +31,7 @@ struct freq_desc {
 
 /*
  * Penwell and Clovertrail use spread spectrum clock,
- * so the freq number is not exactly the same as reported
+ * so the freq number is yest exactly the same as reported
  * by MSR based on SDM.
  */
 static const struct freq_desc freq_desc_pnw = {
@@ -113,19 +113,19 @@ unsigned long cpu_khz_from_msr(void)
 #endif
 
 	/*
-	 * TSC frequency determined by MSR is always considered "known"
+	 * TSC frequency determined by MSR is always considered "kyeswn"
 	 * because it is reported by HW.
-	 * Another fact is that on MSR capable platforms, PIT/HPET is
-	 * generally not available so calibration won't work at all.
+	 * Ayesther fact is that on MSR capable platforms, PIT/HPET is
+	 * generally yest available so calibration won't work at all.
 	 */
 	setup_force_cpu_cap(X86_FEATURE_TSC_KNOWN_FREQ);
 
 	/*
-	 * Unfortunately there is no way for hardware to tell whether the
+	 * Unfortunately there is yes way for hardware to tell whether the
 	 * TSC is reliable.  We were told by silicon design team that TSC
 	 * on Atom SoCs are always "reliable". TSC is also the only
-	 * reliable clocksource on these SoCs (HPET is either not present
-	 * or not functional) so mark TSC reliable which removes the
+	 * reliable clocksource on these SoCs (HPET is either yest present
+	 * or yest functional) so mark TSC reliable which removes the
 	 * requirement for a watchdog clocksource.
 	 */
 	setup_force_cpu_cap(X86_FEATURE_TSC_RELIABLE);

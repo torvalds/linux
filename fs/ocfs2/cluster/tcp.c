@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /* -*- mode: c; c-basic-offset: 8; -*-
  *
- * vim: noexpandtab sw=8 ts=8 sts=0:
+ * vim: yesexpandtab sw=8 ts=8 sts=0:
  *
  * Copyright (C) 2004 Oracle.  All rights reserved.
  *
@@ -14,7 +14,7 @@
  * Transmit calls pass in kernel virtual addresses and block copying this into
  * the socket's tx buffers via a usual blocking sendmsg.  They'll block waiting
  * for a failed socket to timeout.  TX callers can also pass in a poniter to an
- * 'int' which gets filled with an errno off the wire in response to the
+ * 'int' which gets filled with an erryes off the wire in response to the
  * message they send.
  *
  * Handlers for unsolicited messages are registered.  Each socket has a page
@@ -33,10 +33,10 @@
  * as you hold a ref on the container you can trust that the socket is valid
  * for use with kernel socket APIs.
  *
- * Connections are initiated between a pair of nodes when the node with the
- * higher node number gets a heartbeat callback which indicates that the lower
- * numbered node has started heartbeating.  The lower numbered node is passive
- * and only accepts the connection if the higher numbered node is heartbeating.
+ * Connections are initiated between a pair of yesdes when the yesde with the
+ * higher yesde number gets a heartbeat callback which indicates that the lower
+ * numbered yesde has started heartbeating.  The lower numbered yesde is passive
+ * and only accepts the connection if the higher numbered yesde is heartbeating.
  */
 
 #include <linux/kernel.h>
@@ -53,22 +53,22 @@
 
 #include "heartbeat.h"
 #include "tcp.h"
-#include "nodemanager.h"
+#include "yesdemanager.h"
 #define MLOG_MASK_PREFIX ML_TCP
 #include "masklog.h"
 #include "quorum.h"
 
 #include "tcp_internal.h"
 
-#define SC_NODEF_FMT "node %s (num %u) at %pI4:%u"
-#define SC_NODEF_ARGS(sc) sc->sc_node->nd_name, sc->sc_node->nd_num,	\
-			  &sc->sc_node->nd_ipv4_address,		\
-			  ntohs(sc->sc_node->nd_ipv4_port)
+#define SC_NODEF_FMT "yesde %s (num %u) at %pI4:%u"
+#define SC_NODEF_ARGS(sc) sc->sc_yesde->nd_name, sc->sc_yesde->nd_num,	\
+			  &sc->sc_yesde->nd_ipv4_address,		\
+			  ntohs(sc->sc_yesde->nd_ipv4_port)
 
 /*
  * In the following two log macros, the whitespace after the ',' just
  * before ##args is intentional. Otherwise, gcc 2.95 will eat the
- * previous token if args expands to nothing.
+ * previous token if args expands to yesthing.
  */
 #define msglog(hdr, fmt, args...) do {					\
 	typeof(hdr) __hdr = (hdr);					\
@@ -82,17 +82,17 @@
 
 #define sclog(sc, fmt, args...) do {					\
 	typeof(sc) __sc = (sc);						\
-	mlog(ML_SOCKET, "[sc %p refs %d sock %p node %u page %p "	\
+	mlog(ML_SOCKET, "[sc %p refs %d sock %p yesde %u page %p "	\
 	     "pg_off %zu] " fmt, __sc,					\
 	     kref_read(&__sc->sc_kref), __sc->sc_sock,	\
-	    __sc->sc_node->nd_num, __sc->sc_page, __sc->sc_page_off ,	\
+	    __sc->sc_yesde->nd_num, __sc->sc_page, __sc->sc_page_off ,	\
 	    ##args);							\
 } while (0)
 
 static DEFINE_RWLOCK(o2net_handler_lock);
 static struct rb_root o2net_handler_tree = RB_ROOT;
 
-static struct o2net_node o2net_nodes[O2NM_MAX_NODES];
+static struct o2net_yesde o2net_yesdes[O2NM_MAX_NODES];
 
 /* XXX someday we'll need better accounting */
 static struct socket *o2net_listen_sock;
@@ -101,7 +101,7 @@ static struct socket *o2net_listen_sock;
  * listen work is only queued by the listening socket callbacks on the
  * o2net_wq.  teardown detaches the callbacks before destroying the workqueue.
  * quorum work is queued as sock containers are shutdown.. stop_listening
- * tears down all the node's sock containers, preventing future shutdowns
+ * tears down all the yesde's sock containers, preventing future shutdowns
  * and queued quroum work, before canceling delayed quorum work and
  * destroying the work queue.
  */
@@ -132,13 +132,13 @@ static void o2net_sc_reset_idle_timer(struct o2net_sock_container *sc);
 
 #ifdef CONFIG_DEBUG_FS
 static void o2net_init_nst(struct o2net_send_tracking *nst, u32 msgtype,
-			   u32 msgkey, struct task_struct *task, u8 node)
+			   u32 msgkey, struct task_struct *task, u8 yesde)
 {
 	INIT_LIST_HEAD(&nst->st_net_debug_item);
 	nst->st_task = task;
 	nst->st_msg_type = msgtype;
 	nst->st_msg_key = msgkey;
-	nst->st_node = node;
+	nst->st_yesde = yesde;
 }
 
 static inline void o2net_set_nst_sock_time(struct o2net_send_tracking *nst)
@@ -264,7 +264,7 @@ static inline unsigned int o2net_idle_timeout(void)
 	return o2nm_single_cluster->cl_idle_timeout_ms;
 }
 
-static inline int o2net_sys_err_to_errno(enum o2net_system_error err)
+static inline int o2net_sys_err_to_erryes(enum o2net_system_error err)
 {
 	int trans;
 	BUG_ON(err >= O2NET_ERR_MAX);
@@ -275,21 +275,21 @@ static inline int o2net_sys_err_to_errno(enum o2net_system_error err)
 	return trans;
 }
 
-static struct o2net_node * o2net_nn_from_num(u8 node_num)
+static struct o2net_yesde * o2net_nn_from_num(u8 yesde_num)
 {
-	BUG_ON(node_num >= ARRAY_SIZE(o2net_nodes));
-	return &o2net_nodes[node_num];
+	BUG_ON(yesde_num >= ARRAY_SIZE(o2net_yesdes));
+	return &o2net_yesdes[yesde_num];
 }
 
-static u8 o2net_num_from_nn(struct o2net_node *nn)
+static u8 o2net_num_from_nn(struct o2net_yesde *nn)
 {
 	BUG_ON(nn == NULL);
-	return nn - o2net_nodes;
+	return nn - o2net_yesdes;
 }
 
 /* ------------------------------------------------------------ */
 
-static int o2net_prep_nsw(struct o2net_node *nn, struct o2net_status_wait *nsw)
+static int o2net_prep_nsw(struct o2net_yesde *nn, struct o2net_status_wait *nsw)
 {
 	int ret;
 
@@ -297,7 +297,7 @@ static int o2net_prep_nsw(struct o2net_node *nn, struct o2net_status_wait *nsw)
 	ret = idr_alloc(&nn->nn_status_idr, nsw, 0, 0, GFP_ATOMIC);
 	if (ret >= 0) {
 		nsw->ns_id = ret;
-		list_add_tail(&nsw->ns_node_item, &nn->nn_status_list);
+		list_add_tail(&nsw->ns_yesde_item, &nn->nn_status_list);
 	}
 	spin_unlock(&nn->nn_lock);
 	if (ret < 0)
@@ -309,15 +309,15 @@ static int o2net_prep_nsw(struct o2net_node *nn, struct o2net_status_wait *nsw)
 	return 0;
 }
 
-static void o2net_complete_nsw_locked(struct o2net_node *nn,
+static void o2net_complete_nsw_locked(struct o2net_yesde *nn,
 				      struct o2net_status_wait *nsw,
 				      enum o2net_system_error sys_status,
 				      s32 status)
 {
 	assert_spin_locked(&nn->nn_lock);
 
-	if (!list_empty(&nsw->ns_node_item)) {
-		list_del_init(&nsw->ns_node_item);
+	if (!list_empty(&nsw->ns_yesde_item)) {
+		list_del_init(&nsw->ns_yesde_item);
 		nsw->ns_sys_status = sys_status;
 		nsw->ns_status = status;
 		idr_remove(&nn->nn_status_idr, nsw->ns_id);
@@ -325,7 +325,7 @@ static void o2net_complete_nsw_locked(struct o2net_node *nn,
 	}
 }
 
-static void o2net_complete_nsw(struct o2net_node *nn,
+static void o2net_complete_nsw(struct o2net_yesde *nn,
 			       struct o2net_status_wait *nsw,
 			       u64 id, enum o2net_system_error sys_status,
 			       s32 status)
@@ -347,28 +347,28 @@ out:
 	return;
 }
 
-static void o2net_complete_nodes_nsw(struct o2net_node *nn)
+static void o2net_complete_yesdes_nsw(struct o2net_yesde *nn)
 {
 	struct o2net_status_wait *nsw, *tmp;
 	unsigned int num_kills = 0;
 
 	assert_spin_locked(&nn->nn_lock);
 
-	list_for_each_entry_safe(nsw, tmp, &nn->nn_status_list, ns_node_item) {
+	list_for_each_entry_safe(nsw, tmp, &nn->nn_status_list, ns_yesde_item) {
 		o2net_complete_nsw_locked(nn, nsw, O2NET_ERR_DIED, 0);
 		num_kills++;
 	}
 
-	mlog(0, "completed %d messages for node %u\n", num_kills,
+	mlog(0, "completed %d messages for yesde %u\n", num_kills,
 	     o2net_num_from_nn(nn));
 }
 
-static int o2net_nsw_completed(struct o2net_node *nn,
+static int o2net_nsw_completed(struct o2net_yesde *nn,
 			       struct o2net_status_wait *nsw)
 {
 	int completed;
 	spin_lock(&nn->nn_lock);
-	completed = list_empty(&nsw->ns_node_item);
+	completed = list_empty(&nsw->ns_yesde_item);
 	spin_unlock(&nn->nn_lock);
 	return completed;
 }
@@ -388,9 +388,9 @@ static void sc_kref_release(struct kref *kref)
 		sc->sc_sock = NULL;
 	}
 
-	o2nm_undepend_item(&sc->sc_node->nd_item);
-	o2nm_node_put(sc->sc_node);
-	sc->sc_node = NULL;
+	o2nm_undepend_item(&sc->sc_yesde->nd_item);
+	o2nm_yesde_put(sc->sc_yesde);
+	sc->sc_yesde = NULL;
 
 	o2net_debug_del_sc(sc);
 
@@ -409,7 +409,7 @@ static void sc_get(struct o2net_sock_container *sc)
 	sclog(sc, "get\n");
 	kref_get(&sc->sc_kref);
 }
-static struct o2net_sock_container *sc_alloc(struct o2nm_node *node)
+static struct o2net_sock_container *sc_alloc(struct o2nm_yesde *yesde)
 {
 	struct o2net_sock_container *sc, *ret = NULL;
 	struct page *page = NULL;
@@ -421,14 +421,14 @@ static struct o2net_sock_container *sc_alloc(struct o2nm_node *node)
 		goto out;
 
 	kref_init(&sc->sc_kref);
-	o2nm_node_get(node);
-	sc->sc_node = node;
+	o2nm_yesde_get(yesde);
+	sc->sc_yesde = yesde;
 
-	/* pin the node item of the remote node */
-	status = o2nm_depend_item(&node->nd_item);
+	/* pin the yesde item of the remote yesde */
+	status = o2nm_depend_item(&yesde->nd_item);
 	if (status) {
-		mlog_errno(status);
-		o2nm_node_put(node);
+		mlog_erryes(status);
+		o2nm_yesde_put(yesde);
 		goto out;
 	}
 	INIT_WORK(&sc->sc_connect_work, o2net_sc_connect_completed);
@@ -485,7 +485,7 @@ int o2net_num_connected_peers(void)
 	return atomic_read(&o2net_connected_peers);
 }
 
-static void o2net_set_nn_state(struct o2net_node *nn,
+static void o2net_set_nn_state(struct o2net_yesde *nn,
 			       struct o2net_sock_container *sc,
 			       unsigned valid, int err)
 {
@@ -500,8 +500,8 @@ static void o2net_set_nn_state(struct o2net_node *nn,
 	else if (!old_sc && sc)
 		atomic_inc(&o2net_connected_peers);
 
-	/* the node num comparison and single connect/accept path should stop
-	 * an non-null sc from being overwritten with another */
+	/* the yesde num comparison and single connect/accept path should stop
+	 * an yesn-null sc from being overwritten with ayesther */
 	BUG_ON(sc && nn->nn_sc && nn->nn_sc != sc);
 	mlog_bug_on_msg(err && valid, "err %d valid %u\n", err, valid);
 	mlog_bug_on_msg(valid && !sc, "valid %u sc %p\n", valid, sc);
@@ -509,7 +509,7 @@ static void o2net_set_nn_state(struct o2net_node *nn,
 	if (was_valid && !valid && err == 0)
 		err = -ENOTCONN;
 
-	mlog(ML_CONN, "node %u sc: %p -> %p, valid %u -> %u, err %d -> %d\n",
+	mlog(ML_CONN, "yesde %u sc: %p -> %p, valid %u -> %u, err %d -> %d\n",
 	     o2net_num_from_nn(nn), nn->nn_sc, sc, nn->nn_sc_valid, valid,
 	     nn->nn_persistent_error, err);
 
@@ -531,21 +531,21 @@ static void o2net_set_nn_state(struct o2net_node *nn,
 		if (old_sc)
 			printk(KERN_NOTICE "o2net: No longer connected to "
 				SC_NODEF_FMT "\n", SC_NODEF_ARGS(old_sc));
-		o2net_complete_nodes_nsw(nn);
+		o2net_complete_yesdes_nsw(nn);
 	}
 
 	if (!was_valid && valid) {
 		o2quo_conn_up(o2net_num_from_nn(nn));
 		cancel_delayed_work(&nn->nn_connect_expired);
 		printk(KERN_NOTICE "o2net: %s " SC_NODEF_FMT "\n",
-		       o2nm_this_node() > sc->sc_node->nd_num ?
+		       o2nm_this_yesde() > sc->sc_yesde->nd_num ?
 		       "Connected to" : "Accepted connection from",
 		       SC_NODEF_ARGS(sc));
 	}
 
-	/* trigger the connecting worker func as long as we're not valid,
+	/* trigger the connecting worker func as long as we're yest valid,
 	 * it will back off if it shouldn't connect.  This can be called
-	 * from node config teardown and so needs to be careful about
+	 * from yesde config teardown and so needs to be careful about
 	 * the work queue actually being up. */
 	if (!valid && o2net_wq) {
 		unsigned long delay;
@@ -566,7 +566,7 @@ static void o2net_set_nn_state(struct o2net_node *nn,
 		 * through here but we only cancel the connect_expired work when
 		 * a connection attempt succeeds.  So only the first enqueue of
 		 * the connect_expired work will do anything.  The rest will see
-		 * that it's already queued and do nothing.
+		 * that it's already queued and do yesthing.
 		 */
 		delay += msecs_to_jiffies(o2net_idle_timeout());
 		queue_delayed_work(o2net_wq, &nn->nn_connect_expired, delay);
@@ -620,7 +620,7 @@ static void o2net_state_change(struct sock *sk)
 	state_change = sc->sc_state_change;
 
 	switch(sk->sk_state) {
-	/* ignore connecting sockets as they make progress */
+	/* igyesre connecting sockets as they make progress */
 	case TCP_SYN_SENT:
 	case TCP_SYN_RECV:
 		break;
@@ -692,7 +692,7 @@ static int o2net_unregister_callbacks(struct sock *sk,
  * them to it.  if an error is given then the shutdown will be persistent
  * and pending transmits will be canceled.
  */
-static void o2net_ensure_shutdown(struct o2net_node *nn,
+static void o2net_ensure_shutdown(struct o2net_yesde *nn,
 			           struct o2net_sock_container *sc,
 				   int err)
 {
@@ -715,7 +715,7 @@ static void o2net_shutdown_sc(struct work_struct *work)
 	struct o2net_sock_container *sc =
 		container_of(work, struct o2net_sock_container,
 			     sc_shutdown_work);
-	struct o2net_node *nn = o2net_nn_from_num(sc->sc_node->nd_num);
+	struct o2net_yesde *nn = o2net_nn_from_num(sc->sc_yesde->nd_num);
 
 	sclog(sc, "shutting down\n");
 
@@ -729,7 +729,7 @@ static void o2net_shutdown_sc(struct work_struct *work)
 		kernel_sock_shutdown(sc->sc_sock, SHUT_RDWR);
 	}
 
-	/* not fatal so failed connects before the other guy has our
+	/* yest fatal so failed connects before the other guy has our
 	 * heartbeat can be retried */
 	o2net_ensure_shutdown(nn, sc, 0);
 	sc_put(sc);
@@ -749,17 +749,17 @@ static int o2net_handler_cmp(struct o2net_msg_handler *nmh, u32 msg_type,
 }
 
 static struct o2net_msg_handler *
-o2net_handler_tree_lookup(u32 msg_type, u32 key, struct rb_node ***ret_p,
-			  struct rb_node **ret_parent)
+o2net_handler_tree_lookup(u32 msg_type, u32 key, struct rb_yesde ***ret_p,
+			  struct rb_yesde **ret_parent)
 {
-	struct rb_node **p = &o2net_handler_tree.rb_node;
-	struct rb_node *parent = NULL;
+	struct rb_yesde **p = &o2net_handler_tree.rb_yesde;
+	struct rb_yesde *parent = NULL;
 	struct o2net_msg_handler *nmh, *ret = NULL;
 	int cmp;
 
 	while (*p) {
 		parent = *p;
-		nmh = rb_entry(parent, struct o2net_msg_handler, nh_node);
+		nmh = rb_entry(parent, struct o2net_msg_handler, nh_yesde);
 		cmp = o2net_handler_cmp(nmh, msg_type, key);
 
 		if (cmp < 0)
@@ -801,7 +801,7 @@ int o2net_register_handler(u32 msg_type, u32 key, u32 max_len,
 			   struct list_head *unreg_list)
 {
 	struct o2net_msg_handler *nmh = NULL;
-	struct rb_node **p, *parent;
+	struct rb_yesde **p, *parent;
 	int ret = 0;
 
 	if (max_len > O2NET_MAX_PAYLOAD_BYTES) {
@@ -812,13 +812,13 @@ int o2net_register_handler(u32 msg_type, u32 key, u32 max_len,
 	}
 
 	if (!msg_type) {
-		mlog(0, "no message type provided: %u, %p\n", msg_type, func);
+		mlog(0, "yes message type provided: %u, %p\n", msg_type, func);
 		ret = -EINVAL;
 		goto out;
 
 	}
 	if (!func) {
-		mlog(0, "no message handler provided: %u, %p\n",
+		mlog(0, "yes message handler provided: %u, %p\n",
 		       msg_type, func);
 		ret = -EINVAL;
 		goto out;
@@ -845,8 +845,8 @@ int o2net_register_handler(u32 msg_type, u32 key, u32 max_len,
 	if (o2net_handler_tree_lookup(msg_type, key, &p, &parent))
 		ret = -EEXIST;
 	else {
-	        rb_link_node(&nmh->nh_node, parent, p);
-		rb_insert_color(&nmh->nh_node, &o2net_handler_tree);
+	        rb_link_yesde(&nmh->nh_yesde, parent, p);
+		rb_insert_color(&nmh->nh_yesde, &o2net_handler_tree);
 		list_add_tail(&nmh->nh_unregister_item, unreg_list);
 
 		mlog(ML_TCP, "registered handler func %p type %u key %08x\n",
@@ -875,7 +875,7 @@ void o2net_unregister_handler_list(struct list_head *list)
 	list_for_each_entry_safe(nmh, n, list, nh_unregister_item) {
 		mlog(ML_TCP, "unregistering handler func %p type %u key %08x\n",
 		     nmh->nh_func, nmh->nh_msg_type, nmh->nh_key);
-		rb_erase(&nmh->nh_node, &o2net_handler_tree);
+		rb_erase(&nmh->nh_yesde, &o2net_handler_tree);
 		list_del_init(&nmh->nh_unregister_item);
 		kref_put(&nmh->nh_kref, o2net_handler_kref_release);
 	}
@@ -932,7 +932,7 @@ static void o2net_sendpage(struct o2net_sock_container *sc,
 			   void *kmalloced_virt,
 			   size_t size)
 {
-	struct o2net_node *nn = o2net_nn_from_num(sc->sc_node->nd_num);
+	struct o2net_yesde *nn = o2net_nn_from_num(sc->sc_yesde->nd_num);
 	ssize_t ret;
 
 	while (1) {
@@ -968,7 +968,7 @@ static void o2net_init_msg(struct o2net_msg *msg, u16 data_len, u16 msg_type, u3
 	msg->key = cpu_to_be32(key);
 }
 
-static int o2net_tx_can_proceed(struct o2net_node *nn,
+static int o2net_tx_can_proceed(struct o2net_yesde *nn,
 			        struct o2net_sock_container **sc_ret,
 				int *error)
 {
@@ -991,41 +991,41 @@ static int o2net_tx_can_proceed(struct o2net_node *nn,
 	return ret;
 }
 
-/* Get a map of all nodes to which this node is currently connected to */
-void o2net_fill_node_map(unsigned long *map, unsigned bytes)
+/* Get a map of all yesdes to which this yesde is currently connected to */
+void o2net_fill_yesde_map(unsigned long *map, unsigned bytes)
 {
 	struct o2net_sock_container *sc;
-	int node, ret;
+	int yesde, ret;
 
 	BUG_ON(bytes < (BITS_TO_LONGS(O2NM_MAX_NODES) * sizeof(unsigned long)));
 
 	memset(map, 0, bytes);
-	for (node = 0; node < O2NM_MAX_NODES; ++node) {
-		if (!o2net_tx_can_proceed(o2net_nn_from_num(node), &sc, &ret))
+	for (yesde = 0; yesde < O2NM_MAX_NODES; ++yesde) {
+		if (!o2net_tx_can_proceed(o2net_nn_from_num(yesde), &sc, &ret))
 			continue;
 		if (!ret) {
-			set_bit(node, map);
+			set_bit(yesde, map);
 			sc_put(sc);
 		}
 	}
 }
-EXPORT_SYMBOL_GPL(o2net_fill_node_map);
+EXPORT_SYMBOL_GPL(o2net_fill_yesde_map);
 
 int o2net_send_message_vec(u32 msg_type, u32 key, struct kvec *caller_vec,
-			   size_t caller_veclen, u8 target_node, int *status)
+			   size_t caller_veclen, u8 target_yesde, int *status)
 {
 	int ret = 0;
 	struct o2net_msg *msg = NULL;
 	size_t veclen, caller_bytes = 0;
 	struct kvec *vec = NULL;
 	struct o2net_sock_container *sc = NULL;
-	struct o2net_node *nn = o2net_nn_from_num(target_node);
+	struct o2net_yesde *nn = o2net_nn_from_num(target_yesde);
 	struct o2net_status_wait nsw = {
-		.ns_node_item = LIST_HEAD_INIT(nsw.ns_node_item),
+		.ns_yesde_item = LIST_HEAD_INIT(nsw.ns_yesde_item),
 	};
 	struct o2net_send_tracking nst;
 
-	o2net_init_nst(&nst, msg_type, key, current, target_node);
+	o2net_init_nst(&nst, msg_type, key, current, target_yesde);
 
 	if (o2net_wq == NULL) {
 		mlog(0, "attempt to tx without o2netd running\n");
@@ -1046,7 +1046,7 @@ int o2net_send_message_vec(u32 msg_type, u32 key, struct kvec *caller_vec,
 		goto out;
 	}
 
-	if (target_node == o2nm_this_node()) {
+	if (target_yesde == o2nm_this_yesde()) {
 		ret = -ELOOP;
 		goto out;
 	}
@@ -1103,7 +1103,7 @@ int o2net_send_message_vec(u32 msg_type, u32 key, struct kvec *caller_vec,
 		goto out;
 	}
 
-	/* wait on other node's handler */
+	/* wait on other yesde's handler */
 	o2net_set_nst_status_time(&nst);
 	wait_event(nsw.ns_wq, o2net_nsw_completed(nn, &nsw));
 
@@ -1112,14 +1112,14 @@ int o2net_send_message_vec(u32 msg_type, u32 key, struct kvec *caller_vec,
 	/* Note that we avoid overwriting the callers status return
 	 * variable if a system error was reported on the other
 	 * side. Callers beware. */
-	ret = o2net_sys_err_to_errno(nsw.ns_sys_status);
+	ret = o2net_sys_err_to_erryes(nsw.ns_sys_status);
 	if (status && !ret)
 		*status = nsw.ns_status;
 
 	mlog(0, "woken, returning system status %d, user status %d\n",
 	     ret, nsw.ns_status);
 out:
-	o2net_debug_del_nst(&nst); /* must be before dropping sc and node */
+	o2net_debug_del_nst(&nst); /* must be before dropping sc and yesde */
 	if (sc)
 		sc_put(sc);
 	kfree(vec);
@@ -1130,14 +1130,14 @@ out:
 EXPORT_SYMBOL_GPL(o2net_send_message_vec);
 
 int o2net_send_message(u32 msg_type, u32 key, void *data, u32 len,
-		       u8 target_node, int *status)
+		       u8 target_yesde, int *status)
 {
 	struct kvec vec = {
 		.iov_base = data,
 		.iov_len = len,
 	};
 	return o2net_send_message_vec(msg_type, key, &vec, 1,
-				      target_node, status);
+				      target_yesde, status);
 }
 EXPORT_SYMBOL_GPL(o2net_send_message);
 
@@ -1163,12 +1163,12 @@ static int o2net_send_status_magic(struct socket *sock, struct o2net_msg *hdr,
 	return o2net_send_tcp_msg(sock, &vec, 1, sizeof(struct o2net_msg));
 }
 
-/* this returns -errno if the header was unknown or too large, etc.
+/* this returns -erryes if the header was unkyeswn or too large, etc.
  * after this is called the buffer us reused for the next message */
 static int o2net_process_message(struct o2net_sock_container *sc,
 				 struct o2net_msg *hdr)
 {
-	struct o2net_node *nn = o2net_nn_from_num(sc->sc_node->nd_num);
+	struct o2net_yesde *nn = o2net_nn_from_num(sc->sc_yesde->nd_num);
 	int ret = 0, handler_status;
 	enum  o2net_system_error syserr;
 	struct o2net_msg_handler *nmh = NULL;
@@ -1256,7 +1256,7 @@ out:
 static int o2net_check_handshake(struct o2net_sock_container *sc)
 {
 	struct o2net_handshake *hand = page_address(sc->sc_page);
-	struct o2net_node *nn = o2net_nn_from_num(sc->sc_node->nd_num);
+	struct o2net_yesde *nn = o2net_nn_from_num(sc->sc_yesde->nd_num);
 
 	if (hand->protocol_version != cpu_to_be64(O2NET_PROTOCOL_VERSION)) {
 		printk(KERN_NOTICE "o2net: " SC_NODEF_FMT " Advertised net "
@@ -1271,8 +1271,8 @@ static int o2net_check_handshake(struct o2net_sock_container *sc)
 	}
 
 	/*
-	 * Ensure timeouts are consistent with other nodes, otherwise
-	 * we can end up with one node thinking that the other must be down,
+	 * Ensure timeouts are consistent with other yesdes, otherwise
+	 * we can end up with one yesde thinking that the other must be down,
 	 * but isn't. This can ultimately cause corruption.
 	 */
 	if (be32_to_cpu(hand->o2net_idle_timeout_ms) !=
@@ -1418,7 +1418,7 @@ out:
 	return ret;
 }
 
-/* this work func is triggerd by data ready.  it reads until it can read no
+/* this work func is triggerd by data ready.  it reads until it can read yes
  * more.  it interprets 0, eof, as fatal.  if data_ready hits while we're doing
  * our work the work struct will be marked and we'll be called again. */
 static void o2net_rx_until_empty(struct work_struct *work)
@@ -1432,16 +1432,16 @@ static void o2net_rx_until_empty(struct work_struct *work)
 	} while (ret > 0);
 
 	if (ret <= 0 && ret != -EAGAIN) {
-		struct o2net_node *nn = o2net_nn_from_num(sc->sc_node->nd_num);
+		struct o2net_yesde *nn = o2net_nn_from_num(sc->sc_yesde->nd_num);
 		sclog(sc, "saw error %d, closing\n", ret);
-		/* not permanent so read failed handshake can retry */
+		/* yest permanent so read failed handshake can retry */
 		o2net_ensure_shutdown(nn, sc, 0);
 	}
 
 	sc_put(sc);
 }
 
-static int o2net_set_nodelay(struct socket *sock)
+static int o2net_set_yesdelay(struct socket *sock)
 {
 	int val = 1;
 
@@ -1504,7 +1504,7 @@ static void o2net_sc_send_keep_req(struct work_struct *work)
 static void o2net_idle_timer(struct timer_list *t)
 {
 	struct o2net_sock_container *sc = from_timer(sc, t, sc_idle_timeout);
-	struct o2net_node *nn = o2net_nn_from_num(sc->sc_node->nd_num);
+	struct o2net_yesde *nn = o2net_nn_from_num(sc->sc_yesde->nd_num);
 #ifdef CONFIG_DEBUG_FS
 	unsigned long msecs = ktime_to_ms(ktime_get()) -
 		ktime_to_ms(sc->sc_tv_timer);
@@ -1541,7 +1541,7 @@ static void o2net_sc_reset_idle_timer(struct o2net_sock_container *sc)
 
 static void o2net_sc_postpone_idle(struct o2net_sock_container *sc)
 {
-	struct o2net_node *nn = o2net_nn_from_num(sc->sc_node->nd_num);
+	struct o2net_yesde *nn = o2net_nn_from_num(sc->sc_yesde->nd_num);
 
 	/* clear fence decision since the connection recover from timeout*/
 	if (atomic_read(&nn->nn_timeout)) {
@@ -1562,34 +1562,34 @@ static void o2net_sc_postpone_idle(struct o2net_sock_container *sc)
  * transmit attempts should fail */
 static void o2net_start_connect(struct work_struct *work)
 {
-	struct o2net_node *nn =
-		container_of(work, struct o2net_node, nn_connect_work.work);
+	struct o2net_yesde *nn =
+		container_of(work, struct o2net_yesde, nn_connect_work.work);
 	struct o2net_sock_container *sc = NULL;
-	struct o2nm_node *node = NULL, *mynode = NULL;
+	struct o2nm_yesde *yesde = NULL, *myyesde = NULL;
 	struct socket *sock = NULL;
 	struct sockaddr_in myaddr = {0, }, remoteaddr = {0, };
 	int ret = 0, stop;
 	unsigned int timeout;
-	unsigned int noio_flag;
+	unsigned int yesio_flag;
 
 	/*
 	 * sock_create allocates the sock with GFP_KERNEL. We must set
 	 * per-process flag PF_MEMALLOC_NOIO so that all allocations done
 	 * by this process are done as if GFP_NOIO was specified. So we
-	 * are not reentering filesystem while doing memory reclaim.
+	 * are yest reentering filesystem while doing memory reclaim.
 	 */
-	noio_flag = memalloc_noio_save();
+	yesio_flag = memalloc_yesio_save();
 	/* if we're greater we initiate tx, otherwise we accept */
-	if (o2nm_this_node() <= o2net_num_from_nn(nn))
+	if (o2nm_this_yesde() <= o2net_num_from_nn(nn))
 		goto out;
 
-	/* watch for racing with tearing a node down */
-	node = o2nm_get_node_by_num(o2net_num_from_nn(nn));
-	if (node == NULL)
+	/* watch for racing with tearing a yesde down */
+	yesde = o2nm_get_yesde_by_num(o2net_num_from_nn(nn));
+	if (yesde == NULL)
 		goto out;
 
-	mynode = o2nm_get_node_by_num(o2nm_this_node());
-	if (mynode == NULL)
+	myyesde = o2nm_get_yesde_by_num(o2nm_this_yesde());
+	if (myyesde == NULL)
 		goto out;
 
 	spin_lock(&nn->nn_lock);
@@ -1597,8 +1597,8 @@ static void o2net_start_connect(struct work_struct *work)
 	 * see if we already have one pending or have given up.
 	 * For nn_timeout, it is set when we close the connection
 	 * because of the idle time out. So it means that we have
-	 * at least connected to that node successfully once,
-	 * now try to connect to it again.
+	 * at least connected to that yesde successfully once,
+	 * yesw try to connect to it again.
 	 */
 	timeout = atomic_read(&nn->nn_timeout);
 	stop = (nn->nn_sc ||
@@ -1610,7 +1610,7 @@ static void o2net_start_connect(struct work_struct *work)
 
 	nn->nn_last_connect_attempt = jiffies;
 
-	sc = sc_alloc(node);
+	sc = sc_alloc(yesde);
 	if (sc == NULL) {
 		mlog(0, "couldn't allocate sc\n");
 		ret = -ENOMEM;
@@ -1627,18 +1627,18 @@ static void o2net_start_connect(struct work_struct *work)
 	sock->sk->sk_allocation = GFP_ATOMIC;
 
 	myaddr.sin_family = AF_INET;
-	myaddr.sin_addr.s_addr = mynode->nd_ipv4_address;
+	myaddr.sin_addr.s_addr = myyesde->nd_ipv4_address;
 	myaddr.sin_port = htons(0); /* any port */
 
 	ret = sock->ops->bind(sock, (struct sockaddr *)&myaddr,
 			      sizeof(myaddr));
 	if (ret) {
 		mlog(ML_ERROR, "bind failed with %d at address %pI4\n",
-		     ret, &mynode->nd_ipv4_address);
+		     ret, &myyesde->nd_ipv4_address);
 		goto out;
 	}
 
-	ret = o2net_set_nodelay(sc->sc_sock);
+	ret = o2net_set_yesdelay(sc->sc_sock);
 	if (ret) {
 		mlog(ML_ERROR, "setting TCP_NODELAY failed with %d\n", ret);
 		goto out;
@@ -1658,8 +1658,8 @@ static void o2net_start_connect(struct work_struct *work)
 	spin_unlock(&nn->nn_lock);
 
 	remoteaddr.sin_family = AF_INET;
-	remoteaddr.sin_addr.s_addr = node->nd_ipv4_address;
-	remoteaddr.sin_port = node->nd_ipv4_port;
+	remoteaddr.sin_addr.s_addr = yesde->nd_ipv4_address;
+	remoteaddr.sin_port = yesde->nd_ipv4_port;
 
 	ret = sc->sc_sock->ops->connect(sc->sc_sock,
 					(struct sockaddr *)&remoteaddr,
@@ -1671,31 +1671,31 @@ static void o2net_start_connect(struct work_struct *work)
 out:
 	if (ret && sc) {
 		printk(KERN_NOTICE "o2net: Connect attempt to " SC_NODEF_FMT
-		       " failed with errno %d\n", SC_NODEF_ARGS(sc), ret);
-		/* 0 err so that another will be queued and attempted
+		       " failed with erryes %d\n", SC_NODEF_ARGS(sc), ret);
+		/* 0 err so that ayesther will be queued and attempted
 		 * from set_nn_state */
 		o2net_ensure_shutdown(nn, sc, 0);
 	}
 	if (sc)
 		sc_put(sc);
-	if (node)
-		o2nm_node_put(node);
-	if (mynode)
-		o2nm_node_put(mynode);
+	if (yesde)
+		o2nm_yesde_put(yesde);
+	if (myyesde)
+		o2nm_yesde_put(myyesde);
 
-	memalloc_noio_restore(noio_flag);
+	memalloc_yesio_restore(yesio_flag);
 	return;
 }
 
 static void o2net_connect_expired(struct work_struct *work)
 {
-	struct o2net_node *nn =
-		container_of(work, struct o2net_node, nn_connect_expired.work);
+	struct o2net_yesde *nn =
+		container_of(work, struct o2net_yesde, nn_connect_expired.work);
 
 	spin_lock(&nn->nn_lock);
 	if (!nn->nn_sc_valid) {
 		printk(KERN_NOTICE "o2net: No connection established with "
-		       "node %u after %u.%u seconds, check network and"
+		       "yesde %u after %u.%u seconds, check network and"
 		       " cluster configuration.\n",
 		     o2net_num_from_nn(nn),
 		     o2net_idle_timeout() / 1000,
@@ -1708,17 +1708,17 @@ static void o2net_connect_expired(struct work_struct *work)
 
 static void o2net_still_up(struct work_struct *work)
 {
-	struct o2net_node *nn =
-		container_of(work, struct o2net_node, nn_still_up.work);
+	struct o2net_yesde *nn =
+		container_of(work, struct o2net_yesde, nn_still_up.work);
 
 	o2quo_hb_still_up(o2net_num_from_nn(nn));
 }
 
 /* ------------------------------------------------------------ */
 
-void o2net_disconnect_node(struct o2nm_node *node)
+void o2net_disconnect_yesde(struct o2nm_yesde *yesde)
 {
-	struct o2net_node *nn = o2net_nn_from_num(node->nd_num);
+	struct o2net_yesde *nn = o2net_nn_from_num(yesde->nd_num);
 
 	/* don't reconnect until it's heartbeating again */
 	spin_lock(&nn->nn_lock);
@@ -1734,36 +1734,36 @@ void o2net_disconnect_node(struct o2nm_node *node)
 	}
 }
 
-static void o2net_hb_node_down_cb(struct o2nm_node *node, int node_num,
+static void o2net_hb_yesde_down_cb(struct o2nm_yesde *yesde, int yesde_num,
 				  void *data)
 {
-	o2quo_hb_down(node_num);
+	o2quo_hb_down(yesde_num);
 
-	if (!node)
+	if (!yesde)
 		return;
 
-	if (node_num != o2nm_this_node())
-		o2net_disconnect_node(node);
+	if (yesde_num != o2nm_this_yesde())
+		o2net_disconnect_yesde(yesde);
 
 	BUG_ON(atomic_read(&o2net_connected_peers) < 0);
 }
 
-static void o2net_hb_node_up_cb(struct o2nm_node *node, int node_num,
+static void o2net_hb_yesde_up_cb(struct o2nm_yesde *yesde, int yesde_num,
 				void *data)
 {
-	struct o2net_node *nn = o2net_nn_from_num(node_num);
+	struct o2net_yesde *nn = o2net_nn_from_num(yesde_num);
 
-	o2quo_hb_up(node_num);
+	o2quo_hb_up(yesde_num);
 
-	BUG_ON(!node);
+	BUG_ON(!yesde);
 
 	/* ensure an immediate connect attempt */
 	nn->nn_last_connect_attempt = jiffies -
 		(msecs_to_jiffies(o2net_reconnect_delay()) + 1);
 
-	if (node_num != o2nm_this_node()) {
-		/* believe it or not, accept and node heartbeating testing
-		 * can succeed for this node before we got here.. so
+	if (yesde_num != o2nm_this_yesde()) {
+		/* believe it or yest, accept and yesde heartbeating testing
+		 * can succeed for this yesde before we got here.. so
 		 * only use set_nn_state to clear the persistent error
 		 * if that hasn't already happened */
 		spin_lock(&nn->nn_lock);
@@ -1785,9 +1785,9 @@ int o2net_register_hb_callbacks(void)
 	int ret;
 
 	o2hb_setup_callback(&o2net_hb_down, O2HB_NODE_DOWN_CB,
-			    o2net_hb_node_down_cb, NULL, O2NET_HB_PRI);
+			    o2net_hb_yesde_down_cb, NULL, O2NET_HB_PRI);
 	o2hb_setup_callback(&o2net_hb_up, O2HB_NODE_UP_CB,
-			    o2net_hb_node_up_cb, NULL, O2NET_HB_PRI);
+			    o2net_hb_yesde_up_cb, NULL, O2NET_HB_PRI);
 
 	ret = o2hb_register_callback(NULL, &o2net_hb_up);
 	if (ret == 0)
@@ -1806,19 +1806,19 @@ static int o2net_accept_one(struct socket *sock, int *more)
 	int ret;
 	struct sockaddr_in sin;
 	struct socket *new_sock = NULL;
-	struct o2nm_node *node = NULL;
-	struct o2nm_node *local_node = NULL;
+	struct o2nm_yesde *yesde = NULL;
+	struct o2nm_yesde *local_yesde = NULL;
 	struct o2net_sock_container *sc = NULL;
-	struct o2net_node *nn;
-	unsigned int noio_flag;
+	struct o2net_yesde *nn;
+	unsigned int yesio_flag;
 
 	/*
 	 * sock_create_lite allocates the sock with GFP_KERNEL. We must set
 	 * per-process flag PF_MEMALLOC_NOIO so that all allocations done
 	 * by this process are done as if GFP_NOIO was specified. So we
-	 * are not reentering filesystem while doing memory reclaim.
+	 * are yest reentering filesystem while doing memory reclaim.
 	 */
-	noio_flag = memalloc_noio_save();
+	yesio_flag = memalloc_yesio_save();
 
 	BUG_ON(sock == NULL);
 	*more = 0;
@@ -1836,7 +1836,7 @@ static int o2net_accept_one(struct socket *sock, int *more)
 	*more = 1;
 	new_sock->sk->sk_allocation = GFP_ATOMIC;
 
-	ret = o2net_set_nodelay(new_sock);
+	ret = o2net_set_yesdelay(new_sock);
 	if (ret) {
 		mlog(ML_ERROR, "setting TCP_NODELAY failed with %d\n", ret);
 		goto out;
@@ -1852,43 +1852,43 @@ static int o2net_accept_one(struct socket *sock, int *more)
 	if (ret < 0)
 		goto out;
 
-	node = o2nm_get_node_by_ip(sin.sin_addr.s_addr);
-	if (node == NULL) {
-		printk(KERN_NOTICE "o2net: Attempt to connect from unknown "
-		       "node at %pI4:%d\n", &sin.sin_addr.s_addr,
+	yesde = o2nm_get_yesde_by_ip(sin.sin_addr.s_addr);
+	if (yesde == NULL) {
+		printk(KERN_NOTICE "o2net: Attempt to connect from unkyeswn "
+		       "yesde at %pI4:%d\n", &sin.sin_addr.s_addr,
 		       ntohs(sin.sin_port));
 		ret = -EINVAL;
 		goto out;
 	}
 
-	if (o2nm_this_node() >= node->nd_num) {
-		local_node = o2nm_get_node_by_num(o2nm_this_node());
-		if (local_node)
+	if (o2nm_this_yesde() >= yesde->nd_num) {
+		local_yesde = o2nm_get_yesde_by_num(o2nm_this_yesde());
+		if (local_yesde)
 			printk(KERN_NOTICE "o2net: Unexpected connect attempt "
-					"seen at node '%s' (%u, %pI4:%d) from "
-					"node '%s' (%u, %pI4:%d)\n",
-					local_node->nd_name, local_node->nd_num,
-					&(local_node->nd_ipv4_address),
-					ntohs(local_node->nd_ipv4_port),
-					node->nd_name,
-					node->nd_num, &sin.sin_addr.s_addr,
+					"seen at yesde '%s' (%u, %pI4:%d) from "
+					"yesde '%s' (%u, %pI4:%d)\n",
+					local_yesde->nd_name, local_yesde->nd_num,
+					&(local_yesde->nd_ipv4_address),
+					ntohs(local_yesde->nd_ipv4_port),
+					yesde->nd_name,
+					yesde->nd_num, &sin.sin_addr.s_addr,
 					ntohs(sin.sin_port));
 		ret = -EINVAL;
 		goto out;
 	}
 
-	/* this happens all the time when the other node sees our heartbeat
+	/* this happens all the time when the other yesde sees our heartbeat
 	 * and tries to connect before we see their heartbeat */
-	if (!o2hb_check_node_heartbeating_from_callback(node->nd_num)) {
-		mlog(ML_CONN, "attempt to connect from node '%s' at "
+	if (!o2hb_check_yesde_heartbeating_from_callback(yesde->nd_num)) {
+		mlog(ML_CONN, "attempt to connect from yesde '%s' at "
 		     "%pI4:%d but it isn't heartbeating\n",
-		     node->nd_name, &sin.sin_addr.s_addr,
+		     yesde->nd_name, &sin.sin_addr.s_addr,
 		     ntohs(sin.sin_port));
 		ret = -EINVAL;
 		goto out;
 	}
 
-	nn = o2net_nn_from_num(node->nd_num);
+	nn = o2net_nn_from_num(yesde->nd_num);
 
 	spin_lock(&nn->nn_lock);
 	if (nn->nn_sc)
@@ -1897,14 +1897,14 @@ static int o2net_accept_one(struct socket *sock, int *more)
 		ret = 0;
 	spin_unlock(&nn->nn_lock);
 	if (ret) {
-		printk(KERN_NOTICE "o2net: Attempt to connect from node '%s' "
+		printk(KERN_NOTICE "o2net: Attempt to connect from yesde '%s' "
 		       "at %pI4:%d but it already has an open connection\n",
-		       node->nd_name, &sin.sin_addr.s_addr,
+		       yesde->nd_name, &sin.sin_addr.s_addr,
 		       ntohs(sin.sin_port));
 		goto out;
 	}
 
-	sc = sc_alloc(node);
+	sc = sc_alloc(yesde);
 	if (sc == NULL) {
 		ret = -ENOMEM;
 		goto out;
@@ -1927,14 +1927,14 @@ static int o2net_accept_one(struct socket *sock, int *more)
 out:
 	if (new_sock)
 		sock_release(new_sock);
-	if (node)
-		o2nm_node_put(node);
-	if (local_node)
-		o2nm_node_put(local_node);
+	if (yesde)
+		o2nm_yesde_put(yesde);
+	if (local_yesde)
+		o2nm_yesde_put(local_yesde);
 	if (sc)
 		sc_put(sc);
 
-	memalloc_noio_restore(noio_flag);
+	memalloc_yesio_restore(yesio_flag);
 	return ret;
 }
 
@@ -1951,14 +1951,14 @@ static void o2net_accept_many(struct work_struct *work)
 	int	err;
 
 	/*
-	 * It is critical to note that due to interrupt moderation
+	 * It is critical to yeste that due to interrupt moderation
 	 * at the network driver level, we can't assume to get a
 	 * softIRQ for every single conn since tcp SYN packets
 	 * can arrive back-to-back, and therefore many pending
 	 * accepts may result in just 1 softIRQ. If we terminate
 	 * the o2net_accept_one() loop upon seeing an err, what happens
-	 * to the rest of the conns in the queue? If no new SYN
-	 * arrives for hours, no softIRQ  will be delivered,
+	 * to the rest of the conns in the queue? If yes new SYN
+	 * arrives for hours, yes softIRQ  will be delivered,
 	 * and the connections will just sit in the queue.
 	 */
 
@@ -1985,13 +1985,13 @@ static void o2net_listen_data_ready(struct sock *sk)
 	 * is  being established as a child socket inherits everything
 	 * from a parent LISTEN socket, including the data_ready cb of
 	 * the parent. This leads to a hazard. In o2net_accept_one()
-	 * we are still initializing the child socket but have not
+	 * we are still initializing the child socket but have yest
 	 * changed the inherited data_ready callback yet when
 	 * data starts arriving.
 	 * We avoid this hazard by checking the state.
 	 * For the listening socket,  the state will be TCP_LISTEN; for the new
 	 * socket, will be  TCP_ESTABLISHED. Also, in this case,
-	 * sk->sk_user_data is not a valid function pointer.
+	 * sk->sk_user_data is yest a valid function pointer.
 	 */
 
 	if (sk->sk_state == TCP_LISTEN) {
@@ -2055,13 +2055,13 @@ out:
 }
 
 /*
- * called from node manager when we should bring up our network listening
- * socket.  node manager handles all the serialization to only call this
- * once and to match it with o2net_stop_listening().  note,
- * o2nm_this_node() doesn't work yet as we're being called while it
+ * called from yesde manager when we should bring up our network listening
+ * socket.  yesde manager handles all the serialization to only call this
+ * once and to match it with o2net_stop_listening().  yeste,
+ * o2nm_this_yesde() doesn't work yet as we're being called while it
  * is being set up.
  */
-int o2net_start_listening(struct o2nm_node *node)
+int o2net_start_listening(struct o2nm_yesde *yesde)
 {
 	int ret = 0;
 
@@ -2075,20 +2075,20 @@ int o2net_start_listening(struct o2nm_node *node)
 		return -ENOMEM; /* ? */
 	}
 
-	ret = o2net_open_listening_sock(node->nd_ipv4_address,
-					node->nd_ipv4_port);
+	ret = o2net_open_listening_sock(yesde->nd_ipv4_address,
+					yesde->nd_ipv4_port);
 	if (ret) {
 		destroy_workqueue(o2net_wq);
 		o2net_wq = NULL;
 	} else
-		o2quo_conn_up(node->nd_num);
+		o2quo_conn_up(yesde->nd_num);
 
 	return ret;
 }
 
-/* again, o2nm_this_node() doesn't work here as we're involved in
+/* again, o2nm_this_yesde() doesn't work here as we're involved in
  * tearing it down */
-void o2net_stop_listening(struct o2nm_node *node)
+void o2net_stop_listening(struct o2nm_yesde *yesde)
 {
 	struct socket *sock = o2net_listen_sock;
 	size_t i;
@@ -2102,11 +2102,11 @@ void o2net_stop_listening(struct o2nm_node *node)
 	sock->sk->sk_user_data = NULL;
 	write_unlock_bh(&sock->sk->sk_callback_lock);
 
-	for (i = 0; i < ARRAY_SIZE(o2net_nodes); i++) {
-		struct o2nm_node *node = o2nm_get_node_by_num(i);
-		if (node) {
-			o2net_disconnect_node(node);
-			o2nm_node_put(node);
+	for (i = 0; i < ARRAY_SIZE(o2net_yesdes); i++) {
+		struct o2nm_yesde *yesde = o2nm_get_yesde_by_num(i);
+		if (yesde) {
+			o2net_disconnect_yesde(yesde);
+			o2nm_yesde_put(yesde);
 		}
 	}
 
@@ -2118,7 +2118,7 @@ void o2net_stop_listening(struct o2nm_node *node)
 	sock_release(o2net_listen_sock);
 	o2net_listen_sock = NULL;
 
-	o2quo_conn_err(node->nd_num);
+	o2quo_conn_err(yesde->nd_num);
 }
 
 /* ------------------------------------------------------------ */
@@ -2143,8 +2143,8 @@ int o2net_init(void)
 	o2net_keep_req->magic = cpu_to_be16(O2NET_MSG_KEEP_REQ_MAGIC);
 	o2net_keep_resp->magic = cpu_to_be16(O2NET_MSG_KEEP_RESP_MAGIC);
 
-	for (i = 0; i < ARRAY_SIZE(o2net_nodes); i++) {
-		struct o2net_node *nn = o2net_nn_from_num(i);
+	for (i = 0; i < ARRAY_SIZE(o2net_yesdes); i++) {
+		struct o2net_yesde *nn = o2net_nn_from_num(i);
 
 		atomic_set(&nn->nn_timeout, 0);
 		spin_lock_init(&nn->nn_lock);
@@ -2152,7 +2152,7 @@ int o2net_init(void)
 		INIT_DELAYED_WORK(&nn->nn_connect_expired,
 				  o2net_connect_expired);
 		INIT_DELAYED_WORK(&nn->nn_still_up, o2net_still_up);
-		/* until we see hb from a node we'll return einval */
+		/* until we see hb from a yesde we'll return einval */
 		nn->nn_persistent_error = -ENOTCONN;
 		init_waitqueue_head(&nn->nn_sc_wq);
 		idr_init(&nn->nn_status_idr);

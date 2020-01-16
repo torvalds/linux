@@ -3,11 +3,11 @@
  *
  * Permission to use, copy, modify, distribute, and sell this software and its
  * documentation for any purpose is hereby granted without fee, provided that
- * the above copyright notice appear in all copies and that both that copyright
- * notice and this permission notice appear in supporting documentation, and
- * that the name of the copyright holders not be used in advertising or
+ * the above copyright yestice appear in all copies and that both that copyright
+ * yestice and this permission yestice appear in supporting documentation, and
+ * that the name of the copyright holders yest be used in advertising or
  * publicity pertaining to distribution of the software without specific,
- * written prior permission.  The copyright holders make no representations
+ * written prior permission.  The copyright holders make yes representations
  * about the suitability of this software for any purpose.  It is provided "as
  * is" without express or implied warranty.
  *
@@ -38,7 +38,7 @@ struct drm_modeset_acquire_ctx;
 /**
  * struct drm_plane_state - mutable plane state
  *
- * Please not that the destination coordinates @crtc_x, @crtc_y, @crtc_h and
+ * Please yest that the destination coordinates @crtc_x, @crtc_y, @crtc_h and
  * @crtc_w and the source coordinates @src_x, @src_y, @src_h and @src_w are the
  * raw coordinates provided by userspace. Drivers should use
  * drm_atomic_helper_check_plane_state() and only use the derived rectangles in
@@ -51,7 +51,7 @@ struct drm_plane_state {
 	/**
 	 * @crtc:
 	 *
-	 * Currently bound CRTC, NULL if disabled. Do not this write directly,
+	 * Currently bound CRTC, NULL if disabled. Do yest this write directly,
 	 * use drm_atomic_set_crtc_for_plane()
 	 */
 	struct drm_crtc *crtc;
@@ -59,7 +59,7 @@ struct drm_plane_state {
 	/**
 	 * @fb:
 	 *
-	 * Currently bound framebuffer. Do not write this directly, use
+	 * Currently bound framebuffer. Do yest write this directly, use
 	 * drm_atomic_set_fb_for_plane()
 	 */
 	struct drm_framebuffer *fb;
@@ -68,7 +68,7 @@ struct drm_plane_state {
 	 * @fence:
 	 *
 	 * Optional fence to wait for before scanning out @fb. The core atomic
-	 * code will set this when userspace is using explicit fencing. Do not
+	 * code will set this when userspace is using explicit fencing. Do yest
 	 * write this field directly for a driver's implicit fence, use
 	 * drm_atomic_set_fence_for_plane() to ensure that an explicit fence is
 	 * preserved.
@@ -152,25 +152,25 @@ struct drm_plane_state {
 	unsigned int zpos;
 
 	/**
-	 * @normalized_zpos:
+	 * @yesrmalized_zpos:
 	 * Normalized value of zpos: unique, range from 0 to N-1 where N is the
 	 * number of active planes for given crtc. Note that the driver must set
-	 * &drm_mode_config.normalize_zpos or call drm_atomic_normalize_zpos() to
+	 * &drm_mode_config.yesrmalize_zpos or call drm_atomic_yesrmalize_zpos() to
 	 * update this before it can be trusted.
 	 */
-	unsigned int normalized_zpos;
+	unsigned int yesrmalized_zpos;
 
 	/**
 	 * @color_encoding:
 	 *
-	 * Color encoding for non RGB formats
+	 * Color encoding for yesn RGB formats
 	 */
 	enum drm_color_encoding color_encoding;
 
 	/**
 	 * @color_range:
 	 *
-	 * Color range for non RGB formats
+	 * Color range for yesn RGB formats
 	 */
 	enum drm_color_range color_range;
 
@@ -180,7 +180,7 @@ struct drm_plane_state {
 	 * Blob representing damage (area in plane framebuffer that changed
 	 * since last plane update) as an array of &drm_mode_rect in framebuffer
 	 * coodinates of the attached framebuffer. Note that unlike plane src,
-	 * damage clips are not in 16.16 fixed point.
+	 * damage clips are yest in 16.16 fixed point.
 	 */
 	struct drm_property_blob *fb_damage_clips;
 
@@ -264,12 +264,12 @@ struct drm_plane_funcs {
 	 * The source rectangle in frame buffer memory coordinates is given by
 	 * the src_x, src_y, src_w and src_h parameters (as 16.16 fixed point
 	 * values). Devices that don't support subpixel plane coordinates can
-	 * ignore the fractional part.
+	 * igyesre the fractional part.
 	 *
 	 * The destination rectangle in CRTC coordinates is given by the
 	 * crtc_x, crtc_y, crtc_w and crtc_h parameters (as integer values).
 	 * Devices scale the source rectangle to the destination rectangle. If
-	 * scaling is not supported, and the source rectangle size doesn't match
+	 * scaling is yest supported, and the source rectangle size doesn't match
 	 * the destination rectangle size, the driver must return a
 	 * -<errorname>EINVAL</errorname> error.
 	 *
@@ -293,7 +293,7 @@ struct drm_plane_funcs {
 	 *
 	 * This is the legacy entry point to disable the plane. The DRM core
 	 * calls this method in response to a DRM_IOCTL_MODE_SETPLANE IOCTL call
-	 * with the frame buffer ID set to 0.  Disabled planes must not be
+	 * with the frame buffer ID set to 0.  Disabled planes must yest be
 	 * processed by the CRTC.
 	 *
 	 * Drivers implementing atomic modeset should use
@@ -310,7 +310,7 @@ struct drm_plane_funcs {
 	 * @destroy:
 	 *
 	 * Clean up plane resources. This is only called at driver unload time
-	 * through drm_mode_config_cleanup() since a plane cannot be hotplugged
+	 * through drm_mode_config_cleanup() since a plane canyest be hotplugged
 	 * in DRM.
 	 */
 	void (*destroy)(struct drm_plane *plane);
@@ -320,7 +320,7 @@ struct drm_plane_funcs {
 	 *
 	 * Reset plane hardware and software state to off. This function isn't
 	 * called by the core directly, only through drm_mode_config_reset().
-	 * It's not a helper hook only for historical reasons.
+	 * It's yest a helper hook only for historical reasons.
 	 *
 	 * Atomic drivers can use drm_atomic_helper_plane_reset() to reset
 	 * atomic state using this hook.
@@ -333,8 +333,8 @@ struct drm_plane_funcs {
 	 * This is the legacy entry point to update a property attached to the
 	 * plane.
 	 *
-	 * This callback is optional if the driver does not support any legacy
-	 * driver-private properties. For atomic drivers it is not used because
+	 * This callback is optional if the driver does yest support any legacy
+	 * driver-private properties. For atomic drivers it is yest used because
 	 * property handling is done entirely in the DRM core.
 	 *
 	 * RETURNS:
@@ -349,7 +349,7 @@ struct drm_plane_funcs {
 	 *
 	 * Duplicate the current atomic state for this plane and return it.
 	 * The core and helpers guarantee that any atomic state duplicated with
-	 * this hook and still owned by the caller (i.e. not transferred to the
+	 * this hook and still owned by the caller (i.e. yest transferred to the
 	 * driver by calling &drm_mode_config_funcs.atomic_commit) will be
 	 * cleaned up by calling the @atomic_destroy_state hook in this
 	 * structure.
@@ -394,7 +394,7 @@ struct drm_plane_funcs {
 	 * Decode a driver-private property value and store the decoded value
 	 * into the passed-in state structure. Since the atomic core decodes all
 	 * standardized properties (even for extensions beyond the core set of
-	 * properties which might not be implemented by all drivers) this
+	 * properties which might yest be implemented by all drivers) this
 	 * requires drivers to subclass the state structure.
 	 *
 	 * Such driver-private properties should really only be implemented for
@@ -402,10 +402,10 @@ struct drm_plane_funcs {
 	 * standardize atomic extension and decode the properties used to expose
 	 * such an extension in the core.
 	 *
-	 * Do not call this function directly, use
+	 * Do yest call this function directly, use
 	 * drm_atomic_plane_set_property() instead.
 	 *
-	 * This callback is optional if the driver does not support any
+	 * This callback is optional if the driver does yest support any
 	 * driver-private atomic properties.
 	 *
 	 * NOTE:
@@ -417,7 +417,7 @@ struct drm_plane_funcs {
 	 * software) or data structures except the passed in @state parameter.
 	 *
 	 * Also since userspace controls in which order properties are set this
-	 * function must not do any input validation (since the state update is
+	 * function must yest do any input validation (since the state update is
 	 * incomplete and hence likely inconsistent). Instead any such input
 	 * validation must be done in the various atomic_check callbacks.
 	 *
@@ -441,10 +441,10 @@ struct drm_plane_funcs {
 	 * Reads out the decoded driver-private property. This is used to
 	 * implement the GETPLANE IOCTL.
 	 *
-	 * Do not call this function directly, use
+	 * Do yest call this function directly, use
 	 * drm_atomic_plane_get_property() instead.
 	 *
-	 * This callback is optional if the driver does not support any
+	 * This callback is optional if the driver does yest support any
 	 * driver-private atomic properties.
 	 *
 	 * RETURNS:
@@ -489,7 +489,7 @@ struct drm_plane_funcs {
 	 * If driver subclasses &struct drm_plane_state, it should implement
 	 * this optional hook for printing additional driver specific state.
 	 *
-	 * Do not call this directly, use drm_atomic_plane_print_state()
+	 * Do yest call this directly, use drm_atomic_plane_print_state()
 	 * instead.
 	 */
 	void (*atomic_print_state)(struct drm_printer *p,
@@ -503,7 +503,7 @@ struct drm_plane_funcs {
 	 * DRM to generate the correct format bitmask (which formats apply to
 	 * which modifier), and to valdiate modifiers at atomic_check time.
 	 *
-	 * If not present, then any modifier in the plane's modifier
+	 * If yest present, then any modifier in the plane's modifier
 	 * list is allowed with any of the plane's formats.
 	 *
 	 * Returns:
@@ -518,10 +518,10 @@ struct drm_plane_funcs {
 /**
  * enum drm_plane_type - uapi plane type enumeration
  *
- * For historical reasons not all planes are made the same. This enumeration is
+ * For historical reasons yest all planes are made the same. This enumeration is
  * used to tell the different types of planes apart to implement the different
  * uapi semantics for them. For userspace which is universal plane aware and
- * which is using that atomic IOCTL there's no difference between these planes
+ * which is using that atomic IOCTL there's yes difference between these planes
  * (beyong what the driver and hardware can support of course).
  *
  * For compatibility with legacy userspace, only overlay planes are made
@@ -537,7 +537,7 @@ enum drm_plane_type {
 	/**
 	 * @DRM_PLANE_TYPE_OVERLAY:
 	 *
-	 * Overlay planes represent all non-primary, non-cursor planes. Some
+	 * Overlay planes represent all yesn-primary, yesn-cursor planes. Some
 	 * drivers refer to these types of planes as "sprites" internally.
 	 */
 	DRM_PLANE_TYPE_OVERLAY,
@@ -566,7 +566,7 @@ enum drm_plane_type {
 /**
  * struct drm_plane - central DRM plane control structure
  *
- * Planes represent the scanout hardware of a display block. They receive their
+ * Planes represent the scayesut hardware of a display block. They receive their
  * input data from a &drm_framebuffer and feed it to a &drm_crtc. Planes control
  * the color conversion, see `Plane Composition Properties`_ for more details,
  * and are also involved in the color conversion of input pixels, see `Color
@@ -580,7 +580,7 @@ struct drm_plane {
 	 * @head:
 	 *
 	 * List of all planes on @dev, linked from &drm_mode_config.plane_list.
-	 * Invariant over the lifetime of @dev and therefore does not need
+	 * Invariant over the lifetime of @dev and therefore does yest need
 	 * locking.
 	 */
 	struct list_head head;
@@ -625,7 +625,7 @@ struct drm_plane {
 	/**
 	 * @crtc:
 	 *
-	 * Currently bound CRTC, only meaningful for non-atomic drivers. For
+	 * Currently bound CRTC, only meaningful for yesn-atomic drivers. For
 	 * atomic drivers this is forced to be NULL, atomic drivers should
 	 * instead check &drm_plane_state.crtc.
 	 */
@@ -634,7 +634,7 @@ struct drm_plane {
 	/**
 	 * @fb:
 	 *
-	 * Currently bound framebuffer, only meaningful for non-atomic drivers.
+	 * Currently bound framebuffer, only meaningful for yesn-atomic drivers.
 	 * For atomic drivers this is forced to be NULL, atomic drivers should
 	 * instead check &drm_plane_state.fb.
 	 */
@@ -644,7 +644,7 @@ struct drm_plane {
 	 * @old_fb:
 	 *
 	 * Temporary tracking of the old fb while a modeset is ongoing. Only
-	 * used by non-atomic drivers, forced to be NULL for atomic drivers.
+	 * used by yesn-atomic drivers, forced to be NULL for atomic drivers.
 	 */
 	struct drm_framebuffer *old_fb;
 
@@ -671,7 +671,7 @@ struct drm_plane {
 	 *
 	 * Current atomic state for this plane.
 	 *
-	 * This is protected by @mutex. Note that nonblocking atomic commits
+	 * This is protected by @mutex. Note that yesnblocking atomic commits
 	 * access the current plane state without taking locks. Either by going
 	 * through the &struct drm_atomic_state pointers, see
 	 * for_each_oldnew_plane_in_state(), for_each_old_plane_in_state() and
@@ -712,7 +712,7 @@ struct drm_plane {
 	 * @color_encoding_property:
 	 *
 	 * Optional "COLOR_ENCODING" enum property for specifying
-	 * color encoding for non RGB formats.
+	 * color encoding for yesn RGB formats.
 	 * See drm_plane_create_color_properties().
 	 */
 	struct drm_property *color_encoding_property;
@@ -720,7 +720,7 @@ struct drm_plane {
 	 * @color_range_property:
 	 *
 	 * Optional "COLOR_RANGE" enum property for specifying
-	 * color range for non RGB formats.
+	 * color range for yesn RGB formats.
 	 * See drm_plane_create_color_properties().
 	 */
 	struct drm_property *color_range_property;
@@ -810,7 +810,7 @@ static inline struct drm_plane *drm_plane_find(struct drm_device *dev,
  * @dev: the DRM device
  *
  * Iterate over all legacy planes of @dev, excluding primary and cursor planes.
- * This is useful for implementing userspace apis when userspace is not
+ * This is useful for implementing userspace apis when userspace is yest
  * universal plane aware. See also &enum drm_plane_type.
  */
 #define drm_for_each_legacy_plane(plane, dev) \

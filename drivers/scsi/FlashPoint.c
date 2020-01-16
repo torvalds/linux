@@ -3,7 +3,7 @@
   FlashPoint.c -- FlashPoint SCCB Manager for Linux
 
   This file contains the FlashPoint SCCB Manager from BusLogic's FlashPoint
-  Driver Developer's Kit, with minor modifications by Leonard N. Zubkoff for
+  Driver Developer's Kit, with miyesr modifications by Leonard N. Zubkoff for
   Linux compatibility.  It was provided by BusLogic in the form of 16 separate
   source files, which would have unnecessarily cluttered the scsi directory, so
   the individual files have been combined into this single file.
@@ -38,7 +38,7 @@ struct sccb_mgr_info {
 	u16 si_per_targ_init_sync;
 	u16 si_per_targ_fast_nego;
 	u16 si_per_targ_ultra_nego;
-	u16 si_per_targ_no_disc;
+	u16 si_per_targ_yes_disc;
 	u16 si_per_targ_wide_nego;
 	u16 si_flags;
 	unsigned char si_card_family;
@@ -169,7 +169,7 @@ struct sccb {
 
 #define QUEUE_DEPTH     254+1	/*1 for Normal disconnect 32 for Q'ing. */
 
-#define	MAX_MB_CARDS	4	/* Max. no of cards suppoerted on Mother Board */
+#define	MAX_MB_CARDS	4	/* Max. yes of cards suppoerted on Mother Board */
 
 #define MAX_SCSI_TAR    16
 #define MAX_LUN         32
@@ -224,7 +224,7 @@ struct sccb_mgr_tar_info {
 
 struct nvram_info {
 	unsigned char niModel;		/* Model No. of card */
-	unsigned char niCardNo;		/* Card no. */
+	unsigned char niCardNo;		/* Card yes. */
 	u32 niBaseAddr;			/* Port Address of card */
 	unsigned char niSysConf;	/* Adapter Configuration byte -
 					   Byte 16 of eeprom map */
@@ -337,7 +337,7 @@ typedef struct SCCBscam_info {
 #define  SMWDTR                  0x03
 #define  SM8BIT                  0x00
 #define  SM16BIT                 0x01
-#define  SMIGNORWR               0x23	/* Ignore Wide Residue */
+#define  SMIGNORWR               0x23	/* Igyesre Wide Residue */
 
 #define  SIX_BYTE_CMD            0x06
 #define  TWELVE_BYTE_CMD         0x0C
@@ -441,7 +441,7 @@ typedef struct SCCBscam_info {
 
 #define  XFER_DMA_8BIT     0x20	/*     0 1 8 BIT  Transfer Size */
 
-#define  DISABLE_INT       BIT(7)	/*Do not interrupt at end of cmd. */
+#define  DISABLE_INT       BIT(7)	/*Do yest interrupt at end of cmd. */
 
 #define  HOST_WRT_CMD      ((DISABLE_INT + XFER_HOST_DMA + XFER_HOST_AUTO + XFER_DMA_8BIT))
 #define  HOST_RD_CMD       ((DISABLE_INT + XFER_DMA_HOST + XFER_HOST_AUTO + XFER_DMA_8BIT))
@@ -736,7 +736,7 @@ typedef struct SCCBscam_info {
 #define  DI    0x13		/*Data Out */
 #define  DC    0x19		/*Disconnect Message */
 #define  ST    0x1D		/*Status Phase */
-#define  UNKNWN 0x24		/*Unknown bus action */
+#define  UNKNWN 0x24		/*Unkyeswn bus action */
 #define  CC    0x25		/*Command Completion failure */
 #define  TICK  0x26		/*New target reselected us. */
 #define  SELCHK 0x28		/*Select & Check SCSI ID latch reg */
@@ -1033,13 +1033,13 @@ static int FlashPoint_ProbeHostAdapter(struct sccb_mgr_info *pCardInfo)
 			temp5 >>= 1;
 			temp6 >>= 1;
 			switch (temp & 0x3) {
-			case AUTO_RATE_20:	/* Synchronous, 20 mega-transfers/second */
+			case AUTO_RATE_20:	/* Synchroyesus, 20 mega-transfers/second */
 				temp6 |= 0x8000;	/* Fall through */
-			case AUTO_RATE_10:	/* Synchronous, 10 mega-transfers/second */
+			case AUTO_RATE_10:	/* Synchroyesus, 10 mega-transfers/second */
 				temp5 |= 0x8000;	/* Fall through */
-			case AUTO_RATE_05:	/* Synchronous, 5 mega-transfers/second */
+			case AUTO_RATE_05:	/* Synchroyesus, 5 mega-transfers/second */
 				temp2 |= 0x8000;	/* Fall through */
-			case AUTO_RATE_00:	/* Asynchronous */
+			case AUTO_RATE_00:	/* Asynchroyesus */
 				break;
 			}
 
@@ -1053,7 +1053,7 @@ static int FlashPoint_ProbeHostAdapter(struct sccb_mgr_info *pCardInfo)
 	}
 
 	pCardInfo->si_per_targ_init_sync = temp2;
-	pCardInfo->si_per_targ_no_disc = temp3;
+	pCardInfo->si_per_targ_yes_disc = temp3;
 	pCardInfo->si_per_targ_wide_nego = temp4;
 	pCardInfo->si_per_targ_fast_nego = temp5;
 	pCardInfo->si_per_targ_ultra_nego = temp6;
@@ -1176,7 +1176,7 @@ static int FlashPoint_ProbeHostAdapter(struct sccb_mgr_info *pCardInfo)
 		    RD_HARPOON(ioport + hp_aramBase + BIOS_DATA_OFFSET + i);
 	}
 
-	/* return with -1 if no sort, else return with
+	/* return with -1 if yes sort, else return with
 	   logical card number sorted by BIOS (zero-based) */
 
 	pCardInfo->si_relative_cardnum =
@@ -1203,7 +1203,7 @@ static int FlashPoint_ProbeHostAdapter(struct sccb_mgr_info *pCardInfo)
  *
  * Function: FlashPoint_HardwareResetHostAdapter
  *
- * Description: Setup adapter for normal operation (hard reset).
+ * Description: Setup adapter for yesrmal operation (hard reset).
  *
  *---------------------------------------------------------------------*/
 
@@ -1322,7 +1322,7 @@ static void *FlashPoint_HardwareResetHostAdapter(struct sccb_mgr_info
 			CurrCard->globalFlags |= F_CONLUN_IO;
 	}
 
-	temp = pCardInfo->si_per_targ_no_disc;
+	temp = pCardInfo->si_per_targ_yes_disc;
 
 	for (i = 0, id = 1; i < MAX_SCSI_TAR; i++, id <<= 1) {
 
@@ -1785,7 +1785,7 @@ static int FlashPoint_HandleInterrupt(void *pcard)
 			if (!(hp_int & BUS_FREE)) {
 				/* Wait for the BusFree before starting a new command.  We
 				   must also check for being reselected since the BusFree
-				   may not show up if another device reselects us in 1.5us or
+				   may yest show up if ayesther device reselects us in 1.5us or
 				   less.  SRR Wednesday, 3/8/1995.
 				 */
 				while (!
@@ -1826,7 +1826,7 @@ static int FlashPoint_HandleInterrupt(void *pcard)
 
 			/* Wait for the BusFree before starting a new command.  We
 			   must also check for being reselected since the BusFree
-			   may not show up if another device reselects us in 1.5us or
+			   may yest show up if ayesther device reselects us in 1.5us or
 			   less.  SRR Wednesday, 3/8/1995.
 			 */
 			while (!
@@ -1901,7 +1901,7 @@ static int FlashPoint_HandleInterrupt(void *pcard)
 				FPT_phaseDecode(ioport, thisCard);
 			} else {
 				/* Harpoon problem some SCSI target device respond to selection
-				   with short BUSY pulse (<400ns) this will make the Harpoon is not able
+				   with short BUSY pulse (<400ns) this will make the Harpoon is yest able
 				   to latch the correct Target ID into reg. x53.
 				   The work around require to correct this reg. But when write to this
 				   reg. (0x53) also increment the FIFO write addr reg (0x6f), thus we
@@ -1981,7 +1981,7 @@ static int FlashPoint_HandleInterrupt(void *pcard)
  * Function: Sccb_bad_isr
  *
  * Description: Some type of interrupt has occurred which is slightly
- *              out of the ordinary.  We will now decode it fully, in
+ *              out of the ordinary.  We will yesw decode it fully, in
  *              this routine.  This is broken up in an attempt to save
  *              processing time.
  *
@@ -2348,7 +2348,7 @@ static void FPT_ssel(u32 port, unsigned char p_card)
 				}
 
 			}
-			/*End non-tagged */
+			/*End yesn-tagged */
 			else {
 				currTar_Info->TarLUNBusy[lun] = 1;
 			}
@@ -2488,7 +2488,7 @@ static void FPT_ssel(u32 port, unsigned char p_card)
 				WR_HARPOON(port + hp_autostart_3,
 					   (SELECT + SELCHK_STRT));
 
-				/* Setup our STATE so we know what happened when
+				/* Setup our STATE so we kyesw what happened when
 				   the wheels fall off. */
 				currSCCB->Sccb_scsistat = SELECT_ST;
 
@@ -3727,7 +3727,7 @@ static void FPT_sxfrp(u32 p_port, unsigned char p_card)
 
 	}
 
-	/* If the Automation handled the end of the transfer then do not
+	/* If the Automation handled the end of the transfer then do yest
 	   match the phase or we will get out of sync with the ISR.       */
 
 	if (RDW_HARPOON((p_port + hp_intstat)) &
@@ -4483,7 +4483,7 @@ static void FPT_phaseBusFree(u32 port, unsigned char p_card)
 		}
 
 		else if (currSCCB->Sccb_scsistat == SELECT_Q_ST) {
-			/* Make sure this is not a phony BUS_FREE.  If we were
+			/* Make sure this is yest a phony BUS_FREE.  If we were
 			   reselected or if BUSY is NOT on then this is a
 			   valid BUS FREE.  SRR Wednesday, 5/10/1995.     */
 
@@ -4635,7 +4635,7 @@ static void FPT_autoLoadDefaultMap(u32 p_port)
  *
  * Function: Auto Command Complete
  *
- * Description: Post command back to host and find another command
+ * Description: Post command back to host and find ayesther command
  *              to execute.
  *
  *---------------------------------------------------------------------*/
@@ -5088,7 +5088,7 @@ static void FPT_busMstrDataXferStart(u32 p_port, struct sccb *pcurrSCCB)
  *               out is detected.  This routines issue halt state machine
  *               with a software time out for command busy.  If command busy
  *               is still asserted at the end of the time out, it issues
- *               hard abort with another software time out.  It hard abort
+ *               hard abort with ayesther software time out.  It hard abort
  *               command busy is also time out, it'll just give up.
  *
  *---------------------------------------------------------------------*/
@@ -6181,7 +6181,7 @@ static unsigned char FPT_scsell(u32 p_port, unsigned char targ_id)
  *
  * Function: FPT_scwtsel
  *
- * Description: Wait to be selected by another SCAM initiator.
+ * Description: Wait to be selected by ayesther SCAM initiator.
  *
  *---------------------------------------------------------------------*/
 
@@ -6426,7 +6426,7 @@ static void FPT_scsavdi(unsigned char p_card, u32 p_port)
  *
  * Function: FPT_XbowInit
  *
- * Description: Setup the Xbow for normal operation.
+ * Description: Setup the Xbow for yesrmal operation.
  *
  *---------------------------------------------------------------------*/
 
@@ -6475,7 +6475,7 @@ static void FPT_XbowInit(u32 port, unsigned char ScamFlg)
  *
  * Function: FPT_BusMasterInit
  *
- * Description: Initialize the BusMaster for normal operations.
+ * Description: Initialize the BusMaster for yesrmal operations.
  *
  *---------------------------------------------------------------------*/
 
@@ -6527,7 +6527,7 @@ static void FPT_DiagEEPROM(u32 p_port)
 
 		if (temp == FPT_utilEERead(p_port, EEPROM_CHECK_SUM / 2)) {
 
-			return;	/*EEPROM is Okay so return now! */
+			return;	/*EEPROM is Okay so return yesw! */
 		}
 	}
 

@@ -6,7 +6,7 @@
 #ifndef __XFS_SCRUB_REPAIR_H__
 #define __XFS_SCRUB_REPAIR_H__
 
-static inline int xrep_notsupported(struct xfs_scrub *sc)
+static inline int xrep_yestsupported(struct xfs_scrub *sc)
 {
 	return -EOPNOTSUPP;
 }
@@ -15,14 +15,14 @@ static inline int xrep_notsupported(struct xfs_scrub *sc)
 
 /* Repair helpers */
 
-int xrep_attempt(struct xfs_inode *ip, struct xfs_scrub *sc);
+int xrep_attempt(struct xfs_iyesde *ip, struct xfs_scrub *sc);
 void xrep_failure(struct xfs_mount *mp);
 int xrep_roll_ag_trans(struct xfs_scrub *sc);
 bool xrep_ag_has_space(struct xfs_perag *pag, xfs_extlen_t nr_blocks,
 		enum xfs_ag_resv_type type);
 xfs_extlen_t xrep_calc_ag_resblks(struct xfs_scrub *sc);
 int xrep_alloc_ag_block(struct xfs_scrub *sc,
-		const struct xfs_owner_info *oinfo, xfs_fsblock_t *fsbno,
+		const struct xfs_owner_info *oinfo, xfs_fsblock_t *fsbyes,
 		enum xfs_ag_resv_type resv);
 int xrep_init_btblock(struct xfs_scrub *sc, xfs_fsblock_t fsb,
 		struct xfs_buf **bpp, xfs_btnum_t btnum,
@@ -50,7 +50,7 @@ struct xrep_find_ag_btree {
 int xrep_find_ag_btree_roots(struct xfs_scrub *sc, struct xfs_buf *agf_bp,
 		struct xrep_find_ag_btree *btree_info, struct xfs_buf *agfl_bp);
 void xrep_force_quotacheck(struct xfs_scrub *sc, uint dqtype);
-int xrep_ino_dqattach(struct xfs_scrub *sc);
+int xrep_iyes_dqattach(struct xfs_scrub *sc);
 
 /* Metadata repairers */
 
@@ -63,7 +63,7 @@ int xrep_agi(struct xfs_scrub *sc);
 #else
 
 static inline int xrep_attempt(
-	struct xfs_inode	*ip,
+	struct xfs_iyesde	*ip,
 	struct xfs_scrub	*sc)
 {
 	return -EOPNOTSUPP;
@@ -79,11 +79,11 @@ xrep_calc_ag_resblks(
 	return 0;
 }
 
-#define xrep_probe			xrep_notsupported
-#define xrep_superblock			xrep_notsupported
-#define xrep_agf			xrep_notsupported
-#define xrep_agfl			xrep_notsupported
-#define xrep_agi			xrep_notsupported
+#define xrep_probe			xrep_yestsupported
+#define xrep_superblock			xrep_yestsupported
+#define xrep_agf			xrep_yestsupported
+#define xrep_agfl			xrep_yestsupported
+#define xrep_agi			xrep_yestsupported
 
 #endif /* CONFIG_XFS_ONLINE_REPAIR */
 

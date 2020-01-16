@@ -39,12 +39,12 @@
  * are met:
  *
  *  * Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  *  * Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
+ *    yestice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
- *  * Neither the name Intel Corporation nor the names of its
+ *  * Neither the name Intel Corporation yesr the names of its
  *    contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
@@ -106,20 +106,20 @@ struct iwl_mvm_vif;
  * %mvm->add_stream_wk later allocates the queues and TXes the deferred frames.
  *
  * For convenience, MGMT is considered as if it has TID=8, and go to the MGMT
- * queues in the pool. If there is no longer a free MGMT queue to allocate, a
+ * queues in the pool. If there is yes longer a free MGMT queue to allocate, a
  * queue will be allocated from the DATA pool instead. Since QoS NDPs can create
  * a problem for aggregations, they too will use a MGMT queue.
  *
  * When adding a STA, a DATA queue is reserved for it so that it can TX from
- * it. If no such free queue exists for reserving, the STA addition will fail.
+ * it. If yes such free queue exists for reserving, the STA addition will fail.
  *
- * If the DATA queue pool gets exhausted, no new STA will be accepted, and if a
+ * If the DATA queue pool gets exhausted, yes new STA will be accepted, and if a
  * new RA/TID comes in for an existing STA, one of the STA's queues will become
  * shared and will serve more than the single TID (but always for the same RA!).
  *
- * When a RA/TID needs to become aggregated, no new queue is required to be
+ * When a RA/TID needs to become aggregated, yes new queue is required to be
  * allocated, only mark the queue as aggregated via the ADD_STA command. Note,
- * however, that a shared queue cannot be aggregated, and only after the other
+ * however, that a shared queue canyest be aggregated, and only after the other
  * TIDs become inactive and are removed - only then can the queue be
  * reconfigured and become aggregated.
  *
@@ -149,7 +149,7 @@ struct iwl_mvm_vif;
  * The driver holds a map: %fw_id_to_mac_id that allows to fetch a
  * %ieee80211_sta (and the %iwl_mvm_sta embedded into it) based on a fw
  * station index. That way, the driver is able to get the tid related data in
- * O(1) in time sensitive paths (Tx / Tx response / BA notification). These
+ * O(1) in time sensitive paths (Tx / Tx response / BA yestification). These
  * paths are triggered by the fw, and the driver needs to get a pointer to the
  * %ieee80211 structure. This map helps to get that pointer quickly.
  */
@@ -172,27 +172,27 @@ struct iwl_mvm_vif;
  * The writers of %fw_id_to_mac_id map are serialized by the global mutex of
  * the mvm op_mode. This is possible since %sta_state can sleep.
  * The pointers in this map are RCU protected, hence we won't replace the
- * station while we have Tx / Tx response / BA notification running.
+ * station while we have Tx / Tx response / BA yestification running.
  *
  * If a station is deleted while it still has packets in its A-MPDU queues,
- * then the reclaim flow will notice that there is no station in the map for
+ * then the reclaim flow will yestice that there is yes station in the map for
  * sta_id and it will dump the responses.
  */
 
 /**
  * DOC: station table - internal stations
  *
- * The FW needs a few internal stations that are not reflected in
+ * The FW needs a few internal stations that are yest reflected in
  * mac80211, such as broadcast station in AP / GO mode, or AUX sta for
  * scanning and P2P device (during the GO negotiation).
  * For these kind of stations we have %iwl_mvm_int_sta struct which holds the
  * data relevant for them from both %iwl_mvm_sta and %ieee80211_sta.
- * Usually the data for these stations is static, so no locking is required,
- * and no TID data as this is also not needed.
- * One thing to note, is that these stations have an ID in the fw, but not
+ * Usually the data for these stations is static, so yes locking is required,
+ * and yes TID data as this is also yest needed.
+ * One thing to yeste, is that these stations have an ID in the fw, but yest
  * in mac80211. In order to "reserve" them a sta_id in %fw_id_to_mac_id
  * we fill ERR_PTR(EINVAL) in this mapping and all other dereferencing of
- * pointers from this mapping need to check that the value is not error
+ * pointers from this mapping need to check that the value is yest error
  * or NULL.
  *
  * Currently there is only one auxiliary station for scanning, initialized
@@ -204,7 +204,7 @@ struct iwl_mvm_vif;
  *
  * %iwl_mvm_vif includes the index of the AP station in the fw's STA table:
  * %ap_sta_id. To get the point to the corresponding %ieee80211_sta,
- * &fw_id_to_mac_id can be used. Due to the way the fw works, we must not remove
+ * &fw_id_to_mac_id can be used. Due to the way the fw works, we must yest remove
  * the AP station from the fw before setting the MAC context as unassociated.
  * Hence, %fw_id_to_mac_id[%ap_sta_id] will be NULLed when the AP station is
  * removed by mac80211, but the station won't be removed in the fw until the
@@ -216,7 +216,7 @@ struct iwl_mvm_vif;
  *
  * Flush means that all the frames in the SCD queue are dumped regardless the
  * station to which they were sent. We do that when we disassociate and before
- * we remove the STA of the AP. The flush can be done synchronously against the
+ * we remove the STA of the AP. The flush can be done synchroyesusly against the
  * fw.
  * Drain means that the fw will drop all the frames sent to a specific station.
  * This is useful when a client (if we are IBSS / GO or AP) disassociates.
@@ -228,13 +228,13 @@ struct iwl_mvm_vif;
  * When the fw asserts, or we have any other issue that requires to reset the
  * driver, we require mac80211 to reconfigure the driver. Since the private
  * data of the stations is embed in mac80211's %ieee80211_sta, that data will
- * not be zeroed and needs to be reinitialized manually.
+ * yest be zeroed and needs to be reinitialized manually.
  * %IWL_MVM_STATUS_IN_HW_RESTART is set during restart and that will hint us
- * that we must not allocate a new sta_id but reuse the previous one. This
+ * that we must yest allocate a new sta_id but reuse the previous one. This
  * means that the stations being re-added after the reset will have the same
  * place in the fw as before the reset. We do need to zero the %fw_id_to_mac_id
  * map, since the stations aren't in the fw any more. Internal stations that
- * are not added by mac80211 will be re-added in the init flow that is called
+ * are yest added by mac80211 will be re-added in the init flow that is called
  * after the restart: mac80211 call's %iwl_mvm_mac_start which calls to
  * %iwl_mvm_up.
  */
@@ -243,29 +243,29 @@ struct iwl_mvm_vif;
  * DOC: AP mode - PS
  *
  * When a station is asleep, the fw will set it as "asleep". All frames on
- * shared queues (i.e. non-aggregation queues) to that station will be dropped
+ * shared queues (i.e. yesn-aggregation queues) to that station will be dropped
  * by the fw (%TX_STATUS_FAIL_DEST_PS failure code).
  *
  * AMPDUs are in a separate queue that is stopped by the fw. We just need to
- * let mac80211 know when there are frames in these queues so that it can
+ * let mac80211 kyesw when there are frames in these queues so that it can
  * properly handle trigger frames.
  *
  * When a trigger frame is received, mac80211 tells the driver to send frames
- * from the AMPDU queues or sends frames to non-aggregation queues itself,
+ * from the AMPDU queues or sends frames to yesn-aggregation queues itself,
  * depending on which ACs are delivery-enabled and what TID has frames to
- * transmit. Note that mac80211 has all the knowledge since all the non-agg
+ * transmit. Note that mac80211 has all the kyeswledge since all the yesn-agg
  * frames are buffered / filtered, and the driver tells mac80211 about agg
  * frames). The driver needs to tell the fw to let frames out even if the
  * station is asleep. This is done by %iwl_mvm_sta_modify_sleep_tx_count.
  *
  * When we receive a frame from that station with PM bit unset, the driver
- * needs to let the fw know that this station isn't asleep any more. This is
+ * needs to let the fw kyesw that this station isn't asleep any more. This is
  * done by %iwl_mvm_sta_modify_ps_wake in response to mac80211 signaling the
  * station's wakeup.
  *
  * For a GO, the Service Period might be cut short due to an absence period
- * of the GO. In this (and all other cases) the firmware notifies us with the
- * EOSP_NOTIFICATION, and we notify mac80211 of that. Further frames that we
+ * of the GO. In this (and all other cases) the firmware yestifies us with the
+ * EOSP_NOTIFICATION, and we yestify mac80211 of that. Further frames that we
  * already sent to the device will be rejected again.
  *
  * See also "AP support for powersaving clients" in mac80211.h.
@@ -277,7 +277,7 @@ struct iwl_mvm_vif;
  * The state machine of the BA agreement establishment / tear down.
  * These states relate to a specific RA / TID.
  *
- * @IWL_AGG_OFF: aggregation is not used
+ * @IWL_AGG_OFF: aggregation is yest used
  * @IWL_AGG_QUEUED: aggregation start work has been queued
  * @IWL_AGG_STARTING: aggregation are starting (between start and oper)
  * @IWL_AGG_ON: aggregation session is up
@@ -301,7 +301,7 @@ enum iwl_mvm_agg_state {
  * @next_reclaimed: the WiFi sequence number of the next packet to be acked.
  *	This is basically (last acked packet++).
  * @rate_n_flags: Rate at which Tx was attempted. Holds the data between the
- *	Tx response (TX_CMD), and the block ack notification (COMPRESSED_BA).
+ *	Tx response (TX_CMD), and the block ack yestification (COMPRESSED_BA).
  * @lq_color: the color of the LQ command as it appears in tx response.
  * @amsdu_in_ampdu_allowed: true if A-MSDU in A-MPDU is allowed.
  * @state: state of the BA agreement establishment / tear down.
@@ -348,8 +348,8 @@ struct iwl_mvm_nssn_sync_data {
 	u32 nssn;
 } __packed;
 
-struct iwl_mvm_rss_sync_notif {
-	struct iwl_mvm_internal_rxq_notif metadata;
+struct iwl_mvm_rss_sync_yestif {
+	struct iwl_mvm_internal_rxq_yestif metadata;
 	union {
 		struct iwl_mvm_delba_data delba;
 		struct iwl_mvm_nssn_sync_data nssn_sync;
@@ -386,16 +386,16 @@ struct iwl_mvm_rxq_dup_data {
  * @lq_sta: holds rate scaling data, either for the case when RS is done in
  *	the driver - %rs_drv or in the FW - %rs_fw.
  * @reserved_queue: the queue reserved for this STA for DQA purposes
- *	Every STA has is given one reserved queue to allow it to operate. If no
+ *	Every STA has is given one reserved queue to allow it to operate. If yes
  *	such queue can be guaranteed, the STA addition will fail.
  * @tx_protection: reference counter for controlling the Tx protection.
  * @tt_tx_protection: is thermal throttling enable Tx protection?
  * @disable_tx: is tx to this STA disabled?
  * @amsdu_enabled: bitmap of TX AMSDU allowed TIDs.
- *	In case TLC offload is not active it is either 0xFFFF or 0.
+ *	In case TLC offload is yest active it is either 0xFFFF or 0.
  * @max_amsdu_len: max AMSDU length
  * @orig_amsdu_len: used to save the original amsdu_len when it is changed via
- *      debugfs.  If it's set to 0, it means that it is it's not set via
+ *      debugfs.  If it's set to 0, it means that it is it's yest set via
  *      debugfs.
  * @agg_tids: bitmap of tids whose status is operational aggregated (IWL_AGG_ON)
  * @sleep_tx_count: the number of frames that we told the firmware to let out
@@ -479,10 +479,10 @@ struct iwl_mvm_int_sta {
  *
  * @mvm: the iwl_mvm* to use
  * @sta: the STA
- * @update: this is true if the FW is being updated about a STA it already knows
+ * @update: this is true if the FW is being updated about a STA it already kyesws
  *	about. Otherwise (if this is a new STA), this should be false.
  * @flags: if update==true, this marks what is being changed via ORs of values
- *	from enum iwl_sta_modify_flag. Otherwise, this is ignored.
+ *	from enum iwl_sta_modify_flag. Otherwise, this is igyesred.
  */
 int iwl_mvm_sta_send_to_fw(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 			   bool update, unsigned int flags);
@@ -521,7 +521,7 @@ void iwl_mvm_update_tkip_key(struct iwl_mvm *mvm,
 			     struct ieee80211_sta *sta, u32 iv32,
 			     u16 *phase1key);
 
-void iwl_mvm_rx_eosp_notif(struct iwl_mvm *mvm,
+void iwl_mvm_rx_eosp_yestif(struct iwl_mvm *mvm,
 			   struct iwl_rx_cmd_buffer *rxb);
 
 /* AMPDU */

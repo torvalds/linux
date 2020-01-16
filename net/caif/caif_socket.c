@@ -119,7 +119,7 @@ static void caif_flow_ctrl(struct sock *sk, int mode)
 
 /*
  * Copied from sock.c:sock_queue_rcv_skb(), but changed so packets are
- * not dropped, but CAIF is sending flow off instead.
+ * yest dropped, but CAIF is sending flow off instead.
  */
 static void caif_queue_rcv_skb(struct sock *sk, struct sk_buff *skb)
 {
@@ -210,7 +210,7 @@ static void caif_ctrl_cb(struct cflayer *layr,
 		break;
 
 	case CAIF_CTRLCMD_INIT_RSP:
-		/* We're now connected */
+		/* We're yesw connected */
 		caif_client_register_refcnt(&cf_sk->layer,
 						cfsk_hold, cfsk_put);
 		cf_sk->sk.sk_state = CAIF_CONNECTED;
@@ -220,7 +220,7 @@ static void caif_ctrl_cb(struct cflayer *layr,
 		break;
 
 	case CAIF_CTRLCMD_DEINIT_RSP:
-		/* We're now disconnected */
+		/* We're yesw disconnected */
 		cf_sk->sk.sk_state = CAIF_DISCONNECTED;
 		cf_sk->sk.sk_state_change(&cf_sk->sk);
 		break;
@@ -411,7 +411,7 @@ static int caif_stream_recvmsg(struct socket *sock, struct msghdr *msg,
 			timeo = caif_stream_data_wait(sk, timeo);
 
 			if (signal_pending(current)) {
-				err = sock_intr_errno(timeo);
+				err = sock_intr_erryes(timeo);
 				goto out;
 			}
 			caif_read_lock(sk);
@@ -444,7 +444,7 @@ unlock:
 
 		} else {
 			/*
-			 * It is questionable, see note in unix_dgram_recvmsg.
+			 * It is questionable, see yeste in unix_dgram_recvmsg.
 			 */
 			/* put message back and return */
 			skb_queue_head(&sk->sk_receive_queue, skb);
@@ -498,7 +498,7 @@ static long caif_wait_for_flow_on(struct caifsock *cf_sk,
  * by returning EAGAIN.
  */
 static int transmit_skb(struct sk_buff *skb, struct caifsock *cf_sk,
-			int noblock, long timeo)
+			int yesblock, long timeo)
 {
 	struct cfpkt *pkt;
 
@@ -523,7 +523,7 @@ static int caif_seqpkt_sendmsg(struct socket *sock, struct msghdr *msg,
 	int buffer_size;
 	int ret = 0;
 	struct sk_buff *skb = NULL;
-	int noblock;
+	int yesblock;
 	long timeo;
 	caif_assert(cf_sk);
 	ret = sock_error(sk);
@@ -541,9 +541,9 @@ static int caif_seqpkt_sendmsg(struct socket *sock, struct msghdr *msg,
 	ret = -EINVAL;
 	if (unlikely(msg->msg_iter.iov->iov_base == NULL))
 		goto err;
-	noblock = msg->msg_flags & MSG_DONTWAIT;
+	yesblock = msg->msg_flags & MSG_DONTWAIT;
 
-	timeo = sock_sndtimeo(sk, noblock);
+	timeo = sock_sndtimeo(sk, yesblock);
 	timeo = caif_wait_for_flow_on(container_of(sk, struct caifsock, sk),
 				1, timeo, &ret);
 
@@ -563,7 +563,7 @@ static int caif_seqpkt_sendmsg(struct socket *sock, struct msghdr *msg,
 	buffer_size = len + cf_sk->headroom + cf_sk->tailroom;
 
 	ret = -ENOMEM;
-	skb = sock_alloc_send_skb(sk, buffer_size, noblock, &ret);
+	skb = sock_alloc_send_skb(sk, buffer_size, yesblock, &ret);
 
 	if (!skb || skb_tailroom(skb) < buffer_size)
 		goto err;
@@ -574,7 +574,7 @@ static int caif_seqpkt_sendmsg(struct socket *sock, struct msghdr *msg,
 
 	if (ret)
 		goto err;
-	ret = transmit_skb(skb, cf_sk, noblock, timeo);
+	ret = transmit_skb(skb, cf_sk, yesblock, timeo);
 	if (ret < 0)
 		/* skb is already freed */
 		return ret;
@@ -588,7 +588,7 @@ err:
 /*
  * Copied from unix_stream_sendmsg and adapted to CAIF:
  * Changed removed permission handling and added waiting for flow on
- * and other minor adaptations.
+ * and other miyesr adaptations.
  */
 static int caif_stream_sendmsg(struct socket *sock, struct msghdr *msg,
 			       size_t len)
@@ -721,14 +721,14 @@ bad_sol:
  * caif_connect() - Connect a CAIF Socket
  * Copied and modified af_irda.c:irda_connect().
  *
- * Note : by consulting "errno", the user space caller may learn the cause
+ * Note : by consulting "erryes", the user space caller may learn the cause
  * of the failure. Most of them are visible in the function, others may come
  * from subroutines called and are listed here :
  *  o -EAFNOSUPPORT: bad socket family or type.
  *  o -ESOCKTNOSUPPORT: bad socket type or protocol
  *  o -EINVAL: bad socket address, or CAIF link type
  *  o -ECONNREFUSED: remote end refused the connection.
- *  o -EINPROGRESS: connect request sent but timed out (or non-blocking)
+ *  o -EINPROGRESS: connect request sent but timed out (or yesn-blocking)
  *  o -EISCONN: already connected.
  *  o -ETIMEDOUT: Connection timed out (send timeout)
  *  o -ENODEV: No link layer to send request
@@ -906,9 +906,9 @@ static int caif_release(struct socket *sock)
 	set_tx_flow_off(cf_sk);
 
 	/*
-	 * Ensure that packets are not queued after this point in time.
+	 * Ensure that packets are yest queued after this point in time.
 	 * caif_queue_rcv_skb checks SOCK_DEAD holding the queue lock,
-	 * this ensures no packets when sock is dead.
+	 * this ensures yes packets when sock is dead.
 	 */
 	spin_lock_bh(&sk->sk_receive_queue.lock);
 	sock_set_flag(sk, SOCK_DEAD);
@@ -971,42 +971,42 @@ static const struct proto_ops caif_seqpacket_ops = {
 	.family = PF_CAIF,
 	.owner = THIS_MODULE,
 	.release = caif_release,
-	.bind = sock_no_bind,
+	.bind = sock_yes_bind,
 	.connect = caif_connect,
-	.socketpair = sock_no_socketpair,
-	.accept = sock_no_accept,
-	.getname = sock_no_getname,
+	.socketpair = sock_yes_socketpair,
+	.accept = sock_yes_accept,
+	.getname = sock_yes_getname,
 	.poll = caif_poll,
-	.ioctl = sock_no_ioctl,
-	.listen = sock_no_listen,
-	.shutdown = sock_no_shutdown,
+	.ioctl = sock_yes_ioctl,
+	.listen = sock_yes_listen,
+	.shutdown = sock_yes_shutdown,
 	.setsockopt = setsockopt,
-	.getsockopt = sock_no_getsockopt,
+	.getsockopt = sock_yes_getsockopt,
 	.sendmsg = caif_seqpkt_sendmsg,
 	.recvmsg = caif_seqpkt_recvmsg,
-	.mmap = sock_no_mmap,
-	.sendpage = sock_no_sendpage,
+	.mmap = sock_yes_mmap,
+	.sendpage = sock_yes_sendpage,
 };
 
 static const struct proto_ops caif_stream_ops = {
 	.family = PF_CAIF,
 	.owner = THIS_MODULE,
 	.release = caif_release,
-	.bind = sock_no_bind,
+	.bind = sock_yes_bind,
 	.connect = caif_connect,
-	.socketpair = sock_no_socketpair,
-	.accept = sock_no_accept,
-	.getname = sock_no_getname,
+	.socketpair = sock_yes_socketpair,
+	.accept = sock_yes_accept,
+	.getname = sock_yes_getname,
 	.poll = caif_poll,
-	.ioctl = sock_no_ioctl,
-	.listen = sock_no_listen,
-	.shutdown = sock_no_shutdown,
+	.ioctl = sock_yes_ioctl,
+	.listen = sock_yes_listen,
+	.shutdown = sock_yes_shutdown,
 	.setsockopt = setsockopt,
-	.getsockopt = sock_no_getsockopt,
+	.getsockopt = sock_yes_getsockopt,
 	.sendmsg = caif_stream_sendmsg,
 	.recvmsg = caif_stream_recvmsg,
-	.mmap = sock_no_mmap,
-	.sendpage = sock_no_sendpage,
+	.mmap = sock_yes_mmap,
+	.sendpage = sock_yes_sendpage,
 };
 
 /* This function is called when a socket is finally destroyed. */
@@ -1042,7 +1042,7 @@ static int caif_create(struct net *net, struct socket *sock, int protocol,
 	 * The sock->type specifies the socket type to use.
 	 * The CAIF socket is a packet stream in the sense
 	 * that it is packet based. CAIF trusts the reliability
-	 * of the link, no resending is implemented.
+	 * of the link, yes resending is implemented.
 	 */
 	if (sock->type == SOCK_SEQPACKET)
 		sock->ops = &caif_seqpacket_ops;
@@ -1055,8 +1055,8 @@ static int caif_create(struct net *net, struct socket *sock, int protocol,
 		return -EPROTONOSUPPORT;
 	/*
 	 * Set the socket state to unconnected.	 The socket state
-	 * is really not used at all in the net/core or socket.c but the
-	 * initialization makes sure that sock->state is not uninitialized.
+	 * is really yest used at all in the net/core or socket.c but the
+	 * initialization makes sure that sock->state is yest uninitialized.
 	 */
 	sk = sk_alloc(net, PF_CAIF, GFP_KERNEL, &prot, kern);
 	if (!sk)
@@ -1067,7 +1067,7 @@ static int caif_create(struct net *net, struct socket *sock, int protocol,
 	/* Store the protocol */
 	sk->sk_protocol = (unsigned char) protocol;
 
-	/* Initialize default priority for well-known cases */
+	/* Initialize default priority for well-kyeswn cases */
 	switch (protocol) {
 	case CAIFPROTO_AT:
 		sk->sk_priority = TC_PRIO_CONTROL;
@@ -1085,7 +1085,7 @@ static int caif_create(struct net *net, struct socket *sock, int protocol,
 	 */
 	lock_sock(&(cf_sk->sk));
 
-	/* Initialize the nozero default sock structure data. */
+	/* Initialize the yeszero default sock structure data. */
 	sock_init_data(sock, sk);
 	sk->sk_destruct = caif_sock_destructor;
 

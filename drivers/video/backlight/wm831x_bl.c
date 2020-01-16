@@ -153,7 +153,7 @@ static int wm831x_backlight_probe(struct platform_device *pdev)
 
 	if (pdata->max_uA != wm831x_isinkv_values[max_isel])
 		dev_warn(&pdev->dev,
-			 "Maximum current is %duA not %duA as requested\n",
+			 "Maximum current is %duA yest %duA as requested\n",
 			 wm831x_isinkv_values[max_isel], pdata->max_uA);
 
 	switch (pdata->isink) {

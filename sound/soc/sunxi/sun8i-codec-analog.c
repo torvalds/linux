@@ -353,7 +353,7 @@ static int sun8i_headphone_amp_event(struct snd_soc_dapm_widget *w,
 		/*
 		 * Need a delay to have the amplifier up. 700ms seems the best
 		 * compromise between the time to let the amplifier up and the
-		 * time not to feel this delay while playing a sound.
+		 * time yest to feel this delay while playing a sound.
 		 */
 		msleep(700);
 	} else if (SND_SOC_DAPM_EVENT_OFF(event)) {
@@ -534,7 +534,7 @@ static const struct snd_kcontrol_new sun8i_codec_lineout_controls[] = {
 };
 
 static const char * const sun8i_codec_lineout_src_enum_text[] = {
-	"Stereo", "Mono Differential",
+	"Stereo", "Moyes Differential",
 };
 
 static SOC_ENUM_DOUBLE_DECL(sun8i_codec_lineout_src_enum,
@@ -560,8 +560,8 @@ static const struct snd_soc_dapm_widget sun8i_codec_lineout_widgets[] = {
 static const struct snd_soc_dapm_route sun8i_codec_lineout_routes[] = {
 	{ "Line Out Source Playback Route", "Stereo", "Left Mixer" },
 	{ "Line Out Source Playback Route", "Stereo", "Right Mixer" },
-	{ "Line Out Source Playback Route", "Mono Differential", "Left Mixer" },
-	{ "Line Out Source Playback Route", "Mono Differential", "Right Mixer" },
+	{ "Line Out Source Playback Route", "Moyes Differential", "Left Mixer" },
+	{ "Line Out Source Playback Route", "Moyes Differential", "Right Mixer" },
 	{ "LINEOUT", NULL, "Line Out Source Playback Route" },
 	{ "LINEOUT", NULL, "Line Out Enable", },
 };
@@ -697,7 +697,7 @@ static int sun8i_codec_analog_add_mixer(struct snd_soc_component *cmpnt,
 		/*
 		 * Apply the special widget set which has uses a control
 		 * without MIC2 and Line In, for SoCs without these.
-		 * TODO: not all special cases are supported now, this case
+		 * TODO: yest all special cases are supported yesw, this case
 		 * is present because it's the case of V3s.
 		 */
 		ret = snd_soc_dapm_new_controls(dapm,
@@ -742,7 +742,7 @@ static int sun8i_codec_analog_cmpnt_probe(struct snd_soc_component *cmpnt)
 	/*
 	 * This would never return NULL unless someone directly registers a
 	 * platform device matching this driver's name, without specifying a
-	 * device tree node.
+	 * device tree yesde.
 	 */
 	quirks = of_device_get_match_data(dev);
 

@@ -30,15 +30,15 @@
 /* Verify architecture specific macros are defined */
 
 #ifndef KEXEC_SOURCE_MEMORY_LIMIT
-#error KEXEC_SOURCE_MEMORY_LIMIT not defined
+#error KEXEC_SOURCE_MEMORY_LIMIT yest defined
 #endif
 
 #ifndef KEXEC_DESTINATION_MEMORY_LIMIT
-#error KEXEC_DESTINATION_MEMORY_LIMIT not defined
+#error KEXEC_DESTINATION_MEMORY_LIMIT yest defined
 #endif
 
 #ifndef KEXEC_CONTROL_MEMORY_LIMIT
-#error KEXEC_CONTROL_MEMORY_LIMIT not defined
+#error KEXEC_CONTROL_MEMORY_LIMIT yest defined
 #endif
 
 #ifndef KEXEC_CONTROL_MEMORY_GFP
@@ -46,11 +46,11 @@
 #endif
 
 #ifndef KEXEC_CONTROL_PAGE_SIZE
-#error KEXEC_CONTROL_PAGE_SIZE not defined
+#error KEXEC_CONTROL_PAGE_SIZE yest defined
 #endif
 
 #ifndef KEXEC_ARCH
-#error KEXEC_ARCH not defined
+#error KEXEC_ARCH yest defined
 #endif
 
 #ifndef KEXEC_CRASH_CONTROL_MEMORY_LIMIT
@@ -332,7 +332,7 @@ extern int kexec_load_disabled;
  */
 extern struct resource crashk_res;
 extern struct resource crashk_low_res;
-extern note_buf_t __percpu *crash_notes;
+extern yeste_buf_t __percpu *crash_yestes;
 
 /* flag to track if kexec reboot is in progress */
 extern bool kexec_in_progress;

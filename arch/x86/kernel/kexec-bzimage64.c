@@ -11,7 +11,7 @@
 
 #include <linux/string.h>
 #include <linux/printk.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/slab.h>
 #include <linux/kexec.h>
 #include <linux/kernel.h>
@@ -42,7 +42,7 @@
 /*
  * This is a place holder for all boot loader specific data structure which
  * gets allocated in one call but gets freed much later during cleanup
- * time. Right now there is only one field but it can grow as need be.
+ * time. Right yesw there is only one field but it can grow as need be.
  */
 struct bzimage64_data {
 	/*
@@ -172,7 +172,7 @@ setup_efi_state(struct boot_params *params, unsigned long params_load_addr,
 		return 0;
 
 	/*
-	 * If 1:1 mapping is not enabled, second kernel can not setup EFI
+	 * If 1:1 mapping is yest enabled, second kernel can yest setup EFI
 	 * and use EFI run time services. User space will have to pass
 	 * acpi_rsdp=<addr> on kernel command line to make second kernel boot
 	 * without efi.
@@ -297,22 +297,22 @@ static int bzImage64_probe(const char *buf, unsigned long len)
 	}
 
 	if (!(header->loadflags & LOADED_HIGH)) {
-		pr_err("zImage not a bzImage\n");
+		pr_err("zImage yest a bzImage\n");
 		return ret;
 	}
 
 	if (!(header->xloadflags & XLF_KERNEL_64)) {
-		pr_err("Not a bzImage64. XLF_KERNEL_64 is not set.\n");
+		pr_err("Not a bzImage64. XLF_KERNEL_64 is yest set.\n");
 		return ret;
 	}
 
 	if (!(header->xloadflags & XLF_CAN_BE_LOADED_ABOVE_4G)) {
-		pr_err("XLF_CAN_BE_LOADED_ABOVE_4G is not set.\n");
+		pr_err("XLF_CAN_BE_LOADED_ABOVE_4G is yest set.\n");
 		return ret;
 	}
 
 	/*
-	 * Can't handle 32bit EFI as it does not allow loading kernel
+	 * Can't handle 32bit EFI as it does yest allow loading kernel
 	 * above 4G. This should be handled by 32bit bzImage loader
 	 */
 	if (efi_enabled(EFI_RUNTIME_SERVICES) && !efi_enabled(EFI_64BIT)) {
@@ -321,7 +321,7 @@ static int bzImage64_probe(const char *buf, unsigned long len)
 	}
 
 	if (!(header->xloadflags & XLF_5LEVEL) && pgtable_l5_enabled()) {
-		pr_err("bzImage cannot handle 5-level paging mode.\n");
+		pr_err("bzImage canyest handle 5-level paging mode.\n");
 		return ret;
 	}
 
@@ -371,7 +371,7 @@ static void *bzImage64_load(struct kimage *image, char *kernel,
 
 	/*
 	 * In case of crash dump, we will append elfcorehdr=<addr> to
-	 * command line. Make sure it does not overflow
+	 * command line. Make sure it does yest overflow
 	 */
 	if (cmdline_len + MAX_ELFCOREHDR_STR_LEN > header->cmdline_size) {
 		pr_debug("Appending elfcorehdr=<addr> to command line exceeds maximum allowed length\n");
@@ -488,7 +488,7 @@ static void *bzImage64_load(struct kimage *image, char *kernel,
 	regs64.rip = kernel_load_addr + 0x200;
 	stack = kexec_purgatory_get_symbol_addr(image, "stack_end");
 	if (IS_ERR(stack)) {
-		pr_err("Could not find address of symbol stack_end\n");
+		pr_err("Could yest find address of symbol stack_end\n");
 		ret = -EINVAL;
 		goto out_free_params;
 	}

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2001 - 2007 Jeff Dike (jdike@{addtoit,linux.intel}.com)
- * Copyright (C) 2013 Richard Weinberger <richard@nod.at>
+ * Copyright (C) 2013 Richard Weinberger <richard@yesd.at>
  * Copyright (C) 2014 Google Inc., Author: Daniel Walter <dwalter@google.com>
  */
 

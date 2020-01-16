@@ -6,7 +6,7 @@
  * Pavel Smolenskiy <pavel.smolenskiy@gmail.com>
  * Maxim Gorbachyov <maxim.gorbachev@siemens.com>
  * Dmitry Eremin-Solenikov <dbaryshkov@gmail.com>
- * Alexander Smirnov <alex.bluesman.smirnov@gmail.com>
+ * Alexander Smiryesv <alex.bluesman.smiryesv@gmail.com>
  */
 #ifndef __IEEE802154_I_H
 #define __IEEE802154_I_H
@@ -41,7 +41,7 @@ struct ieee802154_local {
 	struct list_head	interfaces;
 	struct mutex		iflist_mtx;
 
-	/* This one is used for scanning and other jobs not to be interfered
+	/* This one is used for scanning and other jobs yest to be interfered
 	 * with serial driver.
 	 */
 	struct workqueue_struct	*workqueue;

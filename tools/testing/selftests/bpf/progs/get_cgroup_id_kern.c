@@ -18,7 +18,7 @@ struct {
 	__type(value, __u32);
 } pidmap SEC(".maps");
 
-SEC("tracepoint/syscalls/sys_enter_nanosleep")
+SEC("tracepoint/syscalls/sys_enter_nayessleep")
 int trace(void *ctx)
 {
 	__u32 pid = bpf_get_current_pid_tgid();
@@ -37,4 +37,4 @@ int trace(void *ctx)
 }
 
 char _license[] SEC("license") = "GPL";
-__u32 _version SEC("version") = 1; /* ignored by tracepoints, required by libbpf.a */
+__u32 _version SEC("version") = 1; /* igyesred by tracepoints, required by libbpf.a */

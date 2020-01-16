@@ -6,7 +6,7 @@
  *
  *    (c) 2004 Jelle Foks <jelle@foks.us>
  *    (c) 2004 Chris Pascoe <c.pascoe@itee.uq.edu.au>
- *    (c) 2004 Gerd Knorr <kraxel@bytesex.org>
+ *    (c) 2004 Gerd Kyesrr <kraxel@bytesex.org>
  */
 
 #include "cx88.h"
@@ -24,7 +24,7 @@
 MODULE_DESCRIPTION("mpeg driver for cx2388x based TV cards");
 MODULE_AUTHOR("Jelle Foks <jelle@foks.us>");
 MODULE_AUTHOR("Chris Pascoe <c.pascoe@itee.uq.edu.au>");
-MODULE_AUTHOR("Gerd Knorr <kraxel@bytesex.org> [SuSE Labs]");
+MODULE_AUTHOR("Gerd Kyesrr <kraxel@bytesex.org> [SuSE Labs]");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(CX88_VERSION);
 
@@ -254,7 +254,7 @@ void cx8802_buf_queue(struct cx8802_dev *dev, struct cx88_buffer *buf)
 
 	} else {
 		buf->risc.cpu[0] |= cpu_to_le32(RISC_IRQ1);
-		dprintk(1, "queue is not empty - append to active\n");
+		dprintk(1, "queue is yest empty - append to active\n");
 		prev = list_entry(cx88q->active.prev, struct cx88_buffer, list);
 		list_add_tail(&buf->list, &cx88q->active);
 		prev->risc.jmp[1] = cpu_to_le32(buf->risc.dma);
@@ -388,7 +388,7 @@ static int cx8802_init_common(struct cx8802_dev *dev)
 	pci_set_master(dev->pci);
 	err = pci_set_dma_mask(dev->pci, DMA_BIT_MASK(32));
 	if (err) {
-		pr_err("Oops: no 32bit PCI DMA ???\n");
+		pr_err("Oops: yes 32bit PCI DMA ???\n");
 		return -EIO;
 	}
 
@@ -731,7 +731,7 @@ static int cx8802_probe(struct pci_dev *pci_dev,
 	list_add_tail(&dev->devlist, &cx8802_devlist);
 	mutex_unlock(&cx8802_mutex);
 
-	/* now autoload cx88-dvb or cx88-blackbird */
+	/* yesw autoload cx88-dvb or cx88-blackbird */
 	request_modules(dev);
 	return 0;
 

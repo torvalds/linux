@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- *  Copyright (C) 2018 Microchip Technology Inc,
+ *  Copyright (C) 2018 Microchip Techyeslogy Inc,
  *                     Codrin Ciubotariu <codrin.ciubotariu@microchip.com>
  *
  *

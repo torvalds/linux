@@ -179,7 +179,7 @@ struct hfa384x_comp_ident
 	__le16 id;
 	__le16 variant;
 	__le16 major;
-	__le16 minor;
+	__le16 miyesr;
 } __packed;
 
 #define HFA384X_COMP_ID_PRI 0x15
@@ -210,11 +210,11 @@ struct hfa384x_rid_download_buffer
 	__le16 length;
 } __packed;
 
-/* BSS connection quality (RID FD43 range, RID FD51 dBm-normalized) */
+/* BSS connection quality (RID FD43 range, RID FD51 dBm-yesrmalized) */
 struct hfa384x_comms_quality {
 	__le16 comm_qual; /* 0 .. 92 */
 	__le16 signal_level; /* 27 .. 154 */
-	__le16 noise_level; /* 27 .. 154 */
+	__le16 yesise_level; /* 27 .. 154 */
 } __packed;
 
 
@@ -238,7 +238,7 @@ struct hfa384x_comms_quality {
 #define PRISM2_IOCTL_DELMAC (SIOCIWFIRSTPRIV + 20)
 #define PRISM2_IOCTL_KICKMAC (SIOCIWFIRSTPRIV + 22)
 
-/* following are not in SIOCGIWPRIV list; check permission in the driver code
+/* following are yest in SIOCGIWPRIV list; check permission in the driver code
  */
 #define PRISM2_IOCTL_DOWNLOAD (SIOCDEVPRIVATE + 13)
 #define PRISM2_IOCTL_HOSTAPD (SIOCDEVPRIVATE + 14)
@@ -302,9 +302,9 @@ enum { AP_MAC_CMD_POLICY_OPEN = 0, AP_MAC_CMD_POLICY_ALLOW = 1,
 enum {
 	PRISM2_DOWNLOAD_VOLATILE = 1 /* RAM */,
 	/* Note! Old versions of prism2_srec have a fatal error in CRC-16
-	 * calculation, which will corrupt all non-volatile downloads.
-	 * PRISM2_DOWNLOAD_NON_VOLATILE used to be 2, but it is now 3 to
-	 * prevent use of old versions of prism2_srec for non-volatile
+	 * calculation, which will corrupt all yesn-volatile downloads.
+	 * PRISM2_DOWNLOAD_NON_VOLATILE used to be 2, but it is yesw 3 to
+	 * prevent use of old versions of prism2_srec for yesn-volatile
 	 * download. */
 	PRISM2_DOWNLOAD_NON_VOLATILE = 3 /* FLASH */,
 	PRISM2_DOWNLOAD_VOLATILE_GENESIS = 4 /* RAM in Genesis mode */,

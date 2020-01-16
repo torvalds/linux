@@ -35,12 +35,12 @@
  * are met:
  *
  *  * Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  *  * Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
+ *    yestice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
- *  * Neither the name Intel Corporation nor the names of its
+ *  * Neither the name Intel Corporation yesr the names of its
  *    contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
@@ -73,18 +73,18 @@ void *iwl_acpi_get_object(struct device *dev, acpi_string method)
 	root_handle = ACPI_HANDLE(dev);
 	if (!root_handle) {
 		IWL_DEBUG_DEV_RADIO(dev,
-				    "Could not retrieve root port ACPI handle\n");
+				    "Could yest retrieve root port ACPI handle\n");
 		return ERR_PTR(-ENOENT);
 	}
 
 	/* Get the method's handle */
 	status = acpi_get_handle(root_handle, method, &handle);
 	if (ACPI_FAILURE(status)) {
-		IWL_DEBUG_DEV_RADIO(dev, "%s method not found\n", method);
+		IWL_DEBUG_DEV_RADIO(dev, "%s method yest found\n", method);
 		return ERR_PTR(-ENOENT);
 	}
 
-	/* Call the method with no arguments */
+	/* Call the method with yes arguments */
 	status = acpi_evaluate_object(handle, NULL, NULL, &buf);
 	if (ACPI_FAILURE(status)) {
 		IWL_DEBUG_DEV_RADIO(dev, "%s invocation failed (0x%x)\n",
@@ -106,7 +106,7 @@ union acpi_object *iwl_acpi_get_wifi_pkg(struct device *dev,
 	/*
 	 * We need at least one entry in the wifi package that
 	 * describes the domain, and one more entry, otherwise there's
-	 * no point in reading it.
+	 * yes point in reading it.
 	 */
 	if (WARN_ON_ONCE(data_size < 2))
 		return ERR_PTR(-EINVAL);
@@ -133,7 +133,7 @@ union acpi_object *iwl_acpi_get_wifi_pkg(struct device *dev,
 
 		wifi_pkg = &data->package.elements[i];
 
-		/* skip entries that are not a package with the right size */
+		/* skip entries that are yest a package with the right size */
 		if (wifi_pkg->type != ACPI_TYPE_PACKAGE ||
 		    wifi_pkg->package.count != data_size)
 			continue;
@@ -292,7 +292,7 @@ int iwl_sar_select_profile(struct iwl_fw_runtime *fwrt,
 		/* profiles go from 1 to 4, so decrement to access the array */
 		prof = &fwrt->sar_profiles[profs[i] - 1];
 
-		/* if the profile is disabled, do nothing */
+		/* if the profile is disabled, do yesthing */
 		if (!prof->enabled) {
 			IWL_DEBUG_RADIO(fwrt, "SAR profile %d is disabled.\n",
 					profs[i]);
@@ -456,13 +456,13 @@ IWL_EXPORT_SYMBOL(iwl_sar_get_wgds_table);
 bool iwl_sar_geo_support(struct iwl_fw_runtime *fwrt)
 {
 	/*
-	 * The GEO_TX_POWER_LIMIT command is not supported on earlier
+	 * The GEO_TX_POWER_LIMIT command is yest supported on earlier
 	 * firmware versions.  Unfortunately, we don't have a TLV API
 	 * flag to rely on, so rely on the major version which is in
 	 * the first byte of ucode_ver.  This was implemented
 	 * initially on version 38 and then backported to 17.  It was
 	 * also backported to 29, but only for 7265D devices.  The
-	 * intention was to have it in 36 as well, but not all 8000
+	 * intention was to have it in 36 as well, but yest all 8000
 	 * family got this feature enabled.  The 8000 family is the
 	 * only one using version 36, so skip this version entirely.
 	 */
@@ -504,7 +504,7 @@ void iwl_sar_geo_init(struct iwl_fw_runtime *fwrt,
 		IWL_DEBUG_RADIO(fwrt,
 				"Geo SAR BIOS table invalid or unavailable. (%d)\n",
 				ret);
-		/* we don't fail if the table is not available */
+		/* we don't fail if the table is yest available */
 		return;
 	}
 

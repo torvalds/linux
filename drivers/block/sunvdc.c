@@ -100,15 +100,15 @@ static inline struct vdc_port *to_vdc_port(struct vio_driver_state *vio)
 
 /* Ordered from largest major to lowest */
 static struct vio_version vdc_versions[] = {
-	{ .major = 1, .minor = 2 },
-	{ .major = 1, .minor = 1 },
-	{ .major = 1, .minor = 0 },
+	{ .major = 1, .miyesr = 2 },
+	{ .major = 1, .miyesr = 1 },
+	{ .major = 1, .miyesr = 0 },
 };
 
 static inline int vdc_version_supported(struct vdc_port *port,
-					u16 major, u16 minor)
+					u16 major, u16 miyesr)
 {
-	return port->vio.ver.major == major && port->vio.ver.minor >= minor;
+	return port->vio.ver.major == major && port->vio.ver.miyesr >= miyesr;
 }
 
 #define VDCBLK_NAME	"vdisk"
@@ -148,7 +148,7 @@ static int vdc_ioctl(struct block_device *bdev, fmode_t mode,
 
 	switch (command) {
 	case CDROMMULTISESSION:
-		pr_debug(PFX "Multisession CDs not supported\n");
+		pr_debug(PFX "Multisession CDs yest supported\n");
 		for (i = 0; i < sizeof(struct cdrom_multisession); i++)
 			if (put_user(0, (char __user *)(argument + i)))
 				return -EFAULT;
@@ -162,7 +162,7 @@ static int vdc_ioctl(struct block_device *bdev, fmode_t mode,
 		return -EINVAL;
 
 	default:
-		pr_debug(PFX "ioctl %08x not supported\n", command);
+		pr_debug(PFX "ioctl %08x yest supported\n", command);
 		return -EINVAL;
 	}
 }
@@ -205,11 +205,11 @@ static void vdc_handshake_complete(struct vio_driver_state *vio)
 	vdc_blk_queue_start(port);
 }
 
-static int vdc_handle_unknown(struct vdc_port *port, void *arg)
+static int vdc_handle_unkyeswn(struct vdc_port *port, void *arg)
 {
 	struct vio_msg_tag *pkt = arg;
 
-	printk(KERN_ERR PFX "Received unknown msg [%02x:%02x:%04x:%08x]\n",
+	printk(KERN_ERR PFX "Received unkyeswn msg [%02x:%02x:%04x:%08x]\n",
 	       pkt->type, pkt->stype, pkt->stype_env, pkt->sid);
 	printk(KERN_ERR PFX "Resetting connection.\n");
 
@@ -404,11 +404,11 @@ static void vdc_event(void *arg, int event)
 			else if (msgbuf.tag.stype == VIO_SUBTYPE_NACK)
 				err = vdc_nack(port, &msgbuf);
 			else
-				err = vdc_handle_unknown(port, &msgbuf);
+				err = vdc_handle_unkyeswn(port, &msgbuf);
 		} else if (msgbuf.tag.type == VIO_TYPE_CTRL) {
 			err = vio_control_pkt_engine(vio, &msgbuf);
 		} else {
-			err = vdc_handle_unknown(port, &msgbuf);
+			err = vdc_handle_unkyeswn(port, &msgbuf);
 		}
 		if (err < 0)
 			break;
@@ -514,7 +514,7 @@ static int __send_request(struct request *req)
 	desc->size = len;
 	desc->ncookies = err;
 
-	/* This has to be a non-SMP write barrier because we are writing
+	/* This has to be a yesn-SMP write barrier because we are writing
 	 * to memory which is shared with the peer LDOM.
 	 */
 	wmb();
@@ -680,7 +680,7 @@ static int generic_request(struct vdc_port *port, u8 op, void *buf, int len)
 	desc->size = op_len;
 	desc->ncookies = err;
 
-	/* This has to be a non-SMP write barrier because we are writing
+	/* This has to be a yesn-SMP write barrier because we are writing
 	 * to memory which is shared with the peer LDOM.
 	 */
 	wmb();
@@ -811,14 +811,14 @@ static int probe_disk(struct vdc_port *port)
 		return err;
 
 	/* Using version 1.2 means vdisk_phys_blksz should be set unless the
-	 * disk is reserved by another system.
+	 * disk is reserved by ayesther system.
 	 */
 	if (vdc_version_supported(port, 1, 2) && !port->vdisk_phys_blksz)
 		return -ENODEV;
 
 	if (vdc_version_supported(port, 1, 1)) {
 		/* vdisk_size should be set during the handshake, if it wasn't
-		 * then the underlying disk is reserved by another system
+		 * then the underlying disk is reserved by ayesther system
 		 */
 		if (port->vdisk_size == -1)
 			return -ENODEV;
@@ -839,13 +839,13 @@ static int probe_disk(struct vdc_port *port)
 
 	q = init_queue(port);
 	if (IS_ERR(q)) {
-		printk(KERN_ERR PFX "%s: Could not allocate queue.\n",
+		printk(KERN_ERR PFX "%s: Could yest allocate queue.\n",
 		       port->vio.name);
 		return PTR_ERR(q);
 	}
 	g = alloc_disk(1 << PARTITION_SHIFT);
 	if (!g) {
-		printk(KERN_ERR PFX "%s: Could not allocate gendisk.\n",
+		printk(KERN_ERR PFX "%s: Could yest allocate gendisk.\n",
 		       port->vio.name);
 		cleanup_queue(q);
 		return -ENOMEM;
@@ -860,7 +860,7 @@ static int probe_disk(struct vdc_port *port)
 	blk_queue_max_segments(q, port->ring_cookies);
 	blk_queue_max_hw_sectors(q, port->max_xfer_size);
 	g->major = vdc_major;
-	g->first_minor = port->vio.vdev->dev_no << PARTITION_SHIFT;
+	g->first_miyesr = port->vio.vdev->dev_yes << PARTITION_SHIFT;
 	strcpy(g->disk_name, port->disk_name);
 
 	g->fops = &vdc_fops;
@@ -896,7 +896,7 @@ static int probe_disk(struct vdc_port *port)
 	pr_info(PFX "%s: %u sectors (%u MB) protocol %d.%d\n",
 	       g->disk_name,
 	       port->vdisk_size, (port->vdisk_size >> (20 - 9)),
-	       port->vio.ver.major, port->vio.ver.minor);
+	       port->vio.ver.major, port->vio.ver.miyesr);
 
 	device_add_disk(&port->vio.vdev->dev, g, NULL);
 
@@ -924,7 +924,7 @@ static void print_version(void)
 }
 
 struct vdc_check_port_data {
-	int	dev_no;
+	int	dev_yes;
 	char	*type;
 };
 
@@ -935,7 +935,7 @@ static int vdc_device_probed(struct device *dev, void *arg)
 
 	port_data = (struct vdc_check_port_data *)arg;
 
-	if ((vdev->dev_no == port_data->dev_no) &&
+	if ((vdev->dev_yes == port_data->dev_yes) &&
 	    (!(strcmp((char *)&vdev->type, port_data->type))) &&
 		dev_get_drvdata(dev)) {
 		/* This device has already been configured
@@ -948,9 +948,9 @@ static int vdc_device_probed(struct device *dev, void *arg)
 }
 
 /* Determine whether the VIO device is part of an mpgroup
- * by locating all the virtual-device-port nodes associated
- * with the parent virtual-device node for the VIO device
- * and checking whether any of these nodes are vdc-ports
+ * by locating all the virtual-device-port yesdes associated
+ * with the parent virtual-device yesde for the VIO device
+ * and checking whether any of these yesdes are vdc-ports
  * which have already been configured.
  *
  * Returns true if this device is part of an mpgroup and has
@@ -961,7 +961,7 @@ static bool vdc_port_mpgroup_check(struct vio_dev *vdev)
 	struct vdc_check_port_data port_data;
 	struct device *dev;
 
-	port_data.dev_no = vdev->dev_no;
+	port_data.dev_yes = vdev->dev_yes;
 	port_data.type = (char *)&vdev->type;
 
 	dev = device_find_child(vdev->dev.parent, &port_data,
@@ -985,16 +985,16 @@ static int vdc_port_probe(struct vio_dev *vdev, const struct vio_device_id *id)
 	hp = mdesc_grab();
 
 	err = -ENODEV;
-	if ((vdev->dev_no << PARTITION_SHIFT) & ~(u64)MINORMASK) {
+	if ((vdev->dev_yes << PARTITION_SHIFT) & ~(u64)MINORMASK) {
 		printk(KERN_ERR PFX "Port id [%llu] too large.\n",
-		       vdev->dev_no);
+		       vdev->dev_yes);
 		goto err_out_release_mdesc;
 	}
 
 	/* Check if this device is part of an mpgroup */
 	if (vdc_port_mpgroup_check(vdev)) {
 		printk(KERN_WARNING
-			"VIO: Ignoring extra vdisk port %s",
+			"VIO: Igyesring extra vdisk port %s",
 			dev_name(&vdev->dev));
 		goto err_out_release_mdesc;
 	}
@@ -1002,18 +1002,18 @@ static int vdc_port_probe(struct vio_dev *vdev, const struct vio_device_id *id)
 	port = kzalloc(sizeof(*port), GFP_KERNEL);
 	err = -ENOMEM;
 	if (!port) {
-		printk(KERN_ERR PFX "Cannot allocate vdc_port.\n");
+		printk(KERN_ERR PFX "Canyest allocate vdc_port.\n");
 		goto err_out_release_mdesc;
 	}
 
-	if (vdev->dev_no >= 26)
+	if (vdev->dev_yes >= 26)
 		snprintf(port->disk_name, sizeof(port->disk_name),
 			 VDCBLK_NAME "%c%c",
-			 'a' + ((int)vdev->dev_no / 26) - 1,
-			 'a' + ((int)vdev->dev_no % 26));
+			 'a' + ((int)vdev->dev_yes / 26) - 1,
+			 'a' + ((int)vdev->dev_yes % 26));
 	else
 		snprintf(port->disk_name, sizeof(port->disk_name),
-			 VDCBLK_NAME "%c", 'a' + ((int)vdev->dev_no % 26));
+			 VDCBLK_NAME "%c", 'a' + ((int)vdev->dev_yes % 26));
 	port->vdisk_size = -1;
 
 	/* Actual wall time may be double due to do_generic_file_read() doing

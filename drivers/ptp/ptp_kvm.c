@@ -41,7 +41,7 @@ static int ptp_kvm_get_time_fn(ktime_t *device_time,
 
 	spin_lock(&kvm_ptp_lock);
 
-	preempt_disable_notrace();
+	preempt_disable_yestrace();
 	cpu = smp_processor_id();
 	src = &hv_clock[cpu].pvti;
 
@@ -61,7 +61,7 @@ static int ptp_kvm_get_time_fn(ktime_t *device_time,
 		if (ret != 0) {
 			pr_err_ratelimited("clock pairing hypercall ret %lu\n", ret);
 			spin_unlock(&kvm_ptp_lock);
-			preempt_enable_notrace();
+			preempt_enable_yestrace();
 			return -EOPNOTSUPP;
 		}
 
@@ -70,7 +70,7 @@ static int ptp_kvm_get_time_fn(ktime_t *device_time,
 		ret = __pvclock_read_cycles(src, clock_pair.tsc);
 	} while (pvclock_read_retry(src, version));
 
-	preempt_enable_notrace();
+	preempt_enable_yestrace();
 
 	system_counter->cycles = ret;
 	system_counter->cs = &kvm_clock;

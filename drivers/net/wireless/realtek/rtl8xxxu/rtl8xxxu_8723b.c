@@ -4,7 +4,7 @@
  *
  * Copyright (c) 2014 - 2017 Jes Sorensen <Jes.Sorensen@gmail.com>
  *
- * Portions, notably calibration code:
+ * Portions, yestably calibration code:
  * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
  *
  * This driver was written as a replacement for the vendor provided
@@ -16,7 +16,7 @@
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/spinlock.h>
@@ -252,7 +252,7 @@ static struct rtl8xxxu_rfregval rtl8723bu_radioa_1t_init_table[] = {
 	 * The 8723bu vendor driver indicates that bit 8 should be set in
 	 * 0x51 for package types TFBGA90, TFBGA80, and TFBGA79. However
 	 * they never actually check the package type - and just default
-	 * to not setting it.
+	 * to yest setting it.
 	 */
 	{0x51, 0x0006b04e},
 	{0x52, 0x000007d2}, {0x53, 0x00000000},
@@ -659,7 +659,7 @@ static int rtl8723bu_iqk_path_a(struct rtl8xxxu_priv *priv)
 	    ((reg_e94 & 0x03ff0000)  > 0x00f00000) &&
 	    val32 < 0xf)
 		result |= 0x01;
-	else	/* If TX not OK, ignore RX */
+	else	/* If TX yest OK, igyesre RX */
 		goto out;
 
 out:
@@ -769,7 +769,7 @@ static int rtl8723bu_rx_iqk_path_a(struct rtl8xxxu_priv *priv)
 	    ((reg_e94 & 0x03ff0000)  > 0x00f00000) &&
 	    val32 < 0xf)
 		result |= 0x01;
-	else	/* If TX not OK, ignore RX */
+	else	/* If TX yest OK, igyesre RX */
 		goto out;
 
 	val32 = 0x80007c00 | (reg_e94 &0x3ff0000) |
@@ -869,7 +869,7 @@ static int rtl8723bu_rx_iqk_path_a(struct rtl8xxxu_priv *priv)
 	    ((reg_ea4 & 0x03ff0000)  > 0x00f00000) &&
 	    val32 < 0xf)
 		result |= 0x02;
-	else	/* If TX not OK, ignore RX */
+	else	/* If TX yest OK, igyesre RX */
 		goto out;
 out:
 	return result;
@@ -994,7 +994,7 @@ static void rtl8723bu_phy_iqcalibrate(struct rtl8xxxu_priv *priv,
 
 	if (priv->tx_paths > 1) {
 #if 1
-		dev_warn(dev, "%s: Path B not supported\n", __func__);
+		dev_warn(dev, "%s: Path B yest supported\n", __func__);
 #else
 
 		/*
@@ -1202,7 +1202,7 @@ static void rtl8723bu_phy_iq_calibrate(struct rtl8xxxu_priv *priv)
 	rtl8xxxu_write_rfreg(priv, RF_A, 0x43, 0x300bd);
 
 	if (priv->rf_paths > 1)
-		dev_dbg(dev, "%s: 8723BU 2T not supported\n", __func__);
+		dev_dbg(dev, "%s: 8723BU 2T yest supported\n", __func__);
 
 	rtl8xxxu_gen2_prepare_calibrate(priv, 0);
 }
@@ -1593,9 +1593,9 @@ static void rtl8723b_enable_rf(struct rtl8xxxu_priv *priv)
 	rtl8xxxu_gen2_h2c_cmd(priv, &h2c, sizeof(h2c.bt_info));
 
 	memset(&h2c, 0, sizeof(struct h2c_cmd));
-	h2c.ignore_wlan.cmd = H2C_8723B_BT_IGNORE_WLANACT;
-	h2c.ignore_wlan.data = 0;
-	rtl8xxxu_gen2_h2c_cmd(priv, &h2c, sizeof(h2c.ignore_wlan));
+	h2c.igyesre_wlan.cmd = H2C_8723B_BT_IGNORE_WLANACT;
+	h2c.igyesre_wlan.data = 0;
+	rtl8xxxu_gen2_h2c_cmd(priv, &h2c, sizeof(h2c.igyesre_wlan));
 }
 
 static void rtl8723bu_init_aggregation(struct rtl8xxxu_priv *priv)
@@ -1604,7 +1604,7 @@ static void rtl8723bu_init_aggregation(struct rtl8xxxu_priv *priv)
 	u8 agg_ctrl;
 
 	/*
-	 * For now simply disable RX aggregation
+	 * For yesw simply disable RX aggregation
 	 */
 	agg_ctrl = rtl8xxxu_read8(priv, REG_TRXDMA_CTRL);
 	agg_ctrl &= ~TRXDMA_CTRL_RXDMA_AGG_EN;
@@ -1680,5 +1680,5 @@ struct rtl8xxxu_fileops rtl8723bu_fops = {
 	.total_page_num = TX_TOTAL_PAGE_NUM_8723B,
 	.page_num_hi = TX_PAGE_NUM_HI_PQ_8723B,
 	.page_num_lo = TX_PAGE_NUM_LO_PQ_8723B,
-	.page_num_norm = TX_PAGE_NUM_NORM_PQ_8723B,
+	.page_num_yesrm = TX_PAGE_NUM_NORM_PQ_8723B,
 };

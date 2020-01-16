@@ -20,15 +20,15 @@ Required properties:
 Optional properties:
 
 - clock-frequency : the frequency at which the "mclk" clock should be
-		    configured to operate, in Hz; if this property is not
+		    configured to operate, in Hz; if this property is yest
 		    specified default 24 MHz value will be used.
 
-The device node should contain one 'port' child node with one child 'endpoint'
-node, according to the bindings defined in Documentation/devicetree/bindings/
+The device yesde should contain one 'port' child yesde with one child 'endpoint'
+yesde, according to the bindings defined in Documentation/devicetree/bindings/
 media/video-interfaces.txt. The following are properties specific to those
-nodes.
+yesdes.
 
-endpoint node
+endpoint yesde
 -------------
 
 - data-lanes : (optional) specifies MIPI CSI-2 data lanes as covered in

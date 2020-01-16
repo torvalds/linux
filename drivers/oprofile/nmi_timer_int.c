@@ -9,7 +9,7 @@
 
 #include <linux/init.h>
 #include <linux/smp.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/oprofile.h>
 #include <linux/perf_event.h>
 

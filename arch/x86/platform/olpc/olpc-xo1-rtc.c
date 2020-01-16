@@ -56,12 +56,12 @@ static struct platform_device xo1_rtc_device = {
 static int __init xo1_rtc_init(void)
 {
 	int r;
-	struct device_node *node;
+	struct device_yesde *yesde;
 
-	node = of_find_compatible_node(NULL, NULL, "olpc,xo1-rtc");
-	if (!node)
+	yesde = of_find_compatible_yesde(NULL, NULL, "olpc,xo1-rtc");
+	if (!yesde)
 		return 0;
-	of_node_put(node);
+	of_yesde_put(yesde);
 
 	pr_info("olpc-xo1-rtc: Initializing OLPC XO-1 RTC\n");
 	rdmsrl(MSR_RTC_DOMA_OFFSET, rtc_info.rtc_day_alarm);

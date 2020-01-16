@@ -132,8 +132,8 @@ TABLE 4: Monadic Floating Point Opcodes
 | 1 | 0 | 1 | 1 | ASN      | Arc Sine              | Fd := arcsin(Fm)      |
 | 1 | 1 | 0 | 0 | ACS      | Arc Cosine            | Fd := arccos(Fm)      |
 | 1 | 1 | 0 | 1 | ATN      | Arc Tangent           | Fd := arctan(Fm)      |
-| 1 | 1 | 1 | 0 | URD      | Unnormalized round    | Fd := int(Fm)         |
-| 1 | 1 | 1 | 1 | NRM      | Normalize             | Fd := norm(Fm)        |
+| 1 | 1 | 1 | 0 | URD      | Unyesrmalized round    | Fd := int(Fm)         |
+| 1 | 1 | 1 | 1 | NRM      | Normalize             | Fd := yesrm(Fm)        |
 +---+---+---+---+----------+-----------------------+-----------------------+
 Note: LOG, LGN, EXP, SIN, COS, TAN, ASN, ACS, ATN are deprecated, and are
       available for backwards compatibility only.

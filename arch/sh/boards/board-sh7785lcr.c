@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Renesas Technology Corp. R0P7785LC0011RL Support.
+ * Renesas Techyeslogy Corp. R0P7785LC0011RL Support.
  *
  * Copyright (C) 2008  Yoshihiro Shimoda
  * Copyright (C) 2009  Paul Mundt
@@ -21,7 +21,7 @@
 #include <linux/irq.h>
 #include <linux/io.h>
 #include <linux/clk.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/gpio/machine.h>
 #include <mach/sh7785lcr.h>
 #include <cpu/sh7785.h>
@@ -46,7 +46,7 @@ static struct platform_device heartbeat_device = {
 	.resource	= &heartbeat_resource,
 };
 
-static struct mtd_partition nor_flash_partitions[] = {
+static struct mtd_partition yesr_flash_partitions[] = {
 	{
 		.name		= "loader",
 		.offset		= 0x00000000,
@@ -69,13 +69,13 @@ static struct mtd_partition nor_flash_partitions[] = {
 	},
 };
 
-static struct physmap_flash_data nor_flash_data = {
+static struct physmap_flash_data yesr_flash_data = {
 	.width		= 4,
-	.parts		= nor_flash_partitions,
-	.nr_parts	= ARRAY_SIZE(nor_flash_partitions),
+	.parts		= yesr_flash_partitions,
+	.nr_parts	= ARRAY_SIZE(yesr_flash_partitions),
 };
 
-static struct resource nor_flash_resources[] = {
+static struct resource yesr_flash_resources[] = {
 	[0]	= {
 		.start	= NOR_FLASH_ADDR,
 		.end	= NOR_FLASH_ADDR + NOR_FLASH_SIZE - 1,
@@ -83,13 +83,13 @@ static struct resource nor_flash_resources[] = {
 	}
 };
 
-static struct platform_device nor_flash_device = {
+static struct platform_device yesr_flash_device = {
 	.name		= "physmap-flash",
 	.dev		= {
-		.platform_data	= &nor_flash_data,
+		.platform_data	= &yesr_flash_data,
 	},
-	.num_resources	= ARRAY_SIZE(nor_flash_resources),
-	.resource	= nor_flash_resources,
+	.num_resources	= ARRAY_SIZE(yesr_flash_resources),
+	.resource	= yesr_flash_resources,
 };
 
 static struct r8a66597_platdata r8a66597_data = {
@@ -266,7 +266,7 @@ static struct platform_device i2c_device = {
 
 static struct platform_device *sh7785lcr_devices[] __initdata = {
 	&heartbeat_device,
-	&nor_flash_device,
+	&yesr_flash_device,
 	&r8a66597_usb_host_device,
 	&sm501_device,
 	&i2c_device,
@@ -336,12 +336,12 @@ static void __init sh7785lcr_setup(char **cmdline_p)
 {
 	void __iomem *sm501_reg;
 
-	printk(KERN_INFO "Renesas Technology Corp. R0P7785LC0011RL support.\n");
+	printk(KERN_INFO "Renesas Techyeslogy Corp. R0P7785LC0011RL support.\n");
 
 	pm_power_off = sh7785lcr_power_off;
 
 	/* sm501 DRAM configuration */
-	sm501_reg = ioremap_nocache(SM107_REG_ADDR, SM501_DRAM_CONTROL);
+	sm501_reg = ioremap_yescache(SM107_REG_ADDR, SM501_DRAM_CONTROL);
 	if (!sm501_reg) {
 		printk(KERN_ERR "%s: ioremap error.\n", __func__);
 		return;

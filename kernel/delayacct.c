@@ -23,7 +23,7 @@ static int __init delayacct_setup_disable(char *str)
 	delayacct_on = 0;
 	return 1;
 }
-__setup("nodelayacct", delayacct_setup_disable);
+__setup("yesdelayacct", delayacct_setup_disable);
 
 void delayacct_init(void)
 {
@@ -62,7 +62,7 @@ void __delayacct_blkio_start(void)
 }
 
 /*
- * We cannot rely on the `current` macro, as we haven't yet switched back to
+ * We canyest rely on the `current` macro, as we haven't yet switched back to
  * the process being woken.
  */
 void __delayacct_blkio_end(struct task_struct *p)
@@ -117,7 +117,7 @@ int __delayacct_add_tsk(struct taskstats *d, struct task_struct *tsk)
 	d->cpu_run_virtual_total =
 		(tmp < (s64)d->cpu_run_virtual_total) ?	0 : tmp;
 
-	/* zero XXX_total, non-zero XXX_count implies XXX stat overflowed */
+	/* zero XXX_total, yesn-zero XXX_count implies XXX stat overflowed */
 
 	raw_spin_lock_irqsave(&tsk->delays->lock, flags);
 	tmp = d->blkio_delay_total + tsk->delays->blkio_delay;

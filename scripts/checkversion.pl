@@ -4,7 +4,7 @@
 # checkversion find uses of LINUX_VERSION_CODE or KERNEL_VERSION
 # without including <linux/version.h>, or cases of
 # including <linux/version.h> that don't need it.
-# Copyright (C) 2003, Randy Dunlap <rdunlap@xenotime.net>
+# Copyright (C) 2003, Randy Dunlap <rdunlap@xeyestime.net>
 
 use strict;
 
@@ -55,7 +55,7 @@ foreach my $file (@ARGV) {
 
     # Report superfluous includes.
     if ($iLinuxVersion && ! $fUseVersion) {
-	print "$file: $iLinuxVersion linux/version.h not needed.\n";
+	print "$file: $iLinuxVersion linux/version.h yest needed.\n";
     }
 
     # debug: report OK results:
@@ -64,7 +64,7 @@ foreach my $file (@ARGV) {
 	    print "$file: version use is OK ($iLinuxVersion)\n";
         }
         if (! $iLinuxVersion && ! $fUseVersion) {
-	    print "$file: version use is OK (none)\n";
+	    print "$file: version use is OK (yesne)\n";
         }
     }
 

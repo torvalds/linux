@@ -1,8 +1,8 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * drivers/cpufreq/cpufreq_governor.h
+ * drivers/cpufreq/cpufreq_goveryesr.h
  *
- * Header file for CPUFreq governors common code
+ * Header file for CPUFreq goveryesrs common code
  *
  * Copyright	(C) 2001 Russell King
  *		(C) 2003 Venkatesh Pallipadi <venkatesh.pallipadi@intel.com>.
@@ -30,15 +30,15 @@ enum {OD_NORMAL_SAMPLE, OD_SUB_SAMPLE};
  * dbs: used as a shortform for demand based switching It helps to keep variable
  *	names smaller, simpler
  * cdbs: common dbs
- * od_*: On-demand governor
- * cs_*: Conservative governor
+ * od_*: On-demand goveryesr
+ * cs_*: Conservative goveryesr
  */
 
-/* Governor demand based switching data (per-policy or global). */
+/* Goveryesr demand based switching data (per-policy or global). */
 struct dbs_data {
 	struct gov_attr_set attr_set;
 	void *tuners;
-	unsigned int ignore_nice_load;
+	unsigned int igyesre_nice_load;
 	unsigned int sampling_rate;
 	unsigned int sampling_down_factor;
 	unsigned int up_threshold;
@@ -68,11 +68,11 @@ static ssize_t show_##file_name						\
 }
 
 #define gov_attr_ro(_name)						\
-static struct governor_attr _name =					\
+static struct goveryesr_attr _name =					\
 __ATTR(_name, 0444, show_##_name, NULL)
 
 #define gov_attr_rw(_name)						\
-static struct governor_attr _name =					\
+static struct goveryesr_attr _name =					\
 __ATTR(_name, 0644, show_##_name, store_##_name)
 
 /* Common to all CPUs of a policy */
@@ -122,9 +122,9 @@ struct cpu_dbs_info {
 	struct policy_dbs_info *policy_dbs;
 };
 
-/* Common Governor data across policies */
-struct dbs_governor {
-	struct cpufreq_governor gov;
+/* Common Goveryesr data across policies */
+struct dbs_goveryesr {
+	struct cpufreq_goveryesr gov;
 	struct kobj_type kobj_type;
 
 	/*
@@ -141,31 +141,31 @@ struct dbs_governor {
 	void (*start)(struct cpufreq_policy *policy);
 };
 
-static inline struct dbs_governor *dbs_governor_of(struct cpufreq_policy *policy)
+static inline struct dbs_goveryesr *dbs_goveryesr_of(struct cpufreq_policy *policy)
 {
-	return container_of(policy->governor, struct dbs_governor, gov);
+	return container_of(policy->goveryesr, struct dbs_goveryesr, gov);
 }
 
-/* Governor callback routines */
-int cpufreq_dbs_governor_init(struct cpufreq_policy *policy);
-void cpufreq_dbs_governor_exit(struct cpufreq_policy *policy);
-int cpufreq_dbs_governor_start(struct cpufreq_policy *policy);
-void cpufreq_dbs_governor_stop(struct cpufreq_policy *policy);
-void cpufreq_dbs_governor_limits(struct cpufreq_policy *policy);
+/* Goveryesr callback routines */
+int cpufreq_dbs_goveryesr_init(struct cpufreq_policy *policy);
+void cpufreq_dbs_goveryesr_exit(struct cpufreq_policy *policy);
+int cpufreq_dbs_goveryesr_start(struct cpufreq_policy *policy);
+void cpufreq_dbs_goveryesr_stop(struct cpufreq_policy *policy);
+void cpufreq_dbs_goveryesr_limits(struct cpufreq_policy *policy);
 
 #define CPUFREQ_DBS_GOVERNOR_INITIALIZER(_name_)			\
 	{								\
 		.name = _name_,						\
 		.dynamic_switching = true,				\
 		.owner = THIS_MODULE,					\
-		.init = cpufreq_dbs_governor_init,			\
-		.exit = cpufreq_dbs_governor_exit,			\
-		.start = cpufreq_dbs_governor_start,			\
-		.stop = cpufreq_dbs_governor_stop,			\
-		.limits = cpufreq_dbs_governor_limits,			\
+		.init = cpufreq_dbs_goveryesr_init,			\
+		.exit = cpufreq_dbs_goveryesr_exit,			\
+		.start = cpufreq_dbs_goveryesr_start,			\
+		.stop = cpufreq_dbs_goveryesr_stop,			\
+		.limits = cpufreq_dbs_goveryesr_limits,			\
 	}
 
-/* Governor specific operations */
+/* Goveryesr specific operations */
 struct od_ops {
 	unsigned int (*powersave_bias_target)(struct cpufreq_policy *policy,
 			unsigned int freq_next, unsigned int relation);

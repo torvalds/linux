@@ -20,7 +20,7 @@
 #endif
 
 #if CONFIG_JFFS2_FS_DEBUG > 0
-/* Enable "paranoia" checks and dumps */
+/* Enable "parayesia" checks and dumps */
 #define JFFS2_DBG_PARANOIA_CHECKS
 #define JFFS2_DBG_DUMPS
 
@@ -84,7 +84,7 @@ do {						\
 		task_pid_nr(current), __func__, ##__VA_ARGS__)
 
 #define JFFS2_NOTICE(fmt, ...)						\
-	pr_notice("notice: (%d) %s: " fmt,				\
+	pr_yestice("yestice: (%d) %s: " fmt,				\
 		  task_pid_nr(current), __func__, ##__VA_ARGS__)
 
 #define JFFS2_DEBUG(fmt, ...)						\
@@ -95,16 +95,16 @@ do {						\
  * We split our debugging messages on several parts, depending on the JFFS2
  * subsystem the message belongs to.
  */
-/* Read inode debugging messages */
+/* Read iyesde debugging messages */
 #ifdef JFFS2_DBG_READINODE_MESSAGES
-#define dbg_readinode(fmt, ...)	JFFS2_DEBUG(fmt, ##__VA_ARGS__)
+#define dbg_readiyesde(fmt, ...)	JFFS2_DEBUG(fmt, ##__VA_ARGS__)
 #else
-#define dbg_readinode(fmt, ...)
+#define dbg_readiyesde(fmt, ...)
 #endif
 #ifdef JFFS2_DBG_READINODE2_MESSAGES
-#define dbg_readinode2(fmt, ...)	JFFS2_DEBUG(fmt, ##__VA_ARGS__)
+#define dbg_readiyesde2(fmt, ...)	JFFS2_DEBUG(fmt, ##__VA_ARGS__)
 #else
-#define dbg_readinode2(fmt, ...)
+#define dbg_readiyesde2(fmt, ...)
 #endif
 
 /* Fragtree build debugging messages */
@@ -126,18 +126,18 @@ do {						\
 #define dbg_dentlist(fmt, ...)
 #endif
 
-/* Print the messages about manipulating node_refs */
+/* Print the messages about manipulating yesde_refs */
 #ifdef JFFS2_DBG_NODEREF_MESSAGES
-#define dbg_noderef(fmt, ...)	JFFS2_DEBUG(fmt, ##__VA_ARGS__)
+#define dbg_yesderef(fmt, ...)	JFFS2_DEBUG(fmt, ##__VA_ARGS__)
 #else
-#define dbg_noderef(fmt, ...)
+#define dbg_yesderef(fmt, ...)
 #endif
 
-/* Manipulations with the list of inodes (JFFS2 inocache) */
+/* Manipulations with the list of iyesdes (JFFS2 iyescache) */
 #ifdef JFFS2_DBG_INOCACHE_MESSAGES
-#define dbg_inocache(fmt, ...)	JFFS2_DEBUG(fmt, ##__VA_ARGS__)
+#define dbg_iyescache(fmt, ...)	JFFS2_DEBUG(fmt, ##__VA_ARGS__)
 #else
-#define dbg_inocache(fmt, ...)
+#define dbg_iyescache(fmt, ...)
 #endif
 
 /* Summary debugging messages */
@@ -170,106 +170,106 @@ do {						\
 
 /* "Sanity" checks */
 void
-__jffs2_dbg_acct_sanity_check_nolock(struct jffs2_sb_info *c,
+__jffs2_dbg_acct_sanity_check_yeslock(struct jffs2_sb_info *c,
 				     struct jffs2_eraseblock *jeb);
 void
 __jffs2_dbg_acct_sanity_check(struct jffs2_sb_info *c,
 			      struct jffs2_eraseblock *jeb);
 
-/* "Paranoia" checks */
+/* "Parayesia" checks */
 void
-__jffs2_dbg_fragtree_paranoia_check(struct jffs2_inode_info *f);
+__jffs2_dbg_fragtree_parayesia_check(struct jffs2_iyesde_info *f);
 void
-__jffs2_dbg_fragtree_paranoia_check_nolock(struct jffs2_inode_info *f);
+__jffs2_dbg_fragtree_parayesia_check_yeslock(struct jffs2_iyesde_info *f);
 void
-__jffs2_dbg_acct_paranoia_check(struct jffs2_sb_info *c,
+__jffs2_dbg_acct_parayesia_check(struct jffs2_sb_info *c,
 			   	struct jffs2_eraseblock *jeb);
 void
-__jffs2_dbg_acct_paranoia_check_nolock(struct jffs2_sb_info *c,
+__jffs2_dbg_acct_parayesia_check_yeslock(struct jffs2_sb_info *c,
 				       struct jffs2_eraseblock *jeb);
 void
-__jffs2_dbg_prewrite_paranoia_check(struct jffs2_sb_info *c,
+__jffs2_dbg_prewrite_parayesia_check(struct jffs2_sb_info *c,
 				    uint32_t ofs, int len);
 
 /* "Dump" functions */
 void
 __jffs2_dbg_dump_jeb(struct jffs2_sb_info *c, struct jffs2_eraseblock *jeb);
 void
-__jffs2_dbg_dump_jeb_nolock(struct jffs2_eraseblock *jeb);
+__jffs2_dbg_dump_jeb_yeslock(struct jffs2_eraseblock *jeb);
 void
 __jffs2_dbg_dump_block_lists(struct jffs2_sb_info *c);
 void
-__jffs2_dbg_dump_block_lists_nolock(struct jffs2_sb_info *c);
+__jffs2_dbg_dump_block_lists_yeslock(struct jffs2_sb_info *c);
 void
-__jffs2_dbg_dump_node_refs(struct jffs2_sb_info *c,
+__jffs2_dbg_dump_yesde_refs(struct jffs2_sb_info *c,
 		 	   struct jffs2_eraseblock *jeb);
 void
-__jffs2_dbg_dump_node_refs_nolock(struct jffs2_sb_info *c,
+__jffs2_dbg_dump_yesde_refs_yeslock(struct jffs2_sb_info *c,
 				  struct jffs2_eraseblock *jeb);
 void
-__jffs2_dbg_dump_fragtree(struct jffs2_inode_info *f);
+__jffs2_dbg_dump_fragtree(struct jffs2_iyesde_info *f);
 void
-__jffs2_dbg_dump_fragtree_nolock(struct jffs2_inode_info *f);
+__jffs2_dbg_dump_fragtree_yeslock(struct jffs2_iyesde_info *f);
 void
 __jffs2_dbg_dump_buffer(unsigned char *buf, int len, uint32_t offs);
 void
-__jffs2_dbg_dump_node(struct jffs2_sb_info *c, uint32_t ofs);
+__jffs2_dbg_dump_yesde(struct jffs2_sb_info *c, uint32_t ofs);
 
 #ifdef JFFS2_DBG_PARANOIA_CHECKS
-#define jffs2_dbg_fragtree_paranoia_check(f)			\
-	__jffs2_dbg_fragtree_paranoia_check(f)
-#define jffs2_dbg_fragtree_paranoia_check_nolock(f)		\
-	__jffs2_dbg_fragtree_paranoia_check_nolock(f)
-#define jffs2_dbg_acct_paranoia_check(c, jeb)			\
-	__jffs2_dbg_acct_paranoia_check(c,jeb)
-#define jffs2_dbg_acct_paranoia_check_nolock(c, jeb)		\
-	__jffs2_dbg_acct_paranoia_check_nolock(c,jeb)
-#define jffs2_dbg_prewrite_paranoia_check(c, ofs, len)		\
-	__jffs2_dbg_prewrite_paranoia_check(c, ofs, len)
+#define jffs2_dbg_fragtree_parayesia_check(f)			\
+	__jffs2_dbg_fragtree_parayesia_check(f)
+#define jffs2_dbg_fragtree_parayesia_check_yeslock(f)		\
+	__jffs2_dbg_fragtree_parayesia_check_yeslock(f)
+#define jffs2_dbg_acct_parayesia_check(c, jeb)			\
+	__jffs2_dbg_acct_parayesia_check(c,jeb)
+#define jffs2_dbg_acct_parayesia_check_yeslock(c, jeb)		\
+	__jffs2_dbg_acct_parayesia_check_yeslock(c,jeb)
+#define jffs2_dbg_prewrite_parayesia_check(c, ofs, len)		\
+	__jffs2_dbg_prewrite_parayesia_check(c, ofs, len)
 #else
-#define jffs2_dbg_fragtree_paranoia_check(f)
-#define jffs2_dbg_fragtree_paranoia_check_nolock(f)
-#define jffs2_dbg_acct_paranoia_check(c, jeb)
-#define jffs2_dbg_acct_paranoia_check_nolock(c, jeb)
-#define jffs2_dbg_prewrite_paranoia_check(c, ofs, len)
+#define jffs2_dbg_fragtree_parayesia_check(f)
+#define jffs2_dbg_fragtree_parayesia_check_yeslock(f)
+#define jffs2_dbg_acct_parayesia_check(c, jeb)
+#define jffs2_dbg_acct_parayesia_check_yeslock(c, jeb)
+#define jffs2_dbg_prewrite_parayesia_check(c, ofs, len)
 #endif /* !JFFS2_PARANOIA_CHECKS */
 
 #ifdef JFFS2_DBG_DUMPS
 #define jffs2_dbg_dump_jeb(c, jeb)				\
 	__jffs2_dbg_dump_jeb(c, jeb);
-#define jffs2_dbg_dump_jeb_nolock(jeb)				\
-	__jffs2_dbg_dump_jeb_nolock(jeb);
+#define jffs2_dbg_dump_jeb_yeslock(jeb)				\
+	__jffs2_dbg_dump_jeb_yeslock(jeb);
 #define jffs2_dbg_dump_block_lists(c)				\
 	__jffs2_dbg_dump_block_lists(c)
-#define jffs2_dbg_dump_block_lists_nolock(c)			\
-	__jffs2_dbg_dump_block_lists_nolock(c)
+#define jffs2_dbg_dump_block_lists_yeslock(c)			\
+	__jffs2_dbg_dump_block_lists_yeslock(c)
 #define jffs2_dbg_dump_fragtree(f)				\
 	__jffs2_dbg_dump_fragtree(f);
-#define jffs2_dbg_dump_fragtree_nolock(f)			\
-	__jffs2_dbg_dump_fragtree_nolock(f);
+#define jffs2_dbg_dump_fragtree_yeslock(f)			\
+	__jffs2_dbg_dump_fragtree_yeslock(f);
 #define jffs2_dbg_dump_buffer(buf, len, offs)			\
 	__jffs2_dbg_dump_buffer(*buf, len, offs);
-#define jffs2_dbg_dump_node(c, ofs)				\
-	__jffs2_dbg_dump_node(c, ofs);
+#define jffs2_dbg_dump_yesde(c, ofs)				\
+	__jffs2_dbg_dump_yesde(c, ofs);
 #else
 #define jffs2_dbg_dump_jeb(c, jeb)
-#define jffs2_dbg_dump_jeb_nolock(jeb)
+#define jffs2_dbg_dump_jeb_yeslock(jeb)
 #define jffs2_dbg_dump_block_lists(c)
-#define jffs2_dbg_dump_block_lists_nolock(c)
+#define jffs2_dbg_dump_block_lists_yeslock(c)
 #define jffs2_dbg_dump_fragtree(f)
-#define jffs2_dbg_dump_fragtree_nolock(f)
+#define jffs2_dbg_dump_fragtree_yeslock(f)
 #define jffs2_dbg_dump_buffer(buf, len, offs)
-#define jffs2_dbg_dump_node(c, ofs)
+#define jffs2_dbg_dump_yesde(c, ofs)
 #endif /* !JFFS2_DBG_DUMPS */
 
 #ifdef JFFS2_DBG_SANITY_CHECKS
 #define jffs2_dbg_acct_sanity_check(c, jeb)			\
 	__jffs2_dbg_acct_sanity_check(c, jeb)
-#define jffs2_dbg_acct_sanity_check_nolock(c, jeb)		\
-	__jffs2_dbg_acct_sanity_check_nolock(c, jeb)
+#define jffs2_dbg_acct_sanity_check_yeslock(c, jeb)		\
+	__jffs2_dbg_acct_sanity_check_yeslock(c, jeb)
 #else
 #define jffs2_dbg_acct_sanity_check(c, jeb)
-#define jffs2_dbg_acct_sanity_check_nolock(c, jeb)
+#define jffs2_dbg_acct_sanity_check_yeslock(c, jeb)
 #endif /* !JFFS2_DBG_SANITY_CHECKS */
 
 #endif /* _JFFS2_DEBUG_H_ */

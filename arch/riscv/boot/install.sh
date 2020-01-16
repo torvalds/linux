@@ -44,7 +44,7 @@ if [ "$(basename $2)" = "Image.gz" ]; then
   base=vmlinuz
 else
 # Normal install
-  echo "Installing normal kernel"
+  echo "Installing yesrmal kernel"
   base=vmlinux
 fi
 

@@ -37,7 +37,7 @@
 };
 
 &backlight {
-	/* Minnie panel PWM must be >= 1%, so start non-zero brightness at 3 */
+	/* Minnie panel PWM must be >= 1%, so start yesn-zero brightness at 3 */
 	brightness-levels = <0 3 255>;
 	num-interpolated-steps = <252>;
 };
@@ -72,7 +72,7 @@
 &panel {
 	compatible = "auo,b101ean01", "simple-panel";
 
-	/delete-node/ panel-timing;
+	/delete-yesde/ panel-timing;
 
 	panel-timing {
 		clock-frequency = <66666667>;
@@ -346,7 +346,7 @@
 &pinctrl {
 	buck-5v {
 		drv_5v: drv-5v {
-			rockchip,pins = <7 RK_PC5 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <7 RK_PC5 RK_FUNC_GPIO &pcfg_pull_yesne>;
 		};
 	};
 
@@ -362,7 +362,7 @@
 
 	hdmi {
 		vcc50_hdmi_en: vcc50-hdmi-en {
-			rockchip,pins = <5 RK_PC3 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <5 RK_PC3 RK_FUNC_GPIO &pcfg_pull_yesne>;
 		};
 	};
 
@@ -378,17 +378,17 @@
 
 	prochot {
 		gpio_prochot: gpio-prochot {
-			rockchip,pins = <2 RK_PB0 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <2 RK_PB0 RK_FUNC_GPIO &pcfg_pull_yesne>;
 		};
 	};
 
 	touchscreen {
 		touch_int: touch-int {
-			rockchip,pins = <2 RK_PB6 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <2 RK_PB6 RK_FUNC_GPIO &pcfg_pull_yesne>;
 		};
 
 		touch_rst: touch-rst {
-			rockchip,pins = <2 RK_PB7 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <2 RK_PB7 RK_FUNC_GPIO &pcfg_pull_yesne>;
 		};
 	};
 };

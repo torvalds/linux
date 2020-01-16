@@ -3,7 +3,7 @@
 # Kernel configuration targets
 # These targets are used from top-level makefile
 
-PHONY += xconfig gconfig menuconfig config localmodconfig localyesconfig \
+PHONY += xconfig gconfig menuconfig config localmodconfig localnoconfig \
 	build_menuconfig build_nconfig build_gconfig build_xconfig
 
 ifdef KBUILD_KCONFIG
@@ -46,7 +46,7 @@ build_gconfig: $(obj)/gconf
 
 build_xconfig: $(obj)/qconf
 
-localyesconfig localmodconfig: $(obj)/conf
+localnoconfig localmodconfig: $(obj)/conf
 	$(Q)perl $(srctree)/$(src)/streamline_config.pl --$@ $(srctree) $(Kconfig) > .tmp.config
 	$(Q)if [ -f .config ]; then 					\
 			cmp -s .tmp.config .config ||			\
@@ -63,9 +63,9 @@ localyesconfig localmodconfig: $(obj)/conf
 # These targets map 1:1 to the commandline options of 'conf'
 #
 # Note:
-#  syncconfig has become an internal implementation detail and is now
+#  syncconfig has become an internal implementation detail and is yesw
 #  deprecated for external use
-simple-targets := oldconfig allnoconfig allyesconfig allmodconfig \
+simple-targets := oldconfig allyesconfig allnoconfig allmodconfig \
 	alldefconfig randconfig listnewconfig olddefconfig syncconfig \
 	helpnewconfig
 
@@ -108,14 +108,14 @@ xenconfig: xen.config
 
 PHONY += tinyconfig
 tinyconfig:
-	$(Q)$(MAKE) -f $(srctree)/Makefile allnoconfig tiny.config
+	$(Q)$(MAKE) -f $(srctree)/Makefile allyesconfig tiny.config
 
 # CHECK: -o cache_dir=<path> working?
 PHONY += testconfig
 testconfig: $(obj)/conf
 	$(PYTHON3) -B -m pytest $(srctree)/$(src)/tests \
 	-o cache_dir=$(abspath $(obj)/tests/.cache) \
-	$(if $(findstring 1,$(KBUILD_VERBOSE)),--capture=no)
+	$(if $(findstring 1,$(KBUILD_VERBOSE)),--capture=yes)
 clean-files += tests/.cache
 
 # Help text used by make help
@@ -126,12 +126,12 @@ help:
 	@echo  '  xconfig	  - Update current config utilising a Qt based front-end'
 	@echo  '  gconfig	  - Update current config utilising a GTK+ based front-end'
 	@echo  '  oldconfig	  - Update current config utilising a provided .config as base'
-	@echo  '  localmodconfig  - Update current config disabling modules not loaded'
-	@echo  '  localyesconfig  - Update current config converting local mods to core'
+	@echo  '  localmodconfig  - Update current config disabling modules yest loaded'
+	@echo  '  localnoconfig  - Update current config converting local mods to core'
 	@echo  '  defconfig	  - New config with default from ARCH supplied defconfig'
 	@echo  '  savedefconfig   - Save current config as ./defconfig (minimal config)'
-	@echo  '  allnoconfig	  - New config where all options are answered with no'
-	@echo  '  allyesconfig	  - New config where all options are accepted with yes'
+	@echo  '  allyesconfig	  - New config where all options are answered with yes'
+	@echo  '  allnoconfig	  - New config where all options are accepted with no'
 	@echo  '  allmodconfig	  - New config selecting modules when possible'
 	@echo  '  alldefconfig    - New config with all symbols set to default'
 	@echo  '  randconfig	  - New config with random answer to all options'
@@ -171,7 +171,7 @@ $(obj)/nconf.o $(obj)/nconf.gui.o: $(obj)/nconf-cfg
 # mconf: Used for the menuconfig target based on lxdialog
 hostprogs-y	+= mconf
 lxdialog	:= $(addprefix lxdialog/, \
-		     checklist.o inputbox.o menubox.o textbox.o util.o yesno.o)
+		     checklist.o inputbox.o menubox.o textbox.o util.o noyes.o)
 mconf-objs	:= mconf.o $(lxdialog) $(common-objs)
 
 HOSTLDLIBS_mconf = $(shell . $(obj)/mconf-cfg && echo $$libs)

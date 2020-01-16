@@ -21,7 +21,7 @@
  */
 
 struct hiddev {
-	int minor;
+	int miyesr;
 	int exist;
 	int open;
 	struct mutex existancelock;

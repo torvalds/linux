@@ -59,7 +59,7 @@ void __init uv_probe_system_type(void)
 	struct acpi_table_xsdt *xsdt;
 
 	if (efi.acpi20 == EFI_INVALID_TABLE_ADDR) {
-		pr_err("ACPI 2.0 RSDP not found.\n");
+		pr_err("ACPI 2.0 RSDP yest found.\n");
 		return;
 	}
 
@@ -84,13 +84,13 @@ void __init uv_probe_system_type(void)
 void __init uv_setup(char **cmdline_p)
 {
 	union uvh_si_addr_map_config_u m_n_config;
-	union uvh_node_id_u node_id;
-	unsigned long gnode_upper;
+	union uvh_yesde_id_u yesde_id;
+	unsigned long gyesde_upper;
 	int nid, cpu, m_val, n_val;
 	unsigned long mmr_base, lowmem_redir_base, lowmem_redir_size;
 
 	get_lowmem_redirect(&lowmem_redir_base, &lowmem_redir_size);
-	node_id.v = uv_read_local_mmr(UVH_NODE_ID);
+	yesde_id.v = uv_read_local_mmr(UVH_NODE_ID);
 	m_n_config.v = uv_read_local_mmr(UVH_SI_ADDR_MAP_CONFIG);
 	mmr_base = uv_read_local_mmr(UVH_RH_GAM_MMR_OVERLAY_CONFIG_MMR) &
 			~UV_MMR_ENABLE;
@@ -99,19 +99,19 @@ void __init uv_setup(char **cmdline_p)
 	n_val = m_n_config.s.n_skt;
 	printk(KERN_DEBUG "UV: global MMR base 0x%lx\n", mmr_base);
 
-	gnode_upper = (((unsigned long)node_id.s.node_id) &
+	gyesde_upper = (((unsigned long)yesde_id.s.yesde_id) &
 		       ~((1 << n_val) - 1)) << m_val;
 
 	for_each_present_cpu(cpu) {
-		nid = cpu_to_node(cpu);
+		nid = cpu_to_yesde(cpu);
 		uv_cpu_hub_info(cpu)->lowmem_remap_base = lowmem_redir_base;
 		uv_cpu_hub_info(cpu)->lowmem_remap_top =
 			lowmem_redir_base + lowmem_redir_size;
 		uv_cpu_hub_info(cpu)->m_val = m_val;
 		uv_cpu_hub_info(cpu)->n_val = n_val;
-		uv_cpu_hub_info(cpu)->pnode_mask = (1 << n_val) -1;
+		uv_cpu_hub_info(cpu)->pyesde_mask = (1 << n_val) -1;
 		uv_cpu_hub_info(cpu)->gpa_mask = (1 << (m_val + n_val)) - 1;
-		uv_cpu_hub_info(cpu)->gnode_upper = gnode_upper;
+		uv_cpu_hub_info(cpu)->gyesde_upper = gyesde_upper;
 		uv_cpu_hub_info(cpu)->global_mmr_base = mmr_base;
 		uv_cpu_hub_info(cpu)->coherency_domain_number = 0;/* ZZZ */
 		printk(KERN_DEBUG "UV cpu %d, nid %d\n", cpu, nid);

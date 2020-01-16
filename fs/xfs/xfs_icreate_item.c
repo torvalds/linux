@@ -12,7 +12,7 @@
 #include "xfs_icreate_item.h"
 #include "xfs_log.h"
 
-kmem_zone_t	*xfs_icreate_zone;		/* inode create item zone */
+kmem_zone_t	*xfs_icreate_zone;		/* iyesde create item zone */
 
 static inline struct xfs_icreate_item *ICR_ITEM(struct xfs_log_item *lip)
 {
@@ -20,7 +20,7 @@ static inline struct xfs_icreate_item *ICR_ITEM(struct xfs_log_item *lip)
 }
 
 /*
- * This returns the number of iovecs needed to log the given inode item.
+ * This returns the number of iovecs needed to log the given iyesde item.
  *
  * We only need one iovec for the icreate log structure.
  */
@@ -36,7 +36,7 @@ xfs_icreate_item_size(
 
 /*
  * This is called to fill in the vector of log iovecs for the
- * given inode create log item.
+ * given iyesde create log item.
  */
 STATIC void
 xfs_icreate_item_format(
@@ -67,23 +67,23 @@ static const struct xfs_item_ops xfs_icreate_item_ops = {
 
 
 /*
- * Initialize the inode log item for a newly allocated (in-core) inode.
+ * Initialize the iyesde log item for a newly allocated (in-core) iyesde.
  *
- * Inode extents can only reside within an AG. Hence specify the starting
- * block for the inode chunk by offset within an AG as well as the
+ * Iyesde extents can only reside within an AG. Hence specify the starting
+ * block for the iyesde chunk by offset within an AG as well as the
  * length of the allocated extent.
  *
  * This joins the item to the transaction and marks it dirty so
- * that we don't need a separate call to do this, nor does the
- * caller need to know anything about the icreate item.
+ * that we don't need a separate call to do this, yesr does the
+ * caller need to kyesw anything about the icreate item.
  */
 void
 xfs_icreate_log(
 	struct xfs_trans	*tp,
-	xfs_agnumber_t		agno,
-	xfs_agblock_t		agbno,
+	xfs_agnumber_t		agyes,
+	xfs_agblock_t		agbyes,
 	unsigned int		count,
-	unsigned int		inode_size,
+	unsigned int		iyesde_size,
 	xfs_agblock_t		length,
 	unsigned int		generation)
 {
@@ -96,10 +96,10 @@ xfs_icreate_log(
 
 	icp->ic_format.icl_type = XFS_LI_ICREATE;
 	icp->ic_format.icl_size = 1;	/* single vector */
-	icp->ic_format.icl_ag = cpu_to_be32(agno);
-	icp->ic_format.icl_agbno = cpu_to_be32(agbno);
+	icp->ic_format.icl_ag = cpu_to_be32(agyes);
+	icp->ic_format.icl_agbyes = cpu_to_be32(agbyes);
 	icp->ic_format.icl_count = cpu_to_be32(count);
-	icp->ic_format.icl_isize = cpu_to_be32(inode_size);
+	icp->ic_format.icl_isize = cpu_to_be32(iyesde_size);
 	icp->ic_format.icl_length = cpu_to_be32(length);
 	icp->ic_format.icl_gen = cpu_to_be32(generation);
 

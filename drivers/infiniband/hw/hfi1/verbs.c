@@ -22,12 +22,12 @@
  * are met:
  *
  *  - Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  *  - Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
+ *    yestice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
- *  - Neither the name of Intel Corporation nor the names of its
+ *  - Neither the name of Intel Corporation yesr the names of its
  *    contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
@@ -54,7 +54,7 @@
 #include <linux/mm.h>
 #include <linux/vmalloc.h>
 #include <rdma/opa_addr.h>
-#include <linux/nospec.h>
+#include <linux/yesspec.h>
 
 #include "hfi.h"
 #include "common.h"
@@ -173,7 +173,7 @@ const enum ib_wc_opcode ib_hfi1_wc_opcode[] = {
 };
 
 /*
- * Length of header by opcode, 0 --> not supported
+ * Length of header by opcode, 0 --> yest supported
  */
 const u8 hdr_len_by_opcode[256] = {
 	/* RC */
@@ -329,13 +329,13 @@ static u64 hfi1_fault_tx(struct rvt_qp *qp, u8 opcode, u64 pbc)
 #ifdef CONFIG_FAULT_INJECTION
 	if ((opcode & IB_OPCODE_MSP) == IB_OPCODE_MSP) {
 		/*
-		 * In order to drop non-IB traffic we
+		 * In order to drop yesn-IB traffic we
 		 * set PbcInsertHrc to NONE (0x2).
 		 * The packet will still be delivered
-		 * to the receiving node but a
+		 * to the receiving yesde but a
 		 * KHdrHCRCErr (KDETH packet with a bad
 		 * HCRC) will be triggered and the
-		 * packet will not be delivered to the
+		 * packet will yest be delivered to the
 		 * correct context.
 		 */
 		pbc &= ~PBC_INSERT_HCRC_SMASK;
@@ -345,7 +345,7 @@ static u64 hfi1_fault_tx(struct rvt_qp *qp, u8 opcode, u64 pbc)
 		 * In order to drop regular verbs
 		 * traffic we set the PbcTestEbp
 		 * flag. The packet will still be
-		 * delivered to the receiving node but
+		 * delivered to the receiving yesde but
 		 * a 'late ebp error' will be
 		 * triggered and will be dropped.
 		 */
@@ -690,7 +690,7 @@ static int wait_kmem(struct hfi1_ibdev *dev,
  *
  * Add failures will revert the sge cursor
  */
-static noinline int build_verbs_ulp_payload(
+static yesinline int build_verbs_ulp_payload(
 	struct sdma_engine *sde,
 	u32 length,
 	struct verbs_txreq *tx)
@@ -914,7 +914,7 @@ bail_build:
 }
 
 /*
- * If we are now in the error state, return zero to flush the
+ * If we are yesw in the error state, return zero to flush the
  * send work request.
  */
 static int pio_wait(struct rvt_qp *qp,
@@ -1044,25 +1044,25 @@ int hfi1_verbs_send_pio(struct rvt_qp *qp, struct hfi1_pkt_state *ps,
 		if (IS_ERR(pbuf)) {
 			/*
 			 * If we have filled the PIO buffers to capacity and are
-			 * not in an active state this request is not going to
+			 * yest in an active state this request is yest going to
 			 * go out to so just complete it with an error or else a
 			 * ULP or the core may be stuck waiting.
 			 */
 			hfi1_cdbg(
 				PIO,
-				"alloc failed. state not active, completing");
+				"alloc failed. state yest active, completing");
 			wc_status = IB_WC_GENERAL_ERR;
 			goto pio_bail;
 		} else {
 			/*
-			 * This is a normal occurrence. The PIO buffs are full
+			 * This is a yesrmal occurrence. The PIO buffs are full
 			 * up but we are still happily sending, well we could be
 			 * so lets continue to queue the request.
 			 */
 			hfi1_cdbg(PIO, "alloc failed. state active, queuing");
 			ret = pio_wait(qp, sc, ps, RVT_S_WAIT_PIO);
 			if (!ret)
-				/* txreq not queued - free */
+				/* txreq yest queued - free */
 				goto bail;
 			/* tx consumed in wait */
 			return ret;
@@ -1186,7 +1186,7 @@ int egress_pkey_check(struct hfi1_pportdata *ppd, u32 slid, u16 pkey,
 bad:
 	/*
 	 * For the user-context mechanism, the P_KEY check would only happen
-	 * once per SDMA request, not once per packet.  Therefore, there's no
+	 * once per SDMA request, yest once per packet.  Therefore, there's yes
 	 * need to increment the counter for the user-context mechanism.
 	 */
 	if (!is_user_ctxt_mechanism) {
@@ -1247,7 +1247,7 @@ static inline send_routine get_send_routine(struct rvt_qp *qp,
  * @ps: the state of the packet to send
  *
  * Return zero if packet is sent or queued OK.
- * Return non-zero and clear qp->s_flags RVT_S_BUSY otherwise.
+ * Return yesn-zero and clear qp->s_flags RVT_S_BUSY otherwise.
  */
 int hfi1_verbs_send(struct rvt_qp *qp, struct hfi1_pkt_state *ps)
 {
@@ -1294,7 +1294,7 @@ int hfi1_verbs_send(struct rvt_qp *qp, struct hfi1_pkt_state *ps)
 				priv->s_sc, qp->s_pkey_index);
 	if (unlikely(ret)) {
 		/*
-		 * The value we are returning here does not get propagated to
+		 * The value we are returning here does yest get propagated to
 		 * the verbs caller. Thus we need to complete the request with
 		 * error otherwise the caller could be sitting waiting on the
 		 * completion event. Only do this for PIO. SDMA has its own
@@ -1387,7 +1387,7 @@ static inline u16 opa_speed_to_ib(u16 in)
 }
 
 /*
- * Convert a single OPA link width (no multiple flags) to an IB value.
+ * Convert a single OPA link width (yes multiple flags) to an IB value.
  * A zero OPA link width means link down, which means the IB width value
  * is a don't care.
  */
@@ -1399,7 +1399,7 @@ static inline u16 opa_width_to_ib(u16 in)
 	case OPA_LINK_WIDTH_2X:
 	case OPA_LINK_WIDTH_3X:
 		return IB_WIDTH_1X;
-	default: /* link down or unknown, return our largest width */
+	default: /* link down or unkyeswn, return our largest width */
 	case OPA_LINK_WIDTH_4X:
 		return IB_WIDTH_4X;
 	}
@@ -1426,7 +1426,7 @@ static int query_port(struct rvt_dev_info *rdi, u8 port_num,
 	props->max_vl_num = ppd->vls_supported;
 
 	/* Once we are a "first class" citizen and have added the OPA MTUs to
-	 * the core we can advertise the larger MTU enum to the ULPs, for now
+	 * the core we can advertise the larger MTU enum to the ULPs, for yesw
 	 * advertise only 4K.
 	 *
 	 * Those applications which are either OPA aware or pass the MTU enum
@@ -1456,12 +1456,12 @@ static int modify_device(struct ib_device *device,
 	}
 
 	if (device_modify_mask & IB_DEVICE_MODIFY_NODE_DESC) {
-		memcpy(device->node_desc, device_modify->node_desc,
+		memcpy(device->yesde_desc, device_modify->yesde_desc,
 		       IB_DEVICE_NODE_DESC_MAX);
 		for (i = 0; i < dd->num_pports; i++) {
 			struct hfi1_ibport *ibp = &dd->pport[i].ibport_data;
 
-			hfi1_node_desc_chg(ibp);
+			hfi1_yesde_desc_chg(ibp);
 		}
 	}
 
@@ -1536,7 +1536,7 @@ static int hfi1_check_ah(struct ib_device *ibdev, struct rdma_ah_attr *ah_attr)
 	sl = rdma_ah_get_sl(ah_attr);
 	if (sl >= ARRAY_SIZE(ibp->sl_to_sc))
 		return -EINVAL;
-	sl = array_index_nospec(sl, ARRAY_SIZE(ibp->sl_to_sc));
+	sl = array_index_yesspec(sl, ARRAY_SIZE(ibp->sl_to_sc));
 
 	sc5 = ibp->sl_to_sc[sl];
 	if (sc_to_vlt(dd, sc5) > num_vls && sc_to_vlt(dd, sc5) != 0xf)
@@ -1544,7 +1544,7 @@ static int hfi1_check_ah(struct ib_device *ibdev, struct rdma_ah_attr *ah_attr)
 	return 0;
 }
 
-static void hfi1_notify_new_ah(struct ib_device *ibdev,
+static void hfi1_yestify_new_ah(struct ib_device *ibdev,
 			       struct rdma_ah_attr *ah_attr,
 			       struct rvt_ah *ah)
 {
@@ -1555,7 +1555,7 @@ static void hfi1_notify_new_ah(struct ib_device *ibdev,
 	struct rdma_ah_attr *attr = &ah->attr;
 
 	/*
-	 * Do not trust reading anything from rvt_ah at this point as it is not
+	 * Do yest trust reading anything from rvt_ah at this point as it is yest
 	 * done being setup. We can however modify things which we need to set.
 	 */
 
@@ -1796,7 +1796,7 @@ static const struct ib_device_ops hfi1_dev_ops = {
 /**
  * hfi1_register_ib_device - register our device with the infiniband core
  * @dd: the device data structure
- * Return 0 if successful, errno if unsuccessful.
+ * Return 0 if successful, erryes if unsuccessful.
  */
 int hfi1_register_ib_device(struct hfi1_devdata *dd)
 {
@@ -1810,7 +1810,7 @@ int hfi1_register_ib_device(struct hfi1_devdata *dd)
 	for (i = 0; i < dd->num_pports; i++)
 		init_ibport(ppd + i);
 
-	/* Only need to initialize non-zero fields. */
+	/* Only need to initialize yesn-zero fields. */
 
 	timer_setup(&dev->mem_timer, mem_timer, 0);
 
@@ -1823,8 +1823,8 @@ int hfi1_register_ib_device(struct hfi1_devdata *dd)
 	if (ret)
 		goto err_verbs_txreq;
 
-	/* Use first-port GUID as node guid */
-	ibdev->node_guid = get_sguid(ibp, HFI1_PORT_GUID_INDEX);
+	/* Use first-port GUID as yesde guid */
+	ibdev->yesde_guid = get_sguid(ibp, HFI1_PORT_GUID_INDEX);
 
 	/*
 	 * The system image GUID is supposed to be the same for all
@@ -1832,21 +1832,21 @@ int hfi1_register_ib_device(struct hfi1_devdata *dd)
 	 * device types in the system, we can't be sure this is unique.
 	 */
 	if (!ib_hfi1_sys_image_guid)
-		ib_hfi1_sys_image_guid = ibdev->node_guid;
+		ib_hfi1_sys_image_guid = ibdev->yesde_guid;
 	ibdev->phys_port_cnt = dd->num_pports;
 	ibdev->dev.parent = &dd->pcidev->dev;
 
 	ib_set_device_ops(ibdev, &hfi1_dev_ops);
 
-	strlcpy(ibdev->node_desc, init_utsname()->nodename,
-		sizeof(ibdev->node_desc));
+	strlcpy(ibdev->yesde_desc, init_utsname()->yesdename,
+		sizeof(ibdev->yesde_desc));
 
 	/*
 	 * Fill in rvt info object.
 	 */
 	dd->verbs_dev.rdi.driver_f.get_pci_dev = get_pci_dev;
 	dd->verbs_dev.rdi.driver_f.check_ah = hfi1_check_ah;
-	dd->verbs_dev.rdi.driver_f.notify_new_ah = hfi1_notify_new_ah;
+	dd->verbs_dev.rdi.driver_f.yestify_new_ah = hfi1_yestify_new_ah;
 	dd->verbs_dev.rdi.driver_f.get_guid_be = hfi1_get_guid_be;
 	dd->verbs_dev.rdi.driver_f.query_port_state = query_port;
 	dd->verbs_dev.rdi.driver_f.shut_down_port = shut_down_port;
@@ -1876,28 +1876,28 @@ int hfi1_register_ib_device(struct hfi1_devdata *dd)
 	dd->verbs_dev.rdi.driver_f.qp_priv_init = hfi1_qp_priv_init;
 	dd->verbs_dev.rdi.driver_f.qp_priv_free = qp_priv_free;
 	dd->verbs_dev.rdi.driver_f.free_all_qps = free_all_qps;
-	dd->verbs_dev.rdi.driver_f.notify_qp_reset = notify_qp_reset;
+	dd->verbs_dev.rdi.driver_f.yestify_qp_reset = yestify_qp_reset;
 	dd->verbs_dev.rdi.driver_f.do_send = hfi1_do_send_from_rvt;
 	dd->verbs_dev.rdi.driver_f.schedule_send = hfi1_schedule_send;
-	dd->verbs_dev.rdi.driver_f.schedule_send_no_lock = _hfi1_schedule_send;
+	dd->verbs_dev.rdi.driver_f.schedule_send_yes_lock = _hfi1_schedule_send;
 	dd->verbs_dev.rdi.driver_f.get_pmtu_from_attr = get_pmtu_from_attr;
-	dd->verbs_dev.rdi.driver_f.notify_error_qp = notify_error_qp;
+	dd->verbs_dev.rdi.driver_f.yestify_error_qp = yestify_error_qp;
 	dd->verbs_dev.rdi.driver_f.flush_qp_waiters = flush_qp_waiters;
 	dd->verbs_dev.rdi.driver_f.stop_send_queue = stop_send_queue;
 	dd->verbs_dev.rdi.driver_f.quiesce_qp = quiesce_qp;
-	dd->verbs_dev.rdi.driver_f.notify_error_qp = notify_error_qp;
+	dd->verbs_dev.rdi.driver_f.yestify_error_qp = yestify_error_qp;
 	dd->verbs_dev.rdi.driver_f.mtu_from_qp = mtu_from_qp;
 	dd->verbs_dev.rdi.driver_f.mtu_to_path_mtu = mtu_to_path_mtu;
 	dd->verbs_dev.rdi.driver_f.check_modify_qp = hfi1_check_modify_qp;
 	dd->verbs_dev.rdi.driver_f.modify_qp = hfi1_modify_qp;
-	dd->verbs_dev.rdi.driver_f.notify_restart_rc = hfi1_restart_rc;
+	dd->verbs_dev.rdi.driver_f.yestify_restart_rc = hfi1_restart_rc;
 	dd->verbs_dev.rdi.driver_f.setup_wqe = hfi1_setup_wqe;
 	dd->verbs_dev.rdi.driver_f.comp_vect_cpu_lookup =
 						hfi1_comp_vect_mappings_lookup;
 
 	/* completeion queue */
 	dd->verbs_dev.rdi.ibdev.num_comp_vectors = dd->comp_vect_possible_cpus;
-	dd->verbs_dev.rdi.dparms.node = dd->node;
+	dd->verbs_dev.rdi.dparms.yesde = dd->yesde;
 
 	/* misc settings */
 	dd->verbs_dev.rdi.flags = 0; /* Let rdmavt handle it all */
@@ -1940,7 +1940,7 @@ err_class:
 	rvt_unregister_device(&dd->verbs_dev.rdi);
 err_verbs_txreq:
 	verbs_txreq_exit(dev);
-	dd_dev_err(dd, "cannot register verbs: %d!\n", -ret);
+	dd_dev_err(dd, "canyest register verbs: %d!\n", -ret);
 	return ret;
 }
 
@@ -1953,9 +1953,9 @@ void hfi1_unregister_ib_device(struct hfi1_devdata *dd)
 	rvt_unregister_device(&dd->verbs_dev.rdi);
 
 	if (!list_empty(&dev->txwait))
-		dd_dev_err(dd, "txwait list not empty!\n");
+		dd_dev_err(dd, "txwait list yest empty!\n");
 	if (!list_empty(&dev->memwait))
-		dd_dev_err(dd, "memwait list not empty!\n");
+		dd_dev_err(dd, "memwait list yest empty!\n");
 
 	del_timer_sync(&dev->mem_timer);
 	verbs_txreq_exit(dev);

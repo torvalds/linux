@@ -2,10 +2,10 @@
 /*
  * Processor capabilities determination functions.
  *
- * Copyright (C) xxxx  the Anonymous
+ * Copyright (C) xxxx  the Ayesnymous
  * Copyright (C) 1994 - 2006 Ralf Baechle
  * Copyright (C) 2003, 2004  Maciej W. Rozycki
- * Copyright (C) 2001, 2004, 2011, 2012	 MIPS Technologies, Inc.
+ * Copyright (C) 2001, 2004, 2011, 2012	 MIPS Techyeslogies, Inc.
  */
 #include <linux/init.h>
 #include <linux/kernel.h>
@@ -148,7 +148,7 @@ static enum { STRICT, LEGACY, STD2008, RELAXED } ieee754 = STRICT;
  * mode selected.  Note that "relaxed" straps the emulator so that it
  * allows 2008-NaN binaries even for legacy processors.
  */
-static void cpu_set_nofpu_2008(struct cpuinfo_mips *c)
+static void cpu_set_yesfpu_2008(struct cpuinfo_mips *c)
 {
 	c->options &= ~(MIPS_CPU_NAN_2008 | MIPS_CPU_NAN_LEGACY);
 	c->fpu_csr31 &= ~(FPU_CSR_ABS2008 | FPU_CSR_NAN2008);
@@ -231,7 +231,7 @@ static int __init ieee754_setup(char *s)
 		return -1;
 
 	if (!(boot_cpu_data.options & MIPS_CPU_FPU))
-		cpu_set_nofpu_2008(&boot_cpu_data);
+		cpu_set_yesfpu_2008(&boot_cpu_data);
 	cpu_set_nan_2008(&boot_cpu_data);
 
 	return 0;
@@ -242,7 +242,7 @@ early_param("ieee754", ieee754_setup);
 /*
  * Set the FIR feature flags for the FPU emulator.
  */
-static void cpu_set_nofpu_id(struct cpuinfo_mips *c)
+static void cpu_set_yesfpu_id(struct cpuinfo_mips *c)
 {
 	u32 value;
 
@@ -259,8 +259,8 @@ static void cpu_set_nofpu_id(struct cpuinfo_mips *c)
 	c->fpu_id = value;
 }
 
-/* Determined FPU emulator mask to use for the boot CPU with "nofpu".  */
-static unsigned int mips_nofpu_msk31;
+/* Determined FPU emulator mask to use for the boot CPU with "yesfpu".  */
+static unsigned int mips_yesfpu_msk31;
 
 /*
  * Set options for FPU hardware.
@@ -268,7 +268,7 @@ static unsigned int mips_nofpu_msk31;
 static void cpu_set_fpu_opts(struct cpuinfo_mips *c)
 {
 	c->fpu_id = cpu_get_fpu_id();
-	mips_nofpu_msk31 = c->fpu_msk31;
+	mips_yesfpu_msk31 = c->fpu_msk31;
 
 	if (c->isa_level & (MIPS_CPU_ISA_M32R1 | MIPS_CPU_ISA_M64R1 |
 			    MIPS_CPU_ISA_M32R2 | MIPS_CPU_ISA_M64R2 |
@@ -289,27 +289,27 @@ static void cpu_set_fpu_opts(struct cpuinfo_mips *c)
 /*
  * Set options for the FPU emulator.
  */
-static void cpu_set_nofpu_opts(struct cpuinfo_mips *c)
+static void cpu_set_yesfpu_opts(struct cpuinfo_mips *c)
 {
 	c->options &= ~MIPS_CPU_FPU;
-	c->fpu_msk31 = mips_nofpu_msk31;
+	c->fpu_msk31 = mips_yesfpu_msk31;
 
-	cpu_set_nofpu_2008(c);
+	cpu_set_yesfpu_2008(c);
 	cpu_set_nan_2008(c);
-	cpu_set_nofpu_id(c);
+	cpu_set_yesfpu_id(c);
 }
 
 static int mips_fpu_disabled;
 
 static int __init fpu_disable(char *s)
 {
-	cpu_set_nofpu_opts(&boot_cpu_data);
+	cpu_set_yesfpu_opts(&boot_cpu_data);
 	mips_fpu_disabled = 1;
 
 	return 1;
 }
 
-__setup("nofpu", fpu_disable);
+__setup("yesfpu", fpu_disable);
 
 #else /* !CONFIG_MIPS_FP_SUPPORT */
 
@@ -327,12 +327,12 @@ static inline int __cpu_has_fpu(void)
 
 static void cpu_set_fpu_opts(struct cpuinfo_mips *c)
 {
-	/* no-op */
+	/* yes-op */
 }
 
-static void cpu_set_nofpu_opts(struct cpuinfo_mips *c)
+static void cpu_set_yesfpu_opts(struct cpuinfo_mips *c)
 {
-	/* no-op */
+	/* yes-op */
 }
 
 #endif /* CONFIG_MIPS_FP_SUPPORT */
@@ -360,7 +360,7 @@ static int __init dsp_disable(char *s)
 	return 1;
 }
 
-__setup("nodsp", dsp_disable);
+__setup("yesdsp", dsp_disable);
 
 static int mips_htw_disabled;
 
@@ -374,7 +374,7 @@ static int __init htw_disable(char *s)
 	return 1;
 }
 
-__setup("nohtw", htw_disable);
+__setup("yeshtw", htw_disable);
 
 static int mips_ftlb_disabled;
 static int mips_has_ftlb_configured;
@@ -391,7 +391,7 @@ static int __init ftlb_disable(char *s)
 	unsigned int config4, mmuextdef;
 
 	/*
-	 * If the core hasn't done any FTLB configuration, there is nothing
+	 * If the core hasn't done any FTLB configuration, there is yesthing
 	 * for us to do here.
 	 */
 	if (!mips_has_ftlb_configured)
@@ -410,7 +410,7 @@ static int __init ftlb_disable(char *s)
 	/* MMUSIZEEXT == VTLB ON, FTLB OFF */
 	if (mmuextdef == MIPS_CONF4_MMUEXTDEF_FTLBSIZEEXT) {
 		/* This should never happen */
-		pr_warn("FTLB could not be disabled!\n");
+		pr_warn("FTLB could yest be disabled!\n");
 		return 1;
 	}
 
@@ -418,7 +418,7 @@ static int __init ftlb_disable(char *s)
 	mips_has_ftlb_configured = 0;
 
 	/*
-	 * noftlb is mainly used for debug purposes so print
+	 * yesftlb is mainly used for debug purposes so print
 	 * an informative message instead of using pr_debug()
 	 */
 	pr_info("FTLB has been disabled\n");
@@ -436,7 +436,7 @@ static int __init ftlb_disable(char *s)
 	return 1;
 }
 
-__setup("noftlb", ftlb_disable);
+__setup("yesftlb", ftlb_disable);
 
 /*
  * Check if the CPU has per tc perf counters
@@ -547,7 +547,7 @@ static void set_isa(struct cpuinfo_mips *c, unsigned int isa)
 	}
 }
 
-static char unknown_isa[] = KERN_ERR \
+static char unkyeswn_isa[] = KERN_ERR \
 	"Unsupported ISA type, c0.config0: %d.";
 
 static unsigned int calculate_ftlb_probability(struct cpuinfo_mips *c)
@@ -604,7 +604,7 @@ static int set_ftlb_enable(struct cpuinfo_mips *c, enum ftlb_flags flags)
 		break;
 	case CPU_I6400:
 	case CPU_I6500:
-		/* There's no way to disable the FTLB */
+		/* There's yes way to disable the FTLB */
 		if (!(flags & FTLB_EN))
 			return 1;
 		return 0;
@@ -658,7 +658,7 @@ static inline unsigned int decode_config0(struct cpuinfo_mips *c)
 			set_isa(c, MIPS_CPU_ISA_M32R6);
 			break;
 		default:
-			goto unknown;
+			goto unkyeswn;
 		}
 		break;
 	case 2:
@@ -673,17 +673,17 @@ static inline unsigned int decode_config0(struct cpuinfo_mips *c)
 			set_isa(c, MIPS_CPU_ISA_M64R6);
 			break;
 		default:
-			goto unknown;
+			goto unkyeswn;
 		}
 		break;
 	default:
-		goto unknown;
+		goto unkyeswn;
 	}
 
 	return config0 & MIPS_CONF_M;
 
-unknown:
-	panic(unknown_isa, config0);
+unkyeswn:
+	panic(unkyeswn_isa, config0);
 }
 
 static inline unsigned int decode_config1(struct cpuinfo_mips *c)
@@ -830,7 +830,7 @@ static inline unsigned int decode_config4(struct cpuinfo_mips *c)
 			back_to_back_c0_hazard();
 			config4 = read_c0_config4();
 			if (config4 != newcf4) {
-				pr_err("PAGE_SIZE 0x%lx is not supported by FTLB (config4=0x%x)\n",
+				pr_err("PAGE_SIZE 0x%lx is yest supported by FTLB (config4=0x%x)\n",
 				       PAGE_SIZE, config4);
 				/* Switch FTLB off */
 				set_ftlb_enable(c, 0);
@@ -929,7 +929,7 @@ static inline unsigned int decode_config5(struct cpuinfo_mips *c)
 			 * support 32 bit MMIDs, which would give us a 512MiB
 			 * bitmap - that's too big in most cases.
 			 *
-			 * Cap MMID width at 16 bits for now & we can revisit
+			 * Cap MMID width at 16 bits for yesw & we can revisit
 			 * this if & when hardware supports anything wider.
 			 */
 			max_mmid_width = 16;
@@ -956,7 +956,7 @@ static void decode_configs(struct cpuinfo_mips *c)
 
 	c->scache.flags = MIPS_CACHE_NOT_PRESENT;
 
-	/* Enable FTLB if present and not disabled */
+	/* Enable FTLB if present and yest disabled */
 	set_ftlb_enable(c, mips_ftlb_disabled ? 0 : FTLB_EN);
 
 	ok = decode_config0(c);			/* Read Config registers.  */
@@ -1396,7 +1396,7 @@ static inline void cpu_probe_legacy(struct cpuinfo_mips *c, unsigned int cpu)
 	#if 0
 	case PRID_IMP_R4650:
 		/*
-		 * This processor doesn't have an MMU, so it's not
+		 * This processor doesn't have an MMU, so it's yest
 		 * "real easy" to run Linux on it. It is left purely
 		 * for documentation.  Commented out because it shares
 		 * it's c0_prid id number with the TX3900.
@@ -1776,7 +1776,7 @@ static inline void cpu_probe_sibyte(struct cpuinfo_mips *c, unsigned int cpu)
 	case PRID_IMP_SB1:
 		c->cputype = CPU_SB1;
 		__cpu_name[cpu] = "SiByte SB1";
-		/* FPU in pass1 is known to have issues. */
+		/* FPU in pass1 is kyeswn to have issues. */
 		if ((c->processor_id & PRID_REV_MASK) < 0x02)
 			c->options &= ~(MIPS_CPU_FPU | MIPS_CPU_32FPR);
 		break;
@@ -1895,7 +1895,7 @@ platform:
 		set_elf_platform(cpu, "octeon3");
 		break;
 	default:
-		printk(KERN_INFO "Unknown Octeon chip!\n");
+		printk(KERN_INFO "Unkyeswn Octeon chip!\n");
 		c->cputype = CPU_UNKNOWN;
 		break;
 	}
@@ -1940,7 +1940,7 @@ static inline void cpu_probe_loongson(struct cpuinfo_mips *c, unsigned int cpu)
 			MIPS_ASE_LOONGSON_EXT | MIPS_ASE_LOONGSON_EXT2);
 		break;
 	default:
-		panic("Unknown Loongson Processor ID!");
+		panic("Unkyeswn Loongson Processor ID!");
 		break;
 	}
 }
@@ -1955,7 +1955,7 @@ static inline void cpu_probe_ingenic(struct cpuinfo_mips *c, unsigned int cpu)
 	 */
 	decode_config3(c);
 
-	/* XBurst does not implement the CP0 counter. */
+	/* XBurst does yest implement the CP0 counter. */
 	c->options &= ~MIPS_CPU_COUNTER;
 	BUG_ON(!__builtin_constant_p(cpu_has_counter) || cpu_has_counter);
 
@@ -1973,7 +1973,7 @@ static inline void cpu_probe_ingenic(struct cpuinfo_mips *c, unsigned int cpu)
 		set_c0_config7(MIPS_CONF7_BTB_LOOP_EN);
 		break;
 	default:
-		panic("Unknown Ingenic Processor ID!");
+		panic("Unkyeswn Ingenic Processor ID!");
 		break;
 	}
 
@@ -1981,7 +1981,7 @@ static inline void cpu_probe_ingenic(struct cpuinfo_mips *c, unsigned int cpu)
 	/*
 	 * The config0 register in the XBurst CPUs with a processor ID of
 	 * PRID_COMP_INGENIC_D1 has an abandoned huge page tlb mode, this
-	 * mode is not compatible with the MIPS standard, it will cause
+	 * mode is yest compatible with the MIPS standard, it will cause
 	 * tlbmiss and into an infinite loop (line 21 in the tlb-funcs.S)
 	 * when starting the init process. After chip reset, the default
 	 * is HPTLB mode, Write 0xa9000000 to cp0 register 5 sel 4 to
@@ -2010,7 +2010,7 @@ static inline void cpu_probe_netlogic(struct cpuinfo_mips *c, int cpu)
 	if ((c->processor_id & PRID_IMP_MASK) == PRID_IMP_NETLOGIC_AU13XX) {
 		c->cputype = CPU_ALCHEMY;
 		__cpu_name[cpu] = "Au1300";
-		/* following stuff is not for Alchemy */
+		/* following stuff is yest for Alchemy */
 		return;
 	}
 
@@ -2066,7 +2066,7 @@ static inline void cpu_probe_netlogic(struct cpuinfo_mips *c, int cpu)
 		break;
 
 	default:
-		pr_info("Unknown Netlogic chip id [%02x]!\n",
+		pr_info("Unkyeswn Netlogic chip id [%02x]!\n",
 		       c->processor_id);
 		c->cputype = CPU_XLR;
 		break;
@@ -2185,7 +2185,7 @@ void cpu_probe(void)
 	if (c->options & MIPS_CPU_FPU)
 		cpu_set_fpu_opts(c);
 	else
-		cpu_set_nofpu_opts(c);
+		cpu_set_yesfpu_opts(c);
 
 	if (cpu_has_bp_ghist)
 		write_c0_r10k_diag(read_c0_r10k_diag() |
@@ -2289,7 +2289,7 @@ void cpu_set_vpe_id(struct cpuinfo_mips *cpuinfo, unsigned int vpe)
 	/* Ensure the VP(E) ID fits in the field */
 	WARN_ON(vpe > (MIPS_GLOBALNUMBER_VP >> MIPS_GLOBALNUMBER_VP_SHF));
 
-	/* Ensure we're not using VP(E)s without support */
+	/* Ensure we're yest using VP(E)s without support */
 	WARN_ON(vpe && !IS_ENABLED(CONFIG_MIPS_MT_SMP) &&
 		!IS_ENABLED(CONFIG_CPU_MIPSR6));
 

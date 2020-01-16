@@ -8,11 +8,11 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
+ *    yestice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the name of Myricom, Inc. nor the names of its contributors
+ * 3. Neither the name of Myricom, Inc. yesr the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -29,7 +29,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  *
  *
- * If the eeprom on your board is not recent enough, you will need to get a
+ * If the eeprom on your board is yest recent eyesugh, you will need to get a
  * newer firmware image at:
  *   http://www.myri.com/scs/download-Myri10GE.html
  *
@@ -195,7 +195,7 @@ struct myri10ge_slice_state {
 
 struct myri10ge_priv {
 	struct myri10ge_slice_state *ss;
-	int tx_boundary;	/* boundary transmits cannot cross */
+	int tx_boundary;	/* boundary transmits canyest cross */
 	int num_slices;
 	int running;		/* running?             */
 	int small_bytes;
@@ -236,7 +236,7 @@ struct myri10ge_priv {
 	char *product_code_string;
 	char fw_version[128];
 	int fw_ver_major;
-	int fw_ver_minor;
+	int fw_ver_miyesr;
 	int fw_ver_tiny;
 	int adopted_rx_filter_bug;
 	u8 mac_addr[ETH_ALEN];		/* eeprom mac address */
@@ -326,7 +326,7 @@ MODULE_PARM_DESC(myri10ge_max_irq_loops,
 
 static int myri10ge_debug = -1;	/* defaults above */
 module_param(myri10ge_debug, int, 0);
-MODULE_PARM_DESC(myri10ge_debug, "Debug level (0=none,...,16=all)");
+MODULE_PARM_DESC(myri10ge_debug, "Debug level (0=yesne,...,16=all)");
 
 static int myri10ge_fill_thresh = 256;
 module_param(myri10ge_fill_thresh, int, 0644);
@@ -406,9 +406,9 @@ myri10ge_send_cmd(struct myri10ge_priv *mgp, u32 cmd,
 	 * a 2.2ms margin
 	 */
 	if (atomic) {
-		/* if atomic is set, do not sleep,
+		/* if atomic is set, do yest sleep,
 		 * and try to get the completion quickly
-		 * (1ms will be enough for those commands) */
+		 * (1ms will be eyesugh for those commands) */
 		for (sleep_total = 0;
 		     sleep_total < 1000 &&
 		     response->result == htonl(MYRI10GE_NO_RESPONSE_RESULT);
@@ -556,10 +556,10 @@ myri10ge_validate_firmware(struct myri10ge_priv *mgp,
 	mgp->fw_version[sizeof(mgp->fw_version) - 1] = '\0';
 
 	sscanf(mgp->fw_version, "%d.%d.%d", &mgp->fw_ver_major,
-	       &mgp->fw_ver_minor, &mgp->fw_ver_tiny);
+	       &mgp->fw_ver_miyesr, &mgp->fw_ver_tiny);
 
 	if (!(mgp->fw_ver_major == MXGEFW_VERSION_MAJOR &&
-	      mgp->fw_ver_minor == MXGEFW_VERSION_MINOR)) {
+	      mgp->fw_ver_miyesr == MXGEFW_VERSION_MINOR)) {
 		dev_err(dev, "Found firmware version %s\n", mgp->fw_version);
 		dev_err(dev, "Driver needs %d.%d\n", MXGEFW_VERSION_MAJOR,
 			MXGEFW_VERSION_MINOR);
@@ -583,7 +583,7 @@ static int myri10ge_load_hotplug_firmware(struct myri10ge_priv *mgp, u32 * size)
 		dev_err(dev, "Unable to load %s firmware image via hotplug\n",
 			mgp->fw_name);
 		status = -EINVAL;
-		goto abort_with_nothing;
+		goto abort_with_yesthing;
 	}
 
 	/* check size */
@@ -636,7 +636,7 @@ static int myri10ge_load_hotplug_firmware(struct myri10ge_priv *mgp, u32 * size)
 abort_with_fw:
 	release_firmware(fw);
 
-abort_with_nothing:
+abort_with_yesthing:
 	return status;
 }
 
@@ -670,12 +670,12 @@ static int myri10ge_adopt_running_firmware(struct myri10ge_priv *mgp)
 	/* check to see if adopted firmware has bug where adopting
 	 * it will cause broadcasts to be filtered unless the NIC
 	 * is kept in ALLMULTI mode */
-	if (mgp->fw_ver_major == 1 && mgp->fw_ver_minor == 4 &&
+	if (mgp->fw_ver_major == 1 && mgp->fw_ver_miyesr == 4 &&
 	    mgp->fw_ver_tiny >= 4 && mgp->fw_ver_tiny <= 11) {
 		mgp->adopted_rx_filter_bug = 1;
 		dev_warn(dev, "Adopting fw %d.%d.%d: "
 			 "working around rx filter bug\n",
-			 mgp->fw_ver_major, mgp->fw_ver_minor,
+			 mgp->fw_ver_major, mgp->fw_ver_miyesr,
 			 mgp->fw_ver_tiny);
 	}
 	return status;
@@ -721,7 +721,7 @@ static int myri10ge_load_firmware(struct myri10ge_priv *mgp, int adopt)
 			return status;
 		dev_warn(&mgp->pdev->dev, "hotplug firmware loading failed\n");
 
-		/* Do not attempt to adopt firmware if there
+		/* Do yest attempt to adopt firmware if there
 		 * was a bad crc */
 		if (status == -EIO)
 			return status;
@@ -768,7 +768,7 @@ static int myri10ge_load_firmware(struct myri10ge_priv *mgp, int adopt)
 
 	/* FIX: All newest firmware should un-protect the bottom of
 	 * the sram before handoff. However, the very first interfaces
-	 * do not. Therefore the handoff copy must skip the first 8 bytes
+	 * do yest. Therefore the handoff copy must skip the first 8 bytes
 	 */
 	buf[3] = htonl(MYRI10GE_FW_OFFSET + 8);	/* where the code starts */
 	buf[4] = htonl(size - 8);	/* length of code */
@@ -930,10 +930,10 @@ static int myri10ge_reset(struct myri10ge_priv *mgp)
 
 	(void)myri10ge_dma_test(mgp, MXGEFW_DMA_TEST);
 	/*
-	 * Use non-ndis mcp_slot (eg, 4 bytes total,
-	 * no toeplitz hash value returned.  Older firmware will
-	 * not understand this command, but will use the correct
-	 * sized mcp_slot, so we ignore error returns
+	 * Use yesn-ndis mcp_slot (eg, 4 bytes total,
+	 * yes toeplitz hash value returned.  Older firmware will
+	 * yest understand this command, but will use the correct
+	 * sized mcp_slot, so we igyesre error returns
 	 */
 	cmd.data0 = MXGEFW_RSS_MCP_SLOT_TYPE_MIN;
 	(void)myri10ge_send_cmd(mgp, MXGEFW_CMD_SET_RSS_MCP_SLOT_TYPE, &cmd, 0);
@@ -945,7 +945,7 @@ static int myri10ge_reset(struct myri10ge_priv *mgp)
 	status = myri10ge_send_cmd(mgp, MXGEFW_CMD_SET_INTRQ_SIZE, &cmd, 0);
 
 	/*
-	 * Even though we already know how many slices are supported
+	 * Even though we already kyesw how many slices are supported
 	 * via myri10ge_probe_slices() MXGEFW_CMD_GET_MAX_RSS_QUEUES
 	 * has magic side effects, and must be called after a reset.
 	 * It must be called prior to calling any RSS related cmds,
@@ -1141,7 +1141,7 @@ static void myri10ge_teardown_dca(struct myri10ge_priv *mgp)
 	dca_remove_requester(&pdev->dev);
 }
 
-static int myri10ge_notify_dca_device(struct device *dev, void *data)
+static int myri10ge_yestify_dca_device(struct device *dev, void *data)
 {
 	struct myri10ge_priv *mgp;
 	unsigned long event;
@@ -1234,7 +1234,7 @@ myri10ge_alloc_rx_pages(struct myri10ge_priv *mgp, struct myri10ge_rx_buf *rx,
 		}
 		rx->info[idx].page = rx->page;
 		rx->info[idx].page_offset = rx->page_offset;
-		/* note that this is the address of the start of the
+		/* yeste that this is the address of the start of the
 		 * page */
 		dma_unmap_addr_set(&rx->info[idx], bus, rx->bus);
 		rx->shadow[idx].addr_low =
@@ -1275,8 +1275,8 @@ myri10ge_unmap_rx_page(struct pci_dev *pdev,
 }
 
 /*
- * GRO does not support acceleration of tagged vlan frames, and
- * this NIC does not support vlan tag offload, so we must pop
+ * GRO does yest support acceleration of tagged vlan frames, and
+ * this NIC does yest support vlan tag offload, so we must pop
  * the tag ourselves to be able to achieve GRO performance that
  * is comparable to LRO.
  */
@@ -1556,8 +1556,8 @@ static irqreturn_t myri10ge_intr(int irq, void *arg)
 	u32 send_done_count;
 	int i;
 
-	/* an interrupt on a non-zero receive-only slice is implicitly
-	 * valid  since MSI-X irqs are not shared */
+	/* an interrupt on a yesn-zero receive-only slice is implicitly
+	 * valid  since MSI-X irqs are yest shared */
 	if ((mgp->dev->real_num_tx_queues == 1) && (ss != mgp->ss)) {
 		napi_schedule(&ss->napi);
 		return IRQ_HANDLED;
@@ -1742,8 +1742,8 @@ static const char myri10ge_gstrings_main_stats[][ETH_GSTRING_LEN] = {
 	"dropped_link_error_or_filtered",
 	"dropped_pause", "dropped_bad_phy", "dropped_bad_crc32",
 	"dropped_unicast_filtered", "dropped_multicast_filtered",
-	"dropped_runt", "dropped_overrun", "dropped_no_small_buffer",
-	"dropped_no_big_buffer"
+	"dropped_runt", "dropped_overrun", "dropped_yes_small_buffer",
+	"dropped_yes_big_buffer"
 };
 
 static const char myri10ge_gstrings_slice_stats[][ETH_GSTRING_LEN] = {
@@ -1835,8 +1835,8 @@ myri10ge_get_ethtool_stats(struct net_device *netdev,
 	    (unsigned int)ntohl(ss->fw_stats->dropped_multicast_filtered);
 	data[i++] = (unsigned int)ntohl(ss->fw_stats->dropped_runt);
 	data[i++] = (unsigned int)ntohl(ss->fw_stats->dropped_overrun);
-	data[i++] = (unsigned int)ntohl(ss->fw_stats->dropped_no_small_buffer);
-	data[i++] = (unsigned int)ntohl(ss->fw_stats->dropped_no_big_buffer);
+	data[i++] = (unsigned int)ntohl(ss->fw_stats->dropped_yes_small_buffer);
+	data[i++] = (unsigned int)ntohl(ss->fw_stats->dropped_yes_big_buffer);
 
 	for (slice = 0; slice < mgp->num_slices; slice++) {
 		ss = &mgp->ss[slice];
@@ -1867,7 +1867,7 @@ static u32 myri10ge_get_msglevel(struct net_device *netdev)
 
 /*
  * Use a low-level command to change the LED behavior. Rather than
- * blinking (which is the normal case), when identify is used, the
+ * blinking (which is the yesrmal case), when identify is used, the
  * yellow LED turns solid.
  */
 static int myri10ge_led(struct myri10ge_priv *mgp, int on)
@@ -1888,7 +1888,7 @@ static int myri10ge_led(struct myri10ge_priv *mgp, int on)
 			       offsetof(struct mcp_gen_header, header_length)));
 	pattern_off = hdr_off + offsetof(struct mcp_gen_header, led_pattern);
 	if (pattern_off >= (hdr_len + hdr_off)) {
-		dev_info(dev, "Firmware does not support LED identification\n");
+		dev_info(dev, "Firmware does yest support LED identification\n");
 		return -EINVAL;
 	}
 	if (!on)
@@ -1970,7 +1970,7 @@ static int myri10ge_allocate_rings(struct myri10ge_slice_state *ss)
 	    * sizeof(*ss->tx.req_list);
 	ss->tx.req_bytes = kzalloc(bytes, GFP_KERNEL);
 	if (ss->tx.req_bytes == NULL)
-		goto abort_with_nothing;
+		goto abort_with_yesthing;
 
 	/* ensure req_list entries are aligned to 8 bytes */
 	ss->tx.req_list = (struct mcp_kreq_ether_send *)
@@ -2072,7 +2072,7 @@ abort_with_tx_req_bytes:
 	ss->tx.req_bytes = NULL;
 	ss->tx.req_list = NULL;
 
-abort_with_nothing:
+abort_with_yesthing:
 	return status;
 }
 
@@ -2083,7 +2083,7 @@ static void myri10ge_free_rings(struct myri10ge_slice_state *ss)
 	struct myri10ge_tx_buf *tx;
 	int i, len, idx;
 
-	/* If not allocated, skip it */
+	/* If yest allocated, skip it */
 	if (ss->tx.req_list == NULL)
 		return;
 
@@ -2286,7 +2286,7 @@ static int myri10ge_set_stats(struct myri10ge_priv *mgp, int slice)
 		status = myri10ge_send_cmd(mgp,
 					   MXGEFW_CMD_SET_STATS_DMA_OBSOLETE,
 					   &cmd, 0);
-		/* Firmware cannot support multicast without STATS_DMA_V2 */
+		/* Firmware canyest support multicast without STATS_DMA_V2 */
 		mgp->fw_multicast_support = 0;
 	} else {
 		mgp->fw_multicast_support = 1;
@@ -2309,7 +2309,7 @@ static int myri10ge_open(struct net_device *dev)
 	status = myri10ge_reset(mgp);
 	if (status != 0) {
 		netdev_err(dev, "failed reset\n");
-		goto abort_with_nothing;
+		goto abort_with_yesthing;
 	}
 
 	if (mgp->num_slices > 1) {
@@ -2321,7 +2321,7 @@ static int myri10ge_open(struct net_device *dev)
 					   &cmd, 0);
 		if (status != 0) {
 			netdev_err(dev, "failed to set number of slices\n");
-			goto abort_with_nothing;
+			goto abort_with_yesthing;
 		}
 		/* setup the indirection table */
 		cmd.data0 = mgp->num_slices;
@@ -2333,7 +2333,7 @@ static int myri10ge_open(struct net_device *dev)
 					    &cmd, 0);
 		if (status != 0) {
 			netdev_err(dev, "failed to setup rss tables\n");
-			goto abort_with_nothing;
+			goto abort_with_yesthing;
 		}
 
 		/* just enable an identity mapping */
@@ -2347,27 +2347,27 @@ static int myri10ge_open(struct net_device *dev)
 					   &cmd, 0);
 		if (status != 0) {
 			netdev_err(dev, "failed to enable slices\n");
-			goto abort_with_nothing;
+			goto abort_with_yesthing;
 		}
 	}
 
 	status = myri10ge_request_irq(mgp);
 	if (status != 0)
-		goto abort_with_nothing;
+		goto abort_with_yesthing;
 
 	/* decide what small buffer size to use.  For good TCP rx
-	 * performance, it is important to not receive 1514 byte
+	 * performance, it is important to yest receive 1514 byte
 	 * frames into jumbo buffers, as it confuses the socket buffer
 	 * accounting code, leading to drops and erratic performance.
 	 */
 
 	if (dev->mtu <= ETH_DATA_LEN)
-		/* enough for a TCP header */
+		/* eyesugh for a TCP header */
 		mgp->small_bytes = (128 > SMP_CACHE_BYTES)
 		    ? (128 - MXGEFW_PAD)
 		    : (SMP_CACHE_BYTES - MXGEFW_PAD);
 	else
-		/* enough for a vlan encapsulated ETH_DATA_LEN frame */
+		/* eyesugh for a vlan encapsulated ETH_DATA_LEN frame */
 		mgp->small_bytes = VLAN_ETH_FRAME_LEN;
 
 	/* Override the small buffer size? */
@@ -2402,7 +2402,7 @@ static int myri10ge_open(struct net_device *dev)
 			goto abort_with_rings;
 
 		/* only firmware which supports multiple TX queues
-		 * supports setting up the tx stats on non-zero
+		 * supports setting up the tx stats on yesn-zero
 		 * slices */
 		if (slice == 0 || mgp->dev->real_num_tx_queues > 1)
 			status = myri10ge_set_stats(mgp, slice);
@@ -2415,7 +2415,7 @@ static int myri10ge_open(struct net_device *dev)
 		napi_enable(&(ss)->napi);
 	}
 
-	/* now give firmware buffers sizes, and MTU */
+	/* yesw give firmware buffers sizes, and MTU */
 	cmd.data0 = dev->mtu + ETH_HLEN + VLAN_HLEN;
 	status = myri10ge_send_cmd(mgp, MXGEFW_CMD_SET_MTU, &cmd, 0);
 	cmd.data0 = mgp->small_bytes;
@@ -2467,7 +2467,7 @@ abort_with_rings:
 
 	myri10ge_free_irq(mgp);
 
-abort_with_nothing:
+abort_with_yesthing:
 	mgp->running = MYRI10GE_ETH_STOPPED;
 	return -ENOMEM;
 }
@@ -2613,7 +2613,7 @@ static void myri10ge_unmap_tx_dma(struct myri10ge_priv *mgp,
 
 /*
  * Transmit a packet.  We need to split the packet so that a single
- * segment does not cross myri10ge->tx_boundary, so this makes segment
+ * segment does yest cross myri10ge->tx_boundary, so this makes segment
  * counting tricky.  So rather than try to count segments up front, we
  * just give up if there are too few segments to hold a reasonably
  * fragmented packet currently available.  If we run
@@ -2742,7 +2742,7 @@ again:
 
 	/* "rdma_count" is the number of RDMAs belonging to the
 	 * current packet BEFORE the current send request. For
-	 * non-TSO packets, this is equal to "count".
+	 * yesn-TSO packets, this is equal to "count".
 	 * For TSO packets, rdma_count needs to be reset
 	 * to 0 after a segment cut.
 	 *
@@ -2753,14 +2753,14 @@ again:
 	 * after the last cut in the request. All previous
 	 * segments before the last cut implicitly have 1 RDMA.
 	 *
-	 * Since the number of RDMAs is not known beforehand,
+	 * Since the number of RDMAs is yest kyeswn beforehand,
 	 * it must be filled-in retroactively - after each
 	 * segmentation cut or at the end of the entire packet.
 	 */
 
 	while (1) {
 		/* Break the SKB or Fragment up into pieces which
-		 * do not cross mgp->tx_boundary */
+		 * do yest cross mgp->tx_boundary */
 		low = MYRI10GE_LOWPART_TO_U32(bus);
 		high_swapped = htonl(MYRI10GE_HIGHPART_TO_U32(bus));
 		while (len) {
@@ -2957,7 +2957,7 @@ static void myri10ge_set_multicast_list(struct net_device *dev)
 	 * pass 1 to force atomicity in myri10ge_send_cmd() */
 	myri10ge_change_promisc(mgp, dev->flags & IFF_PROMISC, 1);
 
-	/* This firmware is known to not support multicast */
+	/* This firmware is kyeswn to yest support multicast */
 	if (!mgp->fw_multicast_support)
 		return;
 
@@ -3088,12 +3088,12 @@ static void myri10ge_enable_ecrc(struct myri10ge_priv *mgp)
 				 PCI_EXP_TYPE_ROOT_PORT);
 
 			dev_info(dev,
-				 "Forcing ECRC on non-root port %s"
+				 "Forcing ECRC on yesn-root port %s"
 				 " (enabling on root port %s)\n",
 				 pci_name(old_bridge), pci_name(bridge));
 		} else {
 			dev_err(dev,
-				"Not enabling ECRC on non-root port %s\n",
+				"Not enabling ECRC on yesn-root port %s\n",
 				pci_name(bridge));
 			return;
 		}
@@ -3107,7 +3107,7 @@ static void myri10ge_enable_ecrc(struct myri10ge_priv *mgp)
 	if (ret) {
 		dev_err(dev, "failed reading ext-conf-space of %s\n",
 			pci_name(bridge));
-		dev_err(dev, "\t pci=nommconf in use? "
+		dev_err(dev, "\t pci=yesmmconf in use? "
 			"or buggy/incomplete/absent ACPI MCFG attr?\n");
 		return;
 	}
@@ -3123,13 +3123,13 @@ static void myri10ge_enable_ecrc(struct myri10ge_priv *mgp)
  * The Lanai Z8E PCI-E interface achieves higher Read-DMA throughput
  * when the PCI-E Completion packets are aligned on an 8-byte
  * boundary.  Some PCI-E chip sets always align Completion packets; on
- * the ones that do not, the alignment can be enforced by enabling
+ * the ones that do yest, the alignment can be enforced by enabling
  * ECRC generation (if supported).
  *
- * When PCI-E Completion packets are not aligned, it is actually more
+ * When PCI-E Completion packets are yest aligned, it is actually more
  * efficient to limit Read-DMA transactions to 2KB, rather than 4KB.
  *
- * If the driver can neither enable ECRC nor verify that it has
+ * If the driver can neither enable ECRC yesr verify that it has
  * already been enabled, then it must use a firmware image which works
  * around unaligned completion packets (myri10ge_rss_ethp_z8e.dat), and it
  * should also ensure that it never gives the device a Read-DMA which is
@@ -3205,7 +3205,7 @@ static void myri10ge_select_firmware(struct myri10ge_priv *mgp)
 		link_width = (lnk >> 4) & 0x3f;
 
 		/* Check to see if Link is less than 8 or if the
-		 * upstream bridge is known to provide aligned
+		 * upstream bridge is kyeswn to provide aligned
 		 * completions */
 		if (link_width < 8) {
 			dev_info(&mgp->pdev->dev, "PCIE x%d Link\n",
@@ -3423,10 +3423,10 @@ static void myri10ge_watchdog(struct work_struct *work)
 	if ((cmd & PCI_COMMAND_MASTER) == 0) {
 		/* Bus master DMA disabled?  Check to see
 		 * if the card rebooted due to a parity error
-		 * For now, just report it */
+		 * For yesw, just report it */
 		reboot = myri10ge_read_reboot(mgp);
 		netdev_err(mgp->dev, "NIC rebooted (0x%x),%s resetting\n",
-			   reboot, myri10ge_reset_recover ? "" : " not");
+			   reboot, myri10ge_reset_recover ? "" : " yest");
 		if (myri10ge_reset_recover == 0)
 			return;
 		rtnl_lock();
@@ -3459,7 +3459,7 @@ static void myri10ge_watchdog(struct work_struct *work)
 			}
 		}
 		/* Perhaps it is a software error. See if stuck slice
-		 * has recovered, reset if not */
+		 * has recovered, reset if yest */
 		rx_pause_cnt = ntohl(mgp->ss[0].fw_stats->dropped_pause);
 		for (i = 0; i < mgp->num_slices; i++) {
 			ss = mgp->ss;
@@ -3471,7 +3471,7 @@ static void myri10ge_watchdog(struct work_struct *work)
 			}
 		}
 		if (!reset_needed) {
-			netdev_dbg(mgp->dev, "not resetting\n");
+			netdev_dbg(mgp->dev, "yest resetting\n");
 			return;
 		}
 
@@ -3494,7 +3494,7 @@ static void myri10ge_watchdog(struct work_struct *work)
  * We use our own timer routine rather than relying upon
  * netdev->tx_timeout because we have a very large hardware transmit
  * queue.  Due to the large queue, the netdev->tx_timeout function
- * cannot detect a NIC with a parity error in a timely fashion if the
+ * canyest detect a NIC with a parity error in a timely fashion if the
  * NIC is lightly loaded.
  */
 static void myri10ge_watchdog_timer(struct timer_list *t)
@@ -3531,8 +3531,8 @@ static void myri10ge_watchdog_timer(struct timer_list *t)
 		myri10ge_check_slice(ss, &reset_needed, &busy_slice_cnt,
 				     rx_pause_cnt);
 	}
-	/* if we've sent or received no traffic, poll the NIC to
-	 * ensure it is still there.  Otherwise, we risk not noticing
+	/* if we've sent or received yes traffic, poll the NIC to
+	 * ensure it is still there.  Otherwise, we risk yest yesticing
 	 * an error in a timely fashion */
 	if (busy_slice_cnt == 0) {
 		pci_read_config_word(mgp->pdev, PCI_COMMAND, &cmd);
@@ -3579,7 +3579,7 @@ static void myri10ge_free_slices(struct myri10ge_priv *mgp)
 		napi_hash_del(&ss->napi);
 		netif_napi_del(&ss->napi);
 	}
-	/* Wait till napi structs are no longer used, and then free ss. */
+	/* Wait till napi structs are yes longer used, and then free ss. */
 	synchronize_rcu();
 	kfree(mgp->ss);
 	mgp->ss = NULL;
@@ -3660,7 +3660,7 @@ static void myri10ge_probe_slices(struct myri10ge_priv *mgp)
 		set_fw_name(mgp, myri10ge_fw_rss_unaligned, false);
 	status = myri10ge_load_firmware(mgp, 0);
 	if (status != 0) {
-		dev_info(&pdev->dev, "Rss firmware not found\n");
+		dev_info(&pdev->dev, "Rss firmware yest found\n");
 		if (old_allocated)
 			kfree(old_fw);
 		return;
@@ -3696,7 +3696,7 @@ static void myri10ge_probe_slices(struct myri10ge_priv *mgp)
 		goto abort_with_fw;
 	}
 
-	/* if the admin did not specify a limit to how many
+	/* if the admin did yest specify a limit to how many
 	 * slices we should use, cap it automatically to the
 	 * number of CPUs currently online */
 	if (myri10ge_max_slices == -1)
@@ -3712,7 +3712,7 @@ static void myri10ge_probe_slices(struct myri10ge_priv *mgp)
 	mgp->msix_vectors = kcalloc(mgp->num_slices, sizeof(*mgp->msix_vectors),
 				    GFP_KERNEL);
 	if (mgp->msix_vectors == NULL)
-		goto no_msix;
+		goto yes_msix;
 	for (i = 0; i < mgp->num_slices; i++) {
 		mgp->msix_vectors[i].entry = i;
 	}
@@ -3720,13 +3720,13 @@ static void myri10ge_probe_slices(struct myri10ge_priv *mgp)
 	while (mgp->num_slices > 1) {
 		mgp->num_slices = rounddown_pow_of_two(mgp->num_slices);
 		if (mgp->num_slices == 1)
-			goto no_msix;
+			goto yes_msix;
 		status = pci_enable_msix_range(pdev,
 					       mgp->msix_vectors,
 					       mgp->num_slices,
 					       mgp->num_slices);
 		if (status < 0)
-			goto no_msix;
+			goto yes_msix;
 
 		pci_disable_msix(pdev);
 
@@ -3739,7 +3739,7 @@ static void myri10ge_probe_slices(struct myri10ge_priv *mgp)
 		}
 	}
 
-no_msix:
+yes_msix:
 	if (mgp->msix_vectors != NULL) {
 		kfree(mgp->msix_vectors);
 		mgp->msix_vectors = NULL;
@@ -4043,19 +4043,19 @@ static struct pci_driver myri10ge_driver = {
 
 #ifdef CONFIG_MYRI10GE_DCA
 static int
-myri10ge_notify_dca(struct notifier_block *nb, unsigned long event, void *p)
+myri10ge_yestify_dca(struct yestifier_block *nb, unsigned long event, void *p)
 {
 	int err = driver_for_each_device(&myri10ge_driver.driver,
 					 NULL, &event,
-					 myri10ge_notify_dca_device);
+					 myri10ge_yestify_dca_device);
 
 	if (err)
 		return NOTIFY_BAD;
 	return NOTIFY_DONE;
 }
 
-static struct notifier_block myri10ge_dca_notifier = {
-	.notifier_call = myri10ge_notify_dca,
+static struct yestifier_block myri10ge_dca_yestifier = {
+	.yestifier_call = myri10ge_yestify_dca,
 	.next = NULL,
 	.priority = 0,
 };
@@ -4071,7 +4071,7 @@ static __init int myri10ge_init_module(void)
 		myri10ge_rss_hash = MXGEFW_RSS_HASH_TYPE_SRC_PORT;
 	}
 #ifdef CONFIG_MYRI10GE_DCA
-	dca_register_notify(&myri10ge_dca_notifier);
+	dca_register_yestify(&myri10ge_dca_yestifier);
 #endif
 	if (myri10ge_max_slices > MYRI10GE_MAX_SLICES)
 		myri10ge_max_slices = MYRI10GE_MAX_SLICES;
@@ -4084,7 +4084,7 @@ module_init(myri10ge_init_module);
 static __exit void myri10ge_cleanup_module(void)
 {
 #ifdef CONFIG_MYRI10GE_DCA
-	dca_unregister_notify(&myri10ge_dca_notifier);
+	dca_unregister_yestify(&myri10ge_dca_yestifier);
 #endif
 	pci_unregister_driver(&myri10ge_driver);
 }

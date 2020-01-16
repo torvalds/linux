@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -80,7 +80,7 @@ static int dcn21_init_sys_ctx(struct dce_hwseq *hws, struct dc *dc, struct dc_ph
 	return dc->res_pool->hubbub->funcs->init_dchub_sys_ctx(dc->res_pool->hubbub, &config);
 }
 
-// work around for Renoir s0i3, if register is programmed, bypass golden init.
+// work around for Reyesir s0i3, if register is programmed, bypass golden init.
 
 static bool dcn21_s0i3_golden_init_wa(struct dc *dc)
 {

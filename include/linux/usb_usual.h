@@ -11,7 +11,7 @@
 #define __LINUX_USB_USUAL_H
 
 
-/* We should do this for cleanliness... But other usb_foo.h do not do this. */
+/* We should do this for cleanliness... But other usb_foo.h do yest do this. */
 /* #include <linux/usb.h> */
 
 /*
@@ -39,7 +39,7 @@
 	US_FLAG(BULK32,		0x00000040)			\
 		/* Uses 32-byte CBW length */			\
 	US_FLAG(NOT_LOCKABLE,	0x00000080)			\
-		/* PREVENT/ALLOW not supported */		\
+		/* PREVENT/ALLOW yest supported */		\
 	US_FLAG(GO_SLOW,	0x00000100)			\
 		/* Need delay after Command phase */		\
 	US_FLAG(NO_WP_DETECT,	0x00000200)			\
@@ -53,7 +53,7 @@
 	US_FLAG(MAX_SECTORS_MIN,0x00002000)			\
 		/* Sets max_sectors to arch min */		\
 	US_FLAG(BULK_IGNORE_TAG,0x00004000)			\
-		/* Ignore tag mismatch in bulk operations */    \
+		/* Igyesre tag mismatch in bulk operations */    \
 	US_FLAG(SANE_SENSE,     0x00008000)			\
 		/* Sane Sense (> 18 bytes) */			\
 	US_FLAG(CAPACITY_OK,	0x00010000)			\
@@ -61,27 +61,27 @@
 	US_FLAG(BAD_SENSE,	0x00020000)			\
 		/* Bad Sense (never more than 18 bytes) */	\
 	US_FLAG(NO_READ_DISC_INFO,	0x00040000)		\
-		/* cannot handle READ_DISC_INFO */		\
+		/* canyest handle READ_DISC_INFO */		\
 	US_FLAG(NO_READ_CAPACITY_16,	0x00080000)		\
-		/* cannot handle READ_CAPACITY_16 */		\
+		/* canyest handle READ_CAPACITY_16 */		\
 	US_FLAG(INITIAL_READ10,	0x00100000)			\
 		/* Initial READ(10) (and others) must be retried */	\
 	US_FLAG(WRITE_CACHE,	0x00200000)			\
-		/* Write Cache status is not available */	\
+		/* Write Cache status is yest available */	\
 	US_FLAG(NEEDS_CAP16,	0x00400000)			\
-		/* cannot handle READ_CAPACITY_10 */		\
+		/* canyest handle READ_CAPACITY_10 */		\
 	US_FLAG(IGNORE_UAS,	0x00800000)			\
 		/* Device advertises UAS but it is broken */	\
 	US_FLAG(BROKEN_FUA,	0x01000000)			\
-		/* Cannot handle FUA in WRITE or READ CDBs */	\
+		/* Canyest handle FUA in WRITE or READ CDBs */	\
 	US_FLAG(NO_ATA_1X,	0x02000000)			\
-		/* Cannot handle ATA_12 or ATA_16 CDBs */	\
+		/* Canyest handle ATA_12 or ATA_16 CDBs */	\
 	US_FLAG(NO_REPORT_OPCODES,	0x04000000)		\
-		/* Cannot handle MI_REPORT_SUPPORTED_OPERATION_CODES */	\
+		/* Canyest handle MI_REPORT_SUPPORTED_OPERATION_CODES */	\
 	US_FLAG(MAX_SECTORS_240,	0x08000000)		\
 		/* Sets max_sectors to 240 */			\
 	US_FLAG(NO_REPORT_LUNS,	0x10000000)			\
-		/* Cannot handle REPORT_LUNS */			\
+		/* Canyest handle REPORT_LUNS */			\
 	US_FLAG(ALWAYS_SYNC, 0x20000000)			\
 		/* lies about caching, so always sync */	\
 
@@ -91,7 +91,7 @@ enum { US_DO_ALL_FLAGS };
 
 #include <linux/usb/storage.h>
 
-extern int usb_usual_ignore_device(struct usb_interface *intf);
+extern int usb_usual_igyesre_device(struct usb_interface *intf);
 extern struct usb_device_id usb_storage_usb_ids[];
 
 #endif /* __LINUX_USB_USUAL_H */

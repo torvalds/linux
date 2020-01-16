@@ -29,7 +29,7 @@
 #include <internal/lib.h> // page_size
 #include "../../util/session.h"
 
-#include <errno.h>
+#include <erryes.h>
 #include <stdlib.h>
 #include <sys/stat.h>
 
@@ -88,7 +88,7 @@ static int cs_etm_set_context_id(struct auxtrace_record *itr,
 	/*
 	 * TRCIDR2.CIDSIZE, bit [9-5], indicates whether contextID tracing
 	 * is supported:
-	 *  0b00000 Context ID tracing is not supported.
+	 *  0b00000 Context ID tracing is yest supported.
 	 *  0b00100 Maximum of 32-bit Context ID size.
 	 *  All other values are reserved.
 	 */
@@ -98,7 +98,7 @@ static int cs_etm_set_context_id(struct auxtrace_record *itr,
 		goto out;
 	}
 
-	/* All good, let the kernel know */
+	/* All good, let the kernel kyesw */
 	evsel->core.attr.config |= (1 << ETM_OPT_CTXTID);
 	err = 0;
 
@@ -137,7 +137,7 @@ static int cs_etm_set_timestamp(struct auxtrace_record *itr,
 	/*
 	 * TRCIDR0.TSSIZE, bit [28-24], indicates whether global timestamping
 	 * is supported:
-	 *  0b00000 Global timestamping is not implemented
+	 *  0b00000 Global timestamping is yest implemented
 	 *  0b00110 Implementation supports a maximum timestamp of 48bits.
 	 *  0b01000 Implementation supports a maximum timestamp of 64bits.
 	 */
@@ -147,7 +147,7 @@ static int cs_etm_set_timestamp(struct auxtrace_record *itr,
 		goto out;
 	}
 
-	/* All good, let the kernel know */
+	/* All good, let the kernel kyesw */
 	evsel->core.attr.config |= (1 << ETM_OPT_TS);
 	err = 0;
 
@@ -232,8 +232,8 @@ static int cs_etm_set_sink_attr(struct perf_pmu *pmu,
 		ret = perf_pmu__scan_file(pmu, path, "%x", &hash);
 		if (ret != 1) {
 			pr_err("failed to set sink \"%s\" on event %s with %d (%s)\n",
-			       sink, perf_evsel__name(evsel), errno,
-			       str_error_r(errno, msg, sizeof(msg)));
+			       sink, perf_evsel__name(evsel), erryes,
+			       str_error_r(erryes, msg, sizeof(msg)));
 			return ret;
 		}
 
@@ -242,7 +242,7 @@ static int cs_etm_set_sink_attr(struct perf_pmu *pmu,
 	}
 
 	/*
-	 * No sink was provided on the command line - for _now_ treat
+	 * No sink was provided on the command line - for _yesw_ treat
 	 * this as an error.
 	 */
 	return ret;
@@ -258,7 +258,7 @@ static int cs_etm_recording_options(struct auxtrace_record *itr,
 	struct perf_pmu *cs_etm_pmu = ptr->cs_etm_pmu;
 	struct evsel *evsel, *cs_etm_evsel = NULL;
 	struct perf_cpu_map *cpus = evlist->core.cpus;
-	bool privileged = perf_event_paranoid_check(-1);
+	bool privileged = perf_event_parayesid_check(-1);
 	int err = 0;
 
 	ptr->evlist = evlist;
@@ -281,7 +281,7 @@ static int cs_etm_recording_options(struct auxtrace_record *itr,
 		}
 	}
 
-	/* no need to continue if at least one event of interest was found */
+	/* yes need to continue if at least one event of interest was found */
 	if (!cs_etm_evsel)
 		return 0;
 
@@ -290,7 +290,7 @@ static int cs_etm_recording_options(struct auxtrace_record *itr,
 		return ret;
 
 	if (opts->use_clockid) {
-		pr_err("Cannot use clockid (-k option) with %s\n",
+		pr_err("Canyest use clockid (-k option) with %s\n",
 		       CORESIGHT_ETM_PMU_NAME);
 		return -EINVAL;
 	}
@@ -317,7 +317,7 @@ static int cs_etm_recording_options(struct auxtrace_record *itr,
 		}
 
 		/*
-		 * '-m,xyz' was specified but no snapshot size, so make the
+		 * '-m,xyz' was specified but yes snapshot size, so make the
 		 * snapshot size as big as the auxtrace mmap area.
 		 */
 		if (!opts->auxtrace_snapshot_size) {
@@ -326,8 +326,8 @@ static int cs_etm_recording_options(struct auxtrace_record *itr,
 		}
 
 		/*
-		 * -Sxyz was specified but no auxtrace mmap area, so make the
-		 * auxtrace mmap area big enough to fit the requested snapshot
+		 * -Sxyz was specified but yes auxtrace mmap area, so make the
+		 * auxtrace mmap area big eyesugh to fit the requested snapshot
 		 * size.
 		 */
 		if (!opts->auxtrace_mmap_pages) {
@@ -340,7 +340,7 @@ static int cs_etm_recording_options(struct auxtrace_record *itr,
 		/* Snapshost size can't be bigger than the auxtrace area */
 		if (opts->auxtrace_snapshot_size >
 				opts->auxtrace_mmap_pages * (size_t)page_size) {
-			pr_err("Snapshot size %zu must not be greater than AUX area tracing mmap size %zu\n",
+			pr_err("Snapshot size %zu must yest be greater than AUX area tracing mmap size %zu\n",
 			       opts->auxtrace_snapshot_size,
 			       opts->auxtrace_mmap_pages * (size_t)page_size);
 			return -EINVAL;
@@ -397,7 +397,7 @@ static int cs_etm_recording_options(struct auxtrace_record *itr,
 
 	/*
 	 * In the case of per-cpu mmaps, we need the CPU on the
-	 * AUX event.  We also need the contextID in order to be notified
+	 * AUX event.  We also need the contextID in order to be yestified
 	 * when a context switch happened.
 	 */
 	if (!perf_cpu_map__empty(cpus)) {
@@ -496,7 +496,7 @@ cs_etm_info_priv_size(struct auxtrace_record *itr __maybe_unused,
 	struct perf_cpu_map *event_cpus = evlist->core.cpus;
 	struct perf_cpu_map *online_cpus = perf_cpu_map__new(NULL);
 
-	/* cpu map is not empty, we have specific CPUs to work with */
+	/* cpu map is yest empty, we have specific CPUs to work with */
 	if (!perf_cpu_map__empty(event_cpus)) {
 		for (i = 0; i < cpu__max_cpu(); i++) {
 			if (!cpu_map__has(event_cpus, i) ||
@@ -700,7 +700,7 @@ static int cs_etm_alloc_wrapped_array(struct cs_etm_recording *ptr, int idx)
 	/*
 	 * Free'ed in cs_etm_recording_free().  Using realloc() to avoid
 	 * cross compilation problems where the host's system supports
-	 * reallocarray() but not the target.
+	 * reallocarray() but yest the target.
 	 */
 	wrapped = realloc(ptr->wrapped, cnt * sizeof(bool));
 	if (!wrapped)
@@ -735,7 +735,7 @@ static bool cs_etm_buffer_has_wrapped(unsigned char *buffer,
 
 	/*
 	 * The value of @head is somewhere within the size of the ring buffer.
-	 * This can be that there hasn't been enough data to fill the ring
+	 * This can be that there hasn't been eyesugh data to fill the ring
 	 * buffer yet or the trace time was so long that @head has numerically
 	 * wrapped around.  To find we need to check if we have data at the very
 	 * end of the ring buffer.  We can reliably do this because mmap'ed

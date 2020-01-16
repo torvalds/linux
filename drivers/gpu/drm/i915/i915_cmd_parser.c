@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -37,14 +37,14 @@
  * Certain OpenGL features (e.g. transform feedback, performance monitoring)
  * require userspace code to submit batches containing commands such as
  * MI_LOAD_REGISTER_IMM to access various registers. Unfortunately, some
- * generations of the hardware will noop these commands in "unsecure" batches
+ * generations of the hardware will yesop these commands in "unsecure" batches
  * (which includes all userspace batches submitted via i915) even though the
  * commands may be safe and represent the intended programming model of the
  * device.
  *
  * The software command parser is similar in operation to the command parsing
  * done in hardware for unsecure batches. However, the software parser allows
- * some operations that would be noop'd by hardware, if the parser determines
+ * some operations that would be yesop'd by hardware, if the parser determines
  * the operation is safe, and submits the batch as "secure" to prevent hardware
  * parsing.
  *
@@ -73,10 +73,10 @@
  * smaller than the number of commands supported, the parser tables contain only
  * those commands required by the parser. This generally works because command
  * opcode ranges have standard command length encodings. So for commands that
- * the parser does not need to check, it can easily skip them. This is
+ * the parser does yest need to check, it can easily skip them. This is
  * implemented via a per-engine length decoding vfunc.
  *
- * Unfortunately, there are a number of commands that do not follow the standard
+ * Unfortunately, there are a number of commands that do yest follow the standard
  * length encoding for their opcode range, primarily amongst the MI_* commands.
  * To handle this, the parser provides a way to define explicit "skip" entries
  * in the per-engine command tables.
@@ -95,8 +95,8 @@ struct drm_i915_cmd_descriptor {
 	 * Flags describing how the command parser processes the command.
 	 *
 	 * CMD_DESC_FIXED: The command has a fixed length if this is set,
-	 *                 a length mask if not set
-	 * CMD_DESC_SKIP: The command is allowed but does not follow the
+	 *                 a length mask if yest set
+	 * CMD_DESC_SKIP: The command is allowed but does yest follow the
 	 *                standard length encoding for the opcode range in
 	 *                which it falls
 	 * CMD_DESC_REJECT: The command is never allowed
@@ -122,7 +122,7 @@ struct drm_i915_cmd_descriptor {
 
 	/*
 	 * The command's length. The command is either fixed length (i.e. does
-	 * not include a length field) or has a length field mask. The flag
+	 * yest include a length field) or has a length field mask. The flag
 	 * CMD_DESC_FIXED indicates a fixed length. Otherwise, the command has
 	 * a length mask. All command entries in a command table must include
 	 * length information.
@@ -137,7 +137,7 @@ struct drm_i915_cmd_descriptor {
 	 * against the ring's register whitelist. Only valid if flags has the
 	 * CMD_DESC_REGISTER bit set.
 	 *
-	 * A non-zero step value implies that the command may access multiple
+	 * A yesn-zero step value implies that the command may access multiple
 	 * registers in sequence (e.g. LRI), in that case step gives the
 	 * distance in dwords between individual offset fields.
 	 */
@@ -150,14 +150,14 @@ struct drm_i915_cmd_descriptor {
 #define MAX_CMD_DESC_BITMASKS 3
 	/*
 	 * Describes command checks where a particular dword is masked and
-	 * compared against an expected value. If the command does not match
+	 * compared against an expected value. If the command does yest match
 	 * the expected value, the parser rejects it. Only valid if flags has
-	 * the CMD_DESC_BITMASK bit set. Only entries where mask is non-zero
+	 * the CMD_DESC_BITMASK bit set. Only entries where mask is yesn-zero
 	 * are valid.
 	 *
-	 * If the check specifies a non-zero condition_mask then the parser
+	 * If the check specifies a yesn-zero condition_mask then the parser
 	 * only performs the check when the bits specified by condition_mask
-	 * are non-zero.
+	 * are yesn-zero.
 	 */
 	struct {
 		u32 offset;
@@ -233,7 +233,7 @@ static const struct drm_i915_cmd_descriptor gen7_common_cmds[] = {
 			.expected = 0,
 	      }},						       ),
 	/*
-	 * MI_BATCH_BUFFER_START requires some special handling. It's not
+	 * MI_BATCH_BUFFER_START requires some special handling. It's yest
 	 * really a 'skip' action but it doesn't seem like it's worth adding
 	 * a new action. See i915_parse_cmds().
 	 */
@@ -362,7 +362,7 @@ static const struct drm_i915_cmd_descriptor gen7_video_cmds[] = {
 	      }},						       ),
 	/*
 	 * MFX_WAIT doesn't fit the way we handle length for most commands.
-	 * It has a length field but it uses a non-standard length bias.
+	 * It has a length field but it uses a yesn-standard length bias.
 	 * It is always 1 dword though, so just treat it as fixed length.
 	 */
 	CMD(  MFX_WAIT,                         SMFX,   F,  1,      S  ),
@@ -451,13 +451,13 @@ static const struct drm_i915_cmd_descriptor hsw_blt_cmds[] = {
  * register accesses. The table doesn't need to reject any commands, and so
  * the only commands listed here are:
  *   1) Those that touch registers
- *   2) Those that do not have the default 8-bit length
+ *   2) Those that do yest have the default 8-bit length
  *
- * Note that the default MI length mask chosen for this table is 0xFF, not
+ * Note that the default MI length mask chosen for this table is 0xFF, yest
  * the 0x3F used on older devices. This is because the vast majority of MI
  * cmds on Gen9 use a standard 8-bit Length field.
  * All the Gen9 blitter instructions are standard 0xFF length mask, and
- * none allow access to non-general registers, so in fact no BLT cmds are
+ * yesne allow access to yesn-general registers, so in fact yes BLT cmds are
  * included in the table at all.
  *
  */
@@ -498,7 +498,7 @@ static const struct drm_i915_cmd_descriptor gen9_blt_cmds[] = {
 	      }},						       ),
 };
 
-static const struct drm_i915_cmd_descriptor noop_desc =
+static const struct drm_i915_cmd_descriptor yesop_desc =
 	CMD(MI_NOOP, SMI, F, 1, S);
 
 #undef CMD
@@ -555,11 +555,11 @@ static const struct drm_i915_cmd_table gen9_blt_cmd_table[] = {
 
 /*
  * An individual whitelist entry granting access to register addr.  If
- * mask is non-zero the argument of immediate register writes will be
+ * mask is yesn-zero the argument of immediate register writes will be
  * AND-ed with mask, and the command will be rejected if the result
  * doesn't match value.
  *
- * Registers with non-zero mask are only allowed to be written using
+ * Registers with yesn-zero mask are only allowed to be written using
  * LRI.
  */
 struct drm_i915_reg_descriptor {
@@ -731,7 +731,7 @@ static u32 gen7_render_get_cmd_length_mask(u32 cmd_header)
 			return 0xFF;
 	}
 
-	DRM_DEBUG_DRIVER("CMD: Abnormal rcs cmd length! 0x%08X\n", cmd_header);
+	DRM_DEBUG_DRIVER("CMD: Abyesrmal rcs cmd length! 0x%08X\n", cmd_header);
 	return 0;
 }
 
@@ -754,7 +754,7 @@ static u32 gen7_bsd_get_cmd_length_mask(u32 cmd_header)
 			return 0xFF;
 	}
 
-	DRM_DEBUG_DRIVER("CMD: Abnormal bsd cmd length! 0x%08X\n", cmd_header);
+	DRM_DEBUG_DRIVER("CMD: Abyesrmal bsd cmd length! 0x%08X\n", cmd_header);
 	return 0;
 }
 
@@ -767,7 +767,7 @@ static u32 gen7_blt_get_cmd_length_mask(u32 cmd_header)
 	else if (client == INSTR_BC_CLIENT)
 		return 0xFF;
 
-	DRM_DEBUG_DRIVER("CMD: Abnormal blt cmd length! 0x%08X\n", cmd_header);
+	DRM_DEBUG_DRIVER("CMD: Abyesrmal blt cmd length! 0x%08X\n", cmd_header);
 	return 0;
 }
 
@@ -778,7 +778,7 @@ static u32 gen9_blt_get_cmd_length_mask(u32 cmd_header)
 	if (client == INSTR_MI_CLIENT || client == INSTR_BC_CLIENT)
 		return 0xFF;
 
-	DRM_DEBUG_DRIVER("CMD: Abnormal blt cmd length! 0x%08X\n", cmd_header);
+	DRM_DEBUG_DRIVER("CMD: Abyesrmal blt cmd length! 0x%08X\n", cmd_header);
 	return 0;
 }
 
@@ -803,7 +803,7 @@ static bool validate_cmds_sorted(const struct intel_engine_cs *engine,
 			u32 curr = desc->cmd.value & desc->cmd.mask;
 
 			if (curr < previous) {
-				DRM_ERROR("CMD: %s [%d] command table not sorted: "
+				DRM_ERROR("CMD: %s [%d] command table yest sorted: "
 					  "table=%d entry=%d cmd=0x%08X prev=0x%08X\n",
 					  engine->name, engine->id,
 					  i, j, curr, previous);
@@ -829,7 +829,7 @@ static bool check_sorted(const struct intel_engine_cs *engine,
 		u32 curr = i915_mmio_reg_offset(reg_table[i].addr);
 
 		if (curr < previous) {
-			DRM_ERROR("CMD: %s [%d] register table not sorted: "
+			DRM_ERROR("CMD: %s [%d] register table yest sorted: "
 				  "entry=%d reg=0x%08X prev=0x%08X\n",
 				  engine->name, engine->id,
 				  i, curr, previous);
@@ -856,9 +856,9 @@ static bool validate_regs_sorted(struct intel_engine_cs *engine)
 	return true;
 }
 
-struct cmd_node {
+struct cmd_yesde {
 	const struct drm_i915_cmd_descriptor *desc;
-	struct hlist_node node;
+	struct hlist_yesde yesde;
 };
 
 /*
@@ -867,9 +867,9 @@ struct cmd_node {
  * problem is that, for example, MI commands use bits 22:16 for other fields
  * such as GGTT vs PPGTT bits. If we include those bits in the mask then when
  * we mask a command from a batch it could hash to the wrong bucket due to
- * non-opcode bits being set. But if we don't include those bits, some 3D
- * commands may hash to the same bucket due to not including opcode bits that
- * make the command unique. For now, we will risk hashing to the same bucket.
+ * yesn-opcode bits being set. But if we don't include those bits, some 3D
+ * commands may hash to the same bucket due to yest including opcode bits that
+ * make the command unique. For yesw, we will risk hashing to the same bucket.
  */
 static inline u32 cmd_header_key(u32 x)
 {
@@ -898,14 +898,14 @@ static int init_hash_table(struct intel_engine_cs *engine,
 		for (j = 0; j < table->count; j++) {
 			const struct drm_i915_cmd_descriptor *desc =
 				&table->table[j];
-			struct cmd_node *desc_node =
-				kmalloc(sizeof(*desc_node), GFP_KERNEL);
+			struct cmd_yesde *desc_yesde =
+				kmalloc(sizeof(*desc_yesde), GFP_KERNEL);
 
-			if (!desc_node)
+			if (!desc_yesde)
 				return -ENOMEM;
 
-			desc_node->desc = desc;
-			hash_add(engine->cmd_hash, &desc_node->node,
+			desc_yesde->desc = desc;
+			hash_add(engine->cmd_hash, &desc_yesde->yesde,
 				 cmd_header_key(desc->cmd.value));
 		}
 	}
@@ -915,13 +915,13 @@ static int init_hash_table(struct intel_engine_cs *engine,
 
 static void fini_hash_table(struct intel_engine_cs *engine)
 {
-	struct hlist_node *tmp;
-	struct cmd_node *desc_node;
+	struct hlist_yesde *tmp;
+	struct cmd_yesde *desc_yesde;
 	int i;
 
-	hash_for_each_safe(engine->cmd_hash, i, tmp, desc_node, node) {
-		hash_del(&desc_node->node);
-		kfree(desc_node);
+	hash_for_each_safe(engine->cmd_hash, i, tmp, desc_yesde, yesde) {
+		hash_del(&desc_yesde->yesde);
+		kfree(desc_yesde);
 	}
 }
 
@@ -1010,12 +1010,12 @@ void intel_engine_init_cmd_parser(struct intel_engine_cs *engine)
 	}
 
 	if (!validate_cmds_sorted(engine, cmd_tables, cmd_table_count)) {
-		DRM_ERROR("%s: command descriptions are not sorted\n",
+		DRM_ERROR("%s: command descriptions are yest sorted\n",
 			  engine->name);
 		return;
 	}
 	if (!validate_regs_sorted(engine)) {
-		DRM_ERROR("%s: registers are not sorted\n", engine->name);
+		DRM_ERROR("%s: registers are yest sorted\n", engine->name);
 		return;
 	}
 
@@ -1048,11 +1048,11 @@ static const struct drm_i915_cmd_descriptor*
 find_cmd_in_table(struct intel_engine_cs *engine,
 		  u32 cmd_header)
 {
-	struct cmd_node *desc_node;
+	struct cmd_yesde *desc_yesde;
 
-	hash_for_each_possible(engine->cmd_hash, desc_node, node,
+	hash_for_each_possible(engine->cmd_hash, desc_yesde, yesde,
 			       cmd_header_key(cmd_header)) {
-		const struct drm_i915_cmd_descriptor *desc = desc_node->desc;
+		const struct drm_i915_cmd_descriptor *desc = desc_yesde->desc;
 		if (((cmd_header ^ desc->cmd.value) & desc->cmd.mask) == 0)
 			return desc;
 	}
@@ -1064,7 +1064,7 @@ find_cmd_in_table(struct intel_engine_cs *engine,
  * Returns a pointer to a descriptor for the command specified by cmd_header.
  *
  * The caller must supply space for a default descriptor via the default_desc
- * parameter. If no descriptor for the specified command exists in the engine's
+ * parameter. If yes descriptor for the specified command exists in the engine's
  * command parser tables, this function fills in default_desc based on the
  * engine's default length encoding and returns default_desc.
  */
@@ -1169,7 +1169,7 @@ static u32 *copy_batch(struct drm_i915_gem_object *dst_obj,
 		offset = offset_in_page(batch_start_offset);
 
 		/* We can avoid clflushing partial cachelines before the write
-		 * if we only every write full cache-lines. Since we know that
+		 * if we only every write full cache-lines. Since we kyesw that
 		 * both the source and destination are in multiples of
 		 * PAGE_SIZE, we can simply round up to the next cacheline.
 		 * We don't care about copying too much here as we only
@@ -1341,7 +1341,7 @@ static int check_bbstart(const struct i915_gem_context *ctx,
 	}
 
 	/*
-	 * This cannot overflow a u32 because we already checked jump_offset
+	 * This canyest overflow a u32 because we already checked jump_offset
 	 * is within the BB, and the batch_len is a u32
 	 */
 	target_cmd_offset = lower_32_bits(jump_offset);
@@ -1356,7 +1356,7 @@ static int check_bbstart(const struct i915_gem_context *ctx,
 		DRM_DEBUG("CMD: Rejecting BB_START - truncated whitelist array\n");
 		return -EINVAL;
 	} else if (!test_bit(target_cmd_index, ctx->jump_whitelist)) {
-		DRM_DEBUG("CMD: BB_START to 0x%llx not a previously executed cmd\n",
+		DRM_DEBUG("CMD: BB_START to 0x%llx yest a previously executed cmd\n",
 			  jump_target);
 		return -EINVAL;
 	}
@@ -1407,16 +1407,16 @@ again:
  * @ctx: the context in which the batch is to execute
  * @engine: the engine on which the batch is to execute
  * @batch_obj: the batch buffer in question
- * @batch_start: Canonical base address of batch
+ * @batch_start: Cayesnical base address of batch
  * @batch_start_offset: byte offset in the batch at which execution starts
  * @batch_len: length of the commands in batch_obj
  * @shadow_batch_obj: copy of the batch buffer in question
- * @shadow_batch_start: Canonical base address of shadow_batch_obj
+ * @shadow_batch_start: Cayesnical base address of shadow_batch_obj
  *
  * Parses the specified batch buffer looking for privilege violations as
  * described in the overview.
  *
- * Return: non-zero if the parser finds violations or otherwise fails; -EACCES
+ * Return: yesn-zero if the parser finds violations or otherwise fails; -EACCES
  * if the batch appears legal but should use hardware parsing
  */
 
@@ -1430,7 +1430,7 @@ int intel_engine_cmd_parser(struct i915_gem_context *ctx,
 			    u64 shadow_batch_start)
 {
 	u32 *cmd, *batch_end, offset = 0;
-	struct drm_i915_cmd_descriptor default_desc = noop_desc;
+	struct drm_i915_cmd_descriptor default_desc = yesop_desc;
 	const struct drm_i915_cmd_descriptor *desc = &default_desc;
 	bool needs_clflush_after = false;
 	int ret = 0;
@@ -1531,7 +1531,7 @@ int i915_cmd_parser_get_version(struct drm_i915_private *dev_priv)
 	struct intel_engine_cs *engine;
 	bool active = false;
 
-	/* If the command parser is not enabled, report 0 - unsupported */
+	/* If the command parser is yest enabled, report 0 - unsupported */
 	for_each_uabi_engine(engine, dev_priv) {
 		if (intel_engine_using_cmd_parser(engine)) {
 			active = true;
@@ -1545,7 +1545,7 @@ int i915_cmd_parser_get_version(struct drm_i915_private *dev_priv)
 	 * Command parser version history
 	 *
 	 * 1. Initial version. Checks batches and reports violations, but leaves
-	 *    hardware parsing enabled (so does not allow new use cases).
+	 *    hardware parsing enabled (so does yest allow new use cases).
 	 * 2. Allow access to the MI_PREDICATE_SRC0 and
 	 *    MI_PREDICATE_SRC1 registers.
 	 * 3. Allow access to the GPGPU_THREADS_DISPATCHED register.

@@ -3,7 +3,7 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright yestice and this permission yestice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
@@ -544,7 +544,7 @@ int ath9k_hw_process_rxdesc_edma(struct ath_hw *ah, struct ath_rx_status *rxs,
 		 * AR_CRCErr will bet set to true if we're on the last
 		 * subframe and the AR_PostDelimCRCErr is caught.
 		 * In a way this also gives us a guarantee that when
-		 * (!(AR_CRCErr) && (AR_PostDelimCRCErr)) we cannot
+		 * (!(AR_CRCErr) && (AR_PostDelimCRCErr)) we canyest
 		 * possibly be reviewing the last subframe. AR_CRCErr
 		 * is the CRC of the actual data.
 		 */
@@ -558,8 +558,8 @@ int ath9k_hw_process_rxdesc_edma(struct ath_hw *ah, struct ath_rx_status *rxs,
 			phyerr = MS(rxsp->status11, AR_PHYErrCode);
 			/*
 			 * If we reach a point here where AR_PostDelimCRCErr is
-			 * true it implies we're *not* on the last subframe. In
-			 * in that case that we know already that the CRC of
+			 * true it implies we're *yest* on the last subframe. In
+			 * in that case that we kyesw already that the CRC of
 			 * the frame was OK, and MAC would send an ACK for that
 			 * subframe, even if we did get a phy error of type
 			 * ATH9K_PHYERR_OFDM_RESTART. This is only applicable

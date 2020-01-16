@@ -104,7 +104,7 @@ static int init_display(struct fbtft_par *par)
 	write_reg(par, 0x0002, 0x0700); /* set 1 line inversion */
 	write_reg(par, 0x0004, 0x0000); /* Resize register */
 	write_reg(par, 0x0008, 0x0207); /* set the back porch and front porch */
-	write_reg(par, 0x0009, 0x0000); /* set non-display area refresh cycle */
+	write_reg(par, 0x0009, 0x0000); /* set yesn-display area refresh cycle */
 	write_reg(par, 0x000A, 0x0000); /* FMARK function */
 	write_reg(par, 0x000C, 0x0000); /* RGB interface setting */
 	write_reg(par, 0x000D, 0x0000); /* Frame marker Position */

@@ -879,7 +879,7 @@ static struct ti_dt_clk dra7xx_clks[] = {
 	DT_CLK(NULL, "uart9_gfclk_mux", "l4per2-clkctrl:01dc:24"),
 	DT_CLK(NULL, "usb_otg_ss1_refclk960m", "l3init-clkctrl:00d0:8"),
 	DT_CLK(NULL, "usb_otg_ss2_refclk960m", "l3init-clkctrl:0020:8"),
-	{ .node_name = NULL },
+	{ .yesde_name = NULL },
 };
 
 int __init dra7xx_dt_clk_init(void)

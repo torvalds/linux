@@ -3,9 +3,9 @@
  *  arch/arm/include/asm/memory.h
  *
  *  Copyright (C) 2000-2002 Russell King
- *  modification for nommu, Hyok S. Choi, 2004
+ *  modification for yesmmu, Hyok S. Choi, 2004
  *
- *  Note: this file should not be included by non-asm/.h files
+ *  Note: this file should yest be included by yesn-asm/.h files
  */
 #ifndef __ASM_ARM_MEMORY_H
 #define __ASM_ARM_MEMORY_H
@@ -88,7 +88,7 @@ extern unsigned long vectors_base;
  * The limitation of user task size can grow up to the end of free ram region.
  * It is difficult to define and perhaps will never meet the original meaning
  * of this define that was meant to.
- * Fortunately, there is no reference for this in noMMU mode, for now.
+ * Fortunately, there is yes reference for this in yesMMU mode, for yesw.
  */
 #define TASK_SIZE		UL(0xffffffff)
 
@@ -101,7 +101,7 @@ extern unsigned long vectors_base;
 #endif
 
 /*
- * The module can be at any place in ram in nommu mode.
+ * The module can be at any place in ram in yesmmu mode.
  */
 #define MODULES_END		(END_MEM)
 #define MODULES_VADDR		PAGE_OFFSET
@@ -136,7 +136,7 @@ extern unsigned long vectors_base;
  * PLAT_PHYS_OFFSET is the offset (from zero) of the start of physical
  * memory.  This is used for XIP and NoMMU kernels, and on platforms that don't
  * have CONFIG_ARM_PATCH_PHYS_VIRT. Assembly code must always use
- * PLAT_PHYS_OFFSET and not PHYS_OFFSET.
+ * PLAT_PHYS_OFFSET and yest PHYS_OFFSET.
  */
 #define PLAT_PHYS_OFFSET	UL(CONFIG_PHYS_OFFSET)
 
@@ -212,7 +212,7 @@ extern const void *__pv_table_begin, *__pv_table_end;
 	: "r" (x), "I" (__PV_BITS_31_24)		\
 	: "cc")
 
-static inline phys_addr_t __virt_to_phys_nodebug(unsigned long x)
+static inline phys_addr_t __virt_to_phys_yesdebug(unsigned long x)
 {
 	phys_addr_t t;
 
@@ -244,7 +244,7 @@ static inline unsigned long __phys_to_virt(phys_addr_t x)
 #define PHYS_OFFSET	PLAT_PHYS_OFFSET
 #define PHYS_PFN_OFFSET	((unsigned long)(PHYS_OFFSET >> PAGE_SHIFT))
 
-static inline phys_addr_t __virt_to_phys_nodebug(unsigned long x)
+static inline phys_addr_t __virt_to_phys_yesdebug(unsigned long x)
 {
 	return (phys_addr_t)x - PAGE_OFFSET + PHYS_OFFSET;
 }
@@ -260,14 +260,14 @@ static inline unsigned long __phys_to_virt(phys_addr_t x)
 	((((unsigned long)(kaddr) - PAGE_OFFSET) >> PAGE_SHIFT) + \
 	 PHYS_PFN_OFFSET)
 
-#define __pa_symbol_nodebug(x)	__virt_to_phys_nodebug((x))
+#define __pa_symbol_yesdebug(x)	__virt_to_phys_yesdebug((x))
 
 #ifdef CONFIG_DEBUG_VIRTUAL
 extern phys_addr_t __virt_to_phys(unsigned long x);
 extern phys_addr_t __phys_addr_symbol(unsigned long x);
 #else
-#define __virt_to_phys(x)	__virt_to_phys_nodebug(x)
-#define __phys_addr_symbol(x)	__pa_symbol_nodebug(x)
+#define __virt_to_phys(x)	__virt_to_phys_yesdebug(x)
+#define __phys_addr_symbol(x)	__pa_symbol_yesdebug(x)
 #endif
 
 /*

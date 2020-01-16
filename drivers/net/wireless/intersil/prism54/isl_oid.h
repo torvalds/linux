@@ -153,7 +153,7 @@ enum dot11_maxframeburst_t {
 	DOT11_MAXFRAMEBURST_MAX = 5000, /* Use this as max,
 		* Note: firmware allows for greater values. This is a
 		* recommended max. I'll update this as I find
-		* out what the real MAX is. Also note that you don't necessarily
+		* out what the real MAX is. Also yeste that you don't necessarily
 		* get better results with a greater value here.
 		*/
 };
@@ -162,7 +162,7 @@ enum dot11_maxframeburst_t {
  * Long	 preamble uses 128-bit sync field, 8-bit  CRC
  * Short preamble uses 56-bit  sync field, 16-bit CRC
  *
- * 802.11a -- not sure, both optionally ?
+ * 802.11a -- yest sure, both optionally ?
  * 802.11b supports long and optionally short
  * 802.11g supports both */
 enum dot11_preamblesettings_t {
@@ -187,7 +187,7 @@ enum dot11_slotsettings_t {
 		/* AutomatiGically set */
 };
 
-/* All you need to know, ERP is "Extended Rate PHY".
+/* All you need to kyesw, ERP is "Extended Rate PHY".
  * An Extended Rate PHY (ERP) STA or AP shall support three different
  * preamble and header formats:
  * Long  preamble (refer to above)
@@ -195,10 +195,10 @@ enum dot11_slotsettings_t {
  * OFDM  preamble ( ? )
  *
  * I'm assuming here Protection tells the AP
- * to be careful, a STA which cannot handle the long pre-amble
+ * to be careful, a STA which canyest handle the long pre-amble
  * has joined.
  */
-enum do11_nonerpstatus_t {
+enum do11_yesnerpstatus_t {
 	DOT11_ERPSTAT_NONEPRESENT = 0,
 	DOT11_ERPSTAT_USEPROTECTION = 1
 };
@@ -206,9 +206,9 @@ enum do11_nonerpstatus_t {
 /* (ERP is "Extended Rate PHY") Way to read NONERP is NON-ERP-*
  * The key here is DOT11 NON ERP NEVER protects against
  * NON ERP STA's. You *don't* want this unless
- * you know what you are doing. It means you will only
+ * you kyesw what you are doing. It means you will only
  * get Extended Rate capabilities */
-enum dot11_nonerpprotection_t {
+enum dot11_yesnerpprotection_t {
 	DOT11_NONERP_NEVER = 0,
 	DOT11_NONERP_ALWAYS = 1,
 	DOT11_NONERP_DYNAMIC = 2
@@ -468,7 +468,7 @@ enum oid_num_t {
 #define OID_TYPE_ATTACH		0x0C
 
 /* OID_TYPE_MLMEEX is special because of a variable size field when sending.
- * Not yet implemented (not used in driver anyway).
+ * Not yet implemented (yest used in driver anyway).
  */
 
 struct oid_t {

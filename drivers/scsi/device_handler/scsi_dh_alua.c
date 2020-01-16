@@ -52,7 +52,7 @@
 
 static uint optimize_stpg;
 module_param(optimize_stpg, uint, S_IRUGO|S_IWUSR);
-MODULE_PARM_DESC(optimize_stpg, "Allow use of a non-optimized path, rather than sending a STPG, when implicit TPGS is supported (0=No,1=Yes). Default is 0.");
+MODULE_PARM_DESC(optimize_stpg, "Allow use of a yesn-optimized path, rather than sending a STPG, when implicit TPGS is supported (0=No,1=Yes). Default is 0.");
 
 static LIST_HEAD(port_group_list);
 static DEFINE_SPINLOCK(port_group_lock);
@@ -61,7 +61,7 @@ static struct workqueue_struct *kaluad_wq;
 struct alua_port_group {
 	struct kref		kref;
 	struct rcu_head		rcu;
-	struct list_head	node;
+	struct list_head	yesde;
 	struct list_head	dh_list;
 	unsigned char		device_id_str[256];
 	int			device_id_len;
@@ -81,7 +81,7 @@ struct alua_port_group {
 };
 
 struct alua_dh_data {
-	struct list_head	node;
+	struct list_head	yesde;
 	struct alua_port_group __rcu *pg;
 	int			group_id;
 	spinlock_t		pg_lock;
@@ -113,7 +113,7 @@ static void release_port_group(struct kref *kref)
 	if (pg->rtpg_sdev)
 		flush_delayed_work(&pg->rtpg_work);
 	spin_lock(&port_group_lock);
-	list_del(&pg->node);
+	list_del(&pg->yesde);
 	spin_unlock(&port_group_lock);
 	kfree_rcu(pg, rcu);
 }
@@ -183,7 +183,7 @@ static struct alua_port_group *alua_find_get_pg(char *id_str, size_t id_size,
 	if (!id_str || !id_size || !strlen(id_str))
 		return NULL;
 
-	list_for_each_entry(pg, &port_group_list, node) {
+	list_for_each_entry(pg, &port_group_list, yesde) {
 		if (pg->group_id != group_id)
 			continue;
 		if (!pg->device_id_len || pg->device_id_len != id_size)
@@ -220,7 +220,7 @@ static struct alua_port_group *alua_alloc_pg(struct scsi_device *sdev,
 					    sizeof(pg->device_id_str));
 	if (pg->device_id_len <= 0) {
 		/*
-		 * TPGS supported but no device identification found.
+		 * TPGS supported but yes device identification found.
 		 * Generate private device identification.
 		 */
 		sdev_printk(KERN_INFO, sdev,
@@ -238,7 +238,7 @@ static struct alua_port_group *alua_alloc_pg(struct scsi_device *sdev,
 	kref_init(&pg->kref);
 	INIT_DELAYED_WORK(&pg->rtpg_work, alua_rtpg_work);
 	INIT_LIST_HEAD(&pg->rtpg_list);
-	INIT_LIST_HEAD(&pg->node);
+	INIT_LIST_HEAD(&pg->yesde);
 	INIT_LIST_HEAD(&pg->dh_list);
 	spin_lock_init(&pg->lock);
 
@@ -251,7 +251,7 @@ static struct alua_port_group *alua_alloc_pg(struct scsi_device *sdev,
 		return tmp_pg;
 	}
 
-	list_add(&pg->node, &port_group_list);
+	list_add(&pg->yesde, &port_group_list);
 	spin_unlock(&port_group_lock);
 
 	return pg;
@@ -269,12 +269,12 @@ static int alua_check_tpgs(struct scsi_device *sdev)
 	int tpgs = TPGS_MODE_NONE;
 
 	/*
-	 * ALUA support for non-disk devices is fraught with
-	 * difficulties, so disable it for now.
+	 * ALUA support for yesn-disk devices is fraught with
+	 * difficulties, so disable it for yesw.
 	 */
 	if (sdev->type != TYPE_DISK) {
 		sdev_printk(KERN_INFO, sdev,
-			    "%s: disable for non-disk devices\n",
+			    "%s: disable for yesn-disk devices\n",
 			    ALUA_DH_NAME);
 		return tpgs;
 	}
@@ -295,7 +295,7 @@ static int alua_check_tpgs(struct scsi_device *sdev)
 			    ALUA_DH_NAME);
 		break;
 	case TPGS_MODE_NONE:
-		sdev_printk(KERN_INFO, sdev, "%s: not supported\n",
+		sdev_printk(KERN_INFO, sdev, "%s: yest supported\n",
 			    ALUA_DH_NAME);
 		break;
 	default:
@@ -328,7 +328,7 @@ static int alua_check_vpd(struct scsi_device *sdev, struct alua_dh_data *h,
 	if (group_id < 0) {
 		/*
 		 * Internal error; TPGS supported but required
-		 * VPD identification descriptors not present.
+		 * VPD identification descriptors yest present.
 		 * Disable ALUA support
 		 */
 		sdev_printk(KERN_INFO, sdev,
@@ -360,7 +360,7 @@ static int alua_check_vpd(struct scsi_device *sdev, struct alua_dh_data *h,
 		/* port group has changed. Update to new port group */
 		if (h->pg) {
 			spin_lock_irqsave(&old_pg->lock, flags);
-			list_del_rcu(&h->node);
+			list_del_rcu(&h->yesde);
 			spin_unlock_irqrestore(&old_pg->lock, flags);
 		}
 		rcu_assign_pointer(h->pg, pg);
@@ -369,7 +369,7 @@ static int alua_check_vpd(struct scsi_device *sdev, struct alua_dh_data *h,
 
 	spin_lock_irqsave(&pg->lock, flags);
 	if (pg_updated)
-		list_add_rcu(&h->node, &pg->dh_list);
+		list_add_rcu(&h->yesde, &pg->dh_list);
 	spin_unlock_irqrestore(&pg->lock, flags);
 
 	alua_rtpg_queue(rcu_dereference_protected(h->pg,
@@ -476,7 +476,7 @@ static int alua_check_sense(struct scsi_device *sdev,
  *
  * Send a TEST UNIT READY to @sdev to figure out the device state
  * Returns SCSI_DH_RETRY if the sense code is NOT READY/ALUA TRANSITIONING,
- * SCSI_DH_OK if no error occurred, and SCSI_DH_IO otherwise.
+ * SCSI_DH_OK if yes error occurred, and SCSI_DH_IO otherwise.
  */
 static int alua_tur(struct scsi_device *sdev)
 {
@@ -536,14 +536,14 @@ static int alua_rtpg(struct scsi_device *sdev, struct alua_port_group *pg)
 		 * Some (broken) implementations have a habit of returning
 		 * an error during things like firmware update etc.
 		 * But if the target only supports active/optimized there's
-		 * not much we can do; it's not that we can switch paths
+		 * yest much we can do; it's yest that we can switch paths
 		 * or anything.
-		 * So ignore any errors to avoid spurious failures during
+		 * So igyesre any errors to avoid spurious failures during
 		 * path failover.
 		 */
 		if ((pg->valid_states & ~TPGS_SUPPORT_OPTIMIZED) == 0) {
 			sdev_printk(KERN_INFO, sdev,
-				    "%s: ignoring rtpg result %d\n",
+				    "%s: igyesring rtpg result %d\n",
 				    ALUA_DH_NAME, retval);
 			kfree(buff);
 			return SCSI_DH_OK;
@@ -574,7 +574,7 @@ static int alua_rtpg(struct scsi_device *sdev, struct alua_port_group *pg)
 		}
 		/*
 		 * If the array returns with 'ALUA state transition'
-		 * sense code here it cannot return RTPG data during
+		 * sense code here it canyest return RTPG data during
 		 * transition. So set the state to 'transitioning' directly.
 		 */
 		if (sense_hdr.sense_key == NOT_READY &&
@@ -657,7 +657,7 @@ static int alua_rtpg(struct scsi_device *sdev, struct alua_port_group *pg)
 					tmp_pg->pref = desc[0] >> 7;
 					rcu_read_lock();
 					list_for_each_entry_rcu(h,
-						&tmp_pg->dh_list, node) {
+						&tmp_pg->dh_list, yesde) {
 						/* h->sdev should always be valid */
 						BUG_ON(!h->sdev);
 						h->sdev->access_state = desc[0];
@@ -681,7 +681,7 @@ static int alua_rtpg(struct scsi_device *sdev, struct alua_port_group *pg)
 	sdev_printk(KERN_INFO, sdev,
 		    "%s: port group %02x state %c %s supports %c%c%c%c%c%c%c\n",
 		    ALUA_DH_NAME, pg->group_id, print_alua_state(pg->state),
-		    pg->pref ? "preferred" : "non-preferred",
+		    pg->pref ? "preferred" : "yesn-preferred",
 		    pg->valid_states&TPGS_SUPPORT_TRANSITION?'T':'t',
 		    pg->valid_states&TPGS_SUPPORT_OFFLINE?'O':'o',
 		    pg->valid_states&TPGS_SUPPORT_LBA_DEPENDENT?'L':'l',
@@ -704,7 +704,7 @@ static int alua_rtpg(struct scsi_device *sdev, struct alua_port_group *pg)
 			pg->state = SCSI_ACCESS_STATE_STANDBY;
 			pg->expiry = 0;
 			rcu_read_lock();
-			list_for_each_entry_rcu(h, &pg->dh_list, node) {
+			list_for_each_entry_rcu(h, &pg->dh_list, yesde) {
 				BUG_ON(!h->sdev);
 				h->sdev->access_state =
 					(pg->state & SCSI_ACCESS_STATE_MASK);
@@ -737,7 +737,7 @@ static int alua_rtpg(struct scsi_device *sdev, struct alua_port_group *pg)
  * Issue a SET TARGET PORT GROUP command and evaluate the
  * response. Returns SCSI_DH_RETRY per default to trigger
  * a re-evaluation of the target group state or SCSI_DH_OK
- * if no further action needs to be taken.
+ * if yes further action needs to be taken.
  */
 static unsigned alua_stpg(struct scsi_device *sdev, struct alua_port_group *pg)
 {
@@ -877,14 +877,14 @@ static void alua_rtpg_work(struct work_struct *work)
 }
 
 /**
- * alua_rtpg_queue() - cause RTPG to be submitted asynchronously
+ * alua_rtpg_queue() - cause RTPG to be submitted asynchroyesusly
  * @pg: ALUA port group associated with @sdev.
  * @sdev: SCSI device for which to submit an RTPG.
  * @qdata: Information about the callback to invoke after the RTPG.
- * @force: Whether or not to submit an RTPG if a work item that will submit an
+ * @force: Whether or yest to submit an RTPG if a work item that will submit an
  *         RTPG already has been scheduled.
  *
- * Returns true if and only if alua_rtpg_work() will be called asynchronously.
+ * Returns true if and only if alua_rtpg_work() will be called asynchroyesusly.
  * That function is responsible for calling @qdata->fn().
  */
 static bool alua_rtpg_queue(struct alua_port_group *pg,
@@ -910,7 +910,7 @@ static bool alua_rtpg_queue(struct alua_port_group *pg,
 		start_queue = 1;
 	} else if (!(pg->flags & ALUA_PG_RUN_RTPG) && force) {
 		pg->flags |= ALUA_PG_RUN_RTPG;
-		/* Do not queue if the worker is already running */
+		/* Do yest queue if the worker is already running */
 		if (!(pg->flags & ALUA_PG_RUNNING)) {
 			kref_get(&pg->kref);
 			start_queue = 1;
@@ -955,7 +955,7 @@ static int alua_initialize(struct scsi_device *sdev, struct alua_dh_data *h)
  * alua_set_params - set/unset the optimize flag
  * @sdev: device on the path to be activated
  * params - parameters in the following format
- *      "no_of_params\0param1\0param2\0param3\0...\0"
+ *      "yes_of_params\0param1\0param2\0param3\0...\0"
  * For example, to set the flag pass the following parameters
  * from multipath.conf
  *     hardware_handler        "2 alua 1"
@@ -1070,8 +1070,8 @@ static void alua_check(struct scsi_device *sdev, bool force)
 /*
  * alua_prep_fn - request callback
  *
- * Fail I/O to all paths not in state
- * active/optimized or active/non-optimized.
+ * Fail I/O to all paths yest in state
+ * active/optimized or active/yesn-optimized.
  */
 static blk_status_t alua_prep_fn(struct scsi_device *sdev, struct request *req)
 {
@@ -1121,7 +1121,7 @@ static int alua_bus_attach(struct scsi_device *sdev)
 	rcu_assign_pointer(h->pg, NULL);
 	h->init_error = SCSI_DH_OK;
 	h->sdev = sdev;
-	INIT_LIST_HEAD(&h->node);
+	INIT_LIST_HEAD(&h->yesde);
 
 	mutex_init(&h->init_mutex);
 	err = alua_initialize(sdev, h);
@@ -1151,7 +1151,7 @@ static void alua_bus_detach(struct scsi_device *sdev)
 	spin_unlock(&h->pg_lock);
 	if (pg) {
 		spin_lock_irq(&pg->lock);
-		list_del_rcu(&h->node);
+		list_del_rcu(&h->yesde);
 		spin_unlock_irq(&pg->lock);
 		kref_put(&pg->kref, release_port_group);
 	}

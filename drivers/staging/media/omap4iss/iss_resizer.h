@@ -33,7 +33,7 @@ enum resizer_input_entity {
  * @formats: Active video formats
  * @input: Active input
  * @output: Active outputs
- * @video_out: Output video node
+ * @video_out: Output video yesde
  * @error: A hardware error occurred during capture
  * @state: Streaming state
  * @wait: Wait queue used to stop the module

@@ -53,7 +53,7 @@ static struct qlcnic_hardware_ops qlcnic_sriov_vf_hw_ops = {
 	.setup_intr			= qlcnic_83xx_setup_intr,
 	.alloc_mbx_args			= qlcnic_83xx_alloc_mbx_args,
 	.mbx_cmd			= qlcnic_sriov_issue_cmd,
-	.get_func_no			= qlcnic_83xx_get_func_no,
+	.get_func_yes			= qlcnic_83xx_get_func_yes,
 	.api_lock			= qlcnic_83xx_cam_lock,
 	.api_unlock			= qlcnic_83xx_cam_unlock,
 	.process_lb_rcv_ring_diag	= qlcnic_83xx_process_rcv_ring_diag,
@@ -168,7 +168,7 @@ int qlcnic_sriov_init(struct qlcnic_adapter *adapter, int num_vfs)
 	if (wq == NULL) {
 		err = -ENOMEM;
 		dev_err(&adapter->pdev->dev,
-			"Cannot create bc-trans workqueue\n");
+			"Canyest create bc-trans workqueue\n");
 		goto qlcnic_free_vf_info;
 	}
 
@@ -177,7 +177,7 @@ int qlcnic_sriov_init(struct qlcnic_adapter *adapter, int num_vfs)
 	wq = create_singlethread_workqueue("async");
 	if (wq == NULL) {
 		err = -ENOMEM;
-		dev_err(&adapter->pdev->dev, "Cannot create async workqueue\n");
+		dev_err(&adapter->pdev->dev, "Canyest create async workqueue\n");
 		goto qlcnic_destroy_trans_wq;
 	}
 
@@ -327,7 +327,7 @@ static int qlcnic_sriov_post_bc_msg(struct qlcnic_adapter *adapter, u32 *hdr,
 	err = mbx->ops->enqueue_cmd(adapter, &cmd, &timeout);
 	if (err) {
 		dev_err(&adapter->pdev->dev,
-			"%s: Mailbox not available, cmd_op=0x%x, cmd_type=0x%x, pci_func=0x%x, op_mode=0x%x\n",
+			"%s: Mailbox yest available, cmd_op=0x%x, cmd_type=0x%x, pci_func=0x%x, op_mode=0x%x\n",
 			__func__, cmd.cmd_op, cmd.type, ahw->pci_func,
 			ahw->op_mode);
 		return err;
@@ -534,7 +534,7 @@ static int qlcnic_sriov_setup_vf(struct qlcnic_adapter *adapter,
 	INIT_LIST_HEAD(&adapter->vf_mc_list);
 	if (!qlcnic_use_msi_x && !!qlcnic_use_msi)
 		dev_warn(&adapter->pdev->dev,
-			 "Device does not support MSI interrupts\n");
+			 "Device does yest support MSI interrupts\n");
 
 	/* compute and set default and max tx/sds rings */
 	qlcnic_set_tx_ring_count(adapter, QLCNIC_SINGLE_RING);
@@ -1146,14 +1146,14 @@ static void qlcnic_sriov_handle_pending_trans(struct qlcnic_sriov *sriov,
 					      struct qlcnic_bc_hdr *hdr)
 {
 	struct qlcnic_bc_trans *trans = NULL;
-	struct list_head *node;
+	struct list_head *yesde;
 	u32 pay_size, curr_frag;
 	u8 found = 0, active = 0;
 
 	spin_lock(&vf->rcv_pend.lock);
 	if (vf->rcv_pend.count > 0) {
-		list_for_each(node, &vf->rcv_pend.wait_list) {
-			trans = list_entry(node, struct qlcnic_bc_trans, list);
+		list_for_each(yesde, &vf->rcv_pend.wait_list) {
+			trans = list_entry(yesde, struct qlcnic_bc_trans, list);
 			if (trans->trans_id == hdr->seq_id) {
 				found = 1;
 				break;
@@ -1289,7 +1289,7 @@ static void qlcnic_sriov_handle_flr_event(struct qlcnic_sriov *sriov,
 		qlcnic_sriov_pf_handle_flr(sriov, vf);
 	else
 		dev_err(&adapter->pdev->dev,
-			"Invalid event to VF. VF should not get FLR event\n");
+			"Invalid event to VF. VF should yest get FLR event\n");
 }
 
 void qlcnic_sriov_handle_bc_event(struct qlcnic_adapter *adapter, u32 event)
@@ -1390,7 +1390,7 @@ static int __qlcnic_sriov_issue_cmd(struct qlcnic_adapter *adapter,
 retry:
 	if (!test_bit(QLC_83XX_MBX_READY, &mbx->status)) {
 		rsp = -EIO;
-		QLCDB(adapter, DRV, "MBX not Ready!(cmd 0x%x) for VF 0x%x\n",
+		QLCDB(adapter, DRV, "MBX yest Ready!(cmd 0x%x) for VF 0x%x\n",
 		      QLCNIC_MBX_RSP(cmd->req.arg[0]), func);
 		goto err_out;
 	}
@@ -1567,7 +1567,7 @@ void qlcnic_sriov_vf_set_multi(struct net_device *netdev)
 		}
 	}
 
-	/* configure unicast MAC address, if there is not sufficient space
+	/* configure unicast MAC address, if there is yest sufficient space
 	 * to store all the unicast addresses then enable promiscuous mode
 	 */
 	if (netdev_uc_count(netdev) > ahw->max_uc_count) {
@@ -1884,9 +1884,9 @@ static int qlcnic_sriov_vf_idc_init_reset_state(struct qlcnic_adapter *adapter)
 	return 0;
 }
 
-static int qlcnic_sriov_vf_idc_unknown_state(struct qlcnic_adapter *adapter)
+static int qlcnic_sriov_vf_idc_unkyeswn_state(struct qlcnic_adapter *adapter)
 {
-	dev_err(&adapter->pdev->dev, "%s: Device in unknown state\n", __func__);
+	dev_err(&adapter->pdev->dev, "%s: Device in unkyeswn state\n", __func__);
 	return 0;
 }
 
@@ -1923,7 +1923,7 @@ static void qlcnic_sriov_vf_poll_dev_state(struct work_struct *work)
 	case QLC_83XX_IDC_DEV_QUISCENT:
 		break;
 	default:
-		ret = qlcnic_sriov_vf_idc_unknown_state(adapter);
+		ret = qlcnic_sriov_vf_idc_unkyeswn_state(adapter);
 	}
 
 	idc->prev_state = idc->curr_state;

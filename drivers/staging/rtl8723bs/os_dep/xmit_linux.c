@@ -161,7 +161,7 @@ static int rtw_mlcst2unicst(struct adapter *padapter, struct sk_buff *skb)
 	for (i = 0; i < chk_alive_num; i++) {
 		psta = rtw_get_stainfo_by_offset(pstapriv, chk_alive_list[i]);
 		if (!(psta->state & _FW_LINKED)) {
-			DBG_COUNTER(padapter->tx_logs.os_tx_m2u_ignore_fw_linked);
+			DBG_COUNTER(padapter->tx_logs.os_tx_m2u_igyesre_fw_linked);
 			continue;
 		}
 
@@ -169,7 +169,7 @@ static int rtw_mlcst2unicst(struct adapter *padapter, struct sk_buff *skb)
 		if (!memcmp(psta->hwaddr, &skb->data[6], 6) ||
 		    !memcmp(psta->hwaddr, null_addr, 6) ||
 		    !memcmp(psta->hwaddr, bc_addr, 6)) {
-			DBG_COUNTER(padapter->tx_logs.os_tx_m2u_ignore_self);
+			DBG_COUNTER(padapter->tx_logs.os_tx_m2u_igyesre_self);
 			continue;
 		}
 
@@ -191,7 +191,7 @@ static int rtw_mlcst2unicst(struct adapter *padapter, struct sk_buff *skb)
 			DBG_871X("%s-%d: rtw_skb_copy() failed!\n", __func__, __LINE__);
 			pxmitpriv->tx_drop++;
 			/* dev_kfree_skb_any(skb); */
-			return false;	/*  Caller shall tx this multicast frame via normal way. */
+			return false;	/*  Caller shall tx this multicast frame via yesrmal way. */
 		}
 	}
 
@@ -254,7 +254,7 @@ int _rtw_xmit_entry(_pkt *pkt, _nic_hdl pnetdev)
 drop_packet:
 	pxmitpriv->tx_drop++;
 	dev_kfree_skb_any(pkt);
-	RT_TRACE(_module_xmit_osdep_c_, _drv_notice_, ("rtw_xmit_entry: drop, tx_drop =%d\n", (u32)pxmitpriv->tx_drop));
+	RT_TRACE(_module_xmit_osdep_c_, _drv_yestice_, ("rtw_xmit_entry: drop, tx_drop =%d\n", (u32)pxmitpriv->tx_drop));
 
 exit:
 	return 0;

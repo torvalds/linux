@@ -9,8 +9,8 @@ to load the init binary are:
 A) Unable to mount root FS
 B) init binary doesn't exist on rootfs
 C) broken console device
-D) binary exists but dependencies not available
-E) binary cannot be loaded
+D) binary exists but dependencies yest available
+E) binary canyest be loaded
 
 Detailed explanations:
 
@@ -30,11 +30,11 @@ D) e.g. required library dependencies of the init binary such as
    ``readelf -d <INIT>|grep NEEDED`` to find out which libraries are required.
 E) make sure the binary's architecture matches your hardware.
    E.g. i386 vs. x86_64 mismatch, or trying to load x86 on ARM hardware.
-   In case you tried loading a non-binary file here (shell script?),
+   In case you tried loading a yesn-binary file here (shell script?),
    you should make sure that the script specifies an interpreter in its shebang
    header line (``#!/...``) that is fully working (including its library
    dependencies). And before tackling scripts, better first test a simple
-   non-script binary such as ``/bin/sh`` and confirm its successful execution.
+   yesn-script binary such as ``/bin/sh`` and confirm its successful execution.
    To find out more, add code ``to init/main.c`` to display kernel_execve()s
    return values.
 

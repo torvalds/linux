@@ -20,8 +20,8 @@ include $(srctree)/scripts/Kbuild.include
 # e) generate the rpm files, based on kernel.spec
 # - Use /. to avoid tar packing just the symlink
 
-# Note that the rpm-pkg target cannot be used with KBUILD_OUTPUT,
-# but the binrpm-pkg target can; for some reason O= gets ignored.
+# Note that the rpm-pkg target canyest be used with KBUILD_OUTPUT,
+# but the binrpm-pkg target can; for some reason O= gets igyesred.
 
 # Remove hyphens since they have special meaning in RPM filenames
 KERNELPATH := kernel-$(subst -,_,$(KERNELRELEASE))
@@ -38,7 +38,7 @@ quiet_cmd_src_tar = TAR     $(2).tar.gz
 if test "$(objtree)" != "$(srctree)"; then \
 	echo >&2; \
 	echo >&2 "  ERROR:"; \
-	echo >&2 "  Building source tarball is not possible outside the"; \
+	echo >&2 "  Building source tarball is yest possible outside the"; \
 	echo >&2 "  kernel source tree. Don't set KBUILD_OUTPUT, or use the"; \
 	echo >&2 "  binrpm-pkg or bindeb-pkg target instead."; \
 	echo >&2; \
@@ -130,7 +130,7 @@ $(if $(findstring tar-src,$@),,                                     \
 $(if $(findstring bz2,$@),bzip2,                                    \
 $(if $(findstring gz,$@),gzip,                                      \
 $(if $(findstring xz,$@),xz,                                        \
-$(error unknown target $@))))                                       \
+$(error unkyeswn target $@))))                                       \
 	-f -9 $(perf-tar).tar)
 
 perf-tar-pkgs := perf-tar-src-pkg perf-targz-src-pkg perf-tarbz2-src-pkg perf-tarxz-src-pkg

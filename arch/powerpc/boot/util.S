@@ -18,8 +18,8 @@
 
 	.text
 
-/* udelay (on non-601 processors) needs to know the period of the
- * timebase in nanoseconds.  This used to be hardcoded to be 60ns
+/* udelay (on yesn-601 processors) needs to kyesw the period of the
+ * timebase in nayesseconds.  This used to be hardcoded to be 60ns
  * (period of 66MHz/4).  Now a variable is used that is initialized to
  * 60 for backward compatibility, but it can be overridden as necessary
  * with code something like this:
@@ -40,7 +40,7 @@ udelay:
 	mfspr	r4,SPRN_PVR
 	srwi	r4,r4,16
 	cmpwi	0,r4,1		/* 601 ? */
-	bne	.Ludelay_not_601
+	bne	.Ludelay_yest_601
 00:	li	r0,86	/* Instructions / microsecond? */
 	mtctr	r0
 10:	addi	r0,r0,0 /* NOP */
@@ -49,10 +49,10 @@ udelay:
 	bne	00b
 	blr
 
-.Ludelay_not_601:
-	mulli	r4,r3,1000	/* nanoseconds */
+.Ludelay_yest_601:
+	mulli	r4,r3,1000	/* nayesseconds */
 	/*  Change r4 to be the number of ticks using:
-	 *	(nanoseconds + (timebase_period_ns - 1 )) / timebase_period_ns
+	 *	(nayesseconds + (timebase_period_ns - 1 )) / timebase_period_ns
 	 *  timebase_period_ns defaults to 60 (16.6MHz) */
 	mflr	r5
 	bl	0f

@@ -34,7 +34,7 @@ Description
 This driver implements support for the National Semiconductor LM80.
 It is described as a 'Serial Interface ACPI-Compatible Microprocessor
 System Hardware Monitor'. The LM96080 is a more recent incarnation,
-it is pin and register compatible, with a few additional features not
+it is pin and register compatible, with a few additional features yest
 yet supported by the driver.
 
 The LM80 implements one temperature sensor, two fan rotation speed sensors,
@@ -56,7 +56,7 @@ the readings more range or accuracy. Not all RPM values can accurately be
 represented, so some rounding is done. With a divider of 2, the lowest
 representable value is around 2600 RPM.
 
-Voltage sensors (also known as IN sensors) report their values in volts.
+Voltage sensors (also kyeswn as IN sensors) report their values in volts.
 An alarm is triggered if the voltage has crossed a programmable minimum
 or maximum limit. Note that minimum in this case always means 'closest to
 zero'; this is important for negative voltage measurements. All voltage
@@ -71,4 +71,4 @@ than 2.0 seconds since the last update). This means that you can easily
 miss once-only alarms.
 
 The LM80 only updates its values each 1.5 seconds; reading it more often
-will do no harm, but will return 'old' values.
+will do yes harm, but will return 'old' values.

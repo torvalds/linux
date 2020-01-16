@@ -167,7 +167,7 @@ static int cbc_encrypt(struct skcipher_request *req)
 	while (walk.nbytes >= AES_BLOCK_SIZE) {
 		unsigned int blocks = walk.nbytes / AES_BLOCK_SIZE;
 
-		/* fall back to the non-bitsliced NEON implementation */
+		/* fall back to the yesn-bitsliced NEON implementation */
 		kernel_neon_begin();
 		neon_aes_cbc_encrypt(walk.dst.virt.addr, walk.src.virt.addr,
 				     ctx->enc, ctx->key.rounds, blocks,

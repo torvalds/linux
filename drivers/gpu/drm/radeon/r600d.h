@@ -9,7 +9,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -1626,13 +1626,13 @@
 #              define PACKET3_CP_DMA_CP_SYNC       (1 << 31)
 /* COMMAND */
 #              define PACKET3_CP_DMA_CMD_SRC_SWAP(x) ((x) << 22)
-                /* 0 - none
+                /* 0 - yesne
 		 * 1 - 8 in 16
 		 * 2 - 8 in 32
 		 * 3 - 8 in 64
 		 */
 #              define PACKET3_CP_DMA_CMD_DST_SWAP(x) ((x) << 24)
-                /* 0 - none
+                /* 0 - yesne
 		 * 1 - 8 in 16
 		 * 2 - 8 in 32
 		 * 3 - 8 in 64
@@ -1663,7 +1663,7 @@
 #define	PACKET3_EVENT_WRITE				0x46
 #define		EVENT_TYPE(x)                           ((x) << 0)
 #define		EVENT_INDEX(x)                          ((x) << 8)
-                /* 0 - any non-TS event
+                /* 0 - any yesn-TS event
 		 * 1 - ZPASS_DONE
 		 * 2 - SAMPLE_PIPELINESTAT
 		 * 3 - SAMPLE_STREAMOUTSTAT*
@@ -1678,7 +1678,7 @@
 		 * 3 - send 64bit counter value
 		 */
 #define		INT_SEL(x)                              ((x) << 24)
-                /* 0 - none
+                /* 0 - yesne
 		 * 1 - interrupt only (DATA_SEL = 0)
 		 * 2 - interrupt when data write is confirmed
 		 */

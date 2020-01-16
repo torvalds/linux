@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Ours Technology Inc. OTi-6858 USB to serial adapter driver.
+ * Ours Techyeslogy Inc. OTi-6858 USB to serial adapter driver.
  *
  * Copyleft  (C) 2007 Kees Lemmens (adapted for kernel 2.6.20)
  * Copyright (C) 2006 Tomasz Michal Lukaszewski (FIXME: add e-mail)
@@ -13,7 +13,7 @@
  * Warning! You use this driver on your own risk! The only official
  * description of this device I have is datasheet from manufacturer,
  * and it doesn't contain almost any information needed to write a driver.
- * Almost all knowlegde used while writing this driver was gathered by:
+ * Almost all kyeswlegde used while writing this driver was gathered by:
  *  - analyzing traffic between device and the M$ Windows 2000 driver,
  *  - trying different bit combinations and checking pin states
  *    with a voltmeter,
@@ -35,7 +35,7 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/slab.h>
 #include <linux/tty.h>
 #include <linux/tty_driver.h>
@@ -51,7 +51,7 @@
 #include "oti6858.h"
 
 #define OTI6858_DESCRIPTION \
-	"Ours Technology Inc. OTi-6858 USB to serial adapter driver"
+	"Ours Techyeslogy Inc. OTi-6858 USB to serial adapter driver"
 #define OTI6858_AUTHOR "Tomasz Michal Lukaszewski <FIXME@FIXME>"
 
 static const struct usb_device_id id_table[] = {
@@ -657,7 +657,7 @@ static void oti6858_read_int_callback(struct urb *urb)
 			__func__, status);
 		return;
 	default:
-		dev_dbg(&urb->dev->dev, "%s(): nonzero urb status received: %d\n",
+		dev_dbg(&urb->dev->dev, "%s(): yesnzero urb status received: %d\n",
 			__func__, status);
 		break;
 	}
@@ -813,7 +813,7 @@ static void oti6858_write_bulk_callback(struct urb *urb)
 		return;
 	default:
 		/* error in the urb, so we have to resubmit it */
-		dev_dbg(&urb->dev->dev, "%s(): nonzero write bulk status received: %d\n", __func__, status);
+		dev_dbg(&urb->dev->dev, "%s(): yesnzero write bulk status received: %d\n", __func__, status);
 		dev_dbg(&urb->dev->dev, "%s(): overflow in write\n", __func__);
 
 		port->write_urb->transfer_buffer_length = 1;

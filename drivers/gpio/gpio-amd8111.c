@@ -57,9 +57,9 @@
  * Data for PCI driver interface
  *
  * This data only exists for exporting the supported
- * PCI ids via MODULE_DEVICE_TABLE.  We do not actually
+ * PCI ids via MODULE_DEVICE_TABLE.  We do yest actually
  * register a pci_driver, because someone else might one day
- * want to register another driver on the same PCI id.
+ * want to register ayesther driver on the same PCI id.
  */
 static const struct pci_device_id pci_tbl[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_AMD, PCI_DEVICE_ID_AMD_8111_SMBUS), 0 },
@@ -181,7 +181,7 @@ static int __init amd_gpio_init(void)
 
 
 	/* We look for our device - AMD South Bridge
-	 * I don't know about a system with two such bridges,
+	 * I don't kyesw about a system with two such bridges,
 	 * so we can assume that there is max. one device.
 	 *
 	 * We can't use plain pci_driver mechanism,
@@ -194,7 +194,7 @@ static int __init amd_gpio_init(void)
 		if (ent)
 			goto found;
 	}
-	/* Device not found. */
+	/* Device yest found. */
 	goto out;
 
 found:

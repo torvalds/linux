@@ -394,14 +394,14 @@ mpc52xx_ata_set_piomode(struct ata_port *ap, struct ata_device *adev)
 
 	pio = adev->pio_mode - XFER_PIO_0;
 
-	rv = mpc52xx_ata_compute_pio_timings(priv, adev->devno, pio);
+	rv = mpc52xx_ata_compute_pio_timings(priv, adev->devyes, pio);
 
 	if (rv) {
 		dev_err(ap->dev, "error: invalid PIO mode: %d\n", pio);
 		return;
 	}
 
-	mpc52xx_ata_apply_timings(priv, adev->devno);
+	mpc52xx_ata_apply_timings(priv, adev->devyes);
 }
 
 static void
@@ -412,10 +412,10 @@ mpc52xx_ata_set_dmamode(struct ata_port *ap, struct ata_device *adev)
 
 	if (adev->dma_mode >= XFER_UDMA_0) {
 		int dma = adev->dma_mode - XFER_UDMA_0;
-		rv = mpc52xx_ata_compute_udma_timings(priv, adev->devno, dma);
+		rv = mpc52xx_ata_compute_udma_timings(priv, adev->devyes, dma);
 	} else {
 		int dma = adev->dma_mode - XFER_MW_DMA_0;
-		rv = mpc52xx_ata_compute_mdma_timings(priv, adev->devno, dma);
+		rv = mpc52xx_ata_compute_mdma_timings(priv, adev->devyes, dma);
 	}
 
 	if (rv) {
@@ -425,7 +425,7 @@ mpc52xx_ata_set_dmamode(struct ata_port *ap, struct ata_device *adev)
 		return;
 	}
 
-	mpc52xx_ata_apply_timings(priv, adev->devno);
+	mpc52xx_ata_apply_timings(priv, adev->devyes);
 }
 
 static void
@@ -542,7 +542,7 @@ mpc52xx_bmdma_setup(struct ata_queued_cmd *qc)
 		}
 	}
 
-	if (priv->timings[qc->dev->devno].using_udma)
+	if (priv->timings[qc->dev->devyes].using_udma)
 		dma_mode |= MPC52xx_ATA_DMAMODE_UDMA;
 
 	out_8(&regs->dma_mode, dma_mode);
@@ -618,7 +618,7 @@ static struct ata_port_operations mpc52xx_ata_port_ops = {
 	.bmdma_start		= mpc52xx_bmdma_start,
 	.bmdma_stop		= mpc52xx_bmdma_stop,
 	.bmdma_status		= mpc52xx_bmdma_status,
-	.qc_prep		= ata_noop_qc_prep,
+	.qc_prep		= ata_yesop_qc_prep,
 };
 
 static int mpc52xx_ata_init_one(struct device *dev,
@@ -682,17 +682,17 @@ static int mpc52xx_ata_probe(struct platform_device *op)
 	struct bcom_task *dmatsk;
 
 	/* Get ipb frequency */
-	ipb_freq = mpc5xxx_get_bus_frequency(op->dev.of_node);
+	ipb_freq = mpc5xxx_get_bus_frequency(op->dev.of_yesde);
 	if (!ipb_freq) {
-		dev_err(&op->dev, "could not determine IPB bus frequency\n");
+		dev_err(&op->dev, "could yest determine IPB bus frequency\n");
 		return -ENODEV;
 	}
 
 	/* Get device base address from device tree, request the region
 	 * and ioremap it. */
-	rv = of_address_to_resource(op->dev.of_node, 0, &res_mem);
+	rv = of_address_to_resource(op->dev.of_yesde, 0, &res_mem);
 	if (rv) {
-		dev_err(&op->dev, "could not determine device base address\n");
+		dev_err(&op->dev, "could yest determine device base address\n");
 		return rv;
 	}
 
@@ -715,21 +715,21 @@ static int mpc52xx_ata_probe(struct platform_device *op)
 	 * with UDMA if it is used at the same time as the LocalPlus bus.
 	 *
 	 * Instead of trying to guess what modes are usable, check the
-	 * ATA device tree node to find out what DMA modes work on the board.
+	 * ATA device tree yesde to find out what DMA modes work on the board.
 	 * UDMA/MWDMA modes can also be forced by adding "libata.force=<mode>"
 	 * to the kernel boot parameters.
 	 *
 	 * The MPC5200 ATA controller supports MWDMA modes 0, 1 and 2 and
 	 * UDMA modes 0, 1 and 2.
 	 */
-	prop = of_get_property(op->dev.of_node, "mwdma-mode", &proplen);
+	prop = of_get_property(op->dev.of_yesde, "mwdma-mode", &proplen);
 	if ((prop) && (proplen >= 4))
 		mwdma_mask = ATA_MWDMA2 & ((1 << (*prop + 1)) - 1);
-	prop = of_get_property(op->dev.of_node, "udma-mode", &proplen);
+	prop = of_get_property(op->dev.of_yesde, "udma-mode", &proplen);
 	if ((prop) && (proplen >= 4))
 		udma_mask = ATA_UDMA2 & ((1 << (*prop + 1)) - 1);
 
-	ata_irq = irq_of_parse_and_map(op->dev.of_node, 0);
+	ata_irq = irq_of_parse_and_map(op->dev.of_yesde, 0);
 	if (ata_irq == NO_IRQ) {
 		dev_err(&op->dev, "error mapping irq\n");
 		return -EINVAL;

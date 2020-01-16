@@ -2,10 +2,10 @@
 #ifndef _MEMREGION_H_
 #define _MEMREGION_H_
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 
 struct memregion_info {
-	int target_node;
+	int target_yesde;
 };
 
 #ifdef CONFIG_MEMREGION

@@ -328,7 +328,7 @@ static void efx_mcdi_phy_decode_link(struct efx_nic *efx,
 {
 	switch (fcntl) {
 	case MC_CMD_FCNTL_AUTO:
-		WARN_ON(1);	/* This is not a link mode */
+		WARN_ON(1);	/* This is yest a link mode */
 		link_state->fc = EFX_FC_AUTO | EFX_FC_TX | EFX_FC_RX;
 		break;
 	case MC_CMD_FCNTL_BIDIR:
@@ -350,19 +350,19 @@ static void efx_mcdi_phy_decode_link(struct efx_nic *efx,
 	link_state->speed = speed;
 }
 
-/* The semantics of the ethtool FEC mode bitmask are not well defined,
+/* The semantics of the ethtool FEC mode bitmask are yest well defined,
  * particularly the meaning of combinations of bits.  Which means we get to
  * define our own semantics, as follows:
  * OFF overrides any other bits, and means "disable all FEC" (with the
- * exception of 25G KR4/CR4, where it is not possible to reject it if AN
+ * exception of 25G KR4/CR4, where it is yest possible to reject it if AN
  * partner requests it).
  * AUTO on its own means use cable requirements and link partner autoneg with
  * fw-default preferences for the cable type.
  * AUTO and either RS or BASER means use the specified FEC type if cable and
  * link partner support it, otherwise autoneg/fw-default.
  * RS or BASER alone means use the specified FEC type if cable and link partner
- * support it and either requests it, otherwise no FEC.
- * Both RS and BASER (whether AUTO or not) means use FEC if cable and link
+ * support it and either requests it, otherwise yes FEC.
+ * Both RS and BASER (whether AUTO or yest) means use FEC if cable and link
  * partner support it, preferring RS to BASER.
  */
 static u32 ethtool_fec_caps_to_mcdi(u32 ethtool_cap)
@@ -389,7 +389,7 @@ static u32 ethtool_fec_caps_to_mcdi(u32 ethtool_cap)
 
 /* Invert ethtool_fec_caps_to_mcdi.  There are two combinations that function
  * can never produce, (baser xor rs) and neither req; the implementation below
- * maps both of those to AUTO.  This should never matter, and it's not clear
+ * maps both of those to AUTO.  This should never matter, and it's yest clear
  * what a better mapping would be anyway.
  */
 static u32 mcdi_fec_caps_to_ethtool(u32 caps, bool is_25g)
@@ -708,7 +708,7 @@ static int efx_mcdi_phy_get_fecparam(struct efx_nic *efx,
 		netif_warn(efx, hw, efx->net_dev,
 			   "Firmware reports unrecognised FEC_TYPE %u\n",
 			   active);
-		/* We don't know what firmware has picked.  AUTO is as good a
+		/* We don't kyesw what firmware has picked.  AUTO is as good a
 		 * "can't happen" value as any other.
 		 */
 		fec->active_fec = ETHTOOL_FEC_AUTO;
@@ -816,7 +816,7 @@ static int efx_mcdi_bist(struct efx_nic *efx, unsigned int bist_mode,
 finished:
 	results[count++] = (status == MC_CMD_POLL_BIST_PASSED) ? 1 : -1;
 
-	/* SFT9001 specific cable diagnostics output */
+	/* SFT9001 specific cable diagyesstics output */
 	if (efx->phy_type == PHY_TYPE_SFT9001B &&
 	    (bist_mode == MC_CMD_PHY_BIST_CABLE_SHORT ||
 	     bist_mode == MC_CMD_PHY_BIST_CABLE_LONG)) {
@@ -853,7 +853,7 @@ static int efx_mcdi_phy_run_tests(struct efx_nic *efx, int *results,
 	}
 
 	/* If we support both LONG and SHORT, then run each in response to
-	 * break or not. Otherwise, run the one we support */
+	 * break or yest. Otherwise, run the one we support */
 	mode = 0;
 	if (phy_cfg->flags & (1 << MC_CMD_GET_PHY_CFG_OUT_BIST_CABLE_SHORT_LBN)) {
 		if ((flags & ETH_TEST_FL_OFFLINE) &&
@@ -978,7 +978,7 @@ static int efx_mcdi_phy_get_module_eeprom_byte(struct efx_nic *efx,
 
 static int efx_mcdi_phy_diag_type(struct efx_nic *efx)
 {
-	/* Page zero of the EEPROM includes the diagnostic type at byte 92. */
+	/* Page zero of the EEPROM includes the diagyesstic type at byte 92. */
 	return efx_mcdi_phy_get_module_eeprom_byte(efx, 0,
 						   SFF_DIAG_TYPE_OFFSET);
 }
@@ -1017,7 +1017,7 @@ static int efx_mcdi_phy_get_module_eeprom(struct efx_nic *efx,
 	int rc;
 	ssize_t space_remaining = ee->len;
 	unsigned int page_off;
-	bool ignore_missing;
+	bool igyesre_missing;
 	int num_pages;
 	int page;
 
@@ -1026,12 +1026,12 @@ static int efx_mcdi_phy_get_module_eeprom(struct efx_nic *efx,
 		num_pages = efx_mcdi_phy_sff_8472_level(efx) > 0 ?
 				SFF_8472_NUM_PAGES : SFF_8079_NUM_PAGES;
 		page = 0;
-		ignore_missing = false;
+		igyesre_missing = false;
 		break;
 	case MC_CMD_MEDIA_QSFP_PLUS:
 		num_pages = SFF_8436_NUM_PAGES;
 		page = -1; /* We obtain the lower page by asking for -1. */
-		ignore_missing = true; /* Ignore missing pages after page 0. */
+		igyesre_missing = true; /* Igyesre missing pages after page 0. */
 		break;
 	default:
 		return -EOPNOTSUPP;
@@ -1052,7 +1052,7 @@ static int efx_mcdi_phy_get_module_eeprom(struct efx_nic *efx,
 			page++;
 		} else if (rc == 0) {
 			space_remaining = 0;
-		} else if (ignore_missing && (page > 0)) {
+		} else if (igyesre_missing && (page > 0)) {
 			int intended_size = SFP_PAGE_SIZE - page_off;
 
 			space_remaining -= intended_size;
@@ -1083,7 +1083,7 @@ static int efx_mcdi_phy_get_module_info(struct efx_nic *efx,
 	case MC_CMD_MEDIA_SFP_PLUS:
 		sff_8472_level = efx_mcdi_phy_sff_8472_level(efx);
 
-		/* If we can't read the diagnostics level we have none. */
+		/* If we can't read the diagyesstics level we have yesne. */
 		if (sff_8472_level < 0)
 			return -EOPNOTSUPP;
 
@@ -1179,7 +1179,7 @@ int efx_mcdi_set_mac(struct efx_nic *efx)
 
 	BUILD_BUG_ON(MC_CMD_SET_MAC_OUT_LEN != 0);
 
-	/* This has no effect on EF10 */
+	/* This has yes effect on EF10 */
 	ether_addr_copy(MCDI_PTR(cmdbytes, SET_MAC_IN_ADDR),
 			efx->net_dev->dev_addr);
 
@@ -1272,7 +1272,7 @@ static int efx_mcdi_mac_stats(struct efx_nic *efx,
 
 	rc = efx_mcdi_rpc_quiet(efx, MC_CMD_MAC_STATS, inbuf, sizeof(inbuf),
 				NULL, 0, NULL);
-	/* Expect ENOENT if DMA queues have not been set up */
+	/* Expect ENOENT if DMA queues have yest been set up */
 	if (rc && (rc != -ENOENT || atomic_read(&efx->active_queues)))
 		efx_mcdi_display_error(efx, MC_CMD_MAC_STATS, sizeof(inbuf),
 				       NULL, 0, rc);

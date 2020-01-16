@@ -40,13 +40,13 @@
 struct fw_mgmt_ioc_get_intf_version {
 	__u8 firmware_tag[GB_FIRMWARE_U_TAG_MAX_SIZE];
 	__u16 major;
-	__u16 minor;
+	__u16 miyesr;
 } __attribute__ ((__packed__));
 
 struct fw_mgmt_ioc_get_backend_version {
 	__u8 firmware_tag[GB_FIRMWARE_U_TAG_MAX_SIZE];
 	__u16 major;
-	__u16 minor;
+	__u16 miyesr;
 	__u8 status;
 } __attribute__ ((__packed__));
 
@@ -55,7 +55,7 @@ struct fw_mgmt_ioc_intf_load_and_validate {
 	__u8 load_method;
 	__u8 status;
 	__u16 major;
-	__u16 minor;
+	__u16 miyesr;
 } __attribute__ ((__packed__));
 
 struct fw_mgmt_ioc_backend_fw_update {

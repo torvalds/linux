@@ -7,9 +7,9 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions, and the following disclaimer,
+ *    yestice, this list of conditions, and the following disclaimer,
  *    without modification.
- * 2. The name of the author may not be used to endorse or promote products
+ * 2. The name of the author may yest be used to endorse or promote products
  *    derived from this software without specific prior written permission.
  *
  * Alternatively, this software may be distributed under the terms of the
@@ -40,7 +40,7 @@
 
 #include "vxfs.h"
 #include "vxfs_dir.h"
-#include "vxfs_inode.h"
+#include "vxfs_iyesde.h"
 #include "vxfs_extern.h"
 
 /*
@@ -49,10 +49,10 @@
 #define VXFS_BLOCK_PER_PAGE(sbp)  ((PAGE_SIZE / (sbp)->s_blocksize))
 
 
-static struct dentry *	vxfs_lookup(struct inode *, struct dentry *, unsigned int);
+static struct dentry *	vxfs_lookup(struct iyesde *, struct dentry *, unsigned int);
 static int		vxfs_readdir(struct file *, struct dir_context *);
 
-const struct inode_operations vxfs_dir_inode_ops = {
+const struct iyesde_operations vxfs_dir_iyesde_ops = {
 	.lookup =		vxfs_lookup,
 };
 
@@ -65,7 +65,7 @@ const struct file_operations vxfs_dir_operations = {
 
 /**
  * vxfs_find_entry - find a mathing directory entry for a dentry
- * @ip:		directory inode
+ * @ip:		directory iyesde
  * @dp:		dentry for which we want to find a direct
  * @ppp:	gets filled with the page the return value sits in
  *
@@ -78,7 +78,7 @@ const struct file_operations vxfs_dir_operations = {
  *   The wanted direct on success, else a NULL pointer.
  */
 static struct vxfs_direct *
-vxfs_find_entry(struct inode *ip, struct dentry *dp, struct page **ppp)
+vxfs_find_entry(struct iyesde *ip, struct dentry *dp, struct page **ppp)
 {
 	u_long bsize = ip->i_sb->s_blocksize;
 	const char *name = dp->d_name.name;
@@ -120,7 +120,7 @@ vxfs_find_entry(struct inode *ip, struct dentry *dp, struct page **ppp)
 
 			pg_ofs += fs16_to_cpu(sbi, de->d_reclen);
 			pos += fs16_to_cpu(sbi, de->d_reclen);
-			if (!de->d_ino)
+			if (!de->d_iyes)
 				continue;
 
 			if (namelen != fs16_to_cpu(sbi, de->d_namelen))
@@ -141,32 +141,32 @@ vxfs_find_entry(struct inode *ip, struct dentry *dp, struct page **ppp)
 }
 
 /**
- * vxfs_inode_by_name - find inode number for dentry
+ * vxfs_iyesde_by_name - find iyesde number for dentry
  * @dip:	directory to search in
  * @dp:		dentry we search for
  *
  * Description:
- *   vxfs_inode_by_name finds out the inode number of
+ *   vxfs_iyesde_by_name finds out the iyesde number of
  *   the path component described by @dp in @dip.
  *
  * Returns:
- *   The wanted inode number on success, else Zero.
+ *   The wanted iyesde number on success, else Zero.
  */
-static ino_t
-vxfs_inode_by_name(struct inode *dip, struct dentry *dp)
+static iyes_t
+vxfs_iyesde_by_name(struct iyesde *dip, struct dentry *dp)
 {
 	struct vxfs_direct		*de;
 	struct page			*pp;
-	ino_t				ino = 0;
+	iyes_t				iyes = 0;
 
 	de = vxfs_find_entry(dip, dp, &pp);
 	if (de) {
-		ino = fs32_to_cpu(VXFS_SBI(dip->i_sb), de->d_ino);
+		iyes = fs32_to_cpu(VXFS_SBI(dip->i_sb), de->d_iyes);
 		kunmap(pp);
 		put_page(pp);
 	}
 	
-	return (ino);
+	return (iyes);
 }
 
 /**
@@ -184,17 +184,17 @@ vxfs_inode_by_name(struct inode *dip, struct dentry *dp)
  *   in the return pointer.
  */
 static struct dentry *
-vxfs_lookup(struct inode *dip, struct dentry *dp, unsigned int flags)
+vxfs_lookup(struct iyesde *dip, struct dentry *dp, unsigned int flags)
 {
-	struct inode		*ip = NULL;
-	ino_t			ino;
+	struct iyesde		*ip = NULL;
+	iyes_t			iyes;
 			 
 	if (dp->d_name.len > VXFS_NAMELEN)
 		return ERR_PTR(-ENAMETOOLONG);
 				 
-	ino = vxfs_inode_by_name(dip, dp);
-	if (ino)
-		ip = vxfs_iget(dip->i_sb, ino);
+	iyes = vxfs_iyesde_by_name(dip, dp);
+	if (iyes)
+		ip = vxfs_iget(dip->i_sb, iyes);
 	return d_splice_alias(ip, dp);
 }
 
@@ -214,7 +214,7 @@ vxfs_lookup(struct inode *dip, struct dentry *dp, unsigned int flags)
 static int
 vxfs_readdir(struct file *fp, struct dir_context *ctx)
 {
-	struct inode		*ip = file_inode(fp);
+	struct iyesde		*ip = file_iyesde(fp);
 	struct super_block	*sbp = ip->i_sb;
 	u_long			bsize = sbp->s_blocksize;
 	loff_t			pos, limit;
@@ -271,15 +271,15 @@ vxfs_readdir(struct file *fp, struct dir_context *ctx)
 
 			pg_ofs += fs16_to_cpu(sbi, de->d_reclen);
 			pos += fs16_to_cpu(sbi, de->d_reclen);
-			if (!de->d_ino)
+			if (!de->d_iyes)
 				continue;
 
 			rc = dir_emit(ctx, de->d_name,
 					fs16_to_cpu(sbi, de->d_namelen),
-					fs32_to_cpu(sbi, de->d_ino),
+					fs32_to_cpu(sbi, de->d_iyes),
 					DT_UNKNOWN);
 			if (!rc) {
-				/* the dir entry was not read, fix pos. */
+				/* the dir entry was yest read, fix pos. */
 				pos -= fs16_to_cpu(sbi, de->d_reclen);
 				break;
 			}

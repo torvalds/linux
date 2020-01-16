@@ -283,7 +283,7 @@ static int ipu_csc_scaler_s_fmt(struct file *file, void *priv,
 	}
 
 	/*
-	 * TODO: Setting colorimetry on the capture queue is currently not
+	 * TODO: Setting colorimetry on the capture queue is currently yest
 	 * supported by the V4L2 API
 	 */
 
@@ -465,7 +465,7 @@ static int ipu_csc_scaler_buf_prepare(struct vb2_buffer *vb)
 
 	if (vb2_plane_size(vb, 0) < size) {
 		dev_dbg(ctx->priv->dev,
-			"%s: data will not fit into plane (%lu < %lu)\n",
+			"%s: data will yest fit into plane (%lu < %lu)\n",
 			__func__, vb2_plane_size(vb, 0), size);
 		return -EINVAL;
 	}
@@ -835,7 +835,7 @@ static const struct video_device ipu_csc_scaler_videodev_template = {
 	.name		= "ipu_ic_pp csc/scaler",
 	.fops		= &ipu_csc_scaler_fops,
 	.ioctl_ops	= &ipu_csc_scaler_ioctl_ops,
-	.minor		= -1,
+	.miyesr		= -1,
 	.release	= ipu_csc_scaler_video_device_release,
 	.vfl_dir	= VFL_DIR_M2M,
 	.device_caps	= V4L2_CAP_VIDEO_M2M | V4L2_CAP_STREAMING,
@@ -856,7 +856,7 @@ int imx_media_csc_scaler_device_register(struct imx_media_video_dev *vdev)
 	}
 
 	v4l2_info(vfd->v4l2_dev, "Registered %s as /dev/%s\n", vfd->name,
-		  video_device_node_name(vfd));
+		  video_device_yesde_name(vfd));
 
 	return 0;
 }

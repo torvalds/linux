@@ -986,7 +986,7 @@ static void mtk_dsi_wait_for_idle(struct mtk_dsi *dsi)
 	ret = readl_poll_timeout(dsi->regs + DSI_INTSTA, val, !(val & DSI_BUSY),
 				 4, 2000000);
 	if (ret) {
-		DRM_WARN("polling dsi wait not busy timeout!\n");
+		DRM_WARN("polling dsi wait yest busy timeout!\n");
 
 		mtk_dsi_enable(dsi);
 		mtk_dsi_reset_engine(dsi);
@@ -1009,7 +1009,7 @@ static u32 mtk_dsi_recv_cnt(u8 type, u8 *read_data)
 		DRM_INFO("type is 0x02, try again\n");
 		break;
 	default:
-		DRM_INFO("type(0x%x) not recognized\n", type);
+		DRM_INFO("type(0x%x) yest recognized\n", type);
 		break;
 	}
 
@@ -1073,7 +1073,7 @@ static ssize_t mtk_dsi_host_transfer(struct mipi_dsi_host *host,
 	u8 irq_flag = CMD_DONE_INT_FLAG;
 
 	if (readl(dsi->regs + DSI_MODE_CTRL) & MODE) {
-		DRM_ERROR("dsi engine is not command mode\n");
+		DRM_ERROR("dsi engine is yest command mode\n");
 		return -EINVAL;
 	}
 
@@ -1131,7 +1131,7 @@ static int mtk_dsi_bind(struct device *dev, struct device *master, void *data)
 	ret = mtk_ddp_comp_register(drm, &dsi->ddp_comp);
 	if (ret < 0) {
 		dev_err(dev, "Failed to register component %pOF: %d\n",
-			dev->of_node, ret);
+			dev->of_yesde, ret);
 		return ret;
 	}
 
@@ -1184,7 +1184,7 @@ static int mtk_dsi_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	ret = drm_of_find_panel_or_bridge(dev->of_node, 0, 0,
+	ret = drm_of_find_panel_or_bridge(dev->of_yesde, 0, 0,
 					  &dsi->panel, &dsi->bridge);
 	if (ret)
 		goto err_unregister_host;
@@ -1227,14 +1227,14 @@ static int mtk_dsi_probe(struct platform_device *pdev)
 		goto err_unregister_host;
 	}
 
-	comp_id = mtk_ddp_comp_get_id(dev->of_node, MTK_DSI);
+	comp_id = mtk_ddp_comp_get_id(dev->of_yesde, MTK_DSI);
 	if (comp_id < 0) {
 		dev_err(dev, "Failed to identify by alias: %d\n", comp_id);
 		ret = comp_id;
 		goto err_unregister_host;
 	}
 
-	ret = mtk_ddp_comp_init(dev, dev->of_node, &dsi->ddp_comp, comp_id,
+	ret = mtk_ddp_comp_init(dev, dev->of_yesde, &dsi->ddp_comp, comp_id,
 				&mtk_dsi_funcs);
 	if (ret) {
 		dev_err(dev, "Failed to initialize component: %d\n", ret);

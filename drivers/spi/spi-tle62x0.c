@@ -245,7 +245,7 @@ static int tle62x0_probe(struct spi_device *spi)
 
 	pdata = dev_get_platdata(&spi->dev);
 	if (pdata == NULL) {
-		dev_err(&spi->dev, "no device data specified\n");
+		dev_err(&spi->dev, "yes device data specified\n");
 		return -EINVAL;
 	}
 
@@ -261,14 +261,14 @@ static int tle62x0_probe(struct spi_device *spi)
 
 	ret = device_create_file(&spi->dev, &dev_attr_status_show);
 	if (ret) {
-		dev_err(&spi->dev, "cannot create status attribute\n");
+		dev_err(&spi->dev, "canyest create status attribute\n");
 		goto err_status;
 	}
 
 	for (ptr = 0; ptr < pdata->gpio_count; ptr++) {
 		ret = device_create_file(&spi->dev, gpio_attrs[ptr]);
 		if (ret) {
-			dev_err(&spi->dev, "cannot create gpio attribute\n");
+			dev_err(&spi->dev, "canyest create gpio attribute\n");
 			goto err_gpios;
 		}
 	}

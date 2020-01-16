@@ -28,10 +28,10 @@ static const char driver_desc [] = DRIVER_DESC;
 /*-------------------------------------------------------------------------*/
 
 /* DO NOT REUSE THESE IDs with a protocol-incompatible driver!!  Ever!!
- * Instead:  allocate your own, using normal USB-IF procedures.
+ * Instead:  allocate your own, using yesrmal USB-IF procedures.
  */
 
-/* Thanks to NetChip Technologies for donating this product ID.
+/* Thanks to NetChip Techyeslogies for donating this product ID.
  */
 #define PRINTER_VENDOR_NUM	0x0525		/* NetChip */
 #define PRINTER_PRODUCT_NUM	0xa4a8		/* Linux-USB Printer Gadget */
@@ -48,7 +48,7 @@ static char *iPNPstring;
 module_param(iPNPstring, charp, S_IRUGO);
 MODULE_PARM_DESC(iPNPstring, "MFG:linux;MDL:g_printer;CLS:PRINTER;SN:1;");
 
-/* Number of requests to allocate per endpoint, not used for ep0. */
+/* Number of requests to allocate per endpoint, yest used for ep0. */
 static unsigned qlen = 10;
 module_param(qlen, uint, S_IRUGO|S_IWUSR);
 
@@ -146,7 +146,7 @@ static int printer_bind(struct usb_composite_dev *cdev)
 		return PTR_ERR(fi_printer);
 
 	opts = container_of(fi_printer, struct f_printer_opts, func_inst);
-	opts->minor = 0;
+	opts->miyesr = 0;
 	opts->q_len = QLEN;
 	if (iPNPstring) {
 		opts->pnp_string = kstrdup(iPNPstring, GFP_KERNEL);

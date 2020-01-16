@@ -5,7 +5,7 @@
 
 /* In the dynamic configuration interface, the switch exposes a register-like
  * view of some of the static configuration tables.
- * Many times the field organization of the dynamic tables is abbreviated (not
+ * Many times the field organization of the dynamic tables is abbreviated (yest
  * all fields are dynamically reconfigurable) and different from the static
  * ones, but the key reason for having it is that we can spare a switch reset
  * for settings that can be changed dynamically.
@@ -28,7 +28,7 @@
  *
  * <----------------------- packed_size ------------------------>
  *
- * The ENTRY BUFFER may or may not have the same layout, or size, as its static
+ * The ENTRY BUFFER may or may yest have the same layout, or size, as its static
  * configuration table entry counterpart. When it does, the same packing
  * function is reused (bar exceptional cases - see
  * sja1105pqrs_dyn_l2_lookup_entry_packing).
@@ -41,7 +41,7 @@
  * The COMMAND BUFFER is always SJA1105_SIZE_DYN_CMD bytes (one 32-bit word) in
  * size.
  *
- * Sometimes the ENTRY BUFFER does not really exist (when the number of fields
+ * Sometimes the ENTRY BUFFER does yest really exist (when the number of fields
  * that can be reconfigured is small), then the switch repurposes some of the
  * unused 32 bits of the COMMAND BUFFER to hold ENTRY data.
  *
@@ -57,7 +57,7 @@
  *		   so most of the time, the @packed_buf points *behind* the
  *		   COMMAND offset inside the buffer.
  *		   To access the COMMAND portion of the buffer, the function
- *		   knows its correct offset.
+ *		   kyesws its correct offset.
  *		   Giving both functions the same pointer is handy because in
  *		   extreme cases (see sja1105pqrs_dyn_l2_lookup_entry_packing)
  *		   the .entry_packing is able to jump to the COMMAND portion,
@@ -90,7 +90,7 @@
  *		   bytes.
  * - .addr: The base SPI address at which the buffer must be written to the
  *	    switch's memory. When looking at the hardware manual, this must
- *	    always match the lowest documented address for the ENTRY, and not
+ *	    always match the lowest documented address for the ENTRY, and yest
  *	    that of the COMMAND, since the other 32-bit words will follow along
  *	    at the correct addresses.
  */
@@ -156,16 +156,16 @@ sja1105pqrs_l2_lookup_cmd_packing(void *buf, struct sja1105_dyn_cmd *cmd,
 	sja1105_packing(p, &cmd->errors,   29, 29, size, op);
 	sja1105_packing(p, &cmd->valident, 27, 27, size, op);
 
-	/* VALIDENT is supposed to indicate "keep or not", but in SJA1105 E/T,
+	/* VALIDENT is supposed to indicate "keep or yest", but in SJA1105 E/T,
 	 * using it to delete a management route was unsupported. UM10944
 	 * said about it:
 	 *
 	 *   In case of a write access with the MGMTROUTE flag set,
-	 *   the flag will be ignored. It will always be found cleared
+	 *   the flag will be igyesred. It will always be found cleared
 	 *   for read accesses with the MGMTROUTE flag set.
 	 *
 	 * SJA1105 P/Q/R/S keeps the same behavior w.r.t. VALIDENT, but there
-	 * is now another flag called HOSTCMD which does more stuff (quoting
+	 * is yesw ayesther flag called HOSTCMD which does more stuff (quoting
 	 * from UM11040):
 	 *
 	 *   A write request is accepted only when HOSTCMD is set to write host
@@ -193,7 +193,7 @@ sja1105pqrs_l2_lookup_cmd_packing(void *buf, struct sja1105_dyn_cmd *cmd,
 
 	/* Hack - The hardware takes the 'index' field within
 	 * struct sja1105_l2_lookup_entry as the index on which this command
-	 * will operate. However it will ignore everything else, so 'index'
+	 * will operate. However it will igyesre everything else, so 'index'
 	 * is logically part of command but physically part of entry.
 	 * Populate the 'index' entry field from within the command callback,
 	 * such that our API doesn't need to ask for a full-blown entry
@@ -219,7 +219,7 @@ sja1105pqrs_l2_lookup_cmd_packing(void *buf, struct sja1105_dyn_cmd *cmd,
  *   (as opposed to automatically learned entries).
  *
  * The trouble with this flag is that it's part of the *command* to access the
- * dynamic interface, and not part of the *entry* retrieved from it.
+ * dynamic interface, and yest part of the *entry* retrieved from it.
  * Otherwise said, for a sja1105_dynamic_config_read, LOCKEDS is supposed to be
  * an output from the switch into the command buffer, and for a
  * sja1105_dynamic_config_write, the switch treats LOCKEDS as an input
@@ -228,21 +228,21 @@ sja1105pqrs_l2_lookup_cmd_packing(void *buf, struct sja1105_dyn_cmd *cmd,
  * But the manual contradicts itself in the last phrase where it says that on
  * read, LOCKEDS will be set to 1 for all FDB entries written through the
  * dynamic interface (therefore, the value of LOCKEDS from the
- * sja1105_dynamic_config_write is not really used for anything, it'll store a
+ * sja1105_dynamic_config_write is yest really used for anything, it'll store a
  * 1 anyway).
  * This means you can't really write a FDB entry with LOCKEDS=0 (automatically
  * learned) into the switch, which kind of makes sense.
  * As for reading through the dynamic interface, it doesn't make too much sense
  * to put LOCKEDS into the command, since the switch will inevitably have to
- * ignore it (otherwise a command would be like "read the FDB entry 123, but
- * only if it's dynamically learned" <- well how am I supposed to know?) and
+ * igyesre it (otherwise a command would be like "read the FDB entry 123, but
+ * only if it's dynamically learned" <- well how am I supposed to kyesw?) and
  * just use it as an output buffer for its findings. But guess what... that's
  * what the entry buffer is for!
  * Unfortunately, what really breaks this abstraction is the fact that it
  * wasn't designed having the fact in mind that the switch can output
  * entry-related data as writeback through the command buffer.
  * However, whether a FDB entry is statically or dynamically learned *is* part
- * of the entry and not the command data, no matter what the switch thinks.
+ * of the entry and yest the command data, yes matter what the switch thinks.
  * In order to do that, we'll need to wrap around the
  * sja1105pqrs_l2_lookup_entry_packing from sja1105_static_config.c, and take
  * a peek outside of the caller-supplied @buf (the entry buffer), to reach the
@@ -420,9 +420,9 @@ static size_t sja1105et_mac_config_entry_packing(void *buf, void *entry_ptr,
 	sja1105_packing(reg2, &entry->tp_delin,  31, 16, size, op);
 	sja1105_packing(reg2, &entry->tp_delout, 15,  0, size, op);
 	/* MAC configuration table entries which can't be reconfigured:
-	 * top, base, enabled, ifg, maxage, drpnona664
+	 * top, base, enabled, ifg, maxage, drpyesna664
 	 */
-	/* Bogus return value, not used anywhere */
+	/* Bogus return value, yest used anywhere */
 	return 0;
 }
 
@@ -455,7 +455,7 @@ sja1105et_l2_lookup_params_entry_packing(void *buf, void *entry_ptr,
 
 	sja1105_packing(buf, &entry->poly, 7, 0,
 			SJA1105ET_SIZE_L2_LOOKUP_PARAMS_DYN_CMD, op);
-	/* Bogus return value, not used anywhere */
+	/* Bogus return value, yest used anywhere */
 	return 0;
 }
 
@@ -477,7 +477,7 @@ sja1105et_general_params_entry_packing(void *buf, void *entry_ptr,
 	const int size = SJA1105ET_SIZE_GENERAL_PARAMS_DYN_CMD;
 
 	sja1105_packing(buf, &entry->mirr_port, 2, 0, size, op);
-	/* Bogus return value, not used anywhere */
+	/* Bogus return value, yest used anywhere */
 	return 0;
 }
 
@@ -635,9 +635,9 @@ struct sja1105_dynamic_table_ops sja1105pqrs_dyn_ops[BLK_IDX_MAX_DYN] = {
  *		Usually an output argument. If @index is negative, then this
  *		argument is used as input/output: it should be pre-populated
  *		with the element to search for. Entries which support the
- *		search operation will have an "index" field (not the @index
+ *		search operation will have an "index" field (yest the @index
  *		argument to this function) and that is where the found index
- *		will be returned (or left unmodified - thus negative - if not
+ *		will be returned (or left unmodified - thus negative - if yest
  *		found).
  */
 int sja1105_dynamic_config_read(struct sja1105_private *priv,
@@ -718,7 +718,7 @@ int sja1105_dynamic_config_read(struct sja1105_private *priv,
 		return -ETIMEDOUT;
 
 	/* Don't dereference possibly NULL pointer - maybe caller
-	 * only wanted to see whether the entry existed or not.
+	 * only wanted to see whether the entry existed or yest.
 	 */
 	if (entry)
 		ops->entry_packing(packed_buf, entry, UNPACK);
@@ -800,10 +800,10 @@ static u8 sja1105_crc8_add(u8 crc, u8 byte, u8 poly)
 	return crc;
 }
 
-/* CRC8 algorithm with non-reversed input, non-reversed output,
- * no input xor and no output xor. Code customized for receiving
- * the SJA1105 E/T FDB keys (vlanid, macaddr) as input. CRC polynomial
- * is also received as argument in the Koopman notation that the switch
+/* CRC8 algorithm with yesn-reversed input, yesn-reversed output,
+ * yes input xor and yes output xor. Code customized for receiving
+ * the SJA1105 E/T FDB keys (vlanid, macaddr) as input. CRC polyyesmial
+ * is also received as argument in the Koopman yestation that the switch
  * hardware stores it in.
  */
 u8 sja1105et_fdb_hash(struct sja1105_private *priv, const u8 *addr, u16 vid)
@@ -811,7 +811,7 @@ u8 sja1105et_fdb_hash(struct sja1105_private *priv, const u8 *addr, u16 vid)
 	struct sja1105_l2_lookup_params_entry *l2_lookup_params =
 		priv->static_config.tables[BLK_IDX_L2_LOOKUP_PARAMS].entries;
 	u64 poly_koopman = l2_lookup_params->poly;
-	/* Convert polynomial from Koopman to 'normal' notation */
+	/* Convert polyyesmial from Koopman to 'yesrmal' yestation */
 	u8 poly = (u8)(1 + (poly_koopman << 1));
 	u64 vlanid = l2_lookup_params->shared_learn ? 0 : vid;
 	u64 input = (vlanid << 48) | ether_addr_to_u64(addr);

@@ -70,7 +70,7 @@ static int stk1160_i2c_write_reg(struct stk1160 *dev, u8 addr,
 	if (rc < 0)
 		return rc;
 
-	/* Start write now */
+	/* Start write yesw */
 	rc = stk1160_write_reg(dev, STK1160_SICTL, 0x01);
 	if (rc < 0)
 		return rc;
@@ -97,7 +97,7 @@ static int stk1160_i2c_read_reg(struct stk1160 *dev, u8 addr,
 	if (rc < 0)
 		return rc;
 
-	/* Start read now */
+	/* Start read yesw */
 	rc = stk1160_write_reg(dev, STK1160_SICTL, 0x20);
 	if (rc < 0)
 		return rc;
@@ -132,7 +132,7 @@ static int stk1160_i2c_check_for_device(struct stk1160 *dev,
 	if (rc < 0)
 		return rc;
 
-	/* Start read now */
+	/* Start read yesw */
 	rc = stk1160_write_reg(dev, STK1160_SICTL, 0x20);
 	if (rc < 0)
 		return rc;
@@ -159,16 +159,16 @@ static int stk1160_i2c_xfer(struct i2c_adapter *i2c_adap,
 		dprintk_i2c("%s: addr=%x", __func__, addr);
 
 		if (!msgs[i].len) {
-			/* no len: check only for device presence */
+			/* yes len: check only for device presence */
 			rc = stk1160_i2c_check_for_device(dev, addr);
 			if (rc < 0) {
-				dprintk_i2c(" no device\n");
+				dprintk_i2c(" yes device\n");
 				return rc;
 			}
 
 		} else if (msgs[i].flags & I2C_M_RD) {
 			/* read request without preceding register selection */
-			dprintk_i2c(" subaddr not selected");
+			dprintk_i2c(" subaddr yest selected");
 			rc = -EOPNOTSUPP;
 			goto err;
 
@@ -177,7 +177,7 @@ static int stk1160_i2c_xfer(struct i2c_adapter *i2c_adap,
 			   msgs[i].addr == msgs[i + 1].addr) {
 
 			if (msgs[i].len != 1 || msgs[i + 1].len != 1) {
-				dprintk_i2c(" len not supported");
+				dprintk_i2c(" len yest supported");
 				rc = -EOPNOTSUPP;
 				goto err;
 			}
@@ -194,7 +194,7 @@ static int stk1160_i2c_xfer(struct i2c_adapter *i2c_adap,
 
 		} else {
 			if (msgs[i].len != 2) {
-				dprintk_i2c(" len not supported");
+				dprintk_i2c(" len yest supported");
 				rc = -EOPNOTSUPP;
 				goto err;
 			}
@@ -257,7 +257,7 @@ int stk1160_i2c_register(struct stk1160 *dev)
 
 	rc = i2c_add_adapter(&dev->i2c_adap);
 	if (rc < 0) {
-		stk1160_err("cannot add i2c adapter (%d)\n", rc);
+		stk1160_err("canyest add i2c adapter (%d)\n", rc);
 		return rc;
 	}
 

@@ -360,7 +360,7 @@ static int virtinput_restore(struct virtio_device *vdev)
 #endif
 
 static unsigned int features[] = {
-	/* none */
+	/* yesne */
 };
 static struct virtio_device_id id_table[] = {
 	{ VIRTIO_ID_INPUT, VIRTIO_DEV_ANY_ID },

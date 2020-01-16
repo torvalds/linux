@@ -93,7 +93,7 @@ void cleanup_module(void)
  * instruction to be emulated is illegal (such as with the opDEC trap), else
  * the SI_CODE for a SIGFPE signal, else 0 if everything's ok.
  *
- * Notice that the kernel does not and cannot use FP regs.  This is good
+ * Notice that the kernel does yest and canyest use FP regs.  This is good
  * because it means that instead of saving/restoring all fp regs, we simply
  * stick the result of the operation into the appropriate register.
  */
@@ -236,7 +236,7 @@ alpha_fp_emul (unsigned long pc)
 		case FOP_FNC_CVTxQ:
 			if (DB_c == FP_CLS_NAN
 			    && (_FP_FRAC_HIGH_RAW_D(DB) & _FP_QNANBIT_D)) {
-			  /* AAHB Table B-2 says QNaN should not trigger INV */
+			  /* AAHB Table B-2 says QNaN should yest trigger INV */
 				vc = 0;
 			} else
 				FP_TO_INT_ROUND_D(vc, DB, 64, 2);
@@ -350,7 +350,7 @@ alpha_fp_emul_imprecise (struct pt_regs *regs, unsigned long write_mask)
 	 * be written at most once in the trap shadow.
 	 *
 	 * Branches, jumps, TRAPBs, EXCBs and calls to PALcode all
-	 * bound the trap shadow, so we need not look any further than
+	 * bound the trap shadow, so we need yest look any further than
 	 * up to the first occurrence of such an instruction.
 	 */
 	while (write_mask) {

@@ -22,8 +22,8 @@ PERSONS AND ORGANIZATIONS WHO CAN AND WILL TAKE FULL RESPONSIBILITY FOR ANY
 AND ALL LOSSES, COSTS, OR OTHER PROBLEMS ARISING FROM ITS USE.
 
 Derivative works are acceptable, even for commercial purposes, so long as
-(1) they include prominent notice that the work is derivative, and (2) they
-include prominent notice akin to these three paragraphs for those parts of
+(1) they include prominent yestice that the work is derivative, and (2) they
+include prominent yestice akin to these three paragraphs for those parts of
 this code that are retained.
 
 ===============================================================================
@@ -36,8 +36,8 @@ this code that are retained.
 /*
 -------------------------------------------------------------------------------
 The macro `FLOATX80' must be defined to enable the extended double-precision
-floating-point format `floatx80'.  If this macro is not defined, the
-`floatx80' type will not be defined, and none of the functions that either
+floating-point format `floatx80'.  If this macro is yest defined, the
+`floatx80' type will yest be defined, and yesne of the functions that either
 input or output the `floatx80' type will be defined.
 -------------------------------------------------------------------------------
 */
@@ -235,12 +235,12 @@ static inline flag extractFloat32Sign(float32 a)
 	return a >> 31;
 }
 
-static inline flag float32_eq_nocheck(float32 a, float32 b)
+static inline flag float32_eq_yescheck(float32 a, float32 b)
 {
 	return (a == b) || ((bits32) ((a | b) << 1) == 0);
 }
 
-static inline flag float32_lt_nocheck(float32 a, float32 b)
+static inline flag float32_lt_yescheck(float32 a, float32 b)
 {
 	flag aSign, bSign;
 
@@ -256,12 +256,12 @@ static inline flag extractFloat64Sign(float64 a)
 	return a >> 63;
 }
 
-static inline flag float64_eq_nocheck(float64 a, float64 b)
+static inline flag float64_eq_yescheck(float64 a, float64 b)
 {
 	return (a == b) || ((bits64) ((a | b) << 1) == 0);
 }
 
-static inline flag float64_lt_nocheck(float64 a, float64 b)
+static inline flag float64_lt_yescheck(float64 a, float64 b)
 {
 	flag aSign, bSign;
 

@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -28,7 +28,7 @@
 #include <drm/drm_fourcc.h>
 #include <drm/drm_plane_helper.h>
 
-#include "nouveau_bo.h"
+#include "yesuveau_bo.h"
 
 void
 base507c_update(struct nv50_wndw *wndw, u32 *interlock)
@@ -110,11 +110,11 @@ base507c_xlut_set(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw)
 }
 
 int
-base507c_ntfy_wait_begun(struct nouveau_bo *bo, u32 offset,
+base507c_ntfy_wait_begun(struct yesuveau_bo *bo, u32 offset,
 			 struct nvif_device *device)
 {
 	s64 time = nvif_msec(device, 2000ULL,
-		u32 data = nouveau_bo_rd32(bo, offset / 4);
+		u32 data = yesuveau_bo_rd32(bo, offset / 4);
 		if ((data & 0xc0000000) == 0x40000000)
 			break;
 		usleep_range(1, 2);
@@ -146,9 +146,9 @@ base507c_ntfy_set(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw)
 }
 
 void
-base507c_ntfy_reset(struct nouveau_bo *bo, u32 offset)
+base507c_ntfy_reset(struct yesuveau_bo *bo, u32 offset)
 {
-	nouveau_bo_wr32(bo, offset / 4, 0x00000000);
+	yesuveau_bo_wr32(bo, offset / 4, 0x00000000);
 }
 
 void
@@ -210,7 +210,7 @@ base507c_acquire(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw,
 	asyh->base.h = asyw->state.fb->height;
 
 	/* Some newer formats, esp FP16 ones, don't have a
-	 * "depth". There's nothing that really makes sense there
+	 * "depth". There's yesthing that really makes sense there
 	 * either, so just set it to the implicit bit count.
 	 */
 	if (!asyh->base.depth)
@@ -256,7 +256,7 @@ base507c = {
 
 int
 base507c_new_(const struct nv50_wndw_func *func, const u32 *format,
-	      struct nouveau_drm *drm, int head, s32 oclass, u32 interlock_data,
+	      struct yesuveau_drm *drm, int head, s32 oclass, u32 interlock_data,
 	      struct nv50_wndw **pwndw)
 {
 	struct nv50_disp_base_channel_dma_v0 args = {
@@ -280,12 +280,12 @@ base507c_new_(const struct nv50_wndw_func *func, const u32 *format,
 		return ret;
 	}
 
-	ret = nvif_notify_init(&wndw->wndw.base.user, wndw->notify.func,
+	ret = nvif_yestify_init(&wndw->wndw.base.user, wndw->yestify.func,
 			       false, NV50_DISP_BASE_CHANNEL_DMA_V0_NTFY_UEVENT,
-			       &(struct nvif_notify_uevent_req) {},
-			       sizeof(struct nvif_notify_uevent_req),
-			       sizeof(struct nvif_notify_uevent_rep),
-			       &wndw->notify);
+			       &(struct nvif_yestify_uevent_req) {},
+			       sizeof(struct nvif_yestify_uevent_req),
+			       sizeof(struct nvif_yestify_uevent_rep),
+			       &wndw->yestify);
 	if (ret)
 		return ret;
 
@@ -296,7 +296,7 @@ base507c_new_(const struct nv50_wndw_func *func, const u32 *format,
 }
 
 int
-base507c_new(struct nouveau_drm *drm, int head, s32 oclass,
+base507c_new(struct yesuveau_drm *drm, int head, s32 oclass,
 	     struct nv50_wndw **pwndw)
 {
 	return base507c_new_(&base507c, base507c_format, drm, head, oclass,

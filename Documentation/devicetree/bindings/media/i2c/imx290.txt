@@ -19,8 +19,8 @@ Required Properties:
 Optional Properties:
 - reset-gpios: Sensor reset GPIO
 
-The imx290 device node should contain one 'port' child node with
-an 'endpoint' subnode. For further reading on port node refer to
+The imx290 device yesde should contain one 'port' child yesde with
+an 'endpoint' subyesde. For further reading on port yesde refer to
 Documentation/devicetree/bindings/media/video-interfaces.txt.
 
 Required Properties on endpoint:

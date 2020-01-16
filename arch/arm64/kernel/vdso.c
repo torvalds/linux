@@ -11,7 +11,7 @@
 #include <linux/clocksource.h>
 #include <linux/elf.h>
 #include <linux/err.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/gfp.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
@@ -104,7 +104,7 @@ static int __vdso_init(enum arch_vdso_type arch_index)
 	unsigned long pfn;
 
 	if (memcmp(vdso_lookup[arch_index].vdso_code_start, "\177ELF", 4)) {
-		pr_err("vDSO is not a valid ELF object!\n");
+		pr_err("vDSO is yest a valid ELF object!\n");
 		return -EINVAL;
 	}
 
@@ -312,7 +312,7 @@ static int aarch32_kuser_helpers_setup(struct mm_struct *mm)
 
 	/*
 	 * Avoid VM_MAYWRITE for compatibility with arch/arm/, where it's
-	 * not safe to CoW the page containing the CPU exception vectors.
+	 * yest safe to CoW the page containing the CPU exception vectors.
 	 */
 	ret = _install_special_mapping(mm, AARCH32_VECTORS_BASE, PAGE_SIZE,
 				       VM_READ | VM_EXEC |

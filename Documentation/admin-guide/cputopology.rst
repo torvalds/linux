@@ -112,7 +112,7 @@ topology_sibling_cpumask() which corresponds with thread_siblings).
 
 To be consistent on all architectures, include/linux/topology.h
 provides default definitions for any of the above macros that are
-not defined by include/asm-XXX/topology.h:
+yest defined by include/asm-XXX/topology.h:
 
 1) topology_physical_package_id: -1
 2) topology_die_id: -1
@@ -121,10 +121,10 @@ not defined by include/asm-XXX/topology.h:
 5) topology_core_cpumask: just the given CPU
 6) topology_die_cpumask: just the given CPU
 
-For architectures that don't support books (CONFIG_SCHED_BOOK) there are no
+For architectures that don't support books (CONFIG_SCHED_BOOK) there are yes
 default definitions for topology_book_id() and topology_book_cpumask().
 For architectures that don't support drawers (CONFIG_SCHED_DRAWER) there are
-no default definitions for topology_drawer_id() and topology_drawer_cpumask().
+yes default definitions for topology_drawer_id() and topology_drawer_cpumask().
 
 Additionally, CPU topology information is provided under
 /sys/devices/system/cpu and includes these files.  The internal
@@ -134,7 +134,7 @@ source for the output is in brackets ("[]").
     kernel_max: the maximum CPU index allowed by the kernel configuration.
 		[NR_CPUS-1]
 
-    offline:	CPUs that are not online because they have been
+    offline:	CPUs that are yest online because they have been
 		HOTPLUGGED off (see cpu-hotplug.txt) or exceed the limit
 		of CPUs allowed by the kernel configuration (kernel_max
 		above). [~cpu_online_mask + cpus >= NR_CPUS]
@@ -153,7 +153,7 @@ The format for the above output is compatible with cpulist_parse()
 
 In this example, there are 64 CPUs in the system but cpus 32-63 exceed
 the kernel max which is limited to 0..31 by the NR_CPUS config option
-being 32.  Note also that CPUs 2 and 4-31 are not online but could be
+being 32.  Note also that CPUs 2 and 4-31 are yest online but could be
 brought online as they are both present and possible::
 
      kernel_max: 31

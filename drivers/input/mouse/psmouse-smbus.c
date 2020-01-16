@@ -18,7 +18,7 @@ struct psmouse_smbus_dev {
 	struct i2c_board_info board;
 	struct psmouse *psmouse;
 	struct i2c_client *client;
-	struct list_head node;
+	struct list_head yesde;
 	bool dead;
 	bool need_deactivate;
 };
@@ -35,7 +35,7 @@ static void psmouse_smbus_check_adapter(struct i2c_adapter *adapter)
 
 	mutex_lock(&psmouse_smbus_mutex);
 
-	list_for_each_entry(smbdev, &psmouse_smbus_list, node) {
+	list_for_each_entry(smbdev, &psmouse_smbus_list, yesde) {
 		if (smbdev->dead)
 			continue;
 
@@ -44,10 +44,10 @@ static void psmouse_smbus_check_adapter(struct i2c_adapter *adapter)
 
 		/*
 		 * Here would be a good place to check if device is actually
-		 * present, but it seems that SMBus will not respond unless we
+		 * present, but it seems that SMBus will yest respond unless we
 		 * fully reset PS/2 connection.  So cross our fingers, and try
-		 * to switch over, hopefully our system will not have too many
-		 * "host notify" I2C adapters.
+		 * to switch over, hopefully our system will yest have too many
+		 * "host yestify" I2C adapters.
 		 */
 		psmouse_dbg(smbdev->psmouse,
 			    "SMBus candidate adapter appeared, triggering rescan\n");
@@ -63,7 +63,7 @@ static void psmouse_smbus_detach_i2c_client(struct i2c_client *client)
 
 	mutex_lock(&psmouse_smbus_mutex);
 
-	list_for_each_entry_safe(smbdev, tmp, &psmouse_smbus_list, node) {
+	list_for_each_entry_safe(smbdev, tmp, &psmouse_smbus_list, yesde) {
 		if (smbdev->client != client)
 			continue;
 
@@ -77,7 +77,7 @@ static void psmouse_smbus_detach_i2c_client(struct i2c_client *client)
 			smbdev->dead = true;
 			serio_rescan(smbdev->psmouse->ps2dev.serio);
 		} else {
-			list_del(&smbdev->node);
+			list_del(&smbdev->yesde);
 			kfree(smbdev);
 		}
 	}
@@ -85,7 +85,7 @@ static void psmouse_smbus_detach_i2c_client(struct i2c_client *client)
 	mutex_unlock(&psmouse_smbus_mutex);
 }
 
-static int psmouse_smbus_notifier_call(struct notifier_block *nb,
+static int psmouse_smbus_yestifier_call(struct yestifier_block *nb,
 				       unsigned long action, void *data)
 {
 	struct device *dev = data;
@@ -105,8 +105,8 @@ static int psmouse_smbus_notifier_call(struct notifier_block *nb,
 	return 0;
 }
 
-static struct notifier_block psmouse_smbus_notifier = {
-	.notifier_call = psmouse_smbus_notifier_call,
+static struct yestifier_block psmouse_smbus_yestifier = {
+	.yestifier_call = psmouse_smbus_yestifier_call,
 };
 
 static psmouse_ret_t psmouse_smbus_process_byte(struct psmouse *psmouse)
@@ -170,7 +170,7 @@ static void psmouse_smbus_disconnect(struct psmouse *psmouse)
 	mutex_lock(&psmouse_smbus_mutex);
 
 	if (smbdev->dead) {
-		list_del(&smbdev->node);
+		list_del(&smbdev->yesde);
 		kfree(smbdev);
 	} else {
 		smbdev->dead = true;
@@ -213,9 +213,9 @@ void psmouse_smbus_cleanup(struct psmouse *psmouse)
 
 	mutex_lock(&psmouse_smbus_mutex);
 
-	list_for_each_entry_safe(smbdev, tmp, &psmouse_smbus_list, node) {
+	list_for_each_entry_safe(smbdev, tmp, &psmouse_smbus_list, yesde) {
 		if (psmouse == smbdev->psmouse) {
-			list_del(&smbdev->node);
+			list_del(&smbdev->yesde);
 			kfree(smbdev);
 		}
 	}
@@ -260,7 +260,7 @@ int psmouse_smbus_init(struct psmouse *psmouse,
 	psmouse->resync_time = 0;
 
 	mutex_lock(&psmouse_smbus_mutex);
-	list_add_tail(&smbdev->node, &psmouse_smbus_list);
+	list_add_tail(&smbdev->yesde, &psmouse_smbus_list);
 	mutex_unlock(&psmouse_smbus_mutex);
 
 	/* Bind to already existing adapters right away */
@@ -272,7 +272,7 @@ int psmouse_smbus_init(struct psmouse *psmouse,
 	}
 
 	/*
-	 * If we did not create i2c device we will not need platform
+	 * If we did yest create i2c device we will yest need platform
 	 * data even if we are leaving breadcrumbs.
 	 */
 	kfree(smbdev->board.platform_data);
@@ -280,7 +280,7 @@ int psmouse_smbus_init(struct psmouse *psmouse,
 
 	if (error < 0 || !leave_breadcrumbs) {
 		mutex_lock(&psmouse_smbus_mutex);
-		list_del(&smbdev->node);
+		list_del(&smbdev->yesde);
 		mutex_unlock(&psmouse_smbus_mutex);
 
 		kfree(smbdev);
@@ -293,9 +293,9 @@ int __init psmouse_smbus_module_init(void)
 {
 	int error;
 
-	error = bus_register_notifier(&i2c_bus_type, &psmouse_smbus_notifier);
+	error = bus_register_yestifier(&i2c_bus_type, &psmouse_smbus_yestifier);
 	if (error) {
-		pr_err("failed to register i2c bus notifier: %d\n", error);
+		pr_err("failed to register i2c bus yestifier: %d\n", error);
 		return error;
 	}
 
@@ -304,6 +304,6 @@ int __init psmouse_smbus_module_init(void)
 
 void psmouse_smbus_module_exit(void)
 {
-	bus_unregister_notifier(&i2c_bus_type, &psmouse_smbus_notifier);
+	bus_unregister_yestifier(&i2c_bus_type, &psmouse_smbus_yestifier);
 	flush_scheduled_work();
 }

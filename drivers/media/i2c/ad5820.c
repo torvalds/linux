@@ -14,7 +14,7 @@
  * Based on af_d88.c by Texas Instruments.
  */
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/i2c.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -180,10 +180,10 @@ static int ad5820_init_controls(struct ad5820_device *coil)
 	 * V4L2_CID_FOCUS_ABSOLUTE
 	 *
 	 * Minimum current is 0 mA, maximum is 100 mA. Thus, 1 code is
-	 * equivalent to 100/1023 = 0.0978 mA. Nevertheless, we do not use [mA]
+	 * equivalent to 100/1023 = 0.0978 mA. Nevertheless, we do yest use [mA]
 	 * for focus position, because it is meaningless for user. Meaningful
 	 * would be to use focus distance or even its inverse, but since the
-	 * driver doesn't have sufficiently knowledge to do the conversion, we
+	 * driver doesn't have sufficiently kyeswledge to do the conversion, we
 	 * will just use abstract codes here. In any case, smaller value = focus
 	 * position farther from camera. The default zero value means focus at
 	 * infinity, and also least current consumption.
@@ -306,7 +306,7 @@ static int ad5820_probe(struct i2c_client *client,
 	if (IS_ERR(coil->vana)) {
 		ret = PTR_ERR(coil->vana);
 		if (ret != -EPROBE_DEFER)
-			dev_err(&client->dev, "could not get regulator for vana\n");
+			dev_err(&client->dev, "could yest get regulator for vana\n");
 		return ret;
 	}
 
@@ -315,7 +315,7 @@ static int ad5820_probe(struct i2c_client *client,
 	if (IS_ERR(coil->enable_gpio)) {
 		ret = PTR_ERR(coil->enable_gpio);
 		if (ret != -EPROBE_DEFER)
-			dev_err(&client->dev, "could not get enable gpio\n");
+			dev_err(&client->dev, "could yest get enable gpio\n");
 		return ret;
 	}
 

@@ -133,7 +133,7 @@ static const struct drm_bridge_funcs panel_bridge_bridge_funcs = {
  * drm_panel_bridge_add - Creates a &drm_bridge and &drm_connector that
  * just calls the appropriate functions from &drm_panel.
  *
- * @panel: The drm_panel being wrapped.  Must be non-NULL.
+ * @panel: The drm_panel being wrapped.  Must be yesn-NULL.
  *
  * For drivers converting from directly using drm_panel: The expected
  * usage pattern is that during either encoder module probe or DSI
@@ -141,22 +141,22 @@ static const struct drm_bridge_funcs panel_bridge_bridge_funcs = {
  * drm_of_find_panel_or_bridge().  drm_panel_bridge_add() is used to
  * wrap that panel in the new bridge, and the result can then be
  * passed to drm_bridge_attach().  The drm_panel_prepare() and related
- * functions can be dropped from the encoder driver (they're now
+ * functions can be dropped from the encoder driver (they're yesw
  * called by the KMS helpers before calling into the encoder), along
  * with connector creation.  When done with the bridge (after
  * drm_mode_config_cleanup() if the bridge has already been attached), then
  * drm_panel_bridge_remove() to free it.
  *
  * The connector type is set to @panel->connector_type, which must be set to a
- * known type. Calling this function with a panel whose connector type is
- * DRM_MODE_CONNECTOR_Unknown will return NULL.
+ * kyeswn type. Calling this function with a panel whose connector type is
+ * DRM_MODE_CONNECTOR_Unkyeswn will return NULL.
  *
  * See devm_drm_panel_bridge_add() for an automatically manged version of this
  * function.
  */
 struct drm_bridge *drm_panel_bridge_add(struct drm_panel *panel)
 {
-	if (WARN_ON(panel->connector_type == DRM_MODE_CONNECTOR_Unknown))
+	if (WARN_ON(panel->connector_type == DRM_MODE_CONNECTOR_Unkyeswn))
 		return NULL;
 
 	return drm_panel_bridge_add_typed(panel, panel->connector_type);
@@ -166,13 +166,13 @@ EXPORT_SYMBOL(drm_panel_bridge_add);
 /**
  * drm_panel_bridge_add_typed - Creates a &drm_bridge and &drm_connector with
  * an explicit connector type.
- * @panel: The drm_panel being wrapped.  Must be non-NULL.
+ * @panel: The drm_panel being wrapped.  Must be yesn-NULL.
  * @connector_type: The connector type (DRM_MODE_CONNECTOR_*)
  *
  * This is just like drm_panel_bridge_add(), but forces the connector type to
  * @connector_type instead of infering it from the panel.
  *
- * This function is deprecated and should not be used in new drivers. Use
+ * This function is deprecated and should yest be used in new drivers. Use
  * drm_panel_bridge_add() instead, and fix panel drivers as necessary if they
  * don't report a connector type.
  */
@@ -194,7 +194,7 @@ struct drm_bridge *drm_panel_bridge_add_typed(struct drm_panel *panel,
 
 	panel_bridge->bridge.funcs = &panel_bridge_bridge_funcs;
 #ifdef CONFIG_OF
-	panel_bridge->bridge.of_node = panel->dev->of_node;
+	panel_bridge->bridge.of_yesde = panel->dev->of_yesde;
 #endif
 
 	drm_bridge_add(&panel_bridge->bridge);
@@ -237,7 +237,7 @@ static void devm_drm_panel_bridge_release(struct device *dev, void *res)
  * devm_drm_panel_bridge_add - Creates a managed &drm_bridge and &drm_connector
  * that just calls the appropriate functions from &drm_panel.
  * @dev: device to tie the bridge lifetime to
- * @panel: The drm_panel being wrapped.  Must be non-NULL.
+ * @panel: The drm_panel being wrapped.  Must be yesn-NULL.
  *
  * This is the managed version of drm_panel_bridge_add() which automatically
  * calls drm_panel_bridge_remove() when @dev is unbound.
@@ -245,7 +245,7 @@ static void devm_drm_panel_bridge_release(struct device *dev, void *res)
 struct drm_bridge *devm_drm_panel_bridge_add(struct device *dev,
 					     struct drm_panel *panel)
 {
-	if (WARN_ON(panel->connector_type == DRM_MODE_CONNECTOR_Unknown))
+	if (WARN_ON(panel->connector_type == DRM_MODE_CONNECTOR_Unkyeswn))
 		return NULL;
 
 	return devm_drm_panel_bridge_add_typed(dev, panel,
@@ -257,13 +257,13 @@ EXPORT_SYMBOL(devm_drm_panel_bridge_add);
  * devm_drm_panel_bridge_add_typed - Creates a managed &drm_bridge and
  * &drm_connector with an explicit connector type.
  * @dev: device to tie the bridge lifetime to
- * @panel: The drm_panel being wrapped.  Must be non-NULL.
+ * @panel: The drm_panel being wrapped.  Must be yesn-NULL.
  * @connector_type: The connector type (DRM_MODE_CONNECTOR_*)
  *
  * This is just like devm_drm_panel_bridge_add(), but forces the connector type
  * to @connector_type instead of infering it from the panel.
  *
- * This function is deprecated and should not be used in new drivers. Use
+ * This function is deprecated and should yest be used in new drivers. Use
  * devm_drm_panel_bridge_add() instead, and fix panel drivers as necessary if
  * they don't report a connector type.
  */

@@ -3,7 +3,7 @@
 #define _LINUX_DMA_MAPPING_H
 
 #ifdef CONFIG_HAS_DMA
-# error Virtio userspace code does not support CONFIG_HAS_DMA
+# error Virtio userspace code does yest support CONFIG_HAS_DMA
 #endif
 
 enum dma_data_direction {

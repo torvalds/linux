@@ -48,7 +48,7 @@
 #endif
 
 /*
- * The Primary thread of each non-boot processor was started from the OF client
+ * The Primary thread of each yesn-boot processor was started from the OF client
  * interface by prom_hold_cpus and is spinning on secondary_hold_spinloop.
  */
 static cpumask_t of_spin_map;
@@ -56,7 +56,7 @@ static cpumask_t of_spin_map;
 /**
  * smp_startup_cpu() - start the given cpu
  *
- * At boot time, there is nothing to do for primary threads which were
+ * At boot time, there is yesthing to do for primary threads which were
  * started from Open Firmware.  For anything else, call RTAS with the
  * appropriate start location.
  *
@@ -82,7 +82,7 @@ static inline int smp_startup_cpu(unsigned int lcpu)
 	task_thread_info(paca_ptrs[lcpu]->__current)->preempt_count	= 0;
 
 	/*
-	 * If the RTAS start-cpu token does not exist then presume the
+	 * If the RTAS start-cpu token does yest exist then presume the
 	 * cpu is already spinning.
 	 */
 	start_cpu = rtas_token("start-cpu");
@@ -119,7 +119,7 @@ static int smp_cell_kick_cpu(int nr)
 
 	/*
 	 * The processor is currently spinning, waiting for the
-	 * cpu_start field to become non-zero After we set cpu_start,
+	 * cpu_start field to become yesn-zero After we set cpu_start,
 	 * the processor will continue on to secondary_start
 	 */
 	paca_ptrs[nr]->cpu_start = 1;

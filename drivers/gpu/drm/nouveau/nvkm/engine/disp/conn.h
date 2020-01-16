@@ -3,7 +3,7 @@
 #define __NVKM_DISP_CONN_H__
 #include <engine/disp.h>
 
-#include <core/notify.h>
+#include <core/yestify.h>
 #include <subdev/bios.h>
 #include <subdev/bios/conn.h>
 
@@ -12,7 +12,7 @@ struct nvkm_conn {
 	int index;
 	struct nvbios_connE info;
 
-	struct nvkm_notify hpd;
+	struct nvkm_yestify hpd;
 
 	struct list_head head;
 };

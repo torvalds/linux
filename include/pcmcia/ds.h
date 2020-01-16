@@ -66,7 +66,7 @@ void pcmcia_unregister_driver(struct pcmcia_driver *driver);
  * module_pcmcia_driver() - Helper macro for registering a pcmcia driver
  * @__pcmcia_driver: pcmcia_driver struct
  *
- * Helper macro for pcmcia drivers which do not do anything special in module
+ * Helper macro for pcmcia drivers which do yest do anything special in module
  * init/exit. This eliminates a lot of boilerplate. Each module may only use
  * this macro once, and calling it replaces module_init() and module_exit().
  */
@@ -86,13 +86,13 @@ enum {
 };
 
 struct pcmcia_device {
-	/* the socket and the device_no [for multifunction devices]
+	/* the socket and the device_yes [for multifunction devices]
 	   uniquely define a pcmcia_device */
 	struct pcmcia_socket	*socket;
 
 	char			*devname;
 
-	u8			device_no;
+	u8			device_yes;
 
 	/* the hardware "function" device; certain subdevices can
 	 * share one hardware "function" device. */

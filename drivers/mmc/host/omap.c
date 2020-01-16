@@ -3,7 +3,7 @@
  *  linux/drivers/mmc/host/omap.c
  *
  *  Copyright (C) 2004 Nokia Corporation
- *  Written by Tuukka Tikkanen and Juha Yrjölä<juha.yrjola@nokia.com>
+ *  Written by Tuukka Tikkanen and Juha Yrjölä<juha.yrjola@yeskia.com>
  *  Misc hacks here and there by Tony Lindgren <tony@atomide.com>
  *  Other hacks (DMA, SD, etc) by David Brownell
  */
@@ -200,7 +200,7 @@ static void mmc_omap_select_slot(struct mmc_omap_slot *slot, int claimed)
 	unsigned long flags;
 
 	if (claimed)
-		goto no_claim;
+		goto yes_claim;
 	spin_lock_irqsave(&host->slot_lock, flags);
 	while (host->mmc != NULL) {
 		spin_unlock_irqrestore(&host->slot_lock, flags);
@@ -209,7 +209,7 @@ static void mmc_omap_select_slot(struct mmc_omap_slot *slot, int claimed)
 	}
 	host->mmc = slot->mmc;
 	spin_unlock_irqrestore(&host->slot_lock, flags);
-no_claim:
+yes_claim:
 	del_timer(&host->clk_timer);
 	if (host->current_slot != slot || !claimed)
 		mmc_omap_fclk_offdelay(host->current_slot);
@@ -225,7 +225,7 @@ no_claim:
 		mmc_omap_fclk_enable(host, 1);
 
 		/* Doing the dummy read here seems to work around some bug
-		 * at least in OMAP24xx silicon where the command would not
+		 * at least in OMAP24xx silicon where the command would yest
 		 * start after writing the CMD register. Sigh. */
 		OMAP_MMC_READ(host, CON);
 
@@ -279,7 +279,7 @@ static void mmc_omap_release_slot(struct mmc_omap_slot *slot, int clk_enabled)
 
 		BUG_ON(host->next_slot != NULL);
 		new_slot = host->slots[i];
-		/* The current slot should not have a request in queue */
+		/* The current slot should yest have a request in queue */
 		BUG_ON(new_slot == host->current_slot);
 
 		host->next_slot = new_slot;
@@ -341,7 +341,7 @@ mmc_omap_start_command(struct mmc_omap_host *host, struct mmc_command *cmd)
 	resptype = 0;
 	cmdtype = 0;
 
-	/* Our hardware needs to know exact type */
+	/* Our hardware needs to kyesw exact type */
 	switch (mmc_resp_type(cmd)) {
 	case MMC_RSP_NONE:
 		break;
@@ -416,7 +416,7 @@ mmc_omap_release_dma(struct mmc_omap_host *host, struct mmc_data *data,
 	if (c) {
 		if (data->error) {
 			dmaengine_terminate_all(c);
-			/* Claim nothing transferred on error... */
+			/* Claim yesthing transferred on error... */
 			data->bytes_xfered = 0;
 		}
 		dev = c->device->dev;
@@ -815,7 +815,7 @@ static irqreturn_t mmc_omap_irq(int irq, void *dev_id)
 
 		if (status & OMAP_MMC_STAT_CARD_ERR) {
 			dev_dbg(mmc_dev(host->mmc),
-				"ignoring card status error (CMD%d)\n",
+				"igyesring card status error (CMD%d)\n",
 				cmd);
 			end_command = 1;
 		}
@@ -834,7 +834,7 @@ static irqreturn_t mmc_omap_irq(int irq, void *dev_id)
 		del_timer(&host->cmd_abort_timer);
 		host->abort = 1;
 		OMAP_MMC_WRITE(host, IE, 0);
-		disable_irq_nosync(host->irq);
+		disable_irq_yessync(host->irq);
 		queue_work(host->mmc_omap_wq, &host->cmd_abort_work);
 		return IRQ_HANDLED;
 	}
@@ -851,7 +851,7 @@ static irqreturn_t mmc_omap_irq(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-void omap_mmc_notify_cover_event(struct device *dev, int num, int is_closed)
+void omap_mmc_yestify_cover_event(struct device *dev, int num, int is_closed)
 {
 	int cover_open;
 	struct mmc_omap_host *host = dev_get_drvdata(dev);
@@ -866,7 +866,7 @@ void omap_mmc_notify_cover_event(struct device *dev, int num, int is_closed)
 	cover_open = mmc_omap_cover_is_open(slot);
 	if (cover_open != slot->cover_open) {
 		slot->cover_open = cover_open;
-		sysfs_notify(&slot->mmc->class_dev.kobj, NULL, "cover_switch");
+		sysfs_yestify(&slot->mmc->class_dev.kobj, NULL, "cover_switch");
 	}
 
 	tasklet_hi_schedule(&slot->cover_tasklet);
@@ -888,7 +888,7 @@ static void mmc_omap_cover_handler(unsigned long param)
 		return;
 
 	/*
-	 * If no card is inserted, we postpone polling until
+	 * If yes card is inserted, we postpone polling until
 	 * the cover has been closed.
 	 */
 	if (slot->mmc->card == NULL)
@@ -989,7 +989,7 @@ mmc_omap_prepare_data(struct mmc_omap_host *host, struct mmc_request *req)
 		 * FIFO is 16x2 bytes on 15xx, and 32x2 bytes on 16xx
 		 * and 24xx. Use 16 or 32 word frames when the
 		 * blocksize is at least that large. Blocksize is
-		 * usually 512 bytes; but not for some SD reads.
+		 * usually 512 bytes; but yest for some SD reads.
 		 */
 		burst = mmc_omap15xx() ? 32 : 64;
 		if (burst > data->blksz)
@@ -1171,7 +1171,7 @@ static void mmc_omap_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 		mmc_omap_set_power(slot, 0, ios->vdd);
 		break;
 	case MMC_POWER_UP:
-		/* Cannot touch dsor yet, just power up MMC */
+		/* Canyest touch dsor yet, just power up MMC */
 		mmc_omap_set_power(slot, 1, ios->vdd);
 		slot->power_mode = ios->power_mode;
 		goto exit;
@@ -1193,7 +1193,7 @@ static void mmc_omap_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 	}
 
 	/* On insanely high arm_per frequencies something sometimes
-	 * goes somehow out of sync, and the POW bit is not being set,
+	 * goes somehow out of sync, and the POW bit is yest being set,
 	 * which results in the while loop below getting stuck.
 	 * Writing to the CON register twice seems to do the trick. */
 	for (i = 0; i < 2; i++)
@@ -1259,7 +1259,7 @@ static int mmc_omap_new_slot(struct mmc_omap_host *host, int id)
 
 	/* Use scatterlist DMA to reduce per-transfer costs.
 	 * NOTE max_seg_size assumption that small blocks aren't
-	 * normally used (except e.g. for reading SD registers).
+	 * yesrmally used (except e.g. for reading SD registers).
 	 */
 	mmc->max_segs = 32;
 	mmc->max_blk_size = 2048;	/* BLEN is 11 bits (+1) */
@@ -1333,7 +1333,7 @@ static int mmc_omap_probe(struct platform_device *pdev)
 		return -ENXIO;
 	}
 	if (pdata->nr_slots == 0) {
-		dev_err(&pdev->dev, "no slots\n");
+		dev_err(&pdev->dev, "yes slots\n");
 		return -EPROBE_DEFER;
 	}
 

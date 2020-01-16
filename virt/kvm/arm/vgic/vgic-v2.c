@@ -68,7 +68,7 @@ void vgic_v2_fold_lr_state(struct kvm_vcpu *vcpu)
 
 		/* Notify fds when the guest EOI'ed a level-triggered SPI */
 		if (lr_signals_eoi_mi(val) && vgic_valid_spi(vcpu->kvm, intid))
-			kvm_notify_acked_irq(vcpu->kvm, 0,
+			kvm_yestify_acked_irq(vcpu->kvm, 0,
 					     intid - VGIC_NR_PRIVATE_IRQS);
 
 		irq = vgic_get_irq(vcpu->kvm, vcpu, intid);
@@ -168,7 +168,7 @@ void vgic_v2_populate_lr(struct kvm_vcpu *vcpu, struct vgic_irq *irq, int lr)
 
 			/*
 			 * Software resampling doesn't work very well
-			 * if we allow P+A, so let's not do that.
+			 * if we allow P+A, so let's yest do that.
 			 */
 			if (irq->active)
 				allow_pending = false;
@@ -369,7 +369,7 @@ int vgic_v2_probe(const struct gic_kvm_info *info)
 	u32 vtr;
 
 	if (!info->vctrl.start) {
-		kvm_err("GICH not present in the firmware table\n");
+		kvm_err("GICH yest present in the firmware table\n");
 		return -ENXIO;
 	}
 
@@ -382,7 +382,7 @@ int vgic_v2_probe(const struct gic_kvm_info *info)
 					     &kvm_vgic_global_state.vcpu_base_va,
 					     &kvm_vgic_global_state.vcpu_hyp_va);
 		if (ret) {
-			kvm_err("Cannot map GICV into hyp\n");
+			kvm_err("Canyest map GICV into hyp\n");
 			goto out;
 		}
 
@@ -394,7 +394,7 @@ int vgic_v2_probe(const struct gic_kvm_info *info)
 				     &kvm_vgic_global_state.vctrl_base,
 				     &kvm_vgic_global_state.vctrl_hyp);
 	if (ret) {
-		kvm_err("Cannot map VCTRL into hyp\n");
+		kvm_err("Canyest map VCTRL into hyp\n");
 		goto out;
 	}
 
@@ -403,7 +403,7 @@ int vgic_v2_probe(const struct gic_kvm_info *info)
 
 	ret = kvm_register_vgic_device(KVM_DEV_TYPE_ARM_VGIC_V2);
 	if (ret) {
-		kvm_err("Cannot register GICv2 KVM device\n");
+		kvm_err("Canyest register GICv2 KVM device\n");
 		goto out;
 	}
 

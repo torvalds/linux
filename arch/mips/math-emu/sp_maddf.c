@@ -5,7 +5,7 @@
  * MADDF.fmt: FPR[fd] = FPR[fd] + (FPR[fs] x FPR[ft])
  *
  * MIPS floating point support
- * Copyright (C) 2015 Imagination Technologies, Ltd.
+ * Copyright (C) 2015 Imagination Techyeslogies, Ltd.
  * Author: Markos Chandras <markos.chandras@imgtec.com>
  */
 
@@ -84,7 +84,7 @@ static union ieee754sp _sp_maddf(union ieee754sp z, union ieee754sp x,
 			return ieee754sp_indef();
 		}
 		/*
-		 * z is here either not an infinity, or an infinity having the
+		 * z is here either yest an infinity, or an infinity having the
 		 * same sign as product (x*y) (in case of MADDF.D instruction)
 		 * or product -(x*y) (in MSUBF.D case). The result must be an
 		 * infinity, and its sign is determined only by the value of
@@ -118,7 +118,7 @@ static union ieee754sp _sp_maddf(union ieee754sp z, union ieee754sp x,
 
 			return ieee754sp_zero(ieee754_csr.rm == FPU_CSR_RD);
 		}
-		/* x*y is here 0, and z is not 0, so just return z */
+		/* x*y is here 0, and z is yest 0, so just return z */
 		return z;
 
 	case CLPAIR(IEEE754_CLASS_DNORM, IEEE754_CLASS_DNORM):
@@ -150,7 +150,7 @@ static union ieee754sp _sp_maddf(union ieee754sp z, union ieee754sp x,
 	 *
 	 * rm = xm * ym, re = xe + ye basically
 	 *
-	 * At this point xm and ym should have been normalized.
+	 * At this point xm and ym should have been yesrmalized.
 	 */
 
 	/* rm = xm * ym, re = xe+ye basically */

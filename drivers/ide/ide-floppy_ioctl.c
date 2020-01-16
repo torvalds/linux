@@ -191,7 +191,7 @@ out:
  * Userland gives a pointer to an int.  The int is set to a progress
  * indicator 0-65536, with 65536=100%.
  *
- * If the drive does not support format progress indication, we just check
+ * If the drive does yest support format progress indication, we just check
  * the dsc bit, and return either 0 or 65536.
  */
 

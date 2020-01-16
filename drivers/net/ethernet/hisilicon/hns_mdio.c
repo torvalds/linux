@@ -4,7 +4,7 @@
  */
 
 #include <linux/acpi.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/etherdevice.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
@@ -353,9 +353,9 @@ static int hns_mdio_reset(struct mii_bus *bus)
 	const struct hns_mdio_sc_reg *sc_reg;
 	int ret;
 
-	if (dev_of_node(bus->parent)) {
+	if (dev_of_yesde(bus->parent)) {
 		if (!mdio_dev->subctrl_vbase) {
-			dev_err(&bus->dev, "mdio sys ctl reg has not maped\n");
+			dev_err(&bus->dev, "mdio sys ctl reg has yest maped\n");
 			return -ENODEV;
 		}
 
@@ -393,7 +393,7 @@ static int hns_mdio_reset(struct mii_bus *bus)
 					    MDIO_CHECK_SET_ST);
 		if (ret)
 			dev_err(&bus->dev, "MDIO en clk fail\n");
-	} else if (is_acpi_node(bus->parent->fwnode)) {
+	} else if (is_acpi_yesde(bus->parent->fwyesde)) {
 		acpi_status s;
 
 		s = acpi_evaluate_object(ACPI_HANDLE(bus->parent),
@@ -405,7 +405,7 @@ static int hns_mdio_reset(struct mii_bus *bus)
 			ret = 0;
 		}
 	} else {
-		dev_err(&bus->dev, "Can not get cfg data from DT or ACPI\n");
+		dev_err(&bus->dev, "Can yest get cfg data from DT or ACPI\n");
 		ret = -ENXIO;
 	}
 	return ret;
@@ -454,19 +454,19 @@ static int hns_mdio_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, new_bus);
 	snprintf(new_bus->id, MII_BUS_ID_SIZE, "%s-%s", "Mii",
 		 dev_name(&pdev->dev));
-	if (dev_of_node(&pdev->dev)) {
+	if (dev_of_yesde(&pdev->dev)) {
 		struct of_phandle_args reg_args;
 
-		ret = of_parse_phandle_with_fixed_args(pdev->dev.of_node,
+		ret = of_parse_phandle_with_fixed_args(pdev->dev.of_yesde,
 						       "subctrl-vbase",
 						       4,
 						       0,
 						       &reg_args);
 		if (!ret) {
 			mdio_dev->subctrl_vbase =
-				syscon_node_to_regmap(reg_args.np);
+				syscon_yesde_to_regmap(reg_args.np);
 			if (IS_ERR(mdio_dev->subctrl_vbase)) {
-				dev_warn(&pdev->dev, "syscon_node_to_regmap error\n");
+				dev_warn(&pdev->dev, "syscon_yesde_to_regmap error\n");
 				mdio_dev->subctrl_vbase = NULL;
 			} else {
 				if (reg_args.args_count == 4) {
@@ -503,8 +503,8 @@ static int hns_mdio_probe(struct platform_device *pdev)
 			mdio_dev->subctrl_vbase = NULL;
 		}
 
-		ret = of_mdiobus_register(new_bus, pdev->dev.of_node);
-	} else if (is_acpi_node(pdev->dev.fwnode)) {
+		ret = of_mdiobus_register(new_bus, pdev->dev.of_yesde);
+	} else if (is_acpi_yesde(pdev->dev.fwyesde)) {
 		/* Clear all the IRQ properties */
 		memset(new_bus->irq, PHY_POLL, 4 * PHY_MAX_ADDR);
 
@@ -514,12 +514,12 @@ static int hns_mdio_probe(struct platform_device *pdev)
 		/* Register the MDIO bus */
 		ret = mdiobus_register(new_bus);
 	} else {
-		dev_err(&pdev->dev, "Can not get cfg data from DT or ACPI\n");
+		dev_err(&pdev->dev, "Can yest get cfg data from DT or ACPI\n");
 		ret = -ENXIO;
 	}
 
 	if (ret) {
-		dev_err(&pdev->dev, "Cannot register as MDIO bus!\n");
+		dev_err(&pdev->dev, "Canyest register as MDIO bus!\n");
 		platform_set_drvdata(pdev, NULL);
 		return ret;
 	}

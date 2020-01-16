@@ -31,7 +31,7 @@ struct usb_otg {
 	int	(*set_peripheral)(struct usb_otg *otg,
 					struct usb_gadget *gadget);
 
-	/* effective for A-peripheral, ignored for B devices */
+	/* effective for A-peripheral, igyesred for B devices */
 	int	(*set_vbus)(struct usb_otg *otg, bool enabled);
 
 	/* for B devices only:  start session with A-Host */

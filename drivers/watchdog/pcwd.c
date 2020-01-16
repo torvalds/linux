@@ -34,14 +34,14 @@
  * 971210	Disable board on initialisation in case board already ticking.
  * 971222	Changed open/close for temperature handling
  *		Michael Meskes <meskes@debian.org>.
- * 980112	Used minor numbers from include/linux/miscdevice.h
+ * 980112	Used miyesr numbers from include/linux/miscdevice.h
  * 990403	Clear reset status after reading control status register in
  *		pcwd_showprevstate(). [Marc Boucher <marc@mbsi.ca>]
  * 990605	Made changes to code to support Firmware 1.22a, added
  *		fairly useless proc entry.
  * 990610	removed said useless proc code for the merge <alan>
  * 000403	Removed last traces of proc code. <davej>
- * 011214	Added nowayout module option to override
+ * 011214	Added yeswayout module option to override
  *		CONFIG_WATCHDOG_NOWAYOUT <Matt_Domsch@dell.com>
  *		Added timeout module option to override default
  */
@@ -57,7 +57,7 @@
 #include <linux/module.h>	/* For module specific items */
 #include <linux/moduleparam.h>	/* For new moduleparam's */
 #include <linux/types.h>	/* For standard types (like size_t) */
-#include <linux/errno.h>	/* For the -ENODEV/... values */
+#include <linux/erryes.h>	/* For the -ENODEV/... values */
 #include <linux/kernel.h>	/* For printk/panic/... */
 #include <linux/delay.h>	/* For mdelay function */
 #include <linux/timer.h>	/* For timer related operations */
@@ -81,11 +81,11 @@
 #define DRIVER_VERSION WATCHDOG_DRIVER_NAME " driver, v" WATCHDOG_VERSION "\n"
 
 /*
- * It should be noted that PCWD_REVISION_B was removed because A and B
+ * It should be yested that PCWD_REVISION_B was removed because A and B
  * are essentially the same types of card, with the exception that B
  * has temperature reporting.  Since I didn't receive a Rev.B card,
- * the Rev.B card is not supported.  (It's a good thing too, as they
- * are no longer in production.)
+ * the Rev.B card is yest supported.  (It's a good thing too, as they
+ * are yes longer in production.)
  */
 #define	PCWD_REVISION_A		1
 #define	PCWD_REVISION_C		2
@@ -177,9 +177,9 @@ static int temp_panic;
 static struct {
 	char fw_ver_str[6];		/* The cards firmware version */
 	int revision;			/* The card's revision */
-	int supports_temp;		/* Whether or not the card has
+	int supports_temp;		/* Whether or yest the card has
 						a temperature device */
-	int command_mode;		/* Whether or not the card is in
+	int command_mode;		/* Whether or yest the card is in
 						command mode */
 	int boot_status;		/* The card's boot status */
 	int io_addr;			/* The cards I/O address */
@@ -205,10 +205,10 @@ MODULE_PARM_DESC(heartbeat, "Watchdog heartbeat in seconds. "
 	"(2 <= heartbeat <= 7200 or 0=delay-time from dip-switches, default="
 				__MODULE_STRING(WATCHDOG_HEARTBEAT) ")");
 
-static bool nowayout = WATCHDOG_NOWAYOUT;
-module_param(nowayout, bool, 0);
-MODULE_PARM_DESC(nowayout,
-		"Watchdog cannot be stopped once started (default="
+static bool yeswayout = WATCHDOG_NOWAYOUT;
+module_param(yeswayout, bool, 0);
+MODULE_PARM_DESC(yeswayout,
+		"Watchdog canyest be stopped once started (default="
 				__MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
 
 /*
@@ -259,7 +259,7 @@ static int set_command_mode(void)
 		if (i == 0x00)
 			found = 1;
 		else if (i == 0xF3) {
-			/* Card does not like what we've done to it */
+			/* Card does yest like what we've done to it */
 			outb_p(0x00, pcwd_private.io_addr + 2);
 			udelay(1200);	/* Spec says wait 1ms */
 			outb_p(0x00, pcwd_private.io_addr + 2);
@@ -278,7 +278,7 @@ static int set_command_mode(void)
 
 static void unset_command_mode(void)
 {
-	/* Set the card into normal mode */
+	/* Set the card into yesrmal mode */
 	spin_lock(&pcwd_private.io_lock);
 	outb_p(0x00, pcwd_private.io_addr + 2);
 	udelay(ISA_COMMAND_TIMEOUT);
@@ -298,7 +298,7 @@ static inline void pcwd_check_temperature_support(void)
 
 static inline void pcwd_get_firmware(void)
 {
-	int one, ten, hund, minor;
+	int one, ten, hund, miyesr;
 
 	strcpy(pcwd_private.fw_ver_str, "ERROR");
 
@@ -306,9 +306,9 @@ static inline void pcwd_get_firmware(void)
 		one = send_isa_command(CMD_ISA_VERSION_INTEGER);
 		ten = send_isa_command(CMD_ISA_VERSION_TENTH);
 		hund = send_isa_command(CMD_ISA_VERSION_HUNDRETH);
-		minor = send_isa_command(CMD_ISA_VERSION_MINOR);
+		miyesr = send_isa_command(CMD_ISA_VERSION_MINOR);
 		sprintf(pcwd_private.fw_ver_str, "%c.%c%c%c",
-					one, ten, hund, minor);
+					one, ten, hund, miyesr);
 	}
 	unset_command_mode();
 
@@ -395,7 +395,7 @@ static void pcwd_timer_ping(struct timer_list *unused)
 
 		spin_unlock(&pcwd_private.io_lock);
 	} else {
-		pr_warn("Heartbeat lost! Will not ping the watchdog\n");
+		pr_warn("Heartbeat lost! Will yest ping the watchdog\n");
 	}
 }
 
@@ -416,7 +416,7 @@ static int pcwd_start(void)
 		stat_reg = inb_p(pcwd_private.io_addr + 2);
 		spin_unlock(&pcwd_private.io_lock);
 		if (stat_reg & WD_WDIS) {
-			pr_info("Could not start watchdog\n");
+			pr_info("Could yest start watchdog\n");
 			return -EIO;
 		}
 	}
@@ -444,7 +444,7 @@ static int pcwd_stop(void)
 		stat_reg = inb_p(pcwd_private.io_addr + 2);
 		spin_unlock(&pcwd_private.io_lock);
 		if ((stat_reg & WD_WDIS) == 0) {
-			pr_info("Could not stop watchdog\n");
+			pr_info("Could yest stop watchdog\n");
 			return -EIO;
 		}
 	}
@@ -556,7 +556,7 @@ static int pcwd_clear_status(void)
 
 static int pcwd_get_temperature(int *temperature)
 {
-	/* check that port 0 gives temperature info and no command results */
+	/* check that port 0 gives temperature info and yes command results */
 	if (pcwd_private.command_mode)
 		return -1;
 
@@ -667,7 +667,7 @@ static ssize_t pcwd_write(struct file *file, const char __user *buf, size_t len,
 			  loff_t *ppos)
 {
 	if (len) {
-		if (!nowayout) {
+		if (!yeswayout) {
 			size_t i;
 
 			/* In case it was set long ago */
@@ -687,24 +687,24 @@ static ssize_t pcwd_write(struct file *file, const char __user *buf, size_t len,
 	return len;
 }
 
-static int pcwd_open(struct inode *inode, struct file *file)
+static int pcwd_open(struct iyesde *iyesde, struct file *file)
 {
 	if (test_and_set_bit(0, &open_allowed))
 		return -EBUSY;
-	if (nowayout)
+	if (yeswayout)
 		__module_get(THIS_MODULE);
 	/* Activate */
 	pcwd_start();
 	pcwd_keepalive();
-	return stream_open(inode, file);
+	return stream_open(iyesde, file);
 }
 
-static int pcwd_close(struct inode *inode, struct file *file)
+static int pcwd_close(struct iyesde *iyesde, struct file *file)
 {
 	if (expect_close == 42)
 		pcwd_stop();
 	else {
-		pr_crit("Unexpected close, not stopping watchdog!\n");
+		pr_crit("Unexpected close, yest stopping watchdog!\n");
 		pcwd_keepalive();
 	}
 	expect_close = 0;
@@ -730,15 +730,15 @@ static ssize_t pcwd_temp_read(struct file *file, char __user *buf, size_t count,
 	return 1;
 }
 
-static int pcwd_temp_open(struct inode *inode, struct file *file)
+static int pcwd_temp_open(struct iyesde *iyesde, struct file *file)
 {
 	if (!pcwd_private.supports_temp)
 		return -ENODEV;
 
-	return stream_open(inode, file);
+	return stream_open(iyesde, file);
 }
 
-static int pcwd_temp_close(struct inode *inode, struct file *file)
+static int pcwd_temp_close(struct iyesde *iyesde, struct file *file)
 {
 	return 0;
 }
@@ -749,7 +749,7 @@ static int pcwd_temp_close(struct inode *inode, struct file *file)
 
 static const struct file_operations pcwd_fops = {
 	.owner		= THIS_MODULE,
-	.llseek		= no_llseek,
+	.llseek		= yes_llseek,
 	.write		= pcwd_write,
 	.unlocked_ioctl	= pcwd_ioctl,
 	.compat_ioctl	= compat_ptr_ioctl,
@@ -758,21 +758,21 @@ static const struct file_operations pcwd_fops = {
 };
 
 static struct miscdevice pcwd_miscdev = {
-	.minor =	WATCHDOG_MINOR,
+	.miyesr =	WATCHDOG_MINOR,
 	.name =		"watchdog",
 	.fops =		&pcwd_fops,
 };
 
 static const struct file_operations pcwd_temp_fops = {
 	.owner		= THIS_MODULE,
-	.llseek		= no_llseek,
+	.llseek		= yes_llseek,
 	.read		= pcwd_temp_read,
 	.open		= pcwd_temp_open,
 	.release	= pcwd_temp_close,
 };
 
 static struct miscdevice temp_miscdev = {
-	.minor =	TEMP_MINOR,
+	.miyesr =	TEMP_MINOR,
 	.name =		"temperature",
 	.fops =		&pcwd_temp_fops,
 };
@@ -801,7 +801,7 @@ static inline int get_revision(void)
  *  register is card dependent.  The heartbeat bit is monitored, and if
  *  found, is considered proof that a Berkshire card has been found.
  *  The initial rate is once per second at board start up, then twice
- *  per second for normal operation.
+ *  per second for yesrmal operation.
  */
 static int pcwd_isa_match(struct device *dev, unsigned int id)
 {
@@ -900,7 +900,7 @@ static int pcwd_isa_probe(struct device *dev, unsigned int id)
 	/*  Disable the board  */
 	pcwd_stop();
 
-	/*  Check whether or not the card supports the temperature device */
+	/*  Check whether or yest the card supports the temperature device */
 	pcwd_check_temperature_support();
 
 	/* Show info about the card itself */
@@ -911,7 +911,7 @@ static int pcwd_isa_probe(struct device *dev, unsigned int id)
 		heartbeat = heartbeat_tbl[(pcwd_get_option_switches() & 0x07)];
 
 	/* Check that the heartbeat value is within it's range;
-	   if not reset to the default */
+	   if yest reset to the default */
 	if (pcwd_set_heartbeat(heartbeat)) {
 		pcwd_set_heartbeat(WATCHDOG_HEARTBEAT);
 		pr_info("heartbeat value must be 2 <= heartbeat <= 7200, using %d\n",
@@ -921,7 +921,7 @@ static int pcwd_isa_probe(struct device *dev, unsigned int id)
 	if (pcwd_private.supports_temp) {
 		ret = misc_register(&temp_miscdev);
 		if (ret) {
-			pr_err("cannot register miscdev on minor=%d (err=%d)\n",
+			pr_err("canyest register miscdev on miyesr=%d (err=%d)\n",
 			       TEMP_MINOR, ret);
 			goto error_misc_register_temp;
 		}
@@ -929,13 +929,13 @@ static int pcwd_isa_probe(struct device *dev, unsigned int id)
 
 	ret = misc_register(&pcwd_miscdev);
 	if (ret) {
-		pr_err("cannot register miscdev on minor=%d (err=%d)\n",
+		pr_err("canyest register miscdev on miyesr=%d (err=%d)\n",
 		       WATCHDOG_MINOR, ret);
 		goto error_misc_register_watchdog;
 	}
 
-	pr_info("initialized. heartbeat=%d sec (nowayout=%d)\n",
-		heartbeat, nowayout);
+	pr_info("initialized. heartbeat=%d sec (yeswayout=%d)\n",
+		heartbeat, yeswayout);
 
 	return 0;
 
@@ -960,7 +960,7 @@ static int pcwd_isa_remove(struct device *dev, unsigned int id)
 		return 1;
 
 	/*  Disable the board  */
-	if (!nowayout)
+	if (!yeswayout)
 		pcwd_stop();
 
 	/* Deregister */

@@ -3,7 +3,7 @@
  * linux/drivers/video/omap2/dss/dss.h
  *
  * Copyright (C) 2009 Nokia Corporation
- * Author: Tomi Valkeinen <tomi.valkeinen@nokia.com>
+ * Author: Tomi Valkeinen <tomi.valkeinen@yeskia.com>
  *
  * Some code and ideas taken from drivers/video/omap/ driver
  * by Imre Deak.
@@ -275,8 +275,8 @@ struct dss_pll *dss_video_pll_init(struct platform_device *pdev, int id,
 void dss_video_pll_uninit(struct dss_pll *pll);
 
 /* dss-of */
-struct device_node *dss_of_port_get_parent_device(struct device_node *port);
-u32 dss_of_port_get_port_number(struct device_node *port);
+struct device_yesde *dss_of_port_get_parent_device(struct device_yesde *port);
+u32 dss_of_port_get_port_number(struct device_yesde *port);
 
 #if defined(CONFIG_FB_OMAP2_DSS_DEBUGFS)
 void dss_debug_dump_clocks(struct seq_file *s);
@@ -312,15 +312,15 @@ int sdi_init_platform_driver(void) __init;
 void sdi_uninit_platform_driver(void);
 
 #ifdef CONFIG_FB_OMAP2_DSS_SDI
-int sdi_init_port(struct platform_device *pdev, struct device_node *port);
-void sdi_uninit_port(struct device_node *port);
+int sdi_init_port(struct platform_device *pdev, struct device_yesde *port);
+void sdi_uninit_port(struct device_yesde *port);
 #else
 static inline int sdi_init_port(struct platform_device *pdev,
-		struct device_node *port)
+		struct device_yesde *port)
 {
 	return 0;
 }
-static inline void sdi_uninit_port(struct device_node *port)
+static inline void sdi_uninit_port(struct device_yesde *port)
 {
 }
 #endif
@@ -343,7 +343,7 @@ u8 dsi_get_pixel_size(enum omap_dss_dsi_pixel_format fmt);
 #else
 static inline u8 dsi_get_pixel_size(enum omap_dss_dsi_pixel_format fmt)
 {
-	WARN(1, "%s: DSI not compiled in, returning pixel_size as 0\n",
+	WARN(1, "%s: DSI yest compiled in, returning pixel_size as 0\n",
 	     __func__);
 	return 0;
 }
@@ -354,15 +354,15 @@ int dpi_init_platform_driver(void) __init;
 void dpi_uninit_platform_driver(void);
 
 #ifdef CONFIG_FB_OMAP2_DSS_DPI
-int dpi_init_port(struct platform_device *pdev, struct device_node *port);
-void dpi_uninit_port(struct device_node *port);
+int dpi_init_port(struct platform_device *pdev, struct device_yesde *port);
+void dpi_uninit_port(struct device_yesde *port);
 #else
 static inline int dpi_init_port(struct platform_device *pdev,
-		struct device_node *port)
+		struct device_yesde *port)
 {
 	return 0;
 }
-static inline void dpi_uninit_port(struct device_node *port)
+static inline void dpi_uninit_port(struct device_yesde *port)
 {
 }
 #endif

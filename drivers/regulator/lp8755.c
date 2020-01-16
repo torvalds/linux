@@ -167,7 +167,7 @@ static unsigned int lp8755_buck_get_mode(struct regulator_dev *rdev)
 	if (regval & 0x20)
 		return REGULATOR_MODE_IDLE;
 
-	/* mode normal means automatic pwm/pfm mode */
+	/* mode yesrmal means automatic pwm/pfm mode */
 	return REGULATOR_MODE_NORMAL;
 
 err_i2c:
@@ -333,7 +333,7 @@ static int lp8755_regulator_init(struct lp8755_chip *pchip)
 	for (icnt = 0; icnt < mphase_buck[pchip->mphase].nreg; icnt++) {
 		buck_num = mphase_buck[pchip->mphase].buck_num[icnt];
 		rconfig.init_data = pdata->buck_data[buck_num];
-		rconfig.of_node = pchip->dev->of_node;
+		rconfig.of_yesde = pchip->dev->of_yesde;
 		pchip->rdev[buck_num] =
 		    devm_regulator_register(pchip->dev,
 				    &lp8755_regulators[buck_num], &rconfig);
@@ -370,7 +370,7 @@ static irqreturn_t lp8755_irq_handler(int irq, void *data)
 		    && (pchip->irqmask & (0x04 << icnt))
 		    && (pchip->rdev[icnt] != NULL)) {
 			regulator_lock(pchip->rdev[icnt]);
-			regulator_notifier_call_chain(pchip->rdev[icnt],
+			regulator_yestifier_call_chain(pchip->rdev[icnt],
 						      LP8755_EVENT_PWR_FAULT,
 						      NULL);
 			regulator_unlock(pchip->rdev[icnt]);
@@ -390,7 +390,7 @@ static irqreturn_t lp8755_irq_handler(int irq, void *data)
 		for (icnt = 0; icnt < LP8755_BUCK_MAX; icnt++)
 			if (pchip->rdev[icnt] != NULL) {
 				regulator_lock(pchip->rdev[icnt]);
-				regulator_notifier_call_chain(pchip->rdev[icnt],
+				regulator_yestifier_call_chain(pchip->rdev[icnt],
 							      LP8755_EVENT_OCP,
 							      NULL);
 				regulator_unlock(pchip->rdev[icnt]);
@@ -401,7 +401,7 @@ static irqreturn_t lp8755_irq_handler(int irq, void *data)
 		for (icnt = 0; icnt < LP8755_BUCK_MAX; icnt++)
 			if (pchip->rdev[icnt] != NULL) {
 				regulator_lock(pchip->rdev[icnt]);
-				regulator_notifier_call_chain(pchip->rdev[icnt],
+				regulator_yestifier_call_chain(pchip->rdev[icnt],
 							      LP8755_EVENT_OVP,
 							      NULL);
 				regulator_unlock(pchip->rdev[icnt]);
@@ -419,7 +419,7 @@ static int lp8755_int_config(struct lp8755_chip *pchip)
 	unsigned int regval;
 
 	if (pchip->irq == 0) {
-		dev_warn(pchip->dev, "not use interrupt : %s\n", __func__);
+		dev_warn(pchip->dev, "yest use interrupt : %s\n", __func__);
 		return 0;
 	}
 

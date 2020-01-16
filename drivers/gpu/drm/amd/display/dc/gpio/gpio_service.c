@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -54,7 +54,7 @@
 
 struct gpio_service *dal_gpio_service_create(
 	enum dce_version dce_version_major,
-	enum dce_version dce_version_minor,
+	enum dce_version dce_version_miyesr,
 	struct dc_context *ctx)
 {
 	struct gpio_service *service;
@@ -68,13 +68,13 @@ struct gpio_service *dal_gpio_service_create(
 	}
 
 	if (!dal_hw_translate_init(&service->translate, dce_version_major,
-			dce_version_minor)) {
+			dce_version_miyesr)) {
 		BREAK_TO_DEBUGGER();
 		goto failure_1;
 	}
 
 	if (!dal_hw_factory_init(&service->factory, dce_version_major,
-			dce_version_minor)) {
+			dce_version_miyesr)) {
 		BREAK_TO_DEBUGGER();
 		goto failure_1;
 	}

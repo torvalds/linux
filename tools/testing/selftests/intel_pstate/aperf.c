@@ -8,7 +8,7 @@
 #include <fcntl.h>
 #include <sys/timeb.h>
 #include <sched.h>
-#include <errno.h>
+#include <erryes.h>
 #include <string.h>
 #include "../kselftest.h"
 
@@ -31,10 +31,10 @@ int main(int argc, char **argv) {
 		return 1;
 	}
 
-	errno = 0;
+	erryes = 0;
 	cpu = strtol(argv[1], (char **) NULL, 10);
 
-	if (errno) {
+	if (erryes) {
 		usage(argv[0]);
 		return 1;
 	}
@@ -43,7 +43,7 @@ int main(int argc, char **argv) {
 	fd = open(msr_file_name, O_RDONLY);
 
 	if (fd == -1) {
-		printf("/dev/cpu/%d/msr: %s\n", cpu, strerror(errno));
+		printf("/dev/cpu/%d/msr: %s\n", cpu, strerror(erryes));
 		return KSFT_SKIP;
 	}
 

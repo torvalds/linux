@@ -105,7 +105,7 @@ int apply_relocate_add(Elf32_Shdr *sechdrs, const char *strtab,
 			break;
 
 		default:
-			pr_err("module %s: Unknown relocation: %u\n",
+			pr_err("module %s: Unkyeswn relocation: %u\n",
 				module->name,
 				ELF32_R_TYPE(rela[i].r_info));
 			return -ENOEXEC;

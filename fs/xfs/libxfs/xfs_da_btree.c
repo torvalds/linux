@@ -12,7 +12,7 @@
 #include "xfs_trans_resv.h"
 #include "xfs_bit.h"
 #include "xfs_mount.h"
-#include "xfs_inode.h"
+#include "xfs_iyesde.h"
 #include "xfs_dir2.h"
 #include "xfs_dir2_priv.h"
 #include "xfs_trans.h"
@@ -39,30 +39,30 @@
 STATIC int xfs_da3_root_split(xfs_da_state_t *state,
 					    xfs_da_state_blk_t *existing_root,
 					    xfs_da_state_blk_t *new_child);
-STATIC int xfs_da3_node_split(xfs_da_state_t *state,
+STATIC int xfs_da3_yesde_split(xfs_da_state_t *state,
 					    xfs_da_state_blk_t *existing_blk,
 					    xfs_da_state_blk_t *split_blk,
 					    xfs_da_state_blk_t *blk_to_add,
 					    int treelevel,
 					    int *result);
-STATIC void xfs_da3_node_rebalance(xfs_da_state_t *state,
-					 xfs_da_state_blk_t *node_blk_1,
-					 xfs_da_state_blk_t *node_blk_2);
-STATIC void xfs_da3_node_add(xfs_da_state_t *state,
-				   xfs_da_state_blk_t *old_node_blk,
-				   xfs_da_state_blk_t *new_node_blk);
+STATIC void xfs_da3_yesde_rebalance(xfs_da_state_t *state,
+					 xfs_da_state_blk_t *yesde_blk_1,
+					 xfs_da_state_blk_t *yesde_blk_2);
+STATIC void xfs_da3_yesde_add(xfs_da_state_t *state,
+				   xfs_da_state_blk_t *old_yesde_blk,
+				   xfs_da_state_blk_t *new_yesde_blk);
 
 /*
  * Routines used for shrinking the Btree.
  */
 STATIC int xfs_da3_root_join(xfs_da_state_t *state,
 					   xfs_da_state_blk_t *root_blk);
-STATIC int xfs_da3_node_toosmall(xfs_da_state_t *state, int *retval);
-STATIC void xfs_da3_node_remove(xfs_da_state_t *state,
+STATIC int xfs_da3_yesde_toosmall(xfs_da_state_t *state, int *retval);
+STATIC void xfs_da3_yesde_remove(xfs_da_state_t *state,
 					      xfs_da_state_blk_t *drop_blk);
-STATIC void xfs_da3_node_unbalance(xfs_da_state_t *state,
-					 xfs_da_state_blk_t *src_node_blk,
-					 xfs_da_state_blk_t *dst_node_blk);
+STATIC void xfs_da3_yesde_unbalance(xfs_da_state_t *state,
+					 xfs_da_state_blk_t *src_yesde_blk,
+					 xfs_da_state_blk_t *dst_yesde_blk);
 
 /*
  * Utility routines.
@@ -118,13 +118,13 @@ static inline int xfs_dabuf_nfsb(struct xfs_mount *mp, int whichfork)
 }
 
 void
-xfs_da3_node_hdr_from_disk(
+xfs_da3_yesde_hdr_from_disk(
 	struct xfs_mount		*mp,
-	struct xfs_da3_icnode_hdr	*to,
-	struct xfs_da_intnode		*from)
+	struct xfs_da3_icyesde_hdr	*to,
+	struct xfs_da_intyesde		*from)
 {
 	if (xfs_sb_version_hascrc(&mp->m_sb)) {
-		struct xfs_da3_intnode	*from3 = (struct xfs_da3_intnode *)from;
+		struct xfs_da3_intyesde	*from3 = (struct xfs_da3_intyesde *)from;
 
 		to->forw = be32_to_cpu(from3->hdr.info.hdr.forw);
 		to->back = be32_to_cpu(from3->hdr.info.hdr.back);
@@ -145,13 +145,13 @@ xfs_da3_node_hdr_from_disk(
 }
 
 void
-xfs_da3_node_hdr_to_disk(
+xfs_da3_yesde_hdr_to_disk(
 	struct xfs_mount		*mp,
-	struct xfs_da_intnode		*to,
-	struct xfs_da3_icnode_hdr	*from)
+	struct xfs_da_intyesde		*to,
+	struct xfs_da3_icyesde_hdr	*from)
 {
 	if (xfs_sb_version_hascrc(&mp->m_sb)) {
-		struct xfs_da3_intnode	*to3 = (struct xfs_da3_intnode *)to;
+		struct xfs_da3_intyesde	*to3 = (struct xfs_da3_intyesde *)to;
 
 		ASSERT(from->magic == XFS_DA3_NODE_MAGIC);
 		to3->hdr.info.hdr.forw = cpu_to_be32(from->forw);
@@ -171,7 +171,7 @@ xfs_da3_node_hdr_to_disk(
 
 /*
  * Verify an xfs_da3_blkinfo structure. Note that the da3 fields are only
- * accessible on v5 filesystems. This header format is common across da node,
+ * accessible on v5 filesystems. This header format is common across da yesde,
  * attr leaf and dir leaf blocks.
  */
 xfs_failaddr_t
@@ -188,7 +188,7 @@ xfs_da3_blkinfo_verify(
 	if (xfs_sb_version_hascrc(&mp->m_sb)) {
 		if (!uuid_equal(&hdr3->uuid, &mp->m_sb.sb_meta_uuid))
 			return __this_address;
-		if (be64_to_cpu(hdr3->blkno) != bp->b_bn)
+		if (be64_to_cpu(hdr3->blkyes) != bp->b_bn)
 			return __this_address;
 		if (!xfs_log_check_lsn(mp, be64_to_cpu(hdr3->lsn)))
 			return __this_address;
@@ -198,15 +198,15 @@ xfs_da3_blkinfo_verify(
 }
 
 static xfs_failaddr_t
-xfs_da3_node_verify(
+xfs_da3_yesde_verify(
 	struct xfs_buf		*bp)
 {
 	struct xfs_mount	*mp = bp->b_mount;
-	struct xfs_da_intnode	*hdr = bp->b_addr;
-	struct xfs_da3_icnode_hdr ichdr;
+	struct xfs_da_intyesde	*hdr = bp->b_addr;
+	struct xfs_da3_icyesde_hdr ichdr;
 	xfs_failaddr_t		fa;
 
-	xfs_da3_node_hdr_from_disk(mp, &ichdr, hdr);
+	xfs_da3_yesde_hdr_from_disk(mp, &ichdr, hdr);
 
 	fa = xfs_da3_blkinfo_verify(bp, bp->b_addr);
 	if (fa)
@@ -220,11 +220,11 @@ xfs_da3_node_verify(
 		return __this_address;
 
 	/*
-	 * we don't know if the node is for and attribute or directory tree,
+	 * we don't kyesw if the yesde is for and attribute or directory tree,
 	 * so only fail if the count is outside both bounds
 	 */
-	if (ichdr.count > mp->m_dir_geo->node_ents &&
-	    ichdr.count > mp->m_attr_geo->node_ents)
+	if (ichdr.count > mp->m_dir_geo->yesde_ents &&
+	    ichdr.count > mp->m_attr_geo->yesde_ents)
 		return __this_address;
 
 	/* XXX: hash order check? */
@@ -233,15 +233,15 @@ xfs_da3_node_verify(
 }
 
 static void
-xfs_da3_node_write_verify(
+xfs_da3_yesde_write_verify(
 	struct xfs_buf	*bp)
 {
 	struct xfs_mount	*mp = bp->b_mount;
 	struct xfs_buf_log_item	*bip = bp->b_log_item;
-	struct xfs_da3_node_hdr *hdr3 = bp->b_addr;
+	struct xfs_da3_yesde_hdr *hdr3 = bp->b_addr;
 	xfs_failaddr_t		fa;
 
-	fa = xfs_da3_node_verify(bp);
+	fa = xfs_da3_yesde_verify(bp);
 	if (fa) {
 		xfs_verifier_error(bp, -EFSCORRUPTED, fa);
 		return;
@@ -257,13 +257,13 @@ xfs_da3_node_write_verify(
 }
 
 /*
- * leaf/node format detection on trees is sketchy, so a node read can be done on
- * leaf level blocks when detection identifies the tree as a node format tree
+ * leaf/yesde format detection on trees is sketchy, so a yesde read can be done on
+ * leaf level blocks when detection identifies the tree as a yesde format tree
  * incorrectly. In this case, we need to swap the verifier to match the correct
  * format of the block being read.
  */
 static void
-xfs_da3_node_read_verify(
+xfs_da3_yesde_read_verify(
 	struct xfs_buf		*bp)
 {
 	struct xfs_da_blkinfo	*info = bp->b_addr;
@@ -278,7 +278,7 @@ xfs_da3_node_read_verify(
 			}
 			/* fall through */
 		case XFS_DA_NODE_MAGIC:
-			fa = xfs_da3_node_verify(bp);
+			fa = xfs_da3_yesde_verify(bp);
 			if (fa)
 				xfs_verifier_error(bp, -EFSCORRUPTED, fa);
 			return;
@@ -300,7 +300,7 @@ xfs_da3_node_read_verify(
 
 /* Verify the structure of a da3 block. */
 static xfs_failaddr_t
-xfs_da3_node_verify_struct(
+xfs_da3_yesde_verify_struct(
 	struct xfs_buf		*bp)
 {
 	struct xfs_da_blkinfo	*info = bp->b_addr;
@@ -308,7 +308,7 @@ xfs_da3_node_verify_struct(
 	switch (be16_to_cpu(info->magic)) {
 	case XFS_DA3_NODE_MAGIC:
 	case XFS_DA_NODE_MAGIC:
-		return xfs_da3_node_verify(bp);
+		return xfs_da3_yesde_verify(bp);
 	case XFS_ATTR_LEAF_MAGIC:
 	case XFS_ATTR3_LEAF_MAGIC:
 		bp->b_ops = &xfs_attr3_leaf_buf_ops;
@@ -322,17 +322,17 @@ xfs_da3_node_verify_struct(
 	}
 }
 
-const struct xfs_buf_ops xfs_da3_node_buf_ops = {
-	.name = "xfs_da3_node",
+const struct xfs_buf_ops xfs_da3_yesde_buf_ops = {
+	.name = "xfs_da3_yesde",
 	.magic16 = { cpu_to_be16(XFS_DA_NODE_MAGIC),
 		     cpu_to_be16(XFS_DA3_NODE_MAGIC) },
-	.verify_read = xfs_da3_node_read_verify,
-	.verify_write = xfs_da3_node_write_verify,
-	.verify_struct = xfs_da3_node_verify_struct,
+	.verify_read = xfs_da3_yesde_read_verify,
+	.verify_write = xfs_da3_yesde_write_verify,
+	.verify_struct = xfs_da3_yesde_verify_struct,
 };
 
 static int
-xfs_da3_node_set_type(
+xfs_da3_yesde_set_type(
 	struct xfs_trans	*tp,
 	struct xfs_buf		*bp)
 {
@@ -360,36 +360,36 @@ xfs_da3_node_set_type(
 }
 
 int
-xfs_da3_node_read(
+xfs_da3_yesde_read(
 	struct xfs_trans	*tp,
-	struct xfs_inode	*dp,
-	xfs_dablk_t		bno,
+	struct xfs_iyesde	*dp,
+	xfs_dablk_t		byes,
 	struct xfs_buf		**bpp,
 	int			whichfork)
 {
 	int			error;
 
-	error = xfs_da_read_buf(tp, dp, bno, 0, bpp, whichfork,
-			&xfs_da3_node_buf_ops);
+	error = xfs_da_read_buf(tp, dp, byes, 0, bpp, whichfork,
+			&xfs_da3_yesde_buf_ops);
 	if (error || !*bpp || !tp)
 		return error;
-	return xfs_da3_node_set_type(tp, *bpp);
+	return xfs_da3_yesde_set_type(tp, *bpp);
 }
 
 int
-xfs_da3_node_read_mapped(
+xfs_da3_yesde_read_mapped(
 	struct xfs_trans	*tp,
-	struct xfs_inode	*dp,
-	xfs_daddr_t		mappedbno,
+	struct xfs_iyesde	*dp,
+	xfs_daddr_t		mappedbyes,
 	struct xfs_buf		**bpp,
 	int			whichfork)
 {
 	struct xfs_mount	*mp = dp->i_mount;
 	int			error;
 
-	error = xfs_trans_read_buf(mp, tp, mp->m_ddev_targp, mappedbno,
+	error = xfs_trans_read_buf(mp, tp, mp->m_ddev_targp, mappedbyes,
 			XFS_FSB_TO_BB(mp, xfs_dabuf_nfsb(mp, whichfork)), 0,
-			bpp, &xfs_da3_node_buf_ops);
+			bpp, &xfs_da3_yesde_buf_ops);
 	if (error || !*bpp)
 		return error;
 
@@ -400,7 +400,7 @@ xfs_da3_node_read_mapped(
 
 	if (!tp)
 		return 0;
-	return xfs_da3_node_set_type(tp, *bpp);
+	return xfs_da3_yesde_set_type(tp, *bpp);
 }
 
 /*========================================================================
@@ -408,58 +408,58 @@ xfs_da3_node_read_mapped(
  *========================================================================*/
 
 /*
- * Create the initial contents of an intermediate node.
+ * Create the initial contents of an intermediate yesde.
  */
 int
-xfs_da3_node_create(
+xfs_da3_yesde_create(
 	struct xfs_da_args	*args,
-	xfs_dablk_t		blkno,
+	xfs_dablk_t		blkyes,
 	int			level,
 	struct xfs_buf		**bpp,
 	int			whichfork)
 {
-	struct xfs_da_intnode	*node;
+	struct xfs_da_intyesde	*yesde;
 	struct xfs_trans	*tp = args->trans;
 	struct xfs_mount	*mp = tp->t_mountp;
-	struct xfs_da3_icnode_hdr ichdr = {0};
+	struct xfs_da3_icyesde_hdr ichdr = {0};
 	struct xfs_buf		*bp;
 	int			error;
-	struct xfs_inode	*dp = args->dp;
+	struct xfs_iyesde	*dp = args->dp;
 
-	trace_xfs_da_node_create(args);
+	trace_xfs_da_yesde_create(args);
 	ASSERT(level <= XFS_DA_NODE_MAXDEPTH);
 
-	error = xfs_da_get_buf(tp, dp, blkno, &bp, whichfork);
+	error = xfs_da_get_buf(tp, dp, blkyes, &bp, whichfork);
 	if (error)
 		return error;
-	bp->b_ops = &xfs_da3_node_buf_ops;
+	bp->b_ops = &xfs_da3_yesde_buf_ops;
 	xfs_trans_buf_set_type(tp, bp, XFS_BLFT_DA_NODE_BUF);
-	node = bp->b_addr;
+	yesde = bp->b_addr;
 
 	if (xfs_sb_version_hascrc(&mp->m_sb)) {
-		struct xfs_da3_node_hdr *hdr3 = bp->b_addr;
+		struct xfs_da3_yesde_hdr *hdr3 = bp->b_addr;
 
-		memset(hdr3, 0, sizeof(struct xfs_da3_node_hdr));
+		memset(hdr3, 0, sizeof(struct xfs_da3_yesde_hdr));
 		ichdr.magic = XFS_DA3_NODE_MAGIC;
-		hdr3->info.blkno = cpu_to_be64(bp->b_bn);
-		hdr3->info.owner = cpu_to_be64(args->dp->i_ino);
+		hdr3->info.blkyes = cpu_to_be64(bp->b_bn);
+		hdr3->info.owner = cpu_to_be64(args->dp->i_iyes);
 		uuid_copy(&hdr3->info.uuid, &mp->m_sb.sb_meta_uuid);
 	} else {
 		ichdr.magic = XFS_DA_NODE_MAGIC;
 	}
 	ichdr.level = level;
 
-	xfs_da3_node_hdr_to_disk(dp->i_mount, node, &ichdr);
+	xfs_da3_yesde_hdr_to_disk(dp->i_mount, yesde, &ichdr);
 	xfs_trans_log_buf(tp, bp,
-		XFS_DA_LOGRANGE(node, &node->hdr, args->geo->node_hdr_size));
+		XFS_DA_LOGRANGE(yesde, &yesde->hdr, args->geo->yesde_hdr_size));
 
 	*bpp = bp;
 	return 0;
 }
 
 /*
- * Split a leaf node, rebalance, then possibly split
- * intermediate nodes, rebalance, etc.
+ * Split a leaf yesde, rebalance, then possibly split
+ * intermediate yesdes, rebalance, etc.
  */
 int							/* error */
 xfs_da3_split(
@@ -468,7 +468,7 @@ xfs_da3_split(
 	struct xfs_da_state_blk	*oldblk;
 	struct xfs_da_state_blk	*newblk;
 	struct xfs_da_state_blk	*addblk;
-	struct xfs_da_intnode	*node;
+	struct xfs_da_intyesde	*yesde;
 	int			max;
 	int			action = 0;
 	int			error;
@@ -478,7 +478,7 @@ xfs_da3_split(
 
 	/*
 	 * Walk back up the tree splitting/inserting/adjusting as necessary.
-	 * If we need to insert and there isn't room, split the node, then
+	 * If we need to insert and there isn't room, split the yesde, then
 	 * decide which fragment to insert the new block from below into.
 	 * Note that we may split the root this way, but we need more fixup.
 	 */
@@ -493,10 +493,10 @@ xfs_da3_split(
 		newblk = &state->altpath.blk[i];
 
 		/*
-		 * If a leaf node then
-		 *     Allocate a new leaf node, then rebalance across them.
-		 * else if an intermediate node then
-		 *     We split on the last layer, must we split the node?
+		 * If a leaf yesde then
+		 *     Allocate a new leaf yesde, then rebalance across them.
+		 * else if an intermediate yesde then
+		 *     We split on the last layer, must we split the yesde?
 		 */
 		switch (oldblk->magic) {
 		case XFS_ATTR_LEAF_MAGIC:
@@ -510,8 +510,8 @@ xfs_da3_split(
 			}
 			/*
 			 * Entry wouldn't fit, split the leaf again. The new
-			 * extrablk will be consumed by xfs_da3_node_split if
-			 * the node is split.
+			 * extrablk will be consumed by xfs_da3_yesde_split if
+			 * the yesde is split.
 			 */
 			state->extravalid = 1;
 			if (state->inleaf) {
@@ -536,7 +536,7 @@ xfs_da3_split(
 			addblk = newblk;
 			break;
 		case XFS_DA_NODE_MAGIC:
-			error = xfs_da3_node_split(state, oldblk, newblk, addblk,
+			error = xfs_da3_yesde_split(state, oldblk, newblk, addblk,
 							 max - i, &action);
 			addblk->bp = NULL;
 			if (error)
@@ -560,7 +560,7 @@ xfs_da3_split(
 		return 0;
 
 	/*
-	 * xfs_da3_node_split() should have consumed any extra blocks we added
+	 * xfs_da3_yesde_split() should have consumed any extra blocks we added
 	 * during a double leaf split in the attr fork. This is guaranteed as
 	 * we can't be here if the attr fork only has a single leaf block.
 	 */
@@ -568,7 +568,7 @@ xfs_da3_split(
 	       state->path.blk[max].magic == XFS_DIR2_LEAFN_MAGIC);
 
 	/*
-	 * Split the root node.
+	 * Split the root yesde.
 	 */
 	ASSERT(state->path.active == 0);
 	oldblk = &state->path.blk[0];
@@ -577,41 +577,41 @@ xfs_da3_split(
 		goto out;
 
 	/*
-	 * Update pointers to the node which used to be block 0 and just got
-	 * bumped because of the addition of a new root node.  Note that the
+	 * Update pointers to the yesde which used to be block 0 and just got
+	 * bumped because of the addition of a new root yesde.  Note that the
 	 * original block 0 could be at any position in the list of blocks in
 	 * the tree.
 	 *
 	 * Note: the magic numbers and sibling pointers are in the same physical
 	 * place for both v2 and v3 headers (by design). Hence it doesn't matter
-	 * which version of the xfs_da_intnode structure we use here as the
+	 * which version of the xfs_da_intyesde structure we use here as the
 	 * result will be the same using either structure.
 	 */
-	node = oldblk->bp->b_addr;
-	if (node->hdr.info.forw) {
-		if (be32_to_cpu(node->hdr.info.forw) != addblk->blkno) {
+	yesde = oldblk->bp->b_addr;
+	if (yesde->hdr.info.forw) {
+		if (be32_to_cpu(yesde->hdr.info.forw) != addblk->blkyes) {
 			xfs_buf_corruption_error(oldblk->bp);
 			error = -EFSCORRUPTED;
 			goto out;
 		}
-		node = addblk->bp->b_addr;
-		node->hdr.info.back = cpu_to_be32(oldblk->blkno);
+		yesde = addblk->bp->b_addr;
+		yesde->hdr.info.back = cpu_to_be32(oldblk->blkyes);
 		xfs_trans_log_buf(state->args->trans, addblk->bp,
-				  XFS_DA_LOGRANGE(node, &node->hdr.info,
-				  sizeof(node->hdr.info)));
+				  XFS_DA_LOGRANGE(yesde, &yesde->hdr.info,
+				  sizeof(yesde->hdr.info)));
 	}
-	node = oldblk->bp->b_addr;
-	if (node->hdr.info.back) {
-		if (be32_to_cpu(node->hdr.info.back) != addblk->blkno) {
+	yesde = oldblk->bp->b_addr;
+	if (yesde->hdr.info.back) {
+		if (be32_to_cpu(yesde->hdr.info.back) != addblk->blkyes) {
 			xfs_buf_corruption_error(oldblk->bp);
 			error = -EFSCORRUPTED;
 			goto out;
 		}
-		node = addblk->bp->b_addr;
-		node->hdr.info.forw = cpu_to_be32(oldblk->blkno);
+		yesde = addblk->bp->b_addr;
+		yesde->hdr.info.forw = cpu_to_be32(oldblk->blkyes);
 		xfs_trans_log_buf(state->args->trans, addblk->bp,
-				  XFS_DA_LOGRANGE(node, &node->hdr.info,
-				  sizeof(node->hdr.info)));
+				  XFS_DA_LOGRANGE(yesde, &yesde->hdr.info,
+				  sizeof(yesde->hdr.info)));
 	}
 out:
 	addblk->bp = NULL;
@@ -621,7 +621,7 @@ out:
 /*
  * Split the root.  We have to create a new root and point to the two
  * parts (the split old root) that we just created.  Copy block zero to
- * the EOF, extending the inode in process.
+ * the EOF, extending the iyesde in process.
  */
 STATIC int						/* error */
 xfs_da3_root_split(
@@ -629,16 +629,16 @@ xfs_da3_root_split(
 	struct xfs_da_state_blk	*blk1,
 	struct xfs_da_state_blk	*blk2)
 {
-	struct xfs_da_intnode	*node;
-	struct xfs_da_intnode	*oldroot;
-	struct xfs_da_node_entry *btree;
-	struct xfs_da3_icnode_hdr nodehdr;
+	struct xfs_da_intyesde	*yesde;
+	struct xfs_da_intyesde	*oldroot;
+	struct xfs_da_yesde_entry *btree;
+	struct xfs_da3_icyesde_hdr yesdehdr;
 	struct xfs_da_args	*args;
 	struct xfs_buf		*bp;
-	struct xfs_inode	*dp;
+	struct xfs_iyesde	*dp;
 	struct xfs_trans	*tp;
 	struct xfs_dir2_leaf	*leaf;
-	xfs_dablk_t		blkno;
+	xfs_dablk_t		blkyes;
 	int			level;
 	int			error;
 	int			size;
@@ -646,33 +646,33 @@ xfs_da3_root_split(
 	trace_xfs_da_root_split(state->args);
 
 	/*
-	 * Copy the existing (incorrect) block from the root node position
+	 * Copy the existing (incorrect) block from the root yesde position
 	 * to a free space somewhere.
 	 */
 	args = state->args;
-	error = xfs_da_grow_inode(args, &blkno);
+	error = xfs_da_grow_iyesde(args, &blkyes);
 	if (error)
 		return error;
 
 	dp = args->dp;
 	tp = args->trans;
-	error = xfs_da_get_buf(tp, dp, blkno, &bp, args->whichfork);
+	error = xfs_da_get_buf(tp, dp, blkyes, &bp, args->whichfork);
 	if (error)
 		return error;
-	node = bp->b_addr;
+	yesde = bp->b_addr;
 	oldroot = blk1->bp->b_addr;
 	if (oldroot->hdr.info.magic == cpu_to_be16(XFS_DA_NODE_MAGIC) ||
 	    oldroot->hdr.info.magic == cpu_to_be16(XFS_DA3_NODE_MAGIC)) {
-		struct xfs_da3_icnode_hdr icnodehdr;
+		struct xfs_da3_icyesde_hdr icyesdehdr;
 
-		xfs_da3_node_hdr_from_disk(dp->i_mount, &icnodehdr, oldroot);
-		btree = icnodehdr.btree;
-		size = (int)((char *)&btree[icnodehdr.count] - (char *)oldroot);
-		level = icnodehdr.level;
+		xfs_da3_yesde_hdr_from_disk(dp->i_mount, &icyesdehdr, oldroot);
+		btree = icyesdehdr.btree;
+		size = (int)((char *)&btree[icyesdehdr.count] - (char *)oldroot);
+		level = icyesdehdr.level;
 
 		/*
 		 * we are about to copy oldroot to bp, so set up the type
-		 * of bp while we know exactly what it will be.
+		 * of bp while we kyesw exactly what it will be.
 		 */
 		xfs_trans_buf_set_type(tp, bp, XFS_BLFT_DA_NODE_BUF);
 	} else {
@@ -689,72 +689,72 @@ xfs_da3_root_split(
 
 		/*
 		 * we are about to copy oldroot to bp, so set up the type
-		 * of bp while we know exactly what it will be.
+		 * of bp while we kyesw exactly what it will be.
 		 */
 		xfs_trans_buf_set_type(tp, bp, XFS_BLFT_DIR_LEAFN_BUF);
 	}
 
 	/*
-	 * we can copy most of the information in the node from one block to
-	 * another, but for CRC enabled headers we have to make sure that the
+	 * we can copy most of the information in the yesde from one block to
+	 * ayesther, but for CRC enabled headers we have to make sure that the
 	 * block specific identifiers are kept intact. We update the buffer
 	 * directly for this.
 	 */
-	memcpy(node, oldroot, size);
+	memcpy(yesde, oldroot, size);
 	if (oldroot->hdr.info.magic == cpu_to_be16(XFS_DA3_NODE_MAGIC) ||
 	    oldroot->hdr.info.magic == cpu_to_be16(XFS_DIR3_LEAFN_MAGIC)) {
-		struct xfs_da3_intnode *node3 = (struct xfs_da3_intnode *)node;
+		struct xfs_da3_intyesde *yesde3 = (struct xfs_da3_intyesde *)yesde;
 
-		node3->hdr.info.blkno = cpu_to_be64(bp->b_bn);
+		yesde3->hdr.info.blkyes = cpu_to_be64(bp->b_bn);
 	}
 	xfs_trans_log_buf(tp, bp, 0, size - 1);
 
 	bp->b_ops = blk1->bp->b_ops;
 	xfs_trans_buf_copy_type(bp, blk1->bp);
 	blk1->bp = bp;
-	blk1->blkno = blkno;
+	blk1->blkyes = blkyes;
 
 	/*
-	 * Set up the new root node.
+	 * Set up the new root yesde.
 	 */
-	error = xfs_da3_node_create(args,
+	error = xfs_da3_yesde_create(args,
 		(args->whichfork == XFS_DATA_FORK) ? args->geo->leafblk : 0,
 		level + 1, &bp, args->whichfork);
 	if (error)
 		return error;
 
-	node = bp->b_addr;
-	xfs_da3_node_hdr_from_disk(dp->i_mount, &nodehdr, node);
-	btree = nodehdr.btree;
+	yesde = bp->b_addr;
+	xfs_da3_yesde_hdr_from_disk(dp->i_mount, &yesdehdr, yesde);
+	btree = yesdehdr.btree;
 	btree[0].hashval = cpu_to_be32(blk1->hashval);
-	btree[0].before = cpu_to_be32(blk1->blkno);
+	btree[0].before = cpu_to_be32(blk1->blkyes);
 	btree[1].hashval = cpu_to_be32(blk2->hashval);
-	btree[1].before = cpu_to_be32(blk2->blkno);
-	nodehdr.count = 2;
-	xfs_da3_node_hdr_to_disk(dp->i_mount, node, &nodehdr);
+	btree[1].before = cpu_to_be32(blk2->blkyes);
+	yesdehdr.count = 2;
+	xfs_da3_yesde_hdr_to_disk(dp->i_mount, yesde, &yesdehdr);
 
 #ifdef DEBUG
 	if (oldroot->hdr.info.magic == cpu_to_be16(XFS_DIR2_LEAFN_MAGIC) ||
 	    oldroot->hdr.info.magic == cpu_to_be16(XFS_DIR3_LEAFN_MAGIC)) {
-		ASSERT(blk1->blkno >= args->geo->leafblk &&
-		       blk1->blkno < args->geo->freeblk);
-		ASSERT(blk2->blkno >= args->geo->leafblk &&
-		       blk2->blkno < args->geo->freeblk);
+		ASSERT(blk1->blkyes >= args->geo->leafblk &&
+		       blk1->blkyes < args->geo->freeblk);
+		ASSERT(blk2->blkyes >= args->geo->leafblk &&
+		       blk2->blkyes < args->geo->freeblk);
 	}
 #endif
 
-	/* Header is already logged by xfs_da_node_create */
+	/* Header is already logged by xfs_da_yesde_create */
 	xfs_trans_log_buf(tp, bp,
-		XFS_DA_LOGRANGE(node, btree, sizeof(xfs_da_node_entry_t) * 2));
+		XFS_DA_LOGRANGE(yesde, btree, sizeof(xfs_da_yesde_entry_t) * 2));
 
 	return 0;
 }
 
 /*
- * Split the node, rebalance, then add the new entry.
+ * Split the yesde, rebalance, then add the new entry.
  */
 STATIC int						/* error */
-xfs_da3_node_split(
+xfs_da3_yesde_split(
 	struct xfs_da_state	*state,
 	struct xfs_da_state_blk	*oldblk,
 	struct xfs_da_state_blk	*newblk,
@@ -762,18 +762,18 @@ xfs_da3_node_split(
 	int			treelevel,
 	int			*result)
 {
-	struct xfs_da_intnode	*node;
-	struct xfs_da3_icnode_hdr nodehdr;
-	xfs_dablk_t		blkno;
+	struct xfs_da_intyesde	*yesde;
+	struct xfs_da3_icyesde_hdr yesdehdr;
+	xfs_dablk_t		blkyes;
 	int			newcount;
 	int			error;
 	int			useextra;
-	struct xfs_inode	*dp = state->args->dp;
+	struct xfs_iyesde	*dp = state->args->dp;
 
-	trace_xfs_da_node_split(state->args);
+	trace_xfs_da_yesde_split(state->args);
 
-	node = oldblk->bp->b_addr;
-	xfs_da3_node_hdr_from_disk(dp->i_mount, &nodehdr, node);
+	yesde = oldblk->bp->b_addr;
+	xfs_da3_yesde_hdr_from_disk(dp->i_mount, &yesdehdr, yesde);
 
 	/*
 	 * With V2 dirs the extra block is data or freespace.
@@ -781,24 +781,24 @@ xfs_da3_node_split(
 	useextra = state->extravalid && state->args->whichfork == XFS_ATTR_FORK;
 	newcount = 1 + useextra;
 	/*
-	 * Do we have to split the node?
+	 * Do we have to split the yesde?
 	 */
-	if (nodehdr.count + newcount > state->args->geo->node_ents) {
+	if (yesdehdr.count + newcount > state->args->geo->yesde_ents) {
 		/*
-		 * Allocate a new node, add to the doubly linked chain of
-		 * nodes, then move some of our excess entries into it.
+		 * Allocate a new yesde, add to the doubly linked chain of
+		 * yesdes, then move some of our excess entries into it.
 		 */
-		error = xfs_da_grow_inode(state->args, &blkno);
+		error = xfs_da_grow_iyesde(state->args, &blkyes);
 		if (error)
 			return error;	/* GROT: dir is inconsistent */
 
-		error = xfs_da3_node_create(state->args, blkno, treelevel,
+		error = xfs_da3_yesde_create(state->args, blkyes, treelevel,
 					   &newblk->bp, state->args->whichfork);
 		if (error)
 			return error;	/* GROT: dir is inconsistent */
-		newblk->blkno = blkno;
+		newblk->blkyes = blkyes;
 		newblk->magic = XFS_DA_NODE_MAGIC;
-		xfs_da3_node_rebalance(state, oldblk, newblk);
+		xfs_da3_yesde_rebalance(state, oldblk, newblk);
 		error = xfs_da3_blk_link(state, oldblk, newblk);
 		if (error)
 			return error;
@@ -811,32 +811,32 @@ xfs_da3_node_split(
 	 * Insert the new entry(s) into the correct block
 	 * (updating last hashval in the process).
 	 *
-	 * xfs_da3_node_add() inserts BEFORE the given index,
-	 * and as a result of using node_lookup_int() we always
-	 * point to a valid entry (not after one), but a split
+	 * xfs_da3_yesde_add() inserts BEFORE the given index,
+	 * and as a result of using yesde_lookup_int() we always
+	 * point to a valid entry (yest after one), but a split
 	 * operation always results in a new block whose hashvals
 	 * FOLLOW the current block.
 	 *
 	 * If we had double-split op below us, then add the extra block too.
 	 */
-	node = oldblk->bp->b_addr;
-	xfs_da3_node_hdr_from_disk(dp->i_mount, &nodehdr, node);
-	if (oldblk->index <= nodehdr.count) {
+	yesde = oldblk->bp->b_addr;
+	xfs_da3_yesde_hdr_from_disk(dp->i_mount, &yesdehdr, yesde);
+	if (oldblk->index <= yesdehdr.count) {
 		oldblk->index++;
-		xfs_da3_node_add(state, oldblk, addblk);
+		xfs_da3_yesde_add(state, oldblk, addblk);
 		if (useextra) {
 			if (state->extraafter)
 				oldblk->index++;
-			xfs_da3_node_add(state, oldblk, &state->extrablk);
+			xfs_da3_yesde_add(state, oldblk, &state->extrablk);
 			state->extravalid = 0;
 		}
 	} else {
 		newblk->index++;
-		xfs_da3_node_add(state, newblk, addblk);
+		xfs_da3_yesde_add(state, newblk, addblk);
 		if (useextra) {
 			if (state->extraafter)
 				newblk->index++;
-			xfs_da3_node_add(state, newblk, &state->extrablk);
+			xfs_da3_yesde_add(state, newblk, &state->extrablk);
 			state->extravalid = 0;
 		}
 	}
@@ -845,60 +845,60 @@ xfs_da3_node_split(
 }
 
 /*
- * Balance the btree elements between two intermediate nodes,
+ * Balance the btree elements between two intermediate yesdes,
  * usually one full and one empty.
  *
  * NOTE: if blk2 is empty, then it will get the upper half of blk1.
  */
 STATIC void
-xfs_da3_node_rebalance(
+xfs_da3_yesde_rebalance(
 	struct xfs_da_state	*state,
 	struct xfs_da_state_blk	*blk1,
 	struct xfs_da_state_blk	*blk2)
 {
-	struct xfs_da_intnode	*node1;
-	struct xfs_da_intnode	*node2;
-	struct xfs_da_intnode	*tmpnode;
-	struct xfs_da_node_entry *btree1;
-	struct xfs_da_node_entry *btree2;
-	struct xfs_da_node_entry *btree_s;
-	struct xfs_da_node_entry *btree_d;
-	struct xfs_da3_icnode_hdr nodehdr1;
-	struct xfs_da3_icnode_hdr nodehdr2;
+	struct xfs_da_intyesde	*yesde1;
+	struct xfs_da_intyesde	*yesde2;
+	struct xfs_da_intyesde	*tmpyesde;
+	struct xfs_da_yesde_entry *btree1;
+	struct xfs_da_yesde_entry *btree2;
+	struct xfs_da_yesde_entry *btree_s;
+	struct xfs_da_yesde_entry *btree_d;
+	struct xfs_da3_icyesde_hdr yesdehdr1;
+	struct xfs_da3_icyesde_hdr yesdehdr2;
 	struct xfs_trans	*tp;
 	int			count;
 	int			tmp;
 	int			swap = 0;
-	struct xfs_inode	*dp = state->args->dp;
+	struct xfs_iyesde	*dp = state->args->dp;
 
-	trace_xfs_da_node_rebalance(state->args);
+	trace_xfs_da_yesde_rebalance(state->args);
 
-	node1 = blk1->bp->b_addr;
-	node2 = blk2->bp->b_addr;
-	xfs_da3_node_hdr_from_disk(dp->i_mount, &nodehdr1, node1);
-	xfs_da3_node_hdr_from_disk(dp->i_mount, &nodehdr2, node2);
-	btree1 = nodehdr1.btree;
-	btree2 = nodehdr2.btree;
+	yesde1 = blk1->bp->b_addr;
+	yesde2 = blk2->bp->b_addr;
+	xfs_da3_yesde_hdr_from_disk(dp->i_mount, &yesdehdr1, yesde1);
+	xfs_da3_yesde_hdr_from_disk(dp->i_mount, &yesdehdr2, yesde2);
+	btree1 = yesdehdr1.btree;
+	btree2 = yesdehdr2.btree;
 
 	/*
 	 * Figure out how many entries need to move, and in which direction.
-	 * Swap the nodes around if that makes it simpler.
+	 * Swap the yesdes around if that makes it simpler.
 	 */
-	if (nodehdr1.count > 0 && nodehdr2.count > 0 &&
+	if (yesdehdr1.count > 0 && yesdehdr2.count > 0 &&
 	    ((be32_to_cpu(btree2[0].hashval) < be32_to_cpu(btree1[0].hashval)) ||
-	     (be32_to_cpu(btree2[nodehdr2.count - 1].hashval) <
-			be32_to_cpu(btree1[nodehdr1.count - 1].hashval)))) {
-		tmpnode = node1;
-		node1 = node2;
-		node2 = tmpnode;
-		xfs_da3_node_hdr_from_disk(dp->i_mount, &nodehdr1, node1);
-		xfs_da3_node_hdr_from_disk(dp->i_mount, &nodehdr2, node2);
-		btree1 = nodehdr1.btree;
-		btree2 = nodehdr2.btree;
+	     (be32_to_cpu(btree2[yesdehdr2.count - 1].hashval) <
+			be32_to_cpu(btree1[yesdehdr1.count - 1].hashval)))) {
+		tmpyesde = yesde1;
+		yesde1 = yesde2;
+		yesde2 = tmpyesde;
+		xfs_da3_yesde_hdr_from_disk(dp->i_mount, &yesdehdr1, yesde1);
+		xfs_da3_yesde_hdr_from_disk(dp->i_mount, &yesdehdr2, yesde2);
+		btree1 = yesdehdr1.btree;
+		btree2 = yesdehdr2.btree;
 		swap = 1;
 	}
 
-	count = (nodehdr1.count - nodehdr2.count) / 2;
+	count = (yesdehdr1.count - yesdehdr2.count) / 2;
 	if (count == 0)
 		return;
 	tp = state->args->trans;
@@ -907,141 +907,141 @@ xfs_da3_node_rebalance(
 	 */
 	if (count > 0) {
 		/*
-		 * Move elements in node2 up to make a hole.
+		 * Move elements in yesde2 up to make a hole.
 		 */
-		tmp = nodehdr2.count;
+		tmp = yesdehdr2.count;
 		if (tmp > 0) {
-			tmp *= (uint)sizeof(xfs_da_node_entry_t);
+			tmp *= (uint)sizeof(xfs_da_yesde_entry_t);
 			btree_s = &btree2[0];
 			btree_d = &btree2[count];
 			memmove(btree_d, btree_s, tmp);
 		}
 
 		/*
-		 * Move the req'd B-tree elements from high in node1 to
-		 * low in node2.
+		 * Move the req'd B-tree elements from high in yesde1 to
+		 * low in yesde2.
 		 */
-		nodehdr2.count += count;
-		tmp = count * (uint)sizeof(xfs_da_node_entry_t);
-		btree_s = &btree1[nodehdr1.count - count];
+		yesdehdr2.count += count;
+		tmp = count * (uint)sizeof(xfs_da_yesde_entry_t);
+		btree_s = &btree1[yesdehdr1.count - count];
 		btree_d = &btree2[0];
 		memcpy(btree_d, btree_s, tmp);
-		nodehdr1.count -= count;
+		yesdehdr1.count -= count;
 	} else {
 		/*
-		 * Move the req'd B-tree elements from low in node2 to
-		 * high in node1.
+		 * Move the req'd B-tree elements from low in yesde2 to
+		 * high in yesde1.
 		 */
 		count = -count;
-		tmp = count * (uint)sizeof(xfs_da_node_entry_t);
+		tmp = count * (uint)sizeof(xfs_da_yesde_entry_t);
 		btree_s = &btree2[0];
-		btree_d = &btree1[nodehdr1.count];
+		btree_d = &btree1[yesdehdr1.count];
 		memcpy(btree_d, btree_s, tmp);
-		nodehdr1.count += count;
+		yesdehdr1.count += count;
 
 		xfs_trans_log_buf(tp, blk1->bp,
-			XFS_DA_LOGRANGE(node1, btree_d, tmp));
+			XFS_DA_LOGRANGE(yesde1, btree_d, tmp));
 
 		/*
-		 * Move elements in node2 down to fill the hole.
+		 * Move elements in yesde2 down to fill the hole.
 		 */
-		tmp  = nodehdr2.count - count;
-		tmp *= (uint)sizeof(xfs_da_node_entry_t);
+		tmp  = yesdehdr2.count - count;
+		tmp *= (uint)sizeof(xfs_da_yesde_entry_t);
 		btree_s = &btree2[count];
 		btree_d = &btree2[0];
 		memmove(btree_d, btree_s, tmp);
-		nodehdr2.count -= count;
+		yesdehdr2.count -= count;
 	}
 
 	/*
-	 * Log header of node 1 and all current bits of node 2.
+	 * Log header of yesde 1 and all current bits of yesde 2.
 	 */
-	xfs_da3_node_hdr_to_disk(dp->i_mount, node1, &nodehdr1);
+	xfs_da3_yesde_hdr_to_disk(dp->i_mount, yesde1, &yesdehdr1);
 	xfs_trans_log_buf(tp, blk1->bp,
-		XFS_DA_LOGRANGE(node1, &node1->hdr,
-				state->args->geo->node_hdr_size));
+		XFS_DA_LOGRANGE(yesde1, &yesde1->hdr,
+				state->args->geo->yesde_hdr_size));
 
-	xfs_da3_node_hdr_to_disk(dp->i_mount, node2, &nodehdr2);
+	xfs_da3_yesde_hdr_to_disk(dp->i_mount, yesde2, &yesdehdr2);
 	xfs_trans_log_buf(tp, blk2->bp,
-		XFS_DA_LOGRANGE(node2, &node2->hdr,
-				state->args->geo->node_hdr_size +
-				(sizeof(btree2[0]) * nodehdr2.count)));
+		XFS_DA_LOGRANGE(yesde2, &yesde2->hdr,
+				state->args->geo->yesde_hdr_size +
+				(sizeof(btree2[0]) * yesdehdr2.count)));
 
 	/*
 	 * Record the last hashval from each block for upward propagation.
-	 * (note: don't use the swapped node pointers)
+	 * (yeste: don't use the swapped yesde pointers)
 	 */
 	if (swap) {
-		node1 = blk1->bp->b_addr;
-		node2 = blk2->bp->b_addr;
-		xfs_da3_node_hdr_from_disk(dp->i_mount, &nodehdr1, node1);
-		xfs_da3_node_hdr_from_disk(dp->i_mount, &nodehdr2, node2);
-		btree1 = nodehdr1.btree;
-		btree2 = nodehdr2.btree;
+		yesde1 = blk1->bp->b_addr;
+		yesde2 = blk2->bp->b_addr;
+		xfs_da3_yesde_hdr_from_disk(dp->i_mount, &yesdehdr1, yesde1);
+		xfs_da3_yesde_hdr_from_disk(dp->i_mount, &yesdehdr2, yesde2);
+		btree1 = yesdehdr1.btree;
+		btree2 = yesdehdr2.btree;
 	}
-	blk1->hashval = be32_to_cpu(btree1[nodehdr1.count - 1].hashval);
-	blk2->hashval = be32_to_cpu(btree2[nodehdr2.count - 1].hashval);
+	blk1->hashval = be32_to_cpu(btree1[yesdehdr1.count - 1].hashval);
+	blk2->hashval = be32_to_cpu(btree2[yesdehdr2.count - 1].hashval);
 
 	/*
 	 * Adjust the expected index for insertion.
 	 */
-	if (blk1->index >= nodehdr1.count) {
-		blk2->index = blk1->index - nodehdr1.count;
-		blk1->index = nodehdr1.count + 1;	/* make it invalid */
+	if (blk1->index >= yesdehdr1.count) {
+		blk2->index = blk1->index - yesdehdr1.count;
+		blk1->index = yesdehdr1.count + 1;	/* make it invalid */
 	}
 }
 
 /*
- * Add a new entry to an intermediate node.
+ * Add a new entry to an intermediate yesde.
  */
 STATIC void
-xfs_da3_node_add(
+xfs_da3_yesde_add(
 	struct xfs_da_state	*state,
 	struct xfs_da_state_blk	*oldblk,
 	struct xfs_da_state_blk	*newblk)
 {
-	struct xfs_da_intnode	*node;
-	struct xfs_da3_icnode_hdr nodehdr;
-	struct xfs_da_node_entry *btree;
+	struct xfs_da_intyesde	*yesde;
+	struct xfs_da3_icyesde_hdr yesdehdr;
+	struct xfs_da_yesde_entry *btree;
 	int			tmp;
-	struct xfs_inode	*dp = state->args->dp;
+	struct xfs_iyesde	*dp = state->args->dp;
 
-	trace_xfs_da_node_add(state->args);
+	trace_xfs_da_yesde_add(state->args);
 
-	node = oldblk->bp->b_addr;
-	xfs_da3_node_hdr_from_disk(dp->i_mount, &nodehdr, node);
-	btree = nodehdr.btree;
+	yesde = oldblk->bp->b_addr;
+	xfs_da3_yesde_hdr_from_disk(dp->i_mount, &yesdehdr, yesde);
+	btree = yesdehdr.btree;
 
-	ASSERT(oldblk->index >= 0 && oldblk->index <= nodehdr.count);
-	ASSERT(newblk->blkno != 0);
+	ASSERT(oldblk->index >= 0 && oldblk->index <= yesdehdr.count);
+	ASSERT(newblk->blkyes != 0);
 	if (state->args->whichfork == XFS_DATA_FORK)
-		ASSERT(newblk->blkno >= state->args->geo->leafblk &&
-		       newblk->blkno < state->args->geo->freeblk);
+		ASSERT(newblk->blkyes >= state->args->geo->leafblk &&
+		       newblk->blkyes < state->args->geo->freeblk);
 
 	/*
-	 * We may need to make some room before we insert the new node.
+	 * We may need to make some room before we insert the new yesde.
 	 */
 	tmp = 0;
-	if (oldblk->index < nodehdr.count) {
-		tmp = (nodehdr.count - oldblk->index) * (uint)sizeof(*btree);
+	if (oldblk->index < yesdehdr.count) {
+		tmp = (yesdehdr.count - oldblk->index) * (uint)sizeof(*btree);
 		memmove(&btree[oldblk->index + 1], &btree[oldblk->index], tmp);
 	}
 	btree[oldblk->index].hashval = cpu_to_be32(newblk->hashval);
-	btree[oldblk->index].before = cpu_to_be32(newblk->blkno);
+	btree[oldblk->index].before = cpu_to_be32(newblk->blkyes);
 	xfs_trans_log_buf(state->args->trans, oldblk->bp,
-		XFS_DA_LOGRANGE(node, &btree[oldblk->index],
+		XFS_DA_LOGRANGE(yesde, &btree[oldblk->index],
 				tmp + sizeof(*btree)));
 
-	nodehdr.count += 1;
-	xfs_da3_node_hdr_to_disk(dp->i_mount, node, &nodehdr);
+	yesdehdr.count += 1;
+	xfs_da3_yesde_hdr_to_disk(dp->i_mount, yesde, &yesdehdr);
 	xfs_trans_log_buf(state->args->trans, oldblk->bp,
-		XFS_DA_LOGRANGE(node, &node->hdr,
-				state->args->geo->node_hdr_size));
+		XFS_DA_LOGRANGE(yesde, &yesde->hdr,
+				state->args->geo->yesde_hdr_size));
 
 	/*
 	 * Copy the last hash value from the oldblk to propagate upwards.
 	 */
-	oldblk->hashval = be32_to_cpu(btree[nodehdr.count - 1].hashval);
+	oldblk->hashval = be32_to_cpu(btree[yesdehdr.count - 1].hashval);
 }
 
 /*========================================================================
@@ -1049,7 +1049,7 @@ xfs_da3_node_add(
  *========================================================================*/
 
 /*
- * Deallocate an empty leaf node, remove it from its parent,
+ * Deallocate an empty leaf yesde, remove it from its parent,
  * possibly deallocating that block, etc...
  */
 int
@@ -1077,7 +1077,7 @@ xfs_da3_join(
 		 state->path.active--) {
 		/*
 		 * See if we can combine the block with a neighbor.
-		 *   (action == 0) => no options, just leave
+		 *   (action == 0) => yes options, just leave
 		 *   (action == 1) => coalesce, then unlink
 		 *   (action == 2) => block empty, unlink it
 		 */
@@ -1100,17 +1100,17 @@ xfs_da3_join(
 			break;
 		case XFS_DA_NODE_MAGIC:
 			/*
-			 * Remove the offending node, fixup hashvals,
+			 * Remove the offending yesde, fixup hashvals,
 			 * check for a toosmall neighbor.
 			 */
-			xfs_da3_node_remove(state, drop_blk);
+			xfs_da3_yesde_remove(state, drop_blk);
 			xfs_da3_fixhashpath(state, &state->path);
-			error = xfs_da3_node_toosmall(state, &action);
+			error = xfs_da3_yesde_toosmall(state, &action);
 			if (error)
 				return error;
 			if (action == 0)
 				return 0;
-			xfs_da3_node_unbalance(state, drop_blk, save_blk);
+			xfs_da3_yesde_unbalance(state, drop_blk, save_blk);
 			break;
 		}
 		xfs_da3_fixhashpath(state, &state->altpath);
@@ -1118,7 +1118,7 @@ xfs_da3_join(
 		xfs_da_state_kill_altpath(state);
 		if (error)
 			return error;
-		error = xfs_da_shrink_inode(state->args, drop_blk->blkno,
+		error = xfs_da_shrink_iyesde(state->args, drop_blk->blkyes,
 							 drop_blk->bp);
 		drop_blk->bp = NULL;
 		if (error)
@@ -1129,7 +1129,7 @@ xfs_da3_join(
 	 * we only have one entry in the root, make the child block
 	 * the new root.
 	 */
-	xfs_da3_node_remove(state, drop_blk);
+	xfs_da3_yesde_remove(state, drop_blk);
 	xfs_da3_fixhashpath(state, &state->path);
 	error = xfs_da3_root_join(state, &state->path.blk[0]);
 	return error;
@@ -1159,20 +1159,20 @@ xfs_da_blkinfo_onlychild_validate(struct xfs_da_blkinfo *blkinfo, __u16 level)
 
 /*
  * We have only one entry in the root.  Copy the only remaining child of
- * the old root to block 0 as the new root node.
+ * the old root to block 0 as the new root yesde.
  */
 STATIC int
 xfs_da3_root_join(
 	struct xfs_da_state	*state,
 	struct xfs_da_state_blk	*root_blk)
 {
-	struct xfs_da_intnode	*oldroot;
+	struct xfs_da_intyesde	*oldroot;
 	struct xfs_da_args	*args;
 	xfs_dablk_t		child;
 	struct xfs_buf		*bp;
-	struct xfs_da3_icnode_hdr oldroothdr;
+	struct xfs_da3_icyesde_hdr oldroothdr;
 	int			error;
-	struct xfs_inode	*dp = state->args->dp;
+	struct xfs_iyesde	*dp = state->args->dp;
 
 	trace_xfs_da_root_join(state->args);
 
@@ -1180,7 +1180,7 @@ xfs_da3_root_join(
 
 	args = state->args;
 	oldroot = root_blk->bp->b_addr;
-	xfs_da3_node_hdr_from_disk(dp->i_mount, &oldroothdr, oldroot);
+	xfs_da3_yesde_hdr_from_disk(dp->i_mount, &oldroothdr, oldroot);
 	ASSERT(oldroothdr.forw == 0);
 	ASSERT(oldroothdr.back == 0);
 
@@ -1196,7 +1196,7 @@ xfs_da3_root_join(
 	 */
 	child = be32_to_cpu(oldroothdr.btree[0].before);
 	ASSERT(child != 0);
-	error = xfs_da3_node_read(args->trans, dp, child, &bp, args->whichfork);
+	error = xfs_da3_yesde_read(args->trans, dp, child, &bp, args->whichfork);
 	if (error)
 		return error;
 	xfs_da_blkinfo_onlychild_validate(bp->b_addr, oldroothdr.level);
@@ -1213,64 +1213,64 @@ xfs_da3_root_join(
 	xfs_trans_buf_copy_type(root_blk->bp, bp);
 	if (oldroothdr.magic == XFS_DA3_NODE_MAGIC) {
 		struct xfs_da3_blkinfo *da3 = root_blk->bp->b_addr;
-		da3->blkno = cpu_to_be64(root_blk->bp->b_bn);
+		da3->blkyes = cpu_to_be64(root_blk->bp->b_bn);
 	}
 	xfs_trans_log_buf(args->trans, root_blk->bp, 0,
 			  args->geo->blksize - 1);
-	error = xfs_da_shrink_inode(args, child, bp);
+	error = xfs_da_shrink_iyesde(args, child, bp);
 	return error;
 }
 
 /*
- * Check a node block and its neighbors to see if the block should be
+ * Check a yesde block and its neighbors to see if the block should be
  * collapsed into one or the other neighbor.  Always keep the block
  * with the smaller block number.
  * If the current block is over 50% full, don't try to join it, return 0.
  * If the block is empty, fill in the state structure and return 2.
  * If it can be collapsed, fill in the state structure and return 1.
- * If nothing can be done, return 0.
+ * If yesthing can be done, return 0.
  */
 STATIC int
-xfs_da3_node_toosmall(
+xfs_da3_yesde_toosmall(
 	struct xfs_da_state	*state,
 	int			*action)
 {
-	struct xfs_da_intnode	*node;
+	struct xfs_da_intyesde	*yesde;
 	struct xfs_da_state_blk	*blk;
 	struct xfs_da_blkinfo	*info;
-	xfs_dablk_t		blkno;
+	xfs_dablk_t		blkyes;
 	struct xfs_buf		*bp;
-	struct xfs_da3_icnode_hdr nodehdr;
+	struct xfs_da3_icyesde_hdr yesdehdr;
 	int			count;
 	int			forward;
 	int			error;
 	int			retval;
 	int			i;
-	struct xfs_inode	*dp = state->args->dp;
+	struct xfs_iyesde	*dp = state->args->dp;
 
-	trace_xfs_da_node_toosmall(state->args);
+	trace_xfs_da_yesde_toosmall(state->args);
 
 	/*
 	 * Check for the degenerate case of the block being over 50% full.
-	 * If so, it's not worth even looking to see if we might be able
+	 * If so, it's yest worth even looking to see if we might be able
 	 * to coalesce with a sibling.
 	 */
 	blk = &state->path.blk[ state->path.active-1 ];
 	info = blk->bp->b_addr;
-	node = (xfs_da_intnode_t *)info;
-	xfs_da3_node_hdr_from_disk(dp->i_mount, &nodehdr, node);
-	if (nodehdr.count > (state->args->geo->node_ents >> 1)) {
+	yesde = (xfs_da_intyesde_t *)info;
+	xfs_da3_yesde_hdr_from_disk(dp->i_mount, &yesdehdr, yesde);
+	if (yesdehdr.count > (state->args->geo->yesde_ents >> 1)) {
 		*action = 0;	/* blk over 50%, don't try to join */
 		return 0;	/* blk over 50%, don't try to join */
 	}
 
 	/*
 	 * Check for the degenerate case of the block being empty.
-	 * If the block is empty, we'll simply delete it, no need to
+	 * If the block is empty, we'll simply delete it, yes need to
 	 * coalesce it with a sibling block.  We choose (arbitrarily)
 	 * to merge with the forward block unless it is NULL.
 	 */
-	if (nodehdr.count == 0) {
+	if (yesdehdr.count == 0) {
 		/*
 		 * Make altpath point to the block we want to keep and
 		 * path point to the block we want to drop (this one).
@@ -1296,27 +1296,27 @@ xfs_da3_node_toosmall(
 	 * We prefer coalescing with the lower numbered sibling so as
 	 * to shrink a directory over time.
 	 */
-	count  = state->args->geo->node_ents;
-	count -= state->args->geo->node_ents >> 2;
-	count -= nodehdr.count;
+	count  = state->args->geo->yesde_ents;
+	count -= state->args->geo->yesde_ents >> 2;
+	count -= yesdehdr.count;
 
 	/* start with smaller blk num */
-	forward = nodehdr.forw < nodehdr.back;
+	forward = yesdehdr.forw < yesdehdr.back;
 	for (i = 0; i < 2; forward = !forward, i++) {
-		struct xfs_da3_icnode_hdr thdr;
+		struct xfs_da3_icyesde_hdr thdr;
 		if (forward)
-			blkno = nodehdr.forw;
+			blkyes = yesdehdr.forw;
 		else
-			blkno = nodehdr.back;
-		if (blkno == 0)
+			blkyes = yesdehdr.back;
+		if (blkyes == 0)
 			continue;
-		error = xfs_da3_node_read(state->args->trans, dp, blkno, &bp,
+		error = xfs_da3_yesde_read(state->args->trans, dp, blkyes, &bp,
 				state->args->whichfork);
 		if (error)
 			return error;
 
-		node = bp->b_addr;
-		xfs_da3_node_hdr_from_disk(dp->i_mount, &thdr, node);
+		yesde = bp->b_addr;
+		xfs_da3_yesde_hdr_from_disk(dp->i_mount, &thdr, yesde);
 		xfs_trans_brelse(state->args->trans, bp);
 
 		if (count - thdr.count >= 0)
@@ -1332,7 +1332,7 @@ xfs_da3_node_toosmall(
 	 * numbered block) and path point to the block we want to drop.
 	 */
 	memcpy(&state->altpath, &state->path, sizeof(state->path));
-	if (blkno < blk->blkno) {
+	if (blkyes < blk->blkyes) {
 		error = xfs_da3_path_shift(state, &state->altpath, forward,
 						 0, &retval);
 	} else {
@@ -1350,22 +1350,22 @@ xfs_da3_node_toosmall(
 }
 
 /*
- * Pick up the last hashvalue from an intermediate node.
+ * Pick up the last hashvalue from an intermediate yesde.
  */
 STATIC uint
-xfs_da3_node_lasthash(
-	struct xfs_inode	*dp,
+xfs_da3_yesde_lasthash(
+	struct xfs_iyesde	*dp,
 	struct xfs_buf		*bp,
 	int			*count)
 {
-	struct xfs_da3_icnode_hdr nodehdr;
+	struct xfs_da3_icyesde_hdr yesdehdr;
 
-	xfs_da3_node_hdr_from_disk(dp->i_mount, &nodehdr, bp->b_addr);
+	xfs_da3_yesde_hdr_from_disk(dp->i_mount, &yesdehdr, bp->b_addr);
 	if (count)
-		*count = nodehdr.count;
-	if (!nodehdr.count)
+		*count = yesdehdr.count;
+	if (!yesdehdr.count)
 		return 0;
-	return be32_to_cpu(nodehdr.btree[nodehdr.count - 1].hashval);
+	return be32_to_cpu(yesdehdr.btree[yesdehdr.count - 1].hashval);
 }
 
 /*
@@ -1378,12 +1378,12 @@ xfs_da3_fixhashpath(
 	struct xfs_da_state_path *path)
 {
 	struct xfs_da_state_blk	*blk;
-	struct xfs_da_intnode	*node;
-	struct xfs_da_node_entry *btree;
+	struct xfs_da_intyesde	*yesde;
+	struct xfs_da_yesde_entry *btree;
 	xfs_dahash_t		lasthash=0;
 	int			level;
 	int			count;
-	struct xfs_inode	*dp = state->args->dp;
+	struct xfs_iyesde	*dp = state->args->dp;
 
 	trace_xfs_da_fixhashpath(state->args);
 
@@ -1401,71 +1401,71 @@ xfs_da3_fixhashpath(
 			return;
 		break;
 	case XFS_DA_NODE_MAGIC:
-		lasthash = xfs_da3_node_lasthash(dp, blk->bp, &count);
+		lasthash = xfs_da3_yesde_lasthash(dp, blk->bp, &count);
 		if (count == 0)
 			return;
 		break;
 	}
 	for (blk--, level--; level >= 0; blk--, level--) {
-		struct xfs_da3_icnode_hdr nodehdr;
+		struct xfs_da3_icyesde_hdr yesdehdr;
 
-		node = blk->bp->b_addr;
-		xfs_da3_node_hdr_from_disk(dp->i_mount, &nodehdr, node);
-		btree = nodehdr.btree;
+		yesde = blk->bp->b_addr;
+		xfs_da3_yesde_hdr_from_disk(dp->i_mount, &yesdehdr, yesde);
+		btree = yesdehdr.btree;
 		if (be32_to_cpu(btree[blk->index].hashval) == lasthash)
 			break;
 		blk->hashval = lasthash;
 		btree[blk->index].hashval = cpu_to_be32(lasthash);
 		xfs_trans_log_buf(state->args->trans, blk->bp,
-				  XFS_DA_LOGRANGE(node, &btree[blk->index],
+				  XFS_DA_LOGRANGE(yesde, &btree[blk->index],
 						  sizeof(*btree)));
 
-		lasthash = be32_to_cpu(btree[nodehdr.count - 1].hashval);
+		lasthash = be32_to_cpu(btree[yesdehdr.count - 1].hashval);
 	}
 }
 
 /*
- * Remove an entry from an intermediate node.
+ * Remove an entry from an intermediate yesde.
  */
 STATIC void
-xfs_da3_node_remove(
+xfs_da3_yesde_remove(
 	struct xfs_da_state	*state,
 	struct xfs_da_state_blk	*drop_blk)
 {
-	struct xfs_da_intnode	*node;
-	struct xfs_da3_icnode_hdr nodehdr;
-	struct xfs_da_node_entry *btree;
+	struct xfs_da_intyesde	*yesde;
+	struct xfs_da3_icyesde_hdr yesdehdr;
+	struct xfs_da_yesde_entry *btree;
 	int			index;
 	int			tmp;
-	struct xfs_inode	*dp = state->args->dp;
+	struct xfs_iyesde	*dp = state->args->dp;
 
-	trace_xfs_da_node_remove(state->args);
+	trace_xfs_da_yesde_remove(state->args);
 
-	node = drop_blk->bp->b_addr;
-	xfs_da3_node_hdr_from_disk(dp->i_mount, &nodehdr, node);
-	ASSERT(drop_blk->index < nodehdr.count);
+	yesde = drop_blk->bp->b_addr;
+	xfs_da3_yesde_hdr_from_disk(dp->i_mount, &yesdehdr, yesde);
+	ASSERT(drop_blk->index < yesdehdr.count);
 	ASSERT(drop_blk->index >= 0);
 
 	/*
 	 * Copy over the offending entry, or just zero it out.
 	 */
 	index = drop_blk->index;
-	btree = nodehdr.btree;
-	if (index < nodehdr.count - 1) {
-		tmp  = nodehdr.count - index - 1;
-		tmp *= (uint)sizeof(xfs_da_node_entry_t);
+	btree = yesdehdr.btree;
+	if (index < yesdehdr.count - 1) {
+		tmp  = yesdehdr.count - index - 1;
+		tmp *= (uint)sizeof(xfs_da_yesde_entry_t);
 		memmove(&btree[index], &btree[index + 1], tmp);
 		xfs_trans_log_buf(state->args->trans, drop_blk->bp,
-		    XFS_DA_LOGRANGE(node, &btree[index], tmp));
-		index = nodehdr.count - 1;
+		    XFS_DA_LOGRANGE(yesde, &btree[index], tmp));
+		index = yesdehdr.count - 1;
 	}
-	memset(&btree[index], 0, sizeof(xfs_da_node_entry_t));
+	memset(&btree[index], 0, sizeof(xfs_da_yesde_entry_t));
 	xfs_trans_log_buf(state->args->trans, drop_blk->bp,
-	    XFS_DA_LOGRANGE(node, &btree[index], sizeof(btree[index])));
-	nodehdr.count -= 1;
-	xfs_da3_node_hdr_to_disk(dp->i_mount, node, &nodehdr);
+	    XFS_DA_LOGRANGE(yesde, &btree[index], sizeof(btree[index])));
+	yesdehdr.count -= 1;
+	xfs_da3_yesde_hdr_to_disk(dp->i_mount, yesde, &yesdehdr);
 	xfs_trans_log_buf(state->args->trans, drop_blk->bp,
-	    XFS_DA_LOGRANGE(node, &node->hdr, state->args->geo->node_hdr_size));
+	    XFS_DA_LOGRANGE(yesde, &yesde->hdr, state->args->geo->yesde_hdr_size));
 
 	/*
 	 * Copy the last hash value from the block to propagate upwards.
@@ -1474,32 +1474,32 @@ xfs_da3_node_remove(
 }
 
 /*
- * Unbalance the elements between two intermediate nodes,
- * move all Btree elements from one node into another.
+ * Unbalance the elements between two intermediate yesdes,
+ * move all Btree elements from one yesde into ayesther.
  */
 STATIC void
-xfs_da3_node_unbalance(
+xfs_da3_yesde_unbalance(
 	struct xfs_da_state	*state,
 	struct xfs_da_state_blk	*drop_blk,
 	struct xfs_da_state_blk	*save_blk)
 {
-	struct xfs_da_intnode	*drop_node;
-	struct xfs_da_intnode	*save_node;
-	struct xfs_da_node_entry *drop_btree;
-	struct xfs_da_node_entry *save_btree;
-	struct xfs_da3_icnode_hdr drop_hdr;
-	struct xfs_da3_icnode_hdr save_hdr;
+	struct xfs_da_intyesde	*drop_yesde;
+	struct xfs_da_intyesde	*save_yesde;
+	struct xfs_da_yesde_entry *drop_btree;
+	struct xfs_da_yesde_entry *save_btree;
+	struct xfs_da3_icyesde_hdr drop_hdr;
+	struct xfs_da3_icyesde_hdr save_hdr;
 	struct xfs_trans	*tp;
 	int			sindex;
 	int			tmp;
-	struct xfs_inode	*dp = state->args->dp;
+	struct xfs_iyesde	*dp = state->args->dp;
 
-	trace_xfs_da_node_unbalance(state->args);
+	trace_xfs_da_yesde_unbalance(state->args);
 
-	drop_node = drop_blk->bp->b_addr;
-	save_node = save_blk->bp->b_addr;
-	xfs_da3_node_hdr_from_disk(dp->i_mount, &drop_hdr, drop_node);
-	xfs_da3_node_hdr_from_disk(dp->i_mount, &save_hdr, save_node);
+	drop_yesde = drop_blk->bp->b_addr;
+	save_yesde = save_blk->bp->b_addr;
+	xfs_da3_yesde_hdr_from_disk(dp->i_mount, &drop_hdr, drop_yesde);
+	xfs_da3_yesde_hdr_from_disk(dp->i_mount, &save_hdr, save_yesde);
 	drop_btree = drop_hdr.btree;
 	save_btree = save_hdr.btree;
 	tp = state->args->trans;
@@ -1513,32 +1513,32 @@ xfs_da3_node_unbalance(
 	    (be32_to_cpu(drop_btree[drop_hdr.count - 1].hashval) <
 			be32_to_cpu(save_btree[save_hdr.count - 1].hashval))) {
 		/* XXX: check this - is memmove dst correct? */
-		tmp = save_hdr.count * sizeof(xfs_da_node_entry_t);
+		tmp = save_hdr.count * sizeof(xfs_da_yesde_entry_t);
 		memmove(&save_btree[drop_hdr.count], &save_btree[0], tmp);
 
 		sindex = 0;
 		xfs_trans_log_buf(tp, save_blk->bp,
-			XFS_DA_LOGRANGE(save_node, &save_btree[0],
+			XFS_DA_LOGRANGE(save_yesde, &save_btree[0],
 				(save_hdr.count + drop_hdr.count) *
-						sizeof(xfs_da_node_entry_t)));
+						sizeof(xfs_da_yesde_entry_t)));
 	} else {
 		sindex = save_hdr.count;
 		xfs_trans_log_buf(tp, save_blk->bp,
-			XFS_DA_LOGRANGE(save_node, &save_btree[sindex],
-				drop_hdr.count * sizeof(xfs_da_node_entry_t)));
+			XFS_DA_LOGRANGE(save_yesde, &save_btree[sindex],
+				drop_hdr.count * sizeof(xfs_da_yesde_entry_t)));
 	}
 
 	/*
 	 * Move all the B-tree elements from drop_blk to save_blk.
 	 */
-	tmp = drop_hdr.count * (uint)sizeof(xfs_da_node_entry_t);
+	tmp = drop_hdr.count * (uint)sizeof(xfs_da_yesde_entry_t);
 	memcpy(&save_btree[sindex], &drop_btree[0], tmp);
 	save_hdr.count += drop_hdr.count;
 
-	xfs_da3_node_hdr_to_disk(dp->i_mount, save_node, &save_hdr);
+	xfs_da3_yesde_hdr_to_disk(dp->i_mount, save_yesde, &save_hdr);
 	xfs_trans_log_buf(tp, save_blk->bp,
-		XFS_DA_LOGRANGE(save_node, &save_node->hdr,
-				state->args->geo->node_hdr_size));
+		XFS_DA_LOGRANGE(save_yesde, &save_yesde->hdr,
+				state->args->geo->yesde_hdr_size));
 
 	/*
 	 * Save the last hashval in the remaining block for upward propagation.
@@ -1555,24 +1555,24 @@ xfs_da3_node_unbalance(
  * in the state structure as we go.
  *
  * We will set the state structure to point to each of the elements
- * in each of the nodes where either the hashval is or should be.
+ * in each of the yesdes where either the hashval is or should be.
  *
  * We support duplicate hashval's so for each entry in the current
- * node that could contain the desired hashval, descend.  This is a
+ * yesde that could contain the desired hashval, descend.  This is a
  * pruned depth-first tree search.
  */
 int							/* error */
-xfs_da3_node_lookup_int(
+xfs_da3_yesde_lookup_int(
 	struct xfs_da_state	*state,
 	int			*result)
 {
 	struct xfs_da_state_blk	*blk;
 	struct xfs_da_blkinfo	*curr;
-	struct xfs_da_intnode	*node;
-	struct xfs_da_node_entry *btree;
-	struct xfs_da3_icnode_hdr nodehdr;
+	struct xfs_da_intyesde	*yesde;
+	struct xfs_da_yesde_entry *btree;
+	struct xfs_da3_icyesde_hdr yesdehdr;
 	struct xfs_da_args	*args;
-	xfs_dablk_t		blkno;
+	xfs_dablk_t		blkyes;
 	xfs_dahash_t		hashval;
 	xfs_dahash_t		btreehashval;
 	int			probe;
@@ -1582,26 +1582,26 @@ xfs_da3_node_lookup_int(
 	int			retval;
 	unsigned int		expected_level = 0;
 	uint16_t		magic;
-	struct xfs_inode	*dp = state->args->dp;
+	struct xfs_iyesde	*dp = state->args->dp;
 
 	args = state->args;
 
 	/*
 	 * Descend thru the B-tree searching each level for the right
-	 * node to use, until the right hashval is found.
+	 * yesde to use, until the right hashval is found.
 	 */
-	blkno = args->geo->leafblk;
+	blkyes = args->geo->leafblk;
 	for (blk = &state->path.blk[0], state->path.active = 1;
 			 state->path.active <= XFS_DA_NODE_MAXDEPTH;
 			 blk++, state->path.active++) {
 		/*
-		 * Read the next node down in the tree.
+		 * Read the next yesde down in the tree.
 		 */
-		blk->blkno = blkno;
-		error = xfs_da3_node_read(args->trans, args->dp, blkno,
+		blk->blkyes = blkyes;
+		error = xfs_da3_yesde_read(args->trans, args->dp, blkyes,
 					&blk->bp, args->whichfork);
 		if (error) {
-			blk->blkno = 0;
+			blk->blkyes = 0;
 			state->path.active--;
 			return error;
 		}
@@ -1631,32 +1631,32 @@ xfs_da3_node_lookup_int(
 		blk->magic = XFS_DA_NODE_MAGIC;
 
 		/*
-		 * Search an intermediate node for a match.
+		 * Search an intermediate yesde for a match.
 		 */
-		node = blk->bp->b_addr;
-		xfs_da3_node_hdr_from_disk(dp->i_mount, &nodehdr, node);
-		btree = nodehdr.btree;
+		yesde = blk->bp->b_addr;
+		xfs_da3_yesde_hdr_from_disk(dp->i_mount, &yesdehdr, yesde);
+		btree = yesdehdr.btree;
 
 		/* Tree taller than we can handle; bail out! */
-		if (nodehdr.level >= XFS_DA_NODE_MAXDEPTH) {
+		if (yesdehdr.level >= XFS_DA_NODE_MAXDEPTH) {
 			xfs_buf_corruption_error(blk->bp);
 			return -EFSCORRUPTED;
 		}
 
 		/* Check the level from the root. */
-		if (blkno == args->geo->leafblk)
-			expected_level = nodehdr.level - 1;
-		else if (expected_level != nodehdr.level) {
+		if (blkyes == args->geo->leafblk)
+			expected_level = yesdehdr.level - 1;
+		else if (expected_level != yesdehdr.level) {
 			xfs_buf_corruption_error(blk->bp);
 			return -EFSCORRUPTED;
 		} else
 			expected_level--;
 
-		max = nodehdr.count;
+		max = yesdehdr.count;
 		blk->hashval = be32_to_cpu(btree[max - 1].hashval);
 
 		/*
-		 * Binary search.  (note: small blocks will skip loop)
+		 * Binary search.  (yeste: small blocks will skip loop)
 		 */
 		probe = span = max / 2;
 		hashval = args->hashval;
@@ -1676,7 +1676,7 @@ xfs_da3_node_lookup_int(
 
 		/*
 		 * Since we may have duplicate hashval's, find the first
-		 * matching hashval in the node.
+		 * matching hashval in the yesde.
 		 */
 		while (probe > 0 &&
 		       be32_to_cpu(btree[probe].hashval) >= hashval) {
@@ -1692,14 +1692,14 @@ xfs_da3_node_lookup_int(
 		 */
 		if (probe == max) {
 			blk->index = max - 1;
-			blkno = be32_to_cpu(btree[max - 1].before);
+			blkyes = be32_to_cpu(btree[max - 1].before);
 		} else {
 			blk->index = probe;
-			blkno = be32_to_cpu(btree[probe].before);
+			blkyes = be32_to_cpu(btree[probe].before);
 		}
 
 		/* We can't point back to the root. */
-		if (XFS_IS_CORRUPT(dp->i_mount, blkno == args->geo->leafblk))
+		if (XFS_IS_CORRUPT(dp->i_mount, blkyes == args->geo->leafblk))
 			return -EFSCORRUPTED;
 	}
 
@@ -1719,7 +1719,7 @@ xfs_da3_node_lookup_int(
 		} else if (blk->magic == XFS_ATTR_LEAF_MAGIC) {
 			retval = xfs_attr3_leaf_lookup_int(blk->bp, args);
 			blk->index = args->index;
-			args->blkno = blk->blkno;
+			args->blkyes = blk->blkyes;
 		} else {
 			ASSERT(0);
 			return -EFSCORRUPTED;
@@ -1748,32 +1748,32 @@ xfs_da3_node_lookup_int(
  *========================================================================*/
 
 /*
- * Compare two intermediate nodes for "order".
+ * Compare two intermediate yesdes for "order".
  */
 STATIC int
-xfs_da3_node_order(
-	struct xfs_inode *dp,
-	struct xfs_buf	*node1_bp,
-	struct xfs_buf	*node2_bp)
+xfs_da3_yesde_order(
+	struct xfs_iyesde *dp,
+	struct xfs_buf	*yesde1_bp,
+	struct xfs_buf	*yesde2_bp)
 {
-	struct xfs_da_intnode	*node1;
-	struct xfs_da_intnode	*node2;
-	struct xfs_da_node_entry *btree1;
-	struct xfs_da_node_entry *btree2;
-	struct xfs_da3_icnode_hdr node1hdr;
-	struct xfs_da3_icnode_hdr node2hdr;
+	struct xfs_da_intyesde	*yesde1;
+	struct xfs_da_intyesde	*yesde2;
+	struct xfs_da_yesde_entry *btree1;
+	struct xfs_da_yesde_entry *btree2;
+	struct xfs_da3_icyesde_hdr yesde1hdr;
+	struct xfs_da3_icyesde_hdr yesde2hdr;
 
-	node1 = node1_bp->b_addr;
-	node2 = node2_bp->b_addr;
-	xfs_da3_node_hdr_from_disk(dp->i_mount, &node1hdr, node1);
-	xfs_da3_node_hdr_from_disk(dp->i_mount, &node2hdr, node2);
-	btree1 = node1hdr.btree;
-	btree2 = node2hdr.btree;
+	yesde1 = yesde1_bp->b_addr;
+	yesde2 = yesde2_bp->b_addr;
+	xfs_da3_yesde_hdr_from_disk(dp->i_mount, &yesde1hdr, yesde1);
+	xfs_da3_yesde_hdr_from_disk(dp->i_mount, &yesde2hdr, yesde2);
+	btree1 = yesde1hdr.btree;
+	btree2 = yesde2hdr.btree;
 
-	if (node1hdr.count > 0 && node2hdr.count > 0 &&
+	if (yesde1hdr.count > 0 && yesde2hdr.count > 0 &&
 	    ((be32_to_cpu(btree2[0].hashval) < be32_to_cpu(btree1[0].hashval)) ||
-	     (be32_to_cpu(btree2[node2hdr.count - 1].hashval) <
-	      be32_to_cpu(btree1[node1hdr.count - 1].hashval)))) {
+	     (be32_to_cpu(btree2[yesde2hdr.count - 1].hashval) <
+	      be32_to_cpu(btree1[yesde1hdr.count - 1].hashval)))) {
 		return 1;
 	}
 	return 0;
@@ -1795,7 +1795,7 @@ xfs_da3_blk_link(
 	struct xfs_buf		*bp;
 	int			before = 0;
 	int			error;
-	struct xfs_inode	*dp = state->args->dp;
+	struct xfs_iyesde	*dp = state->args->dp;
 
 	/*
 	 * Set up environment.
@@ -1816,7 +1816,7 @@ xfs_da3_blk_link(
 		before = xfs_dir2_leafn_order(dp, old_blk->bp, new_blk->bp);
 		break;
 	case XFS_DA_NODE_MAGIC:
-		before = xfs_da3_node_order(dp, old_blk->bp, new_blk->bp);
+		before = xfs_da3_yesde_order(dp, old_blk->bp, new_blk->bp);
 		break;
 	}
 
@@ -1828,10 +1828,10 @@ xfs_da3_blk_link(
 		 * Link new block in before existing block.
 		 */
 		trace_xfs_da_link_before(args);
-		new_info->forw = cpu_to_be32(old_blk->blkno);
+		new_info->forw = cpu_to_be32(old_blk->blkyes);
 		new_info->back = old_info->back;
 		if (old_info->back) {
-			error = xfs_da3_node_read(args->trans, dp,
+			error = xfs_da3_yesde_read(args->trans, dp,
 						be32_to_cpu(old_info->back),
 						&bp, args->whichfork);
 			if (error)
@@ -1839,20 +1839,20 @@ xfs_da3_blk_link(
 			ASSERT(bp != NULL);
 			tmp_info = bp->b_addr;
 			ASSERT(tmp_info->magic == old_info->magic);
-			ASSERT(be32_to_cpu(tmp_info->forw) == old_blk->blkno);
-			tmp_info->forw = cpu_to_be32(new_blk->blkno);
+			ASSERT(be32_to_cpu(tmp_info->forw) == old_blk->blkyes);
+			tmp_info->forw = cpu_to_be32(new_blk->blkyes);
 			xfs_trans_log_buf(args->trans, bp, 0, sizeof(*tmp_info)-1);
 		}
-		old_info->back = cpu_to_be32(new_blk->blkno);
+		old_info->back = cpu_to_be32(new_blk->blkyes);
 	} else {
 		/*
 		 * Link new block in after existing block.
 		 */
 		trace_xfs_da_link_after(args);
 		new_info->forw = old_info->forw;
-		new_info->back = cpu_to_be32(old_blk->blkno);
+		new_info->back = cpu_to_be32(old_blk->blkyes);
 		if (old_info->forw) {
-			error = xfs_da3_node_read(args->trans, dp,
+			error = xfs_da3_yesde_read(args->trans, dp,
 						be32_to_cpu(old_info->forw),
 						&bp, args->whichfork);
 			if (error)
@@ -1860,11 +1860,11 @@ xfs_da3_blk_link(
 			ASSERT(bp != NULL);
 			tmp_info = bp->b_addr;
 			ASSERT(tmp_info->magic == old_info->magic);
-			ASSERT(be32_to_cpu(tmp_info->back) == old_blk->blkno);
-			tmp_info->back = cpu_to_be32(new_blk->blkno);
+			ASSERT(be32_to_cpu(tmp_info->back) == old_blk->blkyes);
+			tmp_info->back = cpu_to_be32(new_blk->blkyes);
 			xfs_trans_log_buf(args->trans, bp, 0, sizeof(*tmp_info)-1);
 		}
-		old_info->forw = cpu_to_be32(new_blk->blkno);
+		old_info->forw = cpu_to_be32(new_blk->blkyes);
 	}
 
 	xfs_trans_log_buf(args->trans, old_blk->bp, 0, sizeof(*tmp_info) - 1);
@@ -1899,19 +1899,19 @@ xfs_da3_blk_unlink(
 	       save_blk->magic == XFS_DIR2_LEAFN_MAGIC ||
 	       save_blk->magic == XFS_ATTR_LEAF_MAGIC);
 	ASSERT(save_blk->magic == drop_blk->magic);
-	ASSERT((be32_to_cpu(save_info->forw) == drop_blk->blkno) ||
-	       (be32_to_cpu(save_info->back) == drop_blk->blkno));
-	ASSERT((be32_to_cpu(drop_info->forw) == save_blk->blkno) ||
-	       (be32_to_cpu(drop_info->back) == save_blk->blkno));
+	ASSERT((be32_to_cpu(save_info->forw) == drop_blk->blkyes) ||
+	       (be32_to_cpu(save_info->back) == drop_blk->blkyes));
+	ASSERT((be32_to_cpu(drop_info->forw) == save_blk->blkyes) ||
+	       (be32_to_cpu(drop_info->back) == save_blk->blkyes));
 
 	/*
 	 * Unlink the leaf block from the doubly linked chain of leaves.
 	 */
-	if (be32_to_cpu(save_info->back) == drop_blk->blkno) {
+	if (be32_to_cpu(save_info->back) == drop_blk->blkyes) {
 		trace_xfs_da_unlink_back(args);
 		save_info->back = drop_info->back;
 		if (drop_info->back) {
-			error = xfs_da3_node_read(args->trans, args->dp,
+			error = xfs_da3_yesde_read(args->trans, args->dp,
 						be32_to_cpu(drop_info->back),
 						&bp, args->whichfork);
 			if (error)
@@ -1919,8 +1919,8 @@ xfs_da3_blk_unlink(
 			ASSERT(bp != NULL);
 			tmp_info = bp->b_addr;
 			ASSERT(tmp_info->magic == save_info->magic);
-			ASSERT(be32_to_cpu(tmp_info->forw) == drop_blk->blkno);
-			tmp_info->forw = cpu_to_be32(save_blk->blkno);
+			ASSERT(be32_to_cpu(tmp_info->forw) == drop_blk->blkyes);
+			tmp_info->forw = cpu_to_be32(save_blk->blkyes);
 			xfs_trans_log_buf(args->trans, bp, 0,
 						    sizeof(*tmp_info) - 1);
 		}
@@ -1928,7 +1928,7 @@ xfs_da3_blk_unlink(
 		trace_xfs_da_unlink_forward(args);
 		save_info->forw = drop_info->forw;
 		if (drop_info->forw) {
-			error = xfs_da3_node_read(args->trans, args->dp,
+			error = xfs_da3_yesde_read(args->trans, args->dp,
 						be32_to_cpu(drop_info->forw),
 						&bp, args->whichfork);
 			if (error)
@@ -1936,8 +1936,8 @@ xfs_da3_blk_unlink(
 			ASSERT(bp != NULL);
 			tmp_info = bp->b_addr;
 			ASSERT(tmp_info->magic == save_info->magic);
-			ASSERT(be32_to_cpu(tmp_info->back) == drop_blk->blkno);
-			tmp_info->back = cpu_to_be32(save_blk->blkno);
+			ASSERT(be32_to_cpu(tmp_info->back) == drop_blk->blkyes);
+			tmp_info->back = cpu_to_be32(save_blk->blkyes);
 			xfs_trans_log_buf(args->trans, bp, 0,
 						    sizeof(*tmp_info) - 1);
 		}
@@ -1952,7 +1952,7 @@ xfs_da3_blk_unlink(
  *
  * This routine will adjust a "path" to point to the next block
  * "forward" (higher hashvalues) or "!forward" (lower hashvals) in the
- * Btree, including updating pointers to the intermediate nodes between
+ * Btree, including updating pointers to the intermediate yesdes between
  * the new bottom and the root.
  */
 int							/* error */
@@ -1966,19 +1966,19 @@ xfs_da3_path_shift(
 	struct xfs_da_state_blk	*blk;
 	struct xfs_da_blkinfo	*info;
 	struct xfs_da_args	*args;
-	struct xfs_da_node_entry *btree;
-	struct xfs_da3_icnode_hdr nodehdr;
+	struct xfs_da_yesde_entry *btree;
+	struct xfs_da3_icyesde_hdr yesdehdr;
 	struct xfs_buf		*bp;
-	xfs_dablk_t		blkno = 0;
+	xfs_dablk_t		blkyes = 0;
 	int			level;
 	int			error;
-	struct xfs_inode	*dp = state->args->dp;
+	struct xfs_iyesde	*dp = state->args->dp;
 
 	trace_xfs_da_path_shift(state->args);
 
 	/*
 	 * Roll up the Btree looking for the first block where our
-	 * current index is not at the edge of the block.  Note that
+	 * current index is yest at the edge of the block.  Note that
 	 * we skip the bottom layer because we want the sibling block.
 	 */
 	args = state->args;
@@ -1987,16 +1987,16 @@ xfs_da3_path_shift(
 	ASSERT((path->active > 0) && (path->active < XFS_DA_NODE_MAXDEPTH));
 	level = (path->active-1) - 1;	/* skip bottom layer in path */
 	for (blk = &path->blk[level]; level >= 0; blk--, level--) {
-		xfs_da3_node_hdr_from_disk(dp->i_mount, &nodehdr,
+		xfs_da3_yesde_hdr_from_disk(dp->i_mount, &yesdehdr,
 					   blk->bp->b_addr);
 
-		if (forward && (blk->index < nodehdr.count - 1)) {
+		if (forward && (blk->index < yesdehdr.count - 1)) {
 			blk->index++;
-			blkno = be32_to_cpu(nodehdr.btree[blk->index].before);
+			blkyes = be32_to_cpu(yesdehdr.btree[blk->index].before);
 			break;
 		} else if (!forward && (blk->index > 0)) {
 			blk->index--;
-			blkno = be32_to_cpu(nodehdr.btree[blk->index].before);
+			blkyes = be32_to_cpu(yesdehdr.btree[blk->index].before);
 			break;
 		}
 	}
@@ -2014,7 +2014,7 @@ xfs_da3_path_shift(
 		/*
 		 * Read the next child block into a local buffer.
 		 */
-		error = xfs_da3_node_read(args->trans, dp, blkno, &bp,
+		error = xfs_da3_yesde_read(args->trans, dp, blkyes, &bp,
 					  args->whichfork);
 		if (error)
 			return error;
@@ -2027,7 +2027,7 @@ xfs_da3_path_shift(
 		 */
 		if (release)
 			xfs_trans_brelse(args->trans, blk->bp);
-		blk->blkno = blkno;
+		blk->blkyes = blkyes;
 		blk->bp = bp;
 
 		info = blk->bp->b_addr;
@@ -2041,21 +2041,21 @@ xfs_da3_path_shift(
 
 		/*
 		 * Note: we flatten the magic number to a single type so we
-		 * don't have to compare against crc/non-crc types elsewhere.
+		 * don't have to compare against crc/yesn-crc types elsewhere.
 		 */
 		switch (be16_to_cpu(info->magic)) {
 		case XFS_DA_NODE_MAGIC:
 		case XFS_DA3_NODE_MAGIC:
 			blk->magic = XFS_DA_NODE_MAGIC;
-			xfs_da3_node_hdr_from_disk(dp->i_mount, &nodehdr,
+			xfs_da3_yesde_hdr_from_disk(dp->i_mount, &yesdehdr,
 						   bp->b_addr);
-			btree = nodehdr.btree;
-			blk->hashval = be32_to_cpu(btree[nodehdr.count - 1].hashval);
+			btree = yesdehdr.btree;
+			blk->hashval = be32_to_cpu(btree[yesdehdr.count - 1].hashval);
 			if (forward)
 				blk->index = 0;
 			else
-				blk->index = nodehdr.count - 1;
-			blkno = be32_to_cpu(btree[blk->index].before);
+				blk->index = yesdehdr.count - 1;
+			blkyes = be32_to_cpu(btree[blk->index].before);
 			break;
 		case XFS_ATTR_LEAF_MAGIC:
 		case XFS_ATTR3_LEAF_MAGIC:
@@ -2130,13 +2130,13 @@ xfs_da_compname(
 }
 
 int
-xfs_da_grow_inode_int(
+xfs_da_grow_iyesde_int(
 	struct xfs_da_args	*args,
-	xfs_fileoff_t		*bno,
+	xfs_fileoff_t		*byes,
 	int			count)
 {
 	struct xfs_trans	*tp = args->trans;
-	struct xfs_inode	*dp = args->dp;
+	struct xfs_iyesde	*dp = args->dp;
 	int			w = args->whichfork;
 	xfs_rfsblock_t		nblks = dp->i_d.di_nblocks;
 	struct xfs_bmbt_irec	map, *mapp;
@@ -2145,7 +2145,7 @@ xfs_da_grow_inode_int(
 	/*
 	 * Find a spot in the file space to put the new block.
 	 */
-	error = xfs_bmap_first_unused(tp, dp, count, bno, w);
+	error = xfs_bmap_first_unused(tp, dp, count, byes, w);
 	if (error)
 		return error;
 
@@ -2153,7 +2153,7 @@ xfs_da_grow_inode_int(
 	 * Try mapping it in one filesystem block.
 	 */
 	nmap = 1;
-	error = xfs_bmapi_write(tp, dp, *bno, count,
+	error = xfs_bmapi_write(tp, dp, *byes, count,
 			xfs_bmapi_aflag(w)|XFS_BMAPI_METADATA|XFS_BMAPI_CONTIG,
 			args->total, &map, &nmap);
 	if (error)
@@ -2172,9 +2172,9 @@ xfs_da_grow_inode_int(
 		 * try without the CONTIG flag.  Loop until we get it all.
 		 */
 		mapp = kmem_alloc(sizeof(*mapp) * count, 0);
-		for (b = *bno, mapi = 0; b < *bno + count; ) {
+		for (b = *byes, mapi = 0; b < *byes + count; ) {
 			nmap = min(XFS_BMAP_MAX_NMAP, count);
-			c = (int)(*bno + count - b);
+			c = (int)(*byes + count - b);
 			error = xfs_bmapi_write(tp, dp, b, c,
 					xfs_bmapi_aflag(w)|XFS_BMAPI_METADATA,
 					args->total, &mapp[mapi], &nmap);
@@ -2196,9 +2196,9 @@ xfs_da_grow_inode_int(
 	 */
 	for (i = 0, got = 0; i < mapi; i++)
 		got += mapp[i].br_blockcount;
-	if (got != count || mapp[0].br_startoff != *bno ||
+	if (got != count || mapp[0].br_startoff != *byes ||
 	    mapp[mapi - 1].br_startoff + mapp[mapi - 1].br_blockcount !=
-	    *bno + count) {
+	    *byes + count) {
 		error = -ENOSPC;
 		goto out_free_map;
 	}
@@ -2217,25 +2217,25 @@ out_free_map:
  * Return the new block number to the caller.
  */
 int
-xfs_da_grow_inode(
+xfs_da_grow_iyesde(
 	struct xfs_da_args	*args,
-	xfs_dablk_t		*new_blkno)
+	xfs_dablk_t		*new_blkyes)
 {
-	xfs_fileoff_t		bno;
+	xfs_fileoff_t		byes;
 	int			error;
 
-	trace_xfs_da_grow_inode(args);
+	trace_xfs_da_grow_iyesde(args);
 
-	bno = args->geo->leafblk;
-	error = xfs_da_grow_inode_int(args, &bno, args->geo->fsbcount);
+	byes = args->geo->leafblk;
+	error = xfs_da_grow_iyesde_int(args, &byes, args->geo->fsbcount);
 	if (!error)
-		*new_blkno = (xfs_dablk_t)bno;
+		*new_blkyes = (xfs_dablk_t)byes;
 	return error;
 }
 
 /*
  * Ick.  We need to always be able to remove a btree block, even
- * if there's no space reservation because the filesystem is full.
+ * if there's yes space reservation because the filesystem is full.
  * This is called if xfs_bunmapi on a btree block fails due to ENOSPC.
  * It swaps the target block with the last block in the file.  The
  * last block in the file can always be removed since it can't cause
@@ -2244,17 +2244,17 @@ xfs_da_grow_inode(
 STATIC int
 xfs_da3_swap_lastblock(
 	struct xfs_da_args	*args,
-	xfs_dablk_t		*dead_blknop,
+	xfs_dablk_t		*dead_blkyesp,
 	struct xfs_buf		**dead_bufp)
 {
 	struct xfs_da_blkinfo	*dead_info;
 	struct xfs_da_blkinfo	*sib_info;
-	struct xfs_da_intnode	*par_node;
-	struct xfs_da_intnode	*dead_node;
+	struct xfs_da_intyesde	*par_yesde;
+	struct xfs_da_intyesde	*dead_yesde;
 	struct xfs_dir2_leaf	*dead_leaf2;
-	struct xfs_da_node_entry *btree;
-	struct xfs_da3_icnode_hdr par_hdr;
-	struct xfs_inode	*dp;
+	struct xfs_da_yesde_entry *btree;
+	struct xfs_da3_icyesde_hdr par_hdr;
+	struct xfs_iyesde	*dp;
 	struct xfs_trans	*tp;
 	struct xfs_mount	*mp;
 	struct xfs_buf		*dead_buf;
@@ -2263,20 +2263,20 @@ xfs_da3_swap_lastblock(
 	struct xfs_buf		*par_buf;
 	xfs_dahash_t		dead_hash;
 	xfs_fileoff_t		lastoff;
-	xfs_dablk_t		dead_blkno;
-	xfs_dablk_t		last_blkno;
-	xfs_dablk_t		sib_blkno;
-	xfs_dablk_t		par_blkno;
+	xfs_dablk_t		dead_blkyes;
+	xfs_dablk_t		last_blkyes;
+	xfs_dablk_t		sib_blkyes;
+	xfs_dablk_t		par_blkyes;
 	int			error;
 	int			w;
-	int			entno;
+	int			entyes;
 	int			level;
 	int			dead_level;
 
 	trace_xfs_da_swap_lastblock(args);
 
 	dead_buf = *dead_bufp;
-	dead_blkno = *dead_blknop;
+	dead_blkyes = *dead_blkyesp;
 	tp = args->trans;
 	dp = args->dp;
 	w = args->whichfork;
@@ -2291,8 +2291,8 @@ xfs_da3_swap_lastblock(
 	/*
 	 * Read the last block in the btree space.
 	 */
-	last_blkno = (xfs_dablk_t)lastoff - args->geo->fsbcount;
-	error = xfs_da3_node_read(tp, dp, last_blkno, &last_buf, w);
+	last_blkyes = (xfs_dablk_t)lastoff - args->geo->fsbcount;
+	error = xfs_da3_yesde_read(tp, dp, last_blkyes, &last_buf, w);
 	if (error)
 		return error;
 	/*
@@ -2316,10 +2316,10 @@ xfs_da3_swap_lastblock(
 		dead_level = 0;
 		dead_hash = be32_to_cpu(ents[leafhdr.count - 1].hashval);
 	} else {
-		struct xfs_da3_icnode_hdr deadhdr;
+		struct xfs_da3_icyesde_hdr deadhdr;
 
-		dead_node = (xfs_da_intnode_t *)dead_info;
-		xfs_da3_node_hdr_from_disk(dp->i_mount, &deadhdr, dead_node);
+		dead_yesde = (xfs_da_intyesde_t *)dead_info;
+		xfs_da3_yesde_hdr_from_disk(dp->i_mount, &deadhdr, dead_yesde);
 		btree = deadhdr.btree;
 		dead_level = deadhdr.level;
 		dead_hash = be32_to_cpu(btree[deadhdr.count - 1].hashval);
@@ -2328,18 +2328,18 @@ xfs_da3_swap_lastblock(
 	/*
 	 * If the moved block has a left sibling, fix up the pointers.
 	 */
-	if ((sib_blkno = be32_to_cpu(dead_info->back))) {
-		error = xfs_da3_node_read(tp, dp, sib_blkno, &sib_buf, w);
+	if ((sib_blkyes = be32_to_cpu(dead_info->back))) {
+		error = xfs_da3_yesde_read(tp, dp, sib_blkyes, &sib_buf, w);
 		if (error)
 			goto done;
 		sib_info = sib_buf->b_addr;
 		if (XFS_IS_CORRUPT(mp,
-				   be32_to_cpu(sib_info->forw) != last_blkno ||
+				   be32_to_cpu(sib_info->forw) != last_blkyes ||
 				   sib_info->magic != dead_info->magic)) {
 			error = -EFSCORRUPTED;
 			goto done;
 		}
-		sib_info->forw = cpu_to_be32(dead_blkno);
+		sib_info->forw = cpu_to_be32(dead_blkyes);
 		xfs_trans_log_buf(tp, sib_buf,
 			XFS_DA_LOGRANGE(sib_info, &sib_info->forw,
 					sizeof(sib_info->forw)));
@@ -2348,34 +2348,34 @@ xfs_da3_swap_lastblock(
 	/*
 	 * If the moved block has a right sibling, fix up the pointers.
 	 */
-	if ((sib_blkno = be32_to_cpu(dead_info->forw))) {
-		error = xfs_da3_node_read(tp, dp, sib_blkno, &sib_buf, w);
+	if ((sib_blkyes = be32_to_cpu(dead_info->forw))) {
+		error = xfs_da3_yesde_read(tp, dp, sib_blkyes, &sib_buf, w);
 		if (error)
 			goto done;
 		sib_info = sib_buf->b_addr;
 		if (XFS_IS_CORRUPT(mp,
-				   be32_to_cpu(sib_info->back) != last_blkno ||
+				   be32_to_cpu(sib_info->back) != last_blkyes ||
 				   sib_info->magic != dead_info->magic)) {
 			error = -EFSCORRUPTED;
 			goto done;
 		}
-		sib_info->back = cpu_to_be32(dead_blkno);
+		sib_info->back = cpu_to_be32(dead_blkyes);
 		xfs_trans_log_buf(tp, sib_buf,
 			XFS_DA_LOGRANGE(sib_info, &sib_info->back,
 					sizeof(sib_info->back)));
 		sib_buf = NULL;
 	}
-	par_blkno = args->geo->leafblk;
+	par_blkyes = args->geo->leafblk;
 	level = -1;
 	/*
 	 * Walk down the tree looking for the parent of the moved block.
 	 */
 	for (;;) {
-		error = xfs_da3_node_read(tp, dp, par_blkno, &par_buf, w);
+		error = xfs_da3_yesde_read(tp, dp, par_blkyes, &par_buf, w);
 		if (error)
 			goto done;
-		par_node = par_buf->b_addr;
-		xfs_da3_node_hdr_from_disk(dp->i_mount, &par_hdr, par_node);
+		par_yesde = par_buf->b_addr;
+		xfs_da3_yesde_hdr_from_disk(dp->i_mount, &par_hdr, par_yesde);
 		if (XFS_IS_CORRUPT(mp,
 				   level >= 0 && level != par_hdr.level + 1)) {
 			error = -EFSCORRUPTED;
@@ -2383,16 +2383,16 @@ xfs_da3_swap_lastblock(
 		}
 		level = par_hdr.level;
 		btree = par_hdr.btree;
-		for (entno = 0;
-		     entno < par_hdr.count &&
-		     be32_to_cpu(btree[entno].hashval) < dead_hash;
-		     entno++)
+		for (entyes = 0;
+		     entyes < par_hdr.count &&
+		     be32_to_cpu(btree[entyes].hashval) < dead_hash;
+		     entyes++)
 			continue;
-		if (XFS_IS_CORRUPT(mp, entno == par_hdr.count)) {
+		if (XFS_IS_CORRUPT(mp, entyes == par_hdr.count)) {
 			error = -EFSCORRUPTED;
 			goto done;
 		}
-		par_blkno = be32_to_cpu(btree[entno].before);
+		par_blkyes = be32_to_cpu(btree[entyes].before);
 		if (level == dead_level + 1)
 			break;
 		xfs_trans_brelse(tp, par_buf);
@@ -2404,39 +2404,39 @@ xfs_da3_swap_lastblock(
 	 */
 	for (;;) {
 		for (;
-		     entno < par_hdr.count &&
-		     be32_to_cpu(btree[entno].before) != last_blkno;
-		     entno++)
+		     entyes < par_hdr.count &&
+		     be32_to_cpu(btree[entyes].before) != last_blkyes;
+		     entyes++)
 			continue;
-		if (entno < par_hdr.count)
+		if (entyes < par_hdr.count)
 			break;
-		par_blkno = par_hdr.forw;
+		par_blkyes = par_hdr.forw;
 		xfs_trans_brelse(tp, par_buf);
 		par_buf = NULL;
-		if (XFS_IS_CORRUPT(mp, par_blkno == 0)) {
+		if (XFS_IS_CORRUPT(mp, par_blkyes == 0)) {
 			error = -EFSCORRUPTED;
 			goto done;
 		}
-		error = xfs_da3_node_read(tp, dp, par_blkno, &par_buf, w);
+		error = xfs_da3_yesde_read(tp, dp, par_blkyes, &par_buf, w);
 		if (error)
 			goto done;
-		par_node = par_buf->b_addr;
-		xfs_da3_node_hdr_from_disk(dp->i_mount, &par_hdr, par_node);
+		par_yesde = par_buf->b_addr;
+		xfs_da3_yesde_hdr_from_disk(dp->i_mount, &par_hdr, par_yesde);
 		if (XFS_IS_CORRUPT(mp, par_hdr.level != level)) {
 			error = -EFSCORRUPTED;
 			goto done;
 		}
 		btree = par_hdr.btree;
-		entno = 0;
+		entyes = 0;
 	}
 	/*
 	 * Update the parent entry pointing to the moved block.
 	 */
-	btree[entno].before = cpu_to_be32(dead_blkno);
+	btree[entyes].before = cpu_to_be32(dead_blkyes);
 	xfs_trans_log_buf(tp, par_buf,
-		XFS_DA_LOGRANGE(par_node, &btree[entno].before,
-				sizeof(btree[entno].before)));
-	*dead_blknop = last_blkno;
+		XFS_DA_LOGRANGE(par_yesde, &btree[entyes].before,
+				sizeof(btree[entyes].before)));
+	*dead_blkyesp = last_blkyes;
 	*dead_bufp = last_buf;
 	return 0;
 done:
@@ -2452,16 +2452,16 @@ done:
  * Remove a btree block from a directory or attribute.
  */
 int
-xfs_da_shrink_inode(
+xfs_da_shrink_iyesde(
 	struct xfs_da_args	*args,
-	xfs_dablk_t		dead_blkno,
+	xfs_dablk_t		dead_blkyes,
 	struct xfs_buf		*dead_buf)
 {
-	struct xfs_inode	*dp;
+	struct xfs_iyesde	*dp;
 	int			done, error, w, count;
 	struct xfs_trans	*tp;
 
-	trace_xfs_da_shrink_inode(args);
+	trace_xfs_da_shrink_iyesde(args);
 
 	dp = args->dp;
 	w = args->whichfork;
@@ -2472,12 +2472,12 @@ xfs_da_shrink_inode(
 		 * Remove extents.  If we get ENOSPC for a dir we have to move
 		 * the last block to the place we want to kill.
 		 */
-		error = xfs_bunmapi(tp, dp, dead_blkno, count,
+		error = xfs_bunmapi(tp, dp, dead_blkyes, count,
 				    xfs_bmapi_aflag(w), 0, &done);
 		if (error == -ENOSPC) {
 			if (w != XFS_DATA_FORK)
 				break;
-			error = xfs_da3_swap_lastblock(args, &dead_blkno,
+			error = xfs_da3_swap_lastblock(args, &dead_blkyes,
 						      &dead_buf);
 			if (error)
 				break;
@@ -2491,8 +2491,8 @@ xfs_da_shrink_inode(
 
 static int
 xfs_dabuf_map(
-	struct xfs_inode	*dp,
-	xfs_dablk_t		bno,
+	struct xfs_iyesde	*dp,
+	xfs_dablk_t		byes,
 	unsigned int		flags,
 	int			whichfork,
 	struct xfs_buf_map	**mapp,
@@ -2502,14 +2502,14 @@ xfs_dabuf_map(
 	int			nfsb = xfs_dabuf_nfsb(mp, whichfork);
 	struct xfs_bmbt_irec	irec, *irecs = &irec;
 	struct xfs_buf_map	*map = *mapp;
-	xfs_fileoff_t		off = bno;
+	xfs_fileoff_t		off = byes;
 	int			error = 0, nirecs, i;
 
 	if (nfsb > 1)
 		irecs = kmem_zalloc(sizeof(irec) * nfsb, KM_NOFS);
 
 	nirecs = nfsb;
-	error = xfs_bmapi_read(dp, bno, nfsb, irecs, &nirecs,
+	error = xfs_bmapi_read(dp, byes, nfsb, irecs, &nirecs,
 			xfs_bmapi_aflag(whichfork));
 	if (error)
 		goto out_free_irecs;
@@ -2537,7 +2537,7 @@ xfs_dabuf_map(
 		off += irecs[i].br_blockcount;
 	}
 
-	if (off != bno + nfsb)
+	if (off != byes + nfsb)
 		goto invalid_mapping;
 
 	*nmaps = nirecs;
@@ -2547,12 +2547,12 @@ out_free_irecs:
 	return error;
 
 invalid_mapping:
-	/* Caller ok with no mapping. */
+	/* Caller ok with yes mapping. */
 	if (XFS_IS_CORRUPT(mp, !(flags & XFS_DABUF_MAP_HOLE_OK))) {
 		error = -EFSCORRUPTED;
 		if (xfs_error_level >= XFS_ERRLEVEL_LOW) {
-			xfs_alert(mp, "%s: bno %u inode %llu",
-					__func__, bno, dp->i_ino);
+			xfs_alert(mp, "%s: byes %u iyesde %llu",
+					__func__, byes, dp->i_iyes);
 
 			for (i = 0; i < nirecs; i++) {
 				xfs_alert(mp,
@@ -2575,8 +2575,8 @@ invalid_mapping:
 int
 xfs_da_get_buf(
 	struct xfs_trans	*tp,
-	struct xfs_inode	*dp,
-	xfs_dablk_t		bno,
+	struct xfs_iyesde	*dp,
+	xfs_dablk_t		byes,
 	struct xfs_buf		**bpp,
 	int			whichfork)
 {
@@ -2587,7 +2587,7 @@ xfs_da_get_buf(
 	int			error;
 
 	*bpp = NULL;
-	error = xfs_dabuf_map(dp, bno, 0, whichfork, &mapp, &nmap);
+	error = xfs_dabuf_map(dp, byes, 0, whichfork, &mapp, &nmap);
 	if (error || nmap == 0)
 		goto out_free;
 
@@ -2614,8 +2614,8 @@ out_free:
 int
 xfs_da_read_buf(
 	struct xfs_trans	*tp,
-	struct xfs_inode	*dp,
-	xfs_dablk_t		bno,
+	struct xfs_iyesde	*dp,
+	xfs_dablk_t		byes,
 	unsigned int		flags,
 	struct xfs_buf		**bpp,
 	int			whichfork,
@@ -2628,7 +2628,7 @@ xfs_da_read_buf(
 	int			error;
 
 	*bpp = NULL;
-	error = xfs_dabuf_map(dp, bno, flags, whichfork, &mapp, &nmap);
+	error = xfs_dabuf_map(dp, byes, flags, whichfork, &mapp, &nmap);
 	if (error || !nmap)
 		goto out_free;
 
@@ -2654,8 +2654,8 @@ out_free:
  */
 int
 xfs_da_reada_buf(
-	struct xfs_inode	*dp,
-	xfs_dablk_t		bno,
+	struct xfs_iyesde	*dp,
+	xfs_dablk_t		byes,
 	unsigned int		flags,
 	int			whichfork,
 	const struct xfs_buf_ops *ops)
@@ -2667,7 +2667,7 @@ xfs_da_reada_buf(
 
 	mapp = &map;
 	nmap = 1;
-	error = xfs_dabuf_map(dp, bno, flags, whichfork, &mapp, &nmap);
+	error = xfs_dabuf_map(dp, byes, flags, whichfork, &mapp, &nmap);
 	if (error || !nmap)
 		goto out_free;
 

@@ -12,7 +12,7 @@
 #include <linux/usb.h>
 #include <linux/usb/hcd.h>
 #include <linux/slab.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/mutex.h>
 
 #include "usb_mon.h"
@@ -26,7 +26,7 @@ static void mon_bus_init(struct usb_bus *ubus);
 DEFINE_MUTEX(mon_lock);
 
 struct mon_bus mon_bus0;		/* Pseudo bus meaning "all buses" */
-static LIST_HEAD(mon_buses);		/* All buses we know: struct mon_bus */
+static LIST_HEAD(mon_buses);		/* All buses we kyesw: struct mon_bus */
 
 /*
  * Link a reader into the bus.
@@ -171,7 +171,7 @@ static void mon_stop(struct mon_bus *mbus)
 		list_for_each (p, &mon_buses) {
 			mbus = list_entry(p, struct mon_bus, bus_link);
 			/*
-			 * We do not change nreaders here, so rely on mon_lock.
+			 * We do yest change nreaders here, so rely on mon_lock.
 			 */
 			if (mbus->nreaders == 0 && (ubus = mbus->u_bus) != NULL)
 				ubus->monitored = 0;
@@ -191,8 +191,8 @@ static void mon_stop(struct mon_bus *mbus)
 /*
  * Add a USB bus (usually by a modprobe foo-hcd)
  *
- * This does not return an error code because the core cannot care less
- * if monitoring is not established.
+ * This does yest return an error code because the core canyest care less
+ * if monitoring is yest established.
  */
 static void mon_bus_add(struct usb_bus *ubus)
 {
@@ -222,7 +222,7 @@ static void mon_bus_remove(struct usb_bus *ubus)
 	mutex_unlock(&mon_lock);
 }
 
-static int mon_notify(struct notifier_block *self, unsigned long action,
+static int mon_yestify(struct yestifier_block *self, unsigned long action,
 		      void *dev)
 {
 	switch (action) {
@@ -235,8 +235,8 @@ static int mon_notify(struct notifier_block *self, unsigned long action,
 	return NOTIFY_OK;
 }
 
-static struct notifier_block mon_nb = {
-	.notifier_call = 	mon_notify,
+static struct yestifier_block mon_nb = {
+	.yestifier_call = 	mon_yestify,
 };
 
 /*
@@ -293,7 +293,7 @@ static void mon_bus_init(struct usb_bus *ubus)
 
 	/*
 	 * We don't need to take a reference to ubus, because we receive
-	 * a notification if the bus is about to be removed.
+	 * a yestification if the bus is about to be removed.
 	 */
 	mbus->u_bus = ubus;
 	ubus->mon_bus = mbus;
@@ -369,7 +369,7 @@ static int __init mon_init(void)
 	mutex_lock(&usb_bus_idr_lock);
 	idr_for_each_entry(&usb_bus_idr, ubus, id)
 		mon_bus_init(ubus);
-	usb_register_notify(&mon_nb);
+	usb_register_yestify(&mon_nb);
 	mutex_unlock(&usb_bus_idr_lock);
 	return 0;
 
@@ -386,7 +386,7 @@ static void __exit mon_exit(void)
 	struct mon_bus *mbus;
 	struct list_head *p;
 
-	usb_unregister_notify(&mon_nb);
+	usb_unregister_yestify(&mon_nb);
 	usb_mon_deregister();
 
 	mutex_lock(&mon_lock);

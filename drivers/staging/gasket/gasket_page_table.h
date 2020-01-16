@@ -58,7 +58,7 @@ int gasket_page_table_init(struct gasket_page_table **ppg_tbl,
  * Description: The inverse of gasket_init; frees page_table and its contained
  *              elements.
  *
- *	        Because this call destroys the page table, it cannot be
+ *	        Because this call destroys the page table, it canyest be
  *	        thread-safe (mutex-protected)!
  */
 void gasket_page_table_cleanup(struct gasket_page_table *page_table);
@@ -69,12 +69,12 @@ void gasket_page_table_cleanup(struct gasket_page_table *page_table);
  * @num_simple_entries: Desired size of the simple page table (in entries).
  *
  * Description: gasket_partition_page_table checks to see if the simple page
- *              size can be changed (i.e., if there are no active extended
+ *              size can be changed (i.e., if there are yes active extended
  *              mappings in the new simple size range), and, if so,
  *              sets the new simple and extended page table sizes.
  *
- *              Returns 0 if successful, or non-zero if the page table entries
- *              are not free.
+ *              Returns 0 if successful, or yesn-zero if the page table entries
+ *              are yest free.
  */
 int gasket_page_table_partition(struct gasket_page_table *page_table,
 				uint num_simple_entries);
@@ -91,8 +91,8 @@ int gasket_page_table_partition(struct gasket_page_table *page_table,
  *
  *              The caller is responsible for checking the addresses ranges.
  *
- *              Returns 0 if successful or a non-zero error number otherwise.
- *              If there is an error, no pages are mapped.
+ *              Returns 0 if successful or a yesn-zero error number otherwise.
+ *              If there is an error, yes pages are mapped.
  */
 int gasket_page_table_map(struct gasket_page_table *page_table, ulong host_addr,
 			  ulong dev_addr, uint num_pages);
@@ -241,7 +241,7 @@ void gasket_free_coherent_memory_all(struct gasket_dev *gasket_dev,
  * Description: For each page in the virtual address range, record the
  * coherent page mapping.
  *
- * Does not perform validity checking.
+ * Does yest perform validity checking.
  */
 int gasket_set_user_virt(struct gasket_dev *gasket_dev, uint64_t size,
 			 dma_addr_t dma_address, ulong vma);

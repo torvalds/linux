@@ -149,7 +149,7 @@ static int _dpu_mdss_irq_domain_add(struct dpu_mdss *dpu_mdss)
 
 	dev = dpu_mdss->base.dev->dev;
 
-	domain = irq_domain_add_linear(dev->of_node, 32,
+	domain = irq_domain_add_linear(dev->of_yesde, 32,
 			&dpu_mdss_irqdomain_ops, dpu_mdss);
 	if (!domain) {
 		DPU_ERROR("failed to add irq_domain\n");

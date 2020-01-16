@@ -16,7 +16,7 @@ static void __rdmsr_on_cpu(void *info)
 	else
 		reg = &rv->reg;
 
-	rdmsr(rv->msr_no, reg->l, reg->h);
+	rdmsr(rv->msr_yes, reg->l, reg->h);
 }
 
 static void __wrmsr_on_cpu(void *info)
@@ -30,17 +30,17 @@ static void __wrmsr_on_cpu(void *info)
 	else
 		reg = &rv->reg;
 
-	wrmsr(rv->msr_no, reg->l, reg->h);
+	wrmsr(rv->msr_yes, reg->l, reg->h);
 }
 
-int rdmsr_on_cpu(unsigned int cpu, u32 msr_no, u32 *l, u32 *h)
+int rdmsr_on_cpu(unsigned int cpu, u32 msr_yes, u32 *l, u32 *h)
 {
 	int err;
 	struct msr_info rv;
 
 	memset(&rv, 0, sizeof(rv));
 
-	rv.msr_no = msr_no;
+	rv.msr_yes = msr_yes;
 	err = smp_call_function_single(cpu, __rdmsr_on_cpu, &rv, 1);
 	*l = rv.reg.l;
 	*h = rv.reg.h;
@@ -49,14 +49,14 @@ int rdmsr_on_cpu(unsigned int cpu, u32 msr_no, u32 *l, u32 *h)
 }
 EXPORT_SYMBOL(rdmsr_on_cpu);
 
-int rdmsrl_on_cpu(unsigned int cpu, u32 msr_no, u64 *q)
+int rdmsrl_on_cpu(unsigned int cpu, u32 msr_yes, u64 *q)
 {
 	int err;
 	struct msr_info rv;
 
 	memset(&rv, 0, sizeof(rv));
 
-	rv.msr_no = msr_no;
+	rv.msr_yes = msr_yes;
 	err = smp_call_function_single(cpu, __rdmsr_on_cpu, &rv, 1);
 	*q = rv.reg.q;
 
@@ -64,14 +64,14 @@ int rdmsrl_on_cpu(unsigned int cpu, u32 msr_no, u64 *q)
 }
 EXPORT_SYMBOL(rdmsrl_on_cpu);
 
-int wrmsr_on_cpu(unsigned int cpu, u32 msr_no, u32 l, u32 h)
+int wrmsr_on_cpu(unsigned int cpu, u32 msr_yes, u32 l, u32 h)
 {
 	int err;
 	struct msr_info rv;
 
 	memset(&rv, 0, sizeof(rv));
 
-	rv.msr_no = msr_no;
+	rv.msr_yes = msr_yes;
 	rv.reg.l = l;
 	rv.reg.h = h;
 	err = smp_call_function_single(cpu, __wrmsr_on_cpu, &rv, 1);
@@ -80,14 +80,14 @@ int wrmsr_on_cpu(unsigned int cpu, u32 msr_no, u32 l, u32 h)
 }
 EXPORT_SYMBOL(wrmsr_on_cpu);
 
-int wrmsrl_on_cpu(unsigned int cpu, u32 msr_no, u64 q)
+int wrmsrl_on_cpu(unsigned int cpu, u32 msr_yes, u64 q)
 {
 	int err;
 	struct msr_info rv;
 
 	memset(&rv, 0, sizeof(rv));
 
-	rv.msr_no = msr_no;
+	rv.msr_yes = msr_yes;
 	rv.reg.q = q;
 
 	err = smp_call_function_single(cpu, __wrmsr_on_cpu, &rv, 1);
@@ -96,7 +96,7 @@ int wrmsrl_on_cpu(unsigned int cpu, u32 msr_no, u64 q)
 }
 EXPORT_SYMBOL(wrmsrl_on_cpu);
 
-static void __rwmsr_on_cpus(const struct cpumask *mask, u32 msr_no,
+static void __rwmsr_on_cpus(const struct cpumask *mask, u32 msr_yes,
 			    struct msr *msrs,
 			    void (*msr_func) (void *info))
 {
@@ -106,7 +106,7 @@ static void __rwmsr_on_cpus(const struct cpumask *mask, u32 msr_no,
 	memset(&rv, 0, sizeof(rv));
 
 	rv.msrs	  = msrs;
-	rv.msr_no = msr_no;
+	rv.msr_yes = msr_yes;
 
 	this_cpu = get_cpu();
 
@@ -120,13 +120,13 @@ static void __rwmsr_on_cpus(const struct cpumask *mask, u32 msr_no,
 /* rdmsr on a bunch of CPUs
  *
  * @mask:       which CPUs
- * @msr_no:     which MSR
+ * @msr_yes:     which MSR
  * @msrs:       array of MSR values
  *
  */
-void rdmsr_on_cpus(const struct cpumask *mask, u32 msr_no, struct msr *msrs)
+void rdmsr_on_cpus(const struct cpumask *mask, u32 msr_yes, struct msr *msrs)
 {
-	__rwmsr_on_cpus(mask, msr_no, msrs, __rdmsr_on_cpu);
+	__rwmsr_on_cpus(mask, msr_yes, msrs, __rdmsr_on_cpu);
 }
 EXPORT_SYMBOL(rdmsr_on_cpus);
 
@@ -134,13 +134,13 @@ EXPORT_SYMBOL(rdmsr_on_cpus);
  * wrmsr on a bunch of CPUs
  *
  * @mask:       which CPUs
- * @msr_no:     which MSR
+ * @msr_yes:     which MSR
  * @msrs:       array of MSR values
  *
  */
-void wrmsr_on_cpus(const struct cpumask *mask, u32 msr_no, struct msr *msrs)
+void wrmsr_on_cpus(const struct cpumask *mask, u32 msr_yes, struct msr *msrs)
 {
-	__rwmsr_on_cpus(mask, msr_no, msrs, __wrmsr_on_cpu);
+	__rwmsr_on_cpus(mask, msr_yes, msrs, __wrmsr_on_cpu);
 }
 EXPORT_SYMBOL(wrmsr_on_cpus);
 
@@ -150,12 +150,12 @@ struct msr_info_completion {
 };
 
 /* These "safe" variants are slower and should be used when the target MSR
-   may not actually exist. */
+   may yest actually exist. */
 static void __rdmsr_safe_on_cpu(void *info)
 {
 	struct msr_info_completion *rv = info;
 
-	rv->msr.err = rdmsr_safe(rv->msr.msr_no, &rv->msr.reg.l, &rv->msr.reg.h);
+	rv->msr.err = rdmsr_safe(rv->msr.msr_yes, &rv->msr.reg.l, &rv->msr.reg.h);
 	complete(&rv->done);
 }
 
@@ -163,10 +163,10 @@ static void __wrmsr_safe_on_cpu(void *info)
 {
 	struct msr_info *rv = info;
 
-	rv->err = wrmsr_safe(rv->msr_no, rv->reg.l, rv->reg.h);
+	rv->err = wrmsr_safe(rv->msr_yes, rv->reg.l, rv->reg.h);
 }
 
-int rdmsr_safe_on_cpu(unsigned int cpu, u32 msr_no, u32 *l, u32 *h)
+int rdmsr_safe_on_cpu(unsigned int cpu, u32 msr_yes, u32 *l, u32 *h)
 {
 	struct msr_info_completion rv;
 	call_single_data_t csd = {
@@ -177,7 +177,7 @@ int rdmsr_safe_on_cpu(unsigned int cpu, u32 msr_no, u32 *l, u32 *h)
 
 	memset(&rv, 0, sizeof(rv));
 	init_completion(&rv.done);
-	rv.msr.msr_no = msr_no;
+	rv.msr.msr_yes = msr_yes;
 
 	err = smp_call_function_single_async(cpu, &csd);
 	if (!err) {
@@ -191,14 +191,14 @@ int rdmsr_safe_on_cpu(unsigned int cpu, u32 msr_no, u32 *l, u32 *h)
 }
 EXPORT_SYMBOL(rdmsr_safe_on_cpu);
 
-int wrmsr_safe_on_cpu(unsigned int cpu, u32 msr_no, u32 l, u32 h)
+int wrmsr_safe_on_cpu(unsigned int cpu, u32 msr_yes, u32 l, u32 h)
 {
 	int err;
 	struct msr_info rv;
 
 	memset(&rv, 0, sizeof(rv));
 
-	rv.msr_no = msr_no;
+	rv.msr_yes = msr_yes;
 	rv.reg.l = l;
 	rv.reg.h = h;
 	err = smp_call_function_single(cpu, __wrmsr_safe_on_cpu, &rv, 1);
@@ -207,14 +207,14 @@ int wrmsr_safe_on_cpu(unsigned int cpu, u32 msr_no, u32 l, u32 h)
 }
 EXPORT_SYMBOL(wrmsr_safe_on_cpu);
 
-int wrmsrl_safe_on_cpu(unsigned int cpu, u32 msr_no, u64 q)
+int wrmsrl_safe_on_cpu(unsigned int cpu, u32 msr_yes, u64 q)
 {
 	int err;
 	struct msr_info rv;
 
 	memset(&rv, 0, sizeof(rv));
 
-	rv.msr_no = msr_no;
+	rv.msr_yes = msr_yes;
 	rv.reg.q = q;
 
 	err = smp_call_function_single(cpu, __wrmsr_safe_on_cpu, &rv, 1);
@@ -223,12 +223,12 @@ int wrmsrl_safe_on_cpu(unsigned int cpu, u32 msr_no, u64 q)
 }
 EXPORT_SYMBOL(wrmsrl_safe_on_cpu);
 
-int rdmsrl_safe_on_cpu(unsigned int cpu, u32 msr_no, u64 *q)
+int rdmsrl_safe_on_cpu(unsigned int cpu, u32 msr_yes, u64 *q)
 {
 	u32 low, high;
 	int err;
 
-	err = rdmsr_safe_on_cpu(cpu, msr_no, &low, &high);
+	err = rdmsr_safe_on_cpu(cpu, msr_yes, &low, &high);
 	*q = (u64)high << 32 | low;
 
 	return err;

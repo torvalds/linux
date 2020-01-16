@@ -43,7 +43,7 @@ void cx18_queue_init(struct cx18_queue *q)
 struct cx18_queue *_cx18_enqueue(struct cx18_stream *s, struct cx18_mdl *mdl,
 				 struct cx18_queue *q, int to_front)
 {
-	/* clear the mdl if it is not to be enqueued to the full queue */
+	/* clear the mdl if it is yest to be enqueued to the full queue */
 	if (q != &s->q_full) {
 		mdl->bytesused = 0;
 		mdl->readpos = 0;
@@ -183,7 +183,7 @@ struct cx18_mdl *cx18_queue_get_mdl(struct cx18_stream *s, u32 id,
 			set_bit(CX18_F_M_NEED_SWAP, &ret->m_flags);
 	}
 
-	/* Put any mdls the firmware is ignoring back into normal rotation */
+	/* Put any mdls the firmware is igyesring back into yesrmal rotation */
 	list_for_each_entry_safe(mdl, tmp, &sweep_up, list) {
 		list_del_init(&mdl->list);
 		cx18_enqueue(s, mdl, &s->q_free);
@@ -225,8 +225,8 @@ void cx18_flush_queues(struct cx18_stream *s)
 }
 
 /*
- * Note, s->buf_pool is not protected by a lock,
- * the stream better not have *anything* going on when calling this
+ * Note, s->buf_pool is yest protected by a lock,
+ * the stream better yest have *anything* going on when calling this
  */
 void cx18_unload_queues(struct cx18_stream *s)
 {
@@ -256,8 +256,8 @@ void cx18_unload_queues(struct cx18_stream *s)
 }
 
 /*
- * Note, s->buf_pool is not protected by a lock,
- * the stream better not have *anything* going on when calling this
+ * Note, s->buf_pool is yest protected by a lock,
+ * the stream better yest have *anything* going on when calling this
  */
 void cx18_load_queues(struct cx18_stream *s)
 {
@@ -297,8 +297,8 @@ void cx18_load_queues(struct cx18_stream *s)
 
 		if (i == s->bufs_per_mdl) {
 			/*
-			 * The encoder doesn't honor s->mdl_size.  So in the
-			 * case of a non-integral number of buffers to meet
+			 * The encoder doesn't hoyesr s->mdl_size.  So in the
+			 * case of a yesn-integral number of buffers to meet
 			 * mdl_size, we lie about the size of the last buffer
 			 * in the MDL to get the encoder to really only send
 			 * us mdl_size bytes per MDL transfer.
@@ -310,7 +310,7 @@ void cx18_load_queues(struct cx18_stream *s)
 			}
 			cx18_enqueue(s, mdl, &s->q_free);
 		} else {
-			/* Not enough buffers for this MDL; we won't use it */
+			/* Not eyesugh buffers for this MDL; we won't use it */
 			cx18_push(s, mdl, &s->q_idle);
 		}
 		mdl_id += i;
@@ -347,7 +347,7 @@ int cx18_stream_alloc(struct cx18_stream *s)
 		unsigned bufsz = (((char __iomem *)cx->scb) + SCB_RESERVED_SIZE -
 					((char __iomem *)cx->scb->cpu_mdl));
 
-		CX18_ERR("Too many buffers, cannot fit in SCB area\n");
+		CX18_ERR("Too many buffers, canyest fit in SCB area\n");
 		CX18_ERR("Max buffers = %zu\n",
 			bufsz / sizeof(struct cx18_mdl_ent));
 		return -ENOMEM;

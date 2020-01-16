@@ -100,13 +100,13 @@ struct rio_table_hdr {
 //-------------------------------------------------------------
 
 struct scal_detail {
-	u8 node_id;
+	u8 yesde_id;
 	u32 cbar;
-	u8 port0_node_connect;
+	u8 port0_yesde_connect;
 	u8 port0_port_connect;
-	u8 port1_node_connect;
+	u8 port1_yesde_connect;
 	u8 port1_port_connect;
-	u8 port2_node_connect;
+	u8 port2_yesde_connect;
 	u8 port2_port_connect;
 	u8 chassis_num;
 //	struct list_head scal_detail_list;
@@ -117,13 +117,13 @@ struct scal_detail {
 //--------------------------------------------------------------
 
 struct rio_detail {
-	u8 rio_node_id;
+	u8 rio_yesde_id;
 	u32 bbar;
 	u8 rio_type;
 	u8 owner_id;
-	u8 port0_node_connect;
+	u8 port0_yesde_connect;
 	u8 port0_port_connect;
-	u8 port1_node_connect;
+	u8 port1_yesde_connect;
 	u8 port1_port_connect;
 	u8 first_slot_num;
 	u8 status;
@@ -238,7 +238,7 @@ struct bus_info {
 	u8 slot_min;
 	u8 slot_max;
 	u8 slot_count;
-	u8 busno;
+	u8 busyes;
 	u8 controller_id;
 	u8 current_speed;
 	u8 current_bus_mode;
@@ -309,7 +309,7 @@ int ibmphp_register_pci(void);
  *                     | |  |  |_ 00 - I/O, 01 - Memory, 11 - PFMemory
  *                     | |  - 00 - No Restrictions, 01 - Avoid VGA, 10 - Avoid
  *                     | |    VGA and their aliases, 11 - Avoid ISA
- *                     | - 1 - PCI device, 0 - non pci device
+ *                     | - 1 - PCI device, 0 - yesn pci device
  *                     - 1 - Primary PCI Bus Information (0 if Normal device)
  * the IO restrictions [2:3] are only for primary buses
  */
@@ -318,34 +318,34 @@ int ibmphp_register_pci(void);
 /* we need this struct because there could be several resource blocks
  * allocated per primary bus in the EBDA
  */
-struct range_node {
-	int rangeno;
+struct range_yesde {
+	int rangeyes;
 	u32 start;
 	u32 end;
-	struct range_node *next;
+	struct range_yesde *next;
 };
 
-struct bus_node {
-	u8 busno;
-	int noIORanges;
-	struct range_node *rangeIO;
-	int noMemRanges;
-	struct range_node *rangeMem;
-	int noPFMemRanges;
-	struct range_node *rangePFMem;
+struct bus_yesde {
+	u8 busyes;
+	int yesIORanges;
+	struct range_yesde *rangeIO;
+	int yesMemRanges;
+	struct range_yesde *rangeMem;
+	int yesPFMemRanges;
+	struct range_yesde *rangePFMem;
 	int needIOUpdate;
 	int needMemUpdate;
 	int needPFMemUpdate;
-	struct resource_node *firstIO;	/* first IO resource on the Bus */
-	struct resource_node *firstMem;	/* first memory resource on the Bus */
-	struct resource_node *firstPFMem;	/* first prefetchable memory resource on the Bus */
-	struct resource_node *firstPFMemFromMem;	/* when run out of pfmem available, taking from Mem */
+	struct resource_yesde *firstIO;	/* first IO resource on the Bus */
+	struct resource_yesde *firstMem;	/* first memory resource on the Bus */
+	struct resource_yesde *firstPFMem;	/* first prefetchable memory resource on the Bus */
+	struct resource_yesde *firstPFMemFromMem;	/* when run out of pfmem available, taking from Mem */
 	struct list_head bus_list;
 };
 
-struct resource_node {
-	int rangeno;
-	u8 busno;
+struct resource_yesde {
+	int rangeyes;
+	u8 busyes;
 	u8 devfunc;
 	u32 start;
 	u32 end;
@@ -353,29 +353,29 @@ struct resource_node {
 	int type;		/* MEM, IO, PFMEM */
 	u8 fromMem;		/* this is to indicate that the range is from
 				 * from the Memory bucket rather than from PFMem */
-	struct resource_node *next;
-	struct resource_node *nextRange;	/* for the other mem range on bus */
+	struct resource_yesde *next;
+	struct resource_yesde *nextRange;	/* for the other mem range on bus */
 };
 
 struct res_needed {
 	u32 mem;
 	u32 pfmem;
 	u32 io;
-	u8 not_correct;		/* needed for return */
+	u8 yest_correct;		/* needed for return */
 	int devices[32];	/* for device numbers behind this bridge */
 };
 
 /* functions */
 
 int ibmphp_rsrc_init(void);
-int ibmphp_add_resource(struct resource_node *);
-int ibmphp_remove_resource(struct resource_node *);
-int ibmphp_find_resource(struct bus_node *, u32, struct resource_node **, int);
-int ibmphp_check_resource(struct resource_node *, u8);
-int ibmphp_remove_bus(struct bus_node *, u8);
+int ibmphp_add_resource(struct resource_yesde *);
+int ibmphp_remove_resource(struct resource_yesde *);
+int ibmphp_find_resource(struct bus_yesde *, u32, struct resource_yesde **, int);
+int ibmphp_check_resource(struct resource_yesde *, u8);
+int ibmphp_remove_bus(struct bus_yesde *, u8);
 void ibmphp_free_resources(void);
-int ibmphp_add_pfmem_from_mem(struct resource_node *);
-struct bus_node *ibmphp_find_res_bus(u8);
+int ibmphp_add_pfmem_from_mem(struct resource_yesde *);
+struct bus_yesde *ibmphp_find_res_bus(u8);
 void ibmphp_print_test(void);	/* for debugging purposes */
 
 int ibmphp_hpc_readslot(struct slot *, u8, u8 *);
@@ -675,12 +675,12 @@ extern struct pci_bus *ibmphp_pci_bus;
 
 struct pci_func {
 	struct pci_dev *dev;	/* from the OS */
-	u8 busno;
+	u8 busyes;
 	u8 device;
 	u8 function;
-	struct resource_node *io[6];
-	struct resource_node *mem[6];
-	struct resource_node *pfmem[6];
+	struct resource_yesde *io[6];
+	struct resource_yesde *mem[6];
+	struct resource_yesde *pfmem[6];
 	struct pci_func *next;
 	int devices[32];	/* for bridge config */
 	u8 irq[4];		/* for interrupt config */
@@ -734,9 +734,9 @@ struct controller {
 
 /* Functions */
 
-int ibmphp_init_devno(struct slot **);	/* This function is called from EBDA, so we need it not be static */
+int ibmphp_init_devyes(struct slot **);	/* This function is called from EBDA, so we need it yest be static */
 int ibmphp_do_disable_slot(struct slot *slot_cur);
-int ibmphp_update_slot_info(struct slot *);	/* This function is called from HPC, so we need it to not be be static */
+int ibmphp_update_slot_info(struct slot *);	/* This function is called from HPC, so we need it to yest be be static */
 int ibmphp_configure_card(struct pci_func *, u8);
 int ibmphp_unconfigure_card(struct slot **, int);
 extern const struct hotplug_slot_ops ibmphp_hotplug_slot_ops;

@@ -470,8 +470,8 @@ static ssize_t zr364xx_read(struct file *file, char __user *buf, size_t count,
  *          Copyright (c) 2006 by
  *                  Mauro Carvalho Chehab <mchehab--a.t--infradead.org>
  *                  Ted Walther <ted--a.t--enumera.com>
- *                  John Sokol <sokol--a.t--videotechnology.com>
- *                  http://v4l.videotechnology.com/
+ *                  John Sokol <sokol--a.t--videotechyeslogy.com>
+ *                  http://v4l.videotechyeslogy.com/
  *
  */
 static void zr364xx_fillbuff(struct zr364xx_camera *cam,
@@ -495,11 +495,11 @@ static void zr364xx_fillbuff(struct zr364xx_camera *cam,
 			memcpy(vbuf, tmpbuf, buf->vb.size);
 			break;
 		default:
-			printk(KERN_DEBUG KBUILD_MODNAME ": unknown format?\n");
+			printk(KERN_DEBUG KBUILD_MODNAME ": unkyeswn format?\n");
 		}
 		cam->last_frame = -1;
 	} else {
-		printk(KERN_ERR KBUILD_MODNAME ": =======no frame\n");
+		printk(KERN_ERR KBUILD_MODNAME ": =======yes frame\n");
 		return;
 	}
 	DBG("%s: Buffer %p size= %d\n", __func__, vbuf, pos);
@@ -529,7 +529,7 @@ static int zr364xx_got_frame(struct zr364xx_camera *cam, int jpgsize)
 			 struct zr364xx_buffer, vb.queue);
 
 	if (!waitqueue_active(&buf->vb.done)) {
-		/* no one active */
+		/* yes one active */
 		rc = -1;
 		goto unlock;
 	}
@@ -569,7 +569,7 @@ static int zr364xx_read_video_callback(struct zr364xx_camera *cam,
 			swab16s(buf + i);
 	}
 
-	/* search done.  now find out if should be acquiring */
+	/* search done.  yesw find out if should be acquiring */
 	if (!cam->b_acquire) {
 		/* we found a frame, but this channel is turned off */
 		frm->ulState = ZR364XX_READ_IDLE;
@@ -956,17 +956,17 @@ static void read_pipe_completion(struct urb *purb)
 	pipe_info = purb->context;
 	_DBG("%s %p, status %d\n", __func__, purb, purb->status);
 	if (!pipe_info) {
-		printk(KERN_ERR KBUILD_MODNAME ": no context!\n");
+		printk(KERN_ERR KBUILD_MODNAME ": yes context!\n");
 		return;
 	}
 
 	cam = pipe_info->cam;
 	if (!cam) {
-		printk(KERN_ERR KBUILD_MODNAME ": no context!\n");
+		printk(KERN_ERR KBUILD_MODNAME ": yes context!\n");
 		return;
 	}
 
-	/* if shutting down, do not resubmit, exit immediately */
+	/* if shutting down, do yest resubmit, exit immediately */
 	if (purb->status == -ESHUTDOWN) {
 		DBG("%s, err shutdown\n", __func__);
 		pipe_info->err_count++;
@@ -1489,7 +1489,7 @@ static int zr364xx_probe(struct usb_interface *intf,
 
 	if (!cam->read_endpoint) {
 		err = -ENOMEM;
-		dev_err(&intf->dev, "Could not find bulk-in endpoint\n");
+		dev_err(&intf->dev, "Could yest find bulk-in endpoint\n");
 		goto fail;
 	}
 
@@ -1523,7 +1523,7 @@ static int zr364xx_probe(struct usb_interface *intf,
 	}
 
 	dev_info(&udev->dev, DRIVER_DESC " controlling device %s\n",
-		 video_device_node_name(&cam->vdev));
+		 video_device_yesde_name(&cam->vdev));
 	return 0;
 
 fail:

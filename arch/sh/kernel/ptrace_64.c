@@ -19,7 +19,7 @@
 #include <linux/mm.h>
 #include <linux/smp.h>
 #include <linux/bitops.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/ptrace.h>
 #include <linux/user.h>
 #include <linux/signal.h>
@@ -41,12 +41,12 @@
 #define CREATE_TRACE_POINTS
 #include <trace/events/syscalls.h>
 
-/* This mask defines the bits of the SR which the user is not allowed to
+/* This mask defines the bits of the SR which the user is yest allowed to
    change, which are everything except S, Q, M, PR, SZ, FR. */
 #define SR_MASK      (0xffff8cfd)
 
 /*
- * does not yet catch signals sent when the child dies.
+ * does yest yet catch signals sent when the child dies.
  * in exit.c or in signal.c.
  */
 
@@ -204,7 +204,7 @@ static int genregs_set(struct task_struct *target,
 					 8 * sizeof(unsigned long long));
 
 	if (!ret)
-		ret = user_regset_copyin_ignore(&pos, &count, &kbuf, &ubuf,
+		ret = user_regset_copyin_igyesre(&pos, &count, &kbuf, &ubuf,
 						sizeof(struct pt_regs), -1);
 
 	return ret;
@@ -347,7 +347,7 @@ static const struct user_regset sh_regsets[] = {
 	 *	TR0 --> TR7,
 	 */
 	[REGSET_GENERAL] = {
-		.core_note_type	= NT_PRSTATUS,
+		.core_yeste_type	= NT_PRSTATUS,
 		.n		= ELF_NGREG,
 		.size		= sizeof(long long),
 		.align		= sizeof(long long),
@@ -357,7 +357,7 @@ static const struct user_regset sh_regsets[] = {
 
 #ifdef CONFIG_SH_FPU
 	[REGSET_FPU] = {
-		.core_note_type	= NT_PRFPREG,
+		.core_yeste_type	= NT_PRFPREG,
 		.n		= sizeof(struct user_fpu_struct) /
 				  sizeof(long long),
 		.size		= sizeof(long long),
@@ -425,13 +425,13 @@ long arch_ptrace(struct task_struct *child, long request,
 			break;
 
 		if (addr < sizeof(struct pt_regs)) {
-			/* Ignore change of top 32 bits of SR */
+			/* Igyesre change of top 32 bits of SR */
 			if (addr == offsetof (struct pt_regs, sr)+4)
 			{
 				ret = 0;
 				break;
 			}
-			/* If lower 32 bits of SR, ignore non-user bits */
+			/* If lower 32 bits of SR, igyesre yesn-user bits */
 			if (addr == offsetof (struct pt_regs, sr))
 			{
 				long cursr = get_stack_long(child, addr);
@@ -491,7 +491,7 @@ asmlinkage int sh64_ptrace(long request, long pid,
 		/* Set WPC.DBRMODE to 0.  This makes all debug events get
 		 * delivered through RESVEC, i.e. into the handlers in entry.S.
 		 * (If the kernel was downloaded using a remote gdb, WPC.DBRMODE
-		 * would normally be left set to 1, which makes debug events get
+		 * would yesrmally be left set to 1, which makes debug events get
 		 * delivered through DBRVEC, i.e. into the remote gdb's
 		 * handlers.  This prevents ptrace getting them, and confuses
 		 * the remote gdb.) */
@@ -511,7 +511,7 @@ asmlinkage long long do_syscall_trace_enter(struct pt_regs *regs)
 	if (test_thread_flag(TIF_SYSCALL_TRACE) &&
 	    tracehook_report_syscall_entry(regs))
 		/*
-		 * Tracing decided this syscall should not happen.
+		 * Tracing decided this syscall should yest happen.
 		 * We'll return a bogus call number to get an ENOSYS
 		 * error, but leave the original number in regs->regs[0].
 		 */
@@ -544,8 +544,8 @@ asmlinkage void do_syscall_trace_leave(struct pt_regs *regs)
 asmlinkage void do_single_step(unsigned long long vec, struct pt_regs *regs)
 {
 	/* This is called after a single step exception (DEBUGSS).
-	   There is no need to change the PC, as it is a post-execution
-	   exception, as entry.S does not do anything to the PC for DEBUGSS.
+	   There is yes need to change the PC, as it is a post-execution
+	   exception, as entry.S does yest do anything to the PC for DEBUGSS.
 	   We need to clear the Single Step setting in SR to avoid
 	   continually stepping. */
 	local_irq_enable();
@@ -568,7 +568,7 @@ BUILD_TRAP_HANDLER(breakpoint)
 /*
  * Called by kernel/ptrace.c when detaching..
  *
- * Make sure single step bits etc are not set.
+ * Make sure single step bits etc are yest set.
  */
 void ptrace_disable(struct task_struct *child)
 {

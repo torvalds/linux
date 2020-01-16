@@ -47,7 +47,7 @@ static struct alarm_base {
 } alarm_bases[ALARM_NUMTYPE];
 
 #if defined(CONFIG_POSIX_TIMERS) || defined(CONFIG_RTC_CLASS)
-/* freezer information to handle clock_nanosleep triggered wakeups */
+/* freezer information to handle clock_nayessleep triggered wakeups */
 static enum alarmtimer_type freezer_alarmtype;
 static ktime_t freezer_expires;
 static ktime_t freezer_delta;
@@ -66,7 +66,7 @@ static DEFINE_SPINLOCK(rtcdev_lock);
  * alarmtimer_get_rtcdev - Return selected rtcdevice
  *
  * This function returns the rtc device to use for wakealarms.
- * If one has not already been chosen, it checks to see if a
+ * If one has yest already been chosen, it checks to see if a
  * functional rtc device is available.
  */
 struct rtc_device *alarmtimer_get_rtcdev(void)
@@ -160,9 +160,9 @@ static inline void alarmtimer_rtc_timer_init(void) { }
 static void alarmtimer_enqueue(struct alarm_base *base, struct alarm *alarm)
 {
 	if (alarm->state & ALARMTIMER_STATE_ENQUEUED)
-		timerqueue_del(&base->timerqueue, &alarm->node);
+		timerqueue_del(&base->timerqueue, &alarm->yesde);
 
-	timerqueue_add(&base->timerqueue, &alarm->node);
+	timerqueue_add(&base->timerqueue, &alarm->yesde);
 	alarm->state |= ALARMTIMER_STATE_ENQUEUED;
 }
 
@@ -180,7 +180,7 @@ static void alarmtimer_dequeue(struct alarm_base *base, struct alarm *alarm)
 	if (!(alarm->state & ALARMTIMER_STATE_ENQUEUED))
 		return;
 
-	timerqueue_del(&base->timerqueue, &alarm->node);
+	timerqueue_del(&base->timerqueue, &alarm->yesde);
 	alarm->state &= ~ALARMTIMER_STATE_ENQUEUED;
 }
 
@@ -211,7 +211,7 @@ static enum hrtimer_restart alarmtimer_fired(struct hrtimer *timer)
 
 	spin_lock_irqsave(&base->lock, flags);
 	if (restart != ALARMTIMER_NORESTART) {
-		hrtimer_set_expires(&alarm->timer, alarm->node.expires);
+		hrtimer_set_expires(&alarm->timer, alarm->yesde.expires);
 		alarmtimer_enqueue(base, alarm);
 		ret = HRTIMER_RESTART;
 	}
@@ -225,7 +225,7 @@ static enum hrtimer_restart alarmtimer_fired(struct hrtimer *timer)
 ktime_t alarm_expires_remaining(const struct alarm *alarm)
 {
 	struct alarm_base *base = &alarm_bases[alarm->type];
-	return ktime_sub(alarm->node.expires, base->gettime());
+	return ktime_sub(alarm->yesde.expires, base->gettime());
 }
 EXPORT_SYMBOL_GPL(alarm_expires_remaining);
 
@@ -241,7 +241,7 @@ EXPORT_SYMBOL_GPL(alarm_expires_remaining);
  */
 static int alarmtimer_suspend(struct device *dev)
 {
-	ktime_t min, now, expires;
+	ktime_t min, yesw, expires;
 	int i, ret, type;
 	struct rtc_device *rtc;
 	unsigned long flags;
@@ -255,14 +255,14 @@ static int alarmtimer_suspend(struct device *dev)
 	spin_unlock_irqrestore(&freezer_delta_lock, flags);
 
 	rtc = alarmtimer_get_rtcdev();
-	/* If we have no rtcdev, just return */
+	/* If we have yes rtcdev, just return */
 	if (!rtc)
 		return 0;
 
 	/* Find the soonest timer to expire*/
 	for (i = 0; i < ALARM_NUMTYPE; i++) {
 		struct alarm_base *base = &alarm_bases[i];
-		struct timerqueue_node *next;
+		struct timerqueue_yesde *next;
 		ktime_t delta;
 
 		spin_lock_irqsave(&base->lock, flags);
@@ -290,11 +290,11 @@ static int alarmtimer_suspend(struct device *dev)
 	/* Setup an rtc timer to fire that far in the future */
 	rtc_timer_cancel(rtc, &rtctimer);
 	rtc_read_time(rtc, &tm);
-	now = rtc_tm_to_ktime(tm);
-	now = ktime_add(now, min);
+	yesw = rtc_tm_to_ktime(tm);
+	yesw = ktime_add(yesw, min);
 
 	/* Set alarm, if in the past reject suspend briefly to handle */
-	ret = rtc_timer_start(rtc, &rtctimer, now, 0);
+	ret = rtc_timer_start(rtc, &rtctimer, yesw, 0);
 	if (ret < 0)
 		__pm_wakeup_event(ws, MSEC_PER_SEC);
 	return ret;
@@ -326,7 +326,7 @@ static void
 __alarm_init(struct alarm *alarm, enum alarmtimer_type type,
 	     enum alarmtimer_restart (*function)(struct alarm *, ktime_t))
 {
-	timerqueue_init(&alarm->node);
+	timerqueue_init(&alarm->yesde);
 	alarm->timer.function = alarmtimer_fired;
 	alarm->function = function;
 	alarm->type = type;
@@ -359,9 +359,9 @@ void alarm_start(struct alarm *alarm, ktime_t start)
 	unsigned long flags;
 
 	spin_lock_irqsave(&base->lock, flags);
-	alarm->node.expires = start;
+	alarm->yesde.expires = start;
 	alarmtimer_enqueue(base, alarm);
-	hrtimer_start(&alarm->timer, alarm->node.expires, HRTIMER_MODE_ABS);
+	hrtimer_start(&alarm->timer, alarm->yesde.expires, HRTIMER_MODE_ABS);
 	spin_unlock_irqrestore(&base->lock, flags);
 
 	trace_alarmtimer_start(alarm, base->gettime());
@@ -371,7 +371,7 @@ EXPORT_SYMBOL_GPL(alarm_start);
 /**
  * alarm_start_relative - Sets a relative alarm to fire
  * @alarm: ptr to alarm to set
- * @start: time relative to now to run the alarm
+ * @start: time relative to yesw to run the alarm
  */
 void alarm_start_relative(struct alarm *alarm, ktime_t start)
 {
@@ -388,7 +388,7 @@ void alarm_restart(struct alarm *alarm)
 	unsigned long flags;
 
 	spin_lock_irqsave(&base->lock, flags);
-	hrtimer_set_expires(&alarm->timer, alarm->node.expires);
+	hrtimer_set_expires(&alarm->timer, alarm->yesde.expires);
 	hrtimer_restart(&alarm->timer);
 	alarmtimer_enqueue(base, alarm);
 	spin_unlock_irqrestore(&base->lock, flags);
@@ -399,7 +399,7 @@ EXPORT_SYMBOL_GPL(alarm_restart);
  * alarm_try_to_cancel - Tries to cancel an alarm timer
  * @alarm: ptr to alarm to be canceled
  *
- * Returns 1 if the timer was canceled, 0 if it was not running,
+ * Returns 1 if the timer was canceled, 0 if it was yest running,
  * and -1 if the callback was running
  */
 int alarm_try_to_cancel(struct alarm *alarm)
@@ -424,7 +424,7 @@ EXPORT_SYMBOL_GPL(alarm_try_to_cancel);
  * alarm_cancel - Spins trying to cancel an alarm timer until it is done
  * @alarm: ptr to alarm to be canceled
  *
- * Returns 1 if the timer was canceled, 0 if it was not active.
+ * Returns 1 if the timer was canceled, 0 if it was yest active.
  */
 int alarm_cancel(struct alarm *alarm)
 {
@@ -438,12 +438,12 @@ int alarm_cancel(struct alarm *alarm)
 EXPORT_SYMBOL_GPL(alarm_cancel);
 
 
-u64 alarm_forward(struct alarm *alarm, ktime_t now, ktime_t interval)
+u64 alarm_forward(struct alarm *alarm, ktime_t yesw, ktime_t interval)
 {
 	u64 overrun = 1;
 	ktime_t delta;
 
-	delta = ktime_sub(now, alarm->node.expires);
+	delta = ktime_sub(yesw, alarm->yesde.expires);
 
 	if (delta < 0)
 		return 0;
@@ -453,10 +453,10 @@ u64 alarm_forward(struct alarm *alarm, ktime_t now, ktime_t interval)
 
 		overrun = ktime_divns(delta, incr);
 
-		alarm->node.expires = ktime_add_ns(alarm->node.expires,
+		alarm->yesde.expires = ktime_add_ns(alarm->yesde.expires,
 							incr*overrun);
 
-		if (alarm->node.expires > now)
+		if (alarm->yesde.expires > yesw)
 			return overrun;
 		/*
 		 * This (and the ktime_add() below) is the
@@ -465,18 +465,18 @@ u64 alarm_forward(struct alarm *alarm, ktime_t now, ktime_t interval)
 		overrun++;
 	}
 
-	alarm->node.expires = ktime_add_safe(alarm->node.expires, interval);
+	alarm->yesde.expires = ktime_add_safe(alarm->yesde.expires, interval);
 	return overrun;
 }
 EXPORT_SYMBOL_GPL(alarm_forward);
 
-u64 alarm_forward_now(struct alarm *alarm, ktime_t interval)
+u64 alarm_forward_yesw(struct alarm *alarm, ktime_t interval)
 {
 	struct alarm_base *base = &alarm_bases[alarm->type];
 
 	return alarm_forward(alarm, base->gettime(), interval);
 }
-EXPORT_SYMBOL_GPL(alarm_forward_now);
+EXPORT_SYMBOL_GPL(alarm_forward_yesw);
 
 #ifdef CONFIG_POSIX_TIMERS
 
@@ -531,7 +531,7 @@ static enum alarmtimer_type clock2alarm(clockid_t clockid)
  * Posix timer callback for expired alarm timers.
  */
 static enum alarmtimer_restart alarm_handle_timer(struct alarm *alarm,
-							ktime_t now)
+							ktime_t yesw)
 {
 	struct k_itimer *ptr = container_of(alarm, struct k_itimer,
 					    it.alarm.alarmtimer);
@@ -547,10 +547,10 @@ static enum alarmtimer_restart alarm_handle_timer(struct alarm *alarm,
 
 	if (posix_timer_event(ptr, si_private) && ptr->it_interval) {
 		/*
-		 * Handle ignored signals and rearm the timer. This will go
-		 * away once we handle ignored signals proper.
+		 * Handle igyesred signals and rearm the timer. This will go
+		 * away once we handle igyesred signals proper.
 		 */
-		ptr->it_overrun += alarm_forward_now(alarm, ptr->it_interval);
+		ptr->it_overrun += alarm_forward_yesw(alarm, ptr->it_interval);
 		++ptr->it_requeue_pending;
 		ptr->it_active = 1;
 		result = ALARMTIMER_RESTART;
@@ -568,32 +568,32 @@ static void alarm_timer_rearm(struct k_itimer *timr)
 {
 	struct alarm *alarm = &timr->it.alarm.alarmtimer;
 
-	timr->it_overrun += alarm_forward_now(alarm, timr->it_interval);
-	alarm_start(alarm, alarm->node.expires);
+	timr->it_overrun += alarm_forward_yesw(alarm, timr->it_interval);
+	alarm_start(alarm, alarm->yesde.expires);
 }
 
 /**
  * alarm_timer_forward - Posix timer callback for forwarding timer
  * @timr:	Pointer to the posixtimer data struct
- * @now:	Current time to forward the timer against
+ * @yesw:	Current time to forward the timer against
  */
-static s64 alarm_timer_forward(struct k_itimer *timr, ktime_t now)
+static s64 alarm_timer_forward(struct k_itimer *timr, ktime_t yesw)
 {
 	struct alarm *alarm = &timr->it.alarm.alarmtimer;
 
-	return alarm_forward(alarm, timr->it_interval, now);
+	return alarm_forward(alarm, timr->it_interval, yesw);
 }
 
 /**
  * alarm_timer_remaining - Posix timer callback to retrieve remaining time
  * @timr:	Pointer to the posixtimer data struct
- * @now:	Current time to calculate against
+ * @yesw:	Current time to calculate against
  */
-static ktime_t alarm_timer_remaining(struct k_itimer *timr, ktime_t now)
+static ktime_t alarm_timer_remaining(struct k_itimer *timr, ktime_t yesw)
 {
 	struct alarm *alarm = &timr->it.alarm.alarmtimer;
 
-	return ktime_sub(alarm->node.expires, now);
+	return ktime_sub(alarm->yesde.expires, yesw);
 }
 
 /**
@@ -623,18 +623,18 @@ static void alarm_timer_wait_running(struct k_itimer *timr)
  * @timr:	Pointer to the posixtimer data struct
  * @expires:	The new expiry time
  * @absolute:	Expiry value is absolute time
- * @sigev_none:	Posix timer does not deliver signals
+ * @sigev_yesne:	Posix timer does yest deliver signals
  */
 static void alarm_timer_arm(struct k_itimer *timr, ktime_t expires,
-			    bool absolute, bool sigev_none)
+			    bool absolute, bool sigev_yesne)
 {
 	struct alarm *alarm = &timr->it.alarm.alarmtimer;
 	struct alarm_base *base = &alarm_bases[alarm->type];
 
 	if (!absolute)
 		expires = ktime_add_safe(expires, base->gettime());
-	if (sigev_none)
-		alarm->node.expires = expires;
+	if (sigev_yesne)
+		alarm->yesde.expires = expires;
 	else
 		alarm_start(&timr->it.alarm.alarmtimer, expires);
 }
@@ -702,7 +702,7 @@ static int alarm_timer_create(struct k_itimer *new_timer)
  * Wakes up the task that set the alarmtimer
  */
 static enum alarmtimer_restart alarmtimer_nsleep_wakeup(struct alarm *alarm,
-								ktime_t now)
+								ktime_t yesw)
 {
 	struct task_struct *task = (struct task_struct *)alarm->data;
 
@@ -743,7 +743,7 @@ static int alarmtimer_do_nsleep(struct alarm *alarm, ktime_t absexp,
 	if (freezing(current))
 		alarmtimer_freezerset(absexp, type);
 	restart = &current->restart_block;
-	if (restart->nanosleep.type != TT_NONE) {
+	if (restart->nayessleep.type != TT_NONE) {
 		struct timespec64 rmt;
 		ktime_t rem;
 
@@ -753,7 +753,7 @@ static int alarmtimer_do_nsleep(struct alarm *alarm, ktime_t absexp,
 			return 0;
 		rmt = ktime_to_timespec64(rem);
 
-		return nanosleep_copyout(restart, &rmt);
+		return nayessleep_copyout(restart, &rmt);
 	}
 	return -ERESTART_RESTARTBLOCK;
 }
@@ -771,12 +771,12 @@ alarm_init_on_stack(struct alarm *alarm, enum alarmtimer_type type,
  * alarm_timer_nsleep_restart - restartblock alarmtimer nsleep
  * @restart: ptr to restart block
  *
- * Handles restarted clock_nanosleep calls
+ * Handles restarted clock_nayessleep calls
  */
 static long __sched alarm_timer_nsleep_restart(struct restart_block *restart)
 {
-	enum  alarmtimer_type type = restart->nanosleep.clockid;
-	ktime_t exp = restart->nanosleep.expires;
+	enum  alarmtimer_type type = restart->nayessleep.clockid;
+	ktime_t exp = restart->nayessleep.expires;
 	struct alarm alarm;
 
 	alarm_init_on_stack(&alarm, type, alarmtimer_nsleep_wakeup);
@@ -785,13 +785,13 @@ static long __sched alarm_timer_nsleep_restart(struct restart_block *restart)
 }
 
 /**
- * alarm_timer_nsleep - alarmtimer nanosleep
+ * alarm_timer_nsleep - alarmtimer nayessleep
  * @which_clock: clockid
  * @flags: determins abstime or relative
  * @tsreq: requested sleep time (abs or rel)
  * @rmtp: remaining sleep time saved
  *
- * Handles clock_nanosleep calls against _ALARM clockids
+ * Handles clock_nayessleep calls against _ALARM clockids
  */
 static int alarm_timer_nsleep(const clockid_t which_clock, int flags,
 			      const struct timespec64 *tsreq)
@@ -816,9 +816,9 @@ static int alarm_timer_nsleep(const clockid_t which_clock, int flags,
 	exp = timespec64_to_ktime(*tsreq);
 	/* Convert (if necessary) to absolute time */
 	if (flags != TIMER_ABSTIME) {
-		ktime_t now = alarm_bases[type].gettime();
+		ktime_t yesw = alarm_bases[type].gettime();
 
-		exp = ktime_add_safe(now, exp);
+		exp = ktime_add_safe(yesw, exp);
 	}
 
 	ret = alarmtimer_do_nsleep(&alarm, exp, type);
@@ -830,8 +830,8 @@ static int alarm_timer_nsleep(const clockid_t which_clock, int flags,
 		return -ERESTARTNOHAND;
 
 	restart->fn = alarm_timer_nsleep_restart;
-	restart->nanosleep.clockid = type;
-	restart->nanosleep.expires = exp;
+	restart->nayessleep.clockid = type;
+	restart->nayessleep.expires = exp;
 	return ret;
 }
 

@@ -50,14 +50,14 @@
  * event fields, one for each of the two counters.  It's thus nearly
  * impossible to have one counter going while keeping the other one
  * stopped.  Therefore it is possible to get overflow interrupts for
- * counters not currently "in use" and that condition must be checked
+ * counters yest currently "in use" and that condition must be checked
  * in the overflow interrupt handler.
  *
  * So we use a hack, in that we program inactive counters with the
  * "sw_count0" and "sw_count1" events.  These count how many times
  * the instruction "sethi %hi(0xfc000), %g0" is executed.  It's an
- * unusual way to encode a NOP and therefore will not trigger in
- * normal code.
+ * unusual way to encode a NOP and therefore will yest trigger in
+ * yesrmal code.
  *
  * Starting with SPARC-T4 we have one control register per counter.
  * And the counters are stored in individual registers.  The registers
@@ -167,8 +167,8 @@ struct sparc_pmu {
 	int				priv_bit;
 	int				hv_bit;
 	int				irq_bit;
-	int				upper_nop;
-	int				lower_nop;
+	int				upper_yesp;
+	int				lower_yesp;
 	unsigned int			flags;
 #define SPARC_PMU_ALL_EXCLUDES_SAME	0x00000001
 #define SPARC_PMU_HAS_CONFLICTS		0x00000002
@@ -329,8 +329,8 @@ static const struct sparc_pmu ultra3_pmu = {
 	.event_mask	= 0x3f,
 	.user_bit	= PCR_UTRACE,
 	.priv_bit	= PCR_STRACE,
-	.upper_nop	= 0x1c,
-	.lower_nop	= 0x14,
+	.upper_yesp	= 0x1c,
+	.lower_yesp	= 0x14,
 	.flags		= (SPARC_PMU_ALL_EXCLUDES_SAME |
 			   SPARC_PMU_HAS_CONFLICTS),
 	.max_hw_events	= 2,
@@ -467,8 +467,8 @@ static const struct sparc_pmu niagara1_pmu = {
 	.event_mask	= 0x7,
 	.user_bit	= PCR_UTRACE,
 	.priv_bit	= PCR_STRACE,
-	.upper_nop	= 0x0,
-	.lower_nop	= 0x0,
+	.upper_yesp	= 0x0,
+	.lower_yesp	= 0x0,
 	.flags		= (SPARC_PMU_ALL_EXCLUDES_SAME |
 			   SPARC_PMU_HAS_CONFLICTS),
 	.max_hw_events	= 2,
@@ -604,8 +604,8 @@ static const struct sparc_pmu niagara2_pmu = {
 	.priv_bit	= PCR_STRACE,
 	.hv_bit		= PCR_N2_HTRACE,
 	.irq_bit	= 0x30,
-	.upper_nop	= 0x220,
-	.lower_nop	= 0x220,
+	.upper_yesp	= 0x220,
+	.lower_yesp	= 0x220,
 	.flags		= (SPARC_PMU_ALL_EXCLUDES_SAME |
 			   SPARC_PMU_HAS_CONFLICTS),
 	.max_hw_events	= 2,
@@ -762,7 +762,7 @@ static const struct sparc_pmu niagara4_pmu = {
 
 	/* We explicitly don't support hypervisor tracing.  The T4
 	 * generates the overflow event for precise events via a trap
-	 * which will not be generated (ie. it's completely lost) if
+	 * which will yest be generated (ie. it's completely lost) if
 	 * we happen to be in the hypervisor when the event triggers.
 	 * Essentially, the overflow event reporting is completely
 	 * unusable when you have hypervisor mode tracing enabled.
@@ -770,8 +770,8 @@ static const struct sparc_pmu niagara4_pmu = {
 	.hv_bit		= 0,
 
 	.irq_bit	= PCR_N4_TOE,
-	.upper_nop	= 0,
-	.lower_nop	= 0,
+	.upper_yesp	= 0,
+	.lower_yesp	= 0,
 	.flags		= 0,
 	.max_hw_events	= 4,
 	.num_pcrs	= 4,
@@ -794,8 +794,8 @@ static const struct sparc_pmu sparc_m7_pmu = {
 	.hv_bit		= 0,
 
 	.irq_bit	= PCR_N4_TOE,
-	.upper_nop	= 0,
-	.lower_nop	= 0,
+	.upper_yesp	= 0,
+	.lower_yesp	= 0,
 	.flags		= 0,
 	.max_hw_events	= 4,
 	.num_pcrs	= 4,
@@ -817,11 +817,11 @@ static u64 mask_for_index(int idx)
 	return event_encoding(sparc_pmu->event_mask, idx);
 }
 
-static u64 nop_for_index(int idx)
+static u64 yesp_for_index(int idx)
 {
 	return event_encoding(idx == PIC_UPPER_INDEX ?
-			      sparc_pmu->upper_nop :
-			      sparc_pmu->lower_nop, idx);
+			      sparc_pmu->upper_yesp :
+			      sparc_pmu->lower_yesp, idx);
 }
 
 static inline void sparc_pmu_enable_event(struct cpu_hw_events *cpuc, struct hw_perf_event *hwc, int idx)
@@ -845,7 +845,7 @@ static inline void sparc_pmu_enable_event(struct cpu_hw_events *cpuc, struct hw_
 static inline void sparc_pmu_disable_event(struct cpu_hw_events *cpuc, struct hw_perf_event *hwc, int idx)
 {
 	u64 mask = mask_for_index(idx);
-	u64 nop = nop_for_index(idx);
+	u64 yesp = yesp_for_index(idx);
 	int pcr_index = 0;
 	u64 val;
 
@@ -854,7 +854,7 @@ static inline void sparc_pmu_disable_event(struct cpu_hw_events *cpuc, struct hw
 
 	val = cpuc->pcr[pcr_index];
 	val &= ~mask;
-	val |= nop;
+	val |= yesp;
 	cpuc->pcr[pcr_index] = val;
 
 	pcr_ops->write_pcr(pcr_index, cpuc->pcr[pcr_index]);
@@ -967,7 +967,7 @@ static void calculate_single_pcr(struct cpu_hw_events *cpuc)
 		enc = perf_event_get_enc(cpuc->events[i]);
 		cpuc->pcr[0] &= ~mask_for_index(idx);
 		if (hwc->state & PERF_HES_ARCH) {
-			cpuc->pcr[0] |= nop_for_index(idx);
+			cpuc->pcr[0] |= yesp_for_index(idx);
 		} else {
 			cpuc->pcr[0] |= event_encoding(enc, idx);
 			hwc->state = 0;
@@ -1170,7 +1170,7 @@ static void perf_stop_nmi_watchdog(void *unused)
 
 static void perf_event_grab_pmc(void)
 {
-	if (atomic_inc_not_zero(&active_events))
+	if (atomic_inc_yest_zero(&active_events))
 		return;
 
 	mutex_lock(&pmc_grab_mutex);
@@ -1395,14 +1395,14 @@ static int sparc_pmu_add(struct perf_event *event, int ef_flags)
 	 * at commit time(->commit_txn) as a whole
 	 */
 	if (cpuc->txn_flags & PERF_PMU_TXN_ADD)
-		goto nocheck;
+		goto yescheck;
 
 	if (check_excludes(cpuc->event, n0, 1))
 		goto out;
 	if (sparc_check_constraints(cpuc->event, cpuc->events, n0 + 1))
 		goto out;
 
-nocheck:
+yescheck:
 	cpuc->n_events++;
 	cpuc->n_added++;
 
@@ -1425,7 +1425,7 @@ static int sparc_pmu_event_init(struct perf_event *event)
 	if (atomic_read(&nmi_active) < 0)
 		return -ENODEV;
 
-	/* does not support taken branch sampling */
+	/* does yest support taken branch sampling */
 	if (has_branch_stack(event))
 		return -EOPNOTSUPP;
 
@@ -1506,7 +1506,7 @@ static int sparc_pmu_event_init(struct perf_event *event)
 
 /*
  * Start group events scheduling transaction
- * Set the flag to make pmu::enable() not perform the
+ * Set the flag to make pmu::enable() yest perform the
  * schedulability test, it will be performed at commit time
  */
 static void sparc_pmu_start_txn(struct pmu *pmu, unsigned int txn_flags)
@@ -1532,7 +1532,7 @@ static void sparc_pmu_cancel_txn(struct pmu *pmu)
 	struct cpu_hw_events *cpuhw = this_cpu_ptr(&cpu_hw_events);
 	unsigned int txn_flags;
 
-	WARN_ON_ONCE(!cpuhw->txn_flags);	/* no txn in flight */
+	WARN_ON_ONCE(!cpuhw->txn_flags);	/* yes txn in flight */
 
 	txn_flags = cpuhw->txn_flags;
 	cpuhw->txn_flags = 0;
@@ -1555,7 +1555,7 @@ static int sparc_pmu_commit_txn(struct pmu *pmu)
 	if (!sparc_pmu)
 		return -EINVAL;
 
-	WARN_ON_ONCE(!cpuc->txn_flags);	/* no txn in flight */
+	WARN_ON_ONCE(!cpuc->txn_flags);	/* yes txn in flight */
 
 	if (cpuc->txn_flags & ~PERF_PMU_TXN_ADD) {
 		cpuc->txn_flags = 0;
@@ -1610,7 +1610,7 @@ void perf_event_print_debug(void)
 	local_irq_restore(flags);
 }
 
-static int __kprobes perf_event_nmi_handler(struct notifier_block *self,
+static int __kprobes perf_event_nmi_handler(struct yestifier_block *self,
 					    unsigned long cmd, void *__args)
 {
 	struct die_args *args = __args;
@@ -1679,8 +1679,8 @@ static int __kprobes perf_event_nmi_handler(struct notifier_block *self,
 	return NOTIFY_STOP;
 }
 
-static __read_mostly struct notifier_block perf_event_nmi_notifier = {
-	.notifier_call		= perf_event_nmi_handler,
+static __read_mostly struct yestifier_block perf_event_nmi_yestifier = {
+	.yestifier_call		= perf_event_nmi_handler,
 };
 
 static bool __init supported_pmu(void)
@@ -1728,7 +1728,7 @@ static int __init init_hw_perf_events(void)
 	pr_cont("Supported PMU type is '%s'\n", sparc_pmu_type);
 
 	perf_pmu_register(&pmu, "cpu", PERF_TYPE_RAW);
-	register_die_notifier(&perf_event_nmi_notifier);
+	register_die_yestifier(&perf_event_nmi_yestifier);
 
 	return 0;
 }
@@ -1791,7 +1791,7 @@ valid_user_frame(const void __user *fp, unsigned long size)
 	if (((unsigned long) fp) & 3)
 		return 0;
 
-	return (__range_not_ok(fp, size, TASK_SIZE) == 0);
+	return (__range_yest_ok(fp, size, TASK_SIZE) == 0);
 }
 
 static void perf_callchain_user_64(struct perf_callchain_entry_ctx *entry,

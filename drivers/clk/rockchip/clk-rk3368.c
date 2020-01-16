@@ -420,7 +420,7 @@ static struct rockchip_clk_branch rk3368_clk_branches[] __initdata = {
 
 	/*
 	 * We use aclk_vdpu by default ---GRF_SOC_CON0[7] setting in system,
-	 * so we ignore the mux and make clocks nodes as following,
+	 * so we igyesre the mux and make clocks yesdes as following,
 	 */
 	FACTOR_GATE(0, "hclk_video_pre", "aclk_vdpu", 0, 1, 4,
 		RK3368_CLKGATE_CON(4), 8, GFLAGS),
@@ -680,7 +680,7 @@ static struct rockchip_clk_branch rk3368_clk_branches[] __initdata = {
 	/* clk_hsadc_tsp is part of diagram2 */
 
 	/* fclk_mcu_src gates */
-	GATE(0, "hclk_noc_mcu", "fclk_mcu_src", 0, RK3368_CLKGATE_CON(13), 14, GFLAGS),
+	GATE(0, "hclk_yesc_mcu", "fclk_mcu_src", 0, RK3368_CLKGATE_CON(13), 14, GFLAGS),
 	GATE(0, "fclk_mcu", "fclk_mcu_src", 0, RK3368_CLKGATE_CON(13), 12, GFLAGS),
 	GATE(0, "hclk_mcu", "fclk_mcu_src", 0, RK3368_CLKGATE_CON(13), 11, GFLAGS),
 
@@ -717,13 +717,13 @@ static struct rockchip_clk_branch rk3368_clk_branches[] __initdata = {
 	GATE(HCLK_VIDEO, "hclk_video", "hclk_video_pre", 0, RK3368_CLKGATE_CON(15), 1, GFLAGS),
 
 	/* aclk_rga_pre gates */
-	GATE(ACLK_VIO1_NOC, "aclk_vio1_noc", "aclk_rga_pre", CLK_IGNORE_UNUSED, RK3368_CLKGATE_CON(16), 10, GFLAGS),
+	GATE(ACLK_VIO1_NOC, "aclk_vio1_yesc", "aclk_rga_pre", CLK_IGNORE_UNUSED, RK3368_CLKGATE_CON(16), 10, GFLAGS),
 	GATE(ACLK_RGA, "aclk_rga", "aclk_rga_pre", 0, RK3368_CLKGATE_CON(16), 0, GFLAGS),
 	GATE(ACLK_HDCP, "aclk_hdcp", "aclk_rga_pre", 0, RK3368_CLKGATE_CON(17), 10, GFLAGS),
 
 	/* aclk_vio0 gates */
 	GATE(ACLK_VIP, "aclk_vip", "aclk_vio0", 0, RK3368_CLKGATE_CON(16), 11, GFLAGS),
-	GATE(ACLK_VIO0_NOC, "aclk_vio0_noc", "aclk_vio0", CLK_IGNORE_UNUSED, RK3368_CLKGATE_CON(16), 9, GFLAGS),
+	GATE(ACLK_VIO0_NOC, "aclk_vio0_yesc", "aclk_vio0", CLK_IGNORE_UNUSED, RK3368_CLKGATE_CON(16), 9, GFLAGS),
 	GATE(ACLK_VOP, "aclk_vop", "aclk_vio0", 0, RK3368_CLKGATE_CON(16), 5, GFLAGS),
 	GATE(ACLK_VOP_IEP, "aclk_vop_iep", "aclk_vio0", 0, RK3368_CLKGATE_CON(16), 4, GFLAGS),
 	GATE(ACLK_IEP, "aclk_iep", "aclk_vio0", 0, RK3368_CLKGATE_CON(16), 2, GFLAGS),
@@ -734,7 +734,7 @@ static struct rockchip_clk_branch rk3368_clk_branches[] __initdata = {
 
 	/* hclk_vio gates */
 	GATE(HCLK_VIP, "hclk_vip", "hclk_vio", 0, RK3368_CLKGATE_CON(16), 12, GFLAGS),
-	GATE(HCLK_VIO_NOC, "hclk_vio_noc", "hclk_vio", CLK_IGNORE_UNUSED, RK3368_CLKGATE_CON(16), 8, GFLAGS),
+	GATE(HCLK_VIO_NOC, "hclk_vio_yesc", "hclk_vio", CLK_IGNORE_UNUSED, RK3368_CLKGATE_CON(16), 8, GFLAGS),
 	GATE(HCLK_VIO_AHB_ARBI, "hclk_vio_ahb_arbi", "hclk_vio", CLK_IGNORE_UNUSED, RK3368_CLKGATE_CON(16), 7, GFLAGS),
 	GATE(HCLK_VOP, "hclk_vop", "hclk_vio", 0, RK3368_CLKGATE_CON(16), 6, GFLAGS),
 	GATE(HCLK_IEP, "hclk_iep", "hclk_vio", 0, RK3368_CLKGATE_CON(16), 3, GFLAGS),
@@ -825,7 +825,7 @@ static struct rockchip_clk_branch rk3368_clk_branches[] __initdata = {
 	GATE(PCLK_PMUGRF, "pclk_pmugrf", "pclk_pd_pmu", CLK_IGNORE_UNUSED, RK3368_CLKGATE_CON(23), 5, GFLAGS),
 	GATE(PCLK_GPIO0, "pclk_gpio0", "pclk_pd_pmu", 0, RK3368_CLKGATE_CON(23), 4, GFLAGS),
 	GATE(PCLK_SGRF, "pclk_sgrf", "pclk_pd_pmu", CLK_IGNORE_UNUSED, RK3368_CLKGATE_CON(23), 3, GFLAGS),
-	GATE(0, "pclk_pmu_noc", "pclk_pd_pmu", CLK_IGNORE_UNUSED, RK3368_CLKGATE_CON(23), 2, GFLAGS),
+	GATE(0, "pclk_pmu_yesc", "pclk_pd_pmu", CLK_IGNORE_UNUSED, RK3368_CLKGATE_CON(23), 2, GFLAGS),
 	GATE(0, "pclk_intmem1", "pclk_pd_pmu", CLK_IGNORE_UNUSED, RK3368_CLKGATE_CON(23), 1, GFLAGS),
 	GATE(PCLK_PMU, "pclk_pmu", "pclk_pd_pmu", CLK_IGNORE_UNUSED, RK3368_CLKGATE_CON(23), 0, GFLAGS),
 
@@ -861,14 +861,14 @@ static const char *const rk3368_critical_clocks[] __initconst = {
 	"pmu_hclk_otg0",
 };
 
-static void __init rk3368_clk_init(struct device_node *np)
+static void __init rk3368_clk_init(struct device_yesde *np)
 {
 	struct rockchip_clk_provider *ctx;
 	void __iomem *reg_base;
 
 	reg_base = of_iomap(np, 0);
 	if (!reg_base) {
-		pr_err("%s: could not map cru region\n", __func__);
+		pr_err("%s: could yest map cru region\n", __func__);
 		return;
 	}
 
@@ -900,7 +900,7 @@ static void __init rk3368_clk_init(struct device_node *np)
 	rockchip_register_softrst(np, 15, reg_base + RK3368_SOFTRST_CON(0),
 				  ROCKCHIP_SOFTRST_HIWORD_MASK);
 
-	rockchip_register_restart_notifier(ctx, RK3368_GLB_SRST_FST, NULL);
+	rockchip_register_restart_yestifier(ctx, RK3368_GLB_SRST_FST, NULL);
 
 	rockchip_clk_of_add_provider(np, ctx);
 }

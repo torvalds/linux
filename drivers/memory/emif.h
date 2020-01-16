@@ -4,7 +4,7 @@
  *
  * Copyright (C) 2012 Texas Instruments, Inc.
  *
- * Benoit Cousson (b-cousson@ti.com)
+ * Beyesit Cousson (b-cousson@ti.com)
  */
 #ifndef __EMIF_H
 #define __EMIF_H
@@ -64,8 +64,8 @@
 #define DPD_ENABLE					1
 
 /*
- * Default values for the low-power entry to be used if not provided by user.
- * OMAP4/5 has a hw bug(i735) due to which this value can not be less than 512
+ * Default values for the low-power entry to be used if yest provided by user.
+ * OMAP4/5 has a hw bug(i735) due to which this value can yest be less than 512
  * Timeout values are in DDR clock 'cycles' and frequency threshold in Hz
  */
 #define EMIF_LP_MODE_TIMEOUT_PERFORMANCE		2048
@@ -575,8 +575,8 @@ struct emif_regs {
 	u32 sdram_tim3_shdw_derated;
 	u32 pwr_mgmt_ctrl_shdw;
 	union {
-		u32 read_idle_ctrl_shdw_normal;
-		u32 dll_calib_ctrl_shdw_normal;
+		u32 read_idle_ctrl_shdw_yesrmal;
+		u32 dll_calib_ctrl_shdw_yesrmal;
 	};
 	union {
 		u32 read_idle_ctrl_shdw_volt_ramp;

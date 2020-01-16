@@ -15,7 +15,7 @@
 #include <string.h>
 #include <stdarg.h>
 #include <ctype.h>
-#include <errno.h>
+#include <erryes.h>
 #include <stdint.h>
 #include <limits.h>
 #include <linux/time64.h>
@@ -205,7 +205,7 @@ static const char *find_cmdline(struct tep_handle *tep, int pid)
 		return "<idle>";
 
 	if (!tep->cmdlines && cmdline_init(tep))
-		return "<not enough memory for cmdlines!>";
+		return "<yest eyesugh memory for cmdlines!>";
 
 	key.pid = pid;
 
@@ -270,12 +270,12 @@ static int add_new_comm(struct tep_handle *tep,
 			  sizeof(*tep->cmdlines), cmdline_cmp);
 	if (cmdline) {
 		if (!override) {
-			errno = EEXIST;
+			erryes = EEXIST;
 			return -1;
 		}
 		new_comm = strdup(comm);
 		if (!new_comm) {
-			errno = ENOMEM;
+			erryes = ENOMEM;
 			return -1;
 		}
 		free(cmdline->comm);
@@ -286,19 +286,19 @@ static int add_new_comm(struct tep_handle *tep,
 
 	cmdlines = realloc(cmdlines, sizeof(*cmdlines) * (tep->cmdline_count + 1));
 	if (!cmdlines) {
-		errno = ENOMEM;
+		erryes = ENOMEM;
 		return -1;
 	}
 	tep->cmdlines = cmdlines;
 
 	key.comm = strdup(comm);
 	if (!key.comm) {
-		errno = ENOMEM;
+		erryes = ENOMEM;
 		return -1;
 	}
 
 	if (!tep->cmdline_count) {
-		/* no entries yet */
+		/* yes entries yet */
 		tep->cmdlines[0] = key;
 		tep->cmdline_count++;
 		return 0;
@@ -367,7 +367,7 @@ static int _tep_register_comm(struct tep_handle *tep,
  *
  * This adds a mapping to search for command line names with
  * a given pid. The comm is duplicated. If a command with the same pid
- * already exist, -1 is returned and errno is set to EEXIST
+ * already exist, -1 is returned and erryes is set to EEXIST
  */
 int tep_register_comm(struct tep_handle *tep, const char *comm, int pid)
 {
@@ -387,7 +387,7 @@ int tep_register_comm(struct tep_handle *tep, const char *comm, int pid)
 int tep_override_comm(struct tep_handle *tep, const char *comm, int pid)
 {
 	if (!tep->cmdlines && cmdline_init(tep)) {
-		errno = ENOMEM;
+		erryes = ENOMEM;
 		return -1;
 	}
 	return _tep_register_comm(tep, comm, pid, true);
@@ -420,7 +420,7 @@ static int func_cmp(const void *a, const void *b)
 }
 
 /*
- * We are searching for a record in between, not an exact
+ * We are searching for a record in between, yest an exact
  * match.
  */
 static int func_bcmp(const void *a, const void *b)
@@ -566,7 +566,7 @@ find_func(struct tep_handle *tep, unsigned long long addr)
  * @addr: the address to find the function with
  *
  * Returns a pointer to the function stored that has the given
- * address. Note, the address does not have to be exact, it
+ * address. Note, the address does yest have to be exact, it
  * will select the function that would contain the address.
  */
 const char *tep_find_function(struct tep_handle *tep, unsigned long long addr)
@@ -606,7 +606,7 @@ tep_find_function_address(struct tep_handle *tep, unsigned long long addr)
  * @tep: a handle to the trace event parser context
  * @function: the function name to register
  * @addr: the address the function starts at
- * @mod: the kernel module the function may be in (NULL for none)
+ * @mod: the kernel module the function may be in (NULL for yesne)
  *
  * This registers a function name with an address and module.
  * The @func passed in is duplicated.
@@ -642,7 +642,7 @@ out_free_func:
 	item->func = NULL;
 out_free:
 	free(item);
-	errno = ENOMEM;
+	erryes = ENOMEM;
 	return -1;
 }
 
@@ -785,7 +785,7 @@ int tep_register_print_string(struct tep_handle *tep, const char *fmt,
 
 out_free:
 	free(item);
-	errno = ENOMEM;
+	erryes = ENOMEM;
 	return -1;
 }
 
@@ -1101,7 +1101,7 @@ static enum tep_event_type __read_token(char **tok)
 
 		/*
 		 * For strings (double quotes) check the next token.
-		 * If it is another string, concatinate the two.
+		 * If it is ayesther string, concatinate the two.
 		 */
 		if (type == TEP_EVENT_DQUOTE) {
 			unsigned long long save_input_buf_ptr = input_buf_ptr;
@@ -1209,7 +1209,7 @@ static enum tep_event_type read_token(char **tok)
 		free_token(*tok);
 	}
 
-	/* not reached */
+	/* yest reached */
 	*tok = NULL;
 	return TEP_EVENT_NONE;
 }
@@ -1237,7 +1237,7 @@ void tep_free_token(char *token)
 	free_token(token);
 }
 
-/* no newline */
+/* yes newline */
 static enum tep_event_type read_token_item(char **tok)
 {
 	enum tep_event_type type;
@@ -1250,7 +1250,7 @@ static enum tep_event_type read_token_item(char **tok)
 		*tok = NULL;
 	}
 
-	/* not reached */
+	/* yest reached */
 	*tok = NULL;
 	return TEP_EVENT_NONE;
 }
@@ -1451,7 +1451,7 @@ static int event_read_fields(struct tep_event *event, struct tep_format_field **
 		type = read_token(&token);
 		/*
 		 * The ftrace fields may still use the "special" name.
-		 * Just ignore it.
+		 * Just igyesre it.
 		 */
 		if (event->flags & TEP_EVENT_FL_ISFTRACE &&
 		    type == TEP_EVENT_ITEM && strcmp(token, "special") == 0) {
@@ -1512,7 +1512,7 @@ static int event_read_fields(struct tep_event *event, struct tep_format_field **
 		}
 
 		if (!field->type) {
-			do_warning_event(event, "%s: no type found", __func__);
+			do_warning_event(event, "%s: yes type found", __func__);
 			goto fail;
 		}
 		field->name = field->alias = last_token;
@@ -1578,7 +1578,7 @@ static int event_read_fields(struct tep_event *event, struct tep_format_field **
 
 			type = read_token(&token);
 			/*
-			 * If the next token is not an OP, then it is of
+			 * If the next token is yest an OP, then it is of
 			 * the format: type [] item;
 			 */
 			if (type == TEP_EVENT_ITEM) {
@@ -1793,7 +1793,7 @@ process_cond(struct tep_event *event, struct tep_print_arg *top, char **tok)
 	right = alloc_arg();
 
 	if (!arg || !left || !right) {
-		do_warning_event(event, "%s: not enough memory!", __func__);
+		do_warning_event(event, "%s: yest eyesugh memory!", __func__);
 		/* arg will be freed at out_free */
 		free_arg(left);
 		free_arg(right);
@@ -1846,7 +1846,7 @@ process_array(struct tep_event *event, struct tep_print_arg *top, char **tok)
 
 	arg = alloc_arg();
 	if (!arg) {
-		do_warning_event(event, "%s: not enough memory!", __func__);
+		do_warning_event(event, "%s: yest eyesugh memory!", __func__);
 		/* '*tok' is set to top->op.op.  No need to free. */
 		*tok = NULL;
 		return TEP_EVENT_ERROR;
@@ -1899,7 +1899,7 @@ static int get_op_prio(char *op)
 		case '?':
 			return 16;
 		default:
-			do_warning("unknown op '%c'", op[0]);
+			do_warning("unkyeswn op '%c'", op[0]);
 			return -1;
 		}
 	} else {
@@ -1920,7 +1920,7 @@ static int get_op_prio(char *op)
 		} else if (strcmp(op, "||") == 0) {
 			return 15;
 		} else {
-			do_warning("unknown op '%s'", op);
+			do_warning("unkyeswn op '%s'", op);
 			return -1;
 		}
 	}
@@ -1938,7 +1938,7 @@ static int set_op_prio(struct tep_print_arg *arg)
 	return arg->op.prio;
 }
 
-/* Note, *tok does not get freed, but will most likely be saved */
+/* Note, *tok does yest get freed, but will most likely be saved */
 static enum tep_event_type
 process_op(struct tep_event *event, struct tep_print_arg *arg, char **tok)
 {
@@ -1981,7 +1981,7 @@ process_op(struct tep_event *event, struct tep_print_arg *arg, char **tok)
 
 		arg->op.right = right;
 
-		/* do not free the token, it belongs to an op */
+		/* do yest free the token, it belongs to an op */
 		*tok = NULL;
 		type = process_arg(event, right, tok);
 
@@ -2112,9 +2112,9 @@ process_op(struct tep_event *event, struct tep_print_arg *arg, char **tok)
 		type = process_array(event, arg, tok);
 
 	} else {
-		do_warning_event(event, "unknown op '%s'", token);
+		do_warning_event(event, "unkyeswn op '%s'", token);
 		event->flags |= TEP_EVENT_FL_FAILED;
-		/* the arg is now the left side */
+		/* the arg is yesw the left side */
 		goto out_free;
 	}
 
@@ -2133,7 +2133,7 @@ process_op(struct tep_event *event, struct tep_print_arg *arg, char **tok)
 	return type;
 
 out_warn_free:
-	do_warning_event(event, "%s: not enough memory!", __func__);
+	do_warning_event(event, "%s: yest eyesugh memory!", __func__);
 out_free:
 	free_token(token);
 	*tok = NULL;
@@ -2190,15 +2190,15 @@ static int alloc_and_process_delim(struct tep_event *event, char *next_token,
 
 	field = alloc_arg();
 	if (!field) {
-		do_warning_event(event, "%s: not enough memory!", __func__);
-		errno = ENOMEM;
+		do_warning_event(event, "%s: yest eyesugh memory!", __func__);
+		erryes = ENOMEM;
 		return -1;
 	}
 
 	type = process_arg(event, field, &token);
 
 	if (test_type_token(type, token, TEP_EVENT_DELIM, next_token)) {
-		errno = EINVAL;
+		erryes = EINVAL;
 		ret = -1;
 		free_arg(field);
 		goto out_free_token;
@@ -2226,13 +2226,13 @@ eval_type_str(unsigned long long val, const char *type, int pointer)
 	if (pointer) {
 
 		if (type[len-1] != '*') {
-			do_warning("pointer expected with non pointer type");
+			do_warning("pointer expected with yesn pointer type");
 			return val;
 		}
 
 		ref = malloc(len);
 		if (!ref) {
-			do_warning("%s: not enough memory!", __func__);
+			do_warning("%s: yest eyesugh memory!", __func__);
 			return val;
 		}
 		memcpy(ref, type, len);
@@ -2378,7 +2378,7 @@ static int arg_num_eval(struct tep_print_arg *arg, long long *val)
 				*val = left <= right;
 				break;
 			default:
-				do_warning("unknown op '%s'", arg->op.op);
+				do_warning("unkyeswn op '%s'", arg->op.op);
 				ret = 0;
 			}
 			break;
@@ -2400,7 +2400,7 @@ static int arg_num_eval(struct tep_print_arg *arg, long long *val)
 				*val = left >= right;
 				break;
 			default:
-				do_warning("unknown op '%s'", arg->op.op);
+				do_warning("unkyeswn op '%s'", arg->op.op);
 				ret = 0;
 			}
 			break;
@@ -2413,7 +2413,7 @@ static int arg_num_eval(struct tep_print_arg *arg, long long *val)
 				break;
 
 			if (arg->op.op[1] != '=') {
-				do_warning("unknown op '%s'", arg->op.op);
+				do_warning("unkyeswn op '%s'", arg->op.op);
 				ret = 0;
 			} else
 				*val = left == right;
@@ -2431,7 +2431,7 @@ static int arg_num_eval(struct tep_print_arg *arg, long long *val)
 				*val = left != right;
 				break;
 			default:
-				do_warning("unknown op '%s'", arg->op.op);
+				do_warning("unkyeswn op '%s'", arg->op.op);
 				ret = 0;
 			}
 			break;
@@ -2467,7 +2467,7 @@ static int arg_num_eval(struct tep_print_arg *arg, long long *val)
 			*val = ~right;
 			break;
 		default:
-			do_warning("unknown op '%s'", arg->op.op);
+			do_warning("unkyeswn op '%s'", arg->op.op);
 			ret = 0;
 		}
 		break;
@@ -2607,7 +2607,7 @@ process_flags(struct tep_event *event, struct tep_print_arg *arg, char **tok)
 
 	field = alloc_arg();
 	if (!field) {
-		do_warning_event(event, "%s: not enough memory!", __func__);
+		do_warning_event(event, "%s: yest eyesugh memory!", __func__);
 		goto out_free;
 	}
 
@@ -2660,7 +2660,7 @@ process_symbols(struct tep_event *event, struct tep_print_arg *arg, char **tok)
 
 	field = alloc_arg();
 	if (!field) {
-		do_warning_event(event, "%s: not enough memory!", __func__);
+		do_warning_event(event, "%s: yest eyesugh memory!", __func__);
 		goto out_free;
 	}
 
@@ -2762,7 +2762,7 @@ process_dynamic_array(struct tep_event *event, struct tep_print_arg *arg, char *
 	arg->type = TEP_PRINT_DYNAMIC_ARRAY;
 
 	/*
-	 * The item within the parenthesis is another field that holds
+	 * The item within the parenthesis is ayesther field that holds
 	 * the index into where the array starts.
 	 */
 	type = read_token(&token);
@@ -2791,7 +2791,7 @@ process_dynamic_array(struct tep_event *event, struct tep_print_arg *arg, char *
 	free_token(token);
 	arg = alloc_arg();
 	if (!arg) {
-		do_warning_event(event, "%s: not enough memory!", __func__);
+		do_warning_event(event, "%s: yest eyesugh memory!", __func__);
 		*tok = NULL;
 		return TEP_EVENT_ERROR;
 	}
@@ -2876,7 +2876,7 @@ process_paren(struct tep_event *event, struct tep_print_arg *arg, char **tok)
 	type = read_token_item(&token);
 
 	/*
-	 * If the next token is an item or another open paren, then
+	 * If the next token is an item or ayesther open paren, then
 	 * this was a typecast.
 	 */
 	if (event_item_type(type) ||
@@ -2892,7 +2892,7 @@ process_paren(struct tep_event *event, struct tep_print_arg *arg, char **tok)
 
 		item_arg = alloc_arg();
 		if (!item_arg) {
-			do_warning_event(event, "%s: not enough memory!",
+			do_warning_event(event, "%s: yest eyesugh memory!",
 					 __func__);
 			goto out_free;
 		}
@@ -3023,7 +3023,7 @@ process_func_handler(struct tep_event *event, struct tep_function_handler *func,
 	for (i = 0; i < func->nr_args; i++) {
 		farg = alloc_arg();
 		if (!farg) {
-			do_warning_event(event, "%s: not enough memory!",
+			do_warning_event(event, "%s: yest eyesugh memory!",
 					 __func__);
 			return TEP_EVENT_ERROR;
 		}
@@ -3113,7 +3113,7 @@ process_function(struct tep_event *event, struct tep_print_arg *arg,
 		return process_func_handler(event, func, arg, tok);
 	}
 
-	do_warning_event(event, "function %s not defined", token);
+	do_warning_event(event, "function %s yest defined", token);
 	free_token(token);
 	return TEP_EVENT_ERROR;
 }
@@ -3222,7 +3222,7 @@ static int event_read_print_args(struct tep_event *event, struct tep_print_arg *
 
 		arg = alloc_arg();
 		if (!arg) {
-			do_warning_event(event, "%s: not enough memory!",
+			do_warning_event(event, "%s: yest eyesugh memory!",
 					 __func__);
 			return -1;
 		}
@@ -3287,7 +3287,7 @@ static int event_read_print(struct tep_event *event)
 	event->print_fmt.format = token;
 	event->print_fmt.args = NULL;
 
-	/* ok to have no arg */
+	/* ok to have yes arg */
 	type = read_token_item(&token);
 
 	if (type == TEP_EVENT_NONE)
@@ -3328,7 +3328,7 @@ static int event_read_print(struct tep_event *event)
  * @name: the name of the common field to return
  *
  * Returns a common field from the event by the given @name.
- * This only searches the common fields and not all field.
+ * This only searches the common fields and yest all field.
  */
 struct tep_format_field *
 tep_find_common_field(struct tep_event *event, const char *name)
@@ -3345,12 +3345,12 @@ tep_find_common_field(struct tep_event *event, const char *name)
 }
 
 /**
- * tep_find_field - find a non-common field
+ * tep_find_field - find a yesn-common field
  * @event: handle for the event
- * @name: the name of the non-common field
+ * @name: the name of the yesn-common field
  *
- * Returns a non-common field by the given @name.
- * This does not search common fields.
+ * Returns a yesn-common field by the given @name.
+ * This does yest search common fields.
  */
 struct tep_format_field *
 tep_find_field(struct tep_event *event, const char *name)
@@ -3373,7 +3373,7 @@ tep_find_field(struct tep_event *event, const char *name)
  *
  * Returns a field by the given @name.
  * This searches the common field names first, then
- * the non-common ones if a common one was not found.
+ * the yesn-common ones if a common one was yest found.
  */
 struct tep_format_field *
 tep_find_any_field(struct tep_event *event, const char *name)
@@ -3456,7 +3456,7 @@ static int get_common_info(struct tep_handle *tep,
 	 * Pick any event to find where the type is;
 	 */
 	if (!tep->events) {
-		do_warning("no event_list!");
+		do_warning("yes event_list!");
 		return -1;
 	}
 
@@ -3817,17 +3817,17 @@ eval_num_arg(void *data, int size, struct tep_event *event, struct tep_print_arg
 		offset &= 0xffff;
 		val = (unsigned long long)((unsigned long)data + offset);
 		break;
-	default: /* not sure what to do there */
+	default: /* yest sure what to do there */
 		return 0;
 	}
 	return val;
 
 out_warning_op:
-	do_warning_event(event, "%s: unknown op '%s'", __func__, arg->op.op);
+	do_warning_event(event, "%s: unkyeswn op '%s'", __func__, arg->op.op);
 	return 0;
 
 out_warning_field:
-	do_warning_event(event, "%s: field %s not found",
+	do_warning_event(event, "%s: field %s yest found",
 			 __func__, arg->field.name);
 	return 0;
 }
@@ -3858,9 +3858,9 @@ static long long eval_flag(const char *flag)
 	int i;
 
 	/*
-	 * Some flags in the format files do not get converted.
-	 * If the flag is not numeric, see if it is something that
-	 * we already know about.
+	 * Some flags in the format files do yest get converted.
+	 * If the flag is yest numeric, see if it is something that
+	 * we already kyesw about.
 	 */
 	if (isdigit(flag[0]))
 		return strtoull(flag, NULL, 0);
@@ -3901,7 +3901,7 @@ static void print_bitmask_to_seq(struct tep_handle *tep,
 
 	str = malloc(str_size + 1);
 	if (!str) {
-		do_warning("%s: not enough memory!", __func__);
+		do_warning("%s: yest eyesugh memory!", __func__);
 		return;
 	}
 	str[str_size] = 0;
@@ -3971,7 +3971,7 @@ static void print_str_arg(struct trace_seq *s, void *data, int size,
 		len = field->size ? : size - field->offset;
 
 		/*
-		 * Some events pass in pointers. If this is not an array
+		 * Some events pass in pointers. If this is yest an array
 		 * and the size is the same as long_size, assume that it
 		 * is a pointer.
 		 */
@@ -4005,7 +4005,7 @@ static void print_str_arg(struct trace_seq *s, void *data, int size,
 		}
 		str = malloc(len + 1);
 		if (!str) {
-			do_warning_event(event, "%s: not enough memory!",
+			do_warning_event(event, "%s: yest eyesugh memory!",
 					 __func__);
 			return;
 		}
@@ -4185,7 +4185,7 @@ static void print_str_arg(struct trace_seq *s, void *data, int size,
 	return;
 
 out_warning_field:
-	do_warning_event(event, "%s: field %s not found",
+	do_warning_event(event, "%s: field %s yest found",
 			 __func__, arg->field.name);
 }
 
@@ -4249,7 +4249,7 @@ process_defined_func(struct trace_seq *s, void *data, int size,
 			break;
 		default:
 			/*
-			 * Something went totally wrong, this is not
+			 * Something went totally wrong, this is yest
 			 * an input error, something in this code broke.
 			 */
 			do_warning_event(event, "Unexpected end of arguments\n");
@@ -4321,7 +4321,7 @@ static struct tep_print_arg *make_bprint_args(char *fmt, void *data, int size, s
 	 */
 	args = alloc_arg();
 	if (!args) {
-		do_warning_event(event, "%s(%d): not enough memory!",
+		do_warning_event(event, "%s(%d): yest eyesugh memory!",
 				 __func__, __LINE__);
 		return NULL;
 	}
@@ -4375,7 +4375,7 @@ static struct tep_print_arg *make_bprint_args(char *fmt, void *data, int size, s
 						 * Pre-5.5 kernels use %pf and
 						 * %pF for printing symbols
 						 * while kernels since 5.5 use
-						 * %pfw for fwnodes. So check
+						 * %pfw for fwyesdes. So check
 						 * %p[fF] isn't followed by 'w'.
 						 */
 						if (ptr[1] != 'w')
@@ -4383,7 +4383,7 @@ static struct tep_print_arg *make_bprint_args(char *fmt, void *data, int size, s
 						/* fall through */
 					default:
 						/*
-						 * Older kernels do not process
+						 * Older kernels do yest process
 						 * dereferenced pointers.
 						 * Only process if the pointer
 						 * value is a printable.
@@ -4425,7 +4425,7 @@ static struct tep_print_arg *make_bprint_args(char *fmt, void *data, int size, s
 				bptr += vsize;
 				arg = alloc_arg();
 				if (!arg) {
-					do_warning_event(event, "%s(%d): not enough memory!",
+					do_warning_event(event, "%s(%d): yest eyesugh memory!",
 						   __func__, __LINE__);
 					goto out_free;
 				}
@@ -4449,7 +4449,7 @@ static struct tep_print_arg *make_bprint_args(char *fmt, void *data, int size, s
  process_string:
 				arg = alloc_arg();
 				if (!arg) {
-					do_warning_event(event, "%s(%d): not enough memory!",
+					do_warning_event(event, "%s(%d): yest eyesugh memory!",
 						   __func__, __LINE__);
 					goto out_free;
 				}
@@ -4533,7 +4533,7 @@ static void print_mac_arg(struct trace_seq *s, int mac, void *data, int size,
 		arg->field.field =
 			tep_find_any_field(event, arg->field.name);
 		if (!arg->field.field) {
-			do_warning_event(event, "%s: field %s not found",
+			do_warning_event(event, "%s: field %s yest found",
 					 __func__, arg->field.name);
 			return;
 		}
@@ -4683,7 +4683,7 @@ static int print_ipv4_arg(struct trace_seq *s, const char *ptr, char i,
 		arg->field.field =
 			tep_find_any_field(event, arg->field.name);
 		if (!arg->field.field) {
-			do_warning("%s: field %s not found",
+			do_warning("%s: field %s yest found",
 				   __func__, arg->field.name);
 			return 0;
 		}
@@ -4729,7 +4729,7 @@ static int print_ipv6_arg(struct trace_seq *s, const char *ptr, char i,
 		arg->field.field =
 			tep_find_any_field(event, arg->field.name);
 		if (!arg->field.field) {
-			do_warning("%s: field %s not found",
+			do_warning("%s: field %s yest found",
 				   __func__, arg->field.name);
 			return rc;
 		}
@@ -4787,7 +4787,7 @@ static int print_ipsa_arg(struct trace_seq *s, const char *ptr, char i,
 		arg->field.field =
 			tep_find_any_field(event, arg->field.name);
 		if (!arg->field.field) {
-			do_warning("%s: field %s not found",
+			do_warning("%s: field %s yest found",
 				   __func__, arg->field.name);
 			return rc;
 		}
@@ -5031,7 +5031,7 @@ static void pretty_print(struct trace_seq *s, void *data, int size, struct tep_e
 			case '*':
 				/* The argument is the length. */
 				if (!arg) {
-					do_warning_event(event, "no argument match");
+					do_warning_event(event, "yes argument match");
 					event->flags |= TEP_EVENT_FL_FAILED;
 					goto out_failed;
 				}
@@ -5086,7 +5086,7 @@ static void pretty_print(struct trace_seq *s, void *data, int size, struct tep_e
 			case 'X':
 			case 'o':
 				if (!arg) {
-					do_warning_event(event, "no argument match");
+					do_warning_event(event, "yes argument match");
 					event->flags |= TEP_EVENT_FL_FAILED;
 					goto out_failed;
 				}
@@ -5168,7 +5168,7 @@ static void pretty_print(struct trace_seq *s, void *data, int size, struct tep_e
 				break;
 			case 's':
 				if (!arg) {
-					do_warning_event(event, "no matching argument");
+					do_warning_event(event, "yes matching argument");
 					event->flags |= TEP_EVENT_FL_FAILED;
 					goto out_failed;
 				}
@@ -5239,7 +5239,7 @@ static void data_latency_format(struct tep_handle *tep, struct trace_seq *s,
 	trace_seq_init(&sq);
 	lat_flags = parse_common_flags(tep, data);
 	pc = parse_common_pc(tep, data);
-	/* lock_depth may not always exist */
+	/* lock_depth may yest always exist */
 	if (lock_depth_exists)
 		lock_depth = parse_common_lock_depth(tep, data);
 	else if (check_lock_depth) {
@@ -5250,7 +5250,7 @@ static void data_latency_format(struct tep_handle *tep, struct trace_seq *s,
 			lock_depth_exists = 1;
 	}
 
-	/* migrate_disable may not always exist */
+	/* migrate_disable may yest always exist */
 	if (migrate_disable_exists)
 		migrate_disable = parse_common_migrate_disable(tep, data);
 	else if (check_migrate_disable) {
@@ -5392,7 +5392,7 @@ pid_from_cmdlist(struct tep_handle *tep, const char *comm, struct tep_cmdline *n
  * @next: the cmdline structure to find the next comm
  *
  * This returns the cmdline structure that holds a pid for a given
- * comm, or NULL if none found. As there may be more than one pid for
+ * comm, or NULL if yesne found. As there may be more than one pid for
  * a given comm, the result of this call can be passed back into
  * a recurring call in the @next parameter, and then it will find the
  * next pid.
@@ -5404,7 +5404,7 @@ struct tep_cmdline *tep_data_pid_from_comm(struct tep_handle *tep, const char *c
 	struct tep_cmdline *cmdline;
 
 	/*
-	 * If the cmdlines have not been converted yet, then use
+	 * If the cmdlines have yest been converted yet, then use
 	 * the list.
 	 */
 	if (!tep->cmdlines)
@@ -5449,8 +5449,8 @@ int tep_cmdline_pid(struct tep_handle *tep, struct tep_cmdline *cmdline)
 		return -1;
 
 	/*
-	 * If cmdlines have not been created yet, or cmdline is
-	 * not part of the array, then treat it as a cmdlist instead.
+	 * If cmdlines have yest been created yet, or cmdline is
+	 * yest part of the array, then treat it as a cmdlist instead.
 	 */
 	if (!tep->cmdlines ||
 	    cmdline < tep->cmdlines ||
@@ -5489,7 +5489,7 @@ static void print_event_info(struct trace_seq *s, char *format, bool raw,
  * @tep: a handle to the trace event parser context
  * @record: The record to get the event from
  *
- * Returns the associated event for a given record, or NULL if non is
+ * Returns the associated event for a given record, or NULL if yesn is
  * is found.
  */
 struct tep_event *
@@ -5794,8 +5794,8 @@ static void list_events_sort(struct tep_event **events, int nr_events,
  *
  * Returns an array of pointers to all events, sorted by the given
  * @sort_type criteria. The last element of the array is NULL. The returned
- * memory must not be freed, it is managed by the library.
- * The function is not thread safe.
+ * memory must yest be freed, it is managed by the library.
+ * The function is yest thread safe.
  */
 struct tep_event **tep_list_events(struct tep_handle *tep,
 				   enum tep_event_sort_type sort_type)
@@ -6041,7 +6041,7 @@ static void parse_header_field(const char *field,
 	free_token(token);
 
 	/*
-	 * If this is not a mandatory field, then test it first.
+	 * If this is yest a mandatory field, then test it first.
 	 */
 	if (mandatory) {
 		if (read_expected(TEP_EVENT_ITEM, field) < 0)
@@ -6117,7 +6117,7 @@ static void parse_header_field(const char *field,
  * @tep: a handle to the trace event parser context
  * @buf: the buffer storing the header page format string
  * @size: the size of @buf
- * @long_size: the long size to use if there is no header
+ * @long_size: the long size to use if there is yes header
  *
  * This parses the header page format for information on the
  * ring buffer used. The @buf should be copied from
@@ -6127,11 +6127,11 @@ static void parse_header_field(const char *field,
 int tep_parse_header_page(struct tep_handle *tep, char *buf, unsigned long size,
 			  int long_size)
 {
-	int ignore;
+	int igyesre;
 
 	if (!size) {
 		/*
-		 * Old kernels did not have header page info.
+		 * Old kernels did yest have header page info.
 		 * Sorry but we just use what we find here in user space.
 		 */
 		tep->header_page_ts_size = sizeof(long long);
@@ -6147,7 +6147,7 @@ int tep_parse_header_page(struct tep_handle *tep, char *buf, unsigned long size,
 	parse_header_field("commit", &tep->header_page_size_offset,
 			   &tep->header_page_size_size, 1);
 	parse_header_field("overwrite", &tep->header_page_overwrite,
-			   &ignore, 0);
+			   &igyesre, 0);
 	parse_header_field("data", &tep->header_page_data_offset,
 			   &tep->header_page_data_size, 1);
 
@@ -6218,7 +6218,7 @@ static int find_event_handle(struct tep_handle *tep, struct tep_event *event)
  *
  * /sys/kernel/debug/tracing/events/.../.../format
  */
-enum tep_errno __tep_parse_format(struct tep_event **eventp,
+enum tep_erryes __tep_parse_format(struct tep_event **eventp,
 				  struct tep_handle *tep, const char *buf,
 				  unsigned long size, const char *sys)
 {
@@ -6289,7 +6289,7 @@ enum tep_errno __tep_parse_format(struct tep_event **eventp,
 		struct tep_format_field *field;
 		struct tep_print_arg *arg, **list;
 
-		/* old ftrace had no args */
+		/* old ftrace had yes args */
 		list = &event->print_fmt.args;
 		for (field = event->format.fields; field; field = field->next) {
 			arg = alloc_arg();
@@ -6325,7 +6325,7 @@ enum tep_errno __tep_parse_format(struct tep_event **eventp,
 	return ret;
 }
 
-static enum tep_errno
+static enum tep_erryes
 __parse_event(struct tep_handle *tep,
 	      struct tep_event **eventp,
 	      const char *buf, unsigned long size,
@@ -6368,7 +6368,7 @@ event_add_failed:
  *
  * /sys/kernel/debug/tracing/events/.../.../format
  */
-enum tep_errno tep_parse_format(struct tep_handle *tep,
+enum tep_erryes tep_parse_format(struct tep_handle *tep,
 				struct tep_event **eventp,
 				const char *buf,
 				unsigned long size, const char *sys)
@@ -6390,7 +6390,7 @@ enum tep_errno tep_parse_format(struct tep_handle *tep,
  *
  * /sys/kernel/debug/tracing/events/.../.../format
  */
-enum tep_errno tep_parse_event(struct tep_handle *tep, const char *buf,
+enum tep_erryes tep_parse_event(struct tep_handle *tep, const char *buf,
 			       unsigned long size, const char *sys)
 {
 	struct tep_event *event = NULL;
@@ -6475,7 +6475,7 @@ void *tep_get_field_raw(struct trace_seq *s, struct tep_event *event,
  * @val: place to store the value of the field.
  * @err: print default error if failed.
  *
- * Returns 0 on success -1 on field not found.
+ * Returns 0 on success -1 on field yest found.
  */
 int tep_get_field_val(struct trace_seq *s, struct tep_event *event,
 		      const char *name, struct tep_record *record,
@@ -6500,7 +6500,7 @@ int tep_get_field_val(struct trace_seq *s, struct tep_event *event,
  * @val: place to store the value of the field.
  * @err: print default error if failed.
  *
- * Returns 0 on success -1 on field not found.
+ * Returns 0 on success -1 on field yest found.
  */
 int tep_get_common_field_val(struct trace_seq *s, struct tep_event *event,
 			     const char *name, struct tep_record *record,
@@ -6525,7 +6525,7 @@ int tep_get_common_field_val(struct trace_seq *s, struct tep_event *event,
  * @val: place to store the value of the field.
  * @err: print default error if failed.
  *
- * Returns 0 on success -1 on field not found.
+ * Returns 0 on success -1 on field yest found.
  */
 int tep_get_any_field_val(struct trace_seq *s, struct tep_event *event,
 			  const char *name, struct tep_record *record,
@@ -6781,7 +6781,7 @@ static struct tep_event *search_event(struct tep_handle *tep, int id,
  *
  * This function allows a developer to override the parsing of
  * a given event. If for some reason the default print format
- * is not sufficient, this function will register a function
+ * is yest sufficient, this function will register a function
  * for an event to be used to parse the data instead.
  *
  * If @id is >= 0, then it is used to find the event.
@@ -6802,7 +6802,7 @@ int tep_register_event_handler(struct tep_handle *tep, int id,
 
 	event = search_event(tep, id, sys_name, event_name);
 	if (event == NULL)
-		goto not_found;
+		goto yest_found;
 
 	pr_stat("overriding event (%d) %s:%s with new print handler",
 		event->id, event->system, event->name);
@@ -6811,7 +6811,7 @@ int tep_register_event_handler(struct tep_handle *tep, int id,
 	event->context = context;
 	return TEP_REGISTER_SUCCESS_OVERWRITE;
 
- not_found:
+ yest_found:
 	/* Save for later use. */
 	handle = calloc(1, sizeof(*handle));
 	if (!handle) {
@@ -6875,7 +6875,7 @@ static int handle_matches(struct event_handler *handler, int id,
  * If @id is >= 0, then it is used to find the event.
  * else @sys_name and @event_name are used.
  *
- * Returns 0 if handler was removed successfully, -1 if event was not found.
+ * Returns 0 if handler was removed successfully, -1 if event was yest found.
  */
 int tep_unregister_event_handler(struct tep_handle *tep, int id,
 				 const char *sys_name, const char *event_name,
@@ -6887,7 +6887,7 @@ int tep_unregister_event_handler(struct tep_handle *tep, int id,
 
 	event = search_event(tep, id, sys_name, event_name);
 	if (event == NULL)
-		goto not_found;
+		goto yest_found;
 
 	if (event->handler == func && event->context == context) {
 		pr_stat("removing override handler for event (%d) %s:%s. Going back to default handler.",
@@ -6898,7 +6898,7 @@ int tep_unregister_event_handler(struct tep_handle *tep, int id,
 		return 0;
 	}
 
-not_found:
+yest_found:
 	for (next = &tep->handlers; *next; next = &(*next)->next) {
 		handle = *next;
 		if (handle_matches(handle, id, sys_name, event_name,

@@ -82,8 +82,8 @@ struct _snd_wavefront {
 	char debug;                        /* debugging flags */
 	int freemem;                       /* installed RAM, in bytes */ 
 
-	char fw_version[2];                /* major = [0], minor = [1] */
-	char hw_version[2];                /* major = [0], minor = [1] */
+	char fw_version[2];                /* major = [0], miyesr = [1] */
+	char hw_version[2];                /* major = [0], miyesr = [1] */
 	char israw;                        /* needs Motorola microcode */
 	char has_fx;                       /* has FX processor (Tropez+) */
 	char fx_initialized;               /* FX's register pages initialized */

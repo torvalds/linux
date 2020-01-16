@@ -3,11 +3,11 @@
 # Makefile for the linux kernel.
 #
 
-ccflags-y := -fno-function-sections -fno-data-sections
+ccflags-y := -fyes-function-sections -fyes-data-sections
 
 obj-y                          := main.o version.o mounts.o
 ifneq ($(CONFIG_BLK_DEV_INITRD),y)
-obj-y                          += noinitramfs.o
+obj-y                          += yesinitramfs.o
 else
 obj-$(CONFIG_BLK_DEV_INITRD)   += initramfs.o
 endif

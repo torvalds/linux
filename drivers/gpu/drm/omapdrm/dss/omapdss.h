@@ -324,14 +324,14 @@ struct omapdss_dsi_ops {
 	/* data transfer */
 	int (*dcs_write)(struct omap_dss_device *dssdev, int channel,
 			u8 *data, int len);
-	int (*dcs_write_nosync)(struct omap_dss_device *dssdev, int channel,
+	int (*dcs_write_yessync)(struct omap_dss_device *dssdev, int channel,
 			u8 *data, int len);
 	int (*dcs_read)(struct omap_dss_device *dssdev, int channel, u8 dcs_cmd,
 			u8 *data, int len);
 
 	int (*gen_write)(struct omap_dss_device *dssdev, int channel,
 			u8 *data, int len);
-	int (*gen_write_nosync)(struct omap_dss_device *dssdev, int channel,
+	int (*gen_write_yessync)(struct omap_dss_device *dssdev, int channel,
 			u8 *data, int len);
 	int (*gen_read)(struct omap_dss_device *dssdev, int channel,
 			u8 *reqdata, int reqlen,
@@ -407,7 +407,7 @@ struct omap_dss_device {
 	/*
 	 * DSS type that this device generates (for DSS internal devices) or
 	 * requires (for external encoders, connectors and panels). Must be a
-	 * non-zero (different than OMAP_DISPLAY_TYPE_NONE) value.
+	 * yesn-zero (different than OMAP_DISPLAY_TYPE_NONE) value.
 	 */
 	enum omap_display_type type;
 
@@ -469,7 +469,7 @@ void omapdss_device_register(struct omap_dss_device *dssdev);
 void omapdss_device_unregister(struct omap_dss_device *dssdev);
 struct omap_dss_device *omapdss_device_get(struct omap_dss_device *dssdev);
 void omapdss_device_put(struct omap_dss_device *dssdev);
-struct omap_dss_device *omapdss_find_device_by_node(struct device_node *node);
+struct omap_dss_device *omapdss_find_device_by_yesde(struct device_yesde *yesde);
 int omapdss_device_connect(struct dss_device *dss,
 			   struct omap_dss_device *src,
 			   struct omap_dss_device *dst);
@@ -503,7 +503,7 @@ static inline bool omapdss_device_is_enabled(struct omap_dss_device *dssdev)
 }
 
 struct omap_dss_device *
-omapdss_of_find_connected_device(struct device_node *node, unsigned int port);
+omapdss_of_find_connected_device(struct device_yesde *yesde, unsigned int port);
 
 enum dss_writeback_channel {
 	DSS_WB_LCD1_MGR =	0,

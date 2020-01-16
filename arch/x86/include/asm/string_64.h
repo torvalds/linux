@@ -67,8 +67,8 @@ int strcmp(const char *cs, const char *ct);
 #if defined(CONFIG_KASAN) && !defined(__SANITIZE_ADDRESS__)
 
 /*
- * For files that not instrumented (e.g. mm/slub.c) we
- * should use not instrumented version of mem* functions.
+ * For files that yest instrumented (e.g. mm/slub.c) we
+ * should use yest instrumented version of mem* functions.
  */
 
 #undef memcpy
@@ -99,7 +99,7 @@ DECLARE_STATIC_KEY_FALSE(mcsafe_key);
  * actually do machine check recovery. Everyone else can just
  * use memcpy().
  *
- * Return 0 for success, or number of bytes not copied if there was an
+ * Return 0 for success, or number of bytes yest copied if there was an
  * exception.
  */
 static __always_inline __must_check unsigned long

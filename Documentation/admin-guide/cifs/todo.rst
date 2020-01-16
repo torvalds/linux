@@ -9,7 +9,7 @@ A Partial List of Missing Features
 
 Contributions are welcome.  There are plenty of opportunities
 for visible, important contributions to this module.  Here
-is a partial list of the known problems and missing features:
+is a partial list of the kyeswn problems and missing features:
 
 a) SMB3 (and SMB3.1.1) missing optional features:
 
@@ -24,7 +24,7 @@ b) improved sparse file support (fiemap and SEEK_HOLE are implemented
 c) Directory entry caching relies on a 1 second timer, rather than
    using Directory Leases, currently only the root file handle is cached longer
 
-d) quota support (needs minor kernel change since quota calls
+d) quota support (needs miyesr kernel change since quota calls
    to make it to network filesystems or deviceless filesystems)
 
 e) Additional use cases can be optimized to use "compounding" (e.g.
@@ -36,27 +36,27 @@ e) Additional use cases can be optimized to use "compounding" (e.g.
    handle caching leases) and better using reference counters on file
    handles.
 
-f) Finish inotify support so kde and gnome file list windows
-   will autorefresh (partially complete by Asser). Needs minor kernel
+f) Finish iyestify support so kde and gyesme file list windows
+   will autorefresh (partially complete by Asser). Needs miyesr kernel
    vfs change to support removing D_NOTIFY on a file.
 
 g) Add GUI tool to configure /proc/fs/cifs settings and for display of
    the CIFS statistics (started)
 
 h) implement support for security and trusted categories of xattrs
-   (requires minor protocol extension) to enable better support for SELINUX
+   (requires miyesr protocol extension) to enable better support for SELINUX
 
 i) Add support for tree connect contexts (see MS-SMB2) a new SMB3.1.1 protocol
    feature (may be especially useful for virtualization).
 
 j) Create UID mapping facility so server UIDs can be mapped on a per
-   mount or a per server basis to client UIDs or nobody if no mapping
+   mount or a per server basis to client UIDs or yesbody if yes mapping
    exists. Also better integration with winbind for resolving SID owners
 
 k) Add tools to take advantage of more smb3 specific ioctls and features
-   (passthrough ioctl/fsctl is now implemented in cifs.ko to allow
+   (passthrough ioctl/fsctl is yesw implemented in cifs.ko to allow
    sending various SMB3 fsctls and query info and set info calls
-   directly from user space) Add tools to make setting various non-POSIX
+   directly from user space) Add tools to make setting various yesn-POSIX
    metadata attributes easier from tools (e.g. extending what was done
    in smb-info tool).
 
@@ -70,9 +70,9 @@ n) Add support for claims based ACLs ("DAC")
 o) mount helper GUI (to simplify the various configuration options on mount)
 
 p) Add support for witness protocol (perhaps ioctl to cifs.ko from user space
-   tool listening on witness protocol RPC) to allow for notification of share
+   tool listening on witness protocol RPC) to allow for yestification of share
    move, server failover, and server adapter changes.  And also improve other
-   failover scenarios, e.g. when client knows multiple DFS entries point to
+   failover scenarios, e.g. when client kyesws multiple DFS entries point to
    different servers, and the server we are connected to has gone down.
 
 q) Allow mount.cifs to be more verbose in reporting errors with dialect
@@ -95,17 +95,17 @@ w) Add support for additional strong encryption types, and additional spnego
 
 x) Finish support for SMB3.1.1 compression
 
-Known Bugs
+Kyeswn Bugs
 ==========
 
 See http://bugzilla.samba.org - search on product "CifsVFS" for
 current bug list.  Also check http://bugzilla.kernel.org (Product = File System, Component = CIFS)
 
 1) existing symbolic links (Windows reparse points) are recognized but
-   can not be created remotely. They are implemented for Samba and those that
+   can yest be created remotely. They are implemented for Samba and those that
    support the CIFS Unix extensions, although earlier versions of Samba
    overly restrict the pathnames.
-2) follow_link and readdir code does not follow dfs junctions
+2) follow_link and readdir code does yest follow dfs junctions
    but recognizes them
 
 Misc testing to do
@@ -128,6 +128,6 @@ Misc testing to do
    to allow the buildbot to execute the tests faster. The URL for the
    buildbot is: http://smb3-test-rhel-75.southcentralus.cloudapp.azure.com
 
-6) Address various coverity warnings (most are not bugs per-se, but
+6) Address various coverity warnings (most are yest bugs per-se, but
    the more warnings are addressed, the easier it is to spot real
    problems that static analyzers will point out in the future).

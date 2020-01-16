@@ -5,7 +5,7 @@ The Mediatek's Pin controller is used to control SoC pins.
 Required properties:
 - compatible: value should be one of the following.
 	"mediatek,mt8183-pinctrl", compatible with mt8183 pinctrl.
-- gpio-controller : Marks the device node as a gpio controller.
+- gpio-controller : Marks the device yesde as a gpio controller.
 - #gpio-cells: number of cells in GPIO specifier. Since the generic GPIO
   binding is used, the amount of cells must be specified as 2. See the below
   mentioned gpio binding representation for description of particular cells.
@@ -17,20 +17,20 @@ Optional properties:
 - reg-names: gpio base register names. There are 10 gpio base register
   names in mt8183. They are "iocfg0", "iocfg1", "iocfg2", "iocfg3", "iocfg4",
   "iocfg5", "iocfg6", "iocfg7", "iocfg8", "eint".
-- interrupt-controller: Marks the device node as an interrupt controller
+- interrupt-controller: Marks the device yesde as an interrupt controller
 - #interrupt-cells: Should be two.
 - interrupts : The interrupt outputs to sysirq.
 
 Please refer to pinctrl-bindings.txt in this directory for details of the
 common pinctrl bindings used by client devices.
 
-Subnode format
-A pinctrl node should contain at least one subnodes representing the
-pinctrl groups available on the machine. Each subnode will list the
+Subyesde format
+A pinctrl yesde should contain at least one subyesdes representing the
+pinctrl groups available on the machine. Each subyesde will list the
 pins it needs, and how they should be configured, with regard to muxer
 configuration, pullups, drive strength, input enable/disable and input schmitt.
 
-    node {
+    yesde {
 	pinmux = <PIN_NUMBER_PINMUX>;
 	GENERIC_PINCONFIG;
     };

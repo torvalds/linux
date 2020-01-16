@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
-/* Copyright (C) 2018 Netronome Systems, Inc. */
+/* Copyright (C) 2018 Netroyesme Systems, Inc. */
 
 #include "main.h"
 
@@ -93,7 +93,7 @@ static unsigned int nfp_fl_get_next_pkt_number(struct nfp_fl_lag *lag)
 
 static void nfp_fl_increment_version(struct nfp_fl_lag *lag)
 {
-	/* LSB is not considered by firmware so add 2 for each increment. */
+	/* LSB is yest considered by firmware so add 2 for each increment. */
 	lag->batch_ver += 2;
 	lag->batch_ver &= NFP_FL_LAG_VERSION_MASK;
 
@@ -168,7 +168,7 @@ int nfp_flower_lag_populate_pre_action(struct nfp_app *app,
 							  master);
 	if (!group) {
 		mutex_unlock(&priv->nfp_lag.lock);
-		NL_SET_ERR_MSG_MOD(extack, "invalid entry: group does not exist for LAG action");
+		NL_SET_ERR_MSG_MOD(extack, "invalid entry: group does yest exist for LAG action");
 		return -ENOENT;
 	}
 
@@ -310,10 +310,10 @@ static void nfp_fl_lag_do_work(struct work_struct *work)
 					     sizeof(*acti_netdevs), GFP_KERNEL);
 
 		/* Include sanity check in the loop. It may be that a bond has
-		 * changed between processing the last notification and the
+		 * changed between processing the last yestification and the
 		 * work queue triggering. If the number of slaves has changed
-		 * or it now contains netdevs that cannot be offloaded, ignore
-		 * the group until pending notifications are processed.
+		 * or it yesw contains netdevs that canyest be offloaded, igyesre
+		 * the group until pending yestifications are processed.
 		 */
 		rcu_read_lock();
 		for_each_netdev_in_bond_rcu(entry->master_ndev, iter_netdev) {
@@ -389,7 +389,7 @@ nfp_fl_lag_put_unprocessed(struct nfp_fl_lag *lag, struct sk_buff *skb)
 		return -EINVAL;
 
 	/* Drop cmsg retrans if storage limit is exceeded to prevent
-	 * overloading. If the fw notices that expected messages have not been
+	 * overloading. If the fw yestices that expected messages have yest been
 	 * received in a given time block, it will request a full resync.
 	 */
 	if (skb_queue_len(&lag->retrans_skbs) >= NFP_FL_LAG_RETRANS_LIMIT)
@@ -504,7 +504,7 @@ nfp_fl_lag_schedule_group_delete(struct nfp_fl_lag *lag,
 
 static int
 nfp_fl_lag_changeupper_event(struct nfp_fl_lag *lag,
-			     struct netdev_notifier_changeupper_info *info)
+			     struct netdev_yestifier_changeupper_info *info)
 {
 	struct net_device *upper = info->upper_dev, *iter_netdev;
 	struct netdev_lag_upper_info *lag_upper_info;
@@ -557,7 +557,7 @@ nfp_fl_lag_changeupper_event(struct nfp_fl_lag *lag,
 	group = nfp_fl_lag_find_group_for_master_with_lag(lag, upper);
 
 	if (slave_count == 0 || !can_offload) {
-		/* Cannot offload the group - remove if previously offloaded. */
+		/* Canyest offload the group - remove if previously offloaded. */
 		if (group && group->offloaded)
 			nfp_fl_lag_schedule_group_remove(lag, group);
 
@@ -576,7 +576,7 @@ nfp_fl_lag_changeupper_event(struct nfp_fl_lag *lag,
 	group->dirty = true;
 	group->slave_cnt = slave_count;
 
-	/* Group may have been on queue for removal but is now offfloable. */
+	/* Group may have been on queue for removal but is yesw offfloable. */
 	group->to_remove = false;
 	mutex_unlock(&lag->lock);
 
@@ -586,7 +586,7 @@ nfp_fl_lag_changeupper_event(struct nfp_fl_lag *lag,
 
 static void
 nfp_fl_lag_changels_event(struct nfp_fl_lag *lag, struct net_device *netdev,
-			  struct netdev_notifier_changelowerstate_info *info)
+			  struct netdev_yestifier_changelowerstate_info *info)
 {
 	struct netdev_lag_lower_state_info *lag_lower_info;
 	struct nfp_flower_repr_priv *repr_priv;

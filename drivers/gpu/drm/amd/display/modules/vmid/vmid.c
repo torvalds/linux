@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -132,7 +132,7 @@ struct mod_vmid *mod_vmid_create(
 	struct core_vmid *core_vmid;
 
 	if (num_vmid <= 1)
-		goto fail_no_vm_ctx;
+		goto fail_yes_vm_ctx;
 
 	if (dc == NULL)
 		goto fail_dc_null;
@@ -151,7 +151,7 @@ struct mod_vmid *mod_vmid_create(
 
 	return &core_vmid->public;
 
-fail_no_vm_ctx:
+fail_yes_vm_ctx:
 fail_alloc_context:
 fail_dc_null:
 	return NULL;

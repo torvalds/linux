@@ -90,7 +90,7 @@
 /*
  * Enable "slack mode" of the AML interpreter?  Default is FALSE, and the
  * interpreter strictly follows the ACPI specification. Setting to TRUE
- * allows the interpreter to ignore certain errors and/or bad AML constructs.
+ * allows the interpreter to igyesre certain errors and/or bad AML constructs.
  *
  * Currently, these features are enabled by this flag:
  *
@@ -99,13 +99,13 @@
  * 3) Allow access to uninitialized locals/args (auto-init to integer 0)
  * 4) Allow ANY object type to be a source operand for the Store() operator
  * 5) Allow unresolved references (invalid target name) in package objects
- * 6) Enable warning messages for behavior that is not ACPI spec compliant
+ * 6) Enable warning messages for behavior that is yest ACPI spec compliant
  */
 ACPI_INIT_GLOBAL(u8, acpi_gbl_enable_interpreter_slack, FALSE);
 
 /*
  * Automatically serialize all methods that create named objects? Default
- * is TRUE, meaning that all non_serialized methods are scanned once at
+ * is TRUE, meaning that all yesn_serialized methods are scanned once at
  * table load time to determine those that create named objects. Methods
  * that create named objects are marked Serialized in order to prevent
  * possible run-time problems if they are entered by more than one thread.
@@ -126,7 +126,7 @@ ACPI_INIT_GLOBAL(u8, acpi_gbl_create_osi_method, TRUE);
 ACPI_INIT_GLOBAL(u8, acpi_gbl_use_default_register_widths, TRUE);
 
 /*
- * Whether or not to validate (map) an entire table to verify
+ * Whether or yest to validate (map) an entire table to verify
  * checksum/duplication in early stage before install. Set this to TRUE to
  * allow early table validation before install it to the table manager.
  * Note that enabling this option causes errors to happen in some OSPMs
@@ -143,26 +143,26 @@ ACPI_INIT_GLOBAL(u8, acpi_gbl_enable_aml_debug_object, FALSE);
 /*
  * Optionally copy the entire DSDT to local memory (instead of simply
  * mapping it.) There are some BIOSs that corrupt or replace the original
- * DSDT, creating the need for this option. Default is FALSE, do not copy
+ * DSDT, creating the need for this option. Default is FALSE, do yest copy
  * the DSDT.
  */
 ACPI_INIT_GLOBAL(u8, acpi_gbl_copy_dsdt_locally, FALSE);
 
 /*
- * Optionally ignore an XSDT if present and use the RSDT instead.
+ * Optionally igyesre an XSDT if present and use the RSDT instead.
  * Although the ACPI specification requires that an XSDT be used instead
  * of the RSDT, the XSDT has been found to be corrupt or ill-formed on
  * some machines. Default behavior is to use the XSDT if present.
  */
-ACPI_INIT_GLOBAL(u8, acpi_gbl_do_not_use_xsdt, FALSE);
+ACPI_INIT_GLOBAL(u8, acpi_gbl_do_yest_use_xsdt, FALSE);
 
 /*
  * Optionally use 32-bit FADT addresses if and when there is a conflict
  * (address mismatch) between the 32-bit and 64-bit versions of the
  * address. Although ACPICA adheres to the ACPI specification which
- * requires the use of the corresponding 64-bit address if it is non-zero,
- * some machines have been found to have a corrupted non-zero 64-bit
- * address. Default is FALSE, do not favor the 32-bit addresses.
+ * requires the use of the corresponding 64-bit address if it is yesn-zero,
+ * some machines have been found to have a corrupted yesn-zero 64-bit
+ * address. Default is FALSE, do yest favor the 32-bit addresses.
  */
 ACPI_INIT_GLOBAL(u8, acpi_gbl_use32_bit_fadt_addresses, FALSE);
 
@@ -190,7 +190,7 @@ ACPI_INIT_GLOBAL(u8, acpi_gbl_truncate_io_addresses, FALSE);
 ACPI_INIT_GLOBAL(u8, acpi_gbl_disable_auto_repair, FALSE);
 
 /*
- * Optionally do not install any SSDTs from the RSDT/XSDT during initialization.
+ * Optionally do yest install any SSDTs from the RSDT/XSDT during initialization.
  * This can be useful for debugging ACPI problems on some machines.
  */
 ACPI_INIT_GLOBAL(u8, acpi_gbl_disable_ssdt_table_install, FALSE);
@@ -208,7 +208,7 @@ ACPI_INIT_GLOBAL(u8, acpi_gbl_osi_data, 0);
 
 /*
  * ACPI 5.0 introduces the concept of a "reduced hardware platform", meaning
- * that the ACPI hardware is no longer required. A flag in the FADT indicates
+ * that the ACPI hardware is yes longer required. A flag in the FADT indicates
  * a reduced HW machine, and that flag is duplicated here for convenience.
  */
 ACPI_INIT_GLOBAL(u8, acpi_gbl_reduced_hardware, FALSE);
@@ -221,14 +221,14 @@ ACPI_INIT_GLOBAL(u8, acpi_gbl_reduced_hardware, FALSE);
 ACPI_INIT_GLOBAL(u32, acpi_gbl_max_loop_iterations, ACPI_MAX_LOOP_TIMEOUT);
 
 /*
- * Optionally ignore AE_NOT_FOUND errors from named reference package elements
- * during DSDT/SSDT table loading. This reduces error "noise" in platforms
+ * Optionally igyesre AE_NOT_FOUND errors from named reference package elements
+ * during DSDT/SSDT table loading. This reduces error "yesise" in platforms
  * whose firmware is carrying around a bunch of unused package objects that
- * refer to non-existent named objects. However, If the AML actually tries to
+ * refer to yesn-existent named objects. However, If the AML actually tries to
  * use such a package, the unresolved element(s) will be replaced with NULL
  * elements.
  */
-ACPI_INIT_GLOBAL(u8, acpi_gbl_ignore_package_resolution_errors, FALSE);
+ACPI_INIT_GLOBAL(u8, acpi_gbl_igyesre_package_resolution_errors, FALSE);
 
 /*
  * This mechanism is used to trace a specified AML method. The method is
@@ -285,9 +285,9 @@ ACPI_GLOBAL(u8, acpi_gbl_system_awake_and_running);
  *
  * Note: This static build option for reduced hardware is intended to
  * reduce ACPICA code size if desired or necessary. However, even if this
- * option is not specified, the runtime behavior of ACPICA is dependent
+ * option is yest specified, the runtime behavior of ACPICA is dependent
  * on the actual FADT reduced hardware flag (HW_REDUCED_ACPI). If set,
- * the flag will enable similar behavior -- ACPICA will not attempt
+ * the flag will enable similar behavior -- ACPICA will yest attempt
  * to access any ACPI-relate hardware (SCI, GPEs, Fixed Events, etc.)
  */
 #if (!ACPI_REDUCED_HARDWARE)
@@ -336,7 +336,7 @@ ACPI_GLOBAL(u8, acpi_gbl_system_awake_and_running);
 #endif				/* ACPI_NO_ERROR_MESSAGES */
 
 /*
- * Debugging output prototypes (default: no debug output).
+ * Debugging output prototypes (default: yes debug output).
  *
  * All interfaces related to debug output messages
  * will be configured out of the ACPICA build unless the
@@ -630,15 +630,15 @@ ACPI_HW_DEPENDENT_RETURN_STATUS(acpi_status
 							 acpi_gpe_handler
 							 address))
 ACPI_EXTERNAL_RETURN_STATUS(acpi_status
-			     acpi_install_notify_handler(acpi_handle device,
+			     acpi_install_yestify_handler(acpi_handle device,
 							 u32 handler_type,
-							 acpi_notify_handler
+							 acpi_yestify_handler
 							 handler,
 							 void *context))
 ACPI_EXTERNAL_RETURN_STATUS(acpi_status
-			     acpi_remove_notify_handler(acpi_handle device,
+			     acpi_remove_yestify_handler(acpi_handle device,
 							u32 handler_type,
-							acpi_notify_handler
+							acpi_yestify_handler
 							handler))
 ACPI_EXTERNAL_RETURN_STATUS(acpi_status
 			     acpi_install_address_space_handler(acpi_handle

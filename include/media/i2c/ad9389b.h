@@ -21,7 +21,7 @@ struct ad9389b_platform_data {
 	u8 diff_clk_drive_strength;
 };
 
-/* notify events */
+/* yestify events */
 #define AD9389B_MONITOR_DETECT 0
 #define AD9389B_EDID_DETECT 1
 

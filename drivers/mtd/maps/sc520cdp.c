@@ -27,9 +27,9 @@
 ** This causes the top HALF of the flash to be accessed first. Beyond
 ** the physical limits of the flash, the flash chip aliases over (to
 ** 0x880000 which causes the bottom half to be accessed. This splits the
-** flash into two and inverts it! If you then try to access this from another
+** flash into two and inverts it! If you then try to access this from ayesther
 ** program that does NOT do this insanity, then you *will* access the
-** first half of the flash, but not find what you expect there. That
+** first half of the flash, but yest find what you expect there. That
 ** stuff is in the *second* half! Similarly, the address used by the
 ** BIOS for the second FLASH bank is also quite a bad choice.
 ** If REPROGRAM_PAR is defined below (the default), then this driver will
@@ -37,7 +37,7 @@
 ** responsible PARxx registers in the SC520's MMCR region. This will
 ** cause the settings to be incompatible with the BIOS's settings, which
 ** shouldn't be a problem since you are running Linux, (i.e. the BIOS is
-** not much use anyway). However, if you need to be compatible with
+** yest much use anyway). However, if you need to be compatible with
 ** the BIOS for some reason, just undefine REPROGRAM_PAR.
 */
 #define REPROGRAM_PAR
@@ -119,10 +119,10 @@ static struct mtd_info *merged_mtd;
 
 /*
 ** Bits 28 thru 26 determine some attributes for the
-** region controlled by the PAR. (We only use non-cacheable)
+** region controlled by the PAR. (We only use yesn-cacheable)
 */
 #define SC520_PAR_WRPROT	(1<<26)	/* write protected       */
-#define SC520_PAR_NOCACHE	(1<<27)	/* non-cacheable         */
+#define SC520_PAR_NOCACHE	(1<<27)	/* yesn-cacheable         */
 #define SC520_PAR_NOEXEC	(1<<28)	/* code execution denied */
 
 
@@ -174,8 +174,8 @@ static void sc520cdp_setup_par(void)
 	int i, j;
 
 	/* map in SC520's MMCR area */
-	mmcr = ioremap_nocache(SC520_MMCR_BASE, SC520_MMCR_EXTENT);
-	if(!mmcr) { /* ioremap_nocache failed: skip the PAR reprogramming */
+	mmcr = ioremap_yescache(SC520_MMCR_BASE, SC520_MMCR_EXTENT);
+	if(!mmcr) { /* ioremap_yescache failed: skip the PAR reprogramming */
 		/* force physical address fields to BIOS defaults: */
 		for(i = 0; i < NUM_FLASH_BANKS; i++)
 			sc520cdp_map[i].phys = par_table[i].default_address;
@@ -198,8 +198,8 @@ static void sc520cdp_setup_par(void)
 			}
 		}
 		if(j == NUM_SC520_PAR)
-		{	/* no matching PAR found: try default BIOS address */
-			printk(KERN_NOTICE "Could not find PAR responsible for %s\n",
+		{	/* yes matching PAR found: try default BIOS address */
+			printk(KERN_NOTICE "Could yest find PAR responsible for %s\n",
 				sc520cdp_map[i].name);
 			printk(KERN_NOTICE "Trying default address 0x%lx\n",
 				par_table[i].default_address);
@@ -225,10 +225,10 @@ static int __init init_sc520cdp(void)
 			(unsigned long long)sc520cdp_map[i].size,
 			(unsigned long long)sc520cdp_map[i].phys);
 
-		sc520cdp_map[i].virt = ioremap_nocache(sc520cdp_map[i].phys, sc520cdp_map[i].size);
+		sc520cdp_map[i].virt = ioremap_yescache(sc520cdp_map[i].phys, sc520cdp_map[i].size);
 
 		if (!sc520cdp_map[i].virt) {
-			printk("Failed to ioremap_nocache\n");
+			printk("Failed to ioremap_yescache\n");
 			for (j = 0; j < i; j++) {
 				if (mymtd[j]) {
 					map_destroy(mymtd[j]);

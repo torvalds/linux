@@ -13,7 +13,7 @@
 
 /**
  * enum soc_mbus_packing - data packing types on the media-bus
- * @SOC_MBUS_PACKING_NONE:	no packing, bit-for-bit transfer to RAM, one
+ * @SOC_MBUS_PACKING_NONE:	yes packing, bit-for-bit transfer to RAM, one
  *				sample represents one pixel
  * @SOC_MBUS_PACKING_2X8_PADHI:	16 bits transferred in 2 8-bit samples, in the
  *				possibly incomplete byte high bits are padding
@@ -100,7 +100,7 @@ s32 soc_mbus_bytes_per_line(u32 width, const struct soc_mbus_pixelfmt *mf);
 s32 soc_mbus_image_size(const struct soc_mbus_pixelfmt *mf,
 			u32 bytes_per_line, u32 height);
 int soc_mbus_samples_per_pixel(const struct soc_mbus_pixelfmt *mf,
-			unsigned int *numerator, unsigned int *denominator);
+			unsigned int *numerator, unsigned int *deyesminator);
 unsigned int soc_mbus_config_compatible(const struct v4l2_mbus_config *cfg,
 					unsigned int flags);
 

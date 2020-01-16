@@ -20,7 +20,7 @@ static inline void set_bit(unsigned int nr, volatile unsigned long *p)
 static inline void clear_bit(unsigned int nr, volatile unsigned long *p)
 {
 	p += BIT_WORD(nr);
-	atomic_long_andnot(BIT_MASK(nr), (atomic_long_t *)p);
+	atomic_long_andyest(BIT_MASK(nr), (atomic_long_t *)p);
 }
 
 static inline void change_bit(unsigned int nr, volatile unsigned long *p)
@@ -51,7 +51,7 @@ static inline int test_and_clear_bit(unsigned int nr, volatile unsigned long *p)
 	if (!(READ_ONCE(*p) & mask))
 		return 0;
 
-	old = atomic_long_fetch_andnot(mask, (atomic_long_t *)p);
+	old = atomic_long_fetch_andyest(mask, (atomic_long_t *)p);
 	return !!(old & mask);
 }
 

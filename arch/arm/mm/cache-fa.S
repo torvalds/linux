@@ -103,7 +103,7 @@ ENTRY(fa_flush_user_cache_range)
  *	coherent_kern_range(start, end)
  *
  *	Ensure coherency between the Icache and the Dcache in the
- *	region described by start.  If you have non-snooping
+ *	region described by start.  If you have yesn-syesoping
  *	Harvard caches, you need to implement this function.
  *
  *	- start  - virtual start address
@@ -116,7 +116,7 @@ ENTRY(fa_coherent_kern_range)
  *	coherent_user_range(start, end)
  *
  *	Ensure coherency between the Icache and the Dcache in the
- *	region described by start.  If you have non-snooping
+ *	region described by start.  If you have yesn-syesoping
  *	Harvard caches, you need to implement this function.
  *
  *	- start  - virtual start address
@@ -159,8 +159,8 @@ ENTRY(fa_flush_kern_dcache_area)
  *	dma_inv_range(start, end)
  *
  *	Invalidate (discard) the specified virtual address range.
- *	May not write back any entries.  If 'start' or 'end'
- *	are not cache line aligned, those lines must be written
+ *	May yest write back any entries.  If 'start' or 'end'
+ *	are yest cache line aligned, those lines must be written
  *	back.
  *
  *	- start  - virtual start address

@@ -45,18 +45,18 @@ static const struct regmap_range stpmic1_volatile_ranges[] = {
 };
 
 static const struct regmap_access_table stpmic1_readable_table = {
-	.yes_ranges = stpmic1_readable_ranges,
-	.n_yes_ranges = ARRAY_SIZE(stpmic1_readable_ranges),
+	.no_ranges = stpmic1_readable_ranges,
+	.n_no_ranges = ARRAY_SIZE(stpmic1_readable_ranges),
 };
 
 static const struct regmap_access_table stpmic1_writeable_table = {
-	.yes_ranges = stpmic1_writeable_ranges,
-	.n_yes_ranges = ARRAY_SIZE(stpmic1_writeable_ranges),
+	.no_ranges = stpmic1_writeable_ranges,
+	.n_no_ranges = ARRAY_SIZE(stpmic1_writeable_ranges),
 };
 
 static const struct regmap_access_table stpmic1_volatile_table = {
-	.yes_ranges = stpmic1_volatile_ranges,
-	.n_yes_ranges = ARRAY_SIZE(stpmic1_volatile_ranges),
+	.no_ranges = stpmic1_volatile_ranges,
+	.n_no_ranges = ARRAY_SIZE(stpmic1_volatile_ranges),
 };
 
 const struct regmap_config stpmic1_regmap_config = {
@@ -122,7 +122,7 @@ static int stpmic1_probe(struct i2c_client *i2c,
 	struct stpmic1 *ddata;
 	struct device *dev = &i2c->dev;
 	int ret;
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 	u32 reg;
 
 	ddata = devm_kzalloc(dev, sizeof(struct stpmic1), GFP_KERNEL);

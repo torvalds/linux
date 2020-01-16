@@ -9,9 +9,9 @@ Required properties:
 
   - #sound-dai-cells : Must be equal to 0
 
-  - io-channels : phandle to iio dfsdm instance node.
+  - io-channels : phandle to iio dfsdm instance yesde.
 
-Example of a sound card using audio DFSDM node.
+Example of a sound card using audio DFSDM yesde.
 
 	sound_card {
 		compatible = "audio-graph-card";

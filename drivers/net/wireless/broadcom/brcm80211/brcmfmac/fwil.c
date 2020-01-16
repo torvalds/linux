@@ -81,7 +81,7 @@ static const char * const brcmf_fil_errstr[] = {
 static const char *brcmf_fil_get_errstr(u32 err)
 {
 	if (err >= ARRAY_SIZE(brcmf_fil_errstr))
-		return "(unknown)";
+		return "(unkyeswn)";
 
 	return brcmf_fil_errstr[err];
 }
@@ -99,7 +99,7 @@ brcmf_fil_cmd_data(struct brcmf_if *ifp, u32 cmd, void *data, u32 len, bool set)
 	s32 err, fwerr;
 
 	if (drvr->bus_if->state != BRCMF_BUS_UP) {
-		bphy_err(drvr, "bus is down. we have nothing to do.\n");
+		bphy_err(drvr, "bus is down. we have yesthing to do.\n");
 		return -EIO;
 	}
 
@@ -313,7 +313,7 @@ brcmf_create_bsscfg(s32 bsscfgidx, char *name, char *data, u32 datalen,
 
 	p = buf;
 
-	/* copy prefix, no null */
+	/* copy prefix, yes null */
 	memcpy(p, prefix, prefixlen);
 	p += prefixlen;
 

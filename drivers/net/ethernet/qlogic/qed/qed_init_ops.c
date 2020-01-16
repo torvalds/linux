@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and /or other materials
  *        provided with the distribution.
  *
@@ -33,7 +33,7 @@
 #include <linux/types.h>
 #include <linux/io.h>
 #include <linux/delay.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/string.h>
@@ -109,7 +109,7 @@ static int qed_init_rt(struct qed_hwfn	*p_hwfn,
 	u16 i, segment;
 	int rc = 0;
 
-	/* Since not all RT entries are initialized, go over the RT and
+	/* Since yest all RT entries are initialized, go over the RT and
 	 * for each segment of initialized values use DMA.
 	 */
 	for (i = 0; i < size; i++) {
@@ -184,7 +184,7 @@ static int qed_init_array_dmae(struct qed_hwfn *p_hwfn,
 {
 	int rc = 0;
 
-	/* Perform DMAE only for lengthy enough sections or for wide-bus */
+	/* Perform DMAE only for lengthy eyesugh sections or for wide-bus */
 	if (!b_can_dmae || (!b_must_dmae && (size < 16))) {
 		const u32 *data = buf + dmae_data_offset;
 		u32 i;

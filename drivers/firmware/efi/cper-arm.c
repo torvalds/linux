@@ -37,9 +37,9 @@ static const char * const arm_err_trans_type_strs[] = {
 };
 
 static const char * const arm_bus_err_op_strs[] = {
-	"Generic error (type cannot be determined)",
-	"Generic read (type of instruction or data request cannot be determined)",
-	"Generic write (type of instruction of data request cannot be determined)",
+	"Generic error (type canyest be determined)",
+	"Generic read (type of instruction or data request canyest be determined)",
+	"Generic write (type of instruction of data request canyest be determined)",
 	"Data read",
 	"Data write",
 	"Instruction fetch",
@@ -47,29 +47,29 @@ static const char * const arm_bus_err_op_strs[] = {
 };
 
 static const char * const arm_cache_err_op_strs[] = {
-	"Generic error (type cannot be determined)",
-	"Generic read (type of instruction or data request cannot be determined)",
-	"Generic write (type of instruction of data request cannot be determined)",
+	"Generic error (type canyest be determined)",
+	"Generic read (type of instruction or data request canyest be determined)",
+	"Generic write (type of instruction of data request canyest be determined)",
 	"Data read",
 	"Data write",
 	"Instruction fetch",
 	"Prefetch",
 	"Eviction",
-	"Snooping (processor initiated a cache snoop that resulted in an error)",
-	"Snooped (processor raised a cache error caused by another processor or device snooping its cache)",
+	"Syesoping (processor initiated a cache syesop that resulted in an error)",
+	"Syesoped (processor raised a cache error caused by ayesther processor or device syesoping its cache)",
 	"Management",
 };
 
 static const char * const arm_tlb_err_op_strs[] = {
-	"Generic error (type cannot be determined)",
-	"Generic read (type of instruction or data request cannot be determined)",
-	"Generic write (type of instruction of data request cannot be determined)",
+	"Generic error (type canyest be determined)",
+	"Generic read (type of instruction or data request canyest be determined)",
+	"Generic write (type of instruction of data request canyest be determined)",
 	"Data read",
 	"Data write",
 	"Instruction fetch",
 	"Prefetch",
 	"Local management operation (processor initiated a TLB management operation that resulted in an error)",
-	"External management operation (processor raised a TLB error caused by another processor or device broadcasting TLB operations)",
+	"External management operation (processor raised a TLB error caused by ayesther processor or device broadcasting TLB operations)",
 };
 
 static const char * const arm_bus_err_part_type_strs[] = {
@@ -82,7 +82,7 @@ static const char * const arm_bus_err_part_type_strs[] = {
 static const char * const arm_bus_err_addr_space_strs[] = {
 	"External Memory Access",
 	"Internal Memory Access",
-	"Unknown",
+	"Unkyeswn",
 	"Device Memory Access",
 };
 
@@ -94,7 +94,7 @@ static void cper_print_arm_err_info(const char *pfx, u32 type,
 	bool proc_context_corrupt, corrected, precise_pc, restartable_pc;
 	bool time_out, access_mode;
 
-	/* If the type is unknown, bail. */
+	/* If the type is unkyeswn, bail. */
 	if (type > CPER_ARM_MAX_TYPE)
 		return;
 
@@ -162,7 +162,7 @@ static void cper_print_arm_err_info(const char *pfx, u32 type,
 		if (proc_context_corrupt)
 			printk("%sprocessor context corrupted\n", pfx);
 		else
-			printk("%sprocessor context not corrupted\n", pfx);
+			printk("%sprocessor context yest corrupted\n", pfx);
 	}
 
 	if (error_info & CPER_ARM_ERR_VALID_CORRECTED) {
@@ -171,7 +171,7 @@ static void cper_print_arm_err_info(const char *pfx, u32 type,
 		if (corrected)
 			printk("%sthe error has been corrected\n", pfx);
 		else
-			printk("%sthe error has not been corrected\n", pfx);
+			printk("%sthe error has yest been corrected\n", pfx);
 	}
 
 	if (error_info & CPER_ARM_ERR_VALID_PRECISE_PC) {
@@ -229,7 +229,7 @@ static void cper_print_arm_err_info(const char *pfx, u32 type,
 		access_mode = ((error_info >> CPER_ARM_ERR_ACCESS_MODE_SHIFT)
 			       & CPER_ARM_ERR_ACCESS_MODE_MASK);
 		if (access_mode)
-			printk("%saccess mode: normal\n", pfx);
+			printk("%saccess mode: yesrmal\n", pfx);
 		else
 			printk("%saccess mode: secure\n", pfx);
 	}
@@ -292,7 +292,7 @@ void cper_print_proc_arm(const char *pfx,
 
 		printk("%serror_type: %d, %s\n", newpfx, err_info->type,
 			err_info->type < ARRAY_SIZE(cper_proc_error_type_strs) ?
-			cper_proc_error_type_strs[err_info->type] : "unknown");
+			cper_proc_error_type_strs[err_info->type] : "unkyeswn");
 		if (err_info->validation_bits & CPER_ARM_INFO_VALID_ERR_INFO) {
 			printk("%serror_info: 0x%016llx\n", newpfx,
 			       err_info->error_info);

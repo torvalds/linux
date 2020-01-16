@@ -169,7 +169,7 @@ struct x86_init_ops {
 struct x86_cpuinit_ops {
 	void (*setup_percpu_clockev)(void);
 	void (*early_percpu_clock_init)(void);
-	void (*fixup_cpu_id)(struct cpuinfo_x86 *c, int node);
+	void (*fixup_cpu_id)(struct cpuinfo_x86 *c, int yesde);
 };
 
 struct timespec64;
@@ -178,19 +178,19 @@ struct timespec64;
  * struct x86_legacy_devices - legacy x86 devices
  *
  * @pnpbios: this platform can have a PNPBIOS. If this is disabled the platform
- * 	is known to never have a PNPBIOS.
+ * 	is kyeswn to never have a PNPBIOS.
  *
- * These are devices known to require LPC or ISA bus. The definition of legacy
+ * These are devices kyeswn to require LPC or ISA bus. The definition of legacy
  * devices adheres to the ACPI 5.2.9.3 IA-PC Boot Architecture flag
  * ACPI_FADT_LEGACY_DEVICES. These devices consist of user visible devices on
  * the LPC or ISA bus. User visible devices are devices that have end-user
  * accessible connectors (for example, LPT parallel port). Legacy devices on
  * the LPC bus consist for example of serial and parallel ports, PS/2 keyboard
- * / mouse, and the floppy disk controller. A system that lacks all known
+ * / mouse, and the floppy disk controller. A system that lacks all kyeswn
  * legacy devices can assume all devices can be detected exclusively via
  * standard device enumeration mechanisms including the ACPI namespace.
  *
- * A system which has does not have ACPI_FADT_LEGACY_DEVICES enabled must not
+ * A system which has does yest have ACPI_FADT_LEGACY_DEVICES enabled must yest
  * have any of the legacy devices enumerated below present.
  */
 struct x86_legacy_devices {
@@ -228,7 +228,7 @@ struct x86_legacy_features {
 	enum x86_legacy_i8042_state i8042;
 	int rtc;
 	int warm_reset;
-	int no_vga;
+	int yes_vga;
 	int reserve_bios_regions;
 	struct x86_legacy_devices devices;
 };
@@ -301,10 +301,10 @@ extern struct x86_msi_ops x86_msi;
 extern struct x86_apic_ops x86_apic_ops;
 
 extern void x86_early_init_platform_quirks(void);
-extern void x86_init_noop(void);
-extern void x86_init_uint_noop(unsigned int unused);
-extern bool bool_x86_init_noop(void);
-extern void x86_op_int_noop(int cpu);
+extern void x86_init_yesop(void);
+extern void x86_init_uint_yesop(unsigned int unused);
+extern bool bool_x86_init_yesop(void);
+extern void x86_op_int_yesop(int cpu);
 extern bool x86_pnpbios_disabled(void);
 
 #endif

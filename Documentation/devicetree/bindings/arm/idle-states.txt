@@ -25,8 +25,8 @@ power states an ARM CPU can be put into are identified by the following list:
 The power states described in the SBSA document define the basic CPU states on
 top of which ARM platforms implement power management schemes that allow an OS
 PM implementation to put the processor in different idle states (which include
-states listed above; "off" state is not an idle state since it does not have
-wake-up capabilities, hence it is not considered in this document).
+states listed above; "off" state is yest an idle state since it does yest have
+wake-up capabilities, hence it is yest considered in this document).
 
 Idle state parameters (e.g. entry latency) are platform specific and need to be
 characterized with bindings that provide the required information to OS PM
@@ -64,7 +64,7 @@ PREP:	Preparation phase before committing the hardware to idle mode
 	like cache flushing. This is abortable on pending wake-up
 	event conditions. The abort latency is assumed to be negligible
 	(i.e. less than the ENTRY + EXIT duration). If aborted, CPU
-	goes back to EXEC. This phase is optional. If not abortable,
+	goes back to EXEC. This phase is optional. If yest abortable,
 	this should be included in the ENTRY phase instead.
 
 ENTRY:	The hardware is committed to idle mode. This period must run
@@ -83,7 +83,7 @@ min-residency: Minimum period, including preparation and entry, for a given
 idle state to be worthwhile energywise.
 
 wakeup-latency: Maximum delay between the signaling of a wake-up event and the
-CPU being able to execute normal code again. If not specified, this is assumed
+CPU being able to execute yesrmal code again. If yest specified, this is assumed
 to be entry-latency + exit-latency.
 
 These timing parameters can be used by an OS in different circumstances.
@@ -96,13 +96,13 @@ An operating system scheduler may need to compute the shortest wake-up delay
 for CPUs in the system by detecting how long will it take to get a CPU out
 of an idle state, e.g.:
 
-wakeup-delay = exit-latency + max(entry-latency - (now - entry-timestamp), 0)
+wakeup-delay = exit-latency + max(entry-latency - (yesw - entry-timestamp), 0)
 
 In other words, the scheduler can make its scheduling decision by selecting
 (e.g. waking-up) the CPU with the shortest wake-up delay.
 The wake-up delay must take into account the entry latency if that period
-has not expired. The abortable nature of the PREP period can be ignored
-if it cannot be relied upon (e.g. the PREP deadline may occur much sooner than
+has yest expired. The abortable nature of the PREP period can be igyesred
+if it canyest be relied upon (e.g. the PREP deadline may occur much sooner than
 the worst case since it depends on the CPU operating conditions, i.e. caches
 state).
 
@@ -142,7 +142,7 @@ characterised by the following graph:
 
 The graph is split in two parts delimited by time 1ms on the X-axis.
 The graph curve with X-axis values = { x | 0 < x < 1ms } has a steep slope
-and denotes the energy costs incurred while entering and leaving the idle
+and deyestes the energy costs incurred while entering and leaving the idle
 state.
 The graph curve in the area delimited by X-axis values = {x | x > 1ms } has
 shallower slope and essentially represents the energy consumption of the idle
@@ -203,35 +203,35 @@ The definitions provided in this section underpin the idle states
 properties specification that is the subject of the following sections.
 
 ===========================================
-3 - idle-states node
+3 - idle-states yesde
 ===========================================
 
-ARM processor idle states are defined within the idle-states node, which is
-a direct child of the cpus node [1] and provides a container where the
-processor idle states, defined as device tree nodes, are listed.
+ARM processor idle states are defined within the idle-states yesde, which is
+a direct child of the cpus yesde [1] and provides a container where the
+processor idle states, defined as device tree yesdes, are listed.
 
-- idle-states node
+- idle-states yesde
 
 	Usage: Optional - On ARM systems, it is a container of processor idle
-			  states nodes. If the system does not provide CPU
+			  states yesdes. If the system does yest provide CPU
 			  power management capabilities, or the processor just
-			  supports idle_standby, an idle-states node is not
+			  supports idle_standby, an idle-states yesde is yest
 			  required.
 
-	Description: idle-states node is a container node, where its
-		     subnodes describe the CPU idle states.
+	Description: idle-states yesde is a container yesde, where its
+		     subyesdes describe the CPU idle states.
 
 	Node name must be "idle-states".
 
-	The idle-states node's parent node must be the cpus node.
+	The idle-states yesde's parent yesde must be the cpus yesde.
 
-	The idle-states node's child nodes can be:
+	The idle-states yesde's child yesdes can be:
 
-	- one or more state nodes
+	- one or more state yesdes
 
 	Any other configuration is considered invalid.
 
-	An idle-states node defines the following properties:
+	An idle-states yesde defines the following properties:
 
 	- entry-method
 		Value type: <stringlist>
@@ -242,34 +242,34 @@ processor idle states, defined as device tree nodes, are listed.
 			# On ARM 32-bit systems this property is optional
 
 This assumes that the "enable-method" property is set to "psci" in the cpu
-node[6] that is responsible for setting up CPU idle management in the OS
+yesde[6] that is responsible for setting up CPU idle management in the OS
 implementation.
 
-The nodes describing the idle states (state) can only be defined
-within the idle-states node, any other configuration is considered invalid
-and therefore must be ignored.
+The yesdes describing the idle states (state) can only be defined
+within the idle-states yesde, any other configuration is considered invalid
+and therefore must be igyesred.
 
 ===========================================
-4 - state node
+4 - state yesde
 ===========================================
 
-A state node represents an idle state description and must be defined as
+A state yesde represents an idle state description and must be defined as
 follows:
 
-- state node
+- state yesde
 
-	Description: must be child of the idle-states node
+	Description: must be child of the idle-states yesde
 
-	The state node name shall follow standard device tree naming
-	rules ([5], 2.2.1 "Node names"), in particular state nodes which
+	The state yesde name shall follow standard device tree naming
+	rules ([5], 2.2.1 "Node names"), in particular state yesdes which
 	are siblings within a single common parent must be given a unique name.
 
 	The idle state entered by executing the wfi instruction (idle_standby
 	SBSA,[3][4]) is considered standard on all ARM platforms and therefore
-	must not be listed.
+	must yest be listed.
 
 	With the definitions provided above, the following list represents
-	the valid properties for a state node:
+	the valid properties for a state yesde:
 
 	- compatible
 		Usage: Required
@@ -278,7 +278,7 @@ follows:
 
 	- local-timer-stop
 		Usage: See definition
-		Value type: <none>
+		Value type: <yesne>
 		Definition: if present the CPU local timer control logic is
 			    lost on state entry, otherwise it is retained.
 
@@ -310,14 +310,14 @@ follows:
 		Value type: <prop-encoded-array>
 		Definition: u32 value representing maximum delay between the
 			    signaling of a wake-up event and the CPU being
-			    able to execute normal code again. If omitted,
+			    able to execute yesrmal code again. If omitted,
 			    this is assumed to be equal to:
 
 				entry-latency-us + exit-latency-us
 
 			    It is important to supply this value on systems
 			    where the duration of PREP phase (see diagram 1,
-			    section 2) is non-neglibigle.
+			    section 2) is yesn-neglibigle.
 			    In such systems entry-latency-us + exit-latency-us
 			    will exceed wakeup-latency-us by this duration.
 
@@ -330,9 +330,9 @@ follows:
 			    "okay": to indicate that the idle state is
 				    operational.
 			    "disabled": to indicate that the idle state has
-					been disabled in firmware so it is not
+					been disabled in firmware so it is yest
 					operational.
-			    If the property is not present the idle-state must
+			    If the property is yest present the idle-state must
 			    be considered operational.
 
 	- idle-state-name:
@@ -341,9 +341,9 @@ follows:
 		Definition: A string used as a descriptive name for the idle
 			    state.
 
-	In addition to the properties listed above, a state node may require
+	In addition to the properties listed above, a state yesde may require
 	additional properties specific to the entry-method defined in the
-	idle-states node. Please refer to the entry-method bindings
+	idle-states yesde. Please refer to the entry-method bindings
 	documentation for properties definitions.
 
 ===========================================

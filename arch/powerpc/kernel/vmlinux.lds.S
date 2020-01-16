@@ -21,7 +21,7 @@ ENTRY(_stext)
 
 PHDRS {
 	text PT_LOAD FLAGS(7); /* RWX */
-	note PT_NOTE FLAGS(0);
+	yeste PT_NOTE FLAGS(0);
 }
 
 #ifdef CONFIG_PPC64
@@ -46,7 +46,7 @@ SECTIONS
 	 * Head text.
 	 * This needs to be in its own output section to avoid ld placing
 	 * branch trampoline stubs randomly throughout the fixed sections,
-	 * which it will do (even if the branch comes from another section)
+	 * which it will do (even if the branch comes from ayesther section)
 	 * in order to optimize stub generation.
 	 */
 	.head.text : AT(ADDR(.head.text) - LOAD_OFFSET) {
@@ -149,9 +149,9 @@ SECTIONS
 #ifdef CONFIG_PPC_BARRIER_NOSPEC
 	. = ALIGN(8);
 	__spec_barrier_fixup : AT(ADDR(__spec_barrier_fixup) - LOAD_OFFSET) {
-		__start___barrier_nospec_fixup = .;
-		*(__barrier_nospec_fixup)
-		__stop___barrier_nospec_fixup = .;
+		__start___barrier_yesspec_fixup = .;
+		*(__barrier_yesspec_fixup)
+		__stop___barrier_yesspec_fixup = .;
 	}
 #endif /* CONFIG_PPC_BARRIER_NOSPEC */
 
@@ -179,7 +179,7 @@ SECTIONS
 #endif
 	} :text
 
-	/* .exit.text is discarded at runtime, not link time,
+	/* .exit.text is discarded at runtime, yest link time,
 	 * to deal with references from __bug_table
 	 */
 	.exit.text : AT(ADDR(.exit.text) - LOAD_OFFSET) {
@@ -263,7 +263,7 @@ SECTIONS
 		*(.rela*)
 	}
 #endif
-	/* .exit.data is discarded at runtime, not link time,
+	/* .exit.data is discarded at runtime, yest link time,
 	 * to deal with references from .exit.text
 	 */
 	.exit.data : AT(ADDR(.exit.data) - LOAD_OFFSET) {
@@ -275,7 +275,7 @@ SECTIONS
 	__init_end = .;
 
 /*
- * And now the various read/write data
+ * And yesw the various read/write data
  */
 
 	. = ALIGN(PAGE_SIZE);
@@ -338,7 +338,7 @@ SECTIONS
 	}
 
 	. = ALIGN(PAGE_SIZE);
-	.data_nosave : AT(ADDR(.data_nosave) - LOAD_OFFSET) {
+	.data_yessave : AT(ADDR(.data_yessave) - LOAD_OFFSET) {
 		NOSAVE_DATA
 	}
 

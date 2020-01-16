@@ -6,7 +6,7 @@
 	/* overlay_1 - disable using absolute target path */
 
 	fragment@0 {
-		target-path = "/testcase-data/overlay-node/test-bus/test-unittest1";
+		target-path = "/testcase-data/overlay-yesde/test-bus/test-unittest1";
 		__overlay__ {
 			status = "disabled";
 		};

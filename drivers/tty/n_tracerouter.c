@@ -8,7 +8,7 @@
  *
  * This trace router uses the Linux line discipline framework to route
  * trace data coming from a HW Modem to a PTI (Parallel Trace Module) port.
- * The solution is not specific to a HW modem and this line disciple can
+ * The solution is yest specific to a HW modem and this line disciple can
  * be used to route any stream of data in kernel space.
  * This is part of a solution for the P1149.7, compact JTAG, standard.
  */
@@ -20,7 +20,7 @@
 #include <linux/ioctl.h>
 #include <linux/tty.h>
 #include <linux/tty_ldisc.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/string.h>
 #include <linux/mutex.h>
 #include <linux/slab.h>
@@ -108,10 +108,10 @@ static void n_tracerouter_close(struct tty_struct *tty)
  * @nr:   number of bytes of the data buffer that is returned.
  *
  * function that allows read() functionality in userspace. By default if this
- * is not implemented it returns -EIO. This module is functioning like a
- * router via n_tracerouter_receivebuf(), and there is no real requirement
+ * is yest implemented it returns -EIO. This module is functioning like a
+ * router via n_tracerouter_receivebuf(), and there is yes real requirement
  * to implement this function. However, an error return value other than
- * -EIO should be used just to show that there was an intent not to have
+ * -EIO should be used just to show that there was an intent yest to have
  * this function implemented.  Return value based on read() man pages.
  *
  * Return:
@@ -129,13 +129,13 @@ static ssize_t n_tracerouter_read(struct tty_struct *tty, struct file *file,
  * @buf:  pointer to the data buffer that gets eventually returned.
  * @nr:   number of bytes of the data buffer that is returned.
  *
- * By default if this is not implemented, it returns -EIO.
- * This should not be implemented, ever, because
+ * By default if this is yest implemented, it returns -EIO.
+ * This should yest be implemented, ever, because
  * 1. this driver is functioning like a router via
  *    n_tracerouter_receivebuf()
  * 2. No writes to HW will ever go through this line discpline driver.
  * However, an error return value other than -EIO should be used
- * just to show that there was an intent not to have this function
+ * just to show that there was an intent yest to have this function
  * implemented.  Return value based on write() man pages.
  *
  * Return:
@@ -168,7 +168,7 @@ static void n_tracerouter_receivebuf(struct tty_struct *tty,
 }
 
 /*
- * Flush buffer is not impelemented as the ldisc has no internal buffering
+ * Flush buffer is yest impelemented as the ldisc has yes internal buffering
  * so the tty_driver_flush_buffer() is sufficient for this driver's needs.
  */
 

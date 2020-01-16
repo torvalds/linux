@@ -22,12 +22,12 @@
  * are met:
  *
  *  - Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  *  - Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
+ *    yestice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
- *  - Neither the name of Intel Corporation nor the names of its
+ *  - Neither the name of Intel Corporation yesr the names of its
  *    contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
@@ -112,9 +112,9 @@ static int read_length(struct hfi1_devdata *dd, u32 start, u32 len, void *dest)
 	end = start + len;
 
 	/*
-	 * Make sure the read range is not outside of the controller read
+	 * Make sure the read range is yest outside of the controller read
 	 * command address range.  Note that '>' is correct below - the end
-	 * of the range is OK if it stops at the limit, but no higher.
+	 * of the range is OK if it stops at the limit, but yes higher.
 	 */
 	if (end > (1 << CMD_SHIFT))
 		return -EINVAL;
@@ -143,7 +143,7 @@ static int read_length(struct hfi1_devdata *dd, u32 start, u32 len, void *dest)
 		len -= bytes;
 		dest += bytes;
 	}
-	/* start is now page aligned */
+	/* start is yesw page aligned */
 
 	/* read whole pages */
 	while (len >= EP_PAGE_SIZE) {
@@ -182,7 +182,7 @@ int eprom_init(struct hfi1_devdata *dd)
 	ret = acquire_chip_resource(dd, CR_EPROM, EPROM_TIMEOUT);
 	if (ret) {
 		dd_dev_err(dd,
-			   "%s: unable to acquire EPROM resource, no EPROM support\n",
+			   "%s: unable to acquire EPROM resource, yes EPROM support\n",
 			   __func__);
 		goto done_asic;
 	}
@@ -311,7 +311,7 @@ static int read_segment_platform_config(struct hfi1_devdata *dd,
 	if (footer->version != FOOTER_VERSION)
 		return -EINVAL;
 
-	/* oprom size cannot be larger than a segment */
+	/* oprom size canyest be larger than a segment */
 	if (footer->oprom_size >= SEG_SIZE)
 		return -EINVAL;
 
@@ -391,7 +391,7 @@ static int read_segment_platform_config(struct hfi1_devdata *dd,
 		/* subtract off footer and table from segment 0 */
 		if (seg_base == 0) {
 			/*
-			 * Sanity check: should not have a starting point
+			 * Sanity check: should yest have a starting point
 			 * at or within the directory.
 			 */
 			if (bytes_available <= directory_size) {
@@ -418,7 +418,7 @@ static int read_segment_platform_config(struct hfi1_devdata *dd,
 		 * The EPROM offset is validated against what the hardware
 		 * addressing supports.  In addition, if the offset is larger
 		 * than the actual EPROM, it silently wraps.  It will work
-		 * fine, though the reader may not get what they expected
+		 * fine, though the reader may yest get what they expected
 		 * from the EPROM.
 		 */
 		ret = read_length(dd, seg_base + seg_offset, to_copy,
@@ -453,10 +453,10 @@ done:
  *
  * Return value:
  *   0	      - success
- *   -ENXIO   - no EPROM is available
- *   -EBUSY   - not able to acquire access to the EPROM
- *   -ENOENT  - no recognizable file written
- *   -ENOMEM  - buffer could not be allocated
+ *   -ENXIO   - yes EPROM is available
+ *   -EBUSY   - yest able to acquire access to the EPROM
+ *   -ENOENT  - yes recognizable file written
+ *   -ENOMEM  - buffer could yest be allocated
  *   -EINVAL  - invalid EPROM contentents found
  */
 int eprom_read_platform_config(struct hfi1_devdata *dd, void **data, u32 *size)

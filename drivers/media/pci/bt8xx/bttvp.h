@@ -3,10 +3,10 @@
 
     bttv - Bt848 frame grabber driver
 
-    bttv's *private* header file  --  nobody other than bttv itself
+    bttv's *private* header file  --  yesbody other than bttv itself
     should ever include this file.
 
-    (c) 2000-2002 Gerd Knorr <kraxel@bytesex.org>
+    (c) 2000-2002 Gerd Kyesrr <kraxel@bytesex.org>
 
 */
 
@@ -74,7 +74,7 @@
 		V4L2_STD_PAL_60)
 /* ---------------------------------------------------------- */
 
-struct bttv_tvnorm {
+struct bttv_tvyesrm {
 	int   v4l2_id;
 	char  *name;
 	u32   Fsc;
@@ -96,7 +96,7 @@ struct bttv_tvnorm {
 	   numbers of the first field times two (2, 4, 6, ... 524 or 624). */
 	struct v4l2_cropcap cropcap;
 };
-extern const struct bttv_tvnorm bttv_tvnorms[];
+extern const struct bttv_tvyesrm bttv_tvyesrms[];
 
 struct bttv_format {
 	int  fourcc;          /* video4linux 2      */
@@ -147,7 +147,7 @@ struct bttv_buffer {
 
 	/* bttv specific */
 	const struct bttv_format   *fmt;
-	unsigned int               tvnorm;
+	unsigned int               tvyesrm;
 	int                        btformat;
 	int                        btswap;
 	struct bttv_geometry       geo;
@@ -166,7 +166,7 @@ struct bttv_buffer_set {
 };
 
 struct bttv_overlay {
-	unsigned int           tvnorm;
+	unsigned int           tvyesrm;
 	struct v4l2_rect       w;
 	enum v4l2_field        field;
 	struct v4l2_clip       *clips;
@@ -178,7 +178,7 @@ struct bttv_vbi_fmt {
 	struct v4l2_vbi_format fmt;
 
 	/* fmt.start[] and count[] refer to this video standard. */
-	const struct bttv_tvnorm *tvnorm;
+	const struct bttv_tvyesrm *tvyesrm;
 
 	/* Earliest possible start of video capturing with this
 	   v4l2_vbi_format, in struct bttv_crop.rect units. */
@@ -186,14 +186,14 @@ struct bttv_vbi_fmt {
 };
 
 /* bttv-vbi.c */
-void bttv_vbi_fmt_reset(struct bttv_vbi_fmt *f, unsigned int norm);
+void bttv_vbi_fmt_reset(struct bttv_vbi_fmt *f, unsigned int yesrm);
 
 struct bttv_crop {
-	/* A cropping rectangle in struct bttv_tvnorm.cropcap units. */
+	/* A cropping rectangle in struct bttv_tvyesrm.cropcap units. */
 	struct v4l2_rect       rect;
 
 	/* Scaled image size limits with this crop rect. Divide
-	   max_height, but not min_height, by two when capturing
+	   max_height, but yest min_height, by two when capturing
 	   single fields. See also bttv_crop_reset() and
 	   bttv_crop_adjust() in bttv-driver.c. */
 	__s32                  min_scaled_width;
@@ -225,7 +225,7 @@ struct bttv_fh {
 
 	/* vbi capture */
 	struct videobuf_queue    vbi;
-	/* Current VBI capture window as seen through this fh (cannot
+	/* Current VBI capture window as seen through this fh (canyest
 	   be global for compatibility with earlier drivers). Protected
 	   by struct bttv.lock and struct bttv_fh.vbi.lock. */
 	struct bttv_vbi_fmt      vbi_fmt;
@@ -281,7 +281,7 @@ int bttv_sub_del_devices(struct bttv_core *core);
 /* ---------------------------------------------------------- */
 /* bttv-cards.c                                               */
 
-extern int no_overlay;
+extern int yes_overlay;
 
 /* ---------------------------------------------------------- */
 /* bttv-input.c                                               */
@@ -417,7 +417,7 @@ struct bttv {
 	unsigned int audio_input;
 	unsigned int mute;
 	unsigned long tv_freq;
-	unsigned int tvnorm;
+	unsigned int tvyesrm;
 	v4l2_std_id std;
 	int hue, contrast, bright, saturation;
 	struct v4l2_framebuffer fbuf;
@@ -480,12 +480,12 @@ struct bttv {
 	struct work_struct request_module_wk;
 
 	/* Default (0) and current (1) video capturing and overlay
-	   cropping parameters in bttv_tvnorm.cropcap units. Protected
+	   cropping parameters in bttv_tvyesrm.cropcap units. Protected
 	   by bttv.lock. */
 	struct bttv_crop crop[2];
 
 	/* Earliest possible start of video capturing in
-	   bttv_tvnorm.cropcap line units. Set by check_alloc_btres()
+	   bttv_tvyesrm.cropcap line units. Set by check_alloc_btres()
 	   and free_btres(). Protected by bttv.lock. */
 	__s32			vbi_end;
 

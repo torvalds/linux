@@ -47,7 +47,7 @@ static int ec168_ctrl_msg(struct dvb_usb_device *d, struct ec168_req *req)
 		request = DEMOD_RW;
 		break;
 	default:
-		dev_err(&d->udev->dev, "%s: unknown command=%02x\n",
+		dev_err(&d->udev->dev, "%s: unkyeswn command=%02x\n",
 				KBUILD_MODNAME, req->cmd);
 		ret = -EINVAL;
 		goto error;
@@ -123,7 +123,7 @@ static int ec168_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg msg[],
 				ret = ec168_ctrl_msg(d, &req);
 				i += 2;
 			} else {
-				dev_err(&d->udev->dev, "%s: I2C read not " \
+				dev_err(&d->udev->dev, "%s: I2C read yest " \
 						"implemented\n",
 						KBUILD_MODNAME);
 				ret = -EOPNOTSUPP;
@@ -230,7 +230,7 @@ static int ec168_download_firmware(struct dvb_usb_device *d,
 	if (ret)
 		goto error;
 
-	/* really needed - no idea what does */
+	/* really needed - yes idea what does */
 	req.cmd = GPIO;
 	req.value = 0;
 	req.index = 0x0206;
@@ -253,7 +253,7 @@ error:
 }
 
 static struct ec100_config ec168_ec100_config = {
-	.demod_address = 0xff, /* not real address, demod is integrated */
+	.demod_address = 0xff, /* yest real address, demod is integrated */
 };
 
 static int ec168_ec100_frontend_attach(struct dvb_usb_adapter *adap)
@@ -295,13 +295,13 @@ static int ec168_mxl5003s_tuner_attach(struct dvb_usb_adapter *adap)
 			&ec168_mxl5003s_config) == NULL ? -ENODEV : 0;
 }
 
-static int ec168_streaming_ctrl(struct dvb_frontend *fe, int onoff)
+static int ec168_streaming_ctrl(struct dvb_frontend *fe, int oyesff)
 {
 	struct dvb_usb_device *d = fe_to_d(fe);
 	struct ec168_req req = {STREAMING_CTRL, 0x7f01, 0x0202, 0, NULL};
-	dev_dbg(&d->udev->dev, "%s: onoff=%d\n", __func__, onoff);
+	dev_dbg(&d->udev->dev, "%s: oyesff=%d\n", __func__, oyesff);
 
-	if (onoff)
+	if (oyesff)
 		req.index = 0x0102;
 	return ec168_ctrl_msg(d, &req);
 }
@@ -359,7 +359,7 @@ static struct usb_driver ec168_driver = {
 	.disconnect = dvb_usbv2_disconnect,
 	.suspend = dvb_usbv2_suspend,
 	.resume = dvb_usbv2_resume,
-	.no_dynamic_id = 1,
+	.yes_dynamic_id = 1,
 	.soft_unbind = 1,
 };
 

@@ -23,7 +23,7 @@
 
     Copyright (C) 2003 Vadim Catana <skystar@moldova.cc>:
 
-    Support for Philips SU1278 on Technotrend hardware
+    Support for Philips SU1278 on Techyestrend hardware
 
     Copyright (C) 2004 Andrew de Quincey <adq_dvb@lidskialf.net>
 
@@ -567,7 +567,7 @@ static int stv0299_set_frontend(struct dvb_frontend *fe)
 	if (p->inversion == INVERSION_OFF) invval = 0;
 	else if (p->inversion == INVERSION_ON) invval = 1;
 	else {
-		printk("stv0299 does not support auto-inversion\n");
+		printk("stv0299 does yest support auto-inversion\n");
 		return -EINVAL;
 	}
 	if (state->config->invert) invval = (~invval) & 1;

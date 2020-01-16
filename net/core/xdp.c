@@ -54,7 +54,7 @@ static int xdp_mem_id_cmp(struct rhashtable_compare_arg *arg,
 
 static const struct rhashtable_params mem_id_rht_params = {
 	.nelem_hint = 64,
-	.head_offset = offsetof(struct xdp_mem_allocator, node),
+	.head_offset = offsetof(struct xdp_mem_allocator, yesde),
 	.key_offset  = offsetof(struct xdp_mem_allocator, mem.id),
 	.key_len = sizeof_field(struct xdp_mem_allocator, mem.id),
 	.max_size = MEM_ID_MAX,
@@ -80,7 +80,7 @@ static void mem_xa_remove(struct xdp_mem_allocator *xa)
 {
 	trace_mem_disconnect(xa);
 
-	if (!rhashtable_remove_fast(mem_id_ht, &xa->node, mem_id_rht_params))
+	if (!rhashtable_remove_fast(mem_id_ht, &xa->yesde, mem_id_rht_params))
 		call_rcu(&xa->rcu, __xdp_mem_allocator_rcu_free);
 }
 
@@ -117,13 +117,13 @@ static void mem_id_disconnect(int id)
 	xa = rhashtable_lookup_fast(mem_id_ht, &id, mem_id_rht_params);
 	if (!xa) {
 		mutex_unlock(&mem_id_lock);
-		WARN(1, "Request remove non-existing id(%d), driver bug?", id);
+		WARN(1, "Request remove yesn-existing id(%d), driver bug?", id);
 		return;
 	}
 
 	trace_mem_disconnect(xa);
 
-	if (!rhashtable_remove_fast(mem_id_ht, &xa->node, mem_id_rht_params))
+	if (!rhashtable_remove_fast(mem_id_ht, &xa->yesde, mem_id_rht_params))
 		call_rcu(&xa->rcu, __xdp_mem_allocator_rcu_free);
 
 	mutex_unlock(&mem_id_lock);
@@ -183,7 +183,7 @@ int xdp_rxq_info_reg(struct xdp_rxq_info *xdp_rxq,
 		     struct net_device *dev, u32 queue_index)
 {
 	if (xdp_rxq->reg_state == REG_STATE_UNUSED) {
-		WARN(1, "Driver promised not to register this");
+		WARN(1, "Driver promised yest to register this");
 		return -EINVAL;
 	}
 
@@ -237,7 +237,7 @@ static int __mem_id_init_hash_table(void)
 		return ret;
 	}
 	mem_id_ht = rht;
-	smp_mb(); /* mutex lock should provide enough pairing */
+	smp_mb(); /* mutex lock should provide eyesugh pairing */
 	mem_id_init = true;
 
 	return 0;
@@ -263,7 +263,7 @@ again:
 				goto again;
 			}
 		}
-		return id; /* errno */
+		return id; /* erryes */
 	}
 	mem_id_next = id + 1;
 
@@ -286,7 +286,7 @@ int xdp_rxq_info_reg_mem_model(struct xdp_rxq_info *xdp_rxq,
 {
 	struct xdp_mem_allocator *xdp_alloc;
 	gfp_t gfp = GFP_KERNEL;
-	int id, errno, ret;
+	int id, erryes, ret;
 	void *ptr;
 
 	if (xdp_rxq->reg_state != REG_STATE_REGISTERED) {
@@ -323,7 +323,7 @@ int xdp_rxq_info_reg_mem_model(struct xdp_rxq_info *xdp_rxq,
 	mutex_lock(&mem_id_lock);
 	id = __mem_id_cyclic_get(gfp);
 	if (id < 0) {
-		errno = id;
+		erryes = id;
 		goto err;
 	}
 	xdp_rxq->mem.id = id;
@@ -331,11 +331,11 @@ int xdp_rxq_info_reg_mem_model(struct xdp_rxq_info *xdp_rxq,
 	xdp_alloc->allocator = allocator;
 
 	/* Insert allocator into ID lookup table */
-	ptr = rhashtable_insert_slow(mem_id_ht, &id, &xdp_alloc->node);
+	ptr = rhashtable_insert_slow(mem_id_ht, &id, &xdp_alloc->yesde);
 	if (IS_ERR(ptr)) {
 		ida_simple_remove(&mem_id_pool, xdp_rxq->mem.id);
 		xdp_rxq->mem.id = 0;
-		errno = PTR_ERR(ptr);
+		erryes = PTR_ERR(ptr);
 		goto err;
 	}
 
@@ -349,7 +349,7 @@ int xdp_rxq_info_reg_mem_model(struct xdp_rxq_info *xdp_rxq,
 err:
 	mutex_unlock(&mem_id_lock);
 	kfree(xdp_alloc);
-	return errno;
+	return erryes;
 }
 EXPORT_SYMBOL_GPL(xdp_rxq_info_reg_mem_model);
 
@@ -371,7 +371,7 @@ static void __xdp_return(void *data, struct xdp_mem_info *mem, bool napi_direct,
 		/* mem->id is valid, checked in xdp_rxq_info_reg_mem_model() */
 		xa = rhashtable_lookup(mem_id_ht, &mem->id, mem_id_rht_params);
 		page = virt_to_head_page(data);
-		napi_direct &= !xdp_return_frame_no_direct();
+		napi_direct &= !xdp_return_frame_yes_direct();
 		page_pool_put_page(xa->page_pool, page, napi_direct);
 		rcu_read_unlock();
 		break;

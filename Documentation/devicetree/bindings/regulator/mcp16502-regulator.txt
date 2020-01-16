@@ -5,9 +5,9 @@ Required properties:
 - reg: I2C slave address
 - lpm-gpios: GPIO for LPM pin. Note that this GPIO *must* remain high during
 	     suspend-to-ram, keeping the PMIC into HIBERNATE mode.
-- regulators: A node that houses a sub-node for each regulator within
-              the device. Each sub-node is identified using the node's
-              name. The content of each sub-node is defined by the
+- regulators: A yesde that houses a sub-yesde for each regulator within
+              the device. Each sub-yesde is identified using the yesde's
+              name. The content of each sub-yesde is defined by the
               standard binding for regulators; see regulator.txt.
 
 Regualtors of MCP16502 PMIC:

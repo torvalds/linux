@@ -300,7 +300,7 @@ static const struct pinctrl_ops armada_37xx_pctrl_ops = {
 	.get_groups_count	= armada_37xx_get_groups_count,
 	.get_group_name		= armada_37xx_get_group_name,
 	.get_group_pins		= armada_37xx_get_group_pins,
-	.dt_node_to_map		= pinconf_generic_dt_node_to_map_group,
+	.dt_yesde_to_map		= pinconf_generic_dt_yesde_to_map_group,
 	.dt_free_map		= pinctrl_utils_free_map,
 };
 
@@ -676,7 +676,7 @@ static void armada_37xx_irq_handler(struct irq_desc *desc)
 					hwirq + i * GPIO_PER_REG)) {
 					/*
 					 * For spurious irq, which gpio level
-					 * is not as expected after incoming
+					 * is yest as expected after incoming
 					 * edge, just ack the gpio irq.
 					 */
 					writel(1 << hwirq,
@@ -719,7 +719,7 @@ static unsigned int armada_37xx_irq_startup(struct irq_data *d)
 static int armada_37xx_irqchip_register(struct platform_device *pdev,
 					struct armada_37xx_pinctrl *info)
 {
-	struct device_node *np = info->dev->of_node;
+	struct device_yesde *np = info->dev->of_yesde;
 	struct gpio_chip *gc = &info->gpio_chip;
 	struct irq_chip *irqchip = &info->irq_chip;
 	struct gpio_irq_chip *girq = &gc->irq;
@@ -727,15 +727,15 @@ static int armada_37xx_irqchip_register(struct platform_device *pdev,
 	struct resource res;
 	int ret = -ENODEV, i, nr_irq_parent;
 
-	/* Check if we have at least one gpio-controller child node */
-	for_each_child_of_node(info->dev->of_node, np) {
+	/* Check if we have at least one gpio-controller child yesde */
+	for_each_child_of_yesde(info->dev->of_yesde, np) {
 		if (of_property_read_bool(np, "gpio-controller")) {
 			ret = 0;
 			break;
 		}
 	};
 	if (ret) {
-		dev_err(dev, "no gpio-controller child node\n");
+		dev_err(dev, "yes gpio-controller child yesde\n");
 		return ret;
 	}
 
@@ -743,12 +743,12 @@ static int armada_37xx_irqchip_register(struct platform_device *pdev,
 	spin_lock_init(&info->irq_lock);
 
 	if (!nr_irq_parent) {
-		dev_err(dev, "invalid or no IRQ\n");
+		dev_err(dev, "invalid or yes IRQ\n");
 		return 0;
 	}
 
-	if (of_address_to_resource(info->dev->of_node, 1, &res)) {
-		dev_err(dev, "cannot find IO resource\n");
+	if (of_address_to_resource(info->dev->of_yesde, 1, &res)) {
+		dev_err(dev, "canyest find IO resource\n");
 		return -ENOENT;
 	}
 
@@ -767,7 +767,7 @@ static int armada_37xx_irqchip_register(struct platform_device *pdev,
 	girq->parent_handler = armada_37xx_irq_handler;
 	/*
 	 * Many interrupts are connected to the parent interrupt
-	 * controller. But we do not take advantage of this and use
+	 * controller. But we do yest take advantage of this and use
 	 * the chained irq with all of them.
 	 */
 	girq->num_parents = nr_irq_parent;
@@ -791,11 +791,11 @@ static int armada_37xx_irqchip_register(struct platform_device *pdev,
 static int armada_37xx_gpiochip_register(struct platform_device *pdev,
 					struct armada_37xx_pinctrl *info)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 	struct gpio_chip *gc;
 	int ret = -ENODEV;
 
-	for_each_child_of_node(info->dev->of_node, np) {
+	for_each_child_of_yesde(info->dev->of_yesde, np) {
 		if (of_find_property(np, "gpio-controller", NULL)) {
 			ret = 0;
 			break;
@@ -810,7 +810,7 @@ static int armada_37xx_gpiochip_register(struct platform_device *pdev,
 	gc->ngpio = info->data->nr_pins;
 	gc->parent = &pdev->dev;
 	gc->base = -1;
-	gc->of_node = np;
+	gc->of_yesde = np;
 	gc->label = info->data->name;
 
 	ret = armada_37xx_irqchip_register(pdev, info);
@@ -1009,7 +1009,7 @@ static int armada_37xx_pinctrl_register(struct platform_device *pdev,
 
 	info->pctl_dev = devm_pinctrl_register(&pdev->dev, ctrldesc, info);
 	if (IS_ERR(info->pctl_dev)) {
-		dev_err(&pdev->dev, "could not register pinctrl driver\n");
+		dev_err(&pdev->dev, "could yest register pinctrl driver\n");
 		return PTR_ERR(info->pctl_dev);
 	}
 
@@ -1055,8 +1055,8 @@ static int armada_3700_pinctrl_resume(struct device *dev)
 		     info->pm.out_val_h);
 
 	/*
-	 * Input levels may change during suspend, which is not monitored at
-	 * that time. GPIOs used for both-edge IRQs may not be synchronized
+	 * Input levels may change during suspend, which is yest monitored at
+	 * that time. GPIOs used for both-edge IRQs may yest be synchronized
 	 * anymore with their polarities (rising/falling edge) and must be
 	 * re-configured manually.
 	 */
@@ -1111,8 +1111,8 @@ static int armada_3700_pinctrl_resume(struct device *dev)
  * to other IO drivers.
  */
 static const struct dev_pm_ops armada_3700_pinctrl_pm_ops = {
-	.suspend_noirq = armada_3700_pinctrl_suspend,
-	.resume_noirq = armada_3700_pinctrl_resume,
+	.suspend_yesirq = armada_3700_pinctrl_suspend,
+	.resume_yesirq = armada_3700_pinctrl_resume,
 };
 
 #define PINCTRL_ARMADA_37XX_DEV_PM_OPS (&armada_3700_pinctrl_pm_ops)
@@ -1136,7 +1136,7 @@ static int __init armada_37xx_pinctrl_probe(struct platform_device *pdev)
 {
 	struct armada_37xx_pinctrl *info;
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 	struct regmap *regmap;
 	int ret;
 
@@ -1147,9 +1147,9 @@ static int __init armada_37xx_pinctrl_probe(struct platform_device *pdev)
 
 	info->dev = dev;
 
-	regmap = syscon_node_to_regmap(np);
+	regmap = syscon_yesde_to_regmap(np);
 	if (IS_ERR(regmap)) {
-		dev_err(&pdev->dev, "cannot get regmap\n");
+		dev_err(&pdev->dev, "canyest get regmap\n");
 		return PTR_ERR(regmap);
 	}
 	info->regmap = regmap;

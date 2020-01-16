@@ -106,7 +106,7 @@ mei_hdcp_verify_receiver_cert_prepare_km(struct device *dev,
 					 struct hdcp_port_data *data,
 					 struct hdcp2_ake_send_cert *rx_cert,
 					 bool *km_stored,
-					 struct hdcp2_ake_no_stored_km
+					 struct hdcp2_ake_yes_stored_km
 								*ek_pub_km,
 					 size_t *msg_sz)
 {
@@ -161,7 +161,7 @@ mei_hdcp_verify_receiver_cert_prepare_km(struct device *dev,
 		*msg_sz = sizeof(struct hdcp2_ake_stored_km);
 	} else {
 		ek_pub_km->msg_id = HDCP_2_2_AKE_NO_STORED_KM;
-		*msg_sz = sizeof(struct hdcp2_ake_no_stored_km);
+		*msg_sz = sizeof(struct hdcp2_ake_yes_stored_km);
 	}
 
 	memcpy(ek_pub_km->e_kpub_km, &verify_rxcert_out.ekm_buff,

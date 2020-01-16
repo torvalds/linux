@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -115,9 +115,9 @@ gv100_fault_buffer_info(struct nvkm_fault_buffer *buffer)
 }
 
 static int
-gv100_fault_ntfy_nrpfb(struct nvkm_notify *notify)
+gv100_fault_ntfy_nrpfb(struct nvkm_yestify *yestify)
 {
-	struct nvkm_fault *fault = container_of(notify, typeof(*fault), nrpfb);
+	struct nvkm_fault *fault = container_of(yestify, typeof(*fault), nrpfb);
 	gv100_fault_buffer_process(fault->buffer[0]);
 	return NVKM_NOTIFY_KEEP;
 }
@@ -183,7 +183,7 @@ gv100_fault_intr(struct nvkm_fault *fault)
 static void
 gv100_fault_fini(struct nvkm_fault *fault)
 {
-	nvkm_notify_put(&fault->nrpfb);
+	nvkm_yestify_put(&fault->nrpfb);
 	if (fault->buffer[0])
 		fault->func->buffer.fini(fault->buffer[0]);
 	nvkm_mask(fault->subdev.device, 0x100a34, 0x80000000, 0x80000000);
@@ -194,13 +194,13 @@ gv100_fault_init(struct nvkm_fault *fault)
 {
 	nvkm_mask(fault->subdev.device, 0x100a2c, 0x80000000, 0x80000000);
 	fault->func->buffer.init(fault->buffer[0]);
-	nvkm_notify_get(&fault->nrpfb);
+	nvkm_yestify_get(&fault->nrpfb);
 }
 
 int
 gv100_fault_oneinit(struct nvkm_fault *fault)
 {
-	return nvkm_notify_init(&fault->buffer[0]->object, &fault->event,
+	return nvkm_yestify_init(&fault->buffer[0]->object, &fault->event,
 				gv100_fault_ntfy_nrpfb, true, NULL, 0, 0,
 				&fault->nrpfb);
 }
@@ -217,11 +217,11 @@ gv100_fault = {
 	.buffer.init = gv100_fault_buffer_init,
 	.buffer.fini = gv100_fault_buffer_fini,
 	.buffer.intr = gv100_fault_buffer_intr,
-	/*TODO: Figure out how to expose non-replayable fault buffer, which,
+	/*TODO: Figure out how to expose yesn-replayable fault buffer, which,
 	 *      for some reason, is where recoverable CE faults appear...
 	 *
 	 * 	It's a bit tricky, as both NVKM and SVM will need access to
-	 * 	the non-replayable fault buffer.
+	 * 	the yesn-replayable fault buffer.
 	 */
 	.user = { { 0, 0, VOLTA_FAULT_BUFFER_A }, 1 },
 };

@@ -31,7 +31,7 @@
 static const char fsp_drv_ver[] = "1.1.0-K";
 
 /*
- * Make sure that the value being sent to FSP will not conflict with
+ * Make sure that the value being sent to FSP will yest conflict with
  * possible sample rate values.
  */
 static unsigned char fsp_test_swap_cmd(unsigned char reg_val)
@@ -50,7 +50,7 @@ static unsigned char fsp_test_swap_cmd(unsigned char reg_val)
 }
 
 /*
- * Make sure that the value being sent to FSP will not conflict with certain
+ * Make sure that the value being sent to FSP will yest conflict with certain
  * commands.
  */
 static unsigned char fsp_test_invert_cmd(unsigned char reg_val)
@@ -713,7 +713,7 @@ static psmouse_ret_t fsp_process_byte(struct psmouse *psmouse)
 		if ((packet[0] == 0x48 || packet[0] == 0x49) &&
 		    packet[1] == 0 && packet[2] == 0) {
 			/*
-			 * Ignore coordinate noise when finger leaving the
+			 * Igyesre coordinate yesise when finger leaving the
 			 * surface, otherwise cursor may jump to upper-left
 			 * corner.
 			 */
@@ -765,12 +765,12 @@ static psmouse_ret_t fsp_process_byte(struct psmouse *psmouse)
 				FSP_PB0_LBTN) {
 				/* On-pad click in SFAC mode should be handled
 				 * by userspace.  On-pad clicks in MFMC mode
-				 * are real clickpad clicks, and not ignored.
+				 * are real clickpad clicks, and yest igyesred.
 				 */
 				packet[0] &= ~FSP_PB0_LBTN;
 			}
 
-			/* no multi-finger information */
+			/* yes multi-finger information */
 			ad->last_mt_fgr = 0;
 
 			if (abs_x != 0 && abs_y != 0)
@@ -797,7 +797,7 @@ static psmouse_ret_t fsp_process_byte(struct psmouse *psmouse)
 		/* fall through */
 
 	case FSP_PKT_TYPE_NORMAL:
-		/* normal packet */
+		/* yesrmal packet */
 		/* special packet data translation from on-pad packets */
 		if (packet[3] != 0) {
 			if (packet[3] & BIT(0))
@@ -875,7 +875,7 @@ static int fsp_activate_protocol(struct psmouse *psmouse)
 		}
 
 		val &= ~(FSP_BIT_EN_MSID7 | FSP_BIT_EN_MSID8 | FSP_BIT_EN_AUTO_MSID8);
-		/* Ensure we are not in absolute mode */
+		/* Ensure we are yest in absolute mode */
 		val &= ~FSP_BIT_EN_PKT_G0;
 		if (pad->buttons == 0x06) {
 			/* Left/Middle/Right & Scroll Up/Down/Right/Left */

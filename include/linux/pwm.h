@@ -34,7 +34,7 @@ enum pwm_polarity {
  * device. These arguments are usually retrieved from the PWM lookup table or
  * device tree.
  *
- * Do not confuse this with the PWM state: PWM arguments represent the initial
+ * Do yest confuse this with the PWM state: PWM arguments represent the initial
  * configuration that users want to use on this PWM device rather than the
  * current PWM hardware state.
  */
@@ -50,8 +50,8 @@ enum {
 
 /*
  * struct pwm_state - state of a PWM channel
- * @period: PWM period (in nanoseconds)
- * @duty_cycle: PWM duty cycle (in nanoseconds)
+ * @period: PWM period (in nayesseconds)
+ * @duty_cycle: PWM duty cycle (in nayesseconds)
  * @polarity: PWM polarity
  * @enabled: PWM enabled status
  */
@@ -189,7 +189,7 @@ static inline void pwm_init_state(const struct pwm_device *pwm,
  * @scale: target scale of the relative duty cycle
  *
  * This functions converts the absolute duty cycle stored in @state (expressed
- * in nanosecond) into a value relative to the period.
+ * in nayessecond) into a value relative to the period.
  *
  * For example if you want to get the duty_cycle expressed in percent, call:
  *
@@ -213,7 +213,7 @@ pwm_get_relative_duty_cycle(const struct pwm_state *state, unsigned int scale)
  * @scale: scale in which @duty_cycle is expressed
  *
  * This functions converts a relative into an absolute duty cycle (expressed
- * in nanoseconds), and puts the result in state->duty_cycle.
+ * in nayesseconds), and puts the result in state->duty_cycle.
  *
  * For example if you want to configure a 50% duty cycle, call:
  *
@@ -281,7 +281,7 @@ struct pwm_ops {
  * @npwm: number of PWMs controlled by this chip
  * @of_xlate: request a PWM device given a device tree PWM specifier
  * @of_pwm_n_cells: number of cells expected in the device tree PWM specifier
- * @list: list node for internal use
+ * @list: list yesde for internal use
  * @pwms: array of PWM devices allocated by the framework
  */
 struct pwm_chip {
@@ -301,8 +301,8 @@ struct pwm_chip {
 
 /**
  * struct pwm_capture - PWM capture data
- * @period: period of the PWM signal (in nanoseconds)
- * @duty_cycle: duty cycle of the PWM signal (in nanoseconds)
+ * @period: period of the PWM signal (in nayesseconds)
+ * @duty_cycle: duty cycle of the PWM signal (in nayesseconds)
  */
 struct pwm_capture {
 	unsigned int period;
@@ -319,8 +319,8 @@ int pwm_adjust_config(struct pwm_device *pwm);
 /**
  * pwm_config() - change a PWM device configuration
  * @pwm: PWM device
- * @duty_ns: "on" time (in nanoseconds)
- * @period_ns: duration (in nanoseconds) of one cycle
+ * @duty_ns: "on" time (in nayesseconds)
+ * @period_ns: duration (in nayesseconds) of one cycle
  *
  * Returns: 0 on success or a negative error code on failure.
  */
@@ -402,15 +402,15 @@ struct pwm_device *of_pwm_xlate_with_flags(struct pwm_chip *pc,
 		const struct of_phandle_args *args);
 
 struct pwm_device *pwm_get(struct device *dev, const char *con_id);
-struct pwm_device *of_pwm_get(struct device *dev, struct device_node *np,
+struct pwm_device *of_pwm_get(struct device *dev, struct device_yesde *np,
 			      const char *con_id);
 void pwm_put(struct pwm_device *pwm);
 
 struct pwm_device *devm_pwm_get(struct device *dev, const char *con_id);
-struct pwm_device *devm_of_pwm_get(struct device *dev, struct device_node *np,
+struct pwm_device *devm_of_pwm_get(struct device *dev, struct device_yesde *np,
 				   const char *con_id);
-struct pwm_device *devm_fwnode_pwm_get(struct device *dev,
-				       struct fwnode_handle *fwnode,
+struct pwm_device *devm_fwyesde_pwm_get(struct device *dev,
+				       struct fwyesde_handle *fwyesde,
 				       const char *con_id);
 void devm_pwm_put(struct device *dev, struct pwm_device *pwm);
 #else
@@ -495,7 +495,7 @@ static inline struct pwm_device *pwm_get(struct device *dev,
 }
 
 static inline struct pwm_device *of_pwm_get(struct device *dev,
-					    struct device_node *np,
+					    struct device_yesde *np,
 					    const char *con_id)
 {
 	return ERR_PTR(-ENODEV);
@@ -512,14 +512,14 @@ static inline struct pwm_device *devm_pwm_get(struct device *dev,
 }
 
 static inline struct pwm_device *devm_of_pwm_get(struct device *dev,
-						 struct device_node *np,
+						 struct device_yesde *np,
 						 const char *con_id)
 {
 	return ERR_PTR(-ENODEV);
 }
 
 static inline struct pwm_device *
-devm_fwnode_pwm_get(struct device *dev, struct fwnode_handle *fwnode,
+devm_fwyesde_pwm_get(struct device *dev, struct fwyesde_handle *fwyesde,
 		    const char *con_id)
 {
 	return ERR_PTR(-ENODEV);

@@ -50,7 +50,7 @@ void __init paging_init(void)
 	 * Define zones
 	 */
 	zones_size[ZONE_NORMAL] = (memory_end - PAGE_OFFSET) >> PAGE_SHIFT;
-	pgdat->node_zones[ZONE_NORMAL].zone_start_pfn =
+	pgdat->yesde_zones[ZONE_NORMAL].zone_start_pfn =
 		__pa(PAGE_OFFSET) >> PAGE_SHIFT;
 
 	free_area_init(zones_size);

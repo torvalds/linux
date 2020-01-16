@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -45,7 +45,7 @@
 /* When transmitting messages in rds_send_xmit, we need to emerge from
  * time to time and briefly release the CPU. Otherwise the softlock watchdog
  * will kick our shin.
- * Also, it seems fairer to not let one busy connection stall all the
+ * Also, it seems fairer to yest let one busy connection stall all the
  * others.
  *
  * send_batch_count is the number of times we'll loop in send_xmit. Setting
@@ -70,10 +70,10 @@ void rds_send_path_reset(struct rds_conn_path *cp)
 	if (cp->cp_xmit_rm) {
 		rm = cp->cp_xmit_rm;
 		cp->cp_xmit_rm = NULL;
-		/* Tell the user the RDMA op is no longer mapped by the
+		/* Tell the user the RDMA op is yes longer mapped by the
 		 * transport. This isn't entirely true (it's flushed out
 		 * independently) but as the connection is down, there's
-		 * no ongoing RDMA to/from that memory */
+		 * yes ongoing RDMA to/from that memory */
 		rds_message_unmapped(rm);
 		rds_message_put(rm);
 	}
@@ -126,7 +126,7 @@ static void release_in_xmit(struct rds_conn_path *cp)
  *   Pro:
  *      - tx queueing is a simple fifo list
  *   	- reassembly is optional and easily done by transports per conn
- *      - no per flow rx lookup at all, straight to the socket
+ *      - yes per flow rx lookup at all, straight to the socket
  *   	- less per-frag memory and wire overhead
  *   Con:
  *      - queued acks can be delayed behind large messages
@@ -153,7 +153,7 @@ restart:
 	/*
 	 * sendmsg calls here after having queued its message on the send
 	 * queue.  We only have one task feeding the connection at a time.  If
-	 * another thread is already feeding the queue then we back off.  This
+	 * ayesther thread is already feeding the queue then we back off.  This
 	 * avoids blocking the caller and trading per-connection data between
 	 * caches per message.
 	 */
@@ -230,7 +230,7 @@ restart:
 		}
 
 		/*
-		 * If not already working on one, grab the next message.
+		 * If yest already working on one, grab the next message.
 		 *
 		 * cp_xmit_rm holds a ref while we're sending this message down
 		 * the connction.  We can use this ref while holding the
@@ -273,7 +273,7 @@ restart:
 			/* Unfortunately, the way Infiniband deals with
 			 * RDMA to a bad MR key is by moving the entire
 			 * queue pair to error state. We cold possibly
-			 * recover from that, but right now we drop the
+			 * recover from that, but right yesw we drop the
 			 * connection.
 			 * Therefore, we never retransmit messages with RDMA ops.
 			 */
@@ -306,10 +306,10 @@ restart:
 			cp->cp_xmit_rm = rm;
 		}
 
-		/* The transport either sends the whole rdma or none of it */
+		/* The transport either sends the whole rdma or yesne of it */
 		if (rm->rdma.op_active && !cp->cp_xmit_rdma_sent) {
 			rm->m_final_op = &rm->rdma;
-			/* The transport owns the mapped memory for now.
+			/* The transport owns the mapped memory for yesw.
 			 * You can't unmap it while it's on the send queue
 			 */
 			set_bit(RDS_MSG_MAPPED, &rm->m_flags);
@@ -325,7 +325,7 @@ restart:
 
 		if (rm->atomic.op_active && !cp->cp_xmit_atomic_sent) {
 			rm->m_final_op = &rm->atomic;
-			/* The transport owns the mapped memory for now.
+			/* The transport owns the mapped memory for yesw.
 			 * You can't unmap it while it's on the send queue
 			 */
 			set_bit(RDS_MSG_MAPPED, &rm->m_flags);
@@ -341,7 +341,7 @@ restart:
 
 		/*
 		 * A number of cases require an RDS header to be sent
-		 * even if there is no data.
+		 * even if there is yes data.
 		 * We permit 0-byte sends; rds-ping depends on this.
 		 * However, if there are exclusively attached silent ops,
 		 * we skip the hdr/data send, to enable silent operation.
@@ -402,7 +402,7 @@ restart:
 		/*
 		 * A rm will only take multiple times through this loop
 		 * if there is a data op. Thus, if the data is sent (or there was
-		 * none), then we're done with the rm.
+		 * yesne), then we're done with the rm.
 		 */
 		if (!rm->data.op_active || cp->cp_xmit_data_sent) {
 			cp->cp_xmit_rm = NULL;
@@ -422,7 +422,7 @@ over_batch:
 		conn->c_trans->xmit_path_complete(cp);
 	release_in_xmit(cp);
 
-	/* Nuke any messages we decided not to retransmit. */
+	/* Nuke any messages we decided yest to retransmit. */
 	if (!list_empty(&to_be_dropped)) {
 		/* irqs on here, so we can put(), unlike above */
 		list_for_each_entry(rm, &to_be_dropped, m_conn_item)
@@ -433,11 +433,11 @@ over_batch:
 	/*
 	 * Other senders can queue a message after we last test the send queue
 	 * but before we clear RDS_IN_XMIT.  In that case they'd back off and
-	 * not try and send their newly queued message.  We need to check the
+	 * yest try and send their newly queued message.  We need to check the
 	 * send queue after having cleared RDS_IN_XMIT so that their message
 	 * doesn't get stuck on the send queue.
 	 *
-	 * If the transport cannot continue (i.e ret != 0), then it must
+	 * If the transport canyest continue (i.e ret != 0), then it must
 	 * call us when more room is available, such as from the tx
 	 * completion handler.
 	 *
@@ -501,24 +501,24 @@ void rds_rdma_send_complete(struct rds_message *rm, int status)
 {
 	struct rds_sock *rs = NULL;
 	struct rm_rdma_op *ro;
-	struct rds_notifier *notifier;
+	struct rds_yestifier *yestifier;
 	unsigned long flags;
 
 	spin_lock_irqsave(&rm->m_rs_lock, flags);
 
 	ro = &rm->rdma;
 	if (test_bit(RDS_MSG_ON_SOCK, &rm->m_flags) &&
-	    ro->op_active && ro->op_notify && ro->op_notifier) {
-		notifier = ro->op_notifier;
+	    ro->op_active && ro->op_yestify && ro->op_yestifier) {
+		yestifier = ro->op_yestifier;
 		rs = rm->m_rs;
 		sock_hold(rds_rs_to_sk(rs));
 
-		notifier->n_status = status;
+		yestifier->n_status = status;
 		spin_lock(&rs->rs_lock);
-		list_add_tail(&notifier->n_list, &rs->rs_notify_queue);
+		list_add_tail(&yestifier->n_list, &rs->rs_yestify_queue);
 		spin_unlock(&rs->rs_lock);
 
-		ro->op_notifier = NULL;
+		ro->op_yestifier = NULL;
 	}
 
 	spin_unlock_irqrestore(&rm->m_rs_lock, flags);
@@ -537,24 +537,24 @@ void rds_atomic_send_complete(struct rds_message *rm, int status)
 {
 	struct rds_sock *rs = NULL;
 	struct rm_atomic_op *ao;
-	struct rds_notifier *notifier;
+	struct rds_yestifier *yestifier;
 	unsigned long flags;
 
 	spin_lock_irqsave(&rm->m_rs_lock, flags);
 
 	ao = &rm->atomic;
 	if (test_bit(RDS_MSG_ON_SOCK, &rm->m_flags)
-	    && ao->op_active && ao->op_notify && ao->op_notifier) {
-		notifier = ao->op_notifier;
+	    && ao->op_active && ao->op_yestify && ao->op_yestifier) {
+		yestifier = ao->op_yestifier;
 		rs = rm->m_rs;
 		sock_hold(rds_rs_to_sk(rs));
 
-		notifier->n_status = status;
+		yestifier->n_status = status;
 		spin_lock(&rs->rs_lock);
-		list_add_tail(&notifier->n_list, &rs->rs_notify_queue);
+		list_add_tail(&yestifier->n_list, &rs->rs_yestify_queue);
 		spin_unlock(&rs->rs_lock);
 
-		ao->op_notifier = NULL;
+		ao->op_yestifier = NULL;
 	}
 
 	spin_unlock_irqrestore(&rm->m_rs_lock, flags);
@@ -569,7 +569,7 @@ EXPORT_SYMBOL_GPL(rds_atomic_send_complete);
 /*
  * This is the same as rds_rdma_send_complete except we
  * don't do any locking - we have all the ingredients (message,
- * socket, socket lock) and can just move the notifier.
+ * socket, socket lock) and can just move the yestifier.
  */
 static inline void
 __rds_send_complete(struct rds_sock *rs, struct rds_message *rm, int status)
@@ -578,17 +578,17 @@ __rds_send_complete(struct rds_sock *rs, struct rds_message *rm, int status)
 	struct rm_atomic_op *ao;
 
 	ro = &rm->rdma;
-	if (ro->op_active && ro->op_notify && ro->op_notifier) {
-		ro->op_notifier->n_status = status;
-		list_add_tail(&ro->op_notifier->n_list, &rs->rs_notify_queue);
-		ro->op_notifier = NULL;
+	if (ro->op_active && ro->op_yestify && ro->op_yestifier) {
+		ro->op_yestifier->n_status = status;
+		list_add_tail(&ro->op_yestifier->n_list, &rs->rs_yestify_queue);
+		ro->op_yestifier = NULL;
 	}
 
 	ao = &rm->atomic;
-	if (ao->op_active && ao->op_notify && ao->op_notifier) {
-		ao->op_notifier->n_status = status;
-		list_add_tail(&ao->op_notifier->n_list, &rs->rs_notify_queue);
-		ao->op_notifier = NULL;
+	if (ao->op_active && ao->op_yestify && ao->op_yestifier) {
+		ao->op_yestifier->n_status = status;
+		list_add_tail(&ao->op_yestifier->n_list, &rs->rs_yestify_queue);
+		ao->op_yestifier = NULL;
 	}
 
 	/* No need to wake the app - caller does this */
@@ -600,7 +600,7 @@ __rds_send_complete(struct rds_sock *rs, struct rds_message *rm, int status)
  * without locks.  The messages must have a reference held for their
  * position on the list.  This function will drop that reference after
  * removing the messages from the 'messages' list regardless of if it found
- * the messages on the socket list or not.
+ * the messages on the socket list or yest.
  */
 static void rds_send_remove_from_sock(struct list_head *messages, int status)
 {
@@ -621,8 +621,8 @@ static void rds_send_remove_from_sock(struct list_head *messages, int status)
 		 * with their flag update we'll get the lock and then really
 		 * see that the flag has been cleared.
 		 *
-		 * The message spinlock makes sure nobody clears rm->m_rs
-		 * while we're messing with it. It does not prevent the
+		 * The message spinlock makes sure yesbody clears rm->m_rs
+		 * while we're messing with it. It does yest prevent the
 		 * message from being removed from the socket, though.
 		 */
 		spin_lock_irqsave(&rm->m_rs_lock, flags);
@@ -644,19 +644,19 @@ static void rds_send_remove_from_sock(struct list_head *messages, int status)
 
 		if (test_and_clear_bit(RDS_MSG_ON_SOCK, &rm->m_flags)) {
 			struct rm_rdma_op *ro = &rm->rdma;
-			struct rds_notifier *notifier;
+			struct rds_yestifier *yestifier;
 
 			list_del_init(&rm->m_sock_item);
 			rds_send_sndbuf_remove(rs, rm);
 
-			if (ro->op_active && ro->op_notifier &&
-			       (ro->op_notify || (ro->op_recverr && status))) {
-				notifier = ro->op_notifier;
-				list_add_tail(&notifier->n_list,
-						&rs->rs_notify_queue);
-				if (!notifier->n_status)
-					notifier->n_status = status;
-				rm->rdma.op_notifier = NULL;
+			if (ro->op_active && ro->op_yestifier &&
+			       (ro->op_yestify || (ro->op_recverr && status))) {
+				yestifier = ro->op_yestifier;
+				list_add_tail(&yestifier->n_list,
+						&rs->rs_yestify_queue);
+				if (!yestifier->n_status)
+					yestifier->n_status = status;
+				rm->rdma.op_yestifier = NULL;
 			}
 			was_on_sock = 1;
 		}
@@ -679,7 +679,7 @@ unlock_and_drop:
  * Transports call here when they've determined that the receiver queued
  * messages up to, and including, the given sequence number.  Messages are
  * moved to the retrans queue when rds_send_xmit picks them off the send
- * queue. This means that in the TCP case, the message may not have been
+ * queue. This means that in the TCP case, the message may yest have been
  * assigned the m_ack_seq yet - but that's fine as long as tcp_is_acked
  * checks the RDS_MSG_HAS_ACK_SEQ bit.
  */
@@ -706,7 +706,7 @@ void rds_send_path_drop_acked(struct rds_conn_path *cp, u64 ack,
 
 	spin_unlock_irqrestore(&cp->cp_lock, flags);
 
-	/* now remove the messages from the sock list as needed */
+	/* yesw remove the messages from the sock list as needed */
 	rds_send_remove_from_sock(&list, RDS_RDMA_SUCCESS);
 }
 EXPORT_SYMBOL_GPL(rds_send_path_drop_acked);
@@ -773,7 +773,7 @@ void rds_send_drop_to(struct rds_sock *rs, struct sockaddr_in6 *dest)
 
 		/*
 		 * Couldn't grab m_rs_lock in top loop (lock ordering),
-		 * but we can now.
+		 * but we can yesw.
 		 */
 		spin_lock_irqsave(&rm->m_rs_lock, flags);
 
@@ -812,7 +812,7 @@ void rds_send_drop_to(struct rds_sock *rs, struct sockaddr_in6 *dest)
 
 /*
  * we only want this to fire once so we use the callers 'queued'.  It's
- * possible that another thread can race with us and remove the
+ * possible that ayesther thread can race with us and remove the
  * message from the flow with RDS_CANCEL_SENT_TO.
  */
 static int rds_send_queue_rm(struct rds_sock *rs, struct rds_connection *conn,
@@ -838,13 +838,13 @@ static int rds_send_queue_rm(struct rds_sock *rs, struct rds_connection *conn,
 	 * room. This can lead to bad behavior (spinning) if snd_bytes isn't
 	 * freed up by incoming acks. So we check the *old* value of
 	 * rs_snd_bytes here to allow the last msg to exceed the buffer,
-	 * and poll() now knows no more data can be sent.
+	 * and poll() yesw kyesws yes more data can be sent.
 	 */
 	if (rs->rs_snd_bytes < rds_sk_sndbuf(rs)) {
 		rs->rs_snd_bytes += len;
 
-		/* let recv side know we are close to send space exhaustion.
-		 * This is probably not the optimal way to do it, as this
+		/* let recv side kyesw we are close to send space exhaustion.
+		 * This is probably yest the optimal way to do it, as this
 		 * means we set the flag on *all* messages as soon as our
 		 * throughput hits a certain threshold.
 		 */
@@ -939,7 +939,7 @@ static int rds_rm_size(struct msghdr *msg, int num_sgs,
 		case RDS_CMSG_RDMA_DEST:
 		case RDS_CMSG_RDMA_MAP:
 			cmsg_groups |= 2;
-			/* these are valid but do no add any size */
+			/* these are valid but do yes add any size */
 			break;
 
 		case RDS_CMSG_ATOMIC_CSWP:
@@ -974,10 +974,10 @@ static int rds_cmsg_zcopy(struct rds_sock *rs, struct rds_message *rm,
 	u32 *cookie;
 
 	if (cmsg->cmsg_len < CMSG_LEN(sizeof(*cookie)) ||
-	    !rm->data.op_mmp_znotifier)
+	    !rm->data.op_mmp_zyestifier)
 		return -EINVAL;
 	cookie = CMSG_DATA(cmsg);
-	rm->data.op_mmp_znotifier->z_cookie = *cookie;
+	rm->data.op_mmp_zyestifier->z_cookie = *cookie;
 	return 0;
 }
 
@@ -1043,7 +1043,7 @@ static int rds_cmsg_send(struct rds_sock *rs, struct rds_message *rm,
 }
 
 static int rds_send_mprds_hash(struct rds_sock *rs,
-			       struct rds_connection *conn, int nonblock)
+			       struct rds_connection *conn, int yesnblock)
 {
 	int hash;
 
@@ -1054,16 +1054,16 @@ static int rds_send_mprds_hash(struct rds_sock *rs,
 	if (conn->c_npaths == 0 && hash != 0) {
 		rds_send_ping(conn, 0);
 
-		/* The underlying connection is not up yet.  Need to wait
-		 * until it is up to be sure that the non-zero c_path can be
+		/* The underlying connection is yest up yet.  Need to wait
+		 * until it is up to be sure that the yesn-zero c_path can be
 		 * used.  But if we are interrupted, we have to use the zero
-		 * c_path in case the connection ends up being non-MP capable.
+		 * c_path in case the connection ends up being yesn-MP capable.
 		 */
 		if (conn->c_npaths == 0) {
-			/* Cannot wait for the connection be made, so just use
+			/* Canyest wait for the connection be made, so just use
 			 * the base c_path.
 			 */
-			if (nonblock)
+			if (yesnblock)
 				return 0;
 			if (wait_event_interruptible(conn->c_hs_waitq,
 						     conn->c_npaths != 0))
@@ -1109,8 +1109,8 @@ int rds_sendmsg(struct socket *sock, struct msghdr *msg, size_t payload_len)
 	struct rds_connection *conn;
 	int ret = 0;
 	int queued = 0, allocated_mr = 0;
-	int nonblock = msg->msg_flags & MSG_DONTWAIT;
-	long timeo = sock_sndtimeo(sk, nonblock);
+	int yesnblock = msg->msg_flags & MSG_DONTWAIT;
+	long timeo = sock_sndtimeo(sk, yesnblock);
 	struct rds_conn_path *cpath;
 	struct in6_addr daddr;
 	__u32 scope_id = 0;
@@ -1213,8 +1213,8 @@ int rds_sendmsg(struct socket *sock, struct msghdr *msg, size_t payload_len)
 		ret = -ENOTCONN;
 		goto out;
 	} else if (namelen != 0) {
-		/* Cannot send to an IPv4 address using an IPv6 source
-		 * address and cannot send to an IPv6 address using an
+		/* Canyest send to an IPv4 address using an IPv6 source
+		 * address and canyest send to an IPv6 address using an
 		 * IPv4 source address.
 		 */
 		if (ipv6_addr_v4mapped(&daddr) ^
@@ -1225,7 +1225,7 @@ int rds_sendmsg(struct socket *sock, struct msghdr *msg, size_t payload_len)
 		}
 		/* If the socket is already bound to a link local address,
 		 * it can only send to peers on the same link.  But allow
-		 * communicating beween link local and non-link local address.
+		 * communicating beween link local and yesn-link local address.
 		 */
 		if (scope_id != rs->rs_bound_scope_id) {
 			if (!scope_id) {
@@ -1304,7 +1304,7 @@ int rds_sendmsg(struct socket *sock, struct msghdr *msg, size_t payload_len)
 	}
 
 	if (conn->c_trans->t_mp_capable)
-		cpath = &conn->c_path[rds_send_mprds_hash(rs, conn, nonblock)];
+		cpath = &conn->c_path[rds_send_mprds_hash(rs, conn, yesnblock)];
 	else
 		cpath = &conn->c_path[0];
 
@@ -1340,7 +1340,7 @@ int rds_sendmsg(struct socket *sock, struct msghdr *msg, size_t payload_len)
 
 	rds_conn_path_connect_if_down(cpath);
 
-	ret = rds_cong_wait(conn->c_fcong, dport, nonblock, rs);
+	ret = rds_cong_wait(conn->c_fcong, dport, yesnblock, rs);
 	if (ret) {
 		rs->rs_seen_congestion = 1;
 		goto out;
@@ -1349,7 +1349,7 @@ int rds_sendmsg(struct socket *sock, struct msghdr *msg, size_t payload_len)
 				  dport, &queued)) {
 		rds_stats_inc(s_send_queue_full);
 
-		if (nonblock) {
+		if (yesnblock) {
 			ret = -EAGAIN;
 			goto out;
 		}
@@ -1371,7 +1371,7 @@ int rds_sendmsg(struct socket *sock, struct msghdr *msg, size_t payload_len)
 	}
 
 	/*
-	 * By now we've committed to the send.  We reuse rds_send_worker()
+	 * By yesw we've committed to the send.  We reuse rds_send_worker()
 	 * to retry sends in the rds thread if the transport asks us to.
 	 */
 	rds_stats_inc(s_send_queued);

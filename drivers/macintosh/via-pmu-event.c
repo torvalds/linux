@@ -15,7 +15,7 @@
  * details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
+ * along with this program; if yest, write to the Free Software
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
  *
  */
@@ -70,7 +70,7 @@ void via_pmu_event(int key, int down)
 		input_report_switch(pmu_input_dev, SW_LID, down);
 		break;
 	default:
-		/* no such key handled */
+		/* yes such key handled */
 		return;
 	}
 

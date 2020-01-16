@@ -10,13 +10,13 @@ maintainers:
   - Mark Brown <broonie@kernel.org>
 
 description: |
-  SPI busses can be described with a node for the SPI controller device
-  and a set of child nodes for each SPI slave on the bus. The system SPI
+  SPI busses can be described with a yesde for the SPI controller device
+  and a set of child yesdes for each SPI slave on the bus. The system SPI
   controller may be described for use in SPI master mode or in SPI slave mode,
-  but not for both at the same time.
+  but yest for both at the same time.
 
 properties:
-  $nodename:
+  $yesdename:
     pattern: "^spi(@.*|-[0-9a-f])*$"
 
   "#address-cells":

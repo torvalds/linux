@@ -7,7 +7,7 @@
 #include <net/tcp.h>
 #include <net/udp.h>
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/aer.h>
@@ -216,7 +216,7 @@ struct i40e_rx_flow_userdef {
 };
 
 struct i40e_fdir_filter {
-	struct hlist_node fdir_node;
+	struct hlist_yesde fdir_yesde;
 	/* filter ipnut set */
 	u8 flow_type;
 	u8 ip4_proto;
@@ -264,7 +264,7 @@ struct i40e_fdir_filter {
 #define I40E_CLOUD_FILTER_FLAGS_IIP	I40E_CLOUD_FIELD_IIP
 
 struct i40e_cloud_filter {
-	struct hlist_node cloud_node;
+	struct hlist_yesde cloud_yesde;
 	unsigned long cookie;
 	/* cloud filter input set follows */
 	u8 dst_mac[ETH_ALEN];
@@ -414,7 +414,7 @@ struct i40e_flex_pit {
 
 struct i40e_fwd_adapter {
 	struct net_device *netdev;
-	int bit_no;
+	int bit_yes;
 };
 
 struct i40e_channel {
@@ -618,7 +618,7 @@ struct i40e_pf {
 	 * whether DCBx is managed by firmware or host
 	 * based agent (LLDPAD). Also, indicates what
 	 * flavor of DCBx protocol (IEEE/CEE) is supported
-	 * by the device. For now we're supporting IEEE
+	 * by the device. For yesw we're supporting IEEE
 	 * mode only.
 	 */
 	u16 dcbx_cap;
@@ -673,14 +673,14 @@ static inline u64 i40e_addr_to_hkey(const u8 *macaddr)
 
 enum i40e_filter_state {
 	I40E_FILTER_INVALID = 0,	/* Invalid state */
-	I40E_FILTER_NEW,		/* New, not sent to FW yet */
+	I40E_FILTER_NEW,		/* New, yest sent to FW yet */
 	I40E_FILTER_ACTIVE,		/* Added to switch by FW */
 	I40E_FILTER_FAILED,		/* Rejected by FW */
 	I40E_FILTER_REMOVE,		/* To be removed */
-/* There is no 'removed' state; the filter struct is freed */
+/* There is yes 'removed' state; the filter struct is freed */
 };
 struct i40e_mac_filter {
-	struct hlist_node hlist;
+	struct hlist_yesde hlist;
 	u8 macaddr[ETH_ALEN];
 #define I40E_VLAN_ANY -1
 	s16 vlan;
@@ -688,7 +688,7 @@ struct i40e_mac_filter {
 };
 
 /* Wrapper structure to keep track of filters while we are preparing to send
- * firmware commands. We cannot send firmware commands while holding a
+ * firmware commands. We canyest send firmware commands while holding a
  * spinlock, since it might sleep. To avoid this, we wrap the added filters in
  * a separate structure, which will track the state change and update the real
  * filter while under lock. We can't simply hold the filters in a separate
@@ -696,7 +696,7 @@ struct i40e_mac_filter {
  * addresses to all VLANs, or when adding new VLANs to all MAC addresses.
  */
 struct i40e_new_mac_filter {
-	struct hlist_node hlist;
+	struct hlist_yesde hlist;
 	struct i40e_mac_filter *f;
 
 	/* Track future changes to state separately */
@@ -845,7 +845,7 @@ struct i40e_vsi {
 	irqreturn_t (*irq_handler)(int irq, void *data);
 
 	unsigned long *af_xdp_zc_qps; /* tracks AF_XDP ZC enabled qps */
-} ____cacheline_internodealigned_in_smp;
+} ____cacheline_interyesdealigned_in_smp;
 
 struct i40e_netdev_priv {
 	struct i40e_vsi *vsi;
@@ -867,12 +867,12 @@ struct i40e_q_vector {
 	u8 num_ringpairs;	/* total number of ring pairs in vector */
 
 	cpumask_t affinity_mask;
-	struct irq_affinity_notify affinity_notify;
+	struct irq_affinity_yestify affinity_yestify;
 
 	struct rcu_head rcu;	/* to avoid race with update stats on free */
 	char name[I40E_INT_NAME_STR_LEN];
 	bool arm_wb_state;
-} ____cacheline_internodealigned_in_smp;
+} ____cacheline_interyesdealigned_in_smp;
 
 /* lan device */
 struct i40e_device {
@@ -1044,7 +1044,7 @@ struct i40e_vsi *i40e_vsi_setup(struct i40e_pf *pf, u8 type,
 				u16 uplink, u32 param1);
 int i40e_vsi_release(struct i40e_vsi *vsi);
 void i40e_service_event_schedule(struct i40e_pf *pf);
-void i40e_notify_client_of_vf_msg(struct i40e_vsi *vsi, u32 vf_id,
+void i40e_yestify_client_of_vf_msg(struct i40e_vsi *vsi, u32 vf_id,
 				  u8 *msg, u16 len);
 
 int i40e_control_wait_tx_q(int seid, struct i40e_pf *pf, int pf_q, bool is_xdp,
@@ -1052,7 +1052,7 @@ int i40e_control_wait_tx_q(int seid, struct i40e_pf *pf, int pf_q, bool is_xdp,
 int i40e_control_wait_rx_q(struct i40e_pf *pf, int pf_q, bool enable);
 int i40e_vsi_start_rings(struct i40e_vsi *vsi);
 void i40e_vsi_stop_rings(struct i40e_vsi *vsi);
-void i40e_vsi_stop_rings_no_wait(struct  i40e_vsi *vsi);
+void i40e_vsi_stop_rings_yes_wait(struct  i40e_vsi *vsi);
 int i40e_vsi_wait_queues_disabled(struct i40e_vsi *vsi);
 int i40e_reconfig_rss_queues(struct i40e_pf *pf, int queue_count);
 struct i40e_veb *i40e_veb_setup(struct i40e_pf *pf, u16 flags, u16 uplink_seid,
@@ -1079,10 +1079,10 @@ static inline void i40e_dbg_exit(void) {}
 int i40e_lan_add_device(struct i40e_pf *pf);
 int i40e_lan_del_device(struct i40e_pf *pf);
 void i40e_client_subtask(struct i40e_pf *pf);
-void i40e_notify_client_of_l2_param_changes(struct i40e_vsi *vsi);
-void i40e_notify_client_of_netdev_close(struct i40e_vsi *vsi, bool reset);
-void i40e_notify_client_of_vf_enable(struct i40e_pf *pf, u32 num_vfs);
-void i40e_notify_client_of_vf_reset(struct i40e_pf *pf, u32 vf_id);
+void i40e_yestify_client_of_l2_param_changes(struct i40e_vsi *vsi);
+void i40e_yestify_client_of_netdev_close(struct i40e_vsi *vsi, bool reset);
+void i40e_yestify_client_of_vf_enable(struct i40e_pf *pf, u32 num_vfs);
+void i40e_yestify_client_of_vf_reset(struct i40e_pf *pf, u32 vf_id);
 void i40e_client_update_msix_info(struct i40e_pf *pf);
 int i40e_vf_client_capable(struct i40e_pf *pf, u32 vf_id);
 /**

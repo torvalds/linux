@@ -41,7 +41,7 @@ void blk_mq_tag_wakeup_all(struct blk_mq_tags *tags, bool include_reserve)
 }
 
 /*
- * If a previously busy queue goes inactive, potential waiters could now
+ * If a previously busy queue goes inactive, potential waiters could yesw
  * be allowed to queue. Wake them up and check.
  */
 void __blk_mq_tag_idle(struct blk_mq_hw_ctx *hctx)
@@ -313,7 +313,7 @@ static void bt_tags_for_each(struct blk_mq_tags *tags, struct sbitmap_queue *bt,
  * @fn:		Pointer to the function that will be called for each started
  *		request. @fn will be called as follows: @fn(rq, @priv,
  *		reserved) where rq is a pointer to a request. 'reserved'
- *		indicates whether or not @rq is a reserved request. Return
+ *		indicates whether or yest @rq is a reserved request. Return
  *		true to continue iterating tags, false to stop.
  * @priv:	Will be passed as second argument to @fn.
  */
@@ -331,7 +331,7 @@ static void blk_mq_all_tag_busy_iter(struct blk_mq_tags *tags,
  * @fn:		Pointer to the function that will be called for each started
  *		request. @fn will be called as follows: @fn(rq, @priv,
  *		reserved) where rq is a pointer to a request. 'reserved'
- *		indicates whether or not @rq is a reserved request. Return
+ *		indicates whether or yest @rq is a reserved request. Return
  *		true to continue iterating tags, false to stop.
  * @priv:	Will be passed as second argument to @fn.
  */
@@ -385,11 +385,11 @@ EXPORT_SYMBOL(blk_mq_tagset_wait_completed_request);
  *		on @q. @fn will be called as follows: @fn(hctx, rq, @priv,
  *		reserved) where rq is a pointer to a request and hctx points
  *		to the hardware queue associated with the request. 'reserved'
- *		indicates whether or not @rq is a reserved request.
+ *		indicates whether or yest @rq is a reserved request.
  * @priv:	Will be passed as third argument to @fn.
  *
  * Note: if @q->tag_set is shared with other request queues then @fn will be
- * called for all requests on all queues that share that tag set and not only
+ * called for all requests on all queues that share that tag set and yest only
  * for requests associated with @q.
  */
 void blk_mq_queue_tag_busy_iter(struct request_queue *q, busy_iter_fn *fn,
@@ -412,8 +412,8 @@ void blk_mq_queue_tag_busy_iter(struct request_queue *q, busy_iter_fn *fn,
 		struct blk_mq_tags *tags = hctx->tags;
 
 		/*
-		 * If no software queues are currently mapped to this
-		 * hardware queue, there's nothing to check
+		 * If yes software queues are currently mapped to this
+		 * hardware queue, there's yesthing to check
 		 */
 		if (!blk_mq_hw_queue_mapped(hctx))
 			continue;
@@ -426,22 +426,22 @@ void blk_mq_queue_tag_busy_iter(struct request_queue *q, busy_iter_fn *fn,
 }
 
 static int bt_alloc(struct sbitmap_queue *bt, unsigned int depth,
-		    bool round_robin, int node)
+		    bool round_robin, int yesde)
 {
-	return sbitmap_queue_init_node(bt, depth, -1, round_robin, GFP_KERNEL,
-				       node);
+	return sbitmap_queue_init_yesde(bt, depth, -1, round_robin, GFP_KERNEL,
+				       yesde);
 }
 
 static struct blk_mq_tags *blk_mq_init_bitmap_tags(struct blk_mq_tags *tags,
-						   int node, int alloc_policy)
+						   int yesde, int alloc_policy)
 {
 	unsigned int depth = tags->nr_tags - tags->nr_reserved_tags;
 	bool round_robin = alloc_policy == BLK_TAG_ALLOC_RR;
 
-	if (bt_alloc(&tags->bitmap_tags, depth, round_robin, node))
+	if (bt_alloc(&tags->bitmap_tags, depth, round_robin, yesde))
 		goto free_tags;
 	if (bt_alloc(&tags->breserved_tags, tags->nr_reserved_tags, round_robin,
-		     node))
+		     yesde))
 		goto free_bitmap_tags;
 
 	return tags;
@@ -454,7 +454,7 @@ free_tags:
 
 struct blk_mq_tags *blk_mq_init_tags(unsigned int total_tags,
 				     unsigned int reserved_tags,
-				     int node, int alloc_policy)
+				     int yesde, int alloc_policy)
 {
 	struct blk_mq_tags *tags;
 
@@ -463,14 +463,14 @@ struct blk_mq_tags *blk_mq_init_tags(unsigned int total_tags,
 		return NULL;
 	}
 
-	tags = kzalloc_node(sizeof(*tags), GFP_KERNEL, node);
+	tags = kzalloc_yesde(sizeof(*tags), GFP_KERNEL, yesde);
 	if (!tags)
 		return NULL;
 
 	tags->nr_tags = total_tags;
 	tags->nr_reserved_tags = reserved_tags;
 
-	return blk_mq_init_bitmap_tags(tags, node, alloc_policy);
+	return blk_mq_init_bitmap_tags(tags, yesde, alloc_policy);
 }
 
 void blk_mq_free_tags(struct blk_mq_tags *tags)
@@ -502,8 +502,8 @@ int blk_mq_tag_update_depth(struct blk_mq_hw_ctx *hctx,
 			return -EINVAL;
 
 		/*
-		 * We need some sort of upper limit, set it high enough that
-		 * no valid use cases should require more.
+		 * We need some sort of upper limit, set it high eyesugh that
+		 * yes valid use cases should require more.
 		 */
 		if (tdepth > 16 * BLKDEV_MAX_RQ)
 			return -EINVAL;
@@ -537,12 +537,12 @@ int blk_mq_tag_update_depth(struct blk_mq_hw_ctx *hctx,
  * blk_mq_unique_tag() - return a tag that is unique queue-wide
  * @rq: request for which to compute a unique tag
  *
- * The tag field in struct request is unique per hardware queue but not over
+ * The tag field in struct request is unique per hardware queue but yest over
  * all hardware queues. Hence this function that returns a tag with the
  * hardware context index in the upper bits and the per hardware queue tag in
  * the lower bits.
  *
- * Note: When called for a request that is queued on a non-multiqueue request
+ * Note: When called for a request that is queued on a yesn-multiqueue request
  * queue, the hardware context index is set to zero.
  */
 u32 blk_mq_unique_tag(struct request *rq)

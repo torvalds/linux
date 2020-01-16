@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-/* internal file - do not include directly */
+/* internal file - do yest include directly */
 
 #ifdef CONFIG_NET
 BPF_PROG_TYPE(BPF_PROG_TYPE_SOCKET_FILTER, sk_filter,

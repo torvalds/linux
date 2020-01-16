@@ -102,7 +102,7 @@ static void odm_RxPhyStatus92CSeries_Parsing(
 
 		pDM_Odm->PhyDbgInfo.NumQryPhyStatusCCK++;
 		/*  */
-		/*  (1)Hardware does not provide RSSI for CCK */
+		/*  (1)Hardware does yest provide RSSI for CCK */
 		/*  (2)PWDB, Average PWDB cacluated by hardware (for rate adaptive) */
 		/*  */
 
@@ -154,7 +154,7 @@ static void odm_RxPhyStatus92CSeries_Parsing(
 		/*  */
 
 		for (i = ODM_RF_PATH_A; i < ODM_RF_PATH_MAX; i++) {
-			/*  2008/01/30 MH we will judge RF RX path now. */
+			/*  2008/01/30 MH we will judge RF RX path yesw. */
 			if (pDM_Odm->RFPathRxEnable & BIT(i))
 				rf_rx_num++;
 			/* else */
@@ -191,7 +191,7 @@ static void odm_RxPhyStatus92CSeries_Parsing(
 		pPhyInfo->rx_power = rx_pwr_all;
 		pPhyInfo->recv_signal_power = rx_pwr_all;
 
-		{/* pMgntInfo->CustomerID != RT_CID_819x_Lenovo */
+		{/* pMgntInfo->CustomerID != RT_CID_819x_Leyesvo */
 			/*  */
 			/*  (3)EVM of HT rate */
 			/*  */
@@ -201,9 +201,9 @@ static void odm_RxPhyStatus92CSeries_Parsing(
 				Max_spatial_stream = 1; /* only spatial stream 1 makes sense */
 
 			for (i = 0; i < Max_spatial_stream; i++) {
-				/*  Do not use shift operation like "rx_evmX >>= 1" because the compilor of free build environment */
+				/*  Do yest use shift operation like "rx_evmX >>= 1" because the compilor of free build environment */
 				/*  fill most significant bit to "zero" when doing shifting operation which may change a negative */
-				/*  value to positive one, then the dbm value (which is supposed to be negative)  is not correct anymore. */
+				/*  value to positive one, then the dbm value (which is supposed to be negative)  is yest correct anymore. */
 				EVM = odm_EVMdbToPercentage((pPhyStaRpt->stream_rxevm[i]));	/* dbm */
 
 				/* RT_DISP(FRX, RX_PHY_SQ, ("RXRATE =%x RXEVM =%x EVM =%s%d\n", */

@@ -56,14 +56,14 @@ static int read_peer_guid(u64 *guid, const struct sbp_management_request *req)
 	__be32 high, low;
 
 	ret = sbp_run_transaction(req->card, TCODE_READ_QUADLET_REQUEST,
-			req->node_addr, req->generation, req->speed,
+			req->yesde_addr, req->generation, req->speed,
 			(CSR_REGISTER_BASE | CSR_CONFIG_ROM) + 3 * 4,
 			&high, sizeof(high));
 	if (ret != RCODE_COMPLETE)
 		return ret;
 
 	ret = sbp_run_transaction(req->card, TCODE_READ_QUADLET_REQUEST,
-			req->node_addr, req->generation, req->speed,
+			req->yesde_addr, req->generation, req->speed,
 			(CSR_REGISTER_BASE | CSR_CONFIG_ROM) + 4 * 4,
 			&low, sizeof(low));
 	if (ret != RCODE_COMPLETE)
@@ -271,7 +271,7 @@ static void sbp_management_request_login(
 	unpacked_lun = sbp_get_lun_from_tpg(tpg,
 			LOGIN_ORB_LUN(be32_to_cpu(req->orb.misc)), &ret);
 	if (ret) {
-		pr_notice("login to unknown LUN: %d\n",
+		pr_yestice("login to unkyeswn LUN: %d\n",
 			LOGIN_ORB_LUN(be32_to_cpu(req->orb.misc)));
 
 		req->status.status = cpu_to_be32(
@@ -290,14 +290,14 @@ static void sbp_management_request_login(
 		return;
 	}
 
-	pr_notice("mgt_agent LOGIN to LUN %d from %016llx\n",
+	pr_yestice("mgt_agent LOGIN to LUN %d from %016llx\n",
 		unpacked_lun, guid);
 
 	sess = sbp_session_find_by_guid(tpg, guid);
 	if (sess) {
 		login = sbp_login_find_by_lun(sess, unpacked_lun);
 		if (login) {
-			pr_notice("initiator already logged-in\n");
+			pr_yestice("initiator already logged-in\n");
 
 			/*
 			 * SBP-2 R4 says we should return access denied, but
@@ -337,7 +337,7 @@ static void sbp_management_request_login(
 	 * reject with access_denied if any exclusive logins present
 	 */
 	if (sbp_login_count_all_by_lun(tpg, unpacked_lun, 1)) {
-		pr_warn("refusing login while another exclusive login present\n");
+		pr_warn("refusing login while ayesther exclusive login present\n");
 
 		req->status.status = cpu_to_be32(
 			STATUS_BLOCK_RESP(STATUS_RESP_REQUEST_COMPLETE) |
@@ -378,7 +378,7 @@ static void sbp_management_request_login(
 			return;
 		}
 
-		sess->node_id = req->node_addr;
+		sess->yesde_id = req->yesde_addr;
 		sess->card = fw_card_get(req->card);
 		sess->generation = req->generation;
 		sess->speed = req->speed;
@@ -452,7 +452,7 @@ already_logged_in:
 		&response->command_block_agent);
 
 	ret = sbp_run_transaction(sess->card, TCODE_WRITE_BLOCK_REQUEST,
-		sess->node_id, sess->generation, sess->speed,
+		sess->yesde_id, sess->generation, sess->speed,
 		sbp2_pointer_to_addr(&req->orb.ptr2), response,
 		login_response_len);
 	if (ret != RCODE_COMPLETE) {
@@ -478,7 +478,7 @@ static void sbp_management_request_query_logins(
 	struct sbp_management_agent *agent, struct sbp_management_request *req,
 	int *status_data_size)
 {
-	pr_notice("QUERY LOGINS not implemented\n");
+	pr_yestice("QUERY LOGINS yest implemented\n");
 	/* FIXME: implement */
 
 	req->status.status = cpu_to_be32(
@@ -506,13 +506,13 @@ static void sbp_management_request_reconnect(
 		return;
 	}
 
-	pr_notice("mgt_agent RECONNECT from %016llx\n", guid);
+	pr_yestice("mgt_agent RECONNECT from %016llx\n", guid);
 
 	login = sbp_login_find_by_id(tpg,
 		RECONNECT_ORB_LOGIN_ID(be32_to_cpu(req->orb.misc)));
 
 	if (!login) {
-		pr_err("mgt_agent RECONNECT unknown login ID\n");
+		pr_err("mgt_agent RECONNECT unkyeswn login ID\n");
 
 		req->status.status = cpu_to_be32(
 			STATUS_BLOCK_RESP(STATUS_RESP_REQUEST_COMPLETE) |
@@ -533,9 +533,9 @@ static void sbp_management_request_reconnect(
 	if (login->sess->card)
 		fw_card_put(login->sess->card);
 
-	/* update the node details */
+	/* update the yesde details */
 	login->sess->generation = req->generation;
-	login->sess->node_id = req->node_addr;
+	login->sess->yesde_id = req->yesde_addr;
 	login->sess->card = fw_card_get(req->card);
 	login->sess->speed = req->speed;
 	spin_unlock_bh(&login->sess->lock);
@@ -558,7 +558,7 @@ static void sbp_management_request_logout(
 
 	login = sbp_login_find_by_id(tpg, id);
 	if (!login) {
-		pr_warn("cannot find login: %d\n", id);
+		pr_warn("canyest find login: %d\n", id);
 
 		req->status.status = cpu_to_be32(
 			STATUS_BLOCK_RESP(STATUS_RESP_REQUEST_COMPLETE) |
@@ -569,8 +569,8 @@ static void sbp_management_request_logout(
 	pr_info("mgt_agent LOGOUT from LUN %d session %d\n",
 		login->login_lun, login->login_id);
 
-	if (req->node_addr != login->sess->node_id) {
-		pr_warn("logout from different node ID\n");
+	if (req->yesde_addr != login->sess->yesde_id) {
+		pr_warn("logout from different yesde ID\n");
 
 		req->status.status = cpu_to_be32(
 			STATUS_BLOCK_RESP(STATUS_RESP_REQUEST_COMPLETE) |
@@ -593,7 +593,7 @@ static void session_check_for_reset(struct sbp_session *sess)
 
 	if (sess->card) {
 		spin_lock_irq(&sess->card->lock);
-		card_valid = (sess->card->local_node != NULL);
+		card_valid = (sess->card->local_yesde != NULL);
 		spin_unlock_irq(&sess->card->lock);
 
 		if (!card_valid) {
@@ -603,10 +603,10 @@ static void session_check_for_reset(struct sbp_session *sess)
 	}
 
 	if (!card_valid || (sess->generation != sess->card->generation)) {
-		pr_info("Waiting for reconnect from node: %016llx\n",
+		pr_info("Waiting for reconnect from yesde: %016llx\n",
 				sess->guid);
 
-		sess->node_id = -1;
+		sess->yesde_id = -1;
 		sess->reconnect_expires = get_jiffies_64() +
 			((sess->reconnect_hold + 1) * HZ);
 	}
@@ -619,7 +619,7 @@ static void session_reconnect_expired(struct sbp_session *sess)
 	struct sbp_login_descriptor *login, *temp;
 	LIST_HEAD(login_list);
 
-	pr_info("Reconnect timer expired for node: %016llx\n", sess->guid);
+	pr_info("Reconnect timer expired for yesde: %016llx\n", sess->guid);
 
 	spin_lock_bh(&sess->lock);
 	list_for_each_entry_safe(login, temp, &sess->login_list, link) {
@@ -649,8 +649,8 @@ static void session_maintenance_work(struct work_struct *work)
 	}
 	spin_unlock_bh(&sess->lock);
 
-	if (sess->node_id != -1) {
-		/* check for bus reset and make node_id invalid */
+	if (sess->yesde_id != -1) {
+		/* check for bus reset and make yesde_id invalid */
 		session_check_for_reset(sess);
 
 		schedule_delayed_work(&sess->maint_work,
@@ -683,7 +683,7 @@ static int tgt_agent_rw_agent_state(struct fw_card *card, int tcode, void *data,
 		return RCODE_COMPLETE;
 
 	case TCODE_WRITE_QUADLET_REQUEST:
-		/* ignored */
+		/* igyesred */
 		return RCODE_COMPLETE;
 
 	default:
@@ -718,7 +718,7 @@ static int tgt_agent_rw_orb_pointer(struct fw_card *card, int tcode, void *data,
 		if (agent->state != AGENT_STATE_SUSPENDED &&
 				agent->state != AGENT_STATE_RESET) {
 			spin_unlock_bh(&agent->lock);
-			pr_notice("Ignoring ORB_POINTER write while active.\n");
+			pr_yestice("Igyesring ORB_POINTER write while active.\n");
 			return RCODE_CONFLICT_ERROR;
 		}
 		agent->state = AGENT_STATE_ACTIVE;
@@ -754,7 +754,7 @@ static int tgt_agent_rw_doorbell(struct fw_card *card, int tcode, void *data,
 		spin_lock_bh(&agent->lock);
 		if (agent->state != AGENT_STATE_SUSPENDED) {
 			spin_unlock_bh(&agent->lock);
-			pr_debug("Ignoring DOORBELL while active.\n");
+			pr_debug("Igyesring DOORBELL while active.\n");
 			return RCODE_CONFLICT_ERROR;
 		}
 		agent->state = AGENT_STATE_ACTIVE;
@@ -782,7 +782,7 @@ static int tgt_agent_rw_unsolicited_status_enable(struct fw_card *card,
 	switch (tcode) {
 	case TCODE_WRITE_QUADLET_REQUEST:
 		pr_debug("tgt_agent UNSOLICITED_STATUS_ENABLE\n");
-		/* ignored as we don't send unsolicited status */
+		/* igyesred as we don't send unsolicited status */
 		return RCODE_COMPLETE;
 
 	case TCODE_READ_QUADLET_REQUEST:
@@ -800,22 +800,22 @@ static void tgt_agent_rw(struct fw_card *card, struct fw_request *request,
 {
 	struct sbp_target_agent *agent = callback_data;
 	struct sbp_session *sess = agent->login->sess;
-	int sess_gen, sess_node, rcode;
+	int sess_gen, sess_yesde, rcode;
 
 	spin_lock_bh(&sess->lock);
 	sess_gen = sess->generation;
-	sess_node = sess->node_id;
+	sess_yesde = sess->yesde_id;
 	spin_unlock_bh(&sess->lock);
 
 	if (generation != sess_gen) {
-		pr_notice("ignoring request with wrong generation\n");
+		pr_yestice("igyesring request with wrong generation\n");
 		rcode = RCODE_TYPE_ERROR;
 		goto out;
 	}
 
-	if (source != sess_node) {
-		pr_notice("ignoring request from foreign node (%x != %x)\n",
-				source, sess_node);
+	if (source != sess_yesde) {
+		pr_yestice("igyesring request from foreign yesde (%x != %x)\n",
+				source, sess_yesde);
 		rcode = RCODE_TYPE_ERROR;
 		goto out;
 	}
@@ -956,7 +956,7 @@ static void tgt_agent_fetch_work(struct work_struct *work)
 
 		/* read in the ORB */
 		ret = sbp_run_transaction(sess->card, TCODE_READ_BLOCK_REQUEST,
-				sess->node_id, sess->generation, sess->speed,
+				sess->yesde_id, sess->generation, sess->speed,
 				req->orb_pointer, &req->orb, sizeof(req->orb));
 		if (ret != RCODE_COMPLETE) {
 			pr_debug("tgt_orb fetch failed: %x\n", ret);
@@ -1089,16 +1089,16 @@ static int sbp_run_request_transaction(struct sbp_target_request *req,
 	struct sbp_login_descriptor *login = req->login;
 	struct sbp_session *sess = login->sess;
 	struct fw_card *card;
-	int node_id, generation, speed, ret;
+	int yesde_id, generation, speed, ret;
 
 	spin_lock_bh(&sess->lock);
 	card = fw_card_get(sess->card);
-	node_id = sess->node_id;
+	yesde_id = sess->yesde_id;
 	generation = sess->generation;
 	speed = sess->speed;
 	spin_unlock_bh(&sess->lock);
 
-	ret = sbp_run_transaction(card, tcode, node_id, generation, speed,
+	ret = sbp_run_transaction(card, tcode, yesde_id, generation, speed,
 			offset, payload, length);
 
 	fw_card_put(card);
@@ -1241,7 +1241,7 @@ err:
 static int sbp_rw_data(struct sbp_target_request *req)
 {
 	struct sbp_session *sess = req->login->sess;
-	int tcode, sg_miter_flags, max_payload, pg_size, speed, node_id,
+	int tcode, sg_miter_flags, max_payload, pg_size, speed, yesde_id,
 		generation, num_pte, length, tfr_length,
 		rcode = RCODE_COMPLETE;
 	struct sbp_page_table_entry *pte;
@@ -1262,13 +1262,13 @@ static int sbp_rw_data(struct sbp_target_request *req)
 
 	pg_size = CMDBLK_ORB_PG_SIZE(be32_to_cpu(req->orb.misc));
 	if (pg_size) {
-		pr_err("sbp_run_transaction: page size ignored\n");
+		pr_err("sbp_run_transaction: page size igyesred\n");
 		pg_size = 0x100 << pg_size;
 	}
 
 	spin_lock_bh(&sess->lock);
 	card = fw_card_get(sess->card);
-	node_id = sess->node_id;
+	yesde_id = sess->yesde_id;
 	generation = sess->generation;
 	spin_unlock_bh(&sess->lock);
 
@@ -1305,7 +1305,7 @@ static int sbp_rw_data(struct sbp_target_request *req)
 
 		/* FIXME: take page_size into account */
 
-		rcode = sbp_run_transaction(card, tcode, node_id,
+		rcode = sbp_run_transaction(card, tcode, yesde_id,
 				generation, speed,
 				offset, iter.addr, tfr_length);
 
@@ -1377,7 +1377,7 @@ static void sbp_sense_mangle(struct sbp_target_request *req)
 		 * TODO: SBP-3 specifies what we should do with descriptor
 		 * format sense data
 		 */
-		pr_err("sbp_send_sense: unknown sense format: 0x%x\n",
+		pr_err("sbp_send_sense: unkyeswn sense format: 0x%x\n",
 			sense[0]);
 		req->status.status |= cpu_to_be32(
 			STATUS_BLOCK_RESP(STATUS_RESP_REQUEST_COMPLETE) |
@@ -1460,7 +1460,7 @@ static void sbp_mgt_agent_process(struct work_struct *work)
 
 	/* fetch the ORB from the initiator */
 	ret = sbp_run_transaction(req->card, TCODE_READ_BLOCK_REQUEST,
-		req->node_addr, req->generation, req->speed,
+		req->yesde_addr, req->generation, req->speed,
 		agent->orb_offset, &req->orb, sizeof(req->orb));
 	if (ret != RCODE_COMPLETE) {
 		pr_debug("mgt_orb fetch failed: %x\n", ret);
@@ -1494,7 +1494,7 @@ static void sbp_mgt_agent_process(struct work_struct *work)
 		break;
 
 	case MANAGEMENT_ORB_FUNCTION_SET_PASSWORD:
-		pr_notice("SET PASSWORD not implemented\n");
+		pr_yestice("SET PASSWORD yest implemented\n");
 
 		req->status.status = cpu_to_be32(
 			STATUS_BLOCK_RESP(STATUS_RESP_REQUEST_COMPLETE) |
@@ -1507,7 +1507,7 @@ static void sbp_mgt_agent_process(struct work_struct *work)
 		break;
 
 	case MANAGEMENT_ORB_FUNCTION_ABORT_TASK:
-		pr_notice("ABORT TASK not implemented\n");
+		pr_yestice("ABORT TASK yest implemented\n");
 
 		req->status.status = cpu_to_be32(
 			STATUS_BLOCK_RESP(STATUS_RESP_REQUEST_COMPLETE) |
@@ -1516,7 +1516,7 @@ static void sbp_mgt_agent_process(struct work_struct *work)
 		break;
 
 	case MANAGEMENT_ORB_FUNCTION_ABORT_TASK_SET:
-		pr_notice("ABORT TASK SET not implemented\n");
+		pr_yestice("ABORT TASK SET yest implemented\n");
 
 		req->status.status = cpu_to_be32(
 			STATUS_BLOCK_RESP(STATUS_RESP_REQUEST_COMPLETE) |
@@ -1525,7 +1525,7 @@ static void sbp_mgt_agent_process(struct work_struct *work)
 		break;
 
 	case MANAGEMENT_ORB_FUNCTION_LOGICAL_UNIT_RESET:
-		pr_notice("LOGICAL UNIT RESET not implemented\n");
+		pr_yestice("LOGICAL UNIT RESET yest implemented\n");
 
 		req->status.status = cpu_to_be32(
 			STATUS_BLOCK_RESP(STATUS_RESP_REQUEST_COMPLETE) |
@@ -1534,7 +1534,7 @@ static void sbp_mgt_agent_process(struct work_struct *work)
 		break;
 
 	case MANAGEMENT_ORB_FUNCTION_TARGET_RESET:
-		pr_notice("TARGET RESET not implemented\n");
+		pr_yestice("TARGET RESET yest implemented\n");
 
 		req->status.status = cpu_to_be32(
 			STATUS_BLOCK_RESP(STATUS_RESP_REQUEST_COMPLETE) |
@@ -1543,7 +1543,7 @@ static void sbp_mgt_agent_process(struct work_struct *work)
 		break;
 
 	default:
-		pr_notice("unknown management function 0x%x\n",
+		pr_yestice("unkyeswn management function 0x%x\n",
 			MANAGEMENT_ORB_FUNCTION(be32_to_cpu(req->orb.misc)));
 
 		req->status.status = cpu_to_be32(
@@ -1561,7 +1561,7 @@ static void sbp_mgt_agent_process(struct work_struct *work)
 
 	/* write the status block back to the initiator */
 	ret = sbp_run_transaction(req->card, TCODE_WRITE_BLOCK_REQUEST,
-		req->node_addr, req->generation, req->speed,
+		req->yesde_addr, req->generation, req->speed,
 		sbp2_pointer_to_addr(&req->orb.status_fifo),
 		&req->status, 8 + status_data_len);
 	if (ret != RCODE_COMPLETE) {
@@ -1603,7 +1603,7 @@ static void sbp_mgt_agent_rw(struct fw_card *card,
 		spin_unlock_bh(&agent->lock);
 
 		if (prev_state == MANAGEMENT_AGENT_STATE_BUSY) {
-			pr_notice("ignoring management request while busy\n");
+			pr_yestice("igyesring management request while busy\n");
 			rcode = RCODE_CONFLICT_ERROR;
 			goto out;
 		}
@@ -1615,7 +1615,7 @@ static void sbp_mgt_agent_rw(struct fw_card *card,
 
 		req->card = fw_card_get(card);
 		req->generation = generation;
-		req->node_addr = source;
+		req->yesde_addr = source;
 		req->speed = fw_get_request_speed(request);
 
 		agent->orb_offset = sbp2_pointer_to_addr(ptr);
@@ -1736,7 +1736,7 @@ static int sbp_write_pending(struct se_cmd *se_cmd)
 	return 0;
 }
 
-static void sbp_set_default_node_attrs(struct se_node_acl *nacl)
+static void sbp_set_default_yesde_attrs(struct se_yesde_acl *nacl)
 {
 	return;
 }
@@ -1767,7 +1767,7 @@ static int sbp_queue_data_in(struct se_cmd *se_cmd)
 }
 
 /*
- * Called after command (no data transfer) or after the write (to device)
+ * Called after command (yes data transfer) or after the write (to device)
  * operation is completed
  */
 static int sbp_queue_status(struct se_cmd *se_cmd)
@@ -1948,7 +1948,7 @@ static ssize_t sbp_format_wwn(char *buf, size_t len, u64 wwn)
 	return snprintf(buf, len, "%016llx", wwn);
 }
 
-static int sbp_init_nodeacl(struct se_node_acl *se_nacl, const char *name)
+static int sbp_init_yesdeacl(struct se_yesde_acl *se_nacl, const char *name)
 {
 	u64 guid = 0;
 
@@ -2110,7 +2110,7 @@ static ssize_t sbp_tpg_directory_id_store(struct config_item *item,
 	unsigned long val;
 
 	if (tport->enable) {
-		pr_err("Cannot change the directory_id on an active target.\n");
+		pr_err("Canyest change the directory_id on an active target.\n");
 		return -EBUSY;
 	}
 
@@ -2155,7 +2155,7 @@ static ssize_t sbp_tpg_enable_store(struct config_item *item,
 
 	if (val) {
 		if (sbp_count_se_tpg_luns(&tpg->se_tpg) == 0) {
-			pr_err("Cannot enable a target with no LUNs!\n");
+			pr_err("Canyest enable a target with yes LUNs!\n");
 			return -EINVAL;
 		}
 	} else {
@@ -2172,7 +2172,7 @@ static ssize_t sbp_tpg_enable_store(struct config_item *item,
 
 	ret = sbp_update_unit_directory(tport);
 	if (ret < 0) {
-		pr_err("Could not update Config ROM\n");
+		pr_err("Could yest update Config ROM\n");
 		return ret;
 	}
 
@@ -2311,7 +2311,7 @@ static const struct target_core_fabric_ops sbp_ops = {
 	.release_cmd			= sbp_release_cmd,
 	.sess_get_index			= sbp_sess_get_index,
 	.write_pending			= sbp_write_pending,
-	.set_default_node_attributes	= sbp_set_default_node_attrs,
+	.set_default_yesde_attributes	= sbp_set_default_yesde_attrs,
 	.get_cmd_state			= sbp_get_cmd_state,
 	.queue_data_in			= sbp_queue_data_in,
 	.queue_status			= sbp_queue_status,
@@ -2327,7 +2327,7 @@ static const struct target_core_fabric_ops sbp_ops = {
 	.fabric_pre_unlink		= sbp_pre_unlink_lun,
 	.fabric_make_np			= NULL,
 	.fabric_drop_np			= NULL,
-	.fabric_init_nodeacl		= sbp_init_nodeacl,
+	.fabric_init_yesdeacl		= sbp_init_yesdeacl,
 
 	.tfc_wwn_attrs			= sbp_wwn_attrs,
 	.tfc_tpg_base_attrs		= sbp_tpg_base_attrs,

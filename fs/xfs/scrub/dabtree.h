@@ -18,9 +18,9 @@ struct xchk_da_btree {
 
 	/*
 	 * Lowest and highest directory block address in which we expect
-	 * to find dir/attr btree node blocks.  For a directory this
+	 * to find dir/attr btree yesde blocks.  For a directory this
 	 * (presumably) means between LEAF_OFFSET and FREE_OFFSET; for
-	 * attributes there is no limit.
+	 * attributes there is yes limit.
 	 */
 	xfs_dablk_t		lowest;
 	xfs_dablk_t		highest;

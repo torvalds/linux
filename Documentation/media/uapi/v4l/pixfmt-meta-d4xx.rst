@@ -1,11 +1,11 @@
 .. Permission is granted to copy, distribute and/or modify this
 .. document under the terms of the GNU Free Documentation License,
 .. Version 1.1 or any later version published by the Free Software
-.. Foundation, with no Invariant Sections, no Front-Cover Texts
-.. and no Back-Cover Texts. A copy of the license is included at
+.. Foundation, with yes Invariant Sections, yes Front-Cover Texts
+.. and yes Back-Cover Texts. A copy of the license is included at
 .. Documentation/media/uapi/fdl-appendix.rst.
 ..
-.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
+.. TODO: replace it to GFDL-1.1-or-later WITH yes-invariant-sections
 
 .. _v4l2-meta-fmt-d4xx:
 
@@ -31,7 +31,7 @@ document describes proprietary metadata types, used by D4xx cameras.
 V4L2_META_FMT_D4XX buffers follow the metadata buffer layout of
 V4L2_META_FMT_UVC with the only difference, that it also includes proprietary
 payload header data. D4xx cameras use bulk transfers and only send one payload
-per frame, therefore their headers cannot be larger than 255 bytes.
+per frame, therefore their headers canyest be larger than 255 bytes.
 
 Below are proprietary Microsoft style metadata types, used by D4xx cameras,
 where all fields are in little endian order:
@@ -93,7 +93,7 @@ where all fields are in little endian order:
     * - __u32 Flags
       - A bitmask of flags: see [3_] below
     * - __u32 Frame counter
-      - Monotonically increasing counter
+      - Moyestonically increasing counter
     * - __u32 Optical time
       - Time in microseconds from the beginning of a frame till its middle
     * - __u32 Readout time
@@ -185,7 +185,7 @@ where all fields are in little endian order:
 [6] 8-bit camera hardware configuration bitfield: ::
 
   [1:0] depthCamera
-	00: no depth
+	00: yes depth
 	01: standard depth
 	10: wide depth
 	11: reserved

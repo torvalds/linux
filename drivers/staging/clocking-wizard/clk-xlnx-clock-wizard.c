@@ -51,7 +51,7 @@ enum clk_wzrd_int_clks {
  */
 struct clk_wzrd {
 	struct clk_onecell_data clk_data;
-	struct notifier_block nb;
+	struct yestifier_block nb;
 	void __iomem *base;
 	struct clk *clk_in1;
 	struct clk *axi_clk;
@@ -70,11 +70,11 @@ static const unsigned long clk_wzrd_max_freq[] = {
 	1066000000UL
 };
 
-static int clk_wzrd_clk_notifier(struct notifier_block *nb, unsigned long event,
+static int clk_wzrd_clk_yestifier(struct yestifier_block *nb, unsigned long event,
 				 void *data)
 {
 	unsigned long max;
-	struct clk_notifier_data *ndata = data;
+	struct clk_yestifier_data *ndata = data;
 	struct clk_wzrd *clk_wzrd = to_clk_wzrd(nb);
 
 	if (clk_wzrd->suspended)
@@ -135,7 +135,7 @@ static int clk_wzrd_probe(struct platform_device *pdev)
 	unsigned long rate;
 	const char *clk_name;
 	struct clk_wzrd *clk_wzrd;
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 
 	clk_wzrd = devm_kzalloc(&pdev->dev, sizeof(*clk_wzrd), GFP_KERNEL);
 	if (!clk_wzrd)
@@ -158,14 +158,14 @@ static int clk_wzrd_probe(struct platform_device *pdev)
 	clk_wzrd->clk_in1 = devm_clk_get(&pdev->dev, "clk_in1");
 	if (IS_ERR(clk_wzrd->clk_in1)) {
 		if (clk_wzrd->clk_in1 != ERR_PTR(-EPROBE_DEFER))
-			dev_err(&pdev->dev, "clk_in1 not found\n");
+			dev_err(&pdev->dev, "clk_in1 yest found\n");
 		return PTR_ERR(clk_wzrd->clk_in1);
 	}
 
 	clk_wzrd->axi_clk = devm_clk_get(&pdev->dev, "s_axi_aclk");
 	if (IS_ERR(clk_wzrd->axi_clk)) {
 		if (clk_wzrd->axi_clk != ERR_PTR(-EPROBE_DEFER))
-			dev_err(&pdev->dev, "s_axi_aclk not found\n");
+			dev_err(&pdev->dev, "s_axi_aclk yest found\n");
 		return PTR_ERR(clk_wzrd->axi_clk);
 	}
 	ret = clk_prepare_enable(clk_wzrd->axi_clk);
@@ -187,7 +187,7 @@ static int clk_wzrd_probe(struct platform_device *pdev)
 	reg |= readl(clk_wzrd->base + WZRD_CLK_CFG_REG(2)) &
 		     WZRD_CLKOUT0_FRAC_EN;
 	if (reg)
-		dev_warn(&pdev->dev, "fractional div/mul not supported\n");
+		dev_warn(&pdev->dev, "fractional div/mul yest supported\n");
 
 	/* register multiplier */
 	reg = (readl(clk_wzrd->base + WZRD_CLK_CFG_REG(0)) &
@@ -234,7 +234,7 @@ static int clk_wzrd_probe(struct platform_device *pdev)
 		if (of_property_read_string_index(np, "clock-output-names", i,
 						  &clkout_name)) {
 			dev_err(&pdev->dev,
-				"clock output name not specified\n");
+				"clock output name yest specified\n");
 			ret = -EINVAL;
 			goto err_rm_int_clks;
 		}
@@ -262,18 +262,18 @@ static int clk_wzrd_probe(struct platform_device *pdev)
 	of_clk_add_provider(np, of_clk_src_onecell_get, &clk_wzrd->clk_data);
 
 	if (clk_wzrd->speed_grade) {
-		clk_wzrd->nb.notifier_call = clk_wzrd_clk_notifier;
+		clk_wzrd->nb.yestifier_call = clk_wzrd_clk_yestifier;
 
-		ret = clk_notifier_register(clk_wzrd->clk_in1,
+		ret = clk_yestifier_register(clk_wzrd->clk_in1,
 					    &clk_wzrd->nb);
 		if (ret)
 			dev_warn(&pdev->dev,
-				 "unable to register clock notifier\n");
+				 "unable to register clock yestifier\n");
 
-		ret = clk_notifier_register(clk_wzrd->axi_clk, &clk_wzrd->nb);
+		ret = clk_yestifier_register(clk_wzrd->axi_clk, &clk_wzrd->nb);
 		if (ret)
 			dev_warn(&pdev->dev,
-				 "unable to register clock notifier\n");
+				 "unable to register clock yestifier\n");
 	}
 
 	return 0;
@@ -294,7 +294,7 @@ static int clk_wzrd_remove(struct platform_device *pdev)
 	int i;
 	struct clk_wzrd *clk_wzrd = platform_get_drvdata(pdev);
 
-	of_clk_del_provider(pdev->dev.of_node);
+	of_clk_del_provider(pdev->dev.of_yesde);
 
 	for (i = 0; i < WZRD_NUM_OUTPUTS; i++)
 		clk_unregister(clk_wzrd->clkout[i]);
@@ -302,8 +302,8 @@ static int clk_wzrd_remove(struct platform_device *pdev)
 		clk_unregister(clk_wzrd->clks_internal[i]);
 
 	if (clk_wzrd->speed_grade) {
-		clk_notifier_unregister(clk_wzrd->axi_clk, &clk_wzrd->nb);
-		clk_notifier_unregister(clk_wzrd->clk_in1, &clk_wzrd->nb);
+		clk_yestifier_unregister(clk_wzrd->axi_clk, &clk_wzrd->nb);
+		clk_yestifier_unregister(clk_wzrd->clk_in1, &clk_wzrd->nb);
 	}
 
 	clk_disable_unprepare(clk_wzrd->axi_clk);

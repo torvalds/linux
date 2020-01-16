@@ -144,13 +144,13 @@ int qlcnic_82xx_issue_cmd(struct qlcnic_adapter *adapter,
 			break;
 		case QLCNIC_RCODE_NOT_SUPPORTED:
 		case QLCNIC_RCODE_NOT_IMPL:
-			fmt = "CDRP command not supported: [%d]\n";
+			fmt = "CDRP command yest supported: [%d]\n";
 			break;
 		case QLCNIC_RCODE_NOT_PERMITTED:
-			fmt = "CDRP requested action not permitted: [%d]\n";
+			fmt = "CDRP requested action yest permitted: [%d]\n";
 			break;
 		case QLCNIC_RCODE_INVALID:
-			fmt = "CDRP invalid or unknown cmd received: [%d]\n";
+			fmt = "CDRP invalid or unkyeswn cmd received: [%d]\n";
 			break;
 		case QLCNIC_RCODE_TIMEOUT:
 			fmt = "CDRP command timeout: [%d]\n";

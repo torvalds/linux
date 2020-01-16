@@ -255,7 +255,7 @@ static int ufs_qcom_host_reset(struct ufs_hba *hba)
 	struct ufs_qcom_host *host = ufshcd_get_variant(hba);
 
 	if (!host->core_reset) {
-		dev_warn(hba->dev, "%s: reset control not set\n", __func__);
+		dev_warn(hba->dev, "%s: reset control yest set\n", __func__);
 		goto out;
 	}
 
@@ -330,7 +330,7 @@ out:
 /*
  * The UTP controller has a number of internal clock gating cells (CGCs).
  * Internal hardware sub-modules within the UTP controller control the CGCs.
- * Hardware CGCs disable the clock to inactivate UTP sub-modules not involved
+ * Hardware CGCs disable the clock to inactivate UTP sub-modules yest involved
  * in a specific operation, UTP controller CGCs are by default disabled and
  * this function enables them (after every UFS link startup) to save some power
  * leakage.
@@ -345,8 +345,8 @@ static void ufs_qcom_enable_hw_clk_gating(struct ufs_hba *hba)
 	mb();
 }
 
-static int ufs_qcom_hce_enable_notify(struct ufs_hba *hba,
-				      enum ufs_notify_change_status status)
+static int ufs_qcom_hce_enable_yestify(struct ufs_hba *hba,
+				      enum ufs_yestify_change_status status)
 {
 	struct ufs_qcom_host *host = ufshcd_get_variant(hba);
 	int err = 0;
@@ -376,7 +376,7 @@ static int ufs_qcom_hce_enable_notify(struct ufs_hba *hba,
 }
 
 /**
- * Returns zero for success and non-zero in case of a failure
+ * Returns zero for success and yesn-zero in case of a failure
  */
 static int ufs_qcom_cfg_timers(struct ufs_hba *hba, u32 gear,
 			       u32 hs, u32 rate, bool update_link_startup_timer)
@@ -409,7 +409,7 @@ static int ufs_qcom_cfg_timers(struct ufs_hba *hba, u32 gear,
 	};
 
 	/*
-	 * The Qunipro controller does not use following registers:
+	 * The Qunipro controller does yest use following registers:
 	 * SYS1CLK_1US_REG, TX_SYMBOL_CLK_1US_REG, CLK_NS_REG &
 	 * UFS_REG_PA_LINK_STARTUP_TIMER
 	 * But UTP controller uses SYS1CLK_1US_REG register for Interrupt
@@ -522,8 +522,8 @@ out:
 	return ret;
 }
 
-static int ufs_qcom_link_startup_notify(struct ufs_hba *hba,
-					enum ufs_notify_change_status status)
+static int ufs_qcom_link_startup_yestify(struct ufs_hba *hba,
+					enum ufs_yestify_change_status status)
 {
 	int err = 0;
 	struct ufs_qcom_host *host = ufshcd_get_variant(hba);
@@ -625,7 +625,7 @@ static int ufs_qcom_get_bus_vote(struct ufs_qcom_host *host,
 		const char *speed_mode)
 {
 	struct device *dev = host->hba->dev;
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 	int err;
 	const char *key = "qcom,bus-vector-names";
 
@@ -652,7 +652,7 @@ static void ufs_qcom_get_speed_mode(struct ufs_pa_layer_attr *p, char *result)
 	int lanes = max_t(u32, p->lane_rx, p->lane_tx);
 	int pwr;
 
-	/* default to PWM Gear 1, Lane 1 if power mode is not initialized */
+	/* default to PWM Gear 1, Lane 1 if power mode is yest initialized */
 	if (!gear)
 		gear = 1;
 
@@ -749,7 +749,7 @@ static int ufs_qcom_bus_register(struct ufs_qcom_host *host)
 	struct msm_bus_scale_pdata *bus_pdata;
 	struct device *dev = host->hba->dev;
 	struct platform_device *pdev = to_platform_device(dev);
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 
 	bus_pdata = msm_bus_cl_get_pdata(pdev);
 	if (!bus_pdata) {
@@ -760,7 +760,7 @@ static int ufs_qcom_bus_register(struct ufs_qcom_host *host)
 
 	err = of_property_count_strings(np, "qcom,bus-vector-names");
 	if (err < 0 || err != bus_pdata->num_usecases) {
-		dev_err(dev, "%s: qcom,bus-vector-names not specified correctly %d\n",
+		dev_err(dev, "%s: qcom,bus-vector-names yest specified correctly %d\n",
 				__func__, err);
 		goto out;
 	}
@@ -840,8 +840,8 @@ static void ufs_qcom_dev_ref_clk_ctrl(struct ufs_qcom_host *host, bool enable)
 	}
 }
 
-static int ufs_qcom_pwr_change_notify(struct ufs_hba *hba,
-				enum ufs_notify_change_status status,
+static int ufs_qcom_pwr_change_yestify(struct ufs_hba *hba,
+				enum ufs_yestify_change_status status,
 				struct ufs_pa_layer_attr *dev_max_params,
 				struct ufs_pa_layer_attr *dev_req_params)
 {
@@ -873,7 +873,7 @@ static int ufs_qcom_pwr_change_notify(struct ufs_hba *hba,
 
 		if (host->hw_ver.major == 0x1) {
 			/*
-			 * HS-G3 operations may not reliably work on legacy QCOM
+			 * HS-G3 operations may yest reliably work on legacy QCOM
 			 * UFS host controller hardware even though capability
 			 * exchange during link startup phase may end up
 			 * negotiating maximum supported gear as G3.
@@ -970,10 +970,10 @@ static u32 ufs_qcom_get_ufs_hci_version(struct ufs_hba *hba)
 }
 
 /**
- * ufs_qcom_advertise_quirks - advertise the known QCOM UFS controller quirks
+ * ufs_qcom_advertise_quirks - advertise the kyeswn QCOM UFS controller quirks
  * @hba: host controller instance
  *
- * QCOM UFS host controller might have some non standard behaviours (quirks)
+ * QCOM UFS host controller might have some yesn standard behaviours (quirks)
  * than what is specified by UFSHCI specification. Advertise all such
  * quirks to standard UFS host controller driver so standard takes them into
  * account.
@@ -987,7 +987,7 @@ static void ufs_qcom_advertise_quirks(struct ufs_hba *hba)
 			    | UFSHCD_QUIRK_BROKEN_PA_RXHSUNTERMCAP
 			    | UFSHCD_QUIRK_DME_PEER_ACCESS_AUTO_MODE;
 
-		if (host->hw_ver.minor == 0x0001 && host->hw_ver.step == 0x0001)
+		if (host->hw_ver.miyesr == 0x0001 && host->hw_ver.step == 0x0001)
 			hba->quirks |= UFSHCD_QUIRK_BROKEN_INTR_AGGR;
 
 		hba->quirks |= UFSHCD_QUIRK_BROKEN_LCC;
@@ -1022,19 +1022,19 @@ static void ufs_qcom_set_caps(struct ufs_hba *hba)
  * ufs_qcom_setup_clocks - enables/disable clocks
  * @hba: host controller instance
  * @on: If true, enable clocks else disable them.
- * @status: PRE_CHANGE or POST_CHANGE notify
+ * @status: PRE_CHANGE or POST_CHANGE yestify
  *
- * Returns 0 on success, non-zero on failure.
+ * Returns 0 on success, yesn-zero on failure.
  */
 static int ufs_qcom_setup_clocks(struct ufs_hba *hba, bool on,
-				 enum ufs_notify_change_status status)
+				 enum ufs_yestify_change_status status)
 {
 	struct ufs_qcom_host *host = ufshcd_get_variant(hba);
 	int err;
 	int vote = 0;
 
 	/*
-	 * In case ufs_qcom_init() is not yet done, simply ignore.
+	 * In case ufs_qcom_init() is yest yet done, simply igyesre.
 	 * This ufs_qcom_setup_clocks() shall be called from
 	 * ufs_qcom_init() after init is done.
 	 */
@@ -1071,7 +1071,7 @@ ufs_qcom_reset_assert(struct reset_controller_dev *rcdev, unsigned long id)
 {
 	struct ufs_qcom_host *host = rcdev_to_ufs_host(rcdev);
 
-	/* Currently this code only knows about a single reset. */
+	/* Currently this code only kyesws about a single reset. */
 	WARN_ON(id);
 	ufs_qcom_assert_reset(host->hba);
 	/* provide 1ms delay to let the reset pulse propagate. */
@@ -1084,7 +1084,7 @@ ufs_qcom_reset_deassert(struct reset_controller_dev *rcdev, unsigned long id)
 {
 	struct ufs_qcom_host *host = rcdev_to_ufs_host(rcdev);
 
-	/* Currently this code only knows about a single reset. */
+	/* Currently this code only kyesws about a single reset. */
 	WARN_ON(id);
 	ufs_qcom_deassert_reset(host->hba);
 
@@ -1137,7 +1137,7 @@ static int ufs_qcom_init(struct ufs_hba *hba)
 	host = devm_kzalloc(dev, sizeof(*host), GFP_KERNEL);
 	if (!host) {
 		err = -ENOMEM;
-		dev_err(dev, "%s: no memory for qcom ufs host\n", __func__);
+		dev_err(dev, "%s: yes memory for qcom ufs host\n", __func__);
 		goto out;
 	}
 
@@ -1154,8 +1154,8 @@ static int ufs_qcom_init(struct ufs_hba *hba)
 		err = 0;
 	}
 
-	/* Fire up the reset controller. Failure here is non-fatal. */
-	host->rcdev.of_node = dev->of_node;
+	/* Fire up the reset controller. Failure here is yesn-fatal. */
+	host->rcdev.of_yesde = dev->of_yesde;
 	host->rcdev.ops = &ufs_qcom_reset_ops;
 	host->rcdev.owner = dev->driver->owner;
 	host->rcdev.nr_resets = 1;
@@ -1205,7 +1205,7 @@ static int ufs_qcom_init(struct ufs_hba *hba)
 		goto out_variant_clear;
 
 	ufs_qcom_get_controller_revision(hba, &host->hw_ver.major,
-		&host->hw_ver.minor, &host->hw_ver.step);
+		&host->hw_ver.miyesr, &host->hw_ver.step);
 
 	/*
 	 * for newer controllers, device reference clock control bit has
@@ -1222,7 +1222,7 @@ static int ufs_qcom_init(struct ufs_hba *hba)
 					devm_ioremap_resource(dev, res);
 			if (IS_ERR(host->dev_ref_clk_ctrl_mmio)) {
 				dev_warn(dev,
-					"%s: could not map dev_ref_clk_ctrl_mmio, err %ld\n",
+					"%s: could yest map dev_ref_clk_ctrl_mmio, err %ld\n",
 					__func__,
 					PTR_ERR(host->dev_ref_clk_ctrl_mmio));
 				host->dev_ref_clk_ctrl_mmio = NULL;
@@ -1299,7 +1299,7 @@ out:
 
 static int ufs_qcom_clk_scale_up_pre_change(struct ufs_hba *hba)
 {
-	/* nothing to do as of now */
+	/* yesthing to do as of yesw */
 	return 0;
 }
 
@@ -1350,8 +1350,8 @@ static int ufs_qcom_clk_scale_down_post_change(struct ufs_hba *hba)
 	return ufs_qcom_set_dme_vs_core_clk_ctrl_clear_div(hba, 75);
 }
 
-static int ufs_qcom_clk_scale_notify(struct ufs_hba *hba,
-		bool scale_up, enum ufs_notify_change_status status)
+static int ufs_qcom_clk_scale_yestify(struct ufs_hba *hba,
+		bool scale_up, enum ufs_yestify_change_status status)
 {
 	struct ufs_qcom_host *host = ufshcd_get_variant(hba);
 	struct ufs_pa_layer_attr *dev_req_params = &host->dev_req_params;
@@ -1460,14 +1460,14 @@ static void ufs_qcom_get_default_testbus_cfg(struct ufs_qcom_host *host)
 {
 	/* provide a legal default configuration */
 	host->testbus.select_major = TSTBUS_UNIPRO;
-	host->testbus.select_minor = 37;
+	host->testbus.select_miyesr = 37;
 }
 
 static bool ufs_qcom_testbus_cfg_is_ok(struct ufs_qcom_host *host)
 {
 	if (host->testbus.select_major >= TSTBUS_MAX) {
 		dev_err(host->hba->dev,
-			"%s: UFS_CFG1[TEST_BUS_SEL} may not equal 0x%05X\n",
+			"%s: UFS_CFG1[TEST_BUS_SEL} may yest equal 0x%05X\n",
 			__func__, host->testbus.select_major);
 		return false;
 	}
@@ -1551,7 +1551,7 @@ int ufs_qcom_testbus_config(struct ufs_qcom_host *host)
 		    (u32)host->testbus.select_major << 19,
 		    REG_UFS_CFG1);
 	ufshcd_rmwl(host->hba, mask,
-		    (u32)host->testbus.select_minor << offset,
+		    (u32)host->testbus.select_miyesr << offset,
 		    reg);
 	ufs_qcom_enable_test_bus(host);
 	/*
@@ -1574,15 +1574,15 @@ static void ufs_qcom_print_unipro_testbus(struct ufs_hba *hba)
 {
 	struct ufs_qcom_host *host = ufshcd_get_variant(hba);
 	u32 *testbus = NULL;
-	int i, nminor = 256, testbus_len = nminor * sizeof(u32);
+	int i, nmiyesr = 256, testbus_len = nmiyesr * sizeof(u32);
 
 	testbus = kmalloc(testbus_len, GFP_KERNEL);
 	if (!testbus)
 		return;
 
 	host->testbus.select_major = TSTBUS_UNIPRO;
-	for (i = 0; i < nminor; i++) {
-		host->testbus.select_minor = i;
+	for (i = 0; i < nmiyesr; i++) {
+		host->testbus.select_miyesr = i;
 		ufs_qcom_testbus_config(host);
 		testbus[i] = ufshcd_readl(hba, UFS_TEST_BUS);
 	}
@@ -1641,11 +1641,11 @@ static const struct ufs_hba_variant_ops ufs_hba_qcom_vops = {
 	.init                   = ufs_qcom_init,
 	.exit                   = ufs_qcom_exit,
 	.get_ufs_hci_version	= ufs_qcom_get_ufs_hci_version,
-	.clk_scale_notify	= ufs_qcom_clk_scale_notify,
+	.clk_scale_yestify	= ufs_qcom_clk_scale_yestify,
 	.setup_clocks           = ufs_qcom_setup_clocks,
-	.hce_enable_notify      = ufs_qcom_hce_enable_notify,
-	.link_startup_notify    = ufs_qcom_link_startup_notify,
-	.pwr_change_notify	= ufs_qcom_pwr_change_notify,
+	.hce_enable_yestify      = ufs_qcom_hce_enable_yestify,
+	.link_startup_yestify    = ufs_qcom_link_startup_yestify,
+	.pwr_change_yestify	= ufs_qcom_pwr_change_yestify,
 	.apply_dev_quirks	= ufs_qcom_apply_dev_quirks,
 	.suspend		= ufs_qcom_suspend,
 	.resume			= ufs_qcom_resume,
@@ -1657,7 +1657,7 @@ static const struct ufs_hba_variant_ops ufs_hba_qcom_vops = {
  * ufs_qcom_probe - probe routine of the driver
  * @pdev: pointer to Platform device handle
  *
- * Return zero for success and non-zero for failure
+ * Return zero for success and yesn-zero for failure
  */
 static int ufs_qcom_probe(struct platform_device *pdev)
 {

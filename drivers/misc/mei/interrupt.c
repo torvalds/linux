@@ -67,7 +67,7 @@ static void mei_irq_discard_msg(struct mei_device *dev, struct mei_msg_hdr *hdr)
 	if (hdr->dma_ring)
 		mei_dma_ring_read(dev, NULL, hdr->extension[0]);
 	/*
-	 * no need to check for size as it is guarantied
+	 * yes need to check for size as it is guarantied
 	 * that length fits into rd_msg_buf
 	 */
 	mei_read_slots(dev, dev->rd_msg_buf, hdr->length);
@@ -96,7 +96,7 @@ static int mei_cl_irq_read_msg(struct mei_cl *cl,
 	cb = list_first_entry_or_null(&cl->rd_pending, struct mei_cl_cb, list);
 	if (!cb) {
 		if (!mei_cl_is_fixed_address(cl)) {
-			cl_err(dev, cl, "pending read cb not found\n");
+			cl_err(dev, cl, "pending read cb yest found\n");
 			goto discard;
 		}
 		cb = mei_cl_alloc_cb(cl, mei_cl_mtu(cl), MEI_FOP_READ, cl->fp);
@@ -106,7 +106,7 @@ static int mei_cl_irq_read_msg(struct mei_cl *cl,
 	}
 
 	if (!mei_cl_is_connected(cl)) {
-		cl_dbg(dev, cl, "not connected\n");
+		cl_dbg(dev, cl, "yest connected\n");
 		cb->status = -ENODEV;
 		goto discard;
 	}
@@ -317,9 +317,9 @@ int mei_irq_read_handler(struct mei_device *dev,
 		}
 	}
 
-	/* if no recipient cl was found we assume corrupted header */
+	/* if yes recipient cl was found we assume corrupted header */
 	if (&cl->link == &dev->file_list) {
-		/* A message for not connected fixed address clients
+		/* A message for yest connected fixed address clients
 		 * should be silently discarded
 		 * On power down client may be force cleaned,
 		 * silently discard such messages
@@ -330,7 +330,7 @@ int mei_irq_read_handler(struct mei_device *dev,
 			ret = 0;
 			goto reset_slots;
 		}
-		dev_err(dev->dev, "no destination client found 0x%08X\n",
+		dev_err(dev->dev, "yes destination client found 0x%08X\n",
 				dev->rd_msg_hdr[0]);
 		ret = -EBADMSG;
 		goto end;
@@ -431,7 +431,7 @@ int mei_irq_write_handler(struct mei_device *dev, struct list_head *cmpl_list)
 
 		case MEI_FOP_NOTIFY_START:
 		case MEI_FOP_NOTIFY_STOP:
-			ret = mei_cl_irq_notify(cl, cb, cmpl_list);
+			ret = mei_cl_irq_yestify(cl, cb, cmpl_list);
 			if (ret)
 				return ret;
 			break;

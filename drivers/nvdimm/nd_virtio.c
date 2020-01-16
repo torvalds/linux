@@ -62,14 +62,14 @@ static int virtio_pmem_flush(struct nd_region *nd_region)
 	spin_lock_irqsave(&vpmem->pmem_lock, flags);
 	 /*
 	  * If virtqueue_add_sgs returns -ENOSPC then req_vq virtual
-	  * queue does not have free descriptor. We add the request
+	  * queue does yest have free descriptor. We add the request
 	  * to req_list and wait for host_ack to wake us up when free
 	  * slots are available.
 	  */
 	while ((err = virtqueue_add_sgs(vpmem->req_vq, sgs, 1, 1, req_data,
 					GFP_ATOMIC)) == -ENOSPC) {
 
-		dev_info(&vdev->dev, "failed to send command to virtio pmem device, no free slots in the virtqueue\n");
+		dev_info(&vdev->dev, "failed to send command to virtio pmem device, yes free slots in the virtqueue\n");
 		req_data->wq_buf_avail = false;
 		list_add_tail(&req_data->list, &vpmem->req_list);
 		spin_unlock_irqrestore(&vpmem->pmem_lock, flags);
@@ -97,11 +97,11 @@ static int virtio_pmem_flush(struct nd_region *nd_region)
 	return err;
 };
 
-/* The asynchronous flush callback function */
+/* The asynchroyesus flush callback function */
 int async_pmem_flush(struct nd_region *nd_region, struct bio *bio)
 {
 	/*
-	 * Create child bio for asynchronous flush and chain with
+	 * Create child bio for asynchroyesus flush and chain with
 	 * parent bio. Otherwise directly call nd_region flush.
 	 */
 	if (bio && bio->bi_iter.bi_sector != -1) {

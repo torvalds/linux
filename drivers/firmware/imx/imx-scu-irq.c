@@ -41,25 +41,25 @@ struct imx_sc_msg_irq_enable {
 
 static struct imx_sc_ipc *imx_sc_irq_ipc_handle;
 static struct work_struct imx_sc_irq_work;
-static ATOMIC_NOTIFIER_HEAD(imx_scu_irq_notifier_chain);
+static ATOMIC_NOTIFIER_HEAD(imx_scu_irq_yestifier_chain);
 
-int imx_scu_irq_register_notifier(struct notifier_block *nb)
+int imx_scu_irq_register_yestifier(struct yestifier_block *nb)
 {
-	return atomic_notifier_chain_register(
-		&imx_scu_irq_notifier_chain, nb);
+	return atomic_yestifier_chain_register(
+		&imx_scu_irq_yestifier_chain, nb);
 }
-EXPORT_SYMBOL(imx_scu_irq_register_notifier);
+EXPORT_SYMBOL(imx_scu_irq_register_yestifier);
 
-int imx_scu_irq_unregister_notifier(struct notifier_block *nb)
+int imx_scu_irq_unregister_yestifier(struct yestifier_block *nb)
 {
-	return atomic_notifier_chain_unregister(
-		&imx_scu_irq_notifier_chain, nb);
+	return atomic_yestifier_chain_unregister(
+		&imx_scu_irq_yestifier_chain, nb);
 }
-EXPORT_SYMBOL(imx_scu_irq_unregister_notifier);
+EXPORT_SYMBOL(imx_scu_irq_unregister_yestifier);
 
-static int imx_scu_irq_notifier_call_chain(unsigned long status, u8 *group)
+static int imx_scu_irq_yestifier_call_chain(unsigned long status, u8 *group)
 {
-	return atomic_notifier_call_chain(&imx_scu_irq_notifier_chain,
+	return atomic_yestifier_call_chain(&imx_scu_irq_yestifier_chain,
 		status, (void *)group);
 }
 
@@ -91,7 +91,7 @@ static void imx_scu_irq_work_handler(struct work_struct *work)
 		if (!irq_status)
 			continue;
 
-		imx_scu_irq_notifier_call_chain(irq_status, &i);
+		imx_scu_irq_yestifier_call_chain(irq_status, &i);
 	}
 }
 
@@ -157,7 +157,7 @@ int imx_scu_enable_general_irq_channel(struct device *dev)
 
 	INIT_WORK(&imx_sc_irq_work, imx_scu_irq_work_handler);
 
-	if (!of_parse_phandle_with_args(dev->of_node, "mboxes",
+	if (!of_parse_phandle_with_args(dev->of_yesde, "mboxes",
 				       "#mbox-cells", 0, &spec))
 		i = of_alias_get_id(spec.np, "mu");
 

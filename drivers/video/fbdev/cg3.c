@@ -11,7 +11,7 @@
 
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/string.h>
 #include <linux/delay.h>
 #include <linux/init.h>
@@ -123,7 +123,7 @@ struct cg3_par {
 
 /**
  *      cg3_setcolreg - Optional function. Sets a color register.
- *      @regno: boolean, 0 copy local, 1 get_user() function
+ *      @regyes: boolean, 0 copy local, 1 get_user() function
  *      @red: frame buffer colormap structure
  *      @green: The green value which can be up to 16 bits wide
  *      @blue:  The blue value which can be up to 16 bits wide.
@@ -135,7 +135,7 @@ struct cg3_par {
  * We keep a sw copy of the hw cmap to assist us in this esoteric
  * loading procedure.
  */
-static int cg3_setcolreg(unsigned regno,
+static int cg3_setcolreg(unsigned regyes,
 			 unsigned red, unsigned green, unsigned blue,
 			 unsigned transp, struct fb_info *info)
 {
@@ -146,7 +146,7 @@ static int cg3_setcolreg(unsigned regno,
 	u8 *p8;
 	int count;
 
-	if (regno >= 256)
+	if (regyes >= 256)
 		return 1;
 
 	red >>= 8;
@@ -155,7 +155,7 @@ static int cg3_setcolreg(unsigned regno,
 
 	spin_lock_irqsave(&par->lock, flags);
 
-	p8 = (u8 *)par->sw_cmap + (regno * 3);
+	p8 = (u8 *)par->sw_cmap + (regyes * 3);
 	p8[0] = red;
 	p8[1] = green;
 	p8[2] = blue;
@@ -164,8 +164,8 @@ static int cg3_setcolreg(unsigned regno,
 #define D4M4(x) ((x)&~0x3)                      /* (x/4)*4 */
 
 	count = 3;
-	p32 = &par->sw_cmap[D4M3(regno)];
-	sbus_writel(D4M4(regno), &bt->addr);
+	p32 = &par->sw_cmap[D4M3(regyes)];
+	sbus_writel(D4M4(regyes), &bt->addr);
 	while (count--)
 		sbus_writel(*p32++, &bt->color_map);
 
@@ -245,7 +245,7 @@ static int cg3_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg)
  */
 
 static void cg3_init_fix(struct fb_info *info, int linebytes,
-			 struct device_node *dp)
+			 struct device_yesde *dp)
 {
 	snprintf(info->fix.id, sizeof(info->fix.id), "%pOFn", dp);
 
@@ -258,7 +258,7 @@ static void cg3_init_fix(struct fb_info *info, int linebytes,
 }
 
 static void cg3_rdi_maybe_fixup_var(struct fb_var_screeninfo *var,
-				    struct device_node *dp)
+				    struct device_yesde *dp)
 {
 	const char *params;
 	char *p;
@@ -349,7 +349,7 @@ static int cg3_do_default_mode(struct cg3_par *par)
 
 static int cg3_probe(struct platform_device *op)
 {
-	struct device_node *dp = op->dev.of_node;
+	struct device_yesde *dp = op->dev.of_yesde;
 	struct fb_info *info;
 	struct cg3_par *par;
 	int linebytes, err;
@@ -370,7 +370,7 @@ static int cg3_probe(struct platform_device *op)
 	info->var.red.length = 8;
 	info->var.green.length = 8;
 	info->var.blue.length = 8;
-	if (of_node_name_eq(dp, "cgRDI"))
+	if (of_yesde_name_eq(dp, "cgRDI"))
 		par->flags |= CG3_FLAG_RDI;
 	if (par->flags & CG3_FLAG_RDI)
 		cg3_rdi_maybe_fixup_var(&info->var, dp);

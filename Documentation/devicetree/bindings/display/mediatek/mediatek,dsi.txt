@@ -15,7 +15,7 @@ Required properties:
 - clock-names: must contain "engine", "digital", and "hs"
 - phys: phandle link to the MIPI D-PHY controller.
 - phy-names: must contain "dphy"
-- port: Output port node with endpoint definitions as described in
+- port: Output port yesde with endpoint definitions as described in
   Documentation/devicetree/bindings/graph.txt. This port should be connected
   to the input port of an attached DSI panel or DSI-to-eDP encoder chip.
 

@@ -67,9 +67,9 @@ struct ethsw_core {
 	u8				vlans[VLAN_VID_MASK + 1];
 	bool				learning;
 
-	struct notifier_block		port_nb;
-	struct notifier_block		port_switchdev_nb;
-	struct notifier_block		port_switchdevb_nb;
+	struct yestifier_block		port_nb;
+	struct yestifier_block		port_switchdev_nb;
+	struct yestifier_block		port_switchdevb_nb;
 	struct workqueue_struct		*workqueue;
 };
 

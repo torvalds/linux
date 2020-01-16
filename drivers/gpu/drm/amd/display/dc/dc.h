@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -120,7 +120,7 @@ struct dc_caps {
 
 struct dc_bug_wa {
 #if defined(CONFIG_DRM_AMD_DC_DCN2_0)
-	bool no_connect_phy_config;
+	bool yes_connect_phy_config;
 	bool dedcn20_305_wa;
 #endif
 	bool skip_clock_update;
@@ -168,15 +168,15 @@ struct dc_static_screen_events {
  * on parameters passed in and decides how much programming (or updating) is
  * going to be done during the call.
  *
- * UPDATE_TYPE_FAST is used for really fast updates that do not require much
+ * UPDATE_TYPE_FAST is used for really fast updates that do yest require much
  * logical calculations or hardware register programming. This update MUST be
  * ISR safe on windows. Currently fast update will only be used to flip surface
  * address.
  *
  * UPDATE_TYPE_MED is used for slower updates which require significant hw
- * re-programming however do not affect bandwidth consumption or clock
+ * re-programming however do yest affect bandwidth consumption or clock
  * requirements. At present, this is the level at which front end updates
- * that do not require us to run bw_calcs happen. These are in/out transfer func
+ * that do yest require us to run bw_calcs happen. These are in/out transfer func
  * updates, viewport offset changes, recout size changes and pixel depth changes.
  * This update can be done at ISR, but we want to minimize how often this happens.
  *
@@ -184,14 +184,14 @@ struct dc_static_screen_events {
  * bandwidth and clocks, possibly rearrange some pipes and reprogram anything front
  * end related. Any time viewport dimensions, recout dimensions, scaling ratios or
  * gamma need to be adjusted or pipe needs to be turned on (or disconnected) we do
- * a full update. This cannot be done at ISR level and should be a rare event.
+ * a full update. This canyest be done at ISR level and should be a rare event.
  * Unless someone is stress testing mpo enter/exit, playing with colour or adjusting
  * underscan we don't expect to see this call at all.
  */
 
 enum surface_update_type {
 	UPDATE_TYPE_FAST, /* super fast, safe to execute in isr */
-	UPDATE_TYPE_MED,  /* ISR safe, most of programming needed, no bw/clk change*/
+	UPDATE_TYPE_MED,  /* ISR safe, most of programming needed, yes bw/clk change*/
 	UPDATE_TYPE_FULL, /* may need to shuffle resources */
 };
 
@@ -219,7 +219,7 @@ struct dc_config {
 	bool disable_fractional_pwm;
 	bool allow_seamless_boot_optimization;
 	bool power_down_display_on_boot;
-	bool edp_not_connected;
+	bool edp_yest_connected;
 	bool force_enum_edp;
 	bool forced_clocks;
 	bool disable_extended_timeout_support; // Used to disable extended timeout and lttpr feature as well
@@ -279,7 +279,7 @@ struct dc_clocks {
 	bool p_state_change_support;
 	enum dcn_pwr_state pwr_state;
 	/*
-	 * Elements below are not compared for the purposes of
+	 * Elements below are yest compared for the purposes of
 	 * optimization required
 	 */
 	bool prev_p_state_change_support;
@@ -409,7 +409,7 @@ struct dc_debug_options {
 	bool disable_48mhz_pwrdwn;
 #endif
 	/* This forces a hard min on the DCFCLK requested to SMU/PP
-	 * watermarks are not affected.
+	 * watermarks are yest affected.
 	 */
 	unsigned int force_min_dcfclk_mhz;
 	bool disable_timing_sync;
@@ -552,8 +552,8 @@ struct dc_init_data {
 
 	int num_virtual_links;
 	/*
-	 * If 'vbios_override' not NULL, it will be called instead
-	 * of the real VBIOS. Intended use is Diagnostics on FPGA.
+	 * If 'vbios_override' yest NULL, it will be called instead
+	 * of the real VBIOS. Intended use is Diagyesstics on FPGA.
 	 */
 	struct dc_bios *vbios_override;
 	enum dce_environment dce_environment;
@@ -562,7 +562,7 @@ struct dc_init_data {
 	uint32_t log_mask;
 #ifdef CONFIG_DRM_AMD_DC_DCN2_0
 	/**
-	 * gpu_info FW provided soc bounding box struct or 0 if not
+	 * gpu_info FW provided soc bounding box struct or 0 if yest
 	 * available in FW
 	 */
 	const struct gpu_info_soc_bounding_box_v1_0 *soc_bounding_box;
@@ -821,13 +821,13 @@ struct dc_scaling_info {
 struct dc_surface_update {
 	struct dc_plane_state *surface;
 
-	/* isr safe update parameters.  null means no updates */
+	/* isr safe update parameters.  null means yes updates */
 	const struct dc_flip_addrs *flip_addr;
 	const struct dc_plane_info *plane_info;
 	const struct dc_scaling_info *scaling_info;
 
-	/* following updates require alloc/sleep/spin that is not isr safe,
-	 * null means no updates
+	/* following updates require alloc/sleep/spin that is yest isr safe,
+	 * null means yes updates
 	 */
 	const struct dc_gamma *gamma;
 	const struct dc_transfer_func *in_transfer_func;
@@ -932,7 +932,7 @@ void dc_resource_state_destruct(struct dc_state *context);
  *
  * After this call:
  *   Phy, Encoder, Timing Generator are programmed and enabled.
- *   New streams are enabled with blank stream; no memory read.
+ *   New streams are enabled with blank stream; yes memory read.
  */
 bool dc_commit_state(struct dc *dc, struct dc_state *context);
 
@@ -1038,7 +1038,7 @@ struct dc_sink {
 
 	/* private to dc_sink.c */
 	// refcount must be the last member in dc_sink, since we want the
-	// sink structure to be logically cloneable up to (but not including)
+	// sink structure to be logically cloneable up to (but yest including)
 	// refcount
 	struct kref refcount;
 };

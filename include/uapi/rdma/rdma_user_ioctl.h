@@ -1,6 +1,6 @@
-/* SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-note) OR Linux-OpenIB) */
+/* SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-yeste) OR Linux-OpenIB) */
 /*
- * Copyright (c) 2016 Mellanox Technologies, LTD. All rights reserved.
+ * Copyright (c) 2016 Mellayesx Techyeslogies, LTD. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -13,11 +13,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -43,7 +43,7 @@
 
 /*
  * General blocks assignments
- * It is closed on purpose do not expose it it user space
+ * It is closed on purpose do yest expose it it user space
  * #define MAD_CMD_BASE		0x00
  * #define HFI1_CMD_BAS		0xE0
  */

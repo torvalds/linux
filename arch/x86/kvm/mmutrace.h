@@ -336,7 +336,7 @@ TRACE_EVENT(
 		__field(u64, spte)
 		__field(u64, sptep)
 		__field(u8, level)
-		/* These depend on page entry type, so compute them now.  */
+		/* These depend on page entry type, so compute them yesw.  */
 		__field(bool, r)
 		__field(bool, x)
 		__field(u8, u)

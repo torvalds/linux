@@ -30,9 +30,9 @@ MODULE_SUPPORTED_DEVICE("Intersil Prism2-based WLAN cards (PC Card)");
 MODULE_LICENSE("GPL");
 
 
-static int ignore_cis_vcc;
-module_param(ignore_cis_vcc, int, 0444);
-MODULE_PARM_DESC(ignore_cis_vcc, "Ignore broken CIS VCC entry");
+static int igyesre_cis_vcc;
+module_param(igyesre_cis_vcc, int, 0444);
+MODULE_PARM_DESC(igyesre_cis_vcc, "Igyesre broken CIS VCC entry");
 
 
 /* struct local_info::hw_priv */
@@ -265,7 +265,7 @@ static int sandisk_enable_wireless(struct net_device *dev)
 	struct hostap_cs_priv *hw_priv = local->hw_priv;
 
 	if (resource_size(hw_priv->link->resource[0]) < 0x42) {
-		/* Not enough ports to be SanDisk multi-function card */
+		/* Not eyesugh ports to be SanDisk multi-function card */
 		ret = -ENODEV;
 		goto done;
 	}
@@ -296,7 +296,7 @@ static int sandisk_enable_wireless(struct net_device *dev)
 	mdelay(5);
 
 	/*
-	 * Do not enable interrupts here to avoid some bogus events. Interrupts
+	 * Do yest enable interrupts here to avoid some bogus events. Interrupts
 	 * will be enabled during the first cor_sreset call.
 	 */
 	res = pcmcia_write_config_byte(hw_priv->link, CISREG_COR,
@@ -425,7 +425,7 @@ static struct prism2_helper_functions prism2_pccard_funcs =
 
 
 /* allocate local data and register with CardServices
- * initialize dev_link structure, but do not configure the card yet */
+ * initialize dev_link structure, but do yest configure the card yet */
 static int hostap_cs_probe(struct pcmcia_device *p_dev)
 {
 	int ret;
@@ -489,14 +489,14 @@ static int prism2_config(struct pcmcia_device *link)
 	/* Look for an appropriate configuration table entry in the CIS */
 	link->config_flags |= CONF_AUTO_SET_VPP | CONF_AUTO_AUDIO |
 		CONF_AUTO_CHECK_VCC | CONF_AUTO_SET_IO | CONF_ENABLE_IRQ;
-	if (ignore_cis_vcc)
+	if (igyesre_cis_vcc)
 		link->config_flags &= ~CONF_AUTO_CHECK_VCC;
 	ret = pcmcia_loop_config(link, prism2_config_check, NULL);
 	if (ret) {
-		if (!ignore_cis_vcc)
+		if (!igyesre_cis_vcc)
 			printk(KERN_ERR "GetNextTuple(): No matching "
 			       "CIS configuration.  Maybe you need the "
-			       "ignore_cis_vcc=1 parameter.\n");
+			       "igyesre_cis_vcc=1 parameter.\n");
 		goto failed;
 	}
 
@@ -515,9 +515,9 @@ static int prism2_config(struct pcmcia_device *link)
 	hw_priv->link = link;
 
 	/*
-	 * We enable IRQ here, but IRQ handler will not proceed
+	 * We enable IRQ here, but IRQ handler will yest proceed
 	 * until dev->base_addr is set below. This protect us from
-	 * receive interrupts when driver is not initialized.
+	 * receive interrupts when driver is yest initialized.
 	 */
 	ret = pcmcia_request_irq(link, prism2_interrupt);
 	if (ret)
@@ -653,7 +653,7 @@ static const struct pcmcia_device_id hostap_cs_ids[] = {
 		"Addtron", "AWP-100 Wireless PCMCIA", "Version 01.02",
 		0xe6ec52ce, 0x08649af2, 0x4b74baa0),
 	PCMCIA_DEVICE_PROD_ID123(
-		"Canon", "Wireless LAN CF Card K30225", "Version 01.00",
+		"Cayesn", "Wireless LAN CF Card K30225", "Version 01.00",
 		0x96ef6fe2, 0x263fcbab, 0xa57adb8c),
 	PCMCIA_DEVICE_PROD_ID123(
 		"D", "Link DWL-650 11Mbps WLAN Card", "Version 01.02",

@@ -37,7 +37,7 @@ static struct rc_map_table flydvb[] = {
 	{ 0x18, KEY_VIDEO },		/* Source */
 
 	{ 0x1e, KEY_RECORD },		/* Record/Pause */
-	{ 0x15, KEY_ANGLE },		/* Swap (no label on key) */
+	{ 0x15, KEY_ANGLE },		/* Swap (yes label on key) */
 	{ 0x1c, KEY_PAUSE },		/* Timeshift/Pause */
 	{ 0x19, KEY_BACK },		/* Rewind << */
 	{ 0x0a, KEY_PLAYPAUSE },	/* Play/Pause */

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: LGPL-2.1+ WITH Linux-syscall-note */
+/* SPDX-License-Identifier: LGPL-2.1+ WITH Linux-syscall-yeste */
 /* Copyright (C) 2003 Krzysztof Benedyczak & Michal Wronski
 
    This program is free software; you can redistribute it and/or
@@ -12,7 +12,7 @@
    Lesser General Public License for more details.
 
    You should have received a copy of the GNU Lesser General Public
-   License along with this software; if not, write to the Free
+   License along with this software; if yest, write to the Free
    Software Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA
    02111-1307 USA.  */
 
@@ -30,22 +30,22 @@ struct mq_attr {
 	__kernel_long_t	mq_maxmsg;	/* maximum number of messages		*/
 	__kernel_long_t	mq_msgsize;	/* maximum message size			*/
 	__kernel_long_t	mq_curmsgs;	/* number of messages currently queued	*/
-	__kernel_long_t	__reserved[4];	/* ignored for input, zeroed for output */
+	__kernel_long_t	__reserved[4];	/* igyesred for input, zeroed for output */
 };
 
 /*
  * SIGEV_THREAD implementation:
  * SIGEV_THREAD must be implemented in user space. If SIGEV_THREAD is passed
- * to mq_notify, then
- * - sigev_signo must be the file descriptor of an AF_NETLINK socket. It's not
+ * to mq_yestify, then
+ * - sigev_sigyes must be the file descriptor of an AF_NETLINK socket. It's yest
  *   necessary that the socket is bound.
  * - sigev_value.sival_ptr must point to a cookie that is NOTIFY_COOKIE_LEN
  *   bytes long.
- * If the notification is triggered, then the cookie is sent to the netlink
+ * If the yestification is triggered, then the cookie is sent to the netlink
  * socket. The last byte of the cookie is replaced with the NOTIFY_?? codes:
- * NOTIFY_WOKENUP if the notification got triggered, NOTIFY_REMOVED if it was
+ * NOTIFY_WOKENUP if the yestification got triggered, NOTIFY_REMOVED if it was
  * removed, either due to a close() on the message queue fd or due to a
- * mq_notify() that removed the notification.
+ * mq_yestify() that removed the yestification.
  */
 #define NOTIFY_NONE	0
 #define NOTIFY_WOKENUP	1

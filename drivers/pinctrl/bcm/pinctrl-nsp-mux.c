@@ -353,7 +353,7 @@ static const struct pinctrl_ops nsp_pinctrl_ops = {
 	.get_group_name = nsp_get_group_name,
 	.get_group_pins = nsp_get_group_pins,
 	.pin_dbg_show = nsp_pin_dbg_show,
-	.dt_node_to_map = pinconf_generic_dt_node_to_map_group,
+	.dt_yesde_to_map = pinconf_generic_dt_yesde_to_map_group,
 	.dt_free_map = pinctrl_utils_free_map,
 };
 
@@ -537,15 +537,15 @@ static int nsp_mux_log_init(struct nsp_pinctrl *pinctrl)
 {
 	struct nsp_mux_log *log;
 	unsigned int i;
-	u32 no_of_groups = ARRAY_SIZE(nsp_pin_groups);
+	u32 yes_of_groups = ARRAY_SIZE(nsp_pin_groups);
 
-	pinctrl->mux_log = devm_kcalloc(pinctrl->dev, no_of_groups,
+	pinctrl->mux_log = devm_kcalloc(pinctrl->dev, yes_of_groups,
 					sizeof(struct nsp_mux_log),
 					GFP_KERNEL);
 	if (!pinctrl->mux_log)
 		return -ENOMEM;
 
-	for (i = 0; i < no_of_groups; i++) {
+	for (i = 0; i < yes_of_groups; i++) {
 		log = &pinctrl->mux_log[i];
 		log->mux.base = nsp_pin_groups[i].mux.base;
 		log->mux.shift = nsp_pin_groups[i].mux.shift;
@@ -578,7 +578,7 @@ static int nsp_pinmux_probe(struct platform_device *pdev)
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
 	if (!res)
 		return -EINVAL;
-	pinctrl->base1 = devm_ioremap_nocache(&pdev->dev, res->start,
+	pinctrl->base1 = devm_ioremap_yescache(&pdev->dev, res->start,
 					      resource_size(res));
 	if (!pinctrl->base1) {
 		dev_err(&pdev->dev, "unable to map I/O space\n");

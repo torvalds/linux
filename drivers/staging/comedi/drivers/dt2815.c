@@ -13,7 +13,7 @@
  * Status: mostly complete, untested
  * Devices: [Data Translation] DT2815 (dt2815)
  *
- * I'm not sure anyone has ever tested this board.  If you have information
+ * I'm yest sure anyone has ever tested this board.  If you have information
  * contrary, please update.
  *
  * Configuration options:
@@ -112,7 +112,7 @@ static int dt2815_ao_insn(struct comedi_device *dev, struct comedi_subdevice *s,
 
 /*
  * options[0]   Board base address
- * options[1]   IRQ (not applicable)
+ * options[1]   IRQ (yest applicable)
  * options[2]   Voltage unipolar/bipolar configuration
  *		0 == unipolar 5V  (0V -- +5V)
  *		1 == bipolar 5V  (-5V -- +5V)

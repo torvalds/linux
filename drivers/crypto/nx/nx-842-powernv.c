@@ -57,7 +57,7 @@ struct nx842_coproc {
  */
 static DEFINE_PER_CPU(struct vas_window *, cpu_txwin);
 
-/* no cpu hotplug on powernv, so this list never changes after init */
+/* yes cpu hotplug on powernv, so this list never changes after init */
 static LIST_HEAD(nx842_coprocs);
 static unsigned int nx842_ct;	/* used in icswx function */
 
@@ -119,7 +119,7 @@ static int setup_ddl(struct data_descriptor_entry *dde,
 	int i, ret, total_len = len;
 
 	if (!IS_ALIGNED(pa, DDE_BUFFER_ALIGN)) {
-		pr_debug("%s buffer pa 0x%lx not 0x%x-byte aligned\n",
+		pr_debug("%s buffer pa 0x%lx yest 0x%x-byte aligned\n",
 			 in ? "input" : "output", pa, DDE_BUFFER_ALIGN);
 		return -EINVAL;
 	}
@@ -130,7 +130,7 @@ static int setup_ddl(struct data_descriptor_entry *dde,
 	 * are guaranteed a multiple of DDE_BUFFER_SIZE_MULT.
 	 */
 	if (len % DDE_BUFFER_LAST_MULT) {
-		pr_debug("%s buffer len 0x%x not a multiple of 0x%x\n",
+		pr_debug("%s buffer len 0x%x yest a multiple of 0x%x\n",
 			 in ? "input" : "output", len, DDE_BUFFER_LAST_MULT);
 		if (in)
 			return -EINVAL;
@@ -180,13 +180,13 @@ static int setup_ddl(struct data_descriptor_entry *dde,
 static int wait_for_csb(struct nx842_workmem *wmem,
 			struct coprocessor_status_block *csb)
 {
-	ktime_t start = wmem->start, now = ktime_get();
+	ktime_t start = wmem->start, yesw = ktime_get();
 	ktime_t timeout = ktime_add_ms(start, CSB_WAIT_MAX);
 
 	while (!(READ_ONCE(csb->flags) & CSB_V)) {
 		cpu_relax();
-		now = ktime_get();
-		if (ktime_after(now, timeout))
+		yesw = ktime_get();
+		if (ktime_after(yesw, timeout))
 			break;
 	}
 
@@ -195,8 +195,8 @@ static int wait_for_csb(struct nx842_workmem *wmem,
 
 	/* check CSB flags */
 	if (!(csb->flags & CSB_V)) {
-		CSB_ERR(csb, "CSB still not valid after %ld us, giving up",
-			(long)ktime_us_delta(now, start));
+		CSB_ERR(csb, "CSB still yest valid after %ld us, giving up",
+			(long)ktime_us_delta(yesw, start));
 		return -ETIMEDOUT;
 	}
 	if (csb->flags & CSB_F) {
@@ -216,11 +216,11 @@ static int wait_for_csb(struct nx842_workmem *wmem,
 
 	/* check CSB Completion Code */
 	switch (csb->cc) {
-	/* no error */
+	/* yes error */
 	case CSB_CC_SUCCESS:
 		break;
 	case CSB_CC_TPBC_GT_SPBC:
-		/* not an error, but the compressed data is
+		/* yest an error, but the compressed data is
 		 * larger than the uncompressed data :(
 		 */
 		break;
@@ -256,7 +256,7 @@ static int wait_for_csb(struct nx842_workmem *wmem,
 		CSB_ERR(csb, "DDE byte count exceeds the limit");
 		return -EINVAL;
 
-	/* these should not happen */
+	/* these should yest happen */
 	case CSB_CC_INVALID_ALIGN:
 		/* setup_ddl should have detected this */
 		CSB_ERR_ADDR(csb, "Invalid alignment");
@@ -273,7 +273,7 @@ static int wait_for_csb(struct nx842_workmem *wmem,
 	case CSB_CC_TRANSLATION_DUP4:
 	case CSB_CC_TRANSLATION_DUP5:
 	case CSB_CC_TRANSLATION_DUP6:
-		/* should not happen, we use physical addrs */
+		/* should yest happen, we use physical addrs */
 		CSB_ERR_ADDR(csb, "Translation error");
 		return -EPROTO;
 	case CSB_CC_WR_PROTECTION:
@@ -284,7 +284,7 @@ static int wait_for_csb(struct nx842_workmem *wmem,
 	case CSB_CC_PROTECTION_DUP4:
 	case CSB_CC_PROTECTION_DUP5:
 	case CSB_CC_PROTECTION_DUP6:
-		/* should not happen, we use physical addrs */
+		/* should yest happen, we use physical addrs */
 		CSB_ERR_ADDR(csb, "Protection error");
 		return -EPROTO;
 	case CSB_CC_PRIVILEGE:
@@ -316,19 +316,19 @@ static int wait_for_csb(struct nx842_workmem *wmem,
 		CSB_ERR(csb, "DDE overflow error");
 		return -EINVAL;
 	case CSB_CC_SESSION:
-		/* should not happen with ICSWX */
+		/* should yest happen with ICSWX */
 		CSB_ERR(csb, "Session violation error");
 		return -EPROTO;
 	case CSB_CC_CHAIN:
-		/* should not happen, we don't use chained CRBs */
+		/* should yest happen, we don't use chained CRBs */
 		CSB_ERR(csb, "Chained CRB error");
 		return -EPROTO;
 	case CSB_CC_SEQUENCE:
-		/* should not happen, we don't use chained CRBs */
+		/* should yest happen, we don't use chained CRBs */
 		CSB_ERR(csb, "CRB sequence number error");
 		return -EPROTO;
 	case CSB_CC_UNKNOWN_CODE:
-		CSB_ERR(csb, "Unknown subfunction code");
+		CSB_ERR(csb, "Unkyeswn subfunction code");
 		return -EPROTO;
 
 	/* hardware errors */
@@ -351,7 +351,7 @@ static int wait_for_csb(struct nx842_workmem *wmem,
 		CSB_ERR(csb, "Correctable hardware error");
 		return -EPROTO;
 	case CSB_CC_HW_EXPIRED_TIMER:	/* P9 or later */
-		CSB_ERR(csb, "Job did not finish within allowed time");
+		CSB_ERR(csb, "Job did yest finish within allowed time");
 		return -EPROTO;
 
 	default:
@@ -365,18 +365,18 @@ static int wait_for_csb(struct nx842_workmem *wmem,
 		return -EPROTO;
 	}
 	if (csb->ce & CSB_CE_INCOMPLETE) {
-		CSB_ERR(csb, "CSB request not complete");
+		CSB_ERR(csb, "CSB request yest complete");
 		return -EPROTO;
 	}
 	if (!(csb->ce & CSB_CE_TPBC)) {
-		CSB_ERR(csb, "TPBC not provided, unknown target length");
+		CSB_ERR(csb, "TPBC yest provided, unkyeswn target length");
 		return -EPROTO;
 	}
 
 	/* successful completion */
 	pr_debug_ratelimited("Processed %u bytes in %lu us\n",
 			     be32_to_cpu(csb->count),
-			     (unsigned long)ktime_us_delta(now, start));
+			     (unsigned long)ktime_us_delta(yesw, start));
 
 	return 0;
 }
@@ -441,9 +441,9 @@ static int nx842_config_crb(const unsigned char *in, unsigned int inlen,
  *   -ENODEV	Hardware unavailable
  *   -ENOSPC	Output buffer is to small
  *   -EMSGSIZE	Input buffer too large
- *   -EINVAL	buffer constraints do not fix nx842_constraints
+ *   -EINVAL	buffer constraints do yest fix nx842_constraints
  *   -EPROTO	hardware error during operation
- *   -ETIMEDOUT	hardware did not complete operation in reasonable time
+ *   -ETIMEDOUT	hardware did yest complete operation in reasonable time
  *   -EINTR	operation was aborted
  */
 static int nx842_exec_icswx(const unsigned char *in, unsigned int inlen,
@@ -491,7 +491,7 @@ static int nx842_exec_icswx(const unsigned char *in, unsigned int inlen,
 
 	/*
 	 * NX842 coprocessor sets 3rd bit in CR register with XER[S0].
-	 * XER[S0] is the integer summary overflow bit which is nothing
+	 * XER[S0] is the integer summary overflow bit which is yesthing
 	 * to do NX. Since this bit can be set with other return values,
 	 * mask this bit.
 	 */
@@ -544,9 +544,9 @@ static int nx842_exec_icswx(const unsigned char *in, unsigned int inlen,
  *   -ENODEV	Hardware unavailable
  *   -ENOSPC	Output buffer is to small
  *   -EMSGSIZE	Input buffer too large
- *   -EINVAL	buffer constraints do not fix nx842_constraints
+ *   -EINVAL	buffer constraints do yest fix nx842_constraints
  *   -EPROTO	hardware error during operation
- *   -ETIMEDOUT	hardware did not complete operation in reasonable time
+ *   -ETIMEDOUT	hardware did yest complete operation in reasonable time
  *   -EINTR	operation was aborted
  */
 static int nx842_exec_vas(const unsigned char *in, unsigned int inlen,
@@ -692,7 +692,7 @@ static struct vas_window *nx842_alloc_txwin(struct nx842_coproc *coproc)
 	 */
 	txwin = vas_tx_win_open(coproc->vas.id, coproc->ct, &txattr);
 	if (IS_ERR(txwin))
-		pr_err("ibm,nx-842: Can not open TX window: %ld\n",
+		pr_err("ibm,nx-842: Can yest open TX window: %ld\n",
 				PTR_ERR(txwin));
 
 	return txwin;
@@ -735,7 +735,7 @@ static int nx842_open_percpu_txwins(void)
 
 		if (!per_cpu(cpu_txwin, i)) {
 			/* shouldn't happen, Each chip will have NX engine */
-			pr_err("NX engine is not available for CPU %d\n", i);
+			pr_err("NX engine is yest available for CPU %d\n", i);
 			return -EINVAL;
 		}
 	}
@@ -743,7 +743,7 @@ static int nx842_open_percpu_txwins(void)
 	return 0;
 }
 
-static int __init vas_cfg_coproc_info(struct device_node *dn, int chip_id,
+static int __init vas_cfg_coproc_info(struct device_yesde *dn, int chip_id,
 					int vasid, int *ct)
 {
 	struct vas_window *rxwin = NULL;
@@ -807,11 +807,11 @@ static int __init vas_cfg_coproc_info(struct device_node *dn, int chip_id,
 	vas_init_rx_win_attr(&rxattr, coproc->ct);
 	rxattr.rx_fifo = (void *)rx_fifo;
 	rxattr.rx_fifo_size = fifo_size;
-	rxattr.lnotify_lpid = lpid;
-	rxattr.lnotify_pid = pid;
-	rxattr.lnotify_tid = tid;
+	rxattr.lyestify_lpid = lpid;
+	rxattr.lyestify_pid = pid;
+	rxattr.lyestify_tid = tid;
 	/*
-	 * Maximum RX window credits can not be more than #CRBs in
+	 * Maximum RX window credits can yest be more than #CRBs in
 	 * RxFIFO. Otherwise, can get checkstop if RxFIFO overruns.
 	 */
 	rxattr.wcreds_max = fifo_size / CRB_SIZE;
@@ -849,9 +849,9 @@ err_out:
 }
 
 
-static int __init nx842_powernv_probe_vas(struct device_node *pn)
+static int __init nx842_powernv_probe_vas(struct device_yesde *pn)
 {
-	struct device_node *dn;
+	struct device_yesde *dn;
 	int chip_id, vasid, ret = 0;
 	int nx_fifo_found = 0;
 	int uninitialized_var(ct);
@@ -868,11 +868,11 @@ static int __init nx842_powernv_probe_vas(struct device_node *pn)
 		return -EINVAL;
 	}
 
-	for_each_child_of_node(pn, dn) {
+	for_each_child_of_yesde(pn, dn) {
 		if (of_device_is_compatible(dn, "ibm,p9-nx-842")) {
 			ret = vas_cfg_coproc_info(dn, chip_id, vasid, &ct);
 			if (ret) {
-				of_node_put(dn);
+				of_yesde_put(dn);
 				return ret;
 			}
 			nx_fifo_found++;
@@ -880,12 +880,12 @@ static int __init nx842_powernv_probe_vas(struct device_node *pn)
 	}
 
 	if (!nx_fifo_found) {
-		pr_err("NX842 FIFO nodes are missing\n");
+		pr_err("NX842 FIFO yesdes are missing\n");
 		return -EINVAL;
 	}
 
 	/*
-	 * Initialize NX instance for both high and normal priority FIFOs.
+	 * Initialize NX instance for both high and yesrmal priority FIFOs.
 	 */
 	if (opal_check_token(OPAL_NX_COPROC_INIT)) {
 		ret = opal_nx_coproc_init(chip_id, ct);
@@ -900,7 +900,7 @@ static int __init nx842_powernv_probe_vas(struct device_node *pn)
 	return ret;
 }
 
-static int __init nx842_powernv_probe(struct device_node *dn)
+static int __init nx842_powernv_probe(struct device_yesde *dn)
 {
 	struct nx842_coproc *coproc;
 	unsigned int ct, ci;
@@ -1004,7 +1004,7 @@ static struct crypto_alg nx842_powernv_alg = {
 
 static __init int nx842_powernv_init(void)
 {
-	struct device_node *dn;
+	struct device_yesde *dn;
 	int ret;
 
 	/* verify workmem size/align restrictions */
@@ -1016,17 +1016,17 @@ static __init int nx842_powernv_init(void)
 	BUILD_BUG_ON(DDE_BUFFER_ALIGN % DDE_BUFFER_SIZE_MULT);
 	BUILD_BUG_ON(DDE_BUFFER_SIZE_MULT % DDE_BUFFER_LAST_MULT);
 
-	for_each_compatible_node(dn, NULL, "ibm,power9-nx") {
+	for_each_compatible_yesde(dn, NULL, "ibm,power9-nx") {
 		ret = nx842_powernv_probe_vas(dn);
 		if (ret) {
 			nx842_delete_coprocs();
-			of_node_put(dn);
+			of_yesde_put(dn);
 			return ret;
 		}
 	}
 
 	if (list_empty(&nx842_coprocs)) {
-		for_each_compatible_node(dn, NULL, "ibm,power-nx")
+		for_each_compatible_yesde(dn, NULL, "ibm,power-nx")
 			nx842_powernv_probe(dn);
 
 		if (!nx842_ct)

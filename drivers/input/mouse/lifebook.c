@@ -168,7 +168,7 @@ static psmouse_ret_t lifebook_process_byte(struct psmouse *psmouse)
 	if (relative_packet) {
 		if (!dev2)
 			psmouse_warn(psmouse,
-				     "got relative packet but no relative device set up\n");
+				     "got relative packet but yes relative device set up\n");
 	} else {
 		if (lifebook_use_6byte_proto) {
 			input_report_abs(dev1, ABS_X,

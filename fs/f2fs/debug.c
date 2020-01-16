@@ -16,7 +16,7 @@
 #include <linux/seq_file.h>
 
 #include "f2fs.h"
-#include "node.h"
+#include "yesde.h"
 #include "segment.h"
 #include "gc.h"
 
@@ -44,17 +44,17 @@ static void update_general_status(struct f2fs_sb_info *sbi)
 	si->total_ext = atomic64_read(&sbi->total_hit_ext);
 	si->ext_tree = atomic_read(&sbi->total_ext_tree);
 	si->zombie_tree = atomic_read(&sbi->total_zombie_tree);
-	si->ext_node = atomic_read(&sbi->total_ext_node);
-	si->ndirty_node = get_pages(sbi, F2FS_DIRTY_NODES);
+	si->ext_yesde = atomic_read(&sbi->total_ext_yesde);
+	si->ndirty_yesde = get_pages(sbi, F2FS_DIRTY_NODES);
 	si->ndirty_dent = get_pages(sbi, F2FS_DIRTY_DENTS);
 	si->ndirty_meta = get_pages(sbi, F2FS_DIRTY_META);
 	si->ndirty_data = get_pages(sbi, F2FS_DIRTY_DATA);
 	si->ndirty_qdata = get_pages(sbi, F2FS_DIRTY_QDATA);
 	si->ndirty_imeta = get_pages(sbi, F2FS_DIRTY_IMETA);
-	si->ndirty_dirs = sbi->ndirty_inode[DIR_INODE];
-	si->ndirty_files = sbi->ndirty_inode[FILE_INODE];
+	si->ndirty_dirs = sbi->ndirty_iyesde[DIR_INODE];
+	si->ndirty_files = sbi->ndirty_iyesde[FILE_INODE];
 	si->nquota_files = sbi->nquota_files;
-	si->ndirty_all = sbi->ndirty_inode[DIRTY_META];
+	si->ndirty_all = sbi->ndirty_iyesde[DIRTY_META];
 	si->inmem_pages = get_pages(sbi, F2FS_INMEM_PAGES);
 	si->aw_cnt = atomic_read(&sbi->aw_cnt);
 	si->vw_cnt = atomic_read(&sbi->vw_cnt);
@@ -65,7 +65,7 @@ static void update_general_status(struct f2fs_sb_info *sbi)
 	si->nr_wb_cp_data = get_pages(sbi, F2FS_WB_CP_DATA);
 	si->nr_wb_data = get_pages(sbi, F2FS_WB_DATA);
 	si->nr_rd_data = get_pages(sbi, F2FS_RD_DATA);
-	si->nr_rd_node = get_pages(sbi, F2FS_RD_NODE);
+	si->nr_rd_yesde = get_pages(sbi, F2FS_RD_NODE);
 	si->nr_rd_meta = get_pages(sbi, F2FS_RD_META);
 	if (SM_I(sbi)->fcc_info) {
 		si->nr_flushed =
@@ -89,23 +89,23 @@ static void update_general_status(struct f2fs_sb_info *sbi)
 	si->overp_segs = overprovision_segments(sbi);
 	si->valid_count = valid_user_blocks(sbi);
 	si->discard_blks = discard_blocks(sbi);
-	si->valid_node_count = valid_node_count(sbi);
-	si->valid_inode_count = valid_inode_count(sbi);
+	si->valid_yesde_count = valid_yesde_count(sbi);
+	si->valid_iyesde_count = valid_iyesde_count(sbi);
 	si->inline_xattr = atomic_read(&sbi->inline_xattr);
-	si->inline_inode = atomic_read(&sbi->inline_inode);
+	si->inline_iyesde = atomic_read(&sbi->inline_iyesde);
 	si->inline_dir = atomic_read(&sbi->inline_dir);
-	si->append = sbi->im[APPEND_INO].ino_num;
-	si->update = sbi->im[UPDATE_INO].ino_num;
-	si->orphans = sbi->im[ORPHAN_INO].ino_num;
+	si->append = sbi->im[APPEND_INO].iyes_num;
+	si->update = sbi->im[UPDATE_INO].iyes_num;
+	si->orphans = sbi->im[ORPHAN_INO].iyes_num;
 	si->utilization = utilization(sbi);
 
 	si->free_segs = free_segments(sbi);
 	si->free_secs = free_sections(sbi);
 	si->prefree_count = prefree_segments(sbi);
 	si->dirty_count = dirty_segments(sbi);
-	if (sbi->node_inode)
-		si->node_pages = NODE_MAPPING(sbi)->nrpages;
-	if (sbi->meta_inode)
+	if (sbi->yesde_iyesde)
+		si->yesde_pages = NODE_MAPPING(sbi)->nrpages;
+	if (sbi->meta_iyesde)
 		si->meta_pages = META_MAPPING(sbi)->nrpages;
 	si->nats = NM_I(sbi)->nat_cnt;
 	si->dirty_nats = NM_I(sbi)->dirty_nat_cnt;
@@ -129,8 +129,8 @@ static void update_general_status(struct f2fs_sb_info *sbi)
 	si->util_invalid = 50 - si->util_free - si->util_valid;
 	for (i = CURSEG_HOT_DATA; i <= CURSEG_COLD_NODE; i++) {
 		struct curseg_info *curseg = CURSEG_I(sbi, i);
-		si->curseg[i] = curseg->segno;
-		si->cursec[i] = GET_SEC_FROM_SEG(sbi, curseg->segno);
+		si->curseg[i] = curseg->segyes;
+		si->cursec[i] = GET_SEC_FROM_SEG(sbi, curseg->segyes);
 		si->curzone[i] = GET_ZONE_FROM_SEC(sbi, si->cursec[i]);
 	}
 
@@ -153,15 +153,15 @@ static void update_sit_info(struct f2fs_sb_info *sbi)
 	struct f2fs_stat_info *si = F2FS_STAT(sbi);
 	unsigned long long blks_per_sec, hblks_per_sec, total_vblocks;
 	unsigned long long bimodal, dist;
-	unsigned int segno, vblocks;
+	unsigned int segyes, vblocks;
 	int ndirty = 0;
 
 	bimodal = 0;
 	total_vblocks = 0;
 	blks_per_sec = BLKS_PER_SEC(sbi);
 	hblks_per_sec = blks_per_sec / 2;
-	for (segno = 0; segno < MAIN_SEGS(sbi); segno += sbi->segs_per_sec) {
-		vblocks = get_valid_blocks(sbi, segno, true);
+	for (segyes = 0; segyes < MAIN_SEGS(sbi); segyes += sbi->segs_per_sec) {
+		vblocks = get_valid_blocks(sbi, segyes, true);
 		dist = abs(vblocks - hblks_per_sec);
 		bimodal += dist * dist;
 
@@ -194,7 +194,7 @@ static void update_mem_info(struct f2fs_sb_info *sbi)
 
 	/* build superblock */
 	si->base_mem += sizeof(struct f2fs_sb_info) + sbi->sb->s_blocksize;
-	si->base_mem += 2 * sizeof(struct f2fs_inode_info);
+	si->base_mem += 2 * sizeof(struct f2fs_iyesde_info);
 	si->base_mem += sizeof(*sbi->ckpt);
 
 	/* build sm */
@@ -259,18 +259,18 @@ get_cache:
 					sizeof(struct nat_entry_set);
 	si->cache_mem += si->inmem_pages * sizeof(struct inmem_pages);
 	for (i = 0; i < MAX_INO_ENTRY; i++)
-		si->cache_mem += sbi->im[i].ino_num * sizeof(struct ino_entry);
+		si->cache_mem += sbi->im[i].iyes_num * sizeof(struct iyes_entry);
 	si->cache_mem += atomic_read(&sbi->total_ext_tree) *
 						sizeof(struct extent_tree);
-	si->cache_mem += atomic_read(&sbi->total_ext_node) *
-						sizeof(struct extent_node);
+	si->cache_mem += atomic_read(&sbi->total_ext_yesde) *
+						sizeof(struct extent_yesde);
 
 	si->page_mem = 0;
-	if (sbi->node_inode) {
+	if (sbi->yesde_iyesde) {
 		unsigned npages = NODE_MAPPING(sbi)->nrpages;
 		si->page_mem += (unsigned long long)npages << PAGE_SHIFT;
 	}
-	if (sbi->meta_inode) {
+	if (sbi->meta_iyesde) {
 		unsigned npages = META_MAPPING(sbi)->nrpages;
 		si->page_mem += (unsigned long long)npages << PAGE_SHIFT;
 	}
@@ -304,18 +304,18 @@ static int stat_show(struct seq_file *s, void *v)
 			seq_printf(s, "Utilization: %u%% (%u valid blocks)\n",
 				si->utilization, si->valid_count);
 
-		seq_printf(s, "  - Node: %u (Inode: %u, ",
-			   si->valid_node_count, si->valid_inode_count);
+		seq_printf(s, "  - Node: %u (Iyesde: %u, ",
+			   si->valid_yesde_count, si->valid_iyesde_count);
 		seq_printf(s, "Other: %u)\n  - Data: %u\n",
-			   si->valid_node_count - si->valid_inode_count,
-			   si->valid_count - si->valid_node_count);
-		seq_printf(s, "  - Inline_xattr Inode: %u\n",
+			   si->valid_yesde_count - si->valid_iyesde_count,
+			   si->valid_count - si->valid_yesde_count);
+		seq_printf(s, "  - Inline_xattr Iyesde: %u\n",
 			   si->inline_xattr);
-		seq_printf(s, "  - Inline_data Inode: %u\n",
-			   si->inline_inode);
-		seq_printf(s, "  - Inline_dentry Inode: %u\n",
+		seq_printf(s, "  - Inline_data Iyesde: %u\n",
+			   si->inline_iyesde);
+		seq_printf(s, "  - Inline_dentry Iyesde: %u\n",
 			   si->inline_dir);
-		seq_printf(s, "  - Orphan/Append/Update Inode: %u, %u, %u\n",
+		seq_printf(s, "  - Orphan/Append/Update Iyesde: %u, %u, %u\n",
 			   si->orphans, si->append, si->update);
 		seq_printf(s, "\nMain area: %d segs, %d secs %d zones\n",
 			   si->main_area_segs, si->main_area_sections,
@@ -332,15 +332,15 @@ static int stat_show(struct seq_file *s, void *v)
 			   si->curseg[CURSEG_HOT_DATA],
 			   si->cursec[CURSEG_HOT_DATA],
 			   si->curzone[CURSEG_HOT_DATA]);
-		seq_printf(s, "  - Dir   dnode: %d, %d, %d\n",
+		seq_printf(s, "  - Dir   dyesde: %d, %d, %d\n",
 			   si->curseg[CURSEG_HOT_NODE],
 			   si->cursec[CURSEG_HOT_NODE],
 			   si->curzone[CURSEG_HOT_NODE]);
-		seq_printf(s, "  - File   dnode: %d, %d, %d\n",
+		seq_printf(s, "  - File   dyesde: %d, %d, %d\n",
 			   si->curseg[CURSEG_WARM_NODE],
 			   si->cursec[CURSEG_WARM_NODE],
 			   si->curzone[CURSEG_WARM_NODE]);
-		seq_printf(s, "  - Indir nodes: %d, %d, %d\n",
+		seq_printf(s, "  - Indir yesdes: %d, %d, %d\n",
 			   si->curseg[CURSEG_COLD_NODE],
 			   si->cursec[CURSEG_COLD_NODE],
 			   si->curzone[CURSEG_COLD_NODE]);
@@ -363,14 +363,14 @@ static int stat_show(struct seq_file *s, void *v)
 			   si->call_count, si->bg_gc);
 		seq_printf(s, "  - data segments : %d (%d)\n",
 				si->data_segs, si->bg_data_segs);
-		seq_printf(s, "  - node segments : %d (%d)\n",
-				si->node_segs, si->bg_node_segs);
+		seq_printf(s, "  - yesde segments : %d (%d)\n",
+				si->yesde_segs, si->bg_yesde_segs);
 		seq_printf(s, "Try to move %d blocks (BG: %d)\n", si->tot_blks,
-				si->bg_data_blks + si->bg_node_blks);
+				si->bg_data_blks + si->bg_yesde_blks);
 		seq_printf(s, "  - data blocks : %d (%d)\n", si->data_blks,
 				si->bg_data_blks);
-		seq_printf(s, "  - node blocks : %d (%d)\n", si->node_blks,
-				si->bg_node_blks);
+		seq_printf(s, "  - yesde blocks : %d (%d)\n", si->yesde_blks,
+				si->bg_yesde_blks);
 		seq_printf(s, "Skipped : atomic write %llu (%llu)\n",
 				si->skipped_atomic_files[BG_GC] +
 				si->skipped_atomic_files[FG_GC],
@@ -385,13 +385,13 @@ static int stat_show(struct seq_file *s, void *v)
 				!si->total_ext ? 0 :
 				div64_u64(si->hit_total * 100, si->total_ext),
 				si->hit_total, si->total_ext);
-		seq_printf(s, "  - Inner Struct Count: tree: %d(%d), node: %d\n",
-				si->ext_tree, si->zombie_tree, si->ext_node);
+		seq_printf(s, "  - Inner Struct Count: tree: %d(%d), yesde: %d\n",
+				si->ext_tree, si->zombie_tree, si->ext_yesde);
 		seq_puts(s, "\nBalancing F2FS Async:\n");
 		seq_printf(s, "  - DIO (R: %4d, W: %4d)\n",
 			   si->nr_dio_read, si->nr_dio_write);
 		seq_printf(s, "  - IO_R (Data: %4d, Node: %4d, Meta: %4d\n",
-			   si->nr_rd_data, si->nr_rd_node, si->nr_rd_meta);
+			   si->nr_rd_data, si->nr_rd_yesde, si->nr_rd_meta);
 		seq_printf(s, "  - IO_W (CP: %4d, Data: %4d, Flush: (%4d %4d %4d), "
 			"Discard: (%4d %4d)) cmd: %4d undiscard:%4u\n",
 			   si->nr_wb_cp_data, si->nr_wb_data,
@@ -403,8 +403,8 @@ static int stat_show(struct seq_file *s, void *v)
 			"volatile IO: %4d (Max. %4d)\n",
 			   si->inmem_pages, si->aw_cnt, si->max_aw_cnt,
 			   si->vw_cnt, si->max_vw_cnt);
-		seq_printf(s, "  - nodes: %4d in %4d\n",
-			   si->ndirty_node, si->node_pages);
+		seq_printf(s, "  - yesdes: %4d in %4d\n",
+			   si->ndirty_yesde, si->yesde_pages);
 		seq_printf(s, "  - dents: %4d in dirs:%4d (%4d)\n",
 			   si->ndirty_dent, si->ndirty_dirs, si->ndirty_all);
 		seq_printf(s, "  - datas: %4d in files:%4d\n",
@@ -489,7 +489,7 @@ int f2fs_build_stats(struct f2fs_sb_info *sbi)
 	atomic64_set(&sbi->read_hit_cached, 0);
 
 	atomic_set(&sbi->inline_xattr, 0);
-	atomic_set(&sbi->inline_inode, 0);
+	atomic_set(&sbi->inline_iyesde, 0);
 	atomic_set(&sbi->inline_dir, 0);
 	atomic_set(&sbi->inplace_count, 0);
 	for (i = META_CP; i < META_MAX; i++)

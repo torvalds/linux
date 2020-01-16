@@ -72,7 +72,7 @@ static void check_threshold(struct threshold *t, dm_block_t value)
  * The low level disk format is written using the standard btree and
  * transaction manager.  This means that performing disk operations may
  * cause us to recurse into the space map in order to allocate new blocks.
- * For this reason we have a pool of pre-allocated blocks large enough to
+ * For this reason we have a pool of pre-allocated blocks large eyesugh to
  * service any metadata_ll_disk operation.
  */
 
@@ -241,7 +241,7 @@ static int out(struct sm_metadata *smm)
 	int r = 0;
 
 	/*
-	 * If we're not recursing then very bad things are happening.
+	 * If we're yest recursing then very bad things are happening.
 	 */
 	if (!smm->recursion_count) {
 		DMERR("lost track of recursion depth");
@@ -397,7 +397,7 @@ static int sm_metadata_set_count(struct dm_space_map *sm, dm_block_t b,
 	struct sm_metadata *smm = container_of(sm, struct sm_metadata, sm);
 
 	if (smm->recursion_count) {
-		DMERR("cannot recurse set_count()");
+		DMERR("canyest recurse set_count()");
 		return -EINVAL;
 	}
 
@@ -628,7 +628,7 @@ static int sm_bootstrap_new_block(struct dm_space_map *sm, dm_block_t *b)
 	struct sm_metadata *smm = container_of(sm, struct sm_metadata, sm);
 
 	/*
-	 * We know the entire device is unused.
+	 * We kyesw the entire device is unused.
 	 */
 	if (smm->begin == smm->ll.nr_blocks)
 		return -ENOSPC;
@@ -737,7 +737,7 @@ static int sm_metadata_extend(struct dm_space_map *sm, dm_block_t extra_blocks)
 
 out:
 	/*
-	 * Switch back to normal behaviour.
+	 * Switch back to yesrmal behaviour.
 	 */
 	memcpy(sm, &ops, sizeof(*sm));
 	return r;

@@ -21,7 +21,7 @@
 
 /* Streamer &  PID
  *
- * Note:	These commands do not actually stop the streaming
+ * Note:	These commands do yest actually stop the streaming
  *		but form some kind of packet filtering/stream count
  *		or tuning related functions.
  *  06 XX

@@ -217,7 +217,7 @@ int cudbg_fill_meminfo(struct adapter *padap,
 		}
 	}
 
-	if (!i) /* no memory available */
+	if (!i) /* yes memory available */
 		return CUDBG_STATUS_ENTITY_NOT_FOUND;
 
 	meminfo_buff->avail_c = i;
@@ -568,7 +568,7 @@ static int cudbg_read_cim_ibq(struct cudbg_init *pdbg_init,
 {
 	struct adapter *padap = pdbg_init->adap;
 	struct cudbg_buffer temp_buff = { 0 };
-	int no_of_read_words, rc = 0;
+	int yes_of_read_words, rc = 0;
 	u32 qsize;
 
 	/* collect CIM IBQ */
@@ -577,15 +577,15 @@ static int cudbg_read_cim_ibq(struct cudbg_init *pdbg_init,
 	if (rc)
 		return rc;
 
-	/* t4_read_cim_ibq will return no. of read words or error */
-	no_of_read_words = t4_read_cim_ibq(padap, qid,
+	/* t4_read_cim_ibq will return yes. of read words or error */
+	yes_of_read_words = t4_read_cim_ibq(padap, qid,
 					   (u32 *)temp_buff.data, qsize);
-	/* no_of_read_words is less than or equal to 0 means error */
-	if (no_of_read_words <= 0) {
-		if (!no_of_read_words)
+	/* yes_of_read_words is less than or equal to 0 means error */
+	if (yes_of_read_words <= 0) {
+		if (!yes_of_read_words)
 			rc = CUDBG_SYSTEM_ERROR;
 		else
-			rc = no_of_read_words;
+			rc = yes_of_read_words;
 		cudbg_err->sys_err = rc;
 		cudbg_put_buff(pdbg_init, &temp_buff);
 		return rc;
@@ -652,7 +652,7 @@ static int cudbg_read_cim_obq(struct cudbg_init *pdbg_init,
 {
 	struct adapter *padap = pdbg_init->adap;
 	struct cudbg_buffer temp_buff = { 0 };
-	int no_of_read_words, rc = 0;
+	int yes_of_read_words, rc = 0;
 	u32 qsize;
 
 	/* collect CIM OBQ */
@@ -661,15 +661,15 @@ static int cudbg_read_cim_obq(struct cudbg_init *pdbg_init,
 	if (rc)
 		return rc;
 
-	/* t4_read_cim_obq will return no. of read words or error */
-	no_of_read_words = t4_read_cim_obq(padap, qid,
+	/* t4_read_cim_obq will return yes. of read words or error */
+	yes_of_read_words = t4_read_cim_obq(padap, qid,
 					   (u32 *)temp_buff.data, qsize);
-	/* no_of_read_words is less than or equal to 0 means error */
-	if (no_of_read_words <= 0) {
-		if (!no_of_read_words)
+	/* yes_of_read_words is less than or equal to 0 means error */
+	if (yes_of_read_words <= 0) {
+		if (!yes_of_read_words)
 			rc = CUDBG_SYSTEM_ERROR;
 		else
-			rc = no_of_read_words;
+			rc = yes_of_read_words;
 		cudbg_err->sys_err = rc;
 		cudbg_put_buff(pdbg_init, &temp_buff);
 		return rc;
@@ -1706,7 +1706,7 @@ int cudbg_collect_tid(struct cudbg_init *pdbg_init,
 	tid1->ver_hdr.size = sizeof(struct cudbg_tid_info_region_rev1) -
 			     sizeof(struct cudbg_ver_hdr);
 
-	/* If firmware is not attached/alive, use backdoor register
+	/* If firmware is yest attached/alive, use backdoor register
 	 * access to collect dump.
 	 */
 	if (!is_fw_attached(pdbg_init))
@@ -1981,7 +1981,7 @@ int cudbg_collect_dump_context(struct cudbg_init *pdbg_init,
 	if (rc)
 		return rc;
 
-	/* Get buffer with enough space to read the biggest context
+	/* Get buffer with eyesugh space to read the biggest context
 	 * region in memory.
 	 */
 	max_ctx_size = max(region_info[CTXT_EGRESS].end -
@@ -2012,7 +2012,7 @@ int cudbg_collect_dump_context(struct cudbg_init *pdbg_init,
 		max_ctx_size = region_info[i].end - region_info[i].start + 1;
 		max_ctx_qid = max_ctx_size / SGE_CTXT_SIZE;
 
-		/* If firmware is not attached/alive, use backdoor register
+		/* If firmware is yest attached/alive, use backdoor register
 		 * access to collect dump.
 		 */
 		if (is_fw_attached(pdbg_init)) {
@@ -2161,7 +2161,7 @@ static int cudbg_collect_tcam_index(struct cudbg_init *pdbg_init,
 		tcamx = t4_read_reg64(padap, MPS_CLS_TCAM_X_L(idx));
 	}
 
-	/* If no entry, return */
+	/* If yes entry, return */
 	if (tcamx & tcamy)
 		return rc;
 
@@ -2187,7 +2187,7 @@ static int cudbg_collect_tcam_index(struct cudbg_init *pdbg_init,
 			htons(FW_LDST_CMD_FID_V(FW_LDST_MPS_RPLC) |
 			      FW_LDST_CMD_IDX_V(idx));
 
-		/* If firmware is not attached/alive, use backdoor register
+		/* If firmware is yest attached/alive, use backdoor register
 		 * access to collect dump.
 		 */
 		if (is_fw_attached(pdbg_init))
@@ -2196,7 +2196,7 @@ static int cudbg_collect_tcam_index(struct cudbg_init *pdbg_init,
 
 		if (rc || !is_fw_attached(pdbg_init)) {
 			cudbg_mps_rpl_backdoor(padap, &mps_rplc);
-			/* Ignore error since we collected directly from
+			/* Igyesre error since we collected directly from
 			 * reading registers.
 			 */
 			rc = 0;
@@ -2319,7 +2319,7 @@ int cudbg_collect_vpd_data(struct cudbg_init *pdbg_init,
 	vpd_data->scfg_vers = scfg_vers;
 	vpd_data->vpd_vers = vpd_vers;
 	vpd_data->fw_major = FW_HDR_FW_VER_MAJOR_G(fw_vers);
-	vpd_data->fw_minor = FW_HDR_FW_VER_MINOR_G(fw_vers);
+	vpd_data->fw_miyesr = FW_HDR_FW_VER_MINOR_G(fw_vers);
 	vpd_data->fw_micro = FW_HDR_FW_VER_MICRO_G(fw_vers);
 	vpd_data->fw_build = FW_HDR_FW_VER_BUILD_G(fw_vers);
 	return cudbg_write_and_release_buff(pdbg_init, &temp_buff, dbg_buff);
@@ -2455,7 +2455,7 @@ void cudbg_fill_le_tcam_info(struct adapter *padap,
 			tcam_region->max_tid = value +
 					       tcam_region->tid_hash_base;
 		}
-	} else { /* hash not enabled */
+	} else { /* hash yest enabled */
 		if (is_t6(padap->params.chip))
 			tcam_region->max_tid = (value & ASLIPCOMPEN_F) ?
 					       CUDBG_MAX_TID_COMP_EN :

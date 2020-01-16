@@ -12,7 +12,7 @@
 #include <linux/swap.h>
 #include <linux/swapops.h>
 #include <linux/userfaultfd_k.h>
-#include <linux/mmu_notifier.h>
+#include <linux/mmu_yestifier.h>
 #include <linux/hugetlb.h>
 #include <linux/shmem_fs.h>
 #include <asm/tlbflush.h>
@@ -62,7 +62,7 @@ static int mcopy_atomic_pte(struct mm_struct *dst_mm,
 	int ret;
 	struct page *page;
 	pgoff_t offset, max_off;
-	struct inode *inode;
+	struct iyesde *iyesde;
 
 	if (!*pagep) {
 		ret = -ENOMEM;
@@ -106,25 +106,25 @@ static int mcopy_atomic_pte(struct mm_struct *dst_mm,
 	dst_pte = pte_offset_map_lock(dst_mm, dst_pmd, dst_addr, &ptl);
 	if (dst_vma->vm_file) {
 		/* the shmem MAP_PRIVATE case requires checking the i_size */
-		inode = dst_vma->vm_file->f_inode;
+		iyesde = dst_vma->vm_file->f_iyesde;
 		offset = linear_page_index(dst_vma, dst_addr);
-		max_off = DIV_ROUND_UP(i_size_read(inode), PAGE_SIZE);
+		max_off = DIV_ROUND_UP(i_size_read(iyesde), PAGE_SIZE);
 		ret = -EFAULT;
 		if (unlikely(offset >= max_off))
 			goto out_release_uncharge_unlock;
 	}
 	ret = -EEXIST;
-	if (!pte_none(*dst_pte))
+	if (!pte_yesne(*dst_pte))
 		goto out_release_uncharge_unlock;
 
 	inc_mm_counter(dst_mm, MM_ANONPAGES);
-	page_add_new_anon_rmap(page, dst_vma, dst_addr, false);
+	page_add_new_ayesn_rmap(page, dst_vma, dst_addr, false);
 	mem_cgroup_commit_charge(page, memcg, false, false);
 	lru_cache_add_active_or_unevictable(page, dst_vma);
 
 	set_pte_at(dst_mm, dst_addr, dst_pte, _dst_pte);
 
-	/* No need to invalidate - it was non-present before */
+	/* No need to invalidate - it was yesn-present before */
 	update_mmu_cache(dst_vma, dst_addr, dst_pte);
 
 	pte_unmap_unlock(dst_pte, ptl);
@@ -148,25 +148,25 @@ static int mfill_zeropage_pte(struct mm_struct *dst_mm,
 	spinlock_t *ptl;
 	int ret;
 	pgoff_t offset, max_off;
-	struct inode *inode;
+	struct iyesde *iyesde;
 
 	_dst_pte = pte_mkspecial(pfn_pte(my_zero_pfn(dst_addr),
 					 dst_vma->vm_page_prot));
 	dst_pte = pte_offset_map_lock(dst_mm, dst_pmd, dst_addr, &ptl);
 	if (dst_vma->vm_file) {
 		/* the shmem MAP_PRIVATE case requires checking the i_size */
-		inode = dst_vma->vm_file->f_inode;
+		iyesde = dst_vma->vm_file->f_iyesde;
 		offset = linear_page_index(dst_vma, dst_addr);
-		max_off = DIV_ROUND_UP(i_size_read(inode), PAGE_SIZE);
+		max_off = DIV_ROUND_UP(i_size_read(iyesde), PAGE_SIZE);
 		ret = -EFAULT;
 		if (unlikely(offset >= max_off))
 			goto out_unlock;
 	}
 	ret = -EEXIST;
-	if (!pte_none(*dst_pte))
+	if (!pte_yesne(*dst_pte))
 		goto out_unlock;
 	set_pte_at(dst_mm, dst_addr, dst_pte, _dst_pte);
-	/* No need to invalidate - it was non-present before */
+	/* No need to invalidate - it was yesn-present before */
 	update_mmu_cache(dst_vma, dst_addr, dst_pte);
 	ret = 0;
 out_unlock:
@@ -220,10 +220,10 @@ static __always_inline ssize_t __mcopy_atomic_hugetlb(struct mm_struct *dst_mm,
 	struct address_space *mapping;
 
 	/*
-	 * There is no default zero huge page for all huge page sizes as
+	 * There is yes default zero huge page for all huge page sizes as
 	 * supported by hugetlb.  A PMD_SIZE huge pages may exist as used
-	 * by THP.  Since we can not reliably insert a zero page, this
-	 * feature is not supported.
+	 * by THP.  Since we can yest reliably insert a zero page, this
+	 * feature is yest supported.
 	 */
 	if (zeropage) {
 		up_read(&dst_mm->mmap_sem);
@@ -262,11 +262,11 @@ retry:
 	}
 
 	/*
-	 * If not shared, ensure the dst_vma has a anon_vma.
+	 * If yest shared, ensure the dst_vma has a ayesn_vma.
 	 */
 	err = -ENOMEM;
 	if (!vm_shared) {
-		if (unlikely(anon_vma_prepare(dst_vma)))
+		if (unlikely(ayesn_vma_prepare(dst_vma)))
 			goto out_unlock;
 	}
 
@@ -292,7 +292,7 @@ retry:
 
 		err = -EEXIST;
 		dst_pteval = huge_ptep_get(dst_pte);
-		if (!huge_pte_none(dst_pteval)) {
+		if (!huge_pte_yesne(dst_pteval)) {
 			mutex_unlock(&hugetlb_fault_mutex_table[hash]);
 			goto out_unlock;
 		}
@@ -347,30 +347,30 @@ out:
 		 * Reservation handling is very subtle, and is different for
 		 * private and shared mappings.  See the routine
 		 * restore_reserve_on_error for details.  Unfortunately, we
-		 * can not call restore_reserve_on_error now as it would
+		 * can yest call restore_reserve_on_error yesw as it would
 		 * require holding mmap_sem.
 		 *
 		 * If a reservation for the page existed in the reservation
 		 * map of a private mapping, the map was modified to indicate
 		 * the reservation was consumed when the page was allocated.
-		 * We clear the PagePrivate flag now so that the global
-		 * reserve count will not be incremented in free_huge_page.
+		 * We clear the PagePrivate flag yesw so that the global
+		 * reserve count will yest be incremented in free_huge_page.
 		 * The reservation map will still indicate the reservation
 		 * was consumed and possibly prevent later page allocation.
-		 * This is better than leaking a global reservation.  If no
+		 * This is better than leaking a global reservation.  If yes
 		 * reservation existed, it is still safe to clear PagePrivate
-		 * as no adjustments to reservation counts were made during
+		 * as yes adjustments to reservation counts were made during
 		 * allocation.
 		 *
 		 * The reservation map for shared mappings indicates which
 		 * pages have reservations.  When a huge page is allocated
-		 * for an address with a reservation, no change is made to
+		 * for an address with a reservation, yes change is made to
 		 * the reserve map.  In this case PagePrivate will be set
 		 * to indicate that the global reservation count should be
 		 * incremented when the page is freed.  This is the desired
 		 * behavior.  However, when a huge page is allocated for an
 		 * address without a reservation a reservation entry is added
-		 * to the reservation map, and PagePrivate will not be set.
+		 * to the reservation map, and PagePrivate will yest be set.
 		 * When the page is freed, the global reserve count will NOT
 		 * be incremented and it will appear as though we have leaked
 		 * reserved page.  In this case, set PagePrivate so that the
@@ -413,14 +413,14 @@ static __always_inline ssize_t mfill_atomic_pte(struct mm_struct *dst_mm,
 	ssize_t err;
 
 	/*
-	 * The normal page fault path for a shmem will invoke the
+	 * The yesrmal page fault path for a shmem will invoke the
 	 * fault, fill the hole in the file and COW it right away. The
-	 * result generates plain anonymous memory. So when we are
+	 * result generates plain ayesnymous memory. So when we are
 	 * asked to fill an hole in a MAP_PRIVATE shmem mapping, we'll
-	 * generate anonymous memory directly without actually filling
+	 * generate ayesnymous memory directly without actually filling
 	 * the hole. For the MAP_PRIVATE case the robustness check
-	 * only happens in the pagetable (to verify it's still none)
-	 * and not in the radix tree.
+	 * only happens in the pagetable (to verify it's still yesne)
+	 * and yest in the radix tree.
 	 */
 	if (!(dst_vma->vm_flags & VM_SHARED)) {
 		if (!zeropage)
@@ -474,7 +474,7 @@ retry:
 	down_read(&dst_mm->mmap_sem);
 
 	/*
-	 * If memory mappings are changing because of non-cooperative
+	 * If memory mappings are changing because of yesn-cooperative
 	 * operation (e.g. mremap) running in parallel, bail out and
 	 * request the user to retry later
 	 */
@@ -483,7 +483,7 @@ retry:
 		goto out_unlock;
 
 	/*
-	 * Make sure the vma is not shared, that the dst range is
+	 * Make sure the vma is yest shared, that the dst range is
 	 * both valid and fully within a single existing vma.
 	 */
 	err = -ENOENT;
@@ -494,9 +494,9 @@ retry:
 	err = -EINVAL;
 	/*
 	 * shmem_zero_setup is invoked in mmap for MAP_ANONYMOUS|MAP_SHARED but
-	 * it will overwrite vm_ops, so vma_is_anonymous must return false.
+	 * it will overwrite vm_ops, so vma_is_ayesnymous must return false.
 	 */
-	if (WARN_ON_ONCE(vma_is_anonymous(dst_vma) &&
+	if (WARN_ON_ONCE(vma_is_ayesnymous(dst_vma) &&
 	    dst_vma->vm_flags & VM_SHARED))
 		goto out_unlock;
 
@@ -507,17 +507,17 @@ retry:
 		return  __mcopy_atomic_hugetlb(dst_mm, dst_vma, dst_start,
 						src_start, len, zeropage);
 
-	if (!vma_is_anonymous(dst_vma) && !vma_is_shmem(dst_vma))
+	if (!vma_is_ayesnymous(dst_vma) && !vma_is_shmem(dst_vma))
 		goto out_unlock;
 
 	/*
-	 * Ensure the dst_vma has a anon_vma or this page
-	 * would get a NULL anon_vma when moved in the
+	 * Ensure the dst_vma has a ayesn_vma or this page
+	 * would get a NULL ayesn_vma when moved in the
 	 * dst_vma.
 	 */
 	err = -ENOMEM;
 	if (!(dst_vma->vm_flags & VM_SHARED) &&
-	    unlikely(anon_vma_prepare(dst_vma)))
+	    unlikely(ayesn_vma_prepare(dst_vma)))
 		goto out_unlock;
 
 	while (src_addr < src_start + len) {
@@ -540,7 +540,7 @@ retry:
 			err = -EEXIST;
 			break;
 		}
-		if (unlikely(pmd_none(dst_pmdval)) &&
+		if (unlikely(pmd_yesne(dst_pmdval)) &&
 		    unlikely(__pte_alloc(dst_mm, dst_pmd))) {
 			err = -ENOMEM;
 			break;
@@ -551,7 +551,7 @@ retry:
 			break;
 		}
 
-		BUG_ON(pmd_none(*dst_pmd));
+		BUG_ON(pmd_yesne(*dst_pmd));
 		BUG_ON(pmd_trans_huge(*dst_pmd));
 
 		err = mfill_atomic_pte(dst_mm, dst_pmd, dst_vma, dst_addr,

@@ -58,7 +58,7 @@ struct mmc_ext_csd {
 	unsigned int		sa_timeout;		/* Units: 100ns */
 	unsigned int		generic_cmd6_time;	/* Units: 10ms */
 	unsigned int            power_off_longtime;     /* Units: ms */
-	u8			power_off_notification;	/* state */
+	u8			power_off_yestification;	/* state */
 	unsigned int		hs_max_dtr;
 	unsigned int		hs200_max_dtr;
 #define MMC_HIGH_26_MAX_DTR	26000000
@@ -256,9 +256,9 @@ struct mmc_card {
 #define MMC_QUIRK_LENIENT_FN0	(1<<0)		/* allow SDIO FN0 writes outside of the VS CCCR range */
 #define MMC_QUIRK_BLKSZ_FOR_BYTE_MODE (1<<1)	/* use func->cur_blksize */
 						/* for byte mode */
-#define MMC_QUIRK_NONSTD_SDIO	(1<<2)		/* non-standard SDIO card attached */
+#define MMC_QUIRK_NONSTD_SDIO	(1<<2)		/* yesn-standard SDIO card attached */
 						/* (missing CIA registers) */
-#define MMC_QUIRK_NONSTD_FUNC_IF (1<<4)		/* SDIO card has nonstd function interfaces */
+#define MMC_QUIRK_NONSTD_FUNC_IF (1<<4)		/* SDIO card has yesnstd function interfaces */
 #define MMC_QUIRK_DISABLE_CD	(1<<5)		/* disconnect CD/DAT[3] resistor */
 #define MMC_QUIRK_INAND_CMD38	(1<<6)		/* iNAND devices have broken CMD38 */
 #define MMC_QUIRK_BLK_NO_CMD23	(1<<7)		/* Avoid CMD23 for regular multiblock */
@@ -298,7 +298,7 @@ struct mmc_card {
 	struct sdio_func	*sdio_single_irq; /* SDIO function when only one IRQ active */
 	unsigned		num_info;	/* number of info strings */
 	const char		**info;		/* info strings */
-	struct sdio_func_tuple	*tuples;	/* unknown common tuples */
+	struct sdio_func_tuple	*tuples;	/* unkyeswn common tuples */
 
 	unsigned int		sd_bus_speed;	/* Bus Speed Mode set for the card */
 	unsigned int		mmc_avail_type;	/* supported device type by both host and card */

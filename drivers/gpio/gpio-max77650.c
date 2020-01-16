@@ -73,7 +73,7 @@ static void max77650_gpio_set_value(struct gpio_chip *gc,
 	rv = regmap_update_bits(chip->map, MAX77650_REG_CNFG_GPIO,
 				MAX77650_GPIO_OUTVAL_MASK, regval);
 	if (rv)
-		dev_err(gc->parent, "cannot set GPIO value: %d\n", rv);
+		dev_err(gc->parent, "canyest set GPIO value: %d\n", rv);
 }
 
 static int max77650_gpio_get_value(struct gpio_chip *gc,

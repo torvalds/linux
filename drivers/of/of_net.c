@@ -13,16 +13,16 @@
 #include <linux/device.h>
 
 /**
- * of_get_phy_mode - Get phy mode for given device_node
- * @np:	Pointer to the given device_node
+ * of_get_phy_mode - Get phy mode for given device_yesde
+ * @np:	Pointer to the given device_yesde
  * @interface: Pointer to the result
  *
  * The function gets phy interface string from property 'phy-mode' or
  * 'phy-connection-type'. The index in phy_modes table is set in
  * interface and 0 returned. In case of error interface is set to
- * PHY_INTERFACE_MODE_NA and an errno is returned, e.g. -ENODEV.
+ * PHY_INTERFACE_MODE_NA and an erryes is returned, e.g. -ENODEV.
  */
-int of_get_phy_mode(struct device_node *np, phy_interface_t *interface)
+int of_get_phy_mode(struct device_yesde *np, phy_interface_t *interface)
 {
 	const char *pm;
 	int err, i;
@@ -45,7 +45,7 @@ int of_get_phy_mode(struct device_node *np, phy_interface_t *interface)
 }
 EXPORT_SYMBOL_GPL(of_get_phy_mode);
 
-static const void *of_get_mac_addr(struct device_node *np, const char *name)
+static const void *of_get_mac_addr(struct device_yesde *np, const char *name)
 {
 	struct property *pp = of_find_property(np, name, NULL);
 
@@ -54,12 +54,12 @@ static const void *of_get_mac_addr(struct device_node *np, const char *name)
 	return NULL;
 }
 
-static const void *of_get_mac_addr_nvmem(struct device_node *np)
+static const void *of_get_mac_addr_nvmem(struct device_yesde *np)
 {
 	int ret;
 	const void *mac;
 	u8 nvmem_mac[ETH_ALEN];
-	struct platform_device *pdev = of_find_device_by_node(np);
+	struct platform_device *pdev = of_find_device_by_yesde(np);
 
 	if (!pdev)
 		return ERR_PTR(-ENODEV);
@@ -92,7 +92,7 @@ static const void *of_get_mac_addr_nvmem(struct device_node *np)
  * MAC address.
  *
  * All-zero MAC addresses are rejected, because those could be properties that
- * exist in the device tree, but were not set by U-Boot.  For example, the
+ * exist in the device tree, but were yest set by U-Boot.  For example, the
  * DTS could define 'mac-address' and 'local-mac-address', with zero MAC
  * addresses.  Some older U-Boots only initialized 'local-mac-address'.  In
  * this case, the real MAC is in 'local-mac-address', and 'mac-address' exists
@@ -100,7 +100,7 @@ static const void *of_get_mac_addr_nvmem(struct device_node *np)
  *
  * Return: Will be a valid pointer on success and ERR_PTR in case of error.
 */
-const void *of_get_mac_address(struct device_node *np)
+const void *of_get_mac_address(struct device_yesde *np)
 {
 	const void *addr;
 

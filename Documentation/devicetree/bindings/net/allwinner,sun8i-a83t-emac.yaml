@@ -151,7 +151,7 @@ allOf:
                 "^ethernet-phy@[0-9a-f]$":
                   type: object
                   description:
-                    Integrated PHY node
+                    Integrated PHY yesde
 
                   properties:
                     clocks:

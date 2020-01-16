@@ -16,7 +16,7 @@
 #define PCI_SUBSYS_DEVID_81XX_RGX		0xA254
 #define PCI_SUBSYS_DEVID_83XX_BGX		0xA326
 
-#define    MAX_BGX_THUNDER			8 /* Max 2 nodes, 4 per node */
+#define    MAX_BGX_THUNDER			8 /* Max 2 yesdes, 4 per yesde */
 #define    MAX_BGX_PER_CN88XX			2
 #define    MAX_BGX_PER_CN81XX			3 /* 2 BGXs + 1 RGX */
 #define    MAX_BGX_PER_CN83XX			4
@@ -207,28 +207,28 @@
 #define BGX_XCAST_MCAST_ACCEPT  BIT(1)
 #define BGX_XCAST_MCAST_FILTER  BIT(2)
 
-void bgx_set_dmac_cam_filter(int node, int bgx_idx, int lmacid, u64 mac, u8 vf);
-void bgx_reset_xcast_mode(int node, int bgx_idx, int lmacid, u8 vf);
-void bgx_set_xcast_mode(int node, int bgx_idx, int lmacid, u8 mode);
+void bgx_set_dmac_cam_filter(int yesde, int bgx_idx, int lmacid, u64 mac, u8 vf);
+void bgx_reset_xcast_mode(int yesde, int bgx_idx, int lmacid, u8 vf);
+void bgx_set_xcast_mode(int yesde, int bgx_idx, int lmacid, u8 mode);
 void octeon_mdiobus_force_mod_depencency(void);
-void bgx_lmac_rx_tx_enable(int node, int bgx_idx, int lmacid, bool enable);
-void bgx_add_dmac_addr(u64 dmac, int node, int bgx_idx, int lmac);
-unsigned bgx_get_map(int node);
-int bgx_get_lmac_count(int node, int bgx);
-const u8 *bgx_get_lmac_mac(int node, int bgx_idx, int lmacid);
-void bgx_set_lmac_mac(int node, int bgx_idx, int lmacid, const u8 *mac);
-void bgx_get_lmac_link_state(int node, int bgx_idx, int lmacid, void *status);
-void bgx_lmac_internal_loopback(int node, int bgx_idx,
+void bgx_lmac_rx_tx_enable(int yesde, int bgx_idx, int lmacid, bool enable);
+void bgx_add_dmac_addr(u64 dmac, int yesde, int bgx_idx, int lmac);
+unsigned bgx_get_map(int yesde);
+int bgx_get_lmac_count(int yesde, int bgx);
+const u8 *bgx_get_lmac_mac(int yesde, int bgx_idx, int lmacid);
+void bgx_set_lmac_mac(int yesde, int bgx_idx, int lmacid, const u8 *mac);
+void bgx_get_lmac_link_state(int yesde, int bgx_idx, int lmacid, void *status);
+void bgx_lmac_internal_loopback(int yesde, int bgx_idx,
 				int lmac_idx, bool enable);
-void bgx_config_timestamping(int node, int bgx_idx, int lmacid, bool enable);
-void bgx_lmac_get_pfc(int node, int bgx_idx, int lmacid, void *pause);
-void bgx_lmac_set_pfc(int node, int bgx_idx, int lmacid, void *pause);
+void bgx_config_timestamping(int yesde, int bgx_idx, int lmacid, bool enable);
+void bgx_lmac_get_pfc(int yesde, int bgx_idx, int lmacid, void *pause);
+void bgx_lmac_set_pfc(int yesde, int bgx_idx, int lmacid, void *pause);
 
 void xcv_init_hw(void);
 void xcv_setup_link(bool link_up, int link_speed);
 
-u64 bgx_get_rx_stats(int node, int bgx_idx, int lmac, int idx);
-u64 bgx_get_tx_stats(int node, int bgx_idx, int lmac, int idx);
+u64 bgx_get_rx_stats(int yesde, int bgx_idx, int lmac, int idx);
+u64 bgx_get_tx_stats(int yesde, int bgx_idx, int lmac, int idx);
 #define BGX_RX_STATS_COUNT 11
 #define BGX_TX_STATS_COUNT 18
 

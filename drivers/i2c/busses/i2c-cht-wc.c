@@ -3,7 +3,7 @@
  * Intel CHT Whiskey Cove PMIC I2C Master driver
  * Copyright (C) 2017 Hans de Goede <hdegoede@redhat.com>
  *
- * Based on various non upstream patches to support the CHT Whiskey Cove PMIC:
+ * Based on various yesn upstream patches to support the CHT Whiskey Cove PMIC:
  * Copyright (C) 2011 - 2014 Intel Corporation. All rights reserved.
  */
 
@@ -102,7 +102,7 @@ static irqreturn_t cht_wc_i2c_adap_thread_handler(int id, void *data)
 	if (reg & CHT_WC_EXTCHGRIRQ_CLIENT_IRQ) {
 		/*
 		 * generic_handle_irq expects local IRQs to be disabled
-		 * as normally it is called from interrupt context.
+		 * as yesrmally it is called from interrupt context.
 		 */
 		local_irq_disable();
 		generic_handle_irq(adap->client_irq);
@@ -181,13 +181,13 @@ static const struct i2c_algorithm cht_wc_i2c_adap_algo = {
 /*
  * We are an i2c-adapter which itself is part of an i2c-client. This means that
  * transfers done through us take adapter->bus_lock twice, once for our parent
- * i2c-adapter and once to take our own bus_lock. Lockdep does not like this
+ * i2c-adapter and once to take our own bus_lock. Lockdep does yest like this
  * nested locking, to make lockdep happy in the case of busses with muxes, the
  * i2c-core's i2c_adapter_lock_bus function calls:
  * rt_mutex_lock_nested(&adapter->bus_lock, i2c_adapter_depth(adapter));
  *
  * But i2c_adapter_depth only works when the direct parent of the adapter is
- * another adapter, as it is only meant for muxes. In our case there is an
+ * ayesther adapter, as it is only meant for muxes. In our case there is an
  * i2c-client and MFD instantiated platform_device in the parent->child chain
  * between the 2 devices.
  *
@@ -288,7 +288,7 @@ static struct regulator_consumer_supply fusb302_consumer = {
 
 static const struct regulator_init_data bq24190_vbus_init_data = {
 	.constraints = {
-		/* The name is used in intel_cht_int33fe.c do not change. */
+		/* The name is used in intel_cht_int33fe.c do yest change. */
 		.name = "cht_wc_usb_typec_vbus",
 		.valid_ops_mask = REGULATOR_CHANGE_STATUS,
 	},
@@ -352,7 +352,7 @@ static int cht_wc_i2c_adap_i2c_probe(struct platform_device *pdev)
 		return ret;
 
 	/* Alloc and register client IRQ */
-	adap->irq_domain = irq_domain_add_linear(pdev->dev.of_node, 1,
+	adap->irq_domain = irq_domain_add_linear(pdev->dev.of_yesde, 1,
 						 &irq_domain_simple_ops, NULL);
 	if (!adap->irq_domain)
 		return -ENOMEM;
@@ -381,7 +381,7 @@ static int cht_wc_i2c_adap_i2c_probe(struct platform_device *pdev)
 	/*
 	 * Normally the Whiskey Cove PMIC is paired with a TI bq24292i charger,
 	 * connected to this i2c bus, and a max17047 fuel-gauge and a fusb302
-	 * USB Type-C controller connected to another i2c bus. In this setup
+	 * USB Type-C controller connected to ayesther i2c bus. In this setup
 	 * the max17047 and fusb302 devices are enumerated through an INT33FE
 	 * ACPI device. If this device is present register an i2c-client for
 	 * the TI bq24292i charger.

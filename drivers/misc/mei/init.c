@@ -27,7 +27,7 @@ const char *mei_dev_state_str(int state)
 	MEI_DEV_STATE(POWER_DOWN);
 	MEI_DEV_STATE(POWER_UP);
 	default:
-		return "unknown";
+		return "unkyeswn";
 	}
 #undef MEI_DEV_STATE
 }
@@ -39,7 +39,7 @@ const char *mei_pg_state_str(enum mei_pg_state state)
 	MEI_PG_STATE(OFF);
 	MEI_PG_STATE(ON);
 	default:
-		return "unknown";
+		return "unkyeswn";
 	}
 #undef MEI_PG_STATE
 }
@@ -135,7 +135,7 @@ int mei_reset(struct mei_device *dev)
 	ret = mei_hw_reset(dev, interrupts_enabled);
 	/* fall through and remove the sw state even if hw reset has failed */
 
-	/* no need to clean up software state in case of power up */
+	/* yes need to clean up software state in case of power up */
 	if (state != MEI_DEV_INITIALIZING && state != MEI_DEV_POWER_UP)
 		mei_cl_all_disconnect(dev);
 
@@ -187,7 +187,7 @@ int mei_start(struct mei_device *dev)
 
 	mutex_lock(&dev->device_lock);
 
-	/* acknowledge interrupt and stop interrupts */
+	/* ackyeswledge interrupt and stop interrupts */
 	mei_clear_interrupts(dev);
 
 	ret = mei_hw_config(dev);
@@ -213,12 +213,12 @@ int mei_start(struct mei_device *dev)
 	}
 
 	if (!mei_host_is_ready(dev)) {
-		dev_err(dev->dev, "host is not ready.\n");
+		dev_err(dev->dev, "host is yest ready.\n");
 		goto err;
 	}
 
 	if (!mei_hw_is_ready(dev)) {
-		dev_err(dev->dev, "ME is not ready.\n");
+		dev_err(dev->dev, "ME is yest ready.\n");
 		goto err;
 	}
 
@@ -327,7 +327,7 @@ EXPORT_SYMBOL_GPL(mei_stop);
  *
  * @dev: the device structure
  *
- * Return: true of there is no pending write
+ * Return: true of there is yes pending write
  */
 bool mei_write_is_idle(struct mei_device *dev)
 {

@@ -10,7 +10,7 @@ Optional properties:
 - label: a symbolic name for the connector corresponding to a hardware label
 - ddc-i2c-bus: phandle to the I2C bus that is connected to VGA DDC
 
-Required nodes:
+Required yesdes:
 
 The VGA connector internal connections are modeled using the OF graph bindings
 specified in Documentation/devicetree/bindings/graph.txt.

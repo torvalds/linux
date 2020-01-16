@@ -19,7 +19,7 @@
 
 #if IS_ENABLED(CONFIG_OF_MDIO)
 /* Set and/or override some configuration registers based on the
- * broadcom,c45-reg-init property stored in the of_node for the phydev.
+ * broadcom,c45-reg-init property stored in the of_yesde for the phydev.
  *
  * broadcom,c45-reg-init = <devid reg mask value>,...;
  *
@@ -27,7 +27,7 @@
  *
  * devid: which sub-device to use.
  * reg: the register.
- * mask: if non-zero, ANDed with existing register value.
+ * mask: if yesn-zero, ANDed with existing register value.
  * value: ORed with the masked value and written to the regiser.
  *
  */
@@ -37,10 +37,10 @@ static int bcm87xx_of_reg_init(struct phy_device *phydev)
 	const __be32 *paddr_end;
 	int len, ret;
 
-	if (!phydev->mdio.dev.of_node)
+	if (!phydev->mdio.dev.of_yesde)
 		return 0;
 
-	paddr = of_get_property(phydev->mdio.dev.of_node,
+	paddr = of_get_property(phydev->mdio.dev.of_yesde,
 				"broadcom,c45-reg-init", &len);
 	if (!paddr)
 		return 0;
@@ -109,28 +109,28 @@ static int bcm87xx_read_status(struct phy_device *phydev)
 		return rx_signal_detect;
 
 	if ((rx_signal_detect & 1) == 0)
-		goto no_link;
+		goto yes_link;
 
 	pcs_status = phy_read(phydev, BCM87XX_10GBASER_PCS_STATUS);
 	if (pcs_status < 0)
 		return pcs_status;
 
 	if ((pcs_status & 1) == 0)
-		goto no_link;
+		goto yes_link;
 
 	xgxs_lane_status = phy_read(phydev, BCM87XX_XGXS_LANE_STATUS);
 	if (xgxs_lane_status < 0)
 		return xgxs_lane_status;
 
 	if ((xgxs_lane_status & 0x1000) == 0)
-		goto no_link;
+		goto yes_link;
 
 	phydev->speed = 10000;
 	phydev->link = 1;
 	phydev->duplex = 1;
 	return 0;
 
-no_link:
+yes_link:
 	phydev->link = 0;
 	return 0;
 }

@@ -22,10 +22,10 @@
    think it is criminal how loosely defined these macros are.  */
 
 /* We need to flush the kernel's icache after loading modules.  The
-   only other use of this macro is in load_aout_interp which is not
+   only other use of this macro is in load_aout_interp which is yest
    used on Alpha. 
 
-   Note that this definition should *not* be used for userspace
+   Note that this definition should *yest* be used for userspace
    icache flushing.  While functional, it is _way_ overkill.  The
    icache is tagged with ASNs and it suffices to allocate a new ASN
    for the process.  */

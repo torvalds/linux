@@ -28,7 +28,7 @@ static struct dev_pm_domain default_pm_domain = {
 	},
 };
 
-static struct pm_clk_notifier_block platform_bus_notifier = {
+static struct pm_clk_yestifier_block platform_bus_yestifier = {
 	.pm_domain = &default_pm_domain,
 	.con_ids = { "ick", "fck", NULL, },
 };
@@ -38,7 +38,7 @@ static int __init omap1_pm_runtime_init(void)
 	if (!cpu_class_is_omap1())
 		return -ENODEV;
 
-	pm_clk_add_notifier(&platform_bus_type, &platform_bus_notifier);
+	pm_clk_add_yestifier(&platform_bus_type, &platform_bus_yestifier);
 
 	return 0;
 }

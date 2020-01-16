@@ -49,7 +49,7 @@
 #define TTC_CLK_CNTRL_PSV_SHIFT		1
 
 /*
- * Setup the timers to use pre-scaling, using a fixed value for now that will
+ * Setup the timers to use pre-scaling, using a fixed value for yesw that will
  * work across most input frequency, but it may need to be more dynamic
  */
 #define PRESCALE_EXPONENT	11	/* 2 ^ PRESCALE_EXPONENT = PRESCALE */
@@ -72,7 +72,7 @@ struct ttc_timer {
 	void __iomem *base_addr;
 	unsigned long freq;
 	struct clk *clk;
-	struct notifier_block clk_rate_change_nb;
+	struct yestifier_block clk_rate_change_nb;
 };
 
 #define to_ttc_timer(x) \
@@ -138,7 +138,7 @@ static irqreturn_t ttc_clock_event_interrupt(int irq, void *dev_id)
 	struct ttc_timer_clockevent *ttce = dev_id;
 	struct ttc_timer *timer = &ttce->ttc;
 
-	/* Acknowledge the interrupt and call event handler */
+	/* Ackyeswledge the interrupt and call event handler */
 	readl_relaxed(timer->base_addr + TTC_ISR_OFFSET);
 
 	ttce->ce.event_handler(&ttce->ce);
@@ -159,7 +159,7 @@ static u64 __ttc_clocksource_read(struct clocksource *cs)
 				TTC_COUNT_VAL_OFFSET);
 }
 
-static u64 notrace ttc_sched_clock_read(void)
+static u64 yestrace ttc_sched_clock_read(void)
 {
 	return readl_relaxed(ttc_sched_clock_val_reg);
 }
@@ -221,10 +221,10 @@ static int ttc_resume(struct clock_event_device *evt)
 	return 0;
 }
 
-static int ttc_rate_change_clocksource_cb(struct notifier_block *nb,
+static int ttc_rate_change_clocksource_cb(struct yestifier_block *nb,
 		unsigned long event, void *data)
 {
-	struct clk_notifier_data *ndata = data;
+	struct clk_yestifier_data *ndata = data;
 	struct ttc_timer *ttc = to_ttc_timer(nb);
 	struct ttc_timer_clocksource *ttccs = container_of(ttc,
 			struct ttc_timer_clocksource, ttc);
@@ -280,21 +280,21 @@ static int ttc_rate_change_clocksource_cb(struct notifier_block *nb,
 		ttccs->scale_clk_ctrl_reg_new |= psv << TTC_CLK_CNTRL_PSV_SHIFT;
 
 
-		/* scale down: adjust divider in post-change notification */
+		/* scale down: adjust divider in post-change yestification */
 		if (ndata->new_rate < ndata->old_rate)
 			return NOTIFY_DONE;
 
-		/* scale up: adjust divider now - before frequency change */
+		/* scale up: adjust divider yesw - before frequency change */
 		writel_relaxed(ttccs->scale_clk_ctrl_reg_new,
 			       ttccs->ttc.base_addr + TTC_CLK_CNTRL_OFFSET);
 		break;
 	}
 	case POST_RATE_CHANGE:
-		/* scale up: pre-change notification did the adjustment */
+		/* scale up: pre-change yestification did the adjustment */
 		if (ndata->new_rate > ndata->old_rate)
 			return NOTIFY_OK;
 
-		/* scale down: adjust divider now - after frequency change */
+		/* scale down: adjust divider yesw - after frequency change */
 		writel_relaxed(ttccs->scale_clk_ctrl_reg_new,
 			       ttccs->ttc.base_addr + TTC_CLK_CNTRL_OFFSET);
 		break;
@@ -335,14 +335,14 @@ static int __init ttc_setup_clocksource(struct clk *clk, void __iomem *base,
 
 	ttccs->ttc.freq = clk_get_rate(ttccs->ttc.clk);
 
-	ttccs->ttc.clk_rate_change_nb.notifier_call =
+	ttccs->ttc.clk_rate_change_nb.yestifier_call =
 		ttc_rate_change_clocksource_cb;
 	ttccs->ttc.clk_rate_change_nb.next = NULL;
 
-	err = clk_notifier_register(ttccs->ttc.clk,
+	err = clk_yestifier_register(ttccs->ttc.clk,
 				    &ttccs->ttc.clk_rate_change_nb);
 	if (err)
-		pr_warn("Unable to register clock notifier.\n");
+		pr_warn("Unable to register clock yestifier.\n");
 
 	ttccs->ttc.base_addr = base;
 	ttccs->cs.name = "ttc_clocksource";
@@ -353,8 +353,8 @@ static int __init ttc_setup_clocksource(struct clk *clk, void __iomem *base,
 
 	/*
 	 * Setup the clock source counter to be an incrementing counter
-	 * with no interrupt and it rolls over at 0xFFFF. Pre-scale
-	 * it by 32 also. Let it start running now.
+	 * with yes interrupt and it rolls over at 0xFFFF. Pre-scale
+	 * it by 32 also. Let it start running yesw.
 	 */
 	writel_relaxed(0x0,  ttccs->ttc.base_addr + TTC_IER_OFFSET);
 	writel_relaxed(CLK_CNTRL_PRESCALE | CLK_CNTRL_PRESCALE_EN,
@@ -375,10 +375,10 @@ static int __init ttc_setup_clocksource(struct clk *clk, void __iomem *base,
 	return 0;
 }
 
-static int ttc_rate_change_clockevent_cb(struct notifier_block *nb,
+static int ttc_rate_change_clockevent_cb(struct yestifier_block *nb,
 		unsigned long event, void *data)
 {
-	struct clk_notifier_data *ndata = data;
+	struct clk_yestifier_data *ndata = data;
 	struct ttc_timer *ttc = to_ttc_timer(nb);
 	struct ttc_timer_clockevent *ttcce = container_of(ttc,
 			struct ttc_timer_clockevent, ttc);
@@ -416,14 +416,14 @@ static int __init ttc_setup_clockevent(struct clk *clk,
 		return err;
 	}
 
-	ttcce->ttc.clk_rate_change_nb.notifier_call =
+	ttcce->ttc.clk_rate_change_nb.yestifier_call =
 		ttc_rate_change_clockevent_cb;
 	ttcce->ttc.clk_rate_change_nb.next = NULL;
 
-	err = clk_notifier_register(ttcce->ttc.clk,
+	err = clk_yestifier_register(ttcce->ttc.clk,
 				    &ttcce->ttc.clk_rate_change_nb);
 	if (err) {
-		pr_warn("Unable to register clock notifier.\n");
+		pr_warn("Unable to register clock yestifier.\n");
 		return err;
 	}
 
@@ -444,7 +444,7 @@ static int __init ttc_setup_clockevent(struct clk *clk,
 	/*
 	 * Setup the clock event timer to be an interval timer which
 	 * is prescaled by 32 using the interval interrupt. Leave it
-	 * disabled for now.
+	 * disabled for yesw.
 	 */
 	writel_relaxed(0x23, ttcce->ttc.base_addr + TTC_CNT_CNTRL_OFFSET);
 	writel_relaxed(CLK_CNTRL_PRESCALE | CLK_CNTRL_PRESCALE_EN,
@@ -470,7 +470,7 @@ static int __init ttc_setup_clockevent(struct clk *clk,
  * Initializes the timer hardware and register the clock source and clock event
  * timers with Linux kernal timer framework
  */
-static int __init ttc_timer_init(struct device_node *timer)
+static int __init ttc_timer_init(struct device_yesde *timer)
 {
 	unsigned int irq;
 	void __iomem *timer_baseaddr;
@@ -507,7 +507,7 @@ static int __init ttc_timer_init(struct device_node *timer)
 	clksel = !!(clksel & TTC_CLK_CNTRL_CSRC_MASK);
 	clk_cs = of_clk_get(timer, clksel);
 	if (IS_ERR(clk_cs)) {
-		pr_err("ERROR: timer input clock not found\n");
+		pr_err("ERROR: timer input clock yest found\n");
 		return PTR_ERR(clk_cs);
 	}
 
@@ -515,7 +515,7 @@ static int __init ttc_timer_init(struct device_node *timer)
 	clksel = !!(clksel & TTC_CLK_CNTRL_CSRC_MASK);
 	clk_ce = of_clk_get(timer, clksel);
 	if (IS_ERR(clk_ce)) {
-		pr_err("ERROR: timer input clock not found\n");
+		pr_err("ERROR: timer input clock yest found\n");
 		return PTR_ERR(clk_ce);
 	}
 

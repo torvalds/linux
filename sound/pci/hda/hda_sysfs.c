@@ -18,7 +18,7 @@
 #include <sound/hda_codec.h>
 #include "hda_local.h"
 #include <sound/hda_hwdep.h>
-#include <sound/minors.h>
+#include <sound/miyesrs.h>
 
 /* hint string pair */
 struct hda_hint {
@@ -151,7 +151,7 @@ static int reconfig_codec(struct hda_codec *codec)
 /*
  * allocate a string at most len chars, and remove the trailing EOL
  */
-static char *kstrndup_noeol(const char *src, size_t len)
+static char *kstrndup_yeseol(const char *src, size_t len)
 {
 	char *s = kstrndup(src, len, GFP_KERNEL);
 	char *p;
@@ -183,7 +183,7 @@ static ssize_t type##_store(struct device *dev,			\
 			    const char *buf, size_t count)	\
 {								\
 	struct hda_codec *codec = dev_get_drvdata(dev);		\
-	char *s = kstrndup_noeol(buf, 64);			\
+	char *s = kstrndup_yeseol(buf, 64);			\
 	if (!s)							\
 		return -ENOMEM;					\
 	kfree(codec->field);					\
@@ -317,7 +317,7 @@ static int parse_hints(struct hda_codec *codec, const char *buf)
 		return 0;
 	if (*buf == '=')
 		return -EINVAL;
-	key = kstrndup_noeol(buf, 1024);
+	key = kstrndup_yeseol(buf, 1024);
 	if (!key)
 		return -ENOMEM;
 	/* extract key and val */
@@ -416,7 +416,7 @@ static DEVICE_ATTR_WO(clear);
  * @key: the hint key string
  *
  * Look for a hint key/value pair matching with the given key string
- * and returns the value string.  If nothing found, returns NULL.
+ * and returns the value string.  If yesthing found, returns NULL.
  */
 const char *snd_hda_get_hint(struct hda_codec *codec, const char *key)
 {
@@ -431,7 +431,7 @@ EXPORT_SYMBOL_GPL(snd_hda_get_hint);
  * @key: the hint key string
  *
  * Look for a hint key/value pair matching with the given key string
- * and returns a boolean value parsed from the value.  If no matching
+ * and returns a boolean value parsed from the value.  If yes matching
  * key is found, return a negative value.
  */
 int snd_hda_get_bool_hint(struct hda_codec *codec, const char *key)
@@ -446,7 +446,7 @@ int snd_hda_get_bool_hint(struct hda_codec *codec, const char *key)
 	else {
 		switch (toupper(*p)) {
 		case 'T': /* true */
-		case 'Y': /* yes */
+		case 'Y': /* no */
 		case '1':
 			ret = 1;
 			break;
@@ -467,7 +467,7 @@ EXPORT_SYMBOL_GPL(snd_hda_get_bool_hint);
  * @valp: pointer to store a value
  *
  * Look for a hint key/value pair matching with the given key string
- * and stores the integer value to @valp.  If no matching key is found,
+ * and stores the integer value to @valp.  If yes matching key is found,
  * return a negative error code.  Otherwise it returns zero.
  */
 int snd_hda_get_int_hint(struct hda_codec *codec, const char *key, int *valp)
@@ -669,7 +669,7 @@ static int parse_line_mode(char *buf, struct hda_bus *bus)
 }
 
 /* copy one line from the buffer in fw, and update the fields in fw
- * return zero if it reaches to the end of the buffer, or non-zero
+ * return zero if it reaches to the end of the buffer, or yesn-zero
  * if successfully copied a line
  *
  * the spaces at the beginning and the end of the line are stripped

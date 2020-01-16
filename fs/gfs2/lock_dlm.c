@@ -37,8 +37,8 @@
  * mean value, and the variance is always in the following entry
  *
  * Reference: TCP/IP Illustrated, vol 2, p. 831,832
- * All times are in units of integer nanoseconds. Unlike the TCP/IP case,
- * they are not scaled fixed point.
+ * All times are in units of integer nayesseconds. Unlike the TCP/IP case,
+ * they are yest scaled fixed point.
  */
 
 static inline void gfs2_update_stats(struct gfs2_lkstats *s, unsigned index,
@@ -61,10 +61,10 @@ static inline void gfs2_update_stats(struct gfs2_lkstats *s, unsigned index,
  * reply from the dlm.
  *
  * The blocking flag is set on the glock for all dlm requests
- * which may potentially block due to lock requests from other nodes.
+ * which may potentially block due to lock requests from other yesdes.
  * DLM requests where the current lock state is exclusive, the
  * requested state is null (or unlocked) or where the TRY or
- * TRY_1CB flags are set are classified as non-blocking. All
+ * TRY_1CB flags are set are classified as yesn-blocking. All
  * other DLM requests are counted as (potentially) blocking.
  */
 static inline void gfs2_update_reply_times(struct gfs2_glock *gl)
@@ -175,7 +175,7 @@ static void gdlm_bast(void *arg, int mode)
 		gfs2_glock_cb(gl, LM_ST_SHARED);
 		break;
 	default:
-		fs_err(gl->gl_name.ln_sbd, "unknown bast mode %d\n", mode);
+		fs_err(gl->gl_name.ln_sbd, "unkyeswn bast mode %d\n", mode);
 		BUG();
 	}
 }
@@ -194,7 +194,7 @@ static int make_mode(struct gfs2_sbd *sdp, const unsigned int lmstate)
 	case LM_ST_SHARED:
 		return DLM_LOCK_PR;
 	}
-	fs_err(sdp, "unknown LM state %d\n", lmstate);
+	fs_err(sdp, "unkyeswn LM state %d\n", lmstate);
 	BUG();
 	return -1;
 }
@@ -325,24 +325,24 @@ static void gdlm_cancel(struct gfs2_glock *gl)
  *
  *  1. dlm_controld sees lockspace members change
  *  2. dlm_controld blocks dlm-kernel locking activity
- *  3. dlm_controld within dlm-kernel notifies gfs2 (recover_prep)
+ *  3. dlm_controld within dlm-kernel yestifies gfs2 (recover_prep)
  *  4. dlm_controld starts and finishes its own user level recovery
  *  5. dlm_controld starts dlm-kernel dlm_recoverd to do kernel recovery
- *  6. dlm_recoverd notifies gfs2 of failed nodes (recover_slot)
+ *  6. dlm_recoverd yestifies gfs2 of failed yesdes (recover_slot)
  *  7. dlm_recoverd does its own lock recovery
  *  8. dlm_recoverd unblocks dlm-kernel locking activity
- *  9. dlm_recoverd notifies gfs2 when done (recover_done with new generation)
+ *  9. dlm_recoverd yestifies gfs2 when done (recover_done with new generation)
  * 10. gfs2_control updates control_lock lvb with new generation and jid bits
- * 11. gfs2_control enqueues journals for gfs2_recover to recover (maybe none)
- * 12. gfs2_recover dequeues and recovers journals of failed nodes
+ * 11. gfs2_control enqueues journals for gfs2_recover to recover (maybe yesne)
+ * 12. gfs2_recover dequeues and recovers journals of failed yesdes
  * 13. gfs2_recover provides recovery results to gfs2_control (recovery_result)
  * 14. gfs2_control updates control_lock lvb jid bits for recovered journals
- * 15. gfs2_control unblocks normal locking when all journals are recovered
+ * 15. gfs2_control unblocks yesrmal locking when all journals are recovered
  *
  * - failures during recovery
  *
  * recover_prep() may set BLOCK_LOCKS (step 3) again before gfs2_control
- * clears BLOCK_LOCKS (step 15), e.g. another node fails while still
+ * clears BLOCK_LOCKS (step 15), e.g. ayesther yesde fails while still
  * recovering for a prior failure.  gfs2_control needs a way to detect
  * this so it can leave BLOCK_LOCKS set in step 15.  This is managed using
  * the recover_block and recover_start values.
@@ -357,28 +357,28 @@ static void gdlm_cancel(struct gfs2_glock *gl)
  * - more specific gfs2 steps in sequence above
  *
  *  3. recover_prep sets BLOCK_LOCKS and sets recover_block = recover_start
- *  6. recover_slot records any failed jids (maybe none)
+ *  6. recover_slot records any failed jids (maybe yesne)
  *  9. recover_done sets recover_start = new generation number
  * 10. gfs2_control sets control_lock lvb = new gen + bits for failed jids
  * 12. gfs2_recover does journal recoveries for failed jids identified above
  * 14. gfs2_control clears control_lock lvb bits for recovered jids
  * 15. gfs2_control checks if recover_block == recover_start (step 3 occured
- *     again) then do nothing, otherwise if recover_start > recover_block
+ *     again) then do yesthing, otherwise if recover_start > recover_block
  *     then clear BLOCK_LOCKS.
  *
- * - parallel recovery steps across all nodes
+ * - parallel recovery steps across all yesdes
  *
- * All nodes attempt to update the control_lock lvb with the new generation
+ * All yesdes attempt to update the control_lock lvb with the new generation
  * number and jid bits, but only the first to get the control_lock EX will
  * do so; others will see that it's already done (lvb already contains new
  * generation number.)
  *
- * . All nodes get the same recover_prep/recover_slot/recover_done callbacks
- * . All nodes attempt to set control_lock lvb gen + bits for the new gen
- * . One node gets control_lock first and writes the lvb, others see it's done
- * . All nodes attempt to recover jids for which they see control_lock bits set
- * . One node succeeds for a jid, and that one clears the jid bit in the lvb
- * . All nodes will eventually see all lvb bits clear and unblock locks
+ * . All yesdes get the same recover_prep/recover_slot/recover_done callbacks
+ * . All yesdes attempt to set control_lock lvb gen + bits for the new gen
+ * . One yesde gets control_lock first and writes the lvb, others see it's done
+ * . All yesdes attempt to recover jids for which they see control_lock bits set
+ * . One yesde succeeds for a jid, and that one clears the jid bit in the lvb
+ * . All yesdes will eventually see all lvb bits clear and unblock locks
  *
  * - is there a problem with clearing an lvb bit that should be set
  *   and missing a journal recovery?
@@ -391,41 +391,41 @@ static void gdlm_cancel(struct gfs2_glock *gl)
  * 6. lvb bit set for step 5 (will already be set)
  * 7. lvb bit cleared for step 3
  *
- * This is not a problem because the failure in step 5 does not
- * require recovery, because the mount in step 4 could not have
- * progressed far enough to unblock locks and access the fs.  The
+ * This is yest a problem because the failure in step 5 does yest
+ * require recovery, because the mount in step 4 could yest have
+ * progressed far eyesugh to unblock locks and access the fs.  The
  * control_mount() function waits for all recoveries to be complete
  * for the latest lockspace generation before ever unblocking locks
  * and returning.  The mount in step 4 waits until the recovery in
  * step 1 is done.
  *
- * - special case of first mounter: first node to mount the fs
+ * - special case of first mounter: first yesde to mount the fs
  *
- * The first node to mount a gfs2 fs needs to check all the journals
- * and recover any that need recovery before other nodes are allowed
+ * The first yesde to mount a gfs2 fs needs to check all the journals
+ * and recover any that need recovery before other yesdes are allowed
  * to mount the fs.  (Others may begin mounting, but they must wait
  * for the first mounter to be done before taking locks on the fs
  * or accessing the fs.)  This has two parts:
  *
- * 1. The mounted_lock tells a node it's the first to mount the fs.
- * Each node holds the mounted_lock in PR while it's mounted.
- * Each node tries to acquire the mounted_lock in EX when it mounts.
- * If a node is granted the mounted_lock EX it means there are no
- * other mounted nodes (no PR locks exist), and it is the first mounter.
+ * 1. The mounted_lock tells a yesde it's the first to mount the fs.
+ * Each yesde holds the mounted_lock in PR while it's mounted.
+ * Each yesde tries to acquire the mounted_lock in EX when it mounts.
+ * If a yesde is granted the mounted_lock EX it means there are yes
+ * other mounted yesdes (yes PR locks exist), and it is the first mounter.
  * The mounted_lock is demoted to PR when first recovery is done, so
  * others will fail to get an EX lock, but will get a PR lock.
  *
  * 2. The control_lock blocks others in control_mount() while the first
  * mounter is doing first mount recovery of all journals.
- * A mounting node needs to acquire control_lock in EX mode before
+ * A mounting yesde needs to acquire control_lock in EX mode before
  * it can proceed.  The first mounter holds control_lock in EX while doing
- * the first mount recovery, blocking mounts from other nodes, then demotes
+ * the first mount recovery, blocking mounts from other yesdes, then demotes
  * control_lock to NL when it's done (others_may_mount/first_done),
- * allowing other nodes to continue mounting.
+ * allowing other yesdes to continue mounting.
  *
  * first mounter:
  * control_lock EX/NOQUEUE success
- * mounted_lock EX/NOQUEUE success (no other PR, so no other mounters)
+ * mounted_lock EX/NOQUEUE success (yes other PR, so yes other mounters)
  * set first=1
  * do first mounter recovery
  * mounted_lock EX->PR
@@ -441,8 +441,8 @@ static void gdlm_cancel(struct gfs2_glock *gl)
  *
  * - mount during recovery
  *
- * If a node mounts while others are doing recovery (not first mounter),
- * the mounting node will get its initial recover_done() callback without
+ * If a yesde mounts while others are doing recovery (yest first mounter),
+ * the mounting yesde will get its initial recover_done() callback without
  * having seen any previous failures/callbacks.
  *
  * It must wait for all recoveries preceding its mount to be finished
@@ -587,9 +587,9 @@ static void gfs2_control_func(struct work_struct *work)
 	 * will set this flag, after which this thread will take over
 	 * all further clearing of BLOCK_LOCKS.
 	 *
-	 * FIRST_MOUNT means this node is doing first mounter recovery,
+	 * FIRST_MOUNT means this yesde is doing first mounter recovery,
 	 * for which recovery control is handled by
-	 * control_mount()/control_first_done(), not this thread.
+	 * control_mount()/control_first_done(), yest this thread.
 	 */
 	if (!test_bit(DFL_MOUNT_DONE, &ls->ls_recover_flags) ||
 	     test_bit(DFL_FIRST_MOUNT, &ls->ls_recover_flags)) {
@@ -604,7 +604,7 @@ static void gfs2_control_func(struct work_struct *work)
 	 * Equal block_gen and start_gen implies we are between
 	 * recover_prep and recover_done callbacks, which means
 	 * dlm recovery is in progress and dlm locking is blocked.
-	 * There's no point trying to do any work until recover_done.
+	 * There's yes point trying to do any work until recover_done.
 	 */
 
 	if (block_gen == start_gen)
@@ -615,7 +615,7 @@ static void gfs2_control_func(struct work_struct *work)
 	 * dlm_recoverd adds to recover_submit[] jids needing recovery
 	 * gfs2_recover adds to recover_result[] journal recovery results
 	 *
-	 * set lvb bit for jids in recover_submit[] if the lvb has not
+	 * set lvb bit for jids in recover_submit[] if the lvb has yest
 	 * yet been updated for the generation of the failure
 	 *
 	 * clear lvb bit for jids in recover_result[] if the result of
@@ -645,11 +645,11 @@ static void gfs2_control_func(struct work_struct *work)
 	if (lvb_gen <= start_gen) {
 		/*
 		 * Clear lvb bits for jids we've successfully recovered.
-		 * Because all nodes attempt to recover failed journals,
+		 * Because all yesdes attempt to recover failed journals,
 		 * a journal can be recovered multiple times successfully
 		 * in succession.  Only the first will really do recovery,
 		 * the others find it clean, but still report a successful
-		 * recovery.  So, another node may have already recovered
+		 * recovery.  So, ayesther yesde may have already recovered
 		 * the jid and cleared the lvb bit for it.
 		 */
 		for (i = 0; i < recover_size; i++) {
@@ -678,7 +678,7 @@ static void gfs2_control_func(struct work_struct *work)
 		}
 	} else if (lvb_gen < start_gen) {
 		/*
-		 * Failed slots before start_gen are not yet set in lvb.
+		 * Failed slots before start_gen are yest yet set in lvb.
 		 */
 		for (i = 0; i < recover_size; i++) {
 			if (!ls->ls_recover_submit[i])
@@ -688,7 +688,7 @@ static void gfs2_control_func(struct work_struct *work)
 				__set_bit_le(i, ls->ls_lvb_bits + JID_BITMAP_OFFSET);
 			}
 		}
-		/* even if there are no bits to set, we need to write the
+		/* even if there are yes bits to set, we need to write the
 		   latest generation to the lvb */
 		write_lvb = 1;
 	} else {
@@ -798,9 +798,9 @@ restart:
 	}
 
 	/*
-	 * Other nodes need to do some work in dlm recovery and gfs2_control
+	 * Other yesdes need to do some work in dlm recovery and gfs2_control
 	 * before the recover_done and control_lock will be ready for us below.
-	 * A delay here is not required but often avoids having to retry.
+	 * A delay here is yest required but often avoids having to retry.
 	 */
 
 	msleep_interruptible(500);
@@ -808,7 +808,7 @@ restart:
 	/*
 	 * Acquire control_lock in EX and mounted_lock in either EX or PR.
 	 * control_lock lvb keeps track of any pending journal recoveries.
-	 * mounted_lock indicates if any other nodes have the fs mounted.
+	 * mounted_lock indicates if any other yesdes have the fs mounted.
 	 */
 
 	error = control_lock(sdp, DLM_LOCK_EX, DLM_LKF_CONVERT|DLM_LKF_NOQUEUE|DLM_LKF_VALBLK);
@@ -821,7 +821,7 @@ restart:
 
 	/**
 	 * If we're a spectator, we don't want to take the lock in EX because
-	 * we cannot do the first-mount responsibility it implies: recovery.
+	 * we canyest do the first-mount responsibility it implies: recovery.
 	 */
 	if (sdp->sd_args.ar_spectator)
 		goto locks_done;
@@ -840,7 +840,7 @@ restart:
 		mounted_mode = DLM_LOCK_PR;
 		goto locks_done;
 	} else {
-		/* not even -EAGAIN should happen here */
+		/* yest even -EAGAIN should happen here */
 		fs_err(sdp, "control_mount mounted_lock PR error %d\n", error);
 		goto fail;
 	}
@@ -848,13 +848,13 @@ restart:
 locks_done:
 	/*
 	 * If we got both locks above in EX, then we're the first mounter.
-	 * If not, then we need to wait for the control_lock lvb to be
-	 * updated by other mounted nodes to reflect our mount generation.
+	 * If yest, then we need to wait for the control_lock lvb to be
+	 * updated by other mounted yesdes to reflect our mount generation.
 	 *
 	 * In simple first mounter cases, first mounter will see zero lvb_gen,
-	 * but in cases where all existing nodes leave/fail before mounting
-	 * nodes finish control_mount, then all nodes will be mounting and
-	 * lvb_gen will be non-zero.
+	 * but in cases where all existing yesdes leave/fail before mounting
+	 * yesdes finish control_mount, then all yesdes will be mounting and
+	 * lvb_gen will be yesn-zero.
 	 */
 
 	control_lvb_read(ls, &lvb_gen, ls->ls_lvb_bits);
@@ -882,9 +882,9 @@ locks_done:
 		goto fail;
 
 	/*
-	 * We are not first mounter, now we need to wait for the control_lock
+	 * We are yest first mounter, yesw we need to wait for the control_lock
 	 * lvb generation to be >= the generation from our first recover_done
-	 * and all lvb bits to be clear (no pending journal recoveries.)
+	 * and all lvb bits to be clear (yes pending journal recoveries.)
 	 */
 
 	if (!all_jid_bits_clear(ls->ls_lvb_bits)) {
@@ -899,11 +899,11 @@ locks_done:
 	mount_gen = ls->ls_recover_mount;
 
 	if (lvb_gen < mount_gen) {
-		/* wait for mounted nodes to update control_lock lvb to our
+		/* wait for mounted yesdes to update control_lock lvb to our
 		   generation, which might include new recovery bits set */
 		if (sdp->sd_args.ar_spectator) {
 			fs_info(sdp, "Recovery is required. Waiting for a "
-				"non-spectator to mount.\n");
+				"yesn-spectator to mount.\n");
 			msleep_interruptible(1000);
 		} else {
 			fs_info(sdp, "control_mount wait1 block %u start %u "
@@ -916,7 +916,7 @@ locks_done:
 	}
 
 	if (lvb_gen != start_gen) {
-		/* wait for mounted nodes to update control_lock lvb to the
+		/* wait for mounted yesdes to update control_lock lvb to the
 		   latest recovery generation */
 		fs_info(sdp, "control_mount wait2 block %u start %u mount %u "
 			"lvb %u flags %lx\n", block_gen, start_gen, mount_gen,
@@ -961,7 +961,7 @@ restart:
 	if (test_bit(DFL_BLOCK_LOCKS, &ls->ls_recover_flags) ||
 	    !test_bit(DFL_MOUNT_DONE, &ls->ls_recover_flags) ||
 	    !test_bit(DFL_FIRST_MOUNT, &ls->ls_recover_flags)) {
-		/* sanity check, should not happen */
+		/* sanity check, should yest happen */
 		fs_err(sdp, "control_first_done start %u block %u flags %lx\n",
 		       start_gen, block_gen, ls->ls_recover_flags);
 		spin_unlock(&ls->ls_recover_spin);
@@ -972,10 +972,10 @@ restart:
 	if (start_gen == block_gen) {
 		/*
 		 * Wait for the end of a dlm recovery cycle to switch from
-		 * first mounter recovery.  We can ignore any recover_slot
+		 * first mounter recovery.  We can igyesre any recover_slot
 		 * callbacks between the recover_prep and next recover_done
-		 * because we are still the first mounter and any failed nodes
-		 * have not fully mounted, so they don't need recovery.
+		 * because we are still the first mounter and any failed yesdes
+		 * have yest fully mounted, so they don't need recovery.
 		 */
 		spin_unlock(&ls->ls_recover_spin);
 		fs_info(sdp, "control_first_done wait gen %u\n", start_gen);
@@ -1125,7 +1125,7 @@ static void gdlm_recover_done(void *arg, struct dlm_slot *slots, int num_slots,
 	struct gfs2_sbd *sdp = arg;
 	struct lm_lockstruct *ls = &sdp->sd_lockstruct;
 
-	/* ensure the ls jid arrays are large enough */
+	/* ensure the ls jid arrays are large eyesugh */
 	set_recover_size(sdp, slots, num_slots);
 
 	spin_lock(&ls->ls_recover_spin);
@@ -1176,8 +1176,8 @@ static void gdlm_recovery_result(struct gfs2_sbd *sdp, unsigned int jid,
 
 	ls->ls_recover_result[jid] = result;
 
-	/* GAVEUP means another node is recovering the journal; delay our
-	   next attempt to recover it, to give the other node a chance to
+	/* GAVEUP means ayesther yesde is recovering the journal; delay our
+	   next attempt to recover it, to give the other yesde a chance to
 	   finish before trying again */
 
 	if (!test_bit(DFL_UNMOUNT, &ls->ls_recover_flags))
@@ -1225,7 +1225,7 @@ static int gdlm_mount(struct gfs2_sbd *sdp, const char *table)
 
 	fsname = strchr(table, ':');
 	if (!fsname) {
-		fs_info(sdp, "no fsname found\n");
+		fs_info(sdp, "yes fsname found\n");
 		error = -EINVAL;
 		goto fail_free;
 	}
@@ -1249,10 +1249,10 @@ static int gdlm_mount(struct gfs2_sbd *sdp, const char *table)
 
 	if (ops_result < 0) {
 		/*
-		 * dlm does not support ops callbacks,
+		 * dlm does yest support ops callbacks,
 		 * old dlm_controld/gfs_controld are used, try without ops.
 		 */
-		fs_info(sdp, "dlm lockspace ops not used\n");
+		fs_info(sdp, "dlm lockspace ops yest used\n");
 		free_recover_size(ls);
 		set_bit(DFL_NO_DLM_OPS, &ls->ls_recover_flags);
 		return 0;
@@ -1330,7 +1330,7 @@ static const match_table_t dlm_tokens = {
 	{ Opt_jid, "jid=%d"},
 	{ Opt_id, "id=%d"},
 	{ Opt_first, "first=%d"},
-	{ Opt_nodir, "nodir=%d"},
+	{ Opt_yesdir, "yesdir=%d"},
 	{ Opt_err, NULL },
 };
 

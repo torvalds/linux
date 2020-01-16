@@ -207,7 +207,7 @@ static struct xmit_frame *dequeue_xframe_ex(struct xmit_priv *pxmitpriv,
 				goto exit_dequeue_xframe_ex;
 			}
 			sta_plist = sta_plist->next;
-			/*Remove sta node when there are no pending packets.*/
+			/*Remove sta yesde when there are yes pending packets.*/
 			if (list_empty(&pframe_queue->queue)) {
 				/* must be done after sta_plist->next
 				 * and before break

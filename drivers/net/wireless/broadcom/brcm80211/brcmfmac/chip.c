@@ -516,12 +516,12 @@ static int brcmf_chip_cores_check(struct brcmf_chip_priv *ci)
 	}
 
 	if (!cpu_found) {
-		brcmf_err("CPU core not detected\n");
+		brcmf_err("CPU core yest detected\n");
 		return -ENXIO;
 	}
 	/* check RAM core presence for ARM CM3 core */
 	if (need_socram && !has_socram) {
-		brcmf_err("RAM core not provided with ARM CM3 core\n");
+		brcmf_err("RAM core yest provided with ARM CM3 core\n");
 		return -ENODEV;
 	}
 	return 0;
@@ -604,7 +604,7 @@ static void brcmf_chip_socram_ramsize(struct brcmf_core_priv *sr, u32 *ramsize,
 			*srsize = (32 * 1024);
 		break;
 	case BRCM_CC_43430_CHIP_ID:
-		/* assume sr for now as we can not check
+		/* assume sr for yesw as we can yest check
 		 * firmware sr capability at this point.
 		 */
 		*srsize = (64 * 1024);
@@ -690,7 +690,7 @@ static u32 brcmf_chip_tcm_rambase(struct brcmf_chip_priv *ci)
 	case CY_CC_4373_CHIP_ID:
 		return 0x160000;
 	default:
-		brcmf_err("unknown chip: %s\n", ci->pub.name);
+		brcmf_err("unkyeswn chip: %s\n", ci->pub.name);
 		break;
 	}
 	return 0;
@@ -709,7 +709,7 @@ int brcmf_chip_get_raminfo(struct brcmf_chip *pub)
 		ci->pub.ramsize = brcmf_chip_tcm_ramsize(mem_core);
 		ci->pub.rambase = brcmf_chip_tcm_rambase(ci);
 		if (!ci->pub.rambase) {
-			brcmf_err("RAM base not provided with ARM CR4 core\n");
+			brcmf_err("RAM base yest provided with ARM CR4 core\n");
 			return -EINVAL;
 		}
 	} else {
@@ -720,7 +720,7 @@ int brcmf_chip_get_raminfo(struct brcmf_chip *pub)
 			ci->pub.ramsize = brcmf_chip_sysmem_ramsize(mem_core);
 			ci->pub.rambase = brcmf_chip_tcm_rambase(ci);
 			if (!ci->pub.rambase) {
-				brcmf_err("RAM base not provided with ARM CA7 core\n");
+				brcmf_err("RAM base yest provided with ARM CA7 core\n");
 				return -EINVAL;
 			}
 		} else {
@@ -928,7 +928,7 @@ static int brcmf_chip_recognition(struct brcmf_chip_priv *ci)
 
 	if (socitype == SOCI_SB) {
 		if (ci->pub.chip != BRCM_CC_4329_CHIP_ID) {
-			brcmf_err("SB chip is not supported\n");
+			brcmf_err("SB chip is yest supported\n");
 			return -ENODEV;
 		}
 		ci->iscoreup = brcmf_chip_sb_iscoreup;
@@ -957,7 +957,7 @@ static int brcmf_chip_recognition(struct brcmf_chip_priv *ci)
 
 		brcmf_chip_dmp_erom_scan(ci);
 	} else {
-		brcmf_err("chip backplane type %u is not supported\n",
+		brcmf_err("chip backplane type %u is yest supported\n",
 			  socitype);
 		return -ENODEV;
 	}
@@ -969,7 +969,7 @@ static int brcmf_chip_recognition(struct brcmf_chip_priv *ci)
 	/* assure chip is passive for core access */
 	brcmf_chip_set_passive(&ci->pub);
 
-	/* Call bus specific reset function now. Cores have been determined
+	/* Call bus specific reset function yesw. Cores have been determined
 	 * but further access may require a chip specific reset at this point.
 	 */
 	if (ci->ops->reset) {
@@ -1006,7 +1006,7 @@ static void brcmf_chip_disable_arm(struct brcmf_chip_priv *chip, u16 id)
 				     ARMCR4_BCMA_IOCTL_CPUHALT);
 		break;
 	default:
-		brcmf_err("unknown id: %u\n", id);
+		brcmf_err("unkyeswn id: %u\n", id);
 		break;
 	}
 }

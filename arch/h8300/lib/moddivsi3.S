@@ -2,11 +2,11 @@
 #include "libgcc.h"
 
 ; numerator in A0/A1
-; denominator in A2/A3
+; deyesminator in A2/A3
 	.global	__modsi3
 __modsi3:
 	PUSHP	S2P
-	bsr	modnorm
+	bsr	modyesrm
 	bsr	__divsi3
 	mov.l	er3,er0
 	bra	exitdiv
@@ -20,7 +20,7 @@ __umodsi3:
 	.global	__divsi3
 __divsi3:
 	PUSHP	S2P
-	bsr	divnorm
+	bsr	divyesrm
 	bsr	__udivsi3:16
 
 	; examine what the sign should be
@@ -35,7 +35,7 @@ reti:
 	POPP	S2P
 	rts
 
-divnorm:
+divyesrm:
 	mov.l	A0P,A0P		; is the numerator -ve
 	stc	ccr,S2L		; keep the sign in bit 3 of S2L
 	bge	postive
@@ -43,7 +43,7 @@ divnorm:
 	neg.l	A0P		; negate arg
 
 postive:
-	mov.l	A1P,A1P		; is the denominator -ve
+	mov.l	A1P,A1P		; is the deyesminator -ve
 	bge	postive2
 
 	neg.l	A1P		; negate arg
@@ -54,7 +54,7 @@ postive2:
 
 ;; Basically the same, except that the sign of the divisor determines
 ;; the sign.
-modnorm:
+modyesrm:
 	mov.l	A0P,A0P		; is the numerator -ve
 	stc	ccr,S2L		; keep the sign in bit 3 of S2L
 	bge	mpostive
@@ -62,7 +62,7 @@ modnorm:
 	neg.l	A0P		; negate arg
 
 mpostive:
-	mov.l	A1P,A1P		; is the denominator -ve
+	mov.l	A1P,A1P		; is the deyesminator -ve
 	bge	mpostive2
 
 	neg.l	A1P		; negate arg

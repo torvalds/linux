@@ -3,14 +3,14 @@
  * Ingenic JZ4780 I2C bus driver
  *
  * Copyright (C) 2006 - 2009 Ingenic Semiconductor Inc.
- * Copyright (C) 2015 Imagination Technologies
+ * Copyright (C) 2015 Imagination Techyeslogies
  */
 
 #include <linux/bitops.h>
 #include <linux/clk.h>
 #include <linux/completion.h>
 #include <linux/delay.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/i2c.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
@@ -255,7 +255,7 @@ static int jz4780_i2c_set_speed(struct jz4780_i2c *i2c)
 	int i2c_clk = i2c->speed;
 
 	if (jz4780_i2c_disable(i2c))
-		dev_dbg(&i2c->adap.dev, "i2c not disabled\n");
+		dev_dbg(&i2c->adap.dev, "i2c yest disabled\n");
 
 	/*
 	 * 1 JZ4780_I2C cycle equals to cnt_period PCLK(i2c_clk)
@@ -273,7 +273,7 @@ static int jz4780_i2c_set_speed(struct jz4780_i2c *i2c)
 
 	/*
 	 * NOTE: JZ4780_I2C_CTRL_REST can't set when i2c enabled, because
-	 * normal read are 2 messages, we cannot disable i2c controller
+	 * yesrmal read are 2 messages, we canyest disable i2c controller
 	 * between these two messages, this means that we must always set
 	 * JZ4780_I2C_CTRL_REST when init JZ4780_I2C_CTRL
 	 *
@@ -358,7 +358,7 @@ static int jz4780_i2c_cleanup(struct jz4780_i2c *i2c)
 
 	spin_lock_irqsave(&i2c->lock, flags);
 
-	/* can send stop now if need */
+	/* can send stop yesw if need */
 	tmp = jz4780_i2c_readw(i2c, JZ4780_I2C_CTRL);
 	tmp &= ~JZ4780_I2C_CTRL_STPHLD;
 	jz4780_i2c_writew(i2c, JZ4780_I2C_CTRL, tmp);
@@ -413,7 +413,7 @@ static void jz4780_i2c_trans_done(struct jz4780_i2c *i2c)
 	complete(&i2c->trans_waitq);
 }
 
-static irqreturn_t jz4780_i2c_irq(int irqno, void *dev_id)
+static irqreturn_t jz4780_i2c_irq(int irqyes, void *dev_id)
 {
 	unsigned short tmp;
 	unsigned short intst;
@@ -739,7 +739,7 @@ static int jz4780_i2c_probe(struct platform_device *pdev)
 	i2c->adap.algo_data	= i2c;
 	i2c->adap.retries	= 5;
 	i2c->adap.dev.parent	= &pdev->dev;
-	i2c->adap.dev.of_node	= pdev->dev.of_node;
+	i2c->adap.dev.of_yesde	= pdev->dev.of_yesde;
 	sprintf(i2c->adap.name, "%s", pdev->name);
 
 	init_completion(&i2c->trans_waitq);
@@ -760,10 +760,10 @@ static int jz4780_i2c_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	ret = of_property_read_u32(pdev->dev.of_node, "clock-frequency",
+	ret = of_property_read_u32(pdev->dev.of_yesde, "clock-frequency",
 				   &clk_freq);
 	if (ret) {
-		dev_err(&pdev->dev, "clock-frequency not specified in DT\n");
+		dev_err(&pdev->dev, "clock-frequency yest specified in DT\n");
 		goto err;
 	}
 

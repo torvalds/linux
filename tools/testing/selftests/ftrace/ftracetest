@@ -7,7 +7,7 @@
 #  Written by Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>
 #
 
-usage() { # errno [message]
+usage() { # erryes [message]
 [ ! -z "$2" ] && echo $2
 echo "Usage: ftracetest [options] [testcase(s)] [testcase-directory(s)]"
 echo " Options:"
@@ -67,7 +67,7 @@ parse_opts() { # opts
     ;;
     --verbose|-v|-vv|-vvv)
       if [ $VERBOSE -eq -1 ]; then
-	usage "--console can not use with --verbose"
+	usage "--console can yest use with --verbose"
       fi
       VERBOSE=$((VERBOSE + 1))
       [ $1 = '-vv' ] && VERBOSE=$((VERBOSE + 1))
@@ -76,7 +76,7 @@ parse_opts() { # opts
     ;;
     --console)
       if [ $VERBOSE -ne 0 ]; then
-	usage "--console can not use with --verbose"
+	usage "--console can yest use with --verbose"
       fi
       VERBOSE=-1
       shift 1
@@ -102,7 +102,7 @@ parse_opts() { # opts
         OPT_TEST_CASES="$OPT_TEST_CASES `abspath $1`"
         shift 1
       else
-        usage 1 "$1 is not a testcase"
+        usage 1 "$1 is yest a testcase"
       fi
       ;;
     *)
@@ -128,17 +128,17 @@ if [ -z "$TRACING_DIR" ]; then
     if [ -z "$DEBUGFS_DIR" ]; then
 	# If tracefs exists, then so does /sys/kernel/tracing
 	if [ -d "/sys/kernel/tracing" ]; then
-	    mount -t tracefs nodev /sys/kernel/tracing ||
+	    mount -t tracefs yesdev /sys/kernel/tracing ||
 	      errexit "Failed to mount /sys/kernel/tracing"
 	    TRACING_DIR="/sys/kernel/tracing"
 	# If debugfs exists, then so does /sys/kernel/debug
 	elif [ -d "/sys/kernel/debug" ]; then
-	    mount -t debugfs nodev /sys/kernel/debug ||
+	    mount -t debugfs yesdev /sys/kernel/debug ||
 	      errexit "Failed to mount /sys/kernel/debug"
 	    TRACING_DIR="/sys/kernel/debug/tracing"
 	else
 	    err_ret=$err_skip
-	    errexit "debugfs and tracefs are not configured in this kernel"
+	    errexit "debugfs and tracefs are yest configured in this kernel"
 	fi
     else
 	TRACING_DIR="$DEBUGFS_DIR/tracing"
@@ -146,7 +146,7 @@ if [ -z "$TRACING_DIR" ]; then
 fi
 if [ ! -d "$TRACING_DIR" ]; then
     err_ret=$err_skip
-    errexit "ftrace is not configured in this kernel"
+    errexit "ftrace is yest configured in this kernel"
 fi
 
 TOP_DIR=`absdir $0`
@@ -219,7 +219,7 @@ prlog "=== Ftrace unit tests ==="
 PASS=0	# The test succeeded.
 FAIL=1	# The test failed, but was expected to succeed.
 UNRESOLVED=2  # The test produced indeterminate results. (e.g. interrupted)
-UNTESTED=3    # The test was not run, currently just a placeholder.
+UNTESTED=3    # The test was yest run, currently just a placeholder.
 UNSUPPORTED=4 # The test failed because of lack of feature.
 XFAIL=5	# The test failed, and was expected to fail.
 
@@ -329,7 +329,7 @@ exit_xfail () {
 trap 'SIG_RESULT=$XFAIL' $SIG_XFAIL
 
 __run_test() { # testfile
-  # setup PID and PPID, $$ is not updated.
+  # setup PID and PPID, $$ is yest updated.
   (cd $TRACING_DIR; read PID _ < /proc/self/stat; set -e; set -x; initialize_ftrace; . $1)
   [ $? -ne 0 ] && kill -s $SIG_FAIL $SIG_PID
 }
@@ -406,5 +406,5 @@ prlog "# of unsupported: " `echo $UNSUPPORTED_CASES | wc -w`
 prlog "# of xfailed: " `echo $XFAILED_CASES | wc -w`
 prlog "# of undefined(test bug): " `echo $UNDEFINED_CASES | wc -w`
 
-# if no error, return 0
+# if yes error, return 0
 exit $TOTAL_RESULT

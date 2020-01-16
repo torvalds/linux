@@ -8,7 +8,7 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 
-#include <linux/dma-noncoherent.h>
+#include <linux/dma-yesncoherent.h>
 #include <linux/dmar.h>
 #include <linux/efi.h>
 #include <linux/elf.h>
@@ -107,13 +107,13 @@ ia64_init_addr_space (void)
 	ia64_set_rbs_bot();
 
 	/*
-	 * If we're out of memory and kmem_cache_alloc() returns NULL, we simply ignore
+	 * If we're out of memory and kmem_cache_alloc() returns NULL, we simply igyesre
 	 * the problem.  When the process attempts to write to the register backing store
 	 * for the first time, it will get a SEGFAULT in this case.
 	 */
 	vma = vm_area_alloc(current->mm);
 	if (vma) {
-		vma_set_anonymous(vma);
+		vma_set_ayesnymous(vma);
 		vma->vm_start = current->thread.rbs_bot & PAGE_MASK;
 		vma->vm_end = vma->vm_start + PAGE_SIZE;
 		vma->vm_flags = VM_DATA_DEFAULT_FLAGS|VM_GROWSUP|VM_ACCOUNT;
@@ -131,7 +131,7 @@ ia64_init_addr_space (void)
 	if (!(current->personality & MMAP_PAGE_ZERO)) {
 		vma = vm_area_alloc(current->mm);
 		if (vma) {
-			vma_set_anonymous(vma);
+			vma_set_ayesnymous(vma);
 			vma->vm_end = PAGE_SIZE;
 			vma->vm_page_prot = __pgprot(pgprot_val(PAGE_READONLY) | _PAGE_MA_NAT);
 			vma->vm_flags = VM_READ | VM_MAYREAD | VM_IO |
@@ -212,7 +212,7 @@ put_kernel_page (struct page *page, unsigned long address, pgprot_t pgprot)
 	pmd_t *pmd;
 	pte_t *pte;
 
-	pgd = pgd_offset_k(address);		/* note: this is NOT pgd_offset()! */
+	pgd = pgd_offset_k(address);		/* yeste: this is NOT pgd_offset()! */
 
 	{
 		pud = pud_alloc(&init_mm, pgd, address);
@@ -224,12 +224,12 @@ put_kernel_page (struct page *page, unsigned long address, pgprot_t pgprot)
 		pte = pte_alloc_kernel(pmd, address);
 		if (!pte)
 			goto out;
-		if (!pte_none(*pte))
+		if (!pte_yesne(*pte))
 			goto out;
 		set_pte(pte, mk_pte(page, pgprot));
 	}
   out:
-	/* no need for flush_tlb */
+	/* yes need for flush_tlb */
 	return page;
 }
 
@@ -287,7 +287,7 @@ struct vm_area_struct *get_gate_vma(struct mm_struct *mm)
 	return &gate_vma;
 }
 
-int in_gate_area_no_mm(unsigned long addr)
+int in_gate_area_yes_mm(unsigned long addr)
 {
 	if ((addr >= FIXADDR_USER_START) && (addr < FIXADDR_USER_END))
 		return 1;
@@ -296,7 +296,7 @@ int in_gate_area_no_mm(unsigned long addr)
 
 int in_gate_area(struct mm_struct *mm, unsigned long addr)
 {
-	return in_gate_area_no_mm(addr);
+	return in_gate_area_yes_mm(addr);
 }
 
 void ia64_mmu_init(void *my_cpu_data)
@@ -313,21 +313,21 @@ void ia64_mmu_init(void *my_cpu_data)
 	/*
 	 * Check if the virtually mapped linear page table (VMLPT) overlaps with a mapped
 	 * address space.  The IA-64 architecture guarantees that at least 50 bits of
-	 * virtual address space are implemented but if we pick a large enough page size
-	 * (e.g., 64KB), the mapped address space is big enough that it will overlap with
-	 * VMLPT.  I assume that once we run on machines big enough to warrant 64KB pages,
+	 * virtual address space are implemented but if we pick a large eyesugh page size
+	 * (e.g., 64KB), the mapped address space is big eyesugh that it will overlap with
+	 * VMLPT.  I assume that once we run on machines big eyesugh to warrant 64KB pages,
 	 * IMPL_VA_MSB will be significantly bigger, so this is unlikely to become a
 	 * problem in practice.  Alternatively, we could truncate the top of the mapped
-	 * address space to not permit mappings that would overlap with the VMLPT.
+	 * address space to yest permit mappings that would overlap with the VMLPT.
 	 * --davidm 00/12/06
 	 */
 #	define pte_bits			3
 #	define mapped_space_bits	(3*(PAGE_SHIFT - pte_bits) + PAGE_SHIFT)
 	/*
 	 * The virtual page table has to cover the entire implemented address space within
-	 * a region even though not all of this space may be mappable.  The reason for
+	 * a region even though yest all of this space may be mappable.  The reason for
 	 * this is that the Access bit and Dirty bit fault handlers perform
-	 * non-speculative accesses to the virtual page table, so the address range of the
+	 * yesn-speculative accesses to the virtual page table, so the address range of the
 	 * virtual page table itself needs to be covered by virtual page table.
 	 */
 #	define vmlpt_bits		(impl_va_bits - PAGE_SHIFT + pte_bits)
@@ -345,7 +345,7 @@ void ia64_mmu_init(void *my_cpu_data)
 	 */
 	if ((mapped_space_bits - PAGE_SHIFT > vmlpt_bits - pte_bits) ||
 	    (mapped_space_bits > impl_va_bits - 1))
-		panic("Cannot build a big enough virtual-linear page table"
+		panic("Canyest build a big eyesugh virtual-linear page table"
 		      " to cover mapped address space.\n"
 		      " Try using a smaller page size.\n");
 
@@ -370,13 +370,13 @@ void ia64_mmu_init(void *my_cpu_data)
 }
 
 #ifdef CONFIG_VIRTUAL_MEM_MAP
-int vmemmap_find_next_valid_pfn(int node, int i)
+int vmemmap_find_next_valid_pfn(int yesde, int i)
 {
 	unsigned long end_address, hole_next_pfn;
 	unsigned long stop_address;
-	pg_data_t *pgdat = NODE_DATA(node);
+	pg_data_t *pgdat = NODE_DATA(yesde);
 
-	end_address = (unsigned long) &vmem_map[pgdat->node_start_pfn + i];
+	end_address = (unsigned long) &vmem_map[pgdat->yesde_start_pfn + i];
 	end_address = PAGE_ALIGN(end_address);
 	stop_address = (unsigned long) &vmem_map[pgdat_end_pfn(pgdat)];
 
@@ -387,26 +387,26 @@ int vmemmap_find_next_valid_pfn(int node, int i)
 		pte_t *pte;
 
 		pgd = pgd_offset_k(end_address);
-		if (pgd_none(*pgd)) {
+		if (pgd_yesne(*pgd)) {
 			end_address += PGDIR_SIZE;
 			continue;
 		}
 
 		pud = pud_offset(pgd, end_address);
-		if (pud_none(*pud)) {
+		if (pud_yesne(*pud)) {
 			end_address += PUD_SIZE;
 			continue;
 		}
 
 		pmd = pmd_offset(pud, end_address);
-		if (pmd_none(*pmd)) {
+		if (pmd_yesne(*pmd)) {
 			end_address += PMD_SIZE;
 			continue;
 		}
 
 		pte = pte_offset_kernel(pmd, end_address);
 retry_pte:
-		if (pte_none(*pte)) {
+		if (pte_yesne(*pte)) {
 			end_address += PAGE_SIZE;
 			pte++;
 			if ((end_address < stop_address) &&
@@ -421,14 +421,14 @@ retry_pte:
 	end_address = min(end_address, stop_address);
 	end_address = end_address - (unsigned long) vmem_map + sizeof(struct page) - 1;
 	hole_next_pfn = end_address / sizeof(struct page);
-	return hole_next_pfn - pgdat->node_start_pfn;
+	return hole_next_pfn - pgdat->yesde_start_pfn;
 }
 
 int __init create_mem_map_page_table(u64 start, u64 end, void *arg)
 {
 	unsigned long address, start_page, end_page;
 	struct page *map_start, *map_end;
-	int node;
+	int yesde;
 	pgd_t *pgd;
 	pud_t *pud;
 	pmd_t *pmd;
@@ -439,37 +439,37 @@ int __init create_mem_map_page_table(u64 start, u64 end, void *arg)
 
 	start_page = (unsigned long) map_start & PAGE_MASK;
 	end_page = PAGE_ALIGN((unsigned long) map_end);
-	node = paddr_to_nid(__pa(start));
+	yesde = paddr_to_nid(__pa(start));
 
 	for (address = start_page; address < end_page; address += PAGE_SIZE) {
 		pgd = pgd_offset_k(address);
-		if (pgd_none(*pgd)) {
-			pud = memblock_alloc_node(PAGE_SIZE, PAGE_SIZE, node);
+		if (pgd_yesne(*pgd)) {
+			pud = memblock_alloc_yesde(PAGE_SIZE, PAGE_SIZE, yesde);
 			if (!pud)
 				goto err_alloc;
 			pgd_populate(&init_mm, pgd, pud);
 		}
 		pud = pud_offset(pgd, address);
 
-		if (pud_none(*pud)) {
-			pmd = memblock_alloc_node(PAGE_SIZE, PAGE_SIZE, node);
+		if (pud_yesne(*pud)) {
+			pmd = memblock_alloc_yesde(PAGE_SIZE, PAGE_SIZE, yesde);
 			if (!pmd)
 				goto err_alloc;
 			pud_populate(&init_mm, pud, pmd);
 		}
 		pmd = pmd_offset(pud, address);
 
-		if (pmd_none(*pmd)) {
-			pte = memblock_alloc_node(PAGE_SIZE, PAGE_SIZE, node);
+		if (pmd_yesne(*pmd)) {
+			pte = memblock_alloc_yesde(PAGE_SIZE, PAGE_SIZE, yesde);
 			if (!pte)
 				goto err_alloc;
 			pmd_populate_kernel(&init_mm, pmd, pte);
 		}
 		pte = pte_offset_kernel(pmd, address);
 
-		if (pte_none(*pte)) {
-			void *page = memblock_alloc_node(PAGE_SIZE, PAGE_SIZE,
-							 node);
+		if (pte_yesne(*pte)) {
+			void *page = memblock_alloc_yesde(PAGE_SIZE, PAGE_SIZE,
+							 yesde);
 			if (!page)
 				goto err_alloc;
 			set_pte(pte, pfn_pte(__pa(page) >> PAGE_SHIFT,
@@ -480,7 +480,7 @@ int __init create_mem_map_page_table(u64 start, u64 end, void *arg)
 
 err_alloc:
 	panic("%s: Failed to allocate %lu bytes align=0x%lx nid=%d\n",
-	      __func__, PAGE_SIZE, PAGE_SIZE, node);
+	      __func__, PAGE_SIZE, PAGE_SIZE, yesde);
 	return -ENOMEM;
 }
 
@@ -583,7 +583,7 @@ int __init register_active_ranges(u64 start, u64 len, int nid)
 #endif
 
 	if (start < end)
-		memblock_add_node(__pa(start), end - start, nid);
+		memblock_add_yesde(__pa(start), end - start, nid);
 	return 0;
 }
 
@@ -604,23 +604,23 @@ find_max_min_low_pfn (u64 start, u64 end, void *arg)
 }
 
 /*
- * Boot command-line option "nolwsys" can be used to disable the use of any light-weight
+ * Boot command-line option "yeslwsys" can be used to disable the use of any light-weight
  * system call handler.  When this option is in effect, all fsyscalls will end up bubbling
- * down into the kernel and calling the normal (heavy-weight) syscall handler.  This is
+ * down into the kernel and calling the yesrmal (heavy-weight) syscall handler.  This is
  * useful for performance testing, but conceivably could also come in handy for debugging
  * purposes.
  */
 
-static int nolwsys __initdata;
+static int yeslwsys __initdata;
 
 static int __init
-nolwsys_setup (char *s)
+yeslwsys_setup (char *s)
 {
-	nolwsys = 1;
+	yeslwsys = 1;
 	return 1;
 }
 
-__setup("nolwsys", nolwsys_setup);
+__setup("yeslwsys", yeslwsys_setup);
 
 void __init
 mem_init (void)
@@ -654,7 +654,7 @@ mem_init (void)
 	mem_init_print_info(NULL);
 
 	/*
-	 * For fsyscall entrpoints with no light-weight handler, use the ordinary
+	 * For fsyscall entrpoints with yes light-weight handler, use the ordinary
 	 * (heavy-weight) handler, but mark it by setting bit 0, so the fsyscall entry
 	 * code can tell them apart.
 	 */
@@ -662,7 +662,7 @@ mem_init (void)
 		extern unsigned long fsyscall_table[NR_syscalls];
 		extern unsigned long sys_call_table[NR_syscalls];
 
-		if (!fsyscall_table[i] || nolwsys)
+		if (!fsyscall_table[i] || yeslwsys)
 			fsyscall_table[i] = sys_call_table[i] | 1;
 	}
 	setup_gate();

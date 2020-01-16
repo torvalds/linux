@@ -191,11 +191,11 @@ static int rockchip_emmc_phy_power(struct phy *phy, bool on_off)
 	/*
 	 * We turned on the DLL even though the rate was 0 because we the
 	 * clock might be turned on later.  ...but we can't wait for the DLL
-	 * to lock when the rate is 0 because it will never lock with no
+	 * to lock when the rate is 0 because it will never lock with yes
 	 * input clock.
 	 *
 	 * Technically we should be checking the lock later when the clock
-	 * is turned on, but for now we won't.
+	 * is turned on, but for yesw we won't.
 	 */
 	if (rate == 0)
 		return 0;
@@ -207,7 +207,7 @@ static int rockchip_emmc_phy_power(struct phy *phy, bool on_off)
 	 * is super slow (like 100 kHZ) this could take as long as 5.1 ms as
 	 * per the math: 10.2 us * (50000000 Hz / 100000 Hz) => 5.1 ms
 	 * Hopefully we won't be running at 100 kHz, but we should still make
-	 * sure we wait long enough.
+	 * sure we wait long eyesugh.
 	 *
 	 * NOTE: There appear to be corner cases where the DLL seems to take
 	 * extra long to lock for reasons that aren't understood.  In some
@@ -232,7 +232,7 @@ static int rockchip_emmc_phy_init(struct phy *phy)
 	int ret = 0;
 
 	/*
-	 * We purposely get the clock here and not in probe to avoid the
+	 * We purposely get the clock here and yest in probe to avoid the
 	 * circular dependency problem.  We expect:
 	 * - PHY driver to probe
 	 * - SDHCI driver to start probe
@@ -337,10 +337,10 @@ static int rockchip_emmc_phy_probe(struct platform_device *pdev)
 	unsigned int reg_offset;
 	u32 val;
 
-	if (!dev->parent || !dev->parent->of_node)
+	if (!dev->parent || !dev->parent->of_yesde)
 		return -ENODEV;
 
-	grf = syscon_node_to_regmap(dev->parent->of_node);
+	grf = syscon_yesde_to_regmap(dev->parent->of_yesde);
 	if (IS_ERR(grf)) {
 		dev_err(dev, "Missing rockchip,grf property\n");
 		return PTR_ERR(grf);
@@ -350,9 +350,9 @@ static int rockchip_emmc_phy_probe(struct platform_device *pdev)
 	if (!rk_phy)
 		return -ENOMEM;
 
-	if (of_property_read_u32(dev->of_node, "reg", &reg_offset)) {
-		dev_err(dev, "missing reg property in node %pOFn\n",
-			dev->of_node);
+	if (of_property_read_u32(dev->of_yesde, "reg", &reg_offset)) {
+		dev_err(dev, "missing reg property in yesde %pOFn\n",
+			dev->of_yesde);
 		return -EINVAL;
 	}
 
@@ -360,10 +360,10 @@ static int rockchip_emmc_phy_probe(struct platform_device *pdev)
 	rk_phy->reg_base = grf;
 	rk_phy->drive_impedance = PHYCTRL_DR_50OHM;
 
-	if (!of_property_read_u32(dev->of_node, "drive-impedance-ohm", &val))
+	if (!of_property_read_u32(dev->of_yesde, "drive-impedance-ohm", &val))
 		rk_phy->drive_impedance = convert_drive_impedance_ohm(pdev, val);
 
-	generic_phy = devm_phy_create(dev, dev->of_node, &ops);
+	generic_phy = devm_phy_create(dev, dev->of_yesde, &ops);
 	if (IS_ERR(generic_phy)) {
 		dev_err(dev, "failed to create PHY\n");
 		return PTR_ERR(generic_phy);

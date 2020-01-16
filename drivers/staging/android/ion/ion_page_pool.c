@@ -36,7 +36,7 @@ static void ion_page_pool_add(struct ion_page_pool *pool, struct page *page)
 		pool->low_count++;
 	}
 
-	mod_node_page_state(page_pgdat(page), NR_KERNEL_MISC_RECLAIMABLE,
+	mod_yesde_page_state(page_pgdat(page), NR_KERNEL_MISC_RECLAIMABLE,
 							1 << pool->order);
 	mutex_unlock(&pool->mutex);
 }
@@ -56,7 +56,7 @@ static struct page *ion_page_pool_remove(struct ion_page_pool *pool, bool high)
 	}
 
 	list_del(&page->lru);
-	mod_node_page_state(page_pgdat(page), NR_KERNEL_MISC_RECLAIMABLE,
+	mod_yesde_page_state(page_pgdat(page), NR_KERNEL_MISC_RECLAIMABLE,
 							-(1 << pool->order));
 	return page;
 }
@@ -144,7 +144,7 @@ struct ion_page_pool *ion_page_pool_create(gfp_t gfp_mask, unsigned int order)
 	pool->gfp_mask = gfp_mask | __GFP_COMP;
 	pool->order = order;
 	mutex_init(&pool->mutex);
-	plist_node_init(&pool->list, order);
+	plist_yesde_init(&pool->list, order);
 
 	return pool;
 }

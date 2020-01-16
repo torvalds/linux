@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * ixp4xx PATA/Compact Flash driver
- * Copyright (C) 2006-07 Tower Technologies
+ * Copyright (C) 2006-07 Tower Techyeslogies
  * Author: Alessandro Zummo <a.zummo@towertech.it>
  *
  * An ATA driver to handle a Compact Flash connected
  * to the ixp4xx expansion bus in TrueIDE mode. The CF
  * must have it chip selects connected to two CS lines
- * on the ixp4xx. In the irq is not available, you might
+ * on the ixp4xx. In the irq is yest available, you might
  * want to modify both this driver and libata to run in
  * polling mode.
  */

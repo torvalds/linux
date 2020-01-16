@@ -218,7 +218,7 @@ static int fsl_micfil_startup(struct snd_pcm_substream *substream,
 
 	if (!micfil) {
 		dev_err(dai->dev,
-			"micfil dai priv_data not set\n");
+			"micfil dai priv_data yest set\n");
 		return -EINVAL;
 	}
 
@@ -587,7 +587,7 @@ static irqreturn_t micfil_isr(int irq, void *devid)
 		if (stat_reg & MICFIL_STAT_CHXF_MASK(i))
 			dev_dbg(&pdev->dev,
 				"Data available in Data Channel %d\n", i);
-		/* if DMA is not enabled, field must be written with 1
+		/* if DMA is yest enabled, field must be written with 1
 		 * to clear
 		 */
 		if (!dma_enabled)
@@ -637,7 +637,7 @@ static irqreturn_t micfil_err_isr(int irq, void *devid)
 
 static int fsl_micfil_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	const struct of_device_id *of_id;
 	struct fsl_micfil *micfil;
 	struct resource *res;
@@ -703,7 +703,7 @@ static int fsl_micfil_probe(struct platform_device *pdev)
 		micfil->irq[i] = platform_get_irq(pdev, i);
 		dev_err(&pdev->dev, "GET IRQ: %d\n", micfil->irq[i]);
 		if (micfil->irq[i] < 0) {
-			dev_err(&pdev->dev, "no irq for node %s\n", pdev->name);
+			dev_err(&pdev->dev, "yes irq for yesde %s\n", pdev->name);
 			return micfil->irq[i];
 		}
 	}

@@ -2,7 +2,7 @@
  * Copyright (C) 2007-2013 Michal Simek <monstr@monstr.eu>
  * Copyright (C) 2012-2013 Xilinx, Inc.
  * Copyright (C) 2007-2009 PetaLogix
- * Copyright (C) 2006 Atmark Techno, Inc.
+ * Copyright (C) 2006 Atmark Techyes, Inc.
  *
  * This file is subject to the terms and conditions of the GNU General Public
  * License. See the file "COPYING" in the main directory of this archive
@@ -92,8 +92,8 @@ static inline void xilinx_timer0_start_periodic(unsigned long load_val)
 	 * ENIT - enable interrupt
 	 * !LOAD - clear the bit to let go
 	 * ARHT - auto reload
-	 * !CAPT - no external trigger
-	 * !GENT - no external signal
+	 * !CAPT - yes external trigger
+	 * !GENT - yes external signal
 	 * UDT - set the timer as down counter
 	 * !MDT0 - generate mode
 	 */
@@ -250,7 +250,7 @@ static int __init xilinx_clocksource_init(void)
 	return init_xilinx_timecounter();
 }
 
-static int __init xilinx_timer_init(struct device_node *timer)
+static int __init xilinx_timer_init(struct device_yesde *timer)
 {
 	struct clk *clk;
 	static int initialized;
@@ -294,7 +294,7 @@ static int __init xilinx_timer_init(struct device_node *timer)
 
 	clk = of_clk_get(timer, 0);
 	if (IS_ERR(clk)) {
-		pr_err("ERROR: timer CCF input clock not found\n");
+		pr_err("ERROR: timer CCF input clock yest found\n");
 		/* If there is clock-frequency property than use it */
 		of_property_read_u32(timer, "clock-frequency",
 				    &timer_clock_freq);

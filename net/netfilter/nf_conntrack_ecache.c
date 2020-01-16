@@ -43,12 +43,12 @@ static enum retry_state ecache_work_evict_list(struct ct_pcpu *pcpu)
 	struct nf_conn *refs[ECACHE_STACK_ALLOC];
 	enum retry_state ret = STATE_DONE;
 	struct nf_conntrack_tuple_hash *h;
-	struct hlist_nulls_node *n;
+	struct hlist_nulls_yesde *n;
 	unsigned int evicted = 0;
 
 	spin_lock(&pcpu->lock);
 
-	hlist_nulls_for_each_entry(h, n, &pcpu->dying, hnnode) {
+	hlist_nulls_for_each_entry(h, n, &pcpu->dying, hnyesde) {
 		struct nf_conn *ct = nf_ct_tuplehash_to_ctrack(h);
 		struct nf_conntrack_ecache *e;
 
@@ -57,7 +57,7 @@ static enum retry_state ecache_work_evict_list(struct ct_pcpu *pcpu)
 
 		/* This ecache access is safe because the ct is on the
 		 * pcpu dying list and we hold the spinlock -- the entry
-		 * cannot be free'd until after the lock is released.
+		 * canyest be free'd until after the lock is released.
 		 *
 		 * This is true even if ct has a refcount of 0: the
 		 * cpu that is about to free the entry must remove it
@@ -135,12 +135,12 @@ int nf_conntrack_eventmask_report(unsigned int eventmask, struct nf_conn *ct,
 {
 	int ret = 0;
 	struct net *net = nf_ct_net(ct);
-	struct nf_ct_event_notifier *notify;
+	struct nf_ct_event_yestifier *yestify;
 	struct nf_conntrack_ecache *e;
 
 	rcu_read_lock();
-	notify = rcu_dereference(net->ct.nf_conntrack_event_cb);
-	if (!notify)
+	yestify = rcu_dereference(net->ct.nf_conntrack_event_cb);
+	if (!yestify)
 		goto out_unlock;
 
 	e = nf_ct_ecache_find(ct);
@@ -159,7 +159,7 @@ int nf_conntrack_eventmask_report(unsigned int eventmask, struct nf_conn *ct,
 		if (!((eventmask | missed) & e->ctmask))
 			goto out_unlock;
 
-		ret = notify->fcn(eventmask | missed, &item);
+		ret = yestify->fcn(eventmask | missed, &item);
 		if (unlikely(ret < 0 || missed)) {
 			spin_lock_bh(&ct->lock);
 			if (ret < 0) {
@@ -192,14 +192,14 @@ void nf_ct_deliver_cached_events(struct nf_conn *ct)
 {
 	struct net *net = nf_ct_net(ct);
 	unsigned long events, missed;
-	struct nf_ct_event_notifier *notify;
+	struct nf_ct_event_yestifier *yestify;
 	struct nf_conntrack_ecache *e;
 	struct nf_ct_event item;
 	int ret;
 
 	rcu_read_lock();
-	notify = rcu_dereference(net->ct.nf_conntrack_event_cb);
-	if (notify == NULL)
+	yestify = rcu_dereference(net->ct.nf_conntrack_event_cb);
+	if (yestify == NULL)
 		goto out_unlock;
 
 	if (!nf_ct_is_confirmed(ct) || nf_ct_is_dying(ct))
@@ -213,7 +213,7 @@ void nf_ct_deliver_cached_events(struct nf_conn *ct)
 
 	/* We make a copy of the missed event cache without taking
 	 * the lock, thus we may send missed events twice. However,
-	 * this does not harm and it happens very rarely. */
+	 * this does yest harm and it happens very rarely. */
 	missed = e->missed;
 
 	if (!((events | missed) & e->ctmask))
@@ -223,7 +223,7 @@ void nf_ct_deliver_cached_events(struct nf_conn *ct)
 	item.portid = 0;
 	item.report = 0;
 
-	ret = notify->fcn(events | missed, &item);
+	ret = yestify->fcn(events | missed, &item);
 
 	if (likely(ret == 0 && !missed))
 		goto out_unlock;
@@ -246,12 +246,12 @@ void nf_ct_expect_event_report(enum ip_conntrack_expect_events event,
 
 {
 	struct net *net = nf_ct_exp_net(exp);
-	struct nf_exp_event_notifier *notify;
+	struct nf_exp_event_yestifier *yestify;
 	struct nf_conntrack_ecache *e;
 
 	rcu_read_lock();
-	notify = rcu_dereference(net->ct.nf_expect_event_cb);
-	if (!notify)
+	yestify = rcu_dereference(net->ct.nf_expect_event_cb);
+	if (!yestify)
 		goto out_unlock;
 
 	e = nf_ct_ecache_find(exp->master);
@@ -264,22 +264,22 @@ void nf_ct_expect_event_report(enum ip_conntrack_expect_events event,
 			.portid	= portid,
 			.report = report
 		};
-		notify->fcn(1 << event, &item);
+		yestify->fcn(1 << event, &item);
 	}
 out_unlock:
 	rcu_read_unlock();
 }
 
-int nf_conntrack_register_notifier(struct net *net,
-				   struct nf_ct_event_notifier *new)
+int nf_conntrack_register_yestifier(struct net *net,
+				   struct nf_ct_event_yestifier *new)
 {
 	int ret;
-	struct nf_ct_event_notifier *notify;
+	struct nf_ct_event_yestifier *yestify;
 
 	mutex_lock(&nf_ct_ecache_mutex);
-	notify = rcu_dereference_protected(net->ct.nf_conntrack_event_cb,
+	yestify = rcu_dereference_protected(net->ct.nf_conntrack_event_cb,
 					   lockdep_is_held(&nf_ct_ecache_mutex));
-	if (notify != NULL) {
+	if (yestify != NULL) {
 		ret = -EBUSY;
 		goto out_unlock;
 	}
@@ -290,33 +290,33 @@ out_unlock:
 	mutex_unlock(&nf_ct_ecache_mutex);
 	return ret;
 }
-EXPORT_SYMBOL_GPL(nf_conntrack_register_notifier);
+EXPORT_SYMBOL_GPL(nf_conntrack_register_yestifier);
 
-void nf_conntrack_unregister_notifier(struct net *net,
-				      struct nf_ct_event_notifier *new)
+void nf_conntrack_unregister_yestifier(struct net *net,
+				      struct nf_ct_event_yestifier *new)
 {
-	struct nf_ct_event_notifier *notify;
+	struct nf_ct_event_yestifier *yestify;
 
 	mutex_lock(&nf_ct_ecache_mutex);
-	notify = rcu_dereference_protected(net->ct.nf_conntrack_event_cb,
+	yestify = rcu_dereference_protected(net->ct.nf_conntrack_event_cb,
 					   lockdep_is_held(&nf_ct_ecache_mutex));
-	BUG_ON(notify != new);
+	BUG_ON(yestify != new);
 	RCU_INIT_POINTER(net->ct.nf_conntrack_event_cb, NULL);
 	mutex_unlock(&nf_ct_ecache_mutex);
 	/* synchronize_rcu() is called from ctnetlink_exit. */
 }
-EXPORT_SYMBOL_GPL(nf_conntrack_unregister_notifier);
+EXPORT_SYMBOL_GPL(nf_conntrack_unregister_yestifier);
 
-int nf_ct_expect_register_notifier(struct net *net,
-				   struct nf_exp_event_notifier *new)
+int nf_ct_expect_register_yestifier(struct net *net,
+				   struct nf_exp_event_yestifier *new)
 {
 	int ret;
-	struct nf_exp_event_notifier *notify;
+	struct nf_exp_event_yestifier *yestify;
 
 	mutex_lock(&nf_ct_ecache_mutex);
-	notify = rcu_dereference_protected(net->ct.nf_expect_event_cb,
+	yestify = rcu_dereference_protected(net->ct.nf_expect_event_cb,
 					   lockdep_is_held(&nf_ct_ecache_mutex));
-	if (notify != NULL) {
+	if (yestify != NULL) {
 		ret = -EBUSY;
 		goto out_unlock;
 	}
@@ -327,29 +327,29 @@ out_unlock:
 	mutex_unlock(&nf_ct_ecache_mutex);
 	return ret;
 }
-EXPORT_SYMBOL_GPL(nf_ct_expect_register_notifier);
+EXPORT_SYMBOL_GPL(nf_ct_expect_register_yestifier);
 
-void nf_ct_expect_unregister_notifier(struct net *net,
-				      struct nf_exp_event_notifier *new)
+void nf_ct_expect_unregister_yestifier(struct net *net,
+				      struct nf_exp_event_yestifier *new)
 {
-	struct nf_exp_event_notifier *notify;
+	struct nf_exp_event_yestifier *yestify;
 
 	mutex_lock(&nf_ct_ecache_mutex);
-	notify = rcu_dereference_protected(net->ct.nf_expect_event_cb,
+	yestify = rcu_dereference_protected(net->ct.nf_expect_event_cb,
 					   lockdep_is_held(&nf_ct_ecache_mutex));
-	BUG_ON(notify != new);
+	BUG_ON(yestify != new);
 	RCU_INIT_POINTER(net->ct.nf_expect_event_cb, NULL);
 	mutex_unlock(&nf_ct_ecache_mutex);
 	/* synchronize_rcu() is called from ctnetlink_exit. */
 }
-EXPORT_SYMBOL_GPL(nf_ct_expect_unregister_notifier);
+EXPORT_SYMBOL_GPL(nf_ct_expect_unregister_yestifier);
 
 #define NF_CT_EVENTS_DEFAULT 1
 static int nf_ct_events __read_mostly = NF_CT_EVENTS_DEFAULT;
 
 static const struct nf_ct_ext_type event_extend = {
 	.len	= sizeof(struct nf_conntrack_ecache),
-	.align	= __alignof__(struct nf_conntrack_ecache),
+	.align	= __aligyesf__(struct nf_conntrack_ecache),
 	.id	= NF_CT_EXT_ECACHE,
 };
 

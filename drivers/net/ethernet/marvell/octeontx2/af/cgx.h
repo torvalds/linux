@@ -17,7 +17,7 @@
  /* PCI device IDs */
 #define	PCI_DEVID_OCTEONTX2_CGX		0xA059
 
-/* PCI BAR nos */
+/* PCI BAR yess */
 #define PCI_CFG_REG_BAR_NUM		0
 
 #define CGX_ID_MASK			0x7
@@ -95,11 +95,11 @@ struct cgx_link_event {
 
 /**
  * struct cgx_event_cb
- * @notify_link_chg:	callback for link change notification
+ * @yestify_link_chg:	callback for link change yestification
  * @data:	data passed to callback function
  */
 struct cgx_event_cb {
-	int (*notify_link_chg)(struct cgx_link_event *event, void *data);
+	int (*yestify_link_chg)(struct cgx_link_event *event, void *data);
 	void *data;
 };
 

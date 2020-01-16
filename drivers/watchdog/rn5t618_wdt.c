@@ -2,7 +2,7 @@
 /*
  * Watchdog driver for Ricoh RN5T618 PMIC
  *
- * Copyright (C) 2014 Beniamino Galvani <b.galvani@gmail.com>
+ * Copyright (C) 2014 Beniamiyes Galvani <b.galvani@gmail.com>
  */
 
 #include <linux/device.h>
@@ -13,14 +13,14 @@
 
 #define DRIVER_NAME "rn5t618-wdt"
 
-static bool nowayout = WATCHDOG_NOWAYOUT;
+static bool yeswayout = WATCHDOG_NOWAYOUT;
 static unsigned int timeout;
 
 module_param(timeout, uint, 0);
 MODULE_PARM_DESC(timeout, "Initial watchdog timeout in seconds");
 
-module_param(nowayout, bool, 0);
-MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started (default="
+module_param(yeswayout, bool, 0);
+MODULE_PARM_DESC(yeswayout, "Watchdog canyest be stopped once started (default="
 		 __MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
 
 struct rn5t618_wdt {
@@ -30,7 +30,7 @@ struct rn5t618_wdt {
 
 /*
  * This array encodes the values of WDOGTIM field for the supported
- * watchdog expiration times. If the watchdog is not accessed before
+ * watchdog expiration times. If the watchdog is yest accessed before
  * the timer expiration, the PMU generates an interrupt and if the CPU
  * doesn't clear it within one second the system is restarted.
  */
@@ -162,7 +162,7 @@ static int rn5t618_wdt_probe(struct platform_device *pdev)
 
 	watchdog_set_drvdata(&wdt->wdt_dev, wdt);
 	watchdog_init_timeout(&wdt->wdt_dev, timeout, dev);
-	watchdog_set_nowayout(&wdt->wdt_dev, nowayout);
+	watchdog_set_yeswayout(&wdt->wdt_dev, yeswayout);
 
 	platform_set_drvdata(pdev, wdt);
 
@@ -189,6 +189,6 @@ static struct platform_driver rn5t618_wdt_driver = {
 module_platform_driver(rn5t618_wdt_driver);
 
 MODULE_ALIAS("platform:rn5t618-wdt");
-MODULE_AUTHOR("Beniamino Galvani <b.galvani@gmail.com>");
+MODULE_AUTHOR("Beniamiyes Galvani <b.galvani@gmail.com>");
 MODULE_DESCRIPTION("RN5T618 watchdog driver");
 MODULE_LICENSE("GPL v2");

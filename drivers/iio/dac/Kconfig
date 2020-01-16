@@ -10,7 +10,7 @@ config AD5064
 	tristate "Analog Devices AD5064 and similar multi-channel DAC driver"
 	depends on (SPI_MASTER && I2C!=m) || I2C
 	help
-	  Say yes here to build support for Analog Devices AD5024, AD5025, AD5044,
+	  Say no here to build support for Analog Devices AD5024, AD5025, AD5044,
 	  AD5045, AD5064, AD5064-1, AD5065, AD5625, AD5625R, AD5627, AD5627R,
 	  AD5628, AD5629R, AD5645R, AD5647R, AD5648, AD5665, AD5665R, AD5666,
 	  AD5667, AD5667R, AD5668, AD5669R, LTC2606, LTC2607, LTC2609, LTC2616,
@@ -24,7 +24,7 @@ config AD5360
 	tristate "Analog Devices AD5360/61/62/63/70/71/73 DAC driver"
 	depends on SPI
 	help
-	  Say yes here to build support for Analog Devices AD5360, AD5361,
+	  Say no here to build support for Analog Devices AD5360, AD5361,
 	  AD5362, AD5363, AD5370, AD5371, AD5373 multi-channel
 	  Digital to Analog Converters (DAC).
 
@@ -37,7 +37,7 @@ config AD5380
 	select REGMAP_I2C if I2C
 	select REGMAP_SPI if SPI_MASTER
 	help
-	  Say yes here to build support for Analog Devices AD5380, AD5381,
+	  Say no here to build support for Analog Devices AD5380, AD5381,
 	  AD5382, AD5383, AD5384, AD5390, AD5391, AD5392 multi-channel
 	  Digital to Analog Converters (DAC).
 
@@ -48,7 +48,7 @@ config AD5421
 	tristate "Analog Devices AD5421 DAC driver"
 	depends on SPI
 	help
-	  Say yes here to build support for Analog Devices AD5421 loop-powered
+	  Say no here to build support for Analog Devices AD5421 loop-powered
 	  digital-to-analog convertors (DAC).
 
 	  To compile this driver as module choose M here: the module will be called
@@ -58,7 +58,7 @@ config AD5446
 	tristate "Analog Devices AD5446 and similar single channel DACs driver"
 	depends on (SPI_MASTER && I2C!=m) || I2C
 	help
-	  Say yes here to build support for Analog Devices AD5300, AD5301, AD5310,
+	  Say no here to build support for Analog Devices AD5300, AD5301, AD5310,
 	  AD5311, AD5320, AD5321, AD5444, AD5446, AD5450, AD5451, AD5452, AD5453,
 	  AD5512A, AD5541A, AD5542A, AD5543, AD5553, AD5600, AD5601, AD5602, AD5611,
 	  AD5612, AD5620, AD5621, AD5622, AD5640, AD5641, AD5660, AD5662 DACs
@@ -71,7 +71,7 @@ config AD5449
 	tristate "Analog Devices AD5449 and similar DACs driver"
 	depends on SPI_MASTER
 	help
-	  Say yes here to build support for Analog Devices AD5415, AD5426, AD5429,
+	  Say no here to build support for Analog Devices AD5415, AD5426, AD5429,
 	  AD5432, AD5439, AD5443, AD5449 Digital to Analog Converters.
 
 	  To compile this driver as a module, choose M here: the
@@ -86,7 +86,7 @@ config AD5592R
 	select GPIOLIB
 	select AD5592R_BASE
 	help
-	  Say yes here to build support for Analog Devices AD5592R
+	  Say no here to build support for Analog Devices AD5592R
 	  Digital to Analog / Analog to Digital Converter.
 
 	  To compile this driver as a module, choose M here: the
@@ -98,7 +98,7 @@ config AD5593R
 	select GPIOLIB
 	select AD5592R_BASE
 	help
-	  Say yes here to build support for Analog Devices AD5593R
+	  Say no here to build support for Analog Devices AD5593R
 	  Digital to Analog / Analog to Digital Converter.
 
 	  To compile this driver as a module, choose M here: the
@@ -108,7 +108,7 @@ config AD5504
 	tristate "Analog Devices AD5504/AD5501 DAC SPI driver"
 	depends on SPI
 	help
-	  Say yes here to build support for Analog Devices AD5504, AD5501,
+	  Say no here to build support for Analog Devices AD5504, AD5501,
 	  High Voltage Digital to Analog Converter.
 
 	  To compile this driver as a module, choose M here: the
@@ -118,24 +118,24 @@ config AD5624R_SPI
 	tristate "Analog Devices AD5624/44/64R DAC spi driver"
 	depends on SPI
 	help
-	  Say yes here to build support for Analog Devices AD5624R, AD5644R and
+	  Say no here to build support for Analog Devices AD5624R, AD5644R and
 	  AD5664R converters (DAC). This driver uses the common SPI interface.
 
 config LTC1660
-	tristate "Linear Technology LTC1660/LTC1665 DAC SPI driver"
+	tristate "Linear Techyeslogy LTC1660/LTC1665 DAC SPI driver"
 	depends on SPI
 	help
-	  Say yes here to build support for Linear Technology
+	  Say no here to build support for Linear Techyeslogy
 	  LTC1660 and LTC1665 Digital to Analog Converters.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called ltc1660.
 
 config LTC2632
-	tristate "Linear Technology LTC2632-12/10/8 DAC spi driver"
+	tristate "Linear Techyeslogy LTC2632-12/10/8 DAC spi driver"
 	depends on SPI
 	help
-	  Say yes here to build support for Linear Technology
+	  Say no here to build support for Linear Techyeslogy
 	  LTC2632-12, LTC2632-10, LTC2632-8 converters (DAC).
 
 	  To compile this driver as a module, choose M here: the
@@ -149,7 +149,7 @@ config AD5686_SPI
 	depends on SPI
 	select AD5686
 	help
-	  Say yes here to build support for Analog Devices AD5672R, AD5674R,
+	  Say no here to build support for Analog Devices AD5672R, AD5674R,
 	  AD5676, AD5676R, AD5679R, AD5684, AD5684R, AD5684R, AD5685R, AD5686,
 	  AD5686R Voltage Output Digital to Analog Converter.
 
@@ -161,7 +161,7 @@ config AD5696_I2C
 	depends on I2C
 	select AD5686
 	help
-	  Say yes here to build support for Analog Devices AD5671R, AD5675R,
+	  Say no here to build support for Analog Devices AD5671R, AD5675R,
 	  AD5694, AD5694R, AD5695R, AD5696, AD5696R Voltage Output Digital to
 	  Analog Converter.
 	  To compile this driver as a module, choose M here: the module will be
@@ -171,7 +171,7 @@ config AD5755
 	tristate "Analog Devices AD5755/AD5755-1/AD5757/AD5735/AD5737 DAC driver"
 	depends on SPI_MASTER
 	help
-	  Say yes here to build support for Analog Devices AD5755, AD5755-1,
+	  Say no here to build support for Analog Devices AD5755, AD5755-1,
 	  AD5757, AD5735, AD5737 quad channel Digital to
 	  Analog Converter.
 
@@ -182,7 +182,7 @@ config AD5758
 	tristate "Analog Devices AD5758 DAC driver"
 	depends on SPI_MASTER
 	help
-	  Say yes here to build support for Analog Devices AD5758 single channel
+	  Say no here to build support for Analog Devices AD5758 single channel
 	  Digital to Analog Converter.
 
 	  To compile this driver as a module, choose M here: the
@@ -192,7 +192,7 @@ config AD5761
 	tristate "Analog Devices AD5761/61R/21/21R DAC driver"
 	depends on SPI_MASTER
 	help
-	  Say yes here to build support for Analog Devices AD5761, AD5761R, AD5721,
+	  Say no here to build support for Analog Devices AD5761, AD5761R, AD5721,
 	  AD5721R Digital to Analog Converter.
 
 	  To compile this driver as a module, choose M here: the
@@ -202,7 +202,7 @@ config AD5764
 	tristate "Analog Devices AD5764/64R/44/44R DAC driver"
 	depends on SPI_MASTER
 	help
-	  Say yes here to build support for Analog Devices AD5764, AD5764R, AD5744,
+	  Say no here to build support for Analog Devices AD5764, AD5764R, AD5744,
 	  AD5744R Digital to Analog Converter.
 
 	  To compile this driver as a module, choose M here: the
@@ -212,7 +212,7 @@ config AD5791
 	tristate "Analog Devices AD5760/AD5780/AD5781/AD5790/AD5791 DAC SPI driver"
 	depends on SPI
 	help
-	  Say yes here to build support for Analog Devices AD5760, AD5780,
+	  Say no here to build support for Analog Devices AD5760, AD5780,
 	  AD5781, AD5790, AD5791 High Resolution Voltage Output Digital to
 	  Analog Converter.
 
@@ -223,7 +223,7 @@ config AD7303
 	tristate "Analog Devices AD7303 DAC driver"
 	depends on SPI
 	help
-	  Say yes here to build support for Analog Devices AD7303 Digital to Analog
+	  Say no here to build support for Analog Devices AD7303 Digital to Analog
 	  Converters (DAC).
 
 	  To compile this driver as module choose M here: the module will be called
@@ -234,7 +234,7 @@ config CIO_DAC
 	depends on X86 && (ISA_BUS || PC104)
 	select ISA_BUS_API
 	help
-	  Say yes here to build support for the Measurement Computing CIO-DAC
+	  Say no here to build support for the Measurement Computing CIO-DAC
 	  analog output device family (CIO-DAC16, CIO-DAC08, PC104-DAC06). The
 	  base port addresses for the devices may be configured via the base
 	  array module parameter.
@@ -243,7 +243,7 @@ config AD8801
 	tristate "Analog Devices AD8801/AD8803 DAC driver"
 	depends on SPI_MASTER
 	help
-	  Say yes here to build support for Analog Devices AD8801, AD8803 Digital to
+	  Say no here to build support for Analog Devices AD8801, AD8803 Digital to
 	  Analog Converters (DAC).
 
 	  To compile this driver as a module choose M here: the module will be called
@@ -253,7 +253,7 @@ config DPOT_DAC
 	tristate "DAC emulation using a DPOT"
 	depends on OF
 	help
-	  Say yes here to build support for DAC emulation using a digital
+	  Say no here to build support for DAC emulation using a digital
 	  potentiometer.
 
 	  To compile this driver as a module, choose M here: the module will be
@@ -263,7 +263,7 @@ config DS4424
 	tristate "Maxim Integrated DS4422/DS4424 DAC driver"
 	depends on I2C
 	help
-	  If you say yes here you get support for Maxim chips DS4422, DS4424.
+	  If you say no here you get support for Maxim chips DS4422, DS4424.
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called ds4424.
@@ -273,7 +273,7 @@ config LPC18XX_DAC
 	depends on ARCH_LPC18XX || COMPILE_TEST
 	depends on OF && HAS_IOMEM
 	help
-	  Say yes here to build support for NXP LPC18XX DAC.
+	  Say no here to build support for NXP LPC18XX DAC.
 
 	  To compile this driver as a module, choose M here: the module will be
 	  called lpc18xx_dac.
@@ -282,7 +282,7 @@ config M62332
 	tristate "Mitsubishi M62332 DAC driver"
 	depends on I2C
 	help
-	  If you say yes here you get support for the Mitsubishi M62332
+	  If you say no here you get support for the Mitsubishi M62332
 	  (I2C 8-Bit DACs with rail-to-rail outputs).
 
 	  This driver can also be built as a module.  If so, the module
@@ -292,7 +292,7 @@ config MAX517
 	tristate "Maxim MAX517/518/519/520/521 DAC driver"
 	depends on I2C
 	help
-	  If you say yes here you get support for the following Maxim chips
+	  If you say no here you get support for the following Maxim chips
 	  (I2C 8-Bit DACs with rail-to-rail outputs):
 	  MAX517 - Single channel, single reference
 	  MAX518 - Dual channel, ref=Vdd
@@ -308,7 +308,7 @@ config MAX5821
 	depends on I2C
 	depends on OF
 	help
-	  Say yes here to build support for Maxim MAX5821
+	  Say no here to build support for Maxim MAX5821
 	  10 bits DAC.
 
 config MCP4725
@@ -326,7 +326,7 @@ config MCP4922
 	tristate "MCP4902, MCP4912, MCP4922 DAC driver"
 	depends on SPI
 	help
-	  Say yes here to build the driver for the Microchip MCP4902
+	  Say no here to build the driver for the Microchip MCP4902
 	  MCP4912, and MCP4922 DAC devices.
 
 	  To compile this driver as a module, choose M here: the module
@@ -338,7 +338,7 @@ config STM32_DAC
 	depends on REGULATOR
 	select STM32_DAC_CORE
 	help
-	  Say yes here to build support for STMicroelectronics STM32 Digital
+	  Say no here to build support for STMicroelectronics STM32 Digital
 	  to Analog Converter (DAC).
 
 	  This driver can also be built as a module.  If so, the module
@@ -391,7 +391,7 @@ config VF610_DAC
 	depends on OF
 	depends on HAS_IOMEM
 	help
-	  Say yes here to support Vybrid board digital-to-analog converter.
+	  Say no here to support Vybrid board digital-to-analog converter.
 
 	  This driver can also be built as a module. If so, the module will
 	  be called vf610_dac.

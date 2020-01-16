@@ -137,7 +137,7 @@ static int omap_fbdev_create(struct drm_fb_helper *helper,
 	fb = omap_framebuffer_init(dev, &mode_cmd, &fbdev->bo);
 	if (IS_ERR(fb)) {
 		dev_err(dev->dev, "failed to allocate fb\n");
-		/* note: if fb creation failed, we can't rely on fb destroy
+		/* yeste: if fb creation failed, we can't rely on fb destroy
 		 * to unref the bo:
 		 */
 		drm_gem_object_put_unlocked(fbdev->bo);
@@ -145,17 +145,17 @@ static int omap_fbdev_create(struct drm_fb_helper *helper,
 		goto fail;
 	}
 
-	/* note: this keeps the bo pinned.. which is perhaps not ideal,
+	/* yeste: this keeps the bo pinned.. which is perhaps yest ideal,
 	 * but is needed as long as we use fb_mmap() to mmap to userspace
 	 * (since this happens using fix.smem_start).  Possibly we could
 	 * implement our own mmap using GEM mmap support to avoid this
-	 * (non-tiled buffer doesn't need to be pinned for fbcon to write
+	 * (yesn-tiled buffer doesn't need to be pinned for fbcon to write
 	 * to it).  Then we just need to be sure that we are able to re-
 	 * pin it in case of an opps.
 	 */
 	ret = omap_gem_pin(fbdev->bo, &dma_addr);
 	if (ret) {
-		dev_err(dev->dev, "could not pin framebuffer\n");
+		dev_err(dev->dev, "could yest pin framebuffer\n");
 		ret = -ENOMEM;
 		goto fail;
 	}
@@ -215,7 +215,7 @@ static const struct drm_fb_helper_funcs omap_fb_helper_funcs = {
 static struct drm_fb_helper *get_fb(struct fb_info *fbi)
 {
 	if (!fbi || strcmp(fbi->fix.id, MODULE_NAME)) {
-		/* these are not the fb's you're looking for */
+		/* these are yest the fb's you're looking for */
 		return NULL;
 	}
 	return fbi->par;

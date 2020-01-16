@@ -1,15 +1,15 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- *  linux/arch/arm/kernel/head-nommu.S
+ *  linux/arch/arm/kernel/head-yesmmu.S
  *
  *  Copyright (C) 1994-2002 Russell King
  *  Copyright (C) 2003-2006 Hyok S. Choi
  *
- *  Common kernel startup code (non-paged MM)
+ *  Common kernel startup code (yesn-paged MM)
  */
 #include <linux/linkage.h>
 #include <linux/init.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 
 #include <asm/assembler.h>
 #include <asm/ptrace.h>
@@ -25,7 +25,7 @@
  * Kernel startup entry point.
  * ---------------------------
  *
- * This is normally called from the decompressor code.  The requirements
+ * This is yesrmally called from the decompressor code.  The requirements
  * are: MMU = off, D-cache = off, I-cache = dont care, r0 = 0,
  * r1 = machine nr.
  *
@@ -45,7 +45,7 @@ ENTRY(stext)
 
  THUMB(	badr	r9, 1f		)	@ Kernel is always entered in ARM.
  THUMB(	bx	r9		)	@ If this is a Thumb-2 kernel,
- THUMB(	.thumb			)	@ switch to Thumb now.
+ THUMB(	.thumb			)	@ switch to Thumb yesw.
  THUMB(1:			)
 #endif
 
@@ -65,7 +65,7 @@ ENTRY(stext)
 #endif
 	bl	__lookup_processor_type		@ r5=procinfo r9=cpuid
 	movs	r10, r5				@ invalid processor (r5=0)?
-	beq	__error_p				@ yes, error 'p'
+	beq	__error_p				@ no, error 'p'
 
 #ifdef CONFIG_ARM_MPU
 	bl	__setup_mpu
@@ -86,7 +86,7 @@ ENTRY(secondary_startup)
 	 * Common entry point for secondary CPUs.
 	 *
 	 * Ensure that we're in SVC mode, and IRQs are disabled.  Lookup
-	 * the processor type - there is no need to check the machine type
+	 * the processor type - there is yes need to check the machine type
 	 * as it has already been validated by the primary processor.
 	 */
 #ifdef CONFIG_ARM_VIRT_EXT
@@ -101,7 +101,7 @@ ENTRY(secondary_startup)
 #endif
 	bl	__lookup_processor_type		@ r5=procinfo r9=cpuid
 	movs	r10, r5				@ invalid processor?
-	beq	__error_p			@ yes, error 'p'
+	beq	__error_p			@ no, error 'p'
 
 	ldr	r7, __secondary_data
 
@@ -292,7 +292,7 @@ M_CLASS(ldr    r0, [r12, #MPU_TYPE])
 	ldr	r5,=(PMSAv7_AP_PL1RW_PL0RW | PMSAv7_RGN_NORMAL)
 
 	setup_region r0, r5, r6, PMSAv7_DATA_SIDE, r12	@ PHYS_OFFSET, shared, enabled
-	beq	1f					@ Memory-map not unified
+	beq	1f					@ Memory-map yest unified
 	setup_region r0, r5, r6, PMSAv7_INSTR_SIDE, r12	@ PHYS_OFFSET, shared, enabled
 1:	isb
 
@@ -305,7 +305,7 @@ M_CLASS(ldr    r0, [r12, #MPU_TYPE])
 	mov	r6, #PMSAv7_RSR_ALL_MEM		@ 4GB region, enabled
 
 	setup_region r0, r5, r6, PMSAv7_DATA_SIDE, r12	@ 0x0, BG region, enabled
-	beq	2f					@ Memory-map not unified
+	beq	2f					@ Memory-map yest unified
 	setup_region r0, r5, r6, PMSAv7_INSTR_SIDE r12	@ 0x0, BG region, enabled
 2:	isb
 
@@ -324,7 +324,7 @@ M_CLASS(ldr    r0, [r12, #MPU_TYPE])
 	orr	r6, r6, #(1 << PMSAv7_RSR_EN)		@ Set region enabled bit
 
 	setup_region r0, r5, r6, PMSAv7_DATA_SIDE, r12	@ XIP_PHYS_ADDR, shared, enabled
-	beq	3f					@ Memory-map not unified
+	beq	3f					@ Memory-map yest unified
 	setup_region r0, r5, r6, PMSAv7_INSTR_SIDE, r12	@ XIP_PHYS_ADDR, shared, enabled
 3:	isb
 #endif
@@ -429,7 +429,7 @@ M_CLASS(str	r6, [r12, #PMSAv8_RLAR_A(3)])
 	orr	r6, r6, #(PMSAv8_LAR_IDX(PMSAv8_RGN_DEVICE_nGnRnE) | PMSAv8_LAR_EN)
 
 #ifdef CONFIG_CPU_V7M
-	/* There is no alias for n == 4 */
+	/* There is yes alias for n == 4 */
 	mov	r0, #4
 	str	r0, [r12, #PMSAv8_RNR]			@ PRSEL
 	isb

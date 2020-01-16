@@ -27,14 +27,14 @@
  *			there is always data available.  *OBSOLETE*
  * @data_read:		Read data from the RNG device.
  *			Returns the number of lower random bytes in "data".
- *			Must not be NULL.    *OBSOLETE*
+ *			Must yest be NULL.    *OBSOLETE*
  * @read:		New API. drivers can fill up to max bytes of data
  *			into the buffer. The buffer is aligned for any type
  *			and max is a multiple of 4 and >= 32 bytes.
  * @priv:		Private data, for use by the RNG driver.
  * @quality:		Estimation of true entropy in RNG's bitstream
  *			(in bits of entropy per 1024 bits of input;
- *			valid values: 1 to 1024, or 0 for unknown).
+ *			valid values: 1 to 1024, or 0 for unkyeswn).
  */
 struct hwrng {
 	const char *name;

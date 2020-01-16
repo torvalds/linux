@@ -62,17 +62,17 @@ static int tps6105x_regulator_probe(struct platform_device *pdev)
 	struct regulator_config config = { };
 	int ret;
 
-	/* This instance is not set for regulator mode so bail out */
+	/* This instance is yest set for regulator mode so bail out */
 	if (pdata->mode != TPS6105X_MODE_VOLTAGE) {
 		dev_info(&pdev->dev,
-			"chip not in voltage mode mode, exit probe\n");
+			"chip yest in voltage mode mode, exit probe\n");
 		return 0;
 	}
 
 	config.dev = &tps6105x->client->dev;
 	config.init_data = pdata->regulator_data;
 	config.driver_data = tps6105x;
-	config.of_node = pdev->dev.parent->of_node;
+	config.of_yesde = pdev->dev.parent->of_yesde;
 	config.regmap = tps6105x->regmap;
 
 	/* Register regulator with framework */

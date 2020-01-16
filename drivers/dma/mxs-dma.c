@@ -65,8 +65,8 @@
  * COMMAND:		0..1	(2)
  * CHAIN:		2	(1)
  * IRQ:			3	(1)
- * NAND_LOCK:		4	(1) - not implemented
- * NAND_WAIT4READY:	5	(1) - not implemented
+ * NAND_LOCK:		4	(1) - yest implemented
+ * NAND_WAIT4READY:	5	(1) - yest implemented
  * DEC_SEM:		6	(1)
  * WAIT4END:		7	(1)
  * HALT_ON_TERMINATE:	8	(1)
@@ -91,7 +91,7 @@
 #define MXS_DMA_CMD_NO_XFER	0
 #define MXS_DMA_CMD_WRITE	1
 #define MXS_DMA_CMD_READ	2
-#define MXS_DMA_CMD_DMA_SENSE	3	/* not implemented */
+#define MXS_DMA_CMD_DMA_SENSE	3	/* yest implemented */
 
 struct mxs_dma_ccw {
 	u32		next;
@@ -239,7 +239,7 @@ static void mxs_dma_reset_chan(struct dma_chan *chan)
 
 		if (elapsed >= max_wait)
 			dev_err(&mxs_chan->mxs_dma->pdev->dev,
-					"Failed waiting for the DMA channel %d to leave state READ_FLUSH, trying to reset channel in READ_FLUSH state now\n",
+					"Failed waiting for the DMA channel %d to leave state READ_FLUSH, trying to reset channel in READ_FLUSH state yesw\n",
 					chan_id);
 
 		writel(1 << (chan_id + BP_APBHX_CHANNEL_CTRL_RESET_CHANNEL),
@@ -263,7 +263,7 @@ static void mxs_dma_enable_chan(struct dma_chan *chan)
 	if (mxs_chan->flags & MXS_DMA_USE_SEMAPHORE &&
 			mxs_chan->flags & MXS_DMA_SG_LOOP) {
 		/* A cyclic DMA consists of at least 2 segments, so initialize
-		 * the semaphore with 2 so we have enough time to add 1 to the
+		 * the semaphore with 2 so we have eyesugh time to add 1 to the
 		 * semaphore if we need to */
 		writel(2, mxs_dma->base + HW_APBHX_CHn_SEMA(mxs_dma, chan_id));
 	} else {
@@ -364,7 +364,7 @@ static irqreturn_t mxs_dma_int_handler(int irq, void *dev_id)
 	/*
 	 * error status bit is in the upper 16 bits, error irq bit in the lower
 	 * 16 bits. We transform it into a simpler error code:
-	 * err: 0x00 = no error, 0x01 = TERMINATION, 0x02 = BUS_ERROR
+	 * err: 0x00 = yes error, 0x01 = TERMINATION, 0x02 = BUS_ERROR
 	 */
 	err = (err >> (MXS_DMA_CHANNELS + chan)) + (err >> chan);
 
@@ -374,9 +374,9 @@ static irqreturn_t mxs_dma_int_handler(int irq, void *dev_id)
 
 	/*
 	 * When both completion and error of termination bits set at the
-	 * same time, we do not take it as an error.  IOW, it only becomes
+	 * same time, we do yest take it as an error.  IOW, it only becomes
 	 * an error we need to handle here in case of either it's a bus
-	 * error or a termination error with no completion. 0x01 is termination
+	 * error or a termination error with yes completion. 0x01 is termination
 	 * error, so we can subtract err & completed to get the real error case.
 	 */
 	err -= err & completed;
@@ -757,12 +757,12 @@ static struct dma_chan *mxs_dma_xlate(struct of_phandle_args *dma_spec,
 		return NULL;
 
 	return __dma_request_channel(&mask, mxs_dma_filter_fn, &param,
-				     ofdma->of_node);
+				     ofdma->of_yesde);
 }
 
 static int __init mxs_dma_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	const struct platform_device_id *id_entry;
 	const struct of_device_id *of_id;
 	const struct mxs_dma_type *dma_type;
@@ -817,7 +817,7 @@ static int __init mxs_dma_probe(struct platform_device *pdev)
 
 
 		/* Add the channel to mxs_chan list */
-		list_add_tail(&mxs_chan->chan.device_node,
+		list_add_tail(&mxs_chan->chan.device_yesde,
 			&mxs_dma->dma_device.channels);
 	}
 

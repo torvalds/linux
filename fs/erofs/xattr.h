@@ -11,13 +11,13 @@
 #include <linux/posix_acl_xattr.h>
 #include <linux/xattr.h>
 
-/* Attribute not found */
+/* Attribute yest found */
 #define ENOATTR         ENODATA
 
-static inline unsigned int inlinexattr_header_size(struct inode *inode)
+static inline unsigned int inlinexattr_header_size(struct iyesde *iyesde)
 {
 	return sizeof(struct erofs_xattr_ibody_header) +
-		sizeof(u32) * EROFS_I(inode)->xattr_shared_count;
+		sizeof(u32) * EROFS_I(iyesde)->xattr_shared_count;
 }
 
 static inline erofs_blk_t xattrblock_addr(struct erofs_sb_info *sbi,
@@ -65,10 +65,10 @@ static const struct xattr_handler *xattr_handler_map[] = {
 
 extern const struct xattr_handler *erofs_xattr_handlers[];
 
-int erofs_getxattr(struct inode *, int, const char *, void *, size_t);
+int erofs_getxattr(struct iyesde *, int, const char *, void *, size_t);
 ssize_t erofs_listxattr(struct dentry *, char *, size_t);
 #else
-static inline int erofs_getxattr(struct inode *inode, int index,
+static inline int erofs_getxattr(struct iyesde *iyesde, int index,
 				 const char *name, void *buffer,
 				 size_t buffer_size)
 {
@@ -83,7 +83,7 @@ static inline ssize_t erofs_listxattr(struct dentry *dentry,
 #endif	/* !CONFIG_EROFS_FS_XATTR */
 
 #ifdef CONFIG_EROFS_FS_POSIX_ACL
-struct posix_acl *erofs_get_acl(struct inode *inode, int type);
+struct posix_acl *erofs_get_acl(struct iyesde *iyesde, int type);
 #else
 #define erofs_get_acl	(NULL)
 #endif

@@ -102,7 +102,7 @@ static void free_list(struct list_head *head)
 	}
 }
 
-struct hisi_zip *find_zip_device(int node)
+struct hisi_zip *find_zip_device(int yesde)
 {
 	struct hisi_zip_resource *res, *tmp;
 	struct hisi_zip *ret = NULL;
@@ -121,7 +121,7 @@ struct hisi_zip *find_zip_device(int node)
 
 			dev = &hisi_zip->qm.pdev->dev;
 			res->hzip = hisi_zip;
-			res->distance = node_distance(dev_to_node(dev), node);
+			res->distance = yesde_distance(dev_to_yesde(dev), yesde);
 
 			n = &head;
 			list_for_each_entry(tmp, &head, list) {
@@ -372,7 +372,7 @@ static void hisi_zip_hw_error_set_state(struct hisi_zip *hisi_zip, bool state)
 
 	if (qm->ver == QM_HW_V1) {
 		writel(HZIP_CORE_INT_DISABLE, qm->io_base + HZIP_CORE_INT_MASK);
-		dev_info(&qm->pdev->dev, "Does not support hw error handle\n");
+		dev_info(&qm->pdev->dev, "Does yest support hw error handle\n");
 		return;
 	}
 
@@ -827,11 +827,11 @@ static int hisi_zip_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		qm->qp_num = pf_q_num;
 	} else if (qm->fun_type == QM_HW_VF) {
 		/*
-		 * have no way to get qm configure in VM in v1 hardware,
+		 * have yes way to get qm configure in VM in v1 hardware,
 		 * so currently force PF to uses HZIP_PF_DEF_Q_NUM, and force
 		 * to trigger only one VF in v1 hardware.
 		 *
-		 * v2 hardware has no such problem.
+		 * v2 hardware has yes such problem.
 		 */
 		if (qm->ver == QM_HW_V1) {
 			qm->qp_base = HZIP_PF_DEF_Q_NUM;

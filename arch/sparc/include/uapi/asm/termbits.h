@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 #ifndef _UAPI_SPARC_TERMBITS_H
 #define _UAPI_SPARC_TERMBITS_H
 
@@ -193,14 +193,14 @@ struct ktermios {
 #define B1152000  0x0000100d
 #define B1500000  0x0000100e
 #define B2000000  0x0000100f
-/* These have totally bogus values and nobody uses them
+/* These have totally bogus values and yesbody uses them
    so far. Later on we'd have to use say 0x10000x and
    adjust CBAUD constant and drivers accordingly.
 #define B2500000  0x00001010
 #define B3000000  0x00001011
 #define B3500000  0x00001012
 #define B4000000  0x00001013  */
-#define CIBAUD	  0x100f0000  /* input baud rate (not used) */
+#define CIBAUD	  0x100f0000  /* input baud rate (yest used) */
 #define CMSPAR	  0x40000000  /* mark or space (stick) parity */
 #define CRTSCTS	  0x80000000  /* flow control */
 

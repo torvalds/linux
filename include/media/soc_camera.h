@@ -48,7 +48,7 @@ struct soc_camera_device {
 	int use_count;
 	struct file *streamer;		/* stream owner */
 	struct v4l2_clk *clk;
-	/* Asynchronous subdevice management */
+	/* Asynchroyesus subdevice management */
 	struct soc_camera_async_client *sasc;
 	/* video buffer queue */
 	struct vb2_queue vb2_vidq;
@@ -92,7 +92,7 @@ struct soc_camera_host_ops {
 	/*
 	 * .get_formats() is called for each client device format, but
 	 * .put_formats() is only called once. Further, if any of the calls to
-	 * .get_formats() fail, .put_formats() will not be called at all, the
+	 * .get_formats() fail, .put_formats() will yest be called at all, the
 	 * failing .get_formats() must then clean up internally.
 	 */
 	int (*get_formats)(struct soc_camera_device *, unsigned int,
@@ -101,7 +101,7 @@ struct soc_camera_host_ops {
 	int (*get_selection)(struct soc_camera_device *, struct v4l2_selection *);
 	int (*set_selection)(struct soc_camera_device *, struct v4l2_selection *);
 	/*
-	 * The difference to .set_selection() is, that .set_liveselection is not allowed
+	 * The difference to .set_selection() is, that .set_liveselection is yest allowed
 	 * to change the output sizes
 	 */
 	int (*set_liveselection)(struct soc_camera_device *, struct v4l2_selection *);
@@ -167,7 +167,7 @@ struct soc_camera_host_desc {
 	const char *module_name;
 
 	/*
-	 * For non-I2C devices platform has to provide methods to add a device
+	 * For yesn-I2C devices platform has to provide methods to add a device
 	 * to the system and to remove it
 	 */
 	int (*add_device)(struct soc_camera_device *);
@@ -232,7 +232,7 @@ struct soc_camera_link {
 	const char *module_name;
 
 	/*
-	 * For non-I2C devices platform has to provide methods to add a device
+	 * For yesn-I2C devices platform has to provide methods to add a device
 	 * to the system and to remove it
 	 */
 	int (*add_device)(struct soc_camera_device *);
@@ -300,7 +300,7 @@ struct soc_camera_format_xlate {
  * @master_clock	if the host wants to be informed about pixel-clock
  *			change, it better set master_clock.
  * @pixel_clock_max	maximum pixel clock frequency supported by the host,
- *			camera is not allowed to exceed this.
+ *			camera is yest allowed to exceed this.
  * @pixel_clock		if the camera driver changed pixel clock during this
  *			operation, it sets SOCAM_SENSE_PCLK_CHANGED, uses
  *			master_clock to calculate the new pixel-clock and

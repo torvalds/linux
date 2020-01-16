@@ -20,11 +20,11 @@
   - After several cycle of the following:
     while : ; do arecord -d1 -f cd -t raw | aplay -f cd ; done
     a "playback write error (DMA or IRQ trouble?)" may happen.
-    This is due to playback interrupts not generated.
+    This is due to playback interrupts yest generated.
     I suspect a timing issue.
   - Sometimes the interrupt handler is invoked wrongly during playback.
     This generates some harmless "Unexpected hw_pointer: wrong interrupt
-    acknowledge".
+    ackyeswledge".
     I've seen that using small period sizes.
     Reproducible with:
     mpg123 test.mp3 &
@@ -262,7 +262,7 @@ static int snd_es1938_mixer_read(struct es1938 *chip, unsigned char reg)
 	outb(reg, SLSB_REG(chip, MIXERADDR));
 	data = inb(SLSB_REG(chip, MIXERDATA));
 	spin_unlock_irqrestore(&chip->mixer_lock, flags);
-	dev_dbg(chip->card->dev, "Mixer reg %02x now is %02x\n", reg, data);
+	dev_dbg(chip->card->dev, "Mixer reg %02x yesw is %02x\n", reg, data);
 	return data;
 }
 
@@ -345,7 +345,7 @@ static unsigned char snd_es1938_read(struct es1938 *chip, unsigned char reg)
 	snd_es1938_write_cmd(chip, reg);
 	val = snd_es1938_get_byte(chip);
 	spin_unlock_irqrestore(&chip->reg_lock, flags);
-	dev_dbg(chip->card->dev, "Reg %02x now is %02x\n", reg, val);
+	dev_dbg(chip->card->dev, "Reg %02x yesw is %02x\n", reg, val);
 	return val;
 }
 
@@ -399,7 +399,7 @@ static void snd_es1938_reset(struct es1938 *chip)
 
 	/* Change behaviour of register A1
 	   4x oversampling
-	   2nd channel DAC asynchronous */                                                      
+	   2nd channel DAC asynchroyesus */                                                      
 	snd_es1938_mixer_write(chip, ESSSB_IREG_AUDIO2MODE, 0x32);
 	/* enable/select DMA channel and IRQ channel */
 	snd_es1938_bits(chip, ESS_CMD_IRQCONTROL, 0xf0, 0x50);
@@ -550,7 +550,7 @@ static int snd_es1938_playback1_trigger(struct snd_pcm_substream *substream,
 		snd_es1938_mixer_write(chip, ESSSB_IREG_AUDIO2CONTROL1, 0x93);
                 /* This two stage init gives the FIFO -> DAC connection time to
                  * settle before first data from DMA flows in.  This should ensure
-                 * no swapping of stereo channels.  Report a bug if otherwise :-) */
+                 * yes swapping of stereo channels.  Report a bug if otherwise :-) */
 		outb(0x0a, SLIO_REG(chip, AUDIO2MODE));
 		chip->active |= DAC2;
 		break;
@@ -609,23 +609,23 @@ static int snd_es1938_capture_prepare(struct snd_pcm_substream *substream)
 {
 	struct es1938 *chip = snd_pcm_substream_chip(substream);
 	struct snd_pcm_runtime *runtime = substream->runtime;
-	int u, is8, mono;
+	int u, is8, moyes;
 	unsigned int size = snd_pcm_lib_buffer_bytes(substream);
 	unsigned int count = snd_pcm_lib_period_bytes(substream);
 
 	chip->dma1_size = size;
 	chip->dma1_start = runtime->dma_addr;
 
-	mono = (runtime->channels > 1) ? 0 : 1;
+	moyes = (runtime->channels > 1) ? 0 : 1;
 	is8 = snd_pcm_format_width(runtime->format) == 16 ? 0 : 1;
 	u = snd_pcm_format_unsigned(runtime->format);
 
-	chip->dma1_shift = 2 - mono - is8;
+	chip->dma1_shift = 2 - moyes - is8;
 
 	snd_es1938_reset_fifo(chip);
 	
 	/* program type */
-	snd_es1938_bits(chip, ESS_CMD_ANALOGCONTROL, 0x03, (mono ? 2 : 1));
+	snd_es1938_bits(chip, ESS_CMD_ANALOGCONTROL, 0x03, (moyes ? 2 : 1));
 
 	/* set clock and counters */
         snd_es1938_rate_set(chip, substream, ADC1);
@@ -639,7 +639,7 @@ static int snd_es1938_capture_prepare(struct snd_pcm_substream *substream)
 	snd_es1938_write(chip, ESS_CMD_SETFORMAT2, 0x90 | 
 		       (u ? 0x00 : 0x20) | 
 		       (is8 ? 0x00 : 0x04) | 
-		       (mono ? 0x40 : 0x08));
+		       (moyes ? 0x40 : 0x08));
 
 	//	snd_es1938_reset_fifo(chip);	
 
@@ -657,18 +657,18 @@ static int snd_es1938_playback1_prepare(struct snd_pcm_substream *substream)
 {
 	struct es1938 *chip = snd_pcm_substream_chip(substream);
 	struct snd_pcm_runtime *runtime = substream->runtime;
-	int u, is8, mono;
+	int u, is8, moyes;
 	unsigned int size = snd_pcm_lib_buffer_bytes(substream);
 	unsigned int count = snd_pcm_lib_period_bytes(substream);
 
 	chip->dma2_size = size;
 	chip->dma2_start = runtime->dma_addr;
 
-	mono = (runtime->channels > 1) ? 0 : 1;
+	moyes = (runtime->channels > 1) ? 0 : 1;
 	is8 = snd_pcm_format_width(runtime->format) == 16 ? 0 : 1;
 	u = snd_pcm_format_unsigned(runtime->format);
 
-	chip->dma2_shift = 2 - mono - is8;
+	chip->dma2_shift = 2 - moyes - is8;
 
         snd_es1938_reset_fifo(chip);
 
@@ -682,7 +682,7 @@ static int snd_es1938_playback1_prepare(struct snd_pcm_substream *substream)
 
 	/* initialize and configure Audio 2 DAC */
 	snd_es1938_mixer_write(chip, ESSSB_IREG_AUDIO2CONTROL2, 0x40 | (u ? 0 : 4) |
-			       (mono ? 0 : 2) | (is8 ? 0 : 1));
+			       (moyes ? 0 : 2) | (is8 ? 0 : 1));
 
 	/* program DMA */
 	snd_es1938_playback1_setdma(chip);
@@ -694,25 +694,25 @@ static int snd_es1938_playback2_prepare(struct snd_pcm_substream *substream)
 {
 	struct es1938 *chip = snd_pcm_substream_chip(substream);
 	struct snd_pcm_runtime *runtime = substream->runtime;
-	int u, is8, mono;
+	int u, is8, moyes;
 	unsigned int size = snd_pcm_lib_buffer_bytes(substream);
 	unsigned int count = snd_pcm_lib_period_bytes(substream);
 
 	chip->dma1_size = size;
 	chip->dma1_start = runtime->dma_addr;
 
-	mono = (runtime->channels > 1) ? 0 : 1;
+	moyes = (runtime->channels > 1) ? 0 : 1;
 	is8 = snd_pcm_format_width(runtime->format) == 16 ? 0 : 1;
 	u = snd_pcm_format_unsigned(runtime->format);
 
-	chip->dma1_shift = 2 - mono - is8;
+	chip->dma1_shift = 2 - moyes - is8;
 
 	count = 0x10000 - count;
  
 	/* reset */
 	snd_es1938_reset_fifo(chip);
 	
-	snd_es1938_bits(chip, ESS_CMD_ANALOGCONTROL, 0x03, (mono ? 2 : 1));
+	snd_es1938_bits(chip, ESS_CMD_ANALOGCONTROL, 0x03, (moyes ? 2 : 1));
 
 	/* set clock and counters */
         snd_es1938_rate_set(chip, substream, DAC1);
@@ -723,7 +723,7 @@ static int snd_es1938_playback2_prepare(struct snd_pcm_substream *substream)
         snd_es1938_write(chip, ESS_CMD_SETFORMAT, u ? 0x80 : 0x00);
         snd_es1938_write(chip, ESS_CMD_SETFORMAT, u ? 0x51 : 0x71);
         snd_es1938_write(chip, ESS_CMD_SETFORMAT2, 
-			 0x90 | (mono ? 0x40 : 0x08) |
+			 0x90 | (moyes ? 0x40 : 0x08) |
 			 (is8 ? 0x00 : 0x04) | (u ? 0x00 : 0x20));
 
 	/* program DMA */
@@ -1074,7 +1074,7 @@ static int snd_es1938_put_mux(struct snd_kcontrol *kcontrol,
 	return snd_es1938_mixer_bits(chip, 0x1c, 0x07, val) != val;
 }
 
-#define snd_es1938_info_spatializer_enable	snd_ctl_boolean_mono_info
+#define snd_es1938_info_spatializer_enable	snd_ctl_boolean_moyes_info
 
 static int snd_es1938_get_spatializer_enable(struct snd_kcontrol *kcontrol,
 					     struct snd_ctl_elem_value *ucontrol)
@@ -1359,7 +1359,7 @@ ES1938_DOUBLE_TLV("Line Playback Volume", 0, 0x3e, 0x3e, 4, 0, 15, 0,
 ES1938_DOUBLE("CD Playback Volume", 0, 0x38, 0x38, 4, 0, 15, 0),
 ES1938_DOUBLE_TLV("FM Playback Volume", 0, 0x36, 0x36, 4, 0, 15, 0,
 		  db_scale_mic),
-ES1938_DOUBLE_TLV("Mono Playback Volume", 0, 0x6d, 0x6d, 4, 0, 15, 0,
+ES1938_DOUBLE_TLV("Moyes Playback Volume", 0, 0x6d, 0x6d, 4, 0, 15, 0,
 		  db_scale_line),
 ES1938_DOUBLE_TLV("Mic Playback Volume", 0, 0x1a, 0x1a, 4, 0, 15, 0,
 		  db_scale_mic),
@@ -1377,7 +1377,7 @@ ES1938_SINGLE("Capture Switch", 0, 0x1c, 4, 1, 1),
 	.get = snd_es1938_get_mux,
 	.put = snd_es1938_put_mux,
 },
-ES1938_DOUBLE_TLV("Mono Input Playback Volume", 0, 0x6d, 0x6d, 4, 0, 15, 0,
+ES1938_DOUBLE_TLV("Moyes Input Playback Volume", 0, 0x6d, 0x6d, 4, 0, 15, 0,
 		  db_scale_line),
 ES1938_DOUBLE_TLV("PCM Capture Volume", 0, 0x69, 0x69, 4, 0, 15, 0,
 		  db_scale_audio2),
@@ -1387,7 +1387,7 @@ ES1938_DOUBLE_TLV("Line Capture Volume", 0, 0x6e, 0x6e, 4, 0, 15, 0,
 		  db_scale_line),
 ES1938_DOUBLE_TLV("FM Capture Volume", 0, 0x6b, 0x6b, 4, 0, 15, 0,
 		  db_scale_mic),
-ES1938_DOUBLE_TLV("Mono Capture Volume", 0, 0x6f, 0x6f, 4, 0, 15, 0,
+ES1938_DOUBLE_TLV("Moyes Capture Volume", 0, 0x6f, 0x6f, 4, 0, 15, 0,
 		  db_scale_line),
 ES1938_DOUBLE_TLV("CD Capture Volume", 0, 0x6a, 0x6a, 4, 0, 15, 0,
 		  db_scale_line),
@@ -1517,7 +1517,7 @@ static int snd_es1938_create_gameport(struct es1938 *chip)
 	chip->gameport = gp = gameport_allocate_port();
 	if (!gp) {
 		dev_err(chip->card->dev,
-			"cannot allocate memory for gameport\n");
+			"canyest allocate memory for gameport\n");
 		return -ENOMEM;
 	}
 
@@ -1585,7 +1585,7 @@ static int snd_es1938_create(struct snd_card *card,
 	if (dma_set_mask(&pci->dev, DMA_BIT_MASK(24)) < 0 ||
 	    dma_set_coherent_mask(&pci->dev, DMA_BIT_MASK(24)) < 0) {
 		dev_err(card->dev,
-			"architecture does not support 24bit PCI busmaster DMA\n");
+			"architecture does yest support 24bit PCI busmaster DMA\n");
 		pci_disable_device(pci);
                 return -ENXIO;
         }
@@ -1697,12 +1697,12 @@ static irqreturn_t snd_es1938_interrupt(int irq, void *dev_id)
 	if (status & 0x40) {
 		int split = snd_es1938_mixer_read(chip, 0x64) & 0x80;
 		handled = 1;
-		snd_ctl_notify(chip->card, SNDRV_CTL_EVENT_MASK_VALUE, &chip->hw_switch->id);
-		snd_ctl_notify(chip->card, SNDRV_CTL_EVENT_MASK_VALUE, &chip->hw_volume->id);
+		snd_ctl_yestify(chip->card, SNDRV_CTL_EVENT_MASK_VALUE, &chip->hw_switch->id);
+		snd_ctl_yestify(chip->card, SNDRV_CTL_EVENT_MASK_VALUE, &chip->hw_volume->id);
 		if (!split) {
-			snd_ctl_notify(chip->card, SNDRV_CTL_EVENT_MASK_VALUE,
+			snd_ctl_yestify(chip->card, SNDRV_CTL_EVENT_MASK_VALUE,
 				       &chip->master_switch->id);
-			snd_ctl_notify(chip->card, SNDRV_CTL_EVENT_MASK_VALUE,
+			snd_ctl_yestify(chip->card, SNDRV_CTL_EVENT_MASK_VALUE,
 				       &chip->master_volume->id);
 		}
 		/* ack interrupt */
@@ -1712,7 +1712,7 @@ static irqreturn_t snd_es1938_interrupt(int irq, void *dev_id)
 	/* MPU401 */
 	if (status & 0x80) {
 		// the following line is evil! It switches off MIDI interrupt handling after the first interrupt received.
-		// replacing the last 0 by 0x40 works for ESS-Solo1, but just doing nothing works as well!
+		// replacing the last 0 by 0x40 works for ESS-Solo1, but just doing yesthing works as well!
 		// andreas@flying-snail.de
 		// snd_es1938_mixer_bits(chip, ESSSB_IREG_MPU401CONTROL, 0x40, 0); /* ack? */
 		if (chip->rmidi) {
@@ -1815,7 +1815,7 @@ static int snd_es1938_probe(struct pci_dev *pci,
 			    SLSB_REG(chip, FMLOWADDR),
 			    SLSB_REG(chip, FMHIGHADDR),
 			    OPL3_HW_OPL3, 1, &opl3) < 0) {
-		dev_err(card->dev, "OPL3 not detected at 0x%lx\n",
+		dev_err(card->dev, "OPL3 yest detected at 0x%lx\n",
 			   SLSB_REG(chip, FMLOWADDR));
 	} else {
 	        if ((err = snd_opl3_timer_new(opl3, 0, 1)) < 0) {

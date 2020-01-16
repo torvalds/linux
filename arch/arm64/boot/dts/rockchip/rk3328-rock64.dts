@@ -133,7 +133,7 @@
 	bus-width = <8>;
 	cap-mmc-highspeed;
 	mmc-hs200-1_8v;
-	non-removable;
+	yesn-removable;
 	pinctrl-names = "default";
 	pinctrl-0 = <&emmc_clk &emmc_cmd &emmc_bus8>;
 	vmmc-supply = <&vcc_io>;
@@ -304,7 +304,7 @@
 &pinctrl {
 	ir {
 		ir_int: ir-int {
-			rockchip,pins = <2 RK_PA2 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <2 RK_PA2 RK_FUNC_GPIO &pcfg_pull_yesne>;
 		};
 	};
 
@@ -316,7 +316,7 @@
 
 	usb2 {
 		usb20_host_drv: usb20-host-drv {
-			rockchip,pins = <0 RK_PA2 RK_FUNC_GPIO &pcfg_pull_none>;
+			rockchip,pins = <0 RK_PA2 RK_FUNC_GPIO &pcfg_pull_yesne>;
 		};
 	};
 };
@@ -348,7 +348,7 @@
 	status = "okay";
 
 	spiflash@0 {
-		compatible = "jedec,spi-nor";
+		compatible = "jedec,spi-yesr";
 		reg = <0>;
 
 		/* maximum speed for Rockchip SPI */

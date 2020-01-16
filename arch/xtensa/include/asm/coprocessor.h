@@ -24,7 +24,7 @@
 	.set .Lxchal_ofs_, 0
 .endm
 
-.macro	xchal_sa_align  ptr minofs maxofs ofsalign totalign
+.macro	xchal_sa_align  ptr miyesfs maxofs ofsalign totalign
 	.set	.Lxchal_ofs_, .Lxchal_ofs_ + .Lxchal_pofs_ + \totalign - 1
 	.set	.Lxchal_ofs_, (.Lxchal_ofs_ & -\totalign) - .Lxchal_pofs_
 .endm

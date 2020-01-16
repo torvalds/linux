@@ -2,7 +2,7 @@
 /*
  * xfi linux driver.
  *
- * Copyright (C) 2008, Creative Technology Ltd. All Rights Reserved.
+ * Copyright (C) 2008, Creative Techyeslogy Ltd. All Rights Reserved.
  */
 
 #include <linux/init.h>
@@ -15,7 +15,7 @@
 #include "ctatc.h"
 #include "cthardware.h"
 
-MODULE_AUTHOR("Creative Technology Ltd");
+MODULE_AUTHOR("Creative Techyeslogy Ltd");
 MODULE_DESCRIPTION("X-Fi driver version 1.03");
 MODULE_LICENSE("GPL v2");
 MODULE_SUPPORTED_DEVICE("{{Creative Labs, Sound Blaster X-Fi}");

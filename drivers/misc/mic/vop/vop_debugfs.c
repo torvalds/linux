@@ -27,8 +27,8 @@ static int vop_dp_show(struct seq_file *s, void *pos)
 		   bootparam->magic);
 	seq_printf(s, "Bootparam: h2c_config_db %d\n",
 		   bootparam->h2c_config_db);
-	seq_printf(s, "Bootparam: node_id %d\n",
-		   bootparam->node_id);
+	seq_printf(s, "Bootparam: yesde_id %d\n",
+		   bootparam->yesde_id);
 	seq_printf(s, "Bootparam: c2h_scif_db %d\n",
 		   bootparam->c2h_scif_db);
 	seq_printf(s, "Bootparam: h2c_scif_db %d\n",
@@ -172,7 +172,7 @@ void vop_init_debugfs(struct vop_info *vi)
 {
 	char name[16];
 
-	snprintf(name, sizeof(name), "%s%d", KBUILD_MODNAME, vi->vpdev->dnode);
+	snprintf(name, sizeof(name), "%s%d", KBUILD_MODNAME, vi->vpdev->dyesde);
 	vi->dbg = debugfs_create_dir(name, NULL);
 	debugfs_create_file("dp", 0444, vi->dbg, vi, &vop_dp_fops);
 	debugfs_create_file("vdev_info", 0444, vi->dbg, vi, &vop_vdev_info_fops);

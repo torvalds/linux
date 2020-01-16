@@ -70,7 +70,7 @@ struct adsp_fw_hdr {
 	u32 fw_image_flags;
 	u32 feature_mask;
 	u16 major;
-	u16 minor;
+	u16 miyesr;
 	u16 hotfix;
 	u16 build;
 	u32 num_modules;
@@ -83,7 +83,7 @@ struct skl_ext_manifest_hdr {
 	u32 id;
 	u32 len;
 	u16 version_major;
-	u16 version_minor;
+	u16 version_miyesr;
 	u32 entries;
 };
 
@@ -247,7 +247,7 @@ int snd_skl_parse_uuids(struct sst_dsp *ctx, const struct firmware *fw,
 
 	buf = stripped_fw.data;
 
-	/* check if we have enough space in file to move to header */
+	/* check if we have eyesugh space in file to move to header */
 	safe_file = sizeof(*adsp_hdr) + offset;
 	if (stripped_fw.size <= safe_file) {
 		dev_err(ctx->dev, "Small fw file size, No space for hdr\n");
@@ -339,7 +339,7 @@ int skl_dsp_strip_extended_manifest(struct firmware *fw)
 
 	/* check if fw file is greater than header we are looking */
 	if (fw->size < sizeof(hdr)) {
-		pr_err("%s: Firmware file small, no hdr\n", __func__);
+		pr_err("%s: Firmware file small, yes hdr\n", __func__);
 		return -EINVAL;
 	}
 
@@ -365,7 +365,7 @@ int skl_sst_ctx_init(struct device *dev, int irq, const char *fw_name,
 	INIT_LIST_HEAD(&skl->uuid_list);
 	skl->dsp = skl_dsp_ctx_init(dev, skl_dev, irq);
 	if (!skl->dsp) {
-		dev_err(skl->dev, "%s: no device\n", __func__);
+		dev_err(skl->dev, "%s: yes device\n", __func__);
 		return -ENODEV;
 	}
 

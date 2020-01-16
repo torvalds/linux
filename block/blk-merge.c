@@ -21,7 +21,7 @@ static inline bool bio_will_gap(struct request_queue *q,
 		return false;
 
 	/*
-	 * Don't merge if the 1st bio starts with non-zero offset, otherwise it
+	 * Don't merge if the 1st bio starts with yesn-zero offset, otherwise it
 	 * is quite difficult to respect the sg gap limit.  We work hard to
 	 * merge a huge number of small single bios in case of mkfs.
 	 */
@@ -70,7 +70,7 @@ static struct bio *blk_bio_discard_split(struct request_queue *q,
 
 	*nsegs = 1;
 
-	/* Zero-sector (unknown) and one-sector granularities are the same.  */
+	/* Zero-sector (unkyeswn) and one-sector granularities are the same.  */
 	granularity = max(q->limits.discard_granularity >> 9, 1U);
 
 	max_discard_sectors = min(q->limits.max_discard_sectors,
@@ -134,10 +134,10 @@ static struct bio *blk_bio_write_same_split(struct request_queue *q,
 
 /*
  * Return the maximum number of sectors from the start of a bio that may be
- * submitted as a single request to a block device. If enough sectors remain,
+ * submitted as a single request to a block device. If eyesugh sectors remain,
  * align the end to the physical block size. Otherwise align the end to the
- * logical block size. This approach minimizes the number of non-aligned
- * requests that are submitted to a block device if the start of a bio is not
+ * logical block size. This approach minimizes the number of yesn-aligned
+ * requests that are submitted to a block device if the start of a bio is yest
  * aligned to a physical block boundary.
  */
 static inline unsigned get_max_io_size(struct request_queue *q,
@@ -169,7 +169,7 @@ static inline unsigned get_max_segment_size(const struct request_queue *q,
 }
 
 /**
- * bvec_split_segs - verify whether or not a bvec should be split in the middle
+ * bvec_split_segs - verify whether or yest a bvec should be split in the middle
  * @q:        [in] request queue associated with the bio associated with @bv
  * @bv:       [in] bvec to examine
  * @nsegs:    [in,out] Number of segments in the bio being built. Incremented
@@ -183,7 +183,7 @@ static inline unsigned get_max_segment_size(const struct request_queue *q,
  *
  * When splitting a bio, it can happen that a bvec is encountered that is too
  * big to fit in a single segment and hence that it has to be split in the
- * middle. This function verifies whether or not that should happen. The value
+ * middle. This function verifies whether or yest that should happen. The value
  * %true is returned if and only if appending the entire @bv to a bio with
  * *@nsegs segments and *@sectors sectors would make that bio unacceptable for
  * the block driver.
@@ -232,7 +232,7 @@ static bool bvec_split_segs(const struct request_queue *q,
  *
  * Except for discard requests the cloned bio will point at the bi_io_vec of
  * the original bio. It is the responsibility of the caller to ensure that the
- * original bio is not freed before the cloned bio. The caller is also
+ * original bio is yest freed before the cloned bio. The caller is also
  * responsible for ensuring that @bs is only destroyed after processing of the
  * split bio has finished.
  */
@@ -334,7 +334,7 @@ void __blk_queue_split(struct request_queue *q, struct bio **bio,
 		/*
 		 * Since we're recursing into make_request here, ensure
 		 * that we mark this bio as already having entered the queue.
-		 * If not, and the queue is going away, we can get stuck
+		 * If yest, and the queue is going away, we can get stuck
 		 * forever on waiting for the queue reference to drop. But
 		 * that will never happen, as we're already holding a
 		 * reference to it.
@@ -425,7 +425,7 @@ static unsigned blk_bvec_map_sg(struct request_queue *q,
 		/*
 		 * Unfortunately a fair number of drivers barf on scatterlists
 		 * that have an offset larger than PAGE_SIZE, despite other
-		 * subsystems dealing with that invariant just fine.  For now
+		 * subsystems dealing with that invariant just fine.  For yesw
 		 * stick to the legacy format where we never present those from
 		 * the block layer, but the code below should be removed once
 		 * these offenders (mostly MMC/SD drivers) are fixed.
@@ -567,10 +567,10 @@ static inline int ll_new_hw_segment(struct request *req, struct bio *bio,
 		unsigned int nr_phys_segs)
 {
 	if (req->nr_phys_segments + nr_phys_segs > queue_max_segments(req->q))
-		goto no_merge;
+		goto yes_merge;
 
 	if (blk_integrity_merge_bio(req->q, req, bio) == false)
-		goto no_merge;
+		goto yes_merge;
 
 	/*
 	 * This will form the start of a new hw segment.  Bump both
@@ -579,8 +579,8 @@ static inline int ll_new_hw_segment(struct request *req, struct bio *bio,
 	req->nr_phys_segments += nr_phys_segs;
 	return 1;
 
-no_merge:
-	req_set_nomerge(req->q, req);
+yes_merge:
+	req_set_yesmerge(req->q, req);
 	return 0;
 }
 
@@ -593,7 +593,7 @@ int ll_back_merge_fn(struct request *req, struct bio *bio, unsigned int nr_segs)
 		return 0;
 	if (blk_rq_sectors(req) + bio_sectors(bio) >
 	    blk_rq_get_max_sectors(req, blk_rq_pos(req))) {
-		req_set_nomerge(req->q, req);
+		req_set_yesmerge(req->q, req);
 		return 0;
 	}
 
@@ -609,7 +609,7 @@ int ll_front_merge_fn(struct request *req, struct bio *bio, unsigned int nr_segs
 		return 0;
 	if (blk_rq_sectors(req) + bio_sectors(bio) >
 	    blk_rq_get_max_sectors(req, bio->bi_iter.bi_sector)) {
-		req_set_nomerge(req->q, req);
+		req_set_yesmerge(req->q, req);
 		return 0;
 	}
 
@@ -622,15 +622,15 @@ static bool req_attempt_discard_merge(struct request_queue *q, struct request *r
 	unsigned short segments = blk_rq_nr_discard_segments(req);
 
 	if (segments >= queue_max_discard_segments(q))
-		goto no_merge;
+		goto yes_merge;
 	if (blk_rq_sectors(req) + bio_sectors(next->bio) >
 	    blk_rq_get_max_sectors(req, blk_rq_pos(req)))
-		goto no_merge;
+		goto yes_merge;
 
 	req->nr_phys_segments = segments + blk_rq_nr_discard_segments(next);
 	return true;
-no_merge:
-	req_set_nomerge(q, req);
+yes_merge:
+	req_set_yesmerge(q, req);
 	return false;
 }
 
@@ -679,7 +679,7 @@ void blk_rq_set_mixed_merge(struct request *rq)
 		return;
 
 	/*
-	 * @rq will no longer represent mixable attributes for all the
+	 * @rq will yes longer represent mixable attributes for all the
 	 * contained bios.  It will just track those of the first one.
 	 * Distributes the attributs to each bio.
 	 */
@@ -733,7 +733,7 @@ static enum elv_merge blk_try_req_merge(struct request *req,
 }
 
 /*
- * For non-mq, this has to be called with the request spinlock acquired.
+ * For yesn-mq, this has to be called with the request spinlock acquired.
  * For mq with scheduling, the appropriate queue wide lock should be held.
  */
 static struct request *attempt_merge(struct request_queue *q,
@@ -755,7 +755,7 @@ static struct request *attempt_merge(struct request_queue *q,
 
 	/*
 	 * Don't allow merge of different write hints, or for a hint with
-	 * non-hint IO.
+	 * yesn-hint IO.
 	 */
 	if (req->write_hint != next->write_hint)
 		return NULL;
@@ -887,7 +887,7 @@ bool blk_rq_merge_ok(struct request *rq, struct bio *bio)
 
 	/*
 	 * Don't allow merge of different write hints, or for a hint with
-	 * non-hint IO.
+	 * yesn-hint IO.
 	 */
 	if (rq->write_hint != bio->bi_write_hint)
 		return false;

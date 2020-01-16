@@ -128,7 +128,7 @@
   {
     "EventCode": "0x1001c",
     "EventName": "PM_CMPLU_STALL_THRD",
-    "BriefDescription": "Completion Stalled due to thread conflict. Group ready to complete but it was another thread's turn",
+    "BriefDescription": "Completion Stalled due to thread conflict. Group ready to complete but it was ayesther thread's turn",
     "PublicDescription": "Completion stall due to thread conflict"
   },
   {
@@ -182,7 +182,7 @@
   {
     "EventCode": "0x2000a",
     "EventName": "PM_HV_CYC",
-    "BriefDescription": "Cycles in which msr_hv is high. Note that this event does not take msr_pr into consideration",
+    "BriefDescription": "Cycles in which msr_hv is high. Note that this event does yest take msr_pr into consideration",
     "PublicDescription": "cycles in hypervisor mode"
   },
   {

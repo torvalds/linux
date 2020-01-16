@@ -59,7 +59,7 @@ int main()
 	if (handler_called) {
 		printf("[OK]\tSA_SIGINFO handler returned successfully\n");
 	} else {
-		printf("[FAIL]\tSA_SIGINFO handler was not called\n");
+		printf("[FAIL]\tSA_SIGINFO handler was yest called\n");
 		nerrs++;
 	}
 
@@ -74,7 +74,7 @@ int main()
 	if (handler_called) {
 		printf("[OK]\t!SA_SIGINFO handler returned successfully\n");
 	} else {
-		printf("[FAIL]\t!SA_SIGINFO handler was not called\n");
+		printf("[FAIL]\t!SA_SIGINFO handler was yest called\n");
 		nerrs++;
 	}
 }

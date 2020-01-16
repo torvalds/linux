@@ -125,7 +125,7 @@ int twl4030_audio_disable_resource(enum twl4030_audio_res id)
 	audio->resource[id].request_count--;
 
 	if (!audio->resource[id].request_count)
-		/* Resource can be disabled now */
+		/* Resource can be disabled yesw */
 		val = twl4030_audio_set_resource(id, 0);
 	else
 		val = twl4030_audio_get_resource(id);
@@ -145,16 +145,16 @@ unsigned int twl4030_audio_get_mclk(void)
 EXPORT_SYMBOL_GPL(twl4030_audio_get_mclk);
 
 static bool twl4030_audio_has_codec(struct twl4030_audio_data *pdata,
-			      struct device_node *parent)
+			      struct device_yesde *parent)
 {
-	struct device_node *node;
+	struct device_yesde *yesde;
 
 	if (pdata && pdata->codec)
 		return true;
 
-	node = of_get_child_by_name(parent, "codec");
-	if (node) {
-		of_node_put(node);
+	yesde = of_get_child_by_name(parent, "codec");
+	if (yesde) {
+		of_yesde_put(yesde);
 		return true;
 	}
 
@@ -162,14 +162,14 @@ static bool twl4030_audio_has_codec(struct twl4030_audio_data *pdata,
 }
 
 static bool twl4030_audio_has_vibra(struct twl4030_audio_data *pdata,
-			      struct device_node *node)
+			      struct device_yesde *yesde)
 {
 	int vibra;
 
 	if (pdata && pdata->vibra)
 		return true;
 
-	if (!of_property_read_u32(node, "ti,enable-vibra", &vibra) && vibra)
+	if (!of_property_read_u32(yesde, "ti,enable-vibra", &vibra) && vibra)
 		return true;
 
 	return false;
@@ -179,12 +179,12 @@ static int twl4030_audio_probe(struct platform_device *pdev)
 {
 	struct twl4030_audio *audio;
 	struct twl4030_audio_data *pdata = dev_get_platdata(&pdev->dev);
-	struct device_node *node = pdev->dev.of_node;
+	struct device_yesde *yesde = pdev->dev.of_yesde;
 	struct mfd_cell *cell = NULL;
 	int ret, childs = 0;
 	u8 val;
 
-	if (!pdata && !node) {
+	if (!pdata && !yesde) {
 		dev_err(&pdev->dev, "Platform data is missing\n");
 		return -EINVAL;
 	}
@@ -222,7 +222,7 @@ static int twl4030_audio_probe(struct platform_device *pdev)
 	audio->resource[TWL4030_AUDIO_RES_APLL].reg = TWL4030_REG_APLL_CTL;
 	audio->resource[TWL4030_AUDIO_RES_APLL].mask = TWL4030_APLL_EN;
 
-	if (twl4030_audio_has_codec(pdata, node)) {
+	if (twl4030_audio_has_codec(pdata, yesde)) {
 		cell = &audio->cells[childs];
 		cell->name = "twl4030-codec";
 		if (pdata) {
@@ -231,7 +231,7 @@ static int twl4030_audio_probe(struct platform_device *pdev)
 		}
 		childs++;
 	}
-	if (twl4030_audio_has_vibra(pdata, node)) {
+	if (twl4030_audio_has_vibra(pdata, yesde)) {
 		cell = &audio->cells[childs];
 		cell->name = "twl4030-vibra";
 		if (pdata) {

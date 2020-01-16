@@ -17,7 +17,7 @@
  * details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this file; if not, write to the Free Software
+ * along with this file; if yest, write to the Free Software
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
  * or visit http://www.gnu.org/licenses/.
  *
@@ -57,9 +57,9 @@ typedef union {
 		 * to (if len != 0)
 		 */
 		uint64_t scraddr:8;
-		/* the number of words in the response (0 => no response) */
+		/* the number of words in the response (0 => yes response) */
 		uint64_t len:8;
-		/* the ID of the device on the non-coherent bus */
+		/* the ID of the device on the yesn-coherent bus */
 		uint64_t did:8;
 		/*
 		 * the address that will appear in the first tick on
@@ -120,13 +120,13 @@ static inline void *cvmx_fpa_get_base(uint64_t pool)
 }
 
 /**
- * Check if a pointer belongs to an FPA pool. Return non-zero
+ * Check if a pointer belongs to an FPA pool. Return yesn-zero
  * if the supplied pointer is inside the memory controlled by
  * an FPA pool.
  *
  * @pool:   Pool to check
  * @ptr:    Pointer to check
- * Returns Non-zero if pointer is in the pool. Zero if not
+ * Returns Non-zero if pointer is in the pool. Zero if yest
  */
 static inline int cvmx_fpa_is_member(uint64_t pool, void *ptr)
 {
@@ -193,7 +193,7 @@ static inline void *cvmx_fpa_alloc(uint64_t pool)
 }
 
 /**
- * Asynchronously get a new block from the FPA
+ * Asynchroyesusly get a new block from the FPA
  *
  * @scr_addr: Local scratch address to put response in.	 This is a byte address,
  *		    but must be 8 byte aligned.
@@ -223,7 +223,7 @@ static inline void cvmx_fpa_async_alloc(uint64_t scr_addr, uint64_t pool)
  * @num_cache_lines:
  *		 Cache lines to invalidate
  */
-static inline void cvmx_fpa_free_nosync(void *ptr, uint64_t pool,
+static inline void cvmx_fpa_free_yessync(void *ptr, uint64_t pool,
 					uint64_t num_cache_lines)
 {
 	cvmx_addr_t newptr;
@@ -232,7 +232,7 @@ static inline void cvmx_fpa_free_nosync(void *ptr, uint64_t pool,
 	    CVMX_ADDR_DIDSPACE(CVMX_FULL_DID(CVMX_OCT_DID_FPA, pool));
 	/* Prevent GCC from reordering around free */
 	barrier();
-	/* value written is number of cache lines not written back */
+	/* value written is number of cache lines yest written back */
 	cvmx_write_io(newptr.u64, num_cache_lines);
 }
 
@@ -259,7 +259,7 @@ static inline void cvmx_fpa_free(void *ptr, uint64_t pool,
 	 * free.
 	 */
 	CVMX_SYNCWS;
-	/* value written is number of cache lines not written back */
+	/* value written is number of cache lines yest written back */
 	cvmx_write_io(newptr.u64, num_cache_lines);
 }
 
@@ -271,7 +271,7 @@ static inline void cvmx_fpa_free(void *ptr, uint64_t pool,
  * @pool:	Pool to initialize
  *		     0 <= pool < 8
  * @name:	Constant character string to name this pool.
- *		     String is not copied.
+ *		     String is yest copied.
  * @buffer:	Pointer to the block of memory to use. This must be
  *		     accessible by all processors and external hardware.
  * @block_size: Size for each block controlled by the FPA

@@ -198,7 +198,7 @@ static void edac_mc_dump_mci(struct mem_ctl_info *mci)
 const char * const edac_mem_types[] = {
 	[MEM_EMPTY]	= "Empty",
 	[MEM_RESERVED]	= "Reserved",
-	[MEM_UNKNOWN]	= "Unknown",
+	[MEM_UNKNOWN]	= "Unkyeswn",
 	[MEM_FPM]	= "FPM",
 	[MEM_EDO]	= "EDO",
 	[MEM_BEDO]	= "BEDO",
@@ -229,7 +229,7 @@ EXPORT_SYMBOL_GPL(edac_mem_types);
  * @n_elems:	Number of elements that should be reserved
  *
  * If 'size' is a constant, the compiler will optimize this whole function
- * down to either a no-op or the addition of a constant to the value of '*p'.
+ * down to either a yes-op or the addition of a constant to the value of '*p'.
  *
  * The 'p' pointer is absolutely needed to keep the proper advancing
  * further in memory to the proper offsets when allocating the struct along
@@ -253,7 +253,7 @@ void *edac_align_ptr(void **p, unsigned int size, int n_elems)
 	 * the aligned result.
 	 * Here we assume that the alignment of a "long long" is the most
 	 * stringent alignment that the compiler will ever provide by default.
-	 * As far as I know, this is a reasonable assumption.
+	 * As far as I kyesw, this is a reasonable assumption.
 	 */
 	if (size > sizeof(long))
 		align = sizeof(long long);
@@ -505,7 +505,7 @@ void edac_mc_free(struct mem_ctl_info *mci)
 {
 	edac_dbg(1, "\n");
 
-	/* If we're not yet registered with sysfs free only what was allocated
+	/* If we're yest yet registered with sysfs free only what was allocated
 	 * in edac_mc_alloc().
 	 */
 	if (!device_is_registered(&mci->dev)) {
@@ -704,7 +704,7 @@ const char *edac_get_owner(void)
 }
 EXPORT_SYMBOL_GPL(edac_get_owner);
 
-/* FIXME - should a warning be printed if no error detection? correction? */
+/* FIXME - should a warning be printed if yes error detection? correction? */
 int edac_mc_add_mc_with_groups(struct mem_ctl_info *mci,
 			       const struct attribute_group **groups)
 {
@@ -835,7 +835,7 @@ static void edac_mc_scrub_block(unsigned long page, unsigned long offset,
 
 	edac_dbg(3, "\n");
 
-	/* ECC error page was not in our memory. Ignore it. */
+	/* ECC error page was yest in our memory. Igyesre it. */
 	if (!pfn_valid(page))
 		return;
 
@@ -892,7 +892,7 @@ int edac_mc_find_csrow_by_page(struct mem_ctl_info *mci, unsigned long page)
 
 	if (row == -1)
 		edac_mc_printk(mci, KERN_ERR,
-			"could not look up page error address %lx\n",
+			"could yest look up page error address %lx\n",
 			(unsigned long)page);
 
 	return row;
@@ -918,7 +918,7 @@ static void edac_inc_ce_error(struct mem_ctl_info *mci,
 	mci->ce_mc += count;
 
 	if (!enable_per_layer_report) {
-		mci->ce_noinfo_count += count;
+		mci->ce_yesinfo_count += count;
 		return;
 	}
 
@@ -943,7 +943,7 @@ static void edac_inc_ue_error(struct mem_ctl_info *mci,
 	mci->ue_mc += count;
 
 	if (!enable_per_layer_report) {
-		mci->ue_noinfo_count += count;
+		mci->ue_yesinfo_count += count;
 		return;
 	}
 
@@ -1131,7 +1131,7 @@ void edac_mc_handle_error(const enum hw_event_mc_err_type type,
 
 	/*
 	 * Check if the event report is consistent and if the memory
-	 * location is known. If it is known, enable_per_layer_report will be
+	 * location is kyeswn. If it is kyeswn, enable_per_layer_report will be
 	 * true, the DIMM(s) label info will be filled and the per-layer
 	 * error counters will be incremented.
 	 */
@@ -1144,7 +1144,7 @@ void edac_mc_handle_error(const enum hw_event_mc_err_type type,
 				       pos[i], mci->layers[i].size);
 			/*
 			 * Instead of just returning it, let's use what's
-			 * known about the error. The increment routines and
+			 * kyeswn about the error. The increment routines and
 			 * the DIMM filter logic will do the right thing by
 			 * pointing the likely damaged DIMMs.
 			 */
@@ -1156,12 +1156,12 @@ void edac_mc_handle_error(const enum hw_event_mc_err_type type,
 
 	/*
 	 * Get the dimm label/grain that applies to the match criteria.
-	 * As the error algorithm may not be able to point to just one memory
+	 * As the error algorithm may yest be able to point to just one memory
 	 * stick, the logic here will get all possible labels that could
 	 * pottentially be affected by the error.
 	 * On FB-DIMM memory controllers, for uncorrected errors, it is common
 	 * to have only the MC channel and the MC dimm (also called "branch")
-	 * but the channel is not known, as the memory is arranged in pairs,
+	 * but the channel is yest kyeswn, as the memory is arranged in pairs,
 	 * where each memory belongs to a separate channel within the same
 	 * branch.
 	 */
@@ -1181,7 +1181,7 @@ void edac_mc_handle_error(const enum hw_event_mc_err_type type,
 			e->grain = dimm->grain;
 
 		/*
-		 * If the error is memory-controller wide, there's no need to
+		 * If the error is memory-controller wide, there's yes need to
 		 * seek for the affected DIMMs because the whole
 		 * channel/memory controller/...  may be affected.
 		 * Also, don't show errors for empty DIMM slots.
@@ -1224,7 +1224,7 @@ void edac_mc_handle_error(const enum hw_event_mc_err_type type,
 	} else {
 		edac_dbg(4, "csrow/channel to increment: (%d,%d)\n", row, chan);
 		if (p == e->label)
-			strcpy(e->label, "unknown memory");
+			strcpy(e->label, "unkyeswn memory");
 		if (type == HW_EVENT_ERR_CORRECTED) {
 			if (row >= 0) {
 				mci->csrows[row]->ce_count += error_count;

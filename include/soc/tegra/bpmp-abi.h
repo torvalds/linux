@@ -305,7 +305,7 @@ struct mrq_query_fw_tag_response {
  * * Request Payload: @ref mrq_module_load_request
  * * Response Payload: @ref mrq_module_load_response
  *
- * @note This MRQ is disabled on production systems
+ * @yeste This MRQ is disabled on production systems
  *
  */
 
@@ -357,7 +357,7 @@ struct mrq_module_load_response {
  * * Request Payload: @ref mrq_module_unload_request
  * * Response Payload: N/A
  *
- * @note This MRQ is disabled on production systems
+ * @yeste This MRQ is disabled on production systems
  */
 
 /**
@@ -384,7 +384,7 @@ struct mrq_module_unload_request {
  * * Request Payload: @ref mrq_trace_modify_request
  * * Response Payload: @ref mrq_trace_modify_response
  *
- * @note This MRQ is disabled on production systems
+ * @yeste This MRQ is disabled on production systems
  */
 
 /**
@@ -432,7 +432,7 @@ struct mrq_trace_modify_response {
  * area is in an illegal range. A positive value for err indicates the
  * number of bytes written to area.
  *
- * @note This MRQ is disabled on production systems
+ * @yeste This MRQ is disabled on production systems
  */
 
 /**
@@ -460,7 +460,7 @@ struct mrq_write_trace_request {
  * @ingroup Trace
  * @brief Response to #MRQ_WRITE_TRACE
  *
- * Once this response is sent, the respondent will not access the
+ * Once this response is sent, the respondent will yest access the
  * output buffer further.
  */
 struct mrq_write_trace_response {
@@ -495,7 +495,7 @@ struct mrq_threaded_ping_response {
  * * Request Payload: @ref mrq_module_mail_request
  * * Response Payload: @ref mrq_module_mail_response
  *
- * @note This MRQ is disabled on production systems
+ * @yeste This MRQ is disabled on production systems
  */
 
 /**
@@ -507,7 +507,7 @@ struct mrq_module_mail_request {
 	uint32_t base;
 	/** @brief Module-specific mail payload
 	 *
-	 * The length of data[ ] is unknown to the BPMP core firmware
+	 * The length of data[ ] is unkyeswn to the BPMP core firmware
 	 * but it is limited to the size of an IPC message.
 	 */
 	uint8_t data[EMPTY_ARRAY];
@@ -520,7 +520,7 @@ struct mrq_module_mail_request {
 struct mrq_module_mail_response {
 	/** @brief Module-specific mail payload
 	 *
-	 * The length of data[ ] is unknown to the BPMP core firmware
+	 * The length of data[ ] is unkyeswn to the BPMP core firmware
 	 * but it is limited to the size of an IPC message.
 	 */
 	uint8_t data[EMPTY_ARRAY];
@@ -530,7 +530,7 @@ struct mrq_module_mail_response {
 /**
  * @ingroup MRQ_Codes
  * @def MRQ_DEBUGFS
- * @brief Interact with BPMP's debugfs file nodes
+ * @brief Interact with BPMP's debugfs file yesdes
  *
  * * Platforms: T186, T194
  * * Initiators: Any
@@ -553,10 +553,10 @@ struct mrq_module_mail_response {
  * is to provide information useful for debugging the system at
  * runtime.
  *
- * @note The files exposed via debugfs are not part of the
+ * @yeste The files exposed via debugfs are yest part of the
  * BPMP firmware's ABI. debugfs files may be added or removed in any
  * given version of the firmware. Typically the semantics of a debugfs
- * file are consistent from version to version but even that is not
+ * file are consistent from version to version but even that is yest
  * guaranteed.
  *
  * @}
@@ -714,7 +714,7 @@ struct mrq_reset_request {
 
 /**
  * @brief Response for MRQ_RESET sub-command CMD_RESET_GET_MAX_ID. When
- * this sub-command is not supported, firmware will return -BPMP_EBADCMD
+ * this sub-command is yest supported, firmware will return -BPMP_EBADCMD
  * in mrq_response::err.
  */
 struct cmd_reset_get_max_id_response {
@@ -726,7 +726,7 @@ struct cmd_reset_get_max_id_response {
  * @brief Response with MRQ_RESET
  *
  * Each sub-command supported by @ref mrq_reset_request may return
- * sub-command-specific data. Some do and some do not as indicated
+ * sub-command-specific data. Some do and some do yest as indicated
  * in the following table
  *
  * | sub-command          | payload          |
@@ -784,7 +784,7 @@ enum {
  *
  * Because these structures are packed, some instances are likely to
  * be misaligned. Additionally because #data is variable length, it is
- * not possible to iterate through a serialized list of these
+ * yest possible to iterate through a serialized list of these
  * structures without inspecting #len in each instance.  It may be
  * easier to serialize or deserialize cmd_i2c_xfer_request::data_buf
  * manually rather than using this structure definition.
@@ -993,7 +993,7 @@ struct cmd_clk_get_fmax_at_vmin_response {
  *
  * Used by the sender of an #MRQ_CLK message to control clocks. The
  * clk_request is split into several sub-commands. Some sub-commands
- * require no additional data. Others have a sub-command specific
+ * require yes additional data. Others have a sub-command specific
  * payload
  *
  * |sub-command                 |payload                |
@@ -1048,7 +1048,7 @@ struct mrq_clk_request {
  * @brief Response to MRQ_CLK
  *
  * Each sub-command supported by @ref mrq_clk_request may return
- * sub-command-specific data. Some do and some do not as indicated in
+ * sub-command-specific data. Some do and some do yest as indicated in
  * the following table
  *
  * |sub-command                 |payload                 |
@@ -1115,8 +1115,8 @@ struct mrq_query_abi_request {
  * @ingroup ABI_info
  * @brief Response to MRQ_QUERY_ABI
  *
- * @note mrq_response::err of 0 indicates that the query was
- * successful, not that the MRQ itself is supported!
+ * @yeste mrq_response::err of 0 indicates that the query was
+ * successful, yest that the MRQ itself is supported!
  */
 struct mrq_query_abi_response {
 	/** @brief 0 if queried MRQ is supported. Else, -#BPMP_ENODEV */
@@ -1191,7 +1191,7 @@ struct mrq_pg_update_state_request {
 	/** @brief ID of partition */
 	uint32_t partition_id;
 	/** @brief Secondary control of power partition
-	 *  @details Ignored by many versions of the BPMP
+	 *  @details Igyesred by many versions of the BPMP
 	 *  firmware. For maximum compatibility, set the value
 	 *  according to @ref logic_state
 	 * *  0x1: power ON partition (@ref logic_state == 0x3)
@@ -1204,7 +1204,7 @@ struct mrq_pg_update_state_request {
 	 */
 	uint32_t logic_state;
 	/** @brief Change state of clocks of the power partition, legal values
-	 * *  0x0 : do not change clock state
+	 * *  0x0 : do yest change clock state
 	 * *  0x1 : disable partition clocks (only applicable when
 	 *          @ref logic_state == 0x1)
 	 * *  0x3 : enable partition clocks (only applicable when
@@ -1221,8 +1221,8 @@ struct mrq_pg_update_state_request {
  * MRQ_PG_UPDATE_STATE, operations that change the power partition
  * state are NOT reference counted
  *
- * @note BPMP-FW forcefully turns off some partitions as part of SC7 entry
- * because their state cannot be adequately restored on exit. Therefore,
+ * @yeste BPMP-FW forcefully turns off some partitions as part of SC7 entry
+ * because their state canyest be adequately restored on exit. Therefore,
  * it is recommended to power off all domains via MRQ_PG prior to SC7 entry.
  * See @ref bpmp_pdomain_ids for further detail.
  *
@@ -1332,7 +1332,7 @@ struct cmd_pg_get_max_id_response {
  *
  * Used by the sender of an #MRQ_PG message to control power
  * partitions. The pg_request is split into several sub-commands. Some
- * sub-commands require no additional data. Others have a sub-command
+ * sub-commands require yes additional data. Others have a sub-command
  * specific payload
  *
  * |sub-command                 |payload                |
@@ -1357,7 +1357,7 @@ struct mrq_pg_request {
  * @brief Response to MRQ_PG
  *
  * Each sub-command supported by @ref mrq_pg_request may return
- * sub-command-specific data. Some do and some do not as indicated in
+ * sub-command-specific data. Some do and some do yest as indicated in
  * the following table
  *
  * |sub-command                 |payload                |
@@ -1394,7 +1394,7 @@ struct mrq_pg_response {
  * The BPMP firmware includes a thermal framework. Drivers within the
  * bpmp firmware register with the framework to provide thermal
  * zones. Each thermal zone corresponds to an entity whose temperature
- * can be measured. The framework also has a notion of trip points. A
+ * can be measured. The framework also has a yestion of trip points. A
  * trip point consists of a thermal zone id, a temperature, and a
  * callback routine. The framework invokes the callback when the zone
  * hits the indicated temperature. The BPMP firmware uses this thermal
@@ -1476,7 +1476,7 @@ enum mrq_thermal_bpmp_to_host_cmd {
 	 *   for the zone.
 	 *
 	 * BPMP needs to supply request parameters. Host only needs to
-	 * acknowledge.
+	 * ackyeswledge.
 	 */
 	CMD_THERMAL_HOST_TRIP_REACHED = 100,
 
@@ -1509,7 +1509,7 @@ struct cmd_thermal_get_temp_request {
  *
  * error: 0 if request succeeded.
  *	-BPMP_EINVAL if request parameters were invalid.
- *      -BPMP_ENOENT if no driver was registered for the specified thermal zone.
+ *      -BPMP_ENOENT if yes driver was registered for the specified thermal zone.
  *      -BPMP_EFAULT for other thermal zone driver errors.
  * temp: Current temperature in millicelsius.
  */
@@ -1686,7 +1686,7 @@ struct cpu_vhint_data {
  *
  * If ratchet is less than BPMP's #BPMP_ABI_RATCHET_VALUE, BPMP may
  * reply with mrq_response::err = -#BPMP_ERANGE to indicate that
- * BPMP-FW cannot interoperate correctly with the requester. Requester
+ * BPMP-FW canyest interoperate correctly with the requester. Requester
  * should cease further communication with BPMP.
  *
  * Otherwise, err shall be 0.
@@ -1709,7 +1709,7 @@ struct mrq_abi_ratchet_request {
  *
  * If mrq_response::err is 0 and ratchet is greater than or equal to the
  * requester's BPMP_ABI_RATCHET_VALUE, the requester should continue
- * normal operation.
+ * yesrmal operation.
  */
 struct mrq_abi_ratchet_response {
 	/** @brief BPMP's ratchet value */
@@ -1737,7 +1737,7 @@ struct mrq_abi_ratchet_response {
 struct emc_dvfs_latency {
 	/** @brief EMC frequency in kHz */
 	uint32_t freq;
-	/** @brief EMC DVFS latency in nanoseconds */
+	/** @brief EMC DVFS latency in nayesseconds */
 	uint32_t latency;
 } __ABI_PACKED;
 
@@ -1809,7 +1809,7 @@ struct mrq_cpu_ndiv_limits_response {
  * * Response Payload: @ref mrq_cpu_auto_cc3_response
  * @addtogroup CC3
  *
- * Queries from BPMP auto-CC3 configuration (allowed/not allowed) for a
+ * Queries from BPMP auto-CC3 configuration (allowed/yest allowed) for a
  * specified cluster. CCPLEX s/w uses this information to override its own
  * device tree auto-CC3 settings, so that BPMP device tree is a single source of
  * auto-CC3 platform configuration.
@@ -1821,7 +1821,7 @@ struct mrq_cpu_ndiv_limits_response {
  * @brief Request for auto-CC3 configuration of a cluster
  */
 struct mrq_cpu_auto_cc3_request {
-	/** @brief Enum cluster_id (logical cluster id, known to CCPLEX s/w) */
+	/** @brief Enum cluster_id (logical cluster id, kyeswn to CCPLEX s/w) */
 	uint32_t cluster_id;
 } __ABI_PACKED;
 
@@ -1834,7 +1834,7 @@ struct mrq_cpu_auto_cc3_response {
 	 *
 	 * - bits[31..10] reserved.
 	 * - bits[9..1] cc3 ndiv
-	 * - bit [0] if "1" auto-CC3 is allowed, if "0" auto-CC3 is not allowed
+	 * - bit [0] if "1" auto-CC3 is allowed, if "0" auto-CC3 is yest allowed
 	 */
 	uint32_t auto_cc3_config;
 } __ABI_PACKED;
@@ -1856,7 +1856,7 @@ struct mrq_cpu_auto_cc3_response {
  * @{
  */
 enum {
-	/** @brief (re)start the tracing now. Ignore older events */
+	/** @brief (re)start the tracing yesw. Igyesre older events */
 	TRACE_ITER_INIT = 0,
 	/** @brief Clobber all events in the trace buffer */
 	TRACE_ITER_CLEAN = 1
@@ -2157,7 +2157,7 @@ struct cmd_uphy_pcie_controller_state_request {
  *
  * Used by the sender of an #MRQ_UPHY message to control UPHY Lane RX margining.
  * The uphy_request is split into several sub-commands. Some sub-commands
- * require no additional data. Others have a sub-command specific payload
+ * require yes additional data. Others have a sub-command specific payload
  *
  * |sub-command                          |payload                                 |
  * |------------------------------------ |----------------------------------------|
@@ -2186,7 +2186,7 @@ struct mrq_uphy_request {
  * @brief Response to MRQ_UPHY
  *
  * Each sub-command supported by @ref mrq_uphy_request may return
- * sub-command-specific data. Some do and some do not as indicated in
+ * sub-command-specific data. Some do and some do yest as indicated in
  * the following table
  *
  * |sub-command                       |payload                 |
@@ -2237,7 +2237,7 @@ enum {
 	 */
 	CMD_FMON_GEAR_FREE = 2,
 	/**
-	 * @brief Return rate FMON is clamped at, or 0 if FMON is not
+	 * @brief Return rate FMON is clamped at, or 0 if FMON is yest
 	 *         clamped.
 	 *
 	 * Inherently racy, since clamp state can be changed
@@ -2282,7 +2282,7 @@ struct cmd_fmon_gear_get_response {
  *
  * Used by the sender of an #MRQ_FMON message to configure clock
  * frequency monitors. The FMON request is split into several
- * sub-commands. Some sub-commands require no additional data.
+ * sub-commands. Some sub-commands require yes additional data.
  * Others have a sub-command specific payload
  *
  * |sub-command                 |payload                |
@@ -2351,7 +2351,7 @@ struct mrq_fmon_response {
  * * Request Payload: @ref mrq_ec_request
  * * Response Payload: @ref mrq_ec_response
  *
- * @note This MRQ ABI is under construction, and subject to change
+ * @yeste This MRQ ABI is under construction, and subject to change
  *
  * @addtogroup EC
  * @{
@@ -2361,7 +2361,7 @@ enum {
 	 * @brief Retrieve specified EC status.
 	 *
 	 * mrq_response::err is 0 if the operation was successful, or @n
-	 * -#BPMP_ENODEV if target EC is not owned by BPMP @n
+	 * -#BPMP_ENODEV if target EC is yest owned by BPMP @n
 	 * -#BPMP_EACCES if target EC power domain is turned off
 	 */
 	CMD_EC_STATUS_GET = 1,
@@ -2563,7 +2563,7 @@ struct cmd_ec_status_get_response {
 	/**
 	 * @brief Bitmask of @ref bpmp_ec_status_flags
 	 *
-	 * If NO_ERROR flag is set, error_ fields should be ignored
+	 * If NO_ERROR flag is set, error_ fields should be igyesred
 	 */
 	uint32_t ec_status_flags;
 	/** @brief Found EC error index. */
@@ -2640,7 +2640,7 @@ struct mrq_ec_response {
  *
  * Value of #ready reflects if core voltages are in a suitable state for buring
  * fuses. A value of 0x1 indicates that core voltages are ready for burning
- * fuses. A value of 0x0 indicates that core voltages are not ready.
+ * fuses. A value of 0x0 indicates that core voltages are yest ready.
  */
 struct mrq_fbvolt_status_response {
 	/** @brief Bit [0:0] - ready status, bits [31:1] - reserved */
@@ -2668,7 +2668,7 @@ struct mrq_fbvolt_status_response {
 #define BPMP_EIO	5
 /** @brief Bad sub-MRQ command */
 #define BPMP_EBADCMD	6
-/** @brief Not enough memory */
+/** @brief Not eyesugh memory */
 #define BPMP_ENOMEM	12
 /** @brief Permission denied */
 #define BPMP_EACCES	13
@@ -2684,7 +2684,7 @@ struct mrq_fbvolt_status_response {
 #define BPMP_ETIMEDOUT  23
 /** @brief Out of range */
 #define BPMP_ERANGE	34
-/** @brief Function not implemented */
+/** @brief Function yest implemented */
 #define  BPMP_ENOSYS	38
 /** @brief Invalid slot */
 #define BPMP_EBADSLT	57

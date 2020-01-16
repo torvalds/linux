@@ -41,7 +41,7 @@
 #define dprintk(args...)
 #define debug_dump(b,l,func)
 
-#define DVB_USB_DEBUG_STATUS " (debugging is not enabled)"
+#define DVB_USB_DEBUG_STATUS " (debugging is yest enabled)"
 
 #endif
 
@@ -128,7 +128,7 @@ struct usb_data_stream_properties {
  * @num_frontends: number of frontends of the DVB USB adapter.
  * @frontend_ctrl: called to power on/off active frontend.
  * @streaming_ctrl: called to start and stop the MPEG2-TS streaming of the
- *  device (not URB submitting/killing).
+ *  device (yest URB submitting/killing).
  *  This callback will be called without data URBs being active - data URBs
  *  will be submitted only after streaming_ctrl(1) returns successfully and
  *  they will be killed before streaming_ctrl(0) gets called.
@@ -232,7 +232,7 @@ enum dvb_usb_mode {
  * @firmware: name of the firmware file.
  * @download_firmware: called to download the firmware when the usb_ctrl is
  *  DEVICE_SPECIFIC.
- * @no_reconnect: device doesn't do a reconnect after downloading the firmware,
+ * @yes_reconnect: device doesn't do a reconnect after downloading the firmware,
  *  so do the warm initialization right after it
  *
  * @size_of_priv: how many bytes shall be allocated for the private field
@@ -246,7 +246,7 @@ enum dvb_usb_mode {
  * @power_ctrl: called to enable/disable power of the device.
  * @read_mac_address: called to read the MAC address of the device.
  * @identify_state: called to determine the state (cold or warm), when it
- *  is not distinguishable by the USB IDs.
+ *  is yest distinguishable by the USB IDs.
  *
  * @rc: remote controller properties
  *
@@ -254,12 +254,12 @@ enum dvb_usb_mode {
  *
  * @generic_bulk_ctrl_endpoint: most of the DVB USB devices have a generic
  *  endpoint which received control messages with bulk transfers. When this
- *  is non-zero, one can use dvb_usb_generic_rw and dvb_usb_generic_write-
+ *  is yesn-zero, one can use dvb_usb_generic_rw and dvb_usb_generic_write-
  *  helper functions.
  *
  * @generic_bulk_ctrl_endpoint_response: some DVB USB devices use a separate
  *  endpoint for responses to control messages sent with bulk transfers via
- *  the generic_bulk_ctrl_endpoint. When this is non-zero, this will be used
+ *  the generic_bulk_ctrl_endpoint. When this is yesn-zero, this will be used
  *  instead of the generic_bulk_ctrl_endpoint when reading usb responses in
  *  the dvb_usb_generic_rw helper function.
  *
@@ -280,7 +280,7 @@ struct dvb_usb_device_properties {
 	int        usb_ctrl;
 	int        (*download_firmware) (struct usb_device *, const struct firmware *);
 	const char *firmware;
-	int        no_reconnect;
+	int        yes_reconnect;
 
 	int size_of_priv;
 	int (*priv_init)(struct dvb_usb_device *);
@@ -347,7 +347,7 @@ struct usb_data_stream {
  * @id: index of this adapter (starting with 0).
  *
  * @feedcount: number of requested feeds (used for streaming-activation)
- * @pid_filtering: is hardware pid_filtering used or not.
+ * @pid_filtering: is hardware pid_filtering used or yest.
  *
  * @pll_addr: I2C address of the tuner for programming
  * @pll_init: array containing the initialization buffer
@@ -412,15 +412,15 @@ struct dvb_usb_adapter {
  * @desc: pointer to the device's struct dvb_usb_device_description.
  * @state: initialization and runtime state of the device.
  *
- * @powered: indicated whether the device is power or not.
+ * @powered: indicated whether the device is power or yest.
  *  Powered is in/decremented for each call to modify the state.
  * @udev: pointer to the device's struct usb_device.
  *
  * @data_mutex: mutex to protect the data structure used to store URB data
  * @usb_mutex: mutex of USB control messages (reading needs two messages).
- *	Please notice that this mutex is used internally at the generic
+ *	Please yestice that this mutex is used internally at the generic
  *	URB control functions. So, drivers using dvb_usb_generic_rw() and
- *	derivated functions should not lock it internally.
+ *	derivated functions should yest lock it internally.
  * @i2c_mutex: mutex for i2c-transfers
  *
  * @i2c_adap: device's i2c_adapter if it uses I2CoverUSB
@@ -429,7 +429,7 @@ struct dvb_usb_adapter {
  * @input_dev: input device for the remote control (legacy mode)
  * @rc_query_work: struct work_struct frequent rc queries
  * @last_event: last triggered event
- * @last_state: last state (no, pressed, repeat)
+ * @last_state: last state (yes, pressed, repeat)
  * @owner: owner of the dvb_adapter
  * @priv: private data of the actual driver (allocate by dvb-usb, size defined
  *  in size_of_priv of dvb_usb_properties).

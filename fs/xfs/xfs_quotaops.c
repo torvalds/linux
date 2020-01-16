@@ -9,7 +9,7 @@
 #include "xfs_log_format.h"
 #include "xfs_trans_resv.h"
 #include "xfs_mount.h"
-#include "xfs_inode.h"
+#include "xfs_iyesde.h"
 #include "xfs_quota.h"
 #include "xfs_trans.h"
 #include "xfs_icache.h"
@@ -20,17 +20,17 @@ static void
 xfs_qm_fill_state(
 	struct qc_type_state	*tstate,
 	struct xfs_mount	*mp,
-	struct xfs_inode	*ip,
-	xfs_ino_t		ino)
+	struct xfs_iyesde	*ip,
+	xfs_iyes_t		iyes)
 {
 	struct xfs_quotainfo *q = mp->m_quotainfo;
 	bool tempqip = false;
 
-	tstate->ino = ino;
-	if (!ip && ino == NULLFSINO)
+	tstate->iyes = iyes;
+	if (!ip && iyes == NULLFSINO)
 		return;
 	if (!ip) {
-		if (xfs_iget(mp, NULL, ino, 0, 0, &ip))
+		if (xfs_iget(mp, NULL, iyes, 0, 0, &ip))
 			return;
 		tempqip = true;
 	}
@@ -38,17 +38,17 @@ xfs_qm_fill_state(
 	tstate->blocks = ip->i_d.di_nblocks;
 	tstate->nextents = ip->i_d.di_nextents;
 	tstate->spc_timelimit = q->qi_btimelimit;
-	tstate->ino_timelimit = q->qi_itimelimit;
+	tstate->iyes_timelimit = q->qi_itimelimit;
 	tstate->rt_spc_timelimit = q->qi_rtbtimelimit;
 	tstate->spc_warnlimit = q->qi_bwarnlimit;
-	tstate->ino_warnlimit = q->qi_iwarnlimit;
+	tstate->iyes_warnlimit = q->qi_iwarnlimit;
 	tstate->rt_spc_warnlimit = q->qi_rtbwarnlimit;
 	if (tempqip)
 		xfs_irele(ip);
 }
 
 /*
- * Return quota status information, such as enforcements, quota file inode
+ * Return quota status information, such as enforcements, quota file iyesde
  * numbers etc.
  */
 static int
@@ -77,11 +77,11 @@ xfs_fs_get_quota_state(
 		state->s_state[PRJQUOTA].flags |= QCI_LIMITS_ENFORCED;
 
 	xfs_qm_fill_state(&state->s_state[USRQUOTA], mp, q->qi_uquotaip,
-			  mp->m_sb.sb_uquotino);
+			  mp->m_sb.sb_uquotiyes);
 	xfs_qm_fill_state(&state->s_state[GRPQUOTA], mp, q->qi_gquotaip,
-			  mp->m_sb.sb_gquotino);
+			  mp->m_sb.sb_gquotiyes);
 	xfs_qm_fill_state(&state->s_state[PRJQUOTA], mp, q->qi_pquotaip,
-			  mp->m_sb.sb_pquotino);
+			  mp->m_sb.sb_pquotiyes);
 	return 0;
 }
 
@@ -125,9 +125,9 @@ xfs_fs_set_info(
 
 	newlim.d_fieldmask = info->i_fieldmask;
 	newlim.d_spc_timer = info->i_spc_timelimit;
-	newlim.d_ino_timer = info->i_ino_timelimit;
+	newlim.d_iyes_timer = info->i_iyes_timelimit;
 	newlim.d_rt_spc_timer = info->i_rt_spc_timelimit;
-	newlim.d_ino_warns = info->i_ino_warnlimit;
+	newlim.d_iyes_warns = info->i_iyes_warnlimit;
 	newlim.d_spc_warns = info->i_spc_warnlimit;
 	newlim.d_rt_spc_warns = info->i_rt_spc_warnlimit;
 

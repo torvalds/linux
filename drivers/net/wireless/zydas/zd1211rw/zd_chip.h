@@ -315,7 +315,7 @@ enum {
 
 #define ZD_CR240 CTL_REG(0x03C0)
 /*             bit 7: host-controlled RF register writes
- * ZD_CR241-ZD_CR245: for hardware controlled writing of RF bits, not needed for
+ * ZD_CR241-ZD_CR245: for hardware controlled writing of RF bits, yest needed for
  *                    USB
  */
 #define ZD_CR241 CTL_REG(0x03C4)
@@ -335,7 +335,7 @@ enum {
 
 #define CR_MAX_PHY_REG 255
 
-/* Taken from the ZYDAS driver, not all of them are relevant for the ZD1211
+/* Taken from the ZYDAS driver, yest all of them are relevant for the ZD1211
  * driver.
  */
 
@@ -457,7 +457,7 @@ enum {
 #define CR_RATES_80211B	0x000f
 
 /* Mandatory rates required in the BSS. When producing ACK or CTS messages, if
- * the device could not find an appropriate rate in CR_BASIC_RATE_TBL, it will
+ * the device could yest find an appropriate rate in CR_BASIC_RATE_TBL, it will
  * look for a rate in this table that is less than or equal to the rate of
  * the incoming frame. */
 #define CR_MANDATORY_RATE_TBL		CTL_REG(0x0634)
@@ -671,7 +671,7 @@ enum {
 #define E2P_PWR_INT_GUARD		8
 #define E2P_CHANNEL_COUNT		14
 
-/* If you compare this addresses with the ZYDAS orignal driver, please notify
+/* If you compare this addresses with the ZYDAS orignal driver, please yestify
  * that we use word mapping for the EEPROM.
  */
 
@@ -728,7 +728,7 @@ enum {
 /* All 16 bit values, offset from the address in FWRAW_REGS_ADDR */
 enum {
 	FW_REG_FIRMWARE_VER	= 0,
-	/* non-zero if USB high speed connection */
+	/* yesn-zero if USB high speed connection */
 	FW_REG_USB_SPEED	= 1,
 	FW_REG_FIX_TX_RATE	= 2,
 	/* Seems to be able to control LEDs over the firmware */

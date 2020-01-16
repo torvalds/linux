@@ -4,85 +4,85 @@
  * (c) 2009 Arnaldo Carvalho de Melo <acme@redhat.com>
  */
 
-#include <errno.h>
+#include <erryes.h>
 #include <stdlib.h>
 #include <linux/compiler.h>
 
 #include "intlist.h"
 
-static struct rb_node *intlist__node_new(struct rblist *rblist __maybe_unused,
+static struct rb_yesde *intlist__yesde_new(struct rblist *rblist __maybe_unused,
 					 const void *entry)
 {
 	int i = (int)((long)entry);
-	struct rb_node *rc = NULL;
-	struct int_node *node = malloc(sizeof(*node));
+	struct rb_yesde *rc = NULL;
+	struct int_yesde *yesde = malloc(sizeof(*yesde));
 
-	if (node != NULL) {
-		node->i = i;
-		node->priv = NULL;
-		rc = &node->rb_node;
+	if (yesde != NULL) {
+		yesde->i = i;
+		yesde->priv = NULL;
+		rc = &yesde->rb_yesde;
 	}
 
 	return rc;
 }
 
-static void int_node__delete(struct int_node *ilist)
+static void int_yesde__delete(struct int_yesde *ilist)
 {
 	free(ilist);
 }
 
-static void intlist__node_delete(struct rblist *rblist __maybe_unused,
-				 struct rb_node *rb_node)
+static void intlist__yesde_delete(struct rblist *rblist __maybe_unused,
+				 struct rb_yesde *rb_yesde)
 {
-	struct int_node *node = container_of(rb_node, struct int_node, rb_node);
+	struct int_yesde *yesde = container_of(rb_yesde, struct int_yesde, rb_yesde);
 
-	int_node__delete(node);
+	int_yesde__delete(yesde);
 }
 
-static int intlist__node_cmp(struct rb_node *rb_node, const void *entry)
+static int intlist__yesde_cmp(struct rb_yesde *rb_yesde, const void *entry)
 {
 	int i = (int)((long)entry);
-	struct int_node *node = container_of(rb_node, struct int_node, rb_node);
+	struct int_yesde *yesde = container_of(rb_yesde, struct int_yesde, rb_yesde);
 
-	return node->i - i;
+	return yesde->i - i;
 }
 
 int intlist__add(struct intlist *ilist, int i)
 {
-	return rblist__add_node(&ilist->rblist, (void *)((long)i));
+	return rblist__add_yesde(&ilist->rblist, (void *)((long)i));
 }
 
-void intlist__remove(struct intlist *ilist, struct int_node *node)
+void intlist__remove(struct intlist *ilist, struct int_yesde *yesde)
 {
-	rblist__remove_node(&ilist->rblist, &node->rb_node);
+	rblist__remove_yesde(&ilist->rblist, &yesde->rb_yesde);
 }
 
-static struct int_node *__intlist__findnew(struct intlist *ilist,
+static struct int_yesde *__intlist__findnew(struct intlist *ilist,
 					   int i, bool create)
 {
-	struct int_node *node = NULL;
-	struct rb_node *rb_node;
+	struct int_yesde *yesde = NULL;
+	struct rb_yesde *rb_yesde;
 
 	if (ilist == NULL)
 		return NULL;
 
 	if (create)
-		rb_node = rblist__findnew(&ilist->rblist, (void *)((long)i));
+		rb_yesde = rblist__findnew(&ilist->rblist, (void *)((long)i));
 	else
-		rb_node = rblist__find(&ilist->rblist, (void *)((long)i));
+		rb_yesde = rblist__find(&ilist->rblist, (void *)((long)i));
 
-	if (rb_node)
-		node = container_of(rb_node, struct int_node, rb_node);
+	if (rb_yesde)
+		yesde = container_of(rb_yesde, struct int_yesde, rb_yesde);
 
-	return node;
+	return yesde;
 }
 
-struct int_node *intlist__find(struct intlist *ilist, int i)
+struct int_yesde *intlist__find(struct intlist *ilist, int i)
 {
 	return __intlist__findnew(ilist, i, false);
 }
 
-struct int_node *intlist__findnew(struct intlist *ilist, int i)
+struct int_yesde *intlist__findnew(struct intlist *ilist, int i)
 {
 	return __intlist__findnew(ilist, i, true);
 }
@@ -112,9 +112,9 @@ struct intlist *intlist__new(const char *slist)
 
 	if (ilist != NULL) {
 		rblist__init(&ilist->rblist);
-		ilist->rblist.node_cmp    = intlist__node_cmp;
-		ilist->rblist.node_new    = intlist__node_new;
-		ilist->rblist.node_delete = intlist__node_delete;
+		ilist->rblist.yesde_cmp    = intlist__yesde_cmp;
+		ilist->rblist.yesde_new    = intlist__yesde_new;
+		ilist->rblist.yesde_delete = intlist__yesde_delete;
 
 		if (slist && intlist__parse_list(ilist, slist))
 			goto out_delete;
@@ -132,14 +132,14 @@ void intlist__delete(struct intlist *ilist)
 		rblist__delete(&ilist->rblist);
 }
 
-struct int_node *intlist__entry(const struct intlist *ilist, unsigned int idx)
+struct int_yesde *intlist__entry(const struct intlist *ilist, unsigned int idx)
 {
-	struct int_node *node = NULL;
-	struct rb_node *rb_node;
+	struct int_yesde *yesde = NULL;
+	struct rb_yesde *rb_yesde;
 
-	rb_node = rblist__entry(&ilist->rblist, idx);
-	if (rb_node)
-		node = container_of(rb_node, struct int_node, rb_node);
+	rb_yesde = rblist__entry(&ilist->rblist, idx);
+	if (rb_yesde)
+		yesde = container_of(rb_yesde, struct int_yesde, rb_yesde);
 
-	return node;
+	return yesde;
 }

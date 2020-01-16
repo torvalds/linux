@@ -13,11 +13,11 @@
 *   conditions are met:
 *
 *    - Redistributions of source code must retain the above
-*	copyright notice, this list of conditions and the following
+*	copyright yestice, this list of conditions and the following
 *	disclaimer.
 *
 *    - Redistributions in binary form must reproduce the above
-*	copyright notice, this list of conditions and the following
+*	copyright yestice, this list of conditions and the following
 *	disclaimer in the documentation and/or other materials
 *	provided with the distribution.
 *
@@ -187,10 +187,10 @@ static int i40iw_mmap(struct ib_ucontext *context, struct vm_area_struct *vma)
 	vma->vm_pgoff += db_addr_offset >> PAGE_SHIFT;
 
 	if (vma->vm_pgoff == (db_addr_offset >> PAGE_SHIFT)) {
-		vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
+		vma->vm_page_prot = pgprot_yesncached(vma->vm_page_prot);
 	} else {
 		if ((vma->vm_pgoff - (push_offset >> PAGE_SHIFT)) % 2)
-			vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
+			vma->vm_page_prot = pgprot_yesncached(vma->vm_page_prot);
 		else
 			vma->vm_page_prot = pgprot_writecombine(vma->vm_page_prot);
 	}
@@ -644,7 +644,7 @@ static struct ib_qp *i40iw_create_qp(struct ib_pd *ibpd,
 
 			if (!iwpbl) {
 				err_code = -ENODATA;
-				i40iw_pr_err("no pbl info\n");
+				i40iw_pr_err("yes pbl info\n");
 				goto error;
 			}
 			memcpy(&iwqp->iwpbl, iwpbl, sizeof(iwqp->iwpbl));
@@ -783,7 +783,7 @@ static int i40iw_query_qp(struct ib_qp *ibqp,
  * @iwdev: iwarp device
  * @iwqp: qp ptr (user or kernel)
  * @info: info for modify qp
- * @wait: flag to wait or not for modify qp completion
+ * @wait: flag to wait or yest for modify qp completion
  */
 void i40iw_hw_modify_qp(struct i40iw_device *iwdev, struct i40iw_qp *iwqp,
 			struct i40iw_modify_qp_info *info, bool wait)
@@ -810,7 +810,7 @@ void i40iw_hw_modify_qp(struct i40iw_device *iwdev, struct i40iw_qp *iwqp,
 	switch (m_info->next_iwarp_state) {
 	case I40IW_QP_STATE_RTS:
 		if (iwqp->iwarp_state == I40IW_QP_STATE_IDLE)
-			i40iw_send_reset(iwqp->cm_node);
+			i40iw_send_reset(iwqp->cm_yesde);
 		/* fall through */
 	case I40IW_QP_STATE_IDLE:
 	case I40IW_QP_STATE_TERMINATE:
@@ -994,7 +994,7 @@ int i40iw_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 			if (iwqp->cm_id) {
 				if (atomic_inc_return(&iwqp->close_timer_started) == 1) {
 					iwqp->cm_id->add_ref(iwqp->cm_id);
-					i40iw_schedule_cm_timer(iwqp->cm_node,
+					i40iw_schedule_cm_timer(iwqp->cm_yesde,
 								(struct i40iw_puda_buf *)iwqp,
 								 I40IW_TIMER_TYPE_CLOSE, 1, 0);
 				}
@@ -1685,7 +1685,7 @@ static int i40iw_hwreg_mr(struct i40iw_device *iwdev,
 		return -ENOMEM;
 
 	cqp_info = &cqp_request->info;
-	stag_info = &cqp_info->in.u.mr_reg_non_shared.info;
+	stag_info = &cqp_info->in.u.mr_reg_yesn_shared.info;
 	memset(stag_info, 0, sizeof(*stag_info));
 	stag_info->va = (void *)(unsigned long)iwpbl->user_base;
 	stag_info->stag_idx = iwmr->stag >> I40IW_CQPSQ_STAG_IDX_SHIFT;
@@ -1710,8 +1710,8 @@ static int i40iw_hwreg_mr(struct i40iw_device *iwdev,
 
 	cqp_info->cqp_cmd = OP_MR_REG_NON_SHARED;
 	cqp_info->post_sq = 1;
-	cqp_info->in.u.mr_reg_non_shared.dev = &iwdev->sc_dev;
-	cqp_info->in.u.mr_reg_non_shared.scratch = (uintptr_t)cqp_request;
+	cqp_info->in.u.mr_reg_yesn_shared.dev = &iwdev->sc_dev;
+	cqp_info->in.u.mr_reg_yesn_shared.scratch = (uintptr_t)cqp_request;
 
 	status = i40iw_handle_cqp_op(iwdev, cqp_request);
 	if (status) {
@@ -2369,7 +2369,7 @@ static int i40iw_poll_cq(struct ib_cq *ibcq,
 		entry->wr_id = cq_poll_info.wr_id;
 		if (cq_poll_info.error) {
 			entry->status = IB_WC_WR_FLUSH_ERR;
-			entry->vendor_err = cq_poll_info.major_err << 16 | cq_poll_info.minor_err;
+			entry->vendor_err = cq_poll_info.major_err << 16 | cq_poll_info.miyesr_err;
 		} else {
 			entry->status = IB_WC_SUCCESS;
 		}
@@ -2416,24 +2416,24 @@ static int i40iw_poll_cq(struct ib_cq *ibcq,
 }
 
 /**
- * i40iw_req_notify_cq - arm cq kernel application
+ * i40iw_req_yestify_cq - arm cq kernel application
  * @ibcq: cq to arm
- * @notify_flags: notofication flags
+ * @yestify_flags: yestofication flags
  */
-static int i40iw_req_notify_cq(struct ib_cq *ibcq,
-			       enum ib_cq_notify_flags notify_flags)
+static int i40iw_req_yestify_cq(struct ib_cq *ibcq,
+			       enum ib_cq_yestify_flags yestify_flags)
 {
 	struct i40iw_cq *iwcq;
 	struct i40iw_cq_uk *ukcq;
 	unsigned long flags;
-	enum i40iw_completion_notify cq_notify = IW_CQ_COMPL_EVENT;
+	enum i40iw_completion_yestify cq_yestify = IW_CQ_COMPL_EVENT;
 
 	iwcq = (struct i40iw_cq *)ibcq;
 	ukcq = &iwcq->sc_cq.cq_uk;
-	if (notify_flags == IB_CQ_SOLICITED)
-		cq_notify = IW_CQ_COMPL_SOLICITED;
+	if (yestify_flags == IB_CQ_SOLICITED)
+		cq_yestify = IW_CQ_COMPL_SOLICITED;
 	spin_lock_irqsave(&iwcq->lock, flags);
-	ukcq->ops.iw_cq_request_notification(ukcq, cq_notify);
+	ukcq->ops.iw_cq_request_yestification(ukcq, cq_yestify);
 	spin_unlock_irqrestore(&iwcq->lock, flags);
 	return 0;
 }
@@ -2671,7 +2671,7 @@ static const struct ib_device_ops i40iw_dev_ops = {
 	.query_port = i40iw_query_port,
 	.query_qp = i40iw_query_qp,
 	.reg_user_mr = i40iw_reg_user_mr,
-	.req_notify_cq = i40iw_req_notify_cq,
+	.req_yestify_cq = i40iw_req_yestify_cq,
 	INIT_RDMA_OBJ_SIZE(ib_pd, i40iw_pd, ibpd),
 	INIT_RDMA_OBJ_SIZE(ib_cq, i40iw_cq, ibcq),
 	INIT_RDMA_OBJ_SIZE(ib_ucontext, i40iw_ucontext, ibucontext),
@@ -2695,8 +2695,8 @@ static struct i40iw_ib_device *i40iw_init_rdma_device(struct i40iw_device *iwdev
 	iwdev->iwibdev = iwibdev;
 	iwibdev->iwdev = iwdev;
 
-	iwibdev->ibdev.node_type = RDMA_NODE_RNIC;
-	ether_addr_copy((u8 *)&iwibdev->ibdev.node_guid, netdev->dev_addr);
+	iwibdev->ibdev.yesde_type = RDMA_NODE_RNIC;
+	ether_addr_copy((u8 *)&iwibdev->ibdev.yesde_guid, netdev->dev_addr);
 
 	iwibdev->ibdev.uverbs_cmd_mask =
 	    (1ull << IB_USER_VERBS_CMD_GET_CONTEXT) |

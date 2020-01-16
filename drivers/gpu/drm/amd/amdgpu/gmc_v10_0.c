@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -253,7 +253,7 @@ static void gmc_v10_0_flush_vm_hub(struct amdgpu_device *adev, uint32_t vmid,
 
 	spin_lock(&adev->gmc.invalidate_lock);
 	/*
-	 * It may lose gpuvm invalidate acknowldege state across power-gating
+	 * It may lose gpuvm invalidate ackyeswldege state across power-gating
 	 * off cycle, add semaphore acquire before invalidation and semaphore
 	 * release after invalidation to avoid entering power gated state
 	 * to WA the Issue
@@ -358,7 +358,7 @@ static void gmc_v10_0_flush_gpu_tlb(struct amdgpu_device *adev, uint32_t vmid,
 
 	job->vm_pd_addr = amdgpu_gmc_pd_addr(adev->gart.bo);
 	job->vm_needs_flush = true;
-	job->ibs->ptr[job->ibs->length_dw++] = ring->funcs->nop;
+	job->ibs->ptr[job->ibs->length_dw++] = ring->funcs->yesp;
 	amdgpu_ring_pad_ib(ring, &job->ibs[0]);
 	r = amdgpu_job_submit(job, &adev->mman.entity,
 			      AMDGPU_FENCE_OWNER_UNDEFINED, &fence);
@@ -389,7 +389,7 @@ static uint64_t gmc_v10_0_emit_flush_gpu_tlb(struct amdgpu_ring *ring,
 	unsigned eng = ring->vm_inv_eng;
 
 	/*
-	 * It may lose gpuvm invalidate acknowldege state across power-gating
+	 * It may lose gpuvm invalidate ackyeswldege state across power-gating
 	 * off cycle, add semaphore acquire before invalidation and semaphore
 	 * release after invalidation to avoid entering power gated state
 	 * to WA the Issue
@@ -452,7 +452,7 @@ static void gmc_v10_0_emit_pasid_mapping(struct amdgpu_ring *ring, unsigned vmid
  * 5 read
  * 4 exe
  * 3 Z
- * 2 snooped
+ * 2 syesoped
  * 1 system
  * 0 valid
  *
@@ -955,7 +955,7 @@ static bool gmc_v10_0_is_idle(void *handle)
 
 static int gmc_v10_0_wait_for_idle(void *handle)
 {
-	/* There is no need to wait for MC idle in GMC v10.*/
+	/* There is yes need to wait for MC idle in GMC v10.*/
 	return 0;
 }
 
@@ -1014,7 +1014,7 @@ const struct amdgpu_ip_block_version gmc_v10_0_ip_block =
 {
 	.type = AMD_IP_BLOCK_TYPE_GMC,
 	.major = 10,
-	.minor = 0,
+	.miyesr = 0,
 	.rev = 0,
 	.funcs = &gmc_v10_0_ip_funcs,
 };

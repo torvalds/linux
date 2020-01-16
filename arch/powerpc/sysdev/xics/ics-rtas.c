@@ -14,7 +14,7 @@
 #include <asm/smp.h>
 #include <asm/machdep.h>
 #include <asm/irq.h>
-#include <asm/errno.h>
+#include <asm/erryes.h>
 #include <asm/xics.h>
 #include <asm/rtas.h>
 
@@ -25,14 +25,14 @@ static int ibm_int_on;
 static int ibm_int_off;
 
 static int ics_rtas_map(struct ics *ics, unsigned int virq);
-static void ics_rtas_mask_unknown(struct ics *ics, unsigned long vec);
+static void ics_rtas_mask_unkyeswn(struct ics *ics, unsigned long vec);
 static long ics_rtas_get_server(struct ics *ics, unsigned long vec);
-static int ics_rtas_host_match(struct ics *ics, struct device_node *node);
+static int ics_rtas_host_match(struct ics *ics, struct device_yesde *yesde);
 
 /* Only one global & state struct ics */
 static struct ics ics_rtas = {
 	.map		= ics_rtas_map,
-	.mask_unknown	= ics_rtas_mask_unknown,
+	.mask_unkyeswn	= ics_rtas_mask_unkyeswn,
 	.get_server	= ics_rtas_get_server,
 	.host_match	= ics_rtas_host_match,
 };
@@ -59,7 +59,7 @@ static void ics_rtas_unmask_irq(struct irq_data *d)
 		return;
 	}
 
-	/* Now unmask the interrupt (often a no-op) */
+	/* Now unmask the interrupt (often a yes-op) */
 	call_status = rtas_call(ibm_int_on, 1, 1, NULL, hw_irq);
 	if (call_status != 0) {
 		printk(KERN_ERR "%s: ibm_int_on irq=%u returned %d\n",
@@ -178,7 +178,7 @@ static int ics_rtas_map(struct ics *ics, unsigned int virq)
 	if (WARN_ON(hw_irq == XICS_IPI || hw_irq == XICS_IRQ_SPURIOUS))
 		return -EINVAL;
 
-	/* Check if RTAS knows about this interrupt */
+	/* Check if RTAS kyesws about this interrupt */
 	rc = rtas_call(ibm_get_xive, 1, 3, status, hw_irq);
 	if (rc)
 		return -ENXIO;
@@ -189,7 +189,7 @@ static int ics_rtas_map(struct ics *ics, unsigned int virq)
 	return 0;
 }
 
-static void ics_rtas_mask_unknown(struct ics *ics, unsigned long vec)
+static void ics_rtas_mask_unkyeswn(struct ics *ics, unsigned long vec)
 {
 	ics_rtas_mask_real_irq(vec);
 }
@@ -204,13 +204,13 @@ static long ics_rtas_get_server(struct ics *ics, unsigned long vec)
 	return status[0];
 }
 
-static int ics_rtas_host_match(struct ics *ics, struct device_node *node)
+static int ics_rtas_host_match(struct ics *ics, struct device_yesde *yesde)
 {
 	/* IBM machines have interrupt parents of various funky types for things
 	 * like vdevices, events, etc... The trick we use here is to match
 	 * everything here except the legacy 8259 which is compatible "chrp,iic"
 	 */
-	return !of_device_is_compatible(node, "chrp,iic");
+	return !of_device_is_compatible(yesde, "chrp,iic");
 }
 
 __init int ics_rtas_init(void)

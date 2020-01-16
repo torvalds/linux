@@ -1,10 +1,10 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 #ifndef _ASMARM_STAT_H
 #define _ASMARM_STAT_H
 
 struct __old_kernel_stat {
 	unsigned short st_dev;
-	unsigned short st_ino;
+	unsigned short st_iyes;
 	unsigned short st_mode;
 	unsigned short st_nlink;
 	unsigned short st_uid;
@@ -25,7 +25,7 @@ struct stat {
 #else
 	unsigned long  st_dev;
 #endif
-	unsigned long  st_ino;
+	unsigned long  st_iyes;
 	unsigned short st_mode;
 	unsigned short st_nlink;
 	unsigned short st_uid;
@@ -59,7 +59,7 @@ struct stat64 {
 	unsigned char   __pad0[4];
 
 #define STAT64_HAS_BROKEN_ST_INO	1
-	unsigned long	__st_ino;
+	unsigned long	__st_iyes;
 	unsigned int	st_mode;
 	unsigned int	st_nlink;
 
@@ -82,7 +82,7 @@ struct stat64 {
 	unsigned long	st_ctime;
 	unsigned long	st_ctime_nsec;
 
-	unsigned long long	st_ino;
+	unsigned long long	st_iyes;
 };
 
 #endif

@@ -14,7 +14,7 @@ obj-$(CONFIG_MATH_EMULATION_FULL) += $(math-emu-common-objs) fabs.o fadd.o \
 
 obj-$(CONFIG_SPE)		+= math_efp.o
 
-CFLAGS_fabs.o = -fno-builtin-fabs
-CFLAGS_math.o = -fno-builtin-fabs
+CFLAGS_fabs.o = -fyes-builtin-fabs
+CFLAGS_math.o = -fyes-builtin-fabs
 
 ccflags-y = -w

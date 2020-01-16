@@ -15,7 +15,7 @@
 static void uwb_rsv_timer(struct timer_list *t);
 
 static const char *rsv_states[] = {
-	[UWB_RSV_STATE_NONE]                 = "none            ",
+	[UWB_RSV_STATE_NONE]                 = "yesne            ",
 	[UWB_RSV_STATE_O_INITIATED]          = "o initiated     ",
 	[UWB_RSV_STATE_O_PENDING]            = "o pending       ",
 	[UWB_RSV_STATE_O_MODIFIED]           = "o modified      ",
@@ -75,7 +75,7 @@ bool uwb_rsv_has_two_drp_ies(struct uwb_rsv *rsv)
 const char *uwb_rsv_state_str(enum uwb_rsv_state state)
 {
 	if (state < UWB_RSV_STATE_NONE || state >= UWB_RSV_STATE_LAST)
-		return "unknown";
+		return "unkyeswn";
 	return rsv_states[state];
 }
 EXPORT_SYMBOL_GPL(uwb_rsv_state_str);
@@ -153,7 +153,7 @@ static int uwb_rsv_get_stream(struct uwb_rsv *rsv)
 
 	stream = find_first_zero_bit(streams_bm, UWB_NUM_STREAMS);
 	if (stream >= UWB_NUM_STREAMS) {
-		dev_err(dev, "%s: no available stream found\n", __func__);
+		dev_err(dev, "%s: yes available stream found\n", __func__);
 		return -EBUSY;
 	}
 
@@ -237,7 +237,7 @@ static void uwb_rsv_stroke_timer(struct uwb_rsv *rsv)
 
 	/*
 	 * Multicast reservations can become established within 1
-	 * super frame and should not be terminated if no response is
+	 * super frame and should yest be terminated if yes response is
 	 * received.
 	 */
 	if (rsv->state == UWB_RSV_STATE_NONE) {
@@ -326,7 +326,7 @@ void uwb_rsv_set_state(struct uwb_rsv *rsv, enum uwb_rsv_state new_state)
 		break;
 	case UWB_RSV_STATE_O_MODIFIED:
 		/* in the companion there are the MASes to drop */
-		bitmap_andnot(rsv->mas.bm, rsv->mas.bm, mv->companion_mas.bm, UWB_NUM_MAS);
+		bitmap_andyest(rsv->mas.bm, rsv->mas.bm, mv->companion_mas.bm, UWB_NUM_MAS);
 		uwb_rsv_state_update(rsv, UWB_RSV_STATE_O_MODIFIED);
 		break;
 	case UWB_RSV_STATE_O_ESTABLISHED:
@@ -352,7 +352,7 @@ void uwb_rsv_set_state(struct uwb_rsv *rsv, enum uwb_rsv_state new_state)
 		uwb_rsv_state_update(rsv, UWB_RSV_STATE_O_MOVE_COMBINING);
 		break;
 	case UWB_RSV_STATE_O_MOVE_REDUCING:
-		bitmap_andnot(mv->companion_mas.bm, rsv->mas.bm, mv->final_mas.bm, UWB_NUM_MAS);
+		bitmap_andyest(mv->companion_mas.bm, rsv->mas.bm, mv->final_mas.bm, UWB_NUM_MAS);
 		rsv->needs_release_companion_mas = true;
 		rsv->mas.safe   = mv->final_mas.safe;
 		rsv->mas.unsafe = mv->final_mas.unsafe;
@@ -456,8 +456,8 @@ static struct uwb_rsv *uwb_rsv_alloc(struct uwb_rc *rc)
 	if (!rsv)
 		return NULL;
 
-	INIT_LIST_HEAD(&rsv->rc_node);
-	INIT_LIST_HEAD(&rsv->pal_node);
+	INIT_LIST_HEAD(&rsv->rc_yesde);
+	INIT_LIST_HEAD(&rsv->pal_yesde);
 	kref_init(&rsv->kref);
 	timer_setup(&rsv->timer, uwb_rsv_timer, 0);
 
@@ -513,7 +513,7 @@ void uwb_rsv_remove(struct uwb_rsv *rsv)
 	if (rsv->target.type == UWB_RSV_TARGET_DEV)
 		uwb_dev_put(rsv->target.dev);
 
-	list_del_init(&rsv->rc_node);
+	list_del_init(&rsv->rc_yesde);
 	uwb_rsv_put(rsv);
 }
 
@@ -577,7 +577,7 @@ int uwb_rsv_establish(struct uwb_rsv *rsv)
 	}
 
 	uwb_rsv_get(rsv);
-	list_add_tail(&rsv->rc_node, &rc->reservations);
+	list_add_tail(&rsv->rc_yesde, &rc->reservations);
 	rsv->owner = &rc->uwb_dev;
 	uwb_dev_get(rsv->owner);
 	uwb_rsv_set_state(rsv, UWB_RSV_STATE_O_INITIATED);
@@ -623,12 +623,12 @@ int uwb_rsv_try_move(struct uwb_rsv *rsv, struct uwb_mas_bm *available)
 
 		if (!bitmap_equal(rsv->mas.bm, mv->final_mas.bm, UWB_NUM_MAS)) {
 			/* We want to move the reservation */
-			bitmap_andnot(mv->companion_mas.bm, mv->final_mas.bm, rsv->mas.bm, UWB_NUM_MAS);
+			bitmap_andyest(mv->companion_mas.bm, mv->final_mas.bm, rsv->mas.bm, UWB_NUM_MAS);
 			uwb_drp_avail_reserve_pending(rc, &mv->companion_mas);
 			uwb_rsv_set_state(rsv, UWB_RSV_STATE_O_MOVE_EXPANDING);
 		}
 	} else {
-		dev_dbg(dev, "new allocation not found\n");
+		dev_dbg(dev, "new allocation yest found\n");
 	}
 
 	return ret;
@@ -646,7 +646,7 @@ void uwb_rsv_handle_drp_avail_change(struct uwb_rc *rc)
 	if (!bow->can_reserve_extra_mases)
 		return;
 
-	list_for_each_entry(rsv, &rc->reservations, rc_node) {
+	list_for_each_entry(rsv, &rc->reservations, rc_yesde) {
 		if (rsv->state == UWB_RSV_STATE_O_ESTABLISHED ||
 		    rsv->state == UWB_RSV_STATE_O_TO_BE_MOVED) {
 			uwb_drp_available(rc, &mas);
@@ -663,7 +663,7 @@ void uwb_rsv_handle_drp_avail_change(struct uwb_rc *rc)
  *
  * A reservation is terminated by removing the DRP IE from the beacon,
  * the other end will consider the reservation to be terminated when
- * it does not see the DRP IE for at least mMaxLostBeacons.
+ * it does yest see the DRP IE for at least mMaxLostBeacons.
  *
  * If applicable, the reference to the target uwb_dev will be released.
  */
@@ -752,12 +752,12 @@ static struct uwb_rsv *uwb_rsv_new_target(struct uwb_rc *rc,
 	uwb_drp_ie_to_bm(&rsv->mas, drp_ie);
 
 	/*
-	 * See if any PALs are interested in this reservation. If not,
+	 * See if any PALs are interested in this reservation. If yest,
 	 * deny the request.
 	 */
 	rsv->state = UWB_RSV_STATE_T_DENIED;
 	mutex_lock(&rc->uwb_dev.mutex);
-	list_for_each_entry(pal, &rc->pals, node) {
+	list_for_each_entry(pal, &rc->pals, yesde) {
 		if (pal->new_rsv)
 			pal->new_rsv(pal, rsv);
 		if (rsv->state == UWB_RSV_STATE_T_ACCEPTED)
@@ -765,7 +765,7 @@ static struct uwb_rsv *uwb_rsv_new_target(struct uwb_rc *rc,
 	}
 	mutex_unlock(&rc->uwb_dev.mutex);
 
-	list_add_tail(&rsv->rc_node, &rc->reservations);
+	list_add_tail(&rsv->rc_yesde, &rc->reservations);
 	state = rsv->state;
 	rsv->state = UWB_RSV_STATE_NONE;
 
@@ -791,7 +791,7 @@ static struct uwb_rsv *uwb_rsv_new_target(struct uwb_rc *rc,
 void uwb_rsv_get_usable_mas(struct uwb_rsv *rsv, struct uwb_mas_bm *mas)
 {
 	bitmap_zero(mas->bm, UWB_NUM_MAS);
-	bitmap_andnot(mas->bm, rsv->mas.bm, rsv->rc->cnflt_alien_bitmap.bm, UWB_NUM_MAS);
+	bitmap_andyest(mas->bm, rsv->mas.bm, rsv->rc->cnflt_alien_bitmap.bm, UWB_NUM_MAS);
 }
 EXPORT_SYMBOL_GPL(uwb_rsv_get_usable_mas);
 
@@ -801,7 +801,7 @@ EXPORT_SYMBOL_GPL(uwb_rsv_get_usable_mas);
  * @src: source of the DRP IE
  * @drp_ie: the DRP IE
  *
- * If the reservation cannot be found and the DRP IE is from a peer
+ * If the reservation canyest be found and the DRP IE is from a peer
  * attempting to establish a new reservation, create a new reservation
  * and add it to the list.
  */
@@ -810,7 +810,7 @@ struct uwb_rsv *uwb_rsv_find(struct uwb_rc *rc, struct uwb_dev *src,
 {
 	struct uwb_rsv *rsv;
 
-	list_for_each_entry(rsv, &rc->reservations, rc_node) {
+	list_for_each_entry(rsv, &rc->reservations, rc_yesde) {
 		if (uwb_rsv_match(rsv, src, drp_ie))
 			return rsv;
 	}
@@ -833,7 +833,7 @@ static bool uwb_rsv_update_all(struct uwb_rc *rc)
 	struct uwb_rsv *rsv, *t;
 	bool ie_updated = false;
 
-	list_for_each_entry_safe(rsv, t, &rc->reservations, rc_node) {
+	list_for_each_entry_safe(rsv, t, &rc->reservations, rc_yesde) {
 		if (!rsv->ie_valid) {
 			uwb_drp_ie_update(rsv);
 			ie_updated = true;
@@ -858,11 +858,11 @@ void uwb_rsv_queue_update(struct uwb_rc *rc)
  * number of SET-DRP-IE commands that are done are limited.
  *
  * DRP IEs update come from two sources: DRP events from the hardware
- * which all occur at the beginning of the superframe ('syncronous'
+ * which all occur at the beginning of the superframe ('syncroyesus'
  * events) and reservation establishment/termination requests from
- * PALs or timers ('asynchronous' events).
+ * PALs or timers ('asynchroyesus' events).
  *
- * A delayed work ensures that all the synchronous events result in
+ * A delayed work ensures that all the synchroyesus events result in
  * one SET-DRP-IE command.
  *
  * Additional logic (the set_drp_ie_pending and rsv_updated_postponed
@@ -870,7 +870,7 @@ void uwb_rsv_queue_update(struct uwb_rc *rc)
  * command if one is currently awaiting a response.
  *
  * FIXME: this does leave a window where an asynchrous event can delay
- * the SET-DRP-IE for a synchronous event by one superframe.
+ * the SET-DRP-IE for a synchroyesus event by one superframe.
  */
 void uwb_rsv_sched_update(struct uwb_rc *rc)
 {
@@ -919,7 +919,7 @@ static void uwb_rsv_alien_bp_work(struct work_struct *work)
 
 	mutex_lock(&rc->rsvs_mutex);
 
-	list_for_each_entry(rsv, &rc->reservations, rc_node) {
+	list_for_each_entry(rsv, &rc->reservations, rc_yesde) {
 		if (rsv->type != UWB_DRP_TYPE_ALIEN_BP) {
 			uwb_rsv_callback(rsv);
 		}
@@ -939,14 +939,14 @@ static void uwb_rsv_timer(struct timer_list *t)
  * uwb_rsv_remove_all - remove all reservations
  * @rc: the radio controller
  *
- * A DRP IE update is not done.
+ * A DRP IE update is yest done.
  */
 void uwb_rsv_remove_all(struct uwb_rc *rc)
 {
 	struct uwb_rsv *rsv, *t;
 
 	mutex_lock(&rc->rsvs_mutex);
-	list_for_each_entry_safe(rsv, t, &rc->reservations, rc_node) {
+	list_for_each_entry_safe(rsv, t, &rc->reservations, rc_yesde) {
 		if (rsv->state != UWB_RSV_STATE_NONE)
 			uwb_rsv_set_state(rsv, UWB_RSV_STATE_NONE);
 		del_timer_sync(&rsv->timer);
@@ -959,7 +959,7 @@ void uwb_rsv_remove_all(struct uwb_rc *rc)
 	flush_workqueue(rc->rsv_workq);
 
 	mutex_lock(&rc->rsvs_mutex);
-	list_for_each_entry_safe(rsv, t, &rc->reservations, rc_node) {
+	list_for_each_entry_safe(rsv, t, &rc->reservations, rc_yesde) {
 		uwb_rsv_remove(rsv);
 	}
 	mutex_unlock(&rc->rsvs_mutex);

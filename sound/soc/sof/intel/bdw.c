@@ -226,7 +226,7 @@ static void bdw_get_registers(struct snd_sof_dev *sdev,
 	/* first read registers */
 	sof_mailbox_read(sdev, offset, xoops, sizeof(*xoops));
 
-	/* note: variable AR register array is not read */
+	/* yeste: variable AR register array is yest read */
 
 	/* then get panic info */
 	if (xoops->arch_hdr.totalsize > EXCEPT_MAX_HDR_SIZE) {
@@ -249,7 +249,7 @@ static void bdw_dump(struct snd_sof_dev *sdev, u32 flags)
 	u32 stack[BDW_STACK_DUMP_SIZE];
 	u32 status, panic, imrx, imrd;
 
-	/* now try generic SOF status messages */
+	/* yesw try generic SOF status messages */
 	status = snd_sof_dsp_read(sdev, BDW_DSP_BAR, SHIM_IPCD);
 	panic = snd_sof_dsp_read(sdev, BDW_DSP_BAR, SHIM_IPCX);
 	bdw_get_registers(sdev, &xoops, &panic_info, stack,
@@ -262,20 +262,20 @@ static void bdw_dump(struct snd_sof_dev *sdev, u32 flags)
 	imrd = snd_sof_dsp_read(sdev, BDW_DSP_BAR, SHIM_IMRD);
 	dev_err(sdev->dev,
 		"error: ipc host -> DSP: pending %s complete %s raw 0x%8.8x\n",
-		(panic & SHIM_IPCX_BUSY) ? "yes" : "no",
-		(panic & SHIM_IPCX_DONE) ? "yes" : "no", panic);
+		(panic & SHIM_IPCX_BUSY) ? "no" : "yes",
+		(panic & SHIM_IPCX_DONE) ? "no" : "yes", panic);
 	dev_err(sdev->dev,
 		"error: mask host: pending %s complete %s raw 0x%8.8x\n",
-		(imrx & SHIM_IMRX_BUSY) ? "yes" : "no",
-		(imrx & SHIM_IMRX_DONE) ? "yes" : "no", imrx);
+		(imrx & SHIM_IMRX_BUSY) ? "no" : "yes",
+		(imrx & SHIM_IMRX_DONE) ? "no" : "yes", imrx);
 	dev_err(sdev->dev,
 		"error: ipc DSP -> host: pending %s complete %s raw 0x%8.8x\n",
-		(status & SHIM_IPCD_BUSY) ? "yes" : "no",
-		(status & SHIM_IPCD_DONE) ? "yes" : "no", status);
+		(status & SHIM_IPCD_BUSY) ? "no" : "yes",
+		(status & SHIM_IPCD_DONE) ? "no" : "yes", status);
 	dev_err(sdev->dev,
 		"error: mask DSP: pending %s complete %s raw 0x%8.8x\n",
-		(imrd & SHIM_IMRD_BUSY) ? "yes" : "no",
-		(imrd & SHIM_IMRD_DONE) ? "yes" : "no", imrd);
+		(imrd & SHIM_IMRD_BUSY) ? "no" : "yes",
+		(imrd & SHIM_IMRD_DONE) ? "no" : "yes", imrd);
 }
 
 /*
@@ -375,8 +375,8 @@ static void bdw_get_reply(struct snd_sof_dev *sdev)
 
 	/*
 	 * Sometimes, there is unexpected reply ipc arriving. The reply
-	 * ipc belongs to none of the ipcs sent from driver.
-	 * In this case, the driver must ignore the ipc.
+	 * ipc belongs to yesne of the ipcs sent from driver.
+	 * In this case, the driver must igyesre the ipc.
 	 */
 	if (!msg) {
 		dev_warn(sdev->dev, "unexpected ipc interrupt raised!\n");

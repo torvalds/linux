@@ -62,7 +62,7 @@ static void chunk_map_stats(struct seq_file *m, struct pcpu_chunk *chunk,
 	alloc_sizes = buffer;
 
 	/*
-	 * find_last_bit returns the start value if nothing found.
+	 * find_last_bit returns the start value if yesthing found.
 	 * Therefore, we must determine if it is a failure of find_last_bit
 	 * and set the appropriate value.
 	 */
@@ -77,9 +77,9 @@ static void chunk_map_stats(struct seq_file *m, struct pcpu_chunk *chunk,
 
 	/*
 	 * If a bit is set in the allocation map, the bound_map identifies
-	 * where the allocation ends.  If the allocation is not set, the
-	 * bound_map does not identify free areas as it is only kept accurate
-	 * on allocation, not free.
+	 * where the allocation ends.  If the allocation is yest set, the
+	 * bound_map does yest identify free areas as it is only kept accurate
+	 * on allocation, yest free.
 	 *
 	 * Positive values are allocations and negative values are free
 	 * fragments.

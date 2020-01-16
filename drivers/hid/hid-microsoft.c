@@ -77,7 +77,7 @@ static __u8 *ms_report_fixup(struct hid_device *hdev, __u8 *rdesc,
 
 #define ms_map_key_clear(c)	hid_map_usage_clear(hi, usage, bit, max, \
 					EV_KEY, (c))
-static int ms_ergonomy_kb_quirk(struct hid_input *hi, struct hid_usage *usage,
+static int ms_ergoyesmy_kb_quirk(struct hid_input *hi, struct hid_usage *usage,
 		unsigned long **bit, int *max)
 {
 	struct input_dev *input = hi->input;
@@ -120,8 +120,8 @@ static int ms_ergonomy_kb_quirk(struct hid_input *hi, struct hid_usage *usage,
 		 * standard hid keyboard report, as send by interface 0
 		 * (this usage is found on interface 1).
 		 *
-		 * This byte only gets send when another key in the same report
-		 * changes state, and as such is useless, ignore it.
+		 * This byte only gets send when ayesther key in the same report
+		 * changes state, and as such is useless, igyesre it.
 		 */
 		return -1;
 	case 0xff05:
@@ -165,7 +165,7 @@ static int ms_surface_dial_quirk(struct hid_input *hi, struct hid_field *field,
 	case 0xff070000:
 		/* fall-through */
 	case HID_UP_DIGITIZER:
-		/* ignore those axis */
+		/* igyesre those axis */
 		return -1;
 	case HID_UP_GENDESK:
 		switch (usage->hid) {
@@ -174,7 +174,7 @@ static int ms_surface_dial_quirk(struct hid_input *hi, struct hid_field *field,
 		case HID_GD_Y:
 			/* fall-through */
 		case HID_GD_RFKILL_BTN:
-			/* ignore those axis */
+			/* igyesre those axis */
 			return -1;
 		}
 	}
@@ -190,7 +190,7 @@ static int ms_input_mapping(struct hid_device *hdev, struct hid_input *hi,
 	unsigned long quirks = ms->quirks;
 
 	if (quirks & MS_ERGONOMY) {
-		int ret = ms_ergonomy_kb_quirk(hi, usage, bit, max);
+		int ret = ms_ergoyesmy_kb_quirk(hi, usage, bit, max);
 		if (ret)
 			return ret;
 	}
@@ -333,7 +333,7 @@ static int ms_init_ff(struct hid_device *hdev)
 	struct ms_data *ms = hid_get_drvdata(hdev);
 
 	if (list_empty(&hdev->inputs)) {
-		hid_err(hdev, "no inputs found\n");
+		hid_err(hdev, "yes inputs found\n");
 		return -ENODEV;
 	}
 	hidinput = list_entry(hdev->inputs.next, struct hid_input, list);
@@ -400,7 +400,7 @@ static int ms_probe(struct hid_device *hdev, const struct hid_device_id *id)
 
 	ret = ms_init_ff(hdev);
 	if (ret)
-		hid_err(hdev, "could not initialize ff, continuing anyway");
+		hid_err(hdev, "could yest initialize ff, continuing anyway");
 
 	return 0;
 err_free:

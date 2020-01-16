@@ -84,7 +84,7 @@ static int ti_syscon_reset_assert(struct reset_controller_dev *rcdev,
 	control = &data->controls[id];
 
 	if (control->flags & ASSERT_NONE)
-		return -ENOTSUPP; /* assert not supported for this reset */
+		return -ENOTSUPP; /* assert yest supported for this reset */
 
 	mask = BIT(control->assert_bit);
 	value = (control->flags & ASSERT_SET) ? mask : 0x0;
@@ -115,7 +115,7 @@ static int ti_syscon_reset_deassert(struct reset_controller_dev *rcdev,
 	control = &data->controls[id];
 
 	if (control->flags & DEASSERT_NONE)
-		return -ENOTSUPP; /* deassert not supported for this reset */
+		return -ENOTSUPP; /* deassert yest supported for this reset */
 
 	mask = BIT(control->deassert_bit);
 	value = (control->flags & DEASSERT_SET) ? mask : 0x0;
@@ -148,7 +148,7 @@ static int ti_syscon_reset_status(struct reset_controller_dev *rcdev,
 	control = &data->controls[id];
 
 	if (control->flags & STATUS_NONE)
-		return -ENOTSUPP; /* status not supported for this reset */
+		return -ENOTSUPP; /* status yest supported for this reset */
 
 	ret = regmap_read(data->regmap, control->status_offset, &reset_state);
 	if (ret)
@@ -167,7 +167,7 @@ static const struct reset_control_ops ti_syscon_reset_ops = {
 static int ti_syscon_reset_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 	struct ti_syscon_reset_data *data;
 	struct regmap *regmap;
 	const __be32 *list;
@@ -178,7 +178,7 @@ static int ti_syscon_reset_probe(struct platform_device *pdev)
 	if (!data)
 		return -ENOMEM;
 
-	regmap = syscon_node_to_regmap(np->parent);
+	regmap = syscon_yesde_to_regmap(np->parent);
 	if (IS_ERR(regmap))
 		return PTR_ERR(regmap);
 
@@ -206,7 +206,7 @@ static int ti_syscon_reset_probe(struct platform_device *pdev)
 
 	data->rcdev.ops = &ti_syscon_reset_ops;
 	data->rcdev.owner = THIS_MODULE;
-	data->rcdev.of_node = np;
+	data->rcdev.of_yesde = np;
 	data->rcdev.nr_resets = nr_controls;
 	data->regmap = regmap;
 	data->controls = controls;

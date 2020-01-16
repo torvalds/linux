@@ -72,7 +72,7 @@ typedef u16 u16_le;
 
 
 /*******************/
-/* normal register */
+/* yesrmal register */
 /*******************/
 /*
  * Don't access below register with Double Word:
@@ -520,14 +520,14 @@ typedef struct _nsp32_sync_table {
 #define SDTR_TARGET	  BIT(1)    /* sending SDTR from target           */
 #define SDTR_DONE	  BIT(2)    /* exchanging SDTR has been processed */
 
-/* syncronous period value for nsp32_target.config_max */
+/* syncroyesus period value for nsp32_target.config_max */
 #define FAST5M			0x32
 #define FAST10M			0x19
 #define ULTRA20M		0x0c
 
 /* flag for nsp32_target.{sync_offset}, period */
-#define ASYNC_OFFSET		0	/* asynchronous transfer           */
-#define SYNC_OFFSET		0xf	/* synchronous transfer max offset */
+#define ASYNC_OFFSET		0	/* asynchroyesus transfer           */
+#define SYNC_OFFSET		0xf	/* synchroyesus transfer max offset */
 
 /* syncreg:
   bit:07 06 05 04 03 02 01 00

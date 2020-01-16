@@ -193,8 +193,8 @@ static int mrq_debugfs_dumpdir(struct tegra_bpmp *bpmp, dma_addr_t addr,
 static int debugfs_show(struct seq_file *m, void *p)
 {
 	struct file *file = m->private;
-	struct inode *inode = file_inode(file);
-	struct tegra_bpmp *bpmp = inode->i_private;
+	struct iyesde *iyesde = file_iyesde(file);
+	struct tegra_bpmp *bpmp = iyesde->i_private;
 	const size_t datasize = m->size;
 	const size_t namesize = SZ_256;
 	void *datavirt, *namevirt;
@@ -236,7 +236,7 @@ free_namebuf:
 	return ret;
 }
 
-static int debugfs_open(struct inode *inode, struct file *file)
+static int debugfs_open(struct iyesde *iyesde, struct file *file)
 {
 	return single_open_size(file, debugfs_show, file, SZ_128K);
 }
@@ -244,8 +244,8 @@ static int debugfs_open(struct inode *inode, struct file *file)
 static ssize_t debugfs_store(struct file *file, const char __user *buf,
 		size_t count, loff_t *f_pos)
 {
-	struct inode *inode = file_inode(file);
-	struct tegra_bpmp *bpmp = inode->i_private;
+	struct iyesde *iyesde = file_iyesde(file);
+	struct tegra_bpmp *bpmp = iyesde->i_private;
 	const size_t datasize = count;
 	const size_t namesize = SZ_256;
 	void *datavirt, *namevirt;

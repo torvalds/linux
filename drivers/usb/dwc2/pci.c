@@ -2,18 +2,18 @@
 /*
  * pci.c - DesignWare HS OTG Controller PCI driver
  *
- * Copyright (C) 2004-2013 Synopsys, Inc.
+ * Copyright (C) 2004-2013 Syyespsys, Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions, and the following disclaimer,
+ *    yestice, this list of conditions, and the following disclaimer,
  *    without modification.
  * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
+ *    yestice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. The names of the above-listed copyright holders may not be used
+ * 3. The names of the above-listed copyright holders may yest be used
  *    to endorse or promote products derived from this software without
  *    specific prior written permission.
  *
@@ -192,5 +192,5 @@ static struct pci_driver dwc2_pci_driver = {
 module_pci_driver(dwc2_pci_driver);
 
 MODULE_DESCRIPTION("DESIGNWARE HS OTG PCI Bus Glue");
-MODULE_AUTHOR("Synopsys, Inc.");
+MODULE_AUTHOR("Syyespsys, Inc.");
 MODULE_LICENSE("Dual BSD/GPL");

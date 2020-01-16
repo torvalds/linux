@@ -7,7 +7,7 @@
 
 
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/init.h>
 #include <linux/spinlock.h>
 #include <linux/slab.h>
@@ -186,7 +186,7 @@ int nvram_clear_error_log(void)
  * hasn't had a chance to read and process?  Return 1 if so, else 0.
  *
  * We assume that if rtas_errd hasn't read the RTAS event in
- * NVRAM_RTAS_READ_TIMEOUT seconds, it's probably not going to.
+ * NVRAM_RTAS_READ_TIMEOUT seconds, it's probably yest going to.
  */
 int clobbering_unread_rtas_event(void)
 {
@@ -211,17 +211,17 @@ machine_arch_initcall(pseries, pseries_nvram_init_log_partitions);
 
 int __init pSeries_nvram_init(void)
 {
-	struct device_node *nvram;
+	struct device_yesde *nvram;
 	const __be32 *nbytes_p;
 	unsigned int proplen;
 
-	nvram = of_find_node_by_type(NULL, "nvram");
+	nvram = of_find_yesde_by_type(NULL, "nvram");
 	if (nvram == NULL)
 		return -ENODEV;
 
 	nbytes_p = of_get_property(nvram, "#bytes", &proplen);
 	if (nbytes_p == NULL || proplen != sizeof(unsigned int)) {
-		of_node_put(nvram);
+		of_yesde_put(nvram);
 		return -EIO;
 	}
 
@@ -230,7 +230,7 @@ int __init pSeries_nvram_init(void)
 	nvram_fetch = rtas_token("nvram-fetch");
 	nvram_store = rtas_token("nvram-store");
 	printk(KERN_INFO "PPC64 nvram contains %d bytes\n", nvram_size);
-	of_node_put(nvram);
+	of_yesde_put(nvram);
 
 	ppc_md.nvram_read	= pSeries_nvram_read;
 	ppc_md.nvram_write	= pSeries_nvram_write;

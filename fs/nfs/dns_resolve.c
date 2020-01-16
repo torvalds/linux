@@ -195,7 +195,7 @@ static int nfs_dns_show(struct seq_file *m, struct cache_detail *cd,
 		rpc_ntop((struct sockaddr *)&item->addr, buf, sizeof(buf));
 		seq_printf(m, "%15s ", buf);
 	} else
-		seq_puts(m, "<none>          ");
+		seq_puts(m, "<yesne>          ");
 	seq_printf(m, "%15s %ld\n", item->hostname, ttl);
 	return 0;
 }
@@ -294,7 +294,7 @@ static int do_cache_lookup(struct cache_detail *cd,
 	return ret;
 }
 
-static int do_cache_lookup_nowait(struct cache_detail *cd,
+static int do_cache_lookup_yeswait(struct cache_detail *cd,
 		struct nfs_dns_ent *key,
 		struct nfs_dns_ent **item)
 {
@@ -333,7 +333,7 @@ static int do_cache_lookup_wait(struct cache_detail *cd,
 	if (ret == -EAGAIN) {
 		ret = nfs_cache_wait_for_upcall(dreq);
 		if (!ret)
-			ret = do_cache_lookup_nowait(cd, key, item);
+			ret = do_cache_lookup_yeswait(cd, key, item);
 	}
 	nfs_cache_defer_req_put(dreq);
 out:
@@ -422,7 +422,7 @@ static struct pernet_operations nfs4_dns_resolver_ops = {
 	.exit = nfs4_dns_net_exit,
 };
 
-static int rpc_pipefs_event(struct notifier_block *nb, unsigned long event,
+static int rpc_pipefs_event(struct yestifier_block *nb, unsigned long event,
 			   void *ptr)
 {
 	struct super_block *sb = ptr;
@@ -452,8 +452,8 @@ static int rpc_pipefs_event(struct notifier_block *nb, unsigned long event,
 	return ret;
 }
 
-static struct notifier_block nfs_dns_resolver_block = {
-	.notifier_call	= rpc_pipefs_event,
+static struct yestifier_block nfs_dns_resolver_block = {
+	.yestifier_call	= rpc_pipefs_event,
 };
 
 int nfs_dns_resolver_init(void)
@@ -463,7 +463,7 @@ int nfs_dns_resolver_init(void)
 	err = register_pernet_subsys(&nfs4_dns_resolver_ops);
 	if (err < 0)
 		goto out;
-	err = rpc_pipefs_notifier_register(&nfs_dns_resolver_block);
+	err = rpc_pipefs_yestifier_register(&nfs_dns_resolver_block);
 	if (err < 0)
 		goto out1;
 	return 0;
@@ -475,7 +475,7 @@ out:
 
 void nfs_dns_resolver_destroy(void)
 {
-	rpc_pipefs_notifier_unregister(&nfs_dns_resolver_block);
+	rpc_pipefs_yestifier_unregister(&nfs_dns_resolver_block);
 	unregister_pernet_subsys(&nfs4_dns_resolver_ops);
 }
 #endif

@@ -16,7 +16,7 @@ Required properties:
 - clock-names: Must be "gce" to stand for GCE clock
 - #mbox-cells: Should be 3.
 	<&phandle channel priority atomic_exec>
-	phandle: Label name of a gce node.
+	phandle: Label name of a gce yesde.
 	channel: Channel of mailbox. Be equal to the thread id of GCE.
 	priority: Priority of GCE thread.
 	atomic_exec: GCE processing continuous packets of commands in atomic
@@ -30,7 +30,7 @@ Optional properties for a client device:
   to the register address, it should have this property and list of phandle,
   sub-system specifiers.
   <&phandle subsys_number start_offset size>
-  phandle: Label name of a gce node.
+  phandle: Label name of a gce yesde.
   subsys_number: specify the sub-system id which is corresponding
                  to the register address.
   start_offset: the start offset of register address that GCE can access.

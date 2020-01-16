@@ -47,13 +47,13 @@ Optional Properties:
     property in place we will export one or two clocks representing the Card
     Clock. These clocks are expected to be consumed by our PHY.
   - xlnx,fails-without-test-cd: when present, the controller doesn't work when
-    the CD line is not connected properly, and the line is not connected
+    the CD line is yest connected properly, and the line is yest connected
     properly. Test mode can be used to force the controller to function.
   - xlnx,int-clock-stable-broken: when present, the controller always reports
-    that the internal clock is stable even when it is not.
+    that the internal clock is stable even when it is yest.
 
   - xlnx,mio-bank: When specified, this will indicate the MIO bank number in
-    which the command and data lines are configured. If not specified, driver
+    which the command and data lines are configured. If yest specified, driver
     will assume this as 0.
 
 Example:

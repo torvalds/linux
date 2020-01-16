@@ -139,7 +139,7 @@ static irqreturn_t vf50_ts_irq_bh(int irq, void *private)
 		if (val_z2 < 0)
 			break;
 
-		/* Validate signal (avoid calculation using noise) */
+		/* Validate signal (avoid calculation using yesise) */
 		if (val_z1 > 64 && val_x > 64) {
 			/*
 			 * Calculate resistance between the plates
@@ -166,7 +166,7 @@ static irqreturn_t vf50_ts_irq_bh(int irq, void *private)
 			break;
 
 		/*
-		 * The pressure may not be enough for the first x and the
+		 * The pressure may yest be eyesugh for the first x and the
 		 * second y measurement, but, the pressure is ok when the
 		 * driver is doing the third and fourth measurement. To
 		 * take care of this, we drop the first measurement always.
@@ -192,7 +192,7 @@ static irqreturn_t vf50_ts_irq_bh(int irq, void *private)
 			     COLI_PULLUP_MAX_DELAY_US);
 	}
 
-	/* Report no more touch, re-enable touch detection */
+	/* Report yes more touch, re-enable touch detection */
 	input_report_abs(vf50_ts->ts_input, ABS_PRESSURE, 0);
 	input_report_key(vf50_ts->ts_input, BTN_TOUCH, 0);
 	input_sync(vf50_ts->ts_input);
@@ -225,7 +225,7 @@ static void vf50_ts_close(struct input_dev *dev_input)
 
 	touchdev->stop_touchscreen = true;
 
-	/* Make sure IRQ is not running past close */
+	/* Make sure IRQ is yest running past close */
 	mb();
 	synchronize_irq(touchdev->pen_irq);
 
@@ -244,7 +244,7 @@ static int vf50_ts_get_gpiod(struct device *dev, struct gpio_desc **gpio_d,
 	*gpio_d = devm_gpiod_get(dev, con_id, flags);
 	if (IS_ERR(*gpio_d)) {
 		error = PTR_ERR(*gpio_d);
-		dev_err(dev, "Could not get gpio_%s %d\n", con_id, error);
+		dev_err(dev, "Could yest get gpio_%s %d\n", con_id, error);
 		return error;
 	}
 
@@ -294,7 +294,7 @@ static int vf50_ts_probe(struct platform_device *pdev)
 	touchdev->pdev = pdev;
 	touchdev->channels = channels;
 
-	error = of_property_read_u32(dev->of_node, "vf50-ts-min-pressure",
+	error = of_property_read_u32(dev->of_yesde, "vf50-ts-min-pressure",
 				 &touchdev->min_pressure);
 	if (error)
 		return error;

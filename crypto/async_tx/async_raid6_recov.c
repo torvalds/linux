@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Asynchronous RAID-6 recovery calculations ASYNC_TX API.
+ * Asynchroyesus RAID-6 recovery calculations ASYNC_TX API.
  * Copyright(c) 2009 Intel Corporation
  *
  * based on raid6recov.c:
@@ -56,13 +56,13 @@ async_sum_product(struct page *dest, struct page **srcs, unsigned char *coef,
 			return tx;
 		}
 
-		/* could not get a descriptor, unmap and fall through to
-		 * the synchronous path
+		/* could yest get a descriptor, unmap and fall through to
+		 * the synchroyesus path
 		 */
 		dmaengine_unmap_put(unmap);
 	}
 
-	/* run the operation synchronously */
+	/* run the operation synchroyesusly */
 	async_tx_quiesce(&submit->depend_tx);
 	amul = raid6_gfmul[coef[0]];
 	bmul = raid6_gfmul[coef[1]];
@@ -109,7 +109,7 @@ async_mult(struct page *dest, struct page *src, u8 coef, size_t len,
 		unmap->len = len;
 
 		/* this looks funny, but the engine looks for Q at
-		 * dma_dest[1] and ignores dma_dest[0] as a dest
+		 * dma_dest[1] and igyesres dma_dest[0] as a dest
 		 * due to DMA_PREP_PQ_DISABLE_P
 		 */
 		tx = dma->device_prep_dma_pq(chan, dma_dest, unmap->addr,
@@ -122,14 +122,14 @@ async_mult(struct page *dest, struct page *src, u8 coef, size_t len,
 			return tx;
 		}
 
-		/* could not get a descriptor, unmap and fall through to
-		 * the synchronous path
+		/* could yest get a descriptor, unmap and fall through to
+		 * the synchroyesus path
 		 */
 		dmaengine_unmap_put(unmap);
 	}
 
-	/* no channel available, or failed to allocate a descriptor, so
-	 * perform the operation synchronously
+	/* yes channel available, or failed to allocate a descriptor, so
+	 * perform the operation synchroyesusly
 	 */
 	async_tx_quiesce(&submit->depend_tx);
 	qmul  = raid6_gfmul[coef];
@@ -324,7 +324,7 @@ __2data_recov_n(int disks, size_t bytes, int faila, int failb,
 }
 
 /**
- * async_raid6_2data_recov - asynchronously calculate two missing data blocks
+ * async_raid6_2data_recov - asynchroyesusly calculate two missing data blocks
  * @disks: number of disks in the RAID-6 array
  * @bytes: block size
  * @faila: first failed drive index
@@ -337,7 +337,7 @@ async_raid6_2data_recov(int disks, size_t bytes, int faila, int failb,
 			struct page **blocks, struct async_submit_ctl *submit)
 {
 	void *scribble = submit->scribble;
-	int non_zero_srcs, i;
+	int yesn_zero_srcs, i;
 
 	BUG_ON(faila == failb);
 	if (failb < faila)
@@ -345,8 +345,8 @@ async_raid6_2data_recov(int disks, size_t bytes, int faila, int failb,
 
 	pr_debug("%s: disks: %d len: %zu\n", __func__, disks, bytes);
 
-	/* if a dma resource is not available or a scribble buffer is not
-	 * available punt to the synchronous path.  In the 'dma not
+	/* if a dma resource is yest available or a scribble buffer is yest
+	 * available punt to the synchroyesus path.  In the 'dma yest
 	 * available' case be sure to use the scribble buffer to
 	 * preserve the content of 'blocks' as the caller intended.
 	 */
@@ -367,26 +367,26 @@ async_raid6_2data_recov(int disks, size_t bytes, int faila, int failb,
 		return NULL;
 	}
 
-	non_zero_srcs = 0;
-	for (i = 0; i < disks-2 && non_zero_srcs < 4; i++)
+	yesn_zero_srcs = 0;
+	for (i = 0; i < disks-2 && yesn_zero_srcs < 4; i++)
 		if (blocks[i])
-			non_zero_srcs++;
-	switch (non_zero_srcs) {
+			yesn_zero_srcs++;
+	switch (yesn_zero_srcs) {
 	case 0:
 	case 1:
 		/* There must be at least 2 sources - the failed devices. */
 		BUG();
 
 	case 2:
-		/* dma devices do not uniformly understand a zero source pq
-		 * operation (in contrast to the synchronous case), so
+		/* dma devices do yest uniformly understand a zero source pq
+		 * operation (in contrast to the synchroyesus case), so
 		 * explicitly handle the special case of a 4 disk array with
 		 * both data disks missing.
 		 */
 		return __2data_recov_4(disks, bytes, faila, failb, blocks, submit);
 	case 3:
-		/* dma devices do not uniformly understand a single
-		 * source pq operation (in contrast to the synchronous
+		/* dma devices do yest uniformly understand a single
+		 * source pq operation (in contrast to the synchroyesus
 		 * case), so explicitly handle the special case of a 5 disk
 		 * array with 2 of 3 data disks missing.
 		 */
@@ -398,7 +398,7 @@ async_raid6_2data_recov(int disks, size_t bytes, int faila, int failb,
 EXPORT_SYMBOL_GPL(async_raid6_2data_recov);
 
 /**
- * async_raid6_datap_recov - asynchronously calculate a data and the 'p' block
+ * async_raid6_datap_recov - asynchroyesusly calculate a data and the 'p' block
  * @disks: number of disks in the RAID-6 array
  * @bytes: block size
  * @faila: failed drive index
@@ -421,8 +421,8 @@ async_raid6_datap_recov(int disks, size_t bytes, int faila,
 
 	pr_debug("%s: disks: %d len: %zu\n", __func__, disks, bytes);
 
-	/* if a dma resource is not available or a scribble buffer is not
-	 * available punt to the synchronous path.  In the 'dma not
+	/* if a dma resource is yest available or a scribble buffer is yest
+	 * available punt to the synchroyesus path.  In the 'dma yest
 	 * available' case be sure to use the scribble buffer to
 	 * preserve the content of 'blocks' as the caller intended.
 	 */
@@ -513,5 +513,5 @@ async_raid6_datap_recov(int disks, size_t bytes, int faila,
 EXPORT_SYMBOL_GPL(async_raid6_datap_recov);
 
 MODULE_AUTHOR("Dan Williams <dan.j.williams@intel.com>");
-MODULE_DESCRIPTION("asynchronous RAID-6 recovery api");
+MODULE_DESCRIPTION("asynchroyesus RAID-6 recovery api");
 MODULE_LICENSE("GPL");

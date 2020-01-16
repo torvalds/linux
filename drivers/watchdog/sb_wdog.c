@@ -8,18 +8,18 @@
  * such devices available on the SoC, but it seems that there isn't an
  * enumeration class for watchdogs in Linux like there is for RTCs.
  * The second is used rather than the first because it uses IRQ 1,
- * thereby avoiding all that IRQ 0 problematic nonsense.
+ * thereby avoiding all that IRQ 0 problematic yesnsense.
  *
- * I have not tried this driver on a 1480 processor; it might work
- * just well enough to really screw things up.
+ * I have yest tried this driver on a 1480 processor; it might work
+ * just well eyesugh to really screw things up.
  *
  * It is a simple timer, and there is an interrupt that is raised the
  * first time the timer expires.  The second time it expires, the chip
- * is reset and there is no way to redirect that NMI.  Which could
+ * is reset and there is yes way to redirect that NMI.  Which could
  * be problematic in some cases where this chip is sitting on the HT
  * bus and has just taken responsibility for providing a cache block.
  * Since the reset can't be redirected to the external reset pin, it is
- * possible that other HT connected processors might hang and not reset.
+ * possible that other HT connected processors might hang and yest reset.
  * For Linux, a soft reset would probably be even worse than a hard reset.
  * There you have it.
  *
@@ -103,9 +103,9 @@ static const struct watchdog_info ident = {
 /*
  * Allow only a single thread to walk the dog
  */
-static int sbwdog_open(struct inode *inode, struct file *file)
+static int sbwdog_open(struct iyesde *iyesde, struct file *file)
 {
-	stream_open(inode, file);
+	stream_open(iyesde, file);
 	if (test_and_set_bit(0, &sbwdog_gate))
 		return -EBUSY;
 	__module_get(THIS_MODULE);
@@ -122,13 +122,13 @@ static int sbwdog_open(struct inode *inode, struct file *file)
 /*
  * Put the dog back in the kennel.
  */
-static int sbwdog_release(struct inode *inode, struct file *file)
+static int sbwdog_release(struct iyesde *iyesde, struct file *file)
 {
 	if (expect_close == 42) {
 		__raw_writeb(0, user_dog);
 		module_put(THIS_MODULE);
 	} else {
-		pr_crit("%s: Unexpected close, not stopping watchdog!\n",
+		pr_crit("%s: Unexpected close, yest stopping watchdog!\n",
 			ident.identity);
 		sbwdog_pet(user_dog);
 	}
@@ -218,7 +218,7 @@ static long sbwdog_ioctl(struct file *file, unsigned int cmd,
 /*
  *	Notifier for system down
  */
-static int sbwdog_notify_sys(struct notifier_block *this, unsigned long code,
+static int sbwdog_yestify_sys(struct yestifier_block *this, unsigned long code,
 								void *erf)
 {
 	if (code == SYS_DOWN || code == SYS_HALT) {
@@ -234,7 +234,7 @@ static int sbwdog_notify_sys(struct notifier_block *this, unsigned long code,
 
 static const struct file_operations sbwdog_fops = {
 	.owner		= THIS_MODULE,
-	.llseek		= no_llseek,
+	.llseek		= yes_llseek,
 	.write		= sbwdog_write,
 	.unlocked_ioctl	= sbwdog_ioctl,
 	.compat_ioctl	= compat_ptr_ioctl,
@@ -243,13 +243,13 @@ static const struct file_operations sbwdog_fops = {
 };
 
 static struct miscdevice sbwdog_miscdev = {
-	.minor		= WATCHDOG_MINOR,
+	.miyesr		= WATCHDOG_MINOR,
 	.name		= "watchdog",
 	.fops		= &sbwdog_fops,
 };
 
-static struct notifier_block sbwdog_notifier = {
-	.notifier_call	= sbwdog_notify_sys,
+static struct yestifier_block sbwdog_yestifier = {
+	.yestifier_call	= sbwdog_yestify_sys,
 };
 
 /*
@@ -257,7 +257,7 @@ static struct notifier_block sbwdog_notifier = {
  *
  * doesn't do a whole lot for user, but oh so cleverly written so kernel
  * code can use it to re-up the watchdog, thereby saving the kernel from
- * having to create and maintain a timer, just to tickle another timer,
+ * having to create and maintain a timer, just to tickle ayesther timer,
  * which is just so wrong.
  */
 irqreturn_t sbwdog_interrupt(int irq, void *addr)
@@ -290,11 +290,11 @@ static int __init sbwdog_init(void)
 	int ret;
 
 	/*
-	 * register a reboot notifier
+	 * register a reboot yestifier
 	 */
-	ret = register_reboot_notifier(&sbwdog_notifier);
+	ret = register_reboot_yestifier(&sbwdog_yestifier);
 	if (ret) {
-		pr_err("%s: cannot register reboot notifier (err=%d)\n",
+		pr_err("%s: canyest register reboot yestifier (err=%d)\n",
 		       ident.identity, ret);
 		return ret;
 	}
@@ -320,7 +320,7 @@ static int __init sbwdog_init(void)
 	}
 	free_irq(1, (void *)user_dog);
 out:
-	unregister_reboot_notifier(&sbwdog_notifier);
+	unregister_reboot_yestifier(&sbwdog_yestifier);
 
 	return ret;
 }
@@ -329,7 +329,7 @@ static void __exit sbwdog_exit(void)
 {
 	misc_deregister(&sbwdog_miscdev);
 	free_irq(1, (void *)user_dog);
-	unregister_reboot_notifier(&sbwdog_notifier);
+	unregister_reboot_yestifier(&sbwdog_yestifier);
 }
 
 module_init(sbwdog_init);

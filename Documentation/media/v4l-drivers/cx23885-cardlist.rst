@@ -207,7 +207,7 @@ cx23885 cards list
      - 4254:950c
 
    * - 48
-     - Technotrend TT-budget CT2-4500 CI
+     - Techyestrend TT-budget CT2-4500 CI
      - 13c2:3013
 
    * - 49

@@ -70,8 +70,8 @@ void __init ralink_clk_init(void)
 
 void __init ralink_of_remap(void)
 {
-	rt_sysc_membase = plat_of_remap_node("ralink,rt2880-sysc");
-	rt_memc_membase = plat_of_remap_node("ralink,rt2880-memc");
+	rt_sysc_membase = plat_of_remap_yesde("ralink,rt2880-sysc");
+	rt_memc_membase = plat_of_remap_yesde("ralink,rt2880-memc");
 
 	if (!rt_sysc_membase || !rt_memc_membase)
 		panic("Failed to remap core resources");
@@ -93,7 +93,7 @@ void prom_soc_init(struct ralink_soc_info *soc_info)
 		soc_info->compatible = "ralink,r2880-soc";
 		name = "RT2880";
 	} else {
-		panic("rt288x: unknown SoC, n0:%08x n1:%08x", n0, n1);
+		panic("rt288x: unkyeswn SoC, n0:%08x n1:%08x", n0, n1);
 	}
 
 	snprintf(soc_info->sys_type, RAMIPS_SYS_TYPE_LEN,

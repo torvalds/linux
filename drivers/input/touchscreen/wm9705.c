@@ -42,7 +42,7 @@ MODULE_PARM_DESC(pil, "Set current used for pressure measurement.");
 /*
  * Set threshold for pressure measurement.
  *
- * Pen down pressure below threshold is ignored.
+ * Pen down pressure below threshold is igyesred.
  */
 static int pressure = DEFAULT_PRESSURE & 0xfff;
 module_param(pressure, int, 0);
@@ -57,7 +57,7 @@ MODULE_PARM_DESC(pressure, "Set threshold for pressure measurement.");
  *
  * This delay can be set by setting delay = n, where n is the array
  * position of the delay in the array delay_table below.
- * Long delays > 1ms are supported for completeness, but are not
+ * Long delays > 1ms are supported for completeness, but are yest
  * recommended.
  */
 static int delay = 4;
@@ -71,7 +71,7 @@ MODULE_PARM_DESC(delay, "Set adc sample delay.");
  * i.e. 1 =  Vmid/15 threshold
  *      15 =  Vmid/1 threshold
  *
- * Adjust this value if you are having problems with pen detect not
+ * Adjust this value if you are having problems with pen detect yest
  * detecting any down events.
  */
 static int pdd = 8;
@@ -81,7 +81,7 @@ MODULE_PARM_DESC(pdd, "Set pen detect comparator threshold");
 /*
  * Set adc mask function.
  *
- * Sources of glitch noise, such as signals driving an LCD display, may feed
+ * Sources of glitch yesise, such as signals driving an LCD display, may feed
  * through to the touch screen plates and affect measurement accuracy. In
  * order to minimise this, a signal may be applied to the MASK pin to delay or
  * synchronise the sampling.

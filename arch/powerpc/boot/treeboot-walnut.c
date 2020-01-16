@@ -27,23 +27,23 @@ static void walnut_flashsel_fixup(void)
 
 	devp = finddevice("/plb/ebc/fpga");
 	if (!devp)
-		fatal("Couldn't locate FPGA node\n\r");
+		fatal("Couldn't locate FPGA yesde\n\r");
 
 	if (getprop(devp, "virtual-reg", &fpga, sizeof(fpga)) != sizeof(fpga))
-		fatal("no virtual-reg property\n\r");
+		fatal("yes virtual-reg property\n\r");
 
 	fpga_brds1 = in_8(fpga);
 
 	devp = finddevice("/plb/ebc/flash");
 	if (!devp)
-		fatal("Couldn't locate flash node\n\r");
+		fatal("Couldn't locate flash yesde\n\r");
 
 	if (getprop(devp, "reg", reg_flash, sizeof(reg_flash)) != sizeof(reg_flash))
 		fatal("flash reg property has unexpected size\n\r");
 
 	sram = finddevice("/plb/ebc/sram");
 	if (!sram)
-		fatal("Couldn't locate sram node\n\r");
+		fatal("Couldn't locate sram yesde\n\r");
 
 	if (getprop(sram, "reg", reg_sram, sizeof(reg_sram)) != sizeof(reg_sram))
 		fatal("sram reg property has unexpected size\n\r");

@@ -25,7 +25,7 @@ struct vexpress_hwmon_data {
 static ssize_t vexpress_hwmon_label_show(struct device *dev,
 		struct device_attribute *dev_attr, char *buffer)
 {
-	const char *label = of_get_property(dev->of_node, "label", NULL);
+	const char *label = of_get_property(dev->of_yesde, "label", NULL);
 
 	return snprintf(buffer, PAGE_SIZE, "%s\n", label);
 }
@@ -73,7 +73,7 @@ static umode_t vexpress_hwmon_attr_is_visible(struct kobject *kobj,
 				struct device_attribute, attr);
 
 	if (dev_attr->show == vexpress_hwmon_label_show &&
-			!of_get_property(dev->of_node, "label", NULL))
+			!of_get_property(dev->of_yesde, "label", NULL))
 		return 0;
 
 	return attr->mode;

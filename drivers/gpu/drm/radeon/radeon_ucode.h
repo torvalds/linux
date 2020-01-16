@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -157,29 +157,29 @@ struct common_firmware_header {
 	uint32_t size_bytes; /* size of the entire header+image(s) in bytes */
 	uint32_t header_size_bytes; /* size of just the header in bytes */
 	uint16_t header_version_major; /* header version */
-	uint16_t header_version_minor; /* header version */
+	uint16_t header_version_miyesr; /* header version */
 	uint16_t ip_version_major; /* IP version */
-	uint16_t ip_version_minor; /* IP version */
+	uint16_t ip_version_miyesr; /* IP version */
 	uint32_t ucode_version;
 	uint32_t ucode_size_bytes; /* size of ucode in bytes */
 	uint32_t ucode_array_offset_bytes; /* payload offset from the start of the header */
 	uint32_t crc32;  /* crc32 checksum of the payload */
 };
 
-/* version_major=1, version_minor=0 */
+/* version_major=1, version_miyesr=0 */
 struct mc_firmware_header_v1_0 {
 	struct common_firmware_header header;
 	uint32_t io_debug_size_bytes; /* size of debug array in dwords */
 	uint32_t io_debug_array_offset_bytes; /* payload offset from the start of the header */
 };
 
-/* version_major=1, version_minor=0 */
+/* version_major=1, version_miyesr=0 */
 struct smc_firmware_header_v1_0 {
 	struct common_firmware_header header;
 	uint32_t ucode_start_addr;
 };
 
-/* version_major=1, version_minor=0 */
+/* version_major=1, version_miyesr=0 */
 struct gfx_firmware_header_v1_0 {
 	struct common_firmware_header header;
 	uint32_t ucode_feature_version;
@@ -187,7 +187,7 @@ struct gfx_firmware_header_v1_0 {
 	uint32_t jt_size;  /* size of jt */
 };
 
-/* version_major=1, version_minor=0 */
+/* version_major=1, version_miyesr=0 */
 struct rlc_firmware_header_v1_0 {
 	struct common_firmware_header header;
 	uint32_t ucode_feature_version;
@@ -197,7 +197,7 @@ struct rlc_firmware_header_v1_0 {
 	uint32_t master_pkt_description_offset;
 };
 
-/* version_major=1, version_minor=0 */
+/* version_major=1, version_miyesr=0 */
 struct sdma_firmware_header_v1_0 {
 	struct common_firmware_header header;
 	uint32_t ucode_feature_version;

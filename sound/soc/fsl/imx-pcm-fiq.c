@@ -60,7 +60,7 @@ static enum hrtimer_restart snd_hrtimer_callback(struct hrtimer *hrt)
 
 	snd_pcm_period_elapsed(substream);
 
-	hrtimer_forward_now(hrt, ns_to_ktime(iprtd->poll_time_ns));
+	hrtimer_forward_yesw(hrt, ns_to_ktime(iprtd->poll_time_ns));
 
 	return HRTIMER_RESTART;
 }

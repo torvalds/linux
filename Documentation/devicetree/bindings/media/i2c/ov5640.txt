@@ -18,19 +18,19 @@ Optional Properties:
 	    valid values are 0 (sensor mounted upright) and 180 (sensor
 	    mounted upside down).
 
-The device node must contain one 'port' child node for its digital output
+The device yesde must contain one 'port' child yesde for its digital output
 video port, in accordance with the video interface bindings defined in
 Documentation/devicetree/bindings/media/video-interfaces.txt.
 
 OV5640 can be connected to a MIPI CSI-2 bus or a parallel bus endpoint.
 
-Endpoint node required properties for CSI-2 connection are:
-- remote-endpoint: a phandle to the bus receiver's endpoint node.
+Endpoint yesde required properties for CSI-2 connection are:
+- remote-endpoint: a phandle to the bus receiver's endpoint yesde.
 - clock-lanes: should be set to <0> (clock lane on hardware lane 0)
 - data-lanes: should be set to <1> or <1 2> (one or two CSI-2 lanes supported)
 
-Endpoint node required properties for parallel connection are:
-- remote-endpoint: a phandle to the bus receiver's endpoint node.
+Endpoint yesde required properties for parallel connection are:
+- remote-endpoint: a phandle to the bus receiver's endpoint yesde.
 - bus-width: shall be set to <8> for 8 bits parallel bus
 	     or <10> for 10 bits parallel bus
 - data-shift: shall be set to <2> for 8 bits parallel bus

@@ -14,24 +14,24 @@
  *
  * Original release 01/11/99
  *
- * This driver is primarily intended for use in synchronous
- * HDLC mode. Asynchronous mode is also provided.
+ * This driver is primarily intended for use in synchroyesus
+ * HDLC mode. Asynchroyesus mode is also provided.
  *
- * When operating in synchronous mode, each call to mgsl_write()
+ * When operating in synchroyesus mode, each call to mgsl_write()
  * contains exactly one complete HDLC frame. Calling mgsl_put_char
- * will start assembling an HDLC frame that will not be sent until
+ * will start assembling an HDLC frame that will yest be sent until
  * mgsl_flush_chars or mgsl_write is called.
  * 
- * Synchronous receive data is reported as complete frames. To accomplish
+ * Synchroyesus receive data is reported as complete frames. To accomplish
  * this, the TTY flip buffer is bypassed (too small to hold largest
  * frame and may fragment frames) and the line discipline
  * receive entry point is called directly.
  *
  * This driver has been tested with a slightly modified ppp.c driver
- * for synchronous PPP.
+ * for synchroyesus PPP.
  *
  * 2000/02/16
- * Added interface for syncppp.c driver (an alternate synchronous PPP
+ * Added interface for syncppp.c driver (an alternate synchroyesus PPP
  * implementation that also supports Cisco HDLC). Each device instance
  * registers as a tty device AND a network device (if dosyncppp option
  * is set for the device). The functionality is determined by which
@@ -61,7 +61,7 @@
 #define MAX_TOTAL_DEVICES 20
 
 #include <linux/module.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/signal.h>
 #include <linux/sched.h>
 #include <linux/timer.h>
@@ -186,7 +186,7 @@ struct mgsl_struct {
 	int			timeout;
 	int			x_char;		/* xon/xoff character */
 	u16			read_status_mask;
-	u16			ignore_status_mask;	
+	u16			igyesre_status_mask;	
 	unsigned char 		*xmit_buf;
 	int			xmit_head;
 	int			xmit_tail;
@@ -275,9 +275,9 @@ struct mgsl_struct {
 
 	unsigned char serial_signals;	/* current serial signal states */
 
-	bool irq_occurred;		/* for diagnostics use */
+	bool irq_occurred;		/* for diagyesstics use */
 	unsigned int init_error;	/* Initialization startup error 		(DIAGS)	*/
-	int	fDiagnosticsmode;	/* Driver in Diagnostic mode?			(DIAGS)	*/
+	int	fDiagyessticsmode;	/* Driver in Diagyesstic mode?			(DIAGS)	*/
 
 	u32 last_mem_alloc;
 	unsigned char* memory_base;	/* shared memory address (PCI only) */
@@ -390,7 +390,7 @@ struct mgsl_struct {
 #define NTARL	0x3c	/* Next Transmit Address Register (low) */
 #define NTARU	0x3e	/* Next Transmit Address Register (high) */
 
-#define RDMR	0x82	/* Receive DMA mode Register (non-shared) */
+#define RDMR	0x82	/* Receive DMA mode Register (yesn-shared) */
 #define RDIAR	0x9e	/* Receive DMA Interrupt Arm Register */
 #define RBCR	0xaa	/* Receive Byte count Register */
 #define RARL	0xac	/* Receive Address Register (low) */
@@ -737,7 +737,7 @@ static void hdlcdev_exit(struct mgsl_struct *info);
 static void mgsl_trace_block(struct mgsl_struct *info,const char* data, int count, int xmit);
 
 /*
- * Adapter diagnostic routines
+ * Adapter diagyesstic routines
  */
 static bool mgsl_register_test( struct mgsl_struct *info );
 static bool mgsl_irq_test( struct mgsl_struct *info );
@@ -833,7 +833,7 @@ static int mgsl_rxenable(struct mgsl_struct * info, int enable);
 static int mgsl_wait_event(struct mgsl_struct * info, int __user *mask);
 static int mgsl_loopmode_send_done( struct mgsl_struct * info );
 
-/* set non-zero on successful registration with PCI subsystem */
+/* set yesn-zero on successful registration with PCI subsystem */
 static bool pci_registered;
 
 /*
@@ -843,7 +843,7 @@ static struct mgsl_struct *mgsl_device_list;
 static int mgsl_device_count;
 
 /*
- * Set this param to non-zero to load eax with the
+ * Set this param to yesn-zero to load eax with the
  * .text section address and breakpoint on module load.
  * This is useful for use with gdb and add-symbol-file command.
  */
@@ -919,7 +919,7 @@ static void* mgsl_get_text_ptr(void)
 	return mgsl_get_text_ptr;
 }
 
-static inline int mgsl_paranoia_check(struct mgsl_struct *info,
+static inline int mgsl_parayesia_check(struct mgsl_struct *info,
 					char *name, const char *routine)
 {
 #ifdef MGSL_PARANOIA_CHECK
@@ -976,7 +976,7 @@ static void mgsl_stop(struct tty_struct *tty)
 	struct mgsl_struct *info = tty->driver_data;
 	unsigned long flags;
 	
-	if (mgsl_paranoia_check(info, tty->name, "mgsl_stop"))
+	if (mgsl_parayesia_check(info, tty->name, "mgsl_stop"))
 		return;
 	
 	if ( debug_level >= DEBUG_LEVEL_INFO )
@@ -999,7 +999,7 @@ static void mgsl_start(struct tty_struct *tty)
 	struct mgsl_struct *info = tty->driver_data;
 	unsigned long flags;
 	
-	if (mgsl_paranoia_check(info, tty->name, "mgsl_start"))
+	if (mgsl_parayesia_check(info, tty->name, "mgsl_start"))
 		return;
 	
 	if ( debug_level >= DEBUG_LEVEL_INFO )
@@ -1017,7 +1017,7 @@ static void mgsl_start(struct tty_struct *tty)
  */
 
 /* mgsl_bh_action()	Return next bottom half action to perform.
- * Return Value:	BH action code or 0 if nothing to do.
+ * Return Value:	BH action code or 0 if yesthing to do.
  */
 static int mgsl_bh_action(struct mgsl_struct *info)
 {
@@ -1082,8 +1082,8 @@ static void mgsl_bh_handler(struct work_struct *work)
 			mgsl_bh_status(info);
 			break;
 		default:
-			/* unknown work item ID */
-			printk("Unknown work item ID=%08X!\n", action);
+			/* unkyeswn work item ID */
+			printk("Unkyeswn work item ID=%08X!\n", action);
 			break;
 		}
 	}
@@ -1175,7 +1175,7 @@ static void mgsl_isr_receive_status( struct mgsl_struct *info )
 		info->cmr_value &= ~BIT13;
  		usc_OutReg(info, CMR, info->cmr_value);
  
-		/* disable received abort irq (no longer required) */
+		/* disable received abort irq (yes longer required) */
 	 	usc_OutReg(info, RICR,
  			(usc_InReg(info, RICR) & ~RXSTATUS_ABORT_RECEIVED));
  	}
@@ -1342,7 +1342,7 @@ static void mgsl_isr_io_pin( struct mgsl_struct *info )
 		if (tty_port_check_carrier(&info->port) &&
 		     (status & MISCSTATUS_DCD_LATCHED) ) {
 			if ( debug_level >= DEBUG_LEVEL_ISR )
-				printk("%s CD now %s...", info->device_name,
+				printk("%s CD yesw %s...", info->device_name,
 				       (status & MISCSTATUS_DCD) ? "on" : "off");
 			if (status & MISCSTATUS_DCD)
 				wake_up_interruptible(&info->port.open_wait);
@@ -1379,7 +1379,7 @@ static void mgsl_isr_io_pin( struct mgsl_struct *info )
 
 	info->pending_bh |= BH_STATUS;
 	
-	/* for diagnostics set IRQ flag */
+	/* for diagyesstics set IRQ flag */
 	if ( status & MISCSTATUS_TXC_LATCHED ){
 		usc_OutReg( info, SICR,
 			(unsigned short)(usc_InReg(info,SICR) & ~(SICR_TXC_ACTIVE+SICR_TXC_INACTIVE)) );
@@ -1422,7 +1422,7 @@ static void mgsl_isr_transmit_data( struct mgsl_struct *info )
 /* mgsl_isr_receive_data()
  * 
  * 	Service a receive data interrupt. This occurs
- * 	when operating in asynchronous interrupt transfer mode.
+ * 	when operating in asynchroyesus interrupt transfer mode.
  *	The receive data FIFO is flushed to the receive data buffers. 
  * 
  * Arguments:		info		pointer to device instance data
@@ -1487,7 +1487,7 @@ static void mgsl_isr_receive_data( struct mgsl_struct *info )
 			}
 
 			/* discard char if tty control flags say so */
-			if (status & info->ignore_status_mask)
+			if (status & info->igyesre_status_mask)
 				continue;
 				
 			status &= info->read_status_mask;
@@ -1576,7 +1576,7 @@ static void mgsl_isr_null( struct mgsl_struct *info )
  * 	as identified in the Receive DMA mode Register (RDMR):
  * 
  * 	BIT3	EOA/EOL		End of List, all receive buffers in receive
- * 				buffer list have been filled (no more free buffers
+ * 				buffer list have been filled (yes more free buffers
  * 				available). The DMA controller has shut down.
  * 
  * 	BIT2	EOB		End of Buffer. This interrupt occurs when a receive
@@ -1622,9 +1622,9 @@ static void mgsl_isr_receive_dma( struct mgsl_struct *info )
  *     	BIT2  EOB       End of Buffer. This interrupt occurs when a
  *     			transmit DMA buffer has been emptied.
  *
- *     	The driver maintains enough transmit DMA buffers to hold at least
+ *     	The driver maintains eyesugh transmit DMA buffers to hold at least
  *     	one max frame size transmit frame. When operating in a buffered
- *     	transmit mode, there may be enough transmit DMA buffers to hold at
+ *     	transmit mode, there may be eyesugh transmit DMA buffers to hold at
  *     	least two or more max frame size frames. On an EOB condition,
  *     	determine if there are any queued transmit buffers and copy into
  *     	transmit DMA buffers if we have room.
@@ -1655,7 +1655,7 @@ static void mgsl_isr_transmit_dma( struct mgsl_struct *info )
 		 *  try to load the next one
 		 */
 		if ( load_next_tx_holding_buffer(info) ) {
-			/* if call returns non-zero value, we have
+			/* if call returns yesn-zero value, we have
 			 * at least one free tx holding buffer
 			 */
 			info->pending_bh |= BH_TRANSMIT;
@@ -1717,7 +1717,7 @@ static irqreturn_t mgsl_interrupt(int dummy, void *dev_id)
 	}
 	
 	/* Request bottom half processing if there's something 
-	 * for it to do and the bh is not already running
+	 * for it to do and the bh is yest already running
 	 */
 
 	if ( info->pending_bh && !info->bh_running && !info->bh_requested ) {
@@ -1773,7 +1773,7 @@ static int startup(struct mgsl_struct * info)
 	/* Allocate and claim adapter resources */
 	retval = mgsl_claim_resources(info);
 	
-	/* perform existence check and diagnostics */
+	/* perform existence check and diagyesstics */
 	if ( !retval )
 		retval = mgsl_adapter_test(info);
 		
@@ -1835,12 +1835,12 @@ static void shutdown(struct mgsl_struct * info)
 
 	/* Disable DMAEN (Port 7, Bit 14) */
 	/* This disconnects the DMA request signal from the ISA bus */
-	/* on the ISA adapter. This has no effect for the PCI adapter */
+	/* on the ISA adapter. This has yes effect for the PCI adapter */
 	usc_OutReg(info, PCR, (u16)((usc_InReg(info, PCR) | BIT15) | BIT14));
 
 	/* Disable INTEN (Port 6, Bit12) */
 	/* This disconnects the IRQ request signal to the ISA bus */
-	/* on the ISA adapter. This has no effect for the PCI adapter */
+	/* on the ISA adapter. This has yes effect for the PCI adapter */
 	usc_OutReg(info, PCR, (u16)((usc_InReg(info, PCR) | BIT13) | BIT12));
 
 	if (!info->port.tty || info->port.tty->termios.c_cflag & HUPCL) {
@@ -1974,14 +1974,14 @@ static void mgsl_change_params(struct mgsl_struct *info)
  		info->read_status_mask |= RXSTATUS_BREAK_RECEIVED;
 	
 	if (I_IGNPAR(info->port.tty))
-		info->ignore_status_mask |= RXSTATUS_PARITY_ERROR | RXSTATUS_FRAMING_ERROR;
+		info->igyesre_status_mask |= RXSTATUS_PARITY_ERROR | RXSTATUS_FRAMING_ERROR;
 	if (I_IGNBRK(info->port.tty)) {
-		info->ignore_status_mask |= RXSTATUS_BREAK_RECEIVED;
-		/* If ignoring parity and break indicators, ignore 
+		info->igyesre_status_mask |= RXSTATUS_BREAK_RECEIVED;
+		/* If igyesring parity and break indicators, igyesre 
 		 * overruns too.  (For real raw support).
 		 */
 		if (I_IGNPAR(info->port.tty))
-			info->ignore_status_mask |= RXSTATUS_OVERRUN;
+			info->igyesre_status_mask |= RXSTATUS_OVERRUN;
 	}
 
 	mgsl_program_hw(info);
@@ -2008,7 +2008,7 @@ static int mgsl_put_char(struct tty_struct *tty, unsigned char ch)
 			__FILE__, __LINE__, ch, info->device_name);
 	}		
 	
-	if (mgsl_paranoia_check(info, tty->name, "mgsl_put_char"))
+	if (mgsl_parayesia_check(info, tty->name, "mgsl_put_char"))
 		return 0;
 
 	if (!info->xmit_buf)
@@ -2046,7 +2046,7 @@ static void mgsl_flush_chars(struct tty_struct *tty)
 		printk( "%s(%d):mgsl_flush_chars() entry on %s xmit_cnt=%d\n",
 			__FILE__,__LINE__,info->device_name,info->xmit_cnt);
 	
-	if (mgsl_paranoia_check(info, tty->name, "mgsl_flush_chars"))
+	if (mgsl_parayesia_check(info, tty->name, "mgsl_flush_chars"))
 		return;
 
 	if (info->xmit_cnt <= 0 || tty->stopped || tty->hw_stopped ||
@@ -2062,7 +2062,7 @@ static void mgsl_flush_chars(struct tty_struct *tty)
 	if (!info->tx_active) {
 		if ( (info->params.mode == MGSL_MODE_HDLC ||
 			info->params.mode == MGSL_MODE_RAW) && info->xmit_cnt ) {
-			/* operating in synchronous (frame oriented) mode */
+			/* operating in synchroyesus (frame oriented) mode */
 			/* copy data from circular xmit_buf to */
 			/* transmit DMA buffer. */
 			mgsl_load_tx_dma_buffer(info,
@@ -2098,7 +2098,7 @@ static int mgsl_write(struct tty_struct * tty,
 		printk( "%s(%d):mgsl_write(%s) count=%d\n",
 			__FILE__,__LINE__,info->device_name,count);
 	
-	if (mgsl_paranoia_check(info, tty->name, "mgsl_write"))
+	if (mgsl_parayesia_check(info, tty->name, "mgsl_write"))
 		goto cleanup;
 
 	if (!info->xmit_buf)
@@ -2106,7 +2106,7 @@ static int mgsl_write(struct tty_struct * tty,
 
 	if ( info->params.mode == MGSL_MODE_HDLC ||
 			info->params.mode == MGSL_MODE_RAW ) {
-		/* operating in synchronous (frame oriented) mode */
+		/* operating in synchroyesus (frame oriented) mode */
 		if (info->tx_active) {
 
 			if ( info->params.mode == MGSL_MODE_HDLC ) {
@@ -2119,7 +2119,7 @@ static int mgsl_write(struct tty_struct * tty,
 			 * frame for transmission at a later time.
 			 */
 			if (info->tx_holding_count >= info->num_tx_holding_buffers ) {
-				/* no tx holding buffers available */
+				/* yes tx holding buffers available */
 				ret = 0;
 				goto cleanup;
 			}
@@ -2216,7 +2216,7 @@ static int mgsl_write_room(struct tty_struct *tty)
 	struct mgsl_struct *info = tty->driver_data;
 	int	ret;
 				
-	if (mgsl_paranoia_check(info, tty->name, "mgsl_write_room"))
+	if (mgsl_parayesia_check(info, tty->name, "mgsl_write_room"))
 		return 0;
 	ret = SERIAL_XMIT_SIZE - info->xmit_cnt - 1;
 	if (ret < 0)
@@ -2228,7 +2228,7 @@ static int mgsl_write_room(struct tty_struct *tty)
 			 
 	if ( info->params.mode == MGSL_MODE_HDLC ||
 		info->params.mode == MGSL_MODE_RAW ) {
-		/* operating in synchronous (frame oriented) mode */
+		/* operating in synchroyesus (frame oriented) mode */
 		if ( info->tx_active )
 			return 0;
 		else
@@ -2254,7 +2254,7 @@ static int mgsl_chars_in_buffer(struct tty_struct *tty)
 		printk("%s(%d):mgsl_chars_in_buffer(%s)\n",
 			 __FILE__,__LINE__, info->device_name );
 			 
-	if (mgsl_paranoia_check(info, tty->name, "mgsl_chars_in_buffer"))
+	if (mgsl_parayesia_check(info, tty->name, "mgsl_chars_in_buffer"))
 		return 0;
 		
 	if (debug_level >= DEBUG_LEVEL_INFO)
@@ -2263,7 +2263,7 @@ static int mgsl_chars_in_buffer(struct tty_struct *tty)
 			 
 	if ( info->params.mode == MGSL_MODE_HDLC ||
 		info->params.mode == MGSL_MODE_RAW ) {
-		/* operating in synchronous (frame oriented) mode */
+		/* operating in synchroyesus (frame oriented) mode */
 		if ( info->tx_active )
 			return info->max_frame_size;
 		else
@@ -2289,7 +2289,7 @@ static void mgsl_flush_buffer(struct tty_struct *tty)
 		printk("%s(%d):mgsl_flush_buffer(%s) entry\n",
 			 __FILE__,__LINE__, info->device_name );
 	
-	if (mgsl_paranoia_check(info, tty->name, "mgsl_flush_buffer"))
+	if (mgsl_parayesia_check(info, tty->name, "mgsl_flush_buffer"))
 		return;
 		
 	spin_lock_irqsave(&info->irq_spinlock,flags); 
@@ -2317,7 +2317,7 @@ static void mgsl_send_xchar(struct tty_struct *tty, char ch)
 		printk("%s(%d):mgsl_send_xchar(%s,%d)\n",
 			 __FILE__,__LINE__, info->device_name, ch );
 			 
-	if (mgsl_paranoia_check(info, tty->name, "mgsl_send_xchar"))
+	if (mgsl_parayesia_check(info, tty->name, "mgsl_send_xchar"))
 		return;
 
 	info->x_char = ch;
@@ -2346,7 +2346,7 @@ static void mgsl_throttle(struct tty_struct * tty)
 		printk("%s(%d):mgsl_throttle(%s) entry\n",
 			 __FILE__,__LINE__, info->device_name );
 
-	if (mgsl_paranoia_check(info, tty->name, "mgsl_throttle"))
+	if (mgsl_parayesia_check(info, tty->name, "mgsl_throttle"))
 		return;
 	
 	if (I_IXOFF(tty))
@@ -2376,7 +2376,7 @@ static void mgsl_unthrottle(struct tty_struct * tty)
 		printk("%s(%d):mgsl_unthrottle(%s) entry\n",
 			 __FILE__,__LINE__, info->device_name );
 
-	if (mgsl_paranoia_check(info, tty->name, "mgsl_unthrottle"))
+	if (mgsl_parayesia_check(info, tty->name, "mgsl_unthrottle"))
 		return;
 	
 	if (I_IXOFF(tty)) {
@@ -2657,7 +2657,7 @@ static int mgsl_wait_event(struct mgsl_struct * info, int __user * mask_ptr)
  	unsigned long flags;
 	int s;
 	int rc=0;
-	struct mgsl_icount cprev, cnow;
+	struct mgsl_icount cprev, cyesw;
 	int events;
 	int mask;
 	struct	_input_signal_events oldsigs, newsigs;
@@ -2716,12 +2716,12 @@ static int mgsl_wait_event(struct mgsl_struct * info, int __user * mask_ptr)
 			
 		/* get current irq counts */
 		spin_lock_irqsave(&info->irq_spinlock,flags);
-		cnow = info->icount;
+		cyesw = info->icount;
 		newsigs = info->input_signal_events;
 		set_current_state(TASK_INTERRUPTIBLE);
 		spin_unlock_irqrestore(&info->irq_spinlock,flags);
 
-		/* if no change, wait aborted for some reason */
+		/* if yes change, wait aborted for some reason */
 		if (newsigs.dsr_up   == oldsigs.dsr_up   &&
 		    newsigs.dsr_down == oldsigs.dsr_down &&
 		    newsigs.dcd_up   == oldsigs.dcd_up   &&
@@ -2730,8 +2730,8 @@ static int mgsl_wait_event(struct mgsl_struct * info, int __user * mask_ptr)
 		    newsigs.cts_down == oldsigs.cts_down &&
 		    newsigs.ri_up    == oldsigs.ri_up    &&
 		    newsigs.ri_down  == oldsigs.ri_down  &&
-		    cnow.exithunt    == cprev.exithunt   &&
-		    cnow.rxidle      == cprev.rxidle) {
+		    cyesw.exithunt    == cprev.exithunt   &&
+		    cyesw.rxidle      == cprev.rxidle) {
 			rc = -EIO;
 			break;
 		}
@@ -2745,12 +2745,12 @@ static int mgsl_wait_event(struct mgsl_struct * info, int __user * mask_ptr)
 			(newsigs.cts_down != oldsigs.cts_down ? MgslEvent_CtsInactive:0) +
 			(newsigs.ri_up    != oldsigs.ri_up    ? MgslEvent_RiActive:0)    +
 			(newsigs.ri_down  != oldsigs.ri_down  ? MgslEvent_RiInactive:0)  +
-			(cnow.exithunt    != cprev.exithunt   ? MgslEvent_ExitHuntMode:0) +
-			  (cnow.rxidle      != cprev.rxidle     ? MgslEvent_IdleReceived:0) );
+			(cyesw.exithunt    != cprev.exithunt   ? MgslEvent_ExitHuntMode:0) +
+			  (cyesw.rxidle      != cprev.rxidle     ? MgslEvent_IdleReceived:0) );
 		if (events)
 			break;
 		
-		cprev = cnow;
+		cprev = cyesw;
 		oldsigs = newsigs;
 	}
 	
@@ -2778,7 +2778,7 @@ static int modem_input_wait(struct mgsl_struct *info,int arg)
 {
  	unsigned long flags;
 	int rc;
-	struct mgsl_icount cprev, cnow;
+	struct mgsl_icount cprev, cyesw;
 	DECLARE_WAITQUEUE(wait, current);
 
 	/* save current irq counts */
@@ -2797,27 +2797,27 @@ static int modem_input_wait(struct mgsl_struct *info,int arg)
 
 		/* get new irq counts */
 		spin_lock_irqsave(&info->irq_spinlock,flags);
-		cnow = info->icount;
+		cyesw = info->icount;
 		set_current_state(TASK_INTERRUPTIBLE);
 		spin_unlock_irqrestore(&info->irq_spinlock,flags);
 
-		/* if no change, wait aborted for some reason */
-		if (cnow.rng == cprev.rng && cnow.dsr == cprev.dsr &&
-		    cnow.dcd == cprev.dcd && cnow.cts == cprev.cts) {
+		/* if yes change, wait aborted for some reason */
+		if (cyesw.rng == cprev.rng && cyesw.dsr == cprev.dsr &&
+		    cyesw.dcd == cprev.dcd && cyesw.cts == cprev.cts) {
 			rc = -EIO;
 			break;
 		}
 
 		/* check for change in caller specified modem input */
-		if ((arg & TIOCM_RNG && cnow.rng != cprev.rng) ||
-		    (arg & TIOCM_DSR && cnow.dsr != cprev.dsr) ||
-		    (arg & TIOCM_CD  && cnow.dcd != cprev.dcd) ||
-		    (arg & TIOCM_CTS && cnow.cts != cprev.cts)) {
+		if ((arg & TIOCM_RNG && cyesw.rng != cprev.rng) ||
+		    (arg & TIOCM_DSR && cyesw.dsr != cprev.dsr) ||
+		    (arg & TIOCM_CD  && cyesw.dcd != cprev.dcd) ||
+		    (arg & TIOCM_CTS && cyesw.cts != cprev.cts)) {
 			rc = 0;
 			break;
 		}
 
-		cprev = cnow;
+		cprev = cyesw;
 	}
 	remove_wait_queue(&info->status_event_wait_q, &wait);
 	set_current_state(TASK_RUNNING);
@@ -2892,7 +2892,7 @@ static int mgsl_break(struct tty_struct *tty, int break_state)
 		printk("%s(%d):mgsl_break(%s,%d)\n",
 			 __FILE__,__LINE__, info->device_name, break_state);
 			 
-	if (mgsl_paranoia_check(info, tty->name, "mgsl_break"))
+	if (mgsl_parayesia_check(info, tty->name, "mgsl_break"))
 		return -EINVAL;
 
 	spin_lock_irqsave(&info->irq_spinlock,flags);
@@ -2916,24 +2916,24 @@ static int msgl_get_icount(struct tty_struct *tty,
 
 {
 	struct mgsl_struct * info = tty->driver_data;
-	struct mgsl_icount cnow;	/* kernel counter temps */
+	struct mgsl_icount cyesw;	/* kernel counter temps */
 	unsigned long flags;
 
 	spin_lock_irqsave(&info->irq_spinlock,flags);
-	cnow = info->icount;
+	cyesw = info->icount;
 	spin_unlock_irqrestore(&info->irq_spinlock,flags);
 
-	icount->cts = cnow.cts;
-	icount->dsr = cnow.dsr;
-	icount->rng = cnow.rng;
-	icount->dcd = cnow.dcd;
-	icount->rx = cnow.rx;
-	icount->tx = cnow.tx;
-	icount->frame = cnow.frame;
-	icount->overrun = cnow.overrun;
-	icount->parity = cnow.parity;
-	icount->brk = cnow.brk;
-	icount->buf_overrun = cnow.buf_overrun;
+	icount->cts = cyesw.cts;
+	icount->dsr = cyesw.dsr;
+	icount->rng = cyesw.rng;
+	icount->dcd = cyesw.dcd;
+	icount->rx = cyesw.rx;
+	icount->tx = cyesw.tx;
+	icount->frame = cyesw.frame;
+	icount->overrun = cyesw.overrun;
+	icount->parity = cyesw.parity;
+	icount->brk = cyesw.brk;
+	icount->buf_overrun = cyesw.buf_overrun;
 	return 0;
 }
 
@@ -2956,7 +2956,7 @@ static int mgsl_ioctl(struct tty_struct *tty,
 		printk("%s(%d):mgsl_ioctl %s cmd=%08X\n", __FILE__,__LINE__,
 			info->device_name, cmd );
 	
-	if (mgsl_paranoia_check(info, tty->name, "mgsl_ioctl"))
+	if (mgsl_parayesia_check(info, tty->name, "mgsl_ioctl"))
 		return -ENODEV;
 
 	if (cmd != TIOCMIWAIT) {
@@ -3068,7 +3068,7 @@ static void mgsl_close(struct tty_struct *tty, struct file * filp)
 {
 	struct mgsl_struct * info = tty->driver_data;
 
-	if (mgsl_paranoia_check(info, tty->name, "mgsl_close"))
+	if (mgsl_parayesia_check(info, tty->name, "mgsl_close"))
 		return;
 	
 	if (debug_level >= DEBUG_LEVEL_INFO)
@@ -3118,7 +3118,7 @@ static void mgsl_wait_until_sent(struct tty_struct *tty, int timeout)
 		printk("%s(%d):mgsl_wait_until_sent(%s) entry\n",
 			 __FILE__,__LINE__, info->device_name );
 
-	if (mgsl_paranoia_check(info, tty->name, "mgsl_wait_until_sent"))
+	if (mgsl_parayesia_check(info, tty->name, "mgsl_wait_until_sent"))
 		return;
 
 	if (!tty_port_initialized(&info->port))
@@ -3185,7 +3185,7 @@ static void mgsl_hangup(struct tty_struct *tty)
 		printk("%s(%d):mgsl_hangup(%s)\n",
 			 __FILE__,__LINE__, info->device_name );
 			 
-	if (mgsl_paranoia_check(info, tty->name, "mgsl_hangup"))
+	if (mgsl_parayesia_check(info, tty->name, "mgsl_hangup"))
 		return;
 
 	mgsl_flush_buffer(tty);
@@ -3259,7 +3259,7 @@ static int block_til_ready(struct tty_struct *tty, struct file * filp,
 			 __FILE__,__LINE__, tty->driver->name );
 
 	if (filp->f_flags & O_NONBLOCK || tty_io_error(tty)) {
-		/* nonblock mode is set or port is not enabled */
+		/* yesnblock mode is set or port is yest enabled */
 		tty_port_set_active(port, 1);
 		return 0;
 	}
@@ -3268,10 +3268,10 @@ static int block_til_ready(struct tty_struct *tty, struct file * filp,
 		do_clocal = true;
 
 	/* Wait for carrier detect and the line to become
-	 * free (i.e., not in use by the callout).  While we are in
+	 * free (i.e., yest in use by the callout).  While we are in
 	 * this loop, port->count is dropped by one, so that
-	 * mgsl_close() knows when to free things.  We restore it upon
-	 * exit, either normal or abnormal.
+	 * mgsl_close() kyesws when to free things.  We restore it upon
+	 * exit, either yesrmal or abyesrmal.
 	 */
 	 
 	retval = 0;
@@ -3351,7 +3351,7 @@ static int mgsl_install(struct tty_driver *driver, struct tty_struct *tty)
 	info = mgsl_device_list;
 	while (info && info->line != line)
 		info = info->next_device;
-	if (mgsl_paranoia_check(info, tty->name, "mgsl_open"))
+	if (mgsl_parayesia_check(info, tty->name, "mgsl_open"))
 		return -ENODEV;
 	tty->driver_data = info;
 
@@ -3549,7 +3549,7 @@ static int mgsl_allocate_dma_buffers(struct mgsl_struct *info)
 
 	/* Calculate the number of DMA buffers necessary to hold the */
 	/* largest allowable frame size. Note: If the max frame size is */
-	/* not an even multiple of the DMA buffer size then we need to */
+	/* yest an even multiple of the DMA buffer size then we need to */
 	/* round the buffer count per frame up one. */
 
 	BuffersPerFrame = (unsigned short)(info->max_frame_size/DMABUFFERSIZE);
@@ -3562,7 +3562,7 @@ static int mgsl_allocate_dma_buffers(struct mgsl_struct *info)
 		 * This is 64 PAGE_SIZE buffers.
 		 *
 		 * The first page is used for padding at this time so the
-		 * buffer list does not begin at offset 0 of the PCI
+		 * buffer list does yest begin at offset 0 of the PCI
 		 * adapter's shared memory.
 		 *
 		 * The 2nd page is used for the buffer list. A 4K buffer
@@ -3572,7 +3572,7 @@ static int mgsl_allocate_dma_buffers(struct mgsl_struct *info)
 		 * This leaves 62 4K pages.
 		 *
 		 * The next N pages are used for transmit frame(s). We
-		 * reserve enough 4K page blocks to hold the required
+		 * reserve eyesugh 4K page blocks to hold the required
 		 * number of transmit dma buffers (num_tx_dma_buffers),
 		 * each of MaxFrameSize size.
 		 *
@@ -3748,7 +3748,7 @@ static void mgsl_free_buffer_list_memory( struct mgsl_struct *info )
  * 
  * 	Allocate the frame DMA buffers used by the specified buffer list.
  * 	Each DMA buffer will be one memory page in size. This is necessary
- * 	because memory can fragment enough that it may be impossible
+ * 	because memory can fragment eyesugh that it may be impossible
  * 	contiguous pages.
  * 
  * Arguments:
@@ -3835,7 +3835,7 @@ static void mgsl_free_dma_buffers( struct mgsl_struct *info )
 /*
  * mgsl_alloc_intermediate_rxbuffer_memory()
  * 
- * 	Allocate a buffer large enough to hold max_frame_size. This buffer
+ * 	Allocate a buffer large eyesugh to hold max_frame_size. This buffer
  *	is used to pass an assembled frame to the line discipline.
  * 
  * Arguments:
@@ -3882,7 +3882,7 @@ static void mgsl_free_intermediate_rxbuffer_memory(struct mgsl_struct *info)
 /*
  * mgsl_alloc_intermediate_txbuffer_memory()
  *
- * 	Allocate intermdiate transmit buffer(s) large enough to hold max_frame_size.
+ * 	Allocate intermdiate transmit buffer(s) large eyesugh to hold max_frame_size.
  * 	This buffer is used to load transmit frames into the adapter's dma transfer
  * 	buffers when there is sufficient space.
  *
@@ -3963,7 +3963,7 @@ static bool load_next_tx_holding_buffer(struct mgsl_struct *info)
 	bool ret = false;
 
 	if ( info->tx_holding_count ) {
-		/* determine if we have enough tx dma buffers
+		/* determine if we have eyesugh tx dma buffers
 		 * to accommodate the next tx frame
 		 */
 		struct tx_holding_buffer *ptx =
@@ -4054,7 +4054,7 @@ static int mgsl_claim_resources(struct mgsl_struct *info)
 		}
 		info->lcr_mem_requested = true;
 
-		info->memory_base = ioremap_nocache(info->phys_memory_base,
+		info->memory_base = ioremap_yescache(info->phys_memory_base,
 								0x40000);
 		if (!info->memory_base) {
 			printk( "%s(%d):Can't map shared memory on device %s MemAddr=%08X\n",
@@ -4068,7 +4068,7 @@ static int mgsl_claim_resources(struct mgsl_struct *info)
 			goto errout;
 		}
 		
-		info->lcr_base = ioremap_nocache(info->phys_lcr_base,
+		info->lcr_base = ioremap_yescache(info->phys_lcr_base,
 								PAGE_SIZE);
 		if (!info->lcr_base) {
 			printk( "%s(%d):Can't map LCR memory on device %s MemAddr=%08X\n",
@@ -4227,7 +4227,7 @@ static const struct tty_port_operations mgsl_port_ops = {
  * 
  * 	Allocate and initialize a device instance structure
  * 	
- * Arguments:		none
+ * Arguments:		yesne
  * Return Value:	pointer to mgsl_struct if success, otherwise NULL
  */
 static struct mgsl_struct* mgsl_allocate_device(void)
@@ -4301,7 +4301,7 @@ static int mgsl_init_tty(void)
 	serial_driver->driver_name = "synclink";
 	serial_driver->name = "ttySL";
 	serial_driver->major = ttymajor;
-	serial_driver->minor_start = 64;
+	serial_driver->miyesr_start = 64;
 	serial_driver->type = TTY_DRIVER_TYPE_SERIAL;
 	serial_driver->subtype = SERIAL_TYPE_NORMAL;
 	serial_driver->init_termios = tty_std_termios;
@@ -4568,7 +4568,7 @@ static void usc_set_sdlc_mode( struct mgsl_struct *info )
 	
 	/*
 	 * determine if the IUSC on the adapter is pre-SL1660. If
-	 * not, take advantage of the UnderWait feature of more
+	 * yest, take advantage of the UnderWait feature of more
 	 * modern chips. If an underrun occurs and this bit is set,
 	 * the transmitter will idle the programmed idle pattern
 	 * until the driver has time to service the underrun. Otherwise,
@@ -4596,7 +4596,7 @@ static void usc_set_sdlc_mode( struct mgsl_struct *info )
  	   RegValue = 0x8e06;
  
  	   /*--------------------------------------------------
- 	    * ignore user options for UnderRun Actions and
+ 	    * igyesre user options for UnderRun Actions and
  	    * preambles
  	    *--------------------------------------------------*/
  	}
@@ -4627,7 +4627,7 @@ static void usc_set_sdlc_mode( struct mgsl_struct *info )
 			 * 	CMR <12>		0	Send 8-bit syncs, 1=send Syncs per TxLength
 			 *
 			 * TxMode:
-			 * 	CMR <11-8)	0100	MonoSync
+			 * 	CMR <11-8)	0100	MoyesSync
 			 *
 			 * 	0x00 0100 xxxx xxxx  04xx
 			 */
@@ -5012,7 +5012,7 @@ static void usc_set_sdlc_mode( struct mgsl_struct *info )
 	 */
 
 	if ( info->bus_type == MGSL_BUS_TYPE_PCI ) {
-		/* PCI adapter does not need DMA wait state */
+		/* PCI adapter does yest need DMA wait state */
 		usc_OutDmaReg( info, DCR, 0xa00b );
 	}
 	else
@@ -5153,7 +5153,7 @@ static void usc_enable_loopback(struct mgsl_struct *info, int enable)
 		usc_OutReg( info, CMCR, 0x0f64 );
 
 		/* Write 16-bit Time Constant for BRG0 */
-		/* use clock speed if available, otherwise use 8 for diagnostics */
+		/* use clock speed if available, otherwise use 8 for diagyesstics */
 		if (info->params.clock_speed) {
 			if (info->bus_type == MGSL_BUS_TYPE_PCI)
 				usc_OutReg(info, TC0R, (u16)((11059200/info->params.clock_speed)-1));
@@ -5275,8 +5275,8 @@ static void usc_process_rxoverrun_sync( struct mgsl_struct *info )
 
 	/* Search for an unfinished string of buffers. This means */
 	/* that a receive frame started (at least one buffer with */
-	/* count set to zero) but there is no terminiting buffer */
-	/* (status set to non-zero). */
+	/* count set to zero) but there is yes terminiting buffer */
+	/* (status set to yesn-zero). */
 
 	while( !buffer_list[end_index].count )
 	{
@@ -5618,7 +5618,7 @@ static void usc_stop_transmitter( struct mgsl_struct *info )
 /* usc_load_txfifo()
  *
  *	Fill the transmit FIFO until the FIFO is full or
- *	there is no more data to load.
+ *	there is yes more data to load.
  *
  * Arguments:		info	pointer to device extension (instance data)
  * Return Value:	None
@@ -5675,7 +5675,7 @@ static void usc_load_txfifo( struct mgsl_struct *info )
 
 /* usc_reset()
  *
- *	Reset the adapter to a known state and prepare it for further use.
+ *	Reset the adapter to a kyeswn state and prepare it for further use.
  *
  * Arguments:		info	pointer to device instance data
  * Return Value:	None
@@ -5789,7 +5789,7 @@ static void usc_reset( struct mgsl_struct *info )
 
 /* usc_set_async_mode()
  *
- *	Program adapter for asynchronous communications.
+ *	Program adapter for asynchroyesus communications.
  *
  * Arguments:		info		pointer to device instance data
  * Return Value:	None
@@ -5810,10 +5810,10 @@ static void usc_set_async_mode( struct mgsl_struct *info )
 	 *
 	 * <15..14>	00	Tx Sub modes, 00 = 1 Stop Bit
 	 * <13..12>	00	              00 = 16X Clock
-	 * <11..8>	0000	Transmitter mode = Asynchronous
+	 * <11..8>	0000	Transmitter mode = Asynchroyesus
 	 * <7..6>	00	reserved?
 	 * <5..4>	00	Rx Sub modes, 00 = 16X Clock
-	 * <3..0>	0000	Receiver mode = Asynchronous
+	 * <3..0>	0000	Receiver mode = Asynchroyesus
 	 *
 	 * 0000 0000 0000 0000 = 0x0
 	 */
@@ -5861,7 +5861,7 @@ static void usc_set_async_mode( struct mgsl_struct *info )
 	 *
 	 * Note: For async mode the receive FIFO level must be set
 	 * to 0 to avoid the situation where the FIFO contains fewer bytes
-	 * than the trigger level and no more data is expected.
+	 * than the trigger level and yes more data is expected.
 	 *
 	 * <7>		0		Exited Hunt IA (Interrupt Arm)
 	 * <6>		0		Idle Received IA
@@ -5979,7 +5979,7 @@ static void usc_set_async_mode( struct mgsl_struct *info )
  *	clear any 'stale' status info left over from running in	async mode.
  *
  *	The 16C32 shows the strange behaviour of marking the 1st
- *	received SDLC frame with a CRC error even when there is no
+ *	received SDLC frame with a CRC error even when there is yes
  *	CRC error. To get around this a small dummy from of 2 bytes
  *	is looped back when switching from async to sync mode.
  *
@@ -6095,8 +6095,8 @@ static void usc_set_txidle( struct mgsl_struct *info )
 
 	/*
 	 * if SyncLink WAN adapter is running in external sync mode, the
-	 * transmitter has been set to Monosync in order to try to mimic
-	 * a true raw outbound bit stream. Monosync still sends an open/close
+	 * transmitter has been set to Moyessync in order to try to mimic
+	 * a true raw outbound bit stream. Moyessync still sends an open/close
 	 * sync char at the start/end of a frame. Try to match those sync
 	 * patterns to the idle mode set here
 	 */
@@ -6267,7 +6267,7 @@ static void usc_enable_async_clock( struct mgsl_struct *info, u32 data_rate )
  * only physical addresses.
  *
  * This causes a problem under Windows NT when large DMA buffers are
- * needed. Fragmentation of the nonpaged pool prevents allocations of
+ * needed. Fragmentation of the yesnpaged pool prevents allocations of
  * physically contiguous buffers larger than the PAGE_SIZE.
  *
  * However the 16C32 supports Bus Master Scatter/Gather DMA which
@@ -6296,7 +6296,7 @@ static void usc_enable_async_clock( struct mgsl_struct *info, u32 data_rate )
  * entry list to PAGE_SIZE.
  *
  * The actual data buffers on the other hand will only be accessed
- * by the CPU or the adapter but not by both simultaneously. This allows
+ * by the CPU or the adapter but yest by both simultaneously. This allows
  * Scatter/Gather packet based DMA procedures for using physically
  * discontiguous pages.
  */
@@ -6438,7 +6438,7 @@ static bool mgsl_get_rx_frame(struct mgsl_struct *info)
 	/*
 	 * current_rx_buffer points to the 1st buffer of the next available
 	 * receive frame. To find the last buffer of the frame look for
-	 * a non-zero status field in the buffer entries. (The status
+	 * a yesn-zero status field in the buffer entries. (The status
 	 * field is set by the 16C32 after completing a receive frame.
 	 */
 
@@ -6446,10 +6446,10 @@ static bool mgsl_get_rx_frame(struct mgsl_struct *info)
 
 	while( !info->rx_buffer_list[EndIndex].status ) {
 		/*
-		 * If the count field of the buffer entry is non-zero then
-		 * this buffer has not been used. (The 16C32 clears the count
+		 * If the count field of the buffer entry is yesn-zero then
+		 * this buffer has yest been used. (The 16C32 clears the count
 		 * field when it starts using the buffer.) If an unused buffer
-		 * is encountered then there are no frames available.
+		 * is encountered then there are yes frames available.
 		 */
 
 		if ( info->rx_buffer_list[EndIndex].count )
@@ -6460,10 +6460,10 @@ static bool mgsl_get_rx_frame(struct mgsl_struct *info)
 		if ( EndIndex == info->rx_buffer_count )
 			EndIndex = 0;
 
-		/* if entire list searched then no frame available */
+		/* if entire list searched then yes frame available */
 		if ( EndIndex == StartIndex ) {
 			/* If this occurs then something bad happened,
-			 * all buffers have been 'used' but none mark
+			 * all buffers have been 'used' but yesne mark
 			 * the end of a frame. Reset buffers and receiver.
 			 */
 
@@ -6505,7 +6505,7 @@ static bool mgsl_get_rx_frame(struct mgsl_struct *info)
 		return_frame = true;
 
 	if ( return_frame ) {
-		/* receive frame has no errors, get frame size.
+		/* receive frame has yes errors, get frame size.
 		 * The frame size is the starting value of the RCC (which was
 		 * set to 0xffff) minus the ending value of the RCC (decremented
 		 * once for each receive character) minus 2 for the 16-bit CRC.
@@ -6588,7 +6588,7 @@ Cleanup:
 	if ( info->rx_enabled && info->rx_overflow ) {
 		/* The receiver needs to restarted because of 
 		 * a receive overflow (buffer or FIFO). If the 
-		 * receive buffers are now empty, then restart receiver.
+		 * receive buffers are yesw empty, then restart receiver.
 		 */
 
 		if ( !info->rx_buffer_list[EndIndex].status &&
@@ -6613,7 +6613,7 @@ Cleanup:
  *	processing a closing flag character).
  *
  *	In this routine, we will return DMABUFFERSIZE "chunks" at a time.
- *	If DCD goes inactive, the last Rx DMA Buffer will have a non-zero
+ *	If DCD goes inactive, the last Rx DMA Buffer will have a yesn-zero
  * 	status field and the RCC field will indicate the length of the
  *	entire received frame. We take this RCC field and get the modulus
  *	of RCC and DMABUFFERSIZE to determine if number of bytes in the
@@ -6642,7 +6642,7 @@ static bool mgsl_get_raw_rx_frame(struct mgsl_struct *info)
 	 * If the count field of this buffer is zero, the USC is either
 	 * using this buffer or has used this buffer. Look at the count
 	 * field of the next buffer. If that next buffer's count is
-	 * non-zero, the USC is still actively using the current buffer.
+	 * yesn-zero, the USC is still actively using the current buffer.
 	 * Otherwise, if the next buffer's count field is zero, the
 	 * current buffer is complete and the USC is using the next
 	 * buffer.
@@ -6656,7 +6656,7 @@ static bool mgsl_get_raw_rx_frame(struct mgsl_struct *info)
 		(info->rx_buffer_list[CurrentIndex].count == 0 &&
 			info->rx_buffer_list[NextIndex].count == 0)) {
 		/*
-	 	 * Either the status field of this dma buffer is non-zero
+	 	 * Either the status field of this dma buffer is yesn-zero
 		 * (indicating the last buffer of a receive frame) or the next
 	 	 * buffer is marked as in use -- implying this buffer is complete
 		 * and an intermediate buffer for this received frame.
@@ -6687,22 +6687,22 @@ static bool mgsl_get_raw_rx_frame(struct mgsl_struct *info)
 			 * If the status field is zero, this is an intermediate buffer.
 			 * It's size is 4K.
 			 *
-			 * If the DMA Buffer Entry's Status field is non-zero, the
-			 * receive operation completed normally (ie: DCD dropped). The
+			 * If the DMA Buffer Entry's Status field is yesn-zero, the
+			 * receive operation completed yesrmally (ie: DCD dropped). The
 			 * RCC field is valid and holds the received frame size.
 			 * It is possible that the RCC field will be zero on a DMA buffer
-			 * entry with a non-zero status. This can occur if the total
+			 * entry with a yesn-zero status. This can occur if the total
 			 * frame size (number of bytes between the time DCD goes active
 			 * to the time DCD goes inactive) exceeds 65535 bytes. In this
 			 * case the 16C32 has underrun on the RCC count and appears to
-			 * stop updating this counter to let us know the actual received
-			 * frame size. If this happens (non-zero status and zero RCC),
+			 * stop updating this counter to let us kyesw the actual received
+			 * frame size. If this happens (yesn-zero status and zero RCC),
 			 * simply return the entire RxDMA Buffer
 			 */
 			if ( status ) {
 				/*
 				 * In the event that the final RxDMA Buffer is
-				 * terminated with a non-zero status and the RCC
+				 * terminated with a yesn-zero status and the RCC
 				 * field is zero, we interpret this as the RCC
 				 * having underflowed (received frame > 65535 bytes).
 				 *
@@ -6760,7 +6760,7 @@ static bool mgsl_get_raw_rx_frame(struct mgsl_struct *info)
 	if ( info->rx_enabled && info->rx_overflow ) {
 		/* The receiver needs to restarted because of
 		 * a receive overflow (buffer or FIFO). If the
-		 * receive buffers are now empty, then restart receiver.
+		 * receive buffers are yesw empty, then restart receiver.
 		 */
 
 		if ( !info->rx_buffer_list[CurrentIndex].status &&
@@ -6938,7 +6938,7 @@ static bool mgsl_irq_test( struct mgsl_struct *info )
 	/* Enable INTEN gate for ISA adapter (Port 6, Bit12) */
 	/* Enable INTEN (Port 6, Bit12) */
 	/* This connects the IRQ request signal to the ISA bus */
-	/* on the ISA adapter. This has no effect for the PCI adapter */
+	/* on the ISA adapter. This has yes effect for the PCI adapter */
 	usc_OutReg( info, PCR, (unsigned short)((usc_InReg(info, PCR) | BIT13) & ~BIT12) );
 
 	usc_EnableMasterIrqBit(info);
@@ -7003,7 +7003,7 @@ static bool mgsl_dma_test( struct mgsl_struct *info )
 	/* Reprogram the RDMR so that the 16C32 does NOT clear the count
 	 * field of the buffer entry after fetching buffer address. This
 	 * way we can detect a DMA failure for a DMA read (which should be
-	 * non-destructive to system memory) before we try and write to
+	 * yesn-destructive to system memory) before we try and write to
 	 * memory (where a failure could corrupt system memory).
 	 */
 
@@ -7101,7 +7101,7 @@ static bool mgsl_dma_test( struct mgsl_struct *info )
 		spin_unlock_irqrestore(&info->irq_spinlock,flags);
 
 		if ( !(status & BIT4) && (status & BIT5) ) {
-			/* INITG (BIT 4) is inactive (no entry read in progress) AND */
+			/* INITG (BIT 4) is inactive (yes entry read in progress) AND */
 			/* BUSY  (BIT 5) is active (channel still active). */
 			/* This means the buffer entry read has completed. */
 			break;
@@ -7188,7 +7188,7 @@ static bool mgsl_dma_test( struct mgsl_struct *info )
 		/* Wait 100ms */
 		EndTime = jiffies + msecs_to_jiffies(100);
 
-		/* While timer not expired wait for transmit complete */
+		/* While timer yest expired wait for transmit complete */
 
 		spin_lock_irqsave(&info->irq_spinlock,flags);
 		status = usc_InReg( info, TCSR );
@@ -7292,7 +7292,7 @@ static int mgsl_adapter_test( struct mgsl_struct *info )
 	}
 
 	if ( debug_level >= DEBUG_LEVEL_INFO )
-		printk( "%s(%d):device %s passed diagnostics\n",
+		printk( "%s(%d):device %s passed diagyesstics\n",
 			__FILE__,__LINE__,info->device_name );
 			
 	return 0;
@@ -7369,7 +7369,7 @@ static bool mgsl_memory_test( struct mgsl_struct *info )
  * 
  * 	It appears that as long as the PCI9050 write FIFO is full, the
  * 	PCI9050 treats all of the writes as a single burst transaction
- * 	and will not release the bus. This causes DMA latency problems
+ * 	and will yest release the bus. This causes DMA latency problems
  * 	at high speeds when copying large data blocks to the shared
  * 	memory.
  * 
@@ -7480,9 +7480,9 @@ static void mgsl_tx_timeout(struct timer_list *t)
 	
 }	/* end of mgsl_tx_timeout() */
 
-/* signal that there are no more frames to send, so that
+/* signal that there are yes more frames to send, so that
  * line is 'released' by echoing RxD to TxD when current
- * transmission is complete (or immediately if no tx in progress).
+ * transmission is complete (or immediately if yes tx in progress).
  */
 static int mgsl_loopmode_send_done( struct mgsl_struct * info )
 {

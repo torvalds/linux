@@ -5,7 +5,7 @@ Adding a New System Call
 ========================
 
 This document describes what's involved in adding a new system call to the
-Linux kernel, over and above the normal submission advice in
+Linux kernel, over and above the yesrmal submission advice in
 :ref:`Documentation/process/submitting-patches.rst <submittingpatches>`.
 
 
@@ -23,21 +23,21 @@ interface.
    also makes it easier to encapsulate the new functionality in a kernel module
    rather than requiring it to be built into the main kernel.
 
-     - If the new functionality involves operations where the kernel notifies
+     - If the new functionality involves operations where the kernel yestifies
        userspace that something has happened, then returning a new file
        descriptor for the relevant object allows userspace to use
-       ``poll``/``select``/``epoll`` to receive that notification.
+       ``poll``/``select``/``epoll`` to receive that yestification.
      - However, operations that don't map to
        :manpage:`read(2)`/:manpage:`write(2)`-like operations
        have to be implemented as :manpage:`ioctl(2)` requests, which can lead
        to a somewhat opaque API.
 
- - If you're just exposing runtime system information, a new node in sysfs
+ - If you're just exposing runtime system information, a new yesde in sysfs
    (see ``Documentation/filesystems/sysfs.txt``) or the ``/proc`` filesystem may
    be more appropriate.  However, access to these mechanisms requires that the
-   relevant filesystem is mounted, which might not always be the case (e.g.
+   relevant filesystem is mounted, which might yest always be the case (e.g.
    in a namespaced/sandboxed/chrooted environment).  Avoid adding any API to
-   debugfs, as this is not considered a 'production' interface to userspace.
+   debugfs, as this is yest considered a 'production' interface to userspace.
  - If the operation is specific to a particular file or file descriptor, then
    an additional :manpage:`fcntl(2)` command option may be more appropriate.  However,
    :manpage:`fcntl(2)` is a multiplexing system call that hides a lot of complexity, so
@@ -61,20 +61,20 @@ extensions of the interface.
 
 (The syscall table is littered with historical examples where this wasn't done,
 together with the corresponding follow-up system calls --
-``eventfd``/``eventfd2``, ``dup2``/``dup3``, ``inotify_init``/``inotify_init1``,
+``eventfd``/``eventfd2``, ``dup2``/``dup3``, ``iyestify_init``/``iyestify_init1``,
 ``pipe``/``pipe2``, ``renameat``/``renameat2`` -- so
 learn from the history of the kernel and plan for extensions from the start.)
 
 For simpler system calls that only take a couple of arguments, the preferred
 way to allow for future extensibility is to include a flags argument to the
 system call.  To make sure that userspace programs can safely use flags
-between kernel versions, check whether the flags value holds any unknown
+between kernel versions, check whether the flags value holds any unkyeswn
 flags, and reject the system call (with ``EINVAL``) if it does::
 
     if (flags & ~(THING_FLAG1 | THING_FLAG2 | THING_FLAG3))
         return -EINVAL;
 
-(If no flags values are used yet, check that the flags argument is zero.)
+(If yes flags values are used yet, check that the flags argument is zero.)
 
 For more sophisticated system calls that involve a larger number of arguments,
 it's preferred to encapsulate the majority of the arguments into a structure
@@ -116,7 +116,7 @@ then the flags argument should include a value that is equivalent to setting
 ``O_CLOEXEC`` on the new FD.  This makes it possible for userspace to close
 the timing window between ``xyzzy()`` and calling
 ``fcntl(fd, F_SETFD, FD_CLOEXEC)``, where an unexpected ``fork()`` and
-``execve()`` in another thread could leak a descriptor to
+``execve()`` in ayesther thread could leak a descriptor to
 the exec'ed program. (However, resist the temptation to re-use the actual value
 of the ``O_CLOEXEC`` constant, as it is architecture-specific and is part of a
 numbering space of ``O_*`` flags that is fairly full.)
@@ -124,7 +124,7 @@ numbering space of ``O_*`` flags that is fairly full.)
 If your system call returns a new file descriptor, you should also consider
 what it means to use the :manpage:`poll(2)` family of system calls on that file
 descriptor. Making a file descriptor ready for reading or writing is the
-normal way for the kernel to indicate to userspace that an event has
+yesrmal way for the kernel to indicate to userspace that an event has
 occurred on the corresponding kernel object.
 
 If your new :manpage:`xyzzy(2)` system call involves a filename argument::
@@ -166,10 +166,10 @@ the calling process, it should be restricted (using a call to
 permissions as the target process, or with the necessary capabilities, can
 manipulate the target process.
 
-Finally, be aware that some non-x86 architectures have an easier time if
+Finally, be aware that some yesn-x86 architectures have an easier time if
 system call parameters that are explicitly 64-bit fall on odd-numbered
 arguments (i.e. parameter 1, 3, 5), to allow use of contiguous pairs of 32-bit
-registers.  (This concern does not apply if the arguments are part of a
+registers.  (This concern does yest apply if the arguments are part of a
 structure that's passed in by pointer.)
 
 
@@ -219,7 +219,7 @@ new system call to the generic list by adding an entry to the list in
     __SYSCALL(__NR_xyzzy, sys_xyzzy)
 
 Also update the __NR_syscalls count to reflect the additional system call, and
-note that if multiple new system calls are added in the same merge window,
+yeste that if multiple new system calls are added in the same merge window,
 your new syscall number may get adjusted to resolve conflicts.
 
 The file ``kernel/sys_ni.c`` provides a fallback stub implementation of each
@@ -228,12 +228,12 @@ system call, returning ``-ENOSYS``.  Add your new system call here too::
     COND_SYSCALL(xyzzy);
 
 Your new kernel functionality, and the system call that controls it, should
-normally be optional, so add a ``CONFIG`` option (typically to
+yesrmally be optional, so add a ``CONFIG`` option (typically to
 ``init/Kconfig``) for it. As usual for new ``CONFIG`` options:
 
  - Include a description of the new functionality and system call controlled
    by the option.
- - Make the option depend on EXPERT if it should be hidden from normal users.
+ - Make the option depend on EXPERT if it should be hidden from yesrmal users.
  - Make any new source files implementing the function dependent on the CONFIG
    option in the Makefile (e.g. ``obj-$(CONFIG_XYZZY_SYSCALL) += xyzzy.o``).
  - Double check that the kernel still builds with the new CONFIG option turned
@@ -241,7 +241,7 @@ normally be optional, so add a ``CONFIG`` option (typically to
 
 To summarize, you need a commit that includes:
 
- - ``CONFIG`` option for the new function, normally in ``init/Kconfig``
+ - ``CONFIG`` option for the new function, yesrmally in ``init/Kconfig``
  - ``SYSCALL_DEFINEn(xyzzy, ...)`` for the entry point
  - corresponding prototype in ``include/linux/syscalls.h``
  - generic table entry in ``include/uapi/asm-generic/unistd.h``
@@ -294,8 +294,8 @@ arrives at a 64-bit kernel from a 32-bit application will be split into two
 32-bit values, which then need to be re-assembled in the compatibility layer.
 
 (Note that a system call argument that's a pointer to an explicit 64-bit type
-does **not** need a compatibility layer; for example, :manpage:`splice(2)`'s arguments of
-type ``loff_t __user *`` do not trigger the need for a ``compat_`` system call.)
+does **yest** need a compatibility layer; for example, :manpage:`splice(2)`'s arguments of
+type ``loff_t __user *`` do yest trigger the need for a ``compat_`` system call.)
 
 The compatibility version of the system call is called ``compat_sys_xyzzy()``,
 and is added with the ``COMPAT_SYSCALL_DEFINEn()`` macro, analogously to
@@ -349,7 +349,7 @@ To summarize, you need:
  - a ``COMPAT_SYSCALL_DEFINEn(xyzzy, ...)`` for the compat entry point
  - corresponding prototype in ``include/linux/compat.h``
  - (if needed) 32-bit mapping struct in ``include/linux/compat.h``
- - instance of ``__SC_COMP`` not ``__SYSCALL`` in
+ - instance of ``__SC_COMP`` yest ``__SYSCALL`` in
    ``include/uapi/asm-generic/unistd.h``
 
 
@@ -378,7 +378,7 @@ the compatibility wrapper::
     ...
     555   x32      xyzzy     __x32_compat_sys_xyzzy
 
-If no pointers are involved, then it is preferable to re-use the 64-bit system
+If yes pointers are involved, then it is preferable to re-use the 64-bit system
 call for the x32 ABI (and consequently the entry in
 arch/x86/entry/syscalls/syscall_64.tbl is unchanged).
 
@@ -414,7 +414,7 @@ For x86_64, this is implemented as a ``stub_xyzzy`` entry point in
 
     333   common   xyzzy     stub_xyzzy
 
-The equivalent for 32-bit programs running on a 64-bit kernel is normally
+The equivalent for 32-bit programs running on a 64-bit kernel is yesrmally
 called ``stub32_xyzzy`` and implemented in ``arch/x86/entry/entry_64_compat.S``,
 with the corresponding syscall table adjustment in
 ``arch/x86/entry/syscalls/syscall_32.tbl``::
@@ -424,7 +424,7 @@ with the corresponding syscall table adjustment in
 If the system call needs a compatibility layer (as in the previous section)
 then the ``stub32_`` version needs to call on to the ``compat_sys_`` version
 of the system call rather than the native 64-bit version.  Also, if the x32 ABI
-implementation is not common with the x86_64 version, then its syscall
+implementation is yest common with the x86_64 version, then its syscall
 table will also need to invoke a stub that calls on to the ``compat_sys_``
 version.
 
@@ -451,7 +451,7 @@ analogous to one of these, then the audit system should be updated.
 
 More generally, if there is an existing system call that is analogous to your
 new system call, it's worth doing a kernel-wide grep for the existing system
-call to check there are no other special cases.
+call to check there are yes other special cases.
 
 
 Testing
@@ -462,7 +462,7 @@ reviewers with a demonstration of how user space programs will use the system
 call.  A good way to combine these aims is to include a simple self-test
 program in a new directory under ``tools/testing/selftests/``.
 
-For a new system call, there will obviously be no libc wrapper function and so
+For a new system call, there will obviously be yes libc wrapper function and so
 the test will need to invoke it using ``syscall()``; also, if the system call
 involves a new userspace-visible structure, the corresponding header will need
 to be installed to compile the test.
@@ -491,13 +491,13 @@ The man page should be cc'ed to linux-man@vger.kernel.org
 For more details, see https://www.kernel.org/doc/man-pages/patches.html
 
 
-Do not call System Calls in the Kernel
+Do yest call System Calls in the Kernel
 --------------------------------------
 
 System calls are, as stated above, interaction points between userspace and
 the kernel.  Therefore, system call functions such as ``sys_xyzzy()`` or
 ``compat_sys_xyzzy()`` should only be called from userspace via the syscall
-table, but not from elsewhere in the kernel.  If the syscall functionality is
+table, but yest from elsewhere in the kernel.  If the syscall functionality is
 useful to be used within the kernel, needs to be shared between an old and a
 new syscall, or needs to be shared between a syscall and its compatibility
 variant, it should be implemented by means of a "helper" function (such as
@@ -505,7 +505,7 @@ variant, it should be implemented by means of a "helper" function (such as
 syscall stub (``sys_xyzzy()``), the compatibility syscall stub
 (``compat_sys_xyzzy()``), and/or other kernel code.
 
-At least on 64-bit x86, it will be a hard requirement from v4.17 onwards to not
+At least on 64-bit x86, it will be a hard requirement from v4.17 onwards to yest
 call system call functions in the kernel.  It uses a different calling
 convention for system calls where ``struct pt_regs`` is decoded on-the-fly in a
 syscall wrapper which then hands processing over to the actual syscall function.
@@ -515,7 +515,7 @@ registers with random user space content all the time (which may cause serious
 trouble down the call chain).
 
 Moreover, rules on how data may be accessed may differ between kernel data and
-user data.  This is another reason why calling ``sys_xyzzy()`` is generally a
+user data.  This is ayesther reason why calling ``sys_xyzzy()`` is generally a
 bad idea.
 
 Exceptions to this rule are only allowed in architecture-specific overrides,
@@ -527,7 +527,7 @@ References and Sources
 
  - LWN article from Michael Kerrisk on use of flags argument in system calls:
    https://lwn.net/Articles/585415/
- - LWN article from Michael Kerrisk on how to handle unknown flags in a system
+ - LWN article from Michael Kerrisk on how to handle unkyeswn flags in a system
    call: https://lwn.net/Articles/588444/
  - LWN article from Jake Edge describing constraints on 64-bit system call
    arguments: https://lwn.net/Articles/311630/
@@ -542,7 +542,7 @@ References and Sources
    http://man7.org/linux/man-pages/man2/syscall.2.html#NOTES
  - Collated emails from Linus Torvalds discussing the problems with ``ioctl()``:
    http://yarchive.net/comp/linux/ioctl.html
- - "How to not invent kernel interfaces", Arnd Bergmann,
+ - "How to yest invent kernel interfaces", Arnd Bergmann,
    http://www.ukuug.org/events/linux2007/2007/papers/Bergmann.pdf
  - LWN article from Michael Kerrisk on avoiding new uses of CAP_SYS_ADMIN:
    https://lwn.net/Articles/486306/
@@ -564,13 +564,13 @@ References and Sources
 
     - commit 75069f2b5bfb ("vfs: renumber FMODE_NONOTIFY and add to uniqueness
       check")
-    - commit 12ed2e36c98a ("fanotify: FMODE_NONOTIFY and __O_SYNC in sparc
+    - commit 12ed2e36c98a ("fayestify: FMODE_NONOTIFY and __O_SYNC in sparc
       conflict")
     - commit bb458c644a59 ("Safer ABI for O_TMPFILE")
 
  - Discussion from Matthew Wilcox about restrictions on 64-bit arguments:
    https://lkml.org/lkml/2008/12/12/187
- - Recommendation from Greg Kroah-Hartman that unknown flags should be
+ - Recommendation from Greg Kroah-Hartman that unkyeswn flags should be
    policed: https://lkml.org/lkml/2014/7/17/577
  - Recommendation from Linus Torvalds that x32 system calls should prefer
    compatibility with 64-bit versions rather than 32-bit versions:

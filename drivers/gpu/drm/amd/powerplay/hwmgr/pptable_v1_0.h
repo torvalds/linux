@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -42,7 +42,7 @@
 /*
  * Thermal controller 'combo type' to use an external controller for Fan control and an internal controller for thermal.
  * We probably should reserve the bit 0x80 for this use.
- * To keep the number of these types low we should also use the same code for all ASICs (i.e. do not distinguish RV6xx and RV7xx Internal here).
+ * To keep the number of these types low we should also use the same code for all ASICs (i.e. do yest distinguish RV6xx and RV7xx Internal here).
  * The driver can pick the correct internal controller based on the ASIC.
  */
 
@@ -52,10 +52,10 @@
 /*/* ATOM_TONGA_POWERPLAYTABLE::ulPlatformCaps */
 #define ATOM_TONGA_PP_PLATFORM_CAP_VDDGFX_CONTROL              0x1            /* This cap indicates whether vddgfx will be a separated power rail. */
 #define ATOM_TONGA_PP_PLATFORM_CAP_POWERPLAY                   0x2            /* This cap indicates whether this is a mobile part and CCC need to show Powerplay page. */
-#define ATOM_TONGA_PP_PLATFORM_CAP_SBIOSPOWERSOURCE            0x4            /* This cap indicates whether power source notificaiton is done by SBIOS directly. */
+#define ATOM_TONGA_PP_PLATFORM_CAP_SBIOSPOWERSOURCE            0x4            /* This cap indicates whether power source yestificaiton is done by SBIOS directly. */
 #define ATOM_TONGA_PP_PLATFORM_CAP_DISABLE_VOLTAGE_ISLAND      0x8            /* Enable the option to overwrite voltage island feature to be disabled, regardless of VddGfx power rail support. */
 #define ____RETIRE16____                                0x10
-#define ATOM_TONGA_PP_PLATFORM_CAP_HARDWAREDC                 0x20            /* This cap indicates whether power source notificaiton is done by GPIO directly. */
+#define ATOM_TONGA_PP_PLATFORM_CAP_HARDWAREDC                 0x20            /* This cap indicates whether power source yestificaiton is done by GPIO directly. */
 #define ____RETIRE64____                                0x40
 #define ____RETIRE128____                               0x80
 #define ____RETIRE256____                              0x100
@@ -269,7 +269,7 @@ typedef struct _ATOM_Tonga_Voltage_Lookup_Table {
 } ATOM_Tonga_Voltage_Lookup_Table;
 
 typedef struct _ATOM_Tonga_Fan_Table {
-	UCHAR   ucRevId;						 /* Change this if the table format changes or version changes so that the other fields are not the same. */
+	UCHAR   ucRevId;						 /* Change this if the table format changes or version changes so that the other fields are yest the same. */
 	UCHAR   ucTHyst;						 /* Temperature hysteresis. Integer. */
 	USHORT  usTMin; 						 /* The temperature, in 0.01 centigrades, below which we just run at a minimal PWM. */
 	USHORT  usTMed; 						 /* The middle temperature where we change slopes. */
@@ -289,7 +289,7 @@ typedef struct _ATOM_Tonga_Fan_Table {
 } ATOM_Tonga_Fan_Table;
 
 typedef struct _ATOM_Fiji_Fan_Table {
-	UCHAR   ucRevId;						 /* Change this if the table format changes or version changes so that the other fields are not the same. */
+	UCHAR   ucRevId;						 /* Change this if the table format changes or version changes so that the other fields are yest the same. */
 	UCHAR   ucTHyst;						 /* Temperature hysteresis. Integer. */
 	USHORT  usTMin; 						 /* The temperature, in 0.01 centigrades, below which we just run at a minimal PWM. */
 	USHORT  usTMed; 						 /* The middle temperature where we change slopes. */

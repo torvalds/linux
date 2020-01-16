@@ -6,7 +6,7 @@
  *
  * dm-switch is a device-mapper target that maps IO to underlying block
  * devices efficiently when there are a large number of fixed-sized
- * address regions but there is no simple pattern to allow for a compact
+ * address regions but there is yes simple pattern to allow for a compact
  * mapping representation such as dm-stripe.
  */
 
@@ -116,7 +116,7 @@ static int alloc_region_table(struct dm_target *ti, unsigned nr_paths)
 	sctx->region_table = vmalloc(array_size(nr_slots,
 						sizeof(region_table_slot_t)));
 	if (!sctx->region_table) {
-		ti->error = "Cannot allocate region table";
+		ti->error = "Canyest allocate region table";
 		return -ENOMEM;
 	}
 
@@ -164,7 +164,7 @@ static unsigned switch_get_path_nr(struct switch_ctx *sctx, sector_t offset)
 
 	path_nr = switch_region_table_read(sctx, p);
 
-	/* This can only happen if the processor uses non-atomic stores. */
+	/* This can only happen if the processor uses yesn-atomic stores. */
 	if (unlikely(path_nr >= sctx->nr_paths))
 		path_nr = 0;
 
@@ -285,7 +285,7 @@ static int switch_ctr(struct dm_target *ti, unsigned argc, char **argv)
 
 	sctx = alloc_switch_ctx(ti, nr_paths, region_size);
 	if (!sctx) {
-		ti->error = "Cannot allocate redirection context";
+		ti->error = "Canyest allocate redirection context";
 		return -ENOMEM;
 	}
 
@@ -525,7 +525,7 @@ static int switch_prepare_ioctl(struct dm_target *ti, struct block_device **bdev
 	 * Only pass ioctls through if the device sizes match exactly.
 	 */
 	if (ti->len + sctx->path_list[path_nr].start !=
-	    i_size_read((*bdev)->bd_inode) >> SECTOR_SHIFT)
+	    i_size_read((*bdev)->bd_iyesde) >> SECTOR_SHIFT)
 		return 1;
 	return 0;
 }

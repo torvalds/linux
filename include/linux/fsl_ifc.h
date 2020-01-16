@@ -741,18 +741,18 @@ struct fsl_ifc_nand {
 /*
  * IFC controller NOR Machine registers
  */
-struct fsl_ifc_nor {
-	__be32 nor_evter_stat;
+struct fsl_ifc_yesr {
+	__be32 yesr_evter_stat;
 	u32 res1[0x2];
-	__be32 nor_evter_en;
+	__be32 yesr_evter_en;
 	u32 res2[0x2];
-	__be32 nor_evter_intr_en;
+	__be32 yesr_evter_intr_en;
 	u32 res3[0x2];
-	__be32 nor_erattr0;
-	__be32 nor_erattr1;
-	__be32 nor_erattr2;
+	__be32 yesr_erattr0;
+	__be32 yesr_erattr1;
+	__be32 yesr_erattr2;
 	u32 res4[0x4];
-	__be32 norcr;
+	__be32 yesrcr;
 	u32 res5[0xEF];
 };
 
@@ -822,7 +822,7 @@ struct fsl_ifc_global {
 
 struct fsl_ifc_runtime {
 	struct fsl_ifc_nand ifc_nand;
-	struct fsl_ifc_nor ifc_nor;
+	struct fsl_ifc_yesr ifc_yesr;
 	struct fsl_ifc_gpcm ifc_gpcm;
 };
 

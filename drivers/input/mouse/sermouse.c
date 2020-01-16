@@ -150,12 +150,12 @@ static void sermouse_process_ms(struct sermouse *sermouse, signed char data)
 			break;
 
 		case 4:
-		case 6:	/* MZ++ packet type. We can get these bytes for M++ too but we ignore them later. */
+		case 6:	/* MZ++ packet type. We can get these bytes for M++ too but we igyesre them later. */
 			buf[1] = (data >> 2) & 0x0f;
 			break;
 
 		case 5:
-		case 7: /* Ignore anything besides MZ++ */
+		case 7: /* Igyesre anything besides MZ++ */
 			if (sermouse->type != SERIO_MZPP)
 				break;
 
@@ -172,7 +172,7 @@ static void sermouse_process_ms(struct sermouse *sermouse, signed char data)
 				default: /* We don't decode anything else yet. */
 
 					printk(KERN_WARNING
-						"sermouse.c: Received MZ++ packet %x, don't know how to handle.\n", buf[1]);
+						"sermouse.c: Received MZ++ packet %x, don't kyesw how to handle.\n", buf[1]);
 					break;
 			}
 

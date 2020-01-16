@@ -111,7 +111,7 @@ static void nvme_loop_queue_response(struct nvmet_req *req)
 		rq = blk_mq_tag_to_rq(nvme_loop_tagset(queue), cqe->command_id);
 		if (!rq) {
 			dev_err(queue->ctrl->ctrl.device,
-				"tag 0x%x on queue %d not found\n",
+				"tag 0x%x on queue %d yest found\n",
 				cqe->command_id, nvme_loop_queue_idx(queue));
 			return;
 		}
@@ -139,7 +139,7 @@ static blk_status_t nvme_loop_queue_rq(struct blk_mq_hw_ctx *hctx,
 	blk_status_t ret;
 
 	if (!nvmf_check_ready(&queue->ctrl->ctrl, req, queue_ready))
-		return nvmf_fail_nonready_command(&queue->ctrl->ctrl, req);
+		return nvmf_fail_yesnready_command(&queue->ctrl->ctrl, req);
 
 	ret = nvme_setup_cmd(ns, req, &iod->cmd);
 	if (ret)
@@ -202,7 +202,7 @@ static int nvme_loop_init_iod(struct nvme_loop_ctrl *ctrl,
 
 static int nvme_loop_init_request(struct blk_mq_tag_set *set,
 		struct request *req, unsigned int hctx_idx,
-		unsigned int numa_node)
+		unsigned int numa_yesde)
 {
 	struct nvme_loop_ctrl *ctrl = set->driver_data;
 
@@ -340,7 +340,7 @@ static int nvme_loop_configure_admin_queue(struct nvme_loop_ctrl *ctrl)
 	ctrl->admin_tag_set.ops = &nvme_loop_admin_mq_ops;
 	ctrl->admin_tag_set.queue_depth = NVME_AQ_MQ_TAG_DEPTH;
 	ctrl->admin_tag_set.reserved_tags = 2; /* connect + keep-alive */
-	ctrl->admin_tag_set.numa_node = NUMA_NO_NODE;
+	ctrl->admin_tag_set.numa_yesde = NUMA_NO_NODE;
 	ctrl->admin_tag_set.cmd_size = sizeof(struct nvme_loop_iod) +
 		NVME_INLINE_SG_CNT * sizeof(struct scatterlist);
 	ctrl->admin_tag_set.driver_data = ctrl;
@@ -513,7 +513,7 @@ static int nvme_loop_create_io_queues(struct nvme_loop_ctrl *ctrl)
 	ctrl->tag_set.ops = &nvme_loop_mq_ops;
 	ctrl->tag_set.queue_depth = ctrl->ctrl.opts->queue_size;
 	ctrl->tag_set.reserved_tags = 1; /* fabric connect */
-	ctrl->tag_set.numa_node = NUMA_NO_NODE;
+	ctrl->tag_set.numa_yesde = NUMA_NO_NODE;
 	ctrl->tag_set.flags = BLK_MQ_F_SHOULD_MERGE;
 	ctrl->tag_set.cmd_size = sizeof(struct nvme_loop_iod) +
 		NVME_INLINE_SG_CNT * sizeof(struct scatterlist);
@@ -553,7 +553,7 @@ static struct nvmet_port *nvme_loop_find_port(struct nvme_ctrl *ctrl)
 
 	mutex_lock(&nvme_loop_ports_mutex);
 	list_for_each_entry(p, &nvme_loop_ports, entry) {
-		/* if no transport address is specified use the first port */
+		/* if yes transport address is specified use the first port */
 		if ((ctrl->opts->mask & NVMF_OPT_TRADDR) &&
 		    strcmp(ctrl->opts->traddr, p->disc_addr.traddr))
 			continue;
@@ -580,7 +580,7 @@ static struct nvme_ctrl *nvme_loop_create_ctrl(struct device *dev,
 	INIT_WORK(&ctrl->ctrl.reset_work, nvme_loop_reset_ctrl_work);
 
 	ret = nvme_init_ctrl(&ctrl->ctrl, dev, &nvme_loop_ctrl_ops,
-				0 /* no quirks, we're perfect! */);
+				0 /* yes quirks, we're perfect! */);
 	if (ret)
 		goto out_put_ctrl;
 

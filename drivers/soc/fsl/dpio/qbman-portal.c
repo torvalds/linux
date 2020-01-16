@@ -151,7 +151,7 @@ static inline u32 qbman_set_swp_cfg(u8 max_fill, u8 wn,	u8 est, u8 rpm, u8 dcm,
  *                    QBMan portal descriptor.
  * @d: the given qbman swp descriptor
  *
- * Return qbman_swp portal for success, NULL if the object cannot
+ * Return qbman_swp portal for success, NULL if the object canyest
  * be created.
  */
 struct qbman_swp *qbman_swp_init(const struct qbman_swp_desc *d)
@@ -209,7 +209,7 @@ struct qbman_swp *qbman_swp_init(const struct qbman_swp_desc *d)
 	qbman_write_register(p, QBMAN_CINH_SWP_CFG, reg);
 	reg = qbman_read_register(p, QBMAN_CINH_SWP_CFG);
 	if (!reg) {
-		pr_err("qbman: the portal is not enabled!\n");
+		pr_err("qbman: the portal is yest enabled!\n");
 		kfree(p);
 		return NULL;
 	}
@@ -219,7 +219,7 @@ struct qbman_swp *qbman_swp_init(const struct qbman_swp_desc *d)
 		qbman_write_register(p, QBMAN_CINH_SWP_RCR_PI, QMAN_RT_MODE);
 	}
 	/*
-	 * SDQCR needs to be initialized to 0 when no channels are
+	 * SDQCR needs to be initialized to 0 when yes channels are
 	 * being dequeued from or else the QMan HW will indicate an
 	 * error.  The values that were calculated above will be
 	 * applied when dequeues from a specific channel are enabled.
@@ -308,7 +308,7 @@ void qbman_swp_interrupt_set_inhibit(struct qbman_swp *p, int inhibit)
 
 /*
  * Returns a pointer to where the caller should fill in their management command
- * (caller should ignore the verb byte)
+ * (caller should igyesre the verb byte)
  */
 void *qbman_swp_mc_start(struct qbman_swp *p)
 {
@@ -319,7 +319,7 @@ void *qbman_swp_mc_start(struct qbman_swp *p)
 }
 
 /*
- * Commits merges in the caller-supplied command verb (which should not include
+ * Commits merges in the caller-supplied command verb (which should yest include
  * the valid-bit) and submits the command to hardware
  */
 void qbman_swp_mc_submit(struct qbman_swp *p, void *cmd, u8 cmd_verb)
@@ -337,7 +337,7 @@ void qbman_swp_mc_submit(struct qbman_swp *p, void *cmd, u8 cmd_verb)
 }
 
 /*
- * Checks for a completed response (returns non-NULL if only if the response
+ * Checks for a completed response (returns yesn-NULL if only if the response
  * is complete).
  */
 void *qbman_swp_mc_result(struct qbman_swp *p)
@@ -347,7 +347,7 @@ void *qbman_swp_mc_result(struct qbman_swp *p)
 	if ((p->desc->qman_version & QMAN_REV_MASK) < QMAN_REV_5000) {
 		ret = qbman_get_cmd(p, QBMAN_CENA_SWP_RR(p->mc.valid_bit));
 		/* Remove the valid-bit - command completed if the rest
-		 * is non-zero.
+		 * is yesn-zero.
 		 */
 		verb = ret[0] & ~QB_VALID_BIT;
 		if (!verb)
@@ -358,7 +358,7 @@ void *qbman_swp_mc_result(struct qbman_swp *p)
 		/* Command completed if the valid bit is toggled */
 		if (p->mr.valid_bit != (ret[0] & QB_VALID_BIT))
 			return NULL;
-		/* Command completed if the rest is non-zero */
+		/* Command completed if the rest is yesn-zero */
 		verb = ret[0] & ~QB_VALID_BIT;
 		if (!verb)
 			return NULL;
@@ -389,12 +389,12 @@ void qbman_eq_desc_clear(struct qbman_eq_desc *d)
 }
 
 /**
- * qbman_eq_desc_set_no_orp() - Set enqueue descriptor without orp
+ * qbman_eq_desc_set_yes_orp() - Set enqueue descriptor without orp
  * @d:                the enqueue descriptor.
  * @response_success: 1 = enqueue with response always; 0 = enqueue with
  *                    rejections returned on a FQ.
  */
-void qbman_eq_desc_set_no_orp(struct qbman_eq_desc *d, int respond_success)
+void qbman_eq_desc_set_yes_orp(struct qbman_eq_desc *d, int respond_success)
 {
 	d->verb &= ~(1 << QB_ENQUEUE_CMD_ORP_ENABLE_SHIFT);
 	if (respond_success)
@@ -459,10 +459,10 @@ static inline void qbman_write_eqcr_am_rt_register(struct qbman_swp *p,
  * @d:  the enqueue descriptor
  * @fd: the frame descriptor to be enqueued
  *
- * Please note that 'fd' should only be NULL if the "action" of the
+ * Please yeste that 'fd' should only be NULL if the "action" of the
  * descriptor is "orp_hole" or "orp_nesn".
  *
- * Return 0 for successful enqueue, -EBUSY if the EQCR is not ready.
+ * Return 0 for successful enqueue, -EBUSY if the EQCR is yest ready.
  */
 int qbman_swp_enqueue(struct qbman_swp *s, const struct qbman_eq_desc *d,
 		      const struct dpaa2_fd *fd)
@@ -523,7 +523,7 @@ void qbman_swp_push_set(struct qbman_swp *s, u8 channel_idx, int enable)
 	else
 		s->sdq &= ~(1 << channel_idx);
 
-	/* Read make the complete src map.  If no channels are enabled
+	/* Read make the complete src map.  If yes channels are enabled
 	 * the SDQCR must be 0 or else QMan will assert errors
 	 */
 	dqsrc = (s->sdq >> QB_SDQCR_SRC_SHIFT) & QB_SDQCR_SRC_MASK;
@@ -561,10 +561,10 @@ void qbman_pull_desc_clear(struct qbman_pull_desc *d)
  * @storage_phys: the physical address of the storage memory
  * @stash:        to indicate whether write allocate is enabled
  *
- * If not called, or if called with 'storage' as NULL, the result pull dequeues
- * will produce results to DQRR. If 'storage' is non-NULL, then results are
+ * If yest called, or if called with 'storage' as NULL, the result pull dequeues
+ * will produce results to DQRR. If 'storage' is yesn-NULL, then results are
  * produced to the given memory location (using the DMA address which
- * the caller provides in 'storage_phys'), and 'stash' controls whether or not
+ * the caller provides in 'storage_phys'), and 'stash' controls whether or yest
  * those writes to main-memory express a cache-warming attribute.
  */
 void qbman_pull_desc_set_storage(struct qbman_pull_desc *d,
@@ -650,7 +650,7 @@ void qbman_pull_desc_set_channel(struct qbman_pull_desc *d, u32 chid,
  * @d: the software portal descriptor which has been configured with
  *     the set of qbman_pull_desc_set_*() calls
  *
- * Return 0 for success, and -EBUSY if the software portal is not ready
+ * Return 0 for success, and -EBUSY if the software portal is yest ready
  * to do pull dequeue.
  */
 int qbman_swp_pull(struct qbman_swp *s, struct qbman_pull_desc *d)
@@ -693,7 +693,7 @@ int qbman_swp_pull(struct qbman_swp *s, struct qbman_pull_desc *d)
  * qbman_swp_dqrr_next() - Get an valid DQRR entry
  * @s: the software portal object
  *
- * Return NULL if there are no unconsumed DQRR entries. Return a DQRR entry
+ * Return NULL if there are yes unconsumed DQRR entries. Return a DQRR entry
  * only once, so repeated calls can return a sequence of DQRR entries, without
  * requiring they be consumed immediately or in any particular order.
  */
@@ -710,7 +710,7 @@ const struct dpaa2_dq *qbman_swp_dqrr_next(struct qbman_swp *s)
 	if (unlikely(s->dqrr.reset_bug)) {
 		/*
 		 * We pick up new entries by cache-inhibited producer index,
-		 * which means that a non-coherent mapping would require us to
+		 * which means that a yesn-coherent mapping would require us to
 		 * invalidate and read *only* once that PI has indicated that
 		 * there's an entry here. The first trip around the DQRR ring
 		 * will be much less efficient than all subsequent trips around
@@ -726,7 +726,7 @@ const struct dpaa2_dq *qbman_swp_dqrr_next(struct qbman_swp *s)
 		/*
 		 * if next_idx is/was the last ring index, and 'pi' is
 		 * different, we can disable the workaround as all the ring
-		 * entries have now been DMA'd to so valid-bit checking is
+		 * entries have yesw been DMA'd to so valid-bit checking is
 		 * repaired. Note: this logic needs to be based on next_idx
 		 * (which increments one at a time), rather than on pi (which
 		 * can burst and wrap-around between our snapshots of it).
@@ -747,7 +747,7 @@ const struct dpaa2_dq *qbman_swp_dqrr_next(struct qbman_swp *s)
 	verb = p->dq.verb;
 
 	/*
-	 * If the valid-bit isn't of the expected polarity, nothing there. Note,
+	 * If the valid-bit isn't of the expected polarity, yesthing there. Note,
 	 * in the DQRR reset bug workaround, we shouldn't need to skip these
 	 * check, because we've already determined that a new entry is available
 	 * and we've invalidated the cacheline before reading it, so the
@@ -801,15 +801,15 @@ void qbman_swp_dqrr_consume(struct qbman_swp *s, const struct dpaa2_dq *dq)
  * @s: the software portal object
  * @dq: the dequeue result read from the memory
  *
- * Return 1 for getting a valid dequeue result, or 0 for not getting a valid
+ * Return 1 for getting a valid dequeue result, or 0 for yest getting a valid
  * dequeue result.
  *
- * Only used for user-provided storage of dequeue results, not DQRR. For
+ * Only used for user-provided storage of dequeue results, yest DQRR. For
  * efficiency purposes, the driver will perform any required endianness
  * conversion to ensure that the user's dequeue result storage is in host-endian
  * format. As such, once the user has called qbman_result_has_new_result() and
- * been returned a valid dequeue result, they should not call it again on
- * the same memory location (except of course if another dequeue command has
+ * been returned a valid dequeue result, they should yest call it again on
+ * the same memory location (except of course if ayesther dequeue command has
  * been executed to produce a new result to that location).
  */
 int qbman_result_has_new_result(struct qbman_swp *s, const struct dpaa2_dq *dq)
@@ -856,7 +856,7 @@ void qbman_release_desc_set_bpid(struct qbman_release_desc *d, u16 bpid)
 }
 
 /**
- * qbman_release_desc_set_rcdi() - Determines whether or not the portal's RCDI
+ * qbman_release_desc_set_rcdi() - Determines whether or yest the portal's RCDI
  * interrupt source should be asserted after the release command is completed.
  */
 void qbman_release_desc_set_rcdi(struct qbman_release_desc *d, int enable)
@@ -878,7 +878,7 @@ void qbman_release_desc_set_rcdi(struct qbman_release_desc *d, int enable)
  * @buffers:     a pointer pointing to the buffer address to be released
  * @num_buffers: number of buffers to be released,  must be less than 8
  *
- * Return 0 for success, -EBUSY if the release command ring is not ready.
+ * Return 0 for success, -EBUSY if the release command ring is yest ready.
  */
 int qbman_swp_release(struct qbman_swp *s, const struct qbman_release_desc *d,
 		      const u64 *buffers, unsigned int num_buffers)
@@ -971,7 +971,7 @@ int qbman_swp_acquire(struct qbman_swp *s, u16 bpid, u64 *buffers,
 	/* Complete the management command */
 	r = qbman_swp_mc_complete(s, p, QBMAN_MC_ACQUIRE);
 	if (unlikely(!r)) {
-		pr_err("qbman: acquire from BPID %d failed, no response\n",
+		pr_err("qbman: acquire from BPID %d failed, yes response\n",
 		       bpid);
 		return -EIO;
 	}
@@ -1026,7 +1026,7 @@ int qbman_swp_alt_fq_state(struct qbman_swp *s, u32 fqid,
 	/* Complete the management command */
 	r = qbman_swp_mc_complete(s, p, alt_fq_verb);
 	if (unlikely(!r)) {
-		pr_err("qbman: mgmt cmd failed, no response (verb=0x%x)\n",
+		pr_err("qbman: mgmt cmd failed, yes response (verb=0x%x)\n",
 		       alt_fq_verb);
 		return -EIO;
 	}
@@ -1087,7 +1087,7 @@ int qbman_swp_CDAN_set(struct qbman_swp *s, u16 channelid,
 	/* Complete the management command */
 	r = qbman_swp_mc_complete(s, p, QBMAN_WQCHAN_CONFIGURE);
 	if (unlikely(!r)) {
-		pr_err("qbman: wqchan config failed, no response\n");
+		pr_err("qbman: wqchan config failed, yes response\n");
 		return -EIO;
 	}
 
@@ -1128,7 +1128,7 @@ int qbman_fq_query_state(struct qbman_swp *s, u32 fqid,
 	p->fqid = cpu_to_le32(fqid & 0x00FFFFFF);
 	resp = qbman_swp_mc_complete(s, p, QBMAN_FQ_QUERY_NP);
 	if (!resp) {
-		pr_err("qbman: Query FQID %d NP fields failed, no response\n",
+		pr_err("qbman: Query FQID %d NP fields failed, yes response\n",
 		       fqid);
 		return -EIO;
 	}
@@ -1176,7 +1176,7 @@ int qbman_bp_query(struct qbman_swp *s, u16 bpid,
 	p->bpid = cpu_to_le16(bpid);
 	resp = qbman_swp_mc_complete(s, p, QBMAN_BP_QUERY);
 	if (!resp) {
-		pr_err("qbman: Query BPID %d fields failed, no response\n",
+		pr_err("qbman: Query BPID %d fields failed, yes response\n",
 		       bpid);
 		return -EIO;
 	}

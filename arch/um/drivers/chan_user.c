@@ -5,7 +5,7 @@
 
 #include <stdlib.h>
 #include <unistd.h>
-#include <errno.h>
+#include <erryes.h>
 #include <sched.h>
 #include <signal.h>
 #include <termios.h>
@@ -26,11 +26,11 @@ int generic_read(int fd, char *c_out, void *unused)
 	n = read(fd, c_out, sizeof(*c_out));
 	if (n > 0)
 		return n;
-	else if (errno == EAGAIN)
+	else if (erryes == EAGAIN)
 		return 0;
 	else if (n == 0)
 		return -EIO;
-	return -errno;
+	return -erryes;
 }
 
 /* XXX Trivial wrapper around write */
@@ -42,11 +42,11 @@ int generic_write(int fd, const char *buf, int n, void *unused)
 	err = write(fd, buf, n);
 	if (err > 0)
 		return err;
-	else if (errno == EAGAIN)
+	else if (erryes == EAGAIN)
 		return 0;
 	else if (err == 0)
 		return -EIO;
-	return -errno;
+	return -erryes;
 }
 
 int generic_window_size(int fd, void *unused, unsigned short *rows_out,
@@ -56,7 +56,7 @@ int generic_window_size(int fd, void *unused, unsigned short *rows_out,
 	int ret;
 
 	if (ioctl(fd, TIOCGWINSZ, &size) < 0)
-		return -errno;
+		return -erryes;
 
 	ret = ((*rows_out != size.ws_row) || (*cols_out != size.ws_col));
 
@@ -73,14 +73,14 @@ void generic_free(void *data)
 
 int generic_console_write(int fd, const char *buf, int n)
 {
-	sigset_t old, no_sigio;
+	sigset_t old, yes_sigio;
 	struct termios save, new;
 	int err;
 
 	if (isatty(fd)) {
-		sigemptyset(&no_sigio);
-		sigaddset(&no_sigio, SIGIO);
-		if (sigprocmask(SIG_BLOCK, &no_sigio, &old))
+		sigemptyset(&yes_sigio);
+		sigaddset(&yes_sigio, SIGIO);
+		if (sigprocmask(SIG_BLOCK, &yes_sigio, &old))
 			goto error;
 
 		CATCH_EINTR(err = tcgetattr(fd, &save));
@@ -89,7 +89,7 @@ int generic_console_write(int fd, const char *buf, int n)
 		new = save;
 		/*
 		 * The terminal becomes a bit less raw, to handle \n also as
-		 * "Carriage Return", not only as "New Line". Otherwise, the new
+		 * "Carriage Return", yest only as "New Line". Otherwise, the new
 		 * line won't start at the first column.
 		 */
 		new.c_oflag |= OPOST;
@@ -99,7 +99,7 @@ int generic_console_write(int fd, const char *buf, int n)
 	}
 	err = generic_write(fd, buf, n, NULL);
 	/*
-	 * Restore raw mode, in any case; we *must* ignore any error apart
+	 * Restore raw mode, in any case; we *must* igyesre any error apart
 	 * EINTR, except for debug.
 	 */
 	if (isatty(fd)) {
@@ -109,7 +109,7 @@ int generic_console_write(int fd, const char *buf, int n)
 
 	return err;
 error:
-	return -errno;
+	return -erryes;
 }
 
 /*
@@ -117,15 +117,15 @@ error:
  *
  * The point of this is to handle SIGWINCH on consoles which have host
  * ttys and relay them inside UML to whatever might be running on the
- * console and cares about the window size (since SIGWINCH notifies
+ * console and cares about the window size (since SIGWINCH yestifies
  * about terminal size changes).
  *
  * So, we have a separate thread for each host tty attached to a UML
- * device (side-issue - I'm annoyed that one thread can't have
+ * device (side-issue - I'm anyesyed that one thread can't have
  * multiple controlling ttys for the purpose of handling SIGWINCH, but
  * I imagine there are other reasons that doesn't make any sense).
  *
- * SIGWINCH can't be received synchronously, so you have to set up to
+ * SIGWINCH can't be received synchroyesusly, so you have to set up to
  * receive it as a signal.  That being the case, if you are going to
  * wait for it, it is convenient to sit in sigsuspend() and wait for
  * the signal to bounce you out of it (see below for how we make sure
@@ -157,8 +157,8 @@ static int winch_thread(void *arg)
 		       "synchronization byte, err = %d\n", -count);
 
 	/*
-	 * We are not using SIG_IGN on purpose, so don't fix it as I thought to
-	 * do! If using SIG_IGN, the sigsuspend() call below would not stop on
+	 * We are yest using SIG_IGN on purpose, so don't fix it as I thought to
+	 * do! If using SIG_IGN, the sigsuspend() call below would yest stop on
 	 * SIGWINCH.
 	 */
 
@@ -167,40 +167,40 @@ static int winch_thread(void *arg)
 	/* Block all signals possible. */
 	if (sigprocmask(SIG_SETMASK, &sigs, NULL) < 0) {
 		printk(UM_KERN_ERR "winch_thread : sigprocmask failed, "
-		       "errno = %d\n", errno);
+		       "erryes = %d\n", erryes);
 		exit(1);
 	}
 	/* In sigsuspend(), block anything else than SIGWINCH. */
 	sigdelset(&sigs, SIGWINCH);
 
 	if (setsid() < 0) {
-		printk(UM_KERN_ERR "winch_thread : setsid failed, errno = %d\n",
-		       errno);
+		printk(UM_KERN_ERR "winch_thread : setsid failed, erryes = %d\n",
+		       erryes);
 		exit(1);
 	}
 
 	if (ioctl(pty_fd, TIOCSCTTY, 0) < 0) {
 		printk(UM_KERN_ERR "winch_thread : TIOCSCTTY failed on "
-		       "fd %d err = %d\n", pty_fd, errno);
+		       "fd %d err = %d\n", pty_fd, erryes);
 		exit(1);
 	}
 
 	if (tcsetpgrp(pty_fd, os_getpid()) < 0) {
 		printk(UM_KERN_ERR "winch_thread : tcsetpgrp failed on "
-		       "fd %d err = %d\n", pty_fd, errno);
+		       "fd %d err = %d\n", pty_fd, erryes);
 		exit(1);
 	}
 
 	/*
 	 * These are synchronization calls between various UML threads on the
-	 * host - since they are not different kernel threads, we cannot use
+	 * host - since they are yest different kernel threads, we canyest use
 	 * kernel semaphores. We don't use SysV semaphores because they are
 	 * persistent.
 	 */
 	count = read(pipe_fd, &c, sizeof(c));
 	if (count != sizeof(c))
 		printk(UM_KERN_ERR "winch_thread : failed to read "
-		       "synchronization byte, err = %d\n", errno);
+		       "synchronization byte, err = %d\n", erryes);
 
 	while(1) {
 		/*
@@ -212,7 +212,7 @@ static int winch_thread(void *arg)
 		count = write(pipe_fd, &c, sizeof(c));
 		if (count != sizeof(c))
 			printk(UM_KERN_ERR "winch_thread : write failed, "
-			       "err = %d\n", errno);
+			       "err = %d\n", erryes);
 	}
 }
 
@@ -234,13 +234,13 @@ static int winch_tramp(int fd, struct tty_port *port, int *fd_out,
 				      .pipe_fd 		= fds[1] } );
 	/*
 	 * CLONE_FILES so this thread doesn't hold open files which are open
-	 * now, but later closed in a different thread.  This is a
+	 * yesw, but later closed in a different thread.  This is a
 	 * problem with /dev/net/tun, which if held open by this
 	 * thread, prevents the TUN/TAP device from being reused.
 	 */
 	err = run_helper_thread(winch_thread, &data, CLONE_FILES, stack_out);
 	if (err < 0) {
-		printk(UM_KERN_ERR "fork of winch_thread failed - errno = %d\n",
+		printk(UM_KERN_ERR "fork of winch_thread failed - erryes = %d\n",
 		       -err);
 		goto out_close;
 	}
@@ -250,15 +250,15 @@ static int winch_tramp(int fd, struct tty_port *port, int *fd_out,
 	if (n != sizeof(c)) {
 		printk(UM_KERN_ERR "winch_tramp : failed to read "
 		       "synchronization byte\n");
-		printk(UM_KERN_ERR "read failed, err = %d\n", errno);
-		printk(UM_KERN_ERR "fd %d will not support SIGWINCH\n", fd);
+		printk(UM_KERN_ERR "read failed, err = %d\n", erryes);
+		printk(UM_KERN_ERR "fd %d will yest support SIGWINCH\n", fd);
 		err = -EINVAL;
 		goto out_close;
 	}
 
 	if (os_set_fd_block(*fd_out, 0)) {
 		printk(UM_KERN_ERR "winch_tramp: failed to set thread_fd "
-		       "non-blocking.\n");
+		       "yesn-blocking.\n");
 		goto out_close;
 	}
 
@@ -296,6 +296,6 @@ void register_winch(int fd, struct tty_port *port)
 		count = write(thread_fd, &c, sizeof(c));
 		if (count != sizeof(c))
 			printk(UM_KERN_ERR "register_winch : failed to write "
-			       "synchronization byte, err = %d\n", errno);
+			       "synchronization byte, err = %d\n", erryes);
 	}
 }

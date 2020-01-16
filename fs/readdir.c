@@ -10,11 +10,11 @@
 #include <linux/export.h>
 #include <linux/time.h>
 #include <linux/mm.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/stat.h>
 #include <linux/file.h>
 #include <linux/fs.h>
-#include <linux/fsnotify.h>
+#include <linux/fsyestify.h>
 #include <linux/dirent.h>
 #include <linux/security.h>
 #include <linux/syscalls.h>
@@ -39,7 +39,7 @@
 
 int iterate_dir(struct file *file, struct dir_context *ctx)
 {
-	struct inode *inode = file_inode(file);
+	struct iyesde *iyesde = file_iyesde(file);
 	bool shared = false;
 	int res = -ENOTDIR;
 	if (file->f_op->iterate_shared)
@@ -52,38 +52,38 @@ int iterate_dir(struct file *file, struct dir_context *ctx)
 		goto out;
 
 	if (shared)
-		res = down_read_killable(&inode->i_rwsem);
+		res = down_read_killable(&iyesde->i_rwsem);
 	else
-		res = down_write_killable(&inode->i_rwsem);
+		res = down_write_killable(&iyesde->i_rwsem);
 	if (res)
 		goto out;
 
 	res = -ENOENT;
-	if (!IS_DEADDIR(inode)) {
+	if (!IS_DEADDIR(iyesde)) {
 		ctx->pos = file->f_pos;
 		if (shared)
 			res = file->f_op->iterate_shared(file, ctx);
 		else
 			res = file->f_op->iterate(file, ctx);
 		file->f_pos = ctx->pos;
-		fsnotify_access(file);
+		fsyestify_access(file);
 		file_accessed(file);
 	}
 	if (shared)
-		inode_unlock_shared(inode);
+		iyesde_unlock_shared(iyesde);
 	else
-		inode_unlock(inode);
+		iyesde_unlock(iyesde);
 out:
 	return res;
 }
 EXPORT_SYMBOL(iterate_dir);
 
 /*
- * POSIX says that a dirent name cannot contain NULL or a '/'.
+ * POSIX says that a dirent name canyest contain NULL or a '/'.
  *
- * It's not 100% clear what we should really do in this case.
+ * It's yest 100% clear what we should really do in this case.
  * The filesystem is clearly corrupted, but returning a hard
- * error means that you now don't see any of the other names
+ * error means that you yesw don't see any of the other names
  * either, so that isn't a perfect alternative.
  *
  * And if you return an error, what error do you use? Several
@@ -124,7 +124,7 @@ static int verify_dirent_name(const char *name, int len)
 #ifdef __ARCH_WANT_OLD_READDIR
 
 struct old_linux_dirent {
-	unsigned long	d_ino;
+	unsigned long	d_iyes;
 	unsigned long	d_offset;
 	unsigned short	d_namlen;
 	char		d_name[1];
@@ -137,17 +137,17 @@ struct readdir_callback {
 };
 
 static int fillonedir(struct dir_context *ctx, const char *name, int namlen,
-		      loff_t offset, u64 ino, unsigned int d_type)
+		      loff_t offset, u64 iyes, unsigned int d_type)
 {
 	struct readdir_callback *buf =
 		container_of(ctx, struct readdir_callback, ctx);
 	struct old_linux_dirent __user * dirent;
-	unsigned long d_ino;
+	unsigned long d_iyes;
 
 	if (buf->result)
 		return -EINVAL;
-	d_ino = ino;
-	if (sizeof(d_ino) < sizeof(ino) && d_ino != ino) {
+	d_iyes = iyes;
+	if (sizeof(d_iyes) < sizeof(iyes) && d_iyes != iyes) {
 		buf->result = -EOVERFLOW;
 		return -EOVERFLOW;
 	}
@@ -157,7 +157,7 @@ static int fillonedir(struct dir_context *ctx, const char *name, int namlen,
 			(unsigned long)(dirent->d_name + namlen + 1) -
 				(unsigned long)dirent))
 		goto efault;
-	if (	__put_user(d_ino, &dirent->d_ino) ||
+	if (	__put_user(d_iyes, &dirent->d_iyes) ||
 		__put_user(offset, &dirent->d_offset) ||
 		__put_user(namlen, &dirent->d_namlen) ||
 		__copy_to_user(dirent->d_name, name, namlen) ||
@@ -197,7 +197,7 @@ SYSCALL_DEFINE3(old_readdir, unsigned int, fd,
  * interface. 
  */
 struct linux_dirent {
-	unsigned long	d_ino;
+	unsigned long	d_iyes;
 	unsigned long	d_off;
 	unsigned short	d_reclen;
 	char		d_name[1];
@@ -212,12 +212,12 @@ struct getdents_callback {
 };
 
 static int filldir(struct dir_context *ctx, const char *name, int namlen,
-		   loff_t offset, u64 ino, unsigned int d_type)
+		   loff_t offset, u64 iyes, unsigned int d_type)
 {
 	struct linux_dirent __user * dirent;
 	struct getdents_callback *buf =
 		container_of(ctx, struct getdents_callback, ctx);
-	unsigned long d_ino;
+	unsigned long d_iyes;
 	int reclen = ALIGN(offsetof(struct linux_dirent, d_name) + namlen + 2,
 		sizeof(long));
 
@@ -227,8 +227,8 @@ static int filldir(struct dir_context *ctx, const char *name, int namlen,
 	buf->error = -EINVAL;	/* only used if we fail.. */
 	if (reclen > buf->count)
 		return -EINVAL;
-	d_ino = ino;
-	if (sizeof(d_ino) < sizeof(ino) && d_ino != ino) {
+	d_iyes = iyes;
+	if (sizeof(d_iyes) < sizeof(iyes) && d_iyes != iyes) {
 		buf->error = -EOVERFLOW;
 		return -EOVERFLOW;
 	}
@@ -245,7 +245,7 @@ static int filldir(struct dir_context *ctx, const char *name, int namlen,
 	if (dirent)
 		unsafe_put_user(offset, &dirent->d_off, efault_end);
 	dirent = buf->current_dir;
-	unsafe_put_user(d_ino, &dirent->d_ino, efault_end);
+	unsafe_put_user(d_iyes, &dirent->d_iyes, efault_end);
 	unsafe_put_user(reclen, &dirent->d_reclen, efault_end);
 	unsafe_put_user(d_type, (char __user *) dirent + reclen - 1, efault_end);
 	unsafe_copy_dirent_name(dirent->d_name, name, namlen, efault_end);
@@ -305,7 +305,7 @@ struct getdents_callback64 {
 };
 
 static int filldir64(struct dir_context *ctx, const char *name, int namlen,
-		     loff_t offset, u64 ino, unsigned int d_type)
+		     loff_t offset, u64 iyes, unsigned int d_type)
 {
 	struct linux_dirent64 __user *dirent;
 	struct getdents_callback64 *buf =
@@ -332,7 +332,7 @@ static int filldir64(struct dir_context *ctx, const char *name, int namlen,
 	if (dirent)
 		unsafe_put_user(offset, &dirent->d_off, efault_end);
 	dirent = buf->current_dir;
-	unsafe_put_user(ino, &dirent->d_ino, efault_end);
+	unsafe_put_user(iyes, &dirent->d_iyes, efault_end);
 	unsafe_put_user(reclen, &dirent->d_reclen, efault_end);
 	unsafe_put_user(d_type, &dirent->d_type, efault_end);
 	unsafe_copy_dirent_name(dirent->d_name, name, namlen, efault_end);
@@ -393,7 +393,7 @@ SYSCALL_DEFINE3(getdents64, unsigned int, fd,
 
 #ifdef CONFIG_COMPAT
 struct compat_old_linux_dirent {
-	compat_ulong_t	d_ino;
+	compat_ulong_t	d_iyes;
 	compat_ulong_t	d_offset;
 	unsigned short	d_namlen;
 	char		d_name[1];
@@ -406,18 +406,18 @@ struct compat_readdir_callback {
 };
 
 static int compat_fillonedir(struct dir_context *ctx, const char *name,
-			     int namlen, loff_t offset, u64 ino,
+			     int namlen, loff_t offset, u64 iyes,
 			     unsigned int d_type)
 {
 	struct compat_readdir_callback *buf =
 		container_of(ctx, struct compat_readdir_callback, ctx);
 	struct compat_old_linux_dirent __user *dirent;
-	compat_ulong_t d_ino;
+	compat_ulong_t d_iyes;
 
 	if (buf->result)
 		return -EINVAL;
-	d_ino = ino;
-	if (sizeof(d_ino) < sizeof(ino) && d_ino != ino) {
+	d_iyes = iyes;
+	if (sizeof(d_iyes) < sizeof(iyes) && d_iyes != iyes) {
 		buf->result = -EOVERFLOW;
 		return -EOVERFLOW;
 	}
@@ -427,7 +427,7 @@ static int compat_fillonedir(struct dir_context *ctx, const char *name,
 			(unsigned long)(dirent->d_name + namlen + 1) -
 				(unsigned long)dirent))
 		goto efault;
-	if (	__put_user(d_ino, &dirent->d_ino) ||
+	if (	__put_user(d_iyes, &dirent->d_iyes) ||
 		__put_user(offset, &dirent->d_offset) ||
 		__put_user(namlen, &dirent->d_namlen) ||
 		__copy_to_user(dirent->d_name, name, namlen) ||
@@ -461,7 +461,7 @@ COMPAT_SYSCALL_DEFINE3(old_readdir, unsigned int, fd,
 }
 
 struct compat_linux_dirent {
-	compat_ulong_t	d_ino;
+	compat_ulong_t	d_iyes;
 	compat_ulong_t	d_off;
 	unsigned short	d_reclen;
 	char		d_name[1];
@@ -476,20 +476,20 @@ struct compat_getdents_callback {
 };
 
 static int compat_filldir(struct dir_context *ctx, const char *name, int namlen,
-		loff_t offset, u64 ino, unsigned int d_type)
+		loff_t offset, u64 iyes, unsigned int d_type)
 {
 	struct compat_linux_dirent __user * dirent;
 	struct compat_getdents_callback *buf =
 		container_of(ctx, struct compat_getdents_callback, ctx);
-	compat_ulong_t d_ino;
+	compat_ulong_t d_iyes;
 	int reclen = ALIGN(offsetof(struct compat_linux_dirent, d_name) +
 		namlen + 2, sizeof(compat_long_t));
 
 	buf->error = -EINVAL;	/* only used if we fail.. */
 	if (reclen > buf->count)
 		return -EINVAL;
-	d_ino = ino;
-	if (sizeof(d_ino) < sizeof(ino) && d_ino != ino) {
+	d_iyes = iyes;
+	if (sizeof(d_iyes) < sizeof(iyes) && d_iyes != iyes) {
 		buf->error = -EOVERFLOW;
 		return -EOVERFLOW;
 	}
@@ -501,7 +501,7 @@ static int compat_filldir(struct dir_context *ctx, const char *name, int namlen,
 			goto efault;
 	}
 	dirent = buf->current_dir;
-	if (__put_user(d_ino, &dirent->d_ino))
+	if (__put_user(d_iyes, &dirent->d_iyes))
 		goto efault;
 	if (__put_user(reclen, &dirent->d_reclen))
 		goto efault;

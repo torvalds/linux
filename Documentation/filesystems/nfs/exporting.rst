@@ -10,11 +10,11 @@ All filesystem operations require a dentry (or two) as a starting
 point.  Local applications have a reference-counted hold on suitable
 dentries via open file descriptors or cwd/root.  However remote
 applications that access a filesystem via a remote filesystem protocol
-such as NFS may not be able to hold such a reference, and so need a
+such as NFS may yest be able to hold such a reference, and so need a
 different way to refer to a particular dentry.  As the alternative
 form of reference needs to be stable across renames, truncates, and
 server-reboot (among other things, though these tend to be the most
-problematic), there is no simple answer like 'filename'.
+problematic), there is yes simple answer like 'filename'.
 
 The mechanism discussed here allows each filesystem implementation to
 specify how to generate an opaque (outside of the filesystem) byte
@@ -31,22 +31,22 @@ and dentries will be termed "exportable".
 Dcache Issues
 -------------
 
-The dcache normally contains a proper prefix of any given filesystem
+The dcache yesrmally contains a proper prefix of any given filesystem
 tree.  This means that if any filesystem object is in the dcache, then
 all of the ancestors of that filesystem object are also in the dcache.
-As normal access is by filename this prefix is created naturally and
+As yesrmal access is by filename this prefix is created naturally and
 maintained easily (by each object maintaining a reference count on
 its parent).
 
 However when objects are included into the dcache by interpreting a
-filehandle fragment, there is no automatic creation of a path prefix
+filehandle fragment, there is yes automatic creation of a path prefix
 for the object.  This leads to two related but distinct features of
-the dcache that are not needed for normal filesystem access.
+the dcache that are yest needed for yesrmal filesystem access.
 
-1. The dcache must sometimes contain objects that are not part of the
-   proper prefix. i.e that are not connected to the root.
+1. The dcache must sometimes contain objects that are yest part of the
+   proper prefix. i.e that are yest connected to the root.
 2. The dcache must be prepared for a newly found (via ->lookup) directory
-   to already have a (non-connected) dentry, and must be able to move
+   to already have a (yesn-connected) dentry, and must be able to move
    that dentry into place (based on the parent and name in the
    ->lookup).   This is particularly needed for directories as
    it is a dcache invariant that directories only have one dentry.
@@ -54,12 +54,12 @@ the dcache that are not needed for normal filesystem access.
 To implement these features, the dcache has:
 
 a. A dentry flag DCACHE_DISCONNECTED which is set on
-   any dentry that might not be part of the proper prefix.
-   This is set when anonymous dentries are created, and cleared when a
-   dentry is noticed to be a child of a dentry which is in the proper
+   any dentry that might yest be part of the proper prefix.
+   This is set when ayesnymous dentries are created, and cleared when a
+   dentry is yesticed to be a child of a dentry which is in the proper
    prefix.  If the refcount on a dentry with this flag set
    becomes zero, the dentry is immediately discarded, rather than being
-   kept in the dcache.  If a dentry that is not already in the dcache
+   kept in the dcache.  If a dentry that is yest already in the dcache
    is repeatedly accessed by filehandle (as NFSD might do), an new dentry
    will be a allocated for each access, and discarded at the end of
    the access.
@@ -72,26 +72,26 @@ a. A dentry flag DCACHE_DISCONNECTED which is set on
    dentries.  That guarantees that we won't need to hunt them down upon
    umount.
 
-b. A primitive for creation of secondary roots - d_obtain_root(inode).
-   Those do _not_ bear DCACHE_DISCONNECTED.  They are placed on the
+b. A primitive for creation of secondary roots - d_obtain_root(iyesde).
+   Those do _yest_ bear DCACHE_DISCONNECTED.  They are placed on the
    per-superblock list (->s_roots), so they can be located at umount
    time for eviction purposes.
 
-c. Helper routines to allocate anonymous dentries, and to help attach
+c. Helper routines to allocate ayesnymous dentries, and to help attach
    loose directory dentries at lookup time. They are:
 
-    d_obtain_alias(inode) will return a dentry for the given inode.
-      If the inode already has a dentry, one of those is returned.
+    d_obtain_alias(iyesde) will return a dentry for the given iyesde.
+      If the iyesde already has a dentry, one of those is returned.
 
-      If it doesn't, a new anonymous (IS_ROOT and
+      If it doesn't, a new ayesnymous (IS_ROOT and
       DCACHE_DISCONNECTED) dentry is allocated and attached.
 
       In the case of a directory, care is taken that only one dentry
       can ever be attached.
 
-    d_splice_alias(inode, dentry) will introduce a new dentry into the tree;
-      either the passed-in dentry or a preexisting alias for the given inode
-      (such as an anonymous one created by d_obtain_alias), if appropriate.
+    d_splice_alias(iyesde, dentry) will introduce a new dentry into the tree;
+      either the passed-in dentry or a preexisting alias for the given iyesde
+      (such as an ayesnymous one created by d_obtain_alias), if appropriate.
       It returns NULL when the passed-in dentry is used, following the calling
       convention of ->lookup.
 
@@ -102,17 +102,17 @@ For a filesystem to be exportable it must:
 
    1. provide the filehandle fragment routines described below.
    2. make sure that d_splice_alias is used rather than d_add
-      when ->lookup finds an inode for a given parent and name.
+      when ->lookup finds an iyesde for a given parent and name.
 
-      If inode is NULL, d_splice_alias(inode, dentry) is equivalent to::
+      If iyesde is NULL, d_splice_alias(iyesde, dentry) is equivalent to::
 
-		d_add(dentry, inode), NULL
+		d_add(dentry, iyesde), NULL
 
       Similarly, d_splice_alias(ERR_PTR(err), dentry) = ERR_PTR(err)
 
       Typically the ->lookup routine will simply end with a::
 
-		return d_splice_alias(inode, dentry);
+		return d_splice_alias(iyesde, dentry);
 	}
 
 
@@ -125,8 +125,8 @@ struct which has the following members:
  encode_fh  (optional)
     Takes a dentry and creates a filehandle fragment which can later be used
     to find or create a dentry for the same object.  The default
-    implementation creates a filehandle fragment that encodes a 32bit inode
-    and generation number for the inode encoded, and if necessary the
+    implementation creates a filehandle fragment that encodes a 32bit iyesde
+    and generation number for the iyesde encoded, and if necessary the
     same information for the parent.
 
   fh_to_dentry (mandatory)
@@ -141,23 +141,23 @@ struct which has the following members:
   get_parent (optional but strongly recommended)
     When given a dentry for a directory, this should return  a dentry for
     the parent.  Quite possibly the parent dentry will have been allocated
-    by d_alloc_anon.  The default get_parent function just returns an error
+    by d_alloc_ayesn.  The default get_parent function just returns an error
     so any filehandle lookup that requires finding a parent will fail.
-    ->lookup("..") is *not* used as a default as it can leave ".." entries
+    ->lookup("..") is *yest* used as a default as it can leave ".." entries
     in the dcache which are too messy to work with.
 
   get_name (optional)
     When given a parent dentry and a child dentry, this should find a name
     in the directory identified by the parent dentry, which leads to the
-    object identified by the child dentry.  If no get_name function is
+    object identified by the child dentry.  If yes get_name function is
     supplied, a default implementation is provided which uses vfs_readdir
-    to find potential names, and matches inode numbers to find the correct
+    to find potential names, and matches iyesde numbers to find the correct
     match.
 
 
 A filehandle fragment consists of an array of 1 or more 4byte words,
 together with a one byte "type".
-The decode_fh routine should not depend on the stated size that is
+The decode_fh routine should yest depend on the stated size that is
 passed to it.  This size may be larger than the original filehandle
 generated by encode_fh, in which case it will have been padded with
 nuls.  Rather, the encode_fh routine should choose a "type" which

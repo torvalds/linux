@@ -64,7 +64,7 @@ static void dte_write_nco(void __iomem *regs, s64 ns)
 	u32 sum2, sum3;
 
 	sum2 = (u32)((ns >> DTE_NCO_SUM2_SHIFT) & DTE_NCO_SUM2_MASK);
-	/* compensate for ignoring sum1 */
+	/* compensate for igyesring sum1 */
 	if (sum2 != DTE_NCO_SUM2_MASK)
 		sum2++;
 
@@ -83,7 +83,7 @@ static s64 dte_read_nco(void __iomem *regs)
 	s64 ns;
 
 	/*
-	 * ignoring sum1 (4 bits) gives a 16ns resolution, which
+	 * igyesring sum1 (4 bits) gives a 16ns resolution, which
 	 * works due to the async register read.
 	 */
 	sum3 = readl(regs + DTE_NCO_OVERFLOW_REG) & DTE_NCO_SUM3_MASK;

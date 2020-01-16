@@ -61,13 +61,13 @@ struct xz_dec {
 	struct {
 		/*
 		 * Value stored in the Compressed Size field, or
-		 * VLI_UNKNOWN if Compressed Size is not present.
+		 * VLI_UNKNOWN if Compressed Size is yest present.
 		 */
 		vli_type compressed;
 
 		/*
 		 * Value stored in the Uncompressed Size field, or
-		 * VLI_UNKNOWN if Uncompressed Size is not present.
+		 * VLI_UNKNOWN if Uncompressed Size is yest present.
 		 */
 		vli_type uncompressed;
 
@@ -187,7 +187,7 @@ static enum xz_ret dec_vli(struct xz_dec *s, const uint8_t *in,
 		s->vli |= (vli_type)(byte & 0x7F) << s->pos;
 
 		if ((byte & 0x80) == 0) {
-			/* Don't allow non-minimal encodings. */
+			/* Don't allow yesn-minimal encodings. */
 			if (byte == 0 && s->pos != 0)
 				return XZ_DATA_ERROR;
 
@@ -207,8 +207,8 @@ static enum xz_ret dec_vli(struct xz_dec *s, const uint8_t *in,
  * Decode the Compressed Data field from a Block. Update and validate
  * the observed compressed and uncompressed sizes of the Block so that
  * they don't exceed the values possibly stored in the Block Header
- * (validation assumes that no integer overflow occurs, since vli_type
- * is normally uint64_t). Update the CRC32 if presence of the CRC32
+ * (validation assumes that yes integer overflow occurs, since vli_type
+ * is yesrmally uint64_t). Update the CRC32 if presence of the CRC32
  * field was indicated in Stream Header.
  *
  * Once the decoding is finished, validate that the observed sizes match
@@ -233,7 +233,7 @@ static enum xz_ret dec_block(struct xz_dec *s, struct xz_buf *b)
 	s->block.uncompressed += b->out_pos - s->out_start;
 
 	/*
-	 * There is no need to separately check for VLI_UNKNOWN, since
+	 * There is yes need to separately check for VLI_UNKNOWN, since
 	 * the observed sizes are always smaller than VLI_UNKNOWN.
 	 */
 	if (s->block.compressed > s->block_header.compressed
@@ -287,7 +287,7 @@ static void index_update(struct xz_dec *s, const struct xz_buf *b)
 
 /*
  * Decode the Number of Records, Unpadded Size, and Uncompressed Size
- * fields from the Index field. That is, Index Padding and CRC32 are not
+ * fields from the Index field. That is, Index Padding and CRC32 are yest
  * decoded by this function.
  *
  * This can return XZ_OK (more input needed), XZ_STREAM_END (everything
@@ -364,7 +364,7 @@ static enum xz_ret crc32_validate(struct xz_dec *s, struct xz_buf *b)
 
 #ifdef XZ_DEC_ANY_CHECK
 /*
- * Skip over the Check field when the Check ID is not supported.
+ * Skip over the Check field when the Check ID is yest supported.
  * Returns true once the whole Check field has been skipped over.
  */
 static bool check_skip(struct xz_dec *s, struct xz_buf *b)
@@ -397,7 +397,7 @@ static enum xz_ret dec_stream_header(struct xz_dec *s)
 		return XZ_OPTIONS_ERROR;
 
 	/*
-	 * Of integrity checks, we support only none (Check ID = 0) and
+	 * Of integrity checks, we support only yesne (Check ID = 0) and
 	 * CRC32 (Check ID = 1). However, if XZ_DEC_ANY_CHECK is defined,
 	 * we will accept other check types too, but then the check won't
 	 * be verified and a warning (XZ_UNSUPPORTED_CHECK) will be given.
@@ -451,7 +451,7 @@ static enum xz_ret dec_block_header(struct xz_dec *s)
 	enum xz_ret ret;
 
 	/*
-	 * Validate the CRC32. We know that the temp buffer is at least
+	 * Validate the CRC32. We kyesw that the temp buffer is at least
 	 * eight bytes so this is safe.
 	 */
 	s->temp.size -= 4;
@@ -727,16 +727,16 @@ static enum xz_ret dec_main(struct xz_dec *s, struct xz_buf *b)
  * multi-call and single-call decoding.
  *
  * In multi-call mode, we must return XZ_BUF_ERROR when it seems clear that we
- * are not going to make any progress anymore. This is to prevent the caller
+ * are yest going to make any progress anymore. This is to prevent the caller
  * from calling us infinitely when the input file is truncated or otherwise
  * corrupt. Since zlib-style API allows that the caller fills the input buffer
  * only when the decoder doesn't produce any new output, we have to be careful
  * to avoid returning XZ_BUF_ERROR too easily: XZ_BUF_ERROR is returned only
- * after the second consecutive call to xz_dec_run() that makes no progress.
+ * after the second consecutive call to xz_dec_run() that makes yes progress.
  *
- * In single-call mode, if we couldn't decode everything and no error
+ * In single-call mode, if we couldn't decode everything and yes error
  * occurred, either the input is truncated or the output buffer is too small.
- * Since we know that the last input byte never produces any output, we know
+ * Since we kyesw that the last input byte never produces any output, we kyesw
  * that if all the input was consumed and decoding wasn't finished, the file
  * must be corrupt. Otherwise the output buffer has to be too small or the
  * file is corrupt in a way that decoding it produces too big output.

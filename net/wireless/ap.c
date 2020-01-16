@@ -8,7 +8,7 @@
 
 
 int __cfg80211_stop_ap(struct cfg80211_registered_device *rdev,
-		       struct net_device *dev, bool notify)
+		       struct net_device *dev, bool yestify)
 {
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
 	int err;
@@ -32,7 +32,7 @@ int __cfg80211_stop_ap(struct cfg80211_registered_device *rdev,
 		memset(&wdev->chandef, 0, sizeof(wdev->chandef));
 		wdev->ssid_len = 0;
 		rdev_set_qos_map(rdev, dev, NULL);
-		if (notify)
+		if (yestify)
 			nl80211_send_ap_stopped(wdev);
 
 		/* Should we apply the grace period during beaconing interface
@@ -47,13 +47,13 @@ int __cfg80211_stop_ap(struct cfg80211_registered_device *rdev,
 }
 
 int cfg80211_stop_ap(struct cfg80211_registered_device *rdev,
-		     struct net_device *dev, bool notify)
+		     struct net_device *dev, bool yestify)
 {
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
 	int err;
 
 	wdev_lock(wdev);
-	err = __cfg80211_stop_ap(rdev, dev, notify);
+	err = __cfg80211_stop_ap(rdev, dev, yestify);
 	wdev_unlock(wdev);
 
 	return err;

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 /*
  * Performance events:
  *
@@ -34,7 +34,7 @@ enum perf_type_id {
 	PERF_TYPE_RAW				= 4,
 	PERF_TYPE_BREAKPOINT			= 5,
 
-	PERF_TYPE_MAX,				/* non-ABI */
+	PERF_TYPE_MAX,				/* yesn-ABI */
 };
 
 /*
@@ -57,7 +57,7 @@ enum perf_hw_id {
 	PERF_COUNT_HW_STALLED_CYCLES_BACKEND	= 8,
 	PERF_COUNT_HW_REF_CPU_CYCLES		= 9,
 
-	PERF_COUNT_HW_MAX,			/* non-ABI */
+	PERF_COUNT_HW_MAX,			/* yesn-ABI */
 };
 
 /*
@@ -76,7 +76,7 @@ enum perf_hw_cache_id {
 	PERF_COUNT_HW_CACHE_BPU			= 5,
 	PERF_COUNT_HW_CACHE_NODE		= 6,
 
-	PERF_COUNT_HW_CACHE_MAX,		/* non-ABI */
+	PERF_COUNT_HW_CACHE_MAX,		/* yesn-ABI */
 };
 
 enum perf_hw_cache_op_id {
@@ -84,19 +84,19 @@ enum perf_hw_cache_op_id {
 	PERF_COUNT_HW_CACHE_OP_WRITE		= 1,
 	PERF_COUNT_HW_CACHE_OP_PREFETCH		= 2,
 
-	PERF_COUNT_HW_CACHE_OP_MAX,		/* non-ABI */
+	PERF_COUNT_HW_CACHE_OP_MAX,		/* yesn-ABI */
 };
 
 enum perf_hw_cache_op_result_id {
 	PERF_COUNT_HW_CACHE_RESULT_ACCESS	= 0,
 	PERF_COUNT_HW_CACHE_RESULT_MISS		= 1,
 
-	PERF_COUNT_HW_CACHE_RESULT_MAX,		/* non-ABI */
+	PERF_COUNT_HW_CACHE_RESULT_MAX,		/* yesn-ABI */
 };
 
 /*
  * Special "software" events provided by the kernel, even if the hardware
- * does not support performance events. These events measure various
+ * does yest support performance events. These events measure various
  * physical and sw events of the kernel (and allow the profiling of them as
  * well):
  */
@@ -113,7 +113,7 @@ enum perf_sw_ids {
 	PERF_COUNT_SW_DUMMY			= 9,
 	PERF_COUNT_SW_BPF_OUTPUT		= 10,
 
-	PERF_COUNT_SW_MAX,			/* non-ABI */
+	PERF_COUNT_SW_MAX,			/* yesn-ABI */
 };
 
 /*
@@ -143,17 +143,17 @@ enum perf_event_sample_format {
 	PERF_SAMPLE_PHYS_ADDR			= 1U << 19,
 	PERF_SAMPLE_AUX				= 1U << 20,
 
-	PERF_SAMPLE_MAX = 1U << 21,		/* non-ABI */
+	PERF_SAMPLE_MAX = 1U << 21,		/* yesn-ABI */
 
-	__PERF_SAMPLE_CALLCHAIN_EARLY		= 1ULL << 63, /* non-ABI; internal use */
+	__PERF_SAMPLE_CALLCHAIN_EARLY		= 1ULL << 63, /* yesn-ABI; internal use */
 };
 
 /*
  * values to program into branch_sample_type when PERF_SAMPLE_BRANCH is set
  *
- * If the user does not pass priv level information via branch_sample_type,
+ * If the user does yest pass priv level information via branch_sample_type,
  * the kernel uses the event's priv level. Branch and event priv levels do
- * not have to match. Branch priv level is checked for permissions.
+ * yest have to match. Branch priv level is checked for permissions.
  *
  * The branch types can be combined, however BRANCH_ANY covers all types
  * of branches and therefore it supersedes all the other types.
@@ -169,19 +169,19 @@ enum perf_branch_sample_type_shift {
 	PERF_SAMPLE_BRANCH_IND_CALL_SHIFT	= 6, /* indirect calls */
 	PERF_SAMPLE_BRANCH_ABORT_TX_SHIFT	= 7, /* transaction aborts */
 	PERF_SAMPLE_BRANCH_IN_TX_SHIFT		= 8, /* in transaction */
-	PERF_SAMPLE_BRANCH_NO_TX_SHIFT		= 9, /* not in transaction */
+	PERF_SAMPLE_BRANCH_NO_TX_SHIFT		= 9, /* yest in transaction */
 	PERF_SAMPLE_BRANCH_COND_SHIFT		= 10, /* conditional branches */
 
 	PERF_SAMPLE_BRANCH_CALL_STACK_SHIFT	= 11, /* call/ret stack */
 	PERF_SAMPLE_BRANCH_IND_JUMP_SHIFT	= 12, /* indirect jumps */
 	PERF_SAMPLE_BRANCH_CALL_SHIFT		= 13, /* direct call */
 
-	PERF_SAMPLE_BRANCH_NO_FLAGS_SHIFT	= 14, /* no flags */
-	PERF_SAMPLE_BRANCH_NO_CYCLES_SHIFT	= 15, /* no cycles */
+	PERF_SAMPLE_BRANCH_NO_FLAGS_SHIFT	= 14, /* yes flags */
+	PERF_SAMPLE_BRANCH_NO_CYCLES_SHIFT	= 15, /* yes cycles */
 
 	PERF_SAMPLE_BRANCH_TYPE_SAVE_SHIFT	= 16, /* save branch type */
 
-	PERF_SAMPLE_BRANCH_MAX_SHIFT		/* non-ABI */
+	PERF_SAMPLE_BRANCH_MAX_SHIFT		/* yesn-ABI */
 };
 
 enum perf_branch_sample_type {
@@ -215,7 +215,7 @@ enum perf_branch_sample_type {
  * Common flow change classification
  */
 enum {
-	PERF_BR_UNKNOWN		= 0,	/* unknown */
+	PERF_BR_UNKNOWN		= 0,	/* unkyeswn */
 	PERF_BR_COND		= 1,	/* conditional */
 	PERF_BR_UNCOND		= 2,	/* unconditional  */
 	PERF_BR_IND		= 3,	/* indirect */
@@ -251,13 +251,13 @@ enum {
 	PERF_TXN_ELISION        = (1 << 0), /* From elision */
 	PERF_TXN_TRANSACTION    = (1 << 1), /* From transaction */
 	PERF_TXN_SYNC           = (1 << 2), /* Instruction is related */
-	PERF_TXN_ASYNC          = (1 << 3), /* Instruction not related */
+	PERF_TXN_ASYNC          = (1 << 3), /* Instruction yest related */
 	PERF_TXN_RETRY          = (1 << 4), /* Retry possible */
 	PERF_TXN_CONFLICT       = (1 << 5), /* Conflict abort */
 	PERF_TXN_CAPACITY_WRITE = (1 << 6), /* Capacity write abort */
 	PERF_TXN_CAPACITY_READ  = (1 << 7), /* Capacity read abort */
 
-	PERF_TXN_MAX	        = (1 << 8), /* non-ABI */
+	PERF_TXN_MAX	        = (1 << 8), /* yesn-ABI */
 
 	/* bits 32..63 are reserved for the abort code */
 
@@ -291,7 +291,7 @@ enum perf_event_read_format {
 	PERF_FORMAT_ID				= 1U << 2,
 	PERF_FORMAT_GROUP			= 1U << 3,
 
-	PERF_FORMAT_MAX = 1U << 4,		/* non-ABI */
+	PERF_FORMAT_MAX = 1U << 4,		/* yesn-ABI */
 };
 
 #define PERF_ATTR_SIZE_VER0	64	/* sizeof first published struct */
@@ -344,7 +344,7 @@ struct perf_event_attr {
 				exclude_idle   :  1, /* don't count when idle */
 				mmap           :  1, /* include mmap data     */
 				comm	       :  1, /* include comm data     */
-				freq           :  1, /* use freq, not period  */
+				freq           :  1, /* use freq, yest period  */
 				inherit_stat   :  1, /* per task counts       */
 				enable_on_exec :  1, /* next exec enables     */
 				task           :  1, /* trace fork/exit       */
@@ -360,7 +360,7 @@ struct perf_event_attr {
 				 *  See also PERF_RECORD_MISC_EXACT_IP
 				 */
 				precise_ip     :  2, /* skid constraint       */
-				mmap_data      :  1, /* non-exec mmap data    */
+				mmap_data      :  1, /* yesn-exec mmap data    */
 				sample_id_all  :  1, /* sample_type all events */
 
 				exclude_host   :  1, /* don't count in host   */
@@ -368,7 +368,7 @@ struct perf_event_attr {
 
 				exclude_callchain_kernel : 1, /* exclude kernel callchains */
 				exclude_callchain_user   : 1, /* exclude user callchains */
-				mmap2          :  1, /* include mmap with inode data     */
+				mmap2          :  1, /* include mmap with iyesde data     */
 				comm_exec      :  1, /* flag comm events that are due to an exec */
 				use_clockid    :  1, /* use @clockid for time fields */
 				context_switch :  1, /* context switch data */
@@ -604,7 +604,7 @@ struct perf_event_mmap_page {
 	 * When the mapping is PROT_WRITE the @data_tail value should be
 	 * written by userspace to reflect the last read data, after issueing
 	 * an smp_mb() to separate the data read from the ->data_tail store.
-	 * In this case the kernel will not over-write unread data.
+	 * In this case the kernel will yest over-write unread data.
 	 *
 	 * See perf_output_put_handle() for the data ordering.
 	 *
@@ -689,7 +689,7 @@ struct perf_event_header {
 
 struct perf_ns_link_info {
 	__u64	dev;
-	__u64	ino;
+	__u64	iyes;
 };
 
 enum {
@@ -714,7 +714,7 @@ enum perf_event_type {
 	 * just after the perf_event_header and the fields already present for
 	 * the existing fields, i.e. at the end of the payload. That way a newer
 	 * perf.data file will be supported by older perf tools, with these new
-	 * optional fields being ignored.
+	 * optional fields being igyesred.
 	 *
 	 * struct sample_id {
 	 * 	{ u32			pid, tid; } && PERF_SAMPLE_TID
@@ -846,7 +846,7 @@ enum perf_event_type {
 	 *	# on event, hardware, kernel version and phase of
 	 *	# the moon.
 	 *	#
-	 *	# In other words, PERF_SAMPLE_RAW contents are not an ABI.
+	 *	# In other words, PERF_SAMPLE_RAW contents are yest an ABI.
 	 *	#
 	 *
 	 *	{ u32			size;
@@ -876,7 +876,7 @@ enum perf_event_type {
 
 	/*
 	 * The MMAP2 records are an augmented version of MMAP, they add
-	 * maj, min, ino numbers to be used to uniquely identify each mapping
+	 * maj, min, iyes numbers to be used to uniquely identify each mapping
 	 *
 	 * struct {
 	 *	struct perf_event_header	header;
@@ -887,8 +887,8 @@ enum perf_event_type {
 	 *	u64				pgoff;
 	 *	u32				maj;
 	 *	u32				min;
-	 *	u64				ino;
-	 *	u64				ino_generation;
+	 *	u64				iyes;
+	 *	u64				iyes_generation;
 	 *	u32				prot, flags;
 	 *	char				filename[];
 	 * 	struct sample_id		sample_id;
@@ -966,7 +966,7 @@ enum perf_event_type {
 	 *	u32				pid;
 	 *	u32				tid;
 	 *	u64				nr_namespaces;
-	 *	{ u64				dev, inode; } [nr_namespaces];
+	 *	{ u64				dev, iyesde; } [nr_namespaces];
 	 *	struct sample_id		sample_id;
 	 * };
 	 */
@@ -1006,13 +1006,13 @@ enum perf_event_type {
 	 */
 	PERF_RECORD_BPF_EVENT			= 18,
 
-	PERF_RECORD_MAX,			/* non-ABI */
+	PERF_RECORD_MAX,			/* yesn-ABI */
 };
 
 enum perf_record_ksymbol_type {
 	PERF_RECORD_KSYMBOL_TYPE_UNKNOWN	= 0,
 	PERF_RECORD_KSYMBOL_TYPE_BPF		= 1,
-	PERF_RECORD_KSYMBOL_TYPE_MAX		/* non-ABI */
+	PERF_RECORD_KSYMBOL_TYPE_MAX		/* yesn-ABI */
 };
 
 #define PERF_RECORD_KSYMBOL_FLAGS_UNREGISTER	(1 << 0)
@@ -1021,7 +1021,7 @@ enum perf_bpf_event_type {
 	PERF_BPF_EVENT_UNKNOWN		= 0,
 	PERF_BPF_EVENT_PROG_LOAD	= 1,
 	PERF_BPF_EVENT_PROG_UNLOAD	= 2,
-	PERF_BPF_EVENT_MAX,		/* non-ABI */
+	PERF_BPF_EVENT_MAX,		/* yesn-ABI */
 };
 
 #define PERF_MAX_STACK_DEPTH		127
@@ -1045,7 +1045,7 @@ enum perf_callchain_context {
 #define PERF_AUX_FLAG_TRUNCATED		0x01	/* record was truncated to fit */
 #define PERF_AUX_FLAG_OVERWRITE		0x02	/* snapshot from overwrite mode */
 #define PERF_AUX_FLAG_PARTIAL		0x04	/* record contains gaps */
-#define PERF_AUX_FLAG_COLLISION		0x08	/* sample collided with another */
+#define PERF_AUX_FLAG_COLLISION		0x08	/* sample collided with ayesther */
 
 #define PERF_FLAG_FD_NO_GROUP		(1UL << 0)
 #define PERF_FLAG_FD_OUTPUT		(1UL << 1)
@@ -1058,12 +1058,12 @@ union perf_mem_data_src {
 	struct {
 		__u64   mem_op:5,	/* type of opcode */
 			mem_lvl:14,	/* memory hierarchy level */
-			mem_snoop:5,	/* snoop mode */
+			mem_syesop:5,	/* syesop mode */
 			mem_lock:2,	/* lock instr */
 			mem_dtlb:7,	/* tlb access */
 			mem_lvl_num:4,	/* memory hierarchy level number */
 			mem_remote:1,   /* remote */
-			mem_snoopx:2,	/* snoop mode, ext */
+			mem_syesopx:2,	/* syesop mode, ext */
 			mem_rsvd:24;
 	};
 };
@@ -1072,22 +1072,22 @@ union perf_mem_data_src {
 	__u64 val;
 	struct {
 		__u64	mem_rsvd:24,
-			mem_snoopx:2,	/* snoop mode, ext */
+			mem_syesopx:2,	/* syesop mode, ext */
 			mem_remote:1,   /* remote */
 			mem_lvl_num:4,	/* memory hierarchy level number */
 			mem_dtlb:7,	/* tlb access */
 			mem_lock:2,	/* lock instr */
-			mem_snoop:5,	/* snoop mode */
+			mem_syesop:5,	/* syesop mode */
 			mem_lvl:14,	/* memory hierarchy level */
 			mem_op:5;	/* type of opcode */
 	};
 };
 #else
-#error "Unknown endianness"
+#error "Unkyeswn endianness"
 #endif
 
 /* type of opcode (load/store/prefetch,code) */
-#define PERF_MEM_OP_NA		0x01 /* not available */
+#define PERF_MEM_OP_NA		0x01 /* yest available */
 #define PERF_MEM_OP_LOAD	0x02 /* load instruction */
 #define PERF_MEM_OP_STORE	0x04 /* store instruction */
 #define PERF_MEM_OP_PFETCH	0x08 /* prefetch */
@@ -1095,7 +1095,7 @@ union perf_mem_data_src {
 #define PERF_MEM_OP_SHIFT	0
 
 /* memory hierarchy (memory level, hit or miss) */
-#define PERF_MEM_LVL_NA		0x01  /* not available */
+#define PERF_MEM_LVL_NA		0x01  /* yest available */
 #define PERF_MEM_LVL_HIT	0x02  /* hit level */
 #define PERF_MEM_LVL_MISS	0x04  /* miss level  */
 #define PERF_MEM_LVL_L1		0x08  /* L1 */
@@ -1127,12 +1127,12 @@ union perf_mem_data_src {
 
 #define PERF_MEM_LVLNUM_SHIFT	33
 
-/* snoop mode */
-#define PERF_MEM_SNOOP_NA	0x01 /* not available */
-#define PERF_MEM_SNOOP_NONE	0x02 /* no snoop */
-#define PERF_MEM_SNOOP_HIT	0x04 /* snoop hit */
-#define PERF_MEM_SNOOP_MISS	0x08 /* snoop miss */
-#define PERF_MEM_SNOOP_HITM	0x10 /* snoop hit modified */
+/* syesop mode */
+#define PERF_MEM_SNOOP_NA	0x01 /* yest available */
+#define PERF_MEM_SNOOP_NONE	0x02 /* yes syesop */
+#define PERF_MEM_SNOOP_HIT	0x04 /* syesop hit */
+#define PERF_MEM_SNOOP_MISS	0x08 /* syesop miss */
+#define PERF_MEM_SNOOP_HITM	0x10 /* syesop hit modified */
 #define PERF_MEM_SNOOP_SHIFT	19
 
 #define PERF_MEM_SNOOPX_FWD	0x01 /* forward */
@@ -1140,12 +1140,12 @@ union perf_mem_data_src {
 #define PERF_MEM_SNOOPX_SHIFT	37
 
 /* locked instruction */
-#define PERF_MEM_LOCK_NA	0x01 /* not available */
+#define PERF_MEM_LOCK_NA	0x01 /* yest available */
 #define PERF_MEM_LOCK_LOCKED	0x02 /* locked transaction */
 #define PERF_MEM_LOCK_SHIFT	24
 
 /* TLB access */
-#define PERF_MEM_TLB_NA		0x01 /* not available */
+#define PERF_MEM_TLB_NA		0x01 /* yest available */
 #define PERF_MEM_TLB_HIT	0x02 /* hit level */
 #define PERF_MEM_TLB_MISS	0x04 /* miss level */
 #define PERF_MEM_TLB_L1		0x08 /* L1 */
@@ -1160,17 +1160,17 @@ union perf_mem_data_src {
 /*
  * single taken branch record layout:
  *
- *      from: source instruction (may not always be a branch insn)
+ *      from: source instruction (may yest always be a branch insn)
  *        to: branch target
  *   mispred: branch target was mispredicted
  * predicted: branch target was predicted
  *
  * support for mispred, predicted is optional. In case it
- * is not supported mispred = predicted = 0.
+ * is yest supported mispred = predicted = 0.
  *
  *     in_tx: running in a hardware transaction
  *     abort: aborting a hardware transaction
- *    cycles: cycles from last branch (or 0 if not supported)
+ *    cycles: cycles from last branch (or 0 if yest supported)
  *      type: branch type
  */
 struct perf_branch_entry {

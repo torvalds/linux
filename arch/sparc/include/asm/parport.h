@@ -17,7 +17,7 @@
 
 /*
  * While sparc64 doesn't have an ISA DMA API, we provide something that looks
- * close enough to make parport_pc happy
+ * close eyesugh to make parport_pc happy
  */
 #define HAS_DMA
 
@@ -83,7 +83,7 @@ static inline void disable_dma(unsigned int dmanr)
 
 static inline void clear_dma_ff(unsigned int dmanr)
 {
-	/* nothing */
+	/* yesthing */
 }
 
 static inline void set_dma_mode(unsigned int dmanr, char mode)
@@ -112,12 +112,12 @@ static int ecpp_probe(struct platform_device *op)
 	unsigned long config = op->resource[1].start;
 	unsigned long d_base = op->resource[2].start;
 	unsigned long d_len;
-	struct device_node *parent;
+	struct device_yesde *parent;
 	struct parport *p;
 	int slot, err;
 
-	parent = op->dev.of_node->parent;
-	if (of_node_name_eq(parent, "dma")) {
+	parent = op->dev.of_yesde->parent;
+	if (of_yesde_name_eq(parent, "dma")) {
 		p = parport_pc_probe_port(base, base + 0x400,
 					  op->archdata.irqs[0], PARPORT_DMA_NOFIFO,
 					  op->dev.parent->parent, 0);
@@ -247,7 +247,7 @@ static struct platform_driver ecpp_driver = {
 	.remove			= ecpp_remove,
 };
 
-static int parport_pc_find_nonpci_ports(int autoirq, int autodma)
+static int parport_pc_find_yesnpci_ports(int autoirq, int autodma)
 {
 	return platform_driver_register(&ecpp_driver);
 }

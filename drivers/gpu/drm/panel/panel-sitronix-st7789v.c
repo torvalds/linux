@@ -370,7 +370,7 @@ static const struct drm_panel_funcs st7789v_drm_funcs = {
 
 static int st7789v_probe(struct spi_device *spi)
 {
-	struct device_node *backlight;
+	struct device_yesde *backlight;
 	struct st7789v *ctx;
 	int ret;
 
@@ -394,10 +394,10 @@ static int st7789v_probe(struct spi_device *spi)
 		return PTR_ERR(ctx->reset);
 	}
 
-	backlight = of_parse_phandle(spi->dev.of_node, "backlight", 0);
+	backlight = of_parse_phandle(spi->dev.of_yesde, "backlight", 0);
 	if (backlight) {
-		ctx->backlight = of_find_backlight_by_node(backlight);
-		of_node_put(backlight);
+		ctx->backlight = of_find_backlight_by_yesde(backlight);
+		of_yesde_put(backlight);
 
 		if (!ctx->backlight)
 			return -EPROBE_DEFER;

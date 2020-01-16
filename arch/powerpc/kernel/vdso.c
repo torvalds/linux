@@ -5,7 +5,7 @@
  *			 <benh@kernel.crashing.org>
  */
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/sched.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
@@ -67,7 +67,7 @@ static int vdso_ready;
 
 /*
  * The vdso data page (aka. systemcfg for old ppc64 fans) is here.
- * Once the early boot kernel code no longer needs to muck around
+ * Once the early boot kernel code yes longer needs to muck around
  * with it, it will become dynamically allocated
  */
 static union {
@@ -86,7 +86,7 @@ struct vdso_patch_def
 
 /* Table of functions to patch based on the CPU type/revision
  *
- * Currently, we only change sync_dicache to do nothing on processors
+ * Currently, we only change sync_dicache to do yesthing on processors
  * with a coherent icache
  */
 static struct vdso_patch_def vdso_patches[] = {
@@ -169,7 +169,7 @@ int arch_setup_additional_pages(struct linux_binprm *bprm, int uses_interp)
 	 * pick a base address for the vDSO in process space. We try to put it
 	 * at vdso_base which is the "natural" base for it, but we might fail
 	 * and end up putting it elsewhere.
-	 * Add enough to the size so that the result can be aligned.
+	 * Add eyesugh to the size so that the result can be aligned.
 	 */
 	if (down_write_killable(&mm->mmap_sem))
 		return -EINTR;
@@ -281,7 +281,7 @@ static unsigned long __init find_function32(struct lib32_elfinfo *lib,
 	Elf32_Sym *sym = find_symbol32(lib, symname);
 
 	if (sym == NULL) {
-		printk(KERN_WARNING "vDSO32: function %s not found !\n",
+		printk(KERN_WARNING "vDSO32: function %s yest found !\n",
 		       symname);
 		return 0;
 	}
@@ -387,7 +387,7 @@ static unsigned long __init find_function64(struct lib64_elfinfo *lib,
 	Elf64_Sym *sym = find_symbol64(lib, symname);
 
 	if (sym == NULL) {
-		printk(KERN_WARNING "vDSO64: function %s not found !\n",
+		printk(KERN_WARNING "vDSO64: function %s yest found !\n",
 		       symname);
 		return 0;
 	}
@@ -444,12 +444,12 @@ static __init int vdso_do_find_sections(struct lib32_elfinfo *v32,
 	v32->dynsym = find_section32(v32->hdr, ".dynsym", &v32->dynsymsize);
 	v32->dynstr = find_section32(v32->hdr, ".dynstr", NULL);
 	if (v32->dynsym == NULL || v32->dynstr == NULL) {
-		printk(KERN_ERR "vDSO32: required symbol section not found\n");
+		printk(KERN_ERR "vDSO32: required symbol section yest found\n");
 		return -1;
 	}
 	sect = find_section32(v32->hdr, ".text", NULL);
 	if (sect == NULL) {
-		printk(KERN_ERR "vDSO32: the .text section was not found\n");
+		printk(KERN_ERR "vDSO32: the .text section was yest found\n");
 		return -1;
 	}
 	v32->text = sect - vdso32_kbase;
@@ -459,12 +459,12 @@ static __init int vdso_do_find_sections(struct lib32_elfinfo *v32,
 	v64->dynsym = find_section64(v64->hdr, ".dynsym", &v64->dynsymsize);
 	v64->dynstr = find_section64(v64->hdr, ".dynstr", NULL);
 	if (v64->dynsym == NULL || v64->dynstr == NULL) {
-		printk(KERN_ERR "vDSO64: required symbol section not found\n");
+		printk(KERN_ERR "vDSO64: required symbol section yest found\n");
 		return -1;
 	}
 	sect = find_section64(v64->hdr, ".text", NULL);
 	if (sect == NULL) {
-		printk(KERN_ERR "vDSO64: the .text section was not found\n");
+		printk(KERN_ERR "vDSO64: the .text section was yest found\n");
 		return -1;
 	}
 	v64->text = sect - vdso64_kbase;
@@ -594,10 +594,10 @@ static __init int vdso_fixup_alt_funcs(struct lib32_elfinfo *v32,
 		    patch->fix_name ? "NONE" : patch->fix_name);
 
 		/*
-		 * Patch the 32 bits and 64 bits symbols. Note that we do not
+		 * Patch the 32 bits and 64 bits symbols. Note that we do yest
 		 * patch the "." symbol on 64 bits.
 		 * It would be easy to do, but doesn't seem to be necessary,
-		 * patching the OPD symbol is enough.
+		 * patching the OPD symbol is eyesugh.
 		 */
 		vdso_do_func_patch32(v32, v64, patch->gen_name,
 				     patch->fix_name);
@@ -670,19 +670,19 @@ static void __init vdso_setup_syscall_map(void)
 #ifdef CONFIG_PPC64
 int vdso_getcpu_init(void)
 {
-	unsigned long cpu, node, val;
+	unsigned long cpu, yesde, val;
 
 	/*
-	 * SPRG_VDSO contains the CPU in the bottom 16 bits and the NUMA node
+	 * SPRG_VDSO contains the CPU in the bottom 16 bits and the NUMA yesde
 	 * in the next 16 bits.  The VDSO uses this to implement getcpu().
 	 */
 	cpu = get_cpu();
 	WARN_ON_ONCE(cpu > 0xffff);
 
-	node = cpu_to_node(cpu);
-	WARN_ON_ONCE(node > 0xffff);
+	yesde = cpu_to_yesde(cpu);
+	WARN_ON_ONCE(yesde > 0xffff);
 
-	val = (cpu & 0xfff) | ((node & 0xffff) << 16);
+	val = (cpu & 0xfff) | ((yesde & 0xffff) << 16);
 	mtspr(SPRN_SPRG_VDSO_WRITE, val);
 	get_paca()->sprg_vdso = val;
 
@@ -704,7 +704,7 @@ static int __init vdso_init(void)
 	 */
 	strcpy((char *)vdso_data->eye_catcher, "SYSTEMCFG:PPC64");
 	vdso_data->version.major = SYSTEMCFG_MAJOR;
-	vdso_data->version.minor = SYSTEMCFG_MINOR;
+	vdso_data->version.miyesr = SYSTEMCFG_MINOR;
 	vdso_data->processor = mfspr(SPRN_PVR);
 	/*
 	 * Fake the old platform number for pSeries and add
@@ -757,7 +757,7 @@ static int __init vdso_init(void)
 	 * fixups of vDSO symbols, locate trampolines, etc...
 	 */
 	if (vdso_setup()) {
-		printk(KERN_ERR "vDSO setup failure, not enabled !\n");
+		printk(KERN_ERR "vDSO setup failure, yest enabled !\n");
 		vdso32_pages = 0;
 #ifdef CONFIG_PPC64
 		vdso64_pages = 0;

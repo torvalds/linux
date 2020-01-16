@@ -2,8 +2,8 @@
 /*
  * arch/arm64/lib/xor-neon.c
  *
- * Authors: Jackie Liu <liuyun01@kylinos.cn>
- * Copyright (C) 2018,Tianjin KYLIN Information Technology Co., Ltd.
+ * Authors: Jackie Liu <liuyun01@kyliyess.cn>
+ * Copyright (C) 2018,Tianjin KYLIN Information Techyeslogy Co., Ltd.
  */
 
 #include <linux/raid/xor.h>
@@ -176,6 +176,6 @@ struct xor_block_template const xor_block_inner_neon = {
 };
 EXPORT_SYMBOL(xor_block_inner_neon);
 
-MODULE_AUTHOR("Jackie Liu <liuyun01@kylinos.cn>");
+MODULE_AUTHOR("Jackie Liu <liuyun01@kyliyess.cn>");
 MODULE_DESCRIPTION("ARMv8 XOR Extensions");
 MODULE_LICENSE("GPL");

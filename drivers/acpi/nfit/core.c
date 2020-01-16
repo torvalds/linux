@@ -23,11 +23,11 @@
  * For readq() and writeq() on 32-bit builds, the hi-lo, lo-hi order is
  * irrelevant.
  */
-#include <linux/io-64-nonatomic-hi-lo.h>
+#include <linux/io-64-yesnatomic-hi-lo.h>
 
 static bool force_enable_dimms;
 module_param(force_enable_dimms, bool, S_IRUGO|S_IWUSR);
-MODULE_PARM_DESC(force_enable_dimms, "Ignore _STA (ACPI DIMM device) status");
+MODULE_PARM_DESC(force_enable_dimms, "Igyesre _STA (ACPI DIMM device) status");
 
 static bool disable_vendor_specific;
 module_param(disable_vendor_specific, bool, S_IRUGO);
@@ -43,9 +43,9 @@ module_param(default_dsm_family, int, S_IRUGO);
 MODULE_PARM_DESC(default_dsm_family,
 		"Try this DSM type first when identifying NVDIMM family");
 
-static bool no_init_ars;
-module_param(no_init_ars, bool, 0644);
-MODULE_PARM_DESC(no_init_ars, "Skip ARS run at nfit init time");
+static bool yes_init_ars;
+module_param(yes_init_ars, bool, 0644);
+MODULE_PARM_DESC(yes_init_ars, "Skip ARS run at nfit init time");
 
 static bool force_labels;
 module_param(force_labels, bool, 0444);
@@ -146,7 +146,7 @@ static int xlat_bus_status(void *buf, unsigned int cmd, u32 status)
 			return 0;
 		}
 
-		/* Unknown status */
+		/* Unkyeswn status */
 		if (status >> 16)
 			return -EIO;
 		return 0;
@@ -163,7 +163,7 @@ static int xlat_bus_status(void *buf, unsigned int cmd, u32 status)
 		break;
 	}
 
-	/* all other non-zero status results in an error */
+	/* all other yesn-zero status results in an error */
 	if (status)
 		return -EIO;
 	return 0;
@@ -202,7 +202,7 @@ static int xlat_nvdimm_status(struct nvdimm *nvdimm, void *buf, unsigned int cmd
 		break;
 	}
 
-	/* all other non-zero status results in an error */
+	/* all other yesn-zero status results in an error */
 	if (status)
 		return -EIO;
 	return 0;
@@ -573,7 +573,7 @@ int acpi_nfit_ctl(struct nvdimm_bus_descriptor *nd_desc, struct nvdimm *nvdimm,
 
 		ACPI_FREE(out_obj);
 		/*
-		 * Need to support FW function w/o known size in advance.
+		 * Need to support FW function w/o kyeswn size in advance.
 		 * Caller can determine required size based upon nd_fw_size.
 		 * If we return an error (like elsewhere) then caller wouldn't
 		 * be able to rely upon data returned to make calculation.
@@ -606,7 +606,7 @@ int acpi_nfit_ctl(struct nvdimm_bus_descriptor *nd_desc, struct nvdimm *nvdimm,
 	}
 
 	/*
-	 * Set fw_status for all the commands with a known format to be
+	 * Set fw_status for all the commands with a kyeswn format to be
 	 * later interpreted by xlat_status().
 	 */
 	if (i >= 1 && ((!nvdimm && cmd >= ND_CMD_ARS_CAP
@@ -659,7 +659,7 @@ static const char *spa_type_name(u16 type)
 	};
 
 	if (type > NFIT_SPA_PCD)
-		return "unknown";
+		return "unkyeswn";
 
 	return to_name[type];
 }
@@ -762,7 +762,7 @@ int nfit_get_smbios_id(u32 device_handle, u16 *flags)
 EXPORT_SYMBOL_GPL(nfit_get_smbios_id);
 
 /*
- * An implementation may provide a truncated control region if no block windows
+ * An implementation may provide a truncated control region if yes block windows
  * are defined.
  */
 static size_t sizeof_dcr(struct acpi_nfit_control_region *dcr)
@@ -971,7 +971,7 @@ static void *add_table(struct acpi_nfit_desc *acpi_desc,
 			return err;
 		break;
 	default:
-		dev_err(dev, "unknown table '%d' parsing nfit\n", hdr->type);
+		dev_err(dev, "unkyeswn table '%d' parsing nfit\n", hdr->type);
 		break;
 	}
 
@@ -1006,7 +1006,7 @@ static void nfit_mem_find_spa_bdw(struct acpi_nfit_desc *acpi_desc,
 		}
 	}
 
-	dev_dbg(acpi_desc->dev, "SPA-BDW not found for SPA-DCR %d\n",
+	dev_dbg(acpi_desc->dev, "SPA-BDW yest found for SPA-DCR %d\n",
 			nfit_mem->spa_dcr->range_index);
 	nfit_mem->bdw = NULL;
 }
@@ -1219,7 +1219,7 @@ static int nfit_mem_init(struct acpi_nfit_desc *acpi_desc)
 	}
 
 	/*
-	 * If a DIMM has failed to be mapped into SPA there will be no
+	 * If a DIMM has failed to be mapped into SPA there will be yes
 	 * SPA entries above. Find and register all the unmapped DIMMs
 	 * for reporting and recovery purposes.
 	 */
@@ -1615,10 +1615,10 @@ static ssize_t flags_show(struct device *dev,
 		flags & ACPI_NFIT_MEM_SAVE_FAILED ? "save_fail " : "",
 		flags & ACPI_NFIT_MEM_RESTORE_FAILED ? "restore_fail " : "",
 		flags & ACPI_NFIT_MEM_FLUSH_FAILED ? "flush_fail " : "",
-		flags & ACPI_NFIT_MEM_NOT_ARMED ? "not_armed " : "",
+		flags & ACPI_NFIT_MEM_NOT_ARMED ? "yest_armed " : "",
 		flags & ACPI_NFIT_MEM_HEALTH_OBSERVED ? "smart_event " : "",
 		flags & ACPI_NFIT_MEM_MAP_FAILED ? "map_fail " : "",
-		flags & ACPI_NFIT_MEM_HEALTH_ENABLED ? "smart_notify " : "");
+		flags & ACPI_NFIT_MEM_HEALTH_ENABLED ? "smart_yestify " : "");
 }
 static DEVICE_ATTR_RO(flags);
 
@@ -1713,7 +1713,7 @@ static struct nvdimm *acpi_nfit_dimm_by_handle(struct acpi_nfit_desc *acpi_desc,
 	return NULL;
 }
 
-void __acpi_nvdimm_notify(struct device *dev, u32 event)
+void __acpi_nvdimm_yestify(struct device *dev, u32 event)
 {
 	struct nfit_mem *nfit_mem;
 	struct acpi_nfit_desc *acpi_desc;
@@ -1722,7 +1722,7 @@ void __acpi_nvdimm_notify(struct device *dev, u32 event)
 			event);
 
 	if (event != NFIT_NOTIFY_DIMM_HEALTH) {
-		dev_dbg(dev->parent, "%s: unknown event: %d\n", dev_name(dev),
+		dev_dbg(dev->parent, "%s: unkyeswn event: %d\n", dev_name(dev),
 				event);
 		return;
 	}
@@ -1732,22 +1732,22 @@ void __acpi_nvdimm_notify(struct device *dev, u32 event)
 		return;
 
 	/*
-	 * If we successfully retrieved acpi_desc, then we know nfit_mem data
+	 * If we successfully retrieved acpi_desc, then we kyesw nfit_mem data
 	 * is still valid.
 	 */
 	nfit_mem = dev_get_drvdata(dev);
 	if (nfit_mem && nfit_mem->flags_attr)
-		sysfs_notify_dirent(nfit_mem->flags_attr);
+		sysfs_yestify_dirent(nfit_mem->flags_attr);
 }
-EXPORT_SYMBOL_GPL(__acpi_nvdimm_notify);
+EXPORT_SYMBOL_GPL(__acpi_nvdimm_yestify);
 
-static void acpi_nvdimm_notify(acpi_handle handle, u32 event, void *data)
+static void acpi_nvdimm_yestify(acpi_handle handle, u32 event, void *data)
 {
 	struct acpi_device *adev = data;
 	struct device *dev = &adev->dev;
 
 	nfit_device_lock(dev->parent);
-	__acpi_nvdimm_notify(dev, event);
+	__acpi_nvdimm_yestify(dev, event);
 	nfit_device_unlock(dev->parent);
 }
 
@@ -1855,19 +1855,19 @@ static int acpi_nfit_add_dimm(struct acpi_nfit_desc *acpi_desc,
 	adev_dimm = acpi_find_child_device(adev, device_handle, false);
 	nfit_mem->adev = adev_dimm;
 	if (!adev_dimm) {
-		dev_err(dev, "no ACPI.NFIT device with _ADR %#x, disabling...\n",
+		dev_err(dev, "yes ACPI.NFIT device with _ADR %#x, disabling...\n",
 				device_handle);
 		return force_enable_dimms ? 0 : -ENODEV;
 	}
 
-	if (ACPI_FAILURE(acpi_install_notify_handler(adev_dimm->handle,
-		ACPI_DEVICE_NOTIFY, acpi_nvdimm_notify, adev_dimm))) {
-		dev_err(dev, "%s: notification registration failed\n",
+	if (ACPI_FAILURE(acpi_install_yestify_handler(adev_dimm->handle,
+		ACPI_DEVICE_NOTIFY, acpi_nvdimm_yestify, adev_dimm))) {
+		dev_err(dev, "%s: yestification registration failed\n",
 				dev_name(&adev_dimm->dev));
 		return -ENXIO;
 	}
 	/*
-	 * Record nfit_mem for the notification path to track back to
+	 * Record nfit_mem for the yestification path to track back to
 	 * the nfit sysfs attributes for this dimm device object.
 	 */
 	dev_set_drvdata(&adev_dimm->dev, nfit_mem);
@@ -1909,7 +1909,7 @@ static int acpi_nfit_add_dimm(struct acpi_nfit_desc *acpi_desc,
 	} else if (nfit_mem->family == NVDIMM_FAMILY_HYPERV) {
 		dsm_mask = 0x1f;
 	} else {
-		dev_dbg(dev, "unknown dimm command family\n");
+		dev_dbg(dev, "unkyeswn dimm command family\n");
 		nfit_mem->family = -1;
 		/* DSMs are optional, continue loading the driver... */
 		return 0;
@@ -1970,7 +1970,7 @@ static int acpi_nfit_add_dimm(struct acpi_nfit_desc *acpi_desc,
 	return 0;
 }
 
-static void shutdown_dimm_notify(void *data)
+static void shutdown_dimm_yestify(void *data)
 {
 	struct acpi_nfit_desc *acpi_desc = data;
 	struct nfit_mem *nfit_mem;
@@ -1978,7 +1978,7 @@ static void shutdown_dimm_notify(void *data)
 	mutex_lock(&acpi_desc->init_mutex);
 	/*
 	 * Clear out the nfit_mem->flags_attr and shut down dimm event
-	 * notifications.
+	 * yestifications.
 	 */
 	list_for_each_entry(nfit_mem, &acpi_desc->dimms, list) {
 		struct acpi_device *adev_dimm = nfit_mem->adev;
@@ -1988,8 +1988,8 @@ static void shutdown_dimm_notify(void *data)
 			nfit_mem->flags_attr = NULL;
 		}
 		if (adev_dimm) {
-			acpi_remove_notify_handler(adev_dimm->handle,
-					ACPI_DEVICE_NOTIFY, acpi_nvdimm_notify);
+			acpi_remove_yestify_handler(adev_dimm->handle,
+					ACPI_DEVICE_NOTIFY, acpi_nvdimm_yestify);
 			dev_set_drvdata(&adev_dimm->dev, NULL);
 		}
 	}
@@ -2049,7 +2049,7 @@ static int acpi_nfit_register_dimms(struct acpi_nfit_desc *acpi_desc)
 			continue;
 
 		/*
-		 * TODO: provide translation for non-NVDIMM_FAMILY_INTEL
+		 * TODO: provide translation for yesn-NVDIMM_FAMILY_INTEL
 		 * devices (i.e. from nd_cmd to acpi_dsm) to standardize the
 		 * userspace interface.
 		 */
@@ -2063,7 +2063,7 @@ static int acpi_nfit_register_dimms(struct acpi_nfit_desc *acpi_desc)
 			cmd_mask |= nfit_mem->dsm_mask & NVDIMM_STANDARD_CMDMASK;
 		}
 
-		/* Quirk to ignore LOCAL for labels on HYPERV DIMMs */
+		/* Quirk to igyesre LOCAL for labels on HYPERV DIMMs */
 		if (nfit_mem->family == NVDIMM_FAMILY_HYPERV)
 			set_bit(NDD_NOBLK, &flags);
 
@@ -2095,7 +2095,7 @@ static int acpi_nfit_register_dimms(struct acpi_nfit_desc *acpi_desc)
 		  mem_flags & ACPI_NFIT_MEM_SAVE_FAILED ? " save_fail" : "",
 		  mem_flags & ACPI_NFIT_MEM_RESTORE_FAILED ? " restore_fail":"",
 		  mem_flags & ACPI_NFIT_MEM_FLUSH_FAILED ? " flush_fail" : "",
-		  mem_flags & ACPI_NFIT_MEM_NOT_ARMED ? " not_armed" : "",
+		  mem_flags & ACPI_NFIT_MEM_NOT_ARMED ? " yest_armed" : "",
 		  mem_flags & ACPI_NFIT_MEM_MAP_FAILED ? " map_fail" : "");
 
 	}
@@ -2106,10 +2106,10 @@ static int acpi_nfit_register_dimms(struct acpi_nfit_desc *acpi_desc)
 
 	/*
 	 * Now that dimms are successfully registered, and async registration
-	 * is flushed, attempt to enable event notification.
+	 * is flushed, attempt to enable event yestification.
 	 */
 	list_for_each_entry(nfit_mem, &acpi_desc->dimms, list) {
-		struct kernfs_node *nfit_kernfs;
+		struct kernfs_yesde *nfit_kernfs;
 
 		nvdimm = nfit_mem->nvdimm;
 		if (!nvdimm)
@@ -2121,16 +2121,16 @@ static int acpi_nfit_register_dimms(struct acpi_nfit_desc *acpi_desc)
 					"flags");
 		sysfs_put(nfit_kernfs);
 		if (!nfit_mem->flags_attr)
-			dev_warn(acpi_desc->dev, "%s: notifications disabled\n",
+			dev_warn(acpi_desc->dev, "%s: yestifications disabled\n",
 					nvdimm_name(nvdimm));
 	}
 
-	return devm_add_action_or_reset(acpi_desc->dev, shutdown_dimm_notify,
+	return devm_add_action_or_reset(acpi_desc->dev, shutdown_dimm_yestify,
 			acpi_desc);
 }
 
 /*
- * These constants are private because there are no kernel consumers of
+ * These constants are private because there are yes kernel consumers of
  * these commands.
  */
 enum nfit_aux_cmds {
@@ -2198,7 +2198,7 @@ static const struct attribute_group *acpi_nfit_region_attribute_groups[] = {
 	NULL,
 };
 
-/* enough info to uniquely specify an interleave set */
+/* eyesugh info to uniquely specify an interleave set */
 struct nfit_set_info {
 	struct nfit_set_info_map {
 		u64 region_offset;
@@ -2373,10 +2373,10 @@ static u64 to_interleave_offset(u64 offset, struct nfit_blk_mmio *mmio)
 {
 	struct acpi_nfit_interleave *idt = mmio->idt;
 	u32 sub_line_offset, line_index, line_offset;
-	u64 line_no, table_skip_count, table_offset;
+	u64 line_yes, table_skip_count, table_offset;
 
-	line_no = div_u64_rem(offset, mmio->line_size, &sub_line_offset);
-	table_skip_count = div_u64_rem(line_no, mmio->num_lines, &line_index);
+	line_yes = div_u64_rem(offset, mmio->line_size, &sub_line_offset);
+	table_skip_count = div_u64_rem(line_yes, mmio->num_lines, &line_index);
 	line_offset = idt->line_offset[line_index]
 		* mmio->line_size;
 	table_offset = table_skip_count * mmio->table_size;
@@ -2726,7 +2726,7 @@ static void ars_complete(struct acpi_nfit_desc *acpi_desc,
 	lockdep_assert_held(&acpi_desc->init_mutex);
 	/*
 	 * Only advance the ARS state for ARS runs initiated by the
-	 * kernel, ignore ARS results from BIOS initiated runs for scrub
+	 * kernel, igyesre ARS results from BIOS initiated runs for scrub
 	 * completion tracking.
 	 */
 	if (acpi_desc->scrub_spa != nfit_spa)
@@ -2754,7 +2754,7 @@ static void ars_complete(struct acpi_nfit_desc *acpi_desc,
 	acpi_desc->scrub_spa = NULL;
 	if (nd_region) {
 		dev = nd_region_dev(nd_region);
-		nvdimm_region_notify(nd_region, NVDIMM_REVALIDATE_POISON);
+		nvdimm_region_yestify(nd_region, NVDIMM_REVALIDATE_POISON);
 	} else
 		dev = acpi_desc->dev;
 	dev_dbg(dev, "ARS: range %d complete\n", spa->range_index);
@@ -2775,7 +2775,7 @@ static int ars_status_process_records(struct acpi_nfit_desc *acpi_desc)
 		return 0;
 
 	/*
-	 * Ignore potentially stale results that are only refreshed
+	 * Igyesre potentially stale results that are only refreshed
 	 * after a start-ARS event.
 	 */
 	if (!test_and_clear_bit(ARS_VALID, &acpi_desc->scrub_flags)) {
@@ -2856,7 +2856,7 @@ static int acpi_nfit_init_mapping(struct acpi_nfit_desc *acpi_desc,
 	int rc;
 
 	if (!nvdimm) {
-		dev_err(acpi_desc->dev, "spa%d dimm: %#x not found\n",
+		dev_err(acpi_desc->dev, "spa%d dimm: %#x yest found\n",
 				spa->range_index, memdev->device_handle);
 		return -ENODEV;
 	}
@@ -2942,13 +2942,13 @@ static int acpi_nfit_register_region(struct acpi_nfit_desc *acpi_desc,
 	ndr_desc->provider_data = nfit_spa;
 	ndr_desc->attr_groups = acpi_nfit_region_attribute_groups;
 	if (spa->flags & ACPI_NFIT_PROXIMITY_VALID) {
-		ndr_desc->numa_node = acpi_map_pxm_to_online_node(
+		ndr_desc->numa_yesde = acpi_map_pxm_to_online_yesde(
 						spa->proximity_domain);
-		ndr_desc->target_node = acpi_map_pxm_to_node(
+		ndr_desc->target_yesde = acpi_map_pxm_to_yesde(
 				spa->proximity_domain);
 	} else {
-		ndr_desc->numa_node = NUMA_NO_NODE;
-		ndr_desc->target_node = NUMA_NO_NODE;
+		ndr_desc->numa_yesde = NUMA_NO_NODE;
+		ndr_desc->target_yesde = NUMA_NO_NODE;
 	}
 
 	/*
@@ -3062,7 +3062,7 @@ static int ars_register(struct acpi_nfit_desc *acpi_desc,
 		return acpi_nfit_register_region(acpi_desc, nfit_spa);
 
 	set_bit(ARS_REQ_SHORT, &nfit_spa->ars_state);
-	if (!no_init_ars)
+	if (!yes_init_ars)
 		set_bit(ARS_REQ_LONG, &nfit_spa->ars_state);
 
 	switch (acpi_nfit_query_poison(acpi_desc)) {
@@ -3201,7 +3201,7 @@ static void __sched_ars(struct acpi_nfit_desc *acpi_desc, unsigned int tmo)
 	lockdep_assert_held(&acpi_desc->init_mutex);
 
 	set_bit(ARS_BUSY, &acpi_desc->scrub_flags);
-	/* note this should only be set from within the workqueue */
+	/* yeste this should only be set from within the workqueue */
 	if (tmo)
 		acpi_desc->scrub_tmo = tmo;
 	queue_delayed_work(nfit_wq, &acpi_desc->dwork, tmo * HZ);
@@ -3212,14 +3212,14 @@ static void sched_ars(struct acpi_nfit_desc *acpi_desc)
 	__sched_ars(acpi_desc, 0);
 }
 
-static void notify_ars_done(struct acpi_nfit_desc *acpi_desc)
+static void yestify_ars_done(struct acpi_nfit_desc *acpi_desc)
 {
 	lockdep_assert_held(&acpi_desc->init_mutex);
 
 	clear_bit(ARS_BUSY, &acpi_desc->scrub_flags);
 	acpi_desc->scrub_count++;
 	if (acpi_desc->scrub_count_state)
-		sysfs_notify_dirent(acpi_desc->scrub_count_state);
+		sysfs_yestify_dirent(acpi_desc->scrub_count_state);
 }
 
 static void acpi_nfit_scrub(struct work_struct *work)
@@ -3235,7 +3235,7 @@ static void acpi_nfit_scrub(struct work_struct *work)
 	if (tmo)
 		__sched_ars(acpi_desc, tmo);
 	else
-		notify_ars_done(acpi_desc);
+		yestify_ars_done(acpi_desc);
 	memset(acpi_desc->ars_status, 0, acpi_desc->max_ars);
 	clear_bit(ARS_POLL, &acpi_desc->scrub_flags);
 	mutex_unlock(&acpi_desc->init_mutex);
@@ -3292,20 +3292,20 @@ static int acpi_nfit_register_regions(struct acpi_nfit_desc *acpi_desc)
 				return rc;
 			break;
 		case NFIT_SPA_BDW:
-			/* nothing to register */
+			/* yesthing to register */
 			break;
 		case NFIT_SPA_DCR:
 		case NFIT_SPA_VDISK:
 		case NFIT_SPA_VCD:
 		case NFIT_SPA_PDISK:
 		case NFIT_SPA_PCD:
-			/* register known regions that don't support ARS */
+			/* register kyeswn regions that don't support ARS */
 			rc = acpi_nfit_register_region(acpi_desc, nfit_spa);
 			if (rc)
 				return rc;
 			break;
 		default:
-			/* don't register unknown regions */
+			/* don't register unkyeswn regions */
 			break;
 		}
 
@@ -3333,7 +3333,7 @@ static int acpi_nfit_check_deletions(struct acpi_nfit_desc *acpi_desc,
 static int acpi_nfit_desc_init_scrub_attr(struct acpi_nfit_desc *acpi_desc)
 {
 	struct device *dev = acpi_desc->dev;
-	struct kernfs_node *nfit;
+	struct kernfs_yesde *nfit;
 	struct device *bus_dev;
 
 	if (!ars_supported(acpi_desc->nvdimm_bus))
@@ -3386,7 +3386,7 @@ int acpi_nfit_init(struct acpi_nfit_desc *acpi_desc, void *data, acpi_size sz)
 		if (rc)
 			return rc;
 
-		/* register this acpi_desc for mce notifications */
+		/* register this acpi_desc for mce yestifications */
 		mutex_lock(&acpi_desc_lock);
 		list_add_tail(&acpi_desc->list, &acpi_descs);
 		mutex_unlock(&acpi_desc_lock);
@@ -3449,7 +3449,7 @@ static int acpi_nfit_flush_probe(struct nvdimm_bus_descriptor *nd_desc)
 	struct acpi_nfit_desc *acpi_desc = to_acpi_desc(nd_desc);
 	struct device *dev = acpi_desc->dev;
 
-	/* Bounce the device lock to flush acpi_nfit_add / acpi_nfit_notify */
+	/* Bounce the device lock to flush acpi_nfit_add / acpi_nfit_yestify */
 	nfit_device_lock(dev);
 	nfit_device_unlock(dev);
 
@@ -3473,7 +3473,7 @@ static int __acpi_nfit_clear_to_send(struct nvdimm_bus_descriptor *nd_desc,
 	/*
 	 * The kernel and userspace may race to initiate a scrub, but
 	 * the scrub thread is prepared to lose that initial race.  It
-	 * just needs guarantees that any ARS it initiates are not
+	 * just needs guarantees that any ARS it initiates are yest
 	 * interrupted by any intervening start requests from userspace.
 	 */
 	if (work_busy(&acpi_desc->dwork.work))
@@ -3578,7 +3578,7 @@ void acpi_nfit_shutdown(void *data)
 	struct device *bus_dev = to_nvdimm_bus_dev(acpi_desc->nvdimm_bus);
 
 	/*
-	 * Destruct under acpi_desc_lock so that nfit_handle_mce does not
+	 * Destruct under acpi_desc_lock so that nfit_handle_mce does yest
 	 * race teardown
 	 */
 	mutex_lock(&acpi_desc_lock);
@@ -3647,7 +3647,7 @@ static int acpi_nfit_add(struct acpi_device *adev)
 			rc = acpi_nfit_init(acpi_desc, obj->buffer.pointer,
 					obj->buffer.length);
 		else
-			dev_dbg(dev, "invalid type %d, ignoring _FIT\n",
+			dev_dbg(dev, "invalid type %d, igyesring _FIT\n",
 				(int) obj->type);
 		kfree(buf.pointer);
 	} else
@@ -3667,7 +3667,7 @@ static int acpi_nfit_remove(struct acpi_device *adev)
 	return 0;
 }
 
-static void acpi_nfit_update_notify(struct device *dev, acpi_handle handle)
+static void acpi_nfit_update_yestify(struct device *dev, acpi_handle handle)
 {
 	struct acpi_nfit_desc *acpi_desc = dev_get_drvdata(dev);
 	struct acpi_buffer buf = { ACPI_ALLOCATE_BUFFER, NULL };
@@ -3677,7 +3677,7 @@ static void acpi_nfit_update_notify(struct device *dev, acpi_handle handle)
 
 	if (!dev->driver) {
 		/* dev->driver may be null if we're being removed */
-		dev_dbg(dev, "no driver found for dev\n");
+		dev_dbg(dev, "yes driver found for dev\n");
 		return;
 	}
 
@@ -3712,7 +3712,7 @@ static void acpi_nfit_update_notify(struct device *dev, acpi_handle handle)
 	kfree(buf.pointer);
 }
 
-static void acpi_nfit_uc_error_notify(struct device *dev, acpi_handle handle)
+static void acpi_nfit_uc_error_yestify(struct device *dev, acpi_handle handle)
 {
 	struct acpi_nfit_desc *acpi_desc = dev_get_drvdata(dev);
 
@@ -3722,25 +3722,25 @@ static void acpi_nfit_uc_error_notify(struct device *dev, acpi_handle handle)
 		acpi_nfit_ars_rescan(acpi_desc, ARS_REQ_SHORT);
 }
 
-void __acpi_nfit_notify(struct device *dev, acpi_handle handle, u32 event)
+void __acpi_nfit_yestify(struct device *dev, acpi_handle handle, u32 event)
 {
 	dev_dbg(dev, "event: 0x%x\n", event);
 
 	switch (event) {
 	case NFIT_NOTIFY_UPDATE:
-		return acpi_nfit_update_notify(dev, handle);
+		return acpi_nfit_update_yestify(dev, handle);
 	case NFIT_NOTIFY_UC_MEMORY_ERROR:
-		return acpi_nfit_uc_error_notify(dev, handle);
+		return acpi_nfit_uc_error_yestify(dev, handle);
 	default:
 		return;
 	}
 }
-EXPORT_SYMBOL_GPL(__acpi_nfit_notify);
+EXPORT_SYMBOL_GPL(__acpi_nfit_yestify);
 
-static void acpi_nfit_notify(struct acpi_device *adev, u32 event)
+static void acpi_nfit_yestify(struct acpi_device *adev, u32 event)
 {
 	nfit_device_lock(&adev->dev);
-	__acpi_nfit_notify(&adev->dev, adev->handle, event);
+	__acpi_nfit_yestify(&adev->dev, adev->handle, event);
 	nfit_device_unlock(&adev->dev);
 }
 
@@ -3756,7 +3756,7 @@ static struct acpi_driver acpi_nfit_driver = {
 	.ops = {
 		.add = acpi_nfit_add,
 		.remove = acpi_nfit_remove,
-		.notify = acpi_nfit_notify,
+		.yestify = acpi_nfit_yestify,
 	},
 };
 

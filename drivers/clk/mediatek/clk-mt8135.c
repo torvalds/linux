@@ -513,13 +513,13 @@ static const struct mtk_composite peri_clks[] __initconst = {
 	MUX(CLK_PERI_UART3_SEL, "uart3_ck_sel", uart_ck_sel_parents, 0x40c, 3, 1),
 };
 
-static void __init mtk_topckgen_init(struct device_node *node)
+static void __init mtk_topckgen_init(struct device_yesde *yesde)
 {
 	struct clk_onecell_data *clk_data;
 	void __iomem *base;
 	int r;
 
-	base = of_iomap(node, 0);
+	base = of_iomap(yesde, 0);
 	if (!base) {
 		pr_err("%s(): ioremap failed\n", __func__);
 		return;
@@ -534,41 +534,41 @@ static void __init mtk_topckgen_init(struct device_node *node)
 
 	clk_prepare_enable(clk_data->clks[CLK_TOP_CCI_SEL]);
 
-	r = of_clk_add_provider(node, of_clk_src_onecell_get, clk_data);
+	r = of_clk_add_provider(yesde, of_clk_src_onecell_get, clk_data);
 	if (r)
-		pr_err("%s(): could not register clock provider: %d\n",
+		pr_err("%s(): could yest register clock provider: %d\n",
 			__func__, r);
 }
 CLK_OF_DECLARE(mtk_topckgen, "mediatek,mt8135-topckgen", mtk_topckgen_init);
 
-static void __init mtk_infrasys_init(struct device_node *node)
+static void __init mtk_infrasys_init(struct device_yesde *yesde)
 {
 	struct clk_onecell_data *clk_data;
 	int r;
 
 	clk_data = mtk_alloc_clk_data(CLK_INFRA_NR_CLK);
 
-	mtk_clk_register_gates(node, infra_clks, ARRAY_SIZE(infra_clks),
+	mtk_clk_register_gates(yesde, infra_clks, ARRAY_SIZE(infra_clks),
 						clk_data);
 
 	clk_prepare_enable(clk_data->clks[CLK_INFRA_M4U]);
 
-	r = of_clk_add_provider(node, of_clk_src_onecell_get, clk_data);
+	r = of_clk_add_provider(yesde, of_clk_src_onecell_get, clk_data);
 	if (r)
-		pr_err("%s(): could not register clock provider: %d\n",
+		pr_err("%s(): could yest register clock provider: %d\n",
 			__func__, r);
 
-	mtk_register_reset_controller(node, 2, 0x30);
+	mtk_register_reset_controller(yesde, 2, 0x30);
 }
 CLK_OF_DECLARE(mtk_infrasys, "mediatek,mt8135-infracfg", mtk_infrasys_init);
 
-static void __init mtk_pericfg_init(struct device_node *node)
+static void __init mtk_pericfg_init(struct device_yesde *yesde)
 {
 	struct clk_onecell_data *clk_data;
 	int r;
 	void __iomem *base;
 
-	base = of_iomap(node, 0);
+	base = of_iomap(yesde, 0);
 	if (!base) {
 		pr_err("%s(): ioremap failed\n", __func__);
 		return;
@@ -576,17 +576,17 @@ static void __init mtk_pericfg_init(struct device_node *node)
 
 	clk_data = mtk_alloc_clk_data(CLK_PERI_NR_CLK);
 
-	mtk_clk_register_gates(node, peri_gates, ARRAY_SIZE(peri_gates),
+	mtk_clk_register_gates(yesde, peri_gates, ARRAY_SIZE(peri_gates),
 						clk_data);
 	mtk_clk_register_composites(peri_clks, ARRAY_SIZE(peri_clks), base,
 			&mt8135_clk_lock, clk_data);
 
-	r = of_clk_add_provider(node, of_clk_src_onecell_get, clk_data);
+	r = of_clk_add_provider(yesde, of_clk_src_onecell_get, clk_data);
 	if (r)
-		pr_err("%s(): could not register clock provider: %d\n",
+		pr_err("%s(): could yest register clock provider: %d\n",
 			__func__, r);
 
-	mtk_register_reset_controller(node, 2, 0);
+	mtk_register_reset_controller(yesde, 2, 0);
 }
 CLK_OF_DECLARE(mtk_pericfg, "mediatek,mt8135-pericfg", mtk_pericfg_init);
 
@@ -623,7 +623,7 @@ static const struct mtk_pll_data plls[] = {
 	PLL(CLK_APMIXED_VDECPLL, "vdecpll", 0x304, 0x31c,	0x80000001, 0, 21, 0x2b0, 6, 0x0, 0x308, 0),
 };
 
-static void __init mtk_apmixedsys_init(struct device_node *node)
+static void __init mtk_apmixedsys_init(struct device_yesde *yesde)
 {
 	struct clk_onecell_data *clk_data;
 
@@ -631,7 +631,7 @@ static void __init mtk_apmixedsys_init(struct device_node *node)
 	if (!clk_data)
 		return;
 
-	mtk_clk_register_plls(node, plls, ARRAY_SIZE(plls), clk_data);
+	mtk_clk_register_plls(yesde, plls, ARRAY_SIZE(plls), clk_data);
 }
 CLK_OF_DECLARE(mtk_apmixedsys, "mediatek,mt8135-apmixedsys",
 		mtk_apmixedsys_init);

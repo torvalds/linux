@@ -51,9 +51,9 @@ struct ptp_clock {
 /*
  * The function queue_cnt() is safe for readers to call without
  * holding q->lock. Readers use this function to verify that the queue
- * is nonempty before proceeding with a dequeue operation. The fact
- * that a writer might concurrently increment the tail does not
- * matter, since the queue remains nonempty nonetheless.
+ * is yesnempty before proceeding with a dequeue operation. The fact
+ * that a writer might concurrently increment the tail does yest
+ * matter, since the queue remains yesnempty yesnetheless.
  */
 static inline int queue_cnt(struct timestamp_event_queue *q)
 {

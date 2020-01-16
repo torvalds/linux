@@ -49,7 +49,7 @@ static __always_inline void atomic64_set(atomic64_t *v, s64 i)
 #endif
 
 /*
- * First, the atomic ops that have no ordering constraints and therefor don't
+ * First, the atomic ops that have yes ordering constraints and therefor don't
  * have the AQ or RL bits set.  These don't return anything, so there's only
  * one version to worry about.
  */

@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0 */
-/* Copyright (c) 2015-2018 Mellanox Technologies. All rights reserved */
+/* Copyright (c) 2015-2018 Mellayesx Techyeslogies. All rights reserved */
 
 #ifndef _MLXSW_EMAD_H
 #define _MLXSW_EMAD_H
@@ -53,21 +53,21 @@ static inline char *mlxsw_emad_op_tlv_status_str(u8 status)
 	case MLXSW_EMAD_OP_TLV_STATUS_BUSY:
 		return "device is busy";
 	case MLXSW_EMAD_OP_TLV_STATUS_VERSION_NOT_SUPPORTED:
-		return "version not supported";
+		return "version yest supported";
 	case MLXSW_EMAD_OP_TLV_STATUS_UNKNOWN_TLV:
-		return "unknown TLV";
+		return "unkyeswn TLV";
 	case MLXSW_EMAD_OP_TLV_STATUS_REGISTER_NOT_SUPPORTED:
-		return "register not supported";
+		return "register yest supported";
 	case MLXSW_EMAD_OP_TLV_STATUS_CLASS_NOT_SUPPORTED:
-		return "class not supported";
+		return "class yest supported";
 	case MLXSW_EMAD_OP_TLV_STATUS_METHOD_NOT_SUPPORTED:
-		return "method not supported";
+		return "method yest supported";
 	case MLXSW_EMAD_OP_TLV_STATUS_BAD_PARAMETER:
 		return "bad parameter";
 	case MLXSW_EMAD_OP_TLV_STATUS_RESOURCE_NOT_AVAILABLE:
-		return "resource not available";
+		return "resource yest available";
 	case MLXSW_EMAD_OP_TLV_STATUS_MESSAGE_RECEIPT_ACK:
-		return "acknowledged. retransmit";
+		return "ackyeswledged. retransmit";
 	case MLXSW_EMAD_OP_TLV_STATUS_INTERNAL_ERROR:
 		return "internal error";
 	default:

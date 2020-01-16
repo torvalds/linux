@@ -680,7 +680,7 @@ static int wm8985_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 		format = 0x3;
 		break;
 	default:
-		dev_err(dai->dev, "Unknown dai format\n");
+		dev_err(dai->dev, "Unkyeswn dai format\n");
 		return -EINVAL;
 	}
 
@@ -695,14 +695,14 @@ static int wm8985_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 		master = 0;
 		break;
 	default:
-		dev_err(dai->dev, "Unknown master/slave configuration\n");
+		dev_err(dai->dev, "Unkyeswn master/slave configuration\n");
 		return -EINVAL;
 	}
 
 	snd_soc_component_update_bits(component, WM8985_CLOCK_GEN_CONTROL,
 			    WM8985_MS_MASK, master << WM8985_MS_SHIFT);
 
-	/* frame inversion is not valid for dsp modes */
+	/* frame inversion is yest valid for dsp modes */
 	switch (fmt & SND_SOC_DAIFMT_FORMAT_MASK) {
 	case SND_SOC_DAIFMT_DSP_A:
 	case SND_SOC_DAIFMT_DSP_B:
@@ -732,7 +732,7 @@ static int wm8985_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 		lrp = 1;
 		break;
 	default:
-		dev_err(dai->dev, "Unknown polarity configuration\n");
+		dev_err(dai->dev, "Unkyeswn polarity configuration\n");
 		return -EINVAL;
 	}
 
@@ -859,7 +859,7 @@ static int pll_factors(struct pll_div *pll_div, unsigned int target,
 	}
 
 	if (Ndiv < 6 || Ndiv > 12) {
-		printk(KERN_ERR "%s: WM8985 N value is not within"
+		printk(KERN_ERR "%s: WM8985 N value is yest within"
 		       " the recommended range: %lu\n", __func__, Ndiv);
 		return -EINVAL;
 	}
@@ -936,7 +936,7 @@ static int wm8985_set_sysclk(struct snd_soc_dai *dai,
 				    WM8985_CLKSEL_MASK, WM8985_CLKSEL);
 		break;
 	default:
-		dev_err(dai->dev, "Unknown clock source %d\n", clk_id);
+		dev_err(dai->dev, "Unkyeswn clock source %d\n", clk_id);
 		return -EINVAL;
 	}
 
@@ -1115,7 +1115,7 @@ static const struct snd_soc_component_driver soc_component_dev_wm8985 = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
+	.yesn_legacy_dai_naming	= 1,
 };
 
 static const struct regmap_config wm8985_regmap = {

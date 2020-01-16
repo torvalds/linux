@@ -125,7 +125,7 @@
 #define WSMEX_M_PMON_ZDP_CTL_FVC_EVENT_MASK(n)	(0x7ULL << (12 + 3 * (n)))
 
 /*
- * use the 9~13 bits to select event If the 7th bit is not set,
+ * use the 9~13 bits to select event If the 7th bit is yest set,
  * otherwise use the 19~21 bits to select event.
  */
 #define MBOX_INC_SEL(x) ((x) << NHMEX_M_PMON_CTL_INC_SEL_SHIFT)
@@ -359,7 +359,7 @@ static int nhmex_bbox_hw_config(struct intel_uncore_box *box, struct perf_event 
 	ev_sel = (hwc->config & NHMEX_B_PMON_CTL_EV_SEL_MASK) >>
 		  NHMEX_B_PMON_CTL_EV_SEL_SHIFT;
 
-	/* events that do not use the match/mask registers */
+	/* events that do yest use the match/mask registers */
 	if ((ctr == 0 && ev_sel > 0x3) || (ctr == 1 && ev_sel > 0x6) ||
 	    (ctr == 2 && ev_sel != 0x4) || ctr == 3)
 		return 0;
@@ -586,7 +586,7 @@ static bool nhmex_mbox_get_shared_reg(struct intel_uncore_box *box, int idx, u64
 	er = &box->shared_regs[EXTRA_REG_NHMEX_M_ZDP_CTL_FVC];
 
 	raw_spin_lock_irqsave(&er->lock, flags);
-	/* add mask of the non-shared field if it's in use */
+	/* add mask of the yesn-shared field if it's in use */
 	if (__BITS_VALUE(atomic_read(&er->ref), idx, 8)) {
 		if (uncore_nhmex)
 			mask |= NHMEX_M_PMON_ZDP_CTL_FVC_EVENT_MASK(idx);
@@ -633,7 +633,7 @@ static u64 nhmex_mbox_alter_er(struct perf_event *event, int new_idx, bool modif
 	u64 idx, orig_idx = __BITS_VALUE(reg1->idx, 0, 8);
 	u64 config = reg1->config;
 
-	/* get the non-shared control bits and shift them */
+	/* get the yesn-shared control bits and shift them */
 	idx = orig_idx - EXTRA_REG_NHMEX_M_ZDP_CTL_FVC;
 	if (uncore_nhmex)
 		config &= NHMEX_M_PMON_ZDP_CTL_FVC_EVENT_MASK(idx);

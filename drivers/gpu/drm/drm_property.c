@@ -3,11 +3,11 @@
  *
  * Permission to use, copy, modify, distribute, and sell this software and its
  * documentation for any purpose is hereby granted without fee, provided that
- * the above copyright notice appear in all copies and that both that copyright
- * notice and this permission notice appear in supporting documentation, and
- * that the name of the copyright holders not be used in advertising or
+ * the above copyright yestice appear in all copies and that both that copyright
+ * yestice and this permission yestice appear in supporting documentation, and
+ * that the name of the copyright holders yest be used in advertising or
  * publicity pertaining to distribution of the software without specific,
- * written prior permission.  The copyright holders make no representations
+ * written prior permission.  The copyright holders make yes representations
  * about the suitability of this software for any purpose.  It is provided "as
  * is" without express or implied warranty.
  *
@@ -67,7 +67,7 @@ static bool drm_property_flags_valid(u32 flags)
 		      DRM_MODE_PROP_ATOMIC))
 		return false;
 
-	/* We want either a legacy type or an extended type, but not both */
+	/* We want either a legacy type or an extended type, but yest both */
 	if (!legacy_type == !ext_type)
 		return false;
 
@@ -514,7 +514,7 @@ int drm_mode_getproperty_ioctl(struct drm_device *dev,
 
 	/*
 	 * NOTE: The idea seems to have been to use this to read all the blob
-	 * property values. But nothing ever added them to the corresponding
+	 * property values. But yesthing ever added them to the corresponding
 	 * list, userspace always used the special-purpose get_blob ioctl to
 	 * read the value for a blob property. It also doesn't make a lot of
 	 * sense to return values here when everything else is just metadata for
@@ -615,8 +615,8 @@ void drm_property_destroy_user_blobs(struct drm_device *dev,
 	struct drm_property_blob *blob, *bt;
 
 	/*
-	 * When the file gets released that means no one else can access the
-	 * blob list any more, so no need to grab dev->blob_lock.
+	 * When the file gets released that means yes one else can access the
+	 * blob list any more, so yes need to grab dev->blob_lock.
 	 */
 	list_for_each_entry_safe(blob, bt, &file_priv->blobs, head_file) {
 		list_del_init(&blob->head_file);
@@ -667,8 +667,8 @@ EXPORT_SYMBOL(drm_property_lookup_blob);
  * drm_property_replace_global_blob - replace existing blob property
  * @dev: drm device
  * @replace: location of blob property pointer to be replaced
- * @length: length of data for new blob, or 0 for no data
- * @data: content for new blob, or NULL for no data
+ * @length: length of data for new blob, or 0 for yes data
+ * @data: content for new blob, or NULL for yes data
  * @obj_holds_id: optional object for property holding blob ID
  * @prop_holds_id: optional property holding blob ID
  * @return 0 on success or error on failure
@@ -676,7 +676,7 @@ EXPORT_SYMBOL(drm_property_lookup_blob);
  * This function will replace a global property in the blob list, optionally
  * updating a property which holds the ID of that property.
  *
- * If length is 0 or data is NULL, no new blob will be created, and the holding
+ * If length is 0 or data is NULL, yes new blob will be created, and the holding
  * property, if specified, will be set to 0.
  *
  * Access to the replace pointer is assumed to be protected by the caller, e.g.
@@ -806,7 +806,7 @@ int drm_mode_createblob_ioctl(struct drm_device *dev,
 
 	/* Dropping the lock between create_blob and our access here is safe
 	 * as only the same file_priv can remove the blob; at this point, it is
-	 * not associated with any file_priv. */
+	 * yest associated with any file_priv. */
 	mutex_lock(&dev->mode_config.blob_lock);
 	out_resp->blob_id = blob->base.id;
 	list_add_tail(&blob->head_file, &file_priv->blobs);
@@ -848,7 +848,7 @@ int drm_mode_destroyblob_ioctl(struct drm_device *dev,
 		goto err;
 	}
 
-	/* We must drop head_file here, because we may not be the last
+	/* We must drop head_file here, because we may yest be the last
 	 * reference on the blob. */
 	list_del_init(&blob->head_file);
 	mutex_unlock(&dev->mode_config.blob_lock);

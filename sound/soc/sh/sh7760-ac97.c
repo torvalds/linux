@@ -69,4 +69,4 @@ module_exit(sh7760_ac97_exit);
 
 MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("Generic SH7760 AC97 sound machine");
-MODULE_AUTHOR("Manuel Lauss <mano@roarinelk.homelinux.net>");
+MODULE_AUTHOR("Manuel Lauss <mayes@roarinelk.homelinux.net>");

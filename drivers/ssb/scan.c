@@ -4,7 +4,7 @@
  *
  * Copyright (C) 2005-2007 Michael Buesch <m@bues.ch>
  * Copyright (C) 2005 Martin Langer <martin-langer@gmx.de>
- * Copyright (C) 2005 Stefano Brivio <st3@riseup.net>
+ * Copyright (C) 2005 Stefayes Brivio <st3@riseup.net>
  * Copyright (C) 2005 Danny van Dyk <kugelfang@gentoo.org>
  * Copyright (C) 2005 Andreas Jaggi <andreas.jaggi@waterwave.ch>
  * Copyright (C) 2006 Broadcom Corporation.
@@ -125,7 +125,7 @@ static u16 pcidev_to_chipid(struct pci_dev *pci_dev)
 		chipid_fallback = 0x4401;
 		break;
 	default:
-		dev_err(&pci_dev->dev, "PCI-ID not in fallback list\n");
+		dev_err(&pci_dev->dev, "PCI-ID yest in fallback list\n");
 	}
 
 	return chipid_fallback;
@@ -151,7 +151,7 @@ static u8 chipid_to_nrcores(u16 chipid)
 	case 0x4704:
 		return 9;
 	default:
-		pr_err("CHIPID not in nrcores fallback list\n");
+		pr_err("CHIPID yest in nrcores fallback list\n");
 	}
 
 	return 1;
@@ -227,7 +227,7 @@ static void __iomem *ssb_ioremap(struct ssb_bus *bus,
 
 	switch (bus->bustype) {
 	case SSB_BUSTYPE_SSB:
-		/* Only map the first core for now. */
+		/* Only map the first core for yesw. */
 		/* fallthrough... */
 	case SSB_BUSTYPE_PCMCIA:
 		mmio = ioremap(baseaddr, SSB_CORE_SIZE);
@@ -328,7 +328,7 @@ int ssb_bus_scan(struct ssb_bus *bus,
 		goto err_unmap;
 	}
 	if (bus->bustype == SSB_BUSTYPE_SSB) {
-		/* Now that we know the number of cores,
+		/* Now that we kyesw the number of cores,
 		 * remap the whole IO space for all cores.
 		 */
 		err = -ENOMEM;
@@ -364,7 +364,7 @@ int ssb_bus_scan(struct ssb_bus *bus,
 			nr_80211_cores++;
 			if (nr_80211_cores > 1) {
 				if (!we_support_multiple_80211_cores(bus)) {
-					pr_debug("Ignoring additional 802.11 core\n");
+					pr_debug("Igyesring additional 802.11 core\n");
 					continue;
 				}
 			}
@@ -399,8 +399,8 @@ int ssb_bus_scan(struct ssb_bus *bus,
 		case SSB_DEV_PCIE:
 #ifdef CONFIG_SSB_DRIVER_PCICORE
 			if (bus->bustype == SSB_BUSTYPE_PCI) {
-				/* Ignore PCI cores on PCI-E cards.
-				 * Ignore PCI-E cores on PCI cards. */
+				/* Igyesre PCI cores on PCI-E cards.
+				 * Igyesre PCI-E cores on PCI cards. */
 				if (dev->id.coreid == SSB_DEV_PCI) {
 					if (pci_is_pcie(bus->host_pci))
 						continue;
@@ -421,7 +421,7 @@ int ssb_bus_scan(struct ssb_bus *bus,
 				if (bus->host_pci->vendor == PCI_VENDOR_ID_BROADCOM &&
 				    (bus->host_pci->device & 0xFF00) == 0x4300) {
 					/* This is a dangling ethernet core on a
-					 * wireless device. Ignore it. */
+					 * wireless device. Igyesre it. */
 					continue;
 				}
 			}

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 /*
  *	include/linux/bfs_fs.h - BFS data structures on disk.
  *	Copyright (C) 1999-2018 Tigran Aivazian <aivazian.tigran@gmail.com>
@@ -16,13 +16,13 @@
 #define BFS_ROOT_INO		2
 #define BFS_INODES_PER_BLOCK	8
 
-/* SVR4 vnode type values (bfs_inode->i_vtype) */
+/* SVR4 vyesde type values (bfs_iyesde->i_vtype) */
 #define BFS_VDIR 2L
 #define BFS_VREG 1L
 
-/* BFS inode layout on disk */
-struct bfs_inode {
-	__le16 i_ino;
+/* BFS iyesde layout on disk */
+struct bfs_iyesde {
+	__le16 i_iyes;
 	__u16 i_unused;
 	__le32 i_sblock;
 	__le32 i_eblock;
@@ -43,7 +43,7 @@ struct bfs_inode {
 #define BFS_DIRS_PER_BLOCK	32
 
 struct bfs_dirent {
-	__le16 ino;
+	__le16 iyes;
 	char name[BFS_NAMELEN];
 };
 
@@ -63,10 +63,10 @@ struct bfs_super_block {
 
 
 #define BFS_OFF2INO(offset) \
-        ((((offset) - BFS_BSIZE) / sizeof(struct bfs_inode)) + BFS_ROOT_INO)
+        ((((offset) - BFS_BSIZE) / sizeof(struct bfs_iyesde)) + BFS_ROOT_INO)
 
-#define BFS_INO2OFF(ino) \
-	((__u32)(((ino) - BFS_ROOT_INO) * sizeof(struct bfs_inode)) + BFS_BSIZE)
+#define BFS_INO2OFF(iyes) \
+	((__u32)(((iyes) - BFS_ROOT_INO) * sizeof(struct bfs_iyesde)) + BFS_BSIZE)
 #define BFS_NZFILESIZE(ip) \
         ((le32_to_cpu((ip)->i_eoffset) + 1) -  le32_to_cpu((ip)->i_sblock) * BFS_BSIZE)
 

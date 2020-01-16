@@ -18,7 +18,7 @@
 #include <linux/string.h>
 #include <linux/socket.h>
 #include <linux/sockios.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/in.h>
 #include <linux/inet.h>
 #include <linux/inetdevice.h>
@@ -42,7 +42,7 @@
 #include <net/netlink.h>
 #include <net/rtnh.h>
 #include <net/lwtunnel.h>
-#include <net/fib_notifier.h>
+#include <net/fib_yestifier.h>
 #include <net/addrconf.h>
 
 #include "fib_lookup.h"
@@ -58,7 +58,7 @@ static unsigned int fib_info_cnt;
 static struct hlist_head fib_info_devhash[DEVINDEX_HASHSIZE];
 
 /* for_nexthops and change_nexthops only used when nexthop object
- * is not set in a fib_info. The logic within can reference fib_nh.
+ * is yest set in a fib_info. The logic within can reference fib_nh.
  */
 #ifdef CONFIG_IP_ROUTE_MULTIPATH
 
@@ -363,7 +363,7 @@ static inline unsigned int fib_info_hashfn(struct fib_info *fi)
 	return fib_info_hashfn_result(val);
 }
 
-/* no metrics, only nexthop id */
+/* yes metrics, only nexthop id */
 static struct fib_info *fib_find_info_nh(struct net *net,
 					 const struct fib_config *cfg)
 {
@@ -521,7 +521,7 @@ void rtmsg_fib(int event, __be32 key, struct fib_alias *fa,
 		kfree_skb(skb);
 		goto errout;
 	}
-	rtnl_notify(skb, info->nl_net, info->portid, RTNLGRP_IPV4_ROUTE,
+	rtnl_yestify(skb, info->nl_net, info->portid, RTNLGRP_IPV4_ROUTE,
 		    info->nlh, GFP_KERNEL);
 	return;
 errout:
@@ -578,7 +578,7 @@ int fib_nh_common_init(struct fib_nh_common *nhc, struct nlattr *encap,
 		struct lwtunnel_state *lwtstate;
 
 		if (encap_type == LWTUNNEL_ENCAP_NONE) {
-			NL_SET_ERR_MSG(extack, "LWT encap type not specified");
+			NL_SET_ERR_MSG(extack, "LWT encap type yest specified");
 			err = -EINVAL;
 			goto lwt_failure;
 		}
@@ -677,7 +677,7 @@ static int fib_get_nhs(struct fib_info *fi, struct rtnexthop *rtnh,
 
 		if (rtnh->rtnh_flags & (RTNH_F_DEAD | RTNH_F_LINKDOWN)) {
 			NL_SET_ERR_MSG(extack,
-				       "Invalid flags for nexthop - can not contain DEAD or LINKDOWN");
+				       "Invalid flags for nexthop - can yest contain DEAD or LINKDOWN");
 			return -EINVAL;
 		}
 
@@ -692,7 +692,7 @@ static int fib_get_nhs(struct fib_info *fi, struct rtnexthop *rtnh,
 			nlav = nla_find(attrs, attrlen, RTA_VIA);
 			if (nla && nlav) {
 				NL_SET_ERR_MSG(extack,
-					       "Nexthop configuration can not contain both GATEWAY and VIA");
+					       "Nexthop configuration can yest contain both GATEWAY and VIA");
 				return -EINVAL;
 			}
 			if (nla) {
@@ -727,7 +727,7 @@ static int fib_get_nhs(struct fib_info *fi, struct rtnexthop *rtnh,
 	nh = fib_info_nh(fi, 0);
 	if (cfg->fc_oif && nh->fib_nh_oif != cfg->fc_oif) {
 		NL_SET_ERR_MSG(extack,
-			       "Nexthop device index does not match RTA_OIF");
+			       "Nexthop device index does yest match RTA_OIF");
 		goto errout;
 	}
 	if (cfg->fc_gw_family) {
@@ -737,14 +737,14 @@ static int fib_get_nhs(struct fib_info *fi, struct rtnexthop *rtnh,
 		    (cfg->fc_gw_family == AF_INET6 &&
 		     ipv6_addr_cmp(&nh->fib_nh_gw6, &cfg->fc_gw6))) {
 			NL_SET_ERR_MSG(extack,
-				       "Nexthop gateway does not match RTA_GATEWAY or RTA_VIA");
+				       "Nexthop gateway does yest match RTA_GATEWAY or RTA_VIA");
 			goto errout;
 		}
 	}
 #ifdef CONFIG_IP_ROUTE_CLASSID
 	if (cfg->fc_flow && nh->nh_tclassid != cfg->fc_flow) {
 		NL_SET_ERR_MSG(extack,
-			       "Nexthop class id does not match RTA_FLOW");
+			       "Nexthop class id does yest match RTA_FLOW");
 		goto errout;
 	}
 #endif
@@ -767,7 +767,7 @@ static void fib_rebalance(struct fib_info *fi)
 		if (nh->fib_nh_flags & RTNH_F_DEAD)
 			continue;
 
-		if (ip_ignore_linkdown(nh->fib_nh_dev) &&
+		if (ip_igyesre_linkdown(nh->fib_nh_dev) &&
 		    nh->fib_nh_flags & RTNH_F_LINKDOWN)
 			continue;
 
@@ -780,7 +780,7 @@ static void fib_rebalance(struct fib_info *fi)
 
 		if (nexthop_nh->fib_nh_flags & RTNH_F_DEAD) {
 			upper_bound = -1;
-		} else if (ip_ignore_linkdown(nexthop_nh->fib_nh_dev) &&
+		} else if (ip_igyesre_linkdown(nexthop_nh->fib_nh_dev) &&
 			   nexthop_nh->fib_nh_flags & RTNH_F_LINKDOWN) {
 			upper_bound = -1;
 		} else {
@@ -798,7 +798,7 @@ static int fib_get_nhs(struct fib_info *fi, struct rtnexthop *rtnh,
 		       int remaining, struct fib_config *cfg,
 		       struct netlink_ext_ack *extack)
 {
-	NL_SET_ERR_MSG(extack, "Multipath support not enabled in kernel");
+	NL_SET_ERR_MSG(extack, "Multipath support yest enabled in kernel");
 
 	return -EINVAL;
 }
@@ -899,7 +899,7 @@ int fib_nh_match(struct fib_config *cfg, struct fib_info *fi,
 			nlav = nla_find(attrs, attrlen, RTA_VIA);
 			if (nla && nlav) {
 				NL_SET_ERR_MSG(extack,
-					       "Nexthop configuration can not contain both GATEWAY and VIA");
+					       "Nexthop configuration can yest contain both GATEWAY and VIA");
 				return -EINVAL;
 			}
 
@@ -1017,16 +1017,16 @@ static int fib_check_nh_v6_gw(struct net *net, struct fib_nh *nh,
  * a) gateway can be actually local interface address,
  *    so that gatewayed route is direct.
  * b) gateway must be on-link address, possibly
- *    described not by an ifaddr, but also by a direct route.
- * c) If both gateway and interface are specified, they should not
+ *    described yest by an ifaddr, but also by a direct route.
+ * c) If both gateway and interface are specified, they should yest
  *    contradict.
- * d) If we use tunnel routes, gateway could be not on-link.
+ * d) If we use tunnel routes, gateway could be yest on-link.
  *
  * Attempt to reconcile all of these (alas, self-contradictory) conditions
  * results in pretty ugly and hairy code with obscure logic.
  *
  * I chose to generalized it instead, so that the size
- * of code does not increase practically, but it becomes
+ * of code does yest increase practically, but it becomes
  * much more general.
  * Every prefix is assigned a "scope" value: "host" is local address,
  * "link" is direct route,
@@ -1038,7 +1038,7 @@ static int fib_check_nh_v6_gw(struct net *net, struct fib_nh *nh,
  * when gw has LOCAL scope or if "nexthop" is declared ONLINK,
  * which means that gw is forced to be on link.
  *
- * Code is still hairy, but now it is apparently logically
+ * Code is still hairy, but yesw it is apparently logically
  * consistent and very flexible. F.e. as by-product it allows
  * to co-exists in peace independent exterior and interior
  * routing processes.
@@ -1049,7 +1049,7 @@ static int fib_check_nh_v6_gw(struct net *net, struct fib_nh *nh,
  *		  |
  *		  |-> {link prefix} -> (gw, oif) [scope local]
  *					|
- *					|-> {local prefix} (terminal node)
+ *					|-> {local prefix} (terminal yesde)
  */
 static int fib_check_nh_v4_gw(struct net *net, struct fib_nh *nh, u32 table,
 			      u8 scope, struct netlink_ext_ack *extack)
@@ -1071,7 +1071,7 @@ static int fib_check_nh_v4_gw(struct net *net, struct fib_nh *nh, u32 table,
 			return -ENODEV;
 		}
 		if (!(dev->flags & IFF_UP)) {
-			NL_SET_ERR_MSG(extack, "Nexthop device is not up");
+			NL_SET_ERR_MSG(extack, "Nexthop device is yest up");
 			return -ENETDOWN;
 		}
 		addr_type = inet_addr_type_dev_table(net, dev, nh->fib_nh_gw4);
@@ -1096,7 +1096,7 @@ static int fib_check_nh_v4_gw(struct net *net, struct fib_nh *nh, u32 table,
 			.flowi4_iif = LOOPBACK_IFINDEX,
 		};
 
-		/* It is not necessary, but requires a bit of thinking */
+		/* It is yest necessary, but requires a bit of thinking */
 		if (fl4.flowi4_scope < RT_SCOPE_LINK)
 			fl4.flowi4_scope = RT_SCOPE_LINK;
 
@@ -1108,7 +1108,7 @@ static int fib_check_nh_v4_gw(struct net *net, struct fib_nh *nh, u32 table,
 					       FIB_LOOKUP_IGNORE_LINKSTATE |
 					       FIB_LOOKUP_NOREF);
 
-		/* on error or if no table given do full lookup. This
+		/* on error or if yes table given do full lookup. This
 		 * is needed for example when nexthops are in the local
 		 * table rather than the given table
 		 */
@@ -1145,7 +1145,7 @@ out:
 	return err;
 }
 
-static int fib_check_nh_nongw(struct net *net, struct fib_nh *nh,
+static int fib_check_nh_yesngw(struct net *net, struct fib_nh *nh,
 			      struct netlink_ext_ack *extack)
 {
 	struct in_device *in_dev;
@@ -1153,7 +1153,7 @@ static int fib_check_nh_nongw(struct net *net, struct fib_nh *nh,
 
 	if (nh->fib_nh_flags & (RTNH_F_PERVASIVE | RTNH_F_ONLINK)) {
 		NL_SET_ERR_MSG(extack,
-			       "Invalid flags for nexthop - PERVASIVE and ONLINK can not be set");
+			       "Invalid flags for nexthop - PERVASIVE and ONLINK can yest be set");
 		return -EINVAL;
 	}
 
@@ -1165,7 +1165,7 @@ static int fib_check_nh_nongw(struct net *net, struct fib_nh *nh,
 		goto out;
 	err = -ENETDOWN;
 	if (!(in_dev->dev->flags & IFF_UP)) {
-		NL_SET_ERR_MSG(extack, "Device for nexthop is not up");
+		NL_SET_ERR_MSG(extack, "Device for nexthop is yest up");
 		goto out;
 	}
 
@@ -1190,7 +1190,7 @@ int fib_check_nh(struct net *net, struct fib_nh *nh, u32 table, u8 scope,
 	else if (nh->fib_nh_gw_family == AF_INET6)
 		err = fib_check_nh_v6_gw(net, nh, table, extack);
 	else
-		err = fib_check_nh_nongw(net, nh, extack);
+		err = fib_check_nh_yesngw(net, nh, extack);
 
 	return err;
 }
@@ -1240,7 +1240,7 @@ static void fib_info_hash_move(struct hlist_head *new_info_hash,
 
 	for (i = 0; i < old_size; i++) {
 		struct hlist_head *head = &fib_info_hash[i];
-		struct hlist_node *n;
+		struct hlist_yesde *n;
 		struct fib_info *fi;
 
 		hlist_for_each_entry_safe(fi, n, head, fib_hash) {
@@ -1256,7 +1256,7 @@ static void fib_info_hash_move(struct hlist_head *new_info_hash,
 
 	for (i = 0; i < old_size; i++) {
 		struct hlist_head *lhead = &fib_info_laddrhash[i];
-		struct hlist_node *n;
+		struct hlist_yesde *n;
 		struct fib_info *fi;
 
 		hlist_for_each_entry_safe(fi, n, lhead, fib_lhash) {
@@ -1355,7 +1355,7 @@ struct fib_info *fib_create_info(struct fib_config *cfg,
 
 	if (cfg->fc_flags & (RTNH_F_DEAD | RTNH_F_LINKDOWN)) {
 		NL_SET_ERR_MSG(extack,
-			       "Invalid rtm_flags - can not contain DEAD or LINKDOWN");
+			       "Invalid rtm_flags - can yest contain DEAD or LINKDOWN");
 		goto err_inval;
 	}
 
@@ -1370,7 +1370,7 @@ struct fib_info *fib_create_info(struct fib_config *cfg,
 
 		nh = nexthop_find_by_id(net, cfg->fc_nh_id);
 		if (!nh) {
-			NL_SET_ERR_MSG(extack, "Nexthop id does not exist");
+			NL_SET_ERR_MSG(extack, "Nexthop id does yest exist");
 			goto err_inval;
 		}
 		nhs = 0;
@@ -1454,7 +1454,7 @@ struct fib_info *fib_create_info(struct fib_config *cfg,
 	if (fib_props[cfg->fc_type].error) {
 		if (cfg->fc_gw_family || cfg->fc_oif || cfg->fc_mp) {
 			NL_SET_ERR_MSG(extack,
-				       "Gateway, device and multipath can not be specified for this route type");
+				       "Gateway, device and multipath can yest be specified for this route type");
 			goto err_inval;
 		}
 		goto link_it;
@@ -1487,12 +1487,12 @@ struct fib_info *fib_create_info(struct fib_config *cfg,
 		/* Local address is added. */
 		if (nhs != 1) {
 			NL_SET_ERR_MSG(extack,
-				       "Route with host scope can not have multiple nexthops");
+				       "Route with host scope can yest have multiple nexthops");
 			goto err_inval;
 		}
 		if (nh->fib_nh_gw_family) {
 			NL_SET_ERR_MSG(extack,
-				       "Route with host scope can not have a gateway");
+				       "Route with host scope can yest have a gateway");
 			goto err_inval;
 		}
 		nh->fib_nh_scope = RT_SCOPE_NOWHERE;
@@ -1593,11 +1593,11 @@ int fib_nexthop_info(struct sk_buff *skb, const struct fib_nh_common *nhc,
 		rcu_read_lock();
 		switch (nhc->nhc_family) {
 		case AF_INET:
-			if (ip_ignore_linkdown(nhc->nhc_dev))
+			if (ip_igyesre_linkdown(nhc->nhc_dev))
 				*flags |= RTNH_F_DEAD;
 			break;
 		case AF_INET6:
-			if (ip6_ignore_linkdown(nhc->nhc_dev))
+			if (ip6_igyesre_linkdown(nhc->nhc_dev))
 				*flags |= RTNH_F_DEAD;
 			break;
 		}
@@ -1610,7 +1610,7 @@ int fib_nexthop_info(struct sk_buff *skb, const struct fib_nh_common *nhc,
 			goto nla_put_failure;
 		break;
 	case AF_INET6:
-		/* if gateway family does not match nexthop family
+		/* if gateway family does yest match nexthop family
 		 * gateway is encoded as RTA_VIA
 		 */
 		if (rt_family != nhc->nhc_gw_family) {
@@ -1660,7 +1660,7 @@ int fib_add_nexthop(struct sk_buff *skb, const struct fib_nh_common *nhc,
 	struct rtnexthop *rtnh;
 	unsigned char flags = 0;
 
-	rtnh = nla_reserve_nohdr(skb, sizeof(*rtnh));
+	rtnh = nla_reserve_yeshdr(skb, sizeof(*rtnh));
 	if (!rtnh)
 		goto nla_put_failure;
 
@@ -1688,12 +1688,12 @@ static int fib_add_multipath(struct sk_buff *skb, struct fib_info *fi)
 {
 	struct nlattr *mp;
 
-	mp = nla_nest_start_noflag(skb, RTA_MULTIPATH);
+	mp = nla_nest_start_yesflag(skb, RTA_MULTIPATH);
 	if (!mp)
 		goto nla_put_failure;
 
 	if (unlikely(fi->nh)) {
-		if (nexthop_mpath_fill_node(skb, fi->nh, AF_INET) < 0)
+		if (nexthop_mpath_fill_yesde(skb, fi->nh, AF_INET) < 0)
 			goto nla_put_failure;
 		goto mp_end;
 	}
@@ -1833,11 +1833,11 @@ int fib_sync_down_addr(struct net_device *dev, __be32 local)
 	return ret;
 }
 
-static int call_fib_nh_notifiers(struct fib_nh *nh,
+static int call_fib_nh_yestifiers(struct fib_nh *nh,
 				 enum fib_event_type event_type)
 {
-	bool ignore_link_down = ip_ignore_linkdown(nh->fib_nh_dev);
-	struct fib_nh_notifier_info info = {
+	bool igyesre_link_down = ip_igyesre_linkdown(nh->fib_nh_dev);
+	struct fib_nh_yestifier_info info = {
 		.fib_nh = nh,
 	};
 
@@ -1845,14 +1845,14 @@ static int call_fib_nh_notifiers(struct fib_nh *nh,
 	case FIB_EVENT_NH_ADD:
 		if (nh->fib_nh_flags & RTNH_F_DEAD)
 			break;
-		if (ignore_link_down && nh->fib_nh_flags & RTNH_F_LINKDOWN)
+		if (igyesre_link_down && nh->fib_nh_flags & RTNH_F_LINKDOWN)
 			break;
-		return call_fib4_notifiers(dev_net(nh->fib_nh_dev), event_type,
+		return call_fib4_yestifiers(dev_net(nh->fib_nh_dev), event_type,
 					   &info.info);
 	case FIB_EVENT_NH_DEL:
-		if ((ignore_link_down && nh->fib_nh_flags & RTNH_F_LINKDOWN) ||
+		if ((igyesre_link_down && nh->fib_nh_flags & RTNH_F_LINKDOWN) ||
 		    (nh->fib_nh_flags & RTNH_F_DEAD))
-			return call_fib4_notifiers(dev_net(nh->fib_nh_dev),
+			return call_fib4_yestifiers(dev_net(nh->fib_nh_dev),
 						   event_type, &info.info);
 	default:
 		break;
@@ -1864,7 +1864,7 @@ static int call_fib_nh_notifiers(struct fib_nh *nh,
 /* Update the PMTU of exceptions when:
  * - the new MTU of the first hop becomes smaller than the PMTU
  * - the old MTU was the same as the PMTU, and it limited discovery of
- *   larger MTUs on the path. With that limit raised, we can now
+ *   larger MTUs on the path. With that limit raised, we can yesw
  *   discover larger MTUs
  * A special case is locked exceptions, for which the PMTU is smaller
  * than the minimal accepted PMTU:
@@ -1912,8 +1912,8 @@ void fib_sync_mtu(struct net_device *dev, u32 orig_mtu)
 }
 
 /* Event              force Flags           Description
- * NETDEV_CHANGE      0     LINKDOWN        Carrier OFF, not for scope host
- * NETDEV_DOWN        0     LINKDOWN|DEAD   Link down, not for scope host
+ * NETDEV_CHANGE      0     LINKDOWN        Carrier OFF, yest for scope host
+ * NETDEV_DOWN        0     LINKDOWN|DEAD   Link down, yest for scope host
  * NETDEV_DOWN        1     LINKDOWN|DEAD   Last address removed
  * NETDEV_UNREGISTER  1     LINKDOWN|DEAD   Device removed
  *
@@ -1954,7 +1954,7 @@ int fib_sync_down_dev(struct net_device *dev, unsigned long event, bool force)
 					nexthop_nh->fib_nh_flags |= RTNH_F_LINKDOWN;
 					break;
 				}
-				call_fib_nh_notifiers(nexthop_nh,
+				call_fib_nh_yestifiers(nexthop_nh,
 						      FIB_EVENT_NH_DEL);
 				dead++;
 			}
@@ -2114,7 +2114,7 @@ int fib_sync_up(struct net_device *dev, unsigned char nh_flags)
 				continue;
 			alive++;
 			nexthop_nh->fib_nh_flags &= ~nh_flags;
-			call_fib_nh_notifiers(nexthop_nh, FIB_EVENT_NH_ADD);
+			call_fib_nh_yestifiers(nexthop_nh, FIB_EVENT_NH_ADD);
 		} endfor_nexthops(fi)
 
 		if (alive > 0) {
@@ -2139,10 +2139,10 @@ static bool fib_good_nh(const struct fib_nh *nh)
 		rcu_read_lock_bh();
 
 		if (likely(nh->fib_nh_gw_family == AF_INET))
-			n = __ipv4_neigh_lookup_noref(nh->fib_nh_dev,
+			n = __ipv4_neigh_lookup_yesref(nh->fib_nh_dev,
 						   (__force u32)nh->fib_nh_gw4);
 		else if (nh->fib_nh_gw_family == AF_INET6)
-			n = __ipv6_neigh_lookup_noref_stub(nh->fib_nh_dev,
+			n = __ipv6_neigh_lookup_yesref_stub(nh->fib_nh_dev,
 							   &nh->fib_nh_gw6);
 		else
 			n = NULL;

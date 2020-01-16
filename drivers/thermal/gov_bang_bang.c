@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- *  gov_bang_bang.c - A simple thermal throttling governor using hysteresis
+ *  gov_bang_bang.c - A simple thermal throttling goveryesr using hysteresis
  *
  *  Copyright (C) 2014 Peter Kaestle <peter@piie.net>
  *
@@ -33,7 +33,7 @@ static void thermal_zone_trip_update(struct thermal_zone_device *tz, int trip)
 
 	mutex_lock(&tz->lock);
 
-	list_for_each_entry(instance, &tz->thermal_instances, tz_node) {
+	list_for_each_entry(instance, &tz->thermal_instances, tz_yesde) {
 		if (instance->trip != trip)
 			continue;
 
@@ -41,7 +41,7 @@ static void thermal_zone_trip_update(struct thermal_zone_device *tz, int trip)
 		if (instance->target == THERMAL_NO_TARGET)
 			instance->target = 0;
 
-		/* in case fan is neither on nor off set the fan to active */
+		/* in case fan is neither on yesr off set the fan to active */
 		if (instance->target != 0 && instance->target != 1) {
 			pr_warn("Thermal instance %s controlled by bang-bang has unexpected state: %ld\n",
 					instance->name, instance->target);
@@ -90,7 +90,7 @@ static void thermal_zone_trip_update(struct thermal_zone_device *tz, int trip)
  *                        |
  *                        |
  *
- *   * If the fan is not running and temperature exceeds trip_temp, the fan
+ *   * If the fan is yest running and temperature exceeds trip_temp, the fan
  *     gets turned on.
  *   * In case the fan is running, temperature must fall below
  *     (trip_temp - hyst) so that the fan gets turned off again.
@@ -104,7 +104,7 @@ static int bang_bang_control(struct thermal_zone_device *tz, int trip)
 
 	mutex_lock(&tz->lock);
 
-	list_for_each_entry(instance, &tz->thermal_instances, tz_node)
+	list_for_each_entry(instance, &tz->thermal_instances, tz_yesde)
 		thermal_cdev_update(instance->cdev);
 
 	mutex_unlock(&tz->lock);
@@ -112,7 +112,7 @@ static int bang_bang_control(struct thermal_zone_device *tz, int trip)
 	return 0;
 }
 
-static struct thermal_governor thermal_gov_bang_bang = {
+static struct thermal_goveryesr thermal_gov_bang_bang = {
 	.name		= "bang_bang",
 	.throttle	= bang_bang_control,
 };

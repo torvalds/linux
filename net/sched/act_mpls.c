@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
-/* Copyright (C) 2019 Netronome Systems, Inc. */
+/* Copyright (C) 2019 Netroyesme Systems, Inc. */
 
 #include <linux/if_arp.h>
 #include <linux/init.h>
@@ -176,14 +176,14 @@ static int tcf_mpls_init(struct net *net, struct nlattr *nla,
 		}
 		if (tb[TCA_MPLS_LABEL] || tb[TCA_MPLS_TTL] || tb[TCA_MPLS_TC] ||
 		    tb[TCA_MPLS_BOS]) {
-			NL_SET_ERR_MSG_MOD(extack, "Label, TTL, TC or BOS cannot be used with MPLS pop");
+			NL_SET_ERR_MSG_MOD(extack, "Label, TTL, TC or BOS canyest be used with MPLS pop");
 			return -EINVAL;
 		}
 		break;
 	case TCA_MPLS_ACT_DEC_TTL:
 		if (tb[TCA_MPLS_PROTO] || tb[TCA_MPLS_LABEL] ||
 		    tb[TCA_MPLS_TTL] || tb[TCA_MPLS_TC] || tb[TCA_MPLS_BOS]) {
-			NL_SET_ERR_MSG_MOD(extack, "Label, TTL, TC, BOS or protocol cannot be used with MPLS dec_ttl");
+			NL_SET_ERR_MSG_MOD(extack, "Label, TTL, TC, BOS or protocol canyest be used with MPLS dec_ttl");
 			return -EINVAL;
 		}
 		break;
@@ -197,7 +197,7 @@ static int tcf_mpls_init(struct net *net, struct nlattr *nla,
 			NL_SET_ERR_MSG_MOD(extack, "Protocol must be an MPLS type for MPLS push");
 			return -EPROTONOSUPPORT;
 		}
-		/* Push needs a TTL - if not specified, set a default value. */
+		/* Push needs a TTL - if yest specified, set a default value. */
 		if (!tb[TCA_MPLS_TTL]) {
 #if IS_ENABLED(CONFIG_MPLS)
 			mpls_ttl = net->mpls.default_ttl ?
@@ -209,12 +209,12 @@ static int tcf_mpls_init(struct net *net, struct nlattr *nla,
 		break;
 	case TCA_MPLS_ACT_MODIFY:
 		if (tb[TCA_MPLS_PROTO]) {
-			NL_SET_ERR_MSG_MOD(extack, "Protocol cannot be used with MPLS modify");
+			NL_SET_ERR_MSG_MOD(extack, "Protocol canyest be used with MPLS modify");
 			return -EINVAL;
 		}
 		break;
 	default:
-		NL_SET_ERR_MSG_MOD(extack, "Unknown MPLS action");
+		NL_SET_ERR_MSG_MOD(extack, "Unkyeswn MPLS action");
 		return -EINVAL;
 	}
 
@@ -410,6 +410,6 @@ static void __exit mpls_cleanup_module(void)
 module_init(mpls_init_module);
 module_exit(mpls_cleanup_module);
 
-MODULE_AUTHOR("Netronome Systems <oss-drivers@netronome.com>");
+MODULE_AUTHOR("Netroyesme Systems <oss-drivers@netroyesme.com>");
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("MPLS manipulation actions");

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 /*
  * Intel MIC Platform Software Stack (MPSS)
  *
@@ -33,7 +33,7 @@
  * @type: Device type: console/network/disk etc.  Type 0/-1 terminates.
  * @num_vq: Number of virtqueues.
  * @feature_len: Number of bytes of feature bits.  Multiply by 2: one for
-   host features and one for guest acknowledgements.
+   host features and one for guest ackyeswledgements.
  * @config_len: Number of bytes of the config array after virtqueues.
  * @status: A status byte, written by the Guest.
  * @config: Start of the following variable length config.
@@ -77,7 +77,7 @@ struct mic_device_ctrl {
  *
  * @magic: A magic value used by the card to ensure it can see the host
  * @h2c_config_db: Host to Card Virtio config doorbell set by card
- * @node_id: Unique id of the node
+ * @yesde_id: Unique id of the yesde
  * @h2c_scif_db - Host to card SCIF doorbell set by card
  * @c2h_scif_db - Card to host SCIF doorbell set by host
  * @scif_host_dma_addr - SCIF host queue pair DMA address
@@ -86,7 +86,7 @@ struct mic_device_ctrl {
 struct mic_bootparam {
 	__le32 magic;
 	__s8 h2c_config_db;
-	__u8 node_id;
+	__u8 yesde_id;
 	__u8 h2c_scif_db;
 	__u8 c2h_scif_db;
 	__u64 scif_host_dma_addr;

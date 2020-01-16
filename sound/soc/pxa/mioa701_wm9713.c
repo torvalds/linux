@@ -180,7 +180,7 @@ static int mioa701_wm9713_probe(struct platform_device *pdev)
 	if (!rc)
 		dev_warn(&pdev->dev, "Be warned that incorrect mixers/muxes setup will "
 			 "lead to overheating and possible destruction of your device."
-			 " Do not use without a good knowledge of mio's board design!\n");
+			 " Do yest use without a good kyeswledge of mio's board design!\n");
 	return rc;
 }
 

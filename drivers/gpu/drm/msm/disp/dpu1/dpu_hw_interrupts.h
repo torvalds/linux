@@ -112,7 +112,7 @@ struct dpu_hw_intr_ops {
 			int irq_idx);
 
 	/**
-	 * clear_all_irqs - Clears all the interrupts (i.e. acknowledges
+	 * clear_all_irqs - Clears all the interrupts (i.e. ackyeswledges
 	 *                  any asserted IRQs). Useful during reset.
 	 * @intr:	HW interrupt handle
 	 * @return:	0 for success, otherwise failure
@@ -150,11 +150,11 @@ struct dpu_hw_intr_ops {
 			struct dpu_hw_intr *intr);
 
 	/**
-	 * clear_intr_status_nolock() - clears the HW interrupts without lock
+	 * clear_intr_status_yeslock() - clears the HW interrupts without lock
 	 * @intr:	HW interrupt handle
 	 * @irq_idx:	Lookup irq index return from irq_idx_lookup
 	 */
-	void (*clear_intr_status_nolock)(
+	void (*clear_intr_status_yeslock)(
 			struct dpu_hw_intr *intr,
 			int irq_idx);
 

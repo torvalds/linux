@@ -201,7 +201,7 @@ cfg_unlbl_map_add_failure:
  *
  * Description:
  * Adds a new NetLabel static label to be used when protocol provided labels
- * are not present on incoming traffic.  If @dev_name is NULL then the default
+ * are yest present on incoming traffic.  If @dev_name is NULL then the default
  * interface will be used.  Returns zero on success, negative values on failure.
  *
  */
@@ -244,7 +244,7 @@ int netlbl_cfg_unlbl_static_add(struct net *net,
  *
  * Description:
  * Removes an existing NetLabel static label used when protocol provided labels
- * are not present on incoming traffic.  If @dev_name is NULL then the default
+ * are yest present on incoming traffic.  If @dev_name is NULL then the default
  * interface will be used.  Returns zero on success, negative values on failure.
  *
  */
@@ -536,21 +536,21 @@ out_entry:
 #define _CM_F_WALK	0x00000002
 
 /**
- * _netlbl_catmap_getnode - Get a individual node from a catmap
+ * _netlbl_catmap_getyesde - Get a individual yesde from a catmap
  * @catmap: pointer to the category bitmap
  * @offset: the requested offset
  * @cm_flags: catmap flags, see _CM_F_*
  * @gfp_flags: memory allocation flags
  *
  * Description:
- * Iterate through the catmap looking for the node associated with @offset.
- * If the _CM_F_ALLOC flag is set in @cm_flags and there is no associated node,
+ * Iterate through the catmap looking for the yesde associated with @offset.
+ * If the _CM_F_ALLOC flag is set in @cm_flags and there is yes associated yesde,
  * one will be created and inserted into the catmap.  If the _CM_F_WALK flag is
- * set in @cm_flags and there is no associated node, the next highest node will
- * be returned.  Returns a pointer to the node on success, NULL on failure.
+ * set in @cm_flags and there is yes associated yesde, the next highest yesde will
+ * be returned.  Returns a pointer to the yesde on success, NULL on failure.
  *
  */
-static struct netlbl_lsm_catmap *_netlbl_catmap_getnode(
+static struct netlbl_lsm_catmap *_netlbl_catmap_getyesde(
 					     struct netlbl_lsm_catmap **catmap,
 					     u32 offset,
 					     unsigned int cm_flags,
@@ -560,22 +560,22 @@ static struct netlbl_lsm_catmap *_netlbl_catmap_getnode(
 	struct netlbl_lsm_catmap *prev = NULL;
 
 	if (iter == NULL)
-		goto catmap_getnode_alloc;
+		goto catmap_getyesde_alloc;
 	if (offset < iter->startbit)
-		goto catmap_getnode_walk;
+		goto catmap_getyesde_walk;
 	while (iter && offset >= (iter->startbit + NETLBL_CATMAP_SIZE)) {
 		prev = iter;
 		iter = iter->next;
 	}
 	if (iter == NULL || offset < iter->startbit)
-		goto catmap_getnode_walk;
+		goto catmap_getyesde_walk;
 
 	return iter;
 
-catmap_getnode_walk:
+catmap_getyesde_walk:
 	if (cm_flags & _CM_F_WALK)
 		return iter;
-catmap_getnode_alloc:
+catmap_getyesde_alloc:
 	if (!(cm_flags & _CM_F_ALLOC))
 		return NULL;
 
@@ -602,7 +602,7 @@ catmap_getnode_alloc:
  *
  * Description:
  * This function walks a LSM secattr category bitmap starting at @offset and
- * returns the spot of the first set bit or -ENOENT if no bits are set.
+ * returns the spot of the first set bit or -ENOENT if yes bits are set.
  *
  */
 int netlbl_catmap_walk(struct netlbl_lsm_catmap *catmap, u32 offset)
@@ -612,7 +612,7 @@ int netlbl_catmap_walk(struct netlbl_lsm_catmap *catmap, u32 offset)
 	u32 bit;
 	NETLBL_CATMAP_MAPTYPE bitmap;
 
-	iter = _netlbl_catmap_getnode(&catmap, offset, _CM_F_WALK, 0);
+	iter = _netlbl_catmap_getyesde(&catmap, offset, _CM_F_WALK, 0);
 	if (iter == NULL)
 		return -ENOENT;
 	if (offset > iter->startbit) {
@@ -669,7 +669,7 @@ int netlbl_catmap_walkrng(struct netlbl_lsm_catmap *catmap, u32 offset)
 	NETLBL_CATMAP_MAPTYPE bitmask;
 	NETLBL_CATMAP_MAPTYPE bitmap;
 
-	iter = _netlbl_catmap_getnode(&catmap, offset, _CM_F_WALK, 0);
+	iter = _netlbl_catmap_getyesde(&catmap, offset, _CM_F_WALK, 0);
 	if (iter == NULL)
 		return -ENOENT;
 	if (offset > iter->startbit) {
@@ -738,7 +738,7 @@ int netlbl_catmap_getlong(struct netlbl_lsm_catmap *catmap,
 		off = catmap->startbit;
 		*offset = off;
 	}
-	iter = _netlbl_catmap_getnode(&catmap, off, _CM_F_WALK, 0);
+	iter = _netlbl_catmap_getyesde(&catmap, off, _CM_F_WALK, 0);
 	if (iter == NULL) {
 		*offset = (u32)-1;
 		return 0;
@@ -773,7 +773,7 @@ int netlbl_catmap_setbit(struct netlbl_lsm_catmap **catmap,
 	struct netlbl_lsm_catmap *iter;
 	u32 idx;
 
-	iter = _netlbl_catmap_getnode(catmap, bit, _CM_F_ALLOC, flags);
+	iter = _netlbl_catmap_getyesde(catmap, bit, _CM_F_ALLOC, flags);
 	if (iter == NULL)
 		return -ENOMEM;
 
@@ -845,7 +845,7 @@ int netlbl_catmap_setlong(struct netlbl_lsm_catmap **catmap,
 	if ((offset & (BITS_PER_LONG - 1)) != 0)
 		return -EINVAL;
 
-	iter = _netlbl_catmap_getnode(catmap, offset, _CM_F_ALLOC, flags);
+	iter = _netlbl_catmap_getyesde(catmap, offset, _CM_F_ALLOC, flags);
 	if (iter == NULL)
 		return -ENOMEM;
 
@@ -864,12 +864,12 @@ int netlbl_catmap_setlong(struct netlbl_lsm_catmap **catmap,
  * @bitmap: the bitmap
  * @bitmap_len: length in bits
  * @offset: starting offset
- * @state: if non-zero, look for a set (1) bit else look for a cleared (0) bit
+ * @state: if yesn-zero, look for a set (1) bit else look for a cleared (0) bit
  *
  * Description:
  * Starting at @offset, walk the bitmap from left to right until either the
  * desired bit is found or we reach the end.  Return the bit offset, -1 if
- * not found, or -2 if error.
+ * yest found, or -2 if error.
  */
 int netlbl_bitmap_walk(const unsigned char *bitmap, u32 bitmap_len,
 		       u32 offset, u8 state)
@@ -906,7 +906,7 @@ EXPORT_SYMBOL(netlbl_bitmap_walk);
  * netlbl_bitmap_setbit - Sets a single bit in a bitmap
  * @bitmap: the bitmap
  * @bit: the bit
- * @state: if non-zero, set the bit (1) else clear the bit (0)
+ * @state: if yesn-zero, set the bit (1) else clear the bit (0)
  *
  * Description:
  * Set a single bit in the bitmask.  Returns zero on success, negative values
@@ -1120,7 +1120,7 @@ int netlbl_conn_setattr(struct sock *sk,
 							entry->cipso, secattr);
 			break;
 		case NETLBL_NLTYPE_UNLABELED:
-			/* just delete the protocols we support for right now
+			/* just delete the protocols we support for right yesw
 			 * but we could remove other protocols if needed */
 			netlbl_sock_delattr(sk);
 			ret_val = 0;
@@ -1144,7 +1144,7 @@ int netlbl_conn_setattr(struct sock *sk,
 						       entry->calipso, secattr);
 			break;
 		case NETLBL_NLTYPE_UNLABELED:
-			/* just delete the protocols we support for right now
+			/* just delete the protocols we support for right yesw
 			 * but we could remove other protocols if needed */
 			netlbl_sock_delattr(sk);
 			ret_val = 0;
@@ -1293,7 +1293,7 @@ int netlbl_skbuff_setattr(struct sk_buff *skb,
 							  secattr);
 			break;
 		case NETLBL_NLTYPE_UNLABELED:
-			/* just delete the protocols we support for right now
+			/* just delete the protocols we support for right yesw
 			 * but we could remove other protocols if needed */
 			ret_val = cipso_v4_skbuff_delattr(skb);
 			break;
@@ -1316,7 +1316,7 @@ int netlbl_skbuff_setattr(struct sk_buff *skb,
 							 secattr);
 			break;
 		case NETLBL_NLTYPE_UNLABELED:
-			/* just delete the protocols we support for right now
+			/* just delete the protocols we support for right yesw
 			 * but we could remove other protocols if needed */
 			ret_val = calipso_skbuff_delattr(skb);
 			break;
@@ -1460,7 +1460,7 @@ int netlbl_cache_add(const struct sk_buff *skb, u16 family,
  * Description:
  * Start an audit message using the type specified in @type and fill the audit
  * message with some fields common to all NetLabel audit messages.  This
- * function should only be used by protocol engines, not LSMs.  Returns a
+ * function should only be used by protocol engines, yest LSMs.  Returns a
  * pointer to the audit buffer on success, NULL on failure.
  *
  */

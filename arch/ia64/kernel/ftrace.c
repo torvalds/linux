@@ -24,7 +24,7 @@ ftrace_orig_code[MCOUNT_INSN_SIZE] = {
 	0xb0, 0x02, 0x00, 0x00, 0x42, 0x40, /* mov r43=r0;; */
 	0x05, 0x00, 0xc4, 0x00,             /* mov r42=b0 */
 	0x11, 0x48, 0x01, 0x02, 0x00, 0x21, /* mov r41=r1 */
-	0x00, 0x00, 0x00, 0x02, 0x00, 0x00, /* nop.i 0x0 */
+	0x00, 0x00, 0x00, 0x02, 0x00, 0x00, /* yesp.i 0x0 */
 	0x08, 0x00, 0x00, 0x50              /* br.call.sptk.many b0 = _mcount;; */
 };
 
@@ -37,31 +37,31 @@ struct ftrace_orig_insn {
 	u64 dummy6:4;
 };
 
-/* mcount stub will be converted below for nop */
-static unsigned char ftrace_nop_code[MCOUNT_INSN_SIZE] = {
-	0x00, 0x00, 0x00, 0x00, 0x01, 0x00, /* [MII] nop.m 0x0 */
+/* mcount stub will be converted below for yesp */
+static unsigned char ftrace_yesp_code[MCOUNT_INSN_SIZE] = {
+	0x00, 0x00, 0x00, 0x00, 0x01, 0x00, /* [MII] yesp.m 0x0 */
 	0x30, 0x00, 0x00, 0x60, 0x00, 0x00, /* mov r3=ip */
-	0x00, 0x00, 0x04, 0x00,             /* nop.i 0x0 */
-	0x05, 0x00, 0x00, 0x00, 0x01, 0x00, /* [MLX] nop.m 0x0 */
-	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, /* nop.x 0x0;; */
+	0x00, 0x00, 0x04, 0x00,             /* yesp.i 0x0 */
+	0x05, 0x00, 0x00, 0x00, 0x01, 0x00, /* [MLX] yesp.m 0x0 */
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, /* yesp.x 0x0;; */
 	0x00, 0x00, 0x04, 0x00
 };
 
-static unsigned char *ftrace_nop_replace(void)
+static unsigned char *ftrace_yesp_replace(void)
 {
-	return ftrace_nop_code;
+	return ftrace_yesp_code;
 }
 
 /*
  * mcount stub will be converted below for call
- * Note: Just the last instruction is changed against nop
+ * Note: Just the last instruction is changed against yesp
  * */
 static unsigned char __attribute__((aligned(8)))
 ftrace_call_code[MCOUNT_INSN_SIZE] = {
-	0x00, 0x00, 0x00, 0x00, 0x01, 0x00, /* [MII] nop.m 0x0 */
+	0x00, 0x00, 0x00, 0x00, 0x01, 0x00, /* [MII] yesp.m 0x0 */
 	0x30, 0x00, 0x00, 0x60, 0x00, 0x00, /* mov r3=ip */
-	0x00, 0x00, 0x04, 0x00,             /* nop.i 0x0 */
-	0x05, 0x00, 0x00, 0x00, 0x01, 0x00, /* [MLX] nop.m 0x0 */
+	0x00, 0x00, 0x04, 0x00,             /* yesp.i 0x0 */
+	0x05, 0x00, 0x00, 0x00, 0x01, 0x00, /* [MLX] yesp.m 0x0 */
 	0xff, 0xff, 0xff, 0xff, 0x7f, 0x00, /* brl.many .;;*/
 	0xf8, 0xff, 0xff, 0xc8
 };
@@ -98,7 +98,7 @@ ftrace_modify_code(unsigned long ip, unsigned char *old_code,
 
 	/*
 	 * Note:
-	 * We are paranoid about modifying text, as if a bug was to happen, it
+	 * We are parayesid about modifying text, as if a bug was to happen, it
 	 * could cause us to read or write to someplace that could cause harm.
 	 * Carefully read and modify the code with probe_kernel_*(), and make
 	 * sure what we read is what we expected it to be before modifying it.
@@ -124,7 +124,7 @@ skip_check:
 	return 0;
 }
 
-static int ftrace_make_nop_check(struct dyn_ftrace *rec, unsigned long addr)
+static int ftrace_make_yesp_check(struct dyn_ftrace *rec, unsigned long addr)
 {
 	unsigned char __attribute__((aligned(8))) replaced[MCOUNT_INSN_SIZE];
 	unsigned long ip = rec->ip;
@@ -156,16 +156,16 @@ static int ftrace_make_nop_check(struct dyn_ftrace *rec, unsigned long addr)
 	}
 }
 
-int ftrace_make_nop(struct module *mod,
+int ftrace_make_yesp(struct module *mod,
 		    struct dyn_ftrace *rec, unsigned long addr)
 {
 	int ret;
 	char *new;
 
-	ret = ftrace_make_nop_check(rec, addr);
+	ret = ftrace_make_yesp_check(rec, addr);
 	if (ret)
 		return ret;
-	new = ftrace_nop_replace();
+	new = ftrace_yesp_replace();
 	return ftrace_modify_code(rec->ip, NULL, new, 0);
 }
 
@@ -174,7 +174,7 @@ int ftrace_make_call(struct dyn_ftrace *rec, unsigned long addr)
 	unsigned long ip = rec->ip;
 	unsigned char *old, *new;
 
-	old=  ftrace_nop_replace();
+	old=  ftrace_yesp_replace();
 	new = ftrace_call_replace(ip, addr);
 	return ftrace_modify_code(ip, old, new, 1);
 }

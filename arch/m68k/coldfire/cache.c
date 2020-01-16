@@ -19,8 +19,8 @@
 
 /*
  *	Use cpushl to push all dirty cache lines back to memory.
- *	Older versions of GAS don't seem to know how to generate the
- *	ColdFire cpushl instruction... Oh well, bit stuff it for now.
+ *	Older versions of GAS don't seem to kyesw how to generate the
+ *	ColdFire cpushl instruction... Oh well, bit stuff it for yesw.
  */
 
 void mcf_cache_push(void)

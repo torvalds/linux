@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -41,7 +41,7 @@
 #include "amdgpu_amdkfd.h"
 
 static long kfd_ioctl(struct file *, unsigned int, unsigned long);
-static int kfd_open(struct inode *, struct file *);
+static int kfd_open(struct iyesde *, struct file *);
 static int kfd_mmap(struct file *, struct vm_area_struct *);
 
 static const char kfd_dev_name[] = "kfd";
@@ -102,12 +102,12 @@ struct device *kfd_chardev(void)
 }
 
 
-static int kfd_open(struct inode *inode, struct file *filep)
+static int kfd_open(struct iyesde *iyesde, struct file *filep)
 {
 	struct kfd_process *process;
 	bool is_32bit_user_mode;
 
-	if (iminor(inode) != 0)
+	if (imiyesr(iyesde) != 0)
 		return -ENODEV;
 
 	is_32bit_user_mode = in_compat_syscall();
@@ -115,7 +115,7 @@ static int kfd_open(struct inode *inode, struct file *filep)
 	if (is_32bit_user_mode) {
 		dev_warn(kfd_device,
 			"Process %d (32-bit) failed to open /dev/kfd\n"
-			"32-bit processes are not supported by amdkfd\n",
+			"32-bit processes are yest supported by amdkfd\n",
 			current->pid);
 		return -EPERM;
 	}
@@ -139,7 +139,7 @@ static int kfd_ioctl_get_version(struct file *filep, struct kfd_process *p,
 	struct kfd_ioctl_get_version_args *args = data;
 
 	args->major_version = KFD_IOCTL_MAJOR_VERSION;
-	args->minor_version = KFD_IOCTL_MINOR_VERSION;
+	args->miyesr_version = KFD_IOCTL_MINOR_VERSION;
 
 	return 0;
 }
@@ -270,7 +270,7 @@ static int kfd_ioctl_create_queue(struct file *filep, struct kfd_process *p,
 	pr_debug("Looking for gpu id 0x%x\n", args->gpu_id);
 	dev = kfd_device_by_id(args->gpu_id);
 	if (!dev) {
-		pr_debug("Could not find gpu id 0x%x\n", args->gpu_id);
+		pr_debug("Could yest find gpu id 0x%x\n", args->gpu_id);
 		return -EINVAL;
 	}
 
@@ -408,7 +408,7 @@ static int kfd_ioctl_set_cu_mask(struct file *filp, struct kfd_process *p,
 
 	properties.cu_mask_count = args->num_cu_mask;
 	if (properties.cu_mask_count == 0) {
-		pr_debug("CU mask cannot be 0");
+		pr_debug("CU mask canyest be 0");
 		return -EINVAL;
 	}
 
@@ -417,7 +417,7 @@ static int kfd_ioctl_set_cu_mask(struct file *filp, struct kfd_process *p,
 	 * past max_num_cus bits and just use the first max_num_cus bits.
 	 */
 	if (properties.cu_mask_count > max_num_cus) {
-		pr_debug("CU mask cannot be greater than 1024 bits");
+		pr_debug("CU mask canyest be greater than 1024 bits");
 		properties.cu_mask_count = max_num_cus;
 		cu_mask_size = sizeof(uint32_t) * (max_num_cus/32);
 	}
@@ -428,7 +428,7 @@ static int kfd_ioctl_set_cu_mask(struct file *filp, struct kfd_process *p,
 
 	retval = copy_from_user(properties.cu_mask, cu_mask_ptr, cu_mask_size);
 	if (retval) {
-		pr_debug("Could not copy CU mask from userspace");
+		pr_debug("Could yest copy CU mask from userspace");
 		kfree(properties.cu_mask);
 		return -EFAULT;
 	}
@@ -495,11 +495,11 @@ static int kfd_ioctl_set_memory_policy(struct file *filep,
 	}
 
 	default_policy = (args->default_policy == KFD_IOC_CACHE_POLICY_COHERENT)
-			 ? cache_policy_coherent : cache_policy_noncoherent;
+			 ? cache_policy_coherent : cache_policy_yesncoherent;
 
 	alternate_policy =
 		(args->alternate_policy == KFD_IOC_CACHE_POLICY_COHERENT)
-		   ? cache_policy_coherent : cache_policy_noncoherent;
+		   ? cache_policy_coherent : cache_policy_yesncoherent;
 
 	if (!dev->dqm->ops.set_cache_memory_policy(dev->dqm,
 				&pdd->qpd,
@@ -562,7 +562,7 @@ static int kfd_ioctl_dbg_register(struct file *filep,
 		return -EINVAL;
 
 	if (dev->device_info->asic_family == CHIP_CARRIZO) {
-		pr_debug("kfd_ioctl_dbg_register not supported on CZ\n");
+		pr_debug("kfd_ioctl_dbg_register yest supported on CZ\n");
 		return -EINVAL;
 	}
 
@@ -580,7 +580,7 @@ static int kfd_ioctl_dbg_register(struct file *filep,
 	}
 
 	if (!dev->dbgmgr) {
-		/* In case of a legal call, we have no dbgmgr yet */
+		/* In case of a legal call, we have yes dbgmgr yet */
 		create_ok = kfd_dbgmgr_create(&dbgmgr_ptr, dev);
 		if (create_ok) {
 			status = kfd_dbgmgr_register(dbgmgr_ptr, p);
@@ -613,7 +613,7 @@ static int kfd_ioctl_dbg_unregister(struct file *filep,
 		return -EINVAL;
 
 	if (dev->device_info->asic_family == CHIP_CARRIZO) {
-		pr_debug("kfd_ioctl_dbg_unregister not supported on CZ\n");
+		pr_debug("kfd_ioctl_dbg_unregister yest supported on CZ\n");
 		return -EINVAL;
 	}
 
@@ -633,9 +633,9 @@ static int kfd_ioctl_dbg_unregister(struct file *filep,
 /*
  * Parse and generate variable size data structure for address watch.
  * Total size of the buffer and # watch points is limited in order
- * to prevent kernel abuse. (no bearing to the much smaller HW limitation
+ * to prevent kernel abuse. (yes bearing to the much smaller HW limitation
  * which is enforced by dbgdev module)
- * please also note that the watch address itself are not "copied from user",
+ * please also yeste that the watch address itself are yest "copied from user",
  * since it be set into the HW in user mode values.
  *
  */
@@ -658,7 +658,7 @@ static int kfd_ioctl_dbg_address_watch(struct file *filep,
 		return -EINVAL;
 
 	if (dev->device_info->asic_family == CHIP_CARRIZO) {
-		pr_debug("kfd_ioctl_dbg_wave_control not supported on CZ\n");
+		pr_debug("kfd_ioctl_dbg_wave_control yest supported on CZ\n");
 		return -EINVAL;
 	}
 
@@ -723,7 +723,7 @@ static int kfd_ioctl_dbg_address_watch(struct file *filep,
 		goto out;
 	}
 
-	/* Currently HSA Event is not supported for DBG */
+	/* Currently HSA Event is yest supported for DBG */
 	aw_info.watch_event = NULL;
 
 	mutex_lock(kfd_get_dbgmgr_mutex());
@@ -766,7 +766,7 @@ static int kfd_ioctl_dbg_wave_control(struct file *filep,
 		return -EINVAL;
 
 	if (dev->device_info->asic_family == CHIP_CARRIZO) {
-		pr_debug("kfd_ioctl_dbg_wave_control not supported on CZ\n");
+		pr_debug("kfd_ioctl_dbg_wave_control yest supported on CZ\n");
 		return -EINVAL;
 	}
 
@@ -837,11 +837,11 @@ static int kfd_ioctl_get_clock_counters(struct file *filep,
 		/* Node without GPU resource */
 		args->gpu_clock_counter = 0;
 
-	/* No access to rdtsc. Using raw monotonic time */
+	/* No access to rdtsc. Using raw moyestonic time */
 	args->cpu_clock_counter = ktime_get_raw_ns();
 	args->system_clock_counter = ktime_get_boottime_ns();
 
-	/* Since the counter is in nano-seconds we use 1GHz frequency */
+	/* Since the counter is in nayes-seconds we use 1GHz frequency */
 	args->system_clock_freq = 1000000000;
 
 	return 0;
@@ -857,7 +857,7 @@ static int kfd_ioctl_get_process_apertures(struct file *filp,
 
 	dev_dbg(kfd_device, "get apertures for PASID 0x%x", p->pasid);
 
-	args->num_of_nodes = 0;
+	args->num_of_yesdes = 0;
 
 	mutex_lock(&p->mutex);
 
@@ -867,7 +867,7 @@ static int kfd_ioctl_get_process_apertures(struct file *filp,
 		pdd = kfd_get_first_process_device_data(p);
 		do {
 			pAperture =
-				&args->process_apertures[args->num_of_nodes];
+				&args->process_apertures[args->num_of_yesdes];
 			pAperture->gpu_id = pdd->dev->id;
 			pAperture->lds_base = pdd->lds_base;
 			pAperture->lds_limit = pdd->lds_limit;
@@ -877,7 +877,7 @@ static int kfd_ioctl_get_process_apertures(struct file *filp,
 			pAperture->scratch_limit = pdd->scratch_limit;
 
 			dev_dbg(kfd_device,
-				"node id %u\n", args->num_of_nodes);
+				"yesde id %u\n", args->num_of_yesdes);
 			dev_dbg(kfd_device,
 				"gpu id %u\n", pdd->dev->id);
 			dev_dbg(kfd_device,
@@ -893,10 +893,10 @@ static int kfd_ioctl_get_process_apertures(struct file *filp,
 			dev_dbg(kfd_device,
 				"scratch_limit %llX\n", pdd->scratch_limit);
 
-			args->num_of_nodes++;
+			args->num_of_yesdes++;
 
 			pdd = kfd_get_next_process_device_data(p, pdd);
-		} while (pdd && (args->num_of_nodes < NUM_OF_SUPPORTED_GPUS));
+		} while (pdd && (args->num_of_yesdes < NUM_OF_SUPPORTED_GPUS));
 	}
 
 	mutex_unlock(&p->mutex);
@@ -910,13 +910,13 @@ static int kfd_ioctl_get_process_apertures_new(struct file *filp,
 	struct kfd_ioctl_get_process_apertures_new_args *args = data;
 	struct kfd_process_device_apertures *pa;
 	struct kfd_process_device *pdd;
-	uint32_t nodes = 0;
+	uint32_t yesdes = 0;
 	int ret;
 
 	dev_dbg(kfd_device, "get apertures for PASID 0x%x", p->pasid);
 
-	if (args->num_of_nodes == 0) {
-		/* Return number of nodes, so that user space can alloacate
+	if (args->num_of_yesdes == 0) {
+		/* Return number of yesdes, so that user space can alloacate
 		 * sufficient memory
 		 */
 		mutex_lock(&p->mutex);
@@ -927,7 +927,7 @@ static int kfd_ioctl_get_process_apertures_new(struct file *filp,
 		/* Run over all pdd of the process */
 		pdd = kfd_get_first_process_device_data(p);
 		do {
-			args->num_of_nodes++;
+			args->num_of_yesdes++;
 			pdd = kfd_get_next_process_device_data(p, pdd);
 		} while (pdd);
 
@@ -935,18 +935,18 @@ static int kfd_ioctl_get_process_apertures_new(struct file *filp,
 	}
 
 	/* Fill in process-aperture information for all available
-	 * nodes, but not more than args->num_of_nodes as that is
+	 * yesdes, but yest more than args->num_of_yesdes as that is
 	 * the amount of memory allocated by user
 	 */
 	pa = kzalloc((sizeof(struct kfd_process_device_apertures) *
-				args->num_of_nodes), GFP_KERNEL);
+				args->num_of_yesdes), GFP_KERNEL);
 	if (!pa)
 		return -ENOMEM;
 
 	mutex_lock(&p->mutex);
 
 	if (!kfd_has_process_device_data(p)) {
-		args->num_of_nodes = 0;
+		args->num_of_yesdes = 0;
 		kfree(pa);
 		goto out_unlock;
 	}
@@ -954,13 +954,13 @@ static int kfd_ioctl_get_process_apertures_new(struct file *filp,
 	/* Run over all pdd of the process */
 	pdd = kfd_get_first_process_device_data(p);
 	do {
-		pa[nodes].gpu_id = pdd->dev->id;
-		pa[nodes].lds_base = pdd->lds_base;
-		pa[nodes].lds_limit = pdd->lds_limit;
-		pa[nodes].gpuvm_base = pdd->gpuvm_base;
-		pa[nodes].gpuvm_limit = pdd->gpuvm_limit;
-		pa[nodes].scratch_base = pdd->scratch_base;
-		pa[nodes].scratch_limit = pdd->scratch_limit;
+		pa[yesdes].gpu_id = pdd->dev->id;
+		pa[yesdes].lds_base = pdd->lds_base;
+		pa[yesdes].lds_limit = pdd->lds_limit;
+		pa[yesdes].gpuvm_base = pdd->gpuvm_base;
+		pa[yesdes].gpuvm_limit = pdd->gpuvm_limit;
+		pa[yesdes].scratch_base = pdd->scratch_base;
+		pa[yesdes].scratch_limit = pdd->scratch_limit;
 
 		dev_dbg(kfd_device,
 			"gpu id %u\n", pdd->dev->id);
@@ -976,17 +976,17 @@ static int kfd_ioctl_get_process_apertures_new(struct file *filp,
 			"scratch_base %llX\n", pdd->scratch_base);
 		dev_dbg(kfd_device,
 			"scratch_limit %llX\n", pdd->scratch_limit);
-		nodes++;
+		yesdes++;
 
 		pdd = kfd_get_next_process_device_data(p, pdd);
-	} while (pdd && (nodes < args->num_of_nodes));
+	} while (pdd && (yesdes < args->num_of_yesdes));
 	mutex_unlock(&p->mutex);
 
-	args->num_of_nodes = nodes;
+	args->num_of_yesdes = yesdes;
 	ret = copy_to_user(
 			(void __user *)args->kfd_process_device_apertures_ptr,
 			pa,
-			(nodes * sizeof(struct kfd_process_device_apertures)));
+			(yesdes * sizeof(struct kfd_process_device_apertures)));
 	kfree(pa);
 	return ret ? -EFAULT : 0;
 
@@ -1054,7 +1054,7 @@ static int kfd_ioctl_create_event(struct file *filp, struct kfd_process *p,
 	}
 
 	err = kfd_event_create(filp, p, args->event_type,
-				args->auto_reset != 0, args->node_id,
+				args->auto_reset != 0, args->yesde_id,
 				&args->event_id, &args->event_trigger_data,
 				&args->event_page_offset,
 				&args->event_slot_index);
@@ -1230,7 +1230,7 @@ bool kfd_dev_is_large_bar(struct kfd_dev *dev)
 	struct kfd_local_mem_info mem_info;
 
 	if (debug_largebar) {
-		pr_debug("Simulate large-bar allocation on non large-bar machine\n");
+		pr_debug("Simulate large-bar allocation on yesn large-bar machine\n");
 		return true;
 	}
 
@@ -1266,7 +1266,7 @@ static int kfd_ioctl_alloc_memory_of_gpu(struct file *filep,
 	if ((flags & KFD_IOC_ALLOC_MEM_FLAGS_PUBLIC) &&
 		(flags & KFD_IOC_ALLOC_MEM_FLAGS_VRAM) &&
 		!kfd_dev_is_large_bar(dev)) {
-		pr_err("Alloc host visible vram on small bar is not allowed\n");
+		pr_err("Alloc host visible vram on small bar is yest allowed\n");
 		return -EINVAL;
 	}
 
@@ -1805,15 +1805,15 @@ static long kfd_ioctl(struct file *filep, unsigned int cmd, unsigned long arg)
 
 	process = kfd_get_process(current);
 	if (IS_ERR(process)) {
-		dev_dbg(kfd_device, "no process\n");
+		dev_dbg(kfd_device, "yes process\n");
 		goto err_i1;
 	}
 
-	/* Do not trust userspace, use our own definition */
+	/* Do yest trust userspace, use our own definition */
 	func = ioctl->func;
 
 	if (unlikely(!func)) {
-		dev_dbg(kfd_device, "no function\n");
+		dev_dbg(kfd_device, "yes function\n");
 		retcode = -EINVAL;
 		goto err_i1;
 	}
@@ -1876,7 +1876,7 @@ static int kfd_mmio_mmap(struct kfd_dev *dev, struct kfd_process *process,
 	vma->vm_flags |= VM_IO | VM_DONTCOPY | VM_DONTEXPAND | VM_NORESERVE |
 				VM_DONTDUMP | VM_PFNMAP;
 
-	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
+	vma->vm_page_prot = pgprot_yesncached(vma->vm_page_prot);
 
 	pr_debug("pasid 0x%x mapping mmio page\n"
 		 "     target user address == 0x%08llX\n"

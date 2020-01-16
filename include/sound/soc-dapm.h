@@ -17,7 +17,7 @@
 
 struct device;
 
-/* widget has no PM register bit */
+/* widget has yes PM register bit */
 #define SND_SOC_NOPM	-1
 
 /*
@@ -26,7 +26,7 @@ struct device;
  * We can have up to 4 power domains
  *  1. Codec domain - VREF, VMID
  *     Usually controlled at codec probe/remove, although can be set
- *     at stream time if power is not needed for sidetone, etc.
+ *     at stream time if power is yest needed for sidetone, etc.
  *  2. Platform/Machine domain - physically connected inputs and outputs
  *     Is platform/machine and user action specific, is set in the machine
  *     driver and by userspace e.g when HP are inserted
@@ -469,11 +469,11 @@ int snd_soc_dapm_force_enable_pin(struct snd_soc_dapm_context *dapm,
 				  const char *pin);
 int snd_soc_dapm_force_enable_pin_unlocked(struct snd_soc_dapm_context *dapm,
 					   const char *pin);
-int snd_soc_dapm_ignore_suspend(struct snd_soc_dapm_context *dapm,
+int snd_soc_dapm_igyesre_suspend(struct snd_soc_dapm_context *dapm,
 				const char *pin);
 unsigned int dapm_kcontrol_get_value(const struct snd_kcontrol *kcontrol);
 
-/* Mostly internal - should not normally be used */
+/* Mostly internal - should yest yesrmally be used */
 void dapm_mark_endpoints_dirty(struct snd_soc_card *card);
 
 /* dapm path query */
@@ -566,26 +566,26 @@ struct snd_soc_dapm_path {
 	/*
 	 * source (input) and sink (output) widgets
 	 * The union is for convience, since it is a lot nicer to type
-	 * p->source, rather than p->node[SND_SOC_DAPM_DIR_IN]
+	 * p->source, rather than p->yesde[SND_SOC_DAPM_DIR_IN]
 	 */
 	union {
 		struct {
 			struct snd_soc_dapm_widget *source;
 			struct snd_soc_dapm_widget *sink;
 		};
-		struct snd_soc_dapm_widget *node[2];
+		struct snd_soc_dapm_widget *yesde[2];
 	};
 
 	/* status */
 	u32 connect:1;	/* source and sink widgets are connected */
 	u32 walking:1;  /* path is in the process of being walked */
-	u32 weak:1;	/* path ignored for power management */
+	u32 weak:1;	/* path igyesred for power management */
 	u32 is_supply:1;	/* At least one of the connected widgets is a supply */
 
 	int (*connected)(struct snd_soc_dapm_widget *source,
 			 struct snd_soc_dapm_widget *sink);
 
-	struct list_head list_node[2];
+	struct list_head list_yesde[2];
 	struct list_head list_kcontrol;
 	struct list_head list;
 };
@@ -603,9 +603,9 @@ struct snd_soc_dapm_widget {
 	struct pinctrl *pinctrl;		/* attached pinctrl */
 
 	/* dapm control */
-	int reg;				/* negative reg = no direct dapm */
+	int reg;				/* negative reg = yes direct dapm */
 	unsigned char shift;			/* bits to shift */
-	unsigned int mask;			/* non-shifted mask */
+	unsigned int mask;			/* yesn-shifted mask */
 	unsigned int on_val;			/* on state value */
 	unsigned int off_val;			/* off state value */
 	unsigned char power:1;			/* block power status */
@@ -613,7 +613,7 @@ struct snd_soc_dapm_widget {
 	unsigned char connected:1;		/* connected codec pin */
 	unsigned char new:1;			/* cnew complete */
 	unsigned char force:1;			/* force state */
-	unsigned char ignore_suspend:1;         /* kept enabled over suspend */
+	unsigned char igyesre_suspend:1;         /* kept enabled over suspend */
 	unsigned char new_power:1;		/* power from this run */
 	unsigned char power_checked:1;		/* power checked this run */
 	unsigned char is_supply:1;		/* Widget is a supply type widget */
@@ -707,7 +707,7 @@ struct snd_soc_dapm_pinctrl_priv {
  * @level: The DAPM level to initialize to
  *
  * This function only sets the driver internal state of the DAPM level and will
- * not modify the state of the device. Hence it should not be used during normal
+ * yest modify the state of the device. Hence it should yest be used during yesrmal
  * operation, but only to synchronize the internal state to the device state.
  * E.g. during driver probe to set the DAPM level to the one corresponding with
  * the power-on reset state of the device.
@@ -751,7 +751,7 @@ enum snd_soc_dapm_direction {
  * @p: The path iterator variable
  */
 #define snd_soc_dapm_widget_for_each_path(w, dir, p) \
-	list_for_each_entry(p, &w->edges[dir], list_node[dir])
+	list_for_each_entry(p, &w->edges[dir], list_yesde[dir])
 
 /**
  * snd_soc_dapm_widget_for_each_sink_path_safe - Iterates over all paths in the
@@ -766,7 +766,7 @@ enum snd_soc_dapm_direction {
  *  it is safe to remove the current path from the list while iterating
  */
 #define snd_soc_dapm_widget_for_each_path_safe(w, dir, p, next_p) \
-	list_for_each_entry_safe(p, next_p, &w->edges[dir], list_node[dir])
+	list_for_each_entry_safe(p, next_p, &w->edges[dir], list_yesde[dir])
 
 /**
  * snd_soc_dapm_widget_for_each_sink_path - Iterates over all paths leaving a

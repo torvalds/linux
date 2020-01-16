@@ -15,11 +15,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -79,7 +79,7 @@
  *     msi = 1: only consider MSI interrupts
  *
  * Note that unlike the Physical Function driver, this Virtual Function driver
- * does _not_ support legacy INTx interrupts (this limitation is mandated by
+ * does _yest_ support legacy INTx interrupts (this limitation is mandated by
  * the PCI-E SR-IOV standard).
  */
 #define MSI_MSIX	2
@@ -178,7 +178,7 @@ void t4vf_os_link_changed(struct adapter *adapter, int pidx, int link_ok)
 			break;
 
 		default:
-			s = "unknown";
+			s = "unkyeswn";
 			break;
 		}
 
@@ -196,7 +196,7 @@ void t4vf_os_link_changed(struct adapter *adapter, int pidx, int link_ok)
 			break;
 
 		default:
-			fc = "no";
+			fc = "yes";
 			break;
 		}
 
@@ -229,13 +229,13 @@ void t4vf_os_portmod_changed(struct adapter *adapter, int pidx)
 		dev_info(adapter->pdev_dev, "%s: unsupported optical port "
 			 "module inserted\n", dev->name);
 	else if (pi->mod_type == FW_PORT_MOD_TYPE_UNKNOWN)
-		dev_info(adapter->pdev_dev, "%s: unknown port module inserted,"
+		dev_info(adapter->pdev_dev, "%s: unkyeswn port module inserted,"
 			 "forcing TWINAX\n", dev->name);
 	else if (pi->mod_type == FW_PORT_MOD_TYPE_ERROR)
 		dev_info(adapter->pdev_dev, "%s: transceiver module error\n",
 			 dev->name);
 	else
-		dev_info(adapter->pdev_dev, "%s: unknown module type %d "
+		dev_info(adapter->pdev_dev, "%s: unkyeswn module type %d "
 			 "inserted\n", dev->name, pi->mod_type);
 }
 
@@ -324,7 +324,7 @@ static int link_start(struct net_device *dev)
 	struct port_info *pi = netdev_priv(dev);
 
 	/*
-	 * We do not set address filters and promiscuity here, the stack does
+	 * We do yest set address filters and promiscuity here, the stack does
 	 * that step explicitly. Enable vlan accel.
 	 */
 	ret = t4vf_set_rxmode(pi->adapter, pi->viid, dev->mtu, -1, -1, -1, 1,
@@ -499,7 +499,7 @@ static int fwevtq_handler(struct sge_rspq *rspq, const __be64 *rsp,
 	switch (opcode) {
 	case CPL_FW6_MSG: {
 		/*
-		 * We've received an asynchronous message from the firmware.
+		 * We've received an asynchroyesus message from the firmware.
 		 */
 		const struct cpl_fw6_msg *fw_msg = cpl;
 		if (fw_msg->type == FW6_TYPE_CMD_RPL)
@@ -614,7 +614,7 @@ static int setup_sge_queues(struct adapter *adapter)
 	}
 
 	/*
-	 * Allocate our ingress queue for asynchronous firmware messages.
+	 * Allocate our ingress queue for asynchroyesus firmware messages.
 	 */
 	err = t4vf_sge_alloc_rxq(adapter, &s->fw_evtq, true, adapter->port[0],
 				 MSIX_FW, NULL, fwevtq_handler);
@@ -751,7 +751,7 @@ static int setup_rss(struct adapter *adapter)
 }
 
 /*
- * Bring the adapter up.  Called whenever we go from no "ports" open to having
+ * Bring the adapter up.  Called whenever we go from yes "ports" open to having
  * one open.  This function performs the actions necessary to make an adapter
  * operational, such as completing the initialization of HW modules, and
  * enabling interrupts.  Must be called with the rtnl lock held.  (Note that
@@ -764,7 +764,7 @@ static int adapter_up(struct adapter *adapter)
 	/*
 	 * If this is the first time we've been called, perform basic
 	 * adapter setup.  Once we've done this, many of our adapter
-	 * parameters can no longer be changed ...
+	 * parameters can yes longer be changed ...
 	 */
 	if ((adapter->flags & CXGB4VF_FULL_INIT_DONE) == 0) {
 		err = setup_sge_queues(adapter);
@@ -839,7 +839,7 @@ static int cxgb4vf_open(struct net_device *dev)
 	struct adapter *adapter = pi->adapter;
 
 	/*
-	 * If we don't have a connection to the firmware there's nothing we
+	 * If we don't have a connection to the firmware there's yesthing we
 	 * can do.
 	 */
 	if (!(adapter->flags & CXGB4VF_FW_OK))
@@ -847,7 +847,7 @@ static int cxgb4vf_open(struct net_device *dev)
 
 	/*
 	 * If this is the first interface that we're opening on the "adapter",
-	 * bring the "adapter" up now.
+	 * bring the "adapter" up yesw.
 	 */
 	if (adapter->open_device_map == 0) {
 		err = adapter_up(adapter);
@@ -1051,7 +1051,7 @@ static int closest_thres(const struct sge *s, int thres)
 }
 
 /*
- * Return a queue's interrupt hold-off time in us.  0 means no timer.
+ * Return a queue's interrupt hold-off time in us.  0 means yes timer.
  */
 static unsigned int qtimer_val(const struct adapter *adapter,
 			       const struct sge_rspq *rspq)
@@ -1179,7 +1179,7 @@ static netdev_features_t cxgb4vf_fix_features(struct net_device *dev,
 	netdev_features_t features)
 {
 	/*
-	 * Since there is no support for separate rx/tx vlan accel
+	 * Since there is yes support for separate rx/tx vlan accel
 	 * enable/disable make sure tx flag is always in same state as rx.
 	 */
 	if (features & NETIF_F_HW_VLAN_CTAG_RX)
@@ -1226,7 +1226,7 @@ static int cxgb4vf_set_mac_addr(struct net_device *dev, void *_addr)
 
 #ifdef CONFIG_NET_POLL_CONTROLLER
 /*
- * Poll all of our receive queues.  This is called outside of normal interrupt
+ * Poll all of our receive queues.  This is called outside of yesrmal interrupt
  * context.
  */
 static void cxgb4vf_poll_controller(struct net_device *dev)
@@ -1441,7 +1441,7 @@ static int cxgb4vf_get_link_ksettings(struct net_device *dev,
 	struct port_info *pi = netdev_priv(dev);
 	struct ethtool_link_settings *base = &link_ksettings->base;
 
-	/* For the nonce, the Firmware doesn't send up Port State changes
+	/* For the yesnce, the Firmware doesn't send up Port State changes
 	 * when the Virtual Interface attached to the Port is down.  So
 	 * if it's down, let's grab any changes.
 	 */
@@ -1500,7 +1500,7 @@ static inline unsigned int fwcap_to_eth_fec(unsigned int fw_fec)
 	if (fw_fec & FW_PORT_CAP32_FEC_BASER_RS)
 		eth_fec |= ETHTOOL_FEC_BASER;
 
-	/* if nothing is set, then FEC is off */
+	/* if yesthing is set, then FEC is off */
 	if (!eth_fec)
 		eth_fec = ETHTOOL_FEC_OFF;
 
@@ -1519,7 +1519,7 @@ static inline unsigned int cc_to_eth_fec(unsigned int cc_fec)
 	if (cc_fec & FEC_BASER_RS)
 		eth_fec |= ETHTOOL_FEC_BASER;
 
-	/* if nothing is set, then FEC is off */
+	/* if yesthing is set, then FEC is off */
 	if (!eth_fec)
 		eth_fec = ETHTOOL_FEC_OFF;
 
@@ -1951,7 +1951,7 @@ static const struct ethtool_ops cxgb4vf_ethtool_ops = {
  *
  * Note that we don't do any locking when dumping the Firmware Mailbox Log so
  * it's possible that we can catch things during a log update and therefore
- * see partially corrupted log entries.  But i9t's probably Good Enough(tm).
+ * see partially corrupted log entries.  But i9t's probably Good Eyesugh(tm).
  * If we ever decide that we want to make sure that we're dumping a coherent
  * log, we'd need to perform locking in the mailbox logging and in
  * mboxlog_open() where we'd need to grab the entire mailbox log in one go
@@ -1982,7 +1982,7 @@ static int mboxlog_show(struct seq_file *seq, void *v)
 		return 0;
 
 	seq_printf(seq, "%10u  %15llu  %5d  %5d",
-		   entry->seqno, entry->timestamp,
+		   entry->seqyes, entry->timestamp,
 		   entry->access, entry->execute);
 	for (i = 0; i < MBOX_LEN / 8; i++) {
 		u64 flit = entry->cmd[i];
@@ -2025,14 +2025,14 @@ static const struct seq_operations mboxlog_seq_ops = {
 	.show  = mboxlog_show
 };
 
-static int mboxlog_open(struct inode *inode, struct file *file)
+static int mboxlog_open(struct iyesde *iyesde, struct file *file)
 {
 	int res = seq_open(file, &mboxlog_seq_ops);
 
 	if (!res) {
 		struct seq_file *seq = file->private_data;
 
-		seq->private = inode->i_private;
+		seq->private = iyesde->i_private;
 	}
 	return res;
 }
@@ -2179,13 +2179,13 @@ static const struct seq_operations sge_qinfo_seq_ops = {
 	.show  = sge_qinfo_show
 };
 
-static int sge_qinfo_open(struct inode *inode, struct file *file)
+static int sge_qinfo_open(struct iyesde *iyesde, struct file *file)
 {
 	int res = seq_open(file, &sge_qinfo_seq_ops);
 
 	if (!res) {
 		struct seq_file *seq = file->private_data;
-		seq->private = inode->i_private;
+		seq->private = iyesde->i_private;
 	}
 	return res;
 }
@@ -2325,13 +2325,13 @@ static const struct seq_operations sge_qstats_seq_ops = {
 	.show  = sge_qstats_show
 };
 
-static int sge_qstats_open(struct inode *inode, struct file *file)
+static int sge_qstats_open(struct iyesde *iyesde, struct file *file)
 {
 	int res = seq_open(file, &sge_qstats_seq_ops);
 
 	if (res == 0) {
 		struct seq_file *seq = file->private_data;
-		seq->private = inode->i_private;
+		seq->private = iyesde->i_private;
 	}
 	return res;
 }
@@ -2423,13 +2423,13 @@ static const struct seq_operations interfaces_seq_ops = {
 	.show  = interfaces_show
 };
 
-static int interfaces_open(struct inode *inode, struct file *file)
+static int interfaces_open(struct iyesde *iyesde, struct file *file)
 {
 	int res = seq_open(file, &interfaces_seq_ops);
 
 	if (res == 0) {
 		struct seq_file *seq = file->private_data;
-		seq->private = inode->i_private;
+		seq->private = iyesde->i_private;
 	}
 	return res;
 }
@@ -2446,7 +2446,7 @@ static const struct file_operations interfaces_proc_fops = {
  * /sys/kernel/debugfs/cxgb4vf/ files list.
  */
 struct cxgb4vf_debugfs_entry {
-	const char *name;		/* name of debugfs node */
+	const char *name;		/* name of debugfs yesde */
 	umode_t mode;			/* file system mode */
 	const struct file_operations *fops;
 };
@@ -2465,7 +2465,7 @@ static struct cxgb4vf_debugfs_entry debugfs_files[] = {
  */
 
 /*
- * Set up out /sys/kernel/debug/cxgb4vf sub-nodes.  We assume that the
+ * Set up out /sys/kernel/debug/cxgb4vf sub-yesdes.  We assume that the
  * directory (debugfs_root) has already been set up.
  */
 static int setup_debugfs(struct adapter *adapter)
@@ -2487,7 +2487,7 @@ static int setup_debugfs(struct adapter *adapter)
 }
 
 /*
- * Tear down the /sys/kernel/debug/cxgb4vf sub-nodes created above.  We leave
+ * Tear down the /sys/kernel/debug/cxgb4vf sub-yesdes created above.  We leave
  * it to our caller to tear down the directory (debugfs_root).
  */
 static void cleanup_debugfs(struct adapter *adapter)
@@ -2500,11 +2500,11 @@ static void cleanup_debugfs(struct adapter *adapter)
 	 * debugfs_remove_recursive().  We just need to clean up any ancillary
 	 * persistent state.
 	 */
-	/* nothing to do */
+	/* yesthing to do */
 }
 
 /* Figure out how many Ports and Queue Sets we can support.  This depends on
- * knowing our Virtual Function Resources and may be called a second time if
+ * kyeswing our Virtual Function Resources and may be called a second time if
  * we fall back from MSI-X to MSI Interrupt Mode.
  */
 static void size_nports_qsets(struct adapter *adapter)
@@ -2537,7 +2537,7 @@ static void size_nports_qsets(struct adapter *adapter)
 		adapter->params.nports = pmask_nports;
 	}
 
-	/* We need to reserve an Ingress Queue for the Asynchronous Firmware
+	/* We need to reserve an Ingress Queue for the Asynchroyesus Firmware
 	 * Event Queue.  And if we're using MSI Interrupts, we'll also need to
 	 * reserve an Ingress Queue for a Forwarded Interrupts.
 	 *
@@ -2550,7 +2550,7 @@ static void size_nports_qsets(struct adapter *adapter)
 	 *
 	 * Note that even if we're currently configured to use MSI-X
 	 * Interrupts (module variable msi == MSI_MSIX) we may get downgraded
-	 * to MSI Interrupts if we can't get enough MSI-X Interrupts.  If that
+	 * to MSI Interrupts if we can't get eyesugh MSI-X Interrupts.  If that
 	 * happens we'll need to adjust things later.
 	 */
 	ethqsets = vfres->niqflint - 1 - (msi == MSI_MSI);
@@ -2583,7 +2583,7 @@ static int adap_init0(struct adapter *adapter)
 	u32 param, val = 0;
 
 	/*
-	 * Some environments do not properly handle PCIE FLRs -- e.g. in Linux
+	 * Some environments do yest properly handle PCIE FLRs -- e.g. in Linux
 	 * 2.6.31 and later we can't call pci_reset_function() in order to
 	 * issue an FLR because of a self- deadlock on the device semaphore.
 	 * Meanwhile, the OS infrastructure doesn't issue FLRs in all the
@@ -2603,7 +2603,7 @@ static int adap_init0(struct adapter *adapter)
 	 * been set up by the Physical Function Driver or will be hard coded
 	 * into the adapter.  We just have to live with them ...  Note that
 	 * we _must_ get our VPD parameters before our SGE parameters because
-	 * we need to know the adapter's core clock from the VPD in order to
+	 * we need to kyesw the adapter's core clock from the VPD in order to
 	 * properly decode the SGE Timer Values.
 	 */
 	err = t4vf_get_dev_params(adapter);
@@ -2643,7 +2643,7 @@ static int adap_init0(struct adapter *adapter)
 		return err;
 	}
 
-	/* If we're running on newer firmware, let it know that we're
+	/* If we're running on newer firmware, let it kyesw that we're
 	 * prepared to deal with encapsulated CPL messages.  Older
 	 * firmware won't understand this and we'll just get
 	 * unencapsulated messages ...
@@ -2689,17 +2689,17 @@ static int adap_init0(struct adapter *adapter)
 
 	/* Check for various parameter sanity issues */
 	if (adapter->params.vfres.pmask == 0) {
-		dev_err(adapter->pdev_dev, "no port access configured\n"
+		dev_err(adapter->pdev_dev, "yes port access configured\n"
 			"usable!\n");
 		return -EINVAL;
 	}
 	if (adapter->params.vfres.nvi == 0) {
-		dev_err(adapter->pdev_dev, "no virtual interfaces configured/"
+		dev_err(adapter->pdev_dev, "yes virtual interfaces configured/"
 			"usable!\n");
 		return -EINVAL;
 	}
 
-	/* Initialize nports and max_ethqsets now that we have our Virtual
+	/* Initialize nports and max_ethqsets yesw that we have our Virtual
 	 * Function Resources.
 	 */
 	size_nports_qsets(adapter);
@@ -2735,8 +2735,8 @@ static void cfg_queues(struct adapter *adapter)
 	size_t iqe_size;
 
 	/*
-	 * We should not be called till we know how many Queue Sets we can
-	 * support.  In particular, this means that we need to know what kind
+	 * We should yest be called till we kyesw how many Queue Sets we can
+	 * support.  In particular, this means that we need to kyesw what kind
 	 * of interrupts we'll be using ...
 	 */
 	BUG_ON((adapter->flags &
@@ -2750,7 +2750,7 @@ static void cfg_queues(struct adapter *adapter)
 		n10g += is_x_10g_port(&adap2pinfo(adapter, pidx)->link_cfg);
 
 	/*
-	 * We default to 1 queue per non-10G port and up to # of cores queues
+	 * We default to 1 queue per yesn-10G port and up to # of cores queues
 	 * per 10G port.
 	 */
 	if (n10g == 0)
@@ -2779,7 +2779,7 @@ static void cfg_queues(struct adapter *adapter)
 
 	/*
 	 * The Ingress Queue Entry Size for our various Response Queues needs
-	 * to be big enough to accommodate the largest message we can receive
+	 * to be big eyesugh to accommodate the largest message we can receive
 	 * from the chip/firmware; which is 64 bytes ...
 	 */
 	iqe_size = 64;
@@ -2799,7 +2799,7 @@ static void cfg_queues(struct adapter *adapter)
 
 	/*
 	 * The firmware event queue is used for link state changes and
-	 * notifications of TX DMA completions.
+	 * yestifications of TX DMA completions.
 	 */
 	init_rspq(&s->fw_evtq, SGE_TIMER_RSTRT_CNTR, 0, 512, iqe_size);
 
@@ -2809,10 +2809,10 @@ static void cfg_queues(struct adapter *adapter)
 	 * be forwarded to a single queue which we'll associate with our MSI
 	 * interrupt vector.  The messages dropped in the forwarded interrupt
 	 * queue will indicate which ingress queue needs servicing ...  This
-	 * queue needs to be large enough to accommodate all of the ingress
+	 * queue needs to be large eyesugh to accommodate all of the ingress
 	 * queues which are forwarding their interrupt (+1 to prevent the PIDX
 	 * from equalling the CIDX if every ingress queue has an outstanding
-	 * interrupt).  The queue doesn't need to be any larger because no
+	 * interrupt).  The queue doesn't need to be any larger because yes
 	 * ingress queue will ever have more than one outstanding interrupt at
 	 * any time ...
 	 */
@@ -2857,7 +2857,7 @@ static void reduce_ethqs(struct adapter *adapter, int n)
 }
 
 /*
- * We need to grab enough MSI-X vectors to cover our interrupt needs.  Ideally
+ * We need to grab eyesugh MSI-X vectors to cover our interrupt needs.  Ideally
  * we get a separate MSI-X vector for every "Queue Set" plus any extras we
  * need.  Minimally we need one for every Virtual Interface plus those needed
  * for our "extras".  Note that this process may lower the maximum number of
@@ -2873,10 +2873,10 @@ static int enable_msix(struct adapter *adapter)
 		entries[i].entry = i;
 
 	/*
-	 * We _want_ enough MSI-X interrupts to cover all of our "Queue Sets"
+	 * We _want_ eyesugh MSI-X interrupts to cover all of our "Queue Sets"
 	 * plus those needed for our "extras" (for example, the firmware
 	 * message queue).  We _need_ at least one "Queue Set" per Virtual
-	 * Interface plus those needed for our "extras".  So now we get to see
+	 * Interface plus those needed for our "extras".  So yesw we get to see
 	 * if the song is right ...
 	 */
 	want = s->max_ethqsets + MSIX_EXTRAS;
@@ -2888,7 +2888,7 @@ static int enable_msix(struct adapter *adapter)
 
 	nqsets = want - MSIX_EXTRAS;
 	if (nqsets < s->max_ethqsets) {
-		dev_warn(adapter->pdev_dev, "only enough MSI-X vectors"
+		dev_warn(adapter->pdev_dev, "only eyesugh MSI-X vectors"
 			 " for %d Queue Sets\n", nqsets);
 		s->max_ethqsets = nqsets;
 		if (nqsets < s->ethqsets)
@@ -2944,7 +2944,7 @@ static int cxgb4vf_pci_probe(struct pci_dev *pdev,
 	 */
 	err = pci_enable_device(pdev);
 	if (err) {
-		dev_err(&pdev->dev, "cannot enable PCI device\n");
+		dev_err(&pdev->dev, "canyest enable PCI device\n");
 		return err;
 	}
 
@@ -2954,7 +2954,7 @@ static int cxgb4vf_pci_probe(struct pci_dev *pdev,
 	 */
 	err = pci_request_regions(pdev, KBUILD_MODNAME);
 	if (err) {
-		dev_err(&pdev->dev, "cannot obtain PCI resources\n");
+		dev_err(&pdev->dev, "canyest obtain PCI resources\n");
 		goto err_disable_device;
 	}
 
@@ -2974,7 +2974,7 @@ static int cxgb4vf_pci_probe(struct pci_dev *pdev,
 	} else {
 		err = pci_set_dma_mask(pdev, DMA_BIT_MASK(32));
 		if (err != 0) {
-			dev_err(&pdev->dev, "no usable DMA configuration\n");
+			dev_err(&pdev->dev, "yes usable DMA configuration\n");
 			goto err_release_regions;
 		}
 		pci_using_dac = 0;
@@ -3019,7 +3019,7 @@ static int cxgb4vf_pci_probe(struct pci_dev *pdev,
 	 */
 	adapter->regs = pci_ioremap_bar(pdev, 0);
 	if (!adapter->regs) {
-		dev_err(&pdev->dev, "cannot map device registers\n");
+		dev_err(&pdev->dev, "canyest map device registers\n");
 		err = -ENOMEM;
 		goto err_free_adapter;
 	}
@@ -3040,7 +3040,7 @@ static int cxgb4vf_pci_probe(struct pci_dev *pdev,
 		adapter->bar2 = ioremap_wc(pci_resource_start(pdev, 2),
 					   pci_resource_len(pdev, 2));
 		if (!adapter->bar2) {
-			dev_err(adapter->pdev_dev, "cannot map BAR2 doorbells\n");
+			dev_err(adapter->pdev_dev, "canyest map BAR2 doorbells\n");
 			err = -ENOMEM;
 			goto err_unmap_bar0;
 		}
@@ -3055,7 +3055,7 @@ static int cxgb4vf_pci_probe(struct pci_dev *pdev,
 	 * Ingress Packet Data to Free List Buffers in order to allow for
 	 * chipset performance optimizations between the Root Complex and
 	 * Memory Controllers.  (Messages to the associated Ingress Queue
-	 * notifying new Packet Placement in the Free Lists Buffers will be
+	 * yestifying new Packet Placement in the Free Lists Buffers will be
 	 * send without the Relaxed Ordering Attribute thus guaranteeing that
 	 * all preceding PCIe Transaction Layer Packets will be processed
 	 * first.)  But some Root Complexes have various issues with Upstream
@@ -3139,7 +3139,7 @@ static int cxgb4vf_pci_probe(struct pci_dev *pdev,
 
 		/*
 		 * If we haven't been able to contact the firmware, there's
-		 * nothing else we can do for this "port" ...
+		 * yesthing else we can do for this "port" ...
 		 */
 		if (!(adapter->flags & CXGB4VF_FW_OK))
 			continue;
@@ -3147,7 +3147,7 @@ static int cxgb4vf_pci_probe(struct pci_dev *pdev,
 		viid = t4vf_alloc_vi(adapter, port_id);
 		if (viid < 0) {
 			dev_err(&pdev->dev,
-				"cannot allocate VI for port %d: err=%d\n",
+				"canyest allocate VI for port %d: err=%d\n",
 				port_id, viid);
 			err = viid;
 			goto err_free_dev;
@@ -3159,7 +3159,7 @@ static int cxgb4vf_pci_probe(struct pci_dev *pdev,
 		 */
 		err = t4vf_port_init(adapter, pidx);
 		if (err) {
-			dev_err(&pdev->dev, "cannot initialize port %d\n",
+			dev_err(&pdev->dev, "canyest initialize port %d\n",
 				pidx);
 			goto err_free_dev;
 		}
@@ -3214,14 +3214,14 @@ static int cxgb4vf_pci_probe(struct pci_dev *pdev,
 		adapter->flags |= CXGB4VF_USING_MSI;
 	}
 
-	/* Now that we know how many "ports" we have and what interrupt
+	/* Now that we kyesw how many "ports" we have and what interrupt
 	 * mechanism we're going to use, we can configure our queue resources.
 	 */
 	cfg_queues(adapter);
 
 	/*
-	 * The "card" is now ready to go.  If any errors occur during device
-	 * registration we do not fail the whole "card" but rather proceed
+	 * The "card" is yesw ready to go.  If any errors occur during device
+	 * registration we do yest fail the whole "card" but rather proceed
 	 * only with the ports we manage to register successfully.  However we
 	 * must register at least one net device.
 	 */
@@ -3236,7 +3236,7 @@ static int cxgb4vf_pci_probe(struct pci_dev *pdev,
 
 		err = register_netdev(netdev);
 		if (err) {
-			dev_warn(&pdev->dev, "cannot register net device %s,"
+			dev_warn(&pdev->dev, "canyest register net device %s,"
 				 " skipping\n", netdev->name);
 			continue;
 		}
@@ -3245,7 +3245,7 @@ static int cxgb4vf_pci_probe(struct pci_dev *pdev,
 		set_bit(pidx, &adapter->registered_device_map);
 	}
 	if (adapter->registered_device_map == 0) {
-		dev_err(&pdev->dev, "could not register any net devices\n");
+		dev_err(&pdev->dev, "could yest register any net devices\n");
 		goto err_disable_interrupts;
 	}
 
@@ -3260,7 +3260,7 @@ static int cxgb4vf_pci_probe(struct pci_dev *pdev,
 	}
 
 	/*
-	 * Print a short notice on the existence and configuration of the new
+	 * Print a short yestice on the existence and configuration of the new
 	 * VF network device ...
 	 */
 	for_each_port(adapter, pidx) {

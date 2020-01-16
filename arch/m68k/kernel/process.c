@@ -11,7 +11,7 @@
  * This file handles the architecture-dependent parts of process handling..
  */
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/module.h>
 #include <linux/sched.h>
 #include <linux/sched/debug.h>
@@ -102,10 +102,10 @@ void flush_thread(void)
 }
 
 /*
- * Why not generic sys_clone, you ask?  m68k passes all arguments on stack.
+ * Why yest generic sys_clone, you ask?  m68k passes all arguments on stack.
  * And we need all registers saved, which means a bunch of stuff pushed
  * on top of pt_regs, which means that sys_clone() arguments would be
- * buried.  We could, of course, copy them, but it's too costly for no
+ * buried.  We could, of course, copy them, but it's too costly for yes
  * good reason - generic clone() would have to copy them *again* for
  * do_fork() anyway.  So in this case it's actually better to pass pt_regs *
  * and extract arguments for do_fork() from there.  Eventually we might

@@ -103,7 +103,7 @@ struct phy_info {
 	u16 	Cfo_tail[4];			/*  per-path's Cfo_tail */
 
 	s8		RxPower; /*  in dBm Translate from PWdB */
-	s8		RecvSignalPower;/*  Real power in dBm for this packet, no beautification and aggregation. Keep this raw info to be used for the other procedures. */
+	s8		RecvSignalPower;/*  Real power in dBm for this packet, yes beautification and aggregation. Keep this raw info to be used for the other procedures. */
 	u8 bt_rx_rssi_percentage;
 	u8 SignalStrength; /*  in 0-100 index. */
 
@@ -147,7 +147,7 @@ struct rx_pkt_attrib	{
 	u8 order;
 	u8 privacy; /* in frame_ctrl field */
 	u8 bdecrypted;
-	u8 encrypt; /* when 0 indicate no encrypt. when non-zero, indicate the encrypt algorith */
+	u8 encrypt; /* when 0 indicate yes encrypt. when yesn-zero, indicate the encrypt algorith */
 	u8 iv_len;
 	u8 icv_len;
 	u8 crc_err;
@@ -262,7 +262,7 @@ struct recv_priv {
 	struct rx_raw_rssi raw_rssi_info;
 	#endif
 	/* s8 rxpwdb; */
-	s16 noise;
+	s16 yesise;
 	/* int RxSNRdB[2]; */
 	/* s8 RxRssi[2]; */
 	/* int FalseAlmCnt_all; */

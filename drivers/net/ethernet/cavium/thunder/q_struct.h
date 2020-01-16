@@ -393,7 +393,7 @@ struct rx_hdr_t {
 	u64   skip_length:6;
 	u64   disable_rss:1;
 	u64   disable_tcp_reassembly:1;
-	u64   nodrop:1;
+	u64   yesdrop:1;
 	u64   dest_alg:2;
 	u64   rsvd0:2;
 	u64   dest_rq:11;
@@ -528,7 +528,7 @@ struct sq_hdr_subdesc {
 #if defined(__BIG_ENDIAN_BITFIELD)
 	u64    subdesc_type:4;
 	u64    tso:1;
-	u64    post_cqe:1; /* Post CQE on no error also */
+	u64    post_cqe:1; /* Post CQE on yes error also */
 	u64    dont_send:1;
 	u64    tstmp:1;
 	u64    subdesc_cnt:8;
@@ -561,7 +561,7 @@ struct sq_hdr_subdesc {
 	u64    subdesc_cnt:8;
 	u64    tstmp:1;
 	u64    dont_send:1;
-	u64    post_cqe:1; /* Post CQE on no error also */
+	u64    post_cqe:1; /* Post CQE on yes error also */
 	u64    tso:1;
 	u64    subdesc_type:4; /* W0 */
 

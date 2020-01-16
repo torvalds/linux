@@ -3,7 +3,7 @@
  * Copyright (C) ST-Ericsson SA 2010-2013
  * Author: Rickard Andersson <rickard.andersson@stericsson.com> for
  *         ST-Ericsson.
- * Author: Daniel Lezcano <daniel.lezcano@linaro.org> for Linaro.
+ * Author: Daniel Lezcayes <daniel.lezcayes@linaro.org> for Linaro.
  * Author: Ulf Hansson <ulf.hansson@linaro.org> for Linaro.
  */
 
@@ -79,7 +79,7 @@ int prcmu_gic_recouple(void)
  * makes sense if the gic has been decoupled before with the
  * db8500_prcmu_gic_decouple function. Disabling an interrupt only
  * disables the forwarding of the interrupt to any CPU interface. It
- * does not prevent the interrupt from changing state, for example
+ * does yest prevent the interrupt from changing state, for example
  * becoming pending, or active and pending if it is already
  * active. Hence, we have to check the interrupt is pending *and* is
  * active.
@@ -90,7 +90,7 @@ bool prcmu_gic_pending_irq(void)
 	u32 er; /* Enable register */
 	int i;
 
-	/* 5 registers. STI & PPI not skipped */
+	/* 5 registers. STI & PPI yest skipped */
 	for (i = 0; i < PRCMU_GIC_NUMBER_REGS; i++) {
 
 		pr = readl_relaxed(dist_base + GIC_DIST_PENDING_SET + i * 4);
@@ -177,18 +177,18 @@ static const struct platform_suspend_ops ux500_suspend_ops = {
 
 void __init ux500_pm_init(u32 phy_base, u32 size)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 
 	prcmu_base = ioremap(phy_base, size);
 	if (!prcmu_base) {
-		pr_err("could not remap PRCMU for PM functions\n");
+		pr_err("could yest remap PRCMU for PM functions\n");
 		return;
 	}
-	np = of_find_compatible_node(NULL, NULL, "arm,cortex-a9-gic");
+	np = of_find_compatible_yesde(NULL, NULL, "arm,cortex-a9-gic");
 	dist_base = of_iomap(np, 0);
-	of_node_put(np);
+	of_yesde_put(np);
 	if (!dist_base) {
-		pr_err("could not remap GIC dist base for PM functions\n");
+		pr_err("could yest remap GIC dist base for PM functions\n");
 		return;
 	}
 

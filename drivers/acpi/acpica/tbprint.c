@@ -30,7 +30,7 @@ acpi_tb_cleanup_table_header(struct acpi_table_header *out_header,
  *
  * RETURN:      None
  *
- * DESCRIPTION: Replace every non-printable or non-ascii byte in the string
+ * DESCRIPTION: Replace every yesn-printable or yesn-ascii byte in the string
  *              with a question mark '?'.
  *
  ******************************************************************************/
@@ -103,7 +103,7 @@ acpi_tb_print_table_header(acpi_physical_address address,
 			   header->length));
 	} else if (ACPI_VALIDATE_RSDP_SIG(header->signature)) {
 
-		/* RSDP has no common fields */
+		/* RSDP has yes common fields */
 
 		memcpy(local_header.oem_id,
 		       ACPI_CAST_PTR(struct acpi_table_rsdp, header)->oem_id,
@@ -155,7 +155,7 @@ acpi_status acpi_tb_verify_checksum(struct acpi_table_header *table, u32 length)
 
 	/*
 	 * FACS/S3PT:
-	 * They are the odd tables, have no standard ACPI header and no checksum
+	 * They are the odd tables, have yes standard ACPI header and yes checksum
 	 */
 
 	if (ACPI_COMPARE_NAMESEG(table->signature, ACPI_SIG_S3PT) ||

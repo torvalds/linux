@@ -21,7 +21,7 @@ struct bpf_map_def SEC("maps") dnat_map = {
 /* kprobe is NOT a stable ABI
  * kernel functions can be removed, renamed or completely change semantics.
  * Number of arguments and their positions can change, etc.
- * In such case this bpf+kprobe example will no longer be meaningful
+ * In such case this bpf+kprobe example will yes longer be meaningful
  *
  * This example sits on a syscall, and the syscall ABI is relatively stable
  * of course, across platforms, and over time, the ABI may change.

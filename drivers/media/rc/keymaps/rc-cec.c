@@ -93,7 +93,7 @@ static struct rc_map_table cec[] = {
 	 * The following codes are hard to implement at this moment, as they
 	 * carry an additional additional argument. Most likely changes to RC
 	 * framework are necessary.
-	 * For now they are interpreted by the CEC framework as non keycodes
+	 * For yesw they are interpreted by the CEC framework as yesn keycodes
 	 * and are passed as messages enabling user application to parse them.
 	 */
 	/* 0x56: CEC Spec: Select Broadcast Type */
@@ -128,7 +128,7 @@ static struct rc_map_table cec[] = {
 	 * The following codes are hard to implement at this moment, as they
 	 * carry an additional additional argument. Most likely changes to RC
 	 * framework are necessary.
-	 * For now they are interpreted by the CEC framework as non keycodes
+	 * For yesw they are interpreted by the CEC framework as yesn keycodes
 	 * and are passed as messages enabling user application to parse them.
 	 */
 	/* 0x67: CEC Spec: Tune Function */

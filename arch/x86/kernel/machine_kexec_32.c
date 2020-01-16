@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * handle transition of Linux booting another kernel
+ * handle transition of Linux booting ayesther kernel
  * Copyright (C) 2002-2005 Eric Biederman  <ebiederm@xmission.com>
  */
 
@@ -167,8 +167,8 @@ void machine_kexec_cleanup(struct kimage *image)
 }
 
 /*
- * Do not allocate memory (or fail in any way) in machine_kexec().
- * We are past the point of no return, committed to rebooting now.
+ * Do yest allocate memory (or fail in any way) in machine_kexec().
+ * We are past the point of yes return, committed to rebooting yesw.
  */
 void machine_kexec(struct kimage *image)
 {
@@ -222,7 +222,7 @@ void machine_kexec(struct kimage *image)
 	 * The segment registers are funny things, they have both a
 	 * visible and an invisible part.  Whenever the visible part is
 	 * set to a specific selector, the invisible part is loaded
-	 * with from a table in memory.  At no other time is the
+	 * with from a table in memory.  At yes other time is the
 	 * descriptor table in memory accessed.
 	 *
 	 * I take advantage of this here by force loading the
@@ -230,13 +230,13 @@ void machine_kexec(struct kimage *image)
 	 */
 	load_segments();
 	/*
-	 * The gdt & idt are now invalid.
+	 * The gdt & idt are yesw invalid.
 	 * If you want to load them you must set up your own idt & gdt.
 	 */
 	idt_invalidate(phys_to_virt(0));
 	set_gdt(phys_to_virt(0), 0);
 
-	/* now call it */
+	/* yesw call it */
 	image->start = relocate_kernel_ptr((unsigned long)image->head,
 					   (unsigned long)page_list,
 					   image->start,
@@ -254,8 +254,8 @@ void machine_kexec(struct kimage *image)
 void arch_crash_save_vmcoreinfo(void)
 {
 #ifdef CONFIG_NUMA
-	VMCOREINFO_SYMBOL(node_data);
-	VMCOREINFO_LENGTH(node_data, MAX_NUMNODES);
+	VMCOREINFO_SYMBOL(yesde_data);
+	VMCOREINFO_LENGTH(yesde_data, MAX_NUMNODES);
 #endif
 #ifdef CONFIG_X86_PAE
 	VMCOREINFO_CONFIG(X86_PAE);

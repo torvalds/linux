@@ -22,7 +22,7 @@ bfad_iocmd_ioc_enable(struct bfad_s *bfad, void *cmd)
 	unsigned long	flags;
 
 	spin_lock_irqsave(&bfad->bfad_lock, flags);
-	/* If IOC is not in disabled state - return */
+	/* If IOC is yest in disabled state - return */
 	if (!bfa_ioc_is_disabled(&bfad->bfa.ioc)) {
 		spin_unlock_irqrestore(&bfad->bfad_lock, flags);
 		iocmd->status = BFA_STATUS_OK;
@@ -87,9 +87,9 @@ bfad_iocmd_ioc_get_info(struct bfad_s *bfad, void *cmd)
 	bfa_get_adapter_serial_num(&bfad->bfa, iocmd->serialnum);
 	iocmd->factorynwwn = pattr.factorynwwn;
 	iocmd->factorypwwn = pattr.factorypwwn;
-	iocmd->bfad_num = bfad->inst_no;
+	iocmd->bfad_num = bfad->inst_yes;
 	im_port = bfad->pport.im_port;
-	iocmd->host = im_port->shost->host_no;
+	iocmd->host = im_port->shost->host_yes;
 	spin_unlock_irqrestore(&bfad->bfad_lock, flags);
 
 	strcpy(iocmd->name, bfad->adapter_name);
@@ -658,7 +658,7 @@ bfad_iocmd_rport_get_addr(struct bfad_s *bfad, void *cmd)
 	drv_itnim = fcs_itnim->itnim_drv;
 
 	if (drv_itnim && drv_itnim->im_port)
-		iocmd->host = drv_itnim->im_port->shost->host_no;
+		iocmd->host = drv_itnim->im_port->shost->host_yes;
 	else {
 		bfa_trc(bfad, 0);
 		spin_unlock_irqrestore(&bfad->bfad_lock, flags);
@@ -779,7 +779,7 @@ bfad_iocmd_rport_set_speed(struct bfad_s *bfad, void *cmd)
 	}
 
 	fcs_rport->rpf.assigned_speed  = iocmd->speed;
-	/* Set this speed in f/w only if the RPSC speed is not available */
+	/* Set this speed in f/w only if the RPSC speed is yest available */
 	if (fcs_rport->rpf.rpsc_speed == BFA_PORT_SPEED_UNKNOWN)
 		if (fcs_rport->bfa_rport)
 			bfa_rport_speed(fcs_rport->bfa_rport, iocmd->speed);
@@ -3415,7 +3415,7 @@ bfad_im_bsg_els_ct_request(struct bsg_job *job)
 	/* Fetch the bfa_rport - if nexus needed */
 	if (command_type == FC_BSG_HST_ELS_NOLOGIN ||
 	    command_type == FC_BSG_HST_CT) {
-		/* BSG HST commands: no nexus needed */
+		/* BSG HST commands: yes nexus needed */
 		drv_fcxp->bfa_rport = NULL;
 
 	} else if (command_type == FC_BSG_RPT_ELS ||
@@ -3431,7 +3431,7 @@ bfad_im_bsg_els_ct_request(struct bsg_job *job)
 
 		drv_fcxp->bfa_rport = fcs_rport->bfa_rport;
 
-	} else { /* Unknown BSG msgcode; return -EINVAL */
+	} else { /* Unkyeswn BSG msgcode; return -EINVAL */
 		spin_unlock_irqrestore(&bfad->bfad_lock, flags);
 		goto out_free_mem;
 	}

@@ -35,14 +35,14 @@ ACPI_MODULE_NAME("utosi")
  *
  * 3) New _OSI strings are tending to come out about once per year. A delay
  *    in recognizing a new string for a significant amount of time risks the
- *    release of another string which only compounds the initial problem.
+ *    release of ayesther string which only compounds the initial problem.
  *
  *****************************************************************************/
 /*
  * Strings supported by the _OSI predefined control method (which is
  * implemented internally within this module.)
  *
- * March 2009: Removed "Linux" as this host no longer wants to respond true
+ * March 2009: Removed "Linux" as this host yes longer wants to respond true
  * for this string. Basically, the only safe OS strings are windows-related
  * and in many or most cases represent the only test path within the
  * BIOS-provided ASL code.
@@ -262,7 +262,7 @@ acpi_status acpi_ut_remove_interface(acpi_string interface_name)
 			} else {
 				/*
 				 * Interface is in static list. If marked invalid, then
-				 * it does not actually exist. Else, mark it invalid.
+				 * it does yest actually exist. Else, mark it invalid.
 				 */
 				if (next_interface->flags & ACPI_OSI_INVALID) {
 					return (AE_NOT_EXIST);
@@ -278,7 +278,7 @@ acpi_status acpi_ut_remove_interface(acpi_string interface_name)
 		next_interface = next_interface->next;
 	}
 
-	/* Interface was not found */
+	/* Interface was yest found */
 
 	return (AE_NOT_EXIST);
 }
@@ -332,7 +332,7 @@ acpi_status acpi_ut_update_interfaces(u8 action)
  *
  * PARAMETERS:  interface_name      - The interface to find
  *
- * RETURN:      struct acpi_interface_info if found. NULL if not found.
+ * RETURN:      struct acpi_interface_info if found. NULL if yest found.
  *
  * DESCRIPTION: Search for the specified interface name in the global list.
  *              Caller MUST hold acpi_gbl_osi_mutex
@@ -363,14 +363,14 @@ struct acpi_interface_info *acpi_ut_get_interface(acpi_string interface_name)
  *
  * RETURN:      Status
  *              Integer: TRUE (0) if input string is matched
- *                       FALSE (-1) if string is not matched
+ *                       FALSE (-1) if string is yest matched
  *
  * DESCRIPTION: Implementation of the _OSI predefined control method. When
  *              an invocation of _OSI is encountered in the system AML,
  *              control is transferred to this function.
  *
  * (August 2016)
- * Note:  _OSI is now defined to return "Ones" to indicate a match, for
+ * Note:  _OSI is yesw defined to return "Ones" to indicate a match, for
  * compatibility with other ACPI implementations. On a 32-bit DSDT, Ones
  * is 0xFFFFFFFF. On a 64-bit DSDT, Ones is 0xFFFFFFFFFFFFFFFF
  * (ACPI_UINT64_MAX).
@@ -448,7 +448,7 @@ acpi_status acpi_ut_osi_implementation(struct acpi_walk_state *walk_state)
 	ACPI_DEBUG_PRINT_RAW((ACPI_DB_INFO,
 			      "ACPI: BIOS _OSI(\"%s\") is %ssupported\n",
 			      string_desc->string.pointer,
-			      return_value == 0 ? "not " : ""));
+			      return_value == 0 ? "yest " : ""));
 
 	/* Complete the return object */
 

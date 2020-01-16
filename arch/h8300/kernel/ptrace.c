@@ -1,7 +1,7 @@
 /*
  *  linux/arch/h8300/kernel/ptrace.c
  *
- *  Copyright 2015 Yoshinori Sato <ysato@users.sourceforge.jp>
+ *  Copyright 2015 Yoshiyesri Sato <ysato@users.sourceforge.jp>
  *
  * This file is subject to the terms and conditions of the GNU General
  * Public License.  See the file COPYING in the main directory of
@@ -9,14 +9,14 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/ptrace.h>
 #include <linux/audit.h>
 #include <linux/tracehook.h>
 #include <linux/regset.h>
 #include <linux/elf.h>
 
-#define CCR_MASK 0x6f    /* mode/imask not set */
+#define CCR_MASK 0x6f    /* mode/imask yest set */
 #define EXR_MASK 0x80    /* modify only T */
 
 #define PT_REG(r) offsetof(struct pt_regs, r)
@@ -24,7 +24,7 @@
 extern void user_disable_single_step(struct task_struct *child);
 
 /* Mapping from PT_xxx to the stack offset at which the register is
-   saved.  Notice that usp has no stack-slot and needs to be treated
+   saved.  Notice that usp has yes stack-slot and needs to be treated
    specially (see get_reg/put_reg below). */
 static const int register_offset[] = {
 	PT_REG(er1), PT_REG(er2), PT_REG(er3), PT_REG(er4),
@@ -36,50 +36,50 @@ static const int register_offset[] = {
 };
 
 /* read register */
-long h8300_get_reg(struct task_struct *task, int regno)
+long h8300_get_reg(struct task_struct *task, int regyes)
 {
-	switch (regno) {
+	switch (regyes) {
 	case PT_USP:
 		return task->thread.usp + sizeof(long)*2;
 	case PT_CCR:
 	case PT_EXR:
 	    return *(unsigned short *)(task->thread.esp0 +
-				       register_offset[regno]);
+				       register_offset[regyes]);
 	default:
 	    return *(unsigned long *)(task->thread.esp0 +
-				      register_offset[regno]);
+				      register_offset[regyes]);
 	}
 }
 
-int h8300_put_reg(struct task_struct *task, int regno, unsigned long data)
+int h8300_put_reg(struct task_struct *task, int regyes, unsigned long data)
 {
 	unsigned short oldccr;
 	unsigned short oldexr;
 
-	switch (regno) {
+	switch (regyes) {
 	case PT_USP:
 		task->thread.usp = data - sizeof(long)*2;
 	case PT_CCR:
 		oldccr = *(unsigned short *)(task->thread.esp0 +
-					     register_offset[regno]);
+					     register_offset[regyes]);
 		oldccr &= ~CCR_MASK;
 		data &= CCR_MASK;
 		data |= oldccr;
 		*(unsigned short *)(task->thread.esp0 +
-				    register_offset[regno]) = data;
+				    register_offset[regyes]) = data;
 		break;
 	case PT_EXR:
 		oldexr = *(unsigned short *)(task->thread.esp0 +
-					     register_offset[regno]);
+					     register_offset[regyes]);
 		oldccr &= ~EXR_MASK;
 		data &= EXR_MASK;
 		data |= oldexr;
 		*(unsigned short *)(task->thread.esp0 +
-				    register_offset[regno]) = data;
+				    register_offset[regyes]) = data;
 		break;
 	default:
 		*(unsigned long *)(task->thread.esp0 +
-				   register_offset[regno]) = data;
+				   register_offset[regyes]) = data;
 		break;
 	}
 	return 0;
@@ -135,7 +135,7 @@ enum h8300_regset {
 
 static const struct user_regset h8300_regsets[] = {
 	[REGSET_GENERAL] = {
-		.core_note_type	= NT_PRSTATUS,
+		.core_yeste_type	= NT_PRSTATUS,
 		.n		= ELF_NGREG,
 		.size		= sizeof(long),
 		.align		= sizeof(long),
@@ -181,7 +181,7 @@ asmlinkage long do_syscall_trace_enter(struct pt_regs *regs)
 	if (test_thread_flag(TIF_SYSCALL_TRACE) &&
 	    tracehook_report_syscall_entry(regs))
 		/*
-		 * Tracing decided this syscall should not happen.
+		 * Tracing decided this syscall should yest happen.
 		 * We'll return a bogus call number to get an ENOSYS
 		 * error, but leave the original number in regs->regs[0].
 		 */

@@ -13,7 +13,7 @@
 #include <media/v4l2-async.h>
 #include <media/v4l2-dev.h>
 #include <media/v4l2-device.h>
-#include <media/v4l2-fwnode.h>
+#include <media/v4l2-fwyesde.h>
 #include <media/videobuf2-core.h>
 
 #define CSI_EN_REG			0x00
@@ -122,7 +122,7 @@ struct sun4i_csi {
 		dma_addr_t		paddr;
 	} scratch;
 
-	struct v4l2_fwnode_bus_parallel	bus;
+	struct v4l2_fwyesde_bus_parallel	bus;
 
 	/* Main Device */
 	struct v4l2_device		v4l;
@@ -138,7 +138,7 @@ struct sun4i_csi {
 
 	/* V4L2 Async variables */
 	struct v4l2_async_subdev	asd;
-	struct v4l2_async_notifier	notifier;
+	struct v4l2_async_yestifier	yestifier;
 	struct v4l2_subdev		*src_subdev;
 	int				src_pad;
 

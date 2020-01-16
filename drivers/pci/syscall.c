@@ -2,10 +2,10 @@
 /*
  * For architectures where we want to allow direct access to the PCI config
  * stuff - it would probably be preferable on PCs too, but there people
- * just do it by hand with the magic northbridge registers.
+ * just do it by hand with the magic yesrthbridge registers.
  */
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/pci.h>
 #include <linux/security.h>
 #include <linux/syscalls.h>

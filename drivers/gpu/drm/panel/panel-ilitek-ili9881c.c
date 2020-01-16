@@ -7,7 +7,7 @@
 #include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/err.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/fb.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -268,7 +268,7 @@ static inline struct ili9881c *panel_to_ili9881c(struct drm_panel *panel)
  * DCS commands.
  *
  * So before any attempt at sending a command or data, we have to be
- * sure if we're in the right page or not.
+ * sure if we're in the right page or yest.
  */
 static int ili9881c_switch_page(struct ili9881c *ctx, u8 page)
 {
@@ -423,7 +423,7 @@ static const struct drm_panel_funcs ili9881c_funcs = {
 
 static int ili9881c_dsi_probe(struct mipi_dsi_device *dsi)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 	struct ili9881c *ctx;
 	int ret;
 
@@ -448,10 +448,10 @@ static int ili9881c_dsi_probe(struct mipi_dsi_device *dsi)
 		return PTR_ERR(ctx->reset);
 	}
 
-	np = of_parse_phandle(dsi->dev.of_node, "backlight", 0);
+	np = of_parse_phandle(dsi->dev.of_yesde, "backlight", 0);
 	if (np) {
-		ctx->backlight = of_find_backlight_by_node(np);
-		of_node_put(np);
+		ctx->backlight = of_find_backlight_by_yesde(np);
+		of_yesde_put(np);
 
 		if (!ctx->backlight)
 			return -EPROBE_DEFER;

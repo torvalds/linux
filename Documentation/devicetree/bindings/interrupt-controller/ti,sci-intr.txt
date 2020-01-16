@@ -42,13 +42,13 @@ Required Properties:
 - ti,intr-trigger-type:	Should be one of the following:
 			1: If intr supports edge triggered interrupts.
 			4: If intr supports level triggered interrupts.
-- interrupt-controller:	Identifies the node as an interrupt controller
+- interrupt-controller:	Identifies the yesde as an interrupt controller
 - #interrupt-cells:	Specifies the number of cells needed to encode an
 			interrupt source. The value should be 2.
 			First cell should contain the TISCI device ID of source
 			Second cell should contain the interrupt source offset
 			within the device.
-- ti,sci:		Phandle to TI-SCI compatible System controller node.
+- ti,sci:		Phandle to TI-SCI compatible System controller yesde.
 - ti,sci-dst-id:	TISCI device ID of the destination IRQ controller.
 - ti,sci-rm-range-girq:	Array of TISCI subtype ids representing the host irqs
 			assigned to this interrupt router. Each subtype id
@@ -59,8 +59,8 @@ http://downloads.ti.com/tisci/esd/latest/2_tisci_msgs/rm/rm_irq.html
 
 Example:
 --------
-The following example demonstrates both interrupt router node and the consumer
-node(main gpio) on the AM654 SoC:
+The following example demonstrates both interrupt router yesde and the consumer
+yesde(main gpio) on the AM654 SoC:
 
 main_intr: interrupt-controller0 {
 	compatible = "ti,sci-intr";

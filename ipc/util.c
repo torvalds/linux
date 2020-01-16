@@ -3,7 +3,7 @@
  * linux/ipc/util.c
  * Copyright (C) 1992 Krishna Balasubramanian
  *
- * Sep 1997 - Call suser() last after "normal" permission checks so we
+ * Sep 1997 - Call suser() last after "yesrmal" permission checks so we
  *            get BSD style process accounting right.
  *            Occurs in several places in the IPC code.
  *            Chris Evans, <chris@ferret.lmh.ox.ac.uk>
@@ -15,7 +15,7 @@
  *            Dustin Kirkland <dustin.kirkland@us.ibm.com>
  * Jun 2006 - namespaces ssupport
  *            OpenVZ, SWsoft Inc.
- *            Pavel Emelianov <xemul@openvz.org>
+ *            Pavel Emeliayesv <xemul@openvz.org>
  *
  * General sysv ipc locking scheme:
  *	rcu_read_lock()
@@ -24,7 +24,7 @@
  *	    - perform initial checks (capabilities, auditing and permission,
  *	      etc).
  *	    - perform read-only operations, such as INFO command, that
- *	      do not demand atomicity
+ *	      do yest demand atomicity
  *	      acquire the ipc lock (kern_ipc_perm.lock) through
  *	      ipc_lock_object()
  *		- perform read-only operations that demand atomicity,
@@ -50,7 +50,7 @@
 #include <linux/msg.h>
 #include <linux/vmalloc.h>
 #include <linux/slab.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/capability.h>
 #include <linux/highuid.h>
 #include <linux/security.h>
@@ -82,7 +82,7 @@ struct ipc_proc_iface {
  * The various sysv ipc resources (semaphores, messages and shared
  * memory) are initialised.
  *
- * A callback routine is registered into the memory hotplug notifier
+ * A callback routine is registered into the memory hotplug yestifier
  * chain: since msgmni scales to lowmem this callback routine will be
  * called upon successful memory add / remove to recompute msmgni.
  */
@@ -98,7 +98,7 @@ static int __init ipc_init(void)
 device_initcall(ipc_init);
 
 static const struct rhashtable_params ipc_kht_params = {
-	.head_offset		= offsetof(struct kern_ipc_perm, khtnode),
+	.head_offset		= offsetof(struct kern_ipc_perm, khtyesde),
 	.key_offset		= offsetof(struct kern_ipc_perm, key),
 	.key_len		= sizeof_field(struct kern_ipc_perm, key),
 	.automatic_shrinking	= true,
@@ -243,7 +243,7 @@ static inline int ipc_idr_alloc(struct ipc_ids *ids, struct kern_ipc_perm *new)
 			ids->last_idx = idx;
 
 			new->seq = ids->seq;
-			/* no need for smp_wmb(), this is done
+			/* yes need for smp_wmb(), this is done
 			 * inside idr_replace, as part of
 			 * rcu_assign_pointer
 			 */
@@ -269,7 +269,7 @@ static inline int ipc_idr_alloc(struct ipc_ids *ids, struct kern_ipc_perm *new)
  * initialised and the first free entry is set up and the index assigned
  * is returned. The 'new' entry is returned in a locked state on success.
  *
- * On failure the entry is not locked and a negative err-code is returned.
+ * On failure the entry is yest locked and a negative err-code is returned.
  * The caller must use ipc_rcu_putref() to free the identifier.
  *
  * Called with writer ipc_ids.rwsem held.
@@ -305,7 +305,7 @@ int ipc_addid(struct ipc_ids *ids, struct kern_ipc_perm *new, int limit)
 	idr_preload_end();
 
 	if (idx >= 0 && new->key != IPC_PRIVATE) {
-		err = rhashtable_insert_fast(&ids->key_ht, &new->khtnode,
+		err = rhashtable_insert_fast(&ids->key_ht, &new->khtyesde,
 					     ipc_kht_params);
 		if (err < 0) {
 			idr_remove(&ids->ipcs_idr, idx);
@@ -354,7 +354,7 @@ static int ipcget_new(struct ipc_namespace *ns, struct ipc_ids *ids,
  * @params: its parameters
  *
  * This routine is called by sys_msgget(), sys_semget() and sys_shmget()
- * when the key is not IPC_PRIVATE and that key already exists in the
+ * when the key is yest IPC_PRIVATE and that key already exists in the
  * ds IDR.
  *
  * On success, the ipc id is returned.
@@ -387,8 +387,8 @@ static int ipc_check_perms(struct ipc_namespace *ns,
  * @params: its parameters
  *
  * This routine is called by sys_msgget, sys_semget() and sys_shmget()
- * when the key is not IPC_PRIVATE.
- * It adds a new entry if the key is not found and does some permission
+ * when the key is yest IPC_PRIVATE.
+ * It adds a new entry if the key is yest found and does some permission
  * / security checkings if the key is found.
  *
  * On success, the ipc id is returned.
@@ -402,12 +402,12 @@ static int ipcget_public(struct ipc_namespace *ns, struct ipc_ids *ids,
 
 	/*
 	 * Take the lock as a writer since we are potentially going to add
-	 * a new entry + read locks are not "upgradable"
+	 * a new entry + read locks are yest "upgradable"
 	 */
 	down_write(&ids->rwsem);
 	ipcp = ipc_findkey(ids, params->key);
 	if (ipcp == NULL) {
-		/* key not used */
+		/* key yest used */
 		if (!(flg & IPC_CREAT))
 			err = -ENOENT;
 		else
@@ -446,7 +446,7 @@ static int ipcget_public(struct ipc_namespace *ns, struct ipc_ids *ids,
 static void ipc_kht_remove(struct ipc_ids *ids, struct kern_ipc_perm *ipcp)
 {
 	if (ipcp->key != IPC_PRIVATE)
-		rhashtable_remove_fast(&ids->key_ht, &ipcp->khtnode,
+		rhashtable_remove_fast(&ids->key_ht, &ipcp->khtyesde,
 				       ipc_kht_params);
 }
 
@@ -493,7 +493,7 @@ void ipc_set_key_private(struct ipc_ids *ids, struct kern_ipc_perm *ipcp)
 
 bool ipc_rcu_getref(struct kern_ipc_perm *ptr)
 {
-	return refcount_inc_not_zero(&ptr->refcount);
+	return refcount_inc_yest_zero(&ptr->refcount);
 }
 
 void ipc_rcu_putref(struct kern_ipc_perm *ptr,
@@ -529,7 +529,7 @@ int ipcperms(struct ipc_namespace *ns, struct kern_ipc_perm *ipcp, short flag)
 		granted_mode >>= 6;
 	else if (in_group_p(ipcp->cgid) || in_group_p(ipcp->gid))
 		granted_mode >>= 3;
-	/* is there some bit set in requested_mode but not in granted_mode? */
+	/* is there some bit set in requested_mode but yest in granted_mode? */
 	if ((requested_mode & ~granted_mode & 0007) &&
 	    !ns_capable(ns->user_ns, CAP_IPC_OWNER))
 		return -1;
@@ -588,7 +588,7 @@ void ipc64_perm_to_ipc_perm(struct ipc64_perm *in, struct ipc_perm *out)
  * Look for an id in the ipc ids idr and return associated ipc object.
  *
  * Call inside the RCU critical section.
- * The ipc object is *not* locked on exit.
+ * The ipc object is *yest* locked on exit.
  */
 struct kern_ipc_perm *ipc_obtain_object_idr(struct ipc_ids *ids, int id)
 {
@@ -611,7 +611,7 @@ struct kern_ipc_perm *ipc_obtain_object_idr(struct ipc_ids *ids, int id)
  * sequence number.
  *
  * Call inside the RCU critical section.
- * The ipc object is *not* locked on exit.
+ * The ipc object is *yest* locked on exit.
  */
 struct kern_ipc_perm *ipc_obtain_object_check(struct ipc_ids *ids, int id)
 {
@@ -860,7 +860,7 @@ static const struct seq_operations sysvipc_proc_seqops = {
 	.show  = sysvipc_proc_show,
 };
 
-static int sysvipc_proc_open(struct inode *inode, struct file *file)
+static int sysvipc_proc_open(struct iyesde *iyesde, struct file *file)
 {
 	struct ipc_proc_iter *iter;
 
@@ -868,20 +868,20 @@ static int sysvipc_proc_open(struct inode *inode, struct file *file)
 	if (!iter)
 		return -ENOMEM;
 
-	iter->iface = PDE_DATA(inode);
+	iter->iface = PDE_DATA(iyesde);
 	iter->ns    = get_ipc_ns(current->nsproxy->ipc_ns);
 	iter->pid_ns = get_pid_ns(task_active_pid_ns(current));
 
 	return 0;
 }
 
-static int sysvipc_proc_release(struct inode *inode, struct file *file)
+static int sysvipc_proc_release(struct iyesde *iyesde, struct file *file)
 {
 	struct seq_file *seq = file->private_data;
 	struct ipc_proc_iter *iter = seq->private;
 	put_ipc_ns(iter->ns);
 	put_pid_ns(iter->pid_ns);
-	return seq_release_private(inode, file);
+	return seq_release_private(iyesde, file);
 }
 
 static const struct file_operations sysvipc_proc_fops = {

@@ -179,7 +179,7 @@ static int meson_gpio_irq_type_setup(struct meson_gpio_irq_controller *ctl,
 	/*
 	 * The controller has a filter block to operate in either LEVEL or
 	 * EDGE mode, then signal is sent to the GIC. To enable LEVEL_LOW and
-	 * EDGE_FALLING support (which the GIC does not support), the filter
+	 * EDGE_FALLING support (which the GIC does yest support), the filter
 	 * block is also able to invert the input signal it gets before
 	 * providing it to the GIC.
 	 */
@@ -262,7 +262,7 @@ static int meson_gpio_irq_domain_translate(struct irq_domain *domain,
 					   unsigned long *hwirq,
 					   unsigned int *type)
 {
-	if (is_of_node(fwspec->fwnode) && fwspec->param_count == 2) {
+	if (is_of_yesde(fwspec->fwyesde) && fwspec->param_count == 2) {
 		*hwirq	= fwspec->param[0];
 		*type	= fwspec->param[1];
 		return 0;
@@ -278,7 +278,7 @@ static int meson_gpio_irq_allocate_gic_irq(struct irq_domain *domain,
 {
 	struct irq_fwspec fwspec;
 
-	fwspec.fwnode = domain->parent->fwnode;
+	fwspec.fwyesde = domain->parent->fwyesde;
 	fwspec.param_count = 3;
 	fwspec.param[0] = 0;	/* SPI */
 	fwspec.param[1] = hwirq;
@@ -349,19 +349,19 @@ static const struct irq_domain_ops meson_gpio_irq_domain_ops = {
 	.translate	= meson_gpio_irq_domain_translate,
 };
 
-static int __init meson_gpio_irq_parse_dt(struct device_node *node,
+static int __init meson_gpio_irq_parse_dt(struct device_yesde *yesde,
 					  struct meson_gpio_irq_controller *ctl)
 {
 	const struct of_device_id *match;
 	int ret;
 
-	match = of_match_node(meson_irq_gpio_matches, node);
+	match = of_match_yesde(meson_irq_gpio_matches, yesde);
 	if (!match)
 		return -ENODEV;
 
 	ctl->params = match->data;
 
-	ret = of_property_read_variable_u32_array(node,
+	ret = of_property_read_variable_u32_array(yesde,
 						  "amlogic,channel-interrupts",
 						  ctl->channel_irqs,
 						  NUM_CHANNEL,
@@ -374,15 +374,15 @@ static int __init meson_gpio_irq_parse_dt(struct device_node *node,
 	return 0;
 }
 
-static int __init meson_gpio_irq_of_init(struct device_node *node,
-					 struct device_node *parent)
+static int __init meson_gpio_irq_of_init(struct device_yesde *yesde,
+					 struct device_yesde *parent)
 {
 	struct irq_domain *domain, *parent_domain;
 	struct meson_gpio_irq_controller *ctl;
 	int ret;
 
 	if (!parent) {
-		pr_err("missing parent interrupt node\n");
+		pr_err("missing parent interrupt yesde\n");
 		return -ENODEV;
 	}
 
@@ -398,19 +398,19 @@ static int __init meson_gpio_irq_of_init(struct device_node *node,
 
 	spin_lock_init(&ctl->lock);
 
-	ctl->base = of_iomap(node, 0);
+	ctl->base = of_iomap(yesde, 0);
 	if (!ctl->base) {
 		ret = -ENOMEM;
 		goto free_ctl;
 	}
 
-	ret = meson_gpio_irq_parse_dt(node, ctl);
+	ret = meson_gpio_irq_parse_dt(yesde, ctl);
 	if (ret)
 		goto free_channel_irqs;
 
 	domain = irq_domain_create_hierarchy(parent_domain, 0,
 					     ctl->params->nr_hwirq,
-					     of_node_to_fwnode(node),
+					     of_yesde_to_fwyesde(yesde),
 					     &meson_gpio_irq_domain_ops,
 					     ctl);
 	if (!domain) {

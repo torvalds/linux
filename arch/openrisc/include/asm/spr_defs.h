@@ -597,10 +597,10 @@
 #define FPCSR_RM_RIN (3<<1)
 
 /*
- * l.nop constants
+ * l.yesp constants
  *
  */
-#define NOP_NOP          0x0000      /* Normal nop instruction */
+#define NOP_NOP          0x0000      /* Normal yesp instruction */
 #define NOP_EXIT         0x0001      /* End of simulation */
 #define NOP_REPORT       0x0002      /* Simple report */
 /*#define NOP_PRINTF       0x0003       Simprintf instruction (obsolete)*/

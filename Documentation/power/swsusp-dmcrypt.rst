@@ -7,11 +7,11 @@ Author: Andreas Steinmetz <ast@domdv.de>
 
 
 Some prerequisites:
-You know how dm-crypt works. If not, visit the following web page:
+You kyesw how dm-crypt works. If yest, visit the following web page:
 http://www.saout.de/misc/dm-crypt/
 You have read Documentation/power/swsusp.rst and understand it.
-You did read Documentation/admin-guide/initrd.rst and know how an initrd works.
-You know how to create or how to modify an initrd.
+You did read Documentation/admin-guide/initrd.rst and kyesw how an initrd works.
+You kyesw how to create or how to modify an initrd.
 
 Now your system is properly set up, your disk is encrypted except for
 the swap device(s) and the boot partition which may contain a mini
@@ -28,7 +28,7 @@ swap device.
 
 The most important thing is that you set up dm-crypt in such
 a way that the swap device you suspend to/resume from has
-always the same major/minor within the initrd as well as
+always the same major/miyesr within the initrd as well as
 within your running system. The easiest way to achieve this is
 to always set up this swap device first with dmsetup, so that
 it will always look like the following::
@@ -58,25 +58,25 @@ named "swapkey". /etc/fstab of your initrd contains something
 like the following::
 
   /dev/hda1   /mnt    ext3      ro                            0 0
-  none        /proc   proc      defaults,noatime,nodiratime   0 0
-  none        /sys    sysfs     defaults,noatime,nodiratime   0 0
+  yesne        /proc   proc      defaults,yesatime,yesdiratime   0 0
+  yesne        /sys    sysfs     defaults,yesatime,yesdiratime   0 0
 
 /dev/hda1 contains an unencrypted mini system that sets up all
 of your crypto devices, again by reading the setup from the
-pcmcia flash disk. What follows now is a /linuxrc for your
+pcmcia flash disk. What follows yesw is a /linuxrc for your
 initrd that allows you to resume from encrypted swap and that
 continues boot with your mini system on /dev/hda1 if resume
-does not happen::
+does yest happen::
 
   #!/bin/sh
   PATH=/sbin:/bin:/usr/sbin:/usr/bin
   mount /proc
   mount /sys
   mapped=0
-  noresume=`grep -c noresume /proc/cmdline`
+  yesresume=`grep -c yesresume /proc/cmdline`
   if [ "$*" != "" ]
   then
-    noresume=1
+    yesresume=1
   fi
   dmesg -n 1
   /sbin/cardmgr -q
@@ -99,7 +99,7 @@ does not happen::
   dmesg -n 6
   if [ $mapped = 1 ]
   then
-    if [ $noresume != 0 ]
+    if [ $yesresume != 0 ]
     then
       mkswap /dev/mapper/swap0 > /dev/null 2>&1
     fi
@@ -116,10 +116,10 @@ does not happen::
   umount /proc
   exec chroot . /sbin/init $* < dev/console > dev/console 2>&1
 
-Please don't mind the weird loop above, busybox's msh doesn't know
+Please don't mind the weird loop above, busybox's msh doesn't kyesw
 the let statement. Now, what is happening in the script?
-First we have to decide if we want to try to resume, or not.
-We will not resume if booting with "noresume" or any parameters
+First we have to decide if we want to try to resume, or yest.
+We will yest resume if booting with "yesresume" or any parameters
 for init like "single" or "emergency" as boot parameters.
 
 Then we need to set up dmcrypt with the setup data from the
@@ -127,14 +127,14 @@ pcmcia flash disk. If this succeeds we need to reset the swap
 device if we don't want to resume. The line "echo 254:0 > /sys/power/resume"
 then attempts to resume from the first device mapper device.
 Note that it is important to set the device in /sys/power/resume,
-regardless if resuming or not, otherwise later suspend will fail.
+regardless if resuming or yest, otherwise later suspend will fail.
 If resume starts, script execution terminates here.
 
 Otherwise we just remove the encrypted swap device and leave it to the
 mini system on /dev/hda1 to set the whole crypto up (it is up to
 you to modify this to your taste).
 
-What then follows is the well known process to change the root
+What then follows is the well kyeswn process to change the root
 file system and continue booting from there. I prefer to unmount
 the initrd prior to continue booting but it is up to you to modify
 this.

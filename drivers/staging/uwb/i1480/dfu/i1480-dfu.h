@@ -10,10 +10,10 @@
  *
  * The process is quite simple: we stop the device, write the firmware
  * to its memory and then restart it. Wait for the device to let us
- * know it is done booting firmware. Ready.
+ * kyesw it is done booting firmware. Ready.
  *
  * We might have to upload before or after a phy firmware (which might
- * be done in two methods, using a normal firmware image or through
+ * be done in two methods, using a yesrmal firmware image or through
  * the MPI port).
  *
  * Because USB and PCI use common methods, we just make ops out of the
@@ -66,29 +66,29 @@ struct uwb_rceb;
 /*
  * Common firmware upload handlers
  *
- * Normally you embed this struct in another one specific to your hw.
+ * Normally you embed this struct in ayesther one specific to your hw.
  *
  * @write	Write to device's memory from buffer.
  * @read	Read from device's memory to i1480->evt_buf.
  * @setup	Setup device after basic firmware is uploaded
  * @wait_init_done
- *              Wait for the device to send a notification saying init
+ *              Wait for the device to send a yestification saying init
  *              is done.
  * @cmd         FOP for issuing the command to the hardware. The
  *              command data is contained in i1480->cmd_buf and the size
  *              is supplied as an argument. The command replied is put
  *              in i1480->evt_buf and the size in i1480->evt_result (or if
- *              an error, a < 0 errno code).
+ *              an error, a < 0 erryes code).
  *
  * @cmd_buf	Memory buffer used to send commands to the device.
  *              Allocated by the upper layers i1480_fw_upload().
  *              Size has to be @buf_size.
- * @evt_buf	Memory buffer used to place the async notifications
+ * @evt_buf	Memory buffer used to place the async yestifications
  *              received by the hw. Allocated by the upper layers
  *              i1480_fw_upload().
  *              Size has to be @buf_size.
  * @cmd_complete
- *              Low level driver uses this to notify code waiting afor
+ *              Low level driver uses this to yestify code waiting afor
  *              an event that the event has arrived and data is in
  *              i1480->evt_buf (and size/result in i1480->evt_result).
  * @hw_rev
@@ -189,10 +189,10 @@ struct i1480_evt_confirm_GMPI {
 	__le16 status;
 	u8 mac_addr[6];		/* EUI-64 bit IEEE address [still 8 bytes?] */
 	u8 dev_addr[2];
-	__le16 mac_fw_rev;	/* major = v >> 8; minor = v & 0xff */
+	__le16 mac_fw_rev;	/* major = v >> 8; miyesr = v & 0xff */
 	u8 hw_rev;
 	u8 phy_vendor;
-	u8 phy_rev;		/* major v = >> 8; minor = v & 0xff */
+	u8 phy_rev;		/* major v = >> 8; miyesr = v & 0xff */
 	__le16 mac_caps;
 	u8 phy_caps[3];
 	u8 key_stores;
@@ -203,8 +203,8 @@ struct i1480_evt_confirm_GMPI {
 	u8 status;
 	u8 mac_addr[8];         /* EUI-64 bit IEEE address [still 8 bytes?] */
 	u8 dev_addr[2];
-	__le16 mac_fw_rev;      /* major = v >> 8; minor = v & 0xff */
-	__le16 phy_fw_rev;      /* major v = >> 8; minor = v & 0xff */
+	__le16 mac_fw_rev;      /* major = v >> 8; miyesr = v & 0xff */
+	__le16 phy_fw_rev;      /* major v = >> 8; miyesr = v & 0xff */
 	__le16 mac_caps;
 	u8 phy_caps;
 	u8 key_stores;

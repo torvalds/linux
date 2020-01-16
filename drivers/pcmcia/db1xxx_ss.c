@@ -18,8 +18,8 @@
  *
  *	- Pb1100/Pb1500:  single socket only; voltage key bits VS are
  *			  at STATUS[5:4] (instead of STATUS[1:0]).
- *	- Au1200-based:	  additional card-eject irqs, irqs not gpios!
- *	- Db1300:	  Db1200-like, no pwr ctrl, single socket (#1).
+ *	- Au1200-based:	  additional card-eject irqs, irqs yest gpios!
+ *	- Db1300:	  Db1200-like, yes pwr ctrl, single socket (#1).
  */
 
 #include <linux/delay.h>
@@ -62,7 +62,7 @@ struct db1x_pcmcia_sock {
 #define BOARD_TYPE_DEFAULT	0	/* most boards */
 #define BOARD_TYPE_DB1200	1	/* IRQs aren't gpios */
 #define BOARD_TYPE_PB1100	2	/* VS bits slightly different */
-#define BOARD_TYPE_DB1300	3	/* no power control */
+#define BOARD_TYPE_DB1300	3	/* yes power control */
 	int	board_type;
 };
 
@@ -101,7 +101,7 @@ static int db1x_card_inserted(struct db1x_pcmcia_sock *sock)
 }
 
 /* STSCHG tends to bounce heavily when cards are inserted/ejected.
- * To avoid this, the interrupt is normally disabled and only enabled
+ * To avoid this, the interrupt is yesrmally disabled and only enabled
  * after reset to a card has been de-asserted.
  */
 static inline void set_stschg(struct db1x_pcmcia_sock *sock, int en)
@@ -139,7 +139,7 @@ static irqreturn_t db1000_pcmcia_stschgirq(int irq, void *data)
  */
 static irqreturn_t db1200_pcmcia_cdirq(int irq, void *data)
 {
-	disable_irq_nosync(irq);
+	disable_irq_yessync(irq);
 	return IRQ_WAKE_THREAD;
 }
 
@@ -357,15 +357,15 @@ static int db1x_pcmcia_get_status(struct pcmcia_socket *skt,
 	case 2:
 		status |= SS_3VCARD;	/* 3V card */
 	case 3:
-		break;			/* 5V card: set nothing */
+		break;			/* 5V card: set yesthing */
 	default:
 		status |= SS_XVCARD;	/* treated as unsupported in core */
 	}
 
-	/* if Vcc is not zero, we have applied power to a card */
+	/* if Vcc is yest zero, we have applied power to a card */
 	status |= GET_VCC(cr, sock->nr) ? SS_POWERON : 0;
 
-	/* DB1300: power always on, but don't tell when no card present */
+	/* DB1300: power always on, but don't tell when yes card present */
 	if ((sock->board_type == BOARD_TYPE_DB1300) && (status & SS_DETECT))
 		status = SS_POWERON | SS_3VCARD | SS_DETECT;
 
@@ -449,7 +449,7 @@ static int db1x_pcmcia_socket_probe(struct platform_device *pdev)
 		sock->board_type = BOARD_TYPE_DB1300;
 		break;
 	default:
-		printk(KERN_INFO "db1xxx-ss: unknown board %d!\n", bid);
+		printk(KERN_INFO "db1xxx-ss: unkyeswn board %d!\n", bid);
 		ret = -ENODEV;
 		goto out0;
 	};
@@ -491,7 +491,7 @@ static int db1x_pcmcia_socket_probe(struct platform_device *pdev)
 	/* 36bit PCMCIA Attribute area address */
 	r = platform_get_resource_byname(pdev, IORESOURCE_MEM, "pcmcia-attr");
 	if (!r) {
-		printk(KERN_ERR "pcmcia%d has no 'pseudo-attr' resource!\n",
+		printk(KERN_ERR "pcmcia%d has yes 'pseudo-attr' resource!\n",
 			sock->nr);
 		goto out0;
 	}
@@ -500,7 +500,7 @@ static int db1x_pcmcia_socket_probe(struct platform_device *pdev)
 	/* 36bit PCMCIA Memory area address */
 	r = platform_get_resource_byname(pdev, IORESOURCE_MEM, "pcmcia-mem");
 	if (!r) {
-		printk(KERN_ERR "pcmcia%d has no 'pseudo-mem' resource!\n",
+		printk(KERN_ERR "pcmcia%d has yes 'pseudo-mem' resource!\n",
 			sock->nr);
 		goto out0;
 	}
@@ -509,7 +509,7 @@ static int db1x_pcmcia_socket_probe(struct platform_device *pdev)
 	/* 36bit PCMCIA IO area address */
 	r = platform_get_resource_byname(pdev, IORESOURCE_MEM, "pcmcia-io");
 	if (!r) {
-		printk(KERN_ERR "pcmcia%d has no 'pseudo-io' resource!\n",
+		printk(KERN_ERR "pcmcia%d has yes 'pseudo-io' resource!\n",
 			sock->nr);
 		goto out0;
 	}
@@ -527,7 +527,7 @@ static int db1x_pcmcia_socket_probe(struct platform_device *pdev)
 				 mips_io_port_base);
 
 	if (!sock->virt_io) {
-		printk(KERN_ERR "pcmcia%d: cannot remap IO area\n",
+		printk(KERN_ERR "pcmcia%d: canyest remap IO area\n",
 			sock->nr);
 		ret = -ENOMEM;
 		goto out0;
@@ -546,7 +546,7 @@ static int db1x_pcmcia_socket_probe(struct platform_device *pdev)
 
 	ret = db1x_pcmcia_setup_irqs(sock);
 	if (ret) {
-		printk(KERN_ERR "pcmcia%d cannot setup interrupts\n",
+		printk(KERN_ERR "pcmcia%d canyest setup interrupts\n",
 			sock->nr);
 		goto out1;
 	}

@@ -26,9 +26,9 @@ static int pseries_get_random_long(unsigned long *v)
 
 static __init int rng_init(void)
 {
-	struct device_node *dn;
+	struct device_yesde *dn;
 
-	dn = of_find_compatible_node(NULL, NULL, "ibm,random");
+	dn = of_find_compatible_yesde(NULL, NULL, "ibm,random");
 	if (!dn)
 		return -ENODEV;
 

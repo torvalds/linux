@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * SuperH on-chip serial module support.  (SCI with no FIFO / with FIFO)
+ * SuperH on-chip serial module support.  (SCI with yes FIFO / with FIFO)
  *
  *  Copyright (C) 2002 - 2011  Paul Mundt
  *  Copyright (C) 2015 Glider bvba
@@ -9,7 +9,7 @@
  * based off of the old drivers/char/sh-sci.c by:
  *
  *   Copyright (C) 1999, 2000  Niibe Yutaka
- *   Copyright (C) 2000  Sugioka Toshinobu
+ *   Copyright (C) 2000  Sugioka Toshiyesbu
  *   Modified to support multiple serial ports. Stuart Menefy (May 2000).
  *   Modified to support SecureEdge. David McCullough (2002)
  *   Modified to support SH7300 SCIF. Takashi Kusuda (Jun 2003).
@@ -29,7 +29,7 @@
 #include <linux/dmaengine.h>
 #include <linux/dma-mapping.h>
 #include <linux/err.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/ioport.h>
@@ -294,7 +294,7 @@ static const struct sci_port_params sci_port_params[SCIx_NR_REGTYPES] = {
 
 	/*
 	 * The "SCIFA" that is in RZ/T and RZ/A2.
-	 * It looks like a normal SCIF with FIFO data, but with a
+	 * It looks like a yesrmal SCIF with FIFO data, but with a
 	 * compressed address space. Also, the break out of interrupts
 	 * are different: ERI/BRI, RXI, TXI, TEI, DRI.
 	 */
@@ -565,7 +565,7 @@ static inline unsigned long port_rx_irq_mask(struct uart_port *port)
 	 * Not all ports (such as SCIFA) will support REIE. Rather than
 	 * special-casing the port type, we check the port initialization
 	 * IRQ enable mask to see whether the IRQ is desired at all. If
-	 * it's unset, it's logically inferred that there's no point in
+	 * it's unset, it's logically inferred that there's yes point in
 	 * testing for it.
 	 */
 	return SCSCR_RIE | (to_sci_port(port)->cfg->scscr & SCSCR_REIE);
@@ -886,11 +886,11 @@ static void sci_receive_chars(struct uart_port *port)
 				if (status & SCxSR_FER(port)) {
 					flag = TTY_FRAME;
 					port->icount.frame++;
-					dev_notice(port->dev, "frame error\n");
+					dev_yestice(port->dev, "frame error\n");
 				} else if (status & SCxSR_PER(port)) {
 					flag = TTY_PARITY;
 					port->icount.parity++;
-					dev_notice(port->dev, "parity error\n");
+					dev_yestice(port->dev, "parity error\n");
 				} else
 					flag = TTY_NORMAL;
 
@@ -931,7 +931,7 @@ static int sci_handle_errors(struct uart_port *port)
 		if (tty_insert_flip_char(tport, 0, TTY_OVERRUN))
 			copied++;
 
-		dev_notice(port->dev, "overrun error\n");
+		dev_yestice(port->dev, "overrun error\n");
 	}
 
 	if (status & SCxSR_FER(port)) {
@@ -941,7 +941,7 @@ static int sci_handle_errors(struct uart_port *port)
 		if (tty_insert_flip_char(tport, 0, TTY_FRAME))
 			copied++;
 
-		dev_notice(port->dev, "frame error\n");
+		dev_yestice(port->dev, "frame error\n");
 	}
 
 	if (status & SCxSR_PER(port)) {
@@ -951,7 +951,7 @@ static int sci_handle_errors(struct uart_port *port)
 		if (tty_insert_flip_char(tport, 0, TTY_PARITY))
 			copied++;
 
-		dev_notice(port->dev, "parity error\n");
+		dev_yestice(port->dev, "parity error\n");
 	}
 
 	if (copied)
@@ -1064,7 +1064,7 @@ static int scif_set_rtrg(struct uart_port *port, int rx_trig)
 		}
 		break;
 	default:
-		WARN(1, "unknown FIFO configuration");
+		WARN(1, "unkyeswn FIFO configuration");
 		return 1;
 	}
 
@@ -1400,7 +1400,7 @@ static void sci_dma_tx_work_fn(struct work_struct *work)
 	int head, tail;
 
 	/*
-	 * DMA is idle now.
+	 * DMA is idle yesw.
 	 * Port xmit buffer is already mapped, and it is one page... Just adjust
 	 * offsets and lengths. Since it is a circular buffer, we have to
 	 * transmit till the end, and then the rest. Take the port lock to get a
@@ -1571,16 +1571,16 @@ static void sci_request_dma(struct uart_port *port)
 	if (uart_console(port))
 		return;
 
-	if (!port->dev->of_node)
+	if (!port->dev->of_yesde)
 		return;
 
 	s->cookie_tx = -EINVAL;
 
 	/*
-	 * Don't request a dma channel if no channel was specified
+	 * Don't request a dma channel if yes channel was specified
 	 * in the device tree.
 	 */
-	if (!of_find_property(port->dev->of_node, "dmas", NULL))
+	if (!of_find_property(port->dev->of_yesde, "dmas", NULL))
 		return;
 
 	chan = sci_request_dma_chan(port, DMA_MEM_TO_DEV);
@@ -1692,7 +1692,7 @@ static irqreturn_t sci_rx_interrupt(int irq, void *ptr)
 
 		/* Disable future Rx interrupts */
 		if (port->type == PORT_SCIFA || port->type == PORT_SCIFB) {
-			disable_irq_nosync(irq);
+			disable_irq_yessync(irq);
 			scr |= SCSCR_RDRQE;
 		} else {
 			if (sci_dma_rx_submit(s, false) < 0)
@@ -1921,24 +1921,24 @@ static int sci_request_irq(struct sci_port *port)
 					    dev_name(up->dev), desc->desc);
 		if (!port->irqstr[j]) {
 			ret = -ENOMEM;
-			goto out_nomem;
+			goto out_yesmem;
 		}
 
 		ret = request_irq(irq, desc->handler, up->irqflags,
 				  port->irqstr[j], port);
 		if (unlikely(ret)) {
 			dev_err(up->dev, "Can't allocate %s IRQ\n", desc->desc);
-			goto out_noirq;
+			goto out_yesirq;
 		}
 	}
 
 	return 0;
 
-out_noirq:
+out_yesirq:
 	while (--i >= 0)
 		free_irq(port->irqs[i], port);
 
-out_nomem:
+out_yesmem:
 	while (--j >= 0)
 		kfree(port->irqstr[j]);
 
@@ -2037,8 +2037,8 @@ static bool sci_get_cts(struct uart_port *port)
  * converted over to the GPIO framework).
  *
  * Other modes (such as loopback) are supported generically on certain
- * port types, but not others. For these it's sufficient to test for the
- * existence of the support register and simply ignore the port type.
+ * port types, but yest others. For these it's sufficient to test for the
+ * existence of the support register and simply igyesre the port type.
  */
 static void sci_set_mctrl(struct uart_port *port, unsigned int mctrl)
 {
@@ -2094,7 +2094,7 @@ static unsigned int sci_get_mctrl(struct uart_port *port)
 	mctrl_gpio_get(gpios, &mctrl);
 
 	/*
-	 * CTS/RTS is handled in hardware when supported, while nothing
+	 * CTS/RTS is handled in hardware when supported, while yesthing
 	 * else is wired up.
 	 */
 	if (s->autorts) {
@@ -2387,9 +2387,9 @@ static void sci_set_termios(struct uart_port *port, struct ktermios *termios,
 
 	/*
 	 * earlyprintk comes here early on with port->uartclk set to zero.
-	 * the clock framework is not up and running at this point so here
-	 * we assume that 115200 is the maximum baud rate. please note that
-	 * the baud rate is not programmed during earlyprintk - it is assumed
+	 * the clock framework is yest up and running at this point so here
+	 * we assume that 115200 is the maximum baud rate. please yeste that
+	 * the baud rate is yest programmed during earlyprintk - it is assumed
 	 * that the previous boot loader has enabled required clocks and
 	 * setup the baud rate generator hardware for us already.
 	 */
@@ -2572,7 +2572,7 @@ done:
 
 		if ((port->flags & UPF_HARD_FLOW) &&
 		    (termios->c_cflag & CRTSCTS)) {
-			/* There is no CTS interrupt to restart the hardware */
+			/* There is yes CTS interrupt to restart the hardware */
 			port->status |= UPSTAT_AUTOCTS;
 			/* MCE is enabled when RTS is raised */
 			s->autorts = true;
@@ -2598,7 +2598,7 @@ done:
 	if ((srr + 1 == 5) &&
 	    (port->type == PORT_SCIFA || port->type == PORT_SCIFB)) {
 		/*
-		 * In asynchronous mode, when the sampling rate is 1/5, first
+		 * In asynchroyesus mode, when the sampling rate is 1/5, first
 		 * received data may become invalid on some SCIFA and SCIFB.
 		 * To avoid this problem wait more than 1 serial data time (1
 		 * bit time x serial data number) after setting SCSCR.RE = 1.
@@ -2679,8 +2679,8 @@ static int sci_remap_port(struct uart_port *port)
 	if (port->membase)
 		return 0;
 
-	if (port->dev->of_node || (port->flags & UPF_IOREMAP)) {
-		port->membase = ioremap_nocache(port->mapbase, sport->reg_size);
+	if (port->dev->of_yesde || (port->flags & UPF_IOREMAP)) {
+		port->membase = ioremap_yescache(port->mapbase, sport->reg_size);
 		if (unlikely(!port->membase)) {
 			dev_err(port->dev, "can't remap port#%d\n", port->line);
 			return -ENXIO;
@@ -2701,7 +2701,7 @@ static void sci_release_port(struct uart_port *port)
 {
 	struct sci_port *sport = to_sci_port(port);
 
-	if (port->dev->of_node || (port->flags & UPF_IOREMAP)) {
+	if (port->dev->of_yesde || (port->flags & UPF_IOREMAP)) {
 		iounmap(port->membase);
 		port->membase = NULL;
 	}
@@ -2855,7 +2855,7 @@ sci_probe_regmap(const struct plat_sci_port *cfg)
 		break;
 	case PORT_SCIF:
 		/*
-		 * The SH-4 is a bit of a misnomer here, although that's
+		 * The SH-4 is a bit of a misyesmer here, although that's
 		 * where this particular port layout originated. This
 		 * configuration (or some slight variation thereof)
 		 * remains the dominant model for all SCIFs.
@@ -2905,9 +2905,9 @@ static int sci_init_single(struct platform_device *dev,
 	/* The SCI generates several interrupts. They can be muxed together or
 	 * connected to different interrupt lines. In the muxed case only one
 	 * interrupt resource is specified as there is only one interrupt ID.
-	 * In the non-muxed case, up to 6 interrupt signals might be generated
+	 * In the yesn-muxed case, up to 6 interrupt signals might be generated
 	 * from the SCI, however those signals might have their own individual
-	 * interrupt ID numbers, or muxed together with another interrupt.
+	 * interrupt ID numbers, or muxed together with ayesther interrupt.
 	 */
 	if (sci_port->irqs[0] < 0)
 		return -ENXIO;
@@ -2932,7 +2932,7 @@ static int sci_init_single(struct platform_device *dev,
 		break;
 	case PORT_SCIF:
 		if (p->regtype == SCIx_SH7705_SCIF_REGTYPE)
-			/* RX triggering not implemented for this IP */
+			/* RX triggering yest implemented for this IP */
 			sci_port->rx_trigger = 1;
 		else
 			sci_port->rx_trigger = 8;
@@ -2947,7 +2947,7 @@ static int sci_init_single(struct platform_device *dev,
 
 	/* SCIFA on sh7723 and sh7724 need a custom sampling rate that doesn't
 	 * match the SoC datasheet, this should be investigated. Let platform
-	 * data override the sampling rate for now.
+	 * data override the sampling rate for yesw.
 	 */
 	sci_port->sampling_rate_mask = p->sampling_rate
 				     ? SCI_SR(p->sampling_rate)
@@ -2979,7 +2979,7 @@ static int sci_init_single(struct platform_device *dev,
 	 * for the multi-IRQ ports, which is where we are primarily
 	 * concerned with the shutdown path synchronization.
 	 *
-	 * For the muxed case there's nothing more to do.
+	 * For the muxed case there's yesthing more to do.
 	 */
 	port->irq		= sci_port->irqs[SCIx_RXI_IRQ];
 	port->irqflags		= 0;
@@ -3003,7 +3003,7 @@ static void serial_console_putchar(struct uart_port *port, int ch)
 }
 
 /*
- *	Print a string to the serial port trying not to disturb
+ *	Print a string to the serial port trying yest to disturb
  *	any possible real use of the port...
  */
 static void serial_console_write(struct console *co, const char *s,
@@ -3142,7 +3142,7 @@ static struct uart_driver sci_uart_driver = {
 	.driver_name	= "sci",
 	.dev_name	= "ttySC",
 	.major		= SCI_MAJOR,
-	.minor		= SCI_MINOR_START,
+	.miyesr		= SCI_MINOR_START,
 	.nr		= SCI_NPORTS,
 	.cons		= SCI_CONSOLE,
 };
@@ -3216,7 +3216,7 @@ MODULE_DEVICE_TABLE(of, of_sci_match);
 static struct plat_sci_port *sci_parse_dt(struct platform_device *pdev,
 					  unsigned int *dev_id)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	struct plat_sci_port *p;
 	struct sci_port *sp;
 	const void *data;
@@ -3231,7 +3231,7 @@ static struct plat_sci_port *sci_parse_dt(struct platform_device *pdev,
 	if (!p)
 		return NULL;
 
-	/* Get the line number from the aliases node. */
+	/* Get the line number from the aliases yesde. */
 	id = of_alias_get_id(np, "serial");
 	if (id < 0 && ~sci_ports_in_use)
 		id = ffz(sci_ports_in_use);
@@ -3264,9 +3264,9 @@ static int sci_probe_single(struct platform_device *dev,
 
 	/* Sanity check */
 	if (unlikely(index >= SCI_NPORTS)) {
-		dev_notice(&dev->dev, "Attempting to register port %d when only %d are available\n",
+		dev_yestice(&dev->dev, "Attempting to register port %d when only %d are available\n",
 			   index+1, SCI_NPORTS);
-		dev_notice(&dev->dev, "Consider bumping CONFIG_SERIAL_SH_SCI_NR_UARTS!\n");
+		dev_yestice(&dev->dev, "Consider bumping CONFIG_SERIAL_SH_SCI_NR_UARTS!\n");
 		return -EINVAL;
 	}
 	BUILD_BUG_ON(SCI_NPORTS > sizeof(sci_ports_in_use) * 8);
@@ -3326,14 +3326,14 @@ static int sci_probe(struct platform_device *dev)
 		return sci_probe_earlyprintk(dev);
 #endif
 
-	if (dev->dev.of_node) {
+	if (dev->dev.of_yesde) {
 		p = sci_parse_dt(dev, &dev_id);
 		if (p == NULL)
 			return -EINVAL;
 	} else {
 		p = dev->dev.platform_data;
 		if (p == NULL) {
-			dev_err(&dev->dev, "no platform data supplied\n");
+			dev_err(&dev->dev, "yes platform data supplied\n");
 			return -EINVAL;
 		}
 

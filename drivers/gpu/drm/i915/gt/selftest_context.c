@@ -170,7 +170,7 @@ static int live_context_size(void *arg)
 		/*
 		 * Hide the old default state -- we lie about the context size
 		 * and get confused when the default state is smaller than
-		 * expected. For our do nothing request, inheriting the
+		 * expected. For our do yesthing request, inheriting the
 		 * active state is sufficient, we are only checking that we
 		 * don't use more than we planned.
 		 */
@@ -214,7 +214,7 @@ static int __live_active_context(struct intel_engine_cs *engine,
 	 *
 	 * This test makes sure that the context is kept alive until a
 	 * subsequent idle-barrier (emitted when the engine wakeref hits 0
-	 * with no more outstanding requests).
+	 * with yes more outstanding requests).
 	 */
 
 	if (intel_engine_pm_is_awake(engine)) {
@@ -242,7 +242,7 @@ static int __live_active_context(struct intel_engine_cs *engine,
 
 		/* Context will be kept active until after an idle-barrier. */
 		if (i915_active_is_idle(&ce->active)) {
-			pr_err("context is not active; expected idle-barrier (%s pass %d)\n",
+			pr_err("context is yest active; expected idle-barrier (%s pass %d)\n",
 			       engine->name, pass);
 			err = -EINVAL;
 			goto err;
@@ -353,10 +353,10 @@ static int __live_remote_context(struct intel_engine_cs *engine,
 	int err;
 
 	/*
-	 * Check that our idle barriers do not interfere with normal
+	 * Check that our idle barriers do yest interfere with yesrmal
 	 * activity tracking. In particular, check that operating
 	 * on the context image remotely (intel_context_prepare_remote_request),
-	 * which inserts foreign fences into intel_context.active, does not
+	 * which inserts foreign fences into intel_context.active, does yest
 	 * clobber the idle-barrier.
 	 */
 
@@ -380,7 +380,7 @@ static int __live_remote_context(struct intel_engine_cs *engine,
 			break;
 
 		if (i915_active_is_idle(&remote->active)) {
-			pr_err("remote context is not active; expected idle-barrier (%s pass %d)\n",
+			pr_err("remote context is yest active; expected idle-barrier (%s pass %d)\n",
 			       engine->name, pass);
 			err = -EINVAL;
 			break;

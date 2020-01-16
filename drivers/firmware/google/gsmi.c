@@ -13,7 +13,7 @@
 #include <linux/types.h>
 #include <linux/device.h>
 #include <linux/platform_device.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/string.h>
 #include <linux/spinlock.h>
 #include <linux/dma-mapping.h>
@@ -137,7 +137,7 @@ MODULE_PARM_DESC(spincount,
 	"The number of loop iterations to use when using the spin handshake.");
 
 /*
- * Platforms might not support S0ix logging in their GSMI handlers. In order to
+ * Platforms might yest support S0ix logging in their GSMI handlers. In order to
  * avoid any side-effects of generating an SMI for S0ix logging, use the S0ix
  * related GSMI commands only for those platforms that explicitly enable this
  * option.
@@ -183,7 +183,7 @@ static void gsmi_buf_free(struct gsmi_buf *smibuf)
 
 /*
  * Make a call to gsmi func(sub).  GSMI error codes are translated to
- * in-kernel errnos (0 on success, -ERRNO on error).
+ * in-kernel erryess (0 on success, -ERRNO on error).
  */
 static int gsmi_exec(u8 func, u8 sub)
 {
@@ -234,7 +234,7 @@ static int gsmi_exec(u8 func, u8 sub)
 		);
 	} else {
 		/*
-		 * If handshake_type == HANDSHAKE_NONE we do nothing;
+		 * If handshake_type == HANDSHAKE_NONE we do yesthing;
 		 * either we don't need to or it's legacy firmware that
 		 * doesn't understand the CF protocol.
 		 */
@@ -253,7 +253,7 @@ static int gsmi_exec(u8 func, u8 sub)
 	case GSMI_SUCCESS:
 		break;
 	case GSMI_VAR_NOT_FOUND:
-		/* not really an error, but let the caller know */
+		/* yest really an error, but let the caller kyesw */
 		rc = 1;
 		break;
 	case GSMI_INVALID_PARAMETER:
@@ -280,7 +280,7 @@ static int gsmi_exec(u8 func, u8 sub)
 		rc = -EFAULT;
 		break;
 	case GSMI_NOT_FOUND:
-		printk(KERN_ERR "gsmi: exec 0x%04x: Data not found\n", cmd);
+		printk(KERN_ERR "gsmi: exec 0x%04x: Data yest found\n", cmd);
 		rc = -ENOENT;
 		break;
 	case GSMI_LOG_FULL:
@@ -293,7 +293,7 @@ static int gsmi_exec(u8 func, u8 sub)
 		rc = result;
 		break;
 	default:
-		printk(KERN_ERR "gsmi: exec 0x%04x: Unknown error 0x%04x\n",
+		printk(KERN_ERR "gsmi: exec 0x%04x: Unkyeswn error 0x%04x\n",
 		       cmd, result);
 		rc = -ENXIO;
 	}
@@ -344,7 +344,7 @@ static efi_status_t gsmi_get_variable(efi_char16_t *name,
 		printk(KERN_ERR "gsmi: Get Variable failed\n");
 		ret = EFI_LOAD_ERROR;
 	} else if (rc == 1) {
-		/* variable was not found */
+		/* variable was yest found */
 		ret = EFI_NOT_FOUND;
 	} else {
 		/* Get the arguments back */
@@ -406,7 +406,7 @@ static efi_status_t gsmi_get_next_variable(unsigned long *name_size,
 		printk(KERN_ERR "gsmi: Get Next Variable Name failed\n");
 		ret = EFI_LOAD_ERROR;
 	} else if (rc == 1) {
-		/* variable not found -- end of list */
+		/* variable yest found -- end of list */
 		ret = EFI_NOT_FOUND;
 	} else {
 		/* copy variable data back to return buffer */
@@ -653,18 +653,18 @@ static int gsmi_shutdown_reason(int reason)
 	return rc;
 }
 
-static int gsmi_reboot_callback(struct notifier_block *nb,
+static int gsmi_reboot_callback(struct yestifier_block *nb,
 				unsigned long reason, void *arg)
 {
 	gsmi_shutdown_reason(GSMI_SHUTDOWN_CLEAN);
 	return NOTIFY_DONE;
 }
 
-static struct notifier_block gsmi_reboot_notifier = {
-	.notifier_call = gsmi_reboot_callback
+static struct yestifier_block gsmi_reboot_yestifier = {
+	.yestifier_call = gsmi_reboot_callback
 };
 
-static int gsmi_die_callback(struct notifier_block *nb,
+static int gsmi_die_callback(struct yestifier_block *nb,
 			     unsigned long reason, void *arg)
 {
 	if (reason == DIE_OOPS)
@@ -672,19 +672,19 @@ static int gsmi_die_callback(struct notifier_block *nb,
 	return NOTIFY_DONE;
 }
 
-static struct notifier_block gsmi_die_notifier = {
-	.notifier_call = gsmi_die_callback
+static struct yestifier_block gsmi_die_yestifier = {
+	.yestifier_call = gsmi_die_callback
 };
 
-static int gsmi_panic_callback(struct notifier_block *nb,
+static int gsmi_panic_callback(struct yestifier_block *nb,
 			       unsigned long reason, void *arg)
 {
 	gsmi_shutdown_reason(GSMI_SHUTDOWN_PANIC);
 	return NOTIFY_DONE;
 }
 
-static struct notifier_block gsmi_panic_notifier = {
-	.notifier_call = gsmi_panic_callback,
+static struct yestifier_block gsmi_panic_yestifier = {
+	.yestifier_call = gsmi_panic_callback,
 };
 
 /*
@@ -692,7 +692,7 @@ static struct notifier_block gsmi_panic_notifier = {
  * It is used by this driver to obfuscate a board name that requires a
  * quirk within this driver.
  *
- * Please do not remove this copy of the function as any changes to the
+ * Please do yest remove this copy of the function as any changes to the
  * global utility hash_64() function would break this driver's ability
  * to identify a board and provide the appropriate quirk -- mikew@google.com
  */
@@ -799,7 +799,7 @@ static void gsmi_log_s0ix_info(u8 cmd)
 	unsigned long flags;
 
 	/*
-	 * If platform has not enabled S0ix logging, then no action is
+	 * If platform has yest enabled S0ix logging, then yes action is
 	 * necessary.
 	 */
 	if (!s0ix_logging_enable)
@@ -817,14 +817,14 @@ static void gsmi_log_s0ix_info(u8 cmd)
 static int gsmi_log_s0ix_suspend(struct device *dev)
 {
 	/*
-	 * If system is not suspending via firmware using the standard ACPI Sx
+	 * If system is yest suspending via firmware using the standard ACPI Sx
 	 * types, then make a GSMI call to log the suspend info.
 	 */
 	if (!pm_suspend_via_firmware())
 		gsmi_log_s0ix_info(GSMI_CMD_LOG_S0IX_SUSPEND);
 
 	/*
-	 * Always return success, since we do not want suspend
+	 * Always return success, since we do yest want suspend
 	 * to fail just because of logging failure.
 	 */
 	return 0;
@@ -833,22 +833,22 @@ static int gsmi_log_s0ix_suspend(struct device *dev)
 static int gsmi_log_s0ix_resume(struct device *dev)
 {
 	/*
-	 * If system did not resume via firmware, then make a GSMI call to log
+	 * If system did yest resume via firmware, then make a GSMI call to log
 	 * the resume info and wake source.
 	 */
 	if (!pm_resume_via_firmware())
 		gsmi_log_s0ix_info(GSMI_CMD_LOG_S0IX_RESUME);
 
 	/*
-	 * Always return success, since we do not want resume
+	 * Always return success, since we do yest want resume
 	 * to fail just because of logging failure.
 	 */
 	return 0;
 }
 
 static const struct dev_pm_ops gsmi_pm_ops = {
-	.suspend_noirq = gsmi_log_s0ix_suspend,
-	.resume_noirq = gsmi_log_s0ix_resume,
+	.suspend_yesirq = gsmi_log_s0ix_suspend,
+	.resume_yesirq = gsmi_log_s0ix_resume,
 };
 
 static int gsmi_platform_driver_probe(struct platform_device *dev)
@@ -902,7 +902,7 @@ static __init int gsmi_init(void)
 
 	/*
 	 * pre-allocate buffers because sometimes we are called when
-	 * this is not feasible: oops, panic, die, mce, etc
+	 * this is yest feasible: oops, panic, die, mce, etc
 	 */
 	gsmi_dev.name_buf = gsmi_buf_alloc();
 	if (!gsmi_dev.name_buf) {
@@ -929,20 +929,20 @@ static __init int gsmi_init(void)
 	 * There's a "behavior" present on some chipsets where writing the
 	 * SMI trigger register in the southbridge doesn't result in an
 	 * immediate SMI. Rather, the processor can execute "a few" more
-	 * instructions before the SMI takes effect. To ensure synchronous
+	 * instructions before the SMI takes effect. To ensure synchroyesus
 	 * behavior, implement a handshake between the kernel driver and the
 	 * firmware handler to spin until released. This ioctl determines
 	 * the type of handshake.
 	 *
-	 * NONE: The firmware handler does not implement any
+	 * NONE: The firmware handler does yest implement any
 	 * handshake. Either it doesn't need to, or it's legacy firmware
-	 * that doesn't know it needs to and never will.
+	 * that doesn't kyesw it needs to and never will.
 	 *
 	 * CF: The firmware handler will clear the CF in the saved
 	 * state before returning. The driver may set the CF and test for
 	 * it to clear before proceeding.
 	 *
-	 * SPIN: The firmware handler does not implement any handshake
+	 * SPIN: The firmware handler does yest implement any handshake
 	 * but the driver should spin for a hundred or so microseconds
 	 * to ensure the SMI has triggered.
 	 *
@@ -958,7 +958,7 @@ static __init int gsmi_init(void)
 		gsmi_dev.handshake_type = GSMI_HANDSHAKE_NONE;
 	spin_unlock_irqrestore(&gsmi_dev.lock, flags);
 
-	/* Remove and clean up gsmi if the handshake could not complete. */
+	/* Remove and clean up gsmi if the handshake could yest complete. */
 	if (gsmi_dev.handshake_type == -ENXIO) {
 		printk(KERN_INFO "gsmi version " DRIVER_VERSION
 		       " failed to load\n");
@@ -997,10 +997,10 @@ static __init int gsmi_init(void)
 	}
 #endif
 
-	register_reboot_notifier(&gsmi_reboot_notifier);
-	register_die_notifier(&gsmi_die_notifier);
-	atomic_notifier_chain_register(&panic_notifier_list,
-				       &gsmi_panic_notifier);
+	register_reboot_yestifier(&gsmi_reboot_yestifier);
+	register_die_yestifier(&gsmi_die_yestifier);
+	atomic_yestifier_chain_register(&panic_yestifier_list,
+				       &gsmi_panic_yestifier);
 
 	printk(KERN_INFO "gsmi version " DRIVER_VERSION " loaded\n");
 
@@ -1021,10 +1021,10 @@ out_err:
 
 static void __exit gsmi_exit(void)
 {
-	unregister_reboot_notifier(&gsmi_reboot_notifier);
-	unregister_die_notifier(&gsmi_die_notifier);
-	atomic_notifier_chain_unregister(&panic_notifier_list,
-					 &gsmi_panic_notifier);
+	unregister_reboot_yestifier(&gsmi_reboot_yestifier);
+	unregister_die_yestifier(&gsmi_die_yestifier);
+	atomic_yestifier_chain_unregister(&panic_yestifier_list,
+					 &gsmi_panic_yestifier);
 #ifdef CONFIG_EFI_VARS
 	efivars_unregister(&efivars);
 #endif

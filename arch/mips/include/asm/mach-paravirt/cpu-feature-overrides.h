@@ -14,7 +14,7 @@
 #define cpu_has_counter		1
 #define cpu_has_llsc		1
 /*
- * We Disable LL/SC on non SMP systems as it is faster to disable
+ * We Disable LL/SC on yesn SMP systems as it is faster to disable
  * interrupts for atomic access than a LL/SC.
  */
 #ifdef CONFIG_SMP

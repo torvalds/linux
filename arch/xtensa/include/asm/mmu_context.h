@@ -12,7 +12,7 @@
 #define _XTENSA_MMU_CONTEXT_H
 
 #ifndef CONFIG_MMU
-#include <asm/nommu_context.h>
+#include <asm/yesmmu_context.h>
 #else
 
 #include <linux/stringify.h>

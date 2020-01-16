@@ -39,14 +39,14 @@ struct tegra_xusb_lane_soc {
 struct tegra_xusb_lane {
 	const struct tegra_xusb_lane_soc *soc;
 	struct tegra_xusb_pad *pad;
-	struct device_node *np;
+	struct device_yesde *np;
 	struct list_head list;
 	unsigned int function;
 	unsigned int index;
 };
 
 int tegra_xusb_lane_parse_dt(struct tegra_xusb_lane *lane,
-			     struct device_node *np);
+			     struct device_yesde *np);
 
 struct tegra_xusb_usb3_lane {
 	struct tegra_xusb_lane base;
@@ -122,7 +122,7 @@ to_sata_lane(struct tegra_xusb_lane *lane)
 
 struct tegra_xusb_lane_ops {
 	struct tegra_xusb_lane *(*probe)(struct tegra_xusb_pad *pad,
-					 struct device_node *np,
+					 struct device_yesde *np,
 					 unsigned int index);
 	void (*remove)(struct tegra_xusb_lane *lane);
 };
@@ -136,7 +136,7 @@ struct tegra_xusb_padctl;
 struct tegra_xusb_pad_ops {
 	struct tegra_xusb_pad *(*probe)(struct tegra_xusb_padctl *padctl,
 					const struct tegra_xusb_pad_soc *soc,
-					struct device_node *np);
+					struct device_yesde *np);
 	void (*remove)(struct tegra_xusb_pad *pad);
 };
 
@@ -168,7 +168,7 @@ static inline struct tegra_xusb_pad *to_tegra_xusb_pad(struct device *dev)
 
 int tegra_xusb_pad_init(struct tegra_xusb_pad *pad,
 			struct tegra_xusb_padctl *padctl,
-			struct device_node *np);
+			struct device_yesde *np);
 int tegra_xusb_pad_register(struct tegra_xusb_pad *pad,
 			    const struct phy_ops *ops);
 void tegra_xusb_pad_unregister(struct tegra_xusb_pad *pad);

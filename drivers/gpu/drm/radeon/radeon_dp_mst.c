@@ -393,7 +393,7 @@ radeon_mst_encoder_dpms(struct drm_encoder *encoder, int mode)
 	int ret, slots;
 	s64 fixed_pbn, fixed_pbn_per_slot, avg_time_slots_per_mtp;
 	if (!ASIC_IS_DCE5(rdev)) {
-		DRM_ERROR("got mst dpms on non-DCE5\n");
+		DRM_ERROR("got mst dpms on yesn-DCE5\n");
 		return;
 	}
 
@@ -689,7 +689,7 @@ radeon_dp_mst_probe(struct radeon_connector *radeon_connector)
 			DRM_DEBUG_KMS("Sink is MST capable\n");
 			dig_connector->is_mst = true;
 		} else {
-			DRM_DEBUG_KMS("Sink is not MST capable\n");
+			DRM_DEBUG_KMS("Sink is yest MST capable\n");
 			dig_connector->is_mst = false;
 		}
 
@@ -752,8 +752,8 @@ go_again:
 
 static int radeon_debugfs_mst_info(struct seq_file *m, void *data)
 {
-	struct drm_info_node *node = (struct drm_info_node *)m->private;
-	struct drm_device *dev = node->minor->dev;
+	struct drm_info_yesde *yesde = (struct drm_info_yesde *)m->private;
+	struct drm_device *dev = yesde->miyesr->dev;
 	struct drm_connector *connector;
 	struct radeon_connector *radeon_connector;
 	struct radeon_connector_atom_dig *dig_connector;

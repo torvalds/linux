@@ -17,7 +17,7 @@
 #include <linux/module.h>
 #include <linux/net.h>
 #include <linux/ipv6.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/kernel.h>
 #include <linux/un.h>
 #include <linux/uaccess.h>
@@ -113,9 +113,9 @@ static void p9_virtio_close(struct p9_client *client)
  * req_done - callback which signals activity from the server
  * @vq: virtio queue activity was received on
  *
- * This notifies us that the server has triggered some activity
+ * This yestifies us that the server has triggered some activity
  * on the virtio channel - most likely a response to request we
- * sent.  Figure out which requests now have responses and wake up
+ * sent.  Figure out which requests yesw have responses and wake up
  * those threads.
  *
  * Bugs: could do with some additional sanity checking, but appears to work.
@@ -206,7 +206,7 @@ static int p9_virtio_cancelled(struct p9_client *client, struct p9_req_t *req)
  * @start: which segment of the sg_list to start at
  * @pdata: a list of pages to add into sg.
  * @nr_pages: number of pages to pack into the scatter/gather list
- * @offs: amount of data in the beginning of first page _not_ to pack
+ * @offs: amount of data in the beginning of first page _yest_ to pack
  * @count: amount of data to pack into the scatter/gather list
  */
 static int
@@ -334,12 +334,12 @@ static int p9_get_mapped_pages(struct virtio_chan *chan,
 		atomic_add(nr_pages, &vp_pinned);
 		return n;
 	} else {
-		/* kernel buffer, no need to pin pages */
+		/* kernel buffer, yes need to pin pages */
 		int index;
 		size_t len;
 		void *p;
 
-		/* we'd already checked that it's non-empty */
+		/* we'd already checked that it's yesn-empty */
 		while (1) {
 			len = iov_iter_single_seg_count(data);
 			if (likely(len)) {
@@ -415,8 +415,8 @@ p9_virtio_zc_request(struct p9_client *client, struct p9_req_t *req,
 			outlen = n;
 		}
 		/* The size field of the message must include the length of the
-		 * header and the length of the data.  We didn't actually know
-		 * the length of the data until this point so add it in now.
+		 * header and the length of the data.  We didn't actually kyesw
+		 * the length of the data until this point so add it in yesw.
 		 */
 		sz = cpu_to_le32(req->tc.size + outlen);
 		memcpy(&req->tc.sdata[0], &sz, sizeof(sz));
@@ -640,7 +640,7 @@ fail:
  * @devname: string identifying the channel to connect to (unused)
  * @args: args passed from sys_mount() for per-transport options (unused)
  *
- * This sets up a transport channel for 9p communication.  Right now
+ * This sets up a transport channel for 9p communication.  Right yesw
  * we only match the first available channel, but eventually we couldlook up
  * alternate channels by matching devname versus a virtio_config entry.
  * We use a simple reference count mechanism to ensure that only a single
@@ -672,7 +672,7 @@ p9_virtio_create(struct p9_client *client, const char *devname, char *args)
 	mutex_unlock(&virtio_9p_lock);
 
 	if (!found) {
-		pr_err("no channels available for device %s\n", devname);
+		pr_err("yes channels available for device %s\n", devname);
 		return ret;
 	}
 
@@ -756,7 +756,7 @@ static struct p9_trans_module p9_virtio_trans = {
 	/*
 	 * We leave one entry for input and one entry for response
 	 * headers. We also skip one more entry to accomodate, address
-	 * that are not at page boundary, that can result in an extra
+	 * that are yest at page boundary, that can result in an extra
 	 * page in zero copy.
 	 */
 	.maxsize = PAGE_SIZE * (VIRTQUEUE_NUM - 3),

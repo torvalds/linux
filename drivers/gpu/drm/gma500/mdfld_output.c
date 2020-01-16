@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -63,7 +63,7 @@ int mdfld_output_init(struct drm_device *dev)
 {
 	struct drm_psb_private *dev_priv = dev->dev_private;
 
-	/* FIXME: hardcoded for now */
+	/* FIXME: hardcoded for yesw */
 	dev_priv->mdfld_panel_id = TC35876X;
 	/* MIPI panel 1 */
 	mdfld_init_panel(dev, 0, dev_priv->mdfld_panel_id);

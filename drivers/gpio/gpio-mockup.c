@@ -297,9 +297,9 @@ static ssize_t gpio_mockup_debugfs_write(struct file *file,
 	return size;
 }
 
-static int gpio_mockup_debugfs_open(struct inode *inode, struct file *file)
+static int gpio_mockup_debugfs_open(struct iyesde *iyesde, struct file *file)
 {
-	return single_open(file, NULL, inode->i_private);
+	return single_open(file, NULL, iyesde->i_private);
 }
 
 /*
@@ -320,7 +320,7 @@ static int gpio_mockup_debugfs_open(struct inode *inode, struct file *file)
  * - line requested in input mode always reports the same value as its pull
  *   configuration
  * - when the line is requested in input mode and monitored for events, writing
- *   the same value to the debugfs file will be a noop, while writing the
+ *   the same value to the debugfs file will be a yesop, while writing the
  *   opposite value will generate a dummy interrupt with an appropriate edge
  */
 static const struct file_operations gpio_mockup_debugfs_ops = {
@@ -328,7 +328,7 @@ static const struct file_operations gpio_mockup_debugfs_ops = {
 	.open = gpio_mockup_debugfs_open,
 	.read = gpio_mockup_debugfs_read,
 	.write = gpio_mockup_debugfs_write,
-	.llseek = no_llseek,
+	.llseek = yes_llseek,
 	.release = single_release,
 };
 

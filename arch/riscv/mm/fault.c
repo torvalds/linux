@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Copyright (C) 2009 Sunplus Core Technology Co., Ltd.
- *  Lennox Wu <lennox.wu@sunplusct.com>
+ * Copyright (C) 2009 Sunplus Core Techyeslogy Co., Ltd.
+ *  Lenyesx Wu <lenyesx.wu@sunplusct.com>
  *  Chen Liqin <liqin.chen@sunplusct.com>
  * Copyright (C) 2012 Regents of the University of California
  */
@@ -47,7 +47,7 @@ asmlinkage void do_page_fault(struct pt_regs *regs)
 	 * NOTE! We MUST NOT take any locks for this case. We may
 	 * be in an interrupt or a critical region, and should
 	 * only copy the information from the master page table,
-	 * nothing more.
+	 * yesthing more.
 	 */
 	if (unlikely((addr >= VMALLOC_START) && (addr <= VMALLOC_END)))
 		goto vmalloc_fault;
@@ -57,11 +57,11 @@ asmlinkage void do_page_fault(struct pt_regs *regs)
 		local_irq_enable();
 
 	/*
-	 * If we're in an interrupt, have no user context, or are running
-	 * in an atomic region, then we must not take the fault.
+	 * If we're in an interrupt, have yes user context, or are running
+	 * in an atomic region, then we must yest take the fault.
 	 */
 	if (unlikely(faulthandler_disabled() || !mm))
-		goto no_context;
+		goto yes_context;
 
 	if (user_mode(regs))
 		flags |= FAULT_FLAG_USER;
@@ -106,7 +106,7 @@ good_area:
 	}
 
 	/*
-	 * If for any reason at all we could not handle the fault,
+	 * If for any reason at all we could yest handle the fault,
 	 * make sure we exit gracefully rather than endlessly redo
 	 * the fault.
 	 */
@@ -114,7 +114,7 @@ good_area:
 
 	/*
 	 * If we need to retry but a fatal signal is pending, handle the
-	 * signal first. We do not need to release the mmap_sem because it
+	 * signal first. We do yest need to release the mmap_sem because it
 	 * would already be released in __lock_page_or_retry in mm/filemap.c.
 	 */
 	if ((fault & VM_FAULT_RETRY) && fatal_signal_pending(tsk))
@@ -129,7 +129,7 @@ good_area:
 	}
 
 	/*
-	 * Major/minor page fault accounting is only done on the
+	 * Major/miyesr page fault accounting is only done on the
 	 * initial attempt. If we go through a retry, it is extremely
 	 * likely that the page will be found in page cache at that point.
 	 */
@@ -175,7 +175,7 @@ bad_area:
 		return;
 	}
 
-no_context:
+yes_context:
 	/* Are we prepared to handle this kernel fault? */
 	if (fixup_exception(regs))
 		return;
@@ -198,7 +198,7 @@ no_context:
 out_of_memory:
 	up_read(&mm->mmap_sem);
 	if (!user_mode(regs))
-		goto no_context;
+		goto yes_context;
 	pagefault_out_of_memory();
 	return;
 
@@ -206,7 +206,7 @@ do_sigbus:
 	up_read(&mm->mmap_sem);
 	/* Kernel mode? Handle exceptions or die */
 	if (!user_mode(regs))
-		goto no_context;
+		goto yes_context;
 	do_trap(regs, SIGBUS, BUS_ADRERR, addr);
 	return;
 
@@ -227,7 +227,7 @@ vmalloc_fault:
 		 * Synchronize this task's top level page-table
 		 * with the 'reference' page table.
 		 *
-		 * Do _not_ use "tsk->active_mm->pgd" here.
+		 * Do _yest_ use "tsk->active_mm->pgd" here.
 		 * We might be inside an interrupt in the middle
 		 * of a task switch.
 		 */
@@ -236,18 +236,18 @@ vmalloc_fault:
 		pgd_k = init_mm.pgd + index;
 
 		if (!pgd_present(*pgd_k))
-			goto no_context;
+			goto yes_context;
 		set_pgd(pgd, *pgd_k);
 
 		p4d = p4d_offset(pgd, addr);
 		p4d_k = p4d_offset(pgd_k, addr);
 		if (!p4d_present(*p4d_k))
-			goto no_context;
+			goto yes_context;
 
 		pud = pud_offset(p4d, addr);
 		pud_k = pud_offset(p4d_k, addr);
 		if (!pud_present(*pud_k))
-			goto no_context;
+			goto yes_context;
 
 		/*
 		 * Since the vmalloc area is global, it is unnecessary
@@ -256,23 +256,23 @@ vmalloc_fault:
 		pmd = pmd_offset(pud, addr);
 		pmd_k = pmd_offset(pud_k, addr);
 		if (!pmd_present(*pmd_k))
-			goto no_context;
+			goto yes_context;
 		set_pmd(pmd, *pmd_k);
 
 		/*
 		 * Make sure the actual PTE exists as well to
-		 * catch kernel vmalloc-area accesses to non-mapped
+		 * catch kernel vmalloc-area accesses to yesn-mapped
 		 * addresses. If we don't do this, this will just
 		 * silently loop forever.
 		 */
 		pte_k = pte_offset_kernel(pmd_k, addr);
 		if (!pte_present(*pte_k))
-			goto no_context;
+			goto yes_context;
 
 		/*
 		 * The kernel assumes that TLBs don't cache invalid
 		 * entries, but in RISC-V, SFENCE.VMA specifies an
-		 * ordering constraint, not a cache flush; it is
+		 * ordering constraint, yest a cache flush; it is
 		 * necessary even after writing invalid entries.
 		 */
 		local_flush_tlb_page(addr);

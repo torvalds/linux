@@ -73,7 +73,7 @@ static int readlength_bitstream(u8 *bitdata, int *lendata, int *offset)
 
 	/* make sure it is section 'e' */
 	if (tbuf[0] != 'e') {
-		pr_err("error: length section is not 'e', but %c\n", tbuf[0]);
+		pr_err("error: length section is yest 'e', but %c\n", tbuf[0]);
 		return -EINVAL;
 	}
 
@@ -190,7 +190,7 @@ static int gs_load_image(struct fpgaimage *fimage, char *fw_file)
 
 	err = request_firmware(&fimage->fw_entry, fw_file, &firmware_pdev->dev);
 	if (err != 0) {
-		pr_err("firmware %s is missing, cannot continue.\n", fw_file);
+		pr_err("firmware %s is missing, canyest continue.\n", fw_file);
 		return err;
 	}
 

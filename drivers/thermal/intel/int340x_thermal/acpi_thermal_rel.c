@@ -26,7 +26,7 @@ static DEFINE_SPINLOCK(acpi_thermal_rel_chrdev_lock);
 static int acpi_thermal_rel_chrdev_count;	/* #times opened */
 static int acpi_thermal_rel_chrdev_exclu;	/* already open exclusive? */
 
-static int acpi_thermal_rel_open(struct inode *inode, struct file *file)
+static int acpi_thermal_rel_open(struct iyesde *iyesde, struct file *file)
 {
 	spin_lock(&acpi_thermal_rel_chrdev_lock);
 	if (acpi_thermal_rel_chrdev_exclu ||
@@ -41,10 +41,10 @@ static int acpi_thermal_rel_open(struct inode *inode, struct file *file)
 
 	spin_unlock(&acpi_thermal_rel_chrdev_lock);
 
-	return nonseekable_open(inode, file);
+	return yesnseekable_open(iyesde, file);
 }
 
-static int acpi_thermal_rel_release(struct inode *inode, struct file *file)
+static int acpi_thermal_rel_release(struct iyesde *iyesde, struct file *file)
 {
 	spin_lock(&acpi_thermal_rel_chrdev_lock);
 	acpi_thermal_rel_chrdev_count--;
@@ -105,7 +105,7 @@ int acpi_parse_trt(acpi_handle handle, int *trt_count, struct trt **trtp,
 					      &trt_format, &element);
 		if (ACPI_FAILURE(status)) {
 			nr_bad_entries++;
-			pr_warn("_TRT package %d is invalid, ignored\n", i);
+			pr_warn("_TRT package %d is invalid, igyesred\n", i);
 			continue;
 		}
 		if (!create_dev)
@@ -166,7 +166,7 @@ int acpi_parse_art(acpi_handle handle, int *art_count, struct art **artp,
 		goto end;
 	}
 
-	/* ignore p->package.elements[0], as this is _ART Revision field */
+	/* igyesre p->package.elements[0], as this is _ART Revision field */
 	*art_count = p->package.count - 1;
 	arts = kcalloc(*art_count, sizeof(struct art), GFP_KERNEL);
 	if (!arts) {
@@ -183,7 +183,7 @@ int acpi_parse_art(acpi_handle handle, int *art_count, struct art **artp,
 		status = acpi_extract_package(&(p->package.elements[i + 1]),
 					      &art_format, &element);
 		if (ACPI_FAILURE(status)) {
-			pr_warn("_ART package %d is invalid, ignored", i);
+			pr_warn("_ART package %d is invalid, igyesred", i);
 			nr_bad_entries++;
 			continue;
 		}
@@ -243,7 +243,7 @@ static int fill_art(char __user *ubuf)
 		ret = -ENOMEM;
 		goto free_art;
 	}
-	/* now fill in user art data */
+	/* yesw fill in user art data */
 	for (i = 0; i < count; i++) {
 		/* userspace art needs device name instead of acpi reference */
 		get_single_name(arts[i].source, art_user[i].source_device);
@@ -279,7 +279,7 @@ static int fill_trt(char __user *ubuf)
 		ret = -ENOMEM;
 		goto free_trt;
 	}
-	/* now fill in user trt data */
+	/* yesw fill in user trt data */
 	for (i = 0; i < count; i++) {
 		/* userspace trt needs device name instead of acpi reference */
 		get_single_name(trts[i].source, trt_user[i].source_device);
@@ -353,11 +353,11 @@ static const struct file_operations acpi_thermal_rel_fops = {
 	.open		= acpi_thermal_rel_open,
 	.release	= acpi_thermal_rel_release,
 	.unlocked_ioctl	= acpi_thermal_rel_ioctl,
-	.llseek		= no_llseek,
+	.llseek		= yes_llseek,
 };
 
 static struct miscdevice acpi_thermal_rel_misc_device = {
-	.minor	= MISC_DYNAMIC_MINOR,
+	.miyesr	= MISC_DYNAMIC_MINOR,
 	"acpi_thermal_rel",
 	&acpi_thermal_rel_fops
 };

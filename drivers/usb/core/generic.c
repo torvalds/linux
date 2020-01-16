@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * drivers/usb/generic.c - generic driver for USB devices (not interfaces)
+ * drivers/usb/generic.c - generic driver for USB devices (yest interfaces)
  *
  * (C) Copyright 2005 Greg Kroah-Hartman <gregkh@suse.de>
  *
@@ -69,7 +69,7 @@ int usb_choose_configuration(struct usb_device *udev)
 	for (i = 0; i < num_configs; (i++, c++)) {
 		struct usb_interface_descriptor	*desc = NULL;
 
-		/* It's possible that a config has no interfaces! */
+		/* It's possible that a config has yes interfaces! */
 		if (c->desc.bNumInterfaces > 0)
 			desc = &c->intf_cache[0]->altsetting->desc;
 
@@ -78,7 +78,7 @@ int usb_choose_configuration(struct usb_device *udev)
 		 * and it claims to be self-powered; other devices may have
 		 * similar errors in their descriptors.  If the next test
 		 * were allowed to execute, such configurations would always
-		 * be rejected and the devices would not work as expected.
+		 * be rejected and the devices would yest work as expected.
 		 * In the meantime, we run the risk of selecting a config
 		 * that requires external power at a time when that power
 		 * isn't available.  It seems to be the lesser of two evils.
@@ -101,7 +101,7 @@ int usb_choose_configuration(struct usb_device *udev)
 #endif
 
 		/*
-		 * The next test may not be as effective as it should be.
+		 * The next test may yest be as effective as it should be.
 		 * Some hubs have errors in their descriptor, claiming
 		 * to be self-powered when they are really bus-powered.
 		 * We will overestimate the amount of current such hubs
@@ -131,7 +131,7 @@ int usb_choose_configuration(struct usb_device *udev)
 				break;
 			}
 
-			/* If there is no UAC3 config, prefer the first config */
+			/* If there is yes UAC3 config, prefer the first config */
 			else if (i == 0)
 				best = c;
 
@@ -144,9 +144,9 @@ int usb_choose_configuration(struct usb_device *udev)
 		}
 
 		/* When the first config's first interface is one of Microsoft's
-		 * pet nonstandard Ethernet-over-USB protocols, ignore it unless
+		 * pet yesnstandard Ethernet-over-USB protocols, igyesre it unless
 		 * this kernel has enabled the necessary host side driver.
-		 * But: Don't ignore it if it's the only config.
+		 * But: Don't igyesre it if it's the only config.
 		 */
 		if (i == 0 && num_configs > 1 && desc &&
 				(is_rndis(desc) || is_activesync(desc))) {
@@ -158,7 +158,7 @@ int usb_choose_configuration(struct usb_device *udev)
 		}
 
 		/* From the remaining configs, choose the first one whose
-		 * first interface is for a non-vendor-specific class.
+		 * first interface is for a yesn-vendor-specific class.
 		 * Reason: Linux is more likely to have a class driver
 		 * than a vendor-specific driver. */
 		else if (udev->descriptor.bDeviceClass !=
@@ -188,7 +188,7 @@ int usb_choose_configuration(struct usb_device *udev)
 	} else {
 		i = -1;
 		dev_warn(&udev->dev,
-			"no configuration chosen from %d choice%s\n",
+			"yes configuration chosen from %d choice%s\n",
 			num_configs, plural(num_configs));
 	}
 	return i;
@@ -203,7 +203,7 @@ static int generic_probe(struct usb_device *udev)
 	 * with the driver core and lets interface drivers bind to them.
 	 */
 	if (udev->authorized == 0)
-		dev_err(&udev->dev, "Device is not authorized for usage\n");
+		dev_err(&udev->dev, "Device is yest authorized for usage\n");
 	else {
 		c = usb_choose_configuration(udev);
 		if (c >= 0) {
@@ -211,22 +211,22 @@ static int generic_probe(struct usb_device *udev)
 			if (err && err != -ENODEV) {
 				dev_err(&udev->dev, "can't set config #%d, error %d\n",
 					c, err);
-				/* This need not be fatal.  The user can try to
+				/* This need yest be fatal.  The user can try to
 				 * set other configurations. */
 			}
 		}
 	}
 	/* USB device state == configured ... usable */
-	usb_notify_add_device(udev);
+	usb_yestify_add_device(udev);
 
 	return 0;
 }
 
 static void generic_disconnect(struct usb_device *udev)
 {
-	usb_notify_remove_device(udev);
+	usb_yestify_remove_device(udev);
 
-	/* if this is only an unbind, not a physical disconnect, then
+	/* if this is only an unbind, yest a physical disconnect, then
 	 * unconfigure the device */
 	if (udev->actconfig)
 		usb_set_configuration(udev, -1);
@@ -258,7 +258,7 @@ static int generic_suspend(struct usb_device *udev, pm_message_t msg)
 		rc = usb_port_suspend(udev, msg);
 
 	if (rc == 0)
-		usbfs_notify_suspend(udev);
+		usbfs_yestify_suspend(udev);
 	return rc;
 }
 
@@ -277,7 +277,7 @@ static int generic_resume(struct usb_device *udev, pm_message_t msg)
 		rc = usb_port_resume(udev, msg);
 
 	if (rc == 0)
-		usbfs_notify_resume(udev);
+		usbfs_yestify_resume(udev);
 	return rc;
 }
 

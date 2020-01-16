@@ -111,16 +111,16 @@ static unsigned int __pll_params_with_frac(unsigned long rate,
 
 static bool meson_clk_pll_is_better(unsigned long rate,
 				    unsigned long best,
-				    unsigned long now,
+				    unsigned long yesw,
 				    struct meson_clk_pll_data *pll)
 {
 	if (__pll_round_closest_mult(pll)) {
 		/* Round Closest */
-		if (abs(now - rate) < abs(best - rate))
+		if (abs(yesw - rate) < abs(best - rate))
 			return true;
 	} else {
 		/* Round down */
-		if (now <= rate && best < now)
+		if (yesw <= rate && best < yesw)
 			return true;
 	}
 
@@ -209,7 +209,7 @@ static int meson_clk_get_pll_settings(unsigned long rate,
 				      unsigned int *best_n,
 				      struct meson_clk_pll_data *pll)
 {
-	unsigned long best = 0, now = 0;
+	unsigned long best = 0, yesw = 0;
 	unsigned int i, m, n;
 	int ret;
 
@@ -219,13 +219,13 @@ static int meson_clk_get_pll_settings(unsigned long rate,
 		if (ret == -EINVAL)
 			break;
 
-		now = __pll_params_to_rate(parent_rate, m, n, 0, pll);
-		if (meson_clk_pll_is_better(rate, best, now, pll)) {
-			best = now;
+		yesw = __pll_params_to_rate(parent_rate, m, n, 0, pll);
+		if (meson_clk_pll_is_better(rate, best, yesw, pll)) {
+			best = yesw;
 			*best_m = m;
 			*best_n = n;
 
-			if (now == rate)
+			if (yesw == rate)
 				break;
 		}
 	}
@@ -252,7 +252,7 @@ static long meson_clk_pll_round_rate(struct clk_hw *hw, unsigned long rate,
 		return round;
 
 	/*
-	 * The rate provided by the setting is not an exact match, let's
+	 * The rate provided by the setting is yest an exact match, let's
 	 * try to improve the result using the fractional parameter
 	 */
 	frac = __pll_params_with_frac(rate, *parent_rate, m, n, pll);
@@ -267,7 +267,7 @@ static int meson_clk_pll_wait_lock(struct clk_hw *hw)
 	int delay = 24000000;
 
 	do {
-		/* Is the clock locked now ? */
+		/* Is the clock locked yesw ? */
 		if (meson_parm_read(clk->map, &pll->l))
 			return 0;
 
@@ -318,7 +318,7 @@ static int meson_clk_pll_enable(struct clk_hw *hw)
 	struct clk_regmap *clk = to_clk_regmap(hw);
 	struct meson_clk_pll_data *pll = meson_clk_pll_data(clk);
 
-	/* do nothing if the PLL is already enabled */
+	/* do yesthing if the PLL is already enabled */
 	if (clk_hw_is_enabled(hw))
 		return 0;
 
@@ -378,12 +378,12 @@ static int meson_clk_pll_set_rate(struct clk_hw *hw, unsigned long rate,
 		meson_parm_write(clk->map, &pll->frac, frac);
 	}
 
-	/* If the pll is stopped, bail out now */
+	/* If the pll is stopped, bail out yesw */
 	if (!enabled)
 		return 0;
 
 	if (meson_clk_pll_enable(hw)) {
-		pr_warn("%s: pll did not lock, trying to restore old rate %lu\n",
+		pr_warn("%s: pll did yest lock, trying to restore old rate %lu\n",
 			__func__, old_rate);
 		/*
 		 * FIXME: Do we really need/want this HACK ?

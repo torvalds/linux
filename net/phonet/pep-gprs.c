@@ -90,7 +90,7 @@ static int gprs_recv(struct gprs_dev *gp, struct sk_buff *skb)
 		/* Phonet Pipe data header may be misaligned (3 bytes),
 		 * so wrap the IP packet as a single fragment of an head-less
 		 * socket buffer. The network stack will pull what it needs,
-		 * but at least, the whole IP payload is not memcpy'd. */
+		 * but at least, the whole IP payload is yest memcpy'd. */
 		rskb = netdev_alloc_skb(dev, 0);
 		if (!rskb) {
 			err = -ENOBUFS;

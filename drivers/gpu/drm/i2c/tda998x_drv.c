@@ -21,7 +21,7 @@
 #include <drm/drm_probe_helper.h>
 #include <drm/i2c/tda998x.h>
 
-#include <media/cec-notifier.h>
+#include <media/cec-yestifier.h>
 
 #define DBG(fmt, ...) DRM_DEBUG(fmt"\n", ##__VA_ARGS__)
 
@@ -83,7 +83,7 @@ struct tda998x_priv {
 	u8 audio_port_enable[AUDIO_ROUTE_NUM];
 	struct tda9950_glue cec_glue;
 	struct gpio_desc *calib;
-	struct cec_notifier *cec_notify;
+	struct cec_yestifier *cec_yestify;
 };
 
 #define conn_to_tda998x_priv(x) \
@@ -96,7 +96,7 @@ struct tda998x_priv {
 /* The TDA9988 series of devices use a paged register scheme.. to simplify
  * things we encode the page # in upper bits of the register #.  To read/
  * write a given register, we need to make sure CURPAGE register is set
- * appropriately.  Which implies reads/writes are not atomic.  Fun!
+ * appropriately.  Which implies reads/writes are yest atomic.  Fun!
  */
 
 #define REG(page, addr) (((page) << 8) | (addr))
@@ -361,7 +361,7 @@ struct tda998x_priv {
 
 
 
-/* CEC registers: (not paged)
+/* CEC registers: (yest paged)
  */
 #define REG_CEC_INTSTATUS	  0xee		      /* read */
 # define CEC_INTSTATUS_CEC	  (1 << 0)
@@ -806,8 +806,8 @@ static irqreturn_t tda998x_irq_thread(int irq, void *data)
 				tda998x_edid_delay_start(priv);
 			} else {
 				schedule_work(&priv->detect_work);
-				cec_notifier_phys_addr_invalidate(
-						priv->cec_notify);
+				cec_yestifier_phys_addr_invalidate(
+						priv->cec_yestify);
 			}
 
 			handled = true;
@@ -903,7 +903,7 @@ static int tda998x_derive_routing(struct tda998x_priv *priv,
 	s->route = &tda998x_audio_route[route];
 	s->ena_ap = priv->audio_port_enable[route];
 	if (s->ena_ap == 0) {
-		dev_err(&priv->hdmi->dev, "no audio configuration found\n");
+		dev_err(&priv->hdmi->dev, "yes audio configuration found\n");
 		return -EINVAL;
 	}
 
@@ -912,11 +912,11 @@ static int tda998x_derive_routing(struct tda998x_priv *priv,
 
 /*
  * The audio clock divisor register controls a divider producing Audio_Clk_Out
- * from SERclk by dividing it by 2^n where 0 <= n <= 5.  We don't know what
+ * from SERclk by dividing it by 2^n where 0 <= n <= 5.  We don't kyesw what
  * Audio_Clk_Out or SERclk are. We guess SERclk is the same as TMDS clock.
  *
  * It seems that Audio_Clk_Out must be the smallest value that is greater
- * than 128*fs, otherwise audio does not function. There is some suggestion
+ * than 128*fs, otherwise audio does yest function. There is some suggestion
  * that 126*fs is a better value.
  */
 static u8 tda998x_get_adiv(struct tda998x_priv *priv, unsigned int fs)
@@ -1005,7 +1005,7 @@ static void tda998x_configure_audio(struct tda998x_priv *priv)
 	u8 buf[6], adiv;
 	u32 n;
 
-	/* If audio is not configured, there is nothing to do. */
+	/* If audio is yest configured, there is yesthing to do. */
 	if (settings->ena_ap == 0)
 		return;
 
@@ -1024,7 +1024,7 @@ static void tda998x_configure_audio(struct tda998x_priv *priv)
 
 	/*
 	 * This is the approximate value of N, which happens to be
-	 * the recommended values for non-coherent clocks.
+	 * the recommended values for yesn-coherent clocks.
 	 */
 	n = 128 * settings->sample_rate / 1000;
 
@@ -1282,7 +1282,7 @@ static int tda998x_connector_get_modes(struct drm_connector *connector)
 
 	/*
 	 * If we get killed while waiting for the HPD timeout, return
-	 * no modes found: we are not in a restartable path, so we
+	 * yes modes found: we are yest in a restartable path, so we
 	 * can't handle signals gracefully.
 	 */
 	if (tda998x_edid_delay_wait(priv))
@@ -1302,7 +1302,7 @@ static int tda998x_connector_get_modes(struct drm_connector *connector)
 	}
 
 	drm_connector_update_edid_property(connector, edid);
-	cec_notifier_set_phys_addr_from_edid(priv->cec_notify, edid);
+	cec_yestifier_set_phys_addr_from_edid(priv->cec_yestify, edid);
 
 	mutex_lock(&priv->audio_mutex);
 	n = drm_add_edid_modes(connector, edid);
@@ -1447,7 +1447,7 @@ static void tda998x_bridge_mode_set(struct drm_bridge *bridge,
 	 * we get VESA style sync. TDA998x is using a reference pixel
 	 * relative to ITU to sync to the input frame and for output
 	 * sync generation. Currently, we are using reference detection
-	 * from HS/VS, i.e. REFPIX/REFLINE denote frame start sync point
+	 * from HS/VS, i.e. REFPIX/REFLINE deyeste frame start sync point
 	 * which is position of rising VS with coincident rising HS.
 	 *
 	 * Now there is some issues to take care of:
@@ -1538,7 +1538,7 @@ static void tda998x_bridge_mode_set(struct drm_bridge *bridge,
 	reg_clear(priv, REG_TX33, TX33_HDMI);
 	reg_write(priv, REG_ENC_CNTRL, ENC_CNTRL_CTL_CODE(0));
 
-	/* no pre-filter or interpolator: */
+	/* yes pre-filter or interpolator: */
 	reg_write(priv, REG_HVF_CNTRL_0, HVF_CNTRL_0_PREFIL(0) |
 			HVF_CNTRL_0_INTPOL(0));
 	reg_set(priv, REG_FEAT_POWERDOWN, FEAT_POWERDOWN_PREFILT);
@@ -1637,14 +1637,14 @@ static void tda998x_bridge_mode_set(struct drm_bridge *bridge,
 	reg_write(priv, REG_TBG_CNTRL_0, 0);
 
 	/* CEA-861B section 6 says that:
-	 * CEA version 1 (CEA-861) has no support for infoframes.
+	 * CEA version 1 (CEA-861) has yes support for infoframes.
 	 * CEA version 2 (CEA-861A) supports version 1 AVI infoframes,
 	 * and optional basic audio.
 	 * CEA version 3 (CEA-861B) supports version 1 and 2 AVI infoframes,
 	 * and optional digital audio, with audio infoframes.
 	 *
 	 * Since we only support generation of version 2 AVI infoframes,
-	 * ignore CEA version 2 and below (iow, behave as if we're a
+	 * igyesre CEA version 2 and below (iow, behave as if we're a
 	 * CEA-861 source.)
 	 */
 	priv->supports_infoframes = priv->connector.display_info.cea_rev >= 3;
@@ -1678,7 +1678,7 @@ static const struct drm_bridge_funcs tda998x_bridge_funcs = {
 /* I2C driver functions */
 
 static int tda998x_get_audio_ports(struct tda998x_priv *priv,
-				   struct device_node *np)
+				   struct device_yesde *np)
 {
 	const u32 *port_data;
 	u32 size;
@@ -1791,13 +1791,13 @@ static void tda998x_destroy(struct device *dev)
 
 	i2c_unregister_device(priv->cec);
 
-	cec_notifier_conn_unregister(priv->cec_notify);
+	cec_yestifier_conn_unregister(priv->cec_yestify);
 }
 
 static int tda998x_create(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
-	struct device_node *np = client->dev.of_node;
+	struct device_yesde *np = client->dev.of_yesde;
 	struct i2c_board_info cec_info;
 	struct tda998x_priv *priv;
 	u32 video;
@@ -1848,7 +1848,7 @@ static int tda998x_create(struct device *dev)
 	priv->rev = rev_lo | rev_hi << 8;
 
 	/* mask off feature bits: */
-	priv->rev &= ~0x30; /* not-hdcp and not-scalar bit */
+	priv->rev &= ~0x30; /* yest-hdcp and yest-scalar bit */
 
 	switch (priv->rev) {
 	case TDA9989N2:
@@ -1916,8 +1916,8 @@ static int tda998x_create(struct device *dev)
 		cec_write(priv, REG_CEC_RXSHPDINTENA, CEC_RXSHPDLEV_HPD);
 	}
 
-	priv->cec_notify = cec_notifier_conn_register(dev, NULL, NULL);
-	if (!priv->cec_notify) {
+	priv->cec_yestify = cec_yestifier_conn_register(dev, NULL, NULL);
+	if (!priv->cec_yestify) {
 		ret = -ENOMEM;
 		goto fail;
 	}
@@ -1976,7 +1976,7 @@ static int tda998x_create(struct device *dev)
 
 	priv->bridge.funcs = &tda998x_bridge_funcs;
 #ifdef CONFIG_OF
-	priv->bridge.of_node = dev->of_node;
+	priv->bridge.of_yesde = dev->of_yesde;
 #endif
 
 	drm_bridge_add(&priv->bridge);
@@ -2006,10 +2006,10 @@ static int tda998x_encoder_init(struct device *dev, struct drm_device *drm)
 	u32 crtcs = 0;
 	int ret;
 
-	if (dev->of_node)
-		crtcs = drm_of_find_possible_crtcs(drm, dev->of_node);
+	if (dev->of_yesde)
+		crtcs = drm_of_find_possible_crtcs(drm, dev->of_yesde);
 
-	/* If no CRTCs were found, fall back to our old behaviour */
+	/* If yes CRTCs were found, fall back to our old behaviour */
 	if (crtcs == 0) {
 		dev_warn(dev, "Falling back to first CRTC\n");
 		crtcs = 1 << 0;
@@ -2060,7 +2060,7 @@ tda998x_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	int ret;
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) {
-		dev_warn(&client->dev, "adapter does not support I2C\n");
+		dev_warn(&client->dev, "adapter does yest support I2C\n");
 		return -EIO;
 	}
 

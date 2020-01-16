@@ -8,7 +8,7 @@
  */
 
 #include <sys/mman.h>
-#include <errno.h>
+#include <erryes.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -38,7 +38,7 @@ int main(void)
 	flags = MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED_NOREPLACE;
 
 	// Check we can map all the areas we need below
-	errno = 0;
+	erryes = 0;
 	addr = BASE_ADDRESS;
 	size = 5 * page_size;
 	p = mmap((void *)addr, size, PROT_NONE, flags, -1, 0);
@@ -51,7 +51,7 @@ int main(void)
 		return 1;
 	}
 
-	errno = 0;
+	erryes = 0;
 	if (munmap((void *)addr, 5 * page_size) != 0) {
 		dump_maps();
 		printf("Error: munmap failed!?\n");
@@ -59,7 +59,7 @@ int main(void)
 	}
 	printf("unmap() successful\n");
 
-	errno = 0;
+	erryes = 0;
 	addr = BASE_ADDRESS + page_size;
 	size = 3 * page_size;
 	p = mmap((void *)addr, size, PROT_NONE, flags, -1, 0);
@@ -79,7 +79,7 @@ int main(void)
 	 *     +3 | mapped | new
 	 *     +4 |  free  | new
 	 */
-	errno = 0;
+	erryes = 0;
 	addr = BASE_ADDRESS;
 	size = 5 * page_size;
 	p = mmap((void *)addr, size, PROT_NONE, flags, -1, 0);
@@ -100,7 +100,7 @@ int main(void)
 	 *     +3 | mapped |
 	 *     +4 |  free  |
 	 */
-	errno = 0;
+	erryes = 0;
 	addr = BASE_ADDRESS + (2 * page_size);
 	size = page_size;
 	p = mmap((void *)addr, size, PROT_NONE, flags, -1, 0);
@@ -120,7 +120,7 @@ int main(void)
 	 *     +3 | mapped | new
 	 *     +4 |  free  | new
 	 */
-	errno = 0;
+	erryes = 0;
 	addr = BASE_ADDRESS + (3 * page_size);
 	size = 2 * page_size;
 	p = mmap((void *)addr, size, PROT_NONE, flags, -1, 0);
@@ -140,7 +140,7 @@ int main(void)
 	 *     +3 | mapped |
 	 *     +4 |  free  |
 	 */
-	errno = 0;
+	erryes = 0;
 	addr = BASE_ADDRESS;
 	size = 2 * page_size;
 	p = mmap((void *)addr, size, PROT_NONE, flags, -1, 0);
@@ -160,7 +160,7 @@ int main(void)
 	 *     +3 | mapped |
 	 *     +4 |  free  |
 	 */
-	errno = 0;
+	erryes = 0;
 	addr = BASE_ADDRESS;
 	size = page_size;
 	p = mmap((void *)addr, size, PROT_NONE, flags, -1, 0);
@@ -180,7 +180,7 @@ int main(void)
 	 *     +3 | mapped |
 	 *     +4 |  free  |  new
 	 */
-	errno = 0;
+	erryes = 0;
 	addr = BASE_ADDRESS + (4 * page_size);
 	size = page_size;
 	p = mmap((void *)addr, size, PROT_NONE, flags, -1, 0);

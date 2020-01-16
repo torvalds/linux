@@ -20,7 +20,7 @@
 
 #include <linux/slab.h>
 #include <linux/tty.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/string.h>
 #include <linux/signal.h>
 #include <linux/ioctl.h>
@@ -125,18 +125,18 @@ int hci_uart_tx_wakeup(struct hci_uart *hu)
 		return 0;
 
 	if (!test_bit(HCI_UART_PROTO_READY, &hu->flags))
-		goto no_schedule;
+		goto yes_schedule;
 
 	if (test_and_set_bit(HCI_UART_SENDING, &hu->tx_state)) {
 		set_bit(HCI_UART_TX_WAKEUP, &hu->tx_state);
-		goto no_schedule;
+		goto yes_schedule;
 	}
 
 	BT_DBG("");
 
 	schedule_work(&hu->write_work);
 
-no_schedule:
+yes_schedule:
 	percpu_up_read(&hu->proto_lock);
 
 	return 0;
@@ -295,7 +295,7 @@ static int hci_uart_send_frame(struct hci_dev *hdev, struct sk_buff *skb)
 /* Check the underlying device or tty has flow control support */
 bool hci_uart_has_flow_control(struct hci_uart *hu)
 {
-	/* serdev nodes check if the needed operations are present */
+	/* serdev yesdes check if the needed operations are present */
 	if (hu->serdev)
 		return true;
 
@@ -380,7 +380,7 @@ void hci_uart_set_baudrate(struct hci_uart *hu, unsigned int speed)
 	ktermios.c_cflag &= ~CBAUD;
 	tty_termios_encode_baud_rate(&ktermios, speed, speed);
 
-	/* tty_set_termios() return not checked as it is always 0 */
+	/* tty_set_termios() return yest checked as it is always 0 */
 	tty_set_termios(tty, &ktermios);
 
 	BT_DBG("%s: New tty speeds: %d/%d", hu->hdev->name,
@@ -480,7 +480,7 @@ static int hci_uart_tty_open(struct tty_struct *tty)
 
 	BT_DBG("tty %p", tty);
 
-	/* Error if the tty has no write op instead of leaving an exploitable
+	/* Error if the tty has yes write op instead of leaving an exploitable
 	 * hole
 	 */
 	if (tty->ops->write == NULL)
@@ -607,7 +607,7 @@ static void hci_uart_tty_receive(struct tty_struct *tty, const u8 *data,
 		return;
 	}
 
-	/* It does not need a lock here as it is already protected by a mutex in
+	/* It does yest need a lock here as it is already protected by a mutex in
 	 * tty caller
 	 */
 	hu->proto->recv(hu, data, count);
@@ -640,7 +640,7 @@ static int hci_uart_register_dev(struct hci_uart *hu)
 
 	/* Only when vendor specific setup callback is provided, consider
 	 * the manufacturer information valid. This avoids filling in the
-	 * value for Ericsson when nothing is specified.
+	 * value for Ericsson when yesthing is specified.
 	 */
 	if (hu->proto->setup)
 		hdev->manufacturer = hu->proto->manufacturer;

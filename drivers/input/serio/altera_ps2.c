@@ -98,7 +98,7 @@ static int altera_ps2_probe(struct platform_device *pdev)
 	error = devm_request_irq(&pdev->dev, irq, altera_ps2_rxint, 0,
 				 pdev->name, ps2if);
 	if (error) {
-		dev_err(&pdev->dev, "could not request IRQ %d\n", irq);
+		dev_err(&pdev->dev, "could yest request IRQ %d\n", irq);
 		return error;
 	}
 

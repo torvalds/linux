@@ -88,13 +88,13 @@ static int rpfilter_check(const struct xt_mtchk_param *par)
 	const struct xt_rpfilter_info *info = par->matchinfo;
 	unsigned int options = ~XT_RPFILTER_OPTION_MASK;
 	if (info->flags & options) {
-		pr_info_ratelimited("unknown options\n");
+		pr_info_ratelimited("unkyeswn options\n");
 		return -EINVAL;
 	}
 
 	if (strcmp(par->table, "mangle") != 0 &&
 	    strcmp(par->table, "raw") != 0) {
-		pr_info_ratelimited("only valid in \'raw\' or \'mangle\' table, not \'%s\'\n",
+		pr_info_ratelimited("only valid in \'raw\' or \'mangle\' table, yest \'%s\'\n",
 				    par->table);
 		return -EINVAL;
 	}

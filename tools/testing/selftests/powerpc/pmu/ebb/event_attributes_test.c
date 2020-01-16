@@ -25,16 +25,16 @@ int event_attributes(void)
 	event_close(&event);
 
 
-	event_init(&event, 0x001e); /* CYCLES - no PMC specified */
+	event_init(&event, 0x001e); /* CYCLES - yes PMC specified */
 	event_leader_ebb_init(&event);
-	/* Expected to fail, no PMC specified */
+	/* Expected to fail, yes PMC specified */
 	FAIL_IF(event_open(&event) == 0);
 
 
 	event_init(&event, 0x2001e);
 	event_leader_ebb_init(&event);
 	event.attr.exclusive = 0;
-	/* Expected to fail, not exclusive */
+	/* Expected to fail, yest exclusive */
 	FAIL_IF(event_open(&event) == 0);
 
 
@@ -120,8 +120,8 @@ int event_attributes(void)
 
 	event_init(&event, 0x1001e);
 	event_leader_ebb_init(&event);
-	/* Expected to fail, not a task event */
-	SKIP_IF(require_paranoia_below(1));
+	/* Expected to fail, yest a task event */
+	SKIP_IF(require_parayesia_below(1));
 	FAIL_IF(event_open_with_cpu(&event, 0) == 0);
 
 	return 0;

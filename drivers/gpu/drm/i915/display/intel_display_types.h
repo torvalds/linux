@@ -10,7 +10,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -41,7 +41,7 @@
 #include <drm/drm_vblank.h>
 #include <drm/i915_drm.h>
 #include <drm/i915_mei_hdcp_interface.h>
-#include <media/cec-notifier.h>
+#include <media/cec-yestifier.h>
 
 #include "i915_drv.h"
 
@@ -69,7 +69,7 @@ enum intel_output_type {
 };
 
 enum hdmi_force_audio {
-	HDMI_AUDIO_OFF_DVI = -2,	/* no aux data for HDMI-DVI converter */
+	HDMI_AUDIO_OFF_DVI = -2,	/* yes aux data for HDMI-DVI converter */
 	HDMI_AUDIO_OFF,			/* force turn off HDMI audio */
 	HDMI_AUDIO_AUTO,		/* trust EDID */
 	HDMI_AUDIO_ON,			/* force turn on HDMI audio */
@@ -87,10 +87,10 @@ struct intel_framebuffer {
 	struct intel_frontbuffer *frontbuffer;
 	struct intel_rotation_info rot_info;
 
-	/* for each plane in the normal GTT view */
+	/* for each plane in the yesrmal GTT view */
 	struct {
 		unsigned int x, y;
-	} normal[2];
+	} yesrmal[2];
 	/* for each plane in the rotated GTT view */
 	struct {
 		unsigned int x, y;
@@ -106,7 +106,7 @@ struct intel_fbdev {
 	async_cookie_t cookie;
 	int preferred_bpp;
 
-	/* Whether or not fbdev hpd processing is temporarily suspended */
+	/* Whether or yest fbdev hpd processing is temporarily suspended */
 	bool hpd_suspended : 1;
 	/* Set when a hotplug was received while HPD processing was
 	 * suspended
@@ -349,7 +349,7 @@ struct intel_hdcp {
 	bool hdcp_encrypted;
 
 	/* HDCP2.2 related definitions */
-	/* Flag indicates whether this connector supports HDCP2.2 or not. */
+	/* Flag indicates whether this connector supports HDCP2.2 or yest. */
 	bool hdcp2_supported;
 
 	/* HDCP2.2 Encryption status */
@@ -483,10 +483,10 @@ struct intel_atomic_state {
 	/*
 	 * Does this transaction change the pipes that are active?  This mask
 	 * tracks which CRTC's have changed their active state at the end of
-	 * the transaction (not counting the temporary disable during modesets).
-	 * This mask should only be non-zero when intel_state->modeset is true,
-	 * but the converse is not necessarily true; simply changing a mode may
-	 * not flip the final active status of any CRTC's
+	 * the transaction (yest counting the temporary disable during modesets).
+	 * This mask should only be yesn-zero when intel_state->modeset is true,
+	 * but the converse is yest necessarily true; simply changing a mode may
+	 * yest flip the final active status of any CRTC's
 	 */
 	u8 active_pipe_changes;
 
@@ -519,7 +519,7 @@ struct intel_atomic_state {
 
 	struct i915_sw_fence commit_ready;
 
-	struct llist_node freed;
+	struct llist_yesde freed;
 };
 
 struct intel_plane_state {
@@ -548,7 +548,7 @@ struct intel_plane_state {
 
 	/*
 	 * scaler_id
-	 *    = -1 : not using a scaler
+	 *    = -1 : yest using a scaler
 	 *    >=  0 : using a scalers
 	 *
 	 * plane requiring a scaler:
@@ -558,7 +558,7 @@ struct intel_plane_state {
 	 *   - scaler_id indicates the scaler it got assigned.
 	 *
 	 * plane doesn't require a scaler:
-	 *   - this can happen when scaling is no more required or plane simply
+	 *   - this can happen when scaling is yes more required or plane simply
 	 *     got disabled.
 	 *   - During check_plane, corresponding bit is reset in
 	 *     crtc_state->scaler_state.scaler_users by calling helper function
@@ -581,7 +581,7 @@ struct intel_plane_state {
 	 * If set don't update use the linked plane's state for updating
 	 * this plane during atomic commit with the update_slave() callback.
 	 *
-	 * It's also used by the watermark code to ignore wm calculations on
+	 * It's also used by the watermark code to igyesre wm calculations on
 	 * this plane. They're calculated by the linked plane's wm code.
 	 */
 	u32 planar_slave;
@@ -720,7 +720,7 @@ struct intel_crtc_wm_state {
 		} skl;
 
 		struct {
-			/* "raw" watermarks (not inverted) */
+			/* "raw" watermarks (yest inverted) */
 			struct g4x_pipe_wm raw[NUM_VLV_WM_LEVELS];
 			/* intermediate watermarks (inverted) */
 			struct vlv_wm_state intermediate;
@@ -762,7 +762,7 @@ struct intel_crtc_state {
 	/**
 	 * quirks - bitfield with hw state readout quirks
 	 *
-	 * For various reasons the hw state readout code might not be able to
+	 * For various reasons the hw state readout code might yest be able to
 	 * completely faithfully read out the current state. These cases are
 	 * tracked with quirk flags so that fastboot and state checker can act
 	 * accordingly.
@@ -840,7 +840,7 @@ struct intel_crtc_state {
 	bool sdvo_tv_clock;
 
 	/*
-	 * crtc bandwidth limit, don't increase pipe bpp or clock if not really
+	 * crtc bandwidth limit, don't increase pipe bpp or clock if yest really
 	 * required. This is set in the 2nd loop of calling encoder's
 	 * ->compute_config if the first pick doesn't work out.
 	 */
@@ -1069,8 +1069,8 @@ struct intel_plane {
 	} cursor;
 
 	/*
-	 * NOTE: Do not place new plane state fields here (e.g., when adding
-	 * new plane properties).  New runtime state should now be placed in
+	 * NOTE: Do yest place new plane state fields here (e.g., when adding
+	 * new plane properties).  New runtime state should yesw be placed in
 	 * the intel_plane_state structure and accessed via plane_state.
 	 */
 
@@ -1131,7 +1131,7 @@ struct intel_hdmi {
 	bool has_hdmi_sink;
 	bool has_audio;
 	struct intel_connector *attached_connector;
-	struct cec_notifier *cec_notifier;
+	struct cec_yestifier *cec_yestifier;
 };
 
 struct intel_dp_mst_encoder;
@@ -1148,7 +1148,7 @@ struct intel_dp_mst_encoder;
  *			  dp_m2_n2 on M2_N2 registers (If supported)
  *
  * M2_N2	: Program dp_m2_n2 on M1_N1 registers
- *			  M2_N2 registers are not supported
+ *			  M2_N2 registers are yest supported
  */
 
 enum link_m_n_set {
@@ -1218,7 +1218,7 @@ struct intel_dp {
 	unsigned long last_backlight_off;
 	ktime_t panel_power_off_time;
 
-	struct notifier_block edp_notifier;
+	struct yestifier_block edp_yestifier;
 
 	/*
 	 * Pipe whose power sequencer is currently locked into

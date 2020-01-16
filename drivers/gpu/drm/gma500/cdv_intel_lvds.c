@@ -271,7 +271,7 @@ static bool cdv_intel_lvds_mode_fixup(struct drm_encoder *encoder,
 			    head) {
 		if (tmp_encoder != encoder
 		    && tmp_encoder->crtc == encoder->crtc) {
-			pr_err("Can't enable LVDS and another encoder on the same pipe\n");
+			pr_err("Can't enable LVDS and ayesther encoder on the same pipe\n");
 			return false;
 		}
 	}
@@ -352,7 +352,7 @@ static void cdv_intel_lvds_mode_set(struct drm_encoder *encoder,
 	 */
 
 	/*
-	 * Enable automatic panel scaling so that non-native modes fill the
+	 * Enable automatic panel scaling so that yesn-native modes fill the
 	 * screen.  Should be enabled before the pipe is enabled, according to
 	 * register description and PRM.
 	 */
@@ -513,8 +513,8 @@ static const struct drm_encoder_funcs cdv_intel_lvds_enc_funcs = {
  * Enumerate the child dev array parsed from VBT to check whether
  * the LVDS is present.
  * If it is present, return 1.
- * If it is not present, return false.
- * If no child dev is parsed from VBT, it assumes that the LVDS is present.
+ * If it is yest present, return false.
+ * If yes child dev is parsed from VBT, it assumes that the LVDS is present.
  */
 static bool lvds_is_present_in_vbt(struct drm_device *dev,
 				   u8 *i2c_pin)
@@ -528,7 +528,7 @@ static bool lvds_is_present_in_vbt(struct drm_device *dev,
 	for (i = 0; i < dev_priv->child_dev_num; i++) {
 		struct child_device_config *child = dev_priv->child_dev + i;
 
-		/* If the device type is not LFP, continue.
+		/* If the device type is yest LFP, continue.
 		 * We have to check both the new identifiers as well as the
 		 * old for compatibility with some BIOSes.
 		 */
@@ -539,9 +539,9 @@ static bool lvds_is_present_in_vbt(struct drm_device *dev,
 		if (child->i2c_pin)
 		    *i2c_pin = child->i2c_pin;
 
-		/* However, we cannot trust the BIOS writers to populate
+		/* However, we canyest trust the BIOS writers to populate
 		 * the VBT correctly.  Since LVDS requires additional
-		 * information from AIM blocks, a non-zero addin offset is
+		 * information from AIM blocks, a yesn-zero addin offset is
 		 * a good indicator that the LVDS is actually present.
 		 */
 		if (child->addin_offset)
@@ -586,7 +586,7 @@ void cdv_intel_lvds_init(struct drm_device *dev,
 
 	pin = GMBUS_PORT_PANEL;
 	if (!lvds_is_present_in_vbt(dev, &pin)) {
-		DRM_DEBUG_KMS("LVDS is not present in VBT\n");
+		DRM_DEBUG_KMS("LVDS is yest present in VBT\n");
 		return;
 	}
 
@@ -659,9 +659,9 @@ void cdv_intel_lvds_init(struct drm_device *dev,
 	 * 1) check for EDID on DDC
 	 * 2) check for VBT data
 	 * 3) check to see if LVDS is already on
-	 *    if none of the above, no panel
+	 *    if yesne of the above, yes panel
 	 * 4) make sure lid is open
-	 *    if closed, act like it's not there for now
+	 *    if closed, act like it's yest there for yesw
 	 */
 
 	/* Set up the DDC bus. */
@@ -721,7 +721,7 @@ void cdv_intel_lvds_init(struct drm_device *dev,
 	/* If we still don't have a mode after all that, give up. */
 	if (!mode_dev->panel_fixed_mode) {
 		DRM_DEBUG
-			("Found no modes on the lvds, ignoring the LVDS\n");
+			("Found yes modes on the lvds, igyesring the LVDS\n");
 		goto failed_find;
 	}
 

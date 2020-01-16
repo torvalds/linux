@@ -236,17 +236,17 @@ static bool em_i2c_slave_irq(struct em_i2c_device *priv)
 
 	status = readb(priv->base + I2C_OFS_IICSE0);
 
-	/* Extension code, do not participate */
+	/* Extension code, do yest participate */
 	if (status & I2C_BIT_EXC0) {
 		em_clear_set_bit(priv, 0, I2C_BIT_LREL0, I2C_OFS_IICC0);
 		return true;
 	}
 
-	/* Stop detected, we don't know if it's for slave or master */
+	/* Stop detected, we don't kyesw if it's for slave or master */
 	if (status & I2C_BIT_SPD0) {
 		/* Notify slave device */
 		i2c_slave_event(priv->slave, I2C_SLAVE_STOP, &value);
-		/* Pretend we did not handle the interrupt */
+		/* Pretend we did yest handle the interrupt */
 		return false;
 	}
 
@@ -341,9 +341,9 @@ static int em_i2c_unreg_slave(struct i2c_client *slave)
 	writeb(0, priv->base + I2C_OFS_SVA0);
 
 	/*
-	 * Wait for interrupt to finish. New slave irqs cannot happen because we
+	 * Wait for interrupt to finish. New slave irqs canyest happen because we
 	 * cleared the slave address and, thus, only extension codes will be
-	 * detected which do not use the slave ptr.
+	 * detected which do yest use the slave ptr.
 	 */
 	synchronize_irq(priv->irq);
 	priv->slave = NULL;
@@ -388,7 +388,7 @@ static int em_i2c_probe(struct platform_device *pdev)
 	priv->adap.dev.parent = &pdev->dev;
 	priv->adap.algo = &em_i2c_algo;
 	priv->adap.owner = THIS_MODULE;
-	priv->adap.dev.of_node = pdev->dev.of_node;
+	priv->adap.dev.of_yesde = pdev->dev.of_yesde;
 
 	init_completion(&priv->msg_done);
 

@@ -37,10 +37,10 @@ EXPORT_SYMBOL(kunmap);
 
 /*
  * kmap_atomic/kunmap_atomic is significantly faster than kmap/kunmap because
- * no global lock is needed and because the kmap code must perform a global TLB
+ * yes global lock is needed and because the kmap code must perform a global TLB
  * invalidation when the kmap pool wraps.
  *
- * However when holding an atomic kmap is is not legal to sleep, so atomic
+ * However when holding an atomic kmap is is yest legal to sleep, so atomic
  * kmaps are appropriate for short, tight code paths only.
  */
 
@@ -58,7 +58,7 @@ void *kmap_atomic(struct page *page)
 	idx = type + KM_TYPE_NR*smp_processor_id();
 	vaddr = __fix_to_virt(FIX_KMAP_BEGIN + idx);
 #ifdef CONFIG_DEBUG_HIGHMEM
-	BUG_ON(!pte_none(*(kmap_pte - idx)));
+	BUG_ON(!pte_yesne(*(kmap_pte - idx)));
 #endif
 	set_pte(kmap_pte-idx, mk_pte(page, PAGE_KERNEL));
 	local_flush_tlb_one((unsigned long)vaddr);

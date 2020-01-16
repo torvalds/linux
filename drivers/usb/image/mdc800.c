@@ -13,7 +13,7 @@
  * To use the Camera you must support the USB Protocol of the camera
  * to the Kernel Node.
  * The Driver uses a misc device Node. Create it with :
- * mknod /dev/mustek c 180 32
+ * mkyesd /dev/mustek c 180 32
  *
  * The driver supports only one camera.
  * 
@@ -29,7 +29,7 @@
  * version 0.7.5
  * Fixed potential SMP races with Spinlocks.
  * Thanks to Oliver Neukum <oliver@neukum.name> who 
- * noticed the race conditions.
+ * yesticed the race conditions.
  * (30/10/2000)
  *
  * Fixed: Setting urb->dev before submitting urb.
@@ -47,7 +47,7 @@
  * problems when compiled as Module.
  * (04/04/2000)
  *
- * The mdc800 driver gets assigned the USB Minor 32-47. The Registration
+ * The mdc800 driver gets assigned the USB Miyesr 32-47. The Registration
  * was updated to use these values.
  * (26/03/2000)
  *
@@ -55,7 +55,7 @@
  * (01/03/2000)
  *
  * version 0.7.0
- * Rewrite of the driver : The driver now uses URB's. The old stuff
+ * Rewrite of the driver : The driver yesw uses URB's. The old stuff
  * has been removed.
  *
  * version 0.6.0
@@ -75,7 +75,7 @@
 #include <linux/sched/signal.h>
 #include <linux/signal.h>
 #include <linux/spinlock.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/random.h>
 #include <linux/poll.h>
 #include <linux/init.h>
@@ -106,7 +106,7 @@
 #define TO_READ_FROM_IRQ 		TO_DEFAULT_COMMAND
 #define TO_GET_READY			TO_DEFAULT_COMMAND
 
-/* Minor Number of the device (create with mknod /dev/mustek c 180 32) */
+/* Miyesr Number of the device (create with mkyesd /dev/mustek c 180 32) */
 #define MDC800_DEVICE_MINOR_BASE 32
 
 
@@ -152,7 +152,7 @@ struct mdc800_data
 
 	/* Device Data */
 	char			out [64];	// Answer Buffer
-	int 			out_ptr;	// Index to the first not readen byte
+	int 			out_ptr;	// Index to the first yest readen byte
 	int			out_count;	// Bytes in the buffer
 
 	int			open;		// Camera device open ?
@@ -161,9 +161,9 @@ struct mdc800_data
 	char 			in [8];		// Command Input Buffer
 	int  			in_count;
 
-	int			pic_index;	// Cache for the Imagesize (-1 for nothing cached )
+	int			pic_index;	// Cache for the Imagesize (-1 for yesthing cached )
 	int			pic_len;
-	int			minor;
+	int			miyesr;
 };
 
 
@@ -360,7 +360,7 @@ static int mdc800_usb_waitForIRQ (int mode, int msec)
 /*
  * The write_urb callback function
  */
-static void mdc800_usb_write_notify (struct urb *urb)
+static void mdc800_usb_write_yestify (struct urb *urb)
 {
 	struct mdc800_data* mdc800=urb->context;
 	int status = urb->status;
@@ -378,7 +378,7 @@ static void mdc800_usb_write_notify (struct urb *urb)
 /*
  * The download_urb callback function
  */
-static void mdc800_usb_download_notify (struct urb *urb)
+static void mdc800_usb_download_yestify (struct urb *urb)
 {
 	struct mdc800_data* mdc800=urb->context;
 	int status = urb->status;
@@ -411,7 +411,7 @@ static const struct file_operations mdc800_device_ops;
 static struct usb_class_driver mdc800_class = {
 	.name =		"mdc800%d",
 	.fops =		&mdc800_device_ops,
-	.minor_base =	MDC800_DEVICE_MINOR_BASE,
+	.miyesr_base =	MDC800_DEVICE_MINOR_BASE,
 };
 
 
@@ -484,7 +484,7 @@ static int mdc800_usb_probe (struct usb_interface *intf,
 
 	retval = usb_register_dev(intf, &mdc800_class);
 	if (retval) {
-		dev_err(&intf->dev, "Not able to get a minor for this device.\n");
+		dev_err(&intf->dev, "Not able to get a miyesr for this device.\n");
 		mutex_unlock(&mdc800->io_lock);
 		return -ENODEV;
 	}
@@ -510,7 +510,7 @@ static int mdc800_usb_probe (struct usb_interface *intf,
 		usb_sndbulkpipe (mdc800->dev, mdc800->endpoint[0]),
 		mdc800->write_urb_buffer,
 		8,
-		mdc800_usb_write_notify,
+		mdc800_usb_write_yestify,
 		mdc800
 	);
 
@@ -520,7 +520,7 @@ static int mdc800_usb_probe (struct usb_interface *intf,
 		usb_rcvbulkpipe (mdc800->dev, mdc800->endpoint [3]),
 		mdc800->download_urb_buffer,
 		64,
-		mdc800_usb_download_notify,
+		mdc800_usb_download_yestify,
 		mdc800
 	);
 
@@ -548,7 +548,7 @@ static void mdc800_usb_disconnect (struct usb_interface *intf)
 
 		usb_deregister_dev(intf, &mdc800_class);
 
-		/* must be under lock to make sure no URB
+		/* must be under lock to make sure yes URB
 		   is submitted after usb_kill_urb() */
 		mutex_lock(&mdc800->io_lock);
 		mdc800->state=NOT_CONNECTED;
@@ -603,7 +603,7 @@ static int mdc800_getAnswerSize (char command)
 /*
  * Init the device: (1) alloc mem (2) Increase MOD Count ..
  */
-static int mdc800_device_open (struct inode* inode, struct file *file)
+static int mdc800_device_open (struct iyesde* iyesde, struct file *file)
 {
 	int retval=0;
 	int errn=0;
@@ -653,7 +653,7 @@ error_out:
 /*
  * Close the Camera and release Memory
  */
-static int mdc800_device_release (struct inode* inode, struct file *file)
+static int mdc800_device_release (struct iyesde* iyesde, struct file *file)
 {
 	int retval=0;
 
@@ -901,7 +901,7 @@ static ssize_t mdc800_device_write (struct file *file, const char __user *buf, s
 						}
 
 						/* Write dummy data, (this is ugly but part of the USB Protocol */
-						/* if you use endpoint 1 as bulk and not as irq) */
+						/* if you use endpoint 1 as bulk and yest as irq) */
 						memcpy (mdc800->out, mdc800->camera_response,8);
 
 						/* This is the interpreted answer */
@@ -951,7 +951,7 @@ static const struct file_operations mdc800_device_ops =
 	.write =	mdc800_device_write,
 	.open =		mdc800_device_open,
 	.release =	mdc800_device_release,
-	.llseek =	noop_llseek,
+	.llseek =	yesop_llseek,
 };
 
 

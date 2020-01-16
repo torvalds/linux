@@ -13,7 +13,7 @@
  *			and #include'd rather than compiled separately.
  *			This will get cleaned up in a subsequent release.
  *
- *  Version 0.02	now configs/compiles separate from ide.c  -ml
+ *  Version 0.02	yesw configs/compiles separate from ide.c  -ml
  *  Version 0.03	enhanced auto-tune, fix display bug
  *  Version 0.05	replace sti() with restore_flags()  -ml
  *			add detection of possible race condition  -ml
@@ -149,7 +149,7 @@ static int __init umc8672_probe(void)
 	outb_p(0x5A, 0x108); /* enable umc */
 	if (in_umc (0xd5) != 0xa0) {
 		local_irq_restore(flags);
-		printk(KERN_ERR "umc8672: not found\n");
+		printk(KERN_ERR "umc8672: yest found\n");
 		release_region(0x108, 2);
 		return 1;
 	}

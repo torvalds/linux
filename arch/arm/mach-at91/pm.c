@@ -129,7 +129,7 @@ static int at91_pm_config_ws(unsigned int pm_mode, bool set)
 	const struct wakeup_source_info *wsi;
 	const struct of_device_id *match;
 	struct platform_device *pdev;
-	struct device_node *np;
+	struct device_yesde *np;
 	unsigned int mode = 0, polarity = 0, val = 0;
 
 	if (pm_mode != AT91_PM_ULP1)
@@ -150,8 +150,8 @@ static int at91_pm_config_ws(unsigned int pm_mode, bool set)
 	val = readl(soc_pm.data.shdwc + 0x04);
 
 	/* Loop through defined wakeup sources. */
-	for_each_matching_node_and_match(np, soc_pm.ws_ids, &match) {
-		pdev = of_find_device_by_node(np);
+	for_each_matching_yesde_and_match(np, soc_pm.ws_ids, &match) {
+		pdev = of_find_device_by_yesde(np);
 		if (!pdev)
 			continue;
 
@@ -175,7 +175,7 @@ put_device:
 		if (soc_pm.config_pmc_ws)
 			soc_pm.config_pmc_ws(soc_pm.data.pmc, mode, polarity);
 	} else {
-		pr_err("AT91: PM: no ULP1 wakeup sources found!");
+		pr_err("AT91: PM: yes ULP1 wakeup sources found!");
 	}
 
 	return mode ? 0 : -EPERM;
@@ -241,7 +241,7 @@ static int at91_pm_verify_clocks(void)
 
 	scsr = readl(soc_pm.data.pmc + AT91_PMC_SCSR);
 
-	/* USB must not be using PLLB */
+	/* USB must yest be using PLLB */
 	if ((scsr & soc_pm.data.uhp_udp_mask) != 0) {
 		pr_err("AT91: PM - Suspend-to-RAM with USB still active\n");
 		return 0;
@@ -266,11 +266,11 @@ static int at91_pm_verify_clocks(void)
 /*
  * Call this from platform driver suspend() to see how deeply to suspend.
  * For example, some controllers (like OHCI) need one of the PLL clocks
- * in order to act as a wakeup source, and those are not available when
+ * in order to act as a wakeup source, and those are yest available when
  * going into slow clock mode.
  *
  * REVISIT: generalize as clk_will_be_available(clk)?  Other platforms have
- * the very same problem (but not using at91 main_clk), and it'd be better
+ * the very same problem (but yest using at91 main_clk), and it'd be better
  * to add one generic API rather than lots of platform-specific ones.
  */
 int at91_suspend_entering_slow_clock(void)
@@ -312,9 +312,9 @@ static void at91_pm_suspend(suspend_state_t state)
 }
 
 /*
- * STANDBY mode has *all* drivers suspended; ignores irqs not marked as 'wakeup'
+ * STANDBY mode has *all* drivers suspended; igyesres irqs yest marked as 'wakeup'
  * event sources; and reduces DRAM power.  But otherwise it's identical to
- * PM_SUSPEND_ON: cpu idle, and nothing fancy done with main or cpu clocks.
+ * PM_SUSPEND_ON: cpu idle, and yesthing fancy done with main or cpu clocks.
  *
  * AT91_PM_ULP0 is like STANDBY plus slow clock mode, so drivers must
  * suspend more deeply, the master clock switches to the clk32k and turns off
@@ -383,9 +383,9 @@ static struct platform_device at91_cpuidle_device = {
  * terminate self-refresh automatically on the next SDRAM access.
  *
  * Self-refresh mode is exited as soon as a memory access is made, but we don't
- * know for sure when that happens. However, we need to restore the low-power
+ * kyesw for sure when that happens. However, we need to restore the low-power
  * mode if it was enabled before going idle. Restoring low-power mode while
- * still in self-refresh is "not recommended", but seems to work.
+ * still in self-refresh is "yest recommended", but seems to work.
  */
 static void at91rm9200_standby(void)
 {
@@ -435,7 +435,7 @@ static void at91_ddr_standby(void)
 	lpr0 = saved_lpr0 & ~AT91_DDRSDRC_LPCB;
 	lpr0 |= AT91_DDRSDRC_LPCB_SELF_REFRESH;
 
-	/* self-refresh mode now */
+	/* self-refresh mode yesw */
 	at91_ramc_write(0, AT91_DDRSDRC_LPR, lpr0);
 	if (soc_pm.data.ramc[1])
 		at91_ramc_write(1, AT91_DDRSDRC_LPR, lpr1);
@@ -484,7 +484,7 @@ static void at91sam9_sdram_standby(void)
 	lpr0 = saved_lpr0 & ~AT91_SDRAMC_LPCB;
 	lpr0 |= AT91_SDRAMC_LPCB_SELF_REFRESH;
 
-	/* self-refresh mode now */
+	/* self-refresh mode yesw */
 	at91_ramc_write(0, AT91_SDRAMC_LPR, lpr0);
 	if (soc_pm.data.ramc[1])
 		at91_ramc_write(1, AT91_SDRAMC_LPR, lpr1);
@@ -518,13 +518,13 @@ static const struct of_device_id ramc_ids[] __initconst = {
 
 static __init void at91_dt_ramc(void)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 	const struct of_device_id *of_id;
 	int idx = 0;
 	void *standby = NULL;
 	const struct ramc_info *ramc;
 
-	for_each_matching_node_and_match(np, ramc_ids, &of_id) {
+	for_each_matching_yesde_and_match(np, ramc_ids, &of_id) {
 		soc_pm.data.ramc[idx] = of_iomap(np, 0);
 		if (!soc_pm.data.ramc[idx])
 			panic(pr_fmt("unable to map ramc[%d] cpu registers\n"), idx);
@@ -538,10 +538,10 @@ static __init void at91_dt_ramc(void)
 	}
 
 	if (!idx)
-		panic(pr_fmt("unable to find compatible ram controller node in dtb\n"));
+		panic(pr_fmt("unable to find compatible ram controller yesde in dtb\n"));
 
 	if (!standby) {
-		pr_warn("ramc no standby function available\n");
+		pr_warn("ramc yes standby function available\n");
 		return;
 	}
 
@@ -573,13 +573,13 @@ static void __init at91_pm_sram_init(void)
 	struct gen_pool *sram_pool;
 	phys_addr_t sram_pbase;
 	unsigned long sram_base;
-	struct device_node *node;
+	struct device_yesde *yesde;
 	struct platform_device *pdev = NULL;
 
-	for_each_compatible_node(node, NULL, "mmio-sram") {
-		pdev = of_find_device_by_node(node);
+	for_each_compatible_yesde(yesde, NULL, "mmio-sram") {
+		pdev = of_find_device_by_yesde(yesde);
 		if (pdev) {
-			of_node_put(node);
+			of_yesde_put(yesde);
 			break;
 		}
 	}
@@ -605,7 +605,7 @@ static void __init at91_pm_sram_init(void)
 	at91_suspend_sram_fn = __arm_ioremap_exec(sram_pbase,
 					at91_pm_suspend_in_sram_sz, false);
 	if (!at91_suspend_sram_fn) {
-		pr_warn("SRAM: Could not map\n");
+		pr_warn("SRAM: Could yest map\n");
 		return;
 	}
 
@@ -623,7 +623,7 @@ static bool __init at91_is_pm_mode_active(int pm_mode)
 static int __init at91_pm_backup_init(void)
 {
 	struct gen_pool *sram_pool;
-	struct device_node *np;
+	struct device_yesde *np;
 	struct platform_device *pdev = NULL;
 	int ret = -ENODEV;
 
@@ -633,24 +633,24 @@ static int __init at91_pm_backup_init(void)
 	if (!at91_is_pm_mode_active(AT91_PM_BACKUP))
 		return 0;
 
-	np = of_find_compatible_node(NULL, NULL, "atmel,sama5d2-sfrbu");
+	np = of_find_compatible_yesde(NULL, NULL, "atmel,sama5d2-sfrbu");
 	if (!np) {
 		pr_warn("%s: failed to find sfrbu!\n", __func__);
 		return ret;
 	}
 
 	soc_pm.data.sfrbu = of_iomap(np, 0);
-	of_node_put(np);
+	of_yesde_put(np);
 
-	np = of_find_compatible_node(NULL, NULL, "atmel,sama5d2-securam");
+	np = of_find_compatible_yesde(NULL, NULL, "atmel,sama5d2-securam");
 	if (!np)
-		goto securam_fail_no_ref_dev;
+		goto securam_fail_yes_ref_dev;
 
-	pdev = of_find_device_by_node(np);
-	of_node_put(np);
+	pdev = of_find_device_by_yesde(np);
+	of_yesde_put(np);
 	if (!pdev) {
 		pr_warn("%s: failed to find securam device!\n", __func__);
-		goto securam_fail_no_ref_dev;
+		goto securam_fail_yes_ref_dev;
 	}
 
 	sram_pool = gen_pool_get(&pdev->dev, NULL);
@@ -674,7 +674,7 @@ static int __init at91_pm_backup_init(void)
 
 securam_fail:
 	put_device(&pdev->dev);
-securam_fail_no_ref_dev:
+securam_fail_yes_ref_dev:
 	iounmap(soc_pm.data.sfrbu);
 	soc_pm.data.sfrbu = NULL;
 	return ret;
@@ -693,21 +693,21 @@ static void __init at91_pm_use_default_mode(int pm_mode)
 
 static void __init at91_pm_modes_init(void)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 	int ret;
 
 	if (!at91_is_pm_mode_active(AT91_PM_BACKUP) &&
 	    !at91_is_pm_mode_active(AT91_PM_ULP1))
 		return;
 
-	np = of_find_compatible_node(NULL, NULL, "atmel,sama5d2-shdwc");
+	np = of_find_compatible_yesde(NULL, NULL, "atmel,sama5d2-shdwc");
 	if (!np) {
 		pr_warn("%s: failed to find shdwc!\n", __func__);
 		goto ulp1_default;
 	}
 
 	soc_pm.data.shdwc = of_iomap(np, 0);
-	of_node_put(np);
+	of_yesde_put(np);
 
 	ret = at91_pm_backup_init();
 	if (ret) {
@@ -756,17 +756,17 @@ static const struct of_device_id atmel_pmc_ids[] __initconst = {
 
 static void __init at91_pm_init(void (*pm_idle)(void))
 {
-	struct device_node *pmc_np;
+	struct device_yesde *pmc_np;
 	const struct of_device_id *of_id;
 	const struct pmc_info *pmc;
 
 	if (at91_cpuidle_device.dev.platform_data)
 		platform_device_register(&at91_cpuidle_device);
 
-	pmc_np = of_find_matching_node_and_match(NULL, atmel_pmc_ids, &of_id);
+	pmc_np = of_find_matching_yesde_and_match(NULL, atmel_pmc_ids, &of_id);
 	soc_pm.data.pmc = of_iomap(pmc_np, 0);
 	if (!soc_pm.data.pmc) {
-		pr_err("AT91: PM not supported, PMC not found\n");
+		pr_err("AT91: PM yest supported, PMC yest found\n");
 		return;
 	}
 
@@ -784,7 +784,7 @@ static void __init at91_pm_init(void (*pm_idle)(void))
 			pm_modes[soc_pm.data.standby_mode].pattern,
 			pm_modes[soc_pm.data.suspend_mode].pattern);
 	} else {
-		pr_info("AT91: PM not supported, due to no SRAM allocated\n");
+		pr_info("AT91: PM yest supported, due to yes SRAM allocated\n");
 	}
 }
 
@@ -796,7 +796,7 @@ void __init at91rm9200_pm_init(void)
 	at91_dt_ramc();
 
 	/*
-	 * AT91RM9200 SDRAM low-power mode cannot be used with self-refresh.
+	 * AT91RM9200 SDRAM low-power mode canyest be used with self-refresh.
 	 */
 	at91_ramc_write(0, AT91_MC_SDRAMC_LPR, 0);
 

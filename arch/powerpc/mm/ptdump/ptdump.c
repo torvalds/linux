@@ -32,7 +32,7 @@
  *  - PTRS_PER_P** = how many entries there are in the corresponding P**
  *  - P**_SHIFT = how many bits of the address we use to index into the
  * corresponding P**
- *  - P**_SIZE is how much memory we can access through the table - not the
+ *  - P**_SIZE is how much memory we can access through the table - yest the
  * size of the table itself.
  * P**={PGD, PUD, PMD, PTE}
  *
@@ -119,7 +119,7 @@ static void dump_flag_info(struct pg_state *st, const struct flag_info
 		const char *s = NULL;
 		u64 val;
 
-		/* flag not defined so don't check it */
+		/* flag yest defined so don't check it */
 		if (flag->mask == 0)
 			continue;
 		/* Some 'flags' are actually values */
@@ -139,7 +139,7 @@ static void dump_flag_info(struct pg_state *st, const struct flag_info
 		st->current_flags &= ~flag->mask;
 	}
 	if (st->current_flags != 0)
-		pt_dump_seq_printf(st->seq, "  unknown flags:%llx", st->current_flags);
+		pt_dump_seq_printf(st->seq, "  unkyeswn flags:%llx", st->current_flags);
 }
 
 static void dump_addr(struct pg_state *st, unsigned long addr)
@@ -171,7 +171,7 @@ static void dump_addr(struct pg_state *st, unsigned long addr)
 
 }
 
-static void note_prot_wx(struct pg_state *st, unsigned long addr)
+static void yeste_prot_wx(struct pg_state *st, unsigned long addr)
 {
 	if (!IS_ENABLED(CONFIG_PPC_DEBUG_WX) || !st->check_wx)
 		return;
@@ -185,13 +185,13 @@ static void note_prot_wx(struct pg_state *st, unsigned long addr)
 	st->wx_pages += (addr - st->start_address) / PAGE_SIZE;
 }
 
-static void note_page(struct pg_state *st, unsigned long addr,
+static void yeste_page(struct pg_state *st, unsigned long addr,
 	       unsigned int level, u64 val)
 {
 	u64 flag = val & pg_level[level].mask;
 	u64 pa = val & PTE_RPN_MASK;
 
-	/* At first no level is set */
+	/* At first yes level is set */
 	if (!st->level) {
 		st->level = level;
 		st->current_flags = flag;
@@ -205,7 +205,7 @@ static void note_page(struct pg_state *st, unsigned long addr,
 	 *   - we change levels in the tree.
 	 *   - the address is in a different section of memory and is thus
 	 *   used for a different purpose, regardless of the flags.
-	 *   - the pa of this page is not adjacent to the last inspected page
+	 *   - the pa of this page is yest adjacent to the last inspected page
 	 */
 	} else if (flag != st->current_flags || level != st->level ||
 		   addr >= st->marker[1].start_address ||
@@ -214,7 +214,7 @@ static void note_page(struct pg_state *st, unsigned long addr,
 
 		/* Check the PTE flags */
 		if (st->current_flags) {
-			note_prot_wx(st, addr);
+			yeste_prot_wx(st, addr);
 			dump_addr(st, addr);
 
 			/* Dump all the flags */
@@ -252,7 +252,7 @@ static void walk_pte(struct pg_state *st, pmd_t *pmd, unsigned long start)
 
 	for (i = 0; i < PTRS_PER_PTE; i++, pte++) {
 		addr = start + i * PAGE_SIZE;
-		note_page(st, addr, 4, pte_val(*pte));
+		yeste_page(st, addr, 4, pte_val(*pte));
 
 	}
 }
@@ -265,11 +265,11 @@ static void walk_pmd(struct pg_state *st, pud_t *pud, unsigned long start)
 
 	for (i = 0; i < PTRS_PER_PMD; i++, pmd++) {
 		addr = start + i * PMD_SIZE;
-		if (!pmd_none(*pmd) && !pmd_is_leaf(*pmd))
+		if (!pmd_yesne(*pmd) && !pmd_is_leaf(*pmd))
 			/* pmd exists */
 			walk_pte(st, pmd, addr);
 		else
-			note_page(st, addr, 3, pmd_val(*pmd));
+			yeste_page(st, addr, 3, pmd_val(*pmd));
 	}
 }
 
@@ -281,11 +281,11 @@ static void walk_pud(struct pg_state *st, pgd_t *pgd, unsigned long start)
 
 	for (i = 0; i < PTRS_PER_PUD; i++, pud++) {
 		addr = start + i * PUD_SIZE;
-		if (!pud_none(*pud) && !pud_is_leaf(*pud))
+		if (!pud_yesne(*pud) && !pud_is_leaf(*pud))
 			/* pud exists */
 			walk_pmd(st, pud, addr);
 		else
-			note_page(st, addr, 2, pud_val(*pud));
+			yeste_page(st, addr, 2, pud_val(*pud));
 	}
 }
 
@@ -300,11 +300,11 @@ static void walk_pagetables(struct pg_state *st)
 	 * the hash pagetable.
 	 */
 	for (i = pgd_index(addr); i < PTRS_PER_PGD; i++, pgd++, addr += PGDIR_SIZE) {
-		if (!pgd_none(*pgd) && !pgd_is_leaf(*pgd))
+		if (!pgd_yesne(*pgd) && !pgd_is_leaf(*pgd))
 			/* pgd exists */
 			walk_pud(st, pgd, addr);
 		else
-			note_page(st, addr, 1, pgd_val(*pgd));
+			yeste_page(st, addr, 1, pgd_val(*pgd));
 	}
 }
 
@@ -359,12 +359,12 @@ static int ptdump_show(struct seq_file *m, void *v)
 
 	/* Traverse kernel page tables */
 	walk_pagetables(&st);
-	note_page(&st, 0, 0, 0);
+	yeste_page(&st, 0, 0, 0);
 	return 0;
 }
 
 
-static int ptdump_open(struct inode *inode, struct file *file)
+static int ptdump_open(struct iyesde *iyesde, struct file *file)
 {
 	return single_open(file, ptdump_show, NULL);
 }
@@ -407,7 +407,7 @@ void ptdump_check_wx(void)
 		pr_warn("Checked W+X mappings: FAILED, %lu W+X pages found\n",
 			st.wx_pages);
 	else
-		pr_info("Checked W+X mappings: passed, no W+X pages found\n");
+		pr_info("Checked W+X mappings: passed, yes W+X pages found\n");
 }
 #endif
 

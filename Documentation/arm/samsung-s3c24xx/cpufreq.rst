@@ -44,7 +44,7 @@ Slow Mode
 ---------
 
  The SLOW mode where the PLL is turned off altogether and the
- system is fed by the external crystal input is currently not
+ system is fed by the external crystal input is currently yest
  supported.
 
 

@@ -45,7 +45,7 @@ bool plt_entries_equal(const struct plt_entry *a, const struct plt_entry *b)
 	 * Check whether both entries refer to the same target:
 	 * do the cheapest checks first.
 	 * If the 'add' or 'br' opcodes are different, then the target
-	 * cannot be the same.
+	 * canyest be the same.
 	 */
 	if (a->add != b->add || a->br != b->br)
 		return false;
@@ -176,11 +176,11 @@ static unsigned int count_plts(Elf64_Sym *syms, Elf64_Rela *rela, int num,
 			/*
 			 * We only have to consider branch targets that resolve
 			 * to symbols that are defined in a different section.
-			 * This is not simply a heuristic, it is a fundamental
-			 * limitation, since there is no guaranteed way to emit
+			 * This is yest simply a heuristic, it is a fundamental
+			 * limitation, since there is yes guaranteed way to emit
 			 * PLT entries sufficiently close to the branch if the
 			 * section size exceeds the range of a branch
-			 * instruction. So ignore relocations against defined
+			 * instruction. So igyesre relocations against defined
 			 * symbols if they live in the same section as the
 			 * relocation target.
 			 */
@@ -189,11 +189,11 @@ static unsigned int count_plts(Elf64_Sym *syms, Elf64_Rela *rela, int num,
 				break;
 
 			/*
-			 * Jump relocations with non-zero addends against
+			 * Jump relocations with yesn-zero addends against
 			 * undefined symbols are supported by the ELF spec, but
-			 * do not occur in practice (e.g., 'jump n bytes past
+			 * do yest occur in practice (e.g., 'jump n bytes past
 			 * the entry point of undefined function symbol f').
-			 * So we need to support them, but there is no need to
+			 * So we need to support them, but there is yes need to
 			 * take them into consideration when trying to optimize
 			 * this code. So let's only check for duplicates when
 			 * the addend is zero: this allows us to record the PLT
@@ -213,7 +213,7 @@ static unsigned int count_plts(Elf64_Sym *syms, Elf64_Rela *rela, int num,
 			/*
 			 * Determine the minimal safe alignment for this ADRP
 			 * instruction: the section alignment at which it is
-			 * guaranteed not to appear at a vulnerable offset.
+			 * guaranteed yest to appear at a vulnerable offset.
 			 *
 			 * This comes down to finding the least significant zero
 			 * bit in bits [11:3] of the section offset, and
@@ -228,7 +228,7 @@ static unsigned int count_plts(Elf64_Sym *syms, Elf64_Rela *rela, int num,
 
 			/*
 			 * Allocate veneer space for each ADRP that may appear
-			 * at a vulnerable offset nonetheless. At relocation
+			 * at a vulnerable offset yesnetheless. At relocation
 			 * time, some of these will remain unused since some
 			 * ADRP instructions can be patched to ADR instructions
 			 * instead.
@@ -296,7 +296,7 @@ int module_frob_arch_sections(Elf_Ehdr *ehdr, Elf_Shdr *sechdrs,
 		if (sechdrs[i].sh_type != SHT_RELA)
 			continue;
 
-		/* ignore relocations that operate on non-exec sections */
+		/* igyesre relocations that operate on yesn-exec sections */
 		if (!(dstsec->sh_flags & SHF_EXECINSTR))
 			continue;
 
@@ -330,7 +330,7 @@ int module_frob_arch_sections(Elf_Ehdr *ehdr, Elf_Shdr *sechdrs,
 	if (tramp) {
 		tramp->sh_type = SHT_NOBITS;
 		tramp->sh_flags = SHF_EXECINSTR | SHF_ALLOC;
-		tramp->sh_addralign = __alignof__(struct plt_entry);
+		tramp->sh_addralign = __aligyesf__(struct plt_entry);
 		tramp->sh_size = NR_FTRACE_PLTS * sizeof(struct plt_entry);
 	}
 

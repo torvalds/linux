@@ -1,7 +1,7 @@
 /*
  * PCI Register definitions for the MIPS System Controller.
  *
- * Copyright (C) 2002, 2005  MIPS Technologies, Inc.  All rights reserved.
+ * Copyright (C) 2002, 2005  MIPS Techyeslogies, Inc.  All rights reserved.
  *	Authors: Carsten Langgaard <carstenl@mips.com>
  *		 Maciej W. Rozycki <macro@mips.com>
  *

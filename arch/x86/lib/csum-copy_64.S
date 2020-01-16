@@ -6,7 +6,7 @@
  * for more details. No warranty for anything given at all.
  */
 #include <linux/linkage.h>
-#include <asm/errno.h>
+#include <asm/erryes.h>
 #include <asm/asm.h>
 
 /*
@@ -43,7 +43,7 @@
 	 * No _ASM_EXTABLE_UA; this is used for intentional prefetch on a
 	 * potentially unmapped kernel address.
 	 */
-	.macro ignore L=.Lignore
+	.macro igyesre L=.Ligyesre
 30:
 	_ASM_EXTABLE(30b, \L)
 	.endm
@@ -51,9 +51,9 @@
 
 SYM_FUNC_START(csum_partial_copy_generic)
 	cmpl	$3*64, %edx
-	jle	.Lignore
+	jle	.Ligyesre
 
-.Lignore:
+.Ligyesre:
 	subq  $7*8, %rsp
 	movq  %rbx, 2*8(%rsp)
 	movq  %r12, 3*8(%rsp)
@@ -99,7 +99,7 @@ SYM_FUNC_START(csum_partial_copy_generic)
 	source
 	movq  56(%rdi), %r13
 
-	ignore 2f
+	igyesre 2f
 	prefetcht0 5*64(%rdi)
 2:
 	adcq  %rbx, %rax

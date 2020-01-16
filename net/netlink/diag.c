@@ -43,7 +43,7 @@ static int sk_diag_put_flags(struct sock *sk, struct sk_buff *skb)
 
 static int sk_diag_fill(struct sock *sk, struct sk_buff *skb,
 			struct netlink_diag_req *req,
-			u32 portid, u32 seq, u32 flags, int sk_ino)
+			u32 portid, u32 seq, u32 flags, int sk_iyes)
 {
 	struct nlmsghdr *nlh;
 	struct netlink_diag_msg *rep;
@@ -60,7 +60,7 @@ static int sk_diag_fill(struct sock *sk, struct sk_buff *skb,
 	rep->ndiag_protocol	= sk->sk_protocol;
 	rep->ndiag_state	= sk->sk_state;
 
-	rep->ndiag_ino		= sk_ino;
+	rep->ndiag_iyes		= sk_iyes;
 	rep->ndiag_portid	= nlk->portid;
 	rep->ndiag_dst_portid	= nlk->dst_portid;
 	rep->ndiag_dst_group	= nlk->dst_group;
@@ -137,7 +137,7 @@ static int __netlink_diag_dump(struct sk_buff *skb, struct netlink_callback *cb,
 				 NETLINK_CB(cb->skb).portid,
 				 cb->nlh->nlmsg_seq,
 				 NLM_F_MULTI,
-				 sock_i_ino(sk)) < 0) {
+				 sock_i_iyes(sk)) < 0) {
 			ret = 1;
 			break;
 		}
@@ -167,7 +167,7 @@ mc_list:
 				 NETLINK_CB(cb->skb).portid,
 				 cb->nlh->nlmsg_seq,
 				 NLM_F_MULTI,
-				 sock_i_ino(sk)) < 0) {
+				 sock_i_iyes(sk)) < 0) {
 			ret = 1;
 			break;
 		}

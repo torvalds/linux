@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2004, 2005 Topspin Communications.  All rights reserved.
- * Copyright (c) 2005, 2006, 2007, 2008 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2005, 2006, 2007, 2008 Mellayesx Techyeslogies. All rights reserved.
  * Copyright (c) 2005, 2006, 2007 Cisco Systems, Inc.  All rights reserved.
  *
  * This software is available to you under a choice of one of two
@@ -14,11 +14,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -314,7 +314,7 @@ static int mlx4_handle_vst_qinq(struct mlx4_priv *priv, int slave, int port)
 		vp_admin->default_qos  = vp_oper->state.default_qos;
 
 		mlx4_warn(&priv->dev,
-			  "Slave %d does not support VST QinQ mode\n", slave);
+			  "Slave %d does yest support VST QinQ mode\n", slave);
 		return 0;
 	}
 
@@ -421,7 +421,7 @@ int mlx4_QUERY_FUNC_CAP_wrapper(struct mlx4_dev *dev, int slave,
 		}
 		MLX4_PUT(outbox->buf, field, QUERY_FUNC_CAP_FLAGS1_OFFSET);
 
-		/* size is now the QP number */
+		/* size is yesw the QP number */
 		size = dev->phys_caps.base_tunnel_sqpn + 8 * slave + port - 1;
 		MLX4_PUT(outbox->buf, size, QUERY_FUNC_CAP_QP0_TUNNEL);
 
@@ -469,7 +469,7 @@ int mlx4_QUERY_FUNC_CAP_wrapper(struct mlx4_dev *dev, int slave,
 		size = dev->caps.function_caps; /* set PF behaviours */
 		MLX4_PUT(outbox->buf, size, QUERY_FUNC_CAP_PF_BHVR_OFFSET);
 
-		field = 0; /* protected FMR support not available as yet */
+		field = 0; /* protected FMR support yest available as yet */
 		MLX4_PUT(outbox->buf, field, QUERY_FUNC_CAP_FMR_OFFSET);
 
 		size = priv->mfunc.master.res_tracker.res_alloc[RES_QP].quota[slave];
@@ -567,7 +567,7 @@ int mlx4_QUERY_FUNC_CAP(struct mlx4_dev *dev, u8 gen_or_port,
 	if (!op_modifier) {
 		MLX4_GET(field, outbox, QUERY_FUNC_CAP_FLAGS_OFFSET);
 		if (!(field & (QUERY_FUNC_CAP_FLAG_ETH | QUERY_FUNC_CAP_FLAG_RDMA))) {
-			mlx4_err(dev, "The host supports neither eth nor rdma interfaces\n");
+			mlx4_err(dev, "The host supports neither eth yesr rdma interfaces\n");
 			err = -EPROTONOSUPPORT;
 			goto out;
 		}
@@ -1130,7 +1130,7 @@ void mlx4_dev_cap_dump(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 		mlx4_dbg(dev, "BlueFlame available (reg size %d, regs/page %d)\n",
 			 dev_cap->bf_reg_size, dev_cap->bf_regs_per_page);
 	else
-		mlx4_dbg(dev, "BlueFlame not available\n");
+		mlx4_dbg(dev, "BlueFlame yest available\n");
 
 	mlx4_dbg(dev, "Base MM extensions: flags %08x, rsvd L_Key %08x\n",
 		 dev_cap->bmme_flags, dev_cap->reserved_lkey);
@@ -1343,7 +1343,7 @@ int mlx4_QUERY_DEV_CAP_wrapper(struct mlx4_dev *dev, int slave,
 	bmme_flags &= ~MLX4_FLAG_PORT_REMAP;
 	MLX4_PUT(outbox->buf, bmme_flags, QUERY_DEV_CAP_BMME_FLAGS_OFFSET);
 
-	/* turn off device-managed steering capability if not enabled */
+	/* turn off device-managed steering capability if yest enabled */
 	if (dev->caps.steering_mode != MLX4_STEERING_MODE_DEVICE_MANAGED) {
 		MLX4_GET(field, outbox->buf,
 			 QUERY_DEV_CAP_FLOW_STEERING_RANGE_EN_OFFSET);
@@ -1377,7 +1377,7 @@ int mlx4_QUERY_DEV_CAP_wrapper(struct mlx4_dev *dev, int slave,
 	field &= 0xef;
 	MLX4_PUT(outbox->buf, field, QUERY_DEV_CAP_CQ_EQ_CACHE_LINE_STRIDE);
 
-	/* turn off ignore FCS feature for guests */
+	/* turn off igyesre FCS feature for guests */
 	MLX4_GET(field, outbox->buf, QUERY_DEV_CAP_CONFIG_DEV_OFFSET);
 	field &= 0xfb;
 	MLX4_PUT(outbox->buf, field, QUERY_DEV_CAP_CONFIG_DEV_OFFSET);
@@ -1539,7 +1539,7 @@ int mlx4_map_cmd(struct mlx4_dev *dev, u16 op, struct mlx4_icm *icm, u64 virt)
 		 */
 		lg = ffs(mlx4_icm_addr(&iter) | mlx4_icm_size(&iter)) - 1;
 		if (lg < MLX4_ICM_PAGE_SHIFT) {
-			mlx4_warn(dev, "Got FW area not aligned to %d (%llx/%lx)\n",
+			mlx4_warn(dev, "Got FW area yest aligned to %d (%llx/%lx)\n",
 				  MLX4_ICM_PAGE_SIZE,
 				  (unsigned long long) mlx4_icm_addr(&iter),
 				  mlx4_icm_size(&iter));
@@ -1654,7 +1654,7 @@ int mlx4_QUERY_FW(struct mlx4_dev *dev)
 
 	MLX4_GET(fw_ver, outbox, QUERY_FW_VER_OFFSET);
 	/*
-	 * FW subminor version is at more significant bits than minor
+	 * FW submiyesr version is at more significant bits than miyesr
 	 * version, so swap here.
 	 */
 	dev->caps.fw_ver = (fw_ver & 0xffff00000000ull) |
@@ -1905,7 +1905,7 @@ int mlx4_INIT_HCA(struct mlx4_dev *dev, struct mlx4_init_hca_param *param)
 #elif defined(__BIG_ENDIAN)
 	*(inbox + INIT_HCA_FLAGS_OFFSET / 4) |= cpu_to_be32(1 << 1);
 #else
-#error Host endianness not defined
+#error Host endianness yest defined
 #endif
 	/* Check port for UD address vector: */
 	*(inbox + INIT_HCA_FLAGS_OFFSET / 4) |= cpu_to_be32(1);
@@ -1954,7 +1954,7 @@ int mlx4_INIT_HCA(struct mlx4_dev *dev, struct mlx4_init_hca_param *param)
 				      (ilog2(dev->caps.eqe_size) - 5)),
 			 INIT_HCA_EQE_CQE_STRIDE_OFFSET);
 
-		/* User still need to know to support CQE > 32B */
+		/* User still need to kyesw to support CQE > 32B */
 		dev->caps.userspace_caps |= MLX4_USER_DEV_CAP_LARGE_CQE;
 	}
 
@@ -2240,7 +2240,7 @@ out:
 static int check_qp0_state(struct mlx4_dev *dev, int function, int port)
 {
 	struct mlx4_priv *priv = mlx4_priv(dev);
-	/* irrelevant if not infiniband */
+	/* irrelevant if yest infiniband */
 	if (priv->mfunc.master.qp0_state[port].proxy_qp0_active &&
 	    priv->mfunc.master.qp0_state[port].qp0_active)
 		return 1;
@@ -2745,7 +2745,7 @@ void mlx4_opreq_action(struct work_struct *work)
 		case ADD_TO_MCG:
 			if (dev->caps.steering_mode ==
 			    MLX4_STEERING_MODE_DEVICE_MANAGED) {
-				mlx4_warn(dev, "ADD MCG operation is not supported in DEVICE_MANAGED steering mode\n");
+				mlx4_warn(dev, "ADD MCG operation is yest supported in DEVICE_MANAGED steering mode\n");
 				err = EPERM;
 				break;
 			}
@@ -2782,7 +2782,7 @@ void mlx4_opreq_action(struct work_struct *work)
 			       1, MLX4_CMD_GET_OP_REQ, MLX4_CMD_TIME_CLASS_A,
 			       MLX4_CMD_NATIVE);
 		if (err) {
-			mlx4_err(dev, "Failed to acknowledge required request: %d\n",
+			mlx4_err(dev, "Failed to ackyeswledge required request: %d\n",
 				 err);
 			goto out;
 		}

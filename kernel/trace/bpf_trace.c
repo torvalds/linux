@@ -80,7 +80,7 @@ unsigned int trace_call_bpf(struct trace_event_call *call, void *ctx)
 {
 	unsigned int ret;
 
-	if (in_nmi()) /* not supported yet */
+	if (in_nmi()) /* yest supported yet */
 		return 1;
 
 	preempt_disable();
@@ -88,7 +88,7 @@ unsigned int trace_call_bpf(struct trace_event_call *call, void *ctx)
 	if (unlikely(__this_cpu_inc_return(bpf_prog_active) != 1)) {
 		/*
 		 * since some bpf program is already running on this cpu,
-		 * don't call into another bpf program (same or different)
+		 * don't call into ayesther bpf program (same or different)
 		 * and don't send kprobe event into ring-buffer,
 		 * so return zero here
 		 */
@@ -99,11 +99,11 @@ unsigned int trace_call_bpf(struct trace_event_call *call, void *ctx)
 	/*
 	 * Instead of moving rcu_read_lock/rcu_dereference/rcu_read_unlock
 	 * to all call sites, we did a bpf_prog_array_valid() there to check
-	 * whether call->prog_array is empty or not, which is
+	 * whether call->prog_array is empty or yest, which is
 	 * a heurisitc to speed up execution.
 	 *
 	 * If bpf_prog_array_valid() fetched prog_array was
-	 * non-NULL, we go into trace_call_bpf() and do the actual
+	 * yesn-NULL, we go into trace_call_bpf() and do the actual
 	 * proper rcu_dereference() under RCU lock.
 	 * If it turns out that prog_array is NULL then, we bail out.
 	 * For the opposite, if the bpf_prog_array_valid() fetched pointer
@@ -233,11 +233,11 @@ bpf_probe_read_kernel_str_common(void *dst, u32 size, const void *unsafe_ptr,
 	if (unlikely(ret < 0))
 		goto out;
 	/*
-	 * The strncpy_from_unsafe_*() call will likely not fill the entire
+	 * The strncpy_from_unsafe_*() call will likely yest fill the entire
 	 * buffer, but that's okay in this circumstance as we're probing
 	 * arbitrary memory anyway similar to bpf_probe_read_*() and might
 	 * as well probe the stack. Thus, memory is explicitly cleared
-	 * only in error case, so that improper users ignoring return
+	 * only in error case, so that improper users igyesring return
 	 * code altogether don't copy garbage; otherwise length of string
 	 * is returned that can be used for bpf_perf_event_output() et al.
 	 */
@@ -284,13 +284,13 @@ BPF_CALL_3(bpf_probe_write_user, void __user *, unsafe_ptr, const void *, src,
 {
 	/*
 	 * Ensure we're in user context which is safe for the helper to
-	 * run. This helper has no business in a kthread.
+	 * run. This helper has yes business in a kthread.
 	 *
-	 * access_ok() should prevent writing to non-user memory, but in
-	 * some situations (nommu, temporary switch, etc) access_ok() does
-	 * not provide enough validation, hence the check on KERNEL_DS.
+	 * access_ok() should prevent writing to yesn-user memory, but in
+	 * some situations (yesmmu, temporary switch, etc) access_ok() does
+	 * yest provide eyesugh validation, hence the check on KERNEL_DS.
 	 *
-	 * nmi_uaccess_okay() ensures the probe is not run in an interim
+	 * nmi_uaccess_okay() ensures the probe is yest run in an interim
 	 * state, when the task or mm are switched. This is specifically
 	 * required to prevent the use of temporary mm.
 	 */
@@ -563,7 +563,7 @@ __bpf_perf_event_output(struct pt_regs *regs, struct bpf_map *map,
 }
 
 /*
- * Support executing tracepoints in normal, irq, and nmi context that each call
+ * Support executing tracepoints in yesrmal, irq, and nmi context that each call
  * bpf_perf_event_output
  */
 struct bpf_trace_sample_data {
@@ -794,8 +794,8 @@ tracing_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog)
 		return bpf_get_trace_printk_proto();
 	case BPF_FUNC_get_smp_processor_id:
 		return &bpf_get_smp_processor_id_proto;
-	case BPF_FUNC_get_numa_node_id:
-		return &bpf_get_numa_node_id_proto;
+	case BPF_FUNC_get_numa_yesde_id:
+		return &bpf_get_numa_yesde_id_proto;
 	case BPF_FUNC_perf_event_read:
 		return &bpf_perf_event_read_proto;
 	case BPF_FUNC_probe_write_user:
@@ -908,7 +908,7 @@ BPF_CALL_3(bpf_get_stackid_tp, void *, tp_buff, struct bpf_map *, map,
 
 	/*
 	 * Same comment as in bpf_perf_event_output_tp(), only that this time
-	 * the other helper's function body cannot be inlined due to being
+	 * the other helper's function body canyest be inlined due to being
 	 * external, thus we need to call raw helper function.
 	 */
 	return bpf_get_stackid((unsigned long) regs, (unsigned long) map,
@@ -1030,7 +1030,7 @@ pe_prog_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog)
  * inside bpf_*_event_output, bpf_get_stackid and/or bpf_get_stack.
  *
  * Since raw tracepoints run despite bpf_prog_active, support concurrent usage
- * in normal, irq, and nmi context.
+ * in yesrmal, irq, and nmi context.
  */
 struct bpf_raw_tp_regs {
 	struct pt_regs regs[3];
@@ -1411,7 +1411,7 @@ int perf_event_query_prog_array(struct perf_event *event, void __user *info)
 	/*
 	 * The above kcalloc returns ZERO_SIZE_PTR when ids_len = 0, which
 	 * is required when user only wants to check for uquery->prog_cnt.
-	 * There is no need to check for it since the case is handled
+	 * There is yes need to check for it since the case is handled
 	 * gracefully in bpf_prog_array_copy_info.
 	 */
 
@@ -1545,7 +1545,7 @@ int bpf_get_perf_event_info(const struct perf_event *event, u32 *prog_id,
 	if (!prog)
 		return -ENOENT;
 
-	/* not supporting BPF_PROG_TYPE_PERF_EVENT yet */
+	/* yest supporting BPF_PROG_TYPE_PERF_EVENT yet */
 	if (prog->type == BPF_PROG_TYPE_PERF_EVENT)
 		return -EOPNOTSUPP;
 
@@ -1595,7 +1595,7 @@ static int __init send_signal_irq_work_init(void)
 subsys_initcall(send_signal_irq_work_init);
 
 #ifdef CONFIG_MODULES
-static int bpf_event_notify(struct notifier_block *nb, unsigned long op,
+static int bpf_event_yestify(struct yestifier_block *nb, unsigned long op,
 			    void *module)
 {
 	struct bpf_trace_module *btm, *tmp;
@@ -1631,13 +1631,13 @@ static int bpf_event_notify(struct notifier_block *nb, unsigned long op,
 	return 0;
 }
 
-static struct notifier_block bpf_module_nb = {
-	.notifier_call = bpf_event_notify,
+static struct yestifier_block bpf_module_nb = {
+	.yestifier_call = bpf_event_yestify,
 };
 
 static int __init bpf_event_init(void)
 {
-	register_module_notifier(&bpf_module_nb);
+	register_module_yestifier(&bpf_module_nb);
 	return 0;
 }
 

@@ -34,7 +34,7 @@
  * for a (really) short period of time.
  *
  * Counters ID 2 and 3 are enabled by default even before U-Boot loads,
- * therefore this driver does not provide a way to use them, eg. by setting a
+ * therefore this driver does yest provide a way to use them, eg. by setting a
  * property in device tree.
  */
 
@@ -68,9 +68,9 @@ static unsigned int timeout;
 module_param(timeout, int, 0);
 MODULE_PARM_DESC(timeout, "Watchdog timeout in seconds");
 
-static bool nowayout = WATCHDOG_NOWAYOUT;
-module_param(nowayout, bool, 0);
-MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started (default="
+static bool yeswayout = WATCHDOG_NOWAYOUT;
+module_param(yeswayout, bool, 0);
+MODULE_PARM_DESC(yeswayout, "Watchdog canyest be stopped once started (default="
 			   __MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
 
 struct armada_37xx_watchdog {
@@ -264,7 +264,7 @@ static int armada_37xx_wdt_probe(struct platform_device *pdev)
 	dev->wdt.info = &armada_37xx_wdt_info;
 	dev->wdt.ops = &armada_37xx_wdt_ops;
 
-	regmap = syscon_regmap_lookup_by_phandle(pdev->dev.of_node,
+	regmap = syscon_regmap_lookup_by_phandle(pdev->dev.of_yesde,
 						 "marvell,system-controller");
 	if (IS_ERR(regmap))
 		return PTR_ERR(regmap);
@@ -313,14 +313,14 @@ static int armada_37xx_wdt_probe(struct platform_device *pdev)
 	if (armada_37xx_wdt_is_running(dev))
 		set_bit(WDOG_HW_RUNNING, &dev->wdt.status);
 
-	watchdog_set_nowayout(&dev->wdt, nowayout);
+	watchdog_set_yeswayout(&dev->wdt, yeswayout);
 	watchdog_stop_on_reboot(&dev->wdt);
 	ret = devm_watchdog_register_device(&pdev->dev, &dev->wdt);
 	if (ret)
 		return ret;
 
 	dev_info(&pdev->dev, "Initial timeout %d sec%s\n",
-		 dev->wdt.timeout, nowayout ? ", nowayout" : "");
+		 dev->wdt.timeout, yeswayout ? ", yeswayout" : "");
 
 	return 0;
 }

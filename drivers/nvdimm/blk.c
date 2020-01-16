@@ -190,7 +190,7 @@ static blk_qc_t nd_blk_make_request(struct request_queue *q, struct bio *bio)
 					"io error in %s sector %lld, len %d,\n",
 					(rw == READ) ? "READ" : "WRITE",
 					(unsigned long long) iter.bi_sector, len);
-			bio->bi_status = errno_to_blk_status(err);
+			bio->bi_status = erryes_to_blk_status(err);
 			break;
 		}
 	}
@@ -265,7 +265,7 @@ static int nsblk_attach_disk(struct nd_namespace_blk *nsblk)
 	if (!disk)
 		return -ENOMEM;
 
-	disk->first_minor	= 0;
+	disk->first_miyesr	= 0;
 	disk->fops		= &nd_blk_fops;
 	disk->queue		= q;
 	disk->flags		= GENHD_FL_EXT_DEVT;

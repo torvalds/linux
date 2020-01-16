@@ -113,7 +113,7 @@ static struct irq_chip microdev_irq_type = {
 /* This function sets the desired irq handler to be a MicroDev type */
 static void __init make_microdev_irq(unsigned int irq)
 {
-	disable_irq_nosync(irq);
+	disable_irq_yessync(irq);
 	irq_set_chip_and_handler(irq, &microdev_irq_type, handle_level_irq);
 	disable_microdev_irq(irq_get_irq_data(irq));
 }

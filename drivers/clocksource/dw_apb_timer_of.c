@@ -14,7 +14,7 @@
 #include <linux/reset.h>
 #include <linux/sched_clock.h>
 
-static void __init timer_get_base_and_rate(struct device_node *np,
+static void __init timer_get_base_and_rate(struct device_yesde *np,
 				    void __iomem **base, u32 *rate)
 {
 	struct clk *timer_clk;
@@ -38,12 +38,12 @@ static void __init timer_get_base_and_rate(struct device_node *np,
 
 	/*
 	 * Not all implementations use a periphal clock, so don't panic
-	 * if it's not present
+	 * if it's yest present
 	 */
 	pclk = of_clk_get_by_name(np, "pclk");
 	if (!IS_ERR(pclk))
 		if (clk_prepare_enable(pclk))
-			pr_warn("pclk for %pOFn is present, but could not be activated\n",
+			pr_warn("pclk for %pOFn is present, but could yest be activated\n",
 				np);
 
 	timer_clk = of_clk_get_by_name(np, "timer");
@@ -58,10 +58,10 @@ static void __init timer_get_base_and_rate(struct device_node *np,
 try_clock_freq:
 	if (of_property_read_u32(np, "clock-freq", rate) &&
 	    of_property_read_u32(np, "clock-frequency", rate))
-		panic("No clock nor clock-frequency property for %pOFn", np);
+		panic("No clock yesr clock-frequency property for %pOFn", np);
 }
 
-static void __init add_clockevent(struct device_node *event_timer)
+static void __init add_clockevent(struct device_yesde *event_timer)
 {
 	void __iomem *iobase;
 	struct dw_apb_clock_event_device *ced;
@@ -84,7 +84,7 @@ static void __init add_clockevent(struct device_node *event_timer)
 static void __iomem *sched_io_base;
 static u32 sched_rate;
 
-static void __init add_clocksource(struct device_node *source_timer)
+static void __init add_clocksource(struct device_yesde *source_timer)
 {
 	void __iomem *iobase;
 	struct dw_apb_clocksource *cs;
@@ -100,7 +100,7 @@ static void __init add_clocksource(struct device_node *source_timer)
 	dw_apb_clocksource_register(cs);
 
 	/*
-	 * Fallback to use the clocksource as sched_clock if no separate
+	 * Fallback to use the clocksource as sched_clock if yes separate
 	 * timer is found. sched_io_base then points to the current_value
 	 * register of the clocksource timer.
 	 */
@@ -108,7 +108,7 @@ static void __init add_clocksource(struct device_node *source_timer)
 	sched_rate = rate;
 }
 
-static u64 notrace read_sched_clock(void)
+static u64 yestrace read_sched_clock(void)
 {
 	return ~readl_relaxed(sched_io_base);
 }
@@ -120,13 +120,13 @@ static const struct of_device_id sptimer_ids[] __initconst = {
 
 static void __init init_sched_clock(void)
 {
-	struct device_node *sched_timer;
+	struct device_yesde *sched_timer;
 
-	sched_timer = of_find_matching_node(NULL, sptimer_ids);
+	sched_timer = of_find_matching_yesde(NULL, sptimer_ids);
 	if (sched_timer) {
 		timer_get_base_and_rate(sched_timer, &sched_io_base,
 					&sched_rate);
-		of_node_put(sched_timer);
+		of_yesde_put(sched_timer);
 	}
 
 	sched_clock_register(read_sched_clock, 32, sched_rate);
@@ -144,7 +144,7 @@ static struct delay_timer dw_apb_delay_timer = {
 #endif
 
 static int num_called;
-static int __init dw_apb_timer_init(struct device_node *timer)
+static int __init dw_apb_timer_init(struct device_yesde *timer)
 {
 	switch (num_called) {
 	case 0:

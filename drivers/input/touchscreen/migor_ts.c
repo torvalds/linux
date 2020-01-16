@@ -4,7 +4,7 @@
  *
  * Copyright (c) 2008 Magnus Damm
  * Copyright (c) 2007 Ujjwal Pande <ujjwal@kenati.com>,
- *  Kenati Technologies Pvt Ltd.
+ *  Kenati Techyeslogies Pvt Ltd.
  */
 #include <linux/module.h>
 #include <linux/kernel.h>
@@ -41,7 +41,7 @@ static irqreturn_t migor_ts_isr(int irq, void *dev_id)
 	 * The touch screen controller chip is hooked up to the CPU
 	 * using I2C and a single interrupt line. The interrupt line
 	 * is pulled low whenever someone taps the screen. To deassert
-	 * the interrupt line we need to acknowledge the interrupt by
+	 * the interrupt line we need to ackyeswledge the interrupt by
 	 * communicating with the controller over the slow i2c bus.
 	 *
 	 * Since I2C bus controller may sleep we are using threaded

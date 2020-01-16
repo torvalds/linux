@@ -110,7 +110,7 @@
 #define DM1105_SYSTEMCODE			0x6c
 #define DM1105_IRCODE				0x70
 
-/* Unknown Values */
+/* Unkyeswn Values */
 #define DM1105_ENCRYPT				0x74
 #define DM1105_VER				0x7c
 
@@ -286,7 +286,7 @@ static void dm1105_card_list(struct pci_dev *pci)
 	if (0 == pci->subsystem_vendor &&
 			0 == pci->subsystem_device) {
 		printk(KERN_ERR
-			"dm1105: Your board has no valid PCI Subsystem ID\n"
+			"dm1105: Your board has yes valid PCI Subsystem ID\n"
 			"dm1105: and thus can't be autodetected\n"
 			"dm1105: Please pass card=<n> insmod option to\n"
 			"dm1105: workaround that.  Redirect complaints to\n"
@@ -294,7 +294,7 @@ static void dm1105_card_list(struct pci_dev *pci)
 			"dm1105: -- tux\n");
 	} else {
 		printk(KERN_ERR
-			"dm1105: Your board isn't known (yet) to the driver.\n"
+			"dm1105: Your board isn't kyeswn (yet) to the driver.\n"
 			"dm1105: You can try to pick one of the existing\n"
 			"dm1105: card configs via card=<n> insmod option.\n"
 			"dm1105: Updating to the latest version might help\n"
@@ -375,7 +375,7 @@ struct dm1105_dev {
 
 /* The chip has 18 GPIOs. In HOST mode GPIO's used as 15 bit address lines,
  so we can use only 3 GPIO's from GPIO15 to GPIO17.
- Here I don't check whether HOST is enebled as it is not implemented yet.
+ Here I don't check whether HOST is enebled as it is yest implemented yet.
  */
 static void dm1105_gpio_set(struct dm1105_dev *dev, u32 mask)
 {
@@ -928,7 +928,7 @@ static int frontend_init(struct dm1105_dev *dev)
 	}
 
 	if (!dev->fe) {
-		dev_err(&dev->pdev->dev, "could not attach frontend\n");
+		dev_err(&dev->pdev->dev, "could yest attach frontend\n");
 		return -ENODEV;
 	}
 

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0
-/* Copyright (c) 2016-2019 Mellanox Technologies. All rights reserved */
+/* Copyright (c) 2016-2019 Mellayesx Techyeslogies. All rights reserved */
 
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
@@ -20,8 +20,8 @@ static const char mlxsw_m_driver_name[] = "mlxsw_minimal";
 #define MLXSW_M_FWREV_SUBMINOR	1886
 
 static const struct mlxsw_fw_rev mlxsw_m_fw_rev = {
-	.minor = MLXSW_M_FWREV_MINOR,
-	.subminor = MLXSW_M_FWREV_SUBMINOR,
+	.miyesr = MLXSW_M_FWREV_MINOR,
+	.submiyesr = MLXSW_M_FWREV_SUBMINOR,
 };
 
 struct mlxsw_m_port;
@@ -86,8 +86,8 @@ static void mlxsw_m_module_get_drvinfo(struct net_device *dev,
 	snprintf(drvinfo->fw_version, sizeof(drvinfo->fw_version),
 		 "%d.%d.%d",
 		 mlxsw_m->bus_info->fw_rev.major,
-		 mlxsw_m->bus_info->fw_rev.minor,
-		 mlxsw_m->bus_info->fw_rev.subminor);
+		 mlxsw_m->bus_info->fw_rev.miyesr,
+		 mlxsw_m->bus_info->fw_rev.submiyesr);
 	strlcpy(drvinfo->bus_info, mlxsw_m->bus_info->device_name,
 		sizeof(drvinfo->bus_info));
 }
@@ -149,7 +149,7 @@ mlxsw_m_port_dev_addr_get(struct mlxsw_m_port *mlxsw_m_port)
 		return err;
 	mlxsw_reg_ppad_mac_memcpy_from(ppad_pl, dev->dev_addr);
 	/* The last byte value in base mac address is guaranteed
-	 * to be such it does not overflow when adding local_port
+	 * to be such it does yest overflow when adding local_port
 	 * value.
 	 */
 	dev->dev_addr[ETH_ALEN - 1] += mlxsw_m_port->module + 1;
@@ -339,15 +339,15 @@ static int mlxsw_m_fw_rev_validate(struct mlxsw_m *mlxsw_m)
 	const struct mlxsw_fw_rev *rev = &mlxsw_m->bus_info->fw_rev;
 
 	/* Validate driver and FW are compatible.
-	 * Do not check major version, since it defines chip type, while
+	 * Do yest check major version, since it defines chip type, while
 	 * driver is supposed to support any type.
 	 */
-	if (mlxsw_core_fw_rev_minor_subminor_validate(rev, &mlxsw_m_fw_rev))
+	if (mlxsw_core_fw_rev_miyesr_submiyesr_validate(rev, &mlxsw_m_fw_rev))
 		return 0;
 
 	dev_err(mlxsw_m->bus_info->dev, "The firmware version %d.%d.%d is incompatible with the driver (required >= %d.%d.%d)\n",
-		rev->major, rev->minor, rev->subminor, rev->major,
-		mlxsw_m_fw_rev.minor, mlxsw_m_fw_rev.subminor);
+		rev->major, rev->miyesr, rev->submiyesr, rev->major,
+		mlxsw_m_fw_rev.miyesr, mlxsw_m_fw_rev.submiyesr);
 
 	return -EINVAL;
 }
@@ -440,6 +440,6 @@ module_init(mlxsw_m_module_init);
 module_exit(mlxsw_m_module_exit);
 
 MODULE_LICENSE("Dual BSD/GPL");
-MODULE_AUTHOR("Vadim Pasternak <vadimp@mellanox.com>");
-MODULE_DESCRIPTION("Mellanox minimal driver");
+MODULE_AUTHOR("Vadim Pasternak <vadimp@mellayesx.com>");
+MODULE_DESCRIPTION("Mellayesx minimal driver");
 MODULE_DEVICE_TABLE(i2c, mlxsw_m_i2c_id);

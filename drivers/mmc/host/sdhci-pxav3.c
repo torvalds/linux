@@ -77,19 +77,19 @@ static int mv_conf_mbus_windows(struct platform_device *pdev,
 	struct resource *res;
 
 	if (!dram) {
-		dev_err(&pdev->dev, "no mbus dram info\n");
+		dev_err(&pdev->dev, "yes mbus dram info\n");
 		return -EINVAL;
 	}
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
 	if (!res) {
-		dev_err(&pdev->dev, "cannot get mbus registers\n");
+		dev_err(&pdev->dev, "canyest get mbus registers\n");
 		return -EINVAL;
 	}
 
 	regs = ioremap(res->start, resource_size(res));
 	if (!regs) {
-		dev_err(&pdev->dev, "cannot map mbus registers\n");
+		dev_err(&pdev->dev, "canyest map mbus registers\n");
 		return -ENOMEM;
 	}
 
@@ -118,7 +118,7 @@ static int mv_conf_mbus_windows(struct platform_device *pdev,
 static int armada_38x_quirks(struct platform_device *pdev,
 			     struct sdhci_host *host)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
 	struct sdhci_pxa *pxa = sdhci_pltfm_priv(pltfm_host);
 	struct resource *res;
@@ -139,12 +139,12 @@ static int armada_38x_quirks(struct platform_device *pdev,
 		/*
 		 * According to erratum 'FE-2946959' both SDR50 and DDR50
 		 * modes require specific clock adjustments in SDIO3
-		 * Configuration register, if the adjustment is not done,
+		 * Configuration register, if the adjustment is yest done,
 		 * remove them from the capabilities.
 		 */
 		host->caps1 &= ~(SDHCI_SUPPORT_SDR50 | SDHCI_SUPPORT_DDR50);
 
-		dev_warn(&pdev->dev, "conf-sdio3 register not found: disabling SDR50 and DDR50 modes.\nConsider updating your dtb\n");
+		dev_warn(&pdev->dev, "conf-sdio3 register yest found: disabling SDR50 and DDR50 modes.\nConsider updating your dtb\n");
 	}
 
 	/*
@@ -152,7 +152,7 @@ static int armada_38x_quirks(struct platform_device *pdev,
 	 * controller has different capabilities than the ones shown
 	 * in its registers
 	 */
-	if (of_property_read_bool(np, "no-1-8-v")) {
+	if (of_property_read_bool(np, "yes-1-8-v")) {
 		host->caps &= ~SDHCI_CAN_VDD_180;
 		host->mmc->caps &= ~MMC_CAP_1_8V_DDR;
 	} else {
@@ -173,7 +173,7 @@ static void pxav3_reset(struct sdhci_host *host, u8 mask)
 	if (mask == SDHCI_RESET_ALL) {
 		/*
 		 * tune timing of read data/command when crc error happen
-		 * no performance impact
+		 * yes performance impact
 		 */
 		if (pdata && 0 != pdata->clk_delay_cycles) {
 			u16 tmp;
@@ -205,7 +205,7 @@ static void pxav3_gen_init_74_clocks(struct sdhci_host *host, u8 power_mode)
 				pxa->power_mode,
 				power_mode);
 
-		/* set we want notice of when 74 clocks are sent */
+		/* set we want yestice of when 74 clocks are sent */
 		tmp = readw(host->ioaddr + SD_CE_ATA_2);
 		tmp |= SDCE_MISC_INT_EN;
 		writew(tmp, host->ioaddr + SD_CE_ATA_2);
@@ -227,7 +227,7 @@ static void pxav3_gen_init_74_clocks(struct sdhci_host *host, u8 power_mode)
 		}
 
 		if (count == MAX_WAIT_COUNT)
-			dev_warn(mmc_dev(host->mmc), "74 clock interrupt not cleared\n");
+			dev_warn(mmc_dev(host->mmc), "74 clock interrupt yest cleared\n");
 
 		/* clear the interrupt bit if posted */
 		tmp = readw(host->ioaddr + SD_CE_ATA_2);
@@ -244,8 +244,8 @@ static void pxav3_set_uhs_signaling(struct sdhci_host *host, unsigned int uhs)
 	u16 ctrl_2;
 
 	/*
-	 * Set V18_EN -- UHS modes do not work without this.
-	 * does not change signaling voltage
+	 * Set V18_EN -- UHS modes do yest work without this.
+	 * does yest change signaling voltage
 	 */
 	ctrl_2 = sdhci_readw(host, SDHCI_HOST_CONTROL2);
 
@@ -303,7 +303,7 @@ static void pxav3_set_power(struct sdhci_host *host, unsigned char mode,
 	struct mmc_host *mmc = host->mmc;
 	u8 pwr = host->pwr;
 
-	sdhci_set_power_noreg(host, mode, vdd);
+	sdhci_set_power_yesreg(host, mode, vdd);
 
 	if (host->pwr == pwr)
 		return;
@@ -348,7 +348,7 @@ MODULE_DEVICE_TABLE(of, sdhci_pxav3_of_match);
 static struct sdhci_pxa_platdata *pxav3_get_mmc_pdata(struct device *dev)
 {
 	struct sdhci_pxa_platdata *pdata;
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 	u32 clk_delay_cycles;
 
 	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
@@ -373,7 +373,7 @@ static int sdhci_pxav3_probe(struct platform_device *pdev)
 	struct sdhci_pltfm_host *pltfm_host;
 	struct sdhci_pxa_platdata *pdata = pdev->dev.platform_data;
 	struct device *dev = &pdev->dev;
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	struct sdhci_host *host = NULL;
 	struct sdhci_pxa *pxa = NULL;
 	const struct of_device_id *match;
@@ -442,12 +442,12 @@ static int sdhci_pxav3_probe(struct platform_device *pdev)
 			host->mmc->pm_caps |= pdata->pm_caps;
 	}
 
-	pm_runtime_get_noresume(&pdev->dev);
+	pm_runtime_get_yesresume(&pdev->dev);
 	pm_runtime_set_active(&pdev->dev);
 	pm_runtime_set_autosuspend_delay(&pdev->dev, PXAV3_RPM_DELAY_MS);
 	pm_runtime_use_autosuspend(&pdev->dev);
 	pm_runtime_enable(&pdev->dev);
-	pm_suspend_ignore_children(&pdev->dev, 1);
+	pm_suspend_igyesre_children(&pdev->dev, 1);
 
 	ret = sdhci_add_host(host);
 	if (ret)
@@ -462,7 +462,7 @@ static int sdhci_pxav3_probe(struct platform_device *pdev)
 
 err_add_host:
 	pm_runtime_disable(&pdev->dev);
-	pm_runtime_put_noidle(&pdev->dev);
+	pm_runtime_put_yesidle(&pdev->dev);
 err_of_parse:
 err_mbus_win:
 	clk_disable_unprepare(pxa->clk_io);
@@ -480,7 +480,7 @@ static int sdhci_pxav3_remove(struct platform_device *pdev)
 
 	pm_runtime_get_sync(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
-	pm_runtime_put_noidle(&pdev->dev);
+	pm_runtime_put_yesidle(&pdev->dev);
 
 	sdhci_remove_host(host, 1);
 

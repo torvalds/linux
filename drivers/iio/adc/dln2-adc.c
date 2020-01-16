@@ -513,7 +513,7 @@ static irqreturn_t dln2_adc_trigger_h(int irq, void *p)
 					   iio_get_time_ns(indio_dev));
 
 done:
-	iio_trigger_notify_done(indio_dev->trig);
+	iio_trigger_yestify_done(indio_dev->trig);
 	return IRQ_HANDLED;
 }
 

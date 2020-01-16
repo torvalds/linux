@@ -36,7 +36,7 @@
  *   [13] - D/A output range for channel 11
  *
  * For PCL-726 the D/A output ranges are:
- *   0: 0-5V, 1: 0-10V, 2: +/-5V, 3: +/-10V, 4: 4-20mA, 5: unknown
+ *   0: 0-5V, 1: 0-10V, 2: +/-5V, 3: +/-10V, 4: 4-20mA, 5: unkyeswn
  *
  * For PCL-727:
  *   0: 0-5V, 1: 0-10V, 2: +/-5V, 3: 4-20mA
@@ -71,7 +71,7 @@ static const struct comedi_lrange *const rangelist_726[] = {
 	&range_bipolar5,
 	&range_bipolar10,
 	&range_4_20mA,
-	&range_unknown
+	&range_unkyeswn
 };
 
 static const struct comedi_lrange *const rangelist_727[] = {
@@ -343,7 +343,7 @@ static int pcl726_attach(struct comedi_device *dev,
 		if (opt < board->ao_num_ranges && i < board->ao_nchan)
 			devpriv->rangelist[i] = board->ao_ranges[opt];
 		else
-			devpriv->rangelist[i] = &range_unknown;
+			devpriv->rangelist[i] = &range_unkyeswn;
 	}
 
 	subdev = board->have_dio ? 3 : 1;

@@ -1,11 +1,11 @@
 .. Permission is granted to copy, distribute and/or modify this
 .. document under the terms of the GNU Free Documentation License,
 .. Version 1.1 or any later version published by the Free Software
-.. Foundation, with no Invariant Sections, no Front-Cover Texts
-.. and no Back-Cover Texts. A copy of the license is included at
+.. Foundation, with yes Invariant Sections, yes Front-Cover Texts
+.. and yes Back-Cover Texts. A copy of the license is included at
 .. Documentation/media/uapi/fdl-appendix.rst.
 ..
-.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
+.. TODO: replace it to GFDL-1.1-or-later WITH yes-invariant-sections
 
 .. _metadata:
 
@@ -13,25 +13,25 @@
 Metadata Interface
 ******************
 
-Metadata refers to any non-image data that supplements video frames with
+Metadata refers to any yesn-image data that supplements video frames with
 additional information. This may include statistics computed over the image,
 frame capture parameters supplied by the image source or device specific
 parameters for specifying how the device processes images. This interface is
 intended for transfer of metadata between the userspace and the hardware and
 control of that operation.
 
-The metadata interface is implemented on video device nodes. The device can be
+The metadata interface is implemented on video device yesdes. The device can be
 dedicated to metadata or can support both video and metadata as specified in its
 reported capabilities.
 
 Querying Capabilities
 =====================
 
-Device nodes supporting the metadata capture interface set the
+Device yesdes supporting the metadata capture interface set the
 ``V4L2_CAP_META_CAPTURE`` flag in the ``device_caps`` field of the
 :c:type:`v4l2_capability` structure returned by the :c:func:`VIDIOC_QUERYCAP`
 ioctl. That flag means the device can capture metadata to memory. Similarly,
-device nodes supporting metadata output interface set the
+device yesdes supporting metadata output interface set the
 ``V4L2_CAP_META_OUTPUT`` flag in the ``device_caps`` field of
 :c:type:`v4l2_capability` structure. That flag means the device can read
 metadata from memory.

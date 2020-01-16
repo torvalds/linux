@@ -14,11 +14,11 @@
 #include <linux/device.h>
 #include <trace/events/writeback.h>
 
-struct backing_dev_info noop_backing_dev_info = {
-	.name		= "noop",
+struct backing_dev_info yesop_backing_dev_info = {
+	.name		= "yesop",
 	.capabilities	= BDI_CAP_NO_ACCT_AND_WRITEBACK,
 };
-EXPORT_SYMBOL_GPL(noop_backing_dev_info);
+EXPORT_SYMBOL_GPL(yesop_backing_dev_info);
 
 static struct class *bdi_class;
 
@@ -31,7 +31,7 @@ static u64 bdi_id_cursor;
 static struct rb_root bdi_tree = RB_ROOT;
 LIST_HEAD(bdi_list);
 
-/* bdi_wq serves all asynchronous writeback tasks */
+/* bdi_wq serves all asynchroyesus writeback tasks */
 struct workqueue_struct *bdi_wq;
 
 #ifdef CONFIG_DEBUG_FS
@@ -53,18 +53,18 @@ static int bdi_debug_stats_show(struct seq_file *m, void *v)
 	unsigned long dirty_thresh;
 	unsigned long wb_thresh;
 	unsigned long nr_dirty, nr_io, nr_more_io, nr_dirty_time;
-	struct inode *inode;
+	struct iyesde *iyesde;
 
 	nr_dirty = nr_io = nr_more_io = nr_dirty_time = 0;
 	spin_lock(&wb->list_lock);
-	list_for_each_entry(inode, &wb->b_dirty, i_io_list)
+	list_for_each_entry(iyesde, &wb->b_dirty, i_io_list)
 		nr_dirty++;
-	list_for_each_entry(inode, &wb->b_io, i_io_list)
+	list_for_each_entry(iyesde, &wb->b_io, i_io_list)
 		nr_io++;
-	list_for_each_entry(inode, &wb->b_more_io, i_io_list)
+	list_for_each_entry(iyesde, &wb->b_more_io, i_io_list)
 		nr_more_io++;
-	list_for_each_entry(inode, &wb->b_dirty_time, i_io_list)
-		if (inode->i_state & I_DIRTY_TIME)
+	list_for_each_entry(iyesde, &wb->b_dirty_time, i_io_list)
+		if (iyesde->i_state & I_DIRTY_TIME)
 			nr_dirty_time++;
 	spin_unlock(&wb->list_lock);
 
@@ -244,24 +244,24 @@ static int __init default_bdi_init(void)
 	if (!bdi_wq)
 		return -ENOMEM;
 
-	err = bdi_init(&noop_backing_dev_info);
+	err = bdi_init(&yesop_backing_dev_info);
 
 	return err;
 }
 subsys_initcall(default_bdi_init);
 
 /*
- * This function is used when the first inode for this wb is marked dirty. It
+ * This function is used when the first iyesde for this wb is marked dirty. It
  * wakes-up the corresponding bdi thread which should then take care of the
- * periodic background write-out of dirty inodes. Since the write-out would
- * starts only 'dirty_writeback_interval' centisecs from now anyway, we just
+ * periodic background write-out of dirty iyesdes. Since the write-out would
+ * starts only 'dirty_writeback_interval' centisecs from yesw anyway, we just
  * set up a timer which wakes the bdi thread up later.
  *
  * Note, we wouldn't bother setting up the timer, but this function is on the
- * fast-path (used by '__mark_inode_dirty()'), so we save few context switches
+ * fast-path (used by '__mark_iyesde_dirty()'), so we save few context switches
  * by delaying the wake-up.
  *
- * We have to be careful not to postpone flush work if it is scheduled for
+ * We have to be careful yest to postpone flush work if it is scheduled for
  * earlier. Thus we use queue_delayed_work().
  */
 void wb_wakeup_delayed(struct bdi_writeback *wb)
@@ -345,7 +345,7 @@ static void cgwb_remove_from_bdi_list(struct bdi_writeback *wb);
  */
 static void wb_shutdown(struct bdi_writeback *wb)
 {
-	/* Make sure nobody queues further work */
+	/* Make sure yesbody queues further work */
 	spin_lock_bh(&wb->work_lock);
 	if (!test_and_clear_bit(WB_registered, &wb->state)) {
 		spin_unlock_bh(&wb->work_lock);
@@ -357,7 +357,7 @@ static void wb_shutdown(struct bdi_writeback *wb)
 	/*
 	 * Drain work list and shutdown the delayed_work.  !WB_registered
 	 * tells wb_workfn() that @wb is dying and its work_list needs to
-	 * be drained no matter what.
+	 * be drained yes matter what.
 	 */
 	mod_delayed_work(bdi_wq, &wb->dwork, 0);
 	flush_delayed_work(&wb->dwork);
@@ -405,22 +405,22 @@ struct bdi_writeback_congested *
 wb_congested_get_create(struct backing_dev_info *bdi, int blkcg_id, gfp_t gfp)
 {
 	struct bdi_writeback_congested *new_congested = NULL, *congested;
-	struct rb_node **node, *parent;
+	struct rb_yesde **yesde, *parent;
 	unsigned long flags;
 retry:
 	spin_lock_irqsave(&cgwb_lock, flags);
 
-	node = &bdi->cgwb_congested_tree.rb_node;
+	yesde = &bdi->cgwb_congested_tree.rb_yesde;
 	parent = NULL;
 
-	while (*node != NULL) {
-		parent = *node;
+	while (*yesde != NULL) {
+		parent = *yesde;
 		congested = rb_entry(parent, struct bdi_writeback_congested,
-				     rb_node);
+				     rb_yesde);
 		if (congested->blkcg_id < blkcg_id)
-			node = &parent->rb_left;
+			yesde = &parent->rb_left;
 		else if (congested->blkcg_id > blkcg_id)
-			node = &parent->rb_right;
+			yesde = &parent->rb_right;
 		else
 			goto found;
 	}
@@ -428,8 +428,8 @@ retry:
 	if (new_congested) {
 		/* !found and storage for new one already allocated, insert */
 		congested = new_congested;
-		rb_link_node(&congested->rb_node, parent, node);
-		rb_insert_color(&congested->rb_node, &bdi->cgwb_congested_tree);
+		rb_link_yesde(&congested->rb_yesde, parent, yesde);
+		rb_insert_color(&congested->rb_yesde, &bdi->cgwb_congested_tree);
 		spin_unlock_irqrestore(&cgwb_lock, flags);
 		return congested;
 	}
@@ -468,7 +468,7 @@ void wb_congested_put(struct bdi_writeback_congested *congested)
 
 	/* bdi might already have been destroyed leaving @congested unlinked */
 	if (congested->__bdi) {
-		rb_erase(&congested->rb_node,
+		rb_erase(&congested->rb_yesde,
 			 &congested->__bdi->cgwb_congested_tree);
 		congested->__bdi = NULL;
 	}
@@ -511,15 +511,15 @@ static void cgwb_kill(struct bdi_writeback *wb)
 	lockdep_assert_held(&cgwb_lock);
 
 	WARN_ON(!radix_tree_delete(&wb->bdi->cgwb_tree, wb->memcg_css->id));
-	list_del(&wb->memcg_node);
-	list_del(&wb->blkcg_node);
+	list_del(&wb->memcg_yesde);
+	list_del(&wb->blkcg_yesde);
 	percpu_ref_kill(&wb->refcnt);
 }
 
 static void cgwb_remove_from_bdi_list(struct bdi_writeback *wb)
 {
 	spin_lock_irq(&cgwb_lock);
-	list_del_rcu(&wb->bdi_node);
+	list_del_rcu(&wb->bdi_yesde);
 	spin_unlock_irq(&cgwb_lock);
 }
 
@@ -585,12 +585,12 @@ static int cgwb_create(struct backing_dev_info *bdi,
 	spin_lock_irqsave(&cgwb_lock, flags);
 	if (test_bit(WB_registered, &bdi->wb.state) &&
 	    blkcg_cgwb_list->next && memcg_cgwb_list->next) {
-		/* we might have raced another instance of this function */
+		/* we might have raced ayesther instance of this function */
 		ret = radix_tree_insert(&bdi->cgwb_tree, memcg_css->id, wb);
 		if (!ret) {
-			list_add_tail_rcu(&wb->bdi_node, &bdi->wb_list);
-			list_add(&wb->memcg_node, memcg_cgwb_list);
-			list_add(&wb->blkcg_node, blkcg_cgwb_list);
+			list_add_tail_rcu(&wb->bdi_yesde, &bdi->wb_list);
+			list_add(&wb->memcg_yesde, memcg_cgwb_list);
+			list_add(&wb->blkcg_yesde, blkcg_cgwb_list);
 			blkcg_cgwb_get(blkcg);
 			css_get(memcg_css);
 			css_get(blkcg_css);
@@ -627,7 +627,7 @@ out_put:
  *
  * This function uses css_get() on @memcg_css and thus expects its refcnt
  * to be positive on invocation.  IOW, rcu_read_lock() protection on
- * @memcg_css isn't enough.  try_get it before calling this function.
+ * @memcg_css isn't eyesugh.  try_get it before calling this function.
  *
  * A wb is keyed by its associated memcg.  As blkcg implicitly enables
  * memcg on the default hierarchy, memcg association is guaranteed to be
@@ -725,7 +725,7 @@ static void cgwb_bdi_unregister(struct backing_dev_info *bdi)
 	spin_lock_irq(&cgwb_lock);
 	while (!list_empty(&bdi->wb_list)) {
 		wb = list_first_entry(&bdi->wb_list, struct bdi_writeback,
-				      bdi_node);
+				      bdi_yesde);
 		spin_unlock_irq(&cgwb_lock);
 		wb_shutdown(wb);
 		spin_lock_irq(&cgwb_lock);
@@ -746,7 +746,7 @@ void wb_memcg_offline(struct mem_cgroup *memcg)
 	struct bdi_writeback *wb, *next;
 
 	spin_lock_irq(&cgwb_lock);
-	list_for_each_entry_safe(wb, next, memcg_cgwb_list, memcg_node)
+	list_for_each_entry_safe(wb, next, memcg_cgwb_list, memcg_yesde)
 		cgwb_kill(wb);
 	memcg_cgwb_list->next = NULL;	/* prevent new wb's */
 	spin_unlock_irq(&cgwb_lock);
@@ -763,7 +763,7 @@ void wb_blkcg_offline(struct blkcg *blkcg)
 	struct bdi_writeback *wb, *next;
 
 	spin_lock_irq(&cgwb_lock);
-	list_for_each_entry_safe(wb, next, &blkcg->cgwb_list, blkcg_node)
+	list_for_each_entry_safe(wb, next, &blkcg->cgwb_list, blkcg_yesde)
 		cgwb_kill(wb);
 	blkcg->cgwb_list.next = NULL;	/* prevent new wb's */
 	spin_unlock_irq(&cgwb_lock);
@@ -771,12 +771,12 @@ void wb_blkcg_offline(struct blkcg *blkcg)
 
 static void cgwb_bdi_exit(struct backing_dev_info *bdi)
 {
-	struct rb_node *rbn;
+	struct rb_yesde *rbn;
 
 	spin_lock_irq(&cgwb_lock);
 	while ((rbn = rb_first(&bdi->cgwb_congested_tree))) {
 		struct bdi_writeback_congested *congested =
-			rb_entry(rbn, struct bdi_writeback_congested, rb_node);
+			rb_entry(rbn, struct bdi_writeback_congested, rb_yesde);
 
 		rb_erase(rbn, &bdi->cgwb_congested_tree);
 		congested->__bdi = NULL;	/* mark @congested unlinked */
@@ -787,7 +787,7 @@ static void cgwb_bdi_exit(struct backing_dev_info *bdi)
 static void cgwb_bdi_register(struct backing_dev_info *bdi)
 {
 	spin_lock_irq(&cgwb_lock);
-	list_add_tail_rcu(&bdi->wb.bdi_node, &bdi->wb_list);
+	list_add_tail_rcu(&bdi->wb.bdi_yesde, &bdi->wb_list);
 	spin_unlock_irq(&cgwb_lock);
 }
 
@@ -796,7 +796,7 @@ static int __init cgwb_init(void)
 	/*
 	 * There can be many concurrent release work items overwhelming
 	 * system_wq.  Put them in a separate wq and limit concurrency.
-	 * There's no point in executing many of these in parallel.
+	 * There's yes point in executing many of these in parallel.
 	 */
 	cgwb_release_wq = alloc_workqueue("cgwb_release", 0, 1);
 	if (!cgwb_release_wq)
@@ -835,12 +835,12 @@ static void cgwb_bdi_exit(struct backing_dev_info *bdi)
 
 static void cgwb_bdi_register(struct backing_dev_info *bdi)
 {
-	list_add_tail_rcu(&bdi->wb.bdi_node, &bdi->wb_list);
+	list_add_tail_rcu(&bdi->wb.bdi_yesde, &bdi->wb_list);
 }
 
 static void cgwb_remove_from_bdi_list(struct bdi_writeback *wb)
 {
-	list_del_rcu(&wb->bdi_node);
+	list_del_rcu(&wb->bdi_yesde);
 }
 
 #endif	/* CONFIG_CGROUP_WRITEBACK */
@@ -864,12 +864,12 @@ static int bdi_init(struct backing_dev_info *bdi)
 	return ret;
 }
 
-struct backing_dev_info *bdi_alloc_node(gfp_t gfp_mask, int node_id)
+struct backing_dev_info *bdi_alloc_yesde(gfp_t gfp_mask, int yesde_id)
 {
 	struct backing_dev_info *bdi;
 
-	bdi = kmalloc_node(sizeof(struct backing_dev_info),
-			   gfp_mask | __GFP_ZERO, node_id);
+	bdi = kmalloc_yesde(sizeof(struct backing_dev_info),
+			   gfp_mask | __GFP_ZERO, yesde_id);
 	if (!bdi)
 		return NULL;
 
@@ -879,19 +879,19 @@ struct backing_dev_info *bdi_alloc_node(gfp_t gfp_mask, int node_id)
 	}
 	return bdi;
 }
-EXPORT_SYMBOL(bdi_alloc_node);
+EXPORT_SYMBOL(bdi_alloc_yesde);
 
-static struct rb_node **bdi_lookup_rb_node(u64 id, struct rb_node **parentp)
+static struct rb_yesde **bdi_lookup_rb_yesde(u64 id, struct rb_yesde **parentp)
 {
-	struct rb_node **p = &bdi_tree.rb_node;
-	struct rb_node *parent = NULL;
+	struct rb_yesde **p = &bdi_tree.rb_yesde;
+	struct rb_yesde *parent = NULL;
 	struct backing_dev_info *bdi;
 
 	lockdep_assert_held(&bdi_lock);
 
 	while (*p) {
 		parent = *p;
-		bdi = rb_entry(parent, struct backing_dev_info, rb_node);
+		bdi = rb_entry(parent, struct backing_dev_info, rb_yesde);
 
 		if (bdi->id > id)
 			p = &(*p)->rb_left;
@@ -916,12 +916,12 @@ static struct rb_node **bdi_lookup_rb_node(u64 id, struct rb_node **parentp)
 struct backing_dev_info *bdi_get_by_id(u64 id)
 {
 	struct backing_dev_info *bdi = NULL;
-	struct rb_node **p;
+	struct rb_yesde **p;
 
 	spin_lock_bh(&bdi_lock);
-	p = bdi_lookup_rb_node(id, NULL);
+	p = bdi_lookup_rb_yesde(id, NULL);
 	if (*p) {
-		bdi = rb_entry(*p, struct backing_dev_info, rb_node);
+		bdi = rb_entry(*p, struct backing_dev_info, rb_yesde);
 		bdi_get(bdi);
 	}
 	spin_unlock_bh(&bdi_lock);
@@ -932,7 +932,7 @@ struct backing_dev_info *bdi_get_by_id(u64 id)
 int bdi_register_va(struct backing_dev_info *bdi, const char *fmt, va_list args)
 {
 	struct device *dev;
-	struct rb_node *parent, **p;
+	struct rb_yesde *parent, **p;
 
 	if (bdi->dev)	/* The driver needs to use separate queues per device */
 		return 0;
@@ -951,9 +951,9 @@ int bdi_register_va(struct backing_dev_info *bdi, const char *fmt, va_list args)
 
 	bdi->id = ++bdi_id_cursor;
 
-	p = bdi_lookup_rb_node(bdi->id, &parent);
-	rb_link_node(&bdi->rb_node, parent, p);
-	rb_insert_color(&bdi->rb_node, &bdi_tree);
+	p = bdi_lookup_rb_yesde(bdi->id, &parent);
+	rb_link_yesde(&bdi->rb_yesde, parent, p);
+	rb_insert_color(&bdi->rb_yesde, &bdi_tree);
 
 	list_add_tail_rcu(&bdi->bdi_list, &bdi_list);
 
@@ -992,12 +992,12 @@ int bdi_register_owner(struct backing_dev_info *bdi, struct device *owner)
 EXPORT_SYMBOL(bdi_register_owner);
 
 /*
- * Remove bdi from bdi_list, and ensure that it is no longer visible
+ * Remove bdi from bdi_list, and ensure that it is yes longer visible
  */
 static void bdi_remove_from_list(struct backing_dev_info *bdi)
 {
 	spin_lock_bh(&bdi_lock);
-	rb_erase(&bdi->rb_node, &bdi_tree);
+	rb_erase(&bdi->rb_yesde, &bdi_tree);
 	list_del_rcu(&bdi->bdi_list);
 	spin_unlock_bh(&bdi_lock);
 
@@ -1006,7 +1006,7 @@ static void bdi_remove_from_list(struct backing_dev_info *bdi)
 
 void bdi_unregister(struct backing_dev_info *bdi)
 {
-	/* make sure nobody finds us on the bdi_list anymore */
+	/* make sure yesbody finds us on the bdi_list anymore */
 	bdi_remove_from_list(bdi);
 	wb_shutdown(&bdi->wb);
 	cgwb_bdi_unregister(bdi);
@@ -1078,7 +1078,7 @@ EXPORT_SYMBOL(set_wb_congested);
  * @timeout: timeout in jiffies
  *
  * Waits for up to @timeout jiffies for a backing_dev (any backing_dev) to exit
- * write congestion.  If no backing_devs are congested then just wait for the
+ * write congestion.  If yes backing_devs are congested then just wait for the
  * next write to be completed.
  */
 long congestion_wait(int sync, long timeout)
@@ -1110,7 +1110,7 @@ EXPORT_SYMBOL(congestion_wait);
  *
  * The return value is 0 if the sleep is for the full timeout. Otherwise,
  * it is the number of jiffies that were still remaining when the function
- * returned. return_value == timeout implies the function did not sleep.
+ * returned. return_value == timeout implies the function did yest sleep.
  */
 long wait_iff_congested(int sync, long timeout)
 {
@@ -1120,7 +1120,7 @@ long wait_iff_congested(int sync, long timeout)
 	wait_queue_head_t *wqh = &congestion_wqh[sync];
 
 	/*
-	 * If there is no congestion, yield if necessary instead
+	 * If there is yes congestion, yield if necessary instead
 	 * of sleeping on the congestion queue
 	 */
 	if (atomic_read(&nr_wb_congested[sync]) == 0) {

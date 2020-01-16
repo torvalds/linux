@@ -4,13 +4,13 @@
  *
  * DES & Triple DES EDE Cipher Algorithms.
  *
- * Copyright (c) 2005 Dag Arne Osvik <da@osvik.no>
+ * Copyright (c) 2005 Dag Arne Osvik <da@osvik.yes>
  */
 
 #include <linux/bitops.h>
 #include <linux/compiler.h>
 #include <linux/crypto.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/fips.h>
 #include <linux/init.h>
 #include <linux/module.h>

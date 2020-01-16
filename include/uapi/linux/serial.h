@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-1.0+ WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-1.0+ WITH Linux-syscall-yeste */
 /*
  * include/linux/serial.h
  *
@@ -30,7 +30,7 @@ struct serial_struct {
 	char	reserved_char[1];
 	int	hub6;
 	unsigned short	closing_wait; /* time to wait before closing */
-	unsigned short	closing_wait2; /* no longer used... */
+	unsigned short	closing_wait2; /* yes longer used... */
 	unsigned char	*iomem_base;
 	unsigned short	iomem_reg_shift;
 	unsigned int	port_high;

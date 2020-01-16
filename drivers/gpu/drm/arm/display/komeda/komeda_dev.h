@@ -118,7 +118,7 @@ struct komeda_dev_funcs {
 	int (*enable_irq)(struct komeda_dev *mdev);
 	/** @disable_irq: disable irq */
 	int (*disable_irq)(struct komeda_dev *mdev);
-	/** @on_off_vblank: notify HW to on/off vblank */
+	/** @on_off_vblank: yestify HW to on/off vblank */
 	void (*on_off_vblank)(struct komeda_dev *mdev,
 			      int master_pipe, bool on);
 

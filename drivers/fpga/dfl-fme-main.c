@@ -8,7 +8,7 @@
  *   Kang Luwei <luwei.kang@intel.com>
  *   Xiao Guangrong <guangrong.xiao@linux.intel.com>
  *   Joseph Grecco <joe.grecco@intel.com>
- *   Enno Luebbers <enno.luebbers@intel.com>
+ *   Enyes Luebbers <enyes.luebbers@intel.com>
  *   Tim Whisonant <tim.whisonant@intel.com>
  *   Ananda Ravuri <ananda.ravuri@intel.com>
  *   Henry Mitchel <henry.mitchel@intel.com>
@@ -331,7 +331,7 @@ static int fme_thermal_mgmt_init(struct platform_device *pdev,
 	 * to understand the actual hardware throttling action (50% vs 90%).
 	 *
 	 * If hardware doesn't support automatic throttling per thresholds,
-	 * then all above sysfs interfaces are not visible except temp1_input
+	 * then all above sysfs interfaces are yest visible except temp1_input
 	 * for temperature.
 	 */
 	hwmon = devm_hwmon_device_register_with_info(&pdev->dev,
@@ -587,13 +587,13 @@ static struct dfl_feature_driver fme_feature_drvs[] = {
 static long fme_ioctl_check_extension(struct dfl_feature_platform_data *pdata,
 				      unsigned long arg)
 {
-	/* No extension support for now */
+	/* No extension support for yesw */
 	return 0;
 }
 
-static int fme_open(struct inode *inode, struct file *filp)
+static int fme_open(struct iyesde *iyesde, struct file *filp)
 {
-	struct platform_device *fdev = dfl_fpga_inode_to_feature_dev(inode);
+	struct platform_device *fdev = dfl_fpga_iyesde_to_feature_dev(iyesde);
 	struct dfl_feature_platform_data *pdata = dev_get_platdata(&fdev->dev);
 	int ret;
 
@@ -610,7 +610,7 @@ static int fme_open(struct inode *inode, struct file *filp)
 	return 0;
 }
 
-static int fme_release(struct inode *inode, struct file *filp)
+static int fme_release(struct iyesde *iyesde, struct file *filp)
 {
 	struct dfl_feature_platform_data *pdata = filp->private_data;
 	struct platform_device *pdev = pdata->dev;
@@ -638,7 +638,7 @@ static long fme_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	default:
 		/*
 		 * Let sub-feature's ioctl function to handle the cmd.
-		 * Sub-feature's ioctl returns -ENODEV when cmd is not
+		 * Sub-feature's ioctl returns -ENODEV when cmd is yest
 		 * handled in this sub feature, and returns 0 or other
 		 * error code if cmd is handled.
 		 */

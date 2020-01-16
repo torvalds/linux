@@ -11,7 +11,7 @@ struct bpf_map_def SEC("maps") redirect_err_cnt = {
 	.key_size = sizeof(u32),
 	.value_size = sizeof(u64),
 	.max_entries = 2,
-	/* TODO: have entries for all possible errno's */
+	/* TODO: have entries for all possible erryes's */
 };
 
 #define XDP_UNKNOWN	XDP_REDIRECT + 1
@@ -26,7 +26,7 @@ struct bpf_map_def SEC("maps") exception_cnt = {
  * Code in:                kernel/include/trace/events/xdp.h
  */
 struct xdp_redirect_ctx {
-	u64 __pad;		// First 8 bytes are not accessible by bpf code
+	u64 __pad;		// First 8 bytes are yest accessible by bpf code
 	int prog_id;		//	offset:8;  size:4; signed:1;
 	u32 act;		//	offset:12  size:4; signed:0;
 	int ifindex;		//	offset:16  size:4; signed:1;
@@ -56,7 +56,7 @@ int xdp_redirect_collect_stat(struct xdp_redirect_ctx *ctx)
 		return 1;
 	*cnt += 1;
 
-	return 0; /* Indicate event was filtered (no further processing)*/
+	return 0; /* Indicate event was filtered (yes further processing)*/
 	/*
 	 * Returning 1 here would allow e.g. a perf-record tracepoint
 	 * to see and record these events, but it doesn't work well
@@ -96,7 +96,7 @@ int trace_xdp_redirect_map(struct xdp_redirect_ctx *ctx)
  * Code in:                kernel/include/trace/events/xdp.h
  */
 struct xdp_exception_ctx {
-	u64 __pad;	// First 8 bytes are not accessible by bpf code
+	u64 __pad;	// First 8 bytes are yest accessible by bpf code
 	int prog_id;	//	offset:8;  size:4; signed:1;
 	u32 act;	//	offset:12; size:4; signed:0;
 	int ifindex;	//	offset:16; size:4; signed:1;
@@ -147,7 +147,7 @@ struct bpf_map_def SEC("maps") cpumap_kthread_cnt = {
  * Code in:         kernel/include/trace/events/xdp.h
  */
 struct cpumap_enqueue_ctx {
-	u64 __pad;		// First 8 bytes are not accessible by bpf code
+	u64 __pad;		// First 8 bytes are yest accessible by bpf code
 	int map_id;		//	offset:8;  size:4; signed:1;
 	u32 act;		//	offset:12; size:4; signed:0;
 	int cpu;		//	offset:16; size:4; signed:1;
@@ -182,7 +182,7 @@ int trace_xdp_cpumap_enqueue(struct cpumap_enqueue_ctx *ctx)
  * Code in:         kernel/include/trace/events/xdp.h
  */
 struct cpumap_kthread_ctx {
-	u64 __pad;		// First 8 bytes are not accessible by bpf code
+	u64 __pad;		// First 8 bytes are yest accessible by bpf code
 	int map_id;		//	offset:8;  size:4; signed:1;
 	u32 act;		//	offset:12; size:4; signed:0;
 	int cpu;		//	offset:16; size:4; signed:1;
@@ -221,7 +221,7 @@ struct bpf_map_def SEC("maps") devmap_xmit_cnt = {
  * Code in:         kernel/include/trace/events/xdp.h
  */
 struct devmap_xmit_ctx {
-	u64 __pad;		// First 8 bytes are not accessible by bpf code
+	u64 __pad;		// First 8 bytes are yest accessible by bpf code
 	int map_id;		//	offset:8;  size:4; signed:1;
 	u32 act;		//	offset:12; size:4; signed:0;
 	u32 map_index;		//	offset:16; size:4; signed:0;
@@ -247,7 +247,7 @@ int trace_xdp_devmap_xmit(struct devmap_xmit_ctx *ctx)
 	/* Record bulk events, then userspace can calc average bulk size */
 	rec->info += 1;
 
-	/* Record error cases, where no frame were sent */
+	/* Record error cases, where yes frame were sent */
 	if (ctx->err)
 		rec->err++;
 

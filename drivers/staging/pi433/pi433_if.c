@@ -28,7 +28,7 @@
 #include <linux/cdev.h>
 #include <linux/err.h>
 #include <linux/kfifo.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/mutex.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
@@ -52,7 +52,7 @@
 
 static dev_t pi433_dev;
 static DEFINE_IDR(pi433_idr);
-static DEFINE_MUTEX(minor_lock); /* Protect idr accesses */
+static DEFINE_MUTEX(miyesr_lock); /* Protect idr accesses */
 
 static struct class *pi433_class; /* mainly for udev to create /dev/pi433 */
 
@@ -67,7 +67,7 @@ static struct class *pi433_class; /* mainly for udev to create /dev/pi433 */
 struct pi433_device {
 	/* device handling related values */
 	dev_t			devt;
-	int			minor;
+	int			miyesr;
 	struct device		*dev;
 	struct cdev		*cdev;
 	struct spi_device	*spi;
@@ -267,7 +267,7 @@ rf69_set_rx_cfg(struct pi433_device *dev, struct pi433_rx_cfg *rx_cfg)
 			return ret;
 	}
 	if (rx_cfg->enable_address_filtering != filtering_off) {
-		ret = rf69_set_node_address(dev->spi, rx_cfg->node_address);
+		ret = rf69_set_yesde_address(dev->spi, rx_cfg->yesde_address);
 		if (ret < 0)
 			return ret;
 		ret = rf69_set_broadcast_address(dev->spi,
@@ -364,7 +364,7 @@ pi433_start_rx(struct pi433_device *dev)
 {
 	int retval;
 
-	/* return without action, if no pending read request */
+	/* return without action, if yes pending read request */
 	if (!dev->rx_active)
 		return 0;
 
@@ -430,7 +430,7 @@ pi433_receive(void *data)
 	if (retval)
 		return retval;
 
-	/* now check RSSI, if low wait for getting high (RSSI interrupt) */
+	/* yesw check RSSI, if low wait for getting high (RSSI interrupt) */
 	while (!rf69_get_flag(dev->spi, rssi_exceeded_threshold)) {
 		/* allow tx to interrupt us while waiting for high RSSI */
 		dev->interrupt_rx_allowed = true;
@@ -631,7 +631,7 @@ pi433_tx_thread(void *data)
 		/*
 		 * if rx is active, we need to interrupt the waiting for
 		 * incoming telegrams, to be able to send something.
-		 * We are only allowed, if currently no reception takes
+		 * We are only allowed, if currently yes reception takes
 		 * place otherwise we need to  wait for the incoming telegram
 		 * to finish
 		 */
@@ -767,7 +767,7 @@ pi433_read(struct file *filp, char __user *buf, size_t size, loff_t *f_pos)
 	int			bytes_received;
 	ssize_t			retval;
 
-	/* check, whether internal buffer is big enough for requested size */
+	/* check, whether internal buffer is big eyesugh for requested size */
 	if (size > MAX_MSG_SIZE)
 		return -EMSGSIZE;
 
@@ -817,7 +817,7 @@ pi433_write(struct file *filp, const char __user *buf,
 	device = instance->device;
 
 	/*
-	 * check, whether internal buffer (tx thread) is big enough
+	 * check, whether internal buffer (tx thread) is big eyesugh
 	 * for requested size
 	 */
 	if (count > MAX_MSG_SIZE)
@@ -863,7 +863,7 @@ pi433_write(struct file *filp, const char __user *buf,
 
 abort:
 	dev_warn(device->dev,
-		 "write to fifo failed, non recoverable: 0x%x", retval);
+		 "write to fifo failed, yesn recoverable: 0x%x", retval);
 	mutex_unlock(&device->tx_fifo_lock);
 	return -EAGAIN;
 }
@@ -907,7 +907,7 @@ pi433_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	case PI433_IOC_WR_RX_CFG:
 		mutex_lock(&device->rx_lock);
 
-		/* during pendig read request, change of config not allowed */
+		/* during pendig read request, change of config yest allowed */
 		if (device->rx_active) {
 			mutex_unlock(&device->rx_lock);
 			return -EAGAIN;
@@ -930,16 +930,16 @@ pi433_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 
 /*-------------------------------------------------------------------------*/
 
-static int pi433_open(struct inode *inode, struct file *filp)
+static int pi433_open(struct iyesde *iyesde, struct file *filp)
 {
 	struct pi433_device	*device;
 	struct pi433_instance	*instance;
 
-	mutex_lock(&minor_lock);
-	device = idr_find(&pi433_idr, iminor(inode));
-	mutex_unlock(&minor_lock);
+	mutex_lock(&miyesr_lock);
+	device = idr_find(&pi433_idr, imiyesr(iyesde));
+	mutex_unlock(&miyesr_lock);
 	if (!device) {
-		pr_debug("device: minor %d unknown.\n", iminor(inode));
+		pr_debug("device: miyesr %d unkyeswn.\n", imiyesr(iyesde));
 		return -ENODEV;
 	}
 
@@ -954,12 +954,12 @@ static int pi433_open(struct inode *inode, struct file *filp)
 
 	/* instance data as context */
 	filp->private_data = instance;
-	stream_open(inode, filp);
+	stream_open(iyesde, filp);
 
 	return 0;
 }
 
-static int pi433_release(struct inode *inode, struct file *filp)
+static int pi433_release(struct iyesde *iyesde, struct file *filp)
 {
 	struct pi433_instance	*instance;
 
@@ -990,7 +990,7 @@ static int setup_gpio(struct pi433_device *device)
 
 		if (device->gpiod[i] == ERR_PTR(-ENOENT)) {
 			dev_dbg(&device->spi->dev,
-				"Could not find entry for %s. Ignoring.", name);
+				"Could yest find entry for %s. Igyesring.", name);
 			continue;
 		}
 
@@ -1048,28 +1048,28 @@ static void free_gpio(struct pi433_device *device)
 	}
 }
 
-static int pi433_get_minor(struct pi433_device *device)
+static int pi433_get_miyesr(struct pi433_device *device)
 {
 	int retval = -ENOMEM;
 
-	mutex_lock(&minor_lock);
+	mutex_lock(&miyesr_lock);
 	retval = idr_alloc(&pi433_idr, device, 0, N_PI433_MINORS, GFP_KERNEL);
 	if (retval >= 0) {
-		device->minor = retval;
+		device->miyesr = retval;
 		retval = 0;
 	} else if (retval == -ENOSPC) {
 		dev_err(&device->spi->dev, "too many pi433 devices\n");
 		retval = -EINVAL;
 	}
-	mutex_unlock(&minor_lock);
+	mutex_unlock(&miyesr_lock);
 	return retval;
 }
 
-static void pi433_free_minor(struct pi433_device *dev)
+static void pi433_free_miyesr(struct pi433_device *dev)
 {
-	mutex_lock(&minor_lock);
-	idr_remove(&pi433_idr, dev->minor);
-	mutex_unlock(&minor_lock);
+	mutex_lock(&miyesr_lock);
+	idr_remove(&pi433_idr, dev->miyesr);
+	mutex_unlock(&miyesr_lock);
 }
 
 /*-------------------------------------------------------------------------*/
@@ -1087,7 +1087,7 @@ static const struct file_operations pi433_fops = {
 	.compat_ioctl = compat_ptr_ioctl,
 	.open =		pi433_open,
 	.release =	pi433_release,
-	.llseek =	no_llseek,
+	.llseek =	yes_llseek,
 };
 
 /*-------------------------------------------------------------------------*/
@@ -1125,7 +1125,7 @@ static int pi433_probe(struct spi_device *spi)
 		dev_dbg(&spi->dev, "found pi433 (ver. 0x%x)", retval);
 		break;
 	default:
-		dev_dbg(&spi->dev, "unknown chip version: 0x%x", retval);
+		dev_dbg(&spi->dev, "unkyeswn chip version: 0x%x", retval);
 		return -ENODEV;
 	}
 
@@ -1169,57 +1169,57 @@ static int pi433_probe(struct spi_device *spi)
 	/* setup the radio module */
 	retval = rf69_set_mode(spi, standby);
 	if (retval < 0)
-		goto minor_failed;
+		goto miyesr_failed;
 	retval = rf69_set_data_mode(spi, DATAMODUL_MODE_PACKET);
 	if (retval < 0)
-		goto minor_failed;
+		goto miyesr_failed;
 	retval = rf69_enable_amplifier(spi, MASK_PALEVEL_PA0);
 	if (retval < 0)
-		goto minor_failed;
+		goto miyesr_failed;
 	retval = rf69_disable_amplifier(spi, MASK_PALEVEL_PA1);
 	if (retval < 0)
-		goto minor_failed;
+		goto miyesr_failed;
 	retval = rf69_disable_amplifier(spi, MASK_PALEVEL_PA2);
 	if (retval < 0)
-		goto minor_failed;
+		goto miyesr_failed;
 	retval = rf69_set_output_power_level(spi, 13);
 	if (retval < 0)
-		goto minor_failed;
+		goto miyesr_failed;
 	retval = rf69_set_antenna_impedance(spi, fifty_ohm);
 	if (retval < 0)
-		goto minor_failed;
+		goto miyesr_failed;
 
-	/* determ minor number */
-	retval = pi433_get_minor(device);
+	/* determ miyesr number */
+	retval = pi433_get_miyesr(device);
 	if (retval) {
-		dev_dbg(&spi->dev, "get of minor number failed");
-		goto minor_failed;
+		dev_dbg(&spi->dev, "get of miyesr number failed");
+		goto miyesr_failed;
 	}
 
 	/* create device */
-	device->devt = MKDEV(MAJOR(pi433_dev), device->minor);
+	device->devt = MKDEV(MAJOR(pi433_dev), device->miyesr);
 	device->dev = device_create(pi433_class,
 				    &spi->dev,
 				    device->devt,
 				    device,
 				    "pi433.%d",
-				    device->minor);
+				    device->miyesr);
 	if (IS_ERR(device->dev)) {
 		pr_err("pi433: device register failed\n");
 		retval = PTR_ERR(device->dev);
 		goto device_create_failed;
 	} else {
 		dev_dbg(device->dev,
-			"created device for major %d, minor %d\n",
+			"created device for major %d, miyesr %d\n",
 			MAJOR(pi433_dev),
-			device->minor);
+			device->miyesr);
 	}
 
 	/* start tx thread */
 	device->tx_task_struct = kthread_run(pi433_tx_thread,
 					     device,
 					     "pi433.%d_tx_task",
-					     device->minor);
+					     device->miyesr);
 	if (IS_ERR(device->tx_task_struct)) {
 		dev_dbg(device->dev, "start of send thread failed");
 		retval = PTR_ERR(device->tx_task_struct);
@@ -1252,8 +1252,8 @@ cdev_failed:
 send_thread_failed:
 	device_destroy(pi433_class, device->devt);
 device_create_failed:
-	pi433_free_minor(device);
-minor_failed:
+	pi433_free_miyesr(device);
+miyesr_failed:
 	free_gpio(device);
 GPIO_failed:
 	kfree(device->rx_buffer);
@@ -1279,7 +1279,7 @@ static int pi433_remove(struct spi_device *spi)
 
 	cdev_del(device->cdev);
 
-	pi433_free_minor(device);
+	pi433_free_miyesr(device);
 
 	kfree(device->rx_buffer);
 	kfree(device);
@@ -1304,7 +1304,7 @@ static struct spi_driver pi433_spi_driver = {
 	.remove =	pi433_remove,
 
 	/*
-	 * NOTE:  suspend/resume methods are not necessary here.
+	 * NOTE:  suspend/resume methods are yest necessary here.
 	 * We don't do anything except pass the requests to/from
 	 * the underlying controller.  The refrigerator handles
 	 * most issues; the controller driver handles the rest.
@@ -1326,7 +1326,7 @@ static int __init pi433_init(void)
 
 	/*
 	 * Claim device numbers.  Then register a class
-	 * that will key udev/mdev to add/remove /dev nodes.  Last, register
+	 * that will key udev/mdev to add/remove /dev yesdes.  Last, register
 	 * Last, register the driver which manages those device numbers.
 	 */
 	status = alloc_chrdev_region(&pi433_dev, 0, N_PI433_MINORS, "pi433");

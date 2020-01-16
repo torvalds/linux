@@ -43,7 +43,7 @@
 #define	EEPROM_CID_CLEVO		0x13
 #define	EEPROM_CID_WHQL			0xFE
 
-/*  Customer ID, note that: */
+/*  Customer ID, yeste that: */
 /*  This variable is initiailzed through EEPROM or registry, */
 /*  however, its definition may be different with that in EEPROM for */
 /*  EEPROM size consideration. So, we have to perform proper translation
@@ -74,7 +74,7 @@ enum RT_CUSTOMER_ID {
 			  * for CCX functions, but for test behavior like retry
 			  * limit and tx report. By Bruce, 2009-02-17.
 			  */
-	RT_CID_819x_Lenovo = 19,
+	RT_CID_819x_Leyesvo = 19,
 	RT_CID_819x_QMI = 20,
 	RT_CID_819x_Edimax_Belkin = 21,
 	RT_CID_819x_Sercomm_Belkin = 22,
@@ -83,7 +83,7 @@ enum RT_CUSTOMER_ID {
 	RT_CID_819x_Acer = 25,
 	RT_CID_819x_AzWave_ASUS = 26,
 	RT_CID_819x_AzWave = 27, /*  For AzWave in PCIe,i
-				  * The ID is AzWave use and not only Asus
+				  * The ID is AzWave use and yest only Asus
 				  */
 	RT_CID_819x_HP = 28,
 	RT_CID_819x_WNC_COREGA = 29,

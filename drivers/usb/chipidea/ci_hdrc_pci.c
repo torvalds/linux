@@ -2,7 +2,7 @@
 /*
  * ci_hdrc_pci.c - MIPS USB IP core family device controller
  *
- * Copyright (C) 2008 Chipidea - MIPS Technologies, Inc. All rights reserved.
+ * Copyright (C) 2008 Chipidea - MIPS Techyeslogies, Inc. All rights reserved.
  *
  * Author: David Lopo
  */
@@ -80,7 +80,7 @@ static int ci_hdrc_pci_probe(struct pci_dev *pdev,
 	pci_set_master(pdev);
 	pci_try_set_mwi(pdev);
 
-	/* register a nop PHY */
+	/* register a yesp PHY */
 	ci->phy = usb_phy_generic_register();
 	if (IS_ERR(ci->phy))
 		return PTR_ERR(ci->phy);

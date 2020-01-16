@@ -13,7 +13,7 @@
 
 #include <linux/module.h>
 #include <linux/capability.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/types.h>
 #include <linux/sockios.h>
 #include <linux/icmp.h>
@@ -242,7 +242,7 @@ failed:
  * vti6_locate - find or create tunnel matching given parameters
  *   @net: network namespace
  *   @p: tunnel parameters
- *   @create: != 0 if allowed to create new tunnel if no match found
+ *   @create: != 0 if allowed to create new tunnel if yes match found
  *
  * Description:
  *   vti6_locate() first tries to locate an existing tunnel
@@ -415,8 +415,8 @@ static bool vti6_state_check(const struct xfrm_state *x,
 	xfrm_address_t *daddr = (xfrm_address_t *)dst;
 	xfrm_address_t *saddr = (xfrm_address_t *)src;
 
-	/* if there is no transform then this tunnel is not functional.
-	 * Or if the xfrm is not mode tunnel.
+	/* if there is yes transform then this tunnel is yest functional.
+	 * Or if the xfrm is yest mode tunnel.
 	 */
 	if (!x || x->props.mode != XFRM_MODE_TUNNEL ||
 	    x->props.family != AF_INET6)
@@ -479,7 +479,7 @@ vti6_xmit(struct sk_buff *skb, struct net_device *dev, struct flowi *fl)
 
 	mtu = dst_mtu(dst);
 	if (skb->len > mtu) {
-		skb_dst_update_pmtu_no_confirm(skb, mtu);
+		skb_dst_update_pmtu_yes_confirm(skb, mtu);
 
 		if (skb->protocol == htons(ETH_P_IPV6)) {
 			if (mtu < IPV6_MIN_MTU)
@@ -757,7 +757,7 @@ vti6_parm_to_user(struct ip6_tnl_parm2 *u, const struct __ip6_tnl_parm *p)
  *   %-EPERM if current process hasn't %CAP_NET_ADMIN set
  *   %-EINVAL if passed tunnel parameters are invalid,
  *   %-EEXIST if changing a tunnel's parameters would cause a conflict
- *   %-ENODEV if attempting to change or delete a nonexisting device
+ *   %-ENODEV if attempting to change or delete a yesnexisting device
  **/
 static int
 vti6_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
@@ -898,7 +898,7 @@ static inline int vti6_dev_init_gen(struct net_device *dev)
 }
 
 /**
- * vti6_dev_init - initializer for all non fallback tunnel devices
+ * vti6_dev_init - initializer for all yesn fallback tunnel devices
  *   @dev: virtual device associated with tunnel
  **/
 static int vti6_dev_init(struct net_device *dev)

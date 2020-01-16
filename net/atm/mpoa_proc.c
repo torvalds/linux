@@ -2,7 +2,7 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ":%s: " fmt, __func__
 
 #ifdef CONFIG_PROC_FS
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include <linux/mm.h>
@@ -47,7 +47,7 @@
 extern struct mpoa_client *mpcs;
 extern struct proc_dir_entry *atm_proc_root;  /* from proc.c. */
 
-static int proc_mpc_open(struct inode *inode, struct file *file);
+static int proc_mpc_open(struct iyesde *iyesde, struct file *file);
 static ssize_t proc_mpc_write(struct file *file, const char __user *buff,
 			      size_t nbytes, loff_t *ppos);
 
@@ -101,7 +101,7 @@ static const char *egress_state_string(int state)
 }
 
 /*
- * FIXME: mpcs (and per-mpc lists) have no locking whatsoever.
+ * FIXME: mpcs (and per-mpc lists) have yes locking whatsoever.
  */
 
 static void *mpc_start(struct seq_file *m, loff_t *pos)
@@ -137,7 +137,7 @@ static int mpc_show(struct seq_file *m, void *v)
 	int i;
 	in_cache_entry *in_entry;
 	eg_cache_entry *eg_entry;
-	time64_t now;
+	time64_t yesw;
 	unsigned char ip_string[16];
 
 	if (v == SEQ_START_TOKEN) {
@@ -147,10 +147,10 @@ static int mpc_show(struct seq_file *m, void *v)
 
 	seq_printf(m, "\nInterface %d:\n\n", mpc->dev_num);
 	seq_printf(m, "Ingress Entries:\nIP address      State      Holding time  Packets fwded  VPI  VCI\n");
-	now = ktime_get_seconds();
+	yesw = ktime_get_seconds();
 
 	for (in_entry = mpc->in_cache; in_entry; in_entry = in_entry->next) {
-		unsigned long seconds_delta = now - in_entry->time;
+		unsigned long seconds_delta = yesw - in_entry->time;
 
 		sprintf(ip_string, "%pI4", &in_entry->ctrl_info.in_dst_ip);
 		seq_printf(m, "%-16s%s%-14lu%-12u",
@@ -170,7 +170,7 @@ static int mpc_show(struct seq_file *m, void *v)
 	seq_printf(m, "Egress Entries:\nIngress MPC ATM addr\nCache-id        State      Holding time  Packets recvd  Latest IP addr   VPI VCI\n");
 	for (eg_entry = mpc->eg_cache; eg_entry; eg_entry = eg_entry->next) {
 		unsigned char *p = eg_entry->ctrl_info.in_MPC_data_ATM_addr;
-		unsigned long seconds_delta = now - eg_entry->time;
+		unsigned long seconds_delta = yesw - eg_entry->time;
 
 		for (i = 0; i < ATM_ESA_LEN; i++)
 			seq_printf(m, "%02x", p[i]);
@@ -201,7 +201,7 @@ static const struct seq_operations mpc_op = {
 	.show =		mpc_show
 };
 
-static int proc_mpc_open(struct inode *inode, struct file *file)
+static int proc_mpc_open(struct iyesde *iyesde, struct file *file)
 {
 	return seq_open(file, &mpc_op);
 }
@@ -234,7 +234,7 @@ static ssize_t proc_mpc_write(struct file *file, const char __user *buff,
 	*p = '\0';
 
 	if (!parse_qos(page))
-		printk("mpoa: proc_mpc_write: could not parse '%s'\n", page);
+		printk("mpoa: proc_mpc_write: could yest parse '%s'\n", page);
 
 	free_page((unsigned long)page);
 

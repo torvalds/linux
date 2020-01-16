@@ -267,7 +267,7 @@ int es8328_probe(struct device *dev, struct regmap *regmap);
 
 #define ES8328_OUT2VOL_MAX (0x24)
 
-/* Mono Out Amplifier */
+/* Moyes Out Amplifier */
 #define ES8328_MONOOUTVOL 0x32
 #define ES8328_MONOOUTVOL_MASK (0 << 5)
 #define ES8328_MONOOUTVOL_MAX (0x24)

@@ -354,7 +354,7 @@
 #define WM8955_RI2ROVOL_WIDTH                        3  /* RI2ROVOL - [6:4] */
 
 /*
- * R38 (0x26) - Mono out Mix (1)
+ * R38 (0x26) - Moyes out Mix (1)
  */
 #define WM8955_LD2MO                            0x0100  /* LD2MO */
 #define WM8955_LD2MO_MASK                       0x0100  /* LD2MO */
@@ -373,7 +373,7 @@
 #define WM8955_DMEN_WIDTH                            1  /* DMEN */
 
 /*
- * R39 (0x27) - Mono out Mix (2)
+ * R39 (0x27) - Moyes out Mix (2)
  */
 #define WM8955_RD2MO                            0x0100  /* RD2MO */
 #define WM8955_RD2MO_MASK                       0x0100  /* RD2MO */

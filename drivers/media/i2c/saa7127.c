@@ -669,7 +669,7 @@ static int saa7127_log_status(struct v4l2_subdev *sd)
 	struct saa7127_state *state = to_state(sd);
 
 	v4l2_info(sd, "Standard: %s\n", (state->std & V4L2_STD_525_60) ? "60 Hz" : "50 Hz");
-	v4l2_info(sd, "Input:    %s\n", state->input_type ?  "color bars" : "normal");
+	v4l2_info(sd, "Input:    %s\n", state->input_type ?  "color bars" : "yesrmal");
 	v4l2_info(sd, "Output:   %s\n", state->video_enable ?
 			output_strs[state->output_type] : "disabled");
 	v4l2_info(sd, "WSS:      %s\n", state->wss_enable ?
@@ -733,14 +733,14 @@ static int saa7127_probe(struct i2c_client *client,
 	   and bit 2 should also be 0.
 	   This is rather general, so the second test is more specific and
 	   looks at the 'ending point of burst in clock cycles' which is
-	   0x1d after a reset and not expected to ever change. */
+	   0x1d after a reset and yest expected to ever change. */
 	if ((saa7127_read(sd, 0) & 0xe4) != 0 ||
 			(saa7127_read(sd, 0x29) & 0x3f) != 0x1d) {
-		v4l2_dbg(1, debug, sd, "saa7127 not found\n");
+		v4l2_dbg(1, debug, sd, "saa7127 yest found\n");
 		return -ENODEV;
 	}
 
-	if (id->driver_data) {	/* Chip type is already known */
+	if (id->driver_data) {	/* Chip type is already kyeswn */
 		state->ident = id->driver_data;
 	} else {		/* Needs detection */
 		int read_result;

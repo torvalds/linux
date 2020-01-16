@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * net/sched/act_sample.c - Packet sampling tc action
- * Copyright (c) 2017 Yotam Gigi <yotamg@mellanox.com>
+ * Copyright (c) 2017 Yotam Gigi <yotamg@mellayesx.com>
  */
 
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/skbuff.h>
 #include <linux/rtnetlink.h>
 #include <linux/module.h>
@@ -132,7 +132,7 @@ static void tcf_sample_cleanup(struct tc_action *a)
 	struct tcf_sample *s = to_sample(a);
 	struct psample_group *psample_group;
 
-	/* last reference to action, no need to lock */
+	/* last reference to action, yes need to lock */
 	psample_group = rcu_dereference_protected(s->psample_group, 1);
 	RCU_INIT_POINTER(s->psample_group, NULL);
 	if (psample_group)

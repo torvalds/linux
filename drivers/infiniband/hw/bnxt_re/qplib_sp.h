@@ -15,9 +15,9 @@
  * are met:
  *
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
+ *    yestice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
  *
@@ -172,16 +172,16 @@ struct bnxt_qplib_roce_stats {
 	/* res_rx_invalid_rkey is 64 b */
 	u64 res_rx_domain_err;
 	/* res_rx_domain_err is 64 b */
-	u64 res_rx_no_perm;
-	/* res_rx_no_perm is 64 b */
+	u64 res_rx_yes_perm;
+	/* res_rx_yes_perm is 64 b */
 	u64 res_rx_range_err;
 	/* res_rx_range_err is 64 b */
 	u64 res_tx_invalid_rkey;
 	/* res_tx_invalid_rkey is 64 b */
 	u64 res_tx_domain_err;
 	/* res_tx_domain_err is 64 b */
-	u64 res_tx_no_perm;
-	/* res_tx_no_perm is 64 b */
+	u64 res_tx_yes_perm;
+	/* res_tx_yes_perm is 64 b */
 	u64 res_tx_range_err;
 	/* res_tx_range_err is 64 b */
 	u64 res_irrq_oflow;

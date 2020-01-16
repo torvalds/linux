@@ -39,7 +39,7 @@ struct da8xx_ohci_hcd {
 	struct clk *usb11_clk;
 	struct phy *usb11_phy;
 	struct regulator *vbus_reg;
-	struct notifier_block nb;
+	struct yestifier_block nb;
 	struct gpio_desc *oc_gpio;
 };
 
@@ -176,7 +176,7 @@ static int ohci_da8xx_has_potpgt(struct usb_hcd *hcd)
 	return 0;
 }
 
-static int ohci_da8xx_regulator_event(struct notifier_block *nb,
+static int ohci_da8xx_regulator_event(struct yestifier_block *nb,
 				unsigned long event, void *data)
 {
 	struct da8xx_ohci_hcd *da8xx_ohci =
@@ -206,20 +206,20 @@ static irqreturn_t ohci_da8xx_oc_thread(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-static int ohci_da8xx_register_notify(struct usb_hcd *hcd)
+static int ohci_da8xx_register_yestify(struct usb_hcd *hcd)
 {
 	struct da8xx_ohci_hcd *da8xx_ohci = to_da8xx_ohci(hcd);
 	struct device *dev		= hcd->self.controller;
 	int ret = 0;
 
 	if (!da8xx_ohci->oc_gpio && da8xx_ohci->vbus_reg) {
-		da8xx_ohci->nb.notifier_call = ohci_da8xx_regulator_event;
-		ret = devm_regulator_register_notifier(da8xx_ohci->vbus_reg,
+		da8xx_ohci->nb.yestifier_call = ohci_da8xx_regulator_event;
+		ret = devm_regulator_register_yestifier(da8xx_ohci->vbus_reg,
 						&da8xx_ohci->nb);
 	}
 
 	if (ret)
-		dev_err(dev, "Failed to register notifier: %d\n", ret);
+		dev_err(dev, "Failed to register yestifier: %d\n", ret);
 
 	return ret;
 }
@@ -456,7 +456,7 @@ static int ohci_da8xx_probe(struct platform_device *pdev)
 
 	device_wakeup_enable(hcd->self.controller);
 
-	error = ohci_da8xx_register_notify(hcd);
+	error = ohci_da8xx_register_yestify(hcd);
 	if (error)
 		goto err_remove_hcd;
 
@@ -557,7 +557,7 @@ static int __init ohci_da8xx_init(void)
 	/*
 	 * The Davinci da8xx HW has some unusual quirks, which require
 	 * da8xx-specific workarounds. We override certain hc_driver
-	 * functions here to achieve that. We explicitly do not enhance
+	 * functions here to achieve that. We explicitly do yest enhance
 	 * ohci_driver_overrides to allow this more easily, since this
 	 * is an unusual case, and we don't want to encourage others to
 	 * override these functions by making it too easy.

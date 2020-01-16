@@ -3,7 +3,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include <errno.h>
+#include <erryes.h>
 #include <string.h>
 #include <linux/bpf.h>
 #include <sys/types.h>
@@ -83,7 +83,7 @@ static int bpf_find_map(const char *test, struct bpf_object *obj,
 
 	map = bpf_object__find_map_by_name(obj, name);
 	if (!map) {
-		printf("%s:FAIL:map '%s' not found\n", test, name);
+		printf("%s:FAIL:map '%s' yest found\n", test, name);
 		return -1;
 	}
 	return bpf_map__fd(map);
@@ -120,7 +120,7 @@ int main(int argc, char **argv)
 	rv = bpf_prog_attach(prog_fd, cg_fd, BPF_CGROUP_SOCK_OPS, 0);
 	if (rv) {
 		printf("FAILED: bpf_prog_attach: %d (%s)\n",
-		       error, strerror(errno));
+		       error, strerror(erryes));
 		goto err;
 	}
 

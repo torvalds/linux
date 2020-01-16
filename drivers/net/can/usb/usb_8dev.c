@@ -144,7 +144,7 @@ struct usb_8dev_priv {
 struct __packed usb_8dev_tx_msg {
 	u8 begin;
 	u8 flags;	/* RTR and EXT_ID flag */
-	__be32 id;	/* upper 3 bits not used */
+	__be32 id;	/* upper 3 bits yest used */
 	u8 dlc;		/* data length code 0-8 bytes */
 	u8 data[8];	/* 64-bit data */
 	u8 end;
@@ -155,7 +155,7 @@ struct __packed usb_8dev_rx_msg {
 	u8 begin;
 	u8 type;		/* frame type */
 	u8 flags;		/* RTR and EXT_ID flag */
-	__be32 id;		/* upper 3 bits not used */
+	__be32 id;		/* upper 3 bits yest used */
 	u8 dlc;			/* data length code 0-8 bytes */
 	u8 data[8];		/* 64-bit data */
 	__be32 timestamp;	/* 32-bit timestamp */
@@ -222,7 +222,7 @@ static int usb_8dev_send_cmd(struct usb_8dev_priv *priv,
 				    sizeof(struct usb_8dev_cmd_msg),
 				    &num_bytes_read);
 	if (err < 0) {
-		netdev_err(netdev, "no command message answer\n");
+		netdev_err(netdev, "yes command message answer\n");
 		goto failed;
 	}
 
@@ -430,7 +430,7 @@ static void usb_8dev_rx_err_msg(struct usb_8dev_priv *priv,
 		break;
 	default:
 		netdev_warn(priv->netdev,
-			    "Unknown status/error message (%d)\n", state);
+			    "Unkyeswn status/error message (%d)\n", state);
 		break;
 	}
 
@@ -486,7 +486,7 @@ static void usb_8dev_rx_can_msg(struct usb_8dev_priv *priv,
 
 		can_led_event(priv->netdev, CAN_LED_EVENT_RX);
 	} else {
-		netdev_warn(priv->netdev, "frame type %d unknown",
+		netdev_warn(priv->netdev, "frame type %d unkyeswn",
 			 msg->type);
 	}
 
@@ -615,13 +615,13 @@ static netdev_tx_t usb_8dev_start_xmit(struct sk_buff *skb,
 	/* create a URB, and a buffer for it, and copy the data to the URB */
 	urb = usb_alloc_urb(0, GFP_ATOMIC);
 	if (!urb)
-		goto nomem;
+		goto yesmem;
 
 	buf = usb_alloc_coherent(priv->udev, size, GFP_ATOMIC,
 				 &urb->transfer_dma);
 	if (!buf) {
 		netdev_err(netdev, "No memory left for USB buffer\n");
-		goto nomembuf;
+		goto yesmembuf;
 	}
 
 	memset(buf, 0, size);
@@ -652,7 +652,7 @@ static netdev_tx_t usb_8dev_start_xmit(struct sk_buff *skb,
 	 * allowed (MAX_TX_URBS).
 	 */
 	if (!context)
-		goto nofreecontext;
+		goto yesfreecontext;
 
 	context->priv = priv;
 	context->echo_index = i;
@@ -682,7 +682,7 @@ static netdev_tx_t usb_8dev_start_xmit(struct sk_buff *skb,
 
 	return NETDEV_TX_OK;
 
-nofreecontext:
+yesfreecontext:
 	usb_free_coherent(priv->udev, size, buf, urb->transfer_dma);
 	usb_free_urb(urb);
 
@@ -703,10 +703,10 @@ failed:
 	else
 		netdev_warn(netdev, "failed tx_urb %d\n", err);
 
-nomembuf:
+yesmembuf:
 	usb_free_urb(urb);
 
-nomem:
+yesmem:
 	dev_kfree_skb(skb);
 	stats->tx_dropped++;
 
@@ -906,7 +906,7 @@ static int usb_8dev_probe(struct usb_interface *intf,
 	/* product id looks strange, better we also check iProduct string */
 	if (usb_string(usbdev, usbdev->descriptor.iProduct, buf,
 		       sizeof(buf)) > 0 && strcmp(buf, "USB2CAN converter")) {
-		dev_info(&usbdev->dev, "ignoring: not an USB2CAN converter\n");
+		dev_info(&usbdev->dev, "igyesring: yest an USB2CAN converter\n");
 		return -ENODEV;
 	}
 

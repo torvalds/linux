@@ -29,7 +29,7 @@ voltages and other various functionality to Qualcomm SoCs.
 	Definition: specifies the interrupt that indicates a subdevice
 		    has generated an interrupt (summary interrupt). The
 		    format of the specifier is defined by the binding document
-		    describing the node's interrupt parent.
+		    describing the yesde's interrupt parent.
 
 - #interrupt-cells:
 	Usage: required
@@ -47,12 +47,12 @@ voltages and other various functionality to Qualcomm SoCs.
 - interrupt-controller:
 	Usage: required
 	Value type: <empty>
-	Definition: identifies this node as an interrupt controller
+	Definition: identifies this yesde as an interrupt controller
 
 = SUBCOMPONENTS
 
-The PMIC contains multiple independent functions, each described in a subnode.
-The below bindings specify the set of valid subnodes.
+The PMIC contains multiple independent functions, each described in a subyesde.
+The below bindings specify the set of valid subyesdes.
 
 == Real-Time Clock
 

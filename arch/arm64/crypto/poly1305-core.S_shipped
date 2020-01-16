@@ -18,7 +18,7 @@ poly1305_init:
 	stp	xzr,xzr,[x0,#16]	// [along with is_base2_26]
 
 	csel	x0,xzr,x0,eq
-	b.eq	.Lno_key
+	b.eq	.Lyes_key
 
 #ifndef	__KERNEL__
 	adrp	x17,OPENSSL_armcap_P
@@ -55,7 +55,7 @@ poly1305_init:
 # endif
 #endif
 	mov	x0,#1
-.Lno_key:
+.Lyes_key:
 	ret
 .size	poly1305_init,.-poly1305_init
 
@@ -64,7 +64,7 @@ poly1305_init:
 poly1305_blocks:
 .Lpoly1305_blocks:
 	ands	x2,x2,#-16
-	b.eq	.Lno_data
+	b.eq	.Lyes_data
 
 	ldp	x4,x5,[x0]		// load hash value
 	ldp	x6,x17,[x0,#16]	// [along with is_base2_26]
@@ -146,7 +146,7 @@ poly1305_blocks:
 	stp	x4,x5,[x0]		// store hash value
 	stp	x6,xzr,[x0,#16]	// [and clear is_base2_26]
 
-.Lno_data:
+.Lyes_data:
 	ret
 .size	poly1305_blocks,.-poly1305_blocks
 
@@ -156,7 +156,7 @@ poly1305_emit:
 .Lpoly1305_emit:
 	ldp	x4,x5,[x0]		// load hash base 2^64
 	ldp	x6,x7,[x0,#16]	// [along with is_base2_26]
-	ldp	x10,x11,[x2]	// load nonce
+	ldp	x10,x11,[x2]	// load yesnce
 
 #ifdef	__AARCH64EB__
 	lsr	x12,x4,#32
@@ -196,10 +196,10 @@ poly1305_emit:
 	csel	x5,x5,x13,eq
 
 #ifdef	__AARCH64EB__
-	ror	x10,x10,#32		// flip nonce words
+	ror	x10,x10,#32		// flip yesnce words
 	ror	x11,x11,#32
 #endif
-	adds	x4,x4,x10		// accumulate nonce
+	adds	x4,x4,x10		// accumulate yesnce
 	adc	x5,x5,x11
 #ifdef	__AARCH64EB__
 	rev	x4,x4			// flip output bytes

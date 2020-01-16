@@ -285,7 +285,7 @@
 		vqmmc-supply = <&pm8941_s3>;
 
 		bus-width = <8>;
-		non-removable;
+		yesn-removable;
 
 		pinctrl-names = "default";
 		pinctrl-0 = <&sdhc1_pin_a>;
@@ -295,7 +295,7 @@
 		status = "ok";
 
 		max-frequency = <100000000>;
-		non-removable;
+		yesn-removable;
 		vmmc-supply = <&vreg_wlan>;
 
 		pinctrl-names = "default";
@@ -510,7 +510,7 @@
 
 			rmi-f01@1 {
 				reg = <0x1>;
-				syna,nosleep = <1>;
+				syna,yessleep = <1>;
 			};
 
 			rmi-f11@11 {
@@ -600,7 +600,7 @@
 		gpios@c000 {
 			gpio_keys_pin_a: gpio-keys-active {
 				pins = "gpio2", "gpio5";
-				function = "normal";
+				function = "yesrmal";
 
 				bias-pull-up;
 				power-source = <PM8941_GPIO_S3>;
@@ -616,7 +616,7 @@
 
 			wlan_regulator_pin: wl-reg-active {
 				pins = "gpio18";
-				function = "normal";
+				function = "yesrmal";
 
 				bias-disable;
 				power-source = <PM8941_GPIO_S3>;
@@ -624,7 +624,7 @@
 
 			lcd_dcdc_en_pin_a: lcd-dcdc-en-active {
 				pins = "gpio20";
-				function = "normal";
+				function = "yesrmal";
 
 				bias-disable;
 				power-source = <PM8941_GPIO_S3>;

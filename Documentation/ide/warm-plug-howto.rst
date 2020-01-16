@@ -13,6 +13,6 @@ unplug old device(s) and plug new device(s)::
 done
 
 NOTE: please make sure that partitions are unmounted and that there are
-no other active references to devices before doing "delete_devices" step,
-also do not attempt "scan" step on devices currently in use -- otherwise
+yes other active references to devices before doing "delete_devices" step,
+also do yest attempt "scan" step on devices currently in use -- otherwise
 results may be unpredictable and lead to data loss if you're unlucky

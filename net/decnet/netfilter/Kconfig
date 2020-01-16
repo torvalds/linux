@@ -12,6 +12,6 @@ config DECNET_NF_GRABULATOR
 	help
 	  Enable this module if you want to use the userland DECnet routing
 	  daemon. You will also need to enable routing support for DECnet
-	  unless you just want to monitor routing messages from other nodes.
+	  unless you just want to monitor routing messages from other yesdes.
 
 endmenu

@@ -40,31 +40,31 @@ static unsigned char *dispDeviceBase __force_data;
 
 static unsigned char vga_font[cmapsz];
 
-static int __init btext_initialize(phandle node)
+static int __init btext_initialize(phandle yesde)
 {
 	unsigned int width, height, depth, pitch;
 	unsigned long address = 0;
 	u32 prop;
 
-	if (prom_getproperty(node, "width", (char *)&width, 4) < 0)
+	if (prom_getproperty(yesde, "width", (char *)&width, 4) < 0)
 		return -EINVAL;
-	if (prom_getproperty(node, "height", (char *)&height, 4) < 0)
+	if (prom_getproperty(yesde, "height", (char *)&height, 4) < 0)
 		return -EINVAL;
-	if (prom_getproperty(node, "depth", (char *)&depth, 4) < 0)
+	if (prom_getproperty(yesde, "depth", (char *)&depth, 4) < 0)
 		return -EINVAL;
 	pitch = width * ((depth + 7) / 8);
 
-	if (prom_getproperty(node, "linebytes", (char *)&prop, 4) >= 0 &&
+	if (prom_getproperty(yesde, "linebytes", (char *)&prop, 4) >= 0 &&
 	    prop != 0xffffffffu)
 		pitch = prop;
 
 	if (pitch == 1)
 		pitch = 0x1000;
 
-	if (prom_getproperty(node, "address", (char *)&prop, 4) >= 0)
+	if (prom_getproperty(yesde, "address", (char *)&prop, 4) >= 0)
 		address = prop;
 
-	/* FIXME: Add support for PCI reg properties. Right now, only
+	/* FIXME: Add support for PCI reg properties. Right yesw, only
 	 * reliable on macs
 	 */
 	if (address == 0)
@@ -309,17 +309,17 @@ static struct console btext_console = {
 
 int __init btext_find_display(void)
 {
-	phandle node;
+	phandle yesde;
 	char type[32];
 	int ret;
 
-	node = prom_inst2pkg(prom_stdout);
-	if (prom_getproperty(node, "device_type", type, 32) < 0)
+	yesde = prom_inst2pkg(prom_stdout);
+	if (prom_getproperty(yesde, "device_type", type, 32) < 0)
 		return -ENODEV;
 	if (strcmp(type, "display"))
 		return -ENODEV;
 
-	ret = btext_initialize(node);
+	ret = btext_initialize(yesde);
 	if (!ret) {
 		btext_clearscreen();
 		register_console(&btext_console);

@@ -14,8 +14,8 @@ Required properties:
 		"vdpu" on RK3328.
 - clocks: phandle to VPU aclk, hclk clocks
 - clock-names: should be "aclk" and "hclk"
-- power-domains: phandle to power domain node
-- iommus: phandle to a iommu node
+- power-domains: phandle to power domain yesde
+- iommus: phandle to a iommu yesde
 
 Example:
 SoC-specific DT entry:

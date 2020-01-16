@@ -6,7 +6,7 @@
 #include <linux/netdevice.h>
 #include <linux/init.h>
 #include <linux/skbuff.h>
-#include <asm/errno.h>
+#include <asm/erryes.h>
 #include <net_kern.h>
 #include "tuntap.h"
 

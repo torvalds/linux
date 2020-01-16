@@ -58,7 +58,7 @@
 
 /* num of pkt for PS3AV_CID_AVB_PARAM */
 #define PS3AV_AVB_NUM_VIDEO            PS3AV_HEAD_MAX
-#define PS3AV_AVB_NUM_AUDIO            0	/* not supported */
+#define PS3AV_AVB_NUM_AUDIO            0	/* yest supported */
 #define PS3AV_AVB_NUM_AV_VIDEO         PS3AV_AV_PORT_MAX
 #define PS3AV_AVB_NUM_AV_AUDIO         PS3AV_HDMI_MAX
 
@@ -223,7 +223,7 @@
 #define PS3AV_CMD_AUDIO_CTRL_AVCLK_18			0x0001
 
 /* av_vid */
-/* do not use these params directly, use vid_video2av */
+/* do yest use these params directly, use vid_video2av */
 #define PS3AV_CMD_AV_VID_480I				0x0000
 #define PS3AV_CMD_AV_VID_480P				0x0001
 #define PS3AV_CMD_AV_VID_720P_60HZ			0x0002
@@ -685,7 +685,7 @@ extern u8 ps3av_mode_cs_info[];
 #define PS3AV_STATUS_UNSUPPORTED_COMMAND	0x000c	/* unsupported cid */
 #define PS3AV_STATUS_BUFFER_OVERFLOW		0x000d	/* write buffer overflow */
 #define PS3AV_STATUS_INVALID_VIDEO_PARAM	0x000e	/* invalid video param */
-#define PS3AV_STATUS_NO_SEL			0x000f	/* not exist selector */
+#define PS3AV_STATUS_NO_SEL			0x000f	/* yest exist selector */
 #define PS3AV_STATUS_INVALID_AV_PARAM		0x0010	/* invalid backend param */
 #define PS3AV_STATUS_INVALID_AUDIO_PARAM	0x0011	/* invalid audio param */
 #define PS3AV_STATUS_UNSUPPORTED_HDMI_MODE	0x0012	/* unsupported hdmi mode */

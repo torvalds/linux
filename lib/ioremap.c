@@ -20,12 +20,12 @@ static int __read_mostly ioremap_pud_capable;
 static int __read_mostly ioremap_pmd_capable;
 static int __read_mostly ioremap_huge_disabled;
 
-static int __init set_nohugeiomap(char *str)
+static int __init set_yeshugeiomap(char *str)
 {
 	ioremap_huge_disabled = 1;
 	return 0;
 }
-early_param("nohugeiomap", set_nohugeiomap);
+early_param("yeshugeiomap", set_yeshugeiomap);
 
 void __init ioremap_huge_init(void)
 {
@@ -71,7 +71,7 @@ static int ioremap_pte_range(pmd_t *pmd, unsigned long addr,
 	if (!pte)
 		return -ENOMEM;
 	do {
-		BUG_ON(!pte_none(*pte));
+		BUG_ON(!pte_yesne(*pte));
 		set_pte_at(&init_mm, addr, pte, pfn_pte(pfn, prot));
 		pfn++;
 	} while (pte++, addr += PAGE_SIZE, addr != end);

@@ -18,7 +18,7 @@
 
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/string.h>
 #include <linux/mm.h>
 #include <linux/vmalloc.h>
@@ -782,7 +782,7 @@ imsttfb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 	if ((var->bits_per_pixel != 8 && var->bits_per_pixel != 16
 	    && var->bits_per_pixel != 24 && var->bits_per_pixel != 32)
 	    || var->xres_virtual < var->xres || var->yres_virtual < var->yres
-	    || var->nonstd
+	    || var->yesnstd
 	    || (var->vmode & FB_VMODE_MASK) != FB_VMODE_NONINTERLACED)
 		return -EINVAL;
 
@@ -873,13 +873,13 @@ imsttfb_set_par(struct fb_info *info)
 }
 
 static int
-imsttfb_setcolreg (u_int regno, u_int red, u_int green, u_int blue,
+imsttfb_setcolreg (u_int regyes, u_int red, u_int green, u_int blue,
 		   u_int transp, struct fb_info *info)
 {
 	struct imstt_par *par = info->par;
 	u_int bpp = info->var.bits_per_pixel;
 
-	if (regno > 255)
+	if (regyes > 255)
 		return 1;
 
 	red >>= 8;
@@ -888,29 +888,29 @@ imsttfb_setcolreg (u_int regno, u_int red, u_int green, u_int blue,
 
 	/* PADDRW/PDATA are the same as TVPPADDRW/TVPPDATA */
 	if (0 && bpp == 16)	/* screws up X */
-		par->cmap_regs[PADDRW] = regno << 3;
+		par->cmap_regs[PADDRW] = regyes << 3;
 	else
-		par->cmap_regs[PADDRW] = regno;
+		par->cmap_regs[PADDRW] = regyes;
 	eieio();
 
 	par->cmap_regs[PDATA] = red;	eieio();
 	par->cmap_regs[PDATA] = green;	eieio();
 	par->cmap_regs[PDATA] = blue;	eieio();
 
-	if (regno < 16)
+	if (regyes < 16)
 		switch (bpp) {
 			case 16:
-				par->palette[regno] =
-					(regno << (info->var.green.length ==
-					5 ? 10 : 11)) | (regno << 5) | regno;
+				par->palette[regyes] =
+					(regyes << (info->var.green.length ==
+					5 ? 10 : 11)) | (regyes << 5) | regyes;
 				break;
 			case 24:
-				par->palette[regno] =
-					(regno << 16) | (regno << 8) | regno;
+				par->palette[regyes] =
+					(regyes << 16) | (regyes << 8) | regyes;
 				break;
 			case 32: {
-				int i = (regno << 8) | regno;
-				par->palette[regno] = (i << 16) |i;
+				int i = (regyes << 8) | regyes;
+				par->palette[regyes] = (i << 16) |i;
 				break;
 			}
 		}
@@ -1417,7 +1417,7 @@ static void init_imstt(struct fb_info *info)
 
 	if ((info->var.xres * info->var.yres) * (info->var.bits_per_pixel >> 3) > info->fix.smem_len
 	    || !(compute_imstt_regvals(par, info->var.xres, info->var.yres))) {
-		printk("imsttfb: %ux%ux%u not supported\n", info->var.xres, info->var.yres, info->var.bits_per_pixel);
+		printk("imsttfb: %ux%ux%u yest supported\n", info->var.xres, info->var.yres, info->var.bits_per_pixel);
 		framebuffer_release(info);
 		return;
 	}
@@ -1468,13 +1468,13 @@ static int imsttfb_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	unsigned long addr, size;
 	struct imstt_par *par;
 	struct fb_info *info;
-	struct device_node *dp;
+	struct device_yesde *dp;
 	
-	dp = pci_device_to_OF_node(pdev);
+	dp = pci_device_to_OF_yesde(pdev);
 	if(dp)
 		printk(KERN_INFO "%s: OF name %pOFn\n",__func__, dp);
 	else if (IS_ENABLED(CONFIG_OF))
-		printk(KERN_ERR "imsttfb: no OF node for pci device\n");
+		printk(KERN_ERR "imsttfb: yes OF yesde for pci device\n");
 
 	info = framebuffer_alloc(sizeof(struct imstt_par), &pdev->dev);
 	if (!info)
@@ -1494,15 +1494,15 @@ static int imsttfb_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	switch (pdev->device) {
 		case PCI_DEVICE_ID_IMS_TT128: /* IMS,tt128mbA */
 			par->ramdac = IBM;
-			if (of_node_name_eq(dp, "IMS,tt128mb8") ||
-			    of_node_name_eq(dp, "IMS,tt128mb8A"))
+			if (of_yesde_name_eq(dp, "IMS,tt128mb8") ||
+			    of_yesde_name_eq(dp, "IMS,tt128mb8A"))
 				par->ramdac = TVP;
 			break;
 		case PCI_DEVICE_ID_IMS_TT3D:  /* IMS,tt3d */
 			par->ramdac = TVP;
 			break;
 		default:
-			printk(KERN_INFO "imsttfb: Device 0x%x unknown, "
+			printk(KERN_INFO "imsttfb: Device 0x%x unkyeswn, "
 					 "contact maintainer.\n", pdev->device);
 			release_mem_region(addr, size);
 			framebuffer_release(info);

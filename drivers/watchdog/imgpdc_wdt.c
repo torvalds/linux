@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Imagination Technologies PowerDown Controller Watchdog Timer.
+ * Imagination Techyeslogies PowerDown Controller Watchdog Timer.
  *
- * Copyright (c) 2014 Imagination Technologies Ltd.
+ * Copyright (c) 2014 Imagination Techyeslogies Ltd.
  *
  * Based on drivers/watchdog/sunxi_wdt.c Copyright (c) 2013 Carlo Caione
  *                                                     2012 Henrik Nordstrom
@@ -74,9 +74,9 @@ module_param(heartbeat, int, 0);
 MODULE_PARM_DESC(heartbeat, "Watchdog heartbeats in seconds "
 	"(default=" __MODULE_STRING(PDC_WDT_DEF_TIMEOUT) ")");
 
-static bool nowayout = WATCHDOG_NOWAYOUT;
-module_param(nowayout, bool, 0);
-MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started "
+static bool yeswayout = WATCHDOG_NOWAYOUT;
+module_param(yeswayout, bool, 0);
+MODULE_PARM_DESC(yeswayout, "Watchdog canyest be stopped once started "
 	"(default=" __MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
 
 struct pdc_wdt_dev {
@@ -210,7 +210,7 @@ static int pdc_wdt_probe(struct platform_device *pdev)
 
 	ret = clk_prepare_enable(pdc_wdt->sys_clk);
 	if (ret) {
-		dev_err(dev, "could not prepare or enable sys clock\n");
+		dev_err(dev, "could yest prepare or enable sys clock\n");
 		return ret;
 	}
 	ret = devm_add_action_or_reset(dev, pdc_clk_disable_unprepare,
@@ -220,7 +220,7 @@ static int pdc_wdt_probe(struct platform_device *pdev)
 
 	ret = clk_prepare_enable(pdc_wdt->wdt_clk);
 	if (ret) {
-		dev_err(dev, "could not prepare or enable wdt clock\n");
+		dev_err(dev, "could yest prepare or enable wdt clock\n");
 		return ret;
 	}
 	ret = devm_add_action_or_reset(dev, pdc_clk_disable_unprepare,
@@ -285,7 +285,7 @@ static int pdc_wdt_probe(struct platform_device *pdev)
 		break;
 	}
 
-	watchdog_set_nowayout(&pdc_wdt->wdt_dev, nowayout);
+	watchdog_set_yeswayout(&pdc_wdt->wdt_dev, yeswayout);
 	watchdog_set_restart_priority(&pdc_wdt->wdt_dev, 128);
 
 	platform_set_drvdata(pdev, pdc_wdt);
@@ -312,5 +312,5 @@ module_platform_driver(pdc_wdt_driver);
 
 MODULE_AUTHOR("Jude Abraham <Jude.Abraham@imgtec.com>");
 MODULE_AUTHOR("Naidu Tellapati <Naidu.Tellapati@imgtec.com>");
-MODULE_DESCRIPTION("Imagination Technologies PDC Watchdog Timer Driver");
+MODULE_DESCRIPTION("Imagination Techyeslogies PDC Watchdog Timer Driver");
 MODULE_LICENSE("GPL v2");

@@ -22,23 +22,23 @@ Required Properties:
 
 - #clock-cells: should be 1.
 
-Each clock is assigned an identifier and client nodes can use this identifier
+Each clock is assigned an identifier and client yesdes can use this identifier
 to specify the clock which they consume. All available clocks are defined as
 preprocessor macros in the dt-bindings/clock/gxbb-aoclkc.h header and can be
 used in device tree sources.
 
 - #reset-cells: should be 1.
 
-Each reset is assigned an identifier and client nodes can use this identifier
+Each reset is assigned an identifier and client yesdes can use this identifier
 to specify the reset which they consume. All available resets are defined as
 preprocessor macros in the dt-bindings/reset/gxbb-aoclkc.h header and can be
 used in device tree sources.
 
-Parent node should have the following properties :
+Parent yesde should have the following properties :
 - compatible: "amlogic,meson-gx-ao-sysctrl", "syscon", "simple-mfd"
 - reg: base address and size of the AO system control register space.
 
-Example: AO Clock controller node:
+Example: AO Clock controller yesde:
 
 ao_sysctrl: sys-ctrl@0 {
 	compatible = "amlogic,meson-gx-ao-sysctrl", "syscon", "simple-mfd";
@@ -52,7 +52,7 @@ ao_sysctrl: sys-ctrl@0 {
 		clock-names = "xtal", "mpeg-clk";
 	};
 
-Example: UART controller node that consumes the clock and reset generated
+Example: UART controller yesde that consumes the clock and reset generated
   by the clock controller:
 
 	uart_AO: serial@4c0 {

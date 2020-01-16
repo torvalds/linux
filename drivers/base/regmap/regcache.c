@@ -142,7 +142,7 @@ int regcache_init(struct regmap *map, const struct regmap_config *config)
 			break;
 
 	if (i == ARRAY_SIZE(cache_types)) {
-		dev_err(map->dev, "Could not match compress type: %d\n",
+		dev_err(map->dev, "Could yest match compress type: %d\n",
 			map->cache_type);
 		return -EINVAL;
 	}
@@ -280,8 +280,8 @@ static bool regcache_reg_needs_sync(struct regmap *map, unsigned int reg,
 {
 	int ret;
 
-	/* If we don't know the chip just got reset, then sync everything. */
-	if (!map->no_sync_defaults)
+	/* If we don't kyesw the chip just got reset, then sync everything. */
+	if (!map->yes_sync_defaults)
 		return true;
 
 	/* Is this the hardware default?  If so skip. */
@@ -330,8 +330,8 @@ static int regcache_default_sync(struct regmap *map, unsigned int min,
  *
  * @map: map to configure.
  *
- * Any registers that should not be synced should be marked as
- * volatile.  In general drivers can choose not to use the provided
+ * Any registers that should yest be synced should be marked as
+ * volatile.  In general drivers can choose yest to use the provided
  * syncing functionality if they so require.
  *
  * Return a negative value on failure, 0 on success.
@@ -382,7 +382,7 @@ out:
 	/* Restore the bypass state */
 	map->async = false;
 	map->cache_bypass = bypass;
-	map->no_sync_defaults = false;
+	map->yes_sync_defaults = false;
 	map->unlock(map->lock_arg);
 
 	regmap_async_complete(map);
@@ -400,7 +400,7 @@ EXPORT_SYMBOL_GPL(regcache_sync);
  * @min: first register to sync
  * @max: last register to sync
  *
- * Write all non-default register values in the specified region to
+ * Write all yesn-default register values in the specified region to
  * the hardware.
  *
  * Return a negative value on failure, 0 on success.
@@ -438,7 +438,7 @@ out:
 	/* Restore the bypass state */
 	map->cache_bypass = bypass;
 	map->async = false;
-	map->no_sync_defaults = false;
+	map->yes_sync_defaults = false;
 	map->unlock(map->lock_arg);
 
 	regmap_async_complete(map);
@@ -487,9 +487,9 @@ EXPORT_SYMBOL_GPL(regcache_drop_region);
  * @enable: flag if changes should be written to the hardware
  *
  * When a register map is marked as cache only writes to the register
- * map API will only update the register cache, they will not cause
+ * map API will only update the register cache, they will yest cause
  * any hardware changes.  This is useful for allowing portions of
- * drivers to act as though the device were functioning as normal when
+ * drivers to act as though the device were functioning as yesrmal when
  * it is disabled for power saving reasons.
  */
 void regcache_cache_only(struct regmap *map, bool enable)
@@ -508,10 +508,10 @@ EXPORT_SYMBOL_GPL(regcache_cache_only);
  * @map: map to mark
  *
  * Inform regcache that the device has been powered down or reset, so that
- * on resume, regcache_sync() knows to write out all non-default values
+ * on resume, regcache_sync() kyesws to write out all yesn-default values
  * stored in the cache.
  *
- * If this function is not called, regcache_sync() will assume that
+ * If this function is yest called, regcache_sync() will assume that
  * the hardware state still matches the cache state, modulo any writes that
  * happened when cache_only was true.
  */
@@ -519,7 +519,7 @@ void regcache_mark_dirty(struct regmap *map)
 {
 	map->lock(map->lock_arg);
 	map->cache_dirty = true;
-	map->no_sync_defaults = true;
+	map->yes_sync_defaults = true;
 	map->unlock(map->lock_arg);
 }
 EXPORT_SYMBOL_GPL(regcache_mark_dirty);
@@ -528,10 +528,10 @@ EXPORT_SYMBOL_GPL(regcache_mark_dirty);
  * regcache_cache_bypass - Put a register map into cache bypass mode
  *
  * @map: map to configure
- * @enable: flag if changes should not be written to the cache
+ * @enable: flag if changes should yest be written to the cache
  *
  * When a register map is marked with the cache bypass option, writes
- * to the register map API will only update the hardware and not the
+ * to the register map API will only update the hardware and yest the
  * the cache directly.  This is useful when syncing the cache back to
  * the hardware.
  */

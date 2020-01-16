@@ -481,7 +481,7 @@ mt7603_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 	}
 
 	/*
-	 * The hardware does not support per-STA RX GTK, fall back
+	 * The hardware does yest support per-STA RX GTK, fall back
 	 * to software mode for these.
 	 */
 	if ((vif->type == NL80211_IFTYPE_ADHOC ||

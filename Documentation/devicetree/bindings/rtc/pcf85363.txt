@@ -6,7 +6,7 @@ Required properties:
 - reg: I2C address for chip.
 
 Optional properties:
-- interrupts: IRQ line for the RTC (not implemented).
+- interrupts: IRQ line for the RTC (yest implemented).
 
 Example:
 

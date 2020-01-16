@@ -46,7 +46,7 @@ struct dmar_drhd_unit {
 	struct	dmar_dev_scope *devices;/* target device array	*/
 	int	devices_cnt;		/* target device count	*/
 	u16	segment;		/* PCI domain		*/
-	u8	ignored:1; 		/* ignore drhd		*/
+	u8	igyesred:1; 		/* igyesre drhd		*/
 	u8	include_all:1;
 	struct intel_iommu *iommu;
 };
@@ -57,7 +57,7 @@ struct dmar_pci_path {
 	u8 function;
 };
 
-struct dmar_pci_notify_info {
+struct dmar_pci_yestify_info {
 	struct pci_dev			*dev;
 	unsigned long			event;
 	int				bus;
@@ -74,11 +74,11 @@ extern struct list_head dmar_drhd_units;
 
 #define for_each_active_drhd_unit(drhd)					\
 	list_for_each_entry_rcu(drhd, &dmar_drhd_units, list)		\
-		if (drhd->ignored) {} else
+		if (drhd->igyesred) {} else
 
 #define for_each_active_iommu(i, drhd)					\
 	list_for_each_entry_rcu(drhd, &dmar_drhd_units, list)		\
-		if (i=drhd->iommu, drhd->ignored) {} else
+		if (i=drhd->iommu, drhd->igyesred) {} else
 
 #define for_each_iommu(i, drhd)						\
 	list_for_each_entry_rcu(drhd, &dmar_drhd_units, list)		\
@@ -103,16 +103,16 @@ static inline bool dmar_rcu_check(void)
 
 extern int dmar_table_init(void);
 extern int dmar_dev_scope_init(void);
-extern void dmar_register_bus_notifier(void);
+extern void dmar_register_bus_yestifier(void);
 extern int dmar_parse_dev_scope(void *start, void *end, int *cnt,
 				struct dmar_dev_scope **devices, u16 segment);
 extern void *dmar_alloc_dev_scope(void *start, void *end, int *cnt);
 extern void dmar_free_dev_scope(struct dmar_dev_scope **devices, int *cnt);
-extern int dmar_insert_dev_scope(struct dmar_pci_notify_info *info,
+extern int dmar_insert_dev_scope(struct dmar_pci_yestify_info *info,
 				 void *start, void*end, u16 segment,
 				 struct dmar_dev_scope *devices,
 				 int devices_cnt);
-extern int dmar_remove_dev_scope(struct dmar_pci_notify_info *info,
+extern int dmar_remove_dev_scope(struct dmar_pci_yestify_info *info,
 				 u16 segment, struct dmar_dev_scope *devices,
 				 int count);
 /* Intel IOMMU detection */
@@ -121,13 +121,13 @@ extern int enable_drhd_fault_handling(void);
 extern int dmar_device_add(acpi_handle handle);
 extern int dmar_device_remove(acpi_handle handle);
 
-static inline int dmar_res_noop(struct acpi_dmar_header *hdr, void *arg)
+static inline int dmar_res_yesop(struct acpi_dmar_header *hdr, void *arg)
 {
 	return 0;
 }
 
 #ifdef CONFIG_INTEL_IOMMU
-extern int iommu_detected, no_iommu;
+extern int iommu_detected, yes_iommu;
 extern int intel_iommu_init(void);
 extern void intel_iommu_shutdown(void);
 extern int dmar_parse_one_rmrr(struct acpi_dmar_header *header, void *arg);
@@ -135,17 +135,17 @@ extern int dmar_parse_one_atsr(struct acpi_dmar_header *header, void *arg);
 extern int dmar_check_one_atsr(struct acpi_dmar_header *hdr, void *arg);
 extern int dmar_release_one_atsr(struct acpi_dmar_header *hdr, void *arg);
 extern int dmar_iommu_hotplug(struct dmar_drhd_unit *dmaru, bool insert);
-extern int dmar_iommu_notify_scope_dev(struct dmar_pci_notify_info *info);
+extern int dmar_iommu_yestify_scope_dev(struct dmar_pci_yestify_info *info);
 #else /* !CONFIG_INTEL_IOMMU: */
 static inline int intel_iommu_init(void) { return -ENODEV; }
 static inline void intel_iommu_shutdown(void) { }
 
-#define	dmar_parse_one_rmrr		dmar_res_noop
-#define	dmar_parse_one_atsr		dmar_res_noop
-#define	dmar_check_one_atsr		dmar_res_noop
-#define	dmar_release_one_atsr		dmar_res_noop
+#define	dmar_parse_one_rmrr		dmar_res_yesop
+#define	dmar_parse_one_atsr		dmar_res_yesop
+#define	dmar_check_one_atsr		dmar_res_yesop
+#define	dmar_release_one_atsr		dmar_res_yesop
 
-static inline int dmar_iommu_notify_scope_dev(struct dmar_pci_notify_info *info)
+static inline int dmar_iommu_yestify_scope_dev(struct dmar_pci_yestify_info *info)
 {
 	return 0;
 }
@@ -266,7 +266,7 @@ static inline void dmar_copy_shared_irte(struct irte *dst, struct irte *src)
 #define PDA_HIGH_BIT   32
 
 /* Can't use the common MSI interrupt functions
- * since DMAR is not a pci device
+ * since DMAR is yest a pci device
  */
 struct irq_data;
 extern void dmar_msi_unmask(struct irq_data *data);
@@ -275,7 +275,7 @@ extern void dmar_msi_read(int irq, struct msi_msg *msg);
 extern void dmar_msi_write(int irq, struct msi_msg *msg);
 extern int dmar_set_interrupt(struct intel_iommu *iommu);
 extern irqreturn_t dmar_fault(int irq, void *dev_id);
-extern int dmar_alloc_hwirq(int id, int node, void *arg);
+extern int dmar_alloc_hwirq(int id, int yesde, void *arg);
 extern void dmar_free_hwirq(int irq);
 
 #endif /* __DMAR_H__ */

@@ -349,7 +349,7 @@ static struct resource visstrim_m10_flash_resource = {
 	.flags = IORESOURCE_MEM,
 };
 
-static struct platform_device visstrim_m10_nor_mtd_device = {
+static struct platform_device visstrim_m10_yesr_mtd_device = {
 	.name = "physmap-flash",
 	.id = 0,
 	.dev = {
@@ -360,7 +360,7 @@ static struct platform_device visstrim_m10_nor_mtd_device = {
 };
 
 static struct platform_device *platform_devices[] __initdata = {
-	&visstrim_m10_nor_mtd_device,
+	&visstrim_m10_yesr_mtd_device,
 };
 
 /* Visstrim_M10 uses UART0 as console */
@@ -560,7 +560,7 @@ static void __init visstrim_m10_late_init(void)
 		visstrim_emmaprp_init();
 
 		/*
-		 * Despite not being used, tvp5150 must be
+		 * Despite yest being used, tvp5150 must be
 		 * powered on to avoid I2C problems. To minimize
 		 * power consupmtion keep reset enabled.
 		 */

@@ -15,19 +15,19 @@
 /*
  * mount.c
  */
-extern struct kernfs_node *sysfs_root_kn;
+extern struct kernfs_yesde *sysfs_root_kn;
 
 /*
  * dir.c
  */
 extern spinlock_t sysfs_symlink_target_lock;
 
-void sysfs_warn_dup(struct kernfs_node *parent, const char *name);
+void sysfs_warn_dup(struct kernfs_yesde *parent, const char *name);
 
 /*
  * file.c
  */
-int sysfs_add_file_mode_ns(struct kernfs_node *parent,
+int sysfs_add_file_mode_ns(struct kernfs_yesde *parent,
 			   const struct attribute *attr, bool is_bin,
 			   umode_t amode, kuid_t uid, kgid_t gid,
 			   const void *ns);
@@ -35,7 +35,7 @@ int sysfs_add_file_mode_ns(struct kernfs_node *parent,
 /*
  * symlink.c
  */
-int sysfs_create_link_sd(struct kernfs_node *kn, struct kobject *target,
+int sysfs_create_link_sd(struct kernfs_yesde *kn, struct kobject *target,
 			 const char *name);
 
 #endif	/* __SYSFS_INTERNAL_H */

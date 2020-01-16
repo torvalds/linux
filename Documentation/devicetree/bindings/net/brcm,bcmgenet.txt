@@ -15,9 +15,9 @@ Required properties:
 - #size-cells: should be 1
 
 Optional properties:
-- clocks: When provided, must be two phandles to the functional clocks nodes
+- clocks: When provided, must be two phandles to the functional clocks yesdes
   of the GENET block. The first phandle is the main GENET clock used during
-  normal operation, while the second phandle is the Wake-on-LAN clock.
+  yesrmal operation, while the second phandle is the Wake-on-LAN clock.
 - clock-names: When provided, names of the functional clock phandles, first
   name should be "enet" and second should be "enet-wol".
 
@@ -30,22 +30,22 @@ Optional properties:
   See Documentation/devicetree/bindings/net/fixed-link.txt for information on
   the property specifics
 
-Required child nodes:
+Required child yesdes:
 
-- mdio bus node: this node should always be present regardless of the PHY
+- mdio bus yesde: this yesde should always be present regardless of the PHY
   configuration of the GENET instance
 
-MDIO bus node required properties:
+MDIO bus yesde required properties:
 
 - compatible: should contain one of "brcm,genet-mdio-v1", "brcm,genet-mdio-v2"
   "brcm,genet-mdio-v3", "brcm,genet-mdio-v4", "brcm,genet-mdio-v5", the version
-  has to match the parent node compatible property (e.g: brcm,genet-v4 pairs
+  has to match the parent yesde compatible property (e.g: brcm,genet-v4 pairs
   with brcm,genet-mdio-v4)
-- reg: address and length relative to the parent node base register address
+- reg: address and length relative to the parent yesde base register address
 - #address-cells: address cell for MDIO bus addressing, should be 1
 - #size-cells: size of the cells for MDIO bus addressing, should be 0
 
-Ethernet PHY node properties:
+Ethernet PHY yesde properties:
 
 See Documentation/devicetree/bindings/net/phy.txt for the list of required and
 optional properties.

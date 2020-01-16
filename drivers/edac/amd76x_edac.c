@@ -222,7 +222,7 @@ static void amd76x_init_csrows(struct mem_ctl_info *mci, struct pci_dev *pdev,
  *	@pdev; PCI device detected
  *	@dev_idx: Device type index
  *
- *	We have found an AMD76x and now need to set up the memory
+ *	We have found an AMD76x and yesw need to set up the memory
  *	controller status reporting. We configure and set up the
  *	memory controller reporting and claim the device.
  */
@@ -285,7 +285,7 @@ static int amd76x_probe1(struct pci_dev *pdev, int dev_idx)
 			"%s(): Unable to create PCI control\n",
 			__func__);
 		printk(KERN_WARNING
-			"%s(): PCI error report via EDAC not setup\n",
+			"%s(): PCI error report via EDAC yest setup\n",
 			__func__);
 	}
 

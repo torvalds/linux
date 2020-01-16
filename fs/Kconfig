@@ -55,7 +55,7 @@ config FS_DAX
 	  on this option will compile in support for DAX; you will need to
 	  mount the filesystem using the -o dax option.
 
-	  If you do not have a block device that is capable of using this,
+	  If you do yest have a block device that is capable of using this,
 	  or if unsure, say N.  Saying Y will increase the size of the kernel
 	  by about 5kB.
 
@@ -66,8 +66,8 @@ config FS_DAX_PMD
 	depends on ZONE_DEVICE
 	depends on TRANSPARENT_HUGEPAGE
 
-# Selected by DAX drivers that do not expect filesystem DAX to support
-# get_user_pages() of DAX mappings. I.e. "limited" indicates no support
+# Selected by DAX drivers that do yest expect filesystem DAX to support
+# get_user_pages() of DAX mappings. I.e. "limited" indicates yes support
 # for fork() of processes with MAP_SHARED mappings or support for
 # direct-I/O to a DAX mapping.
 config FS_DAX_LIMITED
@@ -108,13 +108,13 @@ config MANDATORY_FILE_LOCKING
 	  This option enables files appropriately marked files on appropriely
 	  mounted filesystems to support mandatory locking.
 
-	  To the best of my knowledge this is dead code that no one cares about.
+	  To the best of my kyeswledge this is dead code that yes one cares about.
 
 source "fs/crypto/Kconfig"
 
 source "fs/verity/Kconfig"
 
-source "fs/notify/Kconfig"
+source "fs/yestify/Kconfig"
 
 source "fs/quota/Kconfig"
 
@@ -159,7 +159,7 @@ config TMPFS
 	help
 	  Tmpfs is a file system which keeps all files in virtual memory.
 
-	  Everything in tmpfs is temporary in the sense that no files will be
+	  Everything in tmpfs is temporary in the sense that yes files will be
 	  created on your hard drive. The files live in memory and swap
 	  space. If you unmount a tmpfs instance, everything stored therein is
 	  lost.
@@ -181,7 +181,7 @@ config TMPFS_POSIX_ACL
 	  this option as there are a number of Linux distros that require
 	  POSIX ACL support under /dev for certain features to work properly.
 	  For example, some distros need this feature for ALSA-related /dev
-	  files for sound to work properly.  In short, if you're not sure,
+	  files for sound to work properly.  In short, if you're yest sure,
 	  say Y.
 
 config TMPFS_XATTR
@@ -189,7 +189,7 @@ config TMPFS_XATTR
 	depends on TMPFS
 	default n
 	help
-	  Extended attributes are name:value pairs associated with inodes by
+	  Extended attributes are name:value pairs associated with iyesdes by
 	  the kernel or by users (see the attr(5) manual page for details).
 
 	  Currently this enables support for the trusted.* and
@@ -232,7 +232,7 @@ menuconfig MISC_FILESYSTEMS
 	  filesystems, such as filesystems that came from other
 	  operating systems.
 
-	  This option alone does not add any kernel code.
+	  This option alone does yest add any kernel code.
 
 	  If you say N, all options in this submenu will be skipped and
 	  disabled; if unsure, say Y here.
@@ -276,7 +276,7 @@ menuconfig NETWORK_FILESYSTEMS
 	  filesystem-related networking code, such as NFS daemon and
 	  RPCSEC security modules.
 
-	  This option alone does not add any kernel code.
+	  This option alone does yest add any kernel code.
 
 	  If you say N, all options in this submenu will be skipped and
 	  disabled; if unsure, say Y here.

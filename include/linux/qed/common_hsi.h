@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and /or other materials
  *        provided with the distribution.
  *
@@ -987,23 +987,23 @@ enum igu_seg_access {
 };
 
 /* Enumeration for L3 type field of parsing_and_err_flags.
- * L3Type: 0 - unknown (not ip), 1 - Ipv4, 2 - Ipv6
+ * L3Type: 0 - unkyeswn (yest ip), 1 - Ipv4, 2 - Ipv6
  * (This field can be filled according to the last-ethertype)
  */
 enum l3_type {
-	e_l3_type_unknown,
+	e_l3_type_unkyeswn,
 	e_l3_type_ipv4,
 	e_l3_type_ipv6,
 	MAX_L3_TYPE
 };
 
 /* Enumeration for l4Protocol field of parsing_and_err_flags.
- * L4-protocol: 0 - none, 1 - TCP, 2 - UDP.
- * If the packet is IPv4 fragment, and its not the first fragment, the
- * protocol-type should be set to none.
+ * L4-protocol: 0 - yesne, 1 - TCP, 2 - UDP.
+ * If the packet is IPv4 fragment, and its yest the first fragment, the
+ * protocol-type should be set to yesne.
  */
 enum l4_protocol {
-	e_l4_protocol_none,
+	e_l4_protocol_yesne,
 	e_l4_protocol_tcp,
 	e_l4_protocol_udp,
 	MAX_L4_PROTOCOL
@@ -1380,7 +1380,7 @@ struct timers_context {
 
 /* Enum for next_protocol field of tunnel_parsing_flags / tunnelTypeDesc */
 enum tunnel_next_protocol {
-	e_unknown = 0,
+	e_unkyeswn = 0,
 	e_l2 = 1,
 	e_ipv4 = 2,
 	e_ipv6 = 3,

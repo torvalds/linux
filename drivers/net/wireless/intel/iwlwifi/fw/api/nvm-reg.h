@@ -39,12 +39,12 @@
  * are met:
  *
  *  * Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  *  * Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
+ *    yestice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
- *  * Neither the name Intel Corporation nor the names of its
+ *  * Neither the name Intel Corporation yesr the names of its
  *    contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
@@ -177,7 +177,7 @@ enum iwl_nvm_info_general_flags {
 
 /**
  * struct iwl_nvm_get_info_general - general NVM data
- * @flags: bit 0: 1 - empty, 0 - non-empty
+ * @flags: bit 0: 1 - empty, 0 - yesn-empty
  * @nvm_version: nvm version
  * @board_type: board type
  * @n_hw_addrs: number of reserved MAC addresses
@@ -318,7 +318,7 @@ struct iwl_mcc_update_cmd {
 
 /**
  * enum iwl_geo_information - geographic information.
- * @GEO_NO_INFO: no special info for this geo profile.
+ * @GEO_NO_INFO: yes special info for this geo profile.
  * @GEO_WMM_ETSI_5GHZ_INFO: this geo profile limits the WMM params
  *	for the 5 GHz band.
  */
@@ -384,11 +384,11 @@ struct iwl_mcc_update_resp {
 } __packed; /* LAR_UPDATE_MCC_CMD_RESP_S_VER_4 */
 
 /**
- * struct iwl_mcc_chub_notif - chub notifies of mcc change
+ * struct iwl_mcc_chub_yestif - chub yestifies of mcc change
  * (MCC_CHUB_UPDATE_CMD = 0xc9)
  * The Chub (Communication Hub, CommsHUB) is a HW component that connects to
  * the cellular and connectivity cores that gets updates of the mcc, and
- * notifies the ucode directly of any mcc change.
+ * yestifies the ucode directly of any mcc change.
  * The ucode requests the driver to request the device to update geographic
  * regulatory  profile according to the given MCC (Mobile Country Code).
  * The MCC is two letter-code, ascii upper case[A-Z] or '00' for world domain.
@@ -398,7 +398,7 @@ struct iwl_mcc_update_resp {
  * @source_id: identity of the change originator, see iwl_mcc_source
  * @reserved1: reserved for alignment
  */
-struct iwl_mcc_chub_notif {
+struct iwl_mcc_chub_yestif {
 	__le16 mcc;
 	u8 source_id;
 	u8 reserved1;

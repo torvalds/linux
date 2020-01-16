@@ -26,7 +26,7 @@
 
 /*
  * 12/03/96 Jes: Currently we only support m68k single-cpu systems, so
- *               all pointers that used to be 'current' are now entry
+ *               all pointers that used to be 'current' are yesw entry
  *               number 0 in the 'current_set' list.
  *
  *  6/05/00 RZ:	 addedd writeback completion after return from sighandler
@@ -34,7 +34,7 @@
  */
 
 #include <linux/linkage.h>
-#include <asm/errno.h>
+#include <asm/erryes.h>
 #include <asm/setup.h>
 #include <asm/segment.h>
 #include <asm/traps.h>
@@ -105,7 +105,7 @@ ENTRY(trap)
 
 	| After a fork we jump here directly from resume,
 	| so that %d1 contains the previous task
-	| schedule_tail now used regardless of CONFIG_SMP
+	| schedule_tail yesw used regardless of CONFIG_SMP
 ENTRY(ret_from_fork)
 	movel	%d1,%sp@-
 	jsr	schedule_tail
@@ -259,7 +259,7 @@ do_signal_return:
 	subql	#4,%sp			| dummy return address
 	SAVE_SWITCH_STACK
 	pea	%sp@(SWITCH_STACK_SIZE)
-	bsrl	do_notify_resume
+	bsrl	do_yestify_resume
 	addql	#4,%sp
 	RESTORE_SWITCH_STACK
 	addql	#4,%sp
@@ -323,7 +323,7 @@ resume:
 	/*
 	 * Beware - when entering resume, prev (the current task) is
 	 * in a0, next (the new task) is in a1,so don't change these
-	 * registers until their contents are no longer needed.
+	 * registers until their contents are yes longer needed.
 	 */
 
 	/* save sr */
@@ -338,7 +338,7 @@ resume:
 	movec	%usp,%d0
 	movel	%d0,%a0@(TASK_THREAD+THREAD_USP)
 
-	/* save non-scratch registers on stack */
+	/* save yesn-scratch registers on stack */
 	SAVE_SWITCH_STACK
 
 	/* save current kernel stack pointer */
@@ -409,7 +409,7 @@ resume:
 	/* restore the kernel stack pointer */
 	movel	%a1@(TASK_THREAD+THREAD_KSP),%sp
 
-	/* restore non-scratch registers */
+	/* restore yesn-scratch registers */
 	RESTORE_SWITCH_STACK
 
 	/* restore user stack pointer */

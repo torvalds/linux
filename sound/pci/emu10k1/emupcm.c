@@ -306,7 +306,7 @@ static void snd_emu10k1_pcm_init_voice(struct snd_emu10k1 *emu,
 		send_routing[3] = 3;
 		memset(send_amount, 0, sizeof(send_amount));
 	} else {
-		/* mono, left, right (master voice = left) */
+		/* moyes, left, right (master voice = left) */
 		tmp = stereo ? (master ? 1 : 2) : 0;
 		memcpy(send_routing, &mix->send_routing[tmp][0], 8);
 		memcpy(send_amount, &mix->send_volume[tmp][0], 8);
@@ -343,7 +343,7 @@ static void snd_emu10k1_pcm_init_voice(struct snd_emu10k1 *emu,
 		snd_emu10k1_ptr_write(emu, FXRT, voice,
 				      snd_emu10k1_compose_send_routing(send_routing));
 	/* Stop CA */
-	/* Assumption that PT is already 0 so no harm overwriting */
+	/* Assumption that PT is already 0 so yes harm overwriting */
 	snd_emu10k1_ptr_write(emu, PTRX, voice, (send_amount[0] << 8) | send_amount[1]);
 	snd_emu10k1_ptr_write(emu, DSL, voice, end_addr | (send_amount[3] << 24));
 	snd_emu10k1_ptr_write(emu, PSST, voice,
@@ -671,7 +671,7 @@ static void snd_emu10k1_playback_prepare_voice(struct snd_emu10k1 *emu, struct s
 	unsigned int attn, vattn;
 	unsigned int voice, tmp;
 
-	if (evoice == NULL)	/* skip second voice for mono */
+	if (evoice == NULL)	/* skip second voice for moyes */
 		return;
 	substream = evoice->epcm->substream;
 	runtime = substream->runtime;
@@ -693,7 +693,7 @@ static void snd_emu10k1_playback_trigger_voice(struct snd_emu10k1 *emu, struct s
 	struct snd_pcm_runtime *runtime;
 	unsigned int voice, pitch, pitch_target;
 
-	if (evoice == NULL)	/* skip second voice for mono */
+	if (evoice == NULL)	/* skip second voice for moyes */
 		return;
 	substream = evoice->epcm->substream;
 	runtime = substream->runtime;
@@ -1038,7 +1038,7 @@ static const struct snd_pcm_hardware snd_emu10k1_capture_efx =
  *
  */
 
-static void snd_emu10k1_pcm_mixer_notify1(struct snd_emu10k1 *emu, struct snd_kcontrol *kctl, int idx, int activate)
+static void snd_emu10k1_pcm_mixer_yestify1(struct snd_emu10k1 *emu, struct snd_kcontrol *kctl, int idx, int activate)
 {
 	struct snd_ctl_elem_id id;
 
@@ -1048,23 +1048,23 @@ static void snd_emu10k1_pcm_mixer_notify1(struct snd_emu10k1 *emu, struct snd_kc
 		kctl->vd[idx].access &= ~SNDRV_CTL_ELEM_ACCESS_INACTIVE;
 	else
 		kctl->vd[idx].access |= SNDRV_CTL_ELEM_ACCESS_INACTIVE;
-	snd_ctl_notify(emu->card, SNDRV_CTL_EVENT_MASK_VALUE |
+	snd_ctl_yestify(emu->card, SNDRV_CTL_EVENT_MASK_VALUE |
 		       SNDRV_CTL_EVENT_MASK_INFO,
 		       snd_ctl_build_ioff(&id, kctl, idx));
 }
 
-static void snd_emu10k1_pcm_mixer_notify(struct snd_emu10k1 *emu, int idx, int activate)
+static void snd_emu10k1_pcm_mixer_yestify(struct snd_emu10k1 *emu, int idx, int activate)
 {
-	snd_emu10k1_pcm_mixer_notify1(emu, emu->ctl_send_routing, idx, activate);
-	snd_emu10k1_pcm_mixer_notify1(emu, emu->ctl_send_volume, idx, activate);
-	snd_emu10k1_pcm_mixer_notify1(emu, emu->ctl_attn, idx, activate);
+	snd_emu10k1_pcm_mixer_yestify1(emu, emu->ctl_send_routing, idx, activate);
+	snd_emu10k1_pcm_mixer_yestify1(emu, emu->ctl_send_volume, idx, activate);
+	snd_emu10k1_pcm_mixer_yestify1(emu, emu->ctl_attn, idx, activate);
 }
 
-static void snd_emu10k1_pcm_efx_mixer_notify(struct snd_emu10k1 *emu, int idx, int activate)
+static void snd_emu10k1_pcm_efx_mixer_yestify(struct snd_emu10k1 *emu, int idx, int activate)
 {
-	snd_emu10k1_pcm_mixer_notify1(emu, emu->ctl_efx_send_routing, idx, activate);
-	snd_emu10k1_pcm_mixer_notify1(emu, emu->ctl_efx_send_volume, idx, activate);
-	snd_emu10k1_pcm_mixer_notify1(emu, emu->ctl_efx_attn, idx, activate);
+	snd_emu10k1_pcm_mixer_yestify1(emu, emu->ctl_efx_send_routing, idx, activate);
+	snd_emu10k1_pcm_mixer_yestify1(emu, emu->ctl_efx_send_volume, idx, activate);
+	snd_emu10k1_pcm_mixer_yestify1(emu, emu->ctl_efx_attn, idx, activate);
 }
 
 static void snd_emu10k1_pcm_free_substream(struct snd_pcm_runtime *runtime)
@@ -1081,7 +1081,7 @@ static int snd_emu10k1_efx_playback_close(struct snd_pcm_substream *substream)
 	for (i = 0; i < NUM_EFX_PLAYBACK; i++) {
 		mix = &emu->efx_pcm_mixer[i];
 		mix->epcm = NULL;
-		snd_emu10k1_pcm_efx_mixer_notify(emu, i, 0);
+		snd_emu10k1_pcm_efx_mixer_yestify(emu, i, 0);
 	}
 	return 0;
 }
@@ -1114,7 +1114,7 @@ static int snd_emu10k1_efx_playback_open(struct snd_pcm_substream *substream)
 		mix->send_volume[0][0] = 255;
 		mix->attn[0] = 0xffff;
 		mix->epcm = epcm;
-		snd_emu10k1_pcm_efx_mixer_notify(emu, i, 1);
+		snd_emu10k1_pcm_efx_mixer_yestify(emu, i, 1);
 	}
 	return 0;
 }
@@ -1148,7 +1148,7 @@ static int snd_emu10k1_playback_open(struct snd_pcm_substream *substream)
 		sample_rate = 44100;
 	else
 		sample_rate = 48000;
-	err = snd_pcm_hw_rule_noresample(runtime, sample_rate);
+	err = snd_pcm_hw_rule_yesresample(runtime, sample_rate);
 	if (err < 0) {
 		kfree(epcm);
 		return err;
@@ -1161,7 +1161,7 @@ static int snd_emu10k1_playback_open(struct snd_pcm_substream *substream)
 	mix->send_volume[1][0] = mix->send_volume[2][1] = 255;
 	mix->attn[0] = mix->attn[1] = mix->attn[2] = 0xffff;
 	mix->epcm = epcm;
-	snd_emu10k1_pcm_mixer_notify(emu, substream->number, 1);
+	snd_emu10k1_pcm_mixer_yestify(emu, substream->number, 1);
 	return 0;
 }
 
@@ -1171,7 +1171,7 @@ static int snd_emu10k1_playback_close(struct snd_pcm_substream *substream)
 	struct snd_emu10k1_pcm_mixer *mix = &emu->pcm_mixer[substream->number];
 
 	mix->epcm = NULL;
-	snd_emu10k1_pcm_mixer_notify(emu, substream->number, 0);
+	snd_emu10k1_pcm_mixer_yestify(emu, substream->number, 0);
 	return 0;
 }
 
@@ -1287,7 +1287,7 @@ static int snd_emu10k1_capture_efx_open(struct snd_pcm_substream *substream)
 		 * channels_max = 16,
 		 * Need to add mixer control to fix sample rate
 		 *                 
-		 * There are 32 mono channels of 16bits each.
+		 * There are 32 moyes channels of 16bits each.
 		 * 24bit Audio uses 2x channels over 16bit
 		 * 96kHz uses 2x channels over 48kHz
 		 * 192kHz uses 4x channels over 48kHz

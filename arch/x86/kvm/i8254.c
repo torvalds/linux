@@ -14,7 +14,7 @@
  * copies of the Software, and to permit persons to whom the Software is
  * furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -89,7 +89,7 @@ static s64 __kpit_elapsed(struct kvm_pit *pit)
 		return 0;
 
 	/*
-	 * The Counter does not stop when it reaches zero. In
+	 * The Counter does yest stop when it reaches zero. In
 	 * Modes 0, 1, 4, and 5 the Counter ``wraps around'' to
 	 * the highest count, either FFFF hex for binary counting
 	 * or 9999 for BCD counting, and continues counting.
@@ -200,10 +200,10 @@ static inline struct kvm_pit *pit_state_to_pit(struct kvm_kpit_state *ps)
 	return container_of(ps, struct kvm_pit, pit_state);
 }
 
-static void kvm_pit_ack_irq(struct kvm_irq_ack_notifier *kian)
+static void kvm_pit_ack_irq(struct kvm_irq_ack_yestifier *kian)
 {
 	struct kvm_kpit_state *ps = container_of(kian, struct kvm_kpit_state,
-						 irq_ack_notifier);
+						 irq_ack_yestifier);
 	struct kvm_pit *pit = pit_state_to_pit(ps);
 
 	atomic_set(&ps->irq_ack, 1);
@@ -254,7 +254,7 @@ static void pit_do_work(struct kthread_work *work)
 	 * Provides NMI watchdog support via Virtual Wire mode.
 	 * The route is: PIT -> LVT0 in NMI mode.
 	 *
-	 * Note: Our Virtual Wire implementation does not follow
+	 * Note: Our Virtual Wire implementation does yest follow
 	 * the MP specification.  We propagate a PIT interrupt to all
 	 * VCPUs and only when LVT0 is in NMI mode.  The interrupt can
 	 * also be simultaneously delivered through PIC and IOAPIC.
@@ -298,11 +298,11 @@ void kvm_pit_set_reinject(struct kvm_pit *pit, bool reinject)
 	if (reinject) {
 		/* The initial state is preserved while ps->reinject == 0. */
 		kvm_pit_reset_reinject(pit);
-		kvm_register_irq_ack_notifier(kvm, &ps->irq_ack_notifier);
-		kvm_register_irq_mask_notifier(kvm, 0, &pit->mask_notifier);
+		kvm_register_irq_ack_yestifier(kvm, &ps->irq_ack_yestifier);
+		kvm_register_irq_mask_yestifier(kvm, 0, &pit->mask_yestifier);
 	} else {
-		kvm_unregister_irq_ack_notifier(kvm, &ps->irq_ack_notifier);
-		kvm_unregister_irq_mask_notifier(kvm, 0, &pit->mask_notifier);
+		kvm_unregister_irq_ack_yestifier(kvm, &ps->irq_ack_yestifier);
+		kvm_unregister_irq_mask_yestifier(kvm, 0, &pit->mask_yestifier);
 	}
 
 	atomic_set(&ps->reinject, reinject);
@@ -331,8 +331,8 @@ static void create_pit_timer(struct kvm_pit *pit, u32 val, int is_period)
 	kvm_pit_reset_reinject(pit);
 
 	/*
-	 * Do not allow the guest to program periodic timers with small
-	 * interval, since the hrtimers are not throttled by the host
+	 * Do yest allow the guest to program periodic timers with small
+	 * interval, since the hrtimers are yest throttled by the host
 	 * scheduler.
 	 */
 	if (ps->is_periodic) {
@@ -627,9 +627,9 @@ static void kvm_pit_reset(struct kvm_pit *pit)
 	kvm_pit_reset_reinject(pit);
 }
 
-static void pit_mask_notifer(struct kvm_irq_mask_notifier *kimn, bool mask)
+static void pit_mask_yestifer(struct kvm_irq_mask_yestifier *kimn, bool mask)
 {
-	struct kvm_pit *pit = container_of(kimn, struct kvm_pit, mask_notifier);
+	struct kvm_pit *pit = container_of(kimn, struct kvm_pit, mask_yestifier);
 
 	if (!mask)
 		kvm_pit_reset_reinject(pit);
@@ -679,9 +679,9 @@ struct kvm_pit *kvm_create_pit(struct kvm *kvm, u32 flags)
 	hrtimer_init(&pit_state->timer, CLOCK_MONOTONIC, HRTIMER_MODE_ABS);
 	pit_state->timer.function = pit_timer_fn;
 
-	pit_state->irq_ack_notifier.gsi = 0;
-	pit_state->irq_ack_notifier.irq_acked = kvm_pit_ack_irq;
-	pit->mask_notifier.func = pit_mask_notifer;
+	pit_state->irq_ack_yestifier.gsi = 0;
+	pit_state->irq_ack_yestifier.irq_acked = kvm_pit_ack_irq;
+	pit->mask_yestifier.func = pit_mask_yestifer;
 
 	kvm_pit_reset(pit);
 

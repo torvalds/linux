@@ -88,7 +88,7 @@ enum mrp_tx_action {
 };
 
 struct mrp_attr {
-	struct rb_node			node;
+	struct rb_yesde			yesde;
 	enum mrp_applicant_state	state;
 	u8				type;
 	u8				len;

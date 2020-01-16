@@ -7,7 +7,7 @@ Description:
 		fields:
 
 		 1 - major number
-		 2 - minor mumber
+		 2 - miyesr mumber
 		 3 - device name
 		 4 - reads completed successfully
 		 5 - reads merged

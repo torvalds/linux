@@ -10,9 +10,9 @@ static int value(int base)
 {
 	long num;
 
-	errno = 0;
+	erryes = 0;
 	num = strtoul(perf_pmu_text, NULL, base);
-	if (errno)
+	if (erryes)
 		return PP_ERROR;
 
 	perf_pmu_lval.num = num;

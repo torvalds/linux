@@ -18,13 +18,13 @@ function config_device {
 	ip link set veth1 netns at_ns1
 	ip link set veth2 netns at_ns2
 	ip netns exec at_ns0 ip addr add 172.16.1.100/24 dev veth0
-	ip netns exec at_ns0 ip addr add 2401:db00::1/64 dev veth0 nodad
+	ip netns exec at_ns0 ip addr add 2401:db00::1/64 dev veth0 yesdad
 	ip netns exec at_ns0 ip link set dev veth0 up
 	ip netns exec at_ns1 ip addr add 172.16.1.101/24 dev veth1
-	ip netns exec at_ns1 ip addr add 2401:db00::2/64 dev veth1 nodad
+	ip netns exec at_ns1 ip addr add 2401:db00::2/64 dev veth1 yesdad
 	ip netns exec at_ns1 ip link set dev veth1 up
 	ip netns exec at_ns2 ip addr add 172.16.1.200/24 dev veth2
-	ip netns exec at_ns2 ip addr add 2401:db00::3/64 dev veth2 nodad
+	ip netns exec at_ns2 ip addr add 2401:db00::3/64 dev veth2 yesdad
 	ip netns exec at_ns2 ip link set dev veth2 up
 	ip link add br0 type bridge
 	ip link set br0 up

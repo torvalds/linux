@@ -79,8 +79,8 @@ static const struct v3d_reg_def v3d_csd_reg_defs[] = {
 
 static int v3d_v3d_debugfs_regs(struct seq_file *m, void *unused)
 {
-	struct drm_info_node *node = (struct drm_info_node *)m->private;
-	struct drm_device *dev = node->minor->dev;
+	struct drm_info_yesde *yesde = (struct drm_info_yesde *)m->private;
+	struct drm_device *dev = yesde->miyesr->dev;
 	struct v3d_dev *v3d = to_v3d_dev(dev);
 	int i, core;
 
@@ -126,8 +126,8 @@ static int v3d_v3d_debugfs_regs(struct seq_file *m, void *unused)
 
 static int v3d_v3d_debugfs_ident(struct seq_file *m, void *unused)
 {
-	struct drm_info_node *node = (struct drm_info_node *)m->private;
-	struct drm_device *dev = node->minor->dev;
+	struct drm_info_yesde *yesde = (struct drm_info_yesde *)m->private;
+	struct drm_device *dev = yesde->miyesr->dev;
 	struct v3d_dev *v3d = to_v3d_dev(dev);
 	u32 ident0, ident1, ident2, ident3, cores;
 	int ret, core;
@@ -148,15 +148,15 @@ static int v3d_v3d_debugfs_ident(struct seq_file *m, void *unused)
 		   V3D_GET_FIELD(ident3, V3D_HUB_IDENT3_IPREV),
 		   V3D_GET_FIELD(ident3, V3D_HUB_IDENT3_IPIDX));
 	seq_printf(m, "MMU:        %s\n",
-		   (ident2 & V3D_HUB_IDENT2_WITH_MMU) ? "yes" : "no");
+		   (ident2 & V3D_HUB_IDENT2_WITH_MMU) ? "no" : "yes");
 	seq_printf(m, "TFU:        %s\n",
-		   (ident1 & V3D_HUB_IDENT1_WITH_TFU) ? "yes" : "no");
+		   (ident1 & V3D_HUB_IDENT1_WITH_TFU) ? "no" : "yes");
 	seq_printf(m, "TSY:        %s\n",
-		   (ident1 & V3D_HUB_IDENT1_WITH_TSY) ? "yes" : "no");
+		   (ident1 & V3D_HUB_IDENT1_WITH_TSY) ? "no" : "yes");
 	seq_printf(m, "MSO:        %s\n",
-		   (ident1 & V3D_HUB_IDENT1_WITH_MSO) ? "yes" : "no");
+		   (ident1 & V3D_HUB_IDENT1_WITH_MSO) ? "no" : "yes");
 	seq_printf(m, "L3C:        %s (%dkb)\n",
-		   (ident1 & V3D_HUB_IDENT1_WITH_L3C) ? "yes" : "no",
+		   (ident1 & V3D_HUB_IDENT1_WITH_L3C) ? "no" : "yes",
 		   V3D_GET_FIELD(ident2, V3D_HUB_IDENT2_L3C_NKB));
 
 	for (core = 0; core < cores; core++) {
@@ -195,8 +195,8 @@ static int v3d_v3d_debugfs_ident(struct seq_file *m, void *unused)
 
 static int v3d_debugfs_bo_stats(struct seq_file *m, void *unused)
 {
-	struct drm_info_node *node = (struct drm_info_node *)m->private;
-	struct drm_device *dev = node->minor->dev;
+	struct drm_info_yesde *yesde = (struct drm_info_yesde *)m->private;
+	struct drm_device *dev = yesde->miyesr->dev;
 	struct v3d_dev *v3d = to_v3d_dev(dev);
 
 	mutex_lock(&v3d->bo_lock);
@@ -211,8 +211,8 @@ static int v3d_debugfs_bo_stats(struct seq_file *m, void *unused)
 
 static int v3d_measure_clock(struct seq_file *m, void *unused)
 {
-	struct drm_info_node *node = (struct drm_info_node *)m->private;
-	struct drm_device *dev = node->minor->dev;
+	struct drm_info_yesde *yesde = (struct drm_info_yesde *)m->private;
+	struct drm_device *dev = yesde->miyesr->dev;
 	struct v3d_dev *v3d = to_v3d_dev(dev);
 	uint32_t cycles;
 	int core = 0;
@@ -259,9 +259,9 @@ static const struct drm_info_list v3d_debugfs_list[] = {
 };
 
 int
-v3d_debugfs_init(struct drm_minor *minor)
+v3d_debugfs_init(struct drm_miyesr *miyesr)
 {
 	return drm_debugfs_create_files(v3d_debugfs_list,
 					ARRAY_SIZE(v3d_debugfs_list),
-					minor->debugfs_root, minor);
+					miyesr->debugfs_root, miyesr);
 }

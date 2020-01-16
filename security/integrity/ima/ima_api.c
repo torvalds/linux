@@ -89,7 +89,7 @@ out:
  * Returns 0 on success, error code otherwise
  */
 int ima_store_template(struct ima_template_entry *entry,
-		       int violation, struct inode *inode,
+		       int violation, struct iyesde *iyesde,
 		       const unsigned char *filename, int pcr)
 {
 	static const char op[] = "add_template_measure";
@@ -110,7 +110,7 @@ int ima_store_template(struct ima_template_entry *entry,
 						   entry->template_desc,
 						   num_fields, &hash.hdr);
 		if (result < 0) {
-			integrity_audit_msg(AUDIT_INTEGRITY_PCR, inode,
+			integrity_audit_msg(AUDIT_INTEGRITY_PCR, iyesde,
 					    template_name, op,
 					    audit_cause, result, 0);
 			return result;
@@ -118,7 +118,7 @@ int ima_store_template(struct ima_template_entry *entry,
 		memcpy(entry->digest, hash.hdr.digest, hash.hdr.length);
 	}
 	entry->pcr = pcr;
-	result = ima_add_template_entry(entry, violation, op, inode, filename);
+	result = ima_add_template_entry(entry, violation, op, iyesde, filename);
 	return result;
 }
 
@@ -134,7 +134,7 @@ void ima_add_violation(struct file *file, const unsigned char *filename,
 		       const char *op, const char *cause)
 {
 	struct ima_template_entry *entry;
-	struct inode *inode = file_inode(file);
+	struct iyesde *iyesde = file_iyesde(file);
 	struct ima_event_data event_data = { .iint = iint,
 					     .file = file,
 					     .filename = filename,
@@ -150,18 +150,18 @@ void ima_add_violation(struct file *file, const unsigned char *filename,
 		result = -ENOMEM;
 		goto err_out;
 	}
-	result = ima_store_template(entry, violation, inode,
+	result = ima_store_template(entry, violation, iyesde,
 				    filename, CONFIG_IMA_MEASURE_PCR_IDX);
 	if (result < 0)
 		ima_free_template_entry(entry);
 err_out:
-	integrity_audit_msg(AUDIT_INTEGRITY_PCR, inode, filename,
+	integrity_audit_msg(AUDIT_INTEGRITY_PCR, iyesde, filename,
 			    op, cause, result, 0);
 }
 
 /**
  * ima_get_action - appraise & measure decision based on policy.
- * @inode: pointer to inode to measure
+ * @iyesde: pointer to iyesde to measure
  * @cred: pointer to credentials structure to validate
  * @secid: secid of the task being validated
  * @mask: contains the permission mask (MAY_READ, MAY_WRITE, MAY_EXEC,
@@ -181,7 +181,7 @@ err_out:
  * Returns IMA_MEASURE, IMA_APPRAISE mask.
  *
  */
-int ima_get_action(struct inode *inode, const struct cred *cred, u32 secid,
+int ima_get_action(struct iyesde *iyesde, const struct cred *cred, u32 secid,
 		   int mask, enum ima_hooks func, int *pcr,
 		   struct ima_template_desc **template_desc)
 {
@@ -189,7 +189,7 @@ int ima_get_action(struct inode *inode, const struct cred *cred, u32 secid,
 
 	flags &= ima_policy_flag;
 
-	return ima_match_policy(inode, cred, secid, func, mask, flags, pcr,
+	return ima_match_policy(iyesde, cred, secid, func, mask, flags, pcr,
 				template_desc);
 }
 
@@ -208,7 +208,7 @@ int ima_collect_measurement(struct integrity_iint_cache *iint,
 			    enum hash_algo algo, struct modsig *modsig)
 {
 	const char *audit_cause = "failed";
-	struct inode *inode = file_inode(file);
+	struct iyesde *iyesde = file_iyesde(file);
 	const char *filename = file->f_path.dentry->d_name.name;
 	int result = 0;
 	int length;
@@ -232,10 +232,10 @@ int ima_collect_measurement(struct integrity_iint_cache *iint,
 
 	/*
 	 * Dectecting file change is based on i_version. On filesystems
-	 * which do not support i_version, support is limited to an initial
+	 * which do yest support i_version, support is limited to an initial
 	 * measurement/appraisal/audit.
 	 */
-	i_version = inode_query_iversion(inode);
+	i_version = iyesde_query_iversion(iyesde);
 	hash.hdr.algo = algo;
 
 	/* Initialize hash digest to 0's in case of failure */
@@ -268,7 +268,7 @@ out:
 		if (file->f_flags & O_DIRECT)
 			audit_cause = "failed(directio)";
 
-		integrity_audit_msg(AUDIT_INTEGRITY_DATA, inode,
+		integrity_audit_msg(AUDIT_INTEGRITY_DATA, iyesde,
 				    filename, "collect_data", audit_cause,
 				    result, 0);
 	}
@@ -281,11 +281,11 @@ out:
  * Create an "ima" template and then store the template by calling
  * ima_store_template.
  *
- * We only get here if the inode has not already been measured,
+ * We only get here if the iyesde has yest already been measured,
  * but the measurement could already exist:
  *	- multiple copies of the same file on either the same or
  *	  different filesystems.
- *	- the inode was previously flushed as well as the iint info,
+ *	- the iyesde was previously flushed as well as the iint info,
  *	  containing the hashing info.
  *
  * Must be called with iint->mutex held.
@@ -299,7 +299,7 @@ void ima_store_measurement(struct integrity_iint_cache *iint,
 	static const char op[] = "add_template_measure";
 	static const char audit_cause[] = "ENOMEM";
 	int result = -ENOMEM;
-	struct inode *inode = file_inode(file);
+	struct iyesde *iyesde = file_iyesde(file);
 	struct ima_template_entry *entry;
 	struct ima_event_data event_data = { .iint = iint,
 					     .file = file,
@@ -320,12 +320,12 @@ void ima_store_measurement(struct integrity_iint_cache *iint,
 
 	result = ima_alloc_init_template(&event_data, &entry, template_desc);
 	if (result < 0) {
-		integrity_audit_msg(AUDIT_INTEGRITY_PCR, inode, filename,
+		integrity_audit_msg(AUDIT_INTEGRITY_PCR, iyesde, filename,
 				    op, audit_cause, result, 0);
 		return;
 	}
 
-	result = ima_store_template(entry, violation, inode, filename, pcr);
+	result = ima_store_template(entry, violation, iyesde, filename, pcr);
 	if ((!result || result == -EEXIST) && !(file->f_flags & O_DIRECT)) {
 		iint->flags |= IMA_MEASURED;
 		iint->measured_pcrs |= (0x1 << pcr);
@@ -377,7 +377,7 @@ out:
  * Attempt to return a pointer to the full pathname for use in the
  * IMA measurement list, IMA audit records, and auditing logs.
  *
- * On failure, return a pointer to a copy of the filename, not dname.
+ * On failure, return a pointer to a copy of the filename, yest dname.
  * Returning a pointer to dname, could result in using the pointer
  * after the memory has been freed.
  */

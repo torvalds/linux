@@ -61,8 +61,8 @@ struct clock_parent {
  * @clk_name:		Clock name
  * @valid:		Validity flag of clock
  * @type:		Clock type (Output/External)
- * @node:		Clock topology nodes
- * @num_nodes:		Number of nodes present in topology
+ * @yesde:		Clock topology yesdes
+ * @num_yesdes:		Number of yesdes present in topology
  * @parent:		Parent of clock
  * @num_parents:	Number of parents of clock
  * @clk_id:		Clock id
@@ -71,8 +71,8 @@ struct zynqmp_clock {
 	char clk_name[MAX_NAME_LEN];
 	u32 valid;
 	enum clk_type type;
-	struct clock_topology node[MAX_NODES];
-	u32 num_nodes;
+	struct clock_topology yesde[MAX_NODES];
+	u32 num_yesdes;
 	struct clock_parent parent[MAX_PARENT];
 	u32 num_parents;
 	u32 clk_id;
@@ -120,7 +120,7 @@ static const char clk_type_postfix[][10] = {
 static struct clk_hw *(* const clk_topology[]) (const char *name, u32 clk_id,
 					const char * const *parents,
 					u8 num_parents,
-					const struct clock_topology *nodes)
+					const struct clock_topology *yesdes)
 					= {
 	[TYPE_INVALID] = NULL,
 	[TYPE_MUX] = zynqmp_clk_register_mux,
@@ -137,7 +137,7 @@ static unsigned int clock_max_idx;
 static const struct zynqmp_eemi_ops *eemi_ops;
 
 /**
- * zynqmp_is_valid_clock() - Check whether clock is valid or not
+ * zynqmp_is_valid_clock() - Check whether clock is valid or yest
  * @clk_id:	Clock index
  *
  * Return: 1 if clock is valid, 0 if clock is invalid else error code
@@ -246,11 +246,11 @@ static int zynqmp_pm_clock_get_name(u32 clock_id,
  * This function is used to get topology information for the clock
  * specified by given clock ID.
  *
- * This API will return 3 node of topology with a single response. To get
- * other nodes, master should call same API in loop with new
+ * This API will return 3 yesde of topology with a single response. To get
+ * other yesdes, master should call same API in loop with new
  * index till error is returned. E.g First call should have
- * index 0 which will return nodes 0,1 and 2. Next call, index
- * should be 3 which will return nodes 3,4 and 5 and so on.
+ * index 0 which will return yesdes 0,1 and 2. Next call, index
+ * should be 3 which will return yesdes 3,4 and 5 and so on.
  *
  * Return: 0 on success else error+reason
  */
@@ -278,14 +278,14 @@ static int zynqmp_pm_clock_get_topology(u32 clock_id, u32 index,
  * @clk_id:		Clock ID
  * @parents:		Name of this clock's parents
  * @num_parents:	Number of parents
- * @nodes:		Clock topology node
+ * @yesdes:		Clock topology yesde
  *
  * Return: clock hardware to the registered clock
  */
 struct clk_hw *zynqmp_clk_register_fixed_factor(const char *name, u32 clk_id,
 					const char * const *parents,
 					u8 num_parents,
-					const struct clock_topology *nodes)
+					const struct clock_topology *yesdes)
 {
 	u32 mult, div;
 	struct clk_hw *hw;
@@ -305,7 +305,7 @@ struct clk_hw *zynqmp_clk_register_fixed_factor(const char *name, u32 clk_id,
 
 	hw = clk_hw_register_fixed_factor(NULL, name,
 					  parents[0],
-					  nodes->flag, mult,
+					  yesdes->flag, mult,
 					  div);
 
 	return hw;
@@ -375,13 +375,13 @@ static int zynqmp_pm_clock_get_attributes(u32 clock_id,
  *				   response data
  * @topology:		Clock topology
  * @response:		Clock topology data received from firmware
- * @nnodes:		Number of nodes
+ * @nyesdes:		Number of yesdes
  *
  * Return: 0 on success else error+reason
  */
 static int __zynqmp_clock_get_topology(struct clock_topology *topology,
 				       struct topology_resp *response,
-				       u32 *nnodes)
+				       u32 *nyesdes)
 {
 	int i;
 	u32 type;
@@ -390,13 +390,13 @@ static int __zynqmp_clock_get_topology(struct clock_topology *topology,
 		type = FIELD_GET(CLK_TOPOLOGY_TYPE, response->topology[i]);
 		if (type == TYPE_INVALID)
 			return END_OF_TOPOLOGY_NODE;
-		topology[*nnodes].type = type;
-		topology[*nnodes].flag = FIELD_GET(CLK_TOPOLOGY_FLAGS,
+		topology[*nyesdes].type = type;
+		topology[*nyesdes].flag = FIELD_GET(CLK_TOPOLOGY_FLAGS,
 						   response->topology[i]);
-		topology[*nnodes].type_flag =
+		topology[*nyesdes].type_flag =
 				FIELD_GET(CLK_TOPOLOGY_TYPE_FLAGS,
 					  response->topology[i]);
-		(*nnodes)++;
+		(*nyesdes)++;
 	}
 
 	return 0;
@@ -407,25 +407,25 @@ static int __zynqmp_clock_get_topology(struct clock_topology *topology,
  *				 PM_API
  * @clk_id:		Clock index
  * @topology:		Clock topology
- * @num_nodes:		Number of nodes
+ * @num_yesdes:		Number of yesdes
  *
  * Return: 0 on success else error+reason
  */
 static int zynqmp_clock_get_topology(u32 clk_id,
 				     struct clock_topology *topology,
-				     u32 *num_nodes)
+				     u32 *num_yesdes)
 {
 	int j, ret;
 	struct topology_resp response = { };
 
-	*num_nodes = 0;
+	*num_yesdes = 0;
 	for (j = 0; j <= MAX_NODES; j += ARRAY_SIZE(response.topology)) {
 		ret = zynqmp_pm_clock_get_topology(clock[clk_id].clk_id, j,
 						   &response);
 		if (ret)
 			return ret;
 		ret = __zynqmp_clock_get_topology(topology, &response,
-						  num_nodes);
+						  num_yesdes);
 		if (ret == END_OF_TOPOLOGY_NODE)
 			return 0;
 	}
@@ -504,22 +504,22 @@ static int zynqmp_clock_get_parents(u32 clk_id, struct clock_parent *parents,
 
 /**
  * zynqmp_get_parent_list() - Create list of parents name
- * @np:			Device node
+ * @np:			Device yesde
  * @clk_id:		Clock index
  * @parent_list:	List of parent's name
  * @num_parents:	Total number of parents
  *
  * Return: 0 on success else error+reason
  */
-static int zynqmp_get_parent_list(struct device_node *np, u32 clk_id,
+static int zynqmp_get_parent_list(struct device_yesde *np, u32 clk_id,
 				  const char **parent_list, u32 *num_parents)
 {
 	int i = 0, ret;
 	u32 total_parents = clock[clk_id].num_parents;
-	struct clock_topology *clk_nodes;
+	struct clock_topology *clk_yesdes;
 	struct clock_parent *parents;
 
-	clk_nodes = clock[clk_id].node;
+	clk_yesdes = clock[clk_id].yesde;
 	parents = clock[clk_id].parent;
 
 	for (i = 0; i < total_parents; i++) {
@@ -533,7 +533,7 @@ static int zynqmp_get_parent_list(struct device_node *np, u32 clk_id,
 			parent_list[i] = parents[i].name;
 		} else {
 			strcat(parents[i].name,
-			       clk_type_postfix[clk_nodes[parents[i].flag - 1].
+			       clk_type_postfix[clk_yesdes[parents[i].flag - 1].
 			       type]);
 			parent_list[i] = parents[i].name;
 		}
@@ -557,34 +557,34 @@ static struct clk_hw *zynqmp_register_clk_topology(int clk_id, char *clk_name,
 						   const char **parent_names)
 {
 	int j;
-	u32 num_nodes, clk_dev_id;
+	u32 num_yesdes, clk_dev_id;
 	char *clk_out = NULL;
-	struct clock_topology *nodes;
+	struct clock_topology *yesdes;
 	struct clk_hw *hw = NULL;
 
-	nodes = clock[clk_id].node;
-	num_nodes = clock[clk_id].num_nodes;
+	yesdes = clock[clk_id].yesde;
+	num_yesdes = clock[clk_id].num_yesdes;
 	clk_dev_id = clock[clk_id].clk_id;
 
-	for (j = 0; j < num_nodes; j++) {
+	for (j = 0; j < num_yesdes; j++) {
 		/*
 		 * Clock name received from firmware is output clock name.
 		 * Intermediate clock names are postfixed with type of clock.
 		 */
-		if (j != (num_nodes - 1)) {
+		if (j != (num_yesdes - 1)) {
 			clk_out = kasprintf(GFP_KERNEL, "%s%s", clk_name,
-					    clk_type_postfix[nodes[j].type]);
+					    clk_type_postfix[yesdes[j].type]);
 		} else {
 			clk_out = kasprintf(GFP_KERNEL, "%s", clk_name);
 		}
 
-		if (!clk_topology[nodes[j].type])
+		if (!clk_topology[yesdes[j].type])
 			continue;
 
-		hw = (*clk_topology[nodes[j].type])(clk_out, clk_dev_id,
+		hw = (*clk_topology[yesdes[j].type])(clk_out, clk_dev_id,
 						    parent_names,
 						    num_parents,
-						    &nodes[j]);
+						    &yesdes[j]);
 		if (IS_ERR(hw))
 			pr_warn_once("%s() 0x%x: %s register fail with %ld\n",
 				     __func__,  clk_dev_id, clk_name,
@@ -598,11 +598,11 @@ static struct clk_hw *zynqmp_register_clk_topology(int clk_id, char *clk_name,
 
 /**
  * zynqmp_register_clocks() - Register clocks
- * @np:		Device node
+ * @np:		Device yesde
  *
  * Return: 0 on success else error code
  */
-static int zynqmp_register_clocks(struct device_node *np)
+static int zynqmp_register_clocks(struct device_yesde *np)
 {
 	int ret;
 	u32 i, total_parents = 0, type = 0;
@@ -611,12 +611,12 @@ static int zynqmp_register_clocks(struct device_node *np)
 	for (i = 0; i < clock_max_idx; i++) {
 		char clk_name[MAX_NAME_LEN];
 
-		/* get clock name, continue to next clock if name not found */
+		/* get clock name, continue to next clock if name yest found */
 		if (zynqmp_get_clock_name(i, clk_name))
 			continue;
 
 		/* Check if clock is valid and output clock.
-		 * Do not register invalid or external clock.
+		 * Do yest register invalid or external clock.
 		 */
 		ret = zynqmp_get_clock_type(i, &type);
 		if (ret || type != CLK_TYPE_OUTPUT)
@@ -653,7 +653,7 @@ static void zynqmp_get_clock_info(void)
 {
 	int i, ret;
 	u32 type = 0;
-	u32 nodetype, subclass, class;
+	u32 yesdetype, subclass, class;
 	struct attr_resp attr;
 	struct name_resp name;
 
@@ -666,13 +666,13 @@ static void zynqmp_get_clock_info(void)
 		clock[i].type = FIELD_GET(CLK_ATTR_TYPE, attr.attr[0]) ?
 			CLK_TYPE_EXTERNAL : CLK_TYPE_OUTPUT;
 
-		nodetype = FIELD_GET(CLK_ATTR_NODE_TYPE, attr.attr[0]);
+		yesdetype = FIELD_GET(CLK_ATTR_NODE_TYPE, attr.attr[0]);
 		subclass = FIELD_GET(CLK_ATTR_NODE_SUBCLASS, attr.attr[0]);
 		class = FIELD_GET(CLK_ATTR_NODE_CLASS, attr.attr[0]);
 
 		clock[i].clk_id = FIELD_PREP(CLK_ATTR_NODE_CLASS, class) |
 				  FIELD_PREP(CLK_ATTR_NODE_SUBCLASS, subclass) |
-				  FIELD_PREP(CLK_ATTR_NODE_TYPE, nodetype) |
+				  FIELD_PREP(CLK_ATTR_NODE_TYPE, yesdetype) |
 				  FIELD_PREP(CLK_ATTR_NODE_INDEX, i);
 
 		zynqmp_pm_clock_get_name(clock[i].clk_id, &name);
@@ -687,8 +687,8 @@ static void zynqmp_get_clock_info(void)
 		if (ret || type != CLK_TYPE_OUTPUT)
 			continue;
 
-		ret = zynqmp_clock_get_topology(i, clock[i].node,
-						&clock[i].num_nodes);
+		ret = zynqmp_clock_get_topology(i, clock[i].yesde,
+						&clock[i].num_yesdes);
 		if (ret)
 			continue;
 
@@ -701,11 +701,11 @@ static void zynqmp_get_clock_info(void)
 
 /**
  * zynqmp_clk_setup() - Setup the clock framework and register clocks
- * @np:		Device node
+ * @np:		Device yesde
  *
  * Return: 0 on success else error code
  */
-static int zynqmp_clk_setup(struct device_node *np)
+static int zynqmp_clk_setup(struct device_yesde *np)
 {
 	int ret;
 
@@ -742,7 +742,7 @@ static int zynqmp_clock_probe(struct platform_device *pdev)
 	if (IS_ERR(eemi_ops))
 		return PTR_ERR(eemi_ops);
 
-	ret = zynqmp_clk_setup(dev->of_node);
+	ret = zynqmp_clk_setup(dev->of_yesde);
 
 	return ret;
 }

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0+ */
 /*
- *  HID driver for UC-Logic devices not fully compliant with HID standard
+ *  HID driver for UC-Logic devices yest fully compliant with HID standard
  *  - tablet initialization and parameter retrieval
  *
  *  Copyright (c) 2018 Nikolai Kondrashov
@@ -36,7 +36,7 @@ extern const char *uclogic_params_pen_inrange_to_str(
 /*
  * Tablet interface's pen input parameters.
  *
- * Must use declarative (descriptive) language, not imperative, to simplify
+ * Must use declarative (descriptive) language, yest imperative, to simplify
  * understanding and maintain consistency.
  *
  * Noop (preserving functionality) when filled with zeroes.
@@ -49,17 +49,17 @@ struct uclogic_params_pen {
 	__u8 *desc_ptr;
 	/*
 	 * Size of the report descriptor.
-	 * Only valid, if "desc_ptr" is not NULL.
+	 * Only valid, if "desc_ptr" is yest NULL.
 	 */
 	unsigned int desc_size;
-	/* Report ID, if reports should be tweaked, zero if not */
+	/* Report ID, if reports should be tweaked, zero if yest */
 	unsigned int id;
-	/* Type of in-range reporting, only valid if "id" is not zero */
+	/* Type of in-range reporting, only valid if "id" is yest zero */
 	enum uclogic_params_pen_inrange inrange;
 	/*
 	 * True, if reports include fragmented high resolution coords, with
 	 * high-order X and then Y bytes following the pressure field.
-	 * Only valid if "id" is not zero.
+	 * Only valid if "id" is yest zero.
 	 */
 	bool fragmented_hires;
 };
@@ -67,7 +67,7 @@ struct uclogic_params_pen {
 /*
  * Parameters of frame control inputs of a tablet interface.
  *
- * Must use declarative (descriptive) language, not imperative, to simplify
+ * Must use declarative (descriptive) language, yest imperative, to simplify
  * understanding and maintain consistency.
  *
  * Noop (preserving functionality) when filled with zeroes.
@@ -80,24 +80,24 @@ struct uclogic_params_frame {
 	__u8 *desc_ptr;
 	/*
 	 * Size of the report descriptor.
-	 * Only valid, if "desc_ptr" is not NULL.
+	 * Only valid, if "desc_ptr" is yest NULL.
 	 */
 	unsigned int desc_size;
 	/*
-	 * Report ID, if reports should be tweaked, zero if not.
+	 * Report ID, if reports should be tweaked, zero if yest.
 	 */
 	unsigned int id;
 	/*
 	 * Number of the least-significant bit of the 2-bit state of a rotary
-	 * encoder, in the report. Cannot point to a 2-bit field crossing a
-	 * byte boundary. Zero if not present. Only valid if "id" is not zero.
+	 * encoder, in the report. Canyest point to a 2-bit field crossing a
+	 * byte boundary. Zero if yest present. Only valid if "id" is yest zero.
 	 */
 	unsigned int re_lsb;
 	/*
 	 * Offset of the Wacom-style device ID byte in the report, to be set
 	 * to pad device ID (0xf), for compatibility with Wacom drivers. Zero
-	 * if no changes to the report should be made. Only valid if "id" is
-	 * not zero.
+	 * if yes changes to the report should be made. Only valid if "id" is
+	 * yest zero.
 	 */
 	unsigned int dev_id_byte;
 };
@@ -105,10 +105,10 @@ struct uclogic_params_frame {
 /*
  * Tablet interface report parameters.
  *
- * Must use declarative (descriptive) language, not imperative, to simplify
+ * Must use declarative (descriptive) language, yest imperative, to simplify
  * understanding and maintain consistency.
  *
- * When filled with zeros represents a "noop" configuration - passes all
+ * When filled with zeros represents a "yesop" configuration - passes all
  * reports unchanged and lets the generic HID driver handle everything.
  *
  * The resulting device report descriptor is assembled from all the report
@@ -123,13 +123,13 @@ struct uclogic_params {
 	bool invalid;
 	/*
 	 * Pointer to the common part of the replacement report descriptor,
-	 * allocated with kmalloc. NULL if no common part is needed.
+	 * allocated with kmalloc. NULL if yes common part is needed.
 	 * Only valid, if "invalid" is false.
 	 */
 	__u8 *desc_ptr;
 	/*
 	 * Size of the common part of the replacement report descriptor.
-	 * Only valid, if "desc_ptr" is not NULL.
+	 * Only valid, if "desc_ptr" is yest NULL.
 	 */
 	unsigned int desc_size;
 	/*
@@ -149,9 +149,9 @@ struct uclogic_params {
 	struct uclogic_params_frame frame;
 	/*
 	 * Bitmask matching frame controls "sub-report" flag in the second
-	 * byte of the pen report, or zero if it's not expected.
+	 * byte of the pen report, or zero if it's yest expected.
 	 * Only valid if both "pen" and "frame" are valid, and "frame.id" is
-	 * not zero.
+	 * yest zero.
 	 */
 	__u8 pen_frame_flag;
 };

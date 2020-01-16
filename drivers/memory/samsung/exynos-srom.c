@@ -14,9 +14,9 @@
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 
-#include "exynos-srom.h"
+#include "exyyess-srom.h"
 
-static const unsigned long exynos_srom_offsets[] = {
+static const unsigned long exyyess_srom_offsets[] = {
 	/* SROM side */
 	EXYNOS_SROM_BW,
 	EXYNOS_SROM_BC0,
@@ -26,32 +26,32 @@ static const unsigned long exynos_srom_offsets[] = {
 };
 
 /**
- * struct exynos_srom_reg_dump: register dump of SROM Controller registers.
+ * struct exyyess_srom_reg_dump: register dump of SROM Controller registers.
  * @offset: srom register offset from the controller base address.
  * @value: the value of register under the offset.
  */
-struct exynos_srom_reg_dump {
+struct exyyess_srom_reg_dump {
 	u32     offset;
 	u32     value;
 };
 
 /**
- * struct exynos_srom: platform data for exynos srom controller driver.
+ * struct exyyess_srom: platform data for exyyess srom controller driver.
  * @dev: platform device pointer
  * @reg_base: srom base address
- * @reg_offset: exynos_srom_reg_dump pointer to hold offset and its value.
+ * @reg_offset: exyyess_srom_reg_dump pointer to hold offset and its value.
  */
-struct exynos_srom {
+struct exyyess_srom {
 	struct device *dev;
 	void __iomem *reg_base;
-	struct exynos_srom_reg_dump *reg_offset;
+	struct exyyess_srom_reg_dump *reg_offset;
 };
 
-static struct exynos_srom_reg_dump *exynos_srom_alloc_reg_dump(
+static struct exyyess_srom_reg_dump *exyyess_srom_alloc_reg_dump(
 		const unsigned long *rdump,
 		unsigned long nr_rdump)
 {
-	struct exynos_srom_reg_dump *rd;
+	struct exyyess_srom_reg_dump *rd;
 	unsigned int i;
 
 	rd = kcalloc(nr_rdump, sizeof(*rd), GFP_KERNEL);
@@ -64,8 +64,8 @@ static struct exynos_srom_reg_dump *exynos_srom_alloc_reg_dump(
 	return rd;
 }
 
-static int exynos_srom_configure_bank(struct exynos_srom *srom,
-				      struct device_node *np)
+static int exyyess_srom_configure_bank(struct exyyess_srom *srom,
+				      struct device_yesde *np)
 {
 	u32 bank, width, pmc = 0;
 	u32 timing[6];
@@ -102,44 +102,44 @@ static int exynos_srom_configure_bank(struct exynos_srom *srom,
 	return 0;
 }
 
-static int exynos_srom_probe(struct platform_device *pdev)
+static int exyyess_srom_probe(struct platform_device *pdev)
 {
-	struct device_node *np, *child;
-	struct exynos_srom *srom;
+	struct device_yesde *np, *child;
+	struct exyyess_srom *srom;
 	struct device *dev = &pdev->dev;
 	bool bad_bank_config = false;
 
-	np = dev->of_node;
+	np = dev->of_yesde;
 	if (!np) {
-		dev_err(&pdev->dev, "could not find device info\n");
+		dev_err(&pdev->dev, "could yest find device info\n");
 		return -EINVAL;
 	}
 
 	srom = devm_kzalloc(&pdev->dev,
-			sizeof(struct exynos_srom), GFP_KERNEL);
+			sizeof(struct exyyess_srom), GFP_KERNEL);
 	if (!srom)
 		return -ENOMEM;
 
 	srom->dev = dev;
 	srom->reg_base = of_iomap(np, 0);
 	if (!srom->reg_base) {
-		dev_err(&pdev->dev, "iomap of exynos srom controller failed\n");
+		dev_err(&pdev->dev, "iomap of exyyess srom controller failed\n");
 		return -ENOMEM;
 	}
 
 	platform_set_drvdata(pdev, srom);
 
-	srom->reg_offset = exynos_srom_alloc_reg_dump(exynos_srom_offsets,
-			ARRAY_SIZE(exynos_srom_offsets));
+	srom->reg_offset = exyyess_srom_alloc_reg_dump(exyyess_srom_offsets,
+			ARRAY_SIZE(exyyess_srom_offsets));
 	if (!srom->reg_offset) {
 		iounmap(srom->reg_base);
 		return -ENOMEM;
 	}
 
-	for_each_child_of_node(np, child) {
-		if (exynos_srom_configure_bank(srom, child)) {
+	for_each_child_of_yesde(np, child) {
+		if (exyyess_srom_configure_bank(srom, child)) {
 			dev_err(dev,
-				"Could not decode bank configuration for %pOFn\n",
+				"Could yest decode bank configuration for %pOFn\n",
 				child);
 			bad_bank_config = true;
 		}
@@ -147,7 +147,7 @@ static int exynos_srom_probe(struct platform_device *pdev)
 
 	/*
 	 * If any bank failed to configure, we still provide suspend/resume,
-	 * but do not probe child devices
+	 * but do yest probe child devices
 	 */
 	if (bad_bank_config)
 		return 0;
@@ -156,57 +156,57 @@ static int exynos_srom_probe(struct platform_device *pdev)
 }
 
 #ifdef CONFIG_PM_SLEEP
-static void exynos_srom_save(void __iomem *base,
-				    struct exynos_srom_reg_dump *rd,
+static void exyyess_srom_save(void __iomem *base,
+				    struct exyyess_srom_reg_dump *rd,
 				    unsigned int num_regs)
 {
 	for (; num_regs > 0; --num_regs, ++rd)
 		rd->value = readl(base + rd->offset);
 }
 
-static void exynos_srom_restore(void __iomem *base,
-				      const struct exynos_srom_reg_dump *rd,
+static void exyyess_srom_restore(void __iomem *base,
+				      const struct exyyess_srom_reg_dump *rd,
 				      unsigned int num_regs)
 {
 	for (; num_regs > 0; --num_regs, ++rd)
 		writel(rd->value, base + rd->offset);
 }
 
-static int exynos_srom_suspend(struct device *dev)
+static int exyyess_srom_suspend(struct device *dev)
 {
-	struct exynos_srom *srom = dev_get_drvdata(dev);
+	struct exyyess_srom *srom = dev_get_drvdata(dev);
 
-	exynos_srom_save(srom->reg_base, srom->reg_offset,
-				ARRAY_SIZE(exynos_srom_offsets));
+	exyyess_srom_save(srom->reg_base, srom->reg_offset,
+				ARRAY_SIZE(exyyess_srom_offsets));
 	return 0;
 }
 
-static int exynos_srom_resume(struct device *dev)
+static int exyyess_srom_resume(struct device *dev)
 {
-	struct exynos_srom *srom = dev_get_drvdata(dev);
+	struct exyyess_srom *srom = dev_get_drvdata(dev);
 
-	exynos_srom_restore(srom->reg_base, srom->reg_offset,
-				ARRAY_SIZE(exynos_srom_offsets));
+	exyyess_srom_restore(srom->reg_base, srom->reg_offset,
+				ARRAY_SIZE(exyyess_srom_offsets));
 	return 0;
 }
 #endif
 
-static const struct of_device_id of_exynos_srom_ids[] = {
+static const struct of_device_id of_exyyess_srom_ids[] = {
 	{
-		.compatible	= "samsung,exynos4210-srom",
+		.compatible	= "samsung,exyyess4210-srom",
 	},
 	{},
 };
 
-static SIMPLE_DEV_PM_OPS(exynos_srom_pm_ops, exynos_srom_suspend, exynos_srom_resume);
+static SIMPLE_DEV_PM_OPS(exyyess_srom_pm_ops, exyyess_srom_suspend, exyyess_srom_resume);
 
-static struct platform_driver exynos_srom_driver = {
-	.probe = exynos_srom_probe,
+static struct platform_driver exyyess_srom_driver = {
+	.probe = exyyess_srom_probe,
 	.driver = {
-		.name = "exynos-srom",
-		.of_match_table = of_exynos_srom_ids,
-		.pm = &exynos_srom_pm_ops,
+		.name = "exyyess-srom",
+		.of_match_table = of_exyyess_srom_ids,
+		.pm = &exyyess_srom_pm_ops,
 		.suppress_bind_attrs = true,
 	},
 };
-builtin_platform_driver(exynos_srom_driver);
+builtin_platform_driver(exyyess_srom_driver);

@@ -67,7 +67,7 @@ static const struct hda_dsp_msg_code hda_dsp_rom_msg[] = {
 	{HDA_DSP_ROM_CSE_ERROR, "error: cse error"},
 	{HDA_DSP_ROM_CSE_WRONG_RESPONSE, "error: cse wrong response"},
 	{HDA_DSP_ROM_IMR_TO_SMALL, "error: IMR too small"},
-	{HDA_DSP_ROM_BASE_FW_NOT_FOUND, "error: base fw not found"},
+	{HDA_DSP_ROM_BASE_FW_NOT_FOUND, "error: base fw yest found"},
 	{HDA_DSP_ROM_CSE_VALIDATION_FAILED, "error: signature verification failed"},
 	{HDA_DSP_ROM_IPC_FATAL_ERROR, "error: ipc fatal error"},
 	{HDA_DSP_ROM_L2_CACHE_ERROR, "error: L2 cache error"},
@@ -98,8 +98,8 @@ static void hda_dsp_get_status_skl(struct snd_sof_dev *sdev)
 		}
 	}
 
-	/* not for us, must be generic sof message */
-	dev_dbg(sdev->dev, "unknown ROM status value %8.8x\n", status);
+	/* yest for us, must be generic sof message */
+	dev_dbg(sdev->dev, "unkyeswn ROM status value %8.8x\n", status);
 }
 
 static void hda_dsp_get_status(struct snd_sof_dev *sdev)
@@ -118,8 +118,8 @@ static void hda_dsp_get_status(struct snd_sof_dev *sdev)
 		}
 	}
 
-	/* not for us, must be generic sof message */
-	dev_dbg(sdev->dev, "unknown ROM status value %8.8x\n", status);
+	/* yest for us, must be generic sof message */
+	dev_dbg(sdev->dev, "unkyeswn ROM status value %8.8x\n", status);
 }
 
 static void hda_dsp_get_registers(struct snd_sof_dev *sdev,
@@ -132,7 +132,7 @@ static void hda_dsp_get_registers(struct snd_sof_dev *sdev,
 	/* first read registers */
 	sof_mailbox_read(sdev, offset, xoops, sizeof(*xoops));
 
-	/* note: variable AR register array is not read */
+	/* yeste: variable AR register array is yest read */
 
 	/* then get panic info */
 	if (xoops->arch_hdr.totalsize > EXCEPT_MAX_HDR_SIZE) {
@@ -160,11 +160,11 @@ void hda_dsp_dump_skl(struct snd_sof_dev *sdev, u32 flags)
 	/* try APL specific status message types first */
 	hda_dsp_get_status_skl(sdev);
 
-	/* now try generic SOF status messages */
+	/* yesw try generic SOF status messages */
 	status = snd_sof_dsp_read(sdev, HDA_DSP_BAR,
 				  HDA_ADSP_ERROR_CODE_SKL);
 
-	/*TODO: Check: there is no define in spec, but it is used in the code*/
+	/*TODO: Check: there is yes define in spec, but it is used in the code*/
 	panic = snd_sof_dsp_read(sdev, HDA_DSP_BAR,
 				 HDA_ADSP_ERROR_CODE_SKL + 0x4);
 
@@ -190,7 +190,7 @@ void hda_dsp_dump(struct snd_sof_dev *sdev, u32 flags)
 	/* try APL specific status message types first */
 	hda_dsp_get_status(sdev);
 
-	/* now try generic SOF status messages */
+	/* yesw try generic SOF status messages */
 	status = snd_sof_dsp_read(sdev, HDA_DSP_BAR,
 				  HDA_DSP_SRAM_REG_FW_STATUS);
 	panic = snd_sof_dsp_read(sdev, HDA_DSP_BAR, HDA_DSP_SRAM_REG_FW_TRACEP);
@@ -389,7 +389,7 @@ static int hda_init_caps(struct snd_sof_dev *sdev)
 
 	/* codec detection */
 	if (!bus->codec_mask) {
-		dev_info(bus->dev, "no hda codecs found!\n");
+		dev_info(bus->dev, "yes hda codecs found!\n");
 	} else {
 		dev_info(bus->dev, "hda codecs found, mask %lx\n",
 			 bus->codec_mask);
@@ -400,7 +400,7 @@ static int hda_init_caps(struct snd_sof_dev *sdev)
 		}
 
 		/*
-		 * If no machine driver is found, then:
+		 * If yes machine driver is found, then:
 		 *
 		 * hda machine driver is used if :
 		 * 1. there is one HDMI codec and one external HDAudio codec
@@ -417,16 +417,16 @@ static int hda_init_caps(struct snd_sof_dev *sdev)
 
 			/*
 			 * firmware: pick the first in machine list,
-			 * or use nocodec firmware name if list is empty
+			 * or use yescodec firmware name if list is empty
 			 */
 			mach = pdata->desc->machines;
 			if (mach->id[0])
 				pdata->fw_filename = mach->sof_fw_filename;
 			else
 				pdata->fw_filename =
-					pdata->desc->nocodec_fw_filename;
+					pdata->desc->yescodec_fw_filename;
 
-			dev_info(bus->dev, "using HDA machine driver %s now\n",
+			dev_info(bus->dev, "using HDA machine driver %s yesw\n",
 				 hda_mach->drv_name);
 
 			if (codec_num == 1)
@@ -509,23 +509,23 @@ int hda_dsp_probe(struct snd_sof_dev *sdev)
 
 	/*
 	 * detect DSP by checking class/subclass/prog-id information
-	 * class=04 subclass 03 prog-if 00: no DSP, legacy driver is required
+	 * class=04 subclass 03 prog-if 00: yes DSP, legacy driver is required
 	 * class=04 subclass 01 prog-if 00: DSP is present
 	 *   (and may be required e.g. for DMIC or SSP support)
 	 * class=04 subclass 03 prog-if 80: either of DSP or legacy mode works
 	 */
 	if (pci->class == 0x040300) {
-		dev_err(sdev->dev, "error: the DSP is not enabled on this platform, aborting probe\n");
+		dev_err(sdev->dev, "error: the DSP is yest enabled on this platform, aborting probe\n");
 		return -ENODEV;
 	} else if (pci->class != 0x040100 && pci->class != 0x040380) {
-		dev_err(sdev->dev, "error: unknown PCI class/subclass/prog-if 0x%06x found, aborting probe\n", pci->class);
+		dev_err(sdev->dev, "error: unkyeswn PCI class/subclass/prog-if 0x%06x found, aborting probe\n", pci->class);
 		return -ENODEV;
 	}
 	dev_info(sdev->dev, "DSP detected with PCI class/subclass/prog-if 0x%06x\n", pci->class);
 
 	chip = get_chip_info(sdev->pdata);
 	if (!chip) {
-		dev_err(sdev->dev, "error: no such device supported, chip id:%x\n",
+		dev_err(sdev->dev, "error: yes such device supported, chip id:%x\n",
 			pci->device);
 		ret = -EIO;
 		goto err;
@@ -550,9 +550,9 @@ int hda_dsp_probe(struct snd_sof_dev *sdev)
 	 * or we don't have other choice
 	 */
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_DEBUG_FORCE_IPC_POSITION)
-	hdev->no_ipc_position = 0;
+	hdev->yes_ipc_position = 0;
 #else
-	hdev->no_ipc_position = sof_ops(sdev)->pcm_pointer ? 1 : 0;
+	hdev->yes_ipc_position = sof_ops(sdev)->pcm_pointer ? 1 : 0;
 #endif
 
 	/* set up HDA base */
@@ -589,8 +589,8 @@ int hda_dsp_probe(struct snd_sof_dev *sdev)
 	if (ret < 0) {
 		dev_err(sdev->dev, "error: failed to init streams\n");
 		/*
-		 * not all errors are due to memory issues, but trying
-		 * to free everything does not harm
+		 * yest all errors are due to memory issues, but trying
+		 * to free everything does yest harm
 		 */
 		goto free_streams;
 	}
@@ -675,7 +675,7 @@ free_irq_vector:
 		pci_free_irq_vectors(pci);
 free_streams:
 	hda_dsp_stream_free(sdev);
-/* dsp_unmap: not currently used */
+/* dsp_unmap: yest currently used */
 	iounmap(sdev->bar[HDA_DSP_BAR]);
 hdac_bus_unmap:
 	iounmap(bus->remap_addr);

@@ -12,10 +12,10 @@
 /**
  * struct sky81452_platform_data
  * @name:	backlight driver name.
-		If it is not defined, default name is lcd-backlight.
+		If it is yest defined, default name is lcd-backlight.
  * @gpio_enable:GPIO number which control EN pin
  * @enable:	Enable mask for current sink channel 1, 2, 3, 4, 5 and 6.
- * @ignore_pwm:	true if DPWMI should be ignored.
+ * @igyesre_pwm:	true if DPWMI should be igyesred.
  * @dpwm_mode:	true is DPWM dimming mode, otherwise Analog dimming mode.
  * @phase_shift:true is phase shift mode.
  * @short_detecion_threshold:	It should be one of 4, 5, 6 and 7V.
@@ -25,7 +25,7 @@ struct sky81452_bl_platform_data {
 	const char *name;
 	int gpio_enable;
 	unsigned int enable;
-	bool ignore_pwm;
+	bool igyesre_pwm;
 	bool dpwm_mode;
 	bool phase_shift;
 	unsigned int short_detection_threshold;

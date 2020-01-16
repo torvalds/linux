@@ -18,7 +18,7 @@
 
 /*
  * Max size of the RISC program for a buffer. - worst case is 2 writes per line
- * Space is also added for the 4 no-op instructions added on the end.
+ * Space is also added for the 4 yes-op instructions added on the end.
  */
 #ifndef USE_RISC_NOOP
 #define MAX_BUFFER_PROGRAM_SIZE						\

@@ -40,7 +40,7 @@ do
 		then
 			if ! grep -q '^Observation ' $dir/$1.out
 			then
-				echo ' !!! Herd failed, no Observation:' $1
+				echo ' !!! Herd failed, yes Observation:' $1
 			fi
 		else
 			exitcode=$?

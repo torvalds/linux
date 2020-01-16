@@ -49,7 +49,7 @@ struct cc_hw_data {
 #define CC_NUM_IDRS 4
 #define CC_HW_RESET_LOOP_COUNT 10
 
-/* Note: PIDR3 holds CMOD/Rev so ignored for HW identification purposes */
+/* Note: PIDR3 holds CMOD/Rev so igyesred for HW identification purposes */
 static const u32 pidr_0124_offsets[CC_NUM_IDRS] = {
 	CC_REG(PERIPHERAL_ID_0), CC_REG(PERIPHERAL_ID_1),
 	CC_REG(PERIPHERAL_ID_2), CC_REG(PERIPHERAL_ID_4)
@@ -183,7 +183,7 @@ static irqreturn_t cc_isr(int irq, void *dev_id)
 	}
 
 	if (irr) {
-		dev_dbg_ratelimited(dev, "IRR includes unknown cause bits (0x%08X)\n",
+		dev_dbg_ratelimited(dev, "IRR includes unkyeswn cause bits (0x%08X)\n",
 				    irr);
 		/* Just warning */
 	}
@@ -196,7 +196,7 @@ bool cc_wait_for_reset_completion(struct cc_drvdata *drvdata)
 	unsigned int val;
 	unsigned int i;
 
-	/* 712/710/63 has no reset completion indication, always return true */
+	/* 712/710/63 has yes reset completion indication, always return true */
 	if (drvdata->hw_rev <= CC_HW_REV_712)
 		return true;
 
@@ -212,7 +212,7 @@ bool cc_wait_for_reset_completion(struct cc_drvdata *drvdata)
 		/* allow scheduling other process on the processor */
 		schedule();
 	}
-	/* reset not completed */
+	/* reset yest completed */
 	return false;
 }
 
@@ -265,7 +265,7 @@ static int init_cc_resources(struct platform_device *plat_dev)
 	struct resource *req_mem_cc_regs = NULL;
 	struct cc_drvdata *new_drvdata;
 	struct device *dev = &plat_dev->dev;
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 	u32 val, hw_rev_pidr, sig_cidr;
 	u64 dma_mask;
 	const struct cc_hw_data *hw_rev;
@@ -277,7 +277,7 @@ static int init_cc_resources(struct platform_device *plat_dev)
 	if (!new_drvdata)
 		return -ENOMEM;
 
-	dev_id = of_match_node(arm_ccree_dev_of_match, np);
+	dev_id = of_match_yesde(arm_ccree_dev_of_match, np);
 	if (!dev_id)
 		return -ENODEV;
 
@@ -308,7 +308,7 @@ static int init_cc_resources(struct platform_device *plat_dev)
 		case -ENOENT:
 			break;
 
-		/* Clock not available, let's try again soon */
+		/* Clock yest available, let's try again soon */
 		case -EPROBE_DEFER:
 			return -EPROBE_DEFER;
 
@@ -371,7 +371,7 @@ static int init_cc_resources(struct platform_device *plat_dev)
 
 	/* wait for Crytpcell reset completion */
 	if (!cc_wait_for_reset_completion(new_drvdata)) {
-		dev_err(dev, "Cryptocell reset not completed");
+		dev_err(dev, "Cryptocell reset yest completed");
 	}
 
 	if (hw_rev->rev <= CC_HW_REV_712) {
@@ -445,7 +445,7 @@ static int init_cc_resources(struct platform_device *plat_dev)
 	rc = devm_request_irq(dev, new_drvdata->irq, cc_isr,
 			      IRQF_SHARED, "ccree", new_drvdata);
 	if (rc) {
-		dev_err(dev, "Could not register to interrupt %d\n",
+		dev_err(dev, "Could yest register to interrupt %d\n",
 			new_drvdata->irq);
 		goto post_clk_err;
 	}
@@ -525,7 +525,7 @@ static int init_cc_resources(struct platform_device *plat_dev)
 
 	/* If we got here and FIPS mode is enabled
 	 * it means all FIPS test passed, so let TEE
-	 * know we're good.
+	 * kyesw we're good.
 	 */
 	cc_set_ree_fips_status(new_drvdata, true);
 

@@ -31,7 +31,7 @@ struct sof_ipc_dma_trace_params_ext {
 	struct sof_ipc_cmd_hdr hdr;
 	struct sof_ipc_host_buffer buffer;
 	uint32_t stream_tag;
-	uint64_t timestamp_ns; /* in nanosecond */
+	uint64_t timestamp_ns; /* in nayessecond */
 	uint32_t reserved[8];
 }  __packed;
 
@@ -67,7 +67,7 @@ struct sof_ipc_dma_trace_posn {
 #define SOF_IPC_PANIC_ASSERT			(SOF_IPC_PANIC_MAGIC | 0xb)
 
 /* panic info include filename and line number
- * filename array will not include null terminator if fully filled
+ * filename array will yest include null terminator if fully filled
  */
 struct sof_ipc_panic_info {
 	struct sof_ipc_hdr hdr;

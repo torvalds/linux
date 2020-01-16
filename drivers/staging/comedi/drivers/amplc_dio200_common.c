@@ -47,7 +47,7 @@ static unsigned char clk_gat_sce(unsigned int which, unsigned int chan,
 }
 
 /*
- * Periods of the internal clock sources in nanoseconds.
+ * Periods of the internal clock sources in nayesseconds.
  */
 static const unsigned int clock_period[32] = {
 	[1] = 100,		/* 10 MHz */
@@ -67,10 +67,10 @@ static const unsigned int clock_period[32] = {
 #define TS_CONFIG_MAX_CLK_SRC	2	/* Maximum clock source value. */
 
 /*
- * Periods of the timestamp timer clock sources in nanoseconds.
+ * Periods of the timestamp timer clock sources in nayesseconds.
  */
 static const unsigned int ts_clock_period[TS_CONFIG_MAX_CLK_SRC + 1] = {
-	1,			/* 1 nanosecond (but with 20 ns granularity). */
+	1,			/* 1 nayessecond (but with 20 ns granularity). */
 	1000,			/* 1 microsecond. */
 	1000000,		/* 1 millisecond. */
 };
@@ -158,7 +158,7 @@ static unsigned int dio200_subdev_8254_offset(struct comedi_device *dev,
 	if (board->is_pcie)
 		offset >>= 3;
 
-	/* this offset now works for the dio200_{read,write} helpers */
+	/* this offset yesw works for the dio200_{read,write} helpers */
 	return offset;
 }
 
@@ -274,7 +274,7 @@ static int dio200_handle_read_intr(struct comedi_device *dev,
 	if (board->has_int_sce) {
 		/*
 		 * Collect interrupt sources that have triggered and disable
-		 * them temporarily.  Loop around until no extra interrupt
+		 * them temporarily.  Loop around until yes extra interrupt
 		 * sources have triggered, at which point, the valid part of
 		 * the interrupt status register will read zero, clearing the
 		 * cause of the interrupt.
@@ -312,7 +312,7 @@ static int dio200_handle_read_intr(struct comedi_device *dev,
 			/*
 			 * The command is still active.
 			 *
-			 * Ignore interrupt sources that the command isn't
+			 * Igyesre interrupt sources that the command isn't
 			 * interested in (just in case there's a race
 			 * condition).
 			 */
@@ -571,7 +571,7 @@ static int dio200_subdev_8254_init(struct comedi_device *dev,
 	i8254->insn_config = dio200_subdev_8254_config;
 
 	/*
-	 * There could be multiple timers so this driver does not
+	 * There could be multiple timers so this driver does yest
 	 * use dev->pacer to save the i8254 pointer. Instead,
 	 * comedi_8254_subdevice_init() saved the i8254 pointer in
 	 * s->private.  Mark the subdevice as having private data

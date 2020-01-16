@@ -34,7 +34,7 @@
  * @op: PFO operation struct to pass in
  * @may_sleep: flag indicating the request can sleep
  *
- * Make the hcall, retrying while the hardware is busy. If we cannot yield
+ * Make the hcall, retrying while the hardware is busy. If we canyest yield
  * the thread, limit the number of retries to 10 here.
  */
 int nx_hcall_sync(struct nx_crypto_ctx *nx_ctx,
@@ -72,7 +72,7 @@ int nx_hcall_sync(struct nx_crypto_ctx *nx_ctx,
  * This function will start writing nx_sg elements at @sg_head and keep
  * writing them until all of the data from @start_addr is described or
  * until sgmax elements have been written. Scatter list elements will be
- * created such that none of the elements describes a buffer that crosses a 4K
+ * created such that yesne of the elements describes a buffer that crosses a 4K
  * boundary.
  */
 struct nx_sg *nx_build_sg_list(struct nx_sg *sg_head,
@@ -99,7 +99,7 @@ struct nx_sg *nx_build_sg_list(struct nx_sg *sg_head,
 	 * length of data described by that element to sg_len. Once @len bytes
 	 * have been described (or @sgmax elements have been written), the
 	 * loop ends. min_t is used to ensure @end_addr falls on the same page
-	 * as sg_addr, if not, we need to create another nx_sg element for the
+	 * as sg_addr, if yest, we need to create ayesther nx_sg element for the
 	 * data on the next page.
 	 *
 	 * Also when using vmalloc'ed data, every time that a system page
@@ -288,7 +288,7 @@ int nx_build_sg_lists(struct nx_crypto_ctx  *nx_ctx,
 		delta = *nbytes - (*nbytes & ~(AES_BLOCK_SIZE - 1));
 
 	/* these lengths should be negative, which will indicate to phyp that
-	 * the input and output parameters are scatterlists, not linear
+	 * the input and output parameters are scatterlists, yest linear
 	 * buffers */
 	nx_ctx->op.inlen = trim_sg_list(nx_ctx->in_sg, nx_insg, delta, nbytes);
 	nx_ctx->op.outlen = trim_sg_list(nx_ctx->out_sg, nx_outsg, delta, nbytes);
@@ -331,7 +331,7 @@ static void nx_of_update_status(struct device   *dev,
 		props->status = NX_WAITING;
 		props->flags |= NX_OF_FLAG_STATUS_SET;
 	} else {
-		dev_info(dev, "%s: status '%s' is not 'okay'\n", __func__,
+		dev_info(dev, "%s: status '%s' is yest 'okay'\n", __func__,
 			 (char *)p->value);
 	}
 }
@@ -380,15 +380,15 @@ static void nx_of_update_msc(struct device   *dev,
 		     i < msc->triplets;
 		     i++) {
 			if (msc->fc >= NX_MAX_FC || msc->mode >= NX_MAX_MODE) {
-				dev_err(dev, "unknown function code/mode "
-					"combo: %d/%d (ignored)\n", msc->fc,
+				dev_err(dev, "unkyeswn function code/mode "
+					"combo: %d/%d (igyesred)\n", msc->fc,
 					msc->mode);
 				goto next_loop;
 			}
 
 			if (!trip->sglen || trip->databytelen < NX_PAGE_SIZE) {
 				dev_warn(dev, "bogus sglen/databytelen: "
-					 "%u/%u (ignored)\n", trip->sglen,
+					 "%u/%u (igyesred)\n", trip->sglen,
 					 trip->databytelen);
 				goto next_loop;
 			}
@@ -420,7 +420,7 @@ static void nx_of_update_msc(struct device   *dev,
 					props->ap[msc->fc][msc->mode][1].sglen =
 						trip->sglen;
 				} else {
-					dev_warn(dev, "unknown function "
+					dev_warn(dev, "unkyeswn function "
 						"code/key bit len combo"
 						": (%u/256)\n", msc->fc);
 				}
@@ -432,7 +432,7 @@ static void nx_of_update_msc(struct device   *dev,
 					trip->sglen;
 				break;
 			default:
-				dev_warn(dev, "unknown function code/key bit "
+				dev_warn(dev, "unkyeswn function code/key bit "
 					 "len combo: (%u/%u)\n", msc->fc,
 					 trip->keybitlen);
 				break;
@@ -461,25 +461,25 @@ next_loop:
  */
 static void nx_of_init(struct device *dev, struct nx_of *props)
 {
-	struct device_node *base_node = dev->of_node;
+	struct device_yesde *base_yesde = dev->of_yesde;
 	struct property *p;
 
-	p = of_find_property(base_node, "status", NULL);
+	p = of_find_property(base_yesde, "status", NULL);
 	if (!p)
-		dev_info(dev, "%s: property 'status' not found\n", __func__);
+		dev_info(dev, "%s: property 'status' yest found\n", __func__);
 	else
 		nx_of_update_status(dev, p, props);
 
-	p = of_find_property(base_node, "ibm,max-sg-len", NULL);
+	p = of_find_property(base_yesde, "ibm,max-sg-len", NULL);
 	if (!p)
-		dev_info(dev, "%s: property 'ibm,max-sg-len' not found\n",
+		dev_info(dev, "%s: property 'ibm,max-sg-len' yest found\n",
 			 __func__);
 	else
 		nx_of_update_sglen(dev, p, props);
 
-	p = of_find_property(base_node, "ibm,max-sync-cop", NULL);
+	p = of_find_property(base_yesde, "ibm,max-sync-cop", NULL);
 	if (!p)
-		dev_info(dev, "%s: property 'ibm,max-sync-cop' not found\n",
+		dev_info(dev, "%s: property 'ibm,max-sync-cop' yest found\n",
 			 __func__);
 	else
 		nx_of_update_msc(dev, p, props);
@@ -492,7 +492,7 @@ static bool nx_check_prop(struct device *dev, u32 fc, u32 mode, int slot)
 	if (!props->sglen || props->databytelen < NX_PAGE_SIZE) {
 		if (dev)
 			dev_warn(dev, "bogus sglen/databytelen for %u/%u/%u: "
-				 "%u/%u (ignored)\n", fc, mode, slot,
+				 "%u/%u (igyesred)\n", fc, mode, slot,
 				 props->sglen, props->databytelen);
 		return false;
 	}
@@ -654,7 +654,7 @@ static int nx_crypto_ctx_init(struct nx_crypto_ctx *nx_ctx, u32 fc, u32 mode)
 {
 	if (nx_driver.of.status != NX_OKAY) {
 		pr_err("Attempt to initialize NX crypto context while device "
-		       "is not available!\n");
+		       "is yest available!\n");
 		return -ENODEV;
 	}
 

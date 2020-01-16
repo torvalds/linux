@@ -310,7 +310,7 @@ static int agp_ali_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (!cap_ptr)
 		return -ENODEV;
 
-	/* probe for known chipsets */
+	/* probe for kyeswn chipsets */
 	for (j = 0; devs[j].chipset_name; j++) {
 		if (pdev->device == devs[j].device_id)
 			goto found;

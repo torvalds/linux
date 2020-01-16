@@ -10,7 +10,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -436,7 +436,7 @@ static int evergreen_cs_track_validate_cb(struct radeon_cs_parser *p, unsigned i
 
 	offset = track->cb_color_bo_offset[id] << 8;
 	if (offset & (surf.base_align - 1)) {
-		dev_warn(p->dev, "%s:%d cb[%d] bo base %ld not aligned with %ld\n",
+		dev_warn(p->dev, "%s:%d cb[%d] bo base %ld yest aligned with %ld\n",
 			 __func__, __LINE__, id, offset, surf.base_align);
 		return -EINVAL;
 	}
@@ -611,7 +611,7 @@ static int evergreen_cs_track_validate_stencil(struct radeon_cs_parser *p)
 
 	offset = track->db_s_read_offset << 8;
 	if (offset & (surf.base_align - 1)) {
-		dev_warn(p->dev, "%s:%d stencil read bo base %ld not aligned with %ld\n",
+		dev_warn(p->dev, "%s:%d stencil read bo base %ld yest aligned with %ld\n",
 			 __func__, __LINE__, offset, surf.base_align);
 		return -EINVAL;
 	}
@@ -630,7 +630,7 @@ static int evergreen_cs_track_validate_stencil(struct radeon_cs_parser *p)
 
 	offset = track->db_s_write_offset << 8;
 	if (offset & (surf.base_align - 1)) {
-		dev_warn(p->dev, "%s:%d stencil write bo base %ld not aligned with %ld\n",
+		dev_warn(p->dev, "%s:%d stencil write bo base %ld yest aligned with %ld\n",
 			 __func__, __LINE__, offset, surf.base_align);
 		return -EINVAL;
 	}
@@ -709,7 +709,7 @@ static int evergreen_cs_track_validate_depth(struct radeon_cs_parser *p)
 
 	offset = track->db_z_read_offset << 8;
 	if (offset & (surf.base_align - 1)) {
-		dev_warn(p->dev, "%s:%d stencil read bo base %ld not aligned with %ld\n",
+		dev_warn(p->dev, "%s:%d stencil read bo base %ld yest aligned with %ld\n",
 			 __func__, __LINE__, offset, surf.base_align);
 		return -EINVAL;
 	}
@@ -725,7 +725,7 @@ static int evergreen_cs_track_validate_depth(struct radeon_cs_parser *p)
 
 	offset = track->db_z_write_offset << 8;
 	if (offset & (surf.base_align - 1)) {
-		dev_warn(p->dev, "%s:%d stencil write bo base %ld not aligned with %ld\n",
+		dev_warn(p->dev, "%s:%d stencil write bo base %ld yest aligned with %ld\n",
 			 __func__, __LINE__, offset, surf.base_align);
 		return -EINVAL;
 	}
@@ -835,12 +835,12 @@ static int evergreen_cs_track_validate_texture(struct radeon_cs_parser *p,
 
 	/* check texture size */
 	if (toffset & (surf.base_align - 1)) {
-		dev_warn(p->dev, "%s:%d texture bo base %ld not aligned with %ld\n",
+		dev_warn(p->dev, "%s:%d texture bo base %ld yest aligned with %ld\n",
 			 __func__, __LINE__, toffset, surf.base_align);
 		return -EINVAL;
 	}
 	if (surf.nsamples <= 1 && moffset & (surf.base_align - 1)) {
-		dev_warn(p->dev, "%s:%d mipmap bo base %ld not aligned with %ld\n",
+		dev_warn(p->dev, "%s:%d mipmap bo base %ld yest aligned with %ld\n",
 			 __func__, __LINE__, moffset, surf.base_align);
 		return -EINVAL;
 	}
@@ -978,7 +978,7 @@ static int evergreen_cs_track_check(struct radeon_cs_parser *p)
 			    (tmp >> (i * 4)) & 0xF) {
 				/* at least one component is enabled */
 				if (track->cb_color_bo[i] == NULL) {
-					dev_warn(p->dev, "%s:%d mask 0x%08X | 0x%08X no cb for %d\n",
+					dev_warn(p->dev, "%s:%d mask 0x%08X | 0x%08X yes cb for %d\n",
 						__func__, __LINE__, track->cb_target_mask, track->cb_shader_mask, i);
 					return -EINVAL;
 				}
@@ -1746,7 +1746,7 @@ static int evergreen_cs_handle_reg(struct radeon_cs_parser *p, u32 reg, u32 idx)
 }
 
 /**
- * evergreen_is_safe_reg() - check if register is authorized or not
+ * evergreen_is_safe_reg() - check if register is authorized or yest
  * @parser: parser structure holding parsing context
  * @reg: register we are testing
  *
@@ -2105,7 +2105,7 @@ static int evergreen_packet3_check(struct radeon_cs_parser *p,
 			ib[idx+1] = (ib[idx+1] & 0x3) | (offset & 0xfffffffc);
 			ib[idx+2] = upper_32_bits(offset) & 0xff;
 		} else if (idx_value & 0x100) {
-			DRM_ERROR("cannot use PFP on REG wait\n");
+			DRM_ERROR("canyest use PFP on REG wait\n");
 			return -EINVAL;
 		}
 		break;
@@ -2126,7 +2126,7 @@ static int evergreen_packet3_check(struct radeon_cs_parser *p,
 		     (command & PACKET3_CP_DMA_CMD_DAS)) || /* dst = register */
 		    ((((info & 0x60000000) >> 29) == 0) &&
 		     (command & PACKET3_CP_DMA_CMD_SAS))) { /* src = register */
-			/* non mem to mem copies requires dw aligned count */
+			/* yesn mem to mem copies requires dw aligned count */
 			if (size % 4) {
 				DRM_ERROR("CP DMA command requires dw count alignment\n");
 				return -EINVAL;
@@ -2136,7 +2136,7 @@ static int evergreen_packet3_check(struct radeon_cs_parser *p,
 			/* src address space is register */
 			/* GDS is ok */
 			if (((info & 0x60000000) >> 29) != 1) {
-				DRM_ERROR("CP DMA SAS not supported\n");
+				DRM_ERROR("CP DMA SAS yest supported\n");
 				return -EINVAL;
 			}
 		} else {
@@ -2174,7 +2174,7 @@ static int evergreen_packet3_check(struct radeon_cs_parser *p,
 			/* dst address space is register */
 			/* GDS is ok */
 			if (((info & 0x00300000) >> 20) != 1) {
-				DRM_ERROR("CP DMA DAS not supported\n");
+				DRM_ERROR("CP DMA DAS yest supported\n");
 				return -EINVAL;
 			}
 		} else {
@@ -2383,7 +2383,7 @@ static int evergreen_packet3_check(struct radeon_cs_parser *p,
 
 				if ((tex_dim == SQ_TEX_DIM_2D_MSAA || tex_dim == SQ_TEX_DIM_2D_ARRAY_MSAA) &&
 				    !mip_address &&
-				    !radeon_cs_packet_next_is_pkt3_nop(p)) {
+				    !radeon_cs_packet_next_is_pkt3_yesp(p)) {
 					/* MIP_ADDRESS should point to FMASK for an MSAA texture.
 					 * It should be 0 if FMASK is disabled. */
 					moffset = 0;
@@ -2542,7 +2542,7 @@ static int evergreen_packet3_check(struct radeon_cs_parser *p,
 		offset = radeon_get_ib_value(p, idx+0);
 		offset += ((u64)(radeon_get_ib_value(p, idx+1) & 0xff)) << 32UL;
 		if (offset & 0x7) {
-			DRM_ERROR("bad MEM_WRITE (address not qwords aligned)\n");
+			DRM_ERROR("bad MEM_WRITE (address yest qwords aligned)\n");
 			return -EINVAL;
 		}
 		if ((offset + 8) > radeon_bo_size(reloc->robj)) {
@@ -2663,7 +2663,7 @@ static int evergreen_packet3_check(struct radeon_cs_parser *p,
 	case PACKET3_NOP:
 		break;
 	default:
-		DRM_ERROR("Packet3 opcode %x not supported\n", pkt->opcode);
+		DRM_ERROR("Packet3 opcode %x yest supported\n", pkt->opcode);
 		return -EINVAL;
 	}
 	return 0;
@@ -2763,7 +2763,7 @@ int evergreen_cs_parse(struct radeon_cs_parser *p)
 			r = evergreen_packet3_check(p, &pkt);
 			break;
 		default:
-			DRM_ERROR("Unknown packet type %d !\n", pkt.type);
+			DRM_ERROR("Unkyeswn packet type %d !\n", pkt.type);
 			kfree(p->track);
 			p->track = NULL;
 			return -EINVAL;
@@ -2806,7 +2806,7 @@ int evergreen_dma_cs_parse(struct radeon_cs_parser *p)
 
 	do {
 		if (p->idx >= ib_chunk->length_dw) {
-			DRM_ERROR("Can not parse packet at %d after CS end %d !\n",
+			DRM_ERROR("Can yest parse packet at %d after CS end %d !\n",
 				  p->idx, ib_chunk->length_dw);
 			return -EINVAL;
 		}
@@ -2842,7 +2842,7 @@ int evergreen_dma_cs_parse(struct radeon_cs_parser *p)
 				p->idx += count + 3;
 				break;
 			default:
-				DRM_ERROR("bad DMA_PACKET_WRITE [%6d] 0x%08x sub cmd is not 0 or 8\n", idx, header);
+				DRM_ERROR("bad DMA_PACKET_WRITE [%6d] 0x%08x sub cmd is yest 0 or 8\n", idx, header);
 				return -EINVAL;
 			}
 			if ((dst_offset + (count * 4)) > radeon_bo_size(dst_reloc->robj)) {
@@ -3209,7 +3209,7 @@ int evergreen_dma_cs_parse(struct radeon_cs_parser *p)
 			p->idx += 1;
 			break;
 		default:
-			DRM_ERROR("Unknown packet type %d at %d !\n", cmd, idx);
+			DRM_ERROR("Unkyeswn packet type %d at %d !\n", cmd, idx);
 			return -EINVAL;
 		}
 	} while (p->idx < p->chunk_ib->length_dw);
@@ -3442,7 +3442,7 @@ static int evergreen_vm_packet3_check(struct radeon_device *rdev,
 		     (command & PACKET3_CP_DMA_CMD_DAS)) || /* dst = register */
 		    ((((info & 0x60000000) >> 29) == 0) &&
 		     (command & PACKET3_CP_DMA_CMD_SAS))) { /* src = register */
-			/* non mem to mem copies requires dw aligned count */
+			/* yesn mem to mem copies requires dw aligned count */
 			if ((command & 0x1fffff) % 4) {
 				DRM_ERROR("CP DMA command requires dw count alignment\n");
 				return -EINVAL;
@@ -3531,7 +3531,7 @@ int evergreen_ib_parse(struct radeon_device *rdev, struct radeon_ib *ib)
 		pkt.one_reg_wr = 0;
 		switch (pkt.type) {
 		case RADEON_PACKET_TYPE0:
-			dev_err(rdev->dev, "Packet0 not allowed!\n");
+			dev_err(rdev->dev, "Packet0 yest allowed!\n");
 			ret = -EINVAL;
 			break;
 		case RADEON_PACKET_TYPE2:
@@ -3543,7 +3543,7 @@ int evergreen_ib_parse(struct radeon_device *rdev, struct radeon_ib *ib)
 			idx += pkt.count + 2;
 			break;
 		default:
-			dev_err(rdev->dev, "Unknown packet type %d !\n", pkt.type);
+			dev_err(rdev->dev, "Unkyeswn packet type %d !\n", pkt.type);
 			ret = -EINVAL;
 			break;
 		}
@@ -3586,7 +3586,7 @@ int evergreen_dma_ib_parse(struct radeon_device *rdev, struct radeon_ib *ib)
 				idx += count + 3;
 				break;
 			default:
-				DRM_ERROR("bad DMA_PACKET_WRITE [%6d] 0x%08x sub cmd is not 0 or 8\n", idx, ib->ptr[idx]);
+				DRM_ERROR("bad DMA_PACKET_WRITE [%6d] 0x%08x sub cmd is yest 0 or 8\n", idx, ib->ptr[idx]);
 				return -EINVAL;
 			}
 			break;
@@ -3648,7 +3648,7 @@ int evergreen_dma_ib_parse(struct radeon_device *rdev, struct radeon_ib *ib)
 			idx += 1;
 			break;
 		default:
-			DRM_ERROR("Unknown packet type %d at %d !\n", cmd, idx);
+			DRM_ERROR("Unkyeswn packet type %d at %d !\n", cmd, idx);
 			return -EINVAL;
 		}
 	} while (idx < ib->length_dw);

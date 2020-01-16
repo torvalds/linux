@@ -5,7 +5,7 @@ Kernel driver i2c-amd-mp2
 Supported adapters:
   * AMD MP2 PCIe interface
 
-Datasheet: not publicly available.
+Datasheet: yest publicly available.
 
 Authors:
 	- Shyam Sundar S K <Shyam-sundar.S-k@amd.com>

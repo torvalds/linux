@@ -49,7 +49,7 @@ struct ceph_auth_client_ops {
 	/*
 	 * build requests and process replies during monitor
 	 * handshake.  if handle_reply returns -EAGAIN, we build
-	 * another request.
+	 * ayesther request.
 	 */
 	int (*build_request)(struct ceph_auth_client *ac, void *buf, void *end);
 	int (*handle_reply)(struct ceph_auth_client *ac, int result,

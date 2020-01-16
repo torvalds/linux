@@ -176,7 +176,7 @@ static void xgene_xgmac_get_drop_cnt(struct xgene_enet_pdata *pdata,
 	xgene_enet_rd_axg_csr(pdata, XGENET_ICM_ECM_DROP_COUNT_REG0, &count);
 	*rx = ICM_DROP_COUNT(count);
 	*tx = ECM_DROP_COUNT(count);
-	/* Errata: 10GE_4 - ICM_ECM_DROP_COUNT not clear-on-read */
+	/* Errata: 10GE_4 - ICM_ECM_DROP_COUNT yest clear-on-read */
 	xgene_enet_rd_axg_csr(pdata, XGENET_ECM_CONFIG0_REG_0, &count);
 }
 
@@ -384,7 +384,7 @@ static int xgene_enet_reset(struct xgene_enet_pdata *pdata)
 	if (!xgene_ring_mgr_init(pdata))
 		return -ENODEV;
 
-	if (dev->of_node) {
+	if (dev->of_yesde) {
 		clk_prepare_enable(pdata->clk);
 		udelay(5);
 		clk_disable_unprepare(pdata->clk);
@@ -435,7 +435,7 @@ static void xgene_enet_shutdown(struct xgene_enet_pdata *pdata)
 {
 	struct device *dev = &pdata->pdev->dev;
 
-	if (dev->of_node) {
+	if (dev->of_yesde) {
 		if (!IS_ERR(pdata->clk))
 			clk_disable_unprepare(pdata->clk);
 	}

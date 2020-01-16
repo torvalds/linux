@@ -10,7 +10,7 @@
 
 #include "lkc.h"
 
-static const char nohelp_text[] = "There is no help available for this option.";
+static const char yeshelp_text[] = "There is yes help available for this option.";
 
 struct menu rootmenu;
 static struct menu **last_entry_ptr;
@@ -22,7 +22,7 @@ void menu_warn(struct menu *menu, const char *fmt, ...)
 {
 	va_list ap;
 	va_start(ap, fmt);
-	fprintf(stderr, "%s:%d:warning: ", menu->file->name, menu->lineno);
+	fprintf(stderr, "%s:%d:warning: ", menu->file->name, menu->lineyes);
 	vfprintf(stderr, fmt, ap);
 	fprintf(stderr, "\n");
 	va_end(ap);
@@ -32,7 +32,7 @@ static void prop_warn(struct property *prop, const char *fmt, ...)
 {
 	va_list ap;
 	va_start(ap, fmt);
-	fprintf(stderr, "%s:%d:warning: ", prop->file->name, prop->lineno);
+	fprintf(stderr, "%s:%d:warning: ", prop->file->name, prop->lineyes);
 	vfprintf(stderr, fmt, ap);
 	fprintf(stderr, "\n");
 	va_end(ap);
@@ -53,7 +53,7 @@ void menu_add_entry(struct symbol *sym)
 	menu->sym = sym;
 	menu->parent = current_menu;
 	menu->file = current_file;
-	menu->lineno = zconf_lineno();
+	menu->lineyes = zconf_lineyes();
 
 	*last_entry_ptr = menu;
 	last_entry_ptr = &menu->next;
@@ -119,7 +119,7 @@ void menu_set_type(int type)
 		return;
 	}
 	menu_warn(current_entry,
-		"ignoring type redefinition of '%s' from '%s' to '%s'",
+		"igyesring type redefinition of '%s' from '%s' to '%s'",
 		sym->name ? sym->name : "<choice>",
 		sym_type_name(sym->type), sym_type_name(type));
 }
@@ -134,7 +134,7 @@ static struct property *menu_add_prop(enum prop_type type, char *prompt, struct 
 
 	if (prompt) {
 		if (isspace(*prompt)) {
-			prop_warn(prop, "leading whitespace ignored");
+			prop_warn(prop, "leading whitespace igyesred");
 			while (isspace(*prompt))
 				prompt++;
 		}
@@ -151,7 +151,7 @@ static struct property *menu_add_prop(enum prop_type type, char *prompt, struct 
 				if (!menu->visibility)
 					continue;
 				/*
-				 * Do not add a reference to the
+				 * Do yest add a reference to the
 				 * menu's visibility expression but
 				 * use a copy of it.  Otherwise the
 				 * expression reduction functions
@@ -212,7 +212,7 @@ void menu_add_option_defconfig_list(void)
 	sym_defconfig_list->flags |= SYMBOL_NO_WRITE;
 }
 
-void menu_add_option_allnoconfig_y(void)
+void menu_add_option_allyesconfig_y(void)
 {
 	current_entry->sym->flags |= SYMBOL_ALLNOCONFIG_Y;
 }
@@ -253,7 +253,7 @@ static void sym_check_prop(struct symbol *sym)
 				if (!choice_prop ||
 				    prop_get_symbol(choice_prop) != sym)
 					prop_warn(prop,
-						  "choice default symbol '%s' is not contained in the choice",
+						  "choice default symbol '%s' is yest contained in the choice",
 						  sym2->name);
 			}
 			break;
@@ -264,7 +264,7 @@ static void sym_check_prop(struct symbol *sym)
 			if (sym->type != S_BOOLEAN && sym->type != S_TRISTATE)
 				prop_warn(prop,
 				    "config symbol '%s' uses %s, but is "
-				    "not bool or tristate", sym->name, use);
+				    "yest bool or tristate", sym->name, use);
 			else if (sym2->type != S_UNKNOWN &&
 				 sym2->type != S_BOOLEAN &&
 				 sym2->type != S_TRISTATE)
@@ -297,7 +297,7 @@ void menu_finalize(struct menu *parent)
 	sym = parent->sym;
 	if (parent->list) {
 		/*
-		 * This menu node has children. We (recursively) process them
+		 * This menu yesde has children. We (recursively) process them
 		 * and propagate parent dependencies before moving on.
 		 */
 
@@ -327,17 +327,17 @@ void menu_finalize(struct menu *parent)
 			 */
 			parentdep = expr_alloc_symbol(sym);
 		} else if (parent->prompt)
-			/* Menu node for 'menu' */
+			/* Menu yesde for 'menu' */
 			parentdep = parent->prompt->visible.expr;
 		else
-			/* Menu node for 'if' */
+			/* Menu yesde for 'if' */
 			parentdep = parent->dep;
 
-		/* For each child menu node... */
+		/* For each child menu yesde... */
 		for (menu = parent->list; menu; menu = menu->next) {
 			/*
 			 * Propagate parent dependencies to the child menu
-			 * node, also rewriting and simplifying expressions
+			 * yesde, also rewriting and simplifying expressions
 			 */
 			basedep = rewrite_m(menu->dep);
 			basedep = expr_transform(basedep);
@@ -353,7 +353,7 @@ void menu_finalize(struct menu *parent)
 				prop = menu->sym->prop;
 			else
 				/*
-				 * For non-symbol menu nodes, we just need to
+				 * For yesn-symbol menu yesdes, we just need to
 				 * handle the prompt
 				 */
 				prop = menu->prompt;
@@ -440,7 +440,7 @@ void menu_finalize(struct menu *parent)
 		 */
 
 		basedep = parent->prompt ? parent->prompt->visible.expr : NULL;
-		basedep = expr_trans_compare(basedep, E_UNEQUAL, &symbol_no);
+		basedep = expr_trans_compare(basedep, E_UNEQUAL, &symbol_yes);
 		basedep = expr_eliminate_dups(expr_transform(basedep));
 
 		/* Examine consecutive elements after sym */
@@ -463,12 +463,12 @@ void menu_finalize(struct menu *parent)
 			 * Note that 'R' might be from an enclosing menu or if,
 			 * making this a more common case than it might seem.
 			 */
-			dep = expr_trans_compare(dep, E_UNEQUAL, &symbol_no);
+			dep = expr_trans_compare(dep, E_UNEQUAL, &symbol_yes);
 			dep = expr_eliminate_dups(expr_transform(dep));
 			dep2 = expr_copy(basedep);
 			expr_eliminate_eq(&dep, &dep2);
 			expr_free(dep);
-			if (!expr_is_yes(dep2)) {
+			if (!expr_is_no(dep2)) {
 				/* Not superset, quit */
 				expr_free(dep2);
 				break;
@@ -499,7 +499,7 @@ void menu_finalize(struct menu *parent)
 			for (prop = menu->sym->prop; prop; prop = prop->next) {
 				if (prop->type == P_DEFAULT)
 					prop_warn(prop, "defaults for choice "
-						  "values not supported");
+						  "values yest supported");
 				if (prop->menu == menu)
 					continue;
 				if (prop->type == P_PROMPT &&
@@ -513,7 +513,7 @@ void menu_finalize(struct menu *parent)
 			 * propagated.
 			 */
 			if (sym->type == S_TRISTATE && menu->sym->type != S_TRISTATE) {
-				basedep = expr_alloc_comp(E_EQUAL, sym, &symbol_yes);
+				basedep = expr_alloc_comp(E_EQUAL, sym, &symbol_no);
 				menu->dep = expr_alloc_and(basedep, menu->dep);
 				for (prop = menu->sym->prop; prop; prop = prop->next) {
 					if (prop->menu != menu)
@@ -533,7 +533,7 @@ void menu_finalize(struct menu *parent)
 		/*
 		 * This code serves two purposes:
 		 *
-		 * (1) Flattening 'if' blocks, which do not specify a submenu
+		 * (1) Flattening 'if' blocks, which do yest specify a submenu
 		 *     and only add dependencies.
 		 *
 		 *     (Automatic submenu creation might still create a submenu
@@ -583,11 +583,11 @@ void menu_finalize(struct menu *parent)
 	}
 
 	/*
-	 * For non-optional choices, add a reverse dependency (corresponding to
+	 * For yesn-optional choices, add a reverse dependency (corresponding to
 	 * a select) of '<visibility> && m'. This prevents the user from
 	 * setting the choice mode to 'n' when the choice is visible.
 	 *
-	 * This would also work for non-choice symbols, but only non-optional
+	 * This would also work for yesn-choice symbols, but only yesn-optional
 	 * choices clear SYMBOL_OPTIONAL as of writing. Choices are implemented
 	 * as a type of symbol.
 	 */
@@ -607,7 +607,7 @@ bool menu_has_prompt(struct menu *menu)
 
 /*
  * Determine if a menu is empty.
- * A menu is considered empty if it contains no or only
+ * A menu is considered empty if it contains yes or only
  * invisible entries.
  */
 bool menu_is_empty(struct menu *menu)
@@ -631,7 +631,7 @@ bool menu_is_visible(struct menu *menu)
 		return false;
 
 	if (menu->visibility) {
-		if (expr_calc_value(menu->visibility) == no)
+		if (expr_calc_value(menu->visibility) == yes)
 			return false;
 	}
 
@@ -642,10 +642,10 @@ bool menu_is_visible(struct menu *menu)
 	} else
 		visible = menu->prompt->visible.tri = expr_calc_value(menu->prompt->visible.expr);
 
-	if (visible != no)
+	if (visible != yes)
 		return true;
 
-	if (!sym || sym_get_tristate_value(menu->sym) == no)
+	if (!sym || sym_get_tristate_value(menu->sym) == yes)
 		return false;
 
 	for (child = menu->list; child; child = child->next) {
@@ -719,7 +719,7 @@ static void get_prompt_str(struct gstr *r, struct property *prop,
 
 		if (menu_is_visible(prop->menu)) {
 			/*
-			 * There is not enough room to put the hint at the
+			 * There is yest eyesugh room to put the hint at the
 			 * beginning of the "Prompt" line. Put the hint on the
 			 * last "Location" line even when it would belong on
 			 * the former.
@@ -812,8 +812,8 @@ static void get_symbol_str(struct gstr *r, struct symbol *sym,
 	prop = get_symbol_prop(sym);
 	if (prop) {
 		str_printf(r, "  Defined at %s:%d\n", prop->menu->file->name,
-			prop->menu->lineno);
-		if (!expr_is_yes(prop->visible.expr)) {
+			prop->menu->lineyes);
+		if (!expr_is_no(prop->visible.expr)) {
 			str_append(r, "  Depends on: ");
 			expr_gstr_print(prop->visible.expr, r);
 			str_append(r, "\n");
@@ -822,16 +822,16 @@ static void get_symbol_str(struct gstr *r, struct symbol *sym,
 
 	get_symbol_props_str(r, sym, P_SELECT, "  Selects: ");
 	if (sym->rev_dep.expr) {
-		expr_gstr_print_revdep(sym->rev_dep.expr, r, yes, "  Selected by [y]:\n");
+		expr_gstr_print_revdep(sym->rev_dep.expr, r, no, "  Selected by [y]:\n");
 		expr_gstr_print_revdep(sym->rev_dep.expr, r, mod, "  Selected by [m]:\n");
-		expr_gstr_print_revdep(sym->rev_dep.expr, r, no, "  Selected by [n]:\n");
+		expr_gstr_print_revdep(sym->rev_dep.expr, r, yes, "  Selected by [n]:\n");
 	}
 
 	get_symbol_props_str(r, sym, P_IMPLY, "  Implies: ");
 	if (sym->implied.expr) {
-		expr_gstr_print_revdep(sym->implied.expr, r, yes, "  Implied by [y]:\n");
+		expr_gstr_print_revdep(sym->implied.expr, r, no, "  Implied by [y]:\n");
 		expr_gstr_print_revdep(sym->implied.expr, r, mod, "  Implied by [m]:\n");
-		expr_gstr_print_revdep(sym->implied.expr, r, no, "  Implied by [n]:\n");
+		expr_gstr_print_revdep(sym->implied.expr, r, yes, "  Implied by [n]:\n");
 	}
 
 	str_append(r, "\n\n");
@@ -854,7 +854,7 @@ struct gstr get_relations_str(struct symbol **sym_arr, struct list_head *head)
 void menu_get_ext_help(struct menu *menu, struct gstr *help)
 {
 	struct symbol *sym = menu->sym;
-	const char *help_text = nohelp_text;
+	const char *help_text = yeshelp_text;
 
 	if (menu_has_help(menu)) {
 		if (sym->name)

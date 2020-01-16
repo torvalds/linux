@@ -63,7 +63,7 @@ static void *ieee80211_ccmp_init(int key_idx)
 
 	priv->tfm = crypto_alloc_aead("ccm(aes)", 0, CRYPTO_ALG_ASYNC);
 	if (IS_ERR(priv->tfm)) {
-		pr_debug("ieee80211_crypt_ccmp: could not allocate crypto API aes\n");
+		pr_debug("ieee80211_crypt_ccmp: could yest allocate crypto API aes\n");
 		priv->tfm = NULL;
 		goto fail;
 	}
@@ -118,7 +118,7 @@ static int ccmp_init_iv_and_aad(struct rtl_80211_hdr_4addr *hdr,
 	}
 
 	/* In CCM, the initial vectors (IV) used for CTR mode encryption and CBC
-	 * mode authentication are not allowed to collide, yet both are derived
+	 * mode authentication are yest allowed to collide, yet both are derived
 	 * from the same vector. We only set L := 1 here to indicate that the
 	 * data size can be represented in (L+1) bytes. The CCM layer will take
 	 * care of storing the data length in the top (L+1) bytes and setting
@@ -257,7 +257,7 @@ static int ieee80211_ccmp_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 	}
 	if (!key->key_set) {
 		if (net_ratelimit()) {
-			netdev_dbg(skb->dev, "CCMP: received packet from %pM with keyid=%d that does not have a configured key\n",
+			netdev_dbg(skb->dev, "CCMP: received packet from %pM with keyid=%d that does yest have a configured key\n",
 				   hdr->addr2, keyidx);
 		}
 		return -3;

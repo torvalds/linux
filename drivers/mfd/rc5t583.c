@@ -241,7 +241,7 @@ static int rc5t583_i2c_probe(struct i2c_client *i2c,
 	int ret;
 
 	if (!pdata) {
-		dev_err(&i2c->dev, "Err: Platform data not found\n");
+		dev_err(&i2c->dev, "Err: Platform data yest found\n");
 		return -EINVAL;
 	}
 

@@ -47,10 +47,10 @@ static int sg2_pcmcia_hw_init(struct soc_pcmcia_socket *skt)
 static void sg2_pcmcia_socket_state(struct soc_pcmcia_socket *skt,
 				    struct pcmcia_state *state)
 {
-	state->bvd1   = 0; /* not available - battery detect on card */
-	state->bvd2   = 0; /* not available */
-	state->vs_3v  = 1; /* not available - voltage detect for card */
-	state->vs_Xv  = 0; /* not available */
+	state->bvd1   = 0; /* yest available - battery detect on card */
+	state->bvd2   = 0; /* yest available */
+	state->vs_3v  = 1; /* yest available - voltage detect for card */
+	state->vs_Xv  = 0; /* yest available */
 }
 
 static int sg2_pcmcia_configure_socket(struct soc_pcmcia_socket *skt,

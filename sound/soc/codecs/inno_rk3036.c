@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Driver of Inno codec for rk3036 by Rockchip Inc.
+ * Driver of Inyes codec for rk3036 by Rockchip Inc.
  *
  * Author: Rockchip Inc.
  * Author: Zheng ShunQian<zhengsq@rock-chips.com>
@@ -22,7 +22,7 @@
 #include <linux/module.h>
 #include <linux/io.h>
 
-#include "inno_rk3036.h"
+#include "inyes_rk3036.h"
 
 struct rk3036_codec_priv {
 	void __iomem *base;
@@ -389,7 +389,7 @@ static const struct snd_soc_component_driver rk3036_codec_driver = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
+	.yesn_legacy_dai_naming	= 1,
 };
 
 static const struct regmap_config rk3036_codec_regmap_config = {
@@ -404,7 +404,7 @@ static const struct regmap_config rk3036_codec_regmap_config = {
 static int rk3036_codec_platform_probe(struct platform_device *pdev)
 {
 	struct rk3036_codec_priv *priv;
-	struct device_node *of_node = pdev->dev.of_node;
+	struct device_yesde *of_yesde = pdev->dev.of_yesde;
 	void __iomem *base;
 	struct regmap *grf;
 	int ret;
@@ -425,14 +425,14 @@ static int rk3036_codec_platform_probe(struct platform_device *pdev)
 		return PTR_ERR(priv->regmap);
 	}
 
-	grf = syscon_regmap_lookup_by_phandle(of_node, "rockchip,grf");
+	grf = syscon_regmap_lookup_by_phandle(of_yesde, "rockchip,grf");
 	if (IS_ERR(grf)) {
 		dev_err(&pdev->dev, "needs 'rockchip,grf' property\n");
 		return PTR_ERR(grf);
 	}
 	ret = regmap_write(grf, GRF_SOC_CON0, GRF_ACODEC_SEL);
 	if (ret) {
-		dev_err(&pdev->dev, "Could not write to GRF: %d\n", ret);
+		dev_err(&pdev->dev, "Could yest write to GRF: %d\n", ret);
 		return ret;
 	}
 

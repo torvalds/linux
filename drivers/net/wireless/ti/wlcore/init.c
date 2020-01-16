@@ -4,7 +4,7 @@
  *
  * Copyright (C) 2009 Nokia Corporation
  *
- * Contact: Luciano Coelho <luciano.coelho@nokia.com>
+ * Contact: Luciayes Coelho <luciayes.coelho@yeskia.com>
  */
 
 #include <linux/kernel.h>
@@ -333,7 +333,7 @@ static int wl12xx_init_fwlog(struct wl1271 *wl)
 	return 0;
 }
 
-/* generic sta initialization (non vif-specific) */
+/* generic sta initialization (yesn vif-specific) */
 int wl1271_sta_hw_init(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 {
 	int ret;
@@ -369,7 +369,7 @@ static int wl1271_sta_hw_init_post_mem(struct wl1271 *wl,
 	return 0;
 }
 
-/* generic ap initialization (non vif-specific) */
+/* generic ap initialization (yesn vif-specific) */
 static int wl1271_ap_hw_init(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 {
 	int ret;
@@ -572,7 +572,7 @@ int wl1271_init_vif_specific(struct wl1271 *wl, struct ieee80211_vif *vif)
 		ret = wl1271_event_unmask(wl);
 		if (ret < 0)
 			return ret;
-	/* first STA, no APs */
+	/* first STA, yes APs */
 	} else if (wl->sta_count == 0 && wl->ap_count == 0 && !is_ap) {
 		u8 sta_auth = wl->conf.conn.sta_sleep_auth;
 		/* Configure for power according to debugfs */

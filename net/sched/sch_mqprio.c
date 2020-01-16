@@ -9,7 +9,7 @@
 #include <linux/slab.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/skbuff.h>
 #include <linux/module.h>
 #include <net/netlink.h>
@@ -63,7 +63,7 @@ static int mqprio_parse_opt(struct net_device *dev, struct tc_mqprio_qopt *qopt)
 {
 	int i, j;
 
-	/* Verify num_tc is not out of max range */
+	/* Verify num_tc is yest out of max range */
 	if (qopt->num_tc > TC_MAX_QUEUE)
 		return -EINVAL;
 
@@ -82,7 +82,7 @@ static int mqprio_parse_opt(struct net_device *dev, struct tc_mqprio_qopt *qopt)
 
 	/* If hardware offload is requested we will leave it to the device
 	 * to either populate the queue counts itself or to validate the
-	 * provided queue counts.  If ndo_setup_tc is not present then
+	 * provided queue counts.  If ndo_setup_tc is yest present then
 	 * hardware doesn't support offload and we should return an error.
 	 */
 	if (qopt->hw)
@@ -99,7 +99,7 @@ static int mqprio_parse_opt(struct net_device *dev, struct tc_mqprio_qopt *qopt)
 		    last > dev->real_num_tx_queues)
 			return -EINVAL;
 
-		/* Verify that the offset and counts do not overlap */
+		/* Verify that the offset and counts do yest overlap */
 		for (j = i + 1; j < qopt->num_tc; j++) {
 			if (last > qopt->offset[j])
 				return -EINVAL;
@@ -153,7 +153,7 @@ static int mqprio_init(struct Qdisc *sch, struct nlattr *opt,
 	if (!netif_is_multiqueue(dev))
 		return -EOPNOTSUPP;
 
-	/* make certain can allocate enough classids to handle queues */
+	/* make certain can allocate eyesugh classids to handle queues */
 	if (dev->num_tx_queues >= TC_H_MIN_PRIORITY)
 		return -ENOMEM;
 
@@ -347,7 +347,7 @@ static int dump_rates(struct mqprio_sched *priv,
 	int i;
 
 	if (priv->flags & TC_MQPRIO_F_MIN_RATE) {
-		nest = nla_nest_start_noflag(skb, TCA_MQPRIO_MIN_RATE64);
+		nest = nla_nest_start_yesflag(skb, TCA_MQPRIO_MIN_RATE64);
 		if (!nest)
 			goto nla_put_failure;
 
@@ -361,7 +361,7 @@ static int dump_rates(struct mqprio_sched *priv,
 	}
 
 	if (priv->flags & TC_MQPRIO_F_MAX_RATE) {
-		nest = nla_nest_start_noflag(skb, TCA_MQPRIO_MAX_RATE64);
+		nest = nla_nest_start_yesflag(skb, TCA_MQPRIO_MAX_RATE64);
 		if (!nest)
 			goto nla_put_failure;
 
@@ -394,7 +394,7 @@ static int mqprio_dump(struct Qdisc *sch, struct sk_buff *skb)
 	memset(&sch->qstats, 0, sizeof(sch->qstats));
 
 	/* MQ supports lockless qdiscs. However, statistics accounting needs
-	 * to account for all, none, or a mix of locked and unlocked child
+	 * to account for all, yesne, or a mix of locked and unlocked child
 	 * qdiscs. Percpu stats are added to counters in-band and locking
 	 * qdisc totals are added at end.
 	 */

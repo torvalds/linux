@@ -236,7 +236,7 @@ static inline unsigned char b1_get_byte(unsigned int base)
 	while (!b1_rx_full(base) && time_before(jiffies, stop));
 	if (b1_rx_full(base))
 		return inb(base + B1_READ);
-	printk(KERN_CRIT "b1lli(0x%x): rx not full after 1 second\n", base);
+	printk(KERN_CRIT "b1lli(0x%x): rx yest full after 1 second\n", base);
 	return 0;
 }
 
@@ -336,9 +336,9 @@ static inline unsigned char b1_disable_irq(unsigned int base)
 
 static inline void b1_set_test_bit(unsigned int base,
 				   enum avmcardtype cardtype,
-				   int onoff)
+				   int oyesff)
 {
-	b1_wr_reg(base, B1_STAT0(cardtype), onoff ? 0x21 : 0x20);
+	b1_wr_reg(base, B1_STAT0(cardtype), oyesff ? 0x21 : 0x20);
 }
 
 static inline int b1_get_test_bit(unsigned int base,

@@ -19,7 +19,7 @@
 #include <linux/delay.h>
 #include <linux/dma-mapping.h>
 #include <linux/dmaengine.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/list.h>
@@ -124,7 +124,7 @@ static u32 dmm_read_wa(struct dmm *dmm, u32 reg)
 
 	/*
 	 * As per i878 workaround, the DMA is used to access the DMM registers.
-	 * Make sure that the readl is not moved by the compiler or the CPU
+	 * Make sure that the readl is yest moved by the compiler or the CPU
 	 * earlier than the DMA finished writing the value to memory.
 	 */
 	rmb();
@@ -139,7 +139,7 @@ static void dmm_write_wa(struct dmm *dmm, u32 val, u32 reg)
 	writel(val, dmm->wa_dma_data);
 	/*
 	 * As per i878 workaround, the DMA is used to access the DMM registers.
-	 * Make sure that the writel is not moved by the compiler or the CPU, so
+	 * Make sure that the writel is yest moved by the compiler or the CPU, so
 	 * the data will be in place before we start the DMA to do the actual
 	 * register write.
 	 */
@@ -273,7 +273,7 @@ static void release_engine(struct refill_engine *engine)
 	unsigned long flags;
 
 	spin_lock_irqsave(&list_lock, flags);
-	list_add(&engine->idle_node, &omap_dmm->idle_head);
+	list_add(&engine->idle_yesde, &omap_dmm->idle_head);
 	spin_unlock_irqrestore(&list_lock, flags);
 
 	atomic_inc(&omap_dmm->engine_counter);
@@ -329,8 +329,8 @@ static struct dmm_txn *dmm_txn_init(struct dmm *dmm, struct tcm *tcm)
 	spin_lock_irqsave(&list_lock, flags);
 	if (!list_empty(&dmm->idle_head)) {
 		engine = list_entry(dmm->idle_head.next, struct refill_engine,
-					idle_node);
-		list_del(&engine->idle_node);
+					idle_yesde);
+		list_del(&engine->idle_yesde);
 	}
 	spin_unlock_irqrestore(&list_lock, flags);
 
@@ -414,9 +414,9 @@ static int dmm_txn_commit(struct dmm_txn *txn, bool wait)
 	wmb();
 
 	/*
-	 * NOTE: the wmb() above should be enough, but there seems to be a bug
+	 * NOTE: the wmb() above should be eyesugh, but there seems to be a bug
 	 * in OMAP's memory barrier implementation, which in some rare cases may
-	 * cause the writes not to be observable after wmb().
+	 * cause the writes yest to be observable after wmb().
 	 */
 
 	/* read back to ensure the data is in RAM */
@@ -432,7 +432,7 @@ static int dmm_txn_commit(struct dmm_txn *txn, bool wait)
 		goto cleanup;
 	}
 
-	/* mark whether it is async to denote list management in IRQ handler */
+	/* mark whether it is async to deyeste list management in IRQ handler */
 	engine->async = wait ? false : true;
 	reinit_completion(&engine->compl);
 	/* verify that the irq handler sees the 'async' and completion value */
@@ -475,12 +475,12 @@ static int fill(struct tcm_area *area, struct page **pages,
 	/*
 	 * FIXME
 	 *
-	 * Asynchronous fill does not work reliably, as the driver does not
+	 * Asynchroyesus fill does yest work reliably, as the driver does yest
 	 * handle errors in the async code paths. The fill operation may
 	 * silently fail, leading to leaking DMM engines, which may eventually
 	 * lead to deadlock if we run out of DMM engines.
 	 *
-	 * For now, always set 'wait' so that we only use sync fills. Async
+	 * For yesw, always set 'wait' so that we only use sync fills. Async
 	 * fills should be fixed, or alternatively we could decide to only
 	 * support sync fills and so the whole async code path could be removed.
 	 */
@@ -511,7 +511,7 @@ static int fill(struct tcm_area *area, struct page **pages,
  * Pin/unpin
  */
 
-/* note: slots for which pages[i] == NULL are filled w/ dummy page
+/* yeste: slots for which pages[i] == NULL are filled w/ dummy page
  */
 int tiler_pin(struct tiler_block *block, struct page **pages,
 		u32 npages, u32 roll, bool wait)
@@ -570,7 +570,7 @@ struct tiler_block *tiler_reserve_2d(enum tiler_fmt fmt, u16 w,
 
 	/* add to allocation list */
 	spin_lock_irqsave(&list_lock, flags);
-	list_add(&block->alloc_node, &omap_dmm->alloc_head);
+	list_add(&block->alloc_yesde, &omap_dmm->alloc_head);
 	spin_unlock_irqrestore(&list_lock, flags);
 
 	return block;
@@ -594,13 +594,13 @@ struct tiler_block *tiler_reserve_1d(size_t size)
 	}
 
 	spin_lock_irqsave(&list_lock, flags);
-	list_add(&block->alloc_node, &omap_dmm->alloc_head);
+	list_add(&block->alloc_yesde, &omap_dmm->alloc_head);
 	spin_unlock_irqrestore(&list_lock, flags);
 
 	return block;
 }
 
-/* note: if you have pin'd pages, you should have already unpin'd first! */
+/* yeste: if you have pin'd pages, you should have already unpin'd first! */
 int tiler_release(struct tiler_block *block)
 {
 	int ret = tcm_free(&block->area);
@@ -610,7 +610,7 @@ int tiler_release(struct tiler_block *block)
 		dev_err(omap_dmm->dev, "failed to release block\n");
 
 	spin_lock_irqsave(&list_lock, flags);
-	list_del(&block->alloc_node);
+	list_del(&block->alloc_yesde);
 	spin_unlock_irqrestore(&list_lock, flags);
 
 	kfree(block);
@@ -746,8 +746,8 @@ static int omap_dmm_remove(struct platform_device *dev)
 		/* free all area regions */
 		spin_lock_irqsave(&list_lock, flags);
 		list_for_each_entry_safe(block, _block, &omap_dmm->alloc_head,
-					alloc_node) {
-			list_del(&block->alloc_node);
+					alloc_yesde) {
+			list_del(&block->alloc_yesde);
 			kfree(block);
 		}
 		spin_unlock_irqrestore(&list_lock, flags);
@@ -793,12 +793,12 @@ static int omap_dmm_probe(struct platform_device *dev)
 
 	init_waitqueue_head(&omap_dmm->engine_queue);
 
-	if (dev->dev.of_node) {
+	if (dev->dev.of_yesde) {
 		const struct of_device_id *match;
 
-		match = of_match_node(dmm_of_match, dev->dev.of_node);
+		match = of_match_yesde(dmm_of_match, dev->dev.of_yesde);
 		if (!match) {
-			dev_err(&dev->dev, "failed to find matching device node\n");
+			dev_err(&dev->dev, "failed to find matching device yesde\n");
 			ret = -ENODEV;
 			goto fail;
 		}
@@ -831,8 +831,8 @@ static int omap_dmm_probe(struct platform_device *dev)
 
 	if (of_machine_is_compatible("ti,dra7")) {
 		/*
-		 * DRA7 Errata i878 says that MPU should not be used to access
-		 * RAM and DMM at the same time. As it's not possible to prevent
+		 * DRA7 Errata i878 says that MPU should yest be used to access
+		 * RAM and DMM at the same time. As it's yest possible to prevent
 		 * MPU accessing RAM, we need to access DMM via a proxy.
 		 */
 		if (!dmm_workaround_init(omap_dmm)) {
@@ -873,7 +873,7 @@ static int omap_dmm_probe(struct platform_device *dev)
 
 	omap_dmm->dummy_page = alloc_page(GFP_KERNEL | __GFP_DMA32);
 	if (!omap_dmm->dummy_page) {
-		dev_err(&dev->dev, "could not allocate dummy page\n");
+		dev_err(&dev->dev, "could yest allocate dummy page\n");
 		ret = -ENOMEM;
 		goto fail;
 	}
@@ -890,7 +890,7 @@ static int omap_dmm_probe(struct platform_device *dev)
 					   REFILL_BUFFER_SIZE * omap_dmm->num_engines,
 					   &omap_dmm->refill_pa, GFP_KERNEL);
 	if (!omap_dmm->refill_va) {
-		dev_err(&dev->dev, "could not allocate refill memory\n");
+		dev_err(&dev->dev, "could yest allocate refill memory\n");
 		goto fail;
 	}
 
@@ -911,7 +911,7 @@ static int omap_dmm_probe(struct platform_device *dev)
 						(REFILL_BUFFER_SIZE * i);
 		init_completion(&omap_dmm->engines[i].compl);
 
-		list_add(&omap_dmm->engines[i].idle_node, &omap_dmm->idle_head);
+		list_add(&omap_dmm->engines[i].idle_yesde, &omap_dmm->idle_head);
 	}
 
 	omap_dmm->tcm = kcalloc(omap_dmm->num_lut, sizeof(*omap_dmm->tcm),
@@ -923,7 +923,7 @@ static int omap_dmm_probe(struct platform_device *dev)
 
 	/* init containers */
 	/* Each LUT is associated with a TCM (container manager).  We use the
-	   lut_id to denote the lut_id used to identify the correct LUT for
+	   lut_id to deyeste the lut_id used to identify the correct LUT for
 	   programming during reill operations */
 	for (i = 0; i < omap_dmm->num_lut; i++) {
 		omap_dmm->tcm[i] = sita_init(omap_dmm->container_width,
@@ -974,7 +974,7 @@ static int omap_dmm_probe(struct platform_device *dev)
 
 	/* Enable all interrupts for each refill engine except
 	 * ERR_LUT_MISS<n> (which is just advisory, and we don't care
-	 * about because we want to be able to refill live scanout
+	 * about because we want to be able to refill live scayesut
 	 * buffers for accelerated pan/scroll) and FILL_DSC<n> which
 	 * we just generally don't care about.
 	 */
@@ -1003,7 +1003,7 @@ fail:
 
 #ifdef CONFIG_DEBUG_FS
 
-static const char *alphabet = "abcdefghijklmnopqrstuvwxyz"
+static const char *alphabet = "abcdefghijklmyespqrstuvwxyz"
 				"ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
 static const char *special = ".,:;'\"`~!^-+";
 
@@ -1090,7 +1090,7 @@ int tiler_map_show(struct seq_file *s, void *arg)
 
 
 	if (!omap_dmm) {
-		/* early return if dmm/tiler device is not initialized */
+		/* early return if dmm/tiler device is yest initialized */
 		return 0;
 	}
 
@@ -1114,7 +1114,7 @@ int tiler_map_show(struct seq_file *s, void *arg)
 
 		spin_lock_irqsave(&list_lock, flags);
 
-		list_for_each_entry(block, &omap_dmm->alloc_head, alloc_node) {
+		list_for_each_entry(block, &omap_dmm->alloc_head, alloc_yesde) {
 			if (block->area.tcm == omap_dmm->tcm[lut_idx]) {
 				if (block->fmt != TILFMT_PAGE) {
 					fill_map(map, xdiv, ydiv, &block->area,

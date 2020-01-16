@@ -40,7 +40,7 @@ static ide_startstop_t ide_ata_error(ide_drive_t *drive, struct request *rq,
 		ide_pad_transfer(drive, READ, nsect * SECTOR_SIZE);
 	}
 
-	if (scsi_req(rq)->result >= ERROR_MAX || blk_noretry_request(rq)) {
+	if (scsi_req(rq)->result >= ERROR_MAX || blk_yesretry_request(rq)) {
 		ide_kill_rq(drive, rq);
 		return ide_stopped;
 	}
@@ -106,7 +106,7 @@ static ide_startstop_t __ide_error(ide_drive_t *drive, struct request *rq,
  *	@stat: status bits
  *
  *	ide_error() takes action based on the error returned by the drive.
- *	For normal I/O that may well include retries. We deal with
+ *	For yesrmal I/O that may well include retries. We deal with
  *	both new-style (taskfile) and old style command handling here.
  *	In the case of taskfile command handling there is work left to
  *	do
@@ -123,7 +123,7 @@ ide_startstop_t ide_error(ide_drive_t *drive, const char *msg, u8 stat)
 	if (rq == NULL)
 		return ide_stopped;
 
-	/* retry only "normal" I/O: */
+	/* retry only "yesrmal" I/O: */
 	if (blk_rq_is_passthrough(rq)) {
 		if (ata_taskfile_request(rq)) {
 			struct ide_cmd *cmd = ide_req(rq)->special;
@@ -161,9 +161,9 @@ static ide_startstop_t do_reset1(ide_drive_t *, int);
 
 /*
  * atapi_reset_pollfunc() gets invoked to poll the interface for completion
- * every 50ms during an atapi drive reset operation.  If the drive has not yet
- * responded, and we have not yet hit our maximum waiting time, then the timer
- * is restarted for another 50ms.
+ * every 50ms during an atapi drive reset operation.  If the drive has yest yet
+ * responded, and we have yest yet hit our maximum waiting time, then the timer
+ * is restarted for ayesther 50ms.
  */
 static ide_startstop_t atapi_reset_pollfunc(ide_drive_t *drive)
 {
@@ -217,9 +217,9 @@ static void ide_reset_report_error(ide_hwif_t *hwif, u8 err)
 
 /*
  * reset_pollfunc() gets invoked to poll the interface for completion every 50ms
- * during an ide reset operation. If the drives have not yet responded,
- * and we have not yet hit our maximum waiting time, then the timer is restarted
- * for another 50ms.
+ * during an ide reset operation. If the drives have yest yet responded,
+ * and we have yest yet hit our maximum waiting time, then the timer is restarted
+ * for ayesther 50ms.
  */
 static ide_startstop_t reset_pollfunc(ide_drive_t *drive)
 {
@@ -326,13 +326,13 @@ static void pre_reset(ide_drive_t *drive)
  * ATAPI devices have their own reset mechanism which allows them to be
  * individually reset without clobbering other devices on the same interface.
  *
- * Unfortunately, the IDE interface does not generate an interrupt to let
- * us know when the reset operation has finished, so we must poll for this.
+ * Unfortunately, the IDE interface does yest generate an interrupt to let
+ * us kyesw when the reset operation has finished, so we must poll for this.
  * Equally poor, though, is the fact that this may a very long time to complete,
  * (up to 30 seconds worstcase).  So, instead of busy-waiting here for it,
  * we set a timer to poll at 50ms intervals.
  */
-static ide_startstop_t do_reset1(ide_drive_t *drive, int do_not_try_atapi)
+static ide_startstop_t do_reset1(ide_drive_t *drive, int do_yest_try_atapi)
 {
 	ide_hwif_t *hwif = drive->hwif;
 	struct ide_io_ports *io_ports = &hwif->io_ports;
@@ -345,11 +345,11 @@ static ide_startstop_t do_reset1(ide_drive_t *drive, int do_not_try_atapi)
 
 	spin_lock_irqsave(&hwif->lock, flags);
 
-	/* We must not reset with running handlers */
+	/* We must yest reset with running handlers */
 	BUG_ON(hwif->handler != NULL);
 
 	/* For an ATAPI device, first try an ATAPI SRST. */
-	if (drive->media != ide_disk && !do_not_try_atapi) {
+	if (drive->media != ide_disk && !do_yest_try_atapi) {
 		pre_reset(drive);
 		tp_ops->dev_select(drive);
 		udelay(20);
@@ -362,9 +362,9 @@ static ide_startstop_t do_reset1(ide_drive_t *drive, int do_not_try_atapi)
 		return ide_started;
 	}
 
-	/* We must not disturb devices in the IDE_DFLAG_PARKED state. */
+	/* We must yest disturb devices in the IDE_DFLAG_PARKED state. */
 	do {
-		unsigned long now;
+		unsigned long yesw;
 
 		prepare_to_wait(&ide_park_wq, &wait, TASK_UNINTERRUPTIBLE);
 		timeout = jiffies;
@@ -374,12 +374,12 @@ static ide_startstop_t do_reset1(ide_drive_t *drive, int do_not_try_atapi)
 				timeout = tdrive->sleep;
 		}
 
-		now = jiffies;
-		if (time_before_eq(timeout, now))
+		yesw = jiffies;
+		if (time_before_eq(timeout, yesw))
 			break;
 
 		spin_unlock_irqrestore(&hwif->lock, flags);
-		timeout = schedule_timeout_uninterruptible(timeout - now);
+		timeout = schedule_timeout_uninterruptible(timeout - yesw);
 		spin_lock_irqsave(&hwif->lock, flags);
 	} while (timeout);
 	finish_wait(&ide_park_wq, &wait);
@@ -407,13 +407,13 @@ static ide_startstop_t do_reset1(ide_drive_t *drive, int do_not_try_atapi)
 	 */
 	/* set SRST and nIEN */
 	tp_ops->write_devctl(hwif, ATA_SRST | ATA_NIEN | ATA_DEVCTL_OBS);
-	/* more than enough time */
+	/* more than eyesugh time */
 	udelay(10);
 	/* clear SRST, leave nIEN (unless device is on the quirk list) */
 	tp_ops->write_devctl(hwif,
 		((drive->dev_flags & IDE_DFLAG_NIEN_QUIRK) ? 0 : ATA_NIEN) |
 		 ATA_DEVCTL_OBS);
-	/* more than enough time */
+	/* more than eyesugh time */
 	udelay(10);
 	hwif->poll_timeout = jiffies + WAIT_WORSTCASE;
 	hwif->polling = 1;

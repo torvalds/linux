@@ -3,13 +3,13 @@
  *  Linux MegaRAID driver for SAS based RAID controllers
  *
  *  Copyright (c) 2009-2013  LSI Corporation
- *  Copyright (c) 2013-2016  Avago Technologies
+ *  Copyright (c) 2013-2016  Avago Techyeslogies
  *  Copyright (c) 2016-2018  Broadcom Inc.
  *
  *  FILE: megaraid_sas_fusion.h
  *
  *  Authors: Broadcom Inc.
- *           Manoj Jose
+ *           Mayesj Jose
  *           Sumant Patro
  *           Kashyap Desai <kashyap.desai@broadcom.com>
  *           Sumit Saxena <sumit.saxena@broadcom.com>
@@ -96,7 +96,7 @@ enum MR_RAID_FLAGS_IO_SUB_TYPE {
 
 /*
  * Raid Context structure which describes MegaRAID specific IO Parameters
- * This resides at offset 0x60 where the SGL normally starts in MPT IO Frames
+ * This resides at offset 0x60 where the SGL yesrmally starts in MPT IO Frames
  */
 
 struct RAID_CONTEXT {
@@ -128,7 +128,7 @@ struct RAID_CONTEXT {
 
 /*
  * Raid Context structure which describes ventura MegaRAID specific
- * IO Paramenters ,This resides at offset 0x60 where the SGL normally
+ * IO Paramenters ,This resides at offset 0x60 where the SGL yesrmally
  * starts in MPT IO Frames
  */
 struct RAID_CONTEXT_G35 {
@@ -744,7 +744,7 @@ struct MR_QUAD_ELEMENT {
 };
 
 struct MR_SPAN_INFO {
-	__le32             noElements;
+	__le32             yesElements;
 	__le32             reserved1;
 	struct MR_QUAD_ELEMENT quad[MAX_RAIDMAP_SPAN_DEPTH];
 };
@@ -1022,7 +1022,7 @@ struct MR_FW_RAID_MAP_DYNAMIC {
  * The below structure of pointers is only to be used by the driver.
  * This is added in the ,API to reduce the amount of code changes
  * needed in the driver to support dynamic RAID map Firmware should
- * not update these pointers while preparing the raid map
+ * yest update these pointers while preparing the raid map
  */
 	union {
 		struct {
@@ -1249,7 +1249,7 @@ struct STREAM_DETECT {
 	u16 num_sges_in_group; /* total number of SGEs in grouped IOs */
 	u8 is_read; /* SCSI OpCode for this stream */
 	u8 group_depth; /* total number of host commands in group */
-	/* TRUE if cannot add any more commands to this group */
+	/* TRUE if canyest add any more commands to this group */
 	bool group_flush;
 	u8 reserved[7]; /* pad to 64-bit alignment */
 };

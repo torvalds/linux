@@ -5,7 +5,7 @@
 /*
  * These bits define which access sizes a platform can support, rather
  * than the maximal access size.  So, if your platform can do 16-bit
- * and 32-bit accesses to the SMC91x device, but not 8-bit, set both
+ * and 32-bit accesses to the SMC91x device, but yest 8-bit, set both
  * SMC91X_USE_16BIT and SMC91X_USE_32BIT.
  *
  * The SMC91x driver requires at least one of SMC91X_USE_8BIT or

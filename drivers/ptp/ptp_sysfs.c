@@ -266,11 +266,11 @@ int ptp_populate_pin_groups(struct ptp_clock *ptp)
 	ptp->pin_dev_attr = kcalloc(n_pins, sizeof(*ptp->pin_dev_attr),
 				    GFP_KERNEL);
 	if (!ptp->pin_dev_attr)
-		goto no_dev_attr;
+		goto yes_dev_attr;
 
 	ptp->pin_attr = kcalloc(1 + n_pins, sizeof(*ptp->pin_attr), GFP_KERNEL);
 	if (!ptp->pin_attr)
-		goto no_pin_attr;
+		goto yes_pin_attr;
 
 	for (i = 0; i < n_pins; i++) {
 		struct device_attribute *da = &ptp->pin_dev_attr[i];
@@ -289,9 +289,9 @@ int ptp_populate_pin_groups(struct ptp_clock *ptp)
 
 	return 0;
 
-no_pin_attr:
+yes_pin_attr:
 	kfree(ptp->pin_dev_attr);
-no_dev_attr:
+yes_dev_attr:
 	return err;
 }
 

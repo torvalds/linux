@@ -7,7 +7,7 @@
 #define __SOUND_HDA_VERBS_H
 
 /*
- * nodes
+ * yesdes
  */
 #define	AC_NODE_ROOT		0x00
 
@@ -29,7 +29,7 @@ enum {
 	AC_WID_AUD_SEL,		/* Audio Selector */
 	AC_WID_PIN,		/* Pin Complex */
 	AC_WID_POWER,		/* Power */
-	AC_WID_VOL_KNB,		/* Volume Knob */
+	AC_WID_VOL_KNB,		/* Volume Kyesb */
 	AC_WID_BEEP,		/* Beep Generator */
 	AC_WID_VENDOR = 0x0f	/* Vendor specific */
 };
@@ -324,7 +324,7 @@ enum {
 #define AC_PCAP_NUM_COEF		(0xff<<8)
 #define AC_PCAP_NUM_COEF_SHIFT		8
 
-/* Volume knobs capabilities */
+/* Volume kyesbs capabilities */
 #define AC_KNBCAP_NUM_STEPS		(0x7f<<0)
 #define AC_KNBCAP_DELTA			(1<<7)
 

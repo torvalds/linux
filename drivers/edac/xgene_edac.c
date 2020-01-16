@@ -159,7 +159,7 @@ static const struct file_operations xgene_edac_mc_debug_inject_fops = {
 	.llseek = generic_file_llseek,
 };
 
-static void xgene_edac_mc_create_debugfs_node(struct mem_ctl_info *mci)
+static void xgene_edac_mc_create_debugfs_yesde(struct mem_ctl_info *mci)
 {
 	if (!IS_ENABLED(CONFIG_EDAC_DEBUG))
 		return;
@@ -258,7 +258,7 @@ static void xgene_edac_mc_irq_ctl(struct mem_ctl_info *mci, bool enable)
 	 * As there is only single bit for enable error and interrupt mask,
 	 * we must only enable top level interrupt after all MCUs are
 	 * registered. Otherwise, if there is an error and the corresponding
-	 * MCU has not registered, the interrupt will never get cleared. To
+	 * MCU has yest registered, the interrupt will never get cleared. To
 	 * determine all MCU have registered, we will keep track of active
 	 * MCUs and registered MCUs.
 	 */
@@ -339,7 +339,7 @@ static int xgene_edac_mc_is_active(struct xgene_edac_mc_ctx *ctx, int mc_idx)
 	return (mcu_mask & (1 << mc_idx)) ? 1 : 0;
 }
 
-static int xgene_edac_mc_add(struct xgene_edac *edac, struct device_node *np)
+static int xgene_edac_mc_add(struct xgene_edac *edac, struct device_yesde *np)
 {
 	struct mem_ctl_info *mci;
 	struct edac_mc_layer layers[2];
@@ -356,7 +356,7 @@ static int xgene_edac_mc_add(struct xgene_edac *edac, struct device_node *np)
 
 	rc = of_address_to_resource(np, 0, &res);
 	if (rc < 0) {
-		dev_err(edac->dev, "no MCU resource address\n");
+		dev_err(edac->dev, "yes MCU resource address\n");
 		goto err_group;
 	}
 	tmp_ctx.mcu_csr = devm_ioremap_resource(edac->dev, &res);
@@ -366,9 +366,9 @@ static int xgene_edac_mc_add(struct xgene_edac *edac, struct device_node *np)
 		goto err_group;
 	}
 
-	/* Ignore non-active MCU */
+	/* Igyesre yesn-active MCU */
 	if (of_property_read_u32(np, "memory-controller", &tmp_ctx.mcu_id)) {
-		dev_err(edac->dev, "no memory-controller property\n");
+		dev_err(edac->dev, "yes memory-controller property\n");
 		rc = -ENODEV;
 		goto err_group;
 	}
@@ -416,7 +416,7 @@ static int xgene_edac_mc_add(struct xgene_edac *edac, struct device_node *np)
 		goto err_free;
 	}
 
-	xgene_edac_mc_create_debugfs_node(mci);
+	xgene_edac_mc_create_debugfs_yesde(mci);
 
 	list_add(&ctx->next, &edac->mcus);
 
@@ -858,7 +858,7 @@ static const struct file_operations xgene_edac_pmd_debug_inject_fops[] = {
 };
 
 static void
-xgene_edac_pmd_create_debugfs_nodes(struct edac_device_ctl_info *edac_dev)
+xgene_edac_pmd_create_debugfs_yesdes(struct edac_device_ctl_info *edac_dev)
 {
 	struct xgene_edac_pmd_ctx *ctx = edac_dev->pvt_info;
 	struct dentry *dbgfs_dir;
@@ -883,7 +883,7 @@ static int xgene_edac_pmd_available(u32 efuse, int pmd)
 	return (efuse & (1 << pmd)) ? 0 : 1;
 }
 
-static int xgene_edac_pmd_add(struct xgene_edac *edac, struct device_node *np,
+static int xgene_edac_pmd_add(struct xgene_edac *edac, struct device_yesde *np,
 			      int version)
 {
 	struct edac_device_ctl_info *edac_dev;
@@ -899,7 +899,7 @@ static int xgene_edac_pmd_add(struct xgene_edac *edac, struct device_node *np,
 
 	/* Determine if this PMD is disabled */
 	if (of_property_read_u32(np, "pmd-controller", &pmd)) {
-		dev_err(edac->dev, "no pmd-controller property\n");
+		dev_err(edac->dev, "yes pmd-controller property\n");
 		rc = -ENODEV;
 		goto err_group;
 	}
@@ -934,7 +934,7 @@ static int xgene_edac_pmd_add(struct xgene_edac *edac, struct device_node *np,
 
 	rc = of_address_to_resource(np, 0, &res);
 	if (rc < 0) {
-		dev_err(edac->dev, "no PMD resource address\n");
+		dev_err(edac->dev, "yes PMD resource address\n");
 		goto err_free;
 	}
 	ctx->pmd_csr = devm_ioremap_resource(edac->dev, &res);
@@ -948,7 +948,7 @@ static int xgene_edac_pmd_add(struct xgene_edac *edac, struct device_node *np,
 	if (edac_op_state == EDAC_OPSTATE_POLL)
 		edac_dev->edac_check = xgene_edac_pmd_check;
 
-	xgene_edac_pmd_create_debugfs_nodes(edac_dev);
+	xgene_edac_pmd_create_debugfs_yesdes(edac_dev);
 
 	rc = edac_device_add_device(edac_dev);
 	if (rc > 0) {
@@ -1162,7 +1162,7 @@ static const struct file_operations xgene_edac_l3_debug_inject_fops = {
 };
 
 static void
-xgene_edac_l3_create_debugfs_nodes(struct edac_device_ctl_info *edac_dev)
+xgene_edac_l3_create_debugfs_yesdes(struct edac_device_ctl_info *edac_dev)
 {
 	struct xgene_edac_dev_ctx *ctx = edac_dev->pvt_info;
 	struct dentry *dbgfs_dir;
@@ -1180,7 +1180,7 @@ xgene_edac_l3_create_debugfs_nodes(struct edac_device_ctl_info *edac_dev)
 			    &xgene_edac_l3_debug_inject_fops);
 }
 
-static int xgene_edac_l3_add(struct xgene_edac *edac, struct device_node *np,
+static int xgene_edac_l3_add(struct xgene_edac *edac, struct device_yesde *np,
 			     int version)
 {
 	struct edac_device_ctl_info *edac_dev;
@@ -1195,7 +1195,7 @@ static int xgene_edac_l3_add(struct xgene_edac *edac, struct device_node *np,
 
 	rc = of_address_to_resource(np, 0, &res);
 	if (rc < 0) {
-		dev_err(edac->dev, "no L3 resource address\n");
+		dev_err(edac->dev, "yes L3 resource address\n");
 		goto err_release_group;
 	}
 	dev_csr = devm_ioremap_resource(edac->dev, &res);
@@ -1231,7 +1231,7 @@ static int xgene_edac_l3_add(struct xgene_edac *edac, struct device_node *np,
 	if (edac_op_state == EDAC_OPSTATE_POLL)
 		edac_dev->edac_check = xgene_edac_l3_check;
 
-	xgene_edac_l3_create_debugfs_nodes(edac_dev);
+	xgene_edac_l3_create_debugfs_yesdes(edac_dev);
 
 	rc = edac_device_add_device(edac_dev);
 	if (rc > 0) {
@@ -1380,10 +1380,10 @@ static const char * const soc_mem_err_v1[] = {
 	"10GbE3",
 	"QM2 (XGbE23)",
 	"IOB",
-	"unknown",
-	"unknown",
-	"unknown",
-	"unknown",
+	"unkyeswn",
+	"unkyeswn",
+	"unkyeswn",
+	"unkyeswn",
 };
 
 static void xgene_edac_iob_gic_report(struct edac_device_ctl_info *edac_dev)
@@ -1723,7 +1723,7 @@ static void xgene_edac_soc_hw_init(struct edac_device_ctl_info *edac_dev,
 	}
 }
 
-static int xgene_edac_soc_add(struct xgene_edac *edac, struct device_node *np,
+static int xgene_edac_soc_add(struct xgene_edac *edac, struct device_yesde *np,
 			      int version)
 {
 	struct edac_device_ctl_info *edac_dev;
@@ -1738,7 +1738,7 @@ static int xgene_edac_soc_add(struct xgene_edac *edac, struct device_node *np,
 
 	rc = of_address_to_resource(np, 0, &res);
 	if (rc < 0) {
-		dev_err(edac->dev, "no SoC resource address\n");
+		dev_err(edac->dev, "yes SoC resource address\n");
 		goto err_release_group;
 	}
 	dev_csr = devm_ioremap_resource(edac->dev, &res);
@@ -1815,7 +1815,7 @@ static irqreturn_t xgene_edac_isr(int irq, void *dev_id)
 {
 	struct xgene_edac *ctx = dev_id;
 	struct xgene_edac_pmd_ctx *pmd;
-	struct xgene_edac_dev_ctx *node;
+	struct xgene_edac_dev_ctx *yesde;
 	unsigned int pcp_hp_stat;
 	unsigned int pcp_lp_stat;
 
@@ -1835,11 +1835,11 @@ static irqreturn_t xgene_edac_isr(int irq, void *dev_id)
 			xgene_edac_pmd_check(pmd->edac_dev);
 	}
 
-	list_for_each_entry(node, &ctx->l3s, next)
-		xgene_edac_l3_check(node->edac_dev);
+	list_for_each_entry(yesde, &ctx->l3s, next)
+		xgene_edac_l3_check(yesde->edac_dev);
 
-	list_for_each_entry(node, &ctx->socs, next)
-		xgene_edac_soc_check(node->edac_dev);
+	list_for_each_entry(yesde, &ctx->socs, next)
+		xgene_edac_soc_check(yesde->edac_dev);
 
 	return IRQ_HANDLED;
 }
@@ -1847,7 +1847,7 @@ static irqreturn_t xgene_edac_isr(int irq, void *dev_id)
 static int xgene_edac_probe(struct platform_device *pdev)
 {
 	struct xgene_edac *edac;
-	struct device_node *child;
+	struct device_yesde *child;
 	struct resource *res;
 	int rc;
 
@@ -1864,7 +1864,7 @@ static int xgene_edac_probe(struct platform_device *pdev)
 	spin_lock_init(&edac->lock);
 	mutex_init(&edac->mc_lock);
 
-	edac->csw_map = syscon_regmap_lookup_by_phandle(pdev->dev.of_node,
+	edac->csw_map = syscon_regmap_lookup_by_phandle(pdev->dev.of_yesde,
 							"regmap-csw");
 	if (IS_ERR(edac->csw_map)) {
 		dev_err(edac->dev, "unable to get syscon regmap csw\n");
@@ -1872,7 +1872,7 @@ static int xgene_edac_probe(struct platform_device *pdev)
 		goto out_err;
 	}
 
-	edac->mcba_map = syscon_regmap_lookup_by_phandle(pdev->dev.of_node,
+	edac->mcba_map = syscon_regmap_lookup_by_phandle(pdev->dev.of_yesde,
 							 "regmap-mcba");
 	if (IS_ERR(edac->mcba_map)) {
 		dev_err(edac->dev, "unable to get syscon regmap mcba\n");
@@ -1880,14 +1880,14 @@ static int xgene_edac_probe(struct platform_device *pdev)
 		goto out_err;
 	}
 
-	edac->mcbb_map = syscon_regmap_lookup_by_phandle(pdev->dev.of_node,
+	edac->mcbb_map = syscon_regmap_lookup_by_phandle(pdev->dev.of_yesde,
 							 "regmap-mcbb");
 	if (IS_ERR(edac->mcbb_map)) {
 		dev_err(edac->dev, "unable to get syscon regmap mcbb\n");
 		rc = PTR_ERR(edac->mcbb_map);
 		goto out_err;
 	}
-	edac->efuse_map = syscon_regmap_lookup_by_phandle(pdev->dev.of_node,
+	edac->efuse_map = syscon_regmap_lookup_by_phandle(pdev->dev.of_yesde,
 							  "regmap-efuse");
 	if (IS_ERR(edac->efuse_map)) {
 		dev_err(edac->dev, "unable to get syscon regmap efuse\n");
@@ -1899,7 +1899,7 @@ static int xgene_edac_probe(struct platform_device *pdev)
 	 * NOTE: The register bus resource is optional for compatibility
 	 * reason.
 	 */
-	edac->rb_map = syscon_regmap_lookup_by_phandle(pdev->dev.of_node,
+	edac->rb_map = syscon_regmap_lookup_by_phandle(pdev->dev.of_yesde,
 						       "regmap-rb");
 	if (IS_ERR(edac->rb_map)) {
 		dev_warn(edac->dev, "missing syscon regmap rb\n");
@@ -1909,7 +1909,7 @@ static int xgene_edac_probe(struct platform_device *pdev)
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	edac->pcp_csr = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(edac->pcp_csr)) {
-		dev_err(&pdev->dev, "no PCP resource address\n");
+		dev_err(&pdev->dev, "yes PCP resource address\n");
 		rc = PTR_ERR(edac->pcp_csr);
 		goto out_err;
 	}
@@ -1930,7 +1930,7 @@ static int xgene_edac_probe(struct platform_device *pdev)
 					      dev_name(&pdev->dev), edac);
 			if (rc) {
 				dev_err(&pdev->dev,
-					"Could not request IRQ %d\n", irq);
+					"Could yest request IRQ %d\n", irq);
 				goto out_err;
 			}
 		}
@@ -1938,7 +1938,7 @@ static int xgene_edac_probe(struct platform_device *pdev)
 
 	edac->dfs = edac_debugfs_create_dir(pdev->dev.kobj.name);
 
-	for_each_child_of_node(pdev->dev.of_node, child) {
+	for_each_child_of_yesde(pdev->dev.of_yesde, child) {
 		if (!of_device_is_available(child))
 			continue;
 		if (of_device_is_compatible(child, "apm,xgene-edac-mc"))
@@ -1970,8 +1970,8 @@ static int xgene_edac_remove(struct platform_device *pdev)
 	struct xgene_edac_mc_ctx *temp_mcu;
 	struct xgene_edac_pmd_ctx *pmd;
 	struct xgene_edac_pmd_ctx *temp_pmd;
-	struct xgene_edac_dev_ctx *node;
-	struct xgene_edac_dev_ctx *temp_node;
+	struct xgene_edac_dev_ctx *yesde;
+	struct xgene_edac_dev_ctx *temp_yesde;
 
 	list_for_each_entry_safe(mcu, temp_mcu, &edac->mcus, next)
 		xgene_edac_mc_remove(mcu);
@@ -1979,11 +1979,11 @@ static int xgene_edac_remove(struct platform_device *pdev)
 	list_for_each_entry_safe(pmd, temp_pmd, &edac->pmds, next)
 		xgene_edac_pmd_remove(pmd);
 
-	list_for_each_entry_safe(node, temp_node, &edac->l3s, next)
-		xgene_edac_l3_remove(node);
+	list_for_each_entry_safe(yesde, temp_yesde, &edac->l3s, next)
+		xgene_edac_l3_remove(yesde);
 
-	list_for_each_entry_safe(node, temp_node, &edac->socs, next)
-		xgene_edac_soc_remove(node);
+	list_for_each_entry_safe(yesde, temp_yesde, &edac->socs, next)
+		xgene_edac_soc_remove(yesde);
 
 	return 0;
 }

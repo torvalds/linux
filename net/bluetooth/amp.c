@@ -199,7 +199,7 @@ int phylink_gen_key(struct hci_conn *conn, u8 *data, u8 *len, u8 *type)
 	/* Derive Generic AMP Link Key (gamp) */
 	err = hmac_sha256(keybuf, HCI_AMP_LINK_KEY_SIZE, "gamp", 4, gamp_key);
 	if (err) {
-		bt_dev_err(hdev, "could not derive Generic AMP Key: err %d", err);
+		bt_dev_err(hdev, "could yest derive Generic AMP Key: err %d", err);
 		return err;
 	}
 
@@ -448,7 +448,7 @@ void amp_create_phylink(struct hci_dev *hdev, struct amp_mgr *mgr,
 
 	if (phylink_gen_key(mgr->l2cap_conn->hcon, cp.key, &cp.key_len,
 			    &cp.key_type)) {
-		BT_DBG("Cannot create link key");
+		BT_DBG("Canyest create link key");
 		return;
 	}
 
@@ -487,7 +487,7 @@ void amp_accept_phylink(struct hci_dev *hdev, struct amp_mgr *mgr,
 
 	if (phylink_gen_key(mgr->l2cap_conn->hcon, cp.key, &cp.key_len,
 			    &cp.key_type)) {
-		BT_DBG("Cannot create link key");
+		BT_DBG("Canyest create link key");
 		return;
 	}
 
@@ -572,7 +572,7 @@ void amp_disconnect_logical_link(struct hci_chan *hchan)
 	struct hci_cp_disconn_logical_link cp;
 
 	if (hcon->state != BT_CONNECTED) {
-		BT_DBG("hchan %p not connected", hchan);
+		BT_DBG("hchan %p yest connected", hchan);
 		return;
 	}
 

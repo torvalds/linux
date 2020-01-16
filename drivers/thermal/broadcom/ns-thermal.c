@@ -56,7 +56,7 @@ static int ns_thermal_probe(struct platform_device *pdev)
 	if (!ns_thermal)
 		return -ENOMEM;
 
-	ns_thermal->pvtmon = of_iomap(dev_of_node(dev), 0);
+	ns_thermal->pvtmon = of_iomap(dev_of_yesde(dev), 0);
 	if (WARN_ON(!ns_thermal->pvtmon))
 		return -ENOENT;
 

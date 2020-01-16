@@ -1284,7 +1284,7 @@ static const struct b43_nphy_channeltab_entry_rev2 b43_nphy_channeltab_rev2[] = 
 };
 
 void b2055_upload_inittab(struct b43_wldev *dev,
-			  bool ghz5, bool ignore_uploadflag)
+			  bool ghz5, bool igyesre_uploadflag)
 {
 	const struct b2055_inittab_entry *e;
 	unsigned int i, writes = 0;
@@ -1294,7 +1294,7 @@ void b2055_upload_inittab(struct b43_wldev *dev,
 		e = &(b2055_inittab[i]);
 		if (!(e->flags & B2055_INITTAB_ENTRY_OK))
 			continue;
-		if ((e->flags & B2055_INITTAB_UPLOAD) || ignore_uploadflag) {
+		if ((e->flags & B2055_INITTAB_UPLOAD) || igyesre_uploadflag) {
 			if (ghz5)
 				value = e->ghz5;
 			else

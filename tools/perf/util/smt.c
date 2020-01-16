@@ -31,7 +31,7 @@ int smt_on(void)
 		}
 		if (sysfs__read_str(fn, &str, &strlen) < 0)
 			continue;
-		/* Entry is hex, but does not have 0x, so need custom parser */
+		/* Entry is hex, but does yest have 0x, so need custom parser */
 		siblings = strtoull(str, NULL, 16);
 		free(str);
 		if (hweight64(siblings) > 1) {

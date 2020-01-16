@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) 2004, 2007-2010, 2011-2012 Synopsys, Inc. (www.synopsys.com)
+ * Copyright (C) 2004, 2007-2010, 2011-2012 Syyespsys, Inc. (www.syyespsys.com)
  */
 
 #include <linux/seq_file.h>
@@ -134,7 +134,7 @@ static void decode_arc_core(struct cpuinfo_arc *cpu)
 		else if (tbl->str)
 			cpu->name = "HS38";
 		else
-			cpu->name = cpu->release = "Unknown";
+			cpu->name = cpu->release = "Unkyeswn";
 
 		return;
 	}
@@ -185,7 +185,7 @@ static void read_arc_build_cfg_regs(void)
 
 	READ_BCR(ARC_REG_MUL_BCR, cpu->extn_mpy);
 
-	/* Read CCM BCRs for boot reporting even if not enabled in Kconfig */
+	/* Read CCM BCRs for boot reporting even if yest enabled in Kconfig */
 	read_decode_ccm_bcr(cpu);
 
 	read_decode_mmu_bcr();
@@ -257,7 +257,7 @@ static void read_arc_build_cfg_regs(void)
 
 		cpu->isa.be = IS_ENABLED(CONFIG_CPU_BIG_ENDIAN);
 
-		 /* there's no direct way to distinguish 750 vs. 770 */
+		 /* there's yes direct way to distinguish 750 vs. 770 */
 		if (unlikely(cpu->core.family < 0x34 || cpu->mmu.ver < 3))
 			cpu->name = "ARC750";
 	} else {
@@ -396,10 +396,10 @@ static void arc_chk_core_config(void)
 	char *opt_nm = NULL;
 
 	if (!cpu->extn.timer0)
-		panic("Timer0 is not present!\n");
+		panic("Timer0 is yest present!\n");
 
 	if (!cpu->extn.timer1)
-		panic("Timer1 is not present!\n");
+		panic("Timer1 is yest present!\n");
 
 #ifdef CONFIG_ARC_HAS_DCCM
 	/*
@@ -421,14 +421,14 @@ static void arc_chk_core_config(void)
 	/*
 	 * FP hardware/software config sanity
 	 * -If hardware present, kernel needs to save/restore FPU state
-	 * -If not, it will crash trying to save/restore the non-existant regs
+	 * -If yest, it will crash trying to save/restore the yesn-existant regs
 	 */
 
 	if (is_isa_arcompact()) {
 		opt_nm = "CONFIG_ARC_FPU_SAVE_RESTORE";
 		saved = IS_ENABLED(CONFIG_ARC_FPU_SAVE_RESTORE);
 
-		/* only DPDP checked since SP has no arch visible regs */
+		/* only DPDP checked since SP has yes arch visible regs */
 		present = cpu->extn.fpu_dp;
 	} else {
 		opt_nm = "CONFIG_ARC_HAS_ACCL_REGS";
@@ -446,7 +446,7 @@ static void arc_chk_core_config(void)
 
 /*
  * Initialize and setup the processor core
- * This is called by all the CPUs thus should not do special case stuff
+ * This is called by all the CPUs thus should yest do special case stuff
  *    such as only for boot CPU etc
  */
 
@@ -472,8 +472,8 @@ void setup_processor(void)
 static inline bool uboot_arg_invalid(unsigned long addr)
 {
 	/*
-	 * Check that it is a untranslated address (although MMU is not enabled
-	 * yet, it being a high address ensures this is not by fluke)
+	 * Check that it is a untranslated address (although MMU is yest enabled
+	 * yet, it being a high address ensures this is yest by fluke)
 	 */
 	if (addr < PAGE_OFFSET)
 		return true;
@@ -482,7 +482,7 @@ static inline bool uboot_arg_invalid(unsigned long addr)
 	return addr >= (unsigned long)_stext && addr <= (unsigned long)_end;
 }
 
-#define IGNORE_ARGS		"Ignore U-boot args: "
+#define IGNORE_ARGS		"Igyesre U-boot args: "
 
 /* uboot_tag values for U-boot - kernel ABI revision 0; see head.S */
 #define UBOOT_TAG_NONE		0
@@ -496,23 +496,23 @@ void __init handle_uboot_args(void)
 	bool use_embedded_dtb = true;
 	bool append_cmdline = false;
 
-	/* check that we know this tag */
+	/* check that we kyesw this tag */
 	if (uboot_tag != UBOOT_TAG_NONE &&
 	    uboot_tag != UBOOT_TAG_CMDLINE &&
 	    uboot_tag != UBOOT_TAG_DTB) {
 		pr_warn(IGNORE_ARGS "invalid uboot tag: '%08x'\n", uboot_tag);
-		goto ignore_uboot_args;
+		goto igyesre_uboot_args;
 	}
 
 	if (uboot_magic != UBOOT_MAGIC_VALUE) {
-		pr_warn(IGNORE_ARGS "non zero uboot magic\n");
-		goto ignore_uboot_args;
+		pr_warn(IGNORE_ARGS "yesn zero uboot magic\n");
+		goto igyesre_uboot_args;
 	}
 
 	if (uboot_tag != UBOOT_TAG_NONE &&
             uboot_arg_invalid((unsigned long)uboot_arg)) {
 		pr_warn(IGNORE_ARGS "invalid uboot arg: '%px'\n", uboot_arg);
-		goto ignore_uboot_args;
+		goto igyesre_uboot_args;
 	}
 
 	/* see if U-boot passed an external Device Tree blob */
@@ -526,7 +526,7 @@ void __init handle_uboot_args(void)
 	if (uboot_tag == UBOOT_TAG_CMDLINE)
 		append_cmdline = true;
 
-ignore_uboot_args:
+igyesre_uboot_args:
 
 	if (use_embedded_dtb) {
 		machine_desc = setup_machine_fdt(__dtb_start);
@@ -633,7 +633,7 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 
 	cpu_clk = clk_get(cpu_dev, NULL);
 	if (IS_ERR(cpu_clk)) {
-		seq_printf(m, "CPU speed \t: Cannot get clock for processor [%d]\n",
+		seq_printf(m, "CPU speed \t: Canyest get clock for processor [%d]\n",
 			   cpu_id);
 	} else {
 		freq = clk_get_rate(cpu_clk);

@@ -158,7 +158,7 @@ memcpy:
 	add	r7,r0,r4
 	andi.	r7,r7,3			/* will source be word-aligned too? */
 	ble	cr1,3b
-	bne	3b			/* do byte-by-byte if not */
+	bne	3b			/* do byte-by-byte if yest */
 	mtctr	r0
 6:	lbz	r7,4(r4)
 	addi	r4,r4,1

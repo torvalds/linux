@@ -10,7 +10,7 @@
  *
  *   Charlie Andrews <charliethepilot@googlemail.com> for lots of help in
  *   bringing up the support of new firmware buffer that is popular
- *   on latest notebooks
+ *   on latest yestebooks
  *
  *   ENE for partial device documentation
  */
@@ -85,13 +85,13 @@ static void ene_set_clear_reg_mask(struct ene_device *dev, u16 reg, u8 mask,
 /* detect hardware features */
 static int ene_hw_detect(struct ene_device *dev)
 {
-	u8 chip_major, chip_minor;
+	u8 chip_major, chip_miyesr;
 	u8 hw_revision, old_ver;
 	u8 fw_reg2, fw_reg1;
 
 	ene_clear_reg_mask(dev, ENE_ECSTS, ENE_ECSTS_RSRVD);
 	chip_major = ene_read_reg(dev, ENE_ECVER_MAJOR);
-	chip_minor = ene_read_reg(dev, ENE_ECVER_MINOR);
+	chip_miyesr = ene_read_reg(dev, ENE_ECVER_MINOR);
 	ene_set_reg_mask(dev, ENE_ECSTS, ENE_ECSTS_RSRVD);
 
 	hw_revision = ene_read_reg(dev, ENE_ECHV);
@@ -111,25 +111,25 @@ static int ene_hw_detect(struct ene_device *dev)
 		return -ENODEV;
 	}
 
-	pr_notice("chip is 0x%02x%02x - kbver = 0x%02x, rev = 0x%02x\n",
-		  chip_major, chip_minor, old_ver, hw_revision);
+	pr_yestice("chip is 0x%02x%02x - kbver = 0x%02x, rev = 0x%02x\n",
+		  chip_major, chip_miyesr, old_ver, hw_revision);
 
-	pr_notice("PLL freq = %d\n", dev->pll_freq);
+	pr_yestice("PLL freq = %d\n", dev->pll_freq);
 
 	if (chip_major == 0x33) {
 		pr_warn("chips 0x33xx aren't supported\n");
 		return -ENODEV;
 	}
 
-	if (chip_major == 0x39 && chip_minor == 0x26 && hw_revision == 0xC0) {
+	if (chip_major == 0x39 && chip_miyesr == 0x26 && hw_revision == 0xC0) {
 		dev->hw_revision = ENE_HW_C;
-		pr_notice("KB3926C detected\n");
+		pr_yestice("KB3926C detected\n");
 	} else if (old_ver == 0x24 && hw_revision == 0xC0) {
 		dev->hw_revision = ENE_HW_B;
-		pr_notice("KB3926B detected\n");
+		pr_yestice("KB3926B detected\n");
 	} else {
 		dev->hw_revision = ENE_HW_D;
-		pr_notice("KB3926D or higher detected\n");
+		pr_yestice("KB3926D or higher detected\n");
 	}
 
 	/* detect features hardware supports */
@@ -139,7 +139,7 @@ static int ene_hw_detect(struct ene_device *dev)
 	fw_reg1 = ene_read_reg(dev, ENE_FW1);
 	fw_reg2 = ene_read_reg(dev, ENE_FW2);
 
-	pr_notice("Firmware regs: %02x %02x\n", fw_reg1, fw_reg2);
+	pr_yestice("Firmware regs: %02x %02x\n", fw_reg1, fw_reg2);
 
 	dev->hw_use_gpio_0a = !!(fw_reg2 & ENE_FW2_GP0A);
 	dev->hw_learning_and_tx_capable = !!(fw_reg2 & ENE_FW2_LEARNING);
@@ -148,29 +148,29 @@ static int ene_hw_detect(struct ene_device *dev)
 	if (dev->hw_learning_and_tx_capable)
 		dev->hw_fan_input = !!(fw_reg2 & ENE_FW2_FAN_INPUT);
 
-	pr_notice("Hardware features:\n");
+	pr_yestice("Hardware features:\n");
 
 	if (dev->hw_learning_and_tx_capable) {
-		pr_notice("* Supports transmitting & learning mode\n");
-		pr_notice("   This feature is rare and therefore,\n");
-		pr_notice("   you are welcome to test it,\n");
-		pr_notice("   and/or contact the author via:\n");
-		pr_notice("   lirc-list@lists.sourceforge.net\n");
-		pr_notice("   or maximlevitsky@gmail.com\n");
+		pr_yestice("* Supports transmitting & learning mode\n");
+		pr_yestice("   This feature is rare and therefore,\n");
+		pr_yestice("   you are welcome to test it,\n");
+		pr_yestice("   and/or contact the author via:\n");
+		pr_yestice("   lirc-list@lists.sourceforge.net\n");
+		pr_yestice("   or maximlevitsky@gmail.com\n");
 
-		pr_notice("* Uses GPIO %s for IR raw input\n",
+		pr_yestice("* Uses GPIO %s for IR raw input\n",
 			  dev->hw_use_gpio_0a ? "40" : "0A");
 
 		if (dev->hw_fan_input)
-			pr_notice("* Uses unused fan feedback input as source of demodulated IR data\n");
+			pr_yestice("* Uses unused fan feedback input as source of demodulated IR data\n");
 	}
 
 	if (!dev->hw_fan_input)
-		pr_notice("* Uses GPIO %s for IR demodulated input\n",
+		pr_yestice("* Uses GPIO %s for IR demodulated input\n",
 			  dev->hw_use_gpio_0a ? "0A" : "40");
 
 	if (dev->hw_extra_buffer)
-		pr_notice("* Uses new style input buffer\n");
+		pr_yestice("* Uses new style input buffer\n");
 	return 0;
 }
 
@@ -201,13 +201,13 @@ static void ene_rx_setup_hw_buffer(struct ene_device *dev)
 
 	dev->buffer_len = dev->extra_buf1_len + dev->extra_buf2_len + 8;
 
-	pr_notice("Hardware uses 2 extended buffers:\n");
-	pr_notice("  0x%04x - len : %d\n",
+	pr_yestice("Hardware uses 2 extended buffers:\n");
+	pr_yestice("  0x%04x - len : %d\n",
 		  dev->extra_buf1_address, dev->extra_buf1_len);
-	pr_notice("  0x%04x - len : %d\n",
+	pr_yestice("  0x%04x - len : %d\n",
 		  dev->extra_buf2_address, dev->extra_buf2_len);
 
-	pr_notice("Total buffer len = %d\n", dev->buffer_len);
+	pr_yestice("Total buffer len = %d\n", dev->buffer_len);
 
 	if (dev->buffer_len > 64 || dev->buffer_len < 16)
 		goto error;
@@ -404,10 +404,10 @@ static void ene_rx_setup(struct ene_device *dev)
 
 		WARN_ON(!dev->hw_learning_and_tx_capable);
 
-		/* Enable the opposite of the normal input
-		That means that if GPIO40 is normally used, use GPIO0A
+		/* Enable the opposite of the yesrmal input
+		That means that if GPIO40 is yesrmally used, use GPIO0A
 		and vice versa.
-		This input will carry non demodulated
+		This input will carry yesn demodulated
 		signal, and we will tell the hw to demodulate it itself */
 		ene_rx_select_input(dev, !dev->hw_use_gpio_0a);
 		dev->rx_fan_input_inuse = false;
@@ -621,7 +621,7 @@ static void ene_tx_sample(struct ene_device *dev)
 
 		if (dev->tx_pos == dev->tx_len) {
 			if (!dev->tx_done) {
-				dbg("TX: no more data to send");
+				dbg("TX: yes more data to send");
 				dev->tx_done = true;
 				goto exit;
 			} else {
@@ -754,7 +754,7 @@ static irqreturn_t ene_isr(int irq, void *data)
 		ene_rx_sense_carrier(dev);
 
 	/* On hardware that don't support extra buffer we need to trust
-		the interrupt and not track the read pointer */
+		the interrupt and yest track the read pointer */
 	if (!dev->hw_extra_buffer)
 		dev->r_pointer = dev->w_pointer == 0 ? ENE_FW_PACKET_SIZE : 0;
 
@@ -1086,7 +1086,7 @@ static int ene_probe(struct pnp_dev *pnp_dev, const struct pnp_device_id *id)
 		goto exit_release_hw_io;
 	}
 
-	pr_notice("driver has been successfully loaded\n");
+	pr_yestice("driver has been successfully loaded\n");
 	return 0;
 
 exit_release_hw_io:

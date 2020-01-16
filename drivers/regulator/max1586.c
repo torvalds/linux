@@ -110,7 +110,7 @@ static int max1586_v6_set_voltage_sel(struct regulator_dev *rdev,
 }
 
 /*
- * The Maxim 1586 controls V3 and V6 voltages, but offers no way of reading back
+ * The Maxim 1586 controls V3 and V6 voltages, but offers yes way of reading back
  * the set up value.
  */
 static const struct regulator_ops max1586_v3_ops = {
@@ -151,18 +151,18 @@ static int of_get_max1586_platform_data(struct device *dev,
 {
 	struct max1586_subdev_data *sub;
 	struct of_regulator_match rmatch[ARRAY_SIZE(max1586_reg)] = { };
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 	int i, matched;
 
 	if (of_property_read_u32(np, "v3-gain",
 				 &pdata->v3_gain) < 0) {
-		dev_err(dev, "%pOF has no 'v3-gain' property\n", np);
+		dev_err(dev, "%pOF has yes 'v3-gain' property\n", np);
 		return -EINVAL;
 	}
 
 	np = of_get_child_by_name(np, "regulators");
 	if (!np) {
-		dev_err(dev, "missing 'regulators' subnode in DT\n");
+		dev_err(dev, "missing 'regulators' subyesde in DT\n");
 		return -EINVAL;
 	}
 
@@ -170,11 +170,11 @@ static int of_get_max1586_platform_data(struct device *dev,
 		rmatch[i].name = max1586_reg[i].name;
 
 	matched = of_regulator_match(dev, np, rmatch, ARRAY_SIZE(rmatch));
-	of_node_put(np);
+	of_yesde_put(np);
 	/*
-	 * If matched is 0, ie. neither Output_V3 nor Output_V6 have been found,
-	 * return 0, which signals the normal situation where no subregulator is
-	 * available. This is normal because the max1586 doesn't provide any
+	 * If matched is 0, ie. neither Output_V3 yesr Output_V6 have been found,
+	 * return 0, which signals the yesrmal situation where yes subregulator is
+	 * available. This is yesrmal because the max1586 doesn't provide any
 	 * readback support, so the subregulators can't report any status
 	 * anyway.  If matched < 0, return the error.
 	 */
@@ -193,7 +193,7 @@ static int of_get_max1586_platform_data(struct device *dev,
 
 	for (i = 0; i < matched; i++) {
 		sub->id = i;
-		sub->name = rmatch[i].of_node->name;
+		sub->name = rmatch[i].of_yesde->name;
 		sub->platform_data = rmatch[i].init_data;
 		sub++;
 	}
@@ -217,7 +217,7 @@ static int max1586_pmic_probe(struct i2c_client *client,
 	const struct of_device_id *match;
 
 	pdata = dev_get_platdata(&client->dev);
-	if (client->dev.of_node && !pdata) {
+	if (client->dev.of_yesde && !pdata) {
 		match = of_match_device(of_match_ptr(max1586_of_match),
 					&client->dev);
 		if (!match) {

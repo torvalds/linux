@@ -36,7 +36,7 @@ static inline void __clear_cache_all(void)
 #ifdef CACHE_INVALIDATE
 	__asm__ __volatile__ (
 		"movec	%0, %%CACR\n\t"
-		"nop\n\t"
+		"yesp\n\t"
 		: : "r" (CACHE_INVALIDATE) );
 #endif
 }
@@ -59,7 +59,7 @@ static inline void __flush_icache_all(void)
 #ifdef CACHE_INVALIDATEI
 	__asm__ __volatile__ (
 		"movec	%0, %%CACR\n\t"
-		"nop\n\t"
+		"yesp\n\t"
 		: : "r" (CACHE_INVALIDATEI) );
 #endif
 }
@@ -72,11 +72,11 @@ static inline void __flush_dcache_all(void)
 #ifdef CACHE_INVALIDATED
 	__asm__ __volatile__ (
 		"movec	%0, %%CACR\n\t"
-		"nop\n\t"
+		"yesp\n\t"
 		: : "r" (CACHE_INVALIDATED) );
 #else
 	/* Flush the write buffer */
-	__asm__ __volatile__ ( "nop" );
+	__asm__ __volatile__ ( "yesp" );
 #endif
 }
 

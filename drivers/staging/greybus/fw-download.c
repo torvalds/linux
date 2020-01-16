@@ -24,7 +24,7 @@ struct fw_request {
 	bool			timedout;
 	char			name[FW_NAME_SIZE];
 	const struct firmware	*fw;
-	struct list_head	node;
+	struct list_head	yesde;
 
 	struct delayed_work	dwork;
 	/* Timeout, in jiffies, within which the firmware shall download */
@@ -78,7 +78,7 @@ static void fw_req_release(struct kref *kref)
  * to the users.
  *
  * free_firmware() also takes the mutex while removing an entry from the list,
- * it guarantees that every user of fw_req has taken a kref-reference by now and
+ * it guarantees that every user of fw_req has taken a kref-reference by yesw and
  * we wouldn't have any new users.
  *
  * Once the last user drops the reference, the fw_req structure is freed.
@@ -96,7 +96,7 @@ static struct fw_request *get_fw_req(struct fw_download *fw_download,
 
 	mutex_lock(&fw_download->mutex);
 
-	list_for_each_entry(fw_req, &fw_download->fw_requests, node) {
+	list_for_each_entry(fw_req, &fw_download->fw_requests, yesde) {
 		if (fw_req->firmware_id == firmware_id) {
 			kref_get(&fw_req->kref);
 			goto unlock;
@@ -119,7 +119,7 @@ static void free_firmware(struct fw_download *fw_download,
 		return;
 
 	mutex_lock(&fw_download->mutex);
-	list_del(&fw_req->node);
+	list_del(&fw_req->yesde);
 	mutex_unlock(&fw_download->mutex);
 
 	fw_req->disabled = true;
@@ -199,7 +199,7 @@ static struct fw_request *find_firmware(struct fw_download *fw_download,
 	kref_init(&fw_req->kref);
 
 	mutex_lock(&fw_download->mutex);
-	list_add(&fw_req->node, &fw_download->fw_requests);
+	list_add(&fw_req->yesde, &fw_download->fw_requests);
 	mutex_unlock(&fw_download->mutex);
 
 	/* Timeout, in jiffies, within which firmware should get loaded */
@@ -242,7 +242,7 @@ static int fw_download_find_firmware(struct gb_operation *op)
 	if (strnlen(tag, GB_FIRMWARE_TAG_MAX_SIZE) ==
 	    GB_FIRMWARE_TAG_MAX_SIZE) {
 		dev_err(fw_download->parent,
-			"firmware-tag is not null-terminated\n");
+			"firmware-tag is yest null-terminated\n");
 		return -EINVAL;
 	}
 
@@ -293,7 +293,7 @@ static int fw_download_fetch_firmware(struct gb_operation *op)
 	fw_req = get_fw_req(fw_download, firmware_id);
 	if (!fw_req) {
 		dev_err(fw_download->parent,
-			"firmware not available for id: %02u\n", firmware_id);
+			"firmware yest available for id: %02u\n", firmware_id);
 		return -EINVAL;
 	}
 
@@ -370,7 +370,7 @@ static int fw_download_release_firmware(struct gb_operation *op)
 	fw_req = get_fw_req(fw_download, firmware_id);
 	if (!fw_req) {
 		dev_err(fw_download->parent,
-			"firmware not available for id: %02u\n", firmware_id);
+			"firmware yest available for id: %02u\n", firmware_id);
 		return -EINVAL;
 	}
 
@@ -450,12 +450,12 @@ void gb_fw_download_connection_exit(struct gb_connection *connection)
 	 * are freed from the timeout handler.
 	 */
 	mutex_lock(&fw_download->mutex);
-	list_for_each_entry(fw_req, &fw_download->fw_requests, node)
+	list_for_each_entry(fw_req, &fw_download->fw_requests, yesde)
 		kref_get(&fw_req->kref);
 	mutex_unlock(&fw_download->mutex);
 
 	/* Release pending firmware packages */
-	list_for_each_entry_safe(fw_req, tmp, &fw_download->fw_requests, node) {
+	list_for_each_entry_safe(fw_req, tmp, &fw_download->fw_requests, yesde) {
 		cancel_delayed_work_sync(&fw_req->dwork);
 		free_firmware(fw_download, fw_req);
 		put_fw_req(fw_req);

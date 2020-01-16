@@ -89,13 +89,13 @@ struct mfd_cell {
 	const struct resource	*resources;
 
 	/* don't check for resource conflicts */
-	bool			ignore_resource_conflicts;
+	bool			igyesre_resource_conflicts;
 
 	/*
 	 * Disable runtime PM callbacks for this subdevice - see
-	 * pm_runtime_no_callbacks().
+	 * pm_runtime_yes_callbacks().
 	 */
-	bool			pm_runtime_no_callbacks;
+	bool			pm_runtime_yes_callbacks;
 
 	/* A list of regulator supplies that should be mapped to the MFD
 	 * device rather than the child device when requested
@@ -107,7 +107,7 @@ struct mfd_cell {
 /*
  * Convenience functions for clients using shared cells.  Refcounting
  * happens automatically, with the cell's enable/disable callbacks
- * being called only when a device is first being enabled or no other
+ * being called only when a device is first being enabled or yes other
  * clients are making use of it.
  */
 extern int mfd_cell_enable(struct platform_device *pdev);

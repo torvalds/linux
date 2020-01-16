@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: GPL-2.0-only
 
-"""Find Kconfig symbols that are referenced but not defined."""
+"""Find Kconfig symbols that are referenced but yest defined."""
 
 # (c) 2014-2017 Valentin Rothberg <valentinrothberg@gmail.com>
 # (c) 2014 Stefan Hengelein <stefan.hengelein@fau.de>
@@ -43,9 +43,9 @@ REGEX_QUOTES = re.compile("(\"(.*?)\")")
 def parse_options():
     """The user interface of this module."""
     usage = "Run this tool to detect Kconfig symbols that are referenced but " \
-            "not defined in Kconfig.  If no option is specified, "             \
+            "yest defined in Kconfig.  If yes option is specified, "             \
             "checkkconfigsymbols defaults to check your current tree.  "       \
-            "Please note that specifying commits will 'git reset --hard\' "    \
+            "Please yeste that specifying commits will 'git reset --hard\' "    \
             "your current tree!  You may save uncommitted changes to avoid "   \
             "losing data."
 
@@ -66,9 +66,9 @@ def parse_options():
                         help="find and show commits that may cause symbols to be "
                              "missing (required to run with --diff)")
 
-    parser.add_argument('-i', '--ignore', dest='ignore', action='store',
+    parser.add_argument('-i', '--igyesre', dest='igyesre', action='store',
                         default="",
-                        help="ignore files matching this Python regex "
+                        help="igyesre files matching this Python regex "
                              "(e.g., -i '.*defconfig')")
 
     parser.add_argument('-s', '--sim', dest='sim', action='store', default="",
@@ -78,9 +78,9 @@ def parse_options():
                         default=False,
                         help="reset current Git tree even when it's dirty")
 
-    parser.add_argument('--no-color', dest='color', action='store_false',
+    parser.add_argument('--yes-color', dest='color', action='store_false',
                         default=True,
-                        help="don't print colored output (default when not "
+                        help="don't print colored output (default when yest "
                              "outputting to a terminal)")
 
     args = parser.parse_args()
@@ -88,25 +88,25 @@ def parse_options():
     if args.commit and args.diff:
         sys.exit("Please specify only one option at once.")
 
-    if args.diff and not re.match(r"^[\w\-\.\^]+\.\.[\w\-\.\^]+$", args.diff):
+    if args.diff and yest re.match(r"^[\w\-\.\^]+\.\.[\w\-\.\^]+$", args.diff):
         sys.exit("Please specify valid input in the following format: "
                  "\'commit1..commit2\'")
 
     if args.commit or args.diff:
-        if not args.force and tree_is_dirty():
+        if yest args.force and tree_is_dirty():
             sys.exit("The current Git tree is dirty (see 'git status').  "
                      "Running this script may\ndelete important data since it "
                      "calls 'git reset --hard' for some performance\nreasons. "
                      " Please run this script in a clean Git tree or pass "
-                     "'--force' if you\nwant to ignore this warning and "
+                     "'--force' if you\nwant to igyesre this warning and "
                      "continue.")
 
     if args.commit:
         args.find = False
 
-    if args.ignore:
+    if args.igyesre:
         try:
-            re.match(args.ignore, "this/is/just/a/test.c")
+            re.match(args.igyesre, "this/is/just/a/test.c")
         except:
             sys.exit("Please specify a valid Python regex.")
 
@@ -120,12 +120,12 @@ def main():
     global COLOR
     COLOR = args.color and sys.stdout.isatty()
 
-    if args.sim and not args.commit and not args.diff:
-        sims = find_sims(args.sim, args.ignore)
+    if args.sim and yest args.commit and yest args.diff:
+        sims = find_sims(args.sim, args.igyesre)
         if sims:
             print("%s: %s" % (yel("Similar symbols"), ', '.join(sims)))
         else:
-            print("%s: no similar symbols found" % yel("Similar symbols"))
+            print("%s: yes similar symbols found" % yel("Similar symbols"))
         sys.exit(0)
 
     # dictionary of (un)defined symbols
@@ -150,16 +150,16 @@ def main():
 
         # get undefined items before the commit
         reset(commit_a)
-        undefined_a, _ = check_symbols(args.ignore)
+        undefined_a, _ = check_symbols(args.igyesre)
 
         # get undefined items for the commit
         reset(commit_b)
-        undefined_b, defined = check_symbols(args.ignore)
+        undefined_b, defined = check_symbols(args.igyesre)
 
-        # report cases that are present for the commit but not before
+        # report cases that are present for the commit but yest before
         for symbol in sorted(undefined_b):
-            # symbol has not been undefined before
-            if symbol not in undefined_a:
+            # symbol has yest been undefined before
+            if symbol yest in undefined_a:
                 files = sorted(undefined_b.get(symbol))
                 undefined[symbol] = files
             # check if there are new files that reference the undefined symbol
@@ -174,21 +174,21 @@ def main():
 
     # default to check the entire tree
     else:
-        undefined, defined = check_symbols(args.ignore)
+        undefined, defined = check_symbols(args.igyesre)
 
-    # now print the output
+    # yesw print the output
     for symbol in sorted(undefined):
         print(red(symbol))
 
         files = sorted(undefined.get(symbol))
         print("%s: %s" % (yel("Referencing files"), ", ".join(files)))
 
-        sims = find_sims(symbol, args.ignore, defined)
+        sims = find_sims(symbol, args.igyesre, defined)
         sims_out = yel("Similar symbols")
         if sims:
             print("%s: %s" % (sims_out, ', '.join(sims)))
         else:
-            print("%s: %s" % (sims_out, "no similar symbols found"))
+            print("%s: %s" % (sims_out, "yes similar symbols found"))
 
         if args.find:
             print("%s:" % yel("Commits changing symbol"))
@@ -198,7 +198,7 @@ def main():
                     commit = commit.split(" ", 1)
                     print("\t- %s (\"%s\")" % (yel(commit[0]), commit[1]))
             else:
-                print("\t- no commit found")
+                print("\t- yes commit found")
         print()  # new line
 
 
@@ -241,7 +241,7 @@ def find_commits(symbol, diff):
 
 def tree_is_dirty():
     """Return true if the current working tree is dirty (i.e., if any file has
-    been added, deleted, modified, renamed or copied but not committed)."""
+    been added, deleted, modified, renamed or copied but yest committed)."""
     stdout = execute(["git", "status", "--porcelain"])
     for line in stdout:
         if re.findall(r"[URMADC]{1}", line[:2]):
@@ -261,11 +261,11 @@ def partition(lst, size):
 
 
 def init_worker():
-    """Set signal handler to ignore SIGINT."""
+    """Set signal handler to igyesre SIGINT."""
     signal.signal(signal.SIGINT, signal.SIG_IGN)
 
 
-def find_sims(symbol, ignore, defined=[]):
+def find_sims(symbol, igyesre, defined=[]):
     """Return a list of max. ten Kconfig symbols that are string-similar to
     @symbol."""
     if defined:
@@ -279,7 +279,7 @@ def find_sims(symbol, ignore, defined=[]):
 
     arglist = []
     for part in partition(kfiles, cpu_count()):
-        arglist.append((part, ignore))
+        arglist.append((part, igyesre))
 
     for res in pool.map(parse_kconfig_files, arglist):
         defined.extend(res[0])
@@ -304,20 +304,20 @@ def get_files():
     return files
 
 
-def check_symbols(ignore):
+def check_symbols(igyesre):
     """Find undefined Kconfig symbols and return a dict with the symbol as key
-    and a list of referencing files as value.  Files matching %ignore are not
+    and a list of referencing files as value.  Files matching %igyesre are yest
     checked for undefined symbols."""
     pool = Pool(cpu_count(), init_worker)
     try:
-        return check_symbols_helper(pool, ignore)
+        return check_symbols_helper(pool, igyesre)
     except KeyboardInterrupt:
         pool.terminate()
         pool.join()
         sys.exit(1)
 
 
-def check_symbols_helper(pool, ignore):
+def check_symbols_helper(pool, igyesre):
     """Helper method for check_symbols().  Used to catch keyboard interrupts in
     check_symbols() in order to properly terminate running worker processes."""
     source_files = []
@@ -329,9 +329,9 @@ def check_symbols_helper(pool, ignore):
         if REGEX_FILE_KCONFIG.match(gitfile):
             kconfig_files.append(gitfile)
         else:
-            if ignore and not re.match(ignore, gitfile):
+            if igyesre and yest re.match(igyesre, gitfile):
                 continue
-            # add source files that do not match the ignore pattern
+            # add source files that do yest match the igyesre pattern
             source_files.append(gitfile)
 
     # parse source files
@@ -342,7 +342,7 @@ def check_symbols_helper(pool, ignore):
     # parse kconfig files
     arglist = []
     for part in partition(kconfig_files, cpu_count()):
-        arglist.append((part, ignore))
+        arglist.append((part, igyesre))
     for res in pool.map(parse_kconfig_files, arglist):
         defined_symbols.extend(res[0])
         referenced_symbols.update(res[1])
@@ -362,7 +362,7 @@ def check_symbols_helper(pool, ignore):
         if symbol == "FOO" or symbol == "BAR" or \
                 symbol == "FOO_BAR" or symbol == "XXX":
             continue
-        if symbol not in defined_symbols:
+        if symbol yest in defined_symbols:
             if symbol.endswith("_MODULE"):
                 # avoid false positives for kernel modules
                 if symbol[:-len("_MODULE")] in defined_symbols:
@@ -385,18 +385,18 @@ def parse_source_file(sfile):
     lines = []
     references = []
 
-    if not os.path.exists(sfile):
+    if yest os.path.exists(sfile):
         return references
 
     with open(sfile, "r", encoding='utf-8', errors='replace') as stream:
         lines = stream.readlines()
 
     for line in lines:
-        if "CONFIG_" not in line:
+        if "CONFIG_" yest in line:
             continue
         symbols = REGEX_SOURCE_SYMBOL.findall(line)
         for symbol in symbols:
-            if not REGEX_FILTER_SYMBOLS.search(symbol):
+            if yest REGEX_FILTER_SYMBOLS.search(symbol):
                 continue
             references.append(symbol)
 
@@ -410,18 +410,18 @@ def get_symbols_in_line(line):
 
 def parse_kconfig_files(args):
     """Parse kconfig files and return tuple of defined and references Kconfig
-    symbols.  Note, @args is a tuple of a list of files and the @ignore
+    symbols.  Note, @args is a tuple of a list of files and the @igyesre
     pattern."""
     kconfig_files = args[0]
-    ignore = args[1]
+    igyesre = args[1]
     defined_symbols = []
     referenced_symbols = dict()
 
     for kfile in kconfig_files:
         defined, references = parse_kconfig_file(kfile)
         defined_symbols.extend(defined)
-        if ignore and re.match(ignore, kfile):
-            # do not collect references for files that match the ignore pattern
+        if igyesre and re.match(igyesre, kfile):
+            # do yest collect references for files that match the igyesre pattern
             continue
         referenced_symbols[kfile] = references
     return (defined_symbols, referenced_symbols)
@@ -434,7 +434,7 @@ def parse_kconfig_file(kfile):
     references = []
     skip = False
 
-    if not os.path.exists(kfile):
+    if yest os.path.exists(kfile):
         return defined, references
 
     with open(kfile, "r", encoding='utf-8', errors='replace') as stream:
@@ -443,7 +443,7 @@ def parse_kconfig_file(kfile):
     for i in range(len(lines)):
         line = lines[i]
         line = line.strip('\n')
-        line = line.split("#")[0]  # ignore comments
+        line = line.split("#")[0]  # igyesre comments
 
         if REGEX_KCONFIG_DEF.match(line):
             symbol_def = REGEX_KCONFIG_DEF.findall(line)
@@ -452,7 +452,7 @@ def parse_kconfig_file(kfile):
         elif REGEX_KCONFIG_HELP.match(line):
             skip = True
         elif skip:
-            # ignore content of help messages
+            # igyesre content of help messages
             pass
         elif REGEX_KCONFIG_STMT.match(line):
             line = REGEX_QUOTES.sub("", line)
@@ -465,7 +465,7 @@ def parse_kconfig_file(kfile):
                 symbols.extend(get_symbols_in_line(line))
             for symbol in set(symbols):
                 if REGEX_NUMERIC.match(symbol):
-                    # ignore numeric values
+                    # igyesre numeric values
                     continue
                 references.append(symbol)
 

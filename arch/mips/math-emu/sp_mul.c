@@ -139,7 +139,7 @@ union ieee754sp ieee754sp_mul(union ieee754sp x, union ieee754sp y)
 	rm = hrm | (lrm != 0);
 
 	/*
-	 * Sticky shift down to normal rounding precision.
+	 * Sticky shift down to yesrmal rounding precision.
 	 */
 	if ((int) rm < 0) {
 		rm = (rm >> (32 - (SP_FBITS + 1 + 3))) |

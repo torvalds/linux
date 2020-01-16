@@ -221,7 +221,7 @@ struct skd_device {
 	int gendisk_on;
 	int sync_done;
 
-	u32 devno;
+	u32 devyes;
 	u32 major;
 	char isr_name[30];
 
@@ -346,7 +346,7 @@ module_param(skd_dbg_level, int, 0444);
 MODULE_PARM_DESC(skd_dbg_level, "s1120 debug level (0,1,2)");
 
 module_param(skd_isr_comp_limit, int, 0444);
-MODULE_PARM_DESC(skd_isr_comp_limit, "s1120 isr comp limit (0=none) default=4");
+MODULE_PARM_DESC(skd_isr_comp_limit, "s1120 isr comp limit (0=yesne) default=4");
 
 /* Major device number dynamically assigned. */
 static u32 skd_major;
@@ -446,7 +446,7 @@ static bool skd_fail_all(struct request_queue *q)
 
 	SKD_ASSERT(skdev->state != SKD_DRVR_STATE_ONLINE);
 
-	skd_log_skdev(skdev, "req_not_online");
+	skd_log_skdev(skdev, "req_yest_online");
 	switch (skdev->state) {
 	case SKD_DRVR_STATE_PAUSING:
 	case SKD_DRVR_STATE_PAUSED:
@@ -697,7 +697,7 @@ static void skd_postop_sg_list(struct skd_device *skdev,
  *****************************************************************************
  */
 
-static void skd_timer_tick_not_online(struct skd_device *skdev);
+static void skd_timer_tick_yest_online(struct skd_device *skdev);
 
 static void skd_start_queue(struct work_struct *work)
 {
@@ -706,7 +706,7 @@ static void skd_start_queue(struct work_struct *work)
 
 	/*
 	 * Although it is safe to call blk_start_queue() from interrupt
-	 * context, blk_mq_start_hw_queues() must not be called from
+	 * context, blk_mq_start_hw_queues() must yest be called from
 	 * interrupt context.
 	 */
 	blk_mq_start_hw_queues(skdev->queue);
@@ -732,14 +732,14 @@ static void skd_timer_tick(struct timer_list *t)
 		skd_isr_fwstate(skdev);
 
 	if (skdev->state != SKD_DRVR_STATE_ONLINE)
-		skd_timer_tick_not_online(skdev);
+		skd_timer_tick_yest_online(skdev);
 
 	mod_timer(&skdev->timer, (jiffies + HZ));
 
 	spin_unlock_irqrestore(&skdev->lock, reqflags);
 }
 
-static void skd_timer_tick_not_online(struct skd_device *skdev)
+static void skd_timer_tick_yest_online(struct skd_device *skdev)
 {
 	switch (skdev->state) {
 	case SKD_DRVR_STATE_IDLE:
@@ -749,8 +749,8 @@ static void skd_timer_tick_not_online(struct skd_device *skdev)
 		dev_dbg(&skdev->pdev->dev,
 			"drive busy sanitize[%x], driver[%x]\n",
 			skdev->drive_state, skdev->state);
-		/* If we've been in sanitize for 3 seconds, we figure we're not
-		 * going to get anymore completions, so recover requests now
+		/* If we've been in sanitize for 3 seconds, we figure we're yest
+		 * going to get anymore completions, so recover requests yesw
 		 */
 		if (skdev->timer_countdown > 0) {
 			skdev->timer_countdown--;
@@ -780,7 +780,7 @@ static void skd_timer_tick_not_online(struct skd_device *skdev)
 			skdev->timer_countdown--;
 			return;
 		}
-		/* For now, we fault the drive.  Could attempt resets to
+		/* For yesw, we fault the drive.  Could attempt resets to
 		 * revcover at some point. */
 		skdev->state = SKD_DRVR_STATE_FAULT;
 
@@ -807,7 +807,7 @@ static void skd_timer_tick_not_online(struct skd_device *skdev)
 			skdev->timer_countdown--;
 			return;
 		}
-		/* For now, we fault the drive. Could attempt resets to
+		/* For yesw, we fault the drive. Could attempt resets to
 		 * revcover at some point. */
 		skdev->state = SKD_DRVR_STATE_FAULT;
 		dev_err(&skdev->pdev->dev,
@@ -983,7 +983,7 @@ static void skd_send_internal_skspcl(struct skd_device *skdev,
 		break;
 
 	default:
-		SKD_ASSERT("Don't know what to send");
+		SKD_ASSERT("Don't kyesw what to send");
 		return;
 
 	}
@@ -1147,7 +1147,7 @@ static void skd_complete_internal(struct skd_device *skdev,
 			   (skerr->key == MEDIUM_ERROR)) {
 			skdev->read_cap_last_lba = ~0;
 			set_capacity(skdev->disk, skdev->read_cap_last_lba + 1);
-			dev_dbg(&skdev->pdev->dev, "**** MEDIUM ERROR caused READCAP to fail, ignore failure and continue to inquiry\n");
+			dev_dbg(&skdev->pdev->dev, "**** MEDIUM ERROR caused READCAP to fail, igyesre failure and continue to inquiry\n");
 			skd_send_internal_skspcl(skdev, skspcl, INQUIRY);
 		} else {
 			dev_dbg(&skdev->pdev->dev, "**** READCAP failed, retry TUR\n");
@@ -1222,9 +1222,9 @@ static void skd_send_fitmsg(struct skd_device *skdev,
 		qcmd |= FIT_QCMD_MSGSIZE_128;
 	else
 		/*
-		 * This makes no sense because the FIT msg header is
+		 * This makes yes sense because the FIT msg header is
 		 * 64 bytes. If the msg is only 64 bytes long it has
-		 * no payload.
+		 * yes payload.
 		 */
 		qcmd |= FIT_QCMD_MSGSIZE_64;
 
@@ -1346,7 +1346,7 @@ static struct sns_info skd_chkstat_table[] = {
  * Look up status and sense data to decide how to handle the error
  * from the device.
  * mask says which fields must match e.g., mask=0x18 means check
- * type and stat, ignore key, asc, ascq.
+ * type and stat, igyesre key, asc, ascq.
  */
 
 static enum skd_check_status_action
@@ -1395,7 +1395,7 @@ skd_check_status(struct skd_device *skdev,
 		return sns->action;
 	}
 
-	/* No other match, so nonzero status means error,
+	/* No other match, so yesnzero status means error,
 	 * zero status means good
 	 */
 	if (cmp_status) {
@@ -1515,7 +1515,7 @@ static int skd_isr_completion_posted(struct skd_device *skdev,
 		/* Is this other than a r/w request? */
 		if (tag >= skdev->num_req_context) {
 			/*
-			 * This is not a completion for a r/w request.
+			 * This is yest a completion for a r/w request.
 			 */
 			WARN_ON_ONCE(blk_mq_tag_to_rq(skdev->tag_set.tags[hwq],
 						      tag));
@@ -1565,7 +1565,7 @@ static int skd_isr_completion_posted(struct skd_device *skdev,
 			skd_resolve_req_exception(skdev, skreq, rq);
 		}
 
-		/* skd_isr_comp_limit equal zero means no limit */
+		/* skd_isr_comp_limit equal zero means yes limit */
 		if (limit) {
 			if (++processed >= limit) {
 				rc = 1;
@@ -1668,7 +1668,7 @@ static void skd_completion_worker(struct work_struct *work)
 	spin_lock_irqsave(&skdev->lock, flags);
 
 	/*
-	 * pass in limit=0, which means no limit..
+	 * pass in limit=0, which means yes limit..
 	 * process everything in compq
 	 */
 	skd_isr_completion_posted(skdev, 0, &flush_enqueued);
@@ -1701,7 +1701,7 @@ skd_isr(int irq, void *ptr)
 			ack);
 
 		/* As long as there is an int pending on device, keep
-		 * running loop.  When none, get out, but if we've never
+		 * running loop.  When yesne, get out, but if we've never
 		 * done any processing, call completion handler?
 		 */
 		if (ack == 0) {
@@ -1883,7 +1883,7 @@ static void skd_isr_fwstate(struct skd_device *skdev)
 		break;
 	default:
 		/*
-		 * Uknown FW State. Wait for a state we recognize.
+		 * Ukyeswn FW State. Wait for a state we recognize.
 		 */
 		break;
 	}
@@ -1928,7 +1928,7 @@ static void skd_isr_msg_from_dev(struct skd_device *skdev)
 	dev_dbg(&skdev->pdev->dev, "mfd=0x%x last_mtd=0x%x\n", mfd,
 		skdev->last_mtd);
 
-	/* ignore any mtd that is an ack for something we didn't send */
+	/* igyesre any mtd that is an ack for something we didn't send */
 	if (FIT_MXD_TYPE(mfd) != FIT_MXD_TYPE(skdev->last_mtd))
 		return;
 
@@ -1967,7 +1967,7 @@ static void skd_isr_msg_from_dev(struct skd_device *skdev)
 
 	case FIT_MTD_SET_COMPQ_ADDR:
 		skd_reset_skcomp(skdev);
-		mtd = FIT_MXD_CONS(FIT_MTD_CMD_LOG_HOST_ID, 0, skdev->devno);
+		mtd = FIT_MXD_CONS(FIT_MTD_CMD_LOG_HOST_ID, 0, skdev->devyes);
 		SKD_WRITEL(skdev, mtd, FIT_MSG_TO_DEVICE);
 		skdev->last_mtd = mtd;
 		break;
@@ -2126,7 +2126,7 @@ static void skd_start_device(struct skd_device *skdev)
 	case FIT_SR_DRIVE_FAULT:
 		/* Fault state is bad...soft reset won't do it...
 		 * Hard reset, maybe, but does it work on device?
-		 * For now, just fault so the system doesn't hang.
+		 * For yesw, just fault so the system doesn't hang.
 		 */
 		skd_drive_fault(skdev);
 		/*start the queue so we can respond with error to requests */
@@ -2149,7 +2149,7 @@ static void skd_start_device(struct skd_device *skdev)
 		break;
 
 	default:
-		dev_err(&skdev->pdev->dev, "Start: unknown state %x\n",
+		dev_err(&skdev->pdev->dev, "Start: unkyeswn state %x\n",
 			skdev->drive_state);
 		break;
 	}
@@ -2182,12 +2182,12 @@ static void skd_stop_device(struct skd_device *skdev)
 	spin_lock_irqsave(&skdev->lock, flags);
 
 	if (skdev->state != SKD_DRVR_STATE_ONLINE) {
-		dev_err(&skdev->pdev->dev, "%s not online no sync\n", __func__);
+		dev_err(&skdev->pdev->dev, "%s yest online yes sync\n", __func__);
 		goto stop_out;
 	}
 
 	if (skspcl->req.state != SKD_REQ_STATE_IDLE) {
-		dev_err(&skdev->pdev->dev, "%s no special\n", __func__);
+		dev_err(&skdev->pdev->dev, "%s yes special\n", __func__);
 		goto stop_out;
 	}
 
@@ -2205,7 +2205,7 @@ static void skd_stop_device(struct skd_device *skdev)
 
 	switch (skdev->sync_done) {
 	case 0:
-		dev_err(&skdev->pdev->dev, "%s no sync\n", __func__);
+		dev_err(&skdev->pdev->dev, "%s yes sync\n", __func__);
 		break;
 	case 1:
 		dev_err(&skdev->pdev->dev, "%s sync done\n", __func__);
@@ -2288,7 +2288,7 @@ static int skd_quiesce_dev(struct skd_device *skdev)
 	case SKD_DRVR_STATE_RESUMING:
 	default:
 		rc = -EINVAL;
-		dev_dbg(&skdev->pdev->dev, "state [%d] not implemented\n",
+		dev_dbg(&skdev->pdev->dev, "state [%d] yest implemented\n",
 			skdev->state);
 	}
 	return rc;
@@ -2310,7 +2310,7 @@ static int skd_unquiesce_dev(struct skd_device *skdev)
 		 * ONLINE, we will rely on controller state change
 		 * to come back online and restart the queue.
 		 * The BUSY state means that driver is ready to
-		 * continue normal processing but waiting for controller
+		 * continue yesrmal processing but waiting for controller
 		 * to become available.
 		 */
 		skdev->state = SKD_DRVR_STATE_BUSY;
@@ -2349,7 +2349,7 @@ static int skd_unquiesce_dev(struct skd_device *skdev)
 	case SKD_DRVR_STATE_DISAPPEARED:
 	default:
 		dev_dbg(&skdev->pdev->dev,
-			"**** driver state %d, not implemented\n",
+			"**** driver state %d, yest implemented\n",
 			skdev->state);
 		return -EBUSY;
 	}
@@ -2504,7 +2504,7 @@ static int skd_acquire_msix(struct skd_device *skdev)
 		struct skd_msix_entry *qentry = &skdev->msix_entries[i];
 
 		snprintf(qentry->isr_name, sizeof(qentry->isr_name),
-			 "%s%d-msix %s", DRV_NAME, skdev->devno,
+			 "%s%d-msix %s", DRV_NAME, skdev->devyes,
 			 msix_entries[i].name);
 
 		rc = devm_request_irq(&skdev->pdev->dev,
@@ -2548,7 +2548,7 @@ static int skd_acquire_irq(struct skd_device *skdev)
 	}
 
 	snprintf(skdev->isr_name, sizeof(skdev->isr_name), "%s%d", DRV_NAME,
-			skdev->devno);
+			skdev->devyes);
 
 	if (skd_isr_type != SKD_IRQ_LEGACY)
 		irq_flag |= PCI_IRQ_MSI;
@@ -2692,7 +2692,7 @@ static int skd_cons_skmsg(struct skd_device *skdev)
 
 		WARN(((uintptr_t)skmsg->msg_buf | skmsg->mb_dma_address) &
 		     (FIT_QCMD_ALIGN - 1),
-		     "not aligned: msg_buf %p mb_dma_address %pad\n",
+		     "yest aligned: msg_buf %p mb_dma_address %pad\n",
 		     skmsg->msg_buf, &skmsg->mb_dma_address);
 	}
 
@@ -2737,7 +2737,7 @@ static void skd_free_sg_list(struct skd_device *skdev,
 }
 
 static int skd_init_request(struct blk_mq_tag_set *set, struct request *rq,
-			    unsigned int hctx_idx, unsigned int numa_node)
+			    unsigned int hctx_idx, unsigned int numa_yesde)
 {
 	struct skd_device *skdev = set->driver_data;
 	struct skd_request_context *skreq = blk_mq_rq_to_pdu(rq);
@@ -2825,10 +2825,10 @@ static int skd_cons_disk(struct skd_device *skdev)
 	}
 
 	skdev->disk = disk;
-	sprintf(disk->disk_name, DRV_NAME "%u", skdev->devno);
+	sprintf(disk->disk_name, DRV_NAME "%u", skdev->devyes);
 
 	disk->major = skdev->major;
-	disk->first_minor = skdev->devno * SKD_MINORS_PER_DEVICE;
+	disk->first_miyesr = skdev->devyes * SKD_MINORS_PER_DEVICE;
 	disk->fops = &skd_blockdev_ops;
 	disk->private_data = skdev;
 
@@ -2838,7 +2838,7 @@ static int skd_cons_disk(struct skd_device *skdev)
 	skdev->tag_set.queue_depth = skd_max_queue_depth;
 	skdev->tag_set.cmd_size = sizeof(struct skd_request_context) +
 		skdev->sgs_per_request * sizeof(struct scatterlist);
-	skdev->tag_set.numa_node = NUMA_NO_NODE;
+	skdev->tag_set.numa_yesde = NUMA_NO_NODE;
 	skdev->tag_set.flags = BLK_MQ_F_SHOULD_MERGE |
 		BLK_ALLOC_POLICY_TO_MQ_FLAG(BLK_TAG_ALLOC_FIFO);
 	skdev->tag_set.driver_data = skdev;
@@ -2878,7 +2878,7 @@ err_out:
 }
 
 #define SKD_N_DEV_TABLE         16u
-static u32 skd_next_devno;
+static u32 skd_next_devyes;
 
 static struct skd_device *skd_construct(struct pci_dev *pdev)
 {
@@ -2896,7 +2896,7 @@ static struct skd_device *skd_construct(struct pci_dev *pdev)
 
 	skdev->state = SKD_DRVR_STATE_LOAD;
 	skdev->pdev = pdev;
-	skdev->devno = skd_next_devno++;
+	skdev->devyes = skd_next_devyes++;
 	skdev->major = blk_major;
 	skdev->dev_max_queue_depth = 0;
 
@@ -3154,7 +3154,7 @@ static char *skd_pci_info(struct skd_device *skdev, char *str)
 		else if (lspeed == 2)
 			strcat(str, "5.0GT/s ");
 		else
-			strcat(str, "<unknown> ");
+			strcat(str, "<unkyeswn> ");
 		snprintf(lwstr, sizeof(lwstr), "%dX)", lwidth);
 		strcat(str, lwstr);
 	}
@@ -3255,7 +3255,7 @@ static int skd_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		   don't add the disk structure */
 		dev_err(&pdev->dev, "error: waiting for s1120 timed out %d!\n",
 			rc);
-		/* in case of no error; we timeout with ENXIO */
+		/* in case of yes error; we timeout with ENXIO */
 		if (!rc)
 			rc = -ENXIO;
 		goto err_out_timer;
@@ -3293,7 +3293,7 @@ static void skd_pci_remove(struct pci_dev *pdev)
 
 	skdev = pci_get_drvdata(pdev);
 	if (!skdev) {
-		dev_err(&pdev->dev, "no device data for PCI\n");
+		dev_err(&pdev->dev, "yes device data for PCI\n");
 		return;
 	}
 	skd_stop_device(skdev);
@@ -3322,7 +3322,7 @@ static int skd_pci_suspend(struct pci_dev *pdev, pm_message_t state)
 
 	skdev = pci_get_drvdata(pdev);
 	if (!skdev) {
-		dev_err(&pdev->dev, "no device data for PCI\n");
+		dev_err(&pdev->dev, "yes device data for PCI\n");
 		return -EIO;
 	}
 
@@ -3352,7 +3352,7 @@ static int skd_pci_resume(struct pci_dev *pdev)
 
 	skdev = pci_get_drvdata(pdev);
 	if (!skdev) {
-		dev_err(&pdev->dev, "no device data for PCI\n");
+		dev_err(&pdev->dev, "yes device data for PCI\n");
 		return -1;
 	}
 
@@ -3442,7 +3442,7 @@ static void skd_pci_shutdown(struct pci_dev *pdev)
 
 	skdev = pci_get_drvdata(pdev);
 	if (!skdev) {
-		dev_err(&pdev->dev, "no device data for PCI\n");
+		dev_err(&pdev->dev, "yes device data for PCI\n");
 		return;
 	}
 

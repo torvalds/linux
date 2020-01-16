@@ -31,7 +31,7 @@
 #include <linux/kernel.h>
 #include <linux/string.h> /* memset */
 #include <linux/capability.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/pagemap.h>
 #include <linux/uio.h>
 
@@ -40,10 +40,10 @@
 
 static void __udf_adinicb_readpage(struct page *page)
 {
-	struct inode *inode = page->mapping->host;
+	struct iyesde *iyesde = page->mapping->host;
 	char *kaddr;
-	struct udf_inode_info *iinfo = UDF_I(inode);
-	loff_t isize = i_size_read(inode);
+	struct udf_iyesde_info *iinfo = UDF_I(iyesde);
+	loff_t isize = i_size_read(iyesde);
 
 	/*
 	 * We have to be careful here as truncate can change i_size under us.
@@ -69,18 +69,18 @@ static int udf_adinicb_readpage(struct file *file, struct page *page)
 static int udf_adinicb_writepage(struct page *page,
 				 struct writeback_control *wbc)
 {
-	struct inode *inode = page->mapping->host;
+	struct iyesde *iyesde = page->mapping->host;
 	char *kaddr;
-	struct udf_inode_info *iinfo = UDF_I(inode);
+	struct udf_iyesde_info *iinfo = UDF_I(iyesde);
 
 	BUG_ON(!PageLocked(page));
 
 	kaddr = kmap_atomic(page);
 	memcpy(iinfo->i_ext.i_data + iinfo->i_lenEAttr, kaddr,
-		i_size_read(inode));
+		i_size_read(iyesde));
 	SetPageUptodate(page);
 	kunmap_atomic(kaddr);
-	mark_inode_dirty(inode);
+	mark_iyesde_dirty(iyesde);
 	unlock_page(page);
 
 	return 0;
@@ -115,10 +115,10 @@ static int udf_adinicb_write_end(struct file *file, struct address_space *mappin
 				 loff_t pos, unsigned len, unsigned copied,
 				 struct page *page, void *fsdata)
 {
-	struct inode *inode = page->mapping->host;
+	struct iyesde *iyesde = page->mapping->host;
 	loff_t last_pos = pos + copied;
-	if (last_pos > inode->i_size)
-		i_size_write(inode, last_pos);
+	if (last_pos > iyesde->i_size)
+		i_size_write(iyesde, last_pos);
 	set_page_dirty(page);
 	unlock_page(page);
 	put_page(page);
@@ -137,11 +137,11 @@ static ssize_t udf_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
 {
 	ssize_t retval;
 	struct file *file = iocb->ki_filp;
-	struct inode *inode = file_inode(file);
-	struct udf_inode_info *iinfo = UDF_I(inode);
+	struct iyesde *iyesde = file_iyesde(file);
+	struct udf_iyesde_info *iinfo = UDF_I(iyesde);
 	int err;
 
-	inode_lock(inode);
+	iyesde_lock(iyesde);
 
 	retval = generic_write_checks(iocb, from);
 	if (retval <= 0)
@@ -151,16 +151,16 @@ static ssize_t udf_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
 	if (iinfo->i_alloc_type == ICBTAG_FLAG_AD_IN_ICB) {
 		loff_t end = iocb->ki_pos + iov_iter_count(from);
 
-		if (inode->i_sb->s_blocksize <
-				(udf_file_entry_alloc_offset(inode) + end)) {
-			err = udf_expand_file_adinicb(inode);
+		if (iyesde->i_sb->s_blocksize <
+				(udf_file_entry_alloc_offset(iyesde) + end)) {
+			err = udf_expand_file_adinicb(iyesde);
 			if (err) {
-				inode_unlock(inode);
+				iyesde_unlock(iyesde);
 				udf_debug("udf_expand_adinicb: err=%d\n", err);
 				return err;
 			}
 		} else {
-			iinfo->i_lenAlloc = max(end, inode->i_size);
+			iinfo->i_lenAlloc = max(end, iyesde->i_size);
 			up_write(&iinfo->i_data_sem);
 		}
 	} else
@@ -168,10 +168,10 @@ static ssize_t udf_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
 
 	retval = __generic_file_write_iter(iocb, from);
 out:
-	inode_unlock(inode);
+	iyesde_unlock(iyesde);
 
 	if (retval > 0) {
-		mark_inode_dirty(inode);
+		mark_iyesde_dirty(iyesde);
 		retval = generic_write_sync(iocb, retval);
 	}
 
@@ -180,12 +180,12 @@ out:
 
 long udf_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
-	struct inode *inode = file_inode(filp);
+	struct iyesde *iyesde = file_iyesde(filp);
 	long old_block, new_block;
 	int result;
 
-	if (inode_permission(inode, MAY_READ) != 0) {
-		udf_debug("no permission to access inode %lu\n", inode->i_ino);
+	if (iyesde_permission(iyesde, MAY_READ) != 0) {
+		udf_debug("yes permission to access iyesde %lu\n", iyesde->i_iyes);
 		return -EPERM;
 	}
 
@@ -198,7 +198,7 @@ long udf_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	switch (cmd) {
 	case UDF_GETVOLIDENT:
 		if (copy_to_user((char __user *)arg,
-				 UDF_SB(inode->i_sb)->s_volume_ident, 32))
+				 UDF_SB(iyesde->i_sb)->s_volume_ident, 32))
 			return -EFAULT;
 		return 0;
 	case UDF_RELOCATE_BLOCKS:
@@ -206,17 +206,17 @@ long udf_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 			return -EPERM;
 		if (get_user(old_block, (long __user *)arg))
 			return -EFAULT;
-		result = udf_relocate_blocks(inode->i_sb,
+		result = udf_relocate_blocks(iyesde->i_sb,
 						old_block, &new_block);
 		if (result == 0)
 			result = put_user(new_block, (long __user *)arg);
 		return result;
 	case UDF_GETEASIZE:
-		return put_user(UDF_I(inode)->i_lenEAttr, (int __user *)arg);
+		return put_user(UDF_I(iyesde)->i_lenEAttr, (int __user *)arg);
 	case UDF_GETEABLOCK:
 		return copy_to_user((char __user *)arg,
-				    UDF_I(inode)->i_ext.i_data,
-				    UDF_I(inode)->i_lenEAttr) ? -EFAULT : 0;
+				    UDF_I(iyesde)->i_ext.i_data,
+				    UDF_I(iyesde)->i_lenEAttr) ? -EFAULT : 0;
 	default:
 		return -ENOIOCTLCMD;
 	}
@@ -224,20 +224,20 @@ long udf_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	return 0;
 }
 
-static int udf_release_file(struct inode *inode, struct file *filp)
+static int udf_release_file(struct iyesde *iyesde, struct file *filp)
 {
 	if (filp->f_mode & FMODE_WRITE &&
-	    atomic_read(&inode->i_writecount) == 1) {
+	    atomic_read(&iyesde->i_writecount) == 1) {
 		/*
 		 * Grab i_mutex to avoid races with writes changing i_size
 		 * while we are running.
 		 */
-		inode_lock(inode);
-		down_write(&UDF_I(inode)->i_data_sem);
-		udf_discard_prealloc(inode);
-		udf_truncate_tail_extent(inode);
-		up_write(&UDF_I(inode)->i_data_sem);
-		inode_unlock(inode);
+		iyesde_lock(iyesde);
+		down_write(&UDF_I(iyesde)->i_data_sem);
+		udf_discard_prealloc(iyesde);
+		udf_truncate_tail_extent(iyesde);
+		up_write(&UDF_I(iyesde)->i_data_sem);
+		iyesde_unlock(iyesde);
 	}
 	return 0;
 }
@@ -256,8 +256,8 @@ const struct file_operations udf_file_operations = {
 
 static int udf_setattr(struct dentry *dentry, struct iattr *attr)
 {
-	struct inode *inode = d_inode(dentry);
-	struct super_block *sb = inode->i_sb;
+	struct iyesde *iyesde = d_iyesde(dentry);
+	struct super_block *sb = iyesde->i_sb;
 	int error;
 
 	error = setattr_prepare(dentry, attr);
@@ -274,20 +274,20 @@ static int udf_setattr(struct dentry *dentry, struct iattr *attr)
 		return -EPERM;
 
 	if ((attr->ia_valid & ATTR_SIZE) &&
-	    attr->ia_size != i_size_read(inode)) {
-		error = udf_setsize(inode, attr->ia_size);
+	    attr->ia_size != i_size_read(iyesde)) {
+		error = udf_setsize(iyesde, attr->ia_size);
 		if (error)
 			return error;
 	}
 
 	if (attr->ia_valid & ATTR_MODE)
-		udf_update_extra_perms(inode, attr->ia_mode);
+		udf_update_extra_perms(iyesde, attr->ia_mode);
 
-	setattr_copy(inode, attr);
-	mark_inode_dirty(inode);
+	setattr_copy(iyesde, attr);
+	mark_iyesde_dirty(iyesde);
 	return 0;
 }
 
-const struct inode_operations udf_file_inode_operations = {
+const struct iyesde_operations udf_file_iyesde_operations = {
 	.setattr		= udf_setattr,
 };

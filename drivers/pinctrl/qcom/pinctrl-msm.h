@@ -110,7 +110,7 @@ struct msm_gpio_wakeirq_map {
  * @groups:	    An array describing all pin groups the pin SoC supports.
  * @ngroups:	    The numbmer of entries in @groups.
  * @ngpio:	    The number of pingroups the driver should expose as GPIOs.
- * @pull_no_keeper: The SoC does not support keeper bias.
+ * @pull_yes_keeper: The SoC does yest support keeper bias.
  * @wakeirq_map:    The map of wakeup capable GPIOs and the pin at PDC/MPM
  * @nwakeirq_map:   The number of entries in @wakeirq_map
  */
@@ -122,7 +122,7 @@ struct msm_pinctrl_soc_data {
 	const struct msm_pingroup *groups;
 	unsigned ngroups;
 	unsigned ngpios;
-	bool pull_no_keeper;
+	bool pull_yes_keeper;
 	const char *const *tiles;
 	unsigned int ntiles;
 	const int *reserved_gpios;

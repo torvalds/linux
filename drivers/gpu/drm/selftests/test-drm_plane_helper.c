@@ -73,7 +73,7 @@ static bool check_crtc_eq(struct drm_plane_state *plane_state,
 	return true;
 }
 
-int igt_check_plane_state(void *ignored)
+int igt_check_plane_state(void *igyesred)
 {
 	int ret;
 
@@ -97,7 +97,7 @@ int igt_check_plane_state(void *ignored)
 		.rotation = DRM_MODE_ROTATE_0
 	};
 
-	/* Simple clipping, no scaling. */
+	/* Simple clipping, yes scaling. */
 	set_src(&plane_state, 0, 0, fb.width << 16, fb.height << 16);
 	set_crtc(&plane_state, 0, 0, fb.width, fb.height);
 	ret = drm_atomic_helper_check_plane_state(&plane_state, &crtc_state,
@@ -109,7 +109,7 @@ int igt_check_plane_state(void *ignored)
 	FAIL_ON(!check_src_eq(&plane_state, 0, 0, 1024 << 16, 768 << 16));
 	FAIL_ON(!check_crtc_eq(&plane_state, 0, 0, 1024, 768));
 
-	/* Rotated clipping + reflection, no scaling. */
+	/* Rotated clipping + reflection, yes scaling. */
 	plane_state.rotation = DRM_MODE_ROTATE_90 | DRM_MODE_REFLECT_X;
 	ret = drm_atomic_helper_check_plane_state(&plane_state, &crtc_state,
 						  DRM_PLANE_HELPER_NO_SCALING,
@@ -128,7 +128,7 @@ int igt_check_plane_state(void *ignored)
 						  DRM_PLANE_HELPER_NO_SCALING,
 						  DRM_PLANE_HELPER_NO_SCALING,
 						  false, false);
-	FAIL(!ret, "Should not be able to position on the crtc with can_position=false\n");
+	FAIL(!ret, "Should yest be able to position on the crtc with can_position=false\n");
 
 	ret = drm_atomic_helper_check_plane_state(&plane_state, &crtc_state,
 						  DRM_PLANE_HELPER_NO_SCALING,
@@ -200,7 +200,7 @@ int igt_check_plane_state(void *ignored)
 						  true, false);
 	FAIL(ret < 0, "Should succeed by clipping to exact multiple");
 	FAIL_ON(!plane_state.visible);
-	/* Should not be rounded to 0x20001, which would be upscaling. */
+	/* Should yest be rounded to 0x20001, which would be upscaling. */
 	FAIL_ON(!check_src_eq(&plane_state, 0, 0, 2 << 16, 2 << 16));
 	FAIL_ON(!check_crtc_eq(&plane_state, 1022, 766, 2, 2));
 

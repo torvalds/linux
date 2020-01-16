@@ -141,7 +141,7 @@ get_stream(struct snd_line6_pcm *line6pcm, int direction)
 		&line6pcm->out : &line6pcm->in;
 }
 
-/* allocate a buffer if not opened yet;
+/* allocate a buffer if yest opened yet;
  * call this in line6pcm.state_mutex
  */
 static int line6_buffer_acquire(struct snd_line6_pcm *line6pcm,
@@ -565,7 +565,7 @@ int line6_init_pcm(struct usb_line6 *line6,
 			usb_sndisocpipe(line6->usbdev, ep_write), 1);
 	if (!line6pcm->max_packet_size_in || !line6pcm->max_packet_size_out) {
 		dev_err(line6pcm->line6->ifcdev,
-			"cannot get proper max packet size\n");
+			"canyest get proper max packet size\n");
 		return -EINVAL;
 	}
 

@@ -55,8 +55,8 @@ static bool function_enabled;
  *
  * Returns 1 if it is OK to continue, and preemption
  *            is disabled and data->disabled is incremented.
- *         0 if the trace is to be ignored, and preemption
- *            is not disabled and data->disabled is
+ *         0 if the trace is to be igyesred, and preemption
+ *            is yest disabled and data->disabled is
  *            kept the same.
  *
  * Note, this function is also used outside this ifdef but
@@ -76,7 +76,7 @@ func_prolog_preempt_disable(struct trace_array *tr,
 		return 0;
 
 	*pc = preempt_count();
-	preempt_disable_notrace();
+	preempt_disable_yestrace();
 
 	cpu = raw_smp_processor_id();
 	if (cpu != wakeup_current_cpu)
@@ -93,7 +93,7 @@ out:
 	atomic_dec(&(*data)->disabled);
 
 out_enable:
-	preempt_enable_notrace();
+	preempt_enable_yestrace();
 	return 0;
 }
 
@@ -119,16 +119,16 @@ static int wakeup_graph_entry(struct ftrace_graph_ent *trace)
 	unsigned long flags;
 	int pc, ret = 0;
 
-	if (ftrace_graph_ignore_func(trace))
+	if (ftrace_graph_igyesre_func(trace))
 		return 0;
 	/*
-	 * Do not trace a function if it's filtered by set_graph_notrace.
+	 * Do yest trace a function if it's filtered by set_graph_yestrace.
 	 * Make the index of ret stack negative to indicate that it should
-	 * ignore further functions.  But it needs its own ret stack entry
+	 * igyesre further functions.  But it needs its own ret stack entry
 	 * to recover the original index in order to continue tracing after
 	 * returning from the function.
 	 */
-	if (ftrace_graph_notrace_addr(trace->func))
+	if (ftrace_graph_yestrace_addr(trace->func))
 		return 1;
 
 	if (!func_prolog_preempt_disable(tr, &data, &pc))
@@ -137,7 +137,7 @@ static int wakeup_graph_entry(struct ftrace_graph_ent *trace)
 	local_save_flags(flags);
 	ret = __trace_graph_entry(tr, trace, flags, pc);
 	atomic_dec(&data->disabled);
-	preempt_enable_notrace();
+	preempt_enable_yestrace();
 
 	return ret;
 }
@@ -158,7 +158,7 @@ static void wakeup_graph_return(struct ftrace_graph_ret *trace)
 	__trace_graph_return(tr, trace, flags, pc);
 	atomic_dec(&data->disabled);
 
-	preempt_enable_notrace();
+	preempt_enable_yestrace();
 	return;
 }
 
@@ -227,7 +227,7 @@ wakeup_tracer_call(unsigned long ip, unsigned long parent_ip,
 	local_irq_restore(flags);
 
 	atomic_dec(&data->disabled);
-	preempt_enable_notrace();
+	preempt_enable_yestrace();
 }
 
 static int register_wakeup_function(struct trace_array *tr, int graph, int set)
@@ -363,7 +363,7 @@ static bool report_latency(struct trace_array *tr, u64 delta)
 }
 
 static void
-probe_wakeup_migrate_task(void *ignore, struct task_struct *task, int cpu)
+probe_wakeup_migrate_task(void *igyesre, struct task_struct *task, int cpu)
 {
 	if (task != wakeup_task)
 		return;
@@ -427,8 +427,8 @@ tracing_sched_wakeup_trace(struct trace_array *tr,
 		trace_buffer_unlock_commit(tr, buffer, event, flags, pc);
 }
 
-static void notrace
-probe_wakeup_sched_switch(void *ignore, bool preempt,
+static void yestrace
+probe_wakeup_sched_switch(void *igyesre, bool preempt,
 			  struct task_struct *prev, struct task_struct *next)
 {
 	struct trace_array_cpu *data;
@@ -446,7 +446,7 @@ probe_wakeup_sched_switch(void *ignore, bool preempt,
 	/*
 	 * When we start a new trace, we set wakeup_task to NULL
 	 * and then set tracer_enabled = 1. We want to make sure
-	 * that another CPU does not see the tracer_enabled = 1
+	 * that ayesther CPU does yest see the tracer_enabled = 1
 	 * and the wakeup_task with an older task, that might
 	 * actually be the same as next.
 	 */
@@ -457,7 +457,7 @@ probe_wakeup_sched_switch(void *ignore, bool preempt,
 
 	pc = preempt_count();
 
-	/* disable local data, not wakeup_cpu data */
+	/* disable local data, yest wakeup_cpu data */
 	cpu = raw_smp_processor_id();
 	disabled = atomic_inc_return(&per_cpu_ptr(wakeup_trace->trace_buffer.data, cpu)->disabled);
 	if (likely(disabled != 1))
@@ -478,7 +478,7 @@ probe_wakeup_sched_switch(void *ignore, bool preempt,
 	__trace_stack(wakeup_trace, flags, 0, pc);
 
 	T0 = data->preempt_timestamp;
-	T1 = ftrace_now(cpu);
+	T1 = ftrace_yesw(cpu);
 	delta = T1-T0;
 
 	if (!report_latency(wakeup_trace, delta))
@@ -523,7 +523,7 @@ static void wakeup_reset(struct trace_array *tr)
 }
 
 static void
-probe_wakeup(void *ignore, struct task_struct *p)
+probe_wakeup(void *igyesre, struct task_struct *p)
 {
 	struct trace_array_cpu *data;
 	int cpu = smp_processor_id();
@@ -572,7 +572,7 @@ probe_wakeup(void *ignore, struct task_struct *p)
 
 	/*
 	 * Once you start tracing a -deadline task, don't bother tracing
-	 * another task until the first one wakes up.
+	 * ayesther task until the first one wakes up.
 	 */
 	if (dl_task(p))
 		tracing_dl = 1;
@@ -584,13 +584,13 @@ probe_wakeup(void *ignore, struct task_struct *p)
 	local_save_flags(flags);
 
 	data = per_cpu_ptr(wakeup_trace->trace_buffer.data, wakeup_cpu);
-	data->preempt_timestamp = ftrace_now(cpu);
+	data->preempt_timestamp = ftrace_yesw(cpu);
 	tracing_sched_wakeup_trace(wakeup_trace, p, current, flags, pc);
 	__trace_stack(wakeup_trace, flags, 0, pc);
 
 	/*
 	 * We must be careful in using CALLER_ADDR2. But since wake_up
-	 * is not called by an assembly function  (where as schedule is)
+	 * is yest called by an assembly function  (where as schedule is)
 	 * it should be safe to use it here.
 	 */
 	__trace_function(wakeup_trace, CALLER_ADDR1, CALLER_ADDR2, flags, pc);
@@ -672,7 +672,7 @@ static int __wakeup_tracer_init(struct trace_array *tr)
 {
 	save_flags = tr->trace_flags;
 
-	/* non overwrite screws up the latency tracers */
+	/* yesn overwrite screws up the latency tracers */
 	set_tracer_flag(tr, TRACE_ITER_OVERWRITE, 1);
 	set_tracer_flag(tr, TRACE_ITER_LATENCY_FMT, 1);
 

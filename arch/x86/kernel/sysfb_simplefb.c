@@ -8,7 +8,7 @@
  * simple-framebuffer probing
  * Try to convert "screen_info" into a "simple-framebuffer" compatible mode.
  * If the mode is incompatible, we return "false" and let the caller create
- * legacy nodes instead.
+ * legacy yesdes instead.
  */
 
 #include <linux/err.h>
@@ -82,7 +82,7 @@ __init int create_simplefb(const struct screen_info *si,
 	 * Don't use lfb_size as IORESOURCE size, since it may contain the
 	 * entire VMEM, and thus require huge mappings. Use just the part we
 	 * need, that is, the part where the framebuffer is located. But verify
-	 * that it does not exceed the advertised VMEM.
+	 * that it does yest exceed the advertised VMEM.
 	 * Note that in case of VBE, the lfb_size is shifted by 16 bits for
 	 * historical reasons.
 	 */

@@ -21,14 +21,14 @@ struct serial_8250_men_mcb_data {
 };
 
 /*
- * The Z125 16550-compatible UART has no fixed base clock assigned
+ * The Z125 16550-compatible UART has yes fixed base clock assigned
  * So, depending on the board we're on, we need to adjust the
  * parameter in order to really set the correct baudrate, and
  * do so if possible without user interaction
  */
 static u32 men_lookup_uartclk(struct mcb_device *mdev)
 {
-	/* use default value if board is not available below */
+	/* use default value if board is yest available below */
 	u32 clkval = 1041666;
 
 	dev_info(&mdev->dev, "%s on board %s\n",
@@ -44,7 +44,7 @@ static u32 men_lookup_uartclk(struct mcb_device *mdev)
 		clkval = 115200;
 	else
 		dev_info(&mdev->dev,
-			 "board not detected, using default uartclk\n");
+			 "board yest detected, using default uartclk\n");
 
 	clkval = clkval  << 4;
 
@@ -62,7 +62,7 @@ static unsigned int get_num_ports(struct mcb_device *mdev,
 	case MEN_UART_ID_Z057:
 		return 4U;
 	default:
-		dev_err(&mdev->dev, "no supported device!\n");
+		dev_err(&mdev->dev, "yes supported device!\n");
 		return -ENODEV;
 	}
 }

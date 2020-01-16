@@ -12,8 +12,8 @@ ksft_skip=4
 TESTS="unregister down carrier nexthop suppress ipv6_rt ipv4_rt ipv6_addr_metric ipv4_addr_metric ipv6_route_metrics ipv4_route_metrics ipv4_route_v6_gw rp_filter ipv4_del_addr"
 
 VERBOSE=0
-PAUSE_ON_FAIL=no
-PAUSE=no
+PAUSE_ON_FAIL=yes
+PAUSE=yes
 IP="ip -netns ns1"
 NS_EXEC="ip netns exec ns1"
 
@@ -32,7 +32,7 @@ log_test()
 		ret=1
 		nfail=$((nfail+1))
 		printf "    TEST: %-60s  [FAIL]\n" "${msg}"
-		if [ "${PAUSE_ON_FAIL}" = "yes" ]; then
+		if [ "${PAUSE_ON_FAIL}" = "no" ]; then
 		echo
 			echo "hit enter to continue, 'q' to quit"
 			read a
@@ -40,7 +40,7 @@ log_test()
 		fi
 	fi
 
-	if [ "${PAUSE}" = "yes" ]; then
+	if [ "${PAUSE}" = "no" ]; then
 		echo
 		echo "hit enter to continue, 'q' to quit"
 		read a
@@ -113,9 +113,9 @@ fib_unreg_unicast_test()
 
 	echo "    Nexthop device deleted"
 	$IP route get fibmatch 198.51.100.2 &> /dev/null
-	log_test $? 2 "IPv4 fibmatch - no route"
+	log_test $? 2 "IPv4 fibmatch - yes route"
 	$IP -6 route get fibmatch 2001:db8:1::2 &> /dev/null
-	log_test $? 2 "IPv6 fibmatch - no route"
+	log_test $? 2 "IPv6 fibmatch - yes route"
 
 	cleanup
 }
@@ -157,7 +157,7 @@ fib_unreg_multipath_test()
 	log_test $? 2 "IPv4 - multipath route removed on delete"
 
 	$IP -6 route get fibmatch 2001:db8:3::1 &> /dev/null
-	# In IPv6 we do not flush the entire multipath route.
+	# In IPv6 we do yest flush the entire multipath route.
 	log_test $? 0 "IPv6 - multipath down to single path"
 
 	set -e
@@ -166,7 +166,7 @@ fib_unreg_multipath_test()
 
 	echo "    Second nexthop device deleted"
 	$IP -6 route get fibmatch 2001:db8:3::1 &> /dev/null
-	log_test $? 2 "IPv6 - no route"
+	log_test $? 2 "IPv6 - yes route"
 
 	cleanup
 }
@@ -301,7 +301,7 @@ fib_down_test()
 	fib_down_multipath_test
 }
 
-# Local routes should not be affected when carrier changes.
+# Local routes should yest be affected when carrier changes.
 fib_carrier_local_test()
 {
 	echo
@@ -321,10 +321,10 @@ fib_carrier_local_test()
 
 	$IP route get fibmatch 198.51.100.1 | \
 		grep -q "linkdown"
-	log_test $? 1 "IPv4 - no linkdown flag"
+	log_test $? 1 "IPv4 - yes linkdown flag"
 	$IP -6 route get fibmatch 2001:db8:1::1 | \
 		grep -q "linkdown"
-	log_test $? 1 "IPv6 - no linkdown flag"
+	log_test $? 1 "IPv6 - yes linkdown flag"
 
 	set -e
 	$IP link set dev dummy0 carrier off
@@ -386,10 +386,10 @@ fib_carrier_unicast_test()
 
 	$IP route get fibmatch 198.51.100.2 | \
 		grep -q "linkdown"
-	log_test $? 1 "IPv4 no linkdown flag"
+	log_test $? 1 "IPv4 yes linkdown flag"
 	$IP -6 route get fibmatch 2001:db8:1::2 | \
 		grep -q "linkdown"
-	log_test $? 1 "IPv6 no linkdown flag"
+	log_test $? 1 "IPv6 yes linkdown flag"
 
 	set -e
 	$IP link set dev dummy0 carrier off
@@ -531,15 +531,15 @@ fib6_nexthop()
 		- 2001:db8:103::1/64 $llv1 "veth0"
 
 	# fails because LL address requires a device
-	add_rt "Gateway is linklocal address, no device" 2 \
+	add_rt "Gateway is linklocal address, yes device" 2 \
 		- 2001:db8:104::1/64 $llv1
 
-	# local address can not be a gateway
-	add_rt "Gateway can not be local unicast address" 2 \
+	# local address can yest be a gateway
+	add_rt "Gateway can yest be local unicast address" 2 \
 		- 2001:db8:105::/64 2001:db8:1::1
-	add_rt "Gateway can not be local unicast address, with device" 2 \
+	add_rt "Gateway can yest be local unicast address, with device" 2 \
 		- 2001:db8:106::/64 2001:db8:1::1 "dummy0"
-	add_rt "Gateway can not be a local linklocal address" 2 \
+	add_rt "Gateway can yest be a local linklocal address" 2 \
 		- 2001:db8:107::1/64 $lldummy "dummy0"
 
 	# VRF tests
@@ -557,9 +557,9 @@ fib6_nexthop()
 		red 2001:db8:112::/64 2001:db8:51::1
 
 	# local address in same VRF fails
-	add_rt "VRF route, gateway can not be a local address" 2 \
+	add_rt "VRF route, gateway can yest be a local address" 2 \
 		red 2001:db8:113::1/64 2001:db8:2::1
-	add_rt "VRF route, gateway can not be a local addr with device" 2 \
+	add_rt "VRF route, gateway can yest be a local addr with device" 2 \
 		red 2001:db8:114::1/64 2001:db8:2::1 "dummy1"
 }
 
@@ -772,14 +772,14 @@ route_setup()
 	ip -netns ns2 li add dummy1 type dummy
 	ip -netns ns2 li set dummy1 up
 
-	$IP -6 addr add 2001:db8:101::1/64 dev veth1 nodad
-	$IP -6 addr add 2001:db8:103::1/64 dev veth3 nodad
+	$IP -6 addr add 2001:db8:101::1/64 dev veth1 yesdad
+	$IP -6 addr add 2001:db8:103::1/64 dev veth3 yesdad
 	$IP addr add 172.16.101.1/24 dev veth1
 	$IP addr add 172.16.103.1/24 dev veth3
 
-	ip -netns ns2 -6 addr add 2001:db8:101::2/64 dev veth2 nodad
-	ip -netns ns2 -6 addr add 2001:db8:103::2/64 dev veth4 nodad
-	ip -netns ns2 -6 addr add 2001:db8:104::1/64 dev dummy1 nodad
+	ip -netns ns2 -6 addr add 2001:db8:101::2/64 dev veth2 yesdad
+	ip -netns ns2 -6 addr add 2001:db8:103::2/64 dev veth4 yesdad
+	ip -netns ns2 -6 addr add 2001:db8:104::1/64 dev dummy1 yesdad
 
 	ip -netns ns2 addr add 172.16.101.2/24 dev veth2
 	ip -netns ns2 addr add 172.16.103.2/24 dev veth4
@@ -882,12 +882,12 @@ ipv6_rt_replace_single()
 		log_test $? 0 "Invalid nexthop"
 	fi
 
-	# replace non-existent route
-	# - note use of change versus replace since ip adds NLM_F_CREATE
+	# replace yesn-existent route
+	# - yeste use of change versus replace since ip adds NLM_F_CREATE
 	#   for replace
 	add_initial_route6 "via 2001:db8:101::2"
 	run_cmd "$IP -6 ro change 2001:db8:105::/64 via 2001:db8:101::2"
-	log_test $? 2 "Single path - replace of non-existent route"
+	log_test $? 2 "Single path - replace of yesn-existent route"
 }
 
 ipv6_rt_replace_mpath()
@@ -922,10 +922,10 @@ ipv6_rt_replace_mpath()
 	check_route6  "2001:db8:104::/64 metric 1024 nexthop via 2001:db8:101::2 dev veth1 weight 1 nexthop via 2001:db8:103::2 dev veth3 weight 1"
 	log_test $? 0 "Multipath - invalid second nexthop"
 
-	# multipath non-existent route
+	# multipath yesn-existent route
 	add_initial_route6 "nexthop via 2001:db8:101::2 nexthop via 2001:db8:103::2"
 	run_cmd "$IP -6 ro change 2001:db8:105::/64 nexthop via 2001:db8:101::3 nexthop via 2001:db8:103::3"
-	log_test $? 2 "Multipath - replace of non-existent route"
+	log_test $? 2 "Multipath - replace of yesn-existent route"
 }
 
 ipv6_rt_replace()
@@ -951,7 +951,7 @@ ip_addr_metric_check()
 {
 	ip addr help 2>&1 | grep -q metric
 	if [ $? -ne 0 ]; then
-		echo "iproute2 command does not support metric for addresses. Skipping test"
+		echo "iproute2 command does yest support metric for addresses. Skipping test"
 		return 1
 	fi
 
@@ -1291,12 +1291,12 @@ ipv4_rt_replace_single()
 		log_test $? 0 "Invalid nexthop"
 	fi
 
-	# replace non-existent route
-	# - note use of change versus replace since ip adds NLM_F_CREATE
+	# replace yesn-existent route
+	# - yeste use of change versus replace since ip adds NLM_F_CREATE
 	#   for replace
 	add_initial_route "via 172.16.101.2"
 	run_cmd "$IP ro change 172.16.105.0/24 via 172.16.101.2"
-	log_test $? 2 "Single path - replace of non-existent route"
+	log_test $? 2 "Single path - replace of yesn-existent route"
 }
 
 ipv4_rt_replace_mpath()
@@ -1337,10 +1337,10 @@ ipv4_rt_replace_mpath()
 	check_route  "172.16.104.0/24 nexthop via 172.16.101.2 dev veth1 weight 1 nexthop via 172.16.103.2 dev veth3 weight 1"
 	log_test $? 0 "Multipath - invalid second nexthop"
 
-	# multipath non-existent route
+	# multipath yesn-existent route
 	add_initial_route "nexthop via 172.16.101.2 nexthop via 172.16.103.2"
 	run_cmd "$IP ro change 172.16.105.0/24 nexthop via 172.16.101.3 nexthop via 172.16.103.3"
-	log_test $? 2 "Multipath - replace of non-existent route"
+	log_test $? 2 "Multipath - replace of yesn-existent route"
 }
 
 ipv4_rt_replace()
@@ -1531,7 +1531,7 @@ ipv4_del_addr_test()
 	log_test $? 1 "Route removed from VRF when source address deleted"
 
 	$IP ro ls | grep -q 172.16.105.0/24
-	log_test $? 0 "Route in default VRF not removed"
+	log_test $? 0 "Route in default VRF yest removed"
 
 	$IP addr add dev dummy2 172.16.104.11/24
 	$IP route add vrf red 172.16.105.0/24 via 172.16.104.2 src 172.16.104.11
@@ -1541,7 +1541,7 @@ ipv4_del_addr_test()
 	log_test $? 1 "Route removed in default VRF when source address deleted"
 
 	$IP ro ls vrf red | grep -q 172.16.105.0/24
-	log_test $? 0 "Route in VRF is not removed by address delete"
+	log_test $? 0 "Route in VRF is yest removed by address delete"
 
 	$IP li del dummy1
 	$IP li del dummy2
@@ -1637,8 +1637,8 @@ while getopts :t:pPhv o
 do
 	case $o in
 		t) TESTS=$OPTARG;;
-		p) PAUSE_ON_FAIL=yes;;
-		P) PAUSE=yes;;
+		p) PAUSE_ON_FAIL=no;;
+		P) PAUSE=no;;
 		v) VERBOSE=$(($VERBOSE + 1));;
 		h) usage; exit 0;;
 		*) usage; exit 1;;
@@ -1648,7 +1648,7 @@ done
 PEER_CMD="ip netns exec ${PEER_NS}"
 
 # make sure we don't pause twice
-[ "${PAUSE}" = "yes" ] && PAUSE_ON_FAIL=no
+[ "${PAUSE}" = "no" ] && PAUSE_ON_FAIL=yes
 
 if [ "$(id -u)" -ne 0 ];then
 	echo "SKIP: Need root privileges"
@@ -1656,7 +1656,7 @@ if [ "$(id -u)" -ne 0 ];then
 fi
 
 if [ ! -x "$(command -v ip)" ]; then
-	echo "SKIP: Could not run test without ip tool"
+	echo "SKIP: Could yest run test without ip tool"
 	exit $ksft_skip
 fi
 
@@ -1691,7 +1691,7 @@ do
 	esac
 done
 
-if [ "$TESTS" != "none" ]; then
+if [ "$TESTS" != "yesne" ]; then
 	printf "\nTests passed: %3d\n" ${nsuccess}
 	printf "Tests failed: %3d\n"   ${nfail}
 fi

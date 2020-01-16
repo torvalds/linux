@@ -177,7 +177,7 @@ void __init footbridge_map_io(void)
 {
 	/*
 	 * Set up the common mapping first; we need this to
-	 * determine whether we're in host mode or not.
+	 * determine whether we're in host mode or yest.
 	 */
 	iotable_init(fb_common_io_desc, ARRAY_SIZE(fb_common_io_desc));
 

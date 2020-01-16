@@ -33,20 +33,20 @@ static void ethsw_get_drvinfo(struct net_device *netdev,
 			      struct ethtool_drvinfo *drvinfo)
 {
 	struct ethsw_port_priv *port_priv = netdev_priv(netdev);
-	u16 version_major, version_minor;
+	u16 version_major, version_miyesr;
 	int err;
 
 	strlcpy(drvinfo->driver, KBUILD_MODNAME, sizeof(drvinfo->driver));
 
 	err = dpsw_get_api_version(port_priv->ethsw_data->mc_io, 0,
 				   &version_major,
-				   &version_minor);
+				   &version_miyesr);
 	if (err)
 		strlcpy(drvinfo->fw_version, "N/A",
 			sizeof(drvinfo->fw_version));
 	else
 		snprintf(drvinfo->fw_version, sizeof(drvinfo->fw_version),
-			 "%u.%u", version_major, version_minor);
+			 "%u.%u", version_major, version_miyesr);
 
 	strlcpy(drvinfo->bus_info, dev_name(netdev->dev.parent->parent),
 		sizeof(drvinfo->bus_info));
@@ -69,8 +69,8 @@ ethsw_get_link_ksettings(struct net_device *netdev,
 		goto out;
 	}
 
-	/* At the moment, we have no way of interrogating the DPMAC
-	 * from the DPSW side or there may not exist a DPMAC at all.
+	/* At the moment, we have yes way of interrogating the DPMAC
+	 * from the DPSW side or there may yest exist a DPMAC at all.
 	 * Report only autoneg state, duplexity and speed.
 	 */
 	if (state.options & DPSW_LINK_OPT_AUTONEG)

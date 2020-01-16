@@ -68,9 +68,9 @@ typedef void (*dm_release_clone_request_fn) (struct request *clone,
 
 /*
  * Returns:
- * < 0 : error (currently ignored)
+ * < 0 : error (currently igyesred)
  * 0   : ended successfully
- * 1   : for some reason the io has still not completed (eg,
+ * 1   : for some reason the io has still yest completed (eg,
  *       multipath target might want to requeue a failed io).
  * 2   : The target wants to push back the io
  */
@@ -102,11 +102,11 @@ typedef int (*dm_report_zones_fn) (struct dm_target *ti,
  * These iteration functions are typically used to check (and combine)
  * properties of underlying devices.
  * E.g. Does at least one underlying device support flush?
- *      Does any underlying device not support WRITE_SAME?
+ *      Does any underlying device yest support WRITE_SAME?
  *
  * The callout function is called once for each contiguous section of
  * an underlying device.  State can be maintained in *data.
- * Return non-zero to stop iterating through any further devices.
+ * Return yesn-zero to stop iterating through any further devices.
  */
 typedef int (*iterate_devices_callout_fn) (struct dm_target *ti,
 					   struct dm_dev *dev,
@@ -115,8 +115,8 @@ typedef int (*iterate_devices_callout_fn) (struct dm_target *ti,
 
 /*
  * This function must iterate through each section of device used by the
- * target until it encounters a non-zero return code, which it then returns.
- * Returns zero if no callout returned non-zero.
+ * target until it encounters a yesn-zero return code, which it then returns.
+ * Returns zero if yes callout returned yesn-zero.
  */
 typedef int (*dm_iterate_devices_fn) (struct dm_target *ti,
 				      iterate_devices_callout_fn fn,
@@ -211,7 +211,7 @@ struct target_type {
 #define dm_target_needs_singleton(type)	((type)->features & DM_TARGET_SINGLETON)
 
 /*
- * Indicates that a target does not support read-only devices.
+ * Indicates that a target does yest support read-only devices.
  */
 #define DM_TARGET_ALWAYS_WRITEABLE	0x00000002
 #define dm_target_always_writeable(type) \
@@ -257,7 +257,7 @@ struct dm_target {
 	sector_t begin;
 	sector_t len;
 
-	/* If non-zero, maximum size of I/O submitted to a target. */
+	/* If yesn-zero, maximum size of I/O submitted to a target. */
 	uint32_t max_io_len;
 
 	/*
@@ -308,13 +308,13 @@ struct dm_target {
 
 	/*
 	 * Set if this target needs to receive flushes regardless of
-	 * whether or not its underlying devices have support.
+	 * whether or yest its underlying devices have support.
 	 */
 	bool flush_supported:1;
 
 	/*
 	 * Set if this target needs to receive discards regardless of
-	 * whether or not its underlying devices have support.
+	 * whether or yest its underlying devices have support.
 	 */
 	bool discards_supported:1;
 };
@@ -381,10 +381,10 @@ void dm_consume_args(struct dm_arg_set *as, unsigned num_args);
  *---------------------------------------------------------------*/
 
 /*
- * DM_ANY_MINOR chooses the next available minor number.
+ * DM_ANY_MINOR chooses the next available miyesr number.
  */
 #define DM_ANY_MINOR (-1)
-int dm_create(int minor, struct mapped_device **md);
+int dm_create(int miyesr, struct mapped_device **md);
 
 /*
  * Reference counting for md.
@@ -421,7 +421,7 @@ const char *dm_device_name(struct mapped_device *md);
 int dm_copy_name_and_uuid(struct mapped_device *md, char *name, char *uuid);
 struct gendisk *dm_disk(struct mapped_device *md);
 int dm_suspended(struct dm_target *ti);
-int dm_noflush_suspending(struct dm_target *ti);
+int dm_yesflush_suspending(struct dm_target *ti);
 void dm_accept_partial_bio(struct bio *bio, unsigned n_sectors);
 union map_info *dm_get_rq_mapinfo(struct request *rq);
 
@@ -558,8 +558,8 @@ void *dm_vcalloc(unsigned long nmemb, unsigned long elem_size);
 #define DMDEBUG(fmt, ...) printk(KERN_DEBUG DM_FMT(fmt), ##__VA_ARGS__)
 #define DMDEBUG_LIMIT(fmt, ...) pr_debug_ratelimited(DM_FMT(fmt), ##__VA_ARGS__)
 #else
-#define DMDEBUG(fmt, ...) no_printk(fmt, ##__VA_ARGS__)
-#define DMDEBUG_LIMIT(fmt, ...) no_printk(fmt, ##__VA_ARGS__)
+#define DMDEBUG(fmt, ...) yes_printk(fmt, ##__VA_ARGS__)
+#define DMDEBUG_LIMIT(fmt, ...) yes_printk(fmt, ##__VA_ARGS__)
 #endif
 
 #define DMEMIT(x...) sz += ((sz >= maxlen) ? \

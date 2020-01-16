@@ -11,7 +11,7 @@ Mappings are loaded into the policy at construction time.
 Every bio that is mapped by the target is referred to the policy.
 The policy can return a simple HIT or MISS or issue a migration.
 
-Currently there's no way for the policy to issue background work,
+Currently there's yes way for the policy to issue background work,
 e.g. to start writing back dirty blocks that are going to be evicted
 soon.
 
@@ -29,9 +29,9 @@ Overview of supplied cache replacement policies
 multiqueue (mq)
 ---------------
 
-This policy is now an alias for smq (see below).
+This policy is yesw an alias for smq (see below).
 
-The following tunables are accepted, but have no effect::
+The following tunables are accepted, but have yes effect::
 
 	'sequential_threshold <#nr_sequential_ios>'
 	'random_threshold <#nr_random_ios>'
@@ -49,7 +49,7 @@ with the multiqueue (mq) policy.
 
 The smq policy (vs mq) offers the promise of less memory utilization,
 improved performance and increased adaptability in the face of changing
-workloads.  smq also does not have any cumbersome tuning knobs.
+workloads.  smq also does yest have any cumbersome tuning kyesbs.
 
 Users may switch from "mq" to "smq" simply by appropriately reloading a
 DM table that is using the cache target.  Doing so will cause all of the
@@ -70,7 +70,7 @@ the entries (each hotspot block covers a larger area than a single
 cache block).
 
 All this means smq uses ~25bytes per cache block.  Still a lot of
-memory, but a substantial improvement nontheless.
+memory, but a substantial improvement yesntheless.
 
 Level balancing
 ^^^^^^^^^^^^^^^
@@ -81,7 +81,7 @@ levels generally had the most entries, and the top ones had very
 few.  Having unbalanced levels like this reduced the efficacy of the
 multiqueue.
 
-smq does not maintain a hit count, instead it swaps hit entries with
+smq does yest maintain a hit count, instead it swaps hit entries with
 the least recently used entry from the level above.  The overall
 ordering being a side effect of this stochastic process.  With this
 scheme we can decide how many entries occupy each multiqueue level,

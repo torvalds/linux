@@ -50,7 +50,7 @@ void check_mpx_erratum(struct cpuinfo_x86 *c)
 	if (forcempx)
 		return;
 	/*
-	 * Turn off the MPX feature on CPUs where SMEP is not
+	 * Turn off the MPX feature on CPUs where SMEP is yest
 	 * available or disabled.
 	 *
 	 * Works around Intel Erratum SKD046: "Branch Instructions
@@ -58,22 +58,22 @@ void check_mpx_erratum(struct cpuinfo_x86 *c)
 	 *
 	 * This might falsely disable MPX on systems without
 	 * SMEP, like Atom processors without SMEP.  But there
-	 * is no such hardware known at the moment.
+	 * is yes such hardware kyeswn at the moment.
 	 */
 	if (cpu_has(c, X86_FEATURE_MPX) && !cpu_has(c, X86_FEATURE_SMEP)) {
 		setup_clear_cpu_cap(X86_FEATURE_MPX);
-		pr_warn("x86/mpx: Disabling MPX since SMEP not present\n");
+		pr_warn("x86/mpx: Disabling MPX since SMEP yest present\n");
 	}
 }
 
 /*
- * Processors which have self-snooping capability can handle conflicting
- * memory type across CPUs by snooping its own cache. However, there exists
+ * Processors which have self-syesoping capability can handle conflicting
+ * memory type across CPUs by syesoping its own cache. However, there exists
  * CPU models in which having conflicting memory types still leads to
  * unpredictable behavior, machine check errors, or hangs. Clear this
- * feature to prevent its use on machines with known erratas.
+ * feature to prevent its use on machines with kyeswn erratas.
  */
-static void check_memory_type_self_snoop_errata(struct cpuinfo_x86 *c)
+static void check_memory_type_self_syesop_errata(struct cpuinfo_x86 *c)
 {
 	switch (c->x86_model) {
 	case INTEL_FAM6_CORE_YONAH:
@@ -104,7 +104,7 @@ __setup("ring3mwait=disable", ring3mwait_disable);
 static void probe_xeon_phi_r3mwait(struct cpuinfo_x86 *c)
 {
 	/*
-	 * Ring 3 MONITOR/MWAIT feature cannot be detected without
+	 * Ring 3 MONITOR/MWAIT feature canyest be detected without
 	 * cpu model and family comparison.
 	 */
 	if (c->x86 != 6)
@@ -134,7 +134,7 @@ static void probe_xeon_phi_r3mwait(struct cpuinfo_x86 *c)
  * - https://newsroom.intel.com/wp-content/uploads/sites/11/2018/03/microcode-update-guidance.pdf
  * - https://kb.vmware.com/s/article/52345
  * - Microcode revisions observed in the wild
- * - Release note from 20180108 microcode release
+ * - Release yeste from 20180108 microcode release
  */
 struct sku_microcode {
 	u8 model;
@@ -170,7 +170,7 @@ static bool bad_spectre_microcode(struct cpuinfo_x86 *c)
 	int i;
 
 	/*
-	 * We know that the hypervisor lie to us on the microcode version so
+	 * We kyesw that the hypervisor lie to us on the microcode version so
 	 * we may as well hope that it is running the correct version.
 	 */
 	if (cpu_has(c, X86_FEATURE_HYPERVISOR))
@@ -229,7 +229,7 @@ static void early_init_intel(struct cpuinfo_x86 *c)
 	 * A race condition between speculative fetches and invalidating
 	 * a large page.  This is worked around in microcode, but we
 	 * need the microcode to have already been loaded... so if it is
-	 * not, recommend a BIOS update and disable large pages.
+	 * yest, recommend a BIOS update and disable large pages.
 	 */
 	if (c->x86 == 6 && c->x86_model == 0x1c && c->x86_stepping <= 2 &&
 	    c->microcode < 0x20e) {
@@ -252,9 +252,9 @@ static void early_init_intel(struct cpuinfo_x86 *c)
 
 	/*
 	 * c->x86_power is 8000_0007 edx. Bit 8 is TSC runs at constant rate
-	 * with P/T states and does not stop in deep C-states.
+	 * with P/T states and does yest stop in deep C-states.
 	 *
-	 * It is also reliable across cores and sockets. (but not across
+	 * It is also reliable across cores and sockets. (but yest across
 	 * cabinets - we turn it off in that case explicitly.)
 	 */
 	if (c->x86_power & (1 << 8)) {
@@ -277,7 +277,7 @@ static void early_init_intel(struct cpuinfo_x86 *c)
 	}
 
 	/*
-	 * There is a known erratum on Pentium III and Core Solo
+	 * There is a kyeswn erratum on Pentium III and Core Solo
 	 * and Core Duo CPUs.
 	 * " Page with PAT set to WC while associated MTRR is UC
 	 *   may consolidate to UC "
@@ -290,7 +290,7 @@ static void early_init_intel(struct cpuinfo_x86 *c)
 		clear_cpu_cap(c, X86_FEATURE_PAT);
 
 	/*
-	 * If fast string is not enabled in IA32_MISC_ENABLE for any reason,
+	 * If fast string is yest enabled in IA32_MISC_ENABLE for any reason,
 	 * clear the fast string and enhanced fast string CPU capabilities.
 	 */
 	if (c->x86 > 6 || (c->x86 == 6 && c->x86_model >= 0xd)) {
@@ -331,7 +331,7 @@ static void early_init_intel(struct cpuinfo_x86 *c)
 	}
 
 	check_mpx_erratum(c);
-	check_memory_type_self_snoop_errata(c);
+	check_memory_type_self_syesop_errata(c);
 
 	/*
 	 * Get the number of SMT siblings early from the extended topology
@@ -350,7 +350,7 @@ static void early_init_intel(struct cpuinfo_x86 *c)
 
 int ppro_with_ram_bug(void)
 {
-	/* Uses data from early_cpu_detect now */
+	/* Uses data from early_cpu_detect yesw */
 	if (boot_cpu_data.x86_vendor == X86_VENDOR_INTEL &&
 	    boot_cpu_data.x86 == 6 &&
 	    boot_cpu_data.x86_model == 1 &&
@@ -368,7 +368,7 @@ static void intel_smp_check(struct cpuinfo_x86 *c)
 		return;
 
 	/*
-	 * Mask B, Pentium, but not Pentium MMX
+	 * Mask B, Pentium, but yest Pentium MMX
 	 */
 	if (c->x86 == 5 &&
 	    c->x86_stepping >= 1 && c->x86_stepping <= 4 &&
@@ -393,10 +393,10 @@ static void intel_workarounds(struct cpuinfo_x86 *c)
 {
 #ifdef CONFIG_X86_F00F_BUG
 	/*
-	 * All models of Pentium and Pentium with MMX technology CPUs
-	 * have the F0 0F bug, which lets nonprivileged users lock up the
-	 * system. Announce that the fault handler will be checking for it.
-	 * The Quark is also family 5, but does not have the same bug.
+	 * All models of Pentium and Pentium with MMX techyeslogy CPUs
+	 * have the F0 0F bug, which lets yesnprivileged users lock up the
+	 * system. Anyesunce that the fault handler will be checking for it.
+	 * The Quark is also family 5, but does yest have the same bug.
 	 */
 	clear_cpu_bug(c, X86_BUG_F00F);
 	if (c->x86 == 5 && c->x86_model < 9) {
@@ -404,7 +404,7 @@ static void intel_workarounds(struct cpuinfo_x86 *c)
 
 		set_cpu_bug(c, X86_BUG_F00F);
 		if (!f00f_workaround_enabled) {
-			pr_notice("Intel Pentium with F0 0F bug - workaround enabled.\n");
+			pr_yestice("Intel Pentium with F0 0F bug - workaround enabled.\n");
 			f00f_workaround_enabled = 1;
 		}
 	}
@@ -418,7 +418,7 @@ static void intel_workarounds(struct cpuinfo_x86 *c)
 		clear_cpu_cap(c, X86_FEATURE_SEP);
 
 	/*
-	 * PAE CPUID issue: many Pentium M report no PAE but may have a
+	 * PAE CPUID issue: many Pentium M report yes PAE but may have a
 	 * functionally usable PAE implementation.
 	 * Forcefully enable PAE if kernel parameter "forcepae" is present.
 	 */
@@ -477,20 +477,20 @@ static void intel_workarounds(struct cpuinfo_x86 *c)
 }
 #endif
 
-static void srat_detect_node(struct cpuinfo_x86 *c)
+static void srat_detect_yesde(struct cpuinfo_x86 *c)
 {
 #ifdef CONFIG_NUMA
-	unsigned node;
+	unsigned yesde;
 	int cpu = smp_processor_id();
 
 	/* Don't do the funky fallback heuristics the AMD version employs
-	   for now. */
-	node = numa_cpu_node(cpu);
-	if (node == NUMA_NO_NODE || !node_online(node)) {
-		/* reuse the value from init_cpu_to_node() */
-		node = cpu_to_node(cpu);
+	   for yesw. */
+	yesde = numa_cpu_yesde(cpu);
+	if (yesde == NUMA_NO_NODE || !yesde_online(yesde)) {
+		/* reuse the value from init_cpu_to_yesde() */
+		yesde = cpu_to_yesde(cpu);
 	}
-	numa_set_node(cpu, node);
+	numa_set_yesde(cpu, yesde);
 #endif
 }
 
@@ -572,7 +572,7 @@ static void detect_tme(struct cpuinfo_x86 *c)
 		if (tme_activate != tme_activate_cpu0) {
 			/* Broken BIOS? */
 			pr_err_once("x86/tme: configuration is inconsistent between CPUs\n");
-			pr_err_once("x86/tme: MKTME is not usable\n");
+			pr_err_once("x86/tme: MKTME is yest usable\n");
 			mktme_status = MKTME_DISABLED;
 
 			/* Proceed. We may need to exclude bits from x86_phys_bits. */
@@ -582,7 +582,7 @@ static void detect_tme(struct cpuinfo_x86 *c)
 	}
 
 	if (!TME_ACTIVATE_LOCKED(tme_activate) || !TME_ACTIVATE_ENABLED(tme_activate)) {
-		pr_info_once("x86/tme: not enabled by BIOS\n");
+		pr_info_once("x86/tme: yest enabled by BIOS\n");
 		mktme_status = MKTME_DISABLED;
 		return;
 	}
@@ -594,11 +594,11 @@ static void detect_tme(struct cpuinfo_x86 *c)
 
 	tme_policy = TME_ACTIVATE_POLICY(tme_activate);
 	if (tme_policy != TME_ACTIVATE_POLICY_AES_XTS_128)
-		pr_warn("x86/tme: Unknown policy is active: %#llx\n", tme_policy);
+		pr_warn("x86/tme: Unkyeswn policy is active: %#llx\n", tme_policy);
 
 	tme_crypto_algs = TME_ACTIVATE_CRYPTO_ALGS(tme_activate);
 	if (!(tme_crypto_algs & TME_ACTIVATE_CRYPTO_AES_XTS_128)) {
-		pr_err("x86/mktme: No known encryption algorithm is supported: %#llx\n",
+		pr_err("x86/mktme: No kyeswn encryption algorithm is supported: %#llx\n",
 				tme_crypto_algs);
 		mktme_status = MKTME_DISABLED;
 	}
@@ -731,7 +731,7 @@ static void init_intel(struct cpuinfo_x86 *c)
 
 		case 6:
 			if (l2 == 128)
-				p = "Celeron (Mendocino)";
+				p = "Celeron (Mendociyes)";
 			else if (c->x86_stepping == 0 || c->x86_stepping == 5)
 				p = "Celeron-A";
 			break;
@@ -753,7 +753,7 @@ static void init_intel(struct cpuinfo_x86 *c)
 #endif
 
 	/* Work around errata */
-	srat_detect_node(c);
+	srat_detect_yesde(c);
 
 	if (cpu_has(c, X86_FEATURE_VMX))
 		detect_vmx_virtcap(c);
@@ -774,7 +774,7 @@ static unsigned int intel_size_cache(struct cpuinfo_x86 *c, unsigned int size)
 {
 	/*
 	 * Intel PIII Tualatin. This comes in two flavours.
-	 * One has 256kb of cache, the other 512. We have no way
+	 * One has 256kb of cache, the other 512. We have yes way
 	 * to determine which, so we use a boottime override
 	 * for the 512kb model, and assume 256 otherwise.
 	 */
@@ -954,12 +954,12 @@ static void intel_detect_tlb(struct cpuinfo_x86 *c)
 	for (i = 0 ; i < n ; i++) {
 		cpuid(2, &regs[0], &regs[1], &regs[2], &regs[3]);
 
-		/* If bit 31 is set, this is an unknown format */
+		/* If bit 31 is set, this is an unkyeswn format */
 		for (j = 0 ; j < 3 ; j++)
 			if (regs[j] & (1 << 31))
 				regs[j] = 0;
 
-		/* Byte 0 is level count, not a descriptor */
+		/* Byte 0 is level count, yest a descriptor */
 		for (j = 1 ; j < 16 ; j++)
 			intel_tlb_lookup(desc[j]);
 	}
@@ -1011,7 +1011,7 @@ static const struct cpu_dev intel_cpu_dev = {
 		},
 		{ .family = 15, .model_names =
 		  {
-			  [0] = "Pentium 4 (Unknown)",
+			  [0] = "Pentium 4 (Unkyeswn)",
 			  [1] = "Pentium 4 (Willamette)",
 			  [2] = "Pentium 4 (Northwood)",
 			  [4] = "Pentium 4 (Foster)",

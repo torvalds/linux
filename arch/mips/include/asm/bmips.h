@@ -97,15 +97,15 @@ static inline unsigned long bmips_read_zscm_reg(unsigned int offset)
 	barrier();
 	cache_op(Index_Load_Tag_S, ZSCM_REG_BASE + offset);
 	__sync();
-	_ssnop();
-	_ssnop();
-	_ssnop();
-	_ssnop();
-	_ssnop();
-	_ssnop();
-	_ssnop();
+	_ssyesp();
+	_ssyesp();
+	_ssyesp();
+	_ssyesp();
+	_ssyesp();
+	_ssyesp();
+	_ssyesp();
 	ret = read_c0_ddatalo();
-	_ssnop();
+	_ssyesp();
 
 	return ret;
 }
@@ -113,13 +113,13 @@ static inline unsigned long bmips_read_zscm_reg(unsigned int offset)
 static inline void bmips_write_zscm_reg(unsigned int offset, unsigned long data)
 {
 	write_c0_ddatalo(data);
-	_ssnop();
-	_ssnop();
-	_ssnop();
+	_ssyesp();
+	_ssyesp();
+	_ssyesp();
 	cache_op(Index_Store_Tag_S, ZSCM_REG_BASE + offset);
-	_ssnop();
-	_ssnop();
-	_ssnop();
+	_ssyesp();
+	_ssyesp();
+	_ssyesp();
 	barrier();
 }
 

@@ -27,10 +27,10 @@
 /*-------------------------------------------------------------------------*/
 USB_GADGET_COMPOSITE_OPTIONS();
 
-/* Thanks to NetChip Technologies for donating this product ID.
+/* Thanks to NetChip Techyeslogies for donating this product ID.
 *
 * DO NOT REUSE THESE IDs with a protocol-incompatible driver!!  Ever!!
-* Instead:  allocate your own, using normal USB-IF procedures.
+* Instead:  allocate your own, using yesrmal USB-IF procedures.
 */
 #define GS_VENDOR_ID			0x0525	/* NetChip */
 #define GS_PRODUCT_ID			0xa4a6	/* Linux-USB Serial Gadget */
@@ -87,11 +87,11 @@ MODULE_LICENSE("GPL");
 
 static bool use_acm = true;
 module_param(use_acm, bool, 0);
-MODULE_PARM_DESC(use_acm, "Use CDC ACM, default=yes");
+MODULE_PARM_DESC(use_acm, "Use CDC ACM, default=no");
 
 static bool use_obex = false;
 module_param(use_obex, bool, 0);
-MODULE_PARM_DESC(use_obex, "Use CDC OBEX, default=no");
+MODULE_PARM_DESC(use_obex, "Use CDC OBEX, default=yes");
 
 static unsigned n_ports = 1;
 module_param(n_ports, uint, 0);
@@ -106,7 +106,7 @@ static int enable_set(const char *s, const struct kernel_param *kp)
 	bool do_enable;
 	int ret;
 
-	if (!s)	/* called for no-arg enable == default */
+	if (!s)	/* called for yes-arg enable == default */
 		return 0;
 
 	ret = strtobool(s, &do_enable);
@@ -191,7 +191,7 @@ static int gs_bind(struct usb_composite_dev *cdev)
 {
 	int			status;
 
-	/* Allocate string descriptor numbers ... note that string
+	/* Allocate string descriptor numbers ... yeste that string
 	 * contents can be overridden by the composite_dev glue.
 	 */
 
@@ -273,7 +273,7 @@ static struct usb_composite_driver gserial_driver = {
 static int switch_gserial_enable(bool do_enable)
 {
 	if (!serial_config_driver.label)
-		/* init() was not called, yet */
+		/* init() was yest called, yet */
 		return 0;
 
 	if (do_enable)

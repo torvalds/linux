@@ -84,7 +84,7 @@ config ARCH_BCM_5301X
 	  BCM53014, BCM53015, BCM53016, BCM53017, BCM53018, BCM4707,
 	  BCM4708 and BCM4709.
 
-	  Do not confuse this with the BCM4760 which is a totally
+	  Do yest confuse this with the BCM4760 which is a totally
 	  different SoC or with the older BCM47XX and BCM53XX based
 	  network SoC using a MIPS CPU, they are supported by arch/mips/bcm47xx
 

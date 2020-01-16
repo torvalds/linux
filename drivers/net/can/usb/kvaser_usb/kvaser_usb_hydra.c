@@ -6,11 +6,11 @@
  * Copyright (C) 2018 KVASER AB, Sweden. All rights reserved.
  * Copyright (C) 2010 Matthias Fuchs <matthias.fuchs@esd.eu>, esd gmbh
  *
- * Known issues:
+ * Kyeswn issues:
  *  - Transition from CAN_STATE_ERROR_WARNING to CAN_STATE_ERROR_ACTIVE is only
- *    reported after a call to do_get_berr_counter(), since firmware does not
+ *    reported after a call to do_get_berr_counter(), since firmware does yest
  *    distinguish between ERROR_WARNING and ERROR_ACTIVE.
- *  - Hardware timestamps are not set for CAN Tx frames.
+ *  - Hardware timestamps are yest set for CAN Tx frames.
  */
 
 #include <linux/completion.h>
@@ -77,14 +77,14 @@ static const struct kvaser_usb_dev_cfg kvaser_usb_hydra_dev_cfg_flexc;
 #define CMD_RX_MESSAGE_FD			226
 
 /* Hydra commands are handled by different threads in firmware.
- * The threads are denoted hydra entity (HE). Each HE got a unique 6-bit
+ * The threads are deyested hydra entity (HE). Each HE got a unique 6-bit
  * address. The address is used in hydra commands to get/set source and
  * destination HE. There are two predefined HE addresses, the remaining
  * addresses are different between devices and firmware versions. Hence, we need
  * to enumerate the addresses (see kvaser_usb_hydra_map_channel()).
  */
 
-/* Well-known HE addresses */
+/* Well-kyeswn HE addresses */
 #define KVASER_USB_HYDRA_HE_ADDRESS_ROUTER	0x00
 #define KVASER_USB_HYDRA_HE_ADDRESS_ILLEGAL	0x3e
 
@@ -226,7 +226,7 @@ struct kvaser_err_frame_data {
 
 struct kvaser_cmd_rx_can {
 	u8 cmd_len;
-	u8 cmd_no;
+	u8 cmd_yes;
 	u8 channel;
 	u8 flags;
 	__le16 timestamp[3];
@@ -252,7 +252,7 @@ struct kvaser_cmd_tx_can {
 } __packed;
 
 struct kvaser_cmd_header {
-	u8 cmd_no;
+	u8 cmd_yes;
 	/* The destination HE address is stored in 0..5 of he_addr.
 	 * The upper part of source HE address is stored in 6..7 of he_addr, and
 	 * the lower part is stored in 12..15 of transid.
@@ -349,7 +349,7 @@ struct kvaser_cmd_ext_tx_ack {
 struct kvaser_cmd_ext {
 	struct kvaser_cmd_header header;
 	__le16 len;
-	u8 cmd_no_ext;
+	u8 cmd_yes_ext;
 	u8 reserved;
 
 	union {
@@ -457,7 +457,7 @@ static size_t kvaser_usb_hydra_cmd_size(struct kvaser_cmd *cmd)
 {
 	size_t ret;
 
-	if (cmd->header.cmd_no == CMD_EXTENDED)
+	if (cmd->header.cmd_yes == CMD_EXTENDED)
 		ret = le16_to_cpu(((struct kvaser_cmd_ext *)cmd)->len);
 	else
 		ret = sizeof(struct kvaser_cmd);
@@ -487,7 +487,7 @@ kvaser_usb_hydra_ktime_from_rx_cmd(const struct kvaser_usb_dev_cfg *cfg,
 {
 	u64 ticks;
 
-	if (cmd->header.cmd_no == CMD_EXTENDED) {
+	if (cmd->header.cmd_yes == CMD_EXTENDED) {
 		struct kvaser_cmd_ext *cmd_ext = (struct kvaser_cmd_ext *)cmd;
 
 		ticks = le64_to_cpu(cmd_ext->rx_can.timestamp);
@@ -501,7 +501,7 @@ kvaser_usb_hydra_ktime_from_rx_cmd(const struct kvaser_usb_dev_cfg *cfg,
 }
 
 static int kvaser_usb_hydra_send_simple_cmd(struct kvaser_usb *dev,
-					    u8 cmd_no, int channel)
+					    u8 cmd_yes, int channel)
 {
 	struct kvaser_cmd *cmd;
 	int err;
@@ -510,7 +510,7 @@ static int kvaser_usb_hydra_send_simple_cmd(struct kvaser_usb *dev,
 	if (!cmd)
 		return -ENOMEM;
 
-	cmd->header.cmd_no = cmd_no;
+	cmd->header.cmd_yes = cmd_yes;
 	if (channel < 0) {
 		kvaser_usb_hydra_set_cmd_dest_he
 				(cmd, KVASER_USB_HYDRA_HE_ADDRESS_ILLEGAL);
@@ -539,7 +539,7 @@ end:
 
 static int
 kvaser_usb_hydra_send_simple_cmd_async(struct kvaser_usb_net_priv *priv,
-				       u8 cmd_no)
+				       u8 cmd_yes)
 {
 	struct kvaser_cmd *cmd;
 	struct kvaser_usb *dev = priv->dev;
@@ -549,7 +549,7 @@ kvaser_usb_hydra_send_simple_cmd_async(struct kvaser_usb_net_priv *priv,
 	if (!cmd)
 		return -ENOMEM;
 
-	cmd->header.cmd_no = cmd_no;
+	cmd->header.cmd_yes = cmd_yes;
 
 	kvaser_usb_hydra_set_cmd_dest_he
 		(cmd, dev->card_data.hydra.channel_to_he[priv->channel]);
@@ -564,20 +564,20 @@ kvaser_usb_hydra_send_simple_cmd_async(struct kvaser_usb_net_priv *priv,
 	return err;
 }
 
-/* This function is used for synchronously waiting on hydra control commands.
+/* This function is used for synchroyesusly waiting on hydra control commands.
  * Note: Compared to kvaser_usb_hydra_read_bulk_callback(), we never need to
  *       handle partial hydra commands. Since hydra control commands are always
- *       non-extended commands.
+ *       yesn-extended commands.
  */
-static int kvaser_usb_hydra_wait_cmd(const struct kvaser_usb *dev, u8 cmd_no,
+static int kvaser_usb_hydra_wait_cmd(const struct kvaser_usb *dev, u8 cmd_yes,
 				     struct kvaser_cmd *cmd)
 {
 	void *buf;
 	int err;
 	unsigned long timeout = jiffies + msecs_to_jiffies(KVASER_USB_TIMEOUT);
 
-	if (cmd->header.cmd_no == CMD_EXTENDED) {
-		dev_err(&dev->intf->dev, "Wait for CMD_EXTENDED not allowed\n");
+	if (cmd->header.cmd_yes == CMD_EXTENDED) {
+		dev_err(&dev->intf->dev, "Wait for CMD_EXTENDED yest allowed\n");
 		return -EINVAL;
 	}
 
@@ -606,7 +606,7 @@ static int kvaser_usb_hydra_wait_cmd(const struct kvaser_usb *dev, u8 cmd_no,
 				break;
 			}
 
-			if (tmp_cmd->header.cmd_no == cmd_no) {
+			if (tmp_cmd->header.cmd_yes == cmd_yes) {
 				memcpy(cmd, tmp_cmd, cmd_len);
 				goto end;
 			}
@@ -652,7 +652,7 @@ static int kvaser_usb_hydra_map_channel_resp(struct kvaser_usb *dev,
 		break;
 	default:
 		dev_warn(&dev->intf->dev,
-			 "Unknown CMD_MAP_CHANNEL_RESP transid=0x%x\n",
+			 "Unkyeswn CMD_MAP_CHANNEL_RESP transid=0x%x\n",
 			 transid);
 		break;
 	}
@@ -671,7 +671,7 @@ static int kvaser_usb_hydra_map_channel(struct kvaser_usb *dev, u16 transid,
 		return -ENOMEM;
 
 	strcpy(cmd->map_ch_req.name, name);
-	cmd->header.cmd_no = CMD_MAP_CHANNEL_REQ;
+	cmd->header.cmd_yes = CMD_MAP_CHANNEL_REQ;
 	kvaser_usb_hydra_set_cmd_dest_he
 				(cmd, KVASER_USB_HYDRA_HE_ADDRESS_ROUTER);
 	cmd->map_ch_req.channel = channel;
@@ -711,7 +711,7 @@ static int kvaser_usb_hydra_get_single_capability(struct kvaser_usb *dev,
 	if (!cmd)
 		return -ENOMEM;
 
-	cmd->header.cmd_no = CMD_GET_CAPABILITIES_REQ;
+	cmd->header.cmd_yes = CMD_GET_CAPABILITIES_REQ;
 	cmd->cap_req.cap_cmd = cpu_to_le16(cap_cmd_req);
 
 	kvaser_usb_hydra_set_cmd_dest_he(cmd, card_data->hydra.sysdbg_he);
@@ -740,7 +740,7 @@ static int kvaser_usb_hydra_get_single_capability(struct kvaser_usb *dev,
 		mask = le32_to_cpu(cmd->cap_res.mask);
 		break;
 	default:
-		dev_warn(&dev->intf->dev, "Unknown capability command %u\n",
+		dev_warn(&dev->intf->dev, "Unkyeswn capability command %u\n",
 			 cap_cmd_res);
 		break;
 	}
@@ -854,9 +854,9 @@ static void kvaser_usb_hydra_update_state(struct kvaser_usb_net_priv *priv,
 	if (new_state == old_state)
 		return;
 
-	/* Ignore state change if previous state was STOPPED and the new state
+	/* Igyesre state change if previous state was STOPPED and the new state
 	 * is BUS_OFF. Firmware always report this as BUS_OFF, since firmware
-	 * does not distinguish between BUS_OFF and STOPPED.
+	 * does yest distinguish between BUS_OFF and STOPPED.
 	 */
 	if (old_state == CAN_STATE_STOPPED && new_state == CAN_STATE_BUS_OFF)
 		return;
@@ -922,7 +922,7 @@ static void kvaser_usb_hydra_state_event(const struct kvaser_usb *dev,
 static void kvaser_usb_hydra_error_event_parameter(const struct kvaser_usb *dev,
 						   const struct kvaser_cmd *cmd)
 {
-	/* info1 will contain the offending cmd_no */
+	/* info1 will contain the offending cmd_yes */
 	switch (le16_to_cpu(cmd->error_event.info1)) {
 	case CMD_START_CHIP_REQ:
 		dev_warn(&dev->intf->dev,
@@ -951,7 +951,7 @@ static void kvaser_usb_hydra_error_event_parameter(const struct kvaser_usb *dev,
 
 	default:
 		dev_warn(&dev->intf->dev,
-			 "Unhandled parameter error event cmd_no (%u)\n",
+			 "Unhandled parameter error event cmd_yes (%u)\n",
 			 le16_to_cpu(cmd->error_event.info1));
 		break;
 	}
@@ -967,10 +967,10 @@ static void kvaser_usb_hydra_error_event(const struct kvaser_usb *dev,
 
 	case KVASER_USB_HYDRA_ERROR_EVENT_CAN:
 		/* Wrong channel mapping?! This should never happen!
-		 * info1 will contain the offending cmd_no
+		 * info1 will contain the offending cmd_yes
 		 */
 		dev_err(&dev->intf->dev,
-			"Received CAN error event for cmd_no (%u)\n",
+			"Received CAN error event for cmd_yes (%u)\n",
 			le16_to_cpu(cmd->error_event.info1));
 		break;
 
@@ -1088,7 +1088,7 @@ static void kvaser_usb_hydra_one_shot_fail(struct kvaser_usb_net_priv *priv,
 	netif_rx(skb);
 }
 
-static void kvaser_usb_hydra_tx_acknowledge(const struct kvaser_usb *dev,
+static void kvaser_usb_hydra_tx_ackyeswledge(const struct kvaser_usb *dev,
 					    const struct kvaser_cmd *cmd)
 {
 	struct kvaser_usb_tx_urb_context *context;
@@ -1104,7 +1104,7 @@ static void kvaser_usb_hydra_tx_acknowledge(const struct kvaser_usb *dev,
 	if (!netif_device_present(priv->netdev))
 		return;
 
-	if (cmd->header.cmd_no == CMD_EXTENDED) {
+	if (cmd->header.cmd_yes == CMD_EXTENDED) {
 		struct kvaser_cmd_ext *cmd_ext = (struct kvaser_cmd_ext *)cmd;
 		u32 flags = le32_to_cpu(cmd_ext->tx_ack.flags);
 
@@ -1273,7 +1273,7 @@ static void kvaser_usb_hydra_rx_msg_ext(const struct kvaser_usb *dev,
 static void kvaser_usb_hydra_handle_cmd_std(const struct kvaser_usb *dev,
 					    const struct kvaser_cmd *cmd)
 {
-	switch (cmd->header.cmd_no) {
+	switch (cmd->header.cmd_yes) {
 	case CMD_START_CHIP_RESP:
 		kvaser_usb_hydra_start_chip_reply(dev, cmd);
 		break;
@@ -1295,21 +1295,21 @@ static void kvaser_usb_hydra_handle_cmd_std(const struct kvaser_usb *dev,
 		break;
 
 	case CMD_TX_ACKNOWLEDGE:
-		kvaser_usb_hydra_tx_acknowledge(dev, cmd);
+		kvaser_usb_hydra_tx_ackyeswledge(dev, cmd);
 		break;
 
 	case CMD_RX_MESSAGE:
 		kvaser_usb_hydra_rx_msg_std(dev, cmd);
 		break;
 
-	/* Ignored commands */
+	/* Igyesred commands */
 	case CMD_SET_BUSPARAMS_RESP:
 	case CMD_SET_BUSPARAMS_FD_RESP:
 		break;
 
 	default:
 		dev_warn(&dev->intf->dev, "Unhandled command (%d)\n",
-			 cmd->header.cmd_no);
+			 cmd->header.cmd_yes);
 		break;
 	}
 }
@@ -1317,9 +1317,9 @@ static void kvaser_usb_hydra_handle_cmd_std(const struct kvaser_usb *dev,
 static void kvaser_usb_hydra_handle_cmd_ext(const struct kvaser_usb *dev,
 					    const struct kvaser_cmd_ext *cmd)
 {
-	switch (cmd->cmd_no_ext) {
+	switch (cmd->cmd_yes_ext) {
 	case CMD_TX_ACKNOWLEDGE_FD:
-		kvaser_usb_hydra_tx_acknowledge(dev, (struct kvaser_cmd *)cmd);
+		kvaser_usb_hydra_tx_ackyeswledge(dev, (struct kvaser_cmd *)cmd);
 		break;
 
 	case CMD_RX_MESSAGE_FD:
@@ -1328,7 +1328,7 @@ static void kvaser_usb_hydra_handle_cmd_ext(const struct kvaser_usb *dev,
 
 	default:
 		dev_warn(&dev->intf->dev, "Unhandled extended command (%d)\n",
-			 cmd->header.cmd_no);
+			 cmd->header.cmd_yes);
 		break;
 	}
 }
@@ -1336,7 +1336,7 @@ static void kvaser_usb_hydra_handle_cmd_ext(const struct kvaser_usb *dev,
 static void kvaser_usb_hydra_handle_cmd(const struct kvaser_usb *dev,
 					const struct kvaser_cmd *cmd)
 {
-		if (cmd->header.cmd_no == CMD_EXTENDED)
+		if (cmd->header.cmd_yes == CMD_EXTENDED)
 			kvaser_usb_hydra_handle_cmd_ext
 					(dev, (struct kvaser_cmd_ext *)cmd);
 		else
@@ -1369,8 +1369,8 @@ kvaser_usb_hydra_frame_to_cmd_ext(const struct kvaser_usb_net_priv *priv,
 			 dev->card_data.hydra.channel_to_he[priv->channel]);
 	kvaser_usb_hydra_set_cmd_transid((struct kvaser_cmd *)cmd, transid);
 
-	cmd->header.cmd_no = CMD_EXTENDED;
-	cmd->cmd_no_ext = CMD_TX_CAN_MESSAGE_FD;
+	cmd->header.cmd_yes = CMD_EXTENDED;
+	cmd->cmd_yes_ext = CMD_TX_CAN_MESSAGE_FD;
 
 	*cmd_len = ALIGN(sizeof(struct kvaser_cmd_ext) -
 			 sizeof(cmd->tx_can.kcan_payload) + nbr_of_bytes,
@@ -1444,7 +1444,7 @@ kvaser_usb_hydra_frame_to_cmd_std(const struct kvaser_usb_net_priv *priv,
 		(cmd, dev->card_data.hydra.channel_to_he[priv->channel]);
 	kvaser_usb_hydra_set_cmd_transid(cmd, transid);
 
-	cmd->header.cmd_no = CMD_TX_CAN_MESSAGE;
+	cmd->header.cmd_yes = CMD_TX_CAN_MESSAGE;
 
 	*cmd_len = ALIGN(sizeof(struct kvaser_cmd), 8);
 
@@ -1505,7 +1505,7 @@ static int kvaser_usb_hydra_set_bittiming(struct net_device *netdev)
 	if (!cmd)
 		return -ENOMEM;
 
-	cmd->header.cmd_no = CMD_SET_BUSPARAMS_REQ;
+	cmd->header.cmd_yes = CMD_SET_BUSPARAMS_REQ;
 	cmd->set_busparams_req.bitrate = cpu_to_le32(bt->bitrate);
 	cmd->set_busparams_req.sjw = (u8)sjw;
 	cmd->set_busparams_req.tseg1 = (u8)tseg1;
@@ -1539,7 +1539,7 @@ static int kvaser_usb_hydra_set_data_bittiming(struct net_device *netdev)
 	if (!cmd)
 		return -ENOMEM;
 
-	cmd->header.cmd_no = CMD_SET_BUSPARAMS_FD_REQ;
+	cmd->header.cmd_yes = CMD_SET_BUSPARAMS_FD_REQ;
 	cmd->set_busparams_req.bitrate_d = cpu_to_le32(dbt->bitrate);
 	cmd->set_busparams_req.sjw_d = (u8)sjw;
 	cmd->set_busparams_req.tseg1_d = (u8)tseg1;
@@ -1683,7 +1683,7 @@ static int kvaser_usb_hydra_get_software_details(struct kvaser_usb *dev)
 	if (!cmd)
 		return -ENOMEM;
 
-	cmd->header.cmd_no = CMD_GET_SOFTWARE_DETAILS_REQ;
+	cmd->header.cmd_yes = CMD_GET_SOFTWARE_DETAILS_REQ;
 	cmd->sw_detail_req.use_ext_cmd = 1;
 	kvaser_usb_hydra_set_cmd_dest_he
 				(cmd, KVASER_USB_HYDRA_HE_ADDRESS_ILLEGAL);
@@ -1821,7 +1821,7 @@ static int kvaser_usb_hydra_set_opt_mode(const struct kvaser_usb_net_priv *priv)
 	if (!cmd)
 		return -ENOMEM;
 
-	cmd->header.cmd_no = CMD_SET_DRIVERMODE_REQ;
+	cmd->header.cmd_yes = CMD_SET_DRIVERMODE_REQ;
 	kvaser_usb_hydra_set_cmd_dest_he
 		(cmd, dev->card_data.hydra.channel_to_he[priv->channel]);
 	kvaser_usb_hydra_set_cmd_transid
@@ -1861,7 +1861,7 @@ static int kvaser_usb_hydra_stop_chip(struct kvaser_usb_net_priv *priv)
 
 	init_completion(&priv->stop_comp);
 
-	/* Make sure we do not report invalid BUS_OFF from CMD_CHIP_STATE_EVENT
+	/* Make sure we do yest report invalid BUS_OFF from CMD_CHIP_STATE_EVENT
 	 * see comment in kvaser_usb_hydra_update_state()
 	 */
 	priv->can.state = CAN_STATE_STOPPED;
@@ -1922,7 +1922,7 @@ static void kvaser_usb_hydra_read_bulk_callback(struct kvaser_usb *dev,
 
 		remaining_bytes = min_t(unsigned int, len,
 					cmd_len - usb_rx_leftover_len);
-		/* Make sure we do not overflow usb_rx_leftover */
+		/* Make sure we do yest overflow usb_rx_leftover */
 		if (remaining_bytes + usb_rx_leftover_len >
 						KVASER_USB_HYDRA_MAX_CMD_LEN) {
 			dev_err(&dev->intf->dev, "Format error\n");
@@ -1938,7 +1938,7 @@ static void kvaser_usb_hydra_read_bulk_callback(struct kvaser_usb *dev,
 			kvaser_usb_hydra_handle_cmd(dev, cmd);
 			usb_rx_leftover_len = 0;
 		} else {
-			/* Command still not complete */
+			/* Command still yest complete */
 			usb_rx_leftover_len += remaining_bytes;
 		}
 		card_data->usb_rx_leftover_len = usb_rx_leftover_len;
@@ -1955,7 +1955,7 @@ static void kvaser_usb_hydra_read_bulk_callback(struct kvaser_usb *dev,
 			int leftover_bytes;
 
 			leftover_bytes = len - pos;
-			/* Make sure we do not overflow usb_rx_leftover */
+			/* Make sure we do yest overflow usb_rx_leftover */
 			if (leftover_bytes > KVASER_USB_HYDRA_MAX_CMD_LEN) {
 				dev_err(&dev->intf->dev, "Format error\n");
 				return;

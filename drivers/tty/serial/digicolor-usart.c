@@ -4,7 +4,7 @@
  *
  * Author: Baruch Siach <baruch@tkos.co.il>
  *
- * Copyright (C) 2014 Paradox Innovation Ltd.
+ * Copyright (C) 2014 Paradox Inyesvation Ltd.
  */
 
 #include <linux/module.h>
@@ -68,7 +68,7 @@
 /*
  * We use the 16 bytes hardware FIFO to buffer Rx traffic. Rx interrupt is
  * only produced when the FIFO is filled more than a certain configurable
- * threshold. Unfortunately, there is no way to set this threshold below half
+ * threshold. Unfortunately, there is yes way to set this threshold below half
  * FIFO. This means that we must periodically poll the FIFO status register to
  * see whether there are waiting Rx bytes.
  */
@@ -166,7 +166,7 @@ static void digicolor_uart_rx(struct uart_port *port)
 				ch_flag = TTY_OVERRUN;
 		}
 
-		if (status & port->ignore_status_mask)
+		if (status & port->igyesre_status_mask)
 			continue;
 
 		uart_insert_char(port, status, UA_STATUS_OVERRUN_ERR, ch,
@@ -327,10 +327,10 @@ static void digicolor_uart_set_termios(struct uart_port *port,
 		port->read_status_mask |= UA_STATUS_PARITY_ERR
 			| UA_STATUS_FRAME_ERR;
 
-	/* Set status ignore mask */
-	port->ignore_status_mask = 0;
+	/* Set status igyesre mask */
+	port->igyesre_status_mask = 0;
 	if (!(termios->c_cflag & CREAD))
-		port->ignore_status_mask |= UA_STATUS_OVERRUN_ERR
+		port->igyesre_status_mask |= UA_STATUS_OVERRUN_ERR
 			| UA_STATUS_PARITY_ERR | UA_STATUS_FRAME_ERR;
 
 	spin_lock_irqsave(&port->lock, flags);
@@ -448,14 +448,14 @@ static struct uart_driver digicolor_uart = {
 
 static int digicolor_uart_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	int irq, ret, index;
 	struct digicolor_port *dp;
 	struct resource *res;
 	struct clk *uart_clk;
 
 	if (!np) {
-		dev_err(&pdev->dev, "Missing device tree node\n");
+		dev_err(&pdev->dev, "Missing device tree yesde\n");
 		return -ENXIO;
 	}
 

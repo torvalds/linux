@@ -133,13 +133,13 @@ static int help(struct sk_buff *skb,
 		goto out;
 	}
 
-	/* Invalid saned reply? Ignore it. */
+	/* Invalid saned reply? Igyesre it. */
 	if (reply->zero != 0)
 		goto out;
 
 	exp = nf_ct_expect_alloc(ct);
 	if (exp == NULL) {
-		nf_ct_helper_log(skb, ct, "cannot alloc expectation");
+		nf_ct_helper_log(skb, ct, "canyest alloc expectation");
 		ret = NF_DROP;
 		goto out;
 	}
@@ -152,9 +152,9 @@ static int help(struct sk_buff *skb,
 	pr_debug("expect: ");
 	nf_ct_dump_tuple(&exp->tuple);
 
-	/* Can't expect this?  Best to drop packet now. */
+	/* Can't expect this?  Best to drop packet yesw. */
 	if (nf_ct_expect_related(exp, 0) != 0) {
-		nf_ct_helper_log(skb, ct, "cannot add expectation");
+		nf_ct_helper_log(skb, ct, "canyest add expectation");
 		ret = NF_DROP;
 	}
 
@@ -192,7 +192,7 @@ static int __init nf_conntrack_sane_init(void)
 		ports[ports_c++] = SANE_PORT;
 
 	/* FIXME should be configurable whether IPv4 and IPv6 connections
-		 are tracked or not - YK */
+		 are tracked or yest - YK */
 	for (i = 0; i < ports_c; i++) {
 		nf_ct_helper_init(&sane[2 * i], AF_INET, IPPROTO_TCP,
 				  HELPER_NAME, SANE_PORT, ports[i], ports[i],

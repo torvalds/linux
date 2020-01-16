@@ -22,7 +22,7 @@
 
 /*
  * When power is turned off to this panel a minimum off time of 500ms has to be
- * observed before powering back on as there's no external reset pin. Keep
+ * observed before powering back on as there's yes external reset pin. Keep
  * track of earliest wakeup time and delay subsequent prepare call accordingly
  */
 #define MIN_POFF_MS (500)
@@ -205,7 +205,7 @@ MODULE_DEVICE_TABLE(of, wuxga_nt_of_match);
 static int wuxga_nt_panel_add(struct wuxga_nt_panel *wuxga_nt)
 {
 	struct device *dev = &wuxga_nt->dsi->dev;
-	struct device_node *np;
+	struct device_yesde *np;
 	int ret;
 
 	wuxga_nt->mode = &default_mode;
@@ -214,10 +214,10 @@ static int wuxga_nt_panel_add(struct wuxga_nt_panel *wuxga_nt)
 	if (IS_ERR(wuxga_nt->supply))
 		return PTR_ERR(wuxga_nt->supply);
 
-	np = of_parse_phandle(dev->of_node, "backlight", 0);
+	np = of_parse_phandle(dev->of_yesde, "backlight", 0);
 	if (np) {
-		wuxga_nt->backlight = of_find_backlight_by_node(np);
-		of_node_put(np);
+		wuxga_nt->backlight = of_find_backlight_by_yesde(np);
+		of_yesde_put(np);
 
 		if (!wuxga_nt->backlight)
 			return -EPROBE_DEFER;

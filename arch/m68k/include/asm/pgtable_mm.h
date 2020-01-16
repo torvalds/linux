@@ -4,9 +4,9 @@
 
 
 #if defined(CONFIG_SUN3) || defined(CONFIG_COLDFIRE)
-#include <asm-generic/pgtable-nopmd.h>
+#include <asm-generic/pgtable-yespmd.h>
 #else
-#include <asm-generic/pgtable-nopud.h>
+#include <asm-generic/pgtable-yespud.h>
 #endif
 
 #include <asm/setup.h>
@@ -156,14 +156,14 @@ static inline void update_mmu_cache(struct vm_area_struct *vma,
  * Macro to mark a page protection value as "uncacheable".
  */
 #ifdef CONFIG_COLDFIRE
-# define pgprot_noncached(prot) (__pgprot(pgprot_val(prot) | CF_PAGE_NOCACHE))
+# define pgprot_yesncached(prot) (__pgprot(pgprot_val(prot) | CF_PAGE_NOCACHE))
 #else
 #ifdef SUN3_PAGE_NOCACHE
 # define __SUN3_PAGE_NOCACHE	SUN3_PAGE_NOCACHE
 #else
 # define __SUN3_PAGE_NOCACHE	0
 #endif
-#define pgprot_noncached(prot)							\
+#define pgprot_yesncached(prot)							\
 	(MMU_IS_SUN3								\
 	 ? (__pgprot(pgprot_val(prot) | __SUN3_PAGE_NOCACHE))			\
 	 : ((MMU_IS_851 || MMU_IS_030)						\

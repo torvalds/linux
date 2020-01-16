@@ -30,10 +30,10 @@ void oprofile_reset_stats(void)
 		cpu_buf->sample_invalid_eip = 0;
 	}
 
-	atomic_set(&oprofile_stats.sample_lost_no_mm, 0);
-	atomic_set(&oprofile_stats.sample_lost_no_mapping, 0);
+	atomic_set(&oprofile_stats.sample_lost_yes_mm, 0);
+	atomic_set(&oprofile_stats.sample_lost_yes_mapping, 0);
 	atomic_set(&oprofile_stats.event_lost_overflow, 0);
-	atomic_set(&oprofile_stats.bt_lost_no_mapping, 0);
+	atomic_set(&oprofile_stats.bt_lost_yes_mapping, 0);
 	atomic_set(&oprofile_stats.multiplex_counter, 0);
 }
 
@@ -69,14 +69,14 @@ void oprofile_create_stats_files(struct dentry *root)
 			&cpu_buf->sample_invalid_eip);
 	}
 
-	oprofilefs_create_ro_atomic(dir, "sample_lost_no_mm",
-		&oprofile_stats.sample_lost_no_mm);
-	oprofilefs_create_ro_atomic(dir, "sample_lost_no_mapping",
-		&oprofile_stats.sample_lost_no_mapping);
+	oprofilefs_create_ro_atomic(dir, "sample_lost_yes_mm",
+		&oprofile_stats.sample_lost_yes_mm);
+	oprofilefs_create_ro_atomic(dir, "sample_lost_yes_mapping",
+		&oprofile_stats.sample_lost_yes_mapping);
 	oprofilefs_create_ro_atomic(dir, "event_lost_overflow",
 		&oprofile_stats.event_lost_overflow);
-	oprofilefs_create_ro_atomic(dir, "bt_lost_no_mapping",
-		&oprofile_stats.bt_lost_no_mapping);
+	oprofilefs_create_ro_atomic(dir, "bt_lost_yes_mapping",
+		&oprofile_stats.bt_lost_yes_mapping);
 #ifdef CONFIG_OPROFILE_EVENT_MULTIPLEX
 	oprofilefs_create_ro_atomic(dir, "multiplex_counter",
 		&oprofile_stats.multiplex_counter);

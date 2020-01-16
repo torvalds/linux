@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-yeste */
 /*
  *  Main header file for the ALSA sequencer
  *  Copyright (c) 1998-1999 by Frank van de Pol <fvdpol@coil.demon.nl>
@@ -16,7 +16,7 @@
  *   GNU General Public License for more details.
  *
  *   You should have received a copy of the GNU General Public License
- *   along with this program; if not, write to the Free Software
+ *   along with this program; if yest, write to the Free Software
  *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  *
  */
@@ -38,8 +38,8 @@
 #define SNDRV_SEQ_EVENT_SYSTEM		0
 #define SNDRV_SEQ_EVENT_RESULT		1
 
-/** note messages (channel specific)
- * event data type = #snd_seq_ev_note
+/** yeste messages (channel specific)
+ * event data type = #snd_seq_ev_yeste
  */
 #define SNDRV_SEQ_EVENT_NOTE		5
 #define SNDRV_SEQ_EVENT_NOTEON		6
@@ -80,7 +80,7 @@
 #define SNDRV_SEQ_EVENT_QUEUE_SKEW	38	/* skew queue tempo */
 
 /** others
- * event data type = none
+ * event data type = yesne
  */
 #define SNDRV_SEQ_EVENT_TUNE_REQUEST	40	/* tune request */
 #define SNDRV_SEQ_EVENT_RESET		41	/* reset to power-on state */
@@ -167,7 +167,7 @@ struct snd_seq_connect {
 };
 
 
-#define SNDRV_SEQ_ADDRESS_UNKNOWN	253	/* unknown source */
+#define SNDRV_SEQ_ADDRESS_UNKNOWN	253	/* unkyeswn source */
 #define SNDRV_SEQ_ADDRESS_SUBSCRIBERS	254	/* send event to all subscribed ports */
 #define SNDRV_SEQ_ADDRESS_BROADCAST	255	/* send event to all queues/clients/ports/channels */
 #define SNDRV_SEQ_QUEUE_DIRECT		253	/* direct dispatch */
@@ -186,15 +186,15 @@ struct snd_seq_connect {
 #define SNDRV_SEQ_EVENT_LENGTH_VARUSR	(2<<2)	/* variable event size - user memory space */
 #define SNDRV_SEQ_EVENT_LENGTH_MASK	(3<<2)
 
-#define SNDRV_SEQ_PRIORITY_NORMAL	(0<<4)	/* normal priority */
+#define SNDRV_SEQ_PRIORITY_NORMAL	(0<<4)	/* yesrmal priority */
 #define SNDRV_SEQ_PRIORITY_HIGH		(1<<4)	/* event should be processed before others */
 #define SNDRV_SEQ_PRIORITY_MASK		(1<<4)
 
 
-	/* note event */
-struct snd_seq_ev_note {
+	/* yeste event */
+struct snd_seq_ev_yeste {
 	unsigned char channel;
-	unsigned char note;
+	unsigned char yeste;
 	unsigned char velocity;
 	unsigned char off_velocity;	/* only for SNDRV_SEQ_EVENT_NOTE */
 	unsigned int duration;		/* only for SNDRV_SEQ_EVENT_NOTE */
@@ -221,7 +221,7 @@ struct snd_seq_ev_raw32 {
 	/* external stored data */
 struct snd_seq_ev_ext {
 	unsigned int len;	/* length of data */
-	void *ptr;		/* pointer to data (note: maybe 64-bit) */
+	void *ptr;		/* pointer to data (yeste: maybe 64-bit) */
 } __attribute__((packed));
 
 struct snd_seq_result {
@@ -232,7 +232,7 @@ struct snd_seq_result {
 
 struct snd_seq_real_time {
 	unsigned int tv_sec;	/* seconds */
-	unsigned int tv_nsec;	/* nanoseconds */
+	unsigned int tv_nsec;	/* nayesseconds */
 };
 
 typedef unsigned int snd_seq_tick_time_t;	/* midi ticks */
@@ -283,7 +283,7 @@ struct snd_seq_event {
 	struct snd_seq_addr dest;	/* destination address */
 
 	union {				/* event data... */
-		struct snd_seq_ev_note note;
+		struct snd_seq_ev_yeste yeste;
 		struct snd_seq_ev_ctrl control;
 		struct snd_seq_ev_raw8 raw8;
 		struct snd_seq_ev_raw32 raw32;
@@ -330,7 +330,7 @@ struct snd_seq_running_info {
 };
 
 
-	/* known client numbers */
+	/* kyeswn client numbers */
 #define SNDRV_SEQ_CLIENT_SYSTEM		0
 	/* internal client numbers */
 #define SNDRV_SEQ_CLIENT_DUMMY		14	/* midi through */
@@ -386,7 +386,7 @@ struct snd_seq_client_pool {
 #define SNDRV_SEQ_REMOVE_TIME_AFTER	(1<<5)	/* Restrict to time or after */
 #define SNDRV_SEQ_REMOVE_TIME_TICK	(1<<6)	/* Time is in ticks */
 #define SNDRV_SEQ_REMOVE_EVENT_TYPE	(1<<7)	/* Restrict to event type */
-#define SNDRV_SEQ_REMOVE_IGNORE_OFF 	(1<<8)	/* Do not flush off events */
+#define SNDRV_SEQ_REMOVE_IGNORE_OFF 	(1<<8)	/* Do yest flush off events */
 #define SNDRV_SEQ_REMOVE_TAG_MATCH 	(1<<9)	/* Restrict to events with given tag */
 
 struct snd_seq_remove_events {
@@ -406,7 +406,7 @@ struct snd_seq_remove_events {
 };
 
 
-	/* known port numbers */
+	/* kyeswn port numbers */
 #define SNDRV_SEQ_PORT_SYSTEM_TIMER	0
 #define SNDRV_SEQ_PORT_SYSTEM_ANNOUNCE	1
 
@@ -421,7 +421,7 @@ struct snd_seq_remove_events {
 
 #define SNDRV_SEQ_PORT_CAP_SUBS_READ	(1<<5)	/* allow read subscription */
 #define SNDRV_SEQ_PORT_CAP_SUBS_WRITE	(1<<6)	/* allow write subscription */
-#define SNDRV_SEQ_PORT_CAP_NO_EXPORT	(1<<7)	/* routing not allowed */
+#define SNDRV_SEQ_PORT_CAP_NO_EXPORT	(1<<7)	/* routing yest allowed */
 
 	/* port type */
 #define SNDRV_SEQ_PORT_TYPE_SPECIFIC	(1<<0)	/* hardware specific */
@@ -433,7 +433,7 @@ struct snd_seq_remove_events {
 #define SNDRV_SEQ_PORT_TYPE_MIDI_GM2	(1<<6)	/* General MIDI 2 compatible device */
 
 /* other standards...*/
-#define SNDRV_SEQ_PORT_TYPE_SYNTH	(1<<10)	/* Synth device (no MIDI compatible - direct wavetable) */
+#define SNDRV_SEQ_PORT_TYPE_SYNTH	(1<<10)	/* Synth device (yes MIDI compatible - direct wavetable) */
 #define SNDRV_SEQ_PORT_TYPE_DIRECT_SAMPLE (1<<11)	/* Sampling device (support sample download) */
 #define SNDRV_SEQ_PORT_TYPE_SAMPLE	(1<<12)	/* Sampling device (sample can be downloaded at any time) */
 /*...*/

@@ -3,7 +3,7 @@
  *  Linux MegaRAID driver for SAS based RAID controllers
  *
  *  Copyright (c) 2003-2013  LSI Corporation
- *  Copyright (c) 2013-2016  Avago Technologies
+ *  Copyright (c) 2013-2016  Avago Techyeslogies
  *  Copyright (c) 2016-2018  Broadcom Inc.
  *
  *  FILE: megaraid_sas.h
@@ -488,7 +488,7 @@ union MR_PD_DDF_TYPE {
 	 } ddf;
 	 struct {
 		 u32	reserved;
-	 } nonDisk;
+	 } yesnDisk;
 	 u32	 type;
 } __packed;
 
@@ -561,7 +561,7 @@ struct  MR_PD_INFO {
 	union MR_PD_REF	ref;
 	u8 inquiryData[96];
 	u8 vpdPage83[64];
-	u8 notSupported;
+	u8 yestSupported;
 	u8 scsiDevType;
 
 	union {
@@ -599,7 +599,7 @@ struct  MR_PD_INFO {
 	} pathInfo;
 
 	u64 rawSize;
-	u64 nonCoercedSize;
+	u64 yesnCoercedSize;
 	u64 coercedSize;
 	u16 enclDeviceId;
 	u8 enclIndex;
@@ -638,7 +638,7 @@ struct  MR_PD_INFO {
 #endif
 	} security;
 	u8 mediaType;
-	u8 notCertified;
+	u8 yestCertified;
 	u8 bridgeVendor[8];
 	u8 bridgeProductIdentification[16];
 	u8 bridgeProductRevisionLevel[4];
@@ -985,8 +985,8 @@ struct megasas_ctrl_info {
 
 	/*
 	 * List of flash components that have been flashed on the card, but
-	 * are not in use, pending reset of the adapter. This list will be
-	 * empty if a flash operation has not occurred. All stings are null
+	 * are yest in use, pending reset of the adapter. This list will be
+	 * empty if a flash operation has yest occurred. All stings are null
 	 * terminated
 	 */
 	__le32 pending_image_component_count;
@@ -1006,7 +1006,7 @@ struct megasas_ctrl_info {
 	u8 max_lds;
 
 	char product_name[80];
-	char serial_no[32];
+	char serial_yes[32];
 
 	/*
 	 * Other physical/controller/operation information. Indicates the
@@ -1095,7 +1095,7 @@ struct megasas_ctrl_info {
 		u32 dedicated_hotspares:1;
 		u32 revertible_hotspares:1;
 		u32 foreign_config_import:1;
-		u32 self_diagnostic:1;
+		u32 self_diagyesstic:1;
 		u32 mixed_redundancy_arr:1;
 		u32 global_hot_spares:1;
 		u32 reserved:17;
@@ -1560,8 +1560,8 @@ enum FW_BOOT_CONTEXT {
 /*
  * When SCSI mid-layer calls driver's reset routine, driver waits for
  * MEGASAS_RESET_WAIT_TIME seconds for all outstanding IO to complete. Note
- * that the driver cannot _actually_ abort or reset pending commands. While
- * it is waiting for the commands to complete, it prints a diagnostic message
+ * that the driver canyest _actually_ abort or reset pending commands. While
+ * it is waiting for the commands to complete, it prints a diagyesstic message
  * every MEGASAS_RESET_NOTICE_INTERVAL seconds
  */
 #define MEGASAS_RESET_WAIT_TIME			180
@@ -2257,7 +2257,7 @@ enum MR_PERF_MODE {
 		((mode) == MR_BALANCED_PERF_MODE ? "Balanced" : \
 		 (mode) == MR_IOPS_PERF_MODE ? "IOPS" : \
 		 (mode) == MR_LATENCY_PERF_MODE ? "Latency" : \
-		 "Unknown")
+		 "Unkyeswn")
 
 struct megasas_instance {
 
@@ -2365,7 +2365,7 @@ struct megasas_instance {
 
 	atomic_t fw_outstanding;
 	atomic_t ldio_outstanding;
-	atomic_t fw_reset_no_pci_access;
+	atomic_t fw_reset_yes_pci_access;
 	atomic64_t total_io_count;
 	atomic64_t high_iops_outstanding;
 
@@ -2384,7 +2384,7 @@ struct megasas_instance {
 	u8 UnevenSpanSupport;
 
 	u8 supportmax256vd;
-	u8 pd_list_not_supported;
+	u8 pd_list_yest_supported;
 	u16 fw_supported_vd_count;
 	u16 fw_supported_pd_count;
 
@@ -2496,7 +2496,7 @@ struct MR_CTRL_HB_HOST_MEM {
 		u32 fwCounter;	/* Firmware heart beat counter */
 		struct {
 			u32 debugmode:1; /* 1=Firmware is in debug mode.
-					    Heart beat will not be updated. */
+					    Heart beat will yest be updated. */
 			u32 reserved:31;
 		} debug;
 		u32 reserved_fw[6];
@@ -2583,7 +2583,7 @@ struct megasas_cmd {
 
 struct megasas_iocpacket {
 
-	u16 host_no;
+	u16 host_yes;
 	u16 __pad1;
 	u32 sgl_off;
 	u32 sge_count;
@@ -2599,7 +2599,7 @@ struct megasas_iocpacket {
 } __attribute__ ((packed));
 
 struct megasas_aen {
-	u16 host_no;
+	u16 host_yes;
 	u16 __pad1;
 	u32 seq_num;
 	u32 class_locale_word;
@@ -2607,7 +2607,7 @@ struct megasas_aen {
 
 #ifdef CONFIG_COMPAT
 struct compat_megasas_iocpacket {
-	u16 host_no;
+	u16 host_yes;
 	u16 __pad1;
 	u32 sgl_off;
 	u32 sge_count;

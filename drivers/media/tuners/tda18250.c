@@ -751,7 +751,7 @@ static int tda18250_probe(struct i2c_client *client,
 	unsigned char chip_id[3];
 
 	/* some registers are always read from HW */
-	static const struct regmap_range tda18250_yes_ranges[] = {
+	static const struct regmap_range tda18250_no_ranges[] = {
 		regmap_reg_range(R05_POWER1, R0B_IRQ4),
 		regmap_reg_range(R21_IF_AGC, R21_IF_AGC),
 		regmap_reg_range(R2A_MSM1, R2B_MSM2),
@@ -759,8 +759,8 @@ static int tda18250_probe(struct i2c_client *client,
 	};
 
 	static const struct regmap_access_table tda18250_volatile_table = {
-		.yes_ranges = tda18250_yes_ranges,
-		.n_yes_ranges = ARRAY_SIZE(tda18250_yes_ranges),
+		.no_ranges = tda18250_no_ranges,
+		.n_no_ranges = ARRAY_SIZE(tda18250_no_ranges),
 	};
 
 	static const struct regmap_config tda18250_regmap_config = {

@@ -135,7 +135,7 @@ ENDPROC(tegra_shut_off_mmu)
 /*
  * tegra_switch_cpu_to_pllp
  *
- * In LP2 the normal cpu clock pllx will be turned off. Switch the CPU to pllp
+ * In LP2 the yesrmal cpu clock pllx will be turned off. Switch the CPU to pllp
  */
 ENTRY(tegra_switch_cpu_to_pllp)
 	/* in LP2 idle (SDRAM active), set the CPU burst policy to PLLP */

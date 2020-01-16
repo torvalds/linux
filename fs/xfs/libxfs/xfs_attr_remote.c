@@ -15,7 +15,7 @@
 #include "xfs_defer.h"
 #include "xfs_da_format.h"
 #include "xfs_da_btree.h"
-#include "xfs_inode.h"
+#include "xfs_iyesde.h"
 #include "xfs_trans.h"
 #include "xfs_bmap.h"
 #include "xfs_attr.h"
@@ -26,7 +26,7 @@
 #define ATTR_RMTVALUE_MAPSIZE	1	/* # of map entries at once */
 
 /*
- * Each contiguous block has a header, so it is not just a simple attribute
+ * Each contiguous block has a header, so it is yest just a simple attribute
  * length to FSB conversion.
  */
 int
@@ -49,20 +49,20 @@ xfs_attr3_rmt_blocks(
 static xfs_failaddr_t
 xfs_attr3_rmt_hdr_ok(
 	void			*ptr,
-	xfs_ino_t		ino,
+	xfs_iyes_t		iyes,
 	uint32_t		offset,
 	uint32_t		size,
-	xfs_daddr_t		bno)
+	xfs_daddr_t		byes)
 {
 	struct xfs_attr3_rmt_hdr *rmt = ptr;
 
-	if (bno != be64_to_cpu(rmt->rm_blkno))
+	if (byes != be64_to_cpu(rmt->rm_blkyes))
 		return __this_address;
 	if (offset != be32_to_cpu(rmt->rm_offset))
 		return __this_address;
 	if (size != be32_to_cpu(rmt->rm_bytes))
 		return __this_address;
-	if (ino != be64_to_cpu(rmt->rm_owner))
+	if (iyes != be64_to_cpu(rmt->rm_owner))
 		return __this_address;
 
 	/* ok */
@@ -75,7 +75,7 @@ xfs_attr3_rmt_verify(
 	struct xfs_buf		*bp,
 	void			*ptr,
 	int			fsbsize,
-	xfs_daddr_t		bno)
+	xfs_daddr_t		byes)
 {
 	struct xfs_attr3_rmt_hdr *rmt = ptr;
 
@@ -85,7 +85,7 @@ xfs_attr3_rmt_verify(
 		return __this_address;
 	if (!uuid_equal(&rmt->rm_uuid, &mp->m_sb.sb_meta_uuid))
 		return __this_address;
-	if (be64_to_cpu(rmt->rm_blkno) != bno)
+	if (be64_to_cpu(rmt->rm_blkyes) != byes)
 		return __this_address;
 	if (be32_to_cpu(rmt->rm_bytes) > fsbsize - sizeof(*rmt))
 		return __this_address;
@@ -107,15 +107,15 @@ __xfs_attr3_rmt_read_verify(
 	struct xfs_mount *mp = bp->b_mount;
 	char		*ptr;
 	int		len;
-	xfs_daddr_t	bno;
+	xfs_daddr_t	byes;
 	int		blksize = mp->m_attr_geo->blksize;
 
-	/* no verification of non-crc buffers */
+	/* yes verification of yesn-crc buffers */
 	if (!xfs_sb_version_hascrc(&mp->m_sb))
 		return 0;
 
 	ptr = bp->b_addr;
-	bno = bp->b_bn;
+	byes = bp->b_bn;
 	len = BBTOB(bp->b_length);
 	ASSERT(len >= blksize);
 
@@ -125,12 +125,12 @@ __xfs_attr3_rmt_read_verify(
 			*failaddr = __this_address;
 			return -EFSBADCRC;
 		}
-		*failaddr = xfs_attr3_rmt_verify(mp, bp, ptr, blksize, bno);
+		*failaddr = xfs_attr3_rmt_verify(mp, bp, ptr, blksize, byes);
 		if (*failaddr)
 			return -EFSCORRUPTED;
 		len -= blksize;
 		ptr += blksize;
-		bno += BTOBB(blksize);
+		byes += BTOBB(blksize);
 	}
 
 	if (len != 0) {
@@ -173,21 +173,21 @@ xfs_attr3_rmt_write_verify(
 	int		blksize = mp->m_attr_geo->blksize;
 	char		*ptr;
 	int		len;
-	xfs_daddr_t	bno;
+	xfs_daddr_t	byes;
 
-	/* no verification of non-crc buffers */
+	/* yes verification of yesn-crc buffers */
 	if (!xfs_sb_version_hascrc(&mp->m_sb))
 		return;
 
 	ptr = bp->b_addr;
-	bno = bp->b_bn;
+	byes = bp->b_bn;
 	len = BBTOB(bp->b_length);
 	ASSERT(len >= blksize);
 
 	while (len > 0) {
 		struct xfs_attr3_rmt_hdr *rmt = (struct xfs_attr3_rmt_hdr *)ptr;
 
-		fa = xfs_attr3_rmt_verify(mp, bp, ptr, blksize, bno);
+		fa = xfs_attr3_rmt_verify(mp, bp, ptr, blksize, byes);
 		if (fa) {
 			xfs_verifier_error(bp, -EFSCORRUPTED, fa);
 			return;
@@ -205,7 +205,7 @@ xfs_attr3_rmt_write_verify(
 
 		len -= blksize;
 		ptr += blksize;
-		bno += BTOBB(blksize);
+		byes += BTOBB(blksize);
 	}
 
 	if (len != 0)
@@ -224,10 +224,10 @@ STATIC int
 xfs_attr3_rmt_hdr_set(
 	struct xfs_mount	*mp,
 	void			*ptr,
-	xfs_ino_t		ino,
+	xfs_iyes_t		iyes,
 	uint32_t		offset,
 	uint32_t		size,
-	xfs_daddr_t		bno)
+	xfs_daddr_t		byes)
 {
 	struct xfs_attr3_rmt_hdr *rmt = ptr;
 
@@ -238,16 +238,16 @@ xfs_attr3_rmt_hdr_set(
 	rmt->rm_offset = cpu_to_be32(offset);
 	rmt->rm_bytes = cpu_to_be32(size);
 	uuid_copy(&rmt->rm_uuid, &mp->m_sb.sb_meta_uuid);
-	rmt->rm_owner = cpu_to_be64(ino);
-	rmt->rm_blkno = cpu_to_be64(bno);
+	rmt->rm_owner = cpu_to_be64(iyes);
+	rmt->rm_blkyes = cpu_to_be64(byes);
 
 	/*
-	 * Remote attribute blocks are written synchronously, so we don't
+	 * Remote attribute blocks are written synchroyesusly, so we don't
 	 * have an LSN that we can stamp in them that makes any sense to log
 	 * recovery. To ensure that log recovery handles overwrites of these
 	 * blocks sanely (i.e. once they've been freed and reallocated as some
 	 * other type of metadata) we need to ensure that the LSN has a value
-	 * that tells log recovery to ignore the LSN and overwrite the buffer
+	 * that tells log recovery to igyesre the LSN and overwrite the buffer
 	 * with whatever is in it's log. To do this, we use the magic
 	 * NULLCOMMITLSN to indicate that the LSN is invalid.
 	 */
@@ -263,13 +263,13 @@ STATIC int
 xfs_attr_rmtval_copyout(
 	struct xfs_mount *mp,
 	struct xfs_buf	*bp,
-	xfs_ino_t	ino,
+	xfs_iyes_t	iyes,
 	int		*offset,
 	int		*valuelen,
 	uint8_t		**dst)
 {
 	char		*src = bp->b_addr;
-	xfs_daddr_t	bno = bp->b_bn;
+	xfs_daddr_t	byes = bp->b_bn;
 	int		len = BBTOB(bp->b_length);
 	int		blksize = mp->m_attr_geo->blksize;
 
@@ -282,11 +282,11 @@ xfs_attr_rmtval_copyout(
 		byte_cnt = min(*valuelen, byte_cnt);
 
 		if (xfs_sb_version_hascrc(&mp->m_sb)) {
-			if (xfs_attr3_rmt_hdr_ok(src, ino, *offset,
-						  byte_cnt, bno)) {
+			if (xfs_attr3_rmt_hdr_ok(src, iyes, *offset,
+						  byte_cnt, byes)) {
 				xfs_alert(mp,
-"remote attribute header mismatch bno/off/len/owner (0x%llx/0x%x/Ox%x/0x%llx)",
-					bno, *offset, byte_cnt, ino);
+"remote attribute header mismatch byes/off/len/owner (0x%llx/0x%x/Ox%x/0x%llx)",
+					byes, *offset, byte_cnt, iyes);
 				return -EFSCORRUPTED;
 			}
 			hdr_size = sizeof(struct xfs_attr3_rmt_hdr);
@@ -297,7 +297,7 @@ xfs_attr_rmtval_copyout(
 		/* roll buffer forwards */
 		len -= blksize;
 		src += blksize;
-		bno += BTOBB(blksize);
+		byes += BTOBB(blksize);
 
 		/* roll attribute data forwards */
 		*valuelen -= byte_cnt;
@@ -311,13 +311,13 @@ STATIC void
 xfs_attr_rmtval_copyin(
 	struct xfs_mount *mp,
 	struct xfs_buf	*bp,
-	xfs_ino_t	ino,
+	xfs_iyes_t	iyes,
 	int		*offset,
 	int		*valuelen,
 	uint8_t		**src)
 {
 	char		*dst = bp->b_addr;
-	xfs_daddr_t	bno = bp->b_bn;
+	xfs_daddr_t	byes = bp->b_bn;
 	int		len = BBTOB(bp->b_length);
 	int		blksize = mp->m_attr_geo->blksize;
 
@@ -328,8 +328,8 @@ xfs_attr_rmtval_copyin(
 		int byte_cnt = XFS_ATTR3_RMT_BUF_SPACE(mp, blksize);
 
 		byte_cnt = min(*valuelen, byte_cnt);
-		hdr_size = xfs_attr3_rmt_hdr_set(mp, dst, ino, *offset,
-						 byte_cnt, bno);
+		hdr_size = xfs_attr3_rmt_hdr_set(mp, dst, iyes, *offset,
+						 byte_cnt, byes);
 
 		memcpy(dst + hdr_size, *src, byte_cnt);
 
@@ -347,7 +347,7 @@ xfs_attr_rmtval_copyin(
 		/* roll buffer forwards */
 		len -= blksize;
 		dst += blksize;
-		bno += BTOBB(blksize);
+		byes += BTOBB(blksize);
 
 		/* roll attribute data forwards */
 		*valuelen -= byte_cnt;
@@ -369,7 +369,7 @@ xfs_attr_rmtval_get(
 	struct xfs_bmbt_irec	map[ATTR_RMTVALUE_MAPSIZE];
 	struct xfs_mount	*mp = args->dp->i_mount;
 	struct xfs_buf		*bp;
-	xfs_dablk_t		lblkno = args->rmtblkno;
+	xfs_dablk_t		lblkyes = args->rmtblkyes;
 	uint8_t			*dst = args->value;
 	int			valuelen;
 	int			nmap;
@@ -386,7 +386,7 @@ xfs_attr_rmtval_get(
 	valuelen = args->rmtvaluelen;
 	while (valuelen > 0) {
 		nmap = ATTR_RMTVALUE_MAPSIZE;
-		error = xfs_bmapi_read(args->dp, (xfs_fileoff_t)lblkno,
+		error = xfs_bmapi_read(args->dp, (xfs_fileoff_t)lblkyes,
 				       blkcnt, map, &nmap,
 				       XFS_BMAPI_ATTRFORK);
 		if (error)
@@ -394,21 +394,21 @@ xfs_attr_rmtval_get(
 		ASSERT(nmap >= 1);
 
 		for (i = 0; (i < nmap) && (valuelen > 0); i++) {
-			xfs_daddr_t	dblkno;
+			xfs_daddr_t	dblkyes;
 			int		dblkcnt;
 
 			ASSERT((map[i].br_startblock != DELAYSTARTBLOCK) &&
 			       (map[i].br_startblock != HOLESTARTBLOCK));
-			dblkno = XFS_FSB_TO_DADDR(mp, map[i].br_startblock);
+			dblkyes = XFS_FSB_TO_DADDR(mp, map[i].br_startblock);
 			dblkcnt = XFS_FSB_TO_BB(mp, map[i].br_blockcount);
 			error = xfs_trans_read_buf(mp, args->trans,
 						   mp->m_ddev_targp,
-						   dblkno, dblkcnt, 0, &bp,
+						   dblkyes, dblkcnt, 0, &bp,
 						   &xfs_attr3_rmt_buf_ops);
 			if (error)
 				return error;
 
-			error = xfs_attr_rmtval_copyout(mp, bp, args->dp->i_ino,
+			error = xfs_attr_rmtval_copyout(mp, bp, args->dp->i_iyes,
 							&offset, &valuelen,
 							&dst);
 			xfs_trans_brelse(args->trans, bp);
@@ -416,7 +416,7 @@ xfs_attr_rmtval_get(
 				return error;
 
 			/* roll attribute extent map forwards */
-			lblkno += map[i].br_blockcount;
+			lblkyes += map[i].br_blockcount;
 			blkcnt -= map[i].br_blockcount;
 		}
 	}
@@ -432,10 +432,10 @@ int
 xfs_attr_rmtval_set(
 	struct xfs_da_args	*args)
 {
-	struct xfs_inode	*dp = args->dp;
+	struct xfs_iyesde	*dp = args->dp;
 	struct xfs_mount	*mp = dp->i_mount;
 	struct xfs_bmbt_irec	map;
-	xfs_dablk_t		lblkno;
+	xfs_dablk_t		lblkyes;
 	xfs_fileoff_t		lfileoff = 0;
 	uint8_t			*src = args->value;
 	int			blkcnt;
@@ -447,7 +447,7 @@ xfs_attr_rmtval_set(
 	trace_xfs_attr_rmtval_set(args);
 
 	/*
-	 * Find a "hole" in the attribute address space large enough for
+	 * Find a "hole" in the attribute address space large eyesugh for
 	 * us to drop the new attribute's value into. Because CRC enable
 	 * attributes have headers, we can't just do a straight byte to FSB
 	 * conversion and have to take the header space into account.
@@ -458,7 +458,7 @@ xfs_attr_rmtval_set(
 	if (error)
 		return error;
 
-	args->rmtblkno = lblkno = (xfs_dablk_t)lfileoff;
+	args->rmtblkyes = lblkyes = (xfs_dablk_t)lfileoff;
 	args->rmtblkcnt = blkcnt;
 
 	/*
@@ -472,13 +472,13 @@ xfs_attr_rmtval_set(
 		 * write the remote attribute without logging the contents.
 		 * Hence we must ensure that we aren't using blocks that are on
 		 * the busy list so that we don't overwrite blocks which have
-		 * recently been freed but their transactions are not yet
+		 * recently been freed but their transactions are yest yet
 		 * committed to disk. If we overwrite the contents of a busy
-		 * extent and then crash then the block may not contain the
+		 * extent and then crash then the block may yest contain the
 		 * correct metadata after log recovery occurs.
 		 */
 		nmap = 1;
-		error = xfs_bmapi_write(args->trans, dp, (xfs_fileoff_t)lblkno,
+		error = xfs_bmapi_write(args->trans, dp, (xfs_fileoff_t)lblkyes,
 				  blkcnt, XFS_BMAPI_ATTRFORK, args->total, &map,
 				  &nmap);
 		if (error)
@@ -490,35 +490,35 @@ xfs_attr_rmtval_set(
 		ASSERT(nmap == 1);
 		ASSERT((map.br_startblock != DELAYSTARTBLOCK) &&
 		       (map.br_startblock != HOLESTARTBLOCK));
-		lblkno += map.br_blockcount;
+		lblkyes += map.br_blockcount;
 		blkcnt -= map.br_blockcount;
 
 		/*
 		 * Start the next trans in the chain.
 		 */
-		error = xfs_trans_roll_inode(&args->trans, dp);
+		error = xfs_trans_roll_iyesde(&args->trans, dp);
 		if (error)
 			return error;
 	}
 
 	/*
 	 * Roll through the "value", copying the attribute value to the
-	 * already-allocated blocks.  Blocks are written synchronously
-	 * so that we can know they are all on disk before we turn off
+	 * already-allocated blocks.  Blocks are written synchroyesusly
+	 * so that we can kyesw they are all on disk before we turn off
 	 * the INCOMPLETE flag.
 	 */
-	lblkno = args->rmtblkno;
+	lblkyes = args->rmtblkyes;
 	blkcnt = args->rmtblkcnt;
 	valuelen = args->rmtvaluelen;
 	while (valuelen > 0) {
 		struct xfs_buf	*bp;
-		xfs_daddr_t	dblkno;
+		xfs_daddr_t	dblkyes;
 		int		dblkcnt;
 
 		ASSERT(blkcnt > 0);
 
 		nmap = 1;
-		error = xfs_bmapi_read(dp, (xfs_fileoff_t)lblkno,
+		error = xfs_bmapi_read(dp, (xfs_fileoff_t)lblkyes,
 				       blkcnt, &map, &nmap,
 				       XFS_BMAPI_ATTRFORK);
 		if (error)
@@ -527,25 +527,25 @@ xfs_attr_rmtval_set(
 		ASSERT((map.br_startblock != DELAYSTARTBLOCK) &&
 		       (map.br_startblock != HOLESTARTBLOCK));
 
-		dblkno = XFS_FSB_TO_DADDR(mp, map.br_startblock),
+		dblkyes = XFS_FSB_TO_DADDR(mp, map.br_startblock),
 		dblkcnt = XFS_FSB_TO_BB(mp, map.br_blockcount);
 
-		bp = xfs_buf_get(mp->m_ddev_targp, dblkno, dblkcnt);
+		bp = xfs_buf_get(mp->m_ddev_targp, dblkyes, dblkcnt);
 		if (!bp)
 			return -ENOMEM;
 		bp->b_ops = &xfs_attr3_rmt_buf_ops;
 
-		xfs_attr_rmtval_copyin(mp, bp, args->dp->i_ino, &offset,
+		xfs_attr_rmtval_copyin(mp, bp, args->dp->i_iyes, &offset,
 				       &valuelen, &src);
 
-		error = xfs_bwrite(bp);	/* GROT: NOTE: synchronous write */
+		error = xfs_bwrite(bp);	/* GROT: NOTE: synchroyesus write */
 		xfs_buf_relse(bp);
 		if (error)
 			return error;
 
 
 		/* roll attribute extent map forwards */
-		lblkno += map.br_blockcount;
+		lblkyes += map.br_blockcount;
 		blkcnt -= map.br_blockcount;
 	}
 	ASSERT(valuelen == 0);
@@ -561,7 +561,7 @@ xfs_attr_rmtval_remove(
 	struct xfs_da_args	*args)
 {
 	struct xfs_mount	*mp = args->dp->i_mount;
-	xfs_dablk_t		lblkno;
+	xfs_dablk_t		lblkyes;
 	int			blkcnt;
 	int			error;
 	int			done;
@@ -571,12 +571,12 @@ xfs_attr_rmtval_remove(
 	/*
 	 * Roll through the "value", invalidating the attribute value's blocks.
 	 */
-	lblkno = args->rmtblkno;
+	lblkyes = args->rmtblkyes;
 	blkcnt = args->rmtblkcnt;
 	while (blkcnt > 0) {
 		struct xfs_bmbt_irec	map;
 		struct xfs_buf		*bp;
-		xfs_daddr_t		dblkno;
+		xfs_daddr_t		dblkyes;
 		int			dblkcnt;
 		int			nmap;
 
@@ -584,7 +584,7 @@ xfs_attr_rmtval_remove(
 		 * Try to remember where we decided to put the value.
 		 */
 		nmap = 1;
-		error = xfs_bmapi_read(args->dp, (xfs_fileoff_t)lblkno,
+		error = xfs_bmapi_read(args->dp, (xfs_fileoff_t)lblkyes,
 				       blkcnt, &map, &nmap, XFS_BMAPI_ATTRFORK);
 		if (error)
 			return error;
@@ -592,31 +592,31 @@ xfs_attr_rmtval_remove(
 		ASSERT((map.br_startblock != DELAYSTARTBLOCK) &&
 		       (map.br_startblock != HOLESTARTBLOCK));
 
-		dblkno = XFS_FSB_TO_DADDR(mp, map.br_startblock),
+		dblkyes = XFS_FSB_TO_DADDR(mp, map.br_startblock),
 		dblkcnt = XFS_FSB_TO_BB(mp, map.br_blockcount);
 
 		/*
 		 * If the "remote" value is in the cache, remove it.
 		 */
-		bp = xfs_buf_incore(mp->m_ddev_targp, dblkno, dblkcnt, XBF_TRYLOCK);
+		bp = xfs_buf_incore(mp->m_ddev_targp, dblkyes, dblkcnt, XBF_TRYLOCK);
 		if (bp) {
 			xfs_buf_stale(bp);
 			xfs_buf_relse(bp);
 			bp = NULL;
 		}
 
-		lblkno += map.br_blockcount;
+		lblkyes += map.br_blockcount;
 		blkcnt -= map.br_blockcount;
 	}
 
 	/*
 	 * Keep de-allocating extents until the remote-value region is gone.
 	 */
-	lblkno = args->rmtblkno;
+	lblkyes = args->rmtblkyes;
 	blkcnt = args->rmtblkcnt;
 	done = 0;
 	while (!done) {
-		error = xfs_bunmapi(args->trans, args->dp, lblkno, blkcnt,
+		error = xfs_bunmapi(args->trans, args->dp, lblkyes, blkcnt,
 				    XFS_BMAPI_ATTRFORK, 1, &done);
 		if (error)
 			return error;
@@ -627,7 +627,7 @@ xfs_attr_rmtval_remove(
 		/*
 		 * Close out trans and start the next one in the chain.
 		 */
-		error = xfs_trans_roll_inode(&args->trans, args->dp);
+		error = xfs_trans_roll_iyesde(&args->trans, args->dp);
 		if (error)
 			return error;
 	}

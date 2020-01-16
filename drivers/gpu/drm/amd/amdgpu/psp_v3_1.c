@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -177,7 +177,7 @@ static bool psp_v3_1_match_version(struct amdgpu_device *adev, uint32_t ver)
 
 	/*
 	 * Double check if the latest four legacy versions.
-	 * If yes, it is still the right version.
+	 * If no, it is still the right version.
 	 */
 	for (i = 0; i < sizeof(sos_old_versions) / sizeof(uint32_t); i++) {
 		if (sos_old_versions[i] == adev->psp.sos_fw_version)
@@ -611,7 +611,7 @@ static int psp_v3_1_mode1_reset(struct psp_context *psp)
 	ret = psp_wait_for(psp, offset, 0x80000000, 0x8000FFFF, false);
 
 	if (ret) {
-		DRM_INFO("psp is not working correctly before mode1 reset!\n");
+		DRM_INFO("psp is yest working correctly before mode1 reset!\n");
 		return -EINVAL;
 	}
 

@@ -23,28 +23,28 @@
 #include <linux/export.h>
 #include <linux/user_namespace.h>
 
-static struct posix_acl **acl_by_type(struct inode *inode, int type)
+static struct posix_acl **acl_by_type(struct iyesde *iyesde, int type)
 {
 	switch (type) {
 	case ACL_TYPE_ACCESS:
-		return &inode->i_acl;
+		return &iyesde->i_acl;
 	case ACL_TYPE_DEFAULT:
-		return &inode->i_default_acl;
+		return &iyesde->i_default_acl;
 	default:
 		BUG();
 	}
 }
 
-struct posix_acl *get_cached_acl(struct inode *inode, int type)
+struct posix_acl *get_cached_acl(struct iyesde *iyesde, int type)
 {
-	struct posix_acl **p = acl_by_type(inode, type);
+	struct posix_acl **p = acl_by_type(iyesde, type);
 	struct posix_acl *acl;
 
 	for (;;) {
 		rcu_read_lock();
 		acl = rcu_dereference(*p);
 		if (!acl || is_uncached_acl(acl) ||
-		    refcount_inc_not_zero(&acl->a_refcount))
+		    refcount_inc_yest_zero(&acl->a_refcount))
 			break;
 		rcu_read_unlock();
 		cpu_relax();
@@ -54,15 +54,15 @@ struct posix_acl *get_cached_acl(struct inode *inode, int type)
 }
 EXPORT_SYMBOL(get_cached_acl);
 
-struct posix_acl *get_cached_acl_rcu(struct inode *inode, int type)
+struct posix_acl *get_cached_acl_rcu(struct iyesde *iyesde, int type)
 {
-	return rcu_dereference(*acl_by_type(inode, type));
+	return rcu_dereference(*acl_by_type(iyesde, type));
 }
 EXPORT_SYMBOL(get_cached_acl_rcu);
 
-void set_cached_acl(struct inode *inode, int type, struct posix_acl *acl)
+void set_cached_acl(struct iyesde *iyesde, int type, struct posix_acl *acl)
 {
-	struct posix_acl **p = acl_by_type(inode, type);
+	struct posix_acl **p = acl_by_type(iyesde, type);
 	struct posix_acl *old;
 
 	old = xchg(p, posix_acl_dup(acl));
@@ -80,45 +80,45 @@ static void __forget_cached_acl(struct posix_acl **p)
 		posix_acl_release(old);
 }
 
-void forget_cached_acl(struct inode *inode, int type)
+void forget_cached_acl(struct iyesde *iyesde, int type)
 {
-	__forget_cached_acl(acl_by_type(inode, type));
+	__forget_cached_acl(acl_by_type(iyesde, type));
 }
 EXPORT_SYMBOL(forget_cached_acl);
 
-void forget_all_cached_acls(struct inode *inode)
+void forget_all_cached_acls(struct iyesde *iyesde)
 {
-	__forget_cached_acl(&inode->i_acl);
-	__forget_cached_acl(&inode->i_default_acl);
+	__forget_cached_acl(&iyesde->i_acl);
+	__forget_cached_acl(&iyesde->i_default_acl);
 }
 EXPORT_SYMBOL(forget_all_cached_acls);
 
-struct posix_acl *get_acl(struct inode *inode, int type)
+struct posix_acl *get_acl(struct iyesde *iyesde, int type)
 {
 	void *sentinel;
 	struct posix_acl **p;
 	struct posix_acl *acl;
 
 	/*
-	 * The sentinel is used to detect when another operation like
+	 * The sentinel is used to detect when ayesther operation like
 	 * set_cached_acl() or forget_cached_acl() races with get_acl().
 	 * It is guaranteed that is_uncached_acl(sentinel) is true.
 	 */
 
-	acl = get_cached_acl(inode, type);
+	acl = get_cached_acl(iyesde, type);
 	if (!is_uncached_acl(acl))
 		return acl;
 
-	if (!IS_POSIXACL(inode))
+	if (!IS_POSIXACL(iyesde))
 		return NULL;
 
 	sentinel = uncached_acl_sentinel(current);
-	p = acl_by_type(inode, type);
+	p = acl_by_type(iyesde, type);
 
 	/*
 	 * If the ACL isn't being read yet, set our sentinel.  Otherwise, the
-	 * current value of the ACL will not be ACL_NOT_CACHED and so our own
-	 * sentinel will not be set; another task will update the cache.  We
+	 * current value of the ACL will yest be ACL_NOT_CACHED and so our own
+	 * sentinel will yest be set; ayesther task will update the cache.  We
 	 * could wait for that other task to complete its job, but it's easier
 	 * to just call ->get_acl to fetch the ACL ourself.  (This is going to
 	 * be an unlikely race.)
@@ -129,16 +129,16 @@ struct posix_acl *get_acl(struct inode *inode, int type)
 	/*
 	 * Normally, the ACL returned by ->get_acl will be cached.
 	 * A filesystem can prevent that by calling
-	 * forget_cached_acl(inode, type) in ->get_acl.
+	 * forget_cached_acl(iyesde, type) in ->get_acl.
 	 *
 	 * If the filesystem doesn't have a get_acl() function at all, we'll
 	 * just create the negative cache entry.
 	 */
-	if (!inode->i_op->get_acl) {
-		set_cached_acl(inode, type, NULL);
+	if (!iyesde->i_op->get_acl) {
+		set_cached_acl(iyesde, type, NULL);
 		return NULL;
 	}
-	acl = inode->i_op->get_acl(inode, type);
+	acl = iyesde->i_op->get_acl(iyesde, type);
 
 	if (IS_ERR(acl)) {
 		/*
@@ -280,7 +280,7 @@ posix_acl_equiv_mode(const struct posix_acl *acl, umode_t *mode_p)
 {
 	const struct posix_acl_entry *pa, *pe;
 	umode_t mode = 0;
-	int not_equiv = 0;
+	int yest_equiv = 0;
 
 	/*
 	 * A null ACL can always be presented as mode bits.
@@ -302,11 +302,11 @@ posix_acl_equiv_mode(const struct posix_acl *acl, umode_t *mode_p)
 			case ACL_MASK:
 				mode = (mode & ~S_IRWXG) |
 				       ((pa->e_perm & S_IRWXO) << 3);
-				not_equiv = 1;
+				yest_equiv = 1;
 				break;
 			case ACL_USER:
 			case ACL_GROUP:
-				not_equiv = 1;
+				yest_equiv = 1;
 				break;
 			default:
 				return -EINVAL;
@@ -314,12 +314,12 @@ posix_acl_equiv_mode(const struct posix_acl *acl, umode_t *mode_p)
 	}
         if (mode_p)
                 *mode_p = (*mode_p & ~S_IRWXUGO) | mode;
-        return not_equiv;
+        return yest_equiv;
 }
 EXPORT_SYMBOL(posix_acl_equiv_mode);
 
 /*
- * Create an ACL representing the file mode permission bits of an inode.
+ * Create an ACL representing the file mode permission bits of an iyesde.
  */
 struct posix_acl *
 posix_acl_from_mode(umode_t mode, gfp_t flags)
@@ -341,11 +341,11 @@ posix_acl_from_mode(umode_t mode, gfp_t flags)
 EXPORT_SYMBOL(posix_acl_from_mode);
 
 /*
- * Return 0 if current is granted want access to the inode
+ * Return 0 if current is granted want access to the iyesde
  * by the acl. Returns -E... otherwise.
  */
 int
-posix_acl_permission(struct inode *inode, const struct posix_acl *acl, int want)
+posix_acl_permission(struct iyesde *iyesde, const struct posix_acl *acl, int want)
 {
 	const struct posix_acl_entry *pa, *pe, *mask_obj;
 	int found = 0;
@@ -356,7 +356,7 @@ posix_acl_permission(struct inode *inode, const struct posix_acl *acl, int want)
                 switch(pa->e_tag) {
                         case ACL_USER_OBJ:
 				/* (May have been checked already) */
-				if (uid_eq(inode->i_uid, current_fsuid()))
+				if (uid_eq(iyesde->i_uid, current_fsuid()))
                                         goto check_perm;
                                 break;
                         case ACL_USER:
@@ -364,7 +364,7 @@ posix_acl_permission(struct inode *inode, const struct posix_acl *acl, int want)
                                         goto mask;
 				break;
                         case ACL_GROUP_OBJ:
-                                if (in_group_p(inode->i_gid)) {
+                                if (in_group_p(iyesde->i_gid)) {
 					found = 1;
 					if ((pa->e_perm & want) == want)
 						goto mask;
@@ -406,11 +406,11 @@ check_perm:
 }
 
 /*
- * Modify acl when creating a new inode. The caller must ensure the acl is
+ * Modify acl when creating a new iyesde. The caller must ensure the acl is
  * only referenced once.
  *
  * mode_p initially must contain the mode parameter to the open() / creat()
- * system calls. All permissions that are not granted by the acl are removed.
+ * system calls. All permissions that are yest granted by the acl are removed.
  * The permissions in the acl are changed to reflect the mode_p parameter.
  */
 static int posix_acl_create_masq(struct posix_acl *acl, umode_t *mode_p)
@@ -418,7 +418,7 @@ static int posix_acl_create_masq(struct posix_acl *acl, umode_t *mode_p)
 	struct posix_acl_entry *pa, *pe;
 	struct posix_acl_entry *group_obj = NULL, *mask_obj = NULL;
 	umode_t mode = *mode_p;
-	int not_equiv = 0;
+	int yest_equiv = 0;
 
 	/* assert(atomic_read(acl->a_refcount) == 1); */
 
@@ -431,7 +431,7 @@ static int posix_acl_create_masq(struct posix_acl *acl, umode_t *mode_p)
 
 			case ACL_USER:
 			case ACL_GROUP:
-				not_equiv = 1;
+				yest_equiv = 1;
 				break;
 
                         case ACL_GROUP_OBJ:
@@ -445,7 +445,7 @@ static int posix_acl_create_masq(struct posix_acl *acl, umode_t *mode_p)
 
                         case ACL_MASK:
 				mask_obj = pa;
-				not_equiv = 1;
+				yest_equiv = 1;
                                 break;
 
 			default:
@@ -464,7 +464,7 @@ static int posix_acl_create_masq(struct posix_acl *acl, umode_t *mode_p)
 	}
 
 	*mode_p = (*mode_p & ~S_IRWXUGO) | mode;
-        return not_equiv;
+        return yest_equiv;
 }
 
 /*
@@ -552,17 +552,17 @@ __posix_acl_chmod(struct posix_acl **acl, gfp_t gfp, umode_t mode)
 EXPORT_SYMBOL(__posix_acl_chmod);
 
 int
-posix_acl_chmod(struct inode *inode, umode_t mode)
+posix_acl_chmod(struct iyesde *iyesde, umode_t mode)
 {
 	struct posix_acl *acl;
 	int ret = 0;
 
-	if (!IS_POSIXACL(inode))
+	if (!IS_POSIXACL(iyesde))
 		return 0;
-	if (!inode->i_op->set_acl)
+	if (!iyesde->i_op->set_acl)
 		return -EOPNOTSUPP;
 
-	acl = get_acl(inode, ACL_TYPE_ACCESS);
+	acl = get_acl(iyesde, ACL_TYPE_ACCESS);
 	if (IS_ERR_OR_NULL(acl)) {
 		if (acl == ERR_PTR(-EOPNOTSUPP))
 			return 0;
@@ -572,14 +572,14 @@ posix_acl_chmod(struct inode *inode, umode_t mode)
 	ret = __posix_acl_chmod(&acl, GFP_KERNEL, mode);
 	if (ret)
 		return ret;
-	ret = inode->i_op->set_acl(inode, acl, ACL_TYPE_ACCESS);
+	ret = iyesde->i_op->set_acl(iyesde, acl, ACL_TYPE_ACCESS);
 	posix_acl_release(acl);
 	return ret;
 }
 EXPORT_SYMBOL(posix_acl_chmod);
 
 int
-posix_acl_create(struct inode *dir, umode_t *mode,
+posix_acl_create(struct iyesde *dir, umode_t *mode,
 		struct posix_acl **default_acl, struct posix_acl **acl)
 {
 	struct posix_acl *p;
@@ -631,23 +631,23 @@ EXPORT_SYMBOL_GPL(posix_acl_create);
 
 /**
  * posix_acl_update_mode  -  update mode in set_acl
- * @inode: target inode
+ * @iyesde: target iyesde
  * @mode_p: mode (pointer) for update
  * @acl: acl pointer
  *
  * Update the file mode when setting an ACL: compute the new file permission
  * bits based on the ACL.  In addition, if the ACL is equivalent to the new
- * file mode, set *@acl to NULL to indicate that no ACL should be set.
+ * file mode, set *@acl to NULL to indicate that yes ACL should be set.
  *
- * As with chmod, clear the setgid bit if the caller is not in the owning group
- * or capable of CAP_FSETID (see inode_change_ok).
+ * As with chmod, clear the setgid bit if the caller is yest in the owning group
+ * or capable of CAP_FSETID (see iyesde_change_ok).
  *
- * Called from set_acl inode operations.
+ * Called from set_acl iyesde operations.
  */
-int posix_acl_update_mode(struct inode *inode, umode_t *mode_p,
+int posix_acl_update_mode(struct iyesde *iyesde, umode_t *mode_p,
 			  struct posix_acl **acl)
 {
-	umode_t mode = inode->i_mode;
+	umode_t mode = iyesde->i_mode;
 	int error;
 
 	error = posix_acl_equiv_mode(*acl, &mode);
@@ -655,8 +655,8 @@ int posix_acl_update_mode(struct inode *inode, umode_t *mode_p,
 		return error;
 	if (error == 0)
 		*acl = NULL;
-	if (!in_group_p(inode->i_gid) &&
-	    !capable_wrt_inode_uidgid(inode, CAP_FSETID))
+	if (!in_group_p(iyesde->i_gid) &&
+	    !capable_wrt_iyesde_uidgid(iyesde, CAP_FSETID))
 		mode &= ~S_ISGID;
 	*mode_p = mode;
 	return 0;
@@ -834,18 +834,18 @@ EXPORT_SYMBOL (posix_acl_to_xattr);
 
 static int
 posix_acl_xattr_get(const struct xattr_handler *handler,
-		    struct dentry *unused, struct inode *inode,
+		    struct dentry *unused, struct iyesde *iyesde,
 		    const char *name, void *value, size_t size)
 {
 	struct posix_acl *acl;
 	int error;
 
-	if (!IS_POSIXACL(inode))
+	if (!IS_POSIXACL(iyesde))
 		return -EOPNOTSUPP;
-	if (S_ISLNK(inode->i_mode))
+	if (S_ISLNK(iyesde->i_mode))
 		return -EOPNOTSUPP;
 
-	acl = get_acl(inode, handler->flags);
+	acl = get_acl(iyesde, handler->flags);
 	if (IS_ERR(acl))
 		return PTR_ERR(acl);
 	if (acl == NULL)
@@ -858,30 +858,30 @@ posix_acl_xattr_get(const struct xattr_handler *handler,
 }
 
 int
-set_posix_acl(struct inode *inode, int type, struct posix_acl *acl)
+set_posix_acl(struct iyesde *iyesde, int type, struct posix_acl *acl)
 {
-	if (!IS_POSIXACL(inode))
+	if (!IS_POSIXACL(iyesde))
 		return -EOPNOTSUPP;
-	if (!inode->i_op->set_acl)
+	if (!iyesde->i_op->set_acl)
 		return -EOPNOTSUPP;
 
-	if (type == ACL_TYPE_DEFAULT && !S_ISDIR(inode->i_mode))
+	if (type == ACL_TYPE_DEFAULT && !S_ISDIR(iyesde->i_mode))
 		return acl ? -EACCES : 0;
-	if (!inode_owner_or_capable(inode))
+	if (!iyesde_owner_or_capable(iyesde))
 		return -EPERM;
 
 	if (acl) {
-		int ret = posix_acl_valid(inode->i_sb->s_user_ns, acl);
+		int ret = posix_acl_valid(iyesde->i_sb->s_user_ns, acl);
 		if (ret)
 			return ret;
 	}
-	return inode->i_op->set_acl(inode, acl, type);
+	return iyesde->i_op->set_acl(iyesde, acl, type);
 }
 EXPORT_SYMBOL(set_posix_acl);
 
 static int
 posix_acl_xattr_set(const struct xattr_handler *handler,
-		    struct dentry *unused, struct inode *inode,
+		    struct dentry *unused, struct iyesde *iyesde,
 		    const char *name, const void *value,
 		    size_t size, int flags)
 {
@@ -893,7 +893,7 @@ posix_acl_xattr_set(const struct xattr_handler *handler,
 		if (IS_ERR(acl))
 			return PTR_ERR(acl);
 	}
-	ret = set_posix_acl(inode, handler->flags, acl);
+	ret = set_posix_acl(iyesde, handler->flags, acl);
 	posix_acl_release(acl);
 	return ret;
 }
@@ -901,7 +901,7 @@ posix_acl_xattr_set(const struct xattr_handler *handler,
 static bool
 posix_acl_xattr_list(struct dentry *dentry)
 {
-	return IS_POSIXACL(d_backing_inode(dentry));
+	return IS_POSIXACL(d_backing_iyesde(dentry));
 }
 
 const struct xattr_handler posix_acl_access_xattr_handler = {
@@ -922,33 +922,33 @@ const struct xattr_handler posix_acl_default_xattr_handler = {
 };
 EXPORT_SYMBOL_GPL(posix_acl_default_xattr_handler);
 
-int simple_set_acl(struct inode *inode, struct posix_acl *acl, int type)
+int simple_set_acl(struct iyesde *iyesde, struct posix_acl *acl, int type)
 {
 	int error;
 
 	if (type == ACL_TYPE_ACCESS) {
-		error = posix_acl_update_mode(inode,
-				&inode->i_mode, &acl);
+		error = posix_acl_update_mode(iyesde,
+				&iyesde->i_mode, &acl);
 		if (error)
 			return error;
 	}
 
-	inode->i_ctime = current_time(inode);
-	set_cached_acl(inode, type, acl);
+	iyesde->i_ctime = current_time(iyesde);
+	set_cached_acl(iyesde, type, acl);
 	return 0;
 }
 
-int simple_acl_create(struct inode *dir, struct inode *inode)
+int simple_acl_create(struct iyesde *dir, struct iyesde *iyesde)
 {
 	struct posix_acl *default_acl, *acl;
 	int error;
 
-	error = posix_acl_create(dir, &inode->i_mode, &default_acl, &acl);
+	error = posix_acl_create(dir, &iyesde->i_mode, &default_acl, &acl);
 	if (error)
 		return error;
 
-	set_cached_acl(inode, ACL_TYPE_DEFAULT, default_acl);
-	set_cached_acl(inode, ACL_TYPE_ACCESS, acl);
+	set_cached_acl(iyesde, ACL_TYPE_DEFAULT, default_acl);
+	set_cached_acl(iyesde, ACL_TYPE_ACCESS, acl);
 
 	if (default_acl)
 		posix_acl_release(default_acl);

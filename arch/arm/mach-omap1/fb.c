@@ -5,7 +5,7 @@
  * Framebuffer device registration for TI OMAP platforms
  *
  * Copyright (C) 2006 Nokia Corporation
- * Author: Imre Deak <imre.deak@nokia.com>
+ * Author: Imre Deak <imre.deak@yeskia.com>
  */
 
 #include <linux/module.h>
@@ -47,7 +47,7 @@ void __init omapfb_set_lcd_config(const struct omap_lcd_config *config)
 static int __init omap_init_fb(void)
 {
 	/*
-	 * If the board file has not set the lcd config with
+	 * If the board file has yest set the lcd config with
 	 * omapfb_set_lcd_config(), don't bother registering the omapfb device
 	 */
 	if (!omapfb_lcd_configured)

@@ -12,7 +12,7 @@ struct i40e_hw;
 /* Rx queue context data
  *
  * The sizes of the variables may be larger than needed due to crossing byte
- * boundaries. If we do not have the width of the variable set to the correct
+ * boundaries. If we do yest have the width of the variable set to the correct
  * size then we could end up shifting bits off the top of the variable when the
  * variable is at the top of a byte and crosses over into the next byte.
  */
@@ -39,13 +39,13 @@ struct i40e_hmc_obj_rxq {
 	u8  tphdata_ena;
 	u8  tphhead_ena;
 	u16 lrxqthresh; /* bigger than needed, see above for reason */
-	u8  prefena;	/* NOTE: normally must be set to 1 at init */
+	u8  prefena;	/* NOTE: yesrmally must be set to 1 at init */
 };
 
 /* Tx queue context data
 *
 * The sizes of the variables may be larger than needed due to crossing byte
-* boundaries. If we do not have the width of the variable set to the correct
+* boundaries. If we do yest have the width of the variable set to the correct
 * size then we could end up shifting bits off the top of the variable when the
 * variable is at the top of a byte and crosses over into the next byte.
 */

@@ -49,7 +49,7 @@ The following table shows what combinations of mode and bitrate are possible:
 <table border=1 cellspacing=0 cellpadding=5>
 <tr>
 <td><p><b>Bitrate (kbs)</b></p>
-<td><p><b>Mono</b></p>
+<td><p><b>Moyes</b></p>
 <td><p><b>Stereo,<br>Joint Stereo or<br>Dual Channel</b></p>
 
 <tr><td>32<td>X<td>_
@@ -78,9 +78,9 @@ The following table shows what combinations of mode and bitrate are possible:
 <table border=1 cellspacing=0 cellpadding=5>
 <tr>
 <td><p><b>Bitrate (kbs)</b></p>
-<td><p><b>Mono<br>Stereo @ 8,<br>11.025 and<br>12kHz*</b></p>
-<td><p><b>Mono<br>Stereo @ 16,<br>22.050 and<br>24kHz*</b></p>
-<td><p><b>Mono<br>Stereo @ 32,<br>44.1 and<br>48kHz</b></p>
+<td><p><b>Moyes<br>Stereo @ 8,<br>11.025 and<br>12kHz*</b></p>
+<td><p><b>Moyes<br>Stereo @ 16,<br>22.050 and<br>24kHz*</b></p>
+<td><p><b>Moyes<br>Stereo @ 32,<br>44.1 and<br>48kHz</b></p>
 
 <tr><td>16<td>X<td>X<td>_
 <tr><td>24<td>X<td>X<td>_
@@ -118,7 +118,7 @@ Each sample is a 32bit word. The most significant 24 bits contain a 24-bit
 sample and the least significant 8 bits are set to 0.
 */
 	HPI_FORMAT_PCM32_SIGNED = 11,
-/** Raw bitstream - unknown format. */
+/** Raw bitstream - unkyeswn format. */
 	HPI_FORMAT_RAW_BITSTREAM = 12,
 /** TAGIT-1 algorithm hits - extended. */
 	HPI_FORMAT_AA_TAGIT1_HITS_EX1 = 13,
@@ -157,70 +157,70 @@ enum HPI_STREAM_STATES {
 	HPI_STATE_WAIT = 6
 };
 /*******************************************/
-/** Source node types
+/** Source yesde types
 \ingroup mixer
 */
 enum HPI_SOURCENODES {
 	/** This define can be used instead of 0 to indicate
-	that there is no valid source node. A control that
-	exists on a destination node can be searched for using a source
-	node value of either 0, or HPI_SOURCENODE_NONE */
+	that there is yes valid source yesde. A control that
+	exists on a destination yesde can be searched for using a source
+	yesde value of either 0, or HPI_SOURCENODE_NONE */
 	HPI_SOURCENODE_NONE = 100,
-	/** Out Stream (Play) node. */
+	/** Out Stream (Play) yesde. */
 	HPI_SOURCENODE_OSTREAM = 101,
-	/** Line in node - could be analog, AES/EBU or network. */
+	/** Line in yesde - could be analog, AES/EBU or network. */
 	HPI_SOURCENODE_LINEIN = 102,
-	HPI_SOURCENODE_AESEBU_IN = 103,	     /**< AES/EBU input node. */
-	HPI_SOURCENODE_TUNER = 104,	     /**< tuner node. */
-	HPI_SOURCENODE_RF = 105,	     /**< RF input node. */
-	HPI_SOURCENODE_CLOCK_SOURCE = 106,   /**< clock source node. */
-	HPI_SOURCENODE_RAW_BITSTREAM = 107,  /**< raw bitstream node. */
-	HPI_SOURCENODE_MICROPHONE = 108,     /**< microphone node. */
-	/** Cobranet input node -
+	HPI_SOURCENODE_AESEBU_IN = 103,	     /**< AES/EBU input yesde. */
+	HPI_SOURCENODE_TUNER = 104,	     /**< tuner yesde. */
+	HPI_SOURCENODE_RF = 105,	     /**< RF input yesde. */
+	HPI_SOURCENODE_CLOCK_SOURCE = 106,   /**< clock source yesde. */
+	HPI_SOURCENODE_RAW_BITSTREAM = 107,  /**< raw bitstream yesde. */
+	HPI_SOURCENODE_MICROPHONE = 108,     /**< microphone yesde. */
+	/** Cobranet input yesde -
 	    Audio samples come from the Cobranet network and into the device. */
 	HPI_SOURCENODE_COBRANET = 109,
-	HPI_SOURCENODE_ANALOG = 110,	     /**< analog input node. */
-	HPI_SOURCENODE_ADAPTER = 111,	     /**< adapter node. */
-	/** RTP stream input node - This node is a destination for
+	HPI_SOURCENODE_ANALOG = 110,	     /**< analog input yesde. */
+	HPI_SOURCENODE_ADAPTER = 111,	     /**< adapter yesde. */
+	/** RTP stream input yesde - This yesde is a destination for
 	    packets of RTP audio samples from other devices. */
 	HPI_SOURCENODE_RTP_DESTINATION = 112,
-	HPI_SOURCENODE_INTERNAL = 113,	     /**< node internal to the device. */
+	HPI_SOURCENODE_INTERNAL = 113,	     /**< yesde internal to the device. */
 	HPI_SOURCENODE_AVB = 114,	     /**< AVB input stream */
 	HPI_SOURCENODE_BLULINK = 115,	     /**< BLU-link input channel */
-	/* !!!Update this  AND hpidebug.h if you add a new sourcenode type!!! */
+	/* !!!Update this  AND hpidebug.h if you add a new sourceyesde type!!! */
 	HPI_SOURCENODE_LAST_INDEX = 115	     /**< largest ID */
-		/* AX6 max sourcenode types = 15 */
+		/* AX6 max sourceyesde types = 15 */
 };
 
 /*******************************************/
-/** Destination node types
+/** Destination yesde types
 \ingroup mixer
 */
 enum HPI_DESTNODES {
 	/** This define can be used instead of 0 to indicate
-	that there is no valid destination node. A control that
-	exists on a source node can be searched for using a destination
-	node value of either 0, or HPI_DESTNODE_NONE */
+	that there is yes valid destination yesde. A control that
+	exists on a source yesde can be searched for using a destination
+	yesde value of either 0, or HPI_DESTNODE_NONE */
 	HPI_DESTNODE_NONE = 200,
-	/** In Stream (Record) node. */
+	/** In Stream (Record) yesde. */
 	HPI_DESTNODE_ISTREAM = 201,
-	HPI_DESTNODE_LINEOUT = 202,	     /**< line out node. */
-	HPI_DESTNODE_AESEBU_OUT = 203,	     /**< AES/EBU output node. */
-	HPI_DESTNODE_RF = 204,		     /**< RF output node. */
-	HPI_DESTNODE_SPEAKER = 205,	     /**< speaker output node. */
-	/** Cobranet output node -
+	HPI_DESTNODE_LINEOUT = 202,	     /**< line out yesde. */
+	HPI_DESTNODE_AESEBU_OUT = 203,	     /**< AES/EBU output yesde. */
+	HPI_DESTNODE_RF = 204,		     /**< RF output yesde. */
+	HPI_DESTNODE_SPEAKER = 205,	     /**< speaker output yesde. */
+	/** Cobranet output yesde -
 	    Audio samples from the device are sent out on the Cobranet network.*/
 	HPI_DESTNODE_COBRANET = 206,
-	HPI_DESTNODE_ANALOG = 207,	     /**< analog output node. */
-	/** RTP stream output node - This node is a source for
+	HPI_DESTNODE_ANALOG = 207,	     /**< analog output yesde. */
+	/** RTP stream output yesde - This yesde is a source for
 	    packets of RTP audio samples that are sent to other devices. */
 	HPI_DESTNODE_RTP_SOURCE = 208,
 	HPI_DESTNODE_AVB = 209,		     /**< AVB output stream */
-	HPI_DESTNODE_INTERNAL = 210,	     /**< node internal to the device. */
+	HPI_DESTNODE_INTERNAL = 210,	     /**< yesde internal to the device. */
 	HPI_DESTNODE_BLULINK = 211,	     /**< BLU-link output channel. */
-	/* !!!Update this AND hpidebug.h if you add a new destnode type!!! */
+	/* !!!Update this AND hpidebug.h if you add a new destyesde type!!! */
 	HPI_DESTNODE_LAST_INDEX = 211	     /**< largest ID */
-		/* AX6 max destnode types = 15 */
+		/* AX6 max destyesde types = 15 */
 };
 
 /*******************************************/
@@ -229,10 +229,10 @@ enum HPI_DESTNODES {
 */
 enum HPI_CONTROLS {
 	HPI_CONTROL_GENERIC = 0,	/**< generic control. */
-	HPI_CONTROL_CONNECTION = 1, /**< A connection between nodes. */
+	HPI_CONTROL_CONNECTION = 1, /**< A connection between yesdes. */
 	HPI_CONTROL_VOLUME = 2,	      /**< volume control - works in dB_fs. */
 	HPI_CONTROL_METER = 3,	/**< peak meter control. */
-	HPI_CONTROL_MUTE = 4,	/*mute control - not used at present. */
+	HPI_CONTROL_MUTE = 4,	/*mute control - yest used at present. */
 	HPI_CONTROL_MULTIPLEXER = 5,	/**< multiplexer control. */
 
 	HPI_CONTROL_AESEBU_TRANSMITTER = 6, /**< AES/EBU transmitter control */
@@ -291,14 +291,14 @@ Indicates whether the adapter supports the grouping API (for ASIO and SSX2)
 
 /** Driver SSX2 property
 Tells the kernel driver to turn on SSX2 stream mapping.
-This feature is not used by the DSP. In fact the call is completely processed
-by the driver and is not passed on to the DSP at all.
+This feature is yest used by the DSP. In fact the call is completely processed
+by the driver and is yest passed on to the DSP at all.
 */
 	HPI_ADAPTER_PROPERTY_ENABLE_SSX2 = 3,
 
 /** Adapter SSX2 property
 Indicates the state of the adapter's SSX2 setting. This setting is stored in
-non-volatile memory on the adapter. A typical call sequence would be to use
+yesn-volatile memory on the adapter. A typical call sequence would be to use
 HPI_ADAPTER_PROPERTY_SSX2_SETTING to set SSX2 on the adapter and then to reload
 the driver. The driver would query HPI_ADAPTER_PROPERTY_SSX2_SETTING during
 startup and if SSX2 is set, it would then call HPI_ADAPTER_PROPERTY_ENABLE_SSX2
@@ -307,8 +307,8 @@ to enable SSX2 stream mapping within the kernel level of the driver.
 	HPI_ADAPTER_PROPERTY_SSX2_SETTING = 4,
 
 /** Enables/disables PCI(e) IRQ.
-A setting of 0 indicates that no interrupts are being generated. A DSP boot
-this property is set to 0. Setting to a non-zero value specifies the number
+A setting of 0 indicates that yes interrupts are being generated. A DSP boot
+this property is set to 0. Setting to a yesn-zero value specifies the number
 of frames of audio that should be processed between interrupts. This property
 should be set to multiple of the mixer interval as read back from the
 HPI_ADAPTER_PROPERTY_INTERVAL property.
@@ -340,8 +340,8 @@ Property 2 is the number of play channels per playback device.*/
 
 /** Readonly adapter software version.
 The SOFTWARE_VERSION property returns the version of the software running
-on the adapter as Major.Minor.Release.
-Property 1 contains Major in bits 15..8 and Minor in bits 7..0.
+on the adapter as Major.Miyesr.Release.
+Property 1 contains Major in bits 15..8 and Miyesr in bits 7..0.
 Property 2 contains Release in bits 7..0. */
 	HPI_ADAPTER_PROPERTY_SOFTWARE_VERSION = 259,
 
@@ -422,7 +422,7 @@ return true.
 	HPI_ADAPTER_PROPERTY_SUPPORTS_SSX2 = 271,
 /** Readonly supports PCI(e) IRQ.
 Indicates that the adapter in it's current mode supports interrupts
-across the host bus. Note, this does not imply that interrupts are
+across the host bus. Note, this does yest imply that interrupts are
 enabled. Instead it indicates that they can be enabled.
 */
 	HPI_ADAPTER_PROPERTY_SUPPORTS_IRQ = 272,
@@ -465,7 +465,7 @@ enum HPI_ADAPTER_MODES {
 - ASI6114: 1 instream
 - ASI6044: 4 instreams
 - ASI6012: 1 instream
-- ASI6102: no instreams
+- ASI6102: yes instreams
 - ASI6022, ASI6122: 2 instreams
 - ASI5111, ASI5101: 2 instreams
 - ASI652x, ASI662x: 2 instreams
@@ -490,7 +490,7 @@ enum HPI_ADAPTER_MODES {
 /** 16 outstream mode.
 - ASI6416 16 instreams
 - ASI6518, ASI6618 16 instreams
-- ASI6118 16 mono out and in streams
+- ASI6118 16 moyes out and in streams
 */
 	HPI_ADAPTER_MODE_16OSTREAM = 4,
 
@@ -533,7 +533,7 @@ enum HPI_ADAPTER_MODES {
 */
 	HPI_ADAPTER_MODE_9OSTREAM = 11,
 
-/** mono mode.
+/** moyes mode.
 - ASI6416: 16 outstreams/instreams
 - ASI5402: 2 outstreams/instreams
 */
@@ -551,7 +551,7 @@ encoding as bitfield is recommended. */
 #define HPI_CAPABILITY_MPEG_LAYER3      (1)
 
 /* Set this equal to maximum capability index,
-Must not be greater than 32 - see axnvdef.h */
+Must yest be greater than 32 - see axnvdef.h */
 #define HPI_CAPABILITY_MAX                      1
 /* #define HPI_CAPABILITY_AAC              2 */
 
@@ -563,7 +563,7 @@ The mode for the ancillary data insertion or extraction to operate in.
 \ingroup stream
 */
 enum HPI_MPEG_ANC_MODES {
-	/** the MPEG frames have energy information stored in them (5 bytes per stereo frame, 3 per mono) */
+	/** the MPEG frames have energy information stored in them (5 bytes per stereo frame, 3 per moyes) */
 	HPI_MPEG_ANC_HASENERGY = 0,
 	/** the entire ancillary data field is taken up by data from the Anc data buffer
 	On encode, the encoder will insert the energy bytes before filling the remainder
@@ -659,7 +659,7 @@ enum HPI_SWITCH_STATES {
 */
 #define HPI_BITMASK_ALL_CHANNELS        (0xFFFFFFFF)
 
-/** value returned for no signal
+/** value returned for yes signal
 \ingroup meter
 */
 #define HPI_METER_MINIMUM               (-150 * HPI_UNITS_PER_dB)
@@ -693,7 +693,7 @@ Returned by HPI_Aesebu_Receiver_GetErrorStatus()
 \ingroup aesrx
 */
 enum HPI_AESEBU_ERRORS {
-/**  bit0: 1 when PLL is not locked */
+/**  bit0: 1 when PLL is yest locked */
 	HPI_AESEBU_ERROR_NOT_LOCKED = 0x01,
 /**  bit1: 1 when signal quality is poor */
 	HPI_AESEBU_ERROR_POOR_QUALITY = 0x02,
@@ -718,7 +718,7 @@ enum HPI_AESEBU_ERRORS {
 #define HPI_PAD_TITLE_LEN               64
 /** The text string containing the comment. */
 #define HPI_PAD_COMMENT_LEN             256
-/** The PTY when the tuner has not received any PTY. */
+/** The PTY when the tuner has yest received any PTY. */
 #define HPI_PAD_PROGRAM_TYPE_INVALID    0xffff
 /** \} */
 
@@ -737,7 +737,7 @@ Used for HPI_Tuner_SetBand(),HPI_Tuner_GetBand()
 */
 enum HPI_TUNER_BAND {
 	HPI_TUNER_BAND_AM = 1,	 /**< AM band */
-	HPI_TUNER_BAND_FM = 2,	 /**< FM band (mono) */
+	HPI_TUNER_BAND_FM = 2,	 /**< FM band (moyes) */
 	HPI_TUNER_BAND_TV_NTSC_M = 3,	 /**< NTSC-M TV band*/
 	HPI_TUNER_BAND_TV = 3,	/* use TV_NTSC_M */
 	HPI_TUNER_BAND_FM_STEREO = 4,	 /**< FM band (stereo) */
@@ -856,7 +856,7 @@ enum HPI_FILTER_TYPE {
 	HPI_FILTER_TYPE_LOWPASS = 4,	/**< standard low pass */
 	HPI_FILTER_TYPE_HIGHPASS = 5,	/**< standard high pass */
 	HPI_FILTER_TYPE_BANDPASS = 6,	/**< standard band pass */
-	HPI_FILTER_TYPE_BANDSTOP = 7	/**< standard band stop/notch */
+	HPI_FILTER_TYPE_BANDSTOP = 7	/**< standard band stop/yestch */
 };
 
 /** Async Event sources
@@ -871,40 +871,40 @@ enum ASYNC_EVENT_SOURCES {
 /** HPI Error codes
 
 Almost all HPI functions return an error code
-A return value of zero means there was no error.
+A return value of zero means there was yes error.
 Otherwise one of these error codes is returned.
 Error codes can be converted to a descriptive string using HPI_GetErrorText()
 
-\note When a new error code is added HPI_GetErrorText() MUST be updated.
-\note Codes 1-100 are reserved for driver use
+\yeste When a new error code is added HPI_GetErrorText() MUST be updated.
+\yeste Codes 1-100 are reserved for driver use
 \ingroup utility
 */
 enum HPI_ERROR_CODES {
-	/** Message type does not exist. */
+	/** Message type does yest exist. */
 	HPI_ERROR_INVALID_TYPE = 100,
-	/** Object type does not exist. */
+	/** Object type does yest exist. */
 	HPI_ERROR_INVALID_OBJ = 101,
-	/** Function does not exist. */
+	/** Function does yest exist. */
 	HPI_ERROR_INVALID_FUNC = 102,
-	/** The specified object does not exist. */
+	/** The specified object does yest exist. */
 	HPI_ERROR_INVALID_OBJ_INDEX = 103,
-	/** Trying to access an object that has not been opened yet. */
+	/** Trying to access an object that has yest been opened yet. */
 	HPI_ERROR_OBJ_NOT_OPEN = 104,
 	/** Trying to open an already open object. */
 	HPI_ERROR_OBJ_ALREADY_OPEN = 105,
-	/** PCI, ISA resource not valid. */
+	/** PCI, ISA resource yest valid. */
 	HPI_ERROR_INVALID_RESOURCE = 106,
 	/* HPI_ERROR_SUBSYSFINDADAPTERS_GETINFO= 107 */
 	/** Default response was never updated with actual error code. */
 	HPI_ERROR_INVALID_RESPONSE = 108,
-	/** wSize field of response was not updated,
-	indicating that the message was not processed. */
+	/** wSize field of response was yest updated,
+	indicating that the message was yest processed. */
 	HPI_ERROR_PROCESSING_MESSAGE = 109,
-	/** The network did not respond in a timely manner. */
+	/** The network did yest respond in a timely manner. */
 	HPI_ERROR_NETWORK_TIMEOUT = 110,
 	/* An HPI handle is invalid (uninitialised?). */
 	HPI_ERROR_INVALID_HANDLE = 111,
-	/** A function or attribute has not been implemented yet. */
+	/** A function or attribute has yest been implemented yet. */
 	HPI_ERROR_UNIMPLEMENTED = 112,
 	/** There are too many clients attempting
 	    to access a network resource. */
@@ -914,9 +914,9 @@ enum HPI_ERROR_CODES {
 	    wSpecificError field of hpi response contains the required size.
 	*/
 	HPI_ERROR_RESPONSE_BUFFER_TOO_SMALL = 114,
-	/** The returned response did not match the sent message */
+	/** The returned response did yest match the sent message */
 	HPI_ERROR_RESPONSE_MISMATCH = 115,
-	/** A control setting that should have been cached was not. */
+	/** A control setting that should have been cached was yest. */
 	HPI_ERROR_CONTROL_CACHING = 116,
 	/** A message buffer in the path to the adapter was smaller
 	    than the message size.
@@ -927,7 +927,7 @@ enum HPI_ERROR_CODES {
 	/* HPI_ERROR_TOO_MANY_ADAPTERS= 200 */
 	/** Bad adpater. */
 	HPI_ERROR_BAD_ADAPTER = 201,
-	/** Adapter number out of range or not set properly. */
+	/** Adapter number out of range or yest set properly. */
 	HPI_ERROR_BAD_ADAPTER_NUMBER = 202,
 	/** 2 adapters with the same adapter number. */
 	HPI_ERROR_DUPLICATE_ADAPTER_NUMBER = 203,
@@ -937,19 +937,19 @@ enum HPI_ERROR_CODES {
 	HPI_ERROR_DSP_FILE_NOT_FOUND = 206,
 	/** Internal DSP hardware error. */
 	HPI_ERROR_DSP_HARDWARE = 207,
-	/** Could not allocate memory */
+	/** Could yest allocate memory */
 	HPI_ERROR_MEMORY_ALLOC = 208,
 	/** Failed to correctly load/config PLD. (unused) */
 	HPI_ERROR_PLD_LOAD = 209,
 	/** Unexpected end of file, block length too big etc. */
 	HPI_ERROR_DSP_FILE_FORMAT = 210,
 
-	/** Found but could not open DSP code file. */
+	/** Found but could yest open DSP code file. */
 	HPI_ERROR_DSP_FILE_ACCESS_DENIED = 211,
-	/** First DSP code section header not found in DSP file. */
+	/** First DSP code section header yest found in DSP file. */
 	HPI_ERROR_DSP_FILE_NO_HEADER = 212,
 	/* HPI_ERROR_DSP_FILE_READ_ERROR= 213, */
-	/** DSP code for adapter family not found. */
+	/** DSP code for adapter family yest found. */
 	HPI_ERROR_DSP_SECTION_NOT_FOUND = 214,
 	/** Other OS specific error opening DSP file. */
 	HPI_ERROR_DSP_FILE_OTHER_ERROR = 215,
@@ -1007,22 +1007,22 @@ enum HPI_ERROR_CODES {
 	capabilities (using bad keys), the card should be returned
 	to ASI if further capabilities updates are required */
 	HPI_ERROR_TOO_MANY_CAPABILITY_CHANGE_ATTEMPTS = 313,
-	/** Streams on different adapters cannot be grouped. */
+	/** Streams on different adapters canyest be grouped. */
 	HPI_ERROR_NO_INTERADAPTER_GROUPS = 314,
-	/** Streams on different DSPs cannot be grouped. */
+	/** Streams on different DSPs canyest be grouped. */
 	HPI_ERROR_NO_INTERDSP_GROUPS = 315,
 	/** Stream wait cancelled before threshold reached. */
 	HPI_ERROR_WAIT_CANCELLED = 316,
 	/** A character string is invalid. */
 	HPI_ERROR_INVALID_STRING = 317,
 
-	/** Invalid mixer node for this adapter. */
+	/** Invalid mixer yesde for this adapter. */
 	HPI_ERROR_INVALID_NODE = 400,
 	/** Invalid control. */
 	HPI_ERROR_INVALID_CONTROL = 401,
 	/** Invalid control value was passed. */
 	HPI_ERROR_INVALID_CONTROL_VALUE = 402,
-	/** Control attribute not supported by this control. */
+	/** Control attribute yest supported by this control. */
 	HPI_ERROR_INVALID_CONTROL_ATTRIBUTE = 403,
 	/** Control is disabled. */
 	HPI_ERROR_CONTROL_DISABLED = 404,
@@ -1030,7 +1030,7 @@ enum HPI_ERROR_CODES {
 	HPI_ERROR_CONTROL_I2C_MISSING_ACK = 405,
 	HPI_ERROR_I2C_MISSING_ACK = 405,
 	/** Control is busy, or coming out of
-	reset and cannot be accessed at this time. */
+	reset and canyest be accessed at this time. */
 	HPI_ERROR_CONTROL_NOT_READY = 407,
 
 	/** Non volatile memory */
@@ -1041,13 +1041,13 @@ enum HPI_ERROR_CODES {
 	/** I2C */
 	HPI_ERROR_I2C_BAD_ADR = 460,
 
-	/** Entity type did not match requested type */
+	/** Entity type did yest match requested type */
 	HPI_ERROR_ENTITY_TYPE_MISMATCH = 470,
-	/** Entity item count did not match requested count */
+	/** Entity item count did yest match requested count */
 	HPI_ERROR_ENTITY_ITEM_COUNT = 471,
-	/** Entity type is not one of the valid types */
+	/** Entity type is yest one of the valid types */
 	HPI_ERROR_ENTITY_TYPE_INVALID = 472,
-	/** Entity role is not one of the valid roles */
+	/** Entity role is yest one of the valid roles */
 	HPI_ERROR_ENTITY_ROLE_INVALID = 473,
 	/** Entity size doesn't match target size */
 	HPI_ERROR_ENTITY_SIZE_MISMATCH = 474,
@@ -1070,7 +1070,7 @@ enum HPI_ERROR_CODES {
 		/* Note that the dsp communication error is set to this value so that
 		   it remains compatible with any software that expects such errors
 		   to be backend errors i.e. >= 900.
-		   Do not define any new error codes with values > 900.
+		   Do yest define any new error codes with values > 900.
 		 */
 };
 
@@ -1083,7 +1083,7 @@ enum HPI_ERROR_CODES {
 #define HPI_MAX_STREAMS                 16
 #define HPI_MAX_CHANNELS                2	/* per stream */
 #define HPI_MAX_NODES                   8	/* per mixer ? */
-#define HPI_MAX_CONTROLS                4	/* per node ? */
+#define HPI_MAX_CONTROLS                4	/* per yesde ? */
 /** maximum number of ancillary bytes per MPEG frame */
 #define HPI_MAX_ANC_BYTES_PER_FRAME     (64)
 #define HPI_STRING_LEN                  16
@@ -1114,7 +1114,7 @@ struct hpi_format {
 				/**< 11025, 32000, 44100 ... */
 	u32 bit_rate;		  /**< for MPEG */
 	u32 attributes;
-				/**< Stereo/JointStereo/Mono */
+				/**< Stereo/JointStereo/Moyes */
 	u16 mode_legacy;
 				/**< Legacy ancillary mode or idle bit  */
 	u16 unused;		  /**< Unused */
@@ -1139,8 +1139,8 @@ struct hpi_async_event {
 			u16 index; /**< GPIO bit index. */
 		} gpio;
 		struct {
-			u16 node_index;	/**< what node is the control on ? */
-			u16 node_type; /**< what type of node is the control on ? */
+			u16 yesde_index;	/**< what yesde is the control on ? */
+			u16 yesde_type; /**< what type of yesde is the control on ? */
 		} control;
 	} u;
 };
@@ -1324,13 +1324,13 @@ u16 hpi_mixer_open(u16 adapter_index, u32 *ph_mixer);
 
 u16 hpi_mixer_close(u32 h_mixer);
 
-u16 hpi_mixer_get_control(u32 h_mixer, u16 src_node_type,
-	u16 src_node_type_index, u16 dst_node_type, u16 dst_node_type_index,
+u16 hpi_mixer_get_control(u32 h_mixer, u16 src_yesde_type,
+	u16 src_yesde_type_index, u16 dst_yesde_type, u16 dst_yesde_type_index,
 	u16 control_type, u32 *ph_control);
 
 u16 hpi_mixer_get_control_by_index(u32 h_mixer, u16 control_index,
-	u16 *pw_src_node_type, u16 *pw_src_node_index, u16 *pw_dst_node_type,
-	u16 *pw_dst_node_index, u16 *pw_control_type, u32 *ph_control);
+	u16 *pw_src_yesde_type, u16 *pw_src_yesde_index, u16 *pw_dst_yesde_type,
+	u16 *pw_dst_yesde_index, u16 *pw_control_type, u32 *ph_control);
 
 u16 hpi_mixer_store(u32 h_mixer, enum HPI_MIXER_STORE_COMMAND command,
 	u16 index);
@@ -1533,14 +1533,14 @@ u16 hpi_aesebu_transmitter_get_format(u32 h_control, u16 *pw_output_format);
 /***********************/
 /* Multiplexer control */
 /***********************/
-u16 hpi_multiplexer_set_source(u32 h_control, u16 source_node_type,
-	u16 source_node_index);
+u16 hpi_multiplexer_set_source(u32 h_control, u16 source_yesde_type,
+	u16 source_yesde_index);
 
-u16 hpi_multiplexer_get_source(u32 h_control, u16 *source_node_type,
-	u16 *source_node_index);
+u16 hpi_multiplexer_get_source(u32 h_control, u16 *source_yesde_type,
+	u16 *source_yesde_index);
 
 u16 hpi_multiplexer_query_source(u32 h_control, u16 index,
-	u16 *source_node_type, u16 *source_node_index);
+	u16 *source_yesde_type, u16 *source_yesde_index);
 
 /***************/
 /* Vox control */

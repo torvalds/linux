@@ -24,7 +24,7 @@ static void *align(void *x, size_t size)
 {
 	size_t mask = size - 1;
 	TEST_ASSERT(size != 0 && !(size & (size - 1)),
-		    "size not a power of 2: %lu", size);
+		    "size yest a power of 2: %lu", size);
 	return (void *) (((size_t) x + mask) & ~mask);
 }
 
@@ -55,7 +55,7 @@ int kvm_check_cap(long cap)
 
 	ret = ioctl(kvm_fd, KVM_CHECK_EXTENSION, cap);
 	TEST_ASSERT(ret != -1, "KVM_CHECK_EXTENSION IOCTL failed,\n"
-		"  rc: %i errno: %i", ret, errno);
+		"  rc: %i erryes: %i", ret, erryes);
 
 	close(kvm_fd);
 
@@ -80,7 +80,7 @@ int vm_enable_cap(struct kvm_vm *vm, struct kvm_enable_cap *cap)
 
 	ret = ioctl(vm->fd, KVM_ENABLE_CAP, cap);
 	TEST_ASSERT(ret == 0, "KVM_ENABLE_CAP IOCTL failed,\n"
-		"  rc: %i errno: %i", ret, errno);
+		"  rc: %i erryes: %i", ret, erryes);
 
 	return ret;
 }
@@ -92,13 +92,13 @@ static void vm_open(struct kvm_vm *vm, int perm)
 		exit(KSFT_SKIP);
 
 	if (!kvm_check_cap(KVM_CAP_IMMEDIATE_EXIT)) {
-		fprintf(stderr, "immediate_exit not available, skipping test\n");
+		fprintf(stderr, "immediate_exit yest available, skipping test\n");
 		exit(KSFT_SKIP);
 	}
 
 	vm->fd = ioctl(vm->kvm_fd, KVM_CREATE_VM, vm->type);
 	TEST_ASSERT(vm->fd >= 0, "KVM_CREATE_VM ioctl failed, "
-		"rc: %i errno: %i", vm->fd, errno);
+		"rc: %i erryes: %i", vm->fd, erryes);
 }
 
 const char * const vm_guest_mode_string[] = {
@@ -127,7 +127,7 @@ _Static_assert(sizeof(vm_guest_mode_string)/sizeof(char *) == NUM_VM_MODES,
  *   Pointer to opaque structure that describes the created VM.
  *
  * Creates a VM with the mode specified by mode (e.g. VM_MODE_P52V48_4K).
- * When phy_pages is non-zero, a memory region of phy_pages physical pages
+ * When phy_pages is yesn-zero, a memory region of phy_pages physical pages
  * is created and mapped starting at guest physical address 0.  The file
  * descriptor to control the created VM is created with the permissions
  * given by perm (e.g. O_RDWR).
@@ -192,19 +192,19 @@ struct kvm_vm *_vm_create(enum vm_guest_mode mode, uint64_t phy_pages, int perm)
 #ifdef __x86_64__
 		kvm_get_cpu_address_width(&vm->pa_bits, &vm->va_bits);
 		TEST_ASSERT(vm->va_bits == 48, "Linear address width "
-			    "(%d bits) not supported", vm->va_bits);
+			    "(%d bits) yest supported", vm->va_bits);
 		vm->pgtable_levels = 4;
 		vm->page_size = 0x1000;
 		vm->page_shift = 12;
 		DEBUG("Guest physical address width detected: %d\n",
 		      vm->pa_bits);
 #else
-		TEST_ASSERT(false, "VM_MODE_PXXV48_4K not supported on "
-			    "non-x86 platforms");
+		TEST_ASSERT(false, "VM_MODE_PXXV48_4K yest supported on "
+			    "yesn-x86 platforms");
 #endif
 		break;
 	default:
-		TEST_ASSERT(false, "Unknown guest mode, mode: 0x%x", mode);
+		TEST_ASSERT(false, "Unkyeswn guest mode, mode: 0x%x", mode);
 	}
 
 #ifdef __aarch64__
@@ -214,7 +214,7 @@ struct kvm_vm *_vm_create(enum vm_guest_mode mode, uint64_t phy_pages, int perm)
 
 	vm_open(vm, perm);
 
-	/* Limit to VA-bit canonical virtual addresses. */
+	/* Limit to VA-bit cayesnical virtual addresses. */
 	vm->vpages_valid = sparsebit_alloc();
 	sparsebit_set_num(vm->vpages_valid,
 		0, (1ULL << (vm->va_bits - 1)) >> vm->page_shift);
@@ -264,10 +264,10 @@ void kvm_vm_restart(struct kvm_vm *vmp, int perm)
 		region = region->next) {
 		int ret = ioctl(vmp->fd, KVM_SET_USER_MEMORY_REGION, &region->region);
 		TEST_ASSERT(ret == 0, "KVM_SET_USER_MEMORY_REGION IOCTL failed,\n"
-			    "  rc: %i errno: %i\n"
+			    "  rc: %i erryes: %i\n"
 			    "  slot: %u flags: 0x%x\n"
 			    "  guest_phys_addr: 0x%lx size: 0x%lx",
-			    ret, errno, region->region.slot,
+			    ret, erryes, region->region.slot,
 			    region->region.flags,
 			    region->region.guest_phys_addr,
 			    region->region.memory_size);
@@ -308,12 +308,12 @@ void kvm_vm_clear_dirty_log(struct kvm_vm *vm, int slot, void *log,
  * Output Args: None
  *
  * Return:
- *   Pointer to overlapping region, NULL if no such region.
+ *   Pointer to overlapping region, NULL if yes such region.
  *
  * Searches for a region with any physical memory that overlaps with
  * any portion of the guest physical addresses from start to end
  * inclusive.  If multiple overlapping regions exist, a pointer to any
- * of the regions is returned.  Null is returned only when no overlapping
+ * of the regions is returned.  Null is returned only when yes overlapping
  * region exists.
  */
 static struct userspace_mem_region *
@@ -344,7 +344,7 @@ userspace_mem_region_find(struct kvm_vm *vm, uint64_t start, uint64_t end)
  * Output Args: None
  *
  * Return:
- *   Pointer to overlapping region, NULL if no such region.
+ *   Pointer to overlapping region, NULL if yes such region.
  *
  * Public interface to userspace_mem_region_find. Allows tests to look up
  * the memslot datastructure for a given range of guest physical memory.
@@ -410,10 +410,10 @@ static void vm_vcpu_rm(struct kvm_vm *vm, uint32_t vcpuid)
 
 	ret = munmap(vcpu->state, sizeof(*vcpu->state));
 	TEST_ASSERT(ret == 0, "munmap of VCPU fd failed, rc: %i "
-		"errno: %i", ret, errno);
+		"erryes: %i", ret, erryes);
 	close(vcpu->fd);
 	TEST_ASSERT(ret == 0, "Close of VCPU fd failed, rc: %i "
-		"errno: %i", ret, errno);
+		"erryes: %i", ret, erryes);
 
 	if (vcpu->next)
 		vcpu->next->prev = vcpu->prev;
@@ -433,11 +433,11 @@ void kvm_vm_release(struct kvm_vm *vmp)
 
 	ret = close(vmp->fd);
 	TEST_ASSERT(ret == 0, "Close of vm fd failed,\n"
-		"  vmp->fd: %i rc: %i errno: %i", vmp->fd, ret, errno);
+		"  vmp->fd: %i rc: %i erryes: %i", vmp->fd, ret, erryes);
 
 	close(vmp->kvm_fd);
 	TEST_ASSERT(ret == 0, "Close of /dev/kvm fd failed,\n"
-		"  vmp->kvm_fd: %i rc: %i errno: %i", vmp->kvm_fd, ret, errno);
+		"  vmp->kvm_fd: %i rc: %i erryes: %i", vmp->kvm_fd, ret, erryes);
 }
 
 /*
@@ -459,13 +459,13 @@ void kvm_vm_free(struct kvm_vm *vmp)
 		ret = ioctl(vmp->fd, KVM_SET_USER_MEMORY_REGION,
 			&region->region);
 		TEST_ASSERT(ret == 0, "KVM_SET_USER_MEMORY_REGION IOCTL failed, "
-			"rc: %i errno: %i", ret, errno);
+			"rc: %i erryes: %i", ret, erryes);
 
 		vmp->userspace_mem_region_head = region->next;
 		sparsebit_free(&region->unused_phy_pages);
 		ret = munmap(region->mmap_start, region->mmap_size);
-		TEST_ASSERT(ret == 0, "munmap failed, rc: %i errno: %i",
-			    ret, errno);
+		TEST_ASSERT(ret == 0, "munmap failed, rc: %i erryes: %i",
+			    ret, erryes);
 
 		free(region);
 	}
@@ -544,7 +544,7 @@ int kvm_memcmp_hva_gva(void *hva, struct kvm_vm *vm, vm_vaddr_t gva, size_t len)
 	}
 
 	/*
-	 * No mismatch found.  Let the caller know the two memory
+	 * No mismatch found.  Let the caller kyesw the two memory
 	 * areas are equal.
 	 */
 	return 0;
@@ -556,7 +556,7 @@ int kvm_memcmp_hva_gva(void *hva, struct kvm_vm *vm, vm_vaddr_t gva, size_t len)
  * Input Args:
  *   vm - Virtual Machine
  *   backing_src - Storage source for this region.
- *                 NULL to use anonymous memory.
+ *                 NULL to use ayesnymous memory.
  *   guest_paddr - Starting guest physical address
  *   slot - KVM region slot
  *   npages - Number of physical pages
@@ -583,7 +583,7 @@ void vm_userspace_mem_region_add(struct kvm_vm *vm,
 	size_t alignment;
 
 	TEST_ASSERT((guest_paddr % vm->page_size) == 0, "Guest physical "
-		"address not on a page boundary.\n"
+		"address yest on a page boundary.\n"
 		"  guest_paddr: 0x%lx vm->page_size: 0x%x",
 		guest_paddr, vm->page_size);
 	TEST_ASSERT((((guest_paddr >> vm->page_shift) + npages) - 1)
@@ -609,7 +609,7 @@ void vm_userspace_mem_region_add(struct kvm_vm *vm,
 			(uint64_t) region->region.guest_phys_addr,
 			(uint64_t) region->region.memory_size);
 
-	/* Confirm no region with the requested slot already exists. */
+	/* Confirm yes region with the requested slot already exists. */
 	for (region = vm->userspace_mem_region_head; region;
 		region = region->next) {
 		if (region->region.slot == slot)
@@ -640,7 +640,7 @@ void vm_userspace_mem_region_add(struct kvm_vm *vm,
 	if (src_type == VM_MEM_SRC_ANONYMOUS_THP)
 		alignment = max(huge_page_size, alignment);
 
-	/* Add enough memory to align up if necessary */
+	/* Add eyesugh memory to align up if necessary */
 	if (alignment > 1)
 		region->mmap_size += alignment;
 
@@ -650,8 +650,8 @@ void vm_userspace_mem_region_add(struct kvm_vm *vm,
 				  | (src_type == VM_MEM_SRC_ANONYMOUS_HUGETLB ? MAP_HUGETLB : 0),
 				  -1, 0);
 	TEST_ASSERT(region->mmap_start != MAP_FAILED,
-		    "test_malloc failed, mmap_start: %p errno: %i",
-		    region->mmap_start, errno);
+		    "test_malloc failed, mmap_start: %p erryes: %i",
+		    region->mmap_start, erryes);
 
 	/* Align host address */
 	region->host_mem = align(region->mmap_start, alignment);
@@ -677,10 +677,10 @@ void vm_userspace_mem_region_add(struct kvm_vm *vm,
 	region->region.userspace_addr = (uintptr_t) region->host_mem;
 	ret = ioctl(vm->fd, KVM_SET_USER_MEMORY_REGION, &region->region);
 	TEST_ASSERT(ret == 0, "KVM_SET_USER_MEMORY_REGION IOCTL failed,\n"
-		"  rc: %i errno: %i\n"
+		"  rc: %i erryes: %i\n"
 		"  slot: %u flags: 0x%x\n"
 		"  guest_phys_addr: 0x%lx size: 0x%lx",
-		ret, errno, slot, flags,
+		ret, erryes, slot, flags,
 		guest_paddr, (uint64_t) region->region.memory_size);
 
 	/* Add to linked-list of memory regions. */
@@ -702,7 +702,7 @@ void vm_userspace_mem_region_add(struct kvm_vm *vm,
  * Return:
  *   Pointer to memory region structure that describe memory region
  *   using kvm memory slot ID given by memslot.  TEST_ASSERT failure
- *   on error (e.g. currently no memory region using memslot as a KVM
+ *   on error (e.g. currently yes memory region using memslot as a KVM
  *   memory slot ID).
  */
 struct userspace_mem_region *
@@ -720,7 +720,7 @@ memslot2region(struct kvm_vm *vm, uint32_t memslot)
 			"  requested slot: %u\n", memslot);
 		fputs("---- vm dump ----\n", stderr);
 		vm_dump(stderr, vm, 2);
-		TEST_ASSERT(false, "Mem region not found");
+		TEST_ASSERT(false, "Mem region yest found");
 	}
 
 	return region;
@@ -752,8 +752,8 @@ void vm_mem_region_set_flags(struct kvm_vm *vm, uint32_t slot, uint32_t flags)
 	ret = ioctl(vm->fd, KVM_SET_USER_MEMORY_REGION, &region->region);
 
 	TEST_ASSERT(ret == 0, "KVM_SET_USER_MEMORY_REGION IOCTL failed,\n"
-		"  rc: %i errno: %i slot: %u flags: 0x%x",
-		ret, errno, slot, flags);
+		"  rc: %i erryes: %i slot: %u flags: 0x%x",
+		ret, erryes, slot, flags);
 }
 
 /*
@@ -779,8 +779,8 @@ static int vcpu_mmap_sz(void)
 
 	ret = ioctl(dev_fd, KVM_GET_VCPU_MMAP_SIZE, NULL);
 	TEST_ASSERT(ret >= sizeof(struct kvm_run),
-		"%s KVM_GET_VCPU_MMAP_SIZE ioctl failed, rc: %i errno: %i",
-		__func__, ret, errno);
+		"%s KVM_GET_VCPU_MMAP_SIZE ioctl failed, rc: %i erryes: %i",
+		__func__, ret, erryes);
 
 	close(dev_fd);
 
@@ -819,8 +819,8 @@ void vm_vcpu_add(struct kvm_vm *vm, uint32_t vcpuid)
 	TEST_ASSERT(vcpu != NULL, "Insufficient Memory");
 	vcpu->id = vcpuid;
 	vcpu->fd = ioctl(vm->fd, KVM_CREATE_VCPU, vcpuid);
-	TEST_ASSERT(vcpu->fd >= 0, "KVM_CREATE_VCPU failed, rc: %i errno: %i",
-		vcpu->fd, errno);
+	TEST_ASSERT(vcpu->fd >= 0, "KVM_CREATE_VCPU failed, rc: %i erryes: %i",
+		vcpu->fd, erryes);
 
 	TEST_ASSERT(vcpu_mmap_sz() >= sizeof(*vcpu->state), "vcpu mmap size "
 		"smaller than expected, vcpu_mmap_sz: %i expected_min: %zi",
@@ -828,7 +828,7 @@ void vm_vcpu_add(struct kvm_vm *vm, uint32_t vcpuid)
 	vcpu->state = (struct kvm_run *) mmap(NULL, sizeof(*vcpu->state),
 		PROT_READ | PROT_WRITE, MAP_SHARED, vcpu->fd, 0);
 	TEST_ASSERT(vcpu->state != MAP_FAILED, "mmap vcpu_state failed, "
-		"vcpu id: %u errno: %i", vcpuid, errno);
+		"vcpu id: %u erryes: %i", vcpuid, erryes);
 
 	/* Add to linked-list of VCPUs. */
 	if (vm->vcpu_head)
@@ -849,12 +849,12 @@ void vm_vcpu_add(struct kvm_vm *vm, uint32_t vcpuid)
  *
  * Return:
  *   Lowest virtual address at or below vaddr_min, with at least
- *   sz unused bytes.  TEST_ASSERT failure if no area of at least
+ *   sz unused bytes.  TEST_ASSERT failure if yes area of at least
  *   size sz is available.
  *
  * Within the VM specified by vm, locates the lowest starting virtual
  * address >= vaddr_min, that has at least sz unallocated bytes.  A
- * TEST_ASSERT failure occurs for invalid input or no area of at least
+ * TEST_ASSERT failure occurs for invalid input or yes area of at least
  * sz unallocated bytes >= vaddr_min is available.
  */
 static vm_vaddr_t vm_vaddr_unused_gap(struct kvm_vm *vm, size_t sz,
@@ -865,18 +865,18 @@ static vm_vaddr_t vm_vaddr_unused_gap(struct kvm_vm *vm, size_t sz,
 	/* Determine lowest permitted virtual page index. */
 	uint64_t pgidx_start = (vaddr_min + vm->page_size - 1) >> vm->page_shift;
 	if ((pgidx_start * vm->page_size) < vaddr_min)
-		goto no_va_found;
+		goto yes_va_found;
 
-	/* Loop over section with enough valid virtual page indexes. */
+	/* Loop over section with eyesugh valid virtual page indexes. */
 	if (!sparsebit_is_set_num(vm->vpages_valid,
 		pgidx_start, pages))
 		pgidx_start = sparsebit_next_set_num(vm->vpages_valid,
 			pgidx_start, pages);
 	do {
 		/*
-		 * Are there enough unused virtual pages available at
+		 * Are there eyesugh unused virtual pages available at
 		 * the currently proposed starting virtual page index.
-		 * If not, adjust proposed starting index to next
+		 * If yest, adjust proposed starting index to next
 		 * possible.
 		 */
 		if (sparsebit_is_clear_num(vm->vpages_mapped,
@@ -885,7 +885,7 @@ static vm_vaddr_t vm_vaddr_unused_gap(struct kvm_vm *vm, size_t sz,
 		pgidx_start = sparsebit_next_clear_num(vm->vpages_mapped,
 			pgidx_start, pages);
 		if (pgidx_start == 0)
-			goto no_va_found;
+			goto yes_va_found;
 
 		/*
 		 * If needed, adjust proposed starting virtual address,
@@ -896,11 +896,11 @@ static vm_vaddr_t vm_vaddr_unused_gap(struct kvm_vm *vm, size_t sz,
 			pgidx_start = sparsebit_next_set_num(
 				vm->vpages_valid, pgidx_start, pages);
 			if (pgidx_start == 0)
-				goto no_va_found;
+				goto yes_va_found;
 		}
 	} while (pgidx_start != 0);
 
-no_va_found:
+yes_va_found:
 	TEST_ASSERT(false, "No vaddr of specified pages available, "
 		"pages: 0x%lx", pages);
 
@@ -1023,7 +1023,7 @@ void virt_map(struct kvm_vm *vm, uint64_t vaddr, uint64_t paddr,
  * Locates the memory region containing the VM physical address given
  * by gpa, within the VM given by vm.  When found, the host virtual
  * address providing the memory to the vm physical address is returned.
- * A TEST_ASSERT failure occurs if no region containing gpa exists.
+ * A TEST_ASSERT failure occurs if yes region containing gpa exists.
  */
 void *addr_gpa2hva(struct kvm_vm *vm, vm_paddr_t gpa)
 {
@@ -1055,7 +1055,7 @@ void *addr_gpa2hva(struct kvm_vm *vm, vm_paddr_t gpa)
  *
  * Locates the memory region containing the host virtual address given
  * by hva, within the VM given by vm.  When found, the equivalent
- * VM physical address is returned. A TEST_ASSERT failure occurs if no
+ * VM physical address is returned. A TEST_ASSERT failure occurs if yes
  * region containing hva exists.
  */
 vm_paddr_t addr_hva2gpa(struct kvm_vm *vm, void *hva)
@@ -1094,7 +1094,7 @@ void vm_create_irqchip(struct kvm_vm *vm)
 
 	ret = ioctl(vm->fd, KVM_CREATE_IRQCHIP, 0);
 	TEST_ASSERT(ret == 0, "KVM_CREATE_IRQCHIP IOCTL failed, "
-		"rc: %i errno: %i", ret, errno);
+		"rc: %i erryes: %i", ret, erryes);
 
 	vm->has_irqchip = true;
 }
@@ -1117,7 +1117,7 @@ void vm_create_irqchip(struct kvm_vm *vm)
 struct kvm_run *vcpu_state(struct kvm_vm *vm, uint32_t vcpuid)
 {
 	struct vcpu *vcpu = vcpu_find(vm, vcpuid);
-	TEST_ASSERT(vcpu != NULL, "vcpu not found, vcpuid: %u", vcpuid);
+	TEST_ASSERT(vcpu != NULL, "vcpu yest found, vcpuid: %u", vcpuid);
 
 	return vcpu->state;
 }
@@ -1140,7 +1140,7 @@ void vcpu_run(struct kvm_vm *vm, uint32_t vcpuid)
 {
 	int ret = _vcpu_run(vm, vcpuid);
 	TEST_ASSERT(ret == 0, "KVM_RUN IOCTL failed, "
-		"rc: %i errno: %i", ret, errno);
+		"rc: %i erryes: %i", ret, erryes);
 }
 
 int _vcpu_run(struct kvm_vm *vm, uint32_t vcpuid)
@@ -1148,10 +1148,10 @@ int _vcpu_run(struct kvm_vm *vm, uint32_t vcpuid)
 	struct vcpu *vcpu = vcpu_find(vm, vcpuid);
 	int rc;
 
-	TEST_ASSERT(vcpu != NULL, "vcpu not found, vcpuid: %u", vcpuid);
+	TEST_ASSERT(vcpu != NULL, "vcpu yest found, vcpuid: %u", vcpuid);
 	do {
 		rc = ioctl(vcpu->fd, KVM_RUN, NULL);
-	} while (rc == -1 && errno == EINTR);
+	} while (rc == -1 && erryes == EINTR);
 	return rc;
 }
 
@@ -1160,15 +1160,15 @@ void vcpu_run_complete_io(struct kvm_vm *vm, uint32_t vcpuid)
 	struct vcpu *vcpu = vcpu_find(vm, vcpuid);
 	int ret;
 
-	TEST_ASSERT(vcpu != NULL, "vcpu not found, vcpuid: %u", vcpuid);
+	TEST_ASSERT(vcpu != NULL, "vcpu yest found, vcpuid: %u", vcpuid);
 
 	vcpu->state->immediate_exit = 1;
 	ret = ioctl(vcpu->fd, KVM_RUN, NULL);
 	vcpu->state->immediate_exit = 0;
 
-	TEST_ASSERT(ret == -1 && errno == EINTR,
-		    "KVM_RUN IOCTL didn't exit immediately, rc: %i, errno: %i",
-		    ret, errno);
+	TEST_ASSERT(ret == -1 && erryes == EINTR,
+		    "KVM_RUN IOCTL didn't exit immediately, rc: %i, erryes: %i",
+		    ret, erryes);
 }
 
 /*
@@ -1192,11 +1192,11 @@ void vcpu_set_mp_state(struct kvm_vm *vm, uint32_t vcpuid,
 	struct vcpu *vcpu = vcpu_find(vm, vcpuid);
 	int ret;
 
-	TEST_ASSERT(vcpu != NULL, "vcpu not found, vcpuid: %u", vcpuid);
+	TEST_ASSERT(vcpu != NULL, "vcpu yest found, vcpuid: %u", vcpuid);
 
 	ret = ioctl(vcpu->fd, KVM_SET_MP_STATE, mp_state);
 	TEST_ASSERT(ret == 0, "KVM_SET_MP_STATE IOCTL failed, "
-		"rc: %i errno: %i", ret, errno);
+		"rc: %i erryes: %i", ret, erryes);
 }
 
 /*
@@ -1219,11 +1219,11 @@ void vcpu_regs_get(struct kvm_vm *vm, uint32_t vcpuid, struct kvm_regs *regs)
 	struct vcpu *vcpu = vcpu_find(vm, vcpuid);
 	int ret;
 
-	TEST_ASSERT(vcpu != NULL, "vcpu not found, vcpuid: %u", vcpuid);
+	TEST_ASSERT(vcpu != NULL, "vcpu yest found, vcpuid: %u", vcpuid);
 
 	ret = ioctl(vcpu->fd, KVM_GET_REGS, regs);
-	TEST_ASSERT(ret == 0, "KVM_GET_REGS failed, rc: %i errno: %i",
-		ret, errno);
+	TEST_ASSERT(ret == 0, "KVM_GET_REGS failed, rc: %i erryes: %i",
+		ret, erryes);
 }
 
 /*
@@ -1246,11 +1246,11 @@ void vcpu_regs_set(struct kvm_vm *vm, uint32_t vcpuid, struct kvm_regs *regs)
 	struct vcpu *vcpu = vcpu_find(vm, vcpuid);
 	int ret;
 
-	TEST_ASSERT(vcpu != NULL, "vcpu not found, vcpuid: %u", vcpuid);
+	TEST_ASSERT(vcpu != NULL, "vcpu yest found, vcpuid: %u", vcpuid);
 
 	ret = ioctl(vcpu->fd, KVM_SET_REGS, regs);
-	TEST_ASSERT(ret == 0, "KVM_SET_REGS failed, rc: %i errno: %i",
-		ret, errno);
+	TEST_ASSERT(ret == 0, "KVM_SET_REGS failed, rc: %i erryes: %i",
+		ret, erryes);
 }
 
 #ifdef __KVM_HAVE_VCPU_EVENTS
@@ -1260,11 +1260,11 @@ void vcpu_events_get(struct kvm_vm *vm, uint32_t vcpuid,
 	struct vcpu *vcpu = vcpu_find(vm, vcpuid);
 	int ret;
 
-	TEST_ASSERT(vcpu != NULL, "vcpu not found, vcpuid: %u", vcpuid);
+	TEST_ASSERT(vcpu != NULL, "vcpu yest found, vcpuid: %u", vcpuid);
 
 	ret = ioctl(vcpu->fd, KVM_GET_VCPU_EVENTS, events);
-	TEST_ASSERT(ret == 0, "KVM_GET_VCPU_EVENTS, failed, rc: %i errno: %i",
-		ret, errno);
+	TEST_ASSERT(ret == 0, "KVM_GET_VCPU_EVENTS, failed, rc: %i erryes: %i",
+		ret, erryes);
 }
 
 void vcpu_events_set(struct kvm_vm *vm, uint32_t vcpuid,
@@ -1273,11 +1273,11 @@ void vcpu_events_set(struct kvm_vm *vm, uint32_t vcpuid,
 	struct vcpu *vcpu = vcpu_find(vm, vcpuid);
 	int ret;
 
-	TEST_ASSERT(vcpu != NULL, "vcpu not found, vcpuid: %u", vcpuid);
+	TEST_ASSERT(vcpu != NULL, "vcpu yest found, vcpuid: %u", vcpuid);
 
 	ret = ioctl(vcpu->fd, KVM_SET_VCPU_EVENTS, events);
-	TEST_ASSERT(ret == 0, "KVM_SET_VCPU_EVENTS, failed, rc: %i errno: %i",
-		ret, errno);
+	TEST_ASSERT(ret == 0, "KVM_SET_VCPU_EVENTS, failed, rc: %i erryes: %i",
+		ret, erryes);
 }
 #endif
 
@@ -1288,27 +1288,27 @@ void vcpu_nested_state_get(struct kvm_vm *vm, uint32_t vcpuid,
 	struct vcpu *vcpu = vcpu_find(vm, vcpuid);
 	int ret;
 
-	TEST_ASSERT(vcpu != NULL, "vcpu not found, vcpuid: %u", vcpuid);
+	TEST_ASSERT(vcpu != NULL, "vcpu yest found, vcpuid: %u", vcpuid);
 
 	ret = ioctl(vcpu->fd, KVM_GET_NESTED_STATE, state);
 	TEST_ASSERT(ret == 0,
-		"KVM_SET_NESTED_STATE failed, ret: %i errno: %i",
-		ret, errno);
+		"KVM_SET_NESTED_STATE failed, ret: %i erryes: %i",
+		ret, erryes);
 }
 
 int vcpu_nested_state_set(struct kvm_vm *vm, uint32_t vcpuid,
-			  struct kvm_nested_state *state, bool ignore_error)
+			  struct kvm_nested_state *state, bool igyesre_error)
 {
 	struct vcpu *vcpu = vcpu_find(vm, vcpuid);
 	int ret;
 
-	TEST_ASSERT(vcpu != NULL, "vcpu not found, vcpuid: %u", vcpuid);
+	TEST_ASSERT(vcpu != NULL, "vcpu yest found, vcpuid: %u", vcpuid);
 
 	ret = ioctl(vcpu->fd, KVM_SET_NESTED_STATE, state);
-	if (!ignore_error) {
+	if (!igyesre_error) {
 		TEST_ASSERT(ret == 0,
-			"KVM_SET_NESTED_STATE failed, ret: %i errno: %i",
-			ret, errno);
+			"KVM_SET_NESTED_STATE failed, ret: %i erryes: %i",
+			ret, erryes);
 	}
 
 	return ret;
@@ -1335,11 +1335,11 @@ void vcpu_sregs_get(struct kvm_vm *vm, uint32_t vcpuid, struct kvm_sregs *sregs)
 	struct vcpu *vcpu = vcpu_find(vm, vcpuid);
 	int ret;
 
-	TEST_ASSERT(vcpu != NULL, "vcpu not found, vcpuid: %u", vcpuid);
+	TEST_ASSERT(vcpu != NULL, "vcpu yest found, vcpuid: %u", vcpuid);
 
 	ret = ioctl(vcpu->fd, KVM_GET_SREGS, sregs);
-	TEST_ASSERT(ret == 0, "KVM_GET_SREGS failed, rc: %i errno: %i",
-		ret, errno);
+	TEST_ASSERT(ret == 0, "KVM_GET_SREGS failed, rc: %i erryes: %i",
+		ret, erryes);
 }
 
 /*
@@ -1361,14 +1361,14 @@ void vcpu_sregs_set(struct kvm_vm *vm, uint32_t vcpuid, struct kvm_sregs *sregs)
 {
 	int ret = _vcpu_sregs_set(vm, vcpuid, sregs);
 	TEST_ASSERT(ret == 0, "KVM_RUN IOCTL failed, "
-		"rc: %i errno: %i", ret, errno);
+		"rc: %i erryes: %i", ret, erryes);
 }
 
 int _vcpu_sregs_set(struct kvm_vm *vm, uint32_t vcpuid, struct kvm_sregs *sregs)
 {
 	struct vcpu *vcpu = vcpu_find(vm, vcpuid);
 
-	TEST_ASSERT(vcpu != NULL, "vcpu not found, vcpuid: %u", vcpuid);
+	TEST_ASSERT(vcpu != NULL, "vcpu yest found, vcpuid: %u", vcpuid);
 
 	return ioctl(vcpu->fd, KVM_SET_SREGS, sregs);
 }
@@ -1392,8 +1392,8 @@ void vcpu_ioctl(struct kvm_vm *vm, uint32_t vcpuid,
 	int ret;
 
 	ret = _vcpu_ioctl(vm, vcpuid, cmd, arg);
-	TEST_ASSERT(ret == 0, "vcpu ioctl %lu failed, rc: %i errno: %i (%s)",
-		cmd, ret, errno, strerror(errno));
+	TEST_ASSERT(ret == 0, "vcpu ioctl %lu failed, rc: %i erryes: %i (%s)",
+		cmd, ret, erryes, strerror(erryes));
 }
 
 int _vcpu_ioctl(struct kvm_vm *vm, uint32_t vcpuid,
@@ -1402,7 +1402,7 @@ int _vcpu_ioctl(struct kvm_vm *vm, uint32_t vcpuid,
 	struct vcpu *vcpu = vcpu_find(vm, vcpuid);
 	int ret;
 
-	TEST_ASSERT(vcpu != NULL, "vcpu not found, vcpuid: %u", vcpuid);
+	TEST_ASSERT(vcpu != NULL, "vcpu yest found, vcpuid: %u", vcpuid);
 
 	ret = ioctl(vcpu->fd, cmd, arg);
 
@@ -1426,8 +1426,8 @@ void vm_ioctl(struct kvm_vm *vm, unsigned long cmd, void *arg)
 	int ret;
 
 	ret = ioctl(vm->fd, cmd, arg);
-	TEST_ASSERT(ret == 0, "vm ioctl %lu failed, rc: %i errno: %i (%s)",
-		cmd, ret, errno, strerror(errno));
+	TEST_ASSERT(ret == 0, "vm ioctl %lu failed, rc: %i erryes: %i (%s)",
+		cmd, ret, erryes, strerror(erryes));
 }
 
 /*
@@ -1478,11 +1478,11 @@ void vm_dump(FILE *stream, struct kvm_vm *vm, uint8_t indent)
 		vcpu_dump(stream, vm, vcpu->id, indent + 2);
 }
 
-/* Known KVM exit reasons */
+/* Kyeswn KVM exit reasons */
 static struct exit_reason {
 	unsigned int reason;
 	const char *name;
-} exit_reasons_known[] = {
+} exit_reasons_kyeswn[] = {
 	{KVM_EXIT_UNKNOWN, "UNKNOWN"},
 	{KVM_EXIT_EXCEPTION, "EXCEPTION"},
 	{KVM_EXIT_IO, "IO"},
@@ -1520,19 +1520,19 @@ static struct exit_reason {
  *   Constant string pointer describing the exit reason.
  *
  * Locates and returns a constant string that describes the KVM exit
- * reason given by exit_reason.  If no such string is found, a constant
- * string of "Unknown" is returned.
+ * reason given by exit_reason.  If yes such string is found, a constant
+ * string of "Unkyeswn" is returned.
  */
 const char *exit_reason_str(unsigned int exit_reason)
 {
 	unsigned int n1;
 
-	for (n1 = 0; n1 < ARRAY_SIZE(exit_reasons_known); n1++) {
-		if (exit_reason == exit_reasons_known[n1].reason)
-			return exit_reasons_known[n1].name;
+	for (n1 = 0; n1 < ARRAY_SIZE(exit_reasons_kyeswn); n1++) {
+		if (exit_reason == exit_reasons_kyeswn[n1].reason)
+			return exit_reasons_kyeswn[n1].name;
 	}
 
-	return "Unknown";
+	return "Unkyeswn";
 }
 
 /*
@@ -1552,7 +1552,7 @@ const char *exit_reason_str(unsigned int exit_reason)
  * Within the VM specified by vm, locates a range of available physical
  * pages at or above paddr_min. If found, the pages are marked as in use
  * and their base address is returned. A TEST_ASSERT failure occurs if
- * not enough pages are available at or above paddr_min.
+ * yest eyesugh pages are available at or above paddr_min.
  */
 vm_paddr_t vm_phy_pages_alloc(struct kvm_vm *vm, size_t num,
 			      vm_paddr_t paddr_min, uint32_t memslot)
@@ -1563,7 +1563,7 @@ vm_paddr_t vm_phy_pages_alloc(struct kvm_vm *vm, size_t num,
 	TEST_ASSERT(num > 0, "Must allocate at least one page");
 
 	TEST_ASSERT((paddr_min % vm->page_size) == 0, "Min physical address "
-		"not divisible by page size.\n"
+		"yest divisible by page size.\n"
 		"  paddr_min: 0x%lx page_size: 0x%x",
 		paddr_min, vm->page_size);
 
@@ -1639,7 +1639,7 @@ bool vm_is_unrestricted_guest(struct kvm_vm *vm)
 		/* Ensure that the KVM vendor-specific module is loaded. */
 		f = fopen(KVM_DEV_PATH, "r");
 		TEST_ASSERT(f != NULL, "Error in opening KVM dev file: %d",
-			    errno);
+			    erryes);
 		fclose(f);
 	}
 

@@ -39,7 +39,7 @@ struct roundingData {
 #define		typeExtended		0x03
 
 /*
- * This must be no more and no less than 12 bytes.
+ * This must be yes more and yes less than 12 bytes.
  */
 typedef union tagFPREG {
 	float32 fSingle;
@@ -54,15 +54,15 @@ typedef union tagFPREG {
 /*
  * FPA11 device model.
  *
- * This structure is exported to user space.  Do not re-order.
- * Only add new stuff to the end, and do not change the size of
+ * This structure is exported to user space.  Do yest re-order.
+ * Only add new stuff to the end, and do yest change the size of
  * any element.  Elements of this structure are used by user
  * space, and must match struct user_fp in <asm/user.h>.
  * We include the byte offsets below for documentation purposes.
  *
  * The size of this structure and FPREG are checked by fpmodule.c
  * on initialisation.  If the rules have been broken, NWFPE will
- * not initialise.
+ * yest initialise.
  */
 typedef struct tagFPA11 {
 /*   0 */ FPREG fpreg[8];	/* 8 floating point registers */
@@ -70,7 +70,7 @@ typedef struct tagFPA11 {
 /* 100 */ FPCR fpcr;		/* floating point control register */
 /* 104 */ unsigned char fType[8];	/* type of floating point value held in
 					   floating point registers.  One of
-					   none, single, double or extended. */
+					   yesne, single, double or extended. */
 /* 112 */ int initflag;		/* this is special.  The kernel guarantees
 				   to set it to 0 when a thread is launched,
 				   so we can use it to detect whether this

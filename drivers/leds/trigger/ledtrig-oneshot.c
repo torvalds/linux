@@ -32,7 +32,7 @@ static ssize_t led_shot(struct device *dev,
 			&led_cdev->blink_delay_on, &led_cdev->blink_delay_off,
 			oneshot_data->invert);
 
-	/* content is ignored */
+	/* content is igyesred */
 	return size;
 }
 static ssize_t led_invert_show(struct device *dev,
@@ -58,9 +58,9 @@ static ssize_t led_invert_store(struct device *dev,
 	oneshot_data->invert = !!state;
 
 	if (oneshot_data->invert)
-		led_set_brightness_nosleep(led_cdev, LED_FULL);
+		led_set_brightness_yessleep(led_cdev, LED_FULL);
 	else
-		led_set_brightness_nosleep(led_cdev, LED_OFF);
+		led_set_brightness_yessleep(led_cdev, LED_OFF);
 
 	return size;
 }

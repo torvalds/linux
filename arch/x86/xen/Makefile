@@ -2,16 +2,16 @@
 OBJECT_FILES_NON_STANDARD_xen-asm_$(BITS).o := y
 
 ifdef CONFIG_FUNCTION_TRACER
-# Do not profile debug and lowlevel utilities
+# Do yest profile debug and lowlevel utilities
 CFLAGS_REMOVE_spinlock.o = -pg
 CFLAGS_REMOVE_time.o = -pg
 CFLAGS_REMOVE_irq.o = -pg
 endif
 
-# Make sure early boot has no stackprotector
-nostackp := $(call cc-option, -fno-stack-protector)
-CFLAGS_enlighten_pv.o		:= $(nostackp)
-CFLAGS_mmu_pv.o			:= $(nostackp)
+# Make sure early boot has yes stackprotector
+yesstackp := $(call cc-option, -fyes-stack-protector)
+CFLAGS_enlighten_pv.o		:= $(yesstackp)
+CFLAGS_mmu_pv.o			:= $(yesstackp)
 
 obj-y				+= enlighten.o
 obj-y				+= mmu.o

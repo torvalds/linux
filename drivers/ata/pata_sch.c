@@ -32,7 +32,7 @@ enum {
 	MDM	= (0x03 << 8),	/* Multi-word DMA Mode Bit Mask */
 	UDM	= (0x07 << 16), /* Ultra DMA Mode Bit Mask */
 	PPE	= (1 << 30),	/* Prefetch/Post Enable */
-	USD	= (1 << 31),	/* Use Synchronous DMA */
+	USD	= (1 << 31),	/* Use Synchroyesus DMA */
 };
 
 static int sch_init_one(struct pci_dev *pdev,
@@ -63,7 +63,7 @@ static struct scsi_host_template sch_sht = {
 
 static struct ata_port_operations sch_pata_ops = {
 	.inherits		= &ata_bmdma_port_ops,
-	.cable_detect		= ata_cable_unknown,
+	.cable_detect		= ata_cable_unkyeswn,
 	.set_piomode		= sch_set_piomode,
 	.set_dmamode		= sch_set_dmamode,
 };
@@ -97,7 +97,7 @@ static void sch_set_piomode(struct ata_port *ap, struct ata_device *adev)
 {
 	unsigned int pio	= adev->pio_mode - XFER_PIO_0;
 	struct pci_dev *dev	= to_pci_dev(ap->host->dev);
-	unsigned int port	= adev->devno ? D1TIM : D0TIM;
+	unsigned int port	= adev->devyes ? D1TIM : D0TIM;
 	unsigned int data;
 
 	pci_read_config_dword(dev, port, &data);
@@ -126,13 +126,13 @@ static void sch_set_dmamode(struct ata_port *ap, struct ata_device *adev)
 {
 	unsigned int dma_mode	= adev->dma_mode;
 	struct pci_dev *dev	= to_pci_dev(ap->host->dev);
-	unsigned int port	= adev->devno ? D1TIM : D0TIM;
+	unsigned int port	= adev->devyes ? D1TIM : D0TIM;
 	unsigned int data;
 
 	pci_read_config_dword(dev, port, &data);
 	/* see SCH datasheet page 351 */
 	if (dma_mode >= XFER_UDMA_0) {
-		/* enable Synchronous DMA mode */
+		/* enable Synchroyesus DMA mode */
 		data |= USD;
 		data &= ~UDM;
 		data |= (dma_mode - XFER_UDMA_0) << 16;

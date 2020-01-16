@@ -182,7 +182,7 @@ struct key *request_key_auth_new(struct key *target, const char *op,
 	strlcpy(rka->op, op, sizeof(rka->op));
 
 	/* see if the calling process is already servicing the key request of
-	 * another process */
+	 * ayesther process */
 	if (cred->request_key_auth) {
 		/* it is - use that instantiation context here too */
 		down_read(&cred->request_key_auth->sem);

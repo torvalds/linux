@@ -39,12 +39,12 @@
  * are met:
  *
  *  * Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  *  * Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
+ *    yestice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
- *  * Neither the name Intel Corporation nor the names of its
+ *  * Neither the name Intel Corporation yesr the names of its
  *    contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
@@ -140,7 +140,7 @@ struct iwl_proto_offload_cmd_common {
  * struct iwl_proto_offload_cmd_v1 - ARP/NS offload configuration
  * @common: common/IPv4 configuration
  * @remote_ipv6_addr: remote address to answer to (or zero if all)
- * @solicited_node_ipv6_addr: broken -- solicited node address exists
+ * @solicited_yesde_ipv6_addr: broken -- solicited yesde address exists
  *	for each target address
  * @target_ipv6_addr: our target addresses
  * @ndp_mac_addr: neighbor solicitation response MAC address
@@ -149,7 +149,7 @@ struct iwl_proto_offload_cmd_common {
 struct iwl_proto_offload_cmd_v1 {
 	struct iwl_proto_offload_cmd_common common;
 	u8 remote_ipv6_addr[16];
-	u8 solicited_node_ipv6_addr[16];
+	u8 solicited_yesde_ipv6_addr[16];
 	u8 target_ipv6_addr[IWL_PROTO_OFFLOAD_NUM_IPV6_ADDRS_V1][16];
 	u8 ndp_mac_addr[ETH_ALEN];
 	__le16 reserved2;
@@ -159,7 +159,7 @@ struct iwl_proto_offload_cmd_v1 {
  * struct iwl_proto_offload_cmd_v2 - ARP/NS offload configuration
  * @common: common/IPv4 configuration
  * @remote_ipv6_addr: remote address to answer to (or zero if all)
- * @solicited_node_ipv6_addr: broken -- solicited node address exists
+ * @solicited_yesde_ipv6_addr: broken -- solicited yesde address exists
  *	for each target address
  * @target_ipv6_addr: our target addresses
  * @ndp_mac_addr: neighbor solicitation response MAC address
@@ -169,7 +169,7 @@ struct iwl_proto_offload_cmd_v1 {
 struct iwl_proto_offload_cmd_v2 {
 	struct iwl_proto_offload_cmd_common common;
 	u8 remote_ipv6_addr[16];
-	u8 solicited_node_ipv6_addr[16];
+	u8 solicited_yesde_ipv6_addr[16];
 	u8 target_ipv6_addr[IWL_PROTO_OFFLOAD_NUM_IPV6_ADDRS_V2][16];
 	u8 ndp_mac_addr[ETH_ALEN];
 	u8 num_valid_ipv6_addrs;
@@ -398,7 +398,7 @@ enum iwl_wowlan_flags {
 /**
  * struct iwl_wowlan_config_cmd - WoWLAN configuration
  * @wakeup_filter: filter from &enum iwl_wowlan_wakeup_filters
- * @non_qos_seq: non-QoS sequence counter to use next
+ * @yesn_qos_seq: yesn-QoS sequence counter to use next
  * @qos_seq: QoS sequence counters to use next
  * @wowlan_ba_teardown_tids: bitmap of BA sessions to tear down
  * @is_11n_connection: indicates HT connection
@@ -409,7 +409,7 @@ enum iwl_wowlan_flags {
  */
 struct iwl_wowlan_config_cmd {
 	__le32 wakeup_filter;
-	__le16 non_qos_seq;
+	__le16 yesn_qos_seq;
 	__le16 qos_seq[8];
 	u8 wowlan_ba_teardown_tids;
 	u8 is_11n_connection;
@@ -535,7 +535,7 @@ struct iwl_wowlan_gtk_status_v1 {
 /**
  * struct iwl_wowlan_gtk_status - GTK status
  * @key: GTK material
- * @key_len: GTK legth, if set to 0, the key is not available
+ * @key_len: GTK legth, if set to 0, the key is yest available
  * @key_flags: information about the key:
  *	bits[0:1]:  key index assigned by the AP
  *	bits[2:6]:  GTK index of the key in the internal DB
@@ -559,7 +559,7 @@ struct iwl_wowlan_gtk_status {
  * struct iwl_wowlan_igtk_status - IGTK status
  * @key: IGTK material
  * @ipn: the IGTK packet number (replay counter)
- * @key_len: IGTK length, if set to 0, the key is not available
+ * @key_len: IGTK length, if set to 0, the key is yest available
  * @key_flags: information about the key:
  *	bits[0]:    key index assigned by the AP (0: index 4, 1: index 5)
  *	bits[1:5]:  IGTK index of the key in the internal DB
@@ -577,7 +577,7 @@ struct iwl_wowlan_igtk_status {
  * @gtk: GTK data
  * @replay_ctr: GTK rekey replay counter
  * @pattern_number: number of the matched pattern
- * @non_qos_seq_ctr: non-QoS sequence counter to use next
+ * @yesn_qos_seq_ctr: yesn-QoS sequence counter to use next
  * @qos_seq_ctr: QoS sequence counters to use next
  * @wakeup_reasons: wakeup reasons, see &enum iwl_wowlan_wakeup_reason
  * @num_of_gtk_rekeys: number of GTK rekeys
@@ -591,7 +591,7 @@ struct iwl_wowlan_status_v6 {
 	struct iwl_wowlan_gtk_status_v1 gtk;
 	__le64 replay_ctr;
 	__le16 pattern_number;
-	__le16 non_qos_seq_ctr;
+	__le16 yesn_qos_seq_ctr;
 	__le16 qos_seq_ctr[8];
 	__le32 wakeup_reasons;
 	__le32 num_of_gtk_rekeys;
@@ -608,7 +608,7 @@ struct iwl_wowlan_status_v6 {
  * @igtk: IGTK data
  * @replay_ctr: GTK rekey replay counter
  * @pattern_number: number of the matched pattern
- * @non_qos_seq_ctr: non-QoS sequence counter to use next
+ * @yesn_qos_seq_ctr: yesn-QoS sequence counter to use next
  * @qos_seq_ctr: QoS sequence counters to use next
  * @wakeup_reasons: wakeup reasons, see &enum iwl_wowlan_wakeup_reason
  * @num_of_gtk_rekeys: number of GTK rekeys
@@ -623,7 +623,7 @@ struct iwl_wowlan_status {
 	struct iwl_wowlan_igtk_status igtk[WOWLAN_IGTK_KEYS_NUM];
 	__le64 replay_ctr;
 	__le16 pattern_number;
-	__le16 non_qos_seq_ctr;
+	__le16 yesn_qos_seq_ctr;
 	__le16 qos_seq_ctr[8];
 	__le32 wakeup_reasons;
 	__le32 num_of_gtk_rekeys;

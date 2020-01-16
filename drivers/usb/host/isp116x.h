@@ -17,7 +17,7 @@
    832 allows transferring 4kiB within 5 frames. */
 #define MAX_TRANSFER_SIZE_FULLSPEED	832
 
-/* Low speed: there is no reason to schedule in very big
+/* Low speed: there is yes reason to schedule in very big
    chunks; often the requested long transfers are for
    string descriptors containing short strings. */
 #define MAX_TRANSFER_SIZE_LOWSPEED	64
@@ -67,11 +67,11 @@
 #define	HCRHDESCA	0x12
 #define		RH_A_NDP	(0x3 << 0)	/* # downstream ports */
 #define		RH_A_PSM	(1 << 8)	/* power switching mode */
-#define		RH_A_NPS	(1 << 9)	/* no power switching */
+#define		RH_A_NPS	(1 << 9)	/* yes power switching */
 #define		RH_A_DT		(1 << 10)	/* device type (mbz) */
 #define		RH_A_OCPM	(1 << 11)	/* overcurrent protection
 						   mode */
-#define		RH_A_NOCP	(1 << 12)	/* no overcurrent protection */
+#define		RH_A_NOCP	(1 << 12)	/* yes overcurrent protection */
 #define		RH_A_POTPGT	(0xff << 24)	/* power on -> power good
 						   time */
 #define	HCRHDESCB	0x13
@@ -227,7 +227,7 @@ struct ptd {
     /* 0x0E, 0x0F reserved for HCD */
 #define TD_NOTACCESSED     0x0F
 
-/* map PTD status codes (CC) to errno values */
+/* map PTD status codes (CC) to erryes values */
 static const int cc_to_error[16] = {
 	/* No  Error  */ 0,
 	/* CRC Error  */ -EILSEQ,
@@ -514,7 +514,7 @@ static inline void isp116x_show_regs_log(struct isp116x *isp116x)
 	__s;})
 #define PIPEDIR(pipe)   ({ usb_pipein(pipe) ? "in" : "out"; })
 #define URB_NOTSHORT(urb) ({ (urb)->transfer_flags & URB_SHORT_NOT_OK ? \
-	"short_not_ok" : ""; })
+	"short_yest_ok" : ""; })
 
 /* print debug info about the URB */
 static void urb_dbg(struct urb *urb, char *msg)

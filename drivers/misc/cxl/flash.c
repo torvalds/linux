@@ -37,7 +37,7 @@ struct update_props_workarea {
 	__be32 nprops;
 } __packed;
 
-struct update_nodes_workarea {
+struct update_yesdes_workarea {
 	__be32 state;
 	__be64 unit_address;
 	__be32 reserved;
@@ -64,7 +64,7 @@ static int rcall(int token, char *buf, s32 scope)
 	return rc;
 }
 
-static int update_property(struct device_node *dn, const char *name,
+static int update_property(struct device_yesde *dn, const char *name,
 			   u32 vd, char *value)
 {
 	struct property *new_prop;
@@ -103,10 +103,10 @@ static int update_property(struct device_node *dn, const char *name,
 	return rc;
 }
 
-static int update_node(__be32 phandle, s32 scope)
+static int update_yesde(__be32 phandle, s32 scope)
 {
 	struct update_props_workarea *upwa;
-	struct device_node *dn;
+	struct device_yesde *dn;
 	int i, rc, ret;
 	char *prop_data;
 	char *buf;
@@ -122,7 +122,7 @@ static int update_node(__be32 phandle, s32 scope)
 	if (!buf)
 		return -ENOMEM;
 
-	dn = of_find_node_by_phandle(be32_to_cpu(phandle));
+	dn = of_find_yesde_by_phandle(be32_to_cpu(phandle));
 	if (!dn) {
 		kfree(buf);
 		return -ENOENT;
@@ -157,7 +157,7 @@ static int update_node(__be32 phandle, s32 scope)
 				ret = update_property(dn, prop_name, vd,
 						prop_data);
 				if (ret)
-					pr_err("cxl: Could not update property %s - %i\n",
+					pr_err("cxl: Could yest update property %s - %i\n",
 					       prop_name, ret);
 
 				prop_data += vd;
@@ -165,20 +165,20 @@ static int update_node(__be32 phandle, s32 scope)
 		}
 	} while (rc == 1);
 
-	of_node_put(dn);
+	of_yesde_put(dn);
 	kfree(buf);
 	return rc;
 }
 
 static int update_devicetree(struct cxl *adapter, s32 scope)
 {
-	struct update_nodes_workarea *unwa;
-	u32 action, node_count;
+	struct update_yesdes_workarea *unwa;
+	u32 action, yesde_count;
 	int token, rc, i;
 	__be32 *data, drc_index, phandle;
 	char *buf;
 
-	token = rtas_token("ibm,update-nodes");
+	token = rtas_token("ibm,update-yesdes");
 	if (token == RTAS_UNKNOWN_SERVICE)
 		return -EINVAL;
 
@@ -186,7 +186,7 @@ static int update_devicetree(struct cxl *adapter, s32 scope)
 	if (!buf)
 		return -ENOMEM;
 
-	unwa = (struct update_nodes_workarea *)&buf[0];
+	unwa = (struct update_yesdes_workarea *)&buf[0];
 	unwa->unit_address = cpu_to_be64(adapter->guest->handle);
 	do {
 		rc = rcall(token, buf, scope);
@@ -196,23 +196,23 @@ static int update_devicetree(struct cxl *adapter, s32 scope)
 		data = (__be32 *)buf + 4;
 		while (be32_to_cpu(*data) & NODE_ACTION_MASK) {
 			action = be32_to_cpu(*data) & NODE_ACTION_MASK;
-			node_count = be32_to_cpu(*data) & NODE_COUNT_MASK;
-			pr_devel("device reconfiguration - action: %#x, nodes: %#x\n",
-				 action, node_count);
+			yesde_count = be32_to_cpu(*data) & NODE_COUNT_MASK;
+			pr_devel("device reconfiguration - action: %#x, yesdes: %#x\n",
+				 action, yesde_count);
 			data++;
 
-			for (i = 0; i < node_count; i++) {
+			for (i = 0; i < yesde_count; i++) {
 				phandle = *data++;
 
 				switch (action) {
 				case OPCODE_DELETE:
-					/* nothing to do */
+					/* yesthing to do */
 					break;
 				case OPCODE_UPDATE:
-					update_node(phandle, scope);
+					update_yesde(phandle, scope);
 					break;
 				case OPCODE_ADD:
-					/* nothing to do, just move pointer */
+					/* yesthing to do, just move pointer */
 					drc_index = *data++;
 					break;
 				}
@@ -351,11 +351,11 @@ static int transfer_image(struct cxl *adapter, int operation,
 			pr_devel("resetting adapter\n");
 			cxl_h_reset_adapter(adapter->guest->handle);
 
-			/* The entire image has now been
+			/* The entire image has yesw been
 			 * downloaded and the validation has
 			 * been successfully performed.
 			 * After that, the partition should call
-			 * ibm,update-nodes and
+			 * ibm,update-yesdes and
 			 * ibm,update-properties to receive the
 			 * current configuration
 			 */
@@ -388,9 +388,9 @@ static long ioctl_transfer_image(struct cxl *adapter, int operation,
 	return transfer_image(adapter, operation, &ai);
 }
 
-static int device_open(struct inode *inode, struct file *file)
+static int device_open(struct iyesde *iyesde, struct file *file)
 {
-	int adapter_num = CXL_DEVT_ADAPTER(inode->i_rdev);
+	int adapter_num = CXL_DEVT_ADAPTER(iyesde->i_rdev);
 	struct cxl *adapter;
 	int rc = 0, i;
 
@@ -473,7 +473,7 @@ static long device_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		return -EINVAL;
 }
 
-static int device_close(struct inode *inode, struct file *file)
+static int device_close(struct iyesde *iyesde, struct file *file)
 {
 	struct cxl *adapter = file->private_data;
 	int i;

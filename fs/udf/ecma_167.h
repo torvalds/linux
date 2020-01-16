@@ -11,9 +11,9 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions, and the following disclaimer,
+ *    yestice, this list of conditions, and the following disclaimer,
  *    without modification.
- * 2. The name of the author may not be used to endorse or promote products
+ * 2. The name of the author may yest be used to endorse or promote products
  *    derived from this software without specific prior written permission.
  *
  * Alternatively, this software may be distributed under the terms of the
@@ -690,7 +690,7 @@ struct deviceSpec {
 	__le32		attrLength;
 	__le32		impUseLength;
 	__le32		majorDeviceIdent;
-	__le32		minorDeviceIdent;
+	__le32		miyesrDeviceIdent;
 	uint8_t		impUse[0];
 } __packed;
 

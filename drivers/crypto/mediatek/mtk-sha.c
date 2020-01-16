@@ -190,7 +190,7 @@ static int mtk_sha_append_sg(struct mtk_sha_reqctx *ctx)
 			/*
 			 * Check if count <= 0 because the buffer is full or
 			 * because the sg length is 0. In the latest case,
-			 * check if there is another sg in the list, a 0 length
+			 * check if there is ayesther sg in the list, a 0 length
 			 * sg doesn't necessarily mean the end of the sg list.
 			 */
 			if ((ctx->sg->length == 0) && !sg_is_last(ctx->sg)) {
@@ -300,7 +300,7 @@ static void mtk_sha_info_init(struct mtk_sha_reqctx *ctx)
 		break;
 
 	default:
-		/* Should not happen... */
+		/* Should yest happen... */
 		return;
 	}
 
@@ -528,14 +528,14 @@ static int mtk_sha_update_start(struct mtk_cryp *cryp,
 		return mtk_sha_update_slow(cryp, sha);
 
 	if (!sg_is_last(sg) && !IS_ALIGNED(sg->length, ctx->bs))
-		/* size is not ctx->bs aligned */
+		/* size is yest ctx->bs aligned */
 		return mtk_sha_update_slow(cryp, sha);
 
 	len = min(ctx->total, sg->length);
 
 	if (sg_is_last(sg)) {
 		if (!(ctx->flags & SHA_FLAGS_FINUP)) {
-			/* not last sg must be ctx->bs aligned */
+			/* yest last sg must be ctx->bs aligned */
 			tail = len & (ctx->bs - 1);
 			len -= tail;
 		}
@@ -694,7 +694,7 @@ static int mtk_sha_handle_queue(struct mtk_cryp *cryp, u8 id,
 	}
 
 	if (unlikely(err != -EINPROGRESS))
-		/* Task will not finish it, so do it here */
+		/* Task will yest finish it, so do it here */
 		mtk_sha_finish_req(cryp, sha, err);
 
 	return ret;
@@ -865,7 +865,7 @@ static int mtk_sha_cra_init_alg(struct crypto_tfm *tfm,
 		bctx->shash = crypto_alloc_shash(alg_base, 0,
 					CRYPTO_ALG_NEED_FALLBACK);
 		if (IS_ERR(bctx->shash)) {
-			pr_err("base driver %s could not be loaded.\n",
+			pr_err("base driver %s could yest be loaded.\n",
 			       alg_base);
 
 			return PTR_ERR(bctx->shash);
@@ -1197,7 +1197,7 @@ static irqreturn_t mtk_sha_irq(int irq, void *dev_id)
 
 		tasklet_schedule(&sha->done_task);
 	} else {
-		dev_warn(cryp->dev, "SHA interrupt when no active requests.\n");
+		dev_warn(cryp->dev, "SHA interrupt when yes active requests.\n");
 	}
 	return IRQ_HANDLED;
 }

@@ -27,10 +27,10 @@ struct pkcs8_parse_context {
 };
 
 /*
- * Note an OID when we find one for later processing when we know how to
+ * Note an OID when we find one for later processing when we kyesw how to
  * interpret it.
  */
-int pkcs8_note_OID(void *context, size_t hdrlen,
+int pkcs8_yeste_OID(void *context, size_t hdrlen,
 		   unsigned char tag,
 		   const void *value, size_t vlen)
 {
@@ -41,7 +41,7 @@ int pkcs8_note_OID(void *context, size_t hdrlen,
 		char buffer[50];
 
 		sprint_oid(value, vlen, buffer, sizeof(buffer));
-		pr_info("Unknown OID: [%lu] %s\n",
+		pr_info("Unkyeswn OID: [%lu] %s\n",
 			(unsigned long)value - ctx->data, buffer);
 	}
 	return 0;
@@ -50,7 +50,7 @@ int pkcs8_note_OID(void *context, size_t hdrlen,
 /*
  * Note the version number of the ASN.1 blob.
  */
-int pkcs8_note_version(void *context, size_t hdrlen,
+int pkcs8_yeste_version(void *context, size_t hdrlen,
 		       unsigned char tag,
 		       const void *value, size_t vlen)
 {
@@ -64,7 +64,7 @@ int pkcs8_note_version(void *context, size_t hdrlen,
 /*
  * Note the public algorithm.
  */
-int pkcs8_note_algo(void *context, size_t hdrlen,
+int pkcs8_yeste_algo(void *context, size_t hdrlen,
 		    unsigned char tag,
 		    const void *value, size_t vlen)
 {
@@ -80,7 +80,7 @@ int pkcs8_note_algo(void *context, size_t hdrlen,
 /*
  * Note the key data of the ASN.1 blob.
  */
-int pkcs8_note_key(void *context, size_t hdrlen,
+int pkcs8_yeste_key(void *context, size_t hdrlen,
 		   unsigned char tag,
 		   const void *value, size_t vlen)
 {

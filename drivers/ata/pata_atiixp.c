@@ -54,9 +54,9 @@ static int atiixp_cable_detect(struct ata_port *ap)
 	if (dmi_check_system(attixp_cable_override_dmi_table))
 		return ATA_CBL_PATA40_SHORT;
 
-	/* Hack from drivers/ide/pci. Really we want to know how to do the
-	   raw detection not play follow the bios mode guess */
-	pci_read_config_byte(pdev, ATIIXP_IDE_UDMA_MODE + ap->port_no, &udma);
+	/* Hack from drivers/ide/pci. Really we want to kyesw how to do the
+	   raw detection yest play follow the bios mode guess */
+	pci_read_config_byte(pdev, ATIIXP_IDE_UDMA_MODE + ap->port_yes, &udma);
 	if ((udma & 0x07) >= 0x04 || (udma & 0x70) >= 0x40)
 		return  ATA_CBL_PATA80;
 	return ATA_CBL_PATA40;
@@ -83,7 +83,7 @@ static int atiixp_prereset(struct ata_link *link, unsigned long deadline)
 	struct ata_port *ap = link->ap;
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
 
-	if (!pci_test_config_bits(pdev, &atiixp_enable_bits[ap->port_no]))
+	if (!pci_test_config_bits(pdev, &atiixp_enable_bits[ap->port_yes]))
 		return -ENOENT;
 
 	return ata_sff_prereset(link, deadline);
@@ -104,8 +104,8 @@ static void atiixp_set_pio_timing(struct ata_port *ap, struct ata_device *adev, 
 	static u8 pio_timings[5] = { 0x5D, 0x47, 0x34, 0x22, 0x20 };
 
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
-	int dn = 2 * ap->port_no + adev->devno;
-	int timing_shift = (16 * ap->port_no) + 8 * (adev->devno ^ 1);
+	int dn = 2 * ap->port_yes + adev->devyes;
+	int timing_shift = (16 * ap->port_yes) + 8 * (adev->devyes ^ 1);
 	u32 pio_timing_data;
 	u16 pio_mode_data;
 
@@ -152,7 +152,7 @@ static void atiixp_set_dmamode(struct ata_port *ap, struct ata_device *adev)
 
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
 	int dma = adev->dma_mode;
-	int dn = 2 * ap->port_no + adev->devno;
+	int dn = 2 * ap->port_yes + adev->devyes;
 	int wanted_pio;
 	unsigned long flags;
 
@@ -168,7 +168,7 @@ static void atiixp_set_dmamode(struct ata_port *ap, struct ata_device *adev)
 		udma_mode_data |= dma << (4 * dn);
 		pci_write_config_word(pdev, ATIIXP_IDE_UDMA_MODE, udma_mode_data);
 	} else {
-		int timing_shift = (16 * ap->port_no) + 8 * (adev->devno ^ 1);
+		int timing_shift = (16 * ap->port_yes) + 8 * (adev->devyes ^ 1);
 		u32 mwdma_timing_data;
 
 		dma -= XFER_MW_DMA_0;
@@ -181,7 +181,7 @@ static void atiixp_set_dmamode(struct ata_port *ap, struct ata_device *adev)
 				       mwdma_timing_data);
 	}
 	/*
-	 *	We must now look at the PIO mode situation. We may need to
+	 *	We must yesw look at the PIO mode situation. We may need to
 	 *	adjust the PIO mode to keep the timings acceptable
 	 */
 	if (adev->dma_mode >= XFER_MW_DMA_2)
@@ -214,7 +214,7 @@ static void atiixp_bmdma_start(struct ata_queued_cmd *qc)
 	struct ata_device *adev = qc->dev;
 
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
-	int dn = (2 * ap->port_no) + adev->devno;
+	int dn = (2 * ap->port_yes) + adev->devyes;
 	u16 tmp16;
 
 	pci_read_config_word(pdev, ATIIXP_IDE_UDMA_CONTROL, &tmp16);
@@ -231,7 +231,7 @@ static void atiixp_bmdma_start(struct ata_queued_cmd *qc)
  *	@qc: Command in progress
  *
  *	DMA has completed. Clear the UDMA flag as the next operations will
- *	be PIO ones not UDMA data transfer.
+ *	be PIO ones yest UDMA data transfer.
  *
  *	Note: The host lock held by the libata layer protects
  *	us from two channels both trying to set DMA bits at once
@@ -241,7 +241,7 @@ static void atiixp_bmdma_stop(struct ata_queued_cmd *qc)
 {
 	struct ata_port *ap = qc->ap;
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
-	int dn = (2 * ap->port_no) + qc->dev->devno;
+	int dn = (2 * ap->port_yes) + qc->dev->devyes;
 	u16 tmp16;
 
 	pci_read_config_word(pdev, ATIIXP_IDE_UDMA_CONTROL, &tmp16);

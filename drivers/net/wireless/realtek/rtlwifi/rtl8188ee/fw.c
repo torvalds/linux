@@ -48,7 +48,7 @@ static void _rtl88e_write_fw(struct ieee80211_hw *hw,
 	remainsize = size % FW_8192C_PAGE_SIZE;
 
 	if (pagenums > 8)
-		pr_err("Page numbers should not greater then 8\n");
+		pr_err("Page numbers should yest greater then 8\n");
 
 	for (page = 0; page < pagenums; page++) {
 		offset = page * FW_8192C_PAGE_SIZE;
@@ -124,7 +124,7 @@ int rtl88e_download_fw(struct ieee80211_hw *hw,
 	pfwdata = rtlhal->pfirmware;
 	fwsize = rtlhal->fwsize;
 	RT_TRACE(rtlpriv, COMP_FW, DBG_DMESG,
-		 "normal Firmware SIZE %d\n", fwsize);
+		 "yesrmal Firmware SIZE %d\n", fwsize);
 
 	if (IS_FW_HEADER_EXIST(pfwheader)) {
 		RT_TRACE(rtlpriv, COMP_FW, DBG_DMESG,
@@ -146,7 +146,7 @@ int rtl88e_download_fw(struct ieee80211_hw *hw,
 
 	err = _rtl88e_fw_free_to_go(hw);
 	if (err)
-		pr_err("Firmware is not ready to run!\n");
+		pr_err("Firmware is yest ready to run!\n");
 
 	return 0;
 }
@@ -215,7 +215,7 @@ static void _rtl88e_fill_h2c_command(struct ieee80211_hw *hw,
 	while (!write_sucess) {
 		wait_writeh2c_limit--;
 		if (wait_writeh2c_limit == 0) {
-			pr_err("Write H2C fail because no trigger for FW INT!\n");
+			pr_err("Write H2C fail because yes trigger for FW INT!\n");
 			break;
 		}
 
@@ -239,7 +239,7 @@ static void _rtl88e_fill_h2c_command(struct ieee80211_hw *hw,
 			break;
 		default:
 			RT_TRACE(rtlpriv, COMP_ERR, DBG_LOUD,
-				 "switch case %#x not processed\n", boxnum);
+				 "switch case %#x yest processed\n", boxnum);
 			break;
 		}
 		isfw_read = _rtl88e_check_fw_read_last_h2c(hw, boxnum);
@@ -263,7 +263,7 @@ static void _rtl88e_fill_h2c_command(struct ieee80211_hw *hw,
 
 		if (!isfw_read) {
 			RT_TRACE(rtlpriv, COMP_CMD, DBG_LOUD,
-				 "Write H2C register BOX[%d] fail!!!!! Fw do not read.\n",
+				 "Write H2C register BOX[%d] fail!!!!! Fw do yest read.\n",
 				 boxnum);
 			break;
 		}
@@ -310,7 +310,7 @@ static void _rtl88e_fill_h2c_command(struct ieee80211_hw *hw,
 			break;
 		default:
 			RT_TRACE(rtlpriv, COMP_ERR, DBG_LOUD,
-				 "switch case %#x not processed\n", cmd_len);
+				 "switch case %#x yest processed\n", cmd_len);
 			break;
 		}
 
@@ -373,7 +373,7 @@ void rtl88e_set_fw_pwrmode_cmd(struct ieee80211_hw *hw, u8 mode)
 	RT_TRACE(rtlpriv, COMP_POWER, DBG_LOUD, "FW LPS mode = %d\n", mode);
 
 	SET_H2CCMD_PWRMODE_PARM_MODE(u1_h2c_set_pwrmode, ((mode) ? 1 : 0));
-	rlbm = 0;/*YJ, temp, 120316. FW now not support RLBM=2.*/
+	rlbm = 0;/*YJ, temp, 120316. FW yesw yest support RLBM=2.*/
 	SET_H2CCMD_PWRMODE_PARM_RLBM(u1_h2c_set_pwrmode, rlbm);
 	SET_H2CCMD_PWRMODE_PARM_SMART_PS(u1_h2c_set_pwrmode,
 		(rtlpriv->mac80211.p2p) ? ppsc->smart_ps : 1);
@@ -621,7 +621,7 @@ void rtl88e_set_fw_rsvdpagepkt(struct ieee80211_hw *hw, bool b_dl_finished)
 			 "Set RSVD page location to Fw FAIL!!!!!!.\n");
 }
 
-/*Should check FW support p2p or not.*/
+/*Should check FW support p2p or yest.*/
 static void rtl88e_set_p2p_ctw_period_cmd(struct ieee80211_hw *hw, u8 ctwindow)
 {
 	u8 u1_ctwindow_period[1] = { ctwindow};
@@ -656,37 +656,37 @@ void rtl88e_set_p2p_ps_offload_cmd(struct ieee80211_hw *hw, u8 p2p_ps_state)
 		}
 
 		/* hw only support 2 set of NoA */
-		for (i = 0 ; i < p2pinfo->noa_num; i++) {
+		for (i = 0 ; i < p2pinfo->yesa_num; i++) {
 			/* To control the register setting for which NOA*/
 			rtl_write_byte(rtlpriv, 0x5cf, (i << 4));
 			if (i == 0)
-				p2p_ps_offload->noa0_en = 1;
+				p2p_ps_offload->yesa0_en = 1;
 			else
-				p2p_ps_offload->noa1_en = 1;
+				p2p_ps_offload->yesa1_en = 1;
 
 			/* config P2P NoA Descriptor Register */
 			rtl_write_dword(rtlpriv, 0x5E0,
-					p2pinfo->noa_duration[i]);
+					p2pinfo->yesa_duration[i]);
 			rtl_write_dword(rtlpriv, 0x5E4,
-					p2pinfo->noa_interval[i]);
+					p2pinfo->yesa_interval[i]);
 
 			/*Get Current TSF value */
 			tsf_low = rtl_read_dword(rtlpriv, REG_TSFTR);
 
-			start_time = p2pinfo->noa_start_time[i];
-			if (p2pinfo->noa_count_type[i] != 1) {
+			start_time = p2pinfo->yesa_start_time[i];
+			if (p2pinfo->yesa_count_type[i] != 1) {
 				while (start_time <= (tsf_low+(50*1024))) {
-					start_time += p2pinfo->noa_interval[i];
-					if (p2pinfo->noa_count_type[i] != 255)
-						p2pinfo->noa_count_type[i]--;
+					start_time += p2pinfo->yesa_interval[i];
+					if (p2pinfo->yesa_count_type[i] != 255)
+						p2pinfo->yesa_count_type[i]--;
 				}
 			}
 			rtl_write_dword(rtlpriv, 0x5E8, start_time);
 			rtl_write_dword(rtlpriv, 0x5EC,
-					p2pinfo->noa_count_type[i]);
+					p2pinfo->yesa_count_type[i]);
 		}
 
-		if ((p2pinfo->opp_ps == 1) || (p2pinfo->noa_num > 0)) {
+		if ((p2pinfo->opp_ps == 1) || (p2pinfo->yesa_num > 0)) {
 			/* rst p2p circuit */
 			rtl_write_byte(rtlpriv, REG_DUAL_TSF_RST, BIT(4));
 

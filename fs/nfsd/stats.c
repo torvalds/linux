@@ -5,16 +5,16 @@
  * /proc/net/rpc/nfsd
  *
  * Format:
- *	rc <hits> <misses> <nocache>
+ *	rc <hits> <misses> <yescache>
  *			Statistsics for the reply cache
- *	fh <stale> <total-lookups> <anonlookups> <dir-not-in-dcache> <nondir-not-in-dcache>
+ *	fh <stale> <total-lookups> <ayesnlookups> <dir-yest-in-dcache> <yesndir-yest-in-dcache>
  *			statistics for filehandle lookup
  *	io <bytes-read> <bytes-written>
  *			statistics for IO throughput
  *	th <threads> <fullcnt> <10%-20%> <20%-30%> ... <90%-100%> <100%> 
  *			time (seconds) when nfsd thread usage above thresholds
  *			and number of times that all threads were in use
- *	ra cache-size  <10%  <20%  <30% ... <100% not-found
+ *	ra cache-size  <10%  <20%  <30% ... <100% yest-found
  *			number of times that read-ahead entry was found that deep in
  *			the cache.
  *	plus generic RPC stats (see net/sunrpc/stats.c)
@@ -41,12 +41,12 @@ static int nfsd_proc_show(struct seq_file *seq, void *v)
 	seq_printf(seq, "rc %u %u %u\nfh %u %u %u %u %u\nio %u %u\n",
 		      nfsdstats.rchits,
 		      nfsdstats.rcmisses,
-		      nfsdstats.rcnocache,
+		      nfsdstats.rcyescache,
 		      nfsdstats.fh_stale,
 		      nfsdstats.fh_lookup,
-		      nfsdstats.fh_anon,
-		      nfsdstats.fh_nocache_dir,
-		      nfsdstats.fh_nocache_nondir,
+		      nfsdstats.fh_ayesn,
+		      nfsdstats.fh_yescache_dir,
+		      nfsdstats.fh_yescache_yesndir,
 		      nfsdstats.io_read,
 		      nfsdstats.io_write);
 	/* thread usage: */
@@ -79,7 +79,7 @@ static int nfsd_proc_show(struct seq_file *seq, void *v)
 	return 0;
 }
 
-static int nfsd_proc_open(struct inode *inode, struct file *file)
+static int nfsd_proc_open(struct iyesde *iyesde, struct file *file)
 {
 	return single_open(file, nfsd_proc_show, NULL);
 }

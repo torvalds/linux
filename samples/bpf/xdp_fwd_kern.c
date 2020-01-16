@@ -110,12 +110,12 @@ static __always_inline int xdp_fwd_flags(struct xdp_md *ctx, u32 flags)
 	 *  Even if route lookup was a success, then the MAC-addresses are also
 	 *  needed.  This is obtained from arp/neighbour table, but if table is
 	 *  (still) empty then BPF_FIB_LKUP_RET_NO_NEIGH is returned.  To avoid
-	 *  doing ARP lookup directly from XDP, then send packet to normal
+	 *  doing ARP lookup directly from XDP, then send packet to yesrmal
 	 *  network stack via XDP_PASS and expect it will do ARP resolution.
 	 *
 	 * BPF_FIB_LKUP_RET_FWD_DISABLED:
 	 *  The bpf_fib_lookup respect sysctl net.ipv{4,6}.conf.all.forwarding
-	 *  setting, and will return BPF_FIB_LKUP_RET_FWD_DISABLED if not
+	 *  setting, and will return BPF_FIB_LKUP_RET_FWD_DISABLED if yest
 	 *  enabled this on ingress device.
 	 */
 	if (rc == BPF_FIB_LKUP_RET_SUCCESS) {
@@ -124,8 +124,8 @@ static __always_inline int xdp_fwd_flags(struct xdp_md *ctx, u32 flags)
 		 * doesn't support XDP xmit, which will result in packet drops).
 		 *
 		 * Note: lookup in devmap supported since 0cdbb4b09a0.
-		 * If not supported will fail with:
-		 *  cannot pass map_type 14 into func bpf_map_lookup_elem#1:
+		 * If yest supported will fail with:
+		 *  canyest pass map_type 14 into func bpf_map_lookup_elem#1:
 		 */
 		if (!bpf_map_lookup_elem(&xdp_tx_ports, &fib_params.ifindex))
 			return XDP_PASS;

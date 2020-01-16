@@ -52,10 +52,10 @@ static irqreturn_t aac_sa_intr(int irq, void *dev_id)
 			sa_writew(dev, DoorbellReg_s, PrintfDone);
 		} else if (intstat & DOORBELL_1) {	// dev -> Host Normal Command Ready
 			sa_writew(dev, DoorbellClrReg_p, DOORBELL_1);
-			aac_command_normal(&dev->queues->queue[HostNormCmdQueue]);
+			aac_command_yesrmal(&dev->queues->queue[HostNormCmdQueue]);
 		} else if (intstat & DOORBELL_2) {	// dev -> Host Normal Response Ready
 			sa_writew(dev, DoorbellClrReg_p, DOORBELL_2);
-			aac_response_normal(&dev->queues->queue[HostNormRespQueue]);
+			aac_response_yesrmal(&dev->queues->queue[HostNormRespQueue]);
 		} else if (intstat & DOORBELL_3) {	// dev -> Host Normal Command Not Full
 			sa_writew(dev, DoorbellClrReg_p, DOORBELL_3);
 		} else if (intstat & DOORBELL_4) {	// dev -> Host Normal Response Not Full
@@ -88,14 +88,14 @@ static void aac_sa_enable_interrupt (struct aac_dev *dev)
 }
 
 /**
- *	aac_sa_notify_adapter		-	handle adapter notification
- *	@dev:	Adapter that notification is for
- *	@event:	Event to notidy
+ *	aac_sa_yestify_adapter		-	handle adapter yestification
+ *	@dev:	Adapter that yestification is for
+ *	@event:	Event to yestidy
  *
  *	Notify the adapter of an event
  */
  
-static void aac_sa_notify_adapter(struct aac_dev *dev, u32 event)
+static void aac_sa_yestify_adapter(struct aac_dev *dev, u32 event)
 {
 	switch (event) {
 
@@ -137,7 +137,7 @@ static void aac_sa_notify_adapter(struct aac_dev *dev, u32 event)
  *	@p1: first parameter
  *	@ret: adapter status
  *
- *	This routine will send a synchronous command to the adapter and wait 
+ *	This routine will send a synchroyesus command to the adapter and wait 
  *	for its	completion.
  */
 
@@ -322,7 +322,7 @@ int aac_sa_init(struct aac_dev *dev)
 	dev->a_ops.adapter_interrupt = aac_sa_interrupt_adapter;
 	dev->a_ops.adapter_disable_int = aac_sa_disable_interrupt;
 	dev->a_ops.adapter_enable_int = aac_sa_enable_interrupt;
-	dev->a_ops.adapter_notify = aac_sa_notify_adapter;
+	dev->a_ops.adapter_yestify = aac_sa_yestify_adapter;
 	dev->a_ops.adapter_sync_cmd = sa_sync_cmd;
 	dev->a_ops.adapter_check_health = aac_sa_check_health;
 	dev->a_ops.adapter_restart = aac_sa_restart_adapter;
@@ -373,7 +373,7 @@ int aac_sa_init(struct aac_dev *dev)
 
 	if(aac_init_adapter(dev) == NULL)
 		goto error_irq;
-	dev->sync_mode = 0;	/* sync. mode not supported */
+	dev->sync_mode = 0;	/* sync. mode yest supported */
 	if (request_irq(dev->pdev->irq, dev->a_ops.adapter_intr,
 			IRQF_SHARED, "aacraid", (void *)dev) < 0) {
 		printk(KERN_WARNING "%s%d: Interrupt unavailable.\n",

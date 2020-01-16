@@ -3,7 +3,7 @@
  * A driver for "Hermes" chipset based Apple Airport wireless
  * card.
  *
- * Copyright notice & release notes in file main.c
+ * Copyright yestice & release yestes in file main.c
  *
  * Note specific to airport stub:
  *
@@ -20,7 +20,7 @@
 #include <linux/delay.h>
 #include <asm/pmac_feature.h>
 
-#include "orinoco.h"
+#include "oriyesco.h"
 
 #define AIRPORT_IO_LEN	(0x1000)	/* one page */
 
@@ -35,7 +35,7 @@ struct airport {
 static int
 airport_suspend(struct macio_dev *mdev, pm_message_t state)
 {
-	struct orinoco_private *priv = dev_get_drvdata(&mdev->ofdev.dev);
+	struct oriyesco_private *priv = dev_get_drvdata(&mdev->ofdev.dev);
 	struct net_device *dev = priv->ndev;
 	struct airport *card = priv->card;
 	unsigned long flags;
@@ -43,19 +43,19 @@ airport_suspend(struct macio_dev *mdev, pm_message_t state)
 
 	printk(KERN_DEBUG "%s: Airport entering sleep mode\n", dev->name);
 
-	err = orinoco_lock(priv, &flags);
+	err = oriyesco_lock(priv, &flags);
 	if (err) {
 		printk(KERN_ERR "%s: hw_unavailable on PBOOK_SLEEP_NOW\n",
 		       dev->name);
 		return 0;
 	}
 
-	orinoco_down(priv);
-	orinoco_unlock(priv, &flags);
+	oriyesco_down(priv);
+	oriyesco_unlock(priv, &flags);
 
 	disable_irq(card->irq);
 	pmac_call_feature(PMAC_FTR_AIRPORT_ENABLE,
-			  macio_get_of_node(mdev), 0, 0);
+			  macio_get_of_yesde(mdev), 0, 0);
 
 	return 0;
 }
@@ -63,7 +63,7 @@ airport_suspend(struct macio_dev *mdev, pm_message_t state)
 static int
 airport_resume(struct macio_dev *mdev)
 {
-	struct orinoco_private *priv = dev_get_drvdata(&mdev->ofdev.dev);
+	struct oriyesco_private *priv = dev_get_drvdata(&mdev->ofdev.dev);
 	struct net_device *dev = priv->ndev;
 	struct airport *card = priv->card;
 	unsigned long flags;
@@ -72,13 +72,13 @@ airport_resume(struct macio_dev *mdev)
 	printk(KERN_DEBUG "%s: Airport waking up\n", dev->name);
 
 	pmac_call_feature(PMAC_FTR_AIRPORT_ENABLE,
-			  macio_get_of_node(mdev), 0, 1);
+			  macio_get_of_yesde(mdev), 0, 1);
 	msleep(200);
 
 	enable_irq(card->irq);
 
 	priv->hw.ops->lock_irqsave(&priv->lock, &flags);
-	err = orinoco_up(priv);
+	err = oriyesco_up(priv);
 	priv->hw.ops->unlock_irqrestore(&priv->lock, &flags);
 
 	return err;
@@ -87,11 +87,11 @@ airport_resume(struct macio_dev *mdev)
 static int
 airport_detach(struct macio_dev *mdev)
 {
-	struct orinoco_private *priv = dev_get_drvdata(&mdev->ofdev.dev);
+	struct oriyesco_private *priv = dev_get_drvdata(&mdev->ofdev.dev);
 	struct airport *card = priv->card;
 
 	if (card->ndev_registered)
-		orinoco_if_del(priv);
+		oriyesco_if_del(priv);
 	card->ndev_registered = 0;
 
 	if (card->irq_requested)
@@ -105,16 +105,16 @@ airport_detach(struct macio_dev *mdev)
 	macio_release_resource(mdev, 0);
 
 	pmac_call_feature(PMAC_FTR_AIRPORT_ENABLE,
-			  macio_get_of_node(mdev), 0, 0);
+			  macio_get_of_yesde(mdev), 0, 0);
 	ssleep(1);
 
 	macio_set_drvdata(mdev, NULL);
-	free_orinocodev(priv);
+	free_oriyescodev(priv);
 
 	return 0;
 }
 
-static int airport_hard_reset(struct orinoco_private *priv)
+static int airport_hard_reset(struct oriyesco_private *priv)
 {
 	/* It would be nice to power cycle the Airport for a real hard
 	 * reset, but for some reason although it appears to
@@ -131,10 +131,10 @@ static int airport_hard_reset(struct orinoco_private *priv)
 	disable_irq(card->irq);
 
 	pmac_call_feature(PMAC_FTR_AIRPORT_ENABLE,
-			  macio_get_of_node(card->mdev), 0, 0);
+			  macio_get_of_yesde(card->mdev), 0, 0);
 	ssleep(1);
 	pmac_call_feature(PMAC_FTR_AIRPORT_ENABLE,
-			  macio_get_of_node(card->mdev), 0, 1);
+			  macio_get_of_yesde(card->mdev), 0, 1);
 	ssleep(1);
 
 	enable_irq(card->irq);
@@ -147,7 +147,7 @@ static int airport_hard_reset(struct orinoco_private *priv)
 static int
 airport_attach(struct macio_dev *mdev, const struct of_device_id *match)
 {
-	struct orinoco_private *priv;
+	struct oriyesco_private *priv;
 	struct airport *card;
 	unsigned long phys_addr;
 	struct hermes *hw;
@@ -158,10 +158,10 @@ airport_attach(struct macio_dev *mdev, const struct of_device_id *match)
 	}
 
 	/* Allocate space for private device-specific data */
-	priv = alloc_orinocodev(sizeof(*card), &mdev->ofdev.dev,
+	priv = alloc_oriyescodev(sizeof(*card), &mdev->ofdev.dev,
 				airport_hard_reset, NULL);
 	if (!priv) {
-		printk(KERN_ERR PFX "Cannot allocate network device\n");
+		printk(KERN_ERR PFX "Canyest allocate network device\n");
 		return -ENODEV;
 	}
 	card = priv->card;
@@ -171,7 +171,7 @@ airport_attach(struct macio_dev *mdev, const struct of_device_id *match)
 
 	if (macio_request_resource(mdev, 0, DRIVER_NAME)) {
 		printk(KERN_ERR PFX "can't request IO resource !\n");
-		free_orinocodev(priv);
+		free_oriyescodev(priv);
 		return -EBUSY;
 	}
 
@@ -191,27 +191,27 @@ airport_attach(struct macio_dev *mdev, const struct of_device_id *match)
 
 	/* Power up card */
 	pmac_call_feature(PMAC_FTR_AIRPORT_ENABLE,
-			  macio_get_of_node(mdev), 0, 1);
+			  macio_get_of_yesde(mdev), 0, 1);
 	ssleep(1);
 
 	/* Reset it before we get the interrupt */
 	hw->ops->init(hw);
 
-	if (request_irq(card->irq, orinoco_interrupt, 0, DRIVER_NAME, priv)) {
+	if (request_irq(card->irq, oriyesco_interrupt, 0, DRIVER_NAME, priv)) {
 		printk(KERN_ERR PFX "Couldn't get IRQ %d\n", card->irq);
 		goto failed;
 	}
 	card->irq_requested = 1;
 
 	/* Initialise the main driver */
-	if (orinoco_init(priv) != 0) {
-		printk(KERN_ERR PFX "orinoco_init() failed\n");
+	if (oriyesco_init(priv) != 0) {
+		printk(KERN_ERR PFX "oriyesco_init() failed\n");
 		goto failed;
 	}
 
 	/* Register an interface with the stack */
-	if (orinoco_if_add(priv, phys_addr, card->irq, NULL) != 0) {
-		printk(KERN_ERR PFX "orinoco_if_add() failed\n");
+	if (oriyesco_if_add(priv, phys_addr, card->irq, NULL) != 0) {
+		printk(KERN_ERR PFX "oriyesco_if_add() failed\n");
 		goto failed;
 	}
 	card->ndev_registered = 1;

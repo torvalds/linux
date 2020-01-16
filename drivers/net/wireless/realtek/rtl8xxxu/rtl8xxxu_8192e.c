@@ -4,7 +4,7 @@
  *
  * Copyright (c) 2014 - 2017 Jes Sorensen <Jes.Sorensen@gmail.com>
  *
- * Portions, notably calibration code:
+ * Portions, yestably calibration code:
  * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
  *
  * This driver was written as a replacement for the vendor provided
@@ -16,7 +16,7 @@
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/spinlock.h>
@@ -609,7 +609,7 @@ static int rtl8192eu_parse_efuse(struct rtl8xxxu_priv *priv)
 	if (memchr_inv(efuse->serial, 0xff, 11))
 		dev_info(&priv->udev->dev, "Serial: %.11s\n", efuse->serial);
 	else
-		dev_info(&priv->udev->dev, "Serial not available.\n");
+		dev_info(&priv->udev->dev, "Serial yest available.\n");
 
 	if (rtl8xxxu_debug & RTL8XXXU_DEBUG_EFUSE) {
 		unsigned char *raw = priv->efuse_wifi.raw;
@@ -1404,7 +1404,7 @@ static int rtl8192eu_active_to_lps(struct rtl8xxxu_priv *priv)
 	retry = 100;
 	retval = -EBUSY;
 	/*
-	 * Poll 32 bit wide 0x05f8 for 0x00000000 to ensure no TX is pending.
+	 * Poll 32 bit wide 0x05f8 for 0x00000000 to ensure yes TX is pending.
 	 */
 	do {
 		val32 = rtl8xxxu_read32(priv, REG_SCH_TX_CMD);
@@ -1659,5 +1659,5 @@ struct rtl8xxxu_fileops rtl8192eu_fops = {
 	.total_page_num = TX_TOTAL_PAGE_NUM_8192E,
 	.page_num_hi = TX_PAGE_NUM_HI_PQ_8192E,
 	.page_num_lo = TX_PAGE_NUM_LO_PQ_8192E,
-	.page_num_norm = TX_PAGE_NUM_NORM_PQ_8192E,
+	.page_num_yesrm = TX_PAGE_NUM_NORM_PQ_8192E,
 };

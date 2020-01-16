@@ -1,6 +1,6 @@
 WM8524 audio CODEC
 
-This device does not use I2C or SPI but a simple Hardware Control Interface.
+This device does yest use I2C or SPI but a simple Hardware Control Interface.
 
 Required properties:
 

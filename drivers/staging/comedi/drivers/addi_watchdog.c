@@ -43,7 +43,7 @@ static int addi_watchdog_insn_config(struct comedi_device *dev,
 		reload = data[1] & s->maxdata;
 		outl(reload, spriv->iobase + ADDI_TCW_RELOAD_REG);
 
-		/* Time base is 20ms, let the user know the timeout */
+		/* Time base is 20ms, let the user kyesw the timeout */
 		dev_info(dev->class_dev, "watchdog enabled, timeout:%dms\n",
 			 20 * reload + 20);
 		break;

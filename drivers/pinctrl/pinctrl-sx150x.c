@@ -166,7 +166,7 @@ static const struct sx150x_device_data sx1501q_device_data = {
 	},
 	.ngpios	= 4,
 	.pins = sx150x_4_pins,
-	.npins = 4, /* oscio not available */
+	.npins = 4, /* oscio yest available */
 };
 
 static const struct sx150x_device_data sx1502q_device_data = {
@@ -189,7 +189,7 @@ static const struct sx150x_device_data sx1502q_device_data = {
 	},
 	.ngpios	= 8,
 	.pins = sx150x_8_pins,
-	.npins = 8, /* oscio not available */
+	.npins = 8, /* oscio yest available */
 };
 
 static const struct sx150x_device_data sx1503q_device_data = {
@@ -212,7 +212,7 @@ static const struct sx150x_device_data sx1503q_device_data = {
 	},
 	.ngpios	= 16,
 	.pins = sx150x_16_pins,
-	.npins  = 16, /* oscio not available */
+	.npins  = 16, /* oscio yest available */
 };
 
 static const struct sx150x_device_data sx1504q_device_data = {
@@ -231,7 +231,7 @@ static const struct sx150x_device_data sx1504q_device_data = {
 	},
 	.ngpios	= 4,
 	.pins = sx150x_4_pins,
-	.npins = 4, /* oscio not available */
+	.npins = 4, /* oscio yest available */
 };
 
 static const struct sx150x_device_data sx1505q_device_data = {
@@ -253,7 +253,7 @@ static const struct sx150x_device_data sx1505q_device_data = {
 	},
 	.ngpios	= 8,
 	.pins = sx150x_8_pins,
-	.npins = 8, /* oscio not available */
+	.npins = 8, /* oscio yest available */
 };
 
 static const struct sx150x_device_data sx1506q_device_data = {
@@ -276,7 +276,7 @@ static const struct sx150x_device_data sx1506q_device_data = {
 	},
 	.ngpios	= 16,
 	.pins = sx150x_16_pins,
-	.npins = 16, /* oscio not available */
+	.npins = 16, /* oscio yest available */
 };
 
 static const struct sx150x_device_data sx1507q_device_data = {
@@ -366,7 +366,7 @@ static const struct pinctrl_ops sx150x_pinctrl_ops = {
 	.get_group_name = sx150x_pinctrl_get_group_name,
 	.get_group_pins = sx150x_pinctrl_get_group_pins,
 #ifdef CONFIG_OF
-	.dt_node_to_map = pinconf_generic_dt_node_to_map_pin,
+	.dt_yesde_to_map = pinconf_generic_dt_yesde_to_map_pin,
 	.dt_free_map = pinctrl_utils_free_map,
 #endif
 };
@@ -882,7 +882,7 @@ static int sx150x_init_misc(struct sx150x_pinctrl *pctl)
 		value = 0x00;
 		break;
 	default:
-		WARN(1, "Unknown chip model %d\n", pctl->data->model);
+		WARN(1, "Unkyeswn chip model %d\n", pctl->data->model);
 		return -EINVAL;
 	}
 
@@ -899,7 +899,7 @@ static int sx150x_init_hw(struct sx150x_pinctrl *pctl)
 	int err;
 
 	if (pctl->data->model == SX150X_789 &&
-	    of_property_read_bool(pctl->dev->of_node, "semtech,probe-reset")) {
+	    of_property_read_bool(pctl->dev->of_yesde, "semtech,probe-reset")) {
 		err = sx150x_reset(pctl);
 		if (err < 0)
 			return err;
@@ -909,7 +909,7 @@ static int sx150x_init_hw(struct sx150x_pinctrl *pctl)
 	if (err < 0)
 		return err;
 
-	/* Set all pins to work in normal mode */
+	/* Set all pins to work in yesrmal mode */
 	return regmap_write(pctl->regmap, reg[pctl->data->model], 0);
 }
 
@@ -1113,7 +1113,7 @@ static int sx150x_probe(struct i2c_client *client,
 	pctl->dev = dev;
 	pctl->client = client;
 
-	if (dev->of_node)
+	if (dev->of_yesde)
 		pctl->data = of_device_get_match_data(dev);
 	else
 		pctl->data = (struct sx150x_device_data *)id->driver_data;
@@ -1168,7 +1168,7 @@ static int sx150x_probe(struct i2c_client *client,
 	pctl->gpio.set_config = gpiochip_generic_config;
 	pctl->gpio.parent = dev;
 #ifdef CONFIG_OF_GPIO
-	pctl->gpio.of_node = dev->of_node;
+	pctl->gpio.of_yesde = dev->of_yesde;
 #endif
 	pctl->gpio.can_sleep = true;
 	pctl->gpio.label = devm_kstrdup(dev, client->name, GFP_KERNEL);
@@ -1176,10 +1176,10 @@ static int sx150x_probe(struct i2c_client *client,
 		return -ENOMEM;
 
 	/*
-	 * Setting multiple pins is not safe when all pins are not
+	 * Setting multiple pins is yest safe when all pins are yest
 	 * handled by the same regmap register. The oscio pin (present
 	 * on the SX150X_789 chips) lives in its own register, so
-	 * would require locking that is not in place at this time.
+	 * would require locking that is yest in place at this time.
 	 */
 	if (pctl->data->model != SX150X_789)
 		pctl->gpio.set_multiple = sx150x_gpio_set_multiple;
@@ -1212,18 +1212,18 @@ static int sx150x_probe(struct i2c_client *client,
 		 * Because sx150x_irq_threaded_fn invokes all of the
 		 * nested interrrupt handlers via handle_nested_irq,
 		 * any "handler" passed to gpiochip_irqchip_add()
-		 * below is going to be ignored, so the choice of the
-		 * function does not matter that much.
+		 * below is going to be igyesred, so the choice of the
+		 * function does yest matter that much.
 		 *
 		 * We set it to handle_bad_irq to avoid confusion,
-		 * plus it will be instantly noticeable if it is ever
-		 * called (should not happen)
+		 * plus it will be instantly yesticeable if it is ever
+		 * called (should yest happen)
 		 */
 		ret = gpiochip_irqchip_add_nested(&pctl->gpio,
 					&pctl->irq_chip, 0,
 					handle_bad_irq, IRQ_TYPE_NONE);
 		if (ret) {
-			dev_err(dev, "could not connect irqchip to gpiochip\n");
+			dev_err(dev, "could yest connect irqchip to gpiochip\n");
 			return ret;
 		}
 

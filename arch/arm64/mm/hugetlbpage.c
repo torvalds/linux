@@ -153,7 +153,7 @@ static pte_t get_clear_flush(struct mm_struct *mm,
  * "Misprogramming of the Contiguous bit", page D4-1762.
  *
  * This helper performs the break step for use cases where the
- * original pte is not needed.
+ * original pte is yest needed.
  */
 static void clear_flush(struct mm_struct *mm,
 			     unsigned long addr,
@@ -236,13 +236,13 @@ pte_t *huge_pte_alloc(struct mm_struct *mm,
 		 * Note that if this code were ever ported to the
 		 * 32-bit arm platform then it will cause trouble in
 		 * the case where CONFIG_HIGHPTE is set, since there
-		 * will be no pte_unmap() to correspond with this
+		 * will be yes pte_unmap() to correspond with this
 		 * pte_alloc_map().
 		 */
 		ptep = pte_alloc_map(mm, pmdp, addr);
 	} else if (sz == PMD_SIZE) {
 		if (IS_ENABLED(CONFIG_ARCH_WANT_HUGE_PMD_SHARE) &&
-		    pud_none(READ_ONCE(*pudp)))
+		    pud_yesne(READ_ONCE(*pudp)))
 			ptep = huge_pmd_share(mm, addr, pudp);
 		else
 			ptep = (pte_t *)pmd_alloc(mm, pudp, addr);
@@ -268,7 +268,7 @@ pte_t *huge_pte_offset(struct mm_struct *mm,
 
 	pudp = pud_offset(pgdp, addr);
 	pud = READ_ONCE(*pudp);
-	if (sz != PUD_SIZE && pud_none(pud))
+	if (sz != PUD_SIZE && pud_yesne(pud))
 		return NULL;
 	/* hugepage or swap? */
 	if (pud_huge(pud) || !pud_present(pud))
@@ -281,7 +281,7 @@ pte_t *huge_pte_offset(struct mm_struct *mm,
 	pmdp = pmd_offset(pudp, addr);
 	pmd = READ_ONCE(*pmdp);
 	if (!(sz == PMD_SIZE || sz == CONT_PMD_SIZE) &&
-	    pmd_none(pmd))
+	    pmd_yesne(pmd))
 		return NULL;
 	if (pmd_huge(pmd) || !pmd_present(pmd))
 		return (pte_t *)pmdp;
@@ -339,9 +339,9 @@ pte_t huge_ptep_get_and_clear(struct mm_struct *mm,
  * huge_ptep_set_access_flags will update access flags (dirty, accesssed)
  * and write permission.
  *
- * For a contiguous huge pte range we need to check whether or not write
+ * For a contiguous huge pte range we need to check whether or yest write
  * permission has to change only on the first pte in the set. Then for
- * all the contiguous ptes we need to check whether or not there is a
+ * all the contiguous ptes we need to check whether or yest there is a
  * discrepancy between dirty or young.
  */
 static int __cont_access_flags_changed(pte_t *ptep, pte_t pte, int ncontig)

@@ -30,7 +30,7 @@
 #include <linux/mutex.h>
 #include <linux/sysfs.h>
 
-static const unsigned short normal_i2c[] = {
+static const unsigned short yesrmal_i2c[] = {
 	0x48, 0x49, 0x4a, 0x4b, 0x4c, 0x4d, 0x4e, 0x4f, I2C_CLIENT_END };
 
 /*
@@ -138,7 +138,7 @@ static int max6642_detect(struct i2c_client *client,
 	if ((reg_config & 0x0f) != 0x00)
 		return -ENODEV;
 
-	/* in between, another round of sanity checks */
+	/* in between, ayesther round of sanity checks */
 	if (i2c_smbus_read_byte_data(client, 0x04) != reg_config
 	    || i2c_smbus_read_byte_data(client, 0x06) != reg_config
 	    || i2c_smbus_read_byte_data(client, 0xff) != reg_config)
@@ -305,7 +305,7 @@ static struct i2c_driver max6642_driver = {
 	.probe		= max6642_probe,
 	.id_table	= max6642_id,
 	.detect		= max6642_detect,
-	.address_list	= normal_i2c,
+	.address_list	= yesrmal_i2c,
 };
 
 module_i2c_driver(max6642_driver);

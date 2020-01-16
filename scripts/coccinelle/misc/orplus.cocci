@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /// Check for constants that are added but are used elsewhere as bitmasks
-/// The results should be checked manually to ensure that the nonzero
+/// The results should be checked manually to ensure that the yesnzero
 /// bits in the two constants are actually disjoint.
 ///
 // Confidence: Moderate
@@ -8,7 +8,7 @@
 // Copyright: (C) 2013 Gilles Muller, INRIA/LIP6.
 // URL: http://coccinelle.lip6.fr/
 // Comments:
-// Options: --no-includes --include-headers
+// Options: --yes-includes --include-headers
 
 virtual org
 virtual report

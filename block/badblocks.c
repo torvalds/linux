@@ -31,7 +31,7 @@
  * Start of bad-range, sector offset, 54 bits (allows 8 exbibytes)
  *  A 'shift' can be set so that larger blocks are tracked and
  *  consequently larger devices can be covered.
- * 'Acknowledged' flag - 1 bit. - the most significant bit.
+ * 'Ackyeswledged' flag - 1 bit. - the most significant bit.
  *
  * Locking of the bad-block table uses a seqlock so badblocks_check
  * might need to retry if it is very unlucky.
@@ -39,15 +39,15 @@
  * so we use the write_seqlock_irq variant.
  *
  * When looking for a bad block we specify a range and want to
- * know if any block in the range is bad.  So we binary-search
+ * kyesw if any block in the range is bad.  So we binary-search
  * to the last range that starts at-or-before the given endpoint,
  * (or "before the sector after the target range")
  * then see if it ends after the given start.
  *
  * Return:
- *  0: there are no known bad blocks in the range
- *  1: there are known bad block which are all acknowledged
- * -1: there are bad blocks which have not yet been acknowledged in metadata.
+ *  0: there are yes kyeswn bad blocks in the range
+ *  1: there are kyeswn bad block which are all ackyeswledged
+ * -1: there are bad blocks which have yest yet been ackyeswledged in metadata.
  * plus the start/length of the first bad section we overlap.
  */
 int badblocks_check(struct badblocks *bb, sector_t s, int sectors,
@@ -67,7 +67,7 @@ int badblocks_check(struct badblocks *bb, sector_t s, int sectors,
 		target >>= bb->shift;
 		sectors = target - s;
 	}
-	/* 'target' is now the first block after the bad range */
+	/* 'target' is yesw the first block after the bad range */
 
 retry:
 	seq = read_seqbegin(&bb->lock);
@@ -79,7 +79,7 @@ retry:
 	 * i.e. for the last range that starts before 'target'
 	 */
 	/* INVARIANT: ranges before 'lo' and at-or-after 'hi'
-	 * are known not to be the last range before target.
+	 * are kyeswn yest to be the last range before target.
 	 * VARIANT: hi-lo is the number of possible
 	 * ranges, and decreases until it reaches 1
 	 */
@@ -89,7 +89,7 @@ retry:
 
 		if (a < target)
 			/* This could still be the one, earlier ranges
-			 * could not.
+			 * could yest.
 			 */
 			lo = mid;
 		else
@@ -99,7 +99,7 @@ retry:
 	/* 'lo' might be the last that started before target, but 'hi' isn't */
 	if (hi > lo) {
 		/* need to check all range that end after 's' to see if
-		 * any are unacknowledged.
+		 * any are unackyeswledged.
 		 */
 		while (lo >= 0 &&
 		       BB_OFFSET(p[lo]) + BB_LEN(p[lo]) > s) {
@@ -150,7 +150,7 @@ static void badblocks_update_acked(struct badblocks *bb)
  * @bb:		the badblocks structure that holds all badblock information
  * @s:		first sector to mark as bad
  * @sectors:	number of sectors to mark as bad
- * @acknowledged: weather to mark the bad sectors as acknowledged
+ * @ackyeswledged: weather to mark the bad sectors as ackyeswledged
  *
  * This might extend the table, or might contract it if two adjacent ranges
  * can be merged. We binary-search to find the 'insertion' point, then
@@ -161,7 +161,7 @@ static void badblocks_update_acked(struct badblocks *bb)
  *  1: failed to set badblocks (out of space)
  */
 int badblocks_set(struct badblocks *bb, sector_t s, int sectors,
-			int acknowledged)
+			int ackyeswledged)
 {
 	u64 *p;
 	int lo, hi;
@@ -212,9 +212,9 @@ int badblocks_set(struct badblocks *bb, sector_t s, int sectors,
 			/* Yes, we can merge with a previous range */
 			if (s == a && s + sectors >= e)
 				/* new range covers old */
-				ack = acknowledged;
+				ack = ackyeswledged;
 			else
-				ack = ack && acknowledged;
+				ack = ack && ackyeswledged;
 
 			if (e < s + sectors)
 				e = s + sectors;
@@ -222,7 +222,7 @@ int badblocks_set(struct badblocks *bb, sector_t s, int sectors,
 				p[lo] = BB_MAKE(a, e-a, ack);
 				s = e;
 			} else {
-				/* does not all fit in one range,
+				/* does yest all fit in one range,
 				 * make p[lo] maximal
 				 */
 				if (BB_LEN(p[lo]) != BB_MAX_LEN)
@@ -245,9 +245,9 @@ int badblocks_set(struct badblocks *bb, sector_t s, int sectors,
 			if (e <= s + sectors) {
 				/* full overlap */
 				e = s + sectors;
-				ack = acknowledged;
+				ack = ackyeswledged;
 			} else
-				ack = ack && acknowledged;
+				ack = ack && ackyeswledged;
 
 			a = s;
 			if (e - a <= BB_MAX_LEN) {
@@ -271,7 +271,7 @@ int badblocks_set(struct badblocks *bb, sector_t s, int sectors,
 		int newlen = lolen + hilen - (s - a);
 
 		if (s >= a && newlen < BB_MAX_LEN) {
-			/* yes, we can combine them */
+			/* no, we can combine them */
 			int ack = BB_ACK(p[lo]) && BB_ACK(p[hi]);
 
 			p[lo] = BB_MAKE(BB_OFFSET(p[lo]), newlen, ack);
@@ -297,14 +297,14 @@ int badblocks_set(struct badblocks *bb, sector_t s, int sectors,
 
 			if (this_sectors > BB_MAX_LEN)
 				this_sectors = BB_MAX_LEN;
-			p[hi] = BB_MAKE(s, this_sectors, acknowledged);
+			p[hi] = BB_MAKE(s, this_sectors, ackyeswledged);
 			sectors -= this_sectors;
 			s += this_sectors;
 		}
 	}
 
 	bb->changed = 1;
-	if (!acknowledged)
+	if (!ackyeswledged)
 		bb->unacked_exist = 1;
 	else
 		badblocks_update_acked(bb);
@@ -321,7 +321,7 @@ EXPORT_SYMBOL_GPL(badblocks_set);
  * @sectors:	number of sectors to mark as bad
  *
  * This may involve extending the table if we spilt a region,
- * but it must not fail.  So if the table becomes full, we just
+ * but it must yest fail.  So if the table becomes full, we just
  * drop the remove request.
  *
  * Return:
@@ -337,10 +337,10 @@ int badblocks_clear(struct badblocks *bb, sector_t s, int sectors)
 
 	if (bb->shift > 0) {
 		/* When clearing we round the start up and the end down.
-		 * This should not matter as the shift should align with
-		 * the block size and no rounding should ever be needed.
+		 * This should yest matter as the shift should align with
+		 * the block size and yes rounding should ever be needed.
 		 * However it is better the think a block is bad when it
-		 * isn't than to think a block is not bad when it is.
+		 * isn't than to think a block is yest bad when it is.
 		 */
 		s += (1<<bb->shift) - 1;
 		s >>= bb->shift;
@@ -387,7 +387,7 @@ int badblocks_clear(struct badblocks *bb, sector_t s, int sectors)
 				lo++;
 			}
 			p[lo] = BB_MAKE(target, end - target, ack);
-			/* there is no longer an overlap */
+			/* there is yes longer an overlap */
 			hi = lo;
 			lo--;
 		}
@@ -401,7 +401,7 @@ int badblocks_clear(struct badblocks *bb, sector_t s, int sectors)
 				sector_t start = BB_OFFSET(p[lo]);
 
 				p[lo] = BB_MAKE(start, s - start, ack);
-				/* now low doesn't overlap, so.. */
+				/* yesw low doesn't overlap, so.. */
 				break;
 			}
 			lo--;
@@ -424,7 +424,7 @@ out:
 EXPORT_SYMBOL_GPL(badblocks_clear);
 
 /**
- * ack_all_badblocks() - Acknowledge all bad blocks in a list.
+ * ack_all_badblocks() - Ackyeswledge all bad blocks in a list.
  * @bb:		the badblocks structure that holds all badblock information
  *
  * This only succeeds if ->changed is clear.  It is used by
@@ -433,7 +433,7 @@ EXPORT_SYMBOL_GPL(badblocks_clear);
 void ack_all_badblocks(struct badblocks *bb)
 {
 	if (bb->page == NULL || bb->changed)
-		/* no point even trying */
+		/* yes point even trying */
 		return;
 	write_seqlock_irq(&bb->lock);
 
@@ -459,7 +459,7 @@ EXPORT_SYMBOL_GPL(ack_all_badblocks);
  * badblocks_show() - sysfs access to bad-blocks list
  * @bb:		the badblocks structure that holds all badblock information
  * @page:	buffer received from sysfs
- * @unack:	weather to show unacknowledged badblocks
+ * @unack:	weather to show unackyeswledged badblocks
  *
  * Return:
  *  Length of returned data
@@ -509,7 +509,7 @@ EXPORT_SYMBOL_GPL(badblocks_show);
  * @bb:		the badblocks structure that holds all badblock information
  * @page:	buffer received from sysfs
  * @len:	length of data received from sysfs
- * @unack:	weather to show unacknowledged badblocks
+ * @unack:	weather to show unackyeswledged badblocks
  *
  * Return:
  *  Length of the buffer processed or -ve error.
@@ -570,7 +570,7 @@ static int __badblocks_init(struct device *dev, struct badblocks *bb,
  *
  * Return:
  *  0: success
- *  -ve errno: on error
+ *  -ve erryes: on error
  */
 int badblocks_init(struct badblocks *bb, int enable)
 {

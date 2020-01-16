@@ -30,7 +30,7 @@ static inline int dma_submit_error(dma_cookie_t cookie)
 /**
  * enum dma_status - DMA transaction status
  * @DMA_COMPLETE: transaction completed
- * @DMA_IN_PROGRESS: transaction not yet processed
+ * @DMA_IN_PROGRESS: transaction yest yet processed
  * @DMA_PAUSED: transaction is paused
  * @DMA_ERROR: transaction failed
  */
@@ -44,7 +44,7 @@ enum dma_status {
 /**
  * enum dma_transaction_type - DMA transaction types/indexes
  *
- * Note: The DMA_ASYNC_TX capability is not to be set by drivers.  It is
+ * Note: The DMA_ASYNC_TX capability is yest to be set by drivers.  It is
  * automatically set as dma devices are registered.
  */
 enum dma_transaction_type {
@@ -85,7 +85,7 @@ enum dma_transfer_direction {
  * ----------------------------
  * A chunk is collection of contiguous bytes to be transfered.
  * The gap(in bytes) between two chunks is called inter-chunk-gap(ICG).
- * ICGs may or maynot change between chunks.
+ * ICGs may or mayyest change between chunks.
  * A FRAME is the smallest series of contiguous {chunk,icg} pairs,
  *  that when repeated an integral number of times, specifies the transfer.
  * A transfer template is specification of a Frame, the number of times
@@ -109,14 +109,14 @@ enum dma_transfer_direction {
  *	  size_dst := fn(op, size_src), so doesn't mean much for destination.
  * @icg: Number of bytes to jump after last src/dst address of this
  *	 chunk and before first src/dst address for next chunk.
- *	 Ignored for dst(assumed 0), if dst_inc is true and dst_sgl is false.
- *	 Ignored for src(assumed 0), if src_inc is true and src_sgl is false.
+ *	 Igyesred for dst(assumed 0), if dst_inc is true and dst_sgl is false.
+ *	 Igyesred for src(assumed 0), if src_inc is true and src_sgl is false.
  * @dst_icg: Number of bytes to jump after last dst address of this
  *	 chunk and before the first dst address for next chunk.
- *	 Ignored if dst_inc is true and dst_sgl is false.
+ *	 Igyesred if dst_inc is true and dst_sgl is false.
  * @src_icg: Number of bytes to jump after last src address of this
  *	 chunk and before the first src address for next chunk.
- *	 Ignored if src_inc is true and src_sgl is false.
+ *	 Igyesred if src_inc is true and src_sgl is false.
  */
 struct data_chunk {
 	size_t size;
@@ -134,11 +134,11 @@ struct data_chunk {
  * @src_inc: If the source address increments after reading from it.
  * @dst_inc: If the destination address increments after writing to it.
  * @src_sgl: If the 'icg' of sgl[] applies to Source (scattered read).
- *		Otherwise, source is read contiguously (icg ignored).
- *		Ignored if src_inc is false.
+ *		Otherwise, source is read contiguously (icg igyesred).
+ *		Igyesred if src_inc is false.
  * @dst_sgl: If the 'icg' of sgl[] applies to Destination (scattered write).
- *		Otherwise, destination is filled contiguously (icg ignored).
- *		Ignored if dst_inc is false.
+ *		Otherwise, destination is filled contiguously (icg igyesred).
+ *		Igyesred if dst_inc is false.
  * @numf: Number of frames in this template.
  * @frame_size: Number of chunks in a frame i.e, size of sgl[].
  * @sgl: Array of {chunk,icg} pairs that make up a frame.
@@ -161,8 +161,8 @@ struct dma_interleaved_template {
  *  control completion, and communicate status.
  * @DMA_PREP_INTERRUPT - trigger an interrupt (callback) upon completion of
  *  this transaction
- * @DMA_CTRL_ACK - if clear, the descriptor cannot be reused until the client
- *  acknowledges receipt, i.e. has has a chance to establish any dependency
+ * @DMA_CTRL_ACK - if clear, the descriptor canyest be reused until the client
+ *  ackyeswledges receipt, i.e. has has a chance to establish any dependency
  *  chains
  * @DMA_PREP_PQ_DISABLE_P - prevent generation of P while generating Q
  * @DMA_PREP_PQ_DISABLE_Q - prevent generation of Q while generating P
@@ -174,7 +174,7 @@ struct dma_interleaved_template {
  * @DMA_CTRL_REUSE: client can reuse the descriptor and submit again till
  *  cleared or freed
  * @DMA_PREP_CMD: tell the driver that the data passed to DMA API is command
- *  data and the descriptor should be in different format from normal
+ *  data and the descriptor should be in different format from yesrmal
  *  data descriptors.
  */
 enum dma_ctrl_flags {
@@ -242,7 +242,7 @@ struct dma_router {
  * @completed_cookie: last completed cookie for this channel
  * @chan_id: channel ID for sysfs
  * @dev: class device for sysfs
- * @device_node: used to add this to the device chan list
+ * @device_yesde: used to add this to the device chan list
  * @local: per-cpu pointer to a struct dma_chan_percpu
  * @client_count: how many clients are using this channel
  * @table_count: number of appearances in the mem-to-mem allocation table
@@ -259,7 +259,7 @@ struct dma_chan {
 	int chan_id;
 	struct dma_chan_dev *dev;
 
-	struct list_head device_node;
+	struct list_head device_yesde;
 	struct dma_chan_percpu __percpu *local;
 	int client_count;
 	int table_count;
@@ -272,7 +272,7 @@ struct dma_chan {
 };
 
 /**
- * struct dma_chan_dev - relate sysfs device node to backing channel device
+ * struct dma_chan_dev - relate sysfs device yesde to backing channel device
  * @chan: driver channel device
  * @device: sysfs device
  * @dev_id: parent dma_device dev_id
@@ -304,27 +304,27 @@ enum dma_slave_buswidth {
 /**
  * struct dma_slave_config - dma slave channel runtime config
  * @direction: whether the data shall go in or out on this slave
- * channel, right now. DMA_MEM_TO_DEV and DMA_DEV_TO_MEM are
+ * channel, right yesw. DMA_MEM_TO_DEV and DMA_DEV_TO_MEM are
  * legal values. DEPRECATED, drivers should use the direction argument
  * to the device_prep_slave_sg and device_prep_dma_cyclic functions or
  * the dir field in the dma_interleaved_template structure.
  * @src_addr: this is the physical address where DMA slave data
  * should be read (RX), if the source is memory this argument is
- * ignored.
+ * igyesred.
  * @dst_addr: this is the physical address where DMA slave data
  * should be written (TX), if the source is memory this argument
- * is ignored.
+ * is igyesred.
  * @src_addr_width: this is the width in bytes of the source (RX)
  * register where DMA data shall be read. If the source
- * is memory this may be ignored depending on architecture.
+ * is memory this may be igyesred depending on architecture.
  * Legal values: 1, 2, 3, 4, 8, 16, 32, 64.
  * @dst_addr_width: same as src_addr_width but for destination
  * target (TX) mutatis mutandis.
- * @src_maxburst: the maximum number of words (note: words, as in
- * units of the src_addr_width member, not bytes) that can be sent
+ * @src_maxburst: the maximum number of words (yeste: words, as in
+ * units of the src_addr_width member, yest bytes) that can be sent
  * in one burst to the device. Typically something like half the
  * FIFO depth on I/O peripherals so you don't overflow it. This
- * may or may not be applicable on memory sources.
+ * may or may yest be applicable on memory sources.
  * @dst_maxburst: same as src_maxburst but for destination target
  * mutatis mutandis.
  * @src_port_window_size: The length of the register area in words the data need
@@ -349,7 +349,7 @@ enum dma_slave_buswidth {
  * The rationale for adding configuration information to this struct is as
  * follows: if it is likely that more than one DMA slave controllers in
  * the world will support the configuration option, then make it generic.
- * If not: if it is fixed so that it be sent in static from the platform
+ * If yest: if it is fixed so that it be sent in static from the platform
  * data, then prefer to do that.
  */
 struct dma_slave_config {
@@ -368,15 +368,15 @@ struct dma_slave_config {
 
 /**
  * enum dma_residue_granularity - Granularity of the reported transfer residue
- * @DMA_RESIDUE_GRANULARITY_DESCRIPTOR: Residue reporting is not support. The
+ * @DMA_RESIDUE_GRANULARITY_DESCRIPTOR: Residue reporting is yest support. The
  *  DMA channel is only able to tell whether a descriptor has been completed or
- *  not, which means residue reporting is not supported by this channel. The
+ *  yest, which means residue reporting is yest supported by this channel. The
  *  residue field of the dma_tx_state field will always be 0.
  * @DMA_RESIDUE_GRANULARITY_SEGMENT: Residue is updated after each successfully
  *  completed segment of the transfer (For cyclic transfers this is after each
  *  period). This is typically implemented by having the hardware generate an
  *  interrupt after each transferred segment and then the drivers updates the
- *  outstanding residue by the size of the segment. Another possibility is if
+ *  outstanding residue by the size of the segment. Ayesther possibility is if
  *  the hardware supports scatter-gather and the segment descriptor has a field
  *  which gets set after the segment has been completed. The driver then counts
  *  the number of segments without the flag set to compute the residue.
@@ -399,7 +399,7 @@ enum dma_residue_granularity {
  *	a width of 4 the mask should have BIT(4) set.
  * @dst_addr_widths: bit mask of dst addr widths the channel supports
  * @directions: bit mask of slave directions the channel supports.
- *	Since the enum dma_transfer_direction is not defined as bit flag for
+ *	Since the enum dma_transfer_direction is yest defined as bit flag for
  *	each type, the dma controller should set BIT(<TYPE>) and same
  *	should be checked by controller as well
  * @max_burst: max burst capability per-transfer
@@ -437,7 +437,7 @@ void dma_chan_cleanup(struct kref *kref);
  *
  * When this optional parameter is specified in a call to dma_request_channel a
  * suitable channel is passed to this routine for further dispositioning before
- * being returned.  Where 'suitable' indicates a non-busy channel that
+ * being returned.  Where 'suitable' indicates a yesn-busy channel that
  * satisfies the given capability mask.  It returns 'true' to indicate that the
  * channel is suitable.
  */
@@ -495,7 +495,7 @@ struct dmaengine_unmap_data {
  */
 struct dma_async_tx_descriptor {
 	dma_cookie_t cookie;
-	enum dma_ctrl_flags flags; /* not a 'long' to pack with cookie */
+	enum dma_ctrl_flags flags; /* yest a 'long' to pack with cookie */
 	dma_addr_t phys;
 	struct dma_chan *chan;
 	dma_cookie_t (*tx_submit)(struct dma_async_tx_descriptor *tx);
@@ -663,10 +663,10 @@ struct dma_filter {
  * @chancnt: how many DMA channels are supported
  * @privatecnt: how many DMA channels are requested by dma_request_channel
  * @channels: the list of struct dma_chan
- * @global_node: list_head for global dma_device_list
+ * @global_yesde: list_head for global dma_device_list
  * @filter: information for device/slave to filter function/param mapping
  * @cap_mask: one or more dma_capability flags
- * @max_xor: maximum number of xor sources, 0 if no capability
+ * @max_xor: maximum number of xor sources, 0 if yes capability
  * @max_pq: maximum number of PQ sources and PQ-continue capability
  * @copy_align: alignment shift for memcpy operations
  * @xor_align: alignment shift for xor operations
@@ -679,7 +679,7 @@ struct dma_filter {
  *	a width of 4 the mask should have BIT(4) set.
  * @dst_addr_widths: bit mask of dst addr widths the device supports
  * @directions: bit mask of slave directions the device supports.
- *	Since the enum dma_transfer_direction is not defined as bit flag for
+ *	Since the enum dma_transfer_direction is yest defined as bit flag for
  *	each type, the dma controller should set BIT(<TYPE>) and same
  *	should be checked by controller as well
  * @max_burst: max burst capability per-transfer
@@ -724,7 +724,7 @@ struct dma_device {
 	unsigned int chancnt;
 	unsigned int privatecnt;
 	struct list_head channels;
-	struct list_head global_node;
+	struct list_head global_yesde;
 	struct dma_filter filter;
 	dma_cap_mask_t  cap_mask;
 	unsigned short max_xor;
@@ -922,7 +922,7 @@ static inline int dmaengine_terminate_all(struct dma_chan *chan)
  * @chan: The channel for which to terminate the transfers
  *
  * Calling this function will terminate all active and pending descriptors
- * that have previously been submitted to the channel. It is not guaranteed
+ * that have previously been submitted to the channel. It is yest guaranteed
  * though that the transfer for the active descriptor has stopped when the
  * function returns. Furthermore it is possible the complete callback of a
  * submitted transfer is still running when this function returns.
@@ -935,7 +935,7 @@ static inline int dmaengine_terminate_all(struct dma_chan *chan)
  * This function can be called from atomic context as well as from within a
  * complete callback of a descriptor submitted on the same channel.
  *
- * If none of the two conditions above apply consider using
+ * If yesne of the two conditions above apply consider using
  * dmaengine_terminate_sync() instead.
  */
 static inline int dmaengine_terminate_async(struct dma_chan *chan)
@@ -960,7 +960,7 @@ static inline int dmaengine_terminate_async(struct dma_chan *chan)
  * The behavior of this function is undefined if dma_async_issue_pending() has
  * been called between dmaengine_terminate_async() and this function.
  *
- * This function must only be called from non-atomic context and must not be
+ * This function must only be called from yesn-atomic context and must yest be
  * called from within a complete callback of a descriptor submitted on the same
  * channel.
  */
@@ -982,7 +982,7 @@ static inline void dmaengine_synchronize(struct dma_chan *chan)
  * stopped and that all complete callbacks have finished running when the
  * function returns.
  *
- * This function must only be called from non-atomic context and must not be
+ * This function must only be called from yesn-atomic context and must yest be
  * called from within a complete callback of a descriptor submitted on the same
  * channel.
  */
@@ -1097,7 +1097,7 @@ static inline unsigned short dma_dev_to_maxpq(struct dma_device *dma)
  * @dma - dma device with PQ capability
  * @flags - to check if DMA_PREP_CONTINUE and DMA_PREP_PQ_DISABLE_P are set
  *
- * When an engine does not support native continuation we need 3 extra
+ * When an engine does yest support native continuation we need 3 extra
  * source slots to reuse P and Q with the following coefficients:
  * 1/ {00} * P : remove P from Q', but use it as a source for P'
  * 2/ {01} * Q : use Q to continue Q' calculation
@@ -1267,7 +1267,7 @@ static inline enum dma_status dma_async_is_tx_complete(struct dma_chan *chan,
 /**
  * dma_async_is_complete - test a cookie against chan state
  * @cookie: transaction identifier to test status of
- * @last_complete: last know completed transaction
+ * @last_complete: last kyesw completed transaction
  * @last_used: last cookie value handed out
  *
  * dma_async_is_complete() is used in dma_async_is_tx_complete()
@@ -1303,7 +1303,7 @@ enum dma_status dma_wait_for_async_tx(struct dma_async_tx_descriptor *tx);
 void dma_issue_pending_all(void);
 struct dma_chan *__dma_request_channel(const dma_cap_mask_t *mask,
 				       dma_filter_fn fn, void *fn_param,
-				       struct device_node *np);
+				       struct device_yesde *np);
 struct dma_chan *dma_request_slave_channel(struct device *dev, const char *name);
 
 struct dma_chan *dma_request_chan(struct device *dev, const char *name);
@@ -1330,7 +1330,7 @@ static inline void dma_issue_pending_all(void)
 static inline struct dma_chan *__dma_request_channel(const dma_cap_mask_t *mask,
 						     dma_filter_fn fn,
 						     void *fn_param,
-						     struct device_node *np)
+						     struct device_yesde *np)
 {
 	return NULL;
 }

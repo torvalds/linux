@@ -6,16 +6,16 @@
 
 /* For debugging crashes, userspace can:
  *
- *   tail -f /sys/kernel/debug/dri/<minor>/rd > logfile.rd
+ *   tail -f /sys/kernel/debug/dri/<miyesr>/rd > logfile.rd
  *
- * to log the cmdstream in a format that is understood by freedreno/cffdump
+ * to log the cmdstream in a format that is understood by freedreyes/cffdump
  * utility.  By comparing the last successfully completed fence #, to the
  * cmdstream for the next fence, you can narrow down which process and submit
  * caused the gpu crash/lockup.
  *
  * Additionally:
  *
- *   tail -f /sys/kernel/debug/dri/<minor>/hangrd > logfile.rd
+ *   tail -f /sys/kernel/debug/dri/<miyesr>/hangrd > logfile.rd
  *
  * will capture just the cmdstream from submits which triggered a GPU hang.
  *
@@ -24,9 +24,9 @@
  * do anything if userspace doesn't have the debugfs file open.
  *
  * The module-param "rd_full", which defaults to false, enables snapshotting
- * all (non-written) buffers in the submit, rather than just cmdstream bo's.
+ * all (yesn-written) buffers in the submit, rather than just cmdstream bo's.
  * This is useful to capture the contents of (for example) vbo's or textures,
- * or shader programs (if not emitted inline in cmdstream).
+ * or shader programs (if yest emitted inline in cmdstream).
  */
 
 #ifdef CONFIG_DEBUG_FS
@@ -111,8 +111,8 @@ static void rd_write(struct msm_rd_state *rd, const void *buf, int sz)
 		if (!rd->open)
 			return;
 
-		/* Note that smp_load_acquire() is not strictly required
-		 * as CIRC_SPACE_TO_END() does not access the tail more
+		/* Note that smp_load_acquire() is yest strictly required
+		 * as CIRC_SPACE_TO_END() does yest access the tail more
 		 * than once.
 		 */
 		n = min(sz, circ_space_to_end(&rd->fifo));
@@ -149,8 +149,8 @@ static ssize_t rd_read(struct file *file, char __user *buf,
 	if (ret)
 		goto out;
 
-	/* Note that smp_load_acquire() is not strictly required
-	 * as CIRC_CNT_TO_END() does not access the head more than
+	/* Note that smp_load_acquire() is yest strictly required
+	 * as CIRC_CNT_TO_END() does yest access the head more than
 	 * once.
 	 */
 	n = min_t(int, sz, circ_count_to_end(&rd->fifo));
@@ -171,9 +171,9 @@ out:
 	return n;
 }
 
-static int rd_open(struct inode *inode, struct file *file)
+static int rd_open(struct iyesde *iyesde, struct file *file)
 {
-	struct msm_rd_state *rd = inode->i_private;
+	struct msm_rd_state *rd = iyesde->i_private;
 	struct drm_device *dev = rd->dev;
 	struct msm_drm_private *priv = dev->dev_private;
 	struct msm_gpu *gpu = priv->gpu;
@@ -191,7 +191,7 @@ static int rd_open(struct inode *inode, struct file *file)
 	file->private_data = rd;
 	rd->open = true;
 
-	/* the parsing tools need to know gpu-id to know which
+	/* the parsing tools need to kyesw gpu-id to kyesw which
 	 * register database to load.
 	 */
 	gpu->funcs->get_param(gpu, MSM_PARAM_GPU_ID, &val);
@@ -204,9 +204,9 @@ out:
 	return ret;
 }
 
-static int rd_release(struct inode *inode, struct file *file)
+static int rd_release(struct iyesde *iyesde, struct file *file)
 {
-	struct msm_rd_state *rd = inode->i_private;
+	struct msm_rd_state *rd = iyesde->i_private;
 
 	rd->open = false;
 	wake_up_all(&rd->fifo_event);
@@ -219,7 +219,7 @@ static const struct file_operations rd_debugfs_fops = {
 	.owner = THIS_MODULE,
 	.open = rd_open,
 	.read = rd_read,
-	.llseek = no_llseek,
+	.llseek = yes_llseek,
 	.release = rd_release,
 };
 
@@ -233,7 +233,7 @@ static void rd_cleanup(struct msm_rd_state *rd)
 	kfree(rd);
 }
 
-static struct msm_rd_state *rd_init(struct drm_minor *minor, const char *name)
+static struct msm_rd_state *rd_init(struct drm_miyesr *miyesr, const char *name)
 {
 	struct msm_rd_state *rd;
 
@@ -241,30 +241,30 @@ static struct msm_rd_state *rd_init(struct drm_minor *minor, const char *name)
 	if (!rd)
 		return ERR_PTR(-ENOMEM);
 
-	rd->dev = minor->dev;
+	rd->dev = miyesr->dev;
 	rd->fifo.buf = rd->buf;
 
 	mutex_init(&rd->read_lock);
 
 	init_waitqueue_head(&rd->fifo_event);
 
-	debugfs_create_file(name, S_IFREG | S_IRUGO, minor->debugfs_root, rd,
+	debugfs_create_file(name, S_IFREG | S_IRUGO, miyesr->debugfs_root, rd,
 			    &rd_debugfs_fops);
 
 	return rd;
 }
 
-int msm_rd_debugfs_init(struct drm_minor *minor)
+int msm_rd_debugfs_init(struct drm_miyesr *miyesr)
 {
-	struct msm_drm_private *priv = minor->dev->dev_private;
+	struct msm_drm_private *priv = miyesr->dev->dev_private;
 	struct msm_rd_state *rd;
 	int ret;
 
-	/* only create on first minor: */
+	/* only create on first miyesr: */
 	if (priv->rd)
 		return 0;
 
-	rd = rd_init(minor, "rd");
+	rd = rd_init(miyesr, "rd");
 	if (IS_ERR(rd)) {
 		ret = PTR_ERR(rd);
 		goto fail;
@@ -272,7 +272,7 @@ int msm_rd_debugfs_init(struct drm_minor *minor)
 
 	priv->rd = rd;
 
-	rd = rd_init(minor, "hangrd");
+	rd = rd_init(miyesr, "hangrd");
 	if (IS_ERR(rd)) {
 		ret = PTR_ERR(rd);
 		goto fail;
@@ -374,10 +374,10 @@ void msm_rd_dump_submit(struct msm_rd_state *rd, struct msm_gem_submit *submit,
 	if (task) {
 		n = scnprintf(msg, sizeof(msg), "%.*s/%d: fence=%u",
 				TASK_COMM_LEN, task->comm,
-				pid_nr(submit->pid), submit->seqno);
+				pid_nr(submit->pid), submit->seqyes);
 	} else {
 		n = scnprintf(msg, sizeof(msg), "???/%d: fence=%u",
-				pid_nr(submit->pid), submit->seqno);
+				pid_nr(submit->pid), submit->seqyes);
 	}
 	rcu_read_unlock();
 
@@ -402,9 +402,9 @@ void msm_rd_dump_submit(struct msm_rd_state *rd, struct msm_gem_submit *submit,
 
 		switch (submit->cmd[i].type) {
 		case MSM_SUBMIT_CMD_IB_TARGET_BUF:
-			/* ignore IB-targets, we've logged the buffer, the
+			/* igyesre IB-targets, we've logged the buffer, the
 			 * parser tool will follow the IB based on the logged
-			 * buffer/gpuaddr, so nothing more to do.
+			 * buffer/gpuaddr, so yesthing more to do.
 			 */
 			break;
 		case MSM_SUBMIT_CMD_CTX_RESTORE_BUF:

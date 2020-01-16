@@ -18,12 +18,12 @@
 #include "ext4_jbd2.h"
 
 typedef enum {
-	attr_noop,
+	attr_yesop,
 	attr_delayed_allocation_blocks,
 	attr_session_write_kbytes,
 	attr_lifetime_write_kbytes,
 	attr_reserved_clusters,
-	attr_inode_readahead,
+	attr_iyesde_readahead,
 	attr_trigger_test_error,
 	attr_first_error_time,
 	attr_last_error_time,
@@ -77,7 +77,7 @@ static ssize_t lifetime_write_kbytes_show(struct ext4_sb_info *sbi, char *buf)
 			  EXT4_SB(sb)->s_sectors_written_start) >> 1)));
 }
 
-static ssize_t inode_readahead_blks_store(struct ext4_sb_info *sbi,
+static ssize_t iyesde_readahead_blks_store(struct ext4_sb_info *sbi,
 					  const char *buf, size_t count)
 {
 	unsigned long t;
@@ -90,7 +90,7 @@ static ssize_t inode_readahead_blks_store(struct ext4_sb_info *sbi,
 	if (t && (!is_power_of_2(t) || t > 0x40000000))
 		return -EINVAL;
 
-	sbi->s_inode_readahead_blks = t;
+	sbi->s_iyesde_readahead_blks = t;
 	return count;
 }
 
@@ -129,7 +129,7 @@ static ssize_t trigger_test_error(struct ext4_sb_info *sbi,
 static ssize_t journal_task_show(struct ext4_sb_info *sbi, char *buf)
 {
 	if (!sbi->s_journal)
-		return snprintf(buf, PAGE_SIZE, "<none>\n");
+		return snprintf(buf, PAGE_SIZE, "<yesne>\n");
 	return snprintf(buf, PAGE_SIZE, "%d\n",
 			task_pid_vnr(sbi->s_journal->j_task));
 }
@@ -177,9 +177,9 @@ EXT4_ATTR_FUNC(session_write_kbytes, 0444);
 EXT4_ATTR_FUNC(lifetime_write_kbytes, 0444);
 EXT4_ATTR_FUNC(reserved_clusters, 0644);
 
-EXT4_ATTR_OFFSET(inode_readahead_blks, 0644, inode_readahead,
-		 ext4_sb_info, s_inode_readahead_blks);
-EXT4_RW_ATTR_SBI_UI(inode_goal, s_inode_goal);
+EXT4_ATTR_OFFSET(iyesde_readahead_blks, 0644, iyesde_readahead,
+		 ext4_sb_info, s_iyesde_readahead_blks);
+EXT4_RW_ATTR_SBI_UI(iyesde_goal, s_iyesde_goal);
 EXT4_RW_ATTR_SBI_UI(mb_stats, s_mb_stats);
 EXT4_RW_ATTR_SBI_UI(mb_max_to_scan, s_mb_max_to_scan);
 EXT4_RW_ATTR_SBI_UI(mb_min_to_scan, s_mb_min_to_scan);
@@ -207,8 +207,8 @@ static struct attribute *ext4_attrs[] = {
 	ATTR_LIST(session_write_kbytes),
 	ATTR_LIST(lifetime_write_kbytes),
 	ATTR_LIST(reserved_clusters),
-	ATTR_LIST(inode_readahead_blks),
-	ATTR_LIST(inode_goal),
+	ATTR_LIST(iyesde_readahead_blks),
+	ATTR_LIST(iyesde_goal),
 	ATTR_LIST(mb_stats),
 	ATTR_LIST(mb_max_to_scan),
 	ATTR_LIST(mb_min_to_scan),
@@ -308,7 +308,7 @@ static ssize_t ext4_attr_show(struct kobject *kobj,
 		return snprintf(buf, PAGE_SIZE, "%llu\n",
 				(unsigned long long)
 				atomic64_read(&sbi->s_resv_clusters));
-	case attr_inode_readahead:
+	case attr_iyesde_readahead:
 	case attr_pointer_ui:
 		if (!ptr)
 			return 0;
@@ -361,8 +361,8 @@ static ssize_t ext4_attr_store(struct kobject *kobj,
 		else
 			*((unsigned int *) ptr) = t;
 		return len;
-	case attr_inode_readahead:
-		return inode_readahead_blks_store(sbi, buf, len);
+	case attr_iyesde_readahead:
+		return iyesde_readahead_blks_store(sbi, buf, len);
 	case attr_trigger_test_error:
 		return trigger_test_error(sbi, buf, len);
 	}

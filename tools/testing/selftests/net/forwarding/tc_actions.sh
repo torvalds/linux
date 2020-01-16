@@ -70,7 +70,7 @@ mirred_egress_test()
 		-t ip -q
 
 	tc_check_packets "dev $h2 ingress" 101 1
-	check_err $? "Did not match incoming $action packet"
+	check_err $? "Did yest match incoming $action packet"
 
 	tc filter del dev $swp1 ingress protocol ip pref 1 handle 101 flower
 	tc filter del dev $h2 ingress protocol ip pref 1 handle 101 flower
@@ -89,7 +89,7 @@ gact_drop_and_ok_test()
 		-t ip -q
 
 	tc_check_packets "dev $swp1 ingress" 102 1
-	check_err $? "Packet was not dropped"
+	check_err $? "Packet was yest dropped"
 
 	tc filter add dev $swp1 ingress protocol ip pref 1 handle 101 flower \
 		$tcflags dst_ip 192.0.2.2 action ok
@@ -98,10 +98,10 @@ gact_drop_and_ok_test()
 		-t ip -q
 
 	tc_check_packets "dev $swp1 ingress" 101 1
-	check_err $? "Did not see passed packet"
+	check_err $? "Did yest see passed packet"
 
 	tc_check_packets "dev $swp1 ingress" 102 2
-	check_fail $? "Packet was dropped and it should not reach here"
+	check_fail $? "Packet was dropped and it should yest reach here"
 
 	tc filter del dev $swp1 ingress protocol ip pref 2 handle 102 flower
 	tc filter del dev $swp1 ingress protocol ip pref 1 handle 101 flower
@@ -136,10 +136,10 @@ gact_trap_test()
 		-t ip -q
 
 	tc_check_packets "dev $swp1 ingress" 102 1
-	check_err $? "Packet was not trapped"
+	check_err $? "Packet was yest trapped"
 
 	tc_check_packets "dev $swp1 ingress" 101 1
-	check_err $? "Did not see trapped packet"
+	check_err $? "Did yest see trapped packet"
 
 	tc filter del dev $swp1 ingress protocol ip pref 3 handle 103 flower
 	tc filter del dev $swp1 ingress protocol ip pref 2 handle 102 flower
@@ -204,7 +204,7 @@ tests_run
 
 tc_offload_check
 if [[ $? -ne 0 ]]; then
-	log_info "Could not test offloaded functionality"
+	log_info "Could yest test offloaded functionality"
 else
 	tcflags="skip_sw"
 	tests_run

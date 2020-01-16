@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2012  Smith Micro Software, Inc.
- * Copyright (c) 2012  Bjørn Mork <bjorn@mork.no>
+ * Copyright (c) 2012  Bjørn Mork <bjorn@mork.yes>
  *
  * This driver is based on and reuse most of cdc_ncm, which is
  * Copyright (C) ST-Ericsson 2010-2012
@@ -22,7 +22,7 @@
 #include <net/addrconf.h>
 #include <net/ipv6_stubs.h>
 
-/* alternative VLAN for IP session 0 if not untagged */
+/* alternative VLAN for IP session 0 if yest untagged */
 #define MBIM_IPS0_VID	4094
 
 /* driver specific data - must match cdc_ncm usage */
@@ -179,10 +179,10 @@ static int cdc_mbim_bind(struct usbnet *dev, struct usb_interface *intf)
 	dev->status = NULL;
 	info->subdriver = subdriver;
 
-	/* MBIM cannot do ARP */
+	/* MBIM canyest do ARP */
 	dev->net->flags |= IFF_NOARP;
 
-	/* no need to put the VLAN tci in the packet headers */
+	/* yes need to put the VLAN tci in the packet headers */
 	dev->net->features |= NETIF_F_HW_VLAN_CTAG_TX | NETIF_F_HW_VLAN_CTAG_FILTER;
 
 	/* monitor VLAN additions and removals */
@@ -260,7 +260,7 @@ static struct sk_buff *cdc_mbim_tx_fixup(struct usbnet *dev, struct sk_buff *skb
 		}
 
 		/* mapping VLANs to MBIM sessions:
-		 *   no tag     => IPS session <0> if !FLAG_IPS0_VLAN
+		 *   yes tag     => IPS session <0> if !FLAG_IPS0_VLAN
 		 *   1 - 255    => IPS session <vlanid>
 		 *   256 - 511  => DSS session <vlanid - 256>
 		 *   512 - 4093 => unsupported, drop
@@ -300,8 +300,8 @@ error:
 	return NULL;
 }
 
-/* Some devices are known to send Neigbor Solicitation messages and
- * require Neigbor Advertisement replies.  The IPv6 core will not
+/* Some devices are kyeswn to send Neigbor Solicitation messages and
+ * require Neigbor Advertisement replies.  The IPv6 core will yest
  * respond since IFF_NOARP is set, so we must handle them ourselves.
  */
 static void do_neigh_solicit(struct usbnet *dev, u8 *buf, u16 tci)
@@ -313,7 +313,7 @@ static void do_neigh_solicit(struct usbnet *dev, u8 *buf, u16 tci)
 	bool is_router;
 
 	/* we'll only respond to requests from unicast addresses to
-	 * our solicited node addresses.
+	 * our solicited yesde addresses.
 	 */
 	if (!ipv6_addr_is_solict_mult(&iph->daddr) ||
 	    !(ipv6_addr_type(&iph->saddr) & IPV6_ADDR_UNICAST))
@@ -461,7 +461,7 @@ next_ndp:
 
 		/*
 		 * CDC NCM ch. 3.7
-		 * All entries after first NULL entry are to be ignored
+		 * All entries after first NULL entry are to be igyesred
 		 */
 		if ((offset == 0) || (len == 0)) {
 			if (!x)
@@ -472,7 +472,7 @@ next_ndp:
 		/* sanity checking */
 		if (((offset + len) > skb_in->len) || (len > ctx->rx_max)) {
 			netif_dbg(dev, rx_err, dev->net,
-				  "invalid frame detected (ignored) offset[%u]=%u, length=%u, skb=%p\n",
+				  "invalid frame detected (igyesred) offset[%u]=%u, length=%u, skb=%p\n",
 				  x, offset, len, skb_in);
 			if (!x)
 				goto err_ndp;
@@ -557,7 +557,7 @@ static const struct driver_info cdc_mbim_info = {
 	.tx_fixup = cdc_mbim_tx_fixup,
 };
 
-/* MBIM and NCM devices should not need a ZLP after NTBs with
+/* MBIM and NCM devices should yest need a ZLP after NTBs with
  * dwNtbOutMaxSize length. Nevertheless, a number of devices from
  * different vendor IDs will fail unless we send ZLPs, forcing us
  * to make this the default.
@@ -565,9 +565,9 @@ static const struct driver_info cdc_mbim_info = {
  * This default may cause a performance penalty for spec conforming
  * devices wanting to take advantage of optimizations possible without
  * ZLPs.  A whitelist is added in an attempt to avoid this for devices
- * known to conform to the MBIM specification.
+ * kyeswn to conform to the MBIM specification.
  *
- * All known devices supporting NCM compatibility mode are also
+ * All kyeswn devices supporting NCM compatibility mode are also
  * conforming to the NCM and MBIM specifications. For this reason, the
  * NCM subclass entry is also in the ZLP whitelist.
  */
@@ -587,7 +587,7 @@ static const struct driver_info cdc_mbim_info_zlp = {
  * behaviour.
  *
  * Note: The current implementation of this feature restricts each NTB
- * to a single NDP, implying that multiplexed sessions cannot share an
+ * to a single NDP, implying that multiplexed sessions canyest share an
  * NTB. This might affect performace for multiplexed sessions.
  */
 static const struct driver_info cdc_mbim_info_ndp_to_end = {
@@ -601,7 +601,7 @@ static const struct driver_info cdc_mbim_info_ndp_to_end = {
 	.data = CDC_NCM_FLAG_NDP_TO_END,
 };
 
-/* Some modems (e.g. Telit LE922A6) do not work properly with altsetting
+/* Some modems (e.g. Telit LE922A6) do yest work properly with altsetting
  * toggle done in cdc_ncm_bind_common. CDC_MBIM_FLAG_AVOID_ALTSETTING_TOGGLE
  * flag is used to avoid this procedure.
  */
@@ -633,7 +633,7 @@ static const struct usb_device_id mbim_devs[] = {
 	},
 
 	/* Some Huawei devices, ME906s-158 (12d1:15c1) and E3372
-	 * (12d1:157d), are known to fail unless the NDP is placed
+	 * (12d1:157d), are kyeswn to fail unless the NDP is placed
 	 * after the IP packets.  Applying the quirk to all Huawei
 	 * devices is broader than necessary, but harmless.
 	 */
@@ -676,6 +676,6 @@ static struct usb_driver cdc_mbim_driver = {
 module_usb_driver(cdc_mbim_driver);
 
 MODULE_AUTHOR("Greg Suarez <gsuarez@smithmicro.com>");
-MODULE_AUTHOR("Bjørn Mork <bjorn@mork.no>");
+MODULE_AUTHOR("Bjørn Mork <bjorn@mork.yes>");
 MODULE_DESCRIPTION("USB CDC MBIM host driver");
 MODULE_LICENSE("GPL");

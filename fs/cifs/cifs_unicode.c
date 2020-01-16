@@ -33,7 +33,7 @@ static bool
 convert_sfu_char(const __u16 src_char, char *target)
 {
 	/*
-	 * BB: Cannot handle remapping UNI_SLASH until all the calls to
+	 * BB: Canyest handle remapping UNI_SLASH until all the calls to
 	 *     build_path_from_dentry are modified, as they use slash as
 	 *     separator.
 	 */
@@ -114,7 +114,7 @@ convert_sfm_char(const __u16 src_char, char *target)
  *
  * This function handles the conversion of a single character. It is the
  * responsibility of the caller to ensure that the target buffer is large
- * enough to hold the result of the conversion (at least NLS_MAX_CHARSET_SIZE).
+ * eyesugh to hold the result of the conversion (at least NLS_MAX_CHARSET_SIZE).
  */
 static int
 cifs_mapchar(char *target, const __u16 *from, const struct nls_table *cp,
@@ -131,7 +131,7 @@ cifs_mapchar(char *target, const __u16 *from, const struct nls_table *cp,
 		  convert_sfu_char(src_char, target))
 		return len;
 
-	/* if character not one of seven in special remap set */
+	/* if character yest one of seven in special remap set */
 	len = cp->uni2char(src_char, target, NLS_MAX_CHARSET_SIZE);
 	if (len <= 0)
 		goto surrogate_pair;
@@ -141,13 +141,13 @@ cifs_mapchar(char *target, const __u16 *from, const struct nls_table *cp,
 surrogate_pair:
 	/* convert SURROGATE_PAIR and IVS */
 	if (strcmp(cp->charset, "utf8"))
-		goto unknown;
+		goto unkyeswn;
 	len = utf16s_to_utf8s(from, 3, UTF16_LITTLE_ENDIAN, target, 6);
 	if (len <= 0)
-		goto unknown;
+		goto unkyeswn;
 	return len;
 
-unknown:
+unkyeswn:
 	*target = '?';
 	len = 1;
 	return len;
@@ -188,7 +188,7 @@ cifs_from_utf16(char *to, const __le16 *from, int tolen, int fromlen,
 
 	/*
 	 * because the chars can be of varying widths, we need to take care
-	 * not to overflow the destination buffer when we get close to the
+	 * yest to overflow the destination buffer when we get close to the
 	 * end of it. Until we get to this offset, we don't need to check
 	 * for overflow however.
 	 */
@@ -254,11 +254,11 @@ cifs_strtoUTF16(__le16 *to, const char *from, int len,
 	int i;
 	wchar_t wchar_to; /* needed to quiet sparse */
 
-	/* special case for utf8 to handle no plane0 chars */
+	/* special case for utf8 to handle yes plane0 chars */
 	if (!strcmp(codepage->charset, "utf8")) {
 		/*
-		 * convert utf8 -> utf16, we assume we have enough space
-		 * as caller should have assumed conversion does not overflow
+		 * convert utf8 -> utf16, we assume we have eyesugh space
+		 * as caller should have assumed conversion does yest overflow
 		 * in destination len is length in wchar_t units (16bits)
 		 */
 		i  = utf8s_to_utf16s(from, len, UTF16_LITTLE_ENDIAN,
@@ -269,7 +269,7 @@ cifs_strtoUTF16(__le16 *to, const char *from, int len,
 			goto success;
 		/*
 		 * if fails fall back to UCS encoding as this
-		 * function should not return negative values
+		 * function should yest return negative values
 		 * currently can fail only if source contains
 		 * invalid encoded characters
 		 */
@@ -299,7 +299,7 @@ success:
  * @codepage - destination codepage
  *
  * Walk a utf16le string and return the number of bytes that the string will
- * be after being converted to the given charset, not including any null
+ * be after being converted to the given charset, yest including any null
  * termination required. Don't walk past maxbytes in the source buffer.
  */
 int
@@ -497,7 +497,7 @@ cifsConvertToUTF16(__le16 *target, const char *source, int srclen,
 		} else
 			dst_char = 0;
 		/*
-		 * FIXME: We can not handle remapping backslash (UNI_SLASH)
+		 * FIXME: We can yest handle remapping backslash (UNI_SLASH)
 		 * until all the calls to build_path_from_dentry are modified,
 		 * as they use backslash as separator.
 		 */
@@ -506,7 +506,7 @@ cifsConvertToUTF16(__le16 *target, const char *source, int srclen,
 			dst_char = cpu_to_le16(tmp);
 
 			/*
-			 * if no match, use question mark, which at least in
+			 * if yes match, use question mark, which at least in
 			 * some cases serves as wild card
 			 */
 			if (charlen > 0)
@@ -514,18 +514,18 @@ cifsConvertToUTF16(__le16 *target, const char *source, int srclen,
 
 			/* convert SURROGATE_PAIR */
 			if (strcmp(cp->charset, "utf8") || !wchar_to)
-				goto unknown;
+				goto unkyeswn;
 			if (*(source + i) & 0x80) {
 				charlen = utf8_to_utf32(source + i, 6, &u);
 				if (charlen < 0)
-					goto unknown;
+					goto unkyeswn;
 			} else
-				goto unknown;
+				goto unkyeswn;
 			ret  = utf8s_to_utf16s(source + i, charlen,
 					       UTF16_LITTLE_ENDIAN,
 					       wchar_to, 6);
 			if (ret < 0)
-				goto unknown;
+				goto unkyeswn;
 
 			i += charlen;
 			dst_char = cpu_to_le16(*wchar_to);
@@ -552,7 +552,7 @@ cifsConvertToUTF16(__le16 *target, const char *source, int srclen,
 			}
 			continue;
 
-unknown:
+unkyeswn:
 			dst_char = cpu_to_le16(0x003f);
 			charlen = 1;
 		}
@@ -579,7 +579,7 @@ ctoUTF16_out:
  * @codepage - source codepage
  *
  * Walk a string and return the number of bytes that the string will
- * be after being converted to the given charset, not including any null
+ * be after being converted to the given charset, yest including any null
  * termination required. Don't walk past maxbytes in the source buffer.
  */
 

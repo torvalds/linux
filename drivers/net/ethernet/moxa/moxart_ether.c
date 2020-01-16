@@ -5,7 +5,7 @@
  * Jonas Jensen <jonas.jensen@gmail.com>
  *
  * Based on code from
- * Moxa Technology Co., Ltd. <www.moxa.com>
+ * Moxa Techyeslogy Co., Ltd. <www.moxa.com>
  *
  * This file is licensed under the terms of the GNU General Public
  * License version 2.  This program is licensed "as is" without any
@@ -349,7 +349,7 @@ static int moxart_mac_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 		netif_stop_queue(ndev);
 
 	if (moxart_desc_read(desc + TX_REG_OFFSET_DESC0) & TX_DESC0_DMA_OWN) {
-		net_dbg_ratelimited("no TX space for packet\n");
+		net_dbg_ratelimited("yes TX space for packet\n");
 		ndev->stats.tx_dropped++;
 		goto out_unlock;
 	}
@@ -458,7 +458,7 @@ static const struct net_device_ops moxart_netdev_ops = {
 static int moxart_mac_probe(struct platform_device *pdev)
 {
 	struct device *p_dev = &pdev->dev;
-	struct device_node *node = p_dev->of_node;
+	struct device_yesde *yesde = p_dev->of_yesde;
 	struct net_device *ndev;
 	struct moxart_mac_priv_t *priv;
 	struct resource *res;
@@ -469,7 +469,7 @@ static int moxart_mac_probe(struct platform_device *pdev)
 	if (!ndev)
 		return -ENOMEM;
 
-	irq = irq_of_parse_and_map(node, 0);
+	irq = irq_of_parse_and_map(yesde, 0);
 	if (irq <= 0) {
 		netdev_err(ndev, "irq_of_parse_and_map failed\n");
 		ret = -EINVAL;

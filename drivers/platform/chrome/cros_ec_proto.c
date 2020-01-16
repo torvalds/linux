@@ -65,10 +65,10 @@ static int send_command(struct cros_ec_device *ec_dev,
 		/*
 		 * This error can happen if a communication error happened and
 		 * the EC is trying to use protocol v2, on an underlying
-		 * communication mechanism that does not support v2.
+		 * communication mechanism that does yest support v2.
 		 */
 		dev_err_once(ec_dev->dev,
-			     "missing EC transfer API, cannot send command\n");
+			     "missing EC transfer API, canyest send command\n");
 		return -EIO;
 	}
 
@@ -89,7 +89,7 @@ static int send_command(struct cros_ec_device *ec_dev,
 		status_msg->outsize = 0;
 
 		/*
-		 * Query the EC's status until it's no longer busy or
+		 * Query the EC's status until it's yes longer busy or
 		 * we encounter an error.
 		 */
 		for (i = 0; i < EC_COMMAND_RETRIES; i++) {
@@ -124,7 +124,7 @@ static int send_command(struct cros_ec_device *ec_dev,
  *
  * This is intended to be used by all ChromeOS EC drivers, but at present
  * only SPI uses it. Once LPC uses the same protocol it can start using it.
- * I2C could use it now, with a refactor of the existing code.
+ * I2C could use it yesw, with a refactor of the existing code.
  *
  * Return: 0 on success or negative error code.
  */
@@ -190,8 +190,8 @@ EXPORT_SYMBOL(cros_ec_check_result);
  * @mask: result when function returns >=0.
  *
  * LOCKING:
- * the caller has ec_dev->lock mutex, or the caller knows there is
- * no other command in progress.
+ * the caller has ec_dev->lock mutex, or the caller kyesws there is
+ * yes other command in progress.
  */
 static int cros_ec_get_host_event_wake_mask(struct cros_ec_device *ec_dev,
 					    struct cros_ec_command *msg,
@@ -312,8 +312,8 @@ static int cros_ec_host_command_proto_query_v2(struct cros_ec_device *ec_dev)
  * @return 0 on success, error code otherwise
  *
  * LOCKING:
- * the caller has ec_dev->lock mutex or the caller knows there is
- * no other command in progress.
+ * the caller has ec_dev->lock mutex or the caller kyesws there is
+ * yes other command in progress.
  */
 static int cros_ec_get_host_command_version_mask(struct cros_ec_device *ec_dev,
 	u16 cmd, u32 *mask)
@@ -398,7 +398,7 @@ int cros_ec_query_all(struct cros_ec_device *ec_dev)
 		ret = cros_ec_host_command_proto_query(ec_dev, 1, proto_msg);
 
 		if (ret) {
-			dev_dbg(ec_dev->dev, "no PD chip found: %d\n", ret);
+			dev_dbg(ec_dev->dev, "yes PD chip found: %d\n", ret);
 			ec_dev->max_passthru = 0;
 		} else {
 			dev_dbg(ec_dev->dev, "found PD chip\n");
@@ -504,7 +504,7 @@ int cros_ec_cmd_xfer(struct cros_ec_device *ec_dev,
 		ret = cros_ec_query_all(ec_dev);
 		if (ret) {
 			dev_err(ec_dev->dev,
-				"EC version unknown and query failed; aborting command\n");
+				"EC version unkyeswn and query failed; aborting command\n");
 			mutex_unlock(&ec_dev->lock);
 			return ret;
 		}
@@ -548,7 +548,7 @@ EXPORT_SYMBOL(cros_ec_cmd_xfer);
  *
  * This function is identical to cros_ec_cmd_xfer, except it returns success
  * status only if both the command was transmitted successfully and the EC
- * replied with success status. It's not necessary to check msg->result when
+ * replied with success status. It's yest necessary to check msg->result when
  * using this function.
  *
  * Return: The number of bytes transferred on success or negative error code.
@@ -638,17 +638,17 @@ static int get_keyboard_state_event(struct cros_ec_device *ec_dev)
  * cros_ec_get_next_event() - Fetch next event from the ChromeOS EC.
  * @ec_dev: Device to fetch event from.
  * @wake_event: Pointer to a bool set to true upon return if the event might be
- *              treated as a wake event. Ignored if null.
+ *              treated as a wake event. Igyesred if null.
  * @has_more_events: Pointer to bool set to true if more than one event is
  *              pending.
  *              Some EC will set this flag to indicate cros_ec_get_next_event()
  *              can be called multiple times in a row.
  *              It is an optimization to prevent issuing a EC command for
- *              nothing or wait for another interrupt from the EC to process
+ *              yesthing or wait for ayesther interrupt from the EC to process
  *              the next message.
- *              Ignored if null.
+ *              Igyesred if null.
  *
- * Return: negative error code on errors; 0 for no data; or else number of
+ * Return: negative error code on errors; 0 for yes data; or else number of
  * bytes received (i.e., an event was retrieved successfully). Event types are
  * written out to @ec_dev->event_data.event_type on success.
  */
@@ -670,7 +670,7 @@ int cros_ec_get_next_event(struct cros_ec_device *ec_dev,
 
 	/*
 	 * Default value for has_more_events.
-	 * EC will raise another interrupt if AP does not process all events
+	 * EC will raise ayesther interrupt if AP does yest process all events
 	 * anyway.
 	 */
 	if (has_more_events)
@@ -698,7 +698,7 @@ int cros_ec_get_next_event(struct cros_ec_device *ec_dev,
 		 */
 		if (event_type == EC_MKBP_EVENT_SENSOR_FIFO)
 			*wake_event = false;
-		/* Masked host-events should not count as wake events. */
+		/* Masked host-events should yest count as wake events. */
 		else if (host_event &&
 			 !(host_event & ec_dev->host_event_wake_mask))
 			*wake_event = false;
@@ -713,10 +713,10 @@ EXPORT_SYMBOL(cros_ec_get_next_event);
  * @ec_dev: Device to fetch event from.
  *
  * When MKBP is supported, when the EC raises an interrupt, we collect the
- * events raised and call the functions in the ec notifier. This function
- * is a helper to know which events are raised.
+ * events raised and call the functions in the ec yestifier. This function
+ * is a helper to kyesw which events are raised.
  *
- * Return: 0 on error or non-zero bitmask of one or more EC_HOST_EVENT_*.
+ * Return: 0 on error or yesn-zero bitmask of one or more EC_HOST_EVENT_*.
  */
 u32 cros_ec_get_host_event(struct cros_ec_device *ec_dev)
 {
@@ -741,13 +741,13 @@ EXPORT_SYMBOL(cros_ec_get_host_event);
 /**
  * cros_ec_check_features() - Test for the presence of EC features
  *
- * @ec: EC device, does not have to be connected directly to the AP,
- *      can be daisy chained through another device.
+ * @ec: EC device, does yest have to be connected directly to the AP,
+ *      can be daisy chained through ayesther device.
  * @feature: One of ec_feature_code bit.
  *
  * Call this function to test whether the ChromeOS EC supports a feature.
  *
- * Return: 1 if supported, 0 if not
+ * Return: 1 if supported, 0 if yest
  */
 int cros_ec_check_features(struct cros_ec_dev *ec, int feature)
 {
@@ -755,7 +755,7 @@ int cros_ec_check_features(struct cros_ec_dev *ec, int feature)
 	int ret;
 
 	if (ec->features[0] == -1U && ec->features[1] == -1U) {
-		/* features bitmap not read yet */
+		/* features bitmap yest read yet */
 		msg = kzalloc(sizeof(*msg) + sizeof(ec->features), GFP_KERNEL);
 		if (!msg)
 			return -ENOMEM;
@@ -765,7 +765,7 @@ int cros_ec_check_features(struct cros_ec_dev *ec, int feature)
 
 		ret = cros_ec_cmd_xfer_status(ec->ec_dev, msg);
 		if (ret < 0) {
-			dev_warn(ec->dev, "cannot get EC features: %d/%d\n",
+			dev_warn(ec->dev, "canyest get EC features: %d/%d\n",
 				 ret, msg->result);
 			memset(ec->features, 0, sizeof(ec->features));
 		} else {
@@ -785,15 +785,15 @@ EXPORT_SYMBOL_GPL(cros_ec_check_features);
 /**
  * cros_ec_get_sensor_count() - Return the number of MEMS sensors supported.
  *
- * @ec: EC device, does not have to be connected directly to the AP,
- *      can be daisy chained through another device.
+ * @ec: EC device, does yest have to be connected directly to the AP,
+ *      can be daisy chained through ayesther device.
  * Return: < 0 in case of error.
  */
 int cros_ec_get_sensor_count(struct cros_ec_dev *ec)
 {
 	/*
 	 * Issue a command to get the number of sensor reported.
-	 * If not supported, check for legacy mode.
+	 * If yest supported, check for legacy mode.
 	 */
 	int ret, sensor_count;
 	struct ec_params_motion_sense *params;
@@ -843,12 +843,12 @@ int cros_ec_get_sensor_count(struct cros_ec_dev *ec)
 			sensor_count = 2;
 		} else {
 			/*
-			 * EC uses LPC interface and no sensors are presented.
+			 * EC uses LPC interface and yes sensors are presented.
 			 */
 			sensor_count = 0;
 		}
 	} else if (sensor_count == -EPROTO) {
-		/* EC responded, but does not understand DUMP command. */
+		/* EC responded, but does yest understand DUMP command. */
 		sensor_count = 0;
 	}
 	return sensor_count;

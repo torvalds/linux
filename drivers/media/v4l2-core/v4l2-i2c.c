@@ -14,17 +14,17 @@ void v4l2_i2c_subdev_unregister(struct v4l2_subdev *sd)
 
 	/*
 	 * We need to unregister the i2c client
-	 * explicitly. We cannot rely on
+	 * explicitly. We canyest rely on
 	 * i2c_del_adapter to always unregister
 	 * clients for us, since if the i2c bus is a
 	 * platform bus, then it is never deleted.
 	 *
-	 * Device tree or ACPI based devices must not
-	 * be unregistered as they have not been
-	 * registered by us, and would not be
+	 * Device tree or ACPI based devices must yest
+	 * be unregistered as they have yest been
+	 * registered by us, and would yest be
 	 * re-created by just probing the V4L2 driver.
 	 */
-	if (client && !client->dev.of_node && !client->dev.fwnode)
+	if (client && !client->dev.of_yesde && !client->dev.fwyesde)
 		i2c_unregister_device(client);
 }
 
@@ -50,7 +50,7 @@ void v4l2_i2c_subdev_init(struct v4l2_subdev *sd, struct i2c_client *client,
 	/* the owner is the same as the i2c_client's driver owner */
 	sd->owner = client->dev.driver->owner;
 	sd->dev = &client->dev;
-	/* i2c_client and v4l2_subdev point to one another */
+	/* i2c_client and v4l2_subdev point to one ayesther */
 	v4l2_set_subdevdata(sd, client);
 	i2c_set_clientdata(client, sd);
 	v4l2_i2c_subdev_set_name(sd, client, NULL, NULL);
@@ -81,7 +81,7 @@ struct v4l2_subdev
 
 	/*
 	 * Note: by loading the module first we are certain that c->driver
-	 * will be set if the driver was found. If the module was not loaded
+	 * will be set if the driver was found. If the module was yest loaded
 	 * first, then the i2c core tries to delay-load the module for us,
 	 * and then c->driver is still NULL until the module is finally
 	 * loaded. This delay-load mechanism doesn't work if other drivers
@@ -107,7 +107,7 @@ struct v4l2_subdev
 
 error:
 	/*
-	 * If we have a client but no subdev, then something went wrong and
+	 * If we have a client but yes subdev, then something went wrong and
 	 * we must unregister the client.
 	 */
 	if (client && !sd)
@@ -148,7 +148,7 @@ EXPORT_SYMBOL_GPL(v4l2_i2c_subdev_addr);
 
 /*
  * Return a list of I2C tuner addresses to probe. Use only if the tuner
- * addresses are unknown.
+ * addresses are unkyeswn.
  */
 const unsigned short *v4l2_i2c_tuner_addrs(enum v4l2_i2c_tuner_type type)
 {

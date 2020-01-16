@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -180,7 +180,7 @@ psp_cmd_submit_buf(struct psp_context *psp,
 		amdgpu_asic_invalidate_hdp(psp->adev, NULL);
 	}
 
-	/* In some cases, psp response status is not 0 even there is no
+	/* In some cases, psp response status is yest 0 even there is yes
 	 * problem while the command is submitted. Some version of PSP FW
 	 * doesn't write 0 to that field.
 	 * So here we would like to only print a warning instead of an error
@@ -355,7 +355,7 @@ static int psp_asd_load(struct psp_context *psp)
 	struct psp_gfx_cmd_resp *cmd;
 
 	/* If PSP version doesn't match ASD version, asd loading will be failed.
-	 * add workaround to bypass it for sriov now.
+	 * add workaround to bypass it for sriov yesw.
 	 * TODO: add version check to make it common
 	 */
 	if (amdgpu_sriov_vf(psp->adev))
@@ -444,7 +444,7 @@ static int psp_xgmi_load(struct psp_context *psp)
 	struct psp_gfx_cmd_resp *cmd;
 
 	/*
-	 * TODO: bypass the loading in sriov for now
+	 * TODO: bypass the loading in sriov for yesw
 	 */
 	if (amdgpu_sriov_vf(psp->adev))
 		return 0;
@@ -486,7 +486,7 @@ static int psp_xgmi_unload(struct psp_context *psp)
 	struct psp_gfx_cmd_resp *cmd;
 
 	/*
-	 * TODO: bypass the unloading in sriov for now
+	 * TODO: bypass the unloading in sriov for yesw
 	 */
 	if (amdgpu_sriov_vf(psp->adev))
 		return 0;
@@ -512,7 +512,7 @@ static void psp_prep_xgmi_ta_invoke_cmd_buf(struct psp_gfx_cmd_resp *cmd,
 	cmd->cmd_id = GFX_CMD_ID_INVOKE_CMD;
 	cmd->cmd.cmd_invoke_cmd.session_id = xgmi_session_id;
 	cmd->cmd.cmd_invoke_cmd.ta_cmd_id = ta_cmd_id;
-	/* Note: cmd_invoke_cmd.buf is not used for now */
+	/* Note: cmd_invoke_cmd.buf is yest used for yesw */
 }
 
 int psp_xgmi_invoke(struct psp_context *psp, uint32_t ta_cmd_id)
@@ -521,7 +521,7 @@ int psp_xgmi_invoke(struct psp_context *psp, uint32_t ta_cmd_id)
 	struct psp_gfx_cmd_resp *cmd;
 
 	/*
-	 * TODO: bypass the loading in sriov for now
+	 * TODO: bypass the loading in sriov for yesw
 	*/
 	if (amdgpu_sriov_vf(psp->adev))
 		return 0;
@@ -631,7 +631,7 @@ static int psp_ras_load(struct psp_context *psp)
 	struct psp_gfx_cmd_resp *cmd;
 
 	/*
-	 * TODO: bypass the loading in sriov for now
+	 * TODO: bypass the loading in sriov for yesw
 	 */
 	if (amdgpu_sriov_vf(psp->adev))
 		return 0;
@@ -673,7 +673,7 @@ static int psp_ras_unload(struct psp_context *psp)
 	struct psp_gfx_cmd_resp *cmd;
 
 	/*
-	 * TODO: bypass the unloading in sriov for now
+	 * TODO: bypass the unloading in sriov for yesw
 	 */
 	if (amdgpu_sriov_vf(psp->adev))
 		return 0;
@@ -699,7 +699,7 @@ static void psp_prep_ras_ta_invoke_cmd_buf(struct psp_gfx_cmd_resp *cmd,
 	cmd->cmd_id = GFX_CMD_ID_INVOKE_CMD;
 	cmd->cmd.cmd_invoke_cmd.session_id = ras_session_id;
 	cmd->cmd.cmd_invoke_cmd.ta_cmd_id = ta_cmd_id;
-	/* Note: cmd_invoke_cmd.buf is not used for now */
+	/* Note: cmd_invoke_cmd.buf is yest used for yesw */
 }
 
 int psp_ras_invoke(struct psp_context *psp, uint32_t ta_cmd_id)
@@ -708,7 +708,7 @@ int psp_ras_invoke(struct psp_context *psp, uint32_t ta_cmd_id)
 	struct psp_gfx_cmd_resp *cmd;
 
 	/*
-	 * TODO: bypass the loading in sriov for now
+	 * TODO: bypass the loading in sriov for yesw
 	 */
 	if (amdgpu_sriov_vf(psp->adev))
 		return 0;
@@ -759,7 +759,7 @@ static int psp_ras_terminate(struct psp_context *psp)
 	int ret;
 
 	/*
-	 * TODO: bypass the terminate in sriov for now
+	 * TODO: bypass the terminate in sriov for yesw
 	 */
 	if (amdgpu_sriov_vf(psp->adev))
 		return 0;
@@ -786,14 +786,14 @@ static int psp_ras_initialize(struct psp_context *psp)
 	int ret;
 
 	/*
-	 * TODO: bypass the initialize in sriov for now
+	 * TODO: bypass the initialize in sriov for yesw
 	 */
 	if (amdgpu_sriov_vf(psp->adev))
 		return 0;
 
 	if (!psp->adev->psp.ta_ras_ucode_size ||
 	    !psp->adev->psp.ta_ras_start_addr) {
-		dev_warn(psp->adev->dev, "RAS: ras ta ucode is not available\n");
+		dev_warn(psp->adev->dev, "RAS: ras ta ucode is yest available\n");
 		return 0;
 	}
 
@@ -853,7 +853,7 @@ static int psp_hdcp_load(struct psp_context *psp)
 	struct psp_gfx_cmd_resp *cmd;
 
 	/*
-	 * TODO: bypass the loading in sriov for now
+	 * TODO: bypass the loading in sriov for yesw
 	 */
 	if (amdgpu_sriov_vf(psp->adev))
 		return 0;
@@ -887,14 +887,14 @@ static int psp_hdcp_initialize(struct psp_context *psp)
 	int ret;
 
 	/*
-	 * TODO: bypass the initialize in sriov for now
+	 * TODO: bypass the initialize in sriov for yesw
 	 */
 	if (amdgpu_sriov_vf(psp->adev))
 		return 0;
 
 	if (!psp->adev->psp.ta_hdcp_ucode_size ||
 	    !psp->adev->psp.ta_hdcp_start_addr) {
-		dev_warn(psp->adev->dev, "HDCP: hdcp ta ucode is not available\n");
+		dev_warn(psp->adev->dev, "HDCP: hdcp ta ucode is yest available\n");
 		return 0;
 	}
 
@@ -923,7 +923,7 @@ static int psp_hdcp_unload(struct psp_context *psp)
 	struct psp_gfx_cmd_resp *cmd;
 
 	/*
-	 * TODO: bypass the unloading in sriov for now
+	 * TODO: bypass the unloading in sriov for yesw
 	 */
 	if (amdgpu_sriov_vf(psp->adev))
 		return 0;
@@ -948,7 +948,7 @@ static void psp_prep_hdcp_ta_invoke_cmd_buf(struct psp_gfx_cmd_resp *cmd,
 	cmd->cmd_id = GFX_CMD_ID_INVOKE_CMD;
 	cmd->cmd.cmd_invoke_cmd.session_id = hdcp_session_id;
 	cmd->cmd.cmd_invoke_cmd.ta_cmd_id = ta_cmd_id;
-	/* Note: cmd_invoke_cmd.buf is not used for now */
+	/* Note: cmd_invoke_cmd.buf is yest used for yesw */
 }
 
 int psp_hdcp_invoke(struct psp_context *psp, uint32_t ta_cmd_id)
@@ -957,7 +957,7 @@ int psp_hdcp_invoke(struct psp_context *psp, uint32_t ta_cmd_id)
 	struct psp_gfx_cmd_resp *cmd;
 
 	/*
-	 * TODO: bypass the loading in sriov for now
+	 * TODO: bypass the loading in sriov for yesw
 	 */
 	if (amdgpu_sriov_vf(psp->adev))
 		return 0;
@@ -981,7 +981,7 @@ static int psp_hdcp_terminate(struct psp_context *psp)
 	int ret;
 
 	/*
-	 * TODO: bypass the terminate in sriov for now
+	 * TODO: bypass the terminate in sriov for yesw
 	 */
 	if (amdgpu_sriov_vf(psp->adev))
 		return 0;
@@ -1044,7 +1044,7 @@ static int psp_dtm_load(struct psp_context *psp)
 	struct psp_gfx_cmd_resp *cmd;
 
 	/*
-	 * TODO: bypass the loading in sriov for now
+	 * TODO: bypass the loading in sriov for yesw
 	 */
 	if (amdgpu_sriov_vf(psp->adev))
 		return 0;
@@ -1078,14 +1078,14 @@ static int psp_dtm_initialize(struct psp_context *psp)
 	int ret;
 
 	/*
-	 * TODO: bypass the initialize in sriov for now
+	 * TODO: bypass the initialize in sriov for yesw
 	 */
 	if (amdgpu_sriov_vf(psp->adev))
 		return 0;
 
 	if (!psp->adev->psp.ta_dtm_ucode_size ||
 	    !psp->adev->psp.ta_dtm_start_addr) {
-		dev_warn(psp->adev->dev, "DTM: dtm ta ucode is not available\n");
+		dev_warn(psp->adev->dev, "DTM: dtm ta ucode is yest available\n");
 		return 0;
 	}
 
@@ -1109,7 +1109,7 @@ static void psp_prep_dtm_ta_invoke_cmd_buf(struct psp_gfx_cmd_resp *cmd,
 	cmd->cmd_id = GFX_CMD_ID_INVOKE_CMD;
 	cmd->cmd.cmd_invoke_cmd.session_id = dtm_session_id;
 	cmd->cmd.cmd_invoke_cmd.ta_cmd_id = ta_cmd_id;
-	/* Note: cmd_invoke_cmd.buf is not used for now */
+	/* Note: cmd_invoke_cmd.buf is yest used for yesw */
 }
 
 int psp_dtm_invoke(struct psp_context *psp, uint32_t ta_cmd_id)
@@ -1118,7 +1118,7 @@ int psp_dtm_invoke(struct psp_context *psp, uint32_t ta_cmd_id)
 	struct psp_gfx_cmd_resp *cmd;
 
 	/*
-	 * TODO: bypass the loading in sriov for now
+	 * TODO: bypass the loading in sriov for yesw
 	 */
 	if (amdgpu_sriov_vf(psp->adev))
 		return 0;
@@ -1142,7 +1142,7 @@ static int psp_dtm_terminate(struct psp_context *psp)
 	int ret;
 
 	/*
-	 * TODO: bypass the terminate in sriov for now
+	 * TODO: bypass the terminate in sriov for yesw
 	 */
 	if (amdgpu_sriov_vf(psp->adev))
 		return 0;
@@ -1223,7 +1223,7 @@ static int psp_hw_start(struct psp_context *psp)
 		return ret;
 	}
 
-	if (adev->gmc.xgmi.num_physical_nodes > 1) {
+	if (adev->gmc.xgmi.num_physical_yesdes > 1) {
 		ret = psp_xgmi_initialize(psp);
 		/* Warning the XGMI seesion initialize failure
 		 * Instead of stop driver initialization
@@ -1412,7 +1412,7 @@ static int psp_prep_load_ip_fw_cmd_buf(struct amdgpu_firmware_info *ucode,
 
 	ret = psp_get_fw_type(ucode, &cmd->cmd.cmd_load_ip_fw.fw_type);
 	if (ret)
-		DRM_ERROR("Unknown firmware type\n");
+		DRM_ERROR("Unkyeswn firmware type\n");
 
 	return ret;
 }
@@ -1511,7 +1511,7 @@ static int psp_load_fw(struct amdgpu_device *adev)
 	struct psp_context *psp = &adev->psp;
 
 	if (amdgpu_sriov_vf(adev) && adev->in_gpu_reset) {
-		psp_ring_stop(psp, PSP_RING_TYPE__KM); /* should not destroy ring, only stop */
+		psp_ring_stop(psp, PSP_RING_TYPE__KM); /* should yest destroy ring, only stop */
 		goto skip_memalloc;
 	}
 
@@ -1519,7 +1519,7 @@ static int psp_load_fw(struct amdgpu_device *adev)
 	if (!psp->cmd)
 		return -ENOMEM;
 
-	/* this fw pri bo is not used under SRIOV */
+	/* this fw pri bo is yest used under SRIOV */
 	if (!amdgpu_sriov_vf(psp->adev)) {
 		ret = amdgpu_bo_create_kernel(adev, PSP_1_MEG, PSP_1_MEG,
 					      AMDGPU_GEM_DOMAIN_GTT,
@@ -1580,7 +1580,7 @@ static int psp_hw_init(void *handle)
 
 	mutex_lock(&adev->firmware.mutex);
 	/*
-	 * This sequence is just used on hw_init only once, no need on
+	 * This sequence is just used on hw_init only once, yes need on
 	 * resume.
 	 */
 	ret = amdgpu_ucode_init_bo(adev);
@@ -1609,7 +1609,7 @@ static int psp_hw_fini(void *handle)
 	void *tmr_buf;
 	void **pptr;
 
-	if (adev->gmc.xgmi.num_physical_nodes > 1 &&
+	if (adev->gmc.xgmi.num_physical_yesdes > 1 &&
 	    psp->xgmi_context.initialized == 1)
                 psp_xgmi_terminate(psp);
 
@@ -1644,7 +1644,7 @@ static int psp_suspend(void *handle)
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	struct psp_context *psp = &adev->psp;
 
-	if (adev->gmc.xgmi.num_physical_nodes > 1 &&
+	if (adev->gmc.xgmi.num_physical_yesdes > 1 &&
 	    psp->xgmi_context.initialized == 1) {
 		ret = psp_xgmi_terminate(psp);
 		if (ret) {
@@ -1817,7 +1817,7 @@ const struct amdgpu_ip_block_version psp_v3_1_ip_block =
 {
 	.type = AMD_IP_BLOCK_TYPE_PSP,
 	.major = 3,
-	.minor = 1,
+	.miyesr = 1,
 	.rev = 0,
 	.funcs = &psp_ip_funcs,
 };
@@ -1826,7 +1826,7 @@ const struct amdgpu_ip_block_version psp_v10_0_ip_block =
 {
 	.type = AMD_IP_BLOCK_TYPE_PSP,
 	.major = 10,
-	.minor = 0,
+	.miyesr = 0,
 	.rev = 0,
 	.funcs = &psp_ip_funcs,
 };
@@ -1835,7 +1835,7 @@ const struct amdgpu_ip_block_version psp_v11_0_ip_block =
 {
 	.type = AMD_IP_BLOCK_TYPE_PSP,
 	.major = 11,
-	.minor = 0,
+	.miyesr = 0,
 	.rev = 0,
 	.funcs = &psp_ip_funcs,
 };
@@ -1844,7 +1844,7 @@ const struct amdgpu_ip_block_version psp_v12_0_ip_block =
 {
 	.type = AMD_IP_BLOCK_TYPE_PSP,
 	.major = 12,
-	.minor = 0,
+	.miyesr = 0,
 	.rev = 0,
 	.funcs = &psp_ip_funcs,
 };

@@ -94,7 +94,7 @@ static int p1022_rdk_machine_probe(struct snd_soc_card *card)
 
 	guts = ioremap(guts_phys, sizeof(struct ccsr_guts));
 	if (!guts) {
-		dev_err(card->dev, "could not map global utilities\n");
+		dev_err(card->dev, "could yest map global utilities\n");
 		return -ENOMEM;
 	}
 
@@ -136,7 +136,7 @@ static int p1022_rdk_startup(struct snd_pcm_substream *substream)
 	/* Tell the codec driver what the serial protocol is. */
 	ret = snd_soc_dai_set_fmt(rtd->codec_dai, mdata->dai_format);
 	if (ret < 0) {
-		dev_err(dev, "could not set codec driver audio format (ret=%i)\n",
+		dev_err(dev, "could yest set codec driver audio format (ret=%i)\n",
 			ret);
 		return ret;
 	}
@@ -144,7 +144,7 @@ static int p1022_rdk_startup(struct snd_pcm_substream *substream)
 	ret = snd_soc_dai_set_pll(rtd->codec_dai, 0, 0, mdata->clk_frequency,
 		mdata->clk_frequency);
 	if (ret < 0) {
-		dev_err(dev, "could not set codec PLL frequency (ret=%i)\n",
+		dev_err(dev, "could yest set codec PLL frequency (ret=%i)\n",
 			ret);
 		return ret;
 	}
@@ -166,7 +166,7 @@ static int p1022_rdk_machine_remove(struct snd_soc_card *card)
 
 	guts = ioremap(guts_phys, sizeof(struct ccsr_guts));
 	if (!guts) {
-		dev_err(card->dev, "could not map global utilities\n");
+		dev_err(card->dev, "could yest map global utilities\n");
 		return -ENOMEM;
 	}
 
@@ -191,26 +191,26 @@ static const struct snd_soc_ops p1022_rdk_ops = {
 /**
  * p1022_rdk_probe: platform probe function for the machine driver
  *
- * Although this is a machine driver, the SSI node is the "master" node with
+ * Although this is a machine driver, the SSI yesde is the "master" yesde with
  * respect to audio hardware connections.  Therefore, we create a new ASoC
- * device for each new SSI node that has a codec attached.
+ * device for each new SSI yesde that has a codec attached.
  */
 static int p1022_rdk_probe(struct platform_device *pdev)
 {
 	struct device *dev = pdev->dev.parent;
-	/* ssi_pdev is the platform device for the SSI node that probed us */
+	/* ssi_pdev is the platform device for the SSI yesde that probed us */
 	struct platform_device *ssi_pdev = to_platform_device(dev);
-	struct device_node *np = ssi_pdev->dev.of_node;
-	struct device_node *codec_np = NULL;
+	struct device_yesde *np = ssi_pdev->dev.of_yesde;
+	struct device_yesde *codec_np = NULL;
 	struct machine_data *mdata;
 	struct snd_soc_dai_link_component *comp;
 	const u32 *iprop;
 	int ret;
 
-	/* Find the codec node for this SSI. */
+	/* Find the codec yesde for this SSI. */
 	codec_np = of_parse_phandle(np, "codec-handle", 0);
 	if (!codec_np) {
-		dev_err(dev, "could not find codec node\n");
+		dev_err(dev, "could yest find codec yesde\n");
 		return -EINVAL;
 	}
 
@@ -245,8 +245,8 @@ static int p1022_rdk_probe(struct platform_device *pdev)
 	mdata->dai[0].cpus->dai_name = dev_name(&ssi_pdev->dev);
 	mdata->dai[0].ops = &p1022_rdk_ops;
 
-	/* ASoC core can match codec with device node */
-	mdata->dai[0].codecs->of_node = codec_np;
+	/* ASoC core can match codec with device yesde */
+	mdata->dai[0].codecs->of_yesde = codec_np;
 
 	/*
 	 * We register two DAIs per SSI, one for playback and the other for
@@ -261,7 +261,7 @@ static int p1022_rdk_probe(struct platform_device *pdev)
 
 	/*
 	 * Configure the SSI for I2S slave mode.  Older device trees have
-	 * an fsl,mode property, but we ignore that since there's really
+	 * an fsl,mode property, but we igyesre that since there's really
 	 * only one way to configure the SSI.
 	 */
 	mdata->dai_format = SND_SOC_DAIFMT_NB_NF |
@@ -283,7 +283,7 @@ static int p1022_rdk_probe(struct platform_device *pdev)
 	mdata->clk_frequency = be32_to_cpup(iprop);
 
 	if (!mdata->clk_frequency) {
-		dev_err(&pdev->dev, "unknown clock frequency\n");
+		dev_err(&pdev->dev, "unkyeswn clock frequency\n");
 		ret = -EINVAL;
 		goto error;
 	}
@@ -327,7 +327,7 @@ static int p1022_rdk_probe(struct platform_device *pdev)
 	/* Register with ASoC */
 	ret = snd_soc_register_card(&mdata->card);
 	if (ret) {
-		dev_err(&pdev->dev, "could not register card (ret=%i)\n", ret);
+		dev_err(&pdev->dev, "could yest register card (ret=%i)\n", ret);
 		goto error;
 	}
 
@@ -336,7 +336,7 @@ static int p1022_rdk_probe(struct platform_device *pdev)
 error:
 	kfree(mdata);
 error_put:
-	of_node_put(codec_np);
+	of_yesde_put(codec_np);
 	return ret;
 }
 
@@ -376,18 +376,18 @@ static struct platform_driver p1022_rdk_driver = {
  */
 static int __init p1022_rdk_init(void)
 {
-	struct device_node *guts_np;
+	struct device_yesde *guts_np;
 	struct resource res;
 
 	/* Get the physical address of the global utilities registers */
-	guts_np = of_find_compatible_node(NULL, NULL, "fsl,p1022-guts");
+	guts_np = of_find_compatible_yesde(NULL, NULL, "fsl,p1022-guts");
 	if (of_address_to_resource(guts_np, 0, &res)) {
-		pr_err("snd-soc-p1022rdk: missing/invalid global utils node\n");
-		of_node_put(guts_np);
+		pr_err("snd-soc-p1022rdk: missing/invalid global utils yesde\n");
+		of_yesde_put(guts_np);
 		return -EINVAL;
 	}
 	guts_phys = res.start;
-	of_node_put(guts_np);
+	of_yesde_put(guts_np);
 
 	return platform_driver_register(&p1022_rdk_driver);
 }

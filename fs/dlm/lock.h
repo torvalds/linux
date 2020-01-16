@@ -16,7 +16,7 @@ void dlm_dump_rsb_name(struct dlm_ls *ls, char *name, int len);
 void dlm_print_lkb(struct dlm_lkb *lkb);
 void dlm_receive_message_saved(struct dlm_ls *ls, struct dlm_message *ms,
 			       uint32_t saved_seq);
-void dlm_receive_buffer(union dlm_packet *p, int nodeid);
+void dlm_receive_buffer(union dlm_packet *p, int yesdeid);
 int dlm_modes_compat(int mode1, int mode2);
 void dlm_put_rsb(struct dlm_rsb *r);
 void dlm_hold_rsb(struct dlm_rsb *r);
@@ -27,8 +27,8 @@ void dlm_unlock_recovery(struct dlm_ls *ls);
 void dlm_scan_waiters(struct dlm_ls *ls);
 void dlm_scan_timeout(struct dlm_ls *ls);
 void dlm_adjust_timeouts(struct dlm_ls *ls);
-int dlm_master_lookup(struct dlm_ls *ls, int nodeid, char *name, int len,
-		      unsigned int flags, int *r_nodeid, int *result);
+int dlm_master_lookup(struct dlm_ls *ls, int yesdeid, char *name, int len,
+		      unsigned int flags, int *r_yesdeid, int *result);
 
 int dlm_search_rsb_tree(struct rb_root *tree, char *name, int len,
 			struct dlm_rsb **r_ret);
@@ -55,13 +55,13 @@ int dlm_user_unlock(struct dlm_ls *ls, struct dlm_user_args *ua_tmp,
 int dlm_user_cancel(struct dlm_ls *ls,  struct dlm_user_args *ua_tmp,
 	uint32_t flags, uint32_t lkid);
 int dlm_user_purge(struct dlm_ls *ls, struct dlm_user_proc *proc,
-	int nodeid, int pid);
+	int yesdeid, int pid);
 int dlm_user_deadlock(struct dlm_ls *ls, uint32_t flags, uint32_t lkid);
 void dlm_clear_proc_locks(struct dlm_ls *ls, struct dlm_user_proc *proc);
 
 static inline int is_master(struct dlm_rsb *r)
 {
-	return !r->res_nodeid;
+	return !r->res_yesdeid;
 }
 
 static inline void lock_rsb(struct dlm_rsb *r)

@@ -13,11 +13,11 @@
  * modification, are permitted provided that the following conditions
  * are met:
  *
- * - Redistributions of source code must retain the above copyright notice,
+ * - Redistributions of source code must retain the above copyright yestice,
  *   this list of conditions and the following disclaimer.
  *
  * - Redistributions in binary form must reproduce the above copyright
- *   notice, this list of conditions and the following disclaimer in
+ *   yestice, this list of conditions and the following disclaimer in
  *   the documentation and/or other materials provided with the distribution.
  *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
@@ -61,7 +61,7 @@
 #define OCRDMA_NODE_DESC "Emulex OneConnect RoCE HCA"
 
 #define OC_NAME_SH	OCRDMA_NODE_DESC "(Skyhawk)"
-#define OC_NAME_UNKNOWN OCRDMA_NODE_DESC "(Unknown)"
+#define OC_NAME_UNKNOWN OCRDMA_NODE_DESC "(Unkyeswn)"
 
 #define OC_SKH_DEVICE_PF 0x720
 #define OC_SKH_DEVICE_VF 0x728
@@ -204,16 +204,16 @@ struct ocrdma_stats {
 };
 
 struct ocrdma_pd_resource_mgr {
-	u32 pd_norm_start;
-	u16 pd_norm_count;
-	u16 pd_norm_thrsh;
-	u16 max_normal_pd;
+	u32 pd_yesrm_start;
+	u16 pd_yesrm_count;
+	u16 pd_yesrm_thrsh;
+	u16 max_yesrmal_pd;
 	u32 pd_dpp_start;
 	u16 pd_dpp_count;
 	u16 pd_dpp_thrsh;
 	u16 max_dpp_pd;
 	u16 dpp_page_index;
-	unsigned long *pd_norm_bitmap;
+	unsigned long *pd_yesrm_bitmap;
 	unsigned long *pd_dpp_bitmap;
 	bool pd_prealloc_valid;
 };
@@ -254,7 +254,7 @@ struct ocrdma_dev {
 	u16 max_eq;
 
 	/* provided synchronization to sgid table for
-	 * updating gid entries triggered by notifier.
+	 * updating gid entries triggered by yestifier.
 	 */
 	spinlock_t sgid_lock;
 

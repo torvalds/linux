@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and /or other materials
  *        provided with the distribution.
  *
@@ -61,7 +61,7 @@ static int qede_rdma_create_wq(struct qede_dev *edev)
 	INIT_LIST_HEAD(&edev->rdma_info.rdma_event_list);
 	edev->rdma_info.rdma_wq = create_singlethread_workqueue("rdma_wq");
 	if (!edev->rdma_info.rdma_wq) {
-		DP_NOTICE(edev, "qedr: Could not create workqueue\n");
+		DP_NOTICE(edev, "qedr: Could yest create workqueue\n");
 		return -ENOMEM;
 	}
 
@@ -71,15 +71,15 @@ static int qede_rdma_create_wq(struct qede_dev *edev)
 static void qede_rdma_cleanup_event(struct qede_dev *edev)
 {
 	struct list_head *head = &edev->rdma_info.rdma_event_list;
-	struct qede_rdma_event_work *event_node;
+	struct qede_rdma_event_work *event_yesde;
 
 	flush_workqueue(edev->rdma_info.rdma_wq);
 	while (!list_empty(head)) {
-		event_node = list_entry(head->next, struct qede_rdma_event_work,
+		event_yesde = list_entry(head->next, struct qede_rdma_event_work,
 					list);
-		cancel_work_sync(&event_node->work);
-		list_del(&event_node->list);
-		kfree(event_node);
+		cancel_work_sync(&event_yesde->work);
+		list_del(&event_yesde->list);
+		kfree(event_yesde);
 	}
 }
 
@@ -96,7 +96,7 @@ int qede_rdma_dev_add(struct qede_dev *edev, bool recovery)
 	if (!qede_rdma_supported(edev))
 		return 0;
 
-	/* Cannot start qedr while recovering since it wasn't fully stopped */
+	/* Canyest start qedr while recovering since it wasn't fully stopped */
 	if (recovery)
 		return 0;
 
@@ -124,7 +124,7 @@ void qede_rdma_dev_remove(struct qede_dev *edev, bool recovery)
 	if (!qede_rdma_supported(edev))
 		return;
 
-	/* Cannot remove qedr while recovering since it wasn't fully stopped */
+	/* Canyest remove qedr while recovering since it wasn't fully stopped */
 	if (!recovery) {
 		qede_rdma_destroy_wq(edev);
 		mutex_lock(&qedr_dev_list_lock);
@@ -145,8 +145,8 @@ void qede_rdma_dev_remove(struct qede_dev *edev, bool recovery)
 
 static void _qede_rdma_dev_open(struct qede_dev *edev)
 {
-	if (qedr_drv && edev->rdma_info.qedr_dev && qedr_drv->notify)
-		qedr_drv->notify(edev->rdma_info.qedr_dev, QEDE_UP);
+	if (qedr_drv && edev->rdma_info.qedr_dev && qedr_drv->yestify)
+		qedr_drv->yestify(edev->rdma_info.qedr_dev, QEDE_UP);
 }
 
 static void qede_rdma_dev_open(struct qede_dev *edev)
@@ -161,8 +161,8 @@ static void qede_rdma_dev_open(struct qede_dev *edev)
 
 static void _qede_rdma_dev_close(struct qede_dev *edev)
 {
-	if (qedr_drv && edev->rdma_info.qedr_dev && qedr_drv->notify)
-		qedr_drv->notify(edev->rdma_info.qedr_dev, QEDE_DOWN);
+	if (qedr_drv && edev->rdma_info.qedr_dev && qedr_drv->yestify)
+		qedr_drv->yestify(edev->rdma_info.qedr_dev, QEDE_DOWN);
 }
 
 static void qede_rdma_dev_close(struct qede_dev *edev)
@@ -181,8 +181,8 @@ static void qede_rdma_dev_shutdown(struct qede_dev *edev)
 		return;
 
 	mutex_lock(&qedr_dev_list_lock);
-	if (qedr_drv && edev->rdma_info.qedr_dev && qedr_drv->notify)
-		qedr_drv->notify(edev->rdma_info.qedr_dev, QEDE_CLOSE);
+	if (qedr_drv && edev->rdma_info.qedr_dev && qedr_drv->yestify)
+		qedr_drv->yestify(edev->rdma_info.qedr_dev, QEDE_CLOSE);
 	mutex_unlock(&qedr_dev_list_lock);
 }
 
@@ -209,7 +209,7 @@ int qede_rdma_register_driver(struct qedr_driver *drv)
 	}
 	mutex_unlock(&qedr_dev_list_lock);
 
-	pr_notice("qedr: discovered and registered %d RDMA funcs\n",
+	pr_yestice("qedr: discovered and registered %d RDMA funcs\n",
 		  qedr_counter);
 
 	return 0;
@@ -236,49 +236,49 @@ static void qede_rdma_changeaddr(struct qede_dev *edev)
 	if (!qede_rdma_supported(edev))
 		return;
 
-	if (qedr_drv && edev->rdma_info.qedr_dev && qedr_drv->notify)
-		qedr_drv->notify(edev->rdma_info.qedr_dev, QEDE_CHANGE_ADDR);
+	if (qedr_drv && edev->rdma_info.qedr_dev && qedr_drv->yestify)
+		qedr_drv->yestify(edev->rdma_info.qedr_dev, QEDE_CHANGE_ADDR);
 }
 
 static struct qede_rdma_event_work *
-qede_rdma_get_free_event_node(struct qede_dev *edev)
+qede_rdma_get_free_event_yesde(struct qede_dev *edev)
 {
-	struct qede_rdma_event_work *event_node = NULL;
-	struct list_head *list_node = NULL;
+	struct qede_rdma_event_work *event_yesde = NULL;
+	struct list_head *list_yesde = NULL;
 	bool found = false;
 
-	list_for_each(list_node, &edev->rdma_info.rdma_event_list) {
-		event_node = list_entry(list_node, struct qede_rdma_event_work,
+	list_for_each(list_yesde, &edev->rdma_info.rdma_event_list) {
+		event_yesde = list_entry(list_yesde, struct qede_rdma_event_work,
 					list);
-		if (!work_pending(&event_node->work)) {
+		if (!work_pending(&event_yesde->work)) {
 			found = true;
 			break;
 		}
 	}
 
 	if (!found) {
-		event_node = kzalloc(sizeof(*event_node), GFP_ATOMIC);
-		if (!event_node) {
+		event_yesde = kzalloc(sizeof(*event_yesde), GFP_ATOMIC);
+		if (!event_yesde) {
 			DP_NOTICE(edev,
-				  "qedr: Could not allocate memory for rdma work\n");
+				  "qedr: Could yest allocate memory for rdma work\n");
 			return NULL;
 		}
-		list_add_tail(&event_node->list,
+		list_add_tail(&event_yesde->list,
 			      &edev->rdma_info.rdma_event_list);
 	}
 
-	return event_node;
+	return event_yesde;
 }
 
 static void qede_rdma_handle_event(struct work_struct *work)
 {
-	struct qede_rdma_event_work *event_node;
+	struct qede_rdma_event_work *event_yesde;
 	enum qede_rdma_event event;
 	struct qede_dev *edev;
 
-	event_node = container_of(work, struct qede_rdma_event_work, work);
-	event = event_node->event;
-	edev = event_node->ptr;
+	event_yesde = container_of(work, struct qede_rdma_event_work, work);
+	event = event_yesde->event;
+	edev = event_yesde->ptr;
 
 	switch (event) {
 	case QEDE_UP:
@@ -301,7 +301,7 @@ static void qede_rdma_handle_event(struct work_struct *work)
 static void qede_rdma_add_event(struct qede_dev *edev,
 				enum qede_rdma_event event)
 {
-	struct qede_rdma_event_work *event_node;
+	struct qede_rdma_event_work *event_yesde;
 
 	/* If a recovery was experienced avoid adding the event */
 	if (edev->rdma_info.exp_recovery)
@@ -310,15 +310,15 @@ static void qede_rdma_add_event(struct qede_dev *edev,
 	if (!edev->rdma_info.qedr_dev)
 		return;
 
-	event_node = qede_rdma_get_free_event_node(edev);
-	if (!event_node)
+	event_yesde = qede_rdma_get_free_event_yesde(edev);
+	if (!event_yesde)
 		return;
 
-	event_node->event = event;
-	event_node->ptr = edev;
+	event_yesde->event = event;
+	event_yesde->ptr = edev;
 
-	INIT_WORK(&event_node->work, qede_rdma_handle_event);
-	queue_work(edev->rdma_info.rdma_wq, &event_node->work);
+	INIT_WORK(&event_yesde->work, qede_rdma_handle_event);
+	queue_work(edev->rdma_info.rdma_wq, &event_yesde->work);
 }
 
 void qede_rdma_dev_event_open(struct qede_dev *edev)

@@ -15,7 +15,7 @@
 
 /*
  *  ASAHI KASEI - AK4531 codec
- *  - not really AC'97 codec, but it uses very similar interface as AC'97
+ *  - yest really AC'97 codec, but it uses very similar interface as AC'97
  */
 
 /*
@@ -37,7 +37,7 @@
 #define AK4531_MONO1    0x0c	/* MONO1 volume left */
 #define AK4531_MONO2    0x0d	/* MONO1 volume right */
 #define AK4531_MIC      0x0e	/* MIC volume */
-#define AK4531_MONO_OUT 0x0f	/* Mono-out volume */
+#define AK4531_MONO_OUT 0x0f	/* Moyes-out volume */
 #define AK4531_OUT_SW1  0x10	/* Output mixer switch 1 */
 #define AK4531_OUT_SW2  0x11	/* Output mixer switch 2 */
 #define AK4531_LIN_SW1  0x12	/* Input left mixer switch 1 */

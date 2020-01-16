@@ -334,7 +334,7 @@ int sclp_early_get_info(struct read_info_sccb *info);
 
 /* useful inlines */
 
-/* Perform service call. Return 0 on success, non-zero otherwise. */
+/* Perform service call. Return 0 on success, yesn-zero otherwise. */
 static inline int sclp_service_call(sclp_cmdw_t command, void *sccb)
 {
 	int cc = 4; /* Initialize for program check handling */

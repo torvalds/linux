@@ -23,11 +23,11 @@ DECLARE_PER_CPU(int, dirty_throttle_leaks);
  *	(thresh - thresh/DIRTY_FULL_SCOPE, thresh)
  *
  * Further beyond, all dirtier tasks will enter a loop waiting (possibly long
- * time) for the dirty pages to drop, unless written enough pages.
+ * time) for the dirty pages to drop, unless written eyesugh pages.
  *
- * The global dirty threshold is normally equal to the global dirty limit,
- * except when the system suddenly allocates a lot of anonymous memory and
- * knocks down the global dirty threshold quickly, in which case the global
+ * The global dirty threshold is yesrmally equal to the global dirty limit,
+ * except when the system suddenly allocates a lot of ayesnymous memory and
+ * kyescks down the global dirty threshold quickly, in which case the global
  * dirty limit will follow down slowly to prevent livelocking all dirtier tasks.
  */
 #define DIRTY_SCOPE		8
@@ -45,16 +45,16 @@ enum writeback_sync_modes {
 
 /*
  * A control structure which tells the writeback code what to do.  These are
- * always on the stack, and hence need no locking.  They are always initialised
+ * always on the stack, and hence need yes locking.  They are always initialised
  * in a manner such that unspecified fields are set to zero.
  */
 struct writeback_control {
 	long nr_to_write;		/* Write this many pages, and decrement
 					   this for each page written */
-	long pages_skipped;		/* Pages which were not written */
+	long pages_skipped;		/* Pages which were yest written */
 
 	/*
-	 * For a_ops->writepages(): if start or end are non-zero then this is
+	 * For a_ops->writepages(): if start or end are yesn-zero then this is
 	 * a hint that the filesystem need only write out the pages inside that
 	 * byterange.  The byte at `end' is included in the writeout request.
 	 */
@@ -72,19 +72,19 @@ struct writeback_control {
 
 	/*
 	 * When writeback IOs are bounced through async layers, only the
-	 * initial synchronous phase should be accounted towards inode
+	 * initial synchroyesus phase should be accounted towards iyesde
 	 * cgroup ownership arbitration to avoid confusion.  Later stages
 	 * can set the following flag to disable the accounting.
 	 */
-	unsigned no_cgroup_owner:1;
+	unsigned yes_cgroup_owner:1;
 
 	unsigned punt_to_cgroup:1;	/* cgrp punting, see __REQ_CGROUP_PUNT */
 
 #ifdef CONFIG_CGROUP_WRITEBACK
 	struct bdi_writeback *wb;	/* wb this writeback is issued under */
-	struct inode *inode;		/* inode being written out */
+	struct iyesde *iyesde;		/* iyesde being written out */
 
-	/* foreign inode detection, see wbc_detach_inode() */
+	/* foreign iyesde detection, see wbc_detach_iyesde() */
 	int wb_id;			/* current wb id */
 	int wb_lcand_id;		/* last foreign candidate wb id */
 	int wb_tcand_id;		/* this foreign candidate wb id */
@@ -152,11 +152,11 @@ struct wb_domain {
 
 	/*
 	 * The dirtyable memory and dirty threshold could be suddenly
-	 * knocked down by a large amount (eg. on the startup of KVM in a
+	 * kyescked down by a large amount (eg. on the startup of KVM in a
 	 * swapless system). This may throw the system into deep dirty
 	 * exceeded state and throttle heavy/light dirtiers alike. To
 	 * retain good responsiveness, maintain global_dirty_limit for
-	 * tracking slowly down to the knocked down dirty threshold.
+	 * tracking slowly down to the kyescked down dirty threshold.
 	 *
 	 * Both fields are protected by ->lock.
 	 */
@@ -188,21 +188,21 @@ static inline void wb_domain_size_changed(struct wb_domain *dom)
  * fs/fs-writeback.c
  */	
 struct bdi_writeback;
-void writeback_inodes_sb(struct super_block *, enum wb_reason reason);
-void writeback_inodes_sb_nr(struct super_block *, unsigned long nr,
+void writeback_iyesdes_sb(struct super_block *, enum wb_reason reason);
+void writeback_iyesdes_sb_nr(struct super_block *, unsigned long nr,
 							enum wb_reason reason);
-void try_to_writeback_inodes_sb(struct super_block *sb, enum wb_reason reason);
-void sync_inodes_sb(struct super_block *);
+void try_to_writeback_iyesdes_sb(struct super_block *sb, enum wb_reason reason);
+void sync_iyesdes_sb(struct super_block *);
 void wakeup_flusher_threads(enum wb_reason reason);
 void wakeup_flusher_threads_bdi(struct backing_dev_info *bdi,
 				enum wb_reason reason);
-void inode_wait_for_writeback(struct inode *inode);
+void iyesde_wait_for_writeback(struct iyesde *iyesde);
 
-/* writeback.h requires fs.h; it, too, is not included from here. */
-static inline void wait_on_inode(struct inode *inode)
+/* writeback.h requires fs.h; it, too, is yest included from here. */
+static inline void wait_on_iyesde(struct iyesde *iyesde)
 {
 	might_sleep();
-	wait_on_bit(&inode->i_state, __I_NEW, TASK_UNINTERRUPTIBLE);
+	wait_on_bit(&iyesde->i_state, __I_NEW, TASK_UNINTERRUPTIBLE);
 }
 
 #ifdef CONFIG_CGROUP_WRITEBACK
@@ -210,11 +210,11 @@ static inline void wait_on_inode(struct inode *inode)
 #include <linux/cgroup.h>
 #include <linux/bio.h>
 
-void __inode_attach_wb(struct inode *inode, struct page *page);
-void wbc_attach_and_unlock_inode(struct writeback_control *wbc,
-				 struct inode *inode)
-	__releases(&inode->i_lock);
-void wbc_detach_inode(struct writeback_control *wbc);
+void __iyesde_attach_wb(struct iyesde *iyesde, struct page *page);
+void wbc_attach_and_unlock_iyesde(struct writeback_control *wbc,
+				 struct iyesde *iyesde)
+	__releases(&iyesde->i_lock);
+void wbc_detach_iyesde(struct writeback_control *wbc);
 void wbc_account_cgroup_owner(struct writeback_control *wbc, struct page *page,
 			      size_t bytes);
 int cgroup_writeback_by_id(u64 bdi_id, int memcg_id, unsigned long nr_pages,
@@ -222,50 +222,50 @@ int cgroup_writeback_by_id(u64 bdi_id, int memcg_id, unsigned long nr_pages,
 void cgroup_writeback_umount(void);
 
 /**
- * inode_attach_wb - associate an inode with its wb
- * @inode: inode of interest
+ * iyesde_attach_wb - associate an iyesde with its wb
+ * @iyesde: iyesde of interest
  * @page: page being dirtied (may be NULL)
  *
- * If @inode doesn't have its wb, associate it with the wb matching the
+ * If @iyesde doesn't have its wb, associate it with the wb matching the
  * memcg of @page or, if @page is NULL, %current.  May be called w/ or w/o
- * @inode->i_lock.
+ * @iyesde->i_lock.
  */
-static inline void inode_attach_wb(struct inode *inode, struct page *page)
+static inline void iyesde_attach_wb(struct iyesde *iyesde, struct page *page)
 {
-	if (!inode->i_wb)
-		__inode_attach_wb(inode, page);
+	if (!iyesde->i_wb)
+		__iyesde_attach_wb(iyesde, page);
 }
 
 /**
- * inode_detach_wb - disassociate an inode from its wb
- * @inode: inode of interest
+ * iyesde_detach_wb - disassociate an iyesde from its wb
+ * @iyesde: iyesde of interest
  *
- * @inode is being freed.  Detach from its wb.
+ * @iyesde is being freed.  Detach from its wb.
  */
-static inline void inode_detach_wb(struct inode *inode)
+static inline void iyesde_detach_wb(struct iyesde *iyesde)
 {
-	if (inode->i_wb) {
-		WARN_ON_ONCE(!(inode->i_state & I_CLEAR));
-		wb_put(inode->i_wb);
-		inode->i_wb = NULL;
+	if (iyesde->i_wb) {
+		WARN_ON_ONCE(!(iyesde->i_state & I_CLEAR));
+		wb_put(iyesde->i_wb);
+		iyesde->i_wb = NULL;
 	}
 }
 
 /**
- * wbc_attach_fdatawrite_inode - associate wbc and inode for fdatawrite
+ * wbc_attach_fdatawrite_iyesde - associate wbc and iyesde for fdatawrite
  * @wbc: writeback_control of interest
- * @inode: target inode
+ * @iyesde: target iyesde
  *
  * This function is to be used by __filemap_fdatawrite_range(), which is an
- * alternative entry point into writeback code, and first ensures @inode is
+ * alternative entry point into writeback code, and first ensures @iyesde is
  * associated with a bdi_writeback and attaches it to @wbc.
  */
-static inline void wbc_attach_fdatawrite_inode(struct writeback_control *wbc,
-					       struct inode *inode)
+static inline void wbc_attach_fdatawrite_iyesde(struct writeback_control *wbc,
+					       struct iyesde *iyesde)
 {
-	spin_lock(&inode->i_lock);
-	inode_attach_wb(inode, NULL);
-	wbc_attach_and_unlock_inode(wbc, inode);
+	spin_lock(&iyesde->i_lock);
+	iyesde_attach_wb(iyesde, NULL);
+	wbc_attach_and_unlock_iyesde(wbc, iyesde);
 }
 
 /**
@@ -281,7 +281,7 @@ static inline void wbc_attach_fdatawrite_inode(struct writeback_control *wbc,
 static inline void wbc_init_bio(struct writeback_control *wbc, struct bio *bio)
 {
 	/*
-	 * pageout() path doesn't attach @wbc to the inode being written
+	 * pageout() path doesn't attach @wbc to the iyesde being written
 	 * out.  This is intentional as we don't want the function to block
 	 * behind a slow cgroup.  Ultimately, we want pageout() to kick off
 	 * regular writeback instead of writing things out itself.
@@ -292,27 +292,27 @@ static inline void wbc_init_bio(struct writeback_control *wbc, struct bio *bio)
 
 #else	/* CONFIG_CGROUP_WRITEBACK */
 
-static inline void inode_attach_wb(struct inode *inode, struct page *page)
+static inline void iyesde_attach_wb(struct iyesde *iyesde, struct page *page)
 {
 }
 
-static inline void inode_detach_wb(struct inode *inode)
+static inline void iyesde_detach_wb(struct iyesde *iyesde)
 {
 }
 
-static inline void wbc_attach_and_unlock_inode(struct writeback_control *wbc,
-					       struct inode *inode)
-	__releases(&inode->i_lock)
+static inline void wbc_attach_and_unlock_iyesde(struct writeback_control *wbc,
+					       struct iyesde *iyesde)
+	__releases(&iyesde->i_lock)
 {
-	spin_unlock(&inode->i_lock);
+	spin_unlock(&iyesde->i_lock);
 }
 
-static inline void wbc_attach_fdatawrite_inode(struct writeback_control *wbc,
-					       struct inode *inode)
+static inline void wbc_attach_fdatawrite_iyesde(struct writeback_control *wbc,
+					       struct iyesde *iyesde)
 {
 }
 
-static inline void wbc_detach_inode(struct writeback_control *wbc)
+static inline void wbc_detach_iyesde(struct writeback_control *wbc)
 {
 }
 
@@ -342,7 +342,7 @@ void laptop_mode_timer_fn(struct timer_list *t);
 #else
 static inline void laptop_sync_completion(void) { }
 #endif
-bool node_dirty_ok(struct pglist_data *pgdat);
+bool yesde_dirty_ok(struct pglist_data *pgdat);
 int wb_domain_init(struct wb_domain *dom, gfp_t gfp);
 #ifdef CONFIG_CGROUP_WRITEBACK
 void wb_domain_exit(struct wb_domain *dom);
@@ -405,7 +405,7 @@ void tag_pages_for_writeback(struct address_space *mapping,
 
 void account_page_redirty(struct page *page);
 
-void sb_mark_inode_writeback(struct inode *inode);
-void sb_clear_inode_writeback(struct inode *inode);
+void sb_mark_iyesde_writeback(struct iyesde *iyesde);
+void sb_clear_iyesde_writeback(struct iyesde *iyesde);
 
 #endif		/* WRITEBACK_H */

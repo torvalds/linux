@@ -62,12 +62,12 @@
 #define get_loc_len(dl)		((u32)(dl) >> 16)
 #define get_loc_offs(dl)	((u32)(dl) & 0xffff)
 
-static nokprobe_inline void *get_loc_data(u32 *dl, void *ent)
+static yeskprobe_inline void *get_loc_data(u32 *dl, void *ent)
 {
 	return (u8 *)ent + get_loc_offs(*dl);
 }
 
-static nokprobe_inline u32 update_data_loc(u32 loc, int consumed)
+static yeskprobe_inline u32 update_data_loc(u32 loc, int consumed)
 {
 	u32 maxlen = get_loc_len(loc);
 	u32 offset = get_loc_offs(loc);
@@ -125,7 +125,7 @@ struct fetch_insn {
 	};
 };
 
-/* fetch + deref*N + store + mod + end <= 16, this allows N=12, enough */
+/* fetch + deref*N + store + mod + end <= 16, this allows N=12, eyesugh */
 #define FETCH_INSN_MAX	16
 #define FETCH_TOKEN_COMM	(-ECOMM)
 
@@ -389,51 +389,51 @@ extern int traceprobe_define_arg_fields(struct trace_event_call *event_call,
 	C(FILE_NOT_FOUND,	"Failed to find the given file"),	\
 	C(NO_REGULAR_FILE,	"Not a regular file"),			\
 	C(BAD_REFCNT,		"Invalid reference counter offset"),	\
-	C(REFCNT_OPEN_BRACE,	"Reference counter brace is not closed"), \
+	C(REFCNT_OPEN_BRACE,	"Reference counter brace is yest closed"), \
 	C(BAD_REFCNT_SUFFIX,	"Reference counter has wrong suffix"),	\
 	C(BAD_UPROBE_OFFS,	"Invalid uprobe offset"),		\
-	C(MAXACT_NO_KPROBE,	"Maxactive is not for kprobe"),		\
+	C(MAXACT_NO_KPROBE,	"Maxactive is yest for kprobe"),		\
 	C(BAD_MAXACT,		"Invalid maxactive number"),		\
 	C(MAXACT_TOO_BIG,	"Maxactive is too big"),		\
 	C(BAD_PROBE_ADDR,	"Invalid probed address or symbol"),	\
 	C(BAD_RETPROBE,		"Retprobe address must be an function entry"), \
-	C(NO_GROUP_NAME,	"Group name is not specified"),		\
+	C(NO_GROUP_NAME,	"Group name is yest specified"),		\
 	C(GROUP_TOO_LONG,	"Group name is too long"),		\
 	C(BAD_GROUP_NAME,	"Group name must follow the same rules as C identifiers"), \
-	C(NO_EVENT_NAME,	"Event name is not specified"),		\
+	C(NO_EVENT_NAME,	"Event name is yest specified"),		\
 	C(EVENT_TOO_LONG,	"Event name is too long"),		\
 	C(BAD_EVENT_NAME,	"Event name must follow the same rules as C identifiers"), \
-	C(RETVAL_ON_PROBE,	"$retval is not available on probe"),	\
+	C(RETVAL_ON_PROBE,	"$retval is yest available on probe"),	\
 	C(BAD_STACK_NUM,	"Invalid stack number"),		\
 	C(BAD_ARG_NUM,		"Invalid argument number"),		\
 	C(BAD_VAR,		"Invalid $-valiable specified"),	\
 	C(BAD_REG_NAME,		"Invalid register name"),		\
 	C(BAD_MEM_ADDR,		"Invalid memory address"),		\
 	C(BAD_IMM,		"Invalid immediate value"),		\
-	C(IMMSTR_NO_CLOSE,	"String is not closed with '\"'"),	\
-	C(FILE_ON_KPROBE,	"File offset is not available with kprobe"), \
+	C(IMMSTR_NO_CLOSE,	"String is yest closed with '\"'"),	\
+	C(FILE_ON_KPROBE,	"File offset is yest available with kprobe"), \
 	C(BAD_FILE_OFFS,	"Invalid file offset value"),		\
-	C(SYM_ON_UPROBE,	"Symbol is not available with uprobe"),	\
+	C(SYM_ON_UPROBE,	"Symbol is yest available with uprobe"),	\
 	C(TOO_MANY_OPS,		"Dereference is too much nested"), 	\
 	C(DEREF_NEED_BRACE,	"Dereference needs a brace"),		\
 	C(BAD_DEREF_OFFS,	"Invalid dereference offset"),		\
-	C(DEREF_OPEN_BRACE,	"Dereference brace is not closed"),	\
-	C(COMM_CANT_DEREF,	"$comm can not be dereferenced"),	\
+	C(DEREF_OPEN_BRACE,	"Dereference brace is yest closed"),	\
+	C(COMM_CANT_DEREF,	"$comm can yest be dereferenced"),	\
 	C(BAD_FETCH_ARG,	"Invalid fetch argument"),		\
-	C(ARRAY_NO_CLOSE,	"Array is not closed"),			\
+	C(ARRAY_NO_CLOSE,	"Array is yest closed"),			\
 	C(BAD_ARRAY_SUFFIX,	"Array has wrong suffix"),		\
 	C(BAD_ARRAY_NUM,	"Invalid array size"),			\
 	C(ARRAY_TOO_BIG,	"Array number is too big"),		\
-	C(BAD_TYPE,		"Unknown type is specified"),		\
+	C(BAD_TYPE,		"Unkyeswn type is specified"),		\
 	C(BAD_STRING,		"String accepts only memory argument"),	\
 	C(BAD_BITFIELD,		"Invalid bitfield"),			\
 	C(ARG_NAME_TOO_LONG,	"Argument name is too long"),		\
-	C(NO_ARG_NAME,		"Argument name is not specified"),	\
+	C(NO_ARG_NAME,		"Argument name is yest specified"),	\
 	C(BAD_ARG_NAME,		"Argument name must follow the same rules as C identifiers"), \
 	C(USED_ARG_NAME,	"This argument name is already used"),	\
 	C(ARG_TOO_LONG,		"Argument expression is too long"),	\
 	C(NO_ARG_BODY,		"No argument expression"),		\
-	C(BAD_INSN_BNDRY,	"Probe point is not an instruction boundary"),\
+	C(BAD_INSN_BNDRY,	"Probe point is yest an instruction boundary"),\
 	C(FAIL_REG_PROBE,	"Failed to register probe event"),\
 	C(DIFF_PROBE_TYPE,	"Probe type is different from existing probe"),\
 	C(DIFF_ARG_TYPE,	"Argument type or name is different from existing probe"),\

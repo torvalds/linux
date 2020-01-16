@@ -6,7 +6,7 @@
  *
  * Disclaimer: The codes contained in these modules may be specific to
  * the Intel Software Development Platform codenamed: Knights Ferry, and
- * the Intel product codenamed: Knights Corner, and are not backward
+ * the Intel product codenamed: Knights Corner, and are yest backward
  * compatible with other Intel products. Additionally, Intel will NOT
  * support the codes or instruction set in future products.
  *
@@ -39,7 +39,7 @@ static int __init mic_dp_init(void)
 	dp_dma_addr = lo | (hi << 32);
 	mdrv->dp = mic_card_map(mdev, dp_dma_addr, MIC_DP_SIZE);
 	if (!mdrv->dp) {
-		dev_err(mdrv->dev, "Cannot remap Aperture BAR\n");
+		dev_err(mdrv->dev, "Canyest remap Aperture BAR\n");
 		return -ENOMEM;
 	}
 	bootparam = mdrv->dp;
@@ -103,7 +103,7 @@ err:
  * @data: private data specified by the calling function during the
  * mic_request_threaded_irq
  *
- * returns: none.
+ * returns: yesne.
  */
 void mic_free_card_irq(struct mic_irq *cookie, void *data)
 {
@@ -348,10 +348,10 @@ int __init mic_driver_init(struct mic_driver *mdrv)
 {
 	int rc;
 	struct mic_bootparam __iomem *bootparam;
-	u8 node_id;
+	u8 yesde_id;
 
 	g_drv = mdrv;
-	/* Unloading the card module is not supported. */
+	/* Unloading the card module is yest supported. */
 	if (!try_module_get(mdrv->dev->driver->owner)) {
 		rc = -ENODEV;
 		goto done;
@@ -374,10 +374,10 @@ int __init mic_driver_init(struct mic_driver *mdrv)
 		goto dma_free;
 	}
 	bootparam = mdrv->dp;
-	node_id = ioread8(&bootparam->node_id);
+	yesde_id = ioread8(&bootparam->yesde_id);
 	mdrv->scdev = scif_register_device(mdrv->dev, MIC_SCIF_DEV,
 					   NULL, &scif_hw_ops,
-					   0, node_id, &mdrv->mdev.mmio, NULL,
+					   0, yesde_id, &mdrv->mdev.mmio, NULL,
 					   NULL, mdrv->dp, mdrv->dma_ch,
 					   mdrv->num_dma_ch, true);
 	if (IS_ERR(mdrv->scdev)) {

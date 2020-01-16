@@ -128,8 +128,8 @@ static void mdiobb_cmd(struct mdiobb_ctrl *ctrl, int op, u8 phy, u8 reg)
 /* In clause 45 mode all commands are prefixed by MDIO_ADDR to specify the
    lower 16 bits of the 21 bit address. This transfer is done identically to a
    MDIO_WRITE except for a different code. To enable clause 45 mode or
-   MII_ADDR_C45 into the address. Theoretically clause 45 and normal devices
-   can exist on the same bus. Normal devices should ignore the MDIO_ADDR
+   MII_ADDR_C45 into the address. Theoretically clause 45 and yesrmal devices
+   can exist on the same bus. Normal devices should igyesre the MDIO_ADDR
    phase. */
 static int mdiobb_cmd_addr(struct mdiobb_ctrl *ctrl, int phy, u32 addr)
 {
@@ -163,10 +163,10 @@ static int mdiobb_read(struct mii_bus *bus, int phy, int reg)
 	ctrl->ops->set_mdio_dir(ctrl, 0);
 
 	/* check the turnaround bit: the PHY should be driving it to zero, if this
-	 * PHY is listed in phy_ignore_ta_mask as having broken TA, skip that
+	 * PHY is listed in phy_igyesre_ta_mask as having broken TA, skip that
 	 */
 	if (mdiobb_get_bit(ctrl) != 0 &&
-	    !(bus->phy_ignore_ta_mask & (1 << phy))) {
+	    !(bus->phy_igyesre_ta_mask & (1 << phy))) {
 		/* PHY didn't drive TA low -- flush any bits it
 		 * may be trying to send.
 		 */

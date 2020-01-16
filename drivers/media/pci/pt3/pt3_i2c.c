@@ -202,7 +202,7 @@ pt3_i2c_master_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs, int num)
 	for (i = 0; i < num; i++)
 		if (msgs[i].flags & I2C_M_RECV_LEN) {
 			dev_warn(&pt3->pdev->dev,
-				"(%s) I2C_M_RECV_LEN not supported.\n",
+				"(%s) I2C_M_RECV_LEN yest supported.\n",
 				__func__);
 			return -EINVAL;
 		}

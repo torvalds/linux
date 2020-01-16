@@ -31,7 +31,7 @@ static struct pci_config_window *gen_pci_init(struct device *dev,
 	if (err)
 		return ERR_PTR(err);
 
-	err = of_address_to_resource(dev->of_node, 0, &cfgres);
+	err = of_address_to_resource(dev->of_yesde, 0, &cfgres);
 	if (err) {
 		dev_err(dev, "missing \"reg\" property\n");
 		goto err_out;
@@ -74,7 +74,7 @@ int pci_host_common_probe(struct platform_device *pdev,
 	if (IS_ERR(cfg))
 		return PTR_ERR(cfg);
 
-	/* Do not reassign resources if probe only */
+	/* Do yest reassign resources if probe only */
 	if (!pci_has_flag(PCI_PROBE_ONLY))
 		pci_add_flags(PCI_REASSIGN_ALL_BUS);
 

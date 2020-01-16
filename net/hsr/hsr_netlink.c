@@ -39,13 +39,13 @@ static int hsr_newlink(struct net *src_net, struct net_device *dev,
 		return -EINVAL;
 	}
 	if (!data[IFLA_HSR_SLAVE1]) {
-		netdev_info(dev, "HSR: Slave1 device not specified\n");
+		netdev_info(dev, "HSR: Slave1 device yest specified\n");
 		return -EINVAL;
 	}
 	link[0] = __dev_get_by_index(src_net,
 				     nla_get_u32(data[IFLA_HSR_SLAVE1]));
 	if (!data[IFLA_HSR_SLAVE2]) {
-		netdev_info(dev, "HSR: Slave2 device not specified\n");
+		netdev_info(dev, "HSR: Slave2 device yest specified\n");
 		return -EINVAL;
 	}
 	link[1] = __dev_get_by_index(src_net,
@@ -133,7 +133,7 @@ static const struct genl_multicast_group hsr_mcgrps[] = {
 	{ .name = "hsr-network", },
 };
 
-/* This is called if for some node with MAC address addr, we only get frames
+/* This is called if for some yesde with MAC address addr, we only get frames
  * over one of the slave interfaces. This would indicate an open network ring
  * (i.e. a link has failed somewhere).
  */
@@ -173,14 +173,14 @@ nla_put_failure:
 fail:
 	rcu_read_lock();
 	master = hsr_port_get_hsr(hsr, HSR_PT_MASTER);
-	netdev_warn(master->dev, "Could not send HSR ring error message\n");
+	netdev_warn(master->dev, "Could yest send HSR ring error message\n");
 	rcu_read_unlock();
 }
 
-/* This is called when we haven't heard from the node with MAC address addr for
- * some time (just before the node is removed from the node table/list).
+/* This is called when we haven't heard from the yesde with MAC address addr for
+ * some time (just before the yesde is removed from the yesde table/list).
  */
-void hsr_nl_nodedown(struct hsr_priv *hsr, unsigned char addr[ETH_ALEN])
+void hsr_nl_yesdedown(struct hsr_priv *hsr, unsigned char addr[ETH_ALEN])
 {
 	struct sk_buff *skb;
 	void *msg_head;
@@ -210,19 +210,19 @@ nla_put_failure:
 fail:
 	rcu_read_lock();
 	master = hsr_port_get_hsr(hsr, HSR_PT_MASTER);
-	netdev_warn(master->dev, "Could not send HSR node down\n");
+	netdev_warn(master->dev, "Could yest send HSR yesde down\n");
 	rcu_read_unlock();
 }
 
-/* HSR_C_GET_NODE_STATUS lets userspace query the internal HSR node table
- * about the status of a specific node in the network, defined by its MAC
+/* HSR_C_GET_NODE_STATUS lets userspace query the internal HSR yesde table
+ * about the status of a specific yesde in the network, defined by its MAC
  * address.
  *
- * Input: hsr ifindex, node mac address
- * Output: hsr ifindex, node mac address (copied from request),
- *	   age of latest frame from node over slave 1, slave 2 [ms]
+ * Input: hsr ifindex, yesde mac address
+ * Output: hsr ifindex, yesde mac address (copied from request),
+ *	   age of latest frame from yesde over slave 1, slave 2 [ms]
  */
-static int hsr_get_node_status(struct sk_buff *skb_in, struct genl_info *info)
+static int hsr_get_yesde_status(struct sk_buff *skb_in, struct genl_info *info)
 {
 	/* For receiving */
 	struct nlattr *na;
@@ -233,11 +233,11 @@ static int hsr_get_node_status(struct sk_buff *skb_in, struct genl_info *info)
 	void *msg_head;
 	struct hsr_priv *hsr;
 	struct hsr_port *port;
-	unsigned char hsr_node_addr_b[ETH_ALEN];
-	int hsr_node_if1_age;
-	u16 hsr_node_if1_seq;
-	int hsr_node_if2_age;
-	u16 hsr_node_if2_seq;
+	unsigned char hsr_yesde_addr_b[ETH_ALEN];
+	int hsr_yesde_if1_age;
+	u16 hsr_yesde_if1_seq;
+	int hsr_yesde_if2_age;
+	u16 hsr_yesde_if2_seq;
 	int addr_b_ifindex;
 	int res;
 
@@ -278,15 +278,15 @@ static int hsr_get_node_status(struct sk_buff *skb_in, struct genl_info *info)
 		goto nla_put_failure;
 
 	hsr = netdev_priv(hsr_dev);
-	res = hsr_get_node_data(hsr,
+	res = hsr_get_yesde_data(hsr,
 				(unsigned char *)
 				nla_data(info->attrs[HSR_A_NODE_ADDR]),
-					 hsr_node_addr_b,
+					 hsr_yesde_addr_b,
 					 &addr_b_ifindex,
-					 &hsr_node_if1_age,
-					 &hsr_node_if1_seq,
-					 &hsr_node_if2_age,
-					 &hsr_node_if2_seq);
+					 &hsr_yesde_if1_age,
+					 &hsr_yesde_if1_seq,
+					 &hsr_yesde_if2_age,
+					 &hsr_yesde_if2_seq);
 	if (res < 0)
 		goto nla_put_failure;
 
@@ -297,7 +297,7 @@ static int hsr_get_node_status(struct sk_buff *skb_in, struct genl_info *info)
 
 	if (addr_b_ifindex > -1) {
 		res = nla_put(skb_out, HSR_A_NODE_ADDR_B, ETH_ALEN,
-			      hsr_node_addr_b);
+			      hsr_yesde_addr_b);
 		if (res < 0)
 			goto nla_put_failure;
 
@@ -307,10 +307,10 @@ static int hsr_get_node_status(struct sk_buff *skb_in, struct genl_info *info)
 			goto nla_put_failure;
 	}
 
-	res = nla_put_u32(skb_out, HSR_A_IF1_AGE, hsr_node_if1_age);
+	res = nla_put_u32(skb_out, HSR_A_IF1_AGE, hsr_yesde_if1_age);
 	if (res < 0)
 		goto nla_put_failure;
-	res = nla_put_u16(skb_out, HSR_A_IF1_SEQ, hsr_node_if1_seq);
+	res = nla_put_u16(skb_out, HSR_A_IF1_SEQ, hsr_yesde_if1_seq);
 	if (res < 0)
 		goto nla_put_failure;
 	rcu_read_lock();
@@ -322,10 +322,10 @@ static int hsr_get_node_status(struct sk_buff *skb_in, struct genl_info *info)
 	if (res < 0)
 		goto nla_put_failure;
 
-	res = nla_put_u32(skb_out, HSR_A_IF2_AGE, hsr_node_if2_age);
+	res = nla_put_u32(skb_out, HSR_A_IF2_AGE, hsr_yesde_if2_age);
 	if (res < 0)
 		goto nla_put_failure;
-	res = nla_put_u16(skb_out, HSR_A_IF2_SEQ, hsr_node_if2_seq);
+	res = nla_put_u16(skb_out, HSR_A_IF2_SEQ, hsr_yesde_if2_seq);
 	if (res < 0)
 		goto nla_put_failure;
 	rcu_read_lock();
@@ -354,9 +354,9 @@ fail:
 	return res;
 }
 
-/* Get a list of MacAddressA of all nodes known to this node (including self).
+/* Get a list of MacAddressA of all yesdes kyeswn to this yesde (including self).
  */
-static int hsr_get_node_list(struct sk_buff *skb_in, struct genl_info *info)
+static int hsr_get_yesde_list(struct sk_buff *skb_in, struct genl_info *info)
 {
 	/* For receiving */
 	struct nlattr *na;
@@ -406,14 +406,14 @@ static int hsr_get_node_list(struct sk_buff *skb_in, struct genl_info *info)
 	hsr = netdev_priv(hsr_dev);
 
 	rcu_read_lock();
-	pos = hsr_get_next_node(hsr, NULL, addr);
+	pos = hsr_get_next_yesde(hsr, NULL, addr);
 	while (pos) {
 		res = nla_put(skb_out, HSR_A_NODE_ADDR, ETH_ALEN, addr);
 		if (res < 0) {
 			rcu_read_unlock();
 			goto nla_put_failure;
 		}
-		pos = hsr_get_next_node(hsr, pos, addr);
+		pos = hsr_get_next_yesde(hsr, pos, addr);
 	}
 	rcu_read_unlock();
 
@@ -439,14 +439,14 @@ static const struct genl_ops hsr_ops[] = {
 		.cmd = HSR_C_GET_NODE_STATUS,
 		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 		.flags = 0,
-		.doit = hsr_get_node_status,
+		.doit = hsr_get_yesde_status,
 		.dumpit = NULL,
 	},
 	{
 		.cmd = HSR_C_GET_NODE_LIST,
 		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 		.flags = 0,
-		.doit = hsr_get_node_list,
+		.doit = hsr_get_yesde_list,
 		.dumpit = NULL,
 	},
 };

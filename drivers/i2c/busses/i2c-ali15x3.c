@@ -39,9 +39,9 @@
     We make sure that the SMB is enabled. We leave the ACPI alone.
 
     This driver controls the SMB Host only.
-    The SMB Slave controller on the M15X3 is not enabled.
+    The SMB Slave controller on the M15X3 is yest enabled.
 
-    This driver does not use interrupts.
+    This driver does yest use interrupts.
 */
 
 /* Note: we assume there can only be one ALI15X3, with one SMBus interface */
@@ -103,7 +103,7 @@
 #define ALI15X3_STS_BUSY	0x08
 #define ALI15X3_STS_DONE	0x10
 #define ALI15X3_STS_DEV		0x20	/* device error */
-#define ALI15X3_STS_COLL	0x40	/* collision or no response */
+#define ALI15X3_STS_COLL	0x40	/* collision or yes response */
 #define ALI15X3_STS_TERM	0x80	/* terminated by abort */
 #define ALI15X3_STS_ERR		0xE0	/* all the bad error bits */
 
@@ -177,7 +177,7 @@ static int ali15x3_setup(struct pci_dev *ALI15X3_dev)
 		if ((a & ~(ALI15X3_SMB_IOSIZE - 1)) != ali15x3_smba) {
 			/* make sure it works */
 			dev_err(&ALI15X3_dev->dev,
-				"force address failed - not supported?\n");
+				"force address failed - yest supported?\n");
 			goto error;
 		}
 	}
@@ -215,7 +215,7 @@ error:
 	return -ENODEV;
 }
 
-/* Another internally used function */
+/* Ayesther internally used function */
 static int ali15x3_transaction(struct i2c_adapter *adap)
 {
 	int temp;
@@ -245,12 +245,12 @@ static int ali15x3_transaction(struct i2c_adapter *adap)
 		   external device is hung, but it comes back upon a new access
 		   to a device)
 		3. Disable and reenable the controller in SMBHSTCFG
-	   Worst case, nothing seems to work except power reset.
+	   Worst case, yesthing seems to work except power reset.
 	*/
 	/* Abort - reset the host controller */
 	/*
 	   Try resetting entire SMB bus, including other devices -
-	   This may not work either - it clears the BUSY bit but
+	   This may yest work either - it clears the BUSY bit but
 	   then the BUSY bit may come back on when you try and use the chip again.
 	   If that's the case you are stuck.
 	*/
@@ -260,14 +260,14 @@ static int ali15x3_transaction(struct i2c_adapter *adap)
 		temp = inb_p(SMBHSTSTS);
 	}
 
-	/* now check the error bits and the busy bit */
+	/* yesw check the error bits and the busy bit */
 	if (temp & (ALI15X3_STS_ERR | ALI15X3_STS_BUSY)) {
 		/* do a clear-on-write */
 		outb_p(0xFF, SMBHSTSTS);
 		if ((temp = inb_p(SMBHSTSTS)) &
 		    (ALI15X3_STS_ERR | ALI15X3_STS_BUSY)) {
 			/* this is probably going to be correctable only by a power reset
-			   as one of the bits now appears to be stuck */
+			   as one of the bits yesw appears to be stuck */
 			/* This may be a bus or device with electrical problems. */
 			dev_err(&adap->dev, "SMBus reset failed! (0x%02x) - "
 				"controller or device on bus is probably hung\n",
@@ -304,7 +304,7 @@ static int ali15x3_transaction(struct i2c_adapter *adap)
 	}
 
 	/*
-	  Unfortunately the ALI SMB controller maps "no response" and "bus
+	  Unfortunately the ALI SMB controller maps "yes response" and "bus
 	  collision" into a single bit. No response is the usual case so don't
 	  do a printk.
 	  This means that bus collisions go unreported.
@@ -312,7 +312,7 @@ static int ali15x3_transaction(struct i2c_adapter *adap)
 	if (temp & ALI15X3_STS_COLL) {
 		result = -ENXIO;
 		dev_dbg(&adap->dev,
-			"Error: no response or bus collision ADD=%02x\n",
+			"Error: yes response or bus collision ADD=%02x\n",
 			inb_p(SMBHSTADD));
 	}
 
@@ -328,7 +328,7 @@ static int ali15x3_transaction(struct i2c_adapter *adap)
 	return result;
 }
 
-/* Return negative errno on error. */
+/* Return negative erryes on error. */
 static s32 ali15x3_access(struct i2c_adapter * adap, u16 addr,
 		   unsigned short flags, char read_write, u8 command,
 		   int size, union i2c_smbus_data * data)
@@ -475,7 +475,7 @@ static int ali15x3_probe(struct pci_dev *dev, const struct pci_device_id *id)
 {
 	if (ali15x3_setup(dev)) {
 		dev_err(&dev->dev,
-			"ALI15X3 not detected, module not inserted.\n");
+			"ALI15X3 yest detected, module yest inserted.\n");
 		return -ENODEV;
 	}
 

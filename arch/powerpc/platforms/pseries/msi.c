@@ -32,7 +32,7 @@ static int rtas_change_msi(struct pci_dn *pdn, u32 func, u32 num_irqs)
 	unsigned long buid;
 	int rc;
 
-	addr = rtas_config_addr(pdn->busno, pdn->devfn, 0);
+	addr = rtas_config_addr(pdn->busyes, pdn->devfn, 0);
 	buid = pdn->phb->buid;
 
 	seq_num = 1;
@@ -52,7 +52,7 @@ static int rtas_change_msi(struct pci_dn *pdn, u32 func, u32 num_irqs)
 
 	/*
 	 * If the RTAS call succeeded, return the number of irqs allocated.
-	 * If not, make sure we return a negative error code.
+	 * If yest, make sure we return a negative error code.
 	 */
 	if (rc == 0)
 		rc = rtas_ret[0];
@@ -78,7 +78,7 @@ static void rtas_disable_msi(struct pci_dev *pdev)
 	 */
 	if (rtas_change_msi(pdn, RTAS_CHANGE_MSI_FN, 0) != 0) {
 		/* 
-		 * may have failed because explicit interface is not
+		 * may have failed because explicit interface is yest
 		 * present
 		 */
 		if (rtas_change_msi(pdn, RTAS_CHANGE_FN, 0) != 0) {
@@ -93,7 +93,7 @@ static int rtas_query_irq_number(struct pci_dn *pdn, int offset)
 	unsigned long buid;
 	int rc;
 
-	addr = rtas_config_addr(pdn->busno, pdn->devfn, 0);
+	addr = rtas_config_addr(pdn->busyes, pdn->devfn, 0);
 	buid = pdn->phb->buid;
 
 	do {
@@ -126,11 +126,11 @@ static void rtas_teardown_msi_irqs(struct pci_dev *pdev)
 
 static int check_req(struct pci_dev *pdev, int nvec, char *prop_name)
 {
-	struct device_node *dn;
+	struct device_yesde *dn;
 	const __be32 *p;
 	u32 req_msi;
 
-	dn = pci_device_to_OF_node(pdev);
+	dn = pci_device_to_OF_yesde(pdev);
 
 	p = of_get_property(dn, prop_name, NULL);
 	if (!p) {
@@ -142,7 +142,7 @@ static int check_req(struct pci_dev *pdev, int nvec, char *prop_name)
 	if (req_msi < nvec) {
 		pr_debug("rtas_msi: %s requests < %d MSIs\n", prop_name, nvec);
 
-		if (req_msi == 0) /* Be paranoid */
+		if (req_msi == 0) /* Be parayesid */
 			return -ENOSPC;
 
 		return req_msi;
@@ -163,12 +163,12 @@ static int check_req_msix(struct pci_dev *pdev, int nvec)
 
 /* Quota calculation */
 
-static struct device_node *find_pe_total_msi(struct pci_dev *dev, int *total)
+static struct device_yesde *find_pe_total_msi(struct pci_dev *dev, int *total)
 {
-	struct device_node *dn;
+	struct device_yesde *dn;
 	const __be32 *p;
 
-	dn = of_node_get(pci_device_to_OF_node(dev));
+	dn = of_yesde_get(pci_device_to_OF_yesde(dev));
 	while (dn) {
 		p = of_get_property(dn, "ibm,pe-total-#msi", NULL);
 		if (p) {
@@ -184,14 +184,14 @@ static struct device_node *find_pe_total_msi(struct pci_dev *dev, int *total)
 	return NULL;
 }
 
-static struct device_node *find_pe_dn(struct pci_dev *dev, int *total)
+static struct device_yesde *find_pe_dn(struct pci_dev *dev, int *total)
 {
-	struct device_node *dn;
+	struct device_yesde *dn;
 	struct eeh_dev *edev;
 
 	/* Found our PE and assume 8 at that point. */
 
-	dn = pci_device_to_OF_node(dev);
+	dn = pci_device_to_OF_yesde(dev);
 	if (!dn)
 		return NULL;
 
@@ -200,7 +200,7 @@ static struct device_node *find_pe_dn(struct pci_dev *dev, int *total)
 	if (edev->pe)
 		edev = list_first_entry(&edev->pe->edevs, struct eeh_dev,
 					entry);
-	dn = pci_device_to_OF_node(edev->pdev);
+	dn = pci_device_to_OF_yesde(edev->pdev);
 	if (!dn)
 		return NULL;
 
@@ -217,7 +217,7 @@ static struct device_node *find_pe_dn(struct pci_dev *dev, int *total)
 }
 
 struct msi_counts {
-	struct device_node *requestor;
+	struct device_yesde *requestor;
 	int num_devices;
 	int request;
 	int quota;
@@ -225,7 +225,7 @@ struct msi_counts {
 	int over_quota;
 };
 
-static void *count_non_bridge_devices(struct device_node *dn, void *data)
+static void *count_yesn_bridge_devices(struct device_yesde *dn, void *data)
 {
 	struct msi_counts *counts = data;
 	const __be32 *p;
@@ -242,7 +242,7 @@ static void *count_non_bridge_devices(struct device_node *dn, void *data)
 	return NULL;
 }
 
-static void *count_spare_msis(struct device_node *dn, void *data)
+static void *count_spare_msis(struct device_yesde *dn, void *data)
 {
 	struct msi_counts *counts = data;
 	const __be32 *p;
@@ -251,7 +251,7 @@ static void *count_spare_msis(struct device_node *dn, void *data)
 	if (dn == counts->requestor)
 		req = counts->request;
 	else {
-		/* We don't know if a driver will try to use MSI or MSI-X,
+		/* We don't kyesw if a driver will try to use MSI or MSI-X,
 		 * so we just have to punt and use the larger of the two. */
 		req = 0;
 		p = of_get_property(dn, "ibm,req#msi", NULL);
@@ -273,7 +273,7 @@ static void *count_spare_msis(struct device_node *dn, void *data)
 
 static int msi_quota_for_device(struct pci_dev *dev, int request)
 {
-	struct device_node *pe_dn;
+	struct device_yesde *pe_dn;
 	struct msi_counts counts;
 	int total;
 
@@ -294,7 +294,7 @@ static int msi_quota_for_device(struct pci_dev *dev, int request)
 	memset(&counts, 0, sizeof(struct msi_counts));
 
 	/* Work out how many devices we have below this PE */
-	pci_traverse_device_nodes(pe_dn, count_non_bridge_devices, &counts);
+	pci_traverse_device_yesdes(pe_dn, count_yesn_bridge_devices, &counts);
 
 	if (counts.num_devices == 0) {
 		pr_err("rtas_msi: found 0 devices under PE for %s\n",
@@ -307,9 +307,9 @@ static int msi_quota_for_device(struct pci_dev *dev, int request)
 		goto out;
 
 	/* else, we have some more calculating to do */
-	counts.requestor = pci_device_to_OF_node(dev);
+	counts.requestor = pci_device_to_OF_yesde(dev);
 	counts.request = request;
-	pci_traverse_device_nodes(pe_dn, count_spare_msis, &counts);
+	pci_traverse_device_yesdes(pe_dn, count_spare_msis, &counts);
 
 	/* If the quota isn't an integer multiple of the total, we can
 	 * use the remainder as spare MSIs for anyone that wants them. */
@@ -324,7 +324,7 @@ static int msi_quota_for_device(struct pci_dev *dev, int request)
 
 	pr_debug("rtas_msi: request clamped to quota %d\n", request);
 out:
-	of_node_put(pe_dn);
+	of_yesde_put(pe_dn);
 
 	return request;
 }
@@ -334,8 +334,8 @@ static int check_msix_entries(struct pci_dev *pdev)
 	struct msi_desc *entry;
 	int expected;
 
-	/* There's no way for us to express to firmware that we want
-	 * a discontiguous, or non-zero based, range of MSI-X entries.
+	/* There's yes way for us to express to firmware that we want
+	 * a discontiguous, or yesn-zero based, range of MSI-X entries.
 	 * So we must reject such requests. */
 
 	expected = 0;
@@ -393,7 +393,7 @@ static int rtas_setup_msi_irqs(struct pci_dev *pdev, int nvec_in, int type)
 		return -EINVAL;
 
 	/*
-	 * Firmware currently refuse any non power of two allocation
+	 * Firmware currently refuse any yesn power of two allocation
 	 * so we round up if the quota will allow it.
 	 */
 	if (type == PCI_CAP_ID_MSIX) {
@@ -408,12 +408,12 @@ static int rtas_setup_msi_irqs(struct pci_dev *pdev, int nvec_in, int type)
 
 	/*
 	 * Try the new more explicit firmware interface, if that fails fall
-	 * back to the old interface. The old interface is known to never
+	 * back to the old interface. The old interface is kyeswn to never
 	 * return MSI-Xs.
 	 */
 again:
 	if (type == PCI_CAP_ID_MSI) {
-		if (pdev->no_64bit_msi) {
+		if (pdev->yes_64bit_msi) {
 			rc = rtas_change_msi(pdn, RTAS_CHANGE_32MSI_FN, nvec);
 			if (rc < 0) {
 				/*
@@ -480,13 +480,13 @@ static void rtas_msi_pci_irq_fixup(struct pci_dev *pdev)
 {
 	/* No LSI -> leave MSIs (if any) configured */
 	if (!pdev->irq) {
-		dev_dbg(&pdev->dev, "rtas_msi: no LSI, nothing to do.\n");
+		dev_dbg(&pdev->dev, "rtas_msi: yes LSI, yesthing to do.\n");
 		return;
 	}
 
 	/* No MSI -> MSIs can't have been assigned by fw, leave LSI */
 	if (check_req_msi(pdev, 1) && check_req_msix(pdev, 1)) {
-		dev_dbg(&pdev->dev, "rtas_msi: no req#msi/x, nothing to do.\n");
+		dev_dbg(&pdev->dev, "rtas_msi: yes req#msi/x, yesthing to do.\n");
 		return;
 	}
 
@@ -503,7 +503,7 @@ static int rtas_msi_init(void)
 
 	if ((query_token == RTAS_UNKNOWN_SERVICE) ||
 			(change_token == RTAS_UNKNOWN_SERVICE)) {
-		pr_debug("rtas_msi: no RTAS tokens, no MSI support.\n");
+		pr_debug("rtas_msi: yes RTAS tokens, yes MSI support.\n");
 		return -1;
 	}
 
@@ -513,7 +513,7 @@ static int rtas_msi_init(void)
 	pseries_pci_controller_ops.setup_msi_irqs = rtas_setup_msi_irqs;
 	pseries_pci_controller_ops.teardown_msi_irqs = rtas_teardown_msi_irqs;
 
-	list_for_each_entry(phb, &hose_list, list_node) {
+	list_for_each_entry(phb, &hose_list, list_yesde) {
 		WARN_ON(phb->controller_ops.setup_msi_irqs);
 		phb->controller_ops.setup_msi_irqs = rtas_setup_msi_irqs;
 		phb->controller_ops.teardown_msi_irqs = rtas_teardown_msi_irqs;

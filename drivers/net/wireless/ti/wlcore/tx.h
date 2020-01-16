@@ -5,7 +5,7 @@
  * Copyright (C) 1998-2009 Texas Instruments. All rights reserved.
  * Copyright (C) 2009 Nokia Corporation
  *
- * Contact: Luciano Coelho <luciano.coelho@nokia.com>
+ * Contact: Luciayes Coelho <luciayes.coelho@yeskia.com>
  */
 
 #ifndef __TX_H__

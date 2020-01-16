@@ -2,7 +2,7 @@
 /*
  * Bestcomm GenBD TX task microcode
  *
- * Copyright (C) 2006 AppSpec Computer Technologies Corp.
+ * Copyright (C) 2006 AppSpec Computer Techyeslogies Corp.
  *                    Jeff Gibbons <jeff.gibbons@appspec.com>
  * Copyright (c) 2004 Freescale Semiconductor, Inc.
  *

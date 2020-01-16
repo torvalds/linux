@@ -15,7 +15,7 @@
  * Laboratoire MASI - Institut Blaise Pascal
  * Universite Pierre et Marie Curie (Paris VI)
  *
- *  BSD ufs-inspired inode and directory allocation by 
+ *  BSD ufs-inspired iyesde and directory allocation by 
  *  Stephen Tweedie (sct@dcs.ed.ac.uk), 1993
  *  Big-endian to little-endian byte-swapping/bitmaps by
  *        David S. Miller (davem@caip.rutgers.edu), 1995
@@ -39,47 +39,47 @@
 #include "util.h"
 
 /*
- * NOTE! When we get the inode, we're the only people
- * that have access to it, and as such there are no
- * race conditions we have to worry about. The inode
- * is not on the hash-lists, and it cannot be reached
+ * NOTE! When we get the iyesde, we're the only people
+ * that have access to it, and as such there are yes
+ * race conditions we have to worry about. The iyesde
+ * is yest on the hash-lists, and it canyest be reached
  * through the filesystem because the directory entry
  * has been deleted earlier.
  *
- * HOWEVER: we must make sure that we get no aliases,
- * which means that we have to call "clear_inode()"
- * _before_ we mark the inode not in use in the inode
+ * HOWEVER: we must make sure that we get yes aliases,
+ * which means that we have to call "clear_iyesde()"
+ * _before_ we mark the iyesde yest in use in the iyesde
  * bitmaps. Otherwise a newly created file might use
- * the same inode number (not actually the same pointer
- * though), and then we'd have two inodes sharing the
- * same inode number and space on the harddisk.
+ * the same iyesde number (yest actually the same pointer
+ * though), and then we'd have two iyesdes sharing the
+ * same iyesde number and space on the harddisk.
  */
-void ufs_free_inode (struct inode * inode)
+void ufs_free_iyesde (struct iyesde * iyesde)
 {
 	struct super_block * sb;
 	struct ufs_sb_private_info * uspi;
 	struct ufs_cg_private_info * ucpi;
 	struct ufs_cylinder_group * ucg;
 	int is_directory;
-	unsigned ino, cg, bit;
+	unsigned iyes, cg, bit;
 	
-	UFSD("ENTER, ino %lu\n", inode->i_ino);
+	UFSD("ENTER, iyes %lu\n", iyesde->i_iyes);
 
-	sb = inode->i_sb;
+	sb = iyesde->i_sb;
 	uspi = UFS_SB(sb)->s_uspi;
 	
-	ino = inode->i_ino;
+	iyes = iyesde->i_iyes;
 
 	mutex_lock(&UFS_SB(sb)->s_lock);
 
-	if (!((ino > 1) && (ino < (uspi->s_ncg * uspi->s_ipg )))) {
-		ufs_warning(sb, "ufs_free_inode", "reserved inode or nonexistent inode %u\n", ino);
+	if (!((iyes > 1) && (iyes < (uspi->s_ncg * uspi->s_ipg )))) {
+		ufs_warning(sb, "ufs_free_iyesde", "reserved iyesde or yesnexistent iyesde %u\n", iyes);
 		mutex_unlock(&UFS_SB(sb)->s_lock);
 		return;
 	}
 	
-	cg = ufs_inotocg (ino);
-	bit = ufs_inotocgoff (ino);
+	cg = ufs_iyestocg (iyes);
+	bit = ufs_iyestocgoff (iyes);
 	ucpi = ufs_load_cylinder (sb, cg);
 	if (!ucpi) {
 		mutex_unlock(&UFS_SB(sb)->s_lock);
@@ -91,14 +91,14 @@ void ufs_free_inode (struct inode * inode)
 
 	ucg->cg_time = ufs_get_seconds(sb);
 
-	is_directory = S_ISDIR(inode->i_mode);
+	is_directory = S_ISDIR(iyesde->i_mode);
 
 	if (ubh_isclr (UCPI_UBH(ucpi), ucpi->c_iusedoff, bit))
-		ufs_error(sb, "ufs_free_inode", "bit already cleared for inode %u", ino);
+		ufs_error(sb, "ufs_free_iyesde", "bit already cleared for iyesde %u", iyes);
 	else {
 		ubh_clrbit (UCPI_UBH(ucpi), ucpi->c_iusedoff, bit);
-		if (ino < ucpi->c_irotor)
-			ucpi->c_irotor = ino;
+		if (iyes < ucpi->c_irotor)
+			ucpi->c_irotor = iyes;
 		fs32_add(sb, &ucg->cg_cs.cs_nifree, 1);
 		uspi->cs_total.cs_nifree++;
 		fs32_add(sb, &UFS_SB(sb)->fs_cs(cg).cs_nifree, 1);
@@ -121,23 +121,23 @@ void ufs_free_inode (struct inode * inode)
 }
 
 /*
- * Nullify new chunk of inodes,
- * BSD people also set ui_gen field of inode
- * during nullification, but we not care about
- * that because of linux ufs do not support NFS
+ * Nullify new chunk of iyesdes,
+ * BSD people also set ui_gen field of iyesde
+ * during nullification, but we yest care about
+ * that because of linux ufs do yest support NFS
  */
-static void ufs2_init_inodes_chunk(struct super_block *sb,
+static void ufs2_init_iyesdes_chunk(struct super_block *sb,
 				   struct ufs_cg_private_info *ucpi,
 				   struct ufs_cylinder_group *ucg)
 {
 	struct buffer_head *bh;
 	struct ufs_sb_private_info *uspi = UFS_SB(sb)->s_uspi;
 	sector_t beg = uspi->s_sbbase +
-		ufs_inotofsba(ucpi->c_cgx * uspi->s_ipg +
+		ufs_iyestofsba(ucpi->c_cgx * uspi->s_ipg +
 			      fs32_to_cpu(sb, ucg->cg_u.cg_u2.cg_initediblk));
 	sector_t end = beg + uspi->s_fpb;
 
-	UFSD("ENTER cgno %d\n", ucpi->c_cgx);
+	UFSD("ENTER cgyes %d\n", ucpi->c_cgx);
 
 	for (; beg < end; ++beg) {
 		bh = sb_getblk(sb, beg);
@@ -151,7 +151,7 @@ static void ufs2_init_inodes_chunk(struct super_block *sb,
 		brelse(bh);
 	}
 
-	fs32_add(sb, &ucg->cg_u.cg_u2.cg_initediblk, uspi->s_inopb);
+	fs32_add(sb, &ucg->cg_u.cg_u2.cg_initediblk, uspi->s_iyespb);
 	ubh_mark_buffer_dirty(UCPI_UBH(ucpi));
 	if (sb->s_flags & SB_SYNCHRONOUS)
 		ubh_sync_block(UCPI_UBH(ucpi));
@@ -160,54 +160,54 @@ static void ufs2_init_inodes_chunk(struct super_block *sb,
 }
 
 /*
- * There are two policies for allocating an inode.  If the new inode is
+ * There are two policies for allocating an iyesde.  If the new iyesde is
  * a directory, then a forward search is made for a block group with both
- * free space and a low directory-to-inode ratio; if that fails, then of
+ * free space and a low directory-to-iyesde ratio; if that fails, then of
  * the groups with above-average free space, that group with the fewest
  * directories already is chosen.
  *
- * For other inodes, search forward from the parent directory's block
- * group to find a free inode.
+ * For other iyesdes, search forward from the parent directory's block
+ * group to find a free iyesde.
  */
-struct inode *ufs_new_inode(struct inode *dir, umode_t mode)
+struct iyesde *ufs_new_iyesde(struct iyesde *dir, umode_t mode)
 {
 	struct super_block * sb;
 	struct ufs_sb_info * sbi;
 	struct ufs_sb_private_info * uspi;
 	struct ufs_cg_private_info * ucpi;
 	struct ufs_cylinder_group * ucg;
-	struct inode * inode;
+	struct iyesde * iyesde;
 	struct timespec64 ts;
 	unsigned cg, bit, i, j, start;
-	struct ufs_inode_info *ufsi;
+	struct ufs_iyesde_info *ufsi;
 	int err = -ENOSPC;
 
 	UFSD("ENTER\n");
 	
-	/* Cannot create files in a deleted directory */
+	/* Canyest create files in a deleted directory */
 	if (!dir || !dir->i_nlink)
 		return ERR_PTR(-EPERM);
 	sb = dir->i_sb;
-	inode = new_inode(sb);
-	if (!inode)
+	iyesde = new_iyesde(sb);
+	if (!iyesde)
 		return ERR_PTR(-ENOMEM);
-	ufsi = UFS_I(inode);
+	ufsi = UFS_I(iyesde);
 	sbi = UFS_SB(sb);
 	uspi = sbi->s_uspi;
 
 	mutex_lock(&sbi->s_lock);
 
 	/*
-	 * Try to place the inode in its parent directory
+	 * Try to place the iyesde in its parent directory
 	 */
-	i = ufs_inotocg(dir->i_ino);
+	i = ufs_iyestocg(dir->i_iyes);
 	if (sbi->fs_cs(i).cs_nifree) {
 		cg = i;
 		goto cg_found;
 	}
 
 	/*
-	 * Use a quadratic hash to find a group with a free inode
+	 * Use a quadratic hash to find a group with a free iyesde
 	 */
 	for ( j = 1; j < uspi->s_ncg; j <<= 1 ) {
 		i += j;
@@ -220,9 +220,9 @@ struct inode *ufs_new_inode(struct inode *dir, umode_t mode)
 	}
 
 	/*
-	 * That failed: try linear search for a free inode
+	 * That failed: try linear search for a free iyesde
 	 */
-	i = ufs_inotocg(dir->i_ino) + 1;
+	i = ufs_iyestocg(dir->i_iyes) + 1;
 	for (j = 2; j < uspi->s_ncg; j++) {
 		i++;
 		if (i >= uspi->s_ncg)
@@ -243,15 +243,15 @@ cg_found:
 	}
 	ucg = ubh_get_ucg(UCPI_UBH(ucpi));
 	if (!ufs_cg_chkmagic(sb, ucg)) 
-		ufs_panic (sb, "ufs_new_inode", "internal error, bad cg magic number");
+		ufs_panic (sb, "ufs_new_iyesde", "internal error, bad cg magic number");
 
 	start = ucpi->c_irotor;
 	bit = ubh_find_next_zero_bit (UCPI_UBH(ucpi), ucpi->c_iusedoff, uspi->s_ipg, start);
 	if (!(bit < uspi->s_ipg)) {
 		bit = ubh_find_first_zero_bit (UCPI_UBH(ucpi), ucpi->c_iusedoff, start);
 		if (!(bit < start)) {
-			ufs_error (sb, "ufs_new_inode",
-			    "cylinder group %u corrupted - error in inode bitmap\n", cg);
+			ufs_error (sb, "ufs_new_iyesde",
+			    "cylinder group %u corrupted - error in iyesde bitmap\n", cg);
 			err = -EIO;
 			goto failed;
 		}
@@ -260,7 +260,7 @@ cg_found:
 	if (ubh_isclr (UCPI_UBH(ucpi), ucpi->c_iusedoff, bit))
 		ubh_setbit (UCPI_UBH(ucpi), ucpi->c_iusedoff, bit);
 	else {
-		ufs_panic (sb, "ufs_new_inode", "internal error");
+		ufs_panic (sb, "ufs_new_iyesde", "internal error");
 		err = -EIO;
 		goto failed;
 	}
@@ -268,9 +268,9 @@ cg_found:
 	if (uspi->fs_magic == UFS2_MAGIC) {
 		u32 initediblk = fs32_to_cpu(sb, ucg->cg_u.cg_u2.cg_initediblk);
 
-		if (bit + uspi->s_inopb > initediblk &&
+		if (bit + uspi->s_iyespb > initediblk &&
 		    initediblk < fs32_to_cpu(sb, ucg->cg_u.cg_u2.cg_niblk))
-			ufs2_init_inodes_chunk(sb, ucpi, ucg);
+			ufs2_init_iyesdes_chunk(sb, ucpi, ucg);
 	}
 
 	fs32_sub(sb, &ucg->cg_cs.cs_nifree, 1);
@@ -288,11 +288,11 @@ cg_found:
 		ubh_sync_block(UCPI_UBH(ucpi));
 	ufs_mark_sb_dirty(sb);
 
-	inode->i_ino = cg * uspi->s_ipg + bit;
-	inode_init_owner(inode, dir, mode);
-	inode->i_blocks = 0;
-	inode->i_generation = 0;
-	inode->i_mtime = inode->i_atime = inode->i_ctime = current_time(inode);
+	iyesde->i_iyes = cg * uspi->s_ipg + bit;
+	iyesde_init_owner(iyesde, dir, mode);
+	iyesde->i_blocks = 0;
+	iyesde->i_generation = 0;
+	iyesde->i_mtime = iyesde->i_atime = iyesde->i_ctime = current_time(iyesde);
 	ufsi->i_flags = UFS_I(dir)->i_flags;
 	ufsi->i_lastfrag = 0;
 	ufsi->i_shadow = 0;
@@ -300,34 +300,34 @@ cg_found:
 	ufsi->i_oeftflag = 0;
 	ufsi->i_dir_start_lookup = 0;
 	memset(&ufsi->i_u1, 0, sizeof(ufsi->i_u1));
-	if (insert_inode_locked(inode) < 0) {
+	if (insert_iyesde_locked(iyesde) < 0) {
 		err = -EIO;
 		goto failed;
 	}
-	mark_inode_dirty(inode);
+	mark_iyesde_dirty(iyesde);
 
 	if (uspi->fs_magic == UFS2_MAGIC) {
 		struct buffer_head *bh;
-		struct ufs2_inode *ufs2_inode;
+		struct ufs2_iyesde *ufs2_iyesde;
 
 		/*
-		 * setup birth date, we do it here because of there is no sense
-		 * to hold it in struct ufs_inode_info, and lose 64 bit
+		 * setup birth date, we do it here because of there is yes sense
+		 * to hold it in struct ufs_iyesde_info, and lose 64 bit
 		 */
-		bh = sb_bread(sb, uspi->s_sbbase + ufs_inotofsba(inode->i_ino));
+		bh = sb_bread(sb, uspi->s_sbbase + ufs_iyestofsba(iyesde->i_iyes));
 		if (!bh) {
-			ufs_warning(sb, "ufs_read_inode",
-				    "unable to read inode %lu\n",
-				    inode->i_ino);
+			ufs_warning(sb, "ufs_read_iyesde",
+				    "unable to read iyesde %lu\n",
+				    iyesde->i_iyes);
 			err = -EIO;
-			goto fail_remove_inode;
+			goto fail_remove_iyesde;
 		}
 		lock_buffer(bh);
-		ufs2_inode = (struct ufs2_inode *)bh->b_data;
-		ufs2_inode += ufs_inotofsbo(inode->i_ino);
+		ufs2_iyesde = (struct ufs2_iyesde *)bh->b_data;
+		ufs2_iyesde += ufs_iyestofsbo(iyesde->i_iyes);
 		ktime_get_real_ts64(&ts);
-		ufs2_inode->ui_birthtime = cpu_to_fs64(sb, ts.tv_sec);
-		ufs2_inode->ui_birthnsec = cpu_to_fs32(sb, ts.tv_nsec);
+		ufs2_iyesde->ui_birthtime = cpu_to_fs64(sb, ts.tv_sec);
+		ufs2_iyesde->ui_birthnsec = cpu_to_fs32(sb, ts.tv_nsec);
 		mark_buffer_dirty(bh);
 		unlock_buffer(bh);
 		if (sb->s_flags & SB_SYNCHRONOUS)
@@ -336,20 +336,20 @@ cg_found:
 	}
 	mutex_unlock(&sbi->s_lock);
 
-	UFSD("allocating inode %lu\n", inode->i_ino);
+	UFSD("allocating iyesde %lu\n", iyesde->i_iyes);
 	UFSD("EXIT\n");
-	return inode;
+	return iyesde;
 
-fail_remove_inode:
+fail_remove_iyesde:
 	mutex_unlock(&sbi->s_lock);
-	clear_nlink(inode);
-	discard_new_inode(inode);
+	clear_nlink(iyesde);
+	discard_new_iyesde(iyesde);
 	UFSD("EXIT (FAILED): err %d\n", err);
 	return ERR_PTR(err);
 failed:
 	mutex_unlock(&sbi->s_lock);
-	make_bad_inode(inode);
-	iput (inode);
+	make_bad_iyesde(iyesde);
+	iput (iyesde);
 	UFSD("EXIT (FAILED): err %d\n", err);
 	return ERR_PTR(err);
 }

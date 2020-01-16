@@ -7,7 +7,7 @@
 #include <linux/irqreturn.h>
 #include <xen/xen-ops.h>
 
-/* These are code, but not functions.  Defined in entry.S */
+/* These are code, but yest functions.  Defined in entry.S */
 extern const char xen_hypervisor_callback[];
 extern const char xen_failsafe_callback[];
 
@@ -137,7 +137,7 @@ __visible void xen_restore_fl_direct(unsigned long);
 __visible unsigned long xen_read_cr2(void);
 __visible unsigned long xen_read_cr2_direct(void);
 
-/* These are not functions, and cannot be called normally */
+/* These are yest functions, and canyest be called yesrmally */
 __visible void xen_iret(void);
 __visible void xen_sysret32(void);
 __visible void xen_sysret64(void);

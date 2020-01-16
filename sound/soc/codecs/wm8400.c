@@ -97,7 +97,7 @@ static int wm8400_outpga_put_volsw_vu(struct snd_kcontrol *kcontrol,
         if (ret < 0)
                 return ret;
 
-        /* now hit the volume update bits (always bit 8) */
+        /* yesw hit the volume update bits (always bit 8) */
         val = snd_soc_component_read32(component, reg);
         return snd_soc_component_write(component, reg, val | 0x0100);
 }
@@ -331,7 +331,7 @@ static int outmixer_event (struct snd_soc_dapm_widget *w,
 		reg = snd_soc_component_read32(component, WM8400_OUTPUT_MIXER1);
 		if (reg & WM8400_LDLO) {
 			printk(KERN_WARNING
-			"Cannot set as Output Mixer 1 LDLO Set\n");
+			"Canyest set as Output Mixer 1 LDLO Set\n");
 			ret = -1;
 		}
 		break;
@@ -339,7 +339,7 @@ static int outmixer_event (struct snd_soc_dapm_widget *w,
 		reg = snd_soc_component_read32(component, WM8400_OUTPUT_MIXER2);
 		if (reg & WM8400_RDRO) {
 			printk(KERN_WARNING
-			"Cannot set as Output Mixer 2 RDRO Set\n");
+			"Canyest set as Output Mixer 2 RDRO Set\n");
 			ret = -1;
 		}
 		break;
@@ -347,7 +347,7 @@ static int outmixer_event (struct snd_soc_dapm_widget *w,
 		reg = snd_soc_component_read32(component, WM8400_SPEAKER_MIXER);
 		if (reg & WM8400_LDSPK) {
 			printk(KERN_WARNING
-			"Cannot set as Speaker Mixer LDSPK Set\n");
+			"Canyest set as Speaker Mixer LDSPK Set\n");
 			ret = -1;
 		}
 		break;
@@ -355,7 +355,7 @@ static int outmixer_event (struct snd_soc_dapm_widget *w,
 		reg = snd_soc_component_read32(component, WM8400_SPEAKER_MIXER);
 		if (reg & WM8400_RDSPK) {
 			printk(KERN_WARNING
-			"Cannot set as Speaker Mixer RDSPK Set\n");
+			"Canyest set as Speaker Mixer RDSPK Set\n");
 			ret = -1;
 		}
 		break;
@@ -709,12 +709,12 @@ SND_SOC_DAPM_OUTPUT("Internal DAC Sink"),
 };
 
 static const struct snd_soc_dapm_route wm8400_dapm_routes[] = {
-	/* Make DACs turn on when playing even if not mixed into any outputs */
+	/* Make DACs turn on when playing even if yest mixed into any outputs */
 	{"Internal DAC Sink", NULL, "Left DAC"},
 	{"Internal DAC Sink", NULL, "Right DAC"},
 
 	/* Make ADCs turn on when recording
-	 * even if not mixed from any inputs */
+	 * even if yest mixed from any inputs */
 	{"Left ADC", NULL, "Internal ADC Source"},
 	{"Right ADC", NULL, "Internal ADC Source"},
 
@@ -918,7 +918,7 @@ static int fll_factors(struct wm8400_priv *wm8400, struct fll_factors *factors,
 	if ((K % 10) >= 5)
 		K += 5;
 
-	/* Move down to proper range now rounding is done */
+	/* Move down to proper range yesw rounding is done */
 	factors->k = K / 10;
 
 	dev_dbg(wm8400->wm8400->dev,
@@ -1333,7 +1333,7 @@ static const struct snd_soc_component_driver soc_component_dev_wm8400 = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
+	.yesn_legacy_dai_naming	= 1,
 };
 
 static int wm8400_probe(struct platform_device *pdev)

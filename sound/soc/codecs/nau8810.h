@@ -2,7 +2,7 @@
 /*
  * NAU8810 ALSA SoC audio driver
  *
- * Copyright 2016 Nuvoton Technology Corp.
+ * Copyright 2016 Nuvoton Techyeslogy Corp.
  * Author: David Lin <ctlin0@nuvoton.com>
  */
 

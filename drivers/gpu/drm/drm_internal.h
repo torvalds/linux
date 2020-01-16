@@ -9,7 +9,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -35,13 +35,13 @@ struct drm_crtc;
 struct drm_framebuffer;
 struct drm_gem_object;
 struct drm_master;
-struct drm_minor;
+struct drm_miyesr;
 struct drm_prime_file_private;
 struct drm_printer;
 
 /* drm_file.c */
 extern struct mutex drm_global_mutex;
-struct drm_file *drm_file_alloc(struct drm_minor *minor);
+struct drm_file *drm_file_alloc(struct drm_miyesr *miyesr);
 void drm_file_free(struct drm_file *file);
 void drm_lastclose(struct drm_device *dev);
 
@@ -63,8 +63,8 @@ void drm_prime_remove_buf_handle_locked(struct drm_prime_file_private *prime_fpr
 					struct dma_buf *dma_buf);
 
 /* drm_drv.c */
-struct drm_minor *drm_minor_acquire(unsigned int minor_id);
-void drm_minor_release(struct drm_minor *minor);
+struct drm_miyesr *drm_miyesr_acquire(unsigned int miyesr_id);
+void drm_miyesr_release(struct drm_miyesr *miyesr);
 
 /* drm_vblank.c */
 void drm_vblank_disable_and_save(struct drm_device *dev, unsigned int pipe);
@@ -109,7 +109,7 @@ extern struct class *drm_class;
 
 int drm_sysfs_init(void);
 void drm_sysfs_destroy(void);
-struct device *drm_sysfs_minor_alloc(struct drm_minor *minor);
+struct device *drm_sysfs_miyesr_alloc(struct drm_miyesr *miyesr);
 int drm_sysfs_connector_add(struct drm_connector *connector);
 void drm_sysfs_connector_remove(struct drm_connector *connector);
 
@@ -140,22 +140,22 @@ void drm_gem_vunmap(struct drm_gem_object *obj, void *vaddr);
 
 /* drm_debugfs.c drm_debugfs_crc.c */
 #if defined(CONFIG_DEBUG_FS)
-int drm_debugfs_init(struct drm_minor *minor, int minor_id,
+int drm_debugfs_init(struct drm_miyesr *miyesr, int miyesr_id,
 		     struct dentry *root);
-void drm_debugfs_cleanup(struct drm_minor *minor);
+void drm_debugfs_cleanup(struct drm_miyesr *miyesr);
 void drm_debugfs_connector_add(struct drm_connector *connector);
 void drm_debugfs_connector_remove(struct drm_connector *connector);
 void drm_debugfs_crtc_add(struct drm_crtc *crtc);
 void drm_debugfs_crtc_remove(struct drm_crtc *crtc);
 void drm_debugfs_crtc_crc_add(struct drm_crtc *crtc);
 #else
-static inline int drm_debugfs_init(struct drm_minor *minor, int minor_id,
+static inline int drm_debugfs_init(struct drm_miyesr *miyesr, int miyesr_id,
 				   struct dentry *root)
 {
 	return 0;
 }
 
-static inline void drm_debugfs_cleanup(struct drm_minor *minor)
+static inline void drm_debugfs_cleanup(struct drm_miyesr *miyesr)
 {
 }
 
@@ -212,7 +212,7 @@ int drm_syncobj_query_ioctl(struct drm_device *dev, void *data,
 /* drm_framebuffer.c */
 void drm_framebuffer_print_info(struct drm_printer *p, unsigned int indent,
 				const struct drm_framebuffer *fb);
-int drm_framebuffer_debugfs_init(struct drm_minor *minor);
+int drm_framebuffer_debugfs_init(struct drm_miyesr *miyesr);
 
 /* drm_hdcp.c */
 int drm_setup_hdcp_srm(struct class *drm_class);

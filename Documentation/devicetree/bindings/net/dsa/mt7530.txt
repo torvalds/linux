@@ -13,8 +13,8 @@ Required properties:
 
 If compatible mediatek,mt7530 is set then the following properties are required
 
-- core-supply: Phandle to the regulator node necessary for the core power.
-- io-supply: Phandle to the regulator node necessary for the I/O power.
+- core-supply: Phandle to the regulator yesde necessary for the core power.
+- io-supply: Phandle to the regulator yesde necessary for the I/O power.
 	See Documentation/devicetree/bindings/regulator/mt6323-regulator.txt
 	for details for the regulator setup on these boards.
 
@@ -28,7 +28,7 @@ Else, following properties are required
 	line index for the ethsys.
 - reset-names : Should be set to "mcm".
 
-Required properties for the child nodes within ports container:
+Required properties for the child yesdes within ports container:
 
 - reg: Port address described must be 6 for CPU port and from 0 to 5 for
 	user ports.
@@ -36,11 +36,11 @@ Required properties for the child nodes within ports container:
 	 "cpu".
 
 Port 5 of the switch is muxed between:
-1. GMAC5: GMAC5 can interface with another external MAC or PHY.
+1. GMAC5: GMAC5 can interface with ayesther external MAC or PHY.
 2. PHY of port 0 or port 4: PHY interfaces with an external MAC like 2nd GMAC
    of the SOC. Used in many setups where port 0/4 becomes the WAN port.
    Note: On a MT7621 SOC with integrated switch: 2nd GMAC can only connected to
-	 GMAC5 when the gpios for RGMII2 (GPIO 22-33) are not used and not
+	 GMAC5 when the gpios for RGMII2 (GPIO 22-33) are yest used and yest
 	 connected to external component!
 
 Port 5 modes/configurations:
@@ -56,10 +56,10 @@ Port 5 modes/configurations:
    Only works on platform where external phy TX<->RX lines are swapped.
    Like in the Ubiquiti ER-X-SFP.
 4. Port 5 is muxed to GMAC5 and interfaces with the 2nd GAMC as 2nd CPU port.
-   Currently a 2nd CPU port is not supported by DSA code.
+   Currently a 2nd CPU port is yest supported by DSA code.
 
 Depending on how the external PHY is wired:
-1. normal: The PHY can only connect to 2nd GMAC but not to the switch
+1. yesrmal: The PHY can only connect to 2nd GMAC but yest to the switch
 2. swapped: RGMII TX, RX are swapped; external phy interface with the switch as
    a ethernet port. But can't interface to the 2nd GMAC.
 
@@ -72,7 +72,7 @@ phy-mode must be set, see also example 2 below!
  * mt7623: phy-mode = "rgmii";
 
 See Documentation/devicetree/bindings/net/dsa/dsa.txt for a list of additional
-required, optional properties and how the integrated switch subnodes must
+required, optional properties and how the integrated switch subyesdes must
 be specified.
 
 Example:

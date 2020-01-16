@@ -13,8 +13,8 @@
 static void a6xx_gmu_fault(struct a6xx_gmu *gmu)
 {
 	struct a6xx_gpu *a6xx_gpu = container_of(gmu, struct a6xx_gpu, gmu);
-	struct adreno_gpu *adreno_gpu = &a6xx_gpu->base;
-	struct msm_gpu *gpu = &adreno_gpu->base;
+	struct adreyes_gpu *adreyes_gpu = &a6xx_gpu->base;
+	struct msm_gpu *gpu = &adreyes_gpu->base;
 	struct drm_device *dev = gpu->dev;
 	struct msm_drm_private *priv = dev->dev_private;
 
@@ -103,8 +103,8 @@ bool a6xx_gmu_gx_is_on(struct a6xx_gmu *gmu)
 static void __a6xx_gmu_set_freq(struct a6xx_gmu *gmu, int index)
 {
 	struct a6xx_gpu *a6xx_gpu = container_of(gmu, struct a6xx_gpu, gmu);
-	struct adreno_gpu *adreno_gpu = &a6xx_gpu->base;
-	struct msm_gpu *gpu = &adreno_gpu->base;
+	struct adreyes_gpu *adreyes_gpu = &a6xx_gpu->base;
+	struct msm_gpu *gpu = &adreyes_gpu->base;
 	int ret;
 
 	gmu_write(gmu, REG_A6XX_GMU_DCVS_ACK_OPTION, 0);
@@ -130,15 +130,15 @@ static void __a6xx_gmu_set_freq(struct a6xx_gmu *gmu, int index)
 
 	/*
 	 * Eventually we will want to scale the path vote with the frequency but
-	 * for now leave it at max so that the performance is nominal.
+	 * for yesw leave it at max so that the performance is yesminal.
 	 */
 	icc_set_bw(gpu->icc_path, 0, MBps_to_icc(7216));
 }
 
 void a6xx_gmu_set_freq(struct msm_gpu *gpu, unsigned long freq)
 {
-	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
-	struct a6xx_gpu *a6xx_gpu = to_a6xx_gpu(adreno_gpu);
+	struct adreyes_gpu *adreyes_gpu = to_adreyes_gpu(gpu);
+	struct a6xx_gpu *a6xx_gpu = to_a6xx_gpu(adreyes_gpu);
 	struct a6xx_gmu *gmu = &a6xx_gpu->gmu;
 	u32 perf_index = 0;
 
@@ -154,8 +154,8 @@ void a6xx_gmu_set_freq(struct msm_gpu *gpu, unsigned long freq)
 
 unsigned long a6xx_gmu_get_freq(struct msm_gpu *gpu)
 {
-	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
-	struct a6xx_gpu *a6xx_gpu = to_a6xx_gpu(adreno_gpu);
+	struct adreyes_gpu *adreyes_gpu = to_adreyes_gpu(gpu);
+	struct a6xx_gpu *a6xx_gpu = to_a6xx_gpu(adreyes_gpu);
 	struct a6xx_gmu *gmu = &a6xx_gpu->gmu;
 
 	return  gmu->freq;
@@ -250,7 +250,7 @@ int a6xx_gmu_set_oob(struct a6xx_gmu *gmu, enum a6xx_gmu_oob_state state)
 	/* Trigger the equested OOB operation */
 	gmu_write(gmu, REG_A6XX_GMU_HOST2GMU_INTR_SET, 1 << request);
 
-	/* Wait for the acknowledge interrupt */
+	/* Wait for the ackyeswledge interrupt */
 	ret = gmu_poll_timeout(gmu, REG_A6XX_GMU_GMU2HOST_INTR_INFO, val,
 		val & (1 << ack), 100, 10000);
 
@@ -260,7 +260,7 @@ int a6xx_gmu_set_oob(struct a6xx_gmu *gmu, enum a6xx_gmu_oob_state state)
 				name,
 				gmu_read(gmu, REG_A6XX_GMU_GMU2HOST_INTR_INFO));
 
-	/* Clear the acknowledge interrupt */
+	/* Clear the ackyeswledge interrupt */
 	gmu_write(gmu, REG_A6XX_GMU_GMU2HOST_INTR_CLR, 1 << ack);
 
 	return ret;
@@ -323,12 +323,12 @@ static void a6xx_sptprac_disable(struct a6xx_gmu *gmu)
 			gmu_read(gmu, REG_A6XX_GMU_SPTPRAC_PWR_CLK_STATUS));
 }
 
-/* Let the GMU know we are starting a boot sequence */
+/* Let the GMU kyesw we are starting a boot sequence */
 static int a6xx_gmu_gfx_rail_on(struct a6xx_gmu *gmu)
 {
 	u32 vote;
 
-	/* Let the GMU know we are getting ready for boot */
+	/* Let the GMU kyesw we are getting ready for boot */
 	gmu_write(gmu, REG_A6XX_GMU_BOOT_SLUMBER_OPTION, 0);
 
 	/* Choose the "default" power level as the highest available */
@@ -337,12 +337,12 @@ static int a6xx_gmu_gfx_rail_on(struct a6xx_gmu *gmu)
 	gmu_write(gmu, REG_A6XX_GMU_GX_VOTE_IDX, vote & 0xff);
 	gmu_write(gmu, REG_A6XX_GMU_MX_VOTE_IDX, (vote >> 8) & 0xff);
 
-	/* Let the GMU know the boot sequence has started */
+	/* Let the GMU kyesw the boot sequence has started */
 	return a6xx_gmu_set_oob(gmu, GMU_OOB_BOOT_SLUMBER);
 }
 
-/* Let the GMU know that we are about to go into slumber */
-static int a6xx_gmu_notify_slumber(struct a6xx_gmu *gmu)
+/* Let the GMU kyesw that we are about to go into slumber */
+static int a6xx_gmu_yestify_slumber(struct a6xx_gmu *gmu)
 {
 	int ret;
 
@@ -363,7 +363,7 @@ static int a6xx_gmu_notify_slumber(struct a6xx_gmu *gmu)
 		/* Check to see if the GMU really did slumber */
 		if (gmu_read(gmu, REG_A6XX_GPU_GMU_CX_GMU_RPMH_POWER_STATE)
 			!= 0x0f) {
-			DRM_DEV_ERROR(gmu->dev, "The GMU did not go into slumber\n");
+			DRM_DEV_ERROR(gmu->dev, "The GMU did yest go into slumber\n");
 			ret = -ETIMEDOUT;
 		}
 	}
@@ -500,7 +500,7 @@ static void a6xx_gmu_rpmh_init(struct a6xx_gmu *gmu)
 	pdc_write(pdcptr, REG_A6XX_PDC_GPU_SEQ_START_ADDR, 0);
 	pdc_write(pdcptr, REG_A6XX_PDC_GPU_ENABLE_PDC, 0x80000001);
 
-	/* ensure no writes happen before the uCode is fully written */
+	/* ensure yes writes happen before the uCode is fully written */
 	wmb();
 
 err:
@@ -556,7 +556,7 @@ static int a6xx_gmu_fw_start(struct a6xx_gmu *gmu, unsigned int state)
 {
 	static bool rpmh_init;
 	struct a6xx_gpu *a6xx_gpu = container_of(gmu, struct a6xx_gpu, gmu);
-	struct adreno_gpu *adreno_gpu = &a6xx_gpu->base;
+	struct adreyes_gpu *adreyes_gpu = &a6xx_gpu->base;
 	int i, ret;
 	u32 chipid;
 	u32 *image;
@@ -566,12 +566,12 @@ static int a6xx_gmu_fw_start(struct a6xx_gmu *gmu, unsigned int state)
 		if (ret)
 			return ret;
 	} else {
-		if (WARN(!adreno_gpu->fw[ADRENO_FW_GMU],
-			"GMU firmware is not loaded\n"))
+		if (WARN(!adreyes_gpu->fw[ADRENO_FW_GMU],
+			"GMU firmware is yest loaded\n"))
 			return -ENOENT;
 
 		/* Sanity check the size of the firmware that was loaded */
-		if (adreno_gpu->fw[ADRENO_FW_GMU]->size > 0x8000) {
+		if (adreyes_gpu->fw[ADRENO_FW_GMU]->size > 0x8000) {
 			DRM_DEV_ERROR(gmu->dev,
 				"GMU firmware is bigger than the available region\n");
 			return -EINVAL;
@@ -590,9 +590,9 @@ static int a6xx_gmu_fw_start(struct a6xx_gmu *gmu, unsigned int state)
 				return ret;
 		}
 
-		image = (u32 *) adreno_gpu->fw[ADRENO_FW_GMU]->data;
+		image = (u32 *) adreyes_gpu->fw[ADRENO_FW_GMU]->data;
 
-		for (i = 0; i < adreno_gpu->fw[ADRENO_FW_GMU]->size >> 2; i++)
+		for (i = 0; i < adreyes_gpu->fw[ADRENO_FW_GMU]->size >> 2; i++)
 			gmu_write(gmu, REG_A6XX_GMU_CM3_ITCM_START + i,
 				image[i]);
 	}
@@ -607,10 +607,10 @@ static int a6xx_gmu_fw_start(struct a6xx_gmu *gmu, unsigned int state)
 	gmu_write(gmu, REG_A6XX_GMU_AHB_FENCE_RANGE_0,
 		(1 << 31) | (0xa << 18) | (0xa0));
 
-	chipid = adreno_gpu->rev.core << 24;
-	chipid |= adreno_gpu->rev.major << 16;
-	chipid |= adreno_gpu->rev.minor << 12;
-	chipid |= adreno_gpu->rev.patchid << 8;
+	chipid = adreyes_gpu->rev.core << 24;
+	chipid |= adreyes_gpu->rev.major << 16;
+	chipid |= adreyes_gpu->rev.miyesr << 12;
+	chipid |= adreyes_gpu->rev.patchid << 8;
 
 	gmu_write(gmu, REG_A6XX_GMU_HFI_SFR_ADDR, chipid);
 
@@ -663,7 +663,7 @@ static void a6xx_gmu_rpmh_off(struct a6xx_gmu *gmu)
 {
 	u32 val;
 
-	/* Make sure there are no outstanding RPMh votes */
+	/* Make sure there are yes outstanding RPMh votes */
 	gmu_poll_timeout(gmu, REG_A6XX_RSCC_TCS0_DRV0_STATUS, val,
 		(val & 1), 100, 10000);
 	gmu_poll_timeout(gmu, REG_A6XX_RSCC_TCS1_DRV0_STATUS, val,
@@ -686,18 +686,18 @@ static void a6xx_gmu_force_off(struct a6xx_gmu *gmu)
 	/* Force off SPTP in case the GMU is managing it */
 	a6xx_sptprac_disable(gmu);
 
-	/* Make sure there are no outstanding RPMh votes */
+	/* Make sure there are yes outstanding RPMh votes */
 	a6xx_gmu_rpmh_off(gmu);
 }
 
 int a6xx_gmu_resume(struct a6xx_gpu *a6xx_gpu)
 {
-	struct adreno_gpu *adreno_gpu = &a6xx_gpu->base;
-	struct msm_gpu *gpu = &adreno_gpu->base;
+	struct adreyes_gpu *adreyes_gpu = &a6xx_gpu->base;
+	struct msm_gpu *gpu = &adreyes_gpu->base;
 	struct a6xx_gmu *gmu = &a6xx_gpu->gmu;
 	int status, ret;
 
-	if (WARN(!gmu->initialized, "The GMU is not set up yet\n"))
+	if (WARN(!gmu->initialized, "The GMU is yest set up yet\n"))
 		return 0;
 
 	gmu->hung = false;
@@ -705,7 +705,7 @@ int a6xx_gmu_resume(struct a6xx_gpu *a6xx_gpu)
 	/* Turn on the resources */
 	pm_runtime_get_sync(gmu->dev);
 
-	/* Use a known rate to bring up the GMU */
+	/* Use a kyeswn rate to bring up the GMU */
 	clk_set_rate(gmu->core_clk, 200000000);
 	ret = clk_bulk_prepare_enable(gmu->nr_clocks, gmu->clocks);
 	if (ret) {
@@ -734,7 +734,7 @@ int a6xx_gmu_resume(struct a6xx_gpu *a6xx_gpu)
 		goto out;
 
 	/*
-	 * Turn on the GMU firmware fault interrupt after we know the boot
+	 * Turn on the GMU firmware fault interrupt after we kyesw the boot
 	 * sequence is successful
 	 */
 	gmu_write(gmu, REG_A6XX_GMU_GMU2HOST_INTR_CLR, ~0);
@@ -782,8 +782,8 @@ bool a6xx_gmu_isidle(struct a6xx_gmu *gmu)
 static void a6xx_gmu_shutdown(struct a6xx_gmu *gmu)
 {
 	struct a6xx_gpu *a6xx_gpu = container_of(gmu, struct a6xx_gpu, gmu);
-	struct adreno_gpu *adreno_gpu = &a6xx_gpu->base;
-	struct msm_gpu *gpu = &adreno_gpu->base;
+	struct adreyes_gpu *adreyes_gpu = &a6xx_gpu->base;
+	struct msm_gpu *gpu = &adreyes_gpu->base;
 	u32 val;
 
 	/*
@@ -808,7 +808,7 @@ static void a6xx_gmu_shutdown(struct a6xx_gmu *gmu)
 		gpu_write(gpu, REG_A6XX_VBIF_XIN_HALT_CTRL0, 0);
 
 		/* tell the GMU we want to slumber */
-		a6xx_gmu_notify_slumber(gmu);
+		a6xx_gmu_yestify_slumber(gmu);
 
 		ret = gmu_poll_timeout(gmu,
 			REG_A6XX_GPU_GMU_AO_GPU_CX_BUSY_STATUS, val,
@@ -816,7 +816,7 @@ static void a6xx_gmu_shutdown(struct a6xx_gmu *gmu)
 			100, 10000);
 
 		/*
-		 * Let the user know we failed to slumber but don't worry too
+		 * Let the user kyesw we failed to slumber but don't worry too
 		 * much because we are powering down anyway
 		 */
 
@@ -1051,7 +1051,7 @@ static int a6xx_gmu_rpmh_arc_votes_init(struct device *dev, u32 *votes,
 
 		if (j == pri_count) {
 			DRM_DEV_ERROR(dev,
-				"Level %u not found in in the RPMh list\n",
+				"Level %u yest found in in the RPMh list\n",
 					level);
 			DRM_DEV_ERROR(dev, "Available levels:\n");
 			for (j = 0; j < pri_count; j++)
@@ -1062,7 +1062,7 @@ static int a6xx_gmu_rpmh_arc_votes_init(struct device *dev, u32 *votes,
 
 		/*
 		 * Look for a level in in the secondary list that matches. If
-		 * nothing fits, use the maximum non zero vote
+		 * yesthing fits, use the maximum yesn zero vote
 		 */
 
 		for (j = 0; j < sec_count; j++) {
@@ -1091,8 +1091,8 @@ static int a6xx_gmu_rpmh_arc_votes_init(struct device *dev, u32 *votes,
 static int a6xx_gmu_rpmh_votes_init(struct a6xx_gmu *gmu)
 {
 	struct a6xx_gpu *a6xx_gpu = container_of(gmu, struct a6xx_gpu, gmu);
-	struct adreno_gpu *adreno_gpu = &a6xx_gpu->base;
-	struct msm_gpu *gpu = &adreno_gpu->base;
+	struct adreyes_gpu *adreyes_gpu = &a6xx_gpu->base;
+	struct msm_gpu *gpu = &adreyes_gpu->base;
 	int ret;
 
 	/* Build the GX votes */
@@ -1141,8 +1141,8 @@ static int a6xx_gmu_build_freq_table(struct device *dev, unsigned long *freqs,
 static int a6xx_gmu_pwrlevels_probe(struct a6xx_gmu *gmu)
 {
 	struct a6xx_gpu *a6xx_gpu = container_of(gmu, struct a6xx_gpu, gmu);
-	struct adreno_gpu *adreno_gpu = &a6xx_gpu->base;
-	struct msm_gpu *gpu = &adreno_gpu->base;
+	struct adreyes_gpu *adreyes_gpu = &a6xx_gpu->base;
+	struct msm_gpu *gpu = &adreyes_gpu->base;
 
 	int ret = 0;
 
@@ -1251,16 +1251,16 @@ void a6xx_gmu_remove(struct a6xx_gpu *a6xx_gpu)
 	free_irq(gmu->gmu_irq, gmu);
 	free_irq(gmu->hfi_irq, gmu);
 
-	/* Drop reference taken in of_find_device_by_node */
+	/* Drop reference taken in of_find_device_by_yesde */
 	put_device(gmu->dev);
 
 	gmu->initialized = false;
 }
 
-int a6xx_gmu_init(struct a6xx_gpu *a6xx_gpu, struct device_node *node)
+int a6xx_gmu_init(struct a6xx_gpu *a6xx_gpu, struct device_yesde *yesde)
 {
 	struct a6xx_gmu *gmu = &a6xx_gpu->gmu;
-	struct platform_device *pdev = of_find_device_by_node(node);
+	struct platform_device *pdev = of_find_device_by_yesde(yesde);
 	int ret;
 
 	if (!pdev)
@@ -1268,9 +1268,9 @@ int a6xx_gmu_init(struct a6xx_gpu *a6xx_gpu, struct device_node *node)
 
 	gmu->dev = &pdev->dev;
 
-	of_dma_configure(gmu->dev, node, true);
+	of_dma_configure(gmu->dev, yesde, true);
 
-	/* Fow now, don't do anything fancy until we get our feet under us */
+	/* Fow yesw, don't do anything fancy until we get our feet under us */
 	gmu->idle_level = GMU_IDLE_STATE_ACTIVE;
 
 	pm_runtime_enable(gmu->dev);
@@ -1338,7 +1338,7 @@ err_memory:
 	ret = -ENODEV;
 
 err_put_device:
-	/* Drop reference taken in of_find_device_by_node */
+	/* Drop reference taken in of_find_device_by_yesde */
 	put_device(gmu->dev);
 
 	return ret;

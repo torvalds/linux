@@ -75,7 +75,7 @@ MODULE_PARM_DESC(power_save,
 #define power_save	0
 #endif
 
-static const struct hda_controller_ops hda_tegra_ops; /* nothing special */
+static const struct hda_controller_ops hda_tegra_ops; /* yesthing special */
 
 static void hda_tegra_init(struct hda_tegra *hda)
 {
@@ -283,7 +283,7 @@ static int hda_tegra_first_init(struct azx *chip, struct platform_device *pdev)
 	unsigned short gcap;
 	int irq_id = platform_get_irq(pdev, 0);
 	const char *sname, *drv_name = "tegra-hda";
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 
 	err = hda_tegra_init_chip(chip, pdev);
 	if (err)
@@ -337,7 +337,7 @@ static int hda_tegra_first_init(struct azx *chip, struct platform_device *pdev)
 
 	/* codec detection */
 	if (!bus->codec_mask) {
-		dev_err(card->dev, "no codecs found!\n");
+		dev_err(card->dev, "yes codecs found!\n");
 		return -ENODEV;
 	}
 
@@ -389,7 +389,7 @@ static int hda_tegra_create(struct snd_card *card,
 	chip->codec_probe_mask = -1;
 
 	chip->single_cmd = false;
-	chip->snoop = true;
+	chip->syesop = true;
 
 	INIT_WORK(&hda->probe_work, hda_tegra_probe_work);
 
@@ -490,7 +490,7 @@ static void hda_tegra_probe_work(struct work_struct *work)
 
  out_free:
 	pm_runtime_put(hda->dev);
-	return; /* no error return from async probe */
+	return; /* yes error return from async probe */
 }
 
 static int hda_tegra_remove(struct platform_device *pdev)

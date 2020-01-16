@@ -27,7 +27,7 @@ static int unwind_frame_kernel(struct stackframe *frame)
 	return 0;
 }
 
-static void notrace walk_stackframe(struct stackframe *fr,
+static void yestrace walk_stackframe(struct stackframe *fr,
 			struct perf_callchain_entry_ctx *entry)
 {
 	do {
@@ -76,14 +76,14 @@ static unsigned long user_backtrace(struct perf_callchain_entry_ctx *entry,
  *
  * On C-SKY platform, the program being sampled and the C library
  * need to be compiled with * -mbacktrace, otherwise the user
- * stack will not contain function frame.
+ * stack will yest contain function frame.
  */
 void perf_callchain_user(struct perf_callchain_entry_ctx *entry,
 			 struct pt_regs *regs)
 {
 	unsigned long fp = 0;
 
-	/* C-SKY does not support virtualization. */
+	/* C-SKY does yest support virtualization. */
 	if (perf_guest_cbs && perf_guest_cbs->is_in_guest())
 		return;
 
@@ -91,8 +91,8 @@ void perf_callchain_user(struct perf_callchain_entry_ctx *entry,
 	perf_callchain_store(entry, regs->pc);
 
 	/*
-	 * While backtrace from leaf function, lr is normally
-	 * not saved inside frame on C-SKY, so get lr from pt_regs
+	 * While backtrace from leaf function, lr is yesrmally
+	 * yest saved inside frame on C-SKY, so get lr from pt_regs
 	 * at the sample point. However, lr value can be incorrect if
 	 * lr is used as temp register
 	 */
@@ -107,9 +107,9 @@ void perf_callchain_kernel(struct perf_callchain_entry_ctx *entry,
 {
 	struct stackframe fr;
 
-	/* C-SKY does not support virtualization. */
+	/* C-SKY does yest support virtualization. */
 	if (perf_guest_cbs && perf_guest_cbs->is_in_guest()) {
-		pr_warn("C-SKY does not support perf in guest mode!");
+		pr_warn("C-SKY does yest support perf in guest mode!");
 		return;
 	}
 

@@ -50,7 +50,7 @@ void *kmap_atomic(struct page *page)
 	idx = type + KM_TYPE_NR*smp_processor_id();
 	vaddr = __fix_to_virt(FIX_KMAP_BEGIN + idx);
 #ifdef CONFIG_DEBUG_HIGHMEM
-	BUG_ON(!pte_none(*(kmap_pte - idx)));
+	BUG_ON(!pte_yesne(*(kmap_pte - idx)));
 #endif
 	set_pte(kmap_pte-idx, mk_pte(page, PAGE_KERNEL));
 	flush_tlb_one((unsigned long)vaddr);
@@ -139,7 +139,7 @@ static void __init fixrange_init(unsigned long start, unsigned long end,
 		for ( ; (j < PTRS_PER_PUD) && (vaddr != end); pud++, j++) {
 			pmd = (pmd_t *)pud;
 			for (; (k < PTRS_PER_PMD) && (vaddr != end); pmd++, k++) {
-				if (pmd_none(*pmd)) {
+				if (pmd_yesne(*pmd)) {
 					pte = (pte_t *) memblock_alloc_low(PAGE_SIZE, PAGE_SIZE);
 					if (!pte)
 						panic("%s: Failed to allocate %lu bytes align=%lx\n",

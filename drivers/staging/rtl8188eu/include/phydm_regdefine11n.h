@@ -5,7 +5,7 @@
  *
  * Contact Information:
  * wlanfae <wlanfae@realtek.com>
- * Realtek Corporation, No. 2, Innovation Road II, Hsinchu Science Park,
+ * Realtek Corporation, No. 2, Inyesvation Road II, Hsinchu Science Park,
  * Hsinchu 300, Taiwan.
  *
  * Larry Finger <Larry.Finger@lwfinger.net>

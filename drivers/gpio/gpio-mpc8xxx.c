@@ -79,7 +79,7 @@ static inline u32 mpc_pin2mask(unsigned int offset)
 }
 
 /* Workaround GPIO 1 errata on MPC8572/MPC8536. The status of GPIOs
- * defined as output cannot be determined by reading GPDAT register,
+ * defined as output canyest be determined by reading GPDAT register,
  * so we use shadow data register instead. The status of input pins
  * is determined by reading GPDAT register.
  */
@@ -326,7 +326,7 @@ static const struct of_device_id mpc8xxx_gpio_ids[] = {
 
 static int mpc8xxx_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	struct mpc8xxx_gpio_chip *mpc8xxx_gc;
 	struct gpio_chip	*gc;
 	const struct mpc8xxx_gpio_devtype *devtype =

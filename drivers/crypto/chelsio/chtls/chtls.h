@@ -62,7 +62,7 @@ enum {
 enum {
 	CPL_RET_BUF_DONE =    1,   /* buffer processing done */
 	CPL_RET_BAD_MSG =     2,   /* bad CPL message */
-	CPL_RET_UNKNOWN_TID = 4    /* unexpected unknown TID */
+	CPL_RET_UNKNOWN_TID = 4    /* unexpected unkyeswn TID */
 };
 
 #define LISTEN_INFO_HASH_SIZE 32
@@ -114,7 +114,7 @@ struct key_map {
 } __packed;
 
 struct tls_scmd {
-	u32 seqno_numivs;
+	u32 seqyes_numivs;
 	u32 ivgen_hdrlen;
 };
 
@@ -142,9 +142,9 @@ struct chtls_dev {
 	struct sk_buff_head deferq;
 	struct work_struct deferq_task;
 
-	struct list_head list_node;
-	struct list_head rcu_node;
-	struct list_head na_node;
+	struct list_head list_yesde;
+	struct list_head rcu_yesde;
+	struct list_head na_yesde;
 	unsigned int send_page_order;
 	int max_host_sndbuf;
 	struct key_map kmap;
@@ -177,7 +177,7 @@ struct chtls_hws {
 	s32 rxkey;
 	u32 fcplenmax;
 	u32 copied_seq;
-	u64 tx_seq_no;
+	u64 tx_seq_yes;
 	struct tls_scmd scmd;
 	struct tls12_crypto_info_aes_gcm_128 crypto_info;
 };
@@ -199,7 +199,7 @@ struct chtls_sock {
 	u32 wr_credits;
 	u32 wr_unacked;
 	u32 wr_max_credits;
-	u32 wr_nondata;
+	u32 wr_yesndata;
 	u32 hwtid;               /* TCP Control Block ID */
 	u32 txq_idx;
 	u32 rss_qid;
@@ -351,11 +351,11 @@ enum {
 	ULPCB_FLAG_NEED_HDR  = 1 << 0,	/* packet needs a TX_DATA_WR header */
 	ULPCB_FLAG_NO_APPEND = 1 << 1,	/* don't grow this skb */
 	ULPCB_FLAG_BARRIER   = 1 << 2,	/* set TX_WAIT_IDLE after sending */
-	ULPCB_FLAG_HOLD      = 1 << 3,	/* skb not ready for Tx yet */
+	ULPCB_FLAG_HOLD      = 1 << 3,	/* skb yest ready for Tx yet */
 	ULPCB_FLAG_COMPL     = 1 << 4,	/* request WR completion */
 	ULPCB_FLAG_URG       = 1 << 5,	/* urgent data */
 	ULPCB_FLAG_TLS_HDR   = 1 << 6,  /* payload with tls hdr */
-	ULPCB_FLAG_NO_HDR    = 1 << 7,  /* not a ofld wr */
+	ULPCB_FLAG_NO_HDR    = 1 << 7,  /* yest a ofld wr */
 };
 
 /* The ULP mode/submode of an skbuff */
@@ -394,7 +394,7 @@ static inline int csk_flag(const struct sock *sk, enum csk_flags flag)
 	return test_bit(flag, &csk->flags);
 }
 
-static inline int csk_flag_nochk(const struct chtls_sock *csk,
+static inline int csk_flag_yeschk(const struct chtls_sock *csk,
 				 enum csk_flags flag)
 {
 	return test_bit(flag, &csk->flags);
@@ -474,7 +474,7 @@ void chtls_shutdown(struct sock *sk, int how);
 void chtls_destroy_sock(struct sock *sk);
 int chtls_sendmsg(struct sock *sk, struct msghdr *msg, size_t size);
 int chtls_recvmsg(struct sock *sk, struct msghdr *msg,
-		  size_t len, int nonblock, int flags, int *addr_len);
+		  size_t len, int yesnblock, int flags, int *addr_len);
 int chtls_sendpage(struct sock *sk, struct page *page,
 		   int offset, size_t size, int flags);
 int send_tx_flowc_wr(struct sock *sk, int compl,

@@ -12,7 +12,7 @@ Sensor usage tables, and used in several tablets, 2 in 1 convertible laptops
 and embedded products. Linux had this support since Linux 3.9.
 
 Intel® introduced integrated sensor hubs as a part of the SoC starting from
-Cherry Trail and now supported on multiple generations of CPU packages. There
+Cherry Trail and yesw supported on multiple generations of CPU packages. There
 are many commercial devices already shipped with Integrated Sensor Hubs (ISH).
 These ISH also comply to HID sensor specification, but the  difference is the
 transport protocol used for communication. The current external sensor hubs
@@ -50,7 +50,7 @@ applications implemented in the firmware.
 The ISH allows multiple sensor management applications executing in the
 firmware. Like USB endpoints the messaging can be to/from a client. As part of
 enumeration process, these clients are identified. These clients can be simple
-HID sensor applications, sensor calibration application or senor firmware
+HID sensor applications, sensor calibration application or seyesr firmware
 update application.
 
 The implementation model is similar, like USB bus, ISH transport is also
@@ -127,7 +127,7 @@ TX and RX of Transport messages
 A set of memory mapped register offers support of multi byte messages TX and
 RX (E.g.IPC_REG_ISH2HOST_MSG, IPC_REG_HOST2ISH_MSG). The IPC layer maintains
 internal queues to sequence messages and send them in order to the FW.
-Optionally the caller can register handler to get notification of completion.
+Optionally the caller can register handler to get yestification of completion.
 A door bell mechanism is used in messaging to trigger processing in host and
 client firmware side. When ISH interrupt handler is called, the ISH2HOST
 doorbell register is used by host drivers to determine that the interrupt
@@ -175,7 +175,7 @@ will identify the connection.
 
 Once connection is established, peers send each other flow control bus messages
 independently. Every peer may send a message only if it has received a
-flow-control credit before. Once it sent a message, it may not send another one
+flow-control credit before. Once it sent a message, it may yest send ayesther one
 before receiving the next flow control credit.
 Either side can send disconnect request bus message to end communication. Also
 the link will be dropped if major FW reset occurs.
@@ -200,7 +200,7 @@ DMA initialization is started with host sending DMA_ALLOC_NOTIFY bus message
 Additionally to DMA address communication, this sequence checks capabilities:
 if thw host doesn't support DMA, then it won't send DMA allocation, so FW can't
 send DMA; if FW doesn't support DMA then it won't respond with
-DMA_ALLOC_NOTIFY_ACK, in which case host will not use DMA transfers.
+DMA_ALLOC_NOTIFY_ACK, in which case host will yest use DMA transfers.
 Here ISH acts as busmaster DMA controller. Hence when host sends DMA_XFER,
 it's request to do host->ISH DMA transfer; when FW sends DMA_XFER, it means
 that it already did DMA and the message resides at host. Thus, DMA_XFER
@@ -209,8 +209,8 @@ and DMA_XFER_ACK act as ownership indicators.
 At initial state all outgoing memory belongs to the sender (TX to host, RX to
 FW), DMA_XFER transfers ownership on the region that contains ISHTP message to
 the receiving side, DMA_XFER_ACK returns ownership to the sender. A sender
-needs not wait for previous DMA_XFER to be ack'ed, and may send another message
-as long as remaining continuous memory in its ownership is enough.
+needs yest wait for previous DMA_XFER to be ack'ed, and may send ayesther message
+as long as remaining continuous memory in its ownership is eyesugh.
 In principle, multiple DMA_XFER and DMA_XFER_ACK messages may be sent at once
 (up to IPC MTU), thus allowing for interrupt throttling.
 Currently, ISH FW decides to send over DMA if ISHTP message is more than 3 IPC
@@ -223,8 +223,8 @@ When a client initiate a connection, a ring or RX and TX buffers are allocated.
 The size of ring can be specified by the client. HID client set 16 and 32 for
 TX and RX buffers respectively. On send request from client, the data to be
 sent is copied to one of the send ring buffer and scheduled to be sent using
-bus message protocol. These buffers are required because the FW may have not
-have processed the last message and may not have enough flow control credits
+bus message protocol. These buffers are required because the FW may have yest
+have processed the last message and may yest have eyesugh flow control credits
 to send. Same thing holds true on receive side and flow control is required.
 
 3.3.5 Host Enumeration
@@ -345,7 +345,7 @@ To debug ISH, event tracing mechanism is used. To enable debug logs
 echo 1 > /sys/kernel/debug/tracing/events/intel_ish/enable
 cat sys/kernel/debug/tracing/trace
 
-3.8 ISH IIO sysfs Example on Lenovo thinkpad Yoga 260
+3.8 ISH IIO sysfs Example on Leyesvo thinkpad Yoga 260
 -----------------------------------------------------
 
 ::
@@ -408,7 +408,7 @@ cat sys/kernel/debug/tracing/trace
   │   │   │   │   ├── in_magn_x_raw
   │   │   │   │   ├── in_magn_y_raw
   │   │   │   │   ├── in_magn_z_raw
-  │   │   │   │   ├── in_rot_from_north_magnetic_tilt_comp_raw
+  │   │   │   │   ├── in_rot_from_yesrth_magnetic_tilt_comp_raw
   │   │   │   │   ├── in_rot_hysteresis
   │   │   │   │   ├── in_rot_offset
   │   │   │   │   ├── in_rot_sampling_frequency
@@ -425,9 +425,9 @@ cat sys/kernel/debug/tracing/trace
   │   │   │   │   │   ├── in_magn_z_en
   │   │   │   │   │   ├── in_magn_z_index
   │   │   │   │   │   ├── in_magn_z_type
-  │   │   │   │   │   ├── in_rot_from_north_magnetic_tilt_comp_en
-  │   │   │   │   │   ├── in_rot_from_north_magnetic_tilt_comp_index
-  │   │   │   │   │   └── in_rot_from_north_magnetic_tilt_comp_type
+  │   │   │   │   │   ├── in_rot_from_yesrth_magnetic_tilt_comp_en
+  │   │   │   │   │   ├── in_rot_from_yesrth_magnetic_tilt_comp_index
+  │   │   │   │   │   └── in_rot_from_yesrth_magnetic_tilt_comp_type
   │   │   │   │   ├── trigger
   │   │   │   │   │   └── current_trigger
   ...

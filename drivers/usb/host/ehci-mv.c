@@ -70,7 +70,7 @@ static int mv_ehci_reset(struct usb_hcd *hcd)
 	int retval;
 
 	if (ehci_mv == NULL) {
-		dev_err(dev, "Can not find private ehci data\n");
+		dev_err(dev, "Can yest find private ehci data\n");
 		return -ENODEV;
 	}
 
@@ -158,7 +158,7 @@ static int mv_ehci_probe(struct platform_device *pdev)
 
 	hcd->irq = platform_get_irq(pdev, 0);
 	if (!hcd->irq) {
-		dev_err(&pdev->dev, "Cannot get irq.");
+		dev_err(&pdev->dev, "Canyest get irq.");
 		retval = -ENODEV;
 		goto err_disable_clk;
 	}

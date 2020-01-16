@@ -3,7 +3,7 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright yestice and this permission yestice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
@@ -29,7 +29,7 @@ static int __ath_regd_init(struct ath_regulatory *reg);
  * This is a set of common rules used by our world regulatory domains.
  * We have 12 world regulatory domains. To save space we consolidate
  * the regulatory domains in 5 structures by frequency and change
- * the flags on our reg_notifier() on a case by case basis.
+ * the flags on our reg_yestifier() on a case by case basis.
  */
 
 /* Only these channels all allow active scan on all world regulatory domains */
@@ -263,7 +263,7 @@ static bool ath_is_radar_freq(u16 center_freq,
 	return (center_freq >= 5260 && center_freq <= 5700);
 }
 
-static void ath_force_clear_no_ir_chan(struct wiphy *wiphy,
+static void ath_force_clear_yes_ir_chan(struct wiphy *wiphy,
 				       struct ieee80211_channel *ch)
 {
 	const struct ieee80211_reg_rule *reg_rule;
@@ -277,7 +277,7 @@ static void ath_force_clear_no_ir_chan(struct wiphy *wiphy,
 			ch->flags &= ~IEEE80211_CHAN_NO_IR;
 }
 
-static void ath_force_clear_no_ir_freq(struct wiphy *wiphy, u16 center_freq)
+static void ath_force_clear_yes_ir_freq(struct wiphy *wiphy, u16 center_freq)
 {
 	struct ieee80211_channel *ch;
 
@@ -285,15 +285,15 @@ static void ath_force_clear_no_ir_freq(struct wiphy *wiphy, u16 center_freq)
 	if (!ch)
 		return;
 
-	ath_force_clear_no_ir_chan(wiphy, ch);
+	ath_force_clear_yes_ir_chan(wiphy, ch);
 }
 
-static void ath_force_no_ir_chan(struct ieee80211_channel *ch)
+static void ath_force_yes_ir_chan(struct ieee80211_channel *ch)
 {
 	ch->flags |= IEEE80211_CHAN_NO_IR;
 }
 
-static void ath_force_no_ir_freq(struct wiphy *wiphy, u16 center_freq)
+static void ath_force_yes_ir_freq(struct wiphy *wiphy, u16 center_freq)
 {
 	struct ieee80211_channel *ch;
 
@@ -301,7 +301,7 @@ static void ath_force_no_ir_freq(struct wiphy *wiphy, u16 center_freq)
 	if (!ch)
 		return;
 
-	ath_force_no_ir_chan(ch);
+	ath_force_yes_ir_chan(ch);
 }
 
 static void
@@ -316,11 +316,11 @@ __ath_reg_apply_beaconing_flags(struct wiphy *wiphy,
 
 	switch (initiator) {
 	case NL80211_REGDOM_SET_BY_COUNTRY_IE:
-		ath_force_clear_no_ir_chan(wiphy, ch);
+		ath_force_clear_yes_ir_chan(wiphy, ch);
 		break;
 	case NL80211_REGDOM_SET_BY_USER:
 		if (ath_reg_dyn_country_user_allow(reg))
-			ath_force_clear_no_ir_chan(wiphy, ch);
+			ath_force_clear_yes_ir_chan(wiphy, ch);
 		break;
 	default:
 		if (ch->beacon_found)
@@ -329,10 +329,10 @@ __ath_reg_apply_beaconing_flags(struct wiphy *wiphy,
 }
 
 /*
- * These exception rules do not apply radar frequencies.
+ * These exception rules do yest apply radar frequencies.
  *
  * - We enable initiating radiation if the country IE says its fine:
- * - If no country IE has been processed and a we determine we have
+ * - If yes country IE has been processed and a we determine we have
  *   received a beacon on a channel we can enable initiating radiation.
  */
 static void
@@ -362,8 +362,8 @@ ath_reg_apply_beaconing_flags(struct wiphy *wiphy,
  * @wiphy: the wiphy to use
  * @initiator: the regulatory hint initiator
  *
- * If no country IE has been received always enable passive scan
- * and no-ibss on these channels. This is only done for specific
+ * If yes country IE has been received always enable passive scan
+ * and yes-ibss on these channels. This is only done for specific
  * regulatory SKUs.
  *
  * If a country IE has been received check its rule for this
@@ -384,18 +384,18 @@ ath_reg_apply_ir_flags(struct wiphy *wiphy,
 
 	switch(initiator) {
 	case NL80211_REGDOM_SET_BY_COUNTRY_IE:
-		ath_force_clear_no_ir_freq(wiphy, 2467);
-		ath_force_clear_no_ir_freq(wiphy, 2472);
+		ath_force_clear_yes_ir_freq(wiphy, 2467);
+		ath_force_clear_yes_ir_freq(wiphy, 2472);
 		break;
 	case NL80211_REGDOM_SET_BY_USER:
 		if (!ath_reg_dyn_country_user_allow(reg))
 			break;
-		ath_force_clear_no_ir_freq(wiphy, 2467);
-		ath_force_clear_no_ir_freq(wiphy, 2472);
+		ath_force_clear_yes_ir_freq(wiphy, 2467);
+		ath_force_clear_yes_ir_freq(wiphy, 2472);
 		break;
 	default:
-		ath_force_no_ir_freq(wiphy, 2467);
-		ath_force_no_ir_freq(wiphy, 2472);
+		ath_force_yes_ir_freq(wiphy, 2467);
+		ath_force_yes_ir_freq(wiphy, 2472);
 	}
 }
 
@@ -419,12 +419,12 @@ static void ath_reg_apply_radar_flags(struct wiphy *wiphy,
 		/* We always enable radar detection/DFS on this
 		 * frequency range. Additionally we also apply on
 		 * this frequency range:
-		 * - If STA mode does not yet have DFS supports disable
+		 * - If STA mode does yest yet have DFS supports disable
 		 *   active scanning
-		 * - If adhoc mode does not support DFS yet then
+		 * - If adhoc mode does yest support DFS yet then
 		 *   disable adhoc in the frequency.
-		 * - If AP mode does not yet support radar detection/DFS
-		 *   do not allow AP mode
+		 * - If AP mode does yest yet support radar detection/DFS
+		 *   do yest allow AP mode
 		 */
 		if (!(ch->flags & IEEE80211_CHAN_DISABLED))
 			ch->flags |= IEEE80211_CHAN_RADAR |
@@ -504,7 +504,7 @@ static void ath_reg_dyn_country(struct wiphy *wiphy,
 	       reg_initiator_name(request->initiator));
 }
 
-void ath_reg_notifier_apply(struct wiphy *wiphy,
+void ath_reg_yestifier_apply(struct wiphy *wiphy,
 			    struct regulatory_request *request,
 			    struct ath_regulatory *reg)
 {
@@ -526,7 +526,7 @@ void ath_reg_notifier_apply(struct wiphy *wiphy,
 	case NL80211_REGDOM_SET_BY_CORE:
 		/*
 		 * If common->reg_world_copy is world roaming it means we *were*
-		 * world roaming... so we now have to restore that data.
+		 * world roaming... so we yesw have to restore that data.
 		 */
 		if (!ath_is_world_regd(&common->reg_world_copy))
 			break;
@@ -545,7 +545,7 @@ void ath_reg_notifier_apply(struct wiphy *wiphy,
 		break;
 	}
 }
-EXPORT_SYMBOL(ath_reg_notifier_apply);
+EXPORT_SYMBOL(ath_reg_yestifier_apply);
 
 static bool ath_regd_is_eeprom_valid(struct ath_regulatory *reg)
 {
@@ -633,12 +633,12 @@ ath_get_regpair(int regdmn)
 static int
 ath_regd_init_wiphy(struct ath_regulatory *reg,
 		    struct wiphy *wiphy,
-		    void (*reg_notifier)(struct wiphy *wiphy,
+		    void (*reg_yestifier)(struct wiphy *wiphy,
 					 struct regulatory_request *request))
 {
 	const struct ieee80211_regdomain *regd;
 
-	wiphy->reg_notifier = reg_notifier;
+	wiphy->reg_yestifier = reg_yestifier;
 	wiphy->regulatory_flags |= REGULATORY_STRICT_REG |
 				   REGULATORY_CUSTOM_REG;
 
@@ -666,7 +666,7 @@ ath_regd_init_wiphy(struct ath_regulatory *reg,
 
 /*
  * Some users have reported their EEPROM programmed with
- * 0x8000 set, this is not a supported regulatory domain
+ * 0x8000 set, this is yest a supported regulatory domain
  * but since we have more than one user with it we need
  * a solution for them. We default to 0x64, which is the
  * default Atheros world regulatory domain.
@@ -714,7 +714,7 @@ static int __ath_regd_init(struct ath_regulatory *reg)
 		country = ath_regd_find_country(reg->country_code);
 		if (country == NULL) {
 			printk(KERN_DEBUG
-				"ath: no valid country maps found for "
+				"ath: yes valid country maps found for "
 				"country code: 0x%0x\n",
 				reg->country_code);
 			return -EINVAL;
@@ -730,7 +730,7 @@ static int __ath_regd_init(struct ath_regulatory *reg)
 
 	if (!reg->regpair) {
 		printk(KERN_DEBUG "ath: "
-			"No regulatory domain pair found, cannot continue\n");
+			"No regulatory domain pair found, canyest continue\n");
 		return -EINVAL;
 	}
 
@@ -756,7 +756,7 @@ static int __ath_regd_init(struct ath_regulatory *reg)
 int
 ath_regd_init(struct ath_regulatory *reg,
 	      struct wiphy *wiphy,
-	      void (*reg_notifier)(struct wiphy *wiphy,
+	      void (*reg_yestifier)(struct wiphy *wiphy,
 				   struct regulatory_request *request))
 {
 	struct ath_common *common = container_of(reg, struct ath_common,
@@ -771,7 +771,7 @@ ath_regd_init(struct ath_regulatory *reg,
 		memcpy(&common->reg_world_copy, reg,
 		       sizeof(struct ath_regulatory));
 
-	ath_regd_init_wiphy(reg, wiphy, reg_notifier);
+	ath_regd_init_wiphy(reg, wiphy, reg_yestifier);
 
 	return 0;
 }

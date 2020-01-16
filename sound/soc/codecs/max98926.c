@@ -47,8 +47,8 @@ static const struct reg_default max98926_reg[] = {
 	{ 0x19, 0x00 }, /* Map8 */
 	{ 0x1A, 0x04 }, /* DAI Clock Mode 1 */
 	{ 0x1B, 0x00 }, /* DAI Clock Mode 2 */
-	{ 0x1C, 0x00 }, /* DAI Clock Divider Denominator MSBs */
-	{ 0x1D, 0x00 }, /* DAI Clock Divider Denominator LSBs */
+	{ 0x1C, 0x00 }, /* DAI Clock Divider Deyesminator MSBs */
+	{ 0x1D, 0x00 }, /* DAI Clock Divider Deyesminator LSBs */
 	{ 0x1E, 0xF0 }, /* DAI Clock Divider Numerator MSBs */
 	{ 0x1F, 0x00 }, /* DAI Clock Divider Numerator LSBs */
 	{ 0x20, 0x50 }, /* Format */
@@ -496,7 +496,7 @@ static const struct snd_soc_component_driver soc_component_dev_max98926 = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
+	.yesn_legacy_dai_naming	= 1,
 };
 
 static const struct regmap_config max98926_regmap = {
@@ -530,17 +530,17 @@ static int max98926_i2c_probe(struct i2c_client *i2c,
 				"Failed to allocate regmap: %d\n", ret);
 		goto err_out;
 	}
-	if (of_property_read_bool(i2c->dev.of_node, "interleave-mode"))
+	if (of_property_read_bool(i2c->dev.of_yesde, "interleave-mode"))
 		max98926->interleave_mode = true;
 
-	if (!of_property_read_u32(i2c->dev.of_node, "vmon-slot-no", &value)) {
+	if (!of_property_read_u32(i2c->dev.of_yesde, "vmon-slot-yes", &value)) {
 		if (value > MAX98926_DAI_VMON_SLOT_1E_1F) {
 			dev_err(&i2c->dev, "vmon slot number is wrong:\n");
 			return -EINVAL;
 		}
 		max98926->v_slot = value;
 	}
-	if (!of_property_read_u32(i2c->dev.of_node, "imon-slot-no", &value)) {
+	if (!of_property_read_u32(i2c->dev.of_yesde, "imon-slot-yes", &value)) {
 		if (value > MAX98926_DAI_IMON_SLOT_1E_1F) {
 			dev_err(&i2c->dev, "imon slot number is wrong:\n");
 			return -EINVAL;

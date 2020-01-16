@@ -17,11 +17,11 @@ ENTRY(__c6xabi_strasgi_64plus)
 	sploopd		1
 ||	mvc	.s2	b31, ilc
 	ldw	.d2t2	*b30++, b31
-	nop	4
+	yesp	4
 	mv	.s1x	b31,a31
 	spkernel	6, 0
 ||	stw	.d1t1	a31, *a30++
 
 	ret	.s2	b3
-	nop 5
+	yesp 5
 ENDPROC(__c6xabi_strasgi_64plus)

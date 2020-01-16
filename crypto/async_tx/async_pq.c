@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Copyright(c) 2007 Yuri Tikhonov <yur@emcraft.com>
+ * Copyright(c) 2007 Yuri Tikhoyesv <yur@emcraft.com>
  * Copyright(c) 2009 Intel Corporation
  */
 #include <linux/kernel.h>
@@ -13,7 +13,7 @@
 
 /**
  * pq_scribble_page - space to hold throwaway P or Q buffer for
- * synchronous gen_syndrome
+ * synchroyesus gen_syndrome
  */
 static struct page *pq_scribble_page;
 
@@ -21,7 +21,7 @@ static struct page *pq_scribble_page;
  * and async_syndrome_val() contains the 'P' destination address at
  * blocks[disks-2] and the 'Q' destination address at blocks[disks-1]
  *
- * note: these are macros as they are used as lvalues
+ * yeste: these are macros as they are used as lvalues
  */
 #define P(b, d) (b[d-2])
 #define Q(b, d) (b[d-1])
@@ -29,7 +29,7 @@ static struct page *pq_scribble_page;
 #define MAX_DISKS 255
 
 /**
- * do_async_gen_syndrome - asynchronously calculate P and/or Q
+ * do_async_gen_syndrome - asynchroyesusly calculate P and/or Q
  */
 static __async_inline struct dma_async_tx_descriptor *
 do_async_gen_syndrome(struct dma_chan *chan,
@@ -69,7 +69,7 @@ do_async_gen_syndrome(struct dma_chan *chan,
 		if (submit->flags & ASYNC_TX_FENCE)
 			dma_flags |= DMA_PREP_FENCE;
 
-		/* Drivers force forward progress in case they can not provide
+		/* Drivers force forward progress in case they can yest provide
 		 * a descriptor
 		 */
 		for (;;) {
@@ -101,7 +101,7 @@ do_async_gen_syndrome(struct dma_chan *chan,
 }
 
 /**
- * do_sync_gen_syndrome - synchronously calculate a raid6 syndrome
+ * do_sync_gen_syndrome - synchroyesusly calculate a raid6 syndrome
  */
 static void
 do_sync_gen_syndrome(struct page **blocks, unsigned int offset, int disks,
@@ -139,24 +139,24 @@ do_sync_gen_syndrome(struct page **blocks, unsigned int offset, int disks,
 }
 
 /**
- * async_gen_syndrome - asynchronously calculate a raid6 syndrome
+ * async_gen_syndrome - asynchroyesusly calculate a raid6 syndrome
  * @blocks: source blocks from idx 0..disks-3, P @ disks-2 and Q @ disks-1
  * @offset: common offset into each block (src and dest) to start transaction
  * @disks: number of blocks (including missing P or Q, see below)
  * @len: length of operation in bytes
  * @submit: submission/completion modifiers
  *
- * General note: This routine assumes a field of GF(2^8) with a
- * primitive polynomial of 0x11d and a generator of {02}.
+ * General yeste: This routine assumes a field of GF(2^8) with a
+ * primitive polyyesmial of 0x11d and a generator of {02}.
  *
- * 'disks' note: callers can optionally omit either P or Q (but not
+ * 'disks' yeste: callers can optionally omit either P or Q (but yest
  * both) from the calculation by setting blocks[disks-2] or
  * blocks[disks-1] to NULL.  When P or Q is omitted 'len' must be <=
  * PAGE_SIZE as a temporary buffer of this size is used in the
- * synchronous path.  'disks' always accounts for both destination
+ * synchroyesus path.  'disks' always accounts for both destination
  * buffers.  If any source buffers (blocks[i] where i < disks - 2) are
  * set to NULL those buffers will be replaced with the raid6_zero_page
- * in the synchronous path and omitted in the hardware-asynchronous
+ * in the synchroyesus path and omitted in the hardware-asynchroyesus
  * path.
  */
 struct dma_async_tx_descriptor *
@@ -185,7 +185,7 @@ async_gen_syndrome(struct page **blocks, unsigned int offset, int disks,
 		unsigned char coefs[MAX_DISKS];
 		int i, j;
 
-		/* run the p+q asynchronously */
+		/* run the p+q asynchroyesusly */
 		pr_debug("%s: (async) disks: %d len: %zu\n",
 			 __func__, disks, len);
 
@@ -232,7 +232,7 @@ async_gen_syndrome(struct page **blocks, unsigned int offset, int disks,
 
 	dmaengine_unmap_put(unmap);
 
-	/* run the pq synchronously */
+	/* run the pq synchroyesusly */
 	pr_debug("%s: (sync) disks: %d len: %zu\n", __func__, disks, len);
 
 	/* wait for any prerequisite operations */
@@ -263,17 +263,17 @@ pq_val_chan(struct async_submit_ctl *submit, struct page **blocks, int disks, si
 }
 
 /**
- * async_syndrome_val - asynchronously validate a raid6 syndrome
+ * async_syndrome_val - asynchroyesusly validate a raid6 syndrome
  * @blocks: source blocks from idx 0..disks-3, P @ disks-2 and Q @ disks-1
  * @offset: common offset into each block (src and dest) to start transaction
  * @disks: number of blocks (including missing P or Q, see below)
  * @len: length of operation in bytes
  * @pqres: on val failure SUM_CHECK_P_RESULT and/or SUM_CHECK_Q_RESULT are set
- * @spare: temporary result buffer for the synchronous case
+ * @spare: temporary result buffer for the synchroyesus case
  * @submit: submission / completion modifiers
  *
- * The same notes from async_gen_syndrome apply to the 'blocks',
- * and 'disks' parameters of this routine.  The synchronous path
+ * The same yestes from async_gen_syndrome apply to the 'blocks',
+ * and 'disks' parameters of this routine.  The synchroyesus path
  * requires a temporary result buffer and submit->scribble to be
  * specified.
  */
@@ -435,5 +435,5 @@ static void __exit async_pq_exit(void)
 module_init(async_pq_init);
 module_exit(async_pq_exit);
 
-MODULE_DESCRIPTION("asynchronous raid6 syndrome generation/validation");
+MODULE_DESCRIPTION("asynchroyesus raid6 syndrome generation/validation");
 MODULE_LICENSE("GPL");

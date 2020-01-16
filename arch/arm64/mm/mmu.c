@@ -9,13 +9,13 @@
 #include <linux/cache.h>
 #include <linux/export.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/init.h>
 #include <linux/ioport.h>
 #include <linux/kexec.h>
 #include <linux/libfdt.h>
 #include <linux/mman.h>
-#include <linux/nodemask.h>
+#include <linux/yesdemask.h>
 #include <linux/memblock.h>
 #include <linux/fs.h>
 #include <linux/io.h>
@@ -80,7 +80,7 @@ pgprot_t phys_mem_access_prot(struct file *file, unsigned long pfn,
 			      unsigned long size, pgprot_t vma_prot)
 {
 	if (!pfn_valid(pfn))
-		return pgprot_noncached(vma_prot);
+		return pgprot_yesncached(vma_prot);
 	else if (file->f_flags & O_SYNC)
 		return pgprot_writecombine(vma_prot);
 	return vma_prot;
@@ -126,7 +126,7 @@ static bool pgattr_change_is_safe(u64 old, u64 new)
 	if (old == 0 || new == 0)
 		return true;
 
-	/* live contiguous mappings may not be manipulated at all */
+	/* live contiguous mappings may yest be manipulated at all */
 	if ((old | new) & PTE_CONT)
 		return false;
 
@@ -171,7 +171,7 @@ static void alloc_init_cont_pte(pmd_t *pmdp, unsigned long addr,
 	pmd_t pmd = READ_ONCE(*pmdp);
 
 	BUG_ON(pmd_sect(pmd));
-	if (pmd_none(pmd)) {
+	if (pmd_yesne(pmd)) {
 		phys_addr_t pte_phys;
 		BUG_ON(!pgtable_alloc);
 		pte_phys = pgtable_alloc(PAGE_SHIFT);
@@ -245,7 +245,7 @@ static void alloc_init_cont_pmd(pud_t *pudp, unsigned long addr,
 	 * Check for initial section mappings in the pgd/pud.
 	 */
 	BUG_ON(pud_sect(pud));
-	if (pud_none(pud)) {
+	if (pud_yesne(pud)) {
 		phys_addr_t pmd_phys;
 		BUG_ON(!pgtable_alloc);
 		pmd_phys = pgtable_alloc(PMD_SHIFT);
@@ -291,7 +291,7 @@ static void alloc_init_pud(pgd_t *pgdp, unsigned long addr, unsigned long end,
 	pud_t *pudp;
 	pgd_t pgd = READ_ONCE(*pgdp);
 
-	if (pgd_none(pgd)) {
+	if (pgd_yesne(pgd)) {
 		phys_addr_t pud_phys;
 		BUG_ON(!pgtable_alloc);
 		pud_phys = pgtable_alloc(PUD_SHIFT);
@@ -343,7 +343,7 @@ static void __create_pgd_mapping(pgd_t *pgdir, phys_addr_t phys,
 
 	/*
 	 * If the virtual and physical address don't have the same offset
-	 * within a page, we cannot map the region as the caller expects.
+	 * within a page, we canyest map the region as the caller expects.
 	 */
 	if (WARN_ON((phys ^ virt) & ~PAGE_MASK))
 		return;
@@ -380,7 +380,7 @@ static phys_addr_t pgd_pgtable_alloc(int shift)
 	 * this pre-allocated page table.
 	 *
 	 * We don't select ARCH_ENABLE_SPLIT_PMD_PTLOCK if pmd is
-	 * folded, and if so pgtable_pmd_page_ctor() becomes nop.
+	 * folded, and if so pgtable_pmd_page_ctor() becomes yesp.
 	 */
 	if (shift == PAGE_SHIFT)
 		BUG_ON(!pgtable_pte_page_ctor(phys_to_page(pa)));
@@ -395,11 +395,11 @@ static phys_addr_t pgd_pgtable_alloc(int shift)
  * without allocating new levels of table. Note that this permits the
  * creation of new section or page entries.
  */
-static void __init create_mapping_noalloc(phys_addr_t phys, unsigned long virt,
+static void __init create_mapping_yesalloc(phys_addr_t phys, unsigned long virt,
 				  phys_addr_t size, pgprot_t prot)
 {
 	if ((virt >= PAGE_END) && (virt < VMALLOC_START)) {
-		pr_warn("BUG: not creating mapping for %pa at 0x%016lx - outside kernel range\n",
+		pr_warn("BUG: yest creating mapping for %pa at 0x%016lx - outside kernel range\n",
 			&phys, virt);
 		return;
 	}
@@ -426,7 +426,7 @@ static void update_mapping_prot(phys_addr_t phys, unsigned long virt,
 				phys_addr_t size, pgprot_t prot)
 {
 	if ((virt >= PAGE_END) && (virt < VMALLOC_START)) {
-		pr_warn("BUG: not updating mapping for %pa at 0x%016lx - outside kernel range\n",
+		pr_warn("BUG: yest updating mapping for %pa at 0x%016lx - outside kernel range\n",
 			&phys, virt);
 		return;
 	}
@@ -466,15 +466,15 @@ static void __init map_mem(pgd_t *pgdp)
 		flags = NO_BLOCK_MAPPINGS | NO_CONT_MAPPINGS;
 
 	/*
-	 * Take care not to create a writable alias for the
+	 * Take care yest to create a writable alias for the
 	 * read-only text and rodata sections of the kernel image.
 	 * So temporarily mark them as NOMAP to skip mappings in
 	 * the following for-loop
 	 */
-	memblock_mark_nomap(kernel_start, kernel_end - kernel_start);
+	memblock_mark_yesmap(kernel_start, kernel_end - kernel_start);
 #ifdef CONFIG_KEXEC_CORE
 	if (crashk_res.end)
-		memblock_mark_nomap(crashk_res.start,
+		memblock_mark_yesmap(crashk_res.start,
 				    resource_size(&crashk_res));
 #endif
 
@@ -485,7 +485,7 @@ static void __init map_mem(pgd_t *pgdp)
 
 		if (start >= end)
 			break;
-		if (memblock_is_nomap(reg))
+		if (memblock_is_yesmap(reg))
 			continue;
 
 		__map_memblock(pgdp, start, end, PAGE_KERNEL, flags);
@@ -493,17 +493,17 @@ static void __init map_mem(pgd_t *pgdp)
 
 	/*
 	 * Map the linear alias of the [_text, __init_begin) interval
-	 * as non-executable now, and remove the write permission in
+	 * as yesn-executable yesw, and remove the write permission in
 	 * mark_linear_text_alias_ro() below (which will be called after
 	 * alternative patching has completed). This makes the contents
 	 * of the region accessible to subsystems such as hibernate,
 	 * but protects it from inadvertent modification or execution.
-	 * Note that contiguous mappings cannot be remapped in this way,
+	 * Note that contiguous mappings canyest be remapped in this way,
 	 * so we should avoid them here.
 	 */
 	__map_memblock(pgdp, kernel_start, kernel_end,
 		       PAGE_KERNEL, NO_CONT_MAPPINGS);
-	memblock_clear_nomap(kernel_start, kernel_end - kernel_start);
+	memblock_clear_yesmap(kernel_start, kernel_end - kernel_start);
 
 #ifdef CONFIG_KEXEC_CORE
 	/*
@@ -515,7 +515,7 @@ static void __init map_mem(pgd_t *pgdp)
 		__map_memblock(pgdp, crashk_res.start, crashk_res.end + 1,
 			       PAGE_KERNEL,
 			       NO_BLOCK_MAPPINGS | NO_CONT_MAPPINGS);
-		memblock_clear_nomap(crashk_res.start,
+		memblock_clear_yesmap(crashk_res.start,
 				     resource_size(&crashk_res));
 	}
 #endif
@@ -698,12 +698,12 @@ int kern_addr_valid(unsigned long addr)
 		return 0;
 
 	pgdp = pgd_offset_k(addr);
-	if (pgd_none(READ_ONCE(*pgdp)))
+	if (pgd_yesne(READ_ONCE(*pgdp)))
 		return 0;
 
 	pudp = pud_offset(pgdp, addr);
 	pud = READ_ONCE(*pudp);
-	if (pud_none(pud))
+	if (pud_yesne(pud))
 		return 0;
 
 	if (pud_sect(pud))
@@ -711,7 +711,7 @@ int kern_addr_valid(unsigned long addr)
 
 	pmdp = pmd_offset(pudp, addr);
 	pmd = READ_ONCE(*pmdp);
-	if (pmd_none(pmd))
+	if (pmd_yesne(pmd))
 		return 0;
 
 	if (pmd_sect(pmd))
@@ -719,20 +719,20 @@ int kern_addr_valid(unsigned long addr)
 
 	ptep = pte_offset_kernel(pmdp, addr);
 	pte = READ_ONCE(*ptep);
-	if (pte_none(pte))
+	if (pte_yesne(pte))
 		return 0;
 
 	return pfn_valid(pte_pfn(pte));
 }
 #ifdef CONFIG_SPARSEMEM_VMEMMAP
 #if !ARM64_SWAPPER_USES_SECTION_MAPS
-int __meminit vmemmap_populate(unsigned long start, unsigned long end, int node,
+int __meminit vmemmap_populate(unsigned long start, unsigned long end, int yesde,
 		struct vmem_altmap *altmap)
 {
-	return vmemmap_populate_basepages(start, end, node);
+	return vmemmap_populate_basepages(start, end, yesde);
 }
 #else	/* !ARM64_SWAPPER_USES_SECTION_MAPS */
-int __meminit vmemmap_populate(unsigned long start, unsigned long end, int node,
+int __meminit vmemmap_populate(unsigned long start, unsigned long end, int yesde,
 		struct vmem_altmap *altmap)
 {
 	unsigned long addr = start;
@@ -744,25 +744,25 @@ int __meminit vmemmap_populate(unsigned long start, unsigned long end, int node,
 	do {
 		next = pmd_addr_end(addr, end);
 
-		pgdp = vmemmap_pgd_populate(addr, node);
+		pgdp = vmemmap_pgd_populate(addr, yesde);
 		if (!pgdp)
 			return -ENOMEM;
 
-		pudp = vmemmap_pud_populate(pgdp, addr, node);
+		pudp = vmemmap_pud_populate(pgdp, addr, yesde);
 		if (!pudp)
 			return -ENOMEM;
 
 		pmdp = pmd_offset(pudp, addr);
-		if (pmd_none(READ_ONCE(*pmdp))) {
+		if (pmd_yesne(READ_ONCE(*pmdp))) {
 			void *p = NULL;
 
-			p = vmemmap_alloc_block_buf(PMD_SIZE, node);
+			p = vmemmap_alloc_block_buf(PMD_SIZE, yesde);
 			if (!p)
 				return -ENOMEM;
 
 			pmd_set_huge(pmdp, __pa(p), __pgprot(PROT_SECT_NORMAL));
 		} else
-			vmemmap_verify((pte_t *)pmdp, node, addr, next);
+			vmemmap_verify((pte_t *)pmdp, yesde, addr, next);
 	} while (addr = next, addr != end);
 
 	return 0;
@@ -779,7 +779,7 @@ static inline pud_t * fixmap_pud(unsigned long addr)
 	pgd_t *pgdp = pgd_offset_k(addr);
 	pgd_t pgd = READ_ONCE(*pgdp);
 
-	BUG_ON(pgd_none(pgd) || pgd_bad(pgd));
+	BUG_ON(pgd_yesne(pgd) || pgd_bad(pgd));
 
 	return pud_offset_kimg(pgdp, addr);
 }
@@ -789,7 +789,7 @@ static inline pmd_t * fixmap_pmd(unsigned long addr)
 	pud_t *pudp = fixmap_pud(addr);
 	pud_t pud = READ_ONCE(*pudp);
 
-	BUG_ON(pud_none(pud) || pud_bad(pud));
+	BUG_ON(pud_yesne(pud) || pud_bad(pud));
 
 	return pmd_offset_kimg(pudp, addr);
 }
@@ -815,7 +815,7 @@ void __init early_fixmap_init(void)
 	pgdp = pgd_offset_k(addr);
 	pgd = READ_ONCE(*pgdp);
 	if (CONFIG_PGTABLE_LEVELS > 3 &&
-	    !(pgd_none(pgd) || pgd_page_paddr(pgd) == __pa_symbol(bm_pud))) {
+	    !(pgd_yesne(pgd) || pgd_page_paddr(pgd) == __pa_symbol(bm_pud))) {
 		/*
 		 * We only end up here if the kernel mapping and the fixmap
 		 * share the top level pgd entry, which should only happen on
@@ -824,18 +824,18 @@ void __init early_fixmap_init(void)
 		BUG_ON(!IS_ENABLED(CONFIG_ARM64_16K_PAGES));
 		pudp = pud_offset_kimg(pgdp, addr);
 	} else {
-		if (pgd_none(pgd))
+		if (pgd_yesne(pgd))
 			__pgd_populate(pgdp, __pa_symbol(bm_pud), PUD_TYPE_TABLE);
 		pudp = fixmap_pud(addr);
 	}
-	if (pud_none(READ_ONCE(*pudp)))
+	if (pud_yesne(READ_ONCE(*pudp)))
 		__pud_populate(pudp, __pa_symbol(bm_pmd), PMD_TYPE_TABLE);
 	pmdp = fixmap_pmd(addr);
 	__pmd_populate(pmdp, __pa_symbol(bm_pte), PMD_TYPE_TABLE);
 
 	/*
 	 * The boot-ioremap range spans multiple pmds, for which
-	 * we are not prepared:
+	 * we are yest prepared:
 	 */
 	BUILD_BUG_ON((__fix_to_virt(FIX_BTMAP_BEGIN) >> PMD_SHIFT)
 		     != (__fix_to_virt(FIX_BTMAP_END) >> PMD_SHIFT));
@@ -898,7 +898,7 @@ void *__init fixmap_remap_fdt(phys_addr_t dt_phys, int *size, pgprot_t prot)
 	/*
 	 * Make sure that the FDT region can be mapped without the need to
 	 * allocate additional translation table pages, so that it is safe
-	 * to call create_mapping_noalloc() this early.
+	 * to call create_mapping_yesalloc() this early.
 	 *
 	 * On 64k pages, the FDT will be mapped using PTEs, so we need to
 	 * be in the same PMD as the rest of the fixmap.
@@ -914,7 +914,7 @@ void *__init fixmap_remap_fdt(phys_addr_t dt_phys, int *size, pgprot_t prot)
 	dt_virt = (void *)dt_virt_base + offset;
 
 	/* map the first chunk so we can read the size from the header */
-	create_mapping_noalloc(round_down(dt_phys, SWAPPER_BLOCK_SIZE),
+	create_mapping_yesalloc(round_down(dt_phys, SWAPPER_BLOCK_SIZE),
 			dt_virt_base, SWAPPER_BLOCK_SIZE, prot);
 
 	if (fdt_magic(dt_virt) != FDT_MAGIC)
@@ -925,7 +925,7 @@ void *__init fixmap_remap_fdt(phys_addr_t dt_phys, int *size, pgprot_t prot)
 		return NULL;
 
 	if (offset + *size > SWAPPER_BLOCK_SIZE)
-		create_mapping_noalloc(round_down(dt_phys, SWAPPER_BLOCK_SIZE), dt_virt_base,
+		create_mapping_yesalloc(round_down(dt_phys, SWAPPER_BLOCK_SIZE), dt_virt_base,
 			       round_up(offset + *size, SWAPPER_BLOCK_SIZE), prot);
 
 	return dt_virt;
@@ -956,7 +956,7 @@ int pud_set_huge(pud_t *pudp, phys_addr_t phys, pgprot_t prot)
 {
 	pud_t new_pud = pfn_pud(__phys_to_pfn(phys), mk_pud_sect_prot(prot));
 
-	/* Only allow permission changes for now */
+	/* Only allow permission changes for yesw */
 	if (!pgattr_change_is_safe(READ_ONCE(pud_val(*pudp)),
 				   pud_val(new_pud)))
 		return 0;
@@ -970,7 +970,7 @@ int pmd_set_huge(pmd_t *pmdp, phys_addr_t phys, pgprot_t prot)
 {
 	pmd_t new_pmd = pfn_pmd(__phys_to_pfn(phys), mk_pmd_sect_prot(prot));
 
-	/* Only allow permission changes for now */
+	/* Only allow permission changes for yesw */
 	if (!pgattr_change_is_safe(READ_ONCE(pmd_val(*pmdp)),
 				   pmd_val(new_pmd)))
 		return 0;
@@ -1060,7 +1060,7 @@ int arch_add_memory(int nid, u64 start, u64 size,
 	__create_pgd_mapping(swapper_pg_dir, start, __phys_to_virt(start),
 			     size, PAGE_KERNEL, __pgd_pgtable_alloc, flags);
 
-	memblock_clear_nomap(start, size);
+	memblock_clear_yesmap(start, size);
 
 	return __add_pages(nid, start >> PAGE_SHIFT, size >> PAGE_SHIFT,
 			   restrictions);
@@ -1074,8 +1074,8 @@ void arch_remove_memory(int nid, u64 start, u64 size,
 	/*
 	 * FIXME: Cleanup page tables (also in arch_add_memory() in case
 	 * adding fails). Until then, this function should only be used
-	 * during memory hotplug (adding memory), not for memory
-	 * unplug. ARCH_ENABLE_MEMORY_HOTREMOVE must not be
+	 * during memory hotplug (adding memory), yest for memory
+	 * unplug. ARCH_ENABLE_MEMORY_HOTREMOVE must yest be
 	 * unlocked yet.
 	 */
 	__remove_pages(start_pfn, nr_pages, altmap);

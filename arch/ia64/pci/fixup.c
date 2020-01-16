@@ -20,7 +20,7 @@
  * card will have its BIOS copied to 0xC0000 in system RAM.
  * IORESOURCE_ROM_SHADOW is used to associate the boot video
  * card with this copy. On laptops this copy has to be used since
- * the main ROM may be compressed or combined with another image.
+ * the main ROM may be compressed or combined with ayesther image.
  * See pci_map_rom() for use of this flag. Before marking the device
  * with IORESOURCE_ROM_SHADOW check if a vga_default_device is already set
  * by either arch code or vga-arbitration; if so only apply the fixup to this

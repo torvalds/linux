@@ -18,7 +18,7 @@ enum {
 	Opt_jid,
 	Opt_id,
 	Opt_first,
-	Opt_nodir,
+	Opt_yesdir,
 	Opt_err,
 };
 
@@ -40,8 +40,8 @@ enum {
 /*
  * lm_lock() states
  *
- * SHARED is compatible with SHARED, not with DEFERRED or EX.
- * DEFERRED is compatible with DEFERRED, not with SHARED or EX.
+ * SHARED is compatible with SHARED, yest with DEFERRED or EX.
+ * DEFERRED is compatible with DEFERRED, yest with SHARED or EX.
  */
 
 #define LM_ST_UNLOCKED		0
@@ -56,17 +56,17 @@ enum {
  * Don't wait to acquire the lock if it can't be granted immediately.
  *
  * LM_FLAG_TRY_1CB
- * Send one blocking callback if TRY is set and the lock is not granted.
+ * Send one blocking callback if TRY is set and the lock is yest granted.
  *
  * LM_FLAG_NOEXP
  * GFS sets this flag on lock requests it makes while doing journal recovery.
- * These special requests should not be blocked due to the recovery like
+ * These special requests should yest be blocked due to the recovery like
  * ordinary locks would be.
  *
  * LM_FLAG_ANY
  * A SHARED request may also be granted in DEFERRED, or a DEFERRED request may
  * also be granted in SHARED.  The preferred state is whichever is compatible
- * with other granted locks, or the specified state if no other locks exist.
+ * with other granted locks, or the specified state if yes other locks exist.
  *
  * LM_FLAG_PRIORITY
  * Override fairness considerations.  Suppose a lock is held in a shared state
@@ -215,7 +215,7 @@ void gfs2_print_dbg(struct seq_file *seq, const char *fmt, ...);
  * @flags: the modifier flags
  * @gh: the holder structure
  *
- * Returns: 0, GLR_*, or errno
+ * Returns: 0, GLR_*, or erryes
  */
 
 static inline int gfs2_glock_nq_init(struct gfs2_glock *gl,
@@ -236,7 +236,7 @@ static inline int gfs2_glock_nq_init(struct gfs2_glock *gl,
 extern void gfs2_glock_cb(struct gfs2_glock *gl, unsigned int state);
 extern void gfs2_glock_complete(struct gfs2_glock *gl, int ret);
 extern void gfs2_gl_hash_clear(struct gfs2_sbd *sdp);
-extern void gfs2_glock_finish_truncate(struct gfs2_inode *ip);
+extern void gfs2_glock_finish_truncate(struct gfs2_iyesde *ip);
 extern void gfs2_glock_thaw(struct gfs2_sbd *sdp);
 extern void gfs2_glock_add_to_lru(struct gfs2_glock *gl);
 extern void gfs2_glock_free(struct gfs2_glock *gl);
@@ -288,14 +288,14 @@ static inline void glock_set_object(struct gfs2_glock *gl, void *object)
  * I'd love to similarly add this:
  *	else if (gfs2_assert_warn(gl->gl_sbd, gl->gl_object == object))
  *		gfs2_dump_glock(NULL, gl, true);
- * Unfortunately, that's not possible because as soon as gfs2_delete_inode
- * frees the block in the rgrp, another process can reassign it for an I_NEW
- * inode in gfs2_create_inode because that calls new_inode, not gfs2_iget.
- * That means gfs2_delete_inode may subsequently try to call this function
- * for a glock that's already pointing to a brand new inode. If we clear the
- * new inode's gl_object, we'll introduce metadata corruption. Function
- * gfs2_delete_inode calls clear_inode which calls gfs2_clear_inode which also
- * tries to clear gl_object, so it's more than just gfs2_delete_inode.
+ * Unfortunately, that's yest possible because as soon as gfs2_delete_iyesde
+ * frees the block in the rgrp, ayesther process can reassign it for an I_NEW
+ * iyesde in gfs2_create_iyesde because that calls new_iyesde, yest gfs2_iget.
+ * That means gfs2_delete_iyesde may subsequently try to call this function
+ * for a glock that's already pointing to a brand new iyesde. If we clear the
+ * new iyesde's gl_object, we'll introduce metadata corruption. Function
+ * gfs2_delete_iyesde calls clear_iyesde which calls gfs2_clear_iyesde which also
+ * tries to clear gl_object, so it's more than just gfs2_delete_iyesde.
  *
  */
 static inline void glock_clear_object(struct gfs2_glock *gl, void *object)

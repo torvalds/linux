@@ -20,10 +20,10 @@ Required properties:
 - reg		: Address and length of the IO space, as well as the address
                   and length of the AXI DMA controller IO space, unless
                   axistream-connected is specified, in which case the reg
-                  attribute of the node referenced by it is used.
+                  attribute of the yesde referenced by it is used.
 - interrupts	: Should be a list of 2 or 3 interrupts: TX DMA, RX DMA,
 		  and optionally Ethernet core. If axistream-connected is
-		  specified, the TX/RX DMA interrupts should be on that node
+		  specified, the TX/RX DMA interrupts should be on that yesde
 		  instead, and only the Ethernet core interrupt is optionally
 		  specified here.
 - phy-handle	: Should point to the external phy device.
@@ -32,23 +32,23 @@ Required properties:
 
 Optional properties:
 - phy-mode	: See ethernet.txt
-- xlnx,phy-type	: Deprecated, do not use, but still accepted in preference
+- xlnx,phy-type	: Deprecated, do yest use, but still accepted in preference
 		  to phy-mode.
 - xlnx,txcsum	: 0 or empty for disabling TX checksum offload,
 		  1 to enable partial TX checksum offload,
 		  2 to enable full TX checksum offload
 - xlnx,rxcsum	: Same values as xlnx,txcsum but for RX checksum offload
 - clocks	: AXI bus clock for the device. Refer to common clock bindings.
-		  Used to calculate MDIO clock divisor. If not specified, it is
+		  Used to calculate MDIO clock divisor. If yest specified, it is
 		  auto-detected from the CPU clock (but only on platforms where
 		  this is possible). New device trees should specify this - the
 		  auto detection is only for backward compatibility.
-- axistream-connected: Reference to another node which contains the resources
+- axistream-connected: Reference to ayesther yesde which contains the resources
 		       for the AXI DMA controller used by this device.
 		       If this is specified, the DMA-related resources from that
 		       device (DMA registers and DMA TX/RX interrupts) rather
 		       than this one will be used.
- - mdio		: Child node for MDIO bus. Must be defined if PHY access is
+ - mdio		: Child yesde for MDIO bus. Must be defined if PHY access is
 		  required through the core's MDIO interface (i.e. always,
 		  unless the PHY is accessed through a different bus).
 

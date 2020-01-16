@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (c) 2014 Marvell Technology Group Ltd.
+ * Copyright (c) 2014 Marvell Techyeslogy Group Ltd.
  *
  * Sebastian Hesselbarth <sebastian.hesselbarth@gmail.com>
  * Alexandre Belloni <alexandre.belloni@free-electrons.com>
@@ -17,9 +17,9 @@
 /*
  * Berlin2 SoCs comprise up to two PLLs called AVPLL built upon a
  * VCO with 8 channels each, channel 8 is the odd-one-out and does
- * not provide mul/div.
+ * yest provide mul/div.
  *
- * Unfortunately, its registers are not named but just numbered. To
+ * Unfortunately, its registers are yest named but just numbered. To
  * get in at least some kind of structure, we split each AVPLL into
  * the VCOs and each channel into separate clock drivers.
  *
@@ -273,7 +273,7 @@ berlin2_avpll_channel_recalc_rate(struct clk_hw *hw, unsigned long parent_rate)
 	reg = readl_relaxed(ch->base + VCO_SYNC2n(ch->index));
 	freq *= reg & VCO_SYNC2_MASK;
 
-	/* Channel 8 has no dividers */
+	/* Channel 8 has yes dividers */
 	if (ch->index == 7)
 		goto skip_div;
 
@@ -302,7 +302,7 @@ berlin2_avpll_channel_recalc_rate(struct clk_hw *hw, unsigned long parent_rate)
 
 	/*
 	 * AV2 divider start at VCO_CTRL12, bit 18; each 7 bits wide,
-	 * zero is not a valid value.
+	 * zero is yest a valid value.
 	 */
 	if (ch->index < 2) {
 		reg = readl_relaxed(ch->base + VCO_CTRL12);
@@ -345,7 +345,7 @@ static const struct clk_ops berlin2_avpll_channel_ops = {
 };
 
 /*
- * Another nice quirk:
+ * Ayesther nice quirk:
  * On some production SoCs, AVPLL channels are scrambled with respect
  * to the channel numbering in the registers but still referenced by
  * their original channel numbers. We deal with it by having a flag

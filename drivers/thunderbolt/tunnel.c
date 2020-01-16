@@ -2,7 +2,7 @@
 /*
  * Thunderbolt driver - Tunneling support
  *
- * Copyright (c) 2014 Andreas Noever <andreas.noever@gmail.com>
+ * Copyright (c) 2014 Andreas Noever <andreas.yesever@gmail.com>
  * Copyright (C) 2019, Intel Corporation
  */
 
@@ -93,7 +93,7 @@ static int tb_pci_activate(struct tb_tunnel *tunnel, bool activate)
 
 static int tb_initial_credits(const struct tb_switch *sw)
 {
-	/* If the path is complete sw is not NULL */
+	/* If the path is complete sw is yest NULL */
 	if (sw) {
 		/* More credits for faster link */
 		switch (sw->link_speed * sw->link_width) {
@@ -129,7 +129,7 @@ static void tb_pci_init_path(struct tb_path *path)
  *
  * If @down adapter is active, follows the tunnel to the PCIe upstream
  * adapter and back. Returns the discovered tunnel or %NULL if there was
- * no tunnel.
+ * yes tunnel.
  */
 struct tb_tunnel *tb_tunnel_discover_pci(struct tb *tb, struct tb_port *down)
 {
@@ -147,7 +147,7 @@ struct tb_tunnel *tb_tunnel_discover_pci(struct tb *tb, struct tb_port *down)
 	tunnel->src_port = down;
 
 	/*
-	 * Discover both paths even if they are not complete. We will
+	 * Discover both paths even if they are yest complete. We will
 	 * clean them up by calling tb_tunnel_deactivate() below in that
 	 * case.
 	 */
@@ -171,18 +171,18 @@ struct tb_tunnel *tb_tunnel_discover_pci(struct tb *tb, struct tb_port *down)
 	/* Validate that the tunnel is complete */
 	if (!tb_port_is_pcie_up(tunnel->dst_port)) {
 		tb_port_warn(tunnel->dst_port,
-			     "path does not end on a PCIe adapter, cleaning up\n");
+			     "path does yest end on a PCIe adapter, cleaning up\n");
 		goto err_deactivate;
 	}
 
 	if (down != tunnel->src_port) {
-		tb_tunnel_warn(tunnel, "path is not complete, cleaning up\n");
+		tb_tunnel_warn(tunnel, "path is yest complete, cleaning up\n");
 		goto err_deactivate;
 	}
 
 	if (!tb_pci_port_is_enabled(tunnel->dst_port)) {
 		tb_tunnel_warn(tunnel,
-			       "tunnel is not fully activated, cleaning up\n");
+			       "tunnel is yest fully activated, cleaning up\n");
 		goto err_deactivate;
 	}
 
@@ -385,7 +385,7 @@ static int tb_dp_reduce_bandwidth(int max_bw, u32 in_rate, u32 in_lanes,
 	unsigned int i;
 
 	/*
-	 * Find a combination that can fit into max_bw and does not
+	 * Find a combination that can fit into max_bw and does yest
 	 * exceed the maximum rate and lanes supported by the DP OUT and
 	 * DP IN adapters.
 	 */
@@ -467,7 +467,7 @@ static int tb_dp_xchg_caps(struct tb_tunnel *tunnel)
 					     out_rate, out_lanes, &new_rate,
 					     &new_lanes);
 		if (ret) {
-			tb_port_info(out, "not enough bandwidth for DP tunnel\n");
+			tb_port_info(out, "yest eyesugh bandwidth for DP tunnel\n");
 			return ret;
 		}
 
@@ -618,10 +618,10 @@ static void tb_dp_init_video_path(struct tb_path *path, bool discover)
  * @in: DP in adapter
  *
  * If @in adapter is active, follows the tunnel to the DP out adapter
- * and back. Returns the discovered tunnel or %NULL if there was no
+ * and back. Returns the discovered tunnel or %NULL if there was yes
  * tunnel.
  *
- * Return: DP tunnel or %NULL if no tunnel found.
+ * Return: DP tunnel or %NULL if yes tunnel found.
  */
 struct tb_tunnel *tb_tunnel_discover_dp(struct tb *tb, struct tb_port *in)
 {
@@ -666,7 +666,7 @@ struct tb_tunnel *tb_tunnel_discover_dp(struct tb *tb, struct tb_port *in)
 
 	/* Validate that the tunnel is complete */
 	if (!tb_port_is_dpout(tunnel->dst_port)) {
-		tb_port_warn(in, "path does not end on a DP adapter, cleaning up\n");
+		tb_port_warn(in, "path does yest end on a DP adapter, cleaning up\n");
 		goto err_deactivate;
 	}
 
@@ -677,7 +677,7 @@ struct tb_tunnel *tb_tunnel_discover_dp(struct tb *tb, struct tb_port *in)
 		goto err_deactivate;
 
 	if (port != tunnel->src_port) {
-		tb_tunnel_warn(tunnel, "path is not complete, cleaning up\n");
+		tb_tunnel_warn(tunnel, "path is yest complete, cleaning up\n");
 		goto err_deactivate;
 	}
 
@@ -697,7 +697,7 @@ err_free:
  * @tb: Pointer to the domain structure
  * @in: DP in adapter port
  * @out: DP out adapter port
- * @max_bw: Maximum available bandwidth for the DP tunnel (%0 if not limited)
+ * @max_bw: Maximum available bandwidth for the DP tunnel (%0 if yest limited)
  *
  * Allocates a tunnel between @in and @out that is capable of tunneling
  * Display Port traffic.
@@ -847,7 +847,7 @@ struct tb_tunnel *tb_tunnel_alloc_dma(struct tb *tb, struct tb_port *nhi,
  * tb_tunnel_free() - free a tunnel
  * @tunnel: Tunnel to be freed
  *
- * Frees a tunnel. The tunnel does not need to be deactivated.
+ * Frees a tunnel. The tunnel does yest need to be deactivated.
  */
 void tb_tunnel_free(struct tb_tunnel *tunnel)
 {
@@ -886,7 +886,7 @@ bool tb_tunnel_is_invalid(struct tb_tunnel *tunnel)
  * tb_tunnel_restart() - activate a tunnel after a hardware reset
  * @tunnel: Tunnel to restart
  *
- * Return: 0 on success and negative errno in case if failure
+ * Return: 0 on success and negative erryes in case if failure
  */
 int tb_tunnel_restart(struct tb_tunnel *tunnel)
 {
@@ -976,7 +976,7 @@ void tb_tunnel_deactivate(struct tb_tunnel *tunnel)
  * @tunnel: Tunnel to check
  * @sw: Switch to check
  *
- * Returns true if @tunnel goes through @sw (direction does not matter),
+ * Returns true if @tunnel goes through @sw (direction does yest matter),
  * false otherwise.
  */
 bool tb_tunnel_switch_on_path(const struct tb_tunnel *tunnel,
@@ -1013,7 +1013,7 @@ static bool tb_tunnel_is_active(const struct tb_tunnel *tunnel)
  * @tunnel: Tunnel to check
  *
  * Returns bandwidth currently consumed by @tunnel and %0 if the @tunnel
- * is not active or does consume bandwidth.
+ * is yest active or does consume bandwidth.
  */
 int tb_tunnel_consumed_bandwidth(struct tb_tunnel *tunnel)
 {

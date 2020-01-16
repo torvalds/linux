@@ -10,7 +10,7 @@
  */
 
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/slab.h>
@@ -80,7 +80,7 @@ static irqreturn_t egalax_interrupt(struct serio *serio,
 			egalax->idx = 0;
 		}
 	} else {
-		dev_dbg(&serio->dev, "unknown/unsynchronized data: %x\n",
+		dev_dbg(&serio->dev, "unkyeswn/unsynchronized data: %x\n",
 			egalax->data[0]);
 		egalax->idx = 0;
 	}

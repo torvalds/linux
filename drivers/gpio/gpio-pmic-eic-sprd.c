@@ -24,7 +24,7 @@
 #define SPRD_PMIC_EIC_CTRL0		0x40
 
 /*
- * The PMIC EIC controller only has one bank, and each bank now can contain
+ * The PMIC EIC controller only has one bank, and each bank yesw can contain
  * 16 EICs.
  */
 #define SPRD_PMIC_EIC_PER_BANK_NR	16
@@ -107,14 +107,14 @@ static int sprd_pmic_eic_get(struct gpio_chip *chip, unsigned int offset)
 static int sprd_pmic_eic_direction_input(struct gpio_chip *chip,
 					 unsigned int offset)
 {
-	/* EICs are always input, nothing need to do here. */
+	/* EICs are always input, yesthing need to do here. */
 	return 0;
 }
 
 static void sprd_pmic_eic_set(struct gpio_chip *chip, unsigned int offset,
 			      int value)
 {
-	/* EICs are always input, nothing need to do here. */
+	/* EICs are always input, yesthing need to do here. */
 }
 
 static int sprd_pmic_eic_set_debounce(struct gpio_chip *chip,
@@ -183,7 +183,7 @@ static int sprd_pmic_eic_irq_set_type(struct irq_data *data,
 	case IRQ_TYPE_EDGE_BOTH:
 		/*
 		 * Will set the trigger level according to current EIC level
-		 * in irq_bus_sync_unlock() interface, so here nothing to do.
+		 * in irq_bus_sync_unlock() interface, so here yesthing to do.
 		 */
 		break;
 	default:
@@ -312,7 +312,7 @@ static int sprd_pmic_eic_probe(struct platform_device *pdev)
 	if (!pmic_eic->map)
 		return -ENODEV;
 
-	ret = of_property_read_u32(pdev->dev.of_node, "reg", &pmic_eic->offset);
+	ret = of_property_read_u32(pdev->dev.of_yesde, "reg", &pmic_eic->offset);
 	if (ret) {
 		dev_err(&pdev->dev, "Failed to get PMIC EIC base address.\n");
 		return ret;
@@ -331,7 +331,7 @@ static int sprd_pmic_eic_probe(struct platform_device *pdev)
 	pmic_eic->chip.ngpio = SPRD_PMIC_EIC_NR;
 	pmic_eic->chip.base = -1;
 	pmic_eic->chip.parent = &pdev->dev;
-	pmic_eic->chip.of_node = pdev->dev.of_node;
+	pmic_eic->chip.of_yesde = pdev->dev.of_yesde;
 	pmic_eic->chip.direction_input = sprd_pmic_eic_direction_input;
 	pmic_eic->chip.request = sprd_pmic_eic_request;
 	pmic_eic->chip.free = sprd_pmic_eic_free;
@@ -353,7 +353,7 @@ static int sprd_pmic_eic_probe(struct platform_device *pdev)
 
 	ret = devm_gpiochip_add_data(&pdev->dev, &pmic_eic->chip, pmic_eic);
 	if (ret < 0) {
-		dev_err(&pdev->dev, "Could not register gpiochip %d.\n", ret);
+		dev_err(&pdev->dev, "Could yest register gpiochip %d.\n", ret);
 		return ret;
 	}
 

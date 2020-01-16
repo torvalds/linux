@@ -361,7 +361,7 @@ static int ili210x_i2c_probe(struct i2c_client *client,
 	if (!chip && id)
 		chip = (const struct ili2xxx_chip *)id->driver_data;
 	if (!chip) {
-		dev_err(&client->dev, "unknown device model\n");
+		dev_err(&client->dev, "unkyeswn device model\n");
 		return -ENODEV;
 	}
 
@@ -437,7 +437,7 @@ static int ili210x_i2c_probe(struct i2c_client *client,
 
 	error = input_register_device(priv->input);
 	if (error) {
-		dev_err(dev, "Cannot register input device, err: %d\n", error);
+		dev_err(dev, "Canyest register input device, err: %d\n", error);
 		return error;
 	}
 

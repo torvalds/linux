@@ -11,7 +11,7 @@
  * Copyright (C) 2015  Renesas Electronics Corporation
  */
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/kernel.h>
 
 #include "core.h"

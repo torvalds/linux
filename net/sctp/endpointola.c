@@ -20,7 +20,7 @@
  *    Karl Knutson <karl@athena.chicago.il.us>
  *    Jon Grimm <jgrimm@austin.ibm.com>
  *    Daisy Chang <daisyc@us.ibm.com>
- *    Dajiang Zhang <dajiang.zhang@nokia.com>
+ *    Dajiang Zhang <dajiang.zhang@yeskia.com>
  */
 
 #include <linux/types.h>
@@ -53,7 +53,7 @@ static struct sctp_endpoint *sctp_endpoint_init(struct sctp_endpoint *ep,
 	ep->auth_enable = net->sctp.auth_enable;
 	if (ep->auth_enable) {
 		if (sctp_auth_init(ep, gfp))
-			goto nomem;
+			goto yesmem;
 		if (ep->asconf_enable) {
 			sctp_auth_ep_add_chunkid(ep, SCTP_CID_ASCONF);
 			sctp_auth_ep_add_chunkid(ep, SCTP_CID_ASCONF_ACK);
@@ -97,7 +97,7 @@ static struct sctp_endpoint *sctp_endpoint_init(struct sctp_endpoint *ep,
 	INIT_LIST_HEAD(&ep->endpoint_shared_keys);
 	null_key = sctp_auth_shkey_create(0, gfp);
 	if (!null_key)
-		goto nomem_shkey;
+		goto yesmem_shkey;
 
 	list_add(&null_key->key_list, &ep->endpoint_shared_keys);
 
@@ -115,16 +115,16 @@ static struct sctp_endpoint *sctp_endpoint_init(struct sctp_endpoint *ep,
 
 	return ep;
 
-nomem_shkey:
+yesmem_shkey:
 	sctp_auth_free(ep);
-nomem:
+yesmem:
 	kfree(ep->digest);
 	return NULL;
 
 }
 
 /* Create a sctp_endpoint with all that boring stuff initialized.
- * Returns NULL if there isn't enough memory.
+ * Returns NULL if there isn't eyesugh memory.
  */
 struct sctp_endpoint *sctp_endpoint_new(struct sock *sk, gfp_t gfp)
 {
@@ -228,7 +228,7 @@ void sctp_endpoint_hold(struct sctp_endpoint *ep)
 }
 
 /* Release a reference to an endpoint and clean up if there are
- * no more references.
+ * yes more references.
  */
 void sctp_endpoint_put(struct sctp_endpoint *ep)
 {
@@ -267,7 +267,7 @@ struct sctp_association *sctp_endpoint_lookup_assoc(
 
 	*transport = NULL;
 
-	/* If the local port is not set, there can't be any associations
+	/* If the local port is yest set, there can't be any associations
 	 * on this endpoint.
 	 */
 	if (!ep->base.bind_addr.port)
@@ -297,7 +297,7 @@ bool sctp_endpoint_is_peeled_off(struct sctp_endpoint *ep,
 
 	bp = &ep->base.bind_addr;
 	/* This function is called with the socket lock held,
-	 * so the address_list can not change.
+	 * so the address_list can yest change.
 	 */
 	list_for_each_entry(addr, &bp->address_list, list) {
 		if (sctp_has_association(net, &addr->a, paddr))
@@ -345,7 +345,7 @@ static void sctp_endpoint_bh_rcv(struct work_struct *work)
 
 			next_hdr = sctp_inq_peek(inqueue);
 			if (!next_hdr)
-				goto normal;
+				goto yesrmal;
 
 			/* If the next chunk is COOKIE-ECHO, skip the AUTH
 			 * chunk while saving a pointer to it so we can do
@@ -359,7 +359,7 @@ static void sctp_endpoint_bh_rcv(struct work_struct *work)
 				continue;
 			}
 		}
-normal:
+yesrmal:
 		/* We might have grown an association since last we
 		 * looked, so try again.
 		 *
@@ -379,7 +379,7 @@ normal:
 			continue;
 
 		/* Remember where the last DATA chunk came from so we
-		 * know where to send the SACK.
+		 * kyesw where to send the SACK.
 		 */
 		if (asoc && sctp_chunk_is_data(chunk))
 			asoc->peer.last_data_from = chunk->transport;

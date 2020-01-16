@@ -11,18 +11,18 @@
  *	Changes:
  *	A.N.Kuznetsov	:	airthmetics in fragmentation.
  *				extension headers are implemented.
- *				route changes now work.
- *				ip6_forward does not confuse sniffers.
+ *				route changes yesw work.
+ *				ip6_forward does yest confuse sniffers.
  *				etc.
  *
  *      H. von Brand    :       Added missing #include <linux/string.h>
  *	Imran Patel	:	frag id should be in NBO
- *      Kazunori MIYAZAWA @USAGI
+ *      Kazuyesri MIYAZAWA @USAGI
  *			:       add ip6_append_data and related functions
  *				for datagram xmit
  */
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include <linux/socket.h>
@@ -73,8 +73,8 @@ static int ip6_finish_output2(struct net *net, struct sock *sk, struct sk_buff *
 					 &ipv6_hdr(skb)->saddr))) {
 			struct sk_buff *newskb = skb_clone(skb, GFP_ATOMIC);
 
-			/* Do not check for IFF_ALLMULTI; multicast routing
-			   is not supported in any case.
+			/* Do yest check for IFF_ALLMULTI; multicast routing
+			   is yest supported in any case.
 			 */
 			if (newskb)
 				NF_HOOK(NFPROTO_IPV6, NF_INET_POST_ROUTING,
@@ -108,7 +108,7 @@ static int ip6_finish_output2(struct net *net, struct sock *sk, struct sk_buff *
 
 	rcu_read_lock_bh();
 	nexthop = rt6_nexthop((struct rt6_info *)dst, &ipv6_hdr(skb)->daddr);
-	neigh = __ipv6_neigh_lookup_noref(dst->dev, nexthop);
+	neigh = __ipv6_neigh_lookup_yesref(dst->dev, nexthop);
 	if (unlikely(!neigh))
 		neigh = __neigh_create(&nd_tbl, nexthop, dst->dev, false);
 	if (!IS_ERR(neigh)) {
@@ -188,7 +188,7 @@ bool ip6_autoflowlabel(struct net *net, const struct ipv6_pinfo *np)
 
 /*
  * xmit an sk_buff (used by TCP, SCTP and DCCP)
- * Note : socket lock is not held for SYNACK packets, but might be modified
+ * Note : socket lock is yest held for SYNACK packets, but might be modified
  * by calls to skb_set_owner_w() and ipv6_local_error(),
  * which are using proper atomic operations or spinlocks.
  */
@@ -262,7 +262,7 @@ int ip6_xmit(const struct sock *sk, struct sk_buff *skb, struct flowi6 *fl6,
 	skb->mark = mark;
 
 	mtu = dst_mtu(dst);
-	if ((skb->len <= mtu) || skb->ignore_df || skb_is_gso(skb)) {
+	if ((skb->len <= mtu) || skb->igyesre_df || skb_is_gso(skb)) {
 		IP6_UPD_PO_STATS(net, ip6_dst_idev(skb_dst(skb)),
 			      IPSTATS_MIB_OUT, skb->len);
 
@@ -274,7 +274,7 @@ int ip6_xmit(const struct sock *sk, struct sk_buff *skb, struct flowi6 *fl6,
 			return 0;
 
 		/* hooks should never assume socket lock is held.
-		 * we promote our socket to non const
+		 * we promote our socket to yesn const
 		 */
 		return NF_HOOK(NFPROTO_IPV6, NF_INET_LOCAL_OUT,
 			       net, (struct sock *)sk, skb, NULL, dst->dev,
@@ -282,8 +282,8 @@ int ip6_xmit(const struct sock *sk, struct sk_buff *skb, struct flowi6 *fl6,
 	}
 
 	skb->dev = dst->dev;
-	/* ipv6_local_error() does not require socket lock,
-	 * we promote our socket to non const
+	/* ipv6_local_error() does yest require socket lock,
+	 * we promote our socket to yesn const
 	 */
 	ipv6_local_error((struct sock *)sk, EMSGSIZE, fl6, mtu);
 
@@ -404,11 +404,11 @@ static bool ip6_pkt_too_big(const struct sk_buff *skb, unsigned int mtu)
 	if (skb->len <= mtu)
 		return false;
 
-	/* ipv6 conntrack defrag sets max_frag_size + ignore_df */
+	/* ipv6 conntrack defrag sets max_frag_size + igyesre_df */
 	if (IP6CB(skb)->frag_max_size && IP6CB(skb)->frag_max_size > mtu)
 		return true;
 
-	if (skb->ignore_df)
+	if (skb->igyesre_df)
 		return false;
 
 	if (skb_is_gso(skb) && skb_gso_validate_network_len(skb, mtu))
@@ -450,12 +450,12 @@ int ip6_forward(struct sk_buff *skb)
 	 *	RA packets, pushing them to user level AS IS
 	 *	without ane WARRANTY that application will be able
 	 *	to interpret them. The reason is that we
-	 *	cannot make anything clever here.
+	 *	canyest make anything clever here.
 	 *
-	 *	We are not end-node, so that if packet contains
-	 *	AH/ESP, we cannot make anything.
+	 *	We are yest end-yesde, so that if packet contains
+	 *	AH/ESP, we canyest make anything.
 	 *	Defragmentation also would be mistake, RA packets
-	 *	cannot be fragmented, because there is no warranty
+	 *	canyest be fragmented, because there is yes warranty
 	 *	that different fragments will go along one path. --ANK
 	 */
 	if (unlikely(opt->flags & IP6SKB_ROUTERALERT)) {
@@ -494,7 +494,7 @@ int ip6_forward(struct sk_buff *skb)
 	}
 	dst = skb_dst(skb);
 
-	/* IPv6 specs say nothing about it, but it is clear that we cannot
+	/* IPv6 specs say yesthing about it, but it is clear that we canyest
 	   send redirects to source routed frames.
 	   We don't send redirects to frames decapsulated from IPsec.
 	 */
@@ -694,7 +694,7 @@ struct sk_buff *ip6_frag_next(struct sk_buff *skb, struct ip6_frag_state *state)
 	/* IF: it doesn't fit, use 'mtu' - the data space left */
 	if (len > state->mtu)
 		len = state->mtu;
-	/* IF: we are not sending up to and including the packet end
+	/* IF: we are yest sending up to and including the packet end
 	   then align the next start on an eight byte boundary */
 	if (len < state->left)
 		len &= ~7;
@@ -782,10 +782,10 @@ int ip6_fragment(struct net *net, struct sock *sk, struct sk_buff *skb,
 
 	mtu = ip6_skb_dst_mtu(skb);
 
-	/* We must not fragment if the socket is set to force MTU discovery
-	 * or if the skb it not generated by a local socket.
+	/* We must yest fragment if the socket is set to force MTU discovery
+	 * or if the skb it yest generated by a local socket.
 	 */
-	if (unlikely(!skb->ignore_df && skb->len > mtu))
+	if (unlikely(!skb->igyesre_df && skb->len > mtu))
 		goto fail_toobig;
 
 	if (IP6CB(skb)->frag_max_size) {
@@ -930,7 +930,7 @@ slow_path:
 
 fail_toobig:
 	if (skb->sk && dst_allfrag(skb_dst(skb)))
-		sk_nocaps_add(skb->sk, NETIF_F_GSO_MASK);
+		sk_yescaps_add(skb->sk, NETIF_F_GSO_MASK);
 
 	icmpv6_send(skb, ICMPV6_PKT_TOOBIG, 0, mtu);
 	err = -EMSGSIZE;
@@ -966,9 +966,9 @@ static struct dst_entry *ip6_sk_dst_check(struct sock *sk,
 	}
 
 	rt = (struct rt6_info *)dst;
-	/* Yes, checking route validity in not connected
-	 * case is not very simple. Take into account,
-	 * that we do not support routing by source, TOS,
+	/* Yes, checking route validity in yest connected
+	 * case is yest very simple. Take into account,
+	 * that we do yest support routing by source, TOS,
 	 * and MSG_DONTROUTE		--ANK (980726)
 	 *
 	 * 1. ip6_rt_check(): If route was host route,
@@ -976,9 +976,9 @@ static struct dst_entry *ip6_sk_dst_check(struct sock *sk,
 	 *    If it is network route, we still may
 	 *    check its validity using saved pointer
 	 *    to the last used address: daddr_cache.
-	 *    We do not want to save whole address now,
+	 *    We do yest want to save whole address yesw,
 	 *    (because main consumer of this service
-	 *    is tcp, which has not this problem),
+	 *    is tcp, which has yest this problem),
 	 *    so that the last trick works only on connected
 	 *    sockets.
 	 * 2. oif also should be the same.
@@ -1012,7 +1012,7 @@ static int ip6_dst_lookup_tail(struct net *net, const struct sock *sk,
 	 * the route-specific preferred source forces the
 	 * ip6_route_output call _before_ ip6_route_get_saddr.
 	 *
-	 * In source specific routing (no src=any default route),
+	 * In source specific routing (yes src=any default route),
 	 * ip6_route_output will fail given src=any saddr, though, so
 	 * that's why we try it again later.
 	 */
@@ -1066,7 +1066,7 @@ static int ip6_dst_lookup_tail(struct net *net, const struct sock *sk,
 	 */
 	rt = (struct rt6_info *) *dst;
 	rcu_read_lock_bh();
-	n = __ipv6_neigh_lookup_noref(rt->dst.dev,
+	n = __ipv6_neigh_lookup_yesref(rt->dst.dev,
 				      rt6_nexthop(rt, &fl6->daddr));
 	err = n && !(n->nud_state & NUD_VALID) ? -EINVAL : 0;
 	rcu_read_unlock_bh();
@@ -1123,7 +1123,7 @@ out_err_release:
  *
  *	This function performs a route lookup on the given flow.
  *
- *	It returns zero on success, or a standard errno code on error.
+ *	It returns zero on success, or a standard erryes code on error.
  */
 int ip6_dst_lookup(struct net *net, struct sock *sk, struct dst_entry **dst,
 		   struct flowi6 *fl6)
@@ -1165,7 +1165,7 @@ EXPORT_SYMBOL_GPL(ip6_dst_lookup_flow);
  *	@sk: socket which provides the dst cache and route info
  *	@fl6: flow to lookup
  *	@final_dst: final destination address for ipsec lookup
- *	@connected: whether @sk is connected or not
+ *	@connected: whether @sk is connected or yest
  *
  *	This function performs a route lookup on the given flow with the
  *	possibility of using the cached route in the socket if it is valid.
@@ -1173,7 +1173,7 @@ EXPORT_SYMBOL_GPL(ip6_dst_lookup_flow);
  *	As a result, this function can only be used in process context.
  *
  *	In addition, for a connected socket, cache the dst in the socket
- *	if the current cache is not valid.
+ *	if the current cache is yest valid.
  *
  *	It returns a valid dst pointer on success, or a pointer encoded
  *	error code.
@@ -1222,7 +1222,7 @@ static void ip6_append_data_mtu(unsigned int *mtu,
 
 		} else {
 			/*
-			 * this fragment is not first, the headers
+			 * this fragment is yest first, the headers
 			 * space is regarded as data space.
 			 */
 			*mtu = orig_mtu;
@@ -1333,7 +1333,7 @@ static int __ip6_append_data(struct sock *sk,
 	struct rt6_info *rt = (struct rt6_info *)cork->dst;
 	struct ipv6_txoptions *opt = v6_cork->opt;
 	int csummode = CHECKSUM_NONE;
-	unsigned int maxnonfragsize, headersize;
+	unsigned int maxyesnfragsize, headersize;
 	unsigned int wmem_alloc_delta = 0;
 	bool paged, extra_uref = false;
 
@@ -1378,20 +1378,20 @@ static int __ip6_append_data(struct sock *sk,
 		goto emsgsize;
 	}
 
-	if (ip6_sk_ignore_df(sk))
-		maxnonfragsize = sizeof(struct ipv6hdr) + IPV6_MAXPLEN;
+	if (ip6_sk_igyesre_df(sk))
+		maxyesnfragsize = sizeof(struct ipv6hdr) + IPV6_MAXPLEN;
 	else
-		maxnonfragsize = mtu;
+		maxyesnfragsize = mtu;
 
-	if (cork->length + length > maxnonfragsize - headersize) {
+	if (cork->length + length > maxyesnfragsize - headersize) {
 emsgsize:
 		pmtu = max_t(int, mtu - headersize + sizeof(struct ipv6hdr), 0);
 		ipv6_local_error(sk, EMSGSIZE, fl6, pmtu);
 		return -EMSGSIZE;
 	}
 
-	/* CHECKSUM_PARTIAL only with no extension headers and when
-	 * we are not going to fragment
+	/* CHECKSUM_PARTIAL only with yes extension headers and when
+	 * we are yest going to fragment
 	 */
 	if (transhdrlen && sk->sk_protocol == IPPROTO_UDP &&
 	    headersize == sizeof(struct ipv6hdr) &&
@@ -1425,7 +1425,7 @@ emsgsize:
 	 * the message.
 	 *
 	 * FIXME: It may be fragmented into multiple chunks
-	 *        at once if non-fragmentable extension headers
+	 *        at once if yesn-fragmentable extension headers
 	 *        are too large.
 	 * --yoshfuji
 	 */
@@ -1448,7 +1448,7 @@ emsgsize:
 			unsigned int alloclen;
 			unsigned int pagedlen;
 alloc_new_skb:
-			/* There's no room in the current skb */
+			/* There's yes room in the current skb */
 			if (skb)
 				fraggap = skb->len - maxfraglen;
 			else
@@ -1463,7 +1463,7 @@ alloc_new_skb:
 
 			/*
 			 * If remaining data exceeds the mtu,
-			 * we know we need more fragment(s).
+			 * we kyesw we need more fragment(s).
 			 */
 			datalen = length + fraggap;
 
@@ -1486,7 +1486,7 @@ alloc_new_skb:
 
 			if (datalen != length + fraggap) {
 				/*
-				 * this is not the last fragment, the trailer
+				 * this is yest the last fragment, the trailer
 				 * space is regarded as data space.
 				 */
 				datalen += rt->dst.trailer_len;
@@ -1746,7 +1746,7 @@ struct sk_buff *__ip6_make_skb(struct sock *sk,
 	}
 
 	/* Allow local fragmentation. */
-	skb->ignore_df = ip6_sk_ignore_df(sk);
+	skb->igyesre_df = ip6_sk_igyesre_df(sk);
 
 	*final_dst = fl6->daddr;
 	__skb_pull(skb, skb_network_header_len(skb));
@@ -1795,7 +1795,7 @@ int ip6_send_skb(struct sk_buff *skb)
 	err = ip6_local_out(net, skb->sk, skb);
 	if (err) {
 		if (err > 0)
-			err = net_xmit_errno(err);
+			err = net_xmit_erryes(err);
 		if (err)
 			IP6_INC_STATS(net, rt->rt6i_idev,
 				      IPSTATS_MIB_OUTDISCARDS);

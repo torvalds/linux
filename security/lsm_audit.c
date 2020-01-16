@@ -51,7 +51,7 @@ int ipv4_skb_to_auditdata(struct sk_buff *skb,
 
 	if (proto)
 		*proto = ih->protocol;
-	/* non initial fragment */
+	/* yesn initial fragment */
 	if (ntohs(ih->frag_off) & IP_OFFSET)
 		return 0;
 
@@ -211,7 +211,7 @@ static void dump_common_audit_data(struct audit_buffer *ab,
 	char comm[sizeof(current->comm)];
 
 	/*
-	 * To keep stack sizes in check force programers to notice if they
+	 * To keep stack sizes in check force programers to yestice if they
 	 * start making this union too large!  See struct lsm_network_audit
 	 * as an example of how to deal with large data.
 	 */
@@ -230,66 +230,66 @@ static void dump_common_audit_data(struct audit_buffer *ab,
 		audit_log_format(ab, " capability=%d ", a->u.cap);
 		break;
 	case LSM_AUDIT_DATA_PATH: {
-		struct inode *inode;
+		struct iyesde *iyesde;
 
 		audit_log_d_path(ab, " path=", &a->u.path);
 
-		inode = d_backing_inode(a->u.path.dentry);
-		if (inode) {
+		iyesde = d_backing_iyesde(a->u.path.dentry);
+		if (iyesde) {
 			audit_log_format(ab, " dev=");
-			audit_log_untrustedstring(ab, inode->i_sb->s_id);
-			audit_log_format(ab, " ino=%lu", inode->i_ino);
+			audit_log_untrustedstring(ab, iyesde->i_sb->s_id);
+			audit_log_format(ab, " iyes=%lu", iyesde->i_iyes);
 		}
 		break;
 	}
 	case LSM_AUDIT_DATA_FILE: {
-		struct inode *inode;
+		struct iyesde *iyesde;
 
 		audit_log_d_path(ab, " path=", &a->u.file->f_path);
 
-		inode = file_inode(a->u.file);
-		if (inode) {
+		iyesde = file_iyesde(a->u.file);
+		if (iyesde) {
 			audit_log_format(ab, " dev=");
-			audit_log_untrustedstring(ab, inode->i_sb->s_id);
-			audit_log_format(ab, " ino=%lu", inode->i_ino);
+			audit_log_untrustedstring(ab, iyesde->i_sb->s_id);
+			audit_log_format(ab, " iyes=%lu", iyesde->i_iyes);
 		}
 		break;
 	}
 	case LSM_AUDIT_DATA_IOCTL_OP: {
-		struct inode *inode;
+		struct iyesde *iyesde;
 
 		audit_log_d_path(ab, " path=", &a->u.op->path);
 
-		inode = a->u.op->path.dentry->d_inode;
-		if (inode) {
+		iyesde = a->u.op->path.dentry->d_iyesde;
+		if (iyesde) {
 			audit_log_format(ab, " dev=");
-			audit_log_untrustedstring(ab, inode->i_sb->s_id);
-			audit_log_format(ab, " ino=%lu", inode->i_ino);
+			audit_log_untrustedstring(ab, iyesde->i_sb->s_id);
+			audit_log_format(ab, " iyes=%lu", iyesde->i_iyes);
 		}
 
 		audit_log_format(ab, " ioctlcmd=0x%hx", a->u.op->cmd);
 		break;
 	}
 	case LSM_AUDIT_DATA_DENTRY: {
-		struct inode *inode;
+		struct iyesde *iyesde;
 
 		audit_log_format(ab, " name=");
 		audit_log_untrustedstring(ab, a->u.dentry->d_name.name);
 
-		inode = d_backing_inode(a->u.dentry);
-		if (inode) {
+		iyesde = d_backing_iyesde(a->u.dentry);
+		if (iyesde) {
 			audit_log_format(ab, " dev=");
-			audit_log_untrustedstring(ab, inode->i_sb->s_id);
-			audit_log_format(ab, " ino=%lu", inode->i_ino);
+			audit_log_untrustedstring(ab, iyesde->i_sb->s_id);
+			audit_log_format(ab, " iyes=%lu", iyesde->i_iyes);
 		}
 		break;
 	}
 	case LSM_AUDIT_DATA_INODE: {
 		struct dentry *dentry;
-		struct inode *inode;
+		struct iyesde *iyesde;
 
-		inode = a->u.inode;
-		dentry = d_find_alias(inode);
+		iyesde = a->u.iyesde;
+		dentry = d_find_alias(iyesde);
 		if (dentry) {
 			audit_log_format(ab, " name=");
 			audit_log_untrustedstring(ab,
@@ -297,8 +297,8 @@ static void dump_common_audit_data(struct audit_buffer *ab,
 			dput(dentry);
 		}
 		audit_log_format(ab, " dev=");
-		audit_log_untrustedstring(ab, inode->i_sb->s_id);
-		audit_log_format(ab, " ino=%lu", inode->i_ino);
+		audit_log_untrustedstring(ab, iyesde->i_sb->s_id);
+		audit_log_format(ab, " iyes=%lu", iyesde->i_iyes);
 		break;
 	}
 	case LSM_AUDIT_DATA_TASK: {

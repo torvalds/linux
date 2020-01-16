@@ -26,7 +26,7 @@ enum {
 };
 
 struct aoe_chardev {
-	ulong minor;
+	ulong miyesr;
 	char name[32];
 };
 
@@ -41,7 +41,7 @@ struct ErrMsg {
 static DEFINE_MUTEX(aoechr_mutex);
 
 /* A ring buffer of error messages, to be read through
- * "/dev/etherd/err".  When no messages are present,
+ * "/dev/etherd/err".  When yes messages are present,
  * readers will block waiting for messages to appear.
  */
 static struct ErrMsg emsgs[NMSG];
@@ -70,7 +70,7 @@ interfaces(const char __user *str, size_t size)
 {
 	if (set_aoe_iflist(str, size)) {
 		printk(KERN_ERR
-			"aoe: could not set interface list: too many interfaces\n");
+			"aoe: could yest set interface list: too many interfaces\n");
 		return -EINVAL;
 	}
 	return 0;
@@ -79,7 +79,7 @@ interfaces(const char __user *str, size_t size)
 static int
 revalidate(const char __user *str, size_t size)
 {
-	int major, minor, n;
+	int major, miyesr, n;
 	ulong flags;
 	struct aoedev *d;
 	struct sk_buff *skb;
@@ -91,17 +91,17 @@ revalidate(const char __user *str, size_t size)
 	if (copy_from_user(buf, str, size))
 		return -EFAULT;
 
-	n = sscanf(buf, "e%d.%d", &major, &minor);
+	n = sscanf(buf, "e%d.%d", &major, &miyesr);
 	if (n != 2) {
 		pr_err("aoe: invalid device specification %s\n", buf);
 		return -EINVAL;
 	}
-	d = aoedev_by_aoeaddr(major, minor, 0);
+	d = aoedev_by_aoeaddr(major, miyesr, 0);
 	if (!d)
 		return -EINVAL;
 	spin_lock_irqsave(&d->lock, flags);
 	aoecmd_cleanslate(d);
-	aoecmd_cfg(major, minor);
+	aoecmd_cfg(major, miyesr);
 loop:
 	skb = aoecmd_ata_id(d);
 	spin_unlock_irqrestore(&d->lock, flags);
@@ -186,16 +186,16 @@ aoechr_write(struct file *filp, const char __user *buf, size_t cnt, loff_t *offp
 }
 
 static int
-aoechr_open(struct inode *inode, struct file *filp)
+aoechr_open(struct iyesde *iyesde, struct file *filp)
 {
 	int n, i;
 
 	mutex_lock(&aoechr_mutex);
-	n = iminor(inode);
+	n = imiyesr(iyesde);
 	filp->private_data = (void *) (unsigned long) n;
 
 	for (i = 0; i < ARRAY_SIZE(chardevs); ++i)
-		if (chardevs[i].minor == n) {
+		if (chardevs[i].miyesr == n) {
 			mutex_unlock(&aoechr_mutex);
 			return 0;
 		}
@@ -204,7 +204,7 @@ aoechr_open(struct inode *inode, struct file *filp)
 }
 
 static int
-aoechr_rel(struct inode *inode, struct file *filp)
+aoechr_rel(struct iyesde *iyesde, struct file *filp)
 {
 	return 0;
 }
@@ -272,10 +272,10 @@ static const struct file_operations aoe_fops = {
 	.open = aoechr_open,
 	.release = aoechr_rel,
 	.owner = THIS_MODULE,
-	.llseek = noop_llseek,
+	.llseek = yesop_llseek,
 };
 
-static char *aoe_devnode(struct device *dev, umode_t *mode)
+static char *aoe_devyesde(struct device *dev, umode_t *mode)
 {
 	return kasprintf(GFP_KERNEL, "etherd/%s", dev_name(dev));
 }
@@ -297,11 +297,11 @@ aoechr_init(void)
 		unregister_chrdev(AOE_MAJOR, "aoechr");
 		return PTR_ERR(aoe_class);
 	}
-	aoe_class->devnode = aoe_devnode;
+	aoe_class->devyesde = aoe_devyesde;
 
 	for (i = 0; i < ARRAY_SIZE(chardevs); ++i)
 		device_create(aoe_class, NULL,
-			      MKDEV(AOE_MAJOR, chardevs[i].minor), NULL,
+			      MKDEV(AOE_MAJOR, chardevs[i].miyesr), NULL,
 			      chardevs[i].name);
 
 	return 0;
@@ -313,7 +313,7 @@ aoechr_exit(void)
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(chardevs); ++i)
-		device_destroy(aoe_class, MKDEV(AOE_MAJOR, chardevs[i].minor));
+		device_destroy(aoe_class, MKDEV(AOE_MAJOR, chardevs[i].miyesr));
 	class_destroy(aoe_class);
 	unregister_chrdev(AOE_MAJOR, "aoechr");
 }

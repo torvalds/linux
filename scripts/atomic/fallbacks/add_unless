@@ -5,7 +5,7 @@ cat << EOF
  * @a: the amount to add to v...
  * @u: ...unless v is equal to u.
  *
- * Atomically adds @a to @v, if @v was not already @u.
+ * Atomically adds @a to @v, if @v was yest already @u.
  * Returns true if the addition was done.
  */
 static inline bool

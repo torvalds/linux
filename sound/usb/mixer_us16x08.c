@@ -183,7 +183,7 @@ static int snd_us16x08_route_get(struct snd_kcontrol *kcontrol,
 	struct usb_mixer_elem_info *elem = kcontrol->private_data;
 	int index = ucontrol->id.index;
 
-	/* route has no bias */
+	/* route has yes bias */
 	ucontrol->value.enumerated.item[0] = elem->cache_val[index];
 
 	return 0;
@@ -198,7 +198,7 @@ static int snd_us16x08_route_put(struct snd_kcontrol *kcontrol,
 	char buf[sizeof(route_msg)];
 	int val, val_org, err;
 
-	/*  get the new value (no bias for routes) */
+	/*  get the new value (yes bias for routes) */
 	val = ucontrol->value.enumerated.item[0];
 
 	/* sanity check */
@@ -489,7 +489,7 @@ static int snd_us16x08_eqswitch_get(struct snd_kcontrol *kcontrol,
 	struct snd_us16x08_eq_store *store = elem->private_data;
 	int index = ucontrol->id.index;
 
-	/* get low switch from cache is enough, cause all bands are together */
+	/* get low switch from cache is eyesugh, cause all bands are together */
 	val = store->val[EQ_STORE_BAND_IDX(elem->head.id)]
 		[EQ_STORE_PARAM_IDX(elem->head.id)][index];
 	ucontrol->value.integer.value[0] = val;
@@ -632,11 +632,11 @@ static int snd_get_meter_comp_index(struct snd_us16x08_meter_store *store)
 
 			ret = store->comp_index++ & 0x1F;
 		} else {
-			/* no stereo link */
+			/* yes stereo link */
 			ret = store->comp_active_index;
 		}
 	} else {
-		/* skip channels with no compressor active */
+		/* skip channels with yes compressor active */
 		while (!store->comp_store->val[
 			COMP_STORE_IDX(SND_US16X08_ID_COMP_SWITCH)]
 			[store->comp_index - 1]
@@ -1297,7 +1297,7 @@ int snd_us16x08_controls_create(struct usb_mixer_interface *mixer)
 	struct snd_us16x08_meter_store *meter_store;
 	struct snd_us16x08_eq_store *eq_store;
 
-	/* just check for non-MIDI interface */
+	/* just check for yesn-MIDI interface */
 	if (mixer->hostif->desc.bInterfaceNumber == 3) {
 
 		/* add routing control */

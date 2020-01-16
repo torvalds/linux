@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /***************************************************************************
- *   Copyright (C) 2010-2012 by Bruno Prémont <bonbons@linux-vserver.org>  *
+ *   Copyright (C) 2010-2012 by Bruyes Prémont <bonbons@linux-vserver.org>  *
  *                                                                         *
  *   Based on Logitech G13 driver (v0.4)                                   *
  *     Copyright (C) 2009 by Rick L. Vinyard, Jr. <rvinyard@cs.nmsu.edu>   *
@@ -37,7 +37,7 @@ int picolcd_raw_cir(struct picolcd_data *data,
 	int i, w, sz;
 	struct ir_raw_event rawir = {};
 
-	/* ignore if rc_dev is NULL or status is shunned */
+	/* igyesre if rc_dev is NULL or status is shunned */
 	spin_lock_irqsave(&data->lock, flags);
 	if (!data->rc_dev || (data->status & PICOLCD_CIR_SHUN)) {
 		spin_unlock_irqrestore(&data->lock, flags);
@@ -52,7 +52,7 @@ int picolcd_raw_cir(struct picolcd_data *data,
 	 * for space - is it a matter of IR chip? (pulse for my TSOP2236)
 	 *
 	 * In addition, the first interval seems to be around 15000 + base
-	 * interval for non-first report of IR data - thus the quirk below
+	 * interval for yesn-first report of IR data - thus the quirk below
 	 * to get RC_CODE to understand Sony and JVC remotes I have at hand
 	 */
 	sz = size > 0 ? min((int)raw_data[0], size-1) : 0;

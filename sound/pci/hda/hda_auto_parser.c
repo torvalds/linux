@@ -72,7 +72,7 @@ static int compare_input_type(const void *ap, const void *bp)
 	if (a->type != b->type)
 		return (int)(a->type - b->type);
 
-	/* In case one has boost and the other one has not,
+	/* In case one has boost and the other one has yest,
 	   pick the one with boost first. */
 	return (int)(b->has_boost_on_pin - a->has_boost_on_pin);
 }
@@ -154,7 +154,7 @@ static bool can_be_headset_mic(struct hda_codec *codec,
  * in the order of front, rear, CLFE, side, ...
  *
  * If more extra outputs (speaker and headphone) are found, the pins are
- * assisnged to hp_pins[] and speaker_pins[], respectively.  If no line-out jack
+ * assisnged to hp_pins[] and speaker_pins[], respectively.  If yes line-out jack
  * is detected, one of speaker of HP pins is assigned as the primary
  * output, i.e. to line_out_pins[0].  So, line_outs is always positive
  * if any analog output exists.
@@ -165,7 +165,7 @@ static bool can_be_headset_mic(struct hda_codec *codec,
  */
 int snd_hda_parse_pin_defcfg(struct hda_codec *codec,
 			     struct auto_pin_cfg *cfg,
-			     const hda_nid_t *ignore_nids,
+			     const hda_nid_t *igyesre_nids,
 			     unsigned int cond_flags)
 {
 	hda_nid_t nid;
@@ -185,7 +185,7 @@ int snd_hda_parse_pin_defcfg(struct hda_codec *codec,
 	memset(hp_out, 0, sizeof(hp_out));
 	assoc_line_out = 0;
 
-	for_each_hda_codec_node(nid, codec) {
+	for_each_hda_codec_yesde(nid, codec) {
 		unsigned int wid_caps = get_wcaps(codec, nid);
 		unsigned int wid_type = get_wcaps_type(wid_caps);
 		unsigned int def_conf;
@@ -194,8 +194,8 @@ int snd_hda_parse_pin_defcfg(struct hda_codec *codec,
 		/* read all default configuration for pin complex */
 		if (wid_type != AC_WID_PIN)
 			continue;
-		/* ignore the given nids (e.g. pc-beep returns error) */
-		if (ignore_nids && is_in_nid_list(nid, ignore_nids))
+		/* igyesre the given nids (e.g. pc-beep returns error) */
+		if (igyesre_nids && is_in_nid_list(nid, igyesre_nids))
 			continue;
 
 		def_conf = snd_hda_codec_get_pincfg(codec, nid);
@@ -221,21 +221,21 @@ int snd_hda_parse_pin_defcfg(struct hda_codec *codec,
 			assoc = get_defcfg_association(def_conf);
 
 			if (!(wid_caps & AC_WCAP_STEREO))
-				if (!cfg->mono_out_pin)
-					cfg->mono_out_pin = nid;
+				if (!cfg->moyes_out_pin)
+					cfg->moyes_out_pin = nid;
 			if (!assoc)
 				continue;
 			if (!assoc_line_out)
 				assoc_line_out = assoc;
 			else if (assoc_line_out != assoc) {
 				codec_info(codec,
-					   "ignore pin 0x%x with mismatching assoc# 0x%x vs 0x%x\n",
+					   "igyesre pin 0x%x with mismatching assoc# 0x%x vs 0x%x\n",
 					   nid, assoc, assoc_line_out);
 				continue;
 			}
 			if (cfg->line_outs >= ARRAY_SIZE(cfg->line_out_pins)) {
 				codec_info(codec,
-					   "ignore pin 0x%x, too many assigned pins\n",
+					   "igyesre pin 0x%x, too many assigned pins\n",
 					   nid);
 				continue;
 			}
@@ -248,7 +248,7 @@ int snd_hda_parse_pin_defcfg(struct hda_codec *codec,
 			assoc = get_defcfg_association(def_conf);
 			if (cfg->speaker_outs >= ARRAY_SIZE(cfg->speaker_pins)) {
 				codec_info(codec,
-					   "ignore pin 0x%x, too many assigned pins\n",
+					   "igyesre pin 0x%x, too many assigned pins\n",
 					   nid);
 				continue;
 			}
@@ -261,7 +261,7 @@ int snd_hda_parse_pin_defcfg(struct hda_codec *codec,
 			assoc = get_defcfg_association(def_conf);
 			if (cfg->hp_outs >= ARRAY_SIZE(cfg->hp_pins)) {
 				codec_info(codec,
-					   "ignore pin 0x%x, too many assigned pins\n",
+					   "igyesre pin 0x%x, too many assigned pins\n",
 					   nid);
 				continue;
 			}
@@ -285,7 +285,7 @@ int snd_hda_parse_pin_defcfg(struct hda_codec *codec,
 		case AC_JACK_DIG_OTHER_OUT:
 			if (cfg->dig_outs >= ARRAY_SIZE(cfg->dig_out_pins)) {
 				codec_info(codec,
-					   "ignore pin 0x%x, too many assigned pins\n",
+					   "igyesre pin 0x%x, too many assigned pins\n",
 					   nid);
 				continue;
 			}
@@ -339,7 +339,7 @@ int snd_hda_parse_pin_defcfg(struct hda_codec *codec,
 	}
 
 	/* FIX-UP:
-	 * If no line-out is defined but multiple HPs are found,
+	 * If yes line-out is defined but multiple HPs are found,
 	 * some of them might be the real line-outs.
 	 */
 	if (!cfg->line_outs && cfg->hp_outs > 1 &&
@@ -371,7 +371,7 @@ int snd_hda_parse_pin_defcfg(struct hda_codec *codec,
 	sort_pins_by_sequence(cfg->hp_pins, hp_out, cfg->hp_outs);
 
 	/*
-	 * FIX-UP: if no line-outs are detected, try to use speaker or HP pin
+	 * FIX-UP: if yes line-outs are detected, try to use speaker or HP pin
 	 * as a primary output
 	 */
 	if (!cfg->line_outs &&
@@ -419,7 +419,7 @@ int snd_hda_parse_pin_defcfg(struct hda_codec *codec,
 		   cfg->hp_outs, cfg->hp_pins[0],
 		   cfg->hp_pins[1], cfg->hp_pins[2],
 		   cfg->hp_pins[3], cfg->hp_pins[4]);
-	codec_info(codec, "   mono: mono_out=0x%x\n", cfg->mono_out_pin);
+	codec_info(codec, "   moyes: moyes_out=0x%x\n", cfg->moyes_out_pin);
 	if (cfg->dig_outs)
 		codec_info(codec, "   dig-out=0x%x/0x%x\n",
 			   cfg->dig_out_pins[0], cfg->dig_out_pins[1]);
@@ -583,7 +583,7 @@ const char *hda_get_autocfg_input_label(struct hda_codec *codec,
 }
 EXPORT_SYMBOL_GPL(hda_get_autocfg_input_label);
 
-/* return the position of NID in the list, or -1 if not found */
+/* return the position of NID in the list, or -1 if yest found */
 static int find_idx_in_nid_list(hda_nid_t nid, const hda_nid_t *list, int nums)
 {
 	int i;
@@ -694,13 +694,13 @@ static int fill_audio_out_name(struct hda_codec *codec, hda_nid_t nid,
  * @indexp: the pointer to return the index number (for multiple ctls)
  *
  * Get a label for the given pin.  This function works for both input and
- * output pins.  When @cfg is given as non-NULL, the function tries to get
+ * output pins.  When @cfg is given as yesn-NULL, the function tries to get
  * an optimized label using hda_get_autocfg_input_label().
  *
  * This function tries to give a unique label string for the pin as much as
  * possible.  For example, when the multiple line-outs are present, it adds
  * the channel suffix like "Front", "Surround", etc (only when @cfg is given).
- * If no unique name with a suffix is available and @indexp is non-NULL, the
+ * If yes unique name with a suffix is available and @indexp is yesn-NULL, the
  * index number is stored in the pointer.
  */
 int snd_hda_get_pin_label(struct hda_codec *codec, hda_nid_t nid,
@@ -962,11 +962,11 @@ EXPORT_SYMBOL_GPL(snd_hda_pick_pin_fixup);
  *
  * Pick up a fixup entry matching with the given model string or SSID.
  * If a fixup was already set beforehand, the function doesn't do anything.
- * When a special model string "nofixup" is given, also no fixup is applied.
+ * When a special model string "yesfixup" is given, also yes fixup is applied.
  *
  * The function tries to find the matching model name at first, if given.
- * If nothing matched, try to look up the PCI SSID.
- * If still nothing matched, try to look up the codec SSID.
+ * If yesthing matched, try to look up the PCI SSID.
+ * If still yesthing matched, try to look up the codec SSID.
  */
 void snd_hda_pick_fixup(struct hda_codec *codec,
 			const struct hda_model_fixup *models,
@@ -980,12 +980,12 @@ void snd_hda_pick_fixup(struct hda_codec *codec,
 	if (codec->fixup_id != HDA_FIXUP_ID_NOT_SET)
 		return;
 
-	/* when model=nofixup is given, don't pick up any fixups */
-	if (codec->modelname && !strcmp(codec->modelname, "nofixup")) {
+	/* when model=yesfixup is given, don't pick up any fixups */
+	if (codec->modelname && !strcmp(codec->modelname, "yesfixup")) {
 		codec->fixup_list = NULL;
 		codec->fixup_name = NULL;
 		codec->fixup_id = HDA_FIXUP_ID_NO_FIXUP;
-		codec_dbg(codec, "%s: picked no fixup (nofixup specified)\n",
+		codec_dbg(codec, "%s: picked yes fixup (yesfixup specified)\n",
 			  codec->core.chip_name);
 		return;
 	}

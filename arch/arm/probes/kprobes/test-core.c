@@ -33,11 +33,11 @@
  * The methodology used to test an ARM instruction 'test_insn' is to use
  * inline assembler like:
  *
- * test_before: nop
+ * test_before: yesp
  * test_case:	test_insn
- * test_after:	nop
+ * test_after:	yesp
  *
- * When the test case is run a kprobe is placed of each nop. The
+ * When the test case is run a kprobe is placed of each yesp. The
  * post-handler of the test_before probe is used to modify the saved CPU
  * register context to that which we require for the test case. The
  * pre-handler of the of the test_after probe saves a copy of the CPU
@@ -56,11 +56,11 @@
  * For instructions which can modify PC, a second test_after probe is used
  * like this:
  *
- * test_before: nop
+ * test_before: yesp
  * test_case:	test_insn
- * test_after:	nop
+ * test_after:	yesp
  *		b test_done
- * test_after2: nop
+ * test_after2: yesp
  * test_done:
  *
  * The test case is constructed such that test_insn branches to
@@ -71,11 +71,11 @@
  *
  *		b test_before
  *		b test_done  @ helps to cope with off by 1 branches
- * test_after2: nop
+ * test_after2: yesp
  *		b test_done
- * test_before: nop
+ * test_before: yesp
  * test_case:	test_insn
- * test_after:	nop
+ * test_after:	yesp
  * test_done:
  *
  * The macros used to generate the assembler instructions describe above
@@ -132,9 +132,9 @@
  *	.code	TEST_ISA	@ switch to ISA being tested
  *
  *	@ TEST_INSTRUCTION
- *	50:	nop		@ location for 'test_before' probe
+ *	50:	yesp		@ location for 'test_before' probe
  *	1:	mov r0, r7	@ the test case instruction 'test_insn'
- *		nop		@ location for 'test_after' probe
+ *		yesp		@ location for 'test_after' probe
  *
  *	// TESTCASE_END
  *	2:
@@ -159,7 +159,7 @@
  * When the test_before probe ends, the test case continues and executes
  * the "mov r0, r7" instruction. It then hits the test_after probe and the
  * pre-handler for this (test_after_pre_handler) will save a copy of the
- * CPU register context. This should now have R0 holding the same value as
+ * CPU register context. This should yesw have R0 holding the same value as
  * R7.
  *
  * Finally we get to the call to __kprobes_test_case_end_{32,16}. This is
@@ -202,7 +202,7 @@
 #include <linux/slab.h>
 #include <linux/sched/clock.h>
 #include <linux/kprobes.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/stddef.h>
 #include <linux/bug.h>
 #include <asm/opcodes.h>
@@ -273,7 +273,7 @@ static void __used __naked __thumb_kprobes_test_funcs(void)
 		"bx	lr				\n\t"
 
 		".align					\n\t"
-		"nop.n					\n\t"
+		"yesp.n					\n\t"
 		".type thumb32odd_func, %%function	\n\t"
 		"thumb32odd_func:			\n\t"
 		"adds.w	r0, r0, r1			\n\t"
@@ -300,7 +300,7 @@ static int call_test_func(long (*func)(long, long), bool check_test_regs)
 	}
 
 	if (check_test_regs && !test_regs_ok) {
-		pr_err("FAIL: test regs not OK\n");
+		pr_err("FAIL: test regs yest OK\n");
 		return false;
 	}
 
@@ -348,11 +348,11 @@ static int test_kprobe(long (*func)(long, long))
 	if (!ret)
 		return -EINVAL;
 	if (pre_handler_called != test_func_instance) {
-		pr_err("FAIL: kprobe pre_handler not called\n");
+		pr_err("FAIL: kprobe pre_handler yest called\n");
 		return -EINVAL;
 	}
 	if (post_handler_called != test_func_instance) {
-		pr_err("FAIL: kprobe post_handler not called\n");
+		pr_err("FAIL: kprobe post_handler yest called\n");
 		return -EINVAL;
 	}
 	if (!call_test_func(func, false))
@@ -398,7 +398,7 @@ static int test_kretprobe(long (*func)(long, long))
 	if (!ret)
 		return -EINVAL;
 	if (kretprobe_handler_called != test_func_instance) {
-		pr_err("FAIL: kretprobe handler not called\n");
+		pr_err("FAIL: kretprobe handler yest called\n");
 		return -EINVAL;
 	}
 	if (!call_test_func(func, false))
@@ -435,10 +435,10 @@ static int run_api_tests(long (*func)(long, long))
 
 #if BENCHMARKING
 
-static void __naked benchmark_nop(void)
+static void __naked benchmark_yesp(void)
 {
 	__asm__ __volatile__ (
-		"nop		\n\t"
+		"yesp		\n\t"
 		RET(lr)"	\n\t"
 	);
 }
@@ -512,7 +512,7 @@ static int benchmark(void(*fn)(void))
 		if (t >= 250000000)
 			break; /* Stop once we took more than 0.25 seconds */
 	}
-	return t / n; /* Time for one iteration in nanoseconds */
+	return t / n; /* Time for one iteration in nayesseconds */
 };
 
 static int kprobe_benchmark(void(*fn)(void), unsigned offset)
@@ -544,11 +544,11 @@ static int run_benchmarks(void)
 {
 	int ret;
 	struct benchmarks list[] = {
-		{&benchmark_nop, 0, "nop"},
+		{&benchmark_yesp, 0, "yesp"},
 		/*
 		 * benchmark_pushpop{1,3} will have the optimised
 		 * instruction emulation, whilst benchmark_pushpop{2,4} will
-		 * be the equivalent unoptimised instructions.
+		 * be the equivalent uyesptimised instructions.
 		 */
 		{&benchmark_pushpop1, 0, "stmdb	sp!, {r3-r11,lr}"},
 		{&benchmark_pushpop1, 4, "ldmia	sp!, {r3-r11,pc}"},
@@ -636,10 +636,10 @@ static int table_test_fn(const struct decode_header *h, void *args)
 	enum decode_type type = h->type_regs.bits & DECODE_TYPE_MASK;
 
 	if (h->value.bits & ~h->mask.bits)
-		return table_test_fail(h, "Match value has bits not in mask");
+		return table_test_fail(h, "Match value has bits yest in mask");
 
 	if ((h->mask.bits & a->parent_mask) != a->parent_mask)
-		return table_test_fail(h, "Mask has bits not in parent mask");
+		return table_test_fail(h, "Mask has bits yest in parent mask");
 
 	if ((h->value.bits ^ a->parent_value) & a->parent_mask)
 		return table_test_fail(h, "Value is inconsistent with parent");
@@ -1015,7 +1015,7 @@ static unsigned long test_check_cc(int cc, unsigned long cpsr)
 }
 
 static int is_last_scenario;
-static int probe_should_run; /* 0 = no, 1 = yes, -1 = unknown */
+static int probe_should_run; /* 0 = yes, 1 = no, -1 = unkyeswn */
 static int memory_needs_checking;
 
 static unsigned long test_context_cpsr(int scenario)
@@ -1479,13 +1479,13 @@ static uintptr_t __used kprobes_test_case_end(void)
 	}
 
 	if (test_before_probe.hit != test_instance) {
-		test_case_failed("test_before_handler not run");
+		test_case_failed("test_before_handler yest run");
 		goto fail;
 	}
 
 	if (test_after_probe.hit != test_instance &&
 				test_after2_probe.hit != test_instance) {
-		test_case_failed("test_after_handler not run");
+		test_case_failed("test_after_handler yest run");
 		goto fail;
 	}
 
@@ -1509,7 +1509,7 @@ static uintptr_t __used kprobes_test_case_end(void)
 		/* Check probe ran as expected */
 		if (probe_should_run == 1) {
 			if (test_case_probe.hit != test_instance) {
-				test_case_failed("test_case_handler not run");
+				test_case_failed("test_case_handler yest run");
 				goto fail;
 			}
 		} else if (probe_should_run == 0) {

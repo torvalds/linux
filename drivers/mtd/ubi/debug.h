@@ -56,7 +56,7 @@ void ubi_debugfs_exit_dev(struct ubi_device *ubi);
  * ubi_dbg_is_bgt_disabled - if the background thread is disabled.
  * @ubi: UBI device description object
  *
- * Returns non-zero if the UBI background thread is disabled for testing
+ * Returns yesn-zero if the UBI background thread is disabled for testing
  * purposes.
  */
 static inline int ubi_dbg_is_bgt_disabled(const struct ubi_device *ubi)
@@ -68,7 +68,7 @@ static inline int ubi_dbg_is_bgt_disabled(const struct ubi_device *ubi)
  * ubi_dbg_is_bitflip - if it is time to emulate a bit-flip.
  * @ubi: UBI device description object
  *
- * Returns non-zero if a bit-flip should be emulated, otherwise returns zero.
+ * Returns yesn-zero if a bit-flip should be emulated, otherwise returns zero.
  */
 static inline int ubi_dbg_is_bitflip(const struct ubi_device *ubi)
 {
@@ -81,7 +81,7 @@ static inline int ubi_dbg_is_bitflip(const struct ubi_device *ubi)
  * ubi_dbg_is_write_failure - if it is time to emulate a write failure.
  * @ubi: UBI device description object
  *
- * Returns non-zero if a write failure should be emulated, otherwise returns
+ * Returns yesn-zero if a write failure should be emulated, otherwise returns
  * zero.
  */
 static inline int ubi_dbg_is_write_failure(const struct ubi_device *ubi)
@@ -95,7 +95,7 @@ static inline int ubi_dbg_is_write_failure(const struct ubi_device *ubi)
  * ubi_dbg_is_erase_failure - if its time to emulate an erase failure.
  * @ubi: UBI device description object
  *
- * Returns non-zero if an erase failure should be emulated, otherwise returns
+ * Returns yesn-zero if an erase failure should be emulated, otherwise returns
  * zero.
  */
 static inline int ubi_dbg_is_erase_failure(const struct ubi_device *ubi)

@@ -3,7 +3,7 @@
 #define _ASM_X86_NOPS_H
 
 /*
- * Define nops for use with alternative() and for tracing.
+ * Define yesps for use with alternative() and for tracing.
  *
  * *_NOP5_ATOMIC must be a single instruction.
  */
@@ -11,9 +11,9 @@
 #define NOP_DS_PREFIX 0x3e
 
 /* generic versions from gas
-   1: nop
-   the following instructions are NOT nops in 64-bit mode,
-   for 64-bit mode use K8 or P6 nops instead
+   1: yesp
+   the following instructions are NOT yesps in 64-bit mode,
+   for 64-bit mode use K8 or P6 yesps instead
    2: movl %esi,%esi
    3: leal 0x00(%esi),%esi
    4: leal 0x00(,%esi,1),%esi
@@ -30,11 +30,11 @@
 #define GENERIC_NOP8 GENERIC_NOP1,GENERIC_NOP7
 #define GENERIC_NOP5_ATOMIC NOP_DS_PREFIX,GENERIC_NOP4
 
-/* Opteron 64bit nops
-   1: nop
-   2: osp nop
-   3: osp osp nop
-   4: osp osp osp nop
+/* Opteron 64bit yesps
+   1: yesp
+   2: osp yesp
+   3: osp osp yesp
+   4: osp osp osp yesp
 */
 #define K8_NOP1 GENERIC_NOP1
 #define K8_NOP2	0x66,K8_NOP1
@@ -46,9 +46,9 @@
 #define K8_NOP8	K8_NOP4,K8_NOP4
 #define K8_NOP5_ATOMIC 0x66,K8_NOP4
 
-/* K7 nops
+/* K7 yesps
    uses eax dependencies (arbitrary choice)
-   1: nop
+   1: yesp
    2: movl %eax,%eax
    3: leal (,%eax,1),%eax
    4: leal 0x00(,%eax,1),%eax
@@ -65,16 +65,16 @@
 #define K7_NOP8	K7_NOP7,K7_NOP1
 #define K7_NOP5_ATOMIC NOP_DS_PREFIX,K7_NOP4
 
-/* P6 nops
+/* P6 yesps
    uses eax dependencies (Intel-recommended choice)
-   1: nop
-   2: osp nop
-   3: nopl (%eax)
-   4: nopl 0x00(%eax)
-   5: nopl 0x00(%eax,%eax,1)
-   6: osp nopl 0x00(%eax,%eax,1)
-   7: nopl 0x00000000(%eax)
-   8: nopl 0x00000000(%eax,%eax,1)
+   1: yesp
+   2: osp yesp
+   3: yespl (%eax)
+   4: yespl 0x00(%eax)
+   5: yespl 0x00(%eax,%eax,1)
+   6: osp yespl 0x00(%eax,%eax,1)
+   7: yespl 0x00000000(%eax)
+   8: yespl 0x00000000(%eax,%eax,1)
    Note: All the above are assumed to be a single instruction.
 	There is kernel code that depends on this.
 */
@@ -140,8 +140,8 @@
 #define NOP_ATOMIC5 (ASM_NOP_MAX+1)	/* Entry for the 5-byte atomic NOP */
 
 #ifndef __ASSEMBLY__
-extern const unsigned char * const *ideal_nops;
-extern void arch_init_ideal_nops(void);
+extern const unsigned char * const *ideal_yesps;
+extern void arch_init_ideal_yesps(void);
 #endif
 
 #endif /* _ASM_X86_NOPS_H */

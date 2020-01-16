@@ -70,9 +70,9 @@ struct	stclear_flags_t {
 
 struct tpm1_version {
 	u8 major;
-	u8 minor;
+	u8 miyesr;
 	u8 rev_major;
-	u8 rev_minor;
+	u8 rev_miyesr;
 } __packed;
 
 struct tpm1_version2 {

@@ -14,7 +14,7 @@
 #include <stdarg.h>
 #include <assert.h>
 #include <ctype.h>
-#include <errno.h>
+#include <erryes.h>
 #include <unistd.h>
 #include <inttypes.h>
 
@@ -40,10 +40,10 @@ extern int minsize;		/* Minimum blob size */
 extern int padsize;		/* Additional padding to blob */
 extern int alignsize;		/* Additional padding to blob accroding to the alignsize */
 extern int phandle_format;	/* Use linux,phandle or phandle properties */
-extern int generate_symbols;	/* generate symbols for nodes with labels */
+extern int generate_symbols;	/* generate symbols for yesdes with labels */
 extern int generate_fixups;	/* generate fixups */
 extern int auto_label_aliases;	/* auto generate labels -> aliases */
-extern int annotate;		/* annotate .dts with input source location */
+extern int anyestate;		/* anyestate .dts with input source location */
 
 #define PHANDLE_LEGACY	0x1
 #define PHANDLE_EPAPR	0x2
@@ -147,14 +147,14 @@ struct property {
 	struct srcpos *srcpos;
 };
 
-struct node {
+struct yesde {
 	bool deleted;
 	char *name;
 	struct property *proplist;
-	struct node *children;
+	struct yesde *children;
 
-	struct node *parent;
-	struct node *next_sibling;
+	struct yesde *parent;
+	struct yesde *next_sibling;
 
 	char *fullpath;
 	int basenamelen;
@@ -199,42 +199,42 @@ struct property *build_property_delete(char *name);
 struct property *chain_property(struct property *first, struct property *list);
 struct property *reverse_properties(struct property *first);
 
-struct node *build_node(struct property *proplist, struct node *children,
+struct yesde *build_yesde(struct property *proplist, struct yesde *children,
 			struct srcpos *srcpos);
-struct node *build_node_delete(struct srcpos *srcpos);
-struct node *name_node(struct node *node, char *name);
-struct node *omit_node_if_unused(struct node *node);
-struct node *reference_node(struct node *node);
-struct node *chain_node(struct node *first, struct node *list);
-struct node *merge_nodes(struct node *old_node, struct node *new_node);
-struct node *add_orphan_node(struct node *old_node, struct node *new_node, char *ref);
+struct yesde *build_yesde_delete(struct srcpos *srcpos);
+struct yesde *name_yesde(struct yesde *yesde, char *name);
+struct yesde *omit_yesde_if_unused(struct yesde *yesde);
+struct yesde *reference_yesde(struct yesde *yesde);
+struct yesde *chain_yesde(struct yesde *first, struct yesde *list);
+struct yesde *merge_yesdes(struct yesde *old_yesde, struct yesde *new_yesde);
+struct yesde *add_orphan_yesde(struct yesde *old_yesde, struct yesde *new_yesde, char *ref);
 
-void add_property(struct node *node, struct property *prop);
-void delete_property_by_name(struct node *node, char *name);
+void add_property(struct yesde *yesde, struct property *prop);
+void delete_property_by_name(struct yesde *yesde, char *name);
 void delete_property(struct property *prop);
-void add_child(struct node *parent, struct node *child);
-void delete_node_by_name(struct node *parent, char *name);
-void delete_node(struct node *node);
-void append_to_property(struct node *node,
+void add_child(struct yesde *parent, struct yesde *child);
+void delete_yesde_by_name(struct yesde *parent, char *name);
+void delete_yesde(struct yesde *yesde);
+void append_to_property(struct yesde *yesde,
 			char *name, const void *data, int len,
 			enum markertype type);
 
-const char *get_unitname(struct node *node);
-struct property *get_property(struct node *node, const char *propname);
+const char *get_unitname(struct yesde *yesde);
+struct property *get_property(struct yesde *yesde, const char *propname);
 cell_t propval_cell(struct property *prop);
 cell_t propval_cell_n(struct property *prop, int n);
-struct property *get_property_by_label(struct node *tree, const char *label,
-				       struct node **node);
-struct marker *get_marker_label(struct node *tree, const char *label,
-				struct node **node, struct property **prop);
-struct node *get_subnode(struct node *node, const char *nodename);
-struct node *get_node_by_path(struct node *tree, const char *path);
-struct node *get_node_by_label(struct node *tree, const char *label);
-struct node *get_node_by_phandle(struct node *tree, cell_t phandle);
-struct node *get_node_by_ref(struct node *tree, const char *ref);
-cell_t get_node_phandle(struct node *root, struct node *node);
+struct property *get_property_by_label(struct yesde *tree, const char *label,
+				       struct yesde **yesde);
+struct marker *get_marker_label(struct yesde *tree, const char *label,
+				struct yesde **yesde, struct property **prop);
+struct yesde *get_subyesde(struct yesde *yesde, const char *yesdename);
+struct yesde *get_yesde_by_path(struct yesde *tree, const char *path);
+struct yesde *get_yesde_by_label(struct yesde *tree, const char *label);
+struct yesde *get_yesde_by_phandle(struct yesde *tree, cell_t phandle);
+struct yesde *get_yesde_by_ref(struct yesde *tree, const char *ref);
+cell_t get_yesde_phandle(struct yesde *root, struct yesde *yesde);
 
-uint32_t guess_boot_cpuid(struct node *tree);
+uint32_t guess_boot_cpuid(struct yesde *tree);
 
 /* Boot info (tree plus memreserve information */
 
@@ -257,7 +257,7 @@ struct dt_info {
 	unsigned int dtsflags;
 	struct reserve_info *reservelist;
 	uint32_t boot_cpuid_phys;
-	struct node *dt;		/* the device tree */
+	struct yesde *dt;		/* the device tree */
 	const char *outname;		/* filename being written to, "-" for stdout */
 };
 
@@ -267,7 +267,7 @@ struct dt_info {
 
 struct dt_info *build_dt_info(unsigned int dtsflags,
 			      struct reserve_info *reservelist,
-			      struct node *tree, uint32_t boot_cpuid_phys);
+			      struct yesde *tree, uint32_t boot_cpuid_phys);
 void sort_tree(struct dt_info *dti);
 void generate_label_tree(struct dt_info *dti, char *name, bool allocph);
 void generate_fixups_tree(struct dt_info *dti, char *name);

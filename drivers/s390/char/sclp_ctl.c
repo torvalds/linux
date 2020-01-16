@@ -102,7 +102,7 @@ static long sclp_ctl_ioctl(struct file *filp, unsigned int cmd,
 	switch (cmd) {
 	case SCLP_CTL_SCCB:
 		return sclp_ctl_ioctl_sccb(argp);
-	default: /* unknown ioctl number */
+	default: /* unkyeswn ioctl number */
 		return -ENOTTY;
 	}
 }
@@ -112,17 +112,17 @@ static long sclp_ctl_ioctl(struct file *filp, unsigned int cmd,
  */
 static const struct file_operations sclp_ctl_fops = {
 	.owner = THIS_MODULE,
-	.open = nonseekable_open,
+	.open = yesnseekable_open,
 	.unlocked_ioctl = sclp_ctl_ioctl,
 	.compat_ioctl = sclp_ctl_ioctl,
-	.llseek = no_llseek,
+	.llseek = yes_llseek,
 };
 
 /*
  * Misc device definition
  */
 static struct miscdevice sclp_ctl_device = {
-	.minor = MISC_DYNAMIC_MINOR,
+	.miyesr = MISC_DYNAMIC_MINOR,
 	.name = "sclp",
 	.fops = &sclp_ctl_fops,
 };

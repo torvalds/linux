@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
-/* Copyright (C) 2015-2018 Netronome Systems, Inc. */
+/* Copyright (C) 2015-2018 Netroyesme Systems, Inc. */
 
 /*
  * nfp_net_ethtool.c
- * Netronome network device driver: ethtool support
- * Authors: Jakub Kicinski <jakub.kicinski@netronome.com>
- *          Jason McMullan <jason.mcmullan@netronome.com>
- *          Rolf Neugebauer <rolf.neugebauer@netronome.com>
- *          Brad Petrus <brad.petrus@netronome.com>
+ * Netroyesme network device driver: ethtool support
+ * Authors: Jakub Kicinski <jakub.kicinski@netroyesme.com>
+ *          Jason McMullan <jason.mcmullan@netroyesme.com>
+ *          Rolf Neugebauer <rolf.neugebauer@netroyesme.com>
+ *          Brad Petrus <brad.petrus@netroyesme.com>
  */
 
 #include <linux/bitfield.h>
@@ -169,7 +169,7 @@ static void nfp_net_get_nspinfo(struct nfp_app *app, char *version)
 
 	snprintf(version, ETHTOOL_FWVERS_LEN, "%hu.%hu",
 		 nfp_nsp_get_abi_ver_major(nsp),
-		 nfp_nsp_get_abi_ver_minor(nsp));
+		 nfp_nsp_get_abi_ver_miyesr(nsp));
 
 	nfp_nsp_close(nsp);
 }
@@ -197,7 +197,7 @@ nfp_net_get_drvinfo(struct net_device *netdev, struct ethtool_drvinfo *drvinfo)
 
 	snprintf(vnic_version, sizeof(vnic_version), "%d.%d.%d.%d",
 		 nn->fw_ver.resv, nn->fw_ver.class,
-		 nn->fw_ver.major, nn->fw_ver.minor);
+		 nn->fw_ver.major, nn->fw_ver.miyesr);
 	strlcpy(drvinfo->bus_info, pci_name(nn->pdev),
 		sizeof(drvinfo->bus_info));
 
@@ -264,7 +264,7 @@ nfp_net_get_link_ksettings(struct net_device *netdev,
 	struct nfp_net *nn;
 	u32 sts, ls;
 
-	/* Init to unknowns */
+	/* Init to unkyeswns */
 	ethtool_link_ksettings_add_link_mode(cmd, supported, FIBRE);
 	cmd->base.port = PORT_OTHER;
 	cmd->base.speed = SPEED_UNKNOWN;
@@ -324,7 +324,7 @@ nfp_net_set_link_ksettings(struct net_device *netdev,
 		return -EOPNOTSUPP;
 
 	if (netif_running(netdev)) {
-		netdev_warn(netdev, "Changing settings not allowed on an active interface. It may cause the port to be disabled until driver reload.\n");
+		netdev_warn(netdev, "Changing settings yest allowed on an active interface. It may cause the port to be disabled until driver reload.\n");
 		return -EBUSY;
 	}
 
@@ -346,7 +346,7 @@ nfp_net_set_link_ksettings(struct net_device *netdev,
 
 	err = nfp_eth_config_commit_end(nsp);
 	if (err > 0)
-		return 0; /* no change */
+		return 0; /* yes change */
 
 	nfp_net_refresh_port_table(port);
 
@@ -451,9 +451,9 @@ static u8 *nfp_vnic_get_sw_stats_strings(struct net_device *netdev, u8 *data)
 	data = nfp_pr_et(data, "tx_lso");
 	data = nfp_pr_et(data, "tx_tls_encrypted_packets");
 	data = nfp_pr_et(data, "tx_tls_ooo");
-	data = nfp_pr_et(data, "tx_tls_drop_no_sync_data");
+	data = nfp_pr_et(data, "tx_tls_drop_yes_sync_data");
 
-	data = nfp_pr_et(data, "hw_tls_no_space");
+	data = nfp_pr_et(data, "hw_tls_yes_space");
 
 	return data;
 }
@@ -489,7 +489,7 @@ static u64 *nfp_vnic_get_sw_stats(struct net_device *netdev, u64 *data)
 			tmp[9] = nn->r_vecs[i].tx_lso;
 			tmp[10] = nn->r_vecs[i].hw_tls_tx;
 			tmp[11] = nn->r_vecs[i].tls_tx_fallback;
-			tmp[12] = nn->r_vecs[i].tls_tx_no_fallback;
+			tmp[12] = nn->r_vecs[i].tls_tx_yes_fallback;
 		} while (u64_stats_fetch_retry(&nn->r_vecs[i].tx_sync, start));
 
 		data += NN_RVEC_PER_Q_STATS;
@@ -501,7 +501,7 @@ static u64 *nfp_vnic_get_sw_stats(struct net_device *netdev, u64 *data)
 	for (j = 0; j < NN_RVEC_GATHER_STATS; j++)
 		*data++ = gathered_stats[j];
 
-	*data++ = atomic_read(&nn->ktls_no_space);
+	*data++ = atomic_read(&nn->ktls_yes_space);
 
 	return data;
 }
@@ -1137,7 +1137,7 @@ nfp_port_get_module_info(struct net_device *netdev,
 	}
 
 	if (!nfp_nsp_has_read_module_eeprom(nsp)) {
-		netdev_info(netdev, "reading module EEPROM not supported. Please update flash\n");
+		netdev_info(netdev, "reading module EEPROM yest supported. Please update flash\n");
 		err = -EOPNOTSUPP;
 		goto exit_close_nsp;
 	}
@@ -1211,7 +1211,7 @@ nfp_port_get_module_eeprom(struct net_device *netdev,
 	}
 
 	if (!nfp_nsp_has_read_module_eeprom(nsp)) {
-		netdev_info(netdev, "reading module EEPROM not supported. Please update flash\n");
+		netdev_info(netdev, "reading module EEPROM yest supported. Please update flash\n");
 		err = -EOPNOTSUPP;
 		goto exit_close_nsp;
 	}
@@ -1278,7 +1278,7 @@ static int nfp_net_set_coalesce(struct net_device *netdev,
 	 * cause interrupts to never be generated.  To disable coalescing, set
 	 * usecs = 0 and max_frames = 1.
 	 *
-	 * Some implementations ignore the value of max_frames and use the
+	 * Some implementations igyesre the value of max_frames and use the
 	 * condition time_since_first_completion >= usecs
 	 */
 

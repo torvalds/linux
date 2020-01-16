@@ -153,7 +153,7 @@
 # define DSI_DISP_HBP_CTRL		BIT(7)
 # define DSI_DISP0_CHANNEL_MASK		VC4_MASK(6, 5)
 # define DSI_DISP0_CHANNEL_SHIFT	5
-/* Enables end events for HSYNC/VSYNC, not just start events. */
+/* Enables end events for HSYNC/VSYNC, yest just start events. */
 # define DSI_DISP0_ST_END		BIT(4)
 # define DSI_DISP0_PFORMAT_MASK		VC4_MASK(3, 2)
 # define DSI_DISP0_PFORMAT_SHIFT	2
@@ -214,7 +214,7 @@
 
 /* Control error: incorrect line state sequence on data lane 0. */
 # define DSI1_INT_ERR_CONTROL		BIT(7)
-/* LPDT synchronization error (bits received not a multiple of 8. */
+/* LPDT synchronization error (bits received yest a multiple of 8. */
 
 # define DSI1_INT_ERR_SYNC_ESC		BIT(6)
 /* Signaled after receiving an error packet from the display in
@@ -553,7 +553,7 @@ dsi_dma_workaround_write(struct vc4_dsi *dsi, u32 offset, u32 val)
 	dma_cookie_t cookie;
 	int ret;
 
-	/* DSI0 should be able to write normally. */
+	/* DSI0 should be able to write yesrmally. */
 	if (!chan) {
 		writel(val, dsi->regs + offset);
 		return;
@@ -675,18 +675,18 @@ static void vc4_dsi_latch_ulps(struct vc4_dsi *dsi, bool latch)
 /* Enters or exits Ultra Low Power State. */
 static void vc4_dsi_ulps(struct vc4_dsi *dsi, bool ulps)
 {
-	bool non_continuous = dsi->mode_flags & MIPI_DSI_CLOCK_NON_CONTINUOUS;
-	u32 phyc_ulps = ((non_continuous ? DSI_PORT_BIT(PHYC_CLANE_ULPS) : 0) |
+	bool yesn_continuous = dsi->mode_flags & MIPI_DSI_CLOCK_NON_CONTINUOUS;
+	u32 phyc_ulps = ((yesn_continuous ? DSI_PORT_BIT(PHYC_CLANE_ULPS) : 0) |
 			 DSI_PHYC_DLANE0_ULPS |
 			 (dsi->lanes > 1 ? DSI_PHYC_DLANE1_ULPS : 0) |
 			 (dsi->lanes > 2 ? DSI_PHYC_DLANE2_ULPS : 0) |
 			 (dsi->lanes > 3 ? DSI_PHYC_DLANE3_ULPS : 0));
-	u32 stat_ulps = ((non_continuous ? DSI1_STAT_PHY_CLOCK_ULPS : 0) |
+	u32 stat_ulps = ((yesn_continuous ? DSI1_STAT_PHY_CLOCK_ULPS : 0) |
 			 DSI1_STAT_PHY_D0_ULPS |
 			 (dsi->lanes > 1 ? DSI1_STAT_PHY_D1_ULPS : 0) |
 			 (dsi->lanes > 2 ? DSI1_STAT_PHY_D2_ULPS : 0) |
 			 (dsi->lanes > 3 ? DSI1_STAT_PHY_D3_ULPS : 0));
-	u32 stat_stop = ((non_continuous ? DSI1_STAT_PHY_CLOCK_STOP : 0) |
+	u32 stat_stop = ((yesn_continuous ? DSI1_STAT_PHY_CLOCK_STOP : 0) |
 			 DSI1_STAT_PHY_D0_STOP |
 			 (dsi->lanes > 1 ? DSI1_STAT_PHY_D1_STOP : 0) |
 			 (dsi->lanes > 2 ? DSI1_STAT_PHY_D2_STOP : 0) |
@@ -767,7 +767,7 @@ static void vc4_dsi_encoder_disable(struct drm_encoder *encoder)
 /* Extends the mode's blank intervals to handle BCM2835's integer-only
  * DSI PLL divider.
  *
- * On 2835, PLLD is set to 2Ghz, and may not be changed by the display
+ * On 2835, PLLD is set to 2Ghz, and may yest be changed by the display
  * driver since most peripherals are hanging off of the PLLD_PER
  * divider.  PLLD_DSI1, which drives our DSI bit clock (and therefore
  * the pixel clock), only has an integer divider off of DSI.
@@ -925,7 +925,7 @@ static void vc4_dsi_encoder_enable(struct drm_encoder *encoder)
 	hs_clock = clk_get_rate(dsi->pll_phy_clock);
 
 	/* Yes, we set the DSI0P/DSI1P pixel clock to the byte rate,
-	 * not the pixel clock rate.  DSIxP take from the APHY's byte,
+	 * yest the pixel clock rate.  DSIxP take from the APHY's byte,
 	 * DDR2, or DDR4 clock (we use byte) and feed into the PV at
 	 * that rate.  Separately, a value derived from PIX_CLK_DIV
 	 * and HS_CLKC is fed into the PV to divide down to the actual
@@ -1264,7 +1264,7 @@ static int vc4_dsi_host_attach(struct mipi_dsi_host *host,
 		dsi->divider = 16 / dsi->lanes;
 		break;
 	default:
-		dev_err(&dsi->pdev->dev, "Unknown DSI format: %d.\n",
+		dev_err(&dsi->pdev->dev, "Unkyeswn DSI format: %d.\n",
 			dsi->format);
 		return 0;
 	}
@@ -1410,7 +1410,7 @@ vc4_dsi_init_phy_clocks(struct vc4_dsi *dsi)
 		 * setting if we use the DDR/DDR2 clocks.  However,
 		 * vc4_dsi_encoder_enable() is setting up both AFEC0,
 		 * setting both our parent DSI PLL's rate and this
-		 * clock's rate, so it knows if DDR/DDR2 are going to
+		 * clock's rate, so it kyesws if DDR/DDR2 are going to
 		 * be used and could enable the gates itself.
 		 */
 		fix->mult = 1;
@@ -1433,7 +1433,7 @@ vc4_dsi_init_phy_clocks(struct vc4_dsi *dsi)
 		dsi->clk_onecell->hws[i] = &fix->hw;
 	}
 
-	return of_clk_add_hw_provider(dev->of_node,
+	return of_clk_add_hw_provider(dev->of_yesde,
 				      of_clk_hw_onecell_get,
 				      dsi->clk_onecell);
 }
@@ -1511,12 +1511,12 @@ static int vc4_dsi_bind(struct device *dev, struct device *master, void *data)
 		 * struct resource for the regs gives us the bus address
 		 * instead.
 		 */
-		dsi->reg_paddr = be32_to_cpup(of_get_address(dev->of_node,
+		dsi->reg_paddr = be32_to_cpup(of_get_address(dev->of_yesde,
 							     0, NULL, NULL));
 	}
 
 	init_completion(&dsi->xfer_completion);
-	/* At startup enable error-reporting interrupts and nothing else. */
+	/* At startup enable error-reporting interrupts and yesthing else. */
 	DSI_PORT_WRITE(INT_EN, DSI1_INTERRUPTS_ALWAYS_ENABLED);
 	/* Clear any existing interrupt state. */
 	DSI_PORT_WRITE(INT_STAT, DSI_PORT_READ(INT_STAT));
@@ -1560,14 +1560,14 @@ static int vc4_dsi_bind(struct device *dev, struct device *master, void *data)
 		return ret;
 	}
 
-	ret = drm_of_find_panel_or_bridge(dev->of_node, 0, 0,
+	ret = drm_of_find_panel_or_bridge(dev->of_yesde, 0, 0,
 					  &panel, &dsi->bridge);
 	if (ret) {
-		/* If the bridge or panel pointed by dev->of_node is not
+		/* If the bridge or panel pointed by dev->of_yesde is yest
 		 * enabled, just return 0 here so that we don't prevent the DRM
 		 * dev from being registered. Of course that means the DSI
-		 * encoder won't be exposed, but that's not a problem since
-		 * nothing is connected to it.
+		 * encoder won't be exposed, but that's yest a problem since
+		 * yesthing is connected to it.
 		 */
 		if (ret == -ENODEV)
 			return 0;

@@ -184,7 +184,7 @@ static void sun4i_spi_set_cs(struct spi_device *spi, bool enable)
 	 * devices.
 	 *
 	 * If we don't set it, the chip select level will go low by
-	 * default when the device is idle, which is not really
+	 * default when the device is idle, which is yest really
 	 * expected in the common case where the chip select is active
 	 * low.
 	 */
@@ -265,7 +265,7 @@ static int sun4i_spi_transfer_one(struct spi_master *master,
 
 	sun4i_spi_write(sspi, SUN4I_CTL_REG, reg);
 
-	/* Ensure that we have a parent clock fast enough */
+	/* Ensure that we have a parent clock fast eyesugh */
 	mclk_rate = clk_get_rate(sspi->mclk);
 	if (mclk_rate < (2 * tfr->speed_hz)) {
 		clk_set_rate(sspi->mclk, 2 * tfr->speed_hz);
@@ -299,7 +299,7 @@ static int sun4i_spi_transfer_one(struct spi_master *master,
 
 	sun4i_spi_write(sspi, SUN4I_CLK_CTL_REG, reg);
 
-	/* Setup the transfer now... */
+	/* Setup the transfer yesw... */
 	if (sspi->tx_buf)
 		tx_len = tfr->len;
 
@@ -372,7 +372,7 @@ static irqreturn_t sun4i_spi_handler(int irq, void *dev_id)
 		sun4i_spi_fill_fifo(sspi, SUN4I_FIFO_DEPTH);
 
 		if (!sspi->len)
-			/* nothing left to transmit */
+			/* yesthing left to transmit */
 			sun4i_spi_disable_interrupt(sspi, SUN4I_INT_CTL_TF_E34);
 
 		/* Only clear the interrupt _after_ re-seeding the FIFO */
@@ -454,7 +454,7 @@ static int sun4i_spi_probe(struct platform_device *pdev)
 	ret = devm_request_irq(&pdev->dev, irq, sun4i_spi_handler,
 			       0, "sun4i-spi", sspi);
 	if (ret) {
-		dev_err(&pdev->dev, "Cannot request IRQ\n");
+		dev_err(&pdev->dev, "Canyest request IRQ\n");
 		goto err_free_master;
 	}
 
@@ -466,7 +466,7 @@ static int sun4i_spi_probe(struct platform_device *pdev)
 	master->num_chipselect = 4;
 	master->mode_bits = SPI_CPOL | SPI_CPHA | SPI_CS_HIGH | SPI_LSB_FIRST;
 	master->bits_per_word_mask = SPI_BPW_MASK(8);
-	master->dev.of_node = pdev->dev.of_node;
+	master->dev.of_yesde = pdev->dev.of_yesde;
 	master->auto_runtime_pm = true;
 	master->max_transfer_size = sun4i_spi_max_transfer_size;
 
@@ -502,7 +502,7 @@ static int sun4i_spi_probe(struct platform_device *pdev)
 
 	ret = devm_spi_register_master(&pdev->dev, master);
 	if (ret) {
-		dev_err(&pdev->dev, "cannot register SPI master\n");
+		dev_err(&pdev->dev, "canyest register SPI master\n");
 		goto err_pm_disable;
 	}
 

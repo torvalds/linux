@@ -9,7 +9,7 @@
 #include "pinctrl-msm.h"
 
 static const char * const sc7180_tiles[] = {
-	"north",
+	"yesrth",
 	"south",
 	"west",
 };
@@ -964,10 +964,10 @@ static const struct msm_function sc7180_functions[] = {
 	FUNCTION(wlan2_adc1),
 };
 
-/* Every pin is maintained as a single group, and missing or non-existing pin
+/* Every pin is maintained as a single group, and missing or yesn-existing pin
  * would be maintained as dummy group to synchronize pin group index with
  * pin descriptor registered with pinctrl core.
- * Clients would not be able to request these dummy pin groups.
+ * Clients would yest be able to request these dummy pin groups.
  */
 static const struct msm_pingroup sc7180_groups[] = {
 	[0] = PINGROUP(0, SOUTH, qup01, cri_trng, _, phase_flag, _, _, _, _, _),

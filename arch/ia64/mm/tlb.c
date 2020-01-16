@@ -172,12 +172,12 @@ __setup("nptcg=", set_nptcg);
  * Maximum number of simultaneous ptc.g purges in the system can
  * be defined by PAL_VM_SUMMARY (in which case we should take
  * the smallest value for any cpu in the system) or by the PAL
- * override table (in which case we should ignore the value from
+ * override table (in which case we should igyesre the value from
  * PAL_VM_SUMMARY).
  *
  * Kernel parameter "nptcg=" overrides maximum number of simultanesous ptc.g
  * purges defined in either PAL_VM_SUMMARY or PAL override table. In this case,
- * we should ignore the value from either PAL_VM_SUMMARY or PAL override table.
+ * we should igyesre the value from either PAL_VM_SUMMARY or PAL override table.
  *
  * Complicating the logic here is the fact that num_possible_cpus()
  * isn't fully setup until we start bringing cpus online.
@@ -212,7 +212,7 @@ setup_ptcg_sem(int max_purges, int nptcg_from)
 
 		/* In PALO max_purges == 0 really means it! */
 		if (max_purges == 0)
-			panic("Whoa! Platform does not support global TLB purges.\n");
+			panic("Whoa! Platform does yest support global TLB purges.\n");
 		nptcg = max_purges;
 		if (nptcg == PALO_MAX_TLB_PURGES) {
 			need_ptcg_sem = 0;
@@ -355,7 +355,7 @@ void flush_tlb_range(struct vm_area_struct *vma,
 		/*
 		 * If we flush more than a tera-byte or across regions, we're
 		 * probably better off just flushing the entire TLB(s).  This
-		 * should be very rare and is not worth optimizing for.
+		 * should be very rare and is yest worth optimizing for.
 		 */
 		flush_tlb_all();
 	} else {

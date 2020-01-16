@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) 2011 Richard Weinberger <richrd@nod.at>
+ * Copyright (C) 2011 Richard Weinberger <richrd@yesd.at>
  *
  * This vDSO turns all calls into a syscall so that UML can trap them.
  */
@@ -50,19 +50,19 @@ __kernel_old_time_t __vdso_time(__kernel_old_time_t *t)
 __kernel_old_time_t time(__kernel_old_time_t *t) __attribute__((weak, alias("__vdso_time")));
 
 long
-__vdso_getcpu(unsigned *cpu, unsigned *node, struct getcpu_cache *unused)
+__vdso_getcpu(unsigned *cpu, unsigned *yesde, struct getcpu_cache *unused)
 {
 	/*
-	 * UML does not support SMP, we can cheat here. :)
+	 * UML does yest support SMP, we can cheat here. :)
 	 */
 
 	if (cpu)
 		*cpu = 0;
-	if (node)
-		*node = 0;
+	if (yesde)
+		*yesde = 0;
 
 	return 0;
 }
 
-long getcpu(unsigned *cpu, unsigned *node, struct getcpu_cache *tcache)
+long getcpu(unsigned *cpu, unsigned *yesde, struct getcpu_cache *tcache)
 	__attribute__((weak, alias("__vdso_getcpu")));

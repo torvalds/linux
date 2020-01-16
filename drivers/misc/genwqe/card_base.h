@@ -32,7 +32,7 @@
 #include <linux/genwqe/genwqe_card.h>
 #include "genwqe_driver.h"
 
-#define GENWQE_MSI_IRQS			4  /* Just one supported, no MSIx */
+#define GENWQE_MSI_IRQS			4  /* Just one supported, yes MSIx */
 
 #define GENWQE_MAX_VFS			15 /* maximum 15 VFs are possible */
 #define GENWQE_MAX_FUNCS		16 /* 1 PF and 15 VFs */
@@ -40,7 +40,7 @@
 
 /* Compile parameters, some of them appear in debugfs for later adjustment */
 #define GENWQE_DDCB_MAX			32 /* DDCBs on the work-queue */
-#define GENWQE_POLLING_ENABLED		0  /* in case of irqs not working */
+#define GENWQE_POLLING_ENABLED		0  /* in case of irqs yest working */
 #define GENWQE_DDCB_SOFTWARE_TIMEOUT	10 /* timeout per DDCB in seconds */
 #define GENWQE_KILL_TIMEOUT		8  /* time until process gets killed */
 #define GENWQE_VF_JOBTIMEOUT_MSEC	250  /* 250 msec */
@@ -124,13 +124,13 @@ enum genwqe_dbg_type {
  *
  * If the open file descriptor is setup to receive SIGIO, the signal is
  * genereated for the application which has to provide a handler to
- * react on it. If the application does not close the open
+ * react on it. If the application does yest close the open
  * file descriptor a SIGKILL is send to enforce freeing the cards
  * resources.
  *
- * I did not find a different way to prevent kernel problems due to
+ * I did yest find a different way to prevent kernel problems due to
  * reference counters for the cards character devices getting out of
- * sync. The character device deallocation does not block, even if
+ * sync. The character device deallocation does yest block, even if
  * there is still an open file descriptor pending. If this pending
  * descriptor is closed, the data structures used by the character
  * device is reinstantiated, which will lead to the reference counter
@@ -152,7 +152,7 @@ enum genwqe_dbg_type {
  * for it.
  */
 enum dma_mapping_type {
-	GENWQE_MAPPING_RAW = 0,		/* contignous memory buffer */
+	GENWQE_MAPPING_RAW = 0,		/* contigyesus memory buffer */
 	GENWQE_MAPPING_SGL_TEMP,	/* sglist dynamically used */
 	GENWQE_MAPPING_SGL_PINNED,	/* sglist used with pinning */
 };
@@ -163,8 +163,8 @@ enum dma_mapping_type {
 struct dma_mapping {
 	enum dma_mapping_type type;
 
-	void *u_vaddr;			/* user-space vaddr/non-aligned */
-	void *k_vaddr;			/* kernel-space vaddr/non-aligned */
+	void *u_vaddr;			/* user-space vaddr/yesn-aligned */
+	void *k_vaddr;			/* kernel-space vaddr/yesn-aligned */
 	dma_addr_t dma_addr;		/* physical DMA address */
 
 	struct page **page_list;	/* list of pages used by user buff */
@@ -288,7 +288,7 @@ struct genwqe_dev {
 	int use_platform_recovery;	/* use platform recovery mechanisms */
 
 	/* char device */
-	dev_t  devnum_genwqe;		/* major/minor num card */
+	dev_t  devnum_genwqe;		/* major/miyesr num card */
 	struct class *class_genwqe;	/* reference to class object */
 	struct device *dev;		/* for device creation */
 	struct cdev cdev_genwqe;	/* char device for card */
@@ -380,14 +380,14 @@ int genwqe_free_sync_sgl(struct genwqe_dev *cd, struct genwqe_sgl *sgl);
 struct ddcb_requ {
 	/* kernel specific content */
 	enum genwqe_requ_state req_state; /* request status */
-	int num;			  /* ddcb_no for this request */
+	int num;			  /* ddcb_yes for this request */
 	struct ddcb_queue *queue;	  /* associated queue */
 
 	struct dma_mapping  dma_mappings[DDCB_FIXUPS];
 	struct genwqe_sgl sgls[DDCB_FIXUPS];
 
 	/* kernel/user shared content */
-	struct genwqe_ddcb_cmd cmd;	/* ddcb_no for this request */
+	struct genwqe_ddcb_cmd cmd;	/* ddcb_yes for this request */
 	struct genwqe_debug_data debug_data;
 };
 
@@ -508,10 +508,10 @@ int  __genwqe_execute_ddcb(struct genwqe_dev *cd,
 /**
  * __genwqe_execute_raw_ddcb() - Execute DDCB request without addr translation
  *
- * This version will not do address translation or any modification of
+ * This version will yest do address translation or any modification of
  * the DDCB data. It is used e.g. for the MoveFlash DDCB which is
  * entirely prepared by the driver itself. That means the appropriate
- * DMA addresses are already in the DDCB and do not need any
+ * DMA addresses are already in the DDCB and do yest need any
  * modification.
  */
 int  __genwqe_execute_raw_ddcb(struct genwqe_dev *cd,
@@ -552,7 +552,7 @@ bool genwqe_need_err_masking(struct genwqe_dev *cd);
  *   PF: is_physfn = 1 is_virtfn = 0
  *   VF: is_physfn = 0 is_virtfn = 1
  *
- * On Systems with no SRIOV support _and_ virtualized systems we get:
+ * On Systems with yes SRIOV support _and_ virtualized systems we get:
  *       is_physfn = 0 is_virtfn = 0
  *
  * Other vendors have individual pci device ids to distinguish between

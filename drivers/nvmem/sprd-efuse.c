@@ -36,9 +36,9 @@
 #define SPRD_EFUSE_BLOCK_WIDTH		4
 
 /*
- * The Spreadtrum AP efuse contains 2 parts: normal efuse and secure efuse,
- * and we can only access the normal efuse in kernel. So define the normal
- * block offset index and normal block numbers.
+ * The Spreadtrum AP efuse contains 2 parts: yesrmal efuse and secure efuse,
+ * and we can only access the yesrmal efuse in kernel. So define the yesrmal
+ * block offset index and yesrmal block numbers.
  */
 #define SPRD_EFUSE_NORMAL_BLOCK_NUMS	24
 #define SPRD_EFUSE_NORMAL_BLOCK_OFFSET	72
@@ -47,7 +47,7 @@
 #define SPRD_EFUSE_HWLOCK_TIMEOUT	5000
 
 /*
- * Since different Spreadtrum SoC chip can have different normal block numbers
+ * Since different Spreadtrum SoC chip can have different yesrmal block numbers
  * and offset. And some SoC can support block double feature, which means
  * when reading or writing data to efuse memory, the controller can save double
  * data in case one data become incorrect after a long period.
@@ -343,7 +343,7 @@ unlock:
 
 static int sprd_efuse_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	struct nvmem_device *nvmem;
 	struct nvmem_config econfig = { };
 	struct sprd_efuse *efuse;

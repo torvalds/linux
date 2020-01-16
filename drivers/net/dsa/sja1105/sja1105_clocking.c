@@ -363,9 +363,9 @@ static int sja1105_rgmii_cfg_pad_tx_config(struct sja1105_private *priv,
 
 	/* Payload */
 	pad_mii_tx.d32_os    = 3; /* TXD[3:2] output stage: */
-				  /*          high noise/high speed */
+				  /*          high yesise/high speed */
 	pad_mii_tx.d10_os    = 3; /* TXD[1:0] output stage: */
-				  /*          high noise/high speed */
+				  /*          high yesise/high speed */
 	pad_mii_tx.d32_ipud  = 2; /* TXD[3:2] input stage: */
 				  /*          plain input (default) */
 	pad_mii_tx.d10_ipud  = 2; /* TXD[1:0] input stage: */
@@ -483,10 +483,10 @@ static int sja1105_rgmii_clocking_setup(struct sja1105_private *priv, int port,
 		rc = sja1105_cgu_idiv_config(priv, port, true, 10);
 		break;
 	case SJA1105_SPEED_AUTO:
-		/* Skip CGU configuration if there is no speed available
-		 * (e.g. link is not established yet)
+		/* Skip CGU configuration if there is yes speed available
+		 * (e.g. link is yest established yet)
 		 */
-		dev_dbg(dev, "Speed not available, skipping CGU config\n");
+		dev_dbg(dev, "Speed yest available, skipping CGU config\n");
 		return 0;
 	default:
 		rc = -EINVAL;
@@ -508,7 +508,7 @@ static int sja1105_rgmii_clocking_setup(struct sja1105_private *priv, int port,
 	}
 	if (!priv->info->setup_rgmii_delay)
 		return 0;
-	/* The role has no hardware effect for RGMII. However we use it as
+	/* The role has yes hardware effect for RGMII. However we use it as
 	 * a proxy for this interface being a MAC-to-MAC connection, with
 	 * the RGMII internal delays needing to be applied by us.
 	 */
@@ -647,7 +647,7 @@ int sja1105_clocking_setup_port(struct sja1105_private *priv, int port)
 
 	/* RGMII etc */
 	phy_mode = mii->xmii_mode[port];
-	/* MAC or PHY, for applicable types (not RGMII) */
+	/* MAC or PHY, for applicable types (yest RGMII) */
 	role = mii->phy_mac[port];
 
 	switch (phy_mode) {

@@ -13,14 +13,14 @@
 
 static void __iomem *versatile_sys_24mhz;
 
-static u64 notrace versatile_sys_24mhz_read(void)
+static u64 yestrace versatile_sys_24mhz_read(void)
 {
 	return readl(versatile_sys_24mhz);
 }
 
-static int __init versatile_sched_clock_init(struct device_node *node)
+static int __init versatile_sched_clock_init(struct device_yesde *yesde)
 {
-	void __iomem *base = of_iomap(node, 0);
+	void __iomem *base = of_iomap(yesde, 0);
 
 	if (!base)
 		return -ENXIO;

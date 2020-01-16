@@ -19,9 +19,9 @@
 
 /*
  * Simple spin lock operations.  There are two variants, one clears IRQ's
- * on the local processor, one does not.
+ * on the local processor, one does yest.
  *
- * We make no fairness assumptions.  They have a cost.
+ * We make yes fairness assumptions.  They have a cost.
  */
 static inline void arch_spin_lock(arch_spinlock_t *lock)
 {
@@ -81,9 +81,9 @@ static inline int arch_spin_trylock(arch_spinlock_t *lock)
 /*
  * Read-write spinlocks, allowing multiple readers but only one writer.
  *
- * NOTE! it is quite common to have readers in interrupts but no interrupt
+ * NOTE! it is quite common to have readers in interrupts but yes interrupt
  * writers. For those circumstances we can "mix" irq-safe locks - any writer
- * needs to get a irq-safe write-lock, but readers can get non-irqsafe
+ * needs to get a irq-safe write-lock, but readers can get yesn-irqsafe
  * read-locks.
  */
 

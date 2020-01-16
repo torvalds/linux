@@ -76,7 +76,7 @@ int altera_jinit(struct altera_state *astate)
 {
 	struct altera_jtag *js = &astate->js;
 
-	/* initial JTAG state is unknown */
+	/* initial JTAG state is unkyeswn */
 	js->jtag_state = ILLEGAL_JTAG_STATE;
 
 	/* initialize to default state */
@@ -273,7 +273,7 @@ static void altera_jreset_idle(struct altera_state *astate)
 {
 	struct altera_jtag *js = &astate->js;
 	int i;
-	/* Go to Test Logic Reset (no matter what the starting state may be) */
+	/* Go to Test Logic Reset (yes matter what the starting state may be) */
 	for (i = 0; i < 5; ++i)
 		alt_jtag_io(TMS_HIGH, TDI_LOW, IGNORE_TDO);
 
@@ -291,14 +291,14 @@ int altera_goto_jstate(struct altera_state *astate,
 	int status = 0;
 
 	if (js->jtag_state == ILLEGAL_JTAG_STATE)
-		/* initialize JTAG chain to known state */
+		/* initialize JTAG chain to kyeswn state */
 		altera_jreset_idle(astate);
 
 	if (js->jtag_state == state) {
 		/*
 		 * We are already in the desired state.
 		 * If it is a stable state, loop here.
-		 * Otherwise do nothing (no clock cycles).
+		 * Otherwise do yesthing (yes clock cycles).
 		 */
 		if ((state == IDLE) || (state == DRSHIFT) ||
 			(state == DRPAUSE) || (state == IRSHIFT) ||
@@ -366,7 +366,7 @@ int altera_wait_msecs(struct altera_state *astate,
 /*
  * Causes JTAG hardware to sit in the specified stable
  * state for the specified duration of real time.  If
- * no JTAG operations have been performed yet, then only
+ * yes JTAG operations have been performed yet, then only
  * a delay is performed.  This permits the WAIT USECS
  * statement to be used in VECTOR programs without causing
  * any JTAG operations.
@@ -787,7 +787,7 @@ int altera_drscan(struct altera_state *astate,
 				u32 count,
 				u8 *tdi_data,
 				u32 start_index)
-/* Shifts data into data register (ignoring output data) */
+/* Shifts data into data register (igyesring output data) */
 {
 	struct altera_jtag *js = &astate->js;
 	int start_code = 0;

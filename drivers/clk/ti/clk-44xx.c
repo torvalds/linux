@@ -770,7 +770,7 @@ static struct ti_dt_clk omap44xx_clks[] = {
 	DT_CLK(NULL, "usb_tll_hs_usb_ch2_clk", "l3_init_cm:0048:10"),
 	DT_CLK(NULL, "utmi_p1_gfclk", "l3_init_cm:0038:24"),
 	DT_CLK(NULL, "utmi_p2_gfclk", "l3_init_cm:0038:25"),
-	{ .node_name = NULL },
+	{ .yesde_name = NULL },
 };
 
 int __init omap4xxx_dt_clk_init(void)
@@ -786,7 +786,7 @@ int __init omap4xxx_dt_clk_init(void)
 
 	/*
 	 * Lock USB DPLL on OMAP4 devices so that the L3INIT power
-	 * domain can transition to retention state when not in use.
+	 * domain can transition to retention state when yest in use.
 	 */
 	usb_dpll = clk_get_sys(NULL, "dpll_usb_ck");
 	rc = clk_set_rate(usb_dpll, OMAP4_DPLL_USB_DEFFREQ);

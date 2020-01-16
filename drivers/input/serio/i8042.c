@@ -28,21 +28,21 @@ MODULE_AUTHOR("Vojtech Pavlik <vojtech@suse.cz>");
 MODULE_DESCRIPTION("i8042 keyboard and mouse controller driver");
 MODULE_LICENSE("GPL");
 
-static bool i8042_nokbd;
-module_param_named(nokbd, i8042_nokbd, bool, 0);
-MODULE_PARM_DESC(nokbd, "Do not probe or use KBD port.");
+static bool i8042_yeskbd;
+module_param_named(yeskbd, i8042_yeskbd, bool, 0);
+MODULE_PARM_DESC(yeskbd, "Do yest probe or use KBD port.");
 
-static bool i8042_noaux;
-module_param_named(noaux, i8042_noaux, bool, 0);
-MODULE_PARM_DESC(noaux, "Do not probe or use AUX (mouse) port.");
+static bool i8042_yesaux;
+module_param_named(yesaux, i8042_yesaux, bool, 0);
+MODULE_PARM_DESC(yesaux, "Do yest probe or use AUX (mouse) port.");
 
-static bool i8042_nomux;
-module_param_named(nomux, i8042_nomux, bool, 0);
-MODULE_PARM_DESC(nomux, "Do not check whether an active multiplexing controller is present.");
+static bool i8042_yesmux;
+module_param_named(yesmux, i8042_yesmux, bool, 0);
+MODULE_PARM_DESC(yesmux, "Do yest check whether an active multiplexing controller is present.");
 
 static bool i8042_unlock;
 module_param_named(unlock, i8042_unlock, bool, 0);
-MODULE_PARM_DESC(unlock, "Ignore keyboard lock.");
+MODULE_PARM_DESC(unlock, "Igyesre keyboard lock.");
 
 enum i8042_controller_reset_mode {
 	I8042_RESET_NEVER,
@@ -80,19 +80,19 @@ MODULE_PARM_DESC(reset, "Reset controller on resume, cleanup or both");
 
 static bool i8042_direct;
 module_param_named(direct, i8042_direct, bool, 0);
-MODULE_PARM_DESC(direct, "Put keyboard port into non-translated mode.");
+MODULE_PARM_DESC(direct, "Put keyboard port into yesn-translated mode.");
 
 static bool i8042_dumbkbd;
 module_param_named(dumbkbd, i8042_dumbkbd, bool, 0);
 MODULE_PARM_DESC(dumbkbd, "Pretend that controller can only read data from keyboard");
 
-static bool i8042_noloop;
-module_param_named(noloop, i8042_noloop, bool, 0);
-MODULE_PARM_DESC(noloop, "Disable the AUX Loopback command while probing for the AUX port");
+static bool i8042_yesloop;
+module_param_named(yesloop, i8042_yesloop, bool, 0);
+MODULE_PARM_DESC(yesloop, "Disable the AUX Loopback command while probing for the AUX port");
 
-static bool i8042_notimeout;
-module_param_named(notimeout, i8042_notimeout, bool, 0);
-MODULE_PARM_DESC(notimeout, "Ignore timeouts signalled by i8042");
+static bool i8042_yestimeout;
+module_param_named(yestimeout, i8042_yestimeout, bool, 0);
+MODULE_PARM_DESC(yestimeout, "Igyesre timeouts signalled by i8042");
 
 static bool i8042_kbdreset;
 module_param_named(kbdreset, i8042_kbdreset, bool, 0);
@@ -105,9 +105,9 @@ MODULE_PARM_DESC(dritek, "Force enable the Dritek keyboard extension");
 #endif
 
 #ifdef CONFIG_PNP
-static bool i8042_nopnp;
-module_param_named(nopnp, i8042_nopnp, bool, 0);
-MODULE_PARM_DESC(nopnp, "Do not use PNP to detect controller settings");
+static bool i8042_yespnp;
+module_param_named(yespnp, i8042_yespnp, bool, 0);
+MODULE_PARM_DESC(yespnp, "Do yest use PNP to detect controller settings");
 #endif
 
 #define DEBUG
@@ -118,7 +118,7 @@ MODULE_PARM_DESC(debug, "Turn i8042 debugging mode on and off");
 
 static bool i8042_unmask_kbd_data;
 module_param_named(unmask_kbd_data, i8042_unmask_kbd_data, bool, 0600);
-MODULE_PARM_DESC(unmask_kbd_data, "Unconditional enable (may reveal sensitive data) of normally sanitize-filtered kbd data traffic debug log [pre-condition: i8042.debug=1 enabled]");
+MODULE_PARM_DESC(unmask_kbd_data, "Unconditional enable (may reveal sensitive data) of yesrmally sanitize-filtered kbd data traffic debug log [pre-condition: i8042.debug=1 enabled]");
 #endif
 
 static bool i8042_bypass_aux_irq_test;
@@ -137,9 +137,9 @@ static DEFINE_SPINLOCK(i8042_lock);
  * Writers to AUX and KBD ports as well as users issuing i8042_command
  * directly should acquire i8042_mutex (by means of calling
  * i8042_lock_chip() and i8042_unlock_ship() helpers) to ensure that
- * they do not disturb each other (unfortunately in many i8042
+ * they do yest disturb each other (unfortunately in many i8042
  * implementations write to one of the ports will immediately abort
- * command that is being processed by another port).
+ * command that is being processed by ayesther port).
  */
 static DEFINE_MUTEX(i8042_mutex);
 
@@ -165,7 +165,7 @@ static bool i8042_kbd_irq_registered;
 static bool i8042_aux_irq_registered;
 static unsigned char i8042_suppress_kbd_ack;
 static struct platform_device *i8042_platform_device;
-static struct notifier_block i8042_kbd_bind_notifier_block;
+static struct yestifier_block i8042_kbd_bind_yestifier_block;
 
 static irqreturn_t i8042_interrupt(int irq, void *dev_id);
 static bool (*i8042_platform_filter)(unsigned char data, unsigned char str,
@@ -296,7 +296,7 @@ static int __i8042_command(unsigned char *param, int command)
 {
 	int i, error;
 
-	if (i8042_noloop && command == I8042_CMD_AUX_LOOP)
+	if (i8042_yesloop && command == I8042_CMD_AUX_LOOP)
 		return -1;
 
 	error = i8042_wait_write();
@@ -454,8 +454,8 @@ static int i8042_start(struct serio *serio)
 }
 
 /*
- * i8042_stop() marks serio port as non-existing so i8042_interrupt
- * will not try to send data to the port that is about to go away.
+ * i8042_stop() marks serio port as yesn-existing so i8042_interrupt
+ * will yest try to send data to the port that is about to go away.
  * The function is called by serio core as part of unregister procedure.
  */
 static void i8042_stop(struct serio *serio)
@@ -516,7 +516,7 @@ static irqreturn_t i8042_interrupt(int irq, void *dev_id)
 	unsigned long flags;
 	unsigned char str, data;
 	unsigned int dfl;
-	unsigned int port_no;
+	unsigned int port_yes;
 	bool filtered;
 	int ret = 1;
 
@@ -544,14 +544,14 @@ static irqreturn_t i8042_interrupt(int irq, void *dev_id)
 /*
  * When MUXERR condition is signalled the data register can only contain
  * 0xfd, 0xfe or 0xff if implementation follows the spec. Unfortunately
- * it is not always the case. Some KBCs also report 0xfc when there is
- * nothing connected to the port while others sometimes get confused which
+ * it is yest always the case. Some KBCs also report 0xfc when there is
+ * yesthing connected to the port while others sometimes get confused which
  * port the data came from and signal error leaving the data intact. They
- * _do not_ revert to legacy mode (actually I've never seen KBC reverting
+ * _do yest_ revert to legacy mode (actually I've never seen KBC reverting
  * to legacy mode yet, when we see one we'll add proper handling).
  * Anyway, we process 0xfc, 0xfd, 0xfe and 0xff as timeouts, and for the
  * rest assume that the data came from the same serio last byte
- * was transmitted (if transmission happened not too long ago).
+ * was transmitted (if transmission happened yest too long ago).
  */
 
 			switch (data) {
@@ -568,23 +568,23 @@ static irqreturn_t i8042_interrupt(int irq, void *dev_id)
 			}
 		}
 
-		port_no = I8042_MUX_PORT_NO + ((str >> 6) & 3);
+		port_yes = I8042_MUX_PORT_NO + ((str >> 6) & 3);
 		last_str = str;
 		last_transmit = jiffies;
 	} else {
 
 		dfl = ((str & I8042_STR_PARITY) ? SERIO_PARITY : 0) |
-		      ((str & I8042_STR_TIMEOUT && !i8042_notimeout) ? SERIO_TIMEOUT : 0);
+		      ((str & I8042_STR_TIMEOUT && !i8042_yestimeout) ? SERIO_TIMEOUT : 0);
 
-		port_no = (str & I8042_STR_AUXDATA) ?
+		port_yes = (str & I8042_STR_AUXDATA) ?
 				I8042_AUX_PORT_NO : I8042_KBD_PORT_NO;
 	}
 
-	port = &i8042_ports[port_no];
+	port = &i8042_ports[port_yes];
 	serio = port->exists ? port->serio : NULL;
 
 	filter_dbg(port->driver_bound, data, "<- i8042 (interrupt, %d, %d%s%s)\n",
-		   port_no, irq,
+		   port_yes, irq,
 		   dfl & SERIO_PARITY ? ", bad parity" : "",
 		   dfl & SERIO_TIMEOUT ? ", timeout" : "");
 
@@ -788,7 +788,7 @@ static int __init i8042_toggle_aux(bool on)
 }
 
 /*
- * i8042_check_aux() applies as much paranoia as it can at detecting
+ * i8042_check_aux() applies as much parayesia as it can at detecting
  * the presence of an AUX interface.
  */
 
@@ -818,8 +818,8 @@ static int __init i8042_check_aux(void)
 
 /*
  * External connection test - filters out AT-soldered PS/2 i8042's
- * 0x00 - no error, 0x01-0x03 - clock/data stuck, 0xff - general error
- * 0xfa - no error on some notebooks which ignore the spec
+ * 0x00 - yes error, 0x01-0x03 - clock/data stuck, 0xff - general error
+ * 0xfa - yes error on some yestebooks which igyesre the spec
  * Because it's common for chipsets to return error on perfectly functioning
  * AUX ports, we test for this only when the LOOP command failed.
  */
@@ -842,7 +842,7 @@ static int __init i8042_check_aux(void)
 
 	if (i8042_toggle_aux(false)) {
 		pr_warn("Failed to disable AUX port, but continuing anyway... Is this a SiS?\n");
-		pr_warn("If AUX port is really absent please use the 'i8042.noaux' option\n");
+		pr_warn("If AUX port is really absent please use the 'i8042.yesaux' option\n");
 	}
 
 	if (i8042_toggle_aux(true))
@@ -859,11 +859,11 @@ static int __init i8042_check_aux(void)
 	}
 
 /*
- * Test AUX IRQ delivery to make sure BIOS did not grab the IRQ and
+ * Test AUX IRQ delivery to make sure BIOS did yest grab the IRQ and
  * used it for a PCI card or somethig else.
  */
 
-	if (i8042_noloop || i8042_bypass_aux_irq_test || aux_loop_broken) {
+	if (i8042_yesloop || i8042_bypass_aux_irq_test || aux_loop_broken) {
 /*
  * Without LOOP command we can't test AUX IRQ delivery. Assume the port
  * is working and hope we are right.
@@ -898,7 +898,7 @@ static int __init i8042_check_aux(void)
 					msecs_to_jiffies(250)) == 0) {
 /*
  * AUX IRQ was never delivered so we need to flush the controller to
- * get rid of the byte we put there; otherwise keyboard may not work.
+ * get rid of the byte we put there; otherwise keyboard may yest work.
  */
 		dbg("     -- i8042 (aux irq test timeout)\n");
 		i8042_flush();
@@ -939,7 +939,7 @@ static int i8042_controller_selftest(void)
 	int i = 0;
 
 	/*
-	 * We try this 5 times; on some really fragile systems this does not
+	 * We try this 5 times; on some really fragile systems this does yest
 	 * take the first time...
 	 */
 	do {
@@ -974,7 +974,7 @@ static int i8042_controller_selftest(void)
 
 /*
  * i8042_controller init initializes the i8042 controller, and,
- * most importantly, sets it into non-xlated mode if that's
+ * most importantly, sets it into yesn-xlated mode if that's
  * desired.
  */
 
@@ -1027,7 +1027,7 @@ static int i8042_controller_init(void)
 	spin_unlock_irqrestore(&i8042_lock, flags);
 
 /*
- * If the chip is configured into nontranslated mode by the BIOS, don't
+ * If the chip is configured into yesntranslated mode by the BIOS, don't
  * bother enabling translating and be happy.
  */
 
@@ -1035,9 +1035,9 @@ static int i8042_controller_init(void)
 		i8042_direct = true;
 
 /*
- * Set nontranslated mode for the kbd interface if requested by an option.
+ * Set yesntranslated mode for the kbd interface if requested by an option.
  * After this the kbd interface becomes a simple serial in/out, like the aux
- * interface is. We don't do this by default, since it can confuse notebook
+ * interface is. We don't do this by default, since it can confuse yestebook
  * BIOSes.
  */
 
@@ -1109,10 +1109,10 @@ static void i8042_controller_reset(bool s2r_wants_reset)
 /*
  * i8042_panic_blink() will turn the keyboard LEDs on or off and is called
  * when kernel panics. Flashing LEDs is useful for users running X who may
- * not see the console and will help distinguishing panics from "real"
+ * yest see the console and will help distinguishing panics from "real"
  * lockups.
  *
- * Note that DELAY has a limit of 10ms so we will not get stuck here
+ * Note that DELAY has a limit of 10ms so we will yest get stuck here
  * waiting for KBC to free up even if KBD interrupt is off
  */
 
@@ -1236,7 +1236,7 @@ static int i8042_pm_suspend(struct device *dev)
 	return 0;
 }
 
-static int i8042_pm_resume_noirq(struct device *dev)
+static int i8042_pm_resume_yesirq(struct device *dev)
 {
 	if (!pm_resume_via_firmware())
 		i8042_interrupt(0, NULL);
@@ -1257,9 +1257,9 @@ static int i8042_pm_resume(struct device *dev)
 	}
 
 	/*
-	 * If platform firmware was not going to be involved in suspend, we did
-	 * not restore the controller state to whatever it had been at boot
-	 * time, so we do not need to do anything.
+	 * If platform firmware was yest going to be involved in suspend, we did
+	 * yest restore the controller state to whatever it had been at boot
+	 * time, so we do yest need to do anything.
 	 */
 	if (!pm_suspend_via_firmware())
 		return 0;
@@ -1295,7 +1295,7 @@ static int i8042_pm_restore(struct device *dev)
 
 static const struct dev_pm_ops i8042_pm_ops = {
 	.suspend	= i8042_pm_suspend,
-	.resume_noirq	= i8042_pm_resume_noirq,
+	.resume_yesirq	= i8042_pm_resume_yesirq,
 	.resume		= i8042_pm_resume,
 	.thaw		= i8042_pm_thaw,
 	.poweroff	= i8042_pm_reset,
@@ -1345,8 +1345,8 @@ static int __init i8042_create_kbd_port(void)
 static int __init i8042_create_aux_port(int idx)
 {
 	struct serio *serio;
-	int port_no = idx < 0 ? I8042_AUX_PORT_NO : I8042_MUX_PORT_NO + idx;
-	struct i8042_port *port = &i8042_ports[port_no];
+	int port_yes = idx < 0 ? I8042_AUX_PORT_NO : I8042_MUX_PORT_NO + idx;
+	struct i8042_port *port = &i8042_ports[port_yes];
 
 	serio = kzalloc(sizeof(struct serio), GFP_KERNEL);
 	if (!serio)
@@ -1445,7 +1445,7 @@ static int __init i8042_setup_aux(void)
 	if (i8042_check_aux())
 		return -ENODEV;
 
-	if (i8042_nomux || i8042_check_mux()) {
+	if (i8042_yesmux || i8042_check_mux()) {
 		error = i8042_create_aux_port(-1);
 		if (error)
 			goto err_free_ports;
@@ -1504,7 +1504,7 @@ static int __init i8042_setup_kbd(void)
 	return error;
 }
 
-static int i8042_kbd_bind_notifier(struct notifier_block *nb,
+static int i8042_kbd_bind_yestifier(struct yestifier_block *nb,
 				   unsigned long action, void *data)
 {
 	struct device *dev = data;
@@ -1548,13 +1548,13 @@ static int __init i8042_probe(struct platform_device *dev)
 		i8042_dritek_enable();
 #endif
 
-	if (!i8042_noaux) {
+	if (!i8042_yesaux) {
 		error = i8042_setup_aux();
 		if (error && error != -ENODEV && error != -EBUSY)
 			goto out_fail;
 	}
 
-	if (!i8042_nokbd) {
+	if (!i8042_yeskbd) {
 		error = i8042_setup_kbd();
 		if (error)
 			goto out_fail;
@@ -1567,7 +1567,7 @@ static int __init i8042_probe(struct platform_device *dev)
 	return 0;
 
  out_fail:
-	i8042_free_aux_ports();	/* in case KBD failed but AUX not */
+	i8042_free_aux_ports();	/* in case KBD failed but AUX yest */
 	i8042_free_irqs();
 	i8042_controller_reset(false);
 	i8042_platform_device = NULL;
@@ -1596,8 +1596,8 @@ static struct platform_driver i8042_driver = {
 	.shutdown	= i8042_shutdown,
 };
 
-static struct notifier_block i8042_kbd_bind_notifier_block = {
-	.notifier_call = i8042_kbd_bind_notifier,
+static struct yestifier_block i8042_kbd_bind_yestifier_block = {
+	.yestifier_call = i8042_kbd_bind_yestifier,
 };
 
 static int __init i8042_init(void)
@@ -1621,7 +1621,7 @@ static int __init i8042_init(void)
 		goto err_platform_exit;
 	}
 
-	bus_register_notifier(&serio_bus, &i8042_kbd_bind_notifier_block);
+	bus_register_yestifier(&serio_bus, &i8042_kbd_bind_yestifier_block);
 	panic_blink = i8042_panic_blink;
 
 	return 0;
@@ -1637,7 +1637,7 @@ static void __exit i8042_exit(void)
 	platform_driver_unregister(&i8042_driver);
 	i8042_platform_exit();
 
-	bus_unregister_notifier(&serio_bus, &i8042_kbd_bind_notifier_block);
+	bus_unregister_yestifier(&serio_bus, &i8042_kbd_bind_yestifier_block);
 	panic_blink = NULL;
 }
 

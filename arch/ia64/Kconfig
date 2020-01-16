@@ -128,7 +128,7 @@ config ITANIUM
 	bool "Itanium"
 	help
 	  Select your IA-64 processor type.  The default is Itanium.
-	  This choice is safe for all IA-64 systems, but may not perform
+	  This choice is safe for all IA-64 systems, but may yest perform
 	  optimally on systems with, say, Itanium 2 or newer processors.
 
 config MCKINLEY
@@ -157,7 +157,7 @@ config IA64_PAGE_SIZE_4KB
 	  16KB               For best IA-64 performance
 	  64KB               Requires Itanium 2 or newer processor.
 
-	  If you don't know what to do, choose 16KB.
+	  If you don't kyesw what to do, choose 16KB.
 
 config IA64_PAGE_SIZE_8KB
 	bool "8KB"
@@ -219,14 +219,14 @@ config SMP
 
 	  If you say N here, the kernel will run on single and multiprocessor
 	  systems, but will use only one CPU of a multiprocessor system.  If
-	  you say Y here, the kernel will run on many, but not all,
+	  you say Y here, the kernel will run on many, but yest all,
 	  single processor systems.  On a single processor system, the kernel
 	  will run faster if you say N here.
 
 	  See also the SMP-HOWTO available at
 	  <http://www.tldp.org/docs.html#howto>.
 
-	  If you don't know what to do here, say N.
+	  If you don't kyesw what to do here, say N.
 
 config NR_CPUS
 	int "Maximum number of CPUs (2-4096)"
@@ -315,12 +315,12 @@ config NUMA
 	  server systems.  If in doubt, say N.
 
 config NODES_SHIFT
-	int "Max num nodes shift(3-10)"
+	int "Max num yesdes shift(3-10)"
 	range 3 10
 	default "10"
 	depends on NEED_MULTIPLE_NODES
 	help
-	  This option specifies the maximum number of nodes in your SSI system.
+	  This option specifies the maximum number of yesdes in your SSI system.
 	  MAX_NUMNODES will be 2^(This value).
 	  If in doubt, use the default.
 
@@ -390,7 +390,7 @@ config IA64_MC_ERR_INJECT
 	  call MC error injection PAL procedures to inject various errors.
 	  This is a useful tool for MCA testing.
 
-	  If you're unsure, do not select this option.
+	  If you're unsure, do yest select this option.
 
 config IA64_ESI
 	bool "ESI (Extensible SAL Interface) support"
@@ -416,16 +416,16 @@ config KEXEC
 	select KEXEC_CORE
 	help
 	  kexec is a system call that implements the ability to shutdown your
-	  current kernel, and to start another kernel.  It is like a reboot
+	  current kernel, and to start ayesther kernel.  It is like a reboot
 	  but it is independent of the system firmware.   And like a reboot
-	  you can start any kernel with it, not just Linux.
+	  you can start any kernel with it, yest just Linux.
 
 	  The name comes from the similarity to the exec system call.
 
 	  It is an ongoing process to be certain the hardware in a machine
-	  is properly shutdown, so do not be surprised if this code does not
+	  is properly shutdown, so do yest be surprised if this code does yest
 	  initially work for you.  As of this writing the exact hardware
-	  interface is strongly in flux, so no good recommendation can be
+	  interface is strongly in flux, so yes good recommendation can be
 	  made.
 
 config CRASH_DUMP
@@ -458,5 +458,5 @@ config MSPEC
 	select IA64_UNCACHED_ALLOCATOR
 	help
 	  If you have an ia64 and you want to enable memory special
-	  operations support (formerly known as fetchop), say Y here,
+	  operations support (formerly kyeswn as fetchop), say Y here,
 	  otherwise say N.

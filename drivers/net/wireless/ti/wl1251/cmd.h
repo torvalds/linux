@@ -173,7 +173,7 @@ struct wl1251_scan_parameters {
 	 * bit 0: When this bit is set, passive scan.
 	 * bit 1: Band, when this bit is set we scan
 	 * in the 5Ghz band.
-	 * bit 2: voice mode, 0 for normal scan.
+	 * bit 2: voice mode, 0 for yesrmal scan.
 	 * bit 3: scan priority, 1 for high priority.
 	 */
 	__le16 scan_options;
@@ -377,7 +377,7 @@ enum wl1251_cmd_key_type {
 struct wl1251_cmd_set_keys {
 	struct wl1251_cmd_header header;
 
-	/* Ignored for default WEP key */
+	/* Igyesred for default WEP key */
 	u8 addr[ETH_ALEN];
 
 	/* key_action_e */

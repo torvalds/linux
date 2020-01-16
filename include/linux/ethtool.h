@@ -47,9 +47,9 @@ struct compat_ethtool_rxnfc {
  * @ETHTOOL_ID_INACTIVE: Physical ID indicator should be deactivated
  * @ETHTOOL_ID_ACTIVE: Physical ID indicator should be activated
  * @ETHTOOL_ID_ON: LED should be turned on (used iff %ETHTOOL_ID_ACTIVE
- *	is not supported)
+ *	is yest supported)
  * @ETHTOOL_ID_OFF: LED should be turned off (used iff %ETHTOOL_ID_ACTIVE
- *	is not supported)
+ *	is yest supported)
  */
 enum ethtool_phys_id_state {
 	ETHTOOL_ID_INACTIVE,
@@ -102,8 +102,8 @@ static inline u32 ethtool_rxfh_indir_default(u32 index, u32 n_rx_rings)
 #define __ETHTOOL_DECLARE_LINK_MODE_MASK(name)		\
 	DECLARE_BITMAP(name, __ETHTOOL_LINK_MODE_MASK_NBITS)
 
-/* drivers must ignore base.cmd and base.link_mode_masks_nwords
- * fields, but they are allowed to overwrite them (will be ignored).
+/* drivers must igyesre base.cmd and base.link_mode_masks_nwords
+ * fields, but they are allowed to overwrite them (will be igyesred).
  */
 struct ethtool_link_ksettings {
 	struct ethtool_link_settings base;
@@ -128,7 +128,7 @@ struct ethtool_link_ksettings {
  *   @ptr : pointer to struct ethtool_link_ksettings
  *   @name : one of supported/advertising/lp_advertising
  *   @mode : one of the ETHTOOL_LINK_MODE_*_BIT
- * (not atomic, no bound checking)
+ * (yest atomic, yes bound checking)
  */
 #define ethtool_link_ksettings_add_link_mode(ptr, name, mode)		\
 	__set_bit(ETHTOOL_LINK_MODE_ ## mode ## _BIT, (ptr)->link_modes.name)
@@ -139,7 +139,7 @@ struct ethtool_link_ksettings {
  *   @ptr : pointer to struct ethtool_link_ksettings
  *   @name : one of supported/advertising/lp_advertising
  *   @mode : one of the ETHTOOL_LINK_MODE_*_BIT
- * (not atomic, no bound checking)
+ * (yest atomic, yes bound checking)
  */
 #define ethtool_link_ksettings_del_link_mode(ptr, name, mode)		\
 	__clear_bit(ETHTOOL_LINK_MODE_ ## mode ## _BIT, (ptr)->link_modes.name)
@@ -149,7 +149,7 @@ struct ethtool_link_ksettings {
  *   @ptr : pointer to struct ethtool_link_ksettings
  *   @name : one of supported/advertising/lp_advertising
  *   @mode : one of the ETHTOOL_LINK_MODE_*_BIT
- * (not atomic, no bound checking)
+ * (yest atomic, yes bound checking)
  *
  * Returns true/false.
  */
@@ -180,7 +180,7 @@ bool ethtool_convert_link_mode_to_legacy_u32(u32 *legacy_u32,
 /**
  * struct ethtool_ops - optional netdev operations
  * @get_drvinfo: Report driver/device information.  Should only set the
- *	@driver, @version, @fw_version and @bus_info fields.  If not
+ *	@driver, @version, @fw_version and @bus_info fields.  If yest
  *	implemented, the @driver and @bus_info fields will be filled in
  *	according to the netdev's parent device.
  * @get_regs_len: Get buffer length required for @get_regs
@@ -218,10 +218,10 @@ bool ethtool_convert_link_mode_to_legacy_u32(u32 *legacy_u32,
  * @get_strings: Return a set of strings that describe the requested objects
  * @set_phys_id: Identify the physical devices, e.g. by flashing an LED
  *	attached to it.  The implementation may update the indicator
- *	asynchronously or synchronously, but in either case it must return
+ *	asynchroyesusly or synchroyesusly, but in either case it must return
  *	quickly.  It is initially called with the argument %ETHTOOL_ID_ACTIVE,
- *	and must either activate asynchronous updates and return zero, return
- *	a negative error or return a positive frequency for synchronous
+ *	and must either activate asynchroyesus updates and return zero, return
+ *	a negative error or return a positive frequency for synchroyesus
  *	indication (e.g. 1 for one on/off cycle per second).  If it returns
  *	a frequency then it will be called again at intervals with the
  *	argument %ETHTOOL_ID_ON or %ETHTOOL_ID_OFF and should set the state of
@@ -229,7 +229,7 @@ bool ethtool_convert_link_mode_to_legacy_u32(u32 *legacy_u32,
  *	%ETHTOOL_ID_INACTIVE and must deactivate the indicator.  Returns a
  *	negative error code or zero.
  * @get_ethtool_stats: Return extended statistics about the device.
- *	This is only useful if the device maintains statistics not
+ *	This is only useful if the device maintains statistics yest
  *	included in &struct rtnl_link_stats64.
  * @begin: Function to be called before any other operation.  Returns a
  *	negative error code or zero.
@@ -249,9 +249,9 @@ bool ethtool_convert_link_mode_to_legacy_u32(u32 *legacy_u32,
  *	flags from &enum ethtool_reset_flags.  Returns a negative
  *	error code or zero.
  * @get_rxfh_key_size: Get the size of the RX flow hash key.
- *	Returns zero if not supported for this specific device.
+ *	Returns zero if yest supported for this specific device.
  * @get_rxfh_indir_size: Get the size of the RX flow hash indirection table.
- *	Returns zero if not supported for this specific device.
+ *	Returns zero if yest supported for this specific device.
  * @get_rxfh: Get the contents of the RX flow hash indirection table, hash key
  *	and/or hash function.
  *	Returns a negative error code or zero.
@@ -285,30 +285,30 @@ bool ethtool_convert_link_mode_to_legacy_u32(u32 *legacy_u32,
  * @get_eee: Get Energy-Efficient (EEE) supported and status.
  * @set_eee: Set EEE status (enable/disable) as well as LPI timers.
  * @get_per_queue_coalesce: Get interrupt coalescing parameters per queue.
- *	It must check that the given queue number is valid. If neither a RX nor
+ *	It must check that the given queue number is valid. If neither a RX yesr
  *	a TX queue has this number, return -EINVAL. If only a RX queue or a TX
  *	queue has this number, set the inapplicable fields to ~0 and return 0.
  *	Returns a negative error code or zero.
  * @set_per_queue_coalesce: Set interrupt coalescing parameters per queue.
- *	It must check that the given queue number is valid. If neither a RX nor
+ *	It must check that the given queue number is valid. If neither a RX yesr
  *	a TX queue has this number, return -EINVAL. If only a RX queue or a TX
- *	queue has this number, ignore the inapplicable fields.
+ *	queue has this number, igyesre the inapplicable fields.
  *	Returns a negative error code or zero.
  * @get_link_ksettings: Get various device settings including Ethernet link
  *	settings. The %cmd and %link_mode_masks_nwords fields should be
- *	ignored (use %__ETHTOOL_LINK_MODE_MASK_NBITS instead of the latter),
+ *	igyesred (use %__ETHTOOL_LINK_MODE_MASK_NBITS instead of the latter),
  *	any change to them will be overwritten by kernel. Returns a negative
  *	error code or zero.
  * @set_link_ksettings: Set various device settings including Ethernet link
  *	settings. The %cmd and %link_mode_masks_nwords fields should be
- *	ignored (use %__ETHTOOL_LINK_MODE_MASK_NBITS instead of the latter),
+ *	igyesred (use %__ETHTOOL_LINK_MODE_MASK_NBITS instead of the latter),
  *	any change to them will be overwritten by kernel. Returns a negative
  *	error code or zero.
  * @get_fecparam: Get the network device Forward Error Correction parameters.
  * @set_fecparam: Set the network device Forward Error Correction parameters.
  * @get_ethtool_phy_stats: Return extended statistics about the PHY device.
  *	This is only useful if the device maintains PHY statistics and
- *	cannot use the standard PHY library helpers.
+ *	canyest use the standard PHY library helpers.
  *
  * All operations are optional (i.e. the function pointer may be set
  * to %NULL) and callers must take this into account.  Callers must

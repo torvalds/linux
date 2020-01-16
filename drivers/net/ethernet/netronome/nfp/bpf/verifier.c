@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
-/* Copyright (C) 2016-2018 Netronome Systems, Inc. */
+/* Copyright (C) 2016-2018 Netroyesme Systems, Inc. */
 
 #include <linux/bpf.h>
 #include <linux/bpf_verifier.h>
@@ -89,9 +89,9 @@ static bool nfp_bpf_map_update_value_ok(struct bpf_verifier_env *env)
 	struct nfp_bpf_map *nfp_map;
 	int off, i;
 
-	state = env->cur_state->frame[reg3->frameno];
+	state = env->cur_state->frame[reg3->frameyes];
 
-	/* We need to record each time update happens with non-zero words,
+	/* We need to record each time update happens with yesn-zero words,
 	 * in case such word is used in atomic operations.
 	 * Implicitly depend on nfp_bpf_stack_arg_ok(reg3) being run before.
 	 */
@@ -110,11 +110,11 @@ static bool nfp_bpf_map_update_value_ok(struct bpf_verifier_env *env)
 			continue;
 
 		if (nfp_map->use_map[i / 4].type == NFP_MAP_USE_ATOMIC_CNT) {
-			pr_vlog(env, "value at offset %d/%d may be non-zero, bpf_map_update_elem() is required to initialize atomic counters to zero to avoid offload endian issues\n",
+			pr_vlog(env, "value at offset %d/%d may be yesn-zero, bpf_map_update_elem() is required to initialize atomic counters to zero to avoid offload endian issues\n",
 				i, soff);
 			return false;
 		}
-		nfp_map->use_map[i / 4].non_zero_update = 1;
+		nfp_map->use_map[i / 4].yesn_zero_update = 1;
 	}
 
 	return true;
@@ -159,7 +159,7 @@ nfp_bpf_map_call_ok(const char *fname, struct bpf_verifier_env *env,
 		    u32 helper_tgt, const struct bpf_reg_state *reg1)
 {
 	if (!helper_tgt) {
-		pr_vlog(env, "%s: not supported by FW\n", fname);
+		pr_vlog(env, "%s: yest supported by FW\n", fname);
 		return false;
 	}
 
@@ -180,11 +180,11 @@ nfp_bpf_check_helper_call(struct nfp_prog *nfp_prog,
 	switch (func_id) {
 	case BPF_FUNC_xdp_adjust_head:
 		if (!bpf->adjust_head.off_max) {
-			pr_vlog(env, "adjust_head not supported by FW\n");
+			pr_vlog(env, "adjust_head yest supported by FW\n");
 			return -EOPNOTSUPP;
 		}
 		if (!(bpf->adjust_head.flags & NFP_BPF_ADJUST_HEAD_NO_META)) {
-			pr_vlog(env, "adjust_head: FW requires shifting metadata, not supported by the driver\n");
+			pr_vlog(env, "adjust_head: FW requires shifting metadata, yest supported by the driver\n");
 			return -EOPNOTSUPP;
 		}
 
@@ -193,7 +193,7 @@ nfp_bpf_check_helper_call(struct nfp_prog *nfp_prog,
 
 	case BPF_FUNC_xdp_adjust_tail:
 		if (!bpf->adjust_tail) {
-			pr_vlog(env, "adjust_tail not supported by FW\n");
+			pr_vlog(env, "adjust_tail yest supported by FW\n");
 			return -EOPNOTSUPP;
 		}
 		break;
@@ -237,7 +237,7 @@ nfp_bpf_check_helper_call(struct nfp_prog *nfp_prog,
 			     NFP_BPF_PACKET_DATA != PTR_TO_PACKET);
 
 		if (!bpf->helpers.perf_event_output) {
-			pr_vlog(env, "event_output: not supported by FW\n");
+			pr_vlog(env, "event_output: yest supported by FW\n");
 			return -EOPNOTSUPP;
 		}
 
@@ -274,15 +274,15 @@ nfp_bpf_check_helper_call(struct nfp_prog *nfp_prog,
 			return -EOPNOTSUPP;
 
 		/* Warn user that on offload NFP may return success even if map
-		 * is not going to accept the event, since the event output is
-		 * fully async and device won't know the state of the map.
+		 * is yest going to accept the event, since the event output is
+		 * fully async and device won't kyesw the state of the map.
 		 * There is also FW limitation on the event length.
 		 *
-		 * Lost events will not show up on the perf ring, driver
+		 * Lost events will yest show up on the perf ring, driver
 		 * won't see them at all.  Events may also get reordered.
 		 */
 		dev_warn_once(&nfp_prog->bpf->app->pf->pdev->dev,
-			      "bpf: note: return codes and behavior of bpf_event_output() helper differs for offloaded programs!\n");
+			      "bpf: yeste: return codes and behavior of bpf_event_output() helper differs for offloaded programs!\n");
 		pr_vlog(env, "warning: return codes and behavior of event_output helper differ for offload!\n");
 
 		if (!meta->func_id)
@@ -347,7 +347,7 @@ nfp_bpf_check_stack_access(struct nfp_prog *nfp_prog,
 {
 	s32 old_off, new_off;
 
-	if (reg->frameno != env->cur_state->curframe)
+	if (reg->frameyes != env->cur_state->curframe)
 		meta->flags |= FLAG_INSN_PTR_CALLER_STACK_FRAME;
 
 	if (!tnum_is_const(reg->var_off)) {
@@ -361,9 +361,9 @@ nfp_bpf_check_stack_access(struct nfp_prog *nfp_prog,
 	old_off = meta->ptr.off + meta->ptr.var_off.value;
 	new_off = reg->off + reg->var_off.value;
 
-	meta->ptr_not_const |= old_off != new_off;
+	meta->ptr_yest_const |= old_off != new_off;
 
-	if (!meta->ptr_not_const)
+	if (!meta->ptr_yest_const)
 		return 0;
 
 	if (old_off % 4 == new_off % 4)
@@ -384,7 +384,7 @@ static const char *nfp_bpf_map_use_name(enum nfp_bpf_map_use use)
 	};
 
 	if (use >= ARRAY_SIZE(names) || !names[use])
-		return "unknown";
+		return "unkyeswn";
 	return names[use];
 }
 
@@ -401,9 +401,9 @@ nfp_bpf_map_mark_used_one(struct bpf_verifier_env *env,
 		return -EOPNOTSUPP;
 	}
 
-	if (nfp_map->use_map[off / 4].non_zero_update &&
+	if (nfp_map->use_map[off / 4].yesn_zero_update &&
 	    use == NFP_MAP_USE_ATOMIC_CNT) {
-		pr_vlog(env, "atomic counter in map value may already be initialized to non-zero value off: %u\n",
+		pr_vlog(env, "atomic counter in map value may already be initialized to yesn-zero value off: %u\n",
 			off);
 		return -EOPNOTSUPP;
 	}
@@ -449,9 +449,9 @@ nfp_bpf_map_mark_used(struct bpf_verifier_env *env, struct nfp_insn_meta *meta,
 
 static int
 nfp_bpf_check_ptr(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta,
-		  struct bpf_verifier_env *env, u8 reg_no)
+		  struct bpf_verifier_env *env, u8 reg_yes)
 {
-	const struct bpf_reg_state *reg = cur_regs(env) + reg_no;
+	const struct bpf_reg_state *reg = cur_regs(env) + reg_yes;
 	int err;
 
 	if (reg->type != PTR_TO_CTX &&
@@ -476,7 +476,7 @@ nfp_bpf_check_ptr(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta,
 				return err;
 		}
 		if (is_mbpf_store(meta)) {
-			pr_vlog(env, "map writes not supported\n");
+			pr_vlog(env, "map writes yest supported\n");
 			return -EOPNOTSUPP;
 		}
 		if (is_mbpf_xadd(meta)) {
@@ -511,7 +511,7 @@ nfp_bpf_check_store(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta,
 			case offsetof(struct xdp_md, rx_queue_index):
 				if (nfp_prog->bpf->queue_select)
 					goto exit_check_ptr;
-				pr_vlog(env, "queue selection not supported by FW\n");
+				pr_vlog(env, "queue selection yest supported by FW\n");
 				return -EOPNOTSUPP;
 			}
 		}
@@ -530,12 +530,12 @@ nfp_bpf_check_xadd(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta,
 	const struct bpf_reg_state *dreg = cur_regs(env) + meta->insn.dst_reg;
 
 	if (dreg->type != PTR_TO_MAP_VALUE) {
-		pr_vlog(env, "atomic add not to a map value pointer: %d\n",
+		pr_vlog(env, "atomic add yest to a map value pointer: %d\n",
 			dreg->type);
 		return -EOPNOTSUPP;
 	}
 	if (sreg->type != SCALAR_VALUE) {
-		pr_vlog(env, "atomic add not of a scalar: %d\n", sreg->type);
+		pr_vlog(env, "atomic add yest of a scalar: %d\n", sreg->type);
 		return -EOPNOTSUPP;
 	}
 
@@ -564,22 +564,22 @@ nfp_bpf_check_alu(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta,
 	/* NFP supports u16 and u32 multiplication.
 	 *
 	 * For ALU64, if either operand is beyond u32's value range, we reject
-	 * it. One thing to note, if the source operand is BPF_K, then we need
+	 * it. One thing to yeste, if the source operand is BPF_K, then we need
 	 * to check "imm" field directly, and we'd reject it if it is negative.
 	 * Because for ALU64, "imm" (with s32 type) is expected to be sign
 	 * extended to s64 which NFP mul doesn't support.
 	 *
 	 * For ALU32, it is fine for "imm" be negative though, because the
-	 * result is 32-bits and there is no difference on the low halve of
+	 * result is 32-bits and there is yes difference on the low halve of
 	 * the result for signed/unsigned mul, so we will get correct result.
 	 */
 	if (is_mbpf_mul(meta)) {
 		if (meta->umax_dst > U32_MAX) {
-			pr_vlog(env, "multiplier is not within u32 value range\n");
+			pr_vlog(env, "multiplier is yest within u32 value range\n");
 			return -EINVAL;
 		}
 		if (mbpf_src(meta) == BPF_X && meta->umax_src > U32_MAX) {
-			pr_vlog(env, "multiplicand is not within u32 value range\n");
+			pr_vlog(env, "multiplicand is yest within u32 value range\n");
 			return -EINVAL;
 		}
 		if (mbpf_class(meta) == BPF_ALU64 &&
@@ -591,7 +591,7 @@ nfp_bpf_check_alu(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta,
 
 	/* NFP doesn't have divide instructions, we support divide by constant
 	 * through reciprocal multiplication. Given NFP support multiplication
-	 * no bigger than u32, we'd require divisor and dividend no bigger than
+	 * yes bigger than u32, we'd require divisor and dividend yes bigger than
 	 * that as well.
 	 *
 	 * Also eBPF doesn't support signed divide and has enforced this on C
@@ -601,21 +601,21 @@ nfp_bpf_check_alu(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta,
 	 */
 	if (is_mbpf_div(meta)) {
 		if (meta->umax_dst > U32_MAX) {
-			pr_vlog(env, "dividend is not within u32 value range\n");
+			pr_vlog(env, "dividend is yest within u32 value range\n");
 			return -EINVAL;
 		}
 		if (mbpf_src(meta) == BPF_X) {
 			if (meta->umin_src != meta->umax_src) {
-				pr_vlog(env, "divisor is not constant\n");
+				pr_vlog(env, "divisor is yest constant\n");
 				return -EINVAL;
 			}
 			if (meta->umax_src > U32_MAX) {
-				pr_vlog(env, "divisor is not within u32 value range\n");
+				pr_vlog(env, "divisor is yest within u32 value range\n");
 				return -EINVAL;
 			}
 		}
 		if (mbpf_src(meta) == BPF_K && meta->insn.imm < 0) {
-			pr_vlog(env, "divide by negative constant is not supported\n");
+			pr_vlog(env, "divide by negative constant is yest supported\n");
 			return -EINVAL;
 		}
 	}
@@ -633,7 +633,7 @@ int nfp_verify_insn(struct bpf_verifier_env *env, int insn_idx,
 	nfp_prog->verifier_meta = meta;
 
 	if (!nfp_bpf_supported_opcode(meta->insn.code)) {
-		pr_vlog(env, "instruction %#02x not supported\n",
+		pr_vlog(env, "instruction %#02x yest supported\n",
 			meta->insn.code);
 		return -EINVAL;
 	}
@@ -682,7 +682,7 @@ nfp_assign_subprog_idx_and_regs(struct bpf_verifier_env *env,
 	}
 
 	if (index + 1 != nfp_prog->subprog_cnt) {
-		pr_vlog(env, "BUG: number of processed BPF functions is not consistent (processed %d, expected %d)\n",
+		pr_vlog(env, "BUG: number of processed BPF functions is yest consistent (processed %d, expected %d)\n",
 			index + 1, nfp_prog->subprog_cnt);
 		return -EFAULT;
 	}

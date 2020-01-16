@@ -188,7 +188,7 @@ static long clk_pll_get_best_div_mul(struct clk_pll *pll, unsigned long rate,
 
 		/*
 		 * Compare the remainder with the best remainder found until
-		 * now and elect a new best multiplier/divider pair if the
+		 * yesw and elect a new best multiplier/divider pair if the
 		 * current remainder is smaller than the best one.
 		 */
 		if (remainder < bestremainder) {
@@ -200,7 +200,7 @@ static long clk_pll_get_best_div_mul(struct clk_pll *pll, unsigned long rate,
 
 		/*
 		 * We've found a perfect match!
-		 * Stop searching now and use this multiplier/divider pair.
+		 * Stop searching yesw and use this multiplier/divider pair.
 		 */
 		if (!remainder)
 			break;

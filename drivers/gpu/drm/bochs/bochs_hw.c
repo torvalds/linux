@@ -116,21 +116,21 @@ int bochs_hw_init(struct drm_device *dev)
 	if (pdev->resource[2].flags & IORESOURCE_MEM) {
 		/* mmio bar with vga and bochs registers present */
 		if (pci_request_region(pdev, 2, "bochs-drm") != 0) {
-			DRM_ERROR("Cannot request mmio region\n");
+			DRM_ERROR("Canyest request mmio region\n");
 			return -EBUSY;
 		}
 		ioaddr = pci_resource_start(pdev, 2);
 		iosize = pci_resource_len(pdev, 2);
 		bochs->mmio = ioremap(ioaddr, iosize);
 		if (bochs->mmio == NULL) {
-			DRM_ERROR("Cannot map mmio region\n");
+			DRM_ERROR("Canyest map mmio region\n");
 			return -ENOMEM;
 		}
 	} else {
 		ioaddr = VBE_DISPI_IOPORT_INDEX;
 		iosize = 2;
 		if (!request_region(ioaddr, iosize, "bochs-drm")) {
-			DRM_ERROR("Cannot request ioports\n");
+			DRM_ERROR("Canyest request ioports\n");
 			return -EBUSY;
 		}
 		bochs->ioports = 1;
@@ -157,13 +157,13 @@ int bochs_hw_init(struct drm_device *dev)
 	}
 
 	if (pci_request_region(pdev, 0, "bochs-drm") != 0) {
-		DRM_ERROR("Cannot request framebuffer\n");
+		DRM_ERROR("Canyest request framebuffer\n");
 		return -EBUSY;
 	}
 
 	bochs->fb_map = ioremap(addr, size);
 	if (bochs->fb_map == NULL) {
-		DRM_ERROR("Cannot map framebuffer\n");
+		DRM_ERROR("Canyest map framebuffer\n");
 		return -ENOMEM;
 	}
 	bochs->fb_base = addr;
@@ -179,14 +179,14 @@ int bochs_hw_init(struct drm_device *dev)
 		bochs->qext_size = readl(bochs->mmio + 0x600);
 		if (bochs->qext_size < 4 || bochs->qext_size > iosize) {
 			bochs->qext_size = 0;
-			goto noext;
+			goto yesext;
 		}
 		DRM_DEBUG("Found qemu ext regs, size %ld\n",
 			  bochs->qext_size);
 		bochs_hw_set_native_endian(bochs);
 	}
 
-noext:
+yesext:
 	return 0;
 }
 
@@ -251,7 +251,7 @@ void bochs_hw_setformat(struct bochs_device *bochs,
 		bochs_hw_set_big_endian(bochs);
 		break;
 	default:
-		/* should not happen */
+		/* should yest happen */
 		DRM_ERROR("%s: Huh? Got framebuffer format 0x%x",
 			  __func__, format->format);
 		break;

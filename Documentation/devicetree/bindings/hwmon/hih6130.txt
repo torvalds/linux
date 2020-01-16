@@ -1,7 +1,7 @@
 Honeywell Humidicon HIH-6130 humidity/temperature sensor
 --------------------------------------------------------
 
-Requires node properties:
+Requires yesde properties:
 - compatible : "honeywell,hi6130"
 - reg : the I2C address of the device. This is 0x27.
 

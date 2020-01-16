@@ -25,7 +25,7 @@
  * descriptors from the tx and rx ring, thus processing one response at a time.
  */
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/slab.h>
@@ -53,7 +53,7 @@
 #define PDC_RING_ENTRIES  512
 /*
  * Minimum number of ring descriptor entries that must be free to tell mailbox
- * framework that it can submit another request
+ * framework that it can submit ayesther request
  */
 #define PDC_RING_SPACE_MIN  15
 
@@ -81,7 +81,7 @@
 
 /*
  * PDC driver reserves ringset 0 on each SPU for its own use. The driver does
- * not currently support use of multiple ringsets on a single PDC engine.
+ * yest currently support use of multiple ringsets on a single PDC engine.
  */
 #define PDC_RINGSET  0
 
@@ -177,7 +177,7 @@ struct dma64_regs {
 	u32  addrlow;   /* descriptor ring base address low 32-bits */
 	u32  addrhigh;  /* descriptor ring base address bits 63:32 */
 	u32  status0;   /* last rx descriptor written by hw */
-	u32  status1;   /* driver does not use */
+	u32  status1;   /* driver does yest use */
 };
 
 /* cpp contortions to concatenate w/arg prescan */
@@ -207,13 +207,13 @@ struct pdc_regs {
 	u32  gptimer;                /* 0x028 */
 
 	u32  PAD;
-	u32  intrcvlazy_0;           /* 0x030 (Only in PDC, not FA2) */
-	u32  intrcvlazy_1;           /* 0x034 (Only in PDC, not FA2) */
-	u32  intrcvlazy_2;           /* 0x038 (Only in PDC, not FA2) */
-	u32  intrcvlazy_3;           /* 0x03c (Only in PDC, not FA2) */
+	u32  intrcvlazy_0;           /* 0x030 (Only in PDC, yest FA2) */
+	u32  intrcvlazy_1;           /* 0x034 (Only in PDC, yest FA2) */
+	u32  intrcvlazy_2;           /* 0x038 (Only in PDC, yest FA2) */
+	u32  intrcvlazy_3;           /* 0x03c (Only in PDC, yest FA2) */
 
 	u32  PAD[48];
-	u32  fa_intrecvlazy;         /* 0x100 (Only in FA2, not PDC) */
+	u32  fa_intrecvlazy;         /* 0x100 (Only in FA2, yest PDC) */
 	u32  flowctlthresh;          /* 0x104 */
 	u32  wrrthresh;              /* 0x108 */
 	u32  gmac_idle_cnt_thresh;   /* 0x10c */
@@ -239,7 +239,7 @@ struct pdc_regs {
 	u32  serdes_status1;         /* 0x1b0 */
 	u32  PAD[11];                /* 0x1b4-1dc */
 	u32  clk_ctl_st;             /* 0x1e0 */
-	u32  hw_war;                 /* 0x1e4 (Only in PDC, not FA2) */
+	u32  hw_war;                 /* 0x1e4 (Only in PDC, yest FA2) */
 	u32  pwrctl;                 /* 0x1e8 */
 	u32  PAD[5];
 
@@ -398,11 +398,11 @@ struct pdc_state {
 	/* counters */
 	u32  pdc_requests;     /* number of request messages submitted */
 	u32  pdc_replies;      /* number of reply messages received */
-	u32  last_tx_not_done; /* too few tx descriptors to indicate done */
+	u32  last_tx_yest_done; /* too few tx descriptors to indicate done */
 	u32  tx_ring_full;     /* unable to accept msg because tx ring full */
 	u32  rx_ring_full;     /* unable to accept msg because rx ring full */
-	u32  txnobuf;          /* unable to create tx descriptor */
-	u32  rxnobuf;          /* unable to create rx descriptor */
+	u32  txyesbuf;          /* unable to create tx descriptor */
+	u32  rxyesbuf;          /* unable to create rx descriptor */
 	u32  rx_oflow;         /* count of rx overflows */
 
 	/* hardware type - FA2 or PDC/MDE */
@@ -445,8 +445,8 @@ static ssize_t pdc_debugfs_read(struct file *filp, char __user *ubuf,
 			       "PDC responses...................%u\n",
 			       pdcs->pdc_replies);
 	out_offset += snprintf(buf + out_offset, out_count - out_offset,
-			       "Tx not done.....................%u\n",
-			       pdcs->last_tx_not_done);
+			       "Tx yest done.....................%u\n",
+			       pdcs->last_tx_yest_done);
 	out_offset += snprintf(buf + out_offset, out_count - out_offset,
 			       "Tx ring full....................%u\n",
 			       pdcs->tx_ring_full);
@@ -455,10 +455,10 @@ static ssize_t pdc_debugfs_read(struct file *filp, char __user *ubuf,
 			       pdcs->rx_ring_full);
 	out_offset += snprintf(buf + out_offset, out_count - out_offset,
 			       "Tx desc write fail. Ring full...%u\n",
-			       pdcs->txnobuf);
+			       pdcs->txyesbuf);
 	out_offset += snprintf(buf + out_offset, out_count - out_offset,
 			       "Rx desc write fail. Ring full...%u\n",
-			       pdcs->rxnobuf);
+			       pdcs->rxyesbuf);
 	out_offset += snprintf(buf + out_offset, out_count - out_offset,
 			       "Receive overflow................%u\n",
 			       pdcs->rx_oflow);
@@ -483,7 +483,7 @@ static const struct file_operations pdc_debugfs_stats = {
 
 /**
  * pdc_setup_debugfs() - Create the debug FS directories. If the top-level
- * directory has not yet been created, create it now. Create a stats file in
+ * directory has yest yet been created, create it yesw. Create a stats file in
  * this directory for a SPU.
  * @pdcs: PDC state structure
  */
@@ -572,7 +572,7 @@ pdc_build_txd(struct pdc_state *pdcs, dma_addr_t dma_addr, u32 buf_len,
  * the receive buffers provided prior to submission of the request.
  *
  * Return:  PDC_SUCCESS if one or more receive descriptors was processed
- *          -EAGAIN indicates that no response message is available
+ *          -EAGAIN indicates that yes response message is available
  *          -EIO an error occurred
  */
 static int
@@ -595,7 +595,7 @@ pdc_receive_one(struct pdc_state *pdcs)
 	mssg.type = BRCM_MESSAGE_SPU;
 
 	/*
-	 * return if a complete response message is not yet ready.
+	 * return if a complete response message is yest yet ready.
 	 * rxin_numd[rxin] is the number of fragments in the next msg
 	 * to read.
 	 */
@@ -720,11 +720,11 @@ static int pdc_tx_list_sg_add(struct pdc_state *pdcs, struct scatterlist *sg)
 
 	num_desc = (u32)sg_nents(sg);
 
-	/* check whether enough tx descriptors are available */
+	/* check whether eyesugh tx descriptors are available */
 	tx_avail = pdcs->ntxpost - NTXDACTIVE(pdcs->txin, pdcs->txout,
 					      pdcs->ntxpost);
 	if (unlikely(num_desc > tx_avail)) {
-		pdcs->txnobuf++;
+		pdcs->txyesbuf++;
 		return -ENOSPC;
 	}
 
@@ -824,7 +824,7 @@ static int pdc_rx_list_init(struct pdc_state *pdcs, struct scatterlist *dst_sg,
 	rx_avail = pdcs->nrxpost - NRXDACTIVE(pdcs->rxin, pdcs->rxout,
 					      pdcs->nrxpost);
 	if (unlikely(rx_pkt_cnt > rx_avail)) {
-		pdcs->rxnobuf++;
+		pdcs->rxyesbuf++;
 		return -ENOSPC;
 	}
 
@@ -890,7 +890,7 @@ static int pdc_rx_list_sg_add(struct pdc_state *pdcs, struct scatterlist *sg)
 	rx_avail = pdcs->nrxpost - NRXDACTIVE(pdcs->rxin, pdcs->rxout,
 					      pdcs->nrxpost);
 	if (unlikely(num_desc > rx_avail)) {
-		pdcs->rxnobuf++;
+		pdcs->rxyesbuf++;
 		return -ENOSPC;
 	}
 
@@ -1119,7 +1119,7 @@ static u32 pdc_desc_count(struct scatterlist *sg)
  * @tx_cnt: The number of descriptors required in the tx ring
  * @rx_cnt: The number of descriptors required i the rx ring
  *
- * Return: true if one of the rings does not have enough space
+ * Return: true if one of the rings does yest have eyesugh space
  *         false if sufficient space is available in both rings
  */
 static bool pdc_rings_full(struct pdc_state *pdcs, int tx_cnt, int rx_cnt)
@@ -1128,7 +1128,7 @@ static bool pdc_rings_full(struct pdc_state *pdcs, int tx_cnt, int rx_cnt)
 	u32 tx_avail;
 	bool full = false;
 
-	/* Check if the tx and rx rings are likely to have enough space */
+	/* Check if the tx and rx rings are likely to have eyesugh space */
 	rx_avail = pdcs->nrxpost - NRXDACTIVE(pdcs->rxin, pdcs->rxout,
 					      pdcs->nrxpost);
 	if (unlikely(rx_cnt > rx_avail)) {
@@ -1150,9 +1150,9 @@ static bool pdc_rings_full(struct pdc_state *pdcs, int tx_cnt, int rx_cnt)
 /**
  * pdc_last_tx_done() - If both the tx and rx rings have at least
  * PDC_RING_SPACE_MIN descriptors available, then indicate that the mailbox
- * framework can submit another message.
+ * framework can submit ayesther message.
  * @chan:  mailbox channel to check
- * Return: true if PDC can accept another message on this channel
+ * Return: true if PDC can accept ayesther message on this channel
  */
 static bool pdc_last_tx_done(struct mbox_chan *chan)
 {
@@ -1161,7 +1161,7 @@ static bool pdc_last_tx_done(struct mbox_chan *chan)
 
 	if (unlikely(pdc_rings_full(pdcs, PDC_RING_SPACE_MIN,
 				    PDC_RING_SPACE_MIN))) {
-		pdcs->last_tx_not_done++;
+		pdcs->last_tx_yest_done++;
 		ret = false;
 	} else {
 		ret = true;
@@ -1187,7 +1187,7 @@ static bool pdc_last_tx_done(struct mbox_chan *chan)
  * the mailbox message.
  *
  * Return: 0 if successful
- *	   -ENOTSUPP if the mailbox message is a type this driver does not
+ *	   -ENOTSUPP if the mailbox message is a type this driver does yest
  *			support
  *         < 0 if an error
  */
@@ -1225,11 +1225,11 @@ static int pdc_send_data(struct mbox_chan *chan, void *data)
 	}
 
 	/*
-	 * Check if the tx and rx rings have enough space. Do this prior to
-	 * writing any tx or rx descriptors. Need to ensure that we do not write
+	 * Check if the tx and rx rings have eyesugh space. Do this prior to
+	 * writing any tx or rx descriptors. Need to ensure that we do yest write
 	 * a partial set of descriptors, or write just rx descriptors but
 	 * corresponding tx descriptors don't fit. Note that we want this check
-	 * and the entire sequence of descriptor to happen without another
+	 * and the entire sequence of descriptor to happen without ayesther
 	 * thread getting in. The channel spin lock in the mailbox framework
 	 * ensures this.
 	 */
@@ -1344,7 +1344,7 @@ static void pdc_hw_disable(struct pdc_state *pdcs)
  * header returned with each response message.
  * @pdcs: PDC state structure
  *
- * The metadata is not returned to the mailbox client. So the PDC driver
+ * The metadata is yest returned to the mailbox client. So the PDC driver
  * manages these buffers.
  *
  * Return: PDC_SUCCESS
@@ -1387,7 +1387,7 @@ static int pdc_interrupts_init(struct pdc_state *pdcs)
 {
 	struct platform_device *pdev = pdcs->pdev;
 	struct device *dev = &pdev->dev;
-	struct device_node *dn = pdev->dev.of_node;
+	struct device_yesde *dn = pdev->dev.of_yesde;
 	int err;
 
 	/* interrupt configuration */
@@ -1488,12 +1488,12 @@ MODULE_DEVICE_TABLE(of, pdc_mbox_of_match);
  * BCM header.
  *
  * Return: 0 if successful
- *         -ENODEV if device not available
+ *         -ENODEV if device yest available
  */
 static int pdc_dt_read(struct platform_device *pdev, struct pdc_state *pdcs)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *dn = pdev->dev.of_node;
+	struct device_yesde *dn = pdev->dev.of_yesde;
 	const struct of_device_id *match;
 	const int *hw_type;
 	int err;
@@ -1550,7 +1550,7 @@ static int pdc_probe(struct platform_device *pdev)
 
 	err = dma_set_mask_and_coherent(dev, DMA_BIT_MASK(39));
 	if (err) {
-		dev_warn(dev, "PDC device cannot perform DMA. Error %d.", err);
+		dev_warn(dev, "PDC device canyest perform DMA. Error %d.", err);
 		goto cleanup;
 	}
 
@@ -1581,7 +1581,7 @@ static int pdc_probe(struct platform_device *pdev)
 		goto cleanup_ring_pool;
 	}
 
-	/* create rx buffer pool after dt read to know how big buffers are */
+	/* create rx buffer pool after dt read to kyesw how big buffers are */
 	err = pdc_rx_buf_pool_create(pdcs);
 	if (err)
 		goto cleanup_ring_pool;

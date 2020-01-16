@@ -25,7 +25,7 @@ cast_to_nlm(__be32 status, u32 vers)
 		switch (status) {
 		case nlm_granted:
 		case nlm_lck_denied:
-		case nlm_lck_denied_nolocks:
+		case nlm_lck_denied_yeslocks:
 		case nlm_lck_blocked:
 		case nlm_lck_denied_grace_period:
 		case nlm_drop_reply:
@@ -34,7 +34,7 @@ cast_to_nlm(__be32 status, u32 vers)
 			status = nlm_lck_denied;
 			break;
 		default:
-			status = nlm_lck_denied_nolocks;
+			status = nlm_lck_denied_yeslocks;
 		}
 	}
 
@@ -59,19 +59,19 @@ nlmsvc_retrieve_args(struct svc_rqst *rqstp, struct nlm_args *argp,
 
 	/* nfsd callbacks must have been installed for this procedure */
 	if (!nlmsvc_ops)
-		return nlm_lck_denied_nolocks;
+		return nlm_lck_denied_yeslocks;
 
 	/* Obtain host handle */
 	if (!(host = nlmsvc_lookup_host(rqstp, lock->caller, lock->len))
 	 || (argp->monitor && nsm_monitor(host) < 0))
-		goto no_locks;
+		goto yes_locks;
 	*hostp = host;
 
 	/* Obtain file pointer. Not used by FREE_ALL call. */
 	if (filp != NULL) {
 		error = cast_status(nlm_lookup_file(rqstp, &file, &lock->fh));
 		if (error != 0)
-			goto no_locks;
+			goto yes_locks;
 		*filp = file;
 
 		/* Set up the missing parts of the file_lock structure */
@@ -82,17 +82,17 @@ nlmsvc_retrieve_args(struct svc_rqst *rqstp, struct nlm_args *argp,
 		if (!lock->fl.fl_owner) {
 			/* lockowner allocation has failed */
 			nlmsvc_release_host(host);
-			return nlm_lck_denied_nolocks;
+			return nlm_lck_denied_yeslocks;
 		}
 	}
 
 	return 0;
 
-no_locks:
+yes_locks:
 	nlmsvc_release_host(host);
 	if (error)
 		return error;
-	return nlm_lck_denied_nolocks;
+	return nlm_lck_denied_yeslocks;
 }
 
 /*
@@ -167,7 +167,7 @@ __nlmsvc_proc_lock(struct svc_rqst *rqstp, struct nlm_res *resp)
 	 * NB: We don't retrieve the remote host's state yet.
 	 */
 	if (host->h_nsmstate && host->h_nsmstate != argp->state) {
-		resp->status = nlm_lck_denied_nolocks;
+		resp->status = nlm_lck_denied_yeslocks;
 	} else
 #endif
 
@@ -492,10 +492,10 @@ nlmsvc_proc_free_all(struct svc_rqst *rqstp)
 }
 
 /*
- * SM_NOTIFY: private callback from statd (not part of official NLM proto)
+ * SM_NOTIFY: private callback from statd (yest part of official NLM proto)
  */
 static __be32
-nlmsvc_proc_sm_notify(struct svc_rqst *rqstp)
+nlmsvc_proc_sm_yestify(struct svc_rqst *rqstp)
 {
 	struct nlm_reboot *argp = rqstp->rq_argp;
 
@@ -533,15 +533,15 @@ nlmsvc_proc_granted_res(struct svc_rqst *rqstp)
  * NLM Server procedures.
  */
 
-#define nlmsvc_encode_norep	nlmsvc_encode_void
-#define nlmsvc_decode_norep	nlmsvc_decode_void
+#define nlmsvc_encode_yesrep	nlmsvc_encode_void
+#define nlmsvc_decode_yesrep	nlmsvc_decode_void
 #define nlmsvc_decode_testres	nlmsvc_decode_void
 #define nlmsvc_decode_lockres	nlmsvc_decode_void
 #define nlmsvc_decode_unlockres	nlmsvc_decode_void
 #define nlmsvc_decode_cancelres	nlmsvc_decode_void
 #define nlmsvc_decode_grantedres	nlmsvc_decode_void
 
-#define nlmsvc_proc_none	nlmsvc_proc_null
+#define nlmsvc_proc_yesne	nlmsvc_proc_null
 #define nlmsvc_proc_test_res	nlmsvc_proc_null
 #define nlmsvc_proc_lock_res	nlmsvc_proc_null
 #define nlmsvc_proc_cancel_res	nlmsvc_proc_null
@@ -571,24 +571,24 @@ const struct svc_procedure nlmsvc_procedures[] = {
   PROC(cancel,		cancargs,	res,		args,	res, Ck+St),
   PROC(unlock,		unlockargs,	res,		args,	res, Ck+St),
   PROC(granted,		testargs,	res,		args,	res, Ck+St),
-  PROC(test_msg,	testargs,	norep,		args,	void, 1),
-  PROC(lock_msg,	lockargs,	norep,		args,	void, 1),
-  PROC(cancel_msg,	cancargs,	norep,		args,	void, 1),
-  PROC(unlock_msg,	unlockargs,	norep,		args,	void, 1),
-  PROC(granted_msg,	testargs,	norep,		args,	void, 1),
-  PROC(test_res,	testres,	norep,		res,	void, 1),
-  PROC(lock_res,	lockres,	norep,		res,	void, 1),
-  PROC(cancel_res,	cancelres,	norep,		res,	void, 1),
-  PROC(unlock_res,	unlockres,	norep,		res,	void, 1),
-  PROC(granted_res,	res,		norep,		res,	void, 1),
+  PROC(test_msg,	testargs,	yesrep,		args,	void, 1),
+  PROC(lock_msg,	lockargs,	yesrep,		args,	void, 1),
+  PROC(cancel_msg,	cancargs,	yesrep,		args,	void, 1),
+  PROC(unlock_msg,	unlockargs,	yesrep,		args,	void, 1),
+  PROC(granted_msg,	testargs,	yesrep,		args,	void, 1),
+  PROC(test_res,	testres,	yesrep,		res,	void, 1),
+  PROC(lock_res,	lockres,	yesrep,		res,	void, 1),
+  PROC(cancel_res,	cancelres,	yesrep,		res,	void, 1),
+  PROC(unlock_res,	unlockres,	yesrep,		res,	void, 1),
+  PROC(granted_res,	res,		yesrep,		res,	void, 1),
   /* statd callback */
-  PROC(sm_notify,	reboot,		void,		reboot,	void, 1),
-  PROC(none,		void,		void,		void,	void, 1),
-  PROC(none,		void,		void,		void,	void, 1),
-  PROC(none,		void,		void,		void,	void, 1),
+  PROC(sm_yestify,	reboot,		void,		reboot,	void, 1),
+  PROC(yesne,		void,		void,		void,	void, 1),
+  PROC(yesne,		void,		void,		void,	void, 1),
+  PROC(yesne,		void,		void,		void,	void, 1),
   PROC(share,		shareargs,	shareres,	args,	res, Ck+St+1),
   PROC(unshare,		shareargs,	shareres,	args,	res, Ck+St+1),
   PROC(nm_lock,		lockargs,	res,		args,	res, Ck+St),
-  PROC(free_all,	notify,		void,		args,	void, 0),
+  PROC(free_all,	yestify,		void,		args,	void, 0),
 
 };

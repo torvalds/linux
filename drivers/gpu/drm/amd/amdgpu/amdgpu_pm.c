@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -36,7 +36,7 @@
 #include <linux/pci.h>
 #include <linux/hwmon.h>
 #include <linux/hwmon-sysfs.h>
-#include <linux/nospec.h>
+#include <linux/yesspec.h>
 #include "hwmgr.h"
 #define WIDTH_4K 3840
 
@@ -134,20 +134,20 @@ int amdgpu_dpm_read_sensor(struct amdgpu_device *adev, enum amd_pp_sensors senso
  * battery
  *
  * On older GPUs, the vbios provided a special power state for battery
- * operation.  Selecting battery switched to this state.  This is no
- * longer provided on newer GPUs so the option does nothing in that case.
+ * operation.  Selecting battery switched to this state.  This is yes
+ * longer provided on newer GPUs so the option does yesthing in that case.
  *
  * balanced
  *
  * On older GPUs, the vbios provided a special power state for balanced
- * operation.  Selecting balanced switched to this state.  This is no
- * longer provided on newer GPUs so the option does nothing in that case.
+ * operation.  Selecting balanced switched to this state.  This is yes
+ * longer provided on newer GPUs so the option does yesthing in that case.
  *
  * performance
  *
  * On older GPUs, the vbios provided a special power state for performance
- * operation.  Selecting performance switched to this state.  This is no
- * longer provided on newer GPUs so the option does nothing in that case.
+ * operation.  Selecting performance switched to this state.  This is yes
+ * longer provided on newer GPUs so the option does yesthing in that case.
  *
  */
 
@@ -267,7 +267,7 @@ fail:
  * When the profiling modes are selected, clock and power gating are
  * disabled and the clocks are set for different profiling cases. This
  * mode is recommended for profiling specific work loads where you do
- * not want clock or power gating for clock fluctuation to interfere
+ * yest want clock or power gating for clock fluctuation to interfere
  * with your results. profile_standard sets the clocks to a fixed clock
  * level which varies from asic to asic.  profile_min_sclk forces the sclk
  * to the lowest level.  profile_min_mclk forces the mclk to the lowest level.
@@ -306,7 +306,7 @@ static ssize_t amdgpu_get_dpm_forced_performance_level(struct device *dev,
 			(level == AMD_DPM_FORCED_LEVEL_PROFILE_MIN_SCLK) ? "profile_min_sclk" :
 			(level == AMD_DPM_FORCED_LEVEL_PROFILE_MIN_MCLK) ? "profile_min_mclk" :
 			(level == AMD_DPM_FORCED_LEVEL_PROFILE_PEAK) ? "profile_peak" :
-			"unknown");
+			"unkyeswn");
 }
 
 static ssize_t amdgpu_set_dpm_forced_performance_level(struct device *dev,
@@ -375,7 +375,7 @@ static ssize_t amdgpu_set_dpm_forced_performance_level(struct device *dev,
 	    AMD_DPM_FORCED_LEVEL_PROFILE_MIN_MCLK |
 	    AMD_DPM_FORCED_LEVEL_PROFILE_PEAK)) &&
 	    (level == AMD_DPM_FORCED_LEVEL_PROFILE_EXIT)) {
-		pr_err("Currently not in any profile mode!\n");
+		pr_err("Currently yest in any profile mode!\n");
 		return -EINVAL;
 	}
 
@@ -499,7 +499,7 @@ static ssize_t amdgpu_set_pp_force_state(struct device *dev,
 			count = -EINVAL;
 			goto fail;
 		}
-		idx = array_index_nospec(idx, ARRAY_SIZE(data.states));
+		idx = array_index_yesspec(idx, ARRAY_SIZE(data.states));
 
 		amdgpu_dpm_get_pp_num_states(adev, &data);
 		state = data.states[idx];
@@ -831,7 +831,7 @@ static ssize_t amdgpu_get_pp_feature_status(struct device *dev,
  *
  * will enable sclk levels 4, 5, and 6.
  *
- * NOTE: change to the dcefclk max dpm level is not supported now
+ * NOTE: change to the dcefclk max dpm level is yest supported yesw
  */
 
 static ssize_t amdgpu_get_pp_dpm_sclk(struct device *dev,
@@ -1375,7 +1375,7 @@ static ssize_t amdgpu_get_memory_busy_percent(struct device *dev,
  * The file pcie_bw is used for this.
  * The Perf counters count the number of received and sent messages and return
  * those values, as well as the maximum payload size of a PCIe packet (mps).
- * Note that it is not possible to easily and quickly obtain the size of each
+ * Note that it is yest possible to easily and quickly obtain the size of each
  * packet transmitted, so we output the max payload size (mps) to allow for
  * quick estimation of the PCIe bandwidth usage
  */
@@ -2189,7 +2189,7 @@ static ssize_t amdgpu_hwmon_show_mclk_label(struct device *dev,
  *
  * - pwm1: pulse width modulation fan level (0-255)
  *
- * - pwm1_enable: pulse width modulation fan control method (0: no fan speed control, 1: manual fan speed control using pwm interface, 2: automatic fan speed control)
+ * - pwm1_enable: pulse width modulation fan control method (0: yes fan speed control, 1: manual fan speed control using pwm interface, 2: automatic fan speed control)
  *
  * - pwm1_min: pulse width modulation fan control minimum level (0)
  *
@@ -2299,8 +2299,8 @@ static umode_t hwmon_attributes_visible(struct kobject *kobj,
 	struct amdgpu_device *adev = dev_get_drvdata(dev);
 	umode_t effective_mode = attr->mode;
 
-	/* Skip fan attributes if fan is not present */
-	if (adev->pm.no_fan && (attr == &sensor_dev_attr_pwm1.dev_attr.attr ||
+	/* Skip fan attributes if fan is yest present */
+	if (adev->pm.yes_fan && (attr == &sensor_dev_attr_pwm1.dev_attr.attr ||
 	    attr == &sensor_dev_attr_pwm1_enable.dev_attr.attr ||
 	    attr == &sensor_dev_attr_pwm1_max.dev_attr.attr ||
 	    attr == &sensor_dev_attr_pwm1_min.dev_attr.attr ||
@@ -2324,7 +2324,7 @@ static umode_t hwmon_attributes_visible(struct kobject *kobj,
 	     attr == &sensor_dev_attr_fan1_enable.dev_attr.attr))
 		return 0;
 
-	/* Skip limit attributes if DPM is not enabled */
+	/* Skip limit attributes if DPM is yest enabled */
 	if (!adev->pm.dpm_enabled &&
 	    (attr == &sensor_dev_attr_temp1_crit.dev_attr.attr ||
 	     attr == &sensor_dev_attr_temp1_crit_hyst.dev_attr.attr ||
@@ -2340,7 +2340,7 @@ static umode_t hwmon_attributes_visible(struct kobject *kobj,
 		return 0;
 
 	if (!is_support_sw_smu(adev)) {
-		/* mask fan attributes if we have no bindings for this asic to expose */
+		/* mask fan attributes if we have yes bindings for this asic to expose */
 		if ((!adev->powerplay.pp_funcs->get_fan_speed_percent &&
 		     attr == &sensor_dev_attr_pwm1.dev_attr.attr) || /* can't query fan */
 		    (!adev->powerplay.pp_funcs->get_fan_control_mode &&
@@ -2355,8 +2355,8 @@ static umode_t hwmon_attributes_visible(struct kobject *kobj,
 	}
 
 	if (((adev->flags & AMD_IS_APU) ||
-	     adev->family == AMDGPU_FAMILY_SI ||	/* not implemented yet */
-	     adev->family == AMDGPU_FAMILY_KV) &&	/* not implemented yet */
+	     adev->family == AMDGPU_FAMILY_SI ||	/* yest implemented yet */
+	     adev->family == AMDGPU_FAMILY_KV) &&	/* yest implemented yet */
 	    (attr == &sensor_dev_attr_power1_average.dev_attr.attr ||
 	     attr == &sensor_dev_attr_power1_cap_max.dev_attr.attr ||
 	     attr == &sensor_dev_attr_power1_cap_min.dev_attr.attr||
@@ -2380,8 +2380,8 @@ static umode_t hwmon_attributes_visible(struct kobject *kobj,
 			return 0;
 	}
 
-	if ((adev->family == AMDGPU_FAMILY_SI ||	/* not implemented yet */
-	     adev->family == AMDGPU_FAMILY_KV) &&	/* not implemented yet */
+	if ((adev->family == AMDGPU_FAMILY_SI ||	/* yest implemented yet */
+	     adev->family == AMDGPU_FAMILY_KV) &&	/* yest implemented yet */
 	    (attr == &sensor_dev_attr_in0_input.dev_attr.attr ||
 	     attr == &sensor_dev_attr_in0_label.dev_attr.attr))
 		return 0;
@@ -2392,7 +2392,7 @@ static umode_t hwmon_attributes_visible(struct kobject *kobj,
 	     attr == &sensor_dev_attr_in1_label.dev_attr.attr))
 		return 0;
 
-	/* no mclk on APUs */
+	/* yes mclk on APUs */
 	if ((adev->flags & AMD_IS_APU) &&
 	    (attr == &sensor_dev_attr_freq2_input.dev_attr.attr ||
 	     attr == &sensor_dev_attr_freq2_label.dev_attr.attr))
@@ -2831,7 +2831,7 @@ int amdgpu_pm_sysfs_init(struct amdgpu_device *adev)
 		return ret;
 	}
 
-	/* Arcturus does not support standalone mclk/socclk/fclk level setting */
+	/* Arcturus does yest support standalone mclk/socclk/fclk level setting */
 	if (adev->asic_type == CHIP_ARCTURUS) {
 		dev_attr_pp_dpm_mclk.attr.mode &= ~S_IWUGO;
 		dev_attr_pp_dpm_mclk.store = NULL;
@@ -2910,7 +2910,7 @@ int amdgpu_pm_sysfs_init(struct amdgpu_device *adev)
 				"gpu_busy_level\n");
 		return ret;
 	}
-	/* APU does not have its own dedicated memory */
+	/* APU does yest have its own dedicated memory */
 	if (!(adev->flags & AMD_IS_APU) &&
 	     (adev->asic_type != CHIP_VEGA10)) {
 		ret = device_create_file(adev->dev,
@@ -2921,7 +2921,7 @@ int amdgpu_pm_sysfs_init(struct amdgpu_device *adev)
 			return ret;
 		}
 	}
-	/* PCIe Perf counters won't work on APU nodes */
+	/* PCIe Perf counters won't work on APU yesdes */
 	if (!(adev->flags & AMD_IS_APU)) {
 		ret = device_create_file(adev->dev, &dev_attr_pcie_bw);
 		if (ret) {
@@ -3036,7 +3036,7 @@ void amdgpu_pm_compute_clocks(struct amdgpu_device *adev)
 				adev->pm.pm_display_cfg.num_display = adev->pm.dpm.new_active_crtc_count;
 				adev->pm.pm_display_cfg.vrefresh = amdgpu_dpm_get_vrefresh(adev);
 				adev->pm.pm_display_cfg.min_vblank_time = amdgpu_dpm_get_vblank_time(adev);
-				/* we have issues with mclk switching with refresh rates over 120 hz on the non-DC code. */
+				/* we have issues with mclk switching with refresh rates over 120 hz on the yesn-DC code. */
 				if (adev->pm.pm_display_cfg.vrefresh > 120)
 					adev->pm.pm_display_cfg.min_vblank_time = 0;
 				if (adev->powerplay.pp_funcs->display_configuration_change)
@@ -3160,8 +3160,8 @@ static void amdgpu_parse_cg_state(struct seq_file *m, u32 flags)
 
 static int amdgpu_debugfs_pm_info(struct seq_file *m, void *data)
 {
-	struct drm_info_node *node = (struct drm_info_node *) m->private;
-	struct drm_device *dev = node->minor->dev;
+	struct drm_info_yesde *yesde = (struct drm_info_yesde *) m->private;
+	struct drm_device *dev = yesde->miyesr->dev;
 	struct amdgpu_device *adev = dev->dev_private;
 	struct drm_device *ddev = adev->ddev;
 	u32 flags = 0;
@@ -3172,7 +3172,7 @@ static int amdgpu_debugfs_pm_info(struct seq_file *m, void *data)
 	seq_printf(m, "\n");
 
 	if (!adev->pm.dpm_enabled) {
-		seq_printf(m, "dpm not enabled\n");
+		seq_printf(m, "dpm yest enabled\n");
 		return 0;
 	}
 	if  ((adev->flags & AMD_IS_PX) &&
@@ -3183,7 +3183,7 @@ static int amdgpu_debugfs_pm_info(struct seq_file *m, void *data)
 		if (adev->powerplay.pp_funcs->debugfs_print_current_performance_level)
 			adev->powerplay.pp_funcs->debugfs_print_current_performance_level(adev, m);
 		else
-			seq_printf(m, "Debugfs support not implemented for this asic\n");
+			seq_printf(m, "Debugfs support yest implemented for this asic\n");
 		mutex_unlock(&adev->pm.mutex);
 	} else {
 		return amdgpu_debugfs_pm_info_pp(m, adev);

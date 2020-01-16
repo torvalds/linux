@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 #ifndef _ASM_POWERPC_AUXVEC_H
 #define _ASM_POWERPC_AUXVEC_H
 
@@ -9,7 +9,7 @@
 #define AT_DCACHEBSIZE		19
 #define AT_ICACHEBSIZE		20
 #define AT_UCACHEBSIZE		21
-/* A special ignored type value for PPC, for glibc compatibility.  */
+/* A special igyesred type value for PPC, for glibc compatibility.  */
 #define AT_IGNOREPPC		22
 
 /* The vDSO location. We have to use the same value as x86 for glibc's
@@ -36,7 +36,7 @@
  * associative, a value of 1 means directly mapped.
  *
  * For all these fields, a value of 0 means that the information
- * is not known.
+ * is yest kyeswn.
  */
 
 #define AT_L1I_CACHESIZE	40

@@ -30,7 +30,7 @@ ACPI_MODULE_NAME("processor_perflib");
 static DEFINE_MUTEX(performance_mutex);
 
 /*
- * _PPC support is implemented as a CPUfreq policy notifier:
+ * _PPC support is implemented as a CPUfreq policy yestifier:
  * This means each time a CPUfreq driver registered also with
  * the ACPI core is asked to change the speed policy, the maximum
  * value is adjusted so that it is within the platform limit.
@@ -39,15 +39,15 @@ static DEFINE_MUTEX(performance_mutex);
  * policy is adjusted accordingly.
  */
 
-/* ignore_ppc:
- * -1 -> cpufreq low level drivers not initialized -> _PSS, etc. not called yet
- *       ignore _PPC
+/* igyesre_ppc:
+ * -1 -> cpufreq low level drivers yest initialized -> _PSS, etc. yest called yet
+ *       igyesre _PPC
  *  0 -> cpufreq low level drivers initialized -> consider _PPC values
- *  1 -> ignore _PPC totally -> forced by user through boot param
+ *  1 -> igyesre _PPC totally -> forced by user through boot param
  */
-static int ignore_ppc = -1;
-module_param(ignore_ppc, int, 0644);
-MODULE_PARM_DESC(ignore_ppc, "If the frequency of your machine gets wrongly" \
+static int igyesre_ppc = -1;
+module_param(igyesre_ppc, int, 0644);
+MODULE_PARM_DESC(igyesre_ppc, "If the frequency of your machine gets wrongly" \
 		 "limited by BIOS, this should help");
 
 static bool acpi_processor_ppc_in_use;
@@ -76,7 +76,7 @@ static int acpi_processor_get_platform_limit(struct acpi_processor *pr)
 	}
 
 	pr_debug("CPU %d: _PPC is %d - frequency %s limited\n", pr->id,
-		       (int)ppc, ppc ? "" : "not");
+		       (int)ppc, ppc ? "" : "yest");
 
 	pr->performance_platform_limit = (int)ppc;
 
@@ -99,8 +99,8 @@ static int acpi_processor_get_platform_limit(struct acpi_processor *pr)
  * acpi_processor_ppc_ost: Notify firmware the _PPC evaluation status
  * @handle: ACPI processor handle
  * @status: the status code of _PPC evaluation
- *	0: success. OSPM is now using the performance state specificed.
- *	1: failure. OSPM has not changed the number of P-states in use
+ *	0: success. OSPM is yesw using the performance state specificed.
+ *	1: failure. OSPM has yest changed the number of P-states in use
  */
 static void acpi_processor_ppc_ost(acpi_handle handle, int status)
 {
@@ -113,9 +113,9 @@ void acpi_processor_ppc_has_changed(struct acpi_processor *pr, int event_flag)
 {
 	int ret;
 
-	if (ignore_ppc || !pr->performance) {
+	if (igyesre_ppc || !pr->performance) {
 		/*
-		 * Only when it is notification event, the _OST object
+		 * Only when it is yestification event, the _OST object
 		 * will be evaluated. Otherwise it is skipped.
 		 */
 		if (event_flag)
@@ -125,7 +125,7 @@ void acpi_processor_ppc_has_changed(struct acpi_processor *pr, int event_flag)
 
 	ret = acpi_processor_get_platform_limit(pr);
 	/*
-	 * Only when it is notification event, the _OST object
+	 * Only when it is yestification event, the _OST object
 	 * will be evaluated. Otherwise it is skipped.
 	 */
 	if (event_flag) {
@@ -151,10 +151,10 @@ int acpi_processor_get_bios_limit(int cpu, unsigned int *limit)
 }
 EXPORT_SYMBOL(acpi_processor_get_bios_limit);
 
-void acpi_processor_ignore_ppc_init(void)
+void acpi_processor_igyesre_ppc_init(void)
 {
-	if (ignore_ppc < 0)
-		ignore_ppc = 0;
+	if (igyesre_ppc < 0)
+		igyesre_ppc = 0;
 }
 
 void acpi_processor_ppc_init(struct cpufreq_policy *policy)
@@ -415,14 +415,14 @@ int acpi_processor_get_performance_info(struct acpi_processor *pr)
 		goto update_bios;
 
 	/* We need to call _PPC once when cpufreq starts */
-	if (ignore_ppc != 1)
+	if (igyesre_ppc != 1)
 		result = acpi_processor_get_platform_limit(pr);
 
 	return result;
 
 	/*
 	 * Having _PPC but missing frequencies (_PSS, _PCT) is a very good hint that
-	 * the BIOS is older than the CPU and does not know its frequencies
+	 * the BIOS is older than the CPU and does yest kyesw its frequencies
 	 */
  update_bios:
 #ifdef CONFIG_X86
@@ -458,7 +458,7 @@ int acpi_processor_pstate_control(void)
 	return -EIO;
 }
 
-int acpi_processor_notify_smm(struct module *calling_module)
+int acpi_processor_yestify_smm(struct module *calling_module)
 {
 	static int is_done = 0;
 	int result;
@@ -470,8 +470,8 @@ int acpi_processor_notify_smm(struct module *calling_module)
 		return -EINVAL;
 
 	/* is_done is set to negative if an error occurred,
-	 * and to postitive if _no_ error occurred, but SMM
-	 * was already notified. This avoids double notification
+	 * and to postitive if _yes_ error occurred, but SMM
+	 * was already yestified. This avoids double yestification
 	 * which might lead to unexpected results...
 	 */
 	if (is_done > 0) {
@@ -495,7 +495,7 @@ int acpi_processor_notify_smm(struct module *calling_module)
 		return result;
 	}
 
-	/* Success. If there's no _PPC, we need to fear nothing, so
+	/* Success. If there's yes _PPC, we need to fear yesthing, so
 	 * we can allow the cpufreq driver to be rmmod'ed. */
 	is_done = 1;
 
@@ -505,7 +505,7 @@ int acpi_processor_notify_smm(struct module *calling_module)
 	return 0;
 }
 
-EXPORT_SYMBOL(acpi_processor_notify_smm);
+EXPORT_SYMBOL(acpi_processor_yestify_smm);
 
 int acpi_processor_get_psd(acpi_handle handle, struct acpi_psd_package *pdomain)
 {
@@ -546,13 +546,13 @@ int acpi_processor_get_psd(acpi_handle handle, struct acpi_psd_package *pdomain)
 	}
 
 	if (pdomain->num_entries != ACPI_PSD_REV0_ENTRIES) {
-		printk(KERN_ERR PREFIX "Unknown _PSD:num_entries\n");
+		printk(KERN_ERR PREFIX "Unkyeswn _PSD:num_entries\n");
 		result = -EFAULT;
 		goto end;
 	}
 
 	if (pdomain->revision != ACPI_PSD_REV0_REVISION) {
-		printk(KERN_ERR PREFIX "Unknown _PSD:revision\n");
+		printk(KERN_ERR PREFIX "Unkyeswn _PSD:revision\n");
 		result = -EFAULT;
 		goto end;
 	}
@@ -588,7 +588,7 @@ int acpi_processor_preregister_performance(
 	mutex_lock(&performance_mutex);
 
 	/*
-	 * Check if another driver has already registered, and abort before
+	 * Check if ayesther driver has already registered, and abort before
 	 * changing pr->performance if it has. Check input data as well.
 	 */
 	for_each_possible_cpu(i) {
@@ -706,7 +706,7 @@ err_ret:
 		if (!pr || !pr->performance)
 			continue;
 
-		/* Assume no coordination on any error parsing domain info */
+		/* Assume yes coordination on any error parsing domain info */
 		if (retval) {
 			cpumask_clear(pr->performance->shared_cpu_map);
 			cpumask_set_cpu(i, pr->performance->shared_cpu_map);

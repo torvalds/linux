@@ -16,7 +16,7 @@ struct cpsw_ale_params {
 	unsigned long		ale_ports;
 	/* NU Switch has specific handling as number of bits in ALE entries
 	 * are different than other versions of ALE. Also there are specific
-	 * registers for unknown vlan specific fields. So use nu_switch_ale
+	 * registers for unkyeswn vlan specific fields. So use nu_switch_ale
 	 * to identify this hardware.
 	 */
 	bool			nu_switch_ale;

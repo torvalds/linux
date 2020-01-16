@@ -108,7 +108,7 @@ static const struct mdiobb_ops bb_ops = {
 	.get_mdio_data = mdio_read,
 };
 
-static int fs_mii_bitbang_init(struct mii_bus *bus, struct device_node *np)
+static int fs_mii_bitbang_init(struct mii_bus *bus, struct device_yesde *np)
 {
 	struct resource res;
 	const u32 *data;
@@ -124,7 +124,7 @@ static int fs_mii_bitbang_init(struct mii_bus *bus, struct device_node *np)
 
 	/* This should really encode the pin number as well, but all
 	 * we get is an int, and the odds of multiple bitbang mdio buses
-	 * is low enough that it's not worth going too crazy.
+	 * is low eyesugh that it's yest worth going too crazy.
 	 */
 	snprintf(bus->id, MII_BUS_ID_SIZE, "%x", res.start);
 
@@ -167,7 +167,7 @@ static int fs_enet_mdio_probe(struct platform_device *ofdev)
 
 	new_bus->name = "CPM2 Bitbanged MII",
 
-	ret = fs_mii_bitbang_init(new_bus, ofdev->dev.of_node);
+	ret = fs_mii_bitbang_init(new_bus, ofdev->dev.of_yesde);
 	if (ret)
 		goto out_free_bus;
 
@@ -176,7 +176,7 @@ static int fs_enet_mdio_probe(struct platform_device *ofdev)
 	new_bus->parent = &ofdev->dev;
 	platform_set_drvdata(ofdev, new_bus);
 
-	ret = of_mdiobus_register(new_bus, ofdev->dev.of_node);
+	ret = of_mdiobus_register(new_bus, ofdev->dev.of_yesde);
 	if (ret)
 		goto out_unmap_regs;
 

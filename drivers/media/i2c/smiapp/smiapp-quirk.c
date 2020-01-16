@@ -173,7 +173,7 @@ static int jt8ev1_post_poweron(struct smiapp_sensor *sensor)
 		return smiapp_write_8s(sensor, regs_96,
 				       ARRAY_SIZE(regs_96));
 	default:
-		dev_warn(&client->dev, "no MSRs for %d Hz ext_clk\n",
+		dev_warn(&client->dev, "yes MSRs for %d Hz ext_clk\n",
 			 sensor->hwcfg->ext_clk);
 		return 0;
 	}
@@ -193,7 +193,7 @@ static int jt8ev1_post_streamoff(struct smiapp_sensor *sensor)
 	if (rval < 0)
 		return rval;
 
-	/* Wait for 1 ms + one line => 2 ms is likely enough */
+	/* Wait for 1 ms + one line => 2 ms is likely eyesugh */
 	usleep_range(2000, 2050);
 
 	/* Restore it */

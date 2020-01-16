@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -221,9 +221,9 @@ static void update_mqd(struct mqd_manager *mm, void *mqd,
 		1 << CP_HQD_IB_CONTROL__IB_EXE_DISABLE__SHIFT;
 
 	/*
-	 * HW does not clamp this field correctly. Maximum EOP queue size
+	 * HW does yest clamp this field correctly. Maximum EOP queue size
 	 * is constrained by per-SE EOP done signal count, which is 8-bit.
-	 * Limit is 0xFF EOP entries (= 0x7F8 dwords). CP will not submit
+	 * Limit is 0xFF EOP entries (= 0x7F8 dwords). CP will yest submit
 	 * more than (EOP entry count - 1) so a queue size of 0x800 dwords
 	 * is safe, giving a maximum field value of 0xA.
 	 */
@@ -391,7 +391,7 @@ static void update_mqd_sdma(struct mqd_manager *mm, void *mqd,
 }
 
 /*
- *  * preempt type here is ignored because there is only one way
+ *  * preempt type here is igyesred because there is only one way
  *  * to preempt sdma queue
  */
 static int destroy_mqd_sdma(struct mqd_manager *mm, void *mqd,

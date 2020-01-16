@@ -17,7 +17,7 @@
 #include <linux/ioport.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/init.h>
 #include <linux/timer.h>
 #include <linux/list.h>
@@ -66,17 +66,17 @@ static void ep_bd_list_free(struct bdc_ep *ep, u32 num_tabs)
 	for (index = 0; index < num_tabs; index++) {
 		/*
 		 * check if the bd_table struct is allocated ?
-		 * if yes, then check if bd memory has been allocated, then
+		 * if no, then check if bd memory has been allocated, then
 		 * free the dma_pool and also the bd_table struct memory
 		*/
 		bd_table = bd_list->bd_table_array[index];
 		dev_dbg(bdc->dev, "bd_table:%p index:%d\n", bd_table, index);
 		if (!bd_table) {
-			dev_dbg(bdc->dev, "bd_table not allocated\n");
+			dev_dbg(bdc->dev, "bd_table yest allocated\n");
 			continue;
 		}
 		if (!bd_table->start_bd) {
-			dev_dbg(bdc->dev, "bd dma pool not allocated\n");
+			dev_dbg(bdc->dev, "bd dma pool yest allocated\n");
 			continue;
 		}
 
@@ -173,7 +173,7 @@ static int ep_bd_list_alloc(struct bdc_ep *ep)
 		prev_table = bd_table;
 	}
 	chain_table(prev_table, ep->bd_list.bd_table_array[0], bd_p_tab);
-	/* Memory allocation is successful, now init the internal fields */
+	/* Memory allocation is successful, yesw init the internal fields */
 	ep->bd_list.num_tabs = num_tabs;
 	ep->bd_list.max_bdi  = (num_tabs * bd_p_tab) - 1;
 	ep->bd_list.num_tabs = num_tabs;
@@ -244,10 +244,10 @@ static int bd_add_to_bdi(struct bdc_ep *ep, dma_addr_t bd_dma_addr)
 		}
 	}
 	if (unlikely(!found)) {
-		dev_err(bdc->dev, "%s FATAL err, bd not found\n", __func__);
+		dev_err(bdc->dev, "%s FATAL err, bd yest found\n", __func__);
 		return -EINVAL;
 	}
-	/* Now we know the table, find the bdi */
+	/* Now we kyesw the table, find the bdi */
 	bdi = (bd_dma_addr - dma_first_bd) / sizeof(struct bdc_bd);
 
 	/* return the global bdi, to compare with ep eqp_bdi */
@@ -282,7 +282,7 @@ static inline int find_end_bdi(struct bdc_ep *ep, int next_hwd_bdi)
 }
 
 /*
- * How many transfer bd's are available on this ep bdl, chain bds are not
+ * How many transfer bd's are available on this ep bdl, chain bds are yest
  * counted in available bds
  */
 static int bd_available_ep(struct bdc_ep *ep)
@@ -338,7 +338,7 @@ static int bd_available_ep(struct bdc_ep *ep)
 }
 
 /* Notify the hardware after queueing the bd to bdl */
-void bdc_notify_xfr(struct bdc *bdc, u32 epnum)
+void bdc_yestify_xfr(struct bdc *bdc, u32 epnum)
 {
 	struct bdc_ep *ep = bdc->bdc_ep_array[epnum];
 
@@ -413,7 +413,7 @@ static int setup_first_bd_ep0(struct bdc *bdc, struct bdc_req *req, u32 *dword3)
 		break;
 	default:
 		dev_err(bdc->dev,
-			"Unknown ep0 state for queueing bd ep0_state:%s\n",
+			"Unkyeswn ep0 state for queueing bd ep0_state:%s\n",
 			ep0_state_string[bdc->ep0_state]);
 		return -EINVAL;
 	}
@@ -499,7 +499,7 @@ static int setup_bd_list_xfr(struct bdc *bdc, struct bdc_req *req, int num_bds)
 	/* the new eqp will be next hw dqp */
 	bd_xfr->num_bds  = num_bds;
 	bd_xfr->next_hwd_bdi = ep->bd_list.eqp_bdi;
-	/* everything is written correctly before notifying the HW */
+	/* everything is written correctly before yestifying the HW */
 	wmb();
 
 	return 0;
@@ -529,7 +529,7 @@ static int bdc_queue_xfr(struct bdc *bdc, struct bdc_req *req)
 		return ret;
 	list_add_tail(&req->queue, &ep->queue);
 	bdc_dbg_bd_list(bdc, ep);
-	bdc_notify_xfr(bdc, ep->ep_num);
+	bdc_yestify_xfr(bdc, ep->ep_num);
 
 	return 0;
 }
@@ -584,7 +584,7 @@ int bdc_ep_disable(struct bdc_ep *ep)
 			"dconfig fail but continue with memory free");
 
 	ep->flags = 0;
-	/* ep0 memory is not freed, but reused on next connect sr */
+	/* ep0 memory is yest freed, but reused on next connect sr */
 	if (ep->ep_num == 1)
 		return 0;
 
@@ -761,7 +761,7 @@ static int ep_dequeue(struct bdc_ep *ep, struct bdc_req *req)
 						ep, (void *)ep->usb_ep.desc);
 	/* Stop the ep to see where the HW is ? */
 	ret = bdc_stop_ep(bdc, ep->ep_num);
-	/* if there is an issue with stopping ep, then no need to go further */
+	/* if there is an issue with stopping ep, then yes need to go further */
 	if (ret)
 		return 0;
 
@@ -807,7 +807,7 @@ static int ep_dequeue(struct bdc_ep *ep, struct bdc_req *req)
 		"start_pending:%d end_pending:%d speed:%d\n",
 		start_pending, end_pending, bdc->gadget.speed);
 
-	/* If both start till end are processes, we cannot deq req */
+	/* If both start till end are processes, we canyest deq req */
 	if (!start_pending && !end_pending)
 		return -EINVAL;
 
@@ -910,7 +910,7 @@ void bdc_free_ep(struct bdc *bdc)
 		if (ep->flags & BDC_EP_ENABLED)
 			ep_bd_list_free(ep, ep->bd_list.num_tabs);
 
-		/* ep0 is not in this gadget list */
+		/* ep0 is yest in this gadget list */
 		if (epnum != 1)
 			list_del(&ep->usb_ep.ep_list);
 
@@ -963,14 +963,14 @@ static void handle_xsr_succ_status(struct bdc *bdc, struct bdc_ep *ep,
 
 	dev_dbg(bdc->dev, "%s  ep:%p\n", __func__, ep);
 	bdc_dbg_srr(bdc, 0);
-	/* do not process thie sr if ignore flag is set */
-	if (ep->ignore_next_sr) {
-		ep->ignore_next_sr = false;
+	/* do yest process thie sr if igyesre flag is set */
+	if (ep->igyesre_next_sr) {
+		ep->igyesre_next_sr = false;
 		return;
 	}
 
 	if (unlikely(list_empty(&ep->queue))) {
-		dev_warn(bdc->dev, "xfr srr with no BD's queued\n");
+		dev_warn(bdc->dev, "xfr srr with yes BD's queued\n");
 		return;
 	}
 	req = list_entry(ep->queue.next, struct bdc_req,
@@ -999,7 +999,7 @@ static void handle_xsr_succ_status(struct bdc *bdc, struct bdc_ep *ep,
 
 		start_bdi =  bd_xfr->start_bdi;
 		/*
-		 * We know the start_bdi and short_bdi, how many xfr
+		 * We kyesw the start_bdi and short_bdi, how many xfr
 		 * bds in between
 		 */
 		if (start_bdi <= short_bdi) {
@@ -1024,7 +1024,7 @@ static void handle_xsr_succ_status(struct bdc *bdc, struct bdc_ep *ep,
 		/* max_len_bds is the number of full length bds */
 		end_bdi = find_end_bdi(ep, bd_xfr->next_hwd_bdi);
 		if (!(end_bdi == short_bdi))
-			ep->ignore_next_sr = true;
+			ep->igyesre_next_sr = true;
 
 		actual_length = max_len_bds * BD_MAX_BUFF_SIZE;
 		short_bd = bdi_to_bd(ep, short_bdi);
@@ -1047,7 +1047,7 @@ static void handle_xsr_succ_status(struct bdc *bdc, struct bdc_ep *ep,
 	ep->bd_list.hwd_bdi = bd_xfr->next_hwd_bdi;
 	if (req->usb_req.actual < req->usb_req.length) {
 		dev_dbg(bdc->dev, "short xfr on %d\n", ep->ep_num);
-		if (req->usb_req.short_not_ok)
+		if (req->usb_req.short_yest_ok)
 			status = -EREMOTEIO;
 	}
 	bdc_req_complete(ep, bd_xfr->req, status);
@@ -1216,7 +1216,7 @@ static int ep0_handle_feature_dev(struct bdc *bdc, u16 wValue,
 			return -EINVAL;
 		break;
 	default:
-		dev_err(bdc->dev, "Unknown wValue:%d\n", wValue);
+		dev_err(bdc->dev, "Unkyeswn wValue:%d\n", wValue);
 		return -EOPNOTSUPP;
 	} /* USB_RECIP_DEVICE end */
 
@@ -1291,7 +1291,7 @@ static int ep0_handle_feature(struct bdc *bdc,
 
 		return ep_set_halt(ep, set);
 	default:
-		dev_err(bdc->dev, "Unknown recipient\n");
+		dev_err(bdc->dev, "Unkyeswn recipient\n");
 		return -EINVAL;
 	}
 
@@ -1361,7 +1361,7 @@ static int ep0_handle_status(struct bdc *bdc,
 
 		break;
 	default:
-		dev_err(bdc->dev, "Unknown recipient for get_status\n");
+		dev_err(bdc->dev, "Unkyeswn recipient for get_status\n");
 		return -EINVAL;
 	}
 	/* prepare a data stage for GET_STATUS */
@@ -1485,7 +1485,7 @@ static int handle_control_request(struct bdc *bdc)
 
 		case USB_REQ_SET_ISOCH_DELAY:
 			dev_warn(bdc->dev,
-			"USB_REQ_SET_ISOCH_DELAY not handled\n");
+			"USB_REQ_SET_ISOCH_DELAY yest handled\n");
 			ret = 0;
 			break;
 		default:
@@ -1520,7 +1520,7 @@ void bdc_xsf_ep0_data_start(struct bdc *bdc, struct bdc_sr *sreport)
 	}
 	if (bdc->ep0_state != WAIT_FOR_DATA_START)
 		dev_warn(bdc->dev,
-			"Data stage not expected ep0_state:%s\n",
+			"Data stage yest expected ep0_state:%s\n",
 			ep0_state_string[bdc->ep0_state]);
 
 	ret = handle_control_request(bdc);
@@ -1575,7 +1575,7 @@ void bdc_xsf_ep0_status_start(struct bdc *bdc, struct bdc_sr *sreport)
 		bdc->ep0_state = STATUS_PENDING;
 		/* Status stage will be queued upon Data stage transmit event */
 		dev_dbg(bdc->dev,
-			"status started but data  not transmitted yet\n");
+			"status started but data  yest transmitted yet\n");
 		return;
 	}
 	setup_pkt = &bdc->setup_pkt;
@@ -1632,7 +1632,7 @@ static void ep0_xsf_complete(struct bdc *bdc, struct bdc_sr *sreport)
 
 	default:
 		dev_err(bdc->dev,
-			"Unknown ep0_state:%s\n",
+			"Unkyeswn ep0_state:%s\n",
 			ep0_state_string[bdc->ep0_state]);
 
 	}
@@ -1648,7 +1648,7 @@ void bdc_sr_xsf(struct bdc *bdc, struct bdc_sr *sreport)
 	ep_num = (le32_to_cpu(sreport->offset[3])>>4) & 0x1f;
 	ep = bdc->bdc_ep_array[ep_num];
 	if (!ep || !(ep->flags & BDC_EP_ENABLED)) {
-		dev_err(bdc->dev, "xsf for ep not enabled\n");
+		dev_err(bdc->dev, "xsf for ep yest enabled\n");
 		return;
 	}
 	/*
@@ -1677,7 +1677,7 @@ void bdc_sr_xsf(struct bdc *bdc, struct bdc_sr *sreport)
 	case XSF_STATUS_START:
 		if (ep_num != 1) {
 			dev_err(bdc->dev,
-				"ep0 related packets on non ep0 endpoint");
+				"ep0 related packets on yesn ep0 endpoint");
 			return;
 		}
 		bdc->sr_xsf_ep0[sr_status - XSF_SETUP_RECV](bdc, sreport);
@@ -1697,10 +1697,10 @@ void bdc_sr_xsf(struct bdc *bdc, struct bdc_sr *sreport)
 				return;
 			}
 		}
-		dev_warn(bdc->dev, "Babble on ep not handled\n");
+		dev_warn(bdc->dev, "Babble on ep yest handled\n");
 		break;
 	default:
-		dev_warn(bdc->dev, "sr status not handled:%x\n", sr_status);
+		dev_warn(bdc->dev, "sr status yest handled:%x\n", sr_status);
 		break;
 	}
 }
@@ -1868,7 +1868,7 @@ static int bdc_gadget_ep_enable(struct usb_ep *_ep,
 	ep = to_bdc_ep(_ep);
 	bdc = ep->bdc;
 
-	/* Sanity check, upper layer will not send enable for ep0 */
+	/* Sanity check, upper layer will yest send enable for ep0 */
 	if (ep == bdc->bdc_ep_array[1])
 		return -EINVAL;
 
@@ -1901,7 +1901,7 @@ static int bdc_gadget_ep_disable(struct usb_ep *_ep)
 	ep = to_bdc_ep(_ep);
 	bdc = ep->bdc;
 
-	/* Upper layer will not call this for ep0, but do a sanity check */
+	/* Upper layer will yest call this for ep0, but do a sanity check */
 	if (ep == bdc->bdc_ep_array[1]) {
 		dev_warn(bdc->dev, "%s called for ep0\n", __func__);
 		return -EINVAL;
@@ -1978,7 +1978,7 @@ static int init_ep(struct bdc *bdc, u32 epnum, u32 dir)
 	ep->usb_ep.ops = &bdc_gadget_ep_ops;
 	ep->usb_ep.name = ep->name;
 	ep->flags = 0;
-	ep->ignore_next_sr = false;
+	ep->igyesre_next_sr = false;
 	dev_dbg(bdc->dev, "ep=%p ep->usb_ep.name=%s epnum=%d ep->epnum=%d\n",
 				ep, ep->usb_ep.name, epnum, ep->ep_num);
 

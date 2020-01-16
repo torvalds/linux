@@ -39,8 +39,8 @@ enum {
 
 /* SCSMR (Serial Mode Register) */
 #define SCSMR_C_A	BIT(7)	/* Communication Mode */
-#define SCSMR_CSYNC	BIT(7)	/*   - Clocked synchronous mode */
-#define SCSMR_ASYNC	0	/*   - Asynchronous mode */
+#define SCSMR_CSYNC	BIT(7)	/*   - Clocked synchroyesus mode */
+#define SCSMR_ASYNC	0	/*   - Asynchroyesus mode */
 #define SCSMR_CHR	BIT(6)	/* 7-bit Character Length */
 #define SCSMR_PE	BIT(5)	/* Parity Enable */
 #define SCSMR_ODD	BIT(4)	/* Odd Parity */

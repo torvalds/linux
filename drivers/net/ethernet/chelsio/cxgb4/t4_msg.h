@@ -14,11 +14,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -379,7 +379,7 @@ struct tcp_options {
 	__u8 wsf;
 #if defined(__LITTLE_ENDIAN_BITFIELD)
 	__u8:4;
-	__u8 unknown:1;
+	__u8 unkyeswn:1;
 	__u8:1;
 	__u8 sack:1;
 	__u8 tstamp:1;
@@ -387,7 +387,7 @@ struct tcp_options {
 	__u8 tstamp:1;
 	__u8 sack:1;
 	__u8:1;
-	__u8 unknown:1;
+	__u8 unkyeswn:1;
 	__u8:4;
 #endif
 };
@@ -901,7 +901,7 @@ struct cpl_tx_pkt_lso_core {
 	__be32 lso_ctrl;
 	__be16 ipid_ofst;
 	__be16 mss;
-	__be32 seqno_offset;
+	__be32 seqyes_offset;
 	__be32 len;
 	/* encapsulated CPL (TX_PKT, TX_PKT_XT or TX_DATA) follows here */
 };
@@ -1944,7 +1944,7 @@ struct cpl_tx_sec_pdu {
 	__be32 pldlen;
 	__be32 aadstart_cipherstop_hi;
 	__be32 cipherstop_lo_authinsert;
-	__be32 seqno_numivs;
+	__be32 seqyes_numivs;
 	__be32 ivgen_hdrlen;
 	__be64 scmd1;
 };
@@ -2082,7 +2082,7 @@ struct cpl_tx_sec_pdu {
 
 struct cpl_rx_phys_dsgl {
 	__be32 op_to_tid;
-	__be32 pcirlxorder_to_noofsgentr;
+	__be32 pcirlxorder_to_yesofsgentr;
 	struct rss_header rss_hdr_int;
 };
 
@@ -2229,7 +2229,7 @@ struct cpl_tx_tls_sfo {
 	__be32 pld_len;
 	__be32 type_protover;
 	__be32 r1_lo;
-	__be32 seqno_numivs;
+	__be32 seqyes_numivs;
 	__be32 ivgen_hdrlen;
 	__be64 scmd1;
 };

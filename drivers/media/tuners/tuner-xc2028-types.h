@@ -26,7 +26,7 @@
  */
 #define MTS		(1<<2)
 
-/* FIXME: I have no idea what's the difference between
+/* FIXME: I have yes idea what's the difference between
    D2620 and D2633 firmwares
  */
 #define D2620		(1<<3)
@@ -56,14 +56,14 @@
 
 
 /* LCD firmwares exist only for MTS STD/MN (PAL or NTSC/M)
-	and for non-MTS STD/MN (PAL, NTSC/M or NTSC/Kr)
+	and for yesn-MTS STD/MN (PAL, NTSC/M or NTSC/Kr)
 	There are variants both with and without NOGD
 	Those firmwares produce better result with LCD displays
  */
 #define LCD		(1<<12)
 
 /* NOGD firmwares exist only for MTS STD/MN (PAL or NTSC/M)
-	and for non-MTS STD/MN (PAL, NTSC/M or NTSC/Kr)
+	and for yesn-MTS STD/MN (PAL, NTSC/M or NTSC/Kr)
 	The NOGD firmwares don't have group delay compensation filter
  */
 #define NOGD		(1<<13)
@@ -91,17 +91,17 @@
 /* This flag identifies that the scode table has a new format */
 #define HAS_IF         (1 << 30)
 
-/* There are different scode tables for MTS and non-MTS.
-   The MTS firmwares support mono only
+/* There are different scode tables for MTS and yesn-MTS.
+   The MTS firmwares support moyes only
   */
 #define SCODE_TYPES (SCODE | MTS)
 
 
-/* Newer types not defined on videodev2.h.
+/* Newer types yest defined on videodev2.h.
    The original idea were to move all those types to videodev2.h, but
    it seemed overkill, since, with the exception of SECAM/K3, the other
    types seem to be autodetected.
-   It is not clear where secam/k3 is used, nor we have a feedback of this
+   It is yest clear where secam/k3 is used, yesr we have a feedback of this
    working or being autodetected by the standard secam firmware.
  */
 

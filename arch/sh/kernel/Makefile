@@ -6,7 +6,7 @@
 extra-y	:= head_$(BITS).o vmlinux.lds
 
 ifdef CONFIG_FUNCTION_TRACER
-# Do not profile debug and lowlevel utilities
+# Do yest profile debug and lowlevel utilities
 CFLAGS_REMOVE_ftrace.o = -pg
 endif
 

@@ -6,7 +6,7 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/arm-smccc.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/io.h>
 #include <linux/module.h>
 #include <linux/of.h>
@@ -271,7 +271,7 @@ static void optee_release(struct tee_context *ctx)
 		 * If va2pa fails for some reason, we can't call into
 		 * secure world, only free the memory. Secure OS will leak
 		 * sessions and finally refuse more sessions, but we will
-		 * at least let normal world reclaim its memory.
+		 * at least let yesrmal world reclaim its memory.
 		 */
 		if (!IS_ERR(arg))
 			if (tee_shm_va2pa(shm, arg, &parg))
@@ -279,8 +279,8 @@ static void optee_release(struct tee_context *ctx)
 	}
 
 	list_for_each_entry_safe(sess, sess_tmp, &ctxdata->sess_list,
-				 list_node) {
-		list_del(&sess->list_node);
+				 list_yesde) {
+		list_del(&sess->list_yesde);
 		if (!IS_ERR_OR_NULL(arg)) {
 			memset(arg, 0, sizeof(*arg));
 			arg->cmd = OPTEE_MSG_CMD_CLOSE_SESSION;
@@ -363,9 +363,9 @@ static void optee_msg_get_os_revision(optee_invoke_fn *invoke_fn)
 
 	if (res.result.build_id)
 		pr_info("revision %lu.%lu (%08lx)", res.result.major,
-			res.result.minor, res.result.build_id);
+			res.result.miyesr, res.result.build_id);
 	else
-		pr_info("revision %lu.%lu", res.result.major, res.result.minor);
+		pr_info("revision %lu.%lu", res.result.major, res.result.miyesr);
 }
 
 static bool optee_msg_api_revision_is_compatible(optee_invoke_fn *invoke_fn)
@@ -378,7 +378,7 @@ static bool optee_msg_api_revision_is_compatible(optee_invoke_fn *invoke_fn)
 	invoke_fn(OPTEE_SMC_CALLS_REVISION, 0, 0, 0, 0, 0, 0, 0, &res.smccc);
 
 	if (res.result.major == OPTEE_MSG_REVISION_MAJOR &&
-	    (int)res.result.minor >= OPTEE_MSG_REVISION_MINOR)
+	    (int)res.result.miyesr >= OPTEE_MSG_REVISION_MINOR)
 		return true;
 	return false;
 }
@@ -393,8 +393,8 @@ static bool optee_msg_exchange_capabilities(optee_invoke_fn *invoke_fn,
 	u32 a1 = 0;
 
 	/*
-	 * TODO This isn't enough to tell if it's UP system (from kernel
-	 * point of view) or not, is_smp() returns the the information
+	 * TODO This isn't eyesugh to tell if it's UP system (from kernel
+	 * point of view) or yest, is_smp() returns the the information
 	 * needed, but can't be called directly from here.
 	 */
 	if (!IS_ENABLED(CONFIG_SMP) || nr_cpu_ids == 1)
@@ -457,12 +457,12 @@ optee_config_shm_memremap(optee_invoke_fn *invoke_fn, void **memremaped_shm)
 
 	invoke_fn(OPTEE_SMC_GET_SHM_CONFIG, 0, 0, 0, 0, 0, 0, 0, &res.smccc);
 	if (res.result.status != OPTEE_SMC_RETURN_OK) {
-		pr_err("static shm service not available\n");
+		pr_err("static shm service yest available\n");
 		return ERR_PTR(-ENOENT);
 	}
 
 	if (res.result.settings != OPTEE_SMC_SHM_CACHED) {
-		pr_err("only normal cached shared memory supported\n");
+		pr_err("only yesrmal cached shared memory supported\n");
 		return ERR_PTR(-EINVAL);
 	}
 
@@ -534,7 +534,7 @@ static void optee_smccc_hvc(unsigned long a0, unsigned long a1,
 	arm_smccc_hvc(a0, a1, a2, a3, a4, a5, a6, a7, res);
 }
 
-static optee_invoke_fn *get_invoke_func(struct device_node *np)
+static optee_invoke_fn *get_invoke_func(struct device_yesde *np)
 {
 	const char *method;
 
@@ -554,7 +554,7 @@ static optee_invoke_fn *get_invoke_func(struct device_node *np)
 	return ERR_PTR(-EINVAL);
 }
 
-static struct optee *optee_probe(struct device_node *np)
+static struct optee *optee_probe(struct device_yesde *np)
 {
 	optee_invoke_fn *invoke_fn;
 	struct tee_shm_pool *pool = ERR_PTR(-EINVAL);
@@ -592,7 +592,7 @@ static struct optee *optee_probe(struct device_node *np)
 		pool = optee_config_dyn_shm();
 
 	/*
-	 * If dynamic shared memory is not available or failed - try static one
+	 * If dynamic shared memory is yest available or failed - try static one
 	 */
 	if (IS_ERR(pool) && (sec_caps & OPTEE_SMC_SEC_CAP_HAVE_RESERVED_SHM))
 		pool = optee_config_shm_memremap(invoke_fn, &memremaped_shm);
@@ -697,24 +697,24 @@ static struct optee *optee_svc;
 
 static int __init optee_driver_init(void)
 {
-	struct device_node *fw_np = NULL;
-	struct device_node *np = NULL;
+	struct device_yesde *fw_np = NULL;
+	struct device_yesde *np = NULL;
 	struct optee *optee = NULL;
 	int rc = 0;
 
 	/* Node is supposed to be below /firmware */
-	fw_np = of_find_node_by_name(NULL, "firmware");
+	fw_np = of_find_yesde_by_name(NULL, "firmware");
 	if (!fw_np)
 		return -ENODEV;
 
-	np = of_find_matching_node(fw_np, optee_match);
+	np = of_find_matching_yesde(fw_np, optee_match);
 	if (!np || !of_device_is_available(np)) {
-		of_node_put(np);
+		of_yesde_put(np);
 		return -ENODEV;
 	}
 
 	optee = optee_probe(np);
-	of_node_put(np);
+	of_yesde_put(np);
 
 	if (IS_ERR(optee))
 		return PTR_ERR(optee);

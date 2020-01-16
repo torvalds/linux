@@ -20,7 +20,7 @@
 	};
 
 	chosen {
-		bootargs = "ignore_loglevel rw root=/dev/nfs ip=on";
+		bootargs = "igyesre_loglevel rw root=/dev/nfs ip=on";
 		stdout-path = "serial0:115200n8";
 	};
 
@@ -382,7 +382,7 @@
 
 	vmmc-supply = <&wlan_en_reg>;
 	bus-width = <4>;
-	non-removable;
+	yesn-removable;
 	cap-power-off-card;
 	keep-power-in-suspend;
 
@@ -397,7 +397,7 @@
 };
 
 &usb2_phy0 {
-	renesas,no-otg-pins;
+	renesas,yes-otg-pins;
 	status = "okay";
 };
 

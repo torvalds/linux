@@ -62,7 +62,7 @@ static int reg_reqs(struct gspca_dev *gspca_dev,
 
 		if (gspca_dev->usb_err < 0) {
 
-			gspca_err(gspca_dev, "usb error request no: %d / %d\n",
+			gspca_err(gspca_dev, "usb error request yes: %d / %d\n",
 				  i, n_reqs);
 		} else if (preq->bRequestType & USB_DIR_IN) {
 
@@ -228,7 +228,7 @@ static int dtcs033_init_controls(struct gspca_dev *gspca_dev)
 				V4L2_CID_GAIN,
 				14,  33,  1,  24);/* [dB] */
 	if (hdl->error) {
-		gspca_err(gspca_dev, "Could not initialize controls: %d\n",
+		gspca_err(gspca_dev, "Could yest initialize controls: %d\n",
 			  hdl->error);
 		return hdl->error;
 	}

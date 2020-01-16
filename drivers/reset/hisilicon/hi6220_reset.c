@@ -94,7 +94,7 @@ static const struct reset_control_ops hi6220_media_reset_ops = {
 
 static int hi6220_reset_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	struct device *dev = &pdev->dev;
 	enum hi6220_reset_ctrl_type type;
 	struct hi6220_reset_data *data;
@@ -106,14 +106,14 @@ static int hi6220_reset_probe(struct platform_device *pdev)
 
 	type = (enum hi6220_reset_ctrl_type)of_device_get_match_data(dev);
 
-	regmap = syscon_node_to_regmap(np);
+	regmap = syscon_yesde_to_regmap(np);
 	if (IS_ERR(regmap)) {
 		dev_err(dev, "failed to get reset controller regmap\n");
 		return PTR_ERR(regmap);
 	}
 
 	data->regmap = regmap;
-	data->rc_dev.of_node = np;
+	data->rc_dev.of_yesde = np;
 	if (type == MEDIA) {
 		data->rc_dev.ops = &hi6220_media_reset_ops;
 		data->rc_dev.nr_resets = MEDIA_MAX_INDEX;

@@ -35,7 +35,7 @@ static const char igbvf_copyright[] =
 #define DEFAULT_MSG_ENABLE (NETIF_MSG_DRV|NETIF_MSG_PROBE|NETIF_MSG_LINK)
 static int debug = -1;
 module_param(debug, int, 0);
-MODULE_PARM_DESC(debug, "Debug level (0=none,...,16=all)");
+MODULE_PARM_DESC(debug, "Debug level (0=yesne,...,16=all)");
 
 static int igbvf_poll(struct napi_struct *napi, int budget);
 static void igbvf_reset(struct igbvf_adapter *);
@@ -77,7 +77,7 @@ static int igbvf_desc_unused(struct igbvf_ring *ring)
  * igbvf_receive_skb - helper function to handle Rx indications
  * @adapter: board private structure
  * @status: descriptor status field as written by hardware
- * @vlan: descriptor vlan field as written by hardware (no le/be conversion)
+ * @vlan: descriptor vlan field as written by hardware (yes le/be conversion)
  * @skb: pointer to sk_buff to be indicated to stack
  **/
 static void igbvf_receive_skb(struct igbvf_adapter *adapter,
@@ -103,9 +103,9 @@ static void igbvf_receive_skb(struct igbvf_adapter *adapter,
 static inline void igbvf_rx_checksum_adv(struct igbvf_adapter *adapter,
 					 u32 status_err, struct sk_buff *skb)
 {
-	skb_checksum_none_assert(skb);
+	skb_checksum_yesne_assert(skb);
 
-	/* Ignore Checksum bit is set or checksum is disabled through ethtool */
+	/* Igyesre Checksum bit is set or checksum is disabled through ethtool */
 	if ((status_err & E1000_RXD_STAT_IXSM) ||
 	    (adapter->flags & IGBVF_FLAG_RX_CSUM_DISABLED))
 		return;
@@ -158,7 +158,7 @@ static void igbvf_alloc_rx_buffers(struct igbvf_ring *rx_ring,
 				buffer_info->page = alloc_page(GFP_ATOMIC);
 				if (!buffer_info->page) {
 					adapter->alloc_rx_buff_failed++;
-					goto no_buffers;
+					goto yes_buffers;
 				}
 				buffer_info->page_offset = 0;
 			} else {
@@ -182,7 +182,7 @@ static void igbvf_alloc_rx_buffers(struct igbvf_ring *rx_ring,
 			skb = netdev_alloc_skb_ip_align(netdev, bufsz);
 			if (!skb) {
 				adapter->alloc_rx_buff_failed++;
-				goto no_buffers;
+				goto yes_buffers;
 			}
 
 			buffer_info->skb = skb;
@@ -193,7 +193,7 @@ static void igbvf_alloc_rx_buffers(struct igbvf_ring *rx_ring,
 				dev_kfree_skb(buffer_info->skb);
 				buffer_info->skb = NULL;
 				dev_err(&pdev->dev, "RX DMA map failed\n");
-				goto no_buffers;
+				goto yes_buffers;
 			}
 		}
 		/* Refresh the desc even if buffer_addrs didn't change because
@@ -214,7 +214,7 @@ static void igbvf_alloc_rx_buffers(struct igbvf_ring *rx_ring,
 		buffer_info = &rx_ring->buffer_info[i];
 	}
 
-no_buffers:
+yes_buffers:
 	if (rx_ring->next_to_use != i) {
 		rx_ring->next_to_use = i;
 		if (i == 0)
@@ -223,7 +223,7 @@ no_buffers:
 			i--;
 
 		/* Force memory writes to complete before letting h/w
-		 * know there are new descriptors to fetch.  (Only
+		 * kyesw there are new descriptors to fetch.  (Only
 		 * applicable for weak-ordered memory model archs,
 		 * such as IA-64).
 		*/
@@ -237,7 +237,7 @@ no_buffers:
  * @adapter: board private structure
  *
  * the return value indicates whether actual cleaning was done, there
- * is no guarantee that everything was cleaned
+ * is yes guarantee that everything was cleaned
  **/
 static bool igbvf_clean_rx_irq(struct igbvf_adapter *adapter,
 			       int *work_done, int work_to_do)
@@ -266,7 +266,7 @@ static bool igbvf_clean_rx_irq(struct igbvf_adapter *adapter,
 
 		buffer_info = &rx_ring->buffer_info[i];
 
-		/* HW will not DMA in data larger than the given buffer, even
+		/* HW will yest DMA in data larger than the given buffer, even
 		 * if it parses the (NFS, of course) header to be larger.  In
 		 * that case, it fills the header buffer and spills the rest
 		 * into the page.
@@ -782,14 +782,14 @@ static bool igbvf_clean_tx_irq(struct igbvf_ring *tx_ring)
 	eop_desc = buffer_info->next_to_watch;
 
 	do {
-		/* if next_to_watch is not set then there is no work pending */
+		/* if next_to_watch is yest set then there is yes work pending */
 		if (!eop_desc)
 			break;
 
 		/* prevent any other reads prior to eop_desc */
 		smp_rmb();
 
-		/* if DD is not set pending work has not been completed */
+		/* if DD is yest set pending work has yest been completed */
 		if (!(eop_desc->wb.status & cpu_to_le32(E1000_TXD_STAT_DD)))
 			break;
 
@@ -883,7 +883,7 @@ static irqreturn_t igbvf_intr_msix_tx(int irq, void *data)
 	 * EICS
 	 */
 	if (!igbvf_clean_tx_irq(tx_ring))
-		/* Ring was not completely cleaned, so fire another interrupt */
+		/* Ring was yest completely cleaned, so fire ayesther interrupt */
 		ew32(EICS, tx_ring->eims_value);
 	else
 		ew32(EIMS, tx_ring->eims_value);
@@ -1498,11 +1498,11 @@ static void igbvf_configure(struct igbvf_adapter *adapter)
 			       igbvf_desc_unused(adapter->rx_ring));
 }
 
-/* igbvf_reset - bring the hardware into a known good state
+/* igbvf_reset - bring the hardware into a kyeswn good state
  * @adapter: private board structure
  *
  * This function boots the hardware and enables some settings that
- * require a configuration cycle of the hardware - those cannot be
+ * require a configuration cycle of the hardware - those canyest be
  * set/changed during runtime. After reset the device needs to be
  * properly configured for Rx, Tx etc.
  */
@@ -1562,7 +1562,7 @@ void igbvf_down(struct igbvf_adapter *adapter)
 	struct e1000_hw *hw = &adapter->hw;
 	u32 rxdctl, txdctl;
 
-	/* signal that we're down so the interrupt handler does not
+	/* signal that we're down so the interrupt handler does yest
 	 * reschedule our watchdog timer
 	 */
 	set_bit(__IGBVF_DOWN, &adapter->state);
@@ -1697,7 +1697,7 @@ static void igbvf_initialize_last_counter_stats(struct igbvf_adapter *adapter)
  * active by the system (IFF_UP).  At this point all resources needed
  * for transmit and receive operations are allocated, the interrupt
  * handler is registered with the OS, the watchdog timer is started,
- * and the stack is notified that the interface is ready.
+ * and the stack is yestified that the interface is ready.
  **/
 static int igbvf_open(struct net_device *netdev)
 {
@@ -1760,7 +1760,7 @@ err_setup_tx:
  * igbvf_close - Disables a network interface
  * @netdev: network interface device structure
  *
- * Returns 0, this is not allowed to fail
+ * Returns 0, this is yest allowed to fail
  *
  * The close entry point is called when an interface is de-activated
  * by the OS.  The hardware is still under the drivers control, but
@@ -2032,7 +2032,7 @@ static int igbvf_tso(struct igbvf_ring *tx_ring,
 		unsigned char *trans_start = ip.hdr + (ip.v4->ihl * 4);
 
 		/* IP header will have to cancel out any data that
-		 * is not a part of the outer IP header
+		 * is yest a part of the outer IP header
 		 */
 		ip.v4->check = csum_fold(csum_partial(trans_start,
 						      csum_start - trans_start,
@@ -2087,7 +2087,7 @@ static bool igbvf_tx_csum(struct igbvf_ring *tx_ring, struct sk_buff *skb,
 csum_failed:
 		if (!(tx_flags & IGBVF_TX_FLAGS_VLAN))
 			return false;
-		goto no_csum;
+		goto yes_csum;
 	}
 
 	switch (skb->csum_offset) {
@@ -2113,7 +2113,7 @@ csum_failed:
 
 	vlan_macip_lens = skb_checksum_start_offset(skb) -
 			  skb_network_offset(skb);
-no_csum:
+yes_csum:
 	vlan_macip_lens |= skb_network_offset(skb) << E1000_ADVTXD_MACLEN_SHIFT;
 	vlan_macip_lens |= tx_flags & IGBVF_TX_FLAGS_VLAN_MASK;
 
@@ -2125,7 +2125,7 @@ static int igbvf_maybe_stop_tx(struct net_device *netdev, int size)
 {
 	struct igbvf_adapter *adapter = netdev_priv(netdev);
 
-	/* there is enough descriptors then we don't need to worry  */
+	/* there is eyesugh descriptors then we don't need to worry  */
 	if (igbvf_desc_unused(adapter->tx_ring) >= size)
 		return 0;
 
@@ -2270,7 +2270,7 @@ static inline void igbvf_tx_queue_adv(struct igbvf_adapter *adapter,
 
 	tx_desc->read.cmd_type_len |= cpu_to_le32(adapter->txd_cmd);
 	/* Force memory writes to complete before letting h/w
-	 * know there are new descriptors to fetch.  (Only
+	 * kyesw there are new descriptors to fetch.  (Only
 	 * applicable for weak-ordered memory model archs,
 	 * such as IA-64).
 	 */
@@ -2496,7 +2496,7 @@ static int igbvf_resume(struct pci_dev *pdev)
 	pci_restore_state(pdev);
 	err = pci_enable_device_mem(pdev);
 	if (err) {
-		dev_err(&pdev->dev, "Cannot enable PCI device from suspend\n");
+		dev_err(&pdev->dev, "Canyest enable PCI device from suspend\n");
 		return err;
 	}
 
@@ -2526,7 +2526,7 @@ static void igbvf_shutdown(struct pci_dev *pdev)
 
 #ifdef CONFIG_NET_POLL_CONTROLLER
 /* Polling 'interrupt' - used by things like netconsole to send skbs
- * without having to re-enable interrupts. It's not called while
+ * without having to re-enable interrupts. It's yest called while
  * the interrupt routine is executing.
  */
 static void igbvf_netpoll(struct net_device *netdev)
@@ -2582,7 +2582,7 @@ static pci_ers_result_t igbvf_io_slot_reset(struct pci_dev *pdev)
 
 	if (pci_enable_device_mem(pdev)) {
 		dev_err(&pdev->dev,
-			"Cannot re-enable PCI device after reset.\n");
+			"Canyest re-enable PCI device after reset.\n");
 		return PCI_ERS_RESULT_DISCONNECT;
 	}
 	pci_set_master(pdev);
@@ -2597,7 +2597,7 @@ static pci_ers_result_t igbvf_io_slot_reset(struct pci_dev *pdev)
  * @pdev: Pointer to PCI device
  *
  * This callback is called when the error recovery driver tells us that
- * its OK to resume normal operation. Implementation resembles the
+ * its OK to resume yesrmal operation. Implementation resembles the
  * second-half of the igbvf_resume routine.
  */
 static void igbvf_io_resume(struct pci_dev *pdev)
@@ -2668,7 +2668,7 @@ igbvf_features_check(struct sk_buff *skb, struct net_device *dev,
 				    NETIF_F_TSO6);
 
 	/* We can only support IPV4 TSO in tunnels if we can mangle the
-	 * inner IP ID field, so strip TSO if MANGLEID is not supported.
+	 * inner IP ID field, so strip TSO if MANGLEID is yest supported.
 	 */
 	if (skb->encapsulation && !(features & NETIF_F_TSO_MANGLEID))
 		features &= ~NETIF_F_TSO;
@@ -2819,7 +2819,7 @@ static int igbvf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	netdev->mpls_features |= NETIF_F_HW_CSUM;
 	netdev->hw_enc_features |= netdev->vlan_features;
 
-	/* set this bit last since it cannot be part of vlan_features */
+	/* set this bit last since it canyest be part of vlan_features */
 	netdev->features |= NETIF_F_HW_VLAN_CTAG_FILTER |
 			    NETIF_F_HW_VLAN_CTAG_RX |
 			    NETIF_F_HW_VLAN_CTAG_TX;
@@ -2830,7 +2830,7 @@ static int igbvf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	spin_lock_bh(&hw->mbx_lock);
 
-	/*reset the controller to put the device in a known good state */
+	/*reset the controller to put the device in a kyeswn good state */
 	err = hw->mac.ops.reset_hw(hw);
 	if (err) {
 		dev_info(&pdev->dev,
@@ -2841,7 +2841,7 @@ static int igbvf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 			dev_info(&pdev->dev, "Error reading MAC address.\n");
 		else if (is_zero_ether_addr(adapter->hw.mac.addr))
 			dev_info(&pdev->dev,
-				 "MAC address not assigned by administrator.\n");
+				 "MAC address yest assigned by administrator.\n");
 		memcpy(netdev->dev_addr, adapter->hw.mac.addr,
 		       netdev->addr_len);
 	}
@@ -2932,7 +2932,7 @@ static void igbvf_remove(struct pci_dev *pdev)
 	igbvf_reset_interrupt_capability(adapter);
 
 	/* it is important to delete the NAPI struct prior to freeing the
-	 * Rx ring so that you do not end up with null pointer refs
+	 * Rx ring so that you do yest end up with null pointer refs
 	 */
 	netif_napi_del(&adapter->rx_ring->napi);
 	kfree(adapter->tx_ring);

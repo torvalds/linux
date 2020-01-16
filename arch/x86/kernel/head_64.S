@@ -20,10 +20,10 @@
 #include <asm/cache.h>
 #include <asm/processor-flags.h>
 #include <asm/percpu.h>
-#include <asm/nops.h>
+#include <asm/yesps.h>
 #include "../entry/calling.h"
 #include <asm/export.h>
-#include <asm/nospec-branch.h>
+#include <asm/yesspec-branch.h>
 #include <asm/fixmap.h>
 
 #ifdef CONFIG_PARAVIRT_XXL
@@ -33,7 +33,7 @@
 #define INTERRUPT_RETURN iretq
 #endif
 
-/* we are not able to switch in one step to the final KERNEL ADDRESS SPACE
+/* we are yest able to switch in one step to the final KERNEL ADDRESS SPACE
  * because we need identity-mapped pages.
  *
  */
@@ -62,7 +62,7 @@ SYM_CODE_START_NOALIGN(startup_64)
 	 * We come here either directly from a 64bit bootloader, or from
 	 * arch/x86/boot/compressed/head_64.S.
 	 *
-	 * We only come here initially at boot nothing else comes here.
+	 * We only come here initially at boot yesthing else comes here.
 	 *
 	 * Since we may be loaded at an address different from what we were
 	 * compiled to run at we first fixup the physical addresses in our page
@@ -216,9 +216,9 @@ SYM_CODE_START(secondary_startup_64)
 	 * jump.  In addition we need to ensure %cs is set so we make this
 	 * a far return.
 	 *
-	 * Note: do not change to far jump indirect with 64bit offset.
+	 * Note: do yest change to far jump indirect with 64bit offset.
 	 *
-	 * AMD does not support far jump indirect with 64bit offset.
+	 * AMD does yest support far jump indirect with 64bit offset.
 	 * AMD64 Architecture Programmer's Manual, Volume 3: states only
 	 *	JMP FAR mem16:16 FF /5 Far jump indirect,
 	 *		with the target specified by a far pointer in memory.
@@ -340,10 +340,10 @@ SYM_CODE_END(early_idt_handler_common)
 
 #ifdef CONFIG_PAGE_TABLE_ISOLATION
 /*
- * Each PGD needs to be 8k long and 8k aligned.  We do not
- * ever go out to userspace with these, so we do not
+ * Each PGD needs to be 8k long and 8k aligned.  We do yest
+ * ever go out to userspace with these, so we do yest
  * strictly *need* the second page, but this allows us to
- * have a single set_pgd() implementation that does not
+ * have a single set_pgd() implementation that does yest
  * need to worry about whether it has 4k or 8k to work
  * with.
  *
@@ -405,7 +405,7 @@ SYM_DATA_START_PAGE_ALIGNED(level2_ident_pgt)
 	 *
 	 * Note: This sets _PAGE_GLOBAL despite whether
 	 * the CPU supports it or it is enabled.  But,
-	 * the CPU should ignore the bit.
+	 * the CPU should igyesre the bit.
 	 */
 	PMDS(0, __PAGE_KERNEL_IDENT_LARGE_EXEC, PTRS_PER_PMD)
 SYM_DATA_END(level2_ident_pgt)
@@ -435,13 +435,13 @@ SYM_DATA_START_PAGE_ALIGNED(level2_kernel_pgt)
 	 * 512 MB kernel mapping. We spend a full page on this pagetable
 	 * anyway.
 	 *
-	 * The kernel code+data+bss must not be bigger than that.
+	 * The kernel code+data+bss must yest be bigger than that.
 	 *
 	 * (NOTE: at +512MB starts the module area, see MODULES_VADDR.
 	 *  If you want to increase this then increase MODULES_VADDR
 	 *  too.)
 	 *
-	 *  This table is eventually used by the kernel during normal
+	 *  This table is eventually used by the kernel during yesrmal
 	 *  runtime.  Care must be taken to clear out undesired bits
 	 *  later, like _PAGE_RW or _PAGE_GLOBAL in some cases.
 	 */
@@ -451,11 +451,11 @@ SYM_DATA_END(level2_kernel_pgt)
 
 SYM_DATA_START_PAGE_ALIGNED(level2_fixmap_pgt)
 	.fill	(512 - 4 - FIXMAP_PMD_NUM),8,0
-	pgtno = 0
+	pgtyes = 0
 	.rept (FIXMAP_PMD_NUM)
-	.quad level1_fixmap_pgt + (pgtno << PAGE_SHIFT) - __START_KERNEL_map \
+	.quad level1_fixmap_pgt + (pgtyes << PAGE_SHIFT) - __START_KERNEL_map \
 		+ _PAGE_TABLE_NOENC;
-	pgtno = pgtno + 1
+	pgtyes = pgtyes + 1
 	.endr
 	/* 6 MB reserved space + a 2MB hole */
 	.fill	4,8,0

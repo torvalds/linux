@@ -5,7 +5,7 @@
  * This file contains AppArmor LSM hooks.
  *
  * Copyright (C) 1998-2008 Novell/SUSE
- * Copyright 2009-2010 Canonical Ltd.
+ * Copyright 2009-2010 Cayesnical Ltd.
  */
 
 #include <linux/lsm_hooks.h>
@@ -215,7 +215,7 @@ static int common_perm(const char *op, const struct path *path, u32 mask,
 }
 
 /**
- * common_perm_cond - common permission wrapper around inode cond
+ * common_perm_cond - common permission wrapper around iyesde cond
  * @op: operation being checked
  * @path: location to check (NOT NULL)
  * @mask: requested permissions mask
@@ -224,8 +224,8 @@ static int common_perm(const char *op, const struct path *path, u32 mask,
  */
 static int common_perm_cond(const char *op, const struct path *path, u32 mask)
 {
-	struct path_cond cond = { d_backing_inode(path->dentry)->i_uid,
-				  d_backing_inode(path->dentry)->i_mode
+	struct path_cond cond = { d_backing_iyesde(path->dentry)->i_uid,
+				  d_backing_iyesde(path->dentry)->i_mode
 	};
 
 	if (!path_mediated_fs(path->dentry))
@@ -265,14 +265,14 @@ static int common_perm_dir_dentry(const char *op, const struct path *dir,
 static int common_perm_rm(const char *op, const struct path *dir,
 			  struct dentry *dentry, u32 mask)
 {
-	struct inode *inode = d_backing_inode(dentry);
+	struct iyesde *iyesde = d_backing_iyesde(dentry);
 	struct path_cond cond = { };
 
-	if (!inode || !path_mediated_fs(dentry))
+	if (!iyesde || !path_mediated_fs(dentry))
 		return 0;
 
-	cond.uid = inode->i_uid;
-	cond.mode = inode->i_mode;
+	cond.uid = iyesde->i_uid;
+	cond.mode = iyesde->i_mode;
 
 	return common_perm_dir_dentry(op, dir, dentry, mask, &cond);
 }
@@ -315,7 +315,7 @@ static int apparmor_path_rmdir(const struct path *dir, struct dentry *dentry)
 	return common_perm_rm(OP_RMDIR, dir, dentry, AA_MAY_DELETE);
 }
 
-static int apparmor_path_mknod(const struct path *dir, struct dentry *dentry,
+static int apparmor_path_mkyesd(const struct path *dir, struct dentry *dentry,
 			       umode_t mode, unsigned int dev)
 {
 	return common_perm_create(OP_MKNOD, dir, dentry, AA_MAY_CREATE, mode);
@@ -365,8 +365,8 @@ static int apparmor_path_rename(const struct path *old_dir, struct dentry *old_d
 					 .dentry = old_dentry };
 		struct path new_path = { .mnt = new_dir->mnt,
 					 .dentry = new_dentry };
-		struct path_cond cond = { d_backing_inode(old_dentry)->i_uid,
-					  d_backing_inode(old_dentry)->i_mode
+		struct path_cond cond = { d_backing_iyesde(old_dentry)->i_uid,
+					  d_backing_iyesde(old_dentry)->i_mode
 		};
 
 		error = aa_path_perm(OP_RENAME_SRC, label, &old_path, 0,
@@ -394,7 +394,7 @@ static int apparmor_path_chown(const struct path *path, kuid_t uid, kgid_t gid)
 	return common_perm_cond(OP_CHOWN, path, AA_MAY_CHOWN);
 }
 
-static int apparmor_inode_getattr(const struct path *path)
+static int apparmor_iyesde_getattr(const struct path *path)
 {
 	return common_perm_cond(OP_GETATTR, path, AA_MAY_GETATTR);
 }
@@ -420,8 +420,8 @@ static int apparmor_file_open(struct file *file)
 
 	label = aa_get_newest_cred_label(file->f_cred);
 	if (!unconfined(label)) {
-		struct inode *inode = file_inode(file);
-		struct path_cond cond = { inode->i_uid, inode->i_mode };
+		struct iyesde *iyesde = file_iyesde(file);
+		struct path_cond cond = { iyesde->i_uid, iyesde->i_mode };
 
 		error = aa_path_perm(OP_OPEN, label, &file->f_path, 0,
 				     aa_map_file_to_perms(file), &cond);
@@ -694,7 +694,7 @@ static void apparmor_bprm_committing_creds(struct linux_binprm *bprm)
 	struct aa_label *label = aa_current_raw_label();
 	struct aa_label *new_label = cred_label(bprm->cred);
 
-	/* bail out if unconfined or not changing profile */
+	/* bail out if unconfined or yest changing profile */
 	if ((new_label->proxy == label->proxy) ||
 	    (unconfined(new_label)))
 		return;
@@ -835,7 +835,7 @@ static int apparmor_socket_create(int family, int type, int protocol, int kern)
  * Note:
  * -   kernel sockets currently labeled unconfined but we may want to
  *     move to a special kernel label
- * -   socket may not have sk here if created with sock_create_lite or
+ * -   socket may yest have sk here if created with sock_create_lite or
  *     sock_alloc. These should be accept cases which will be handled in
  *     sock_graft.
  */
@@ -913,7 +913,7 @@ static int apparmor_socket_listen(struct socket *sock, int backlog)
  * apparmor_socket_accept - check perms before accepting a new connection.
  *
  * Note: while @newsock is created and has some information, the accept
- *       has not been done.
+ *       has yest been done.
  */
 static int apparmor_socket_accept(struct socket *sock, struct socket *newsock)
 {
@@ -941,7 +941,7 @@ static int aa_sock_msg_perm(const char *op, u32 request, struct socket *sock,
 }
 
 /**
- * apparmor_socket_sendmsg - check perms before sending msg to another socket
+ * apparmor_socket_sendmsg - check perms before sending msg to ayesther socket
  */
 static int apparmor_socket_sendmsg(struct socket *sock,
 				   struct msghdr *msg, int size)
@@ -1031,7 +1031,7 @@ static int apparmor_socket_shutdown(struct socket *sock, int how)
 /**
  * apparmor_socket_sock_recv_skb - check perms before associating skb to sk
  *
- * Note: can not sleep may be called with locks held
+ * Note: can yest sleep may be called with locks held
  *
  * dont want protocol specific in __skb_recv_datagram()
  * to deny an incoming connection  socket_sock_rcv_skb()
@@ -1127,7 +1127,7 @@ static int apparmor_socket_getpeersec_dgram(struct socket *sock,
  * @sk: child sock
  * @parent: parent socket
  *
- * Note: could set off of SOCK_CTX(parent) but need to track inode and we can
+ * Note: could set off of SOCK_CTX(parent) but need to track iyesde and we can
  *       just set sk security information off of current creating process label
  *       Labeling of sk for accept case - probably should be sock based
  *       instead of task, because of the case where an implicitly labeled
@@ -1156,7 +1156,7 @@ static int apparmor_inet_conn_request(struct sock *sk, struct sk_buff *skb,
 #endif
 
 /*
- * The cred blob is a pointer to, not an instance of, an aa_task_ctx.
+ * The cred blob is a pointer to, yest an instance of, an aa_task_ctx.
  */
 struct lsm_blob_sizes apparmor_blob_sizes __lsm_ro_after_init = {
 	.lbs_cred = sizeof(struct aa_task_ctx *),
@@ -1179,12 +1179,12 @@ static struct security_hook_list apparmor_hooks[] __lsm_ro_after_init = {
 	LSM_HOOK_INIT(path_symlink, apparmor_path_symlink),
 	LSM_HOOK_INIT(path_mkdir, apparmor_path_mkdir),
 	LSM_HOOK_INIT(path_rmdir, apparmor_path_rmdir),
-	LSM_HOOK_INIT(path_mknod, apparmor_path_mknod),
+	LSM_HOOK_INIT(path_mkyesd, apparmor_path_mkyesd),
 	LSM_HOOK_INIT(path_rename, apparmor_path_rename),
 	LSM_HOOK_INIT(path_chmod, apparmor_path_chmod),
 	LSM_HOOK_INIT(path_chown, apparmor_path_chown),
 	LSM_HOOK_INIT(path_truncate, apparmor_path_truncate),
-	LSM_HOOK_INIT(inode_getattr, apparmor_inode_getattr),
+	LSM_HOOK_INIT(iyesde_getattr, apparmor_iyesde_getattr),
 
 	LSM_HOOK_INIT(file_open, apparmor_file_open),
 	LSM_HOOK_INIT(file_receive, apparmor_file_receive),
@@ -1244,7 +1244,7 @@ static struct security_hook_list apparmor_hooks[] __lsm_ro_after_init = {
 
 #ifdef CONFIG_AUDIT
 	LSM_HOOK_INIT(audit_rule_init, aa_audit_rule_init),
-	LSM_HOOK_INIT(audit_rule_known, aa_audit_rule_known),
+	LSM_HOOK_INIT(audit_rule_kyeswn, aa_audit_rule_kyeswn),
 	LSM_HOOK_INIT(audit_rule_match, aa_audit_rule_match),
 	LSM_HOOK_INIT(audit_rule_free, aa_audit_rule_free),
 #endif
@@ -1330,7 +1330,7 @@ module_param_call(audit, param_set_audit, param_get_audit,
 		  &aa_g_audit, S_IRUSR | S_IWUSR);
 
 /* Determines if audit header is included in audited messages.  This
- * provides more context if the audit daemon is not running
+ * provides more context if the audit daemon is yest running
  */
 bool aa_g_audit_header = true;
 module_param_named(audit_header, aa_g_audit_header, aabool,
@@ -1352,13 +1352,13 @@ module_param_named(logsyscall, aa_g_logsyscall, aabool, S_IRUSR | S_IWUSR);
 unsigned int aa_g_path_max = 2 * PATH_MAX;
 module_param_named(path_max, aa_g_path_max, aauint, S_IRUSR);
 
-/* Determines how paranoid loading of policy is and how much verification
+/* Determines how parayesid loading of policy is and how much verification
  * on the loaded policy is done.
- * DEPRECATED: read only as strict checking of load is always done now
- * that none root users (user namespaces) can load policy.
+ * DEPRECATED: read only as strict checking of load is always done yesw
+ * that yesne root users (user namespaces) can load policy.
  */
-bool aa_g_paranoid_load = true;
-module_param_named(paranoid_load, aa_g_paranoid_load, aabool, S_IRUGO);
+bool aa_g_parayesid_load = true;
+module_param_named(parayesid_load, aa_g_parayesid_load, aabool, S_IRUGO);
 
 static int param_get_aaintbool(char *buffer, const struct kernel_param *kp);
 static int param_set_aaintbool(const char *val, const struct kernel_param *kp);
@@ -1671,7 +1671,7 @@ static int __init alloc_buffers(void)
 	/*
 	 * A function may require two buffers at once. Usually the buffers are
 	 * used for a short period of time and are shared. On UP kernel buffers
-	 * two should be enough, with more CPUs it is possible that more
+	 * two should be eyesugh, with more CPUs it is possible that more
 	 * buffers will be used simultaneously. The preallocated pool may grow.
 	 * This preallocation has also the side-effect that AppArmor will be
 	 * disabled early at boot if aa_g_path_max is extremly high.

@@ -69,13 +69,13 @@
         "BriefDescription": "Instruction executed, TTBR write"
     },
     {
-        "PublicDescription": "Instruction architecturally executed, branch. This event counts all branches, taken or not. This excludes exception entries, debug entries and CCFAIL branches",
+        "PublicDescription": "Instruction architecturally executed, branch. This event counts all branches, taken or yest. This excludes exception entries, debug entries and CCFAIL branches",
         "EventCode": "0x21",
         "EventName": "BR_RETIRED",
         "BriefDescription": "Branch retired"
     },
     {
-        "PublicDescription": "Instruction architecturally executed, mispredicted branch. This event counts any branch counted by BR_RETIRED which is not correctly predicted and causes a pipeline flush",
+        "PublicDescription": "Instruction architecturally executed, mispredicted branch. This event counts any branch counted by BR_RETIRED which is yest correctly predicted and causes a pipeline flush",
         "EventCode": "0x22",
         "EventName": "BR_MISPRED_RETIRED",
         "BriefDescription": "Mispredicted branch retired"

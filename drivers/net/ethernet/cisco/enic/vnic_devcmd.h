@@ -86,7 +86,7 @@ enum vnic_devcmd_cmd {
 	 *   (u64)a0=paddr to struct vnic_devcmd_fw_info
 	 * action:
 	 *   Fills in struct vnic_devcmd_fw_info (128 bytes)
-	 * note:
+	 * yeste:
 	 *   An old definition of CMD_MCPU_FW_INFO
 	 */
 	CMD_MCPU_FW_INFO_OLD    = _CMDC(_CMD_DIR_WRITE, _CMD_VTYPE_ALL, 1),
@@ -103,7 +103,7 @@ enum vnic_devcmd_cmd {
 	 *   Fills in first 128 bytes of vnic_devcmd_fw_info for in:a1 = 0,
 	 *            first in:a1 bytes               for 0 < in:a1 <= 132,
 	 *            132 bytes                       for other values of in:a1.
-	 * note:
+	 * yeste:
 	 *   CMD_MCPU_FW_INFO and CMD_MCPU_FW_INFO_OLD have the same enum 1
 	 *   for source compatibility.
 	 */
@@ -127,7 +127,7 @@ enum vnic_devcmd_cmd {
 	/* set Rx packet filter for all: (u32)a0=filters (see CMD_PFILTER_*) */
 	CMD_PACKET_FILTER_ALL   = _CMDCNW(_CMD_DIR_WRITE, _CMD_VTYPE_ALL, 7),
 
-	/* hang detection notification */
+	/* hang detection yestification */
 	CMD_HANG_NOTIFY         = _CMDC(_CMD_DIR_NONE, _CMD_VTYPE_ALL, 8),
 
 	/* MAC address in (u48)a0 */
@@ -148,7 +148,7 @@ enum vnic_devcmd_cmd {
 	/* del VLAN id in (u16)a0 */
 	CMD_VLAN_DEL            = _CMDCNW(_CMD_DIR_WRITE, _CMD_VTYPE_ENET, 15),
 
-	/* nic_cfg (no wait, always succeeds)
+	/* nic_cfg (yes wait, always succeeds)
 	 * in: (u32)a0
 	 *
 	 * Capability query:
@@ -182,11 +182,11 @@ enum vnic_devcmd_cmd {
 	 *    out: a0=0 reset complete, a0=1 reset in progress */
 	CMD_SOFT_RESET_STATUS   = _CMDC(_CMD_DIR_READ, _CMD_VTYPE_ALL, 20),
 
-	/* set struct vnic_devcmd_notify buffer in mem:
+	/* set struct vnic_devcmd_yestify buffer in mem:
 	 * in:
-	 *   (u64)a0=paddr to notify (set paddr=0 to unset)
-	 *   (u32)a1 & 0x00000000ffffffff=sizeof(struct vnic_devcmd_notify)
-	 *   (u16)a1 & 0x0000ffff00000000=intr num (-1 for no intr)
+	 *   (u64)a0=paddr to yestify (set paddr=0 to unset)
+	 *   (u32)a1 & 0x00000000ffffffff=sizeof(struct vnic_devcmd_yestify)
+	 *   (u16)a1 & 0x0000ffff00000000=intr num (-1 for yes intr)
 	 * out:
 	 *   (u32)a1 = effective size
 	 */
@@ -231,7 +231,7 @@ enum vnic_devcmd_cmd {
 
 	/* init status:
 	 *    out: a0=0 init complete, a0=1 init in progress
-	 *         if a0=0, a1=errno */
+	 *         if a0=0, a1=erryes */
 	CMD_INIT_STATUS		= _CMDC(_CMD_DIR_READ, _CMD_VTYPE_ALL, 31),
 
 	/* INT13 API: (u64)a0=paddr to vnic_int13_params struct
@@ -249,7 +249,7 @@ enum vnic_devcmd_cmd {
 
 	/* check fw capability of a cmd:
 	 * in:  (u32)a0=cmd
-	 * out: (u32)a0=errno, 0:valid cmd, a1=supported VNIC_STF_* bits */
+	 * out: (u32)a0=erryes, 0:valid cmd, a1=supported VNIC_STF_* bits */
 	CMD_CAPABILITY		= _CMDC(_CMD_DIR_RW, _CMD_VTYPE_ALL, 36),
 
 	/* persistent binding info
@@ -296,7 +296,7 @@ enum vnic_devcmd_cmd {
 	 *      (u16)a1=size of buffer specified in a0.
 	 * out: (u64)a0=phsical address of buffer passed in from caller.
 	 *      (u16)a1=actual bytes from VIF-CONFIG-INFO TLV, or
-	 *              0 if no VIF-CONFIG-INFO TLV was ever received. */
+	 *              0 if yes VIF-CONFIG-INFO TLV was ever received. */
 	CMD_CONFIG_INFO_GET     = _CMDC(_CMD_DIR_RW, _CMD_VTYPE_ALL, 44),
 
 	/* INT13 API: (u64)a0=paddr to vnic_int13_params struct
@@ -307,13 +307,13 @@ enum vnic_devcmd_cmd {
 	/* Set default vlan:
 	 * in: (u16)a0=new default vlan
 	 *     (u16)a1=zero for overriding vlan with param a0,
-	 *		       non-zero for resetting vlan to the default
+	 *		       yesn-zero for resetting vlan to the default
 	 * out: (u16)a0=old default vlan
 	 */
 	CMD_SET_DEFAULT_VLAN = _CMDC(_CMD_DIR_RW, _CMD_VTYPE_ALL, 46),
 
 	/* init_prov_info2:
-	 * Variant of CMD_INIT_PROV_INFO, where it will not try to enable
+	 * Variant of CMD_INIT_PROV_INFO, where it will yest try to enable
 	 * the vnic until CMD_ENABLE2 is issued.
 	 *     (u64)a0=paddr of vnic_devcmd_provinfo
 	 *     (u32)a1=sizeof provision info
@@ -343,7 +343,7 @@ enum vnic_devcmd_cmd {
 	 * Output:
 	 *     if status == STAT_ERROR
 	 *        a0 = ERR_ENOTSUPPORTED - status for command in a0 is
-	 *                                 not supported
+	 *                                 yest supported
 	 *     if status == STAT_NONE
 	 *        a0 = status of the devcmd specified in a0 as follows.
 	 *             ERR_SUCCESS   - command in a0 completed successfully
@@ -363,7 +363,7 @@ enum vnic_devcmd_cmd {
 	 *
 	 *   intr_timer_usec = intr_timer_cycles * divisor / multiplier
 	 *
-	 * in: none
+	 * in: yesne
 	 * out: (u32)a0 = multiplier
 	 *      (u32)a1 = divisor
 	 *      (u32)a2 = maximum timer value in usec
@@ -457,7 +457,7 @@ enum vnic_devcmd_cmd {
 
 /* flags for CMD_OPEN */
 #define CMD_OPENF_OPROM		0x1	/* open coming from option rom */
-#define CMD_OPENF_IG_DESCCACHE	0x2	/* Do not flush IG DESC cache */
+#define CMD_OPENF_IG_DESCCACHE	0x2	/* Do yest flush IG DESC cache */
 
 /* flags for CMD_INIT */
 #define CMD_INITF_DEFAULT_MAC	0x1	/* init with default mac addr */
@@ -502,7 +502,7 @@ enum vnic_devcmd_error {
 };
 
 /*
- * note: hw_version and asic_rev refer to the same thing,
+ * yeste: hw_version and asic_rev refer to the same thing,
  *       but have different formats. hw_version is
  *       a 32-byte string (e.g. "A2") and asic_rev is
  *       a 16-bit integer (e.g. 0xA2).
@@ -516,7 +516,7 @@ struct vnic_devcmd_fw_info {
 	u16 asic_rev;
 };
 
-struct vnic_devcmd_notify {
+struct vnic_devcmd_yestify {
 	u32 csum;		/* checksum over following words */
 
 	u32 link_state;		/* link up == 1 */
@@ -544,7 +544,7 @@ struct vnic_devcmd_provinfo {
 	u8 data[0];
 };
 
-/* These are used in flags field of different filters to denote
+/* These are used in flags field of different filters to deyeste
  * valid fields used.
  */
 #define FILTER_FIELD_VALID(fld) (1 << (fld - 1))

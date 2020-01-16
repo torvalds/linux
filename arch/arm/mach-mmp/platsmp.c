@@ -13,7 +13,7 @@ static int mmp3_boot_secondary(unsigned int cpu, struct task_struct *idle)
 {
 	/*
 	 * Apparently, the boot ROM on the second core spins on this
-	 * register becoming non-zero and then jumps to the address written
+	 * register becoming yesn-zero and then jumps to the address written
 	 * there. No IPIs involved.
 	 */
 	__raw_writel(__pa_symbol(secondary_startup), SW_BRANCH_VIRT_ADDR);

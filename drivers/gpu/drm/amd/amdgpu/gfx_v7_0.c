@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -896,7 +896,7 @@ static void gfx_v7_0_get_cu_info(struct amdgpu_device *adev);
  * @adev: amdgpu_device pointer
  *
  * Use the firmware interface to load the ucode images into
- * the driver (not loaded into hw).
+ * the driver (yest loaded into hw).
  * Returns 0 on success, error on failure.
  */
 static int gfx_v7_0_init_microcode(struct amdgpu_device *adev)
@@ -1661,7 +1661,7 @@ gfx_v7_0_raster_config(struct amdgpu_device *adev, u32 *rconf, u32 *rconf1)
 		*rconf1 |= 0x0;
 		break;
 	default:
-		DRM_ERROR("unknown asic: 0x%x\n", adev->asic_type);
+		DRM_ERROR("unkyeswn asic: 0x%x\n", adev->asic_type);
 		break;
 	}
 }
@@ -1880,7 +1880,7 @@ static void gfx_v7_0_init_compute_vmid(struct amdgpu_device *adev)
 	cik_srbm_select(adev, 0, 0, 0, 0);
 	mutex_unlock(&adev->srbm_mutex);
 
-	/* Initialize all compute VMIDs to have no GDS, GWS, or OA
+	/* Initialize all compute VMIDs to have yes GDS, GWS, or OA
 	   acccess. These should be enabled by FW for target VMIDs. */
 	for (i = FIRST_COMPUTE_VMID; i < LAST_COMPUTE_VMID; i++) {
 		WREG32(amdgpu_gds_reg_offset[i].mem_base, 0);
@@ -1895,7 +1895,7 @@ static void gfx_v7_0_init_gds_vmid(struct amdgpu_device *adev)
 	int vmid;
 
 	/*
-	 * Initialize all compute and user-gfx VMIDs to have no GDS, GWS, or OA
+	 * Initialize all compute and user-gfx VMIDs to have yes GDS, GWS, or OA
 	 * access. Compute VMIDs should be enabled by FW for target VMIDs,
 	 * the driver can enable them for graphics. VMID0 should maintain
 	 * access so that HWS firmware can save/restore entries.
@@ -2063,7 +2063,7 @@ static void gfx_v7_0_constants_init(struct amdgpu_device *adev)
  *
  * Set up the number and offset of the CP scratch registers.
  * NOTE: use of CP scratch registers is a legacy inferface and
- * is not used by default on newer asics (r6xx+).  On newer asics,
+ * is yest used by default on newer asics (r6xx+).  On newer asics,
  * memory buffers are used for fences rather than scratch regs.
  */
 static void gfx_v7_0_scratch_init(struct amdgpu_device *adev)
@@ -2400,7 +2400,7 @@ err1:
 
 /*
  * CP.
- * On CIK, gfx and compute now have independant command processors.
+ * On CIK, gfx and compute yesw have independant command processors.
  *
  * GFX
  * Gfx consists of a single ring and can process both gfx jobs and
@@ -2409,7 +2409,7 @@ err1:
  * ME - Micro Engine
  * CE - Constant Engine
  * The PFP and ME make up what is considered the Drawing Engine (DE).
- * The CE is an asynchronous engine used for updating buffer desciptors
+ * The CE is an asynchroyesus engine used for updating buffer desciptors
  * used by the DE so that they can be loaded into cache in parallel
  * while the DE is processing state update packets.
  *
@@ -2449,7 +2449,7 @@ static void gfx_v7_0_cp_gfx_enable(struct amdgpu_device *adev, bool enable)
  * @adev: amdgpu_device pointer
  *
  * Loads the gfx PFP, ME, and CE ucode.
- * Returns 0 for success, -EINVAL if the ucode is not available.
+ * Returns 0 for success, -EINVAL if the ucode is yest available.
  */
 static int gfx_v7_0_cp_gfx_load_microcode(struct amdgpu_device *adev)
 {
@@ -2631,12 +2631,12 @@ static int gfx_v7_0_cp_gfx_resume(struct amdgpu_device *adev)
 	ring->wptr = 0;
 	WREG32(mmCP_RB0_WPTR, lower_32_bits(ring->wptr));
 
-	/* set the wb address wether it's enabled or not */
+	/* set the wb address wether it's enabled or yest */
 	rptr_addr = adev->wb.gpu_addr + (ring->rptr_offs * 4);
 	WREG32(mmCP_RB0_RPTR_ADDR, lower_32_bits(rptr_addr));
 	WREG32(mmCP_RB0_RPTR_ADDR_HI, upper_32_bits(rptr_addr) & 0xFF);
 
-	/* scratch register shadowing is no longer supported */
+	/* scratch register shadowing is yes longer supported */
 	WREG32(mmSCRATCH_UMSK, 0);
 
 	mdelay(1);
@@ -2718,7 +2718,7 @@ static void gfx_v7_0_cp_compute_enable(struct amdgpu_device *adev, bool enable)
  * @adev: amdgpu_device pointer
  *
  * Loads the compute MEC1&2 ucode.
- * Returns 0 for success, -EINVAL if the ucode is not available.
+ * Returns 0 for success, -EINVAL if the ucode is yest available.
  */
 static int gfx_v7_0_cp_compute_load_microcode(struct amdgpu_device *adev)
 {
@@ -2823,7 +2823,7 @@ static int gfx_v7_0_mec_init(struct amdgpu_device *adev)
 		return r;
 	}
 
-	/* clear memory.  Not sure if this is required or not */
+	/* clear memory.  Not sure if this is required or yest */
 	memset(hpd, 0, mec_hpd_size);
 
 	amdgpu_bo_kunmap(adev->gfx.mec.hpd_eop_obj);
@@ -2990,7 +2990,7 @@ static void gfx_v7_0_mqd_init(struct amdgpu_device *adev,
 	mqd->cp_hqd_pq_wptr_poll_addr_lo = wb_gpu_addr & 0xfffffffc;
 	mqd->cp_hqd_pq_wptr_poll_addr_hi = upper_32_bits(wb_gpu_addr) & 0xffff;
 
-	/* set the wb address wether it's enabled or not */
+	/* set the wb address wether it's enabled or yest */
 	wb_gpu_addr = adev->wb.gpu_addr + (ring->rptr_offs * 4);
 	mqd->cp_hqd_pq_rptr_report_addr_lo = wb_gpu_addr & 0xfffffffc;
 	mqd->cp_hqd_pq_rptr_report_addr_hi =
@@ -3510,7 +3510,7 @@ static void gfx_v7_0_rlc_reset(struct amdgpu_device *adev)
  *
  * Initialize the RLC registers, load the ucode,
  * and start the RLC (CIK).
- * Returns 0 for success, -EINVAL if the ucode is not available.
+ * Returns 0 for success, -EINVAL if the ucode is yest available.
  */
 static int gfx_v7_0_rlc_resume(struct amdgpu_device *adev)
 {
@@ -4150,12 +4150,12 @@ static uint32_t wave_read_ind(struct amdgpu_device *adev, uint32_t simd, uint32_
 
 static void wave_read_regs(struct amdgpu_device *adev, uint32_t simd,
 			   uint32_t wave, uint32_t thread,
-			   uint32_t regno, uint32_t num, uint32_t *out)
+			   uint32_t regyes, uint32_t num, uint32_t *out)
 {
 	WREG32(mmSQ_IND_INDEX,
 		(wave << SQ_IND_INDEX__WAVE_ID__SHIFT) |
 		(simd << SQ_IND_INDEX__SIMD_ID__SHIFT) |
-		(regno << SQ_IND_INDEX__INDEX__SHIFT) |
+		(regyes << SQ_IND_INDEX__INDEX__SHIFT) |
 		(thread << SQ_IND_INDEX__THREAD_ID__SHIFT) |
 		(SQ_IND_INDEX__FORCE_READ_MASK) |
 		(SQ_IND_INDEX__AUTO_INCR_MASK));
@@ -4163,28 +4163,28 @@ static void wave_read_regs(struct amdgpu_device *adev, uint32_t simd,
 		*(out++) = RREG32(mmSQ_IND_DATA);
 }
 
-static void gfx_v7_0_read_wave_data(struct amdgpu_device *adev, uint32_t simd, uint32_t wave, uint32_t *dst, int *no_fields)
+static void gfx_v7_0_read_wave_data(struct amdgpu_device *adev, uint32_t simd, uint32_t wave, uint32_t *dst, int *yes_fields)
 {
 	/* type 0 wave data */
-	dst[(*no_fields)++] = 0;
-	dst[(*no_fields)++] = wave_read_ind(adev, simd, wave, ixSQ_WAVE_STATUS);
-	dst[(*no_fields)++] = wave_read_ind(adev, simd, wave, ixSQ_WAVE_PC_LO);
-	dst[(*no_fields)++] = wave_read_ind(adev, simd, wave, ixSQ_WAVE_PC_HI);
-	dst[(*no_fields)++] = wave_read_ind(adev, simd, wave, ixSQ_WAVE_EXEC_LO);
-	dst[(*no_fields)++] = wave_read_ind(adev, simd, wave, ixSQ_WAVE_EXEC_HI);
-	dst[(*no_fields)++] = wave_read_ind(adev, simd, wave, ixSQ_WAVE_HW_ID);
-	dst[(*no_fields)++] = wave_read_ind(adev, simd, wave, ixSQ_WAVE_INST_DW0);
-	dst[(*no_fields)++] = wave_read_ind(adev, simd, wave, ixSQ_WAVE_INST_DW1);
-	dst[(*no_fields)++] = wave_read_ind(adev, simd, wave, ixSQ_WAVE_GPR_ALLOC);
-	dst[(*no_fields)++] = wave_read_ind(adev, simd, wave, ixSQ_WAVE_LDS_ALLOC);
-	dst[(*no_fields)++] = wave_read_ind(adev, simd, wave, ixSQ_WAVE_TRAPSTS);
-	dst[(*no_fields)++] = wave_read_ind(adev, simd, wave, ixSQ_WAVE_IB_STS);
-	dst[(*no_fields)++] = wave_read_ind(adev, simd, wave, ixSQ_WAVE_TBA_LO);
-	dst[(*no_fields)++] = wave_read_ind(adev, simd, wave, ixSQ_WAVE_TBA_HI);
-	dst[(*no_fields)++] = wave_read_ind(adev, simd, wave, ixSQ_WAVE_TMA_LO);
-	dst[(*no_fields)++] = wave_read_ind(adev, simd, wave, ixSQ_WAVE_TMA_HI);
-	dst[(*no_fields)++] = wave_read_ind(adev, simd, wave, ixSQ_WAVE_IB_DBG0);
-	dst[(*no_fields)++] = wave_read_ind(adev, simd, wave, ixSQ_WAVE_M0);
+	dst[(*yes_fields)++] = 0;
+	dst[(*yes_fields)++] = wave_read_ind(adev, simd, wave, ixSQ_WAVE_STATUS);
+	dst[(*yes_fields)++] = wave_read_ind(adev, simd, wave, ixSQ_WAVE_PC_LO);
+	dst[(*yes_fields)++] = wave_read_ind(adev, simd, wave, ixSQ_WAVE_PC_HI);
+	dst[(*yes_fields)++] = wave_read_ind(adev, simd, wave, ixSQ_WAVE_EXEC_LO);
+	dst[(*yes_fields)++] = wave_read_ind(adev, simd, wave, ixSQ_WAVE_EXEC_HI);
+	dst[(*yes_fields)++] = wave_read_ind(adev, simd, wave, ixSQ_WAVE_HW_ID);
+	dst[(*yes_fields)++] = wave_read_ind(adev, simd, wave, ixSQ_WAVE_INST_DW0);
+	dst[(*yes_fields)++] = wave_read_ind(adev, simd, wave, ixSQ_WAVE_INST_DW1);
+	dst[(*yes_fields)++] = wave_read_ind(adev, simd, wave, ixSQ_WAVE_GPR_ALLOC);
+	dst[(*yes_fields)++] = wave_read_ind(adev, simd, wave, ixSQ_WAVE_LDS_ALLOC);
+	dst[(*yes_fields)++] = wave_read_ind(adev, simd, wave, ixSQ_WAVE_TRAPSTS);
+	dst[(*yes_fields)++] = wave_read_ind(adev, simd, wave, ixSQ_WAVE_IB_STS);
+	dst[(*yes_fields)++] = wave_read_ind(adev, simd, wave, ixSQ_WAVE_TBA_LO);
+	dst[(*yes_fields)++] = wave_read_ind(adev, simd, wave, ixSQ_WAVE_TBA_HI);
+	dst[(*yes_fields)++] = wave_read_ind(adev, simd, wave, ixSQ_WAVE_TMA_LO);
+	dst[(*yes_fields)++] = wave_read_ind(adev, simd, wave, ixSQ_WAVE_TMA_HI);
+	dst[(*yes_fields)++] = wave_read_ind(adev, simd, wave, ixSQ_WAVE_IB_DBG0);
+	dst[(*yes_fields)++] = wave_read_ind(adev, simd, wave, ixSQ_WAVE_M0);
 }
 
 static void gfx_v7_0_read_wave_sgprs(struct amdgpu_device *adev, uint32_t simd,
@@ -5000,7 +5000,7 @@ static const struct amd_ip_funcs gfx_v7_0_ip_funcs = {
 static const struct amdgpu_ring_funcs gfx_v7_0_ring_funcs_gfx = {
 	.type = AMDGPU_RING_TYPE_GFX,
 	.align_mask = 0xff,
-	.nop = PACKET3(PACKET3_NOP, 0x3FFF),
+	.yesp = PACKET3(PACKET3_NOP, 0x3FFF),
 	.support_64bit_ptrs = false,
 	.get_rptr = gfx_v7_0_ring_get_rptr,
 	.get_wptr = gfx_v7_0_ring_get_wptr_gfx,
@@ -5022,7 +5022,7 @@ static const struct amdgpu_ring_funcs gfx_v7_0_ring_funcs_gfx = {
 	.emit_hdp_flush = gfx_v7_0_ring_emit_hdp_flush,
 	.test_ring = gfx_v7_0_ring_test_ring,
 	.test_ib = gfx_v7_0_ring_test_ib,
-	.insert_nop = amdgpu_ring_insert_nop,
+	.insert_yesp = amdgpu_ring_insert_yesp,
 	.pad_ib = amdgpu_ring_generic_pad_ib,
 	.emit_cntxcntl = gfx_v7_ring_emit_cntxcntl,
 	.emit_wreg = gfx_v7_0_ring_emit_wreg,
@@ -5032,7 +5032,7 @@ static const struct amdgpu_ring_funcs gfx_v7_0_ring_funcs_gfx = {
 static const struct amdgpu_ring_funcs gfx_v7_0_ring_funcs_compute = {
 	.type = AMDGPU_RING_TYPE_COMPUTE,
 	.align_mask = 0xff,
-	.nop = PACKET3(PACKET3_NOP, 0x3FFF),
+	.yesp = PACKET3(PACKET3_NOP, 0x3FFF),
 	.support_64bit_ptrs = false,
 	.get_rptr = gfx_v7_0_ring_get_rptr,
 	.get_wptr = gfx_v7_0_ring_get_wptr_compute,
@@ -5053,7 +5053,7 @@ static const struct amdgpu_ring_funcs gfx_v7_0_ring_funcs_compute = {
 	.emit_hdp_flush = gfx_v7_0_ring_emit_hdp_flush,
 	.test_ring = gfx_v7_0_ring_test_ring,
 	.test_ib = gfx_v7_0_ring_test_ib,
-	.insert_nop = amdgpu_ring_insert_nop,
+	.insert_yesp = amdgpu_ring_insert_yesp,
 	.pad_ib = amdgpu_ring_generic_pad_ib,
 	.emit_wreg = gfx_v7_0_ring_emit_wreg,
 };
@@ -5165,7 +5165,7 @@ const struct amdgpu_ip_block_version gfx_v7_0_ip_block =
 {
 	.type = AMD_IP_BLOCK_TYPE_GFX,
 	.major = 7,
-	.minor = 0,
+	.miyesr = 0,
 	.rev = 0,
 	.funcs = &gfx_v7_0_ip_funcs,
 };
@@ -5174,7 +5174,7 @@ const struct amdgpu_ip_block_version gfx_v7_1_ip_block =
 {
 	.type = AMD_IP_BLOCK_TYPE_GFX,
 	.major = 7,
-	.minor = 1,
+	.miyesr = 1,
 	.rev = 0,
 	.funcs = &gfx_v7_0_ip_funcs,
 };
@@ -5183,7 +5183,7 @@ const struct amdgpu_ip_block_version gfx_v7_2_ip_block =
 {
 	.type = AMD_IP_BLOCK_TYPE_GFX,
 	.major = 7,
-	.minor = 2,
+	.miyesr = 2,
 	.rev = 0,
 	.funcs = &gfx_v7_0_ip_funcs,
 };
@@ -5192,7 +5192,7 @@ const struct amdgpu_ip_block_version gfx_v7_3_ip_block =
 {
 	.type = AMD_IP_BLOCK_TYPE_GFX,
 	.major = 7,
-	.minor = 3,
+	.miyesr = 3,
 	.rev = 0,
 	.funcs = &gfx_v7_0_ip_funcs,
 };

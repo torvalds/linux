@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
-/* Copyright (c) 2019 Mellanox Technologies */
+/* Copyright (c) 2019 Mellayesx Techyeslogies */
 
 #include <linux/mlx5/driver.h>
 #include "mlx5_core.h"
@@ -51,7 +51,7 @@ int mlx5_crdump_collect(struct mlx5_core_dev *dev, u32 *cr_data)
 			       ret);
 		return ret;
 	}
-	/* Verify no other PF is running cr-dump or sw reset */
+	/* Verify yes other PF is running cr-dump or sw reset */
 	ret = mlx5_vsc_sem_set_space(dev, MLX5_SEMAPHORE_SW_RESET,
 				     MLX5_VSC_LOCK);
 	if (ret) {
@@ -90,7 +90,7 @@ int mlx5_crdump_enable(struct mlx5_core_dev *dev)
 	ret = mlx5_vsc_gw_set_space(dev, MLX5_VSC_SPACE_SCAN_CRSPACE,
 				    &space_size);
 	if (ret) {
-		/* Unlock and mask error since space is not supported */
+		/* Unlock and mask error since space is yest supported */
 		mlx5_vsc_gw_unlock(dev);
 		return 0;
 	}

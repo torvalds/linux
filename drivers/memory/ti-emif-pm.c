@@ -63,7 +63,7 @@ static void ti_emif_free_sram(struct ti_emif_data *emif_data)
 static int ti_emif_alloc_sram(struct device *dev,
 			      struct ti_emif_data *emif_data)
 {
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 	int ret;
 
 	emif_data->sram_pool_code = of_gen_pool_get(np, "sram", 0);
@@ -121,7 +121,7 @@ static int ti_emif_alloc_sram(struct device *dev,
 				     (unsigned long)ti_emif_abort_sr);
 
 	/*
-	 * These are called during resume path when MMU is not enabled
+	 * These are called during resume path when MMU is yest enabled
 	 * so physical address is used instead
 	 */
 	emif_data->pm_functions.restore_context =
@@ -155,7 +155,7 @@ static int ti_emif_push_sram(struct device *dev, struct ti_emif_data *emif_data)
 				   (void *)emif_data->ti_emif_sram_virt,
 				   &ti_emif_sram, ti_emif_sram_sz);
 	if (!copy_addr) {
-		dev_err(dev, "Cannot copy emif code to sram\n");
+		dev_err(dev, "Canyest copy emif code to sram\n");
 		return -ENODEV;
 	}
 
@@ -166,7 +166,7 @@ static int ti_emif_push_sram(struct device *dev, struct ti_emif_data *emif_data)
 				   &emif_data->pm_data,
 				   sizeof(emif_data->pm_data));
 	if (!copy_addr) {
-		dev_err(dev, "Cannot copy emif data to code sram\n");
+		dev_err(dev, "Canyest copy emif data to code sram\n");
 		return -ENODEV;
 	}
 
@@ -196,7 +196,7 @@ static void ti_emif_configure_sr_delay(struct ti_emif_data *emif_data)
  * @sram_pool: pointer to struct gen_pool where dst resides
  * @dst: void * to address that table should be copied
  *
- * Returns 0 if success other error code if table is not available
+ * Returns 0 if success other error code if table is yest available
  */
 int ti_emif_copy_pm_function_table(struct gen_pool *sram_pool, void *dst)
 {
@@ -252,8 +252,8 @@ static int ti_emif_resume(struct device *dev)
 
 	/*
 	 * Check to see if what we are copying is already present in the
-	 * first byte at the destination, only copy if it is not which
-	 * indicates we have lost context and sram no longer contains
+	 * first byte at the destination, only copy if it is yest which
+	 * indicates we have lost context and sram yes longer contains
 	 * the PM code
 	 */
 	if (tmp != ti_emif_sram)
@@ -265,7 +265,7 @@ static int ti_emif_resume(struct device *dev)
 static int ti_emif_suspend(struct device *dev)
 {
 	/*
-	 * The contents will be present in DDR hence no need to
+	 * The contents will be present in DDR hence yes need to
 	 * explicitly save
 	 */
 	return 0;

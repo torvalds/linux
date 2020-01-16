@@ -37,7 +37,7 @@
 
 #define RFCOMM_TTY_MAGIC 0x6d02		/* magic number for rfcomm struct */
 #define RFCOMM_TTY_PORTS RFCOMM_MAX_DEV	/* whole lotta rfcomm devices */
-#define RFCOMM_TTY_MAJOR 216		/* device node major id of the usb/bluetooth.c driver */
+#define RFCOMM_TTY_MAJOR 216		/* device yesde major id of the usb/bluetooth.c driver */
 #define RFCOMM_TTY_MINOR 0
 
 static DEFINE_MUTEX(rfcomm_ioctl_mutex);
@@ -183,12 +183,12 @@ static void rfcomm_reparent_device(struct rfcomm_dev *dev)
 		return;
 
 	/* The lookup results are unsafe to access without the
-	 * hci device lock (FIXME: why is this not documented?)
+	 * hci device lock (FIXME: why is this yest documented?)
 	 */
 	hci_dev_lock(hdev);
 	conn = hci_conn_hash_lookup_ba(hdev, ACL_LINK, &dev->dst);
 
-	/* Just because the acl link is in the hash table is no
+	/* Just because the acl link is in the hash table is yes
 	 * guarantee the sysfs device has been added ...
 	 */
 	if (conn && device_is_registered(&conn->dev))
@@ -352,7 +352,7 @@ static inline unsigned int rfcomm_room(struct rfcomm_dev *dev)
 {
 	struct rfcomm_dlc *dlc = dev->dlc;
 
-	/* Limit the outstanding number of packets not yet sent to 40 */
+	/* Limit the outstanding number of packets yest yet sent to 40 */
 	int pending = 40 - atomic_read(&dev->wmem_alloc);
 
 	return max(0, pending) * dlc->mtu;
@@ -427,7 +427,7 @@ static int __rfcomm_create_dev(struct sock *sk, void __user *arg)
 		return id;
 
 	if (req.flags & (1 << RFCOMM_REUSE_DLC)) {
-		/* DLC is now used by device.
+		/* DLC is yesw used by device.
 		 * Socket must be disconnected */
 		sk->sk_state = BT_CLOSED;
 	}
@@ -464,7 +464,7 @@ static int __rfcomm_release_dev(void __user *arg)
 	if (req.flags & (1 << RFCOMM_HANGUP_NOW))
 		rfcomm_dlc_close(dev->dlc, 0);
 
-	/* Shut down TTY synchronously before freeing rfcomm_dev */
+	/* Shut down TTY synchroyesusly before freeing rfcomm_dev */
 	tty = tty_port_tty_get(&dev->port);
 	if (tty) {
 		tty_vhangup(tty);
@@ -800,7 +800,7 @@ static int rfcomm_tty_write(struct tty_struct *tty, const unsigned char *buf, in
 
 		skb_put_data(skb, buf + sent, size);
 
-		rfcomm_dlc_send_noerror(dlc, skb);
+		rfcomm_dlc_send_yeserror(dlc, skb);
 
 		sent  += size;
 		count -= size;
@@ -828,11 +828,11 @@ static int rfcomm_tty_ioctl(struct tty_struct *tty, unsigned int cmd, unsigned l
 
 	switch (cmd) {
 	case TCGETS:
-		BT_DBG("TCGETS is not supported");
+		BT_DBG("TCGETS is yest supported");
 		return -ENOIOCTLCMD;
 
 	case TCSETS:
-		BT_DBG("TCSETS is not supported");
+		BT_DBG("TCSETS is yest supported");
 		return -ENOIOCTLCMD;
 
 	case TIOCMIWAIT:
@@ -840,15 +840,15 @@ static int rfcomm_tty_ioctl(struct tty_struct *tty, unsigned int cmd, unsigned l
 		break;
 
 	case TIOCSERGETLSR:
-		BT_ERR("TIOCSERGETLSR is not supported");
+		BT_ERR("TIOCSERGETLSR is yest supported");
 		return -ENOIOCTLCMD;
 
 	case TIOCSERCONFIG:
-		BT_ERR("TIOCSERCONFIG is not supported");
+		BT_ERR("TIOCSERCONFIG is yest supported");
 		return -ENOIOCTLCMD;
 
 	default:
-		return -ENOIOCTLCMD;	/* ioctls which we must ignore */
+		return -ENOIOCTLCMD;	/* ioctls which we must igyesre */
 
 	}
 
@@ -882,7 +882,7 @@ static void rfcomm_tty_set_termios(struct tty_struct *tty, struct ktermios *old)
 		BT_DBG("Parity change detected.");
 	}
 
-	/* Mark and space parity are not supported! */
+	/* Mark and space parity are yest supported! */
 	if (new->c_cflag & PARENB) {
 		if (new->c_cflag & PARODD) {
 			BT_DBG("Parity is ODD");
@@ -919,7 +919,7 @@ static void rfcomm_tty_set_termios(struct tty_struct *tty, struct ktermios *old)
 	if ((old->c_cflag & CSTOPB) != (new->c_cflag & CSTOPB))
 		changes |= RFCOMM_RPN_PM_STOP;
 
-	/* POSIX does not support 1.5 stop bits and RFCOMM does not
+	/* POSIX does yest support 1.5 stop bits and RFCOMM does yest
 	 * support 2 stop bits. So a request for 2 stop bits gets
 	 * translated to 1.5 stop bits */
 	if (new->c_cflag & CSTOPB)
@@ -1134,7 +1134,7 @@ int __init rfcomm_init_ttys(void)
 	rfcomm_tty_driver->driver_name	= "rfcomm";
 	rfcomm_tty_driver->name		= "rfcomm";
 	rfcomm_tty_driver->major	= RFCOMM_TTY_MAJOR;
-	rfcomm_tty_driver->minor_start	= RFCOMM_TTY_MINOR;
+	rfcomm_tty_driver->miyesr_start	= RFCOMM_TTY_MINOR;
 	rfcomm_tty_driver->type		= TTY_DRIVER_TYPE_SERIAL;
 	rfcomm_tty_driver->subtype	= SERIAL_TYPE_NORMAL;
 	rfcomm_tty_driver->flags	= TTY_DRIVER_REAL_RAW | TTY_DRIVER_DYNAMIC_DEV;

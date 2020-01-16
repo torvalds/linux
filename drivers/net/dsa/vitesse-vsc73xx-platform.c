@@ -105,14 +105,14 @@ static int vsc73xx_platform_probe(struct platform_device *pdev)
 	/* obtain I/O memory space */
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {
-		dev_err(&pdev->dev, "cannot obtain I/O memory space\n");
+		dev_err(&pdev->dev, "canyest obtain I/O memory space\n");
 		ret = -ENXIO;
 		return ret;
 	}
 
 	vsc_platform->base_addr = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(vsc_platform->base_addr)) {
-		dev_err(&pdev->dev, "cannot request I/O memory space\n");
+		dev_err(&pdev->dev, "canyest request I/O memory space\n");
 		ret = -ENXIO;
 		return ret;
 	}

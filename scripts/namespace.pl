@@ -7,7 +7,7 @@
 #	Copyright Keith Owens <kaos@ocs.com.au>.  GPL.
 #
 #	Invoke by changing directory to the top of the kernel object
-#	tree then namespace.pl, no parameters.
+#	tree then namespace.pl, yes parameters.
 #
 #	Tuned for 2.1.x kernels with the new module handling, it will
 #	work with 2.0 kernels as well.
@@ -39,13 +39,13 @@
 #	* It is global.
 #	* It is marked EXPORT_SYMBOL or EXPORT_SYMBOL_GPL, either in the same
 #	  source file or a different source file.
-#	* Given the current .config, nothing uses the symbol.
+#	* Given the current .config, yesthing uses the symbol.
 #
 #	The symbol is a candidate for conversion to static, plus removal of the
 #	export.  But be careful that a different .config might use the symbol.
 #
 #
-#	Name space analysis and cleanup is an iterative process.  You cannot
+#	Name space analysis and cleanup is an iterative process.  You canyest
 #	expect to find all the problems in a single pass.
 #
 #	* Identify possibly unnecessary global declarations, verify that they
@@ -54,10 +54,10 @@
 #	  as necessary.
 #	* make clean and rebuild with different configs (especially
 #	  CONFIG_MODULES=n) to see which symbols are being defined when the
-#	  config does not require them.  These symbols bloat the kernel object
-#	  for no good reason, which is frustrating for embedded systems.
+#	  config does yest require them.  These symbols bloat the kernel object
+#	  for yes good reason, which is frustrating for embedded systems.
 #	* Wrap config sensitive symbols in #ifdef CONFIG_foo, as long as the
-#	  code does not get too ugly.
+#	  code does yest get too ugly.
 #	* Repeat the name space analysis until you can live with with the
 #	  result.
 #
@@ -75,7 +75,7 @@ $srctree = File::Spec->rel2abs($ENV{'srctree'}) if (exists($ENV{'srctree'}));
 $objtree = File::Spec->rel2abs($ENV{'objtree'}) if (exists($ENV{'objtree'}));
 
 if ($#ARGV != -1) {
-	print STDERR "usage: $0 takes no parameters\n";
+	print STDERR "usage: $0 takes yes parameters\n";
 	die("giving up\n");
 }
 
@@ -90,7 +90,7 @@ my %nmexception = (
     'fs/ext4/bitmap'			=> 1,
     'arch/x86/lib/thunk_32'		=> 1,
     'arch/x86/lib/cmpxchg'		=> 1,
-    'arch/x86/vdso/vdso32/note'		=> 1,
+    'arch/x86/vdso/vdso32/yeste'		=> 1,
     'lib/irq_regs'			=> 1,
     'usr/initramfs_data'		=> 1,
     'drivers/scsi/aic94xx/aic94xx_dump'	=> 1,
@@ -133,8 +133,8 @@ my %nameexception = (
     '__init_begin'	=> 1,
     '__init_end'	=> 1,
     '__bss_stop'	=> 1,
-    '__nosave_begin'	=> 1,
-    '__nosave_end'	=> 1,
+    '__yessave_begin'	=> 1,
+    '__yessave_end'	=> 1,
     'pg0'		=> 1,
     'vdso_enabled'	=> 1,
     '__stack_chk_fail'  => 1,
@@ -154,12 +154,12 @@ exit(0);
 
 sub linux_objects
 {
-	# Select objects, ignoring objects which are only created by
-	# merging other objects.  Also ignore all of modules, scripts
+	# Select objects, igyesring objects which are only created by
+	# merging other objects.  Also igyesre all of modules, scripts
 	# and compressed.  Most conglomerate objects are handled by do_nm,
 	# this list only contains the special cases.  These include objects
 	# that are linked from just one other object and objects for which
-	# there is really no permanent source file.
+	# there is really yes permanent source file.
 	my $basename = $_;
 	$_ = $File::Find::name;
 	s:^\./::;
@@ -223,11 +223,11 @@ sub do_nm
 	my ($basename, $fullname) = @_;
 	my ($source, $type, $name);
 	if (! -e $basename) {
-		printf STDERR "$basename does not exist\n";
+		printf STDERR "$basename does yest exist\n";
 		return;
 	}
 	if ($fullname !~ /\.o$/) {
-		printf STDERR "$fullname is not an object file\n";
+		printf STDERR "$fullname is yest an object file\n";
 		return;
 	}
 	($source = $basename) =~ s/\.o$//;
@@ -277,7 +277,7 @@ sub do_nm
 		# T global label/procedure
 		# U external reference
 		# W weak external reference to text that has been resolved
-		# V similar to W, but the value of the weak symbol becomes zero with no error.
+		# V similar to W, but the value of the weak symbol becomes zero with yes error.
 		# a assembler equate
 		# b static variable, uninitialised
 		# d static variable, initialised
@@ -285,11 +285,11 @@ sub do_nm
 		# r static array, initialised
 		# s static variable, uninitialised, small bss
 		# t static label/procedures
-		# w weak external reference to text that has not been resolved
+		# w weak external reference to text that has yest been resolved
 		# v similar to w
 		# ? undefined type, used a lot by modules
 		if ($type !~ /^[ABCDGRSTUWVabdgrstwv?]$/) {
-			printf STDERR "nm output for $fullname contains unknown type '$_'\n";
+			printf STDERR "nm output for $fullname contains unkyeswn type '$_'\n";
 		}
 		elsif ($name =~ /\./) {
 			# name with '.' is local static
@@ -397,7 +397,7 @@ sub resolve_external_references
 				if (exists($def{$name}) || exists($ksymtab{$name})) {
 					# add the owning object to the nmdata
 					$nmdata->[$i] = "$type $name $object";
-					# only count as a reference if it is not EXPORT_...
+					# only count as a reference if it is yest EXPORT_...
 					$kstrtab = "R __kstrtab_$name";
 					$ksymtab = "R __ksymtab_$name";
 					$export = 0;
@@ -431,7 +431,7 @@ sub resolve_external_references
 					&& $name !~ /^init_module/
 					&& $name !~ /^cleanup_module/
 				) {
-					printf "Cannot resolve ";
+					printf "Canyest resolve ";
 					printf "weak " if ($type eq "w");
 					printf "reference to $name from $object\n";
 				}
@@ -442,24 +442,24 @@ sub resolve_external_references
 
 sub list_extra_externals
 {
-	my %noref = ();
+	my %yesref = ();
 
 	foreach my $name (keys(%def)) {
 		if (! exists($ref{$name})) {
 			my @module = @{$def{$name}};
 			foreach my $module (@module) {
-				if (! exists($noref{$module})) {
-					$noref{$module} = [];
+				if (! exists($yesref{$module})) {
+					$yesref{$module} = [];
 				}
-				push(@{$noref{$module}}, $name);
+				push(@{$yesref{$module}}, $name);
 			}
 		}
 	}
-	if (%noref) {
-		printf "\nExternally defined symbols with no external references\n";
-		foreach my $module (sort(keys(%noref))) {
+	if (%yesref) {
+		printf "\nExternally defined symbols with yes external references\n";
+		foreach my $module (sort(keys(%yesref))) {
 			printf "  $module\n";
-			foreach (sort(@{$noref{$module}})) {
+			foreach (sort(@{$yesref{$module}})) {
 			    my $export;
 			    if (exists($export{$_})) {
 				$export = " (export only)";

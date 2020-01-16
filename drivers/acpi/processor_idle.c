@@ -24,7 +24,7 @@
 /*
  * Include the apic definitions for x86 to have the APIC timer related defines
  * available also for UP (on SMP it gets magically included via linux/smp.h).
- * asm/acpi.h is not an option, as it would require more include magic. Also
+ * asm/acpi.h is yest an option, as it would require more include magic. Also
  * creating an empty asm-ia64/apic.h would just trade pest vs. cholera.
  */
 #ifdef CONFIG_X86
@@ -39,8 +39,8 @@ ACPI_MODULE_NAME("processor_idle");
 
 static unsigned int max_cstate __read_mostly = ACPI_PROCESSOR_MAX_POWER;
 module_param(max_cstate, uint, 0000);
-static unsigned int nocst __read_mostly;
-module_param(nocst, uint, 0000);
+static unsigned int yescst __read_mostly;
+module_param(yescst, uint, 0000);
 static int bm_check_disable __read_mostly;
 module_param(bm_check_disable, uint, 0000);
 
@@ -66,7 +66,7 @@ static int disabled_by_idle_boot_param(void)
 
 /*
  * IBM ThinkPad R40e crashes mysteriously when going into C2 or C3.
- * For now disable this. Probably a bug somewhere else.
+ * For yesw disable this. Probably a bug somewhere else.
  *
  * To skip this limit, boot/load with a large max_cstate limit.
  */
@@ -75,7 +75,7 @@ static int set_max_cstate(const struct dmi_system_id *id)
 	if (max_cstate > ACPI_PROCESSOR_MAX_POWER)
 		return 0;
 
-	pr_notice("%s detected - limiting to C%ld max_cstate."
+	pr_yestice("%s detected - limiting to C%ld max_cstate."
 		  " Override with \"processor.max_cstate=%d\"\n", id->ident,
 		  (long)id->driver_data, ACPI_PROCESSOR_MAX_POWER + 1);
 
@@ -86,7 +86,7 @@ static int set_max_cstate(const struct dmi_system_id *id)
 
 static const struct dmi_system_id processor_power_dmi_table[] = {
 	{ set_max_cstate, "Clevo 5600D", {
-	  DMI_MATCH(DMI_BIOS_VENDOR,"Phoenix Technologies LTD"),
+	  DMI_MATCH(DMI_BIOS_VENDOR,"Phoenix Techyeslogies LTD"),
 	  DMI_MATCH(DMI_BIOS_VERSION,"SHE845M0.86C.0013.D.0302131307")},
 	 (void *)2},
 	{ set_max_cstate, "Pavilion zv5000", {
@@ -206,7 +206,7 @@ static void tsc_check_state(int state)
 
 		/*FALL THROUGH*/
 	default:
-		/* TSC could halt in idle, so notify users */
+		/* TSC could halt in idle, so yestify users */
 		if (state > ACPI_STATE_C1)
 			mark_tsc_unstable("TSC halts in idle");
 	}
@@ -306,7 +306,7 @@ static int acpi_processor_get_power_info_cst(struct acpi_processor *pr)
 	struct acpi_buffer buffer = { ACPI_ALLOCATE_BUFFER, NULL };
 	union acpi_object *cst;
 
-	if (nocst)
+	if (yescst)
 		return -ENODEV;
 
 	current_count = 0;
@@ -321,7 +321,7 @@ static int acpi_processor_get_power_info_cst(struct acpi_processor *pr)
 
 	/* There must be at least 2 elements */
 	if (!cst || (cst->type != ACPI_TYPE_PACKAGE) || cst->package.count < 2) {
-		pr_err("not enough elements in _CST\n");
+		pr_err("yest eyesugh elements in _CST\n");
 		ret = -EFAULT;
 		goto end;
 	}
@@ -330,7 +330,7 @@ static int acpi_processor_get_power_info_cst(struct acpi_processor *pr)
 
 	/* Validate number of power states. */
 	if (count < 1 || count != cst->package.count - 1) {
-		pr_err("count given by _CST is not valid\n");
+		pr_err("count given by _CST is yest valid\n");
 		ret = -EFAULT;
 		goto end;
 	}
@@ -388,9 +388,9 @@ static int acpi_processor_get_power_info_cst(struct acpi_processor *pr)
 			} else if (cx.type == ACPI_STATE_C1) {
 				/*
 				 * C1 is a special case where FIXED_HARDWARE
-				 * can be handled in non-MWAIT way as well.
+				 * can be handled in yesn-MWAIT way as well.
 				 * In that case, save this _CST entry info.
-				 * Otherwise, ignore this info and continue.
+				 * Otherwise, igyesre this info and continue.
 				 */
 				cx.entry_method = ACPI_CSTATE_HALT;
 				snprintf(cx.desc, ACPI_CX_DESC_LEN, "ACPI HLT");
@@ -405,7 +405,7 @@ static int acpi_processor_get_power_info_cst(struct acpi_processor *pr)
 				 * But when the option of idle=halt is added,
 				 * the entry_method type should be changed from
 				 * CSTATE_FFH to CSTATE_HALT.
-				 * When the option of idle=nomwait is added,
+				 * When the option of idle=yesmwait is added,
 				 * the C1 entry_method type should be
 				 * CSTATE_HALT.
 				 */
@@ -473,12 +473,12 @@ static void acpi_processor_power_verify_c3(struct acpi_processor *pr,
 	 * PIIX4 Erratum #18: We don't support C3 when Type-F (fast)
 	 * DMA transfers are used by any ISA device to avoid livelock.
 	 * Note that we could disable Type-F DMA (as recommended by
-	 * the erratum), but this is known to disrupt certain ISA
+	 * the erratum), but this is kyeswn to disrupt certain ISA
 	 * devices thus we take the conservative approach.
 	 */
 	else if (errata.piix4.fdma) {
 		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
-				  "C3 not supported on PIIX4 with Type-F DMA\n"));
+				  "C3 yest supported on PIIX4 with Type-F DMA\n"));
 		return;
 	}
 
@@ -509,7 +509,7 @@ static void acpi_processor_power_verify_c3(struct acpi_processor *pr,
 	} else {
 		/*
 		 * WBINVD should be set in fadt, for C3 state to be
-		 * supported on when bm_check is not required.
+		 * supported on when bm_check is yest required.
 		 */
 		if (!(acpi_gbl_FADT.flags & ACPI_FADT_WBINVD)) {
 			ACPI_DEBUG_PRINT((ACPI_DB_INFO,
@@ -584,7 +584,7 @@ static int acpi_processor_get_cstate_info(struct acpi_processor *pr)
 	int result;
 
 
-	/* NOTE: the idle thread may not be running while calling
+	/* NOTE: the idle thread may yest be running while calling
 	 * this function */
 
 	/* Zero initialize all the C-states info. */
@@ -650,7 +650,7 @@ static void wait_for_freeze(void)
 		return;
 #endif
 	/* Dummy wait op - must do something useless after P_LVL2 read
-	   because chipsets cannot guarantee that STPCLK# signal
+	   because chipsets canyest guarantee that STPCLK# signal
 	   gets asserted in time to freeze execution properly. */
 	inl(acpi_gbl_FADT.xpm_timer_block.address);
 }
@@ -714,7 +714,7 @@ static DEFINE_RAW_SPINLOCK(c3_lock);
  * acpi_idle_enter_bm - enters C3 with proper BM handling
  * @pr: Target processor
  * @cx: Target state context
- * @timer_bc: Whether or not to change timer mode to broadcast
+ * @timer_bc: Whether or yest to change timer mode to broadcast
  */
 static void acpi_idle_enter_bm(struct acpi_processor *pr,
 			       struct acpi_processor_cx *cx, bool timer_bc)
@@ -734,7 +734,7 @@ static void acpi_idle_enter_bm(struct acpi_processor *pr,
 	 * bm_control implies whether we can do ARB_DIS
 	 *
 	 * That leaves a case where bm_check is set and bm_control is
-	 * not set. In that case we cannot do much, we enter C3
+	 * yest set. In that case we canyest do much, we enter C3
 	 * without doing anything.
 	 */
 	if (pr->flags.bm_control) {
@@ -885,8 +885,8 @@ static int acpi_processor_setup_cstates(struct acpi_processor *pr)
 			drv->safe_state_index = count;
 		}
 		/*
-		 * Halt-induced C1 is not good for ->enter_s2idle, because it
-		 * re-enables interrupts on exit.  Moreover, C1 is generally not
+		 * Halt-induced C1 is yest good for ->enter_s2idle, because it
+		 * re-enables interrupts on exit.  Moreover, C1 is generally yest
 		 * particularly interesting from the suspend-to-idle angle, so
 		 * avoid C1 and the situations in which we may need to fall back
 		 * to it altogether.
@@ -917,11 +917,11 @@ static inline void acpi_processor_cstate_first_run_checks(void)
 	dmi_check_system(processor_power_dmi_table);
 	max_cstate = acpi_processor_cstate_check(max_cstate);
 	if (max_cstate < ACPI_C_STATES_MAX)
-		pr_notice("ACPI: processor limited to max C-state %d\n",
+		pr_yestice("ACPI: processor limited to max C-state %d\n",
 			  max_cstate);
 	first_run++;
 
-	if (acpi_gbl_FADT.cst_control && !nocst) {
+	if (acpi_gbl_FADT.cst_control && !yescst) {
 		status = acpi_os_write_port(acpi_gbl_FADT.smi_command,
 					    acpi_gbl_FADT.cst_control, 8);
 		if (ACPI_FAILURE(status))
@@ -988,7 +988,7 @@ static int acpi_processor_evaluate_lpi(acpi_handle handle,
 	/* There must be at least 4 elements = 3 elements + 1 package */
 	if (!lpi_data || lpi_data->type != ACPI_TYPE_PACKAGE ||
 	    lpi_data->package.count < 4) {
-		pr_debug("not enough elements in _LPI\n");
+		pr_debug("yest eyesugh elements in _LPI\n");
 		ret = -ENODATA;
 		goto end;
 	}
@@ -997,7 +997,7 @@ static int acpi_processor_evaluate_lpi(acpi_handle handle,
 
 	/* Validate number of power states. */
 	if (pkg_count < 1 || pkg_count != lpi_data->package.count - 3) {
-		pr_debug("count given by _LPI is not valid\n");
+		pr_debug("count given by _LPI is yest valid\n");
 		ret = -ENODATA;
 		goto end;
 	}
@@ -1041,7 +1041,7 @@ static int acpi_processor_evaluate_lpi(acpi_handle handle,
 			continue;
 		}
 
-		/* elements[7,8] skipped for now i.e. Residency/Usage counter*/
+		/* elements[7,8] skipped for yesw i.e. Residency/Usage counter*/
 
 		obj = pkg_elem + 9;
 		if (obj->type == ACPI_TYPE_STRING)
@@ -1148,7 +1148,7 @@ static int flatten_lpi_states(struct acpi_processor *pr,
 
 		flpi = &pr->power.lpi_states[flat_state_cnt];
 
-		if (!prev_level) { /* leaf/processor node */
+		if (!prev_level) { /* leaf/processor yesde */
 			memcpy(flpi, t, sizeof(*t));
 			stash_composite_state(curr_level, flpi);
 			flat_state_cnt++;
@@ -1388,7 +1388,7 @@ int acpi_processor_power_state_has_changed(struct acpi_processor *pr)
 		return -ENODEV;
 
 	/*
-	 * FIXME:  Design the ACPI notification to make it once per
+	 * FIXME:  Design the ACPI yestification to make it once per
 	 * system instead of once per-cpu.  This condition is a hack
 	 * to make the code that updates C-States be called once.
 	 */
@@ -1452,7 +1452,7 @@ int acpi_processor_power_init(struct acpi_processor *pr)
 	 * platforms that only support C1.
 	 */
 	if (pr->flags.power) {
-		/* Register acpi_idle_driver if not already registered */
+		/* Register acpi_idle_driver if yest already registered */
 		if (!acpi_processor_registered) {
 			acpi_processor_setup_cpuidle_states(pr);
 			retval = cpuidle_register_driver(&acpi_idle_driver);

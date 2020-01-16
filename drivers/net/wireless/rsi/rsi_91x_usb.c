@@ -3,7 +3,7 @@
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
+ * copyright yestice and this permission yestice appear in all copies.
  *
  * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
@@ -438,11 +438,11 @@ static int rsi_usb_host_intf_write_pkt(struct rsi_hw *adapter,
 				       u8 *pkt,
 				       u32 len)
 {
-	u32 queueno = ((pkt[1] >> 4) & 0x7);
+	u32 queueyes = ((pkt[1] >> 4) & 0x7);
 	u8 endpoint;
 
-	endpoint = ((queueno == RSI_WIFI_MGMT_Q || queueno == RSI_WIFI_DATA_Q ||
-		     queueno == RSI_COEX_Q) ? WLAN_EP : BT_EP);
+	endpoint = ((queueyes == RSI_WIFI_MGMT_Q || queueyes == RSI_WIFI_DATA_Q ||
+		     queueyes == RSI_COEX_Q) ? WLAN_EP : BT_EP);
 
 	return rsi_write_multiple(adapter,
 				  endpoint,

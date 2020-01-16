@@ -24,7 +24,7 @@
  *  - A lookup function defined using DefineCacheLookup
  *  - A 'put' function that can release a cache item. It will only
  *    be called after cache_put has succeed, so there are guarantee
- *    to be no references.
+ *    to be yes references.
  *  - A function to calculate a hash of an item's key.
  *
  * as well as assorted code fragments (e.g. compare keys) and numbers
@@ -44,7 +44,7 @@
  * 
  */
 struct cache_head {
-	struct hlist_node	cache_list;
+	struct hlist_yesde	cache_list;
 	time_t		expiry_time;	/* After time time, don't use the data */
 	time_t		last_refresh;   /* If CACHE_PENDING, this is when upcall was
 					 * sent, else this is when update was
@@ -55,8 +55,8 @@ struct cache_head {
 	unsigned long	flags;
 };
 #define	CACHE_VALID	0	/* Entry contains valid data */
-#define	CACHE_NEGATIVE	1	/* Negative entry - there is no match for the key */
-#define	CACHE_PENDING	2	/* An upcall has been sent but no reply received yet*/
+#define	CACHE_NEGATIVE	1	/* Negative entry - there is yes match for the key */
+#define	CACHE_PENDING	2	/* An upcall has been sent but yes reply received yet*/
 #define	CACHE_CLEANED	3	/* Entry has been cleaned from cache */
 
 #define	CACHE_NEW_EXPIRY 120	/* keep new things pending confirmation for 120 seconds */
@@ -83,7 +83,7 @@ struct cache_detail {
 	int			(*cache_show)(struct seq_file *m,
 					      struct cache_detail *cd,
 					      struct cache_head *h);
-	void			(*warn_no_listener)(struct cache_detail *cd,
+	void			(*warn_yes_listener)(struct cache_detail *cd,
 					      int has_died);
 
 	struct cache_head *	(*alloc)(void);
@@ -93,7 +93,7 @@ struct cache_detail {
 	void			(*update)(struct cache_head *orig, struct cache_head *new);
 
 	/* fields below this comment are for internal use
-	 * and should not be touched by cache owners
+	 * and should yest be touched by cache owners
 	 */
 	time_t			flush_time;		/* flush all cache items with
 							 * last_refresh at or earlier
@@ -109,8 +109,8 @@ struct cache_detail {
 	struct list_head	queue;
 
 	atomic_t		writers;		/* how many time is /channel open */
-	time_t			last_close;		/* if no writers, when did last close */
-	time_t			last_warn;		/* when we last warned about no writers */
+	time_t			last_close;		/* if yes writers, when did last close */
+	time_t			last_warn;		/* when we last warned about yes writers */
 
 	union {
 		struct proc_dir_entry	*procfs;
@@ -134,7 +134,7 @@ struct cache_req {
  * delayed awaiting cache-fill
  */
 struct cache_deferred_req {
-	struct hlist_node	hash;	/* on hash chain */
+	struct hlist_yesde	hash;	/* on hash chain */
 	struct list_head	recent; /* on fifo */
 	struct cache_head	*item;  /* cache item we wait on */
 	void			*owner; /* we might need to discard all defered requests

@@ -8,7 +8,7 @@
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/capability.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/types.h>
 #include <linux/socket.h>
 #include <linux/in.h>
@@ -32,7 +32,7 @@
 #include <linux/termios.h>	/* For TIOCINQ/OUTQ */
 #include <linux/mm.h>
 #include <linux/interrupt.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <net/netrom.h>
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
@@ -48,10 +48,10 @@ int sysctl_netrom_obsolescence_count_initialiser  = NR_DEFAULT_OBS;
 int sysctl_netrom_network_ttl_initialiser         = NR_DEFAULT_TTL;
 int sysctl_netrom_transport_timeout               = NR_DEFAULT_T1;
 int sysctl_netrom_transport_maximum_tries         = NR_DEFAULT_N2;
-int sysctl_netrom_transport_acknowledge_delay     = NR_DEFAULT_T2;
+int sysctl_netrom_transport_ackyeswledge_delay     = NR_DEFAULT_T2;
 int sysctl_netrom_transport_busy_delay            = NR_DEFAULT_T4;
 int sysctl_netrom_transport_requested_window_size = NR_DEFAULT_WINDOW;
-int sysctl_netrom_transport_no_activity_timeout   = NR_DEFAULT_IDLE;
+int sysctl_netrom_transport_yes_activity_timeout   = NR_DEFAULT_IDLE;
 int sysctl_netrom_routing_control                 = NR_DEFAULT_ROUTING;
 int sysctl_netrom_link_fails_count                = NR_DEFAULT_FAILS;
 int sysctl_netrom_reset_circuit                   = NR_DEFAULT_RESET;
@@ -64,12 +64,12 @@ static DEFINE_SPINLOCK(nr_list_lock);
 static const struct proto_ops nr_proto_ops;
 
 /*
- *	Socket removal during an interrupt is now safe.
+ *	Socket removal during an interrupt is yesw safe.
  */
 static void nr_remove_socket(struct sock *sk)
 {
 	spin_lock_bh(&nr_list_lock);
-	sk_del_node_init(sk);
+	sk_del_yesde_init(sk);
 	spin_unlock_bh(&nr_list_lock);
 }
 
@@ -90,9 +90,9 @@ static void nr_kill_by_device(struct net_device *dev)
 /*
  *	Handle device status changes.
  */
-static int nr_device_event(struct notifier_block *this, unsigned long event, void *ptr)
+static int nr_device_event(struct yestifier_block *this, unsigned long event, void *ptr)
 {
-	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
+	struct net_device *dev = netdev_yestifier_info_to_dev(ptr);
 
 	if (!net_eq(dev_net(dev), &init_net))
 		return NOTIFY_DONE;
@@ -112,7 +112,7 @@ static int nr_device_event(struct notifier_block *this, unsigned long event, voi
 static void nr_insert_socket(struct sock *sk)
 {
 	spin_lock_bh(&nr_list_lock);
-	sk_add_node(sk, &nr_list);
+	sk_add_yesde(sk, &nr_list);
 	spin_unlock_bh(&nr_list_lock);
 }
 
@@ -229,7 +229,7 @@ static void nr_destroy_timer(struct timer_list *t)
 /*
  *	This is called from user mode and the timers. Thus it protects itself
  *	against interrupt users but doesn't worry about being called during
- *	work. Once it is removed from the queue no interrupt or bottom half
+ *	work. Once it is removed from the queue yes interrupt or bottom half
  *	will touch it and we are (fairly 8-) ) safe.
  */
 void nr_destroy_socket(struct sock *sk)
@@ -428,13 +428,13 @@ static int nr_create(struct net *net, struct socket *sock, int protocol,
 	nr->t1     =
 		msecs_to_jiffies(sysctl_netrom_transport_timeout);
 	nr->t2     =
-		msecs_to_jiffies(sysctl_netrom_transport_acknowledge_delay);
+		msecs_to_jiffies(sysctl_netrom_transport_ackyeswledge_delay);
 	nr->n2     =
 		msecs_to_jiffies(sysctl_netrom_transport_maximum_tries);
 	nr->t4     =
 		msecs_to_jiffies(sysctl_netrom_transport_busy_delay);
 	nr->idle   =
-		msecs_to_jiffies(sysctl_netrom_transport_no_activity_timeout);
+		msecs_to_jiffies(sysctl_netrom_transport_yes_activity_timeout);
 	nr->window = sysctl_netrom_transport_requested_window_size;
 
 	nr->bpqext = 1;
@@ -644,7 +644,7 @@ static int nr_connect(struct socket *sock, struct sockaddr *uaddr,
 		err = -EINVAL;
 		goto out_release;
 	}
-	if (sock_flag(sk, SOCK_ZAPPED)) {	/* Must bind first - autobinding in this may or may not work */
+	if (sock_flag(sk, SOCK_ZAPPED)) {	/* Must bind first - autobinding in this may or may yest work */
 		sock_reset_flag(sk, SOCK_ZAPPED);
 
 		if ((dev = nr_dev_first()) == NULL) {
@@ -878,8 +878,8 @@ int nr_rx_frame(struct sk_buff *skb, struct net_device *dev)
 	 * Find an existing socket connection, based on circuit ID, if it's
 	 * a Connect Request base it on their circuit ID.
 	 *
-	 * Circuit ID 0/0 is not valid but it could still be a "reset" for a
-	 * circuit that no longer exists at the other end ...
+	 * Circuit ID 0/0 is yest valid but it could still be a "reset" for a
+	 * circuit that yes longer exists at the other end ...
 	 */
 
 	sk = NULL;
@@ -918,7 +918,7 @@ int nr_rx_frame(struct sk_buff *skb, struct net_device *dev)
 		 * NET/ROM doesn't have one.  We've tried to extend the protocol
 		 * by sending NR_CONNACK | NR_CHOKE_FLAGS replies but that
 		 * apparently kills BPQ boxes... :-(
-		 * So now we try to follow the established behaviour of
+		 * So yesw we try to follow the established behaviour of
 		 * G8PZT's Xrouter which is sending packets with command type 7
 		 * as an extension of the protocol.
 		 */
@@ -1062,7 +1062,7 @@ static int nr_sendmsg(struct socket *sock, struct msghdr *msg, size_t len)
 	}
 
 	/* Build a packet - the conventional user limit is 236 bytes. We can
-	   do ludicrously large NetROM frames but must not overflow */
+	   do ludicrously large NetROM frames but must yest overflow */
 	if (len > 65536) {
 		err = -EMSGSIZE;
 		goto out;
@@ -1255,7 +1255,7 @@ static int nr_info_show(struct seq_file *seq, void *v)
 
 	if (v == SEQ_START_TOKEN)
 		seq_puts(seq,
-"user_addr dest_node src_node  dev    my  your  st  vs  vr  va    t1     t2     t4      idle   n2  wnd Snd-Q Rcv-Q inode\n");
+"user_addr dest_yesde src_yesde  dev    my  your  st  vs  vr  va    t1     t2     t4      idle   n2  wnd Snd-Q Rcv-Q iyesde\n");
 
 	else {
 
@@ -1294,7 +1294,7 @@ static int nr_info_show(struct seq_file *seq, void *v)
 			nr->window,
 			sk_wmem_alloc_get(s),
 			sk_rmem_alloc_get(s),
-			s->sk_socket ? SOCK_INODE(s->sk_socket)->i_ino : 0L);
+			s->sk_socket ? SOCK_INODE(s->sk_socket)->i_iyes : 0L);
 
 		bh_unlock_sock(s);
 	}
@@ -1321,24 +1321,24 @@ static const struct proto_ops nr_proto_ops = {
 	.release	=	nr_release,
 	.bind		=	nr_bind,
 	.connect	=	nr_connect,
-	.socketpair	=	sock_no_socketpair,
+	.socketpair	=	sock_yes_socketpair,
 	.accept		=	nr_accept,
 	.getname	=	nr_getname,
 	.poll		=	datagram_poll,
 	.ioctl		=	nr_ioctl,
 	.gettstamp	=	sock_gettstamp,
 	.listen		=	nr_listen,
-	.shutdown	=	sock_no_shutdown,
+	.shutdown	=	sock_yes_shutdown,
 	.setsockopt	=	nr_setsockopt,
 	.getsockopt	=	nr_getsockopt,
 	.sendmsg	=	nr_sendmsg,
 	.recvmsg	=	nr_recvmsg,
-	.mmap		=	sock_no_mmap,
-	.sendpage	=	sock_no_sendpage,
+	.mmap		=	sock_yes_mmap,
+	.sendpage	=	sock_yes_sendpage,
 };
 
-static struct notifier_block nr_dev_notifier = {
-	.notifier_call	=	nr_device_event,
+static struct yestifier_block nr_dev_yestifier = {
+	.yestifier_call	=	nr_device_event,
 };
 
 static struct net_device **dev_nr;
@@ -1348,7 +1348,7 @@ static struct ax25_protocol nr_pid = {
 	.func	= nr_route_frame
 };
 
-static struct ax25_linkfail nr_linkfail_notifier = {
+static struct ax25_linkfail nr_linkfail_yestifier = {
 	.func	= nr_link_failed,
 };
 
@@ -1399,12 +1399,12 @@ static int __init nr_proto_init(void)
 	if (rc)
 		goto fail;
 
-	rc = register_netdevice_notifier(&nr_dev_notifier);
+	rc = register_netdevice_yestifier(&nr_dev_yestifier);
 	if (rc)
 		goto out_sock;
 
 	ax25_register_pid(&nr_pid);
-	ax25_linkfail_register(&nr_linkfail_notifier);
+	ax25_linkfail_register(&nr_linkfail_yestifier);
 
 #ifdef CONFIG_SYSCTL
 	rc = nr_register_sysctl();
@@ -1420,8 +1420,8 @@ static int __init nr_proto_init(void)
 	if (!proc_create_seq("nr_neigh", 0444, init_net.proc_net,
 			     &nr_neigh_seqops))
 		goto proc_remove2;
-	if (!proc_create_seq("nr_nodes", 0444, init_net.proc_net,
-			     &nr_node_seqops))
+	if (!proc_create_seq("nr_yesdes", 0444, init_net.proc_net,
+			     &nr_yesde_seqops))
 		goto proc_remove3;
 
 	return 0;
@@ -1439,9 +1439,9 @@ proc_remove1:
 	nr_unregister_sysctl();
 out_sysctl:
 #endif
-	ax25_linkfail_release(&nr_linkfail_notifier);
+	ax25_linkfail_release(&nr_linkfail_yestifier);
 	ax25_protocol_release(AX25_P_NETROM);
-	unregister_netdevice_notifier(&nr_dev_notifier);
+	unregister_netdevice_yestifier(&nr_dev_yestifier);
 out_sock:
 	sock_unregister(PF_NETROM);
 fail:
@@ -1471,7 +1471,7 @@ static void __exit nr_exit(void)
 
 	remove_proc_entry("nr", init_net.proc_net);
 	remove_proc_entry("nr_neigh", init_net.proc_net);
-	remove_proc_entry("nr_nodes", init_net.proc_net);
+	remove_proc_entry("nr_yesdes", init_net.proc_net);
 	nr_loopback_clear();
 
 	nr_rt_free();
@@ -1480,10 +1480,10 @@ static void __exit nr_exit(void)
 	nr_unregister_sysctl();
 #endif
 
-	ax25_linkfail_release(&nr_linkfail_notifier);
+	ax25_linkfail_release(&nr_linkfail_yestifier);
 	ax25_protocol_release(AX25_P_NETROM);
 
-	unregister_netdevice_notifier(&nr_dev_notifier);
+	unregister_netdevice_yestifier(&nr_dev_yestifier);
 
 	sock_unregister(PF_NETROM);
 

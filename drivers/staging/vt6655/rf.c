@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
- * Copyright (c) 1996, 2003 VIA Networking Technologies, Inc.
+ * Copyright (c) 1996, 2003 VIA Networking Techyeslogies, Inc.
  * All rights reserved.
  *
  * File: rf.c
@@ -401,7 +401,7 @@ static const unsigned long dwAL7230ChannelTable2[CB_MAX_CHANNEL] = {
  *  In:
  *      iobase      - I/O base address
  *  Out:
- *      none
+ *      yesne
  *
  * Return Value: true if succeeded; false if failed.
  *
@@ -414,7 +414,7 @@ static bool s_bAL7230Init(struct vnt_private *priv)
 
 	ret = true;
 
-	/* 3-wire control for normal mode */
+	/* 3-wire control for yesrmal mode */
 	VNSvOutPortB(iobase + MAC_REG_SOFTPWRCTL, 0);
 
 	MACvWordRegBitsOn(iobase, MAC_REG_SOFTPWRCTL, (SOFTPWRCTL_SWPECTI  |
@@ -472,7 +472,7 @@ static bool s_bAL7230SelectChannel(struct vnt_private *priv, unsigned char byCha
 	/* PLLOn On */
 	MACvWordRegBitsOn(iobase, MAC_REG_SOFTPWRCTL, SOFTPWRCTL_SWPE3);
 
-	/* Set Channel[7] = 0 to tell H/W channel is changing now. */
+	/* Set Channel[7] = 0 to tell H/W channel is changing yesw. */
 	VNSvOutPortB(iobase + MAC_REG_CHANNEL, (byChannel & 0x7F));
 	MACvTimer0MicroSDelay(priv, SWITCH_CHANNEL_DELAY_AL7230);
 	/* Set Channel[7] = 1 to tell H/W channel change is done. */
@@ -489,7 +489,7 @@ static bool s_bAL7230SelectChannel(struct vnt_private *priv, unsigned char byCha
  *      iobase      - I/O base address
  *      dwData      - data to write
  *  Out:
- *      none
+ *      yesne
  *
  * Return Value: true if succeeded; false if failed.
  *
@@ -522,7 +522,7 @@ bool IFRFbWriteEmbedded(struct vnt_private *priv, unsigned long dwData)
  *  In:
  *      iobase      - I/O base address
  *  Out:
- *      none
+ *      yesne
  *
  * Return Value: true if succeeded; false if failed.
  *
@@ -535,7 +535,7 @@ static bool RFbAL2230Init(struct vnt_private *priv)
 
 	ret = true;
 
-	/* 3-wire control for normal mode */
+	/* 3-wire control for yesrmal mode */
 	VNSvOutPortB(iobase + MAC_REG_SOFTPWRCTL, 0);
 
 	MACvWordRegBitsOn(iobase, MAC_REG_SOFTPWRCTL, (SOFTPWRCTL_SWPECTI  |
@@ -543,7 +543,7 @@ static bool RFbAL2230Init(struct vnt_private *priv)
 	/* PLL  Off */
 	MACvWordRegBitsOff(iobase, MAC_REG_SOFTPWRCTL, SOFTPWRCTL_SWPE3);
 
-	/* patch abnormal AL2230 frequency output */
+	/* patch abyesrmal AL2230 frequency output */
 	IFRFbWriteEmbedded(priv, (0x07168700 + (BY_AL2230_REG_LEN << 3) + IFREGCTL_REGW));
 
 	for (ii = 0; ii < CB_AL2230_INIT_SEQ; ii++)
@@ -582,7 +582,7 @@ static bool RFbAL2230SelectChannel(struct vnt_private *priv, unsigned char byCha
 	ret &= IFRFbWriteEmbedded(priv, dwAL2230ChannelTable0[byChannel - 1]);
 	ret &= IFRFbWriteEmbedded(priv, dwAL2230ChannelTable1[byChannel - 1]);
 
-	/* Set Channel[7] = 0 to tell H/W channel is changing now. */
+	/* Set Channel[7] = 0 to tell H/W channel is changing yesw. */
 	VNSvOutPortB(iobase + MAC_REG_CHANNEL, (byChannel & 0x7F));
 	MACvTimer0MicroSDelay(priv, SWITCH_CHANNEL_DELAY_AL2230);
 	/* Set Channel[7] = 1 to tell H/W channel change is done. */
@@ -599,7 +599,7 @@ static bool RFbAL2230SelectChannel(struct vnt_private *priv, unsigned char byCha
  *      byBBType
  *      byRFType
  *  Out:
- *      none
+ *      yesne
  *
  * Return Value: true if succeeded; false if failed.
  *
@@ -636,7 +636,7 @@ bool RFbInit(struct vnt_private *priv)
  *      byRFType
  *      byChannel    - Channel number
  *  Out:
- *      none
+ *      yesne
  *
  * Return Value: true if succeeded; false if failed.
  *
@@ -751,7 +751,7 @@ bool RFvWriteWakeProgSyn(struct vnt_private *priv, unsigned char byRFType,
  *      iobase         - I/O base address
  *      dwRFPowerTable - RF Tx Power Setting
  *  Out:
- *      none
+ *      yesne
  *
  * Return Value: true if succeeded; false if failed.
  *
@@ -819,7 +819,7 @@ bool RFbSetPower(struct vnt_private *priv, unsigned int rate, u16 uCH)
  *      iobase         - I/O base address
  *      dwRFPowerTable - RF Tx Power Setting
  *  Out:
- *      none
+ *      yesne
  *
  * Return Value: true if succeeded; false if failed.
  *
@@ -884,7 +884,7 @@ bool RFbRawSetPower(struct vnt_private *priv, unsigned char byPwr,
  *  Out:
  *      pdwdbm          - Translated dbm number
  *
- * Return Value: none
+ * Return Value: yesne
  *
  */
 void

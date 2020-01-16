@@ -4,21 +4,21 @@
 #include <linux/mfd/syscon.h>
 #include <linux/bitops.h>
 #include <linux/module.h>
-#include "pl111_nomadik.h"
+#include "pl111_yesmadik.h"
 
 #define PMU_CTRL_OFFSET 0x0000
 #define PMU_CTRL_LCDNDIF BIT(26)
 
-void pl111_nomadik_init(struct device *dev)
+void pl111_yesmadik_init(struct device *dev)
 {
 	struct regmap *pmu_regmap;
 
 	/*
-	 * Just bail out of this is not found, we could be running
+	 * Just bail out of this is yest found, we could be running
 	 * multiplatform on something else than Nomadik.
 	 */
 	pmu_regmap =
-		syscon_regmap_lookup_by_compatible("stericsson,nomadik-pmu");
+		syscon_regmap_lookup_by_compatible("stericsson,yesmadik-pmu");
 	if (IS_ERR(pmu_regmap))
 		return;
 
@@ -33,4 +33,4 @@ void pl111_nomadik_init(struct device *dev)
 			   0);
 	dev_info(dev, "set Nomadik PMU mux to CLCD mode\n");
 }
-EXPORT_SYMBOL_GPL(pl111_nomadik_init);
+EXPORT_SYMBOL_GPL(pl111_yesmadik_init);

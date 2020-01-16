@@ -53,7 +53,7 @@ static int enetc_pci_mdio_probe(struct pci_dev *pdev,
 		goto err_ioremap;
 	}
 
-	err = of_mdiobus_register(bus, dev->of_node);
+	err = of_mdiobus_register(bus, dev->of_yesde);
 	if (err)
 		goto err_mdiobus_reg;
 

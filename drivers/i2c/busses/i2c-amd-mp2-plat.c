@@ -24,7 +24,7 @@
 /**
  * struct amd_i2c_dev - MP2 bus/i2c adapter context
  * @common: shared context with the MP2 PCI driver
- * @pdev: platform driver node
+ * @pdev: platform driver yesde
  * @adap: i2c adapter
  * @cmd_complete: xfer completion object
  */
@@ -290,7 +290,7 @@ static int i2c_amd_probe(struct platform_device *pdev)
 	/* Register the adapter */
 	amd_mp2_pm_runtime_get(mp2_dev);
 
-	i2c_dev->common.reqcmd = i2c_none;
+	i2c_dev->common.reqcmd = i2c_yesne;
 	if (amd_mp2_register_cb(&i2c_dev->common))
 		return -EINVAL;
 	device_link_add(&i2c_dev->pdev->dev, &mp2_dev->pci_dev->dev,
@@ -306,7 +306,7 @@ static int i2c_amd_probe(struct platform_device *pdev)
 	i2c_dev->adap.algo_data = i2c_dev;
 	i2c_dev->adap.timeout = AMD_I2C_TIMEOUT;
 	ACPI_COMPANION_SET(&i2c_dev->adap.dev, ACPI_COMPANION(&pdev->dev));
-	i2c_dev->adap.dev.of_node = pdev->dev.of_node;
+	i2c_dev->adap.dev.of_yesde = pdev->dev.of_yesde;
 	snprintf(i2c_dev->adap.name, sizeof(i2c_dev->adap.name),
 		 "AMD MP2 i2c bus %u", i2c_dev->common.bus_id);
 	i2c_set_adapdata(&i2c_dev->adap, i2c_dev);

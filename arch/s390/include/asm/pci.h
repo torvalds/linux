@@ -249,8 +249,8 @@ int zpci_report_error(struct pci_dev *, struct zpci_report_error_header *);
 
 #ifdef CONFIG_NUMA
 
-/* Returns the node based on PCI bus */
-static inline int __pcibus_to_node(const struct pci_bus *bus)
+/* Returns the yesde based on PCI bus */
+static inline int __pcibus_to_yesde(const struct pci_bus *bus)
 {
 	return NUMA_NO_NODE;
 }

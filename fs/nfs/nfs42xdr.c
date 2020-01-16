@@ -28,15 +28,15 @@
 #define decode_copy_maxsz		(op_decode_hdr_maxsz + \
 					 NFS42_WRITE_RES_SIZE + \
 					 1 /* cr_consecutive */ + \
-					 1 /* cr_synchronous */)
+					 1 /* cr_synchroyesus */)
 #define encode_offload_cancel_maxsz	(op_encode_hdr_maxsz + \
 					 XDR_QUADLEN(NFS4_STATEID_SIZE))
 #define decode_offload_cancel_maxsz	(op_decode_hdr_maxsz)
-#define encode_copy_notify_maxsz	(op_encode_hdr_maxsz + \
+#define encode_copy_yestify_maxsz	(op_encode_hdr_maxsz + \
 					 XDR_QUADLEN(NFS4_STATEID_SIZE) + \
 					 1 + /* nl4_type */ \
 					 1 + XDR_QUADLEN(NFS4_OPAQUE_LIMIT))
-#define decode_copy_notify_maxsz	(op_decode_hdr_maxsz + \
+#define decode_copy_yestify_maxsz	(op_decode_hdr_maxsz + \
 					 3 + /* cnr_lease_time */\
 					 XDR_QUADLEN(NFS4_STATEID_SIZE) + \
 					 1 + /* Support 1 cnr_source_server */\
@@ -112,12 +112,12 @@
 					 decode_sequence_maxsz + \
 					 decode_putfh_maxsz + \
 					 decode_offload_cancel_maxsz)
-#define NFS4_enc_copy_notify_sz		(compound_encode_hdr_maxsz + \
+#define NFS4_enc_copy_yestify_sz		(compound_encode_hdr_maxsz + \
 					 encode_putfh_maxsz + \
-					 encode_copy_notify_maxsz)
-#define NFS4_dec_copy_notify_sz		(compound_decode_hdr_maxsz + \
+					 encode_copy_yestify_maxsz)
+#define NFS4_dec_copy_yestify_sz		(compound_decode_hdr_maxsz + \
 					 decode_putfh_maxsz + \
-					 decode_copy_notify_maxsz)
+					 decode_copy_yestify_maxsz)
 #define NFS4_enc_deallocate_sz		(compound_encode_hdr_maxsz + \
 					 encode_sequence_maxsz + \
 					 encode_putfh_maxsz + \
@@ -220,7 +220,7 @@ static void encode_copy(struct xdr_stream *xdr,
 	encode_uint32(xdr, 1); /* consecutive = true */
 	encode_uint32(xdr, args->sync);
 	if (args->cp_src == NULL) { /* intra-ssc */
-		encode_uint32(xdr, 0); /* no src server list */
+		encode_uint32(xdr, 0); /* yes src server list */
 		return;
 	}
 	encode_uint32(xdr, 1); /* supporting 1 server */
@@ -235,11 +235,11 @@ static void encode_offload_cancel(struct xdr_stream *xdr,
 	encode_nfs4_stateid(xdr, &args->osa_stateid);
 }
 
-static void encode_copy_notify(struct xdr_stream *xdr,
-			       const struct nfs42_copy_notify_args *args,
+static void encode_copy_yestify(struct xdr_stream *xdr,
+			       const struct nfs42_copy_yestify_args *args,
 			       struct compound_hdr *hdr)
 {
-	encode_op_hdr(xdr, OP_COPY_NOTIFY, decode_copy_notify_maxsz, hdr);
+	encode_op_hdr(xdr, OP_COPY_NOTIFY, decode_copy_yestify_maxsz, hdr);
 	encode_nfs4_stateid(xdr, &args->cna_src_stateid);
 	encode_nl4_server(xdr, &args->cna_dst);
 }
@@ -342,7 +342,7 @@ static void nfs4_xdr_enc_allocate(struct rpc_rqst *req,
 {
 	const struct nfs42_falloc_args *args = data;
 	struct compound_hdr hdr = {
-		.minorversion = nfs4_xdr_minorversion(&args->seq_args),
+		.miyesrversion = nfs4_xdr_miyesrversion(&args->seq_args),
 	};
 
 	encode_compound_hdr(xdr, req, &hdr);
@@ -350,7 +350,7 @@ static void nfs4_xdr_enc_allocate(struct rpc_rqst *req,
 	encode_putfh(xdr, args->falloc_fh, &hdr);
 	encode_allocate(xdr, args, &hdr);
 	encode_getfattr(xdr, args->falloc_bitmask, &hdr);
-	encode_nops(&hdr);
+	encode_yesps(&hdr);
 }
 
 static void encode_copy_commit(struct xdr_stream *xdr,
@@ -374,7 +374,7 @@ static void nfs4_xdr_enc_copy(struct rpc_rqst *req,
 {
 	const struct nfs42_copy_args *args = data;
 	struct compound_hdr hdr = {
-		.minorversion = nfs4_xdr_minorversion(&args->seq_args),
+		.miyesrversion = nfs4_xdr_miyesrversion(&args->seq_args),
 	};
 
 	encode_compound_hdr(xdr, req, &hdr);
@@ -385,7 +385,7 @@ static void nfs4_xdr_enc_copy(struct rpc_rqst *req,
 	encode_copy(xdr, args, &hdr);
 	if (args->sync)
 		encode_copy_commit(xdr, args, &hdr);
-	encode_nops(&hdr);
+	encode_yesps(&hdr);
 }
 
 /*
@@ -397,33 +397,33 @@ static void nfs4_xdr_enc_offload_cancel(struct rpc_rqst *req,
 {
 	const struct nfs42_offload_status_args *args = data;
 	struct compound_hdr hdr = {
-		.minorversion = nfs4_xdr_minorversion(&args->osa_seq_args),
+		.miyesrversion = nfs4_xdr_miyesrversion(&args->osa_seq_args),
 	};
 
 	encode_compound_hdr(xdr, req, &hdr);
 	encode_sequence(xdr, &args->osa_seq_args, &hdr);
 	encode_putfh(xdr, args->osa_src_fh, &hdr);
 	encode_offload_cancel(xdr, args, &hdr);
-	encode_nops(&hdr);
+	encode_yesps(&hdr);
 }
 
 /*
  * Encode COPY_NOTIFY request
  */
-static void nfs4_xdr_enc_copy_notify(struct rpc_rqst *req,
+static void nfs4_xdr_enc_copy_yestify(struct rpc_rqst *req,
 				     struct xdr_stream *xdr,
 				     const void *data)
 {
-	const struct nfs42_copy_notify_args *args = data;
+	const struct nfs42_copy_yestify_args *args = data;
 	struct compound_hdr hdr = {
-		.minorversion = nfs4_xdr_minorversion(&args->cna_seq_args),
+		.miyesrversion = nfs4_xdr_miyesrversion(&args->cna_seq_args),
 	};
 
 	encode_compound_hdr(xdr, req, &hdr);
 	encode_sequence(xdr, &args->cna_seq_args, &hdr);
 	encode_putfh(xdr, args->cna_src_fh, &hdr);
-	encode_copy_notify(xdr, args, &hdr);
-	encode_nops(&hdr);
+	encode_copy_yestify(xdr, args, &hdr);
+	encode_yesps(&hdr);
 }
 
 /*
@@ -435,7 +435,7 @@ static void nfs4_xdr_enc_deallocate(struct rpc_rqst *req,
 {
 	const struct nfs42_falloc_args *args = data;
 	struct compound_hdr hdr = {
-		.minorversion = nfs4_xdr_minorversion(&args->seq_args),
+		.miyesrversion = nfs4_xdr_miyesrversion(&args->seq_args),
 	};
 
 	encode_compound_hdr(xdr, req, &hdr);
@@ -443,7 +443,7 @@ static void nfs4_xdr_enc_deallocate(struct rpc_rqst *req,
 	encode_putfh(xdr, args->falloc_fh, &hdr);
 	encode_deallocate(xdr, args, &hdr);
 	encode_getfattr(xdr, args->falloc_bitmask, &hdr);
-	encode_nops(&hdr);
+	encode_yesps(&hdr);
 }
 
 /*
@@ -455,14 +455,14 @@ static void nfs4_xdr_enc_seek(struct rpc_rqst *req,
 {
 	const struct nfs42_seek_args *args = data;
 	struct compound_hdr hdr = {
-		.minorversion = nfs4_xdr_minorversion(&args->seq_args),
+		.miyesrversion = nfs4_xdr_miyesrversion(&args->seq_args),
 	};
 
 	encode_compound_hdr(xdr, req, &hdr);
 	encode_sequence(xdr, &args->seq_args, &hdr);
 	encode_putfh(xdr, args->sa_fh, &hdr);
 	encode_seek(xdr, args, &hdr);
-	encode_nops(&hdr);
+	encode_yesps(&hdr);
 }
 
 /*
@@ -476,7 +476,7 @@ static void nfs4_xdr_enc_layoutstats(struct rpc_rqst *req,
 	int i;
 
 	struct compound_hdr hdr = {
-		.minorversion = nfs4_xdr_minorversion(&args->seq_args),
+		.miyesrversion = nfs4_xdr_miyesrversion(&args->seq_args),
 	};
 
 	encode_compound_hdr(xdr, req, &hdr);
@@ -485,7 +485,7 @@ static void nfs4_xdr_enc_layoutstats(struct rpc_rqst *req,
 	WARN_ON(args->num_dev > PNFS_LAYOUTSTATS_MAXDEV);
 	for (i = 0; i < args->num_dev; i++)
 		encode_layoutstats(xdr, args, &args->devinfo[i], &hdr);
-	encode_nops(&hdr);
+	encode_yesps(&hdr);
 }
 
 /*
@@ -497,7 +497,7 @@ static void nfs4_xdr_enc_clone(struct rpc_rqst *req,
 {
 	const struct nfs42_clone_args *args = data;
 	struct compound_hdr hdr = {
-		.minorversion = nfs4_xdr_minorversion(&args->seq_args),
+		.miyesrversion = nfs4_xdr_miyesrversion(&args->seq_args),
 	};
 
 	encode_compound_hdr(xdr, req, &hdr);
@@ -507,7 +507,7 @@ static void nfs4_xdr_enc_clone(struct rpc_rqst *req,
 	encode_putfh(xdr, args->dst_fh, &hdr);
 	encode_clone(xdr, args, &hdr);
 	encode_getfattr(xdr, args->dst_bitmask, &hdr);
-	encode_nops(&hdr);
+	encode_yesps(&hdr);
 }
 
 /*
@@ -519,16 +519,16 @@ static void nfs4_xdr_enc_layouterror(struct rpc_rqst *req,
 {
 	const struct nfs42_layouterror_args *args = data;
 	struct compound_hdr hdr = {
-		.minorversion = nfs4_xdr_minorversion(&args->seq_args),
+		.miyesrversion = nfs4_xdr_miyesrversion(&args->seq_args),
 	};
 	int i;
 
 	encode_compound_hdr(xdr, req, &hdr);
 	encode_sequence(xdr, &args->seq_args, &hdr);
-	encode_putfh(xdr, NFS_FH(args->inode), &hdr);
+	encode_putfh(xdr, NFS_FH(args->iyesde), &hdr);
 	for (i = 0; i < args->num_errors; i++)
 		encode_layouterror(xdr, &args->errors[i], &hdr);
-	encode_nops(&hdr);
+	encode_yesps(&hdr);
 }
 
 static int decode_allocate(struct xdr_stream *xdr, struct nfs42_falloc_res *res)
@@ -623,7 +623,7 @@ static int decode_copy_requirements(struct xdr_stream *xdr,
 		return -EIO;
 
 	res->consecutive = be32_to_cpup(p++);
-	res->synchronous = be32_to_cpup(p++);
+	res->synchroyesus = be32_to_cpup(p++);
 	return 0;
 }
 
@@ -653,8 +653,8 @@ static int decode_offload_cancel(struct xdr_stream *xdr,
 	return decode_op_hdr(xdr, OP_OFFLOAD_CANCEL);
 }
 
-static int decode_copy_notify(struct xdr_stream *xdr,
-			      struct nfs42_copy_notify_res *res)
+static int decode_copy_yestify(struct xdr_stream *xdr,
+			      struct nfs42_copy_yestify_res *res)
 {
 	__be32 *p;
 	int status, count;
@@ -819,11 +819,11 @@ out:
 /*
  * Decode COPY_NOTIFY response
  */
-static int nfs4_xdr_dec_copy_notify(struct rpc_rqst *rqstp,
+static int nfs4_xdr_dec_copy_yestify(struct rpc_rqst *rqstp,
 				    struct xdr_stream *xdr,
 				    void *data)
 {
-	struct nfs42_copy_notify_res *res = data;
+	struct nfs42_copy_yestify_res *res = data;
 	struct compound_hdr hdr;
 	int status;
 
@@ -836,7 +836,7 @@ static int nfs4_xdr_dec_copy_notify(struct rpc_rqst *rqstp,
 	status = decode_putfh(xdr);
 	if (status)
 		goto out;
-	status = decode_copy_notify(xdr, res);
+	status = decode_copy_yestify(xdr, res);
 
 out:
 	return status;

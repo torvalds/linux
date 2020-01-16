@@ -290,13 +290,13 @@ static int meson_gx_pwrc_vpu_probe(struct platform_device *pdev)
 
 	memcpy(vpu_pd, vpu_pd_match, sizeof(*vpu_pd));
 
-	regmap_ao = syscon_node_to_regmap(of_get_parent(pdev->dev.of_node));
+	regmap_ao = syscon_yesde_to_regmap(of_get_parent(pdev->dev.of_yesde));
 	if (IS_ERR(regmap_ao)) {
 		dev_err(&pdev->dev, "failed to get regmap\n");
 		return PTR_ERR(regmap_ao);
 	}
 
-	regmap_hhi = syscon_regmap_lookup_by_phandle(pdev->dev.of_node,
+	regmap_hhi = syscon_regmap_lookup_by_phandle(pdev->dev.of_yesde,
 						     "amlogic,hhi-sysctrl");
 	if (IS_ERR(regmap_hhi)) {
 		dev_err(&pdev->dev, "failed to get HHI regmap\n");
@@ -342,7 +342,7 @@ static int meson_gx_pwrc_vpu_probe(struct platform_device *pdev)
 	pm_genpd_init(&vpu_pd->genpd, &pm_domain_always_on_gov,
 		      powered_off);
 
-	return of_genpd_add_provider_simple(pdev->dev.of_node,
+	return of_genpd_add_provider_simple(pdev->dev.of_yesde,
 					    &vpu_pd->genpd);
 }
 

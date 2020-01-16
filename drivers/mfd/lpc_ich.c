@@ -39,7 +39,7 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/acpi.h>
 #include <linux/pci.h>
 #include <linux/mfd/core.h>
@@ -131,14 +131,14 @@ static struct mfd_cell lpc_ich_wdt_cell = {
 	.name = "iTCO_wdt",
 	.num_resources = ARRAY_SIZE(wdt_ich_res),
 	.resources = wdt_ich_res,
-	.ignore_resource_conflicts = true,
+	.igyesre_resource_conflicts = true,
 };
 
 static struct mfd_cell lpc_ich_gpio_cell = {
 	.name = "gpio_ich",
 	.num_resources = ARRAY_SIZE(gpio_ich_res),
 	.resources = gpio_ich_res,
-	.ignore_resource_conflicts = true,
+	.igyesre_resource_conflicts = true,
 };
 
 
@@ -146,7 +146,7 @@ static struct mfd_cell lpc_ich_spi_cell = {
 	.name = "intel-spi",
 	.num_resources = ARRAY_SIZE(intel_spi_res),
 	.resources = intel_spi_res,
-	.ignore_resource_conflicts = true,
+	.igyesre_resource_conflicts = true,
 };
 
 /* chipset related info */
@@ -561,7 +561,7 @@ static struct lpc_ich_info lpc_chipset_info[] = {
 
 /*
  * This data only exists for exporting the supported PCI ids
- * via MODULE_DEVICE_TABLE.  We do not actually register a
+ * via MODULE_DEVICE_TABLE.  We do yest actually register a
  * pci_driver, because the I/O Controller Hub has also other
  * functions that probably will be registered by other drivers.
  */
@@ -906,7 +906,7 @@ static void lpc_ich_finalize_gpio_cell(struct pci_dev *dev)
 
 /*
  * We don't check for resource conflict globally. There are 2 or 3 independent
- * GPIO groups and it's enough to have access to one of these to instantiate
+ * GPIO groups and it's eyesugh to have access to one of these to instantiate
  * the device.
  */
 static int lpc_ich_check_conflict_gpio(struct resource *res)
@@ -941,7 +941,7 @@ static int lpc_ich_init_gpio(struct pci_dev *dev)
 	pci_read_config_dword(dev, priv->abase, &base_addr_cfg);
 	base_addr = base_addr_cfg & 0x0000ff80;
 	if (!base_addr) {
-		dev_notice(&dev->dev, "I/O space for ACPI uninitialized\n");
+		dev_yestice(&dev->dev, "I/O space for ACPI uninitialized\n");
 		lpc_ich_gpio_cell.num_resources--;
 		goto gpe0_done;
 	}
@@ -967,7 +967,7 @@ gpe0_done:
 	pci_read_config_dword(dev, priv->gbase, &base_addr_cfg);
 	base_addr = base_addr_cfg & 0x0000ff80;
 	if (!base_addr) {
-		dev_notice(&dev->dev, "I/O space for GPIO uninitialized\n");
+		dev_yestice(&dev->dev, "I/O space for GPIO uninitialized\n");
 		ret = -ENODEV;
 		goto gpio_done;
 	}
@@ -1021,7 +1021,7 @@ static int lpc_ich_init_wdt(struct pci_dev *dev)
 	pci_read_config_dword(dev, priv->abase, &base_addr_cfg);
 	base_addr = base_addr_cfg & 0x0000ff80;
 	if (!base_addr) {
-		dev_notice(&dev->dev, "I/O space for ACPI uninitialized\n");
+		dev_yestice(&dev->dev, "I/O space for ACPI uninitialized\n");
 		ret = -ENODEV;
 		goto wdt_done;
 	}
@@ -1054,7 +1054,7 @@ static int lpc_ich_init_wdt(struct pci_dev *dev)
 		pci_read_config_dword(dev, RCBABASE, &base_addr_cfg);
 		base_addr = base_addr_cfg & 0xffffc000;
 		if (!(base_addr_cfg & 1)) {
-			dev_notice(&dev->dev, "RCBA is disabled by "
+			dev_yestice(&dev->dev, "RCBA is disabled by "
 					"hardware/BIOS, device disabled\n");
 			ret = -ENODEV;
 			goto wdt_done;
@@ -1206,7 +1206,7 @@ static int lpc_ich_probe(struct pci_dev *dev,
 	}
 
 	/*
-	 * We only care if at least one or none of the cells registered
+	 * We only care if at least one or yesne of the cells registered
 	 * successfully.
 	 */
 	if (!cell_added) {

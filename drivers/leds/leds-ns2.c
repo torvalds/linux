@@ -4,7 +4,7 @@
  *
  * Copyright (C) 2010 LaCie
  *
- * Author: Simon Guinot <sguinot@lacie.com>
+ * Author: Simon Guiyest <sguiyest@lacie.com>
  *
  * Based on leds-gpio.c by Raphael Assenat <raph@8d.com>
  */
@@ -237,13 +237,13 @@ static void delete_ns2_led(struct ns2_led_data *led_dat)
 
 #ifdef CONFIG_OF_GPIO
 /*
- * Translate OpenFirmware node properties into platform_data.
+ * Translate OpenFirmware yesde properties into platform_data.
  */
 static int
 ns2_leds_get_of_pdata(struct device *dev, struct ns2_led_platform_data *pdata)
 {
-	struct device_node *np = dev->of_node;
-	struct device_node *child;
+	struct device_yesde *np = dev->of_yesde;
+	struct device_yesde *child;
 	struct ns2_led *led, *leds;
 	int ret, num_leds = 0;
 
@@ -257,18 +257,18 @@ ns2_leds_get_of_pdata(struct device *dev, struct ns2_led_platform_data *pdata)
 		return -ENOMEM;
 
 	led = leds;
-	for_each_child_of_node(np, child) {
+	for_each_child_of_yesde(np, child) {
 		const char *string;
 		int i, num_modes;
 		struct ns2_led_modval *modval;
 
 		ret = of_get_named_gpio(child, "cmd-gpio", 0);
 		if (ret < 0)
-			goto err_node_put;
+			goto err_yesde_put;
 		led->cmd = ret;
 		ret = of_get_named_gpio(child, "slow-gpio", 0);
 		if (ret < 0)
-			goto err_node_put;
+			goto err_yesde_put;
 		led->slow = ret;
 		ret = of_property_read_string(child, "label", &string);
 		led->name = (ret == 0) ? string : child->name;
@@ -282,7 +282,7 @@ ns2_leds_get_of_pdata(struct device *dev, struct ns2_led_platform_data *pdata)
 			dev_err(dev,
 				"Missing or malformed modes-map property\n");
 			ret = -EINVAL;
-			goto err_node_put;
+			goto err_yesde_put;
 		}
 
 		num_modes = ret / 3;
@@ -292,7 +292,7 @@ ns2_leds_get_of_pdata(struct device *dev, struct ns2_led_platform_data *pdata)
 				      GFP_KERNEL);
 		if (!modval) {
 			ret = -ENOMEM;
-			goto err_node_put;
+			goto err_yesde_put;
 		}
 
 		for (i = 0; i < num_modes; i++) {
@@ -318,8 +318,8 @@ ns2_leds_get_of_pdata(struct device *dev, struct ns2_led_platform_data *pdata)
 
 	return 0;
 
-err_node_put:
-	of_node_put(child);
+err_yesde_put:
+	of_yesde_put(child);
 	return ret;
 }
 
@@ -410,7 +410,7 @@ static struct platform_driver ns2_led_driver = {
 
 module_platform_driver(ns2_led_driver);
 
-MODULE_AUTHOR("Simon Guinot <sguinot@lacie.com>");
+MODULE_AUTHOR("Simon Guiyest <sguiyest@lacie.com>");
 MODULE_DESCRIPTION("Network Space v2 LED driver");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("platform:leds-ns2");

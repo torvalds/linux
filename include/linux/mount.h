@@ -12,7 +12,7 @@
 
 #include <linux/types.h>
 #include <linux/list.h>
-#include <linux/nodemask.h>
+#include <linux/yesdemask.h>
 #include <linux/spinlock.h>
 #include <linux/seqlock.h>
 #include <linux/atomic.h>
@@ -39,8 +39,8 @@ struct fs_context;
 /*
  * MNT_SHARED_MASK is the set of flags that should be cleared when a
  * mount becomes shared.  Currently, this is only the flag that says a
- * mount cannot be bind mounted, since this is how we create a mount
- * that shares events with another mount.  If you add a new MNT_*
+ * mount canyest be bind mounted, since this is how we create a mount
+ * that shares events with ayesther mount.  If you add a new MNT_*
  * flag, consider how it interacts with shared mounts.
  */
 #define MNT_SHARED_MASK	(MNT_UNBINDABLE)

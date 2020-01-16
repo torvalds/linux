@@ -14,7 +14,7 @@
 #include <linux/kthread.h>
 #include <linux/sched/sysctl.h>
 
-void __noreturn kunit_try_catch_throw(struct kunit_try_catch *try_catch)
+void __yesreturn kunit_try_catch_throw(struct kunit_try_catch *try_catch)
 {
 	try_catch->try_result = -EFAULT;
 	complete_and_exit(try_catch->try_completion, -EFAULT);
@@ -102,7 +102,7 @@ void kunit_try_catch_run(struct kunit_try_catch *try_catch, void *context)
 	else if (exit_code == -EINTR)
 		kunit_err(test, "wake_up_process() was never called\n");
 	else if (exit_code)
-		kunit_err(test, "Unknown error: %d\n", exit_code);
+		kunit_err(test, "Unkyeswn error: %d\n", exit_code);
 
 	try_catch->catch(try_catch->context);
 }

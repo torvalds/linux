@@ -45,7 +45,7 @@ OPTIONS
           param1 and param2 are defined as formats for the PMU in:
           /sys/bus/event_source/devices/<pmu>/format/*
 
-	  There are also some parameters which are not defined in .../<pmu>/format/*.
+	  There are also some parameters which are yest defined in .../<pmu>/format/*.
 	  These params can be used to overload default config values per event.
 	  Here are some common parameters:
 	  - 'period': Set event sampling period
@@ -55,7 +55,7 @@ OPTIONS
 		    The default is 1.
 	  - 'call-graph': Disable/enable callgraph. Acceptable str are "fp" for
 			 FP mode, "dwarf" for DWARF mode, "lbr" for LBR mode and
-			 "no" for disable callgraph.
+			 "yes" for disable callgraph.
 	  - 'stack-size': user stack size for dwarf mode
 	  - 'name' : User defined event name. Single quotes (') may be used to
 		    escape symbols in the name from parsing by shell and tool
@@ -71,15 +71,15 @@ OPTIONS
 	  Note: If user explicitly sets options which conflict with the params,
 	  the value set by the parameters will be overridden.
 
-	  Also not defined in .../<pmu>/format/* are PMU driver specific
+	  Also yest defined in .../<pmu>/format/* are PMU driver specific
 	  configuration parameters.  Any configuration parameter preceded by
-	  the letter '@' is not interpreted in user space and sent down directly
+	  the letter '@' is yest interpreted in user space and sent down directly
 	  to the PMU driver.  For example:
 
 	  perf record -e some_event/@cfg1,@cfg2=config/ ...
 
 	  will see 'cfg1' and 'cfg2=config' pushed to the PMU driver associated
-	  with the event for further processing.  There is no restriction on
+	  with the event for further processing.  There is yes restriction on
 	  what the configuration parameters are, as long as their semantic is
 	  understood and supported by the PMU driver.
 
@@ -125,7 +125,7 @@ OPTIONS
 	- address filters
 
 	A hardware trace PMU advertises its ability to accept a number of
-	address filters	by specifying a non-zero value in
+	address filters	by specifying a yesn-zero value in
 	/sys/bus/event_source/devices/<pmu>/nr_addr_filters.
 
 	Address filters have the format:
@@ -140,13 +140,13 @@ OPTIONS
 
 	<file name> is the name of the object file, <start> is the offset to the
 	code to trace in that file, and <size> is the size of the region to
-	trace. 'start' and 'stop' filters need not specify a <size>.
+	trace. 'start' and 'stop' filters need yest specify a <size>.
 
-	If no object file is specified then the kernel is assumed, in which case
+	If yes object file is specified then the kernel is assumed, in which case
 	the start address must be a current kernel memory address.
 
 	<start> can also be specified by providing the name of a symbol. If the
-	symbol name is not unique, it can be disambiguated by inserting #n where
+	symbol name is yest unique, it can be disambiguated by inserting #n where
 	'n' selects the n'th symbol in address order. Alternately #0, #g or #G
 	select only a global symbol. <size> can also be specified by providing
 	the name of a symbol, in which case the size is calculated to the end
@@ -161,10 +161,10 @@ OPTIONS
 	If symbol names (or '*') are provided, they must be surrounded by white
 	space.
 
-	The filter passed to the kernel is not necessarily the same as entered.
+	The filter passed to the kernel is yest necessarily the same as entered.
 	To see the filter that is passed, use the -v option.
 
-	The kernel may not be able to configure a trace region if it is not
+	The kernel may yest be able to configure a trace region if it is yest
 	within a single mapping.  MMAP events (or /proc/<pid>/maps) can be
 	examined to determine if that is a possibility.
 
@@ -179,7 +179,7 @@ OPTIONS
 
 -a::
 --all-cpus::
-        System-wide collection from all CPUs (default if no target is specified).
+        System-wide collection from all CPUs (default if yes target is specified).
 
 -p::
 --pid=::
@@ -199,7 +199,7 @@ OPTIONS
 --realtime=::
 	Collect data with this RT SCHED_FIFO priority.
 
---no-buffering::
+--yes-buffering::
 	Collect data without buffering.
 
 -c::
@@ -211,8 +211,8 @@ OPTIONS
 	Output file name.
 
 -i::
---no-inherit::
-	Child tasks do not inherit counters.
+--yes-inherit::
+	Child tasks do yest inherit counters.
 
 -F::
 --freq=::
@@ -296,7 +296,7 @@ OPTIONS
 	Record the sample cpu.
 
 -n::
---no-samples::
+--yes-samples::
 	Don't sample.
 
 -R::
@@ -306,13 +306,13 @@ Collect raw sample records from all opened counters (default for tracepoint coun
 -C::
 --cpu::
 Collect samples only on the list of CPUs provided. Multiple CPUs can be provided as a
-comma-separated list with no space: 0,1. Ranges of CPUs are specified with -: 0-2.
+comma-separated list with yes space: 0,1. Ranges of CPUs are specified with -: 0-2.
 In per-thread mode with inheritance mode on (default), samples are captured only when
 the thread executes on the designated CPUs. Default is to monitor all CPUs.
 
 -B::
---no-buildid::
-Do not save the build ids of binaries in the perf.data files. This skips
+--yes-buildid::
+Do yest save the build ids of binaries in the perf.data files. This skips
 post processing after recording, which sometimes makes the final step in
 the recording process to take a long time, as it needs to process all
 events looking for mmap records. The downside is that it can misresolve
@@ -322,11 +322,11 @@ pathname. You can also set the "record.build-id" config variable to
 'skip to have this behaviour permanently.
 
 -N::
---no-buildid-cache::
-Do not update the buildid cache. This saves some overhead in situations
+--yes-buildid-cache::
+Do yest update the buildid cache. This saves some overhead in situations
 where the information in the perf.data file (which includes buildids)
 is sufficient.  You can also set the "record.build-id" config variable to
-'no-cache' to have the same effect.
+'yes-cache' to have the same effect.
 
 -G name,...::
 --cgroup name,...::
@@ -365,10 +365,10 @@ following filters are defined:
         - k: only when the branch target is in the kernel
         - hv: only when the target is at the hypervisor level
 	- in_tx: only when the target is in a hardware transaction
-	- no_tx: only when the target is not in a hardware transaction
+	- yes_tx: only when the target is yest in a hardware transaction
 	- abort_tx: only when the target is a hardware transaction abort
 	- cond: conditional branches
-	- save_type: save branch type during sampling in case binary is not available later
+	- save_type: save branch type during sampling in case binary is yest available later
 
 +
 The option requires at least one branch type among any, any_call, any_ret, ind_call, cond.
@@ -377,7 +377,7 @@ event are applied to the branch filter. Both kernel (k) and hypervisor (hv) priv
 levels are subject to permissions.  When sampling on multiple events, branch stack sampling
 is enabled for all the sampling events. The sampled branch type is the same for all events.
 The various filters must be specified as a comma separated list: --branch-filter any_ret,u,k
-Note that this feature may not be available on all processors.
+Note that this feature may yest be available on all processors.
 
 --weight::
 Enable weightened sampling. An additional weight is recorded per sample and can be
@@ -393,7 +393,7 @@ Record transaction flags for transaction related events.
 --per-thread::
 Use per-thread mmaps.  By default per-cpu mmaps are created.  This option
 overrides that and uses per-thread mmaps.  A side-effect of that is that
-inheritance is automatically disabled.  --per-thread is ignored with a warning
+inheritance is automatically disabled.  --per-thread is igyesred with a warning
 if combined with -a or -C options.
 
 -D::
@@ -464,16 +464,16 @@ Specify vmlinux path which has debuginfo.
 (enabled when BPF prologue is on)
 
 --buildid-all::
-Record build-id of all DSOs regardless whether it's actually hit or not.
+Record build-id of all DSOs regardless whether it's actually hit or yest.
 
 --aio[=n]::
-Use <n> control blocks in asynchronous (Posix AIO) trace writing mode (default: 1, max: 4).
-Asynchronous mode is supported only when linking Perf tool with libc library
+Use <n> control blocks in asynchroyesus (Posix AIO) trace writing mode (default: 1, max: 4).
+Asynchroyesus mode is supported only when linking Perf tool with libc library
 providing implementation for Posix AIO API.
 
 --affinity=mode::
 Set affinity mask of trace reading thread according to the policy defined by 'mode' value:
-  node - thread affinity mask is set to NUMA node cpu mask of the processed mmap buffer
+  yesde - thread affinity mask is set to NUMA yesde cpu mask of the processed mmap buffer
   cpu  - thread affinity mask is set to cpu of the processed mmap buffer
 
 --mmap-flush=number::
@@ -514,7 +514,7 @@ perf_event_attr.exclude_callchain_user to 1.
 Collect callchains only from user space. I.e. this option sets
 perf_event_attr.exclude_callchain_kernel to 1.
 
-Don't use both --kernel-callchains and --user-callchains at the same time or no
+Don't use both --kernel-callchains and --user-callchains at the same time or yes
 callchains will be collected.
 
 --timestamp-filename
@@ -539,13 +539,13 @@ based on 'mode' value:
 
 A possible use case is to, given an external event, slice the perf.data file
 that gets then processed, possibly via a perf script, to decide if that
-particular perf.data snapshot should be kept or not.
+particular perf.data snapshot should be kept or yest.
 
-Implies --timestamp-filename, --no-buildid and --no-buildid-cache.
+Implies --timestamp-filename, --yes-buildid and --yes-buildid-cache.
 The reason for the latter two is to reduce the data file switching
 overhead. You can still switch them on with:
 
-  --switch-output --no-no-buildid  --no-no-buildid-cache
+  --switch-output --yes-yes-buildid  --yes-yes-buildid-cache
 
 --switch-max-files=N::
 
@@ -559,9 +559,9 @@ options.
 in config file is set to true.
 
 --tail-synthesize::
-Instead of collecting non-sample events (for example, fork, comm, mmap) at
+Instead of collecting yesn-sample events (for example, fork, comm, mmap) at
 the beginning of record, collect them during finalizing an output file.
-The collected non-sample events reflects the status of the system when
+The collected yesn-sample events reflects the status of the system when
 record is finished.
 
 --overwrite::
@@ -576,7 +576,7 @@ detected that warrants taking a snapshot of the most current events,
 those fitting in the ring buffer at that moment.
 
 'overwrite' attribute can also be set or canceled for an event using
-config terms. For example: 'cycles/overwrite/' and 'instructions/no-overwrite/'.
+config terms. For example: 'cycles/overwrite/' and 'instructions/yes-overwrite/'.
 
 Implies --tail-synthesize.
 

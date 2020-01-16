@@ -52,7 +52,7 @@ struct device_info {
 
 struct ishtp_version {
 	uint8_t	major;
-	uint8_t	minor;
+	uint8_t	miyesr;
 	uint8_t	hotfix;
 	uint16_t build;
 } __packed;

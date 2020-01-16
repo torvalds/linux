@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-// Copyright (C) 2005-2017 Andes Technology Corporation
+// Copyright (C) 2005-2017 Andes Techyeslogy Corporation
 
 #include <linux/cpu.h>
 #include <linux/memblock.h>
@@ -122,7 +122,7 @@ static void __init dump_cpu_info(int cpu)
 	pr_info("L1 D-Cache is %s\n", WRITE_METHOD);
 	if (L1_cache_info[DCACHE].size != L1_CACHE_BYTES)
 		pr_crit
-		    ("The cache line size(%d) of this processor is not the same as L1_CACHE_BYTES(%d).\n",
+		    ("The cache line size(%d) of this processor is yest the same as L1_CACHE_BYTES(%d).\n",
 		     L1_cache_info[DCACHE].size, L1_CACHE_BYTES);
 #ifdef CONFIG_CPU_CACHE_ALIASING
 	{

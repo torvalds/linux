@@ -339,7 +339,7 @@ enum {
  * 		  alternate function = 0,
  * 		  drive strength = fast 3mA (MFP_DS03X)
  * 		  low power mode = default
- * 		  edge detection = none
+ * 		  edge detection = yesne
  *
  * MFP_CFG	- default MFPR value with alternate function
  * MFP_CFG_DRV	- default MFPR value with alternate function and

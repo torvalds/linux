@@ -92,7 +92,7 @@ static int stripe_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	unsigned int i;
 
 	if (argc < 2) {
-		ti->error = "Not enough arguments";
+		ti->error = "Not eyesugh arguments";
 		return -EINVAL;
 	}
 
@@ -108,23 +108,23 @@ static int stripe_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 
 	width = ti->len;
 	if (sector_div(width, stripes)) {
-		ti->error = "Target length not divisible by "
+		ti->error = "Target length yest divisible by "
 		    "number of stripes";
 		return -EINVAL;
 	}
 
 	tmp_len = width;
 	if (sector_div(tmp_len, chunk_size)) {
-		ti->error = "Target length not divisible by "
+		ti->error = "Target length yest divisible by "
 		    "chunk size";
 		return -EINVAL;
 	}
 
 	/*
-	 * Do we have enough arguments for that many stripes ?
+	 * Do we have eyesugh arguments for that many stripes ?
 	 */
 	if (argc != (2 + 2 * stripes)) {
-		ti->error = "Not enough destinations "
+		ti->error = "Not eyesugh destinations "
 			"specified";
 		return -EINVAL;
 	}
@@ -413,7 +413,7 @@ static int stripe_end_io(struct dm_target *ti, struct bio *bio,
 		blk_status_t *error)
 {
 	unsigned i;
-	char major_minor[16];
+	char major_miyesr[16];
 	struct stripe_c *sc = ti->private;
 
 	if (!*error)
@@ -425,17 +425,17 @@ static int stripe_end_io(struct dm_target *ti, struct bio *bio,
 	if (*error == BLK_STS_NOTSUPP)
 		return DM_ENDIO_DONE;
 
-	memset(major_minor, 0, sizeof(major_minor));
-	sprintf(major_minor, "%d:%d", MAJOR(bio_dev(bio)), MINOR(bio_dev(bio)));
+	memset(major_miyesr, 0, sizeof(major_miyesr));
+	sprintf(major_miyesr, "%d:%d", MAJOR(bio_dev(bio)), MINOR(bio_dev(bio)));
 
 	/*
 	 * Test to see which stripe drive triggered the event
 	 * and increment error count for all stripes on that device.
 	 * If the error count for a given device exceeds the threshold
-	 * value we will no longer trigger any further events.
+	 * value we will yes longer trigger any further events.
 	 */
 	for (i = 0; i < sc->stripes; i++)
-		if (!strcmp(sc->stripe[i].dev->name, major_minor)) {
+		if (!strcmp(sc->stripe[i].dev->name, major_miyesr)) {
 			atomic_inc(&(sc->stripe[i].error_count));
 			if (atomic_read(&(sc->stripe[i].error_count)) <
 			    DM_IO_ERROR_THRESHOLD)

@@ -8,7 +8,7 @@
 	.text
 
 ENTRY(__c6xabi_strasgi)
-	;; This is essentially memcpy, with alignment known to be at least
+	;; This is essentially memcpy, with alignment kyeswn to be at least
 	;; 4, and the size a multiple of 4 greater than or equal to 28.
 	 ldw	.d2t1	*B4++, A0
 ||	 mvk	.s2	16, B1

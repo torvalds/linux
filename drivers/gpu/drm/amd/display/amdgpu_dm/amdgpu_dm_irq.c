@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -33,7 +33,7 @@
 /**
  * DOC: overview
  *
- * DM provides another layer of IRQ management on top of what the base driver
+ * DM provides ayesther layer of IRQ management on top of what the base driver
  * already provides. This is something that could be cleaned up, and is a
  * future TODO item.
  *
@@ -131,7 +131,7 @@ static void dm_irq_work_func(struct work_struct *work)
 		handler_data->handler(handler_data->handler_arg);
 	}
 
-	/* Call a DAL subcomponent which registered for interrupt notification
+	/* Call a DAL subcomponent which registered for interrupt yestification
 	 * at INTERRUPT_LOW_IRQ_CONTEXT.
 	 * (The most common use is HPD interrupt) */
 }
@@ -181,8 +181,8 @@ static struct list_head *remove_irq_handler(struct amdgpu_device *adev,
 	DM_IRQ_TABLE_UNLOCK(adev, irq_table_flags);
 
 	if (handler_removed == false) {
-		/* Not necessarily an error - caller may not
-		 * know the context. */
+		/* Not necessarily an error - caller may yest
+		 * kyesw the context. */
 		return NULL;
 	}
 
@@ -321,7 +321,7 @@ void *amdgpu_dm_irq_register_interrupt(struct amdgpu_device *adev,
  * @ih: Function pointer to the interrupt handler to unregister
  *
  * Go through both low and high context IRQ tables, and find the given handler
- * for the given irq source. If found, remove it. Otherwise, do nothing.
+ * for the given irq source. If found, remove it. Otherwise, do yesthing.
  */
 void amdgpu_dm_irq_unregister_interrupt(struct amdgpu_device *adev,
 					enum dc_irq_source irq_source,
@@ -350,7 +350,7 @@ void amdgpu_dm_irq_unregister_interrupt(struct amdgpu_device *adev,
 
 	if (handler_list == NULL) {
 		/* If we got here, it means we searched all irq contexts
-		 * for this irq source, but the handler was not found. */
+		 * for this irq source, but the handler was yest found. */
 		DRM_ERROR(
 		"DM_IRQ: failed to find irq handler:%p for irq_source:%d!\n",
 			ih, irq_source);
@@ -409,7 +409,7 @@ void amdgpu_dm_irq_fini(struct amdgpu_device *adev)
 		DM_IRQ_TABLE_LOCK(adev, irq_table_flags);
 		/* The handler was removed from the table,
 		 * it means it is safe to flush all the 'work'
-		 * (because no code can schedule a new one). */
+		 * (because yes code can schedule a new one). */
 		lh = &adev->dm.irq_handler_list_low_tab[src];
 		DM_IRQ_TABLE_UNLOCK(adev, irq_table_flags);
 		flush_work(&lh->work);
@@ -542,7 +542,7 @@ static void amdgpu_dm_irq_immediate_work(struct amdgpu_device *adev,
 					  list);
 
 		/* Call a subcomponent which registered for immediate
-		 * interrupt notification */
+		 * interrupt yestification */
 		handler_data->handler(handler_data->handler_arg);
 	}
 

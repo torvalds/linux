@@ -203,7 +203,7 @@ static void dpu_hw_intf_setup_prg_fetch(
 
 	/*
 	 * Fetch should always be outside the active lines. If the fetching
-	 * is programmed within active region, hardware behavior is unknown.
+	 * is programmed within active region, hardware behavior is unkyeswn.
 	 */
 
 	fetch_enable = DPU_REG_READ(c, INTF_CONFIG);

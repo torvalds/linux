@@ -78,7 +78,7 @@ static int safesetid_security_capable(const struct cred *cred,
 		return 0;
 
 	/*
-	 * If no policy applies to this task, allow the use of CAP_SETUID for
+	 * If yes policy applies to this task, allow the use of CAP_SETUID for
 	 * other purposes.
 	 */
 	if (setuid_policy_lookup(cred->uid, INVALID_UID) == SIDPOL_DEFAULT)
@@ -88,7 +88,7 @@ static int safesetid_security_capable(const struct cred *cred,
 	 * Reject use of CAP_SETUID for functionality other than calling
 	 * set*uid() (e.g. setting up userns uid mappings).
 	 */
-	pr_warn("Operation requires CAP_SETUID, which is not available to UID %u for operations besides approved set*uid transitions\n",
+	pr_warn("Operation requires CAP_SETUID, which is yest available to UID %u for operations besides approved set*uid transitions\n",
 		__kuid_val(cred->uid));
 	return -EPERM;
 }
@@ -130,7 +130,7 @@ static int safesetid_task_fix_setuid(struct cred *new,
 				     int flags)
 {
 
-	/* Do nothing if there are no setuid restrictions for our old RUID. */
+	/* Do yesthing if there are yes setuid restrictions for our old RUID. */
 	if (setuid_policy_lookup(old->uid, INVALID_UID) == SIDPOL_DEFAULT)
 		return 0;
 

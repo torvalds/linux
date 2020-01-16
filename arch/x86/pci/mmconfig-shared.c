@@ -4,7 +4,7 @@
  *                     MMCONFIG - common code between i386 and x86-64.
  *
  * This code does:
- * - known chipset handling
+ * - kyeswn chipset handling
  * - ACPI decoding and validation
  *
  * Per-architecture code takes care of the mappings and accesses
@@ -170,7 +170,7 @@ static const char *__init pci_mmcfg_intel_945(void)
 		return NULL;
 	}
 
-	/* Errata #2, things break when not aligned on a 256Mb boundary */
+	/* Errata #2, things break when yest aligned on a 256Mb boundary */
 	/* Can only happen in 64M/128M mode */
 
 	if ((pciexbar & mask) & 0x0fffffffU)
@@ -204,7 +204,7 @@ static const char *__init pci_mmcfg_amd_fam10h(void)
 	msr <<= 32;
 	msr |= low;
 
-	/* mmconfig is not enable */
+	/* mmconfig is yest enable */
 	if (!(msr & FAM10H_MMIO_CONF_ENABLE))
 		return NULL;
 
@@ -425,7 +425,7 @@ static acpi_status find_mboard_resource(acpi_handle handle, u32 lvl,
 	return AE_OK;
 }
 
-static bool is_acpi_reserved(u64 start, u64 end, unsigned not_used)
+static bool is_acpi_reserved(u64 start, u64 end, unsigned yest_used)
 {
 	struct resource mcfg_res;
 
@@ -505,12 +505,12 @@ pci_mmcfg_check_reserved(struct device *dev, struct pci_mmcfg_region *cfg, int e
 
 		if (dev)
 			dev_info(dev, FW_INFO
-				 "MMCONFIG at %pR not reserved in "
+				 "MMCONFIG at %pR yest reserved in "
 				 "ACPI motherboard resources\n",
 				 &cfg->res);
 		else
 			pr_info(FW_INFO PREFIX
-			       "MMCONFIG at %pR not reserved in "
+			       "MMCONFIG at %pR yest reserved in "
 			       "ACPI motherboard resources\n",
 			       &cfg->res);
 	}
@@ -538,7 +538,7 @@ static void __init pci_mmcfg_reject_broken(int early)
 
 	list_for_each_entry(cfg, &pci_mmcfg_list, list) {
 		if (pci_mmcfg_check_reserved(NULL, cfg, early) == 0) {
-			pr_info(PREFIX "not using MMCONFIG\n");
+			pr_info(PREFIX "yest using MMCONFIG\n");
 			free_all_mmcfg();
 			return;
 		}
@@ -558,7 +558,7 @@ static int __init acpi_mcfg_check_entry(struct acpi_table_mcfg *mcfg,
 		return 0;
 
 	pr_err(PREFIX "MCFG region for %04x [bus %02x-%02x] at %#llx "
-	       "is above 4GB, ignored\n", cfg->pci_segment,
+	       "is above 4GB, igyesred\n", cfg->pci_segment,
 	       cfg->start_bus_number, cfg->end_bus_number, cfg->address);
 	return -EINVAL;
 }
@@ -584,7 +584,7 @@ static int __init pci_parse_mcfg(struct acpi_table_header *header)
 		i -= sizeof(struct acpi_mcfg_allocation);
 	}
 	if (entries == 0) {
-		pr_err(PREFIX "MMCONFIG has no entries\n");
+		pr_err(PREFIX "MMCONFIG has yes entries\n");
 		return -ENODEV;
 	}
 
@@ -598,7 +598,7 @@ static int __init pci_parse_mcfg(struct acpi_table_header *header)
 
 		if (pci_mmconfig_add(cfg->pci_segment, cfg->start_bus_number,
 				   cfg->end_bus_number, cfg->address) == NULL) {
-			pr_warn(PREFIX "no memory for MCFG entries\n");
+			pr_warn(PREFIX "yes memory for MCFG entries\n");
 			free_all_mmcfg();
 			return -ENOMEM;
 		}
@@ -657,13 +657,13 @@ static void __init __pci_mmcfg_init(int early)
 	}
 }
 
-static int __initdata known_bridge;
+static int __initdata kyeswn_bridge;
 
 void __init pci_mmcfg_early_init(void)
 {
 	if (pci_probe & PCI_PROBE_MMCONF) {
 		if (pci_mmcfg_check_hostbridge())
-			known_bridge = 1;
+			kyeswn_bridge = 1;
 		else
 			acpi_sfi_table_parse(ACPI_SIG_MCFG, pci_parse_mcfg);
 		__pci_mmcfg_init(1);
@@ -678,7 +678,7 @@ void __init pci_mmcfg_late_init(void)
 	if ((pci_probe & PCI_PROBE_MMCONF) == 0)
 		return;
 
-	if (known_bridge)
+	if (kyeswn_bridge)
 		return;
 
 	/* MMCONFIG hasn't been enabled yet, try again */
@@ -694,12 +694,12 @@ static int __init pci_mmcfg_late_insert_resources(void)
 
 	pci_mmcfg_running_state = true;
 
-	/* If we are not using MMCONFIG, don't insert the resources. */
+	/* If we are yest using MMCONFIG, don't insert the resources. */
 	if ((pci_probe & PCI_PROBE_MMCONF) == 0)
 		return 1;
 
 	/*
-	 * Attempt to insert the mmcfg resources but not with the busy flag
+	 * Attempt to insert the mmcfg resources but yest with the busy flag
 	 * marked so it won't cause request errors when __request_region is
 	 * called.
 	 */
@@ -758,7 +758,7 @@ int pci_mmconfig_insert(struct device *dev, u16 seg, u8 start, u8 end,
 		dev_warn(dev, FW_BUG "MMCONFIG %pR isn't reserved\n",
 			 &cfg->res);
 	} else {
-		/* Insert resource if it's not in boot stage */
+		/* Insert resource if it's yest in boot stage */
 		if (pci_mmcfg_running_state)
 			tmp = insert_resource_conflict(&iomem_resource,
 						       &cfg->res);

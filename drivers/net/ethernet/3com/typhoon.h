@@ -5,7 +5,7 @@
 	This software may be used and distributed according to the terms of
 	the GNU General Public License (GPL), incorporated herein by reference.
 	Drivers based on or derived from this code fall under the GPL and must
-	retain the authorship, copyright and license notice.  This file is not
+	retain the authorship, copyright and license yestice.  This file is yest
 	a complete program and may only be used when the entire operating
 	system is licensed under the GPL.
 
@@ -145,7 +145,7 @@ struct typhoon_interface {
  * addrHi:	hi bytes of DMA address for this part of the packet
  * processFlags: must be zero
  *
- * TYPHOON_DESC_VALID is not mentioned in their docs, but their Linux
+ * TYPHOON_DESC_VALID is yest mentioned in their docs, but their Linux
  * driver uses it.
  */
 struct tx_desc {
@@ -237,7 +237,7 @@ struct ipsec_desc {
  * addr:          low 32 bytes of the virtual addr passed in for this buffer
  * addrHi:        high 32 bytes of the virtual addr passed in for this buffer
  * rxStatus:      Error if set in flags, otherwise result of offload processing
- * filterResults: results of filtering on packet, not used
+ * filterResults: results of filtering on packet, yest used
  * ipsecResults:  Results of IPSEC processing
  * vlanTag:       the 801.2q TCI from the packet
  */

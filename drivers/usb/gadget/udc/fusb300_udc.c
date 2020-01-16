@@ -2,7 +2,7 @@
 /*
  * Fusb300 UDC (USB gadget)
  *
- * Copyright (C) 2010 Faraday Technology Corp.
+ * Copyright (C) 2010 Faraday Techyeslogy Corp.
  *
  * Author : Yuan-hsin Chen <yhchen@faraday-tech.com>
  */
@@ -649,7 +649,7 @@ static void fusb300_rdfifo(struct fusb300_ep *ep,
 		reg = ioread32(fusb300->reg + FUSB300_OFFSET_IGR1);
 		reg &= FUSB300_IGR1_SYNF0_EMPTY_INT;
 		if (i)
-			printk(KERN_INFO "sync fifo is not empty!\n");
+			printk(KERN_INFO "sync fifo is yest empty!\n");
 		i++;
 	} while (!reg);
 }

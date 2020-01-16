@@ -10,7 +10,7 @@ static void debug_one_dentry(unsigned char d_type, const char *de_name,
 			     unsigned int de_namelen)
 {
 #ifdef CONFIG_EROFS_FS_DEBUG
-	/* since the on-disk name could not have the trailing '\0' */
+	/* since the on-disk name could yest have the trailing '\0' */
 	unsigned char dbg_namebuf[EROFS_NAME_LEN + 1];
 
 	memcpy(dbg_namebuf, de_name, de_namelen);
@@ -21,7 +21,7 @@ static void debug_one_dentry(unsigned char d_type, const char *de_name,
 #endif
 }
 
-static int erofs_fill_dentries(struct inode *dir, struct dir_context *ctx,
+static int erofs_fill_dentries(struct iyesde *dir, struct dir_context *ctx,
 			       void *dentry_blk, unsigned int *ofs,
 			       unsigned int nameoff, unsigned int maxsize)
 {
@@ -67,7 +67,7 @@ static int erofs_fill_dentries(struct inode *dir, struct dir_context *ctx,
 
 static int erofs_readdir(struct file *f, struct dir_context *ctx)
 {
-	struct inode *dir = file_inode(f);
+	struct iyesde *dir = file_iyesde(f);
 	struct address_space *mapping = dir->i_mapping;
 	const size_t dirsize = i_size_read(dir);
 	unsigned int i = ctx->pos / EROFS_BLKSIZ;

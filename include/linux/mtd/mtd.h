@@ -8,7 +8,7 @@
 
 #include <linux/types.h>
 #include <linux/uio.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/device.h>
 #include <linux/of.h>
 #include <linux/nvmem-provider.h>
@@ -23,8 +23,8 @@ struct mtd_info;
 
 /*
  * If the erase fails, fail_addr might indicate exactly which block failed. If
- * fail_addr = MTD_FAIL_ADDR_UNKNOWN, the failure was not at the device level
- * or was not specific to any particular block.
+ * fail_addr = MTD_FAIL_ADDR_UNKNOWN, the failure was yest at the device level
+ * or was yest specific to any particular block.
  */
 struct erase_info {
 	uint64_t addr;
@@ -54,7 +54,7 @@ struct mtd_erase_region_info {
  * @datbuf:	data buffer - if NULL only oob data are read/written
  * @oobbuf:	oob data buffer
  *
- * Note, some MTD drivers do not allow you to write more than one OOB area at
+ * Note, some MTD drivers do yest allow you to write more than one OOB area at
  * one go. If you try to do that on such an MTD device, -EINVAL will be
  * returned. If you want to make your implementation portable on all kind of MTD
  * devices you should split the write request into several sub-requests when the
@@ -151,7 +151,7 @@ struct mtd_pairing_info {
  * @get_wunit: converts pairing information into a write-unit (page) number.
  *	       This function should return the wunit index pointed by the
  *	       pairing information described in the info argument. It should
- *	       return -EINVAL, if there's no wunit corresponding to the
+ *	       return -EINVAL, if there's yes wunit corresponding to the
  *	       passed pairing information.
  *
  * See mtd_pairing_info documentation for a detailed explanation of the
@@ -219,7 +219,7 @@ struct mtd_info {
 	 * buffer can write multiple writesize chunks at a time. E.g. while
 	 * writing 4 * writesize bytes to a device with 2 * writesize bytes
 	 * buffer the MTD driver can (but doesn't have to) do 2 writesize
-	 * operations, but not 4. Currently, all NANDs have writebufsize
+	 * operations, but yest 4. Currently, all NANDs have writebufsize
 	 * equivalent to writesize (NAND page size). Some NOR flashes do have
 	 * writebufsize greater than writesize.
 	 */
@@ -270,7 +270,7 @@ struct mtd_info {
 	struct mtd_erase_region_info *eraseregions;
 
 	/*
-	 * Do not call via these pointers, use corresponding mtd_*()
+	 * Do yest call via these pointers, use corresponding mtd_*()
 	 * wrappers instead.
 	 */
 	int (*_erase) (struct mtd_info *mtd, struct erase_info *instr);
@@ -325,7 +325,7 @@ struct mtd_info {
 	 */
 	bool oops_panic_write;
 
-	struct notifier_block reboot_notifier;  /* default mode before reboot */
+	struct yestifier_block reboot_yestifier;  /* default mode before reboot */
 
 	/* ECC status information */
 	struct mtd_ecc_stats ecc_stats;
@@ -371,17 +371,17 @@ static inline void mtd_set_pairing_scheme(struct mtd_info *mtd,
 	mtd->pairing = pairing;
 }
 
-static inline void mtd_set_of_node(struct mtd_info *mtd,
-				   struct device_node *np)
+static inline void mtd_set_of_yesde(struct mtd_info *mtd,
+				   struct device_yesde *np)
 {
-	mtd->dev.of_node = np;
+	mtd->dev.of_yesde = np;
 	if (!mtd->name)
 		of_property_read_string(np, "label", &mtd->name);
 }
 
-static inline struct device_node *mtd_get_of_node(struct mtd_info *mtd)
+static inline struct device_yesde *mtd_get_of_yesde(struct mtd_info *mtd)
 {
-	return dev_of_node(&mtd->dev);
+	return dev_of_yesde(&mtd->dev);
 }
 
 static inline u32 mtd_oobavail(struct mtd_info *mtd, struct mtd_oob_ops *ops)
@@ -571,15 +571,15 @@ extern struct mtd_info *get_mtd_device_nm(const char *name);
 extern void put_mtd_device(struct mtd_info *mtd);
 
 
-struct mtd_notifier {
+struct mtd_yestifier {
 	void (*add)(struct mtd_info *mtd);
 	void (*remove)(struct mtd_info *mtd);
 	struct list_head list;
 };
 
 
-extern void register_mtd_user (struct mtd_notifier *new);
-extern int unregister_mtd_user (struct mtd_notifier *old);
+extern void register_mtd_user (struct mtd_yestifier *new);
+extern int unregister_mtd_user (struct mtd_yestifier *old);
 void *mtd_kmalloc_up_to(const struct mtd_info *mtd, size_t *size);
 
 static inline int mtd_is_bitflip(int err) {

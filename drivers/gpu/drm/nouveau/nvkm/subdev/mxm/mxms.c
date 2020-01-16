@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -47,7 +47,7 @@ mxms_version(struct nvkm_mxm *mxm)
 		break;
 	}
 
-	nvkm_debug(&mxm->subdev, "unknown version %d.%d\n", mxms[4], mxms[5]);
+	nvkm_debug(&mxm->subdev, "unkyeswn version %d.%d\n", mxms[4], mxms[5]);
 	return 0x0000;
 }
 
@@ -141,7 +141,7 @@ mxms_foreach(struct nvkm_mxm *mxm, u8 types,
 			entries   = desc[1] & 0x07;
 			break;
 		default:
-			nvkm_debug(subdev, "unknown descriptor type %d\n", type);
+			nvkm_debug(subdev, "unkyeswn descriptor type %d\n", type);
 			return false;
 		}
 

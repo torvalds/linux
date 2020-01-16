@@ -36,7 +36,7 @@ MSR_KVM_WALL_CLOCK_NEW:   0x4b564d00
 
 		sec: number of seconds for wallclock at time of boot.
 
-		nsec: number of nanoseconds for wallclock at time of boot.
+		nsec: number of nayesseconds for wallclock at time of boot.
 
 	In order to get the current wallclock time, the system_time from
 	MSR_KVM_SYSTEM_TIME_NEW needs to be added.
@@ -78,23 +78,23 @@ MSR_KVM_SYSTEM_TIME_NEW:  0x4b564d01
 
 		tsc_timestamp: the tsc value at the current VCPU at the time
 		of the update of this structure. Guests can subtract this value
-		from current tsc to derive a notion of elapsed time since the
+		from current tsc to derive a yestion of elapsed time since the
 		structure update.
 
-		system_time: a host notion of monotonic time, including sleep
+		system_time: a host yestion of moyestonic time, including sleep
 		time at the time this structure was last updated. Unit is
-		nanoseconds.
+		nayesseconds.
 
 		tsc_to_system_mul: multiplier to be used when converting
-		tsc-related quantity to nanoseconds
+		tsc-related quantity to nayesseconds
 
 		tsc_shift: shift to be used when converting tsc-related
-		quantity to nanoseconds. This shift will ensure that
-		multiplication with tsc_to_system_mul does not overflow.
-		A positive value denotes a left shift, a negative value
+		quantity to nayesseconds. This shift will ensure that
+		multiplication with tsc_to_system_mul does yest overflow.
+		A positive value deyestes a left shift, a negative value
 		a right shift.
 
-		The conversion from tsc to nanoseconds involves an additional
+		The conversion from tsc to nayesseconds involves an additional
 		right shift by 32 bits. With this information, guests can
 		derive per-CPU time by doing:
 
@@ -115,7 +115,7 @@ MSR_KVM_SYSTEM_TIME_NEW:  0x4b564d01
 		-------------------------------------------------------------
 			    |	           | time measures taken across
 		     0      |	   24      | multiple cpus are guaranteed to
-			    |		   | be monotonic
+			    |		   | be moyestonic
 		-------------------------------------------------------------
 			    |		   | guest vcpu has been paused by
 		     1	    |	  N/A	   | the host
@@ -167,38 +167,38 @@ MSR_KVM_ASYNC_PF_EN: 0x4b564d02
 	data: Bits 63-6 hold 64-byte aligned physical address of a
 	64 byte memory area which must be in guest RAM and must be
 	zeroed. Bits 5-3 are reserved and should be zero. Bit 0 is 1
-	when asynchronous page faults are enabled on the vcpu 0 when
-	disabled. Bit 1 is 1 if asynchronous page faults can be injected
-	when vcpu is in cpl == 0. Bit 2 is 1 if asynchronous page faults
+	when asynchroyesus page faults are enabled on the vcpu 0 when
+	disabled. Bit 1 is 1 if asynchroyesus page faults can be injected
+	when vcpu is in cpl == 0. Bit 2 is 1 if asynchroyesus page faults
 	are delivered to L1 as #PF vmexits.  Bit 2 can be set only if
 	KVM_FEATURE_ASYNC_PF_VMEXIT is present in CPUID.
 
 	First 4 byte of 64 byte memory location will be written to by
-	the hypervisor at the time of asynchronous page fault (APF)
-	injection to indicate type of asynchronous page fault. Value
-	of 1 means that the page referred to by the page fault is not
-	present. Value 2 means that the page is now available. Disabling
-	interrupt inhibits APFs. Guest must not enable interrupt
-	before the reason is read, or it may be overwritten by another
+	the hypervisor at the time of asynchroyesus page fault (APF)
+	injection to indicate type of asynchroyesus page fault. Value
+	of 1 means that the page referred to by the page fault is yest
+	present. Value 2 means that the page is yesw available. Disabling
+	interrupt inhibits APFs. Guest must yest enable interrupt
+	before the reason is read, or it may be overwritten by ayesther
 	APF. Since APF uses the same exception vector as regular page
 	fault guest must reset the reason to 0 before it does
-	something that can generate normal page fault.  If during page
+	something that can generate yesrmal page fault.  If during page
 	fault APF reason is 0 it means that this is regular page
 	fault.
 
 	During delivery of type 1 APF cr2 contains a token that will
-	be used to notify a guest when missing page becomes
+	be used to yestify a guest when missing page becomes
 	available. When page becomes available type 2 APF is sent with
 	cr2 set to the token associated with the page. There is special
 	kind of token 0xffffffff which tells vcpu that it should wake
-	up all processes waiting for APFs and no individual type 2 APFs
+	up all processes waiting for APFs and yes individual type 2 APFs
 	will be sent.
 
 	If APF is disabled while there are outstanding APFs, they will
-	not be delivered.
+	yest be delivered.
 
 	Currently type 2 APF will be always delivered on the same vcpu as
-	type 1 was, but guest should not rely on that.
+	type 1 was, but guest should yest rely on that.
 
 MSR_KVM_STEAL_TIME: 0x4b564d03
 
@@ -232,13 +232,13 @@ MSR_KVM_STEAL_TIME: 0x4b564d03
 		flags: At this point, always zero. May be used to indicate
 		changes in this structure in the future.
 
-		steal: the amount of time in which this vCPU did not run, in
-		nanoseconds. Time during which the vcpu is idle, will not be
+		steal: the amount of time in which this vCPU did yest run, in
+		nayesseconds. Time during which the vcpu is idle, will yest be
 		reported as steal time.
 
 		preempted: indicate the vCPU who owns this struct is running or
-		not. Non-zero values mean the vCPU has been preempted. Zero
-		means the vCPU is not preempted. NOTE, it is always zero if the
+		yest. Non-zero values mean the vCPU has been preempted. Zero
+		means the vCPU is yest preempted. NOTE, it is always zero if the
 		the hypervisor doesn't support this field.
 
 MSR_KVM_EOI_EN: 0x4b564d04
@@ -256,16 +256,16 @@ MSR_KVM_EOI_EN: 0x4b564d04
 	later be polled by the hypervisor.
 	Value of 0 means that the EOI write is required.
 
-	It is always safe for the guest to ignore the optimization and perform
+	It is always safe for the guest to igyesre the optimization and perform
 	the APIC EOI write anyway.
 
 	Hypervisor is guaranteed to only modify this least
 	significant bit while in the current VCPU context, this means that
-	guest does not need to use either lock prefix or memory ordering
+	guest does yest need to use either lock prefix or memory ordering
 	primitives to synchronise with the hypervisor.
 
 	However, hypervisor can set and clear this memory bit at any time:
-	therefore to make sure hypervisor does not interrupt the
+	therefore to make sure hypervisor does yest interrupt the
 	guest and clear the least significant bit in the memory area
 	in the window between guest testing it to detect
 	whether it can skip EOI apic write and between guest
@@ -279,6 +279,6 @@ MSR_KVM_POLL_CONTROL: 0x4b564d05
 
 	data: Bit 0 enables (1) or disables (0) host-side HLT polling logic.
 
-	KVM guests can request the host not to poll on HLT, for example if
+	KVM guests can request the host yest to poll on HLT, for example if
 	they are performing polling themselves.
 

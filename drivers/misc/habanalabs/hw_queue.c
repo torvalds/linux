@@ -66,7 +66,7 @@ out:
  * @len: BD's length
  * @ptr: BD's pointer
  *
- * This function assumes there is enough space on the queue to submit a new
+ * This function assumes there is eyesugh space on the queue to submit a new
  * BD to it. It initializes the next BD and calls the device specific
  * function to set the pi (and doorbell)
  *
@@ -99,8 +99,8 @@ static void ext_and_hw_queue_submit_bd(struct hl_device *hdev,
  * H/W queues spinlock should be taken before calling this function
  *
  * Perform the following:
- * - Make sure we have enough space in the h/w queue
- * - Make sure we have enough space in the completion queue
+ * - Make sure we have eyesugh space in the h/w queue
+ * - Make sure we have eyesugh space in the completion queue
  * - Reserve space in the completion queue (needs to be reversed if there
  *   is a failure down the road before the actual submission of work). Only
  *   do this action if reserve_cq_entry is true
@@ -114,7 +114,7 @@ static int ext_queue_sanity_checks(struct hl_device *hdev,
 			&hdev->completion_queue[q->hw_queue_id].free_slots_cnt;
 	int free_slots_cnt;
 
-	/* Check we have enough space in the queue */
+	/* Check we have eyesugh space in the queue */
 	free_slots_cnt = queue_free_slots(q, HL_QUEUE_LENGTH);
 
 	if (free_slots_cnt < num_of_entries) {
@@ -125,7 +125,7 @@ static int ext_queue_sanity_checks(struct hl_device *hdev,
 
 	if (reserve_cq_entry) {
 		/*
-		 * Check we have enough space in the completion queue
+		 * Check we have eyesugh space in the completion queue
 		 * Add -1 to counter (decrement) unless counter was already 0
 		 * In that case, CQ is full so we can't submit a new CB because
 		 * we won't get ack on its completion
@@ -152,7 +152,7 @@ static int ext_queue_sanity_checks(struct hl_device *hdev,
  * H/W queues spinlock should be taken before calling this function
  *
  * Perform the following:
- * - Make sure we have enough space in the h/w queue
+ * - Make sure we have eyesugh space in the h/w queue
  *
  */
 static int int_queue_sanity_checks(struct hl_device *hdev,
@@ -161,7 +161,7 @@ static int int_queue_sanity_checks(struct hl_device *hdev,
 {
 	int free_slots_cnt;
 
-	/* Check we have enough space in the queue */
+	/* Check we have eyesugh space in the queue */
 	free_slots_cnt = queue_free_slots(q, q->int_queue_len);
 
 	if (free_slots_cnt < num_of_entries) {
@@ -180,14 +180,14 @@ static int int_queue_sanity_checks(struct hl_device *hdev,
  * @num_of_entries: How many entries to check for space.
  *
  * Perform the following:
- * - Make sure we have enough space in the completion queue.
- *   This check also ensures that there is enough space in the h/w queue, as
+ * - Make sure we have eyesugh space in the completion queue.
+ *   This check also ensures that there is eyesugh space in the h/w queue, as
  *   both queues are of the same size.
  * - Reserve space in the completion queue (needs to be reversed if there
  *   is a failure down the road before the actual submission of work).
  *
  * Both operations are done using the "free_slots_cnt" field of the completion
- * queue. The CI counters of the queue and the completion queue are not
+ * queue. The CI counters of the queue and the completion queue are yest
  * needed/used for the H/W queue type.
  */
 static int hw_queue_sanity_checks(struct hl_device *hdev, struct hl_hw_queue *q,
@@ -197,7 +197,7 @@ static int hw_queue_sanity_checks(struct hl_device *hdev, struct hl_hw_queue *q,
 			&hdev->completion_queue[q->hw_queue_id].free_slots_cnt;
 
 	/*
-	 * Check we have enough space in the completion queue.
+	 * Check we have eyesugh space in the completion queue.
 	 * Add -1 to counter (decrement) unless counter was already 0.
 	 * In that case, CQ is full so we can't submit a new CB.
 	 * atomic_add_unless will return 0 if counter was already 0.
@@ -213,7 +213,7 @@ static int hw_queue_sanity_checks(struct hl_device *hdev, struct hl_hw_queue *q,
 }
 
 /*
- * hl_hw_queue_send_cb_no_cmpl - send a single CB (not a JOB) without completion
+ * hl_hw_queue_send_cb_yes_cmpl - send a single CB (yest a JOB) without completion
  *
  * @hdev: pointer to hl_device structure
  * @hw_queue_id: Queue's type
@@ -223,14 +223,14 @@ static int hw_queue_sanity_checks(struct hl_device *hdev, struct hl_hw_queue *q,
  * This function sends a single CB, that must NOT generate a completion entry
  *
  */
-int hl_hw_queue_send_cb_no_cmpl(struct hl_device *hdev, u32 hw_queue_id,
+int hl_hw_queue_send_cb_yes_cmpl(struct hl_device *hdev, u32 hw_queue_id,
 				u32 cb_size, u64 cb_ptr)
 {
 	struct hl_hw_queue *q = &hdev->kernel_queues[hw_queue_id];
 	int rc = 0;
 
 	/*
-	 * The CPU queue is a synchronous queue with an effective depth of
+	 * The CPU queue is a synchroyesus queue with an effective depth of
 	 * a single entry (although it is allocated with room for multiple
 	 * entries). Therefore, there is a different lock, called
 	 * send_cpu_message_lock, that serializes accesses to the CPU queue.
@@ -246,9 +246,9 @@ int hl_hw_queue_send_cb_no_cmpl(struct hl_device *hdev, u32 hw_queue_id,
 	}
 
 	/*
-	 * hl_hw_queue_send_cb_no_cmpl() is called for queues of a H/W queue
+	 * hl_hw_queue_send_cb_yes_cmpl() is called for queues of a H/W queue
 	 * type only on init phase, when the queues are empty and being tested,
-	 * so there is no need for sanity checks.
+	 * so there is yes need for sanity checks.
 	 */
 	if (q->queue_type != QUEUE_TYPE_HW) {
 		rc = ext_queue_sanity_checks(hdev, q, 1, false);
@@ -286,7 +286,7 @@ static void ext_queue_schedule_job(struct hl_cs_job *job)
 	u64 ptr;
 
 	/*
-	 * Update the JOB ID inside the BD CTL so the device would know what
+	 * Update the JOB ID inside the BD CTL so the device would kyesw what
 	 * to write in the completion queue
 	 */
 	ctl = ((q->pi << BD_CTL_SHADOW_INDEX_SHIFT) & BD_CTL_SHADOW_INDEX_MASK);
@@ -462,12 +462,12 @@ int hl_hw_queue_schedule_cs(struct hl_cs *cs)
 	}
 
 	spin_lock(&hdev->hw_queues_mirror_lock);
-	list_add_tail(&cs->mirror_node, &hdev->hw_queues_mirror_list);
+	list_add_tail(&cs->mirror_yesde, &hdev->hw_queues_mirror_list);
 
 	/* Queue TDR if the CS is the first entry and if timeout is wanted */
 	if ((hdev->timeout_jiffies != MAX_SCHEDULE_TIMEOUT) &&
 			(list_first_entry(&hdev->hw_queues_mirror_list,
-					struct hl_cs, mirror_node) == cs)) {
+					struct hl_cs, mirror_yesde) == cs)) {
 		cs->tdr_active = true;
 		schedule_delayed_work(&cs->work_tdr, hdev->timeout_jiffies);
 		spin_unlock(&hdev->hw_queues_mirror_lock);
@@ -483,7 +483,7 @@ int hl_hw_queue_schedule_cs(struct hl_cs *cs)
 		ts->idle_to_busy_ts = ktime_get();
 	}
 
-	list_for_each_entry_safe(job, tmp, &cs->job_list, cs_node)
+	list_for_each_entry_safe(job, tmp, &cs->job_list, cs_yesde)
 		switch (job->queue_type) {
 		case QUEUE_TYPE_EXT:
 			ext_queue_schedule_job(job);
@@ -699,17 +699,17 @@ static void queue_fini(struct hl_device *hdev, struct hl_hw_queue *q)
 		return;
 
 	/*
-	 * If we arrived here, there are no jobs waiting on this queue
+	 * If we arrived here, there are yes jobs waiting on this queue
 	 * so we can safely remove it.
 	 * This is because this function can only called when:
 	 * 1. Either a context is deleted, which only can occur if all its
 	 *    jobs were finished
 	 * 2. A context wasn't able to be created due to failure or timeout,
-	 *    which means there are no jobs on the queue yet
+	 *    which means there are yes jobs on the queue yet
 	 *
 	 * The only exception are the queues of the kernel context, but
 	 * if they are being destroyed, it means that the entire module is
-	 * being removed. If the module is removed, it means there is no open
+	 * being removed. If the module is removed, it means there is yes open
 	 * user context. It also means that if a job was submitted by
 	 * the kernel driver (e.g. context creation), the job itself was
 	 * released by the kernel driver when a timeout occurred on its
@@ -742,7 +742,7 @@ int hl_hw_queues_create(struct hl_device *hdev)
 				sizeof(*hdev->kernel_queues), GFP_KERNEL);
 
 	if (!hdev->kernel_queues) {
-		dev_err(hdev->dev, "Not enough memory for H/W queues\n");
+		dev_err(hdev->dev, "Not eyesugh memory for H/W queues\n");
 		return -ENOMEM;
 	}
 

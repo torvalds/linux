@@ -83,7 +83,7 @@ void __init
 init_i8259a_irqs(void)
 {
 	static struct irqaction cascade = {
-		.handler	= no_action,
+		.handler	= yes_action,
 		.name		= "cascade",
 	};
 
@@ -118,14 +118,14 @@ init_i8259a_irqs(void)
 # define IACK_SC        IRONGATE_IACK_SC
 #endif
 /* Note that CONFIG_ALPHA_POLARIS is intentionally left out here, since
-   sys_rx164 wants to use isa_no_iack_sc_device_interrupt for some reason.  */
+   sys_rx164 wants to use isa_yes_iack_sc_device_interrupt for some reason.  */
 
 #if defined(IACK_SC)
 void
 isa_device_interrupt(unsigned long vector)
 {
 	/*
-	 * Generate a PCI interrupt acknowledge cycle.  The PIC will
+	 * Generate a PCI interrupt ackyeswledge cycle.  The PIC will
 	 * respond with the interrupt vector of the highest priority
 	 * interrupt that is pending.  The PALcode sets up the
 	 * interrupts vectors such that irq level L generates vector L.
@@ -138,7 +138,7 @@ isa_device_interrupt(unsigned long vector)
 
 #if defined(CONFIG_ALPHA_GENERIC) || !defined(IACK_SC)
 void
-isa_no_iack_sc_device_interrupt(unsigned long vector)
+isa_yes_iack_sc_device_interrupt(unsigned long vector)
 {
 	unsigned long pic;
 
@@ -152,8 +152,8 @@ isa_no_iack_sc_device_interrupt(unsigned long vector)
 	/* 
 	 *  The first read of gives you *all* interrupting lines.
 	 *  Therefore, read the mask register and and out those lines
-	 *  not enabled.  Note that some documentation has 21 and a1 
-	 *  write only.  This is not true.
+	 *  yest enabled.  Note that some documentation has 21 and a1 
+	 *  write only.  This is yest true.
 	 */
 	pic = inb(0x20) | (inb(0xA0) << 8);	/* read isr */
 	pic &= 0xFFFB;				/* mask out cascade & hibits */

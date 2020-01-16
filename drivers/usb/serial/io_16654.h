@@ -23,7 +23,7 @@
 	// to them via LCR bit 0x80 or LCR = 0xBF.
 	// The register number sent to the Edgeport is then (x & 0x7).
 	//
-	// Driver must not access registers that affect operation of the
+	// Driver must yest access registers that affect operation of the
 	// the EdgePort firmware -- that includes THR, RHR, IER, FCR.
 
 

@@ -70,8 +70,8 @@ static struct ctl_table user_table[] = {
 	UCOUNT_ENTRY("max_mnt_namespaces"),
 	UCOUNT_ENTRY("max_cgroup_namespaces"),
 #ifdef CONFIG_INOTIFY_USER
-	UCOUNT_ENTRY("max_inotify_instances"),
-	UCOUNT_ENTRY("max_inotify_watches"),
+	UCOUNT_ENTRY("max_iyestify_instances"),
+	UCOUNT_ENTRY("max_iyestify_watches"),
 #endif
 	{ }
 };
@@ -115,7 +115,7 @@ static struct ucounts *find_ucounts(struct user_namespace *ns, kuid_t uid, struc
 {
 	struct ucounts *ucounts;
 
-	hlist_for_each_entry(ucounts, hashent, node) {
+	hlist_for_each_entry(ucounts, hashent, yesde) {
 		if (uid_eq(ucounts->uid, uid) && (ucounts->ns == ns))
 			return ucounts;
 	}
@@ -145,7 +145,7 @@ static struct ucounts *get_ucounts(struct user_namespace *ns, kuid_t uid)
 		if (ucounts) {
 			kfree(new);
 		} else {
-			hlist_add_head(&new->node, hashent);
+			hlist_add_head(&new->yesde, hashent);
 			ucounts = new;
 		}
 	}
@@ -164,7 +164,7 @@ static void put_ucounts(struct ucounts *ucounts)
 	spin_lock_irqsave(&ucounts_lock, flags);
 	ucounts->count -= 1;
 	if (!ucounts->count)
-		hlist_del_init(&ucounts->node);
+		hlist_del_init(&ucounts->yesde);
 	else
 		ucounts = NULL;
 	spin_unlock_irqrestore(&ucounts_lock, flags);
@@ -230,7 +230,7 @@ static __init int user_namespace_sysctl_init(void)
 	 * properly.
 	 */
 	user_header = register_sysctl("user", empty);
-	kmemleak_ignore(user_header);
+	kmemleak_igyesre(user_header);
 	BUG_ON(!user_header);
 	BUG_ON(!setup_userns_sysctls(&init_user_ns));
 #endif

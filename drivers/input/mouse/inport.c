@@ -132,7 +132,7 @@ static int __init inport_init(void)
 
 	inport_dev = input_allocate_device();
 	if (!inport_dev) {
-		printk(KERN_ERR "inport.c: Not enough memory for input device\n");
+		printk(KERN_ERR "inport.c: Not eyesugh memory for input device\n");
 		err = -ENOMEM;
 		goto err_release_region;
 	}

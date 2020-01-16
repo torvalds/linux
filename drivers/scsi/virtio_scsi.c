@@ -6,7 +6,7 @@
  * Copyright Red Hat, Inc. 2011
  *
  * Authors:
- *  Stefan Hajnoczi   <stefanha@linux.vnet.ibm.com>
+ *  Stefan Hajyesczi   <stefanha@linux.vnet.ibm.com>
  *  Paolo Bonzini   <pbonzini@redhat.com>
  */
 
@@ -54,7 +54,7 @@ struct virtio_scsi_cmd {
 	} resp;
 } ____cacheline_aligned_in_smp;
 
-struct virtio_scsi_event_node {
+struct virtio_scsi_event_yesde {
 	struct virtio_scsi *vscsi;
 	struct virtio_scsi_event event;
 	struct work_struct work;
@@ -72,11 +72,11 @@ struct virtio_scsi {
 	struct virtio_device *vdev;
 
 	/* Get some buffers ready for event vq */
-	struct virtio_scsi_event_node event_list[VIRTIO_SCSI_EVENT_LEN];
+	struct virtio_scsi_event_yesde event_list[VIRTIO_SCSI_EVENT_LEN];
 
 	u32 num_queues;
 
-	struct hlist_node node;
+	struct hlist_yesde yesde;
 
 	/* Protected by event_vq lock */
 	bool stop_events;
@@ -146,7 +146,7 @@ static void virtscsi_complete_cmd(struct virtio_scsi *vscsi, void *buf)
 		set_host_byte(sc, DID_NEXUS_FAILURE);
 		break;
 	default:
-		scmd_printk(KERN_WARNING, sc, "Unknown response %d",
+		scmd_printk(KERN_WARNING, sc, "Unkyeswn response %d",
 			    resp->response);
 		/* fall through */
 	case VIRTIO_SCSI_S_FAILURE:
@@ -228,18 +228,18 @@ static void virtscsi_ctrl_done(struct virtqueue *vq)
 static void virtscsi_handle_event(struct work_struct *work);
 
 static int virtscsi_kick_event(struct virtio_scsi *vscsi,
-			       struct virtio_scsi_event_node *event_node)
+			       struct virtio_scsi_event_yesde *event_yesde)
 {
 	int err;
 	struct scatterlist sg;
 	unsigned long flags;
 
-	INIT_WORK(&event_node->work, virtscsi_handle_event);
-	sg_init_one(&sg, &event_node->event, sizeof(struct virtio_scsi_event));
+	INIT_WORK(&event_yesde->work, virtscsi_handle_event);
+	sg_init_one(&sg, &event_yesde->event, sizeof(struct virtio_scsi_event));
 
 	spin_lock_irqsave(&vscsi->event_vq.vq_lock, flags);
 
-	err = virtqueue_add_inbuf(vscsi->event_vq.vq, &sg, 1, event_node,
+	err = virtqueue_add_inbuf(vscsi->event_vq.vq, &sg, 1, event_yesde,
 				  GFP_ATOMIC);
 	if (!err)
 		virtqueue_kick(vscsi->event_vq.vq);
@@ -292,8 +292,8 @@ static void virtscsi_handle_transport_reset(struct virtio_scsi *vscsi,
 			scsi_remove_device(sdev);
 			scsi_device_put(sdev);
 		} else {
-			pr_err("SCSI device %d 0 %d %d not found\n",
-				shost->host_no, target, lun);
+			pr_err("SCSI device %d 0 %d %d yest found\n",
+				shost->host_yes, target, lun);
 		}
 		break;
 	default:
@@ -313,8 +313,8 @@ static void virtscsi_handle_param_change(struct virtio_scsi *vscsi,
 
 	sdev = scsi_device_lookup(shost, 0, target, lun);
 	if (!sdev) {
-		pr_err("SCSI device %d 0 %d %d not found\n",
-			shost->host_no, target, lun);
+		pr_err("SCSI device %d 0 %d %d yest found\n",
+			shost->host_yes, target, lun);
 		return;
 	}
 
@@ -348,7 +348,7 @@ static void virtscsi_rescan_hotunplug(struct virtio_scsi *vscsi)
 					  SD_TIMEOUT, SD_MAX_RETRIES, NULL);
 
 		if (result == 0 && inq_result[0] >> 5) {
-			/* PQ indicates the LUN is not attached */
+			/* PQ indicates the LUN is yest attached */
 			scsi_remove_device(sdev);
 		}
 	}
@@ -358,10 +358,10 @@ static void virtscsi_rescan_hotunplug(struct virtio_scsi *vscsi)
 
 static void virtscsi_handle_event(struct work_struct *work)
 {
-	struct virtio_scsi_event_node *event_node =
-		container_of(work, struct virtio_scsi_event_node, work);
-	struct virtio_scsi *vscsi = event_node->vscsi;
-	struct virtio_scsi_event *event = &event_node->event;
+	struct virtio_scsi_event_yesde *event_yesde =
+		container_of(work, struct virtio_scsi_event_yesde, work);
+	struct virtio_scsi *vscsi = event_yesde->vscsi;
+	struct virtio_scsi_event *event = &event_yesde->event;
 
 	if (event->event &
 	    cpu_to_virtio32(vscsi->vdev, VIRTIO_SCSI_T_EVENTS_MISSED)) {
@@ -383,15 +383,15 @@ static void virtscsi_handle_event(struct work_struct *work)
 	default:
 		pr_err("Unsupport virtio scsi event %x\n", event->event);
 	}
-	virtscsi_kick_event(vscsi, event_node);
+	virtscsi_kick_event(vscsi, event_yesde);
 }
 
 static void virtscsi_complete_event(struct virtio_scsi *vscsi, void *buf)
 {
-	struct virtio_scsi_event_node *event_node = buf;
+	struct virtio_scsi_event_yesde *event_yesde = buf;
 
 	if (!vscsi->stop_events)
-		queue_work(system_freezable_wq, &event_node->work);
+		queue_work(system_freezable_wq, &event_yesde->work);
 }
 
 static void virtscsi_event_done(struct virtqueue *vq)
@@ -457,7 +457,7 @@ static void virtscsi_kick_vq(struct virtio_scsi_vq *vq)
 	spin_unlock_irqrestore(&vq->vq_lock, flags);
 
 	if (needs_kick)
-		virtqueue_notify(vq->vq);
+		virtqueue_yestify(vq->vq);
 }
 
 /**
@@ -485,7 +485,7 @@ static int virtscsi_add_cmd(struct virtio_scsi_vq *vq,
 	spin_unlock_irqrestore(&vq->vq_lock, flags);
 
 	if (needs_kick)
-		virtqueue_notify(vq->vq);
+		virtqueue_yestify(vq->vq);
 	return err;
 }
 
@@ -604,11 +604,11 @@ static int virtscsi_tmf(struct virtio_scsi *vscsi, struct virtio_scsi_cmd *cmd)
 
 	/*
 	 * The spec guarantees that all requests related to the TMF have
-	 * been completed, but the callback might not have run yet if
+	 * been completed, but the callback might yest have run yet if
 	 * we're using independent interrupts (e.g. MSI).  Poll the
 	 * virtqueues once.
 	 *
-	 * In the abort case, sc->scsi_done will do nothing, because
+	 * In the abort case, sc->scsi_done will do yesthing, because
 	 * the block layer must have detected a timeout and as a result
 	 * REQ_ATOM_COMPLETE has been set.
 	 */
@@ -843,7 +843,7 @@ static int virtscsi_probe(struct virtio_device *vdev)
 		return -EINVAL;
 	}
 
-	/* We need to know how many queues before we allocate. */
+	/* We need to kyesw how many queues before we allocate. */
 	num_queues = virtscsi_config_get(vdev, num_queues) ? : 1;
 	num_queues = min_t(unsigned int, nr_cpu_ids, num_queues);
 

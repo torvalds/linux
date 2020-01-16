@@ -12,14 +12,14 @@ Required properties:
     "socionext,uniphier-pro4-usb2-phy" - for Pro4 SoC
     "socionext,uniphier-ld11-usb2-phy" - for LD11 SoC
 
-Sub-nodes:
-Each PHY should be represented as a sub-node.
+Sub-yesdes:
+Each PHY should be represented as a sub-yesde.
 
-Sub-nodes required properties:
+Sub-yesdes required properties:
 - #phy-cells: Should be 0.
 - reg: The number of the PHY.
 
-Sub-nodes optional properties:
+Sub-yesdes optional properties:
 - vbus-supply: A phandle to the regulator for USB VBUS.
 
 Refer to phy/phy-bindings.txt for the generic PHY binding properties.

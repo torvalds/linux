@@ -19,12 +19,12 @@ static inline bool __pte_needs_invert(u64 val)
 }
 
 /* Get a mask to xor with the page table entry to get the correct pfn. */
-static inline u64 protnone_mask(u64 val)
+static inline u64 protyesne_mask(u64 val)
 {
 	return __pte_needs_invert(val) ?  ~0ull : 0;
 }
 
-static inline u64 flip_protnone_guard(u64 oldval, u64 val, u64 mask)
+static inline u64 flip_protyesne_guard(u64 oldval, u64 val, u64 mask)
 {
 	/*
 	 * When a PTE transitions from NONE to !NONE or vice-versa

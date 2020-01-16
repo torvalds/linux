@@ -15,7 +15,7 @@
 
 #define IDT77105_MCR		0x0	/* Master Control Register */
 #define IDT77105_ISTAT	        0x1	/* Interrupt Status */
-#define IDT77105_DIAG   	0x2	/* Diagnostic Control */
+#define IDT77105_DIAG   	0x2	/* Diagyesstic Control */
 #define IDT77105_LEDHEC		0x3	/* LED Driver & HEC Status/Control */
 #define IDT77105_CTRLO		0x4	/* Low Byte Counter Register */
 #define IDT77105_CTRHI		0x5	/* High Byte Counter Register */

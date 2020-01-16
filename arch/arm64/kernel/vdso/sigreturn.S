@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Sigreturn trampoline for returning from a signal when the SA_RESTORER
- * flag is not set.
+ * flag is yest set.
  *
  * Copyright (C) 2012 ARM Limited
  *
@@ -13,7 +13,7 @@
 
 	.text
 
-	nop
+	yesp
 ENTRY(__kernel_rt_sigreturn)
 	.cfi_startproc
 	.cfi_signal_frame

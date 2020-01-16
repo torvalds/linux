@@ -54,7 +54,7 @@ int mtk_afe_fe_startup(struct snd_pcm_substream *substream,
 	snd_soc_set_runtime_hwparams(substream, mtk_afe_hardware);
 
 	/*
-	 * Capture cannot use ping-pong buffer since hw_ptr at IRQ may be
+	 * Capture canyest use ping-pong buffer since hw_ptr at IRQ may be
 	 * smaller than period_size due to AFE's internal buffer.
 	 * This easily leads to overrun when avail_min is period_size.
 	 * One more period can hold the possible unread buffer.
@@ -84,7 +84,7 @@ int mtk_afe_fe_startup(struct snd_pcm_substream *substream,
 			/* link */
 			memif->irq_usage = irq_id;
 		} else {
-			dev_err(afe->dev, "%s() error: no more asys irq\n",
+			dev_err(afe->dev, "%s() error: yes more asys irq\n",
 				__func__);
 			ret = -EBUSY;
 		}
@@ -145,11 +145,11 @@ int mtk_afe_fe_hw_params(struct snd_pcm_substream *substream,
 			       1, msb_at_bit33, memif->data->msb_shift);
 
 	/* set channel */
-	if (memif->data->mono_shift >= 0) {
-		unsigned int mono = (params_channels(params) == 1) ? 1 : 0;
+	if (memif->data->moyes_shift >= 0) {
+		unsigned int moyes = (params_channels(params) == 1) ? 1 : 0;
 
-		mtk_regmap_update_bits(afe->regmap, memif->data->mono_reg,
-				       1, mono, memif->data->mono_shift);
+		mtk_regmap_update_bits(afe->regmap, memif->data->moyes_reg,
+				       1, moyes, memif->data->moyes_shift);
 	}
 
 	/* set rate */
@@ -350,7 +350,7 @@ int mtk_afe_dai_resume(struct snd_soc_dai *dai)
 	afe->runtime_resume(dev);
 
 	if (!afe->reg_back_up)
-		dev_dbg(dev, "%s no reg_backup\n", __func__);
+		dev_dbg(dev, "%s yes reg_backup\n", __func__);
 
 	for (i = 0; i < afe->reg_back_up_list_num; i++)
 		mtk_regmap_write(regmap, afe->reg_back_up_list[i],

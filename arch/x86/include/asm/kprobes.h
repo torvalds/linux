@@ -61,10 +61,10 @@ struct arch_specific_insn {
 	/* copy of the original instruction */
 	kprobe_opcode_t *insn;
 	/*
-	 * boostable = false: This instruction type is not boostable.
+	 * boostable = false: This instruction type is yest boostable.
 	 * boostable = true: This instruction has been boosted: we have
 	 * added a relative jump after the instruction copy in insn,
-	 * so no single-step and fixup are needed (unless there's
+	 * so yes single-step and fixup are needed (unless there's
 	 * a post_handler).
 	 */
 	bool boostable;
@@ -102,7 +102,7 @@ struct kprobe_ctlblk {
 };
 
 extern int kprobe_fault_handler(struct pt_regs *regs, int trapnr);
-extern int kprobe_exceptions_notify(struct notifier_block *self,
+extern int kprobe_exceptions_yestify(struct yestifier_block *self,
 				    unsigned long val, void *data);
 extern int kprobe_int3_handler(struct pt_regs *regs);
 extern int kprobe_debug_handler(struct pt_regs *regs);

@@ -4,7 +4,7 @@
 //
 // Copyright (C) 2015 Freescale Semiconductor, Inc.
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/gpio/consumer.h>
@@ -323,7 +323,7 @@ static int imx6ul_tsc_open(struct input_dev *input_dev)
 	err = clk_prepare_enable(tsc->adc_clk);
 	if (err) {
 		dev_err(tsc->dev,
-			"Could not prepare or enable the adc clock: %d\n",
+			"Could yest prepare or enable the adc clock: %d\n",
 			err);
 		return err;
 	}
@@ -331,7 +331,7 @@ static int imx6ul_tsc_open(struct input_dev *input_dev)
 	err = clk_prepare_enable(tsc->tsc_clk);
 	if (err) {
 		dev_err(tsc->dev,
-			"Could not prepare or enable the tsc clock: %d\n",
+			"Could yest prepare or enable the tsc clock: %d\n",
 			err);
 		goto disable_adc_clk;
 	}
@@ -361,7 +361,7 @@ static void imx6ul_tsc_close(struct input_dev *input_dev)
 
 static int imx6ul_tsc_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	struct imx6ul_tsc *tsc;
 	struct input_dev *input_dev;
 	int err;

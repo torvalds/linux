@@ -85,7 +85,7 @@ static const struct fb_cmap default_16_colors = {
  *	Allocates memory for a colormap @cmap.  @len is the
  *	number of entries in the palette.
  *
- *	Returns negative errno on error, or zero on success.
+ *	Returns negative erryes on error, or zero on success.
  *
  */
 
@@ -224,7 +224,7 @@ int fb_cmap_to_user(const struct fb_cmap *from, struct fb_cmap_user *to)
  *
  *	Sets the colormap @cmap for a screen of device @info.
  *
- *	Returns negative errno on error, or zero on success.
+ *	Returns negative erryes on error, or zero on success.
  *
  */
 

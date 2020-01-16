@@ -13,7 +13,7 @@
 #include <sys/ucontext.h>
 #include <err.h>
 #include <setjmp.h>
-#include <errno.h>
+#include <erryes.h>
 
 #ifdef __x86_64__
 # define WIDTH "q"
@@ -112,7 +112,7 @@ static void sigill(int sig, siginfo_t *info, void *ctx_void)
 
 	if (*ip == 0x0b0f) {
 		/* one of the ud2 instructions faulted */
-		printf("[OK]\tSYSCALL returned normally\n");
+		printf("[OK]\tSYSCALL returned yesrmally\n");
 	} else {
 		printf("[SKIP]\tIllegal instruction\n");
 	}
@@ -138,7 +138,7 @@ int main()
 	sethandler(SIGILL, sigill, SA_ONSTACK);
 
 	/*
-	 * Exercise another nasty special case.  The 32-bit SYSCALL
+	 * Exercise ayesther nasty special case.  The 32-bit SYSCALL
 	 * and SYSENTER instructions (even in compat mode) each
 	 * clobber one register.  A Linux system call has a syscall
 	 * number and six arguments, and the user stack pointer
@@ -151,7 +151,7 @@ int main()
 	 * The 32-bit fast system calls don't have a defined ABI:
 	 * we're supposed to invoke them through the vDSO.  So we'll
 	 * fudge it: we set all regs to invalid pointer values and
-	 * invoke the entry instruction.  The return will fail no
+	 * invoke the entry instruction.  The return will fail yes
 	 * matter what, and we completely lose our program state,
 	 * but we can fix it up with a signal handler.
 	 */

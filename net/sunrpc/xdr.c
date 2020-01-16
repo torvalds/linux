@@ -13,7 +13,7 @@
 #include <linux/string.h>
 #include <linux/kernel.h>
 #include <linux/pagemap.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/sunrpc/xdr.h>
 #include <linux/sunrpc/msg_prot.h>
 #include <linux/bvec.h>
@@ -212,7 +212,7 @@ EXPORT_SYMBOL_GPL(xdr_inline_pages);
  *       the same way:
  *            if a memory area starts at byte 'base' in page 'pages[i]',
  *            then its address is given as (i << PAGE_SHIFT) + base
- * Also note: pgfrom_base must be < pgto_base, but the memory areas
+ * Also yeste: pgfrom_base must be < pgto_base, but the memory areas
  * 	they point to may overlap.
  */
 static void
@@ -274,7 +274,7 @@ _shift_data_right_pages(struct page **pages, size_t pgto_base,
  * @len: length
  *
  * Copies data from an arbitrary memory location into an array of pages
- * The copy is assumed to be non-overlapping.
+ * The copy is assumed to be yesn-overlapping.
  */
 static void
 _copy_to_pages(struct page **pages, size_t pgbase, const char *p, size_t len)
@@ -318,7 +318,7 @@ _copy_to_pages(struct page **pages, size_t pgbase, const char *p, size_t len)
  * @len: length
  *
  * Copies data into an arbitrary memory location from an array of pages
- * The copy is assumed to be non-overlapping.
+ * The copy is assumed to be yesn-overlapping.
  */
 void
 _copy_from_pages(char *p, struct page **pages, size_t pgbase, size_t len)
@@ -356,7 +356,7 @@ EXPORT_SYMBOL_GPL(_copy_from_pages);
  * @len: bytes to remove from buf->head[0]
  *
  * Shrinks XDR buffer's header kvec buf->head[0] by
- * 'len' bytes. The extra data is not lost, but is instead
+ * 'len' bytes. The extra data is yest lost, but is instead
  * moved into the inlined pages and/or the tail.
  */
 static unsigned int
@@ -440,7 +440,7 @@ xdr_shrink_bufhead(struct xdr_buf *buf, size_t len)
  * @buf: xdr_buf
  * @len: bytes to remove from buf->pages
  *
- * The extra data is not lost, but is instead moved into buf->tail.
+ * The extra data is yest lost, but is instead moved into buf->tail.
  * Returns the actual number of bytes moved.
  */
 static unsigned int
@@ -622,7 +622,7 @@ out_overflow:
  * @xdr: pointer to xdr_stream
  * @nbytes: number of bytes to reserve
  *
- * Checks that we have enough buffer space to encode 'nbytes' more
+ * Checks that we have eyesugh buffer space to encode 'nbytes' more
  * bytes of data. If so, update the total xdr_buf length, and
  * adjust the length of the current kvec.
  */
@@ -662,9 +662,9 @@ EXPORT_SYMBOL_GPL(xdr_reserve_space);
  * except in the case of the head buffer when we assume the head
  * buffer's current length represents the end of the available buffer.
  *
- * This is *not* safe to use on a buffer that already has inlined page
+ * This is *yest* safe to use on a buffer that already has inlined page
  * cache pages (as in a zero-copy server read reply), except for the
- * simple case of truncating from one position in the tail to another.
+ * simple case of truncating from one position in the tail to ayesther.
  *
  */
 void xdr_truncate_encode(struct xdr_stream *xdr, size_t len)
@@ -725,7 +725,7 @@ EXPORT_SYMBOL(xdr_truncate_encode);
  * Adjust our idea of how much space is available in the buffer.
  * If we've already used too much space in the buffer, returns -1.
  * If the available space is already smaller than newbuflen, returns 0
- * and does nothing.  Otherwise, adjusts xdr->buf->buflen to newbuflen
+ * and does yesthing.  Otherwise, adjusts xdr->buf->buflen to newbuflen
  * and ensures xdr->end is set at most offset newbuflen from the start
  * of the buffer.
  */
@@ -956,7 +956,7 @@ out_overflow:
  * @xdr: pointer to xdr_stream struct
  * @nbytes: number of bytes of data to decode
  *
- * Check if the input buffer is long enough to enable us to decode
+ * Check if the input buffer is long eyesugh to enable us to decode
  * 'nbytes' more bytes of data starting at the current position.
  * If so return the current pointer, then update the current
  * pointer position.
@@ -1024,7 +1024,7 @@ static unsigned int xdr_align_pages(struct xdr_stream *xdr, unsigned int len)
  * into the page list. Any data that lies beyond current position + "len"
  * bytes is moved into the XDR tail[].
  *
- * Returns the number of XDR encoded bytes now contained in the pages
+ * Returns the number of XDR encoded bytes yesw contained in the pages
  */
 unsigned int xdr_read_pages(struct xdr_stream *xdr, unsigned int len)
 {
@@ -1243,7 +1243,7 @@ EXPORT_SYMBOL_GPL(xdr_encode_word);
  *
  * This function may modify the xdr buf if the mic is found to be straddling
  * a boundary between head, pages, and tail.  On success the mic can be read
- * from the address returned.  There is no need to free the mic.
+ * from the address returned.  There is yes need to free the mic.
  *
  * Return: Success returns 0, otherwise an integer error.
  */

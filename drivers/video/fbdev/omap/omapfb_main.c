@@ -3,11 +3,11 @@
  * Framebuffer driver for TI OMAP boards
  *
  * Copyright (C) 2004 Nokia Corporation
- * Author: Imre Deak <imre.deak@nokia.com>
+ * Author: Imre Deak <imre.deak@yeskia.com>
  *
- * Acknowledgements:
+ * Ackyeswledgements:
  *   Alex McMains <aam@ridgerun.com>       - Original driver
- *   Juha Yrjola <juha.yrjola@nokia.com>   - Original driver and improvements
+ *   Juha Yrjola <juha.yrjola@yeskia.com>   - Original driver and improvements
  *   Dirk Behme <dirk.behme@de.bosch.com>  - changes for 2.6 kernel API
  *   Texas Instruments                     - H3 support
  */
@@ -233,10 +233,10 @@ static int omapfb_release(struct fb_info *info, int user)
 }
 
 /* Store a single color palette entry into a pseudo palette or the hardware
- * palette if one is available. For now we support only 16bpp and thus store
+ * palette if one is available. For yesw we support only 16bpp and thus store
  * the entry only to the pseudo palette.
  */
-static int _setcolreg(struct fb_info *info, u_int regno, u_int red, u_int green,
+static int _setcolreg(struct fb_info *info, u_int regyes, u_int red, u_int green,
 			u_int blue, u_int transp, int update_hw_pal)
 {
 	struct omapfb_plane_struct *plane = info->par;
@@ -255,7 +255,7 @@ static int _setcolreg(struct fb_info *info, u_int regno, u_int red, u_int green,
 	case OMAPFB_COLOR_CLUT_2BPP:
 	case OMAPFB_COLOR_CLUT_1BPP:
 		if (fbdev->ctrl->setcolreg)
-			r = fbdev->ctrl->setcolreg(regno, red, green, blue,
+			r = fbdev->ctrl->setcolreg(regyes, red, green, blue,
 							transp, update_hw_pal);
 		/* Fallthrough */
 	case OMAPFB_COLOR_RGB565:
@@ -263,14 +263,14 @@ static int _setcolreg(struct fb_info *info, u_int regno, u_int red, u_int green,
 		if (r != 0)
 			break;
 
-		if (regno < 16) {
+		if (regyes < 16) {
 			u16 pal;
 			pal = ((red >> (16 - var->red.length)) <<
 					var->red.offset) |
 			      ((green >> (16 - var->green.length)) <<
 					var->green.offset) |
 			      (blue >> (16 - var->blue.length));
-			((u32 *)(info->pseudo_palette))[regno] = pal;
+			((u32 *)(info->pseudo_palette))[regyes] = pal;
 		}
 		break;
 	default:
@@ -279,10 +279,10 @@ static int _setcolreg(struct fb_info *info, u_int regno, u_int red, u_int green,
 	return r;
 }
 
-static int omapfb_setcolreg(u_int regno, u_int red, u_int green, u_int blue,
+static int omapfb_setcolreg(u_int regyes, u_int red, u_int green, u_int blue,
 			    u_int transp, struct fb_info *info)
 {
-	return _setcolreg(info, regno, red, green, blue, transp, 1);
+	return _setcolreg(info, regyes, red, green, blue, transp, 1);
 }
 
 static int omapfb_setcmap(struct fb_cmap *cmap, struct fb_info *info)
@@ -390,7 +390,7 @@ static void set_fb_fix(struct fb_info *fbi, int from_init)
 
 	fix->type = FB_TYPE_PACKED_PIXELS;
 	bpp = var->bits_per_pixel;
-	if (var->nonstd)
+	if (var->yesnstd)
 		fix->visual = FB_VISUAL_PSEUDOCOLOR;
 	else switch (var->bits_per_pixel) {
 	case 16:
@@ -413,20 +413,20 @@ static void set_fb_fix(struct fb_info *fbi, int from_init)
 static int set_color_mode(struct omapfb_plane_struct *plane,
 			  struct fb_var_screeninfo *var)
 {
-	switch (var->nonstd) {
+	switch (var->yesnstd) {
 	case 0:
 		break;
 	case OMAPFB_COLOR_YUV422:
 		var->bits_per_pixel = 16;
-		plane->color_mode = var->nonstd;
+		plane->color_mode = var->yesnstd;
 		return 0;
 	case OMAPFB_COLOR_YUV420:
 		var->bits_per_pixel = 12;
-		plane->color_mode = var->nonstd;
+		plane->color_mode = var->yesnstd;
 		return 0;
 	case OMAPFB_COLOR_YUY422:
 		var->bits_per_pixel = 16;
-		plane->color_mode = var->nonstd;
+		plane->color_mode = var->yesnstd;
 		return 0;
 	default:
 		return -EINVAL;
@@ -929,10 +929,10 @@ static int omapfb_get_color_key(struct omapfb_device *fbdev,
 	return r;
 }
 
-static struct blocking_notifier_head omapfb_client_list[OMAPFB_PLANE_NUM];
-static int notifier_inited;
+static struct blocking_yestifier_head omapfb_client_list[OMAPFB_PLANE_NUM];
+static int yestifier_inited;
 
-static void omapfb_init_notifier(void)
+static void omapfb_init_yestifier(void)
 {
 	int i;
 
@@ -940,8 +940,8 @@ static void omapfb_init_notifier(void)
 		BLOCKING_INIT_NOTIFIER_HEAD(&omapfb_client_list[i]);
 }
 
-int omapfb_register_client(struct omapfb_notifier_block *omapfb_nb,
-				omapfb_notifier_callback_t callback,
+int omapfb_register_client(struct omapfb_yestifier_block *omapfb_nb,
+				omapfb_yestifier_callback_t callback,
 				void *callback_data)
 {
 	int r;
@@ -949,15 +949,15 @@ int omapfb_register_client(struct omapfb_notifier_block *omapfb_nb,
 	if ((unsigned)omapfb_nb->plane_idx >= OMAPFB_PLANE_NUM)
 		return -EINVAL;
 
-	if (!notifier_inited) {
-		omapfb_init_notifier();
-		notifier_inited = 1;
+	if (!yestifier_inited) {
+		omapfb_init_yestifier();
+		yestifier_inited = 1;
 	}
 
-	omapfb_nb->nb.notifier_call = (int (*)(struct notifier_block *,
+	omapfb_nb->nb.yestifier_call = (int (*)(struct yestifier_block *,
 					unsigned long, void *))callback;
 	omapfb_nb->data = callback_data;
-	r = blocking_notifier_chain_register(
+	r = blocking_yestifier_chain_register(
 				&omapfb_client_list[omapfb_nb->plane_idx],
 				&omapfb_nb->nb);
 	if (r)
@@ -971,26 +971,26 @@ int omapfb_register_client(struct omapfb_notifier_block *omapfb_nb,
 }
 EXPORT_SYMBOL(omapfb_register_client);
 
-int omapfb_unregister_client(struct omapfb_notifier_block *omapfb_nb)
+int omapfb_unregister_client(struct omapfb_yestifier_block *omapfb_nb)
 {
-	return blocking_notifier_chain_unregister(
+	return blocking_yestifier_chain_unregister(
 		&omapfb_client_list[omapfb_nb->plane_idx], &omapfb_nb->nb);
 }
 EXPORT_SYMBOL(omapfb_unregister_client);
 
-void omapfb_notify_clients(struct omapfb_device *fbdev, unsigned long event)
+void omapfb_yestify_clients(struct omapfb_device *fbdev, unsigned long event)
 {
 	int i;
 
-	if (!notifier_inited)
-		/* no client registered yet */
+	if (!yestifier_inited)
+		/* yes client registered yet */
 		return;
 
 	for (i = 0; i < OMAPFB_PLANE_NUM; i++)
-		blocking_notifier_call_chain(&omapfb_client_list[i], event,
+		blocking_yestifier_call_chain(&omapfb_client_list[i], event,
 				    fbdev->fb_info[i]);
 }
-EXPORT_SYMBOL(omapfb_notify_clients);
+EXPORT_SYMBOL(omapfb_yestify_clients);
 
 static int omapfb_set_update_mode(struct omapfb_device *fbdev,
 				   enum omapfb_update_mode mode)
@@ -1560,7 +1560,7 @@ static void omapfb_free_resources(struct omapfb_device *fbdev, int state)
 		dev_set_drvdata(fbdev->dev, NULL);
 		kfree(fbdev);
 	case 0:
-		/* nothing to free */
+		/* yesthing to free */
 		break;
 	default:
 		BUG();
@@ -1594,7 +1594,7 @@ static int omapfb_find_ctrl(struct omapfb_device *fbdev)
 	}
 
 	if (fbdev->ctrl == NULL) {
-		dev_dbg(fbdev->dev, "ctrl %s not supported\n", name);
+		dev_dbg(fbdev->dev, "ctrl %s yest supported\n", name);
 		return -1;
 	}
 
@@ -1627,7 +1627,7 @@ static int omapfb_do_probe(struct platform_device *pdev,
 	init_state = 0;
 
 	if (pdev->num_resources != 0) {
-		dev_err(&pdev->dev, "probed for an unknown device\n");
+		dev_err(&pdev->dev, "probed for an unkyeswn device\n");
 		r = -ENODEV;
 		goto cleanup;
 	}
@@ -1660,7 +1660,7 @@ static int omapfb_do_probe(struct platform_device *pdev,
 #endif
 	if (omapfb_find_ctrl(fbdev) < 0) {
 		dev_err(fbdev->dev,
-			"LCD controller not found, board not supported\n");
+			"LCD controller yest found, board yest supported\n");
 		r = -ENODEV;
 		goto cleanup;
 	}
@@ -1927,5 +1927,5 @@ module_init(omapfb_init);
 module_exit(omapfb_cleanup);
 
 MODULE_DESCRIPTION("TI OMAP framebuffer driver");
-MODULE_AUTHOR("Imre Deak <imre.deak@nokia.com>");
+MODULE_AUTHOR("Imre Deak <imre.deak@yeskia.com>");
 MODULE_LICENSE("GPL");

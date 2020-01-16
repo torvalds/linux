@@ -42,11 +42,11 @@ static bool range_contains(char *haystack_start, size_t haystack_size,
 #define DO_NOTHING_RETURN_STRUCT(ptr)		/**/
 
 #define DO_NOTHING_CALL_SCALAR(var, name)			\
-		(var) = do_nothing_ ## name(&(var))
+		(var) = do_yesthing_ ## name(&(var))
 #define DO_NOTHING_CALL_STRING(var, name)			\
-		do_nothing_ ## name(var)
+		do_yesthing_ ## name(var)
 #define DO_NOTHING_CALL_STRUCT(var, name)			\
-		do_nothing_ ## name(&(var))
+		do_yesthing_ ## name(&(var))
 
 #define FETCH_ARG_SCALAR(var)		&var
 #define FETCH_ARG_STRING(var)		var
@@ -58,13 +58,13 @@ static bool range_contains(char *haystack_start, size_t haystack_size,
 #define INIT_CLONE_STRING		[FILL_SIZE_STRING]
 #define INIT_CLONE_STRUCT		/**/
 
-#define INIT_SCALAR_none		/**/
+#define INIT_SCALAR_yesne		/**/
 #define INIT_SCALAR_zero		= 0
 
-#define INIT_STRING_none		[FILL_SIZE_STRING] /**/
+#define INIT_STRING_yesne		[FILL_SIZE_STRING] /**/
 #define INIT_STRING_zero		[FILL_SIZE_STRING] = { }
 
-#define INIT_STRUCT_none		/**/
+#define INIT_STRUCT_yesne		/**/
 #define INIT_STRUCT_zero		= { }
 #define INIT_STRUCT_static_partial	= { .two = 0, }
 #define INIT_STRUCT_static_all		= { .one = arg->one,		\
@@ -95,10 +95,10 @@ static bool range_contains(char *haystack_start, size_t haystack_size,
  */
 #define DEFINE_TEST_DRIVER(name, var_type, which)		\
 /* Returns 0 on success, 1 on failure. */			\
-static noinline __init int test_ ## name (void)			\
+static yesinline __init int test_ ## name (void)			\
 {								\
 	var_type zero INIT_CLONE_ ## which;			\
-	int ignored;						\
+	int igyesred;						\
 	u8 sum = 0, i;						\
 								\
 	/* Notice when a new test is larger than expected. */	\
@@ -109,19 +109,19 @@ static noinline __init int test_ ## name (void)			\
 	/* Clear entire check buffer for 0xFF overlap test. */	\
 	memset(check_buf, 0x00, sizeof(check_buf));		\
 	/* Fill stack with 0xFF. */				\
-	ignored = leaf_ ##name((unsigned long)&ignored, 1,	\
+	igyesred = leaf_ ##name((unsigned long)&igyesred, 1,	\
 				FETCH_ARG_ ## which(zero));	\
 	/* Verify all bytes overwritten with 0xFF. */		\
 	for (sum = 0, i = 0; i < target_size; i++)		\
 		sum += (check_buf[i] != 0xFF);			\
 	if (sum) {						\
-		pr_err(#name ": leaf fill was not 0xFF!?\n");	\
+		pr_err(#name ": leaf fill was yest 0xFF!?\n");	\
 		return 1;					\
 	}							\
 	/* Clear entire check buffer for later bit tests. */	\
 	memset(check_buf, 0x00, sizeof(check_buf));		\
 	/* Extract stack-defined variable contents. */		\
-	ignored = leaf_ ##name((unsigned long)&ignored, 0,	\
+	igyesred = leaf_ ##name((unsigned long)&igyesred, 0,	\
 				FETCH_ARG_ ## which(zero));	\
 								\
 	/* Validate that compiler lined up fill and target. */	\
@@ -148,17 +148,17 @@ static noinline __init int test_ ## name (void)			\
 	return (sum != 0);					\
 }
 #define DEFINE_TEST(name, var_type, which, init_level)		\
-/* no-op to force compiler into ignoring "uninitialized" vars */\
-static noinline __init DO_NOTHING_TYPE_ ## which(var_type)	\
-do_nothing_ ## name(var_type *ptr)				\
+/* yes-op to force compiler into igyesring "uninitialized" vars */\
+static yesinline __init DO_NOTHING_TYPE_ ## which(var_type)	\
+do_yesthing_ ## name(var_type *ptr)				\
 {								\
-	/* Will always be true, but compiler doesn't know. */	\
+	/* Will always be true, but compiler doesn't kyesw. */	\
 	if ((unsigned long)ptr > 0x2)				\
 		return DO_NOTHING_RETURN_ ## which(ptr);	\
 	else							\
 		return DO_NOTHING_RETURN_ ## which(ptr + 1);	\
 }								\
-static noinline __init int leaf_ ## name(unsigned long sp,	\
+static yesinline __init int leaf_ ## name(unsigned long sp,	\
 					 bool fill,		\
 					 var_type *arg)		\
 {								\
@@ -191,7 +191,7 @@ static noinline __init int leaf_ ## name(unsigned long sp,	\
 }								\
 DEFINE_TEST_DRIVER(name, var_type, which)
 
-/* Structure with no padding. */
+/* Structure with yes padding. */
 struct test_packed {
 	unsigned long one;
 	unsigned long two;
@@ -271,16 +271,16 @@ DEFINE_STRUCT_TESTS(dynamic_all);
 DEFINE_STRUCT_TESTS(runtime_partial);
 DEFINE_STRUCT_TESTS(runtime_all);
 /* No initialization without compiler instrumentation. */
-DEFINE_SCALAR_TESTS(none);
-DEFINE_STRUCT_TESTS(none);
-DEFINE_TEST(user, struct test_user, STRUCT, none);
+DEFINE_SCALAR_TESTS(yesne);
+DEFINE_STRUCT_TESTS(yesne);
+DEFINE_TEST(user, struct test_user, STRUCT, yesne);
 
 /*
  * Check two uses through a variable declaration outside either path,
- * which was noticed as a special case in porting earlier stack init
+ * which was yesticed as a special case in porting earlier stack init
  * compiler logic.
  */
-static int noinline __leaf_switch_none(int path, bool fill)
+static int yesinline __leaf_switch_yesne(int path, bool fill)
 {
 	switch (path) {
 		uint64_t var;
@@ -314,20 +314,20 @@ static int noinline __leaf_switch_none(int path, bool fill)
 	return 0;
 }
 
-static noinline __init int leaf_switch_1_none(unsigned long sp, bool fill,
+static yesinline __init int leaf_switch_1_yesne(unsigned long sp, bool fill,
 					      uint64_t *arg)
 {
-	return __leaf_switch_none(1, fill);
+	return __leaf_switch_yesne(1, fill);
 }
 
-static noinline __init int leaf_switch_2_none(unsigned long sp, bool fill,
+static yesinline __init int leaf_switch_2_yesne(unsigned long sp, bool fill,
 					      uint64_t *arg)
 {
-	return __leaf_switch_none(2, fill);
+	return __leaf_switch_yesne(2, fill);
 }
 
-DEFINE_TEST_DRIVER(switch_1_none, uint64_t, SCALAR);
-DEFINE_TEST_DRIVER(switch_2_none, uint64_t, SCALAR);
+DEFINE_TEST_DRIVER(switch_1_yesne, uint64_t, SCALAR);
+DEFINE_TEST_DRIVER(switch_2_yesne, uint64_t, SCALAR);
 
 static int __init test_stackinit_init(void)
 {
@@ -361,12 +361,12 @@ static int __init test_stackinit_init(void)
 	test_structs(runtime_all);
 
 	/* STRUCTLEAK_BYREF_ALL should cover everything from here down. */
-	test_scalars(none);
-	failures += test_switch_1_none();
-	failures += test_switch_2_none();
+	test_scalars(yesne);
+	failures += test_switch_1_yesne();
+	failures += test_switch_2_yesne();
 
 	/* STRUCTLEAK_BYREF should cover from here down. */
-	test_structs(none);
+	test_structs(yesne);
 
 	/* STRUCTLEAK will only cover this. */
 	failures += test_user();

@@ -252,9 +252,9 @@ static inline void vx_reset_dsp(struct vx_core *chip)
 }
 
 int vx_send_msg(struct vx_core *chip, struct vx_rmh *rmh);
-int vx_send_msg_nolock(struct vx_core *chip, struct vx_rmh *rmh);
+int vx_send_msg_yeslock(struct vx_core *chip, struct vx_rmh *rmh);
 int vx_send_rih(struct vx_core *chip, int cmd);
-int vx_send_rih_nolock(struct vx_core *chip, int cmd);
+int vx_send_rih_yeslock(struct vx_core *chip, int cmd);
 
 void vx_reset_codec(struct vx_core *chip, int cold_reset);
 

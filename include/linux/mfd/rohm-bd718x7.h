@@ -220,10 +220,10 @@ enum {
 /* Register write induced reset settings */
 
 /*
- * Even though the bit zero is not SWRESET type we still want to write zero
+ * Even though the bit zero is yest SWRESET type we still want to write zero
  * to it when changing type. Bit zero is 'SWRESET' trigger bit and if we
  * write 1 to it we will trigger the action. So always write 0 to it when
- * changning SWRESET action - no matter what we read from it.
+ * changning SWRESET action - yes matter what we read from it.
  */
 #define BD718XX_SWRESET_TYPE_MASK	7
 #define BD718XX_SWRESET_TYPE_DISABLED	0
@@ -319,7 +319,7 @@ enum {
 struct bd718xx {
 	/*
 	 * Please keep this as the first member here as some
-	 * drivers (clk) supporting more than one chip may only know this
+	 * drivers (clk) supporting more than one chip may only kyesw this
 	 * generic struct 'struct rohm_regmap_dev' and assume it is
 	 * the first chunk of parent device's private data.
 	 */

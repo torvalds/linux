@@ -84,7 +84,7 @@ static void ipc_log_header(struct device *dev, u8 *text, u32 cmd)
 		case SOF_IPC_TPLG_BUFFER_FREE:
 			str2 = "BUFFER_FREE"; break;
 		default:
-			str2 = "unknown type"; break;
+			str2 = "unkyeswn type"; break;
 		}
 		break;
 	case SOF_IPC_GLB_PM_MSG:
@@ -105,7 +105,7 @@ static void ipc_log_header(struct device *dev, u8 *text, u32 cmd)
 		case SOF_IPC_PM_CORE_ENABLE:
 			str2 = "CORE_ENABLE"; break;
 		default:
-			str2 = "unknown type"; break;
+			str2 = "unkyeswn type"; break;
 		}
 		break;
 	case SOF_IPC_GLB_COMP_MSG:
@@ -120,7 +120,7 @@ static void ipc_log_header(struct device *dev, u8 *text, u32 cmd)
 		case SOF_IPC_COMP_GET_DATA:
 			str2 = "GET_DATA"; break;
 		default:
-			str2 = "unknown type"; break;
+			str2 = "unkyeswn type"; break;
 		}
 		break;
 	case SOF_IPC_GLB_STREAM_MSG:
@@ -151,7 +151,7 @@ static void ipc_log_header(struct device *dev, u8 *text, u32 cmd)
 		case SOF_IPC_STREAM_VORBIS_FREE:
 			str2 = "VORBIS_FREE"; break;
 		default:
-			str2 = "unknown type"; break;
+			str2 = "unkyeswn type"; break;
 		}
 		break;
 	case SOF_IPC_FW_READY:
@@ -164,7 +164,7 @@ static void ipc_log_header(struct device *dev, u8 *text, u32 cmd)
 		case SOF_IPC_DAI_LOOPBACK:
 			str2 = "LOOPBACK"; break;
 		default:
-			str2 = "unknown type"; break;
+			str2 = "unkyeswn type"; break;
 		}
 		break;
 	case SOF_IPC_GLB_TRACE_MSG:
@@ -175,11 +175,11 @@ static void ipc_log_header(struct device *dev, u8 *text, u32 cmd)
 		case SOF_IPC_TEST_IPC_FLOOD:
 			str2 = "IPC_FLOOD"; break;
 		default:
-			str2 = "unknown type"; break;
+			str2 = "unkyeswn type"; break;
 		}
 		break;
 	default:
-		str = "unknown GLB command"; break;
+		str = "unkyeswn GLB command"; break;
 	}
 
 	if (str2)
@@ -276,7 +276,7 @@ static int sof_ipc_tx_message_unlocked(struct snd_sof_ipc *ipc, u32 header,
 
 	ipc_log_header(sdev->dev, "ipc tx", msg->header);
 
-	/* now wait for completion */
+	/* yesw wait for completion */
 	if (!ret)
 		ret = tx_wait_done(ipc, msg, reply_data);
 
@@ -312,7 +312,7 @@ int snd_sof_ipc_reply(struct snd_sof_dev *sdev, u32 msg_id)
 	struct snd_sof_ipc_msg *msg = &sdev->ipc->msg;
 
 	if (msg->ipc_complete) {
-		dev_err(sdev->dev, "error: no reply expected, received 0x%x",
+		dev_err(sdev->dev, "error: yes reply expected, received 0x%x",
 			msg_id);
 		return -EINVAL;
 	}
@@ -342,7 +342,7 @@ void snd_sof_ipc_msgs_rx(struct snd_sof_dev *sdev)
 	/* check message type */
 	switch (cmd) {
 	case SOF_IPC_GLB_REPLY:
-		dev_err(sdev->dev, "error: ipc reply unknown\n");
+		dev_err(sdev->dev, "error: ipc reply unkyeswn\n");
 		break;
 	case SOF_IPC_FW_READY:
 		/* check for FW boot completion */
@@ -377,7 +377,7 @@ void snd_sof_ipc_msgs_rx(struct snd_sof_dev *sdev)
 		ipc_trace_message(sdev, type);
 		break;
 	default:
-		dev_err(sdev->dev, "error: unknown DSP message 0x%x\n", cmd);
+		dev_err(sdev->dev, "error: unkyeswn DSP message 0x%x\n", cmd);
 		break;
 	}
 
@@ -420,7 +420,7 @@ static void ipc_period_elapsed(struct snd_sof_dev *sdev, u32 msg_id)
 	spcm = snd_sof_find_spcm_comp(sdev, msg_id, &direction);
 	if (!spcm) {
 		dev_err(sdev->dev,
-			"error: period elapsed for unknown stream, msg_id %d\n",
+			"error: period elapsed for unkyeswn stream, msg_id %d\n",
 			msg_id);
 		return;
 	}
@@ -434,11 +434,11 @@ static void ipc_period_elapsed(struct snd_sof_dev *sdev, u32 msg_id)
 	memcpy(&stream->posn, &posn, sizeof(posn));
 
 	/* only inform ALSA for period_wakeup mode */
-	if (!stream->substream->runtime->no_period_wakeup)
+	if (!stream->substream->runtime->yes_period_wakeup)
 		snd_sof_pcm_period_elapsed(stream->substream);
 }
 
-/* DSP notifies host of an XRUN within FW */
+/* DSP yestifies host of an XRUN within FW */
 static void ipc_xrun(struct snd_sof_dev *sdev, u32 msg_id)
 {
 	struct snd_sof_pcm_stream *stream;
@@ -448,7 +448,7 @@ static void ipc_xrun(struct snd_sof_dev *sdev, u32 msg_id)
 
 	spcm = snd_sof_find_spcm_comp(sdev, msg_id, &direction);
 	if (!spcm) {
-		dev_err(sdev->dev, "error: XRUN for unknown stream, msg_id %d\n",
+		dev_err(sdev->dev, "error: XRUN for unkyeswn stream, msg_id %d\n",
 			msg_id);
 		return;
 	}
@@ -466,7 +466,7 @@ static void ipc_xrun(struct snd_sof_dev *sdev, u32 msg_id)
 #endif
 }
 
-/* stream notifications from DSP FW */
+/* stream yestifications from DSP FW */
 static void ipc_stream_message(struct snd_sof_dev *sdev, u32 msg_cmd)
 {
 	/* get msg cmd type and msd id */
@@ -689,7 +689,7 @@ int snd_sof_ipc_set_get_comp_data(struct snd_sof_ipc *ipc,
 	cdata->num_elems = sparams.elems;
 	cdata->elems_remaining = 0;
 
-	/* send normal size ipc in one part */
+	/* send yesrmal size ipc in one part */
 	if (cdata->rhdr.hdr.size <= SOF_IPC_MSG_MAX_SIZE) {
 		err = sof_ipc_tx_message(sdev->ipc, cdata->rhdr.hdr.cmd, cdata,
 					 cdata->rhdr.hdr.size, cdata,
@@ -744,7 +744,7 @@ int snd_sof_ipc_valid(struct snd_sof_dev *sdev)
 	struct sof_ipc_fw_version *v = &ready->version;
 
 	dev_info(sdev->dev,
-		 "Firmware info: version %d:%d:%d-%s\n",  v->major, v->minor,
+		 "Firmware info: version %d:%d:%d-%s\n",  v->major, v->miyesr,
 		 v->micro, v->tag);
 	dev_info(sdev->dev,
 		 "Firmware: ABI %d:%d:%d Kernel ABI %d:%d:%d\n",

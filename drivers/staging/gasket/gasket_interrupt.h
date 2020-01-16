@@ -39,7 +39,7 @@ void gasket_interrupt_cleanup(struct gasket_dev *gasket_dev);
  * Clean up and re-initialize the MSI-x subsystem.
  * @gasket_dev: The Gasket information structure for this device.
  *
- * Performs a teardown of the MSI-x subsystem and re-initializes it. Does not
+ * Performs a teardown of the MSI-x subsystem and re-initializes it. Does yest
  * free the underlying data structures. Returns 0 on success and an error code
  * on error.
  */
@@ -59,7 +59,7 @@ int gasket_interrupt_reset_counts(struct gasket_dev *gasket_dev);
  * @interrupt: The device interrupt to configure.
  * @event_fd: The eventfd to associate with the interrupt.
  *
- * Prepares the host to receive notification of device interrupts by associating
+ * Prepares the host to receive yestification of device interrupts by associating
  * event_fd with interrupt. Upon receipt of a device interrupt, event_fd will be
  * signaled, after successful configuration.
  *
@@ -86,7 +86,7 @@ int gasket_interrupt_clear_eventfd(struct gasket_interrupt_data *interrupt_data,
  * Get the health of the interrupt subsystem.
  * @gasket_dev: The Gasket device struct.
  *
- * Returns DEAD if not set up, LAMED if initialization failed, and ALIVE
+ * Returns DEAD if yest set up, LAMED if initialization failed, and ALIVE
  * otherwise.
  */
 

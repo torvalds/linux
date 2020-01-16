@@ -57,7 +57,7 @@ typedef		__u32		uint32_t;
  * Linux always considers sectors to be 512 bytes long independently
  * of the devices real block size.
  *
- * blkcnt_t is the type of the inode's block count.
+ * blkcnt_t is the type of the iyesde's block count.
  */
 typedef u64 sector_t;
 
@@ -91,7 +91,7 @@ typedef phys_addr_t resource_size_t;
 
 /*
  * This type is the placeholder for a hardware interrupt number. It has to be
- * big enough to enclose whatever representation is used by a given platform.
+ * big eyesugh to enclose whatever representation is used by a given platform.
  */
 typedef unsigned long irq_hw_number_t;
 
@@ -110,11 +110,11 @@ struct list_head {
 };
 
 struct hlist_head {
-	struct hlist_node *first;
+	struct hlist_yesde *first;
 };
 
-struct hlist_node {
-	struct hlist_node *next, **pprev;
+struct hlist_yesde {
+	struct hlist_yesde *next, **pprev;
 };
 
 /**
@@ -127,7 +127,7 @@ struct hlist_node {
  * weird ABI and we need to ask it explicitly.
  *
  * The alignment is required to guarantee that bits 0 and 1 of @next will be
- * clear under normal conditions -- as long as we use call_rcu() or
+ * clear under yesrmal conditions -- as long as we use call_rcu() or
  * call_srcu() to queue callback.
  *
  * This guarantee is important for few reasons:

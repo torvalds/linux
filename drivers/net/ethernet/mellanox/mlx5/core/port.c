@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2015, Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2013-2015, Mellayesx Techyeslogies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -467,7 +467,7 @@ EXPORT_SYMBOL_GPL(mlx5_query_port_pause);
 
 int mlx5_set_port_stall_watermark(struct mlx5_core_dev *dev,
 				  u16 stall_critical_watermark,
-				  u16 stall_minor_watermark)
+				  u16 stall_miyesr_watermark)
 {
 	u32 in[MLX5_ST_SZ_DW(pfcc_reg)] = {0};
 	u32 out[MLX5_ST_SZ_DW(pfcc_reg)];
@@ -477,10 +477,10 @@ int mlx5_set_port_stall_watermark(struct mlx5_core_dev *dev,
 	MLX5_SET(pfcc_reg, in, pprx_mask_n, 1);
 	MLX5_SET(pfcc_reg, in, ppan_mask_n, 1);
 	MLX5_SET(pfcc_reg, in, critical_stall_mask, 1);
-	MLX5_SET(pfcc_reg, in, minor_stall_mask, 1);
+	MLX5_SET(pfcc_reg, in, miyesr_stall_mask, 1);
 	MLX5_SET(pfcc_reg, in, device_stall_critical_watermark,
 		 stall_critical_watermark);
-	MLX5_SET(pfcc_reg, in, device_stall_minor_watermark, stall_minor_watermark);
+	MLX5_SET(pfcc_reg, in, device_stall_miyesr_watermark, stall_miyesr_watermark);
 
 	return mlx5_core_access_reg(dev, in, sizeof(in), out,
 				    sizeof(out), MLX5_REG_PFCC, 0, 1);
@@ -488,7 +488,7 @@ int mlx5_set_port_stall_watermark(struct mlx5_core_dev *dev,
 
 int mlx5_query_port_stall_watermark(struct mlx5_core_dev *dev,
 				    u16 *stall_critical_watermark,
-				    u16 *stall_minor_watermark)
+				    u16 *stall_miyesr_watermark)
 {
 	u32 out[MLX5_ST_SZ_DW(pfcc_reg)];
 	int err;
@@ -501,9 +501,9 @@ int mlx5_query_port_stall_watermark(struct mlx5_core_dev *dev,
 		*stall_critical_watermark = MLX5_GET(pfcc_reg, out,
 						     device_stall_critical_watermark);
 
-	if (stall_minor_watermark)
-		*stall_minor_watermark = MLX5_GET(pfcc_reg, out,
-						  device_stall_minor_watermark);
+	if (stall_miyesr_watermark)
+		*stall_miyesr_watermark = MLX5_GET(pfcc_reg, out,
+						  device_stall_miyesr_watermark);
 
 	return 0;
 }
@@ -822,7 +822,7 @@ void mlx5_query_port_fcs(struct mlx5_core_dev *mdev, bool *supported,
 			 bool *enabled)
 {
 	u32 out[MLX5_ST_SZ_DW(pcmr_reg)];
-	/* Default values for FW which do not support MLX5_REG_PCMR */
+	/* Default values for FW which do yest support MLX5_REG_PCMR */
 	*supported = false;
 	*enabled = true;
 

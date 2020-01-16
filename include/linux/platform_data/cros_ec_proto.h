@@ -10,7 +10,7 @@
 
 #include <linux/device.h>
 #include <linux/mutex.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 
 #include <linux/mfd/cros_ec.h>
 #include <linux/platform_data/cros_ec_commands.h>
@@ -84,7 +84,7 @@ struct cros_ec_command {
  *     @offset: Is within EC_LPC_ADDR_MEMMAP region.
  *     @bytes: Number of bytes to read. zero means "read a string" (including
  *             the trailing '\0'). At most only EC_MEMMAP_SIZE bytes can be
- *             read. Caller must ensure that the buffer is large enough for the
+ *             read. Caller must ensure that the buffer is large eyesugh for the
  *             result when reading a string.
  * @max_request: Max size of message requested.
  * @max_response: Max size of message response.
@@ -94,13 +94,13 @@ struct cros_ec_command {
  * @irq: Interrupt to use.
  * @id: Device id.
  * @din: Input buffer (for data from EC). This buffer will always be
- *       dword-aligned and include enough space for up to 7 word-alignment
+ *       dword-aligned and include eyesugh space for up to 7 word-alignment
  *       bytes also, so we can ensure that the body of the message is always
  *       dword-aligned (64-bit). We use this alignment to keep ARM and x86
  *       happy. Probably word alignment would be OK, there might be a small
  *       performance advantage to using dword.
  * @dout: Output buffer (for data to EC). This buffer will always be
- *        dword-aligned and include enough space for up to 7 word-alignment
+ *        dword-aligned and include eyesugh space for up to 7 word-alignment
  *        bytes also, so we can ensure that the body of the message is always
  *        dword-aligned (64-bit). We use this alignment to keep ARM and x86
  *        happy. Probably word alignment would be OK, there might be a small
@@ -116,15 +116,15 @@ struct cros_ec_command {
  *            code.
  * @pkt_xfer: Send packet to EC and get response.
  * @lock: One transaction at a time.
- * @mkbp_event_supported: 0 if MKBP not supported. Otherwise its value is
+ * @mkbp_event_supported: 0 if MKBP yest supported. Otherwise its value is
  *                        the maximum supported version of the MKBP host event
  *                        command + 1.
  * @host_sleep_v1: True if this EC supports the sleep v1 command.
- * @event_notifier: Interrupt event notifier for transport devices.
+ * @event_yestifier: Interrupt event yestifier for transport devices.
  * @event_data: Raw payload transferred with the MKBP event.
  * @event_size: Size in bytes of the event data.
  * @host_event_wake_mask: Mask of host events that cause wake from suspend.
- * @last_event_time: exact time from the hard irq when we got notified of
+ * @last_event_time: exact time from the hard irq when we got yestified of
  *     a new event.
  * @ec: The platform_device used by the mfd driver to interface with the
  *      main EC.
@@ -160,7 +160,7 @@ struct cros_ec_device {
 	struct mutex lock;
 	u8 mkbp_event_supported;
 	bool host_sleep_v1;
-	struct blocking_notifier_head event_notifier;
+	struct blocking_yestifier_head event_yestifier;
 
 	struct ec_response_get_next_event_v1 event_data;
 	int event_size;
@@ -178,7 +178,7 @@ struct cros_ec_device {
  * @ec_name: Name of EC device (e.g. 'cros-ec', 'cros-pd', ...)
  *           used in /dev/ and sysfs.
  * @cmd_offset: Offset to apply for each command. Set when
- *              registering a device behind another one.
+ *              registering a device behind ayesther one.
  */
 struct cros_ec_platform {
 	const char *ec_name;

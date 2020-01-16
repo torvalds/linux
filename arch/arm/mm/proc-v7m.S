@@ -52,7 +52,7 @@ ENTRY(cpu_v7m_dcache_clean_area)
 ENDPROC(cpu_v7m_dcache_clean_area)
 
 /*
- * There is no MMU, so here is nothing to do.
+ * There is yes MMU, so here is yesthing to do.
  */
 ENTRY(cpu_v7m_switch_mm)
 	ret	lr
@@ -169,8 +169,8 @@ ENDPROC(__v7m_setup)
 	globl_equ	cpu_cm7_do_idle,	cpu_v7m_do_idle
 	globl_equ	cpu_cm7_switch_mm,	cpu_v7m_switch_mm
 
-	define_processor_functions v7m, dabort=nommu_early_abort, pabort=legacy_pabort, nommu=1
-	define_processor_functions cm7, dabort=nommu_early_abort, pabort=legacy_pabort, nommu=1
+	define_processor_functions v7m, dabort=yesmmu_early_abort, pabort=legacy_pabort, yesmmu=1
+	define_processor_functions cm7, dabort=yesmmu_early_abort, pabort=legacy_pabort, yesmmu=1
 
 	.section ".rodata"
 	string cpu_arch_name, "armv7m"
@@ -179,7 +179,7 @@ ENDPROC(__v7m_setup)
 
 	.section ".proc.info.init", "a"
 
-.macro __v7m_proc name, initfunc, cache_fns = nop_cache_fns, hwcaps = 0,  proc_fns = v7m_processor_functions
+.macro __v7m_proc name, initfunc, cache_fns = yesp_cache_fns, hwcaps = 0,  proc_fns = v7m_processor_functions
 	.long	0			/* proc_info_list.__cpu_mm_mmu_flags */
 	.long	0			/* proc_info_list.__cpu_io_mmu_flags */
 	initfn	\initfunc, \name

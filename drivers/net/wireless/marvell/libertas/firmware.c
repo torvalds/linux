@@ -34,10 +34,10 @@ static void do_load_firmware(struct lbs_private *priv, const char *name,
 	int ret;
 
 	lbs_deb_fw("Requesting %s\n", name);
-	ret = request_firmware_nowait(THIS_MODULE, true, name,
+	ret = request_firmware_yeswait(THIS_MODULE, true, name,
 			priv->fw_device, GFP_KERNEL, priv, cb);
 	if (ret) {
-		lbs_deb_fw("request_firmware_nowait error %d\n", ret);
+		lbs_deb_fw("request_firmware_yeswait error %d\n", ret);
 		lbs_fw_loaded(priv, ret, NULL, NULL);
 	}
 }
@@ -117,7 +117,7 @@ void lbs_wait_for_firmware_load(struct lbs_private *priv)
 }
 
 /**
- *  lbs_get_firmware_async - Retrieves firmware asynchronously. Can load
+ *  lbs_get_firmware_async - Retrieves firmware asynchroyesusly. Can load
  *  either a helper firmware and a main firmware (2-stage), or just the helper.
  *
  *  @priv:      Pointer to lbs_private instance
@@ -167,7 +167,7 @@ EXPORT_SYMBOL_GPL(lbs_get_firmware_async);
  *
  * Deprecated: use lbs_get_firmware_async() instead.
  *
- *  returns:		0 on success, non-zero on failure
+ *  returns:		0 on success, yesn-zero on failure
  */
 int lbs_get_firmware(struct device *dev, u32 card_model,
 			const struct lbs_fw_table *fw_table,

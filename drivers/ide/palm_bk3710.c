@@ -44,7 +44,7 @@
 #define BK3710_UDMAENV		0x74
 #define BK3710_IORDYTMP		0x78
 
-static unsigned ideclk_period; /* in nanoseconds */
+static unsigned ideclk_period; /* in nayesseconds */
 
 struct palm_bk3710_udmatiming {
 	unsigned int rptime;	/* tRP -- Ready to pause time (nsec) */
@@ -223,7 +223,7 @@ static void palm_bk3710_chipinit(void __iomem *base)
 	 * (ATA_IDETIMP_PREPOST1	, DISABLE) |
 	 * (ATA_IDETIMP_PREPOST0	, DISABLE) |
 	 *
-	 * DM6446 silicon rev 2.1 and earlier have no observed net benefit
+	 * DM6446 silicon rev 2.1 and earlier have yes observed net benefit
 	 * from enabling prefetch/postwrite.
 	 */
 	writew(BIT(15), base + BK3710_IDETIMP);

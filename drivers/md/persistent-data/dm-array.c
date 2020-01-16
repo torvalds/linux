@@ -25,14 +25,14 @@ struct array_block {
 	__le32 max_entries;
 	__le32 nr_entries;
 	__le32 value_size;
-	__le64 blocknr; /* Block this node is supposed to live in. */
+	__le64 blocknr; /* Block this yesde is supposed to live in. */
 } __packed;
 
 /*----------------------------------------------------------------*/
 
 /*
  * Validator methods.  As usual we calculate a checksum, and also write the
- * block location into the header (paranoia about ssds remapping areas by
+ * block location into the header (parayesia about ssds remapping areas by
  * mistake).
  */
 #define CSUM_XOR 595846735
@@ -266,7 +266,7 @@ static int lookup_ablock(struct dm_array_info *info, dm_block_t root,
 }
 
 /*
- * Insert an array block into the btree.  The block is _not_ unlocked.
+ * Insert an array block into the btree.  The block is _yest_ unlocked.
  */
 static int insert_ablock(struct dm_array_info *info, uint64_t index,
 			 struct dm_block *block, dm_block_t *root)
@@ -296,7 +296,7 @@ static int __shadow_ablock(struct dm_array_info *info, dm_block_t b,
 }
 
 /*
- * The shadow op will often be a noop.  Only insert if it really
+ * The shadow op will often be a yesop.  Only insert if it really
  * copied data.
  */
 static int __reinsert_ablock(struct dm_array_info *info, unsigned index,
@@ -432,7 +432,7 @@ struct resize {
  * in block are decremented as a side effect of the btree remove.
  *
  * begin_index - the index of the first array block to remove.
- * end_index - the one-past-the-end value.  ie. this block is not removed.
+ * end_index - the one-past-the-end value.  ie. this block is yest removed.
  */
 static int drop_blocks(struct resize *resize, unsigned begin_index,
 		       unsigned end_index)

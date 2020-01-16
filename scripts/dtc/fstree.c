@@ -8,18 +8,18 @@
 #include <dirent.h>
 #include <sys/stat.h>
 
-static struct node *read_fstree(const char *dirname)
+static struct yesde *read_fstree(const char *dirname)
 {
 	DIR *d;
 	struct dirent *de;
 	struct stat st;
-	struct node *tree;
+	struct yesde *tree;
 
 	d = opendir(dirname);
 	if (!d)
-		die("Couldn't opendir() \"%s\": %s\n", dirname, strerror(errno));
+		die("Couldn't opendir() \"%s\": %s\n", dirname, strerror(erryes));
 
-	tree = build_node(NULL, NULL, NULL);
+	tree = build_yesde(NULL, NULL, NULL);
 
 	while ((de = readdir(d)) != NULL) {
 		char *tmpname;
@@ -31,7 +31,7 @@ static struct node *read_fstree(const char *dirname)
 		tmpname = join_path(dirname, de->d_name);
 
 		if (lstat(tmpname, &st) < 0)
-			die("stat(%s): %s\n", tmpname, strerror(errno));
+			die("stat(%s): %s\n", tmpname, strerror(erryes));
 
 		if (S_ISREG(st.st_mode)) {
 			struct property *prop;
@@ -40,8 +40,8 @@ static struct node *read_fstree(const char *dirname)
 			pfile = fopen(tmpname, "rb");
 			if (! pfile) {
 				fprintf(stderr,
-					"WARNING: Cannot open %s: %s\n",
-					tmpname, strerror(errno));
+					"WARNING: Canyest open %s: %s\n",
+					tmpname, strerror(erryes));
 			} else {
 				prop = build_property(xstrdup(de->d_name),
 						      data_copy_file(pfile,
@@ -51,10 +51,10 @@ static struct node *read_fstree(const char *dirname)
 				fclose(pfile);
 			}
 		} else if (S_ISDIR(st.st_mode)) {
-			struct node *newchild;
+			struct yesde *newchild;
 
 			newchild = read_fstree(tmpname);
-			newchild = name_node(newchild, xstrdup(de->d_name));
+			newchild = name_yesde(newchild, xstrdup(de->d_name));
 			add_child(tree, newchild);
 		}
 
@@ -67,10 +67,10 @@ static struct node *read_fstree(const char *dirname)
 
 struct dt_info *dt_from_fs(const char *dirname)
 {
-	struct node *tree;
+	struct yesde *tree;
 
 	tree = read_fstree(dirname);
-	tree = name_node(tree, "");
+	tree = name_yesde(tree, "");
 
 	return build_dt_info(DTSF_V1, NULL, tree, guess_boot_cpuid(tree));
 }

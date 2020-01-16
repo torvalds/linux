@@ -13,9 +13,9 @@
  * are met:
  *
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
+ *    yestice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
  *
@@ -84,12 +84,12 @@
 #define nlm_read_usb_reg(b, r)		nlm_read_reg(b, r)
 #define nlm_write_usb_reg(b, r, v)	nlm_write_reg(b, r, v)
 
-#define nlm_xlpii_get_usb_pcibase(node, inst)			\
+#define nlm_xlpii_get_usb_pcibase(yesde, inst)			\
 			nlm_pcicfg_base(cpu_is_xlp9xx() ?	\
-			XLP9XX_IO_USB_OFFSET(node, inst) :	\
-			XLP2XX_IO_USB_OFFSET(node, inst))
-#define nlm_xlpii_get_usb_regbase(node, inst)		\
-	(nlm_xlpii_get_usb_pcibase(node, inst) + XLP_IO_PCI_HDRSZ)
+			XLP9XX_IO_USB_OFFSET(yesde, inst) :	\
+			XLP2XX_IO_USB_OFFSET(yesde, inst))
+#define nlm_xlpii_get_usb_regbase(yesde, inst)		\
+	(nlm_xlpii_get_usb_pcibase(yesde, inst) + XLP_IO_PCI_HDRSZ)
 
 static void xlp2xx_usb_ack(struct irq_data *data)
 {
@@ -115,36 +115,36 @@ static void xlp2xx_usb_ack(struct irq_data *data)
 static void xlp9xx_usb_ack(struct irq_data *data)
 {
 	u64 port_addr;
-	int node, irq;
+	int yesde, irq;
 
-	/* Find the node and irq on the node */
+	/* Find the yesde and irq on the yesde */
 	irq = data->irq % NLM_IRQS_PER_NODE;
-	node = data->irq / NLM_IRQS_PER_NODE;
+	yesde = data->irq / NLM_IRQS_PER_NODE;
 
 	switch (irq) {
 	case PIC_9XX_XHCI_0_IRQ:
-		port_addr = nlm_xlpii_get_usb_regbase(node, 1);
+		port_addr = nlm_xlpii_get_usb_regbase(yesde, 1);
 		break;
 	case PIC_9XX_XHCI_1_IRQ:
-		port_addr = nlm_xlpii_get_usb_regbase(node, 2);
+		port_addr = nlm_xlpii_get_usb_regbase(yesde, 2);
 		break;
 	case PIC_9XX_XHCI_2_IRQ:
-		port_addr = nlm_xlpii_get_usb_regbase(node, 3);
+		port_addr = nlm_xlpii_get_usb_regbase(yesde, 3);
 		break;
 	default:
-		pr_err("No matching USB irq %d node  %d!\n", irq, node);
+		pr_err("No matching USB irq %d yesde  %d!\n", irq, yesde);
 		return;
 	}
 	nlm_write_usb_reg(port_addr, XLPII_USB3_INT_REG, 0xffffffff);
 }
 
-static void nlm_xlpii_usb_hw_reset(int node, int port)
+static void nlm_xlpii_usb_hw_reset(int yesde, int port)
 {
 	u64 port_addr, xhci_base, pci_base;
 	void __iomem *corebase;
 	u32 val;
 
-	port_addr = nlm_xlpii_get_usb_regbase(node, port);
+	port_addr = nlm_xlpii_get_usb_regbase(yesde, port);
 
 	/* Set frequency */
 	val = nlm_read_usb_reg(port_addr, XLPII_USB_PHY_LOS_LV);
@@ -177,7 +177,7 @@ static void nlm_xlpii_usb_hw_reset(int node, int port)
 	udelay(2000);
 
 	/* XHCI configuration at PCI mem */
-	pci_base = nlm_xlpii_get_usb_pcibase(node, port);
+	pci_base = nlm_xlpii_get_usb_pcibase(yesde, port);
 	xhci_base = nlm_read_usb_reg(pci_base, 0x4) & ~0xf;
 	corebase = ioremap(xhci_base, 0x10000);
 	if (!corebase)
@@ -207,13 +207,13 @@ static void nlm_xlpii_usb_hw_reset(int node, int port)
 
 static int __init nlm_platform_xlpii_usb_init(void)
 {
-	int node;
+	int yesde;
 
 	if (!cpu_is_xlpii())
 		return 0;
 
 	if (!cpu_is_xlp9xx()) {
-		/* XLP 2XX single node */
+		/* XLP 2XX single yesde */
 		pr_info("Initializing 2XX USB Interface\n");
 		nlm_xlpii_usb_hw_reset(0, 1);
 		nlm_xlpii_usb_hw_reset(0, 2);
@@ -224,17 +224,17 @@ static int __init nlm_platform_xlpii_usb_init(void)
 		return 0;
 	}
 
-	/* XLP 9XX, multi-node */
+	/* XLP 9XX, multi-yesde */
 	pr_info("Initializing 9XX/5XX USB Interface\n");
-	for (node = 0; node < NLM_NR_NODES; node++) {
-		if (!nlm_node_present(node))
+	for (yesde = 0; yesde < NLM_NR_NODES; yesde++) {
+		if (!nlm_yesde_present(yesde))
 			continue;
-		nlm_xlpii_usb_hw_reset(node, 1);
-		nlm_xlpii_usb_hw_reset(node, 2);
-		nlm_xlpii_usb_hw_reset(node, 3);
-		nlm_set_pic_extra_ack(node, PIC_9XX_XHCI_0_IRQ, xlp9xx_usb_ack);
-		nlm_set_pic_extra_ack(node, PIC_9XX_XHCI_1_IRQ, xlp9xx_usb_ack);
-		nlm_set_pic_extra_ack(node, PIC_9XX_XHCI_2_IRQ, xlp9xx_usb_ack);
+		nlm_xlpii_usb_hw_reset(yesde, 1);
+		nlm_xlpii_usb_hw_reset(yesde, 2);
+		nlm_xlpii_usb_hw_reset(yesde, 3);
+		nlm_set_pic_extra_ack(yesde, PIC_9XX_XHCI_0_IRQ, xlp9xx_usb_ack);
+		nlm_set_pic_extra_ack(yesde, PIC_9XX_XHCI_1_IRQ, xlp9xx_usb_ack);
+		nlm_set_pic_extra_ack(yesde, PIC_9XX_XHCI_2_IRQ, xlp9xx_usb_ack);
 	}
 	return 0;
 }
@@ -246,20 +246,20 @@ static u64 xlp_usb_dmamask = ~(u32)0;
 /* Fixup the IRQ for USB devices which is exist on XLP9XX SOC PCIE bus */
 static void nlm_xlp9xx_usb_fixup_final(struct pci_dev *dev)
 {
-	int node;
+	int yesde;
 
-	node = xlp_socdev_to_node(dev);
+	yesde = xlp_socdev_to_yesde(dev);
 	dev->dev.dma_mask		= &xlp_usb_dmamask;
 	dev->dev.coherent_dma_mask	= DMA_BIT_MASK(32);
 	switch (dev->devfn) {
 	case 0x21:
-		dev->irq = nlm_irq_to_xirq(node, PIC_9XX_XHCI_0_IRQ);
+		dev->irq = nlm_irq_to_xirq(yesde, PIC_9XX_XHCI_0_IRQ);
 		break;
 	case 0x22:
-		dev->irq = nlm_irq_to_xirq(node, PIC_9XX_XHCI_1_IRQ);
+		dev->irq = nlm_irq_to_xirq(yesde, PIC_9XX_XHCI_1_IRQ);
 		break;
 	case 0x23:
-		dev->irq = nlm_irq_to_xirq(node, PIC_9XX_XHCI_2_IRQ);
+		dev->irq = nlm_irq_to_xirq(yesde, PIC_9XX_XHCI_2_IRQ);
 		break;
 	}
 }

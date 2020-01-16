@@ -28,7 +28,7 @@ static int microread_mei_probe(struct mei_cl_device *cldev,
 
 	phy = nfc_mei_phy_alloc(cldev);
 	if (!phy) {
-		pr_err("Cannot allocate memory for microread mei phy.\n");
+		pr_err("Canyest allocate memory for microread mei phy.\n");
 		return -ENOMEM;
 	}
 

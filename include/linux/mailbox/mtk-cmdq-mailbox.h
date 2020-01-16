@@ -35,7 +35,7 @@
  *   format: op offset
  * CMDQ_CODE_WFE:
  *   wait for event and clear
- *   it is just clear if no wait
+ *   it is just clear if yes wait
  *   format: [wait]  op event update:1 to_wait:1 wait:1
  *           [clear] op event update:1 to_wait:0 wait:0
  * CMDQ_CODE_EOC:

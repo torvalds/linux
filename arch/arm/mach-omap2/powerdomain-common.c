@@ -8,7 +8,7 @@
  * Derived from mach-omap2/powerdomain.c written by Paul Walmsley
  */
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/kernel.h>
 #include <linux/bug.h>
 #include "pm.h"
@@ -19,7 +19,7 @@
 
 /*
  * OMAP3 and OMAP4 specific register bit initialisations
- * Notice that the names here are not according to each power
+ * Notice that the names here are yest according to each power
  * domain but the bit mapping used applies to all of them
  */
 /* OMAP3 and OMAP4 Memory Onstate Masks (common across all power domains) */

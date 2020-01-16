@@ -10,7 +10,7 @@
  * Mike Rapoport <mike@compulab.co.il>
  */
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/gpio/driver.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
@@ -99,7 +99,7 @@ static int tps6586x_gpio_probe(struct platform_device *pdev)
 	tps6586x_gpio->gpio_chip.to_irq	= tps6586x_gpio_to_irq;
 
 #ifdef CONFIG_OF_GPIO
-	tps6586x_gpio->gpio_chip.of_node = pdev->dev.parent->of_node;
+	tps6586x_gpio->gpio_chip.of_yesde = pdev->dev.parent->of_yesde;
 #endif
 	if (pdata && pdata->gpio_base)
 		tps6586x_gpio->gpio_chip.base = pdata->gpio_base;
@@ -109,7 +109,7 @@ static int tps6586x_gpio_probe(struct platform_device *pdev)
 	ret = devm_gpiochip_add_data(&pdev->dev, &tps6586x_gpio->gpio_chip,
 				     tps6586x_gpio);
 	if (ret < 0) {
-		dev_err(&pdev->dev, "Could not register gpiochip, %d\n", ret);
+		dev_err(&pdev->dev, "Could yest register gpiochip, %d\n", ret);
 		return ret;
 	}
 

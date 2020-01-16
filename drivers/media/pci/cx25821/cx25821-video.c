@@ -5,8 +5,8 @@
  *  Copyright (C) 2009 Conexant Systems Inc.
  *  Authors  <shu.lin@conexant.com>, <hiep.huynh@conexant.com>
  *  Based on Steven Toth <stoth@linuxtv.org> cx25821 driver
- *  Parts adapted/taken from Eduardo Moscoso Rubino
- *  Copyright (C) 2009 Eduardo Moscoso Rubino <moscoso@TopoLogica.com>
+ *  Parts adapted/taken from Eduardo Moscoso Rubiyes
+ *  Copyright (C) 2009 Eduardo Moscoso Rubiyes <moscoso@TopoLogica.com>
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -167,7 +167,7 @@ static int cx25821_buffer_prepare(struct vb2_buffer *vb)
 		bpl_local = buf->bpl;   /* Default */
 
 		if (chan->use_cif_resolution) {
-			if (dev->tvnorm & V4L2_STD_625_50)
+			if (dev->tvyesrm & V4L2_STD_625_50)
 				bpl_local = 352 << 1;
 			else
 				bpl_local = chan->cif_width << 1;
@@ -343,7 +343,7 @@ static int cx25821_vidioc_try_fmt_vid_cap(struct file *file, void *priv,
 	fmt = cx25821_format_by_fourcc(f->fmt.pix.pixelformat);
 	if (NULL == fmt)
 		return -EINVAL;
-	maxh = (dev->tvnorm & V4L2_STD_625_50) ? 576 : 480;
+	maxh = (dev->tvyesrm & V4L2_STD_625_50) ? 576 : 480;
 
 	w = f->fmt.pix.width;
 	if (field != V4L2_FIELD_BOTTOM)
@@ -433,26 +433,26 @@ static int cx25821_vidioc_querycap(struct file *file, void *priv,
 	return 0;
 }
 
-static int cx25821_vidioc_g_std(struct file *file, void *priv, v4l2_std_id *tvnorms)
+static int cx25821_vidioc_g_std(struct file *file, void *priv, v4l2_std_id *tvyesrms)
 {
 	struct cx25821_channel *chan = video_drvdata(file);
 
-	*tvnorms = chan->dev->tvnorm;
+	*tvyesrms = chan->dev->tvyesrm;
 	return 0;
 }
 
 static int cx25821_vidioc_s_std(struct file *file, void *priv,
-				v4l2_std_id tvnorms)
+				v4l2_std_id tvyesrms)
 {
 	struct cx25821_channel *chan = video_drvdata(file);
 	struct cx25821_dev *dev = chan->dev;
 
-	if (dev->tvnorm == tvnorms)
+	if (dev->tvyesrm == tvyesrms)
 		return 0;
 
-	dev->tvnorm = tvnorms;
+	dev->tvyesrm = tvyesrms;
 	chan->width = 720;
-	chan->height = (dev->tvnorm & V4L2_STD_625_50) ? 576 : 480;
+	chan->height = (dev->tvyesrm & V4L2_STD_625_50) ? 576 : 480;
 
 	medusa_set_videostandard(dev);
 
@@ -541,7 +541,7 @@ static int cx25821_vidioc_try_fmt_vid_out(struct file *file, void *priv,
 	if (NULL == fmt)
 		return -EINVAL;
 	f->fmt.pix.width = 720;
-	f->fmt.pix.height = (dev->tvnorm & V4L2_STD_625_50) ? 576 : 480;
+	f->fmt.pix.height = (dev->tvyesrm & V4L2_STD_625_50) ? 576 : 480;
 	f->fmt.pix.field = V4L2_FIELD_INTERLACED;
 	f->fmt.pix.bytesperline = (f->fmt.pix.width * fmt->depth) >> 3;
 	f->fmt.pix.sizeimage = f->fmt.pix.height * f->fmt.pix.bytesperline;
@@ -613,9 +613,9 @@ static const struct video_device cx25821_video_device = {
 	.name = "cx25821-video",
 	.fops = &video_fops,
 	.release = video_device_release_empty,
-	.minor = -1,
+	.miyesr = -1,
 	.ioctl_ops = &video_ioctl_ops,
-	.tvnorms = CX25821_NORMS,
+	.tvyesrms = CX25821_NORMS,
 	.device_caps = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_READWRITE |
 		       V4L2_CAP_STREAMING,
 };
@@ -648,9 +648,9 @@ static const struct video_device cx25821_video_out_device = {
 	.name = "cx25821-video",
 	.fops = &video_out_fops,
 	.release = video_device_release_empty,
-	.minor = -1,
+	.miyesr = -1,
 	.ioctl_ops = &video_out_ioctl_ops,
-	.tvnorms = CX25821_NORMS,
+	.tvyesrms = CX25821_NORMS,
 	.device_caps = V4L2_CAP_VIDEO_OUTPUT | V4L2_CAP_READWRITE,
 };
 
@@ -670,7 +670,7 @@ int cx25821_video_register(struct cx25821_dev *dev)
 	int i;
 
 	/* initial device configuration */
-	dev->tvnorm = V4L2_STD_NTSC_M;
+	dev->tvyesrm = V4L2_STD_NTSC_M;
 
 	spin_lock_init(&dev->slock);
 
@@ -709,7 +709,7 @@ int cx25821_video_register(struct cx25821_dev *dev)
 		chan->sram_channels = &cx25821_sram_channels[i];
 		chan->width = 720;
 		chan->field = V4L2_FIELD_INTERLACED;
-		if (dev->tvnorm & V4L2_STD_625_50)
+		if (dev->tvyesrm & V4L2_STD_625_50)
 			chan->height = 576;
 		else
 			chan->height = 480;

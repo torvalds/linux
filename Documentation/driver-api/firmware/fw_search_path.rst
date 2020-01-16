@@ -5,7 +5,7 @@ Firmware search paths
 The following search paths are used to look for firmware on your
 root filesystem.
 
-* fw_path_para - module parameter - default is empty so this is ignored
+* fw_path_para - module parameter - default is empty so this is igyesred
 * /lib/firmware/updates/UTS_RELEASE/
 * /lib/firmware/updates/
 * /lib/firmware/UTS_RELEASE/

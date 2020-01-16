@@ -27,7 +27,7 @@ static const char *mei_hbm_status_str(enum mei_hbm_status status)
 	MEI_HBM_STATUS(NOT_ALLOWED);
 	MEI_HBM_STATUS(ALREADY_STARTED);
 	MEI_HBM_STATUS(NOT_STARTED);
-	default: return "unknown";
+	default: return "unkyeswn";
 	}
 #undef MEI_HBM_STATUS
 };
@@ -42,7 +42,7 @@ static const char *mei_cl_conn_status_str(enum mei_cl_connect_status status)
 	MEI_CL_CS(OUT_OF_RESOURCES);
 	MEI_CL_CS(MESSAGE_SMALL);
 	MEI_CL_CS(NOT_ALLOWED);
-	default: return "unknown";
+	default: return "unkyeswn";
 	}
 #undef MEI_CL_CCS
 }
@@ -59,20 +59,20 @@ const char *mei_hbm_state_str(enum mei_hbm_state state)
 	MEI_HBM_STATE(CLIENT_PROPERTIES);
 	MEI_HBM_STATE(STOPPED);
 	default:
-		return "unknown";
+		return "unkyeswn";
 	}
 #undef MEI_HBM_STATE
 }
 
 /**
- * mei_cl_conn_status_to_errno - convert client connect response
+ * mei_cl_conn_status_to_erryes - convert client connect response
  * status to error code
  *
  * @status: client connect response status
  *
  * Return: corresponding error code
  */
-static int mei_cl_conn_status_to_errno(enum mei_cl_connect_status status)
+static int mei_cl_conn_status_to_erryes(enum mei_cl_connect_status status)
 {
 	switch (status) {
 	case MEI_CL_CONN_SUCCESS:          return 0;
@@ -204,7 +204,7 @@ bool mei_hbm_cl_addr_equal(struct mei_cl *cl, struct mei_hbm_cl_cmd *cmd)
  * @dev: the device structure
  * @buf: a buffer with hbm cl command
  *
- * Return: the recipient client or NULL if not found
+ * Return: the recipient client or NULL if yest found
  */
 static inline
 struct mei_cl *mei_hbm_cl_find_by_cmd(struct mei_device *dev, void *buf)
@@ -269,7 +269,7 @@ int mei_hbm_start_req(struct mei_device *dev)
 	memset(&start_req, 0, len);
 	start_req.hbm_cmd = HOST_START_REQ_CMD;
 	start_req.host_version.major_version = HBM_MAJOR_VERSION;
-	start_req.host_version.minor_version = HBM_MINOR_VERSION;
+	start_req.host_version.miyesr_version = HBM_MINOR_VERSION;
 
 	dev->hbm_state = MEI_HBM_IDLE;
 	ret = mei_hbm_write_message(dev, &mei_hdr, &start_req);
@@ -455,7 +455,7 @@ static int mei_hbm_fw_add_cl_req(struct mei_device *dev,
 }
 
 /**
- * mei_hbm_cl_notify_req - send notification request
+ * mei_hbm_cl_yestify_req - send yestification request
  *
  * @dev: the device structure
  * @cl: a client to disconnect from
@@ -463,13 +463,13 @@ static int mei_hbm_fw_add_cl_req(struct mei_device *dev,
  *
  * Return: 0 on success and -EIO on write failure
  */
-int mei_hbm_cl_notify_req(struct mei_device *dev,
+int mei_hbm_cl_yestify_req(struct mei_device *dev,
 			  struct mei_cl *cl, u8 start)
 {
 
 	struct mei_msg_hdr mei_hdr;
-	struct hbm_notification_request req;
-	const size_t len = sizeof(struct hbm_notification_request);
+	struct hbm_yestification_request req;
+	const size_t len = sizeof(struct hbm_yestification_request);
 	int ret;
 
 	mei_hbm_hdr(&mei_hdr, len);
@@ -479,47 +479,47 @@ int mei_hbm_cl_notify_req(struct mei_device *dev,
 
 	ret = mei_hbm_write_message(dev, &mei_hdr, &req);
 	if (ret)
-		dev_err(dev->dev, "notify request failed: ret = %d\n", ret);
+		dev_err(dev->dev, "yestify request failed: ret = %d\n", ret);
 
 	return ret;
 }
 
 /**
- *  notify_res_to_fop - convert notification response to the proper
- *      notification FOP
+ *  yestify_res_to_fop - convert yestification response to the proper
+ *      yestification FOP
  *
- * @cmd: client notification start response command
+ * @cmd: client yestification start response command
  *
  * Return:  MEI_FOP_NOTIFY_START or MEI_FOP_NOTIFY_STOP;
  */
-static inline enum mei_cb_file_ops notify_res_to_fop(struct mei_hbm_cl_cmd *cmd)
+static inline enum mei_cb_file_ops yestify_res_to_fop(struct mei_hbm_cl_cmd *cmd)
 {
-	struct hbm_notification_response *rs =
-		(struct hbm_notification_response *)cmd;
+	struct hbm_yestification_response *rs =
+		(struct hbm_yestification_response *)cmd;
 
-	return mei_cl_notify_req2fop(rs->start);
+	return mei_cl_yestify_req2fop(rs->start);
 }
 
 /**
- * mei_hbm_cl_notify_start_res - update the client state according
- *       notify start response
+ * mei_hbm_cl_yestify_start_res - update the client state according
+ *       yestify start response
  *
  * @dev: the device structure
  * @cl: mei host client
- * @cmd: client notification start response command
+ * @cmd: client yestification start response command
  */
-static void mei_hbm_cl_notify_start_res(struct mei_device *dev,
+static void mei_hbm_cl_yestify_start_res(struct mei_device *dev,
 					struct mei_cl *cl,
 					struct mei_hbm_cl_cmd *cmd)
 {
-	struct hbm_notification_response *rs =
-		(struct hbm_notification_response *)cmd;
+	struct hbm_yestification_response *rs =
+		(struct hbm_yestification_response *)cmd;
 
-	cl_dbg(dev, cl, "hbm: notify start response status=%d\n", rs->status);
+	cl_dbg(dev, cl, "hbm: yestify start response status=%d\n", rs->status);
 
 	if (rs->status == MEI_HBMS_SUCCESS ||
 	    rs->status == MEI_HBMS_ALREADY_STARTED) {
-		cl->notify_en = true;
+		cl->yestify_en = true;
 		cl->status = 0;
 	} else {
 		cl->status = -EINVAL;
@@ -527,46 +527,46 @@ static void mei_hbm_cl_notify_start_res(struct mei_device *dev,
 }
 
 /**
- * mei_hbm_cl_notify_stop_res - update the client state according
- *       notify stop response
+ * mei_hbm_cl_yestify_stop_res - update the client state according
+ *       yestify stop response
  *
  * @dev: the device structure
  * @cl: mei host client
- * @cmd: client notification stop response command
+ * @cmd: client yestification stop response command
  */
-static void mei_hbm_cl_notify_stop_res(struct mei_device *dev,
+static void mei_hbm_cl_yestify_stop_res(struct mei_device *dev,
 				       struct mei_cl *cl,
 				       struct mei_hbm_cl_cmd *cmd)
 {
-	struct hbm_notification_response *rs =
-		(struct hbm_notification_response *)cmd;
+	struct hbm_yestification_response *rs =
+		(struct hbm_yestification_response *)cmd;
 
-	cl_dbg(dev, cl, "hbm: notify stop response status=%d\n", rs->status);
+	cl_dbg(dev, cl, "hbm: yestify stop response status=%d\n", rs->status);
 
 	if (rs->status == MEI_HBMS_SUCCESS ||
 	    rs->status == MEI_HBMS_NOT_STARTED) {
-		cl->notify_en = false;
+		cl->yestify_en = false;
 		cl->status = 0;
 	} else {
-		/* TODO: spec is not clear yet about other possible issues */
+		/* TODO: spec is yest clear yet about other possible issues */
 		cl->status = -EINVAL;
 	}
 }
 
 /**
- * mei_hbm_cl_notify - signal notification event
+ * mei_hbm_cl_yestify - signal yestification event
  *
  * @dev: the device structure
- * @cmd: notification client message
+ * @cmd: yestification client message
  */
-static void mei_hbm_cl_notify(struct mei_device *dev,
+static void mei_hbm_cl_yestify(struct mei_device *dev,
 			      struct mei_hbm_cl_cmd *cmd)
 {
 	struct mei_cl *cl;
 
 	cl = mei_hbm_cl_find_by_cmd(dev, cmd);
 	if (cl)
-		mei_cl_notify(cl);
+		mei_cl_yestify(cl);
 }
 
 /**
@@ -622,7 +622,7 @@ static int mei_hbm_prop_req(struct mei_device *dev, unsigned long start_idx)
  * @pg_cmd: the pg command code
  *
  * Return: -EIO on write failure
- *         -EOPNOTSUPP if the operation is not supported by the protocol
+ *         -EOPNOTSUPP if the operation is yest supported by the protocol
  */
 int mei_hbm_pg(struct mei_device *dev, u8 pg_cmd)
 {
@@ -701,7 +701,7 @@ static int mei_hbm_add_single_tx_flow_ctrl_creds(struct mei_device *dev,
 
 	me_cl = mei_me_cl_by_id(dev, fctrl->me_addr);
 	if (!me_cl) {
-		dev_err(dev->dev, "no such me client %d\n", fctrl->me_addr);
+		dev_err(dev->dev, "yes such me client %d\n", fctrl->me_addr);
 		return -ENOENT;
 	}
 
@@ -842,7 +842,7 @@ static void mei_hbm_cl_connect_res(struct mei_device *dev, struct mei_cl *cl,
 				schedule_work(&dev->bus_rescan_work);
 		}
 	}
-	cl->status = mei_cl_conn_status_to_errno(rs->status);
+	cl->status = mei_cl_conn_status_to_erryes(rs->status);
 }
 
 /**
@@ -885,10 +885,10 @@ static void mei_hbm_cl_res(struct mei_device *dev,
 		mei_hbm_cl_disconnect_res(dev, cl, rs);
 		break;
 	case MEI_FOP_NOTIFY_START:
-		mei_hbm_cl_notify_start_res(dev, cl, rs);
+		mei_hbm_cl_yestify_start_res(dev, cl, rs);
 		break;
 	case MEI_FOP_NOTIFY_STOP:
-		mei_hbm_cl_notify_stop_res(dev, cl, rs);
+		mei_hbm_cl_yestify_stop_res(dev, cl, rs);
 		break;
 	default:
 		return;
@@ -985,7 +985,7 @@ static int mei_hbm_pg_exit_res(struct mei_device *dev)
 		break;
 	case MEI_PG_EVENT_IDLE:
 		/*
-		* If the driver is not waiting on this then
+		* If the driver is yest waiting on this then
 		* this is HW initiated exit from PG.
 		* Start runtime pm resume sequence to exit from PG.
 		*/
@@ -1015,7 +1015,7 @@ static void mei_hbm_config_features(struct mei_device *dev)
 		dev->hbm_f_pg_supported = 1;
 
 	if (dev->version.major_version == HBM_MAJOR_VERSION_PGI &&
-	    dev->version.minor_version >= HBM_MINOR_VERSION_PGI)
+	    dev->version.miyesr_version >= HBM_MINOR_VERSION_PGI)
 		dev->hbm_f_pg_supported = 1;
 
 	dev->hbm_f_dc_supported = 0;
@@ -1050,7 +1050,7 @@ static void mei_hbm_config_features(struct mei_device *dev)
 	dev->hbm_f_dr_supported = 0;
 	if (dev->version.major_version > HBM_MAJOR_VERSION_DR ||
 	    (dev->version.major_version == HBM_MAJOR_VERSION_DR &&
-	     dev->version.minor_version >= HBM_MINOR_VERSION_DR))
+	     dev->version.miyesr_version >= HBM_MINOR_VERSION_DR))
 		dev->hbm_f_dr_supported = 1;
 }
 
@@ -1065,7 +1065,7 @@ bool mei_hbm_version_is_supported(struct mei_device *dev)
 {
 	return	(dev->version.major_version < HBM_MAJOR_VERSION) ||
 		(dev->version.major_version == HBM_MAJOR_VERSION &&
-		 dev->version.minor_version <= HBM_MINOR_VERSION);
+		 dev->version.miyesr_version <= HBM_MINOR_VERSION);
 }
 
 /**
@@ -1097,11 +1097,11 @@ int mei_hbm_dispatch(struct mei_device *dev, struct mei_msg_hdr *hdr)
 	mei_msg = (struct mei_bus_message *)dev->rd_msg_buf;
 	cl_cmd  = (struct mei_hbm_cl_cmd *)mei_msg;
 
-	/* ignore spurious message and prevent reset nesting
+	/* igyesre spurious message and prevent reset nesting
 	 * hbm is put to idle during system reset
 	 */
 	if (dev->hbm_state == MEI_HBM_IDLE) {
-		dev_dbg(dev->dev, "hbm: state is idle ignore spurious messages\n");
+		dev_dbg(dev->dev, "hbm: state is idle igyesre spurious messages\n");
 		return 0;
 	}
 
@@ -1116,16 +1116,16 @@ int mei_hbm_dispatch(struct mei_device *dev, struct mei_msg_hdr *hdr)
 		dev_dbg(dev->dev, "HBM VERSION: DRIVER=%02d:%02d DEVICE=%02d:%02d\n",
 				HBM_MAJOR_VERSION, HBM_MINOR_VERSION,
 				version_res->me_max_version.major_version,
-				version_res->me_max_version.minor_version);
+				version_res->me_max_version.miyesr_version);
 
 		if (version_res->host_version_supported) {
 			dev->version.major_version = HBM_MAJOR_VERSION;
-			dev->version.minor_version = HBM_MINOR_VERSION;
+			dev->version.miyesr_version = HBM_MINOR_VERSION;
 		} else {
 			dev->version.major_version =
 				version_res->me_max_version.major_version;
-			dev->version.minor_version =
-				version_res->me_max_version.minor_version;
+			dev->version.miyesr_version =
+				version_res->me_max_version.miyesr_version;
 		}
 
 		if (!mei_hbm_version_is_supported(dev)) {
@@ -1186,7 +1186,7 @@ int mei_hbm_dispatch(struct mei_device *dev, struct mei_msg_hdr *hdr)
 			u8 status = dma_setup_res->status;
 
 			if (status == MEI_HBMS_NOT_ALLOWED) {
-				dev_dbg(dev->dev, "hbm: dma setup not allowed\n");
+				dev_dbg(dev->dev, "hbm: dma setup yest allowed\n");
 			} else {
 				dev_info(dev->dev, "hbm: dma setup response: failure = %d %s\n",
 					 status,
@@ -1345,13 +1345,13 @@ int mei_hbm_dispatch(struct mei_device *dev, struct mei_msg_hdr *hdr)
 		break;
 
 	case MEI_HBM_NOTIFY_RES_CMD:
-		dev_dbg(dev->dev, "hbm: notify response received\n");
-		mei_hbm_cl_res(dev, cl_cmd, notify_res_to_fop(cl_cmd));
+		dev_dbg(dev->dev, "hbm: yestify response received\n");
+		mei_hbm_cl_res(dev, cl_cmd, yestify_res_to_fop(cl_cmd));
 		break;
 
 	case MEI_HBM_NOTIFICATION_CMD:
-		dev_dbg(dev->dev, "hbm: notification\n");
-		mei_hbm_cl_notify(dev, cl_cmd);
+		dev_dbg(dev->dev, "hbm: yestification\n");
+		mei_hbm_cl_yestify(dev, cl_cmd);
 		break;
 
 	default:

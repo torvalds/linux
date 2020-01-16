@@ -41,7 +41,7 @@ config ALPHA
 	help
 	  The Alpha is a 64-bit general-purpose processor designed and
 	  marketed by the Digital Equipment Corporation of blessed memory,
-	  now Hewlett-Packard.  The Alpha Linux project has a home page at
+	  yesw Hewlett-Packard.  The Alpha Linux project has a home page at
 	  <http://www.alphalinux.org/>.
 
 config 64BIT
@@ -120,7 +120,7 @@ choice
 	  Titan               AlphaServer ES45 / DS25 / DS15
 	  Wildfire            AlphaServer GS 40/80/160/320
 
-	  If you don't know what to do, choose "generic".
+	  If you don't kyesw what to do, choose "generic".
 
 config ALPHA_GENERIC
 	bool "Generic"
@@ -156,8 +156,8 @@ config ALPHA_AVANTI_CH
 config ALPHA_CABRIOLET
 	bool "Cabriolet"
 	help
-	  Cabriolet AlphaPC64, AlphaPCI64 systems.  Derived from EB64+ but now
-	  baby-AT with Flash boot ROM, no on-board SCSI or Ethernet. 3 ISA
+	  Cabriolet AlphaPC64, AlphaPCI64 systems.  Derived from EB64+ but yesw
+	  baby-AT with Flash boot ROM, yes on-board SCSI or Ethernet. 3 ISA
 	  slots, 4 PCI slots (one pair are on a shared slot), uses plug-in
 	  Bcache SIMMs.  Requires power supply with 3.3V output.
 
@@ -274,7 +274,7 @@ config ALPHA_RAWHIDE
 config ALPHA_RUFFIAN
 	bool "Ruffian"
 	help
-	  Samsung APC164UX.  There is a page on known problems and workarounds
+	  Samsung APC164UX.  There is a page on kyeswn problems and workarounds
 	  at <http://www.alphalinux.org/faq/FAQ-11.html>.
 
 config ALPHA_RX164
@@ -310,7 +310,7 @@ config ALPHA_WILDFIRE
 endchoice
 
 # clear all implied options (don't want default values for those):
-# Most of these machines have ISA slots; not exactly sure which don't,
+# Most of these machines have ISA slots; yest exactly sure which don't,
 # and this doesn't activate hordes of code, so do it always.
 config ISA
 	bool
@@ -319,7 +319,7 @@ config ISA
 	  Find out whether you have ISA slots on your motherboard.  ISA is the
 	  name of a bus system, i.e. the way the CPU talks to the other stuff
 	  inside your box.  Other bus systems are PCI, EISA, MicroChannel
-	  (MCA) or VESA.  ISA is an older system, now being displaced by PCI;
+	  (MCA) or VESA.  ISA is an older system, yesw being displaced by PCI;
 	  newer boards don't support it.  If you have ISA, say Y, otherwise N.
 
 config ISA_DMA_API
@@ -528,14 +528,14 @@ config SMP
 
 	  If you say N here, the kernel will run on uni- and multiprocessor
 	  machines, but will use only one CPU of a multiprocessor machine. If
-	  you say Y here, the kernel will run on many, but not all,
+	  you say Y here, the kernel will run on many, but yest all,
 	  uniprocessor machines. On a uniprocessor machine, the kernel
 	  will run faster if you say N here.
 
 	  See also the SMP-HOWTO available at
 	  <http://www.tldp.org/docs.html#howto>.
 
-	  If you don't know what to do here, say N.
+	  If you don't kyesw what to do here, say N.
 
 config NR_CPUS
 	int "Maximum number of CPUs (2-32)"
@@ -579,10 +579,10 @@ config ALPHA_WTINT
 	  For emulation under QEMU, definitely say Y here, as we have other
 	  mechanisms for measuring time than the cycle counter.
 
-	  For EV4 (but not LCA), EV5 and EV56 systems, or for systems running
-	  MILO, sleep mode is not supported so you might as well say N here.
+	  For EV4 (but yest LCA), EV5 and EV56 systems, or for systems running
+	  MILO, sleep mode is yest supported so you might as well say N here.
 
-	  For SMP systems we cannot use the cycle counter for timing anyway,
+	  For SMP systems we canyest use the cycle counter for timing anyway,
 	  so you might as well say Y here.
 
 	  If unsure, say N.
@@ -600,12 +600,12 @@ config ALPHA_LARGE_VMALLOC
 	  be streamlined if we restrict the kernel to one PGD for all vmalloc
 	  allocations.  This equates to about 8GB.
 
-	  Under normal circumstances, this is so far and above what is needed
+	  Under yesrmal circumstances, this is so far and above what is needed
 	  as to be laughable.  However, there are certain applications (such
 	  as benchmark-grade in-kernel web serving) that can make use of as
 	  much vmalloc space as is available.
 
-	  Say N unless you know you need gobs and gobs of vmalloc space.
+	  Say N unless you kyesw you need gobs and gobs of vmalloc space.
 
 config VERBOSE_MCHECK
 	bool "Verbose Machine Checks"
@@ -622,7 +622,7 @@ config VERBOSE_MCHECK_ON
 	  machine checks, but wanted the default to be as if verbose
 	  machine check printing was turned off, then one would choose
 	  the printing mode to be 0. Then, upon reboot, one could add
-	  the boot command line "verbose_mcheck=1" to get the normal
+	  the boot command line "verbose_mcheck=1" to get the yesrmal
 	  verbose machine check printing, or "verbose_mcheck=2" to get
 	  the maximum information available.
 
@@ -639,7 +639,7 @@ choice
 	  process accounting.  The later effect is especially significant
 	  when being run under QEMU.
 
-	  Note that some Alpha hardware cannot change the interrupt frequency
+	  Note that some Alpha hardware canyest change the interrupt frequency
 	  of the timer.  If unsure, say 1024 (or 1200 for Rawhide).
 
 	config HZ_32
@@ -675,14 +675,14 @@ config SRM_ENV
 	  to all others (by their internal number).
 
 	  SRM is something like a BIOS for Alpha machines. There are some
-	  other such BIOSes, like AlphaBIOS, which this driver cannot
-	  support (hey, that's not SRM!).
+	  other such BIOSes, like AlphaBIOS, which this driver canyest
+	  support (hey, that's yest SRM!).
 
 	  Despite the fact that this driver doesn't work on all Alphas (but
 	  only on those which have SRM as their firmware), it's save to
-	  build it even if your particular machine doesn't know about SRM
+	  build it even if your particular machine doesn't kyesw about SRM
 	  (or if you intend to compile a generic kernel). It will simply
-	  not create those subdirectory in /proc (and give you some warning,
+	  yest create those subdirectory in /proc (and give you some warning,
 	  of course).
 
 	  This driver is also available as a module and will be called

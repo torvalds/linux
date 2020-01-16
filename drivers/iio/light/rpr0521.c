@@ -343,7 +343,7 @@ static int rpr0521_set_power_state(struct rpr0521_data *data, bool on,
 
 	/*
 	 * On: _resume() is called only when we are suspended
-	 * Off: _suspend() is called after delay if _resume() is not
+	 * Off: _suspend() is called after delay if _resume() is yest
 	 * called before that.
 	 * Note: If either measurement is re-enabled before _suspend(),
 	 * both stay enabled until _suspend().
@@ -359,13 +359,13 @@ static int rpr0521_set_power_state(struct rpr0521_data *data, bool on,
 			"Failed: rpr0521_set_power_state for %d, ret %d\n",
 			on, ret);
 		if (on)
-			pm_runtime_put_noidle(&data->client->dev);
+			pm_runtime_put_yesidle(&data->client->dev);
 
 		return ret;
 	}
 
 	if (on) {
-		/* If _resume() was not called, enable measurement now. */
+		/* If _resume() was yest called, enable measurement yesw. */
 		if (data->als_ps_need_en) {
 			ret = rpr0521_als_enable(data, RPR0521_MODE_ALS_ENABLE);
 			if (ret)
@@ -384,7 +384,7 @@ static int rpr0521_set_power_state(struct rpr0521_data *data, bool on,
 	return 0;
 }
 
-/* Interrupt register tells if this sensor caused the interrupt or not. */
+/* Interrupt register tells if this sensor caused the interrupt or yest. */
 static inline bool rpr0521_is_triggered(struct rpr0521_data *data)
 {
 	int ret;
@@ -398,7 +398,7 @@ static inline bool rpr0521_is_triggered(struct rpr0521_data *data)
 	    RPR0521_INTERRUPT_PS_INT_STATUS_MASK))
 		return true;
 	else
-		return false;   /* Int not from this sensor. */
+		return false;   /* Int yest from this sensor. */
 }
 
 /* IRQ to trigger handler */
@@ -410,7 +410,7 @@ static irqreturn_t rpr0521_drdy_irq_handler(int irq, void *private)
 	data->irq_timestamp = iio_get_time_ns(indio_dev);
 	/*
 	 * We need to wake the thread to read the interrupt reg. It
-	 * is not possible to do that here because regmap_read takes a
+	 * is yest possible to do that here because regmap_read takes a
 	 * mutex.
 	 */
 
@@ -471,7 +471,7 @@ static irqreturn_t rpr0521_trigger_consumer_handler(int irq, void *p)
 			"Trigger consumer can't read from sensor.\n");
 	pf->timestamp = 0;
 
-	iio_trigger_notify_done(indio_dev->trig);
+	iio_trigger_yestify_done(indio_dev->trig);
 
 	return IRQ_HANDLED;
 }
@@ -489,7 +489,7 @@ static int rpr0521_write_int_enable(struct rpr0521_data *data)
 		return -EBUSY;
 		}
 
-	/* Ignore latch and mode because of drdy */
+	/* Igyesre latch and mode because of drdy */
 	err = regmap_write(data->regmap, RPR0521_REG_INTERRUPT,
 		RPR0521_INTERRUPT_INT_REASSERT_DISABLE |
 		RPR0521_INTERRUPT_INT_TRIG_ALS_DISABLE |
@@ -649,7 +649,7 @@ static int rpr0521_write_samp_freq_common(struct rpr0521_data *data,
 	int i;
 
 	/*
-	 * Ignore channel
+	 * Igyesre channel
 	 * both pxs and als are setup only to same freq because of simplicity
 	 */
 	switch (val) {
@@ -1033,7 +1033,7 @@ static int rpr0521_probe(struct i2c_client *client,
 err_pm_disable:
 	pm_runtime_disable(&client->dev);
 	pm_runtime_set_suspended(&client->dev);
-	pm_runtime_put_noidle(&client->dev);
+	pm_runtime_put_yesidle(&client->dev);
 err_poweroff:
 	rpr0521_poweroff(data);
 
@@ -1048,7 +1048,7 @@ static int rpr0521_remove(struct i2c_client *client)
 
 	pm_runtime_disable(&client->dev);
 	pm_runtime_set_suspended(&client->dev);
-	pm_runtime_put_noidle(&client->dev);
+	pm_runtime_put_yesidle(&client->dev);
 
 	rpr0521_poweroff(iio_priv(indio_dev));
 

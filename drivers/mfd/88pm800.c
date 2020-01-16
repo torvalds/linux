@@ -16,7 +16,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
+ * along with this program; if yest, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
@@ -254,7 +254,7 @@ static int device_gpadc_init(struct pm80x_chip *chip,
 
 	if (!map) {
 		dev_warn(chip->dev,
-			 "Warning: gpadc regmap is not available!\n");
+			 "Warning: gpadc regmap is yest available!\n");
 		return -EINVAL;
 	}
 	/*
@@ -269,7 +269,7 @@ static int device_gpadc_init(struct pm80x_chip *chip,
 		goto out;
 	/*
 	 * This function configures the ADC as requires for
-	 * CP implementation.CP does not "own" the ADC configuration
+	 * CP implementation.CP does yest "own" the ADC configuration
 	 * registers and relies on AP.
 	 * Reason: enable automatic ADC measurements needed
 	 * for CP to get VBAT and RF temperature readings.

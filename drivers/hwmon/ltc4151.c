@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Driver for Linear Technology LTC4151 High Voltage I2C Current
+ * Driver for Linear Techyeslogy LTC4151 High Voltage I2C Current
  * and Voltage Monitor
  *
  * Copyright (C) 2011 AppearTV AS
  *
  * Derived from:
  *
- *  Driver for Linear Technology LTC4261 I2C Negative Voltage Hot
+ *  Driver for Linear Techyeslogy LTC4261 I2C Negative Voltage Hot
  *  Swap Controller
  *  Copyright (C) 2010 Ericsson AB.
  *
@@ -170,9 +170,9 @@ static int ltc4151_probe(struct i2c_client *client,
 	if (!data)
 		return -ENOMEM;
 
-	if (of_property_read_u32(client->dev.of_node,
+	if (of_property_read_u32(client->dev.of_yesde,
 				 "shunt-resistor-micro-ohms", &shunt))
-		shunt = 1000; /* 1 mOhm if not set via DT */
+		shunt = 1000; /* 1 mOhm if yest set via DT */
 
 	if (shunt == 0)
 		return -EINVAL;

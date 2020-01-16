@@ -96,7 +96,7 @@ static int mt352_sleep(struct dvb_frontend* fe)
 	return 0;
 }
 
-static void mt352_calc_nominal_rate(struct mt352_state* state,
+static void mt352_calc_yesminal_rate(struct mt352_state* state,
 				    u32 bandwidth,
 				    unsigned char *buf)
 {
@@ -274,10 +274,10 @@ static int mt352_set_parameters(struct dvb_frontend *fe)
 	buf[3] = 0x50;  // old
 //	buf[3] = 0xf4;  // pinnacle
 
-	mt352_calc_nominal_rate(state, op->bandwidth_hz, buf+4);
+	mt352_calc_yesminal_rate(state, op->bandwidth_hz, buf+4);
 	mt352_calc_input_freq(state, buf+6);
 
-	if (state->config.no_tuner) {
+	if (state->config.yes_tuner) {
 		if (fe->ops.tuner_ops.set_params) {
 			fe->ops.tuner_ops.set_params(fe);
 			if (fe->ops.i2c_gate_ctrl)
@@ -320,7 +320,7 @@ static int mt352_get_parameters(struct dvb_frontend* fe,
 	if ( (mt352_read_register(state,0x00) & 0xC0) != 0xC0 )
 		return -EINVAL;
 
-	/* Use TPS_RECEIVED-registers, not the TPS_CURRENT-registers because
+	/* Use TPS_RECEIVED-registers, yest the TPS_CURRENT-registers because
 	 * the mt352 sometimes works with the wrong parameters
 	 */
 	tps = (mt352_read_register(state, TPS_RECEIVED_1) << 8) | mt352_read_register(state, TPS_RECEIVED_0);

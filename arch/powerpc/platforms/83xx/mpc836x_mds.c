@@ -16,7 +16,7 @@
 #include <linux/kernel.h>
 #include <linux/compiler.h>
 #include <linux/init.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/reboot.h>
 #include <linux/pci.h>
 #include <linux/kdev_t.h>
@@ -58,27 +58,27 @@
  */
 static void __init mpc836x_mds_setup_arch(void)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 	u8 __iomem *bcsr_regs = NULL;
 
 	mpc83xx_setup_arch();
 
 	/* Map BCSR area */
-	np = of_find_node_by_name(NULL, "bcsr");
+	np = of_find_yesde_by_name(NULL, "bcsr");
 	if (np) {
 		struct resource res;
 
 		of_address_to_resource(np, 0, &res);
 		bcsr_regs = ioremap(res.start, resource_size(&res));
-		of_node_put(np);
+		of_yesde_put(np);
 	}
 
 #ifdef CONFIG_QUICC_ENGINE
-	if ((np = of_find_node_by_name(NULL, "par_io")) != NULL) {
+	if ((np = of_find_yesde_by_name(NULL, "par_io")) != NULL) {
 		par_io_init(np);
-		of_node_put(np);
+		of_yesde_put(np);
 
-		for_each_node_by_name(np, "ucc")
+		for_each_yesde_by_name(np, "ucc")
 			par_io_of_config(np);
 #ifdef CONFIG_QE_USB
 		/* Must fixup Par IO before QE GPIO chips are registered. */
@@ -92,7 +92,7 @@ static void __init mpc836x_mds_setup_arch(void)
 #endif /* CONFIG_QE_USB */
 	}
 
-	if ((np = of_find_compatible_node(NULL, "network", "ucc_geth"))
+	if ((np = of_find_compatible_yesde(NULL, "network", "ucc_geth"))
 			!= NULL){
 		uint svid;
 
@@ -125,7 +125,7 @@ static void __init mpc836x_mds_setup_arch(void)
 		}
 
 		iounmap(bcsr_regs);
-		of_node_put(np);
+		of_yesde_put(np);
 	}
 #endif				/* CONFIG_QUICC_ENGINE */
 }
@@ -136,20 +136,20 @@ machine_device_initcall(mpc836x_mds, mpc83xx_declare_of_platform_devices);
 static int __init mpc836x_usb_cfg(void)
 {
 	u8 __iomem *bcsr;
-	struct device_node *np;
+	struct device_yesde *np;
 	const char *mode;
 	int ret = 0;
 
-	np = of_find_compatible_node(NULL, NULL, "fsl,mpc8360mds-bcsr");
+	np = of_find_compatible_yesde(NULL, NULL, "fsl,mpc8360mds-bcsr");
 	if (!np)
 		return -ENODEV;
 
 	bcsr = of_iomap(np, 0);
-	of_node_put(np);
+	of_yesde_put(np);
 	if (!bcsr)
 		return -ENOMEM;
 
-	np = of_find_compatible_node(NULL, NULL, "fsl,mpc8323-qe-usb");
+	np = of_find_compatible_yesde(NULL, NULL, "fsl,mpc8323-qe-usb");
 	if (!np) {
 		ret = -ENODEV;
 		goto err;
@@ -182,7 +182,7 @@ static int __init mpc836x_usb_cfg(void)
 		setbits8(&bcsr[13], BCSR13_USBMODE);
 	}
 
-	of_node_put(np);
+	of_yesde_put(np);
 err:
 	iounmap(bcsr);
 	return ret;

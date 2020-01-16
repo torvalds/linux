@@ -149,37 +149,37 @@ int ubh_buffer_dirty (struct ufs_buffer_head * ubh)
 void _ubh_ubhcpymem_(struct ufs_sb_private_info * uspi, 
 	unsigned char * mem, struct ufs_buffer_head * ubh, unsigned size)
 {
-	unsigned len, bhno;
+	unsigned len, bhyes;
 	if (size > (ubh->count << uspi->s_fshift))
 		size = ubh->count << uspi->s_fshift;
-	bhno = 0;
+	bhyes = 0;
 	while (size) {
 		len = min_t(unsigned int, size, uspi->s_fsize);
-		memcpy (mem, ubh->bh[bhno]->b_data, len);
+		memcpy (mem, ubh->bh[bhyes]->b_data, len);
 		mem += uspi->s_fsize;
 		size -= len;
-		bhno++;
+		bhyes++;
 	}
 }
 
 void _ubh_memcpyubh_(struct ufs_sb_private_info * uspi, 
 	struct ufs_buffer_head * ubh, unsigned char * mem, unsigned size)
 {
-	unsigned len, bhno;
+	unsigned len, bhyes;
 	if (size > (ubh->count << uspi->s_fshift))
 		size = ubh->count << uspi->s_fshift;
-	bhno = 0;
+	bhyes = 0;
 	while (size) {
 		len = min_t(unsigned int, size, uspi->s_fsize);
-		memcpy (ubh->bh[bhno]->b_data, mem, len);
+		memcpy (ubh->bh[bhyes]->b_data, mem, len);
 		mem += uspi->s_fsize;
 		size -= len;
-		bhno++;
+		bhyes++;
 	}
 }
 
 dev_t
-ufs_get_inode_dev(struct super_block *sb, struct ufs_inode_info *ufsi)
+ufs_get_iyesde_dev(struct super_block *sb, struct ufs_iyesde_info *ufsi)
 {
 	__u32 fs32;
 	dev_t dev;
@@ -195,7 +195,7 @@ ufs_get_inode_dev(struct super_block *sb, struct ufs_inode_info *ufsi)
 		    (fs32 & 0xffff0000) == 0xffff0000)
 			dev = old_decode_dev(fs32 & 0x7fff);
 		else
-			dev = MKDEV(sysv_major(fs32), sysv_minor(fs32));
+			dev = MKDEV(sysv_major(fs32), sysv_miyesr(fs32));
 		break;
 
 	default:
@@ -206,7 +206,7 @@ ufs_get_inode_dev(struct super_block *sb, struct ufs_inode_info *ufsi)
 }
 
 void
-ufs_set_inode_dev(struct super_block *sb, struct ufs_inode_info *ufsi, dev_t dev)
+ufs_set_iyesde_dev(struct super_block *sb, struct ufs_iyesde_info *ufsi, dev_t dev)
 {
 	__u32 fs32;
 
@@ -230,12 +230,12 @@ ufs_set_inode_dev(struct super_block *sb, struct ufs_inode_info *ufsi, dev_t dev
 }
 
 /**
- * ufs_get_locked_page() - locate, pin and lock a pagecache page, if not exist
+ * ufs_get_locked_page() - locate, pin and lock a pagecache page, if yest exist
  * read it from disk.
  * @mapping: the address_space to search
  * @index: the page index
  *
- * Locates the desired pagecache page, if not exist we'll read it,
+ * Locates the desired pagecache page, if yest exist we'll read it,
  * locks it, increments its reference
  * count and returns its address.
  *
@@ -244,15 +244,15 @@ ufs_set_inode_dev(struct super_block *sb, struct ufs_inode_info *ufsi, dev_t dev
 struct page *ufs_get_locked_page(struct address_space *mapping,
 				 pgoff_t index)
 {
-	struct inode *inode = mapping->host;
+	struct iyesde *iyesde = mapping->host;
 	struct page *page = find_lock_page(mapping, index);
 	if (!page) {
 		page = read_mapping_page(mapping, index, NULL);
 
 		if (IS_ERR(page)) {
 			printk(KERN_ERR "ufs_change_blocknr: "
-			       "read_mapping_page error: ino %lu, index: %lu\n",
-			       mapping->host->i_ino, index);
+			       "read_mapping_page error: iyes %lu, index: %lu\n",
+			       mapping->host->i_iyes, index);
 			return page;
 		}
 
@@ -270,13 +270,13 @@ struct page *ufs_get_locked_page(struct address_space *mapping,
 			put_page(page);
 
 			printk(KERN_ERR "ufs_change_blocknr: "
-			       "can not read page: ino %lu, index: %lu\n",
-			       inode->i_ino, index);
+			       "can yest read page: iyes %lu, index: %lu\n",
+			       iyesde->i_iyes, index);
 
 			return ERR_PTR(-EIO);
 		}
 	}
 	if (!page_has_buffers(page))
-		create_empty_buffers(page, 1 << inode->i_blkbits, 0);
+		create_empty_buffers(page, 1 << iyesde->i_blkbits, 0);
 	return page;
 }

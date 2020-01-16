@@ -105,7 +105,7 @@ static int probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	iowrite8(INT_MASK_ALL, info->priv + INT_MASK_ADDR);
 	if (!(ioread8(info->priv + INTA_DRVR_ADDR)
 			& INTA_ENABLED_FLAG))
-		dev_err(&pdev->dev, "aectc: interrupts not enabled\n");
+		dev_err(&pdev->dev, "aectc: interrupts yest enabled\n");
 
 	pci_set_drvdata(pdev, info);
 

@@ -19,4 +19,4 @@ staging directory.
 
 - "drivers" should never be dealing with "raw" sysfs calls or mess around with
   kobjects at all. The driver core should handle all of this for you
-  automaically. There should not be a need for raw attribute macros.
+  automaically. There should yest be a need for raw attribute macros.

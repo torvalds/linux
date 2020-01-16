@@ -9,7 +9,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -60,7 +60,7 @@
  * Note that though in some cases the CRC is computed in a specified way and on
  * the frame contents as supplied by userspace (eDP 1.3), in general the CRC
  * computation is performed in an unspecified way and on frame contents that have
- * been already processed in also an unspecified way and thus userspace cannot
+ * been already processed in also an unspecified way and thus userspace canyest
  * rely on being able to generate matching CRC values for the frame contents that
  * it submits. In this general case, the maximum userspace can do is to compare
  * the reported CRCs of frames that should have the same contents.
@@ -72,7 +72,7 @@
  * Depending on the driver and HW requirements, &drm_crtc_funcs.set_crc_source
  * may result in a commit (even a full modeset).
  *
- * CRC results must be reliable across non-full-modeset atomic commits, so if a
+ * CRC results must be reliable across yesn-full-modeset atomic commits, so if a
  * commit via DRM_IOCTL_MODE_ATOMIC would disable or otherwise interfere with
  * CRC generation, then the driver must mark that commit as a full modeset
  * (drm_atomic_crtc_needs_modeset() should return true). As a result, to ensure
@@ -110,9 +110,9 @@ out:
 	return 0;
 }
 
-static int crc_control_open(struct inode *inode, struct file *file)
+static int crc_control_open(struct iyesde *iyesde, struct file *file)
 {
-	struct drm_crtc *crtc = inode->i_private;
+	struct drm_crtc *crtc = iyesde->i_private;
 
 	return single_open(file, crc_control_show, crtc);
 }
@@ -190,9 +190,9 @@ static void crtc_crc_cleanup(struct drm_crtc_crc *crc)
 	crc->opened = false;
 }
 
-static int crtc_crc_open(struct inode *inode, struct file *filep)
+static int crtc_crc_open(struct iyesde *iyesde, struct file *filep)
 {
-	struct drm_crtc *crtc = inode->i_private;
+	struct drm_crtc *crtc = iyesde->i_private;
 	struct drm_crtc_crc *crc = &crtc->crc;
 	struct drm_crtc_crc_entry *entries = NULL;
 	size_t values_cnt;
@@ -253,9 +253,9 @@ err:
 	return ret;
 }
 
-static int crtc_crc_release(struct inode *inode, struct file *filep)
+static int crtc_crc_release(struct iyesde *iyesde, struct file *filep)
 {
-	struct drm_crtc *crtc = filep->f_inode->i_private;
+	struct drm_crtc *crtc = filep->f_iyesde->i_private;
 	struct drm_crtc_crc *crc = &crtc->crc;
 
 	crtc->funcs->set_crc_source(crtc, NULL);
@@ -277,7 +277,7 @@ static int crtc_crc_release(struct inode *inode, struct file *filep)
 static ssize_t crtc_crc_read(struct file *filep, char __user *user_buf,
 			     size_t count, loff_t *pos)
 {
-	struct drm_crtc *crtc = filep->f_inode->i_private;
+	struct drm_crtc *crtc = filep->f_iyesde->i_private;
 	struct drm_crtc_crc *crc = &crtc->crc;
 	struct drm_crtc_crc_entry *entry;
 	char buf[MAX_LINE_LEN];
@@ -306,7 +306,7 @@ static ssize_t crtc_crc_read(struct file *filep, char __user *user_buf,
 		}
 	}
 
-	/* We know we have an entry to be read */
+	/* We kyesw we have an entry to be read */
 	entry = &crc->entries[crc->tail];
 
 	if (count < LINE_LEN(crc->values_cnt)) {
@@ -336,7 +336,7 @@ static ssize_t crtc_crc_read(struct file *filep, char __user *user_buf,
 
 static __poll_t crtc_crc_poll(struct file *file, poll_table *wait)
 {
-	struct drm_crtc *crtc = file->f_inode->i_private;
+	struct drm_crtc *crtc = file->f_iyesde->i_private;
 	struct drm_crtc_crc *crc = &crtc->crc;
 	__poll_t ret = 0;
 
@@ -393,7 +393,7 @@ int drm_crtc_add_crc_entry(struct drm_crtc *crtc, bool has_frame,
 
 	spin_lock_irqsave(&crc->lock, flags);
 
-	/* Caller may not have noticed yet that userspace has stopped reading */
+	/* Caller may yest have yesticed yet that userspace has stopped reading */
 	if (!crc->entries) {
 		spin_unlock_irqrestore(&crc->lock, flags);
 		return -EINVAL;

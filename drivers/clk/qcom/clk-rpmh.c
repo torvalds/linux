@@ -303,7 +303,7 @@ static int clk_rpmh_bcm_set_rate(struct clk_hw *hw, unsigned long rate,
 
 	c->aggr_state = rate / c->unit;
 	/*
-	 * Since any non-zero value sent to hw would result in enabling the
+	 * Since any yesn-zero value sent to hw would result in enabling the
 	 * clock, only send the value if the clock has already been prepared.
 	 */
 	if (clk_hw_is_prepared(hw))

@@ -263,7 +263,7 @@ static int tt3650_ci_set_video_port(struct dvb_ca_en50221 *ca,
 		return ret;
 
 	if (enable != buf[0]) {
-		err("CI not %sabled.", enable ? "en" : "dis");
+		err("CI yest %sabled.", enable ? "en" : "dis");
 		return -EIO;
 	}
 
@@ -358,7 +358,7 @@ static void tt3650_ci_uninit(struct dvb_usb_device *d)
 	if (NULL == state->ca.data)
 		return;
 
-	/* Error ignored. */
+	/* Error igyesred. */
 	tt3650_ci_set_video_port(&state->ca, /* slot */ 0, /* enable */ 0);
 
 	dvb_ca_en50221_release(&state->ca);
@@ -392,7 +392,7 @@ static int tt3650_ci_init(struct dvb_usb_adapter *a)
 				   /* flags */ 0,
 				   /* n_slots */ 1);
 	if (0 != ret) {
-		err("Cannot initialize CI: Error %d.", ret);
+		err("Canyest initialize CI: Error %d.", ret);
 		memset(&state->ca, 0, sizeof(state->ca));
 		return ret;
 	}
@@ -530,7 +530,7 @@ static int pctv452e_power_ctrl(struct dvb_usb_device *d, int i)
 		info("%s: Warning set interface returned: %d\n",
 			__func__, ret);
 
-	/* this is a one-time initialization, don't know where to put */
+	/* this is a one-time initialization, don't kyesw where to put */
 	b0[0] = 0xaa;
 	b0[1] = state->c++;
 	b0[2] = PCTV_CMD_RESET;
@@ -865,8 +865,8 @@ static struct stb0899_config stb0899_config = {
 	.data_clk_parity = 0,
 	.fec_mode	= 0,
 
-	.esno_ave	    = STB0899_DVBS2_ESNO_AVE,
-	.esno_quant	  = STB0899_DVBS2_ESNO_QUANT,
+	.esyes_ave	    = STB0899_DVBS2_ESNO_AVE,
+	.esyes_quant	  = STB0899_DVBS2_ESNO_QUANT,
 	.avframes_coarse     = STB0899_DVBS2_AVFRAMES_COARSE,
 	.avframes_fine       = STB0899_DVBS2_AVFRAMES_FINE,
 	.miss_threshold      = STB0899_DVBS2_MISS_THRESHOLD,
@@ -911,12 +911,12 @@ static int pctv452e_frontend_attach(struct dvb_usb_adapter *a)
 		return -ENODEV;
 	if ((dvb_attach(lnbp22_attach, a->fe_adap[0].fe,
 					&a->dev->i2c_adap)) == NULL)
-		err("Cannot attach lnbp22\n");
+		err("Canyest attach lnbp22\n");
 
 	id = a->dev->desc->warm_ids[0];
 	if (USB_VID_TECHNOTREND == id->idVendor
 	    && USB_PID_TECHNOTREND_CONNECT_S2_3650_CI == id->idProduct)
-		/* Error ignored. */
+		/* Error igyesred. */
 		tt3650_ci_init(a);
 
 	return 0;
@@ -1042,11 +1042,11 @@ static struct dvb_usb_device_properties tt_connect_s2_3600_properties = {
 
 	.num_device_descs = 2,
 	.devices = {
-		{ .name = "Technotrend TT Connect S2-3600",
+		{ .name = "Techyestrend TT Connect S2-3600",
 		  .cold_ids = { NULL, NULL }, /* this is a warm only device */
 		  .warm_ids = { &pctv452e_usb_table[1], NULL }
 		},
-		{ .name = "Technotrend TT Connect S2-3650-CI",
+		{ .name = "Techyestrend TT Connect S2-3650-CI",
 		  .cold_ids = { NULL, NULL },
 		  .warm_ids = { &pctv452e_usb_table[2], NULL }
 		},

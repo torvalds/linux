@@ -43,7 +43,7 @@
 		#size-cells = <0>;
 
 		usbphy0: usbphy@0 {
-			compatible = "usb-nop-xceiv";
+			compatible = "usb-yesp-xceiv";
 			reg = <0>;
 			vcc-supply = <&sw3_reg>;
 			clocks = <&clks IMX27_CLK_DUMMY>;
@@ -322,7 +322,7 @@
 &weim {
 	status = "okay";
 
-	nor: nor@0,0 {
+	yesr: yesr@0,0 {
 		compatible = "cfi-flash";
 		reg = <0 0x00000000 0x02000000>;
 		bank-width = <2>;

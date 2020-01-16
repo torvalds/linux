@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2005 Topspin Communications.  All rights reserved.
  * Copyright (c) 2005 Cisco Systems.  All rights reserved.
- * Copyright (c) 2005 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2005 Mellayesx Techyeslogies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -14,11 +14,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -137,7 +137,7 @@ static struct scatterlist *ib_umem_add_sg_table(struct scatterlist *sg,
  * This helper is intended for HW that support multiple page
  * sizes but can do only a single page size in an MR.
  *
- * Returns 0 if the umem requires page sizes not supported by
+ * Returns 0 if the umem requires page sizes yest supported by
  * the driver to be mapped. Drivers always supporting PAGE_SIZE
  * or smaller will never see a 0 result.
  */
@@ -156,7 +156,7 @@ unsigned long ib_umem_find_best_pgsz(struct ib_umem *umem,
 		return 0;
 
 	va = virt;
-	/* max page size not to exceed MR length */
+	/* max page size yest to exceed MR length */
 	mask = roundup_pow_of_two(umem->length);
 	/* offset into first SGL */
 	pgoff = umem->address & ~PAGE_MASK;
@@ -365,7 +365,7 @@ int ib_umem_copy_from(void *dst, struct ib_umem *umem, size_t offset,
 	int ret;
 
 	if (offset > umem->length || length > umem->length - offset) {
-		pr_err("ib_umem_copy_from not in range. offset: %zd umem length: %zd end: %zd\n",
+		pr_err("ib_umem_copy_from yest in range. offset: %zd umem length: %zd end: %zd\n",
 		       offset, umem->length, end);
 		return -EINVAL;
 	}

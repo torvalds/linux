@@ -63,7 +63,7 @@ static const char * const per_src[] = {
 	"hsi_ker", "csi_ker", "hse_ck", "disabled" };
 
 static const char * const pll_src[] = {
-	"hsi_ck", "csi_ck", "hse_ck", "no clock" };
+	"hsi_ck", "csi_ck", "hse_ck", "yes clock" };
 
 static const char * const sdmmc_src[] = { "pll1_q", "pll2_r" };
 
@@ -172,7 +172,7 @@ static int ready_gate_clk_enable(struct clk_hw *hw)
 	/* We can't use readl_poll_timeout() because we can blocked if
 	 * someone enables this clock before clocksource changes.
 	 * Only jiffies counter is available. Jiffies are incremented by
-	 * interruptions and enable op does not allow to be interrupted.
+	 * interruptions and enable op does yest allow to be interrupted.
 	 */
 	do {
 		bit_status = !(readl(gate->reg) & BIT(rgate->bit_rdy));
@@ -1193,7 +1193,7 @@ static const struct composite_clk_cfg mco_clk[] = {
 	M_MCO_F("mco2", mco_src2, RCC_CFGR, 29, 3, RCC_CFGR, 25, 4, 0),
 };
 
-static void __init stm32h7_rcc_init(struct device_node *np)
+static void __init stm32h7_rcc_init(struct device_yesde *np)
 {
 	struct clk_hw_onecell_data *clk_data;
 	struct composite_cfg c_cfg;
@@ -1244,7 +1244,7 @@ static void __init stm32h7_rcc_init(struct device_node *np)
 	clk_hw_register_fixed_rate(NULL, "clk-lsi", NULL, 0, 32000);
 	clk_hw_register_fixed_rate(NULL, "clk-rc48", NULL, 0, 48000);
 
-	/* This clock is coming from outside. Frequencies unknown */
+	/* This clock is coming from outside. Frequencies unkyeswn */
 	hws[CK_DSI_PHY] = clk_hw_register_fixed_rate(NULL, "ck_dsi_phy", NULL,
 			0, 0);
 
@@ -1389,7 +1389,7 @@ err_free_clks:
 	kfree(clk_data);
 }
 
-/* The RCC node is a clock and reset controller, and these
+/* The RCC yesde is a clock and reset controller, and these
  * functionalities are supported by different drivers that
  * matches the same compatible strings.
  */

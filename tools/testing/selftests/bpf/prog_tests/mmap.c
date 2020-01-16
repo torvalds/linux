@@ -41,7 +41,7 @@ void test_mmap(void)
 		  file, PTR_ERR(obj)))
 		return;
 	prog = bpf_object__find_program_by_title(obj, probe_name);
-	if (CHECK(!prog, "find_probe", "prog '%s' not found\n", probe_name))
+	if (CHECK(!prog, "find_probe", "prog '%s' yest found\n", probe_name))
 		goto cleanup;
 	err = bpf_object__load(obj);
 	if (CHECK(err, "obj_load", "failed to load prog '%s': %d\n",
@@ -49,17 +49,17 @@ void test_mmap(void)
 		goto cleanup;
 
 	bss_map = bpf_object__find_map_by_name(obj, "test_mma.bss");
-	if (CHECK(!bss_map, "find_bss_map", ".bss map not found\n"))
+	if (CHECK(!bss_map, "find_bss_map", ".bss map yest found\n"))
 		goto cleanup;
 	data_map = bpf_object__find_map_by_name(obj, "data_map");
-	if (CHECK(!data_map, "find_data_map", "data_map map not found\n"))
+	if (CHECK(!data_map, "find_data_map", "data_map map yest found\n"))
 		goto cleanup;
 	data_map_fd = bpf_map__fd(data_map);
 
 	bss_mmaped = mmap(NULL, bss_sz, PROT_READ | PROT_WRITE, MAP_SHARED,
 			  bpf_map__fd(bss_map), 0);
 	if (CHECK(bss_mmaped == MAP_FAILED, "bss_mmap",
-		  ".bss mmap failed: %d\n", errno)) {
+		  ".bss mmap failed: %d\n", erryes)) {
 		bss_mmaped = NULL;
 		goto cleanup;
 	}
@@ -67,7 +67,7 @@ void test_mmap(void)
 	map_mmaped = mmap(NULL, map_sz, PROT_READ | PROT_WRITE, MAP_SHARED,
 			  data_map_fd, 0);
 	if (CHECK(map_mmaped == MAP_FAILED, "data_mmap",
-		  "data_map mmap failed: %d\n", errno)) {
+		  "data_map mmap failed: %d\n", erryes)) {
 		map_mmaped = NULL;
 		goto cleanup;
 	}
@@ -110,20 +110,20 @@ void test_mmap(void)
 
 	/* data_map freeze should fail due to R/W mmap() */
 	err = bpf_map_freeze(data_map_fd);
-	if (CHECK(!err || errno != EBUSY, "no_freeze",
-		  "data_map freeze succeeded: err=%d, errno=%d\n", err, errno))
+	if (CHECK(!err || erryes != EBUSY, "yes_freeze",
+		  "data_map freeze succeeded: err=%d, erryes=%d\n", err, erryes))
 		goto cleanup;
 
 	/* unmap R/W mapping */
 	err = munmap(map_mmaped, map_sz);
 	map_mmaped = NULL;
-	if (CHECK(err, "data_map_munmap", "data_map munmap failed: %d\n", errno))
+	if (CHECK(err, "data_map_munmap", "data_map munmap failed: %d\n", erryes))
 		goto cleanup;
 
-	/* re-map as R/O now */
+	/* re-map as R/O yesw */
 	map_mmaped = mmap(NULL, map_sz, PROT_READ, MAP_SHARED, data_map_fd, 0);
 	if (CHECK(map_mmaped == MAP_FAILED, "data_mmap",
-		  "data_map R/O mmap failed: %d\n", errno)) {
+		  "data_map R/O mmap failed: %d\n", erryes)) {
 		map_mmaped = NULL;
 		goto cleanup;
 	}
@@ -142,13 +142,13 @@ void test_mmap(void)
 			goto cleanup;
 	}
 
-	/* data_map freeze should now succeed due to no R/W mapping */
+	/* data_map freeze should yesw succeed due to yes R/W mapping */
 	err = bpf_map_freeze(data_map_fd);
-	if (CHECK(err, "freeze", "data_map freeze failed: err=%d, errno=%d\n",
-		  err, errno))
+	if (CHECK(err, "freeze", "data_map freeze failed: err=%d, erryes=%d\n",
+		  err, erryes))
 		goto cleanup;
 
-	/* mapping as R/W now should fail */
+	/* mapping as R/W yesw should fail */
 	tmp1 = mmap(NULL, map_sz, PROT_READ | PROT_WRITE, MAP_SHARED,
 		    data_map_fd, 0);
 	if (CHECK(tmp1 != MAP_FAILED, "data_mmap", "mmap succeeded\n")) {
@@ -170,12 +170,12 @@ void test_mmap(void)
 	/* map all but last page: pages 1-3 mapped */
 	tmp1 = mmap(NULL, 3 * page_size, PROT_READ, MAP_SHARED,
 			  data_map_fd, 0);
-	if (CHECK(tmp1 == MAP_FAILED, "adv_mmap1", "errno %d\n", errno))
+	if (CHECK(tmp1 == MAP_FAILED, "adv_mmap1", "erryes %d\n", erryes))
 		goto cleanup;
 
 	/* unmap second page: pages 1, 3 mapped */
 	err = munmap(tmp1 + page_size, page_size);
-	if (CHECK(err, "adv_mmap2", "errno %d\n", errno)) {
+	if (CHECK(err, "adv_mmap2", "erryes %d\n", erryes)) {
 		munmap(tmp1, map_sz);
 		goto cleanup;
 	}
@@ -183,7 +183,7 @@ void test_mmap(void)
 	/* map page 2 back */
 	tmp2 = mmap(tmp1 + page_size, page_size, PROT_READ,
 		    MAP_SHARED | MAP_FIXED, data_map_fd, 0);
-	if (CHECK(tmp2 == MAP_FAILED, "adv_mmap3", "errno %d\n", errno)) {
+	if (CHECK(tmp2 == MAP_FAILED, "adv_mmap3", "erryes %d\n", erryes)) {
 		munmap(tmp1, page_size);
 		munmap(tmp1 + 2*page_size, page_size);
 		goto cleanup;
@@ -194,7 +194,7 @@ void test_mmap(void)
 	/* re-map all 4 pages */
 	tmp2 = mmap(tmp1, 4 * page_size, PROT_READ, MAP_SHARED | MAP_FIXED,
 		    data_map_fd, 0);
-	if (CHECK(tmp2 == MAP_FAILED, "adv_mmap5", "errno %d\n", errno)) {
+	if (CHECK(tmp2 == MAP_FAILED, "adv_mmap5", "erryes %d\n", erryes)) {
 		munmap(tmp1, 3 * page_size); /* unmap page 1 */
 		goto cleanup;
 	}

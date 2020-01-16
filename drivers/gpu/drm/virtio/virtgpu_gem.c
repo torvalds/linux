@@ -10,7 +10,7 @@
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice (including the
+ * The above copyright yestice and this permission yestice (including the
  * next paragraph) shall be included in all copies or substantial
  * portions of the Software.
  *
@@ -51,7 +51,7 @@ int virtio_gpu_gem_create(struct drm_file *file,
 
 	*obj_p = &obj->base.base;
 
-	/* drop reference from allocate - handle holds it now */
+	/* drop reference from allocate - handle holds it yesw */
 	drm_gem_object_put_unlocked(&obj->base.base);
 
 	*handle_p = handle;

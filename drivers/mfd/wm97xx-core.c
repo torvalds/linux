@@ -181,7 +181,7 @@ static const struct reg_default wm9713_reg_defaults[] = {
 	{ 0x02, 0x8080 },	/* Speaker Output Volume */
 	{ 0x04, 0x8080 },	/* Headphone Output Volume */
 	{ 0x06, 0x8080 },	/* Out3/OUT4 Volume */
-	{ 0x08, 0xc880 },	/* Mono Volume */
+	{ 0x08, 0xc880 },	/* Moyes Volume */
 	{ 0x0a, 0xe808 },	/* LINEIN Volume */
 	{ 0x0c, 0xe808 },	/* DAC PGA Volume */
 	{ 0x0e, 0x0808 },	/* MIC PGA Volume */

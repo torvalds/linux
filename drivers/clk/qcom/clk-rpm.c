@@ -228,7 +228,7 @@ static int clk_rpm_prepare(struct clk_hw *hw)
 
 	mutex_lock(&rpm_clk_lock);
 
-	/* Don't send requests to the RPM if the rate has not been set. */
+	/* Don't send requests to the RPM if the rate has yest been set. */
 	if (!r->rate)
 		goto out;
 
@@ -411,7 +411,7 @@ static long clk_rpm_round_rate(struct clk_hw *hw, unsigned long rate,
 {
 	/*
 	 * RPM handles rate rounding and we don't have a way to
-	 * know what the rate will be, so just return whatever
+	 * kyesw what the rate will be, so just return whatever
 	 * rate is requested.
 	 */
 	return rate;
@@ -424,7 +424,7 @@ static unsigned long clk_rpm_recalc_rate(struct clk_hw *hw,
 
 	/*
 	 * RPM handles rate rounding and we don't have a way to
-	 * know what the rate will be, so just return whatever
+	 * kyesw what the rate will be, so just return whatever
 	 * rate was set.
 	 */
 	return r->rate;
@@ -616,7 +616,7 @@ static int rpm_clk_probe(struct platform_device *pdev)
 			goto err;
 	}
 
-	ret = of_clk_add_hw_provider(pdev->dev.of_node, qcom_rpm_clk_hw_get,
+	ret = of_clk_add_hw_provider(pdev->dev.of_yesde, qcom_rpm_clk_hw_get,
 				     rcc);
 	if (ret)
 		goto err;
@@ -629,7 +629,7 @@ err:
 
 static int rpm_clk_remove(struct platform_device *pdev)
 {
-	of_clk_del_provider(pdev->dev.of_node);
+	of_clk_del_provider(pdev->dev.of_yesde);
 	return 0;
 }
 

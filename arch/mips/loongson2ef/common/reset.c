@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *
- * Copyright (C) 2007 Lemote, Inc. & Institute of Computing Technology
+ * Copyright (C) 2007 Lemote, Inc. & Institute of Computing Techyeslogy
  * Author: Fuxin Zhang, zhangfx@lemote.com
  * Copyright (C) 2009 Lemote, Inc.
  * Author: Zhangjin Wu, wuzhangjin@gmail.com
@@ -17,14 +17,14 @@
 static inline void loongson_reboot(void)
 {
 #ifndef CONFIG_CPU_JUMP_WORKAROUNDS
-	((void (*)(void))ioremap_nocache(LOONGSON_BOOT_BASE, 4)) ();
+	((void (*)(void))ioremap_yescache(LOONGSON_BOOT_BASE, 4)) ();
 #else
 	void (*func)(void);
 
-	func = (void *)ioremap_nocache(LOONGSON_BOOT_BASE, 4);
+	func = (void *)ioremap_yescache(LOONGSON_BOOT_BASE, 4);
 
 	__asm__ __volatile__(
-	"	.set	noat						\n"
+	"	.set	yesat						\n"
 	"	jr	%[func]						\n"
 	"	.set	at						\n"
 	: /* No outputs */
@@ -54,7 +54,7 @@ static void loongson_poweroff(void)
 
 static void loongson_halt(void)
 {
-	pr_notice("\n\n** You can safely turn off the power now **\n\n");
+	pr_yestice("\n\n** You can safely turn off the power yesw **\n\n");
 	while (1) {
 		if (cpu_wait)
 			cpu_wait();

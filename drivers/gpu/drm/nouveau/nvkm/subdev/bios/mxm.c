@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -32,14 +32,14 @@ mxm_table(struct nvkm_bios *bios, u8 *ver, u8 *hdr)
 	struct bit_entry x;
 
 	if (bit_entry(bios, 'x', &x)) {
-		nvkm_debug(subdev, "BIT 'x' table not present\n");
+		nvkm_debug(subdev, "BIT 'x' table yest present\n");
 		return 0x0000;
 	}
 
 	*ver = x.version;
 	*hdr = x.length;
 	if (*ver != 1 || *hdr < 3) {
-		nvkm_warn(subdev, "BIT 'x' table %d/%d unknown\n", *ver, *hdr);
+		nvkm_warn(subdev, "BIT 'x' table %d/%d unkyeswn\n", *ver, *hdr);
 		return 0x0000;
 	}
 
@@ -91,7 +91,7 @@ mxm_sor_map(struct nvkm_bios *bios, u8 conn)
 				return 0x00;
 			}
 
-			nvkm_warn(subdev, "unknown sor map v%02x\n", ver);
+			nvkm_warn(subdev, "unkyeswn sor map v%02x\n", ver);
 		}
 	}
 
@@ -128,7 +128,7 @@ mxm_ddc_map(struct nvkm_bios *bios, u8 port)
 				return 0x00;
 			}
 
-			nvkm_warn(subdev, "unknown ddc map v%02x\n", ver);
+			nvkm_warn(subdev, "unkyeswn ddc map v%02x\n", ver);
 		}
 	}
 

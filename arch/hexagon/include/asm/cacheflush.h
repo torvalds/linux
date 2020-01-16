@@ -50,20 +50,20 @@ extern void flush_dcache_range(unsigned long start, unsigned long end);
 extern void flush_icache_range(unsigned long start, unsigned long end);
 
 /*
- * Memory-management related flushes are there to ensure in non-physically
+ * Memory-management related flushes are there to ensure in yesn-physically
  * indexed cache schemes that stale lines belonging to a given ASID aren't
  * in the cache to confuse things.  The prototype Hexagon Virtual Machine
  * only uses a single ASID for all user-mode maps, which should
  * mean that they aren't necessary.  A brute-force, flush-everything
  * implementation, with the name xxxxx_hexagon() is present in
- * arch/hexagon/mm/cache.c, but let's not wire it up until we know
+ * arch/hexagon/mm/cache.c, but let's yest wire it up until we kyesw
  * it is needed.
  */
 extern void flush_cache_all_hexagon(void);
 
 /*
- * This may or may not ever have to be non-null, depending on the
- * virtual machine MMU.  For a native kernel, it's definitiely  a no-op
+ * This may or may yest ever have to be yesn-null, depending on the
+ * virtual machine MMU.  For a native kernel, it's definitiely  a yes-op
  *
  * This is also the place where deferred cache coherency stuff seems
  * to happen, classically...  but instead we do it like ia64 and

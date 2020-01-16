@@ -13,26 +13,26 @@
 #include <linux/uidgid.h>
 
 struct binder_context {
-	struct binder_node *binder_context_mgr_node;
-	struct mutex context_mgr_node_lock;
+	struct binder_yesde *binder_context_mgr_yesde;
+	struct mutex context_mgr_yesde_lock;
 	kuid_t binder_context_mgr_uid;
 	const char *name;
 };
 
 /**
- * struct binder_device - information about a binder device node
+ * struct binder_device - information about a binder device yesde
  * @hlist:          list of binder devices (only used for devices requested via
  *                  CONFIG_ANDROID_BINDER_DEVICES)
- * @miscdev:        information about a binder character device node
+ * @miscdev:        information about a binder character device yesde
  * @context:        binder context information
- * @binderfs_inode: This is the inode of the root dentry of the super block
+ * @binderfs_iyesde: This is the iyesde of the root dentry of the super block
  *                  belonging to a binderfs mount.
  */
 struct binder_device {
-	struct hlist_node hlist;
+	struct hlist_yesde hlist;
 	struct miscdevice miscdev;
 	struct binder_context context;
-	struct inode *binderfs_inode;
+	struct iyesde *binderfs_iyesde;
 };
 
 /**
@@ -74,13 +74,13 @@ extern const struct file_operations binder_fops;
 extern char *binder_devices_param;
 
 #ifdef CONFIG_ANDROID_BINDERFS
-extern bool is_binderfs_device(const struct inode *inode);
+extern bool is_binderfs_device(const struct iyesde *iyesde);
 extern struct dentry *binderfs_create_file(struct dentry *dir, const char *name,
 					   const struct file_operations *fops,
 					   void *data);
 extern void binderfs_remove_file(struct dentry *dentry);
 #else
-static inline bool is_binderfs_device(const struct inode *inode)
+static inline bool is_binderfs_device(const struct iyesde *iyesde)
 {
 	return false;
 }
@@ -124,7 +124,7 @@ struct binder_transaction_log_entry {
 	int target_handle;
 	int to_proc;
 	int to_thread;
-	int to_node;
+	int to_yesde;
 	int data_size;
 	int offsets_size;
 	int return_error_line;

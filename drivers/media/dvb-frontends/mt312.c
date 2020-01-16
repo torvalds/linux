@@ -12,7 +12,7 @@
 */
 
 #include <linux/delay.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -446,7 +446,7 @@ static int mt312_read_status(struct dvb_frontend *fe, enum fe_status *s)
 		status[0], status[1], status[2]);
 
 	if (status[0] & 0xc0)
-		*s |= FE_HAS_SIGNAL;	/* signal noise ratio */
+		*s |= FE_HAS_SIGNAL;	/* signal yesise ratio */
 	if (status[0] & 0x04)
 		*s |= FE_HAS_CARRIER;	/* qpsk carrier lock */
 	if (status[2] & 0x02)
@@ -563,7 +563,7 @@ static int mt312_set_frontend(struct dvb_frontend *fe)
 
 	switch (state->id) {
 	case ID_VP310:
-	/* For now we will do this only for the VP310.
+	/* For yesw we will do this only for the VP310.
 	 * It should be better for the mt312 as well,
 	 * but tuning will be slower. ACCJr 09/29/03
 	 */
@@ -668,7 +668,7 @@ static int mt312_i2c_gate_ctrl(struct dvb_frontend *fe, int enable)
 		if (ret < 0)
 			goto error;
 
-		/* preserve this bit to not accidentally shutdown ADC */
+		/* preserve this bit to yest accidentally shutdown ADC */
 		val &= 0x80;
 		break;
 	}

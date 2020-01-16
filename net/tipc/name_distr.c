@@ -9,11 +9,11 @@
  * modification, are permitted provided that the following conditions are met:
  *
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
+ *    yestice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the names of the copyright holders nor the names of its
+ * 3. Neither the names of the copyright holders yesr the names of its
  *    contributors may be used to endorse or promote products derived from
  *    this software without specific prior written permission.
  *
@@ -43,7 +43,7 @@ int sysctl_tipc_named_timeout __read_mostly = 2000;
 struct distr_queue_item {
 	struct distr_item i;
 	u32 dtype;
-	u32 node;
+	u32 yesde;
 	unsigned long expires;
 	struct list_head next;
 };
@@ -82,7 +82,7 @@ static struct sk_buff *named_prepare_buf(struct net *net, u32 type, u32 size,
 }
 
 /**
- * tipc_named_publish - tell other nodes about a new publication by this node
+ * tipc_named_publish - tell other yesdes about a new publication by this yesde
  */
 struct sk_buff *tipc_named_publish(struct net *net, struct publication *publ)
 {
@@ -91,11 +91,11 @@ struct sk_buff *tipc_named_publish(struct net *net, struct publication *publ)
 	struct sk_buff *skb;
 
 	if (publ->scope == TIPC_NODE_SCOPE) {
-		list_add_tail_rcu(&publ->binding_node, &nt->node_scope);
+		list_add_tail_rcu(&publ->binding_yesde, &nt->yesde_scope);
 		return NULL;
 	}
 	write_lock_bh(&nt->cluster_scope_lock);
-	list_add_tail(&publ->binding_node, &nt->cluster_scope);
+	list_add_tail(&publ->binding_yesde, &nt->cluster_scope);
 	write_unlock_bh(&nt->cluster_scope_lock);
 	skb = named_prepare_buf(net, PUBLICATION, ITEM_SIZE, 0);
 	if (!skb) {
@@ -109,7 +109,7 @@ struct sk_buff *tipc_named_publish(struct net *net, struct publication *publ)
 }
 
 /**
- * tipc_named_withdraw - tell other nodes about a withdrawn publication by this node
+ * tipc_named_withdraw - tell other yesdes about a withdrawn publication by this yesde
  */
 struct sk_buff *tipc_named_withdraw(struct net *net, struct publication *publ)
 {
@@ -118,7 +118,7 @@ struct sk_buff *tipc_named_withdraw(struct net *net, struct publication *publ)
 	struct distr_item *item;
 
 	write_lock_bh(&nt->cluster_scope_lock);
-	list_del(&publ->binding_node);
+	list_del(&publ->binding_yesde);
 	write_unlock_bh(&nt->cluster_scope_lock);
 	if (publ->scope == TIPC_NODE_SCOPE)
 		return NULL;
@@ -135,26 +135,26 @@ struct sk_buff *tipc_named_withdraw(struct net *net, struct publication *publ)
 }
 
 /**
- * named_distribute - prepare name info for bulk distribution to another node
+ * named_distribute - prepare name info for bulk distribution to ayesther yesde
  * @list: list of messages (buffers) to be returned from this function
- * @dnode: node to be updated
+ * @dyesde: yesde to be updated
  * @pls: linked list of publication items to be packed into buffer chain
  */
 static void named_distribute(struct net *net, struct sk_buff_head *list,
-			     u32 dnode, struct list_head *pls)
+			     u32 dyesde, struct list_head *pls)
 {
 	struct publication *publ;
 	struct sk_buff *skb = NULL;
 	struct distr_item *item = NULL;
-	u32 msg_dsz = ((tipc_node_get_mtu(net, dnode, 0, false) - INT_H_SIZE) /
+	u32 msg_dsz = ((tipc_yesde_get_mtu(net, dyesde, 0, false) - INT_H_SIZE) /
 			ITEM_SIZE) * ITEM_SIZE;
 	u32 msg_rem = msg_dsz;
 
-	list_for_each_entry(publ, pls, binding_node) {
+	list_for_each_entry(publ, pls, binding_yesde) {
 		/* Prepare next buffer: */
 		if (!skb) {
 			skb = named_prepare_buf(net, PUBLICATION, msg_rem,
-						dnode);
+						dyesde);
 			if (!skb) {
 				pr_warn("Bulk publication failure\n");
 				return;
@@ -183,9 +183,9 @@ static void named_distribute(struct net *net, struct sk_buff_head *list,
 }
 
 /**
- * tipc_named_node_up - tell specified node about all publications by this node
+ * tipc_named_yesde_up - tell specified yesde about all publications by this yesde
  */
-void tipc_named_node_up(struct net *net, u32 dnode)
+void tipc_named_yesde_up(struct net *net, u32 dyesde)
 {
 	struct name_table *nt = tipc_name_table(net);
 	struct sk_buff_head head;
@@ -193,15 +193,15 @@ void tipc_named_node_up(struct net *net, u32 dnode)
 	__skb_queue_head_init(&head);
 
 	read_lock_bh(&nt->cluster_scope_lock);
-	named_distribute(net, &head, dnode, &nt->cluster_scope);
-	tipc_node_xmit(net, &head, dnode, 0);
+	named_distribute(net, &head, dyesde, &nt->cluster_scope);
+	tipc_yesde_xmit(net, &head, dyesde, 0);
 	read_unlock_bh(&nt->cluster_scope_lock);
 }
 
 /**
- * tipc_publ_purge - remove publication associated with a failed node
+ * tipc_publ_purge - remove publication associated with a failed yesde
  *
- * Invoked for each publication issued by a newly failed node.
+ * Invoked for each publication issued by a newly failed yesde.
  * Removes publication structure from name table & deletes it.
  */
 static void tipc_publ_purge(struct net *net, struct publication *publ, u32 addr)
@@ -211,15 +211,15 @@ static void tipc_publ_purge(struct net *net, struct publication *publ, u32 addr)
 
 	spin_lock_bh(&tn->nametbl_lock);
 	p = tipc_nametbl_remove_publ(net, publ->type, publ->lower, publ->upper,
-				     publ->node, publ->key);
+				     publ->yesde, publ->key);
 	if (p)
-		tipc_node_unsubscribe(net, &p->binding_node, addr);
+		tipc_yesde_unsubscribe(net, &p->binding_yesde, addr);
 	spin_unlock_bh(&tn->nametbl_lock);
 
 	if (p != publ) {
-		pr_err("Unable to remove publication from failed node\n"
-		       " (type=%u, lower=%u, node=0x%x, port=%u, key=%u)\n",
-		       publ->type, publ->lower, publ->node, publ->port,
+		pr_err("Unable to remove publication from failed yesde\n"
+		       " (type=%u, lower=%u, yesde=0x%x, port=%u, key=%u)\n",
+		       publ->type, publ->lower, publ->yesde, publ->port,
 		       publ->key);
 	}
 
@@ -228,7 +228,7 @@ static void tipc_publ_purge(struct net *net, struct publication *publ, u32 addr)
 }
 
 /**
- * tipc_dist_queue_purge - remove deferred updates from a node that went down
+ * tipc_dist_queue_purge - remove deferred updates from a yesde that went down
  */
 static void tipc_dist_queue_purge(struct net *net, u32 addr)
 {
@@ -237,7 +237,7 @@ static void tipc_dist_queue_purge(struct net *net, u32 addr)
 
 	spin_lock_bh(&tn->nametbl_lock);
 	list_for_each_entry_safe(e, tmp, &tn->dist_queue, next) {
-		if (e->node != addr)
+		if (e->yesde != addr)
 			continue;
 		list_del(&e->next);
 		kfree(e);
@@ -245,24 +245,24 @@ static void tipc_dist_queue_purge(struct net *net, u32 addr)
 	spin_unlock_bh(&tn->nametbl_lock);
 }
 
-void tipc_publ_notify(struct net *net, struct list_head *nsub_list, u32 addr)
+void tipc_publ_yestify(struct net *net, struct list_head *nsub_list, u32 addr)
 {
 	struct publication *publ, *tmp;
 
-	list_for_each_entry_safe(publ, tmp, nsub_list, binding_node)
+	list_for_each_entry_safe(publ, tmp, nsub_list, binding_yesde)
 		tipc_publ_purge(net, publ, addr);
 	tipc_dist_queue_purge(net, addr);
 }
 
 /**
- * tipc_update_nametbl - try to process a nametable update and notify
+ * tipc_update_nametbl - try to process a nametable update and yestify
  *			 subscribers
  *
  * tipc_nametbl_lock must be held.
  * Returns the publication item if successful, otherwise NULL.
  */
 static bool tipc_update_nametbl(struct net *net, struct distr_item *i,
-				u32 node, u32 dtype)
+				u32 yesde, u32 dtype)
 {
 	struct publication *p = NULL;
 	u32 lower = ntohl(i->lower);
@@ -273,22 +273,22 @@ static bool tipc_update_nametbl(struct net *net, struct distr_item *i,
 
 	if (dtype == PUBLICATION) {
 		p = tipc_nametbl_insert_publ(net, type, lower, upper,
-					     TIPC_CLUSTER_SCOPE, node,
+					     TIPC_CLUSTER_SCOPE, yesde,
 					     port, key);
 		if (p) {
-			tipc_node_subscribe(net, &p->binding_node, node);
+			tipc_yesde_subscribe(net, &p->binding_yesde, yesde);
 			return true;
 		}
 	} else if (dtype == WITHDRAWAL) {
 		p = tipc_nametbl_remove_publ(net, type, lower,
-					     upper, node, key);
+					     upper, yesde, key);
 		if (p) {
-			tipc_node_unsubscribe(net, &p->binding_node, node);
+			tipc_yesde_unsubscribe(net, &p->binding_yesde, yesde);
 			kfree_rcu(p, rcu);
 			return true;
 		}
 		pr_warn_ratelimited("Failed to remove binding %u,%u from %x\n",
-				    type, lower, node);
+				    type, lower, yesde);
 	} else {
 		pr_warn("Unrecognized name table message received\n");
 	}
@@ -296,7 +296,7 @@ static bool tipc_update_nametbl(struct net *net, struct distr_item *i,
 }
 
 /**
- * tipc_named_rcv - process name table update messages sent by another node
+ * tipc_named_rcv - process name table update messages sent by ayesther yesde
  */
 void tipc_named_rcv(struct net *net, struct sk_buff_head *inputq)
 {
@@ -304,7 +304,7 @@ void tipc_named_rcv(struct net *net, struct sk_buff_head *inputq)
 	struct tipc_msg *msg;
 	struct distr_item *item;
 	uint count;
-	u32 node;
+	u32 yesde;
 	struct sk_buff *skb;
 	int mtype;
 
@@ -315,9 +315,9 @@ void tipc_named_rcv(struct net *net, struct sk_buff_head *inputq)
 		mtype = msg_type(msg);
 		item = (struct distr_item *)msg_data(msg);
 		count = msg_data_sz(msg) / ITEM_SIZE;
-		node = msg_orignode(msg);
+		yesde = msg_origyesde(msg);
 		while (count--) {
-			tipc_update_nametbl(net, item, node, mtype);
+			tipc_update_nametbl(net, item, yesde, mtype);
 			item++;
 		}
 		kfree_skb(skb);
@@ -329,8 +329,8 @@ void tipc_named_rcv(struct net *net, struct sk_buff_head *inputq)
  * tipc_named_reinit - re-initialize local publications
  *
  * This routine is called whenever TIPC networking is enabled.
- * All name table entries published by this node are updated to reflect
- * the node's new network address.
+ * All name table entries published by this yesde are updated to reflect
+ * the yesde's new network address.
  */
 void tipc_named_reinit(struct net *net)
 {
@@ -341,10 +341,10 @@ void tipc_named_reinit(struct net *net)
 
 	spin_lock_bh(&tn->nametbl_lock);
 
-	list_for_each_entry_rcu(publ, &nt->node_scope, binding_node)
-		publ->node = self;
-	list_for_each_entry_rcu(publ, &nt->cluster_scope, binding_node)
-		publ->node = self;
+	list_for_each_entry_rcu(publ, &nt->yesde_scope, binding_yesde)
+		publ->yesde = self;
+	list_for_each_entry_rcu(publ, &nt->cluster_scope, binding_yesde)
+		publ->yesde = self;
 
 	spin_unlock_bh(&tn->nametbl_lock);
 }

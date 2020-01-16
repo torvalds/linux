@@ -84,9 +84,9 @@ struct netns_ipv4 {
 	struct xt_table		*nat_table;
 #endif
 
-	int sysctl_icmp_echo_ignore_all;
-	int sysctl_icmp_echo_ignore_broadcasts;
-	int sysctl_icmp_ignore_bogus_error_responses;
+	int sysctl_icmp_echo_igyesre_all;
+	int sysctl_icmp_echo_igyesre_broadcasts;
+	int sysctl_icmp_igyesre_bogus_error_responses;
 	int sysctl_icmp_ratelimit;
 	int sysctl_icmp_ratemask;
 	int sysctl_icmp_errors_use_inbound_ifaddr;
@@ -97,10 +97,10 @@ struct netns_ipv4 {
 	int sysctl_tcp_ecn_fallback;
 
 	int sysctl_ip_default_ttl;
-	int sysctl_ip_no_pmtu_disc;
+	int sysctl_ip_yes_pmtu_disc;
 	int sysctl_ip_fwd_use_pmtu;
 	int sysctl_ip_fwd_update_priority;
-	int sysctl_ip_nonlocal_bind;
+	int sysctl_ip_yesnlocal_bind;
 	/* Shall we try to damage output packets if routing dev changes? */
 	int sysctl_ip_dynaddr;
 	int sysctl_ip_early_demux;
@@ -134,7 +134,7 @@ struct netns_ipv4 {
 	int sysctl_tcp_retries2;
 	int sysctl_tcp_orphan_retries;
 	int sysctl_tcp_fin_timeout;
-	unsigned int sysctl_tcp_notsent_lowat;
+	unsigned int sysctl_tcp_yestsent_lowat;
 	int sysctl_tcp_tw_reuse;
 	int sysctl_tcp_sack;
 	int sysctl_tcp_window_scaling;
@@ -153,7 +153,7 @@ struct netns_ipv4 {
 	int sysctl_tcp_app_win;
 	int sysctl_tcp_adv_win_scale;
 	int sysctl_tcp_frto;
-	int sysctl_tcp_nometrics_save;
+	int sysctl_tcp_yesmetrics_save;
 	int sysctl_tcp_moderate_rcvbuf;
 	int sysctl_tcp_tso_win_divisor;
 	int sysctl_tcp_workaround_signed_windows;
@@ -213,10 +213,10 @@ struct netns_ipv4 {
 	int sysctl_fib_multipath_hash_policy;
 #endif
 
-	struct fib_notifier_ops	*notifier_ops;
+	struct fib_yestifier_ops	*yestifier_ops;
 	unsigned int	fib_seq;	/* protected by rtnl_mutex */
 
-	struct fib_notifier_ops	*ipmr_notifier_ops;
+	struct fib_yestifier_ops	*ipmr_yestifier_ops;
 	unsigned int	ipmr_seq;	/* protected by rtnl_mutex */
 
 	atomic_t	rt_genid;

@@ -2,7 +2,7 @@
 /*
  * ImgTec IR Decoder setup for Philips RC-5 protocol.
  *
- * Copyright 2012-2014 Imagination Technologies Ltd.
+ * Copyright 2012-2014 Imagination Techyeslogies Ltd.
  */
 
 #include "img-ir-hw.h"
@@ -22,7 +22,7 @@ static int img_ir_rc5_scancode(int len, u64 raw, u64 enabled_protocols,
 	cmd	=   raw		& 0x3f;
 	/*
 	 * 12th bit is used to extend the command in extended RC5 and has
-	 * no effect on standard RC5.
+	 * yes effect on standard RC5.
 	 */
 	cmd	+= ((raw >> 12) & 0x01) ? 0 : 0x40;
 
@@ -45,7 +45,7 @@ static int img_ir_rc5_filter(const struct rc_scancode_filter *in,
 
 /*
  * RC-5 decoder
- * see http://www.sbprojects.com/knowledge/ir/rc5.php
+ * see http://www.sbprojects.com/kyeswledge/ir/rc5.php
  */
 struct img_ir_decoder img_ir_rc5 = {
 	.type      = RC_PROTO_BIT_RC5,

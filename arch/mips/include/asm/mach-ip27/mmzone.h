@@ -15,14 +15,14 @@ struct hub_data {
 	unsigned long slice_map;
 };
 
-struct node_data {
+struct yesde_data {
 	struct pglist_data pglist;
 	struct hub_data hub;
 };
 
-extern struct node_data *__node_data[];
+extern struct yesde_data *__yesde_data[];
 
-#define NODE_DATA(n)		(&__node_data[(n)]->pglist)
-#define hub_data(n)		(&__node_data[(n)]->hub)
+#define NODE_DATA(n)		(&__yesde_data[(n)]->pglist)
+#define hub_data(n)		(&__yesde_data[(n)]->hub)
 
 #endif /* _ASM_MACH_MMZONE_H */

@@ -2,7 +2,7 @@
 //
 // Copyright (c) 2009 Yauhen Kharuzhy <jekhor@gmail.com>,
 //	as part of OpenInkpot project
-// Copyright (c) 2009 Promwad Innovation Company
+// Copyright (c) 2009 Promwad Inyesvation Company
 //	Yauhen Kharuzhy <yauhen.kharuzhy@promwad.com>
 //
 // Samsung S3C2416 Mobile CPU support
@@ -92,9 +92,9 @@ int __init s3c2416_init(void)
 	return device_register(&s3c2416_dev);
 }
 
-void __init s3c2416_init_uarts(struct s3c2410_uartcfg *cfg, int no)
+void __init s3c2416_init_uarts(struct s3c2410_uartcfg *cfg, int yes)
 {
-	s3c24xx_init_uartdevs("s3c2440-uart", s3c2410_uart_resources, cfg, no);
+	s3c24xx_init_uartdevs("s3c2440-uart", s3c2410_uart_resources, cfg, yes);
 
 	s3c_nand_setname("s3c2412-nand");
 }
@@ -120,7 +120,7 @@ void __init s3c2416_map_io(void)
 
 /* need to register the subsystem before we actually register the device, and
  * we also need to ensure that it has been initialised before any of the
- * drivers even try to use it (even if not on an s3c2416 based system)
+ * drivers even try to use it (even if yest on an s3c2416 based system)
  * as a driver which may support both 2443 and 2440 may try and use it.
 */
 

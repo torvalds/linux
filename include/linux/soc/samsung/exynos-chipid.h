@@ -3,7 +3,7 @@
  * Copyright (c) 2018 Samsung Electronics Co., Ltd.
  *	      http://www.samsung.com/
  *
- * Exynos - CHIPID support
+ * Exyyess - CHIPID support
  */
 #ifndef __LINUX_SOC_EXYNOS_CHIPID_H
 #define __LINUX_SOC_EXYNOS_CHIPID_H

@@ -33,15 +33,15 @@ static inline void _tlbil_pid(unsigned int pid)
 	asm volatile ("sync; tlbia; isync" : : : "memory");
 	trace_tlbia(pid);
 }
-#define _tlbil_pid_noind(pid)	_tlbil_pid(pid)
+#define _tlbil_pid_yesind(pid)	_tlbil_pid(pid)
 
 #else /* CONFIG_40x || CONFIG_PPC_8xx */
 extern void _tlbil_all(void);
 extern void _tlbil_pid(unsigned int pid);
 #ifdef CONFIG_PPC_BOOK3E
-extern void _tlbil_pid_noind(unsigned int pid);
+extern void _tlbil_pid_yesind(unsigned int pid);
 #else
-#define _tlbil_pid_noind(pid)	_tlbil_pid(pid)
+#define _tlbil_pid_yesind(pid)	_tlbil_pid(pid)
 #endif
 #endif /* !(CONFIG_40x || CONFIG_PPC_8xx) */
 
@@ -121,7 +121,7 @@ extern unsigned long wii_mmu_mapin_mem2(unsigned long top);
 extern void wii_memory_fixups(void);
 #endif
 
-/* ...and now those things that may be slightly different between processor
+/* ...and yesw those things that may be slightly different between processor
  * architectures.  -- Dan
  */
 #ifdef CONFIG_PPC32

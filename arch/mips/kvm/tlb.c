@@ -6,7 +6,7 @@
  * KVM/MIPS TLB handling, this file is part of the Linux host kernel so that
  * TLB handlers run from KSEG0
  *
- * Copyright (C) 2012  MIPS Technologies, Inc.  All rights reserved.
+ * Copyright (C) 2012  MIPS Techyeslogies, Inc.  All rights reserved.
  * Authors: Sanjay Lal <sanjayl@kymasys.com>
  */
 
@@ -214,7 +214,7 @@ EXPORT_SYMBOL_GPL(kvm_mips_host_tlb_inv);
 /* GuestID management */
 
 /**
- * clear_root_gid() - Set GuestCtl1.RID for normal root operation.
+ * clear_root_gid() - Set GuestCtl1.RID for yesrmal root operation.
  */
 static inline void clear_root_gid(void)
 {
@@ -298,7 +298,7 @@ EXPORT_SYMBOL_GPL(kvm_vz_host_tlb_inv);
  *
  * Returns:	0 if guest TLB mapping exists for @gva. *@gpa will have been
  *		written.
- *		-EFAULT if no guest TLB mapping exists for @gva. *@gpa may not
+ *		-EFAULT if yes guest TLB mapping exists for @gva. *@gpa may yest
  *		have been written.
  */
 int kvm_vz_guest_tlb_lookup(struct kvm_vcpu *vcpu, unsigned long gva,
@@ -415,7 +415,7 @@ void kvm_vz_local_flush_roottlb_all_guests(void)
 		tlb_read();
 		tlb_read_hazard();
 
-		/* Don't invalidate non-guest (RVA) mappings in the root TLB */
+		/* Don't invalidate yesn-guest (RVA) mappings in the root TLB */
 		if (!(read_c0_guestctl1() & MIPS_GCTL1_RID))
 			continue;
 
@@ -539,7 +539,7 @@ void kvm_vz_save_guesttlb(struct kvm_mips_tlb *buf, unsigned int index,
 
 		if (cpu_has_guestid &&
 		    (read_c0_guestctl1() ^ guestctl1) & MIPS_GCTL1_RID) {
-			/* Entry invalid or belongs to another guest */
+			/* Entry invalid or belongs to ayesther guest */
 			buf->tlb_hi = UNIQUE_GUEST_ENTRYHI(i);
 			buf->tlb_lo[0] = 0;
 			buf->tlb_lo[1] = 0;
@@ -630,7 +630,7 @@ EXPORT_SYMBOL_GPL(kvm_vz_load_guesttlb);
  *
  * Suspend the active_mm, ready for a switch to a KVM guest virtual address
  * space. This is left active for the duration of guest context, including time
- * with interrupts enabled, so we need to be careful not to confuse e.g. cache
+ * with interrupts enabled, so we need to be careful yest to confuse e.g. cache
  * management IPIs.
  *
  * kvm_mips_resume_mm() should be called before context switching to a different

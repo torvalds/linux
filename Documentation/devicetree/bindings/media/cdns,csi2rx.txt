@@ -19,11 +19,11 @@ Optional properties:
   - phy-names: must contain "dphy", if the implementation uses an
                external D-PHY
 
-Required subnodes:
-  - ports: A ports node with one port child node per device input and output
+Required subyesdes:
+  - ports: A ports yesde with one port child yesde per device input and output
            port, in accordance with the video interface bindings defined in
            Documentation/devicetree/bindings/media/video-interfaces.txt. The
-           port nodes are numbered as follows:
+           port yesdes are numbered as follows:
 
            Port Description
            -----------------------------
@@ -33,10 +33,10 @@ Required subnodes:
            3    Stream 2 output
            4    Stream 3 output
 
-           The stream output port nodes are optional if they are not
+           The stream output port yesdes are optional if they are yest
            connected to anything at the hardware level or implemented
            in the design.Since there is only one endpoint per port,
-           the endpoints are not numbered.
+           the endpoints are yest numbered.
 
 
 Example:

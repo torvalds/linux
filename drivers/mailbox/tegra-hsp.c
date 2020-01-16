@@ -186,9 +186,9 @@ static irqreturn_t tegra_hsp_doorbell_irq(int irq, void *data)
 		 * interrupt will immediately fire.
 		 *
 		 * In that case, db->channel.chan will still be NULL here and
-		 * cause a crash if not properly guarded.
+		 * cause a crash if yest properly guarded.
 		 *
-		 * It remains to be seen if ignoring the doorbell in that case
+		 * It remains to be seen if igyesring the doorbell in that case
 		 * is the correct solution.
 		 */
 		if (db && db->channel.chan)
@@ -795,7 +795,7 @@ static int __maybe_unused tegra_hsp_resume(struct device *dev)
 }
 
 static const struct dev_pm_ops tegra_hsp_pm_ops = {
-	.resume_noirq = tegra_hsp_resume,
+	.resume_yesirq = tegra_hsp_resume,
 };
 
 static const struct tegra_hsp_db_map tegra186_hsp_db_map[] = {

@@ -331,7 +331,7 @@ static struct rtl8366_mib_counter rtl8366rb_mib_counters[] = {
 	{ 0, 36, 2, "Dot3StatsFCSErrors"			},
 	{ 0, 38, 2, "Dot3StatsSymbolErrors"			},
 	{ 0, 40, 2, "Dot3InPauseFrames"				},
-	{ 0, 42, 2, "Dot3ControlInUnknownOpcodes"		},
+	{ 0, 42, 2, "Dot3ControlInUnkyeswnOpcodes"		},
 	{ 0, 44, 4, "IfOutOctets"				},
 	{ 0, 48, 2, "Dot3StatsSingleCollisionFrames"		},
 	{ 0, 50, 2, "Dot3StatMultipleCollisionFrames"		},
@@ -412,7 +412,7 @@ static void rtl8366rb_mask_irq(struct irq_data *d)
 	ret = regmap_update_bits(smi->map, RTL8366RB_INTERRUPT_MASK_REG,
 				 rtl8366rb_get_irqmask(d), 0);
 	if (ret)
-		dev_err(smi->dev, "could not mask IRQ\n");
+		dev_err(smi->dev, "could yest mask IRQ\n");
 }
 
 static void rtl8366rb_unmask_irq(struct irq_data *d)
@@ -424,7 +424,7 @@ static void rtl8366rb_unmask_irq(struct irq_data *d)
 				 rtl8366rb_get_irqmask(d),
 				 rtl8366rb_get_irqmask(d));
 	if (ret)
-		dev_err(smi->dev, "could not unmask IRQ\n");
+		dev_err(smi->dev, "could yest unmask IRQ\n");
 }
 
 static irqreturn_t rtl8366rb_irq(int irq, void *data)
@@ -471,7 +471,7 @@ static int rtl8366rb_irq_map(struct irq_domain *domain, unsigned int irq,
 	irq_set_chip_data(irq, domain->host_data);
 	irq_set_chip_and_handler(irq, &rtl8366rb_irq_chip, handle_simple_irq);
 	irq_set_nested_thread(irq, 1);
-	irq_set_noprobe(irq);
+	irq_set_yesprobe(irq);
 
 	return 0;
 }
@@ -491,16 +491,16 @@ static const struct irq_domain_ops rtl8366rb_irqdomain_ops = {
 
 static int rtl8366rb_setup_cascaded_irq(struct realtek_smi *smi)
 {
-	struct device_node *intc;
+	struct device_yesde *intc;
 	unsigned long irq_trig;
 	int irq;
 	int ret;
 	u32 val;
 	int i;
 
-	intc = of_get_child_by_name(smi->dev->of_node, "interrupt-controller");
+	intc = of_get_child_by_name(smi->dev->of_yesde, "interrupt-controller");
 	if (!intc) {
-		dev_err(smi->dev, "missing child interrupt-controller node\n");
+		dev_err(smi->dev, "missing child interrupt-controller yesde\n");
 		return -EINVAL;
 	}
 	/* RB8366RB IRQs cascade off this one */
@@ -508,7 +508,7 @@ static int rtl8366rb_setup_cascaded_irq(struct realtek_smi *smi)
 	if (irq <= 0) {
 		dev_err(smi->dev, "failed to get parent IRQ\n");
 		ret = irq ? irq : -EINVAL;
-		goto out_put_node;
+		goto out_put_yesde;
 	}
 
 	/* This clears the IRQ status register */
@@ -516,7 +516,7 @@ static int rtl8366rb_setup_cascaded_irq(struct realtek_smi *smi)
 			  &val);
 	if (ret) {
 		dev_err(smi->dev, "can't read interrupt status\n");
-		goto out_put_node;
+		goto out_put_yesde;
 	}
 
 	/* Fetch IRQ edge information from the descriptor */
@@ -537,8 +537,8 @@ static int rtl8366rb_setup_cascaded_irq(struct realtek_smi *smi)
 				 RTL8366RB_INTERRUPT_POLARITY,
 				 val);
 	if (ret) {
-		dev_err(smi->dev, "could not configure IRQ polarity\n");
-		goto out_put_node;
+		dev_err(smi->dev, "could yest configure IRQ polarity\n");
+		goto out_put_yesde;
 	}
 
 	ret = devm_request_threaded_irq(smi->dev, irq, NULL,
@@ -546,7 +546,7 @@ static int rtl8366rb_setup_cascaded_irq(struct realtek_smi *smi)
 					"RTL8366RB", smi);
 	if (ret) {
 		dev_err(smi->dev, "unable to request irq: %d\n", ret);
-		goto out_put_node;
+		goto out_put_yesde;
 	}
 	smi->irqdomain = irq_domain_add_linear(intc,
 					       RTL8366RB_NUM_INTERRUPT,
@@ -555,13 +555,13 @@ static int rtl8366rb_setup_cascaded_irq(struct realtek_smi *smi)
 	if (!smi->irqdomain) {
 		dev_err(smi->dev, "failed to create IRQ domain\n");
 		ret = -EINVAL;
-		goto out_put_node;
+		goto out_put_yesde;
 	}
 	for (i = 0; i < smi->num_ports; i++)
 		irq_set_parent(irq_create_mapping(smi->irqdomain, i), irq);
 
-out_put_node:
-	of_node_put(intc);
+out_put_yesde:
+	of_yesde_put(intc);
 	return ret;
 }
 
@@ -698,7 +698,7 @@ static const u16 rtl8366rb_init_jam_dgn3500[] = {
 };
 
 /* This jam table activates "green ethernet", which means low power mode
- * and is claimed to detect the cable length and not use more power than
+ * and is claimed to detect the cable length and yest use more power than
  * necessary, and the ports should enter power saving mode 10 seconds after
  * a cable is disconnected. Seems to always be the same.
  */
@@ -729,7 +729,7 @@ static int rtl8366rb_setup(struct dsa_switch *ds)
 	case RTL8366RB_CHIP_ID_8366:
 		break;
 	default:
-		dev_err(smi->dev, "unknown chip id (%04x)\n", chip_id);
+		dev_err(smi->dev, "unkyeswn chip id (%04x)\n", chip_id);
 		return -ENODEV;
 	}
 
@@ -882,8 +882,8 @@ static int rtl8366rb_setup(struct dsa_switch *ds)
 		return ret;
 
 	/* Port 4 setup: this enables Port 4, usually the WAN port,
-	 * common PHY IO mode is apparently mode 0, and this is not what
-	 * the port is initialized to. There is no explanation of the
+	 * common PHY IO mode is apparently mode 0, and this is yest what
+	 * the port is initialized to. There is yes explanation of the
 	 * IO modes in the Realtek source code, if your WAN port is
 	 * connected to something exotic such as fiber, then this might
 	 * be worth experimenting with.
@@ -894,7 +894,7 @@ static int rtl8366rb_setup(struct dsa_switch *ds)
 	if (ret)
 		return ret;
 
-	/* Discard VLAN tagged packets if the port is not a member of
+	/* Discard VLAN tagged packets if the port is yest a member of
 	 * the VLAN with which the packets is associated.
 	 */
 	ret = regmap_write(smi->map, RTL8366RB_VLAN_INGRESS_CTRL2_REG,
@@ -902,7 +902,7 @@ static int rtl8366rb_setup(struct dsa_switch *ds)
 	if (ret)
 		return ret;
 
-	/* Don't drop packets whose DA has not been learned */
+	/* Don't drop packets whose DA has yest been learned */
 	ret = regmap_update_bits(smi->map, RTL8366RB_SSCR2,
 				 RTL8366RB_SSCR2_DROP_UNKNOWN_DA, 0);
 	if (ret)
@@ -917,7 +917,7 @@ static int rtl8366rb_setup(struct dsa_switch *ds)
 
 	/* Set up LED activity:
 	 * Each port has 4 LEDs, we configure all ports to the same
-	 * behaviour (no individual config) but we can set up each
+	 * behaviour (yes individual config) but we can set up each
 	 * LED separately.
 	 */
 	if (smi->leds_disabled) {
@@ -952,11 +952,11 @@ static int rtl8366rb_setup(struct dsa_switch *ds)
 
 	ret = rtl8366rb_setup_cascaded_irq(smi);
 	if (ret)
-		dev_info(smi->dev, "no interrupt support\n");
+		dev_info(smi->dev, "yes interrupt support\n");
 
 	ret = realtek_smi_setup_mdio(smi);
 	if (ret) {
-		dev_info(smi->dev, "could not set up MDIO bus\n");
+		dev_info(smi->dev, "could yest set up MDIO bus\n");
 		return -ENODEV;
 	}
 
@@ -966,13 +966,13 @@ static int rtl8366rb_setup(struct dsa_switch *ds)
 static enum dsa_tag_protocol rtl8366_get_tag_protocol(struct dsa_switch *ds,
 						      int port)
 {
-	/* For now, the RTL switches are handled without any custom tags.
+	/* For yesw, the RTL switches are handled without any custom tags.
 	 *
 	 * It is possible to turn on "custom tags" by removing the
 	 * RTL8368RB_CPU_INSTAG flag when enabling the port but what it
 	 * does is unfamiliar to DSA: ethernet frames of type 8899, the Realtek
 	 * Remote Control Protocol (RRCP) start to appear on the CPU port of
-	 * the device. So this is not the ordinary few extra bytes in the
+	 * the device. So this is yest the ordinary few extra bytes in the
 	 * frame. Instead it appears that the switch starts to talk Realtek
 	 * RRCP internally which means a pretty complex RRCP implementation
 	 * decoding and responding the RRCP protocol is needed to exploit this.
@@ -994,7 +994,7 @@ static void rtl8366rb_adjust_link(struct dsa_switch *ds, int port,
 
 	dev_info(smi->dev, "adjust link on CPU port (%d)\n", port);
 
-	/* Force the fixed CPU port into 1Gbit mode, no autonegotiation */
+	/* Force the fixed CPU port into 1Gbit mode, yes autonegotiation */
 	ret = regmap_update_bits(smi->map, RTL8366RB_MAC_FORCE_CTRL_REG,
 				 BIT(port), BIT(port));
 	if (ret)
@@ -1052,7 +1052,7 @@ static void rb8366rb_set_port_led(struct realtek_smi *smi,
 					 enable ? RTL8366RB_P4_RGMII_LED : 0);
 		break;
 	default:
-		dev_err(smi->dev, "no LED for port %d\n", port);
+		dev_err(smi->dev, "yes LED for port %d\n", port);
 		return;
 	}
 	if (ret)
@@ -1357,7 +1357,7 @@ static int rtl8366rb_reset_chip(struct realtek_smi *smi)
 	u32 val;
 	int ret;
 
-	realtek_smi_write_reg_noack(smi, RTL8366RB_RESET_CTRL_REG,
+	realtek_smi_write_reg_yesack(smi, RTL8366RB_RESET_CTRL_REG,
 				    RTL8366RB_CHIP_CTRL_RESET_HW);
 	do {
 		usleep_range(20000, 25000);
@@ -1393,7 +1393,7 @@ static int rtl8366rb_detect(struct realtek_smi *smi)
 	switch (val) {
 	case 0x6027:
 		dev_info(dev, "found an RTL8366S switch\n");
-		dev_err(dev, "this switch is not yet supported, submit patches!\n");
+		dev_err(dev, "this switch is yest yet supported, submit patches!\n");
 		return -ENODEV;
 	case 0x5937:
 		dev_info(dev, "found an RTL8366RB switch\n");
@@ -1404,7 +1404,7 @@ static int rtl8366rb_detect(struct realtek_smi *smi)
 		smi->num_mib_counters = ARRAY_SIZE(rtl8366rb_mib_counters);
 		break;
 	default:
-		dev_info(dev, "found an Unknown Realtek switch (id=0x%04x)\n",
+		dev_info(dev, "found an Unkyeswn Realtek switch (id=0x%04x)\n",
 			 val);
 		break;
 	}

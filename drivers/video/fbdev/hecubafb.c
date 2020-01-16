@@ -29,7 +29,7 @@
 
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/string.h>
 #include <linux/mm.h>
 #include <linux/vmalloc.h>
@@ -64,7 +64,7 @@ static const struct fb_var_screeninfo hecubafb_var = {
 	.xres_virtual	= DPY_W,
 	.yres_virtual	= DPY_H,
 	.bits_per_pixel	= 1,
-	.nonstd		= 1,
+	.yesnstd		= 1,
 };
 
 /* main hecubafb functions */

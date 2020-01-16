@@ -20,7 +20,7 @@
 #include <linux/sysfs.h>
 
 struct i2c_demux_pinctrl_chan {
-	struct device_node *parent_np;
+	struct device_yesde *parent_np;
 	struct i2c_adapter *parent_adap;
 	struct of_changeset chgset;
 };
@@ -61,7 +61,7 @@ static int i2c_demux_activate_master(struct i2c_demux_pinctrl_priv *priv, u32 ne
 	if (ret)
 		goto err;
 
-	adap = of_find_i2c_adapter_by_node(priv->chan[new_chan].parent_np);
+	adap = of_find_i2c_adapter_by_yesde(priv->chan[new_chan].parent_np);
 	if (!adap) {
 		ret = -ENODEV;
 		goto err_with_revert;
@@ -75,7 +75,7 @@ static int i2c_demux_activate_master(struct i2c_demux_pinctrl_priv *priv, u32 ne
 	p = devm_pinctrl_get(adap->dev.parent);
 	if (IS_ERR(p)) {
 		ret = PTR_ERR(p);
-		/* continue if just no pinctrl states (e.g. i2c-gpio), otherwise exit */
+		/* continue if just yes pinctrl states (e.g. i2c-gpio), otherwise exit */
 		if (ret != -ENODEV)
 			goto err_with_put;
 	} else {
@@ -110,7 +110,7 @@ static int i2c_demux_activate_master(struct i2c_demux_pinctrl_priv *priv, u32 ne
 	priv->cur_adap.retries = adap->retries;
 	priv->cur_adap.timeout = adap->timeout;
 	priv->cur_adap.quirks = adap->quirks;
-	priv->cur_adap.dev.of_node = priv->dev->of_node;
+	priv->cur_adap.dev.of_yesde = priv->dev->of_yesde;
 	ret = i2c_add_adapter(&priv->cur_adap);
 	if (ret < 0)
 		goto err_with_put;
@@ -207,7 +207,7 @@ static DEVICE_ATTR_RW(current_master);
 
 static int i2c_demux_pinctrl_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	struct i2c_demux_pinctrl_priv *priv;
 	struct property *props;
 	int num_chan, i, j, err;
@@ -231,7 +231,7 @@ static int i2c_demux_pinctrl_probe(struct platform_device *pdev)
 		return err;
 
 	for (i = 0; i < num_chan; i++) {
-		struct device_node *adap_np;
+		struct device_yesde *adap_np;
 
 		adap_np = of_parse_phandle(np, "i2c-parent", i);
 		if (!adap_np) {
@@ -254,7 +254,7 @@ static int i2c_demux_pinctrl_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, priv);
 
-	pm_runtime_no_callbacks(&pdev->dev);
+	pm_runtime_yes_callbacks(&pdev->dev);
 
 	/* switch to first parent as active master */
 	i2c_demux_activate_master(priv, 0);
@@ -273,7 +273,7 @@ err_rollback_available:
 	device_remove_file(&pdev->dev, &dev_attr_available_masters);
 err_rollback:
 	for (j = 0; j < i; j++) {
-		of_node_put(priv->chan[j].parent_np);
+		of_yesde_put(priv->chan[j].parent_np);
 		of_changeset_destroy(&priv->chan[j].chgset);
 	}
 
@@ -291,7 +291,7 @@ static int i2c_demux_pinctrl_remove(struct platform_device *pdev)
 	i2c_demux_deactivate_master(priv);
 
 	for (i = 0; i < priv->num_chan; i++) {
-		of_node_put(priv->chan[i].parent_np);
+		of_yesde_put(priv->chan[i].parent_np);
 		of_changeset_destroy(&priv->chan[i].chgset);
 	}
 

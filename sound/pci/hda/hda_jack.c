@@ -22,13 +22,13 @@
  * @nid: pin NID
  *
  * Check whether the given pin is capable to report the jack detection.
- * The jack detection might not work by various reasons, e.g. the jack
+ * The jack detection might yest work by various reasons, e.g. the jack
  * detection is prohibited in the codec level, the pin config has
- * AC_DEFCFG_MISC_NO_PRESENCE bit, no unsol support, etc.
+ * AC_DEFCFG_MISC_NO_PRESENCE bit, yes unsol support, etc.
  */
 bool is_jack_detectable(struct hda_codec *codec, hda_nid_t nid)
 {
-	if (codec->no_jack_detect)
+	if (codec->yes_jack_detect)
 		return false;
 	if (!(snd_hda_query_pin_caps(codec, nid) & AC_PINCAP_PRES_DETECT))
 		return false;
@@ -48,7 +48,7 @@ static u32 read_pin_sense(struct hda_codec *codec, hda_nid_t nid, int dev_id)
 	u32 pincap;
 	u32 val;
 
-	if (!codec->no_trigger_sense) {
+	if (!codec->yes_trigger_sense) {
 		pincap = snd_hda_query_pin_caps(codec, nid);
 		if (pincap & AC_PINCAP_TRIG_REQ) /* need trigger? */
 			snd_hda_codec_read(codec, nid, 0,
@@ -179,7 +179,7 @@ void snd_hda_jack_tbl_clear(struct hda_codec *codec)
 
 #define get_jack_plug_state(sense) !!(sense & AC_PINSENSE_PRESENCE)
 
-/* update the cached value and notification flag if needed */
+/* update the cached value and yestification flag if needed */
 static void jack_detect_update(struct hda_codec *codec,
 			       struct hda_jack_tbl *jack)
 {
@@ -281,7 +281,7 @@ EXPORT_SYMBOL_GPL(snd_hda_jack_detect_state_mst);
  * @dev_id: pin device entry id
  *
  * In the case of error, the return value will be a pointer embedded with
- * errno.  Check and handle the return value appropriately with standard
+ * erryes.  Check and handle the return value appropriately with standard
  * macros such as @IS_ERR() and @PTR_ERR().
  */
 struct hda_jack_callback *
@@ -578,7 +578,7 @@ int snd_hda_jack_add_kctls(struct hda_codec *codec,
 	err = add_jack_kctl(codec, cfg->dig_in_pin, cfg, NULL);
 	if (err < 0)
 		return err;
-	err = add_jack_kctl(codec, cfg->mono_out_pin, cfg, NULL);
+	err = add_jack_kctl(codec, cfg->moyes_out_pin, cfg, NULL);
 	if (err < 0)
 		return err;
 	return 0;

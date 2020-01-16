@@ -163,7 +163,7 @@ static int __init crc32c_sparc64_mod_init(void)
 		pr_info("Using sparc64 crc32c opcode optimized CRC32C implementation\n");
 		return crypto_register_shash(&alg);
 	}
-	pr_info("sparc64 crc32c opcode not available.\n");
+	pr_info("sparc64 crc32c opcode yest available.\n");
 	return -ENODEV;
 }
 
@@ -176,7 +176,7 @@ module_init(crc32c_sparc64_mod_init);
 module_exit(crc32c_sparc64_mod_fini);
 
 MODULE_LICENSE("GPL");
-MODULE_DESCRIPTION("CRC32c (Castagnoli), sparc64 crc32c opcode accelerated");
+MODULE_DESCRIPTION("CRC32c (Castagyesli), sparc64 crc32c opcode accelerated");
 
 MODULE_ALIAS_CRYPTO("crc32c");
 

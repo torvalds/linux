@@ -286,7 +286,7 @@ These clock IDs are defined in:
     genpll4		crystal		0	BCM_SR_GENPLL4
     clk_ccn		genpll4		1	BCM_SR_GENPLL4_CCN_CLK
     clk_tpiu_pll	genpll4		2	BCM_SR_GENPLL4_TPIU_PLL_CLK
-    clk_noc		genpll4		3	BCM_SR_GENPLL4_NOC_CLK
+    clk_yesc		genpll4		3	BCM_SR_GENPLL4_NOC_CLK
     clk_chclk_fs4	genpll4		4	BCM_SR_GENPLL4_CHCLK_FS4_CLK
     clk_bridge_fscpu	genpll4		5	BCM_SR_GENPLL4_BRIDGE_FSCPU_CLK
 

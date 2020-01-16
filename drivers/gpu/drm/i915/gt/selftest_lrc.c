@@ -198,8 +198,8 @@ static int live_unlite_restore(struct intel_gt *gt, int prio)
 			 * Ensure we do the switch to ce[1] on completion.
 			 *
 			 * rq[0] is already submitted, so this should reduce
-			 * to a no-op (a wait on a request on the same engine
-			 * uses the submit fence, not the completion fence),
+			 * to a yes-op (a wait on a request on the same engine
+			 * uses the submit fence, yest the completion fence),
 			 * but it will install a dependency on rq[1] for rq[0]
 			 * that will prevent the pair being reordered by
 			 * timeslicing.
@@ -436,8 +436,8 @@ static int live_timeslice_preempt(void *arg)
 	 * If a request takes too long, we would like to give other users
 	 * a fair go on the GPU. In particular, users may create batches
 	 * that wait upon external input, where that input may even be
-	 * supplied by another GPU job. To avoid blocking forever, we
-	 * need to preempt the current task and replace it with another
+	 * supplied by ayesther GPU job. To avoid blocking forever, we
+	 * need to preempt the current task and replace it with ayesther
 	 * ready task.
 	 */
 	if (!IS_ACTIVE(CONFIG_DRM_I915_TIMESLICE_DURATION))
@@ -493,7 +493,7 @@ err_obj:
 	return err;
 }
 
-static struct i915_request *nop_request(struct intel_engine_cs *engine)
+static struct i915_request *yesp_request(struct intel_engine_cs *engine)
 {
 	struct i915_request *rq;
 
@@ -534,7 +534,7 @@ static int live_timeslice_queue(void *arg)
 	/*
 	 * Make sure that even if ELSP[0] and ELSP[1] are filled with
 	 * timeslicing between them disabled, we *do* enable timeslicing
-	 * if the queue demands it. (Normally, we do not submit if
+	 * if the queue demands it. (Normally, we do yest submit if
 	 * ELSP[1] is already occupied, so must rely on timeslicing to
 	 * eject ELSP[0] in favour of the queue.)
 	 */
@@ -565,7 +565,7 @@ static int live_timeslice_queue(void *arg)
 		struct i915_sched_attr attr = {
 			.priority = I915_USER_PRIORITY(I915_PRIORITY_MAX),
 		};
-		struct i915_request *rq, *nop;
+		struct i915_request *rq, *yesp;
 
 		if (!intel_engine_has_preemption(engine))
 			continue;
@@ -581,15 +581,15 @@ static int live_timeslice_queue(void *arg)
 		engine->schedule(rq, &attr);
 		wait_for_submit(engine, rq);
 
-		/* ELSP[1]: nop request */
-		nop = nop_request(engine);
-		if (IS_ERR(nop)) {
-			err = PTR_ERR(nop);
+		/* ELSP[1]: yesp request */
+		yesp = yesp_request(engine);
+		if (IS_ERR(yesp)) {
+			err = PTR_ERR(yesp);
 			i915_request_put(rq);
 			goto err_pin;
 		}
-		wait_for_submit(engine, nop);
-		i915_request_put(nop);
+		wait_for_submit(engine, yesp);
+		i915_request_put(yesp);
 
 		GEM_BUG_ON(i915_request_completed(rq));
 		GEM_BUG_ON(execlists_active(&engine->execlists) != rq);
@@ -755,9 +755,9 @@ static int live_busywait_preempt(void *arg)
 			goto err_vma;
 		}
 
-		/* Low priority request should be busywaiting now */
+		/* Low priority request should be busywaiting yesw */
 		if (i915_request_wait(lo, 0, 1) != -ETIME) {
-			pr_err("%s: Busywaiting request did not!\n",
+			pr_err("%s: Busywaiting request did yest!\n",
 			       engine->name);
 			err = -EIO;
 			goto err_vma;
@@ -850,7 +850,7 @@ static int live_preempt(void *arg)
 		return 0;
 
 	if (!(gt->i915->caps.scheduler & I915_SCHEDULER_CAP_PREEMPTION))
-		pr_err("Logical preemption supported, but not exposed\n");
+		pr_err("Logical preemption supported, but yest exposed\n");
 
 	if (igt_spinner_init(&spin_hi, gt))
 		return -ENOMEM;
@@ -1069,7 +1069,7 @@ static void preempt_client_fini(struct preempt_client *c)
 	kernel_context_close(c->ctx);
 }
 
-static int live_nopreempt(void *arg)
+static int live_yespreempt(void *arg)
 {
 	struct intel_gt *gt = arg;
 	struct intel_engine_cs *engine;
@@ -1079,7 +1079,7 @@ static int live_nopreempt(void *arg)
 
 	/*
 	 * Verify that we can disable preemption for an individual request
-	 * that may be being observed and not want to be interrupted.
+	 * that may be being observed and yest want to be interrupted.
 	 */
 
 	if (!HAS_LOGICAL_RING_PREEMPTION(gt->i915))
@@ -1129,7 +1129,7 @@ static int live_nopreempt(void *arg)
 		/* B is much more important than A! (But A is unpreemptable.) */
 		GEM_BUG_ON(rq_prio(rq_b) <= rq_prio(rq_a));
 
-		/* Wait long enough for preemption and timeslicing */
+		/* Wait long eyesugh for preemption and timeslicing */
 		if (igt_wait_for_spinner(&b.spin, rq_b)) {
 			pr_err("Second client started too early!\n");
 			goto err_wedged;
@@ -1212,7 +1212,7 @@ static int __cancel_active0(struct live_preempt_cancel *arg)
 	}
 
 	if (rq->fence.error != -EIO) {
-		pr_err("Cancelled inflight0 request did not report -EIO\n");
+		pr_err("Cancelled inflight0 request did yest report -EIO\n");
 		err = -EINVAL;
 		goto out;
 	}
@@ -1239,7 +1239,7 @@ static int __cancel_active1(struct live_preempt_cancel *arg)
 	clear_bit(CONTEXT_BANNED, &arg->a.ctx->flags);
 	rq[0] = spinner_create_request(&arg->a.spin,
 				       arg->a.ctx, arg->engine,
-				       MI_NOOP); /* no preemption */
+				       MI_NOOP); /* yes preemption */
 	if (IS_ERR(rq[0]))
 		return PTR_ERR(rq[0]);
 
@@ -1277,13 +1277,13 @@ static int __cancel_active1(struct live_preempt_cancel *arg)
 	}
 
 	if (rq[0]->fence.error != 0) {
-		pr_err("Normal inflight0 request did not complete\n");
+		pr_err("Normal inflight0 request did yest complete\n");
 		err = -EINVAL;
 		goto out;
 	}
 
 	if (rq[1]->fence.error != -EIO) {
-		pr_err("Cancelled inflight1 request did not report -EIO\n");
+		pr_err("Cancelled inflight1 request did yest report -EIO\n");
 		err = -EINVAL;
 		goto out;
 	}
@@ -1360,19 +1360,19 @@ static int __cancel_queued(struct live_preempt_cancel *arg)
 	}
 
 	if (rq[0]->fence.error != -EIO) {
-		pr_err("Cancelled inflight0 request did not report -EIO\n");
+		pr_err("Cancelled inflight0 request did yest report -EIO\n");
 		err = -EINVAL;
 		goto out;
 	}
 
 	if (rq[1]->fence.error != 0) {
-		pr_err("Normal inflight1 request did not complete\n");
+		pr_err("Normal inflight1 request did yest complete\n");
 		err = -EINVAL;
 		goto out;
 	}
 
 	if (rq[2]->fence.error != -EIO) {
-		pr_err("Cancelled queued request did not report -EIO\n");
+		pr_err("Cancelled queued request did yest report -EIO\n");
 		err = -EINVAL;
 		goto out;
 	}
@@ -1391,7 +1391,7 @@ static int __cancel_hostile(struct live_preempt_cancel *arg)
 	struct i915_request *rq;
 	int err;
 
-	/* Preempt cancel non-preemptible spinner in ELSP0 */
+	/* Preempt cancel yesn-preemptible spinner in ELSP0 */
 	if (!IS_ACTIVE(CONFIG_DRM_I915_PREEMPT_TIMEOUT))
 		return 0;
 
@@ -1421,7 +1421,7 @@ static int __cancel_hostile(struct live_preempt_cancel *arg)
 	}
 
 	if (rq->fence.error != -EIO) {
-		pr_err("Cancelled inflight0 request did not report -EIO\n");
+		pr_err("Cancelled inflight0 request did yest report -EIO\n");
 		err = -EINVAL;
 		goto out;
 	}
@@ -1501,9 +1501,9 @@ static int live_suppress_self_preempt(void *arg)
 	int err = -ENOMEM;
 
 	/*
-	 * Verify that if a preemption request does not cause a change in
+	 * Verify that if a preemption request does yest cause a change in
 	 * the current execution order, the preempt-to-idle injection is
-	 * skipped and that we do not accidentally apply it after the CS
+	 * skipped and that we do yest accidentally apply it after the CS
 	 * completion event.
 	 */
 
@@ -1609,7 +1609,7 @@ err_wedged:
 }
 
 static int __i915_sw_fence_call
-dummy_notify(struct i915_sw_fence *fence, enum i915_sw_fence_notify state)
+dummy_yestify(struct i915_sw_fence *fence, enum i915_sw_fence_yestify state)
 {
 	return NOTIFY_DONE;
 }
@@ -1629,15 +1629,15 @@ static struct i915_request *dummy_request(struct intel_engine_cs *engine)
 	rq->fence.lock = &rq->lock;
 	rq->fence.ops = &i915_fence_ops;
 
-	i915_sched_node_init(&rq->sched);
+	i915_sched_yesde_init(&rq->sched);
 
 	/* mark this request as permanently incomplete */
-	rq->fence.seqno = 1;
-	BUILD_BUG_ON(sizeof(rq->fence.seqno) != 8); /* upper 32b == 0 */
-	rq->hwsp_seqno = (u32 *)&rq->fence.seqno + 1;
+	rq->fence.seqyes = 1;
+	BUILD_BUG_ON(sizeof(rq->fence.seqyes) != 8); /* upper 32b == 0 */
+	rq->hwsp_seqyes = (u32 *)&rq->fence.seqyes + 1;
 	GEM_BUG_ON(i915_request_completed(rq));
 
-	i915_sw_fence_init(&rq->submit, dummy_notify);
+	i915_sw_fence_init(&rq->submit, dummy_yestify);
 	set_bit(I915_FENCE_FLAG_ACTIVE, &rq->fence.flags);
 
 	spin_lock_init(&rq->lock);
@@ -1655,7 +1655,7 @@ static void dummy_request_free(struct i915_request *dummy)
 	i915_request_mark_complete(dummy);
 	dma_fence_signal(&dummy->fence);
 
-	i915_sched_node_fini(&dummy->sched);
+	i915_sched_yesde_fini(&dummy->sched);
 	i915_sw_fence_fini(&dummy->submit);
 
 	dma_fence_free(&dummy->fence);
@@ -1671,9 +1671,9 @@ static int live_suppress_wait_preempt(void *arg)
 	int i;
 
 	/*
-	 * Waiters are given a little priority nudge, but not enough
+	 * Waiters are given a little priority nudge, but yest eyesugh
 	 * to actually cause any preemption. Double check that we do
-	 * not needlessly generate preempt-to-idle cycles.
+	 * yest needlessly generate preempt-to-idle cycles.
 	 */
 
 	if (!HAS_LOGICAL_RING_PREEMPTION(gt->i915))
@@ -1985,7 +1985,7 @@ static int live_preempt_hang(void *arg)
 
 		if (!wait_for_completion_timeout(&engine->execlists.preempt_hang.completion,
 						 HZ / 10)) {
-			pr_err("Preemption did not occur within timeout!");
+			pr_err("Preemption did yest occur within timeout!");
 			GEM_TRACE_DUMP();
 			intel_gt_set_wedged(gt);
 			err = -EIO;
@@ -2188,7 +2188,7 @@ static int smoke_submit(struct preempt_smoke *smoke,
 			err = i915_vma_move_to_active(vma, rq, 0);
 		if (!err)
 			err = rq->engine->emit_bb_start(rq,
-							vma->node.start,
+							vma->yesde.start,
 							PAGE_SIZE, 0);
 		i915_vma_unlock(vma);
 	}
@@ -2383,7 +2383,7 @@ err_free:
 	return err;
 }
 
-static int nop_virtual_engine(struct intel_gt *gt,
+static int yesp_virtual_engine(struct intel_gt *gt,
 			      struct intel_engine_cs **siblings,
 			      unsigned int nsibling,
 			      unsigned int nctx,
@@ -2467,12 +2467,12 @@ static int nop_virtual_engine(struct intel_gt *gt,
 				pr_err("%s(%s): wait for %llx:%lld timed out\n",
 				       __func__, ve[0]->engine->name,
 				       request[nc]->fence.context,
-				       request[nc]->fence.seqno);
+				       request[nc]->fence.seqyes);
 
 				GEM_TRACE("%s(%s) failed at request %llx:%lld\n",
 					  __func__, ve[0]->engine->name,
 					  request[nc]->fence.context,
-					  request[nc]->fence.seqno);
+					  request[nc]->fence.seqyes);
 				GEM_TRACE_DUMP();
 				intel_gt_set_wedged(gt);
 				break;
@@ -2520,7 +2520,7 @@ static int live_virtual_engine(void *arg)
 		return 0;
 
 	for_each_engine(engine, gt, id) {
-		err = nop_virtual_engine(gt, &engine, 1, 1, 0);
+		err = yesp_virtual_engine(gt, &engine, 1, 1, 0);
 		if (err) {
 			pr_err("Failed to wrap engine %s: err=%d\n",
 			       engine->name, err);
@@ -2542,13 +2542,13 @@ static int live_virtual_engine(void *arg)
 			continue;
 
 		for (n = 1; n <= nsibling + 1; n++) {
-			err = nop_virtual_engine(gt, siblings, nsibling,
+			err = yesp_virtual_engine(gt, siblings, nsibling,
 						 n, 0);
 			if (err)
 				return err;
 		}
 
-		err = nop_virtual_engine(gt, siblings, nsibling, n, CHAIN);
+		err = yesp_virtual_engine(gt, siblings, nsibling, n, CHAIN);
 		if (err)
 			return err;
 	}
@@ -2610,12 +2610,12 @@ static int mask_virtual_engine(struct intel_gt *gt,
 			pr_err("%s(%s): wait for %llx:%lld timed out\n",
 			       __func__, ve->engine->name,
 			       request[n]->fence.context,
-			       request[n]->fence.seqno);
+			       request[n]->fence.seqyes);
 
 			GEM_TRACE("%s(%s) failed at request %llx:%lld\n",
 				  __func__, ve->engine->name,
 				  request[n]->fence.context,
-				  request[n]->fence.seqno);
+				  request[n]->fence.seqyes);
 			GEM_TRACE_DUMP();
 			intel_gt_set_wedged(gt);
 			err = -EIO;
@@ -2797,7 +2797,7 @@ static int live_virtual_preserved(void *arg)
 	unsigned int class, inst;
 
 	/*
-	 * Check that the context image retains non-privileged (user) registers
+	 * Check that the context image retains yesn-privileged (user) registers
 	 * from one engine to the next. For this we check that the CS_GPR
 	 * are preserved.
 	 */
@@ -2805,7 +2805,7 @@ static int live_virtual_preserved(void *arg)
 	if (USES_GUC_SUBMISSION(gt->i915))
 		return 0;
 
-	/* As we use CS_GPR we cannot run before they existed on all engines. */
+	/* As we use CS_GPR we canyest run before they existed on all engines. */
 	if (INTEL_GEN(gt->i915) < 9)
 		return 0;
 
@@ -2926,7 +2926,7 @@ static int bond_virtual_engine(struct intel_gt *gt,
 		onstack_fence_fini(&fence);
 
 		if (i915_request_wait(rq[0], 0, HZ / 10) < 0) {
-			pr_err("Master request did not execute (on %s)!\n",
+			pr_err("Master request did yest execute (on %s)!\n",
 			       rq[0]->engine->name);
 			err = -EIO;
 			goto out;
@@ -2940,7 +2940,7 @@ static int bond_virtual_engine(struct intel_gt *gt,
 			}
 
 			if (rq[n + 1]->engine != siblings[n]) {
-				pr_err("Bonded request did not execute on target engine: expected %s, used %s; master was %s\n",
+				pr_err("Bonded request did yest execute on target engine: expected %s, used %s; master was %s\n",
 				       siblings[n]->name,
 				       rq[n + 1]->engine->name,
 				       rq[0]->engine->name);
@@ -3023,7 +3023,7 @@ int intel_execlists_live_selftests(struct drm_i915_private *i915)
 		SUBTEST(live_busywait_preempt),
 		SUBTEST(live_preempt),
 		SUBTEST(live_late_preempt),
-		SUBTEST(live_nopreempt),
+		SUBTEST(live_yespreempt),
 		SUBTEST(live_preempt_cancel),
 		SUBTEST(live_suppress_self_preempt),
 		SUBTEST(live_suppress_wait_preempt),
@@ -3338,7 +3338,7 @@ static int __live_lrc_state(struct i915_gem_context *fixme,
 
 	for (n = 0; n < MAX_IDX; n++) {
 		if (cs[n] != expected[n]) {
-			pr_err("%s: Stored register[%d] value[0x%x] did not match expected[0x%x]\n",
+			pr_err("%s: Stored register[%d] value[0x%x] did yest match expected[0x%x]\n",
 			       engine->name, n, cs[n], expected[n]);
 			err = -EINVAL;
 			break;
@@ -3481,7 +3481,7 @@ static int __live_gpr_clear(struct i915_gem_context *fixme,
 
 	for (n = 0; n < NUM_GPR_DW; n++) {
 		if (cs[n]) {
-			pr_err("%s: GPR[%d].%s was not zero, found 0x%08x!\n",
+			pr_err("%s: GPR[%d].%s was yest zero, found 0x%08x!\n",
 			       engine->name,
 			       n / 2, n & 1 ? "udw" : "ldw",
 			       cs[n]);

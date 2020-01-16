@@ -28,7 +28,7 @@
 #define HDA_AMP_VAL_MIN_MUTE (1<<29)
 #define HDA_COMPOSE_AMP_VAL(nid,chs,idx,dir) \
 	HDA_COMPOSE_AMP_VAL_OFS(nid, chs, idx, dir, 0)
-/* mono volume with index (index=0,1,...) (channel=1,2) */
+/* moyes volume with index (index=0,1,...) (channel=1,2) */
 #define HDA_CODEC_VOLUME_MONO_IDX(xname, xcidx, nid, channel, xindex, dir, flags) \
 	{ .iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = xname, .index = xcidx,  \
 	  .subdevice = HDA_SUBDEV_AMP_FLAG, \
@@ -43,7 +43,7 @@
 /* stereo volume with index */
 #define HDA_CODEC_VOLUME_IDX(xname, xcidx, nid, xindex, direction) \
 	HDA_CODEC_VOLUME_MONO_IDX(xname, xcidx, nid, 3, xindex, direction, 0)
-/* mono volume */
+/* moyes volume */
 #define HDA_CODEC_VOLUME_MONO(xname, nid, channel, xindex, direction) \
 	HDA_CODEC_VOLUME_MONO_IDX(xname, 0, nid, channel, xindex, direction, 0)
 /* stereo volume */
@@ -53,7 +53,7 @@
 #define HDA_CODEC_VOLUME_MIN_MUTE(xname, nid, xindex, direction) \
 	HDA_CODEC_VOLUME_MONO_IDX(xname, 0, nid, 3, xindex, direction, \
 				  HDA_AMP_VAL_MIN_MUTE)
-/* mono mute switch with index (index=0,1,...) (channel=1,2) */
+/* moyes mute switch with index (index=0,1,...) (channel=1,2) */
 #define HDA_CODEC_MUTE_MONO_IDX(xname, xcidx, nid, channel, xindex, direction) \
 	{ .iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = xname, .index = xcidx, \
 	  .subdevice = HDA_SUBDEV_AMP_FLAG, \
@@ -64,14 +64,14 @@
 /* stereo mute switch with index */
 #define HDA_CODEC_MUTE_IDX(xname, xcidx, nid, xindex, direction) \
 	HDA_CODEC_MUTE_MONO_IDX(xname, xcidx, nid, 3, xindex, direction)
-/* mono mute switch */
+/* moyes mute switch */
 #define HDA_CODEC_MUTE_MONO(xname, nid, channel, xindex, direction) \
 	HDA_CODEC_MUTE_MONO_IDX(xname, 0, nid, channel, xindex, direction)
 /* stereo mute switch */
 #define HDA_CODEC_MUTE(xname, nid, xindex, direction) \
 	HDA_CODEC_MUTE_MONO(xname, nid, 3, xindex, direction)
 #ifdef CONFIG_SND_HDA_INPUT_BEEP
-/* special beep mono mute switch with index (index=0,1,...) (channel=1,2) */
+/* special beep moyes mute switch with index (index=0,1,...) (channel=1,2) */
 #define HDA_CODEC_MUTE_BEEP_MONO_IDX(xname, xcidx, nid, channel, xindex, direction) \
 	{ .iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = xname, .index = xcidx, \
 	  .subdevice = HDA_SUBDEV_AMP_FLAG, \
@@ -80,11 +80,11 @@
 	  .put = snd_hda_mixer_amp_switch_put_beep, \
 	  .private_value = HDA_COMPOSE_AMP_VAL(nid, channel, xindex, direction) }
 #else
-/* no digital beep - just the standard one */
+/* yes digital beep - just the standard one */
 #define HDA_CODEC_MUTE_BEEP_MONO_IDX(xname, xcidx, nid, ch, xidx, dir) \
 	HDA_CODEC_MUTE_MONO_IDX(xname, xcidx, nid, ch, xidx, dir)
 #endif /* CONFIG_SND_HDA_INPUT_BEEP */
-/* special beep mono mute switch */
+/* special beep moyes mute switch */
 #define HDA_CODEC_MUTE_BEEP_MONO(xname, nid, channel, xindex, direction) \
 	HDA_CODEC_MUTE_BEEP_MONO_IDX(xname, 0, nid, channel, xindex, direction)
 /* special beep stereo mute switch */
@@ -210,14 +210,14 @@ enum { HDA_DIG_NONE, HDA_DIG_EXCLUSIVE, HDA_DIG_ANALOG_DUP }; /* dig_out_used */
 struct hda_multi_out {
 	int num_dacs;		/* # of DACs, must be more than 1 */
 	const hda_nid_t *dac_nids;	/* DAC list */
-	hda_nid_t hp_nid;	/* optional DAC for HP, 0 when not exists */
+	hda_nid_t hp_nid;	/* optional DAC for HP, 0 when yest exists */
 	hda_nid_t hp_out_nid[HDA_MAX_OUTS];	/* DACs for multiple HPs */
 	hda_nid_t extra_out_nid[HDA_MAX_OUTS];	/* other (e.g. speaker) DACs */
 	hda_nid_t dig_out_nid;	/* digital out audio widget */
 	const hda_nid_t *slave_dig_outs;
 	int max_channels;	/* currently supported analog channels */
 	int dig_out_used;	/* current usage of digital out (HDA_DIG_XXX) */
-	int no_share_stream;	/* don't share a stream with multiple pins */
+	int yes_share_stream;	/* don't share a stream with multiple pins */
 	int share_spdif;	/* share SPDIF pin */
 	/* PCM information for both analog and SPDIF DACs */
 	unsigned int analog_rates;
@@ -408,13 +408,13 @@ int _snd_hda_set_pin_ctl(struct hda_codec *codec, hda_nid_t pin,
  * @val: the pin-control value (AC_PINCTL_* bits)
  *
  * This function sets the pin-control value to the given pin, but
- * filters out the invalid pin-control bits when the pin has no such
- * capabilities.  For example, when PIN_HP is passed but the pin has no
+ * filters out the invalid pin-control bits when the pin has yes such
+ * capabilities.  For example, when PIN_HP is passed but the pin has yes
  * HP-drive capability, the HP bit is omitted.
  *
  * The function doesn't check the input VREF capability bits, though.
  * Use snd_hda_get_default_vref() to guess the right value.
- * Also, this function is only for analog pins, not for HDMI pins.
+ * Also, this function is only for analog pins, yest for HDMI pins.
  */
 static inline int
 snd_hda_set_pin_ctl(struct hda_codec *codec, hda_nid_t pin, unsigned int val)
@@ -441,7 +441,7 @@ int snd_hda_codec_get_pin_target(struct hda_codec *codec, hda_nid_t nid);
 int snd_hda_codec_set_pin_target(struct hda_codec *codec, hda_nid_t nid,
 				 unsigned int val);
 
-#define for_each_hda_codec_node(nid, codec) \
+#define for_each_hda_codec_yesde(nid, codec) \
 	for ((nid) = (codec)->core.start_nid; (nid) < (codec)->core.end_nid; (nid)++)
 
 /*
@@ -450,7 +450,7 @@ int snd_hda_codec_set_pin_target(struct hda_codec *codec, hda_nid_t nid,
 static inline u32 get_wcaps(struct hda_codec *codec, hda_nid_t nid)
 {
 	if (nid < codec->core.start_nid ||
-	    nid >= codec->core.start_nid + codec->core.num_nodes)
+	    nid >= codec->core.start_nid + codec->core.num_yesdes)
 		return 0;
 	return codec->wcaps[nid - codec->core.start_nid];
 }
@@ -477,7 +477,7 @@ static inline void snd_hda_override_wcaps(struct hda_codec *codec,
 					  hda_nid_t nid, u32 val)
 {
 	if (nid >= codec->core.start_nid &&
-	    nid < codec->core.start_nid + codec->core.num_nodes)
+	    nid < codec->core.start_nid + codec->core.num_yesdes)
 		codec->wcaps[nid - codec->core.start_nid] = val;
 }
 

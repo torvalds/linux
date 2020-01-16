@@ -44,7 +44,7 @@ struct __packed pcan_ufd_fw_info {
 	u8	hw_version;	/* Hardware version (PCB) */
 	u8	fw_version[3];	/* Firmware version */
 	__le32	dev_id[2];	/* "device id" per CAN */
-	__le32	ser_no;		/* S/N */
+	__le32	ser_yes;		/* S/N */
 	__le32	flags;		/* special functions */
 };
 
@@ -53,7 +53,7 @@ struct pcan_usb_fd_if {
 	struct peak_usb_device	*dev[PCAN_USB_MAX_CHANNEL];
 	struct pcan_ufd_fw_info	fw_info;
 	struct peak_time_ref	time_ref;
-	int			cm_ignore_count;
+	int			cm_igyesre_count;
 	int			dev_opened_count;
 };
 
@@ -65,7 +65,7 @@ struct pcan_usb_fd_device {
 	u8			*cmd_buffer_addr;
 };
 
-/* Extended USB commands (non uCAN commands) */
+/* Extended USB commands (yesn uCAN commands) */
 
 /* Clock Modes command */
 #define PCAN_UFD_CMD_CLK_SET		0x80
@@ -170,7 +170,7 @@ static inline void *pcan_usb_fd_cmd_buffer(struct peak_usb_device *dev)
 	return pdev->cmd_buffer_addr;
 }
 
-/* send PCAN-USB Pro FD commands synchronously */
+/* send PCAN-USB Pro FD commands synchroyesusly */
 static int pcan_usb_fd_send_cmd(struct peak_usb_device *dev, void *cmd_tail)
 {
 	void *cmd_head = pcan_usb_fd_cmd_buffer(dev);
@@ -183,7 +183,7 @@ static int pcan_usb_fd_send_cmd(struct peak_usb_device *dev, void *cmd_tail)
 	if (!(dev->state & PCAN_USB_STATE_CONNECTED))
 		return 0;
 
-	/* if a packet is not filled completely by commands, the command list
+	/* if a packet is yest filled completely by commands, the command list
 	 * is terminated with an "end of collection" record.
 	 */
 	cmd_len = cmd_tail - cmd_head;
@@ -195,7 +195,7 @@ static int pcan_usb_fd_send_cmd(struct peak_usb_device *dev, void *cmd_tail)
 	packet_ptr = cmd_head;
 	packet_len = cmd_len;
 
-	/* firmware is not able to re-assemble 512 bytes buffer in full-speed */
+	/* firmware is yest able to re-assemble 512 bytes buffer in full-speed */
 	if (unlikely(dev->udev->speed != USB_SPEED_HIGH))
 		packet_len = min(packet_len, PCAN_UFD_LOSPD_PKT_SIZE);
 
@@ -244,7 +244,7 @@ static int pcan_usb_fd_build_restart_cmd(struct peak_usb_device *dev, u8 *buf)
 	/* moves the pointer forward */
 	pc += sizeof(struct pucan_wr_err_cnt);
 
-	/* add command to switch from ISO to non-ISO mode, if fw allows it */
+	/* add command to switch from ISO to yesn-ISO mode, if fw allows it */
 	if (dev->can.ctrlmode_supported & CAN_CTRLMODE_FD_NON_ISO) {
 		struct pucan_options *puo = (struct pucan_options *)pc;
 
@@ -257,7 +257,7 @@ static int pcan_usb_fd_build_restart_cmd(struct peak_usb_device *dev, u8 *buf)
 
 		puo->options = cpu_to_le16(PUCAN_OPTION_CANDFDISO);
 
-		/* to be sure that no other extended bits will be taken into
+		/* to be sure that yes other extended bits will be taken into
 		 * account
 		 */
 		puo->unused = 0;
@@ -278,12 +278,12 @@ static int pcan_usb_fd_build_restart_cmd(struct peak_usb_device *dev, u8 *buf)
 }
 
 /* set CAN bus on/off */
-static int pcan_usb_fd_set_bus(struct peak_usb_device *dev, u8 onoff)
+static int pcan_usb_fd_set_bus(struct peak_usb_device *dev, u8 oyesff)
 {
 	u8 *pc = pcan_usb_fd_cmd_buffer(dev);
 	int l;
 
-	if (onoff) {
+	if (oyesff) {
 		/* build the cmds list to enter operational mode */
 		l = pcan_usb_fd_build_restart_cmd(dev, pc);
 	} else {
@@ -338,16 +338,16 @@ static int pcan_usb_fd_set_filter_std(struct peak_usb_device *dev, int idx,
 
 /* set/unset options
  *
- *	onoff	set(1)/unset(0) options
+ *	oyesff	set(1)/unset(0) options
  *	mask	each bit defines a kind of options to set/unset
  */
 static int pcan_usb_fd_set_options(struct peak_usb_device *dev,
-				   bool onoff, u16 ucan_mask, u16 usb_mask)
+				   bool oyesff, u16 ucan_mask, u16 usb_mask)
 {
 	struct pcan_ufd_options *cmd = pcan_usb_fd_cmd_buffer(dev);
 
 	cmd->opcode_channel = pucan_cmd_opcode_channel(dev->ctrl_idx,
-					(onoff) ? PUCAN_CMD_SET_EN_OPTION :
+					(oyesff) ? PUCAN_CMD_SET_EN_OPTION :
 						  PUCAN_CMD_CLR_DIS_OPTION);
 
 	cmd->ucan_mask = cpu_to_le16(ucan_mask);
@@ -422,8 +422,8 @@ static int pcan_usb_fd_set_bittiming_fast(struct peak_usb_device *dev,
 	return pcan_usb_fd_send_cmd(dev, ++cmd);
 }
 
-/* handle restart but in asynchronously way
- * (uses PCAN-USB Pro code to complete asynchronous request)
+/* handle restart but in asynchroyesusly way
+ * (uses PCAN-USB Pro code to complete asynchroyesus request)
  */
 static int pcan_usb_fd_restart_async(struct peak_usb_device *dev,
 				     struct urb *urb, u8 *buf)
@@ -528,7 +528,7 @@ static int pcan_usb_fd_decode_status(struct pcan_usb_fd_if *usb_if,
 	struct can_frame *cf;
 	struct sk_buff *skb;
 
-	/* nothing should be sent while in BUS_OFF state */
+	/* yesthing should be sent while in BUS_OFF state */
 	if (dev->can.state == CAN_STATE_BUS_OFF)
 		return 0;
 
@@ -539,7 +539,7 @@ static int pcan_usb_fd_decode_status(struct pcan_usb_fd_if *usb_if,
 	} else if (sm->channel_p_w_b & PUCAN_BUS_WARNING) {
 		new_state = CAN_STATE_ERROR_WARNING;
 	} else {
-		/* no error bit (so, no error skb, back to active state) */
+		/* yes error bit (so, yes error skb, back to active state) */
 		dev->can.state = CAN_STATE_ERROR_ACTIVE;
 		pdev->bec.txerr = 0;
 		pdev->bec.rxerr = 0;
@@ -623,10 +623,10 @@ static void pcan_usb_fd_decode_ts(struct pcan_usb_fd_if *usb_if,
 	struct pcan_ufd_ts_msg *ts = (struct pcan_ufd_ts_msg *)rx_msg;
 
 	/* should wait until clock is stabilized */
-	if (usb_if->cm_ignore_count > 0)
-		usb_if->cm_ignore_count--;
+	if (usb_if->cm_igyesre_count > 0)
+		usb_if->cm_igyesre_count--;
 	else
-		peak_usb_set_ts_now(&usb_if->time_ref, le32_to_cpu(ts->ts_low));
+		peak_usb_set_ts_yesw(&usb_if->time_ref, le32_to_cpu(ts->ts_low));
 }
 
 /* callback for bulk IN urb */
@@ -692,7 +692,7 @@ static int pcan_usb_fd_decode_buf(struct peak_usb_device *dev, struct urb *urb)
 
 		default:
 			netdev_err(netdev,
-				   "unhandled msg type 0x%02x (%d): ignored\n",
+				   "unhandled msg type 0x%02x (%d): igyesred\n",
 				   rx_msg_type, rx_msg_type);
 			break;
 		}
@@ -816,7 +816,7 @@ static int pcan_usb_fd_stop(struct peak_usb_device *dev)
 	struct pcan_usb_fd_device *pdev =
 			container_of(dev, struct pcan_usb_fd_device, dev);
 
-	/* turn off special msgs for that interface if no other dev opened */
+	/* turn off special msgs for that interface if yes other dev opened */
 	if (pdev->usb_if->dev_opened_count == 1)
 		pcan_usb_fd_set_options(dev, 0,
 					PUCAN_OPTION_ERROR,
@@ -846,8 +846,8 @@ static int pcan_usb_fd_init(struct peak_usb_device *dev)
 		if (!pdev->cmd_buffer_addr)
 			goto err_out_1;
 
-		/* number of ts msgs to ignore before taking one into account */
-		pdev->usb_if->cm_ignore_count = 5;
+		/* number of ts msgs to igyesre before taking one into account */
+		pdev->usb_if->cm_igyesre_count = 5;
 
 		err = pcan_usb_pro_send_req(dev, PCAN_USBPRO_REQ_INFO,
 					    PCAN_USBPRO_INFO_FW,
@@ -861,7 +861,7 @@ static int pcan_usb_fd_init(struct peak_usb_device *dev)
 		}
 
 		/* explicit use of dev_xxx() instead of netdev_xxx() here:
-		 * information displayed are related to the device itself, not
+		 * information displayed are related to the device itself, yest
 		 * to the canx (channel) device.
 		 */
 		dev_info(dev->netdev->dev.parent,
@@ -872,12 +872,12 @@ static int pcan_usb_fd_init(struct peak_usb_device *dev)
 			 pdev->usb_if->fw_info.fw_version[2],
 			 dev->adapter->ctrl_count);
 
-		/* check for ability to switch between ISO/non-ISO modes */
+		/* check for ability to switch between ISO/yesn-ISO modes */
 		if (pdev->usb_if->fw_info.fw_version[0] >= 2) {
-			/* firmware >= 2.x supports ISO/non-ISO switching */
+			/* firmware >= 2.x supports ISO/yesn-ISO switching */
 			dev->can.ctrlmode_supported |= CAN_CTRLMODE_FD_NON_ISO;
 		} else {
-			/* firmware < 2.x only supports fixed(!) non-ISO */
+			/* firmware < 2.x only supports fixed(!) yesn-ISO */
 			dev->can.ctrlmode |= CAN_CTRLMODE_FD_NON_ISO;
 		}
 
@@ -967,7 +967,7 @@ static void pcan_usb_fd_exit(struct peak_usb_device *dev)
 /* called when the USB adapter is unplugged */
 static void pcan_usb_fd_free(struct peak_usb_device *dev)
 {
-	/* last device: can free shared objects now */
+	/* last device: can free shared objects yesw */
 	if (!dev->prev_siblings && !dev->next_siblings) {
 		struct pcan_usb_fd_device *pdev =
 			container_of(dev, struct pcan_usb_fd_device, dev);

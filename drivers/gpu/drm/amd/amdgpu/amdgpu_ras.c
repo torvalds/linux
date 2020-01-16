@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -34,7 +34,7 @@
 #include "ivsrcid/nbio/irqsrcs_nbif_7_4.h"
 
 const char *ras_error_string[] = {
-	"none",
+	"yesne",
 	"parity",
 	"single_correctable",
 	"multi_uncorrectable",
@@ -82,7 +82,7 @@ static bool amdgpu_ras_check_bad_page(struct amdgpu_device *adev,
 static ssize_t amdgpu_ras_debugfs_read(struct file *f, char __user *buf,
 					size_t size, loff_t *pos)
 {
-	struct ras_manager *obj = (struct ras_manager *)file_inode(f)->i_private;
+	struct ras_manager *obj = (struct ras_manager *)file_iyesde(f)->i_private;
 	struct ras_query_if info = {
 		.head = obj->head,
 	};
@@ -159,7 +159,7 @@ static int amdgpu_ras_debugfs_ctrl_parse_data(struct file *f,
 	else if (sscanf(str, "inject %32s %8s", block_name, err) == 2)
 		op = 2;
 	else if (str[0] && str[1] && str[2] && str[3])
-		/* ascii string, but commands are not matched. */
+		/* ascii string, but commands are yest matched. */
 		return -EINVAL;
 
 	if (op != -1) {
@@ -232,7 +232,7 @@ static struct ras_manager *amdgpu_ras_find_obj(struct amdgpu_device *adev,
  * Programs
  *
  * Copy the struct ras_debug_if in your codes and initialize it.
- * Write the struct to the control node.
+ * Write the struct to the control yesde.
  *
  * Shells
  *
@@ -252,7 +252,7 @@ static struct ras_manager *amdgpu_ras_find_obj(struct amdgpu_device *adev,
  *	ue: multi_uncorrectable
  *	ce: single_correctable
  * sub_block:
- *	sub block index, pass 0 if there is no sub block
+ *	sub block index, pass 0 if there is yes sub block
  *
  * here are some examples for bash commands:
  *
@@ -270,7 +270,7 @@ static struct ras_manager *amdgpu_ras_find_obj(struct amdgpu_device *adev,
  * For inject, please check corresponding err count at
  * /sys/class/drm/card[0/1/2...]/device/ras/[gfx/sdma/...]_err_count
  *
- * .. note::
+ * .. yeste::
  *	Operations are only allowed on blocks which are supported.
  *	Please check ras mask at /sys/module/amdgpu/parameters/ras_mask
  *	to see which blocks support RAS on a particular asic.
@@ -279,7 +279,7 @@ static struct ras_manager *amdgpu_ras_find_obj(struct amdgpu_device *adev,
 static ssize_t amdgpu_ras_debugfs_ctrl_write(struct file *f, const char __user *buf,
 		size_t size, loff_t *pos)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)file_inode(f)->i_private;
+	struct amdgpu_device *adev = (struct amdgpu_device *)file_iyesde(f)->i_private;
 	struct ras_debug_if data;
 	int ret = 0;
 
@@ -304,7 +304,7 @@ static ssize_t amdgpu_ras_debugfs_ctrl_write(struct file *f, const char __user *
 			break;
 		}
 
-		/* umc ce/ue error injection for a bad page is not allowed */
+		/* umc ce/ue error injection for a bad page is yest allowed */
 		if ((data.head.block == AMDGPU_RAS_BLOCK__UMC) &&
 		    amdgpu_ras_check_bad_page(adev, data.inject.address)) {
 			DRM_WARN("RAS WARN: 0x%llx has been marked as bad before error injection!\n",
@@ -345,7 +345,7 @@ static ssize_t amdgpu_ras_debugfs_ctrl_write(struct file *f, const char __user *
 static ssize_t amdgpu_ras_debugfs_eeprom_write(struct file *f, const char __user *buf,
 		size_t size, loff_t *pos)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)file_inode(f)->i_private;
+	struct amdgpu_device *adev = (struct amdgpu_device *)file_iyesde(f)->i_private;
 	int ret;
 
 	ret = amdgpu_ras_eeprom_reset_table(&adev->psp.ras.ras->eeprom_control);
@@ -412,7 +412,7 @@ static ssize_t amdgpu_ras_sysfs_read(struct device *dev,
 static inline void put_obj(struct ras_manager *obj)
 {
 	if (obj && --obj->use == 0)
-		list_del(&obj->node);
+		list_del(&obj->yesde);
 	if (obj && obj->use < 0) {
 		 DRM_ERROR("RAS ERROR: Unbalance obj(%s) use\n", obj->head.name);
 	}
@@ -438,7 +438,7 @@ static struct ras_manager *amdgpu_ras_create_obj(struct amdgpu_device *adev,
 
 	obj->head = *head;
 	obj->adev = adev;
-	list_add(&obj->node, &con->head);
+	list_add(&obj->yesde, &con->head);
 	get_obj(obj);
 
 	return obj;
@@ -497,7 +497,7 @@ static int amdgpu_ras_is_feature_enabled(struct amdgpu_device *adev,
 }
 
 /*
- * if obj is not created, then create one.
+ * if obj is yest created, then create one.
  * set feature enable flag.
  */
 static int __amdgpu_ras_feature_enable(struct amdgpu_device *adev,
@@ -506,7 +506,7 @@ static int __amdgpu_ras_feature_enable(struct amdgpu_device *adev,
 	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
 	struct ras_manager *obj = amdgpu_ras_find_obj(adev, head);
 
-	/* If hardware does not support ras, then do not create obj.
+	/* If hardware does yest support ras, then do yest create obj.
 	 * But if hardware support ras, we can create the obj.
 	 * Ras framework checks con->hw_supported to see if it need do
 	 * corresponding initialization.
@@ -560,7 +560,7 @@ int amdgpu_ras_feature_enable(struct amdgpu_device *adev,
 		};
 	}
 
-	/* Do not enable if it is not allowed. */
+	/* Do yest enable if it is yest allowed. */
 	WARN_ON(enable && !amdgpu_ras_is_feature_allowed(adev, head));
 	/* Are we alerady in that state we are going to set? */
 	if (!(!!enable ^ !!amdgpu_ras_is_feature_enabled(adev, head)))
@@ -597,9 +597,9 @@ int amdgpu_ras_feature_enable_on_boot(struct amdgpu_device *adev,
 
 	if (con->flags & AMDGPU_RAS_FLAG_INIT_BY_VBIOS) {
 		if (enable) {
-			/* There is no harm to issue a ras TA cmd regardless of
+			/* There is yes harm to issue a ras TA cmd regardless of
 			 * the currecnt ras state.
-			 * If current state == target state, it will do nothing
+			 * If current state == target state, it will do yesthing
 			 * But sometimes it requests driver to reset and repost
 			 * with error code -EAGAIN.
 			 */
@@ -634,7 +634,7 @@ static int amdgpu_ras_disable_all_features(struct amdgpu_device *adev,
 	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
 	struct ras_manager *obj, *tmp;
 
-	list_for_each_entry_safe(obj, tmp, &con->head, node) {
+	list_for_each_entry_safe(obj, tmp, &con->head, yesde) {
 		/* bypass psp.
 		 * aka just release the obj and corresponding flags
 		 */
@@ -768,7 +768,7 @@ int amdgpu_ras_error_inject(struct amdgpu_device *adev,
 		ret = psp_ras_trigger_error(&adev->psp, &block_info);
 		break;
 	default:
-		DRM_INFO("%s error injection is not supported yet\n",
+		DRM_INFO("%s error injection is yest supported yet\n",
 			 ras_block_str(info->head.block));
 		ret = -EINVAL;
 	}
@@ -784,7 +784,7 @@ int amdgpu_ras_error_inject(struct amdgpu_device *adev,
 int amdgpu_ras_error_cure(struct amdgpu_device *adev,
 		struct ras_cure_if *info)
 {
-	/* psp fw has no cure interface for now. */
+	/* psp fw has yes cure interface for yesw. */
 	return 0;
 }
 
@@ -799,7 +799,7 @@ unsigned long amdgpu_ras_query_error_count(struct amdgpu_device *adev,
 	if (!con)
 		return 0;
 
-	list_for_each_entry(obj, &con->head, node) {
+	list_for_each_entry(obj, &con->head, yesde) {
 		struct ras_query_if info = {
 			.head = obj->head,
 		};
@@ -848,7 +848,7 @@ static char *amdgpu_ras_badpage_flags_str(unsigned int flags)
  * gpu pfn and gpu page size are printed in hex format.
  * flags can be one of below character,
  *
- * R: reserved, this gpu page is reserved and not able to use.
+ * R: reserved, this gpu page is reserved and yest able to use.
  *
  * P: pending for reserve, this gpu page is marked as bad, will be reserved
  * in next window of page_reserve.
@@ -905,7 +905,7 @@ static ssize_t amdgpu_ras_sysfs_features_read(struct device *dev,
 	return scnprintf(buf, PAGE_SIZE, "feature mask: 0x%x\n", con->features);
 }
 
-static int amdgpu_ras_sysfs_create_feature_node(struct amdgpu_device *adev)
+static int amdgpu_ras_sysfs_create_feature_yesde(struct amdgpu_device *adev)
 {
 	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
 	struct attribute *attrs[] = {
@@ -946,7 +946,7 @@ static int amdgpu_ras_sysfs_create_feature_node(struct amdgpu_device *adev)
 	return sysfs_create_group(&adev->dev->kobj, &group);
 }
 
-static int amdgpu_ras_sysfs_remove_feature_node(struct amdgpu_device *adev)
+static int amdgpu_ras_sysfs_remove_feature_yesde(struct amdgpu_device *adev)
 {
 	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
 	struct attribute *attrs[] = {
@@ -1025,11 +1025,11 @@ static int amdgpu_ras_sysfs_remove_all(struct amdgpu_device *adev)
 	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
 	struct ras_manager *obj, *tmp;
 
-	list_for_each_entry_safe(obj, tmp, &con->head, node) {
+	list_for_each_entry_safe(obj, tmp, &con->head, yesde) {
 		amdgpu_ras_sysfs_remove(adev, &obj->head);
 	}
 
-	amdgpu_ras_sysfs_remove_feature_node(adev);
+	amdgpu_ras_sysfs_remove_feature_yesde(adev);
 
 	return 0;
 }
@@ -1054,12 +1054,12 @@ static int amdgpu_ras_sysfs_remove_all(struct amdgpu_device *adev)
  *
  */
 /* debugfs begin */
-static void amdgpu_ras_debugfs_create_ctrl_node(struct amdgpu_device *adev)
+static void amdgpu_ras_debugfs_create_ctrl_yesde(struct amdgpu_device *adev)
 {
 	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
-	struct drm_minor *minor = adev->ddev->primary;
+	struct drm_miyesr *miyesr = adev->ddev->primary;
 
-	con->dir = debugfs_create_dir("ras", minor->debugfs_root);
+	con->dir = debugfs_create_dir("ras", miyesr->debugfs_root);
 	debugfs_create_file("ras_ctrl", S_IWUGO | S_IRUGO, con->dir,
 				adev, &amdgpu_ras_debugfs_ctrl_ops);
 	debugfs_create_file("ras_eeprom_reset", S_IWUGO | S_IRUGO, con->dir,
@@ -1067,7 +1067,7 @@ static void amdgpu_ras_debugfs_create_ctrl_node(struct amdgpu_device *adev)
 
 	/*
 	 * After one uncorrectable error happens, usually GPU recovery will
-	 * be scheduled. But due to the known problem in GPU recovery failing
+	 * be scheduled. But due to the kyeswn problem in GPU recovery failing
 	 * to bring GPU back, below interface provides one direct way to
 	 * user to reboot system automatically in such case within
 	 * ERREVENT_ATHUB_INTERRUPT generated. Normal GPU recovery routine
@@ -1115,7 +1115,7 @@ static void amdgpu_ras_debugfs_remove_all(struct amdgpu_device *adev)
 	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
 	struct ras_manager *obj, *tmp;
 
-	list_for_each_entry_safe(obj, tmp, &con->head, node) {
+	list_for_each_entry_safe(obj, tmp, &con->head, yesde) {
 		amdgpu_ras_debugfs_remove(adev, &obj->head);
 	}
 
@@ -1128,8 +1128,8 @@ static void amdgpu_ras_debugfs_remove_all(struct amdgpu_device *adev)
 
 static int amdgpu_ras_fs_init(struct amdgpu_device *adev)
 {
-	amdgpu_ras_sysfs_create_feature_node(adev);
-	amdgpu_ras_debugfs_create_ctrl_node(adev);
+	amdgpu_ras_sysfs_create_feature_yesde(adev);
+	amdgpu_ras_debugfs_create_ctrl_yesde(adev);
 
 	return 0;
 }
@@ -1171,7 +1171,7 @@ static void amdgpu_ras_interrupt_handler(struct ras_manager *obj)
 			 */
 			if (ret == AMDGPU_RAS_SUCCESS) {
 				/* these counts could be left as 0 if
-				 * some blocks do not count error number
+				 * some blocks do yest count error number
 				 */
 				obj->err_data.ue_count += err_data.ue_count;
 				obj->err_data.ce_count += err_data.ce_count;
@@ -1283,7 +1283,7 @@ static int amdgpu_ras_interrupt_remove_all(struct amdgpu_device *adev)
 	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
 	struct ras_manager *obj, *tmp;
 
-	list_for_each_entry_safe(obj, tmp, &con->head, node) {
+	list_for_each_entry_safe(obj, tmp, &con->head, yesde) {
 		struct ras_ih_if info = {
 			.head = obj->head,
 		};
@@ -1448,7 +1448,7 @@ static int amdgpu_ras_save_bad_pages(struct amdgpu_device *adev)
 }
 
 /*
- * read error record array in eeprom and reserve enough space for
+ * read error record array in eeprom and reserve eyesugh space for
  * storing new bad pages
  */
 static int amdgpu_ras_load_bad_pages(struct amdgpu_device *adev)
@@ -1458,7 +1458,7 @@ static int amdgpu_ras_load_bad_pages(struct amdgpu_device *adev)
 	struct eeprom_table_record *bps = NULL;
 	int ret = 0;
 
-	/* no bad page record, skip eeprom access */
+	/* yes bad page record, skip eeprom access */
 	if (!control->num_recs)
 		return ret;
 
@@ -1533,7 +1533,7 @@ int amdgpu_ras_reserve_bad_pages(struct amdgpu_device *adev)
 	for (i = data->last_reserved; i < data->count; i++) {
 		bp = data->bps[i].retired_page;
 
-		/* There are two cases of reserve error should be ignored:
+		/* There are two cases of reserve error should be igyesred:
 		 * 1) a ras bad page has been allocated (used by someone);
 		 * 2) a ras bad page has been reserved (duplicate error injection
 		 *    for one page);
@@ -1673,12 +1673,12 @@ int amdgpu_ras_request_reset_on_boot(struct amdgpu_device *adev,
 
 /*
  * check hardware's ras ability which will be saved in hw_supported.
- * if hardware does not support ras, we can skip some ras initializtion and
+ * if hardware does yest support ras, we can skip some ras initializtion and
  * forbid some ras operations from IP.
  * if software itself, say boot parameter, limit the ras ability. We still
  * need allow IP do some limited operations, like disable. In such case,
- * we have to initialize ras as normal. but need check if operation is
- * allowed or not in each function.
+ * we have to initialize ras as yesrmal. but need check if operation is
+ * allowed or yest in each function.
  */
 static void amdgpu_ras_check_supported(struct amdgpu_device *adev,
 		uint32_t *hw_supported, uint32_t *supported)
@@ -1766,7 +1766,7 @@ int amdgpu_ras_late_init(struct amdgpu_device *adev,
 {
 	int r;
 
-	/* disable RAS feature per IP block if it is not supported */
+	/* disable RAS feature per IP block if it is yest supported */
 	if (!amdgpu_ras_is_supported(adev, ras_block->block)) {
 		amdgpu_ras_feature_enable_on_boot(adev, ras_block, 0);
 		return 0;
@@ -1781,13 +1781,13 @@ int amdgpu_ras_late_init(struct amdgpu_device *adev,
 			return 0;
 		} else if (adev->in_suspend || adev->in_gpu_reset) {
 			/* in resume phase, if fail to enable ras,
-			 * clean up all ras fs nodes, and disable ras */
+			 * clean up all ras fs yesdes, and disable ras */
 			goto cleanup;
 		} else
 			return r;
 	}
 
-	/* in resume phase, no need to create ras fs node */
+	/* in resume phase, yes need to create ras fs yesde */
 	if (adev->in_suspend || adev->in_gpu_reset)
 		return 0;
 
@@ -1815,7 +1815,7 @@ interrupt:
 	return r;
 }
 
-/* helper function to remove ras fs node and interrupt handler */
+/* helper function to remove ras fs yesde and interrupt handler */
 void amdgpu_ras_late_fini(struct amdgpu_device *adev,
 			  struct ras_common_if *ras_block,
 			  struct ras_ih_if *ih_info)
@@ -1842,21 +1842,21 @@ void amdgpu_ras_resume(struct amdgpu_device *adev)
 		return;
 
 	if (con->flags & AMDGPU_RAS_FLAG_INIT_BY_VBIOS) {
-		/* Set up all other IPs which are not implemented. There is a
+		/* Set up all other IPs which are yest implemented. There is a
 		 * tricky thing that IP's actual ras error type should be
-		 * MULTI_UNCORRECTABLE, but as driver does not handle it, so
+		 * MULTI_UNCORRECTABLE, but as driver does yest handle it, so
 		 * ERROR_NONE make sense anyway.
 		 */
 		amdgpu_ras_enable_all_features(adev, 1);
 
 		/* We enable ras on all hw_supported block, but as boot
 		 * parameter might disable some of them and one or more IP has
-		 * not implemented yet. So we disable them on behalf.
+		 * yest implemented yet. So we disable them on behalf.
 		 */
-		list_for_each_entry_safe(obj, tmp, &con->head, node) {
+		list_for_each_entry_safe(obj, tmp, &con->head, yesde) {
 			if (!amdgpu_ras_is_supported(adev, obj->head.block)) {
 				amdgpu_ras_feature_enable(adev, &obj->head, 0);
-				/* there should be no any reference. */
+				/* there should be yes any reference. */
 				WARN_ON(alive_obj(obj));
 			}
 		}
@@ -1866,9 +1866,9 @@ void amdgpu_ras_resume(struct amdgpu_device *adev)
 		con->flags &= ~AMDGPU_RAS_FLAG_INIT_NEED_RESET;
 		/* setup ras obj state as disabled.
 		 * for init_by_vbios case.
-		 * if we want to enable ras, just enable it in a normal way.
+		 * if we want to enable ras, just enable it in a yesrmal way.
 		 * If we want do disable it, need setup ras obj as enabled,
-		 * then issue another TA disable cmd.
+		 * then issue ayesther TA disable cmd.
 		 * See feature_enable_on_boot
 		 */
 		amdgpu_ras_disable_all_features(adev, 1);
@@ -1913,7 +1913,7 @@ int amdgpu_ras_fini(struct amdgpu_device *adev)
 	amdgpu_ras_fs_fini(adev);
 	amdgpu_ras_interrupt_remove_all(adev);
 
-	WARN(con->features, "Feature mask is not cleared");
+	WARN(con->features, "Feature mask is yest cleared");
 
 	if (con->features)
 		amdgpu_ras_disable_all_features(adev, 1);

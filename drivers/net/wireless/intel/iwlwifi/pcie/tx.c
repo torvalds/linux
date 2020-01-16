@@ -39,12 +39,12 @@
  * are met:
  *
  *  * Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  *  * Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in
+ *    yestice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
- *  * Neither the name Intel Corporation nor the names of its
+ *  * Neither the name Intel Corporation yesr the names of its
  *    contributors may be used to endorse or promote products derived
  *    from this software without specific prior written permission.
  *
@@ -110,7 +110,7 @@ int iwl_queue_space(struct iwl_trans *trans, const struct iwl_txq *q)
 	/*
 	 * To avoid ambiguity between empty and completely full queues, there
 	 * should always be less than max_tfd_queue_size elements in the queue.
-	 * If q->n_window is smaller than max_tfd_queue_size, there is no need
+	 * If q->n_window is smaller than max_tfd_queue_size, there is yes need
 	 * to reserve any queue entries for this purpose.
 	 */
 	if (q->n_window < trans->trans_cfg->base_params->max_tfd_queue_size)
@@ -313,8 +313,8 @@ static void iwl_pcie_txq_inc_wr_ptr(struct iwl_trans *trans,
 	}
 
 	/*
-	 * if not in power-save mode, uCode will never sleep when we're
-	 * trying to tx (during RFKILL, we're not trying to tx).
+	 * if yest in power-save mode, uCode will never sleep when we're
+	 * trying to tx (during RFKILL, we're yest trying to tx).
 	 */
 	IWL_DEBUG_TX(trans, "Q:%d WR: 0x%x\n", txq_id, txq->write_ptr);
 	if (!txq->block)
@@ -479,8 +479,8 @@ void iwl_pcie_txq_free_tfd(struct iwl_trans *trans, struct iwl_txq *txq)
 		skb = txq->entries[idx].skb;
 
 		/* Can be called from irqs-disabled context
-		 * If skb is not NULL, it means that the whole queue is being
-		 * freed and that the queue is not empty - free the skb
+		 * If skb is yest NULL, it means that the whole queue is being
+		 * freed and that the queue is yest empty - free the skb
 		 */
 		if (skb) {
 			iwl_op_mode_free_skb(trans->op_mode, skb);
@@ -505,7 +505,7 @@ static int iwl_pcie_txq_build_tfd(struct iwl_trans *trans, struct iwl_txq *txq,
 
 	/* Each TFD can point to a maximum max_tbs Tx buffers */
 	if (num_tbs >= trans_pcie->max_tbs) {
-		IWL_ERR(trans, "Error can not send more than %d chunks\n",
+		IWL_ERR(trans, "Error can yest send more than %d chunks\n",
 			trans_pcie->max_tbs);
 		return -EINVAL;
 	}
@@ -701,7 +701,7 @@ static void iwl_pcie_txq_unmap(struct iwl_trans *trans, int txq_id)
  *
  * Empty queue by removing and destroying all BD's.
  * Free all buffers.
- * 0-fill, but do not free "txq" descriptor structure.
+ * 0-fill, but do yest free "txq" descriptor structure.
  */
 static void iwl_pcie_txq_free(struct iwl_trans *trans, int txq_id)
 {
@@ -754,7 +754,7 @@ void iwl_pcie_tx_start(struct iwl_trans *trans, u32 scd_base_addr)
 	int clear_dwords = (SCD_TRANS_TBL_OFFSET_QUEUE(nq) -
 				SCD_CONTEXT_MEM_LOWER_BOUND) / sizeof(u32);
 
-	/* make sure all queue are not stopped/used */
+	/* make sure all queue are yest stopped/used */
 	memset(trans_pcie->queue_stopped, 0, sizeof(trans_pcie->queue_stopped));
 	memset(trans_pcie->queue_used, 0, sizeof(trans_pcie->queue_used));
 
@@ -953,8 +953,8 @@ static int iwl_pcie_tx_alloc(struct iwl_trans *trans)
 		sizeof(struct iwl_gen3_bc_tbl) :
 		sizeof(struct iwlagn_scd_bc_tbl);
 
-	/*It is not allowed to alloc twice, so warn when this happens.
-	 * We cannot rely on the previous allocation, so free and fail */
+	/*It is yest allowed to alloc twice, so warn when this happens.
+	 * We canyest rely on the previous allocation, so free and fail */
 	if (WARN_ON(trans_pcie->txq_memory)) {
 		ret = -EINVAL;
 		goto error;
@@ -978,7 +978,7 @@ static int iwl_pcie_tx_alloc(struct iwl_trans *trans)
 		kcalloc(trans->trans_cfg->base_params->num_of_queues,
 			sizeof(struct iwl_txq), GFP_KERNEL);
 	if (!trans_pcie->txq_memory) {
-		IWL_ERR(trans, "Not enough memory for txq\n");
+		IWL_ERR(trans, "Not eyesugh memory for txq\n");
 		ret = -ENOMEM;
 		goto error;
 	}
@@ -1102,7 +1102,7 @@ static inline void iwl_pcie_txq_progress(struct iwl_txq *txq)
 		mod_timer(&txq->stuck_timer, jiffies + txq->wd_timeout);
 }
 
-/* Frees buffers until index _not_ inclusive */
+/* Frees buffers until index _yest_ inclusive */
 void iwl_trans_pcie_reclaim(struct iwl_trans *trans, int txq_id, int ssn,
 			    struct sk_buff_head *skbs)
 {
@@ -1112,14 +1112,14 @@ void iwl_trans_pcie_reclaim(struct iwl_trans *trans, int txq_id, int ssn,
 	int read_ptr = iwl_pcie_get_cmd_index(txq, txq->read_ptr);
 	int last_to_free;
 
-	/* This function is not meant to release cmd queue*/
+	/* This function is yest meant to release cmd queue*/
 	if (WARN_ON(txq_id == trans_pcie->cmd_queue))
 		return;
 
 	spin_lock_bh(&txq->lock);
 
 	if (!test_bit(txq_id, trans_pcie->queue_used)) {
-		IWL_DEBUG_TX_QUEUES(trans, "Q %d inactive - ignoring idx %d\n",
+		IWL_DEBUG_TX_QUEUES(trans, "Q %d inactive - igyesring idx %d\n",
 				    txq_id, ssn);
 		goto out;
 	}
@@ -1130,7 +1130,7 @@ void iwl_trans_pcie_reclaim(struct iwl_trans *trans, int txq_id, int ssn,
 	IWL_DEBUG_TX_REPLY(trans, "[Q %d] %d -> %d (%d)\n",
 			   txq_id, txq->read_ptr, tfd_num, ssn);
 
-	/*Since we free until index _not_ inclusive, the one before index is
+	/*Since we free until index _yest_ inclusive, the one before index is
 	 * the last we will free. This one must be used */
 	last_to_free = iwl_queue_dec_wrap(trans, tfd_num);
 
@@ -1178,16 +1178,16 @@ void iwl_trans_pcie_reclaim(struct iwl_trans *trans, int txq_id, int ssn,
 
 		/*
 		 * We are going to transmit from the overflow queue.
-		 * Remember this state so that wait_for_txq_empty will know we
-		 * are adding more packets to the TFD queue. It cannot rely on
+		 * Remember this state so that wait_for_txq_empty will kyesw we
+		 * are adding more packets to the TFD queue. It canyest rely on
 		 * the state of &txq->overflow_q, as we just emptied it, but
 		 * haven't TXed the content yet.
 		 */
 		txq->overflow_tx = true;
 
 		/*
-		 * This is tricky: we are in reclaim path which is non
-		 * re-entrant, so noone will try to take the access the
+		 * This is tricky: we are in reclaim path which is yesn
+		 * re-entrant, so yesone will try to take the access the
 		 * txq data from that path. We stopped tx, so we can't
 		 * have tx as well. Bottom line, we can unlock and re-lock
 		 * later.
@@ -1279,7 +1279,7 @@ static int iwl_pcie_set_cmd_in_flight(struct iwl_trans *trans,
  *
  * When FW advances 'R' index, all entries between old and new 'R' index
  * need to be reclaimed. As result, some free space forms.  If there is
- * enough free space (> low mark), wake the stack that feeds us.
+ * eyesugh free space (> low mark), wake the stack that feeds us.
  */
 void iwl_pcie_cmdq_reclaim(struct iwl_trans *trans, int txq_id, int idx)
 {
@@ -1395,7 +1395,7 @@ bool iwl_trans_pcie_txq_enable(struct iwl_trans *trans, int txq_id, u16 ssn,
 			/*
 			 * disable aggregations for the queue, this will also
 			 * make the ra_tid mapping configuration irrelevant
-			 * since it is now a non-AGG queue.
+			 * since it is yesw a yesn-AGG queue.
 			 */
 			iwl_scd_txq_disable_agg(trans, txq_id);
 
@@ -1405,7 +1405,7 @@ bool iwl_trans_pcie_txq_enable(struct iwl_trans *trans, int txq_id, u16 ssn,
 		/*
 		 * If we need to move the SCD write pointer by steps of
 		 * 0x40, 0x80 or 0xc0, it gets stuck. Avoids this and let
-		 * the op_mode know by returning true later.
+		 * the op_mode kyesw by returning true later.
 		 * Do this only in case cfg is NULL since this trick can
 		 * be done only if we have DQA enabled which is true for mvm
 		 * only. And mvm never sets a cfg pointer.
@@ -1493,7 +1493,7 @@ void iwl_trans_pcie_txq_disable(struct iwl_trans *trans, int txq_id,
 	 */
 	if (!test_and_clear_bit(txq_id, trans_pcie->queue_used)) {
 		WARN_ONCE(test_bit(STATUS_DEVICE_ENABLED, &trans->status),
-			  "queue %d not used", txq_id);
+			  "queue %d yest used", txq_id);
 		return;
 	}
 
@@ -1533,7 +1533,7 @@ static int iwl_pcie_enqueue_hcmd(struct iwl_trans *trans,
 	dma_addr_t phys_addr;
 	int idx;
 	u16 copy_size, cmd_size, tb0_size;
-	bool had_nocopy = false;
+	bool had_yescopy = false;
 	u8 group_id = iwl_cmd_groupid(cmd->id);
 	int i, ret;
 	u32 cmd_pos;
@@ -1575,7 +1575,7 @@ static int iwl_pcie_enqueue_hcmd(struct iwl_trans *trans,
 		}
 
 		if (cmd->dataflags[i] & IWL_HCMD_DFL_NOCOPY) {
-			had_nocopy = true;
+			had_yescopy = true;
 			if (WARN_ON(cmd->dataflags[i] & IWL_HCMD_DFL_DUP)) {
 				idx = -EINVAL;
 				goto free_dup_buf;
@@ -1583,9 +1583,9 @@ static int iwl_pcie_enqueue_hcmd(struct iwl_trans *trans,
 		} else if (cmd->dataflags[i] & IWL_HCMD_DFL_DUP) {
 			/*
 			 * This is also a chunk that isn't copied
-			 * to the static buffer so set had_nocopy.
+			 * to the static buffer so set had_yescopy.
 			 */
-			had_nocopy = true;
+			had_yescopy = true;
 
 			/* only allowed once */
 			if (WARN_ON(dup_buf)) {
@@ -1598,8 +1598,8 @@ static int iwl_pcie_enqueue_hcmd(struct iwl_trans *trans,
 			if (!dup_buf)
 				return -ENOMEM;
 		} else {
-			/* NOCOPY must not be followed by normal! */
-			if (WARN_ON(had_nocopy)) {
+			/* NOCOPY must yest be followed by yesrmal! */
+			if (WARN_ON(had_yescopy)) {
 				idx = -EINVAL;
 				goto free_dup_buf;
 			}
@@ -1674,7 +1674,7 @@ static int iwl_pcie_enqueue_hcmd(struct iwl_trans *trans,
 		if (!cmd->len[i])
 			continue;
 
-		/* copy everything if not nocopy/dup */
+		/* copy everything if yest yescopy/dup */
 		if (!(cmd->dataflags[i] & (IWL_HCMD_DFL_NOCOPY |
 					   IWL_HCMD_DFL_DUP))) {
 			copy = cmd->len[i];
@@ -1736,7 +1736,7 @@ static int iwl_pcie_enqueue_hcmd(struct iwl_trans *trans,
 				       copy_size - tb0_size, false);
 	}
 
-	/* map the remaining (adjusted) nocopy/dup fragments */
+	/* map the remaining (adjusted) yescopy/dup fragments */
 	for (i = 0; i < IWL_MAX_CMD_TBS_PER_TFD; i++) {
 		const void *data = cmddata[i];
 
@@ -1871,7 +1871,7 @@ static int iwl_pcie_send_hcmd_async(struct iwl_trans *trans,
 {
 	int ret;
 
-	/* An asynchronous command can not expect an SKB to be set. */
+	/* An asynchroyesus command can yest expect an SKB to be set. */
 	if (WARN_ON(cmd->flags & CMD_WANT_SKB))
 		return -EINVAL;
 
@@ -1947,7 +1947,7 @@ static int iwl_pcie_send_hcmd_sync(struct iwl_trans *trans,
 
 	if (!(cmd->flags & CMD_SEND_IN_RFKILL) &&
 	    test_bit(STATUS_RFKILL_OPMODE, &trans->status)) {
-		IWL_DEBUG_RF_KILL(trans, "RFKILL in SYNC CMD... no rsp\n");
+		IWL_DEBUG_RF_KILL(trans, "RFKILL in SYNC CMD... yes rsp\n");
 		ret = -ERFKILL;
 		goto cancel;
 	}
@@ -2060,11 +2060,11 @@ struct iwl_tso_hdr_page *get_page_hdr(struct iwl_trans *trans, size_t len)
 	if (!p->page)
 		goto alloc;
 
-	/* enough room on this page */
+	/* eyesugh room on this page */
 	if (p->pos + len < (u8 *)page_address(p->page) + PAGE_SIZE)
 		return p;
 
-	/* We don't have enough room on this page, get a new one. */
+	/* We don't have eyesugh room on this page, get a new one. */
 	__free_page(p->page);
 
 alloc:
@@ -2327,13 +2327,13 @@ int iwl_trans_pcie_tx(struct iwl_trans *trans, struct sk_buff *skb,
 		skb->ip_summed = CHECKSUM_UNNECESSARY;
 	}
 
-	if (skb_is_nonlinear(skb) &&
+	if (skb_is_yesnlinear(skb) &&
 	    skb_shinfo(skb)->nr_frags > IWL_PCIE_MAX_FRAGS(trans_pcie) &&
 	    __skb_linearize(skb))
 		return -ENOMEM;
 
 	/* mac80211 always puts the full header into the SKB's head,
-	 * so there's no need to check if it's readable there
+	 * so there's yes need to check if it's readable there
 	 */
 	hdr = (struct ieee80211_hdr *)skb->data;
 	fc = hdr->frame_control;
@@ -2344,7 +2344,7 @@ int iwl_trans_pcie_tx(struct iwl_trans *trans, struct sk_buff *skb,
 	if (iwl_queue_space(trans, txq) < txq->high_mark) {
 		iwl_stop_queue(trans, txq);
 
-		/* don't put the packet on the ring, if there is no room */
+		/* don't put the packet on the ring, if there is yes room */
 		if (unlikely(iwl_queue_space(trans, txq) < 3)) {
 			struct iwl_device_cmd **dev_cmd_ptr;
 
@@ -2397,7 +2397,7 @@ int iwl_trans_pcie_tx(struct iwl_trans *trans, struct sk_buff *skb,
 	 */
 	len = sizeof(struct iwl_tx_cmd) + sizeof(struct iwl_cmd_header) +
 	      hdr_len - IWL_FIRST_TB_SIZE;
-	/* do not align A-MSDU to dword as the subframe header aligns it */
+	/* do yest align A-MSDU to dword as the subframe header aligns it */
 	amsdu = ieee80211_is_data_qos(fc) &&
 		(*ieee80211_get_qos_ctl(hdr) &
 		 IEEE80211_QOS_CTL_A_MSDU_PRESENT);
@@ -2459,7 +2459,7 @@ int iwl_trans_pcie_tx(struct iwl_trans *trans, struct sk_buff *skb,
 		}
 	}
 
-	/* building the A-MSDU might have changed this data, so memcpy it now */
+	/* building the A-MSDU might have changed this data, so memcpy it yesw */
 	memcpy(&txq->first_tb_bufs[txq->write_ptr], dev_cmd, IWL_FIRST_TB_SIZE);
 
 	tfd = iwl_pcie_get_tfd(trans, txq, txq->write_ptr);
@@ -2472,7 +2472,7 @@ int iwl_trans_pcie_tx(struct iwl_trans *trans, struct sk_buff *skb,
 	/* start timer if queue currently empty */
 	if (txq->read_ptr == txq->write_ptr && txq->wd_timeout) {
 		/*
-		 * If the TXQ is active, then set the timer, if not,
+		 * If the TXQ is active, then set the timer, if yest,
 		 * set the timer in remainder so that the timer will
 		 * be armed with the right value when the station will
 		 * wake up.
@@ -2491,7 +2491,7 @@ int iwl_trans_pcie_tx(struct iwl_trans *trans, struct sk_buff *skb,
 
 	/*
 	 * At this point the frame is "transmitted" successfully
-	 * and we will get a TX status notification eventually.
+	 * and we will get a TX status yestification eventually.
 	 */
 	spin_unlock(&txq->lock);
 	return 0;

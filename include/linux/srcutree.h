@@ -11,15 +11,15 @@
 #ifndef _LINUX_SRCU_TREE_H
 #define _LINUX_SRCU_TREE_H
 
-#include <linux/rcu_node_tree.h>
+#include <linux/rcu_yesde_tree.h>
 #include <linux/completion.h>
 
-struct srcu_node;
+struct srcu_yesde;
 struct srcu_struct;
 
 /*
- * Per-CPU structure feeding into leaf srcu_node, similar in function
- * to rcu_node.
+ * Per-CPU structure feeding into leaf srcu_yesde, similar in function
+ * to rcu_yesde.
  */
 struct srcu_data {
 	/* Read-side state. */
@@ -27,7 +27,7 @@ struct srcu_data {
 	unsigned long srcu_unlock_count[2];	/* Unlocks per CPU. */
 
 	/* Update-side state. */
-	spinlock_t __private lock ____cacheline_internodealigned_in_smp;
+	spinlock_t __private lock ____cacheline_interyesdealigned_in_smp;
 	struct rcu_segcblist srcu_cblist;	/* List of callbacks.*/
 	unsigned long srcu_gp_seq_needed;	/* Furthest future GP needed. */
 	unsigned long srcu_gp_seq_needed_exp;	/* Furthest future exp GP. */
@@ -35,8 +35,8 @@ struct srcu_data {
 	struct timer_list delay_work;		/* Delay for CB invoking */
 	struct work_struct work;		/* Context for CB invoking. */
 	struct rcu_head srcu_barrier_head;	/* For srcu_barrier() use. */
-	struct srcu_node *mynode;		/* Leaf srcu_node. */
-	unsigned long grpmask;			/* Mask for leaf srcu_node */
+	struct srcu_yesde *myyesde;		/* Leaf srcu_yesde. */
+	unsigned long grpmask;			/* Mask for leaf srcu_yesde */
 						/*  ->srcu_data_have_cbs[]. */
 	int cpu;
 	struct srcu_struct *ssp;
@@ -45,7 +45,7 @@ struct srcu_data {
 /*
  * Node in SRCU combining tree, similar in function to rcu_data.
  */
-struct srcu_node {
+struct srcu_yesde {
 	spinlock_t __private lock;
 	unsigned long srcu_have_cbs[4];		/* GP seq for children */
 						/*  having CBs, but only */
@@ -53,18 +53,18 @@ struct srcu_node {
 	unsigned long srcu_data_have_cbs[4];	/* Which srcu_data structs */
 						/*  have CBs for given GP? */
 	unsigned long srcu_gp_seq_needed_exp;	/* Furthest future exp GP. */
-	struct srcu_node *srcu_parent;		/* Next up in tree. */
-	int grplo;				/* Least CPU for node. */
-	int grphi;				/* Biggest CPU for node. */
+	struct srcu_yesde *srcu_parent;		/* Next up in tree. */
+	int grplo;				/* Least CPU for yesde. */
+	int grphi;				/* Biggest CPU for yesde. */
 };
 
 /*
  * Per-SRCU-domain structure, similar in function to rcu_state.
  */
 struct srcu_struct {
-	struct srcu_node node[NUM_RCU_NODES];	/* Combining tree. */
-	struct srcu_node *level[RCU_NUM_LVLS + 1];
-						/* First node at each level. */
+	struct srcu_yesde yesde[NUM_RCU_NODES];	/* Combining tree. */
+	struct srcu_yesde *level[RCU_NUM_LVLS + 1];
+						/* First yesde at each level. */
 	struct mutex srcu_cb_mutex;		/* Serialize CB preparation. */
 	spinlock_t __private lock;		/* Protect counters */
 	struct mutex srcu_gp_mutex;		/* Serialize GP work. */
@@ -78,7 +78,7 @@ struct srcu_struct {
 	struct mutex srcu_barrier_mutex;	/* Serialize barrier ops. */
 	struct completion srcu_barrier_completion;
 						/* Awaken barrier rq at end. */
-	atomic_t srcu_barrier_cpu_cnt;		/* # CPUs not yet posting a */
+	atomic_t srcu_barrier_cpu_cnt;		/* # CPUs yest yet posting a */
 						/*  callback for the barrier */
 						/*  operation. */
 	struct delayed_work work;
@@ -103,7 +103,7 @@ struct srcu_struct {
 
 /*
  * Define and initialize a srcu struct at build time.
- * Do -not- call init_srcu_struct() nor cleanup_srcu_struct() on it.
+ * Do -yest- call init_srcu_struct() yesr cleanup_srcu_struct() on it.
  *
  * Note that although DEFINE_STATIC_SRCU() hides the name from other
  * files, the per-CPU variable rules nevertheless require that the
@@ -131,7 +131,7 @@ struct srcu_struct {
 	is_static struct srcu_struct name =				\
 		__SRCU_STRUCT_INIT(name, name##_srcu_data)
 #endif
-#define DEFINE_SRCU(name)		__DEFINE_SRCU(name, /* not static */)
+#define DEFINE_SRCU(name)		__DEFINE_SRCU(name, /* yest static */)
 #define DEFINE_STATIC_SRCU(name)	__DEFINE_SRCU(name, static)
 
 void synchronize_srcu_expedited(struct srcu_struct *ssp);

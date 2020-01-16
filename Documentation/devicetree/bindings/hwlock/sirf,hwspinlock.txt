@@ -21,7 +21,7 @@ Example of hwlock provider:
 	};
 
 Example of hwlock users:
-	node {
+	yesde {
 		...
 		hwlocks = <&hwlock 2>;
 		...

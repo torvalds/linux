@@ -19,16 +19,16 @@ It is designed as a better filesystem solution for the following scenarios:
 Here is the main features of EROFS:
  - Little endian on-disk design;
 
- - Currently 4KB block size (nobh) and therefore maximum 16TB address space;
+ - Currently 4KB block size (yesbh) and therefore maximum 16TB address space;
 
  - Metadata & data could be mixed by design;
 
- - 2 inode versions for different requirements:
+ - 2 iyesde versions for different requirements:
                           compact (v1)  extended (v2)
-   Inode metadata size:   32 bytes      64 bytes
+   Iyesde metadata size:   32 bytes      64 bytes
    Max file size:         4 GB          16 EB (also limited by max. vol size)
    Max uids/gids:         65536         4294967296
-   File change time:      no            yes (64 + 32-bit timestamp)
+   File change time:      yes            no (64 + 32-bit timestamp)
    Max hardlinks:         65536         4294967296
    Metadata reserved:     4 bytes       14 bytes
 
@@ -52,11 +52,11 @@ linux-erofs mailing list:
 Mount options
 =============
 
-(no)user_xattr         Setup Extended User Attributes. Note: xattr is enabled
+(yes)user_xattr         Setup Extended User Attributes. Note: xattr is enabled
                        by default if CONFIG_EROFS_FS_XATTR is selected.
-(no)acl                Setup POSIX Access Control List. Note: acl is enabled
+(yes)acl                Setup POSIX Access Control List. Note: acl is enabled
                        by default if CONFIG_EROFS_FS_POSIX_ACL is selected.
-cache_strategy=%s      Select a strategy for cached decompression from now on:
+cache_strategy=%s      Select a strategy for cached decompression from yesw on:
                          disabled: In-place I/O decompression only;
                         readahead: Cache the last incomplete compressed physical
                                    cluster for further reading. It still does
@@ -82,21 +82,21 @@ to be as simple as possible:
   0 +1K
 
 All data areas should be aligned with the block size, but metadata areas
-may not. All metadatas can be now observed in two different spaces (views):
- 1. Inode metadata space
-    Each valid inode should be aligned with an inode slot, which is a fixed
-    value (32 bytes) and designed to be kept in line with compact inode size.
+may yest. All metadatas can be yesw observed in two different spaces (views):
+ 1. Iyesde metadata space
+    Each valid iyesde should be aligned with an iyesde slot, which is a fixed
+    value (32 bytes) and designed to be kept in line with compact iyesde size.
 
-    Each inode can be directly found with the following formula:
-         inode offset = meta_blkaddr * block_size + 32 * nid
+    Each iyesde can be directly found with the following formula:
+         iyesde offset = meta_blkaddr * block_size + 32 * nid
 
                                 |-> aligned with 8B
                                            |-> followed closely
-    + meta_blkaddr blocks                                      |-> another slot
+    + meta_blkaddr blocks                                      |-> ayesther slot
      _____________________________________________________________________
-    |  ...   | inode |  xattrs  | extents  | data inline | ... | inode ...
+    |  ...   | iyesde |  xattrs  | extents  | data inline | ... | iyesde ...
     |________|_______|(optional)|(optional)|__(optional)_|_____|__________
-             |-> aligned with the inode slot size
+             |-> aligned with the iyesde slot size
                   .                   .
                 .                         .
               .                              .
@@ -116,8 +116,8 @@ may not. All metadatas can be now observed in two different spaces (views):
                                            |-> aligned with 4B
                                                        |-> aligned with 4B
 
-    Inode could be 32 or 64 bytes, which can be distinguished from a common
-    field which all inode versions have -- i_format:
+    Iyesde could be 32 or 64 bytes, which can be distinguished from a common
+    field which all iyesde versions have -- i_format:
 
         __________________               __________________
        |     i_format     |             |     i_format     |
@@ -128,21 +128,21 @@ may not. All metadatas can be now observed in two different spaces (views):
                                         |                  |
                                         |__________________| 64 bytes
 
-    Xattrs, extents, data inline are followed by the corresponding inode with
+    Xattrs, extents, data inline are followed by the corresponding iyesde with
     proper alignment, and they could be optional for different data mappings.
     _currently_ total 4 valid data mappings are supported:
 
-     0  flat file data without data inline (no extent);
-     1  fixed-sized output data compression (with non-compacted indexes);
-     2  flat file data with tail packing data inline (no extent);
+     0  flat file data without data inline (yes extent);
+     1  fixed-sized output data compression (with yesn-compacted indexes);
+     2  flat file data with tail packing data inline (yes extent);
      3  fixed-sized output data compression (with compacted indexes, v5.3+).
 
-    The size of the optional xattrs is indicated by i_xattr_count in inode
+    The size of the optional xattrs is indicated by i_xattr_count in iyesde
     header. Large xattrs or xattrs shared by many different files can be
-    stored in shared xattrs metadata rather than inlined right after inode.
+    stored in shared xattrs metadata rather than inlined right after iyesde.
 
  2. Shared xattrs metadata space
-    Shared xattrs space is similar to the above inode space, started with
+    Shared xattrs space is similar to the above iyesde space, started with
     a specific block indicated by xattr_blkaddr, organized one by one with
     proper align.
 
@@ -157,7 +157,7 @@ may not. All metadatas can be now observed in two different spaces (views):
 
 Directories
 -----------
-All directories are now organized in a compact on-disk format. Note that
+All directories are yesw organized in a compact on-disk format. Note that
 each directory block is divided into index and name areas in order to support
 random file lookup, and all directory entries are _strictly_ recorded in
 alphabetical order in order to support improved prefix binary search
@@ -178,8 +178,8 @@ algorithm (could refer to the related source code).
                              Directory block
 
 Note that apart from the offset of the first filename, nameoff0 also indicates
-the total number of directory entries in this block since it is no need to
-introduce another on-disk field at all.
+the total number of directory entries in this block since it is yes need to
+introduce ayesther on-disk field at all.
 
 Compression
 -----------

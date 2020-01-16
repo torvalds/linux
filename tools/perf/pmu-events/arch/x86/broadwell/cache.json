@@ -1,12 +1,12 @@
 [
     {
-        "PublicDescription": "This event counts the number of demand Data Read requests that miss L2 cache. Only not rejected loads are counted.",
+        "PublicDescription": "This event counts the number of demand Data Read requests that miss L2 cache. Only yest rejected loads are counted.",
         "EventCode": "0x24",
         "Counter": "0,1,2,3",
         "UMask": "0x21",
         "EventName": "L2_RQSTS.DEMAND_DATA_RD_MISS",
         "SampleAfterValue": "200003",
-        "BriefDescription": "Demand Data Read miss L2, no rejects",
+        "BriefDescription": "Demand Data Read miss L2, yes rejects",
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
     {
@@ -94,7 +94,7 @@
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
     {
-        "PublicDescription": "This event counts the number of demand Data Read requests (including requests from L1D hardware prefetchers). These loads may hit or miss L2 cache. Only non rejected loads are counted.",
+        "PublicDescription": "This event counts the number of demand Data Read requests (including requests from L1D hardware prefetchers). These loads may hit or miss L2 cache. Only yesn rejected loads are counted.",
         "EventCode": "0x24",
         "Counter": "0,1,2,3",
         "UMask": "0xe1",
@@ -182,7 +182,7 @@
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
     {
-        "PublicDescription": "This event counts duration of L1D miss outstanding, that is each cycle number of Fill Buffers (FB) outstanding required by Demand Reads. FB either is held by demand loads, or it is held by non-demand loads and gets hit at least once by demand. The valid outstanding interval is defined until the FB deallocation by one of the following ways: from FB allocation, if FB is allocated by demand; from the demand Hit FB, if it is allocated by hardware or software prefetch.\nNote: In the L1D, a Demand Read contains cacheable or noncacheable demand loads, including ones causing cache-line splits and reads due to page walks resulted from any request type.",
+        "PublicDescription": "This event counts duration of L1D miss outstanding, that is each cycle number of Fill Buffers (FB) outstanding required by Demand Reads. FB either is held by demand loads, or it is held by yesn-demand loads and gets hit at least once by demand. The valid outstanding interval is defined until the FB deallocation by one of the following ways: from FB allocation, if FB is allocated by demand; from the demand Hit FB, if it is allocated by hardware or software prefetch.\nNote: In the L1D, a Demand Read contains cacheable or yesncacheable demand loads, including ones causing cache-line splits and reads due to page walks resulted from any request type.",
         "EventCode": "0x48",
         "Counter": "2",
         "UMask": "0x1",
@@ -345,13 +345,13 @@
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
     {
-        "PublicDescription": "This event counts both cacheable and noncachaeble code read requests.",
+        "PublicDescription": "This event counts both cacheable and yesncachaeble code read requests.",
         "EventCode": "0xB0",
         "Counter": "0,1,2,3",
         "UMask": "0x2",
         "EventName": "OFFCORE_REQUESTS.DEMAND_CODE_RD",
         "SampleAfterValue": "100003",
-        "BriefDescription": "Cacheable and noncachaeble code read requests",
+        "BriefDescription": "Cacheable and yesncachaeble code read requests",
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
     {
@@ -365,7 +365,7 @@
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
     {
-        "PublicDescription": "This event counts the demand and prefetch data reads. All Core Data Reads include cacheable Demands and L2 prefetchers (not L3 prefetchers). Counting also covers reads due to page walks resulted from any request type.",
+        "PublicDescription": "This event counts the demand and prefetch data reads. All Core Data Reads include cacheable Demands and L2 prefetchers (yest L3 prefetchers). Counting also covers reads due to page walks resulted from any request type.",
         "EventCode": "0xB0",
         "Counter": "0,1,2,3",
         "UMask": "0x8",
@@ -375,13 +375,13 @@
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
     {
-        "PublicDescription": "This event counts the number of cases when the offcore requests buffer cannot take more entries for the core. This can happen when the superqueue does not contain eligible entries, or when L1D writeback pending FIFO requests is full.\nNote: Writeback pending FIFO has six entries.",
+        "PublicDescription": "This event counts the number of cases when the offcore requests buffer canyest take more entries for the core. This can happen when the superqueue does yest contain eligible entries, or when L1D writeback pending FIFO requests is full.\nNote: Writeback pending FIFO has six entries.",
         "EventCode": "0xb2",
         "Counter": "0,1,2,3",
         "UMask": "0x1",
         "EventName": "OFFCORE_REQUESTS_BUFFER.SQ_FULL",
         "SampleAfterValue": "2000003",
-        "BriefDescription": "Offcore requests buffer cannot take more entries for this thread core.",
+        "BriefDescription": "Offcore requests buffer canyest take more entries for this thread core.",
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
     {
@@ -508,20 +508,20 @@
     },
     {
         "PEBS": "1",
-        "PublicDescription": "This is a precise version (that is, uses PEBS) of the event that counts retired load uops which data sources were data hits in the last-level (L3) cache without snoops required.",
+        "PublicDescription": "This is a precise version (that is, uses PEBS) of the event that counts retired load uops which data sources were data hits in the last-level (L3) cache without syesops required.",
         "EventCode": "0xD1",
         "Counter": "0,1,2,3",
         "UMask": "0x4",
         "Errata": "BDM100",
         "EventName": "MEM_LOAD_UOPS_RETIRED.L3_HIT",
         "SampleAfterValue": "50021",
-        "BriefDescription": "Hit in last-level (L3) cache. Excludes Unknown data-source. (Precise Event - PEBS)",
+        "BriefDescription": "Hit in last-level (L3) cache. Excludes Unkyeswn data-source. (Precise Event - PEBS)",
         "CounterHTOff": "0,1,2,3",
         "Data_LA": "1"
     },
     {
         "PEBS": "1",
-        "PublicDescription": "This is a precise version (that is, uses PEBS) of the event that counts retired load uops which data sources were misses in the nearest-level (L1) cache. Counting excludes unknown and UC data source.",
+        "PublicDescription": "This is a precise version (that is, uses PEBS) of the event that counts retired load uops which data sources were misses in the nearest-level (L1) cache. Counting excludes unkyeswn and UC data source.",
         "EventCode": "0xD1",
         "Counter": "0,1,2,3",
         "UMask": "0x8",
@@ -533,7 +533,7 @@
     },
     {
         "PEBS": "1",
-        "PublicDescription": "This is a precise version (that is, uses PEBS) of the event that counts retired load uops which data sources were misses in the mid-level (L2) cache. Counting excludes unknown and UC data source.",
+        "PublicDescription": "This is a precise version (that is, uses PEBS) of the event that counts retired load uops which data sources were misses in the mid-level (L2) cache. Counting excludes unkyeswn and UC data source.",
         "EventCode": "0xD1",
         "Counter": "0,1,2,3",
         "UMask": "0x10",
@@ -551,45 +551,45 @@
         "Errata": "BDM100, BDE70",
         "EventName": "MEM_LOAD_UOPS_RETIRED.L3_MISS",
         "SampleAfterValue": "100007",
-        "BriefDescription": "Miss in last-level (L3) cache. Excludes Unknown data-source. (Precise Event - PEBS).",
+        "BriefDescription": "Miss in last-level (L3) cache. Excludes Unkyeswn data-source. (Precise Event - PEBS).",
         "CounterHTOff": "0,1,2,3",
         "Data_LA": "1"
     },
     {
         "PEBS": "1",
-        "PublicDescription": "This is a precise version (that is, uses PEBS) of the event that counts retired load uops which data sources were load uops missed L1 but hit a fill buffer due to a preceding miss to the same cache line with the data not ready.\nNote: Only two data-sources of L1/FB are applicable for AVX-256bit  even though the corresponding AVX load could be serviced by a deeper level in the memory hierarchy. Data source is reported for the Low-half load.",
+        "PublicDescription": "This is a precise version (that is, uses PEBS) of the event that counts retired load uops which data sources were load uops missed L1 but hit a fill buffer due to a preceding miss to the same cache line with the data yest ready.\nNote: Only two data-sources of L1/FB are applicable for AVX-256bit  even though the corresponding AVX load could be serviced by a deeper level in the memory hierarchy. Data source is reported for the Low-half load.",
         "EventCode": "0xD1",
         "Counter": "0,1,2,3",
         "UMask": "0x40",
         "EventName": "MEM_LOAD_UOPS_RETIRED.HIT_LFB",
         "SampleAfterValue": "100003",
-        "BriefDescription": "Retired load uops which data sources were load uops missed L1 but hit FB due to preceding miss to the same cache line with data not ready. (Precise Event - PEBS)",
+        "BriefDescription": "Retired load uops which data sources were load uops missed L1 but hit FB due to preceding miss to the same cache line with data yest ready. (Precise Event - PEBS)",
         "CounterHTOff": "0,1,2,3",
         "Data_LA": "1"
     },
     {
         "PEBS": "1",
-        "PublicDescription": "This is a precise version (that is, uses PEBS) of the event that counts retired load uops which data sources were L3 Hit and a cross-core snoop missed in the on-pkg core cache.",
+        "PublicDescription": "This is a precise version (that is, uses PEBS) of the event that counts retired load uops which data sources were L3 Hit and a cross-core syesop missed in the on-pkg core cache.",
         "EventCode": "0xD2",
         "Counter": "0,1,2,3",
         "UMask": "0x1",
         "Errata": "BDM100",
         "EventName": "MEM_LOAD_UOPS_L3_HIT_RETIRED.XSNP_MISS",
         "SampleAfterValue": "20011",
-        "BriefDescription": "Retired load uops which data sources were L3 hit and cross-core snoop missed in on-pkg core cache. (Precise Event - PEBS)",
+        "BriefDescription": "Retired load uops which data sources were L3 hit and cross-core syesop missed in on-pkg core cache. (Precise Event - PEBS)",
         "CounterHTOff": "0,1,2,3",
         "Data_LA": "1"
     },
     {
         "PEBS": "1",
-        "PublicDescription": "This is a precise version (that is, uses PEBS) of the event that counts retired load uops which data sources were L3 hit and a cross-core snoop hit in the on-pkg core cache.",
+        "PublicDescription": "This is a precise version (that is, uses PEBS) of the event that counts retired load uops which data sources were L3 hit and a cross-core syesop hit in the on-pkg core cache.",
         "EventCode": "0xD2",
         "Counter": "0,1,2,3",
         "UMask": "0x2",
         "Errata": "BDM100",
         "EventName": "MEM_LOAD_UOPS_L3_HIT_RETIRED.XSNP_HIT",
         "SampleAfterValue": "20011",
-        "BriefDescription": "Retired load uops which data sources were L3 and cross-core snoop hits in on-pkg core cache. (Precise Event - PEBS)",
+        "BriefDescription": "Retired load uops which data sources were L3 and cross-core syesop hits in on-pkg core cache. (Precise Event - PEBS)",
         "CounterHTOff": "0,1,2,3",
         "Data_LA": "1"
     },
@@ -608,20 +608,20 @@
     },
     {
         "PEBS": "1",
-        "PublicDescription": "This is a precise version (that is, uses PEBS) of the event that counts retired load uops which data sources were hits in the last-level (L3) cache without snoops required.",
+        "PublicDescription": "This is a precise version (that is, uses PEBS) of the event that counts retired load uops which data sources were hits in the last-level (L3) cache without syesops required.",
         "EventCode": "0xD2",
         "Counter": "0,1,2,3",
         "UMask": "0x8",
         "Errata": "BDM100",
         "EventName": "MEM_LOAD_UOPS_L3_HIT_RETIRED.XSNP_NONE",
         "SampleAfterValue": "100003",
-        "BriefDescription": "Retired load uops which data sources were hits in L3 without snoops required. (Precise Event - PEBS)",
+        "BriefDescription": "Retired load uops which data sources were hits in L3 without syesops required. (Precise Event - PEBS)",
         "CounterHTOff": "0,1,2,3",
         "Data_LA": "1"
     },
     {
         "PEBS": "1",
-        "PublicDescription": "This event counts retired load uops where the data came from local DRAM. This does not include hardware prefetches. This is a precise event.",
+        "PublicDescription": "This event counts retired load uops where the data came from local DRAM. This does yest include hardware prefetches. This is a precise event.",
         "EventCode": "0xD3",
         "Counter": "0,1,2,3",
         "UMask": "0x1",
@@ -702,7 +702,7 @@
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
     {
-        "PublicDescription": "This event counts transactions that access the L2 pipe including snoops, pagewalks, and so on.",
+        "PublicDescription": "This event counts transactions that access the L2 pipe including syesops, pagewalks, and so on.",
         "EventCode": "0xF0",
         "Counter": "0,1,2,3",
         "UMask": "0x80",
@@ -712,7 +712,7 @@
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
     {
-        "PublicDescription": "This event counts the number of L2 cache lines in the Invalidate state filling the L2. Counting does not cover rejects.",
+        "PublicDescription": "This event counts the number of L2 cache lines in the Invalidate state filling the L2. Counting does yest cover rejects.",
         "EventCode": "0xF1",
         "Counter": "0,1,2,3",
         "UMask": "0x1",
@@ -722,7 +722,7 @@
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
     {
-        "PublicDescription": "This event counts the number of L2 cache lines in the Shared state filling the L2. Counting does not cover rejects.",
+        "PublicDescription": "This event counts the number of L2 cache lines in the Shared state filling the L2. Counting does yest cover rejects.",
         "EventCode": "0xF1",
         "Counter": "0,1,2,3",
         "UMask": "0x2",
@@ -732,7 +732,7 @@
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
     {
-        "PublicDescription": "This event counts the number of L2 cache lines in the Exclusive state filling the L2. Counting does not cover rejects.",
+        "PublicDescription": "This event counts the number of L2 cache lines in the Exclusive state filling the L2. Counting does yest cover rejects.",
         "EventCode": "0xF1",
         "Counter": "0,1,2,3",
         "UMask": "0x4",
@@ -742,7 +742,7 @@
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
     {
-        "PublicDescription": "This event counts the number of L2 cache lines filling the L2. Counting does not cover rejects.",
+        "PublicDescription": "This event counts the number of L2 cache lines filling the L2. Counting does yest cover rejects.",
         "EventCode": "0xF1",
         "Counter": "0,1,2,3",
         "UMask": "0x7",

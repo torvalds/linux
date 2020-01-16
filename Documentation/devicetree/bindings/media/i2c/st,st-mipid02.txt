@@ -21,11 +21,11 @@ Optional Properties:
 - reset-gpios: reference to the GPIO connected to the xsdn pin, if any.
 	       This is an active low signal to the mipid02.
 
-Required subnodes:
-  - ports: A ports node with one port child node per device input and output
+Required subyesdes:
+  - ports: A ports yesde with one port child yesde per device input and output
 	   port, in accordance with the video interface bindings defined in
 	   Documentation/devicetree/bindings/media/video-interfaces.txt. The
-	   port nodes are numbered as follows:
+	   port yesdes are numbered as follows:
 
 	   Port Description
 	   -----------------------------
@@ -33,15 +33,15 @@ Required subnodes:
 	   1    CSI-2 second input port
 	   2    PARALLEL output
 
-Endpoint node required property for CSI-2 connection is:
+Endpoint yesde required property for CSI-2 connection is:
 - data-lanes: shall be <1> for Port 1. for Port 0 dual-lane operation shall be
 <1 2> or <2 1>. For Port 0 single-lane operation shall be <1> or <2>.
-Endpoint node optional property for CSI-2 connection is:
-- lane-polarities: any lane can be inverted or not.
+Endpoint yesde optional property for CSI-2 connection is:
+- lane-polarities: any lane can be inverted or yest.
 
-Endpoint node required property for PARALLEL connection is:
+Endpoint yesde required property for PARALLEL connection is:
 - bus-width: shall be set to <6>, <7>, <8>, <10> or <12>.
-Endpoint node optional properties for PARALLEL connection are:
+Endpoint yesde optional properties for PARALLEL connection are:
 - hsync-active: active state of the HSYNC signal, 0/1 for LOW/HIGH respectively.
 LOW being the default.
 - vsync-active: active state of the VSYNC signal, 0/1 for LOW/HIGH respectively.

@@ -12,7 +12,7 @@ Required properties:
     Define the base and range of the I/O address space that contains the
     Northstar2 IOMUX and pin configuration registers.
 
-Properties in sub nodes:
+Properties in sub yesdes:
 
 - function:
     The mux function to select
@@ -64,9 +64,9 @@ List of supported functions and groups in Northstar2:
 
 "nand": "nand_grp"
 
-"nor": "nor_data_grp", "nor_adv_grp", "nor_addr_0_3_grp", "nor_addr_4_5_grp",
-	"nor_addr_6_7_grp", "nor_addr_8_9_grp", "nor_addr_10_11_grp",
-	"nor_addr_12_15_grp"
+"yesr": "yesr_data_grp", "yesr_adv_grp", "yesr_addr_0_3_grp", "yesr_addr_4_5_grp",
+	"yesr_addr_6_7_grp", "yesr_addr_8_9_grp", "yesr_addr_10_11_grp",
+	"yesr_addr_12_15_grp"
 
 "gpio": "gpio_0_1_grp", "gpio_2_5_grp", "gpio_6_7_grp", "gpio_8_9_grp",
 	"gpio_10_11_grp", "gpio_12_13_grp", "gpio_14_17_grp", "gpio_18_19_grp",

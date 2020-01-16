@@ -132,7 +132,7 @@ static void vop_release_dev(struct device *d)
 struct vop_device *
 vop_register_device(struct device *pdev, int id,
 		    const struct dma_map_ops *dma_ops,
-		    struct vop_hw_ops *hw_ops, u8 dnode, struct mic_mw *aper,
+		    struct vop_hw_ops *hw_ops, u8 dyesde, struct mic_mw *aper,
 		    struct dma_chan *chan)
 {
 	int ret;
@@ -151,10 +151,10 @@ vop_register_device(struct device *pdev, int id,
 	vdev->dev.release = vop_release_dev;
 	vdev->hw_ops = hw_ops;
 	vdev->dev.bus = &vop_bus;
-	vdev->dnode = dnode;
+	vdev->dyesde = dyesde;
 	vdev->aper = aper;
 	vdev->dma_ch = chan;
-	vdev->index = dnode - 1;
+	vdev->index = dyesde - 1;
 	dev_set_name(&vdev->dev, "vop-dev%u", vdev->index);
 	/*
 	 * device_register() causes the bus infrastructure to look for a

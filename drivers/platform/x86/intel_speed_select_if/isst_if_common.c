@@ -62,7 +62,7 @@ static const struct isst_cmd_set_req_type isst_cmd_set_reqs[] = {
 };
 
 struct isst_cmd {
-	struct hlist_node hnode;
+	struct hlist_yesde hyesde;
 	u64 data;
 	u32 cmd;
 	int cpu;
@@ -88,7 +88,7 @@ static int isst_store_new_cmd(int cmd, u32 cpu, int mbox_cmd_type, u32 param,
 	sst_cmd->param = param;
 	sst_cmd->data = data;
 
-	hash_add(isst_hash, &sst_cmd->hnode, sst_cmd->cmd);
+	hash_add(isst_hash, &sst_cmd->hyesde, sst_cmd->cmd);
 
 	return 0;
 }
@@ -96,11 +96,11 @@ static int isst_store_new_cmd(int cmd, u32 cpu, int mbox_cmd_type, u32 param,
 static void isst_delete_hash(void)
 {
 	struct isst_cmd *sst_cmd;
-	struct hlist_node *tmp;
+	struct hlist_yesde *tmp;
 	int i;
 
-	hash_for_each_safe(isst_hash, i, tmp, sst_cmd, hnode) {
-		hash_del(&sst_cmd->hnode);
+	hash_for_each_safe(isst_hash, i, tmp, sst_cmd, hyesde) {
+		hash_del(&sst_cmd->hyesde);
 		kfree(sst_cmd);
 	}
 }
@@ -113,7 +113,7 @@ static void isst_delete_hash(void)
  * @param: Mailbox parameter.
  * @data: Mailbox request data or MSR data.
  *
- * Stores the command to a hash table if there is no such command already
+ * Stores the command to a hash table if there is yes such command already
  * stored. If already stored update the latest parameter and data for the
  * command.
  *
@@ -129,7 +129,7 @@ int isst_store_cmd(int cmd, int sub_cmd, u32 cpu, int mbox_cmd_type,
 	full_cmd = (cmd & GENMASK_ULL(15, 0)) << 16;
 	full_cmd |= (sub_cmd & GENMASK_ULL(15, 0));
 	mutex_lock(&isst_hash_lock);
-	hash_for_each_possible(isst_hash, sst_cmd, hnode, full_cmd) {
+	hash_for_each_possible(isst_hash, sst_cmd, hyesde, full_cmd) {
 		if (sst_cmd->cmd == full_cmd && sst_cmd->cpu == cpu &&
 		    sst_cmd->mbox_cmd_type == mbox_cmd_type) {
 			sst_cmd->param = param;
@@ -172,7 +172,7 @@ void isst_resume_common(void)
 	struct isst_cmd *sst_cmd;
 	int i;
 
-	hash_for_each(isst_hash, i, sst_cmd, hnode) {
+	hash_for_each(isst_hash, i, sst_cmd, hyesde) {
 		struct isst_if_cmd_cb *cb;
 
 		if (sst_cmd->mbox_cmd_type) {
@@ -197,7 +197,7 @@ static void isst_restore_msr_local(int cpu)
 		if (!punit_msr_white_list[i])
 			break;
 
-		hash_for_each_possible(isst_hash, sst_cmd, hnode,
+		hash_for_each_possible(isst_hash, sst_cmd, hyesde,
 				       punit_msr_white_list[i]) {
 			if (!sst_cmd->mbox_cmd_type && sst_cmd->cpu == cpu)
 				wrmsrl_safe(sst_cmd->cmd, sst_cmd->data);
@@ -238,7 +238,7 @@ EXPORT_SYMBOL_GPL(isst_if_mbox_cmd_invalid);
  * isst_if_mbox_cmd_set_req() - Check mailbox command is a set request
  * @cmd: Pointer to the command structure to verify.
  *
- * Check if the given mail box level is set request and not a get request.
+ * Check if the given mail box level is set request and yest a get request.
  *
  * Return: Return true if the command is set_req, else false.
  */
@@ -295,15 +295,15 @@ static struct isst_if_cpu_info *isst_cpu_info;
  *
  * Return: Return pci_dev pointer or NULL.
  */
-struct pci_dev *isst_if_get_pci_dev(int cpu, int bus_no, int dev, int fn)
+struct pci_dev *isst_if_get_pci_dev(int cpu, int bus_yes, int dev, int fn)
 {
 	int bus_number;
 
-	if (bus_no < 0 || bus_no > 1 || cpu < 0 || cpu >= nr_cpu_ids ||
+	if (bus_yes < 0 || bus_yes > 1 || cpu < 0 || cpu >= nr_cpu_ids ||
 	    cpu >= num_possible_cpus())
 		return NULL;
 
-	bus_number = isst_cpu_info[cpu].bus_info[bus_no];
+	bus_number = isst_cpu_info[cpu].bus_info[bus_yes];
 	if (bus_number < 0)
 		return NULL;
 
@@ -318,7 +318,7 @@ static int isst_if_cpu_online(unsigned int cpu)
 
 	ret = rdmsrl_safe(MSR_CPU_BUS_NUMBER, &data);
 	if (ret) {
-		/* This is not a fatal error on MSR mailbox only I/F */
+		/* This is yest a fatal error on MSR mailbox only I/F */
 		isst_cpu_info[cpu].bus_info[0] = -1;
 		isst_cpu_info[cpu].bus_info[1] = -1;
 	} else {
@@ -534,7 +534,7 @@ static int misc_usage_count;
 static int misc_device_ret;
 static int misc_device_open;
 
-static int isst_if_open(struct inode *inode, struct file *file)
+static int isst_if_open(struct iyesde *iyesde, struct file *file)
 {
 	int i, ret = 0;
 
@@ -566,7 +566,7 @@ static int isst_if_open(struct inode *inode, struct file *file)
 	return ret;
 }
 
-static int isst_if_relase(struct inode *inode, struct file *f)
+static int isst_if_relase(struct iyesde *iyesde, struct file *f)
 {
 	int i;
 
@@ -590,7 +590,7 @@ static const struct file_operations isst_if_char_driver_ops = {
 };
 
 static struct miscdevice isst_if_char_driver = {
-	.minor		= MISC_DYNAMIC_MINOR,
+	.miyesr		= MISC_DYNAMIC_MINOR,
 	.name		= "isst_interface",
 	.fops		= &isst_if_char_driver_ops,
 };
@@ -604,7 +604,7 @@ static struct miscdevice isst_if_char_driver = {
  * it will register a misc device, which is used for user kernel interface.
  * Other calls simply increment ref count. Registry will fail, if the user
  * already opened misc device for operation. Also if the misc device
- * creation failed, then it will not try again and all callers will get
+ * creation failed, then it will yest try again and all callers will get
  * failure code.
  *
  * Return: Return the return value from the misc creation device or -EINVAL

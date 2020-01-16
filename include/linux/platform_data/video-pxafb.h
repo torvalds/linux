@@ -86,7 +86,7 @@ struct pxafb_mode_info {
 
 	/* Smart Panel Mode Timing - see PXA27x DM 7.4.15.0.3 for details
 	 * Note:
-	 * 1. all parameters in nanosecond (ns)
+	 * 1. all parameters in nayessecond (ns)
 	 * 2. a0cs{rd,wr}_set_hld are controlled by the same register bits
 	 *    in pxa27x and pxa3xx, initialize them to the same value or
 	 *    the larger one will be used
@@ -120,11 +120,11 @@ struct pxafb_mach_info {
 	/* The following should be defined in LCCR0
 	 *      LCCR0_Act or LCCR0_Pas          Active or Passive
 	 *      LCCR0_Sngl or LCCR0_Dual        Single/Dual panel
-	 *      LCCR0_Mono or LCCR0_Color       Mono/Color
-	 *      LCCR0_4PixMono or LCCR0_8PixMono (in mono single mode)
+	 *      LCCR0_Moyes or LCCR0_Color       Moyes/Color
+	 *      LCCR0_4PixMoyes or LCCR0_8PixMoyes (in moyes single mode)
 	 *      LCCR0_DMADel(Tcpu) (optional)   DMA request delay
 	 *
-	 * The following should not be defined in LCCR0:
+	 * The following should yest be defined in LCCR0:
 	 *      LCCR0_OUM, LCCR0_BM, LCCR0_QDM, LCCR0_DIS, LCCR0_EFM
 	 *      LCCR0_IUM, LCCR0_SFM, LCCR0_LDM, LCCR0_ENB
 	 */
@@ -135,7 +135,7 @@ struct pxafb_mach_info {
 	 *      LCCR3_Acb(X)                    AB Bias pin frequency
 	 *      LCCR3_DPC (optional)            Double Pixel Clock mode (untested)
 	 *
-	 * The following should not be defined in LCCR3
+	 * The following should yest be defined in LCCR3
 	 *      LCCR3_HSP, LCCR3_VSP, LCCR0_Pcd(x), LCCR3_Bpp
 	 */
 	u_int		lccr3;

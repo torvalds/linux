@@ -377,7 +377,7 @@ static void __exit aes_mod_exit(void)
 module_init(aes_mod_init);
 module_exit(aes_mod_exit);
 
-MODULE_DESCRIPTION("Synchronous AES in CCM mode using ARMv8 Crypto Extensions");
+MODULE_DESCRIPTION("Synchroyesus AES in CCM mode using ARMv8 Crypto Extensions");
 MODULE_AUTHOR("Ard Biesheuvel <ard.biesheuvel@linaro.org>");
 MODULE_LICENSE("GPL v2");
 MODULE_ALIAS_CRYPTO("ccm(aes)");

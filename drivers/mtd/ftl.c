@@ -1,7 +1,7 @@
 /* This version ported to the Linux-MTD system by dwmw2@infradead.org
  *
  * Fixes: Arnaldo Carvalho de Melo <acme@conectiva.com.br>
- * - fixes some leaks on failure in build_maps and ftl_notify_add, cleanups
+ * - fixes some leaks on failure in build_maps and ftl_yestify_add, cleanups
  *
  * Based on:
  */
@@ -15,7 +15,7 @@
     ftl_cs.c 1.62 2000/02/01 00:59:04
 
     The contents of this file are subject to the Mozilla Public
-    License Version 1.1 (the "License"); you may not use this file
+    License Version 1.1 (the "License"); you may yest use this file
     except in compliance with the License. You may obtain a copy of
     the License at http://www.mozilla.org/MPL/
 
@@ -32,24 +32,24 @@
     terms of the GNU General Public License version 2 (the "GPL"), in
     which case the provisions of the GPL are applicable instead of the
     above.  If you wish to allow the use of your version of this file
-    only under the terms of the GPL and not to allow others to use
+    only under the terms of the GPL and yest to allow others to use
     your version of this file under the MPL, indicate your decision
-    by deleting the provisions above and replace them with the notice
-    and other provisions required by the GPL.  If you do not delete
+    by deleting the provisions above and replace them with the yestice
+    and other provisions required by the GPL.  If you do yest delete
     the provisions above, a recipient may use your version of this
     file under either the MPL or the GPL.
 
     LEGAL NOTE: The FTL format is patented by M-Systems.  They have
     granted a license for its use with PCMCIA devices:
 
-     "M-Systems grants a royalty-free, non-exclusive license under
+     "M-Systems grants a royalty-free, yesn-exclusive license under
       any presently existing M-Systems intellectual property rights
       necessary for the design and development of FTL-compatible
       drivers, file systems and utilities using the data formats with
       PCMCIA PC Cards as described in the PCMCIA Flash Translation
       Layer (FTL) Specification."
 
-    Use of the FTL format for non-PCMCIA applications may be an
+    Use of the FTL format for yesn-PCMCIA applications may be an
     infringement of these patents.  For additional information,
     contact M-Systems directly. M-Systems since acquired by Sandisk. 
 
@@ -106,7 +106,7 @@ module_param(shuffle_freq, int, 0);
 #define SECTOR_SIZE	512
 
 
-/* Each memory region corresponds to a minor device */
+/* Each memory region corresponds to a miyesr device */
 typedef struct partition_t {
     struct mtd_blktrans_dev mbd;
     uint32_t		state;
@@ -171,7 +171,7 @@ static int scan_header(partition_t *part)
     }
 
     if (offset == max_offset) {
-	printk(KERN_NOTICE "ftl_cs: FTL header not found.\n");
+	printk(KERN_NOTICE "ftl_cs: FTL header yest found.\n");
 	return -ENOENT;
     }
     if (header.BlockSize != 9 ||
@@ -320,7 +320,7 @@ out:
 
 /*======================================================================
 
-    Erase_xfer() schedules an asynchronous erase operation for a
+    Erase_xfer() schedules an asynchroyesus erase operation for a
     transfer unit.
 
 ======================================================================*/
@@ -352,7 +352,7 @@ static int erase_xfer(partition_t *part,
 	xfer->EraseCount++;
     } else {
 	xfer->state = XFER_FAILED;
-	pr_notice("ftl_cs: erase failed: err = %d\n", ret);
+	pr_yestice("ftl_cs: erase failed: err = %d\n", ret);
     }
 
     kfree(erase);
@@ -420,7 +420,7 @@ static int prepare_xfer(partition_t *part, int i)
     pointers.
 
     All data blocks are copied to the corresponding blocks in the
-    target unit, so the virtual block map does not need to be
+    target unit, so the virtual block map does yest need to be
     updated.
 
 ======================================================================*/
@@ -614,10 +614,10 @@ static int reclaim_block(partition_t *part)
 	    } else {
 		static int ne = 0;
 		if (++ne < 5)
-		    printk(KERN_NOTICE "ftl_cs: reclaim failed: no "
+		    printk(KERN_NOTICE "ftl_cs: reclaim failed: yes "
 			   "suitable transfer units!\n");
 		else
-		    pr_debug("ftl_cs: reclaim failed: no "
+		    pr_debug("ftl_cs: reclaim failed: yes "
 			  "suitable transfer units!\n");
 
 		return -EIO;
@@ -645,10 +645,10 @@ static int reclaim_block(partition_t *part)
 	    static int ne = 0;
 	    if (++ne < 5)
 		printk(KERN_NOTICE "ftl_cs: reclaim failed: "
-		       "no free blocks!\n");
+		       "yes free blocks!\n");
 	    else
 		pr_debug("ftl_cs: reclaim failed: "
-		       "no free blocks!\n");
+		       "yes free blocks!\n");
 
 	    return -EIO;
 	}
@@ -666,7 +666,7 @@ static int reclaim_block(partition_t *part)
     Find_free() searches for a free block.  If necessary, it updates
     the BAM cache for the erase unit containing the free block.  It
     returns the block index -- the erase unit is just the currently
-    cached unit.  If there are no free blocks, it returns 0 -- this
+    cached unit.  If there are yes free blocks, it returns 0 -- this
     is never a valid data block because it contains the header.
 
 ======================================================================*/
@@ -895,7 +895,7 @@ static int ftl_write(partition_t *part, caddr_t buffer,
 	    static int ne = 0;
 	    if (++ne < 5)
 		printk(KERN_NOTICE "ftl_cs: internal error: "
-		       "no free blocks!\n");
+		       "yes free blocks!\n");
 	    return -ENOSPC;
 	}
 

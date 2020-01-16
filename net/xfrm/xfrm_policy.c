@@ -4,10 +4,10 @@
  *
  * Changes:
  *	Mitsuru KANDA @USAGI
- * 	Kazunori MIYAZAWA @USAGI
+ * 	Kazuyesri MIYAZAWA @USAGI
  * 	Kunihiro Ishiguro <kunihiro@ipinfusion.com>
  * 		IPv6 support
- * 	Kazunori MIYAZAWA @USAGI
+ * 	Kazuyesri MIYAZAWA @USAGI
  * 	YOSHIFUJI Hideaki
  * 		Split up af-specific portion
  *	Derek Atkins <derek@ihtfp.com>		Add the post_input processor
@@ -20,7 +20,7 @@
 #include <linux/list.h>
 #include <linux/spinlock.h>
 #include <linux/workqueue.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/netdevice.h>
 #include <linux/netfilter.h>
 #include <linux/module.h>
@@ -51,12 +51,12 @@ struct xfrm_flo {
 	u8 flags;
 };
 
-/* prefixes smaller than this are stored in lists, not trees. */
+/* prefixes smaller than this are stored in lists, yest trees. */
 #define INEXACT_PREFIXLEN_IPV4	16
 #define INEXACT_PREFIXLEN_IPV6	48
 
-struct xfrm_pol_inexact_node {
-	struct rb_node node;
+struct xfrm_pol_inexact_yesde {
+	struct rb_yesde yesde;
 	union {
 		xfrm_address_t addr;
 		struct rcu_head rcu;
@@ -65,7 +65,7 @@ struct xfrm_pol_inexact_node {
 
 	struct rb_root root;
 
-	/* the policies matching this node, can be empty list */
+	/* the policies matching this yesde, can be empty list */
 	struct hlist_head hhead;
 };
 
@@ -74,11 +74,11 @@ struct xfrm_pol_inexact_node {
  *  |
  * +---- root_d: sorted by daddr:prefix
  * |                 |
- * |        xfrm_pol_inexact_node
+ * |        xfrm_pol_inexact_yesde
  * |                 |
  * |                 +- root: sorted by saddr/prefix
  * |                 |              |
- * |                 |         xfrm_pol_inexact_node
+ * |                 |         xfrm_pol_inexact_yesde
  * |                 |              |
  * |                 |              + root: unused
  * |                 |              |
@@ -88,7 +88,7 @@ struct xfrm_pol_inexact_node {
  * |
  * +---- root_s: sorted by saddr:prefix
  * |                 |
- * |        xfrm_pol_inexact_node
+ * |        xfrm_pol_inexact_yesde
  * |                 |
  * |                 + root: unused
  * |                 |
@@ -187,7 +187,7 @@ xfrm_policy_find_inexact_candidates(struct xfrm_pol_inexact_candidates *cand,
 
 static inline bool xfrm_pol_hold_rcu(struct xfrm_policy *policy)
 {
-	return refcount_inc_not_zero(&policy->refcnt);
+	return refcount_inc_yest_zero(&policy->refcnt);
 }
 
 static inline bool
@@ -310,7 +310,7 @@ static inline unsigned long make_jiffies(long secs)
 static void xfrm_policy_timer(struct timer_list *t)
 {
 	struct xfrm_policy *xp = from_timer(xp, t, timer);
-	time64_t now = ktime_get_real_seconds();
+	time64_t yesw = ktime_get_real_seconds();
 	time64_t next = TIME64_MAX;
 	int warn = 0;
 	int dir;
@@ -324,7 +324,7 @@ static void xfrm_policy_timer(struct timer_list *t)
 
 	if (xp->lft.hard_add_expires_seconds) {
 		time64_t tmo = xp->lft.hard_add_expires_seconds +
-			xp->curlft.add_time - now;
+			xp->curlft.add_time - yesw;
 		if (tmo <= 0)
 			goto expired;
 		if (tmo < next)
@@ -332,7 +332,7 @@ static void xfrm_policy_timer(struct timer_list *t)
 	}
 	if (xp->lft.hard_use_expires_seconds) {
 		time64_t tmo = xp->lft.hard_use_expires_seconds +
-			(xp->curlft.use_time ? : xp->curlft.add_time) - now;
+			(xp->curlft.use_time ? : xp->curlft.add_time) - yesw;
 		if (tmo <= 0)
 			goto expired;
 		if (tmo < next)
@@ -340,7 +340,7 @@ static void xfrm_policy_timer(struct timer_list *t)
 	}
 	if (xp->lft.soft_add_expires_seconds) {
 		time64_t tmo = xp->lft.soft_add_expires_seconds +
-			xp->curlft.add_time - now;
+			xp->curlft.add_time - yesw;
 		if (tmo <= 0) {
 			warn = 1;
 			tmo = XFRM_KM_TIMEOUT;
@@ -350,7 +350,7 @@ static void xfrm_policy_timer(struct timer_list *t)
 	}
 	if (xp->lft.soft_use_expires_seconds) {
 		time64_t tmo = xp->lft.soft_use_expires_seconds +
-			(xp->curlft.use_time ? : xp->curlft.add_time) - now;
+			(xp->curlft.use_time ? : xp->curlft.add_time) - yesw;
 		if (tmo <= 0) {
 			warn = 1;
 			tmo = XFRM_KM_TIMEOUT;
@@ -425,7 +425,7 @@ void xfrm_policy_destroy(struct xfrm_policy *policy)
 }
 EXPORT_SYMBOL(xfrm_policy_destroy);
 
-/* Rule must be locked. Release descendant resources, announce
+/* Rule must be locked. Release descendant resources, anyesunce
  * entry dead. The rule must be unlinked from lists to the moment.
  */
 
@@ -516,7 +516,7 @@ static void xfrm_dst_hash_transfer(struct net *net,
 				   unsigned int nhashmask,
 				   int dir)
 {
-	struct hlist_node *tmp, *entry0 = NULL;
+	struct hlist_yesde *tmp, *entry0 = NULL;
 	struct xfrm_policy *pol;
 	unsigned int h0 = 0;
 	u8 dbits;
@@ -551,7 +551,7 @@ static void xfrm_idx_hash_transfer(struct hlist_head *list,
 				   struct hlist_head *nidxtable,
 				   unsigned int nhashmask)
 {
-	struct hlist_node *tmp;
+	struct hlist_yesde *tmp;
 	struct xfrm_policy *pol;
 
 	hlist_for_each_entry_safe(pol, tmp, list, byidx) {
@@ -765,23 +765,23 @@ xfrm_policy_inexact_insert_use_any_list(const struct xfrm_policy *policy)
 	return saddr_any && daddr_any;
 }
 
-static void xfrm_pol_inexact_node_init(struct xfrm_pol_inexact_node *node,
+static void xfrm_pol_inexact_yesde_init(struct xfrm_pol_inexact_yesde *yesde,
 				       const xfrm_address_t *addr, u8 prefixlen)
 {
-	node->addr = *addr;
-	node->prefixlen = prefixlen;
+	yesde->addr = *addr;
+	yesde->prefixlen = prefixlen;
 }
 
-static struct xfrm_pol_inexact_node *
-xfrm_pol_inexact_node_alloc(const xfrm_address_t *addr, u8 prefixlen)
+static struct xfrm_pol_inexact_yesde *
+xfrm_pol_inexact_yesde_alloc(const xfrm_address_t *addr, u8 prefixlen)
 {
-	struct xfrm_pol_inexact_node *node;
+	struct xfrm_pol_inexact_yesde *yesde;
 
-	node = kzalloc(sizeof(*node), GFP_ATOMIC);
-	if (node)
-		xfrm_pol_inexact_node_init(node, addr, prefixlen);
+	yesde = kzalloc(sizeof(*yesde), GFP_ATOMIC);
+	if (yesde)
+		xfrm_pol_inexact_yesde_init(yesde, addr, prefixlen);
 
-	return node;
+	return yesde;
 }
 
 static int xfrm_policy_addr_delta(const xfrm_address_t *a,
@@ -821,7 +821,7 @@ static int xfrm_policy_addr_delta(const xfrm_address_t *a,
 }
 
 static void xfrm_policy_inexact_list_reinsert(struct net *net,
-					      struct xfrm_pol_inexact_node *n,
+					      struct xfrm_pol_inexact_yesde *n,
 					      u16 family)
 {
 	unsigned int matched_s, matched_d;
@@ -831,7 +831,7 @@ static void xfrm_policy_inexact_list_reinsert(struct net *net,
 	matched_d = 0;
 
 	list_for_each_entry_reverse(policy, &net->xfrm.policy_all, walk.all) {
-		struct hlist_node *newpos = NULL;
+		struct hlist_yesde *newpos = NULL;
 		bool matches_s, matches_d;
 
 		if (!policy->bydst_reinsert)
@@ -855,12 +855,12 @@ static void xfrm_policy_inexact_list_reinsert(struct net *net,
 		else
 			hlist_add_head_rcu(&policy->bydst, &n->hhead);
 
-		/* paranoia checks follow.
+		/* parayesia checks follow.
 		 * Check that the reinserted policy matches at least
-		 * saddr or daddr for current node prefix.
+		 * saddr or daddr for current yesde prefix.
 		 *
 		 * Matching both is fine, matching saddr in one policy
-		 * (but not daddr) and then matching only daddr in another
+		 * (but yest daddr) and then matching only daddr in ayesther
 		 * is a bug.
 		 */
 		matches_s = xfrm_policy_addr_delta(&policy->selector.saddr,
@@ -883,36 +883,36 @@ static void xfrm_policy_inexact_list_reinsert(struct net *net,
 	}
 }
 
-static void xfrm_policy_inexact_node_reinsert(struct net *net,
-					      struct xfrm_pol_inexact_node *n,
+static void xfrm_policy_inexact_yesde_reinsert(struct net *net,
+					      struct xfrm_pol_inexact_yesde *n,
 					      struct rb_root *new,
 					      u16 family)
 {
-	struct xfrm_pol_inexact_node *node;
-	struct rb_node **p, *parent;
+	struct xfrm_pol_inexact_yesde *yesde;
+	struct rb_yesde **p, *parent;
 
-	/* we should not have another subtree here */
+	/* we should yest have ayesther subtree here */
 	WARN_ON_ONCE(!RB_EMPTY_ROOT(&n->root));
 restart:
 	parent = NULL;
-	p = &new->rb_node;
+	p = &new->rb_yesde;
 	while (*p) {
 		u8 prefixlen;
 		int delta;
 
 		parent = *p;
-		node = rb_entry(*p, struct xfrm_pol_inexact_node, node);
+		yesde = rb_entry(*p, struct xfrm_pol_inexact_yesde, yesde);
 
-		prefixlen = min(node->prefixlen, n->prefixlen);
+		prefixlen = min(yesde->prefixlen, n->prefixlen);
 
-		delta = xfrm_policy_addr_delta(&n->addr, &node->addr,
+		delta = xfrm_policy_addr_delta(&n->addr, &yesde->addr,
 					       prefixlen, family);
 		if (delta < 0) {
 			p = &parent->rb_left;
 		} else if (delta > 0) {
 			p = &parent->rb_right;
 		} else {
-			bool same_prefixlen = node->prefixlen == n->prefixlen;
+			bool same_prefixlen = yesde->prefixlen == n->prefixlen;
 			struct xfrm_policy *tmp;
 
 			hlist_for_each_entry(tmp, &n->hhead, bydst) {
@@ -920,9 +920,9 @@ restart:
 				hlist_del_rcu(&tmp->bydst);
 			}
 
-			node->prefixlen = prefixlen;
+			yesde->prefixlen = prefixlen;
 
-			xfrm_policy_inexact_list_reinsert(net, node, family);
+			xfrm_policy_inexact_list_reinsert(net, yesde, family);
 
 			if (same_prefixlen) {
 				kfree_rcu(n, rcu);
@@ -931,33 +931,33 @@ restart:
 
 			rb_erase(*p, new);
 			kfree_rcu(n, rcu);
-			n = node;
+			n = yesde;
 			goto restart;
 		}
 	}
 
-	rb_link_node_rcu(&n->node, parent, p);
-	rb_insert_color(&n->node, new);
+	rb_link_yesde_rcu(&n->yesde, parent, p);
+	rb_insert_color(&n->yesde, new);
 }
 
-/* merge nodes v and n */
-static void xfrm_policy_inexact_node_merge(struct net *net,
-					   struct xfrm_pol_inexact_node *v,
-					   struct xfrm_pol_inexact_node *n,
+/* merge yesdes v and n */
+static void xfrm_policy_inexact_yesde_merge(struct net *net,
+					   struct xfrm_pol_inexact_yesde *v,
+					   struct xfrm_pol_inexact_yesde *n,
 					   u16 family)
 {
-	struct xfrm_pol_inexact_node *node;
+	struct xfrm_pol_inexact_yesde *yesde;
 	struct xfrm_policy *tmp;
-	struct rb_node *rnode;
+	struct rb_yesde *ryesde;
 
-	/* To-be-merged node v has a subtree.
+	/* To-be-merged yesde v has a subtree.
 	 *
-	 * Dismantle it and insert its nodes to n->root.
+	 * Dismantle it and insert its yesdes to n->root.
 	 */
-	while ((rnode = rb_first(&v->root)) != NULL) {
-		node = rb_entry(rnode, struct xfrm_pol_inexact_node, node);
-		rb_erase(&node->node, &v->root);
-		xfrm_policy_inexact_node_reinsert(net, node, &n->root,
+	while ((ryesde = rb_first(&v->root)) != NULL) {
+		yesde = rb_entry(ryesde, struct xfrm_pol_inexact_yesde, yesde);
+		rb_erase(&yesde->yesde, &v->root);
+		xfrm_policy_inexact_yesde_reinsert(net, yesde, &n->root,
 						  family);
 	}
 
@@ -969,29 +969,29 @@ static void xfrm_policy_inexact_node_merge(struct net *net,
 	xfrm_policy_inexact_list_reinsert(net, n, family);
 }
 
-static struct xfrm_pol_inexact_node *
-xfrm_policy_inexact_insert_node(struct net *net,
+static struct xfrm_pol_inexact_yesde *
+xfrm_policy_inexact_insert_yesde(struct net *net,
 				struct rb_root *root,
 				xfrm_address_t *addr,
 				u16 family, u8 prefixlen, u8 dir)
 {
-	struct xfrm_pol_inexact_node *cached = NULL;
-	struct rb_node **p, *parent = NULL;
-	struct xfrm_pol_inexact_node *node;
+	struct xfrm_pol_inexact_yesde *cached = NULL;
+	struct rb_yesde **p, *parent = NULL;
+	struct xfrm_pol_inexact_yesde *yesde;
 
-	p = &root->rb_node;
+	p = &root->rb_yesde;
 	while (*p) {
 		int delta;
 
 		parent = *p;
-		node = rb_entry(*p, struct xfrm_pol_inexact_node, node);
+		yesde = rb_entry(*p, struct xfrm_pol_inexact_yesde, yesde);
 
-		delta = xfrm_policy_addr_delta(addr, &node->addr,
-					       node->prefixlen,
+		delta = xfrm_policy_addr_delta(addr, &yesde->addr,
+					       yesde->prefixlen,
 					       family);
-		if (delta == 0 && prefixlen >= node->prefixlen) {
+		if (delta == 0 && prefixlen >= yesde->prefixlen) {
 			WARN_ON_ONCE(cached); /* ipsec policies got lost */
-			return node;
+			return yesde;
 		}
 
 		if (delta < 0)
@@ -999,71 +999,71 @@ xfrm_policy_inexact_insert_node(struct net *net,
 		else
 			p = &parent->rb_right;
 
-		if (prefixlen < node->prefixlen) {
-			delta = xfrm_policy_addr_delta(addr, &node->addr,
+		if (prefixlen < yesde->prefixlen) {
+			delta = xfrm_policy_addr_delta(addr, &yesde->addr,
 						       prefixlen,
 						       family);
 			if (delta)
 				continue;
 
-			/* This node is a subnet of the new prefix. It needs
+			/* This yesde is a subnet of the new prefix. It needs
 			 * to be removed and re-inserted with the smaller
-			 * prefix and all nodes that are now also covered
+			 * prefix and all yesdes that are yesw also covered
 			 * by the reduced prefixlen.
 			 */
-			rb_erase(&node->node, root);
+			rb_erase(&yesde->yesde, root);
 
 			if (!cached) {
-				xfrm_pol_inexact_node_init(node, addr,
+				xfrm_pol_inexact_yesde_init(yesde, addr,
 							   prefixlen);
-				cached = node;
+				cached = yesde;
 			} else {
-				/* This node also falls within the new
+				/* This yesde also falls within the new
 				 * prefixlen. Merge the to-be-reinserted
-				 * node and this one.
+				 * yesde and this one.
 				 */
-				xfrm_policy_inexact_node_merge(net, node,
+				xfrm_policy_inexact_yesde_merge(net, yesde,
 							       cached, family);
-				kfree_rcu(node, rcu);
+				kfree_rcu(yesde, rcu);
 			}
 
 			/* restart */
-			p = &root->rb_node;
+			p = &root->rb_yesde;
 			parent = NULL;
 		}
 	}
 
-	node = cached;
-	if (!node) {
-		node = xfrm_pol_inexact_node_alloc(addr, prefixlen);
-		if (!node)
+	yesde = cached;
+	if (!yesde) {
+		yesde = xfrm_pol_inexact_yesde_alloc(addr, prefixlen);
+		if (!yesde)
 			return NULL;
 	}
 
-	rb_link_node_rcu(&node->node, parent, p);
-	rb_insert_color(&node->node, root);
+	rb_link_yesde_rcu(&yesde->yesde, parent, p);
+	rb_insert_color(&yesde->yesde, root);
 
-	return node;
+	return yesde;
 }
 
 static void xfrm_policy_inexact_gc_tree(struct rb_root *r, bool rm)
 {
-	struct xfrm_pol_inexact_node *node;
-	struct rb_node *rn = rb_first(r);
+	struct xfrm_pol_inexact_yesde *yesde;
+	struct rb_yesde *rn = rb_first(r);
 
 	while (rn) {
-		node = rb_entry(rn, struct xfrm_pol_inexact_node, node);
+		yesde = rb_entry(rn, struct xfrm_pol_inexact_yesde, yesde);
 
-		xfrm_policy_inexact_gc_tree(&node->root, rm);
+		xfrm_policy_inexact_gc_tree(&yesde->root, rm);
 		rn = rb_next(rn);
 
-		if (!hlist_empty(&node->hhead) || !RB_EMPTY_ROOT(&node->root)) {
+		if (!hlist_empty(&yesde->hhead) || !RB_EMPTY_ROOT(&yesde->root)) {
 			WARN_ON_ONCE(rm);
 			continue;
 		}
 
-		rb_erase(&node->node, r);
-		kfree_rcu(node, rcu);
+		rb_erase(&yesde->yesde, r);
+		kfree_rcu(yesde, rcu);
 	}
 }
 
@@ -1110,7 +1110,7 @@ static struct hlist_head *
 xfrm_policy_inexact_alloc_chain(struct xfrm_pol_inexact_bin *bin,
 				struct xfrm_policy *policy, u8 dir)
 {
-	struct xfrm_pol_inexact_node *n;
+	struct xfrm_pol_inexact_yesde *n;
 	struct net *net;
 
 	net = xp_net(policy);
@@ -1123,7 +1123,7 @@ xfrm_policy_inexact_alloc_chain(struct xfrm_pol_inexact_bin *bin,
 					       policy->family,
 					       policy->selector.prefixlen_d)) {
 		write_seqcount_begin(&bin->count);
-		n = xfrm_policy_inexact_insert_node(net,
+		n = xfrm_policy_inexact_insert_yesde(net,
 						    &bin->root_s,
 						    &policy->selector.saddr,
 						    policy->family,
@@ -1138,7 +1138,7 @@ xfrm_policy_inexact_alloc_chain(struct xfrm_pol_inexact_bin *bin,
 
 	/* daddr is fixed */
 	write_seqcount_begin(&bin->count);
-	n = xfrm_policy_inexact_insert_node(net,
+	n = xfrm_policy_inexact_insert_yesde(net,
 					    &bin->root_d,
 					    &policy->selector.daddr,
 					    policy->family,
@@ -1154,7 +1154,7 @@ xfrm_policy_inexact_alloc_chain(struct xfrm_pol_inexact_bin *bin,
 		return &n->hhead;
 
 	write_seqcount_begin(&bin->count);
-	n = xfrm_policy_inexact_insert_node(net,
+	n = xfrm_policy_inexact_insert_yesde(net,
 					    &n->root,
 					    &policy->selector.saddr,
 					    policy->family,
@@ -1211,7 +1211,7 @@ static void xfrm_hash_rebuild(struct work_struct *work)
 	struct xfrm_policy *policy;
 	struct hlist_head *chain;
 	struct hlist_head *odst;
-	struct hlist_node *newpos;
+	struct hlist_yesde *newpos;
 	int i;
 	int dir;
 	unsigned seq;
@@ -1275,7 +1275,7 @@ static void xfrm_hash_rebuild(struct work_struct *work)
 
 	/* reset the bydst and inexact table in all directions */
 	for (dir = 0; dir < XFRM_POLICY_MAX; dir++) {
-		struct hlist_node *n;
+		struct hlist_yesde *n;
 
 		hlist_for_each_entry_safe(policy, n,
 					  &net->xfrm.policy_inexact[dir],
@@ -1352,7 +1352,7 @@ void xfrm_policy_hash_rebuild(struct net *net)
 EXPORT_SYMBOL(xfrm_policy_hash_rebuild);
 
 /* Generate new index... KAME seems to generate them ordered by cost
- * of an absolute inpredictability of ordering of rules. This will not pass. */
+ * of an absolute inpredictability of ordering of rules. This will yest pass. */
 static u32 xfrm_gen_index(struct net *net, int dir, u32 index)
 {
 	static u32 idx_generator;
@@ -1496,7 +1496,7 @@ static void xfrm_policy_insert_inexact_list(struct hlist_head *chain,
 					    struct xfrm_policy *policy)
 {
 	struct xfrm_policy *pol, *delpol = NULL;
-	struct hlist_node *newpos = NULL;
+	struct hlist_yesde *newpos = NULL;
 	int i = 0;
 
 	hlist_for_each_entry(pol, chain, bydst_inexact_list) {
@@ -1881,7 +1881,7 @@ EXPORT_SYMBOL(xfrm_policy_walk_done);
 /*
  * Find policy to apply to this flow.
  *
- * Returns 0 if policy found, else an -errno.
+ * Returns 0 if policy found, else an -erryes.
  */
 static int xfrm_policy_match(const struct xfrm_policy *pol,
 			     const struct flowi *fl,
@@ -1904,26 +1904,26 @@ static int xfrm_policy_match(const struct xfrm_policy *pol,
 	return ret;
 }
 
-static struct xfrm_pol_inexact_node *
+static struct xfrm_pol_inexact_yesde *
 xfrm_policy_lookup_inexact_addr(const struct rb_root *r,
 				seqcount_t *count,
 				const xfrm_address_t *addr, u16 family)
 {
-	const struct rb_node *parent;
+	const struct rb_yesde *parent;
 	int seq;
 
 again:
 	seq = read_seqcount_begin(count);
 
-	parent = rcu_dereference_raw(r->rb_node);
+	parent = rcu_dereference_raw(r->rb_yesde);
 	while (parent) {
-		struct xfrm_pol_inexact_node *node;
+		struct xfrm_pol_inexact_yesde *yesde;
 		int delta;
 
-		node = rb_entry(parent, struct xfrm_pol_inexact_node, node);
+		yesde = rb_entry(parent, struct xfrm_pol_inexact_yesde, yesde);
 
-		delta = xfrm_policy_addr_delta(addr, &node->addr,
-					       node->prefixlen, family);
+		delta = xfrm_policy_addr_delta(addr, &yesde->addr,
+					       yesde->prefixlen, family);
 		if (delta < 0) {
 			parent = rcu_dereference_raw(parent->rb_left);
 			continue;
@@ -1932,7 +1932,7 @@ again:
 			continue;
 		}
 
-		return node;
+		return yesde;
 	}
 
 	if (read_seqcount_retry(count, seq))
@@ -1947,7 +1947,7 @@ xfrm_policy_find_inexact_candidates(struct xfrm_pol_inexact_candidates *cand,
 				    const xfrm_address_t *saddr,
 				    const xfrm_address_t *daddr)
 {
-	struct xfrm_pol_inexact_node *n;
+	struct xfrm_pol_inexact_yesde *n;
 	u16 family;
 
 	if (!b)
@@ -2213,7 +2213,7 @@ static struct xfrm_policy *__xfrm_policy_unlink(struct xfrm_policy *pol,
 	if (list_empty(&pol->walk.all))
 		return NULL;
 
-	/* Socket policies are not hashed. */
+	/* Socket policies are yest hashed. */
 	if (!hlist_unhashed(&pol->bydst)) {
 		hlist_del_rcu(&pol->bydst);
 		hlist_del_init(&pol->bydst_inexact_list);
@@ -2525,7 +2525,7 @@ static inline int xfrm_fill_dst(struct xfrm_dst *xdst, struct net_device *dev,
 }
 
 
-/* Allocate chain of dst_entry's, attach known xfrm's, calculate
+/* Allocate chain of dst_entry's, attach kyeswn xfrm's, calculate
  * all the metrics... Shortly, bundle a bundle.
  */
 
@@ -2539,7 +2539,7 @@ static struct dst_entry *xfrm_bundle_create(struct xfrm_policy *policy,
 	const struct xfrm_state_afinfo *afinfo;
 	const struct xfrm_mode *inner_mode;
 	struct net *net = xp_net(policy);
-	unsigned long now = jiffies;
+	unsigned long yesw = jiffies;
 	struct net_device *dev;
 	struct xfrm_dst *xdst_prev = NULL;
 	struct xfrm_dst *xdst0 = NULL;
@@ -2611,7 +2611,7 @@ static struct dst_entry *xfrm_bundle_create(struct xfrm_policy *policy,
 
 		dst1->obsolete = DST_OBSOLETE_FORCE_CHK;
 		dst1->flags |= DST_HOST;
-		dst1->lastuse = now;
+		dst1->lastuse = yesw;
 
 		dst1->input = dst_discard;
 
@@ -2968,9 +2968,9 @@ static struct xfrm_dst *xfrm_bundle_lookup(struct net *net,
 	return xdst;
 
 make_dummy_bundle:
-	/* We found policies, but there's no bundles to instantiate:
-	 * either because the policy blocks, has no transformations or
-	 * we could not build template (no xfrm_states).*/
+	/* We found policies, but there's yes bundles to instantiate:
+	 * either because the policy blocks, has yes transformations or
+	 * we could yest build template (yes xfrm_states).*/
 	xdst = xfrm_create_dummy_bundle(net, xflo, fl, num_xfrms, family);
 	if (IS_ERR(xdst)) {
 		xfrm_pols_put(pols, num_pols);
@@ -3044,7 +3044,7 @@ struct dst_entry *xfrm_lookup_with_ifid(struct net *net,
 		if (num_pols) {
 			if (num_xfrms <= 0) {
 				drop_pols = num_pols;
-				goto no_transform;
+				goto yes_transform;
 			}
 
 			xdst = xfrm_resolve_and_create_bundle(
@@ -3055,13 +3055,13 @@ struct dst_entry *xfrm_lookup_with_ifid(struct net *net,
 				xfrm_pols_put(pols, num_pols);
 				err = PTR_ERR(xdst);
 				if (err == -EREMOTE)
-					goto nopol;
+					goto yespol;
 
 				goto dropdst;
 			} else if (xdst == NULL) {
 				num_xfrms = 0;
 				drop_pols = num_pols;
-				goto no_transform;
+				goto yes_transform;
 			}
 
 			route = xdst->route;
@@ -3077,11 +3077,11 @@ struct dst_entry *xfrm_lookup_with_ifid(struct net *net,
 		/* To accelerate a bit...  */
 		if ((dst_orig->flags & DST_NOXFRM) ||
 		    !net->xfrm.policy_count[XFRM_POLICY_OUT])
-			goto nopol;
+			goto yespol;
 
 		xdst = xfrm_bundle_lookup(net, fl, family, dir, &xflo, if_id);
 		if (xdst == NULL)
-			goto nopol;
+			goto yespol;
 		if (IS_ERR(xdst)) {
 			err = PTR_ERR(xdst);
 			goto dropdst;
@@ -3097,8 +3097,8 @@ struct dst_entry *xfrm_lookup_with_ifid(struct net *net,
 	if (route == NULL && num_xfrms > 0) {
 		/* The only case when xfrm_bundle_lookup() returns a
 		 * bundle with null route, is when the template could
-		 * not be resolved. It means policies are there, but
-		 * bundle could not be created, since we don't yet
+		 * yest be resolved. It means policies are there, but
+		 * bundle could yest be created, since we don't yet
 		 * have the xfrm_state's. We need to wait for KM to
 		 * negotiate new SA's or bail out with error.*/
 		if (net->xfrm.sysctl_larval_drop) {
@@ -3113,9 +3113,9 @@ struct dst_entry *xfrm_lookup_with_ifid(struct net *net,
 		goto error;
 	}
 
-no_transform:
+yes_transform:
 	if (num_pols == 0)
-		goto nopol;
+		goto yespol;
 
 	if ((flags & XFRM_LOOKUP_ICMP) &&
 	    !(pols[0]->flags & XFRM_POLICY_ICMP)) {
@@ -3146,7 +3146,7 @@ ok:
 		dst->flags |= DST_XFRM_TUNNEL;
 	return dst;
 
-nopol:
+yespol:
 	if (!(flags & XFRM_LOOKUP_ICMP)) {
 		dst = dst_orig;
 		goto ok;
@@ -3236,7 +3236,7 @@ xfrm_state_ok(const struct xfrm_tmpl *tmpl, const struct xfrm_state *x,
  * 0 or more than 0 is returned when validation is succeeded (either bypass
  * because of optional transport mode, or next index of the mathced secpath
  * state with the template.
- * -1 is returned when no matching template is found.
+ * -1 is returned when yes matching template is found.
  * Otherwise "-2 - errored_index" is returned.
  */
 static inline int
@@ -3490,7 +3490,7 @@ int __xfrm_decode_session(struct sk_buff *skb, struct flowi *fl,
 }
 EXPORT_SYMBOL(__xfrm_decode_session);
 
-static inline int secpath_has_nontransport(const struct sec_path *sp, int k, int *idxp)
+static inline int secpath_has_yesntransport(const struct sec_path *sp, int k, int *idxp)
 {
 	for (; k < sp->len; k++) {
 		if (sp->xvec[k]->props.mode != XFRM_MODE_TRANSPORT) {
@@ -3574,7 +3574,7 @@ int __xfrm_policy_check(struct sock *sk, int dir, struct sk_buff *skb,
 	}
 
 	if (!pol) {
-		if (sp && secpath_has_nontransport(sp, 0, &xerr_idx)) {
+		if (sp && secpath_has_yesntransport(sp, 0, &xerr_idx)) {
 			xfrm_secpath_reject(xerr_idx, skb, &fl);
 			XFRM_INC_STATS(net, LINUX_MIB_XFRMINNOPOLS);
 			return 0;
@@ -3650,7 +3650,7 @@ int __xfrm_policy_check(struct sock *sk, int dir, struct sk_buff *skb,
 			}
 		}
 
-		if (secpath_has_nontransport(sp, k, &xerr_idx)) {
+		if (secpath_has_yesntransport(sp, k, &xerr_idx)) {
 			XFRM_INC_STATS(net, LINUX_MIB_XFRMINTMPLMISMATCH);
 			goto reject;
 		}
@@ -3703,8 +3703,8 @@ static struct dst_entry *xfrm_dst_check(struct dst_entry *dst, u32 cookie)
 	/* Code (such as __xfrm4_bundle_create()) sets dst->obsolete
 	 * to DST_OBSOLETE_FORCE_CHK to force all XFRM destinations to
 	 * get validated by dst_ops->check on every use.  We do this
-	 * because when a normal route referenced by an XFRM dst is
-	 * obsoleted we do not go looking around for all parent
+	 * because when a yesrmal route referenced by an XFRM dst is
+	 * obsoleted we do yest go looking around for all parent
 	 * referencing XFRM dsts so that we can invalidate them.  It
 	 * is just too much work.  Instead we make the checks here on
 	 * every use.  For example:
@@ -3712,8 +3712,8 @@ static struct dst_entry *xfrm_dst_check(struct dst_entry *dst, u32 cookie)
 	 *	XFRM dst A --> IPv4 dst X
 	 *
 	 * X is the "xdst->route" of A (X is also the "dst->path" of A
-	 * in this example).  If X is marked obsolete, "A" will not
-	 * notice.  That's what we are validating here via the
+	 * in this example).  If X is marked obsolete, "A" will yest
+	 * yestice.  That's what we are validating here via the
 	 * stale_bundle() check.
 	 *
 	 * When a dst is removed from the fib tree, DST_OBSOLETE_DEAD will
@@ -4301,7 +4301,7 @@ static int migrate_tmpl_match(const struct xfrm_migrate *m, const struct xfrm_tm
 			}
 			break;
 		case XFRM_MODE_TRANSPORT:
-			/* in case of transport mode, template does not store
+			/* in case of transport mode, template does yest store
 			   any IP addresses, hence we just compare mode and
 			   protocol */
 			match = 1;
@@ -4436,7 +4436,7 @@ int xfrm_migrate(const struct xfrm_selector *sel, u8 dir, u8 type,
 		xfrm_states_delete(x_cur, nx_cur);
 	}
 
-	/* Stage 5 - announce */
+	/* Stage 5 - anyesunce */
 	km_migrate(sel, dir, type, m, num_migrate, k, encap);
 
 	xfrm_pol_put(pol);

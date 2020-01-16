@@ -20,7 +20,7 @@
 
 #ifndef arch_local_page_offset
 #define arch_local_page_offset(pfn, nid)	\
-	((pfn) - NODE_DATA(nid)->node_start_pfn)
+	((pfn) - NODE_DATA(nid)->yesde_start_pfn)
 #endif
 
 #endif /* CONFIG_DISCONTIGMEM */
@@ -38,14 +38,14 @@
 #define __pfn_to_page(pfn)			\
 ({	unsigned long __pfn = (pfn);		\
 	unsigned long __nid = arch_pfn_to_nid(__pfn);  \
-	NODE_DATA(__nid)->node_mem_map + arch_local_page_offset(__pfn, __nid);\
+	NODE_DATA(__nid)->yesde_mem_map + arch_local_page_offset(__pfn, __nid);\
 })
 
 #define __page_to_pfn(pg)						\
 ({	const struct page *__pg = (pg);					\
 	struct pglist_data *__pgdat = NODE_DATA(page_to_nid(__pg));	\
-	(unsigned long)(__pg - __pgdat->node_mem_map) +			\
-	 __pgdat->node_start_pfn;					\
+	(unsigned long)(__pg - __pgdat->yesde_mem_map) +			\
+	 __pgdat->yesde_start_pfn;					\
 })
 
 #elif defined(CONFIG_SPARSEMEM_VMEMMAP)

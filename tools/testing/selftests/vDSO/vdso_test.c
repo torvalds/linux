@@ -38,7 +38,7 @@ int main(int argc, char **argv)
 {
 	unsigned long sysinfo_ehdr = getauxval(AT_SYSINFO_EHDR);
 	if (!sysinfo_ehdr) {
-		printf("AT_SYSINFO_EHDR is not present!\n");
+		printf("AT_SYSINFO_EHDR is yest present!\n");
 		return KSFT_SKIP;
 	}
 
@@ -49,7 +49,7 @@ int main(int argc, char **argv)
 	gtod_t gtod = (gtod_t)vdso_sym(version, name);
 
 	if (!gtod) {
-		printf("Could not find %s\n", name);
+		printf("Could yest find %s\n", name);
 		return KSFT_SKIP;
 	}
 

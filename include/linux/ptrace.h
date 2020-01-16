@@ -60,7 +60,7 @@ extern int ptrace_writedata(struct task_struct *tsk, char __user *src, unsigned 
 extern void ptrace_disable(struct task_struct *);
 extern int ptrace_request(struct task_struct *child, long request,
 			  unsigned long addr, unsigned long data);
-extern void ptrace_notify(int exit_code);
+extern void ptrace_yestify(int exit_code);
 extern void __ptrace_link(struct task_struct *child,
 			  struct task_struct *new_parent,
 			  const struct cred *ptracer_cred);
@@ -114,7 +114,7 @@ int generic_ptrace_pokedata(struct task_struct *tsk, unsigned long addr,
  * ptrace_parent - return the task that is tracing the given task
  * @task: task to consider
  *
- * Returns %NULL if no one is tracing @task, or the &struct task_struct
+ * Returns %NULL if yes one is tracing @task, or the &struct task_struct
  * pointer to its tracer.
  *
  * Must called under rcu_read_lock().  The pointer returned might be kept
@@ -143,7 +143,7 @@ static inline bool ptrace_event_enabled(struct task_struct *task, int event)
 }
 
 /**
- * ptrace_event - possibly stop for a ptrace event notification
+ * ptrace_event - possibly stop for a ptrace event yestification
  * @event:	%PTRACE_EVENT_* value to report
  * @message:	value for %PTRACE_GETEVENTMSG to return
  *
@@ -156,7 +156,7 @@ static inline void ptrace_event(int event, unsigned long message)
 {
 	if (unlikely(ptrace_event_enabled(current, event))) {
 		current->ptrace_message = message;
-		ptrace_notify((event << 8) | SIGTRAP);
+		ptrace_yestify((event << 8) | SIGTRAP);
 	} else if (event == PTRACE_EVENT_EXEC) {
 		/* legacy EXEC report via SIGTRAP */
 		if ((current->ptrace & (PT_PTRACED|PT_SEIZED)) == PT_PTRACED)
@@ -165,7 +165,7 @@ static inline void ptrace_event(int event, unsigned long message)
 }
 
 /**
- * ptrace_event_pid - possibly stop for a ptrace event notification
+ * ptrace_event_pid - possibly stop for a ptrace event yestification
  * @event:	%PTRACE_EVENT_* value to report
  * @pid:	process identifier for %PTRACE_GETEVENTMSG to return
  *
@@ -201,7 +201,7 @@ static inline void ptrace_event_pid(int event, struct pid *pid)
  * @ptrace:		true if child should be ptrace'd by parent's tracer
  *
  * This is called immediately after adding @child to its parent's children
- * list.  @ptrace is false in the normal case, and true to ptrace @child.
+ * list.  @ptrace is false in the yesrmal case, and true to ptrace @child.
  *
  * Called with current's siglock and write_lock_irq(&tasklist_lock) held.
  */
@@ -245,9 +245,9 @@ static inline void ptrace_release_task(struct task_struct *task)
  * negative value should call force_successful_syscall_return() right before
  * returning.  On architectures where the syscall convention provides for a
  * separate error flag (e.g., alpha, ia64, ppc{,64}, sparc{,64}, possibly
- * others), this macro can be used to ensure that the error flag will not get
- * set.  On architectures which do not support a separate error flag, the macro
- * is a no-op and the spurious error condition needs to be filtered out by some
+ * others), this macro can be used to ensure that the error flag will yest get
+ * set.  On architectures which do yest support a separate error flag, the macro
+ * is a yes-op and the spurious error condition needs to be filtered out by some
  * other means (e.g., in user-level, by passing an extra argument to the
  * syscall handler, or something along those lines).
  */
@@ -266,7 +266,7 @@ static inline void ptrace_release_task(struct task_struct *task)
 /*
  * <asm/ptrace.h> should define the following things inside #ifdef __KERNEL__.
  *
- * These do-nothing inlines are used when the arch does not
+ * These do-yesthing inlines are used when the arch does yest
  * implement single-step.  The kerneldoc comments are here
  * to document the interface for all arch definitions.
  */
@@ -277,7 +277,7 @@ static inline void ptrace_release_task(struct task_struct *task)
  *
  * If this is defined, then there must be function declarations or
  * inlines for user_enable_single_step() and user_disable_single_step().
- * arch_has_single_step() should evaluate to nonzero iff the machine
+ * arch_has_single_step() should evaluate to yesnzero iff the machine
  * supports instruction single-step for user mode.
  * It can be a constant or it can test a CPU feature bit.
  */
@@ -287,7 +287,7 @@ static inline void ptrace_release_task(struct task_struct *task)
  * user_enable_single_step - single-step in user-mode task
  * @task: either current or a task stopped in %TASK_TRACED
  *
- * This can only be called when arch_has_single_step() has returned nonzero.
+ * This can only be called when arch_has_single_step() has returned yesnzero.
  * Set @task so that when it returns to user mode, it will trap after the
  * next single instruction executes.  If arch_has_block_step() is defined,
  * this must clear the effects of user_enable_block_step() too.
@@ -302,7 +302,7 @@ static inline void user_enable_single_step(struct task_struct *task)
  * @task: either current or a task stopped in %TASK_TRACED
  *
  * Clear @task of the effects of user_enable_single_step() and
- * user_enable_block_step().  This can be called whether or not either
+ * user_enable_block_step().  This can be called whether or yest either
  * of those was ever called on @task, and even if arch_has_single_step()
  * returned zero.
  */
@@ -320,7 +320,7 @@ extern void user_disable_single_step(struct task_struct *);
  *
  * If this is defined, then there must be a function declaration or inline
  * for user_enable_block_step(), and arch_has_single_step() must be defined
- * too.  arch_has_block_step() should evaluate to nonzero iff the machine
+ * too.  arch_has_block_step() should evaluate to yesnzero iff the machine
  * supports step-until-branch for user mode.  It can be a constant or it
  * can test a CPU feature bit.
  */
@@ -330,7 +330,7 @@ extern void user_disable_single_step(struct task_struct *);
  * user_enable_block_step - step until branch in user-mode task
  * @task: either current or a task stopped in %TASK_TRACED
  *
- * This can only be called when arch_has_block_step() has returned nonzero,
+ * This can only be called when arch_has_block_step() has returned yesnzero,
  * and will never be called when single-instruction stepping is being used.
  * Set @task so that when it returns to user mode, it will trap after the
  * next branch or trap taken.
@@ -350,8 +350,8 @@ static inline void user_single_step_report(struct pt_regs *regs)
 {
 	kernel_siginfo_t info;
 	clear_siginfo(&info);
-	info.si_signo = SIGTRAP;
-	info.si_errno = 0;
+	info.si_sigyes = SIGTRAP;
+	info.si_erryes = 0;
 	info.si_code = SI_USER;
 	info.si_pid = 0;
 	info.si_uid = 0;
@@ -365,14 +365,14 @@ static inline void user_single_step_report(struct pt_regs *regs)
  * @code:	current->exit_code value ptrace will stop with
  * @info:	siginfo_t pointer (or %NULL) for signal ptrace will stop with
  *
- * This is called with the siglock held, to decide whether or not it's
+ * This is called with the siglock held, to decide whether or yest it's
  * necessary to release the siglock and call arch_ptrace_stop() with the
  * same @code and @info arguments.  It can be defined to a constant if
  * arch_ptrace_stop() is never required, or always is.  On machines where
  * this makes sense, it should be defined to a quick test to optimize out
  * calling arch_ptrace_stop() when it would be superfluous.  For example,
- * if the thread has not been back to user mode since the last stop, the
- * thread state might indicate that nothing needs to be done.
+ * if the thread has yest been back to user mode since the last stop, the
+ * thread state might indicate that yesthing needs to be done.
  *
  * This is guaranteed to be invoked once before a task stops for ptrace and
  * may include arch-specific operations necessary prior to a ptrace stop.
@@ -386,8 +386,8 @@ static inline void user_single_step_report(struct pt_regs *regs)
  * @code:	current->exit_code value ptrace will stop with
  * @info:	siginfo_t pointer (or %NULL) for signal ptrace will stop with
  *
- * This is called with no locks held when arch_ptrace_stop_needed() has
- * just returned nonzero.  It is allowed to block, e.g. for user memory
+ * This is called with yes locks held when arch_ptrace_stop_needed() has
+ * just returned yesnzero.  It is allowed to block, e.g. for user memory
  * access.  The arch can have machine-specific work to be done before
  * ptrace stops.  On ia64, register backing store gets written back to user
  * memory here.  Since this can be costly (requires dropping the siglock),

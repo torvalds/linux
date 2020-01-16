@@ -21,8 +21,8 @@
  *
  *	Invalidate a range of TLB entries in the specified address space.
  *
- *	- start - start address (may not be aligned)
- *	- end   - end address (exclusive, may not be aligned)
+ *	- start - start address (may yest be aligned)
+ *	- end   - end address (exclusive, may yest be aligned)
  *	- vma   - vma_struct describing address range
  *
  *	It is assumed that:
@@ -38,7 +38,7 @@ ENTRY(v7wbi_flush_user_tlb_range)
 	asid	r3, r3				@ mask ASID
 #ifdef CONFIG_ARM_ERRATA_720789
 	ALT_SMP(W(mov)	r3, #0	)
-	ALT_UP(W(nop)		)
+	ALT_UP(W(yesp)		)
 #endif
 	orr	r0, r3, r0, lsl #PAGE_SHIFT	@ Create initial MVA
 	mov	r1, r1, lsl #PAGE_SHIFT
@@ -62,8 +62,8 @@ ENDPROC(v7wbi_flush_user_tlb_range)
  *
  *	Invalidate a range of kernel TLB entries
  *
- *	- start - start address (may not be aligned)
- *	- end   - end address (exclusive, may not be aligned)
+ *	- start - start address (may yest be aligned)
+ *	- end   - end address (exclusive, may yest be aligned)
  */
 ENTRY(v7wbi_flush_kern_tlb_range)
 	dsb	ish

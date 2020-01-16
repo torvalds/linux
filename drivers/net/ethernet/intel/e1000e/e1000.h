@@ -34,8 +34,8 @@ struct e1000_info;
 	netdev_info(adapter->netdev, format, ## arg)
 #define e_warn(format, arg...) \
 	netdev_warn(adapter->netdev, format, ## arg)
-#define e_notice(format, arg...) \
-	netdev_notice(adapter->netdev, format, ## arg)
+#define e_yestice(format, arg...) \
+	netdev_yestice(adapter->netdev, format, ## arg)
 
 /* Interrupt modes, as used by the IntMode parameter */
 #define E1000E_INT_MODE_LEGACY		0
@@ -67,7 +67,7 @@ struct e1000_info;
 
 #define DEFAULT_JUMBO			9234
 
-/* Time to wait before putting the device into D3 if there's no link (in ms). */
+/* Time to wait before putting the device into D3 if there's yes link (in ms). */
 #define LINK_TIMEOUT		100
 
 /* Count for polling __E1000_RESET condition every 10-20msec.
@@ -356,7 +356,7 @@ s32 e1000e_get_base_timinca(struct e1000_adapter *adapter, u32 *timinca);
  *
  * As a result, a shift of INCVALUE_SHIFT_n is used to fit a value of
  * INCVALUE_n into the TIMINCA register allowing 32+8+(24-INCVALUE_SHIFT_n)
- * bits to count nanoseconds leaving the rest for fractional nonseconds.
+ * bits to count nayesseconds leaving the rest for fractional yesnseconds.
  */
 #define INCVALUE_96MHZ		125
 #define INCVALUE_SHIFT_96MHZ	17
@@ -375,7 +375,7 @@ s32 e1000e_get_base_timinca(struct e1000_adapter *adapter, u32 *timinca);
 #define INCVALUE_SHIFT_38400KHZ	19
 #define INCPERIOD_38400KHZ	1
 
-/* Another drawback of scaling the incvalue by a large factor is the
+/* Ayesther drawback of scaling the incvalue by a large factor is the
  * 64-bit SYSTIM register overflows more quickly.  This is dealt with
  * by simply reading the clock before it overflows.
  *

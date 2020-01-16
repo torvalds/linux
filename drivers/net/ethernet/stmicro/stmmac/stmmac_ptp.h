@@ -19,9 +19,9 @@
 #define	PTP_TCR		0x00	/* Timestamp Control Reg */
 #define	PTP_SSIR	0x04	/* Sub-Second Increment Reg */
 #define	PTP_STSR	0x08	/* System Time – Seconds Regr */
-#define	PTP_STNSR	0x0c	/* System Time – Nanoseconds Reg */
+#define	PTP_STNSR	0x0c	/* System Time – Nayesseconds Reg */
 #define	PTP_STSUR	0x10	/* System Time – Seconds Update Reg */
-#define	PTP_STNSUR	0x14	/* System Time – Nanoseconds Update Reg */
+#define	PTP_STNSUR	0x14	/* System Time – Nayesseconds Update Reg */
 #define	PTP_TAR		0x18	/* Timestamp Addend Reg */
 
 #define	PTP_STNSUR_ADDSUB_SHIFT	31

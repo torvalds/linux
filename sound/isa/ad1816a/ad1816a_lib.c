@@ -173,7 +173,7 @@ static int snd_ad1816a_trigger(struct snd_ad1816a *chip, unsigned char what,
 		spin_lock(&chip->lock);
 		cmd = (cmd == SNDRV_PCM_TRIGGER_START) ? 0xff: 0x00;
 		/* if (what & AD1816A_PLAYBACK_ENABLE) */
-		/* That is not valid, because playback and capture enable
+		/* That is yest valid, because playback and capture enable
 		 * are the same bit pattern, just to different addresses
 		 */
 		if (! iscapture)
@@ -578,9 +578,9 @@ static const char *snd_ad1816a_chip_id(struct snd_ad1816a *chip)
 	case AD1816A_HW_AD1815:	return "AD1815";
 	case AD1816A_HW_AD18MAX10: return "AD18max10";
 	default:
-		snd_printk(KERN_WARNING "Unknown chip version %d:%d.\n",
+		snd_printk(KERN_WARNING "Unkyeswn chip version %d:%d.\n",
 			chip->version, chip->hardware);
-		return "AD1816A - unknown";
+		return "AD1816A - unkyeswn";
 	}
 }
 

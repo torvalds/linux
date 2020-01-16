@@ -92,7 +92,7 @@ static bool pmu_needs_timer(struct i915_pmu *pmu, bool gpu_active)
 	enable = pmu->enable;
 
 	/*
-	 * Mask out all the ones which do not need the timer, or in
+	 * Mask out all the ones which do yest need the timer, or in
 	 * other words keep all the ones that could need the timer.
 	 */
 	enable &= config_enabled_mask(I915_PMU_ACTUAL_FREQUENCY) |
@@ -100,13 +100,13 @@ static bool pmu_needs_timer(struct i915_pmu *pmu, bool gpu_active)
 		  ENGINE_SAMPLE_MASK;
 
 	/*
-	 * When the GPU is idle per-engine counters do not need to be
+	 * When the GPU is idle per-engine counters do yest need to be
 	 * running so clear those bits out.
 	 */
 	if (!gpu_active)
 		enable &= ~ENGINE_SAMPLE_MASK;
 	/*
-	 * Also there is software busyness tracking available we do not
+	 * Also there is software busyness tracking available we do yest
 	 * need the timer for I915_SAMPLE_BUSY counter.
 	 */
 	else if (i915->caps.scheduler & I915_SCHEDULER_CAP_ENGINE_BUSY_STATS)
@@ -166,8 +166,8 @@ static u64 get_rc6(struct intel_gt *gt)
 		/*
 		 * We think we are runtime suspended.
 		 *
-		 * Report the delta from when the device was suspended to now,
-		 * on top of the last known real value, as the approximated RC6
+		 * Report the delta from when the device was suspended to yesw,
+		 * on top of the last kyeswn real value, as the approximated RC6
 		 * counter value.
 		 */
 		val = ktime_since(pmu->sleep_last);
@@ -295,7 +295,7 @@ engines_sample(struct intel_gt *gt, unsigned int period_ns)
 
 		/*
 		 * While waiting on a semaphore or event, MI_MODE reports the
-		 * ring as idle. However, previously using the seqno, and with
+		 * ring as idle. However, previously using the seqyes, and with
 		 * execlists sampling, we account for the ring waiting as the
 		 * engine being busy. Therefore, we record the sample as being
 		 * busy if either waiting or !idle.
@@ -333,7 +333,7 @@ frequency_sample(struct intel_gt *gt, unsigned int period_ns)
 
 		val = rps->cur_freq;
 		if (intel_gt_pm_get_if_awake(gt)) {
-			val = intel_uncore_read_notrace(uncore, GEN6_RPSTAT1);
+			val = intel_uncore_read_yestrace(uncore, GEN6_RPSTAT1);
 			val = intel_get_cagf(rps, val);
 			intel_gt_pm_put_async(gt);
 		}
@@ -357,17 +357,17 @@ static enum hrtimer_restart i915_sample(struct hrtimer *hrtimer)
 	struct i915_pmu *pmu = &i915->pmu;
 	struct intel_gt *gt = &i915->gt;
 	unsigned int period_ns;
-	ktime_t now;
+	ktime_t yesw;
 
 	if (!READ_ONCE(pmu->timer_enabled))
 		return HRTIMER_NORESTART;
 
-	now = ktime_get();
-	period_ns = ktime_to_ns(ktime_sub(now, pmu->timer_last));
-	pmu->timer_last = now;
+	yesw = ktime_get();
+	period_ns = ktime_to_ns(ktime_sub(yesw, pmu->timer_last));
+	pmu->timer_last = yesw;
 
 	/*
-	 * Strictly speaking the passed in period may not be 100% accurate for
+	 * Strictly speaking the passed in period may yest be 100% accurate for
 	 * all internal calculation, since some amount of time can be spent on
 	 * grabbing the forcewake. However the potential error from timer call-
 	 * back delay greatly dominates this so we keep it simple.
@@ -375,7 +375,7 @@ static enum hrtimer_restart i915_sample(struct hrtimer *hrtimer)
 	engines_sample(gt, period_ns);
 	frequency_sample(gt, period_ns);
 
-	hrtimer_forward(hrtimer, now, ns_to_ktime(PERIOD));
+	hrtimer_forward(hrtimer, yesw, ns_to_ktime(PERIOD));
 
 	return HRTIMER_RESTART;
 }
@@ -500,7 +500,7 @@ static int i915_pmu_event_init(struct perf_event *event)
 		return -ENOENT;
 
 	/* unsupported modes and filters */
-	if (event->attr.sample_period) /* no sampling */
+	if (event->attr.sample_period) /* yes sampling */
 		return -EINVAL;
 
 	if (has_branch_stack(event))
@@ -542,7 +542,7 @@ static u64 __i915_pmu_event_read(struct perf_event *event)
 						  engine_event_instance(event));
 
 		if (WARN_ON_ONCE(!engine)) {
-			/* Do nothing */
+			/* Do yesthing */
 		} else if (sample == I915_SAMPLE_BUSY &&
 			   intel_engine_supports_stats(engine)) {
 			val = ktime_to_ns(intel_engine_get_busy_time(engine));
@@ -609,7 +609,7 @@ static void i915_pmu_enable(struct perf_event *event)
 	pmu->enable_count[bit]++;
 
 	/*
-	 * Start the sampling timer if needed and not already enabled.
+	 * Start the sampling timer if needed and yest already enabled.
 	 */
 	__i915_pmu_maybe_start_timer(pmu);
 
@@ -642,7 +642,7 @@ static void i915_pmu_enable(struct perf_event *event)
 	/*
 	 * Store the current counter value so we can report the correct delta
 	 * for all listeners. Even when the event was already enabled and has
-	 * an existing non-zero value.
+	 * an existing yesn-zero value.
 	 */
 	local64_set(&event->hw.prev_count, __i915_pmu_event_read(event));
 }
@@ -897,7 +897,7 @@ create_event_attributes(struct i915_pmu *pmu)
 	pmu_iter = pmu_attr;
 	attr_iter = attr;
 
-	/* Initialize supported non-engine counters. */
+	/* Initialize supported yesn-engine counters. */
 	for (i = 0; i < ARRAY_SIZE(events); i++) {
 		char *str;
 
@@ -985,9 +985,9 @@ static void free_event_attributes(struct i915_pmu *pmu)
 	pmu->pmu_attr = NULL;
 }
 
-static int i915_pmu_cpu_online(unsigned int cpu, struct hlist_node *node)
+static int i915_pmu_cpu_online(unsigned int cpu, struct hlist_yesde *yesde)
 {
-	struct i915_pmu *pmu = hlist_entry_safe(node, typeof(*pmu), node);
+	struct i915_pmu *pmu = hlist_entry_safe(yesde, typeof(*pmu), yesde);
 
 	GEM_BUG_ON(!pmu->base.event_init);
 
@@ -998,9 +998,9 @@ static int i915_pmu_cpu_online(unsigned int cpu, struct hlist_node *node)
 	return 0;
 }
 
-static int i915_pmu_cpu_offline(unsigned int cpu, struct hlist_node *node)
+static int i915_pmu_cpu_offline(unsigned int cpu, struct hlist_yesde *yesde)
 {
-	struct i915_pmu *pmu = hlist_entry_safe(node, typeof(*pmu), node);
+	struct i915_pmu *pmu = hlist_entry_safe(yesde, typeof(*pmu), yesde);
 	unsigned int target;
 
 	GEM_BUG_ON(!pmu->base.event_init);
@@ -1032,7 +1032,7 @@ static int i915_pmu_register_cpuhp_state(struct i915_pmu *pmu)
 		return ret;
 
 	slot = ret;
-	ret = cpuhp_state_add_instance(slot, &pmu->node);
+	ret = cpuhp_state_add_instance(slot, &pmu->yesde);
 	if (ret) {
 		cpuhp_remove_multi_state(slot);
 		return ret;
@@ -1045,7 +1045,7 @@ static int i915_pmu_register_cpuhp_state(struct i915_pmu *pmu)
 static void i915_pmu_unregister_cpuhp_state(struct i915_pmu *pmu)
 {
 	WARN_ON(cpuhp_slot == CPUHP_INVALID);
-	WARN_ON(cpuhp_state_remove_instance(cpuhp_slot, &pmu->node));
+	WARN_ON(cpuhp_state_remove_instance(cpuhp_slot, &pmu->yesde));
 	cpuhp_remove_multi_state(cpuhp_slot);
 }
 
@@ -1066,7 +1066,7 @@ void i915_pmu_register(struct drm_i915_private *i915)
 	int ret = -ENOMEM;
 
 	if (INTEL_GEN(i915) <= 2) {
-		dev_info(i915->drm.dev, "PMU not supported for this GPU.");
+		dev_info(i915->drm.dev, "PMU yest supported for this GPU.");
 		return;
 	}
 
@@ -1116,7 +1116,7 @@ err_name:
 	if (!is_igp(i915))
 		kfree(pmu->name);
 err:
-	dev_notice(i915->drm.dev, "Failed to register PMU!\n");
+	dev_yestice(i915->drm.dev, "Failed to register PMU!\n");
 }
 
 void i915_pmu_unregister(struct drm_i915_private *i915)

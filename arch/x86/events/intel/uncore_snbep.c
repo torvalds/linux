@@ -430,7 +430,7 @@ DEFINE_UNCORE_FORMAT_ATTR(filter_state5, filter_state, "config1:17-26");
 DEFINE_UNCORE_FORMAT_ATTR(filter_rem, filter_rem, "config1:32");
 DEFINE_UNCORE_FORMAT_ATTR(filter_loc, filter_loc, "config1:33");
 DEFINE_UNCORE_FORMAT_ATTR(filter_nm, filter_nm, "config1:36");
-DEFINE_UNCORE_FORMAT_ATTR(filter_not_nm, filter_not_nm, "config1:37");
+DEFINE_UNCORE_FORMAT_ATTR(filter_yest_nm, filter_yest_nm, "config1:37");
 DEFINE_UNCORE_FORMAT_ATTR(filter_local, filter_local, "config1:33");
 DEFINE_UNCORE_FORMAT_ATTR(filter_all_op, filter_all_op, "config1:35");
 DEFINE_UNCORE_FORMAT_ATTR(filter_nnm, filter_nnm, "config1:37");
@@ -1295,10 +1295,10 @@ static struct pci_driver snbep_uncore_pci_driver = {
 /*
  * build pci bus to socket mapping
  */
-static int snbep_pci2phy_map_init(int devid, int nodeid_loc, int idmap_loc, bool reverse)
+static int snbep_pci2phy_map_init(int devid, int yesdeid_loc, int idmap_loc, bool reverse)
 {
 	struct pci_dev *ubox_dev = NULL;
-	int i, bus, nodeid, segment;
+	int i, bus, yesdeid, segment;
 	struct pci2phy_map *map;
 	int err = 0;
 	u32 config = 0;
@@ -1310,10 +1310,10 @@ static int snbep_pci2phy_map_init(int devid, int nodeid_loc, int idmap_loc, bool
 			break;
 		bus = ubox_dev->bus->number;
 		/* get the Node ID of the local register */
-		err = pci_read_config_dword(ubox_dev, nodeid_loc, &config);
+		err = pci_read_config_dword(ubox_dev, yesdeid_loc, &config);
 		if (err)
 			break;
-		nodeid = config & NODE_ID_MASK;
+		yesdeid = config & NODE_ID_MASK;
 		/* get the Node ID mapping */
 		err = pci_read_config_dword(ubox_dev, idmap_loc, &config);
 		if (err)
@@ -1330,10 +1330,10 @@ static int snbep_pci2phy_map_init(int devid, int nodeid_loc, int idmap_loc, bool
 
 		/*
 		 * every three bits in the Node ID mapping register maps
-		 * to a particular node.
+		 * to a particular yesde.
 		 */
 		for (i = 0; i < 8; i++) {
-			if (nodeid == ((config >> (3 * i)) & 0x7)) {
+			if (yesdeid == ((config >> (3 * i)) & 0x7)) {
 				map->pbus_to_physid[bus] = i;
 				break;
 			}
@@ -1343,7 +1343,7 @@ static int snbep_pci2phy_map_init(int devid, int nodeid_loc, int idmap_loc, bool
 
 	if (!err) {
 		/*
-		 * For PCI bus with no UBOX device, find the next bus
+		 * For PCI bus with yes UBOX device, find the next bus
 		 * that has UBOX device and use its mapping.
 		 */
 		raw_spin_lock(&pci2phy_map_lock);
@@ -1370,7 +1370,7 @@ static int snbep_pci2phy_map_init(int devid, int nodeid_loc, int idmap_loc, bool
 
 	pci_dev_put(ubox_dev);
 
-	return err ? pcibios_err_to_errno(err) : 0;
+	return err ? pcibios_err_to_erryes(err) : 0;
 }
 
 int snbep_uncore_pci_init(void)
@@ -1730,7 +1730,7 @@ static struct intel_uncore_type ivbep_uncore_imc = {
 	IVBEP_UNCORE_PCI_COMMON_INIT(),
 };
 
-/* registers in IRP boxes are not properly aligned */
+/* registers in IRP boxes are yest properly aligned */
 static unsigned ivbep_uncore_irp_ctls[] = {0xd8, 0xdc, 0xe0, 0xe4};
 static unsigned ivbep_uncore_irp_ctrs[] = {0xa0, 0xb0, 0xb8, 0xc0};
 
@@ -3123,7 +3123,7 @@ static struct intel_uncore_type *bdx_msr_uncores[] = {
 	NULL,
 };
 
-/* Bit 7 'Use Occupancy' is not available for counter 0 on BDX */
+/* Bit 7 'Use Occupancy' is yest available for counter 0 on BDX */
 static struct event_constraint bdx_uncore_pcu_constraints[] = {
 	EVENT_CONSTRAINT(0x80, 0xe, 0x80),
 	EVENT_CONSTRAINT_END
@@ -3140,7 +3140,7 @@ void bdx_uncore_cpu_init(void)
 	/* BDX-DE doesn't have SBOX */
 	if (boot_cpu_data.x86_model == 86) {
 		uncore_msr_uncores[BDX_MSR_UNCORE_SBOX] = NULL;
-	/* Detect systems with no SBOXes */
+	/* Detect systems with yes SBOXes */
 	} else if (uncore_extra_pci_dev[pkg].dev[HSWEP_PCI_PCU_3]) {
 		struct pci_dev *pdev;
 		u32 capid4;
@@ -3426,7 +3426,7 @@ static struct attribute *skx_uncore_cha_formats_attr[] = {
 	&format_attr_filter_loc.attr,
 	&format_attr_filter_nm.attr,
 	&format_attr_filter_all_op.attr,
-	&format_attr_filter_not_nm.attr,
+	&format_attr_filter_yest_nm.attr,
 	&format_attr_filter_opc_0.attr,
 	&format_attr_filter_opc_1.attr,
 	&format_attr_filter_nc.attr,
@@ -3510,7 +3510,7 @@ static int skx_cha_hw_config(struct intel_uncore_box *box, struct perf_event *ev
 }
 
 static struct intel_uncore_ops skx_uncore_chabox_ops = {
-	/* There is no frz_en for chabox ctl */
+	/* There is yes frz_en for chabox ctl */
 	.init_box		= ivbep_uncore_msr_init_box,
 	.disable_box		= snbep_uncore_msr_disable_box,
 	.enable_box		= snbep_uncore_msr_enable_box,

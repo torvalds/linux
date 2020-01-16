@@ -193,14 +193,14 @@ static void __init palmte_misc_gpio_setup(void)
 {
 	/* Set TSC2102 PINTDAV pin as input (used by TSC2102 driver) */
 	if (gpio_request(PALMTE_PINTDAV_GPIO, "TSC2102 PINTDAV") < 0) {
-		printk(KERN_ERR "Could not reserve PINTDAV GPIO!\n");
+		printk(KERN_ERR "Could yest reserve PINTDAV GPIO!\n");
 		return;
 	}
 	gpio_direction_input(PALMTE_PINTDAV_GPIO);
 
 	/* Set USB-or-DC-IN pin as input (unused) */
 	if (gpio_request(PALMTE_USB_OR_DC_GPIO, "USB/DC-IN") < 0) {
-		printk(KERN_ERR "Could not reserve cable signal GPIO!\n");
+		printk(KERN_ERR "Could yest reserve cable signal GPIO!\n");
 		return;
 	}
 	gpio_direction_input(PALMTE_USB_OR_DC_GPIO);

@@ -166,14 +166,14 @@ ice_alloc_rq_bufs(struct ice_hw *hw, struct ice_ctl_q_info *cq)
 			goto unwind_alloc_rq_bufs;
 		bi->size = cq->rq_buf_size;
 
-		/* now configure the descriptors for use */
+		/* yesw configure the descriptors for use */
 		desc = ICE_CTL_Q_DESC(cq->rq, i);
 
 		desc->flags = cpu_to_le16(ICE_AQ_FLAG_BUF);
 		if (cq->rq_buf_size > ICE_AQ_LG_BUF)
 			desc->flags |= cpu_to_le16(ICE_AQ_FLAG_LB);
 		desc->opcode = 0;
-		/* This is in accordance with Admin queue design, there is no
+		/* This is in accordance with Admin queue design, there is yes
 		 * register for buffer size configuration
 		 */
 		desc->datalen = cpu_to_le16(bi->size);
@@ -316,7 +316,7 @@ ice_cfg_rq_regs(struct ice_hw *hw, struct ice_ctl_q_info *cq)
  *     - cq->sq_buf_size
  *
  * Do *NOT* hold the lock when calling this as the memory allocation routines
- * called are not going to be atomic context safe
+ * called are yest going to be atomic context safe
  */
 static enum ice_status ice_init_sq(struct ice_hw *hw, struct ice_ctl_q_info *cq)
 {
@@ -375,7 +375,7 @@ init_ctrlq_exit:
  *     - cq->rq_buf_size
  *
  * Do *NOT* hold the lock when calling this as the memory allocation routines
- * called are not going to be atomic context safe
+ * called are yest going to be atomic context safe
  */
 static enum ice_status ice_init_rq(struct ice_hw *hw, struct ice_ctl_q_info *cq)
 {
@@ -549,7 +549,7 @@ shutdown_rq_out:
 }
 
 /**
- * ice_init_check_adminq - Check version for Admin Queue to know if its alive
+ * ice_init_check_adminq - Check version for Admin Queue to kyesw if its alive
  * @hw: pointer to the hardware structure
  */
 static enum ice_status ice_init_check_adminq(struct ice_hw *hw)
@@ -586,7 +586,7 @@ init_ctrlq_free_rq:
  *     - cq->rq_buf_size
  *     - cq->sq_buf_size
  *
- * NOTE: this function does not initialize the controlq locks
+ * NOTE: this function does yest initialize the controlq locks
  */
 static enum ice_status ice_init_ctrlq(struct ice_hw *hw, enum ice_ctl_q q_type)
 {
@@ -645,7 +645,7 @@ init_ctrlq_free_sq:
  *     - cq->rq_buf_size
  *     - cq->sq_buf_size
  *
- * NOTE: this function does not initialize the controlq locks.
+ * NOTE: this function does yest initialize the controlq locks.
  */
 enum ice_status ice_init_all_ctrlq(struct ice_hw *hw)
 {
@@ -705,7 +705,7 @@ enum ice_status ice_create_all_ctrlq(struct ice_hw *hw)
  * @hw: pointer to the hardware structure
  * @q_type: specific Control queue type
  *
- * NOTE: this function does not destroy the control queue locks.
+ * NOTE: this function does yest destroy the control queue locks.
  */
 static void ice_shutdown_ctrlq(struct ice_hw *hw, enum ice_ctl_q q_type)
 {
@@ -732,7 +732,7 @@ static void ice_shutdown_ctrlq(struct ice_hw *hw, enum ice_ctl_q q_type)
  * ice_shutdown_all_ctrlq - shutdown routine for all control queues
  * @hw: pointer to the hardware structure
  *
- * NOTE: this function does not destroy the control queue locks. The driver
+ * NOTE: this function does yest destroy the control queue locks. The driver
  * may call this at runtime to shutdown and later restart control queues, such
  * as in response to a reset event.
  */
@@ -875,7 +875,7 @@ static bool ice_sq_done(struct ice_hw *hw, struct ice_ctl_q_info *cq)
  * ice_sq_send_cmd - send command to Control Queue (ATQ)
  * @hw: pointer to the HW struct
  * @cq: pointer to the specific Control queue
- * @desc: prefilled descriptor describing the command (non DMA mem)
+ * @desc: prefilled descriptor describing the command (yesn DMA mem)
  * @buf: buffer to use for indirect commands (or NULL for direct commands)
  * @buf_size: size of buffer for indirect commands (or 0 for direct commands)
  * @cd: pointer to command details structure
@@ -906,7 +906,7 @@ ice_sq_send_cmd(struct ice_hw *hw, struct ice_ctl_q_info *cq,
 
 	if (!cq->sq.count) {
 		ice_debug(hw, ICE_DBG_AQ_MSG,
-			  "Control Send queue not initialized.\n");
+			  "Control Send queue yest initialized.\n");
 		status = ICE_ERR_AQ_EMPTY;
 		goto sq_send_command_error;
 	}
@@ -948,7 +948,7 @@ ice_sq_send_cmd(struct ice_hw *hw, struct ice_ctl_q_info *cq,
 	/* Call clean and check queue available function to reclaim the
 	 * descriptors that were processed by FW/MBX; the function returns the
 	 * number of desc available. The clean function called here could be
-	 * called in a separate thread in case of asynchronous completions.
+	 * called in a separate thread in case of asynchroyesus completions.
 	 */
 	if (ice_clean_sq(hw, cq) == 0) {
 		ice_debug(hw, ICE_DBG_AQ_MSG,
@@ -963,7 +963,7 @@ ice_sq_send_cmd(struct ice_hw *hw, struct ice_ctl_q_info *cq,
 	/* if the desc is available copy the temp desc to the right place */
 	memcpy(desc_on_ring, desc, sizeof(*desc_on_ring));
 
-	/* if buf is not NULL assume indirect command */
+	/* if buf is yest NULL assume indirect command */
 	if (buf) {
 		dma_buf = &cq->sq.r.sq_bi[cq->sq.next_to_use];
 		/* copy the user buf into the respective DMA buf */
@@ -1054,7 +1054,7 @@ sq_send_command_error:
 
 /**
  * ice_fill_dflt_direct_cmd_desc - AQ descriptor helper function
- * @desc: pointer to the temp descriptor (non DMA mem)
+ * @desc: pointer to the temp descriptor (yesn DMA mem)
  * @opcode: the opcode can be used to decide which flags to turn off or on
  *
  * Fill the desc with default values
@@ -1099,7 +1099,7 @@ ice_clean_rq_elem(struct ice_hw *hw, struct ice_ctl_q_info *cq,
 
 	if (!cq->rq.count) {
 		ice_debug(hw, ICE_DBG_AQ_MSG,
-			  "Control Receive queue not initialized.\n");
+			  "Control Receive queue yest initialized.\n");
 		ret_code = ICE_ERR_AQ_EMPTY;
 		goto clean_rq_elem_err;
 	}
@@ -1108,12 +1108,12 @@ ice_clean_rq_elem(struct ice_hw *hw, struct ice_ctl_q_info *cq,
 	ntu = (u16)(rd32(hw, cq->rq.head) & cq->rq.head_mask);
 
 	if (ntu == ntc) {
-		/* nothing to do - shouldn't need to update ring's values */
+		/* yesthing to do - shouldn't need to update ring's values */
 		ret_code = ICE_ERR_AQ_NO_WORK;
 		goto clean_rq_elem_out;
 	}
 
-	/* now clean the next descriptor */
+	/* yesw clean the next descriptor */
 	desc = ICE_CTL_Q_DESC(cq->rq, ntc);
 	desc_idx = ntc;
 

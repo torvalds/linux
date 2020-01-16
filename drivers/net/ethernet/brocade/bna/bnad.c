@@ -130,7 +130,7 @@ bnad_tx_buff_unmap(struct bnad *bnad,
 
 /*
  * Frees all pending Tx Bufs
- * At this point no activity is expected on the Q,
+ * At this point yes activity is expected on the Q,
  * so DMA unmap & freeing is fine.
  */
 static void
@@ -606,7 +606,7 @@ bnad_cq_process(struct bnad *bnad, struct bna_ccb *ccb, int budget)
 		if (!cmpl->valid)
 			break;
 		/* The 'valid' field is set by the adapter, only after writing
-		 * the other fields of completion entry. Hence, do not load
+		 * the other fields of completion entry. Hence, do yest load
 		 * other fields of completion entry *before* the 'valid' is
 		 * loaded. Adding the rmb() here prevents the compiler and/or
 		 * CPU from reordering the reads which would potentially result
@@ -655,7 +655,7 @@ bnad_cq_process(struct bnad *bnad, struct bna_ccb *ccb, int budget)
 					break;
 				/* The 'valid' field is set by the adapter, only
 				 * after writing the other fields of completion
-				 * entry. Hence, do not load other fields of
+				 * entry. Hence, do yest load other fields of
 				 * completion entry *before* the 'valid' is
 				 * loaded. Adding the rmb() here prevents the
 				 * compiler and/or CPU from reordering the reads
@@ -705,7 +705,7 @@ bnad_cq_process(struct bnad *bnad, struct bna_ccb *ccb, int budget)
 		      (masked_flags == flags_udp6))))
 			skb->ip_summed = CHECKSUM_UNNECESSARY;
 		else
-			skb_checksum_none_assert(skb);
+			skb_checksum_yesne_assert(skb);
 
 		if ((flags & BNA_CQ_EF_VLAN) &&
 		    (bnad->netdev->features & NETIF_F_HW_VLAN_CTAG_RX))
@@ -1089,7 +1089,7 @@ bnad_cb_tx_resume(struct bnad *bnad, struct bna_tx *tx)
 }
 
 /*
- * Free all TxQs buffers and then notify TX_E_CLEANUP_DONE to Tx fsm.
+ * Free all TxQs buffers and then yestify TX_E_CLEANUP_DONE to Tx fsm.
  */
 static void
 bnad_tx_cleanup(struct delayed_work *work)
@@ -1168,7 +1168,7 @@ bnad_cb_rx_stall(struct bnad *bnad, struct bna_rx *rx)
 }
 
 /*
- * Free all RxQs buffers and then notify RX_E_CLEANUP_DONE to Rx fsm.
+ * Free all RxQs buffers and then yestify RX_E_CLEANUP_DONE to Rx fsm.
  */
 static void
 bnad_rx_cleanup(void *work)
@@ -1190,7 +1190,7 @@ bnad_rx_cleanup(void *work)
 
 		/*
 		 * Wait till the poll handler has exited
-		 * and nothing can be scheduled anymore
+		 * and yesthing can be scheduled anymore
 		 */
 		napi_disable(&rx_ctrl->napi);
 
@@ -1424,7 +1424,7 @@ bnad_mbox_irq_alloc(struct bnad *bnad)
 
 	/*
 	 * Set the Mbox IRQ disable flag, so that the IRQ handler
-	 * called from request_irq() for SHARED IRQs do not execute
+	 * called from request_irq() for SHARED IRQs do yest execute
 	 */
 	set_bit(BNAD_RF_MBOX_IRQ_DISABLED, &bnad->run_flags);
 
@@ -1730,7 +1730,7 @@ bnad_iocpf_sem_timeout(struct timer_list *t)
 
 /*
  * All timer routines use bnad->bna_lock to protect against
- * the following race, which may occur in case of no locking:
+ * the following race, which may occur in case of yes locking:
  *	Time	CPU m	CPU n
  *	0       1 = test_bit
  *	1			clear_bit
@@ -1764,7 +1764,7 @@ bnad_dim_timeout(struct timer_list *t)
 		}
 	}
 
-	/* Check for BNAD_CF_DIM_ENABLED, does not eleminate a race */
+	/* Check for BNAD_CF_DIM_ENABLED, does yest eleminate a race */
 	if (test_bit(BNAD_RF_DIM_TIMER_RUNNING, &bnad->run_flags))
 		mod_timer(&bnad->dim_timer,
 			  jiffies + msecs_to_jiffies(BNAD_DIM_TIMER_FREQ));
@@ -2255,7 +2255,7 @@ bnad_setup_rx(struct bnad *bnad, u32 rx_id)
 
 	/*
 	 * Init NAPI, so that state is set to NAPI_STATE_SCHED,
-	 * so that IRQ handler cannot schedule NAPI at this point.
+	 * so that IRQ handler canyest schedule NAPI at this point.
 	 */
 	bnad_napi_add(bnad, rx_id);
 
@@ -2853,7 +2853,7 @@ bnad_txq_wi_prepare(struct bnad *bnad, struct bna_tcb *tcb,
 		txqent->hdr.wi.lso_mss = 0;
 
 		if (unlikely(skb->len > (bnad->netdev->mtu + VLAN_ETH_HLEN))) {
-			BNAD_UPDATE_CTR(bnad, tx_skb_non_tso_too_long);
+			BNAD_UPDATE_CTR(bnad, tx_skb_yesn_tso_too_long);
 			return -EINVAL;
 		}
 
@@ -2865,7 +2865,7 @@ bnad_txq_wi_prepare(struct bnad *bnad, struct bna_tcb *tcb,
 				proto = ip_hdr(skb)->protocol;
 #ifdef NETIF_F_IPV6_CSUM
 			else if (net_proto == htons(ETH_P_IPV6)) {
-				/* nexthdr may not be TCP immediately. */
+				/* nexthdr may yest be TCP immediately. */
 				proto = ipv6_hdr(skb)->nexthdr;
 			}
 #endif
@@ -2992,7 +2992,7 @@ bnad_start_xmit(struct sk_buff *skb, struct net_device *netdev)
 		/*
 		 * Check again to deal with race condition between
 		 * netif_stop_queue here, and netif_wake_queue in
-		 * interrupt handler which is not inside netif tx lock.
+		 * interrupt handler which is yest inside netif tx lock.
 		 */
 		if (likely(wis > BNA_QE_FREE_CNT(tcb, q_depth))) {
 			BNAD_UPDATE_CTR(bnad, netif_queue_stop);
@@ -3151,7 +3151,7 @@ bnad_set_rx_ucast_fltr(struct bnad *bnad)
 
 	return;
 
-	/* ucast packets not in UCAM are routed to default function */
+	/* ucast packets yest in UCAM are routed to default function */
 mode_default:
 	bnad->cfg_flags |= BNAD_CF_DEFAULT;
 	bna_rx_ucast_listset(bnad->rx_info[0].rx, 0, NULL);
@@ -3239,8 +3239,8 @@ bnad_set_rx_mode(struct net_device *netdev)
 
 /*
  * bna_lock is used to sync writes to netdev->addr
- * conf_lock cannot be used since this call may be made
- * in a non-blocking context.
+ * conf_lock canyest be used since this call may be made
+ * in a yesn-blocking context.
  */
 static int
 bnad_set_mac_address(struct net_device *netdev, void *addr)
@@ -3391,7 +3391,7 @@ bnad_netpoll(struct net_device *netdev)
 		bna_intx_enable(&bnad->bna, curr_mask);
 	} else {
 		/*
-		 * Tx processing may happen in sending context, so no need
+		 * Tx processing may happen in sending context, so yes need
 		 * to explicitly process completions here
 		 */
 
@@ -3461,7 +3461,7 @@ bnad_netdev_init(struct bnad *bnad, bool using_dac)
 /*
  * 1. Initialize the bnad structure
  * 2. Setup netdev pointer in pci_dev
- * 3. Initialize no. of TxQ & CQs & MSIX vectors
+ * 3. Initialize yes. of TxQ & CQs & MSIX vectors
  * 4. Initialize work queue.
  */
 static int
@@ -3477,7 +3477,7 @@ bnad_init(struct bnad *bnad,
 	bnad->pcidev = pdev;
 	bnad->mmio_start = pci_resource_start(pdev, 0);
 	bnad->mmio_len = pci_resource_len(pdev, 0);
-	bnad->bar0 = ioremap_nocache(bnad->mmio_start, bnad->mmio_len);
+	bnad->bar0 = ioremap_yescache(bnad->mmio_start, bnad->mmio_len);
 	if (!bnad->bar0) {
 		dev_err(&pdev->dev, "ioremap for bar0 failed\n");
 		return -ENOMEM;
@@ -3648,7 +3648,7 @@ bnad_pci_probe(struct pci_dev *pdev,
 	/* Set link to down state */
 	netif_carrier_off(netdev);
 
-	/* Setup the debugfs node for this bfad */
+	/* Setup the debugfs yesde for this bfad */
 	if (bna_debugfs_enable)
 		bnad_debugfs_init(bnad);
 
@@ -3764,7 +3764,7 @@ disable_ioceth:
 res_free:
 	bnad_res_free(bnad, &bnad->res_info[0], BNA_RES_T_MAX);
 drv_uninit:
-	/* Remove the debugfs node for this bnad */
+	/* Remove the debugfs yesde for this bnad */
 	kfree(bnad->regdata);
 	bnad_debugfs_uninit(bnad);
 	bnad_uninit(bnad);
@@ -3810,7 +3810,7 @@ bnad_pci_remove(struct pci_dev *pdev)
 	bnad_pci_uninit(pdev);
 	mutex_unlock(&bnad->conf_mutex);
 	bnad_lock_uninit(bnad);
-	/* Remove the debugfs node for this bnad */
+	/* Remove the debugfs yesde for this bnad */
 	kfree(bnad->regdata);
 	bnad_debugfs_uninit(bnad);
 	bnad_uninit(bnad);

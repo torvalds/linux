@@ -233,7 +233,7 @@ static int pio_tx_packet(struct b43legacy_pio_txpacket *packet)
 			  B43legacy_PIO_MAXTXDEVQPACKETS);
 	B43legacy_WARN_ON(queue->tx_devq_used > queue->tx_devq_size);
 	/* Check if there is sufficient free space on the device
-	 * TX queue. If not, return and let the TX tasklet
+	 * TX queue. If yest, return and let the TX tasklet
 	 * retry later.
 	 */
 	if (queue->tx_devq_packets == B43legacy_PIO_MAXTXDEVQPACKETS)
@@ -245,13 +245,13 @@ static int pio_tx_packet(struct b43legacy_pio_txpacket *packet)
 			      sizeof(struct b43legacy_txhdr_fw3));
 	if (unlikely(err == -ENOKEY)) {
 		/* Drop this packet, as we don't have the encryption key
-		 * anymore and must not transmit it unencrypted. */
+		 * anymore and must yest transmit it unencrypted. */
 		free_txpacket(packet, 1);
 		return 0;
 	}
 
 	/* Account for the packet size.
-	 * (We must not overflow the device TX queue)
+	 * (We must yest overflow the device TX queue)
 	 */
 	queue->tx_devq_packets++;
 	queue->tx_devq_used += octets;
@@ -341,7 +341,7 @@ struct b43legacy_pioqueue *b43legacy_setup_pioqueue(struct b43legacy_wldev *dev,
 	qsize = b43legacy_read16(dev, queue->mmio_base
 				 + B43legacy_PIO_TXQBUFSIZE);
 	if (qsize == 0) {
-		b43legacyerr(dev->wl, "This card does not support PIO "
+		b43legacyerr(dev->wl, "This card does yest support PIO "
 		       "operation mode. Please use DMA mode "
 		       "(module parameter pio=0).\n");
 		goto err_freequeue;
@@ -503,8 +503,8 @@ void b43legacy_pio_handle_txstatus(struct b43legacy_wldev *dev,
 
 	if (status->rts_count > dev->wl->hw->conf.short_frame_max_tx_count) {
 		/*
-		 * If the short retries (RTS, not data frame) have exceeded
-		 * the limit, the hw will not have tried the selected rate,
+		 * If the short retries (RTS, yest data frame) have exceeded
+		 * the limit, the hw will yest have tried the selected rate,
 		 * but will have used the fallback rate instead.
 		 * Don't let the rate control count attempts for the selected
 		 * rate in this case, otherwise the statistics will be off.

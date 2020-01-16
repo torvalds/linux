@@ -2,7 +2,7 @@
  * Xilinx Virtex 5FXT based board support, derived from
  * the Xilinx Virtex (IIpro & 4FX) based board support
  *
- * Copyright 2007 Secret Lab Technologies Ltd.
+ * Copyright 2007 Secret Lab Techyeslogies Ltd.
  * Copyright 2008 Xilinx, Inc.
  *
  * This file is licensed under the terms of the GNU General Public License

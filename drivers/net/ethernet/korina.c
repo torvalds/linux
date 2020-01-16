@@ -23,7 +23,7 @@
  *  THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *  You should have received a copy of the  GNU General Public License along
- *  with this program; if not, write  to the Free Software Foundation, Inc.,
+ *  with this program; if yest, write  to the Free Software Foundation, Inc.,
  *  675 Mass Ave, Cambridge, MA 02139, USA.
  *
  *  Writing to a DMA status register:
@@ -48,7 +48,7 @@
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/skbuff.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/platform_device.h>
 #include <linux/mii.h>
 #include <linux/ethtool.h>
@@ -76,7 +76,7 @@
 				   ((dev)->dev_addr[4] << 8)  | \
 				   ((dev)->dev_addr[5]))
 
-#define MII_CLOCK	1250000 /* no more than 2.5MHz */
+#define MII_CLOCK	1250000 /* yes more than 2.5MHz */
 
 /* the following must be powers of two */
 #define KORINA_NUM_RDS	64  /* number of receive descriptors */
@@ -84,7 +84,7 @@
 
 /* KORINA_RBSIZE is the hardware's default maximum receive
  * frame size in bytes. Having this hardcoded means that there
- * is no support for MTU sizes greater than 1500. */
+ * is yes support for MTU sizes greater than 1500. */
 #define KORINA_RBSIZE	1536 /* size of one resource buffer = Ether MTU */
 #define KORINA_RDS_MASK	(KORINA_NUM_RDS - 1)
 #define KORINA_TDS_MASK	(KORINA_NUM_TDS - 1)
@@ -406,7 +406,7 @@ static int korina_rx(struct net_device *dev, int limit)
 
 		if (!skb_new)
 			break;
-		/* Do not count the CRC */
+		/* Do yest count the CRC */
 		skb_put(skb, pkt_len - 4);
 		skb->protocol = eth_type_trans(skb, dev);
 
@@ -543,7 +543,7 @@ static void korina_tx(struct net_device *dev)
 			dev->stats.tx_dropped++;
 
 			/* Should never happen */
-			printk(KERN_ERR "%s: split tx ignored\n",
+			printk(KERN_ERR "%s: split tx igyesred\n",
 							dev->name);
 		} else if (devcs & ETH_TX_TOK) {
 			dev->stats.tx_packets++;
@@ -908,7 +908,7 @@ static void korina_restart_task(struct work_struct *work)
 	korina_free_ring(dev);
 
 	if (korina_init(dev) < 0) {
-		printk(KERN_ERR "%s: cannot restart device\n", dev->name);
+		printk(KERN_ERR "%s: canyest restart device\n", dev->name);
 		return;
 	}
 	korina_multicast_list(dev);
@@ -941,7 +941,7 @@ static int korina_open(struct net_device *dev)
 	/* Initialize */
 	ret = korina_init(dev);
 	if (ret < 0) {
-		printk(KERN_ERR "%s: cannot open device\n", dev->name);
+		printk(KERN_ERR "%s: canyest open device\n", dev->name);
 		goto out;
 	}
 
@@ -1043,25 +1043,25 @@ static int korina_probe(struct platform_device *pdev)
 
 	r = platform_get_resource_byname(pdev, IORESOURCE_MEM, "korina_regs");
 	dev->base_addr = r->start;
-	lp->eth_regs = ioremap_nocache(r->start, resource_size(r));
+	lp->eth_regs = ioremap_yescache(r->start, resource_size(r));
 	if (!lp->eth_regs) {
-		printk(KERN_ERR DRV_NAME ": cannot remap registers\n");
+		printk(KERN_ERR DRV_NAME ": canyest remap registers\n");
 		rc = -ENXIO;
 		goto probe_err_out;
 	}
 
 	r = platform_get_resource_byname(pdev, IORESOURCE_MEM, "korina_dma_rx");
-	lp->rx_dma_regs = ioremap_nocache(r->start, resource_size(r));
+	lp->rx_dma_regs = ioremap_yescache(r->start, resource_size(r));
 	if (!lp->rx_dma_regs) {
-		printk(KERN_ERR DRV_NAME ": cannot remap Rx DMA registers\n");
+		printk(KERN_ERR DRV_NAME ": canyest remap Rx DMA registers\n");
 		rc = -ENXIO;
 		goto probe_err_dma_rx;
 	}
 
 	r = platform_get_resource_byname(pdev, IORESOURCE_MEM, "korina_dma_tx");
-	lp->tx_dma_regs = ioremap_nocache(r->start, resource_size(r));
+	lp->tx_dma_regs = ioremap_yescache(r->start, resource_size(r));
 	if (!lp->tx_dma_regs) {
-		printk(KERN_ERR DRV_NAME ": cannot remap Tx DMA registers\n");
+		printk(KERN_ERR DRV_NAME ": canyest remap Tx DMA registers\n");
 		rc = -ENXIO;
 		goto probe_err_dma_tx;
 	}
@@ -1075,7 +1075,7 @@ static int korina_probe(struct platform_device *pdev)
 	dma_cache_inv((unsigned long)(lp->td_ring),
 			TD_RING_SIZE + RD_RING_SIZE);
 
-	/* now convert TD_RING pointer to KSEG1 */
+	/* yesw convert TD_RING pointer to KSEG1 */
 	lp->td_ring = (struct dma_desc *)KSEG1ADDR(lp->td_ring);
 	lp->rd_ring = &lp->td_ring[KORINA_NUM_TDS];
 
@@ -1100,7 +1100,7 @@ static int korina_probe(struct platform_device *pdev)
 	rc = register_netdev(dev);
 	if (rc < 0) {
 		printk(KERN_ERR DRV_NAME
-			": cannot register net device: %d\n", rc);
+			": canyest register net device: %d\n", rc);
 		goto probe_err_register;
 	}
 	timer_setup(&lp->media_check_timer, korina_poll_media, 0);

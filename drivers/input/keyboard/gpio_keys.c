@@ -85,7 +85,7 @@ struct gpio_keys_drvdata {
  * to file disabled_switches. Now proximity and dock IRQs are disabled.
  * This can be verified by reading the file disabled_switches:
  *	11,5
- * If we now want to enable proximity (11) switch we write:
+ * If we yesw want to enable proximity (11) switch we write:
  *	5
  * to disabled_switches.
  *
@@ -97,7 +97,7 @@ struct gpio_keys_drvdata {
  * @type: type of button (%EV_KEY, %EV_SW)
  *
  * Return value of this function can be used to allocate bitmap
- * large enough to hold all bits for given type.
+ * large eyesugh to hold all bits for given type.
  */
 static int get_n_events_by_type(int type)
 {
@@ -112,7 +112,7 @@ static int get_n_events_by_type(int type)
  * @type: type of button (%EV_KEY, %EV_SW)
  *
  * Return value of this function can be used to allocate bitmap
- * large enough to hold all bits for given type.
+ * large eyesugh to hold all bits for given type.
  */
 static const unsigned long *get_bm_events_by_type(struct input_dev *dev,
 						  int type)
@@ -182,7 +182,7 @@ static void gpio_keys_enable_button(struct gpio_button_data *bdata)
  * This function writes buttons that can be disabled to @buf. If
  * @only_disabled is true, then @buf contains only those buttons
  * that are currently disabled. Returns 0 on success or negative
- * errno on failure.
+ * erryes on failure.
  */
 static ssize_t gpio_keys_attr_show_helper(struct gpio_keys_drvdata *ddata,
 					  char *buf, unsigned int type,
@@ -479,7 +479,7 @@ static int gpio_keys_setup_key(struct platform_device *pdev,
 				struct gpio_keys_drvdata *ddata,
 				const struct gpio_keys_button *button,
 				int idx,
-				struct fwnode_handle *child)
+				struct fwyesde_handle *child)
 {
 	const char *desc = button->desc ? button->desc : "gpio_keys";
 	struct device *dev = &pdev->dev;
@@ -494,7 +494,7 @@ static int gpio_keys_setup_key(struct platform_device *pdev,
 	spin_lock_init(&bdata->lock);
 
 	if (child) {
-		bdata->gpiod = devm_fwnode_gpiod_get(dev, child,
+		bdata->gpiod = devm_fwyesde_gpiod_get(dev, child,
 						     NULL, GPIOD_IN, desc);
 		if (IS_ERR(bdata->gpiod)) {
 			error = PTR_ERR(bdata->gpiod);
@@ -578,7 +578,7 @@ static int gpio_keys_setup_key(struct platform_device *pdev,
 		default:
 			/*
 			 * For other cases, we are OK letting suspend/resume
-			 * not reconfigure the trigger type.
+			 * yest reconfigure the trigger type.
 			 */
 			break;
 		}
@@ -602,7 +602,7 @@ static int gpio_keys_setup_key(struct platform_device *pdev,
 		irqflags = 0;
 
 		/*
-		 * For IRQ buttons, there is no interrupt for release.
+		 * For IRQ buttons, there is yes interrupt for release.
 		 * So we don't need to reconfigure the trigger type for wakeup.
 		 */
 	}
@@ -692,10 +692,10 @@ gpio_keys_get_devtree_pdata(struct device *dev)
 {
 	struct gpio_keys_platform_data *pdata;
 	struct gpio_keys_button *button;
-	struct fwnode_handle *child;
+	struct fwyesde_handle *child;
 	int nbuttons;
 
-	nbuttons = device_get_child_node_count(dev);
+	nbuttons = device_get_child_yesde_count(dev);
 	if (nbuttons == 0)
 		return ERR_PTR(-ENODEV);
 
@@ -714,36 +714,36 @@ gpio_keys_get_devtree_pdata(struct device *dev)
 
 	device_property_read_string(dev, "label", &pdata->name);
 
-	device_for_each_child_node(dev, child) {
-		if (is_of_node(child))
+	device_for_each_child_yesde(dev, child) {
+		if (is_of_yesde(child))
 			button->irq =
-				irq_of_parse_and_map(to_of_node(child), 0);
+				irq_of_parse_and_map(to_of_yesde(child), 0);
 
-		if (fwnode_property_read_u32(child, "linux,code",
+		if (fwyesde_property_read_u32(child, "linux,code",
 					     &button->code)) {
 			dev_err(dev, "Button without keycode\n");
-			fwnode_handle_put(child);
+			fwyesde_handle_put(child);
 			return ERR_PTR(-EINVAL);
 		}
 
-		fwnode_property_read_string(child, "label", &button->desc);
+		fwyesde_property_read_string(child, "label", &button->desc);
 
-		if (fwnode_property_read_u32(child, "linux,input-type",
+		if (fwyesde_property_read_u32(child, "linux,input-type",
 					     &button->type))
 			button->type = EV_KEY;
 
 		button->wakeup =
-			fwnode_property_read_bool(child, "wakeup-source") ||
+			fwyesde_property_read_bool(child, "wakeup-source") ||
 			/* legacy name */
-			fwnode_property_read_bool(child, "gpio-key,wakeup");
+			fwyesde_property_read_bool(child, "gpio-key,wakeup");
 
-		fwnode_property_read_u32(child, "wakeup-event-action",
+		fwyesde_property_read_u32(child, "wakeup-event-action",
 					 &button->wakeup_event_action);
 
 		button->can_disable =
-			fwnode_property_read_bool(child, "linux,can-disable");
+			fwyesde_property_read_bool(child, "linux,can-disable");
 
-		if (fwnode_property_read_u32(child, "debounce-interval",
+		if (fwyesde_property_read_u32(child, "debounce-interval",
 					 &button->debounce_interval))
 			button->debounce_interval = 5;
 
@@ -763,7 +763,7 @@ static int gpio_keys_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	const struct gpio_keys_platform_data *pdata = dev_get_platdata(dev);
-	struct fwnode_handle *child = NULL;
+	struct fwyesde_handle *child = NULL;
 	struct gpio_keys_drvdata *ddata;
 	struct input_dev *input;
 	int i, error;
@@ -824,10 +824,10 @@ static int gpio_keys_probe(struct platform_device *pdev)
 		const struct gpio_keys_button *button = &pdata->buttons[i];
 
 		if (!dev_get_platdata(dev)) {
-			child = device_get_next_child_node(dev, child);
+			child = device_get_next_child_yesde(dev, child);
 			if (!child) {
 				dev_err(dev,
-					"missing child device node for entry %d\n",
+					"missing child device yesde for entry %d\n",
 					i);
 				return -EINVAL;
 			}
@@ -836,7 +836,7 @@ static int gpio_keys_probe(struct platform_device *pdev)
 		error = gpio_keys_setup_key(pdev, input, ddata,
 					    button, i, child);
 		if (error) {
-			fwnode_handle_put(child);
+			fwyesde_handle_put(child);
 			return error;
 		}
 
@@ -844,7 +844,7 @@ static int gpio_keys_probe(struct platform_device *pdev)
 			wakeup = 1;
 	}
 
-	fwnode_handle_put(child);
+	fwyesde_handle_put(child);
 
 	error = input_register_device(input);
 	if (error) {
@@ -893,7 +893,7 @@ gpio_keys_button_disable_wakeup(struct gpio_button_data *bdata)
 
 	/*
 	 * The trigger type is always both edges for gpio-based keys and we do
-	 * not support changing wakeup trigger for interrupt-based keys.
+	 * yest support changing wakeup trigger for interrupt-based keys.
 	 */
 	if (bdata->wakeup_trigger_type) {
 		error = irq_set_irq_type(bdata->irq, IRQ_TYPE_EDGE_BOTH);

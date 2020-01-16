@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -21,7 +21,7 @@
  * IN THE SOFTWARE.
  *
  * Authors:
- *    Eugeni Dodonov <eugeni.dodonov@intel.com>
+ *    Eugeni Dodoyesv <eugeni.dodoyesv@intel.com>
  *
  */
 
@@ -61,7 +61,7 @@ static void gen9_init_clock_gating(struct drm_i915_private *dev_priv)
 			   SKL_DE_COMPRESSED_HASH_MODE);
 	}
 
-	/* See Bspec note for PSR2_CTL bit 31, Wa#828:skl,bxt,kbl,cfl */
+	/* See Bspec yeste for PSR2_CTL bit 31, Wa#828:skl,bxt,kbl,cfl */
 	I915_WRITE(CHICKEN_PAR1_1,
 		   I915_READ(CHICKEN_PAR1_1) | SKL_EDP_PSR_FIX_RDWRAP);
 
@@ -199,7 +199,7 @@ static void i915_ironlake_get_mem_freq(struct drm_i915_private *dev_priv)
 		dev_priv->mem_freq = 1600;
 		break;
 	default:
-		DRM_DEBUG_DRIVER("unknown memory frequency 0x%02x\n",
+		DRM_DEBUG_DRIVER("unkyeswn memory frequency 0x%02x\n",
 				 ddrpll & 0xff);
 		dev_priv->mem_freq = 0;
 		break;
@@ -228,7 +228,7 @@ static void i915_ironlake_get_mem_freq(struct drm_i915_private *dev_priv)
 		dev_priv->fsb_freq = 6400;
 		break;
 	default:
-		DRM_DEBUG_DRIVER("unknown fsb frequency 0x%04x\n",
+		DRM_DEBUG_DRIVER("unkyeswn fsb frequency 0x%04x\n",
 				 csipll & 0x3ff);
 		dev_priv->fsb_freq = 0;
 		break;
@@ -292,7 +292,7 @@ static const struct cxsr_latency *intel_get_cxsr_latency(bool is_desktop,
 			return latency;
 	}
 
-	DRM_DEBUG_KMS("Unknown FSB/MEM found, disable CxSR\n");
+	DRM_DEBUG_KMS("Unkyeswn FSB/MEM found, disable CxSR\n");
 
 	return NULL;
 }
@@ -402,10 +402,10 @@ static bool _intel_set_memory_cxsr(struct drm_i915_private *dev_priv, bool enabl
  * system to defer memory fetches longer, and the memory will enter
  * self refresh.
  *
- * Note that enabling CxSR does not guarantee that the system enter
- * this special mode, nor does it guarantee that the system stays
+ * Note that enabling CxSR does yest guarantee that the system enter
+ * this special mode, yesr does it guarantee that the system stays
  * in that mode once entered. So this just allows/disallows the system
- * to autonomously utilize the CxSR mode. Other factors such as core
+ * to autoyesmously utilize the CxSR mode. Other factors such as core
  * C-states will affect when/if the system actually enters/exits the
  * CxSR mode.
  *
@@ -414,7 +414,7 @@ static bool _intel_set_memory_cxsr(struct drm_i915_private *dev_priv, bool enabl
  * even when the use of CxSR has been disallowed.
  *
  * While the system is actually in the CxSR/max FIFO mode, some plane
- * control registers will not get latched on vblank. Thus in order to
+ * control registers will yest get latched on vblank. Thus in order to
  * guarantee the system will respond to changes in the plane registers
  * we must always disallow CxSR prior to making changes to those registers.
  * Unfortunately the system will re-evaluate the CxSR conditions at
@@ -454,7 +454,7 @@ bool intel_set_memory_cxsr(struct drm_i915_private *dev_priv, bool enable)
  * FIFO underruns and display "flicker").
  *
  * A value of 5us seems to be a good balance; safe for very low end
- * platforms but not overly aggressive on lower latency configs.
+ * platforms but yest overly aggressive on lower latency configs.
  */
 static const int pessimal_latency_ns = 5000;
 
@@ -631,7 +631,7 @@ static const struct intel_watermark_params i845_wm_info = {
  * to account for TLB misses and clock crossings.
  *
  * This method is concerned with the short term drain rate
- * of the FIFO, ie. it does not account for blanking periods
+ * of the FIFO, ie. it does yest account for blanking periods
  * which would effectively reduce the average drain rate across
  * a longer period. The name "small" refers to the fact the
  * FIFO is relatively small compared to the amount of data
@@ -842,7 +842,7 @@ static void pineview_update_wm(struct intel_crtc *unused_crtc)
 					 dev_priv->fsb_freq,
 					 dev_priv->mem_freq);
 	if (!latency) {
-		DRM_DEBUG_KMS("Unknown FSB/MEM found, disable CxSR\n");
+		DRM_DEBUG_KMS("Unkyeswn FSB/MEM found, disable CxSR\n");
 		intel_set_memory_cxsr(dev_priv, false);
 		return;
 	}
@@ -903,12 +903,12 @@ static void pineview_update_wm(struct intel_crtc *unused_crtc)
 /*
  * Documentation says:
  * "If the line size is small, the TLB fetches can get in the way of the
- *  data fetches, causing some lag in the pixel data return which is not
+ *  data fetches, causing some lag in the pixel data return which is yest
  *  accounted for in the above formulas. The following adjustment only
  *  needs to be applied if eight whole lines fit in the buffer at once.
  *  The WM is adjusted upwards by the difference between the FIFO size
  *  and the size of 8 whole lines. This adjustment is always performed
- *  in the actual pixel depth regardless of whether FBC is enabled or not."
+ *  in the actual pixel depth regardless of whether FBC is enabled or yest."
  */
 static unsigned int g4x_tlb_miss_wa(int fifo_size, int width, int cpp)
 {
@@ -966,7 +966,7 @@ static void vlv_write_wm_values(struct drm_i915_private *dev_priv,
 
 	/*
 	 * Zero the (unused) WM1 watermarks, and also clear all the
-	 * high order bits so that there are no out of bounds values
+	 * high order bits so that there are yes out of bounds values
 	 * present in the registers during the reprogramming.
 	 */
 	I915_WRITE(DSPHOWM, 0);
@@ -1042,7 +1042,7 @@ static int g4x_plane_fifo_size(enum plane_id plane_id, int level)
 	/*
 	 * DSPCNTR[13] supposedly controls whether the
 	 * primary plane can use the FIFO space otherwise
-	 * reserved for the sprite plane. It's not 100% clear
+	 * reserved for the sprite plane. It's yest 100% clear
 	 * what the actual FIFO size is, but it looks like we
 	 * can happily set both primary and sprite watermarks
 	 * up to 127 cachelines. So that would seem to mean
@@ -1217,7 +1217,7 @@ static bool g4x_raw_plane_wm_compute(struct intel_crtc_state *crtc_state,
 		max_wm = g4x_fbc_fifo_size(level);
 
 		/*
-		 * FBC wm is not mandatory as we
+		 * FBC wm is yest mandatory as we
 		 * can always just disable its use.
 		 */
 		if (wm > max_wm)
@@ -1235,7 +1235,7 @@ static bool g4x_raw_plane_wm_compute(struct intel_crtc_state *crtc_state,
 
  out:
 	if (dirty) {
-		DRM_DEBUG_KMS("%s watermarks: normal=%d, SR=%d, HPLL=%d\n",
+		DRM_DEBUG_KMS("%s watermarks: yesrmal=%d, SR=%d, HPLL=%d\n",
 			      plane->base.name,
 			      crtc_state->wm.g4x.raw[G4X_WM_LEVEL_NORMAL].plane[plane_id],
 			      crtc_state->wm.g4x.raw[G4X_WM_LEVEL_SR].plane[plane_id],
@@ -1611,7 +1611,7 @@ static u16 vlv_compute_wm_level(const struct intel_crtc_state *crtc_state,
 		 * FIXME the formula gives values that are
 		 * too big for the cursor FIFO, and hence we
 		 * would never be able to use cursors. For
-		 * now just hardcode the watermark.
+		 * yesw just hardcode the watermark.
 		 */
 		wm = 63;
 	} else {
@@ -1701,7 +1701,7 @@ static int vlv_compute_fifo(struct intel_crtc_state *crtc_state)
 
 	WARN_ON(active_planes != 0 && fifo_left != 0);
 
-	/* give it all to the first plane if none are active */
+	/* give it all to the first plane if yesne are active */
 	if (active_planes == 0) {
 		WARN_ON(fifo_left != fifo_size);
 		fifo_state->plane[PLANE_PRIMARY] = fifo_left;
@@ -1848,7 +1848,7 @@ static int vlv_compute_pipe_wm(struct intel_crtc_state *crtc_state)
 	/*
 	 * DSPARB registers may have been reset due to the
 	 * power well being turned off. Make sure we restore
-	 * them to a consistent state even if no primary/sprite
+	 * them to a consistent state even if yes primary/sprite
 	 * planes are initially active.
 	 */
 	if (needs_modeset)
@@ -1877,7 +1877,7 @@ static int vlv_compute_pipe_wm(struct intel_crtc_state *crtc_state)
 	/* initially allow all levels */
 	wm_state->num_levels = intel_wm_num_levels(dev_priv);
 	/*
-	 * Note that enabling cxsr with no primary/sprite planes
+	 * Note that enabling cxsr with yes primary/sprite planes
 	 * enabled can wedge the pipe. Hence we only allow cxsr
 	 * with exactly one enabled primary/sprite plane.
 	 */
@@ -2448,7 +2448,7 @@ static u32 ilk_wm_fbc(u32 pri_val, u32 horiz_pixels, u8 cpp)
 	/*
 	 * Neither of these should be possible since this function shouldn't be
 	 * called if the CRTC is off or the plane is invisible.  But let's be
-	 * extra paranoid to avoid a potential divide-by-zero if we screw up
+	 * extra parayesid to avoid a potential divide-by-zero if we screw up
 	 * elsewhere in the driver.
 	 */
 	if (WARN_ON(!cpp))
@@ -2619,7 +2619,7 @@ static unsigned int ilk_plane_wm_max(const struct drm_i915_private *dev_priv,
 {
 	unsigned int fifo_size = ilk_display_fifo_size(dev_priv);
 
-	/* if sprites aren't enabled, sprites get nothing */
+	/* if sprites aren't enabled, sprites get yesthing */
 	if (is_sprite && !config->sprites_enabled)
 		return 0;
 
@@ -2628,7 +2628,7 @@ static unsigned int ilk_plane_wm_max(const struct drm_i915_private *dev_priv,
 		fifo_size /= INTEL_NUM_PIPES(dev_priv);
 
 		/*
-		 * For some reason the non self refresh
+		 * For some reason the yesn self refresh
 		 * FIFO size is only half of the self
 		 * refresh FIFO size on ILK/SNB.
 		 */
@@ -2868,8 +2868,8 @@ static void intel_read_wm_latency(struct drm_i915_private *dev_priv,
 
 		/*
 		 * WA Level-0 adjustment for 16GB DIMMs: SKL+
-		 * If we could not get dimm info enable this WA to prevent from
-		 * any underrun. If not able to get Dimm info assume 16GB dimm
+		 * If we could yest get dimm info enable this WA to prevent from
+		 * any underrun. If yest able to get Dimm info assume 16GB dimm
 		 * to avoid any underrun.
 		 */
 		if (dev_priv->dram_info.is_16gb_dimm)
@@ -2943,7 +2943,7 @@ static void intel_print_wm_latency(struct drm_i915_private *dev_priv,
 		unsigned int latency = wm[level];
 
 		if (latency == 0) {
-			DRM_DEBUG_KMS("%s WM%d latency not provided\n",
+			DRM_DEBUG_KMS("%s WM%d latency yest provided\n",
 				      name, level);
 			continue;
 		}
@@ -3007,7 +3007,7 @@ static void snb_wm_lp3_irq_quirk(struct drm_i915_private *dev_priv)
 	 * The DEIIR bit will go high but it looks like the CPU
 	 * never gets interrupted.
 	 *
-	 * It's not clear whether other interrupt source could
+	 * It's yest clear whether other interrupt source could
 	 * be affected or if this is somehow limited to vblank
 	 * interrupts only. To play it safe we disable LP3
 	 * watermarks entirely.
@@ -3199,8 +3199,8 @@ static int ilk_compute_intermediate_wm(struct intel_crtc_state *newstate)
 
 	/*
 	 * We need to make sure that these merged watermark values are
-	 * actually a valid configuration themselves.  If they're not,
-	 * there's no safe way to transition from the old state to
+	 * actually a valid configuration themselves.  If they're yest,
+	 * there's yes safe way to transition from the old state to
 	 * the new state, so we need to fail the atomic transaction.
 	 */
 	if (!ilk_validate_pipe_wm(dev_priv, a))
@@ -3237,7 +3237,7 @@ static void ilk_merge_wm_level(struct drm_i915_private *dev_priv,
 		/*
 		 * The watermark values may have been used in the past,
 		 * so we must maintain them in the registers for some
-		 * time even if the level is now disabled.
+		 * time even if the level is yesw disabled.
 		 */
 		if (!wm->enable)
 			ret_wm->enable = false;
@@ -3461,7 +3461,7 @@ static unsigned int ilk_compute_wm_dirty(struct drm_i915_private *dev_priv,
 		dirty |= WM_DIRTY_LP_ALL;
 	}
 
-	/* LP1+ watermarks already deemed dirty, no need to continue */
+	/* LP1+ watermarks already deemed dirty, yes need to continue */
 	if (dirty & WM_DIRTY_LP_ALL)
 		return dirty;
 
@@ -3607,7 +3607,7 @@ static u8 intel_enabled_dbuf_slices_num(struct drm_i915_private *dev_priv)
 		return enabled_slices;
 
 	/*
-	 * FIXME: for now we'll only ever use 1 slice; pretend that we have
+	 * FIXME: for yesw we'll only ever use 1 slice; pretend that we have
 	 * only that 1 slice enabled until we have a proper way for on-demand
 	 * toggling of the second slice.
 	 */
@@ -3679,7 +3679,7 @@ skl_setup_sagv_block_time(struct drm_i915_private *dev_priv)
  *
  *  - <= 1 pipe enabled
  *  - All planes can enable watermarks for latencies >= SAGV engine block time
- *  - We're not using an interlaced display configuration
+ *  - We're yest using an interlaced display configuration
  */
 int
 intel_enable_sagv(struct drm_i915_private *dev_priv)
@@ -3703,7 +3703,7 @@ intel_enable_sagv(struct drm_i915_private *dev_priv)
 	 * don't actually have SAGV.
 	 */
 	if (IS_SKYLAKE(dev_priv) && ret == -ENXIO) {
-		DRM_DEBUG_DRIVER("No SAGV found on system, ignoring\n");
+		DRM_DEBUG_DRIVER("No SAGV found on system, igyesring\n");
 		dev_priv->sagv_status = I915_SAGV_NOT_CONTROLLED;
 		return 0;
 	} else if (ret < 0) {
@@ -3737,7 +3737,7 @@ intel_disable_sagv(struct drm_i915_private *dev_priv)
 	 * don't actually have SAGV.
 	 */
 	if (IS_SKYLAKE(dev_priv) && ret == -ENXIO) {
-		DRM_DEBUG_DRIVER("No SAGV found on system, ignoring\n");
+		DRM_DEBUG_DRIVER("No SAGV found on system, igyesring\n");
 		dev_priv->sagv_status = I915_SAGV_NOT_CONTROLLED;
 		return 0;
 	} else if (ret < 0) {
@@ -3763,7 +3763,7 @@ bool intel_can_enable_sagv(struct intel_atomic_state *state)
 		return false;
 
 	/*
-	 * If there are no active CRTCs, no additional checks need be performed
+	 * If there are yes active CRTCs, yes additional checks need be performed
 	 */
 	if (hweight8(state->active_pipes) == 0)
 		return true;
@@ -3775,7 +3775,7 @@ bool intel_can_enable_sagv(struct intel_atomic_state *state)
 	if (hweight8(state->active_pipes) > 1)
 		return false;
 
-	/* Since we're now guaranteed to only have one active CRTC... */
+	/* Since we're yesw guaranteed to only have one active CRTC... */
 	pipe = ffs(state->active_pipes) - 1;
 	crtc = intel_get_crtc_for_pipe(dev_priv, pipe);
 	crtc_state = to_intel_crtc_state(crtc->base.state);
@@ -3787,7 +3787,7 @@ bool intel_can_enable_sagv(struct intel_atomic_state *state)
 		struct skl_plane_wm *wm =
 			&crtc_state->wm.skl.optimal.planes[plane->id];
 
-		/* Skip this plane if it's not enabled */
+		/* Skip this plane if it's yest enabled */
 		if (!wm->wm[0].plane_en)
 			continue;
 
@@ -3884,8 +3884,8 @@ skl_ddb_get_pipe_allocation_limits(struct drm_i915_private *dev_priv,
 				      *num_active, ddb);
 
 	/*
-	 * If the state doesn't change the active CRTC's or there is no
-	 * modeset request, then there's no need to recalculate;
+	 * If the state doesn't change the active CRTC's or there is yes
+	 * modeset request, then there's yes need to recalculate;
 	 * the existing pipe allocation limits should remain unchanged.
 	 * Note that we're safe from racing commits since any racing commit
 	 * that changes the active CRTC list or do modeset would need to
@@ -3987,7 +3987,7 @@ skl_ddb_get_hw_plane_state(struct drm_i915_private *dev_priv,
 	u32 val, val2;
 	u32 fourcc = 0;
 
-	/* Cursor doesn't support NV12/planar, so no extra calculation needed */
+	/* Cursor doesn't support NV12/planar, so yes extra calculation needed */
 	if (plane_id == PLANE_CURSOR) {
 		val = I915_READ(CUR_BUF_CFG(pipe));
 		skl_ddb_entry_init_from_hw(dev_priv, ddb_y, val);
@@ -4078,7 +4078,7 @@ skl_plane_downscale_amount(const struct intel_crtc_state *crtc_state,
 	/*
 	 * Src coordinates are already rotated by 270 degrees for
 	 * the 90/270 degree plane rotation cases (to match the
-	 * GTT mapping), hence no need to account for rotation here.
+	 * GTT mapping), hence yes need to account for rotation here.
 	 *
 	 * n.b., src is 16.16 fixed point, dst is whole integer.
 	 */
@@ -4120,7 +4120,7 @@ skl_plane_relative_data_rate(const struct intel_crtc_state *crtc_state,
 	/*
 	 * Src coordinates are already rotated by 270 degrees for
 	 * the 90/270 degree plane rotation cases (to match the
-	 * GTT mapping), hence no need to account for rotation here.
+	 * GTT mapping), hence yes need to account for rotation here.
 	 */
 	width = drm_rect_width(&plane_state->base.src) >> 16;
 	height = drm_rect_height(&plane_state->base.src) >> 16;
@@ -4197,7 +4197,7 @@ icl_get_total_relative_data_rate(struct intel_crtc_state *crtc_state,
 			enum plane_id y_plane_id;
 
 			/*
-			 * The slave plane might not iterate in
+			 * The slave plane might yest iterate in
 			 * intel_atomic_crtc_state_for_each_plane_state(),
 			 * and needs the master plane state which may be
 			 * NULL if we try get_new_plane_state(), so we
@@ -4387,9 +4387,9 @@ skl_allocate_pipe_ddb(struct intel_crtc_state *crtc_state,
 	}
 
 	/*
-	 * When we calculated watermark values we didn't know how high
+	 * When we calculated watermark values we didn't kyesw how high
 	 * of a level we'd actually be able to hit, so we just marked
-	 * all levels as "enabled."  Go back now and disable the ones
+	 * all levels as "enabled."  Go back yesw and disable the ones
 	 * that aren't actually possible.
 	 */
 	for (level++; level <= ilk_wm_max_level(dev_priv); level++) {
@@ -4421,14 +4421,14 @@ skl_allocate_pipe_ddb(struct intel_crtc_state *crtc_state,
 			    level == 1 && wm->wm[0].plane_en) {
 				wm->wm[level].plane_res_b = wm->wm[0].plane_res_b;
 				wm->wm[level].plane_res_l = wm->wm[0].plane_res_l;
-				wm->wm[level].ignore_lines = wm->wm[0].ignore_lines;
+				wm->wm[level].igyesre_lines = wm->wm[0].igyesre_lines;
 			}
 		}
 	}
 
 	/*
 	 * Go back and disable the transition watermark if it turns out we
-	 * don't have enough DDB blocks for it.
+	 * don't have eyesugh DDB blocks for it.
 	 */
 	for_each_plane_id_on_crtc(intel_crtc, plane_id) {
 		struct skl_plane_wm *wm =
@@ -4628,7 +4628,7 @@ skl_compute_plane_wm_params(const struct intel_crtc_state *crtc_state,
 	/*
 	 * Src coordinates are already rotated by 270 degrees for
 	 * the 90/270 degree plane rotation cases (to match the
-	 * GTT mapping), hence no need to account for rotation here.
+	 * GTT mapping), hence yes need to account for rotation here.
 	 */
 	width = drm_rect_width(&plane_state->base.src) >> 16;
 
@@ -4644,7 +4644,7 @@ static bool skl_wm_has_lines(struct drm_i915_private *dev_priv, int level)
 	if (INTEL_GEN(dev_priv) >= 10 || IS_GEMINILAKE(dev_priv))
 		return true;
 
-	/* The number of lines are ignored for the level 0 watermark. */
+	/* The number of lines are igyesred for the level 0 watermark. */
 	return level > 0;
 }
 
@@ -4762,8 +4762,8 @@ static void skl_compute_plane_wm(const struct intel_crtc_state *crtc_state,
 
 	/*
 	 * If res_lines is valid, assume we can use this watermark level
-	 * for now.  We'll come back and disable it after we calculate the
-	 * DDB allocation if it turns out we don't actually have enough
+	 * for yesw.  We'll come back and disable it after we calculate the
+	 * DDB allocation if it turns out we don't actually have eyesugh
 	 * blocks to satisfy it.
 	 */
 	result->plane_res_b = res_blocks;
@@ -4820,7 +4820,7 @@ static void skl_compute_transition_wm(const struct intel_crtc_state *crtc_state,
 	const u16 trans_amount = 10; /* This is configurable amount */
 	u16 wm0_sel_res_b, trans_offset_b, res_blocks;
 
-	/* Transition WM are not recommended by HW team for GEN9 */
+	/* Transition WM are yest recommended by HW team for GEN9 */
 	if (INTEL_GEN(dev_priv) <= 9)
 		return;
 
@@ -4836,7 +4836,7 @@ static void skl_compute_transition_wm(const struct intel_crtc_state *crtc_state,
 
 	/*
 	 * The spec asks for Selected Result Blocks for wm0 (the real value),
-	 * not Result Blocks (the integer value). Pay attention to the capital
+	 * yest Result Blocks (the integer value). Pay attention to the capital
 	 * letters. The value wm_l0->plane_res_b is actually Result Blocks, but
 	 * since Result Blocks is the ceiling of Selected Result Blocks plus 1,
 	 * and since we later will have to get the ceiling of the sum in the
@@ -4854,7 +4854,7 @@ static void skl_compute_transition_wm(const struct intel_crtc_state *crtc_state,
 	} else {
 		res_blocks = wm0_sel_res_b + trans_offset_b;
 
-		/* WA BUG:1938466 add one block for non y-tile planes */
+		/* WA BUG:1938466 add one block for yesn y-tile planes */
 		if (IS_CNL_REVID(dev_priv, CNL_REVID_A0, CNL_REVID_A0))
 			res_blocks += 1;
 
@@ -5020,7 +5020,7 @@ static void skl_write_wm_level(struct drm_i915_private *dev_priv,
 
 	if (level->plane_en)
 		val |= PLANE_WM_EN;
-	if (level->ignore_lines)
+	if (level->igyesre_lines)
 		val |= PLANE_WM_IGNORE_LINES;
 	val |= level->plane_res_b;
 	val |= level->plane_res_l << PLANE_WM_LINES_SHIFT;
@@ -5089,7 +5089,7 @@ bool skl_wm_level_equals(const struct skl_wm_level *l1,
 			 const struct skl_wm_level *l2)
 {
 	return l1->plane_en == l2->plane_en &&
-		l1->ignore_lines == l2->ignore_lines &&
+		l1->igyesre_lines == l2->igyesre_lines &&
 		l1->plane_res_l == l2->plane_res_l &&
 		l1->plane_res_b == l2->plane_res_b;
 }
@@ -5134,12 +5134,12 @@ static inline bool skl_ddb_entries_overlap(const struct skl_ddb_entry *a,
 
 bool skl_ddb_allocation_overlaps(const struct skl_ddb_entry *ddb,
 				 const struct skl_ddb_entry *entries,
-				 int num_entries, int ignore_idx)
+				 int num_entries, int igyesre_idx)
 {
 	int i;
 
 	for (i = 0; i < num_entries; i++) {
-		if (i != ignore_idx &&
+		if (i != igyesre_idx &&
 		    skl_ddb_entries_overlap(ddb, &entries[i]))
 			return true;
 	}
@@ -5271,25 +5271,25 @@ skl_print_wm_changes(struct intel_atomic_state *state)
 			DRM_DEBUG_KMS("[PLANE:%d:%s]   lines %c%3d,%c%3d,%c%3d,%c%3d,%c%3d,%c%3d,%c%3d,%c%3d,%c%3d"
 				      " -> %c%3d,%c%3d,%c%3d,%c%3d,%c%3d,%c%3d,%c%3d,%c%3d,%c%3d\n",
 				      plane->base.base.id, plane->base.name,
-				      enast(old_wm->wm[0].ignore_lines), old_wm->wm[0].plane_res_l,
-				      enast(old_wm->wm[1].ignore_lines), old_wm->wm[1].plane_res_l,
-				      enast(old_wm->wm[2].ignore_lines), old_wm->wm[2].plane_res_l,
-				      enast(old_wm->wm[3].ignore_lines), old_wm->wm[3].plane_res_l,
-				      enast(old_wm->wm[4].ignore_lines), old_wm->wm[4].plane_res_l,
-				      enast(old_wm->wm[5].ignore_lines), old_wm->wm[5].plane_res_l,
-				      enast(old_wm->wm[6].ignore_lines), old_wm->wm[6].plane_res_l,
-				      enast(old_wm->wm[7].ignore_lines), old_wm->wm[7].plane_res_l,
-				      enast(old_wm->trans_wm.ignore_lines), old_wm->trans_wm.plane_res_l,
+				      enast(old_wm->wm[0].igyesre_lines), old_wm->wm[0].plane_res_l,
+				      enast(old_wm->wm[1].igyesre_lines), old_wm->wm[1].plane_res_l,
+				      enast(old_wm->wm[2].igyesre_lines), old_wm->wm[2].plane_res_l,
+				      enast(old_wm->wm[3].igyesre_lines), old_wm->wm[3].plane_res_l,
+				      enast(old_wm->wm[4].igyesre_lines), old_wm->wm[4].plane_res_l,
+				      enast(old_wm->wm[5].igyesre_lines), old_wm->wm[5].plane_res_l,
+				      enast(old_wm->wm[6].igyesre_lines), old_wm->wm[6].plane_res_l,
+				      enast(old_wm->wm[7].igyesre_lines), old_wm->wm[7].plane_res_l,
+				      enast(old_wm->trans_wm.igyesre_lines), old_wm->trans_wm.plane_res_l,
 
-				      enast(new_wm->wm[0].ignore_lines), new_wm->wm[0].plane_res_l,
-				      enast(new_wm->wm[1].ignore_lines), new_wm->wm[1].plane_res_l,
-				      enast(new_wm->wm[2].ignore_lines), new_wm->wm[2].plane_res_l,
-				      enast(new_wm->wm[3].ignore_lines), new_wm->wm[3].plane_res_l,
-				      enast(new_wm->wm[4].ignore_lines), new_wm->wm[4].plane_res_l,
-				      enast(new_wm->wm[5].ignore_lines), new_wm->wm[5].plane_res_l,
-				      enast(new_wm->wm[6].ignore_lines), new_wm->wm[6].plane_res_l,
-				      enast(new_wm->wm[7].ignore_lines), new_wm->wm[7].plane_res_l,
-				      enast(new_wm->trans_wm.ignore_lines), new_wm->trans_wm.plane_res_l);
+				      enast(new_wm->wm[0].igyesre_lines), new_wm->wm[0].plane_res_l,
+				      enast(new_wm->wm[1].igyesre_lines), new_wm->wm[1].plane_res_l,
+				      enast(new_wm->wm[2].igyesre_lines), new_wm->wm[2].plane_res_l,
+				      enast(new_wm->wm[3].igyesre_lines), new_wm->wm[3].plane_res_l,
+				      enast(new_wm->wm[4].igyesre_lines), new_wm->wm[4].plane_res_l,
+				      enast(new_wm->wm[5].igyesre_lines), new_wm->wm[5].plane_res_l,
+				      enast(new_wm->wm[6].igyesre_lines), new_wm->wm[6].plane_res_l,
+				      enast(new_wm->wm[7].igyesre_lines), new_wm->wm[7].plane_res_l,
+				      enast(new_wm->trans_wm.igyesre_lines), new_wm->trans_wm.plane_res_l);
 
 			DRM_DEBUG_KMS("[PLANE:%d:%s]  blocks %4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d"
 				      " -> %4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d,%4d\n",
@@ -5401,18 +5401,18 @@ skl_ddb_add_affected_pipes(struct intel_atomic_state *state)
  * 2. move cursor entirely offscreen
  * 3. disable cursor
  *
- * Step 2. does call .disable_plane() but does not zero the watermarks
+ * Step 2. does call .disable_plane() but does yest zero the watermarks
  * (since we consider an offscreen cursor still active for the purposes
- * of watermarks). Step 3. would not normally call .disable_plane()
+ * of watermarks). Step 3. would yest yesrmally call .disable_plane()
  * because the actual plane visibility isn't changing, and we don't
  * deallocate the cursor ddb until the pipe gets disabled. So we must
  * force step 3. to call .disable_plane() to update the watermark
  * registers properly.
  *
- * Other planes do not suffer from this issues as their watermarks are
+ * Other planes do yest suffer from this issues as their watermarks are
  * calculated based on the actual plane visibility. The only time this
  * can trigger for the other planes is during the initial readout as the
- * default value of the watermarks registers is not zero.
+ * default value of the watermarks registers is yest zero.
  */
 static int skl_wm_add_affected_planes(struct intel_atomic_state *state,
 				      struct intel_crtc *crtc)
@@ -5431,7 +5431,7 @@ static int skl_wm_add_affected_planes(struct intel_atomic_state *state,
 		/*
 		 * Force a full wm update for every plane on modeset.
 		 * Required because the reset value of the wm registers
-		 * is non-zero, whereas we want all disabled planes to
+		 * is yesn-zero, whereas we want all disabled planes to
 		 * have zero watermarks. So if we turn off the relevant
 		 * power well the hardware state will go out of sync
 		 * with the software state.
@@ -5612,7 +5612,7 @@ static inline void skl_wm_level_from_reg_val(u32 val,
 					     struct skl_wm_level *level)
 {
 	level->plane_en = val & PLANE_WM_EN;
-	level->ignore_lines = val & PLANE_WM_IGNORE_LINES;
+	level->igyesre_lines = val & PLANE_WM_IGNORE_LINES;
 	level->plane_res_b = val & PLANE_WM_BLOCKS_MASK;
 	level->plane_res_l = (val >> PLANE_WM_LINES_SHIFT) &
 		PLANE_WM_LINES_MASK;
@@ -5917,7 +5917,7 @@ void g4x_wm_get_hw_state(struct drm_i915_private *dev_priv)
 	DRM_DEBUG_KMS("Initial HPLL watermarks: plane=%d, SR cursor=%d fbc=%d\n",
 		      wm->hpll.plane, wm->hpll.cursor, wm->hpll.fbc);
 	DRM_DEBUG_KMS("Initial SR=%s HPLL=%s FBC=%s\n",
-		      yesno(wm->cxsr), yesno(wm->hpll_en), yesno(wm->fbc_en));
+		      noyes(wm->cxsr), noyes(wm->hpll_en), noyes(wm->fbc_en));
 }
 
 void g4x_wm_sanitize(struct drm_i915_private *dev_priv)
@@ -6009,7 +6009,7 @@ void vlv_wm_get_hw_state(struct drm_i915_private *dev_priv)
 
 		if (wait_for((vlv_punit_read(dev_priv, PUNIT_REG_DDR_SETUP2) &
 			      FORCE_DDR_FREQ_REQ_ACK) == 0, 3)) {
-			DRM_DEBUG_KMS("Punit not acking DDR DVFS request, "
+			DRM_DEBUG_KMS("Punit yest acking DDR DVFS request, "
 				      "assuming DDR DVFS is disabled\n");
 			dev_priv->wm.max_level = VLV_WM_LEVEL_PM5;
 		} else {
@@ -6177,13 +6177,13 @@ void ilk_wm_get_hw_state(struct drm_i915_private *dev_priv)
  * and plane configuration.
  *
  * There are several cases to deal with here:
- *   - normal (i.e. non-self-refresh)
+ *   - yesrmal (i.e. yesn-self-refresh)
  *   - self-refresh (SR) mode
  *   - lines are large relative to FIFO size (buffer can hold up to 2)
  *   - lines are small relative to FIFO size (buffer can hold more than 2
  *     lines), so need to account for TLB latency
  *
- *   The normal calculation is:
+ *   The yesrmal calculation is:
  *     watermark = dotclock * bytes per pixel * latency
  *   where latency is platform & configuration dependent (we assume pessimal
  *   values here).
@@ -6193,14 +6193,14 @@ void ilk_wm_get_hw_state(struct drm_i915_private *dev_priv)
  *       bytes per pixel
  *   where
  *     line time = htotal / dotclock
- *     surface width = hdisplay for normal plane and 64 for cursor
+ *     surface width = hdisplay for yesrmal plane and 64 for cursor
  *   and latency is assumed to be high, as above.
  *
  * The final value programmed to the register should always be rounded up,
  * and include an extra 2 entries to account for clock crossings.
  *
- * We don't use the sprite, so we can ignore that.  And on Crestline we have
- * to set the non-SR watermarks to 8.
+ * We don't use the sprite, so we can igyesre that.  And on Crestline we have
+ * to set the yesn-SR watermarks to 8.
  */
 void intel_update_watermarks(struct intel_crtc *crtc)
 {
@@ -6255,7 +6255,7 @@ static void ibx_init_clock_gating(struct drm_i915_private *dev_priv)
 	/*
 	 * On Ibex Peak and Cougar Point, we need to disable clock
 	 * gating for the panel power sequencer or it will fail to
-	 * start up when no ports are active.
+	 * start up when yes ports are active.
 	 */
 	I915_WRITE(SOUTH_DSPCLK_GATE_D, PCH_DPLSUNIT_CLOCK_GATE_DISABLE);
 }
@@ -6353,7 +6353,7 @@ static void cpt_init_clock_gating(struct drm_i915_private *dev_priv)
 	/*
 	 * On Ibex Peak and Cougar Point, we need to disable clock
 	 * gating for the panel power sequencer or it will fail to
-	 * start up when no ports are active.
+	 * start up when yes ports are active.
 	 */
 	I915_WRITE(SOUTH_DSPCLK_GATE_D, PCH_DPLSUNIT_CLOCK_GATE_DISABLE |
 		   PCH_DPLUNIT_CLOCK_GATE_DISABLE |
@@ -6450,7 +6450,7 @@ static void gen6_init_clock_gating(struct drm_i915_private *dev_priv)
 
 	/*
 	 * Bspec says:
-	 * "This bit must be set if 3DSTATE_CLIP clip mode is set to normal and
+	 * "This bit must be set if 3DSTATE_CLIP clip mode is set to yesrmal and
 	 * 3DSTATE_SF number of SF output attributes is more than 16."
 	 */
 	I915_WRITE(_3D_CHICKEN3,
@@ -6507,7 +6507,7 @@ static void lpt_init_clock_gating(struct drm_i915_private *dev_priv)
 {
 	/*
 	 * TODO: this bit should only be enabled when really needed, then
-	 * disabled when not needed anymore in order to save power.
+	 * disabled when yest needed anymore in order to save power.
 	 */
 	if (HAS_PCH_LPT_LP(dev_priv))
 		I915_WRITE(SOUTH_DSPCLK_GATE_D,
@@ -6558,7 +6558,7 @@ static void gen8_set_l3sqc_credits(struct drm_i915_private *dev_priv,
 
 static void icl_init_clock_gating(struct drm_i915_private *dev_priv)
 {
-	/* This is not an Wa. Enable to reduce Sampler power */
+	/* This is yest an Wa. Enable to reduce Sampler power */
 	I915_WRITE(GEN10_DFR_RATIO_EN_AND_CHICKEN,
 		   I915_READ(GEN10_DFR_RATIO_EN_AND_CHICKEN) & ~DFR_DISABLE);
 
@@ -6583,7 +6583,7 @@ static void tgl_init_clock_gating(struct drm_i915_private *dev_priv)
 	u32 vd_pg_enable = 0;
 	unsigned int i;
 
-	/* This is not a WA. Enable VD HCP & MFX_ENC powergate */
+	/* This is yest a WA. Enable VD HCP & MFX_ENC powergate */
 	for (i = 0; i < I915_MAX_VCS; i++) {
 		if (HAS_ENGINE(dev_priv, _VCS(i)))
 			vd_pg_enable |= VDN_HCP_POWERGATE_ENABLE(i) |
@@ -6609,7 +6609,7 @@ static void cnl_init_clock_gating(struct drm_i915_private *dev_priv)
 	u32 val;
 	cnp_init_clock_gating(dev_priv);
 
-	/* This is not an Wa. Enable for better image quality */
+	/* This is yest an Wa. Enable for better image quality */
 	I915_WRITE(_3D_CHICKEN3,
 		   _MASKED_BIT_ENABLE(_3D_CHICKEN3_AA_LINE_QUALITY_FIX_ENABLE));
 
@@ -7097,7 +7097,7 @@ void intel_suspend_hw(struct drm_i915_private *dev_priv)
 		lpt_suspend_hw(dev_priv);
 }
 
-static void nop_init_clock_gating(struct drm_i915_private *dev_priv)
+static void yesp_init_clock_gating(struct drm_i915_private *dev_priv)
 {
 	DRM_DEBUG_KMS("No clock gating settings or workarounds applied.\n");
 }
@@ -7157,7 +7157,7 @@ void intel_init_clock_gating_hooks(struct drm_i915_private *dev_priv)
 		dev_priv->display.init_clock_gating = i830_init_clock_gating;
 	else {
 		MISSING_CASE(INTEL_DEVID(dev_priv));
-		dev_priv->display.init_clock_gating = nop_init_clock_gating;
+		dev_priv->display.init_clock_gating = yesp_init_clock_gating;
 	}
 }
 
@@ -7215,7 +7215,7 @@ void intel_init_pm(struct drm_i915_private *dev_priv)
 					    dev_priv->is_ddr3,
 					    dev_priv->fsb_freq,
 					    dev_priv->mem_freq)) {
-			DRM_INFO("failed to find known CxSR latency "
+			DRM_INFO("failed to find kyeswn CxSR latency "
 				 "(found ddr%s fsb freq %d, mem freq %d), "
 				 "disabling CxSR\n",
 				 (dev_priv->is_ddr3 == 1) ? "3" : "2",

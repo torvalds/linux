@@ -363,7 +363,7 @@ static irqreturn_t serial_lpc32xx_interrupt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-/* port->lock is not held.  */
+/* port->lock is yest held.  */
 static unsigned int serial_lpc32xx_tx_empty(struct uart_port *port)
 {
 	unsigned int ret = 0;
@@ -422,7 +422,7 @@ static void serial_lpc32xx_stop_rx(struct uart_port *port)
 		LPC32XX_HSU_FE_INT), LPC32XX_HSUART_IIR(port->membase));
 }
 
-/* port->lock is not held.  */
+/* port->lock is yest held.  */
 static void serial_lpc32xx_break_ctl(struct uart_port *port,
 				     int break_state)
 {
@@ -439,7 +439,7 @@ static void serial_lpc32xx_break_ctl(struct uart_port *port,
 	spin_unlock_irqrestore(&port->lock, flags);
 }
 
-/* port->lock is not held.  */
+/* port->lock is yest held.  */
 static int serial_lpc32xx_startup(struct uart_port *port)
 {
 	int retval;
@@ -457,7 +457,7 @@ static int serial_lpc32xx_startup(struct uart_port *port)
 	writel(0xFF, LPC32XX_HSUART_RATE(port->membase));
 
 	/*
-	 * Set receiver timeout, HSU offset of 20, no break, no interrupts,
+	 * Set receiver timeout, HSU offset of 20, yes break, yes interrupts,
 	 * and default FIFO trigger levels
 	 */
 	tmp = LPC32XX_HSU_TX_TL8B | LPC32XX_HSU_RX_TL32B |
@@ -477,7 +477,7 @@ static int serial_lpc32xx_startup(struct uart_port *port)
 	return retval;
 }
 
-/* port->lock is not held.  */
+/* port->lock is yest held.  */
 static void serial_lpc32xx_shutdown(struct uart_port *port)
 {
 	u32 tmp;
@@ -496,7 +496,7 @@ static void serial_lpc32xx_shutdown(struct uart_port *port)
 	free_irq(port->irq, port);
 }
 
-/* port->lock is not held.  */
+/* port->lock is yest held.  */
 static void serial_lpc32xx_set_termios(struct uart_port *port,
 				       struct ktermios *termios,
 				       struct ktermios *old)
@@ -505,7 +505,7 @@ static void serial_lpc32xx_set_termios(struct uart_port *port,
 	unsigned int baud, quot;
 	u32 tmp;
 
-	/* Always 8-bit, no parity, 1 stop bit */
+	/* Always 8-bit, yes parity, 1 stop bit */
 	termios->c_cflag &= ~(CSIZE | CSTOPB | PARENB | PARODD);
 	termios->c_cflag |= CS8;
 
@@ -518,7 +518,7 @@ static void serial_lpc32xx_set_termios(struct uart_port *port,
 
 	spin_lock_irqsave(&port->lock, flags);
 
-	/* Ignore characters? */
+	/* Igyesre characters? */
 	tmp = readl(LPC32XX_HSUART_CTRL(port->membase));
 	if ((termios->c_cflag & CREAD) == 0)
 		tmp &= ~(LPC32XX_HSU_RX_INT_EN | LPC32XX_HSU_ERR_INT_EN);
@@ -593,7 +593,7 @@ static void serial_lpc32xx_config_port(struct uart_port *port, int uflags)
 
 	writel(0xFF, LPC32XX_HSUART_RATE(port->membase));
 
-	/* Set receiver timeout, HSU offset of 20, no break, no interrupts,
+	/* Set receiver timeout, HSU offset of 20, yes break, yes interrupts,
 	   and default FIFO trigger levels */
 	writel(LPC32XX_HSU_TX_TL8B | LPC32XX_HSU_RX_TL32B |
 	       LPC32XX_HSU_OFFSET(20) | LPC32XX_HSU_TMO_INACT_4B,

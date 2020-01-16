@@ -1,4 +1,4 @@
-* UART (Universal Asynchronous Receiver/Transmitter)
+* UART (Universal Asynchroyesus Receiver/Transmitter)
 
 Required properties:
 - compatible : one of:
@@ -26,7 +26,7 @@ Required properties:
 	- "aspeed,ast2400-vuart"
 	- "aspeed,ast2500-vuart"
 	- "nuvoton,npcm750-uart"
-	- "serial" if the port type is unknown.
+	- "serial" if the port type is unkyeswn.
 - reg : offset and length of the register set for the device.
 - interrupts : should contain uart interrupt.
 - clock-frequency : the input clock frequency for the UART
@@ -42,8 +42,8 @@ Optional properties:
   performed on the device.  There are some systems that require 32-bit
   accesses to the UART (e.g. TI davinci).
 - used-by-rtas : set to indicate that the port is in use by the OpenFirmware
-  RTAS and should not be registered.
-- no-loopback-test: set to indicate that the port does not implements loopback
+  RTAS and should yest be registered.
+- yes-loopback-test: set to indicate that the port does yest implements loopback
   test mode
 - fifo-size: the fifo size of the UART.
 - auto-flow-control: one way to enable automatic flow control support. The
@@ -66,7 +66,7 @@ Note:
 * fsl,ns16550:
   ------------
   Freescale DUART is very similar to the PC16552D (and to a
-  pair of NS16550A), albeit with some nonstandard behavior such as
+  pair of NS16550A), albeit with some yesnstandard behavior such as
   erratum A-004737 (relating to incorrect BRK handling).
 
   Represents a single port that is compatible with the DUART found

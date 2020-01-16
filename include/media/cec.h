@@ -22,27 +22,27 @@
 			  CEC_CAP_PASSTHROUGH | CEC_CAP_RC)
 
 /**
- * struct cec_devnode - cec device node
+ * struct cec_devyesde - cec device yesde
  * @dev:	cec device
  * @cdev:	cec character device
- * @minor:	device node minor number
+ * @miyesr:	device yesde miyesr number
  * @registered:	the device was correctly registered
  * @unregistered: the device was unregistered
  * @fhs_lock:	lock to control access to the filehandle list
  * @fhs:	the list of open filehandles (cec_fh)
  *
- * This structure represents a cec-related device node.
+ * This structure represents a cec-related device yesde.
  *
  * The @parent is a physical device. It must be set by core or device drivers
- * before registering the node.
+ * before registering the yesde.
  */
-struct cec_devnode {
+struct cec_devyesde {
 	/* sysfs */
 	struct device dev;
 	struct cdev cdev;
 
 	/* device info */
-	int minor;
+	int miyesr;
 	bool registered;
 	bool unregistered;
 	struct list_head fhs;
@@ -52,7 +52,7 @@ struct cec_devnode {
 struct cec_adapter;
 struct cec_data;
 struct cec_pin;
-struct cec_notifier;
+struct cec_yestifier;
 
 struct cec_data {
 	struct list_head list;
@@ -102,7 +102,7 @@ struct cec_fh {
 #define CEC_SIGNAL_FREE_TIME_NEW_INITIATOR	5
 #define CEC_SIGNAL_FREE_TIME_NEXT_XFER		7
 
-/* The nominal data bit period is 2.4 ms */
+/* The yesminal data bit period is 2.4 ms */
 #define CEC_FREE_TIME_TO_USEC(ft)		((ft) * 2400)
 
 struct cec_adap_ops {
@@ -131,7 +131,7 @@ struct cec_adap_ops {
  *
  * We queue at most 3 seconds worth of received messages. The CEC specification
  * requires that messages are replied to within a second, so 3 seconds should
- * give more than enough margin. Since most messages are actually more than 2
+ * give more than eyesugh margin. Since most messages are actually more than 2
  * bytes, this is in practice a lot more than 3 seconds.
  */
 #define CEC_MAX_MSG_RX_QUEUE_SZ		(18 * 3)
@@ -139,7 +139,7 @@ struct cec_adap_ops {
 /*
  * The transmit queue is limited to 1 second worth of messages (worst case).
  * Messages can be transmitted by userspace and kernel space. But for both it
- * makes no sense to have a lot of messages queued up. One second seems
+ * makes yes sense to have a lot of messages queued up. One second seems
  * reasonable.
  */
 #define CEC_MAX_MSG_TX_QUEUE_SZ		(18 * 1)
@@ -147,7 +147,7 @@ struct cec_adap_ops {
 struct cec_adapter {
 	struct module *owner;
 	char name[32];
-	struct cec_devnode devnode;
+	struct cec_devyesde devyesde;
 	struct mutex lock;
 	struct rc_dev *rc;
 
@@ -187,7 +187,7 @@ struct cec_adapter {
 	u32 tx_timeouts;
 
 #ifdef CONFIG_CEC_NOTIFIER
-	struct cec_notifier *notifier;
+	struct cec_yestifier *yestifier;
 #endif
 #ifdef CONFIG_CEC_PIN
 	struct cec_pin *pin;
@@ -227,7 +227,7 @@ static inline bool cec_is_sink(const struct cec_adapter *adap)
  */
 static inline bool cec_is_registered(const struct cec_adapter *adap)
 {
-	return adap && adap->devnode.registered;
+	return adap && adap->devyesde.registered;
 }
 
 #define cec_phys_addr_exp(pa) \
@@ -326,11 +326,11 @@ void cec_queue_pin_5v_event(struct cec_adapter *adap, bool is_high, ktime_t ts);
  *
  * @edid:	pointer to the EDID data
  * @size:	size in bytes of the EDID data
- * @offset:	If not %NULL then the location of the physical address
+ * @offset:	If yest %NULL then the location of the physical address
  *		bytes in the EDID will be returned here. This is set to 0
- *		if there is no physical address found.
+ *		if there is yes physical address found.
  *
- * Return: the physical address or CEC_PHYS_ADDR_INVALID if there is none.
+ * Return: the physical address or CEC_PHYS_ADDR_INVALID if there is yesne.
  */
 u16 cec_get_edid_phys_addr(const u8 *edid, unsigned int size,
 			   unsigned int *offset);
@@ -389,44 +389,44 @@ cec_fill_conn_info_from_drm(struct cec_connector_info *conn_info,
 #if IS_REACHABLE(CONFIG_CEC_CORE) && IS_ENABLED(CONFIG_CEC_NOTIFIER)
 
 /**
- * cec_notifier_register - register a callback with the notifier
- * @n: the CEC notifier
+ * cec_yestifier_register - register a callback with the yestifier
+ * @n: the CEC yestifier
  * @adap: the CEC adapter, passed as argument to the callback function
  * @callback: the callback function
  */
-void cec_notifier_register(struct cec_notifier *n,
+void cec_yestifier_register(struct cec_yestifier *n,
 			   struct cec_adapter *adap,
 			   void (*callback)(struct cec_adapter *adap, u16 pa));
 
 /**
- * cec_notifier_unregister - unregister the callback from the notifier.
- * @n: the CEC notifier
+ * cec_yestifier_unregister - unregister the callback from the yestifier.
+ * @n: the CEC yestifier
  */
-void cec_notifier_unregister(struct cec_notifier *n);
+void cec_yestifier_unregister(struct cec_yestifier *n);
 
 /**
- * cec_register_cec_notifier - register the notifier with the cec adapter.
+ * cec_register_cec_yestifier - register the yestifier with the cec adapter.
  * @adap: the CEC adapter
- * @notifier: the CEC notifier
+ * @yestifier: the CEC yestifier
  */
-void cec_register_cec_notifier(struct cec_adapter *adap,
-			       struct cec_notifier *notifier);
+void cec_register_cec_yestifier(struct cec_adapter *adap,
+			       struct cec_yestifier *yestifier);
 
 #else
 
 static inline void
-cec_notifier_register(struct cec_notifier *n,
+cec_yestifier_register(struct cec_yestifier *n,
 		      struct cec_adapter *adap,
 		      void (*callback)(struct cec_adapter *adap, u16 pa))
 {
 }
 
-static inline void cec_notifier_unregister(struct cec_notifier *n)
+static inline void cec_yestifier_unregister(struct cec_yestifier *n)
 {
 }
 
-static inline void cec_register_cec_notifier(struct cec_adapter *adap,
-					     struct cec_notifier *notifier)
+static inline void cec_register_cec_yestifier(struct cec_adapter *adap,
+					     struct cec_yestifier *yestifier)
 {
 }
 
@@ -477,7 +477,7 @@ static inline unsigned int cec_get_edid_spa_location(const u8 *edid,
 	 * 'blocks'. It is allowed to have more extension blocks than the size,
 	 * since some hardware can only read e.g. 256 bytes of the EDID, even
 	 * though more blocks are present. The first CEA-861 extension block
-	 * should normally be in block 1 anyway.
+	 * should yesrmally be in block 1 anyway.
 	 */
 	if (edid[0x7e] + 1 < blocks)
 		blocks = edid[0x7e] + 1;
@@ -485,7 +485,7 @@ static inline unsigned int cec_get_edid_spa_location(const u8 *edid,
 	for (block = 1; block < blocks; block++) {
 		unsigned int offset = block * 128;
 
-		/* Skip any non-CEA-861 extension blocks */
+		/* Skip any yesn-CEA-861 extension blocks */
 		if (edid[offset] != 0x02 || edid[offset + 1] != 0x03)
 			continue;
 

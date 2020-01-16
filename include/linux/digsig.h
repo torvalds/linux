@@ -4,7 +4,7 @@
  * Copyright (C) 2011 Intel Corporation
  *
  * Author:
- * Dmitry Kasatkin <dmitry.kasatkin@nokia.com>
+ * Dmitry Kasatkin <dmitry.kasatkin@yeskia.com>
  *                 <dmitry.kasatkin@intel.com>
  */
 
@@ -26,7 +26,7 @@ enum digest_algo {
 
 struct pubkey_hdr {
 	uint8_t		version;	/* key format version */
-	uint32_t	timestamp;	/* key made, always 0 for now */
+	uint32_t	timestamp;	/* key made, always 0 for yesw */
 	uint8_t		algo;
 	uint8_t		nmpi;
 	char		mpi[0];

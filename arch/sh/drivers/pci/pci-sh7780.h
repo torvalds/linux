@@ -35,9 +35,9 @@
 #define SH7780_PCIMBMR(x)	(0x1E4 + ((x) * 8))
 #define SH7780_PCIIOBR		0x1F8
 #define SH7780_PCIIOBMR		0x1FC
-#define SH7780_PCICSCR0		0x210		/* Cache Snoop1 Cnt. Register */
-#define SH7780_PCICSCR1		0x214		/* Cache Snoop2 Cnt. Register */
-#define SH7780_PCICSAR0		0x218	/* Cache Snoop1 Addr. Register */
-#define SH7780_PCICSAR1		0x21C	/* Cache Snoop2 Addr. Register */
+#define SH7780_PCICSCR0		0x210		/* Cache Syesop1 Cnt. Register */
+#define SH7780_PCICSCR1		0x214		/* Cache Syesop2 Cnt. Register */
+#define SH7780_PCICSAR0		0x218	/* Cache Syesop1 Addr. Register */
+#define SH7780_PCICSAR1		0x21C	/* Cache Syesop2 Addr. Register */
 
 #endif /* _PCI_SH7780_H_ */

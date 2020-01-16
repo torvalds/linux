@@ -207,7 +207,7 @@ int qlcnic_82xx_alloc_mbx_args(struct qlcnic_cmd_args *,
 int qlcnic_82xx_hw_write_wx_2M(struct qlcnic_adapter *, ulong, u32);
 int qlcnic_82xx_get_board_info(struct qlcnic_adapter *);
 int qlcnic_82xx_config_led(struct qlcnic_adapter *, u32, u32);
-void qlcnic_82xx_get_func_no(struct qlcnic_adapter *);
+void qlcnic_82xx_get_func_yes(struct qlcnic_adapter *);
 int qlcnic_82xx_api_lock(struct qlcnic_adapter *);
 void qlcnic_82xx_api_unlock(struct qlcnic_adapter *);
 void qlcnic_82xx_napi_enable(struct qlcnic_adapter *);

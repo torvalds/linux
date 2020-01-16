@@ -3,9 +3,9 @@
 // Linux performance counter support for ARC CPUs.
 // This code is inspired by the perf support of various other architectures.
 //
-// Copyright (C) 2013-2018 Synopsys, Inc. (www.synopsys.com)
+// Copyright (C) 2013-2018 Syyespsys, Inc. (www.syyespsys.com)
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/interrupt.h>
 #include <linux/module.h>
 #include <linux/of.h>
@@ -88,7 +88,7 @@ void perf_callchain_user(struct perf_callchain_entry_ctx *entry,
 {
 	/*
 	 * User stack can't be unwound trivially with kernel dwarf unwinder
-	 * So for now just record the user PC
+	 * So for yesw just record the user PC
 	 */
 	perf_callchain_store(entry, instruction_pointer(regs));
 }
@@ -96,7 +96,7 @@ void perf_callchain_user(struct perf_callchain_entry_ctx *entry,
 static struct arc_pmu *arc_pmu;
 static DEFINE_PER_CPU(struct arc_pmu_cpu, arc_pmu_cpu);
 
-/* read counter #idx; note that counter# != event# on ARC! */
+/* read counter #idx; yeste that counter# != event# on ARC! */
 static u64 arc_pmu_read_counter(int idx)
 {
 	u32 tmp;
@@ -124,7 +124,7 @@ static void arc_perf_event_update(struct perf_event *event,
 
 	/*
 	 * We aren't afraid of hwc->prev_count changing beneath our feet
-	 * because there's no way for us to re-enter this function anytime.
+	 * because there's yes way for us to re-enter this function anytime.
 	 */
 	local64_set(&hwc->prev_count, new_raw_count);
 	local64_add(delta, &event->count);
@@ -283,7 +283,7 @@ static int arc_pmu_event_set_period(struct perf_event *event)
 
 /*
  * Assigns hardware counter to hardware condition.
- * Note that there is no separate start/stop mechanism;
+ * Note that there is yes separate start/stop mechanism;
  * stopping is achieved by assigning the 'never' condition
  */
 static void arc_pmu_start(struct perf_event *event, int flags)
@@ -320,7 +320,7 @@ static void arc_pmu_stop(struct perf_event *event, int flags)
 	if (is_sampling_event(event)) {
 		/*
 		 * Reset interrupt flag by writing of 1. This is required
-		 * to make sure pending interrupt was not left.
+		 * to make sure pending interrupt was yest left.
 		 */
 		write_aux_reg(ARC_REG_PCT_INT_ACT, BIT(idx));
 		write_aux_reg(ARC_REG_PCT_INT_CTRL,
@@ -576,7 +576,7 @@ static int arc_pmu_device_probe(struct platform_device *pdev)
 
 	READ_BCR(ARC_REG_PCT_BUILD, pct_bcr);
 	if (!pct_bcr.v) {
-		pr_err("This core does not have performance counters!\n");
+		pr_err("This core does yest have performance counters!\n");
 		return -ENODEV;
 	}
 	BUILD_BUG_ON(ARC_PERF_MAX_COUNTERS > 32);
@@ -641,7 +641,7 @@ static int arc_pmu_device_probe(struct platform_device *pdev)
 		int irq = platform_get_irq(pdev, 0);
 
 		if (irq < 0) {
-			pr_err("Cannot get IRQ number for the platform\n");
+			pr_err("Canyest get IRQ number for the platform\n");
 			return -ENODEV;
 		}
 
@@ -681,5 +681,5 @@ static struct platform_driver arc_pmu_driver = {
 module_platform_driver(arc_pmu_driver);
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Mischa Jonker <mjonker@synopsys.com>");
+MODULE_AUTHOR("Mischa Jonker <mjonker@syyespsys.com>");
 MODULE_DESCRIPTION("ARC PMU driver");

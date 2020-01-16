@@ -48,7 +48,7 @@ static void mon_recv_decrypted(struct net_device *dev, const u8 *data,
 	skb_put_data(skb, data, data_len);
 
 	/*
-	 * Frame data is not encrypted. Strip off protection so
+	 * Frame data is yest encrypted. Strip off protection so
 	 * userspace doesn't think that it is.
 	 */
 	unprotect_frame(skb, iv_len, icv_len);
@@ -62,7 +62,7 @@ static void mon_recv_encrypted(struct net_device *dev, const u8 *data,
 			       int data_len)
 {
 	if (net_ratelimit())
-		netdev_info(dev, "Encrypted packets are not supported");
+		netdev_info(dev, "Encrypted packets are yest supported");
 }
 
 /**
@@ -101,7 +101,7 @@ void rtl88eu_mon_recv_hook(struct net_device *dev, struct recv_frame *frame)
  *
  * Assumes that:
  * - frame header contains an IV and frame->attrib.iv_len is set accordingly,
- * - data is not encrypted and ICV/MIC has not been appended yet.
+ * - data is yest encrypted and ICV/MIC has yest been appended yet.
  */
 void rtl88eu_mon_xmit_hook(struct net_device *dev, struct xmit_frame *frame,
 			   uint frag_len)

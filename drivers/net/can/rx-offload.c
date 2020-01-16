@@ -62,7 +62,7 @@ static int can_rx_offload_napi_poll(struct napi_struct *napi, int quota)
 	if (work_done < quota) {
 		napi_complete_done(napi, work_done);
 
-		/* Check if there was another interrupt */
+		/* Check if there was ayesther interrupt */
 		if (!skb_queue_empty(&offload->skb_queue))
 			napi_reschedule(&offload->napi);
 	}
@@ -125,7 +125,7 @@ static int can_rx_offload_compare(struct sk_buff *a, struct sk_buff *b)
  * sk_buff.
  *
  * If the struct can_rx_offload::skb_queue exceeds the maximal queue
- * length (struct can_rx_offload::skb_queue_len_max) or no skb can be
+ * length (struct can_rx_offload::skb_queue_len_max) or yes skb can be
  * allocated, the mailbox contents is discarded by reading it into an
  * overflow buffer. This way the mailbox is marked as free by the
  * driver.

@@ -340,7 +340,7 @@ static struct flash_info *sst25l_match_device(struct spi_device *spi)
 			flash_info = &sst25l_flash_info[i];
 
 	if (!flash_info)
-		dev_err(&spi->dev, "unknown id %.4x\n", id);
+		dev_err(&spi->dev, "unkyeswn id %.4x\n", id);
 
 	return flash_info;
 }

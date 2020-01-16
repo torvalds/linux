@@ -16,7 +16,7 @@
  * Processes SENDING messages will use a kernel CBR/DSR to send
  * the message. This is transparent to the caller.
  *
- * The receiver does not use any GRU resources.
+ * The receiver does yest use any GRU resources.
  *
  * The functions support:
  * 	- single receiver
@@ -33,7 +33,7 @@ struct gru_message_queue_desc {
 	unsigned long	mq_gpa;			/* global address of mq */
 	int		qlines;			/* queue size in CL */
 	int		interrupt_vector;	/* interrupt vector */
-	int		interrupt_pnode;	/* pnode for interrupt */
+	int		interrupt_pyesde;	/* pyesde for interrupt */
 	int		interrupt_apicid;	/* lapicid for interrupt */
 };
 
@@ -50,7 +50,7 @@ struct gru_message_queue_desc {
  * 	mqd	pointer to message queue descriptor
  * 	p	pointer to user allocated mesq memory.
  * 	bytes	size of message queue in bytes
- *      vector	interrupt vector (zero if no interrupts)
+ *      vector	interrupt vector (zero if yes interrupts)
  *      nasid	nasid of blade where interrupt is delivered
  *      apicid	apicid of cpu for interrupt
  *
@@ -87,7 +87,7 @@ extern int gru_send_message_gpa(struct gru_message_queue_desc *mqd,
 #define MQE_QUEUE_FULL		2	/* queue is full */
 #define MQE_UNEXPECTED_CB_ERR	3	/* unexpected CB error */
 #define MQE_PAGE_OVERFLOW	10	/* BUG - queue overflowed a page */
-#define MQE_BUG_NO_RESOURCES	11	/* BUG - could not alloc GRU cb/dsr */
+#define MQE_BUG_NO_RESOURCES	11	/* BUG - could yest alloc GRU cb/dsr */
 
 /*
  * Advance the receive pointer for the message queue to the next message.
@@ -103,7 +103,7 @@ extern void gru_free_message(struct gru_message_queue_desc *mqd,
 
 /*
  * Get next message from message queue. Returns pointer to
- * message OR NULL if no message present.
+ * message OR NULL if yes message present.
  * User must call gru_free_message() after message is processed
  * in order to move the queue pointers to next message.
  *
@@ -112,7 +112,7 @@ extern void gru_free_message(struct gru_message_queue_desc *mqd,
  *
  *   Output:
  *	p	pointer to message
- *	NULL	no message available
+ *	NULL	yes message available
  */
 extern void *gru_get_next_message(struct gru_message_queue_desc *mqd);
 
@@ -148,7 +148,7 @@ extern int gru_copy_gpa(unsigned long dest_gpa, unsigned long src_gpa,
 							unsigned int bytes);
 
 /*
- * Reserve GRU resources to be used asynchronously.
+ * Reserve GRU resources to be used asynchroyesusly.
  *
  * 	input:
  * 		blade_id  - blade on which resources should be reserved
@@ -158,7 +158,7 @@ extern int gru_copy_gpa(unsigned long dest_gpa, unsigned long src_gpa,
  * 			    async completions
  *	output:
  *		handle to identify resource
- *		(0 = no resources)
+ *		(0 = yes resources)
  */
 extern unsigned long gru_reserve_async_resources(int blade_id, int cbrs, int dsr_bytes,
 				struct completion *cmp);

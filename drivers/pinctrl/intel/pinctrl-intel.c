@@ -118,7 +118,7 @@ struct intel_pinctrl {
 	int irq;
 };
 
-#define pin_to_padno(c, p)	((p) - (c)->pin_base)
+#define pin_to_padyes(c, p)	((p) - (c)->pin_base)
 #define padgroup_offset(g, p)	((p) - (g)->base)
 
 static struct intel_community *intel_get_community(struct intel_pinctrl *pctrl,
@@ -158,20 +158,20 @@ static void __iomem *intel_get_padcfg(struct intel_pinctrl *pctrl,
 				      unsigned int pin, unsigned int reg)
 {
 	const struct intel_community *community;
-	unsigned int padno;
+	unsigned int padyes;
 	size_t nregs;
 
 	community = intel_get_community(pctrl, pin);
 	if (!community)
 		return NULL;
 
-	padno = pin_to_padno(community, pin);
+	padyes = pin_to_padyes(community, pin);
 	nregs = (community->features & PINCTRL_FEATURE_DEBOUNCE) ? 4 : 2;
 
 	if (reg >= nregs * 4)
 		return NULL;
 
-	return community->pad_regs + reg + padno * nregs * 4;
+	return community->pad_regs + reg + padyes * nregs * 4;
 }
 
 static bool intel_pad_owned_by_host(struct intel_pinctrl *pctrl, unsigned int pin)
@@ -325,7 +325,7 @@ static void intel_pin_dbg_show(struct pinctrl_dev *pctldev, struct seq_file *s,
 	bool acpi;
 
 	if (!intel_pad_owned_by_host(pctrl, pin)) {
-		seq_puts(s, "not available");
+		seq_puts(s, "yest available");
 		return;
 	}
 
@@ -811,10 +811,10 @@ static const struct pinctrl_desc intel_pinctrl_desc = {
  * intel_gpio_to_pin() - Translate from GPIO offset to pin number
  * @pctrl: Pinctrl structure
  * @offset: GPIO offset from gpiolib
- * @community: Community is filled here if not %NULL
- * @padgrp: Pad group is filled here if not %NULL
+ * @community: Community is filled here if yest %NULL
+ * @padgrp: Pad group is filled here if yest %NULL
  *
- * When coming through gpiolib irqchip, the GPIO offset is not
+ * When coming through gpiolib irqchip, the GPIO offset is yest
  * automatically translated to pinctrl pin number. This function can be
  * used to find out the corresponding pinctrl pin.
  */
@@ -1054,11 +1054,11 @@ static int intel_gpio_irq_type(struct irq_data *d, unsigned int type)
 
 	/*
 	 * If the pin is in ACPI mode it is still usable as a GPIO but it
-	 * cannot be used as IRQ because GPI_IS status bit will not be
+	 * canyest be used as IRQ because GPI_IS status bit will yest be
 	 * updated by the host controller hardware.
 	 */
 	if (intel_pad_acpi_mode(pctrl, pin)) {
-		dev_warn(pctrl->dev, "pin %u cannot be used as IRQ\n", pin);
+		dev_warn(pctrl->dev, "pin %u canyest be used as IRQ\n", pin);
 		return -EPERM;
 	}
 
@@ -1396,13 +1396,13 @@ static int intel_pinctrl_probe(struct platform_device *pdev,
 
 		*community = pctrl->soc->communities[i];
 
-		regs = devm_platform_ioremap_resource(pdev, community->barno);
+		regs = devm_platform_ioremap_resource(pdev, community->baryes);
 		if (IS_ERR(regs))
 			return PTR_ERR(regs);
 
 		/*
 		 * Determine community features based on the revision if
-		 * not specified already.
+		 * yest specified already.
 		 */
 		if (!community->features) {
 			u32 rev;
@@ -1507,7 +1507,7 @@ static bool intel_pinctrl_should_save(struct intel_pinctrl *pctrl, unsigned int 
 	/*
 	 * Only restore the pin if it is actually in use by the kernel (or
 	 * by userspace). It is possible that some pins are used by the
-	 * BIOS during resume and those are not always locked down so leave
+	 * BIOS during resume and those are yest always locked down so leave
 	 * them alone.
 	 */
 	if (pd->mux_owner || pd->gpio_owner ||
@@ -1517,7 +1517,7 @@ static bool intel_pinctrl_should_save(struct intel_pinctrl *pctrl, unsigned int 
 	return false;
 }
 
-int intel_pinctrl_suspend_noirq(struct device *dev)
+int intel_pinctrl_suspend_yesirq(struct device *dev)
 {
 	struct intel_pinctrl *pctrl = dev_get_drvdata(dev);
 	struct intel_community_context *communities;
@@ -1560,7 +1560,7 @@ int intel_pinctrl_suspend_noirq(struct device *dev)
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(intel_pinctrl_suspend_noirq);
+EXPORT_SYMBOL_GPL(intel_pinctrl_suspend_yesirq);
 
 static void intel_gpio_irq_init(struct intel_pinctrl *pctrl)
 {
@@ -1656,7 +1656,7 @@ static void intel_restore_padcfg(struct intel_pinctrl *pctrl, unsigned int pin,
 	dev_dbg(dev, "restored pin %u padcfg%u %#08x\n", pin, n, readl(padcfg));
 }
 
-int intel_pinctrl_resume_noirq(struct device *dev)
+int intel_pinctrl_resume_yesirq(struct device *dev)
 {
 	struct intel_pinctrl *pctrl = dev_get_drvdata(dev);
 	const struct intel_community_context *communities;
@@ -1695,7 +1695,7 @@ int intel_pinctrl_resume_noirq(struct device *dev)
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(intel_pinctrl_resume_noirq);
+EXPORT_SYMBOL_GPL(intel_pinctrl_resume_yesirq);
 #endif
 
 MODULE_AUTHOR("Mathias Nyman <mathias.nyman@linux.intel.com>");

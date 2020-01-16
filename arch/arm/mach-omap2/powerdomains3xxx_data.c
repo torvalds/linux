@@ -90,7 +90,7 @@ static struct powerdomain mpu_am35x_pwrdm = {
  *
  * Note: setting the SAR flag could help for errata ID i478
  *  which applies to 3430 <= ES3.1, but since the SAR feature
- *  is broken, do not use it.
+ *  is broken, do yest use it.
  */
 static struct powerdomain core_3xxx_pre_es3_1_pwrdm = {
 	.name		  = "core_pwrdm",
@@ -179,8 +179,8 @@ static struct powerdomain dss_am35x_pwrdm = {
 };
 
 /*
- * Although the 34XX TRM Rev K Table 4-371 notes that retention is a
- * possible SGX powerstate, the SGX device itself does not support
+ * Although the 34XX TRM Rev K Table 4-371 yestes that retention is a
+ * possible SGX powerstate, the SGX device itself does yest support
  * retention.
  */
 static struct powerdomain sgx_pwrdm = {
@@ -290,7 +290,7 @@ static struct powerdomain usbhost_pwrdm = {
 	 * REVISIT: Enabling usb host save and restore mechanism seems to
 	 * leave the usb host domain permanently in ACTIVE mode after
 	 * changing the usb host power domain state from OFF to active once.
-	 * Disabling for now.
+	 * Disabling for yesw.
 	 */
 	/*.flags	  = PWRDM_HAS_HDWR_SAR,*/ /* for USBHOST ctrlr only */
 	.banks		  = 1,
@@ -615,7 +615,7 @@ void __init omap3xxx_powerdomains_init(void)
 			pwrdm_register_pwrdms(powerdomains_omap3430es3_1plus);
 			break;
 		default:
-			WARN(1, "OMAP3 powerdomain init: unknown chip type\n");
+			WARN(1, "OMAP3 powerdomain init: unkyeswn chip type\n");
 		}
 	}
 

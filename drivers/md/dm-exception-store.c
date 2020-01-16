@@ -50,7 +50,7 @@ static struct dm_exception_store_type *_get_exception_store_type(const char *nam
  * get_type
  * @type_name
  *
- * Attempt to retrieve the dm_exception_store_type by name.  If not already
+ * Attempt to retrieve the dm_exception_store_type by name.  If yest already
  * available, attempt to load the appropriate module.
  *
  * Exstore modules are named "dm-exstore-" followed by the 'type_name'.
@@ -93,7 +93,7 @@ static struct dm_exception_store_type *get_type(const char *type_name)
 	}
 
 	if (!type)
-		DMWARN("Module for exstore type \"%s\" not found.", type_name);
+		DMWARN("Module for exstore type \"%s\" yest found.", type_name);
 
 	kfree(type_name_dup);
 
@@ -163,7 +163,7 @@ int dm_exception_store_set_chunk_size(struct dm_exception_store *store,
 {
 	/* Check chunk_size is a power of 2 */
 	if (!is_power_of_2(chunk_size)) {
-		*error = "Chunk size is not a power of 2";
+		*error = "Chunk size is yest a power of 2";
 		return -EINVAL;
 	}
 
@@ -172,7 +172,7 @@ int dm_exception_store_set_chunk_size(struct dm_exception_store *store,
 	    (bdev_logical_block_size(dm_snap_cow(store->snap)->bdev) >> 9) ||
 	    chunk_size %
 	    (bdev_logical_block_size(dm_snap_origin(store->snap)->bdev) >> 9)) {
-		*error = "Chunk size is not a multiple of device blocksize";
+		*error = "Chunk size is yest a multiple of device blocksize";
 		return -EINVAL;
 	}
 
@@ -215,13 +215,13 @@ int dm_exception_store_create(struct dm_target *ti, int argc, char **argv,
 	else if (persistent == 'N')
 		type = get_type("N");
 	else {
-		ti->error = "Exception store type is not P or N";
+		ti->error = "Exception store type is yest P or N";
 		r = -EINVAL;
 		goto bad_type;
 	}
 
 	if (!type) {
-		ti->error = "Exception store type not recognised";
+		ti->error = "Exception store type yest recognised";
 		r = -EINVAL;
 		goto bad_type;
 	}

@@ -123,15 +123,15 @@ enum ipc_glb_type {
 enum ipc_glb_reply {
 	IPC_GLB_REPLY_SUCCESS = 0,		/* The operation was successful. */
 	IPC_GLB_REPLY_ERROR_INVALID_PARAM = 1,	/* Invalid parameter was passed. */
-	IPC_GLB_REPLY_UNKNOWN_MESSAGE_TYPE = 2,	/* Uknown message type was resceived. */
+	IPC_GLB_REPLY_UNKNOWN_MESSAGE_TYPE = 2,	/* Ukyeswn message type was resceived. */
 	IPC_GLB_REPLY_OUT_OF_RESOURCES = 3,	/* No resources to satisfy the request. */
 	IPC_GLB_REPLY_BUSY = 4,			/* The system or resource is busy. */
 	IPC_GLB_REPLY_PENDING = 5,		/* The action was scheduled for processing.  */
 	IPC_GLB_REPLY_FAILURE = 6,		/* Critical error happened. */
-	IPC_GLB_REPLY_INVALID_REQUEST = 7,	/* Request can not be completed. */
+	IPC_GLB_REPLY_INVALID_REQUEST = 7,	/* Request can yest be completed. */
 	IPC_GLB_REPLY_STAGE_UNINITIALIZED = 8,	/* Processing stage was uninitialized. */
-	IPC_GLB_REPLY_NOT_FOUND = 9,		/* Required resource can not be found. */
-	IPC_GLB_REPLY_SOURCE_NOT_STARTED = 10,	/* Source was not started. */
+	IPC_GLB_REPLY_NOT_FOUND = 9,		/* Required resource can yest be found. */
+	IPC_GLB_REPLY_SOURCE_NOT_STARTED = 10,	/* Source was yest started. */
 };
 
 enum ipc_module_operation {
@@ -169,7 +169,7 @@ enum ipc_stg_operation {
 };
 
 /* Stream Stage Message Types For Notification*/
-enum ipc_stg_operation_notify {
+enum ipc_stg_operation_yestify {
 	IPC_POSITION_CHANGED = 0,
 	IPC_STG_GLITCH,
 	IPC_STG_MAX_NOTIFY
@@ -222,7 +222,7 @@ struct sst_hsw_stream {
 	bool running;
 
 	/* Notification work */
-	struct work_struct notify_work;
+	struct work_struct yestify_work;
 	u32 header;
 
 	/* Position info from DSP */
@@ -234,13 +234,13 @@ struct sst_hsw_stream {
 	struct sst_hsw_ipc_volume_req vol_req;
 
 	/* driver callback */
-	u32 (*notify_position)(struct sst_hsw_stream *stream, void *data);
+	u32 (*yestify_position)(struct sst_hsw_stream *stream, void *data);
 	void *pdata;
 
 	/* record the fw read position when playback */
 	snd_pcm_uframes_t old_position;
 	bool play_silence;
-	struct list_head node;
+	struct list_head yesde;
 };
 
 /* FW log ring information */
@@ -252,7 +252,7 @@ struct sst_hsw_log_stream {
 	int size;
 
 	/* Notification work */
-	struct work_struct notify_work;
+	struct work_struct yestify_work;
 	wait_queue_head_t readers_wait_q;
 	struct mutex rw_mutex;
 
@@ -341,7 +341,7 @@ static inline u32 msg_get_stream_id(u32 msg)
 	return (msg & IPC_STR_ID_MASK) >>  IPC_STR_ID_SHIFT;
 }
 
-static inline u32 msg_get_notify_reason(u32 msg)
+static inline u32 msg_get_yestify_reason(u32 msg)
 {
 	return (msg & IPC_STG_TYPE_MASK) >> IPC_STG_TYPE_SHIFT;
 }
@@ -413,7 +413,7 @@ static struct sst_hsw_stream *get_stream_by_id(struct sst_hsw *hsw,
 {
 	struct sst_hsw_stream *stream;
 
-	list_for_each_entry(stream, &hsw->stream_list, node) {
+	list_for_each_entry(stream, &hsw->stream_list, yesde) {
 		if (stream->reply.stream_hw_id == stream_id)
 			return stream;
 	}
@@ -463,20 +463,20 @@ static void hsw_fw_ready(struct sst_hsw *hsw, u32 header)
 	}
 }
 
-static void hsw_notification_work(struct work_struct *work)
+static void hsw_yestification_work(struct work_struct *work)
 {
 	struct sst_hsw_stream *stream = container_of(work,
-			struct sst_hsw_stream, notify_work);
+			struct sst_hsw_stream, yestify_work);
 	struct sst_hsw_ipc_stream_glitch_position *glitch = &stream->glitch;
 	struct sst_hsw_ipc_stream_get_position *pos = &stream->rpos;
 	struct sst_hsw *hsw = stream->hsw;
 	u32 reason;
 
-	reason = msg_get_notify_reason(stream->header);
+	reason = msg_get_yestify_reason(stream->header);
 
 	switch (reason) {
 	case IPC_STG_GLITCH:
-		trace_ipc_notification("DSP stream under/overrun",
+		trace_ipc_yestification("DSP stream under/overrun",
 			stream->reply.stream_hw_id);
 		sst_dsp_inbox_read(hsw->dsp, glitch, sizeof(*glitch));
 
@@ -486,21 +486,21 @@ static void hsw_notification_work(struct work_struct *work)
 		break;
 
 	case IPC_POSITION_CHANGED:
-		trace_ipc_notification("DSP stream position changed for",
+		trace_ipc_yestification("DSP stream position changed for",
 			stream->reply.stream_hw_id);
 		sst_dsp_inbox_read(hsw->dsp, pos, sizeof(*pos));
 
-		if (stream->notify_position)
-			stream->notify_position(stream, stream->pdata);
+		if (stream->yestify_position)
+			stream->yestify_position(stream, stream->pdata);
 
 		break;
 	default:
-		dev_err(hsw->dev, "error: unknown notification 0x%x\n",
+		dev_err(hsw->dev, "error: unkyeswn yestification 0x%x\n",
 			stream->header);
 		break;
 	}
 
-	/* tell DSP that notification has been handled */
+	/* tell DSP that yestification has been handled */
 	sst_dsp_shim_update_bits(hsw->dsp, SST_IPCD,
 		SST_IPCD_BUSY | SST_IPCD_DONE, SST_IPCD_DONE);
 
@@ -524,16 +524,16 @@ static void hsw_stream_update(struct sst_hsw *hsw, struct ipc_message *msg)
 	case IPC_STR_NOTIFICATION:
 		break;
 	case IPC_STR_RESET:
-		trace_ipc_notification("stream reset", stream->reply.stream_hw_id);
+		trace_ipc_yestification("stream reset", stream->reply.stream_hw_id);
 		break;
 	case IPC_STR_PAUSE:
 		stream->running = false;
-		trace_ipc_notification("stream paused",
+		trace_ipc_yestification("stream paused",
 			stream->reply.stream_hw_id);
 		break;
 	case IPC_STR_RESUME:
 		stream->running = true;
-		trace_ipc_notification("stream running",
+		trace_ipc_yestification("stream running",
 			stream->reply.stream_hw_id);
 		break;
 	}
@@ -574,44 +574,44 @@ static int hsw_process_reply(struct sst_hsw *hsw, u32 header)
 		break;
 	/* these will be rare - but useful for debug */
 	case IPC_GLB_REPLY_UNKNOWN_MESSAGE_TYPE:
-		trace_ipc_error("error: unknown message type", header);
-		msg->errno = -EBADMSG;
+		trace_ipc_error("error: unkyeswn message type", header);
+		msg->erryes = -EBADMSG;
 		break;
 	case IPC_GLB_REPLY_OUT_OF_RESOURCES:
 		trace_ipc_error("error: out of resources", header);
-		msg->errno = -ENOMEM;
+		msg->erryes = -ENOMEM;
 		break;
 	case IPC_GLB_REPLY_BUSY:
 		trace_ipc_error("error: reply busy", header);
-		msg->errno = -EBUSY;
+		msg->erryes = -EBUSY;
 		break;
 	case IPC_GLB_REPLY_FAILURE:
 		trace_ipc_error("error: reply failure", header);
-		msg->errno = -EINVAL;
+		msg->erryes = -EINVAL;
 		break;
 	case IPC_GLB_REPLY_STAGE_UNINITIALIZED:
 		trace_ipc_error("error: stage uninitialized", header);
-		msg->errno = -EINVAL;
+		msg->erryes = -EINVAL;
 		break;
 	case IPC_GLB_REPLY_NOT_FOUND:
-		trace_ipc_error("error: reply not found", header);
-		msg->errno = -EINVAL;
+		trace_ipc_error("error: reply yest found", header);
+		msg->erryes = -EINVAL;
 		break;
 	case IPC_GLB_REPLY_SOURCE_NOT_STARTED:
-		trace_ipc_error("error: source not started", header);
-		msg->errno = -EINVAL;
+		trace_ipc_error("error: source yest started", header);
+		msg->erryes = -EINVAL;
 		break;
 	case IPC_GLB_REPLY_INVALID_REQUEST:
 		trace_ipc_error("error: invalid request", header);
-		msg->errno = -EINVAL;
+		msg->erryes = -EINVAL;
 		break;
 	case IPC_GLB_REPLY_ERROR_INVALID_PARAM:
 		trace_ipc_error("error: invalid parameter", header);
-		msg->errno = -EINVAL;
+		msg->erryes = -EINVAL;
 		break;
 	default:
-		trace_ipc_error("error: unknown reply", header);
-		msg->errno = -EINVAL;
+		trace_ipc_error("error: unkyeswn reply", header);
+		msg->erryes = -EINVAL;
 		break;
 	}
 
@@ -640,7 +640,7 @@ static int hsw_module_message(struct sst_hsw *hsw, u32 header)
 
 	switch (operation) {
 	case IPC_MODULE_NOTIFICATION:
-		dev_dbg(hsw->dev, "module notification received");
+		dev_dbg(hsw->dev, "module yestification received");
 		handled = 1;
 		break;
 	default:
@@ -668,11 +668,11 @@ static int hsw_stream_message(struct sst_hsw *hsw, u32 header)
 
 	switch (stream_msg) {
 	case IPC_STR_STAGE_MESSAGE:
-		dev_err(hsw->dev, "error: stage msg not implemented 0x%8.8x\n",
+		dev_err(hsw->dev, "error: stage msg yest implemented 0x%8.8x\n",
 			header);
 		break;
 	case IPC_STR_NOTIFICATION:
-		schedule_work(&stream->notify_work);
+		schedule_work(&stream->yestify_work);
 		break;
 	default:
 		/* handle pending message complete request */
@@ -691,7 +691,7 @@ static int hsw_log_message(struct sst_hsw *hsw, u32 header)
 
 	if (operation != IPC_DEBUG_REQUEST_LOG_DUMP) {
 		dev_err(hsw->dev,
-			"error: log msg not implemented 0x%8.8x\n", header);
+			"error: log msg yest implemented 0x%8.8x\n", header);
 		return 0;
 	}
 
@@ -701,12 +701,12 @@ static int hsw_log_message(struct sst_hsw *hsw, u32 header)
 		hsw->dsp, &stream->curr_pos, sizeof(stream->curr_pos));
 	mutex_unlock(&stream->rw_mutex);
 
-	schedule_work(&stream->notify_work);
+	schedule_work(&stream->yestify_work);
 
 	return ret;
 }
 
-static int hsw_process_notification(struct sst_hsw *hsw)
+static int hsw_process_yestification(struct sst_hsw *hsw)
 {
 	struct sst_dsp *sst = hsw->dsp;
 	u32 type, header;
@@ -789,7 +789,7 @@ static irqreturn_t hsw_irq_thread(int irq, void *context)
 	if (ipcd & SST_IPCD_BUSY) {
 
 		/* Handle Notification and Delayed reply from DSP Core */
-		hsw_process_notification(hsw);
+		hsw_process_yestification(hsw);
 
 		/* clear BUSY bit and set DONE bit - accept new messages */
 		sst_dsp_shim_update_bits_unlocked(sst, SST_IPCD,
@@ -960,7 +960,7 @@ int sst_hsw_mixer_set_volume(struct sst_hsw *hsw, u32 stage_id, u32 channel,
 
 /* Stream API */
 struct sst_hsw_stream *sst_hsw_stream_new(struct sst_hsw *hsw, int id,
-	u32 (*notify_position)(struct sst_hsw_stream *stream, void *data),
+	u32 (*yestify_position)(struct sst_hsw_stream *stream, void *data),
 	void *data)
 {
 	struct sst_hsw_stream *stream;
@@ -973,14 +973,14 @@ struct sst_hsw_stream *sst_hsw_stream_new(struct sst_hsw *hsw, int id,
 
 	spin_lock_irqsave(&sst->spinlock, flags);
 	stream->reply.stream_hw_id = INVALID_STREAM_HW_ID;
-	list_add(&stream->node, &hsw->stream_list);
-	stream->notify_position = notify_position;
+	list_add(&stream->yesde, &hsw->stream_list);
+	stream->yestify_position = yestify_position;
 	stream->pdata = data;
 	stream->hsw = hsw;
 	stream->host_id = id;
 
-	/* work to process notification messages */
-	INIT_WORK(&stream->notify_work, hsw_notification_work);
+	/* work to process yestification messages */
+	INIT_WORK(&stream->yestify_work, hsw_yestification_work);
 	spin_unlock_irqrestore(&sst->spinlock, flags);
 
 	return stream;
@@ -994,11 +994,11 @@ int sst_hsw_stream_free(struct sst_hsw *hsw, struct sst_hsw_stream *stream)
 	unsigned long flags;
 
 	if (!stream) {
-		dev_warn(hsw->dev, "warning: stream is NULL, no stream to free, ignore it.\n");
+		dev_warn(hsw->dev, "warning: stream is NULL, yes stream to free, igyesre it.\n");
 		return 0;
 	}
 
-	/* dont free DSP streams that are not commited */
+	/* dont free DSP streams that are yest commited */
 	if (!stream->commited)
 		goto out;
 
@@ -1019,9 +1019,9 @@ int sst_hsw_stream_free(struct sst_hsw *hsw, struct sst_hsw_stream *stream)
 	trace_hsw_stream_free_req(stream, &stream->free_req);
 
 out:
-	cancel_work_sync(&stream->notify_work);
+	cancel_work_sync(&stream->yestify_work);
 	spin_lock_irqsave(&sst->spinlock, flags);
-	list_del(&stream->node);
+	list_del(&stream->yesde);
 	kfree(stream);
 	spin_unlock_irqrestore(&sst->spinlock, flags);
 
@@ -1185,12 +1185,12 @@ int sst_hsw_stream_commit(struct sst_hsw *hsw, struct sst_hsw_stream *stream)
 	int ret;
 
 	if (!stream) {
-		dev_warn(hsw->dev, "warning: stream is NULL, no stream to commit, ignore it.\n");
+		dev_warn(hsw->dev, "warning: stream is NULL, yes stream to commit, igyesre it.\n");
 		return 0;
 	}
 
 	if (stream->commited) {
-		dev_warn(hsw->dev, "warning: stream is already committed, ignore it.\n");
+		dev_warn(hsw->dev, "warning: stream is already committed, igyesre it.\n");
 		return 0;
 	}
 
@@ -1274,7 +1274,7 @@ static int sst_hsw_stream_operations(struct sst_hsw *hsw, int type,
 	if (wait)
 		return sst_ipc_tx_message_wait(&hsw->ipc, request, NULL);
 	else
-		return sst_ipc_tx_message_nowait(&hsw->ipc, request);
+		return sst_ipc_tx_message_yeswait(&hsw->ipc, request);
 }
 
 /* Stream ALSA trigger operations */
@@ -1284,7 +1284,7 @@ int sst_hsw_stream_pause(struct sst_hsw *hsw, struct sst_hsw_stream *stream,
 	int ret;
 
 	if (!stream) {
-		dev_warn(hsw->dev, "warning: stream is NULL, no stream to pause, ignore it.\n");
+		dev_warn(hsw->dev, "warning: stream is NULL, yes stream to pause, igyesre it.\n");
 		return 0;
 	}
 
@@ -1305,7 +1305,7 @@ int sst_hsw_stream_resume(struct sst_hsw *hsw, struct sst_hsw_stream *stream,
 	int ret;
 
 	if (!stream) {
-		dev_warn(hsw->dev, "warning: stream is NULL, no stream to resume, ignore it.\n");
+		dev_warn(hsw->dev, "warning: stream is NULL, yes stream to resume, igyesre it.\n");
 		return 0;
 	}
 
@@ -1325,11 +1325,11 @@ int sst_hsw_stream_reset(struct sst_hsw *hsw, struct sst_hsw_stream *stream)
 	int ret, tries = 10;
 
 	if (!stream) {
-		dev_warn(hsw->dev, "warning: stream is NULL, no stream to reset, ignore it.\n");
+		dev_warn(hsw->dev, "warning: stream is NULL, yes stream to reset, igyesre it.\n");
 		return 0;
 	}
 
-	/* dont reset streams that are not commited */
+	/* dont reset streams that are yest commited */
 	if (!stream->commited)
 		return 0;
 
@@ -1364,7 +1364,7 @@ u32 sst_hsw_get_dsp_position(struct sst_hsw *hsw,
 	return rpos;
 }
 
-/* Stream presentation (monotonic) positions */
+/* Stream presentation (moyestonic) positions */
 u64 sst_hsw_get_dsp_presentation_position(struct sst_hsw *hsw,
 	struct sst_hsw_stream *stream)
 {
@@ -1434,7 +1434,7 @@ int sst_hsw_dx_set_state(struct sst_hsw *hsw,
 		return ret;
 	}
 
-	for (item = 0; item < dx->entries_no; item++) {
+	for (item = 0; item < dx->entries_yes; item++) {
 		dev_dbg(hsw->dev,
 			"Item[%d] offset[%x] - size[%x] - source[%x]\n",
 			item, dx->mem_info[item].offset,
@@ -1442,7 +1442,7 @@ int sst_hsw_dx_set_state(struct sst_hsw *hsw,
 			dx->mem_info[item].source);
 	}
 	dev_dbg(hsw->dev, "ipc: got %d entry numbers for state %d\n",
-		dx->entries_no, state);
+		dx->entries_yes, state);
 
 	return ret;
 }
@@ -1497,7 +1497,7 @@ static int sst_hsw_dx_state_dump(struct sst_hsw *hsw)
 
 	trace_ipc_request("PM state dump. Items #", SST_HSW_MAX_DX_REGIONS);
 
-	if (hsw->dx.entries_no > SST_HSW_MAX_DX_REGIONS) {
+	if (hsw->dx.entries_yes > SST_HSW_MAX_DX_REGIONS) {
 		dev_err(hsw->dev,
 			"error: number of FW context regions greater than %d\n",
 			SST_HSW_MAX_DX_REGIONS);
@@ -1516,7 +1516,7 @@ static int sst_hsw_dx_state_dump(struct sst_hsw *hsw)
 			SST_HMDC_HDDA_E0_ALLCH | SST_HMDC_HDDA_E1_ALLCH,
 			SST_HMDC_HDDA_E0_ALLCH | SST_HMDC_HDDA_E1_ALLCH);
 
-	for (item = 0; item < hsw->dx.entries_no; item++) {
+	for (item = 0; item < hsw->dx.entries_yes; item++) {
 		if (hsw->dx.mem_info[item].source == SST_HSW_DX_TYPE_MEMORY_DUMP
 			&& hsw->dx.mem_info[item].offset > DSP_DRAM_ADDR_OFFSET
 			&& hsw->dx.mem_info[item].offset <
@@ -1548,7 +1548,7 @@ static int sst_hsw_dx_state_restore(struct sst_hsw *hsw)
 	u32 item, offset, size;
 	int ret;
 
-	for (item = 0; item < hsw->dx.entries_no; item++) {
+	for (item = 0; item < hsw->dx.entries_yes; item++) {
 		if (hsw->dx.mem_info[item].source == SST_HSW_DX_TYPE_MEMORY_DUMP
 			&& hsw->dx.mem_info[item].offset > DSP_DRAM_ADDR_OFFSET
 			&& hsw->dx.mem_info[item].offset <
@@ -1680,7 +1680,7 @@ int sst_hsw_dsp_runtime_resume(struct sst_hsw *hsw)
 	dev_dbg(dev, "audio dsp runtime resume\n");
 
 	if (hsw->boot_complete)
-		return 1; /* tell caller no action is required */
+		return 1; /* tell caller yes action is required */
 
 	ret = sst_hsw_dsp_restore(hsw);
 	if (ret < 0)
@@ -1697,7 +1697,7 @@ int sst_hsw_dsp_runtime_resume(struct sst_hsw *hsw)
 		return -EIO;
 	}
 
-	/* Set ADSP SSP port settings - sadly the FW does not store SSP port
+	/* Set ADSP SSP port settings - sadly the FW does yest store SSP port
 	   settings as part of the PM context. */
 	ret = sst_hsw_device_set_config(hsw, hsw->dx_dev, hsw->dx_mclk,
 					hsw->dx_mode, hsw->dx_clock_divider);
@@ -1814,7 +1814,7 @@ int sst_hsw_launch_param_buf(struct sst_hsw *hsw)
 	int ret, idx;
 
 	if (!sst_hsw_is_module_active(hsw, SST_HSW_MODULE_WAVES)) {
-		dev_dbg(hsw->dev, "module waves is not active\n");
+		dev_dbg(hsw->dev, "module waves is yest active\n");
 		return 0;
 	}
 
@@ -1857,7 +1857,7 @@ int sst_hsw_module_load(struct sst_hsw *hsw,
 			 * request firmware failed */
 			ret = request_firmware(&fw, name, dev);
 			if (ret) {
-				dev_info(dev, "fw image %s not available(%d)\n",
+				dev_info(dev, "fw image %s yest available(%d)\n",
 						name, ret);
 				return ret;
 			}
@@ -1870,7 +1870,7 @@ int sst_hsw_module_load(struct sst_hsw *hsw,
 		}
 		module = sst_module_get_from_id(dsp, module_id);
 		if (module == NULL) {
-			dev_err(dev, "error: no module %d in firmware %s\n",
+			dev_err(dev, "error: yes module %d in firmware %s\n",
 					module_id, name);
 		}
 	} else
@@ -1896,7 +1896,7 @@ int sst_hsw_module_enable(struct sst_hsw *hsw,
 	struct sst_dsp *dsp = hsw->dsp;
 
 	if (!sst_hsw_is_module_loaded(hsw, module_id)) {
-		dev_dbg(dev, "module %d not loaded\n", module_id);
+		dev_dbg(dev, "module %d yest loaded\n", module_id);
 		return 0;
 	}
 
@@ -1907,13 +1907,13 @@ int sst_hsw_module_enable(struct sst_hsw *hsw,
 
 	module = sst_module_get_from_id(dsp, module_id);
 	if (module == NULL) {
-		dev_err(dev, "module %d not valid\n", module_id);
+		dev_err(dev, "module %d yest valid\n", module_id);
 		return -ENXIO;
 	}
 
 	runtime = sst_module_runtime_get_from_id(module, module_id);
 	if (runtime == NULL) {
-		dev_err(dev, "runtime %d not valid", module_id);
+		dev_err(dev, "runtime %d yest valid", module_id);
 		return -ENXIO;
 	}
 
@@ -1963,7 +1963,7 @@ int sst_hsw_module_disable(struct sst_hsw *hsw,
 	struct sst_dsp *dsp = hsw->dsp;
 
 	if (!sst_hsw_is_module_loaded(hsw, module_id)) {
-		dev_dbg(dev, "module %d not loaded\n", module_id);
+		dev_dbg(dev, "module %d yest loaded\n", module_id);
 		return 0;
 	}
 
@@ -1974,7 +1974,7 @@ int sst_hsw_module_disable(struct sst_hsw *hsw,
 
 	module = sst_module_get_from_id(dsp, module_id);
 	if (module == NULL) {
-		dev_err(dev, "module %d not valid\n", module_id);
+		dev_err(dev, "module %d yest valid\n", module_id);
 		return -ENXIO;
 	}
 

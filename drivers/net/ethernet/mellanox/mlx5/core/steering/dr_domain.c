@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
-/* Copyright (c) 2019 Mellanox Technologies. */
+/* Copyright (c) 2019 Mellayesx Techyeslogies. */
 
 #include <linux/mlx5/eswitch.h>
 #include "dr_types.h"
@@ -40,7 +40,7 @@ int mlx5dr_domain_cache_get_recalc_cs_ft_addr(struct mlx5dr_domain *dmn,
 
 	recalc_cs_ft = dmn->cache.recalc_cs_ft[vport_num];
 	if (!recalc_cs_ft) {
-		/* Table not in cache, need to allocate a new one */
+		/* Table yest in cache, need to allocate a new one */
 		recalc_cs_ft = mlx5dr_fw_create_recalc_cs_ft(dmn, vport_num);
 		if (!recalc_cs_ft)
 			return -EINVAL;
@@ -300,7 +300,7 @@ mlx5dr_domain_create(struct mlx5_core_dev *mdev, enum mlx5dr_domain_type type)
 	mutex_init(&dmn->mutex);
 
 	if (dr_domain_caps_init(mdev, dmn)) {
-		mlx5dr_dbg(dmn, "Failed init domain, no caps\n");
+		mlx5dr_dbg(dmn, "Failed init domain, yes caps\n");
 		goto free_domain;
 	}
 
@@ -309,7 +309,7 @@ mlx5dr_domain_create(struct mlx5_core_dev *mdev, enum mlx5dr_domain_type type)
 					    dmn->info.caps.log_icm_size);
 
 	if (!dmn->info.supp_sw_steering) {
-		mlx5dr_err(dmn, "SW steering is not supported\n");
+		mlx5dr_err(dmn, "SW steering is yest supported\n");
 		goto uninit_caps;
 	}
 
@@ -363,7 +363,7 @@ int mlx5dr_domain_destroy(struct mlx5dr_domain *dmn)
 	if (refcount_read(&dmn->refcount) > 1)
 		return -EBUSY;
 
-	/* make sure resources are not used by the hardware */
+	/* make sure resources are yest used by the hardware */
 	mlx5dr_cmd_sync_steering(dmn->mdev);
 	dr_domain_uninit_cache(dmn);
 	dr_domain_uninit_resources(dmn);

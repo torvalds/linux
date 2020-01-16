@@ -23,7 +23,7 @@ typedef struct {
 } mm_context_t;
 
 /*
- * This macro is only used by the TLBI code, which cannot race with an
+ * This macro is only used by the TLBI code, which canyest race with an
  * ASID change and therefore doesn't need to reload the counter using
  * atomic64_read.
  */
@@ -39,7 +39,7 @@ static inline bool arm64_kernel_use_ng_mappings(void)
 {
 	bool tx1_bug;
 
-	/* What's a kpti? Use global mappings if we don't know. */
+	/* What's a kpti? Use global mappings if we don't kyesw. */
 	if (!IS_ENABLED(CONFIG_UNMAP_KERNEL_AT_EL0))
 		return false;
 
@@ -47,7 +47,7 @@ static inline bool arm64_kernel_use_ng_mappings(void)
 	 * Note: this function is called before the CPU capabilities have
 	 * been configured, so our early mappings will be global. If we
 	 * later determine that kpti is required, then
-	 * kpti_install_ng_mappings() will make them non-global.
+	 * kpti_install_ng_mappings() will make them yesn-global.
 	 */
 	if (arm64_kernel_unmapped_at_el0())
 		return true;
@@ -56,10 +56,10 @@ static inline bool arm64_kernel_use_ng_mappings(void)
 		return false;
 
 	/*
-	 * KASLR is enabled so we're going to be enabling kpti on non-broken
+	 * KASLR is enabled so we're going to be enabling kpti on yesn-broken
 	 * CPUs regardless of their susceptibility to Meltdown. Rather
 	 * than force everybody to go through the G -> nG dance later on,
-	 * just put down non-global mappings from the beginning.
+	 * just put down yesn-global mappings from the beginning.
 	 */
 	if (!IS_ENABLED(CONFIG_CAVIUM_ERRATUM_27456)) {
 		tx1_bug = false;

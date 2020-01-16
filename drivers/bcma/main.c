@@ -136,22 +136,22 @@ static bool bcma_is_core_needed_early(u16 core_id)
 	return false;
 }
 
-static struct device_node *bcma_of_find_child_device(struct device *parent,
+static struct device_yesde *bcma_of_find_child_device(struct device *parent,
 						     struct bcma_device *core)
 {
-	struct device_node *node;
+	struct device_yesde *yesde;
 	u64 size;
 	const __be32 *reg;
 
-	if (!parent->of_node)
+	if (!parent->of_yesde)
 		return NULL;
 
-	for_each_child_of_node(parent->of_node, node) {
-		reg = of_get_address(node, 0, &size, NULL);
+	for_each_child_of_yesde(parent->of_yesde, yesde) {
+		reg = of_get_address(yesde, 0, &size, NULL);
 		if (!reg)
 			continue;
-		if (of_translate_address(node, reg) == core->addr)
-			return node;
+		if (of_translate_address(yesde, reg) == core->addr)
+			return yesde;
 	}
 	return NULL;
 }
@@ -163,13 +163,13 @@ static int bcma_of_irq_parse(struct device *parent,
 	__be32 laddr[1];
 	int rc;
 
-	if (core->dev.of_node) {
-		rc = of_irq_parse_one(core->dev.of_node, num, out_irq);
+	if (core->dev.of_yesde) {
+		rc = of_irq_parse_one(core->dev.of_yesde, num, out_irq);
 		if (!rc)
 			return rc;
 	}
 
-	out_irq->np = parent->of_node;
+	out_irq->np = parent->of_yesde;
 	out_irq->args_count = 1;
 	out_irq->args[0] = num;
 
@@ -183,7 +183,7 @@ static unsigned int bcma_of_get_irq(struct device *parent,
 	struct of_phandle_args out_irq;
 	int ret;
 
-	if (!IS_ENABLED(CONFIG_OF_IRQ) || !parent->of_node)
+	if (!IS_ENABLED(CONFIG_OF_IRQ) || !parent->of_yesde)
 		return 0;
 
 	ret = bcma_of_irq_parse(parent, core, &out_irq, num);
@@ -199,15 +199,15 @@ static unsigned int bcma_of_get_irq(struct device *parent,
 static void bcma_of_fill_device(struct device *parent,
 				struct bcma_device *core)
 {
-	struct device_node *node;
+	struct device_yesde *yesde;
 
-	node = bcma_of_find_child_device(parent, core);
-	if (node)
-		core->dev.of_node = node;
+	yesde = bcma_of_find_child_device(parent, core);
+	if (yesde)
+		core->dev.of_yesde = yesde;
 
 	core->irq = bcma_of_get_irq(parent, core, 0);
 
-	of_dma_configure(&core->dev, node, false);
+	of_dma_configure(&core->dev, yesde, false);
 }
 
 unsigned int bcma_core_irq(struct bcma_device *core, int num)
@@ -279,7 +279,7 @@ static void bcma_register_core(struct bcma_bus *bus, struct bcma_device *core)
 
 	err = device_register(&core->dev);
 	if (err) {
-		bcma_err(bus, "Could not register dev for core 0x%03X\n",
+		bcma_err(bus, "Could yest register dev for core 0x%03X\n",
 			 core->id.id);
 		put_device(&core->dev);
 		return;
@@ -343,7 +343,7 @@ static int bcma_register_devices(struct bcma_bus *bus)
 #endif
 	err = bcma_gpio_init(&bus->drv_cc);
 	if (err == -ENOTSUPP)
-		bcma_debug(bus, "GPIO driver not activated\n");
+		bcma_debug(bus, "GPIO driver yest activated\n");
 	else if (err)
 		bcma_err(bus, "Error registering GPIO driver: %i\n", err);
 
@@ -369,7 +369,7 @@ void bcma_unregister_cores(struct bcma_bus *bus)
 	if (bus->hosttype == BCMA_HOSTTYPE_SOC)
 		platform_device_unregister(bus->drv_cc.watchdog);
 
-	/* Now noone uses internally-handled cores, we can free them */
+	/* Now yesone uses internally-handled cores, we can free them */
 	list_for_each_entry_safe(core, tmp, &bus->cores, list) {
 		list_del(&core->list);
 		kfree(core);
@@ -403,7 +403,7 @@ int bcma_bus_register(struct bcma_bus *bus)
 	}
 
 	if (bus->dev)
-		of_platform_default_populate(bus->dev->of_node, NULL, bus->dev);
+		of_platform_default_populate(bus->dev->of_yesde, NULL, bus->dev);
 
 	/* Cores providing flash access go before SPROM init */
 	list_for_each_entry(core, &bus->cores, list) {
@@ -483,7 +483,7 @@ void bcma_bus_unregister(struct bcma_bus *bus)
 	if (err == -EBUSY)
 		bcma_err(bus, "Some GPIOs are still in use.\n");
 	else if (err)
-		bcma_err(bus, "Can not unregister GPIO driver: %i\n", err);
+		bcma_err(bus, "Can yest unregister GPIO driver: %i\n", err);
 
 	bcma_core_chipcommon_b_free(&bus->drv_cc_b);
 
@@ -493,7 +493,7 @@ void bcma_bus_unregister(struct bcma_bus *bus)
 /*
  * This is a special version of bus registration function designed for SoCs.
  * It scans bus and performs basic initialization of main cores only.
- * Please note it requires memory allocation, however it won't try to sleep.
+ * Please yeste it requires memory allocation, however it won't try to sleep.
  */
 int __init bcma_bus_early_register(struct bcma_bus *bus)
 {

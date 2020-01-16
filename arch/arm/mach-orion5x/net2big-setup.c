@@ -3,7 +3,7 @@
  *
  * LaCie 2Big Network NAS setup
  *
- * Copyright (C) 2009 Simon Guinot <sguinot@lacie.com>
+ * Copyright (C) 2009 Simon Guiyest <sguiyest@lacie.com>
  *
  * This file is licensed under the terms of the GNU General Public
  * License version 2. This program is licensed "as is" without any
@@ -57,27 +57,27 @@ static struct mtd_partition net2big_partitions[] = {
 	},
 };
 
-static struct physmap_flash_data net2big_nor_flash_data = {
+static struct physmap_flash_data net2big_yesr_flash_data = {
 	.width		= 1,
 	.parts		= net2big_partitions,
 	.nr_parts	= ARRAY_SIZE(net2big_partitions),
 };
 
-static struct resource net2big_nor_flash_resource = {
+static struct resource net2big_yesr_flash_resource = {
 	.flags			= IORESOURCE_MEM,
 	.start			= NET2BIG_NOR_BOOT_BASE,
 	.end			= NET2BIG_NOR_BOOT_BASE
 					+ NET2BIG_NOR_BOOT_SIZE - 1,
 };
 
-static struct platform_device net2big_nor_flash = {
+static struct platform_device net2big_yesr_flash = {
 	.name			= "physmap-flash",
 	.id			= 0,
 	.dev		= {
-		.platform_data	= &net2big_nor_flash_data,
+		.platform_data	= &net2big_yesr_flash_data,
 	},
 	.num_resources		= 1,
-	.resource		= &net2big_nor_flash_resource,
+	.resource		= &net2big_yesr_flash_resource,
 };
 
 /*****************************************************************************
@@ -401,7 +401,7 @@ static void __init net2big_init(void)
 				    ORION_MBUS_DEVBUS_BOOT_ATTR,
 				    NET2BIG_NOR_BOOT_BASE,
 				    NET2BIG_NOR_BOOT_SIZE);
-	platform_device_register(&net2big_nor_flash);
+	platform_device_register(&net2big_yesr_flash);
 
 	platform_device_register(&net2big_gpio_buttons);
 	net2big_gpio_leds_init();
@@ -417,7 +417,7 @@ static void __init net2big_init(void)
 	else
 		pr_err("net2big: failed to configure power-off GPIO\n");
 
-	pr_notice("net2big: Flash writing is not yet supported.\n");
+	pr_yestice("net2big: Flash writing is yest yet supported.\n");
 }
 
 /* Warning: LaCie use a wrong mach-type (0x20e=526) in their bootloader. */

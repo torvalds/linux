@@ -11,7 +11,7 @@
 #include <linux/kernel.h>
 #include <linux/kernel_stat.h>
 #include <linux/percpu.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/init.h>
 #include <linux/export.h>
 #include <asm/cpu_mcf.h>
@@ -69,10 +69,10 @@ static int validate_ctr_version(const struct hw_perf_event *hwc)
 		if (cpuhw->info.csvn <= 3)
 			err = -EOPNOTSUPP;
 		/*
-		 * MT-diagnostic counters are read-only.  The counter set
+		 * MT-diagyesstic counters are read-only.  The counter set
 		 * is automatically enabled and activated on all CPUs with
 		 * multithreading (SMT).  Deactivation of multithreading
-		 * also disables the counter set.  State changes are ignored
+		 * also disables the counter set.  State changes are igyesred
 		 * by lcctl().	Because Linux controls SMT enablement through
 		 * a kernel parameter only, the counter set is either disabled
 		 * or enabled and active.
@@ -101,7 +101,7 @@ static int validate_ctr_auth(const struct hw_perf_event *hwc)
 	cpuhw = &get_cpu_var(cpu_cf_events);
 
 	/* Check authorization for cpu counter sets.
-	 * If the particular CPU counter set is not authorized,
+	 * If the particular CPU counter set is yest authorized,
 	 * return with -ENOENT in order to fall back to other
 	 * PMUs that might suffice the event request.
 	 */
@@ -210,7 +210,7 @@ static int __hw_perf_event_init(struct perf_event *event, unsigned int type)
 	switch (type) {
 	case PERF_TYPE_RAW:
 		/* Raw events are used to access counters directly,
-		 * hence do not permit excludes */
+		 * hence do yest permit excludes */
 		if (attr->exclude_kernel || attr->exclude_user ||
 		    attr->exclude_hv)
 			return -EOPNOTSUPP;
@@ -267,12 +267,12 @@ static int __hw_perf_event_init(struct perf_event *event, unsigned int type)
 		hwc->config_base = set;
 		break;
 	case CPUMF_CTR_SET_MAX:
-		/* The counter could not be associated to a counter set */
+		/* The counter could yest be associated to a counter set */
 		return -EINVAL;
 	};
 
 	/* Initialize for using the CPU-measurement counter facility */
-	if (!atomic_inc_not_zero(&num_events)) {
+	if (!atomic_inc_yest_zero(&num_events)) {
 		mutex_lock(&pmc_reserve_mutex);
 		if (atomic_read(&num_events) == 0 && __kernel_cpumcf_begin())
 			err = -EBUSY;
@@ -300,7 +300,7 @@ static int cpumf_pmu_event_init(struct perf_event *event)
 	if (type == PERF_TYPE_HARDWARE || type == PERF_TYPE_RAW)
 		err = __hw_perf_event_init(event, type);
 	else if (event->pmu->type == type)
-		/* Registered as unknown PMU */
+		/* Registered as unkyeswn PMU */
 		err = __hw_perf_event_init(event, PERF_TYPE_RAW);
 	else
 		return -ENOENT;
@@ -322,7 +322,7 @@ static int hw_perf_event_reset(struct perf_event *event)
 		if (err) {
 			if (err != 3)
 				break;
-			/* The counter is not (yet) available. This
+			/* The counter is yest (yet) available. This
 			 * might happen if the counter set to which
 			 * this counter belongs is in the disabled
 			 * state.
@@ -441,11 +441,11 @@ static void cpumf_pmu_del(struct perf_event *event, int flags)
 
 	cpumf_pmu_stop(event, PERF_EF_UPDATE);
 
-	/* Check if any counter in the counter set is still used.  If not used,
+	/* Check if any counter in the counter set is still used.  If yest used,
 	 * change the counter set to the disabled state.  This also clears the
 	 * content of all counters in the set.
 	 *
-	 * When a new perf event has been added but not yet started, this can
+	 * When a new perf event has been added but yest yet started, this can
 	 * clear enable control and resets all counters in a set.  Therefore,
 	 * cpumf_pmu_start() always has to reenable a counter set.
 	 */
@@ -460,7 +460,7 @@ static void cpumf_pmu_del(struct perf_event *event, int flags)
  * Set flags to perform a single test at commit time.
  *
  * We only support PERF_PMU_TXN_ADD transactions. Save the
- * transaction flags but otherwise ignore non-PERF_PMU_TXN_ADD
+ * transaction flags but otherwise igyesre yesn-PERF_PMU_TXN_ADD
  * transactions.
  */
 static void cpumf_pmu_start_txn(struct pmu *pmu, unsigned int txn_flags)
@@ -487,7 +487,7 @@ static void cpumf_pmu_cancel_txn(struct pmu *pmu)
 	unsigned int txn_flags;
 	struct cpu_cf_events *cpuhw = this_cpu_ptr(&cpu_cf_events);
 
-	WARN_ON_ONCE(!cpuhw->txn_flags);	/* no txn in flight */
+	WARN_ON_ONCE(!cpuhw->txn_flags);	/* yes txn in flight */
 
 	txn_flags = cpuhw->txn_flags;
 	cpuhw->txn_flags = 0;
@@ -509,7 +509,7 @@ static int cpumf_pmu_commit_txn(struct pmu *pmu)
 	struct cpu_cf_events *cpuhw = this_cpu_ptr(&cpu_cf_events);
 	u64 state;
 
-	WARN_ON_ONCE(!cpuhw->txn_flags);	/* no txn in flight */
+	WARN_ON_ONCE(!cpuhw->txn_flags);	/* yes txn in flight */
 
 	if (cpuhw->txn_flags & ~PERF_PMU_TXN_ADD) {
 		cpuhw->txn_flags = 0;

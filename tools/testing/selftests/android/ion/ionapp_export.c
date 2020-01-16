@@ -3,7 +3,7 @@
  * ionapp_export.c
  *
  * It is a user space utility to create and export android
- * ion memory buffer fd to another process using unix domain socket as IPC.
+ * ion memory buffer fd to ayesther process using unix domain socket as IPC.
  * This acts like a server for ionapp_import(client).
  * So, this server has to be started first before the client.
  *
@@ -14,7 +14,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <errno.h>
+#include <erryes.h>
 #include <sys/time.h>
 #include "ionutils.h"
 #include "ipcsocket.h"
@@ -60,7 +60,7 @@ int main(int argc, char *argv[])
 				heap_type = ION_HEAP_TYPE_SYSTEM_CONTIG;
 				break;
 			default:
-				printf("ERROR: heap type not supported\n");
+				printf("ERROR: heap type yest supported\n");
 				exit(1);
 			}
 			break;
@@ -75,7 +75,7 @@ int main(int argc, char *argv[])
 	}
 
 	if (heap_size <= 0) {
-		printf("heap_size cannot be 0\n");
+		printf("heap_size canyest be 0\n");
 		print_usage(argc, argv);
 		exit(1);
 	}

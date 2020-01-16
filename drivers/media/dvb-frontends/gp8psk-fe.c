@@ -82,7 +82,7 @@ static int gp8psk_fe_read_status(struct dvb_frontend *fe,
 	return 0;
 }
 
-/* not supported by this Frontend */
+/* yest supported by this Frontend */
 static int gp8psk_fe_read_ber(struct dvb_frontend* fe, u32 *ber)
 {
 	(void) fe;
@@ -90,7 +90,7 @@ static int gp8psk_fe_read_ber(struct dvb_frontend* fe, u32 *ber)
 	return 0;
 }
 
-/* not supported by this Frontend */
+/* yest supported by this Frontend */
 static int gp8psk_fe_read_unc_blocks(struct dvb_frontend* fe, u32 *unc)
 {
 	(void) fe;
@@ -218,7 +218,7 @@ static int gp8psk_fe_set_frontend(struct dvb_frontend *fe)
 		cmd[8] = ADV_MOD_TURBO_16QAM;
 		cmd[9] = 0;
 		break;
-	default: /* Unknown modulation */
+	default: /* Unkyeswn modulation */
 		dprintk("%s: unsupported modulation selected (%d)\n",
 			__func__, c->modulation);
 		return -EOPNOTSUPP;
@@ -291,11 +291,11 @@ static int gp8psk_fe_set_voltage(struct dvb_frontend *fe,
 	return 0;
 }
 
-static int gp8psk_fe_enable_high_lnb_voltage(struct dvb_frontend* fe, long onoff)
+static int gp8psk_fe_enable_high_lnb_voltage(struct dvb_frontend* fe, long oyesff)
 {
 	struct gp8psk_fe_state *st = fe->demodulator_priv;
 
-	return st->ops->out(st->priv, USE_EXTRA_VOLT, onoff, 0, NULL, 0);
+	return st->ops->out(st->priv, USE_EXTRA_VOLT, oyesff, 0, NULL, 0);
 }
 
 static int gp8psk_fe_send_legacy_dish_cmd (struct dvb_frontend* fe, unsigned long sw_cmd)
@@ -328,7 +328,7 @@ struct dvb_frontend *gp8psk_fe_attach(const struct gp8psk_fe_ops *ops,
 	struct gp8psk_fe_state *st;
 
 	if (!ops || !ops->in || !ops->out || !ops->reload) {
-		pr_err("Error! gp8psk-fe ops not defined.\n");
+		pr_err("Error! gp8psk-fe ops yest defined.\n");
 		return NULL;
 	}
 

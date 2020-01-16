@@ -878,7 +878,7 @@ int DecodeQ931(unsigned char *buf, size_t sz, Q931 *q931)
 
 	/* Protocol Discriminator */
 	if (*p != 0x08) {
-		PRINT("Unknown Protocol Discriminator\n");
+		PRINT("Unkyeswn Protocol Discriminator\n");
 		return H323_ERROR_RANGE;
 	}
 	p++;
@@ -933,7 +933,7 @@ int DecodeQ931(unsigned char *buf, size_t sz, Q931 *q931)
 		sz -= len;
 	}
 
-	PRINT("Q.931 UUIE not found\n");
+	PRINT("Q.931 UUIE yest found\n");
 
 	return H323_ERROR_BOUND;
 }

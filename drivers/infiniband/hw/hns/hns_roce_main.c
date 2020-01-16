@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2016 Hisilicon Limited.
- * Copyright (c) 2007, 2008 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2007, 2008 Mellayesx Techyeslogies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -13,11 +13,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -135,10 +135,10 @@ static int handle_en_event(struct hns_roce_dev *hr_dev, u8 port,
 	return ret;
 }
 
-static int hns_roce_netdev_event(struct notifier_block *self,
+static int hns_roce_netdev_event(struct yestifier_block *self,
 				 unsigned long event, void *ptr)
 {
-	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
+	struct net_device *dev = netdev_yestifier_info_to_dev(ptr);
 	struct hns_roce_ib_iboe *iboe = NULL;
 	struct hns_roce_dev *hr_dev = NULL;
 	u8 port = 0;
@@ -294,7 +294,7 @@ static int hns_roce_modify_device(struct ib_device *ib_dev, int mask,
 
 	if (mask & IB_DEVICE_MODIFY_NODE_DESC) {
 		spin_lock_irqsave(&to_hr_dev(ib_dev)->sm_lock, flags);
-		memcpy(ib_dev->node_desc, props->node_desc, NODE_DESC_SIZE);
+		memcpy(ib_dev->yesde_desc, props->yesde_desc, NODE_DESC_SIZE);
 		spin_unlock_irqrestore(&to_hr_dev(ib_dev)->sm_lock, flags);
 	}
 
@@ -353,7 +353,7 @@ static int hns_roce_mmap(struct ib_ucontext *context,
 		return rdma_user_mmap_io(context, vma,
 					 to_hr_ucontext(context)->uar.pfn,
 					 PAGE_SIZE,
-					 pgprot_noncached(vma->vm_page_prot),
+					 pgprot_yesncached(vma->vm_page_prot),
 					 NULL);
 
 	/* vm_pgoff: 1 -- TPTR */
@@ -405,7 +405,7 @@ static void hns_roce_unregister_device(struct hns_roce_dev *hr_dev)
 	struct hns_roce_ib_iboe *iboe = &hr_dev->iboe;
 
 	hr_dev->active = false;
-	unregister_netdevice_notifier(&iboe->nb);
+	unregister_netdevice_yestifier(&iboe->nb);
 	ib_unregister_device(&hr_dev->ib_dev);
 }
 
@@ -413,7 +413,7 @@ static const struct ib_device_ops hns_roce_dev_ops = {
 	.owner = THIS_MODULE,
 	.driver_id = RDMA_DRIVER_HNS,
 	.uverbs_abi_ver = 1,
-	.uverbs_no_driver_id_binding = 1,
+	.uverbs_yes_driver_id_binding = 1,
 
 	.add_gid = hns_roce_add_gid,
 	.alloc_pd = hns_roce_alloc_pd,
@@ -481,7 +481,7 @@ static int hns_roce_register_device(struct hns_roce_dev *hr_dev)
 
 	ib_dev = &hr_dev->ib_dev;
 
-	ib_dev->node_type		= RDMA_NODE_IB_CA;
+	ib_dev->yesde_type		= RDMA_NODE_IB_CA;
 	ib_dev->dev.parent		= dev;
 
 	ib_dev->phys_port_cnt		= hr_dev->caps.num_ports;
@@ -558,10 +558,10 @@ static int hns_roce_register_device(struct hns_roce_dev *hr_dev)
 		goto error_failed_setup_mtu_mac;
 	}
 
-	iboe->nb.notifier_call = hns_roce_netdev_event;
-	ret = register_netdevice_notifier(&iboe->nb);
+	iboe->nb.yestifier_call = hns_roce_netdev_event;
+	ret = register_netdevice_yestifier(&iboe->nb);
 	if (ret) {
-		dev_err(dev, "register_netdevice_notifier failed!\n");
+		dev_err(dev, "register_netdevice_yestifier failed!\n");
 		goto error_failed_setup_mtu_mac;
 	}
 

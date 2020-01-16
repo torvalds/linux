@@ -79,7 +79,7 @@ struct flow_offload_tuple {
 };
 
 struct flow_offload_tuple_rhash {
-	struct rhash_head		node;
+	struct rhash_head		yesde;
 	struct flow_offload_tuple	tuple;
 };
 

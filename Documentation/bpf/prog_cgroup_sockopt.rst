@@ -25,9 +25,9 @@ and socket local storage.
 
 If BPF program sets ``optlen`` to -1, the control will be returned
 back to the userspace after all other BPF programs in the cgroup
-chain finish (i.e. kernel ``setsockopt`` handling will *not* be executed).
+chain finish (i.e. kernel ``setsockopt`` handling will *yest* be executed).
 
-Note, that ``optlen`` can not be increased beyond the user-supplied
+Note, that ``optlen`` can yest be increased beyond the user-supplied
 value. It can only be decreased or set to -1. Any other value will
 trigger ``EFAULT``.
 
@@ -58,7 +58,7 @@ Return Type
 
 * ``0`` - reject the syscall, ``EPERM`` will be returned to the userspace.
 * ``1`` - success: copy ``optval`` and ``optlen`` to userspace, return
-  ``retval`` from the syscall (note that this can be overwritten by
+  ``retval`` from the syscall (yeste that this can be overwritten by
   the BPF program from the parent cgroup).
 
 Cgroup Inheritance
@@ -83,7 +83,7 @@ Same for ``BPF_CGROUP_SETSOCKOPT``: if the program is attached to
 A and B, the trigger order is B, then A. If B does any changes
 to the input arguments (``level``, ``optname``, ``optval``, ``optlen``),
 then the next program in the chain (A) will see those changes,
-*not* the original input ``setsockopt`` arguments. The potentially
+*yest* the original input ``setsockopt`` arguments. The potentially
 modified values will be then passed down to the kernel.
 
 Example

@@ -41,25 +41,25 @@ struct clps711x_fb_info {
 	bool			cmap_invert;
 };
 
-static int clps711x_fb_setcolreg(u_int regno, u_int red, u_int green,
+static int clps711x_fb_setcolreg(u_int regyes, u_int red, u_int green,
 				 u_int blue, u_int transp, struct fb_info *info)
 {
 	struct clps711x_fb_info *cfb = info->par;
 	u32 level, mask, shift;
 
-	if (regno >= BIT(info->var.bits_per_pixel))
+	if (regyes >= BIT(info->var.bits_per_pixel))
 		return -EINVAL;
 
-	shift = 4 * (regno & 7);
+	shift = 4 * (regyes & 7);
 	mask  = 0xf << shift;
 	/* gray = 0.30*R + 0.58*G + 0.11*B */
 	level = (((red * 77 + green * 151 + blue * 28) >> 20) << shift) & mask;
 	if (cfb->cmap_invert)
 		level = 0xf - level;
 
-	regno = (regno < 8) ? CLPS711X_PALLSW : CLPS711X_PALMSW;
+	regyes = (regyes < 8) ? CLPS711X_PALLSW : CLPS711X_PALMSW;
 
-	writel((readl(cfb->base + regno) & ~mask) | level, cfb->base + regno);
+	writel((readl(cfb->base + regyes) & ~mask) | level, cfb->base + regyes);
 
 	return 0;
 }
@@ -208,7 +208,7 @@ static struct lcd_ops clps711x_lcd_ops = {
 static int clps711x_fb_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *disp, *np = dev->of_node;
+	struct device_yesde *disp, *np = dev->of_yesde;
 	struct clps711x_fb_info *cfb;
 	struct lcd_device *lcd;
 	struct fb_info *info;
@@ -284,7 +284,7 @@ static int clps711x_fb_probe(struct platform_device *pdev)
 
 	ret = of_get_fb_videomode(disp, &cfb->mode, OF_USE_NATIVE_MODE);
 	if (ret) {
-		of_node_put(disp);
+		of_yesde_put(disp);
 		goto out_fb_release;
 	}
 
@@ -293,7 +293,7 @@ static int clps711x_fb_probe(struct platform_device *pdev)
 
 	ret = of_property_read_u32(disp, "bits-per-pixel",
 				   &info->var.bits_per_pixel);
-	of_node_put(disp);
+	of_yesde_put(disp);
 	if (ret)
 		goto out_fb_release;
 

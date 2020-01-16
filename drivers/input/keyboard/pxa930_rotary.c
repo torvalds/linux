@@ -94,12 +94,12 @@ static int pxa930_rotary_probe(struct platform_device *pdev)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {
-		dev_err(&pdev->dev, "no I/O memory defined\n");
+		dev_err(&pdev->dev, "yes I/O memory defined\n");
 		return -ENXIO;
 	}
 
 	if (!pdata) {
-		dev_err(&pdev->dev, "no platform data defined\n");
+		dev_err(&pdev->dev, "yes platform data defined\n");
 		return -EINVAL;
 	}
 
@@ -107,7 +107,7 @@ static int pxa930_rotary_probe(struct platform_device *pdev)
 	if (!r)
 		return -ENOMEM;
 
-	r->mmio_base = ioremap_nocache(res->start, resource_size(res));
+	r->mmio_base = ioremap_yescache(res->start, resource_size(res));
 	if (r->mmio_base == NULL) {
 		dev_err(&pdev->dev, "failed to remap IO memory\n");
 		err = -ENXIO;

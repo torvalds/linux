@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
- * Copyright (c) 1996, 2003 VIA Networking Technologies, Inc.
+ * Copyright (c) 1996, 2003 VIA Networking Techyeslogies, Inc.
  * All rights reserved.
  *
  * File: device_main.c
@@ -52,7 +52,7 @@
 /*
  * Define module options
  */
-MODULE_AUTHOR("VIA Networking Technologies, Inc., <lyndonchen@vntek.com.tw>");
+MODULE_AUTHOR("VIA Networking Techyeslogies, Inc., <lyndonchen@vntek.com.tw>");
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("VIA Networking Solomon-A/B/G Wireless LAN Adapter Driver");
 
@@ -241,7 +241,7 @@ static void device_init_registers(struct vnt_private *priv)
 		priv->bTxRxAntInv = false;
 
 	byValue &= (EEP_ANTENNA_AUX | EEP_ANTENNA_MAIN);
-	/* if not set default is All */
+	/* if yest set default is All */
 	if (byValue == 0)
 		byValue = (EEP_ANTENNA_AUX | EEP_ANTENNA_MAIN);
 
@@ -542,7 +542,7 @@ static int device_init_rd0_ring(struct vnt_private *priv)
 		}
 
 		if (!device_alloc_rx_buf(priv, desc)) {
-			dev_err(&priv->pcid->dev, "can not alloc rx bufs\n");
+			dev_err(&priv->pcid->dev, "can yest alloc rx bufs\n");
 			ret = -ENOMEM;
 			goto err_free_rd;
 		}
@@ -588,7 +588,7 @@ static int device_init_rd1_ring(struct vnt_private *priv)
 		}
 
 		if (!device_alloc_rx_buf(priv, desc)) {
-			dev_err(&priv->pcid->dev, "can not alloc rx bufs\n");
+			dev_err(&priv->pcid->dev, "can yest alloc rx bufs\n");
 			ret = -ENOMEM;
 			goto err_free_rd;
 		}
@@ -765,7 +765,7 @@ static int device_rx_srv(struct vnt_private *priv, unsigned int idx)
 		if (vnt_receive_frame(priv, rd)) {
 			if (!device_alloc_rx_buf(priv, rd)) {
 				dev_err(&priv->pcid->dev,
-					"can not allocate rx buf\n");
+					"can yest allocate rx buf\n");
 				break;
 			}
 		}
@@ -1660,15 +1660,15 @@ vt6655_probe(struct pci_dev *pcid, const struct pci_device_id *ent)
 	struct wiphy *wiphy;
 	int         rc;
 
-	dev_notice(&pcid->dev,
+	dev_yestice(&pcid->dev,
 		   "%s Ver. %s\n", DEVICE_FULL_DRV_NAM, DEVICE_VERSION);
 
-	dev_notice(&pcid->dev,
-		   "Copyright (c) 2003 VIA Networking Technologies, Inc.\n");
+	dev_yestice(&pcid->dev,
+		   "Copyright (c) 2003 VIA Networking Techyeslogies, Inc.\n");
 
 	hw = ieee80211_alloc_hw(sizeof(*priv), &vnt_mac_ops);
 	if (!hw) {
-		dev_err(&pcid->dev, "could not register ieee80211_hw\n");
+		dev_err(&pcid->dev, "could yest register ieee80211_hw\n");
 		return -ENOMEM;
 	}
 

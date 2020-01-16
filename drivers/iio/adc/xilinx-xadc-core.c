@@ -115,7 +115,7 @@ static void xadc_read_reg(struct xadc *xadc, unsigned int reg,
 }
 
 /*
- * The ZYNQ interface uses two asynchronous FIFOs for communication with the
+ * The ZYNQ interface uses two asynchroyesus FIFOs for communication with the
  * XADC. Reads and writes to the XADC register are performed by submitting a
  * request to the command FIFO (CFIFO), once the request has been completed the
  * result can be read from the data FIFO (DFIFO). The method currently used in
@@ -253,7 +253,7 @@ static void xadc_zynq_unmask_worker(struct work_struct *work)
 
 	spin_lock_irq(&xadc->lock);
 
-	/* Clear those bits which are not active anymore */
+	/* Clear those bits which are yest active anymore */
 	unmask = (xadc->zynq_masked_alarm ^ misc_sts) & xadc->zynq_masked_alarm;
 	xadc->zynq_masked_alarm &= misc_sts;
 
@@ -303,7 +303,7 @@ static irqreturn_t xadc_zynq_interrupt_handler(int irq, void *devid)
 		xadc->zynq_masked_alarm |= status;
 		/*
 		 * mask the current event interrupt,
-		 * unmask it when the interrupt is no more active.
+		 * unmask it when the interrupt is yes more active.
 		 */
 		xadc_zynq_update_intmsk(xadc, 0, 0);
 
@@ -489,7 +489,7 @@ static irqreturn_t xadc_axi_interrupt_handler(int irq, void *devid)
 	if (status & XADC_AXI_INT_ALARM_MASK) {
 		/*
 		 * The order of the bits in the AXI-XADC status register does
-		 * not match the order of the bits in the XADC alarm enable
+		 * yest match the order of the bits in the XADC alarm enable
 		 * register. xadc_handle_events() expects the events to be in
 		 * the same order as the XADC alarm enable register.
 		 */
@@ -510,7 +510,7 @@ static void xadc_axi_update_alarm(struct xadc *xadc, unsigned int alarm)
 	unsigned long flags;
 
 	/*
-	 * The order of the bits in the AXI-XADC status register does not match
+	 * The order of the bits in the AXI-XADC status register does yest match
 	 * the order of the bits in the XADC alarm enable register. We get
 	 * passed the alarm mask in the same order as in the XADC alarm enable
 	 * register.
@@ -637,7 +637,7 @@ static irqreturn_t xadc_trigger_handler(int irq, void *p)
 	iio_push_to_buffers(indio_dev, xadc->data);
 
 out:
-	iio_trigger_notify_done(indio_dev->trig);
+	iio_trigger_yestify_done(indio_dev->trig);
 
 	return IRQ_HANDLED;
 }
@@ -923,7 +923,7 @@ static int xadc_write_raw(struct iio_dev *indio_dev,
 		val = 1000000;
 
 	/*
-	 * We want to round down, but only if we do not exceed the 150 kSPS
+	 * We want to round down, but only if we do yest exceed the 150 kSPS
 	 * limit.
 	 */
 	div = clk_rate / val;
@@ -1053,12 +1053,12 @@ static const struct of_device_id xadc_of_match_table[] = {
 };
 MODULE_DEVICE_TABLE(of, xadc_of_match_table);
 
-static int xadc_parse_dt(struct iio_dev *indio_dev, struct device_node *np,
+static int xadc_parse_dt(struct iio_dev *indio_dev, struct device_yesde *np,
 	unsigned int *conf)
 {
 	struct xadc *xadc = iio_priv(indio_dev);
 	struct iio_chan_spec *channels, *chan;
-	struct device_node *chan_node, *child;
+	struct device_yesde *chan_yesde, *child;
 	unsigned int num_channels;
 	const char *external_mux;
 	u32 ext_mux_chan;
@@ -1068,7 +1068,7 @@ static int xadc_parse_dt(struct iio_dev *indio_dev, struct device_node *np,
 	*conf = 0;
 
 	ret = of_property_read_string(np, "xlnx,external-mux", &external_mux);
-	if (ret < 0 || strcasecmp(external_mux, "none") == 0)
+	if (ret < 0 || strcasecmp(external_mux, "yesne") == 0)
 		xadc->external_mux_mode = XADC_EXTERNAL_MUX_NONE;
 	else if (strcasecmp(external_mux, "single") == 0)
 		xadc->external_mux_mode = XADC_EXTERNAL_MUX_SINGLE;
@@ -1107,11 +1107,11 @@ static int xadc_parse_dt(struct iio_dev *indio_dev, struct device_node *np,
 	num_channels = 9;
 	chan = &channels[9];
 
-	chan_node = of_get_child_by_name(np, "xlnx,channels");
-	if (chan_node) {
-		for_each_child_of_node(chan_node, child) {
+	chan_yesde = of_get_child_by_name(np, "xlnx,channels");
+	if (chan_yesde) {
+		for_each_child_of_yesde(chan_yesde, child) {
 			if (num_channels >= ARRAY_SIZE(xadc_channels)) {
-				of_node_put(child);
+				of_yesde_put(child);
 				break;
 			}
 
@@ -1133,7 +1133,7 @@ static int xadc_parse_dt(struct iio_dev *indio_dev, struct device_node *np,
 			chan++;
 		}
 	}
-	of_node_put(chan_node);
+	of_yesde_put(chan_yesde);
 
 	indio_dev->num_channels = num_channels;
 	indio_dev->channels = krealloc(channels, sizeof(*channels) *
@@ -1156,10 +1156,10 @@ static int xadc_probe(struct platform_device *pdev)
 	int irq;
 	int i;
 
-	if (!pdev->dev.of_node)
+	if (!pdev->dev.of_yesde)
 		return -ENODEV;
 
-	id = of_match_node(xadc_of_match_table, pdev->dev.of_node);
+	id = of_match_yesde(xadc_of_match_table, pdev->dev.of_yesde);
 	if (!id)
 		return -EINVAL;
 
@@ -1184,12 +1184,12 @@ static int xadc_probe(struct platform_device *pdev)
 		return PTR_ERR(xadc->base);
 
 	indio_dev->dev.parent = &pdev->dev;
-	indio_dev->dev.of_node = pdev->dev.of_node;
+	indio_dev->dev.of_yesde = pdev->dev.of_yesde;
 	indio_dev->name = "xadc";
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->info = &xadc_info;
 
-	ret = xadc_parse_dt(indio_dev, pdev->dev.of_node, &conf0);
+	ret = xadc_parse_dt(indio_dev, pdev->dev.of_yesde, &conf0);
 	if (ret)
 		goto err_device_free;
 
@@ -1276,7 +1276,7 @@ static int xadc_probe(struct platform_device *pdev)
 			goto err_free_irq;
 	}
 
-	/* Go to non-buffered mode */
+	/* Go to yesn-buffered mode */
 	xadc_postdisable(indio_dev);
 
 	ret = iio_device_register(indio_dev);

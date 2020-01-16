@@ -43,7 +43,7 @@
 struct dn_zone
 {
 	struct dn_zone		*dz_next;
-	struct dn_fib_node 	**dz_hash;
+	struct dn_fib_yesde 	**dz_hash;
 	int			dz_nent;
 	int			dz_divisor;
 	u32			dz_hashmask;
@@ -100,12 +100,12 @@ static inline dn_fib_key_t dz_key(__le16 dst, struct dn_zone *dz)
 	return k;
 }
 
-static inline struct dn_fib_node **dn_chain_p(dn_fib_key_t key, struct dn_zone *dz)
+static inline struct dn_fib_yesde **dn_chain_p(dn_fib_key_t key, struct dn_zone *dz)
 {
 	return &dz->dz_hash[dn_hash(key, dz).datum];
 }
 
-static inline struct dn_fib_node *dz_chain(dn_fib_key_t key, struct dn_zone *dz)
+static inline struct dn_fib_yesde *dz_chain(dn_fib_key_t key, struct dn_zone *dz)
 {
 	return dz->dz_hash[dn_hash(key, dz).datum];
 }
@@ -121,10 +121,10 @@ static inline int dn_key_leq(dn_fib_key_t a, dn_fib_key_t b)
 }
 
 static inline void dn_rebuild_zone(struct dn_zone *dz,
-				   struct dn_fib_node **old_ht,
+				   struct dn_fib_yesde **old_ht,
 				   int old_divisor)
 {
-	struct dn_fib_node *f, **fp, *next;
+	struct dn_fib_yesde *f, **fp, *next;
 	int i;
 
 	for(i = 0; i < old_divisor; i++) {
@@ -142,7 +142,7 @@ static inline void dn_rebuild_zone(struct dn_zone *dz,
 
 static void dn_rehash_zone(struct dn_zone *dz)
 {
-	struct dn_fib_node **ht, **old_ht;
+	struct dn_fib_yesde **ht, **old_ht;
 	int old_divisor, new_divisor;
 	u32 new_hashmask;
 
@@ -163,7 +163,7 @@ static void dn_rehash_zone(struct dn_zone *dz)
 		break;
 	}
 
-	ht = kcalloc(new_divisor, sizeof(struct dn_fib_node*), GFP_KERNEL);
+	ht = kcalloc(new_divisor, sizeof(struct dn_fib_yesde*), GFP_KERNEL);
 	if (ht == NULL)
 		return;
 
@@ -177,7 +177,7 @@ static void dn_rehash_zone(struct dn_zone *dz)
 	kfree(old_ht);
 }
 
-static void dn_free_node(struct dn_fib_node *f)
+static void dn_free_yesde(struct dn_fib_yesde *f)
 {
 	dn_fib_release_info(DN_FIB_INFO(f));
 	kmem_cache_free(dn_hash_kmem, f);
@@ -199,7 +199,7 @@ static struct dn_zone *dn_new_zone(struct dn_hash *table, int z)
 		dz->dz_hashmask = 0;
 	}
 
-	dz->dz_hash = kcalloc(dz->dz_divisor, sizeof(struct dn_fib_node *), GFP_KERNEL);
+	dz->dz_hash = kcalloc(dz->dz_divisor, sizeof(struct dn_fib_yesde *), GFP_KERNEL);
 	if (!dz->dz_hash) {
 		kfree(dz);
 		return NULL;
@@ -348,12 +348,12 @@ static int dn_fib_dump_info(struct sk_buff *skb, u32 portid, u32 seq, int event,
 		struct rtnexthop *nhp;
 		struct nlattr *mp_head;
 
-		mp_head = nla_nest_start_noflag(skb, RTA_MULTIPATH);
+		mp_head = nla_nest_start_yesflag(skb, RTA_MULTIPATH);
 		if (!mp_head)
 			goto errout;
 
 		for_nexthops(fi) {
-			if (!(nhp = nla_reserve_nohdr(skb, sizeof(*nhp))))
+			if (!(nhp = nla_reserve_yeshdr(skb, sizeof(*nhp))))
 				goto errout;
 
 			nhp->rtnh_flags = nh->nh_flags & 0xFF;
@@ -379,7 +379,7 @@ errout:
 }
 
 
-static void dn_rtmsg_fib(int event, struct dn_fib_node *f, int z, u32 tb_id,
+static void dn_rtmsg_fib(int event, struct dn_fib_yesde *f, int z, u32 tb_id,
 			struct nlmsghdr *nlh, struct netlink_skb_parms *req)
 {
 	struct sk_buff *skb;
@@ -399,7 +399,7 @@ static void dn_rtmsg_fib(int event, struct dn_fib_node *f, int z, u32 tb_id,
 		kfree_skb(skb);
 		goto errout;
 	}
-	rtnl_notify(skb, &init_net, portid, RTNLGRP_DECnet_ROUTE, nlh, GFP_KERNEL);
+	rtnl_yestify(skb, &init_net, portid, RTNLGRP_DECnet_ROUTE, nlh, GFP_KERNEL);
 	return;
 errout:
 	if (err < 0)
@@ -410,7 +410,7 @@ static __inline__ int dn_hash_dump_bucket(struct sk_buff *skb,
 				struct netlink_callback *cb,
 				struct dn_fib_table *tb,
 				struct dn_zone *dz,
-				struct dn_fib_node *f)
+				struct dn_fib_yesde *f)
 {
 	int i, s_i;
 
@@ -530,7 +530,7 @@ static int dn_fib_table_insert(struct dn_fib_table *tb, struct rtmsg *r, struct 
 			       struct nlmsghdr *n, struct netlink_skb_parms *req)
 {
 	struct dn_hash *table = (struct dn_hash *)tb->data;
-	struct dn_fib_node *new_f, *f, **fp, **del_fp;
+	struct dn_fib_yesde *new_f, *f, **fp, **del_fp;
 	struct dn_zone *dz;
 	struct dn_fib_info *fi;
 	int z = r->rtm_dst_len;
@@ -585,7 +585,7 @@ static int dn_fib_table_insert(struct dn_fib_table *tb, struct rtmsg *r, struct 
 
 	if (f && dn_key_eq(f->fn_key, key) &&
 			fi->fib_priority == DN_FIB_INFO(f)->fib_priority) {
-		struct dn_fib_node **ins_fp;
+		struct dn_fib_yesde **ins_fp;
 
 		err = -EEXIST;
 		if (n->nlmsg_flags & NLM_F_EXCL)
@@ -648,7 +648,7 @@ replace:
 			dn_rtmsg_fib(RTM_DELROUTE, f, z, tb->n, n, req);
 		if (f->fn_state & DN_S_ACCESSED)
 			dn_rt_cache_flush(-1);
-		dn_free_node(f);
+		dn_free_yesde(f);
 		dz->dz_nent--;
 	} else {
 		dn_rt_cache_flush(-1);
@@ -667,7 +667,7 @@ static int dn_fib_table_delete(struct dn_fib_table *tb, struct rtmsg *r, struct 
 			       struct nlmsghdr *n, struct netlink_skb_parms *req)
 {
 	struct dn_hash *table = (struct dn_hash*)tb->data;
-	struct dn_fib_node **fp, **del_fp, *f;
+	struct dn_fib_yesde **fp, **del_fp, *f;
 	int z = r->rtm_dst_len;
 	struct dn_zone *dz;
 	dn_fib_key_t key;
@@ -727,7 +727,7 @@ static int dn_fib_table_delete(struct dn_fib_table *tb, struct rtmsg *r, struct 
 
 			if (f->fn_state & DN_S_ACCESSED)
 				dn_rt_cache_flush(-1);
-			dn_free_node(f);
+			dn_free_yesde(f);
 			dz->dz_nent--;
 		} else {
 			f->fn_state |= DN_S_ZOMBIE;
@@ -745,10 +745,10 @@ static int dn_fib_table_delete(struct dn_fib_table *tb, struct rtmsg *r, struct 
 	return -ESRCH;
 }
 
-static inline int dn_flush_list(struct dn_fib_node **fp, int z, struct dn_hash *table)
+static inline int dn_flush_list(struct dn_fib_yesde **fp, int z, struct dn_hash *table)
 {
 	int found = 0;
-	struct dn_fib_node *f;
+	struct dn_fib_yesde *f;
 
 	while((f = *fp) != NULL) {
 		struct dn_fib_info *fi = DN_FIB_INFO(f);
@@ -758,7 +758,7 @@ static inline int dn_flush_list(struct dn_fib_node **fp, int z, struct dn_hash *
 			*fp = f->fn_next;
 			write_unlock_bh(&dn_fib_tables_lock);
 
-			dn_free_node(f);
+			dn_free_yesde(f);
 			found++;
 			continue;
 		}
@@ -795,7 +795,7 @@ static int dn_fib_table_lookup(struct dn_fib_table *tb, const struct flowidn *fl
 
 	read_lock(&dn_fib_tables_lock);
 	for(dz = t->dh_zone_list; dz; dz = dz->dz_next) {
-		struct dn_fib_node *f;
+		struct dn_fib_yesde *f;
 		dn_fib_key_t k = dz_key(flp->daddr, dz);
 
 		for(f = dz_chain(k, dz); f; f = f->fn_next) {
@@ -914,7 +914,7 @@ void __init dn_fib_table_init(void)
 void __exit dn_fib_table_cleanup(void)
 {
 	struct dn_fib_table *t;
-	struct hlist_node *next;
+	struct hlist_yesde *next;
 	unsigned int h;
 
 	write_lock(&dn_fib_tables_lock);

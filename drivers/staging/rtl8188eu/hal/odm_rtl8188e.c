@@ -128,7 +128,7 @@ static void dm_fast_training_init(struct odm_dm_struct *dm_odm)
 		phy_set_bb_reg(adapter, 0x914, bMaskByte1, 2);
 	}
 
-	/* Default Ant Setting when no fast training */
+	/* Default Ant Setting when yes fast training */
 	phy_set_bb_reg(adapter, 0x80c, BIT(21), 1);
 	phy_set_bb_reg(adapter, 0x864, BIT(5) | BIT(4) | BIT(3), 0);
 	phy_set_bb_reg(adapter, 0x864, BIT(8) | BIT(7) | BIT(6), 1);

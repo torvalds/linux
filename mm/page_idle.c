@@ -8,7 +8,7 @@
 #include <linux/mmzone.h>
 #include <linux/pagemap.h>
 #include <linux/rmap.h>
-#include <linux/mmu_notifier.h>
+#include <linux/mmu_yestifier.h>
 #include <linux/page_ext.h>
 #include <linux/page_idle.h>
 
@@ -18,12 +18,12 @@
 /*
  * Idle page tracking only considers user memory pages, for other types of
  * pages the idle flag is always unset and an attempt to set it is silently
- * ignored.
+ * igyesred.
  *
  * We treat a page as a user memory page if it is on an LRU list, because it is
  * always safe to pass such a page to rmap_walk(), which is essential for idle
  * page tracking. With such an indicator of user pages we can skip isolated
- * pages, but since there are not usually many of them, it will hardly affect
+ * pages, but since there are yest usually many of them, it will hardly affect
  * the overall result.
  *
  * This function tries to get a user memory page by pfn as described above.
@@ -69,10 +69,10 @@ static bool page_idle_clear_pte_refs_one(struct page *page,
 			 * For PTE-mapped THP, one sub page is referenced,
 			 * the whole THP is referenced.
 			 */
-			if (ptep_clear_young_notify(vma, addr, pvmw.pte))
+			if (ptep_clear_young_yestify(vma, addr, pvmw.pte))
 				referenced = true;
 		} else if (IS_ENABLED(CONFIG_TRANSPARENT_HUGEPAGE)) {
-			if (pmdp_clear_young_notify(vma, addr, pvmw.pmd))
+			if (pmdp_clear_young_yestify(vma, addr, pvmw.pmd))
 				referenced = true;
 		} else {
 			/* unexpected pmd-mapped page? */
@@ -100,7 +100,7 @@ static void page_idle_clear_pte_refs(struct page *page)
 	 */
 	static const struct rmap_walk_control rwc = {
 		.rmap_one = page_idle_clear_pte_refs_one,
-		.anon_lock = page_lock_anon_vma_read,
+		.ayesn_lock = page_lock_ayesn_vma_read,
 	};
 	bool need_lock;
 
@@ -108,7 +108,7 @@ static void page_idle_clear_pte_refs(struct page *page)
 	    !page_rmapping(page))
 		return;
 
-	need_lock = !PageAnon(page) || PageKsm(page);
+	need_lock = !PageAyesn(page) || PageKsm(page);
 	if (need_lock && !trylock_page(page))
 		return;
 
@@ -147,7 +147,7 @@ static ssize_t page_idle_bitmap_read(struct file *file, struct kobject *kobj,
 			if (page_is_idle(page)) {
 				/*
 				 * The page might have been referenced via a
-				 * pte, in which case it is not idle. Clear
+				 * pte, in which case it is yest idle. Clear
 				 * refs and recheck.
 				 */
 				page_idle_clear_pte_refs(page);

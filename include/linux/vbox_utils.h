@@ -17,7 +17,7 @@ __printf(1, 2) void vbg_info(const char *fmt, ...);
 __printf(1, 2) void vbg_warn(const char *fmt, ...);
 __printf(1, 2) void vbg_err(const char *fmt, ...);
 
-/* Only use backdoor logging for non-dynamic debug builds */
+/* Only use backdoor logging for yesn-dynamic debug builds */
 #if defined(DEBUG) && !defined(CONFIG_DYNAMIC_DEBUG)
 __printf(1, 2) void vbg_debug(const char *fmt, ...);
 #else
@@ -38,10 +38,10 @@ int vbg_hgcm_call(struct vbg_dev *gdev, u32 requestor, u32 client_id,
 
 /**
  * Convert a VirtualBox status code to a standard Linux kernel return value.
- * Return: 0 or negative errno value.
+ * Return: 0 or negative erryes value.
  * @rc:			VirtualBox status code to convert.
  */
-int vbg_status_code_to_errno(int rc);
+int vbg_status_code_to_erryes(int rc);
 
 /**
  * Helper for the vboxsf driver to get a reference to the guest device.

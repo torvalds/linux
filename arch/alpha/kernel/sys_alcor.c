@@ -120,7 +120,7 @@ alcor_init_irq(void)
 	*(vuip)GRU_INT_CLEAR = 0; mb();			/* all clear */
 
 	for (i = 16; i < 48; ++i) {
-		/* On Alcor, at least, lines 20..30 are not connected
+		/* On Alcor, at least, lines 20..30 are yest connected
 		   and can generate spurious interrupts if we turn them
 		   on while IRQ probing.  */
 		if (i >= 16+20 && i <= 16+30)
@@ -187,7 +187,7 @@ alcor_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 {
 	static char irq_tab[7][5] = {
 		/*INT    INTA   INTB   INTC   INTD */
-		/* note: IDSEL 17 is XLT only */
+		/* yeste: IDSEL 17 is XLT only */
 		{16+13, 16+13, 16+13, 16+13, 16+13},	/* IdSel 17,  TULIP  */
 		{ 16+8,  16+8,  16+9, 16+10, 16+11},	/* IdSel 18,  slot 0 */
 		{16+16, 16+16, 16+17, 16+18, 16+19},	/* IdSel 19,  slot 3 */
@@ -208,7 +208,7 @@ alcor_kill_arch(int mode)
 #ifndef ALPHA_RESTORE_SRM_SETUP
 	switch(mode) {
 	case LINUX_REBOOT_CMD_RESTART:
-		/* Who said DEC engineer's have no sense of humor? ;-)  */
+		/* Who said DEC engineer's have yes sense of humor? ;-)  */
 		if (alpha_using_srm) {
 			*(vuip) GRU_RESET = 0x0000dead;
 			mb();
@@ -234,7 +234,7 @@ alcor_init_pci(void)
 	/*
 	 * Now we can look to see if we are really running on an XLT-type
 	 * motherboard, by looking for a 21040 TULIP in slot 6, which is
-	 * built into XLT and BRET/MAVERICK, but not available on ALCOR.
+	 * built into XLT and BRET/MAVERICK, but yest available on ALCOR.
 	 */
 	dev = pci_get_device(PCI_VENDOR_ID_DEC,
 			      PCI_DEVICE_ID_DEC_TULIP,
@@ -306,4 +306,4 @@ struct alpha_machine_vector xlt_mv __initmv = {
 };
 
 /* No alpha_mv alias for XLT, since we compile it in unconditionally
-   with ALCOR; setup_arch knows how to cope.  */
+   with ALCOR; setup_arch kyesws how to cope.  */

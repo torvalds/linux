@@ -29,7 +29,7 @@ static int submit_audio_in_urb(struct snd_line6_pcm *line6pcm)
 				    line6pcm->line6->iso_buffers);
 
 	if (index < 0 || index >= line6pcm->line6->iso_buffers) {
-		dev_err(line6pcm->line6->ifcdev, "no free URB found\n");
+		dev_err(line6pcm->line6->ifcdev, "yes free URB found\n");
 		return -EINVAL;
 	}
 
@@ -110,7 +110,7 @@ void line6_capture_copy(struct snd_line6_pcm *line6pcm, char *fbuf, int fsize)
 			memcpy(runtime->dma_area, fbuf + len * bytes_per_frame,
 			       (frames - len) * bytes_per_frame);
 		} else {
-			/* this is somewhat paranoid */
+			/* this is somewhat parayesid */
 			dev_err(line6pcm->line6->ifcdev,
 				"driver bug: len = %d\n", len);
 		}

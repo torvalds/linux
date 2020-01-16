@@ -8,7 +8,7 @@ UTS_SYSNAME = -DUTS_SYSNAME=\"uClinux\"
 endif
 
 # What CPU vesion are we building for, and crack it open
-# as major.minor.rev
+# as major.miyesr.rev
 CPU_VER   := $(shell echo $(CONFIG_XILINX_MICROBLAZE0_HW_VER))
 CPU_MAJOR := $(shell echo $(CPU_VER) | cut -d '.' -f 1)
 CPU_MINOR := $(shell echo $(CPU_VER) | cut -d '.' -f 2)
@@ -21,19 +21,19 @@ export CPU_VER CPU_MAJOR CPU_MINOR CPU_REV
 # rather than bools y/n
 
 # Work out HW multipler support. This is tricky.
-# 1. Spartan2 has no HW multipliers.
+# 1. Spartan2 has yes HW multipliers.
 # 2. MicroBlaze v3.x always uses them, except in Spartan 2
 # 3. All other FPGa/CPU ver combos, we can trust the CONFIG_ settings
 ifeq (,$(findstring spartan2,$(CONFIG_XILINX_MICROBLAZE0_FAMILY)))
   ifeq ($(CPU_MAJOR),3)
-    CPUFLAGS-1 += -mno-xl-soft-mul
+    CPUFLAGS-1 += -myes-xl-soft-mul
   else
     # USE_HW_MUL can be 0, 1, or 2, defining a hierarchy of HW Mul support.
     CPUFLAGS-$(subst 1,,$(CONFIG_XILINX_MICROBLAZE0_USE_HW_MUL)) += -mxl-multiply-high
-    CPUFLAGS-$(CONFIG_XILINX_MICROBLAZE0_USE_HW_MUL) += -mno-xl-soft-mul
+    CPUFLAGS-$(CONFIG_XILINX_MICROBLAZE0_USE_HW_MUL) += -myes-xl-soft-mul
   endif
 endif
-CPUFLAGS-$(CONFIG_XILINX_MICROBLAZE0_USE_DIV) += -mno-xl-soft-div
+CPUFLAGS-$(CONFIG_XILINX_MICROBLAZE0_USE_DIV) += -myes-xl-soft-div
 CPUFLAGS-$(CONFIG_XILINX_MICROBLAZE0_USE_BARREL) += -mxl-barrel-shift
 CPUFLAGS-$(CONFIG_XILINX_MICROBLAZE0_USE_PCMP_INSTR) += -mxl-pattern-compare
 
@@ -69,7 +69,7 @@ core-y	+= $(boot)/dts/
 
 # defines filename extension depending memory management type
 ifeq ($(CONFIG_MMU),)
-MMU := -nommu
+MMU := -yesmmu
 endif
 
 export MMU DTB
@@ -104,7 +104,7 @@ define archhelp
   echo '                    simpleImage.<dt>.unstrip: ELF (identical to vmlinux)'
   echo '                    simpleImage.<dt>.strip  : stripped ELF'
   echo '  Targets with <dt> embed a device tree blob inside the image'
-  echo '  These targets support board with firmware that does not'
+  echo '  These targets support board with firmware that does yest'
   echo '  support passing a device tree directly. Replace <dt> with the'
   echo '  name of a dts file from the arch/microblaze/boot/dts/ directory'
   echo '  (minus the .dts extension).'

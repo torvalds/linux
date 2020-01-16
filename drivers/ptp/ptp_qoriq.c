@@ -224,15 +224,15 @@ EXPORT_SYMBOL_GPL(ptp_qoriq_adjfine);
 
 int ptp_qoriq_adjtime(struct ptp_clock_info *ptp, s64 delta)
 {
-	s64 now;
+	s64 yesw;
 	unsigned long flags;
 	struct ptp_qoriq *ptp_qoriq = container_of(ptp, struct ptp_qoriq, caps);
 
 	spin_lock_irqsave(&ptp_qoriq->lock, flags);
 
-	now = tmr_cnt_read(ptp_qoriq);
-	now += delta;
-	tmr_cnt_write(ptp_qoriq, now);
+	yesw = tmr_cnt_read(ptp_qoriq);
+	yesw += delta;
+	tmr_cnt_write(ptp_qoriq, yesw);
 	set_fipers(ptp_qoriq);
 
 	spin_unlock_irqrestore(&ptp_qoriq->lock, flags);
@@ -345,18 +345,18 @@ static const struct ptp_clock_info ptp_qoriq_caps = {
 };
 
 /**
- * ptp_qoriq_nominal_freq - calculate nominal frequency according to
+ * ptp_qoriq_yesminal_freq - calculate yesminal frequency according to
  *			    reference clock frequency
  *
  * @clk_src: reference clock frequency
  *
- * The nominal frequency is the desired clock frequency.
+ * The yesminal frequency is the desired clock frequency.
  * It should be less than the reference clock frequency.
  * It should be a factor of 1000MHz.
  *
- * Return the nominal frequency
+ * Return the yesminal frequency
  */
-static u32 ptp_qoriq_nominal_freq(u32 clk_src)
+static u32 ptp_qoriq_yesminal_freq(u32 clk_src)
 {
 	u32 remainder = 0;
 
@@ -379,9 +379,9 @@ static u32 ptp_qoriq_nominal_freq(u32 clk_src)
  * ptp_qoriq_auto_config - calculate a set of default configurations
  *
  * @ptp_qoriq: pointer to ptp_qoriq
- * @node: pointer to device_node
+ * @yesde: pointer to device_yesde
  *
- * If below dts properties are not provided, this function will be
+ * If below dts properties are yest provided, this function will be
  * called to calculate a set of default configurations for them.
  *   "fsl,tclk-period"
  *   "fsl,tmr-prsc"
@@ -393,18 +393,18 @@ static u32 ptp_qoriq_nominal_freq(u32 clk_src)
  * Return 0 if success
  */
 static int ptp_qoriq_auto_config(struct ptp_qoriq *ptp_qoriq,
-				 struct device_node *node)
+				 struct device_yesde *yesde)
 {
 	struct clk *clk;
 	u64 freq_comp;
 	u64 max_adj;
-	u32 nominal_freq;
+	u32 yesminal_freq;
 	u32 remainder = 0;
 	u32 clk_src = 0;
 
 	ptp_qoriq->cksel = DEFAULT_CKSEL;
 
-	clk = of_clk_get(node, 0);
+	clk = of_clk_get(yesde, 0);
 	if (!IS_ERR(clk)) {
 		clk_src = clk_get_rate(clk);
 		clk_put(clk);
@@ -415,18 +415,18 @@ static int ptp_qoriq_auto_config(struct ptp_qoriq *ptp_qoriq,
 		return -EINVAL;
 	}
 
-	nominal_freq = ptp_qoriq_nominal_freq(clk_src);
-	if (!nominal_freq)
+	yesminal_freq = ptp_qoriq_yesminal_freq(clk_src);
+	if (!yesminal_freq)
 		return -EINVAL;
 
-	ptp_qoriq->tclk_period = 1000000000UL / nominal_freq;
+	ptp_qoriq->tclk_period = 1000000000UL / yesminal_freq;
 	ptp_qoriq->tmr_prsc = DEFAULT_TMR_PRSC;
 
 	/* Calculate initial frequency compensation value for TMR_ADD register.
 	 * freq_comp = ceil(2^32 / freq_ratio)
-	 * freq_ratio = reference_clock_freq / nominal_freq
+	 * freq_ratio = reference_clock_freq / yesminal_freq
 	 */
-	freq_comp = ((u64)1 << 32) * nominal_freq;
+	freq_comp = ((u64)1 << 32) * yesminal_freq;
 	freq_comp = div_u64_rem(freq_comp, clk_src, &remainder);
 	if (remainder)
 		freq_comp++;
@@ -436,10 +436,10 @@ static int ptp_qoriq_auto_config(struct ptp_qoriq *ptp_qoriq,
 	ptp_qoriq->tmr_fiper2 = DEFAULT_FIPER2_PERIOD - ptp_qoriq->tclk_period;
 
 	/* max_adj = 1000000000 * (freq_ratio - 1.0) - 1
-	 * freq_ratio = reference_clock_freq / nominal_freq
+	 * freq_ratio = reference_clock_freq / yesminal_freq
 	 */
-	max_adj = 1000000000ULL * (clk_src - nominal_freq);
-	max_adj = div_u64(max_adj, nominal_freq) - 1;
+	max_adj = 1000000000ULL * (clk_src - yesminal_freq);
+	max_adj = div_u64(max_adj, yesminal_freq) - 1;
 	ptp_qoriq->caps.max_adj = max_adj;
 
 	return 0;
@@ -448,45 +448,45 @@ static int ptp_qoriq_auto_config(struct ptp_qoriq *ptp_qoriq,
 int ptp_qoriq_init(struct ptp_qoriq *ptp_qoriq, void __iomem *base,
 		   const struct ptp_clock_info *caps)
 {
-	struct device_node *node = ptp_qoriq->dev->of_node;
+	struct device_yesde *yesde = ptp_qoriq->dev->of_yesde;
 	struct ptp_qoriq_registers *regs;
-	struct timespec64 now;
+	struct timespec64 yesw;
 	unsigned long flags;
 	u32 tmr_ctrl;
 
-	if (!node)
+	if (!yesde)
 		return -ENODEV;
 
 	ptp_qoriq->base = base;
 	ptp_qoriq->caps = *caps;
 
-	if (of_property_read_u32(node, "fsl,cksel", &ptp_qoriq->cksel))
+	if (of_property_read_u32(yesde, "fsl,cksel", &ptp_qoriq->cksel))
 		ptp_qoriq->cksel = DEFAULT_CKSEL;
 
-	if (of_property_read_bool(node, "fsl,extts-fifo"))
+	if (of_property_read_bool(yesde, "fsl,extts-fifo"))
 		ptp_qoriq->extts_fifo_support = true;
 	else
 		ptp_qoriq->extts_fifo_support = false;
 
-	if (of_property_read_u32(node,
+	if (of_property_read_u32(yesde,
 				 "fsl,tclk-period", &ptp_qoriq->tclk_period) ||
-	    of_property_read_u32(node,
+	    of_property_read_u32(yesde,
 				 "fsl,tmr-prsc", &ptp_qoriq->tmr_prsc) ||
-	    of_property_read_u32(node,
+	    of_property_read_u32(yesde,
 				 "fsl,tmr-add", &ptp_qoriq->tmr_add) ||
-	    of_property_read_u32(node,
+	    of_property_read_u32(yesde,
 				 "fsl,tmr-fiper1", &ptp_qoriq->tmr_fiper1) ||
-	    of_property_read_u32(node,
+	    of_property_read_u32(yesde,
 				 "fsl,tmr-fiper2", &ptp_qoriq->tmr_fiper2) ||
-	    of_property_read_u32(node,
+	    of_property_read_u32(yesde,
 				 "fsl,max-adj", &ptp_qoriq->caps.max_adj)) {
-		pr_warn("device tree node missing required elements, try automatic configuration\n");
+		pr_warn("device tree yesde missing required elements, try automatic configuration\n");
 
-		if (ptp_qoriq_auto_config(ptp_qoriq, node))
+		if (ptp_qoriq_auto_config(ptp_qoriq, yesde))
 			return -ENODEV;
 	}
 
-	if (of_property_read_bool(node, "little-endian")) {
+	if (of_property_read_bool(yesde, "little-endian")) {
 		ptp_qoriq->read = qoriq_read_le;
 		ptp_qoriq->write = qoriq_write_le;
 	} else {
@@ -495,7 +495,7 @@ int ptp_qoriq_init(struct ptp_qoriq *ptp_qoriq, void __iomem *base,
 	}
 
 	/* The eTSEC uses differnt memory map with DPAA/ENETC */
-	if (of_device_is_compatible(node, "fsl,etsec-ptp")) {
+	if (of_device_is_compatible(yesde, "fsl,etsec-ptp")) {
 		ptp_qoriq->regs.ctrl_regs = base + ETSEC_CTRL_REGS_OFFSET;
 		ptp_qoriq->regs.alarm_regs = base + ETSEC_ALARM_REGS_OFFSET;
 		ptp_qoriq->regs.fiper_regs = base + ETSEC_FIPER_REGS_OFFSET;
@@ -509,8 +509,8 @@ int ptp_qoriq_init(struct ptp_qoriq *ptp_qoriq, void __iomem *base,
 
 	spin_lock_init(&ptp_qoriq->lock);
 
-	ktime_get_real_ts64(&now);
-	ptp_qoriq_settime(&ptp_qoriq->caps, &now);
+	ktime_get_real_ts64(&yesw);
+	ptp_qoriq_settime(&ptp_qoriq->caps, &yesw);
 
 	tmr_ctrl =
 	  (ptp_qoriq->tclk_period & TCLK_PERIOD_MASK) << TCLK_PERIOD_SHIFT |
@@ -562,7 +562,7 @@ static int ptp_qoriq_probe(struct platform_device *dev)
 
 	ptp_qoriq = kzalloc(sizeof(*ptp_qoriq), GFP_KERNEL);
 	if (!ptp_qoriq)
-		goto no_memory;
+		goto yes_memory;
 
 	ptp_qoriq->dev = &dev->dev;
 
@@ -570,48 +570,48 @@ static int ptp_qoriq_probe(struct platform_device *dev)
 
 	ptp_qoriq->irq = platform_get_irq(dev, 0);
 	if (ptp_qoriq->irq < 0) {
-		pr_err("irq not in device tree\n");
-		goto no_node;
+		pr_err("irq yest in device tree\n");
+		goto yes_yesde;
 	}
 	if (request_irq(ptp_qoriq->irq, ptp_qoriq_isr, IRQF_SHARED,
 			DRIVER, ptp_qoriq)) {
 		pr_err("request_irq failed\n");
-		goto no_node;
+		goto yes_yesde;
 	}
 
 	ptp_qoriq->rsrc = platform_get_resource(dev, IORESOURCE_MEM, 0);
 	if (!ptp_qoriq->rsrc) {
-		pr_err("no resource\n");
-		goto no_resource;
+		pr_err("yes resource\n");
+		goto yes_resource;
 	}
 	if (request_resource(&iomem_resource, ptp_qoriq->rsrc)) {
 		pr_err("resource busy\n");
-		goto no_resource;
+		goto yes_resource;
 	}
 
 	base = ioremap(ptp_qoriq->rsrc->start,
 		       resource_size(ptp_qoriq->rsrc));
 	if (!base) {
 		pr_err("ioremap ptp registers failed\n");
-		goto no_ioremap;
+		goto yes_ioremap;
 	}
 
 	err = ptp_qoriq_init(ptp_qoriq, base, &ptp_qoriq_caps);
 	if (err)
-		goto no_clock;
+		goto yes_clock;
 
 	platform_set_drvdata(dev, ptp_qoriq);
 	return 0;
 
-no_clock:
+yes_clock:
 	iounmap(ptp_qoriq->base);
-no_ioremap:
+yes_ioremap:
 	release_resource(ptp_qoriq->rsrc);
-no_resource:
+yes_resource:
 	free_irq(ptp_qoriq->irq, ptp_qoriq);
-no_node:
+yes_yesde:
 	kfree(ptp_qoriq);
-no_memory:
+yes_memory:
 	return err;
 }
 

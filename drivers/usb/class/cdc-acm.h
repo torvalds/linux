@@ -16,7 +16,7 @@
 #endif
 
 /*
- * Major and minor numbers.
+ * Major and miyesr numbers.
  */
 
 #define ACM_TTY_MAJOR		166
@@ -98,7 +98,7 @@ struct acm {
 	struct acm_rb read_buffers[ACM_NR];
 	int rx_buflimit;
 	spinlock_t read_lock;
-	u8 *notification_buffer;			/* to reassemble fragmented notifications */
+	u8 *yestification_buffer;			/* to reassemble fragmented yestifications */
 	unsigned int nb_index;
 	unsigned int nb_size;
 	int transmitting;
@@ -118,7 +118,7 @@ struct acm {
 	wait_queue_head_t wioctl;			/* for ioctl */
 	unsigned int writesize;				/* max packet size for the output bulk endpoint */
 	unsigned int readsize,ctrlsize;			/* buffer sizes for freeing */
-	unsigned int minor;				/* acm minor number */
+	unsigned int miyesr;				/* acm miyesr number */
 	unsigned char clocal;				/* termios CLOCAL */
 	unsigned int ctrl_caps;				/* control capabilities from the class specific header */
 	unsigned int susp_count;			/* number of suspended interfaces */

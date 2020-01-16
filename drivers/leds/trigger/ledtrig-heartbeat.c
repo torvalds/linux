@@ -40,7 +40,7 @@ static void led_heartbeat_function(struct timer_list *t)
 	led_cdev = heartbeat_data->led_cdev;
 
 	if (unlikely(panic_heartbeats)) {
-		led_set_brightness_nosleep(led_cdev, LED_OFF);
+		led_set_brightness_yessleep(led_cdev, LED_OFF);
 		return;
 	}
 
@@ -86,7 +86,7 @@ static void led_heartbeat_function(struct timer_list *t)
 		break;
 	}
 
-	led_set_brightness_nosleep(led_cdev, brightness);
+	led_set_brightness_yessleep(led_cdev, brightness);
 	mod_timer(&heartbeat_data->timer, jiffies + delay);
 }
 
@@ -162,26 +162,26 @@ static struct led_trigger heartbeat_led_trigger = {
 	.groups = heartbeat_trig_groups,
 };
 
-static int heartbeat_reboot_notifier(struct notifier_block *nb,
+static int heartbeat_reboot_yestifier(struct yestifier_block *nb,
 				     unsigned long code, void *unused)
 {
 	led_trigger_unregister(&heartbeat_led_trigger);
 	return NOTIFY_DONE;
 }
 
-static int heartbeat_panic_notifier(struct notifier_block *nb,
+static int heartbeat_panic_yestifier(struct yestifier_block *nb,
 				     unsigned long code, void *unused)
 {
 	panic_heartbeats = 1;
 	return NOTIFY_DONE;
 }
 
-static struct notifier_block heartbeat_reboot_nb = {
-	.notifier_call = heartbeat_reboot_notifier,
+static struct yestifier_block heartbeat_reboot_nb = {
+	.yestifier_call = heartbeat_reboot_yestifier,
 };
 
-static struct notifier_block heartbeat_panic_nb = {
-	.notifier_call = heartbeat_panic_notifier,
+static struct yestifier_block heartbeat_panic_nb = {
+	.yestifier_call = heartbeat_panic_yestifier,
 };
 
 static int __init heartbeat_trig_init(void)
@@ -189,17 +189,17 @@ static int __init heartbeat_trig_init(void)
 	int rc = led_trigger_register(&heartbeat_led_trigger);
 
 	if (!rc) {
-		atomic_notifier_chain_register(&panic_notifier_list,
+		atomic_yestifier_chain_register(&panic_yestifier_list,
 					       &heartbeat_panic_nb);
-		register_reboot_notifier(&heartbeat_reboot_nb);
+		register_reboot_yestifier(&heartbeat_reboot_nb);
 	}
 	return rc;
 }
 
 static void __exit heartbeat_trig_exit(void)
 {
-	unregister_reboot_notifier(&heartbeat_reboot_nb);
-	atomic_notifier_chain_unregister(&panic_notifier_list,
+	unregister_reboot_yestifier(&heartbeat_reboot_nb);
+	atomic_yestifier_chain_unregister(&panic_yestifier_list,
 					 &heartbeat_panic_nb);
 	led_trigger_unregister(&heartbeat_led_trigger);
 }

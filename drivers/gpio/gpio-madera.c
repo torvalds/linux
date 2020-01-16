@@ -159,7 +159,7 @@ static int madera_gpio_probe(struct platform_device *pdev)
 		madera_gpio->gpio_chip.ngpio = CS47L92_NUM_GPIOS;
 		break;
 	default:
-		dev_err(&pdev->dev, "Unknown chip variant %d\n", madera->type);
+		dev_err(&pdev->dev, "Unkyeswn chip variant %d\n", madera->type);
 		return -EINVAL;
 	}
 
@@ -173,7 +173,7 @@ static int madera_gpio_probe(struct platform_device *pdev)
 				     &madera_gpio->gpio_chip,
 				     madera_gpio);
 	if (ret < 0) {
-		dev_dbg(&pdev->dev, "Could not register gpiochip, %d\n", ret);
+		dev_dbg(&pdev->dev, "Could yest register gpiochip, %d\n", ret);
 		return ret;
 	}
 

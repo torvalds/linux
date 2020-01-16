@@ -23,7 +23,7 @@
 #include <linux/list.h>
 #include <linux/slab.h>
 #include <linux/if_ether.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/reboot.h>
 #include <linux/memory.h>
 #include <asm/kexec.h>
@@ -61,7 +61,7 @@ module_param(use_mcs, int, 0);
 
 MODULE_PARM_DESC(msg_level, "msg_level");
 MODULE_PARM_DESC(prop_carrier_state, "Propagate carrier state of physical "
-		 "port to stack. 1:yes, 0:no.  Default = 0 ");
+		 "port to stack. 1:no, 0:yes.  Default = 0 ");
 MODULE_PARM_DESC(rq3_entries, "Number of entries for Receive Queue 3 "
 		 "[2^x - 1], x = [7..14]. Default = "
 		 __MODULE_STRING(EHEA_DEF_ENTRIES_RQ3) ")");
@@ -351,7 +351,7 @@ static void ehea_update_stats(struct work_struct *work)
 
 	cb2 = (void *)get_zeroed_page(GFP_KERNEL);
 	if (!cb2) {
-		netdev_err(dev, "No mem for cb2. Some interface statistics were not updated\n");
+		netdev_err(dev, "No mem for cb2. Some interface statistics were yest updated\n");
 		goto resched;
 	}
 
@@ -466,7 +466,7 @@ static int ehea_refill_rq_def(struct ehea_port_res *pr,
 			q_skba->os_skbs = fill_wqes - i;
 			if (q_skba->os_skbs == q_skba->len - 2) {
 				netdev_info(pr->port->netdev,
-					    "rq%i ran dry - no mem for skb\n",
+					    "rq%i ran dry - yes mem for skb\n",
 					    rq_nr);
 				ret = -ENOMEM;
 			}
@@ -545,7 +545,7 @@ static inline void ehea_fill_skb(struct net_device *dev,
 	skb_put(skb, length);
 	skb->protocol = eth_type_trans(skb, dev);
 
-	/* The packet was not an IPV4 packet so a complemented checksum was
+	/* The packet was yest an IPV4 packet so a complemented checksum was
 	   calculated. The value is found in the Internet Checksum field. */
 	if (cqe->status & EHEA_CQE_BLIND_CKSUM) {
 		skb->ip_summed = CHECKSUM_COMPLETE;
@@ -975,7 +975,7 @@ int ehea_sense_port_attr(struct ehea_port *port)
 	/* may be called via ehea_neq_tasklet() */
 	cb0 = (void *)get_zeroed_page(GFP_ATOMIC);
 	if (!cb0) {
-		pr_err("no mem for cb0\n");
+		pr_err("yes mem for cb0\n");
 		ret = -ENOMEM;
 		goto out;
 	}
@@ -1060,7 +1060,7 @@ int ehea_set_portspeed(struct ehea_port *port, u32 port_speed)
 
 	cb4 = (void *)get_zeroed_page(GFP_KERNEL);
 	if (!cb4) {
-		pr_err("no mem for cb4\n");
+		pr_err("yes mem for cb4\n");
 		ret = -ENOMEM;
 		goto out;
 	}
@@ -1143,7 +1143,7 @@ static void ehea_parse_eqe(struct ehea_adapter *adapter, u64 eqe)
 	portnum = EHEA_BMASK_GET(NEQE_PORTNUM, eqe);
 	port = ehea_get_port(adapter, portnum);
 	if (!port) {
-		netdev_err(NULL, "unknown portnum %x\n", portnum);
+		netdev_err(NULL, "unkyeswn portnum %x\n", portnum);
 		return;
 	}
 	dev = port->netdev;
@@ -1207,7 +1207,7 @@ static void ehea_parse_eqe(struct ehea_adapter *adapter, u64 eqe)
 		netif_tx_disable(dev);
 		break;
 	default:
-		netdev_err(dev, "unknown event code %x, eqe=0x%llX\n", ec, eqe);
+		netdev_err(dev, "unkyeswn event code %x, eqe=0x%llX\n", ec, eqe);
 		break;
 	}
 }
@@ -1486,7 +1486,7 @@ static int ehea_init_port_res(struct ehea_port *port, struct ehea_port_res *pr,
 	init_attr = kzalloc(sizeof(*init_attr), GFP_KERNEL);
 	if (!init_attr) {
 		ret = -ENOMEM;
-		pr_err("no mem for ehea_qp_init_attr\n");
+		pr_err("yes mem for ehea_qp_init_attr\n");
 		goto out_free;
 	}
 
@@ -1651,7 +1651,7 @@ static inline void write_swqe2_data(struct sk_buff *skb, struct net_device *dev,
 	/* write descriptors */
 	if (nfrags > 0) {
 		if (swqe->descriptors == 0) {
-			/* sg1entry not yet used */
+			/* sg1entry yest yet used */
 			frag = &skb_shinfo(skb)->frags[0];
 
 			/* copy sg1entry data */
@@ -1723,7 +1723,7 @@ static int ehea_set_mac_addr(struct net_device *dev, void *sa)
 
 	cb0 = (void *)get_zeroed_page(GFP_KERNEL);
 	if (!cb0) {
-		pr_err("no mem for cb0\n");
+		pr_err("yes mem for cb0\n");
 		ret = -ENOMEM;
 		goto out;
 	}
@@ -1789,7 +1789,7 @@ static void ehea_promiscuous(struct net_device *dev, int enable)
 
 	cb7 = (void *)get_zeroed_page(GFP_ATOMIC);
 	if (!cb7) {
-		pr_err("no mem for cb7\n");
+		pr_err("yes mem for cb7\n");
 		goto out;
 	}
 
@@ -1995,7 +1995,7 @@ static void ehea_xmit2(struct sk_buff *skb, struct net_device *dev,
 static void ehea_xmit3(struct sk_buff *skb, struct net_device *dev,
 		       struct ehea_swqe *swqe)
 {
-	u8 *imm_data = &swqe->u.immdata_nodesc.immediate_data[0];
+	u8 *imm_data = &swqe->u.immdata_yesdesc.immediate_data[0];
 
 	xmit_common(skb, swqe);
 
@@ -2093,7 +2093,7 @@ static int ehea_vlan_rx_add_vid(struct net_device *dev, __be16 proto, u16 vid)
 
 	cb1 = (void *)get_zeroed_page(GFP_KERNEL);
 	if (!cb1) {
-		pr_err("no mem for cb1\n");
+		pr_err("yes mem for cb1\n");
 		err = -ENOMEM;
 		goto out;
 	}
@@ -2131,7 +2131,7 @@ static int ehea_vlan_rx_kill_vid(struct net_device *dev, __be16 proto, u16 vid)
 
 	cb1 = (void *)get_zeroed_page(GFP_KERNEL);
 	if (!cb1) {
-		pr_err("no mem for cb1\n");
+		pr_err("yes mem for cb1\n");
 		err = -ENOMEM;
 		goto out;
 	}
@@ -2496,7 +2496,7 @@ static void ehea_flush_sq(struct ehea_port *port)
 			 msecs_to_jiffies(100));
 
 		if (!ret) {
-			pr_err("WARNING: sq not flushed completely\n");
+			pr_err("WARNING: sq yest flushed completely\n");
 			break;
 		}
 	}
@@ -2743,7 +2743,7 @@ static void ehea_rereg_mrs(void)
 			/* Unregister old memory region */
 			ret = ehea_rem_mr(&adapter->mr);
 			if (ret) {
-				pr_err("unregister MR failed - driver inoperable!\n");
+				pr_err("unregister MR failed - driver iyesperable!\n");
 				goto out;
 			}
 		}
@@ -2755,7 +2755,7 @@ static void ehea_rereg_mrs(void)
 			/* Register new memory region */
 			ret = ehea_reg_kernel_mr(adapter, &adapter->mr);
 			if (ret) {
-				pr_err("register MR failed - driver inoperable!\n");
+				pr_err("register MR failed - driver iyesperable!\n");
 				goto out;
 			}
 
@@ -2834,7 +2834,7 @@ static int ehea_get_jumboframe_status(struct ehea_port *port, int *jumbo)
 	/* (Try to) enable *jumbo frames */
 	cb4 = (void *)get_zeroed_page(GFP_KERNEL);
 	if (!cb4) {
-		pr_err("no mem for cb4\n");
+		pr_err("yes mem for cb4\n");
 		ret = -ENOMEM;
 		goto out;
 	} else {
@@ -2878,15 +2878,15 @@ static DEVICE_ATTR(log_port_id, 0444, ehea_show_port_id, NULL);
 static void logical_port_release(struct device *dev)
 {
 	struct ehea_port *port = container_of(dev, struct ehea_port, ofdev.dev);
-	of_node_put(port->ofdev.dev.of_node);
+	of_yesde_put(port->ofdev.dev.of_yesde);
 }
 
 static struct device *ehea_register_port(struct ehea_port *port,
-					 struct device_node *dn)
+					 struct device_yesde *dn)
 {
 	int ret;
 
-	port->ofdev.dev.of_node = of_node_get(dn);
+	port->ofdev.dev.of_yesde = of_yesde_get(dn);
 	port->ofdev.dev.parent = &port->adapter->ofdev->dev;
 	port->ofdev.dev.bus = &ibmebus_bus_type;
 
@@ -2934,7 +2934,7 @@ static const struct net_device_ops ehea_netdev_ops = {
 
 static struct ehea_port *ehea_setup_single_port(struct ehea_adapter *adapter,
 					 u32 logical_port_id,
-					 struct device_node *dn)
+					 struct device_yesde *dn)
 {
 	int ret;
 	struct net_device *dev;
@@ -3056,25 +3056,25 @@ static void ehea_shutdown_single_port(struct ehea_port *port)
 
 static int ehea_setup_ports(struct ehea_adapter *adapter)
 {
-	struct device_node *lhea_dn;
-	struct device_node *eth_dn = NULL;
+	struct device_yesde *lhea_dn;
+	struct device_yesde *eth_dn = NULL;
 
 	const u32 *dn_log_port_id;
 	int i = 0;
 
-	lhea_dn = adapter->ofdev->dev.of_node;
+	lhea_dn = adapter->ofdev->dev.of_yesde;
 	while ((eth_dn = of_get_next_child(lhea_dn, eth_dn))) {
 
-		dn_log_port_id = of_get_property(eth_dn, "ibm,hea-port-no",
+		dn_log_port_id = of_get_property(eth_dn, "ibm,hea-port-yes",
 						 NULL);
 		if (!dn_log_port_id) {
-			pr_err("bad device node: eth_dn name=%pOF\n", eth_dn);
+			pr_err("bad device yesde: eth_dn name=%pOF\n", eth_dn);
 			continue;
 		}
 
 		if (ehea_add_adapter_mr(adapter)) {
 			pr_err("creating MR failed\n");
-			of_node_put(eth_dn);
+			of_yesde_put(eth_dn);
 			return -EIO;
 		}
 
@@ -3092,17 +3092,17 @@ static int ehea_setup_ports(struct ehea_adapter *adapter)
 	return 0;
 }
 
-static struct device_node *ehea_get_eth_dn(struct ehea_adapter *adapter,
+static struct device_yesde *ehea_get_eth_dn(struct ehea_adapter *adapter,
 					   u32 logical_port_id)
 {
-	struct device_node *lhea_dn;
-	struct device_node *eth_dn = NULL;
+	struct device_yesde *lhea_dn;
+	struct device_yesde *eth_dn = NULL;
 	const u32 *dn_log_port_id;
 
-	lhea_dn = adapter->ofdev->dev.of_node;
+	lhea_dn = adapter->ofdev->dev.of_yesde;
 	while ((eth_dn = of_get_next_child(lhea_dn, eth_dn))) {
 
-		dn_log_port_id = of_get_property(eth_dn, "ibm,hea-port-no",
+		dn_log_port_id = of_get_property(eth_dn, "ibm,hea-port-yes",
 						 NULL);
 		if (dn_log_port_id)
 			if (*dn_log_port_id == logical_port_id)
@@ -3118,7 +3118,7 @@ static ssize_t ehea_probe_port(struct device *dev,
 {
 	struct ehea_adapter *adapter = dev_get_drvdata(dev);
 	struct ehea_port *port;
-	struct device_node *eth_dn = NULL;
+	struct device_yesde *eth_dn = NULL;
 	int i;
 
 	u32 logical_port_id;
@@ -3136,19 +3136,19 @@ static ssize_t ehea_probe_port(struct device *dev,
 	eth_dn = ehea_get_eth_dn(adapter, logical_port_id);
 
 	if (!eth_dn) {
-		pr_info("no logical port with id %d found\n", logical_port_id);
+		pr_info("yes logical port with id %d found\n", logical_port_id);
 		return -EINVAL;
 	}
 
 	if (ehea_add_adapter_mr(adapter)) {
 		pr_err("creating MR failed\n");
-		of_node_put(eth_dn);
+		of_yesde_put(eth_dn);
 		return -EIO;
 	}
 
 	port = ehea_setup_single_port(adapter, logical_port_id, eth_dn);
 
-	of_node_put(eth_dn);
+	of_yesde_put(eth_dn);
 
 	if (port) {
 		for (i = 0; i < EHEA_MAX_PORTS; i++)
@@ -3192,7 +3192,7 @@ static ssize_t ehea_remove_port(struct device *dev,
 				break;
 			}
 	} else {
-		pr_err("removing port with logical port id=%d failed. port not configured.\n",
+		pr_err("removing port with logical port id=%d failed. port yest configured.\n",
 		       logical_port_id);
 		return -EINVAL;
 	}
@@ -3222,7 +3222,7 @@ static void ehea_remove_device_sysfs(struct platform_device *dev)
 	device_remove_file(&dev->dev, &dev_attr_remove_port);
 }
 
-static int ehea_reboot_notifier(struct notifier_block *nb,
+static int ehea_reboot_yestifier(struct yestifier_block *nb,
 				unsigned long action, void *unused)
 {
 	if (action == SYS_RESTART) {
@@ -3232,15 +3232,15 @@ static int ehea_reboot_notifier(struct notifier_block *nb,
 	return NOTIFY_DONE;
 }
 
-static struct notifier_block ehea_reboot_nb = {
-	.notifier_call = ehea_reboot_notifier,
+static struct yestifier_block ehea_reboot_nb = {
+	.yestifier_call = ehea_reboot_yestifier,
 };
 
-static int ehea_mem_notifier(struct notifier_block *nb,
+static int ehea_mem_yestifier(struct yestifier_block *nb,
 			     unsigned long action, void *data)
 {
 	int ret = NOTIFY_BAD;
-	struct memory_notify *arg = data;
+	struct memory_yestify *arg = data;
 
 	mutex_lock(&dlpar_mem_lock);
 
@@ -3277,8 +3277,8 @@ out_unlock:
 	return ret;
 }
 
-static struct notifier_block ehea_mem_nb = {
-	.notifier_call = ehea_mem_notifier,
+static struct yestifier_block ehea_mem_nb = {
+	.yestifier_call = ehea_mem_yestifier,
 };
 
 static void ehea_crash_handler(void)
@@ -3316,15 +3316,15 @@ static int ehea_register_memory_hooks(void)
 		goto out;
 	}
 
-	ret = register_reboot_notifier(&ehea_reboot_nb);
+	ret = register_reboot_yestifier(&ehea_reboot_nb);
 	if (ret) {
-		pr_info("register_reboot_notifier failed\n");
+		pr_info("register_reboot_yestifier failed\n");
 		goto out;
 	}
 
-	ret = register_memory_notifier(&ehea_mem_nb);
+	ret = register_memory_yestifier(&ehea_mem_nb);
 	if (ret) {
-		pr_info("register_memory_notifier failed\n");
+		pr_info("register_memory_yestifier failed\n");
 		goto out2;
 	}
 
@@ -3337,9 +3337,9 @@ static int ehea_register_memory_hooks(void)
 	return 0;
 
 out3:
-	unregister_memory_notifier(&ehea_mem_nb);
+	unregister_memory_yestifier(&ehea_mem_nb);
 out2:
-	unregister_reboot_notifier(&ehea_reboot_nb);
+	unregister_reboot_yestifier(&ehea_reboot_nb);
 out:
 	atomic_dec(&ehea_memory_hooks_registered);
 	return ret;
@@ -3351,10 +3351,10 @@ static void ehea_unregister_memory_hooks(void)
 	if (atomic_read(&ehea_memory_hooks_registered) == 0)
 		return;
 
-	unregister_reboot_notifier(&ehea_reboot_nb);
+	unregister_reboot_yestifier(&ehea_reboot_nb);
 	if (crash_shutdown_unregister(ehea_crash_handler))
 		pr_info("failed unregistering crash handler\n");
-	unregister_memory_notifier(&ehea_mem_nb);
+	unregister_memory_yestifier(&ehea_mem_nb);
 }
 
 static int ehea_probe_adapter(struct platform_device *dev)
@@ -3368,7 +3368,7 @@ static int ehea_probe_adapter(struct platform_device *dev)
 	if (ret)
 		return ret;
 
-	if (!dev || !dev->dev.of_node) {
+	if (!dev || !dev->dev.of_yesde) {
 		pr_err("Invalid ibmebus device probed\n");
 		return -EINVAL;
 	}
@@ -3376,7 +3376,7 @@ static int ehea_probe_adapter(struct platform_device *dev)
 	adapter = devm_kzalloc(&dev->dev, sizeof(*adapter), GFP_KERNEL);
 	if (!adapter) {
 		ret = -ENOMEM;
-		dev_err(&dev->dev, "no mem for ehea_adapter\n");
+		dev_err(&dev->dev, "yes mem for ehea_adapter\n");
 		goto out;
 	}
 
@@ -3384,14 +3384,14 @@ static int ehea_probe_adapter(struct platform_device *dev)
 
 	adapter->ofdev = dev;
 
-	adapter_handle = of_get_property(dev->dev.of_node, "ibm,hea-handle",
+	adapter_handle = of_get_property(dev->dev.of_yesde, "ibm,hea-handle",
 					 NULL);
 	if (adapter_handle)
 		adapter->handle = *adapter_handle;
 
 	if (!adapter->handle) {
 		dev_err(&dev->dev, "failed getting handle for adapter"
-			" '%pOF'\n", dev->dev.of_node);
+			" '%pOF'\n", dev->dev.of_yesde);
 		ret = -ENODEV;
 		goto out_free_ad;
 	}

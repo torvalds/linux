@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -115,7 +115,7 @@ static void construct(struct dc_stream_state *stream,
 	stream->timing.dsc_cfg.bits_per_pixel = 128;
 	stream->timing.dsc_cfg.block_pred_enable = 1;
 	stream->timing.dsc_cfg.linebuf_depth = 9;
-	stream->timing.dsc_cfg.version_minor = 2;
+	stream->timing.dsc_cfg.version_miyesr = 2;
 	stream->timing.dsc_cfg.ycbcr422_simple = 0;
 #endif
 
@@ -528,7 +528,7 @@ bool dc_stream_send_dp_sdp(const struct dc_stream_state *stream,
 								custom_sdp_message,
 								sdp_message_size);
 		else
-			DC_LOG_WARNING("%s:send_immediate_sdp_message not implemented on this ASIC\n",
+			DC_LOG_WARNING("%s:send_immediate_sdp_message yest implemented on this ASIC\n",
 			__func__);
 
 	}
@@ -536,7 +536,7 @@ bool dc_stream_send_dp_sdp(const struct dc_stream_state *stream,
 	return true;
 }
 
-bool dc_stream_get_scanoutpos(const struct dc_stream_state *stream,
+bool dc_stream_get_scayesutpos(const struct dc_stream_state *stream,
 				  uint32_t *v_blank_start,
 				  uint32_t *v_blank_end,
 				  uint32_t *h_position,
@@ -554,7 +554,7 @@ bool dc_stream_get_scanoutpos(const struct dc_stream_state *stream,
 		if (res_ctx->pipe_ctx[i].stream != stream)
 			continue;
 
-		tg->funcs->get_scanoutpos(tg,
+		tg->funcs->get_scayesutpos(tg,
 					  v_blank_start,
 					  v_blank_end,
 					  h_position,
@@ -582,7 +582,7 @@ bool dc_stream_dmdata_status_done(struct dc *dc, struct dc_stream_state *stream)
 		if (pipe->stream == stream)
 			break;
 	}
-	/* Stream not found, by default we'll assume HUBP fetched dm data */
+	/* Stream yest found, by default we'll assume HUBP fetched dm data */
 	if (i == MAX_PIPES)
 		return true;
 

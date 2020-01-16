@@ -19,7 +19,7 @@
 
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
-#include <media/v4l2-fwnode.h>
+#include <media/v4l2-fwyesde.h>
 #include <media/v4l2-mc.h>
 #include <media/v4l2-subdev.h>
 
@@ -360,7 +360,7 @@ struct rcar_csi2 {
 	struct v4l2_subdev subdev;
 	struct media_pad pads[NR_OF_RCAR_CSI2_PAD];
 
-	struct v4l2_async_notifier notifier;
+	struct v4l2_async_yestifier yestifier;
 	struct v4l2_async_subdev asd;
 	struct v4l2_subdev *remote;
 
@@ -378,9 +378,9 @@ static inline struct rcar_csi2 *sd_to_csi2(struct v4l2_subdev *sd)
 	return container_of(sd, struct rcar_csi2, subdev);
 }
 
-static inline struct rcar_csi2 *notifier_to_csi2(struct v4l2_async_notifier *n)
+static inline struct rcar_csi2 *yestifier_to_csi2(struct v4l2_async_yestifier *n)
 {
-	return container_of(n, struct rcar_csi2, notifier);
+	return container_of(n, struct rcar_csi2, yestifier);
 }
 
 static u32 rcsi2_read(struct rcar_csi2 *priv, unsigned int reg)
@@ -460,7 +460,7 @@ static int rcsi2_calc_mbps(struct rcar_csi2 *priv, unsigned int bpp)
 	/* Read the pixel rate control from remote. */
 	ctrl = v4l2_ctrl_find(source->ctrl_handler, V4L2_CID_PIXEL_RATE);
 	if (!ctrl) {
-		dev_err(priv->dev, "no pixel rate control in subdev %s\n",
+		dev_err(priv->dev, "yes pixel rate control in subdev %s\n",
 			source->name);
 		return -EINVAL;
 	}
@@ -494,7 +494,7 @@ static int rcsi2_start_receiver(struct rcar_csi2 *priv)
 	 * Enable all supported CSI-2 channels with virtual channel and
 	 * data type matching.
 	 *
-	 * NOTE: It's not possible to get individual datatype for each
+	 * NOTE: It's yest possible to get individual datatype for each
 	 *       source virtual channel. Once this is possible in V4L2
 	 *       it should be used here.
 	 */
@@ -733,14 +733,14 @@ static irqreturn_t rcsi2_irq_thread(int irq, void *data)
  * Async handling and registration of subdevices and links.
  */
 
-static int rcsi2_notify_bound(struct v4l2_async_notifier *notifier,
+static int rcsi2_yestify_bound(struct v4l2_async_yestifier *yestifier,
 			      struct v4l2_subdev *subdev,
 			      struct v4l2_async_subdev *asd)
 {
-	struct rcar_csi2 *priv = notifier_to_csi2(notifier);
+	struct rcar_csi2 *priv = yestifier_to_csi2(yestifier);
 	int pad;
 
-	pad = media_entity_get_fwnode_pad(&subdev->entity, asd->match.fwnode,
+	pad = media_entity_get_fwyesde_pad(&subdev->entity, asd->match.fwyesde,
 					  MEDIA_PAD_FL_SOURCE);
 	if (pad < 0) {
 		dev_err(priv->dev, "Failed to find pad for %s\n", subdev->name);
@@ -757,24 +757,24 @@ static int rcsi2_notify_bound(struct v4l2_async_notifier *notifier,
 				     MEDIA_LNK_FL_IMMUTABLE);
 }
 
-static void rcsi2_notify_unbind(struct v4l2_async_notifier *notifier,
+static void rcsi2_yestify_unbind(struct v4l2_async_yestifier *yestifier,
 				struct v4l2_subdev *subdev,
 				struct v4l2_async_subdev *asd)
 {
-	struct rcar_csi2 *priv = notifier_to_csi2(notifier);
+	struct rcar_csi2 *priv = yestifier_to_csi2(yestifier);
 
 	priv->remote = NULL;
 
 	dev_dbg(priv->dev, "Unbind %s\n", subdev->name);
 }
 
-static const struct v4l2_async_notifier_operations rcar_csi2_notify_ops = {
-	.bound = rcsi2_notify_bound,
-	.unbind = rcsi2_notify_unbind,
+static const struct v4l2_async_yestifier_operations rcar_csi2_yestify_ops = {
+	.bound = rcsi2_yestify_bound,
+	.unbind = rcsi2_yestify_unbind,
 };
 
 static int rcsi2_parse_v4l2(struct rcar_csi2 *priv,
-			    struct v4l2_fwnode_endpoint *vep)
+			    struct v4l2_fwyesde_endpoint *vep)
 {
 	unsigned int i;
 
@@ -810,52 +810,52 @@ static int rcsi2_parse_v4l2(struct rcar_csi2 *priv,
 
 static int rcsi2_parse_dt(struct rcar_csi2 *priv)
 {
-	struct device_node *ep;
-	struct v4l2_fwnode_endpoint v4l2_ep = { .bus_type = 0 };
+	struct device_yesde *ep;
+	struct v4l2_fwyesde_endpoint v4l2_ep = { .bus_type = 0 };
 	int ret;
 
-	ep = of_graph_get_endpoint_by_regs(priv->dev->of_node, 0, 0);
+	ep = of_graph_get_endpoint_by_regs(priv->dev->of_yesde, 0, 0);
 	if (!ep) {
 		dev_err(priv->dev, "Not connected to subdevice\n");
 		return -EINVAL;
 	}
 
-	ret = v4l2_fwnode_endpoint_parse(of_fwnode_handle(ep), &v4l2_ep);
+	ret = v4l2_fwyesde_endpoint_parse(of_fwyesde_handle(ep), &v4l2_ep);
 	if (ret) {
-		dev_err(priv->dev, "Could not parse v4l2 endpoint\n");
-		of_node_put(ep);
+		dev_err(priv->dev, "Could yest parse v4l2 endpoint\n");
+		of_yesde_put(ep);
 		return -EINVAL;
 	}
 
 	ret = rcsi2_parse_v4l2(priv, &v4l2_ep);
 	if (ret) {
-		of_node_put(ep);
+		of_yesde_put(ep);
 		return ret;
 	}
 
-	priv->asd.match.fwnode =
-		fwnode_graph_get_remote_endpoint(of_fwnode_handle(ep));
+	priv->asd.match.fwyesde =
+		fwyesde_graph_get_remote_endpoint(of_fwyesde_handle(ep));
 	priv->asd.match_type = V4L2_ASYNC_MATCH_FWNODE;
 
-	of_node_put(ep);
+	of_yesde_put(ep);
 
-	v4l2_async_notifier_init(&priv->notifier);
+	v4l2_async_yestifier_init(&priv->yestifier);
 
-	ret = v4l2_async_notifier_add_subdev(&priv->notifier, &priv->asd);
+	ret = v4l2_async_yestifier_add_subdev(&priv->yestifier, &priv->asd);
 	if (ret) {
-		fwnode_handle_put(priv->asd.match.fwnode);
+		fwyesde_handle_put(priv->asd.match.fwyesde);
 		return ret;
 	}
 
-	priv->notifier.ops = &rcar_csi2_notify_ops;
+	priv->yestifier.ops = &rcar_csi2_yestify_ops;
 
 	dev_dbg(priv->dev, "Found '%pOF'\n",
-		to_of_node(priv->asd.match.fwnode));
+		to_of_yesde(priv->asd.match.fwyesde));
 
-	ret = v4l2_async_subdev_notifier_register(&priv->subdev,
-						  &priv->notifier);
+	ret = v4l2_async_subdev_yestifier_register(&priv->subdev,
+						  &priv->yestifier);
 	if (ret)
-		v4l2_async_notifier_cleanup(&priv->notifier);
+		v4l2_async_yestifier_cleanup(&priv->yestifier);
 
 	return ret;
 }
@@ -1198,8 +1198,8 @@ static int rcsi2_probe(struct platform_device *pdev)
 	return 0;
 
 error:
-	v4l2_async_notifier_unregister(&priv->notifier);
-	v4l2_async_notifier_cleanup(&priv->notifier);
+	v4l2_async_yestifier_unregister(&priv->yestifier);
+	v4l2_async_yestifier_cleanup(&priv->yestifier);
 
 	return ret;
 }
@@ -1208,8 +1208,8 @@ static int rcsi2_remove(struct platform_device *pdev)
 {
 	struct rcar_csi2 *priv = platform_get_drvdata(pdev);
 
-	v4l2_async_notifier_unregister(&priv->notifier);
-	v4l2_async_notifier_cleanup(&priv->notifier);
+	v4l2_async_yestifier_unregister(&priv->yestifier);
+	v4l2_async_yestifier_cleanup(&priv->yestifier);
 	v4l2_async_unregister_subdev(&priv->subdev);
 
 	pm_runtime_disable(&pdev->dev);

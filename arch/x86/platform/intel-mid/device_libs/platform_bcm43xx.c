@@ -35,7 +35,7 @@ static struct regulator_init_data bcm43xx_vmmc_data = {
 static struct fixed_voltage_config bcm43xx_vmmc = {
 	.supply_name		= "bcm43xx-vmmc-regulator",
 	/*
-	 * Announce 2.0V here to be compatible with SDIO specification. The
+	 * Anyesunce 2.0V here to be compatible with SDIO specification. The
 	 * real voltage and signaling are still 1.8V.
 	 */
 	.microvolts		= 2000000,		/* 1.8V */
@@ -88,7 +88,7 @@ static void __init *bcm43xx_platform_data(void *info)
 
 	pr_info("Using generic wifi platform data\n");
 
-	/* For now it's empty */
+	/* For yesw it's empty */
 	return NULL;
 }
 

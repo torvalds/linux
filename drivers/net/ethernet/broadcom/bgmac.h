@@ -214,7 +214,7 @@
 /* BCMA GMAC core specific IO Control (BCMA_IOCTL) flags */
 #define BGMAC_BCMA_IOCTL_SW_CLKEN		0x00000004	/* PHY Clock Enable */
 #define BGMAC_BCMA_IOCTL_SW_RESET		0x00000008	/* PHY Reset */
-/* The IOCTL values appear to be different in NS, NSP, and NS2, and do not match
+/* The IOCTL values appear to be different in NS, NSP, and NS2, and do yest match
  * the values directly above
  */
 #define BGMAC_CLK_EN				BIT(0)
@@ -451,7 +451,7 @@ enum bgmac_dma_ring_type {
 /**
  * bgmac_dma_ring - contains info about DMA ring (either TX or RX one)
  * @start: index of the first slot containing data
- * @end: index of a slot that can *not* be read (yet)
+ * @end: index of a slot that can *yest* be read (yet)
  *
  * Be really aware of the specific @end meaning. It's an index of a slot *after*
  * the one containing data that can be read. If @start equals @end the ring is

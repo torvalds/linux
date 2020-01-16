@@ -29,7 +29,7 @@ Jan  2 03:45:06 lindberg cardmgr[78]:   product info: "WBT", "NinjaSCSI-3", "R1.
 ...
 # cardctl ident
 Socket 0:
-  no product info available
+  yes product info available
 Socket 1:
   product info: "IO DATA", "CBSC16       ", "1"
 
@@ -107,10 +107,10 @@ See README.nin_cs .
 5. Caution
  If you eject card when doing some operation for your SCSI device or suspend
 your computer, you encount some *BAD* error like disk crash.
- It works good when I using this driver right way. But I'm not guarantee
+ It works good when I using this driver right way. But I'm yest guarantee
 your data. Please backup your data when you use this driver.
 
-6. Known Bugs
+6. Kyeswn Bugs
  In 2.4 kernel, you can't use 640MB Optical disk. This error comes from
 high level SCSI driver.
 

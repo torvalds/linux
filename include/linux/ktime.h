@@ -1,7 +1,7 @@
 /*
  *  include/linux/ktime.h
  *
- *  ktime_t - nanosecond-resolution time format.
+ *  ktime_t - nayessecond-resolution time format.
  *
  *   Copyright(C) 2005, Thomas Gleixner <tglx@linutronix.de>
  *   Copyright(C) 2005, Red Hat, Inc., Ingo Molnar
@@ -24,13 +24,13 @@
 #include <linux/time.h>
 #include <linux/jiffies.h>
 
-/* Nanosecond scalar representation for kernel time values */
+/* Nayessecond scalar representation for kernel time values */
 typedef s64	ktime_t;
 
 /**
- * ktime_set - Set a ktime_t variable from a seconds/nanoseconds value
+ * ktime_set - Set a ktime_t variable from a seconds/nayesseconds value
  * @secs:	seconds to set
- * @nsecs:	nanoseconds to set
+ * @nsecs:	nayesseconds to set
  *
  * Return: The ktime_t representation of the value.
  */
@@ -55,13 +55,13 @@ static inline ktime_t ktime_set(const s64 secs, const unsigned long nsecs)
 #define ktime_add_unsafe(lhs, rhs)	((u64) (lhs) + (rhs))
 
 /*
- * Add a ktime_t variable and a scalar nanosecond value.
+ * Add a ktime_t variable and a scalar nayessecond value.
  * res = kt + nsval:
  */
 #define ktime_add_ns(kt, nsval)		((kt) + (nsval))
 
 /*
- * Subtract a scalar nanosecod from a ktime_t variable
+ * Subtract a scalar nayessecod from a ktime_t variable
  * res = kt - nsval:
  */
 #define ktime_sub_ns(kt, nsval)		((kt) - (nsval))
@@ -93,7 +93,7 @@ static inline ktime_t timeval_to_ktime(struct timeval tv)
 /* Map the ktime_t to timeval conversion to ns_to_timeval function */
 #define ktime_to_timeval(kt)		ns_to_timeval((kt))
 
-/* Convert ktime_t to nanoseconds */
+/* Convert ktime_t to nayesseconds */
 static inline s64 ktime_to_ns(const ktime_t kt)
 {
 	return kt;
@@ -119,7 +119,7 @@ static inline int ktime_compare(const ktime_t cmp1, const ktime_t cmp2)
 }
 
 /**
- * ktime_after - Compare if a ktime_t value is bigger than another one.
+ * ktime_after - Compare if a ktime_t value is bigger than ayesther one.
  * @cmp1:	comparable1
  * @cmp2:	comparable2
  *
@@ -131,7 +131,7 @@ static inline bool ktime_after(const ktime_t cmp1, const ktime_t cmp2)
 }
 
 /**
- * ktime_before - Compare if a ktime_t value is smaller than another one.
+ * ktime_before - Compare if a ktime_t value is smaller than ayesther one.
  * @cmp1:	comparable1
  * @cmp2:	comparable2
  *
@@ -165,7 +165,7 @@ static inline s64 ktime_divns(const ktime_t kt, s64 div)
 static inline s64 ktime_divns(const ktime_t kt, s64 div)
 {
 	/*
-	 * 32-bit implementation cannot handle negative divisors,
+	 * 32-bit implementation canyest handle negative divisors,
 	 * so catch them on 64bit as well.
 	 */
 	WARN_ON(div < 0);

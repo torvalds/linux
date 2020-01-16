@@ -17,7 +17,7 @@
 #define KVM_E500_H
 
 #include <linux/kvm_host.h>
-#include <asm/nohash/mmu-book3e.h>
+#include <asm/yeshash/mmu-book3e.h>
 #include <asm/tlb.h>
 #include <asm/cputhreads.h>
 
@@ -266,7 +266,7 @@ static inline int tlbe_is_host_safe(const struct kvm_vcpu *vcpu,
 
 	gpa = get_tlb_raddr(tlbe);
 	if (!gfn_to_memslot(vcpu->kvm, gpa >> PAGE_SHIFT))
-		/* Mapping is not for RAM. */
+		/* Mapping is yest for RAM. */
 		return 0;
 
 	return 1;

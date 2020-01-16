@@ -23,7 +23,7 @@ int compat_udp_setsockopt(struct sock *sk, int level, int optname,
 int compat_udp_getsockopt(struct sock *sk, int level, int optname,
 			  char __user *optval, int __user *optlen);
 #endif
-int udp_recvmsg(struct sock *sk, struct msghdr *msg, size_t len, int noblock,
+int udp_recvmsg(struct sock *sk, struct msghdr *msg, size_t len, int yesblock,
 		int flags, int *addr_len);
 int udp_sendpage(struct sock *sk, struct page *page, int offset, size_t size,
 		 int flags);

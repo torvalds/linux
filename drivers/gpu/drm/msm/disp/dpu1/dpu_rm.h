@@ -33,7 +33,7 @@ struct dpu_rm_hw_blk;
 /**
  * struct dpu_rm_hw_iter - iterator for use with dpu_rm
  * @hw: dpu_hw object requested, or NULL on failure
- * @blk: dpu_rm internal block representation. Clients ignore. Used as iterator.
+ * @blk: dpu_rm internal block representation. Clients igyesre. Used as iterator.
  * @enc_id: DRM ID of Encoder client wishes to search for, or 0 for Any Encoder
  * @type: Hardware Block Type client wishes to search for.
  */
@@ -114,7 +114,7 @@ void dpu_rm_init_hw_iter(
  *	Iterator HW pointer will be null on failure to find hw.
  * @rm: DPU Resource Manager handle
  * @iter: iterator object
- * @Return: true on match found, false on no match found
+ * @Return: true on match found, false on yes match found
  */
 bool dpu_rm_get_hw(struct dpu_rm *rm, struct dpu_rm_hw_iter *iter);
 #endif /* __DPU_RM_H__ */

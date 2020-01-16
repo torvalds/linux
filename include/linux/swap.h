@@ -8,13 +8,13 @@
 #include <linux/list.h>
 #include <linux/memcontrol.h>
 #include <linux/sched.h>
-#include <linux/node.h>
+#include <linux/yesde.h>
 #include <linux/fs.h>
 #include <linux/atomic.h>
 #include <linux/page-flags.h>
 #include <asm/page.h>
 
-struct notifier_block;
+struct yestifier_block;
 
 struct bio;
 
@@ -71,7 +71,7 @@ static inline int current_is_kswapd(void)
 #endif
 
 /*
- * NUMA node memory migration support
+ * NUMA yesde memory migration support
  */
 #ifdef CONFIG_MIGRATION
 #define SWP_MIGRATION_NUM 2
@@ -148,7 +148,7 @@ struct zone;
  * We always assume that blocks are of size PAGE_SIZE.
  */
 struct swap_extent {
-	struct rb_node rb_node;
+	struct rb_yesde rb_yesde;
 	pgoff_t start_page;
 	pgoff_t nr_pages;
 	sector_t start_block;
@@ -165,7 +165,7 @@ enum {
 	SWP_USED	= (1 << 0),	/* is slot in swap_info[] used? */
 	SWP_WRITEOK	= (1 << 1),	/* ok to write to this swap?	*/
 	SWP_DISCARDABLE = (1 << 2),	/* blkdev support discard */
-	SWP_DISCARDING	= (1 << 3),	/* now discarding a free cluster */
+	SWP_DISCARDING	= (1 << 3),	/* yesw discarding a free cluster */
 	SWP_SOLIDSTATE	= (1 << 4),	/* blkdev seeks are cheap */
 	SWP_CONTINUED	= (1 << 5),	/* swap_map has count continuation */
 	SWP_BLKDEV	= (1 << 6),	/* its a block device */
@@ -173,8 +173,8 @@ enum {
 	SWP_FS		= (1 << 8),	/* swap file goes through fs */
 	SWP_AREA_DISCARD = (1 << 9),	/* single-time swap area discards */
 	SWP_PAGE_DISCARD = (1 << 10),	/* freed swap page-cluster discards */
-	SWP_STABLE_WRITES = (1 << 11),	/* no overwrite PG_writeback pages */
-	SWP_SYNCHRONOUS_IO = (1 << 12),	/* synchronous IO is efficient */
+	SWP_STABLE_WRITES = (1 << 11),	/* yes overwrite PG_writeback pages */
+	SWP_SYNCHRONOUS_IO = (1 << 12),	/* synchroyesus IO is efficient */
 	SWP_VALID	= (1 << 13),	/* swap is valid to be operated on? */
 					/* add others here before... */
 	SWP_SCANNING	= (1 << 14),	/* refcount in scan_swap_map */
@@ -211,7 +211,7 @@ struct swap_cluster_info {
 	unsigned int flags:8;
 };
 #define CLUSTER_FLAG_FREE 1 /* This cluster is free */
-#define CLUSTER_FLAG_NEXT_NULL 2 /* This cluster has no next cluster */
+#define CLUSTER_FLAG_NEXT_NULL 2 /* This cluster has yes next cluster */
 #define CLUSTER_FLAG_HUGE 4 /* This cluster is backing a transparent huge page */
 
 /*
@@ -235,7 +235,7 @@ struct swap_cluster_list {
 struct swap_info_struct {
 	unsigned long	flags;		/* SWP_USED etc: see above */
 	signed short	prio;		/* swap priority of this type */
-	struct plist_node list;		/* entry in swap_active_head */
+	struct plist_yesde list;		/* entry in swap_active_head */
 	signed char	type;		/* strange name for an index */
 	unsigned int	max;		/* extent of the swap_map */
 	unsigned char *swap_map;	/* vmalloc'ed array of usage counts */
@@ -275,11 +275,11 @@ struct swap_info_struct {
 					 */
 	struct work_struct discard_work; /* discard worker */
 	struct swap_cluster_list discard_clusters; /* discard clusters list */
-	struct plist_node avail_lists[0]; /*
+	struct plist_yesde avail_lists[0]; /*
 					   * entries in swap_avail_heads, one
-					   * entry per node.
+					   * entry per yesde.
 					   * Must be last as the number of the
-					   * array is nr_node_ids, which is not
+					   * array is nr_yesde_ids, which is yest
 					   * a fixed value so have to allocate
 					   * dynamically.
 					   * And it has to be an array so that
@@ -311,11 +311,11 @@ void *workingset_eviction(struct page *page, struct mem_cgroup *target_memcg);
 void workingset_refault(struct page *page, void *shadow);
 void workingset_activation(struct page *page);
 
-/* Only track the nodes of mappings with shadow entries */
-void workingset_update_node(struct xa_node *node);
+/* Only track the yesdes of mappings with shadow entries */
+void workingset_update_yesde(struct xa_yesde *yesde);
 #define mapping_set_update(xas, mapping) do {				\
 	if (!dax_mapping(mapping) && !shmem_mapping(mapping))		\
-		xas_set_update(xas, workingset_update_node);		\
+		xas_set_update(xas, workingset_update_yesde);		\
 } while (0)
 
 /* linux/mm/page_alloc.c */
@@ -323,13 +323,13 @@ extern unsigned long totalreserve_pages;
 extern unsigned long nr_free_buffer_pages(void);
 extern unsigned long nr_free_pagecache_pages(void);
 
-/* Definition of global_zone_page_state not available yet */
+/* Definition of global_zone_page_state yest available yet */
 #define nr_free_pages() global_zone_page_state(NR_FREE_PAGES)
 
 
 /* linux/mm/swap.c */
 extern void lru_cache_add(struct page *);
-extern void lru_cache_add_anon(struct page *page);
+extern void lru_cache_add_ayesn(struct page *page);
 extern void lru_cache_add_file(struct page *page);
 extern void lru_add_page_tail(struct page *page, struct page *page_tail,
 			 struct lruvec *lruvec, struct list_head *head);
@@ -350,14 +350,14 @@ extern void lru_cache_add_active_or_unevictable(struct page *page,
 /* linux/mm/vmscan.c */
 extern unsigned long zone_reclaimable_pages(struct zone *zone);
 extern unsigned long try_to_free_pages(struct zonelist *zonelist, int order,
-					gfp_t gfp_mask, nodemask_t *mask);
+					gfp_t gfp_mask, yesdemask_t *mask);
 extern int __isolate_lru_page(struct page *page, isolate_mode_t mode);
 extern unsigned long try_to_free_mem_cgroup_pages(struct mem_cgroup *memcg,
 						  unsigned long nr_pages,
 						  gfp_t gfp_mask,
 						  bool may_swap);
-extern unsigned long mem_cgroup_shrink_node(struct mem_cgroup *mem,
-						gfp_t gfp_mask, bool noswap,
+extern unsigned long mem_cgroup_shrink_yesde(struct mem_cgroup *mem,
+						gfp_t gfp_mask, bool yesswap,
 						pg_data_t *pgdat,
 						unsigned long *nr_scanned);
 extern unsigned long shrink_all_memory(unsigned long nr_pages);
@@ -367,11 +367,11 @@ extern unsigned long vm_total_pages;
 
 extern unsigned long reclaim_pages(struct list_head *page_list);
 #ifdef CONFIG_NUMA
-extern int node_reclaim_mode;
+extern int yesde_reclaim_mode;
 extern int sysctl_min_unmapped_ratio;
 extern int sysctl_min_slab_ratio;
 #else
-#define node_reclaim_mode 0
+#define yesde_reclaim_mode 0
 #endif
 
 extern int page_evictable(struct page *page);
@@ -499,7 +499,7 @@ static inline struct swap_info_struct *swp_swap_info(swp_entry_t entry)
 
 #define si_swapinfo(val) \
 	do { (val)->freeswap = (val)->totalswap = 0; } while (0)
-/* only sparc can not include linux/pagemap.h in this file
+/* only sparc can yest include linux/pagemap.h in this file
  * so leave put_page and release_pages undeclared... */
 #define free_page_and_swap_cache(page) \
 	put_page(page)
@@ -646,11 +646,11 @@ static inline int mem_cgroup_swappiness(struct mem_cgroup *mem)
 #endif
 
 #if defined(CONFIG_SWAP) && defined(CONFIG_MEMCG) && defined(CONFIG_BLK_CGROUP)
-extern void mem_cgroup_throttle_swaprate(struct mem_cgroup *memcg, int node,
+extern void mem_cgroup_throttle_swaprate(struct mem_cgroup *memcg, int yesde,
 					 gfp_t gfp_mask);
 #else
 static inline void mem_cgroup_throttle_swaprate(struct mem_cgroup *memcg,
-						int node, gfp_t gfp_mask)
+						int yesde, gfp_t gfp_mask)
 {
 }
 #endif

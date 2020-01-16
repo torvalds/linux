@@ -56,7 +56,7 @@ EXPORT_SYMBOL_GPL(maxim_charger_currents);
  *  - may be lower than min_ua.
  *
  * On success returns 0. On error returns -EINVAL (requested min/max current
- * is outside of given charger limits) and 'dst' is not set.
+ * is outside of given charger limits) and 'dst' is yest set.
  */
 int maxim_charger_calc_reg_current(const struct maxim_charger_current *limits,
 		unsigned int min_ua, unsigned int max_ua, u8 *dst)
@@ -82,7 +82,7 @@ int maxim_charger_calc_reg_current(const struct maxim_charger_current *limits,
 	max_ua = min(limits->max, max_ua);
 	max_ua -= limits->high_start;
 	/*
-	 * There is no risk of overflow 'max_ua' here because:
+	 * There is yes risk of overflow 'max_ua' here because:
 	 *  - max_ua >= limits.high_start
 	 *  - BUILD_BUG checks that 'limits' are: max >= high_start + high_step
 	 */
@@ -289,7 +289,7 @@ static void max14577_print_dev_type(struct max14577 *max14577)
  * Unmasks Interrupt Source register.
  *
  * On success returns 0.
- * On failure returns errno and reverts any changes done so far (e.g. remove
+ * On failure returns erryes and reverts any changes done so far (e.g. remove
  * I2C dummy device), except masking the INT SRC register.
  */
 static int max77836_init(struct max14577 *max14577)
@@ -363,7 +363,7 @@ static int max14577_i2c_probe(struct i2c_client *i2c,
 {
 	struct max14577 *max14577;
 	struct max14577_platform_data *pdata = dev_get_platdata(&i2c->dev);
-	struct device_node *np = i2c->dev.of_node;
+	struct device_yesde *np = i2c->dev.of_yesde;
 	int ret = 0;
 	const struct regmap_irq_chip *irq_chip;
 	const struct mfd_cell *mfd_devs;

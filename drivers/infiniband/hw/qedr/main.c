@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and /or other materials
  *        provided with the distribution.
  *
@@ -167,7 +167,7 @@ static const struct ib_device_ops qedr_iw_dev_ops = {
 
 static int qedr_iw_register_device(struct qedr_dev *dev)
 {
-	dev->ibdev.node_type = RDMA_NODE_RNIC;
+	dev->ibdev.yesde_type = RDMA_NODE_RNIC;
 
 	ib_set_device_ops(&dev->ibdev, &qedr_iw_dev_ops);
 
@@ -183,7 +183,7 @@ static const struct ib_device_ops qedr_roce_dev_ops = {
 
 static void qedr_roce_register_device(struct qedr_dev *dev)
 {
-	dev->ibdev.node_type = RDMA_NODE_IB_CA;
+	dev->ibdev.yesde_type = RDMA_NODE_IB_CA;
 
 	ib_set_device_ops(&dev->ibdev, &qedr_roce_dev_ops);
 }
@@ -226,7 +226,7 @@ static const struct ib_device_ops qedr_dev_ops = {
 	.query_qp = qedr_query_qp,
 	.query_srq = qedr_query_srq,
 	.reg_user_mr = qedr_reg_user_mr,
-	.req_notify_cq = qedr_arm_cq,
+	.req_yestify_cq = qedr_arm_cq,
 	.resize_cq = qedr_resize_cq,
 
 	INIT_RDMA_OBJ_SIZE(ib_ah, qedr_ah, ibah),
@@ -240,8 +240,8 @@ static int qedr_register_device(struct qedr_dev *dev)
 {
 	int rc;
 
-	dev->ibdev.node_guid = dev->attr.node_guid;
-	memcpy(dev->ibdev.node_desc, QEDR_NODE_DESC, sizeof(QEDR_NODE_DESC));
+	dev->ibdev.yesde_guid = dev->attr.yesde_guid;
+	memcpy(dev->ibdev.yesde_desc, QEDR_NODE_DESC, sizeof(QEDR_NODE_DESC));
 
 	dev->ibdev.uverbs_cmd_mask = QEDR_UVERBS(GET_CONTEXT) |
 				     QEDR_UVERBS(QUERY_DEVICE) |
@@ -490,13 +490,13 @@ static irqreturn_t qedr_irq_handler(int irq, void *handle)
 			(*cq->ibcq.comp_handler)
 				(&cq->ibcq, cq->ibcq.cq_context);
 
-		/* The CQ's CNQ notification counter is checked before
+		/* The CQ's CNQ yestification counter is checked before
 		 * destroying the CQ in a busy-wait loop that waits for all of
 		 * the CQ's CNQ interrupts to be processed. It is increased
 		 * here, only after the completion handler, to ensure that the
-		 * the handler is not running when the CQ is destroyed.
+		 * the handler is yest running when the CQ is destroyed.
 		 */
-		cq->cnq_notif++;
+		cq->cnq_yestif++;
 
 		sw_comp_cons = qed_chain_get_cons_idx(&cnq->pbl);
 
@@ -615,7 +615,7 @@ static int qedr_set_device_attr(struct qedr_dev *dev)
 	attr->vendor_part_id = qed_attr->vendor_part_id;
 	attr->hw_ver = qed_attr->hw_ver;
 	attr->fw_ver = qed_attr->fw_ver;
-	attr->node_guid = qed_attr->node_guid;
+	attr->yesde_guid = qed_attr->yesde_guid;
 	attr->sys_image_guid = qed_attr->sys_image_guid;
 	attr->max_cnq = qed_attr->max_cnq;
 	attr->max_sge = qed_attr->max_sge;
@@ -652,7 +652,7 @@ static int qedr_set_device_attr(struct qedr_dev *dev)
 
 static void qedr_unaffiliated_event(void *context, u8 event_code)
 {
-	pr_err("unaffiliated event not implemented yet\n");
+	pr_err("unaffiliated event yest implemented yet\n");
 }
 
 static void qedr_affiliated_event(void *context, u8 e_code, void *fw_handle)
@@ -1008,10 +1008,10 @@ static void qedr_mac_address_change(struct qedr_dev *dev)
 }
 
 /* event handling via NIC driver ensures that all the NIC specific
- * initialization done before RoCE driver notifies
+ * initialization done before RoCE driver yestifies
  * event to stack.
  */
-static void qedr_notify(struct qedr_dev *dev, enum qede_rdma_event event)
+static void qedr_yestify(struct qedr_dev *dev, enum qede_rdma_event event)
 {
 	switch (event) {
 	case QEDE_UP:
@@ -1027,7 +1027,7 @@ static void qedr_notify(struct qedr_dev *dev, enum qede_rdma_event event)
 		qedr_mac_address_change(dev);
 		break;
 	default:
-		pr_err("Event not supported\n");
+		pr_err("Event yest supported\n");
 	}
 }
 
@@ -1035,7 +1035,7 @@ static struct qedr_driver qedr_drv = {
 	.name = "qedr_driver",
 	.add = qedr_add,
 	.remove = qedr_remove,
-	.notify = qedr_notify,
+	.yestify = qedr_yestify,
 };
 
 static int __init qedr_init_module(void)

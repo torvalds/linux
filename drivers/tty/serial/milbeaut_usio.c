@@ -271,7 +271,7 @@ static int mlb_usio_startup(struct uart_port *port)
 	}
 
 	escr = readb(port->membase + MLB_USIO_REG_ESCR);
-	if (of_property_read_bool(port->dev->of_node, "auto-flow-control"))
+	if (of_property_read_bool(port->dev->of_yesde, "auto-flow-control"))
 		escr |= MLB_USIO_ESCR_FLWEN;
 	spin_lock_irqsave(&port->lock, flags);
 	writeb(0, port->membase + MLB_USIO_REG_SCR);
@@ -332,7 +332,7 @@ static void mlb_usio_set_termios(struct uart_port *port,
 			escr |= MLB_USIO_ESCR_P;
 	}
 	/* Set hard flow control */
-	if (of_property_read_bool(port->dev->of_node, "auto-flow-control") ||
+	if (of_property_read_bool(port->dev->of_yesde, "auto-flow-control") ||
 			(termios->c_cflag & CRTSCTS))
 		escr |= MLB_USIO_ESCR_FLWEN;
 
@@ -349,13 +349,13 @@ static void mlb_usio_set_termios(struct uart_port *port,
 	if (termios->c_iflag & INPCK)
 		port->read_status_mask |= MLB_USIO_SSR_FRE | MLB_USIO_SSR_PE;
 
-	port->ignore_status_mask = 0;
+	port->igyesre_status_mask = 0;
 	if (termios->c_iflag & IGNPAR)
-		port->ignore_status_mask |= MLB_USIO_SSR_FRE | MLB_USIO_SSR_PE;
+		port->igyesre_status_mask |= MLB_USIO_SSR_FRE | MLB_USIO_SSR_PE;
 	if ((termios->c_iflag & IGNBRK) && (termios->c_iflag & IGNPAR))
-		port->ignore_status_mask |= MLB_USIO_SSR_ORE;
+		port->igyesre_status_mask |= MLB_USIO_SSR_ORE;
 	if ((termios->c_cflag & CREAD) == 0)
-		port->ignore_status_mask |= MLB_USIO_SSR_RDRF;
+		port->igyesre_status_mask |= MLB_USIO_SSR_RDRF;
 
 	writeb(0, port->membase + MLB_USIO_REG_SCR);
 	writeb(MLB_USIO_SCR_UPCL, port->membase + MLB_USIO_REG_SCR);
@@ -439,7 +439,7 @@ static int __init mlb_usio_console_setup(struct console *co, char *options)
 	if (options)
 		uart_parse_options(options, &baud, &parity, &bits, &flow);
 
-	if (of_property_read_bool(port->dev->of_node, "auto-flow-control"))
+	if (of_property_read_bool(port->dev->of_yesde, "auto-flow-control"))
 		flow = 'r';
 
 	return uart_set_options(port, co, baud, parity, bits, flow);
@@ -515,7 +515,7 @@ static int mlb_usio_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "Clock enable failed: %d\n", ret);
 		return ret;
 	}
-	of_property_read_u32(pdev->dev.of_node, "index", &index);
+	of_property_read_u32(pdev->dev.of_yesde, "index", &index);
 	port = &mlb_usio_ports[index];
 
 	port->private_data = (void *)clk;

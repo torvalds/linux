@@ -13,7 +13,7 @@
 /*
  * ANDs reg2 with mask and places the result in reg1.
  *
- * You cannnot use the same register for reg1 & reg2.
+ * You cannyest use the same register for reg1 & reg2.
  */
 
 .macro ANDI32	reg1, reg2, mask
@@ -101,7 +101,7 @@
 
 /*
  * Tests the bit in reg2 and branches to label if the
- * bit is non-zero.  The result of the bit test is stored in reg1.
+ * bit is yesn-zero.  The result of the bit test is stored in reg1.
  *
  * It is safe to use the same register for reg1 & reg2.
  */
@@ -190,7 +190,7 @@
 /*
  * Tests the bit in reg2 and then compliments the bit in reg2.
  * The result of the bit test is stored in reg1.  If the
- * original bit was non-zero it branches to label.
+ * original bit was yesn-zero it branches to label.
  *
  * It is NOT safe to use the same register for reg1 & reg2.
  */
@@ -216,7 +216,7 @@
 /*
  * Tests the bit in reg2 and then sets the bit in reg2.
  * The result of the bit test is stored in reg1.  If the
- * original bit was non-zero it branches to label.
+ * original bit was yesn-zero it branches to label.
  *
  * It is NOT safe to use the same register for reg1 & reg2.
  */
@@ -242,7 +242,7 @@
 /*
  * Tests the bit in reg2 and then resets the bit in reg2.
  * The result of the bit test is stored in reg1.  If the
- * original bit was non-zero it branches to label.
+ * original bit was yesn-zero it branches to label.
  *
  * It is NOT safe to use the same register for reg1 & reg2.
  */

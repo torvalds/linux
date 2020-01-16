@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -74,7 +74,7 @@ EXPORT_SYMBOL_GPL(rds_wq);
 void rds_connect_path_complete(struct rds_conn_path *cp, int curr)
 {
 	if (!rds_conn_path_transition(cp, curr, RDS_CONN_UP)) {
-		printk(KERN_WARNING "%s: Cannot transition to state UP, "
+		printk(KERN_WARNING "%s: Canyest transition to state UP, "
 				"current state is %d\n",
 				__func__,
 				atomic_read(&cp->cp_state));
@@ -116,7 +116,7 @@ EXPORT_SYMBOL_GPL(rds_connect_complete);
  * Connection attempts that arrive while a connection is already established
  * are also considered to be racing connects.  This lets a connection from
  * a rebooted machine replace an existing stale connection before the transport
- * notices that the connection has failed.
+ * yestices that the connection has failed.
  *
  * We should *always* start with a random backoff; otherwise a broken connection
  * will always take several iterations to be re-established.

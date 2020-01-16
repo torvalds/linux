@@ -91,7 +91,7 @@ static int cyttsp4_handshake(struct cyttsp4 *cd, u8 mode)
 	int rc;
 
 	/*
-	 * Mode change issued, handshaking now will cause endless mode change
+	 * Mode change issued, handshaking yesw will cause endless mode change
 	 * requests, for sync mode modechange will do same with handshake
 	 * */
 	if (mode & CY_HST_MODE_CHANGE)
@@ -903,9 +903,9 @@ static void cyttsp4_get_mt_touches(struct cyttsp4_mt_data *md, int num_cur_tch)
 		if (si->si_ofs.tch_rec_size > CY_TMA1036_TCH_REC_SIZE) {
 			/*
 			 * TMA400 size and orientation fields:
-			 * if pressure is non-zero and major touch
-			 * signal is zero, then set major and minor touch
-			 * signals to minimum non-zero value
+			 * if pressure is yesn-zero and major touch
+			 * signal is zero, then set major and miyesr touch
+			 * signals to minimum yesn-zero value
 			 */
 			if (tch.abs[CY_TCH_P] > 0 && tch.abs[CY_TCH_MAJ] == 0)
 				tch.abs[CY_TCH_MAJ] = tch.abs[CY_TCH_MIN] = 1;
@@ -1051,7 +1051,7 @@ static int cyttsp4_mt_attention(struct cyttsp4 *cd)
 		/* core handles handshake */
 		rc = cyttsp4_xy_worker(cd);
 	} else {
-		dev_vdbg(dev, "%s: Ignoring report while suspended\n",
+		dev_vdbg(dev, "%s: Igyesring report while suspended\n",
 			__func__);
 	}
 	mutex_unlock(&md->report_lock);
@@ -1071,12 +1071,12 @@ static irqreturn_t cyttsp4_irq(int irq, void *handle)
 	int rc;
 
 	/*
-	 * Check whether this IRQ should be ignored (external)
+	 * Check whether this IRQ should be igyesred (external)
 	 * This should be the very first thing to check since
-	 * ignore_irq may be set for a very short period of time
+	 * igyesre_irq may be set for a very short period of time
 	 */
-	if (atomic_read(&cd->ignore_irq)) {
-		dev_vdbg(dev, "%s: Ignoring IRQ\n", __func__);
+	if (atomic_read(&cd->igyesre_irq)) {
+		dev_vdbg(dev, "%s: Igyesring IRQ\n", __func__);
 		return IRQ_HANDLED;
 	}
 
@@ -1111,14 +1111,14 @@ static irqreturn_t cyttsp4_irq(int irq, void *handle)
 
 		/* catch operation->bl glitch */
 		if (cd->mode != CY_MODE_UNKNOWN) {
-			/* Incase startup_state do not let startup_() */
+			/* Incase startup_state do yest let startup_() */
 			cd->mode = CY_MODE_UNKNOWN;
 			cyttsp4_queue_startup_(cd);
 			goto cyttsp4_irq_exit;
 		}
 
 		/*
-		 * do not wake thread on this switch since
+		 * do yest wake thread on this switch since
 		 * it is possible to get an early heartbeat
 		 * prior to performing the reset
 		 */
@@ -1142,14 +1142,14 @@ static irqreturn_t cyttsp4_irq(int irq, void *handle)
 		break;
 	default:
 		cur_mode = CY_MODE_UNKNOWN;
-		dev_err(dev, "%s: unknown HST mode 0x%02X\n", __func__,
+		dev_err(dev, "%s: unkyeswn HST mode 0x%02X\n", __func__,
 			mode[0]);
 		break;
 	}
 
-	/* Check whether this IRQ should be ignored (internal) */
+	/* Check whether this IRQ should be igyesred (internal) */
 	if (cd->int_status & CY_INT_IGNORE) {
-		dev_vdbg(dev, "%s: Ignoring IRQ\n", __func__);
+		dev_vdbg(dev, "%s: Igyesring IRQ\n", __func__);
 		goto cyttsp4_irq_exit;
 	}
 
@@ -1221,7 +1221,7 @@ cyttsp4_irq_handshake:
 				__func__, mode[0], rc);
 
 	/*
-	 * a non-zero udelay period is required for using
+	 * a yesn-zero udelay period is required for using
 	 * IRQF_TRIGGER_LOW in order to delay until the
 	 * device completes isr deassert
 	 */
@@ -1306,7 +1306,7 @@ exit:
 }
 
 /*
- * returns error if was not owned
+ * returns error if was yest owned
  */
 static int cyttsp4_release_exclusive(struct cyttsp4 *cd, void *ownptr)
 {
@@ -1533,7 +1533,7 @@ static int cyttsp4_core_sleep_(struct cyttsp4 *cd)
 
 	if (cd->cpdata->power) {
 		dev_dbg(cd->dev, "%s: Power down HW\n", __func__);
-		rc = cd->cpdata->power(cd->cpdata, 0, cd->dev, &cd->ignore_irq);
+		rc = cd->cpdata->power(cd->cpdata, 0, cd->dev, &cd->igyesre_irq);
 	} else {
 		dev_dbg(cd->dev, "%s: No power function\n", __func__);
 		rc = 0;
@@ -1616,7 +1616,7 @@ reset:
 			mutex_lock(&cd->system_lock);
 			cd->invalid_touch_app = true;
 			mutex_unlock(&cd->system_lock);
-			goto exit_no_wd;
+			goto exit_yes_wd;
 		}
 
 		if (retry--)
@@ -1656,13 +1656,13 @@ reset:
 		cd->sleep_state = SS_SLEEP_OFF;
 		mutex_unlock(&cd->system_lock);
 		cyttsp4_core_sleep_(cd);
-		goto exit_no_wd;
+		goto exit_yes_wd;
 	}
 	mutex_unlock(&cd->system_lock);
 
 exit:
 	cyttsp4_start_wd_timer(cd);
-exit_no_wd:
+exit_yes_wd:
 	return rc;
 }
 
@@ -1773,7 +1773,7 @@ static int cyttsp4_core_wake_(struct cyttsp4 *cd)
 
 	if (cd->cpdata->power) {
 		dev_dbg(dev, "%s: Power up HW\n", __func__);
-		rc = cd->cpdata->power(cd->cpdata, 1, dev, &cd->ignore_irq);
+		rc = cd->cpdata->power(cd->cpdata, 1, dev, &cd->igyesre_irq);
 	} else {
 		dev_dbg(dev, "%s: No power function\n", __func__);
 		rc = -ENOSYS;
@@ -2015,7 +2015,7 @@ struct cyttsp4 *cyttsp4_probe(const struct cyttsp4_bus_ops *ops,
 	if (!pdata || !pdata->core_pdata || !pdata->mt_pdata) {
 		dev_err(dev, "%s: Missing platform data\n", __func__);
 		rc = -ENODEV;
-		goto error_no_pdata;
+		goto error_yes_pdata;
 	}
 
 	cd = kzalloc(sizeof(*cd), GFP_KERNEL);
@@ -2080,7 +2080,7 @@ struct cyttsp4 *cyttsp4_probe(const struct cyttsp4_bus_ops *ops,
 	rc = request_threaded_irq(cd->irq, NULL, cyttsp4_irq, irq_flags,
 		dev_name(dev), cd);
 	if (rc < 0) {
-		dev_err(dev, "%s: Error, could not request irq\n", __func__);
+		dev_err(dev, "%s: Error, could yest request irq\n", __func__);
 		goto error_request_irq;
 	}
 
@@ -2093,7 +2093,7 @@ struct cyttsp4 *cyttsp4_probe(const struct cyttsp4_bus_ops *ops,
 	 */
 	rc = cyttsp4_startup(cd);
 
-	/* Do not fail probe if startup fails but the device is detected */
+	/* Do yest fail probe if startup fails but the device is detected */
 	if (rc < 0 && cd->mode == CY_MODE_UNKNOWN) {
 		dev_err(cd->dev, "%s: Fail initial startup r=%d\n",
 			__func__, rc);
@@ -2124,7 +2124,7 @@ error_free_xfer:
 error_free_cd:
 	kfree(cd);
 error_alloc_data:
-error_no_pdata:
+error_yes_pdata:
 	dev_err(dev, "%s failed.\n", __func__);
 	return ERR_PTR(rc);
 }

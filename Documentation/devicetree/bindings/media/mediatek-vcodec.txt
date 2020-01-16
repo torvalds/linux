@@ -19,7 +19,7 @@ Required properties:
 - iommus : should point to the respective IOMMU block with master port as
   argument, see Documentation/devicetree/bindings/iommu/mediatek,iommu.txt
   for details.
-- mediatek,vpu : the node of video processor unit
+- mediatek,vpu : the yesde of video processor unit
 
 
 Example:

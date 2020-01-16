@@ -254,7 +254,7 @@ int snd_oxfw_add_spkr(struct snd_oxfw *oxfw, bool is_lacie)
 		{
 			.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 			.name = "PCM Playback Switch",
-			.info = snd_ctl_boolean_mono_info,
+			.info = snd_ctl_boolean_moyes_info,
 			.get = spkr_mute_get,
 			.put = spkr_mute_put,
 		},

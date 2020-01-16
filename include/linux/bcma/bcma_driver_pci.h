@@ -109,7 +109,7 @@ struct pci_dev;
 #define  BCMA_CORE_PCI_SBTOPCI_RC_READL		0x00000010 /* Memory read line */
 #define  BCMA_CORE_PCI_SBTOPCI_RC_READM		0x00000020 /* Memory read multiple */
 
-/* PCIE protocol PHY diagnostic registers */
+/* PCIE protocol PHY diagyesstic registers */
 #define BCMA_CORE_PCI_PLP_MODEREG		0x200	/* Mode */
 #define BCMA_CORE_PCI_PLP_STATUSREG		0x204	/* Status */
 #define  BCMA_CORE_PCI_PLP_POLARITYINV_STAT	0x10	/* Status reg PCIE_PLP_STATUSREG */
@@ -128,7 +128,7 @@ struct pci_dev;
 #define BCMA_CORE_PCI_PLP_RXTXSMDIAGREG		0x238	/* RXTX State Machine Diag */
 #define BCMA_CORE_PCI_PLP_LTSSMDIAGREG		0x23C	/* LTSSM State Machine Diag */
 
-/* PCIE protocol DLLP diagnostic registers */
+/* PCIE protocol DLLP diagyesstic registers */
 #define BCMA_CORE_PCI_DLLP_LCREG		0x100	/* Link Control */
 #define BCMA_CORE_PCI_DLLP_LSREG		0x104	/* Link Status */
 #define BCMA_CORE_PCI_DLLP_LAREG		0x108	/* Link Attention */

@@ -209,9 +209,9 @@ struct ti_bandgap {
  * @registers: pointer to the list of register offsets and bitfields
  * @domain: the name of the domain where the sensor is located
  * @slope_pcb: sensor gradient slope info for hotspot extrapolation equation
- *             with no external influence
+ *             with yes external influence
  * @constant_pcb: sensor gradient const info for hotspot extrapolation equation
- *             with no external influence
+ *             with yes external influence
  * @register_cooling: function to describe how this sensor is going to be cooled
  * @unregister_cooling: function to release cooling data
  *
@@ -257,7 +257,7 @@ struct ti_temp_sensor {
  *      itself to be switched on/off.
  *
  * TI_BANDGAP_FEATURE_CLK_CTRL - used when the clocks feeding the bandgap
- *      device are gateable or not.
+ *      device are gateable or yest.
  *
  * TI_BANDGAP_FEATURE_FREEZE_BIT - used when the bandgap device features
  *      a history buffer that its update can be freezed/unfreezed.
@@ -273,7 +273,7 @@ struct ti_temp_sensor {
  * TI_BANDGAP_FEATURE_UNRELIABLE - used when the sensor readings are too
  *	inaccurate.
  * TI_BANDGAP_HAS(b, f) - macro to check if a bandgap device is capable of a
- *      specific feature (above) or not. Return non-zero, if yes.
+ *      specific feature (above) or yest. Return yesn-zero, if no.
  */
 #define TI_BANDGAP_FEATURE_TSHUT		BIT(0)
 #define TI_BANDGAP_FEATURE_TSHUT_CONFIG		BIT(1)

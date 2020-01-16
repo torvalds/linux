@@ -16,7 +16,7 @@
  */
 
 #include <linux/string.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/pci.h>
 #include <linux/interrupt.h>
 
@@ -68,12 +68,12 @@ snic_isr_msix_io_cmpl(int irq, void *data)
 } /* end of snic_isr_msix_io_cmpl */
 
 static irqreturn_t
-snic_isr_msix_err_notify(int irq, void *data)
+snic_isr_msix_err_yestify(int irq, void *data)
 {
 	struct snic *snic = data;
 
 	snic->s_stats.misc.last_isr_time = jiffies;
-	atomic64_inc(&snic->s_stats.misc.errnotify_isr_cnt);
+	atomic64_inc(&snic->s_stats.misc.erryestify_isr_cnt);
 
 	svnic_intr_return_all_credits(&snic->intr[SNIC_MSIX_ERR_NOTIFY]);
 	snic_log_q_error(snic);
@@ -82,7 +82,7 @@ snic_isr_msix_err_notify(int irq, void *data)
 	snic_handle_link_event(snic);
 
 	return IRQ_HANDLED;
-} /* end of snic_isr_msix_err_notify */
+} /* end of snic_isr_msix_err_yestify */
 
 
 void
@@ -113,7 +113,7 @@ snic_request_intr(struct snic *snic)
 	 * When hardware supports multiple WQs and CQs, one idea is
 	 * to pass devid as corresponding WQ or CQ ptr and retrieve snic
 	 * from queue ptr.
-	 * Except for err_notify, which is always one.
+	 * Except for err_yestify, which is always one.
 	 */
 	sprintf(snic->msix[SNIC_MSIX_WQ].devname,
 		"%.11s-scsi-wq",
@@ -128,9 +128,9 @@ snic_request_intr(struct snic *snic)
 	snic->msix[SNIC_MSIX_IO_CMPL].devid = snic;
 
 	sprintf(snic->msix[SNIC_MSIX_ERR_NOTIFY].devname,
-		"%.11s-err-notify",
+		"%.11s-err-yestify",
 		snic->name);
-	snic->msix[SNIC_MSIX_ERR_NOTIFY].isr = snic_isr_msix_err_notify;
+	snic->msix[SNIC_MSIX_ERR_NOTIFY].isr = snic_isr_msix_err_yestify;
 	snic->msix[SNIC_MSIX_ERR_NOTIFY].devid = snic;
 
 	for (i = 0; i < ARRAY_SIZE(snic->msix); i++) {
@@ -162,7 +162,7 @@ snic_set_intr_mode(struct snic *snic)
 
 	/*
 	 * We need n WQs, m CQs, and n+m+1 INTRs
-	 * (last INTR is used for WQ/CQ errors and notification area
+	 * (last INTR is used for WQ/CQ errors and yestification area
 	 */
 	BUILD_BUG_ON((ARRAY_SIZE(snic->wq) + SNIC_CQ_IO_CMPL_MAX) >
 			ARRAY_SIZE(snic->intr));

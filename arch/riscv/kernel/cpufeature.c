@@ -19,7 +19,7 @@ bool has_fpu __read_mostly;
 
 void riscv_fill_hwcap(void)
 {
-	struct device_node *node;
+	struct device_yesde *yesde;
 	const char *isa;
 	size_t i;
 	static unsigned long isa2hwcap[256] = {0};
@@ -33,13 +33,13 @@ void riscv_fill_hwcap(void)
 
 	elf_hwcap = 0;
 
-	for_each_of_cpu_node(node) {
+	for_each_of_cpu_yesde(yesde) {
 		unsigned long this_hwcap = 0;
 
-		if (riscv_of_processor_hartid(node) < 0)
+		if (riscv_of_processor_hartid(yesde) < 0)
 			continue;
 
-		if (of_property_read_string(node, "riscv,isa", &isa)) {
+		if (of_property_read_string(yesde, "riscv,isa", &isa)) {
 			pr_warn("Unable to find \"riscv,isa\" devicetree entry\n");
 			continue;
 		}
@@ -61,7 +61,7 @@ void riscv_fill_hwcap(void)
 	/* We don't support systems with F but without D, so mask those out
 	 * here. */
 	if ((elf_hwcap & COMPAT_HWCAP_ISA_F) && !(elf_hwcap & COMPAT_HWCAP_ISA_D)) {
-		pr_info("This kernel does not support systems with F but not D\n");
+		pr_info("This kernel does yest support systems with F but yest D\n");
 		elf_hwcap &= ~COMPAT_HWCAP_ISA_F;
 	}
 

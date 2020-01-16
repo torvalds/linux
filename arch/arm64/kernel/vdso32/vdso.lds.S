@@ -28,7 +28,7 @@ SECTIONS
 	.gnu.version_d	: { *(.gnu.version_d) }
 	.gnu.version_r	: { *(.gnu.version_r) }
 
-	.note		: { *(.note.*) }		:text	:note
+	.yeste		: { *(.yeste.*) }		:text	:yeste
 
 	.dynamic	: { *(.dynamic) }		:text	:dynamic
 
@@ -40,7 +40,7 @@ SECTIONS
 	.rel.plt	: { *(.rel.plt) }
 
 	/DISCARD/	: {
-		*(.note.GNU-stack)
+		*(.yeste.GNU-stack)
 		*(.data .data.* .gnu.linkonce.d.* .sdata*)
 		*(.bss .sbss .dynbss .dynsbss)
 	}
@@ -54,7 +54,7 @@ PHDRS
 {
 	text		PT_LOAD		FLAGS(5) FILEHDR PHDRS; /* PF_R|PF_X */
 	dynamic		PT_DYNAMIC	FLAGS(4);		/* PF_R */
-	note		PT_NOTE		FLAGS(4);		/* PF_R */
+	yeste		PT_NOTE		FLAGS(4);		/* PF_R */
 }
 
 VERSION

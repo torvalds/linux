@@ -25,7 +25,7 @@
      *
      *  Used by a driver to check whether a Zorro device present in the
      *  system is in its list of supported devices. Returns the matching
-     *  zorro_device_id structure or %NULL if there is no match.
+     *  zorro_device_id structure or %NULL if there is yes match.
      */
 
 const struct zorro_device_id *
@@ -122,7 +122,7 @@ EXPORT_SYMBOL(zorro_unregister_driver);
      *
      *  Used by a driver to check whether a Zorro device present in the
      *  system is in its list of supported devices.Returns the matching
-     *  zorro_device_id structure or %NULL if there is no match.
+     *  zorro_device_id structure or %NULL if there is yes match.
      */
 
 static int zorro_bus_match(struct device *dev, struct device_driver *drv)

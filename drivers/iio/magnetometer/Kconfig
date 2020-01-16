@@ -14,7 +14,7 @@ config AK8974
 	select IIO_BUFFER
 	select IIO_TRIGGERED_BUFFER
 	help
-	  Say yes here to build support for Asahi Kasei AK8974, AMI305 or
+	  Say no here to build support for Asahi Kasei AK8974, AMI305 or
 	  AMI306 I2C-based 3-axis magnetometer chips.
 
 	  To compile this driver as a module, choose M here: the module
@@ -27,7 +27,7 @@ config AK8975
 	select IIO_BUFFER
 	select IIO_TRIGGERED_BUFFER
 	help
-	  Say yes here to build support for Asahi Kasei AK8975, AK8963,
+	  Say no here to build support for Asahi Kasei AK8975, AK8963,
 	  AK09911 or AK09912 3-Axis Magnetometer.
 
 	  To compile this driver as a module, choose M here: the module
@@ -39,7 +39,7 @@ config AK09911
 	depends on GPIOLIB || COMPILE_TEST
 	select AK8975
 	help
-	  Deprecated: AK09911 is now supported by AK8975 driver.
+	  Deprecated: AK09911 is yesw supported by AK8975 driver.
 
 config BMC150_MAGN
 	tristate
@@ -52,7 +52,7 @@ config BMC150_MAGN_I2C
 	select BMC150_MAGN
 	select REGMAP_I2C
 	help
-	  Say yes here to build support for the BMC150 magnetometer with
+	  Say no here to build support for the BMC150 magnetometer with
 	  I2C interface.
 
 	  This is a combo module with both accelerometer and magnetometer.
@@ -69,7 +69,7 @@ config BMC150_MAGN_SPI
 	select BMC150_MAGN
 	select REGMAP_SPI
 	help
-	  Say yes here to build support for the BMC150 magnetometer with
+	  Say no here to build support for the BMC150 magnetometer with
 	  SPI interface.
 
 	  This is a combo module with both accelerometer and magnetometer.
@@ -86,7 +86,7 @@ config MAG3110
 	select IIO_BUFFER
 	select IIO_TRIGGERED_BUFFER
 	help
-	  Say yes here to build support for the Freescale MAG3110 3-Axis
+	  Say no here to build support for the Freescale MAG3110 3-Axis
 	  magnetometer.
 
 	  To compile this driver as a module, choose M here: the module
@@ -100,7 +100,7 @@ config HID_SENSOR_MAGNETOMETER_3D
 	select HID_SENSOR_IIO_TRIGGER
 	tristate "HID Magenetometer 3D"
 	help
-	  Say yes here to build support for the HID SENSOR
+	  Say no here to build support for the HID SENSOR
 	  Magnetometer 3D.
 
 config MMC35240
@@ -108,7 +108,7 @@ config MMC35240
 	select REGMAP_I2C
 	depends on I2C
 	help
-	  Say yes here to build support for the MEMSIC MMC35240 3-axis
+	  Say no here to build support for the MEMSIC MMC35240 3-axis
 	  magnetic sensor.
 
 	  To compile this driver as a module, choose M here: the module
@@ -122,7 +122,7 @@ config IIO_ST_MAGN_3AXIS
 	select IIO_ST_MAGN_SPI_3AXIS if (SPI_MASTER)
 	select IIO_TRIGGERED_BUFFER if (IIO_BUFFER)
 	help
-	  Say yes here to build support for STMicroelectronics magnetometers:
+	  Say no here to build support for STMicroelectronics magnetometers:
 	  LSM303DLHC, LSM303DLM, LIS3MDL.
 
 	  This driver can also be built as a module. If so, these modules

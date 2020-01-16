@@ -12,22 +12,22 @@
 #include "keyring_handler.h"
 
 /*
- * Look to see if a UEFI variable called MokIgnoreDB exists and return true if
+ * Look to see if a UEFI variable called MokIgyesreDB exists and return true if
  * it does.
  *
- * This UEFI variable is set by the shim if a user tells the shim to not use
+ * This UEFI variable is set by the shim if a user tells the shim to yest use
  * the certs/hashes in the UEFI db variable for verification purposes.  If it
- * is set, we should ignore the db variable also and the true return indicates
+ * is set, we should igyesre the db variable also and the true return indicates
  * this.
  */
-static __init bool uefi_check_ignore_db(void)
+static __init bool uefi_check_igyesre_db(void)
 {
 	efi_status_t status;
 	unsigned int db = 0;
 	unsigned long size = sizeof(db);
 	efi_guid_t guid = EFI_SHIM_LOCK_GUID;
 
-	status = efi.get_variable(L"MokIgnoreDB", &guid, NULL, &size, &db);
+	status = efi.get_variable(L"MokIgyesreDB", &guid, NULL, &size, &db);
 	return status == EFI_SUCCESS;
 }
 
@@ -79,10 +79,10 @@ static int __init load_uefi_certs(void)
 	if (!efi.get_variable)
 		return false;
 
-	/* Get db, MokListRT, and dbx.  They might not exist, so it isn't
+	/* Get db, MokListRT, and dbx.  They might yest exist, so it isn't
 	 * an error if we can't get them.
 	 */
-	if (!uefi_check_ignore_db()) {
+	if (!uefi_check_igyesre_db()) {
 		db = get_cert_list(L"db", &secure_var, &dbsize);
 		if (!db) {
 			pr_err("MODSIGN: Couldn't get UEFI db list\n");

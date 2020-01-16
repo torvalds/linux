@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-// Copyright (C) 2005-2017 Andes Technology Corporation
+// Copyright (C) 2005-2017 Andes Techyeslogy Corporation
 
 #include <linux/irq.h>
 #include <linux/of.h>
@@ -29,7 +29,7 @@ static void ativic32_unmask_irq(struct irq_data *data)
 	__nds32__mtsr_dsb(int_mask2 | (BIT(data->hwirq)), NDS32_SR_INT_MASK2);
 }
 
-static int nointc_set_wake(struct irq_data *data, unsigned int on)
+static int yesintc_set_wake(struct irq_data *data, unsigned int on)
 {
 	unsigned long int_mask = __nds32__mfsr(NDS32_SR_INT_MASK);
 	static unsigned long irq_orig_bit;
@@ -62,7 +62,7 @@ static struct irq_chip ativic32_chip = {
 	.irq_ack = ativic32_ack_irq,
 	.irq_mask = ativic32_mask_irq,
 	.irq_unmask = ativic32_unmask_irq,
-	.irq_set_wake = nointc_set_wake,
+	.irq_set_wake = yesintc_set_wake,
 };
 
 static unsigned int __initdata nivic_map[6] = { 6, 2, 10, 16, 24, 32 };
@@ -109,11 +109,11 @@ asmlinkage void asm_do_IRQ(struct pt_regs *regs)
 	handle_domain_irq(root_domain, hwirq, regs);
 }
 
-int __init ativic32_init_irq(struct device_node *node, struct device_node *parent)
+int __init ativic32_init_irq(struct device_yesde *yesde, struct device_yesde *parent)
 {
 	unsigned long int_vec_base, nivic, nr_ints;
 
-	if (WARN(parent, "non-root ativic32 are not supported"))
+	if (WARN(parent, "yesn-root ativic32 are yest supported"))
 		return -EINVAL;
 
 	int_vec_base = __nds32__mfsr(NDS32_SR_IVB);
@@ -123,15 +123,15 @@ int __init ativic32_init_irq(struct device_node *node, struct device_node *paren
 
 	nivic = (int_vec_base & IVB_mskNIVIC) >> IVB_offNIVIC;
 	if (nivic >= ARRAY_SIZE(nivic_map))
-		panic("The number of input for ativic32 is not supported.\n");
+		panic("The number of input for ativic32 is yest supported.\n");
 
 	nr_ints = nivic_map[nivic];
 
-	root_domain = irq_domain_add_linear(node, nr_ints,
+	root_domain = irq_domain_add_linear(yesde, nr_ints,
 			&ativic32_ops, NULL);
 
 	if (!root_domain)
-		panic("%s: unable to create IRQ domain\n", node->full_name);
+		panic("%s: unable to create IRQ domain\n", yesde->full_name);
 
 	return 0;
 }

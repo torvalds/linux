@@ -15,19 +15,19 @@
  * complete family of Marvell EBU SoC platforms (Orion, Dove,
  * Kirkwood, Discovery, Armada 370/XP). The only complexity of this
  * driver is the different register layout that exists between the
- * non-SMP platforms (Orion, Dove, Kirkwood, Armada 370) and the SMP
+ * yesn-SMP platforms (Orion, Dove, Kirkwood, Armada 370) and the SMP
  * platforms (MV78200 from the Discovery family and the Armada
  * XP). Therefore, this driver handles three variants of the GPIO
  * block:
  * - the basic variant, called "orion-gpio", with the simplest
  *   register set. Used on Orion, Dove, Kirkwoord, Armada 370 and
- *   non-SMP Discovery systems
+ *   yesn-SMP Discovery systems
  * - the mv78200 variant for MV78200 Discovery systems. This variant
  *   turns the edge mask and level mask registers into CPU0 edge
  *   mask/level mask registers, and adds CPU1 edge mask/level mask
  *   registers.
  * - the armadaxp variant for Armada XP systems. This variant keeps
- *   the normal cause/edge mask/level mask registers when the global
+ *   the yesrmal cause/edge mask/level mask registers when the global
  *   interrupts are used, but adds per-CPU cause/edge mask/level mask
  *   registers n a separate memory area for the per-CPU GPIO
  *   interrupts.
@@ -475,7 +475,7 @@ static void mvebu_gpio_level_irq_unmask(struct irq_data *d)
  *		       Interrupt are masked by EDGE_MASK registers.
  * Both-edge handlers: Similar to regular Edge handlers, but also swaps
  *		       the polarity to catch the next line transaction.
- *		       This is a race condition that might not perfectly
+ *		       This is a race condition that might yest perfectly
  *		       work on some use cases.
  *
  * Every eight GPIO lines are grouped (OR'ed) before going up to main
@@ -778,7 +778,7 @@ static int mvebu_pwm_probe(struct platform_device *pdev,
 	struct mvebu_pwm *mvpwm;
 	u32 set;
 
-	if (!of_device_is_compatible(mvchip->chip.of_node,
+	if (!of_device_is_compatible(mvchip->chip.of_yesde,
 				     "marvell,armada-370-gpio"))
 		return 0;
 
@@ -1046,7 +1046,7 @@ static int mvebu_gpio_probe_raw(struct platform_device *pdev,
 
 	/*
 	 * For the legacy SoCs, the regmap directly maps to the GPIO
-	 * registers, so no offset is needed.
+	 * registers, so yes offset is needed.
 	 */
 	mvchip->offset = 0;
 
@@ -1072,11 +1072,11 @@ static int mvebu_gpio_probe_raw(struct platform_device *pdev,
 static int mvebu_gpio_probe_syscon(struct platform_device *pdev,
 				   struct mvebu_gpio_chip *mvchip)
 {
-	mvchip->regs = syscon_node_to_regmap(pdev->dev.parent->of_node);
+	mvchip->regs = syscon_yesde_to_regmap(pdev->dev.parent->of_yesde);
 	if (IS_ERR(mvchip->regs))
 		return PTR_ERR(mvchip->regs);
 
-	if (of_property_read_u32(pdev->dev.of_node, "offset", &mvchip->offset))
+	if (of_property_read_u32(pdev->dev.of_yesde, "offset", &mvchip->offset))
 		return -EINVAL;
 
 	return 0;
@@ -1086,7 +1086,7 @@ static int mvebu_gpio_probe(struct platform_device *pdev)
 {
 	struct mvebu_gpio_chip *mvchip;
 	const struct of_device_id *match;
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	struct irq_chip_generic *gc;
 	struct irq_chip_type *ct;
 	unsigned int ngpios;
@@ -1101,7 +1101,7 @@ static int mvebu_gpio_probe(struct platform_device *pdev)
 	else
 		soc_variant = MVEBU_GPIO_SOC_VARIANT_ORION;
 
-	/* Some gpio controllers do not provide irq support */
+	/* Some gpio controllers do yest provide irq support */
 	have_irqs = of_irq_count(np) != 0;
 
 	mvchip = devm_kzalloc(&pdev->dev, sizeof(struct mvebu_gpio_chip),
@@ -1111,12 +1111,12 @@ static int mvebu_gpio_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, mvchip);
 
-	if (of_property_read_u32(pdev->dev.of_node, "ngpios", &ngpios)) {
+	if (of_property_read_u32(pdev->dev.of_yesde, "ngpios", &ngpios)) {
 		dev_err(&pdev->dev, "Missing ngpios OF property\n");
 		return -ENODEV;
 	}
 
-	id = of_alias_get_id(pdev->dev.of_node, "gpio");
+	id = of_alias_get_id(pdev->dev.of_yesde, "gpio");
 	if (id < 0) {
 		dev_err(&pdev->dev, "Couldn't get OF id\n");
 		return id;
@@ -1142,7 +1142,7 @@ static int mvebu_gpio_probe(struct platform_device *pdev)
 	mvchip->chip.base = id * MVEBU_MAX_GPIO_PER_BANK;
 	mvchip->chip.ngpio = ngpios;
 	mvchip->chip.can_sleep = false;
-	mvchip->chip.of_node = np;
+	mvchip->chip.of_yesde = np;
 	mvchip->chip.dbg_show = mvebu_gpio_dbg_show;
 
 	if (soc_variant == MVEBU_GPIO_SOC_VARIANT_A8K)
@@ -1194,7 +1194,7 @@ static int mvebu_gpio_probe(struct platform_device *pdev)
 
 	devm_gpiochip_add_data(&pdev->dev, &mvchip->chip, mvchip);
 
-	/* Some gpio controllers do not provide irq support */
+	/* Some gpio controllers do yest provide irq support */
 	if (!have_irqs)
 		return 0;
 
@@ -1216,7 +1216,7 @@ static int mvebu_gpio_probe(struct platform_device *pdev)
 	}
 
 	/*
-	 * NOTE: The common accessors cannot be used because of the percpu
+	 * NOTE: The common accessors canyest be used because of the percpu
 	 * access to the mask registers
 	 */
 	gc = irq_get_domain_generic_chip(mvchip->domain, 0);

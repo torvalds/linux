@@ -31,10 +31,10 @@
  *   field holding the time in the low 24 bits, and block in the top 48
  *   bits.
  *
- * BTrees consist solely of btree_nodes, that fill a block.  Some are
- * internal nodes, as such their values are a __le64 pointing to other
- * nodes.  Leaf nodes can store data of any reasonable size (ie. much
- * smaller than the block size).  The nodes consist of the header,
+ * BTrees consist solely of btree_yesdes, that fill a block.  Some are
+ * internal yesdes, as such their values are a __le64 pointing to other
+ * yesdes.  Leaf yesdes can store data of any reasonable size (ie. much
+ * smaller than the block size).  The yesdes consist of the header,
  * followed by an array of keys, followed by an array of values.  We have
  * to binary search on the keys so they're all held together to help the
  * cpu cache.
@@ -85,7 +85,7 @@
  *  2 for btree lookup used within space map
  * For btree remove:
  *  2 for shadow spine +
- *  4 for rebalance 3 child node
+ *  4 for rebalance 3 child yesde
  */
 #define THIN_MAX_CONCURRENT_LOCKS 6
 
@@ -143,7 +143,7 @@ struct disk_device_details {
 } __packed;
 
 struct dm_pool_metadata {
-	struct hlist_node hash;
+	struct hlist_yesde hash;
 
 	struct block_device *bdev;
 	struct dm_block_manager *bm;
@@ -199,7 +199,7 @@ struct dm_pool_metadata {
 
 	/*
 	 * We reserve a section of the metadata for commit overhead.
-	 * All reported space does *not* include this.
+	 * All reported space does *yest* include this.
 	 */
 	dm_block_t metadata_reserve;
 
@@ -527,7 +527,7 @@ static int __write_initial_superblock(struct dm_pool_metadata *pmd)
 	int r;
 	struct dm_block *sblock;
 	struct thin_disk_superblock *disk_super;
-	sector_t bdev_size = i_size_read(pmd->bdev->bd_inode) >> SECTOR_SHIFT;
+	sector_t bdev_size = i_size_read(pmd->bdev->bd_iyesde) >> SECTOR_SHIFT;
 
 	if (bdev_size > THIN_METADATA_MAX_SECTORS)
 		bdev_size = THIN_METADATA_MAX_SECTORS;
@@ -586,9 +586,9 @@ static int __format_metadata(struct dm_pool_metadata *pmd)
 		goto bad_cleanup_tm;
 	}
 
-	pmd->nb_tm = dm_tm_create_non_blocking_clone(pmd->tm);
+	pmd->nb_tm = dm_tm_create_yesn_blocking_clone(pmd->tm);
 	if (!pmd->nb_tm) {
-		DMERR("could not create non-blocking clone tm");
+		DMERR("could yest create yesn-blocking clone tm");
 		r = -ENOMEM;
 		goto bad_cleanup_data_sm;
 	}
@@ -629,7 +629,7 @@ static int __check_incompat_features(struct thin_disk_superblock *disk_super,
 
 	features = le32_to_cpu(disk_super->incompat_flags) & ~THIN_FEATURE_INCOMPAT_SUPP;
 	if (features) {
-		DMERR("could not access metadata due to unsupported optional features (%lx).",
+		DMERR("could yest access metadata due to unsupported optional features (%lx).",
 		      (unsigned long)features);
 		return -EINVAL;
 	}
@@ -642,7 +642,7 @@ static int __check_incompat_features(struct thin_disk_superblock *disk_super,
 
 	features = le32_to_cpu(disk_super->compat_ro_flags) & ~THIN_FEATURE_COMPAT_RO_SUPP;
 	if (features) {
-		DMERR("could not access metadata RDWR due to unsupported optional features (%lx).",
+		DMERR("could yest access metadata RDWR due to unsupported optional features (%lx).",
 		      (unsigned long)features);
 		return -EINVAL;
 	}
@@ -667,7 +667,7 @@ static int __open_metadata(struct dm_pool_metadata *pmd)
 
 	/* Verify the data block size hasn't changed */
 	if (le32_to_cpu(disk_super->data_block_size) != pmd->data_block_size) {
-		DMERR("changing the data block size (from %u to %llu) is not supported",
+		DMERR("changing the data block size (from %u to %llu) is yest supported",
 		      le32_to_cpu(disk_super->data_block_size),
 		      (unsigned long long)pmd->data_block_size);
 		r = -EINVAL;
@@ -695,9 +695,9 @@ static int __open_metadata(struct dm_pool_metadata *pmd)
 		goto bad_cleanup_tm;
 	}
 
-	pmd->nb_tm = dm_tm_create_non_blocking_clone(pmd->tm);
+	pmd->nb_tm = dm_tm_create_yesn_blocking_clone(pmd->tm);
 	if (!pmd->nb_tm) {
-		DMERR("could not create non-blocking clone tm");
+		DMERR("could yest create yesn-blocking clone tm");
 		r = -ENOMEM;
 		goto bad_cleanup_data_sm;
 	}
@@ -739,7 +739,7 @@ static int __create_persistent_data_objects(struct dm_pool_metadata *pmd, bool f
 	pmd->bm = dm_block_manager_create(pmd->bdev, THIN_METADATA_BLOCK_SIZE << SECTOR_SHIFT,
 					  THIN_MAX_CONCURRENT_LOCKS);
 	if (IS_ERR(pmd->bm)) {
-		DMERR("could not create block manager");
+		DMERR("could yest create block manager");
 		return PTR_ERR(pmd->bm);
 	}
 
@@ -828,7 +828,7 @@ static int __commit_transaction(struct dm_pool_metadata *pmd)
 	struct dm_block *sblock;
 
 	/*
-	 * We need to know if the thin_disk_superblock exceeds a 512-byte sector.
+	 * We need to kyesw if the thin_disk_superblock exceeds a 512-byte sector.
 	 */
 	BUILD_BUG_ON(sizeof(struct thin_disk_superblock) > 512);
 
@@ -883,7 +883,7 @@ static void __set_metadata_reserve(struct dm_pool_metadata *pmd)
 
 	r = dm_sm_get_nr_blocks(pmd->metadata_sm, &total);
 	if (r) {
-		DMERR("could not get size of metadata device");
+		DMERR("could yest get size of metadata device");
 		pmd->metadata_reserve = max_blocks;
 	} else
 		pmd->metadata_reserve = min(max_blocks, div_u64(total, 10));
@@ -898,7 +898,7 @@ struct dm_pool_metadata *dm_pool_metadata_open(struct block_device *bdev,
 
 	pmd = kmalloc(sizeof(*pmd), GFP_KERNEL);
 	if (!pmd) {
-		DMERR("could not allocate metadata struct");
+		DMERR("could yest allocate metadata struct");
 		return ERR_PTR(-ENOMEM);
 	}
 
@@ -986,7 +986,7 @@ static int __open_device(struct dm_pool_metadata *pmd,
 	list_for_each_entry(td2, &pmd->thin_devices, list)
 		if (td2->id == dev) {
 			/*
-			 * May not create an already-open device.
+			 * May yest create an already-open device.
 			 */
 			if (create)
 				return -EEXIST;
@@ -1302,7 +1302,7 @@ static int __reserve_metadata_snap(struct dm_pool_metadata *pmd)
 	disk_super = dm_block_data(copy);
 
 	if (le64_to_cpu(disk_super->held_root)) {
-		DMWARN("Pool metadata snapshot already exists: release this before taking another.");
+		DMWARN("Pool metadata snapshot already exists: release this before taking ayesther.");
 
 		dm_tm_dec(pmd->tm, held_root);
 		dm_tm_unlock(pmd->tm, copy);
@@ -1310,7 +1310,7 @@ static int __reserve_metadata_snap(struct dm_pool_metadata *pmd)
 	}
 
 	/*
-	 * Wipe the spacemap since we're not publishing this.
+	 * Wipe the spacemap since we're yest publishing this.
 	 */
 	memset(&disk_super->data_space_map_root, 0,
 	       sizeof(disk_super->data_space_map_root));
@@ -1369,7 +1369,7 @@ static int __release_metadata_snap(struct dm_pool_metadata *pmd)
 	dm_bm_unlock(sblock);
 
 	if (!held_root) {
-		DMWARN("No pool metadata snapshot found: nothing to release.");
+		DMWARN("No pool metadata snapshot found: yesthing to release.");
 		return -EINVAL;
 	}
 
@@ -1463,7 +1463,7 @@ dm_thin_id dm_thin_dev_id(struct dm_thin_device *td)
  * Check whether @time (of block creation) is older than @td's last snapshot.
  * If so then the associated block is shared with the last snapshot device.
  * Any block on a device created *after* the device last got snapshotted is
- * necessarily not shared.
+ * necessarily yest shared.
  */
 static bool __snapshotted_since(struct dm_thin_device *td, uint32_t time)
 {
@@ -1613,7 +1613,7 @@ static int __insert(struct dm_thin_device *td, dm_block_t block,
 	value = cpu_to_le64(pack_block_time(data_block, pmd->time));
 	__dm_bless_for_disk(&value);
 
-	r = dm_btree_insert_notify(&pmd->info, pmd->root, keys, &value,
+	r = dm_btree_insert_yestify(&pmd->info, pmd->root, keys, &value,
 				   &pmd->root, &inserted);
 	if (r)
 		return r;
@@ -1838,7 +1838,7 @@ int dm_pool_commit_metadata(struct dm_pool_metadata *pmd)
 	int r = -EINVAL;
 
 	/*
-	 * Care is taken to not have commit be what
+	 * Care is taken to yest have commit be what
 	 * triggers putting the thin-pool in-service.
 	 */
 	__pmd_write_lock(pmd);
@@ -2001,7 +2001,7 @@ static int __resize_space_map(struct dm_space_map *sm, dm_block_t new_count)
 		return 0;
 
 	if (new_count < old_count) {
-		DMERR("cannot reduce size of space map");
+		DMERR("canyest reduce size of space map");
 		return -EINVAL;
 	}
 

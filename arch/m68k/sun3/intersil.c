@@ -13,7 +13,7 @@
 #include <linux/kernel.h>
 #include <linux/rtc.h>
 
-#include <asm/errno.h>
+#include <asm/erryes.h>
 #include <asm/intersil.h>
 #include <asm/machdep.h>
 

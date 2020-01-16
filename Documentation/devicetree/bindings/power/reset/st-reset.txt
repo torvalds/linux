@@ -2,9 +2,9 @@
 
 Required properties:
 - compatible: should be "stih407-restart".
-- st,syscfg: should be a phandle of the syscfg node.
+- st,syscfg: should be a phandle of the syscfg yesde.
 
-Example node:
+Example yesde:
 	restart {
 		compatible = "st,stih407-restart";
 		st,syscfg = <&syscfg_sbc_reg>;

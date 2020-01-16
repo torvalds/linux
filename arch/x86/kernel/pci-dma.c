@@ -30,7 +30,7 @@ int force_iommu __read_mostly = 0;
 
 int iommu_merge __read_mostly = 0;
 
-int no_iommu __read_mostly;
+int yes_iommu __read_mostly;
 /* Set this to 1 if there is a HW IOMMU in the system */
 int iommu_detected __read_mostly = 0;
 
@@ -67,11 +67,11 @@ static __init int iommu_setup(char *p)
 
 	while (*p) {
 		if (!strncmp(p, "off", 3))
-			no_iommu = 1;
+			yes_iommu = 1;
 		/* gart_parse_options has more force support */
 		if (!strncmp(p, "force", 5))
 			force_iommu = 1;
-		if (!strncmp(p, "noforce", 7)) {
+		if (!strncmp(p, "yesforce", 7)) {
 			iommu_merge = 0;
 			force_iommu = 0;
 		}
@@ -82,20 +82,20 @@ static __init int iommu_setup(char *p)
 		}
 		if (!strncmp(p, "panic", 5))
 			panic_on_overflow = 1;
-		if (!strncmp(p, "nopanic", 7))
+		if (!strncmp(p, "yespanic", 7))
 			panic_on_overflow = 0;
 		if (!strncmp(p, "merge", 5)) {
 			iommu_merge = 1;
 			force_iommu = 1;
 		}
-		if (!strncmp(p, "nomerge", 7))
+		if (!strncmp(p, "yesmerge", 7))
 			iommu_merge = 0;
 		if (!strncmp(p, "forcesac", 8))
-			pr_warn("forcesac option ignored.\n");
+			pr_warn("forcesac option igyesred.\n");
 		if (!strncmp(p, "allowdac", 8))
-			pr_warn("allowdac option ignored.\n");
-		if (!strncmp(p, "nodac", 5))
-			pr_warn("nodac option ignored.\n");
+			pr_warn("allowdac option igyesred.\n");
+		if (!strncmp(p, "yesdac", 5))
+			pr_warn("yesdac option igyesred.\n");
 		if (!strncmp(p, "usedac", 6)) {
 			disable_dac_quirk = true;
 			return 1;
@@ -106,7 +106,7 @@ static __init int iommu_setup(char *p)
 #endif
 		if (!strncmp(p, "pt", 2))
 			iommu_set_default_passthrough(true);
-		if (!strncmp(p, "nopt", 4))
+		if (!strncmp(p, "yespt", 4))
 			iommu_set_default_translated(true);
 
 		gart_parse_options(p);
@@ -138,19 +138,19 @@ rootfs_initcall(pci_iommu_init);
 #ifdef CONFIG_PCI
 /* Many VIA bridges seem to corrupt data for DAC. Disable it here */
 
-static int via_no_dac_cb(struct pci_dev *pdev, void *data)
+static int via_yes_dac_cb(struct pci_dev *pdev, void *data)
 {
 	pdev->dev.bus_dma_limit = DMA_BIT_MASK(32);
 	return 0;
 }
 
-static void via_no_dac(struct pci_dev *dev)
+static void via_yes_dac(struct pci_dev *dev)
 {
 	if (!disable_dac_quirk) {
 		dev_info(&dev->dev, "disabling DAC on VIA PCI bridge\n");
-		pci_walk_bus(dev->subordinate, via_no_dac_cb, NULL);
+		pci_walk_bus(dev->subordinate, via_yes_dac_cb, NULL);
 	}
 }
 DECLARE_PCI_FIXUP_CLASS_FINAL(PCI_VENDOR_ID_VIA, PCI_ANY_ID,
-				PCI_CLASS_BRIDGE_PCI, 8, via_no_dac);
+				PCI_CLASS_BRIDGE_PCI, 8, via_yes_dac);
 #endif

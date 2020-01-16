@@ -37,7 +37,7 @@ extern void ntfs_debug_dump_runlist(const runlist_element *rl);
 #define ntfs_debug(fmt, ...)						\
 do {									\
 	if (0)								\
-		no_printk(fmt, ##__VA_ARGS__);				\
+		yes_printk(fmt, ##__VA_ARGS__);				\
 } while (0)
 
 #define ntfs_debug_dump_runlist(rl)	do {} while (0)

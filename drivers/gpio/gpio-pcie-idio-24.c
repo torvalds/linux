@@ -18,7 +18,7 @@
 #include <linux/bitmap.h>
 #include <linux/bitops.h>
 #include <linux/device.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/gpio/driver.h>
 #include <linux/interrupt.h>
 #include <linux/irqdesc.h>
@@ -387,7 +387,7 @@ static void idio_24_irq_unmask(struct irq_data *data)
 
 static int idio_24_irq_set_type(struct irq_data *data, unsigned int flow_type)
 {
-	/* The only valid irq types are none and both-edges */
+	/* The only valid irq types are yesne and both-edges */
 	if (flow_type != IRQ_TYPE_NONE &&
 		(flow_type & IRQ_TYPE_EDGE_BOTH) != IRQ_TYPE_EDGE_BOTH)
 		return -EINVAL;
@@ -504,7 +504,7 @@ static int idio_24_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	err = gpiochip_irqchip_add(&idio24gpio->chip, &idio_24_irqchip, 0,
 		handle_edge_irq, IRQ_TYPE_NONE);
 	if (err) {
-		dev_err(dev, "Could not add irqchip (%d)\n", err);
+		dev_err(dev, "Could yest add irqchip (%d)\n", err);
 		return err;
 	}
 

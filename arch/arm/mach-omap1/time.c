@@ -10,7 +10,7 @@
  *
  * MPU timer code based on the older MPU timer code for OMAP
  * Copyright (C) 2000 RidgeRun, Inc.
- * Author: Greg Lonnon <glonnon@ridgerun.com>
+ * Author: Greg Lonyesn <glonyesn@ridgerun.com>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -29,7 +29,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  * You should have received a copy of the  GNU General Public License along
- * with this program; if not, write  to the Free Software Foundation, Inc.,
+ * with this program; if yest, write  to the Free Software Foundation, Inc.,
  * 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
@@ -69,7 +69,7 @@ typedef struct {
 ((omap_mpu_timer_regs_t __iomem *)OMAP1_IO_ADDRESS(OMAP_MPU_TIMER_BASE +	\
 				 (n)*OMAP_MPU_TIMER_OFFSET))
 
-static inline unsigned long notrace omap_mpu_timer_read(int nr)
+static inline unsigned long yestrace omap_mpu_timer_read(int nr)
 {
 	omap_mpu_timer_regs_t __iomem *timer = omap_mpu_timer_base(nr);
 	return readl(&timer->read_tim);
@@ -178,7 +178,7 @@ static __init void omap_init_mpu_timer(unsigned long rate)
  * ---------------------------------------------------------------------------
  */
 
-static u64 notrace omap_mpu_read_sched_clock(void)
+static u64 yestrace omap_mpu_read_sched_clock(void)
 {
 	return ~omap_mpu_timer_read(1);
 }
@@ -217,7 +217,7 @@ static void __init omap_mpu_timer_init(void)
 #else
 static inline void omap_mpu_timer_init(void)
 {
-	pr_err("Bogus timer, should not happen\n");
+	pr_err("Bogus timer, should yest happen\n");
 }
 #endif	/* CONFIG_OMAP_MPU_TIMER */
 

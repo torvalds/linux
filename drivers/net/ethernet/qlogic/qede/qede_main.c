@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and /or other materials
  *        provided with the distribution.
  *
@@ -36,7 +36,7 @@
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/skbuff.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/list.h>
 #include <linux/string.h>
 #include <linux/dma-mapping.h>
@@ -228,10 +228,10 @@ static struct qed_eth_cb_ops qede_ll_ops = {
 	.ports_update = qede_udp_ports_update,
 };
 
-static int qede_netdev_event(struct notifier_block *this, unsigned long event,
+static int qede_netdev_event(struct yestifier_block *this, unsigned long event,
 			     void *ptr)
 {
-	struct net_device *ndev = netdev_notifier_info_to_dev(ptr);
+	struct net_device *ndev = netdev_yestifier_info_to_dev(ptr);
 	struct ethtool_drvinfo drvinfo;
 	struct qede_dev *edev;
 
@@ -265,8 +265,8 @@ done:
 	return NOTIFY_DONE;
 }
 
-static struct notifier_block qede_netdev_notifier = {
-	.notifier_call = qede_netdev_event,
+static struct yestifier_block qede_netdev_yestifier = {
+	.yestifier_call = qede_netdev_event,
 };
 
 static
@@ -278,24 +278,24 @@ int __init qede_init(void)
 
 	qed_ops = qed_get_eth_ops();
 	if (!qed_ops) {
-		pr_notice("Failed to get qed ethtool operations\n");
+		pr_yestice("Failed to get qed ethtool operations\n");
 		return -EINVAL;
 	}
 
-	/* Must register notifier before pci ops, since we might miss
+	/* Must register yestifier before pci ops, since we might miss
 	 * interface rename after pci probe and netdev registration.
 	 */
-	ret = register_netdevice_notifier(&qede_netdev_notifier);
+	ret = register_netdevice_yestifier(&qede_netdev_yestifier);
 	if (ret) {
-		pr_notice("Failed to register netdevice_notifier\n");
+		pr_yestice("Failed to register netdevice_yestifier\n");
 		qed_put_eth_ops();
 		return -EINVAL;
 	}
 
 	ret = pci_register_driver(&qede_pci_driver);
 	if (ret) {
-		pr_notice("Failed to register driver\n");
-		unregister_netdevice_notifier(&qede_netdev_notifier);
+		pr_yestice("Failed to register driver\n");
+		unregister_netdevice_yestifier(&qede_netdev_yestifier);
 		qed_put_eth_ops();
 		return -EINVAL;
 	}
@@ -308,7 +308,7 @@ static void __exit qede_cleanup(void)
 	if (debug & QED_LOG_INFO_MASK)
 		pr_info("qede_cleanup called\n");
 
-	unregister_netdevice_notifier(&qede_netdev_notifier);
+	unregister_netdevice_yestifier(&qede_netdev_yestifier);
 	pci_unregister_driver(&qede_pci_driver);
 	qed_put_eth_ops();
 }
@@ -326,7 +326,7 @@ void qede_fill_by_demand_stats(struct qede_dev *edev)
 
 	edev->ops->get_vport_stats(edev->cdev, &stats);
 
-	p_common->no_buff_discards = stats.common.no_buff_discards;
+	p_common->yes_buff_discards = stats.common.yes_buff_discards;
 	p_common->packet_too_big_discard = stats.common.packet_too_big_discard;
 	p_common->ttl0_discard = stats.common.ttl0_discard;
 	p_common->rx_ucast_bytes = stats.common.rx_ucast_bytes;
@@ -349,7 +349,7 @@ void qede_fill_by_demand_stats(struct qede_dev *edev)
 	p_common->coalesced_pkts = stats.common.tpa_coalesced_pkts;
 	p_common->coalesced_events = stats.common.tpa_coalesced_events;
 	p_common->coalesced_aborts_num = stats.common.tpa_aborts_num;
-	p_common->non_coalesced_pkts = stats.common.tpa_not_coalesced_pkts;
+	p_common->yesn_coalesced_pkts = stats.common.tpa_yest_coalesced_pkts;
 	p_common->coalesced_bytes = stats.common.tpa_coalesced_bytes;
 
 	p_common->rx_64_byte_packets = stats.common.rx_64_byte_packets;
@@ -447,7 +447,7 @@ static void qede_get_stats64(struct net_device *dev,
 	stats->tx_errors = p_common->tx_err_drop_pkts;
 	stats->multicast = p_common->rx_mcast_pkts + p_common->rx_bcast_pkts;
 
-	stats->rx_fifo_errors = p_common->no_buff_discards;
+	stats->rx_fifo_errors = p_common->yes_buff_discards;
 
 	if (QEDE_IS_BB(edev))
 		stats->collisions = edev->stats.bb.tx_total_collisions;
@@ -931,7 +931,7 @@ err:
 }
 
 /* The qede lock is used to protect driver state change and driver flows that
- * are not reentrant.
+ * are yest reentrant.
  */
 void __qede_lock(struct qede_dev *edev)
 {
@@ -965,14 +965,14 @@ static void qede_sp_task(struct work_struct *work)
 
 	/* The locking scheme depends on the specific flag:
 	 * In case of QEDE_SP_RECOVERY, acquiring the RTNL lock is required to
-	 * ensure that ongoing flows are ended and new ones are not started.
+	 * ensure that ongoing flows are ended and new ones are yest started.
 	 * In other cases - only the internal qede lock should be acquired.
 	 */
 
 	if (test_and_clear_bit(QEDE_SP_RECOVERY, &edev->sp_flags)) {
 #ifdef CONFIG_QED_SRIOV
 		/* SRIOV must be disabled outside the lock to avoid a deadlock.
-		 * The recovery of the active VFs is currently not supported.
+		 * The recovery of the active VFs is currently yest supported.
 		 */
 		qede_sriov_configure(edev->pdev, 0);
 #endif
@@ -1028,7 +1028,7 @@ static void qede_log_probe(struct qede_dev *edev)
 
 	snprintf(buf, QEDE_FW_VER_STR_SIZE,
 		 "Storm FW %d.%d.%d.%d, Management FW %d.%d.%d.%d",
-		 p_dev_info->fw_major, p_dev_info->fw_minor, p_dev_info->fw_rev,
+		 p_dev_info->fw_major, p_dev_info->fw_miyesr, p_dev_info->fw_rev,
 		 p_dev_info->fw_eng,
 		 (p_dev_info->mfw_rev & QED_MFW_VERSION_3_MASK) >>
 		 QED_MFW_VERSION_3_OFFSET,
@@ -1071,7 +1071,7 @@ static int __qede_probe(struct pci_dev *pdev, u32 dp_module, u8 dp_level,
 	int rc;
 
 	if (unlikely(dp_level & QED_LEVEL_INFO))
-		pr_notice("Starting qede probe\n");
+		pr_yestice("Starting qede probe\n");
 
 	memset(&probe_params, 0, sizeof(probe_params));
 	probe_params.protocol = QED_PROTOCOL_ETH;
@@ -1091,13 +1091,13 @@ static int __qede_probe(struct pci_dev *pdev, u32 dp_module, u8 dp_level,
 	memset(&sp_params, 0, sizeof(sp_params));
 	sp_params.int_mode = QED_INT_MODE_MSIX;
 	sp_params.drv_major = QEDE_MAJOR_VERSION;
-	sp_params.drv_minor = QEDE_MINOR_VERSION;
+	sp_params.drv_miyesr = QEDE_MINOR_VERSION;
 	sp_params.drv_rev = QEDE_REVISION_VERSION;
 	sp_params.drv_eng = QEDE_ENGINEERING_VERSION;
 	strlcpy(sp_params.name, "qede LAN", QED_DRV_VER_STR_SIZE);
 	rc = qed_ops->common->slowpath_start(cdev, &sp_params);
 	if (rc) {
-		pr_notice("Cannot start slowpath\n");
+		pr_yestice("Canyest start slowpath\n");
 		goto err1;
 	}
 
@@ -1142,14 +1142,14 @@ static int __qede_probe(struct pci_dev *pdev, u32 dp_module, u8 dp_level,
 
 		rc = register_netdev(edev->ndev);
 		if (rc) {
-			DP_NOTICE(edev, "Cannot register net-device\n");
+			DP_NOTICE(edev, "Canyest register net-device\n");
 			goto err4;
 		}
 	}
 
 	edev->ops->common->set_name(cdev, edev->ndev->name);
 
-	/* PTP not supported on VFs */
+	/* PTP yest supported on VFs */
 	if (!is_vf)
 		qede_ptp_enable(edev, (mode == QEDE_PROBE_NORMAL));
 
@@ -1676,7 +1676,7 @@ static void qede_init_fp(struct qede_dev *edev)
 				fp->rxq->data_direction = DMA_FROM_DEVICE;
 			fp->rxq->dev = &edev->pdev->dev;
 
-			/* Driver have no error path from here */
+			/* Driver have yes error path from here */
 			WARN_ON(xdp_rxq_info_reg(&fp->rxq->xdp_rxq, edev->ndev,
 						 fp->rxq->rxq_id) < 0);
 		}
@@ -2041,7 +2041,7 @@ static int qede_start_queues(struct qede_dev *edev, bool clear_stats)
 
 	if (!edev->num_queues) {
 		DP_ERR(edev,
-		       "Cannot update V-VPORT as active as there are no Rx queues\n");
+		       "Canyest update V-VPORT as active as there are yes Rx queues\n");
 		return -EINVAL;
 	}
 
@@ -2196,7 +2196,7 @@ static void qede_unload(struct qede_dev *edev, enum qede_unload_mode mode,
 		DP_INFO(edev, "Stopped Queues\n");
 	}
 
-	qede_vlan_mark_nonconfigured(edev);
+	qede_vlan_mark_yesnconfigured(edev);
 	edev->ops->fastpath_stop(edev->cdev);
 
 	if (!IS_VF(edev) && edev->dev_info.common.num_hwfns == 1) {
@@ -2343,7 +2343,7 @@ void qede_reload(struct qede_dev *edev,
 			args->func(edev, args);
 		qede_load(edev, QEDE_LOAD_RELOAD, true);
 
-		/* Since no one is going to do it for us, re-configure */
+		/* Since yes one is going to do it for us, re-configure */
 		qede_config_rx_mode(edev->ndev);
 	} else if (args) {
 		args->func(edev, args);
@@ -2390,7 +2390,7 @@ static void qede_link_update(void *dev, struct qed_link_output *link)
 	struct qede_dev *edev = dev;
 
 	if (!test_bit(QEDE_FLAGS_LINK_REQUESTED, &edev->flags)) {
-		DP_VERBOSE(edev, NETIF_MSG_LINK, "Interface is not ready\n");
+		DP_VERBOSE(edev, NETIF_MSG_LINK, "Interface is yest ready\n");
 		return;
 	}
 
@@ -2563,7 +2563,7 @@ static void qede_get_eth_tlv_data(void *dev, void *data)
 				etlv->rxqs_empty = false;
 
 			/* This one is a bit tricky; Firmware might stop
-			 * placing packets if ring is not yet full.
+			 * placing packets if ring is yest yet full.
 			 * Give an approximation.
 			 */
 			if (le16_to_cpu(*fp->rxq->hw_cons_ptr) -

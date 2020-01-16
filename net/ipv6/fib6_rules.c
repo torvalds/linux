@@ -2,7 +2,7 @@
 /*
  * net/ipv6/fib6_rules.c	IPv6 Routing Policy Rules
  *
- * Copyright (C)2003-2006 Helsinki University of Technology
+ * Copyright (C)2003-2006 Helsinki University of Techyeslogy
  * Copyright (C)2003-2006 USAGI/WIDE Project
  *
  * Authors
@@ -11,7 +11,7 @@
  */
 
 #include <linux/netdevice.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/export.h>
 
 #include <net/fib_rules.h>
@@ -47,7 +47,7 @@ bool fib6_rule_default(const struct fib_rule *rule)
 }
 EXPORT_SYMBOL_GPL(fib6_rule_default);
 
-int fib6_rules_dump(struct net *net, struct notifier_block *nb,
+int fib6_rules_dump(struct net *net, struct yestifier_block *nb,
 		    struct netlink_ext_ack *extack)
 {
 	return fib_rules_dump(net, nb, AF_INET6, extack);
@@ -58,7 +58,7 @@ unsigned int fib6_rules_seq_read(struct net *net)
 	return fib_rules_seq_read(net, AF_INET6);
 }
 
-/* called with rcu lock held; no reference taken on fib6_info */
+/* called with rcu lock held; yes reference taken on fib6_info */
 int fib6_lookup(struct net *net, int oif, struct flowi6 *fl6,
 		struct fib6_result *res, int flags)
 {
@@ -273,13 +273,13 @@ static bool fib6_rule_suppress(struct fib_rule *rule, struct fib_lookup_arg *arg
 	if (rt->rt6i_idev)
 		dev = rt->rt6i_idev->dev;
 
-	/* do not accept result if the route does
-	 * not meet the required prefix length
+	/* do yest accept result if the route does
+	 * yest meet the required prefix length
 	 */
 	if (rt->rt6i_dst.plen <= rule->suppress_prefixlen)
 		goto suppress_route;
 
-	/* do not accept result if the route uses a device
+	/* do yest accept result if the route uses a device
 	 * belonging to a forbidden interface group
 	 */
 	if (rule->suppress_ifgroup != -1 && dev && dev->group == rule->suppress_ifgroup)
@@ -303,7 +303,7 @@ static int fib6_rule_match(struct fib_rule *rule, struct flowi *fl, int flags)
 		return 0;
 
 	/*
-	 * If FIB_RULE_FIND_SADDR is set and we do not have a
+	 * If FIB_RULE_FIND_SADDR is set and we do yest have a
 	 * source address for the traffic, we defer check for
 	 * source address.
 	 */

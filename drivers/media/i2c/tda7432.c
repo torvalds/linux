@@ -3,7 +3,7 @@
  * For the STS-Thompson TDA7432 audio processor chip
  *
  * Handles audio functions: volume, balance, tone, loudness
- * This driver will not complain if used with any
+ * This driver will yest complain if used with any
  * other i2c device with the same address.
  *
  * Muting and tone control by Jonathan Isom <jisom@ematic.com>
@@ -29,7 +29,7 @@
 #include <linux/string.h>
 #include <linux/timer.h>
 #include <linux/delay.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/slab.h>
 #include <linux/videodev2.h>
 #include <linux/i2c.h>
@@ -94,7 +94,7 @@ static inline struct v4l2_subdev *to_sd(struct v4l2_ctrl *ctrl)
  * and tone control (including loudness).  It also has four channel
  * output (for front and rear).  Since most vidcap cards probably
  * don't have 4 channel output, this driver will set front & rear
- * together (no independent control).
+ * together (yes independent control).
  */
 
 		/* Subaddresses for TDA7432 */
@@ -111,21 +111,21 @@ static inline struct v4l2_subdev *to_sd(struct v4l2_ctrl *ctrl)
 
 		/* Masks for bits in TDA7432 subaddresses */
 
-/* Many of these not used - just for documentation */
+/* Many of these yest used - just for documentation */
 
 /* Subaddress 0x00 - Input selection and bass control */
 
 /* Bits 0,1,2 control input:
  * 0x00 - Stereo input
- * 0x02 - Mono input
+ * 0x02 - Moyes input
  * 0x03 - Mute  (Using Attenuators Plays better with modules)
- * Mono probably isn't used - I'm guessing only the stereo
+ * Moyes probably isn't used - I'm guessing only the stereo
  * input is connected on most cards, so we'll set it to stereo.
  *
- * Bit 3 controls bass cut: 0/1 is non-symmetric/symmetric bass cut
+ * Bit 3 controls bass cut: 0/1 is yesn-symmetric/symmetric bass cut
  * Bit 4 controls bass range: 0/1 is extended/standard bass range
  *
- * Highest 3 bits not used
+ * Highest 3 bits yest used
  */
 
 #define TDA7432_STEREO_IN	0
@@ -160,7 +160,7 @@ static inline struct v4l2_subdev *to_sd(struct v4l2_ctrl *ctrl)
  * 0 = attenuation (-)
  *
  * Bits 4,5,6 control absolute bass gain from 0dB to 14dB
- * (This is only true for normal base range, set in 0x00)
+ * (This is only true for yesrmal base range, set in 0x00)
  * 0x0 << 4 is 14dB, 0x7 is 0dB
  *
  * Bit 7 controls bass attenuation/gain (sign)

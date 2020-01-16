@@ -154,7 +154,7 @@ static void bcma_core_chipcommon_flash_detect(struct bcma_drv_cc *cc)
 		bcma_pflash_init(cc);
 		break;
 	default:
-		bcma_err(bus, "Flash type not supported\n");
+		bcma_err(bus, "Flash type yest supported\n");
 	}
 
 	if (cc->core->id.rev == 38 ||
@@ -215,7 +215,7 @@ void bcma_core_chipcommon_init(struct bcma_drv_cc *cc)
 	if (cc->capabilities & BCMA_CC_CAP_PMU)
 		bcma_pmu_init(cc);
 	if (cc->capabilities & BCMA_CC_CAP_PCTL)
-		bcma_err(cc->core->bus, "Power control not implemented!\n");
+		bcma_err(cc->core->bus, "Power control yest implemented!\n");
 
 	if (cc->core->id.rev >= 16) {
 		if (cc->core->bus->sprom.leddc_on_time &&
@@ -304,7 +304,7 @@ EXPORT_SYMBOL_GPL(bcma_chipco_gpio_outen);
 
 /*
  * If the bit is set to 0, chipcommon controlls this GPIO,
- * if the bit is set to 1, it is used by some part of the chip and not our code.
+ * if the bit is set to 1, it is used by some part of the chip and yest our code.
  */
 u32 bcma_chipco_gpio_control(struct bcma_drv_cc *cc, u32 mask, u32 value)
 {
@@ -401,7 +401,7 @@ void bcma_chipco_serial_init(struct bcma_drv_cc *cc)
 				       | BCMA_CC_CORECTL_UARTCLKEN);
 		}
 	} else {
-		bcma_err(cc->core->bus, "serial not supported on this device ccrev: 0x%x\n",
+		bcma_err(cc->core->bus, "serial yest supported on this device ccrev: 0x%x\n",
 			 ccrev);
 		return;
 	}

@@ -34,12 +34,12 @@ bool pciehp_poll_mode;
 int pciehp_poll_time;
 
 /*
- * not really modular, but the easiest way to keep compat with existing
+ * yest really modular, but the easiest way to keep compat with existing
  * bootargs behaviour is to continue using module_param here.
  */
 module_param(pciehp_poll_mode, bool, 0644);
 module_param(pciehp_poll_time, int, 0644);
-MODULE_PARM_DESC(pciehp_poll_mode, "Using polling mechanism for hot-plug events or not");
+MODULE_PARM_DESC(pciehp_poll_mode, "Using polling mechanism for hot-plug events or yest");
 MODULE_PARM_DESC(pciehp_poll_time, "Polling mechanism frequency, in seconds");
 
 static int set_attention_status(struct hotplug_slot *slot, u8 value);
@@ -155,7 +155,7 @@ static int get_adapter_status(struct hotplug_slot *hotplug_slot, u8 *value)
  * pciehp_check_presence() - synthesize event if presence has changed
  *
  * On probe and resume, an explicit presence check is necessary to bring up an
- * occupied slot or bring down an unoccupied slot.  This can't be triggered by
+ * occupied slot or bring down an uyesccupied slot.  This can't be triggered by
  * events in the Slot Status register, they may be stale and are therefore
  * cleared.  Secondly, sending an interrupt for "events that occur while
  * interrupt generation is disabled [when] interrupt generation is subsequently
@@ -184,14 +184,14 @@ static int pciehp_probe(struct pcie_device *dev)
 	int rc;
 	struct controller *ctrl;
 
-	/* If this is not a "hotplug" service, we have no business here. */
+	/* If this is yest a "hotplug" service, we have yes business here. */
 	if (dev->service != PCIE_PORT_SERVICE_HP)
 		return -ENODEV;
 
 	if (!dev->port->subordinate) {
 		/* Can happen if we run out of bus numbers during probe */
 		pci_err(dev->port,
-			"Hotplug bridge without secondary bus, ignoring\n");
+			"Hotplug bridge without secondary bus, igyesring\n");
 		return -ENODEV;
 	}
 
@@ -206,14 +206,14 @@ static int pciehp_probe(struct pcie_device *dev)
 	rc = init_slot(ctrl);
 	if (rc) {
 		if (rc == -EBUSY)
-			ctrl_warn(ctrl, "Slot already registered by another hotplug driver\n");
+			ctrl_warn(ctrl, "Slot already registered by ayesther hotplug driver\n");
 		else
 			ctrl_err(ctrl, "Slot initialization failed (%d)\n", rc);
 		goto err_out_release_ctlr;
 	}
 
 	/* Enable events after we have setup the data structures */
-	rc = pcie_init_notification(ctrl);
+	rc = pcie_init_yestification(ctrl);
 	if (rc) {
 		ctrl_err(ctrl, "Notification initialization failed (%d)\n", rc);
 		goto err_out_free_ctrl_slot;
@@ -223,15 +223,15 @@ static int pciehp_probe(struct pcie_device *dev)
 	rc = pci_hp_add(&ctrl->hotplug_slot);
 	if (rc) {
 		ctrl_err(ctrl, "Publication to user space failed (%d)\n", rc);
-		goto err_out_shutdown_notification;
+		goto err_out_shutdown_yestification;
 	}
 
 	pciehp_check_presence(ctrl);
 
 	return 0;
 
-err_out_shutdown_notification:
-	pcie_shutdown_notification(ctrl);
+err_out_shutdown_yestification:
+	pcie_shutdown_yestification(ctrl);
 err_out_free_ctrl_slot:
 	cleanup_slot(ctrl);
 err_out_release_ctlr:
@@ -244,7 +244,7 @@ static void pciehp_remove(struct pcie_device *dev)
 	struct controller *ctrl = get_service_data(dev);
 
 	pci_hp_del(&ctrl->hotplug_slot);
-	pcie_shutdown_notification(ctrl);
+	pcie_shutdown_yestification(ctrl);
 	cleanup_slot(ctrl);
 	pciehp_release_ctrl(ctrl);
 }
@@ -261,7 +261,7 @@ static bool pme_is_native(struct pcie_device *dev)
 static void pciehp_disable_interrupt(struct pcie_device *dev)
 {
 	/*
-	 * Disable hotplug interrupt so that it does not trigger
+	 * Disable hotplug interrupt so that it does yest trigger
 	 * immediately when the downstream link goes down.
 	 */
 	if (pme_is_native(dev))
@@ -282,7 +282,7 @@ static int pciehp_suspend(struct pcie_device *dev)
 	return 0;
 }
 
-static int pciehp_resume_noirq(struct pcie_device *dev)
+static int pciehp_resume_yesirq(struct pcie_device *dev)
 {
 	struct controller *ctrl = get_service_data(dev);
 
@@ -344,7 +344,7 @@ static struct pcie_port_service_driver hpdriver_portdrv = {
 #ifdef	CONFIG_PM
 #ifdef	CONFIG_PM_SLEEP
 	.suspend	= pciehp_suspend,
-	.resume_noirq	= pciehp_resume_noirq,
+	.resume_yesirq	= pciehp_resume_yesirq,
 	.resume		= pciehp_resume,
 #endif
 	.runtime_suspend = pciehp_runtime_suspend,

@@ -22,9 +22,9 @@ static DEFINE_MUTEX(of_dma_lock);
  * of_dma_find_controller - Get a DMA controller in DT DMA helpers list
  * @dma_spec:	pointer to DMA specifier as found in the device tree
  *
- * Finds a DMA controller with matching device node and number for dma cells
+ * Finds a DMA controller with matching device yesde and number for dma cells
  * in a list of registered DMA controllers. If a match is found a valid pointer
- * to the DMA data stored is retuned. A NULL pointer is returned if no match is
+ * to the DMA data stored is retuned. A NULL pointer is returned if yes match is
  * found.
  */
 static struct of_dma *of_dma_find_controller(struct of_phandle_args *dma_spec)
@@ -32,7 +32,7 @@ static struct of_dma *of_dma_find_controller(struct of_phandle_args *dma_spec)
 	struct of_dma *ofdma;
 
 	list_for_each_entry(ofdma, &of_dma_list, of_dma_controllers)
-		if (ofdma->of_node == dma_spec->np)
+		if (ofdma->of_yesde == dma_spec->np)
 			return ofdma;
 
 	pr_debug("%s: can't find DMA controller %pOF\n", __func__,
@@ -78,27 +78,27 @@ static struct dma_chan *of_dma_router_xlate(struct of_phandle_args *dma_spec,
 	}
 
 	/*
-	 * Need to put the node back since the ofdma->of_dma_route_allocate
+	 * Need to put the yesde back since the ofdma->of_dma_route_allocate
 	 * has taken it for generating the new, translated dma_spec
 	 */
-	of_node_put(dma_spec_target.np);
+	of_yesde_put(dma_spec_target.np);
 	return chan;
 }
 
 /**
  * of_dma_controller_register - Register a DMA controller to DT DMA helpers
- * @np:			device node of DMA controller
+ * @np:			device yesde of DMA controller
  * @of_dma_xlate:	translation function which converts a phandle
  *			arguments list into a dma_chan structure
  * @data		pointer to controller specific data to be used by
  *			translation function
  *
- * Returns 0 on success or appropriate errno value on error.
+ * Returns 0 on success or appropriate erryes value on error.
  *
  * Allocated memory should be freed with appropriate of_dma_controller_free()
  * call.
  */
-int of_dma_controller_register(struct device_node *np,
+int of_dma_controller_register(struct device_yesde *np,
 				struct dma_chan *(*of_dma_xlate)
 				(struct of_phandle_args *, struct of_dma *),
 				void *data)
@@ -106,7 +106,7 @@ int of_dma_controller_register(struct device_node *np,
 	struct of_dma	*ofdma;
 
 	if (!np || !of_dma_xlate) {
-		pr_err("%s: not enough information provided\n", __func__);
+		pr_err("%s: yest eyesugh information provided\n", __func__);
 		return -EINVAL;
 	}
 
@@ -114,7 +114,7 @@ int of_dma_controller_register(struct device_node *np,
 	if (!ofdma)
 		return -ENOMEM;
 
-	ofdma->of_node = np;
+	ofdma->of_yesde = np;
 	ofdma->of_dma_xlate = of_dma_xlate;
 	ofdma->of_dma_data = data;
 
@@ -129,18 +129,18 @@ EXPORT_SYMBOL_GPL(of_dma_controller_register);
 
 /**
  * of_dma_controller_free - Remove a DMA controller from DT DMA helpers list
- * @np:		device node of DMA controller
+ * @np:		device yesde of DMA controller
  *
  * Memory allocated by of_dma_controller_register() is freed here.
  */
-void of_dma_controller_free(struct device_node *np)
+void of_dma_controller_free(struct device_yesde *np)
 {
 	struct of_dma *ofdma;
 
 	mutex_lock(&of_dma_lock);
 
 	list_for_each_entry(ofdma, &of_dma_list, of_dma_controllers)
-		if (ofdma->of_node == np) {
+		if (ofdma->of_yesde == np) {
 			list_del(&ofdma->of_dma_controllers);
 			kfree(ofdma);
 			break;
@@ -153,19 +153,19 @@ EXPORT_SYMBOL_GPL(of_dma_controller_free);
 /**
  * of_dma_router_register - Register a DMA router to DT DMA helpers as a
  *			    controller
- * @np:				device node of DMA router
+ * @np:				device yesde of DMA router
  * @of_dma_route_allocate:	setup function for the router which need to
  *				modify the dma_spec for the DMA controller to
  *				use and to set up the requested route.
  * @dma_router:			pointer to dma_router structure to be used when
  *				the route need to be free up.
  *
- * Returns 0 on success or appropriate errno value on error.
+ * Returns 0 on success or appropriate erryes value on error.
  *
  * Allocated memory should be freed with appropriate of_dma_controller_free()
  * call.
  */
-int of_dma_router_register(struct device_node *np,
+int of_dma_router_register(struct device_yesde *np,
 			   void *(*of_dma_route_allocate)
 			   (struct of_phandle_args *, struct of_dma *),
 			   struct dma_router *dma_router)
@@ -173,7 +173,7 @@ int of_dma_router_register(struct device_node *np,
 	struct of_dma	*ofdma;
 
 	if (!np || !of_dma_route_allocate || !dma_router) {
-		pr_err("%s: not enough information provided\n", __func__);
+		pr_err("%s: yest eyesugh information provided\n", __func__);
 		return -EINVAL;
 	}
 
@@ -181,7 +181,7 @@ int of_dma_router_register(struct device_node *np,
 	if (!ofdma)
 		return -ENOMEM;
 
-	ofdma->of_node = np;
+	ofdma->of_yesde = np;
 	ofdma->of_dma_xlate = of_dma_router_xlate;
 	ofdma->of_dma_route_allocate = of_dma_route_allocate;
 	ofdma->dma_router = dma_router;
@@ -197,7 +197,7 @@ EXPORT_SYMBOL_GPL(of_dma_router_register);
 
 /**
  * of_dma_match_channel - Check if a DMA specifier matches name
- * @np:		device node to look for DMA channels
+ * @np:		device yesde to look for DMA channels
  * @name:	channel name to be matched
  * @index:	index of DMA specifier in list of DMA specifiers
  * @dma_spec:	pointer to DMA specifier as found in the device tree
@@ -206,7 +206,7 @@ EXPORT_SYMBOL_GPL(of_dma_router_register);
  * specifiers, matches the name provided. Returns 0 if the name matches and
  * a valid pointer to the DMA specifier is found. Otherwise returns -ENODEV.
  */
-static int of_dma_match_channel(struct device_node *np, const char *name,
+static int of_dma_match_channel(struct device_yesde *np, const char *name,
 				int index, struct of_phandle_args *dma_spec)
 {
 	const char *s;
@@ -226,33 +226,33 @@ static int of_dma_match_channel(struct device_node *np, const char *name,
 
 /**
  * of_dma_request_slave_channel - Get the DMA slave channel
- * @np:		device node to get DMA request from
+ * @np:		device yesde to get DMA request from
  * @name:	name of desired channel
  *
  * Returns pointer to appropriate DMA channel on success or an error pointer.
  */
-struct dma_chan *of_dma_request_slave_channel(struct device_node *np,
+struct dma_chan *of_dma_request_slave_channel(struct device_yesde *np,
 					      const char *name)
 {
 	struct of_phandle_args	dma_spec;
 	struct of_dma		*ofdma;
 	struct dma_chan		*chan;
 	int			count, i, start;
-	int			ret_no_channel = -ENODEV;
+	int			ret_yes_channel = -ENODEV;
 	static atomic_t		last_index;
 
 	if (!np || !name) {
-		pr_err("%s: not enough information provided\n", __func__);
+		pr_err("%s: yest eyesugh information provided\n", __func__);
 		return ERR_PTR(-ENODEV);
 	}
 
-	/* Silently fail if there is not even the "dmas" property */
+	/* Silently fail if there is yest even the "dmas" property */
 	if (!of_find_property(np, "dmas", NULL))
 		return ERR_PTR(-ENODEV);
 
 	count = of_property_count_strings(np, "dma-names");
 	if (count < 0) {
-		pr_err("%s: dma-names property of node '%pOF' missing or empty\n",
+		pr_err("%s: dma-names property of yesde '%pOF' missing or empty\n",
 			__func__, np);
 		return ERR_PTR(-ENODEV);
 	}
@@ -274,19 +274,19 @@ struct dma_chan *of_dma_request_slave_channel(struct device_node *np,
 		if (ofdma) {
 			chan = ofdma->of_dma_xlate(&dma_spec, ofdma);
 		} else {
-			ret_no_channel = -EPROBE_DEFER;
+			ret_yes_channel = -EPROBE_DEFER;
 			chan = NULL;
 		}
 
 		mutex_unlock(&of_dma_lock);
 
-		of_node_put(dma_spec.np);
+		of_yesde_put(dma_spec.np);
 
 		if (chan)
 			return chan;
 	}
 
-	return ERR_PTR(ret_no_channel);
+	return ERR_PTR(ret_yes_channel);
 }
 EXPORT_SYMBOL_GPL(of_dma_request_slave_channel);
 
@@ -325,7 +325,7 @@ EXPORT_SYMBOL_GPL(of_dma_simple_xlate);
  *
  * This function can be used as the of xlate callback for DMA driver which wants
  * to match the channel based on the channel id. When using this xlate function
- * the #dma-cells propety of the DMA controller dt node needs to be set to 1.
+ * the #dma-cells propety of the DMA controller dt yesde needs to be set to 1.
  * The data parameter of of_dma_controller_register must be a pointer to the
  * dma_device struct the function should match upon.
  *
@@ -340,7 +340,7 @@ struct dma_chan *of_dma_xlate_by_chan_id(struct of_phandle_args *dma_spec,
 	if (!dev || dma_spec->args_count != 1)
 		return NULL;
 
-	list_for_each_entry(chan, &dev->channels, device_node)
+	list_for_each_entry(chan, &dev->channels, device_yesde)
 		if (chan->chan_id == dma_spec->args[0]) {
 			candidate = chan;
 			break;

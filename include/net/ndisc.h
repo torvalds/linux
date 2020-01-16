@@ -20,7 +20,7 @@
  */
 #define NDISC_NODETYPE_UNSPEC		0	/* unspecified (default) */
 #define NDISC_NODETYPE_HOST		1	/* host or unauthorized router */
-#define NDISC_NODETYPE_NODEFAULT	2	/* non-default router */
+#define NDISC_NODETYPE_NODEFAULT	2	/* yesn-default router */
 #define NDISC_NODETYPE_DEFAULT		3	/* default router */
 
 /*
@@ -126,7 +126,7 @@ struct ndisc_options {
 #define nd_opts_pi_end			nd_opt_array[__ND_OPT_PREFIX_INFO_END]
 #define nd_opts_rh			nd_opt_array[ND_OPT_REDIRECT_HDR]
 #define nd_opts_mtu			nd_opt_array[ND_OPT_MTU]
-#define nd_opts_nonce			nd_opt_array[ND_OPT_NONCE]
+#define nd_opts_yesnce			nd_opt_array[ND_OPT_NONCE]
 #define nd_802154_opts_src_lladdr	nd_802154_opt_array[ND_OPT_SOURCE_LL_ADDR]
 #define nd_802154_opts_tgt_lladdr	nd_802154_opt_array[ND_OPT_TARGET_LL_ADDR]
 
@@ -143,7 +143,7 @@ void __ndisc_fill_addr_option(struct sk_buff *skb, int type, void *data,
 
 /*
  * This structure defines the hooks for IPv6 neighbour discovery.
- * The following hooks can be defined; unless noted otherwise, they are
+ * The following hooks can be defined; unless yested otherwise, they are
  * optional and can be filled with a null pointer.
  *
  * int (*is_useropt)(u8 nd_opt_type):
@@ -180,7 +180,7 @@ void __ndisc_fill_addr_option(struct sk_buff *skb, int type, void *data,
  *     fields inside skb. NOTE: this callback should fill the option
  *     fields to the skb which are previously indicated by opt_space
  *     parameter. That means the decision to add such option should
- *     not lost between these two callbacks, e.g. protected by interface
+ *     yest lost between these two callbacks, e.g. protected by interface
  *     up state.
  *
  * void (*prefix_rcv_add_addr)(struct net *net, struct net_device *dev,
@@ -194,7 +194,7 @@ void __ndisc_fill_addr_option(struct sk_buff *skb, int type, void *data,
  *     This function is called when a RA messages is received with valid
  *     PIO option fields and an IPv6 address will be added to the interface
  *     for autoconfiguration. The parameter dev_addr_generated reports about
- *     if the address was based on dev->dev_addr or not. This can be used
+ *     if the address was based on dev->dev_addr or yest. This can be used
  *     to add a second address if link-layer operates with two link layer
  *     addresses. E.g. 802.15.4 6LoWPAN.
  */
@@ -377,16 +377,16 @@ static inline u32 ndisc_hashfn(const void *pkey, const struct net_device *dev, _
 		(p32[3] * hash_rnd[3]));
 }
 
-static inline struct neighbour *__ipv6_neigh_lookup_noref(struct net_device *dev, const void *pkey)
+static inline struct neighbour *__ipv6_neigh_lookup_yesref(struct net_device *dev, const void *pkey)
 {
-	return ___neigh_lookup_noref(&nd_tbl, neigh_key_eq128, ndisc_hashfn, pkey, dev);
+	return ___neigh_lookup_yesref(&nd_tbl, neigh_key_eq128, ndisc_hashfn, pkey, dev);
 }
 
 static inline
-struct neighbour *__ipv6_neigh_lookup_noref_stub(struct net_device *dev,
+struct neighbour *__ipv6_neigh_lookup_yesref_stub(struct net_device *dev,
 						 const void *pkey)
 {
-	return ___neigh_lookup_noref(ipv6_stub->nd_tbl, neigh_key_eq128,
+	return ___neigh_lookup_yesref(ipv6_stub->nd_tbl, neigh_key_eq128,
 				     ndisc_hashfn, pkey, dev);
 }
 
@@ -395,8 +395,8 @@ static inline struct neighbour *__ipv6_neigh_lookup(struct net_device *dev, cons
 	struct neighbour *n;
 
 	rcu_read_lock_bh();
-	n = __ipv6_neigh_lookup_noref(dev, pkey);
-	if (n && !refcount_inc_not_zero(&n->refcnt))
+	n = __ipv6_neigh_lookup_yesref(dev, pkey);
+	if (n && !refcount_inc_yest_zero(&n->refcnt))
 		n = NULL;
 	rcu_read_unlock_bh();
 
@@ -409,13 +409,13 @@ static inline void __ipv6_confirm_neigh(struct net_device *dev,
 	struct neighbour *n;
 
 	rcu_read_lock_bh();
-	n = __ipv6_neigh_lookup_noref(dev, pkey);
+	n = __ipv6_neigh_lookup_yesref(dev, pkey);
 	if (n) {
-		unsigned long now = jiffies;
+		unsigned long yesw = jiffies;
 
 		/* avoid dirtying neighbour */
-		if (READ_ONCE(n->confirmed) != now)
-			WRITE_ONCE(n->confirmed, now);
+		if (READ_ONCE(n->confirmed) != yesw)
+			WRITE_ONCE(n->confirmed, yesw);
 	}
 	rcu_read_unlock_bh();
 }
@@ -426,13 +426,13 @@ static inline void __ipv6_confirm_neigh_stub(struct net_device *dev,
 	struct neighbour *n;
 
 	rcu_read_lock_bh();
-	n = __ipv6_neigh_lookup_noref_stub(dev, pkey);
+	n = __ipv6_neigh_lookup_yesref_stub(dev, pkey);
 	if (n) {
-		unsigned long now = jiffies;
+		unsigned long yesw = jiffies;
 
 		/* avoid dirtying neighbour */
-		if (READ_ONCE(n->confirmed) != now)
-			WRITE_ONCE(n->confirmed, now);
+		if (READ_ONCE(n->confirmed) != yesw)
+			WRITE_ONCE(n->confirmed, yesw);
 	}
 	rcu_read_unlock_bh();
 }
@@ -443,7 +443,7 @@ static inline struct neighbour *ip_neigh_gw6(struct net_device *dev,
 {
 	struct neighbour *neigh;
 
-	neigh = __ipv6_neigh_lookup_noref_stub(dev, addr);
+	neigh = __ipv6_neigh_lookup_yesref_stub(dev, addr);
 	if (unlikely(!neigh))
 		neigh = __neigh_create(ipv6_stub->nd_tbl, addr, dev, false);
 
@@ -460,7 +460,7 @@ int ndisc_rcv(struct sk_buff *skb);
 
 void ndisc_send_ns(struct net_device *dev, const struct in6_addr *solicit,
 		   const struct in6_addr *daddr, const struct in6_addr *saddr,
-		   u64 nonce);
+		   u64 yesnce);
 
 void ndisc_send_rs(struct net_device *dev,
 		   const struct in6_addr *saddr, const struct in6_addr *daddr);
@@ -499,6 +499,6 @@ int ndisc_ifinfo_sysctl_strategy(struct ctl_table *ctl,
 				 void __user *newval, size_t newlen);
 #endif
 
-void inet6_ifinfo_notify(int event, struct inet6_dev *idev);
+void inet6_ifinfo_yestify(int event, struct inet6_dev *idev);
 
 #endif

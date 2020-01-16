@@ -102,14 +102,14 @@ int crypto_dh_decode_key(const char *buf, unsigned int len, struct dh *params)
 			     params->q_size);
 
 	/*
-	 * Don't permit 'p' to be 0.  It's not a prime number, and it's subject
+	 * Don't permit 'p' to be 0.  It's yest a prime number, and it's subject
 	 * to corner cases such as 'mod 0' being undefined or
 	 * crypto_kpp_maxsize() returning 0.
 	 */
 	if (memchr_inv(params->p, 0, params->p_size) == NULL)
 		return -EINVAL;
 
-	/* It is permissible to not provide Q. */
+	/* It is permissible to yest provide Q. */
 	if (params->q_size == 0)
 		params->q = NULL;
 

@@ -38,10 +38,10 @@ properties:
       on the system (e.g. as an affixed label) or specified in the system's
       documentation (e.g. in the user's manual).
 
-      If no such name exists, and unless the property is mandatory according to
+      If yes such name exists, and unless the property is mandatory according to
       device tree bindings, it shall rather be omitted than constructed of
-      non-descriptive information. For instance an LCD panel in a system that
-      contains a single panel shall not be labelled "LCD" if that name is not
+      yesn-descriptive information. For instance an LCD panel in a system that
+      contains a single panel shall yest be labelled "LCD" if that name is yest
       inscribed on the system or used in a descriptive fashion in system
       documentation.
 
@@ -57,8 +57,8 @@ properties:
     type: object
     description:
       Most display panels are restricted to a single resolution and
-      require specific display timings. The panel-timing subnode expresses those
-      timings as specified in the timing subnode section of the display timing
+      require specific display timings. The panel-timing subyesde expresses those
+      timings as specified in the timing subyesde section of the display timing
       bindings defined in
       Documentation/devicetree/bindings/display/panel/display-timing.txt.
 
@@ -82,7 +82,7 @@ properties:
       bus such as DDC2 or E-DDC. For such panels the ddc-i2c-bus contains a
       phandle to the system I2C controller connected to that bus.
 
-  no-hpd:
+  yes-hpd:
     type: boolean
     description:
       This panel is supposed to communicate that it's ready via HPD
@@ -106,7 +106,7 @@ properties:
       signals (or active high power down signals) can be supported by inverting
       the GPIO specifier polarity flag.
 
-      Note that the enable signal control panel operation only and must not be
+      Note that the enable signal control panel operation only and must yest be
       confused with a backlight enable signal.
 
   reset-gpios:

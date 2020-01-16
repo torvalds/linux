@@ -17,7 +17,7 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/types.h>
 #include <linux/socket.h>
 #include <linux/in.h>
@@ -33,7 +33,7 @@
 #include <linux/uaccess.h>
 #include <linux/mm.h>
 #include <linux/interrupt.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/stat.h>
 #include <linux/module.h>
 #include <linux/lapb.h>
@@ -44,11 +44,11 @@
 static const u8 bcast_addr[6] = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF };
 
 /* If this number is made larger, check that the temporary string buffer
- * in lapbeth_new_device is large enough to store the probe device name.*/
+ * in lapbeth_new_device is large eyesugh to store the probe device name.*/
 #define MAXLAPBDEV 100
 
 struct lapbethdev {
-	struct list_head	node;
+	struct list_head	yesde;
 	struct net_device	*ethdev;	/* link to ethernet device */
 	struct net_device	*axdev;		/* lapbeth device (lapb#) */
 };
@@ -64,7 +64,7 @@ static struct lapbethdev *lapbeth_get_x25_dev(struct net_device *dev)
 {
 	struct lapbethdev *lapbeth;
 
-	list_for_each_entry_rcu(lapbeth, &lapbeth_devices, node) {
+	list_for_each_entry_rcu(lapbeth, &lapbeth_devices, yesde) {
 		if (lapbeth->ethdev == dev) 
 			return lapbeth;
 	}
@@ -149,7 +149,7 @@ static netdev_tx_t lapbeth_xmit(struct sk_buff *skb,
 	int err;
 
 	/*
-	 * Just to be *really* sure not to send anything if the interface
+	 * Just to be *really* sure yest to send anything if the interface
 	 * is down, the ethernet device may have gone.
 	 */
 	if (!netif_running(dev))
@@ -334,7 +334,7 @@ static int lapbeth_new_device(struct net_device *dev)
 	if (register_netdevice(ndev))
 		goto fail;
 
-	list_add_rcu(&lapbeth->node, &lapbeth_devices);
+	list_add_rcu(&lapbeth->yesde, &lapbeth_devices);
 	rc = 0;
 out:
 	return rc;
@@ -350,20 +350,20 @@ fail:
 static void lapbeth_free_device(struct lapbethdev *lapbeth)
 {
 	dev_put(lapbeth->ethdev);
-	list_del_rcu(&lapbeth->node);
+	list_del_rcu(&lapbeth->yesde);
 	unregister_netdevice(lapbeth->axdev);
 }
 
 /*
  *	Handle device status changes.
  *
- * Called from notifier with RTNL held.
+ * Called from yestifier with RTNL held.
  */
-static int lapbeth_device_event(struct notifier_block *this,
+static int lapbeth_device_event(struct yestifier_block *this,
 				unsigned long event, void *ptr)
 {
 	struct lapbethdev *lapbeth;
-	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
+	struct net_device *dev = netdev_yestifier_info_to_dev(ptr);
 
 	if (dev_net(dev) != &init_net)
 		return NOTIFY_DONE;
@@ -401,8 +401,8 @@ static struct packet_type lapbeth_packet_type __read_mostly = {
 	.func = lapbeth_rcv,
 };
 
-static struct notifier_block lapbeth_dev_notifier = {
-	.notifier_call = lapbeth_device_event,
+static struct yestifier_block lapbeth_dev_yestifier = {
+	.yestifier_call = lapbeth_device_event,
 };
 
 static const char banner[] __initconst =
@@ -412,7 +412,7 @@ static int __init lapbeth_init_driver(void)
 {
 	dev_add_pack(&lapbeth_packet_type);
 
-	register_netdevice_notifier(&lapbeth_dev_notifier);
+	register_netdevice_yestifier(&lapbeth_dev_yestifier);
 
 	printk(banner);
 
@@ -426,11 +426,11 @@ static void __exit lapbeth_cleanup_driver(void)
 	struct list_head *entry, *tmp;
 
 	dev_remove_pack(&lapbeth_packet_type);
-	unregister_netdevice_notifier(&lapbeth_dev_notifier);
+	unregister_netdevice_yestifier(&lapbeth_dev_yestifier);
 
 	rtnl_lock();
 	list_for_each_safe(entry, tmp, &lapbeth_devices) {
-		lapbeth = list_entry(entry, struct lapbethdev, node);
+		lapbeth = list_entry(entry, struct lapbethdev, yesde);
 
 		dev_put(lapbeth->ethdev);
 		unregister_netdevice(lapbeth->axdev);
@@ -440,5 +440,5 @@ static void __exit lapbeth_cleanup_driver(void)
 module_exit(lapbeth_cleanup_driver);
 
 MODULE_AUTHOR("Jonathan Naylor <g4klx@g4klx.demon.co.uk>");
-MODULE_DESCRIPTION("The unofficial LAPB over Ethernet driver");
+MODULE_DESCRIPTION("The uyesfficial LAPB over Ethernet driver");
 MODULE_LICENSE("GPL");

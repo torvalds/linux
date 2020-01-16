@@ -7,7 +7,7 @@
  */
 
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/kernel.h>
 #include <linux/delay.h>
 #include <linux/slab.h>
@@ -193,7 +193,7 @@ static const struct wf_sensor_ops smu_slotspow_ops = {
 };
 
 
-static struct smu_ad_sensor *smu_ads_create(struct device_node *node)
+static struct smu_ad_sensor *smu_ads_create(struct device_yesde *yesde)
 {
 	struct smu_ad_sensor *ads;
 	const char *l;
@@ -202,7 +202,7 @@ static struct smu_ad_sensor *smu_ads_create(struct device_node *node)
 	ads = kmalloc(sizeof(struct smu_ad_sensor), GFP_KERNEL);
 	if (ads == NULL)
 		return NULL;
-	l = of_get_property(node, "location", NULL);
+	l = of_get_property(yesde, "location", NULL);
 	if (l == NULL)
 		goto fail;
 
@@ -211,48 +211,48 @@ static struct smu_ad_sensor *smu_ads_create(struct device_node *node)
 	 * The problem with the IDs is that they are model specific while it
 	 * looks like apple has been doing a reasonably good job at keeping
 	 * the names and locations consistents so I'll stick with the names
-	 * and locations for now.
+	 * and locations for yesw.
 	 */
-	if (of_node_is_type(node, "temp-sensor") &&
+	if (of_yesde_is_type(yesde, "temp-sensor") &&
 	    !strcmp(l, "CPU T-Diode")) {
 		ads->sens.ops = &smu_cputemp_ops;
 		ads->sens.name = "cpu-temp";
 		if (cpudiode == NULL) {
-			DBG("wf: cpudiode partition (%02x) not found\n",
+			DBG("wf: cpudiode partition (%02x) yest found\n",
 			    SMU_SDB_CPUDIODE_ID);
 			goto fail;
 		}
-	} else if (of_node_is_type(node, "current-sensor") &&
+	} else if (of_yesde_is_type(yesde, "current-sensor") &&
 		   !strcmp(l, "CPU Current")) {
 		ads->sens.ops = &smu_cpuamp_ops;
 		ads->sens.name = "cpu-current";
 		if (cpuvcp == NULL) {
-			DBG("wf: cpuvcp partition (%02x) not found\n",
+			DBG("wf: cpuvcp partition (%02x) yest found\n",
 			    SMU_SDB_CPUVCP_ID);
 			goto fail;
 		}
-	} else if (of_node_is_type(node, "voltage-sensor") &&
+	} else if (of_yesde_is_type(yesde, "voltage-sensor") &&
 		   !strcmp(l, "CPU Voltage")) {
 		ads->sens.ops = &smu_cpuvolt_ops;
 		ads->sens.name = "cpu-voltage";
 		if (cpuvcp == NULL) {
-			DBG("wf: cpuvcp partition (%02x) not found\n",
+			DBG("wf: cpuvcp partition (%02x) yest found\n",
 			    SMU_SDB_CPUVCP_ID);
 			goto fail;
 		}
-	} else if (of_node_is_type(node, "power-sensor") &&
+	} else if (of_yesde_is_type(yesde, "power-sensor") &&
 		   !strcmp(l, "Slots Power")) {
 		ads->sens.ops = &smu_slotspow_ops;
 		ads->sens.name = "slots-power";
 		if (slotspow == NULL) {
-			DBG("wf: slotspow partition (%02x) not found\n",
+			DBG("wf: slotspow partition (%02x) yest found\n",
 			    SMU_SDB_SLOTSPOW_ID);
 			goto fail;
 		}
 	} else
 		goto fail;
 
-	v = of_get_property(node, "reg", NULL);
+	v = of_get_property(yesde, "reg", NULL);
 	if (v == NULL)
 		goto fail;
 	ads->reg = *v;
@@ -356,7 +356,7 @@ smu_cpu_power_create(struct wf_sensor *volts, struct wf_sensor *amps)
 	} else
 		pow->fake_volts = 0;
 
-	/* Try to use quadratic transforms on PowerMac8,1 and 9,1 for now,
+	/* Try to use quadratic transforms on PowerMac8,1 and 9,1 for yesw,
 	 * I yet have to figure out what's up with 8,2 and will have to
 	 * adjust for later, unless we can 100% trust the SDB partition...
 	 */
@@ -407,7 +407,7 @@ static void smu_fetch_param_partitions(void)
 
 static int __init smu_sensors_init(void)
 {
-	struct device_node *smu, *sensors, *s;
+	struct device_yesde *smu, *sensors, *s;
 	struct smu_ad_sensor *volt_sensor = NULL, *curr_sensor = NULL;
 
 	if (!smu_present())
@@ -416,17 +416,17 @@ static int __init smu_sensors_init(void)
 	/* Get parameters partitions */
 	smu_fetch_param_partitions();
 
-	smu = of_find_node_by_type(NULL, "smu");
+	smu = of_find_yesde_by_type(NULL, "smu");
 	if (smu == NULL)
 		return -ENODEV;
 
 	/* Look for sensors subdir */
 	for (sensors = NULL;
 	     (sensors = of_get_next_child(smu, sensors)) != NULL;)
-		if (of_node_name_eq(sensors, "sensors"))
+		if (of_yesde_name_eq(sensors, "sensors"))
 			break;
 
-	of_node_put(smu);
+	of_yesde_put(smu);
 
 	/* Create basic sensors */
 	for (s = NULL;
@@ -444,7 +444,7 @@ static int __init smu_sensors_init(void)
 			curr_sensor = ads;
 	}
 
-	of_node_put(sensors);
+	of_yesde_put(sensors);
 
 	/* Create CPU power sensor if possible */
 	if (volt_sensor && curr_sensor)

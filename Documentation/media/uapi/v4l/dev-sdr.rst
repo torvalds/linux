@@ -1,11 +1,11 @@
 .. Permission is granted to copy, distribute and/or modify this
 .. document under the terms of the GNU Free Documentation License,
 .. Version 1.1 or any later version published by the Free Software
-.. Foundation, with no Invariant Sections, no Front-Cover Texts
-.. and no Back-Cover Texts. A copy of the license is included at
+.. Foundation, with yes Invariant Sections, yes Front-Cover Texts
+.. and yes Back-Cover Texts. A copy of the license is included at
 .. Documentation/media/uapi/fdl-appendix.rst.
 ..
-.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
+.. TODO: replace it to GFDL-1.1-or-later WITH yes-invariant-sections
 
 .. _sdr:
 
@@ -19,7 +19,7 @@ is intended for controlling and data streaming of such devices.
 
 SDR devices are accessed through character device special files named
 ``/dev/swradio0`` to ``/dev/swradio255`` with major number 81 and
-dynamically allocated minor numbers 0 to 255.
+dynamically allocated miyesr numbers 0 to 255.
 
 
 Querying Capabilities
@@ -41,7 +41,7 @@ Devices supporting the SDR transmitter interface set the
 device has an Digital to Analog Converter (DAC), which is a mandatory
 element for the SDR transmitter.
 
-At least one of the read/write, streaming or asynchronous I/O methods
+At least one of the read/write, streaming or asynchroyesus I/O methods
 must be supported.
 
 
@@ -60,7 +60,7 @@ follow the SDR tuner index. Normally the SDR tuner is #0 and the RF
 tuner is #1.
 
 The :ref:`VIDIOC_S_HW_FREQ_SEEK` ioctl is
-not supported.
+yest supported.
 
 
 Data Format Negotiation

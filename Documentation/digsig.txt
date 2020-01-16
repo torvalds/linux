@@ -28,7 +28,7 @@ Public key and signature consist of header and MPIs::
 
 	struct pubkey_hdr {
 		uint8_t		version;	/* key format version */
-		time_t		timestamp;	/* key made, always 0 for now */
+		time_t		timestamp;	/* key made, always 0 for yesw */
 		uint8_t		algo;
 		uint8_t		nmpi;
 		char		mpi[0];
@@ -46,7 +46,7 @@ Public key and signature consist of header and MPIs::
 
 keyid equals to SHA1[12-19] over the total key content.
 Signature header is used as an input to generate a signature.
-Such approach insures that key or signature header could not be changed.
+Such approach insures that key or signature header could yest be changed.
 It protects timestamp from been changed and can be used for rollback
 protection.
 

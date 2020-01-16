@@ -13,11 +13,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -124,9 +124,9 @@ static ushort qib_singleport;
 module_param_named(singleport, qib_singleport, ushort, S_IRUGO);
 MODULE_PARM_DESC(singleport, "Use only IB port 1; more per-port buffer space");
 
-static ushort qib_krcvq01_no_msi;
-module_param_named(krcvq01_no_msi, qib_krcvq01_no_msi, ushort, S_IRUGO);
-MODULE_PARM_DESC(krcvq01_no_msi, "No MSI for kctx < 2");
+static ushort qib_krcvq01_yes_msi;
+module_param_named(krcvq01_yes_msi, qib_krcvq01_yes_msi, ushort, S_IRUGO);
+MODULE_PARM_DESC(krcvq01_yes_msi, "No MSI for kctx < 2");
 
 /*
  * Receive header queue sizes
@@ -154,7 +154,7 @@ static int  setup_txselect(const char *, const struct kernel_param *);
 module_param_call(txselect, setup_txselect, param_get_string,
 		  &kp_txselect, S_IWUSR | S_IRUGO);
 MODULE_PARM_DESC(txselect,
-		 "Tx serdes indices (for no QSFP or invalid QSFP data)");
+		 "Tx serdes indices (for yes QSFP or invalid QSFP data)");
 
 #define BOARD_QME7342 5
 #define BOARD_QMH7342 6
@@ -191,7 +191,7 @@ MODULE_PARM_DESC(txselect,
 #define ERR_MASK_N(fldname) SYM_MASK(ErrMask_0, fldname##Mask)
 #define INT_MASK(fldname) SYM_MASK(IntMask, fldname##IntMask)
 #define INT_MASK_P(fldname, port) SYM_MASK(IntMask, fldname##IntMask##_##port)
-/* Below because most, but not all, fields of IntMask have that full suffix */
+/* Below because most, but yest all, fields of IntMask have that full suffix */
 #define INT_MASK_PM(fldname, port) SYM_MASK(IntMask, fldname##Mask##_##port)
 
 
@@ -357,7 +357,7 @@ MODULE_PARM_DESC(txselect,
  * TID Flow table, per context.  Reduces
  * number of hdrq updates to one per flow (or on errors).
  * context 0 and 1 share same memory, but have distinct
- * addresses.  Since for now, we never use expected sends
+ * addresses.  Since for yesw, we never use expected sends
  * on kernel contexts, we don't worry about that (we initialize
  * those entries for ctxt 0/1 on driver load twice, for example).
  */
@@ -371,7 +371,7 @@ MODULE_PARM_DESC(txselect,
 	(SYM_MASK(RcvTIDFlowTable0, SeqMismatch) << \
 	SYM_LSB(RcvTIDFlowTable0, SeqMismatch)))
 
-/* Most (not all) Counters are per-IBport.
+/* Most (yest all) Counters are per-IBport.
  * Requires LBIntCnt is at offset 0 in the group
  */
 #define CREG_IDX(regname) \
@@ -421,7 +421,7 @@ MODULE_PARM_DESC(txselect,
 #define crp_wordsend CREG_IDX(TxDwordCnt)
 #define crp_tx_creditstalls CREG_IDX(TxCreditUpToDateTimeOut)
 
-/* these are the (few) counters that are not port-specific */
+/* these are the (few) counters that are yest port-specific */
 #define CREG_DEVIDX(regname) ((QIB_7322_##regname##_OFFS - \
 			QIB_7322_LBIntCnt_OFFS) / sizeof(u64))
 #define cr_base_egrovfl CREG_DEVIDX(RxP0HdrEgrOvflCnt)
@@ -432,14 +432,14 @@ MODULE_PARM_DESC(txselect,
 #define cr_tidfull CREG_DEVIDX(RxTIDFullErrCnt)
 #define cr_tidinvalid CREG_DEVIDX(RxTIDValidErrCnt)
 
-/* no chip register for # of IB ports supported, so define */
+/* yes chip register for # of IB ports supported, so define */
 #define NUM_IB_PORTS 2
 
-/* 1 VL15 buffer per hardware IB port, no register for this, so define */
+/* 1 VL15 buffer per hardware IB port, yes register for this, so define */
 #define NUM_VL15_BUFS NUM_IB_PORTS
 
 /*
- * context 0 and 1 are special, and there is no chip register that
+ * context 0 and 1 are special, and there is yes chip register that
  * defines this value, so we have to define it here.
  * These are all allocated to either 0 or 1 for single port
  * hardware configuration, otherwise each gets half
@@ -451,7 +451,7 @@ MODULE_PARM_DESC(txselect,
 #define PBC_PORT_SEL_RMASK 1
 #define PBC_VL_NUM_LSB 27
 #define PBC_VL_NUM_RMASK 7
-#define PBC_7322_VL15_SEND (1ULL << 63) /* pbc; VL15, no credit check */
+#define PBC_7322_VL15_SEND (1ULL << 63) /* pbc; VL15, yes credit check */
 #define PBC_7322_VL15_SEND_CTRL (1ULL << 31) /* control version of same */
 
 static u8 ib_rate_to_delay[IB_RATE_120_GBPS + 1] = {
@@ -535,10 +535,10 @@ static const u8 qib_7322_physportstate[0x20] = {
 };
 
 #ifdef CONFIG_INFINIBAND_QIB_DCA
-struct qib_irq_notify {
+struct qib_irq_yestify {
 	int rcv;
 	void *arg;
-	struct irq_affinity_notify notify;
+	struct irq_affinity_yestify yestify;
 };
 #endif
 
@@ -603,7 +603,7 @@ static void write_tx_serdes_param(struct qib_pportdata *, struct txdds_ent *);
 #define TXDDS_TABLE_SZ 16 /* number of entries per speed in onchip table */
 #define TXDDS_EXTRA_SZ 18 /* number of extra tx settings entries */
 #define TXDDS_MFG_SZ 2    /* number of mfg tx settings entries */
-#define SERDES_CHANS 4 /* yes, it's obvious, but one less magic number */
+#define SERDES_CHANS 4 /* no, it's obvious, but one less magic number */
 
 #define H1_FORCE_VAL 8
 #define H1_FORCE_QME 1 /*  may be overridden via setup_txselect() */
@@ -632,9 +632,9 @@ struct qib_chippport_specific {
 	 * these 5 fields are used to establish deltas for IB symbol
 	 * errors and linkrecovery errors.  They can be reported on
 	 * some chips during link negotiation prior to INIT, and with
-	 * DDR when faking DDR negotiations with non-IBTA switches.
+	 * DDR when faking DDR negotiations with yesn-IBTA switches.
 	 * The chip counters are adjusted at driver unload if there is
-	 * a non-zero delta.
+	 * a yesn-zero delta.
 	 */
 	u64 ibdeltainprog;
 	u64 ibsymdelta;
@@ -658,7 +658,7 @@ struct qib_chippport_specific {
 	 * entry zero is unused, to simplify indexing
 	 */
 	u8 h1_val;
-	u8 no_eep;  /* txselect table index to use if no qsfp info */
+	u8 yes_eep;  /* txselect table index to use if yes qsfp info */
 	u8 ipg_tries;
 	u8 ibmalfusesnap;
 	struct qib_qsfp_data qsfp_data;
@@ -670,7 +670,7 @@ static struct {
 	const char *name;
 	irq_handler_t handler;
 	int lsb;
-	int port; /* 0 if not port-specific, else port # */
+	int port; /* 0 if yest port-specific, else port # */
 	int dca;
 } irq_table[] = {
 	{ "", qib_7322intr, -1, 0, 0 },
@@ -700,7 +700,7 @@ static const struct dca_reg_map {
 	int     shadow_inx;
 	int     lsb;
 	u64     mask;
-	u16     regno;
+	u16     regyes;
 } dca_rcvhdr_reg_map[] = {
 	{ 0, SYM_LSB(DCACtrlB, RcvHdrq0DCAOPH),
 	   ~SYM_MASK(DCACtrlB, RcvHdrq0DCAOPH) , KREG_IDX(DCACtrlB) },
@@ -756,7 +756,7 @@ static const struct dca_reg_map {
 #define BLOB_7322_IBCHG 0x101
 
 static inline void qib_write_kreg(const struct qib_devdata *dd,
-				  const u32 regno, u64 value);
+				  const u32 regyes, u64 value);
 static inline u32 qib_read_kreg32(const struct qib_devdata *, const u32);
 static void write_7322_initregs(struct qib_devdata *);
 static void write_7322_init_portregs(struct qib_pportdata *);
@@ -765,26 +765,26 @@ static void check_7322_rxe_status(struct qib_pportdata *);
 static u32 __iomem *qib_7322_getsendbuf(struct qib_pportdata *, u64, u32 *);
 #ifdef CONFIG_INFINIBAND_QIB_DCA
 static void qib_setup_dca(struct qib_devdata *dd);
-static void setup_dca_notifier(struct qib_devdata *dd, int msixnum);
-static void reset_dca_notifier(struct qib_devdata *dd, int msixnum);
+static void setup_dca_yestifier(struct qib_devdata *dd, int msixnum);
+static void reset_dca_yestifier(struct qib_devdata *dd, int msixnum);
 #endif
 
 /**
  * qib_read_ureg32 - read 32-bit virtualized per-context register
  * @dd: device
- * @regno: register number
+ * @regyes: register number
  * @ctxt: context number
  *
  * Return the contents of a register that is virtualized to be per context.
- * Returns -1 on errors (not distinguishable from valid contents at
+ * Returns -1 on errors (yest distinguishable from valid contents at
  * runtime; we may add a separate error variable at some point).
  */
 static inline u32 qib_read_ureg32(const struct qib_devdata *dd,
-				  enum qib_ureg regno, int ctxt)
+				  enum qib_ureg regyes, int ctxt)
 {
 	if (!dd->kregbase || !(dd->flags & QIB_PRESENT))
 		return 0;
-	return readl(regno + (u64 __iomem *)(
+	return readl(regyes + (u64 __iomem *)(
 		(dd->ureg_align * ctxt) + (dd->userbase ?
 		 (char __iomem *)dd->userbase :
 		 (char __iomem *)dd->kregbase + dd->uregbase)));
@@ -793,20 +793,20 @@ static inline u32 qib_read_ureg32(const struct qib_devdata *dd,
 /**
  * qib_read_ureg - read virtualized per-context register
  * @dd: device
- * @regno: register number
+ * @regyes: register number
  * @ctxt: context number
  *
  * Return the contents of a register that is virtualized to be per context.
- * Returns -1 on errors (not distinguishable from valid contents at
+ * Returns -1 on errors (yest distinguishable from valid contents at
  * runtime; we may add a separate error variable at some point).
  */
 static inline u64 qib_read_ureg(const struct qib_devdata *dd,
-				enum qib_ureg regno, int ctxt)
+				enum qib_ureg regyes, int ctxt)
 {
 
 	if (!dd->kregbase || !(dd->flags & QIB_PRESENT))
 		return 0;
-	return readq(regno + (u64 __iomem *)(
+	return readq(regyes + (u64 __iomem *)(
 		(dd->ureg_align * ctxt) + (dd->userbase ?
 		 (char __iomem *)dd->userbase :
 		 (char __iomem *)dd->kregbase + dd->uregbase)));
@@ -815,14 +815,14 @@ static inline u64 qib_read_ureg(const struct qib_devdata *dd,
 /**
  * qib_write_ureg - write virtualized per-context register
  * @dd: device
- * @regno: register number
+ * @regyes: register number
  * @value: value
  * @ctxt: context
  *
  * Write the contents of a register that is virtualized to be per context.
  */
 static inline void qib_write_ureg(const struct qib_devdata *dd,
-				  enum qib_ureg regno, u64 value, int ctxt)
+				  enum qib_ureg regyes, u64 value, int ctxt)
 {
 	u64 __iomem *ubase;
 
@@ -837,108 +837,108 @@ static inline void qib_write_ureg(const struct qib_devdata *dd,
 			 dd->ureg_align * ctxt);
 
 	if (dd->kregbase && (dd->flags & QIB_PRESENT))
-		writeq(value, &ubase[regno]);
+		writeq(value, &ubase[regyes]);
 }
 
 static inline u32 qib_read_kreg32(const struct qib_devdata *dd,
-				  const u32 regno)
+				  const u32 regyes)
 {
 	if (!dd->kregbase || !(dd->flags & QIB_PRESENT))
 		return -1;
-	return readl((u32 __iomem *) &dd->kregbase[regno]);
+	return readl((u32 __iomem *) &dd->kregbase[regyes]);
 }
 
 static inline u64 qib_read_kreg64(const struct qib_devdata *dd,
-				  const u32 regno)
+				  const u32 regyes)
 {
 	if (!dd->kregbase || !(dd->flags & QIB_PRESENT))
 		return -1;
-	return readq(&dd->kregbase[regno]);
+	return readq(&dd->kregbase[regyes]);
 }
 
 static inline void qib_write_kreg(const struct qib_devdata *dd,
-				  const u32 regno, u64 value)
+				  const u32 regyes, u64 value)
 {
 	if (dd->kregbase && (dd->flags & QIB_PRESENT))
-		writeq(value, &dd->kregbase[regno]);
+		writeq(value, &dd->kregbase[regyes]);
 }
 
 /*
- * not many sanity checks for the port-specific kernel register routines,
- * since they are only used when it's known to be safe.
+ * yest many sanity checks for the port-specific kernel register routines,
+ * since they are only used when it's kyeswn to be safe.
 */
 static inline u64 qib_read_kreg_port(const struct qib_pportdata *ppd,
-				     const u16 regno)
+				     const u16 regyes)
 {
 	if (!ppd->cpspec->kpregbase || !(ppd->dd->flags & QIB_PRESENT))
 		return 0ULL;
-	return readq(&ppd->cpspec->kpregbase[regno]);
+	return readq(&ppd->cpspec->kpregbase[regyes]);
 }
 
 static inline void qib_write_kreg_port(const struct qib_pportdata *ppd,
-				       const u16 regno, u64 value)
+				       const u16 regyes, u64 value)
 {
 	if (ppd->cpspec && ppd->dd && ppd->cpspec->kpregbase &&
 	    (ppd->dd->flags & QIB_PRESENT))
-		writeq(value, &ppd->cpspec->kpregbase[regno]);
+		writeq(value, &ppd->cpspec->kpregbase[regyes]);
 }
 
 /**
  * qib_write_kreg_ctxt - write a device's per-ctxt 64-bit kernel register
  * @dd: the qlogic_ib device
- * @regno: the register number to write
+ * @regyes: the register number to write
  * @ctxt: the context containing the register
  * @value: the value to write
  */
 static inline void qib_write_kreg_ctxt(const struct qib_devdata *dd,
-				       const u16 regno, unsigned ctxt,
+				       const u16 regyes, unsigned ctxt,
 				       u64 value)
 {
-	qib_write_kreg(dd, regno + ctxt, value);
+	qib_write_kreg(dd, regyes + ctxt, value);
 }
 
-static inline u64 read_7322_creg(const struct qib_devdata *dd, u16 regno)
+static inline u64 read_7322_creg(const struct qib_devdata *dd, u16 regyes)
 {
 	if (!dd->cspec->cregbase || !(dd->flags & QIB_PRESENT))
 		return 0;
-	return readq(&dd->cspec->cregbase[regno]);
+	return readq(&dd->cspec->cregbase[regyes]);
 
 
 }
 
-static inline u32 read_7322_creg32(const struct qib_devdata *dd, u16 regno)
+static inline u32 read_7322_creg32(const struct qib_devdata *dd, u16 regyes)
 {
 	if (!dd->cspec->cregbase || !(dd->flags & QIB_PRESENT))
 		return 0;
-	return readl(&dd->cspec->cregbase[regno]);
+	return readl(&dd->cspec->cregbase[regyes]);
 
 
 }
 
 static inline void write_7322_creg_port(const struct qib_pportdata *ppd,
-					u16 regno, u64 value)
+					u16 regyes, u64 value)
 {
 	if (ppd->cpspec && ppd->cpspec->cpregbase &&
 	    (ppd->dd->flags & QIB_PRESENT))
-		writeq(value, &ppd->cpspec->cpregbase[regno]);
+		writeq(value, &ppd->cpspec->cpregbase[regyes]);
 }
 
 static inline u64 read_7322_creg_port(const struct qib_pportdata *ppd,
-				      u16 regno)
+				      u16 regyes)
 {
 	if (!ppd->cpspec || !ppd->cpspec->cpregbase ||
 	    !(ppd->dd->flags & QIB_PRESENT))
 		return 0;
-	return readq(&ppd->cpspec->cpregbase[regno]);
+	return readq(&ppd->cpspec->cpregbase[regyes]);
 }
 
 static inline u32 read_7322_creg32_port(const struct qib_pportdata *ppd,
-					u16 regno)
+					u16 regyes)
 {
 	if (!ppd->cpspec || !ppd->cpspec->cpregbase ||
 	    !(ppd->dd->flags & QIB_PRESENT))
 		return 0;
-	return readl(&ppd->cpspec->cpregbase[regno]);
+	return readl(&ppd->cpspec->cpregbase[regyes]);
 }
 
 /* bits in Control register */
@@ -1031,10 +1031,10 @@ static inline u32 read_7322_creg32_port(const struct qib_pportdata *ppd,
 
 /*
  * Per chip (rather than per-port) errors.  Most either do
- * nothing but trigger a print (because they self-recover, or
+ * yesthing but trigger a print (because they self-recover, or
  * always occur in tandem with other errors that handle the
- * issue), or because they indicate errors with no recovery,
- * but we want to know that they happened.
+ * issue), or because they indicate errors with yes recovery,
+ * but we want to kyesw that they happened.
  */
 #define QIB_E_SBUF_VL15_MISUSE ERR_MASK(SBufVL15MisUseErr)
 #define QIB_E_BADEEP ERR_MASK(InvalidEEPCmd)
@@ -1045,8 +1045,8 @@ static inline u32 read_7322_creg32_port(const struct qib_pportdata *ppd,
 #define QIB_E_RRCVEGRFULL ERR_MASK(RcvEgrFullErr)
 #define QIB_E_RCVCTXTSHARE ERR_MASK(RcvContextShareErr)
 
-/* SDMA chip errors (not per port)
- * QIB_E_SDMA_BUF_DUP needs no special handling, because we will also get
+/* SDMA chip errors (yest per port)
+ * QIB_E_SDMA_BUF_DUP needs yes special handling, because we will also get
  * the SDMAHALT error immediately, so we just print the dup error via the
  * E_AUTO mechanism.  This is true of most of the per-port fatal errors
  * as well, but since this is port-independent, by definition, it's
@@ -1110,8 +1110,8 @@ static inline u32 read_7322_creg32_port(const struct qib_pportdata *ppd,
 
 /*
  * This sets some bits more than once, but makes it more obvious which
- * bits are not handled under other categories, and the repeat definition
- * is not a problem.
+ * bits are yest handled under other categories, and the repeat definition
+ * is yest a problem.
  */
 #define QIB_E_P_BITSEXTANT ( \
 	QIB_E_P_SPKTERRS | QIB_E_P_PKTERRS | QIB_E_P_RPKTERRS | \
@@ -1124,7 +1124,7 @@ static inline u32 read_7322_creg32_port(const struct qib_pportdata *ppd,
  * These are errors that can occur when the link
  * changes state while a packet is being sent or received.  This doesn't
  * cover things like EBP or VCRC that can be the result of a sending
- * having the link change state, so we receive a "known bad" packet.
+ * having the link change state, so we receive a "kyeswn bad" packet.
  * All of these are "per port", so renamed:
  */
 #define QIB_E_P_LINK_PKTERRS (\
@@ -1135,8 +1135,8 @@ static inline u32 read_7322_creg32_port(const struct qib_pportdata *ppd,
 
 /*
  * This sets some bits more than once, but makes it more obvious which
- * bits are not handled under other categories (such as QIB_E_SPKTERRS),
- * and the repeat definition is not a problem.
+ * bits are yest handled under other categories (such as QIB_E_SPKTERRS),
+ * and the repeat definition is yest a problem.
  */
 #define QIB_E_C_BITSEXTANT (\
 	QIB_E_HARDWARE | QIB_E_INVALIDADDR | QIB_E_BADEEP |\
@@ -1158,7 +1158,7 @@ static inline u32 read_7322_creg32_port(const struct qib_pportdata *ppd,
 #define IBA7322_IBCC_LINKCMD_SHIFT SYM_LSB(IBCCtrlA_0, LinkCmd)
 
 /*
- * IBTA_1_2 is set when multiple speeds are enabled (normal),
+ * IBTA_1_2 is set when multiple speeds are enabled (yesrmal),
  * and also if forced QDR (only QDR enabled).  It's enabled for the
  * forced QDR case so that scrambling will be enabled by the TS3
  * exchange, when supported by both sides of the link.
@@ -1248,7 +1248,7 @@ static const struct  qib_hwerror_msgs qib_7322p_error_msgs[] = {
 	E_P_AUTO(SHeadersErr),
 	E_P_AUTO(VL15BufMisuseErr),
 	/*
-	 * SDmaHaltErr is not really an error, make it clearer;
+	 * SDmaHaltErr is yest really an error, make it clearer;
 	 */
 	{.mask = SYM_MASK(ErrMask_0, SDmaHaltErrMask), .msg = "SDmaHalted",
 		.sz = 11},
@@ -1291,7 +1291,7 @@ static const struct  qib_hwerror_msgs qib_7322p_error_msgs[] = {
 };
 
 /*
- * Below generates "auto-message" for interrupts not specific to any port or
+ * Below generates "auto-message" for interrupts yest specific to any port or
  * context
  */
 #define INTR_AUTO(fldname) { .mask = SYM_MASK(IntMask, fldname##Mask), \
@@ -1436,7 +1436,7 @@ static void flush_fifo(struct qib_pportdata *ppd)
 
 	/*
 	 * Send a dummy VL15 packet to flush the launch FIFO.
-	 * This will not actually be sent since the TxeBypassIbc bit is set.
+	 * This will yest actually be sent since the TxeBypassIbc bit is set.
 	 */
 	pbc = PBC_7322_VL15_SEND |
 		(((u64)ppd->hw_pidx) << (PBC_PORT_SEL_LSB + 32)) |
@@ -1599,7 +1599,7 @@ static void sdma_7322_p_errors(struct qib_pportdata *ppd, u64 errs)
 	spin_lock_irqsave(&ppd->sdma_lock, flags);
 
 	if (errs != QIB_E_P_SDMAHALT) {
-		/* SDMA errors have QIB_E_P_SDMAHALT and another bit set */
+		/* SDMA errors have QIB_E_P_SDMAHALT and ayesther bit set */
 		qib_dev_porterr(dd, ppd->port,
 			"SDMA %s 0x%016llx %s\n",
 			qib_sdma_state_names[ppd->sdma_state.current_state],
@@ -1645,9 +1645,9 @@ static void sdma_7322_p_errors(struct qib_pportdata *ppd, u64 errs)
 }
 
 /*
- * handle per-device errors (not per-port errors)
+ * handle per-device errors (yest per-port errors)
  */
-static noinline void handle_7322_errors(struct qib_devdata *dd)
+static yesinline void handle_7322_errors(struct qib_devdata *dd)
 {
 	char *msg;
 	u64 iserr = 0;
@@ -1658,7 +1658,7 @@ static noinline void handle_7322_errors(struct qib_devdata *dd)
 	errs = qib_read_kreg64(dd, kr_errstatus);
 	if (!errs) {
 		qib_devinfo(dd->pcidev,
-			"device error interrupt, but no error bits set!\n");
+			"device error interrupt, but yes error bits set!\n");
 		goto done;
 	}
 
@@ -1719,7 +1719,7 @@ static noinline void handle_7322_errors(struct qib_devdata *dd)
 	 * waiting in poll.  We used to try to check which contexts had
 	 * the overflow, but given the cost of that and the chip reads
 	 * to support it, it's better to just wake everybody up if we
-	 * get an overflow; waiters can poll again if it's not them.
+	 * get an overflow; waiters can poll again if it's yest them.
 	 */
 	if (errs & (ERR_MASK(RcvEgrFullErr) | ERR_MASK(RcvHdrFullErr))) {
 		qib_handle_urcv(dd, ~0U);
@@ -1751,7 +1751,7 @@ static void reenable_chase(struct timer_list *t)
 		QLOGIC_IB_IBCC_LINKINITCMD_POLL);
 }
 
-static void disable_chase(struct qib_pportdata *ppd, unsigned long tnow,
+static void disable_chase(struct qib_pportdata *ppd, unsigned long tyesw,
 		u8 ibclt)
 {
 	ppd->cpspec->chase_end = 0;
@@ -1768,7 +1768,7 @@ static void disable_chase(struct qib_pportdata *ppd, unsigned long tnow,
 static void handle_serdes_issues(struct qib_pportdata *ppd, u64 ibcst)
 {
 	u8 ibclt;
-	unsigned long tnow;
+	unsigned long tyesw;
 
 	ibclt = (u8)SYM_FIELD(ibcst, IBCStatusA_0, LinkTrainingState);
 
@@ -1783,12 +1783,12 @@ static void handle_serdes_issues(struct qib_pportdata *ppd, u64 ibcst)
 	case IB_7322_LT_STATE_CFGWAITRMT:
 	case IB_7322_LT_STATE_TXREVLANES:
 	case IB_7322_LT_STATE_CFGENH:
-		tnow = jiffies;
+		tyesw = jiffies;
 		if (ppd->cpspec->chase_end &&
-		     time_after(tnow, ppd->cpspec->chase_end))
-			disable_chase(ppd, tnow, ibclt);
+		     time_after(tyesw, ppd->cpspec->chase_end))
+			disable_chase(ppd, tyesw, ibclt);
 		else if (!ppd->cpspec->chase_end)
-			ppd->cpspec->chase_end = tnow + QIB_CHASE_TIME;
+			ppd->cpspec->chase_end = tyesw + QIB_CHASE_TIME;
 		break;
 	default:
 		ppd->cpspec->chase_end = 0;
@@ -1828,7 +1828,7 @@ static void handle_serdes_issues(struct qib_pportdata *ppd, u64 ibcst)
 		    ltstate != IB_PHYSPORTSTATE_RECOVERY_RETRAIN &&
 		    ltstate != IB_PHYSPORTSTATE_RECOVERY_WAITRMT &&
 		    ltstate != IB_PHYSPORTSTATE_RECOVERY_IDLE)
-			/* If the link went down (but no into recovery,
+			/* If the link went down (but yes into recovery,
 			 * turn LOS back on */
 			serdes_7322_los_enable(ppd, 1);
 		if (!ppd->cpspec->qdr_dfe_on &&
@@ -1854,10 +1854,10 @@ static int qib_7322_set_ib_cfg(struct qib_pportdata *, int, u32);
  * will likely get it's own MSIx interrupt (one for each port,
  * although just a single handler).
  */
-static noinline void handle_7322_p_errors(struct qib_pportdata *ppd)
+static yesinline void handle_7322_p_errors(struct qib_pportdata *ppd)
 {
 	char *msg;
-	u64 ignore_this_time = 0, iserr = 0, errs, fmask;
+	u64 igyesre_this_time = 0, iserr = 0, errs, fmask;
 	struct qib_devdata *dd = ppd->dd;
 
 	/* do this as soon as possible */
@@ -1868,7 +1868,7 @@ static noinline void handle_7322_p_errors(struct qib_pportdata *ppd)
 	errs = qib_read_kreg_port(ppd, krp_errstatus);
 	if (!errs)
 		qib_devinfo(dd->pcidev,
-			 "Port%d error interrupt, but no error bits set!\n",
+			 "Port%d error interrupt, but yes error bits set!\n",
 			 ppd->port);
 	if (!fmask)
 		errs &= ~QIB_E_P_IBSTATUSCHANGED;
@@ -1883,9 +1883,9 @@ static noinline void handle_7322_p_errors(struct qib_pportdata *ppd)
 			   errs & ~QIB_E_P_BITSEXTANT, qib_7322p_error_msgs);
 		if (!*msg)
 			snprintf(msg, sizeof(ppd->cpspec->epmsgbuf),
-				 "no others");
+				 "yes others");
 		qib_dev_porterr(dd, ppd->port,
-			"error interrupt with unknown errors 0x%016Lx set (and %s)\n",
+			"error interrupt with unkyeswn errors 0x%016Lx set (and %s)\n",
 			(errs & ~QIB_E_P_BITSEXTANT), msg);
 		*msg = '\0';
 	}
@@ -1916,7 +1916,7 @@ static noinline void handle_7322_p_errors(struct qib_pportdata *ppd)
 				   (errs & QIB_E_P_LINK_PKTERRS),
 				   qib_7322p_error_msgs);
 			*msg = '\0';
-			ignore_this_time = errs & QIB_E_P_LINK_PKTERRS;
+			igyesre_this_time = errs & QIB_E_P_LINK_PKTERRS;
 		}
 		qib_disarm_7322_senderrbufs(ppd);
 	} else if ((errs & QIB_E_P_LINK_PKTERRS) &&
@@ -1930,13 +1930,13 @@ static noinline void handle_7322_p_errors(struct qib_pportdata *ppd)
 		 */
 		err_decode(msg, sizeof(ppd->cpspec->epmsgbuf), errs,
 			   qib_7322p_error_msgs);
-		ignore_this_time = errs & QIB_E_P_LINK_PKTERRS;
+		igyesre_this_time = errs & QIB_E_P_LINK_PKTERRS;
 		*msg = '\0';
 	}
 
 	qib_write_kreg_port(ppd, krp_errclear, errs);
 
-	errs &= ~ignore_this_time;
+	errs &= ~igyesre_this_time;
 	if (!errs)
 		goto done;
 
@@ -1963,7 +1963,7 @@ static noinline void handle_7322_p_errors(struct qib_pportdata *ppd)
 		      SYM_MASK(IBCCtrlA_0, IBStatIntReductionEn))) {
 			/*
 			 * We got our interrupt, so init code should be
-			 * happy and not try alternatives. Now squelch
+			 * happy and yest try alternatives. Now squelch
 			 * other "chatter" from link-negotiation (pre Init)
 			 */
 			ppd->cpspec->ibcctrl_a |=
@@ -1990,7 +1990,7 @@ static noinline void handle_7322_p_errors(struct qib_pportdata *ppd)
 			 * Since going into a recovery state causes the link
 			 * state to go down and since recovery is transitory,
 			 * it is better if we "miss" ever seeing the link
-			 * training state go into recovery (i.e., ignore this
+			 * training state go into recovery (i.e., igyesre this
 			 * transition for link state special handling purposes)
 			 * without updating lastibcstat.
 			 */
@@ -2082,7 +2082,7 @@ static void qib_7322_clear_freeze(struct qib_devdata *dd)
 	qib_7322_set_intr_state(dd, 1);
 }
 
-/* no error handling to speak of */
+/* yes error handling to speak of */
 /**
  * qib_7322_handle_hwerrors - display hardware errors.
  * @dd: the qlogic_ib device
@@ -2090,7 +2090,7 @@ static void qib_7322_clear_freeze(struct qib_devdata *dd)
  * @msgl: the size of the output buffer
  *
  * Use same msg buffer as regular errors to avoid excessive stack
- * use.  Most hardware errors are catastrophic, but for right now,
+ * use.  Most hardware errors are catastrophic, but for right yesw,
  * we'll print them and continue.  We reuse the same message buffer as
  * qib_handle_errors() to avoid excessive stack usage.
  */
@@ -2106,7 +2106,7 @@ static void qib_7322_handle_hwerrors(struct qib_devdata *dd, char *msg,
 		goto bail;
 	if (hwerrs == ~0ULL) {
 		qib_dev_err(dd,
-			"Read of hardware error status failed (all bits set); ignoring\n");
+			"Read of hardware error status failed (all bits set); igyesring\n");
 		goto bail;
 	}
 	qib_stats.sps_hwerrs++;
@@ -2117,7 +2117,7 @@ static void qib_7322_handle_hwerrors(struct qib_devdata *dd, char *msg,
 
 	hwerrs &= dd->cspec->hwerrmask;
 
-	/* no EEPROM logging, yet */
+	/* yes EEPROM logging, yet */
 
 	if (hwerrs)
 		qib_devinfo(dd->pcidev,
@@ -2132,10 +2132,10 @@ static void qib_7322_handle_hwerrors(struct qib_devdata *dd, char *msg,
 		if ((hwerrs & ~HWE_MASK(LATriggered)) ||
 		    dd->cspec->stay_in_freeze) {
 			/*
-			 * If any set that we aren't ignoring only make the
+			 * If any set that we aren't igyesring only make the
 			 * complaint once, in case it's stuck or recurring,
 			 * and we get here multiple times
-			 * Force link down, so switch knows, and
+			 * Force link down, so switch kyesws, and
 			 * LEDs are turned off.
 			 */
 			if (dd->flags & QIB_INITTED)
@@ -2149,14 +2149,14 @@ static void qib_7322_handle_hwerrors(struct qib_devdata *dd, char *msg,
 		strlcpy(msg,
 			"[Memory BIST test failed, InfiniPath hardware unusable]",
 			msgl);
-		/* ignore from now on, so disable until driver reloaded */
+		/* igyesre from yesw on, so disable until driver reloaded */
 		dd->cspec->hwerrmask &= ~HWE_MASK(PowerOnBISTFailed);
 		qib_write_kreg(dd, kr_hwerrmask, dd->cspec->hwerrmask);
 	}
 
 	err_decode(msg, msgl, hwerrs, qib_7322_hwerror_msgs);
 
-	/* Ignore esoteric PLL failures et al. */
+	/* Igyesre esoteric PLL failures et al. */
 
 	qib_dev_err(dd, "%s hardware error\n", msg);
 
@@ -2186,11 +2186,11 @@ static void qib_7322_handle_hwerrors(struct qib_devdata *dd, char *msg,
 
 	if (isfatal && !dd->diag_client) {
 		qib_dev_err(dd,
-			"Fatal Hardware Error, no longer usable, SN %.16s\n",
+			"Fatal Hardware Error, yes longer usable, SN %.16s\n",
 			dd->serial);
 		/*
-		 * for /sys status file and user programs to print; if no
-		 * trailing brace is copied, we'll know it was truncated.
+		 * for /sys status file and user programs to print; if yes
+		 * trailing brace is copied, we'll kyesw it was truncated.
 		 */
 		if (dd->freezemsg)
 			snprintf(dd->freezemsg, dd->freezelen,
@@ -2204,7 +2204,7 @@ bail:;
  * qib_7322_init_hwerrors - enable hardware errors
  * @dd: the qlogic_ib device
  *
- * now that we have finished initializing everything that might reasonably
+ * yesw that we have finished initializing everything that might reasonably
  * cause a hardware error, and cleared those errors bits as they occur,
  * we can enable hardware errors in the mask (potentially enabling
  * freeze mode), and enable hardware errors as errors (along with
@@ -2218,7 +2218,7 @@ static void qib_7322_init_hwerrors(struct qib_devdata *dd)
 	extsval = qib_read_kreg64(dd, kr_extstatus);
 	if (!(extsval & (QIB_EXTS_MEMBIST_DISABLED |
 			 QIB_EXTS_MEMBIST_ENDTEST)))
-		qib_dev_err(dd, "MemBIST did not complete!\n");
+		qib_dev_err(dd, "MemBIST did yest complete!\n");
 
 	/* never clear BIST failure, so reported on each driver load */
 	qib_write_kreg(dd, kr_hwerrclear, ~HWE_MASK(PowerOnBISTFailed));
@@ -2237,7 +2237,7 @@ static void qib_7322_init_hwerrors(struct qib_devdata *dd)
 
 /*
  * Disable and enable the armlaunch error.  Used for PIO bandwidth testing
- * on chips that are count-based, rather than trigger-based.  There is no
+ * on chips that are count-based, rather than trigger-based.  There is yes
  * reference counting, but that's also fine, given the intended use.
  * Only chip-specific because it's all register accesses
  */
@@ -2265,8 +2265,8 @@ static void qib_set_ib_7322_lstate(struct qib_pportdata *ppd, u16 linkcmd,
 
 	if (linitcmd == QLOGIC_IB_IBCC_LINKINITCMD_DISABLE) {
 		/*
-		 * If we are told to disable, note that so link-recovery
-		 * code does not attempt to bring us back up.
+		 * If we are told to disable, yeste that so link-recovery
+		 * code does yest attempt to bring us back up.
 		 * Also reset everything that we can, so we start
 		 * completely clean when re-enabled (before we
 		 * actually issue the disable to the IBC)
@@ -2337,7 +2337,7 @@ static void set_vls(struct qib_pportdata *ppd)
 	qib_write_kreg_port(ppd, krp_rxcreditvl0, cred_vl + vl0extra);
 	for (i = 1; i < numvls; i++)
 		qib_write_kreg_port(ppd, krp_rxcreditvl0 + i, cred_vl);
-	for (; i < 8; i++) /* no buffer space for other VLs */
+	for (; i < 8; i++) /* yes buffer space for other VLs */
 		qib_write_kreg_port(ppd, krp_rxcreditvl0 + i, 0);
 
 	/* Notify IBC that credits need to be recalculated */
@@ -2378,7 +2378,7 @@ static int qib_7322_bringup_serdes(struct qib_pportdata *ppd)
 	int ret = 0;
 
 	/*
-	 * SerDes model not in Pd, but still need to
+	 * SerDes model yest in Pd, but still need to
 	 * set up much of IBCCtrl and IBCDDRCtrl; move elsewhere
 	 * eventually.
 	 */
@@ -2387,7 +2387,7 @@ static int qib_7322_bringup_serdes(struct qib_pportdata *ppd)
 	qib_write_kreg_port(ppd, krp_ibcctrl_a, ppd->cpspec->ibcctrl_a);
 	qib_write_kreg(dd, kr_scratch, 0ULL);
 
-	/* ensure previous Tx parameters are not still forced */
+	/* ensure previous Tx parameters are yest still forced */
 	qib_write_kreg_port(ppd, krp_tx_deemph_override,
 		SYM_MASK(IBSD_TX_DEEMPHASIS_OVERRIDE_0,
 		reset_tx_deemphasis_override));
@@ -2403,7 +2403,7 @@ static int qib_7322_bringup_serdes(struct qib_pportdata *ppd)
 	/* flowcontrolwatermark is in units of KBytes */
 	ibc = 0x5ULL << SYM_LSB(IBCCtrlA_0, FlowCtrlWaterMark);
 	/*
-	 * Flow control is sent this often, even if no changes in
+	 * Flow control is sent this often, even if yes changes in
 	 * buffer space occur.  Units are 128ns for this chip.
 	 * Set to 3usec.
 	 */
@@ -2461,7 +2461,7 @@ static int qib_7322_bringup_serdes(struct qib_pportdata *ppd)
 				IBA7322_IBC_WIDTH_4X_ONLY :
 				IBA7322_IBC_WIDTH_1X_ONLY;
 
-		/* always enable these on driver reload, not sticky */
+		/* always enable these on driver reload, yest sticky */
 		ppd->cpspec->ibcctrl_b |= (IBA7322_IBC_RXPOL_MASK |
 			IBA7322_IBC_HRTBT_MASK);
 	}
@@ -2498,7 +2498,7 @@ static int qib_7322_bringup_serdes(struct qib_pportdata *ppd)
 	/* clear the linkinit cmds */
 	ppd->cpspec->ibcctrl_a = val & ~SYM_MASK(IBCCtrlA_0, LinkInitCmd);
 
-	/* be paranoid against later code motion, etc. */
+	/* be parayesid against later code motion, etc. */
 	spin_lock_irqsave(&dd->cspec->rcvmod_lock, flags);
 	ppd->p_rcvctrl |= SYM_MASK(RcvCtrl_0, RcvIBPortEnable);
 	qib_write_kreg_port(ppd, krp_rcvctrl, ppd->p_rcvctrl);
@@ -2539,7 +2539,7 @@ static void qib_7322_mini_quiet_serdes(struct qib_pportdata *ppd)
 
 	/*
 	 * Despite the name, actually disables IBC as well. Do it when
-	 * we are as sure as possible that no more packets can be
+	 * we are as sure as possible that yes more packets can be
 	 * received, following the down and the PCS reset.
 	 * The actual disabling happens in qib_7322_mini_pci_reset(),
 	 * along with the PCS being reset.
@@ -2593,24 +2593,24 @@ static void qib_7322_mini_quiet_serdes(struct qib_pportdata *ppd)
 /**
  * qib_setup_7322_setextled - set the state of the two external LEDs
  * @ppd: physical port on the qlogic_ib device
- * @on: whether the link is up or not
+ * @on: whether the link is up or yest
  *
  * The exact combo of LEDs if on is true is determined by looking
  * at the ibcstatus.
  *
  * These LEDs indicate the physical and logical state of IB link.
- * For this chip (at least with recommended board pinouts), LED1
+ * For this chip (at least with recommended board piyesuts), LED1
  * is Yellow (logical state) and LED2 is Green (physical state),
  *
- * Note:  We try to match the Mellanox HCA LED behavior as best
+ * Note:  We try to match the Mellayesx HCA LED behavior as best
  * we can.  Green indicates physical link state is OK (something is
  * plugged in, and we can train).
  * Amber indicates the link is logically up (ACTIVE).
- * Mellanox further blinks the amber LED to indicate data packet
- * activity, but we have no hardware support for that, so it would
+ * Mellayesx further blinks the amber LED to indicate data packet
+ * activity, but we have yes hardware support for that, so it would
  * require waking up every 10-20 msecs and checking the counters
  * on the chip, and then turning the LED off if appropriate.  That's
- * visible overhead, so not something we will do.
+ * visible overhead, so yest something we will do.
  */
 static void qib_setup_7322_setextled(struct qib_pportdata *ppd, u32 on)
 {
@@ -2665,7 +2665,7 @@ static void qib_setup_7322_setextled(struct qib_pportdata *ppd, u32 on)
 
 #ifdef CONFIG_INFINIBAND_QIB_DCA
 
-static int qib_7322_notify_dca(struct qib_devdata *dd, unsigned long event)
+static int qib_7322_yestify_dca(struct qib_devdata *dd, unsigned long event)
 {
 	switch (event) {
 	case DCA_PROVIDER_ADD:
@@ -2708,7 +2708,7 @@ static void qib_update_rhdrq_dca(struct qib_ctxtdata *rcd, int cpu)
 		qib_devinfo(dd->pcidev,
 			"Ctxt %d cpu %d dca %llx\n", rcd->ctxt, cpu,
 			(long long) cspec->dca_rcvhdr_ctrl[rmp->shadow_inx]);
-		qib_write_kreg(dd, rmp->regno,
+		qib_write_kreg(dd, rmp->regyes,
 			       cspec->dca_rcvhdr_ctrl[rmp->shadow_inx]);
 		cspec->dca_ctrl |= SYM_MASK(DCACtrlA, RcvHdrqDCAEnable);
 		qib_write_kreg(dd, KREG_IDX(DCACtrlA), cspec->dca_ctrl);
@@ -2781,14 +2781,14 @@ static void qib_setup_dca(struct qib_devdata *dd)
 		qib_write_kreg(dd, KREG_IDX(DCACtrlB) + i,
 			       cspec->dca_rcvhdr_ctrl[i]);
 	for (i = 0; i < cspec->num_msix_entries; i++)
-		setup_dca_notifier(dd, i);
+		setup_dca_yestifier(dd, i);
 }
 
-static void qib_irq_notifier_notify(struct irq_affinity_notify *notify,
+static void qib_irq_yestifier_yestify(struct irq_affinity_yestify *yestify,
 			     const cpumask_t *mask)
 {
-	struct qib_irq_notify *n =
-		container_of(notify, struct qib_irq_notify, notify);
+	struct qib_irq_yestify *n =
+		container_of(yestify, struct qib_irq_yestify, yestify);
 	int cpu = cpumask_first(mask);
 
 	if (n->rcv) {
@@ -2802,10 +2802,10 @@ static void qib_irq_notifier_notify(struct irq_affinity_notify *notify,
 	}
 }
 
-static void qib_irq_notifier_release(struct kref *ref)
+static void qib_irq_yestifier_release(struct kref *ref)
 {
-	struct qib_irq_notify *n =
-		container_of(ref, struct qib_irq_notify, notify.kref);
+	struct qib_irq_yestify *n =
+		container_of(ref, struct qib_irq_yestify, yestify.kref);
 	struct qib_devdata *dd;
 
 	if (n->rcv) {
@@ -2818,7 +2818,7 @@ static void qib_irq_notifier_release(struct kref *ref)
 		dd = ppd->dd;
 	}
 	qib_devinfo(dd->pcidev,
-		"release on HCA notify 0x%p n 0x%p\n", ref, n);
+		"release on HCA yestify 0x%p n 0x%p\n", ref, n);
 	kfree(n);
 }
 #endif
@@ -2834,7 +2834,7 @@ static void qib_7322_free_irq(struct qib_devdata *dd)
 		/* only free IRQs that were allocated */
 		if (dd->cspec->msix_entries[i].arg) {
 #ifdef CONFIG_INFINIBAND_QIB_DCA
-			reset_dca_notifier(dd, i);
+			reset_dca_yestifier(dd, i);
 #endif
 			irq_set_affinity_hint(pci_irq_vector(dd->pcidev, i),
 					      NULL);
@@ -2852,7 +2852,7 @@ static void qib_7322_free_irq(struct qib_devdata *dd)
 
 	pci_free_irq_vectors(dd->pcidev);
 
-	/* make sure no MSIx interrupts are left pending */
+	/* make sure yes MSIx interrupts are left pending */
 	intgranted = qib_read_kreg64(dd, kr_intgranted);
 	if (intgranted)
 		qib_write_kreg(dd, kr_intgranted, intgranted);
@@ -2932,10 +2932,10 @@ static void qib_wantpiobuf_7322_intr(struct qib_devdata *dd, u32 needint)
 
 /*
  * Somehow got an interrupt with reserved bits set in interrupt status.
- * Print a message so we know it happened, then clear them.
+ * Print a message so we kyesw it happened, then clear them.
  * keep mainline interrupt handler cache-friendly
  */
-static noinline void unknown_7322_ibits(struct qib_devdata *dd, u64 istat)
+static yesinline void unkyeswn_7322_ibits(struct qib_devdata *dd, u64 istat)
 {
 	u64 kills;
 	char msg[128];
@@ -2948,7 +2948,7 @@ static noinline void unknown_7322_ibits(struct qib_devdata *dd, u64 istat)
 }
 
 /* keep mainline interrupt handler cache-friendly */
-static noinline void unknown_7322_gpio_intr(struct qib_devdata *dd)
+static yesinline void unkyeswn_7322_gpio_intr(struct qib_devdata *dd)
 {
 	u32 gpiostatus;
 	int handled = 0;
@@ -2964,7 +2964,7 @@ static noinline void unknown_7322_gpio_intr(struct qib_devdata *dd)
 	gpiostatus = qib_read_kreg32(dd, kr_gpio_status);
 	/*
 	 * In theory, writing GPIOstatus to GPIOclear could
-	 * have a bad side-effect on some diagnostic that wanted
+	 * have a bad side-effect on some diagyesstic that wanted
 	 * to poll for a status-change, but the various shadows
 	 * make that problematic at best. Diags will just suppress
 	 * all GPIO interrupts during such tests.
@@ -3016,12 +3016,12 @@ static noinline void unknown_7322_gpio_intr(struct qib_devdata *dd)
  * Handle errors and unusual events first, separate function
  * to improve cache hits for fast path interrupt handling.
  */
-static noinline void unlikely_7322_intr(struct qib_devdata *dd, u64 istat)
+static yesinline void unlikely_7322_intr(struct qib_devdata *dd, u64 istat)
 {
 	if (istat & ~QIB_I_BITSEXTANT)
-		unknown_7322_ibits(dd, istat);
+		unkyeswn_7322_ibits(dd, istat);
 	if (istat & QIB_I_GPIO)
-		unknown_7322_gpio_intr(dd);
+		unkyeswn_7322_gpio_intr(dd);
 	if (istat & QIB_I_C_ERROR) {
 		qib_write_kreg(dd, kr_errmask, 0ULL);
 		tasklet_schedule(&dd->error_tasklet);
@@ -3058,10 +3058,10 @@ static void adjust_rcv_timeout(struct qib_ctxtdata *rcd, int npkts)
 
 /*
  * This is the main interrupt handler.
- * It will normally only be used for low frequency interrupts but may
- * have to handle all interrupts if INTx is enabled or fewer than normal
+ * It will yesrmally only be used for low frequency interrupts but may
+ * have to handle all interrupts if INTx is enabled or fewer than yesrmal
  * MSIx interrupts were allocated.
- * This routine should ignore the interrupt bits for any of the
+ * This routine should igyesre the interrupt bits for any of the
  * dedicated MSIx handlers.
  */
 static irqreturn_t qib_7322intr(int irq, void *data)
@@ -3076,7 +3076,7 @@ static irqreturn_t qib_7322intr(int irq, void *data)
 
 	if ((dd->flags & (QIB_PRESENT | QIB_BADINTR)) != QIB_PRESENT) {
 		/*
-		 * This return value is not great, but we do not want the
+		 * This return value is yest great, but we do yest want the
 		 * interrupt core code to remove our interrupt handler
 		 * because we don't appear to be handling an interrupt
 		 * during a chip reset.
@@ -3090,14 +3090,14 @@ static irqreturn_t qib_7322intr(int irq, void *data)
 	if (unlikely(istat == ~0ULL)) {
 		qib_bad_intrstatus(dd);
 		qib_dev_err(dd, "Interrupt status all f's, skipping\n");
-		/* don't know if it was our interrupt or not */
+		/* don't kyesw if it was our interrupt or yest */
 		ret = IRQ_NONE;
 		goto bail;
 	}
 
 	istat &= dd->cspec->main_int_mask;
 	if (unlikely(!istat)) {
-		/* already handled, or shared and not us */
+		/* already handled, or shared and yest us */
 		ret = IRQ_NONE;
 		goto bail;
 	}
@@ -3112,7 +3112,7 @@ static irqreturn_t qib_7322intr(int irq, void *data)
 
 	/*
 	 * Clear the interrupt bits we found set, relatively early, so we
-	 * "know" know the chip will have seen this by the time we process
+	 * "kyesw" kyesw the chip will have seen this by the time we process
 	 * the queue, and will re-interrupt if necessary.  The processor
 	 * itself won't take the interrupt again until we return.
 	 */
@@ -3164,7 +3164,7 @@ static irqreturn_t qib_7322pintr(int irq, void *data)
 
 	if ((dd->flags & (QIB_PRESENT | QIB_BADINTR)) != QIB_PRESENT)
 		/*
-		 * This return value is not great, but we do not want the
+		 * This return value is yest great, but we do yest want the
 		 * interrupt core code to remove our interrupt handler
 		 * because we don't appear to be handling an interrupt
 		 * during a chip reset.
@@ -3191,7 +3191,7 @@ static irqreturn_t qib_7322bufavail(int irq, void *data)
 
 	if ((dd->flags & (QIB_PRESENT | QIB_BADINTR)) != QIB_PRESENT)
 		/*
-		 * This return value is not great, but we do not want the
+		 * This return value is yest great, but we do yest want the
 		 * interrupt core code to remove our interrupt handler
 		 * because we don't appear to be handling an interrupt
 		 * during a chip reset.
@@ -3222,7 +3222,7 @@ static irqreturn_t sdma_intr(int irq, void *data)
 
 	if ((dd->flags & (QIB_PRESENT | QIB_BADINTR)) != QIB_PRESENT)
 		/*
-		 * This return value is not great, but we do not want the
+		 * This return value is yest great, but we do yest want the
 		 * interrupt core code to remove our interrupt handler
 		 * because we don't appear to be handling an interrupt
 		 * during a chip reset.
@@ -3249,7 +3249,7 @@ static irqreturn_t sdma_idle_intr(int irq, void *data)
 
 	if ((dd->flags & (QIB_PRESENT | QIB_BADINTR)) != QIB_PRESENT)
 		/*
-		 * This return value is not great, but we do not want the
+		 * This return value is yest great, but we do yest want the
 		 * interrupt core code to remove our interrupt handler
 		 * because we don't appear to be handling an interrupt
 		 * during a chip reset.
@@ -3276,7 +3276,7 @@ static irqreturn_t sdma_progress_intr(int irq, void *data)
 
 	if ((dd->flags & (QIB_PRESENT | QIB_BADINTR)) != QIB_PRESENT)
 		/*
-		 * This return value is not great, but we do not want the
+		 * This return value is yest great, but we do yest want the
 		 * interrupt core code to remove our interrupt handler
 		 * because we don't appear to be handling an interrupt
 		 * during a chip reset.
@@ -3304,7 +3304,7 @@ static irqreturn_t sdma_cleanup_intr(int irq, void *data)
 
 	if ((dd->flags & (QIB_PRESENT | QIB_BADINTR)) != QIB_PRESENT)
 		/*
-		 * This return value is not great, but we do not want the
+		 * This return value is yest great, but we do yest want the
 		 * interrupt core code to remove our interrupt handler
 		 * because we don't appear to be handling an interrupt
 		 * during a chip reset.
@@ -3324,21 +3324,21 @@ static irqreturn_t sdma_cleanup_intr(int irq, void *data)
 
 #ifdef CONFIG_INFINIBAND_QIB_DCA
 
-static void reset_dca_notifier(struct qib_devdata *dd, int msixnum)
+static void reset_dca_yestifier(struct qib_devdata *dd, int msixnum)
 {
 	if (!dd->cspec->msix_entries[msixnum].dca)
 		return;
 
-	qib_devinfo(dd->pcidev, "Disabling notifier on HCA %d irq %d\n",
+	qib_devinfo(dd->pcidev, "Disabling yestifier on HCA %d irq %d\n",
 		    dd->unit, pci_irq_vector(dd->pcidev, msixnum));
-	irq_set_affinity_notifier(pci_irq_vector(dd->pcidev, msixnum), NULL);
-	dd->cspec->msix_entries[msixnum].notifier = NULL;
+	irq_set_affinity_yestifier(pci_irq_vector(dd->pcidev, msixnum), NULL);
+	dd->cspec->msix_entries[msixnum].yestifier = NULL;
 }
 
-static void setup_dca_notifier(struct qib_devdata *dd, int msixnum)
+static void setup_dca_yestifier(struct qib_devdata *dd, int msixnum)
 {
 	struct qib_msix_entry *m = &dd->cspec->msix_entries[msixnum];
-	struct qib_irq_notify *n;
+	struct qib_irq_yestify *n;
 
 	if (!m->dca)
 		return;
@@ -3346,20 +3346,20 @@ static void setup_dca_notifier(struct qib_devdata *dd, int msixnum)
 	if (n) {
 		int ret;
 
-		m->notifier = n;
-		n->notify.irq = pci_irq_vector(dd->pcidev, msixnum);
-		n->notify.notify = qib_irq_notifier_notify;
-		n->notify.release = qib_irq_notifier_release;
+		m->yestifier = n;
+		n->yestify.irq = pci_irq_vector(dd->pcidev, msixnum);
+		n->yestify.yestify = qib_irq_yestifier_yestify;
+		n->yestify.release = qib_irq_yestifier_release;
 		n->arg = m->arg;
 		n->rcv = m->rcv;
 		qib_devinfo(dd->pcidev,
-			"set notifier irq %d rcv %d notify %p\n",
-			n->notify.irq, n->rcv, &n->notify);
-		ret = irq_set_affinity_notifier(
-				n->notify.irq,
-				&n->notify);
+			"set yestifier irq %d rcv %d yestify %p\n",
+			n->yestify.irq, n->rcv, &n->yestify);
+		ret = irq_set_affinity_yestifier(
+				n->yestify.irq,
+				&n->yestify);
 		if (ret) {
-			m->notifier = NULL;
+			m->yestifier = NULL;
 			kfree(n);
 		}
 	}
@@ -3388,7 +3388,7 @@ static void qib_setup_7322_interrupt(struct qib_devdata *dd, int clearpend)
 
 	if (clearpend) {
 		/*
-		 * if not switching interrupt types, be sure interrupts are
+		 * if yest switching interrupt types, be sure interrupts are
 		 * disabled, and then clear anything pending at this point,
 		 * because we are starting clean.
 		 */
@@ -3400,7 +3400,7 @@ static void qib_setup_7322_interrupt(struct qib_devdata *dd, int clearpend)
 		/* clear any interrupt bits that might be set */
 		qib_write_kreg(dd, kr_intclear, ~0ULL);
 
-		/* make sure no pending MSIx intr, and clear diag reg */
+		/* make sure yes pending MSIx intr, and clear diag reg */
 		qib_write_kreg(dd, kr_intgranted, ~0ULL);
 		qib_write_kreg(dd, kr_vecclr_wo_int, ~0ULL);
 	}
@@ -3447,7 +3447,7 @@ try_intx:
 #endif
 		if (i < ARRAY_SIZE(irq_table)) {
 			if (irq_table[i].port) {
-				/* skip if for a non-configured port */
+				/* skip if for a yesn-configured port */
 				if (irq_table[i].port > dd->num_pports)
 					continue;
 				arg = dd->pport + irq_table[i].port - 1;
@@ -3470,7 +3470,7 @@ try_intx:
 			arg = dd->rcd[ctxt];
 			if (!arg)
 				continue;
-			if (qib_krcvq01_no_msi && ctxt < 2)
+			if (qib_krcvq01_yes_msi && ctxt < 2)
 				continue;
 #ifdef CONFIG_INFINIBAND_QIB_DCA
 			dca = 1;
@@ -3543,7 +3543,7 @@ try_intx:
 }
 
 /**
- * qib_7322_boardname - fill in the board name and note features
+ * qib_7322_boardname - fill in the board name and yeste features
  * @dd: the qlogic_ib device
  *
  * info will be based on the board revision register
@@ -3598,7 +3598,7 @@ static unsigned qib_7322_boardname(struct qib_devdata *dd)
 		break;
 	default:
 		dd->boardname = "InfiniPath_QLE73xy_UNKNOWN";
-		qib_dev_err(dd, "Unknown 7322 board type %u\n", boardid);
+		qib_dev_err(dd, "Unkyeswn 7322 board type %u\n", boardid);
 		break;
 	}
 	dd->board_atten = 1; /* index into txdds_Xdr */
@@ -3621,7 +3621,7 @@ static unsigned qib_7322_boardname(struct qib_devdata *dd)
 }
 
 /*
- * This routine sleeps, so it can only be called from user context, not
+ * This routine sleeps, so it can only be called from user context, yest
  * from interrupt context.
  */
 static int qib_do_7322_reset(struct qib_devdata *dd)
@@ -3640,7 +3640,7 @@ static int qib_do_7322_reset(struct qib_devdata *dd)
 
 	msix_entries = dd->cspec->num_msix_entries;
 
-	/* no interrupts till re-initted */
+	/* yes interrupts till re-initted */
 	qib_7322_set_intr_state(dd, 0);
 
 	qib_7322_free_irq(dd);
@@ -3693,8 +3693,8 @@ static int qib_do_7322_reset(struct qib_devdata *dd)
 	for (i = 1; i <= 5; i++) {
 		/*
 		 * Allow MBIST, etc. to complete; longer on each retry.
-		 * We sometimes get machine checks from bus timeout if no
-		 * response, so for now, make it *really* long.
+		 * We sometimes get machine checks from bus timeout if yes
+		 * response, so for yesw, make it *really* long.
 		 */
 		msleep(1000 + (1 + i) * 3000);
 
@@ -3753,7 +3753,7 @@ static int qib_do_7322_reset(struct qib_devdata *dd)
 	}
 
 bail:
-	dd->flags &= ~QIB_DOING_RESET; /* OK or not, no longer resetting */
+	dd->flags &= ~QIB_DOING_RESET; /* OK or yest, yes longer resetting */
 	kfree(msix_vecsave);
 	return ret;
 }
@@ -3773,9 +3773,9 @@ static void qib_7322_put_tid(struct qib_devdata *dd, u64 __iomem *tidptr,
 	if (pa != dd->tidinvalid) {
 		u64 chippa = pa >> IBA7322_TID_PA_SHIFT;
 
-		/* paranoia checks */
+		/* parayesia checks */
 		if (pa != (chippa << IBA7322_TID_PA_SHIFT)) {
-			qib_dev_err(dd, "Physaddr %lx not 2KB aligned!\n",
+			qib_dev_err(dd, "Physaddr %lx yest 2KB aligned!\n",
 				    pa);
 			return;
 		}
@@ -3788,7 +3788,7 @@ static void qib_7322_put_tid(struct qib_devdata *dd, u64 __iomem *tidptr,
 
 		if (type == RCVHQ_RCV_TYPE_EAGER)
 			chippa |= dd->tidtemplate;
-		else /* for now, always full 4KB page */
+		else /* for yesw, always full 4KB page */
 			chippa |= IBA7322_TID_SZ_4K;
 		pa = chippa;
 	}
@@ -3845,11 +3845,11 @@ static void qib_7322_clear_tids(struct qib_devdata *dd,
 static void qib_7322_tidtemplate(struct qib_devdata *dd)
 {
 	/*
-	 * For now, we always allocate 4KB buffers (at init) so we can
+	 * For yesw, we always allocate 4KB buffers (at init) so we can
 	 * receive max size packets.  We may want a module parameter to
 	 * specify 2KB or 4KB and/or make it per port instead of per device
 	 * for those who want to reduce memory footprint.  Note that the
-	 * rcvhdrentsize size must be large enough to hold the largest
+	 * rcvhdrentsize size must be large eyesugh to hold the largest
 	 * IB header (currently 96 bytes) that we expect to handle (plus of
 	 * course the 2 dwords of RHF).
 	 */
@@ -3926,13 +3926,13 @@ static void qib_7322_config_ctxts(struct qib_devdata *dd)
 		dd->ctxtcnt = dd->num_pports;
 	else if (qib_cfgctxts <= nchipctxts)
 		dd->ctxtcnt = qib_cfgctxts;
-	if (!dd->ctxtcnt) /* none of the above, set to max */
+	if (!dd->ctxtcnt) /* yesne of the above, set to max */
 		dd->ctxtcnt = nchipctxts;
 
 	/*
 	 * Chip can be configured for 6, 10, or 18 ctxts, and choice
 	 * affects number of eager TIDs per ctxt (1K, 2K, 4K).
-	 * Lock to be paranoid about later motion, etc.
+	 * Lock to be parayesid about later motion, etc.
 	 */
 	spin_lock_irqsave(&dd->cspec->rcvmod_lock, flags);
 	if (dd->ctxtcnt > 10)
@@ -4056,7 +4056,7 @@ done:
 }
 
 /*
- * Below again cribbed liberally from older version. Do not lean
+ * Below again cribbed liberally from older version. Do yest lean
  * heavily on it.
  */
 #define IBA7322_IBC_DLIDLMC_SHIFT QIB_7322_IBCCtrlB_0_IB_DLID_LSB
@@ -4082,8 +4082,8 @@ static int qib_7322_set_ib_cfg(struct qib_pportdata *ppd, int which, u32 val)
 		/*
 		 * For header-checking, the SLID in the packet will
 		 * be masked with SendIBSLMCMask, and compared
-		 * with SendIBSLIDAssignMask. Make sure we do not
-		 * set any bits not covered by the mask, or we get
+		 * with SendIBSLIDAssignMask. Make sure we do yest
+		 * set any bits yest covered by the mask, or we get
 		 * false-positives.
 		 */
 		qib_write_kreg_port(ppd, krp_sendslid,
@@ -4336,7 +4336,7 @@ static int qib_7322_set_loopback(struct qib_pportdata *ppd, const char *what)
 		/* enable heart beat again */
 		val = IBA7322_IBC_HRTBT_RMASK << IBA7322_IBC_HRTBT_LSB;
 		qib_devinfo(ppd->dd->pcidev,
-			"Disabling IB%u:%u IBC loopback (normal)\n",
+			"Disabling IB%u:%u IBC loopback (yesrmal)\n",
 			ppd->dd->unit, ppd->port);
 	} else
 		ret = -EINVAL;
@@ -4353,13 +4353,13 @@ static int qib_7322_set_loopback(struct qib_pportdata *ppd, const char *what)
 	return ret;
 }
 
-static void get_vl_weights(struct qib_pportdata *ppd, unsigned regno,
+static void get_vl_weights(struct qib_pportdata *ppd, unsigned regyes,
 			   struct ib_vl_weight_elem *vl)
 {
 	unsigned i;
 
-	for (i = 0; i < 16; i++, regno++, vl++) {
-		u32 val = qib_read_kreg_port(ppd, regno);
+	for (i = 0; i < 16; i++, regyes++, vl++) {
+		u32 val = qib_read_kreg_port(ppd, regyes);
 
 		vl->vl = (val >> SYM_LSB(LowPriority0_0, VirtualLane)) &
 			SYM_RMASK(LowPriority0_0, VirtualLane);
@@ -4368,19 +4368,19 @@ static void get_vl_weights(struct qib_pportdata *ppd, unsigned regno,
 	}
 }
 
-static void set_vl_weights(struct qib_pportdata *ppd, unsigned regno,
+static void set_vl_weights(struct qib_pportdata *ppd, unsigned regyes,
 			   struct ib_vl_weight_elem *vl)
 {
 	unsigned i;
 
-	for (i = 0; i < 16; i++, regno++, vl++) {
+	for (i = 0; i < 16; i++, regyes++, vl++) {
 		u64 val;
 
 		val = ((vl->vl & SYM_RMASK(LowPriority0_0, VirtualLane)) <<
 			SYM_LSB(LowPriority0_0, VirtualLane)) |
 		      ((vl->weight & SYM_RMASK(LowPriority0_0, Weight)) <<
 			SYM_LSB(LowPriority0_0, Weight));
-		qib_write_kreg_port(ppd, regno, val);
+		qib_write_kreg_port(ppd, regyes, val);
 	}
 	if (!(ppd->p_sendctrl & SYM_MASK(SendCtrl_0, IBVLArbiterEn))) {
 		struct qib_devdata *dd = ppd->dd;
@@ -4534,7 +4534,7 @@ static void rcvctrl_7322_mod(struct qib_pportdata *ppd, unsigned int op,
 		dd->rcvctrl &= ~(mask << SYM_LSB(RcvCtrl, IntrAvail));
 	/*
 	 * Decide which registers to write depending on the ops enabled.
-	 * Special case is "flush" (no bits set at all)
+	 * Special case is "flush" (yes bits set at all)
 	 * which needs to write both.
 	 */
 	if (op == 0 || (op & RCVCTRL_COMMON_MODS))
@@ -4546,7 +4546,7 @@ static void rcvctrl_7322_mod(struct qib_pportdata *ppd, unsigned int op,
 		 * Init the context registers also; if we were
 		 * disabled, tail and head should both be zero
 		 * already from the enable, but since we don't
-		 * know, we have to do it explicitly.
+		 * kyesw, we have to do it explicitly.
 		 */
 		val = qib_read_ureg32(dd, ur_rcvegrindextail, ctxt);
 		qib_write_ureg(dd, ur_rcvegrindexhead, val, ctxt);
@@ -4649,7 +4649,7 @@ static void sendctrl_7322_mod(struct qib_pportdata *ppd, u32 op)
 		tmp_dd_sendctrl = dd->sendctrl;
 		last = dd->piobcnt2k + dd->piobcnt4k + NUM_VL15_BUFS;
 		/*
-		 * Disarm any buffers that are not yet launched,
+		 * Disarm any buffers that are yest yet launched,
 		 * disabling updates until done.
 		 */
 		tmp_dd_sendctrl &= ~SYM_MASK(SendCtrl, SendBufAvailUpd);
@@ -4666,7 +4666,7 @@ static void sendctrl_7322_mod(struct qib_pportdata *ppd, u32 op)
 
 		/*
 		 * Now drain all the fifos.  The Abort bit should never be
-		 * needed, so for now, at least, we don't use it.
+		 * needed, so for yesw, at least, we don't use it.
 		 */
 		tmp_ppd_sendctrl |=
 			SYM_MASK(SendCtrl_0, TxeDrainRmFifo) |
@@ -4720,13 +4720,13 @@ static void sendctrl_7322_mod(struct qib_pportdata *ppd, u32 op)
 }
 
 #define _PORT_VIRT_FLAG 0x8000U /* "virtual", need adjustments */
-#define _PORT_64BIT_FLAG 0x10000U /* not "virtual", but 64bit */
+#define _PORT_64BIT_FLAG 0x10000U /* yest "virtual", but 64bit */
 #define _PORT_CNTR_IDXMASK 0x7fffU /* mask off flags above */
 
 /**
  * qib_portcntr_7322 - read a per-port chip counter
  * @ppd: the qlogic_ib pport
- * @creg: the counter to read (not a chip offset)
+ * @creg: the counter to read (yest a chip offset)
  */
 static u64 qib_portcntr_7322(struct qib_pportdata *ppd, u32 reg)
 {
@@ -4747,7 +4747,7 @@ static u64 qib_portcntr_7322(struct qib_pportdata *ppd, u32 reg)
 		[QIBPORTCNTR_RCVEBP] = crp_rcvebp,
 		[QIBPORTCNTR_RCVOVFL] = crp_rcvovfl,
 		[QIBPORTCNTR_WORDRCV] = crp_wordrcv | _PORT_64BIT_FLAG,
-		[QIBPORTCNTR_RXDROPPKT] = 0xffff, /* not needed  for 7322 */
+		[QIBPORTCNTR_RXDROPPKT] = 0xffff, /* yest needed  for 7322 */
 		[QIBPORTCNTR_RXLOCALPHYERR] = crp_rxotherlocalphyerr,
 		[QIBPORTCNTR_RXVLERR] = crp_rxvlerr,
 		[QIBPORTCNTR_ERRICRC] = crp_erricrc,
@@ -4784,7 +4784,7 @@ static u64 qib_portcntr_7322(struct qib_pportdata *ppd, u32 reg)
 	}
 	creg = xlator[reg] & _PORT_CNTR_IDXMASK;
 
-	/* handle non-counters and special cases first */
+	/* handle yesn-counters and special cases first */
 	if (reg == QIBPORTCNTR_KHDROVFL) {
 		int i;
 
@@ -4806,7 +4806,7 @@ static u64 qib_portcntr_7322(struct qib_pportdata *ppd, u32 reg)
 		goto done;
 	} else if (reg == QIBPORTCNTR_PSINTERVAL ||
 		   reg == QIBPORTCNTR_PSSTART || reg == QIBPORTCNTR_PSSTAT) {
-		/* were counters in older chips, now per-port kernel regs */
+		/* were counters in older chips, yesw per-port kernel regs */
 		ret = qib_read_kreg_port(ppd, creg);
 		goto done;
 	}
@@ -4836,7 +4836,7 @@ done:
 }
 
 /*
- * Device counter names (not port-specific), one line per stat,
+ * Device counter names (yest port-specific), one line per stat,
  * single string.  Used by utilities like ipathstats to print the stats
  * in a way which works for different versions of drivers, without changing
  * the utility.  Names need to be 12 chars or less (w/o newline), for proper
@@ -5100,8 +5100,8 @@ done:
  * qib_get_7322_faststats - get word counters from chip before they overflow
  * @opaque - contains a pointer to the qlogic_ib device qib_devdata
  *
- * VESTIGIAL IBA7322 has no "small fast counters", so the only
- * real purpose of this function is to maintain the notion of
+ * VESTIGIAL IBA7322 has yes "small fast counters", so the only
+ * real purpose of this function is to maintain the yestion of
  * "active time", which in turn is only logged into the eeprom,
  * which we don;t have, yet, for 7322-based boards.
  *
@@ -5119,7 +5119,7 @@ static void qib_get_7322_faststats(struct timer_list *t)
 		ppd = dd->pport + pidx;
 
 		/*
-		 * If port isn't enabled or not operational ports, or
+		 * If port isn't enabled or yest operational ports, or
 		 * diags is running (can cause memory diags to fail)
 		 * skip this port this time.
 		 */
@@ -5165,7 +5165,7 @@ static int qib_7322_intr_fallback(struct qib_devdata *dd)
 		return 0; /* already using INTx */
 
 	qib_devinfo(dd->pcidev,
-		"MSIx interrupt not detected, trying INTx interrupts\n");
+		"MSIx interrupt yest detected, trying INTx interrupts\n");
 	qib_7322_free_irq(dd);
 	if (pci_alloc_irq_vectors(dd->pcidev, 1, 1, PCI_IRQ_LEGACY) < 0)
 		qib_dev_err(dd, "Failed to enable INTx\n");
@@ -5178,7 +5178,7 @@ static int qib_7322_intr_fallback(struct qib_devdata *dd)
  * than resetting the IBC or external link state, and useful in some
  * cases to cause some retraining.  To do this right, we reset IBC
  * as well, then return to previous state (which may be still in reset)
- * NOTE: some callers of this "know" this writes the current value
+ * NOTE: some callers of this "kyesw" this writes the current value
  * of cpspec->ibcctrl_a as part of it's operation, so if that changes,
  * check all callers.
  */
@@ -5208,10 +5208,10 @@ static void qib_7322_mini_pcs_reset(struct qib_pportdata *ppd)
 }
 
 /*
- * This code for non-IBTA-compliant IB speed negotiation is only known to
+ * This code for yesn-IBTA-compliant IB speed negotiation is only kyeswn to
  * work for the SDR to DDR transition, and only between an HCA and a switch
  * with recent firmware.  It is based on observed heuristics, rather than
- * actual knowledge of the non-compliant speed negotiation.
+ * actual kyeswledge of the yesn-compliant speed negotiation.
  * It has a number of hard-coded fields, since the hope is to rewrite this
  * when a spec is available on how the negoation is intended to work.
  */
@@ -5305,7 +5305,7 @@ static void qib_autoneg_7322_send(struct qib_pportdata *ppd, int which)
  * happen immediately, otherwise when link next goes down)
  *
  * This routine should only be used as part of the DDR autonegotation
- * code for devices that are not compliant with IB 1.2 (or code that
+ * code for devices that are yest compliant with IB 1.2 (or code that
  * fixes things up for same).
  *
  * When link has gone down, and autoneg enabled, or autoneg has
@@ -5339,7 +5339,7 @@ static void set_7322_ibspeed_fast(struct qib_pportdata *ppd, u32 speed)
 }
 
 /*
- * This routine is only used when we are not talking to another
+ * This routine is only used when we are yest talking to ayesther
  * IB 1.2-compliant device that we think can do DDR.
  * (This includes all existing switch chips as of Oct 2007.)
  * 1.2-compliant devices go directly to DDR prior to reaching INIT
@@ -5616,14 +5616,14 @@ static int qib_7322_ib_updown(struct qib_pportdata *ppd, int ibup, u64 ibcs)
 						ppd->cpspec->iblnkerrsnap;
 			}
 			try_7322_autoneg(ppd);
-			ret = 1; /* no other IB status change processing */
+			ret = 1; /* yes other IB status change processing */
 		} else if ((ppd->lflags & QIBL_IB_AUTONEG_INPROG) &&
 			   ppd->link_speed_active == QIB_IB_SDR) {
 			qib_autoneg_7322_send(ppd, 1);
 			set_7322_ibspeed_fast(ppd, QIB_IB_DDR);
 			qib_7322_mini_pcs_reset(ppd);
 			udelay(2);
-			ret = 1; /* no other IB status change processing */
+			ret = 1; /* yes other IB status change processing */
 		} else if ((ppd->lflags & QIBL_IB_AUTONEG_INPROG) &&
 			   (ppd->link_speed_active & QIB_IB_DDR)) {
 			spin_lock_irqsave(&ppd->lflags_lock, flags);
@@ -5689,7 +5689,7 @@ static int qib_7322_ib_updown(struct qib_pportdata *ppd, int ibup, u64 ibcs)
 /*
  * Does read/modify/write to appropriate registers to
  * set output and direction bits selected by mask.
- * these are in their canonical postions (e.g. lsb of
+ * these are in their cayesnical postions (e.g. lsb of
  * dir will end up in D48 of extctrl on existing chips).
  * returns contents of GP Inputs.
  */
@@ -5717,7 +5717,7 @@ static int gpio_7322_mod(struct qib_devdata *dd, u32 out, u32 dir, u32 mask)
 	 * data on a pin whose direction line was set in the same
 	 * call to this function. We include the read here because
 	 * that allows us to potentially combine a change on one pin with
-	 * a read on another, and because the old code did something like
+	 * a read on ayesther, and because the old code did something like
 	 * this.
 	 */
 	read_val = qib_read_kreg64(dd, kr_extstatus);
@@ -5779,7 +5779,7 @@ static void get_7322_chip_params(struct qib_devdata *dd)
 		 (dd->piobufbase >> 32));
 	/*
 	 * 4K buffers take 2 pages; we use roundup just to be
-	 * paranoid; we calculate it once here, rather than on
+	 * parayesid; we calculate it once here, rather than on
 	 * ever buf allocate
 	 */
 	dd->align4k = ALIGN(dd->piosize4k, dd->palign);
@@ -5848,7 +5848,7 @@ static int sendctrl_hook(struct qib_devdata *dd,
 	 * The fixed correspondence between Physical ports and pports is
 	 * severed. We need to hunt for the ppd that corresponds
 	 * to the offset we got. And we have to do that without admitting
-	 * we know the stride, apparently.
+	 * we kyesw the stride, apparently.
 	 */
 	for (pidx = 0; pidx < dd->num_pports; ++pidx) {
 		u64 __iomem *psptr;
@@ -5864,7 +5864,7 @@ static int sendctrl_hook(struct qib_devdata *dd,
 			break;
 	}
 
-	/* If pport is not being managed by driver, just avoid shadows. */
+	/* If pport is yest being managed by driver, just avoid shadows. */
 	if (pidx >= dd->num_pports)
 		ppd = NULL;
 
@@ -5959,7 +5959,7 @@ static void qsfp_7322_event(struct work_struct *work)
 		spin_unlock_irqrestore(&ppd->lflags_lock, flags);
 	} else {
 		/*
-		 * Some QSFP's not only do not respond until the full power-up
+		 * Some QSFP's yest only do yest respond until the full power-up
 		 * time, but may behave badly if we try. So hold off responding
 		 * to insertion.
 		 */
@@ -5975,7 +5975,7 @@ static void qsfp_7322_event(struct work_struct *work)
 		 * Need to change LE2 back to defaults if we couldn't
 		 * read the cable type (to handle cable swaps), so do this
 		 * even on failure to read cable information.  We don't
-		 * get here for QME, so IS_QME check not needed here.
+		 * get here for QME, so IS_QME check yest needed here.
 		 */
 		if (!ret && !ppd->dd->cspec->r1) {
 			if (QSFP_IS_ACTIVE_FAR(qd->cache.tech))
@@ -5992,11 +5992,11 @@ static void qsfp_7322_event(struct work_struct *work)
 		 * We always change parameteters, since we can choose
 		 * values for cables without eeproms, and the cable may have
 		 * changed from a cable with full or partial eeprom content
-		 * to one with partial or no content.
+		 * to one with partial or yes content.
 		 */
 		init_txdds_table(ppd, 0);
 		/* The physical link is being re-enabled only when the
-		 * previous state was DISABLED and the VALID bit is not
+		 * previous state was DISABLED and the VALID bit is yest
 		 * set. This should only happen when  the cable has been
 		 * physically pulled. */
 		if (!ppd->cpspec->qsfp_data.modpresent &&
@@ -6036,7 +6036,7 @@ static void qib_init_7322_qsfp(struct qib_pportdata *ppd)
 /*
  * called at device initialization time, and also if the txselect
  * module parameter is changed.  This is used for cables that don't
- * have valid QSFP EEPROMs (not present, or attenuation is zero).
+ * have valid QSFP EEPROMs (yest present, or attenuation is zero).
  * We initialize to the default, then if there is a specific
  * unit,port match, we use that (and set it immediately, for the
  * current speed, if the link is at INIT or better).
@@ -6044,9 +6044,9 @@ static void qib_init_7322_qsfp(struct qib_pportdata *ppd)
  * be a SPACE character.  A newline terminates.  The u,p=# tuples may
  * optionally have "u,p=#,#", where the final # is the H1 value
  * The last specific match is used (actually, all are used, but last
- * one is the one that winds up set); if none at all, fall back on default.
+ * one is the one that winds up set); if yesne at all, fall back on default.
  */
-static void set_no_qsfp_atten(struct qib_devdata *dd, int change)
+static void set_yes_qsfp_atten(struct qib_devdata *dd, int change)
 {
 	char *nxt, *str;
 	u32 pidx, unit, port, deflt, h1;
@@ -6059,7 +6059,7 @@ static void set_no_qsfp_atten(struct qib_devdata *dd, int change)
 	/* default number is validated in setup_txselect() */
 	deflt = simple_strtoul(str, &nxt, 0);
 	for (pidx = 0; pidx < dd->num_pports; ++pidx)
-		dd->pport[pidx].cpspec->no_eep = deflt;
+		dd->pport[pidx].cpspec->yes_eep = deflt;
 
 	txdds_size = TXDDS_TABLE_SZ + TXDDS_EXTRA_SZ;
 	if (IS_QME(dd) || IS_QMH(dd))
@@ -6106,13 +6106,13 @@ static void set_no_qsfp_atten(struct qib_devdata *dd, int change)
 
 			if (ppd->port != port || !ppd->link_speed_supported)
 				continue;
-			ppd->cpspec->no_eep = val;
+			ppd->cpspec->yes_eep = val;
 			if (seth1)
 				ppd->cpspec->h1_val = h1;
-			/* now change the IBC and serdes, overriding generic */
+			/* yesw change the IBC and serdes, overriding generic */
 			init_txdds_table(ppd, 1);
 			/* Re-enable the physical state machine on mezz boards
-			 * now that the correct settings have been set.
+			 * yesw that the correct settings have been set.
 			 * QSFP boards are handles by the QSFP event handler */
 			if (IS_QMH(dd) || IS_QME(dd))
 				qib_set_ib_7322_lstate(ppd, 0,
@@ -6123,7 +6123,7 @@ static void set_no_qsfp_atten(struct qib_devdata *dd, int change)
 			break; /* done */
 	}
 	if (change && !any) {
-		/* no specific setting, use the default.
+		/* yes specific setting, use the default.
 		 * Change the IBC and serdes, but since it's
 		 * general, don't override specific settings.
 		 */
@@ -6155,7 +6155,7 @@ static int setup_txselect(const char *str, const struct kernel_param *kp)
 
 	xa_for_each(&qib_dev_table, index, dd)
 		if (dd->deviceid == PCI_DEVICE_ID_QLOGIC_IB_7322)
-			set_no_qsfp_atten(dd, 1);
+			set_yes_qsfp_atten(dd, 1);
 	return 0;
 }
 
@@ -6198,7 +6198,7 @@ static int qib_late_7322_initreg(struct qib_devdata *dd)
 	 * First set our default attenuation entry for cables that
 	 * don't have valid attenuation.
 	 */
-	set_no_qsfp_atten(dd, 0);
+	set_yes_qsfp_atten(dd, 0);
 	for (n = 0; n < dd->num_pports; ++n) {
 		struct qib_pportdata *ppd = dd->pport + n;
 
@@ -6234,7 +6234,7 @@ static void write_7322_init_portregs(struct qib_pportdata *ppd)
 	int i;
 
 	if (!ppd->link_speed_supported) {
-		/* no buffer credits for this port */
+		/* yes buffer credits for this port */
 		for (i = 1; i < 8; i++)
 			qib_write_kreg_port(ppd, krp_rxcreditvl0 + i, 0);
 		qib_write_kreg_port(ppd, krp_ibcctrl_b, 0);
@@ -6290,7 +6290,7 @@ static void write_7322_initregs(struct qib_devdata *dd)
 	qib_write_kreg(dd, KREG_IDX(RcvQPMulticastContext_1), 1);
 
 	for (pidx = 0; pidx < dd->num_pports; ++pidx) {
-		unsigned n, regno;
+		unsigned n, regyes;
 		unsigned long flags;
 
 		if (dd->n_krcv_queues < 2 ||
@@ -6299,13 +6299,13 @@ static void write_7322_initregs(struct qib_devdata *dd)
 
 		ppd = &dd->pport[pidx];
 
-		/* be paranoid against later code motion, etc. */
+		/* be parayesid against later code motion, etc. */
 		spin_lock_irqsave(&dd->cspec->rcvmod_lock, flags);
 		ppd->p_rcvctrl |= SYM_MASK(RcvCtrl_0, RcvQPMapEnable);
 		spin_unlock_irqrestore(&dd->cspec->rcvmod_lock, flags);
 
 		/* Initialize QP to context mapping */
-		regno = krp_rcvqpmaptable;
+		regyes = krp_rcvqpmaptable;
 		val = 0;
 		if (dd->num_pports > 1)
 			n = dd->first_user_ctxt / dd->num_pports;
@@ -6323,17 +6323,17 @@ static void write_7322_initregs(struct qib_devdata *dd)
 			val |= ctxt << (5 * (i % 6));
 			i++;
 			if (i % 6 == 0) {
-				qib_write_kreg_port(ppd, regno, val);
+				qib_write_kreg_port(ppd, regyes, val);
 				val = 0;
-				regno++;
+				regyes++;
 			}
 		}
-		qib_write_kreg_port(ppd, regno, val);
+		qib_write_kreg_port(ppd, regyes, val);
 	}
 
 	/*
 	 * Setup up interrupt mitigation for kernel contexts, but
-	 * not user contexts (user contexts use interrupts when
+	 * yest user contexts (user contexts use interrupts when
 	 * stalled waiting for any packet, so want those interrupts
 	 * right away).
 	 */
@@ -6397,16 +6397,16 @@ static int qib_init_7322_variables(struct qib_devdata *dd)
 		ret = -ENODEV;
 		goto bail;
 	}
-	dd->flags |= QIB_PRESENT;  /* now register routines work */
+	dd->flags |= QIB_PRESENT;  /* yesw register routines work */
 
 	dd->majrev = (u8) SYM_FIELD(dd->revision, Revision_R, ChipRevMajor);
-	dd->minrev = (u8) SYM_FIELD(dd->revision, Revision_R, ChipRevMinor);
+	dd->minrev = (u8) SYM_FIELD(dd->revision, Revision_R, ChipRevMiyesr);
 	dd->cspec->r1 = dd->minrev == 1;
 
 	get_7322_chip_params(dd);
 	features = qib_7322_boardname(dd);
 
-	/* now that piobcnt2k and 4k set, we can allocate these */
+	/* yesw that piobcnt2k and 4k set, we can allocate these */
 	sbufcnt = dd->piobcnt2k + dd->piobcnt4k +
 		NUM_VL15_BUFS + BITS_PER_LONG - 1;
 	sbufcnt /= BITS_PER_LONG;
@@ -6455,7 +6455,7 @@ static int qib_init_7322_variables(struct qib_devdata *dd)
 	dd->cspec->int_enable_mask = QIB_I_BITSEXTANT;
 	/* all hwerrors become interrupts, unless special purposed */
 	dd->cspec->hwerrmask = ~0ULL;
-	/*  link_recovery setup causes these errors, so ignore them,
+	/*  link_recovery setup causes these errors, so igyesre them,
 	 *  other than clearing them when they occur */
 	dd->cspec->hwerrmask &=
 		~(SYM_MASK(HwErrMask, IBSerdesPClkNotDetectMask_0) |
@@ -6559,21 +6559,21 @@ static int qib_init_7322_variables(struct qib_devdata *dd)
 			INIT_DELAYED_WORK(&cp->ipg_work, ipg_7322_work);
 
 		/*
-		 * For Mez and similar cards, no qsfp info, so do
+		 * For Mez and similar cards, yes qsfp info, so do
 		 * the "cable info" setup here.  Can be overridden
 		 * in adapter-specific routines.
 		 */
 		if (!(dd->flags & QIB_HAS_QSFP)) {
 			if (!IS_QMH(dd) && !IS_QME(dd))
 				qib_devinfo(dd->pcidev,
-					"IB%u:%u: Unknown mezzanine card type\n",
+					"IB%u:%u: Unkyeswn mezzanine card type\n",
 					dd->unit, ppd->port);
 			cp->h1_val = IS_QMH(dd) ? H1_FORCE_QMH : H1_FORCE_QME;
 			/*
 			 * Choose center value as default tx serdes setting
 			 * until changed through module parameter.
 			 */
-			ppd->cpspec->no_eep = IS_QMH(dd) ?
+			ppd->cpspec->yes_eep = IS_QMH(dd) ?
 				TXDDS_TABLE_SZ + 2 : TXDDS_TABLE_SZ + 4;
 		} else
 			cp->h1_val = H1_FORCE_VAL;
@@ -6617,7 +6617,7 @@ static int qib_init_7322_variables(struct qib_devdata *dd)
 	qib_set_ctxtcnt(dd);
 
 	/*
-	 * We do not set WC on the VL15 buffers to avoid
+	 * We do yest set WC on the VL15 buffers to avoid
 	 * a rare problem with unaligned writes from
 	 * interrupt-flushed store buffers, so we need
 	 * to map those separately here.  We can't solve
@@ -6630,21 +6630,21 @@ static int qib_init_7322_variables(struct qib_devdata *dd)
 	/* vl15 buffers start just after the 4k buffers */
 	vl15off = dd->physaddr + (dd->piobufbase >> 32) +
 		  dd->piobcnt4k * dd->align4k;
-	dd->piovl15base	= ioremap_nocache(vl15off,
+	dd->piovl15base	= ioremap_yescache(vl15off,
 					  NUM_VL15_BUFS * dd->align4k);
 	if (!dd->piovl15base) {
 		ret = -ENOMEM;
 		goto bail;
 	}
 
-	qib_7322_set_baseaddrs(dd); /* set chip access pointers now */
+	qib_7322_set_baseaddrs(dd); /* set chip access pointers yesw */
 
 	ret = 0;
 	if (qib_mini_init)
 		goto bail;
 	if (!dd->num_pports) {
 		qib_dev_err(dd, "No ports enabled, giving up initialization\n");
-		goto bail; /* no error, so can still figure out why err */
+		goto bail; /* yes error, so can still figure out why err */
 	}
 
 	write_7322_initregs(dd);
@@ -6673,7 +6673,7 @@ static int qib_init_7322_variables(struct qib_devdata *dd)
 	dd->cspec->lastbuf_for_pio = dd->piobcnt2k + dd->piobcnt4k -
 		dd->cspec->sdmabufcnt;
 	dd->lastctxt_piobuf = dd->cspec->lastbuf_for_pio - sbufs;
-	dd->cspec->lastbuf_for_pio--; /* range is <= , not < */
+	dd->cspec->lastbuf_for_pio--; /* range is <= , yest < */
 	dd->last_pio = dd->cspec->lastbuf_for_pio;
 	dd->pbufsctxt = (dd->cfgctxts > dd->first_user_ctxt) ?
 		dd->lastctxt_piobuf / (dd->cfgctxts - dd->first_user_ctxt) : 0;
@@ -6689,7 +6689,7 @@ static int qib_init_7322_variables(struct qib_devdata *dd)
 	dd->cspec->updthresh_dflt = updthresh;
 	dd->cspec->updthresh = updthresh;
 
-	/* before full enable, no interrupts, no locking needed */
+	/* before full enable, yes interrupts, yes locking needed */
 	dd->sendctrl |= ((updthresh & SYM_RMASK(SendCtrl, AvailUpdThld))
 			     << SYM_LSB(SendCtrl, AvailUpdThld)) |
 			SYM_MASK(SendCtrl, SendBufAvailPad64Byte);
@@ -6764,7 +6764,7 @@ static void dump_sdma_7322_state(struct qib_pportdata *ppd)
 		"SDMA senddmabufmask 0:%llx  1:%llx  2:%llx\n",
 		 reg, reg1, reg2);
 
-	/* get bufuse bits, clear them, and print them again if non-zero */
+	/* get bufuse bits, clear them, and print them again if yesn-zero */
 	reg = qib_read_kreg_port(ppd, krp_senddmabuf_use0);
 	qib_write_kreg_port(ppd, krp_senddmabuf_use0, reg);
 	reg1 = qib_read_kreg_port(ppd, krp_senddmabuf_use1);
@@ -6885,7 +6885,7 @@ static int init_sdma_7322_regs(struct qib_pportdata *ppd)
 	qib_write_kreg_port(ppd, krp_senddmaheadaddr, ppd->sdma_head_phys);
 
 	if (dd->num_pports)
-		n = dd->cspec->sdmabufcnt / dd->num_pports; /* no remainder */
+		n = dd->cspec->sdmabufcnt / dd->num_pports; /* yes remainder */
 	else
 		n = dd->cspec->sdmabufcnt; /* failsafe for init */
 	erstbuf = (dd->piobcnt2k + dd->piobcnt4k) -
@@ -6930,7 +6930,7 @@ retry:
 	cnt = ppd->sdma_descq_cnt;
 
 	if (swhead < swtail)
-		/* not wrapped */
+		/* yest wrapped */
 		sane = (hwhead >= swhead) & (hwhead <= swtail);
 	else if (swhead > swtail)
 		/* wrapped around */
@@ -6946,7 +6946,7 @@ retry:
 			use_dmahead = 0;
 			goto retry;
 		}
-		/* proceed as if no progress */
+		/* proceed as if yes progress */
 		hwhead = swhead;
 	}
 
@@ -7083,7 +7083,7 @@ static void qib_7322_txchk_change(struct qib_devdata *dd, u32 start,
 		/*
 		 * (re)enable checking on a range; used by diags; just
 		 * one buffer, but still written generically; read
-		 * scratch to be sure buffer actually triggered, not
+		 * scratch to be sure buffer actually triggered, yest
 		 * just flushed from processor.
 		 */
 		qib_read_kreg32(dd, kr_scratch);
@@ -7169,7 +7169,7 @@ static void writescratch(struct qib_devdata *dd, u32 val)
 	qib_write_kreg(dd, kr_scratch, val);
 }
 
-/* Dummy for now, use chip regs soon */
+/* Dummy for yesw, use chip regs soon */
 static int qib_7322_tempsense_rd(struct qib_devdata *dd, int regnum)
 {
 	return -ENXIO;
@@ -7251,13 +7251,13 @@ struct qib_devdata *qib_init_iba7322_funcs(struct pci_dev *pdev,
 	dd->f_writescratch      = writescratch;
 	dd->f_tempsense_rd	= qib_7322_tempsense_rd;
 #ifdef CONFIG_INFINIBAND_QIB_DCA
-	dd->f_notify_dca	= qib_7322_notify_dca;
+	dd->f_yestify_dca	= qib_7322_yestify_dca;
 #endif
 	/*
 	 * Do remaining PCIe setup and save PCIe values in dd.
 	 * Any error printing is already done by the init code.
 	 * On return, we have the chip mapped, but chip registers
-	 * are not set up until start of qib_init_7322_variables.
+	 * are yest set up until start of qib_init_7322_variables.
 	 */
 	ret = qib_pcie_ddinit(dd, pdev, ent);
 	if (ret < 0)
@@ -7274,8 +7274,8 @@ struct qib_devdata *qib_init_iba7322_funcs(struct pci_dev *pdev,
 	/*
 	 * Determine number of vectors we want; depends on port count
 	 * and number of configured kernel receive queues actually used.
-	 * Should also depend on whether sdma is enabled or not, but
-	 * that's such a rare testing case it's not worth worrying about.
+	 * Should also depend on whether sdma is enabled or yest, but
+	 * that's such a rare testing case it's yest worth worrying about.
 	 */
 	tabsize = dd->first_user_ctxt + ARRAY_SIZE(irq_table);
 	for (i = 0; i < tabsize; i++)
@@ -7285,7 +7285,7 @@ struct qib_devdata *qib_init_iba7322_funcs(struct pci_dev *pdev,
 		     dd->rcd[i - ARRAY_SIZE(irq_table)]))
 			actual_cnt++;
 	/* reduce by ctxt's < 2 */
-	if (qib_krcvq01_no_msi)
+	if (qib_krcvq01_yes_msi)
 		actual_cnt -= dd->num_pports;
 
 	tabsize = actual_cnt;
@@ -7298,7 +7298,7 @@ struct qib_devdata *qib_init_iba7322_funcs(struct pci_dev *pdev,
 	if (qib_pcie_params(dd, 8, &tabsize))
 		qib_dev_err(dd,
 			"Failed to setup PCIe or interrupts; continuing anyway\n");
-	/* may be less than we wanted, if not enough available */
+	/* may be less than we wanted, if yest eyesugh available */
 	dd->cspec->num_msix_entries = tabsize;
 
 	/* setup interrupt handler */
@@ -7352,7 +7352,7 @@ static void set_txdds(struct qib_pportdata *ppd, int ridx,
 	/* Get correct offset in chip-space, and in source table */
 	regidx = KREG_IBPORT_IDX(IBSD_DDS_MAP_TABLE) + ridx;
 	/*
-	 * We do not use qib_write_kreg_port() because it was intended
+	 * We do yest use qib_write_kreg_port() because it was intended
 	 * only for registers in the lower "port specific" pages.
 	 * So do index calculation  by hand.
 	 */
@@ -7369,11 +7369,11 @@ static void set_txdds(struct qib_pportdata *ppd, int ridx,
 }
 
 static const struct vendor_txdds_ent vendor_txdds[] = {
-	{ /* Amphenol 1m 30awg NoEq */
+	{ /* Ampheyesl 1m 30awg NoEq */
 		{ 0x41, 0x50, 0x48 }, "584470002       ",
 		{ 10,  0,  0,  5 }, { 10,  0,  0,  9 }, {  7,  1,  0, 13 },
 	},
-	{ /* Amphenol 3m 28awg NoEq */
+	{ /* Ampheyesl 3m 28awg NoEq */
 		{ 0x41, 0x50, 0x48 }, "584470004       ",
 		{  0,  0,  0,  8 }, {  0,  0,  0, 11 }, {  0,  1,  7, 15 },
 	},
@@ -7611,7 +7611,7 @@ static const struct txdds_ent *get_atten_table(const struct txdds_ent *txdds,
 
 /*
  * if override is set, the module parameter txselect has a value
- * for this specific port, so use it, rather than our normal mechanism.
+ * for this specific port, so use it, rather than our yesrmal mechanism.
  */
 static void find_best_ent(struct qib_pportdata *ppd,
 			  const struct txdds_ent **sdr_dds,
@@ -7621,7 +7621,7 @@ static void find_best_ent(struct qib_pportdata *ppd,
 	struct qib_qsfp_cache *qd = &ppd->cpspec->qsfp_data.cache;
 	int idx;
 
-	/* Search table of known cables */
+	/* Search table of kyeswn cables */
 	for (idx = 0; !override && idx < ARRAY_SIZE(vendor_txdds); ++idx) {
 		const struct vendor_txdds_ent *v = vendor_txdds + idx;
 
@@ -7650,27 +7650,27 @@ static void find_best_ent(struct qib_pportdata *ppd,
 		*ddr_dds = get_atten_table(txdds_ddr, qd->atten[0]);
 		*qdr_dds = get_atten_table(txdds_qdr, qd->atten[1]);
 		return;
-	} else if (ppd->cpspec->no_eep < TXDDS_TABLE_SZ) {
+	} else if (ppd->cpspec->yes_eep < TXDDS_TABLE_SZ) {
 		/*
-		 * If we have no (or incomplete) data from the cable
-		 * EEPROM, or no QSFP, or override is set, use the
+		 * If we have yes (or incomplete) data from the cable
+		 * EEPROM, or yes QSFP, or override is set, use the
 		 * module parameter value to index into the attentuation
 		 * table.
 		 */
-		idx = ppd->cpspec->no_eep;
+		idx = ppd->cpspec->yes_eep;
 		*sdr_dds = &txdds_sdr[idx];
 		*ddr_dds = &txdds_ddr[idx];
 		*qdr_dds = &txdds_qdr[idx];
-	} else if (ppd->cpspec->no_eep < (TXDDS_TABLE_SZ + TXDDS_EXTRA_SZ)) {
+	} else if (ppd->cpspec->yes_eep < (TXDDS_TABLE_SZ + TXDDS_EXTRA_SZ)) {
 		/* similar to above, but index into the "extra" table. */
-		idx = ppd->cpspec->no_eep - TXDDS_TABLE_SZ;
+		idx = ppd->cpspec->yes_eep - TXDDS_TABLE_SZ;
 		*sdr_dds = &txdds_extra_sdr[idx];
 		*ddr_dds = &txdds_extra_ddr[idx];
 		*qdr_dds = &txdds_extra_qdr[idx];
 	} else if ((IS_QME(ppd->dd) || IS_QMH(ppd->dd)) &&
-		   ppd->cpspec->no_eep < (TXDDS_TABLE_SZ + TXDDS_EXTRA_SZ +
+		   ppd->cpspec->yes_eep < (TXDDS_TABLE_SZ + TXDDS_EXTRA_SZ +
 					  TXDDS_MFG_SZ)) {
-		idx = ppd->cpspec->no_eep - (TXDDS_TABLE_SZ + TXDDS_EXTRA_SZ);
+		idx = ppd->cpspec->yes_eep - (TXDDS_TABLE_SZ + TXDDS_EXTRA_SZ);
 		pr_info("IB%u:%u use idx %u into txdds_mfg\n",
 			ppd->dd->unit, ppd->port, idx);
 		*sdr_dds = &txdds_extra_mfg[idx];
@@ -7725,7 +7725,7 @@ static void init_txdds_table(struct qib_pportdata *ppd, int override)
 #define AHB_TRANS_RDY SYM_MASK(ahb_transaction_reg, ahb_rdy)
 #define AHB_ADDR_LSB SYM_LSB(ahb_transaction_reg, ahb_address)
 #define AHB_DATA_LSB SYM_LSB(ahb_transaction_reg, ahb_data)
-#define AHB_WR SYM_MASK(ahb_transaction_reg, write_not_read)
+#define AHB_WR SYM_MASK(ahb_transaction_reg, write_yest_read)
 #define AHB_TRANS_TRIES 10
 
 /*
@@ -7756,7 +7756,7 @@ static u32 ahb_mod(struct qib_devdata *dd, int quad, int chan, int addr,
 		goto bail;
 	}
 
-	/* If mask is not all 1s, we need to read, but different SerDes
+	/* If mask is yest all 1s, we need to read, but different SerDes
 	 * entities have different sizes
 	 */
 	sz_mask = (1UL << ((quad == 1) ? 32 : 16)) - 1;
@@ -7781,7 +7781,7 @@ static u32 ahb_mod(struct qib_devdata *dd, int quad, int chan, int addr,
 		wr_data |= (rd_data & ~mask & sz_mask);
 	}
 
-	/* If mask is not zero, we need to write. */
+	/* If mask is yest zero, we need to write. */
 	if (mask & sz_mask) {
 		trans = ((chan << 6) | addr) << (AHB_ADDR_LSB + 1);
 		trans |= ((uint64_t)wr_data << AHB_DATA_LSB);
@@ -7857,7 +7857,7 @@ static int serdes_7322_init_old(struct qib_pportdata *ppd)
 	 */
 	init_txdds_table(ppd, 0);
 
-	/* ensure no tx overrides from earlier driver loads */
+	/* ensure yes tx overrides from earlier driver loads */
 	qib_write_kreg_port(ppd, krp_tx_deemph_override,
 		SYM_MASK(IBSD_TX_DEEMPHASIS_OVERRIDE_0,
 		reset_tx_deemphasis_override));
@@ -7955,7 +7955,7 @@ static int serdes_7322_init_new(struct qib_pportdata *ppd)
 	/* Clear cmode-override, may be set from older driver */
 	ahb_mod(ppd->dd, IBSD(ppd->hw_pidx), 5, 10, 0 << 14, 1 << 14);
 
-	/* ensure no tx overrides from earlier driver loads */
+	/* ensure yes tx overrides from earlier driver loads */
 	qib_write_kreg_port(ppd, krp_tx_deemph_override,
 		SYM_MASK(IBSD_TX_DEEMPHASIS_OVERRIDE_0,
 		reset_tx_deemphasis_override));
@@ -8066,7 +8066,7 @@ static int serdes_7322_init_new(struct qib_pportdata *ppd)
 		}
 	}
 	if (chan_done) {
-		pr_info("Serdes %d calibration not done after .5 sec: 0x%x\n",
+		pr_info("Serdes %d calibration yest done after .5 sec: 0x%x\n",
 			 IBSD(ppd->hw_pidx), chan_done);
 	} else {
 		for (chan = 0; chan < SERDES_CHANS; ++chan) {
@@ -8177,7 +8177,7 @@ static void clock_man(struct qib_pportdata *ppd, int chan)
 /*
  * write the current Tx serdes pre,post,main,amp settings into the serdes.
  * The caller must pass the settings appropriate for the current speed,
- * or not care if they are correct for the current speed.
+ * or yest care if they are correct for the current speed.
  */
 static void write_tx_serdes_param(struct qib_pportdata *ppd,
 				  struct txdds_ent *txdds)
@@ -8262,7 +8262,7 @@ static int qib_r_grab(struct qib_devdata *dd)
 	return 0;
 }
 
-/* qib_r_wait_for_rdy() not only waits for the ready bit, it
+/* qib_r_wait_for_rdy() yest only waits for the ready bit, it
  * returns the current state of R_TDO
  */
 static int qib_r_wait_for_rdy(struct qib_devdata *dd)
@@ -8476,7 +8476,7 @@ static void check_7322_rxe_status(struct qib_pportdata *ppd)
 	if (!fmask) {
 		/*
 		 * require a powercycle before we'll work again, and make
-		 * sure we get no more interrupts, and don't turn off
+		 * sure we get yes more interrupts, and don't turn off
 		 * freeze.
 		 */
 		ppd->dd->cspec->stay_in_freeze = 1;
@@ -8489,7 +8489,7 @@ static void check_7322_rxe_status(struct qib_pportdata *ppd)
 	qib_write_kreg(ppd->dd, kr_hwerrclear,
 	    SYM_MASK(HwErrClear, IBSerdesPClkNotDetectClear_1));
 
-	/* don't do the full clear_freeze(), not needed for this */
+	/* don't do the full clear_freeze(), yest needed for this */
 	qib_write_kreg(dd, kr_control, dd->control);
 	qib_read_kreg32(dd, kr_scratch);
 	/* take IBC out of reset */

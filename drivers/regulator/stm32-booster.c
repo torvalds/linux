@@ -72,7 +72,7 @@ static const struct regulator_desc stm32mp1_booster_desc = {
 static int stm32_booster_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	struct regulator_config config = { };
 	const struct regulator_desc *desc;
 	struct regulator_dev *rdev;
@@ -88,7 +88,7 @@ static int stm32_booster_probe(struct platform_device *pdev)
 
 	config.regmap = regmap;
 	config.dev = dev;
-	config.of_node = np;
+	config.of_yesde = np;
 	config.init_data = of_get_regulator_init_data(dev, np, desc);
 
 	rdev = devm_regulator_register(dev, desc, &config);

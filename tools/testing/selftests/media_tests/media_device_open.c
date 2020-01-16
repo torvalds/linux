@@ -10,7 +10,7 @@
 
 /*
  * This file adds a test for Media Controller API.
- * This test should be run as root and should not be
+ * This test should be run as root and should yest be
  * included in the Kselftest run. This test should be
  * run when hardware and driver that makes use Media
  * Controller API are present in the system.
@@ -27,7 +27,7 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <stdlib.h>
-#include <errno.h>
+#include <erryes.h>
 #include <string.h>
 #include <fcntl.h>
 #include <sys/ioctl.h>
@@ -69,13 +69,13 @@ int main(int argc, char **argv)
 	/* Open Media device and keep it open */
 	fd = open(media_device, O_RDWR);
 	if (fd == -1) {
-		printf("Media Device open errno %s\n", strerror(errno));
+		printf("Media Device open erryes %s\n", strerror(erryes));
 		exit(-1);
 	}
 
 	ret = ioctl(fd, MEDIA_IOC_DEVICE_INFO, &mdi);
 	if (ret < 0)
-		printf("Media Device Info errno %s\n", strerror(errno));
+		printf("Media Device Info erryes %s\n", strerror(erryes));
 	else
 		printf("Media device model %s driver %s\n",
 			mdi.model, mdi.driver);

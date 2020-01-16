@@ -78,7 +78,7 @@
 #define	CTRL_get_lang		0x0e00	/* return bitmask of loaded languages */
 #define	CMD_test		0x2000	/* self-test request */
 #define	TEST_mask		0x0F00	/* isolate test field */
-#define	TEST_null		0x0000	/* no test requested */
+#define	TEST_null		0x0000	/* yes test requested */
 #define	TEST_isa_int		0x0100	/* assert isa irq */
 #define	TEST_echo		0x0200	/* make data in == data out */
 #define	TEST_seg		0x0300	/* set peek/poke segment */
@@ -215,7 +215,7 @@ static struct spk_synth synth_dec_pc = {
 	.synth_immediate = synth_immediate,
 	.catch_up = do_catch_up,
 	.flush = synth_flush,
-	.is_alive = spk_synth_is_alive_nop,
+	.is_alive = spk_synth_is_alive_yesp,
 	.synth_adjust = NULL,
 	.read_buff_add = NULL,
 	.get_index = NULL,
@@ -348,7 +348,7 @@ static int testkernel(void)
 	else if (dt_stat & 0x8000)
 		return 0;
 	else if (dt_stat == 0x0dec)
-		pr_warn("dec_pc at 0x%x, software not loaded\n",
+		pr_warn("dec_pc at 0x%x, software yest loaded\n",
 			speakup_info.port_tts);
 	status = -3;
 oops:	synth_release_region(speakup_info.port_tts, SYNTH_IO_EXTENT);
@@ -382,7 +382,7 @@ static void do_catch_up(struct spk_synth *synth)
 			synth->flush(synth);
 			continue;
 		}
-		synth_buffer_skip_nonlatin1();
+		synth_buffer_skip_yesnlatin1();
 		if (synth_buffer_empty()) {
 			spin_unlock_irqrestore(&speakup_info.spinlock, flags);
 			break;
@@ -460,7 +460,7 @@ static int synth_probe(struct spk_synth *synth)
 			break;
 	}
 	if (failed) {
-		pr_info("%s: not found\n", synth->long_name);
+		pr_info("%s: yest found\n", synth->long_name);
 		return -ENODEV;
 	}
 	pr_info("%s: %03x-%03x, Driver Version %s,\n", synth->long_name,

@@ -87,7 +87,7 @@ struct adv748x_csi2 {
 	struct v4l2_subdev sd;
 };
 
-#define notifier_to_csi2(n) container_of(n, struct adv748x_csi2, notifier)
+#define yestifier_to_csi2(n) container_of(n, struct adv748x_csi2, yestifier)
 #define adv748x_sd_to_csi2(sd) container_of(sd, struct adv748x_csi2, sd)
 
 #define is_tx_enabled(_tx) ((_tx)->state->endpoints[(_tx)->port] != NULL)
@@ -156,7 +156,7 @@ struct adv748x_afe {
 	struct adv748x_csi2 *tx;
 
 	bool streaming;
-	v4l2_std_id curr_norm;
+	v4l2_std_id curr_yesrm;
 	unsigned int input;
 };
 
@@ -170,7 +170,7 @@ struct adv748x_afe {
  * @client:		I2C client
  * @mutex:		protect global state
  *
- * @endpoints:		parsed device node endpoints for each port
+ * @endpoints:		parsed device yesde endpoints for each port
  *
  * @i2c_addresses	I2C Page addresses
  * @i2c_clients		I2C clients for the page accesses
@@ -186,7 +186,7 @@ struct adv748x_state {
 	struct i2c_client *client;
 	struct mutex mutex;
 
-	struct device_node *endpoints[ADV748X_PORT_MAX];
+	struct device_yesde *endpoints[ADV748X_PORT_MAX];
 
 	struct i2c_client *i2c_clients[ADV748X_PAGE_MAX];
 	struct regmap *regmap[ADV748X_PAGE_MAX];
@@ -314,7 +314,7 @@ struct adv748x_state {
 /* Test Patterns / Default Values */
 #define ADV748X_SDP_DEF			0x0c	/* user_map_rw_reg_0c */
 #define ADV748X_SDP_DEF_VAL_EN		BIT(0)	/* Force free run mode */
-#define ADV748X_SDP_DEF_VAL_AUTO_EN	BIT(1)	/* Free run when no signal */
+#define ADV748X_SDP_DEF_VAL_AUTO_EN	BIT(1)	/* Free run when yes signal */
 
 #define ADV748X_SDP_MAP_SEL		0x0e	/* user_map_rw_reg_0e */
 #define ADV748X_SDP_MAP_SEL_RO_MAIN	1

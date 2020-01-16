@@ -130,7 +130,7 @@ static int __init tx4939_rng_probe(struct platform_device *dev)
 	/*
 	 * Drop first two results.  From the datasheet:
 	 * The quality of the random numbers generated immediately
-	 * after reset can be insufficient.  Therefore, do not use
+	 * after reset can be insufficient.  Therefore, do yest use
 	 * random numbers obtained from the first and second
 	 * generations; use the ones from the third or subsequent
 	 * generation.

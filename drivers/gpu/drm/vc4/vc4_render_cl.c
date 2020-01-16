@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice (including the next
+ * The above copyright yestice and this permission yestice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
  *
@@ -72,10 +72,10 @@ static inline void rcl_u32(struct vc4_rcl_setup *setup, u32 val)
 }
 
 /*
- * Emits a no-op STORE_TILE_BUFFER_GENERAL.
+ * Emits a yes-op STORE_TILE_BUFFER_GENERAL.
  *
  * If we emit a PACKET_TILE_COORDINATES, it must be followed by a store of
- * some sort before another load is triggered.
+ * some sort before ayesther load is triggered.
  */
 static void vc4_store_before_load(struct vc4_rcl_setup *setup)
 {
@@ -86,7 +86,7 @@ static void vc4_store_before_load(struct vc4_rcl_setup *setup)
 		VC4_STORE_TILE_BUFFER_DISABLE_COLOR_CLEAR |
 		VC4_STORE_TILE_BUFFER_DISABLE_ZS_CLEAR |
 		VC4_STORE_TILE_BUFFER_DISABLE_VG_MASK_CLEAR);
-	rcl_u32(setup, 0); /* no address, since we're in None mode */
+	rcl_u32(setup, 0); /* yes address, since we're in None mode */
 }
 
 /*
@@ -336,7 +336,7 @@ static int vc4_create_rcl_bo(struct drm_device *dev, struct vc4_exec_info *exec,
 
 	/* The tile buffer gets cleared when the previous tile is stored.  If
 	 * the clear values changed between frames, then the tile buffer has
-	 * stale clear values in it, so we have to do a store in None mode (no
+	 * stale clear values in it, so we have to do a store in None mode (yes
 	 * writes) so that we trigger the tile buffer clear.
 	 */
 	if (args->flags & VC4_SUBMIT_CL_USE_CLEAR_COLOR) {
@@ -350,7 +350,7 @@ static int vc4_create_rcl_bo(struct drm_device *dev, struct vc4_exec_info *exec,
 
 		rcl_u8(setup, VC4_PACKET_STORE_TILE_BUFFER_GENERAL);
 		rcl_u16(setup, VC4_LOADSTORE_TILE_BUFFER_NONE);
-		rcl_u32(setup, 0); /* no address, since we're in None mode */
+		rcl_u32(setup, 0); /* yes address, since we're in None mode */
 	}
 
 	rcl_u8(setup, VC4_PACKET_TILE_RENDERING_MODE_CONFIG);
@@ -411,7 +411,7 @@ static int vc4_rcl_msaa_surface_setup(struct vc4_exec_info *exec,
 				      struct drm_vc4_submit_rcl_surface *surf)
 {
 	if (surf->flags != 0 || surf->bits != 0) {
-		DRM_DEBUG("MSAA surface had nonzero flags/bits\n");
+		DRM_DEBUG("MSAA surface had yesnzero flags/bits\n");
 		return -EINVAL;
 	}
 
@@ -463,7 +463,7 @@ static int vc4_rcl_surface_setup(struct vc4_exec_info *exec,
 
 	if (surf->flags & VC4_SUBMIT_RCL_SURFACE_READ_IS_FULL_RES) {
 		if (surf == &exec->args->zs_write) {
-			DRM_DEBUG("general zs write may not be a full-res.\n");
+			DRM_DEBUG("general zs write may yest be a full-res.\n");
 			return -EINVAL;
 		}
 
@@ -483,7 +483,7 @@ static int vc4_rcl_surface_setup(struct vc4_exec_info *exec,
 	if (surf->bits & ~(VC4_LOADSTORE_TILE_BUFFER_TILING_MASK |
 			   VC4_LOADSTORE_TILE_BUFFER_BUFFER_MASK |
 			   VC4_LOADSTORE_TILE_BUFFER_FORMAT_MASK)) {
-		DRM_DEBUG("Unknown bits in load/store: 0x%04x\n",
+		DRM_DEBUG("Unkyeswn bits in load/store: 0x%04x\n",
 			  surf->bits);
 		return -EINVAL;
 	}
@@ -551,7 +551,7 @@ vc4_rcl_render_config_surface_setup(struct vc4_exec_info *exec,
 			   VC4_RENDER_CONFIG_FORMAT_MASK |
 			   VC4_RENDER_CONFIG_MS_MODE_4X |
 			   VC4_RENDER_CONFIG_DECIMATE_MODE_4X)) {
-		DRM_DEBUG("Unknown bits in render config: 0x%04x\n",
+		DRM_DEBUG("Unkyeswn bits in render config: 0x%04x\n",
 			  surf->bits);
 		return -EINVAL;
 	}
@@ -647,7 +647,7 @@ int vc4_get_rcl(struct drm_device *dev, struct vc4_exec_info *exec)
 	if (ret)
 		return ret;
 
-	/* We shouldn't even have the job submitted to us if there's no
+	/* We shouldn't even have the job submitted to us if there's yes
 	 * surface to write out.
 	 */
 	if (!setup.color_write && !setup.zs_write &&

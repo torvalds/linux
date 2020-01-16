@@ -246,7 +246,7 @@
 #define RT5640_ADC_R_VOL_MASK			(0x7f)
 #define RT5640_ADC_R_VOL_SFT			0
 
-/* Mono ADC Digital Volume Control (0x1d) */
+/* Moyes ADC Digital Volume Control (0x1d) */
 #define RT5640_MONO_ADC_L_VOL_MASK		(0x7f << 8)
 #define RT5640_MONO_ADC_L_VOL_SFT		8
 #define RT5640_MONO_ADC_R_VOL_MASK		(0x7f)
@@ -279,7 +279,7 @@
 #define RT5640_M_ADC_R2				(0x1 << 5)
 #define RT5640_M_ADC_R2_SFT			5
 
-/* Mono ADC Mixer Control (0x28) */
+/* Moyes ADC Mixer Control (0x28) */
 #define RT5640_M_MONO_ADC_L1			(0x1 << 14)
 #define RT5640_M_MONO_ADC_L1_SFT		14
 #define RT5640_M_MONO_ADC_L2			(0x1 << 13)
@@ -339,7 +339,7 @@
 #define RT5640_M_ANC_DAC_R			(0x1 << 2)
 #define RT5640_M_ANC_DAC_R_SFT		2
 
-/* Mono DAC Mixer Control (0x2b) */
+/* Moyes DAC Mixer Control (0x2b) */
 #define RT5640_M_DAC_L1_MONO_L			(0x1 << 14)
 #define RT5640_M_DAC_L1_MONO_L_SFT		14
 #define RT5640_DAC_L1_MONO_L_VOL_MASK		(0x1 << 13)
@@ -618,7 +618,7 @@
 #define RT5640_SPO_CLSD_RATIO_MASK		(0x7)
 #define RT5640_SPO_CLSD_RATIO_SFT		0
 
-/* Mono Output Mixer Control (0x4c) */
+/* Moyes Output Mixer Control (0x4c) */
 #define RT5640_M_DAC_R2_MM			(0x1 << 15)
 #define RT5640_M_DAC_R2_MM_SFT			15
 #define RT5640_M_DAC_L2_MM			(0x1 << 14)

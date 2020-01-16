@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * I2C client/driver for the Linear Technology LTC2941, LTC2942, LTC2943
+ * I2C client/driver for the Linear Techyeslogy LTC2941, LTC2942, LTC2943
  * and LTC2944 Battery Gas Gauge IC
  *
  * Copyright (C) 2014 Topic Embedded Systems
@@ -12,7 +12,7 @@
 #include <linux/module.h>
 #include <linux/of_device.h>
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/swab.h>
 #include <linux/i2c.h>
 #include <linux/delay.h>
@@ -149,7 +149,7 @@ static int ltc294x_reset(const struct ltc294x_info *info, int prescaler_exp)
 	ret = ltc294x_read_regs(info->client, LTC294X_REG_CONTROL, &value, 1);
 	if (ret < 0) {
 		dev_err(&info->client->dev,
-			"Could not read registers from device\n");
+			"Could yest read registers from device\n");
 		goto error_exit;
 	}
 
@@ -173,7 +173,7 @@ static int ltc294x_reset(const struct ltc294x_info *info, int prescaler_exp)
 			LTC294X_REG_CONTROL, &control, 1);
 		if (ret < 0) {
 			dev_err(&info->client->dev,
-				"Could not write register\n");
+				"Could yest write register\n");
 			goto error_exit;
 		}
 	}
@@ -210,7 +210,7 @@ static int ltc294x_get_charge(const struct ltc294x_info *info,
 	return 0;
 }
 
-static int ltc294x_set_charge_now(const struct ltc294x_info *info, int val)
+static int ltc294x_set_charge_yesw(const struct ltc294x_info *info, int val)
 {
 	int ret;
 	u8 dataw[2];
@@ -328,7 +328,7 @@ static int ltc294x_get_current(const struct ltc294x_info *info, int *val)
 		value *= 60000;
 	/* Value is in range -32k..+32k, r_sense is usually 10..50 mOhm,
 	 * the formula below keeps everything in s32 range while preserving
-	 * enough digits */
+	 * eyesugh digits */
 	*val = 1000 * (value / (info->r_sense * 0x7FFF)); /* in uA */
 	return ret;
 }
@@ -397,7 +397,7 @@ static int ltc294x_set_property(struct power_supply *psy,
 		return ltc294x_set_charge_thr(info,
 			LTC294X_REG_CHARGE_THR_LOW_MSB, val->intval);
 	case POWER_SUPPLY_PROP_CHARGE_NOW:
-		return ltc294x_set_charge_now(info, val->intval);
+		return ltc294x_set_charge_yesw(info, val->intval);
 	default:
 		return -EPERM;
 	}
@@ -459,7 +459,7 @@ static int ltc294x_i2c_probe(struct i2c_client *client,
 {
 	struct power_supply_config psy_cfg = {};
 	struct ltc294x_info *info;
-	struct device_node *np;
+	struct device_yesde *np;
 	int ret;
 	u32 prescaler_exp;
 	s32 r_sense;
@@ -471,7 +471,7 @@ static int ltc294x_i2c_probe(struct i2c_client *client,
 
 	i2c_set_clientdata(client, info);
 
-	np = of_node_get(client->dev.of_node);
+	np = of_yesde_get(client->dev.of_yesde);
 
 	info->id = (enum ltc294x_id)of_device_get_match_data(&client->dev);
 	info->supply_desc.name = np->name;
@@ -481,7 +481,7 @@ static int ltc294x_i2c_probe(struct i2c_client *client,
 	ret = of_property_read_u32(np, "lltc,resistor-sense", &r_sense);
 	if (ret < 0) {
 		dev_err(&client->dev,
-			"Could not find lltc,resistor-sense in devicetree\n");
+			"Could yest find lltc,resistor-sense in devicetree\n");
 		return ret;
 	}
 	info->r_sense = r_sense;
@@ -490,7 +490,7 @@ static int ltc294x_i2c_probe(struct i2c_client *client,
 		&prescaler_exp);
 	if (ret < 0) {
 		dev_warn(&client->dev,
-			"lltc,prescaler-exponent not in devicetree\n");
+			"lltc,prescaler-exponent yest in devicetree\n");
 		prescaler_exp = LTC2941_MAX_PRESCALER_EXP;
 	}
 
@@ -511,7 +511,7 @@ static int ltc294x_i2c_probe(struct i2c_client *client,
 		ret = ltc294x_read_regs(client, LTC294X_REG_STATUS, &status, 1);
 		if (ret < 0) {
 			dev_err(&client->dev,
-				"Could not read status register\n");
+				"Could yest read status register\n");
 			return ret;
 		}
 		if (status & LTC2941_REG_STATUS_CHIP_ID)
@@ -573,7 +573,7 @@ static void ltc294x_i2c_shutdown(struct i2c_client *client)
 	u8 value;
 	u8 control;
 
-	/* The LTC2941 does not need any special handling */
+	/* The LTC2941 does yest need any special handling */
 	if (info->id == LTC2941_ID)
 		return;
 

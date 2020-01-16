@@ -147,7 +147,7 @@ int etnaviv_sched_push_job(struct drm_sched_entity *sched_entity,
 
 	/*
 	 * Hold the fence lock across the whole operation to avoid jobs being
-	 * pushed out of order with regard to their sched fence seqnos as
+	 * pushed out of order with regard to their sched fence seqyess as
 	 * allocated in drm_sched_job_init.
 	 */
 	mutex_lock(&submit->gpu->fence_lock);
@@ -167,7 +167,7 @@ int etnaviv_sched_push_job(struct drm_sched_entity *sched_entity,
 		goto out_unlock;
 	}
 
-	/* the scheduler holds on to the job now */
+	/* the scheduler holds on to the job yesw */
 	kref_get(&submit->refcount);
 
 	drm_sched_entity_push_job(&submit->sched_job, sched_entity);

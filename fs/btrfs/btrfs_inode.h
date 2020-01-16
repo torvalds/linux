@@ -10,12 +10,12 @@
 #include "extent_map.h"
 #include "extent_io.h"
 #include "ordered-data.h"
-#include "delayed-inode.h"
+#include "delayed-iyesde.h"
 
 /*
  * ordered_data_close is set by truncate when a file that used
  * to have good data has been truncated to zero.  When it is set
- * the btrfs file release call will add this inode to the
+ * the btrfs file release call will add this iyesde to the
  * ordered operations list so that we make sure to flush out any
  * new data the application may have written before commit.
  */
@@ -32,19 +32,19 @@ enum {
 	BTRFS_INODE_SNAPSHOT_FLUSH,
 };
 
-/* in memory btrfs inode */
-struct btrfs_inode {
-	/* which subvolume this inode belongs to */
+/* in memory btrfs iyesde */
+struct btrfs_iyesde {
+	/* which subvolume this iyesde belongs to */
 	struct btrfs_root *root;
 
-	/* key used to find this inode on disk.  This is used by the code
+	/* key used to find this iyesde on disk.  This is used by the code
 	 * to read in roots of subvolumes
 	 */
 	struct btrfs_key location;
 
 	/*
-	 * Lock for counters and all fields used to determine if the inode is in
-	 * the log or not (last_trans, last_sub_trans, last_log_commit,
+	 * Lock for counters and all fields used to determine if the iyesde is in
+	 * the log or yest (last_trans, last_sub_trans, last_log_commit,
 	 * logged_trans).
 	 */
 	spinlock_t lock;
@@ -60,43 +60,43 @@ struct btrfs_inode {
 	 */
 	struct extent_io_tree io_failure_tree;
 
-	/* held while logging the inode in tree-log.c */
+	/* held while logging the iyesde in tree-log.c */
 	struct mutex log_mutex;
 
 	/* used to order data wrt metadata */
-	struct btrfs_ordered_inode_tree ordered_tree;
+	struct btrfs_ordered_iyesde_tree ordered_tree;
 
-	/* list of all the delalloc inodes in the FS.  There are times we need
+	/* list of all the delalloc iyesdes in the FS.  There are times we need
 	 * to write all the delalloc pages to disk, and this list is used
 	 * to walk them all.
 	 */
-	struct list_head delalloc_inodes;
+	struct list_head delalloc_iyesdes;
 
-	/* node for the red-black tree that links inodes in subvolume root */
-	struct rb_node rb_node;
+	/* yesde for the red-black tree that links iyesdes in subvolume root */
+	struct rb_yesde rb_yesde;
 
 	unsigned long runtime_flags;
 
 	/* Keep track of who's O_SYNC/fsyncing currently */
 	atomic_t sync_writers;
 
-	/* full 64 bit generation number, struct vfs_inode doesn't have a big
-	 * enough field for this.
+	/* full 64 bit generation number, struct vfs_iyesde doesn't have a big
+	 * eyesugh field for this.
 	 */
 	u64 generation;
 
 	/*
-	 * transid of the trans_handle that last modified this inode
+	 * transid of the trans_handle that last modified this iyesde
 	 */
 	u64 last_trans;
 
 	/*
-	 * transid that last logged this inode
+	 * transid that last logged this iyesde
 	 */
 	u64 logged_trans;
 
 	/*
-	 * log transid when this inode was last modified
+	 * log transid when this iyesde was last modified
 	 */
 	int last_sub_trans;
 
@@ -110,7 +110,7 @@ struct btrfs_inode {
 
 	/*
 	 * Total number of bytes pending delalloc that fall within a file
-	 * range that is either a hole or beyond EOF (and no prealloc extent
+	 * range that is either a hole or beyond EOF (and yes prealloc extent
 	 * exists in the range). This is always <= delalloc_bytes.
 	 */
 	u64 new_delalloc_bytes;
@@ -124,7 +124,7 @@ struct btrfs_inode {
 	/*
 	 * the size of the file stored in the metadata on disk.  data=ordered
 	 * means the in-memory i_size might be larger than the size on disk
-	 * because not all the blocks are written yet.
+	 * because yest all the blocks are written yet.
 	 */
 	u64 disk_i_size;
 
@@ -150,7 +150,7 @@ struct btrfs_inode {
 	 */
 	u64 csum_bytes;
 
-	/* flags field from the on disk inode */
+	/* flags field from the on disk iyesde */
 	u32 flags;
 
 	/*
@@ -164,7 +164,7 @@ struct btrfs_inode {
 	struct btrfs_block_rsv block_rsv;
 
 	/*
-	 * Cached values of inode properties
+	 * Cached values of iyesde properties
 	 */
 	unsigned prop_compress;		/* per-file compression algorithm */
 	/*
@@ -173,7 +173,7 @@ struct btrfs_inode {
 	 */
 	unsigned defrag_compress;
 
-	struct btrfs_delayed_node *delayed_node;
+	struct btrfs_delayed_yesde *delayed_yesde;
 
 	/* File creation time. */
 	struct timespec64 i_otime;
@@ -182,7 +182,7 @@ struct btrfs_inode {
 	struct list_head delayed_iput;
 
 	/*
-	 * To avoid races between lockless (i_mutex not held) direct IO writes
+	 * To avoid races between lockless (i_mutex yest held) direct IO writes
 	 * and concurrent fsync requests. Direct IO writes must acquire read
 	 * access on this semaphore for creating an extent map and its
 	 * corresponding ordered extent. The fast fsync path must acquire write
@@ -191,15 +191,15 @@ struct btrfs_inode {
 	 */
 	struct rw_semaphore dio_sem;
 
-	struct inode vfs_inode;
+	struct iyesde vfs_iyesde;
 };
 
-static inline struct btrfs_inode *BTRFS_I(const struct inode *inode)
+static inline struct btrfs_iyesde *BTRFS_I(const struct iyesde *iyesde)
 {
-	return container_of(inode, struct btrfs_inode, vfs_inode);
+	return container_of(iyesde, struct btrfs_iyesde, vfs_iyesde);
 }
 
-static inline unsigned long btrfs_inode_hash(u64 objectid,
+static inline unsigned long btrfs_iyesde_hash(u64 objectid,
 					     const struct btrfs_root *root)
 {
 	u64 h = objectid ^ (root->root_key.objectid * GOLDEN_RATIO_PRIME);
@@ -211,86 +211,86 @@ static inline unsigned long btrfs_inode_hash(u64 objectid,
 	return (unsigned long)h;
 }
 
-static inline void btrfs_insert_inode_hash(struct inode *inode)
+static inline void btrfs_insert_iyesde_hash(struct iyesde *iyesde)
 {
-	unsigned long h = btrfs_inode_hash(inode->i_ino, BTRFS_I(inode)->root);
+	unsigned long h = btrfs_iyesde_hash(iyesde->i_iyes, BTRFS_I(iyesde)->root);
 
-	__insert_inode_hash(inode, h);
+	__insert_iyesde_hash(iyesde, h);
 }
 
-static inline u64 btrfs_ino(const struct btrfs_inode *inode)
+static inline u64 btrfs_iyes(const struct btrfs_iyesde *iyesde)
 {
-	u64 ino = inode->location.objectid;
+	u64 iyes = iyesde->location.objectid;
 
 	/*
-	 * !ino: btree_inode
+	 * !iyes: btree_iyesde
 	 * type == BTRFS_ROOT_ITEM_KEY: subvol dir
 	 */
-	if (!ino || inode->location.type == BTRFS_ROOT_ITEM_KEY)
-		ino = inode->vfs_inode.i_ino;
-	return ino;
+	if (!iyes || iyesde->location.type == BTRFS_ROOT_ITEM_KEY)
+		iyes = iyesde->vfs_iyesde.i_iyes;
+	return iyes;
 }
 
-static inline void btrfs_i_size_write(struct btrfs_inode *inode, u64 size)
+static inline void btrfs_i_size_write(struct btrfs_iyesde *iyesde, u64 size)
 {
-	i_size_write(&inode->vfs_inode, size);
-	inode->disk_i_size = size;
+	i_size_write(&iyesde->vfs_iyesde, size);
+	iyesde->disk_i_size = size;
 }
 
-static inline bool btrfs_is_free_space_inode(struct btrfs_inode *inode)
+static inline bool btrfs_is_free_space_iyesde(struct btrfs_iyesde *iyesde)
 {
-	struct btrfs_root *root = inode->root;
+	struct btrfs_root *root = iyesde->root;
 
 	if (root == root->fs_info->tree_root &&
-	    btrfs_ino(inode) != BTRFS_BTREE_INODE_OBJECTID)
+	    btrfs_iyes(iyesde) != BTRFS_BTREE_INODE_OBJECTID)
 		return true;
-	if (inode->location.objectid == BTRFS_FREE_INO_OBJECTID)
+	if (iyesde->location.objectid == BTRFS_FREE_INO_OBJECTID)
 		return true;
 	return false;
 }
 
-static inline bool is_data_inode(struct inode *inode)
+static inline bool is_data_iyesde(struct iyesde *iyesde)
 {
-	return btrfs_ino(BTRFS_I(inode)) != BTRFS_BTREE_INODE_OBJECTID;
+	return btrfs_iyes(BTRFS_I(iyesde)) != BTRFS_BTREE_INODE_OBJECTID;
 }
 
-static inline void btrfs_mod_outstanding_extents(struct btrfs_inode *inode,
+static inline void btrfs_mod_outstanding_extents(struct btrfs_iyesde *iyesde,
 						 int mod)
 {
-	lockdep_assert_held(&inode->lock);
-	inode->outstanding_extents += mod;
-	if (btrfs_is_free_space_inode(inode))
+	lockdep_assert_held(&iyesde->lock);
+	iyesde->outstanding_extents += mod;
+	if (btrfs_is_free_space_iyesde(iyesde))
 		return;
-	trace_btrfs_inode_mod_outstanding_extents(inode->root, btrfs_ino(inode),
+	trace_btrfs_iyesde_mod_outstanding_extents(iyesde->root, btrfs_iyes(iyesde),
 						  mod);
 }
 
-static inline int btrfs_inode_in_log(struct btrfs_inode *inode, u64 generation)
+static inline int btrfs_iyesde_in_log(struct btrfs_iyesde *iyesde, u64 generation)
 {
 	int ret = 0;
 
-	spin_lock(&inode->lock);
-	if (inode->logged_trans == generation &&
-	    inode->last_sub_trans <= inode->last_log_commit &&
-	    inode->last_sub_trans <= inode->root->last_log_commit) {
+	spin_lock(&iyesde->lock);
+	if (iyesde->logged_trans == generation &&
+	    iyesde->last_sub_trans <= iyesde->last_log_commit &&
+	    iyesde->last_sub_trans <= iyesde->root->last_log_commit) {
 		/*
 		 * After a ranged fsync we might have left some extent maps
 		 * (that fall outside the fsync's range). So return false
-		 * here if the list isn't empty, to make sure btrfs_log_inode()
+		 * here if the list isn't empty, to make sure btrfs_log_iyesde()
 		 * will be called and process those extent maps.
 		 */
 		smp_mb();
-		if (list_empty(&inode->extent_tree.modified_extents))
+		if (list_empty(&iyesde->extent_tree.modified_extents))
 			ret = 1;
 	}
-	spin_unlock(&inode->lock);
+	spin_unlock(&iyesde->lock);
 	return ret;
 }
 
 #define BTRFS_DIO_ORIG_BIO_SUBMITTED	0x1
 
 struct btrfs_dio_private {
-	struct inode *inode;
+	struct iyesde *iyesde;
 	unsigned long flags;
 	u64 logical_offset;
 	u64 disk_bytenr;
@@ -313,51 +313,51 @@ struct btrfs_dio_private {
 	 * The original bio may be split to several sub-bios, this is
 	 * done during endio of sub-bios
 	 */
-	blk_status_t (*subio_endio)(struct inode *, struct btrfs_io_bio *,
+	blk_status_t (*subio_endio)(struct iyesde *, struct btrfs_io_bio *,
 			blk_status_t);
 };
 
 /*
- * Disable DIO read nolock optimization, so new dio readers will be forced
+ * Disable DIO read yeslock optimization, so new dio readers will be forced
  * to grab i_mutex. It is used to avoid the endless truncate due to
- * nonlocked dio read.
+ * yesnlocked dio read.
  */
-static inline void btrfs_inode_block_unlocked_dio(struct btrfs_inode *inode)
+static inline void btrfs_iyesde_block_unlocked_dio(struct btrfs_iyesde *iyesde)
 {
-	set_bit(BTRFS_INODE_READDIO_NEED_LOCK, &inode->runtime_flags);
+	set_bit(BTRFS_INODE_READDIO_NEED_LOCK, &iyesde->runtime_flags);
 	smp_mb();
 }
 
-static inline void btrfs_inode_resume_unlocked_dio(struct btrfs_inode *inode)
+static inline void btrfs_iyesde_resume_unlocked_dio(struct btrfs_iyesde *iyesde)
 {
 	smp_mb__before_atomic();
-	clear_bit(BTRFS_INODE_READDIO_NEED_LOCK, &inode->runtime_flags);
+	clear_bit(BTRFS_INODE_READDIO_NEED_LOCK, &iyesde->runtime_flags);
 }
 
 /* Array of bytes with variable length, hexadecimal format 0x1234 */
 #define CSUM_FMT				"0x%*phN"
 #define CSUM_FMT_VALUE(size, bytes)		size, bytes
 
-static inline void btrfs_print_data_csum_error(struct btrfs_inode *inode,
+static inline void btrfs_print_data_csum_error(struct btrfs_iyesde *iyesde,
 		u64 logical_start, u8 *csum, u8 *csum_expected, int mirror_num)
 {
-	struct btrfs_root *root = inode->root;
+	struct btrfs_root *root = iyesde->root;
 	struct btrfs_super_block *sb = root->fs_info->super_copy;
 	const u16 csum_size = btrfs_super_csum_size(sb);
 
 	/* Output minus objectid, which is more meaningful */
 	if (root->root_key.objectid >= BTRFS_LAST_FREE_OBJECTID)
 		btrfs_warn_rl(root->fs_info,
-"csum failed root %lld ino %lld off %llu csum " CSUM_FMT " expected csum " CSUM_FMT " mirror %d",
-			root->root_key.objectid, btrfs_ino(inode),
+"csum failed root %lld iyes %lld off %llu csum " CSUM_FMT " expected csum " CSUM_FMT " mirror %d",
+			root->root_key.objectid, btrfs_iyes(iyesde),
 			logical_start,
 			CSUM_FMT_VALUE(csum_size, csum),
 			CSUM_FMT_VALUE(csum_size, csum_expected),
 			mirror_num);
 	else
 		btrfs_warn_rl(root->fs_info,
-"csum failed root %llu ino %llu off %llu csum " CSUM_FMT " expected csum " CSUM_FMT " mirror %d",
-			root->root_key.objectid, btrfs_ino(inode),
+"csum failed root %llu iyes %llu off %llu csum " CSUM_FMT " expected csum " CSUM_FMT " mirror %d",
+			root->root_key.objectid, btrfs_iyes(iyesde),
 			logical_start,
 			CSUM_FMT_VALUE(csum_size, csum),
 			CSUM_FMT_VALUE(csum_size, csum_expected),

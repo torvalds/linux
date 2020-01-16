@@ -13,7 +13,7 @@
 #include <sys/wait.h>
 #include <fcntl.h>
 #include <unistd.h>
-#include <errno.h>
+#include <erryes.h>
 #include <stdbool.h>
 #include <linux/list.h>
 #include <linux/kernel.h>
@@ -39,7 +39,7 @@ int bigendian(void)
 	return *ptr == 0x01020304;
 }
 
-/* unfortunately, you can not stat debugfs or proc files for size */
+/* unfortunately, you can yest stat debugfs or proc files for size */
 static int record_file(const char *file, ssize_t hdr_sz)
 {
 	unsigned long long size = 0;
@@ -51,7 +51,7 @@ static int record_file(const char *file, ssize_t hdr_sz)
 	fd = open(file, O_RDONLY);
 	if (fd < 0) {
 		pr_debug("Can't read '%s'", file);
-		return -errno;
+		return -erryes;
 	}
 
 	/* put in zeros for file size, then fill true size later */
@@ -171,7 +171,7 @@ static int copy_event_system(const char *sys, struct tracepoint_path *tps)
 	dir = opendir(sys);
 	if (!dir) {
 		pr_debug("can't read directory '%s'", sys);
-		return -errno;
+		return -erryes;
 	}
 
 	for_each_event(dir, dent, tps) {
@@ -269,7 +269,7 @@ static int record_event_files(struct tracepoint_path *tps)
 
 	dir = opendir(path);
 	if (!dir) {
-		err = -errno;
+		err = -erryes;
 		pr_debug("can't read directory '%s'", path);
 		goto out;
 	}
@@ -346,7 +346,7 @@ static int record_ftrace_printk(void)
 
 	ret = stat(path, &st);
 	if (ret < 0) {
-		/* not found */
+		/* yest found */
 		size = 0;
 		if (write(output_fd, &size, 4) != 4)
 			err = -EIO;
@@ -374,7 +374,7 @@ static int record_saved_cmdline(void)
 
 	ret = stat(path, &st);
 	if (ret < 0) {
-		/* not found */
+		/* yest found */
 		size = 0;
 		if (write(output_fd, &size, 8) != 8)
 			err = -EIO;
@@ -407,7 +407,7 @@ get_tracepoints_path(struct list_head *pattrs)
 	struct evsel *pos;
 	int nr_tracepoints = 0;
 
-	list_for_each_entry(pos, pattrs, core.node) {
+	list_for_each_entry(pos, pattrs, core.yesde) {
 		if (pos->core.attr.type != PERF_TYPE_TRACEPOINT)
 			continue;
 		++nr_tracepoints;
@@ -442,7 +442,7 @@ bool have_tracepoints(struct list_head *pattrs)
 {
 	struct evsel *pos;
 
-	list_for_each_entry(pos, pattrs, core.node)
+	list_for_each_entry(pos, pattrs, core.yesde)
 		if (pos->core.attr.type == PERF_TYPE_TRACEPOINT)
 			return true;
 
@@ -555,7 +555,7 @@ struct tracing_data *tracing_data_get(struct list_head *pattrs,
 
 out:
 	/*
-	 * All tracing data are stored by now, we can restore
+	 * All tracing data are stored by yesw, we can restore
 	 * the default output file in case we used temp file.
 	 */
 	if (temp) {
@@ -591,7 +591,7 @@ int read_tracing_data(int fd, struct list_head *pattrs)
 
 	/*
 	 * We work over the real file, so we can write data
-	 * directly, no temp file is needed.
+	 * directly, yes temp file is needed.
 	 */
 	tdata = tracing_data_get(pattrs, fd, false);
 	if (!tdata)

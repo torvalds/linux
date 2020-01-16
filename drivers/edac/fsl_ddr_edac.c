@@ -296,7 +296,7 @@ static void fsl_mc_check(struct mem_ctl_info *mci)
 	fsl_mc_printk(mci, KERN_ERR, "Err Detect Register: %#8.8x\n",
 		      err_detect);
 
-	/* no more processing if not ECC bit errors */
+	/* yes more processing if yest ECC bit errors */
 	if (!(err_detect & (DDR_EDE_SBE | DDR_EDE_MBE))) {
 		ddr_out32(pdata->mc_vbase + FSL_MC_ERR_DETECT, err_detect);
 		return;
@@ -454,7 +454,7 @@ static void fsl_ddr_init_csrows(struct mem_ctl_info *mci)
 		end   = (cs_bnds & 0x0000ffff);
 
 		if (start == end)
-			continue;	/* not populated */
+			continue;	/* yest populated */
 
 		start <<= (24 - PAGE_SHIFT);
 		end   <<= (24 - PAGE_SHIFT);
@@ -510,9 +510,9 @@ int fsl_mc_err_probe(struct platform_device *op)
 	 * Get the endianness of DDR controller registers.
 	 * Default is big endian.
 	 */
-	little_endian = of_property_read_bool(op->dev.of_node, "little-endian");
+	little_endian = of_property_read_bool(op->dev.of_yesde, "little-endian");
 
-	res = of_address_to_resource(op->dev.of_node, 0, &r);
+	res = of_address_to_resource(op->dev.of_yesde, 0, &r);
 	if (res) {
 		pr_err("%s: Unable to get resource for MC err regs\n",
 		       __func__);
@@ -536,7 +536,7 @@ int fsl_mc_err_probe(struct platform_device *op)
 
 	sdram_ctl = ddr_in32(pdata->mc_vbase + FSL_MC_DDR_SDRAM_CFG);
 	if (!(sdram_ctl & DSC_ECC_EN)) {
-		/* no ECC */
+		/* yes ECC */
 		pr_warn("%s: No ECC DIMMs discovered\n", __func__);
 		res = -ENODEV;
 		goto err;

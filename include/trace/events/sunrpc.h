@@ -396,9 +396,9 @@ TRACE_EVENT(rpc_xdr_overflow,
 		} else {
 			__entry->task_id = 0;
 			__entry->client_id = 0;
-			__assign_str(progname, "unknown")
+			__assign_str(progname, "unkyeswn")
 			__entry->version = 0;
-			__assign_str(procedure, "unknown")
+			__assign_str(procedure, "unkyeswn")
 		}
 		__entry->requested = requested;
 		__entry->end = xdr->end;
@@ -579,7 +579,7 @@ DECLARE_EVENT_CLASS(xs_socket_event,
 		TP_STRUCT__entry(
 			__field(unsigned int, socket_state)
 			__field(unsigned int, sock_state)
-			__field(unsigned long long, ino)
+			__field(unsigned long long, iyes)
 			__string(dstaddr,
 				xprt->address_strings[RPC_DISPLAY_ADDR])
 			__string(dstport,
@@ -587,10 +587,10 @@ DECLARE_EVENT_CLASS(xs_socket_event,
 		),
 
 		TP_fast_assign(
-			struct inode *inode = SOCK_INODE(socket);
+			struct iyesde *iyesde = SOCK_INODE(socket);
 			__entry->socket_state = socket->state;
 			__entry->sock_state = socket->sk->sk_state;
-			__entry->ino = (unsigned long long)inode->i_ino;
+			__entry->iyes = (unsigned long long)iyesde->i_iyes;
 			__assign_str(dstaddr,
 				xprt->address_strings[RPC_DISPLAY_ADDR]);
 			__assign_str(dstport,
@@ -600,7 +600,7 @@ DECLARE_EVENT_CLASS(xs_socket_event,
 		TP_printk(
 			"socket:[%llu] dstaddr=%s/%s "
 			"state=%u (%s) sk_state=%u (%s)",
-			__entry->ino, __get_str(dstaddr), __get_str(dstport),
+			__entry->iyes, __get_str(dstaddr), __get_str(dstport),
 			__entry->socket_state,
 			rpc_show_socket_state(__entry->socket_state),
 			__entry->sock_state,
@@ -629,7 +629,7 @@ DECLARE_EVENT_CLASS(xs_socket_event_done,
 			__field(int, error)
 			__field(unsigned int, socket_state)
 			__field(unsigned int, sock_state)
-			__field(unsigned long long, ino)
+			__field(unsigned long long, iyes)
 			__string(dstaddr,
 				xprt->address_strings[RPC_DISPLAY_ADDR])
 			__string(dstport,
@@ -637,10 +637,10 @@ DECLARE_EVENT_CLASS(xs_socket_event_done,
 		),
 
 		TP_fast_assign(
-			struct inode *inode = SOCK_INODE(socket);
+			struct iyesde *iyesde = SOCK_INODE(socket);
 			__entry->socket_state = socket->state;
 			__entry->sock_state = socket->sk->sk_state;
-			__entry->ino = (unsigned long long)inode->i_ino;
+			__entry->iyes = (unsigned long long)iyesde->i_iyes;
 			__entry->error = error;
 			__assign_str(dstaddr,
 				xprt->address_strings[RPC_DISPLAY_ADDR]);
@@ -652,7 +652,7 @@ DECLARE_EVENT_CLASS(xs_socket_event_done,
 			"error=%d socket:[%llu] dstaddr=%s/%s "
 			"state=%u (%s) sk_state=%u (%s)",
 			__entry->error,
-			__entry->ino, __get_str(dstaddr), __get_str(dstport),
+			__entry->iyes, __get_str(dstaddr), __get_str(dstport),
 			__entry->socket_state,
 			rpc_show_socket_state(__entry->socket_state),
 			__entry->sock_state,
@@ -727,7 +727,7 @@ TRACE_EVENT(xprt_transmit,
 		__field(unsigned int, task_id)
 		__field(unsigned int, client_id)
 		__field(u32, xid)
-		__field(u32, seqno)
+		__field(u32, seqyes)
 		__field(int, status)
 	),
 
@@ -736,14 +736,14 @@ TRACE_EVENT(xprt_transmit,
 		__entry->client_id = rqst->rq_task->tk_client ?
 			rqst->rq_task->tk_client->cl_clid : -1;
 		__entry->xid = be32_to_cpu(rqst->rq_xid);
-		__entry->seqno = rqst->rq_seqno;
+		__entry->seqyes = rqst->rq_seqyes;
 		__entry->status = status;
 	),
 
 	TP_printk(
-		"task:%u@%u xid=0x%08x seqno=%u status=%d",
+		"task:%u@%u xid=0x%08x seqyes=%u status=%d",
 		__entry->task_id, __entry->client_id, __entry->xid,
-		__entry->seqno, __entry->status)
+		__entry->seqyes, __entry->status)
 );
 
 TRACE_EVENT(xprt_enq_xmit,
@@ -758,7 +758,7 @@ TRACE_EVENT(xprt_enq_xmit,
 		__field(unsigned int, task_id)
 		__field(unsigned int, client_id)
 		__field(u32, xid)
-		__field(u32, seqno)
+		__field(u32, seqyes)
 		__field(int, stage)
 	),
 
@@ -767,14 +767,14 @@ TRACE_EVENT(xprt_enq_xmit,
 		__entry->client_id = task->tk_client ?
 			task->tk_client->cl_clid : -1;
 		__entry->xid = be32_to_cpu(task->tk_rqstp->rq_xid);
-		__entry->seqno = task->tk_rqstp->rq_seqno;
+		__entry->seqyes = task->tk_rqstp->rq_seqyes;
 		__entry->stage = stage;
 	),
 
 	TP_printk(
-		"task:%u@%u xid=0x%08x seqno=%u stage=%d",
+		"task:%u@%u xid=0x%08x seqyes=%u stage=%d",
 		__entry->task_id, __entry->client_id, __entry->xid,
-		__entry->seqno, __entry->stage)
+		__entry->seqyes, __entry->stage)
 );
 
 TRACE_EVENT(xprt_ping,
@@ -1169,7 +1169,7 @@ DECLARE_EVENT_CLASS(svc_xprt_event,
 			show_svc_xprt_flags(__entry->flags))
 );
 
-DEFINE_EVENT(svc_xprt_event, svc_xprt_no_write_space,
+DEFINE_EVENT(svc_xprt_event, svc_xprt_yes_write_space,
 	TP_PROTO(struct svc_xprt *xprt),
 	TP_ARGS(xprt));
 

@@ -6,7 +6,7 @@
  * Copyright (C) 2011-2012 Texas Instruments, Inc.
  * Paul Walmsley
  *
- * Created in collaboration with (alphabetical order): Benoît Cousson,
+ * Created in collaboration with (alphabetical order): Beyesît Cousson,
  * Kevin Hilman, Tony Lindgren, Rajendra Nayak, Vikram Pandita, Sakari
  * Poussa, Anand Sawant, Santosh Shilimkar, Richard Woodruff
  *
@@ -20,7 +20,7 @@
  * - add interconnect error log structures
  * - init_conn_id_bit (CONNID_BIT_VECTOR)
  * - implement default hwmod SMS/SDRC flags?
- * - move Linux-specific data ("non-ROM data") out
+ * - move Linux-specific data ("yesn-ROM data") out
  */
 #ifndef __ARCH_ARM_PLAT_OMAP_INCLUDE_MACH_OMAP_HWMOD_H
 #define __ARCH_ARM_PLAT_OMAP_INCLUDE_MACH_OMAP_HWMOD_H
@@ -172,7 +172,7 @@ struct omap_hwmod_rst_info {
  * @clk: opt clock: OMAP clock name
  * @_clk: pointer to the struct clk (filled in at runtime)
  *
- * The module's interface clock and main functional clock should not
+ * The module's interface clock and main functional clock should yest
  * be added as optional clocks.
  */
 struct omap_hwmod_opt_clk {
@@ -234,7 +234,7 @@ struct omap_hwmod_omap2_firewall {
  * It may also be useful to add a tag_cnt field for OCP2.x devices.
  *
  * Parameter names beginning with an underscore are managed internally by
- * the omap_hwmod code and should not be set during initialization.
+ * the omap_hwmod code and should yest be set during initialization.
  */
 struct omap_hwmod_ocp_if {
 	struct omap_hwmod		*master;
@@ -242,7 +242,7 @@ struct omap_hwmod_ocp_if {
 	struct omap_hwmod_addr_space	*addr;
 	const char			*clk;
 	struct clk			*_clk;
-	struct list_head		node;
+	struct list_head		yesde;
 	union {
 		struct omap_hwmod_omap2_firewall omap2;
 	}				fw;
@@ -299,7 +299,7 @@ struct omap_hwmod_ocp_if {
  * @clockact describes to the module which clocks are likely to be
  * disabled when the PRCM issues its idle request to the module.  Some
  * modules have separate clockdomains for the interface clock and main
- * functional clock, and can check whether they should acknowledge the
+ * functional clock, and can check whether they should ackyeswledge the
  * idle request based on the internal module functionality that has
  * been associated with the clocks marked in @clockact.  This field is
  * only used if HWMOD_SET_DEFAULT_CLOCKACT is set (see below)
@@ -329,7 +329,7 @@ struct omap_hwmod_class_sysconfig {
  * @idlest_idle_bit: register bit shift for CM_IDLEST slave idle bit
  *
  * @prcm_reg_id and @module_bit are specific to the AUTOIDLE, WKST,
- * WKEN, GRPSEL registers.  In an ideal world, no extra information
+ * WKEN, GRPSEL registers.  In an ideal world, yes extra information
  * would be needed for IDLEST information, but alas, there are some
  * exceptions, so @idlest_reg_id, @idlest_idle_bit, @idlest_stdby_bit
  * are needed for the IDLEST registers (c.f. 2430 I2CHS, 3430 USBHOST)
@@ -348,9 +348,9 @@ struct omap_hwmod_omap2_prcm {
  *     flag bit should be set in those cases
  * HWMOD_OMAP4_ZERO_CLKCTRL_OFFSET: Some IP blocks have a valid CLKCTRL
  *	offset of zero; this flag bit should be set in those cases to
- *	distinguish from hwmods that have no clkctrl offset.
+ *	distinguish from hwmods that have yes clkctrl offset.
  * HWMOD_OMAP4_CLKFWK_CLKCTR_CLOCK: Module clockctrl clock is managed
- *	by the common clock framework and not hwmod.
+ *	by the common clock framework and yest hwmod.
  */
 #define HWMOD_OMAP4_NO_CONTEXT_LOSS_BIT		(1 << 0)
 #define HWMOD_OMAP4_ZERO_CLKCTRL_OFFSET		(1 << 1)
@@ -368,7 +368,7 @@ struct omap_hwmod_omap2_prcm {
  * @modulemode: allowable modulemodes
  * @context_lost_counter: Count of module level context lost
  *
- * If @lostcontext_mask is not defined, context loss check code uses
+ * If @lostcontext_mask is yest defined, context loss check code uses
  * whole register without masking. @lostcontext_mask should only be
  * defined in cases where @context_offs register is shared by two or
  * more hwmods.
@@ -403,7 +403,7 @@ struct omap_hwmod_omap4_prcm {
  *     when module is enabled, rather than the default, which is to
  *     enable autoidle
  * HWMOD_SET_DEFAULT_CLOCKACT: program CLOCKACTIVITY bits at startup
- * HWMOD_NO_IDLEST: this module does not have idle status - this is the case
+ * HWMOD_NO_IDLEST: this module does yest have idle status - this is the case
  *     only for few initiator modules on OMAP2 & 3.
  * HWMOD_CONTROL_OPT_CLKS_IN_RESET: Enable all optional clocks during reset.
  *     This is needed for devices like DSS that require optional clocks enabled
@@ -411,7 +411,7 @@ struct omap_hwmod_omap4_prcm {
  *     again after the reset.
  * HWMOD_16BIT_REG: Module has 16bit registers
  * HWMOD_EXT_OPT_MAIN_CLK: The only main functional clock source for
- *     this IP block comes from an off-chip source and is not always
+ *     this IP block comes from an off-chip source and is yest always
  *     enabled.  This prevents the hwmod code from being able to
  *     enable and reset the IP block early.  XXX Eventually it should
  *     be possible to query the clock framework for this information.
@@ -419,7 +419,7 @@ struct omap_hwmod_omap4_prcm {
  *     correctly if the MPU is allowed to go idle while the
  *     peripherals are active.  This is apparently true for the I2C on
  *     OMAP2420, and also the EMAC on AM3517/3505.  It's unlikely that
- *     this is really true -- we're probably not configuring something
+ *     this is really true -- we're probably yest configuring something
  *     correctly, or this is being abused to deal with some PM latency
  *     issues -- but we're currently suffering from a shortage of
  *     folks who are able to track these issues down properly.
@@ -429,14 +429,14 @@ struct omap_hwmod_omap4_prcm {
  *     to control MSTANDBY signal when MIDLEMODE is set to force-standby.
  * HWMOD_SWSUP_SIDLE_ACT: omap_hwmod code should manually bring the module
  *     out of idle, but rely on smart-idle to the put it back in idle,
- *     so the wakeups are still functional (Only known case for now is UART)
+ *     so the wakeups are still functional (Only kyeswn case for yesw is UART)
  * HWMOD_RECONFIG_IO_CHAIN: omap_hwmod code needs to reconfigure wake-up 
  *     events by calling _reconfigure_io_chain() when a device is enabled
  *     or idled.
  * HWMOD_OPT_CLKS_NEEDED: The optional clocks are needed for the module to
  *     operate and they need to be handled at the same time as the main_clk.
- * HWMOD_NO_IDLE: Do not idle the hwmod at all. Useful to handle certain
- *     IPs like CPSW on DRA7, where clocks to this module cannot be disabled.
+ * HWMOD_NO_IDLE: Do yest idle the hwmod at all. Useful to handle certain
+ *     IPs like CPSW on DRA7, where clocks to this module canyest be disabled.
  * HWMOD_CLKDM_NOAUTO: Allows the hwmod's clockdomain to be prevented from
  *     entering HW_AUTO while hwmod is active. This is needed to workaround
  *     some modules which don't function correctly with HW_AUTO. For example,
@@ -464,7 +464,7 @@ struct omap_hwmod_omap4_prcm {
  * omap_hwmod._int_flags definitions
  * These are for internal use only and are managed by the omap_hwmod code.
  *
- * _HWMOD_NO_MPU_PORT: no path exists for the MPU to write to this module
+ * _HWMOD_NO_MPU_PORT: yes path exists for the MPU to write to this module
  * _HWMOD_SYSCONFIG_LOADED: set when the OCP_SYSCONFIG value has been cached
  * _HWMOD_SKIP_ENABLE: set if hwmod enabled during init (HWMOD_INIT_NO_IDLE) -
  *     causes the first call to _enable() to only update the pinmux
@@ -510,7 +510,7 @@ struct omap_hwmod_omap4_prcm {
  *
  * @pre_shutdown is a function that will be run immediately before
  * hwmod clocks are disabled, etc.  It is intended for use for hwmods
- * like the MPU watchdog, which cannot be disabled with the standard
+ * like the MPU watchdog, which canyest be disabled with the standard
  * omap_hwmod_shutdown().  The function should return 0 upon success,
  * or some negative error upon failure.  Returning an error will cause
  * omap_hwmod_shutdown() to abort the device shutdown and return an
@@ -555,20 +555,20 @@ struct omap_hwmod_class {
  * @_postsetup_state: internal-use state to leave the hwmod in after _setup()
  * @flags: hwmod flags (documented below)
  * @_lock: spinlock serializing operations on this hwmod
- * @node: list node for hwmod list (internal use)
+ * @yesde: list yesde for hwmod list (internal use)
  * @parent_hwmod: (temporary) a pointer to the hierarchical parent of this hwmod
  *
  * @main_clk refers to this module's "main clock," which for our
  * purposes is defined as "the functional clock needed for register
- * accesses to complete."  Modules may not have a main clock if the
+ * accesses to complete."  Modules may yest have a main clock if the
  * interface clock also serves as a main clock.
  *
  * Parameter names beginning with an underscore are managed internally by
- * the omap_hwmod code and should not be set during initialization.
+ * the omap_hwmod code and should yest be set during initialization.
  *
- * @masters and @slaves are now deprecated.
+ * @masters and @slaves are yesw deprecated.
  *
- * @parent_hwmod is temporary; there should be no need for it, as this
+ * @parent_hwmod is temporary; there should be yes need for it, as this
  * information should already be expressed in the OCP interface
  * structures.  @parent_hwmod is present as a workaround until we improve
  * handling for hwmods with multiple parents (e.g., OMAP4+ DSS with
@@ -594,7 +594,7 @@ struct omap_hwmod {
 	void __iomem			*_mpu_rt_va;
 	spinlock_t			_lock;
 	struct lock_class_key		hwmod_key; /* unique lock class */
-	struct list_head		node;
+	struct list_head		yesde;
 	struct omap_hwmod_ocp_if	*_mpu_port;
 	u32				flags;
 	u8				mpu_rt_idx;
@@ -609,7 +609,7 @@ struct omap_hwmod {
 	struct omap_hwmod		*parent_hwmod;
 };
 
-struct device_node;
+struct device_yesde;
 
 struct omap_hwmod *omap_hwmod_lookup(const char *name);
 int omap_hwmod_for_each(int (*fn)(struct omap_hwmod *oh, void *data),
@@ -617,7 +617,7 @@ int omap_hwmod_for_each(int (*fn)(struct omap_hwmod *oh, void *data),
 
 int __init omap_hwmod_setup_one(const char *name);
 int omap_hwmod_parse_module_range(struct omap_hwmod *oh,
-				  struct device_node *np,
+				  struct device_yesde *np,
 				  struct resource *res);
 
 struct ti_sysc_module_data;

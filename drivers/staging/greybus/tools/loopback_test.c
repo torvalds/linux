@@ -5,7 +5,7 @@
  * Copyright 2015 Google Inc.
  * Copyright 2015 Linaro Ltd.
  */
-#include <errno.h>
+#include <erryes.h>
 #include <fcntl.h>
 #include <stdio.h>
 #include <string.h>
@@ -180,7 +180,7 @@ void usage(void)
 	"  SIZE indicates the size of transfer <= greybus max payload bytes\n"
 	"  ITERATIONS indicates the number of times to execute TEST at SIZE bytes\n"
 	"             Note if ITERATIONS is set to zero then this utility will\n"
-	"             initiate an infinite (non terminating) test and exit\n"
+	"             initiate an infinite (yesn terminating) test and exit\n"
 	"             without logging any metrics data\n"
 	"  SYSPATH indicates the sysfs path for the loopback greybus entries e.g.\n"
 	"          /sys/bus/greybus/devices\n"
@@ -198,7 +198,7 @@ void usage(void)
 	"   -v     verbose output\n"
 	"   -d     debug output\n"
 	"   -r     raw data output - when specified the full list of latency values are included in the output CSV\n"
-	"   -p     porcelain - when specified printout is in a user-friendly non-CSV format. This option suppresses writing to CSV file\n"
+	"   -p     porcelain - when specified printout is in a user-friendly yesn-CSV format. This option suppresses writing to CSV file\n"
 	"   -a     aggregate - show aggregation of all enabled devices\n"
 	"   -l     list found loopback devices and exit\n"
 	"   -x     Async - Enable async transfers\n"
@@ -241,12 +241,12 @@ static void show_loopback_devices(struct loopback_test *t)
 
 }
 
-int open_sysfs(const char *sys_pfx, const char *node, int flags)
+int open_sysfs(const char *sys_pfx, const char *yesde, int flags)
 {
 	int fd;
 	char path[MAX_SYSFS_PATH];
 
-	snprintf(path, sizeof(path), "%s%s", sys_pfx, node);
+	snprintf(path, sizeof(path), "%s%s", sys_pfx, yesde);
 	fd = open(path, flags);
 	if (fd < 0) {
 		fprintf(stderr, "unable to open %s\n", path);
@@ -255,64 +255,64 @@ int open_sysfs(const char *sys_pfx, const char *node, int flags)
 	return fd;
 }
 
-int read_sysfs_int_fd(int fd, const char *sys_pfx, const char *node)
+int read_sysfs_int_fd(int fd, const char *sys_pfx, const char *yesde)
 {
 	char buf[SYSFS_MAX_INT];
 
 	if (read(fd, buf, sizeof(buf)) < 0) {
-		fprintf(stderr, "unable to read from %s%s %s\n", sys_pfx, node,
-			strerror(errno));
+		fprintf(stderr, "unable to read from %s%s %s\n", sys_pfx, yesde,
+			strerror(erryes));
 		close(fd);
 		abort();
 	}
 	return atoi(buf);
 }
 
-float read_sysfs_float_fd(int fd, const char *sys_pfx, const char *node)
+float read_sysfs_float_fd(int fd, const char *sys_pfx, const char *yesde)
 {
 	char buf[SYSFS_MAX_INT];
 
 	if (read(fd, buf, sizeof(buf)) < 0) {
 
-		fprintf(stderr, "unable to read from %s%s %s\n", sys_pfx, node,
-			strerror(errno));
+		fprintf(stderr, "unable to read from %s%s %s\n", sys_pfx, yesde,
+			strerror(erryes));
 		close(fd);
 		abort();
 	}
 	return atof(buf);
 }
 
-int read_sysfs_int(const char *sys_pfx, const char *node)
+int read_sysfs_int(const char *sys_pfx, const char *yesde)
 {
 	int fd, val;
 
-	fd = open_sysfs(sys_pfx, node, O_RDONLY);
-	val = read_sysfs_int_fd(fd, sys_pfx, node);
+	fd = open_sysfs(sys_pfx, yesde, O_RDONLY);
+	val = read_sysfs_int_fd(fd, sys_pfx, yesde);
 	close(fd);
 	return val;
 }
 
-float read_sysfs_float(const char *sys_pfx, const char *node)
+float read_sysfs_float(const char *sys_pfx, const char *yesde)
 {
 	int fd;
 	float val;
 
-	fd = open_sysfs(sys_pfx, node, O_RDONLY);
-	val = read_sysfs_float_fd(fd, sys_pfx, node);
+	fd = open_sysfs(sys_pfx, yesde, O_RDONLY);
+	val = read_sysfs_float_fd(fd, sys_pfx, yesde);
 	close(fd);
 	return val;
 }
 
-void write_sysfs_val(const char *sys_pfx, const char *node, int val)
+void write_sysfs_val(const char *sys_pfx, const char *yesde, int val)
 {
 	int fd, len;
 	char buf[SYSFS_MAX_INT];
 
-	fd = open_sysfs(sys_pfx, node, O_RDWR);
+	fd = open_sysfs(sys_pfx, yesde, O_RDWR);
 	len = snprintf(buf, sizeof(buf), "%d", val);
 	if (write(fd, buf, len) < 0) {
-		fprintf(stderr, "unable to write to %s%s %s\n", sys_pfx, node,
-			strerror(errno));
+		fprintf(stderr, "unable to write to %s%s %s\n", sys_pfx, yesde,
+			strerror(erryes));
 		close(fd);
 		abort();
 	}
@@ -569,11 +569,11 @@ static int log_results(struct loopback_test *t)
 	return 0;
 }
 
-int is_loopback_device(const char *path, const char *node)
+int is_loopback_device(const char *path, const char *yesde)
 {
 	char file[MAX_SYSFS_PATH];
 
-	snprintf(file, MAX_SYSFS_PATH, "%s%s/iteration_count", path, node);
+	snprintf(file, MAX_SYSFS_PATH, "%s%s/iteration_count", path, yesde);
 	if (access(file, F_OK) == 0)
 		return 1;
 	return 0;
@@ -691,7 +691,7 @@ static int is_complete(struct loopback_test *t)
 		iteration_count = read_sysfs_int(t->devices[i].sysfs_entry,
 						 "iteration_count");
 
-		/* at least one device did not finish yet */
+		/* at least one device did yest finish yet */
 		if (iteration_count != t->iteration_max)
 			return 0;
 	}
@@ -710,7 +710,7 @@ static void stop_tests(struct loopback_test *t)
 	}
 }
 
-static void handler(int sig) { /* do nothing */  }
+static void handler(int sig) { /* do yesthing */  }
 
 static int wait_for_complete(struct loopback_test *t)
 {
@@ -743,7 +743,7 @@ static int wait_for_complete(struct loopback_test *t)
 		ret = ppoll(t->fds, t->poll_count, ts, &mask_old);
 		if (ret <= 0) {
 			stop_tests(t);
-			fprintf(stderr, "Poll exit with errno %d\n", errno);
+			fprintf(stderr, "Poll exit with erryes %d\n", erryes);
 			return -1;
 		}
 
@@ -760,7 +760,7 @@ static int wait_for_complete(struct loopback_test *t)
 	}
 
 	if (!is_complete(t)) {
-		fprintf(stderr, "Iteration count did not finish!\n");
+		fprintf(stderr, "Iteration count did yest finish!\n");
 		return -1;
 	}
 

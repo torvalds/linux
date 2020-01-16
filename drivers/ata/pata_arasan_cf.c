@@ -693,7 +693,7 @@ static unsigned int arasan_cf_qc_issue(struct ata_queued_cmd *qc)
 
 	/* select the device */
 	ata_wait_idle(ap);
-	ata_sff_dev_select(ap, qc->dev->devno);
+	ata_sff_dev_select(ap, qc->dev->devyes);
 	ata_wait_idle(ap);
 
 	/* start the command */
@@ -725,7 +725,7 @@ static void arasan_cf_set_piomode(struct ata_port *ap, struct ata_device *adev)
 
 	/* Arasan ctrl supports Mode0 -> Mode6 */
 	if (pio > 6) {
-		dev_err(ap->dev, "Unknown PIO mode\n");
+		dev_err(ap->dev, "Unkyeswn PIO mode\n");
 		return;
 	}
 
@@ -763,7 +763,7 @@ static void arasan_cf_set_dmamode(struct ata_port *ap, struct ata_device *adev)
 		tmcfg |= (dma_mode - XFER_MW_DMA_0) <<
 			TRUEIDE_MWORD_DMA_TIMING_SHIFT;
 	} else {
-		dev_err(ap->dev, "Unknown DMA mode\n");
+		dev_err(ap->dev, "Unkyeswn DMA mode\n");
 		spin_unlock_irqrestore(&acdev->host->lock, flags);
 		return;
 	}
@@ -824,7 +824,7 @@ static int arasan_cf_probe(struct platform_device *pdev)
 		quirk |= CF_BROKEN_MWDMA | CF_BROKEN_UDMA;
 
 	acdev->pbase = res->start;
-	acdev->vbase = devm_ioremap_nocache(&pdev->dev, res->start,
+	acdev->vbase = devm_ioremap_yescache(&pdev->dev, res->start,
 			resource_size(res));
 	if (!acdev->vbase) {
 		dev_warn(&pdev->dev, "ioremap fail\n");
@@ -833,7 +833,7 @@ static int arasan_cf_probe(struct platform_device *pdev)
 
 	acdev->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(acdev->clk)) {
-		dev_warn(&pdev->dev, "Clock not found\n");
+		dev_warn(&pdev->dev, "Clock yest found\n");
 		return PTR_ERR(acdev->clk);
 	}
 

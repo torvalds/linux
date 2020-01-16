@@ -23,7 +23,7 @@
 /*
  * nand commands
  * The pins of the NAND chip are selected based on the address bits of the
- * "register" read and write. There are no special registers, but an
+ * "register" read and write. There are yes special registers, but an
  * address range and the lower address bits are used to activate the
  * correct line. For example when the bit (1 << 2) is set in the address
  * the ALE pin will be activated.
@@ -168,7 +168,7 @@ static int xway_nand_probe(struct platform_device *pdev)
 	if (IS_ERR(data->nandaddr))
 		return PTR_ERR(data->nandaddr);
 
-	nand_set_flash_node(&data->chip, pdev->dev.of_node);
+	nand_set_flash_yesde(&data->chip, pdev->dev.of_yesde);
 	mtd = nand_to_mtd(&data->chip);
 	mtd->dev.parent = &pdev->dev;
 
@@ -187,7 +187,7 @@ static int xway_nand_probe(struct platform_device *pdev)
 	nand_set_controller_data(&data->chip, data);
 
 	/* load our CS from the DT. Either we find a valid 1 or default to 0 */
-	err = of_property_read_u32(pdev->dev.of_node, "lantiq,cs", &cs);
+	err = of_property_read_u32(pdev->dev.of_yesde, "lantiq,cs", &cs);
 	if (!err && cs == 1)
 		cs_flag = NAND_CON_IN_CS1 | NAND_CON_OUT_CS1;
 

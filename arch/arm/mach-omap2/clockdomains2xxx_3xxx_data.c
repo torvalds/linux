@@ -8,15 +8,15 @@
  * Paul Walmsley, Jouni Högander
  *
  * This file contains clockdomains and clockdomain wakeup/sleep
- * dependencies for the OMAP2/3 chips.  Some notes:
+ * dependencies for the OMAP2/3 chips.  Some yestes:
  *
  * A useful validation rule for struct clockdomain: Any clockdomain
  * referenced by a wkdep_srcs or sleepdep_srcs array must have a
  * dep_bit assigned.  So wkdep_srcs/sleepdep_srcs are really just
  * software-controllable dependencies.  Non-software-controllable
- * dependencies do exist, but they are not encoded below (yet).
+ * dependencies do exist, but they are yest encoded below (yet).
  *
- * 24xx does not support programmable sleep dependencies (SLEEPDEP)
+ * 24xx does yest support programmable sleep dependencies (SLEEPDEP)
  *
  * The overly-specific dep_bit names are due to a bit name collision
  * with CM_FCLKEN_{DSP,IVA2}.  The DSP/IVA2 PM_WKDEP and CM_SLEEPDEP shift
@@ -48,8 +48,8 @@
 /*
  * Clockdomain dependencies for wkdeps/sleepdeps
  *
- * XXX Hardware dependencies (e.g., dependencies that cannot be
- * changed in software) are not included here yet, but should be.
+ * XXX Hardware dependencies (e.g., dependencies that canyest be
+ * changed in software) are yest included here yet, but should be.
  */
 
 /* Wakeup dependency source arrays */

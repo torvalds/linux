@@ -1,8 +1,8 @@
-/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-yeste */
 /*
  * include/uapi/linux/devlink.h - Network physical device Netlink interface
- * Copyright (c) 2016 Mellanox Technologies. All rights reserved.
- * Copyright (c) 2016 Jiri Pirko <jiri@mellanox.com>
+ * Copyright (c) 2016 Mellayesx Techyeslogies. All rights reserved.
+ * Copyright (c) 2016 Jiri Pirko <jiri@mellayesx.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -74,7 +74,7 @@ enum devlink_command {
 	DEVLINK_CMD_RESOURCE_DUMP,
 
 	/* Hot driver reload, makes configuration changes take place. The
-	 * devlink instance is not released during the process.
+	 * devlink instance is yest released during the process.
 	 */
 	DEVLINK_CMD_RELOAD,
 
@@ -104,8 +104,8 @@ enum devlink_command {
 	DEVLINK_CMD_HEALTH_REPORTER_DUMP_CLEAR,
 
 	DEVLINK_CMD_FLASH_UPDATE,
-	DEVLINK_CMD_FLASH_UPDATE_END,		/* notification only */
-	DEVLINK_CMD_FLASH_UPDATE_STATUS,	/* notification only */
+	DEVLINK_CMD_FLASH_UPDATE_END,		/* yestification only */
+	DEVLINK_CMD_FLASH_UPDATE_STATUS,	/* yestification only */
 
 	DEVLINK_CMD_TRAP_GET,		/* can dump */
 	DEVLINK_CMD_TRAP_SET,
@@ -140,7 +140,7 @@ enum devlink_sb_pool_type {
  *   In this mode, the maximum quota is calculated based
  *   on the following formula:
  *     max_quota = alpha / (1 + alpha) * Free_Buffer
- *   While Free_Buffer is the amount of none-occupied buffer associated to
+ *   While Free_Buffer is the amount of yesne-occupied buffer associated to
  *   the relevant pool.
  *   The value range which can be passed is 0-20 and serves
  *   for computation of alpha by following formula:
@@ -223,7 +223,7 @@ enum {
 
 /**
  * enum devlink_trap_action - Packet trap action.
- * @DEVLINK_TRAP_ACTION_DROP: Packet is dropped by the device and a copy is not
+ * @DEVLINK_TRAP_ACTION_DROP: Packet is dropped by the device and a copy is yest
  *                            sent to the CPU.
  * @DEVLINK_TRAP_ACTION_TRAP: The sole copy of the packet is sent to the CPU.
  */
@@ -235,9 +235,9 @@ enum devlink_trap_action {
 /**
  * enum devlink_trap_type - Packet trap type.
  * @DEVLINK_TRAP_TYPE_DROP: Trap reason is a drop. Trapped packets are only
- *                          processed by devlink and not injected to the
+ *                          processed by devlink and yest injected to the
  *                          kernel's Rx path.
- * @DEVLINK_TRAP_TYPE_EXCEPTION: Trap reason is an exception. Packet was not
+ * @DEVLINK_TRAP_TYPE_EXCEPTION: Trap reason is an exception. Packet was yest
  *                               forwarded as intended due to an exception
  *                               (e.g., missing neighbour entry) and trapped to
  *                               control plane for resolution. Trapped packets

@@ -21,7 +21,7 @@ extern unsigned long highstart_pfn, highend_pfn;
 extern pte_t *pkmap_page_table;
 
 /*
- * Right now we initialize only a single pte table. It can be extended
+ * Right yesw we initialize only a single pte table. It can be extended
  * easily, subsequent pte tables have to be allocated in one physical
  * chunk of RAM.
  */

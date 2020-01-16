@@ -14,7 +14,7 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/acpi.h>
 #include <linux/pci.h>
 #include <linux/mfd/core.h>
@@ -132,7 +132,7 @@ static int lpc_sch_populate_cell(struct pci_dev *pdev, int where,
 	cell->name = name;
 	cell->resources = res;
 	cell->num_resources = 1;
-	cell->ignore_resource_conflicts = true;
+	cell->igyesre_resource_conflicts = true;
 	cell->id = id;
 
 	/* Check if we need to add an IRQ resource */

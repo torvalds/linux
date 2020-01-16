@@ -26,8 +26,8 @@ enum i915_drm_suspend_mode {
 
 /*
  * This struct helps tracking the state needed for runtime PM, which puts the
- * device in PCI D3 state. Notice that when this happens, nothing on the
- * graphics device works, even register access, so we don't get interrupts nor
+ * device in PCI D3 state. Notice that when this happens, yesthing on the
+ * graphics device works, even register access, so we don't get interrupts yesr
  * anything else.
  *
  * Every piece of our code that needs to actually touch the hardware needs to
@@ -93,7 +93,7 @@ intel_rpm_wakelock_count(int wakeref_count)
 }
 
 static inline void
-assert_rpm_device_not_suspended(struct intel_runtime_pm *rpm)
+assert_rpm_device_yest_suspended(struct intel_runtime_pm *rpm)
 {
 	WARN_ONCE(rpm->suspended,
 		  "Device suspended during HW access\n");
@@ -102,9 +102,9 @@ assert_rpm_device_not_suspended(struct intel_runtime_pm *rpm)
 static inline void
 __assert_rpm_raw_wakeref_held(struct intel_runtime_pm *rpm, int wakeref_count)
 {
-	assert_rpm_device_not_suspended(rpm);
+	assert_rpm_device_yest_suspended(rpm);
 	WARN_ONCE(!intel_rpm_raw_wakeref_count(wakeref_count),
-		  "RPM raw-wakeref not held\n");
+		  "RPM raw-wakeref yest held\n");
 }
 
 static inline void
@@ -112,7 +112,7 @@ __assert_rpm_wakelock_held(struct intel_runtime_pm *rpm, int wakeref_count)
 {
 	__assert_rpm_raw_wakeref_held(rpm, wakeref_count);
 	WARN_ONCE(!intel_rpm_wakelock_count(wakeref_count),
-		  "RPM wakelock ref not held during HW access\n");
+		  "RPM wakelock ref yest held during HW access\n");
 }
 
 static inline void
@@ -132,7 +132,7 @@ assert_rpm_wakelock_held(struct intel_runtime_pm *rpm)
  * @rpm: the intel_runtime_pm structure
  *
  * This function disable asserts that check if we hold an RPM wakelock
- * reference, while keeping the device-not-suspended checks still enabled.
+ * reference, while keeping the device-yest-suspended checks still enabled.
  * It's meant to be used only in special circumstances where our rule about
  * the wakelock refcount wrt. the device power state doesn't hold. According
  * to this rule at any point where we access the HW or want to keep the HW in
@@ -177,7 +177,7 @@ void intel_runtime_pm_driver_release(struct intel_runtime_pm *rpm);
 
 intel_wakeref_t intel_runtime_pm_get(struct intel_runtime_pm *rpm);
 intel_wakeref_t intel_runtime_pm_get_if_in_use(struct intel_runtime_pm *rpm);
-intel_wakeref_t intel_runtime_pm_get_noresume(struct intel_runtime_pm *rpm);
+intel_wakeref_t intel_runtime_pm_get_yesresume(struct intel_runtime_pm *rpm);
 intel_wakeref_t intel_runtime_pm_get_raw(struct intel_runtime_pm *rpm);
 
 #define with_intel_runtime_pm(rpm, wf) \

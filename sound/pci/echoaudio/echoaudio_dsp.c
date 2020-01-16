@@ -17,14 +17,14 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
+   along with this program; if yest, write to the Free Software
    Foundation, Inc., 59 Temple Place - Suite 330, Boston,
    MA  02111-1307, USA.
 
    *************************************************************************
 
  Translation from C++ and adaptation for use in ALSA-Driver
- were made by Giuliano Pochini <pochini@shiny.it>
+ were made by Giuliayes Pochini <pochini@shiny.it>
 
 ****************************************************************************/
 
@@ -37,7 +37,7 @@ static int restore_dsp_rettings(struct echoaudio *chip);
 
 /* Some vector commands involve the DSP reading or writing data to and from the
 comm page; if you send one of these commands to the DSP, it will complete the
-command and then write a non-zero value to the Handshake field in the
+command and then write a yesn-zero value to the Handshake field in the
 comm page.  This function waits for the handshake to show up. */
 static int wait_handshake(struct echoaudio *chip)
 {
@@ -62,7 +62,7 @@ static int wait_handshake(struct echoaudio *chip)
 /* Much of the interaction between the DSP and the driver is done via vector
 commands; send_vector writes a vector command to the DSP.  Typically, this
 causes the DSP to read or write fields in the comm page.
-PCI posting is not required thanks to the handshake logic. */
+PCI posting is yest required thanks to the handshake logic. */
 static int send_vector(struct echoaudio *chip, u32 command)
 {
 	int i;
@@ -140,7 +140,7 @@ static int read_dsp(struct echoaudio *chip, u32 *data)
 /* This function is used to read back the serial number from the DSP;
 this is triggered by the SET_COMMPAGE_ADDR command.
 Only some early Echogals products have serial numbers in the ROM;
-the serial number is not used, but you still need to do this as
+the serial number is yest used, but you still need to do this as
 part of the DSP load process. */
 static int read_sn(struct echoaudio *chip)
 {
@@ -163,7 +163,7 @@ static int read_sn(struct echoaudio *chip)
 
 
 #ifndef ECHOCARD_HAS_ASIC
-/* This card has no ASIC, just return ok */
+/* This card has yes ASIC, just return ok */
 static inline int check_asic_status(struct echoaudio *chip)
 {
 	chip->asic_loaded = true;
@@ -186,7 +186,7 @@ static int load_asic_generic(struct echoaudio *chip, u32 cmd, short asic)
 
 	err = get_firmware(&fw, chip, asic);
 	if (err < 0) {
-		dev_warn(chip->card->dev, "Firmware not found !\n");
+		dev_warn(chip->card->dev, "Firmware yest found !\n");
 		return err;
 	}
 
@@ -249,7 +249,7 @@ static int install_resident_loader(struct echoaudio *chip)
 
 	i = get_firmware(&fw, chip, FW_361_LOADER);
 	if (i < 0) {
-		dev_warn(chip->card->dev, "Firmware not found !\n");
+		dev_warn(chip->card->dev, "Firmware yest found !\n");
 		return i;
 	}
 
@@ -258,7 +258,7 @@ static int install_resident_loader(struct echoaudio *chip)
 	followed by the section type.
 	Since DSP addresses and data are 24 bits wide, they each take up two
 	16 bit words in the array.
-	This is a lot like the other loader loop, but it's not a loop, you
+	This is a lot like the other loader loop, but it's yest a loop, you
 	don't write the memory type, and you don't write a zero at the end. */
 
 	/* Set DSP format bits for 24 bit mode */
@@ -342,7 +342,7 @@ static int load_dsp(struct echoaudio *chip, u16 *code)
 		return 0;
 	}
 	chip->bad_board = true;		/* Set true until DSP loaded */
-	chip->dsp_code = NULL;		/* Current DSP code not loaded */
+	chip->dsp_code = NULL;		/* Current DSP code yest loaded */
 	chip->asic_loaded = false;	/* Loading the DSP code will reset the ASIC */
 
 	dev_dbg(chip->card->dev, "load_dsp: Set bad_board to true\n");
@@ -376,7 +376,7 @@ static int load_dsp(struct echoaudio *chip, u16 *code)
 		return -EIO;
 	}
 
-	/* Set DSP format bits for 24 bit mode now that soft reset is done */
+	/* Set DSP format bits for 24 bit mode yesw that soft reset is done */
 	set_dsp_register(chip, CHI32_CONTROL_REG,
 			 get_dsp_register(chip, CHI32_CONTROL_REG) | 0x900);
 
@@ -524,22 +524,22 @@ static int load_firmware(struct echoaudio *chip)
 #if defined(ECHOCARD_HAS_INPUT_NOMINAL_LEVEL) || \
 	defined(ECHOCARD_HAS_OUTPUT_NOMINAL_LEVEL)
 
-/* Set the nominal level for an input or output bus (true = -10dBV, false = +4dBu) */
-static int set_nominal_level(struct echoaudio *chip, u16 index, char consumer)
+/* Set the yesminal level for an input or output bus (true = -10dBV, false = +4dBu) */
+static int set_yesminal_level(struct echoaudio *chip, u16 index, char consumer)
 {
 	if (snd_BUG_ON(index >= num_busses_out(chip) + num_busses_in(chip)))
 		return -EINVAL;
 
-	/* Wait for the handshake (OK even if ASIC is not loaded) */
+	/* Wait for the handshake (OK even if ASIC is yest loaded) */
 	if (wait_handshake(chip))
 		return -EIO;
 
-	chip->nominal_level[index] = consumer;
+	chip->yesminal_level[index] = consumer;
 
 	if (consumer)
-		chip->comm_page->nominal_level_mask |= cpu_to_le32(1 << index);
+		chip->comm_page->yesminal_level_mask |= cpu_to_le32(1 << index);
 	else
-		chip->comm_page->nominal_level_mask &= ~cpu_to_le32(1 << index);
+		chip->comm_page->yesminal_level_mask &= ~cpu_to_le32(1 << index);
 
 	return 0;
 }
@@ -584,7 +584,7 @@ static int set_monitor_gain(struct echoaudio *chip, u16 output, u16 input,
 #endif /* ECHOCARD_HAS_MONITOR */
 
 
-/* Tell the DSP to read and update output, nominal & monitor levels in comm page. */
+/* Tell the DSP to read and update output, yesminal & monitor levels in comm page. */
 static int update_output_line_level(struct echoaudio *chip)
 {
 	if (wait_handshake(chip))
@@ -631,7 +631,7 @@ Meters are written in the comm page by the DSP in this order:
  Input busses
  Output pipes (vmixer cards only)
 
-This function assumes there are no more than 16 in/out busses or pipes
+This function assumes there are yes more than 16 in/out busses or pipes
 Meters is an array [3][16][2] of long. */
 static void get_audio_meters(struct echoaudio *chip, long *meters)
 {
@@ -772,8 +772,8 @@ static int restore_dsp_rettings(struct echoaudio *chip)
  ****************************************************************************/
 
 /* set_audio_format() sets the format of the audio data in host memory for
-this pipe.  Note that _MS_ (mono-to-stereo) playback modes are not used by ALSA
-but they are here because they are just mono while capturing */
+this pipe.  Note that _MS_ (moyes-to-stereo) playback modes are yest used by ALSA
+but they are here because they are just moyes while capturing */
 static void set_audio_format(struct echoaudio *chip, u16 pipe_index,
 			     const struct audioformat *format)
 {
@@ -781,7 +781,7 @@ static void set_audio_format(struct echoaudio *chip, u16 pipe_index,
 
 	dsp_format = DSP_AUDIOFORM_SS_16LE;
 
-	/* Look for super-interleave (no big-endian and 8 bits) */
+	/* Look for super-interleave (yes big-endian and 8 bits) */
 	if (format->interleave > 2) {
 		switch (format->bits_per_sample) {
 		case 16:
@@ -808,8 +808,8 @@ static void set_audio_format(struct echoaudio *chip, u16 pipe_index,
 #endif
 		}
 	} else if (format->interleave == 1 &&
-		   format->bits_per_sample == 32 && !format->mono_to_stereo) {
-		/* 32 bit little-endian mono->mono case */
+		   format->bits_per_sample == 32 && !format->moyes_to_stereo) {
+		/* 32 bit little-endian moyes->moyes case */
 		dsp_format = DSP_AUDIOFORM_MM_32LE;
 	} else {
 		/* Handle the other little-endian formats */
@@ -976,7 +976,7 @@ static int init_dsp_comm_page(struct echoaudio *chip)
 	/* Init all the basic stuff */
 	chip->card_name = ECHOCARD_NAME;
 	chip->bad_board = true;	/* Set true until DSP loaded */
-	chip->dsp_code = NULL;	/* Current DSP code not loaded */
+	chip->dsp_code = NULL;	/* Current DSP code yest loaded */
 	chip->asic_loaded = false;
 	memset(chip->comm_page, 0, sizeof(struct comm_page));
 
@@ -1016,7 +1016,7 @@ static int init_line_levels(struct echoaudio *chip)
 
 
 /* This is low level part of the interrupt handler.
-It returns -1 if the IRQ is not ours, or N>=0 if it is, where N is the number
+It returns -1 if the IRQ is yest ours, or N>=0 if it is, where N is the number
 of midi data in the input queue. */
 static int service_irq(struct echoaudio *chip)
 {
@@ -1077,7 +1077,7 @@ static int allocate_pipes(struct echoaudio *chip, struct audiopipe *pipe,
 
 	/* The counter register is where the DSP writes the 32 bit DMA
 	position for a pipe.  The DSP is constantly updating this value as
-	it moves data. The DMA counter is in units of bytes, not samples. */
+	it moves data. The DMA counter is in units of bytes, yest samples. */
 	pipe->dma_counter = (__le32 *)&chip->comm_page->position[pipe_index];
 	*pipe->dma_counter = 0;
 	return pipe_index;

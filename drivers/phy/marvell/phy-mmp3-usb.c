@@ -223,7 +223,7 @@ static int mmp3_usb_phy_calibrate(struct phy *phy)
 		mdelay(1);
 		loops++;
 		if (loops > 100) {
-			dev_err(&phy->dev, "PLL_READY not set after 100mS.\n");
+			dev_err(&phy->dev, "PLL_READY yest set after 100mS.\n");
 			return -ETIMEDOUT;
 		}
 	}

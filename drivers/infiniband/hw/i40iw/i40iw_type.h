@@ -13,11 +13,11 @@
 *   conditions are met:
 *
 *    - Redistributions of source code must retain the above
-*	copyright notice, this list of conditions and the following
+*	copyright yestice, this list of conditions and the following
 *	disclaimer.
 *
 *    - Redistributions in binary form must reproduce the above
-*	copyright notice, this list of conditions and the following
+*	copyright yestice, this list of conditions and the following
 *	disclaimer in the documentation and/or other materials
 *	provided with the distribution.
 *
@@ -271,7 +271,7 @@ struct i40iw_pfpdu {
 	u64 fpdu_processed;
 	u64 bad_seq_num;
 	u64 crc_err;
-	u64 no_tx_bufs;
+	u64 yes_tx_bufs;
 	u64 tx_err;
 	u64 out_of_order;
 	u64 pmode_count;
@@ -681,14 +681,14 @@ struct i40iwarp_offload_info {
 	bool lsmm_present;
 	u8 iwarp_mode;
 	bool align_hdrs;
-	bool rcv_no_mpa_crc;
+	bool rcv_yes_mpa_crc;
 
 	u8 last_byte_sent;
 };
 
 struct i40iw_tcp_offload_info {
 	bool ipv4;
-	bool no_nagle;
+	bool yes_nagle;
 	bool insert_vlan_tag;
 	bool time_stamp;
 	u8 cwnd_inc_limit;
@@ -732,8 +732,8 @@ struct i40iw_tcp_offload_info {
 	u32 local_ipaddr1;
 	u32 local_ipaddr2;
 	u32 local_ipaddr3;
-	bool ignore_tcp_opt;
-	bool ignore_tcp_uns_opt;
+	bool igyesre_tcp_opt;
+	bool igyesre_tcp_uns_opt;
 };
 
 struct i40iw_qp_host_ctx_info {
@@ -937,9 +937,9 @@ struct i40iw_cqp_manage_push_page_info {
 };
 
 struct i40iw_qp_flush_info {
-	u16 sq_minor_code;
+	u16 sq_miyesr_code;
 	u16 sq_major_code;
-	u16 rq_minor_code;
+	u16 rq_miyesr_code;
 	u16 rq_major_code;
 	u16 ae_code;
 	u8 ae_source;
@@ -1074,7 +1074,7 @@ struct i40iw_priv_qp_ops {
 					    struct i40iw_qp_host_ctx_info *);
 
 	void (*qp_send_lsmm)(struct i40iw_sc_qp *, void *, u32, i40iw_stag);
-	void (*qp_send_lsmm_nostag)(struct i40iw_sc_qp *, void *, u32);
+	void (*qp_send_lsmm_yesstag)(struct i40iw_sc_qp *, void *, u32);
 	void (*qp_send_rtt)(struct i40iw_sc_qp *, bool);
 	enum i40iw_status_code (*qp_post_wqe0)(struct i40iw_sc_qp *, u8);
 	enum i40iw_status_code (*iw_mr_fast_register)(struct i40iw_sc_qp *,
@@ -1093,7 +1093,7 @@ struct i40iw_priv_cq_ops {
 struct i40iw_mr_ops {
 	enum i40iw_status_code (*alloc_stag)(struct i40iw_sc_dev *,
 					     struct i40iw_allocate_stag_info *, u64, bool);
-	enum i40iw_status_code (*mr_reg_non_shared)(struct i40iw_sc_dev *,
+	enum i40iw_status_code (*mr_reg_yesn_shared)(struct i40iw_sc_dev *,
 						    struct i40iw_reg_ns_stag_info *,
 						    u64, bool);
 	enum i40iw_status_code (*mr_reg_shared)(struct i40iw_sc_dev *,
@@ -1134,7 +1134,7 @@ struct i40iw_cqp_misc_ops {
 							     struct i40iw_local_mac_ipaddr_entry_info *,
 							     u64, bool);
 	enum i40iw_status_code (*del_local_mac_ipaddr_entry)(struct i40iw_sc_cqp *, u64, u8, u8, bool);
-	enum i40iw_status_code (*cqp_nop)(struct i40iw_sc_cqp *, u64, bool);
+	enum i40iw_status_code (*cqp_yesp)(struct i40iw_sc_cqp *, u64, bool);
 	enum i40iw_status_code (*commit_fpm_values_done)(struct i40iw_sc_cqp
 							  *);
 	enum i40iw_status_code (*query_fpm_values_done)(struct i40iw_sc_cqp *);
@@ -1176,7 +1176,7 @@ struct cqp_info {
 			struct i40iw_sc_qp *qp;
 			u64 scratch;
 			bool remove_hash_idx;
-			bool ignore_mw_bnd;
+			bool igyesre_mw_bnd;
 		} qp_destroy;
 
 		struct {
@@ -1207,7 +1207,7 @@ struct cqp_info {
 			struct i40iw_sc_dev *dev;
 			struct i40iw_reg_ns_stag_info info;
 			u64 scratch;
-		} mr_reg_non_shared;
+		} mr_reg_yesn_shared;
 
 		struct {
 			struct i40iw_sc_dev *dev;
@@ -1231,7 +1231,7 @@ struct cqp_info {
 			struct i40iw_sc_cqp *cqp;
 			u64 scratch;
 			u8 entry_idx;
-			u8 ignore_ref_count;
+			u8 igyesre_ref_count;
 		} del_local_mac_ipaddr_entry;
 
 		struct {

@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -29,7 +29,7 @@
 
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc_helper.h>
-#include "nouveau_connector.h"
+#include "yesuveau_connector.h"
 void
 nv50_head_flush_clr(struct nv50_head *head,
 		    struct nv50_head_atom *asyh, bool flush)
@@ -66,7 +66,7 @@ nv50_head_flush_set(struct nv50_head *head, struct nv50_head_atom *asyh)
 static void
 nv50_head_atomic_check_procamp(struct nv50_head_atom *armh,
 			       struct nv50_head_atom *asyh,
-			       struct nouveau_conn_atom *asyc)
+			       struct yesuveau_conn_atom *asyc)
 {
 	const int vib = asyc->procamp.color_vibrance - 100;
 	const int hue = asyc->procamp.vibrant_hue - 90;
@@ -79,7 +79,7 @@ nv50_head_atomic_check_procamp(struct nv50_head_atom *armh,
 static void
 nv50_head_atomic_check_dither(struct nv50_head_atom *armh,
 			      struct nv50_head_atom *asyh,
-			      struct nouveau_conn_atom *asyc)
+			      struct yesuveau_conn_atom *asyc)
 {
 	u32 mode = 0x00;
 
@@ -106,7 +106,7 @@ nv50_head_atomic_check_dither(struct nv50_head_atom *armh,
 static void
 nv50_head_atomic_check_view(struct nv50_head_atom *armh,
 			    struct nv50_head_atom *asyh,
-			    struct nouveau_conn_atom *asyc)
+			    struct yesuveau_conn_atom *asyc)
 {
 	struct drm_connector *connector = asyc->state.connector;
 	struct drm_display_mode *omode = &asyh->state.adjusted_mode;
@@ -128,8 +128,8 @@ nv50_head_atomic_check_view(struct nv50_head_atom *armh,
 		mode = DRM_MODE_SCALE_FULLSCREEN;
 	}
 
-	/* For the user-specified mode, we must ignore doublescan and
-	 * the like, but honor frame packing.
+	/* For the user-specified mode, we must igyesre doublescan and
+	 * the like, but hoyesr frame packing.
 	 */
 	umode_vdisplay = umode->vdisplay;
 	if ((umode->flags & DRM_MODE_FLAG_3D_MASK) == DRM_MODE_FLAG_3D_FRAME_PACKING)
@@ -293,11 +293,11 @@ nv50_head_atomic_check_mode(struct nv50_head *head, struct nv50_head_atom *asyh)
 static int
 nv50_head_atomic_check(struct drm_crtc *crtc, struct drm_crtc_state *state)
 {
-	struct nouveau_drm *drm = nouveau_drm(crtc->dev);
+	struct yesuveau_drm *drm = yesuveau_drm(crtc->dev);
 	struct nv50_head *head = nv50_head(crtc);
 	struct nv50_head_atom *armh = nv50_head_atom(crtc->state);
 	struct nv50_head_atom *asyh = nv50_head_atom(state);
-	struct nouveau_conn_atom *asyc = NULL;
+	struct yesuveau_conn_atom *asyc = NULL;
 	struct drm_connector_state *conns;
 	struct drm_connector *conn;
 	int i;
@@ -306,7 +306,7 @@ nv50_head_atomic_check(struct drm_crtc *crtc, struct drm_crtc_state *state)
 	if (asyh->state.active) {
 		for_each_new_connector_in_state(asyh->state.state, conn, conns, i) {
 			if (conns->crtc == crtc) {
-				asyc = nouveau_conn_atom(conns);
+				asyc = yesuveau_conn_atom(conns);
 				break;
 			}
 		}
@@ -476,7 +476,7 @@ nv50_head_func = {
 int
 nv50_head_create(struct drm_device *dev, int index)
 {
-	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct yesuveau_drm *drm = yesuveau_drm(dev);
 	struct nv50_disp *disp = nv50_disp(dev);
 	struct nv50_head *head;
 	struct nv50_wndw *base, *ovly, *curs;

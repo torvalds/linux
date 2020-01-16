@@ -108,7 +108,7 @@ static int usb6fire_chip_probe(struct usb_interface *intf,
 	devices[regidx] = device;
 	mutex_unlock(&register_mutex);
 
-	/* check, if firmware is present on device, upload it if not */
+	/* check, if firmware is present on device, upload it if yest */
 	ret = usb6fire_fw_init(intf);
 	if (ret < 0)
 		return ret;
@@ -123,7 +123,7 @@ static int usb6fire_chip_probe(struct usb_interface *intf,
 	ret = snd_card_new(&intf->dev, index[regidx], id[regidx],
 			   THIS_MODULE, sizeof(struct sfire_chip), &card);
 	if (ret < 0) {
-		dev_err(&intf->dev, "cannot create alsa card.\n");
+		dev_err(&intf->dev, "canyest create alsa card.\n");
 		return ret;
 	}
 	strcpy(card->driver, "6FireUSB");
@@ -156,7 +156,7 @@ static int usb6fire_chip_probe(struct usb_interface *intf,
 
 	ret = snd_card_register(card);
 	if (ret < 0) {
-		dev_err(&intf->dev, "cannot register card.");
+		dev_err(&intf->dev, "canyest register card.");
 		goto destroy_chip;
 	}
 	usb_set_intfdata(intf, chip);

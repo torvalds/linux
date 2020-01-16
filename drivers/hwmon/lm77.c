@@ -23,7 +23,7 @@
 #include <linux/mutex.h>
 
 /* Addresses to scan */
-static const unsigned short normal_i2c[] = { 0x48, 0x49, 0x4a, 0x4b,
+static const unsigned short yesrmal_i2c[] = { 0x48, 0x49, 0x4a, 0x4b,
 						I2C_CLIENT_END };
 
 /* The LM77 registers */
@@ -66,7 +66,7 @@ struct lm77_data {
 #define LM77_TEMP_MAX 125000
 
 /*
- * In the temperature registers, the low 3 bits are not part of the
+ * In the temperature registers, the low 3 bits are yest part of the
  * temperature values; they are the status bits.
  */
 static inline s16 LM77_TEMP_TO_REG(int temp)
@@ -247,7 +247,7 @@ static int lm77_detect(struct i2c_client *client, struct i2c_board_info *info)
 		return -ENODEV;
 
 	/*
-	 * Here comes the remaining detection.  Since the LM77 has no
+	 * Here comes the remaining detection.  Since the LM77 has yes
 	 * register dedicated to identification, we have to rely on the
 	 * following tricks:
 	 *
@@ -351,7 +351,7 @@ static struct i2c_driver lm77_driver = {
 	.probe		= lm77_probe,
 	.id_table	= lm77_id,
 	.detect		= lm77_detect,
-	.address_list	= normal_i2c,
+	.address_list	= yesrmal_i2c,
 };
 
 module_i2c_driver(lm77_driver);

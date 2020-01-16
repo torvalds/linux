@@ -100,7 +100,7 @@ struct bpf_map {
 	u32 map_flags;
 	int spin_lock_off; /* >=0 valid offset, <0 error */
 	u32 id;
-	int numa_node;
+	int numa_yesde;
 	u32 btf_key_type_id;
 	u32 btf_value_type_id;
 	struct btf *btf;
@@ -186,7 +186,7 @@ static inline bool bpf_map_support_seq_show(const struct bpf_map *map)
 	return map->btf && map->ops->map_seq_show_elem;
 }
 
-int map_check_no_btf(const struct bpf_map *map,
+int map_check_yes_btf(const struct bpf_map *map,
 		     const struct btf *btf,
 		     const struct btf_type *key_type,
 		     const struct btf_type *value_type);
@@ -211,7 +211,7 @@ enum bpf_arg_type {
 	 */
 	ARG_PTR_TO_MEM,		/* pointer to valid memory (stack, packet, map value) */
 	ARG_PTR_TO_MEM_OR_NULL, /* pointer to valid memory or NULL */
-	ARG_PTR_TO_UNINIT_MEM,	/* pointer to memory does not need to be initialized,
+	ARG_PTR_TO_UNINIT_MEM,	/* pointer to memory does yest need to be initialized,
 				 * helper function must fill all bytes or clear
 				 * them in error case.
 				 */
@@ -284,7 +284,7 @@ enum bpf_access_type {
  * if (off > 0) means that 'imm' was added
  */
 enum bpf_reg_type {
-	NOT_INIT = 0,		 /* nothing was written into register */
+	NOT_INIT = 0,		 /* yesthing was written into register */
 	SCALAR_VALUE,		 /* reg doesn't contain a valid pointer */
 	PTR_TO_CTX,		 /* reg points to bpf_context */
 	CONST_PTR_TO_MAP,	 /* reg points to struct bpf_map */
@@ -404,25 +404,25 @@ struct btf_func_model {
 };
 
 /* Restore arguments before returning from trampoline to let original function
- * continue executing. This flag is used for fentry progs when there are no
+ * continue executing. This flag is used for fentry progs when there are yes
  * fexit progs.
  */
 #define BPF_TRAMP_F_RESTORE_REGS	BIT(0)
 /* Call original function after fentry progs, but before fexit progs.
- * Makes sense for fentry/fexit, normal calls and indirect calls.
+ * Makes sense for fentry/fexit, yesrmal calls and indirect calls.
  */
 #define BPF_TRAMP_F_CALL_ORIG		BIT(1)
 /* Skip current frame and return to parent.  Makes sense for fentry/fexit
- * programs only. Should not be used with normal calls and indirect calls.
+ * programs only. Should yest be used with yesrmal calls and indirect calls.
  */
 #define BPF_TRAMP_F_SKIP_FRAME		BIT(2)
 
 /* Different use cases for BPF trampoline:
- * 1. replace nop at the function entry (kprobe equivalent)
+ * 1. replace yesp at the function entry (kprobe equivalent)
  *    flags = BPF_TRAMP_F_RESTORE_REGS
  *    fentry = a set of programs to run before returning from trampoline
  *
- * 2. replace nop at the function entry (kprobe + kretprobe equivalent)
+ * 2. replace yesp at the function entry (kprobe + kretprobe equivalent)
  *    flags = BPF_TRAMP_F_CALL_ORIG | BPF_TRAMP_F_SKIP_FRAME
  *    orig_call = fentry_ip + MCOUNT_INSN_SIZE
  *    fentry = a set of program to run before calling original function
@@ -442,8 +442,8 @@ int arch_prepare_bpf_trampoline(void *image, struct btf_func_model *m, u32 flags
 				struct bpf_prog **fexit_progs, int fexit_cnt,
 				void *orig_call);
 /* these two functions are called from generated trampoline */
-u64 notrace __bpf_prog_enter(void);
-void notrace __bpf_prog_exit(struct bpf_prog *prog, u64 start);
+u64 yestrace __bpf_prog_enter(void);
+void yestrace __bpf_prog_exit(struct bpf_prog *prog, u64 start);
 
 enum bpf_tramp_prog_type {
 	BPF_TRAMP_FENTRY,
@@ -453,7 +453,7 @@ enum bpf_tramp_prog_type {
 
 struct bpf_trampoline {
 	/* hlist for trampoline_table */
-	struct hlist_node hlist;
+	struct hlist_yesde hlist;
 	/* serializes access to fields of this trampoline */
 	struct mutex mutex;
 	refcount_t refcnt;
@@ -522,8 +522,8 @@ struct bpf_prog_aux {
 	u32 max_tp_access;
 	u32 stack_depth;
 	u32 id;
-	u32 func_cnt; /* used by non-func prog as the number of func progs */
-	u32 func_idx; /* 0 for non-func prog, the index in func array for func prog */
+	u32 func_cnt; /* used by yesn-func prog as the number of func progs */
+	u32 func_idx; /* 0 for yesn-func prog, the index in func array for func prog */
 	u32 attach_btf_id; /* in-kernel BTF type id to attach to */
 	struct bpf_prog *linked_prog;
 	bool verifier_zext; /* Zero extensions has been inserted by verifier. */
@@ -532,7 +532,7 @@ struct bpf_prog_aux {
 	bool func_proto_unreliable;
 	enum bpf_tramp_prog_type trampoline_prog_type;
 	struct bpf_trampoline *trampoline;
-	struct hlist_node tramp_hlist;
+	struct hlist_yesde tramp_hlist;
 	/* BTF_KIND_FUNC_PROTO for valid attach_btf_id */
 	const struct btf_type *attach_func_proto;
 	/* function name for valid attach_btf_id */
@@ -541,8 +541,8 @@ struct bpf_prog_aux {
 	void *jit_data; /* JIT specific data. arch dependent */
 	struct bpf_jit_poke_descriptor *poke_tab;
 	u32 size_poke_tab;
-	struct latch_tree_node ksym_tnode;
-	struct list_head ksym_lnode;
+	struct latch_tree_yesde ksym_tyesde;
+	struct list_head ksym_lyesde;
 	const struct bpf_prog_ops *ops;
 	struct bpf_map **used_maps;
 	struct bpf_prog *prog;
@@ -615,7 +615,7 @@ struct bpf_array {
 	};
 };
 
-#define BPF_COMPLEXITY_LIMIT_INSNS      1000000 /* yes. 1M insns */
+#define BPF_COMPLEXITY_LIMIT_INSNS      1000000 /* no. 1M insns */
 #define MAX_TAIL_CALL_CNT 32
 
 #define BPF_F_ACCESS_MASK	(BPF_F_RDONLY |		\
@@ -631,7 +631,7 @@ static inline u32 bpf_map_flags_to_cap(struct bpf_map *map)
 	u32 access_flags = map->map_flags & (BPF_F_RDONLY_PROG | BPF_F_WRONLY_PROG);
 
 	/* Combination of BPF_F_RDONLY_PROG | BPF_F_WRONLY_PROG is
-	 * not possible.
+	 * yest possible.
 	 */
 	if (access_flags & BPF_F_RDONLY_PROG)
 		return BPF_MAP_CAN_READ;
@@ -710,7 +710,7 @@ int bpf_prog_array_copy(struct bpf_prog_array *old_array,
 			struct bpf_prog *include_prog,
 			struct bpf_prog_array **new_array);
 
-#define __BPF_PROG_RUN_ARRAY(array, ctx, func, check_non_null)	\
+#define __BPF_PROG_RUN_ARRAY(array, ctx, func, check_yesn_null)	\
 	({						\
 		struct bpf_prog_array_item *_item;	\
 		struct bpf_prog *_prog;			\
@@ -719,7 +719,7 @@ int bpf_prog_array_copy(struct bpf_prog_array *old_array,
 		preempt_disable();			\
 		rcu_read_lock();			\
 		_array = rcu_dereference(array);	\
-		if (unlikely(check_non_null && !_array))\
+		if (unlikely(check_yesn_null && !_array))\
 			goto _out;			\
 		_item = &_array->items[0];		\
 		while ((_prog = READ_ONCE(_item->prog))) {		\
@@ -738,8 +738,8 @@ _out:							\
  *
  * Current cgroup skb programs can only return 0 or 1 (0 to drop the
  * packet. This macro changes the behavior so the low order bit
- * indicates whether the packet should be dropped (0) or not (1)
- * and the next bit is a congestion notification bit. This could be
+ * indicates whether the packet should be dropped (0) or yest (1)
+ * and the next bit is a congestion yestification bit. This could be
  * used by TCP to call tcp_enter_cwr()
  *
  * Hence, new allowed return values of CGROUP EGRESS BPF programs are:
@@ -749,7 +749,7 @@ _out:							\
  *   3: keep packet and cn
  *
  * This macro then converts it to one of the NET_XMIT or an error
- * code that is then interpreted as drop packet (and no cn):
+ * code that is then interpreted as drop packet (and yes cn):
  *   0: NET_XMIT_SUCCESS  skb should be transmitted
  *   1: NET_XMIT_DROP     skb should be dropped and cn
  *   2: NET_XMIT_CN       skb should be transmitted and cn
@@ -814,7 +814,7 @@ struct bpf_prog *bpf_prog_get_type_dev(u32 ufd, enum bpf_prog_type type,
 void bpf_prog_add(struct bpf_prog *prog, int i);
 void bpf_prog_sub(struct bpf_prog *prog, int i);
 void bpf_prog_inc(struct bpf_prog *prog);
-struct bpf_prog * __must_check bpf_prog_inc_not_zero(struct bpf_prog *prog);
+struct bpf_prog * __must_check bpf_prog_inc_yest_zero(struct bpf_prog *prog);
 void bpf_prog_put(struct bpf_prog *prog);
 int __bpf_prog_charge(struct user_struct *user, u32 pages);
 void __bpf_prog_uncharge(struct user_struct *user, u32 pages);
@@ -828,7 +828,7 @@ struct bpf_map *bpf_map_get_with_uref(u32 ufd);
 struct bpf_map *__bpf_map_get(struct fd f);
 void bpf_map_inc(struct bpf_map *map);
 void bpf_map_inc_with_uref(struct bpf_map *map);
-struct bpf_map * __must_check bpf_map_inc_not_zero(struct bpf_map *map);
+struct bpf_map * __must_check bpf_map_inc_yest_zero(struct bpf_map *map);
 void bpf_map_put_with_uref(struct bpf_map *map);
 void bpf_map_put(struct bpf_map *map);
 int bpf_map_charge_memlock(struct bpf_map *map, u32 pages);
@@ -837,8 +837,8 @@ int bpf_map_charge_init(struct bpf_map_memory *mem, u64 size);
 void bpf_map_charge_finish(struct bpf_map_memory *mem);
 void bpf_map_charge_move(struct bpf_map_memory *dst,
 			 struct bpf_map_memory *src);
-void *bpf_map_area_alloc(u64 size, int numa_node);
-void *bpf_map_area_mmapable_alloc(u64 size, int numa_node);
+void *bpf_map_area_alloc(u64 size, int numa_yesde);
+void *bpf_map_area_mmapable_alloc(u64 size, int numa_yesde);
 void bpf_map_area_free(void *base);
 void bpf_map_init_from_attr(struct bpf_map *map, union bpf_attr *attr);
 
@@ -909,10 +909,10 @@ int cpu_map_enqueue(struct bpf_cpu_map_entry *rcpu, struct xdp_buff *xdp,
 		    struct net_device *dev_rx);
 
 /* Return map's numa specified by userspace */
-static inline int bpf_map_attr_numa_node(const union bpf_attr *attr)
+static inline int bpf_map_attr_numa_yesde(const union bpf_attr *attr)
 {
 	return (attr->map_flags & BPF_F_NUMA_NODE) ?
-		attr->numa_node : NUMA_NO_NODE;
+		attr->numa_yesde : NUMA_NO_NODE;
 }
 
 struct bpf_prog *bpf_prog_get_type_path(const char *name, enum bpf_prog_type type);
@@ -973,7 +973,7 @@ static inline void bpf_prog_inc(struct bpf_prog *prog)
 }
 
 static inline struct bpf_prog *__must_check
-bpf_prog_inc_not_zero(struct bpf_prog *prog)
+bpf_prog_inc_yest_zero(struct bpf_prog *prog)
 {
 	return ERR_PTR(-EOPNOTSUPP);
 }
@@ -1206,7 +1206,7 @@ extern const struct bpf_func_proto bpf_map_peek_elem_proto;
 
 extern const struct bpf_func_proto bpf_get_prandom_u32_proto;
 extern const struct bpf_func_proto bpf_get_smp_processor_id_proto;
-extern const struct bpf_func_proto bpf_get_numa_node_id_proto;
+extern const struct bpf_func_proto bpf_get_numa_yesde_id_proto;
 extern const struct bpf_func_proto bpf_tail_call_proto;
 extern const struct bpf_func_proto bpf_ktime_get_ns_proto;
 extern const struct bpf_func_proto bpf_get_current_pid_tgid_proto;

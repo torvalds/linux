@@ -167,8 +167,8 @@
 #define WL18XX_INTR_TRIG_CMD       BIT(28)
 
 /*
- * Host Event Acknowlegde Interrupt. The host
- * sets this bit to acknowledge that it received
+ * Host Event Ackyeswlegde Interrupt. The host
+ * sets this bit to ackyeswledge that it received
  * the unsolicited information from the event
  * mailbox.
  */

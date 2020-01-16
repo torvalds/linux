@@ -5,7 +5,7 @@
  * Copyright (C) 2003 David Brownell
  */
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/slab.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -60,7 +60,7 @@ EXPORT_SYMBOL_GPL(usb_descriptor_fillbuf);
  * @desc: Null-terminated vector of pointers to the descriptors (interface,
  *	endpoint, etc) defining all functions in this device configuration.
  * @buf: Buffer for the resulting configuration descriptor.
- * @length: Length of buffer.  If this is not big enough to hold the
+ * @length: Length of buffer.  If this is yest big eyesugh to hold the
  *	entire configuration descriptor, an error code will be returned.
  *
  * This copies descriptors into the response buffer, building a descriptor

@@ -30,7 +30,7 @@ struct srcu_struct {
 
 void srcu_drive_gp(struct work_struct *wp);
 
-#define __SRCU_STRUCT_INIT(name, __ignored)				\
+#define __SRCU_STRUCT_INIT(name, __igyesred)				\
 {									\
 	.srcu_wq = __SWAIT_QUEUE_HEAD_INITIALIZER(name.srcu_wq),	\
 	.srcu_cb_tail = &name.srcu_cb_head,				\
@@ -74,7 +74,7 @@ static inline void srcu_barrier(struct srcu_struct *ssp)
 	synchronize_srcu(ssp);
 }
 
-/* Defined here to avoid size increase for non-torture kernels. */
+/* Defined here to avoid size increase for yesn-torture kernels. */
 static inline void srcu_torture_stats_print(struct srcu_struct *ssp,
 					    char *tt, char *tf)
 {

@@ -14,7 +14,7 @@
  * THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  */
 
-#include <net/fib_notifier.h>
+#include <net/fib_yestifier.h>
 #include <net/ip_fib.h>
 #include <net/ip6_fib.h>
 #include <net/fib_rules.h>
@@ -33,7 +33,7 @@ struct nsim_per_fib_data {
 };
 
 struct nsim_fib_data {
-	struct notifier_block fib_nb;
+	struct yestifier_block fib_nb;
 	struct nsim_per_fib_data ipv4;
 	struct nsim_per_fib_data ipv6;
 };
@@ -108,7 +108,7 @@ static int nsim_fib_rule_account(struct nsim_fib_entry *entry, bool add,
 }
 
 static int nsim_fib_rule_event(struct nsim_fib_data *data,
-			       struct fib_notifier_info *info, bool add)
+			       struct fib_yestifier_info *info, bool add)
 {
 	struct netlink_ext_ack *extack = info->extack;
 	int err = 0;
@@ -145,7 +145,7 @@ static int nsim_fib_account(struct nsim_fib_entry *entry, bool add,
 }
 
 static int nsim_fib_event(struct nsim_fib_data *data,
-			  struct fib_notifier_info *info, bool add)
+			  struct fib_yestifier_info *info, bool add)
 {
 	struct netlink_ext_ack *extack = info->extack;
 	int err = 0;
@@ -162,12 +162,12 @@ static int nsim_fib_event(struct nsim_fib_data *data,
 	return err;
 }
 
-static int nsim_fib_event_nb(struct notifier_block *nb, unsigned long event,
+static int nsim_fib_event_nb(struct yestifier_block *nb, unsigned long event,
 			     void *ptr)
 {
 	struct nsim_fib_data *data = container_of(nb, struct nsim_fib_data,
 						  fib_nb);
-	struct fib_notifier_info *info = ptr;
+	struct fib_yestifier_info *info = ptr;
 	int err = 0;
 
 	switch (event) {
@@ -184,11 +184,11 @@ static int nsim_fib_event_nb(struct notifier_block *nb, unsigned long event,
 		break;
 	}
 
-	return notifier_from_errno(err);
+	return yestifier_from_erryes(err);
 }
 
 /* inconsistent dump, trying again */
-static void nsim_fib_dump_inconsistent(struct notifier_block *nb)
+static void nsim_fib_dump_inconsistent(struct yestifier_block *nb)
 {
 	struct nsim_fib_data *data = container_of(nb, struct nsim_fib_data,
 						  fib_nb);
@@ -259,11 +259,11 @@ struct nsim_fib_data *nsim_fib_create(struct devlink *devlink,
 
 	nsim_fib_set_max_all(data, devlink);
 
-	data->fib_nb.notifier_call = nsim_fib_event_nb;
-	err = register_fib_notifier(devlink_net(devlink), &data->fib_nb,
+	data->fib_nb.yestifier_call = nsim_fib_event_nb;
+	err = register_fib_yestifier(devlink_net(devlink), &data->fib_nb,
 				    nsim_fib_dump_inconsistent, extack);
 	if (err) {
-		pr_err("Failed to register fib notifier\n");
+		pr_err("Failed to register fib yestifier\n");
 		goto err_out;
 	}
 
@@ -300,6 +300,6 @@ void nsim_fib_destroy(struct devlink *devlink, struct nsim_fib_data *data)
 					    NSIM_RESOURCE_IPV4_FIB_RULES);
 	devlink_resource_occ_get_unregister(devlink,
 					    NSIM_RESOURCE_IPV4_FIB);
-	unregister_fib_notifier(devlink_net(devlink), &data->fib_nb);
+	unregister_fib_yestifier(devlink_net(devlink), &data->fib_nb);
 	kfree(data);
 }

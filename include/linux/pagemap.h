@@ -27,7 +27,7 @@ enum mapping_flags {
 	AS_MM_ALL_LOCKS	= 2,	/* under mm_take_all_locks() */
 	AS_UNEVICTABLE	= 3,	/* e.g., ramdisk, SHM_LOCK */
 	AS_EXITING	= 4, 	/* final truncate in progress */
-	/* writeback related tags are not used */
+	/* writeback related tags are yest used */
 	AS_NO_WRITEBACK_TAGS = 5,
 };
 
@@ -39,7 +39,7 @@ enum mapping_flags {
  * When writeback fails in some way, we must record that error so that
  * userspace can be informed when fsync and the like are called.  We endeavor
  * to report errors on any file that was open at the time of the error.  Some
- * internal callers also need to know when writeback errors have occurred.
+ * internal callers also need to kyesw when writeback errors have occurred.
  *
  * When a writeback error occurs, most filesystems will want to call
  * mapping_set_error to record the error in the mapping so that it can be
@@ -53,7 +53,7 @@ static inline void mapping_set_error(struct address_space *mapping, int error)
 	/* Record in wb_err for checkers using errseq_t based tracking */
 	filemap_set_wb_err(mapping, error);
 
-	/* Record it in flags for now, for legacy callers */
+	/* Record it in flags for yesw, for legacy callers */
 	if (error == -ENOSPC)
 		set_bit(AS_ENOSPC, &mapping->flags);
 	else
@@ -87,7 +87,7 @@ static inline int mapping_exiting(struct address_space *mapping)
 	return test_bit(AS_EXITING, &mapping->flags);
 }
 
-static inline void mapping_set_no_writeback_tags(struct address_space *mapping)
+static inline void mapping_set_yes_writeback_tags(struct address_space *mapping)
 {
 	set_bit(AS_NO_WRITEBACK_TAGS, &mapping->flags);
 }
@@ -110,7 +110,7 @@ static inline gfp_t mapping_gfp_constraint(struct address_space *mapping,
 }
 
 /*
- * This is non-atomic.  Only to be used before the mapping is activated.
+ * This is yesn-atomic.  Only to be used before the mapping is activated.
  * Probably needs a barrier...
  */
 static inline void mapping_set_gfp_mask(struct address_space *m, gfp_t mask)
@@ -132,7 +132,7 @@ void release_pages(struct page **pages, int nr);
  * Unless an RCU grace period has passed, the count of all pages coming out
  * of the allocator must be considered unstable. page_count may return higher
  * than expected, and put_page must be able to do the right thing when the
- * page has been finished with, no matter what it is subsequently allocated
+ * page has been finished with, yes matter what it is subsequently allocated
  * for (because put_page is what is used here to drop an invalid speculative
  * reference).
  *
@@ -141,7 +141,7 @@ void release_pages(struct page **pages, int nr);
  * has the following pattern:
  * 1. find page in radix tree
  * 2. conditionally increment refcount
- * 3. check the page is still in pagecache (if no, goto 1)
+ * 3. check the page is still in pagecache (if yes, goto 1)
  *
  * Remove-side that cares about stability of _refcount (eg. reclaim) has the
  * following (with the i_pages lock held):
@@ -152,7 +152,7 @@ void release_pages(struct page **pages, int nr);
  * There are 2 critical interleavings that matter:
  * - 2 runs before A: in this case, A sees elevated refcount and bails out
  * - A runs before 2: in this case, 2 sees zero refcount and retries;
- *   subsequently, B will complete and 1 will find no page, causing the
+ *   subsequently, B will complete and 1 will find yes page, causing the
  *   lookup to return NULL.
  *
  * It is possible that between 1 and 2, the page is removed then the exact same
@@ -161,7 +161,7 @@ void release_pages(struct page **pages, int nr);
  * such a re-insertion, depending on order that locks are granted.
  *
  * Lookups racing against pagecache insertion isn't a big problem: either 1
- * will find the page or it will not. Likewise, the old find_get_page could run
+ * will find the page or it will yest. Likewise, the old find_get_page could run
  * either before the insertion or afterwards, depending on timing.
  */
 static inline int __page_cache_add_speculative(struct page *page, int count)
@@ -176,7 +176,7 @@ static inline int __page_cache_add_speculative(struct page *page, int count)
 	 *
 	 * Pagecache won't be truncated from interrupt context, so if we have
 	 * found a page in the radix tree here, we have pinned its refcount by
-	 * disabling preempt, and hence no need for the "speculative get" that
+	 * disabling preempt, and hence yes need for the "speculative get" that
 	 * SMP requires.
 	 */
 	VM_BUG_ON_PAGE(page_count(page) == 0, page);
@@ -295,7 +295,7 @@ static inline struct page *find_lock_page(struct address_space *mapping,
  * page cache page, it is returned locked and with an increased
  * refcount.
  *
- * If the page is not present, a new page is allocated using @gfp_mask
+ * If the page is yest present, a new page is allocated using @gfp_mask
  * and added to the page cache and the VM's LRU list.  The page is
  * returned locked and with an increased refcount.
  *
@@ -313,19 +313,19 @@ static inline struct page *find_or_create_page(struct address_space *mapping,
 }
 
 /**
- * grab_cache_page_nowait - returns locked page at given index in given cache
+ * grab_cache_page_yeswait - returns locked page at given index in given cache
  * @mapping: target address_space
  * @index: the page index
  *
- * Same as grab_cache_page(), but do not wait if the page is unavailable.
+ * Same as grab_cache_page(), but do yest wait if the page is unavailable.
  * This is intended for speculative data generators, where the data can
  * be regenerated if the page couldn't be grabbed.  This routine should
- * be safe to call while holding the lock for another page.
+ * be safe to call while holding the lock for ayesther page.
  *
  * Clear __GFP_FS when allocating the page to avoid recursion into the fs
  * and deadlock against the caller's locked page.
  */
-static inline struct page *grab_cache_page_nowait(struct address_space *mapping,
+static inline struct page *grab_cache_page_yeswait(struct address_space *mapping,
 				pgoff_t index)
 {
 	return pagecache_get_page(mapping, index,
@@ -471,7 +471,7 @@ static inline int trylock_page(struct page *page)
 }
 
 /*
- * lock_page may only be called if we have the page's inode pinned.
+ * lock_page may only be called if we have the page's iyesde pinned.
  */
 static inline void lock_page(struct page *page)
 {
@@ -509,7 +509,7 @@ static inline int lock_page_or_retry(struct page *page, struct mm_struct *mm,
 
 /*
  * This is exported only for wait_on_page_locked/wait_on_page_writeback, etc.,
- * and should not be used directly.
+ * and should yest be used directly.
  */
 extern void wait_on_page_bit(struct page *page, int bit_nr);
 extern int wait_on_page_bit_killable(struct page *page, int bit_nr);
@@ -560,7 +560,7 @@ static inline int fault_in_pages_writeable(char __user *uaddr, int size)
 	if (unlikely(uaddr > end))
 		return -EFAULT;
 	/*
-	 * Writing zeroes into userspace here is OK, because we know that if
+	 * Writing zeroes into userspace here is OK, because we kyesw that if
 	 * the zero gets there, we'll be overwriting it.
 	 */
 	do {
@@ -630,9 +630,9 @@ static inline int add_to_page_cache(struct page *page,
 	return error;
 }
 
-static inline unsigned long dir_pages(struct inode *inode)
+static inline unsigned long dir_pages(struct iyesde *iyesde)
 {
-	return (unsigned long)(inode->i_size + PAGE_SIZE - 1) >>
+	return (unsigned long)(iyesde->i_size + PAGE_SIZE - 1) >>
 			       PAGE_SHIFT;
 }
 

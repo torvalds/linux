@@ -24,7 +24,7 @@ ACPI_MODULE_NAME("hwxface")
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Set reset register in memory or IO space. Note: Does not
+ * DESCRIPTION: Set reset register in memory or IO space. Note: Does yest
  *              support reset register in PCI config space, this must be
  *              handled separately.
  *
@@ -53,9 +53,9 @@ acpi_status acpi_reset(void)
 		 *
 		 * NOTE:
 		 * The ACPI spec requires the reset register width to be 8, so we
-		 * hardcode it here and ignore the FADT value. This maintains
+		 * hardcode it here and igyesre the FADT value. This maintains
 		 * compatibility with other ACPI implementations that have allowed
-		 * BIOS code with bad register width values to go unnoticed.
+		 * BIOS code with bad register width values to go unyesticed.
 		 */
 		status = acpi_os_write_port((acpi_io_address)reset_reg->address,
 					    acpi_gbl_FADT.reset_value,
@@ -85,8 +85,8 @@ ACPI_EXPORT_SYMBOL(acpi_reset)
  * LIMITATIONS: <These limitations also apply to acpi_write>
  *      bit_width must be exactly 8, 16, 32, or 64.
  *      space_ID must be system_memory or system_IO.
- *      bit_offset and access_width are currently ignored, as there has
- *          not been a need to implement these.
+ *      bit_offset and access_width are currently igyesred, as there has
+ *          yest been a need to implement these.
  *
  ******************************************************************************/
 acpi_status acpi_read(u64 *return_value, struct acpi_generic_address *reg)
@@ -132,21 +132,21 @@ ACPI_EXPORT_SYMBOL(acpi_write)
  *
  * PARAMETERS:  register_id     - ID of ACPI Bit Register to access
  *              return_value    - Value that was read from the register,
- *                                normalized to bit position zero.
+ *                                yesrmalized to bit position zero.
  *
  * RETURN:      Status and the value read from the specified Register. Value
- *              returned is normalized to bit0 (is shifted all the way right)
+ *              returned is yesrmalized to bit0 (is shifted all the way right)
  *
- * DESCRIPTION: ACPI bit_register read function. Does not acquire the HW lock.
+ * DESCRIPTION: ACPI bit_register read function. Does yest acquire the HW lock.
  *
  * SUPPORTS:    Bit fields in PM1 Status, PM1 Enable, PM1 Control, and
  *              PM2 Control.
  *
- * Note: The hardware lock is not required when reading the ACPI bit registers
- *       since almost all of them are single bit and it does not matter that
+ * Note: The hardware lock is yest required when reading the ACPI bit registers
+ *       since almost all of them are single bit and it does yest matter that
  *       the parent hardware register can be split across two physical
  *       registers. The only multi-bit field is SLP_TYP in the PM1 control
- *       register, but this field does not cross an 8-bit boundary (nor does
+ *       register, but this field does yest cross an 8-bit boundary (yesr does
  *       it make much sense to actually read this field.)
  *
  ******************************************************************************/
@@ -208,7 +208,7 @@ ACPI_EXPORT_SYMBOL(acpi_read_bit_register)
  *              PM2 Control.
  *
  * Note that at this level, the fact that there may be actually two
- * hardware registers (A and B - and B may not exist) is abstracted.
+ * hardware registers (A and B - and B may yest exist) is abstracted.
  *
  ******************************************************************************/
 acpi_status acpi_write_bit_register(u32 register_id, u32 value)
@@ -230,14 +230,14 @@ acpi_status acpi_write_bit_register(u32 register_id, u32 value)
 	lock_flags = acpi_os_acquire_raw_lock(acpi_gbl_hardware_lock);
 
 	/*
-	 * At this point, we know that the parent register is one of the
+	 * At this point, we kyesw that the parent register is one of the
 	 * following: PM1 Status, PM1 Enable, PM1 Control, or PM2 Control
 	 */
 	if (bit_reg_info->parent_register != ACPI_REGISTER_PM1_STATUS) {
 		/*
 		 * 1) Case for PM1 Enable, PM1 Control, and PM2 Control
 		 *
-		 * Perform a register read to preserve the bits that we are not
+		 * Perform a register read to preserve the bits that we are yest
 		 * interested in
 		 */
 		status = acpi_hw_register_read(bit_reg_info->parent_register,
@@ -262,7 +262,7 @@ acpi_status acpi_write_bit_register(u32 register_id, u32 value)
 		 * 2) Case for PM1 Status
 		 *
 		 * The Status register is different from the rest. Clear an event
-		 * by writing 1, writing 0 has no effect. So, the only relevant
+		 * by writing 1, writing 0 has yes effect. So, the only relevant
 		 * information is the single bit we're interested in, all others
 		 * should be written as 0 so they will be left unchanged.
 		 */
@@ -363,7 +363,7 @@ acpi_get_sleep_type_data(u8 sleep_state, u8 *sleep_type_a, u8 *sleep_type_b)
 	if (ACPI_FAILURE(status)) {
 		if (status == AE_NOT_FOUND) {
 
-			/* The _Sx states are optional, ignore NOT_FOUND */
+			/* The _Sx states are optional, igyesre NOT_FOUND */
 
 			goto final_cleanup;
 		}
@@ -384,14 +384,14 @@ acpi_get_sleep_type_data(u8 sleep_state, u8 *sleep_type_a, u8 *sleep_type_b)
 
 	if (info->return_object->common.type != ACPI_TYPE_PACKAGE) {
 		ACPI_ERROR((AE_INFO,
-			    "Sleep State return object is not a Package"));
+			    "Sleep State return object is yest a Package"));
 		status = AE_AML_OPERAND_TYPE;
 		goto return_value_cleanup;
 	}
 
 	/*
 	 * Any warnings about the package length or the object types have
-	 * already been issued by the predefined name module -- there is no
+	 * already been issued by the predefined name module -- there is yes
 	 * need to repeat them here.
 	 */
 	elements = info->return_object->package.elements;

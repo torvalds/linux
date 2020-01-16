@@ -38,7 +38,7 @@ static unsigned long clk_pll_recalc_rate(struct clk_hw *hwclk,
 	unsigned long divf, divq, reg;
 	unsigned long long vco_freq;
 
-	/* read VCO1 reg for numerator and denominator */
+	/* read VCO1 reg for numerator and deyesminator */
 	reg = readl(socfpgaclk->hw.reg + 0x4);
 	divf = (reg & SOCFPGA_PLL_DIVF_MASK) >> SOCFPGA_PLL_DIVF_SHIFT;
 	divq = (reg & SOCFPGA_PLL_DIVQ_MASK) >> SOCFPGA_PLL_DIVQ_SHIFT;
@@ -63,39 +63,39 @@ static struct clk_ops clk_pll_ops = {
 	.get_parent = clk_pll_get_parent,
 };
 
-static struct clk * __init __socfpga_pll_init(struct device_node *node,
+static struct clk * __init __socfpga_pll_init(struct device_yesde *yesde,
 	const struct clk_ops *ops)
 {
 	u32 reg;
 	struct clk *clk;
 	struct socfpga_pll *pll_clk;
-	const char *clk_name = node->name;
+	const char *clk_name = yesde->name;
 	const char *parent_name[SOCFGPA_MAX_PARENTS];
 	struct clk_init_data init;
-	struct device_node *clkmgr_np;
+	struct device_yesde *clkmgr_np;
 	int rc;
 	int i = 0;
 
-	of_property_read_u32(node, "reg", &reg);
+	of_property_read_u32(yesde, "reg", &reg);
 
 	pll_clk = kzalloc(sizeof(*pll_clk), GFP_KERNEL);
 	if (WARN_ON(!pll_clk))
 		return NULL;
 
-	clkmgr_np = of_find_compatible_node(NULL, NULL, "altr,clk-mgr");
+	clkmgr_np = of_find_compatible_yesde(NULL, NULL, "altr,clk-mgr");
 	clk_mgr_a10_base_addr = of_iomap(clkmgr_np, 0);
-	of_node_put(clkmgr_np);
+	of_yesde_put(clkmgr_np);
 	BUG_ON(!clk_mgr_a10_base_addr);
 	pll_clk->hw.reg = clk_mgr_a10_base_addr + reg;
 
-	of_property_read_string(node, "clock-output-names", &clk_name);
+	of_property_read_string(yesde, "clock-output-names", &clk_name);
 
 	init.name = clk_name;
 	init.ops = ops;
 	init.flags = 0;
 
 	while (i < SOCFGPA_MAX_PARENTS && (parent_name[i] =
-			of_clk_get_parent_name(node, i)) != NULL)
+			of_clk_get_parent_name(yesde, i)) != NULL)
 		i++;
 	init.num_parents = i;
 	init.parent_names = parent_name;
@@ -110,11 +110,11 @@ static struct clk * __init __socfpga_pll_init(struct device_node *node,
 		kfree(pll_clk);
 		return NULL;
 	}
-	rc = of_clk_add_provider(node, of_clk_src_simple_get, clk);
+	rc = of_clk_add_provider(yesde, of_clk_src_simple_get, clk);
 	return clk;
 }
 
-void __init socfpga_a10_pll_init(struct device_node *node)
+void __init socfpga_a10_pll_init(struct device_yesde *yesde)
 {
-	__socfpga_pll_init(node, &clk_pll_ops);
+	__socfpga_pll_init(yesde, &clk_pll_ops);
 }

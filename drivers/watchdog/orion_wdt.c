@@ -51,7 +51,7 @@
 #define WDT_A370_RATIO_SHIFT	5
 #define WDT_A370_RATIO		(1 << WDT_A370_RATIO_SHIFT)
 
-static bool nowayout = WATCHDOG_NOWAYOUT;
+static bool yeswayout = WATCHDOG_NOWAYOUT;
 static int heartbeat = -1;		/* module parameter (seconds) */
 
 struct orion_watchdog;
@@ -124,7 +124,7 @@ static int armada375_wdt_clock_init(struct platform_device *pdev,
 {
 	int ret;
 
-	dev->clk = of_clk_get_by_name(pdev->dev.of_node, "fixed");
+	dev->clk = of_clk_get_by_name(pdev->dev.of_yesde, "fixed");
 	if (!IS_ERR(dev->clk)) {
 		ret = clk_prepare_enable(dev->clk);
 		if (ret) {
@@ -165,7 +165,7 @@ static int armadaxp_wdt_clock_init(struct platform_device *pdev,
 	int ret;
 	u32 val;
 
-	dev->clk = of_clk_get_by_name(pdev->dev.of_node, "fixed");
+	dev->clk = of_clk_get_by_name(pdev->dev.of_yesde, "fixed");
 	if (IS_ERR(dev->clk))
 		return PTR_ERR(dev->clk);
 	ret = clk_prepare_enable(dev->clk);
@@ -391,7 +391,7 @@ static irqreturn_t orion_wdt_pre_irq(int irq, void *devid)
 
 	atomic_io_modify(dev->reg + TIMER_A370_STATUS,
 			 TIMER1_STATUS_BIT, 0);
-	watchdog_notify_pretimeout(&dev->wdt);
+	watchdog_yestify_pretimeout(&dev->wdt);
 	return IRQ_HANDLED;
 }
 
@@ -498,7 +498,7 @@ MODULE_DEVICE_TABLE(of, orion_wdt_of_match_table);
 static int orion_wdt_get_regs(struct platform_device *pdev,
 			      struct orion_watchdog *dev)
 {
-	struct device_node *node = pdev->dev.of_node;
+	struct device_yesde *yesde = pdev->dev.of_yesde;
 	struct resource *res;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -510,23 +510,23 @@ static int orion_wdt_get_regs(struct platform_device *pdev,
 		return -ENOMEM;
 
 	/* Each supported compatible has some RSTOUT register quirk */
-	if (of_device_is_compatible(node, "marvell,orion-wdt")) {
+	if (of_device_is_compatible(yesde, "marvell,orion-wdt")) {
 
 		dev->rstout = orion_wdt_ioremap_rstout(pdev, res->start &
 						       INTERNAL_REGS_MASK);
 		if (!dev->rstout)
 			return -ENODEV;
 
-	} else if (of_device_is_compatible(node, "marvell,armada-370-wdt") ||
-		   of_device_is_compatible(node, "marvell,armada-xp-wdt")) {
+	} else if (of_device_is_compatible(yesde, "marvell,armada-370-wdt") ||
+		   of_device_is_compatible(yesde, "marvell,armada-xp-wdt")) {
 
 		/* Dedicated RSTOUT register, can be requested. */
 		dev->rstout = devm_platform_ioremap_resource(pdev, 1);
 		if (IS_ERR(dev->rstout))
 			return PTR_ERR(dev->rstout);
 
-	} else if (of_device_is_compatible(node, "marvell,armada-375-wdt") ||
-		   of_device_is_compatible(node, "marvell,armada-380-wdt")) {
+	} else if (of_device_is_compatible(yesde, "marvell,armada-375-wdt") ||
+		   of_device_is_compatible(yesde, "marvell,armada-380-wdt")) {
 
 		/* Dedicated RSTOUT register, can be requested. */
 		dev->rstout = devm_platform_ioremap_resource(pdev, 1);
@@ -576,7 +576,7 @@ static int orion_wdt_probe(struct platform_device *pdev)
 
 	ret = dev->data->clock_init(pdev, dev);
 	if (ret) {
-		dev_err(&pdev->dev, "cannot initialize clock\n");
+		dev_err(&pdev->dev, "canyest initialize clock\n");
 		return ret;
 	}
 
@@ -629,13 +629,13 @@ static int orion_wdt_probe(struct platform_device *pdev)
 	}
 
 
-	watchdog_set_nowayout(&dev->wdt, nowayout);
+	watchdog_set_yeswayout(&dev->wdt, yeswayout);
 	ret = watchdog_register_device(&dev->wdt);
 	if (ret)
 		goto disable_clk;
 
 	pr_info("Initial timeout %d sec%s\n",
-		dev->wdt.timeout, nowayout ? ", nowayout" : "");
+		dev->wdt.timeout, yeswayout ? ", yeswayout" : "");
 	return 0;
 
 disable_clk:
@@ -679,8 +679,8 @@ MODULE_DESCRIPTION("Orion Processor Watchdog");
 module_param(heartbeat, int, 0);
 MODULE_PARM_DESC(heartbeat, "Initial watchdog heartbeat in seconds");
 
-module_param(nowayout, bool, 0);
-MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started (default="
+module_param(yeswayout, bool, 0);
+MODULE_PARM_DESC(yeswayout, "Watchdog canyest be stopped once started (default="
 				__MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
 
 MODULE_LICENSE("GPL v2");

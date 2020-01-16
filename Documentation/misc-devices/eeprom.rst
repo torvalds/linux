@@ -65,7 +65,7 @@ organization laid out by Frodo, but it should be at least completely
 effective for decoding the contents of EEPROMs on DIMMs.
 
 DIMMS will typically contain a 24C01A or 24C02, or the 34C02 variants.
-The other devices will not be found on a DIMM because they respond to more
+The other devices will yest be found on a DIMM because they respond to more
 than one address.
 
 DDC Monitors may contain any device. Often a 24C01, which responds to all 8
@@ -77,23 +77,23 @@ specification, so it is guess work and far from being complete.
 The Microchip 24AA52/24LCS52, ST M34C02, and others support an additional
 software write protect register at 0x30 - 0x37 (0x20 less than the memory
 location). The chip responds to "write quick" detection at this address but
-does not respond to byte reads. If this register is present, the lower 128
-bytes of the memory array are not write protected. Any byte data write to
+does yest respond to byte reads. If this register is present, the lower 128
+bytes of the memory array are yest write protected. Any byte data write to
 this address will write protect the memory array permanently, and the
-device will no longer respond at the 0x30-37 address. The eeprom driver
-does not support this register.
+device will yes longer respond at the 0x30-37 address. The eeprom driver
+does yest support this register.
 
 Lacking functionality
 ---------------------
 
-* Full support for larger devices (24C04, 24C08, 24C16). These are not
+* Full support for larger devices (24C04, 24C08, 24C16). These are yest
   typically found on a PC. These devices will appear as separate devices at
   multiple addresses.
 
 * Support for really large devices (24C32, 24C64, 24C128, 24C256, 24C512).
-  These devices require two-byte address fields and are not supported.
+  These devices require two-byte address fields and are yest supported.
 
-* Enable Writing. Again, no technical reason why not, but making it easy
+* Enable Writing. Again, yes technical reason why yest, but making it easy
   to change the contents of the EEPROMs (on DIMMs anyway) also makes it easy
   to disable the DIMMs (potentially preventing the computer from booting)
   until the values are restored somehow.

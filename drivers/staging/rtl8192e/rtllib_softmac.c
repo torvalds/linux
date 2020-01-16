@@ -208,7 +208,7 @@ inline void softmac_mgmt_xmit(struct sk_buff *skb, struct rtllib_device *ieee)
 
 	spin_lock_irqsave(&ieee->lock, flags);
 
-	/* called with 2nd param 0, no mgmt lock required */
+	/* called with 2nd param 0, yes mgmt lock required */
 	rtllib_sta_wakeup(ieee, 0);
 
 	if (le16_to_cpu(header->frame_ctl) == RTLLIB_STYPE_BEACON)
@@ -252,13 +252,13 @@ inline void softmac_mgmt_xmit(struct sk_buff *skb, struct rtllib_device *ieee)
 			ieee->seq_ctrl[0]++;
 
 		/* check whether the managed packet queued greater than 5 */
-		if (!ieee->check_nic_enough_desc(ieee->dev,
+		if (!ieee->check_nic_eyesugh_desc(ieee->dev,
 						 tcb_desc->queue_index) ||
 		    skb_queue_len(&ieee->skb_waitQ[tcb_desc->queue_index]) ||
 		    ieee->queue_stop) {
 			/* insert the skb packet to the management queue
 			 *
-			 * as for the completion function, it does not need
+			 * as for the completion function, it does yest need
 			 * to check it any more.
 			 */
 			netdev_info(ieee->dev,
@@ -522,7 +522,7 @@ static void rtllib_softmac_scan_syncro(struct rtllib_device *ieee, u8 is_mesh)
 		/* this function can be called in two situations
 		 * 1- We have switched to ad-hoc mode and we are
 		 *    performing a complete syncro scan before conclude
-		 *    there are no interesting cell and to create a
+		 *    there are yes interesting cell and to create a
 		 *    new one. In this case the link state is
 		 *    RTLLIB_NOLINK until we found an interesting cell.
 		 *    If so the ieee8021_new_net, called by the RX path
@@ -530,10 +530,10 @@ static void rtllib_softmac_scan_syncro(struct rtllib_device *ieee, u8 is_mesh)
 		 *    scanning
 		 * 2- We are linked and the root uses run iwlist scan.
 		 *    So we switch to RTLLIB_LINKED_SCANNING to remember
-		 *    that we are still logically linked (not interested in
+		 *    that we are still logically linked (yest interested in
 		 *    new network events, despite for updating the net list,
 		 *    but we are temporarly 'unlinked' as the driver shall
-		 *    not filter RX frames and the channel is changing.
+		 *    yest filter RX frames and the channel is changing.
 		 * So the only situation in which are interested is to check
 		 * if the state become LINKED because of the #1 situation
 		 */
@@ -600,7 +600,7 @@ static void rtllib_softmac_scan_wq(void *data)
 		if (ieee->scan_watch_dog++ > MAX_CHANNEL_NUMBER) {
 			if (!ieee->active_channel_map[ieee->current_network.channel])
 				ieee->current_network.channel = 6;
-			goto out; /* no good chans */
+			goto out; /* yes good chans */
 		}
 	} while (!ieee->active_channel_map[ieee->current_network.channel]);
 
@@ -1398,17 +1398,17 @@ static void rtllib_associate_abort(struct rtllib_device *ieee)
 	ieee->associate_seq++;
 
 	/* don't scan, and avoid to have the RX path possibily
-	 * try again to associate. Even do not react to AUTH or
+	 * try again to associate. Even do yest react to AUTH or
 	 * ASSOC response. Just wait for the retry wq to be scheduled.
 	 * Here we will check if there are good nets to associate
 	 * with, so we retry or just get back to NO_LINK and scanning
 	 */
 	if (ieee->state == RTLLIB_ASSOCIATING_AUTHENTICATING) {
 		netdev_dbg(ieee->dev, "Authentication failed\n");
-		ieee->softmac_stats.no_auth_rs++;
+		ieee->softmac_stats.yes_auth_rs++;
 	} else {
 		netdev_dbg(ieee->dev, "Association failed\n");
-		ieee->softmac_stats.no_ass_rs++;
+		ieee->softmac_stats.yes_ass_rs++;
 	}
 
 	ieee->state = RTLLIB_ASSOCIATING_RETRY;
@@ -1512,8 +1512,8 @@ static void rtllib_associate_complete_wq(void *data)
 	netdev_info(ieee->dev, "Associated successfully with %pM\n",
 		    ieee->current_network.bssid);
 	if (!ieee->is_silent_reset) {
-		netdev_info(ieee->dev, "normal associate\n");
-		notify_wx_assoc_event(ieee);
+		netdev_info(ieee->dev, "yesrmal associate\n");
+		yestify_wx_assoc_event(ieee);
 	}
 
 	netif_carrier_on(ieee->dev);
@@ -1532,7 +1532,7 @@ static void rtllib_associate_complete_wq(void *data)
 		HTOnAssocRsp(ieee);
 	} else {
 		netdev_info(ieee->dev,
-			    "Successfully associated, ht not enabled(%d, %d)\n",
+			    "Successfully associated, ht yest enabled(%d, %d)\n",
 			    ieee->pHTInfo->bCurrentHTSupport,
 			    ieee->pHTInfo->bEnableHT);
 		memset(ieee->dot11HTOperationalRateSet, 0, 16);
@@ -1613,8 +1613,8 @@ inline void rtllib_softmac_new_net(struct rtllib_device *ieee,
 
 	short apset, ssidset, ssidbroad, apmatch, ssidmatch;
 
-	/* we are interested in new new only if we are not associated
-	 * and we are not associating / authenticating
+	/* we are interested in new new only if we are yest associated
+	 * and we are yest associating / authenticating
 	 */
 	if (ieee->state != RTLLIB_NOLINK)
 		return;
@@ -1632,7 +1632,7 @@ inline void rtllib_softmac_new_net(struct rtllib_device *ieee,
 		return;
 	if (ieee->iw_mode == IW_MODE_INFRA || ieee->iw_mode == IW_MODE_ADHOC) {
 		/* if the user specified the AP MAC, we need also the essid
-		 * This could be obtained by beacons or, if the network does not
+		 * This could be obtained by beacons or, if the network does yest
 		 * broadcast it, it can be put manually.
 		 */
 		apset = ieee->wap_set;
@@ -1658,13 +1658,13 @@ inline void rtllib_softmac_new_net(struct rtllib_device *ieee,
 			   net->ssid_len));
 
 		/* if the user set the AP check if match.
-		 * if the network does not broadcast essid we check the
+		 * if the network does yest broadcast essid we check the
 		 *	 user supplied ANY essid
-		 * if the network does broadcast and the user does not set
+		 * if the network does broadcast and the user does yest set
 		 *	 essid it is OK
 		 * if the network does broadcast and the user did set essid
 		 * check if essid match
-		 * if the ap is not set, check that the user set the bssid
+		 * if the ap is yest set, check that the user set the bssid
 		 * and the network does broadcast and that those two bssid match
 		 */
 		if ((apset && apmatch &&
@@ -1852,7 +1852,7 @@ static short probe_rq_parse(struct rtllib_device *ieee, struct sk_buff *skb,
 		return 1;
 
 	if (!ssid)
-		return 1; /* ssid not found in tagged param */
+		return 1; /* ssid yest found in tagged param */
 
 	return !strncmp(ssid, ieee->current_network.ssid, ssidlen);
 }
@@ -1974,7 +1974,7 @@ static short rtllib_sta_ps_sleep(struct rtllib_device *ieee, u64 *time)
 		return 0;
 	timeout = ieee->current_network.beacon_interval;
 	ieee->current_network.dtim_data = RTLLIB_DTIM_INVALID;
-	/* there's no need to nofity AP that I find you buffered
+	/* there's yes need to yesfity AP that I find you buffered
 	 * with broadcast packet
 	 */
 	if (dtim & (RTLLIB_DTIM_UCAST & ieee->ps))
@@ -2057,7 +2057,7 @@ static inline void rtllib_sta_ps(unsigned long data)
 	     ieee->iw_mode != IW_MODE_INFRA ||
 	     ieee->state != RTLLIB_LINKED)) {
 		RT_TRACE(COMP_DBG,
-			 "=====>%s(): no need to ps,wake up!! ieee->ps is %d, ieee->iw_mode is %d, ieee->state is %d\n",
+			 "=====>%s(): yes need to ps,wake up!! ieee->ps is %d, ieee->iw_mode is %d, ieee->state is %d\n",
 			 __func__, ieee->ps, ieee->iw_mode, ieee->state);
 		spin_lock_irqsave(&ieee->mgmt_tx_lock, flags2);
 		rtllib_sta_wakeup(ieee, 1);
@@ -2065,7 +2065,7 @@ static inline void rtllib_sta_ps(unsigned long data)
 		spin_unlock_irqrestore(&ieee->mgmt_tx_lock, flags2);
 	}
 	sleep = rtllib_sta_ps_sleep(ieee, &time);
-	/* 2 wake, 1 sleep, 0 do nothing */
+	/* 2 wake, 1 sleep, 0 do yesthing */
 	if (sleep == 0)
 		goto out;
 	if (sleep == 1) {
@@ -2147,8 +2147,8 @@ void rtllib_ps_tx_ack(struct rtllib_device *ieee, short success)
 			ieee->sta_sleep = LPS_IS_SLEEP;
 			ieee->enter_sleep_state(ieee->dev, ieee->ps_time);
 		}
-		/* if the card report not success we can't be sure the AP
-		 * has not RXed so we can't assume the AP believe us awake
+		/* if the card report yest success we can't be sure the AP
+		 * has yest RXed so we can't assume the AP believe us awake
 		 */
 	} else {/* 21112005 - tx again null without PS bit if lost */
 
@@ -2263,7 +2263,7 @@ rtllib_rx_assoc_resp(struct rtllib_device *ieee, struct sk_buff *skb,
 
 			rtllib_associate_complete(ieee);
 		} else {
-			/* aid could not been allocated */
+			/* aid could yest been allocated */
 			ieee->softmac_stats.rx_ass_err++;
 			netdev_info(ieee->dev,
 				    "Association response status code 0x%x\n",
@@ -2359,7 +2359,7 @@ rtllib_rx_deauth(struct rtllib_device *ieee, struct sk_buff *skb)
 	if (memcmp(header->addr3, ieee->current_network.bssid, ETH_ALEN) != 0)
 		return 0;
 
-	/* FIXME for now repeat all the association procedure
+	/* FIXME for yesw repeat all the association procedure
 	 * both for disassociation and deauthentication
 	 */
 	if ((ieee->softmac_features & IEEE_SOFTMAC_ASSOCIATE) &&
@@ -2434,11 +2434,11 @@ inline int rtllib_rx_frame_softmac(struct rtllib_device *ieee,
  * will internally use the kernel netif_* and takes
  * care of the ieee802.11 fragmentation.
  * So the driver receives a fragment per time and might
- * call the stop function when it wants to not
- * have enough room to TX an entire packet.
+ * call the stop function when it wants to yest
+ * have eyesugh room to TX an entire packet.
  * This might be useful if each fragment needs it's own
  * descriptor, thus just keep a total free memory > than
- * the max fragmentation threshold is not enough.. If the
+ * the max fragmentation threshold is yest eyesugh.. If the
  * ieee802.11 stack passed a TXB struct then you need
  * to keep N free descriptors where
  * N = MAX_PACKET_SIZE / MIN_FRAG_TRESHOLD
@@ -2457,7 +2457,7 @@ void rtllib_softmac_xmit(struct rtllib_txb *txb, struct rtllib_device *ieee)
 
 	spin_lock_irqsave(&ieee->lock, flags);
 
-	/* called with 2nd parm 0, no tx mgmt lock required */
+	/* called with 2nd parm 0, yes tx mgmt lock required */
 	rtllib_sta_wakeup(ieee, 0);
 
 	/* update the tx status */
@@ -2472,10 +2472,10 @@ void rtllib_softmac_xmit(struct rtllib_txb *txb, struct rtllib_device *ieee)
 	for (i = 0; i < txb->nr_frags; i++) {
 		queue_len = skb_queue_len(&ieee->skb_waitQ[queue_index]);
 		if ((queue_len  != 0) ||
-		    (!ieee->check_nic_enough_desc(ieee->dev, queue_index)) ||
+		    (!ieee->check_nic_eyesugh_desc(ieee->dev, queue_index)) ||
 		    (ieee->queue_stop)) {
 			/* insert the skb packet to the wait queue
-			 * as for the completion function, it does not need
+			 * as for the completion function, it does yest need
 			 * to check it any more.
 			 */
 			if (queue_len < 200)
@@ -2547,7 +2547,7 @@ static void rtllib_start_master_bss(struct rtllib_device *ieee)
 	ieee->set_chan(ieee->dev, ieee->current_network.channel);
 	ieee->state = RTLLIB_LINKED;
 	ieee->link_change(ieee->dev);
-	notify_wx_assoc_event(ieee);
+	yestify_wx_assoc_event(ieee);
 
 	if (ieee->data_hard_resume)
 		ieee->data_hard_resume(ieee->dev);
@@ -2595,13 +2595,13 @@ static void rtllib_start_ibss_wq(void *data)
 	rtllib_softmac_check_all_nets(ieee);
 
 
-	/* if not then the state is not linked. Maybe the user switched to
+	/* if yest then the state is yest linked. Maybe the user switched to
 	 * ad-hoc mode just after being in monitor mode, or just after
-	 * being very few time in managed mode (so the card have had no
+	 * being very few time in managed mode (so the card have had yes
 	 * time to scan all the chans..) or we have just run up the iface
-	 * after setting ad-hoc mode. So we have to give another try..
+	 * after setting ad-hoc mode. So we have to give ayesther try..
 	 * Here, in ibss mode, should be safe to do this without extra care
-	 * (in bss mode we had to make sure no-one tried to associate when
+	 * (in bss mode we had to make sure yes-one tried to associate when
 	 * we had just checked the ieee->state and we was going to start the
 	 * scan) because in ibss mode the rtllib_new_net function, when
 	 * finds a good net, just set the ieee->state to RTLLIB_LINKED,
@@ -2612,7 +2612,7 @@ static void rtllib_start_ibss_wq(void *data)
 	if (ieee->state == RTLLIB_NOLINK)
 		rtllib_start_scan_syncro(ieee, 0);
 
-	/* the network definitively is not here.. create a new cell */
+	/* the network definitively is yest here.. create a new cell */
 	if (ieee->state == RTLLIB_NOLINK) {
 		netdev_info(ieee->dev, "creating new IBSS cell\n");
 		ieee->current_network.channel = ieee->bss_start_channel;
@@ -2686,7 +2686,7 @@ static void rtllib_start_ibss_wq(void *data)
 
 	rtllib_start_send_beacons(ieee);
 
-	notify_wx_assoc_event(ieee);
+	yestify_wx_assoc_event(ieee);
 
 	if (ieee->data_hard_resume)
 		ieee->data_hard_resume(ieee->dev);
@@ -2712,17 +2712,17 @@ static void rtllib_start_bss(struct rtllib_device *ieee)
 	}
 	/* check if we have already found the net we
 	 * are interested in (if any).
-	 * if not (we are disassociated and we are not
+	 * if yest (we are disassociated and we are yest
 	 * in associating / authenticating phase) start the background scanning.
 	 */
 	rtllib_softmac_check_all_nets(ieee);
 
-	/* ensure no-one start an associating process (thus setting
+	/* ensure yes-one start an associating process (thus setting
 	 * the ieee->state to rtllib_ASSOCIATING) while we
 	 * have just checked it and we are going to enable scan.
 	 * The rtllib_new_net function is always called with
 	 * lock held (from both rtllib_softmac_check_all_nets and
-	 * the rx path), so we cannot be in the middle of such function
+	 * the rx path), so we canyest be in the middle of such function
 	 */
 	spin_lock_irqsave(&ieee->lock, flags);
 
@@ -2754,7 +2754,7 @@ void rtllib_disassociate(struct rtllib_device *ieee)
 
 	schedule_delayed_work(&ieee->link_change_wq, 0);
 
-	notify_wx_assoc_event(ieee);
+	yestify_wx_assoc_event(ieee);
 }
 
 static void rtllib_associate_retry_wq(void *data)
@@ -2770,16 +2770,16 @@ static void rtllib_associate_retry_wq(void *data)
 	if (ieee->state != RTLLIB_ASSOCIATING_RETRY)
 		goto exit;
 
-	/* until we do not set the state to RTLLIB_NOLINK
-	 * there are no possibility to have someone else trying
+	/* until we do yest set the state to RTLLIB_NOLINK
+	 * there are yes possibility to have someone else trying
 	 * to start an association procedure (we get here with
 	 * ieee->state = RTLLIB_ASSOCIATING).
 	 * When we set the state to RTLLIB_NOLINK it is possible
 	 * that the RX path run an attempt to associate, but
 	 * both rtllib_softmac_check_all_nets and the
-	 * RX path works with ieee->lock held so there are no
+	 * RX path works with ieee->lock held so there are yes
 	 * problems. If we are still disassociated then start a scan.
-	 * the lock here is necessary to ensure no one try to start
+	 * the lock here is necessary to ensure yes one try to start
 	 * an association procedure when we have just checked the
 	 * state and we are going to start the scan.
 	 */
@@ -2915,7 +2915,7 @@ void rtllib_start_protocol(struct rtllib_device *ieee)
 		do {
 			ch++;
 			if (ch > MAX_CHANNEL_NUMBER)
-				return; /* no channel found */
+				return; /* yes channel found */
 		} while (!ieee->active_channel_map[ch]);
 		ieee->current_network.channel = ch;
 	}
@@ -2935,7 +2935,7 @@ void rtllib_start_protocol(struct rtllib_device *ieee)
 	ieee->wmm_acm = 0;
 	/* if the user set the MAC of the ad-hoc cell and then
 	 * switch to managed mode, shall we  make sure that association
-	 * attempts does not fail just because the user provide the essid
+	 * attempts does yest fail just because the user provide the essid
 	 * and the nic is still checking for the AP MAC ??
 	 */
 	if (ieee->iw_mode == IW_MODE_INFRA) {
@@ -3170,7 +3170,7 @@ static void rtllib_MgntDisconnectIBSS(struct rtllib_device *rtllib)
 	bFilterOutNonAssociatedBSSID = false;
 	rtllib->SetHwRegHandler(rtllib->dev, HW_VAR_CECHK_BSSID,
 				(u8 *)(&bFilterOutNonAssociatedBSSID));
-	notify_wx_assoc_event(rtllib);
+	yestify_wx_assoc_event(rtllib);
 
 }
 
@@ -3234,11 +3234,11 @@ bool rtllib_MgntDisconnect(struct rtllib_device *rtllib, u8 asRsn)
 }
 EXPORT_SYMBOL(rtllib_MgntDisconnect);
 
-void notify_wx_assoc_event(struct rtllib_device *ieee)
+void yestify_wx_assoc_event(struct rtllib_device *ieee)
 {
 	union iwreq_data wrqu;
 
-	if (ieee->cannot_notify)
+	if (ieee->canyest_yestify)
 		return;
 
 	wrqu.ap_addr.sa_family = ARPHRD_ETHER;
@@ -3253,4 +3253,4 @@ void notify_wx_assoc_event(struct rtllib_device *ieee)
 	}
 	wireless_send_event(ieee->dev, SIOCGIWAP, &wrqu, NULL);
 }
-EXPORT_SYMBOL(notify_wx_assoc_event);
+EXPORT_SYMBOL(yestify_wx_assoc_event);

@@ -170,8 +170,8 @@ struct ti_tscadc_dev {
 	int irq;
 	int used_cells;	/* 1-2 */
 	int tsc_wires;
-	int tsc_cell;	/* -1 if not used */
-	int adc_cell;	/* -1 if not used */
+	int tsc_cell;	/* -1 if yest used */
+	int adc_cell;	/* -1 if yest used */
 	struct mfd_cell cells[TSCADC_CELLS];
 	u32 reg_se_cache;
 	bool adc_waiting;

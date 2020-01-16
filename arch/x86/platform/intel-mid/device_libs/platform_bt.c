@@ -89,7 +89,7 @@ static int __init bt_sfi_init(void)
 		return ret;
 
 	memset(&info, 0, sizeof(info));
-	info.fwnode	= ddata->dev->fwnode;
+	info.fwyesde	= ddata->dev->fwyesde;
 	info.parent	= ddata->dev;
 	info.name	= ddata->name,
 	info.id		= PLATFORM_DEVID_NONE,

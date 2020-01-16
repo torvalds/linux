@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -41,7 +41,7 @@ struct dcn_watermarks {
 	uint32_t pte_meta_urgent_ns;
 	uint32_t urgent_ns;
 #if defined(CONFIG_DRM_AMD_DC_DCN2_1)
-	uint32_t frac_urg_bw_nom;
+	uint32_t frac_urg_bw_yesm;
 	uint32_t frac_urg_bw_flip;
 	int32_t urgent_latency_ns;
 #endif

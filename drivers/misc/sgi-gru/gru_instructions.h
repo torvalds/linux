@@ -12,7 +12,7 @@
  *  GNU Lesser General Public License for more details.
  *
  *  You should have received a copy of the GNU Lesser General Public License
- *  along with this program; if not, write to the Free Software
+ *  along with this program; if yest, write to the Free Software
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  */
 
@@ -234,9 +234,9 @@ struct gru_instruction {
 
 
 /* Instruction access attributes (iaa0, iaa1 fields) */
-#define IAA_RAM		0x0	/* normal cached RAM access */
-#define IAA_NCRAM	0x2	/* noncoherent RAM access */
-#define IAA_MMIO	0x1	/* noncoherent memory-mapped I/O space */
+#define IAA_RAM		0x0	/* yesrmal cached RAM access */
+#define IAA_NCRAM	0x2	/* yesncoherent RAM access */
+#define IAA_MMIO	0x1	/* yesncoherent memory-mapped I/O space */
 #define IAA_REGISTER	0x3	/* memory-mapped registers, etc. */
 
 
@@ -287,7 +287,7 @@ struct gru_instruction {
 
 /*
  * Exceptions are retried for the following cases. If any OTHER bits are set
- * in ecause, the exception is not retryable.
+ * in ecause, the exception is yest retryable.
  */
 #define EXCEPTION_RETRY_BITS (CBE_CAUSE_EXECUTION_HW_ERROR |		\
 			      CBE_CAUSE_TLBHW_ERROR |			\
@@ -473,7 +473,7 @@ static inline void gru_vflush(void *cb, unsigned long mem_addr,
 					0, CB_IMA(hints)));
 }
 
-static inline void gru_nop(void *cb, int hints)
+static inline void gru_yesp(void *cb, int hints)
 {
 	struct gru_instruction *ins = (void *)cb;
 

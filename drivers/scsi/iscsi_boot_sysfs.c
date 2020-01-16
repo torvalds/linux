@@ -362,10 +362,10 @@ iscsi_boot_create_kobj(struct iscsi_boot_kset *boot_kset,
 
 	if (sysfs_create_group(&boot_kobj->kobj, attr_group)) {
 		/*
-		 * We do not want to free this because the caller
+		 * We do yest want to free this because the caller
 		 * will assume that since the creation call failed
-		 * the boot kobj was not setup and the normal release
-		 * path is not being run.
+		 * the boot kobj was yest setup and the yesrmal release
+		 * path is yest being run.
 		 */
 		boot_kobj->release = NULL;
 		kobject_put(&boot_kobj->kobj);
@@ -466,7 +466,7 @@ EXPORT_SYMBOL_GPL(iscsi_boot_create_ethernet);
 /**
  * iscsi_boot_create_acpitbl() - create boot acpi table sysfs dir
  * @boot_kset: boot kset
- * @index: not used
+ * @index: yest used
  * @data: driver specific data
  * @show: attr show function
  * @is_visible: attr visibility function
@@ -514,14 +514,14 @@ EXPORT_SYMBOL_GPL(iscsi_boot_create_kset);
 
 /**
  * iscsi_boot_create_host_kset() - creates root sysfs tree for a scsi host
- * @hostno: host number of scsi host
+ * @hostyes: host number of scsi host
  */
-struct iscsi_boot_kset *iscsi_boot_create_host_kset(unsigned int hostno)
+struct iscsi_boot_kset *iscsi_boot_create_host_kset(unsigned int hostyes)
 {
 	struct iscsi_boot_kset *boot_kset;
 	char *set_name;
 
-	set_name = kasprintf(GFP_KERNEL, "iscsi_boot%u", hostno);
+	set_name = kasprintf(GFP_KERNEL, "iscsi_boot%u", hostyes);
 	if (!set_name)
 		return NULL;
 

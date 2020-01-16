@@ -318,7 +318,7 @@ enum hwmon_pwm_attributes {
  *		@channel:
  *			Channel number
  *		The function returns the file permissions.
- *		If the return value is 0, no attribute will be created.
+ *		If the return value is 0, yes attribute will be created.
  * @read:	Read callback for data attributes. Mandatory if readable
  *		data attributes are present.
  *		Parameters are:
@@ -421,7 +421,7 @@ void devm_hwmon_device_unregister(struct device *dev);
  * @ch: the char to be considered
  *
  * hwmon_is_bad_char() can be used to determine if the given character
- * may not be used in a hwmon name.
+ * may yest be used in a hwmon name.
  *
  * Returns true if the char is invalid, false otherwise.
  */

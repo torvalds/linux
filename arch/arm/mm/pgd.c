@@ -36,7 +36,7 @@ pgd_t *pgd_alloc(struct mm_struct *mm)
 
 	new_pgd = __pgd_alloc();
 	if (!new_pgd)
-		goto no_pgd;
+		goto yes_pgd;
 
 	memset(new_pgd, 0, USER_PTRS_PER_PGD * sizeof(pgd_t));
 
@@ -56,11 +56,11 @@ pgd_t *pgd_alloc(struct mm_struct *mm)
 	new_pud = pud_alloc(mm, new_pgd + pgd_index(MODULES_VADDR),
 			    MODULES_VADDR);
 	if (!new_pud)
-		goto no_pud;
+		goto yes_pud;
 
 	new_pmd = pmd_alloc(mm, new_pud, 0);
 	if (!new_pmd)
-		goto no_pmd;
+		goto yes_pmd;
 #endif
 
 	if (!vectors_high()) {
@@ -71,15 +71,15 @@ pgd_t *pgd_alloc(struct mm_struct *mm)
 		 */
 		new_pud = pud_alloc(mm, new_pgd, 0);
 		if (!new_pud)
-			goto no_pud;
+			goto yes_pud;
 
 		new_pmd = pmd_alloc(mm, new_pud, 0);
 		if (!new_pmd)
-			goto no_pmd;
+			goto yes_pmd;
 
 		new_pte = pte_alloc_map(mm, new_pmd, 0);
 		if (!new_pte)
-			goto no_pte;
+			goto yes_pte;
 
 #ifndef CONFIG_ARM_LPAE
 		/*
@@ -102,14 +102,14 @@ pgd_t *pgd_alloc(struct mm_struct *mm)
 
 	return new_pgd;
 
-no_pte:
+yes_pte:
 	pmd_free(mm, new_pmd);
 	mm_dec_nr_pmds(mm);
-no_pmd:
+yes_pmd:
 	pud_free(mm, new_pud);
-no_pud:
+yes_pud:
 	__pgd_free(new_pgd);
-no_pgd:
+yes_pgd:
 	return NULL;
 }
 
@@ -124,40 +124,40 @@ void pgd_free(struct mm_struct *mm, pgd_t *pgd_base)
 		return;
 
 	pgd = pgd_base + pgd_index(0);
-	if (pgd_none_or_clear_bad(pgd))
-		goto no_pgd;
+	if (pgd_yesne_or_clear_bad(pgd))
+		goto yes_pgd;
 
 	pud = pud_offset(pgd, 0);
-	if (pud_none_or_clear_bad(pud))
-		goto no_pud;
+	if (pud_yesne_or_clear_bad(pud))
+		goto yes_pud;
 
 	pmd = pmd_offset(pud, 0);
-	if (pmd_none_or_clear_bad(pmd))
-		goto no_pmd;
+	if (pmd_yesne_or_clear_bad(pmd))
+		goto yes_pmd;
 
 	pte = pmd_pgtable(*pmd);
 	pmd_clear(pmd);
 	pte_free(mm, pte);
 	mm_dec_nr_ptes(mm);
-no_pmd:
+yes_pmd:
 	pud_clear(pud);
 	pmd_free(mm, pmd);
 	mm_dec_nr_pmds(mm);
-no_pud:
+yes_pud:
 	pgd_clear(pgd);
 	pud_free(mm, pud);
-no_pgd:
+yes_pgd:
 #ifdef CONFIG_ARM_LPAE
 	/*
 	 * Free modules/pkmap or identity pmd tables.
 	 */
 	for (pgd = pgd_base; pgd < pgd_base + PTRS_PER_PGD; pgd++) {
-		if (pgd_none_or_clear_bad(pgd))
+		if (pgd_yesne_or_clear_bad(pgd))
 			continue;
 		if (pgd_val(*pgd) & L_PGD_SWAPPER)
 			continue;
 		pud = pud_offset(pgd, 0);
-		if (pud_none_or_clear_bad(pud))
+		if (pud_yesne_or_clear_bad(pud))
 			continue;
 		pmd = pmd_offset(pud, 0);
 		pud_clear(pud);

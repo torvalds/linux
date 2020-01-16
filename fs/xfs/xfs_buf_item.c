@@ -40,10 +40,10 @@ xfs_buf_log_format_size(
  * given buf log item.
  *
  * It calculates this as 1 iovec for the buf log format structure
- * and 1 for each stretch of non-contiguous chunks to be logged.
+ * and 1 for each stretch of yesn-contiguous chunks to be logged.
  * Contiguous chunks are logged in a single iovec.
  *
- * If the XFS_BLI_STALE flag has been set, then log nothing.
+ * If the XFS_BLI_STALE flag has been set, then log yesthing.
  */
 STATIC void
 xfs_buf_item_size_segment(
@@ -71,7 +71,7 @@ xfs_buf_item_size_segment(
 		/*
 		 * This takes the bit number to start looking from and
 		 * returns the next set bit from there.  It returns -1
-		 * if there are no more bits set or the start bit is
+		 * if there are yes more bits set or the start bit is
 		 * beyond the end of the bitmap.
 		 */
 		next_bit = xfs_next_bit(blfp->blf_data_map, blfp->blf_map_size,
@@ -102,7 +102,7 @@ xfs_buf_item_size_segment(
  * This returns the number of log iovecs needed to log the given buf log item.
  *
  * It calculates this as 1 iovec for the buf log format structure and 1 for each
- * stretch of non-contiguous chunks to be logged.  Contiguous chunks are logged
+ * stretch of yesn-contiguous chunks to be logged.  Contiguous chunks are logged
  * in a single iovec.
  *
  * Discontiguous buffers need a format structure per region that that is being
@@ -112,7 +112,7 @@ xfs_buf_item_size_segment(
  * discontiguous buffers to be in-memory constructs, completely transparent to
  * what ends up on disk.
  *
- * If the XFS_BLI_STALE flag has been set, then log nothing but the buf log
+ * If the XFS_BLI_STALE flag has been set, then log yesthing but the buf log
  * format structures.
  */
 STATIC void
@@ -145,8 +145,8 @@ xfs_buf_item_size(
 	if (bip->bli_flags & XFS_BLI_ORDERED) {
 		/*
 		 * The buffer has been logged just to order it.
-		 * It is not being included in the transaction
-		 * commit, so no vectors are used at all.
+		 * It is yest being included in the transaction
+		 * commit, so yes vectors are used at all.
 		 */
 		trace_xfs_buf_item_size_ordered(bip);
 		*nvecs = XFS_LOG_VEC_ORDERED;
@@ -224,8 +224,8 @@ xfs_buf_item_format_segment(
 	first_bit = xfs_next_bit(blfp->blf_data_map, blfp->blf_map_size, 0);
 	if (!(bip->bli_flags & XFS_BLI_STALE) && first_bit == -1) {
 		/*
-		 * If the map is not be dirty in the transaction, mark
-		 * the size as zero and do not advance the vector pointer.
+		 * If the map is yest be dirty in the transaction, mark
+		 * the size as zero and do yest advance the vector pointer.
 		 */
 		return;
 	}
@@ -254,7 +254,7 @@ xfs_buf_item_format_segment(
 		/*
 		 * This takes the bit number to start looking from and
 		 * returns the next set bit from there.  It returns -1
-		 * if there are no more bits set or the start bit is
+		 * if there are yes more bits set or the start bit is
 		 * beyond the end of the bitmap.
 		 */
 		next_bit = xfs_next_bit(blfp->blf_data_map, blfp->blf_map_size,
@@ -314,17 +314,17 @@ xfs_buf_item_format(
 
 
 	/*
-	 * If it is an inode buffer, transfer the in-memory state to the
+	 * If it is an iyesde buffer, transfer the in-memory state to the
 	 * format flags and clear the in-memory state.
 	 *
-	 * For buffer based inode allocation, we do not transfer
-	 * this state if the inode buffer allocation has not yet been committed
+	 * For buffer based iyesde allocation, we do yest transfer
+	 * this state if the iyesde buffer allocation has yest yet been committed
 	 * to the log as setting the XFS_BLI_INODE_BUF flag will prevent
-	 * correct replay of the inode allocation.
+	 * correct replay of the iyesde allocation.
 	 *
-	 * For icreate item based inode allocation, the buffers aren't written
+	 * For icreate item based iyesde allocation, the buffers aren't written
 	 * to the journal during allocation, and hence we should always tag the
-	 * buffer as an inode buffer so that the correct unlinked list replay
+	 * buffer as an iyesde buffer so that the correct unlinked list replay
 	 * occurs during recovery.
 	 */
 	if (bip->bli_flags & XFS_BLI_INODE_BUF) {
@@ -349,7 +349,7 @@ xfs_buf_item_format(
 
 /*
  * This is called to pin the buffer associated with the buf log item in memory
- * so it cannot be written out.
+ * so it canyest be written out.
  *
  * We also always take a reference to the buffer log item here so that the bli
  * is held while the item is pinned in memory. This means that we can
@@ -422,21 +422,21 @@ xfs_buf_item_unpin(
 			 * about to release our reference to the buffer.  If we
 			 * don't, the unlock that occurs later in
 			 * xfs_trans_uncommit() will try to reference the
-			 * buffer which we no longer have a hold on.
+			 * buffer which we yes longer have a hold on.
 			 */
 			if (!list_empty(&lip->li_trans))
 				xfs_trans_del_item(lip);
 
 			/*
-			 * Since the transaction no longer refers to the buffer,
-			 * the buffer should no longer refer to the transaction.
+			 * Since the transaction yes longer refers to the buffer,
+			 * the buffer should yes longer refer to the transaction.
 			 */
 			bp->b_transp = NULL;
 		}
 
 		/*
 		 * If we get called here because of an IO error, we may
-		 * or may not have the item on the AIL. xfs_trans_ail_delete()
+		 * or may yest have the item on the AIL. xfs_trans_ail_delete()
 		 * will take care of that situation.
 		 * xfs_trans_ail_delete() drops the AIL lock.
 		 */
@@ -480,8 +480,8 @@ xfs_buf_item_unpin(
 }
 
 /*
- * Buffer IO error rate limiting. Limit it to no more than 10 messages per 30
- * seconds so as to not spam logs too much on repeated detection of the same
+ * Buffer IO error rate limiting. Limit it to yes more than 10 messages per 30
+ * seconds so as to yest spam logs too much on repeated detection of the same
  * buffer being bad..
  */
 
@@ -531,8 +531,8 @@ xfs_buf_item_push(
 
 /*
  * Drop the buffer log item refcount and take appropriate action. This helper
- * determines whether the bli must be freed or not, since a decrement to zero
- * does not necessarily mean the bli is unused.
+ * determines whether the bli must be freed or yest, since a decrement to zero
+ * does yest necessarily mean the bli is unused.
  *
  * Return true if the bli is freed, false otherwise.
  */
@@ -550,7 +550,7 @@ xfs_buf_item_put(
 
 	/*
 	 * We dropped the last ref and must free the item if clean or aborted.
-	 * If the bli is dirty and non-aborted, the buffer was clean in the
+	 * If the bli is dirty and yesn-aborted, the buffer was clean in the
 	 * transaction but still awaiting writeback from previous changes. In
 	 * that case, the bli is freed on buffer writeback completion.
 	 */
@@ -573,21 +573,21 @@ xfs_buf_item_put(
 }
 
 /*
- * Release the buffer associated with the buf log item.  If there is no dirty
+ * Release the buffer associated with the buf log item.  If there is yes dirty
  * logged data associated with the buffer recorded in the buf log item, then
  * free the buf log item and remove the reference to it in the buffer.
  *
- * This call ignores the recursion count.  It is only called when the buffer
+ * This call igyesres the recursion count.  It is only called when the buffer
  * should REALLY be unlocked, regardless of the recursion count.
  *
  * We unconditionally drop the transaction's reference to the log item. If the
- * item was logged, then another reference was taken when it was pinned, so we
- * can safely drop the transaction reference now.  This also allows us to avoid
- * potential races with the unpin code freeing the bli by not referencing the
+ * item was logged, then ayesther reference was taken when it was pinned, so we
+ * can safely drop the transaction reference yesw.  This also allows us to avoid
+ * potential races with the unpin code freeing the bli by yest referencing the
  * bli after we've dropped the reference count.
  *
  * If the XFS_BLI_HOLD flag is set in the buf log item, then free the log item
- * if necessary but do not unlock the buffer.  This is for support of
+ * if necessary but do yest unlock the buffer.  This is for support of
  * xfs_trans_bhold(). Make sure the XFS_BLI_HOLD field is cleared if we don't
  * free the item.
  */
@@ -647,17 +647,17 @@ xfs_buf_item_committing(
 
 /*
  * This is called to find out where the oldest active copy of the
- * buf log item in the on disk log resides now that the last log
+ * buf log item in the on disk log resides yesw that the last log
  * write of it completed at the given lsn.
  * We always re-log all the dirty data in a buffer, so usually the
  * latest copy in the on disk log is the only one that matters.  For
  * those cases we simply return the given lsn.
  *
  * The one exception to this is for buffers full of newly allocated
- * inodes.  These buffers are only relogged with the XFS_BLI_INODE_BUF
+ * iyesdes.  These buffers are only relogged with the XFS_BLI_INODE_BUF
  * flag set, indicating that only the di_next_unlinked fields from the
- * inodes in the buffers will be replayed during recovery.  If the
- * original newly allocated inode images have not yet been flushed
+ * iyesdes in the buffers will be replayed during recovery.  If the
+ * original newly allocated iyesde images have yest yet been flushed
  * when the buffer is so relogged, then we need to make sure that we
  * keep the old images in the 'active' portion of the log.  We do this
  * by returning the original lsn of that transaction here rather than
@@ -737,7 +737,7 @@ xfs_buf_item_init(
 	/*
 	 * Check to see if there is already a buf log item for
 	 * this buffer. If we do already have one, there is
-	 * nothing to do here so return.
+	 * yesthing to do here so return.
 	 */
 	ASSERT(bp->b_mount == mp);
 	if (bip) {
@@ -753,7 +753,7 @@ xfs_buf_item_init(
 
 	/*
 	 * chunks is the number of XFS_BLF_CHUNK size pieces the buffer
-	 * can be divided into. Make sure not to truncate any pieces.
+	 * can be divided into. Make sure yest to truncate any pieces.
 	 * map_size is the size of the bitmap needed to describe the
 	 * chunks of the buffer.
 	 *
@@ -774,7 +774,7 @@ xfs_buf_item_init(
 		map_size = DIV_ROUND_UP(chunks, NBWORD);
 
 		bip->bli_formats[i].blf_type = XFS_LI_BUF;
-		bip->bli_formats[i].blf_blkno = bp->b_maps[i].bm_bn;
+		bip->bli_formats[i].blf_blkyes = bp->b_maps[i].bm_bn;
 		bip->bli_formats[i].blf_len = bp->b_maps[i].bm_len;
 		bip->bli_formats[i].blf_map_size = map_size;
 	}
@@ -943,9 +943,9 @@ xfs_buf_item_free(
 }
 
 /*
- * This is called when the buf log item is no longer needed.  It should
+ * This is called when the buf log item is yes longer needed.  It should
  * free the buf log item associated with the given buffer and clear
- * the buffer's pointer to the buf log item.  If there are no more
+ * the buffer's pointer to the buf log item.  If there are yes more
  * items in the list, clear the b_iodone field of the buffer (see
  * xfs_buf_attach_iodone() below).
  */
@@ -969,7 +969,7 @@ xfs_buf_item_relse(
 
 /*
  * Add the given log item with its callback to the list of callbacks
- * to be called when the buffer's I/O completes.  If it is not set
+ * to be called when the buffer's I/O completes.  If it is yest set
  * already, set the buffer's b_iodone() routine to be
  * xfs_buf_iodone_callbacks() and link the log item into the list of
  * items rooted at b_li_list.
@@ -1021,7 +1021,7 @@ xfs_buf_do_callbacks(
 
 		/*
 		 * Remove the item from the list, so we don't have any
-		 * confusion if the item is added to another buf.
+		 * confusion if the item is added to ayesther buf.
 		 * Don't touch the log item after calling its
 		 * callback, because it could have freed itself.
 		 */
@@ -1033,10 +1033,10 @@ xfs_buf_do_callbacks(
 /*
  * Invoke the error state callback for each log item affected by the failed I/O.
  *
- * If a metadata buffer write fails with a non-permanent error, the buffer is
- * eventually resubmitted and so the completion callbacks are not run. The error
+ * If a metadata buffer write fails with a yesn-permanent error, the buffer is
+ * eventually resubmitted and so the completion callbacks are yest run. The error
  * state may need to be propagated to the log items attached to the buffer,
- * however, so the next AIL push of the item knows hot to handle it correctly.
+ * however, so the next AIL push of the item kyesws hot to handle it correctly.
  */
 STATIC void
 xfs_buf_do_callbacks_fail(
@@ -1047,7 +1047,7 @@ xfs_buf_do_callbacks_fail(
 
 	/*
 	 * Buffer log item errors are handled directly by xfs_buf_item_push()
-	 * and xfs_buf_iodone_callback_error, and they have no IO error
+	 * and xfs_buf_iodone_callback_error, and they have yes IO error
 	 * callbacks. Check only for items in b_li_list.
 	 */
 	if (list_empty(&bp->b_li_list))
@@ -1076,7 +1076,7 @@ xfs_buf_iodone_callback_error(
 	struct xfs_error_cfg	*cfg;
 
 	/*
-	 * The failed buffer might not have a buf_log_item attached or the
+	 * The failed buffer might yest have a buf_log_item attached or the
 	 * log_item list might be empty. Get the mp from the available
 	 * xfs_log_item
 	 */
@@ -1086,7 +1086,7 @@ xfs_buf_iodone_callback_error(
 
 	/*
 	 * If we've already decided to shutdown the filesystem because of
-	 * I/O errors, there's no point in giving this a retry.
+	 * I/O errors, there's yes point in giving this a retry.
 	 */
 	if (XFS_FORCED_SHUTDOWN(mp))
 		goto out_stale;
@@ -1098,7 +1098,7 @@ xfs_buf_iodone_callback_error(
 	}
 	lasttarg = bp->b_target;
 
-	/* synchronous writes will have callers process the error */
+	/* synchroyesus writes will have callers process the error */
 	if (!(bp->b_flags & XBF_ASYNC))
 		goto out_stale;
 
@@ -1108,11 +1108,11 @@ xfs_buf_iodone_callback_error(
 	cfg = xfs_error_get_cfg(mp, XFS_ERR_METADATA, bp->b_error);
 
 	/*
-	 * If the write was asynchronous then no one will be looking for the
+	 * If the write was asynchroyesus then yes one will be looking for the
 	 * error.  If this is the first failure of this type, clear the error
 	 * state and write the buffer out again. This means we always retry an
 	 * async write failure at least once, but we also need to set the buffer
-	 * up to behave correctly now for repeated failures.
+	 * up to behave correctly yesw for repeated failures.
 	 */
 	if (!(bp->b_flags & (XBF_STALE | XBF_WRITE_FAIL)) ||
 	     bp->b_last_error != bp->b_error) {
@@ -1168,7 +1168,7 @@ out_stale:
 /*
  * This is the iodone() function for buffers which have had callbacks attached
  * to them by xfs_buf_attach_iodone(). We need to iterate the items on the
- * callback list, mark the buffer as having no more callbacks and then push the
+ * callback list, mark the buffer as having yes more callbacks and then push the
  * buffer through IO completion processing.
  */
 void
@@ -1238,9 +1238,9 @@ xfs_buf_iodone(
  * may be the failed log items. Hence if we clear the log item failed state
  * before queuing the buffer for IO we can release all active references to
  * the buffer and free it, leading to use after free problems in
- * xfs_buf_delwri_queue. It makes no difference to the buffer or log items which
+ * xfs_buf_delwri_queue. It makes yes difference to the buffer or log items which
  * order we process them in - the buffer is locked, and we own the buffer list
- * so nothing on them is going to change while we are performing this action.
+ * so yesthing on them is going to change while we are performing this action.
  *
  * Hence we can safely queue the buffer for IO before we clear the failed log
  * item state, therefore  always having an active reference to the buffer and

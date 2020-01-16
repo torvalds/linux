@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /* -*- mode: c; c-basic-offset: 8; -*-
- * vim: noexpandtab sw=8 ts=8 sts=0:
+ * vim: yesexpandtab sw=8 ts=8 sts=0:
  *
  * tcp.h
  *
@@ -42,7 +42,7 @@ typedef void (o2net_post_msg_handler_func)(int status, void *data,
 
 #define O2NET_MAX_PAYLOAD_BYTES  (4096 - sizeof(struct o2net_msg))
 
-/* same as hb delay, we're waiting for another node to recognize our hb */
+/* same as hb delay, we're waiting for ayesther yesde to recognize our hb */
 #define O2NET_RECONNECT_DELAY_MS_DEFAULT	2000
 
 #define O2NET_KEEPALIVE_DELAY_MS_DEFAULT	2000
@@ -82,9 +82,9 @@ enum {
 };
 
 int o2net_send_message(u32 msg_type, u32 key, void *data, u32 len,
-		       u8 target_node, int *status);
+		       u8 target_yesde, int *status);
 int o2net_send_message_vec(u32 msg_type, u32 key, struct kvec *vec,
-			   size_t veclen, u8 target_node, int *status);
+			   size_t veclen, u8 target_yesde, int *status);
 
 int o2net_register_handler(u32 msg_type, u32 key, u32 max_len,
 			   o2net_msg_handler_func *func, void *data,
@@ -92,14 +92,14 @@ int o2net_register_handler(u32 msg_type, u32 key, u32 max_len,
 			   struct list_head *unreg_list);
 void o2net_unregister_handler_list(struct list_head *list);
 
-void o2net_fill_node_map(unsigned long *map, unsigned bytes);
+void o2net_fill_yesde_map(unsigned long *map, unsigned bytes);
 
-struct o2nm_node;
+struct o2nm_yesde;
 int o2net_register_hb_callbacks(void);
 void o2net_unregister_hb_callbacks(void);
-int o2net_start_listening(struct o2nm_node *node);
-void o2net_stop_listening(struct o2nm_node *node);
-void o2net_disconnect_node(struct o2nm_node *node);
+int o2net_start_listening(struct o2nm_yesde *yesde);
+void o2net_stop_listening(struct o2nm_yesde *yesde);
+void o2net_disconnect_yesde(struct o2nm_yesde *yesde);
 int o2net_num_connected_peers(void);
 
 int o2net_init(void);

@@ -192,7 +192,7 @@ int gb_audio_manager_module_create(
 	if (!m)
 		return -ENOMEM;
 
-	/* Initialize the node */
+	/* Initialize the yesde */
 	INIT_LIST_HEAD(&m->list);
 
 	/* Set the module id */

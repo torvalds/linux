@@ -2,7 +2,7 @@
  *  linux/drivers/scsi/esas2r/esas2r_targdb.c
  *      For use with ATTO ExpressSAS R6xx SAS/SATA RAID controllers
  *
- *  Copyright (c) 2001-2013 ATTO Technology, Inc.
+ *  Copyright (c) 2001-2013 ATTO Techyeslogy, Inc.
  *  (mailto:linuxdrivers@attotech.com)
  *
  * This program is free software; you can redistribute it and/or
@@ -22,7 +22,7 @@
  * MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE. Each Recipient is
  * solely responsible for determining the appropriateness of using and
  * distributing the Program and assumes all risks associated with its
- * exercise of rights under this Agreement, including but not limited to
+ * exercise of rights under this Agreement, including but yest limited to
  * the risks and costs of program errors, damage to or loss of data,
  * programs or equipment, and unavailability or interruption of operations.
  *
@@ -36,7 +36,7 @@
  * HEREUNDER, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGES
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
+ * along with this program; if yest, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301,
  * USA.
  */
@@ -56,7 +56,7 @@ void esas2r_targ_db_initialize(struct esas2r_adapter *a)
 	}
 }
 
-void esas2r_targ_db_remove_all(struct esas2r_adapter *a, bool notify)
+void esas2r_targ_db_remove_all(struct esas2r_adapter *a, bool yestify)
 {
 	struct esas2r_target *t;
 	unsigned long flags;
@@ -69,7 +69,7 @@ void esas2r_targ_db_remove_all(struct esas2r_adapter *a, bool notify)
 		esas2r_targ_db_remove(a, t);
 		spin_unlock_irqrestore(&a->mem_lock, flags);
 
-		if (notify) {
+		if (yestify) {
 			esas2r_trace("remove id:%d", esas2r_targ_get_id(t,
 									a));
 			esas2r_target_state_changed(a, esas2r_targ_get_id(t,

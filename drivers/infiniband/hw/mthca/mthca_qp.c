@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2004 Topspin Communications.  All rights reserved.
  * Copyright (c) 2005 Cisco Systems. All rights reserved.
- * Copyright (c) 2005 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2005 Mellayesx Techyeslogies. All rights reserved.
  * Copyright (c) 2004 Voltaire, Inc. All rights reserved.
  *
  * This software is available to you under a choice of one of two
@@ -15,11 +15,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -486,7 +486,7 @@ int mthca_query_qp(struct ib_qp *ibqp, struct ib_qp_attr *qp_attr, int qp_attr_m
 	qp_attr->port_num   =
 		(be32_to_cpu(context->pri_path.port_pkey) >> 24) & 0x3;
 
-	/* qp_attr->en_sqd_async_notify is only applicable in modify qp */
+	/* qp_attr->en_sqd_async_yestify is only applicable in modify qp */
 	qp_attr->sq_draining = mthca_state == MTHCA_QP_STATE_DRAINING;
 
 	qp_attr->max_rd_atomic = 1 << ((be32_to_cpu(context->params1) >> 21) & 0x7);
@@ -787,7 +787,7 @@ static int __mthca_modify_qp(struct ib_qp *ibqp,
 
 	if (cur_state == IB_QPS_RTS && new_state == IB_QPS_SQD	&&
 	    attr_mask & IB_QP_EN_SQD_ASYNC_NOTIFY		&&
-	    attr->en_sqd_async_notify)
+	    attr->en_sqd_async_yestify)
 		sqd_event = 1 << 31;
 
 	err = mthca_MODIFY_QP(dev, cur_state, new_state, qp->qpn, 0,
@@ -929,7 +929,7 @@ static int mthca_max_data_size(struct mthca_dev *dev, struct mthca_qp *qp, int d
 {
 	/*
 	 * Calculate the maximum size of WQE s/g segments, excluding
-	 * the next segment and other non-data segments.
+	 * the next segment and other yesn-data segments.
 	 */
 	int max_data_size = desc_sz - sizeof (struct mthca_next_seg);
 
@@ -1000,7 +1000,7 @@ static int mthca_alloc_wqe_buf(struct mthca_dev *dev,
 
 	for (qp->rq.wqe_shift = 6; 1 << qp->rq.wqe_shift < size;
 	     qp->rq.wqe_shift++)
-		; /* nothing */
+		; /* yesthing */
 
 	size = qp->sq.max_gs * sizeof (struct mthca_data_seg);
 	switch (qp->transport) {
@@ -1034,7 +1034,7 @@ static int mthca_alloc_wqe_buf(struct mthca_dev *dev,
 		break;
 	}
 
-	/* Make sure that we have enough space for a bind request */
+	/* Make sure that we have eyesugh space for a bind request */
 	size = max_t(int, size, sizeof (struct mthca_bind_seg));
 
 	size += sizeof (struct mthca_next_seg);
@@ -1044,7 +1044,7 @@ static int mthca_alloc_wqe_buf(struct mthca_dev *dev,
 
 	for (qp->sq.wqe_shift = 6; 1 << qp->sq.wqe_shift < size;
 	     qp->sq.wqe_shift++)
-		; /* nothing */
+		; /* yesthing */
 
 	qp->send_wqe_offset = ALIGN(qp->rq.max << qp->rq.wqe_shift,
 				    1 << qp->sq.wqe_shift);
@@ -1052,7 +1052,7 @@ static int mthca_alloc_wqe_buf(struct mthca_dev *dev,
 	/*
 	 * If this is a userspace QP, we don't actually have to
 	 * allocate anything.  All we need is to calculate the WQE
-	 * sizes and the send_wqe_offset, so we're done now.
+	 * sizes and the send_wqe_offset, so we're done yesw.
 	 */
 	if (udata)
 		return 0;
@@ -1194,7 +1194,7 @@ static int mthca_alloc_qp_common(struct mthca_dev *dev,
 	mthca_adjust_qp_caps(dev, pd, qp);
 
 	/*
-	 * If this is a userspace QP, we're done now.  The doorbells
+	 * If this is a userspace QP, we're done yesw.  The doorbells
 	 * will be allocated and buffers will be initialized in
 	 * userspace.
 	 */
@@ -1635,7 +1635,7 @@ int mthca_tavor_post_send(struct ib_qp *ibqp, const struct ib_send_wr *wr,
 	/*
 	 * f0 and size0 are only used if nreq != 0, and they will
 	 * always be initialized the first time through the main loop
-	 * before nreq is incremented.  So nreq cannot become non-zero
+	 * before nreq is incremented.  So nreq canyest become yesn-zero
 	 * without initializing f0 and size0, and they are in fact
 	 * never used uninitialized.
 	 */
@@ -1831,7 +1831,7 @@ int mthca_tavor_post_receive(struct ib_qp *ibqp, const struct ib_recv_wr *wr,
 	/*
 	 * size0 is only used if nreq != 0, and it will always be
 	 * initialized the first time through the main loop before
-	 * nreq is incremented.  So nreq cannot become non-zero
+	 * nreq is incremented.  So nreq canyest become yesn-zero
 	 * without initializing size0, and it is in fact never used
 	 * uninitialized.
 	 */
@@ -1939,7 +1939,7 @@ int mthca_arbel_post_send(struct ib_qp *ibqp, const struct ib_send_wr *wr,
 	/*
 	 * f0 and size0 are only used if nreq != 0, and they will
 	 * always be initialized the first time through the main loop
-	 * before nreq is incremented.  So nreq cannot become non-zero
+	 * before nreq is incremented.  So nreq canyest become yesn-zero
 	 * without initializing f0 and size0, and they are in fact
 	 * never used uninitialized.
 	 */

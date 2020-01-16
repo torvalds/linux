@@ -15,21 +15,21 @@
 static struct class *hnae_class;
 
 static void
-hnae_list_add(spinlock_t *lock, struct list_head *node, struct list_head *head)
+hnae_list_add(spinlock_t *lock, struct list_head *yesde, struct list_head *head)
 {
 	unsigned long flags;
 
 	spin_lock_irqsave(lock, flags);
-	list_add_tail_rcu(node, head);
+	list_add_tail_rcu(yesde, head);
 	spin_unlock_irqrestore(lock, flags);
 }
 
-static void hnae_list_del(spinlock_t *lock, struct list_head *node)
+static void hnae_list_del(spinlock_t *lock, struct list_head *yesde)
 {
 	unsigned long flags;
 
 	spin_lock_irqsave(lock, flags);
-	list_del_rcu(node);
+	list_del_rcu(yesde);
 	spin_unlock_irqrestore(lock, flags);
 }
 
@@ -96,22 +96,22 @@ static int __ae_match(struct device *dev, const void *data)
 {
 	struct hnae_ae_dev *hdev = cls_to_ae_dev(dev);
 
-	if (dev_of_node(hdev->dev))
-		return (data == &hdev->dev->of_node->fwnode);
-	else if (is_acpi_node(hdev->dev->fwnode))
-		return (data == hdev->dev->fwnode);
+	if (dev_of_yesde(hdev->dev))
+		return (data == &hdev->dev->of_yesde->fwyesde);
+	else if (is_acpi_yesde(hdev->dev->fwyesde))
+		return (data == hdev->dev->fwyesde);
 
-	dev_err(dev, "__ae_match cannot read cfg data from OF or acpi\n");
+	dev_err(dev, "__ae_match canyest read cfg data from OF or acpi\n");
 	return 0;
 }
 
-static struct hnae_ae_dev *find_ae(const struct fwnode_handle *fwnode)
+static struct hnae_ae_dev *find_ae(const struct fwyesde_handle *fwyesde)
 {
 	struct device *dev;
 
-	WARN_ON(!fwnode);
+	WARN_ON(!fwyesde);
 
-	dev = class_find_device(hnae_class, NULL, fwnode, __ae_match);
+	dev = class_find_device(hnae_class, NULL, fwyesde, __ae_match);
 
 	return dev ? cls_to_ae_dev(dev) : NULL;
 }
@@ -202,7 +202,7 @@ hnae_init_ring(struct hnae_queue *q, struct hnae_ring *ring, int flags)
 	ring->coal_param = q->handle->coal_param;
 	assert(!ring->desc && !ring->desc_cb && !ring->desc_dma_addr);
 
-	/* not matter for tx or rx ring, the ntc and ntc start from 0 */
+	/* yest matter for tx or rx ring, the ntc and ntc start from 0 */
 	assert(ring->next_to_use == 0);
 	assert(ring->next_to_clean == 0);
 
@@ -275,18 +275,18 @@ static void hnae_fini_queue(struct hnae_queue *q)
  */
 static RAW_NOTIFIER_HEAD(ae_chain);
 
-int hnae_register_notifier(struct notifier_block *nb)
+int hnae_register_yestifier(struct yestifier_block *nb)
 {
-	return raw_notifier_chain_register(&ae_chain, nb);
+	return raw_yestifier_chain_register(&ae_chain, nb);
 }
-EXPORT_SYMBOL(hnae_register_notifier);
+EXPORT_SYMBOL(hnae_register_yestifier);
 
-void hnae_unregister_notifier(struct notifier_block *nb)
+void hnae_unregister_yestifier(struct yestifier_block *nb)
 {
-	if (raw_notifier_chain_unregister(&ae_chain, nb))
-		dev_err(NULL, "notifier chain unregister fail\n");
+	if (raw_yestifier_chain_unregister(&ae_chain, nb))
+		dev_err(NULL, "yestifier chain unregister fail\n");
 }
-EXPORT_SYMBOL(hnae_unregister_notifier);
+EXPORT_SYMBOL(hnae_unregister_yestifier);
 
 int hnae_reinit_handle(struct hnae_handle *handle)
 {
@@ -321,7 +321,7 @@ EXPORT_SYMBOL(hnae_reinit_handle);
  * return handle ptr or ERR_PTR
  */
 struct hnae_handle *hnae_get_handle(struct device *owner_dev,
-				    const struct fwnode_handle	*fwnode,
+				    const struct fwyesde_handle	*fwyesde,
 				    u32 port_id,
 				    struct hnae_buf_ops *bops)
 {
@@ -330,7 +330,7 @@ struct hnae_handle *hnae_get_handle(struct device *owner_dev,
 	int i, j;
 	int ret;
 
-	dev = find_ae(fwnode);
+	dev = find_ae(fwyesde);
 	if (!dev)
 		return ERR_PTR(-ENODEV);
 
@@ -353,7 +353,7 @@ struct hnae_handle *hnae_get_handle(struct device *owner_dev,
 
 	__module_get(dev->owner);
 
-	hnae_list_add(&dev->lock, &handle->node, &dev->handle_list);
+	hnae_list_add(&dev->lock, &handle->yesde, &dev->handle_list);
 
 	return handle;
 
@@ -378,7 +378,7 @@ void hnae_put_handle(struct hnae_handle *h)
 	if (h->dev->ops->reset)
 		h->dev->ops->reset(h);
 
-	hnae_list_del(&dev->lock, &h->node);
+	hnae_list_del(&dev->lock, &h->yesde);
 
 	if (dev->ops->put_handle)
 		dev->ops->put_handle(h);
@@ -397,7 +397,7 @@ static void hnae_release(struct device *dev)
  * hnae_ae_register - register a AE engine to hnae framework
  * @hdev: the hnae ae engine device
  * @owner:  the module who provides this dev
- * NOTE: the duplicated name will not be checked
+ * NOTE: the duplicated name will yest be checked
  */
 int hnae_ae_register(struct hnae_ae_dev *hdev, struct module *owner)
 {
@@ -427,10 +427,10 @@ int hnae_ae_register(struct hnae_ae_dev *hdev, struct module *owner)
 	INIT_LIST_HEAD(&hdev->handle_list);
 	spin_lock_init(&hdev->lock);
 
-	ret = raw_notifier_call_chain(&ae_chain, HNAE_AE_REGISTER, NULL);
+	ret = raw_yestifier_call_chain(&ae_chain, HNAE_AE_REGISTER, NULL);
 	if (ret)
 		dev_dbg(hdev->dev,
-			"has not notifier for AE: %s\n", hdev->name);
+			"has yest yestifier for AE: %s\n", hdev->name);
 
 	return 0;
 }
@@ -465,4 +465,4 @@ MODULE_AUTHOR("Hisilicon, Inc.");
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Hisilicon Network Acceleration Engine Framework");
 
-/* vi: set tw=78 noet: */
+/* vi: set tw=78 yeset: */

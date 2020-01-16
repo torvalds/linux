@@ -18,7 +18,7 @@
 #define BMP280_REG_STATUS		0xF3
 #define BMP280_REG_CTRL_HUMIDITY	0xF2
 
-/* Due to non linear mapping, and data sizes we can't do a bulk read */
+/* Due to yesn linear mapping, and data sizes we can't do a bulk read */
 #define BMP280_REG_COMP_H1		0xA1
 #define BMP280_REG_COMP_H2		0xE1
 #define BMP280_REG_COMP_H3		0xE3

@@ -31,7 +31,7 @@ static int sock_wait_state(struct sock *sk, int state, unsigned long timeo)
 		}
 
 		if (signal_pending(current)) {
-			err = sock_intr_errno(timeo);
+			err = sock_intr_erryes(timeo);
 			break;
 		}
 
@@ -465,7 +465,7 @@ static int llcp_sock_accept(struct socket *sock, struct socket *newsock,
 		}
 
 		if (signal_pending(current)) {
-			ret = sock_intr_errno(timeo);
+			ret = sock_intr_erryes(timeo);
 			break;
 		}
 
@@ -625,7 +625,7 @@ static int llcp_sock_release(struct socket *sock)
 
 	release_sock(sk);
 
-	/* Keep this sock alive and therefore do not remove it from the sockets
+	/* Keep this sock alive and therefore do yest remove it from the sockets
 	 * list until the DISC PDU has been actually sent. Otherwise we would
 	 * reply with DM PDUs before sending the DISC one.
 	 */
@@ -801,7 +801,7 @@ static int llcp_sock_sendmsg(struct socket *sock, struct msghdr *msg,
 static int llcp_sock_recvmsg(struct socket *sock, struct msghdr *msg,
 			     size_t len, int flags)
 {
-	int noblock = flags & MSG_DONTWAIT;
+	int yesblock = flags & MSG_DONTWAIT;
 	struct sock *sk = sock->sk;
 	unsigned int copied, rlen;
 	struct sk_buff *skb, *cskb;
@@ -822,7 +822,7 @@ static int llcp_sock_recvmsg(struct socket *sock, struct msghdr *msg,
 	if (flags & (MSG_OOB))
 		return -EOPNOTSUPP;
 
-	skb = skb_recv_datagram(sk, flags, noblock, &err);
+	skb = skb_recv_datagram(sk, flags, yesblock, &err);
 	if (!skb) {
 		pr_err("Recv datagram failed state %d %d %d",
 		       sk->sk_state, err, sock_error(sk));
@@ -894,38 +894,38 @@ static const struct proto_ops llcp_sock_ops = {
 	.bind           = llcp_sock_bind,
 	.connect        = llcp_sock_connect,
 	.release        = llcp_sock_release,
-	.socketpair     = sock_no_socketpair,
+	.socketpair     = sock_yes_socketpair,
 	.accept         = llcp_sock_accept,
 	.getname        = llcp_sock_getname,
 	.poll           = llcp_sock_poll,
-	.ioctl          = sock_no_ioctl,
+	.ioctl          = sock_yes_ioctl,
 	.listen         = llcp_sock_listen,
-	.shutdown       = sock_no_shutdown,
+	.shutdown       = sock_yes_shutdown,
 	.setsockopt     = nfc_llcp_setsockopt,
 	.getsockopt     = nfc_llcp_getsockopt,
 	.sendmsg        = llcp_sock_sendmsg,
 	.recvmsg        = llcp_sock_recvmsg,
-	.mmap           = sock_no_mmap,
+	.mmap           = sock_yes_mmap,
 };
 
 static const struct proto_ops llcp_rawsock_ops = {
 	.family         = PF_NFC,
 	.owner          = THIS_MODULE,
 	.bind           = llcp_raw_sock_bind,
-	.connect        = sock_no_connect,
+	.connect        = sock_yes_connect,
 	.release        = llcp_sock_release,
-	.socketpair     = sock_no_socketpair,
-	.accept         = sock_no_accept,
+	.socketpair     = sock_yes_socketpair,
+	.accept         = sock_yes_accept,
 	.getname        = llcp_sock_getname,
 	.poll           = llcp_sock_poll,
-	.ioctl          = sock_no_ioctl,
-	.listen         = sock_no_listen,
-	.shutdown       = sock_no_shutdown,
-	.setsockopt     = sock_no_setsockopt,
-	.getsockopt     = sock_no_getsockopt,
-	.sendmsg        = sock_no_sendmsg,
+	.ioctl          = sock_yes_ioctl,
+	.listen         = sock_yes_listen,
+	.shutdown       = sock_yes_shutdown,
+	.setsockopt     = sock_yes_setsockopt,
+	.getsockopt     = sock_yes_getsockopt,
+	.sendmsg        = sock_yes_sendmsg,
 	.recvmsg        = llcp_sock_recvmsg,
-	.mmap           = sock_no_mmap,
+	.mmap           = sock_yes_mmap,
 };
 
 static void llcp_sock_destruct(struct sock *sk)

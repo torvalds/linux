@@ -108,8 +108,8 @@ struct ti_iodelay_reg_values {
 /**
  * struct ti_iodelay_cfg - Description of each configuration parameters
  * @offset: Configuration register offset
- * @a_delay: Agnostic Delay (in ps)
- * @g_delay: Gnostic Delay (in ps)
+ * @a_delay: Agyesstic Delay (in ps)
+ * @g_delay: Gyesstic Delay (in ps)
  */
 struct ti_iodelay_cfg {
 	u16 offset;
@@ -379,7 +379,7 @@ ti_iodelay_get_pingroup(struct ti_iodelay_device *iod, unsigned int selector)
 
 	g = pinctrl_generic_get_group(iod->pctl, selector);
 	if (!g) {
-		dev_err(iod->dev, "%s could not find pingroup %i\n", __func__,
+		dev_err(iod->dev, "%s could yest find pingroup %i\n", __func__,
 			selector);
 
 		return NULL;
@@ -412,17 +412,17 @@ static int ti_iodelay_offset_to_pin(struct ti_iodelay_device *iod,
 }
 
 /**
- * ti_iodelay_node_iterator() - Iterate iodelay node
+ * ti_iodelay_yesde_iterator() - Iterate iodelay yesde
  * @pctldev: Pin controller driver
- * @np: Device node
+ * @np: Device yesde
  * @pinctrl_spec: Parsed arguments from device tree
  * @pins: Array of pins in the pin group
  * @pin_index: Pin index in the pin array
  * @data: Pin controller driver specific data
  *
  */
-static int ti_iodelay_node_iterator(struct pinctrl_dev *pctldev,
-				    struct device_node *np,
+static int ti_iodelay_yesde_iterator(struct pinctrl_dev *pctldev,
+				    struct device_yesde *np,
 				    const struct of_phandle_args *pinctrl_spec,
 				    int *pins, int pin_index, void *data)
 {
@@ -452,7 +452,7 @@ static int ti_iodelay_node_iterator(struct pinctrl_dev *pctldev,
 
 	pin = ti_iodelay_offset_to_pin(iod, cfg[pin_index].offset);
 	if (pin < 0) {
-		dev_err(iod->dev, "could not add functions for %pOFn %ux\n",
+		dev_err(iod->dev, "could yest add functions for %pOFn %ux\n",
 			np, cfg[pin_index].offset);
 		return -ENODEV;
 	}
@@ -469,7 +469,7 @@ static int ti_iodelay_node_iterator(struct pinctrl_dev *pctldev,
 }
 
 /**
- * ti_iodelay_dt_node_to_map() - Map a device tree node to appropriate group
+ * ti_iodelay_dt_yesde_to_map() - Map a device tree yesde to appropriate group
  * @pctldev: pinctrl device representing IODelay device
  * @np: Node Pointer (device tree)
  * @map: Pinctrl Map returned back to pinctrl framework
@@ -480,8 +480,8 @@ static int ti_iodelay_node_iterator(struct pinctrl_dev *pctldev,
  *
  * Return: 0 in case of success, else appropriate error value
  */
-static int ti_iodelay_dt_node_to_map(struct pinctrl_dev *pctldev,
-				     struct device_node *np,
+static int ti_iodelay_dt_yesde_to_map(struct pinctrl_dev *pctldev,
+				     struct device_yesde *np,
 				     struct pinctrl_map **map,
 				     unsigned int *num_maps)
 {
@@ -528,7 +528,7 @@ static int ti_iodelay_dt_node_to_map(struct pinctrl_dev *pctldev,
 		if (error)
 			goto free_data;
 
-		error = ti_iodelay_node_iterator(pctldev, np, &pinctrl_spec,
+		error = ti_iodelay_yesde_iterator(pctldev, np, &pinctrl_spec,
 						 pins, i, cfg);
 		if (error)
 			goto free_data;
@@ -719,7 +719,7 @@ static const struct pinctrl_ops ti_iodelay_pinctrl_ops = {
 #ifdef CONFIG_DEBUG_FS
 	.pin_dbg_show = ti_iodelay_pin_dbg_show,
 #endif
-	.dt_node_to_map = ti_iodelay_dt_node_to_map,
+	.dt_yesde_to_map = ti_iodelay_dt_yesde_to_map,
 };
 
 static const struct pinconf_ops ti_iodelay_pinctrl_pinconf_ops = {
@@ -805,7 +805,7 @@ static struct ti_iodelay_reg_data dra7_iodelay_data = {
 
 static const struct of_device_id ti_iodelay_of_match[] = {
 	{.compatible = "ti,dra7-iodelay", .data = &dra7_iodelay_data},
-	{ /* Hopefully no more.. */ },
+	{ /* Hopefully yes more.. */ },
 };
 MODULE_DEVICE_TABLE(of, ti_iodelay_of_match);
 
@@ -818,7 +818,7 @@ MODULE_DEVICE_TABLE(of, ti_iodelay_of_match);
 static int ti_iodelay_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *np = of_node_get(dev->of_node);
+	struct device_yesde *np = of_yesde_get(dev->of_yesde);
 	const struct of_device_id *match;
 	struct resource *res;
 	struct ti_iodelay_device *iod;
@@ -826,7 +826,7 @@ static int ti_iodelay_probe(struct platform_device *pdev)
 
 	if (!np) {
 		ret = -EINVAL;
-		dev_err(dev, "No OF node\n");
+		dev_err(dev, "No OF yesde\n");
 		goto exit_out;
 	}
 
@@ -876,7 +876,7 @@ static int ti_iodelay_probe(struct platform_device *pdev)
 		goto exit_out;
 
 	iod->desc.pctlops = &ti_iodelay_pinctrl_ops;
-	/* no pinmux ops - we are pinconf */
+	/* yes pinmux ops - we are pinconf */
 	iod->desc.confops = &ti_iodelay_pinctrl_pinconf_ops;
 	iod->desc.name = dev_name(dev);
 	iod->desc.owner = THIS_MODULE;
@@ -892,7 +892,7 @@ static int ti_iodelay_probe(struct platform_device *pdev)
 	return pinctrl_enable(iod->pctl);
 
 exit_out:
-	of_node_put(np);
+	of_yesde_put(np);
 	return ret;
 }
 

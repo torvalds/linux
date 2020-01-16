@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * irqchip for the Faraday Technology FTINTC010 Copyright (C) 2017 Linus
+ * irqchip for the Faraday Techyeslogy FTINTC010 Copyright (C) 2017 Linus
  * Walleij <linus.walleij@linaro.org>
  *
  * Based on arch/arm/mach-gemini/irq.c
@@ -105,7 +105,7 @@ static int ft010_irq_set_type(struct irq_data *d, unsigned int trigger)
 		polarity &= ~BIT(offset);
 	} else {
 		irq_set_handler_locked(d, handle_bad_irq);
-		pr_warn("Faraday IRQ: no supported trigger selected for line %d\n",
+		pr_warn("Faraday IRQ: yes supported trigger selected for line %d\n",
 			offset);
 	}
 
@@ -163,8 +163,8 @@ static const struct irq_domain_ops ft010_irqdomain_ops = {
 	.xlate = irq_domain_xlate_onetwocell,
 };
 
-int __init ft010_of_init_irq(struct device_node *node,
-			      struct device_node *parent)
+int __init ft010_of_init_irq(struct device_yesde *yesde,
+			      struct device_yesde *parent)
 {
 	struct ft010_irq_data *f = &firq;
 
@@ -174,14 +174,14 @@ int __init ft010_of_init_irq(struct device_node *node,
 	 */
 	cpu_idle_poll_ctrl(true);
 
-	f->base = of_iomap(node, 0);
+	f->base = of_iomap(yesde, 0);
 	WARN(!f->base, "unable to map gemini irq registers\n");
 
 	/* Disable all interrupts */
 	writel(0, FT010_IRQ_MASK(f->base));
 	writel(0, FT010_FIQ_MASK(f->base));
 
-	f->domain = irq_domain_add_simple(node, FT010_NUM_IRQS, 0,
+	f->domain = irq_domain_add_simple(yesde, FT010_NUM_IRQS, 0,
 					  &ft010_irqdomain_ops, f);
 	set_handle_irq(ft010_irqchip_handle_irq);
 

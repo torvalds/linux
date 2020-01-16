@@ -75,7 +75,7 @@ static int xen_add_device(struct device *dev)
 #endif
 		if (!handle) {
 			/*
-			 * This device was not listed in the ACPI name space at
+			 * This device was yest listed in the ACPI name space at
 			 * all. Try to get acpi handle of parent pci bus.
 			 */
 			struct pci_bus *pbus;
@@ -176,7 +176,7 @@ static int xen_remove_device(struct device *dev)
 	return r;
 }
 
-static int xen_pci_notifier(struct notifier_block *nb,
+static int xen_pci_yestifier(struct yestifier_block *nb,
 			    unsigned long action, void *data)
 {
 	struct device *dev = data;
@@ -199,19 +199,19 @@ static int xen_pci_notifier(struct notifier_block *nb,
 	return NOTIFY_OK;
 }
 
-static struct notifier_block device_nb = {
-	.notifier_call = xen_pci_notifier,
+static struct yestifier_block device_nb = {
+	.yestifier_call = xen_pci_yestifier,
 };
 
-static int __init register_xen_pci_notifier(void)
+static int __init register_xen_pci_yestifier(void)
 {
 	if (!xen_initial_domain())
 		return 0;
 
-	return bus_register_notifier(&pci_bus_type, &device_nb);
+	return bus_register_yestifier(&pci_bus_type, &device_nb);
 }
 
-arch_initcall(register_xen_pci_notifier);
+arch_initcall(register_xen_pci_yestifier);
 
 #ifdef CONFIG_PCI_MMCONFIG
 static int xen_mcfg_late(void)

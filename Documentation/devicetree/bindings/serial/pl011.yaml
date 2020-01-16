@@ -12,7 +12,7 @@ maintainers:
 allOf:
   - $ref: /schemas/serial.yaml#
 
-# Need a custom select here or 'arm,primecell' will match on lots of nodes
+# Need a custom select here or 'arm,primecell' will match on lots of yesdes
 select:
   properties:
     compatible:

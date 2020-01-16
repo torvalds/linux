@@ -7,7 +7,7 @@
  *  Copyright (C) 2006 by Russ Cox <rsc@swtch.com>
  *  Copyright (C) 2004-2005 by Latchesar Ionkov <lucho@ionkov.net>
  *  Copyright (C) 2004-2008 by Eric Van Hensbergen <ericvh@gmail.com>
- *  Copyright (C) 1997-2002 by Ron Minnich <rminnich@sarnoff.com>
+ *  Copyright (C) 1997-2002 by Ron Minnich <rminnich@saryesff.com>
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -17,7 +17,7 @@
 #include <linux/net.h>
 #include <linux/ipv6.h>
 #include <linux/kthread.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/kernel.h>
 #include <linux/un.h>
 #include <linux/uaccess.h>
@@ -62,15 +62,15 @@ struct p9_fd_opts {
 
 enum {
 	/* Options that take integer arguments */
-	Opt_port, Opt_rfdno, Opt_wfdno, Opt_err,
-	/* Options that take no arguments */
+	Opt_port, Opt_rfdyes, Opt_wfdyes, Opt_err,
+	/* Options that take yes arguments */
 	Opt_privport,
 };
 
 static const match_table_t tokens = {
 	{Opt_port, "port=%u"},
-	{Opt_rfdno, "rfdno=%u"},
-	{Opt_wfdno, "wfdno=%u"},
+	{Opt_rfdyes, "rfdyes=%u"},
+	{Opt_wfdyes, "wfdyes=%u"},
 	{Opt_privport, "privport"},
 	{Opt_err, NULL},
 };
@@ -353,7 +353,7 @@ static void p9_read_work(struct work_struct *work)
 	}
 
 	/* packet is read in
-	 * not an else because some packets (like clunk) have no payload
+	 * yest an else because some packets (like clunk) have yes payload
 	 */
 	if ((m->rreq) && (m->rc.offset == m->rc.capacity)) {
 		p9_debug(P9_DEBUG_TRANS, "got new packet\n");
@@ -555,7 +555,7 @@ p9_pollwait(struct file *filp, wait_queue_head_t *wait_address, poll_table *p)
 	}
 
 	if (!pwait) {
-		p9_debug(P9_DEBUG_ERROR, "not enough wait_address slots\n");
+		p9_debug(P9_DEBUG_ERROR, "yest eyesugh wait_address slots\n");
 		return;
 	}
 
@@ -645,7 +645,7 @@ static void p9_poll_mux(struct p9_conn *m)
 /**
  * p9_fd_request - send 9P request
  * The function can sleep until the request is scheduled for sending.
- * The function can be interrupted. Return from the function is not
+ * The function can be interrupted. Return from the function is yest
  * a guarantee that the request is sent successfully.
  *
  * @client: client instance
@@ -769,7 +769,7 @@ static int parse_opts(char *params, struct p9_fd_opts *opts)
 			r = match_int(&args[0], &option);
 			if (r < 0) {
 				p9_debug(P9_DEBUG_ERROR,
-					 "integer field, but no integer?\n");
+					 "integer field, but yes integer?\n");
 				continue;
 			}
 		}
@@ -777,10 +777,10 @@ static int parse_opts(char *params, struct p9_fd_opts *opts)
 		case Opt_port:
 			opts->port = option;
 			break;
-		case Opt_rfdno:
+		case Opt_rfdyes:
 			opts->rfd = option;
 			break;
-		case Opt_wfdno:
+		case Opt_wfdyes:
 			opts->wfd = option;
 			break;
 		case Opt_privport:

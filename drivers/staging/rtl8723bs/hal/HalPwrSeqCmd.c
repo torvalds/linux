@@ -184,7 +184,7 @@ u8 HalPwrSeqCmdParsing(
 				RT_TRACE(
 					_module_hal_init_c_,
 					_drv_err_,
-					("HalPwrSeqCmdParsing: Unknown CMD!!\n")
+					("HalPwrSeqCmdParsing: Unkyeswn CMD!!\n")
 				);
 				break;
 			}

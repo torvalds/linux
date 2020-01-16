@@ -42,7 +42,7 @@ void iommu_debugfs_setup(void)
 		pr_warn("** IOMMU data structures, which may compromise security on **\n");
 		pr_warn("** your system.                                            **\n");
 		pr_warn("**                                                         **\n");
-		pr_warn("** If you see this message and you are not debugging the   **\n");
+		pr_warn("** If you see this message and you are yest debugging the   **\n");
 		pr_warn("** kernel, report this immediately to your vendor!         **\n");
 		pr_warn("**                                                         **\n");
 		pr_warn("**     NOTICE NOTICE NOTICE NOTICE NOTICE NOTICE NOTICE    **\n");

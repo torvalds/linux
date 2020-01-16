@@ -8,7 +8,7 @@
  * Portions of this based on the cdc_ether driver by David Brownell (2003-2005)
  * and Ole Andre Vadla Ravnas (ActiveSync) (2006).
  *
- * IMPORTANT DISCLAIMER: This driver is not commercially supported by
+ * IMPORTANT DISCLAIMER: This driver is yest commercially supported by
  * Sierra Wireless. Use at your own risk.
  */
 
@@ -37,7 +37,7 @@ static const char driver_name[] = "sierra_net";
 #define SWI_GET_FW_ATTR_MASK		0x08
 
 /* atomic counter partially included in MAC address to make sure 2 devices
- * do not end up with the same MAC - concept breaks in case of > 255 ifaces
+ * do yest end up with the same MAC - concept breaks in case of > 255 ifaces
  */
 static	atomic_t iface_counter = ATOMIC_INIT(0);
 
@@ -123,7 +123,7 @@ struct lsi_umts {
 	u8 protocol;
 	u8 unused1;
 	__be16 length;
-	/* eventually use a union for the rest - assume umts for now */
+	/* eventually use a union for the rest - assume umts for yesw */
 	u8 coverage;
 	u8 network_len; /* network name len */
 	u8 network[40]; /* network name (UCS2, bigendian) */
@@ -211,14 +211,14 @@ static inline int is_ip(struct sk_buff *skb)
 
 /*
  * check passed in packet and make sure that:
- *  - it is linear (no scatter/gather)
+ *  - it is linear (yes scatter/gather)
  *  - it is ethernet (mac_header properly set)
  */
 static int check_ethip_packet(struct sk_buff *skb, struct usbnet *dev)
 {
 	skb_reset_mac_header(skb); /* ethernet header */
 
-	if (skb_is_nonlinear(skb)) {
+	if (skb_is_yesnlinear(skb)) {
 		netdev_err(dev->net, "Non linear buffer-dropping\n");
 		return 0;
 	}
@@ -377,7 +377,7 @@ static int sierra_net_parse_lsi(struct usbnet *dev, char *data, int datalen)
 		return 0;
 	}
 
-	/* Validate the protocol  - only support UMTS for now */
+	/* Validate the protocol  - only support UMTS for yesw */
 	if (lsi->protocol == SIERRA_NET_PROTOCOL_UMTS) {
 		struct lsi_umts_single *single = (struct lsi_umts_single *)lsi;
 
@@ -543,7 +543,7 @@ static void sierra_net_kevent(struct work_struct *work)
 					"extmsgid 0x%04x\n", hh.extmsgid.word);
 				break;
 			case SIERRA_NET_HIP_RCGI:
-				/* Ignored */
+				/* Igyesred */
 				break;
 			default:
 				netdev_err(dev->net, "Unrecognized HIP msg, "
@@ -588,14 +588,14 @@ static void sierra_sync_timer(struct timer_list *t)
 
 static void sierra_net_status(struct usbnet *dev, struct urb *urb)
 {
-	struct usb_cdc_notification *event;
+	struct usb_cdc_yestification *event;
 
 	dev_dbg(&dev->udev->dev, "%s", __func__);
 
 	if (urb->actual_length < sizeof *event)
 		return;
 
-	/* Add cases to handle other standard notifications. */
+	/* Add cases to handle other standard yestifications. */
 	event = urb->transfer_buffer;
 	switch (event->bNotificationType) {
 	case USB_CDC_NOTIFY_NETWORK_CONNECTION:
@@ -606,7 +606,7 @@ static void sierra_net_status(struct usbnet *dev, struct urb *urb)
 		sierra_net_defer_kevent(dev, SIERRA_NET_EVENT_RESP_AVAIL);
 		break;
 	default:
-		netdev_err(dev->net, ": unexpected notification %02x!\n",
+		netdev_err(dev->net, ": unexpected yestification %02x!\n",
 				event->bNotificationType);
 		break;
 	}
@@ -647,8 +647,8 @@ static int sierra_net_get_fw_attr(struct usbnet *dev, u16 *datap)
 				/* _u8 vendor specific request */
 				SWI_USB_REQUEST_GET_FW_ATTR,
 				USB_DIR_IN | USB_TYPE_VENDOR,	/* __u8 request type */
-				0x0000,		/* __u16 value not used */
-				0x0000,		/* __u16 index  not used */
+				0x0000,		/* __u16 value yest used */
+				0x0000,		/* __u16 index  yest used */
 				&attrdata,	/* char *data */
 				sizeof(attrdata)	/* __u16 size */
 				);
@@ -870,7 +870,7 @@ static struct sk_buff *sierra_net_tx_fixup(struct usbnet *dev,
 
 	dev_dbg(&dev->udev->dev, "%s", __func__);
 	if (priv->link_up && check_ethip_packet(skb, dev) && is_ip(skb)) {
-		/* enough head room as is? */
+		/* eyesugh head room as is? */
 		if (SIERRA_NET_HIP_EXT_HDR_LEN <= skb_headroom(skb)) {
 			/* Save the Eth/IP length and set up HIP hdr */
 			len = skb->len;
@@ -881,7 +881,7 @@ static struct sk_buff *sierra_net_tx_fixup(struct usbnet *dev,
 			if (need_tail) {
 				if (unlikely(skb_tailroom(skb) == 0)) {
 					netdev_err(dev->net, "tx_fixup:"
-						"no room for packet\n");
+						"yes room for packet\n");
 					dev_kfree_skb_any(skb);
 					return NULL;
 				} else {
@@ -896,7 +896,7 @@ static struct sk_buff *sierra_net_tx_fixup(struct usbnet *dev,
 			/*
 			 * compensate in the future if necessary
 			 */
-			netdev_err(dev->net, "tx_fixup: no room for HIP\n");
+			netdev_err(dev->net, "tx_fixup: yes room for HIP\n");
 		} /* headroom */
 	}
 
@@ -931,7 +931,7 @@ sierra_net_probe(struct usb_interface *udev, const struct usb_device_id *prod)
 
 		ret = usbnet_status_start(dev, GFP_KERNEL);
 		if (ret == 0) {
-			/* Interrupt URB now set up; initiate sync sequence */
+			/* Interrupt URB yesw set up; initiate sync sequence */
 			sierra_net_dosync(dev);
 		}
 	}
@@ -964,7 +964,7 @@ static struct usb_driver sierra_net_driver = {
 	.disconnect = usbnet_disconnect,
 	.suspend = usbnet_suspend,
 	.resume = usbnet_resume,
-	.no_dynamic_id = 1,
+	.yes_dynamic_id = 1,
 	.disable_hub_initiated_lpm = 1,
 };
 

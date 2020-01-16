@@ -8,9 +8,9 @@
  *	Available from AMD web site.
  *
  * The IDE timing registers for the CS5536 live in the Geode Machine
- * Specific Register file and not PCI config space.  Most BIOSes
+ * Specific Register file and yest PCI config space.  Most BIOSes
  * virtualize the PCI registers so the chip looks like a standard IDE
- * controller.  Unfortunately not all implementations get this right.
+ * controller.  Unfortunately yest all implementations get this right.
  * In particular some have problems with unaligned accesses to the
  * virtualized PCI registers.  This driver always does full dword
  * writes to work around the issue.  Also, in case of a bad BIOS this

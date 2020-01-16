@@ -402,7 +402,7 @@ static int gbcodec_mixer_dapm_ctl_get(struct snd_kcontrol *kcontrol,
 
 	if (data->vcount == 2)
 		dev_warn(widget->dapm->dev,
-			 "GB: Control '%s' is stereo, which is not supported\n",
+			 "GB: Control '%s' is stereo, which is yest supported\n",
 			 kcontrol->id.name);
 
 	ret = gb_pm_runtime_get_sync(bundle);
@@ -452,7 +452,7 @@ static int gbcodec_mixer_dapm_ctl_put(struct snd_kcontrol *kcontrol,
 
 	if (data->vcount == 2)
 		dev_warn(widget->dapm->dev,
-			 "GB: Control '%s' is stereo, which is not supported\n",
+			 "GB: Control '%s' is stereo, which is yest supported\n",
 			 kcontrol->id.name);
 
 	max = le32_to_cpu(info->value.integer.max);
@@ -1017,7 +1017,7 @@ static int gbaudio_tplg_create_widget(struct gbaudio_module_info *module,
 						   curr);
 		if (ret) {
 			dev_err(module->dev,
-				"%s:%d type widget_ctl not supported\n",
+				"%s:%d type widget_ctl yest supported\n",
 				curr->name, curr->iface);
 			goto error;
 		}
@@ -1164,7 +1164,7 @@ static int gbaudio_tplg_process_kcontrols(struct gbaudio_module_info *module,
 		ret = gbaudio_tplg_create_kcontrol(module, &dapm_kctls[i],
 						   curr);
 		if (ret) {
-			dev_err(module->dev, "%s:%d type not supported\n",
+			dev_err(module->dev, "%s:%d type yest supported\n",
 				curr->name, curr->iface);
 			goto error;
 		}
@@ -1233,7 +1233,7 @@ static int gbaudio_tplg_process_widgets(struct gbaudio_module_info *module,
 		ret = gbaudio_tplg_create_widget(module, &dapm_widgets[i],
 						 curr, &w_size);
 		if (ret) {
-			dev_err(module->dev, "%s:%d type not supported\n",
+			dev_err(module->dev, "%s:%d type yest supported\n",
 				curr->name, curr->type);
 			goto error;
 		}
@@ -1327,7 +1327,7 @@ error:
 static int gbaudio_tplg_process_header(struct gbaudio_module_info *module,
 				       struct gb_audio_topology *tplg_data)
 {
-	/* fetch no. of kcontrols, widgets & routes */
+	/* fetch yes. of kcontrols, widgets & routes */
 	module->num_controls = tplg_data->num_controls;
 	module->num_dapm_widgets = tplg_data->num_widgets;
 	module->num_dapm_routes = tplg_data->num_routes;

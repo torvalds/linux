@@ -2,7 +2,7 @@
 #ifndef _M68KNOMMU_PGTABLE_H
 #define _M68KNOMMU_PGTABLE_H
 
-#include <asm-generic/pgtable-nopud.h>
+#include <asm-generic/pgtable-yespud.h>
 
 /*
  * (C) Copyright 2000-2002, Greg Ungerer <gerg@snapgear.com>
@@ -17,7 +17,7 @@
  * Trivial page table functions.
  */
 #define pgd_present(pgd)	(1)
-#define pgd_none(pgd)		(0)
+#define pgd_yesne(pgd)		(0)
 #define pgd_bad(pgd)		(0)
 #define pgd_clear(pgdp)
 #define kern_addr_valid(addr)	(1)
@@ -46,7 +46,7 @@ extern void paging_init(void);
 
 /*
  * All 32bit addresses are effectively valid for vmalloc...
- * Sort of meaningless for non-VM targets.
+ * Sort of meaningless for yesn-VM targets.
  */
 #define	VMALLOC_START	0
 #define	VMALLOC_END	0xffffffff

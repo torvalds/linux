@@ -4,7 +4,7 @@
  * Copyright (C) 2010 Nokia Corporation. All rights reserved.
  * Copyright (C) 2014 Sebastian Reichel <sre@kernel.org>
  *
- * Contact: Carlos Chinea <carlos.chinea@nokia.com>
+ * Contact: Carlos Chinea <carlos.chinea@yeskia.com>
  */
 
 #include <linux/compiler.h>
@@ -253,7 +253,7 @@ static irqreturn_t ssi_gdd_isr(int irq, void *ssi)
 	struct omap_ssi_controller *omap_ssi = hsi_controller_drvdata(ssi);
 
 	tasklet_hi_schedule(&omap_ssi->gdd_tasklet);
-	disable_irq_nosync(irq);
+	disable_irq_yessync(irq);
 
 	return IRQ_HANDLED;
 }
@@ -265,13 +265,13 @@ static unsigned long ssi_get_clk_rate(struct hsi_controller *ssi)
 	return rate;
 }
 
-static int ssi_clk_event(struct notifier_block *nb, unsigned long event,
+static int ssi_clk_event(struct yestifier_block *nb, unsigned long event,
 								void *data)
 {
 	struct omap_ssi_controller *omap_ssi = container_of(nb,
 					struct omap_ssi_controller, fck_nb);
 	struct hsi_controller *ssi = to_hsi_controller(omap_ssi->dev);
-	struct clk_notifier_data *clk_data = data;
+	struct clk_yestifier_data *clk_data = data;
 	struct omap_ssi_port *omap_port;
 	int i;
 
@@ -392,15 +392,15 @@ static int ssi_add_controller(struct hsi_controller *ssi,
 
 	omap_ssi->fck = devm_clk_get(&ssi->device, "ssi_ssr_fck");
 	if (IS_ERR(omap_ssi->fck)) {
-		dev_err(&pd->dev, "Could not acquire clock \"ssi_ssr_fck\": %li\n",
+		dev_err(&pd->dev, "Could yest acquire clock \"ssi_ssr_fck\": %li\n",
 			PTR_ERR(omap_ssi->fck));
 		err = -ENODEV;
 		goto out_err;
 	}
 
-	omap_ssi->fck_nb.notifier_call = ssi_clk_event;
+	omap_ssi->fck_nb.yestifier_call = ssi_clk_event;
 	omap_ssi->fck_nb.priority = INT_MAX;
-	clk_notifier_register(omap_ssi->fck, &omap_ssi->fck_nb);
+	clk_yestifier_register(omap_ssi->fck, &omap_ssi->fck_nb);
 
 	/* TODO: find register, which can be used to detect context loss */
 	omap_ssi->get_loss = NULL;
@@ -448,16 +448,16 @@ static void ssi_remove_controller(struct hsi_controller *ssi)
 	int id = ssi->id;
 	tasklet_kill(&omap_ssi->gdd_tasklet);
 	hsi_unregister_controller(ssi);
-	clk_notifier_unregister(omap_ssi->fck, &omap_ssi->fck_nb);
+	clk_yestifier_unregister(omap_ssi->fck, &omap_ssi->fck_nb);
 	ida_simple_remove(&platform_omap_ssi_ida, id);
 }
 
-static inline int ssi_of_get_available_ports_count(const struct device_node *np)
+static inline int ssi_of_get_available_ports_count(const struct device_yesde *np)
 {
-	struct device_node *child;
+	struct device_yesde *child;
 	int num = 0;
 
-	for_each_available_child_of_node(np, child)
+	for_each_available_child_of_yesde(np, child)
 		if (of_device_is_compatible(child, "ti,omap3-ssi-port"))
 			num++;
 
@@ -468,10 +468,10 @@ static int ssi_remove_ports(struct device *dev, void *c)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 
-	if (!dev->of_node)
+	if (!dev->of_yesde)
 		return 0;
 
-	of_node_clear_flag(dev->of_node, OF_POPULATED);
+	of_yesde_clear_flag(dev->of_yesde, OF_POPULATED);
 	of_device_unregister(pdev);
 
 	return 0;
@@ -480,8 +480,8 @@ static int ssi_remove_ports(struct device *dev, void *c)
 static int ssi_probe(struct platform_device *pd)
 {
 	struct platform_device *childpdev;
-	struct device_node *np = pd->dev.of_node;
-	struct device_node *child;
+	struct device_yesde *np = pd->dev.of_yesde;
+	struct device_yesde *child;
 	struct hsi_controller *ssi;
 	int err;
 	int num_ports;
@@ -516,7 +516,7 @@ static int ssi_probe(struct platform_device *pd)
 		goto out2;
 #endif
 
-	for_each_available_child_of_node(np, child) {
+	for_each_available_child_of_yesde(np, child) {
 		if (!of_device_is_compatible(child, "ti,omap3-ssi-port"))
 			continue;
 
@@ -639,7 +639,7 @@ static void __exit ssi_exit(void) {
 module_exit(ssi_exit);
 
 MODULE_ALIAS("platform:omap_ssi");
-MODULE_AUTHOR("Carlos Chinea <carlos.chinea@nokia.com>");
+MODULE_AUTHOR("Carlos Chinea <carlos.chinea@yeskia.com>");
 MODULE_AUTHOR("Sebastian Reichel <sre@kernel.org>");
-MODULE_DESCRIPTION("Synchronous Serial Interface Driver");
+MODULE_DESCRIPTION("Synchroyesus Serial Interface Driver");
 MODULE_LICENSE("GPL v2");

@@ -56,7 +56,7 @@ static int dvbsky_usb_generic_rw(struct dvb_usb_device *d,
 	return ret;
 }
 
-static int dvbsky_stream_ctrl(struct dvb_usb_device *d, u8 onoff)
+static int dvbsky_stream_ctrl(struct dvb_usb_device *d, u8 oyesff)
 {
 	struct dvbsky_state *state = d_to_priv(d);
 	static const u8 obuf_pre[3] = { 0x37, 0, 0 };
@@ -66,7 +66,7 @@ static int dvbsky_stream_ctrl(struct dvb_usb_device *d, u8 onoff)
 	mutex_lock(&d->usb_mutex);
 	memcpy(state->obuf, obuf_pre, 3);
 	ret = dvb_usbv2_generic_write_locked(d, state->obuf, 3);
-	if (!ret && onoff) {
+	if (!ret && oyesff) {
 		msleep(20);
 		memcpy(state->obuf, obuf_post, 3);
 		ret = dvb_usbv2_generic_write_locked(d, state->obuf, 3);
@@ -75,11 +75,11 @@ static int dvbsky_stream_ctrl(struct dvb_usb_device *d, u8 onoff)
 	return ret;
 }
 
-static int dvbsky_streaming_ctrl(struct dvb_frontend *fe, int onoff)
+static int dvbsky_streaming_ctrl(struct dvb_frontend *fe, int oyesff)
 {
 	struct dvb_usb_device *d = fe_to_d(fe);
 
-	return dvbsky_stream_ctrl(d, (onoff == 0) ? 0 : 1);
+	return dvbsky_stream_ctrl(d, (oyesff == 0) ? 0 : 1);
 }
 
 /* GPIO */
@@ -756,19 +756,19 @@ static const struct usb_device_id dvbsky_id_table[] = {
 		&dvbsky_t330_props, "DVBSky T330", RC_MAP_DVBSKY) },
 	{ DVB_USB_DEVICE(USB_VID_TECHNOTREND,
 		USB_PID_TECHNOTREND_TVSTICK_CT2_4400,
-		&dvbsky_t330_props, "TechnoTrend TVStick CT2-4400",
+		&dvbsky_t330_props, "TechyesTrend TVStick CT2-4400",
 		RC_MAP_TT_1500) },
 	{ DVB_USB_DEVICE(USB_VID_TECHNOTREND,
 		USB_PID_TECHNOTREND_CONNECT_CT2_4650_CI,
-		&dvbsky_t680c_props, "TechnoTrend TT-connect CT2-4650 CI",
+		&dvbsky_t680c_props, "TechyesTrend TT-connect CT2-4650 CI",
 		RC_MAP_TT_1500) },
 	{ DVB_USB_DEVICE(USB_VID_TECHNOTREND,
 		USB_PID_TECHNOTREND_CONNECT_CT2_4650_CI_2,
-		&dvbsky_t680c_props, "TechnoTrend TT-connect CT2-4650 CI v1.1",
+		&dvbsky_t680c_props, "TechyesTrend TT-connect CT2-4650 CI v1.1",
 		RC_MAP_TT_1500) },
 	{ DVB_USB_DEVICE(USB_VID_TECHNOTREND,
 		USB_PID_TECHNOTREND_CONNECT_S2_4650_CI,
-		&dvbsky_s960c_props, "TechnoTrend TT-connect S2-4650 CI",
+		&dvbsky_s960c_props, "TechyesTrend TT-connect S2-4650 CI",
 		RC_MAP_TT_1500) },
 	{ DVB_USB_DEVICE(USB_VID_TERRATEC,
 		USB_PID_TERRATEC_H7_3,
@@ -801,7 +801,7 @@ static struct usb_driver dvbsky_usb_driver = {
 	.suspend = dvb_usbv2_suspend,
 	.resume = dvb_usbv2_resume,
 	.reset_resume = dvb_usbv2_reset_resume,
-	.no_dynamic_id = 1,
+	.yes_dynamic_id = 1,
 	.soft_unbind = 1,
 };
 

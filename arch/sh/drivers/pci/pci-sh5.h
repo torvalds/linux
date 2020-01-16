@@ -60,8 +60,8 @@
 #define PCISH5_ICR_PINTM       0x1d0   /* power management interrupt mask register values        */
 #define PCISH5_ICR_MBMR        0x1d8   /* memory space bank mask register values                 */
 #define PCISH5_ICR_IOBMR       0x1dc   /* I/O space bank mask register values                    */
-#define PCISH5_ICR_CSCR0       0x210   /* PCI cache snoop control register 0                     */
-#define PCISH5_ICR_CSCR1       0x214   /* PCI cache snoop control register 1                     */
+#define PCISH5_ICR_CSCR0       0x210   /* PCI cache syesop control register 0                     */
+#define PCISH5_ICR_CSCR1       0x214   /* PCI cache syesop control register 1                     */
 #define PCISH5_ICR_PDR         0x220   /* Pio data register values                               */
 
 /* These are configs space registers */

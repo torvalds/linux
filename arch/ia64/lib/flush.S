@@ -17,8 +17,8 @@
 	 *
 	 *	Make i-cache(s) coherent with d-caches.
 	 *
-	 *	Must deal with range from start to end-1 but nothing else (need to
-	 *	be careful not to touch addresses that may be unmapped).
+	 *	Must deal with range from start to end-1 but yesthing else (need to
+	 *	be careful yest to touch addresses that may be unmapped).
 	 *
 	 *	Note: "in0" and "in1" are preserved for debugging purposes.
 	 */
@@ -52,7 +52,7 @@ GLOBAL_ENTRY(flush_icache_range)
 	 */
 .Loop:	fc.i	r24			// issuable on M0 only
 	add	r24=r21,r24		// we flush "stride size" bytes per iteration
-	nop.i	0
+	yesp.i	0
 	br.cloop.sptk.few .Loop
 	;;
 	sync.i
@@ -69,8 +69,8 @@ EXPORT_SYMBOL_GPL(flush_icache_range)
 	 *
 	 *	Flush cache lines from start to start+size-1.
 	 *
-	 *	Must deal with range from start to start+size-1 but nothing else
-	 *	(need to be careful not to touch addresses that may be
+	 *	Must deal with range from start to start+size-1 but yesthing else
+	 *	(need to be careful yest to touch addresses that may be
 	 *	unmapped).
 	 *
 	 *	Note: "in0" and "in1" are preserved for debugging purposes.
@@ -108,7 +108,7 @@ GLOBAL_ENTRY(clflush_cache_range)
 .Loop_fc:
 	fc	r24		// issuable on M0 only
 	add	r24=r21,r24	// we flush "stride size" bytes per iteration
-	nop.i	0
+	yesp.i	0
 	br.cloop.sptk.few .Loop_fc
 	;;
 	sync.i

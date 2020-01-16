@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-note) OR BSD-3-Clause) */
+/* SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-yeste) OR BSD-3-Clause) */
 /*
  * include/uapi/linux/tipc.h: Header for TIPC socket interface
  *
@@ -10,11 +10,11 @@
  * modification, are permitted provided that the following conditions are met:
  *
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
+ *    yestice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the names of the copyright holders nor the names of its
+ * 3. Neither the names of the copyright holders yesr the names of its
  *    contributors may be used to endorse or promote products derived from
  *    this software without specific prior written permission.
  *
@@ -47,7 +47,7 @@
 
 struct tipc_socket_addr {
 	__u32 ref;
-	__u32 node;
+	__u32 yesde;
 };
 
 struct tipc_service_addr {
@@ -65,7 +65,7 @@ struct tipc_service_range {
  * Application-accessible service types
  */
 
-#define TIPC_NODE_STATE		0	/* node state service type */
+#define TIPC_NODE_STATE		0	/* yesde state service type */
 #define TIPC_TOP_SRV		1	/* topology server service type */
 #define TIPC_LINK_STATE		2	/* link state service type */
 #define TIPC_RESERVED_TYPES	64	/* lowest user-allowed service type */
@@ -184,13 +184,13 @@ struct sockaddr_tipc {
 #define TIPC_SRC_DROPPABLE	128	/* Default: based on socket type */
 #define TIPC_DEST_DROPPABLE	129	/* Default: based on socket type */
 #define TIPC_CONN_TIMEOUT	130	/* Default: 8000 (ms)  */
-#define TIPC_NODE_RECVQ_DEPTH	131	/* Default: none (read only) */
-#define TIPC_SOCK_RECVQ_DEPTH	132	/* Default: none (read only) */
+#define TIPC_NODE_RECVQ_DEPTH	131	/* Default: yesne (read only) */
+#define TIPC_SOCK_RECVQ_DEPTH	132	/* Default: yesne (read only) */
 #define TIPC_MCAST_BROADCAST    133     /* Default: TIPC selects. No arg */
 #define TIPC_MCAST_REPLICAST    134     /* Default: TIPC selects. No arg */
 #define TIPC_GROUP_JOIN         135     /* Takes struct tipc_group_req* */
 #define TIPC_GROUP_LEAVE        136     /* No argument */
-#define TIPC_SOCK_RECVQ_USED    137     /* Default: none (read only) */
+#define TIPC_SOCK_RECVQ_USED    137     /* Default: yesne (read only) */
 #define TIPC_NODELAY            138     /* Default: false */
 
 /*
@@ -202,7 +202,7 @@ struct sockaddr_tipc {
 struct tipc_group_req {
 	__u32 type;      /* group id */
 	__u32 instance;  /* member id */
-	__u32 scope;     /* cluster/node */
+	__u32 scope;     /* cluster/yesde */
 	__u32 flags;
 };
 
@@ -211,7 +211,7 @@ struct tipc_group_req {
  * The string formatting for each name element is:
  * media: media
  * interface: media:interface name
- * link: node:interface-node:interface
+ * link: yesde:interface-yesde:interface
  */
 #define TIPC_NODEID_LEN         16
 #define TIPC_MAX_MEDIA_NAME	16
@@ -228,9 +228,9 @@ struct tipc_sioc_ln_req {
 	char linkname[TIPC_MAX_LINK_NAME];
 };
 
-struct tipc_sioc_nodeid_req {
+struct tipc_sioc_yesdeid_req {
 	__u32 peer;
-	char node_id[TIPC_NODEID_LEN];
+	char yesde_id[TIPC_NODEID_LEN];
 };
 
 /*
@@ -288,11 +288,11 @@ static inline int tipc_aead_key_size(struct tipc_aead_key *key)
 
 static inline __u32 tipc_addr(unsigned int zone,
 			      unsigned int cluster,
-			      unsigned int node)
+			      unsigned int yesde)
 {
 	return (zone << TIPC_ZONE_OFFSET) |
 		(cluster << TIPC_CLUSTER_OFFSET) |
-		node;
+		yesde;
 }
 
 static inline unsigned int tipc_zone(__u32 addr)
@@ -305,7 +305,7 @@ static inline unsigned int tipc_cluster(__u32 addr)
 	return (addr & TIPC_CLUSTER_MASK) >> TIPC_CLUSTER_OFFSET;
 }
 
-static inline unsigned int tipc_node(__u32 addr)
+static inline unsigned int tipc_yesde(__u32 addr)
 {
 	return addr & TIPC_NODE_MASK;
 }

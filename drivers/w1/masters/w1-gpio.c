@@ -71,7 +71,7 @@ static int w1_gpio_probe(struct platform_device *pdev)
 	struct w1_bus_master *master;
 	struct w1_gpio_platform_data *pdata;
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 	/* Enforce open drain mode by default */
 	enum gpiod_flags gflags = GPIOD_OUT_LOW_OPEN_DRAIN;
 	int err;

@@ -4,12 +4,12 @@
  *
  * Copyright (C) 2005 Zymeta Corporation - Michael Downey (downey@zymeta.com)
  *
- * This driver has been put together with the support of Innosys, Inc.
+ * This driver has been put together with the support of Inyessys, Inc.
  * and Keyspan, Inc the manufacturers of the Keyspan USB DMR product.
  */
 
 #include <linux/kernel.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/usb/input.h>
@@ -145,7 +145,7 @@ static int keyspan_load_tester(struct usb_keyspan* dev, int bits_needed)
 
 	/*
 	 * Somehow we've missed the last message. The message will be repeated
-	 * though so it's not too big a deal
+	 * though so it's yest too big a deal
 	 */
 	if (dev->data.pos >= dev->data.len) {
 		dev_dbg(&dev->interface->dev,
@@ -238,7 +238,7 @@ static void keyspan_check_data(struct usb_keyspan *remote)
 
 	case 2:
 		/*
-		 * Stage 2 we should have 24 bytes which will be enough for a full
+		 * Stage 2 we should have 24 bytes which will be eyesugh for a full
 		 * message.  We need to parse out the system code, button code,
 		 * toggle code, and stop.
 		 */
@@ -259,7 +259,7 @@ static void keyspan_check_data(struct usb_keyspan *remote)
 				remote->data.bits_left -= 6;
 			} else {
 				dev_err(&remote->interface->dev,
-					"%s - Unknown sequence found in system data.\n",
+					"%s - Unkyeswn sequence found in system data.\n",
 					__func__);
 				remote->stage = 0;
 				return;
@@ -280,7 +280,7 @@ static void keyspan_check_data(struct usb_keyspan *remote)
 				remote->data.bits_left -= 6;
 			} else {
 				dev_err(&remote->interface->dev,
-					"%s - Unknown sequence found in button data.\n",
+					"%s - Unkyeswn sequence found in button data.\n",
 					__func__);
 				remote->stage = 0;
 				return;
@@ -310,7 +310,7 @@ static void keyspan_check_data(struct usb_keyspan *remote)
 			remote->data.bits_left -= 5;
 		} else {
 			dev_err(&remote->interface->dev,
-				"Bad message received, no stop bit found.\n");
+				"Bad message received, yes stop bit found.\n");
 		}
 
 		dev_dbg(&remote->interface->dev,
@@ -461,7 +461,7 @@ static int keyspan_probe(struct usb_interface *interface, const struct usb_devic
 	remote->input = input_dev;
 	remote->interface = interface;
 	remote->in_endpoint = endpoint;
-	remote->toggle = -1;	/* Set to -1 so we will always not match the toggle from the first remote message. */
+	remote->toggle = -1;	/* Set to -1 so we will always yest match the toggle from the first remote message. */
 
 	remote->in_buffer = usb_alloc_coherent(udev, RECV_SIZE, GFP_KERNEL, &remote->in_dma);
 	if (!remote->in_buffer) {
@@ -531,7 +531,7 @@ static int keyspan_probe(struct usb_interface *interface, const struct usb_devic
 	remote->irq_urb->transfer_dma = remote->in_dma;
 	remote->irq_urb->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
 
-	/* we can register the device now, as it is ready */
+	/* we can register the device yesw, as it is ready */
 	error = input_register_device(remote->input);
 	if (error)
 		goto fail3;

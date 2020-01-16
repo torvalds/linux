@@ -43,7 +43,7 @@ static const u32 rtw_cipher_suites[] = {
 	.max_power		= 30,				\
 }
 
-/* if wowlan is not supported, kernel generate a disconnect at each suspend
+/* if wowlan is yest supported, kernel generate a disconnect at each suspend
  * cf: /net/wireless/sysfs.c, so register a stub wowlan.
  * Moreover wowlan has to be enabled via a the nl80211_set_wowlan callback.
  * (from user space, e.g. iw phy0 wowlan enable)
@@ -228,19 +228,19 @@ static int rtw_ieee80211_channel_to_frequency(int chan, int band)
 			return 2407 + chan * 5;
 	}
 
-	return 0; /* not supported */
+	return 0; /* yest supported */
 }
 
 #define MAX_BSSINFO_LEN 1000
 struct cfg80211_bss *rtw_cfg80211_inform_bss(struct adapter *padapter, struct wlan_network *pnetwork)
 {
-	struct ieee80211_channel *notify_channel;
+	struct ieee80211_channel *yestify_channel;
 	struct cfg80211_bss *bss = NULL;
 	/* struct ieee80211_supported_band *band; */
 	u16 channel;
 	u32 freq;
-	u64 notify_timestamp;
-	s32 notify_signal;
+	u64 yestify_timestamp;
+	s32 yestify_signal;
 	u8 *buf = NULL, *pbuf;
 	size_t len, bssinf_len = 0;
 	struct ieee80211_hdr *pwlanhdr;
@@ -267,7 +267,7 @@ struct cfg80211_bss *rtw_cfg80211_inform_bss(struct adapter *padapter, struct wl
 		{
 			if (wapi_len > 0)
 			{
-				DBG_871X("%s, no support wapi!\n", __func__);
+				DBG_871X("%s, yes support wapi!\n", __func__);
 				goto exit;
 			}
 		}
@@ -316,16 +316,16 @@ struct cfg80211_bss *rtw_cfg80211_inform_bss(struct adapter *padapter, struct wl
 	channel = pnetwork->network.Configuration.DSConfig;
 	freq = rtw_ieee80211_channel_to_frequency(channel, NL80211_BAND_2GHZ);
 
-	notify_channel = ieee80211_get_channel(wiphy, freq);
+	yestify_channel = ieee80211_get_channel(wiphy, freq);
 
-	notify_timestamp = ktime_to_us(ktime_get_boottime());
+	yestify_timestamp = ktime_to_us(ktime_get_boottime());
 
 	/* We've set wiphy's signal_type as CFG80211_SIGNAL_TYPE_MBM: signal strength in mBm (100*dBm) */
 	if (check_fwstate(pmlmepriv, _FW_LINKED) == true &&
 		is_same_network(&pmlmepriv->cur_network.network, &pnetwork->network, 0)) {
-		notify_signal = 100*translate_percentage_to_dbm(padapter->recvpriv.signal_strength);/* dbm */
+		yestify_signal = 100*translate_percentage_to_dbm(padapter->recvpriv.signal_strength);/* dbm */
 	} else {
-		notify_signal = 100*translate_percentage_to_dbm(pnetwork->network.PhyInfo.SignalStrength);/* dbm */
+		yestify_signal = 100*translate_percentage_to_dbm(pnetwork->network.PhyInfo.SignalStrength);/* dbm */
 	}
 
 	buf = kzalloc(MAX_BSSINFO_LEN, GFP_ATOMIC);
@@ -358,10 +358,10 @@ struct cfg80211_bss *rtw_cfg80211_inform_bss(struct adapter *padapter, struct wl
 	memcpy(pbuf, pnetwork->network.IEs, pnetwork->network.IELength);
 	len += pnetwork->network.IELength;
 
-	*((__le64*)pbuf) = cpu_to_le64(notify_timestamp);
+	*((__le64*)pbuf) = cpu_to_le64(yestify_timestamp);
 
-	bss = cfg80211_inform_bss_frame(wiphy, notify_channel, (struct ieee80211_mgmt *)buf,
-		len, notify_signal, GFP_ATOMIC);
+	bss = cfg80211_inform_bss_frame(wiphy, yestify_channel, (struct ieee80211_mgmt *)buf,
+		len, yestify_signal, GFP_ATOMIC);
 
 	if (unlikely(!bss)) {
 		DBG_8192C(FUNC_ADPT_FMT" bss NULL\n", FUNC_ADPT_ARG(padapter));
@@ -380,13 +380,13 @@ exit:
 	Check the given bss is valid by kernel API cfg80211_get_bss()
 	@padapter : the given adapter
 
-	return true if bss is valid,  false for not found.
+	return true if bss is valid,  false for yest found.
 */
 int rtw_cfg80211_check_bss(struct adapter *padapter)
 {
 	struct wlan_bssid_ex  *pnetwork = &(padapter->mlmeextpriv.mlmext_info.network);
 	struct cfg80211_bss *bss = NULL;
-	struct ieee80211_channel *notify_channel = NULL;
+	struct ieee80211_channel *yestify_channel = NULL;
 	u32 freq;
 
 	if (!(pnetwork) || !(padapter->rtw_wdev))
@@ -394,8 +394,8 @@ int rtw_cfg80211_check_bss(struct adapter *padapter)
 
 	freq = rtw_ieee80211_channel_to_frequency(pnetwork->Configuration.DSConfig, NL80211_BAND_2GHZ);
 
-	notify_channel = ieee80211_get_channel(padapter->rtw_wdev->wiphy, freq);
-	bss = cfg80211_get_bss(padapter->rtw_wdev->wiphy, notify_channel,
+	yestify_channel = ieee80211_get_channel(padapter->rtw_wdev->wiphy, freq);
+	bss = cfg80211_get_bss(padapter->rtw_wdev->wiphy, yestify_channel,
 			pnetwork->MacAddress, pnetwork->Ssid.Ssid,
 			pnetwork->Ssid.SsidLength,
 			WLAN_CAPABILITY_ESS, WLAN_CAPABILITY_ESS);
@@ -454,9 +454,9 @@ void rtw_cfg80211_ibss_indicate_connect(struct adapter *padapter)
 		}
 
 		if (!rtw_cfg80211_check_bss(padapter))
-			DBG_871X_LEVEL(_drv_always_, FUNC_ADPT_FMT" BSS not found !!\n", FUNC_ADPT_ARG(padapter));
+			DBG_871X_LEVEL(_drv_always_, FUNC_ADPT_FMT" BSS yest found !!\n", FUNC_ADPT_ARG(padapter));
 	}
-	/* notify cfg80211 that device joined an IBSS */
+	/* yestify cfg80211 that device joined an IBSS */
 	chan = ieee80211_get_channel(wiphy, freq);
 	cfg80211_ibss_joined(padapter->pnetdev, cur_network->network.MacAddress, chan, GFP_ATOMIC);
 }
@@ -481,7 +481,7 @@ void rtw_cfg80211_indicate_connect(struct adapter *padapter)
 		struct wlan_bssid_ex  *pnetwork = &(padapter->mlmeextpriv.mlmext_info.network);
 		struct wlan_network *scanned = pmlmepriv->cur_network_scanned;
 
-		/* DBG_871X(FUNC_ADPT_FMT" BSS not found\n", FUNC_ADPT_ARG(padapter)); */
+		/* DBG_871X(FUNC_ADPT_FMT" BSS yest found\n", FUNC_ADPT_ARG(padapter)); */
 
 		if (scanned == NULL) {
 			rtw_warn_on(1);
@@ -507,21 +507,21 @@ void rtw_cfg80211_indicate_connect(struct adapter *padapter)
 
 check_bss:
 	if (!rtw_cfg80211_check_bss(padapter))
-		DBG_871X_LEVEL(_drv_always_, FUNC_ADPT_FMT" BSS not found !!\n", FUNC_ADPT_ARG(padapter));
+		DBG_871X_LEVEL(_drv_always_, FUNC_ADPT_FMT" BSS yest found !!\n", FUNC_ADPT_ARG(padapter));
 
 	if (rtw_to_roam(padapter) > 0) {
 		struct wiphy *wiphy = pwdev->wiphy;
-		struct ieee80211_channel *notify_channel;
+		struct ieee80211_channel *yestify_channel;
 		u32 freq;
 		u16 channel = cur_network->network.Configuration.DSConfig;
 		struct cfg80211_roam_info roam_info = {};
 
 		freq = rtw_ieee80211_channel_to_frequency(channel, NL80211_BAND_2GHZ);
 
-		notify_channel = ieee80211_get_channel(wiphy, freq);
+		yestify_channel = ieee80211_get_channel(wiphy, freq);
 
 		DBG_871X(FUNC_ADPT_FMT" call cfg80211_roamed\n", FUNC_ADPT_ARG(padapter));
-		roam_info.channel = notify_channel;
+		roam_info.channel = yestify_channel;
 		roam_info.bssid = cur_network->network.MacAddress;
 		roam_info.req_ie =
 			pmlmepriv->assoc_req+sizeof(struct ieee80211_hdr_3addr)+2;
@@ -560,7 +560,7 @@ void rtw_cfg80211_indicate_disconnect(struct adapter *padapter)
 	if (check_fwstate(pmlmepriv, WIFI_AP_STATE) == true)
 		return;
 
-	if (!padapter->mlmepriv.not_indic_disco) {
+	if (!padapter->mlmepriv.yest_indic_disco) {
 		if (check_fwstate(&padapter->mlmepriv, _FW_LINKED)) {
 			cfg80211_disconnected(padapter->pnetdev, 0,
 					      NULL, 0, true, GFP_ATOMIC);
@@ -614,7 +614,7 @@ static int rtw_cfg80211_ap_set_encryption(struct net_device *dev, struct ieee_pa
 		}
 	}
 
-	if (strcmp(param->u.crypt.alg, "none") == 0 && (psta == NULL))
+	if (strcmp(param->u.crypt.alg, "yesne") == 0 && (psta == NULL))
 	{
 		/* todo:clear default encryption keys */
 
@@ -646,7 +646,7 @@ static int rtw_cfg80211_ap_set_encryption(struct net_device *dev, struct ieee_pa
 
 		if (psecuritypriv->bWepDefaultKeyIdxSet == 0)
 		{
-			/* wep default key has not been set, so use this key index as default key. */
+			/* wep default key has yest been set, so use this key index as default key. */
 
 			psecuritypriv->dot11AuthAlgrthm = dot11AuthAlgrthm_Auto;
 			psecuritypriv->ndisencryptstatus = Ndis802_11Encryption1Enabled;
@@ -716,7 +716,7 @@ static int rtw_cfg80211_ap_set_encryption(struct net_device *dev, struct ieee_pa
 			}
 			else
 			{
-				DBG_8192C("%s, set group_key, none\n", __func__);
+				DBG_8192C("%s, set group_key, yesne\n", __func__);
 
 				psecuritypriv->dot118021XGrpPrivacy = _NO_PRIVACY_;
 			}
@@ -783,7 +783,7 @@ static int rtw_cfg80211_ap_set_encryption(struct net_device *dev, struct ieee_pa
 				}
 				else
 				{
-					DBG_8192C("%s, set pairwise key, none\n", __func__);
+					DBG_8192C("%s, set pairwise key, yesne\n", __func__);
 
 					psta->dot118021XPrivacy = _NO_PRIVACY_;
 				}
@@ -912,7 +912,7 @@ static int rtw_cfg80211_set_encryption(struct net_device *dev, struct ieee_param
 
 		if (psecuritypriv->bWepDefaultKeyIdxSet == 0)
 		{
-			/* wep default key has not been set, so use this key index as default key. */
+			/* wep default key has yest been set, so use this key index as default key. */
 
 			wep_key_len = wep_key_len <= 5 ? 5 : 13;
 
@@ -955,7 +955,7 @@ static int rtw_cfg80211_set_encryption(struct net_device *dev, struct ieee_param
 			else
 			{
 				/* Jeff: don't disable ieee8021x_blocked while clearing key */
-				if (strcmp(param->u.crypt.alg, "none") != 0)
+				if (strcmp(param->u.crypt.alg, "yesne") != 0)
 					psta->ieee8021x_blocked = false;
 
 
@@ -1007,8 +1007,8 @@ static int rtw_cfg80211_set_encryption(struct net_device *dev, struct ieee_param
 						/* save the IGTK key, length 16 bytes */
 						memcpy(padapter->securitypriv.dot11wBIPKey[param->u.crypt.idx].skey,  param->u.crypt.key, (param->u.crypt.key_len>16 ?16:param->u.crypt.key_len));
 						/*DBG_871X("IGTK key below:\n");
-						for (no = 0;no<16;no++)
-							printk(" %02x ", padapter->securitypriv.dot11wBIPKey[param->u.crypt.idx].skey[no]);
+						for (yes = 0;yes<16;yes++)
+							printk(" %02x ", padapter->securitypriv.dot11wBIPKey[param->u.crypt.idx].skey[yes]);
 						DBG_871X("\n");*/
 						padapter->securitypriv.dot11wBIPKeyid = param->u.crypt.idx;
 						padapter->securitypriv.binstallBIPkey = true;
@@ -1025,7 +1025,7 @@ static int rtw_cfg80211_set_encryption(struct net_device *dev, struct ieee_param
 			else
 			{
 				/* Jeff: don't disable ieee8021x_blocked while clearing key */
-				if (strcmp(param->u.crypt.alg, "none") != 0)
+				if (strcmp(param->u.crypt.alg, "yesne") != 0)
 					pbcmc_sta->ieee8021x_blocked = false;
 
 				if ((padapter->securitypriv.ndisencryptstatus == Ndis802_11Encryption2Enabled)||
@@ -1079,7 +1079,7 @@ static int cfg80211_rtw_add_key(struct wiphy *wiphy, struct net_device *ndev,
 	case IW_AUTH_CIPHER_NONE:
 		/* todo: remove key */
 		/* remove = 1; */
-		alg_name = "none";
+		alg_name = "yesne";
 		break;
 	case WLAN_CIPHER_SUITE_WEP40:
 	case WLAN_CIPHER_SUITE_WEP104:
@@ -1400,7 +1400,7 @@ void rtw_cfg80211_unlink_bss(struct adapter *padapter, struct wlan_network *pnet
 	struct cfg80211_bss *bss = NULL;
 	struct wlan_bssid_ex *select_network = &pnetwork->network;
 
-	bss = cfg80211_get_bss(wiphy, NULL/*notify_channel*/,
+	bss = cfg80211_get_bss(wiphy, NULL/*yestify_channel*/,
 		select_network->MacAddress, select_network->Ssid.Ssid,
 		select_network->Ssid.SsidLength, 0/*WLAN_CAPABILITY_ESS*/,
 		0/*WLAN_CAPABILITY_ESS*/);
@@ -1802,7 +1802,7 @@ static int rtw_cfg80211_set_wpa_ie(struct adapter *padapter, u8 *pie, size_t iel
 	u8 null_addr[]= {0, 0, 0, 0, 0, 0};
 
 	if (pie == NULL || !ielen) {
-		/* Treat this as normal case, but need to clear WIFI_UNDER_WPS */
+		/* Treat this as yesrmal case, but need to clear WIFI_UNDER_WPS */
 		_clr_fwstate_(&padapter->mlmepriv, WIFI_UNDER_WPS);
 		goto exit;
 	}
@@ -2050,7 +2050,7 @@ static int cfg80211_rtw_connect(struct wiphy *wiphy, struct net_device *ndev,
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
 	struct security_priv *psecuritypriv = &padapter->securitypriv;
 
-	padapter->mlmepriv.not_indic_disco = true;
+	padapter->mlmepriv.yest_indic_disco = true;
 
 	DBG_871X("=>"FUNC_NDEV_FMT"\n", FUNC_NDEV_ARG(ndev));
 	DBG_871X("privacy =%d, key =%p, key_len =%d, key_idx =%d\n",
@@ -2222,7 +2222,7 @@ exit:
 
 	DBG_8192C("<=%s, ret %d\n", __func__, ret);
 
-	padapter->mlmepriv.not_indic_disco = false;
+	padapter->mlmepriv.yest_indic_disco = false;
 
 	return ret;
 }
@@ -2371,7 +2371,7 @@ static int cfg80211_rtw_del_pmksa(struct wiphy *wiphy,
 
 	if (false == bMatched)
 	{
-		DBG_871X(FUNC_NDEV_FMT" do not have matched BSSID\n"
+		DBG_871X(FUNC_NDEV_FMT" do yest have matched BSSID\n"
 			, FUNC_NDEV_ARG(ndev));
 		return -EINVAL;
 	}
@@ -2750,7 +2750,7 @@ static int rtw_add_beacon(struct adapter *adapter, const u8 *head, size_t head_l
 	if (rtw_get_wps_ie(pbuf+_FIXED_IE_LENGTH_, len-_FIXED_IE_LENGTH_, NULL, &wps_ielen))
 		DBG_8192C("add bcn, wps_ielen =%d\n", wps_ielen);
 
-	/* pbss_network->IEs will not include p2p_ie, wfd ie */
+	/* pbss_network->IEs will yest include p2p_ie, wfd ie */
 	rtw_ies_remove_ie(pbuf, &len, _BEACON_IE_OFFSET_, _VENDOR_SPECIFIC_IE_, P2P_OUI, 4);
 	rtw_ies_remove_ie(pbuf, &len, _BEACON_IE_OFFSET_, _VENDOR_SPECIFIC_IE_, WFD_OUI, 4);
 
@@ -2953,7 +2953,7 @@ static int	cfg80211_rtw_dump_station(struct wiphy *wiphy, struct net_device *nde
 	spin_unlock_bh(&pstapriv->asoc_list_lock);
 	if (NULL == psta)
 	{
-		DBG_871X("Station is not found\n");
+		DBG_871X("Station is yest found\n");
 		ret = -ENOENT;
 		goto exit;
 	}
@@ -3212,7 +3212,7 @@ static int cfg80211_rtw_sched_scan_start(struct wiphy *wiphy,
 		return -EINVAL;
 	}
 
-	ret = rtw_android_cfg80211_pno_setup(dev, request->ssids,
+	ret = rtw_android_cfg80211_pyes_setup(dev, request->ssids,
 			request->n_ssids, request->interval);
 
 	if (ret < 0) {
@@ -3220,7 +3220,7 @@ static int cfg80211_rtw_sched_scan_start(struct wiphy *wiphy,
 		goto exit;
 	}
 
-	ret = rtw_android_pno_enable(dev, true);
+	ret = rtw_android_pyes_enable(dev, true);
 	if (ret < 0) {
 		DBG_871X("%s ret: %d\n", __func__, ret);
 		goto exit;
@@ -3231,7 +3231,7 @@ exit:
 
 static int cfg80211_rtw_sched_scan_stop(struct wiphy *wiphy,
 		struct net_device *dev) {
-	return rtw_android_pno_enable(dev, false);
+	return rtw_android_pyes_enable(dev, false);
 }
 #endif /* CONFIG_PNO_SUPPORT */
 
@@ -3309,7 +3309,7 @@ void rtw_cfg80211_init_wiphy(struct adapter *padapter)
 	}
 
 	/* init regulary domain */
-	rtw_regd_init(padapter, rtw_reg_notifier);
+	rtw_regd_init(padapter, rtw_reg_yestifier);
 
 	/* copy mac_addr to wiphy */
 	memcpy(wiphy->perm_addr, padapter->eeprompriv.mac_addr, ETH_ALEN);

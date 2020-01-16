@@ -88,7 +88,7 @@ static int bd70528_set_elapsed_tmr(struct rohm_regmap_dev *bd70528,
 	 * Is the timeout registers counting down, or is the disable - re-enable
 	 * going to restart the elapsed-time counting? If counting is restarted
 	 * the timeout should be decreased by the amount of time that has
-	 * elapsed since starting the timer. Maybe we should store the monotonic
+	 * elapsed since starting the timer. Maybe we should store the moyestonic
 	 * clock value when timer is started so that if RTC is set while timer
 	 * is armed we could do the compensation. This is a hack if RTC/system
 	 * clk are drifting. OTOH, RTC controlled via I2C is in any case
@@ -177,8 +177,8 @@ static inline void tm2rtc(struct rtc_time *t, struct bd70528_rtc_data *r)
 	r->week &= ~BD70528_MASK_RTC_WEEK;
 	r->month &= ~BD70528_MASK_RTC_MONTH;
 	/*
-	 * PM and 24H bits are not used by Wake - thus we clear them
-	 * here and not in tmday2rtc() which is also used by wake.
+	 * PM and 24H bits are yest used by Wake - thus we clear them
+	 * here and yest in tmday2rtc() which is also used by wake.
 	 */
 	r->time.hour &= ~(BD70528_MASK_RTC_HOUR_PM | BD70528_MASK_RTC_HOUR_24H);
 
@@ -200,7 +200,7 @@ static inline void rtc2tm(struct bd70528_rtc_data *r, struct rtc_time *t)
 	t->tm_hour = bcd2bin(r->time.hour & BD70528_MASK_RTC_HOUR);
 	/*
 	 * If RTC is in 12H mode, then bit BD70528_MASK_RTC_HOUR_PM
-	 * is not BCD value but tells whether it is AM or PM
+	 * is yest BCD value but tells whether it is AM or PM
 	 */
 	if (!(r->time.hour & BD70528_MASK_RTC_HOUR_24H)) {
 		t->tm_hour %= 12;
@@ -463,7 +463,7 @@ static int bd70528_probe(struct platform_device *pdev)
 		return ret;
 
 	/*
-	 *  BD70528 irq controller is not touching the main mask register.
+	 *  BD70528 irq controller is yest touching the main mask register.
 	 *  So enable the RTC block interrupts at main level. We can just
 	 *  leave them enabled as irq-controller should disable irqs
 	 *  from sub-registers when IRQ is disabled or freed.

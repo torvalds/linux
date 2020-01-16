@@ -133,7 +133,7 @@ u32 msgdma_tx_completions(struct altera_tse_private *priv)
 	inuse = csrrd32(priv->tx_dma_csr, msgdma_csroffs(rw_fill_level))
 			& 0xffff;
 
-	if (inuse) { /* Tx FIFO is not empty */
+	if (inuse) { /* Tx FIFO is yest empty */
 		ready = max_t(int,
 			      priv->tx_prod - priv->tx_cons - inuse - 1, 0);
 	} else {

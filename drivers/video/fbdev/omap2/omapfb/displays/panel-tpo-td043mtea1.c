@@ -2,7 +2,7 @@
 /*
  * TPO TD043MTEA1 Panel driver
  *
- * Author: Gražvydas Ignotas <notasas@gmail.com>
+ * Author: Gražvydas Igyestas <yestasas@gmail.com>
  * Converted to new DSS device model: Tomi Valkeinen <tomi.valkeinen@ti.com>
  */
 
@@ -381,7 +381,7 @@ static int tpo_td043_enable(struct omap_dss_device *dssdev)
 		return r;
 
 	/*
-	 * If we are resuming from system suspend, SPI clocks might not be
+	 * If we are resuming from system suspend, SPI clocks might yest be
 	 * enabled yet, so we'll program the LCD from SPI PM resume callback.
 	 */
 	if (!ddata->spi_suspended) {
@@ -462,19 +462,19 @@ static struct omap_dss_driver tpo_td043_ops = {
 
 static int tpo_td043_probe_of(struct spi_device *spi)
 {
-	struct device_node *node = spi->dev.of_node;
+	struct device_yesde *yesde = spi->dev.of_yesde;
 	struct panel_drv_data *ddata = dev_get_drvdata(&spi->dev);
 	struct omap_dss_device *in;
 	int gpio;
 
-	gpio = of_get_named_gpio(node, "reset-gpios", 0);
+	gpio = of_get_named_gpio(yesde, "reset-gpios", 0);
 	if (!gpio_is_valid(gpio)) {
 		dev_err(&spi->dev, "failed to parse enable gpio\n");
 		return gpio;
 	}
 	ddata->nreset_gpio = gpio;
 
-	in = omapdss_of_find_source_for_first_ep(node);
+	in = omapdss_of_find_source_for_first_ep(yesde);
 	if (IS_ERR(in)) {
 		dev_err(&spi->dev, "failed to find video source\n");
 		return PTR_ERR(in);
@@ -493,7 +493,7 @@ static int tpo_td043_probe(struct spi_device *spi)
 
 	dev_dbg(&spi->dev, "%s\n", __func__);
 
-	if (!spi->dev.of_node)
+	if (!spi->dev.of_yesde)
 		return -ENODEV;
 
 	spi->bits_per_word = 16;
@@ -645,6 +645,6 @@ static struct spi_driver tpo_td043_spi_driver = {
 module_spi_driver(tpo_td043_spi_driver);
 
 MODULE_ALIAS("spi:tpo,td043mtea1");
-MODULE_AUTHOR("Gražvydas Ignotas <notasas@gmail.com>");
+MODULE_AUTHOR("Gražvydas Igyestas <yestasas@gmail.com>");
 MODULE_DESCRIPTION("TPO TD043MTEA1 LCD Driver");
 MODULE_LICENSE("GPL");

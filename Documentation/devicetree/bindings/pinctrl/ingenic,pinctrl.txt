@@ -2,7 +2,7 @@ Ingenic XBurst pin controller
 
 Please refer to pinctrl-bindings.txt in this directory for details of the
 common pinctrl bindings used by client devices, including the meaning of the
-phrase "pin configuration node".
+phrase "pin configuration yesde".
 
 For the XBurst SoCs, pin control is tightly bound with GPIO ports. All pins may
 be used as GPIOs, multiplexed device functions are configured within the
@@ -31,7 +31,7 @@ Required properties:
  - reg: Address range of the pinctrl registers.
 
 
-Required properties for sub-nodes (GPIO chips):
+Required properties for sub-yesdes (GPIO chips):
 -----------------------------------------------
 
  - compatible: Must contain one of:
@@ -41,11 +41,11 @@ Required properties for sub-nodes (GPIO chips):
     - "ingenic,jz4780-gpio"
     - "ingenic,x1000-gpio"
  - reg: The GPIO bank number.
- - interrupt-controller: Marks the device node as an interrupt controller.
+ - interrupt-controller: Marks the device yesde as an interrupt controller.
  - interrupts: Interrupt specifier for the controllers interrupt.
  - #interrupt-cells: Should be 2. Refer to
    ../interrupt-controller/interrupts.txt for more details.
- - gpio-controller: Marks the device node as a GPIO controller.
+ - gpio-controller: Marks the device yesde as a GPIO controller.
  - #gpio-cells: Should be 2. The first cell is the GPIO number and the second
     cell specifies GPIO flags, as defined in <dt-bindings/gpio/gpio.h>. Only the
     GPIO_ACTIVE_HIGH and GPIO_ACTIVE_LOW flags are supported.

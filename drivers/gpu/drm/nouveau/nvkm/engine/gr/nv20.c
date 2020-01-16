@@ -209,7 +209,7 @@ nv20_gr_intr(struct nvkm_gr *base)
 				   "nstatus %08x [%s] ch %d [%s] subc %d "
 				   "class %04x mthd %04x data %08x\n",
 			   show, msg, nsource, src, nstatus, sta, chid,
-			   chan ? chan->object.client->name : "unknown",
+			   chan ? chan->object.client->name : "unkyeswn",
 			   subc, class, mthd, data);
 	}
 

@@ -34,11 +34,11 @@ Optional properties:
 	0 : 3-state
 	2 : logic low
 	3 : logic high
-	Defaults to 'logic low' when the property is not present
+	Defaults to 'logic low' when the property is yest present
 - sram-size-playback : size of sram to be allocated during playback
 - sram-size-capture  : size of sram to be allocated during capture
 - interrupts : Interrupt numbers for McASP
-- interrupt-names : Known interrupt names are "tx" and "rx"
+- interrupt-names : Kyeswn interrupt names are "tx" and "rx"
 - pinctrl-0: Should specify pin control group used for this controller.
 - pinctrl-names: Should contain only one value - "default", for more details
   		 please refer to pinctrl-bindings.txt
@@ -49,7 +49,7 @@ Optional properties:
 		   AUCLK rate = auxclk-fs-ratio * FS rate
 
 Optional GPIO support:
-If any McASP pin need to be used as GPIO then the McASP node must have:
+If any McASP pin need to be used as GPIO then the McASP yesde must have:
 ...
   gpio-controller
   #gpio-cells = <2>;

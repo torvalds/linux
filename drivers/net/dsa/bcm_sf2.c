@@ -196,7 +196,7 @@ static int bcm_sf2_port_setup(struct dsa_switch *ds, int port,
 			 * will be in halted state, and phy_start()
 			 * will call resume.
 			 *
-			 * the resume path does not configure back
+			 * the resume path does yest configure back
 			 * autoneg settings, and since we hard reset
 			 * the phy manually here, we need to reset the
 			 * state machine also.
@@ -206,7 +206,7 @@ static int bcm_sf2_port_setup(struct dsa_switch *ds, int port,
 		}
 	}
 
-	/* Enable MoCA port interrupts to get notified */
+	/* Enable MoCA port interrupts to get yestified */
 	if (port == priv->moca_port)
 		bcm_sf2_port_intr_enable(priv, port);
 
@@ -352,7 +352,7 @@ static int bcm_sf2_sw_rst(struct bcm_sf2_priv *priv)
 	u32 reg;
 	int ret;
 
-	/* The watchdog reset does not work on 7278, we need to hit the
+	/* The watchdog reset does yest work on 7278, we need to hit the
 	 * "external" reset line through the reset controller.
 	 */
 	if (priv->type == BCM7278_DEVICE_ID && !IS_ERR(priv->rcdev)) {
@@ -390,16 +390,16 @@ static void bcm_sf2_intr_disable(struct bcm_sf2_priv *priv)
 }
 
 static void bcm_sf2_identify_ports(struct bcm_sf2_priv *priv,
-				   struct device_node *dn)
+				   struct device_yesde *dn)
 {
-	struct device_node *port;
+	struct device_yesde *port;
 	unsigned int port_num;
 	phy_interface_t mode;
 	int err;
 
 	priv->moca_port = -1;
 
-	for_each_available_child_of_node(dn, port) {
+	for_each_available_child_of_yesde(dn, port) {
 		if (of_property_read_u32(port, "reg", &port_num))
 			continue;
 
@@ -426,12 +426,12 @@ static void bcm_sf2_identify_ports(struct bcm_sf2_priv *priv,
 static int bcm_sf2_mdio_register(struct dsa_switch *ds)
 {
 	struct bcm_sf2_priv *priv = bcm_sf2_to_priv(ds);
-	struct device_node *dn;
+	struct device_yesde *dn;
 	static int index;
 	int err;
 
-	/* Find our integrated MDIO bus node */
-	dn = of_find_compatible_node(NULL, NULL, "brcm,unimac-mdio");
+	/* Find our integrated MDIO bus yesde */
+	dn = of_find_compatible_yesde(NULL, NULL, "brcm,unimac-mdio");
 	priv->master_mii_bus = of_mdio_find_bus(dn);
 	if (!priv->master_mii_bus)
 		return -EPROBE_DEFER;
@@ -449,7 +449,7 @@ static int bcm_sf2_mdio_register(struct dsa_switch *ds)
 	priv->slave_mii_bus->write = bcm_sf2_sw_mdio_write;
 	snprintf(priv->slave_mii_bus->id, MII_BUS_ID_SIZE, "sf2-%d",
 		 index++);
-	priv->slave_mii_bus->dev.of_node = dn;
+	priv->slave_mii_bus->dev.of_yesde = dn;
 
 	/* Include the pseudo-PHY address to divert reads towards our
 	 * workaround. This is only required for 7445D0, since 7445E0
@@ -473,7 +473,7 @@ static int bcm_sf2_mdio_register(struct dsa_switch *ds)
 
 	err = of_mdiobus_register(priv->slave_mii_bus, dn);
 	if (err && dn)
-		of_node_put(dn);
+		of_yesde_put(dn);
 
 	return err;
 }
@@ -481,7 +481,7 @@ static int bcm_sf2_mdio_register(struct dsa_switch *ds)
 static void bcm_sf2_mdio_unregister(struct bcm_sf2_priv *priv)
 {
 	mdiobus_unregister(priv->slave_mii_bus);
-	of_node_put(priv->master_mii_dn);
+	of_yesde_put(priv->master_mii_dn);
 }
 
 static u32 bcm_sf2_sw_get_phy_flags(struct dsa_switch *ds, int port)
@@ -665,7 +665,7 @@ static void bcm_sf2_sw_fixed_state(struct dsa_switch *ds, int port,
 
 	status->link = false;
 
-	/* MoCA port is special as we do not get link status from CORE_LNKSTS,
+	/* MoCA port is special as we do yest get link status from CORE_LNKSTS,
 	 * which means that we need to force the link at the port override
 	 * level to get the data to flow. We do use what the interrupt handler
 	 * did determine before.
@@ -675,7 +675,7 @@ static void bcm_sf2_sw_fixed_state(struct dsa_switch *ds, int port,
 	 */
 	if (port == priv->moca_port) {
 		status->link = priv->port_sts[port].link;
-		/* For MoCA interfaces, also force a link down notification
+		/* For MoCA interfaces, also force a link down yestification
 		 * since some version of the user-space daemon (mocad) use
 		 * cmd->autoneg to force the link, which messes up the PHY
 		 * state machine and make it go in PHY_FORCING state instead.
@@ -788,7 +788,7 @@ static int bcm_sf2_sw_set_wol(struct dsa_switch *ds, int port,
 
 	/* If we have at least one port enabled, make sure the CPU port
 	 * is also enabled. If the CPU port is the last one enabled, we disable
-	 * it since this configuration does not make sense.
+	 * it since this configuration does yest make sense.
 	 */
 	if (priv->wol_ports_mask && priv->wol_ports_mask != (1 << cpu_port))
 		priv->wol_ports_mask |= (1 << cpu_port);
@@ -1063,7 +1063,7 @@ MODULE_DEVICE_TABLE(of, bcm_sf2_of_match);
 static int bcm_sf2_sw_probe(struct platform_device *pdev)
 {
 	const char *reg_names[BCM_SF2_REGS_NUM] = BCM_SF2_REGS_NAME;
-	struct device_node *dn = pdev->dev.of_node;
+	struct device_yesde *dn = pdev->dev.of_yesde;
 	const struct of_device_id *of_id = NULL;
 	const struct bcm_sf2_of_data *data;
 	struct b53_platform_data *pdata;
@@ -1092,7 +1092,7 @@ static int bcm_sf2_sw_probe(struct platform_device *pdev)
 	if (!pdata)
 		return -ENOMEM;
 
-	of_id = of_match_node(bcm_sf2_of_match, dn);
+	of_id = of_match_yesde(bcm_sf2_of_match, dn);
 	if (!of_id || !of_id->data)
 		return -EINVAL;
 
@@ -1109,7 +1109,7 @@ static int bcm_sf2_sw_probe(struct platform_device *pdev)
 	if (PTR_ERR(priv->rcdev) == -EPROBE_DEFER)
 		return PTR_ERR(priv->rcdev);
 
-	/* Auto-detection using standard registers will not work, so
+	/* Auto-detection using standard registers will yest work, so
 	 * provide an indication of what kind of device we are for
 	 * b53_common to work with
 	 */
@@ -1129,7 +1129,7 @@ static int bcm_sf2_sw_probe(struct platform_device *pdev)
 	mutex_init(&priv->cfp.lock);
 	INIT_LIST_HEAD(&priv->cfp.rules_list);
 
-	/* CFP rule #0 cannot be used for specific classifications, flag it as
+	/* CFP rule #0 canyest be used for specific classifications, flag it as
 	 * permanently used
 	 */
 	set_bit(0, priv->cfp.used);
@@ -1255,7 +1255,7 @@ static void bcm_sf2_sw_shutdown(struct platform_device *pdev)
 	 * successful MDIO bus scan to occur. If we did turn off the GPHY
 	 * before (e.g: port_disable), this will also power it back on.
 	 *
-	 * Do not rely on kexec_in_progress, just power the PHY on.
+	 * Do yest rely on kexec_in_progress, just power the PHY on.
 	 */
 	if (priv->hw_params.num_gphy == 1)
 		bcm_sf2_gphy_enable_set(priv->dev->ds, true);

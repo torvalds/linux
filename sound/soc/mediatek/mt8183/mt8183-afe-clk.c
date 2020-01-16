@@ -549,7 +549,7 @@ int mt8183_mck_enable(struct mtk_base_afe *afe, int mck_id, int rate)
 	int div_clk_id = mck_div[mck_id].div_clk_id;
 	int ret;
 
-	/* i2s5 mck not support */
+	/* i2s5 mck yest support */
 	if (mck_id == MT8183_I2S5_MCK)
 		return 0;
 
@@ -605,7 +605,7 @@ void mt8183_mck_disable(struct mtk_base_afe *afe, int mck_id)
 	int m_sel_id = mck_div[mck_id].m_sel_id;
 	int div_clk_id = mck_div[mck_id].div_clk_id;
 
-	/* i2s5 mck not support */
+	/* i2s5 mck yest support */
 	if (mck_id == MT8183_I2S5_MCK)
 		return;
 

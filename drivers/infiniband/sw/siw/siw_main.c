@@ -4,7 +4,7 @@
 /* Copyright (c) 2008-2019, IBM Corporation */
 
 #include <linux/init.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/netdevice.h>
 #include <linux/inetdevice.h>
 #include <net/net_namespace.h>
@@ -129,24 +129,24 @@ static DEFINE_PER_CPU(atomic_t, siw_use_cnt);
 
 static struct {
 	struct cpumask **tx_valid_cpus;
-	int num_nodes;
+	int num_yesdes;
 } siw_cpu_info;
 
 static int siw_init_cpulist(void)
 {
-	int i, num_nodes = num_possible_nodes();
+	int i, num_yesdes = num_possible_yesdes();
 
 	memset(siw_tx_thread, 0, sizeof(siw_tx_thread));
 
-	siw_cpu_info.num_nodes = num_nodes;
+	siw_cpu_info.num_yesdes = num_yesdes;
 
 	siw_cpu_info.tx_valid_cpus =
-		kcalloc(num_nodes, sizeof(struct cpumask *), GFP_KERNEL);
+		kcalloc(num_yesdes, sizeof(struct cpumask *), GFP_KERNEL);
 	if (!siw_cpu_info.tx_valid_cpus) {
-		siw_cpu_info.num_nodes = 0;
+		siw_cpu_info.num_yesdes = 0;
 		return -ENOMEM;
 	}
-	for (i = 0; i < siw_cpu_info.num_nodes; i++) {
+	for (i = 0; i < siw_cpu_info.num_yesdes; i++) {
 		siw_cpu_info.tx_valid_cpus[i] =
 			kzalloc(sizeof(struct cpumask), GFP_KERNEL);
 		if (!siw_cpu_info.tx_valid_cpus[i])
@@ -155,12 +155,12 @@ static int siw_init_cpulist(void)
 		cpumask_clear(siw_cpu_info.tx_valid_cpus[i]);
 	}
 	for_each_possible_cpu(i)
-		cpumask_set_cpu(i, siw_cpu_info.tx_valid_cpus[cpu_to_node(i)]);
+		cpumask_set_cpu(i, siw_cpu_info.tx_valid_cpus[cpu_to_yesde(i)]);
 
 	return 0;
 
 out_err:
-	siw_cpu_info.num_nodes = 0;
+	siw_cpu_info.num_yesdes = 0;
 	while (--i >= 0)
 		kfree(siw_cpu_info.tx_valid_cpus[i]);
 	kfree(siw_cpu_info.tx_valid_cpus);
@@ -173,29 +173,29 @@ static void siw_destroy_cpulist(void)
 {
 	int i = 0;
 
-	while (i < siw_cpu_info.num_nodes)
+	while (i < siw_cpu_info.num_yesdes)
 		kfree(siw_cpu_info.tx_valid_cpus[i++]);
 
 	kfree(siw_cpu_info.tx_valid_cpus);
 }
 
 /*
- * Choose CPU with least number of active QP's from NUMA node of
+ * Choose CPU with least number of active QP's from NUMA yesde of
  * TX interface.
  */
 int siw_get_tx_cpu(struct siw_device *sdev)
 {
 	const struct cpumask *tx_cpumask;
-	int i, num_cpus, cpu, min_use, node = sdev->numa_node, tx_cpu = -1;
+	int i, num_cpus, cpu, min_use, yesde = sdev->numa_yesde, tx_cpu = -1;
 
-	if (node < 0)
+	if (yesde < 0)
 		tx_cpumask = cpu_online_mask;
 	else
-		tx_cpumask = siw_cpu_info.tx_valid_cpus[node];
+		tx_cpumask = siw_cpu_info.tx_valid_cpus[yesde];
 
 	num_cpus = cpumask_weight(tx_cpumask);
 	if (!num_cpus) {
-		/* no CPU on this NUMA node */
+		/* yes CPU on this NUMA yesde */
 		tx_cpumask = cpu_online_mask;
 		num_cpus = cpumask_weight(tx_cpumask);
 	}
@@ -208,7 +208,7 @@ int siw_get_tx_cpu(struct siw_device *sdev)
 	     i++, cpu = cpumask_next(cpu, tx_cpumask)) {
 		int usage;
 
-		/* Skip any cores which have no TX thread */
+		/* Skip any cores which have yes TX thread */
 		if (!siw_tx_thread[cpu])
 			continue;
 
@@ -219,13 +219,13 @@ int siw_get_tx_cpu(struct siw_device *sdev)
 		}
 	}
 	siw_dbg(&sdev->base_dev,
-		"tx cpu %d, node %d, %d qp's\n", tx_cpu, node, min_use);
+		"tx cpu %d, yesde %d, %d qp's\n", tx_cpu, yesde, min_use);
 
 out:
 	if (tx_cpu >= 0)
 		atomic_inc(&per_cpu(siw_use_cnt, tx_cpu));
 	else
-		pr_warn("siw: no tx cpu found\n");
+		pr_warn("siw: yes tx cpu found\n");
 
 	return tx_cpu;
 }
@@ -292,7 +292,7 @@ static const struct ib_device_ops siw_device_ops = {
 	.query_port = siw_query_port,
 	.query_qp = siw_query_qp,
 	.query_srq = siw_query_srq,
-	.req_notify_cq = siw_req_notify_cq,
+	.req_yestify_cq = siw_req_yestify_cq,
 	.reg_user_mr = siw_reg_user_mr,
 
 	INIT_RDMA_OBJ_SIZE(ib_cq, siw_cq, base_cq),
@@ -310,14 +310,14 @@ static struct siw_device *siw_device_create(struct net_device *netdev)
 
 	if (!parent) {
 		/*
-		 * The loopback device has no parent device,
+		 * The loopback device has yes parent device,
 		 * so it appears as a top-level device. To support
 		 * loopback device connectivity, take this device
 		 * as the parent device. Skip all other devices
 		 * w/o parent device.
 		 */
 		if (netdev->type != ARPHRD_LOOPBACK) {
-			pr_warn("siw: device %s error: no parent device\n",
+			pr_warn("siw: device %s error: yes parent device\n",
 				netdev->name);
 			return NULL;
 		}
@@ -332,18 +332,18 @@ static struct siw_device *siw_device_create(struct net_device *netdev)
 	sdev->netdev = netdev;
 
 	if (netdev->type != ARPHRD_LOOPBACK) {
-		addrconf_addr_eui48((unsigned char *)&base_dev->node_guid,
+		addrconf_addr_eui48((unsigned char *)&base_dev->yesde_guid,
 				    netdev->dev_addr);
 	} else {
 		/*
-		 * The loopback device does not have a HW address,
+		 * The loopback device does yest have a HW address,
 		 * but connection mangagement lib expects gid != 0
 		 */
 		size_t len = min_t(size_t, strlen(base_dev->name), 6);
 		char addr[6] = { };
 
 		memcpy(addr, base_dev->name, len);
-		addrconf_addr_eui48((unsigned char *)&base_dev->node_guid,
+		addrconf_addr_eui48((unsigned char *)&base_dev->yesde_guid,
 				    addr);
 	}
 	base_dev->uverbs_cmd_mask =
@@ -371,8 +371,8 @@ static struct siw_device *siw_device_create(struct net_device *netdev)
 		(1ull << IB_USER_VERBS_CMD_QUERY_SRQ) |
 		(1ull << IB_USER_VERBS_CMD_DESTROY_SRQ);
 
-	base_dev->node_type = RDMA_NODE_RNIC;
-	memcpy(base_dev->node_desc, SIW_NODE_DESC_COMMON,
+	base_dev->yesde_type = RDMA_NODE_RNIC;
+	memcpy(base_dev->yesde_desc, SIW_NODE_DESC_COMMON,
 	       sizeof(SIW_NODE_DESC_COMMON));
 
 	/*
@@ -428,7 +428,7 @@ static struct siw_device *siw_device_create(struct net_device *netdev)
 	atomic_set(&sdev->num_mr, 0);
 	atomic_set(&sdev->num_pd, 0);
 
-	sdev->numa_node = dev_to_node(parent);
+	sdev->numa_yesde = dev_to_yesde(parent);
 	spin_lock_init(&sdev->lock);
 
 	return sdev;
@@ -471,10 +471,10 @@ static void siw_device_goes_down(struct siw_device *sdev)
 	}
 }
 
-static int siw_netdev_event(struct notifier_block *nb, unsigned long event,
+static int siw_netdev_event(struct yestifier_block *nb, unsigned long event,
 			    void *arg)
 {
-	struct net_device *netdev = netdev_notifier_info_to_dev(arg);
+	struct net_device *netdev = netdev_yestifier_info_to_dev(arg);
 	struct ib_device *base_dev;
 	struct siw_device *sdev;
 
@@ -506,7 +506,7 @@ static int siw_netdev_event(struct notifier_block *nb, unsigned long event,
 
 	case NETDEV_REGISTER:
 		/*
-		 * Device registration now handled only by
+		 * Device registration yesw handled only by
 		 * rdma netlink commands. So it shall be impossible
 		 * to end up here with a valid siw device.
 		 */
@@ -521,7 +521,7 @@ static int siw_netdev_event(struct notifier_block *nb, unsigned long event,
 		siw_port_event(sdev, 1, IB_EVENT_LID_CHANGE);
 		break;
 	/*
-	 * Todo: Below netdev events are currently not handled.
+	 * Todo: Below netdev events are currently yest handled.
 	 */
 	case NETDEV_CHANGEMTU:
 	case NETDEV_CHANGE:
@@ -535,8 +535,8 @@ static int siw_netdev_event(struct notifier_block *nb, unsigned long event,
 	return NOTIFY_OK;
 }
 
-static struct notifier_block siw_netdev_nb = {
-	.notifier_call = siw_netdev_event,
+static struct yestifier_block siw_netdev_nb = {
+	.yestifier_call = siw_netdev_event,
 };
 
 static int siw_newlink(const char *basedev_name, struct net_device *netdev)
@@ -598,7 +598,7 @@ static __init int siw_init_module(void)
 		goto out_error;
 
 	if (!siw_create_tx_threads()) {
-		pr_info("siw: Could not start any TX thread\n");
+		pr_info("siw: Could yest start any TX thread\n");
 		rv = -ENOMEM;
 		goto out_error;
 	}
@@ -616,7 +616,7 @@ static __init int siw_init_module(void)
 			goto out_error;
 		}
 	}
-	rv = register_netdevice_notifier(&siw_netdev_nb);
+	rv = register_netdevice_yestifier(&siw_netdev_nb);
 	if (rv)
 		goto out_error;
 
@@ -653,7 +653,7 @@ static void __exit siw_exit_module(void)
 			siw_tx_thread[cpu] = NULL;
 		}
 	}
-	unregister_netdevice_notifier(&siw_netdev_nb);
+	unregister_netdevice_yestifier(&siw_netdev_nb);
 	rdma_link_unregister(&siw_link_ops);
 	ib_unregister_driver(RDMA_DRIVER_SIW);
 

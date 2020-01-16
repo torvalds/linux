@@ -393,7 +393,7 @@ static void netxen_pcie_strap_init(struct netxen_adapter *adapter)
 	/* clear chicken3.25:24 */
 	chicken &= 0xFCFFFFFF;
 	/*
-	 * if gen1 and B0, set F1020 - if gen 2, do nothing
+	 * if gen1 and B0, set F1020 - if gen 2, do yesthing
 	 * if gen2 set to F1000
 	 */
 	pos = pci_find_capability(pdev, PCI_CAP_ID_GEN);
@@ -672,7 +672,7 @@ static int netxen_setup_intr(struct netxen_adapter *adapter)
 	} else {
 		if (netxen_get_interrupt_mode(adapter) == NETXEN_MSI_MODE &&
 		    netxen_setup_msi_interrupts(adapter, num_msix)) {
-			dev_err(&pdev->dev, "Co-existence of MSI-X/MSI and INTx interrupts is not supported\n");
+			dev_err(&pdev->dev, "Co-existence of MSI-X/MSI and INTx interrupts is yest supported\n");
 			return -EIO;
 		}
 	}
@@ -818,7 +818,7 @@ err_out:
 static void
 netxen_check_options(struct netxen_adapter *adapter)
 {
-	u32 fw_major, fw_minor, fw_build, prev_fw_version;
+	u32 fw_major, fw_miyesr, fw_build, prev_fw_version;
 	char brd_name[NETXEN_MAX_SHORT_NAME];
 	char serial_num[32];
 	int i, offset, val, err;
@@ -841,10 +841,10 @@ netxen_check_options(struct netxen_adapter *adapter)
 	}
 
 	fw_major = NXRD32(adapter, NETXEN_FW_VERSION_MAJOR);
-	fw_minor = NXRD32(adapter, NETXEN_FW_VERSION_MINOR);
+	fw_miyesr = NXRD32(adapter, NETXEN_FW_VERSION_MINOR);
 	fw_build = NXRD32(adapter, NETXEN_FW_VERSION_SUB);
 	prev_fw_version = adapter->fw_version;
-	adapter->fw_version = NETXEN_VERSION_CODE(fw_major, fw_minor, fw_build);
+	adapter->fw_version = NETXEN_VERSION_CODE(fw_major, fw_miyesr, fw_build);
 
 	/* Get FW Mini Coredump template and store it */
 	 if (NX_IS_REVISION_P3(adapter->ahw.revision_id)) {
@@ -862,7 +862,7 @@ netxen_check_options(struct netxen_adapter *adapter)
 	if (adapter->portnum == 0) {
 		if (netxen_nic_get_brd_name_by_type(adapter->ahw.board_type,
 						    brd_name))
-			strcpy(serial_num, "Unknown");
+			strcpy(serial_num, "Unkyeswn");
 
 		pr_info("%s: %s Board S/N %s  Chip rev 0x%x\n",
 				module_name(THIS_MODULE),
@@ -872,7 +872,7 @@ netxen_check_options(struct netxen_adapter *adapter)
 	if (adapter->fw_version < NETXEN_VERSION_CODE(3, 4, 216)) {
 		adapter->driver_mismatch = 1;
 		dev_warn(&pdev->dev, "firmware version %d.%d.%d unsupported\n",
-				fw_major, fw_minor, fw_build);
+				fw_major, fw_miyesr, fw_build);
 		return;
 	}
 
@@ -882,7 +882,7 @@ netxen_check_options(struct netxen_adapter *adapter)
 	}
 
 	dev_info(&pdev->dev, "Driver v%s, firmware v%d.%d.%d [%s]\n",
-		 NETXEN_NIC_LINUX_VERSIONID, fw_major, fw_minor, fw_build,
+		 NETXEN_NIC_LINUX_VERSIONID, fw_major, fw_miyesr, fw_build,
 		 adapter->ahw.cut_through ? "cut-through" : "legacy");
 
 	if (adapter->fw_version >= NETXEN_VERSION_CODE(4, 0, 222))
@@ -1084,13 +1084,13 @@ static void
 netxen_nic_init_coalesce_defaults(struct netxen_adapter *adapter)
 {
 	adapter->coal.flags = NETXEN_NIC_INTR_DEFAULT;
-	adapter->coal.normal.data.rx_time_us =
+	adapter->coal.yesrmal.data.rx_time_us =
 		NETXEN_DEFAULT_INTR_COALESCE_RX_TIME_US;
-	adapter->coal.normal.data.rx_packets =
+	adapter->coal.yesrmal.data.rx_packets =
 		NETXEN_DEFAULT_INTR_COALESCE_RX_PACKETS;
-	adapter->coal.normal.data.tx_time_us =
+	adapter->coal.yesrmal.data.tx_time_us =
 		NETXEN_DEFAULT_INTR_COALESCE_TX_TIME_US;
-	adapter->coal.normal.data.tx_packets =
+	adapter->coal.yesrmal.data.tx_packets =
 		NETXEN_DEFAULT_INTR_COALESCE_TX_PACKETS;
 }
 
@@ -1406,7 +1406,7 @@ static void netxen_read_ula_info(struct netxen_adapter *adapter)
 		dev_info(&adapter->pdev->dev, "ULA adapter");
 		break;
 	case NETXEN_NON_ULA_ADAPTER_KEY:
-		dev_info(&adapter->pdev->dev, "non ULA adapter");
+		dev_info(&adapter->pdev->dev, "yesn ULA adapter");
 		break;
 	default:
 		break;
@@ -1452,7 +1452,7 @@ netxen_nic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	u32 val;
 
 	if (pdev->revision >= NX_P3_A0 && pdev->revision <= NX_P3_B1) {
-		pr_warn("%s: chip revisions between 0x%x-0x%x will not be enabled\n",
+		pr_warn("%s: chip revisions between 0x%x-0x%x will yest be enabled\n",
 			module_name(THIS_MODULE), NX_P3_A0, NX_P3_B1);
 		return -ENODEV;
 	}
@@ -2051,7 +2051,7 @@ netxen_nic_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 
 	frag_count = skb_shinfo(skb)->nr_frags + 1;
 
-	/* 14 frags supported for normal packet and
+	/* 14 frags supported for yesrmal packet and
 	 * 32 frags supported for TSO packet
 	 */
 	if (!skb_is_gso(skb) && frag_count > NETXEN_MAX_FRAGS_PER_TX) {
@@ -2169,8 +2169,8 @@ static int netxen_nic_check_temp(struct netxen_adapter *adapter)
 	} else {
 		if (adapter->temp == NX_TEMP_WARN) {
 			printk(KERN_INFO
-			       "%s: Device temperature is now %d degrees C"
-			       " in normal range.\n", netdev->name,
+			       "%s: Device temperature is yesw %d degrees C"
+			       " in yesrmal range.\n", netdev->name,
 			       temp_val);
 		}
 	}
@@ -2308,7 +2308,7 @@ static irqreturn_t netxen_intr(int irq, void *data)
 
 		our_int = readl(adapter->crb_int_state_reg);
 
-		/* not our interrupt */
+		/* yest our interrupt */
 		if (!test_and_clear_bit((7 + adapter->portnum), &our_int))
 			return IRQ_NONE;
 
@@ -3010,7 +3010,7 @@ netxen_sysfs_read_dimm(struct file *filp, struct kobject *kobj,
 
 	/* Checks if DIMM info is present. */
 	if (!dimm.presence) {
-		netdev_err(netdev, "DIMM not present\n");
+		netdev_err(netdev, "DIMM yest present\n");
 		goto out;
 	}
 
@@ -3040,17 +3040,17 @@ netxen_sysfs_read_dimm(struct file *filp, struct kobject *kobj,
 	}
 
 	if (!rows) {
-		netdev_err(netdev, "Invalid no of rows %x\n", rows);
+		netdev_err(netdev, "Invalid yes of rows %x\n", rows);
 		goto out;
 	}
 
 	if (!cols) {
-		netdev_err(netdev, "Invalid no of columns %x\n", cols);
+		netdev_err(netdev, "Invalid yes of columns %x\n", cols);
 		goto out;
 	}
 
 	if (!banks) {
-		netdev_err(netdev, "Invalid no of banks %x\n", banks);
+		netdev_err(netdev, "Invalid yes of banks %x\n", banks);
 		goto out;
 	}
 
@@ -3344,11 +3344,11 @@ static void netxen_config_master(struct net_device *dev, unsigned long event)
 		netxen_free_ip_list(adapter, true);
 }
 
-static int netxen_netdev_event(struct notifier_block *this,
+static int netxen_netdev_event(struct yestifier_block *this,
 				 unsigned long event, void *ptr)
 {
 	struct netxen_adapter *adapter;
-	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
+	struct net_device *dev = netdev_yestifier_info_to_dev(ptr);
 	struct net_device *orig_dev = dev;
 	struct net_device *slave;
 
@@ -3387,7 +3387,7 @@ done:
 }
 
 static int
-netxen_inetaddr_event(struct notifier_block *this,
+netxen_inetaddr_event(struct yestifier_block *this,
 		unsigned long event, void *ptr)
 {
 	struct netxen_adapter *adapter;
@@ -3427,12 +3427,12 @@ done:
 	return NOTIFY_DONE;
 }
 
-static struct notifier_block	netxen_netdev_cb = {
-	.notifier_call = netxen_netdev_event,
+static struct yestifier_block	netxen_netdev_cb = {
+	.yestifier_call = netxen_netdev_event,
 };
 
-static struct notifier_block netxen_inetaddr_cb = {
-	.notifier_call = netxen_inetaddr_event,
+static struct yestifier_block netxen_inetaddr_cb = {
+	.yestifier_call = netxen_inetaddr_event,
 };
 #else
 static void
@@ -3466,8 +3466,8 @@ static int __init netxen_init_module(void)
 	printk(KERN_INFO "%s\n", netxen_nic_driver_string);
 
 #ifdef CONFIG_INET
-	register_netdevice_notifier(&netxen_netdev_cb);
-	register_inetaddr_notifier(&netxen_inetaddr_cb);
+	register_netdevice_yestifier(&netxen_netdev_cb);
+	register_inetaddr_yestifier(&netxen_inetaddr_cb);
 #endif
 	return pci_register_driver(&netxen_driver);
 }
@@ -3479,8 +3479,8 @@ static void __exit netxen_exit_module(void)
 	pci_unregister_driver(&netxen_driver);
 
 #ifdef CONFIG_INET
-	unregister_inetaddr_notifier(&netxen_inetaddr_cb);
-	unregister_netdevice_notifier(&netxen_netdev_cb);
+	unregister_inetaddr_yestifier(&netxen_inetaddr_cb);
+	unregister_netdevice_yestifier(&netxen_netdev_cb);
 #endif
 }
 

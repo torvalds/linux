@@ -31,7 +31,7 @@ struct hynix_read_retry {
 
 /**
  * struct hynix_nand - private Hynix NAND struct
- * @nand_technology: manufacturing process expressed in picometer
+ * @nand_techyeslogy: manufacturing process expressed in picometer
  * @read_retry: read-retry information
  */
 struct hynix_nand {
@@ -231,7 +231,7 @@ static int hynix_read_rr_otp(struct nand_chip *chip,
 	if (ret)
 		return ret;
 
-	/* Put everything back to normal */
+	/* Put everything back to yesrmal */
 	ret = nand_reset_op(chip);
 	if (ret)
 		return ret;
@@ -383,13 +383,13 @@ static int hynix_nand_rr_init(struct nand_chip *chip)
 	if (valid_jedecid) {
 		u8 nand_tech = chip->id.data[5] >> 4;
 
-		/* 1xnm technology */
+		/* 1xnm techyeslogy */
 		if (nand_tech == 4) {
 			for (i = 0; i < ARRAY_SIZE(hynix_mlc_1xnm_rr_otps);
 			     i++) {
 				/*
 				 * FIXME: Hynix recommend to copy the
-				 * read-retry OTP area into a normal page.
+				 * read-retry OTP area into a yesrmal page.
 				 */
 				ret = hynix_mlc_1xnm_rr_init(chip,
 						hynix_mlc_1xnm_rr_otps);
@@ -536,7 +536,7 @@ static void hynix_nand_extract_ecc_requirements(struct nand_chip *chip,
 	} else {
 		/*
 		 * The ECC requirements field meaning depends on the
-		 * NAND technology.
+		 * NAND techyeslogy.
 		 */
 		u8 nand_tech = chip->id.data[5] & 0x7;
 
@@ -651,7 +651,7 @@ static void hynix_nand_decode_id(struct nand_chip *chip)
 
 	/*
 	 * Modern Toggle DDR NANDs have a valid JEDECID even though they are
-	 * not exposing a valid JEDEC parameter table.
+	 * yest exposing a valid JEDEC parameter table.
 	 * These NANDs use a different NAND ID scheme.
 	 */
 	valid_jedecid = hynix_nand_has_valid_jedecid(chip);

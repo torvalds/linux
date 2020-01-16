@@ -43,7 +43,7 @@
 #include "util/mem-events.h"
 #include "util/dump-insn.h"
 #include <dirent.h>
-#include <errno.h>
+#include <erryes.h>
 #include <inttypes.h>
 #include <signal.h>
 #include <sys/param.h>
@@ -66,8 +66,8 @@ static bool			reltime;
 static u64			initial_time;
 static bool			debug_mode;
 static u64			last_timestamp;
-static u64			nr_unordered;
-static bool			no_callchain;
+static u64			nr_uyesrdered;
+static bool			yes_callchain;
 static bool			latency_format;
 static bool			system_wide;
 static bool			print_flags;
@@ -298,7 +298,7 @@ static int perf_evsel_script__fprintf(struct evsel_script *es, FILE *fp)
 {
 	struct stat st;
 
-	fstat(fileno(es->fp), &st);
+	fstat(fileyes(es->fp), &st);
 	return fprintf(fp, "[ perf script: Wrote %.3f MB %s (%" PRIu64 " samples) ]\n",
 		       st.st_size / 1024.0 / 1024.0, es->filename, es->samples);
 }
@@ -365,16 +365,16 @@ static int perf_evsel__do_check_stype(struct evsel *evsel,
 		if (allow_user_set)
 			return 0;
 		evname = perf_evsel__name(evsel);
-		pr_err("Samples for '%s' event do not have %s attribute set. "
-		       "Cannot print '%s' field.\n",
+		pr_err("Samples for '%s' event do yest have %s attribute set. "
+		       "Canyest print '%s' field.\n",
 		       evname, sample_msg, output_field2str(field));
 		return -1;
 	}
 
-	/* user did not ask for it explicitly so remove from the default list */
+	/* user did yest ask for it explicitly so remove from the default list */
 	output[type].fields &= ~field;
 	evname = perf_evsel__name(evsel);
-	pr_debug("Samples for '%s' event do not have %s attribute set. "
+	pr_debug("Samples for '%s' event do yest have %s attribute set. "
 		 "Skipping '%s' field.\n",
 		 evname, sample_msg, output_field2str(field));
 
@@ -428,30 +428,30 @@ static int perf_evsel__check_attr(struct evsel *evsel,
 
 	if (PRINT_FIELD(SYM) &&
 		!(evsel->core.attr.sample_type & (PERF_SAMPLE_IP|PERF_SAMPLE_ADDR))) {
-		pr_err("Display of symbols requested but neither sample IP nor "
-			   "sample address\navailable. Hence, no addresses to convert "
+		pr_err("Display of symbols requested but neither sample IP yesr "
+			   "sample address\navailable. Hence, yes addresses to convert "
 		       "to symbols.\n");
 		return -EINVAL;
 	}
 	if (PRINT_FIELD(SYMOFFSET) && !PRINT_FIELD(SYM)) {
-		pr_err("Display of offsets requested but symbol is not"
+		pr_err("Display of offsets requested but symbol is yest"
 		       "selected.\n");
 		return -EINVAL;
 	}
 	if (PRINT_FIELD(DSO) &&
 		!(evsel->core.attr.sample_type & (PERF_SAMPLE_IP|PERF_SAMPLE_ADDR))) {
-		pr_err("Display of DSO requested but no address to convert.\n");
+		pr_err("Display of DSO requested but yes address to convert.\n");
 		return -EINVAL;
 	}
 	if ((PRINT_FIELD(SRCLINE) || PRINT_FIELD(SRCCODE)) && !PRINT_FIELD(IP)) {
-		pr_err("Display of source line number requested but sample IP is not\n"
-		       "selected. Hence, no address to lookup the source line number.\n");
+		pr_err("Display of source line number requested but sample IP is yest\n"
+		       "selected. Hence, yes address to lookup the source line number.\n");
 		return -EINVAL;
 	}
 	if (PRINT_FIELD(BRSTACKINSN) && !allow_user_set &&
 	    !(perf_evlist__combined_branch_type(session->evlist) &
 	      PERF_SAMPLE_BRANCH_ANY)) {
-		pr_err("Display of branch stack assembler requested, but non all-branch filter set\n"
+		pr_err("Display of branch stack assembler requested, but yesn all-branch filter set\n"
 		       "Hint: run 'perf record -b ...'\n");
 		return -EINVAL;
 	}
@@ -522,12 +522,12 @@ static int perf_session__check_output_opt(struct perf_session *session)
 		evsel = perf_session__find_first_evtype(session, attr_type(j));
 
 		/*
-		 * even if fields is set to 0 (ie., show nothing) event must
+		 * even if fields is set to 0 (ie., show yesthing) event must
 		 * exist if user explicitly includes it on the command line
 		 */
 		if (!evsel && output[j].user_set && !output[j].wildcard_set &&
 		    j != OUTPUT_TYPE_SYNTH) {
-			pr_err("%s events do not exist. "
+			pr_err("%s events do yest exist. "
 			       "Remove corresponding -F option to proceed.\n",
 			       event_type(j));
 			return -1;
@@ -543,18 +543,18 @@ static int perf_session__check_output_opt(struct perf_session *session)
 		set_print_ip_opts(&evsel->core.attr);
 	}
 
-	if (!no_callchain) {
+	if (!yes_callchain) {
 		bool use_callchain = false;
-		bool not_pipe = false;
+		bool yest_pipe = false;
 
 		evlist__for_each_entry(session->evlist, evsel) {
-			not_pipe = true;
+			yest_pipe = true;
 			if (evsel__has_callchain(evsel)) {
 				use_callchain = true;
 				break;
 			}
 		}
-		if (not_pipe && !use_callchain)
+		if (yest_pipe && !use_callchain)
 			symbol_conf.use_callchain = false;
 	}
 
@@ -709,7 +709,7 @@ static int perf_sample__fprintf_start(struct perf_sample *sample,
 		secs = nsecs / NSEC_PER_SEC;
 		nsecs -= secs * NSEC_PER_SEC;
 
-		if (symbol_conf.nanosecs)
+		if (symbol_conf.nayessecs)
 			printed += fprintf(fp, "%5lu.%09llu: ", secs, nsecs);
 		else {
 			char sample_time[32];
@@ -893,7 +893,7 @@ static int grab_bb(u8 *buffer, u64 start, u64 end,
 	 * Block overlaps between kernel and user.
 	 * This can happen due to ring filtering
 	 * On Intel CPUs the entry into the kernel is filtered,
-	 * but the exit is not. Let the caller patch it up.
+	 * but the exit is yest. Let the caller patch it up.
 	 */
 	if (kernel != machine__kernel_ip(machine, end)) {
 		pr_debug("\tblock %" PRIx64 "-%" PRIx64 " transfers between kernel and user\n", start, end);
@@ -903,18 +903,18 @@ static int grab_bb(u8 *buffer, u64 start, u64 end,
 	memset(&al, 0, sizeof(al));
 	if (end - start > MAXBB - MAXINSN) {
 		if (last)
-			pr_debug("\tbrstack does not reach to final jump (%" PRIx64 "-%" PRIx64 ")\n", start, end);
+			pr_debug("\tbrstack does yest reach to final jump (%" PRIx64 "-%" PRIx64 ")\n", start, end);
 		else
 			pr_debug("\tblock %" PRIx64 "-%" PRIx64 " (%" PRIu64 ") too long to dump\n", start, end, end - start);
 		return 0;
 	}
 
 	if (!thread__find_map(thread, *cpumode, start, &al) || !al.map->dso) {
-		pr_debug("\tcannot resolve %" PRIx64 "-%" PRIx64 "\n", start, end);
+		pr_debug("\tcanyest resolve %" PRIx64 "-%" PRIx64 "\n", start, end);
 		return 0;
 	}
 	if (al.map->dso->data.status == DSO_DATA_STATUS_ERROR) {
-		pr_debug("\tcannot resolve %" PRIx64 "-%" PRIx64 "\n", start, end);
+		pr_debug("\tcanyest resolve %" PRIx64 "-%" PRIx64 "\n", start, end);
 		return 0;
 	}
 
@@ -927,7 +927,7 @@ static int grab_bb(u8 *buffer, u64 start, u64 end,
 
 	*is64bit = al.map->dso->is_64_bit;
 	if (len <= 0)
-		pr_debug("\tcannot fetch code for block at %" PRIx64 "-%" PRIx64 "\n",
+		pr_debug("\tcanyest fetch code for block at %" PRIx64 "-%" PRIx64 "\n",
 			start, end);
 	return len;
 }
@@ -1072,7 +1072,7 @@ static int perf_sample__fprintf_brstackinsn(struct perf_sample *sample,
 
 	printed += fprintf(fp, "%c", '\n');
 
-	/* Handle first from jump, of which we don't know the entry. */
+	/* Handle first from jump, of which we don't kyesw the entry. */
 	len = grab_bb(buffer, br->entries[nr-1].from,
 			br->entries[nr-1].from,
 			machine, thread, &x.is64bit, &x.cpumode, false);
@@ -1132,7 +1132,7 @@ static int perf_sample__fprintf_brstackinsn(struct perf_sample *sample,
 
 	/*
 	 * Hit the branch? In this case we are already done, and the target
-	 * has not been executed yet.
+	 * has yest been executed yet.
 	 */
 	if (br->entries[0].from == sample->ip)
 		goto out;
@@ -1156,7 +1156,7 @@ static int perf_sample__fprintf_brstackinsn(struct perf_sample *sample,
 	len = grab_bb(buffer, start, end, machine, thread, &x.is64bit, &x.cpumode, true);
 	printed += ip__fprintf_sym(start, thread, x.cpumode, x.cpu, &lastsym, attr, fp);
 	if (len <= 0) {
-		/* Print at least last IP if basic block did not work */
+		/* Print at least last IP if basic block did yest work */
 		len = grab_bb(buffer, sample->ip, sample->ip,
 			      machine, thread, &x.is64bit, &x.cpumode, false);
 		if (len <= 0)
@@ -1177,7 +1177,7 @@ static int perf_sample__fprintf_brstackinsn(struct perf_sample *sample,
 			/*
 			 * Hit a missing branch. Just stop.
 			 */
-			printed += fprintf(fp, "\t... not reaching sample ...\n");
+			printed += fprintf(fp, "\t... yest reaching sample ...\n");
 			break;
 		}
 		if (PRINT_FIELD(SRCCODE))
@@ -1473,7 +1473,7 @@ static int perf_sample__fprintf_flags(u32 flags, FILE *fp)
 }
 
 struct printer_data {
-	int line_no;
+	int line_yes;
 	bool hit_nul;
 	bool is_printable;
 };
@@ -1491,7 +1491,7 @@ static int sample__fprintf_bpf_output(enum binary_printer_ops op,
 		printed += fprintf(fp, "\n");
 		break;
 	case BINARY_PRINT_LINE_BEGIN:
-		printed += fprintf(fp, "%17s", !printer_data->line_no ? "BPF output:" :
+		printed += fprintf(fp, "%17s", !printer_data->line_yes ? "BPF output:" :
 						        "           ");
 		break;
 	case BINARY_PRINT_ADDR:
@@ -1529,7 +1529,7 @@ static int sample__fprintf_bpf_output(enum binary_printer_ops op,
 		break;
 	case BINARY_PRINT_LINE_END:
 		printed += fprintf(fp, "\n");
-		printer_data->line_no++;
+		printer_data->line_yes++;
 		break;
 	case BINARY_PRINT_DATA_END:
 	default:
@@ -1641,8 +1641,8 @@ static int perf_sample__fprintf_synth_cbr(struct perf_sample *sample, FILE *fp)
 
 	freq = (le32_to_cpu(data->freq) + 500) / 1000;
 	len = fprintf(fp, " cbr: %2u freq: %4u MHz ", data->cbr, freq);
-	if (data->max_nonturbo) {
-		percent = (5 + (1000 * data->cbr) / data->max_nonturbo) / 10;
+	if (data->max_yesnturbo) {
+		percent = (5 + (1000 * data->cbr) / data->max_yesnturbo) / 10;
 		len += fprintf(fp, "(%3u%%) ", percent);
 	}
 	return len + perf_sample__fprintf_pt_spacing(len, fp);
@@ -1878,7 +1878,7 @@ static void process_event(struct perf_script *script,
 		if (!script->name_width)
 			script->name_width = perf_evlist__max_name_len(script->session->evlist);
 
-		fprintf(fp, "%*s: ", script->name_width, evname ?: "[unknown]");
+		fprintf(fp, "%*s: ", script->name_width, evname ?: "[unkyeswn]");
 	}
 
 	if (print_flags)
@@ -2050,7 +2050,7 @@ static int process_sample_event(struct perf_tool *tool,
 			pr_err("Samples misordered, previous: %" PRIu64
 				" this: %" PRIu64 "\n", last_timestamp,
 				sample->time);
-			nr_unordered++;
+			nr_uyesrdered++;
 		}
 		last_timestamp = sample->time;
 		return 0;
@@ -2560,13 +2560,13 @@ static int __cmd_script(struct perf_script *script)
 		perf_script__exit_per_event_dump_stats(script);
 
 	if (debug_mode)
-		pr_err("Misordered timestamps: %" PRIu64 "\n", nr_unordered);
+		pr_err("Misordered timestamps: %" PRIu64 "\n", nr_uyesrdered);
 
 	return ret;
 }
 
 struct script_spec {
-	struct list_head	node;
+	struct list_head	yesde;
 	struct scripting_ops	*ops;
 	char			spec[0];
 };
@@ -2588,14 +2588,14 @@ static struct script_spec *script_spec__new(const char *spec,
 
 static void script_spec__add(struct script_spec *s)
 {
-	list_add_tail(&s->node, &script_specs);
+	list_add_tail(&s->yesde, &script_specs);
 }
 
 static struct script_spec *script_spec__find(const char *spec)
 {
 	struct script_spec *s;
 
-	list_for_each_entry(s, &script_specs, node)
+	list_for_each_entry(s, &script_specs, yesde)
 		if (strcasecmp(s->spec, spec) == 0)
 			return s;
 	return NULL;
@@ -2635,7 +2635,7 @@ static void list_available_languages(void)
 	fprintf(stderr, "Scripting language extensions (used in "
 		"perf script -s [spec:]script.[spec]):\n\n");
 
-	list_for_each_entry(s, &script_specs, node)
+	list_for_each_entry(s, &script_specs, yesde)
 		fprintf(stderr, "  %-42s [%s]\n", s->spec, s->ops->name);
 
 	fprintf(stderr, "\n");
@@ -2702,7 +2702,7 @@ static int parse_output_fields(const struct option *opt __maybe_unused,
 		return -ENOMEM;
 
 	/* first word can state for which event type the user is specifying
-	 * the fields. If no type exists, the specified fields apply to all
+	 * the fields. If yes type exists, the specified fields apply to all
 	 * event types found in the file minus the invalid fields for a type.
 	 */
 	tok = strchr(str, ':');
@@ -2743,7 +2743,7 @@ static int parse_output_fields(const struct option *opt __maybe_unused,
 		tok = str;
 		if (strlen(str) == 0) {
 			fprintf(stderr,
-				"Cannot set fields to 'none' for all event types.\n");
+				"Canyest set fields to 'yesne' for all event types.\n");
 			rc = -EINVAL;
 			goto out;
 		}
@@ -2800,7 +2800,7 @@ parse:
 			 */
 			for (j = 0; j < OUTPUT_TYPE_MAX; ++j) {
 				if (output[j].invalid_fields & all_output_options[i].field) {
-					pr_warning("\'%s\' not valid for %s events. Ignoring.\n",
+					pr_warning("\'%s\' yest valid for %s events. Igyesring.\n",
 						   all_output_options[i].str, event_type(j));
 				} else {
 					if (change == REMOVE) {
@@ -2816,7 +2816,7 @@ parse:
 			}
 		} else {
 			if (output[type].invalid_fields & all_output_options[i].field) {
-				fprintf(stderr, "\'%s\' not valid for %s events.\n",
+				fprintf(stderr, "\'%s\' yest valid for %s events.\n",
 					 all_output_options[i].str, event_type(type));
 
 				rc = -EINVAL;
@@ -2834,13 +2834,13 @@ parse:
 	if (type >= 0) {
 		if (output[type].fields == 0) {
 			pr_debug("No fields requested for %s type. "
-				 "Events will not be displayed.\n", event_type(type));
+				 "Events will yest be displayed.\n", event_type(type));
 		}
 	}
 	goto out;
 
 out_badmix:
-	fprintf(stderr, "Cannot mix +-field with overridden fields\n");
+	fprintf(stderr, "Canyest mix +-field with overridden fields\n");
 	rc = -EINVAL;
 out:
 	free(str);
@@ -2866,7 +2866,7 @@ out:
 #define REPORT_SUFFIX			"-report"
 
 struct script_desc {
-	struct list_head	node;
+	struct list_head	yesde;
 	char			*name;
 	char			*half_liner;
 	char			*args;
@@ -2894,14 +2894,14 @@ static void script_desc__delete(struct script_desc *s)
 
 static void script_desc__add(struct script_desc *s)
 {
-	list_add_tail(&s->node, &script_descs);
+	list_add_tail(&s->yesde, &script_descs);
 }
 
 static struct script_desc *script_desc__find(const char *name)
 {
 	struct script_desc *s;
 
-	list_for_each_entry(s, &script_descs, node)
+	list_for_each_entry(s, &script_descs, yesde)
 		if (strcasecmp(s->name, name) == 0)
 			return s;
 	return NULL;
@@ -3040,7 +3040,7 @@ static int list_available_scripts(const struct option *opt __maybe_unused,
 	}
 
 	fprintf(stdout, "List of available trace scripts:\n");
-	list_for_each_entry(desc, &script_descs, node) {
+	list_for_each_entry(desc, &script_descs, yesde) {
 		sprintf(first_half, "%s %s", desc->name,
 			desc->args ? desc->args : "");
 		fprintf(stdout, "  %-36s %s\n", first_half,
@@ -3056,7 +3056,7 @@ static int list_available_scripts(const struct option *opt __maybe_unused,
  * mentioned in the "xxx-record".
  *
  * Fixme: All existing "xxx-record" are all in good formats "-e event ",
- * which is covered well now. And new parsing code should be added to
+ * which is covered well yesw. And new parsing code should be added to
  * cover the future complexing formats like event groups etc.
  */
 static int check_ev_match(char *dir_name, char *scriptname,
@@ -3112,7 +3112,7 @@ static int check_ev_match(char *dir_name, char *scriptname,
 }
 
 /*
- * Return -1 if none is found, otherwise the actual scripts number.
+ * Return -1 if yesne is found, otherwise the actual scripts number.
  *
  * Currently the only user of this function is the script browser, which
  * will list all statically runnable scripts, select one, execute it and
@@ -3342,7 +3342,7 @@ int process_thread_map_event(struct perf_session *session,
 	struct perf_script *script = container_of(tool, struct perf_script, tool);
 
 	if (script->threads) {
-		pr_warning("Extra thread map event, ignoring.\n");
+		pr_warning("Extra thread map event, igyesring.\n");
 		return 0;
 	}
 
@@ -3361,7 +3361,7 @@ int process_cpu_map_event(struct perf_session *session,
 	struct perf_script *script = container_of(tool, struct perf_script, tool);
 
 	if (script->cpus) {
-		pr_warning("Extra cpu map event, ignoring.\n");
+		pr_warning("Extra cpu map event, igyesring.\n");
 		return 0;
 	}
 
@@ -3406,7 +3406,7 @@ static int parse_insn_trace(const struct option *opt __maybe_unused,
 {
 	parse_output_fields(NULL, "+insn,-event,-period", 0);
 	itrace_parse_synth_opts(opt, "i0ns", 0);
-	symbol_conf.nanosecs = true;
+	symbol_conf.nayessecs = true;
 	return 0;
 }
 
@@ -3424,7 +3424,7 @@ static int parse_call_trace(const struct option *opt __maybe_unused,
 {
 	parse_output_fields(NULL, "-ip,-addr,-event,-period,+callindent", 0);
 	itrace_parse_synth_opts(opt, "cewp", 0);
-	symbol_conf.nanosecs = true;
+	symbol_conf.nayessecs = true;
 	symbol_conf.pad_output_len_dso = 50;
 	return 0;
 }
@@ -3435,7 +3435,7 @@ static int parse_callret_trace(const struct option *opt __maybe_unused,
 {
 	parse_output_fields(NULL, "-ip,-addr,-event,-period,+callindent,+flags", 0);
 	itrace_parse_synth_opts(opt, "crewp", 0);
-	symbol_conf.nanosecs = true;
+	symbol_conf.nayessecs = true;
 	return 0;
 }
 
@@ -3450,7 +3450,7 @@ int cmd_script(int argc, const char **argv)
 	struct perf_session *session;
 	struct itrace_synth_opts itrace_synth_opts = {
 		.set = false,
-		.default_no_sample = true,
+		.default_yes_sample = true,
 	};
 	struct utsname uts;
 	char *script_path = NULL;
@@ -3509,8 +3509,8 @@ int cmd_script(int argc, const char **argv)
 		   "file", "vmlinux pathname"),
 	OPT_STRING(0, "kallsyms", &symbol_conf.kallsyms_name,
 		   "file", "kallsyms pathname"),
-	OPT_BOOLEAN('G', "hide-call-graph", &no_callchain,
-		    "When printing symbols do not display call chain"),
+	OPT_BOOLEAN('G', "hide-call-graph", &yes_callchain,
+		    "When printing symbols do yest display call chain"),
 	OPT_CALLBACK(0, "symfs", NULL, "directory",
 		     "Look for files with symbols relative to this directory",
 		     symbol__config_symfs),
@@ -3548,7 +3548,7 @@ int cmd_script(int argc, const char **argv)
 		   "only consider symbols in these tids"),
 	OPT_UINTEGER(0, "max-stack", &scripting_max_stack,
 		     "Set the maximum stack depth when parsing the callchain, "
-		     "anything beyond the specified depth will be ignored. "
+		     "anything beyond the specified depth will be igyesred. "
 		     "Default: kernel.perf_event_max_stack or " __stringify(PERF_MAX_STACK_DEPTH)),
 	OPT_BOOLEAN(0, "reltime", &reltime, "Show time stamps relative to start"),
 	OPT_BOOLEAN('I', "show-info", &show_full_info,
@@ -3574,7 +3574,7 @@ int cmd_script(int argc, const char **argv)
 	OPT_BOOLEAN('f', "force", &symbol_conf.force, "don't complain, do it"),
 	OPT_INTEGER(0, "max-blocks", &max_blocks,
 		    "Maximum number of code blocks to dump with brstackinsn"),
-	OPT_BOOLEAN(0, "ns", &symbol_conf.nanosecs,
+	OPT_BOOLEAN(0, "ns", &symbol_conf.nayessecs,
 		    "Use 9 decimal places when displaying time"),
 	OPT_CALLBACK_OPTARG(0, "itrace", &itrace_synth_opts, NULL, "opts",
 			    "Instruction Tracing options\n" ITRACE_HELP,
@@ -3837,7 +3837,7 @@ int cmd_script(int argc, const char **argv)
 		itrace_synth_opts.cpu_bitmap = cpu_bitmap;
 	}
 
-	if (!no_callchain)
+	if (!yes_callchain)
 		symbol_conf.use_callchain = true;
 	else
 		symbol_conf.use_callchain = false;
@@ -3857,14 +3857,14 @@ int cmd_script(int argc, const char **argv)
 
 		if (output_set_by_user()) {
 			fprintf(stderr,
-				"custom fields not supported for generated scripts");
+				"custom fields yest supported for generated scripts");
 			err = -EINVAL;
 			goto out_delete;
 		}
 
 		input = open(data.path, O_RDONLY);	/* input_name */
 		if (input < 0) {
-			err = -errno;
+			err = -erryes;
 			perror("failed to open file");
 			goto out_delete;
 		}
@@ -3876,7 +3876,7 @@ int cmd_script(int argc, const char **argv)
 		}
 
 		if (!perf_stat.st_size) {
-			fprintf(stderr, "zero-sized file, nothing to do!\n");
+			fprintf(stderr, "zero-sized file, yesthing to do!\n");
 			goto out_delete;
 		}
 

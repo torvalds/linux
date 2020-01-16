@@ -35,16 +35,16 @@
 
 
 /** Overview:
- *  EEH, or "Enhanced Error Handling" is a PCI bridge technology for
+ *  EEH, or "Enhanced Error Handling" is a PCI bridge techyeslogy for
  *  dealing with PCI bus errors that can't be dealt with within the
  *  usual PCI framework, except by check-stopping the CPU.  Systems
- *  that are designed for high-availability/reliability cannot afford
+ *  that are designed for high-availability/reliability canyest afford
  *  to crash due to a "mere" PCI error, thus the need for EEH.
  *  An EEH-capable bridge operates by converting a detected error
  *  into a "slot freeze", taking the PCI adapter off-line, making
  *  the slot behave, from the OS'es point of view, as if the slot
  *  were "empty": all reads return 0xff's and all writes are silently
- *  ignored.  EEH slot isolation events can be triggered by parity
+ *  igyesred.  EEH slot isolation events can be triggered by parity
  *  errors on the address or data busses (e.g. during posted writes),
  *  which in turn might be caused by low voltage on the bus, dust,
  *  vibration, humidity, radioactivity or plain-old failed hardware.
@@ -52,7 +52,7 @@
  *  Note, however, that one of the leading causes of EEH slot
  *  freeze events are buggy device drivers, buggy device microcode,
  *  or buggy device hardware.  This is because any attempt by the
- *  device to bus-master data to a memory address that is not
+ *  device to bus-master data to a memory address that is yest
  *  assigned to the device will trigger a slot freeze.   (The idea
  *  is to prevent devices-gone-wild from corrupting system memory).
  *  Buggy hardware/drivers will have a miserable time co-existing
@@ -85,7 +85,7 @@
  * However, other platforms like powernv probe PCI devices
  * from hardware. The flag is used to distinguish that.
  * In addition, struct eeh_ops::probe would be invoked for
- * particular OF node or PCI device so that the corresponding
+ * particular OF yesde or PCI device so that the corresponding
  * PE would be created there.
  */
 int eeh_subsystem_flags;
@@ -103,7 +103,7 @@ u32 eeh_max_freezes = 5;
  * isolated device is discovered. This is only really useful for
  * debugging problems with the EEH core.
  */
-bool eeh_debugfs_no_recover;
+bool eeh_debugfs_yes_recover;
 
 /* Platform dependent EEH operations */
 struct eeh_ops *eeh_ops = NULL;
@@ -116,7 +116,7 @@ EXPORT_SYMBOL_GPL(confirm_error_lock);
 static DEFINE_MUTEX(eeh_dev_mutex);
 
 /* Buffer for reporting pci register dumps. Its here in BSS, and
- * not dynamically alloced, so that it ends up in RMO where RTAS
+ * yest dynamically alloced, so that it ends up in RMO where RTAS
  * can access it.
  */
 #define EEH_PCI_REGS_LOG_LEN 8192
@@ -128,10 +128,10 @@ static unsigned char pci_regs_buf[EEH_PCI_REGS_LOG_LEN];
  * exported to user space through procfs
  */
 struct eeh_stats {
-	u64 no_device;		/* PCI device not found		*/
-	u64 no_dn;		/* OF node not found		*/
-	u64 no_cfg_addr;	/* Config address not found	*/
-	u64 ignored_check;	/* EEH check skipped		*/
+	u64 yes_device;		/* PCI device yest found		*/
+	u64 yes_dn;		/* OF yesde yest found		*/
+	u64 yes_cfg_addr;	/* Config address yest found	*/
+	u64 igyesred_check;	/* EEH check skipped		*/
 	u64 total_mmio_ffs;	/* Total EEH checks		*/
 	u64 false_positives;	/* Unnecessary EEH checks	*/
 	u64 slot_resets;	/* PE reset			*/
@@ -179,10 +179,10 @@ static size_t eeh_dump_dev_log(struct eeh_dev *edev, char *buf, size_t len)
 	}
 
 	n += scnprintf(buf+n, len-n, "%04x:%02x:%02x.%01x\n",
-		       pdn->phb->global_number, pdn->busno,
+		       pdn->phb->global_number, pdn->busyes,
 		       PCI_SLOT(pdn->devfn), PCI_FUNC(pdn->devfn));
-	pr_warn("EEH: of node=%04x:%02x:%02x.%01x\n",
-		pdn->phb->global_number, pdn->busno,
+	pr_warn("EEH: of yesde=%04x:%02x:%02x.%01x\n",
+		pdn->phb->global_number, pdn->busyes,
 		PCI_SLOT(pdn->devfn), PCI_FUNC(pdn->devfn));
 
 	eeh_ops->read_config(pdn, PCI_VENDOR_ID, 4, &cfg);
@@ -312,7 +312,7 @@ void eeh_slot_error_detail(struct eeh_pe *pe, int severity)
 	 * the PE will be closed. The drivers rely on working IO path
 	 * to bring the devices to quiet state. Otherwise, PCI traffic
 	 * from those devices after they are removed is like to cause
-	 * another unexpected EEH error.
+	 * ayesther unexpected EEH error.
 	 */
 	if (!(pe->type & EEH_PE_PHB)) {
 		if (eeh_has_flag(EEH_ENABLE_IO_FOR_LOG) ||
@@ -357,8 +357,8 @@ static inline unsigned long eeh_token_to_phys(unsigned long token)
 	int hugepage_shift;
 
 	/*
-	 * We won't find hugepages here(this is iomem). Hence we are not
-	 * worried about _PAGE_SPLITTING/collapse. Also we will not hit
+	 * We won't find hugepages here(this is iomem). Hence we are yest
+	 * worried about _PAGE_SPLITTING/collapse. Also we will yest hit
 	 * page table free, because of init_mm.
 	 */
 	ptep = find_init_mm_pte(token, &hugepage_shift);
@@ -433,13 +433,13 @@ out:
  * eeh_dev_check_failure - Check if all 1's data is due to EEH slot freeze
  * @edev: eeh device
  *
- * Check for an EEH failure for the given device node.  Call this
+ * Check for an EEH failure for the given device yesde.  Call this
  * routine if the result of a read was all 0xff's and you want to
  * find out if this is due to an EEH slot freeze.  This routine
  * will query firmware for the EEH status.
  *
- * Returns 0 if there has not been an EEH error; otherwise returns
- * a non-zero value and queues up a slot isolation event notification.
+ * Returns 0 if there has yest been an EEH error; otherwise returns
+ * a yesn-zero value and queues up a slot isolation event yestification.
  *
  * It is safe to call this routine in an interrupt context.
  */
@@ -447,7 +447,7 @@ int eeh_dev_check_failure(struct eeh_dev *edev)
 {
 	int ret;
 	unsigned long flags;
-	struct device_node *dn;
+	struct device_yesde *dn;
 	struct pci_dev *dev;
 	struct eeh_pe *pe, *parent_pe;
 	int rc = 0;
@@ -459,21 +459,21 @@ int eeh_dev_check_failure(struct eeh_dev *edev)
 		return 0;
 
 	if (!edev) {
-		eeh_stats.no_dn++;
+		eeh_stats.yes_dn++;
 		return 0;
 	}
 	dev = eeh_dev_to_pci_dev(edev);
 	pe = eeh_dev_to_pe(edev);
 
-	/* Access to IO BARs might get this far and still not want checking. */
+	/* Access to IO BARs might get this far and still yest want checking. */
 	if (!pe) {
-		eeh_stats.ignored_check++;
-		eeh_edev_dbg(edev, "Ignored check\n");
+		eeh_stats.igyesred_check++;
+		eeh_edev_dbg(edev, "Igyesred check\n");
 		return 0;
 	}
 
 	if (!pe->addr && !pe->config_addr) {
-		eeh_stats.no_cfg_addr++;
+		eeh_stats.yes_cfg_addr++;
 		return 0;
 	}
 
@@ -494,7 +494,7 @@ int eeh_dev_check_failure(struct eeh_dev *edev)
 		return 0;
 
 	/* If we already have a pending isolation event for this
-	 * slot, we know it's bad already, we don't need to check.
+	 * slot, we kyesw it's bad already, we don't need to check.
 	 * Do this checking under a lock; as multiple PCI devices
 	 * in one slot might report errors simultaneously, and we
 	 * only want one error recovery routine running.
@@ -504,13 +504,13 @@ int eeh_dev_check_failure(struct eeh_dev *edev)
 	if (pe->state & EEH_PE_ISOLATED) {
 		pe->check_count++;
 		if (pe->check_count % EEH_MAX_FAILS == 0) {
-			dn = pci_device_to_OF_node(dev);
+			dn = pci_device_to_OF_yesde(dev);
 			if (dn)
 				location = of_get_property(dn, "ibm,loc-code",
 						NULL);
-			eeh_edev_err(edev, "%d reads ignored for recovering device at location=%s driver=%s\n",
+			eeh_edev_err(edev, "%d reads igyesred for recovering device at location=%s driver=%s\n",
 				pe->check_count,
-				location ? location : "unknown",
+				location ? location : "unkyeswn",
 				eeh_driver_name(dev));
 			eeh_edev_err(edev, "Might be infinite loop in %s driver\n",
 				eeh_driver_name(dev));
@@ -531,7 +531,7 @@ int eeh_dev_check_failure(struct eeh_dev *edev)
 	/* Note that config-io to empty slots may fail;
 	 * they are empty when they don't have children.
 	 * We will punt with the following conditions: Failure to get
-	 * PE's state, EEH not support and Permanently unavailable
+	 * PE's state, EEH yest support and Permanently unavailable
 	 * state, PE is in good state.
 	 */
 	if ((ret < 0) ||
@@ -612,7 +612,7 @@ int eeh_check_failure(const volatile void __iomem *token)
 	addr = eeh_token_to_phys((unsigned long __force) token);
 	edev = eeh_addr_cache_get_dev(addr);
 	if (!edev) {
-		eeh_stats.no_device++;
+		eeh_stats.yes_device++;
 		return 0;
 	}
 
@@ -971,7 +971,7 @@ int eeh_pe_reset_full(struct eeh_pe *pe, bool include_passed)
  * @edev: PCI device associated EEH device
  *
  * Save the values of the device bars. Unlike the restore
- * routine, this routine is *not* recursive. This is because
+ * routine, this routine is *yest* recursive. This is because
  * PCI devices are added individually; but, for the restore,
  * an entire slot is reset at a time.
  */
@@ -1047,15 +1047,15 @@ int __exit eeh_ops_unregister(const char *name)
 	return -EEXIST;
 }
 
-static int eeh_reboot_notifier(struct notifier_block *nb,
+static int eeh_reboot_yestifier(struct yestifier_block *nb,
 			       unsigned long action, void *unused)
 {
 	eeh_clear_flag(EEH_ENABLED);
 	return NOTIFY_DONE;
 }
 
-static struct notifier_block eeh_reboot_nb = {
-	.notifier_call = eeh_reboot_notifier,
+static struct yestifier_block eeh_reboot_nb = {
+	.yestifier_call = eeh_reboot_yestifier,
 };
 
 /**
@@ -1065,7 +1065,7 @@ static struct notifier_block eeh_reboot_nb = {
  * As a side effect we can determine here if eeh is supported at all.
  * Note that we leave EEH on so failed config cycles won't cause a machine
  * check.  If a user turns off EEH for a particular adapter they are really
- * telling Linux to ignore errors.  Some hardware (e.g. POWER5) won't
+ * telling Linux to igyesre errors.  Some hardware (e.g. POWER5) won't
  * grant access to a slot if EEH isn't enabled, and so we always enable
  * EEH for all slots/all devices.
  *
@@ -1078,24 +1078,24 @@ static int eeh_init(void)
 	struct pci_controller *hose, *tmp;
 	int ret = 0;
 
-	/* Register reboot notifier */
-	ret = register_reboot_notifier(&eeh_reboot_nb);
+	/* Register reboot yestifier */
+	ret = register_reboot_yestifier(&eeh_reboot_nb);
 	if (ret) {
-		pr_warn("%s: Failed to register notifier (%d)\n",
+		pr_warn("%s: Failed to register yestifier (%d)\n",
 			__func__, ret);
 		return ret;
 	}
 
 	/* call platform initialization function */
 	if (!eeh_ops) {
-		pr_warn("%s: Platform EEH operation not found\n",
+		pr_warn("%s: Platform EEH operation yest found\n",
 			__func__);
 		return -EEXIST;
 	} else if ((ret = eeh_ops->init()))
 		return ret;
 
 	/* Initialize PHB PEs */
-	list_for_each_entry_safe(hose, tmp, &hose_list, list_node)
+	list_for_each_entry_safe(hose, tmp, &hose_list, list_yesde)
 		eeh_dev_phb_init_dynamic(hose);
 
 	eeh_addr_cache_init();
@@ -1107,14 +1107,14 @@ static int eeh_init(void)
 core_initcall_sync(eeh_init);
 
 /**
- * eeh_add_device_early - Enable EEH for the indicated device node
- * @pdn: PCI device node for which to set up EEH
+ * eeh_add_device_early - Enable EEH for the indicated device yesde
+ * @pdn: PCI device yesde for which to set up EEH
  *
  * This routine must be used to perform EEH initialization for PCI
  * devices that were added after system boot (e.g. hotplug, dlpar).
  * This routine must be called before any i/o is performed to the
  * adapter (inluding any config-space i/o).
- * Whether this actually enables EEH or not for this device depends
+ * Whether this actually enables EEH or yest for this device depends
  * on the CEC architecture, type of the device, on earlier boot
  * command-line arguments & etc.
  */
@@ -1129,7 +1129,7 @@ void eeh_add_device_early(struct pci_dn *pdn)
 	if (!eeh_has_flag(EEH_PROBE_MODE_DEVTREE))
 		return;
 
-	/* USB Bus children of PCI devices will not have BUID's */
+	/* USB Bus children of PCI devices will yest have BUID's */
 	if (NULL == phb ||
 	    (eeh_has_flag(EEH_PROBE_MODE_DEVTREE) && 0 == phb->buid))
 		return;
@@ -1139,7 +1139,7 @@ void eeh_add_device_early(struct pci_dn *pdn)
 
 /**
  * eeh_add_device_tree_early - Enable EEH for the indicated device
- * @pdn: PCI device node
+ * @pdn: PCI device yesde
  *
  * This routine must be used to perform EEH initialization for the
  * indicated PCI device that was added after system boot (e.g.
@@ -1182,7 +1182,7 @@ void eeh_add_device_late(struct pci_dev *dev)
 	}
 
 	/*
-	 * The EEH cache might not be removed correctly because of
+	 * The EEH cache might yest be removed correctly because of
 	 * unbalanced kref to the device during unplug time, which
 	 * relies on pcibios_release_device(). So we have to remove
 	 * that here explicitly.
@@ -1268,7 +1268,7 @@ EXPORT_SYMBOL_GPL(eeh_add_sysfs_files);
  * This routine should be called when a device is removed from
  * a running system (e.g. by hotplug or dlpar).  It unregisters
  * the PCI device from the EEH subsystem.  I/O errors affecting
- * this device will no longer be detected after this call; thus,
+ * this device will yes longer be detected after this call; thus,
  * i/o errors affecting this slot may leave this device unusable.
  */
 void eeh_remove_device(struct pci_dev *dev)
@@ -1283,7 +1283,7 @@ void eeh_remove_device(struct pci_dev *dev)
 	dev_dbg(&dev->dev, "EEH: Removing device\n");
 
 	if (!edev || !edev->pdev || !edev->pe) {
-		dev_dbg(&dev->dev, "EEH: Device not referenced!\n");
+		dev_dbg(&dev->dev, "EEH: Device yest referenced!\n");
 		return;
 	}
 
@@ -1297,8 +1297,8 @@ void eeh_remove_device(struct pci_dev *dev)
 
 	/*
 	 * The flag "in_error" is used to trace EEH devices for VFs
-	 * in error state or not. It's set in eeh_report_error(). If
-	 * it's not set, eeh_report_{reset,resume}() won't be called
+	 * in error state or yest. It's set in eeh_report_error(). If
+	 * it's yest set, eeh_report_{reset,resume}() won't be called
 	 * for the VF EEH device.
 	 */
 	edev->in_error = false;
@@ -1310,7 +1310,7 @@ void eeh_remove_device(struct pci_dev *dev)
 
 	/*
 	 * We're removing from the PCI subsystem, that means
-	 * the PCI device driver can't support EEH or not
+	 * the PCI device driver can't support EEH or yest
 	 * well. So we rely on hotplug completely to do recovery
 	 * for the specific PCI device.
 	 */
@@ -1362,7 +1362,7 @@ static int eeh_pe_change_owner(struct eeh_pe *pe)
 	if (ret < 0 || ret == EEH_STATE_NOT_SUPPORT)
 		return 0;
 
-	/* Unfrozen PE, nothing to do */
+	/* Unfrozen PE, yesthing to do */
 	if (eeh_state_active(ret))
 		return 0;
 
@@ -1447,7 +1447,7 @@ EXPORT_SYMBOL_GPL(eeh_dev_open);
  * @pdev: PCI device
  *
  * Decrease count of pass through devices for the indicated PE. If
- * there is no passed through device in PE, the EEH errors detected
+ * there is yes passed through device in PE, the EEH errors detected
  * on the PE will be reported and handled as usual.
  */
 void eeh_dev_release(struct pci_dev *pdev)
@@ -1774,17 +1774,17 @@ static int proc_eeh_show(struct seq_file *m, void *v)
 	} else {
 		seq_printf(m, "EEH Subsystem is enabled\n");
 		seq_printf(m,
-				"no device=%llu\n"
-				"no device node=%llu\n"
-				"no config address=%llu\n"
-				"check not wanted=%llu\n"
+				"yes device=%llu\n"
+				"yes device yesde=%llu\n"
+				"yes config address=%llu\n"
+				"check yest wanted=%llu\n"
 				"eeh_total_mmio_ffs=%llu\n"
 				"eeh_false_positives=%llu\n"
 				"eeh_slot_resets=%llu\n",
-				eeh_stats.no_device,
-				eeh_stats.no_dn,
-				eeh_stats.no_cfg_addr,
-				eeh_stats.ignored_check,
+				eeh_stats.yes_device,
+				eeh_stats.yes_dn,
+				eeh_stats.yes_cfg_addr,
+				eeh_stats.igyesred_check,
 				eeh_stats.total_mmio_ffs,
 				eeh_stats.false_positives,
 				eeh_stats.slot_resets);
@@ -1821,7 +1821,7 @@ static ssize_t eeh_force_recover_write(struct file *filp,
 				size_t count, loff_t *ppos)
 {
 	struct pci_controller *hose;
-	uint32_t phbid, pe_no;
+	uint32_t phbid, pe_yes;
 	struct eeh_pe *pe;
 	char buf[20];
 	int ret;
@@ -1841,7 +1841,7 @@ static ssize_t eeh_force_recover_write(struct file *filp,
 		return count;
 	}
 
-	ret = sscanf(buf, "%x:%x", &phbid, &pe_no);
+	ret = sscanf(buf, "%x:%x", &phbid, &pe_yes);
 	if (ret != 2)
 		return -EINVAL;
 
@@ -1850,16 +1850,16 @@ static ssize_t eeh_force_recover_write(struct file *filp,
 		return -ENODEV;
 
 	/* Retrieve PE */
-	pe = eeh_pe_get(hose, pe_no, 0);
+	pe = eeh_pe_get(hose, pe_yes, 0);
 	if (!pe)
 		return -ENODEV;
 
 	/*
 	 * We don't do any state checking here since the detection
 	 * process is async to the recovery process. The recovery
-	 * thread *should* not break even if we schedule a recovery
+	 * thread *should* yest break even if we schedule a recovery
 	 * from an odd state (e.g. PE removed, or recovery of a
-	 * non-isolated PE)
+	 * yesn-isolated PE)
 	 */
 	__eeh_send_failure_event(pe);
 
@@ -1868,7 +1868,7 @@ static ssize_t eeh_force_recover_write(struct file *filp,
 
 static const struct file_operations eeh_force_recover_fops = {
 	.open	= simple_open,
-	.llseek	= no_llseek,
+	.llseek	= yes_llseek,
 	.write	= eeh_force_recover_write,
 };
 
@@ -1925,7 +1925,7 @@ static ssize_t eeh_dev_check_write(struct file *filp,
 
 static const struct file_operations eeh_dev_check_fops = {
 	.open	= simple_open,
-	.llseek	= no_llseek,
+	.llseek	= yes_llseek,
 	.write	= eeh_dev_check_write,
 	.read   = eeh_debugfs_dev_usage,
 };
@@ -1975,7 +1975,7 @@ static int eeh_debugfs_break_device(struct pci_dev *pdev)
 		 */
 		pdev = pdev->physfn;
 		if (!pdev)
-			return -ENXIO; /* passed through VFs have no PF */
+			return -ENXIO; /* passed through VFs have yes PF */
 
 		pos  = pci_find_ext_capability(pdev, PCI_EXT_CAP_ID_SRIOV);
 		pos += PCI_SRIOV_CTRL;
@@ -1996,11 +1996,11 @@ static int eeh_debugfs_break_device(struct pci_dev *pdev)
 	 *    PE freeze. Using the in_8() accessor skips the eeh detection hook
 	 *    so the freeze hook so the EEH Detection machinery won't be
 	 *    triggered here. This is to match the usual behaviour of EEH
-	 *    where the HW will asyncronously freeze a PE and it's up to
-	 *    the kernel to notice and deal with it.
+	 *    where the HW will asyncroyesusly freeze a PE and it's up to
+	 *    the kernel to yestice and deal with it.
 	 *
 	 * 3. Turn Memory space back on. This is more important for VFs
-	 *    since recovery will probably fail if we don't. For normal
+	 *    since recovery will probably fail if we don't. For yesrmal
 	 *    the COMMAND register is reset as a part of re-initialising
 	 *    the device.
 	 *
@@ -2058,7 +2058,7 @@ static ssize_t eeh_dev_break_write(struct file *filp,
 
 static const struct file_operations eeh_dev_break_fops = {
 	.open	= simple_open,
-	.llseek	= no_llseek,
+	.llseek	= yes_llseek,
 	.write	= eeh_dev_break_write,
 	.read   = eeh_debugfs_dev_usage,
 };
@@ -2077,7 +2077,7 @@ static int __init eeh_init_proc(void)
 				powerpc_debugfs_root, &eeh_max_freezes);
 		debugfs_create_bool("eeh_disable_recovery", 0600,
 				powerpc_debugfs_root,
-				&eeh_debugfs_no_recover);
+				&eeh_debugfs_yes_recover);
 		debugfs_create_file_unsafe("eeh_dev_check", 0600,
 				powerpc_debugfs_root, NULL,
 				&eeh_dev_check_fops);

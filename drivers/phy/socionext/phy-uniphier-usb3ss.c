@@ -27,7 +27,7 @@
 #define TESTI_ADR_MASK		GENMASK(5, 1)
 #define TESTI_WR_EN		BIT(0)
 
-#define PHY_F(regno, msb, lsb) { (regno), (msb), (lsb) }
+#define PHY_F(regyes, msb, lsb) { (regyes), (msb), (lsb) }
 
 #define CDR_CPD_TRIM	PHY_F(7, 3, 0)	/* RxPLL charge pump current */
 #define CDR_CPF_TRIM	PHY_F(8, 3, 0)	/* RxPLL charge pump current 2 */
@@ -42,7 +42,7 @@
 
 struct uniphier_u3ssphy_param {
 	struct {
-		int reg_no;
+		int reg_yes;
 		int msb;
 		int lsb;
 	} field;
@@ -82,7 +82,7 @@ static void uniphier_u3ssphy_set_param(struct uniphier_u3ssphy_priv *priv,
 
 	/* read previous data */
 	val  = FIELD_PREP(TESTI_DAT_MASK, 1);
-	val |= FIELD_PREP(TESTI_ADR_MASK, p->field.reg_no);
+	val |= FIELD_PREP(TESTI_ADR_MASK, p->field.reg_yes);
 	uniphier_u3ssphy_testio_write(priv, val);
 	val = readl(priv->base + SSPHY_TESTO);
 
@@ -90,14 +90,14 @@ static void uniphier_u3ssphy_set_param(struct uniphier_u3ssphy_priv *priv,
 	val &= ~FIELD_PREP(TESTI_DAT_MASK, field_mask);
 	data = field_mask & (p->value << p->field.lsb);
 	val  = FIELD_PREP(TESTI_DAT_MASK, data);
-	val |= FIELD_PREP(TESTI_ADR_MASK, p->field.reg_no);
+	val |= FIELD_PREP(TESTI_ADR_MASK, p->field.reg_yes);
 	uniphier_u3ssphy_testio_write(priv, val);
 	uniphier_u3ssphy_testio_write(priv, val | TESTI_WR_EN);
 	uniphier_u3ssphy_testio_write(priv, val);
 
 	/* read current data as dummy */
 	val  = FIELD_PREP(TESTI_DAT_MASK, 1);
-	val |= FIELD_PREP(TESTI_ADR_MASK, p->field.reg_no);
+	val |= FIELD_PREP(TESTI_ADR_MASK, p->field.reg_yes);
 	uniphier_u3ssphy_testio_write(priv, val);
 	readl(priv->base + SSPHY_TESTO);
 }
@@ -271,7 +271,7 @@ static int uniphier_u3ssphy_probe(struct platform_device *pdev)
 		priv->vbus = NULL;
 	}
 
-	phy = devm_phy_create(dev, dev->of_node, &uniphier_u3ssphy_ops);
+	phy = devm_phy_create(dev, dev->of_yesde, &uniphier_u3ssphy_ops);
 	if (IS_ERR(phy))
 		return PTR_ERR(phy);
 

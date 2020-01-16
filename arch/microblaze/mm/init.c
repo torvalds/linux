@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2007-2008 Michal Simek <monstr@monstr.eu>
- * Copyright (C) 2006 Atmark Techno, Inc.
+ * Copyright (C) 2006 Atmark Techyes, Inc.
  *
  * This file is subject to the terms and conditions of the GNU General Public
  * License. See the file "COPYING" in the main directory of this archive
@@ -25,7 +25,7 @@
 #include <asm/tlb.h>
 #include <asm/fixmap.h>
 
-/* Use for MMU and noMMU because of PCI generic code */
+/* Use for MMU and yesMMU because of PCI generic code */
 int mem_init_done;
 
 #ifndef CONFIG_MMU
@@ -77,7 +77,7 @@ static void highmem_setup(void)
 	for (pfn = max_low_pfn; pfn < max_pfn; ++pfn) {
 		struct page *page = pfn_to_page(pfn);
 
-		/* FIXME not sure about */
+		/* FIXME yest sure about */
 		if (!memblock_is_reserved(pfn << PAGE_SHIFT))
 			free_highmem_page(page);
 	}
@@ -111,7 +111,7 @@ static void __init paging_init(void)
 #endif
 
 	/* We don't have holes in memory map */
-	free_area_init_nodes(zones_size);
+	free_area_init_yesdes(zones_size);
 }
 
 void __init setup_memory(void)
@@ -155,9 +155,9 @@ void __init setup_memory(void)
 	 * start: base phys address of kernel - page align
 	 * end: base phys address of kernel - page align
 	 *
-	 * min_low_pfn - the first page (mm/bootmem.c - node_boot_start)
+	 * min_low_pfn - the first page (mm/bootmem.c - yesde_boot_start)
 	 * max_low_pfn
-	 * max_mapnr - the first unused page (mm/bootmem.c - node_low_pfn)
+	 * max_mapnr - the first unused page (mm/bootmem.c - yesde_low_pfn)
 	 */
 
 	/* memory start is from the kernel end (aligned) to higher addr */
@@ -178,7 +178,7 @@ void __init setup_memory(void)
 
 		start_pfn = memblock_region_memory_base_pfn(reg);
 		end_pfn = memblock_region_memory_end_pfn(reg);
-		memblock_set_node(start_pfn << PAGE_SHIFT,
+		memblock_set_yesde(start_pfn << PAGE_SHIFT,
 				  (end_pfn - start_pfn) << PAGE_SHIFT,
 				  &memblock.memory, 0);
 	}
@@ -259,7 +259,7 @@ static void __init mmu_init_hw(void)
 	 * indicators, except the LSB.  For user access, zone 1 is used,
 	 * for kernel access, zone 0 is used.  We set all but zone 1
 	 * to zero, allowing only kernel access as indicated in the PTE.
-	 * For zone 1, we set a 01 binary (a value of 10 will not work)
+	 * For zone 1, we set a 01 binary (a value of 10 will yest work)
 	 * to allow user access as indicated in the PTE.  This also allows
 	 * kernel access as indicated in the PTE.
 	 */
@@ -290,7 +290,7 @@ asmlinkage void __init mmu_init(void)
 	}
 
 	if ((u32) memblock.memory.regions[0].size < kernel_tlb) {
-		pr_emerg("Kernel size is greater than memory node\n");
+		pr_emerg("Kernel size is greater than memory yesde\n");
 		machine_restart(NULL);
 	}
 
@@ -305,7 +305,7 @@ asmlinkage void __init mmu_init(void)
 #endif
 	}
 
-	mm_cmdline_setup(); /* FIXME parse args from command line - not used */
+	mm_cmdline_setup(); /* FIXME parse args from command line - yest used */
 
 	/*
 	 * Map out the kernel text/data/bss from the available physical

@@ -23,7 +23,7 @@
 #include <linux/interrupt.h>
 #include <linux/spi/ads7846.h>
 #include <linux/spi/spi.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 
 static void *pdm360ng_gpio_base;
 
@@ -49,16 +49,16 @@ static struct ads7846_platform_data pdm360ng_ads7846_pdata = {
 
 static int __init pdm360ng_penirq_init(void)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 
-	np = of_find_compatible_node(NULL, NULL, "fsl,mpc5121-gpio");
+	np = of_find_compatible_yesde(NULL, NULL, "fsl,mpc5121-gpio");
 	if (!np) {
-		pr_err("%s: Can't find 'mpc5121-gpio' node\n", __func__);
+		pr_err("%s: Can't find 'mpc5121-gpio' yesde\n", __func__);
 		return -ENODEV;
 	}
 
 	pdm360ng_gpio_base = of_iomap(np, 0);
-	of_node_put(np);
+	of_yesde_put(np);
 	if (!pdm360ng_gpio_base) {
 		pr_err("%s: Can't map gpio regs.\n", __func__);
 		return -ENODEV;
@@ -70,21 +70,21 @@ static int __init pdm360ng_penirq_init(void)
 	return 0;
 }
 
-static int pdm360ng_touchscreen_notifier_call(struct notifier_block *nb,
+static int pdm360ng_touchscreen_yestifier_call(struct yestifier_block *nb,
 					unsigned long event, void *__dev)
 {
 	struct device *dev = __dev;
 
 	if ((event == BUS_NOTIFY_ADD_DEVICE) &&
-	    of_device_is_compatible(dev->of_node, "ti,ads7846")) {
+	    of_device_is_compatible(dev->of_yesde, "ti,ads7846")) {
 		dev->platform_data = &pdm360ng_ads7846_pdata;
 		return NOTIFY_OK;
 	}
 	return NOTIFY_DONE;
 }
 
-static struct notifier_block pdm360ng_touchscreen_nb = {
-	.notifier_call = pdm360ng_touchscreen_notifier_call,
+static struct yestifier_block pdm360ng_touchscreen_nb = {
+	.yestifier_call = pdm360ng_touchscreen_yestifier_call,
 };
 
 static void __init pdm360ng_touchscreen_init(void)
@@ -92,7 +92,7 @@ static void __init pdm360ng_touchscreen_init(void)
 	if (pdm360ng_penirq_init())
 		return;
 
-	bus_register_notifier(&spi_bus_type, &pdm360ng_touchscreen_nb);
+	bus_register_yestifier(&spi_bus_type, &pdm360ng_touchscreen_nb);
 }
 #else
 static inline void __init pdm360ng_touchscreen_init(void)

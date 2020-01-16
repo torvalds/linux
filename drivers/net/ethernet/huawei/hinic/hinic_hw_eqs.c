@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Huawei HiNIC PCI Express Linux driver
- * Copyright(c) 2017 Huawei Technologies Co., Ltd
+ * Copyright(c) 2017 Huawei Techyeslogies Co., Ltd
  */
 
 #include <linux/kernel.h>
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/pci.h>
 #include <linux/device.h>
 #include <linux/workqueue.h>
@@ -237,7 +237,7 @@ static void aeq_irq_handler(struct hinic_eq *eq)
 
 		event = HINIC_EQ_ELEM_DESC_GET(aeqe_desc, TYPE);
 		if (event >= HINIC_MAX_AEQ_EVENTS) {
-			dev_err(&pdev->dev, "Unknown AEQ Event %d\n", event);
+			dev_err(&pdev->dev, "Unkyeswn AEQ Event %d\n", event);
 			return;
 		}
 
@@ -285,7 +285,7 @@ static void ceq_event_handler(struct hinic_ceqs *ceqs, u32 ceqe)
 
 	event = CEQE_TYPE(ceqe);
 	if (event >= HINIC_MAX_CEQ_EVENTS) {
-		dev_err(&pdev->dev, "Unknown CEQ event, event = %d\n", event);
+		dev_err(&pdev->dev, "Unkyeswn CEQ event, event = %d\n", event);
 		return;
 	}
 

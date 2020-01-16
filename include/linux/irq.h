@@ -3,8 +3,8 @@
 #define _LINUX_IRQ_H
 
 /*
- * Please do not include this file in generic code.  There is currently
- * no requirement for any architecture to implement anything held
+ * Please do yest include this file in generic code.  There is currently
+ * yes requirement for any architecture to implement anything held
  * within this file.
  *
  * Thanks. --rmk
@@ -57,17 +57,17 @@ enum irqchip_irq_state;
  *				  bits are modified via irq_set_irq_type()
  * IRQ_PER_CPU			- Mark an interrupt PER_CPU. Will protect
  *				  it from affinity setting
- * IRQ_NOPROBE			- Interrupt cannot be probed by autoprobing
- * IRQ_NOREQUEST		- Interrupt cannot be requested via
+ * IRQ_NOPROBE			- Interrupt canyest be probed by autoprobing
+ * IRQ_NOREQUEST		- Interrupt canyest be requested via
  *				  request_irq()
- * IRQ_NOTHREAD			- Interrupt cannot be threaded
- * IRQ_NOAUTOEN			- Interrupt is not automatically enabled in
+ * IRQ_NOTHREAD			- Interrupt canyest be threaded
+ * IRQ_NOAUTOEN			- Interrupt is yest automatically enabled in
  *				  request/setup_irq()
- * IRQ_NO_BALANCING		- Interrupt cannot be balanced (affinity set)
+ * IRQ_NO_BALANCING		- Interrupt canyest be balanced (affinity set)
  * IRQ_MOVE_PCNTXT		- Interrupt can be migrated from process context
- * IRQ_NESTED_THREAD		- Interrupt nests into another thread
+ * IRQ_NESTED_THREAD		- Interrupt nests into ayesther thread
  * IRQ_PER_CPU_DEVID		- Dev_id is a per-cpu variable
- * IRQ_IS_POLLED		- Always polled by another interrupt. Exclude
+ * IRQ_IS_POLLED		- Always polled by ayesther interrupt. Exclude
  *				  it from the spurious interrupt detection
  *				  mechanism and from core side polling.
  * IRQ_DISABLE_UNLAZY		- Disable lazy irq disable
@@ -129,13 +129,13 @@ struct irq_domain;
  * struct irq_common_data - per irq data shared by all irqchips
  * @state_use_accessors: status information for irq chip functions.
  *			Use accessor functions to deal with it
- * @node:		node index useful for balancing
+ * @yesde:		yesde index useful for balancing
  * @handler_data:	per-IRQ data for the irq_chip methods
  * @affinity:		IRQ affinity on SMP. If this is an IPI
  *			related irq, then this is the mask of the
  *			CPUs to which an IPI can be sent.
  * @effective_affinity:	The effective IRQ affinity on SMP as some irq
- *			chips do not allow multi CPU destinations.
+ *			chips do yest allow multi CPU destinations.
  *			A subset of @affinity.
  * @msi_desc:		MSI descriptor
  * @ipi_offset:		Offset of first IPI target cpu in @affinity. Optional.
@@ -143,7 +143,7 @@ struct irq_domain;
 struct irq_common_data {
 	unsigned int		__private state_use_accessors;
 #ifdef CONFIG_NUMA
-	unsigned int		node;
+	unsigned int		yesde;
 #endif
 	void			*handler_data;
 	struct msi_desc		*msi_desc;
@@ -414,9 +414,9 @@ static inline irq_hw_number_t irqd_to_hwirq(struct irq_data *d)
  * @irq_set_affinity:	Set the CPU affinity on SMP machines. If the force
  *			argument is true, it tells the driver to
  *			unconditionally apply the affinity setting. Sanity
- *			checks against the supplied affinity mask are not
+ *			checks against the supplied affinity mask are yest
  *			required. This is used for CPU hotplug where the
- *			target CPU is not yet set in the cpu_online_mask.
+ *			target CPU is yest yet set in the cpu_online_mask.
  * @irq_retrigger:	resend an IRQ to the CPU
  * @irq_set_type:	set the flow type (IRQ_TYPE_LEVEL/etc.) of an IRQ
  * @irq_set_wake:	enable/disable power-management wake-on of an IRQ
@@ -503,11 +503,11 @@ struct irq_chip {
  *
  * IRQCHIP_SET_TYPE_MASKED:	Mask before calling chip.irq_set_type()
  * IRQCHIP_EOI_IF_HANDLED:	Only issue irq_eoi() when irq was handled
- * IRQCHIP_MASK_ON_SUSPEND:	Mask non wake irqs in the suspend path
+ * IRQCHIP_MASK_ON_SUSPEND:	Mask yesn wake irqs in the suspend path
  * IRQCHIP_ONOFFLINE_ENABLED:	Only call irq_on/off_line callbacks
  *				when irq enabled
  * IRQCHIP_SKIP_SET_WAKE:	Skip chip.irq_set_wake(), for this irq chip
- * IRQCHIP_ONESHOT_SAFE:	One shot does not require mask/unmask
+ * IRQCHIP_ONESHOT_SAFE:	One shot does yest require mask/unmask
  * IRQCHIP_EOI_THREADED:	Chip requires eoi() on unmask in threaded mode
  * IRQCHIP_SUPPORTS_LEVEL_MSI	Chip can provide two doorbells for Level MSIs
  * IRQCHIP_SUPPORTS_NMI:	Chip can deliver NMIs, only for root irqchips
@@ -575,7 +575,7 @@ static inline void irq_move_masked_irq(struct irq_data *data) { }
 static inline void irq_force_complete_move(struct irq_desc *desc) { }
 #endif
 
-extern int no_irq_affinity;
+extern int yes_irq_affinity;
 
 #ifdef CONFIG_HARDIRQS_SW_RESEND
 int irq_set_parent(int irq, int parent_irq);
@@ -636,17 +636,17 @@ extern void irq_chip_release_resources_parent(struct irq_data *data);
 #endif
 
 /* Handling of unhandled and spurious interrupts: */
-extern void note_interrupt(struct irq_desc *desc, irqreturn_t action_ret);
+extern void yeste_interrupt(struct irq_desc *desc, irqreturn_t action_ret);
 
 
 /* Enable/disable irq debugging output: */
-extern int noirqdebug_setup(char *str);
+extern int yesirqdebug_setup(char *str);
 
 /* Checks whether the interrupt can be requested by request_irq(): */
 extern int can_request_irq(unsigned int irq, unsigned long irqflags);
 
 /* Dummy irq-chip implementations: */
-extern struct irq_chip no_irq_chip;
+extern struct irq_chip yes_irq_chip;
 extern struct irq_chip dummy_irq_chip;
 
 extern void
@@ -707,7 +707,7 @@ static inline void irq_clear_status_flags(unsigned int irq, unsigned long clr)
 	irq_modify_status(irq, clr, 0);
 }
 
-static inline void irq_set_noprobe(unsigned int irq)
+static inline void irq_set_yesprobe(unsigned int irq)
 {
 	irq_modify_status(irq, 0, IRQ_NOPROBE);
 }
@@ -717,7 +717,7 @@ static inline void irq_set_probe(unsigned int irq)
 	irq_modify_status(irq, IRQ_NOPROBE, 0);
 }
 
-static inline void irq_set_nothread(unsigned int irq)
+static inline void irq_set_yesthread(unsigned int irq)
 {
 	irq_modify_status(irq, 0, IRQ_NOTHREAD);
 }
@@ -802,18 +802,18 @@ static inline u32 irq_get_trigger_type(unsigned int irq)
 	return d ? irqd_get_trigger_type(d) : 0;
 }
 
-static inline int irq_common_data_get_node(struct irq_common_data *d)
+static inline int irq_common_data_get_yesde(struct irq_common_data *d)
 {
 #ifdef CONFIG_NUMA
-	return d->node;
+	return d->yesde;
 #else
 	return 0;
 #endif
 }
 
-static inline int irq_data_get_node(struct irq_data *d)
+static inline int irq_data_get_yesde(struct irq_data *d)
 {
-	return irq_common_data_get_node(d->common);
+	return irq_common_data_get_yesde(d->common);
 }
 
 static inline struct cpumask *irq_get_affinity_mask(int irq)
@@ -853,44 +853,44 @@ struct cpumask *irq_data_get_effective_affinity_mask(struct irq_data *d)
 
 unsigned int arch_dynirq_lower_bound(unsigned int from);
 
-int __irq_alloc_descs(int irq, unsigned int from, unsigned int cnt, int node,
+int __irq_alloc_descs(int irq, unsigned int from, unsigned int cnt, int yesde,
 		      struct module *owner,
 		      const struct irq_affinity_desc *affinity);
 
 int __devm_irq_alloc_descs(struct device *dev, int irq, unsigned int from,
-			   unsigned int cnt, int node, struct module *owner,
+			   unsigned int cnt, int yesde, struct module *owner,
 			   const struct irq_affinity_desc *affinity);
 
 /* use macros to avoid needing export.h for THIS_MODULE */
-#define irq_alloc_descs(irq, from, cnt, node)	\
-	__irq_alloc_descs(irq, from, cnt, node, THIS_MODULE, NULL)
+#define irq_alloc_descs(irq, from, cnt, yesde)	\
+	__irq_alloc_descs(irq, from, cnt, yesde, THIS_MODULE, NULL)
 
-#define irq_alloc_desc(node)			\
-	irq_alloc_descs(-1, 0, 1, node)
+#define irq_alloc_desc(yesde)			\
+	irq_alloc_descs(-1, 0, 1, yesde)
 
-#define irq_alloc_desc_at(at, node)		\
-	irq_alloc_descs(at, at, 1, node)
+#define irq_alloc_desc_at(at, yesde)		\
+	irq_alloc_descs(at, at, 1, yesde)
 
-#define irq_alloc_desc_from(from, node)		\
-	irq_alloc_descs(-1, from, 1, node)
+#define irq_alloc_desc_from(from, yesde)		\
+	irq_alloc_descs(-1, from, 1, yesde)
 
-#define irq_alloc_descs_from(from, cnt, node)	\
-	irq_alloc_descs(-1, from, cnt, node)
+#define irq_alloc_descs_from(from, cnt, yesde)	\
+	irq_alloc_descs(-1, from, cnt, yesde)
 
-#define devm_irq_alloc_descs(dev, irq, from, cnt, node)		\
-	__devm_irq_alloc_descs(dev, irq, from, cnt, node, THIS_MODULE, NULL)
+#define devm_irq_alloc_descs(dev, irq, from, cnt, yesde)		\
+	__devm_irq_alloc_descs(dev, irq, from, cnt, yesde, THIS_MODULE, NULL)
 
-#define devm_irq_alloc_desc(dev, node)				\
-	devm_irq_alloc_descs(dev, -1, 0, 1, node)
+#define devm_irq_alloc_desc(dev, yesde)				\
+	devm_irq_alloc_descs(dev, -1, 0, 1, yesde)
 
-#define devm_irq_alloc_desc_at(dev, at, node)			\
-	devm_irq_alloc_descs(dev, at, at, 1, node)
+#define devm_irq_alloc_desc_at(dev, at, yesde)			\
+	devm_irq_alloc_descs(dev, at, at, 1, yesde)
 
-#define devm_irq_alloc_desc_from(dev, from, node)		\
-	devm_irq_alloc_descs(dev, -1, from, 1, node)
+#define devm_irq_alloc_desc_from(dev, from, yesde)		\
+	devm_irq_alloc_descs(dev, -1, from, 1, yesde)
 
-#define devm_irq_alloc_descs_from(dev, from, cnt, node)		\
-	devm_irq_alloc_descs(dev, -1, from, cnt, node)
+#define devm_irq_alloc_descs_from(dev, from, cnt, yesde)		\
+	devm_irq_alloc_descs(dev, -1, from, cnt, yesde)
 
 void irq_free_descs(unsigned int irq, unsigned int cnt);
 static inline void irq_free_desc(unsigned int irq)
@@ -899,17 +899,17 @@ static inline void irq_free_desc(unsigned int irq)
 }
 
 #ifdef CONFIG_GENERIC_IRQ_LEGACY_ALLOC_HWIRQ
-unsigned int irq_alloc_hwirqs(int cnt, int node);
-static inline unsigned int irq_alloc_hwirq(int node)
+unsigned int irq_alloc_hwirqs(int cnt, int yesde);
+static inline unsigned int irq_alloc_hwirq(int yesde)
 {
-	return irq_alloc_hwirqs(1, node);
+	return irq_alloc_hwirqs(1, yesde);
 }
 void irq_free_hwirqs(unsigned int from, int cnt);
 static inline void irq_free_hwirq(unsigned int irq)
 {
 	return irq_free_hwirqs(irq, 1);
 }
-int arch_setup_hwirq(unsigned int irq, int node);
+int arch_setup_hwirq(unsigned int irq, int yesde);
 void arch_teardown_hwirq(unsigned int irq);
 #endif
 
@@ -967,10 +967,10 @@ struct irq_chip_type {
  * @reg_writel:		Alternate I/O accessor (defaults to writel if NULL)
  * @suspend:		Function called from core code on suspend once per
  *			chip; can be useful instead of irq_chip::suspend to
- *			handle chip details even when no interrupts are in use
+ *			handle chip details even when yes interrupts are in use
  * @resume:		Function called from core code on resume once per chip;
  *			can be useful instead of irq_chip::suspend to handle
- *			chip details even when no interrupts are in use
+ *			chip details even when yes interrupts are in use
  * @irq_base:		Interrupt base nr for this chip
  * @irq_cnt:		Number of interrupts handled by this chip
  * @mask_cache:		Cached mask register shared between all chip types
@@ -979,9 +979,9 @@ struct irq_chip_type {
  * @wake_enabled:	Interrupt can wakeup from suspend
  * @wake_active:	Interrupt is marked as an wakeup from suspend source
  * @num_ct:		Number of available irq_chip_type instances (usually 1)
- * @private:		Private data for non generic chip callbacks
- * @installed:		bitfield to denote installed interrupts
- * @unused:		bitfield to denote unused interrupts
+ * @private:		Private data for yesn generic chip callbacks
+ * @installed:		bitfield to deyeste installed interrupts
+ * @unused:		bitfield to deyeste unused interrupts
  * @domain:		irq domain pointer
  * @list:		List head for keeping track of instances
  * @chip_types:		Array of interrupt irq_chip_types
@@ -1022,7 +1022,7 @@ struct irq_chip_generic {
  *				irq chips which need to call irq_set_wake() on
  *				the parent irq. Usually GPIO implementations
  * @IRQ_GC_MASK_CACHE_PER_TYPE:	Mask cache is chip type private
- * @IRQ_GC_NO_MASK:		Do not calculate irq_data->mask
+ * @IRQ_GC_NO_MASK:		Do yest calculate irq_data->mask
  * @IRQ_GC_BE_IO:		Use big-endian register accesses (default: LE)
  */
 enum irq_gc_flags {
@@ -1052,7 +1052,7 @@ struct irq_domain_chip_generic {
 };
 
 /* Generic chip callback functions */
-void irq_gc_noop(struct irq_data *d);
+void irq_gc_yesop(struct irq_data *d);
 void irq_gc_mask_disable_reg(struct irq_data *d);
 void irq_gc_mask_set_bit(struct irq_data *d);
 void irq_gc_mask_clr_bit(struct irq_data *d);
@@ -1136,7 +1136,7 @@ static inline void irq_gc_unlock(struct irq_chip_generic *gc) { }
 #endif
 
 /*
- * The irqsave variants are for usage in non interrupt code. Do not use
+ * The irqsave variants are for usage in yesn interrupt code. Do yest use
  * them in irq_chip callbacks. Use irq_gc_lock() instead.
  */
 #define irq_gc_lock_irqsave(gc, flags)	\

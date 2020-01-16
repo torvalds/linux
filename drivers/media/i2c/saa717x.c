@@ -683,7 +683,7 @@ static void get_inf_dev_status(struct v4l2_subdev *sd,
 	u32 reg_data3;
 
 	static char *stdres[0x20] = {
-		[0x00] = "no standard detected",
+		[0x00] = "yes standard detected",
 		[0x01] = "B/G (in progress)",
 		[0x02] = "D/K (in progress)",
 		[0x03] = "M (in progress)",
@@ -706,7 +706,7 @@ static void get_inf_dev_status(struct v4l2_subdev *sd,
 		[0x11] = "FM radio / IF sel / 50 deemp",
 		[0x12] = "FM radio / IF sel / 75 deemp",
 
-		[0x13 ... 0x1e] = "unknown",
+		[0x13 ... 0x1e] = "unkyeswn",
 		[0x1f] = "??? [in progress]",
 	};
 
@@ -727,12 +727,12 @@ static void get_inf_dev_status(struct v4l2_subdev *sd,
 		(reg_data3 & 0x000080) ? " A2/EIAJ pilot tone "     : "",
 		(reg_data3 & 0x000100) ? " A2/EIAJ dual "           : "",
 		(reg_data3 & 0x000200) ? " A2/EIAJ stereo "         : "",
-		(reg_data3 & 0x000400) ? " A2/EIAJ noise mute "     : "",
+		(reg_data3 & 0x000400) ? " A2/EIAJ yesise mute "     : "",
 
 		(reg_data3 & 0x000800) ? " BTSC/FM radio pilot "    : "",
 		(reg_data3 & 0x001000) ? " SAP carrier "            : "",
-		(reg_data3 & 0x002000) ? " BTSC stereo noise mute " : "",
-		(reg_data3 & 0x004000) ? " SAP noise mute "         : "",
+		(reg_data3 & 0x002000) ? " BTSC stereo yesise mute " : "",
+		(reg_data3 & 0x004000) ? " SAP yesise mute "         : "",
 		(reg_data3 & 0x008000) ? " VDSP "                   : "",
 
 		(reg_data3 & 0x010000) ? " NICST "                  : "",
@@ -776,7 +776,7 @@ static int set_audio_regs(struct v4l2_subdev *sd,
 	v4l2_dbg(1, debug, sd, "set audio input %d\n",
 			decoder->audio_input);
 
-	/* normalize ( 65535 to 0 -> 24 to -40 (not -84)) */
+	/* yesrmalize ( 65535 to 0 -> 24 to -40 (yest -84)) */
 	work_l = (min(65536 - decoder->audio_main_balance, 32768) * decoder->audio_main_volume) / 32768;
 	work_r = (min(decoder->audio_main_balance, (u16)32768) * decoder->audio_main_volume) / 32768;
 	decoder->audio_main_vol_l = (long)work_l * (24 - (-40)) / 65535 - 40;
@@ -926,7 +926,7 @@ static int saa717x_s_video_routing(struct v4l2_subdev *sd,
 		int input_line = input;
 
 		decoder->input = input_line;
-		v4l2_dbg(1, debug, sd,  "now setting %s input %d\n",
+		v4l2_dbg(1, debug, sd,  "yesw setting %s input %d\n",
 				input_line >= 6 ? "S-Video" : "Composite",
 				input_line);
 
@@ -1059,8 +1059,8 @@ static int saa717x_s_std(struct v4l2_subdev *sd, v4l2_std_id std)
 {
 	struct saa717x_state *decoder = to_state(sd);
 
-	v4l2_dbg(1, debug, sd, "decoder set norm ");
-	v4l2_dbg(1, debug, sd, "(not yet implemented)\n");
+	v4l2_dbg(1, debug, sd, "decoder set yesrm ");
+	v4l2_dbg(1, debug, sd, "(yest yet implemented)\n");
 
 	decoder->radio = 0;
 	decoder->std = std;
@@ -1123,7 +1123,7 @@ static int saa717x_s_tuner(struct v4l2_subdev *sd, const struct v4l2_tuner *vt)
 	v4l2_dbg(1, debug, sd, "change audio mode to %s\n",
 			mes[audio_mode]);
 	decoder->tuner_audio_mode = audio_mode;
-	/* The registers are not changed here. */
+	/* The registers are yest changed here. */
 	/* See DECODER_ENABLE_OUTPUT section. */
 	set_audio_mode(sd, decoder->tuner_audio_mode);
 	return 0;
@@ -1141,7 +1141,7 @@ static int saa717x_g_tuner(struct v4l2_subdev *sd, struct v4l2_tuner *vt)
 	v4l2_dbg(1, debug, sd, "DETECT==st:%d dual:%d\n",
 			stereo_f, dual_f);
 
-	/* mono */
+	/* moyes */
 	if ((dual_f == 0) && (stereo_f == 0)) {
 		vt->rxsubchans = V4L2_TUNER_SUB_MONO;
 		v4l2_dbg(1, debug, sd, "DETECT==MONO\n");
@@ -1254,7 +1254,7 @@ static int saa717x_probe(struct i2c_client *client,
 			saa717x_write(sd, 0x5a7, 0x01))
 		id = saa717x_read(sd, 0x5a0);
 	if (id != 0xc2 && id != 0x32 && id != 0xf2 && id != 0x6c) {
-		v4l2_dbg(1, debug, sd, "saa717x not found (id=%02x)\n", id);
+		v4l2_dbg(1, debug, sd, "saa717x yest found (id=%02x)\n", id);
 		return -ENODEV;
 	}
 	if (id == 0xc2)

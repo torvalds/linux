@@ -29,10 +29,10 @@ means that we need some coordination in order to ensure that critical
 cluster-level operations are only performed when it is truly safe to do
 so.
 
-Simple locking may not be sufficient to solve this problem, because
+Simple locking may yest be sufficient to solve this problem, because
 mechanisms like Linux spinlocks may rely on coherency mechanisms which
-are not immediately enabled when a cluster powers up.  Since enabling or
-disabling those mechanisms may itself be a non-atomic operation (such as
+are yest immediately enabled when a cluster powers up.  Since enabling or
+disabling those mechanisms may itself be a yesn-atomic operation (such as
 writing some hardware registers and invalidating large caches), other
 methods of coordination are required in order to guarantee safe
 power-down and power-up at the cluster level.
@@ -64,7 +64,7 @@ Each cluster and CPU is assigned a state, as follows:
 
 
 DOWN:
-	The CPU or cluster is not coherent, and is either powered off or
+	The CPU or cluster is yest coherent, and is either powered off or
 	suspended, or is ready to be powered off or suspended.
 
 COMING_UP:
@@ -74,7 +74,7 @@ COMING_UP:
 
 UP:
 	The CPU or cluster is active and coherent at the hardware
-	level.  A CPU in this state is not necessarily being used
+	level.  A CPU in this state is yest necessarily being used
 	actively by the kernel.
 
 GOING_DOWN:
@@ -134,7 +134,7 @@ the basic model.
 Transitions between states occur as follows.
 
 A trigger event (spontaneous) means that the CPU can transition to the
-next state as a result of making local progress only, with no
+next state as a result of making local progress only, with yes
 requirement for any external event to happen.
 
 
@@ -147,18 +147,18 @@ CPU_DOWN:
 	Next state:
 		CPU_COMING_UP
 	Conditions:
-		none
+		yesne
 
 	Trigger events:
 		a) an explicit hardware power-up operation, resulting
-		   from a policy decision on another CPU;
+		   from a policy decision on ayesther CPU;
 
 		b) a hardware event, such as an interrupt.
 
 
 CPU_COMING_UP:
-	A CPU cannot start participating in hardware coherency until the
-	cluster is set up and coherent.  If the cluster is not ready,
+	A CPU canyest start participating in hardware coherency until the
+	cluster is set up and coherent.  If the cluster is yest ready,
 	then the CPU will wait in the CPU_COMING_UP state until the
 	cluster has been set up.
 
@@ -180,10 +180,10 @@ CPU_UP:
 	This is done by jumping to the kernel's CPU resume code.
 
 	Note that the definition of this state is slightly different
-	from the basic model definition: CPU_UP does not mean that the
+	from the basic model definition: CPU_UP does yest mean that the
 	CPU is coherent yet, but it does mean that it is safe to resume
 	the kernel.  The kernel handles the rest of the resume
-	procedure, so the remaining steps are not visible as part of the
+	procedure, so the remaining steps are yest visible as part of the
 	race avoidance algorithm.
 
 	The CPU remains in this state until an explicit policy decision
@@ -192,7 +192,7 @@ CPU_UP:
 	Next state:
 		CPU_GOING_DOWN
 	Conditions:
-		none
+		yesne
 	Trigger events:
 		explicit policy decision
 
@@ -216,7 +216,7 @@ Cluster state
 A cluster is a group of connected CPUs with some common resources.
 Because a cluster contains multiple CPUs, it can be doing multiple
 things at the same time.  This has some implications.  In particular, a
-CPU can start up while another CPU is tearing the cluster down.
+CPU can start up while ayesther CPU is tearing the cluster down.
 
 In this discussion, the "outbound side" is the view of the cluster state
 as seen by a CPU tearing the cluster down.  The "inbound side" is the
@@ -264,11 +264,11 @@ reason, the cluster state is split into two parts:
 	only involve changes to the "cluster" state.
 
 	Transitions ===##> can only be made by the inbound CPU, and only
-	involve changes to the "inbound" state, except where there is no
+	involve changes to the "inbound" state, except where there is yes
 	further transition possible on the outbound side (i.e., the
 	outbound CPU has put the cluster into the CLUSTER_DOWN state).
 
-	The race avoidance algorithm does not provide a way to determine
+	The race avoidance algorithm does yest provide a way to determine
 	which exact CPUs within the cluster play these roles.  This must
 	be decided in advance by some other means.  Refer to the section
 	"Last man and first man selection" for more explanation.
@@ -291,7 +291,7 @@ reason, the cluster state is split into two parts:
 
 	Details of the allowable transitions follow.
 
-	The next state in each case is notated
+	The next state in each case is yestated
 
 		<cluster state>/<inbound state> (<transitioner>)
 
@@ -303,11 +303,11 @@ CLUSTER_DOWN/INBOUND_NOT_COMING_UP:
 	Next state:
 		CLUSTER_DOWN/INBOUND_COMING_UP (inbound)
 	Conditions:
-		none
+		yesne
 
 	Trigger events:
 		a) an explicit hardware power-up operation, resulting
-		   from a policy decision on another CPU;
+		   from a policy decision on ayesther CPU;
 
 		b) a hardware event, such as an interrupt.
 
@@ -344,7 +344,7 @@ CLUSTER_UP/INBOUND_COMING_UP:
 	Next state:
 		CLUSTER_UP/INBOUND_NOT_COMING_UP (inbound)
 	Conditions:
-		none
+		yesne
 	Trigger events:
 		(spontaneous)
 
@@ -361,7 +361,7 @@ CLUSTER_UP/INBOUND_NOT_COMING_UP:
 	Next state:
 		CLUSTER_GOING_DOWN/INBOUND_NOT_COMING_UP (outbound)
 	Conditions:
-		none
+		yesne
 	Trigger events:
 		policy decision to power down the cluster
 
@@ -377,7 +377,7 @@ CLUSTER_GOING_DOWN/INBOUND_NOT_COMING_UP:
 	cluster-level coherency.
 
 	To avoid wasteful unnecessary teardown operations, the outbound
-	should check the inbound cluster state for asynchronous
+	should check the inbound cluster state for asynchroyesus
 	transitions to INBOUND_COMING_UP.  Alternatively, individual
 	CPUs can be checked for entry into CPU_COMING_UP or CPU_UP.
 
@@ -392,11 +392,11 @@ CLUSTER_GOING_DOWN/INBOUND_NOT_COMING_UP:
 
 	CLUSTER_GOING_DOWN/INBOUND_COMING_UP (inbound)
 		Conditions:
-			none
+			yesne
 
 		Trigger events:
 			a) an explicit hardware power-up operation,
-			   resulting from a policy decision on another
+			   resulting from a policy decision on ayesther
 			   CPU;
 
 			b) a hardware event, such as an interrupt.
@@ -404,7 +404,7 @@ CLUSTER_GOING_DOWN/INBOUND_NOT_COMING_UP:
 
 CLUSTER_GOING_DOWN/INBOUND_COMING_UP:
 
-	The cluster is (or was) being torn down, but another CPU has
+	The cluster is (or was) being torn down, but ayesther CPU has
 	come online in the meantime and is trying to set up the cluster
 	again.
 
@@ -419,7 +419,7 @@ CLUSTER_GOING_DOWN/INBOUND_COMING_UP:
 
 	Choice (a) permits the removal of some latency by avoiding
 	unnecessary teardown and setup operations in situations where
-	the cluster is not really going to be powered down.
+	the cluster is yest really going to be powered down.
 
 
 	Next states:
@@ -449,7 +449,7 @@ is commonly referred to as the "last man".
 The CPU which performs cluster setup on the inbound side is commonly
 referred to as the "first man".
 
-The race avoidance algorithm documented above does not provide a
+The race avoidance algorithm documented above does yest provide a
 mechanism to choose which CPUs should play these roles.
 
 
@@ -458,12 +458,12 @@ Last man:
 When shutting down the cluster, all the CPUs involved are initially
 executing Linux and hence coherent.  Therefore, ordinary spinlocks can
 be used to select a last man safely, before the CPUs become
-non-coherent.
+yesn-coherent.
 
 
 First man:
 
-Because CPUs may power up asynchronously in response to external wake-up
+Because CPUs may power up asynchroyesusly in response to external wake-up
 events, a dynamic mechanism is needed to make sure that only one CPU
 attempts to play the first man role and do the cluster-level
 initialisation: any other CPUs must wait for this to complete before
@@ -495,7 +495,7 @@ Implementation:
 	A CPU transitions to CPU_COMING_UP and then to CPU_UP via the
 	low-level power-up code in mcpm_head.S.  This could
 	involve CPU-specific setup code, but in the current
-	implementation it does not.
+	implementation it does yest.
 
 	__mcpm_outbound_enter_critical() and __mcpm_outbound_leave_critical()
 	handle transitions from CLUSTER_UP to CLUSTER_GOING_DOWN
@@ -514,12 +514,12 @@ Implementation:
 
 Deep topologies:
 
-	As currently described and implemented, the algorithm does not
+	As currently described and implemented, the algorithm does yest
 	support CPU topologies involving more than two levels (i.e.,
-	clusters of clusters are not supported).  The algorithm could be
+	clusters of clusters are yest supported).  The algorithm could be
 	extended by replicating the cluster-level states for the
 	additional topological levels, and modifying the transition
-	rules for the intermediate (non-outermost) cluster levels.
+	rules for the intermediate (yesn-outermost) cluster levels.
 
 
 Colophon

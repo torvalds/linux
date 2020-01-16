@@ -79,7 +79,7 @@ inline void lpfc_vport_set_state(struct lpfc_vport *vport,
 		vport->port_state = LPFC_VPORT_UNKNOWN;
 		break;
 	default:
-		/* do nothing */
+		/* do yesthing */
 		break;
 	}
 }
@@ -167,7 +167,7 @@ lpfc_vport_sparm(struct lpfc_hba *phba, struct lpfc_vport *vport)
 	}
 
 	memcpy(&vport->fc_sparam, mp->virt, sizeof (struct serv_parm));
-	memcpy(&vport->fc_nodename, &vport->fc_sparam.nodeName,
+	memcpy(&vport->fc_yesdename, &vport->fc_sparam.yesdeName,
 	       sizeof (struct lpfc_name));
 	memcpy(&vport->fc_portname, &vport->fc_sparam.portName,
 	       sizeof (struct lpfc_name));
@@ -211,7 +211,7 @@ lpfc_unique_wwpn(struct lpfc_hba *phba, struct lpfc_vport *new_vport)
 	list_for_each_entry(vport, &phba->port_list, listentry) {
 		if (vport == new_vport)
 			continue;
-		/* If they match, return not unique */
+		/* If they match, return yest unique */
 		if (memcmp(&vport->fc_sparam.portName,
 			   &new_vport->fc_sparam.portName,
 			   sizeof(struct lpfc_name)) == 0) {
@@ -228,15 +228,15 @@ lpfc_unique_wwpn(struct lpfc_hba *phba, struct lpfc_vport *new_vport)
  * @vport: The virtual port for which this call is being executed.
  *
  * This driver calls this routine specifically from lpfc_vport_delete
- * to enforce a synchronous execution of vport
+ * to enforce a synchroyesus execution of vport
  * delete relative to discovery activities.  The
- * lpfc_vport_delete routine should not return until it
+ * lpfc_vport_delete routine should yest return until it
  * can reasonably guarantee that discovery has quiesced.
  * Post FDISC LOGO, the driver must wait until its SAN teardown is
  * complete and all resources recovered before allowing
  * cleanup.
  *
- * This routine does not require any locks held.
+ * This routine does yest require any locks held.
  **/
 static void lpfc_discovery_wait(struct lpfc_vport *vport)
 {
@@ -257,17 +257,17 @@ static void lpfc_discovery_wait(struct lpfc_vport *vport)
 	wait_time_max += jiffies;
 	start_time = jiffies;
 	while (time_before(jiffies, wait_time_max)) {
-		if ((vport->num_disc_nodes > 0)    ||
+		if ((vport->num_disc_yesdes > 0)    ||
 		    (vport->fc_flag & wait_flags)  ||
 		    ((vport->port_state > LPFC_VPORT_FAILED) &&
 		     (vport->port_state < LPFC_VPORT_READY))) {
 			lpfc_printf_vlog(vport, KERN_INFO, LOG_VPORT,
 					"1833 Vport discovery quiesce Wait:"
 					" state x%x fc_flags x%x"
-					" num_nodes x%x, waiting 1000 msecs"
+					" num_yesdes x%x, waiting 1000 msecs"
 					" total wait msecs x%x\n",
 					vport->port_state, vport->fc_flag,
-					vport->num_disc_nodes,
+					vport->num_disc_yesdes,
 					jiffies_to_msecs(jiffies - start_time));
 			msleep(1000);
 		} else {
@@ -294,7 +294,7 @@ static void lpfc_discovery_wait(struct lpfc_vport *vport)
 int
 lpfc_vport_create(struct fc_vport *fc_vport, bool disable)
 {
-	struct lpfc_nodelist *ndlp;
+	struct lpfc_yesdelist *ndlp;
 	struct Scsi_Host *shost = fc_vport->shost;
 	struct lpfc_vport *pport = (struct lpfc_vport *) shost->hostdata;
 	struct lpfc_hba   *phba = pport->phba;
@@ -307,17 +307,17 @@ lpfc_vport_create(struct fc_vport *fc_vport, bool disable)
 	if ((phba->sli_rev < 3) || !(phba->cfg_enable_npiv)) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_VPORT,
 				"1808 Create VPORT failed: "
-				"NPIV is not enabled: SLImode:%d\n",
+				"NPIV is yest enabled: SLImode:%d\n",
 				phba->sli_rev);
 		rc = VPORT_INVAL;
 		goto error_out;
 	}
 
-	/* NPIV is not supported if HBA has NVME Target enabled */
+	/* NPIV is yest supported if HBA has NVME Target enabled */
 	if (phba->nvmet_support) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_VPORT,
 				"3189 Create VPORT failed: "
-				"NPIV is not supported on NVME Target\n");
+				"NPIV is yest supported on NVME Target\n");
 		rc = VPORT_INVAL;
 		goto error_out;
 	}
@@ -335,7 +335,7 @@ lpfc_vport_create(struct fc_vport *fc_vport, bool disable)
 	/* Assign an unused board number */
 	if ((instance = lpfc_get_instance()) < 0) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_VPORT,
-				"1810 Create VPORT failed: Cannot get "
+				"1810 Create VPORT failed: Canyest get "
 				"instance number\n");
 		lpfc_free_vpi(phba, vpi);
 		rc = VPORT_NORESOURCES;
@@ -362,7 +362,7 @@ lpfc_vport_create(struct fc_vport *fc_vport, bool disable)
 		} else {
 			lpfc_printf_vlog(vport, KERN_ERR, LOG_VPORT,
 					 "1813 Create VPORT failed. "
-					 "Cannot get sparam\n");
+					 "Canyest get sparam\n");
 			rc = VPORT_NORESOURCES;
 		}
 		lpfc_free_vpi(phba, vpi);
@@ -370,13 +370,13 @@ lpfc_vport_create(struct fc_vport *fc_vport, bool disable)
 		goto error_out;
 	}
 
-	u64_to_wwn(fc_vport->node_name, vport->fc_nodename.u.wwn);
+	u64_to_wwn(fc_vport->yesde_name, vport->fc_yesdename.u.wwn);
 	u64_to_wwn(fc_vport->port_name, vport->fc_portname.u.wwn);
 
 	memcpy(&vport->fc_sparam.portName, vport->fc_portname.u.wwn, 8);
-	memcpy(&vport->fc_sparam.nodeName, vport->fc_nodename.u.wwn, 8);
+	memcpy(&vport->fc_sparam.yesdeName, vport->fc_yesdename.u.wwn, 8);
 
-	if (!lpfc_valid_wwn_format(phba, &vport->fc_sparam.nodeName, "WWNN") ||
+	if (!lpfc_valid_wwn_format(phba, &vport->fc_sparam.yesdeName, "WWNN") ||
 	    !lpfc_valid_wwn_format(phba, &vport->fc_sparam.portName, "WWPN")) {
 		lpfc_printf_vlog(vport, KERN_ERR, LOG_VPORT,
 				 "1821 Create VPORT failed. "
@@ -403,7 +403,7 @@ lpfc_vport_create(struct fc_vport *fc_vport, bool disable)
 	/* Set the DFT_LUN_Q_DEPTH accordingly */
 	vport->cfg_lun_queue_depth  = phba->pport->cfg_lun_queue_depth;
 
-	/* Only the physical port can support NVME for now */
+	/* Only the physical port can support NVME for yesw */
 	vport->cfg_enable_fc4_type = LPFC_ENABLE_FCP;
 
 	*(struct lpfc_vport **)fc_vport->dd_data = vport;
@@ -435,7 +435,7 @@ lpfc_vport_create(struct fc_vport *fc_vport, bool disable)
 		}
 	} else if (phba->sli_rev == LPFC_SLI_REV4) {
 		/*
-		 * Driver cannot INIT_VPI now. Set the flags to
+		 * Driver canyest INIT_VPI yesw. Set the flags to
 		 * init_vpi when reg_vfi complete.
 		 */
 		vport->fc_flag |= FC_VPORT_NEEDS_INIT_VPI;
@@ -458,10 +458,10 @@ lpfc_vport_create(struct fc_vport *fc_vport, bool disable)
 		goto out;
 	}
 
-	/* Use the Physical nodes Fabric NDLP to determine if the link is
+	/* Use the Physical yesdes Fabric NDLP to determine if the link is
 	 * up and ready to FDISC.
 	 */
-	ndlp = lpfc_findnode_did(phba->pport, Fabric_DID);
+	ndlp = lpfc_findyesde_did(phba->pport, Fabric_DID);
 	if (ndlp && NLP_CHK_NODE_ACT(ndlp) &&
 	    ndlp->nlp_state == NLP_STE_UNMAPPED_NODE) {
 		if (phba->link_flag & LS_NPIV_FAB_SUPPORTED) {
@@ -490,11 +490,11 @@ disable_vport(struct fc_vport *fc_vport)
 {
 	struct lpfc_vport *vport = *(struct lpfc_vport **)fc_vport->dd_data;
 	struct lpfc_hba   *phba = vport->phba;
-	struct lpfc_nodelist *ndlp = NULL, *next_ndlp = NULL;
+	struct lpfc_yesdelist *ndlp = NULL, *next_ndlp = NULL;
 	long timeout;
 	struct Scsi_Host *shost = lpfc_shost_from_vport(vport);
 
-	ndlp = lpfc_findnode_did(vport, Fabric_DID);
+	ndlp = lpfc_findyesde_did(vport, Fabric_DID);
 	if (ndlp && NLP_CHK_NODE_ACT(ndlp)
 	    && phba->link_state >= LPFC_LINK_UP) {
 		vport->unreg_vpi_cmpl = VPORT_INVAL;
@@ -506,10 +506,10 @@ disable_vport(struct fc_vport *fc_vport)
 
 	lpfc_sli_host_down(vport);
 
-	/* Mark all nodes for discovery so we can remove them by
+	/* Mark all yesdes for discovery so we can remove them by
 	 * calling lpfc_cleanup_rpis(vport, 1)
 	 */
-	list_for_each_entry_safe(ndlp, next_ndlp, &vport->fc_nodes, nlp_listp) {
+	list_for_each_entry_safe(ndlp, next_ndlp, &vport->fc_yesdes, nlp_listp) {
 		if (!NLP_CHK_NODE_ACT(ndlp))
 			continue;
 		if (ndlp->nlp_state == NLP_STE_UNUSED_NODE)
@@ -544,7 +544,7 @@ enable_vport(struct fc_vport *fc_vport)
 {
 	struct lpfc_vport *vport = *(struct lpfc_vport **)fc_vport->dd_data;
 	struct lpfc_hba   *phba = vport->phba;
-	struct lpfc_nodelist *ndlp = NULL;
+	struct lpfc_yesdelist *ndlp = NULL;
 	struct Scsi_Host *shost = lpfc_shost_from_vport(vport);
 
 	if ((phba->link_state < LPFC_LINK_UP) ||
@@ -564,10 +564,10 @@ enable_vport(struct fc_vport *fc_vport)
 	vport->fc_flag |= FC_VPORT_NEEDS_REG_VPI;
 	spin_unlock_irq(shost->host_lock);
 
-	/* Use the Physical nodes Fabric NDLP to determine if the link is
+	/* Use the Physical yesdes Fabric NDLP to determine if the link is
 	 * up and ready to FDISC.
 	 */
-	ndlp = lpfc_findnode_did(phba->pport, Fabric_DID);
+	ndlp = lpfc_findyesde_did(phba->pport, Fabric_DID);
 	if (ndlp && NLP_CHK_NODE_ACT(ndlp)
 	    && ndlp->nlp_state == NLP_STE_UNMAPPED_NODE) {
 		if (phba->link_flag & LS_NPIV_FAB_SUPPORTED) {
@@ -601,7 +601,7 @@ lpfc_vport_disable(struct fc_vport *fc_vport, bool disable)
 int
 lpfc_vport_delete(struct fc_vport *fc_vport)
 {
-	struct lpfc_nodelist *ndlp = NULL;
+	struct lpfc_yesdelist *ndlp = NULL;
 	struct lpfc_vport *vport = *(struct lpfc_vport **)fc_vport->dd_data;
 	struct Scsi_Host *shost = lpfc_shost_from_vport(vport);
 	struct lpfc_hba   *phba = vport->phba;
@@ -610,7 +610,7 @@ lpfc_vport_delete(struct fc_vport *fc_vport)
 
 	if (vport->port_type == LPFC_PHYSICAL_PORT) {
 		lpfc_printf_vlog(vport, KERN_ERR, LOG_VPORT,
-				 "1812 vport_delete failed: Cannot delete "
+				 "1812 vport_delete failed: Canyest delete "
 				 "physical host\n");
 		return VPORT_ERROR;
 	}
@@ -619,7 +619,7 @@ lpfc_vport_delete(struct fc_vport *fc_vport)
 	if ((vport->vport_flag & STATIC_VPORT) &&
 		!(phba->pport->load_flag & FC_UNLOADING)) {
 		lpfc_printf_vlog(vport, KERN_ERR, LOG_VPORT,
-				 "1837 vport_delete failed: Cannot delete "
+				 "1837 vport_delete failed: Canyest delete "
 				 "static vport.\n");
 		return VPORT_ERROR;
 	}
@@ -627,7 +627,7 @@ lpfc_vport_delete(struct fc_vport *fc_vport)
 	vport->load_flag |= FC_UNLOADING;
 	spin_unlock_irq(&phba->hbalock);
 	/*
-	 * If we are not unloading the driver then prevent the vport_delete
+	 * If we are yest unloading the driver then prevent the vport_delete
 	 * from happening until after this vport's discovery is finished.
 	 */
 	if (!(phba->pport->load_flag & FC_UNLOADING)) {
@@ -648,7 +648,7 @@ lpfc_vport_delete(struct fc_vport *fc_vport)
 	 *
 	 * Beyond holding a reference for this function, we also need a
 	 * reference for outstanding I/O requests we schedule during delete
-	 * processing.  But once we scsi_remove_host() we can no longer obtain
+	 * processing.  But once we scsi_remove_host() we can yes longer obtain
 	 * a reference through scsi_host_get().
 	 *
 	 * So we take two references here.  We release one reference at the
@@ -673,7 +673,7 @@ lpfc_vport_delete(struct fc_vport *fc_vport)
 	 * increment the reference for the NameServer ndlp to prevent it from
 	 * being released.
 	 */
-	ndlp = lpfc_findnode_did(vport, NameServer_DID);
+	ndlp = lpfc_findyesde_did(vport, NameServer_DID);
 	if (ndlp && NLP_CHK_NODE_ACT(ndlp)) {
 		lpfc_nlp_get(ndlp);
 		ns_ndlp_referenced = true;
@@ -683,9 +683,9 @@ lpfc_vport_delete(struct fc_vport *fc_vport)
 	fc_remove_host(shost);
 	scsi_remove_host(shost);
 
-	ndlp = lpfc_findnode_did(phba->pport, Fabric_DID);
+	ndlp = lpfc_findyesde_did(phba->pport, Fabric_DID);
 
-	/* In case of driver unload, we shall not perform fabric logo as the
+	/* In case of driver unload, we shall yest perform fabric logo as the
 	 * worker thread already stopped at this stage and, in this case, we
 	 * can safely skip the fabric logo.
 	 */
@@ -694,17 +694,17 @@ lpfc_vport_delete(struct fc_vport *fc_vport)
 		    ndlp->nlp_state == NLP_STE_UNMAPPED_NODE &&
 		    phba->link_state >= LPFC_LINK_UP) {
 			/* First look for the Fabric ndlp */
-			ndlp = lpfc_findnode_did(vport, Fabric_DID);
+			ndlp = lpfc_findyesde_did(vport, Fabric_DID);
 			if (!ndlp)
 				goto skip_logo;
 			else if (!NLP_CHK_NODE_ACT(ndlp)) {
-				ndlp = lpfc_enable_node(vport, ndlp,
+				ndlp = lpfc_enable_yesde(vport, ndlp,
 							NLP_STE_UNUSED_NODE);
 				if (!ndlp)
 					goto skip_logo;
 			}
 			/* Remove ndlp from vport npld list */
-			lpfc_dequeue_node(vport, ndlp);
+			lpfc_dequeue_yesde(vport, ndlp);
 
 			/* Indicate free memory when release */
 			spin_lock_irq(&phba->ndlp_lock);
@@ -733,9 +733,9 @@ lpfc_vport_delete(struct fc_vport *fc_vport)
 						"delete objects on fabric\n");
 		}
 		/* First look for the Fabric ndlp */
-		ndlp = lpfc_findnode_did(vport, Fabric_DID);
+		ndlp = lpfc_findyesde_did(vport, Fabric_DID);
 		if (!ndlp) {
-			/* Cannot find existing Fabric ndlp, allocate one */
+			/* Canyest find existing Fabric ndlp, allocate one */
 			ndlp = lpfc_nlp_init(vport, Fabric_DID);
 			if (!ndlp)
 				goto skip_logo;
@@ -743,14 +743,14 @@ lpfc_vport_delete(struct fc_vport *fc_vport)
 			NLP_SET_FREE_REQ(ndlp);
 		} else {
 			if (!NLP_CHK_NODE_ACT(ndlp)) {
-				ndlp = lpfc_enable_node(vport, ndlp,
+				ndlp = lpfc_enable_yesde(vport, ndlp,
 						NLP_STE_UNUSED_NODE);
 				if (!ndlp)
 					goto skip_logo;
 			}
 
 			/* Remove ndlp from vport list */
-			lpfc_dequeue_node(vport, ndlp);
+			lpfc_dequeue_yesde(vport, ndlp);
 			spin_lock_irq(&phba->ndlp_lock);
 			if (!NLP_CHK_FREE_REQ(ndlp))
 				/* Indicate free memory when release */
@@ -764,8 +764,8 @@ lpfc_vport_delete(struct fc_vport *fc_vport)
 		}
 
 		/*
-		 * If the vpi is not registered, then a valid FDISC doesn't
-		 * exist and there is no need for a ELS LOGO.  Just cleanup
+		 * If the vpi is yest registered, then a valid FDISC doesn't
+		 * exist and there is yes need for a ELS LOGO.  Just cleanup
 		 * the ndlp.
 		 */
 		if (!(vport->vpi_state & LPFC_VPI_REGISTERED)) {
@@ -787,10 +787,10 @@ skip_logo:
 
 	/*
 	 * If the NameServer ndlp has been incremented to allow the DA_ID CT
-	 * command to be sent, decrement the ndlp now.
+	 * command to be sent, decrement the ndlp yesw.
 	 */
 	if (ns_ndlp_referenced) {
-		ndlp = lpfc_findnode_did(vport, NameServer_DID);
+		ndlp = lpfc_findyesde_did(vport, NameServer_DID);
 		lpfc_nlp_put(ndlp);
 	}
 
@@ -840,7 +840,7 @@ lpfc_create_vport_work_array(struct lpfc_hba *phba)
 		if (!scsi_host_get(lpfc_shost_from_vport(port_iterator))) {
 			lpfc_printf_vlog(port_iterator, KERN_ERR, LOG_VPORT,
 					 "1801 Create vport work array FAILED: "
-					 "cannot do scsi_host_get\n");
+					 "canyest do scsi_host_get\n");
 			continue;
 		}
 		vports[index++] = port_iterator;
@@ -871,9 +871,9 @@ lpfc_destroy_vport_work_array(struct lpfc_hba *phba, struct lpfc_vport **vports)
 void
 lpfc_vport_reset_stat_data(struct lpfc_vport *vport)
 {
-	struct lpfc_nodelist *ndlp = NULL, *next_ndlp = NULL;
+	struct lpfc_yesdelist *ndlp = NULL, *next_ndlp = NULL;
 
-	list_for_each_entry_safe(ndlp, next_ndlp, &vport->fc_nodes, nlp_listp) {
+	list_for_each_entry_safe(ndlp, next_ndlp, &vport->fc_yesdes, nlp_listp) {
 		if (!NLP_CHK_NODE_ACT(ndlp))
 			continue;
 		if (ndlp->lat_data)
@@ -888,14 +888,14 @@ lpfc_vport_reset_stat_data(struct lpfc_vport *vport)
  * @vport: Pointer to vport object.
  *
  * This function allocates data buffer required for all the FC
- * nodes of the vport to collect statistical data.
+ * yesdes of the vport to collect statistical data.
  **/
 void
 lpfc_alloc_bucket(struct lpfc_vport *vport)
 {
-	struct lpfc_nodelist *ndlp = NULL, *next_ndlp = NULL;
+	struct lpfc_yesdelist *ndlp = NULL, *next_ndlp = NULL;
 
-	list_for_each_entry_safe(ndlp, next_ndlp, &vport->fc_nodes, nlp_listp) {
+	list_for_each_entry_safe(ndlp, next_ndlp, &vport->fc_yesdes, nlp_listp) {
 		if (!NLP_CHK_NODE_ACT(ndlp))
 			continue;
 
@@ -921,14 +921,14 @@ lpfc_alloc_bucket(struct lpfc_vport *vport)
  * @vport: Pointer to vport object.
  *
  * Th function frees statistical data buffer of all the FC
- * nodes of the vport.
+ * yesdes of the vport.
  **/
 void
 lpfc_free_bucket(struct lpfc_vport *vport)
 {
-	struct lpfc_nodelist *ndlp = NULL, *next_ndlp = NULL;
+	struct lpfc_yesdelist *ndlp = NULL, *next_ndlp = NULL;
 
-	list_for_each_entry_safe(ndlp, next_ndlp, &vport->fc_nodes, nlp_listp) {
+	list_for_each_entry_safe(ndlp, next_ndlp, &vport->fc_yesdes, nlp_listp) {
 		if (!NLP_CHK_NODE_ACT(ndlp))
 			continue;
 

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (C) 2004, 2007-2010, 2011-2012 Synopsys, Inc. (www.synopsys.com)
+ * Copyright (C) 2004, 2007-2010, 2011-2012 Syyespsys, Inc. (www.syyespsys.com)
  */
 
 #ifndef __ASM_SPINLOCK_H
@@ -275,7 +275,7 @@ static inline void arch_spin_unlock(arch_spinlock_t *lock)
 	smp_mb();
 
 	/*
-	 * EX is not really required here, a simple STore of 0 suffices.
+	 * EX is yest really required here, a simple STore of 0 suffices.
 	 * However this causes tasklist livelocks in SystemC based SMP virtual
 	 * platforms where the systemc core scheduler uses EX as a cue for
 	 * moving to next core. Do a git log of this file for details

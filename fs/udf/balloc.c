@@ -328,7 +328,7 @@ got_block:
 	if (newblock >= sbi->s_partmaps[partition].s_partition_len) {
 		/*
 		 * Ran off the end of the bitmap, and bits following are
-		 * non-compliant (not all zero)
+		 * yesn-compliant (yest all zero)
 		 */
 		udf_err(sb, "bitmap for partition %d corrupted (block %u marked"
 			" as free, partition length is %u)\n", partition,
@@ -355,7 +355,7 @@ error_return:
 }
 
 static void udf_table_free_blocks(struct super_block *sb,
-				  struct inode *table,
+				  struct iyesde *table,
 				  struct kernel_lb_addr *bloc,
 				  uint32_t offset,
 				  uint32_t count)
@@ -367,7 +367,7 @@ static void udf_table_free_blocks(struct super_block *sb,
 	struct kernel_lb_addr eloc;
 	struct extent_position oepos, epos;
 	int8_t etype;
-	struct udf_inode_info *iinfo;
+	struct udf_iyesde_info *iinfo;
 
 	mutex_lock(&sbi->s_alloc_mutex);
 	partmap = &sbi->s_partmaps[bloc->partitionReferenceNum];
@@ -496,7 +496,7 @@ error_return:
 }
 
 static int udf_table_prealloc_blocks(struct super_block *sb,
-				     struct inode *table, uint16_t partition,
+				     struct iyesde *table, uint16_t partition,
 				     uint32_t first_block, uint32_t block_count)
 {
 	struct udf_sb_info *sbi = UDF_SB(sb);
@@ -505,7 +505,7 @@ static int udf_table_prealloc_blocks(struct super_block *sb,
 	struct kernel_lb_addr eloc;
 	struct extent_position epos;
 	int8_t etype = -1;
-	struct udf_inode_info *iinfo;
+	struct udf_iyesde_info *iinfo;
 
 	if (first_block >= sbi->s_partmaps[partition].s_partition_len)
 		return 0;
@@ -556,7 +556,7 @@ static int udf_table_prealloc_blocks(struct super_block *sb,
 }
 
 static udf_pblk_t udf_table_new_block(struct super_block *sb,
-			       struct inode *table, uint16_t partition,
+			       struct iyesde *table, uint16_t partition,
 			       uint32_t goal, int *err)
 {
 	struct udf_sb_info *sbi = UDF_SB(sb);
@@ -567,7 +567,7 @@ static udf_pblk_t udf_table_new_block(struct super_block *sb,
 	struct kernel_lb_addr eloc, uninitialized_var(goal_eloc);
 	struct extent_position epos, goal_epos;
 	int8_t etype;
-	struct udf_inode_info *iinfo = UDF_I(table);
+	struct udf_iyesde_info *iinfo = UDF_I(table);
 
 	*err = -ENOSPC;
 
@@ -648,7 +648,7 @@ static udf_pblk_t udf_table_new_block(struct super_block *sb,
 	return newblock;
 }
 
-void udf_free_blocks(struct super_block *sb, struct inode *inode,
+void udf_free_blocks(struct super_block *sb, struct iyesde *iyesde,
 		     struct kernel_lb_addr *bloc, uint32_t offset,
 		     uint32_t count)
 {
@@ -663,14 +663,14 @@ void udf_free_blocks(struct super_block *sb, struct inode *inode,
 				      bloc, offset, count);
 	}
 
-	if (inode) {
-		inode_sub_bytes(inode,
+	if (iyesde) {
+		iyesde_sub_bytes(iyesde,
 				((sector_t)count) << sb->s_blocksize_bits);
 	}
 }
 
 inline int udf_prealloc_blocks(struct super_block *sb,
-			       struct inode *inode,
+			       struct iyesde *iyesde,
 			       uint16_t partition, uint32_t first_block,
 			       uint32_t block_count)
 {
@@ -690,13 +690,13 @@ inline int udf_prealloc_blocks(struct super_block *sb,
 	else
 		return 0;
 
-	if (inode && allocated > 0)
-		inode_add_bytes(inode, allocated << sb->s_blocksize_bits);
+	if (iyesde && allocated > 0)
+		iyesde_add_bytes(iyesde, allocated << sb->s_blocksize_bits);
 	return allocated;
 }
 
 inline udf_pblk_t udf_new_block(struct super_block *sb,
-			 struct inode *inode,
+			 struct iyesde *iyesde,
 			 uint16_t partition, uint32_t goal, int *err)
 {
 	struct udf_part_map *map = &UDF_SB(sb)->s_partmaps[partition];
@@ -714,7 +714,7 @@ inline udf_pblk_t udf_new_block(struct super_block *sb,
 		*err = -EIO;
 		return 0;
 	}
-	if (inode && block)
-		inode_add_bytes(inode, sb->s_blocksize);
+	if (iyesde && block)
+		iyesde_add_bytes(iyesde, sb->s_blocksize);
 	return block;
 }

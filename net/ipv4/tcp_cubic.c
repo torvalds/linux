@@ -21,7 +21,7 @@
  * http://netsrv.csc.ncsu.edu/wiki/index.php/TCP_Testing
  *
  * Unless CUBIC is enabled and congestion window is large
- * this behaves the same as the original Reno.
+ * this behaves the same as the original Reyes.
  */
 
 #include <linux/mm.h>
@@ -154,18 +154,18 @@ static void bictcp_cwnd_event(struct sock *sk, enum tcp_ca_event event)
 {
 	if (event == CA_EVENT_TX_START) {
 		struct bictcp *ca = inet_csk_ca(sk);
-		u32 now = tcp_jiffies32;
+		u32 yesw = tcp_jiffies32;
 		s32 delta;
 
-		delta = now - tcp_sk(sk)->lsndtime;
+		delta = yesw - tcp_sk(sk)->lsndtime;
 
 		/* We were application limited (idle) for a while.
 		 * Shift epoch_start to keep cwnd growth to cubic curve.
 		 */
 		if (ca->epoch_start && delta > 0) {
 			ca->epoch_start += delta;
-			if (after(ca->epoch_start, now))
-				ca->epoch_start = now;
+			if (after(ca->epoch_start, yesw))
+				ca->epoch_start = yesw;
 		}
 		return;
 	}
@@ -271,7 +271,7 @@ static inline void bictcp_update(struct bictcp *ca, u32 cwnd, u32 acked)
 	 *	  time  = (t - K) / 2^bictcp_HZ
 	 *	  c = bic_scale >> 10
 	 * rtt  = (srtt >> 3) / HZ
-	 * !!! The following code does not have overflow problems,
+	 * !!! The following code does yest have overflow problems,
 	 * if the cwnd < 1 million packets !!!
 	 */
 
@@ -302,7 +302,7 @@ static inline void bictcp_update(struct bictcp *ca, u32 cwnd, u32 acked)
 
 	/*
 	 * The initial growth of cubic function may be too conservative
-	 * when the available bandwidth is still unknown.
+	 * when the available bandwidth is still unkyeswn.
 	 */
 	if (ca->last_max_cwnd == 0 && ca->cnt > 20)
 		ca->cnt = 20;	/* increase cwnd 5% per RTT */
@@ -385,12 +385,12 @@ static void hystart_update(struct sock *sk, u32 delay)
 		return;
 
 	if (hystart_detect & HYSTART_ACK_TRAIN) {
-		u32 now = bictcp_clock();
+		u32 yesw = bictcp_clock();
 
 		/* first detection parameter - ack-train detection */
-		if ((s32)(now - ca->last_ack) <= hystart_ack_delta) {
-			ca->last_ack = now;
-			if ((s32)(now - ca->round_start) > ca->delay_min >> 4) {
+		if ((s32)(yesw - ca->last_ack) <= hystart_ack_delta) {
+			ca->last_ack = yesw;
+			if ((s32)(yesw - ca->round_start) > ca->delay_min >> 4) {
 				ca->found |= HYSTART_ACK_TRAIN;
 				NET_INC_STATS(sock_net(sk),
 					      LINUX_MIB_TCPHYSTARTTRAINDETECT);
@@ -424,7 +424,7 @@ static void hystart_update(struct sock *sk, u32 delay)
 	}
 }
 
-/* Track delayed acknowledgment ratio using sliding window
+/* Track delayed ackyeswledgment ratio using sliding window
  * ratio = (15*ratio + sample) / 16
  */
 static void bictcp_acked(struct sock *sk, const struct ack_sample *sample)
@@ -460,7 +460,7 @@ static struct tcp_congestion_ops cubictcp __read_mostly = {
 	.ssthresh	= bictcp_recalc_ssthresh,
 	.cong_avoid	= bictcp_cong_avoid,
 	.set_state	= bictcp_state,
-	.undo_cwnd	= tcp_reno_undo_cwnd,
+	.undo_cwnd	= tcp_reyes_undo_cwnd,
 	.cwnd_event	= bictcp_cwnd_event,
 	.pkts_acked     = bictcp_acked,
 	.owner		= THIS_MODULE,
@@ -482,7 +482,7 @@ static int __init cubictcp_register(void)
 
 	/* calculate the "K" for (wmax-cwnd) = c/rtt * K^3
 	 *  so K = cubic_root( (wmax-cwnd)*rtt/c )
-	 * the unit of K is bictcp_HZ=2^10, not HZ
+	 * the unit of K is bictcp_HZ=2^10, yest HZ
 	 *
 	 *  c = bic_scale >> 10
 	 *  rtt = 100ms
@@ -490,7 +490,7 @@ static int __init cubictcp_register(void)
 	 * the following code has been designed and tested for
 	 * cwnd < 1 million packets
 	 * RTT < 100 seconds
-	 * HZ < 1,000,00  (corresponding to 10 nano-second)
+	 * HZ < 1,000,00  (corresponding to 10 nayes-second)
 	 */
 
 	/* 1/c * 2^2*bictcp_HZ * srtt */

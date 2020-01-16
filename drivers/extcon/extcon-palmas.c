@@ -175,7 +175,7 @@ static int palmas_usb_probe(struct platform_device *pdev)
 {
 	struct palmas *palmas = dev_get_drvdata(pdev->dev.parent);
 	struct palmas_usb_platform_data	*pdata = dev_get_platdata(&pdev->dev);
-	struct device_node *node = pdev->dev.of_node;
+	struct device_yesde *yesde = pdev->dev.of_yesde;
 	struct palmas_usb *palmas_usb;
 	int status;
 
@@ -188,11 +188,11 @@ static int palmas_usb_probe(struct platform_device *pdev)
 	if (!palmas_usb)
 		return -ENOMEM;
 
-	if (node && !pdata) {
-		palmas_usb->wakeup = of_property_read_bool(node, "ti,wakeup");
-		palmas_usb->enable_id_detection = of_property_read_bool(node,
+	if (yesde && !pdata) {
+		palmas_usb->wakeup = of_property_read_bool(yesde, "ti,wakeup");
+		palmas_usb->enable_id_detection = of_property_read_bool(yesde,
 						"ti,enable-id-detection");
-		palmas_usb->enable_vbus_detection = of_property_read_bool(node,
+		palmas_usb->enable_vbus_detection = of_property_read_bool(yesde,
 						"ti,enable-vbus-detection");
 	} else {
 		palmas_usb->wakeup = true;
@@ -230,7 +230,7 @@ static int palmas_usb_probe(struct platform_device *pdev)
 	if (palmas_usb->enable_gpio_id_detection) {
 		u32 debounce;
 
-		if (of_property_read_u32(node, "debounce-delay-ms", &debounce))
+		if (of_property_read_u32(yesde, "debounce-delay-ms", &debounce))
 			debounce = USB_GPIO_DEBOUNCE_MS;
 
 		status = gpiod_set_debounce(palmas_usb->id_gpiod,

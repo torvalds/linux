@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
-/* Copyright (C) 2018 Netronome Systems, Inc. */
+/* Copyright (C) 2018 Netroyesme Systems, Inc. */
 
 #include <linux/bitfield.h>
 #include <linux/bitmap.h>
@@ -386,7 +386,7 @@ nfp_abm_port_get_stats(struct nfp_app *app, struct nfp_port *port, u64 *data)
 		return data;
 	alink = repr->app_priv;
 	for (i = 0; i < alink->vnic->dp.num_r_vecs; i++) {
-		*data++ = nfp_abm_ctrl_stat_non_sto(alink, i);
+		*data++ = nfp_abm_ctrl_stat_yesn_sto(alink, i);
 		*data++ = nfp_abm_ctrl_stat_sto(alink, i);
 	}
 	return data;
@@ -416,7 +416,7 @@ nfp_abm_port_get_stats_strings(struct nfp_app *app, struct nfp_port *port,
 		return data;
 	alink = repr->app_priv;
 	for (i = 0; i < alink->vnic->dp.num_r_vecs; i++) {
-		data = nfp_pr_et(data, "q%u_no_wait", i);
+		data = nfp_pr_et(data, "q%u_yes_wait", i);
 		data = nfp_pr_et(data, "q%u_delayed", i);
 	}
 	return data;

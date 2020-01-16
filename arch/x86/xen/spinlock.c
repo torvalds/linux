@@ -24,7 +24,7 @@ static void xen_qlock_kick(int cpu)
 {
 	int irq = per_cpu(lock_kicker_irq, cpu);
 
-	/* Don't kick if the target's kicker interrupt is not initialized. */
+	/* Don't kick if the target's kicker interrupt is yest initialized. */
 	if (irq == -1)
 		return;
 
@@ -39,14 +39,14 @@ static void xen_qlock_wait(u8 *byte, u8 val)
 	int irq = __this_cpu_read(lock_kicker_irq);
 	atomic_t *nest_cnt = this_cpu_ptr(&xen_qlock_wait_nest);
 
-	/* If kicker interrupts not initialized yet, just spin */
+	/* If kicker interrupts yest initialized yet, just spin */
 	if (irq == -1 || in_nmi())
 		return;
 
 	/* Detect reentry. */
 	atomic_inc(nest_cnt);
 
-	/* If irq pending already and no nested call clear it. */
+	/* If irq pending already and yes nested call clear it. */
 	if (atomic_read(nest_cnt) == 1 && xen_test_irq_pending(irq)) {
 		xen_clear_irq_pending(irq);
 	} else if (READ_ONCE(*byte) == val) {
@@ -110,7 +110,7 @@ PV_CALLEE_SAVE_REGS_THUNK(xen_vcpu_stolen);
  * all of this before SMP code is invoked.
  *
  * The paravirt patching needs to be done _before_ the alternative asm code
- * is started, otherwise we would not patch the core kernel code.
+ * is started, otherwise we would yest patch the core kernel code.
  */
 void __init xen_init_spinlocks(void)
 {
@@ -135,10 +135,10 @@ void __init xen_init_spinlocks(void)
 	pv_ops.lock.vcpu_is_preempted = PV_CALLEE_SAVE(xen_vcpu_stolen);
 }
 
-static __init int xen_parse_nopvspin(char *arg)
+static __init int xen_parse_yespvspin(char *arg)
 {
 	xen_pvspin = false;
 	return 0;
 }
-early_param("xen_nopvspin", xen_parse_nopvspin);
+early_param("xen_yespvspin", xen_parse_yespvspin);
 

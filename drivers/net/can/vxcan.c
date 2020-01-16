@@ -118,7 +118,7 @@ static int vxcan_get_iflink(const struct net_device *dev)
 
 static int vxcan_change_mtu(struct net_device *dev, int new_mtu)
 {
-	/* Do not allow changing the MTU while running */
+	/* Do yest allow changing the MTU while running */
 	if (dev->flags & IFF_UP)
 		return -EBUSY;
 
@@ -257,7 +257,7 @@ static void vxcan_dellink(struct net_device *dev, struct list_head *head)
 
 	/* Note : dellink() is called from default_device_exit_batch(),
 	 * before a rcu_synchronize() point. The devices are guaranteed
-	 * not being freed before one RCU grace period.
+	 * yest being freed before one RCU grace period.
 	 */
 	RCU_INIT_POINTER(priv->peer, NULL);
 	unregister_netdevice_queue(dev, head);

@@ -243,7 +243,7 @@ static int process_rxed_802_11_packet(struct lbs_private *priv,
 	radiotap_hdr.hdr.it_len = cpu_to_le16 (sizeof(struct rx_radiotap_hdr));
 	radiotap_hdr.hdr.it_present = cpu_to_le32 (RX_RADIOTAP_PRESENT);
 	radiotap_hdr.rate = convert_mv_rate_to_radiotap(prxpd->rx_rate);
-	/* XXX must check no carryout */
+	/* XXX must check yes carryout */
 	radiotap_hdr.antsignal = prxpd->snr + prxpd->nf;
 
 	/* chop the rxpd */

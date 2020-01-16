@@ -142,7 +142,7 @@ static struct decomp_stream *get_decomp_stream(struct squashfs_sb_info *msblk,
 		}
 
 		/*
-		 * If there is no available decomp and already full,
+		 * If there is yes available decomp and already full,
 		 * let's wait for releasing decomp from other users.
 		 */
 		if (stream->avail_decomp >= MAX_DECOMPRESSOR)

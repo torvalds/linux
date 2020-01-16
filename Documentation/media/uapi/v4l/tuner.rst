@@ -1,11 +1,11 @@
 .. Permission is granted to copy, distribute and/or modify this
 .. document under the terms of the GNU Free Documentation License,
 .. Version 1.1 or any later version published by the Free Software
-.. Foundation, with no Invariant Sections, no Front-Cover Texts
-.. and no Back-Cover Texts. A copy of the license is included at
+.. Foundation, with yes Invariant Sections, yes Front-Cover Texts
+.. and yes Back-Cover Texts. A copy of the license is included at
 .. Documentation/media/uapi/fdl-appendix.rst.
 ..
-.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
+.. TODO: replace it to GFDL-1.1-or-later WITH yes-invariant-sections
 
 .. _tuner:
 
@@ -25,7 +25,7 @@ returned by the :ref:`VIDIOC_ENUMINPUT` ioctl is
 set to ``V4L2_INPUT_TYPE_TUNER`` and its ``tuner`` field contains the
 index number of the tuner.
 
-Radio input devices have exactly one tuner with index zero, no video
+Radio input devices have exactly one tuner with index zero, yes video
 inputs.
 
 To query and change tuner properties applications use the
@@ -35,9 +35,9 @@ struct :c:type:`v4l2_tuner` returned by :ref:`VIDIOC_G_TUNER <VIDIOC_G_TUNER>`
 also contains signal status information applicable when the tuner of the
 current video or radio input is queried.
 
-.. note::
+.. yeste::
 
-   :ref:`VIDIOC_S_TUNER <VIDIOC_G_TUNER>` does not switch the
+   :ref:`VIDIOC_S_TUNER <VIDIOC_G_TUNER>` does yest switch the
    current tuner, when there is more than one. The tuner is solely
    determined by the current video input. Drivers must support both ioctls
    and set the ``V4L2_CAP_TUNER`` flag in the struct :c:type:`v4l2_capability`
@@ -58,20 +58,20 @@ modulator. The ``type`` field of the respective struct
 ``V4L2_OUTPUT_TYPE_MODULATOR`` and its ``modulator`` field contains the
 index number of the modulator.
 
-Radio output devices have exactly one modulator with index zero, no
+Radio output devices have exactly one modulator with index zero, yes
 video outputs.
 
-A video or radio device cannot support both a tuner and a modulator. Two
-separate device nodes will have to be used for such hardware, one that
+A video or radio device canyest support both a tuner and a modulator. Two
+separate device yesdes will have to be used for such hardware, one that
 supports the tuner functionality and one that supports the modulator
 functionality. The reason is a limitation with the
 :ref:`VIDIOC_S_FREQUENCY <VIDIOC_G_FREQUENCY>` ioctl where you
-cannot specify whether the frequency is for a tuner or a modulator.
+canyest specify whether the frequency is for a tuner or a modulator.
 
 To query and change modulator properties applications use the
 :ref:`VIDIOC_G_MODULATOR <VIDIOC_G_MODULATOR>` and
 :ref:`VIDIOC_S_MODULATOR <VIDIOC_G_MODULATOR>` ioctl. Note that
-:ref:`VIDIOC_S_MODULATOR <VIDIOC_G_MODULATOR>` does not switch the current modulator, when there
+:ref:`VIDIOC_S_MODULATOR <VIDIOC_G_MODULATOR>` does yest switch the current modulator, when there
 is more than one at all. The modulator is solely determined by the
 current video output. Drivers must support both ioctls and set the
 ``V4L2_CAP_MODULATOR`` flag in the struct

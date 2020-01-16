@@ -30,5 +30,5 @@ generic_patch_copyops:
 	GEN_DO_PATCH(raw_copy_from_user, GENcopy_from_user)
 	GEN_DO_PATCH(raw_copy_to_user, GENcopy_to_user)
 	retl
-	 nop
+	 yesp
 	.size	generic_patch_copyops,.-generic_patch_copyops

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0
-/* Copyright (c) 2017-2018 Mellanox Technologies. All rights reserved */
+/* Copyright (c) 2017-2018 Mellayesx Techyeslogies. All rights reserved */
 
 #include <linux/kernel.h>
 #include <linux/bitops.h>
@@ -37,7 +37,7 @@ static int mlxsw_sp_counter_pool_validate(struct mlxsw_sp *mlxsw_sp)
 	int i;
 
 	pool_size = MLXSW_CORE_RES_GET(mlxsw_sp->core, COUNTER_POOL_SIZE);
-	/* Check config is valid, no bank over subscription */
+	/* Check config is valid, yes bank over subscription */
 	for (i = 0; i < ARRAY_SIZE(mlxsw_sp_counter_sub_pools); i++)
 		total_bank_config += mlxsw_sp_counter_sub_pools[i].bank_count;
 	if (total_bank_config > pool_size / MLXSW_SP_COUNTER_POOL_BANK_SIZE + 1)
@@ -148,7 +148,7 @@ int mlxsw_sp_counter_alloc(struct mlxsw_sp *mlxsw_sp,
 	entry_index = find_next_zero_bit(pool->usage, stop_index, entry_index);
 	if (entry_index == stop_index)
 		return -ENOBUFS;
-	/* The sub-pools can contain non-integer number of entries
+	/* The sub-pools can contain yesn-integer number of entries
 	 * so we must check for overflow
 	 */
 	if (entry_index + sub_pool->entry_size > stop_index)

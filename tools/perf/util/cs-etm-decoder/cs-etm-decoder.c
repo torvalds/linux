@@ -95,7 +95,7 @@ int cs_etm_decoder__get_packet(struct cs_etm_packet_queue *packet_queue,
 	 * intuitive but it has the advantage of centralizing tail management
 	 * at a single location.  Because of that we need to follow the same
 	 * heuristic with the head, i.e we increment it before using its
-	 * value.  Otherwise the first element of the packet queue is not
+	 * value.  Otherwise the first element of the packet queue is yest
 	 * used.
 	 */
 	packet_queue->head = (packet_queue->head + 1) &
@@ -166,7 +166,7 @@ cs_etm_decoder__init_def_logger_printing(struct cs_etm_decoder_params *d_params,
 	if (ret != 0)
 		return -1;
 
-	/* no stdout / err / file output */
+	/* yes stdout / err / file output */
 	ret = ocsd_def_errlog_config_output(C_API_MSGLOGOUT_FLG_NONE, NULL);
 	if (ret != 0)
 		return -1;
@@ -196,7 +196,7 @@ cs_etm_decoder__init_raw_frame_logging(struct cs_etm_decoder_params *d_params,
 		 */
 		ocsd_def_errlog_init(OCSD_ERR_SEV_ERROR, 1);
 
-		/* no stdout / err / file output */
+		/* yes stdout / err / file output */
 		ocsd_def_errlog_config_output(C_API_MSGLOGOUT_FLG_NONE, NULL);
 
 		/* set the string CB for the default logger,
@@ -274,7 +274,7 @@ cs_etm_decoder__do_soft_timestamp(struct cs_etm_queue *etmq,
 				  struct cs_etm_packet_queue *packet_queue,
 				  const uint8_t trace_chan_id)
 {
-	/* No timestamp packet has been received, nothing to do */
+	/* No timestamp packet has been received, yesthing to do */
 	if (!packet_queue->timestamp)
 		return OCSD_RESP_CONT;
 
@@ -407,7 +407,7 @@ cs_etm_decoder__buffer_range(struct cs_etm_queue *etmq,
 	case ocsd_isa_tee:
 	case ocsd_isa_jazelle:
 	case ocsd_isa_custom:
-	case ocsd_isa_unknown:
+	case ocsd_isa_unkyeswn:
 	default:
 		packet->isa = CS_ETM_ISA_UNKNOWN;
 	}
@@ -435,7 +435,7 @@ cs_etm_decoder__buffer_range(struct cs_etm_queue *etmq,
 
 	packet->last_instr_size = elem->last_instr_sz;
 
-	/* per-thread scenario, no need to generate a timestamp */
+	/* per-thread scenario, yes need to generate a timestamp */
 	if (cs_etm__etmq_is_timeless(etmq))
 		goto out;
 
@@ -460,7 +460,7 @@ cs_etm_decoder__buffer_discontinuity(struct cs_etm_packet_queue *queue,
 				     const uint8_t trace_chan_id)
 {
 	/*
-	 * Something happened and who knows when we'll get new traces so
+	 * Something happened and who kyesws when we'll get new traces so
 	 * reset time statistics.
 	 */
 	cs_etm_decoder__reset_timestamp(queue);
@@ -502,7 +502,7 @@ cs_etm_decoder__set_tid(struct cs_etm_queue *etmq,
 {
 	pid_t tid;
 
-	/* Ignore PE_CONTEXT packets that don't have a valid contextID */
+	/* Igyesre PE_CONTEXT packets that don't have a valid contextID */
 	if (!elem->context.ctxt_id_valid)
 		return OCSD_RESP_CONT;
 

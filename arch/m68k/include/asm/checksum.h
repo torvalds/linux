@@ -35,7 +35,7 @@ extern __wsum csum_partial_copy_from_user(const void __user *src,
 						int len, __wsum sum,
 						int *csum_err);
 
-extern __wsum csum_partial_copy_nocheck(const void *src,
+extern __wsum csum_partial_copy_yescheck(const void *src,
 					      void *dst, int len,
 					      __wsum sum);
 
@@ -79,7 +79,7 @@ static inline __sum16 csum_fold(__wsum sum)
 }
 
 static inline __wsum
-csum_tcpudp_nofold(__be32 saddr, __be32 daddr, unsigned short len,
+csum_tcpudp_yesfold(__be32 saddr, __be32 daddr, unsigned short len,
 		  unsigned short proto, __wsum sum)
 {
 	__asm__ ("addl  %2,%0\n\t"
@@ -102,7 +102,7 @@ static inline __sum16
 csum_tcpudp_magic(__be32 saddr, __be32 daddr, unsigned short len,
 		  unsigned short proto, __wsum sum)
 {
-	return csum_fold(csum_tcpudp_nofold(saddr,daddr,len,proto,sum));
+	return csum_fold(csum_tcpudp_yesfold(saddr,daddr,len,proto,sum));
 }
 
 /*

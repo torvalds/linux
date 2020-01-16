@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -414,11 +414,11 @@ gk104_fifo_recover_engn(struct gk104_fifo *fifo, int engn)
 	/* Determine which channel (if any) is currently on the engine. */
 	gk104_fifo_engine_status(fifo, engn, &status);
 	if (status.chan) {
-		/* The channel is not longer viable, kill it. */
+		/* The channel is yest longer viable, kill it. */
 		gk104_fifo_recover_chan(&fifo->base, status.chan->id);
 	}
 
-	/* Determine MMU fault ID for the engine, if we're not being
+	/* Determine MMU fault ID for the engine, if we're yest being
 	 * called from the fault handler already.
 	 */
 	if (!status.faulted && engine) {
@@ -525,7 +525,7 @@ gk104_fifo_fault(struct nvkm_fifo *base, struct nvkm_fault_data *info)
 		   info->engine, ee ? ee->name : en,
 		   info->client, ct, ec ? ec->name : "",
 		   info->reason, er ? er->name : "", chan ? chan->chid : -1,
-		   info->inst, chan ? chan->object.client->name : "unknown");
+		   info->inst, chan ? chan->object.client->name : "unkyeswn");
 
 	/* Kill the channel that caused the fault. */
 	if (chan)
@@ -583,7 +583,7 @@ gk104_fifo_intr_sched_ctxsw(struct gk104_fifo *fifo)
 	u32 engn;
 
 	/* We need to ACK the SCHED_ERROR here, and prevent it reasserting,
-	 * as MMU_FAULT cannot be triggered while it's pending.
+	 * as MMU_FAULT canyest be triggered while it's pending.
 	 */
 	spin_lock_irqsave(&fifo->base.lock, flags);
 	nvkm_mask(device, 0x002140, 0x00000100, 0x00000000);
@@ -712,7 +712,7 @@ gk104_fifo_intr_pbdma_0(struct gk104_fifo *fifo, int unit)
 		nvkm_error(subdev, "PBDMA%d: %08x [%s] ch %d [%010llx %s] "
 				   "subc %d mthd %04x data %08x\n",
 			   unit, show, msg, chid, chan ? chan->inst->addr : 0,
-			   chan ? chan->object.client->name : "unknown",
+			   chan ? chan->object.client->name : "unkyeswn",
 			   subc, mthd, data);
 		nvkm_fifo_chan_put(&fifo->base, flags, &chan);
 	}
@@ -867,7 +867,7 @@ gk104_fifo_fini(struct nvkm_fifo *base)
 	struct gk104_fifo *fifo = gk104_fifo(base);
 	struct nvkm_device *device = fifo->base.engine.subdev.device;
 	flush_work(&fifo->recover.work);
-	/* allow mmu fault interrupts, even when we're not using fifo */
+	/* allow mmu fault interrupts, even when we're yest using fifo */
 	nvkm_mask(device, 0x002140, 0x10000000, 0x10000000);
 }
 

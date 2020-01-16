@@ -145,7 +145,7 @@ static int pwm_mediatek_config(struct pwm_chip *chip, struct pwm_device *pwm,
 
 	if (clkdiv > PWM_CLK_DIV_MAX) {
 		pwm_mediatek_clk_disable(chip, pwm);
-		dev_err(chip->dev, "period %d not supported\n", period_ns);
+		dev_err(chip->dev, "period %d yest supported\n", period_ns);
 		return -EINVAL;
 	}
 

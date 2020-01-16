@@ -18,14 +18,14 @@ Optional properties:
 
 - bosch,external-clock-frequency : frequency of the external oscillator
 	clock in Hz. Note that the internal clock frequency used by the
-	controller is half of that value. If not specified, a default
+	controller is half of that value. If yest specified, a default
 	value of 16000000 (16 MHz) is used.
 
 - bosch,clock-out-frequency : slock frequency in Hz on the CLKOUT pin.
-	If not specified or if the specified value is 0, the CLKOUT pin
+	If yest specified or if the specified value is 0, the CLKOUT pin
 	will be disabled.
 
-- bosch,slew-rate : slew rate of the CLKOUT signal. If not specified,
+- bosch,slew-rate : slew rate of the CLKOUT signal. If yest specified,
 	a resonable value will be calculated.
 
 - bosch,disconnect-rx0-input : see data sheet.

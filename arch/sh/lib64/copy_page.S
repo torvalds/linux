@@ -1,5 +1,5 @@
 /*
-   Copyright 2003 Richard Curnow, SuperH (UK) Ltd.
+   Copyright 2003 Richard Curyesw, SuperH (UK) Ltd.
 
    This file is subject to the terms and conditions of the GNU General Public
    License.  See the file "COPYING" in the main directory of this archive

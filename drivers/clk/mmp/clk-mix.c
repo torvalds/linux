@@ -19,7 +19,7 @@
 /*
  * The mix clock is a clock combined mux and div type clock.
  * Because the div field and mux field need to be set at same
- * time, we can not divide it into 2 types of clock
+ * time, we can yest divide it into 2 types of clock
  */
 
 #define to_clk_mix(hw)	container_of(hw, struct mmp_clk_mix, hw)
@@ -180,7 +180,7 @@ static int _set_rate(struct mmp_clk_mix *mix, u32 mux_val, u32 div_val,
 		} while (timeout);
 
 		if (timeout == 0) {
-			pr_err("%s:%s cannot do frequency change\n",
+			pr_err("%s:%s canyest do frequency change\n",
 				__func__, clk_hw_get_name(&mix->hw));
 			ret = -EBUSY;
 			goto error;

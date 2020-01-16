@@ -1,17 +1,17 @@
 display-timing bindings
 =======================
 
-display-timings node
+display-timings yesde
 --------------------
 
 required properties:
- - none
+ - yesne
 
 optional properties:
  - native-mode: The native mode for the display, in case multiple modes are
-		provided. When omitted, assume the first node is the native.
+		provided. When omitted, assume the first yesde is the native.
 
-timing subnode
+timing subyesde
 --------------
 
 required properties:
@@ -23,15 +23,15 @@ required properties:
  - clock-frequency: display clock in Hz
 
 optional properties:
- - hsync-active: hsync pulse is active low/high/ignored
- - vsync-active: vsync pulse is active low/high/ignored
- - de-active: data-enable pulse is active low/high/ignored
+ - hsync-active: hsync pulse is active low/high/igyesred
+ - vsync-active: vsync pulse is active low/high/igyesred
+ - de-active: data-enable pulse is active low/high/igyesred
  - pixelclk-active: with
 			- active high = drive pixel data on rising edge/
 					sample data on falling edge
 			- active low  = drive pixel data on falling edge/
 					sample data on rising edge
-			- ignored     = ignored
+			- igyesred     = igyesred
  - syncclk-active: with
 			- active high = drive sync on rising edge/
 					sample sync on falling edge of pixel
@@ -44,10 +44,10 @@ optional properties:
  - doublescan (bool): boolean to enable doublescan mode
  - doubleclk (bool): boolean to enable doubleclock mode
 
-All the optional properties that are not bool follow the following logic:
+All the optional properties that are yest bool follow the following logic:
     <1>: high active
     <0>: low active
-    omitted: not used on hardware
+    omitted: yest used on hardware
 
 There are different ways of describing the capabilities of a display. The
 devicetree representation corresponds to the one commonly found in datasheets
@@ -80,9 +80,9 @@ The parameters are defined as:
   |          |        v                            |          |       |
   +----------+-------------------------------------+----------+-------+
 
-Note: In addition to being used as subnode(s) of display-timings, the timing
-      subnode may also be used on its own. This is appropriate if only one mode
-      need be conveyed. In this case, the node should be named 'panel-timing'.
+Note: In addition to being used as subyesde(s) of display-timings, the timing
+      subyesde may also be used on its own. This is appropriate if only one mode
+      need be conveyed. In this case, the yesde should be named 'panel-timing'.
 
 
 Example:

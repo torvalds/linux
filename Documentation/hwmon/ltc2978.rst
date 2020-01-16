@@ -3,7 +3,7 @@ Kernel driver ltc2978
 
 Supported chips:
 
-  * Linear Technology LTC2974
+  * Linear Techyeslogy LTC2974
 
     Prefix: 'ltc2974'
 
@@ -11,7 +11,7 @@ Supported chips:
 
     Datasheet: http://www.linear.com/product/ltc2974
 
-  * Linear Technology LTC2975
+  * Linear Techyeslogy LTC2975
 
     Prefix: 'ltc2975'
 
@@ -19,7 +19,7 @@ Supported chips:
 
     Datasheet: http://www.linear.com/product/ltc2975
 
-  * Linear Technology LTC2977
+  * Linear Techyeslogy LTC2977
 
     Prefix: 'ltc2977'
 
@@ -27,7 +27,7 @@ Supported chips:
 
     Datasheet: http://www.linear.com/product/ltc2977
 
-  * Linear Technology LTC2978, LTC2978A
+  * Linear Techyeslogy LTC2978, LTC2978A
 
     Prefix: 'ltc2978'
 
@@ -37,7 +37,7 @@ Supported chips:
 
 	       http://www.linear.com/product/ltc2978a
 
-  * Linear Technology LTC2980
+  * Linear Techyeslogy LTC2980
 
     Prefix: 'ltc2980'
 
@@ -45,7 +45,7 @@ Supported chips:
 
     Datasheet: http://www.linear.com/product/ltc2980
 
-  * Linear Technology LTC3880
+  * Linear Techyeslogy LTC3880
 
     Prefix: 'ltc3880'
 
@@ -53,7 +53,7 @@ Supported chips:
 
     Datasheet: http://www.linear.com/product/ltc3880
 
-  * Linear Technology LTC3882
+  * Linear Techyeslogy LTC3882
 
     Prefix: 'ltc3882'
 
@@ -61,7 +61,7 @@ Supported chips:
 
     Datasheet: http://www.linear.com/product/ltc3882
 
-  * Linear Technology LTC3883
+  * Linear Techyeslogy LTC3883
 
     Prefix: 'ltc3883'
 
@@ -69,7 +69,7 @@ Supported chips:
 
     Datasheet: http://www.linear.com/product/ltc3883
 
-  * Linear Technology LTC3886
+  * Linear Techyeslogy LTC3886
 
     Prefix: 'ltc3886'
 
@@ -77,7 +77,7 @@ Supported chips:
 
     Datasheet: http://www.linear.com/product/ltc3886
 
-  * Linear Technology LTC3887
+  * Linear Techyeslogy LTC3887
 
     Prefix: 'ltc3887'
 
@@ -85,7 +85,7 @@ Supported chips:
 
     Datasheet: http://www.linear.com/product/ltc3887
 
-  * Linear Technology LTM2987
+  * Linear Techyeslogy LTM2987
 
     Prefix: 'ltm2987'
 
@@ -93,7 +93,7 @@ Supported chips:
 
     Datasheet: http://www.linear.com/product/ltm2987
 
-  * Linear Technology LTM4675
+  * Linear Techyeslogy LTM4675
 
     Prefix: 'ltm4675'
 
@@ -101,7 +101,7 @@ Supported chips:
 
     Datasheet: http://www.linear.com/product/ltm4675
 
-  * Linear Technology LTM4676
+  * Linear Techyeslogy LTM4676
 
     Prefix: 'ltm4676'
 
@@ -144,7 +144,7 @@ Description
 Usage Notes
 -----------
 
-This driver does not probe for PMBus devices. You will have to instantiate
+This driver does yest probe for PMBus devices. You will have to instantiate
 devices explicitly.
 
 Example: the following commands will load the driver for an LTC2978 at address
@@ -321,8 +321,8 @@ curr1_reset_history	Reset input current history.
 curr[N]_label		"iout[1-4]".
 
 			- LTC2974, LTC2975: N=1-4
-			- LTC2977, LTC2980, LTM2987: not supported
-			- LTC2978: not supported
+			- LTC2977, LTC2980, LTM2987: yest supported
+			- LTC2978: yest supported
 			- LTC3880, LTC3882, LTC3886, LTC3887, LTM4675, LTM4676:
 			  N=2-3
 			- LTC3883: N=2

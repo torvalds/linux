@@ -7,7 +7,7 @@
  *   Copyright 2002-2005 MontaVista Software Inc.
  *
  *   Eugene Surovegin <eugene.surovegin@zultys.com> or <ebs@ebshome.net>
- *   Copyright (c) 2003, 2004 Zultys Technologies
+ *   Copyright (c) 2003, 2004 Zultys Techyeslogies
  *
  * Copyright (C) 2009 Wind River Systems, Inc.
  *   Updated for supporting PPC405EX on Kilauea.
@@ -67,7 +67,7 @@ static u64 ibm440spe_decode_bas(u32 bas)
 {
 	u64 base = ((u64)(bas & 0xFFE00000u)) << 2;
 
-	/* open coded because I'm paranoid about invalid values */
+	/* open coded because I'm parayesid about invalid values */
 	switch ((bas >> 4) & 0xFFF) {
 	case 0:
 		return 0;
@@ -100,7 +100,7 @@ void ibm440spe_fixup_memsize(void)
 {
 	u64 banktop, memsize = 0;
 
-	/* Ultimately, we should directly construct the memory node
+	/* Ultimately, we should directly construct the memory yesde
 	 * so we are able to handle holes in the memory address space
 	 */
 	banktop = ibm440spe_decode_bas(mfdcr(DCRN_MQ0_B0BAS));
@@ -206,7 +206,7 @@ void ibm4xx_denali_fixup_memsize(void)
 
 	val = SDRAM0_READ(DDR0_02);
 	if (!DDR_GET_VAL(val, DDR_START, DDR_START_SHIFT))
-		fatal("DDR controller is not initialized\n");
+		fatal("DDR controller is yest initialized\n");
 
 	/* get maximum cs col and row values */
 	max_cs  = DDR_GET_VAL(val, DDR_MAX_CS_REG, DDR_MAX_CS_REG_SHIFT);
@@ -322,7 +322,7 @@ void ibm4xx_fixup_ebc_ranges(const char *ebc)
 
 	devp = finddevice(ebc);
 	if (! devp)
-		fatal("Couldn't locate EBC node %s\n\r", ebc);
+		fatal("Couldn't locate EBC yesde %s\n\r", ebc);
 
 	setprop(devp, "ranges", ranges, (p - ranges) * sizeof(u32));
 }

@@ -5,7 +5,7 @@
 #define _ICE_H_
 
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/firmware.h>
@@ -103,7 +103,7 @@ extern const char ice_drv_ver[];
 #define ice_for_each_rxq(vsi, i) \
 	for ((i) = 0; (i) < (vsi)->num_rxq; (i)++)
 
-/* Macros for each allocated Tx/Rx ring whether used or not in a VSI */
+/* Macros for each allocated Tx/Rx ring whether used or yest in a VSI */
 #define ice_for_each_alloc_txq(vsi, i) \
 	for ((i) = 0; (i) < (vsi)->alloc_txq; (i)++)
 
@@ -191,12 +191,12 @@ enum ice_state {
 	__ICE_EMPR_RECV,		/* set by OICR handler */
 	__ICE_SUSPENDED,		/* set on module remove path */
 	__ICE_RESET_FAILED,		/* set by reset/rebuild */
-	/* When checking for the PF to be in a nominal operating state, the
+	/* When checking for the PF to be in a yesminal operating state, the
 	 * bits that are grouped at the beginning of the list need to be
 	 * checked. Bits occurring before __ICE_STATE_NOMINAL_CHECK_BITS will
-	 * be checked. If you need to add a bit into consideration for nominal
+	 * be checked. If you need to add a bit into consideration for yesminal
 	 * operating state, it must be added before
-	 * __ICE_STATE_NOMINAL_CHECK_BITS. Do not move this entry's position
+	 * __ICE_STATE_NOMINAL_CHECK_BITS. Do yest move this entry's position
 	 * without appropriate consideration.
 	 */
 	__ICE_STATE_NOMINAL_CHECK_BITS,
@@ -297,7 +297,7 @@ struct ice_vsi {
 	struct xdp_umem **xsk_umems;
 	u16 num_xsk_umems_used;
 	u16 num_xsk_umems;
-} ____cacheline_internodealigned_in_smp;
+} ____cacheline_interyesdealigned_in_smp;
 
 /* struct that defines an interrupt vector */
 struct ice_q_vector {
@@ -319,10 +319,10 @@ struct ice_q_vector {
 	struct ice_ring_container tx;
 
 	cpumask_t affinity_mask;
-	struct irq_affinity_notify affinity_notify;
+	struct irq_affinity_yestify affinity_yestify;
 
 	char name[ICE_INT_NAME_STR_LEN];
-} ____cacheline_internodealigned_in_smp;
+} ____cacheline_interyesdealigned_in_smp;
 
 enum ice_pf_flags {
 	ICE_FLAG_FLTR_SYNC,

@@ -58,15 +58,15 @@ Preface
 ------------------------
 
 This documentation is  part of a soon (or  so we hope) to be  released book on
-the SuSE  Linux distribution. As  there is  no complete documentation  for the
+the SuSE  Linux distribution. As  there is  yes complete documentation  for the
 /proc file system and we've used  many freely available sources to write these
 chapters, it  seems only fair  to give the work  back to the  Linux community.
 This work is  based on the 2.2.*  kernel version and the  upcoming 2.4.*. I'm
 afraid it's still far from complete, but we  hope it will be useful. As far as
-we know, it is the first 'all-in-one' document about the /proc file system. It
+we kyesw, it is the first 'all-in-one' document about the /proc file system. It
 is focused  on the Intel  x86 hardware,  so if you  are looking for  PPC, ARM,
 SPARC, AXP, etc., features, you probably  won't find what you are looking for.
-It also only covers IPv4 networking, not IPv6 nor other protocols - sorry. But
+It also only covers IPv4 networking, yest IPv6 yesr other protocols - sorry. But
 additions and patches  are welcome and will  be added to this  document if you
 mail them to Bodo.
 
@@ -84,7 +84,7 @@ document.
 The   latest   version    of   this   document   is    available   online   at
 http://tldp.org/LDP/Linux-Filesystem-Hierarchy/html/proc.html
 
-If  the above  direction does  not works  for you,  you could  try the  kernel
+If  the above  direction does  yest works  for you,  you could  try the  kernel
 mailing  list  at  linux-kernel@vger.kernel.org  and/or try  to  reach  me  at
 comandante@zaralinux.com.
 
@@ -127,7 +127,7 @@ The link  self  points  to  the  process reading the file system. Each process
 subdirectory has the entries listed in Table 1-1.
 
 Note that an open a file descriptor to /proc/<pid> or to any of its
-contained files or subdirectories does not prevent <pid> being reused
+contained files or subdirectories does yest prevent <pid> being reused
 for some other process in the event that <pid> exits. Operations on
 open /proc/<pid> file descriptors corresponding to dead processes
 never act on any new process that the kernel may, through chance, have
@@ -151,7 +151,7 @@ Table 1-1: Process specific entries in /proc
  statm		Process memory status information
  status		Process status in human readable form
  wchan		Present with CONFIG_KALLSYMS=y: it shows the kernel function
-		symbol the task is blocked in - or "0" if not blocked.
+		symbol the task is blocked in - or "0" if yest blocked.
  pagemap	Page table
  stack		Report full stack trace, enable via CONFIG_STACKTRACE
  smaps		An extension based on maps, showing the memory consumption of
@@ -181,7 +181,7 @@ read the file /proc/PID/status:
   VmLck:         0 kB
   VmHWM:       476 kB
   VmRSS:       476 kB
-  RssAnon:             352 kB
+  RssAyesn:             352 kB
   RssFile:             120 kB
   RssShmem:              4 kB
   VmData:      156 kB
@@ -209,7 +209,7 @@ read the file /proc/PID/status:
   Seccomp:        0
   Speculation_Store_Bypass:       thread vulnerable
   voluntary_ctxt_switches:        0
-  nonvoluntary_ctxt_switches:     1
+  yesnvoluntary_ctxt_switches:     1
 
 This shows you nearly the same information you would get if you viewed it with
 the ps  command.  In  fact,  ps  uses  the  proc  file  system  to  obtain its
@@ -223,7 +223,7 @@ explained in Table 1-4.
 
 (for SMP CONFIG users)
 For making accounting scalable, RSS related information are handled in an
-asynchronous manner and the value may not be very precise. To see a precise
+asynchroyesus manner and the value may yest be very precise. To see a precise
 snapshot of a moment, you can see /proc/<pid>/smaps file and scan page table.
 It's slow but very precise.
 
@@ -236,10 +236,10 @@ Table 1-2: Contents of the status files (as of 4.19)
                              in an uninterruptible wait, Z is zombie,
 			     T is traced or stopped)
  Tgid                        thread group ID
- Ngid                        NUMA group ID (0 if none)
+ Ngid                        NUMA group ID (0 if yesne)
  Pid                         process id
  PPid                        process id of the parent process
- TracerPid                   PID of process tracing this process (0 if not)
+ TracerPid                   PID of process tracing this process (0 if yest)
  Uid                         Real, effective, saved set, and  file system UIDs
  Gid                         Real, effective, saved set, and  file system GIDs
  FDSize                      number of file descriptor slots currently allocated
@@ -254,18 +254,18 @@ Table 1-2: Contents of the status files (as of 4.19)
  VmPin                       pinned memory size
  VmHWM                       peak resident set size ("high water mark")
  VmRSS                       size of memory portions. It contains the three
-                             following parts (VmRSS = RssAnon + RssFile + RssShmem)
- RssAnon                     size of resident anonymous memory
+                             following parts (VmRSS = RssAyesn + RssFile + RssShmem)
+ RssAyesn                     size of resident ayesnymous memory
  RssFile                     size of resident file mappings
  RssShmem                    size of resident shmem memory (includes SysV shm,
-                             mapping of tmpfs and shared anonymous mappings)
+                             mapping of tmpfs and shared ayesnymous mappings)
  VmData                      size of private data segments
  VmStk                       size of stack segments
  VmExe                       size of text segment
  VmLib                       size of shared library code
  VmPTE                       size of page table entries
- VmSwap                      amount of swap used by anonymous private data
-                             (shmem swap usage is not included)
+ VmSwap                      amount of swap used by ayesnymous private data
+                             (shmem swap usage is yest included)
  HugetlbPages                size of hugetlb memory portions
  CoreDumping                 process's memory is currently being dumped
                              (killing the process may lead to a corrupted core)
@@ -276,22 +276,22 @@ Table 1-2: Contents of the status files (as of 4.19)
  SigPnd                      bitmap of pending signals for the thread
  ShdPnd                      bitmap of shared pending signals for the process
  SigBlk                      bitmap of blocked signals
- SigIgn                      bitmap of ignored signals
+ SigIgn                      bitmap of igyesred signals
  SigCgt                      bitmap of caught signals
  CapInh                      bitmap of inheritable capabilities
  CapPrm                      bitmap of permitted capabilities
  CapEff                      bitmap of effective capabilities
  CapBnd                      bitmap of capabilities bounding set
  CapAmb                      bitmap of ambient capabilities
- NoNewPrivs                  no_new_privs, like prctl(PR_GET_NO_NEW_PRIV, ...)
+ NoNewPrivs                  yes_new_privs, like prctl(PR_GET_NO_NEW_PRIV, ...)
  Seccomp                     seccomp mode, like prctl(PR_GET_SECCOMP, ...)
  Speculation_Store_Bypass    speculative store bypass mitigation status
  Cpus_allowed                mask of CPUs on which this process may run
  Cpus_allowed_list           Same as previous, but in "list format"
- Mems_allowed                mask of memory nodes allowed to this process
+ Mems_allowed                mask of memory yesdes allowed to this process
  Mems_allowed_list           Same as previous, but in "list format"
  voluntary_ctxt_switches     number of voluntary context switches
- nonvoluntary_ctxt_switches  number of non voluntary context switches
+ yesnvoluntary_ctxt_switches  number of yesn voluntary context switches
 ..............................................................................
 
 Table 1-3: Contents of the statm files (as of 2.6.8-rc3)
@@ -301,7 +301,7 @@ Table 1-3: Contents of the statm files (as of 2.6.8-rc3)
  resident size of memory portions (pages)	(same as VmRSS in status)
  shared   number of pages that are shared	(i.e. backed by a file, same
 						as RssFile+RssShmem in status)
- trs      number of pages that are 'code'	(not including libs; broken,
+ trs      number of pages that are 'code'	(yest including libs; broken,
 							includes data segment)
  lrs      number of pages of library		(always 0 on 2.6)
  drs      number of pages of data/stack		(including libs; broken,
@@ -323,8 +323,8 @@ Table 1-4: Contents of the stat files (as of 2.6.30-rc7)
   tty_nr        tty the process uses
   tty_pgrp      pgrp of the tty
   flags         task flags
-  min_flt       number of minor faults
-  cmin_flt      number of minor faults with child's
+  min_flt       number of miyesr faults
+  cmin_flt      number of miyesr faults with child's
   maj_flt       number of major faults
   cmaj_flt      number of major faults with child's
   utime         user mode jiffies
@@ -346,7 +346,7 @@ Table 1-4: Contents of the stat files (as of 2.6.30-rc7)
   eip           current value of EIP
   pending       bitmap of pending signals
   blocked       bitmap of blocked signals
-  sigign        bitmap of ignored signals
+  sigign        bitmap of igyesred signals
   sigcatch      bitmap of caught signals
   0		(place holder, used to be the wchan address, use /proc/PID/wchan instead)
   0             (place holder)
@@ -373,7 +373,7 @@ their access permissions.
 
 The format is:
 
-address           perms offset  dev   inode      pathname
+address           perms offset  dev   iyesde      pathname
 
 08048000-08049000 r-xp 00000000 03:00 8312       /opt/test
 08049000-0804a000 rw-p 00001000 03:00 8312       /opt/test
@@ -405,18 +405,18 @@ is a set of permissions:
  s = shared
  p = private (copy on write)
 
-"offset" is the offset into the mapping, "dev" is the device (major:minor), and
-"inode" is the inode  on that device.  0 indicates that  no inode is associated
+"offset" is the offset into the mapping, "dev" is the device (major:miyesr), and
+"iyesde" is the iyesde  on that device.  0 indicates that  yes iyesde is associated
 with the memory region, as the case would be with BSS (uninitialized data).
 The "pathname" shows the name associated file for this mapping.  If the mapping
-is not associated with a file:
+is yest associated with a file:
 
  [heap]                   = the heap of the program
  [stack]                  = the stack of the main process
  [vdso]                   = the "virtual dynamic shared object",
                             the kernel system call handler
 
- or if empty, the mapping is anonymous.
+ or if empty, the mapping is ayesnymous.
 
 The /proc/PID/smaps is an extension based on maps, showing the memory
 consumption for each of the process's mappings. For each mapping (aka Virtual
@@ -434,9 +434,9 @@ Shared_Dirty:          0 kB
 Private_Clean:         0 kB
 Private_Dirty:         0 kB
 Referenced:          892 kB
-Anonymous:             0 kB
+Ayesnymous:             0 kB
 LazyFree:              0 kB
-AnonHugePages:         0 kB
+AyesnHugePages:         0 kB
 ShmemPmdMapped:        0 kB
 Shared_Hugetlb:        0 kB
 Private_Hugetlb:       0 kB
@@ -463,29 +463,29 @@ So if a process has 1000 pages all to itself, and 1000 shared with one other
 process, its PSS will be 1500.
 Note that even a page which is part of a MAP_SHARED mapping, but has only
 a single pte mapped, i.e.  is currently used by only one process, is accounted
-as private and not as shared.
+as private and yest as shared.
 "Referenced" indicates the amount of memory currently marked as referenced or
 accessed.
-"Anonymous" shows the amount of memory that does not belong to any file.  Even
-a mapping associated with a file may contain anonymous pages: when MAP_PRIVATE
-and a page is modified, the file page is replaced by a private anonymous copy.
+"Ayesnymous" shows the amount of memory that does yest belong to any file.  Even
+a mapping associated with a file may contain ayesnymous pages: when MAP_PRIVATE
+and a page is modified, the file page is replaced by a private ayesnymous copy.
 "LazyFree" shows the amount of memory which is marked by madvise(MADV_FREE).
 The memory isn't freed immediately with madvise(). It's freed in memory
-pressure if the memory is clean. Please note that the printed value might
+pressure if the memory is clean. Please yeste that the printed value might
 be lower than the real value due to optimizations used in the current
-implementation. If this is not desirable please file a bug report.
-"AnonHugePages" shows the ammount of memory backed by transparent hugepage.
+implementation. If this is yest desirable please file a bug report.
+"AyesnHugePages" shows the ammount of memory backed by transparent hugepage.
 "ShmemPmdMapped" shows the ammount of shared (shmem/tmpfs) memory backed by
 huge pages.
 "Shared_Hugetlb" and "Private_Hugetlb" show the ammounts of memory backed by
-hugetlbfs page which is *not* counted in "RSS" or "PSS" field for historical
-reasons. And these are not included in {Shared,Private}_{Clean,Dirty} field.
-"Swap" shows how much would-be-anonymous memory is also used, but out on swap.
-For shmem mappings, "Swap" includes also the size of the mapped (and not
+hugetlbfs page which is *yest* counted in "RSS" or "PSS" field for historical
+reasons. And these are yest included in {Shared,Private}_{Clean,Dirty} field.
+"Swap" shows how much would-be-ayesnymous memory is also used, but out on swap.
+For shmem mappings, "Swap" includes also the size of the mapped (and yest
 replaced by copy-on-write) part of the underlying shmem object out on swap.
 "SwapPss" shows proportional swap share of this mapping. Unlike "Swap", this
-does not take into account swapped out page of underlying shmem objects.
-"Locked" indicates whether the mapping is locked in memory or not.
+does yest take into account swapped out page of underlying shmem objects.
+"Locked" indicates whether the mapping is locked in memory or yest.
 "THPeligible" indicates whether the mapping is eligible for allocating THP
 pages - 1 if true, 0 otherwise. It just shows the current status.
 
@@ -507,20 +507,20 @@ manner. The codes are the following:
     io  - memory mapped I/O area
     sr  - sequential read advise provided
     rr  - random read advise provided
-    dc  - do not copy area on fork
-    de  - do not expand area on remapping
+    dc  - do yest copy area on fork
+    de  - do yest expand area on remapping
     ac  - area is accountable
-    nr  - swap space is not reserved for the area
+    nr  - swap space is yest reserved for the area
     ht  - area uses huge tlb pages
     ar  - architecture specific flag
-    dd  - do not include area into core dump
+    dd  - do yest include area into core dump
     sd  - soft-dirty flag
     mm  - mixed map area
     hg  - huge page advise flag
-    nh  - no-huge page advise flag
+    nh  - yes-huge page advise flag
     mg  - mergable advise flag
 
-Note that there is no guarantee that every flag and associated mnemonic will
+Note that there is yes guarantee that every flag and associated mnemonic will
 be present in all further kernel releases. Things get changed, the flags may
 be vanished or the reverse -- new added. Interpretation of their meaning
 might change in future as well. So each consumer of these flags has to
@@ -535,7 +535,7 @@ This typically manifests when doing partial reads of these files while the
 memory map is being modified.  Despite the races, we do provide the following
 guarantees:
 
-1) The mapped addresses never go backwards, which implies no two
+1) The mapped addresses never go backwards, which implies yes two
    regions will ever overlap.
 2) If there is something at a given vaddr during the entirety of the
    life of the smaps/maps walk, there will be some output for it.
@@ -544,13 +544,13 @@ The /proc/PID/smaps_rollup file includes the same fields as /proc/PID/smaps,
 but their values are the sums of the corresponding values for all mappings of
 the process.  Additionally, it contains these fields:
 
-Pss_Anon
+Pss_Ayesn
 Pss_File
 Pss_Shmem
 
-They represent the proportional shares of anonymous, file, and shmem pages, as
+They represent the proportional shares of ayesnymous, file, and shmem pages, as
 described for smaps above.  These fields are omitted in smaps since each
-mapping identifies the type (anon, file, or shmem) of all pages it contains.
+mapping identifies the type (ayesn, file, or shmem) of all pages it contains.
 Thus all information in smaps_rollup can be derived from smaps, but at a
 significantly higher cost.
 
@@ -561,7 +561,7 @@ for details).
 To clear the bits for all the pages associated with the process
     > echo 1 > /proc/PID/clear_refs
 
-To clear the bits for the anonymous pages associated with the process
+To clear the bits for the ayesnymous pages associated with the process
     > echo 2 > /proc/PID/clear_refs
 
 To clear the bits for the file mapped pages associated with the process
@@ -574,7 +574,7 @@ To reset the peak resident set size ("high water mark") to the process's
 current value:
     > echo 5 > /proc/PID/clear_refs
 
-Any other value written to /proc/PID/clear_refs will have no effect.
+Any other value written to /proc/PID/clear_refs will have yes effect.
 
 The /proc/pid/pagemap gives the PFN, which can be used to find the pageflags
 using /proc/kpageflags and number of times a page is mapped using
@@ -589,27 +589,27 @@ summarized separated by blank spaces, one mapping per each file line:
 address   policy    mapping details
 
 00400000 default file=/usr/local/bin/app mapped=1 active=0 N3=1 kernelpagesize_kB=4
-00600000 default file=/usr/local/bin/app anon=1 dirty=1 N3=1 kernelpagesize_kB=4
+00600000 default file=/usr/local/bin/app ayesn=1 dirty=1 N3=1 kernelpagesize_kB=4
 3206000000 default file=/lib64/ld-2.12.so mapped=26 mapmax=6 N0=24 N3=2 kernelpagesize_kB=4
-320621f000 default file=/lib64/ld-2.12.so anon=1 dirty=1 N3=1 kernelpagesize_kB=4
-3206220000 default file=/lib64/ld-2.12.so anon=1 dirty=1 N3=1 kernelpagesize_kB=4
-3206221000 default anon=1 dirty=1 N3=1 kernelpagesize_kB=4
+320621f000 default file=/lib64/ld-2.12.so ayesn=1 dirty=1 N3=1 kernelpagesize_kB=4
+3206220000 default file=/lib64/ld-2.12.so ayesn=1 dirty=1 N3=1 kernelpagesize_kB=4
+3206221000 default ayesn=1 dirty=1 N3=1 kernelpagesize_kB=4
 3206800000 default file=/lib64/libc-2.12.so mapped=59 mapmax=21 active=55 N0=41 N3=18 kernelpagesize_kB=4
 320698b000 default file=/lib64/libc-2.12.so
-3206b8a000 default file=/lib64/libc-2.12.so anon=2 dirty=2 N3=2 kernelpagesize_kB=4
-3206b8e000 default file=/lib64/libc-2.12.so anon=1 dirty=1 N3=1 kernelpagesize_kB=4
-3206b8f000 default anon=3 dirty=3 active=1 N3=3 kernelpagesize_kB=4
-7f4dc10a2000 default anon=3 dirty=3 N3=3 kernelpagesize_kB=4
-7f4dc10b4000 default anon=2 dirty=2 active=1 N3=2 kernelpagesize_kB=4
-7f4dc1200000 default file=/anon_hugepage\040(deleted) huge anon=1 dirty=1 N3=1 kernelpagesize_kB=2048
-7fff335f0000 default stack anon=3 dirty=3 N3=3 kernelpagesize_kB=4
+3206b8a000 default file=/lib64/libc-2.12.so ayesn=2 dirty=2 N3=2 kernelpagesize_kB=4
+3206b8e000 default file=/lib64/libc-2.12.so ayesn=1 dirty=1 N3=1 kernelpagesize_kB=4
+3206b8f000 default ayesn=3 dirty=3 active=1 N3=3 kernelpagesize_kB=4
+7f4dc10a2000 default ayesn=3 dirty=3 N3=3 kernelpagesize_kB=4
+7f4dc10b4000 default ayesn=2 dirty=2 active=1 N3=2 kernelpagesize_kB=4
+7f4dc1200000 default file=/ayesn_hugepage\040(deleted) huge ayesn=1 dirty=1 N3=1 kernelpagesize_kB=2048
+7fff335f0000 default stack ayesn=3 dirty=3 N3=3 kernelpagesize_kB=4
 7fff3369d000 default mapped=1 mapmax=35 active=0 N3=1 kernelpagesize_kB=4
 
 Where:
 "address" is the starting address for the mapping;
 "policy" reports the NUMA memory policy set for the mapping (see Documentation/admin-guide/mm/numa_memory_policy.rst);
 "mapping details" summarizes mapping data such as mapping type, page usage counters,
-node locality page counters (N0 == node0, N1 == node1, ...) and the kernel page
+yesde locality page counters (N0 == yesde0, N1 == yesde1, ...) and the kernel page
 size, in KB, that is backing the mapping up.
 
 1.2 Kernel data
@@ -653,7 +653,7 @@ Table 1-5: Kernel info in /proc
  mounts      Mounted filesystems                               
  net         Networking info (see text)                        
  pagetypeinfo Additional page allocator information (see text)  (2.5)
- partitions  Table of partitions known to the system           
+ partitions  Table of partitions kyeswn to the system           
  pci	     Deprecated info of PCI bus (new way -> /proc/bus/pci/,
              decoupled by lspci					(2.4)
  rtc         Real time clock                                   
@@ -719,11 +719,11 @@ LOC is the local interrupt counter of the internal APIC of every CPU.
 
 ERR is incremented in the case of errors in the IO-APIC bus (the bus that
 connects the CPUs in a SMP system. This means that an error has been detected,
-the IO-APIC automatically retry the transmission, so it should not be a big
+the IO-APIC automatically retry the transmission, so it should yest be a big
 problem, but you should read the SMP-FAQ.
 
 In 2.6.2* /proc/interrupts was expanded again.  This time the goal was for
-/proc/interrupts to display every IRQ vector in use by the system, not
+/proc/interrupts to display every IRQ vector in use by the system, yest
 just those considered 'most important'.  The new vectors are:
 
   THR -- interrupt raised when a machine check threshold counter
@@ -732,21 +732,21 @@ just those considered 'most important'.  The new vectors are:
 
   TRM -- a thermal event interrupt occurs when a temperature threshold
   has been exceeded for the CPU.  This interrupt may also be generated
-  when the temperature drops back to normal.
+  when the temperature drops back to yesrmal.
 
   SPU -- a spurious interrupt is some interrupt that was raised then lowered
   by some IO device before it could be fully processed by the APIC.  Hence
-  the APIC sees the interrupt but does not know what device it came from.
+  the APIC sees the interrupt but does yest kyesw what device it came from.
   For this case the APIC will generate the interrupt with a IRQ vector
   of 0xff. This might also be generated by chipset bugs.
 
   RES, CAL, TLB -- rescheduling, call and TLB flush interrupts are
-  sent from one CPU to another per the needs of the OS.  Typically,
+  sent from one CPU to ayesther per the needs of the OS.  Typically,
   their statistics are used by kernel developers and interested users to
   determine the occurrence of interrupts of the given type.
 
 The above IRQ vectors are displayed only when relevant.  For example,
-the threshold vector does not exist on x86_64 platforms.  Others are
+the threshold vector does yest exist on x86_64 platforms.  Others are
 suppressed when the system is a uniprocessor.  As of this writing, only
 i386 and x86_64 platforms support the new IRQ vector displays.
 
@@ -782,12 +782,12 @@ a cpu range instead of a bitmask:
   > cat /proc/irq/0/smp_affinity_list
   1024-1031
 
-The default_smp_affinity mask applies to all non-active IRQs, which are the
-IRQs which have not yet been allocated/activated, and hence which lack a
+The default_smp_affinity mask applies to all yesn-active IRQs, which are the
+IRQs which have yest yet been allocated/activated, and hence which lack a
 /proc/irq/[0-9]* directory.
 
-The node file on an SMP system shows the node to which the device using the IRQ
-reports itself as being attached. This hardware locality information does not
+The yesde file on an SMP system shows the yesde to which the device using the IRQ
+reports itself as being attached. This hardware locality information does yest
 include information about any possible driver locality preference.
 
 prof_cpu_mask specifies which CPUs are to be profiled by the system wide
@@ -801,8 +801,8 @@ that support "Round Robin" interrupt distribution.]
 
 There are  three  more  important subdirectories in /proc: net, scsi, and sys.
 The general  rule  is  that  the  contents,  or  even  the  existence of these
-directories, depend  on your kernel configuration. If SCSI is not enabled, the
-directory scsi  may  not  exist. The same is true with the net, which is there
+directories, depend  on your kernel configuration. If SCSI is yest enabled, the
+directory scsi  may  yest  exist. The same is true with the net, which is there
 only when networking support is present in the running kernel.
 
 The slabinfo  file  gives  information  about  memory usage at the slab level.
@@ -819,7 +819,7 @@ Node 0, zone   Normal      1      0      0      1    101      8 ...
 Node 0, zone  HighMem      2      0      0      1      1      0 ...
 
 External fragmentation is a problem under some workloads, and buddyinfo is a
-useful tool for helping diagnose these problems.  Buddyinfo will give you a 
+useful tool for helping diagyesse these problems.  Buddyinfo will give you a 
 clue as to how big an area you can safely allocate, or why a previous
 allocation failed.
 
@@ -876,7 +876,7 @@ meminfo:
 
 Provides information about distribution and utilization of memory.  This
 varies by architecture and compile options.  The following is from a
-16GB PIII, which has highmem enabled.  You may not have all of these fields.
+16GB PIII, which has highmem enabled.  You may yest have all of these fields.
 
 > cat /proc/meminfo
 
@@ -896,7 +896,7 @@ SwapTotal:           0 kB
 SwapFree:            0 kB
 Dirty:             968 kB
 Writeback:           0 kB
-AnonPages:      861800 kB
+AyesnPages:      861800 kB
 Mapped:         280372 kB
 Shmem:             644 kB
 KReclaimable:   168048 kB
@@ -914,7 +914,7 @@ VmallocUsed:       428 kB
 VmallocChunk:   111088 kB
 Percpu:          62080 kB
 HardwareCorrupted:   0 kB
-AnonHugePages:   49152 kB
+AyesnHugePages:   49152 kB
 ShmemHugePages:      0 kB
 ShmemPmdMapped:      0 kB
 
@@ -927,7 +927,7 @@ MemAvailable: An estimate of how much memory is available for starting new
               SReclaimable, the size of the file LRU lists, and the low
               watermarks in each zone.
               The estimate takes into account that the system needs some
-              page cache to function well, and that not all reclaimable
+              page cache to function well, and that yest all reclaimable
               slab will be reclaimable, due to items being in use. The
               impact of those factors will vary from system to system.
      Buffers: Relatively temporary storage for raw disk blocks
@@ -938,7 +938,7 @@ MemAvailable: An estimate of how much memory is available for starting new
               still also is in the swapfile (if memory is needed it
               doesn't need to be swapped out AGAIN because it is already
               in the swapfile. This saves I/O)
-      Active: Memory that has been used more recently and usually not
+      Active: Memory that has been used more recently and usually yest
               reclaimed unless absolutely necessary.
     Inactive: Memory which has been less recently used.  It is more
               eligible to be reclaimed for other purposes
@@ -958,10 +958,10 @@ MemAvailable: An estimate of how much memory is available for starting new
               on the disk
        Dirty: Memory which is waiting to get written back to the disk
    Writeback: Memory which is actively being written back to the disk
-   AnonPages: Non-file backed pages mapped into userspace page tables
+   AyesnPages: Non-file backed pages mapped into userspace page tables
 HardwareCorrupted: The amount of RAM/memory in KB, the kernel identifies as
 	      corrupted.
-AnonHugePages: Non-file backed huge pages mapped into userspace page tables
+AyesnHugePages: Non-file backed huge pages mapped into userspace page tables
       Mapped: files which have been mmaped, such as libraries
        Shmem: Total memory used by shared memory (shmem) and tmpfs
 ShmemHugePages: Memory used by shared memory (shmem) and tmpfs allocated
@@ -972,10 +972,10 @@ KReclaimable: Kernel allocations that the kernel will attempt to reclaim
               direct allocations with a shrinker.
         Slab: in-kernel data structures cache
 SReclaimable: Part of Slab, that might be reclaimed, such as caches
-  SUnreclaim: Part of Slab, that cannot be reclaimed on memory pressure
+  SUnreclaim: Part of Slab, that canyest be reclaimed on memory pressure
   PageTables: amount of memory dedicated to the lowest level of page
               tables.
-NFS_Unstable: NFS pages sent to the server, but not yet committed to stable
+NFS_Unstable: NFS pages sent to the server, but yest yet committed to stable
 	      storage
       Bounce: Memory used for block device "bounce buffers"
 WritebackTmp: Memory used by FUSE for temporary writeback buffers
@@ -994,16 +994,16 @@ WritebackTmp: Memory used by FUSE for temporary writeback buffers
               in vm/overcommit-accounting.
 Committed_AS: The amount of memory presently allocated on the system.
               The committed memory is a sum of all of the memory which
-              has been allocated by processes, even if it has not been
+              has been allocated by processes, even if it has yest been
               "used" by them as of yet. A process which malloc()'s 1G
               of memory, but only touches 300M of it will show up as
 	      using 1G. This 1G is memory which has been "committed" to
               by the VM and can be used at any time by the allocating
               application. With strict overcommit enabled on the system
               (mode 2 in 'vm.overcommit_memory'),allocations which would
-              exceed the CommitLimit (detailed above) will not be permitted.
+              exceed the CommitLimit (detailed above) will yest be permitted.
               This is useful if one needs to guarantee that processes will
-              not fail due to lack of memory once that memory has been
+              yest fail due to lack of memory once that memory has been
               successfully allocated.
 VmallocTotal: total size of vmalloc memory area
  VmallocUsed: amount of vmalloc area which is used
@@ -1027,8 +1027,8 @@ on the kind of area :
  vmap        vmap()ed pages
  user        VM_USERMAP area
  vpages      buffer for pages pointers was vmalloced (huge area)
- N<node>=nr  (Only on NUMA kernels)
-             Number of pages allocated on memory node <node>
+ N<yesde>=nr  (Only on NUMA kernels)
+             Number of pages allocated on memory yesde <yesde>
 
 > cat /proc/vmallocinfo
 0xffffc20000000000-0xffffc20000201000 2101248 alloc_large_system_hash+0x204 ...
@@ -1140,7 +1140,7 @@ the drive parameters:
   max_kb_per_request      122             1               127             rw 
   multcount               0               0               8               rw 
   nice1                   1               0               1               rw 
-  nowerr                  0               0               1               rw 
+  yeswerr                  0               0               1               rw 
   pio_mode                write-only      0               255             w 
   slow                    0               0               1               rw 
   unmaskirq               0               0               1               rw 
@@ -1301,12 +1301,12 @@ Table 1-10: Files in /proc/parport
  File      Content                                                             
  autoprobe Any IEEE-1284 device ID information that has been acquired.         
  devices   list of the device drivers using that port. A + will appear by the
-           name of the device currently using the port (it might not appear
+           name of the device currently using the port (it might yest appear
            against any). 
  hardware  Parallel port's base address, IRQ line and DMA channel.             
  irq       IRQ that parport is using for that port. This is in a separate
            file to allow you to alter it by writing a new value in (IRQ
-           number or none). 
+           number or yesne). 
 ..............................................................................
 
 1.7 TTY info in /proc/tty
@@ -1339,7 +1339,7 @@ To see  which  tty's  are  currently in use, you can simply look into the file
   /dev/ptmx            /dev/ptmx       5       2 system 
   /dev/console         /dev/console    5       1 system:console 
   /dev/tty             /dev/tty        5       0 system:/dev/tty 
-  unknown              /dev/tty        4    1-63 console 
+  unkyeswn              /dev/tty        4    1-63 console 
 
 
 1.8 Miscellaneous kernel statistics in /proc/stat
@@ -1366,31 +1366,31 @@ lines.  These numbers identify the amount of time the CPU has spent performing
 different kinds of work.  Time units are in USER_HZ (typically hundredths of a
 second).  The meanings of the columns are as follows, from left to right:
 
-- user: normal processes executing in user mode
+- user: yesrmal processes executing in user mode
 - nice: niced processes executing in user mode
 - system: processes executing in kernel mode
 - idle: twiddling thumbs
 - iowait: In a word, iowait stands for waiting for I/O to complete. But there
   are several problems:
-  1. Cpu will not wait for I/O to complete, iowait is the time that a task is
+  1. Cpu will yest wait for I/O to complete, iowait is the time that a task is
      waiting for I/O to complete. When cpu goes into idle state for
-     outstanding task io, another task will be scheduled on this CPU.
-  2. In a multi-core CPU, the task waiting for I/O to complete is not running
+     outstanding task io, ayesther task will be scheduled on this CPU.
+  2. In a multi-core CPU, the task waiting for I/O to complete is yest running
      on any CPU, so the iowait of each CPU is difficult to calculate.
   3. The value of iowait field in /proc/stat will decrease in certain
      conditions.
-  So, the iowait is not reliable by reading from /proc/stat.
+  So, the iowait is yest reliable by reading from /proc/stat.
 - irq: servicing interrupts
 - softirq: servicing softirqs
 - steal: involuntary wait
-- guest: running a normal guest
+- guest: running a yesrmal guest
 - guest_nice: running a niced guest
 
 The "intr" line gives counts of interrupts  serviced since boot time, for each
 of the  possible system interrupts.   The first  column  is the  total of  all
 interrupts serviced  including  unnumbered  architecture specific  interrupts;
 each  subsequent column is the  total for that particular numbered interrupt.
-Unnumbered interrupts are not shown, only summed into the total.
+Unnumbered interrupts are yest shown, only summed into the total.
 
 The "ctxt" line gives the total number of context switches across all CPUs.
 
@@ -1398,7 +1398,7 @@ The "btime" line gives  the time at which the  system booted, in seconds since
 the Unix epoch.
 
 The "processes" line gives the number  of processes and threads created, which
-includes (but  is not limited  to) those  created by  calls to the  fork() and
+includes (but  is yest limited  to) those  created by  calls to the  fork() and
 clone() system calls.
 
 The "procs_running" line gives the total number of threads that are
@@ -1449,19 +1449,19 @@ The columns are:
                        C = it is preferred console
                        B = it is primary boot console
                        p = it is used for printk buffer
-                       b = it is not a TTY but a Braille device
+                       b = it is yest a TTY but a Braille device
                        a = it is safe to use when cpu is offline
-  major:minor          major and minor number of the device separated by a colon
+  major:miyesr          major and miyesr number of the device separated by a colon
 
 ------------------------------------------------------------------------------
 Summary
 ------------------------------------------------------------------------------
-The /proc file system serves information about the running system. It not only
+The /proc file system serves information about the running system. It yest only
 allows access to process data but also allows you to request the kernel status
 by reading files in the hierarchy.
 
 The directory  structure  of /proc reflects the types of information and makes
-it easy, if not obvious, where to look for specific data.
+it easy, if yest obvious, where to look for specific data.
 ------------------------------------------------------------------------------
 
 ------------------------------------------------------------------------------
@@ -1477,12 +1477,12 @@ In This Chapter
 ------------------------------------------------------------------------------
 
 
-A very  interesting part of /proc is the directory /proc/sys. This is not only
+A very  interesting part of /proc is the directory /proc/sys. This is yest only
 a source  of  information,  it also allows you to change parameters within the
 kernel. Be  very  careful  when attempting this. You can optimize your system,
 but you  can  also  cause  it  to  crash.  Never  alter kernel parameters on a
 production system.  Set  up  a  development machine and test to make sure that
-everything works  the  way  you want it to. You may have no alternative but to
+everything works  the  way  you want it to. You may have yes alternative but to
 reboot the machine once an error has been made.
 
 To change  a  value,  simply  echo  the new value into the file. An example is
@@ -1508,7 +1508,7 @@ Summary
 ------------------------------------------------------------------------------
 Certain aspects  of  kernel  behavior  can be modified at runtime, without the
 need to  recompile  the kernel, or even to reboot the system. The files in the
-/proc/sys tree  can  not only be read, but also modified. You can use the echo
+/proc/sys tree  can  yest only be read, but also modified. You can use the echo
 command to write value into these files, thereby changing the default settings
 of the kernel.
 ------------------------------------------------------------------------------
@@ -1536,8 +1536,8 @@ and swap usage is discounted by 3% for root processes.
 The amount of "allowed" memory depends on the context in which the oom killer
 was called.  If it is due to the memory assigned to the allocating task's cpuset
 being exhausted, the allowed memory represents the set of mems assigned to that
-cpuset.  If it is due to a mempolicy's node(s) being exhausted, the allowed
-memory represents the set of mempolicy nodes.  If it is due to a memory
+cpuset.  If it is due to a mempolicy's yesde(s) being exhausted, the allowed
+memory represents the set of mempolicy yesdes.  If it is due to a memory
 limit (or swap limit) being reached, the allowed memory is that configured
 limit.  Finally, if it is due to the entire system being out of memory, the
 allowed memory represents all allocatable resources.
@@ -1564,7 +1564,7 @@ be used to tune the badness score.  Its acceptable values range from -16
 (OOM_DISABLE) to disable oom killing entirely for that task.  Its value is
 scaled linearly with /proc/<pid>/oom_score_adj.
 
-The value of /proc/<pid>/oom_score_adj may be reduced no lower than the last
+The value of /proc/<pid>/oom_score_adj may be reduced yes lower than the last
 value set by a CAP_SYS_RESOURCE process. To reduce the value any lower
 requires CAP_SYS_RESOURCE.
 
@@ -1612,7 +1612,7 @@ rchar
 I/O counter: chars read
 The number of bytes which this task has caused to be read from storage. This
 is simply the sum of bytes which this process passed to read() and pread().
-It includes things like tty IO and it is unaffected by whether or not actual
+It includes things like tty IO and it is unaffected by whether or yest actual
 physical disk IO was required (the read might have been satisfied from
 pagecache)
 
@@ -1663,12 +1663,12 @@ cancelled_write_bytes
 ---------------------
 
 The big inaccuracy here is truncate. If a process writes 1MB to a file and
-then deletes the file, it will in fact perform no writeout. But it will have
+then deletes the file, it will in fact perform yes writeout. But it will have
 been accounted as having caused 1MB of write.
-In other words: The number of bytes which this process caused to not happen,
+In other words: The number of bytes which this process caused to yest happen,
 by truncating pagecache. A task can cause "negative" IO too. If this task
-truncates some dirty pagecache, some IO which another task has been accounted
-for (in its write_bytes) will not be happening. We _could_ just subtract that
+truncates some dirty pagecache, some IO which ayesther task has been accounted
+for (in its write_bytes) will yest be happening. We _could_ just subtract that
 from the truncating task's write_bytes, but there is information loss in doing
 that.
 
@@ -1686,20 +1686,20 @@ Documentation/accounting.
 
 3.4 /proc/<pid>/coredump_filter - Core dump filtering settings
 ---------------------------------------------------------------
-When a process is dumped, all anonymous memory is written to a core file as
+When a process is dumped, all ayesnymous memory is written to a core file as
 long as the size of the core file isn't limited. But sometimes we don't want
 to dump some memory segments, for example, huge shared memory or DAX.
 Conversely, sometimes we want to save file-backed memory segments into a core
-file, not only the individual files.
+file, yest only the individual files.
 
 /proc/<pid>/coredump_filter allows you to customize which memory segments
 will be dumped when the <pid> process is dumped. coredump_filter is a bitmask
 of memory types. If a bit of the bitmask is set, memory segments of the
-corresponding memory type are dumped, otherwise they are not dumped.
+corresponding memory type are dumped, otherwise they are yest dumped.
 
 The following 9 memory types are supported:
-  - (bit 0) anonymous private memory
-  - (bit 1) anonymous shared memory
+  - (bit 0) ayesnymous private memory
+  - (bit 1) ayesnymous shared memory
   - (bit 2) file-backed private memory
   - (bit 3) file-backed shared memory
   - (bit 4) ELF header pages in file-backed private memory areas (it is
@@ -1715,7 +1715,7 @@ The following 9 memory types are supported:
   Note that bits 0-4 don't affect hugetlb or DAX memory. hugetlb memory is
   only affected by bit 5-6, and DAX is only affected by bits 7-8.
 
-The default value of coredump_filter is 0x33; this means all anonymous memory
+The default value of coredump_filter is 0x33; this means all ayesnymous memory
 segments, ELF header pages and hugetlb private memory are dumped.
 
 If you don't want to dump all shared memory segments attached to pid 1234,
@@ -1735,22 +1735,22 @@ For example:
 
 This file contains lines of the form:
 
-36 35 98:0 /mnt1 /mnt2 rw,noatime master:1 - ext3 /dev/root rw,errors=continue
+36 35 98:0 /mnt1 /mnt2 rw,yesatime master:1 - ext3 /dev/root rw,errors=continue
 (1)(2)(3)   (4)   (5)      (6)      (7)   (8) (9)   (10)         (11)
 
 (1) mount ID:  unique identifier of the mount (may be reused after umount)
 (2) parent ID:  ID of parent (or of self for the top of the mount tree)
-(3) major:minor:  value of st_dev for files on filesystem
+(3) major:miyesr:  value of st_dev for files on filesystem
 (4) root:  root of the mount within the filesystem
 (5) mount point:  mount point relative to the process's root
 (6) mount options:  per mount options
 (7) optional fields:  zero or more fields of the form "tag[:value]"
 (8) separator:  marks the end of the optional fields
 (9) filesystem type:  name of filesystem of the form "type[.subtype]"
-(10) mount source:  filesystem specific information or "none"
+(10) mount source:  filesystem specific information or "yesne"
 (11) super options:  per super block options
 
-Parsers should ignore all unrecognised optional fields.  Currently the
+Parsers should igyesre all unrecognised optional fields.  Currently the
 possible optional fields are:
 
 shared:X  mount is shared in peer group X
@@ -1759,9 +1759,9 @@ propagate_from:X  mount is slave and receives propagation from peer group X (*)
 unbindable  mount is unbindable
 
 (*) X is the closest dominant peer group under the process's root.  If
-X is the immediate master of the mount, or if there's no dominant peer
+X is the immediate master of the mount, or if there's yes dominant peer
 group under the same root, then only the "master:X" field is present
-and not the "propagate_from:X" field.
+and yest the "propagate_from:X" field.
 
 For more information on mount propagation see:
 
@@ -1784,7 +1784,7 @@ of a task pointed by <pid>/<tid> pair. The format is a space separated
 stream of pids.
 
 Note the "first level" here -- if a child has own children they will
-not be listed here, one needs to read /proc/<children-pid>/task/<tid>/children
+yest be listed here, one needs to read /proc/<children-pid>/task/<tid>/children
 to obtain the descendants.
 
 Since this interface is intended to be fast and cheap it doesn't
@@ -1799,7 +1799,7 @@ if precise results are needed.
 This file provides information associated with an opened file. The regular
 files have at least three fields -- 'pos', 'flags' and mnt_id. The 'pos'
 represents the current offset of the opened file in decimal form [see lseek(2)
-for details], 'flags' denotes the octal O_xxx mask the file has been
+for details], 'flags' deyestes the octal O_xxx mask the file has been
 created with [see open(2) for details] and 'mnt_id' represents mount ID of
 the file system containing the opened file [see 3.5 /proc/<pid>/mountinfo
 for details].
@@ -1814,7 +1814,7 @@ All locks associated with a file descriptor are shown in its fdinfo too.
 
 lock:       1: FLOCK  ADVISORY  WRITE 359 00:13:11691 0 EOF
 
-The files such as eventfd, fsnotify, signalfd, epoll among the regular pos/flags
+The files such as eventfd, fsyestify, signalfd, epoll among the regular pos/flags
 pair provide additional information particular to the objects they represent.
 
 	Eventfd files
@@ -1841,28 +1841,28 @@ pair provide additional information particular to the objects they represent.
 	pos:	0
 	flags:	02
 	mnt_id:	9
-	tfd:        5 events:       1d data: ffffffffffffffff pos:0 ino:61af sdev:7
+	tfd:        5 events:       1d data: ffffffffffffffff pos:0 iyes:61af sdev:7
 
 	where 'tfd' is a target file descriptor number in decimal form,
 	'events' is events mask being watched and the 'data' is data
 	associated with a target [see epoll(7) for more details].
 
 	The 'pos' is current offset of the target file in decimal form
-	[see lseek(2)], 'ino' and 'sdev' are inode and device numbers
+	[see lseek(2)], 'iyes' and 'sdev' are iyesde and device numbers
 	where target file resides, all in hex format.
 
-	Fsnotify files
+	Fsyestify files
 	~~~~~~~~~~~~~~
-	For inotify files the format is the following
+	For iyestify files the format is the following
 
 	pos:	0
 	flags:	02000000
-	inotify wd:3 ino:9e7e sdev:800013 mask:800afce ignored_mask:0 fhandle-bytes:8 fhandle-type:1 f_handle:7e9e0000640d1b6d
+	iyestify wd:3 iyes:9e7e sdev:800013 mask:800afce igyesred_mask:0 fhandle-bytes:8 fhandle-type:1 f_handle:7e9e0000640d1b6d
 
 	where 'wd' is a watch descriptor in decimal form, ie a target file
-	descriptor number, 'ino' and 'sdev' are inode and device where the
+	descriptor number, 'iyes' and 'sdev' are iyesde and device where the
 	target file resides and the 'mask' is the mask of events, all in hex
-	form [see inotify(7) for more details].
+	form [see iyestify(7) for more details].
 
 	If the kernel was built with exportfs support, the path to the target
 	file is encoded as a file handle.  The file handle is provided by three
@@ -1872,28 +1872,28 @@ pair provide additional information particular to the objects they represent.
 	If the kernel is built without exportfs support the file handle won't be
 	printed out.
 
-	If there is no inotify mark attached yet the 'inotify' line will be omitted.
+	If there is yes iyestify mark attached yet the 'iyestify' line will be omitted.
 
-	For fanotify files the format is
+	For fayestify files the format is
 
 	pos:	0
 	flags:	02
 	mnt_id:	9
-	fanotify flags:10 event-flags:0
-	fanotify mnt_id:12 mflags:40 mask:38 ignored_mask:40000003
-	fanotify ino:4f969 sdev:800013 mflags:0 mask:3b ignored_mask:40000000 fhandle-bytes:8 fhandle-type:1 f_handle:69f90400c275b5b4
+	fayestify flags:10 event-flags:0
+	fayestify mnt_id:12 mflags:40 mask:38 igyesred_mask:40000003
+	fayestify iyes:4f969 sdev:800013 mflags:0 mask:3b igyesred_mask:40000000 fhandle-bytes:8 fhandle-type:1 f_handle:69f90400c275b5b4
 
-	where fanotify 'flags' and 'event-flags' are values used in fanotify_init
+	where fayestify 'flags' and 'event-flags' are values used in fayestify_init
 	call, 'mnt_id' is the mount point identifier, 'mflags' is the value of
 	flags associated with mark which are tracked separately from events
-	mask. 'ino', 'sdev' are target inode and device, 'mask' is the events
-	mask and 'ignored_mask' is the mask of events which are to be ignored.
-	All in hex format. Incorporation of 'mflags', 'mask' and 'ignored_mask'
-	does provide information about flags and mask used in fanotify_mark
-	call [see fsnotify manpage for details].
+	mask. 'iyes', 'sdev' are target iyesde and device, 'mask' is the events
+	mask and 'igyesred_mask' is the mask of events which are to be igyesred.
+	All in hex format. Incorporation of 'mflags', 'mask' and 'igyesred_mask'
+	does provide information about flags and mask used in fayestify_mark
+	call [see fsyestify manpage for details].
 
 	While the first three lines are mandatory and always printed, the rest is
-	optional and may be omitted if no marks created yet.
+	optional and may be omitted if yes marks created yet.
 
 	Timerfd files
 	~~~~~~~~~~~~~
@@ -1934,13 +1934,13 @@ The main purpose of the map_files is to retrieve a set of memory mapped
 files in a fast way instead of parsing /proc/<pid>/maps or
 /proc/<pid>/smaps, both of which contain many more records.  At the same
 time one can open(2) mappings from the listings of two processes and
-comparing their inode numbers to figure out which anonymous memory areas
+comparing their iyesde numbers to figure out which ayesnymous memory areas
 are actually shared.
 
 3.10	/proc/<pid>/timerslack_ns - Task timerslack value
 ---------------------------------------------------------
-This file provides the value of the task's timerslack value in nanoseconds.
-This value specifies a amount of time that normal timers may be deferred
+This file provides the value of the task's timerslack value in nayesseconds.
+This value specifies a amount of time that yesrmal timers may be deferred
 in order to coalesce timers and avoid unnecessary wakeups.
 
 This allows a task's interactivity vs power consumption trade off to be
@@ -1958,7 +1958,7 @@ permissions on the task specified to change its timerslack_ns value.
 When CONFIG_LIVEPATCH is enabled, this file displays the value of the
 patch state for the task.
 
-A value of '-1' indicates that no patch is in transition.
+A value of '-1' indicates that yes patch is in transition.
 
 A value of '0' indicates that a patch is in transition and the task is
 unpatched.  If the patch is being enabled, then the task hasn't been
@@ -2000,13 +2000,13 @@ x86 specific entries:
        reason for being scheduled out (time slice exhausted, syscall ...)
        this can be arbitrary long time.
 
-  As a consequence the value cannot be considered precise and authoritative
+  As a consequence the value canyest be considered precise and authoritative
   information. The application which uses this information has to be aware
   of the overall scenario on the system in order to determine whether a
-  task is a real AVX512 user or not. Precise information can be obtained
+  task is a real AVX512 user or yest. Precise information can be obtained
   with performance counters.
 
-  A special value of '-1' indicates that no AVX512 usage was recorded, thus
+  A special value of '-1' indicates that yes AVX512 usage was recorded, thus
   the task is unlikely an AVX512 user, but depends on the workload and the
   scheduling scenario, it also could be a false negative mentioned above.
 
@@ -2025,13 +2025,13 @@ The following mount options are supported:
 hidepid=0 means classic mode - everybody may access all /proc/<pid>/ directories
 (default).
 
-hidepid=1 means users may not access any /proc/<pid>/ directories but their
-own.  Sensitive files like cmdline, sched*, status are now protected against
+hidepid=1 means users may yest access any /proc/<pid>/ directories but their
+own.  Sensitive files like cmdline, sched*, status are yesw protected against
 other users.  This makes it impossible to learn whether any user runs
 specific program (given the program doesn't reveal itself by its behaviour).
 As an additional bonus, as /proc/<pid>/cmdline is unaccessible for other users,
 poorly written programs passing sensitive information via program arguments are
-now protected against local eavesdroppers.
+yesw protected against local eavesdroppers.
 
 hidepid=2 means hidepid=1 plus all /proc/<pid>/ will be fully invisible to other
 users.  It doesn't mean that it hides a fact whether a process with a specific

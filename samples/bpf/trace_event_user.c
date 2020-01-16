@@ -13,7 +13,7 @@
 #include <linux/bpf.h>
 #include <signal.h>
 #include <assert.h>
-#include <errno.h>
+#include <erryes.h>
 #include <sys/resource.h>
 #include "libbpf.h"
 #include "bpf_load.h"
@@ -32,7 +32,7 @@ static void print_ksym(__u64 addr)
 		return;
 	sym = ksym_search(addr);
 	if (!sym) {
-		printf("ksym not found. Is kallsyms loaded?\n");
+		printf("ksym yest found. Is kallsyms loaded?\n");
 		return;
 	}
 
@@ -126,8 +126,8 @@ static void print_stacks(void)
 
 static inline int generate_load(void)
 {
-	if (system("dd if=/dev/zero of=/dev/null count=5000k status=none") < 0) {
-		printf("failed to generate some load with dd: %s\n", strerror(errno));
+	if (system("dd if=/dev/zero of=/dev/null count=5000k status=yesne") < 0) {
+		printf("failed to generate some load with dd: %s\n", strerror(erryes));
 		return -1;
 	}
 
@@ -140,7 +140,7 @@ static void test_perf_event_all_cpu(struct perf_event_attr *attr)
 	int *pmu_fd = malloc(nr_cpus * sizeof(int));
 	int i, error = 0;
 
-	/* system wide perf event, no need to inherit */
+	/* system wide perf event, yes need to inherit */
 	attr->inherit = 0;
 
 	/* open perf_event on all cpus */

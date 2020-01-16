@@ -45,9 +45,9 @@ config M68000
 	select HAVE_ARCH_HASH
 	help
 	  The Freescale (was Motorola) 68000 CPU is the first generation of
-	  the well known M68K family of processors. The CPU core as well as
+	  the well kyeswn M68K family of processors. The CPU core as well as
 	  being available as a stand alone CPU was also used in many
-	  System-On-Chip devices (eg 68328, 68302, etc). It does not contain
+	  System-On-Chip devices (eg 68328, 68302, etc). It does yest contain
 	  a paging MMU.
 
 config MCPU32
@@ -58,7 +58,7 @@ config MCPU32
 	help
 	  The Freescale (was then Motorola) CPU32 is a CPU core that is
 	  based on the 68020 processor. For the most part it is used in
-	  System-On-Chip parts, and does not contain a paging MMU.
+	  System-On-Chip parts, and does yest contain a paging MMU.
 
 config M68020
 	bool "68020 support"
@@ -78,8 +78,8 @@ config M68030
 	select CPU_HAS_ADDRESS_SPACES
 	help
 	  If you anticipate running this kernel on a computer with a MC68030
-	  processor, say Y. Otherwise, say N. Note that a MC68EC030 will not
-	  work, as it does not include an MMU (Memory Management Unit).
+	  processor, say Y. Otherwise, say N. Note that a MC68EC030 will yest
+	  work, as it does yest include an MMU (Memory Management Unit).
 
 config M68040
 	bool "68040 support"
@@ -89,7 +89,7 @@ config M68040
 	help
 	  If you anticipate running this kernel on a computer with a MC68LC040
 	  or MC68040 processor, say Y. Otherwise, say N. Note that an
-	  MC68EC040 will not work, as it does not include an MMU (Memory
+	  MC68EC040 will yest work, as it does yest include an MMU (Memory
 	  Management Unit).
 
 config M68060
@@ -314,19 +314,19 @@ config M68KFPU_EMU
 	  At some point in the future, this will cause floating-point math
 	  instructions to be emulated by the kernel on machines that lack a
 	  floating-point math coprocessor.  Thrill-seekers and chronically
-	  sleep-deprived psychotic hacker types can say Y now, everyone else
+	  sleep-deprived psychotic hacker types can say Y yesw, everyone else
 	  should probably wait a while.
 
 config M68KFPU_EMU_EXTRAPREC
 	bool "Math emulation extra precision"
 	depends on M68KFPU_EMU
 	help
-	  The fpu uses normally a few bit more during calculations for
+	  The fpu uses yesrmally a few bit more during calculations for
 	  correct rounding, the emulator can (often) do the same but this
 	  extra calculation can cost quite some time, so you can disable
 	  it here. The emulator will then "only" calculate with a 64 bit
-	  mantissa and round slightly incorrect, what is more than enough
-	  for normal usage.
+	  mantissa and round slightly incorrect, what is more than eyesugh
+	  for yesrmal usage.
 
 config M68KFPU_EMU_ONLY
 	bool "Math emulation only kernel"
@@ -336,9 +336,9 @@ config M68KFPU_EMU_ONLY
 	  compiled into the kernel, thereby the kernel doesn't save any
 	  floating point context anymore during task switches, so this
 	  kernel will only be usable on machines without a floating-point
-	  math coprocessor. This makes the kernel a bit faster as no tests
+	  math coprocessor. This makes the kernel a bit faster as yes tests
 	  needs to be executed whether a floating-point instruction in the
-	  kernel should be executed or not.
+	  kernel should be executed or yest.
 
 config ADVANCED
 	bool "Advanced configuration options"
@@ -346,7 +346,7 @@ config ADVANCED
 	---help---
 	  This gives you access to some advanced options for the CPU. The
 	  defaults should be fine for most users, but these options may make
-	  it possible for you to improve performance somewhat if you know what
+	  it possible for you to improve performance somewhat if you kyesw what
 	  you are doing.
 
 	  Note that the answer to this question won't directly affect the
@@ -367,7 +367,7 @@ config RMW_INSNS
 	  cause serious problems on any Amiga or Atari Medusa if set. The only
 	  configuration where it should work are 68030-based Ataris, where it
 	  apparently improves performance. But you've been warned! Unless you
-	  really know what you are doing, say N. Try Y only if you're quite
+	  really kyesw what you are doing, say N. Try Y only if you're quite
 	  adventurous.
 
 config SINGLE_MEMORY_CHUNK
@@ -376,9 +376,9 @@ config SINGLE_MEMORY_CHUNK
 	default y if SUN3
 	select NEED_MULTIPLE_NODES
 	help
-	  Ignore all but the first contiguous chunk of physical memory for VM
+	  Igyesre all but the first contiguous chunk of physical memory for VM
 	  purposes.  This will save a few bytes kernel size and may speed up
-	  some operations.  Say N if not sure.
+	  some operations.  Say N if yest sure.
 
 config ARCH_DISCONTIGMEM_ENABLE
 	def_bool MMU && !SINGLE_MEMORY_CHUNK
@@ -394,8 +394,8 @@ config 060_WRITETHROUGH
 	  caching.  Writethrough caching means that data is written to memory
 	  straight away, so that cache and memory data always agree.
 	  Writethrough caching is less efficient, but is needed for some
-	  drivers on 68060 based systems where the 68060 bus snooping signal
-	  is hardwired on.  The 53c710 SCSI driver is known to suffer from
+	  drivers on 68060 based systems where the 68060 bus syesoping signal
+	  is hardwired on.  The 53c710 SCSI driver is kyeswn to suffer from
 	  this problem.
 
 config M68K_L2_CACHE
@@ -452,7 +452,7 @@ config CLOCK_FREQ
 	depends on COLDFIRE
 	help
 	  Define the CPU clock frequency in use. This is the core clock
-	  frequency, it may or may not be the same as the external clock
+	  frequency, it may or may yest be the same as the external clock
 	  crystal fitted to your board. Some processors have an internal
 	  PLL and can have their frequency programmed at run time, others
 	  use internal dividers. In general the kernel won't setup a PLL

@@ -86,7 +86,7 @@ static int open_cgroup(const char *name)
 
 	fd = open(path, O_RDONLY);
 	if (fd == -1)
-		fprintf(stderr, "no access to cgroup %s\n", path);
+		fprintf(stderr, "yes access to cgroup %s\n", path);
 
 	return fd;
 }

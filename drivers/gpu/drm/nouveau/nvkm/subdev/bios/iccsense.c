@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -68,7 +68,7 @@ nvbios_iccsense_parse(struct nvkm_bios *bios, struct nvbios_iccsense *iccsense)
 		return -EINVAL;
 
 	if (ver != 0x10 && ver != 0x20) {
-		nvkm_error(subdev, "ICCSENSE version 0x%02x unknown\n", ver);
+		nvkm_error(subdev, "ICCSENSE version 0x%02x unkyeswn\n", ver);
 		return -EINVAL;
 	}
 

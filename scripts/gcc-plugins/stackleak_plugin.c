@@ -43,14 +43,14 @@ static GTY(()) tree track_function_decl;
 static struct plugin_info stackleak_plugin_info = {
 	.version = "201707101337",
 	.help = "track-min-size=nn\ttrack stack for functions with a stack frame size >= nn bytes\n"
-		"disable\t\tdo not activate the plugin\n"
+		"disable\t\tdo yest activate the plugin\n"
 };
 
 static void stackleak_add_track_stack(gimple_stmt_iterator *gsi, bool after)
 {
 	gimple stmt;
 	gcall *stackleak_track_stack;
-	cgraph_node_ptr node;
+	cgraph_yesde_ptr yesde;
 	int frequency;
 	basic_block bb;
 
@@ -66,10 +66,10 @@ static void stackleak_add_track_stack(gimple_stmt_iterator *gsi, bool after)
 
 	/* Update the cgraph */
 	bb = gimple_bb(stackleak_track_stack);
-	node = cgraph_get_create_node(track_function_decl);
-	gcc_assert(node);
+	yesde = cgraph_get_create_yesde(track_function_decl);
+	gcc_assert(yesde);
 	frequency = compute_call_stmt_bb_frequency(current_function_decl, bb);
-	cgraph_create_edge(cgraph_get_node(current_function_decl), node,
+	cgraph_create_edge(cgraph_get_yesde(current_function_decl), yesde,
 			stackleak_track_stack, bb->count, frequency);
 }
 
@@ -89,7 +89,7 @@ static bool is_alloca(gimple stmt)
 /*
  * Work with the GIMPLE representation of the code. Insert the
  * stackleak_track_stack() call after alloca() and into the beginning
- * of the function if it is not instrumented.
+ * of the function if it is yest instrumented.
  */
 static unsigned int stackleak_instrument_execute(void)
 {
@@ -99,7 +99,7 @@ static unsigned int stackleak_instrument_execute(void)
 
 	/*
 	 * ENTRY_BLOCK_PTR is a basic block which represents possible entry
-	 * point of a function. This block does not contain any code and
+	 * point of a function. This block does yest contain any code and
 	 * has a CFG edge to its successor.
 	 */
 	gcc_assert(single_succ_p(ENTRY_BLOCK_PTR_FOR_FN(cfun)));
@@ -116,7 +116,7 @@ static unsigned int stackleak_instrument_execute(void)
 
 			stmt = gsi_stmt(gsi);
 
-			/* Leaf function is a function which makes no calls */
+			/* Leaf function is a function which makes yes calls */
 			if (is_gimple_call(stmt))
 				is_leaf = false;
 
@@ -139,7 +139,7 @@ static unsigned int stackleak_instrument_execute(void)
 	 * Taking the address of static inline functions materializes them,
 	 * but we mustn't instrument some of them as the resulting stack
 	 * alignment required by the function call ABI will break other
-	 * assumptions regarding the expected (but not otherwise enforced)
+	 * assumptions regarding the expected (but yest otherwise enforced)
 	 * register clobbering ABI.
 	 *
 	 * Case in point: native_save_fl on amd64 when optimized for size
@@ -186,7 +186,7 @@ static bool large_stack_frame(void)
 /*
  * Work with the RTL representation of the code.
  * Remove the unneeded stackleak_track_stack() calls from the functions
- * which don't call alloca() and don't have a large enough stack frame size.
+ * which don't call alloca() and don't have a large eyesugh stack frame size.
  */
 static unsigned int stackleak_cleanup_execute(void)
 {
@@ -291,7 +291,7 @@ static void stackleak_start_unit(void *gcc_data __unused,
 	tree fntype;
 
 	/* void stackleak_track_stack(void) */
-	fntype = build_function_type_list(void_type_node, NULL_TREE);
+	fntype = build_function_type_list(void_type_yesde, NULL_TREE);
 	track_function_decl = build_fn_decl(track_function, fntype);
 	DECL_ASSEMBLER_NAME(track_function_decl); /* for LTO */
 	TREE_PUBLIC(track_function_decl) = 1;
@@ -346,8 +346,8 @@ __visible int plugin_init(struct plugin_name_args *plugin_info,
 			.base = &track_function_decl,
 			.nelt = 1,
 			.stride = sizeof(track_function_decl),
-			.cb = &gt_ggc_mx_tree_node,
-			.pchw = &gt_pch_nx_tree_node
+			.cb = &gt_ggc_mx_tree_yesde,
+			.pchw = &gt_pch_nx_tree_yesde
 		},
 		LAST_GGC_ROOT_TAB
 	};
@@ -366,7 +366,7 @@ __visible int plugin_init(struct plugin_name_args *plugin_info,
 	 * The stackleak_cleanup pass should be executed before the "*free_cfg"
 	 * pass. It's the moment when the stack frame size is already final,
 	 * function prologues and epilogues are generated, and the
-	 * machine-dependent code transformations are not done.
+	 * machine-dependent code transformations are yest done.
 	 */
 	PASS_INFO(stackleak_cleanup, "*free_cfg", 1, PASS_POS_INSERT_BEFORE);
 
@@ -382,7 +382,7 @@ __visible int plugin_init(struct plugin_name_args *plugin_info,
 
 		if (!strcmp(argv[i].key, "track-min-size")) {
 			if (!argv[i].value) {
-				error(G_("no value supplied for option '-fplugin-arg-%s-%s'"),
+				error(G_("yes value supplied for option '-fplugin-arg-%s-%s'"),
 					plugin_name, argv[i].key);
 				return 1;
 			}
@@ -394,7 +394,7 @@ __visible int plugin_init(struct plugin_name_args *plugin_info,
 				return 1;
 			}
 		} else {
-			error(G_("unknown option '-fplugin-arg-%s-%s'"),
+			error(G_("unkyeswn option '-fplugin-arg-%s-%s'"),
 					plugin_name, argv[i].key);
 			return 1;
 		}

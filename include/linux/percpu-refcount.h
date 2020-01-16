@@ -7,7 +7,7 @@
  * This implements a refcount with similar semantics to atomic_t - atomic_inc(),
  * atomic_dec_and_test() - but percpu.
  *
- * There's one important difference between percpu refs and normal atomic_t
+ * There's one important difference between percpu refs and yesrmal atomic_t
  * refcounts; you have to keep track of your initial refcount, and then when you
  * start shutting down you call percpu_ref_kill() _before_ dropping the initial
  * refcount.
@@ -16,7 +16,7 @@
  * than an atomic_t - this is because of the way shutdown works, see
  * percpu_ref_kill()/PERCPU_COUNT_BIAS.
  *
- * Before you call percpu_ref_kill(), percpu_ref_put() does not check for the
+ * Before you call percpu_ref_kill(), percpu_ref_put() does yest check for the
  * refcount hitting 0 - it can't, if it was in percpu mode. percpu_ref_kill()
  * puts the ref back in single atomic_t mode, collecting the per cpu refs and
  * issuing the appropriate barriers, and then marks the ref as shutting down so
@@ -42,7 +42,7 @@
  * Code that does a two stage shutdown like this often needs some kind of
  * explicit synchronization to ensure the initial refcount can only be dropped
  * once - percpu_ref_kill() does this for you, it returns true once and false if
- * someone else already called it. The aio code uses it this way, but it's not
+ * someone else already called it. The aio code uses it this way, but it's yest
  * necessary if the code has some other mechanism to synchronize teardown.
  * around.
  */
@@ -129,7 +129,7 @@ void percpu_ref_reinit(struct percpu_ref *ref);
  * Switches @ref into atomic mode before gathering up the percpu counters
  * and dropping the initial ref.
  *
- * There are no implied RCU grace periods between kill and release.
+ * There are yes implied RCU grace periods between kill and release.
  */
 static inline void percpu_ref_kill(struct percpu_ref *ref)
 {
@@ -140,7 +140,7 @@ static inline void percpu_ref_kill(struct percpu_ref *ref)
  * Internal helper.  Don't use outside percpu-refcount proper.  The
  * function doesn't return the pointer and let the caller test it for NULL
  * because doing so forces the compiler to generate two conditional
- * branches as it can't assume that @ref->percpu_count is not NULL.
+ * branches as it can't assume that @ref->percpu_count is yest NULL.
  */
 static inline bool __ref_is_percpu(struct percpu_ref *ref,
 					  unsigned long __percpu **percpu_countp)
@@ -149,7 +149,7 @@ static inline bool __ref_is_percpu(struct percpu_ref *ref,
 
 	/*
 	 * The value of @ref->percpu_count_ptr is tested for
-	 * !__PERCPU_REF_ATOMIC, which may be set asynchronously, and then
+	 * !__PERCPU_REF_ATOMIC, which may be set asynchroyesusly, and then
 	 * used as a pointer.  If the compiler generates a separate fetch
 	 * when using it as a pointer, __PERCPU_REF_ATOMIC may be set in
 	 * between contaminating the pointer value, meaning that
@@ -229,7 +229,7 @@ static inline bool percpu_ref_tryget(struct percpu_ref *ref)
 		this_cpu_inc(*percpu_count);
 		ret = true;
 	} else {
-		ret = atomic_long_inc_not_zero(&ref->count);
+		ret = atomic_long_inc_yest_zero(&ref->count);
 	}
 
 	rcu_read_unlock();
@@ -247,7 +247,7 @@ static inline bool percpu_ref_tryget(struct percpu_ref *ref)
  * Completion of percpu_ref_kill() in itself doesn't guarantee that this
  * function will fail.  For such guarantee, percpu_ref_kill_and_confirm()
  * should be used.  After the confirm_kill callback is invoked, it's
- * guaranteed that no new reference will be given out by
+ * guaranteed that yes new reference will be given out by
  * percpu_ref_tryget_live().
  *
  * This function is safe to call as long as @ref is between init and exit.
@@ -263,7 +263,7 @@ static inline bool percpu_ref_tryget_live(struct percpu_ref *ref)
 		this_cpu_inc(*percpu_count);
 		ret = true;
 	} else if (!(ref->percpu_count_ptr & __PERCPU_REF_DEAD)) {
-		ret = atomic_long_inc_not_zero(&ref->count);
+		ret = atomic_long_inc_yest_zero(&ref->count);
 	}
 
 	rcu_read_unlock();

@@ -3,11 +3,11 @@
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
  *     * Redistributions of source code must retain the above copyright
- *	 notice, this list of conditions and the following disclaimer.
+ *	 yestice, this list of conditions and the following disclaimer.
  *     * Redistributions in binary form must reproduce the above copyright
- *	 notice, this list of conditions and the following disclaimer in the
+ *	 yestice, this list of conditions and the following disclaimer in the
  *	 documentation and/or other materials provided with the distribution.
- *     * Neither the name of Freescale Semiconductor nor the
+ *     * Neither the name of Freescale Semiconductor yesr the
  *	 names of its contributors may be used to endorse or promote products
  *	 derived from this software without specific prior written permission.
  *
@@ -46,7 +46,7 @@ static ssize_t dpaa_eth_show_addr(struct device *dev,
 		return sprintf(buf, "%llx",
 				(unsigned long long)mac_dev->res->start);
 	else
-		return sprintf(buf, "none");
+		return sprintf(buf, "yesne");
 }
 
 static ssize_t dpaa_eth_show_fqids(struct device *dev,
@@ -87,7 +87,7 @@ static ssize_t dpaa_eth_show_fqids(struct device *dev,
 			str = "Tx";
 			break;
 		default:
-			str = "Unknown";
+			str = "Unkyeswn";
 		}
 
 		if (prev && (abs(fq->fqid - prev->fqid) != 1 ||

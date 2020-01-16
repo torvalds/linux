@@ -28,7 +28,7 @@ struct nd_device_driver {
 	int (*probe)(struct device *dev);
 	int (*remove)(struct device *dev);
 	void (*shutdown)(struct device *dev);
-	void (*notify)(struct device *dev, enum nvdimm_event event);
+	void (*yestify)(struct device *dev, enum nvdimm_event event);
 };
 
 static inline struct nd_device_driver *to_nd_device_driver(
@@ -39,9 +39,9 @@ static inline struct nd_device_driver *to_nd_device_driver(
 
 /**
  * struct nd_namespace_common - core infrastructure of a namespace
- * @force_raw: ignore other personalities for the namespace (e.g. btt)
- * @dev: device model node
- * @claim: when set a another personality has taken ownership of the namespace
+ * @force_raw: igyesre other personalities for the namespace (e.g. btt)
+ * @dev: device model yesde
+ * @claim: when set a ayesther personality has taken ownership of the namespace
  * @claim_class: restrict claim type to a given class
  * @rw_bytes: access the raw namespace capacity with byte-aligned transfers
  */
@@ -96,7 +96,7 @@ struct nd_namespace_pmem {
  * @alt_name: namespace name supplied in the dimm label
  * @uuid: namespace name supplied in the dimm label
  * @id: ida allocated id
- * @lbasize: blk namespaces have a native sector size when btt not present
+ * @lbasize: blk namespaces have a native sector size when btt yest present
  * @size: sum of all the resource ranges allocated to this namespace
  * @num_resources: number of dpa extents to claim
  * @res: discontiguous dpa extents for given dimm
@@ -130,7 +130,7 @@ static inline struct nd_namespace_blk *to_nd_namespace_blk(const struct device *
 }
 
 /**
- * nvdimm_read_bytes() - synchronously read bytes from an nvdimm namespace
+ * nvdimm_read_bytes() - synchroyesusly read bytes from an nvdimm namespace
  * @ndns: device to read
  * @offset: namespace-relative starting offset
  * @buf: buffer to fill
@@ -146,13 +146,13 @@ static inline int nvdimm_read_bytes(struct nd_namespace_common *ndns,
 }
 
 /**
- * nvdimm_write_bytes() - synchronously write bytes to an nvdimm namespace
+ * nvdimm_write_bytes() - synchroyesusly write bytes to an nvdimm namespace
  * @ndns: device to write
  * @offset: namespace-relative starting offset
  * @buf: buffer to drain
  * @size: transfer length
  *
- * NVDIMM Namepaces disks do not implement sectors internally.  Depending on
+ * NVDIMM Namepaces disks do yest implement sectors internally.  Depending on
  * the @ndns, the contents of @buf may be in cpu cache, platform buffers,
  * or on backing memory media upon return from this routine.  Flushing
  * to media is handled internal to the @ndns driver, if at all.
@@ -169,7 +169,7 @@ static inline int nvdimm_write_bytes(struct nd_namespace_common *ndns,
 #define ND_DEVICE_MODALIAS_FMT "nd:t%d"
 
 struct nd_region;
-void nvdimm_region_notify(struct nd_region *nd_region, enum nvdimm_event event);
+void nvdimm_region_yestify(struct nd_region *nd_region, enum nvdimm_event event);
 int __must_check __nd_driver_register(struct nd_device_driver *nd_drv,
 		struct module *module, const char *mod_name);
 static inline void nd_driver_unregister(struct nd_device_driver *drv)

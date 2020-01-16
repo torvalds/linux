@@ -8,11 +8,11 @@ if [[ ! -v DEVLINK_DEV ]]; then
 	DEVLINK_DEV=$(devlink port show "${NETIFS[p1]}" -j \
 			     | jq -r '.port | keys[]' | cut -d/ -f-2)
 	if [ -z "$DEVLINK_DEV" ]; then
-		echo "SKIP: ${NETIFS[p1]} has no devlink device registered for it"
+		echo "SKIP: ${NETIFS[p1]} has yes devlink device registered for it"
 		exit 1
 	fi
 	if [[ "$(echo $DEVLINK_DEV | grep -c pci)" -eq 0 ]]; then
-		echo "SKIP: devlink device's bus is not PCI"
+		echo "SKIP: devlink device's bus is yest PCI"
 		exit 1
 	fi
 
@@ -375,13 +375,13 @@ devlink_trap_drop_test()
 	local dev=$1; shift
 
 	# This is the common part of all the tests. It checks that stats are
-	# initially idle, then non-idle after changing the trap action and
+	# initially idle, then yesn-idle after changing the trap action and
 	# finally idle again. It also makes sure the packets are dropped and
 	# never forwarded.
 	devlink_trap_stats_idle_test $trap_name
-	check_err $? "Trap stats not idle with initial drop action"
+	check_err $? "Trap stats yest idle with initial drop action"
 	devlink_trap_group_stats_idle_test $group_name
-	check_err $? "Trap group stats not idle with initial drop action"
+	check_err $? "Trap group stats yest idle with initial drop action"
 
 
 	devlink_trap_action_set $trap_name "trap"
@@ -393,12 +393,12 @@ devlink_trap_drop_test()
 	devlink_trap_action_set $trap_name "drop"
 
 	devlink_trap_stats_idle_test $trap_name
-	check_err $? "Trap stats not idle after setting action to drop"
+	check_err $? "Trap stats yest idle after setting action to drop"
 	devlink_trap_group_stats_idle_test $group_name
-	check_err $? "Trap group stats not idle after setting action to drop"
+	check_err $? "Trap group stats yest idle after setting action to drop"
 
 	tc_check_packets "dev $dev egress" 101 0
-	check_err $? "Packets were not dropped"
+	check_err $? "Packets were yest dropped"
 }
 
 devlink_trap_drop_cleanup()

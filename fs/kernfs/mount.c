@@ -19,11 +19,11 @@
 
 #include "kernfs-internal.h"
 
-struct kmem_cache *kernfs_node_cache, *kernfs_iattrs_cache;
+struct kmem_cache *kernfs_yesde_cache, *kernfs_iattrs_cache;
 
 static int kernfs_sop_show_options(struct seq_file *sf, struct dentry *dentry)
 {
-	struct kernfs_root *root = kernfs_root(kernfs_dentry_node(dentry));
+	struct kernfs_root *root = kernfs_root(kernfs_dentry_yesde(dentry));
 	struct kernfs_syscall_ops *scops = root->syscall_ops;
 
 	if (scops && scops->show_options)
@@ -33,12 +33,12 @@ static int kernfs_sop_show_options(struct seq_file *sf, struct dentry *dentry)
 
 static int kernfs_sop_show_path(struct seq_file *sf, struct dentry *dentry)
 {
-	struct kernfs_node *node = kernfs_dentry_node(dentry);
-	struct kernfs_root *root = kernfs_root(node);
+	struct kernfs_yesde *yesde = kernfs_dentry_yesde(dentry);
+	struct kernfs_root *root = kernfs_root(yesde);
 	struct kernfs_syscall_ops *scops = root->syscall_ops;
 
 	if (scops && scops->show_path)
-		return scops->show_path(sf, node, root);
+		return scops->show_path(sf, yesde, root);
 
 	seq_dentry(sf, dentry, " \t\n\\");
 	return 0;
@@ -46,17 +46,17 @@ static int kernfs_sop_show_path(struct seq_file *sf, struct dentry *dentry)
 
 const struct super_operations kernfs_sops = {
 	.statfs		= simple_statfs,
-	.drop_inode	= generic_delete_inode,
-	.evict_inode	= kernfs_evict_inode,
+	.drop_iyesde	= generic_delete_iyesde,
+	.evict_iyesde	= kernfs_evict_iyesde,
 
 	.show_options	= kernfs_sop_show_options,
 	.show_path	= kernfs_sop_show_path,
 };
 
-static int kernfs_encode_fh(struct inode *inode, __u32 *fh, int *max_len,
-			    struct inode *parent)
+static int kernfs_encode_fh(struct iyesde *iyesde, __u32 *fh, int *max_len,
+			    struct iyesde *parent)
 {
-	struct kernfs_node *kn = inode->i_private;
+	struct kernfs_yesde *kn = iyesde->i_private;
 
 	if (*max_len < 2) {
 		*max_len = 2;
@@ -73,8 +73,8 @@ static struct dentry *__kernfs_fh_to_dentry(struct super_block *sb,
 					    int fh_type, bool get_parent)
 {
 	struct kernfs_super_info *info = kernfs_info(sb);
-	struct kernfs_node *kn;
-	struct inode *inode;
+	struct kernfs_yesde *kn;
+	struct iyesde *iyesde;
 	u64 id;
 
 	if (fh_len < 2)
@@ -92,18 +92,18 @@ static struct dentry *__kernfs_fh_to_dentry(struct super_block *sb,
 		 * constructed from them.  Combine it back to ID.  See
 		 * blk_log_action().
 		 */
-		id = ((u64)fid->i32.gen << 32) | fid->i32.ino;
+		id = ((u64)fid->i32.gen << 32) | fid->i32.iyes;
 		break;
 	default:
 		return NULL;
 	}
 
-	kn = kernfs_find_and_get_node_by_id(info->root, id);
+	kn = kernfs_find_and_get_yesde_by_id(info->root, id);
 	if (!kn)
 		return ERR_PTR(-ESTALE);
 
 	if (get_parent) {
-		struct kernfs_node *parent;
+		struct kernfs_yesde *parent;
 
 		parent = kernfs_get_parent(kn);
 		kernfs_put(kn);
@@ -112,12 +112,12 @@ static struct dentry *__kernfs_fh_to_dentry(struct super_block *sb,
 			return ERR_PTR(-ESTALE);
 	}
 
-	inode = kernfs_get_inode(sb, kn);
+	iyesde = kernfs_get_iyesde(sb, kn);
 	kernfs_put(kn);
-	if (!inode)
+	if (!iyesde)
 		return ERR_PTR(-ESTALE);
 
-	return d_obtain_alias(inode);
+	return d_obtain_alias(iyesde);
 }
 
 static struct dentry *kernfs_fh_to_dentry(struct super_block *sb,
@@ -136,9 +136,9 @@ static struct dentry *kernfs_fh_to_parent(struct super_block *sb,
 
 static struct dentry *kernfs_get_parent_dentry(struct dentry *child)
 {
-	struct kernfs_node *kn = kernfs_dentry_node(child);
+	struct kernfs_yesde *kn = kernfs_dentry_yesde(child);
 
-	return d_obtain_alias(kernfs_get_inode(child->d_sb, kn->parent));
+	return d_obtain_alias(kernfs_get_iyesde(child->d_sb, kn->parent));
 }
 
 static const struct export_operations kernfs_export_ops = {
@@ -152,7 +152,7 @@ static const struct export_operations kernfs_export_ops = {
  * kernfs_root_from_sb - determine kernfs_root associated with a super_block
  * @sb: the super_block in question
  *
- * Return the kernfs_root associated with @sb.  If @sb is not a kernfs one,
+ * Return the kernfs_root associated with @sb.  If @sb is yest a kernfs one,
  * %NULL is returned.
  */
 struct kernfs_root *kernfs_root_from_sb(struct super_block *sb)
@@ -167,11 +167,11 @@ struct kernfs_root *kernfs_root_from_sb(struct super_block *sb)
  * ancestor whose descendant we want to find.
  *
  * Say the path is /a/b/c/d.  @child is d, @parent is NULL.  We return the root
- * node.  If @parent is b, then we return the node for c.
- * Passing in d as @parent is not ok.
+ * yesde.  If @parent is b, then we return the yesde for c.
+ * Passing in d as @parent is yest ok.
  */
-static struct kernfs_node *find_next_ancestor(struct kernfs_node *child,
-					      struct kernfs_node *parent)
+static struct kernfs_yesde *find_next_ancestor(struct kernfs_yesde *child,
+					      struct kernfs_yesde *parent)
 {
 	if (child == parent) {
 		pr_crit_once("BUG in find_next_ancestor: called with parent == child");
@@ -188,21 +188,21 @@ static struct kernfs_node *find_next_ancestor(struct kernfs_node *child,
 }
 
 /**
- * kernfs_node_dentry - get a dentry for the given kernfs_node
- * @kn: kernfs_node for which a dentry is needed
+ * kernfs_yesde_dentry - get a dentry for the given kernfs_yesde
+ * @kn: kernfs_yesde for which a dentry is needed
  * @sb: the kernfs super_block
  */
-struct dentry *kernfs_node_dentry(struct kernfs_node *kn,
+struct dentry *kernfs_yesde_dentry(struct kernfs_yesde *kn,
 				  struct super_block *sb)
 {
 	struct dentry *dentry;
-	struct kernfs_node *knparent = NULL;
+	struct kernfs_yesde *knparent = NULL;
 
 	BUG_ON(sb->s_op != &kernfs_sops);
 
 	dentry = dget(sb->s_root);
 
-	/* Check if this is the root kernfs_node */
+	/* Check if this is the root kernfs_yesde */
 	if (!kn->parent)
 		return dentry;
 
@@ -214,7 +214,7 @@ struct dentry *kernfs_node_dentry(struct kernfs_node *kn,
 
 	do {
 		struct dentry *dtmp;
-		struct kernfs_node *kntmp;
+		struct kernfs_yesde *kntmp;
 
 		if (kn == knparent)
 			return dentry;
@@ -236,7 +236,7 @@ struct dentry *kernfs_node_dentry(struct kernfs_node *kn,
 static int kernfs_fill_super(struct super_block *sb, struct kernfs_fs_context *kfc)
 {
 	struct kernfs_super_info *info = kernfs_info(sb);
-	struct inode *inode;
+	struct iyesde *iyesde;
 	struct dentry *root;
 
 	info->sb = sb;
@@ -251,22 +251,22 @@ static int kernfs_fill_super(struct super_block *sb, struct kernfs_fs_context *k
 		sb->s_export_op = &kernfs_export_ops;
 	sb->s_time_gran = 1;
 
-	/* sysfs dentries and inodes don't require IO to create */
+	/* sysfs dentries and iyesdes don't require IO to create */
 	sb->s_shrink.seeks = 0;
 
-	/* get root inode, initialize and unlock it */
+	/* get root iyesde, initialize and unlock it */
 	mutex_lock(&kernfs_mutex);
-	inode = kernfs_get_inode(sb, info->root->kn);
+	iyesde = kernfs_get_iyesde(sb, info->root->kn);
 	mutex_unlock(&kernfs_mutex);
-	if (!inode) {
-		pr_debug("kernfs: could not get root inode\n");
+	if (!iyesde) {
+		pr_debug("kernfs: could yest get root iyesde\n");
 		return -ENOMEM;
 	}
 
 	/* instantiate and link root dentry */
-	root = d_make_root(inode);
+	root = d_make_root(iyesde);
 	if (!root) {
-		pr_debug("%s: could not get root dentry!\n", __func__);
+		pr_debug("%s: could yest get root dentry!\n", __func__);
 		return -ENOMEM;
 	}
 	sb->s_root = root;
@@ -287,7 +287,7 @@ static int kernfs_set_super(struct super_block *sb, struct fs_context *fc)
 	struct kernfs_fs_context *kfc = fc->fs_private;
 
 	kfc->ns_tag = NULL;
-	return set_anon_super_fc(sb, fc);
+	return set_ayesn_super_fc(sb, fc);
 }
 
 /**
@@ -325,7 +325,7 @@ int kernfs_get_tree(struct fs_context *fc)
 
 	info->root = kfc->root;
 	info->ns = kfc->ns_tag;
-	INIT_LIST_HEAD(&info->node);
+	INIT_LIST_HEAD(&info->yesde);
 
 	fc->s_fs_info = info;
 	sb = sget_fc(fc, kernfs_test_super, kernfs_set_super);
@@ -345,7 +345,7 @@ int kernfs_get_tree(struct fs_context *fc)
 		sb->s_flags |= SB_ACTIVE;
 
 		mutex_lock(&kernfs_mutex);
-		list_add(&info->node, &info->root->supers);
+		list_add(&info->yesde, &info->root->supers);
 		mutex_unlock(&kernfs_mutex);
 	}
 
@@ -373,24 +373,24 @@ void kernfs_kill_sb(struct super_block *sb)
 	struct kernfs_super_info *info = kernfs_info(sb);
 
 	mutex_lock(&kernfs_mutex);
-	list_del(&info->node);
+	list_del(&info->yesde);
 	mutex_unlock(&kernfs_mutex);
 
 	/*
 	 * Remove the superblock from fs_supers/s_instances
 	 * so we can't find it, before freeing kernfs_super_info.
 	 */
-	kill_anon_super(sb);
+	kill_ayesn_super(sb);
 	kfree(info);
 }
 
 void __init kernfs_init(void)
 {
-	kernfs_node_cache = kmem_cache_create("kernfs_node_cache",
-					      sizeof(struct kernfs_node),
+	kernfs_yesde_cache = kmem_cache_create("kernfs_yesde_cache",
+					      sizeof(struct kernfs_yesde),
 					      0, SLAB_PANIC, NULL);
 
-	/* Creates slab cache for kernfs inode attributes */
+	/* Creates slab cache for kernfs iyesde attributes */
 	kernfs_iattrs_cache  = kmem_cache_create("kernfs_iattrs_cache",
 					      sizeof(struct kernfs_iattrs),
 					      0, SLAB_PANIC, NULL);

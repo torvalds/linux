@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 // Copyright (C) 2019 Spreadtrum Communications Inc.
 
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/kernel.h>
@@ -532,7 +532,7 @@ static irqreturn_t sprd_mcdt_irq_handler(int irq, void *dev_id)
 
 			sprd_mcdt_chan_int_clear(mcdt, i, MCDT_ADC_FIFO_AF_INT);
 			if (chan->cb)
-				chan->cb->notify(chan->cb->data);
+				chan->cb->yestify(chan->cb->data);
 		}
 	}
 
@@ -543,7 +543,7 @@ static irqreturn_t sprd_mcdt_irq_handler(int irq, void *dev_id)
 
 			sprd_mcdt_chan_int_clear(mcdt, i, MCDT_DAC_FIFO_AE_INT);
 			if (chan->cb)
-				chan->cb->notify(chan->cb->data);
+				chan->cb->yestify(chan->cb->data);
 		}
 	}
 
@@ -558,10 +558,10 @@ static irqreturn_t sprd_mcdt_irq_handler(int irq, void *dev_id)
  * @tx_buf: send buffer
  * @size: data size
  *
- * Note: We can not write data to the channel fifo when enabling the DMA mode,
+ * Note: We can yest write data to the channel fifo when enabling the DMA mode,
  * otherwise the channel fifo data will be invalid.
  *
- * If there are not enough space of the channel fifo, it will return errors
+ * If there are yest eyesugh space of the channel fifo, it will return errors
  * to users.
  *
  * Returns 0 on success, or an appropriate error code on failure.
@@ -577,13 +577,13 @@ int sprd_mcdt_chan_write(struct sprd_mcdt_chan *chan, char *tx_buf, u32 size)
 
 	if (chan->dma_enable) {
 		dev_err(mcdt->dev,
-			"Can not write data when DMA mode enabled\n");
+			"Can yest write data when DMA mode enabled\n");
 		spin_unlock_irqrestore(&mcdt->lock, flags);
 		return -EINVAL;
 	}
 
 	if (sprd_mcdt_chan_fifo_sts(mcdt, chan->id, MCDT_DAC_FIFO_REAL_FULL)) {
-		dev_err(mcdt->dev, "Channel fifo is full now\n");
+		dev_err(mcdt->dev, "Channel fifo is full yesw\n");
 		spin_unlock_irqrestore(&mcdt->lock, flags);
 		return -EBUSY;
 	}
@@ -610,7 +610,7 @@ EXPORT_SYMBOL_GPL(sprd_mcdt_chan_write);
  * @rx_buf: receive buffer
  * @size: data size
  *
- * Note: We can not read data from the channel fifo when enabling the DMA mode,
+ * Note: We can yest read data from the channel fifo when enabling the DMA mode,
  * otherwise the reading data will be invalid.
  *
  * Usually user need start to read data once receiving the fifo full interrupt.
@@ -627,7 +627,7 @@ int sprd_mcdt_chan_read(struct sprd_mcdt_chan *chan, char *rx_buf, u32 size)
 	spin_lock_irqsave(&mcdt->lock, flags);
 
 	if (chan->dma_enable) {
-		dev_err(mcdt->dev, "Can not read data when DMA mode enabled\n");
+		dev_err(mcdt->dev, "Can yest read data when DMA mode enabled\n");
 		spin_unlock_irqrestore(&mcdt->lock, flags);
 		return -EINVAL;
 	}
@@ -765,7 +765,7 @@ EXPORT_SYMBOL_GPL(sprd_mcdt_chan_int_disable);
  * @water_mark: water mark to trigger a DMA request
  *
  * Enable the DMA mode for the MCDT channel, that means we can use DMA to
- * transfer data to the channel fifo and do not need reading/writing data
+ * transfer data to the channel fifo and do yest need reading/writing data
  * manually.
  *
  * Returns 0 on success, or an error code on failure.
@@ -861,7 +861,7 @@ EXPORT_SYMBOL_GPL(sprd_mcdt_chan_dma_disable);
  * @channel: channel id
  * @type: channel type, it can be one ADC channel or DAC channel
  *
- * Rreturn NULL if no available channel.
+ * Rreturn NULL if yes available channel.
  */
 struct sprd_mcdt_chan *sprd_mcdt_request_chan(u8 channel,
 					      enum sprd_mcdt_channel_type type)

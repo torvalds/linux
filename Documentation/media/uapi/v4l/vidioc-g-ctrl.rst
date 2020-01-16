@@ -1,11 +1,11 @@
 .. Permission is granted to copy, distribute and/or modify this
 .. document under the terms of the GNU Free Documentation License,
 .. Version 1.1 or any later version published by the Free Software
-.. Foundation, with no Invariant Sections, no Front-Cover Texts
-.. and no Back-Cover Texts. A copy of the license is included at
+.. Foundation, with yes Invariant Sections, yes Front-Cover Texts
+.. and yes Back-Cover Texts. A copy of the license is included at
 .. Documentation/media/uapi/fdl-appendix.rst.
 ..
-.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
+.. TODO: replace it to GFDL-1.1-or-later WITH yes-invariant-sections
 
 .. _VIDIOC_G_CTRL:
 
@@ -19,7 +19,7 @@ Name
 VIDIOC_G_CTRL - VIDIOC_S_CTRL - Get or set the value of a control
 
 
-Synopsis
+Syyespsis
 ========
 
 .. c:function:: int ioctl( int fd, VIDIOC_G_CTRL, struct v4l2_control *argp )
@@ -52,7 +52,7 @@ fields of a struct :c:type:`v4l2_control` and call the
 When the ``id`` is invalid drivers return an ``EINVAL`` error code. When the
 ``value`` is out of bounds drivers can choose to take the closest valid
 value or return an ``ERANGE`` error code, whatever seems more appropriate.
-However, :ref:`VIDIOC_S_CTRL <VIDIOC_G_CTRL>` is a write-only ioctl, it does not return the
+However, :ref:`VIDIOC_S_CTRL <VIDIOC_G_CTRL>` is a write-only ioctl, it does yest return the
 actual new value. If the ``value`` is inappropriate for the control
 (e.g. if it refers to an unsupported menu index of a menu control), then
 EINVAL error code is returned as well.
@@ -83,14 +83,14 @@ These ioctls work only with user controls. For other control classes the
 Return Value
 ============
 
-On success 0 is returned, on error -1 and the ``errno`` variable is set
+On success 0 is returned, on error -1 and the ``erryes`` variable is set
 appropriately. The generic error codes are described at the
 :ref:`Generic Error Codes <gen-errors>` chapter.
 
 EINVAL
     The struct :c:type:`v4l2_control` ``id`` is invalid
     or the ``value`` is inappropriate for the given control (i.e. if a
-    menu item is selected that is not supported by the driver according
+    menu item is selected that is yest supported by the driver according
     to :ref:`VIDIOC_QUERYMENU <VIDIOC_QUERYCTRL>`).
 
 ERANGE
@@ -98,7 +98,7 @@ ERANGE
     bounds.
 
 EBUSY
-    The control is temporarily not changeable, possibly because another
+    The control is temporarily yest changeable, possibly because ayesther
     applications took over control of the device function this control
     belongs to.
 

@@ -4,7 +4,7 @@
  *
  * 		MMUOPS callbacks  + TLB flushing
  *
- * This file handles emu notifier callbacks from the core kernel. The callbacks
+ * This file handles emu yestifier callbacks from the core kernel. The callbacks
  * are used to update the TLB in the GRU as a result of changes in the
  * state of a process address space. This file also handles TLB invalidates
  * from the GRU driver.
@@ -34,13 +34,13 @@
  *
  * Find a TGH to use for issuing a TLB invalidate. For GRUs that are on the
  * local blade, use a fixed TGH that is a function of the blade-local cpu
- * number. Normally, this TGH is private to the cpu & no contention occurs for
+ * number. Normally, this TGH is private to the cpu & yes contention occurs for
  * the TGH. For offblade GRUs, select a random TGH in the range above the
  * private TGHs. A spinlock is required to access this TGH & the lock must be
  * released when the invalidate is completes. This sucks, but it is the best we
  * can do.
  *
- * Note that the spinlock is IN the TGH handle so locking does not involve
+ * Note that the spinlock is IN the TGH handle so locking does yest involve
  * additional cache lines.
  *
  */
@@ -94,25 +94,25 @@ static void get_unlock_tgh_handle(struct gru_tlb_global_handle *tgh)
  *
  * The current algorithm is optimized based on the following (somewhat true)
  * assumptions:
- * 	- GRU contexts are not loaded into a GRU unless a reference is made to
- * 	  the data segment or control block (this is true, not an assumption).
+ * 	- GRU contexts are yest loaded into a GRU unless a reference is made to
+ * 	  the data segment or control block (this is true, yest an assumption).
  * 	  If a DS/CB is referenced, the user will also issue instructions that
- * 	  cause TLBmisses. It is not necessary to optimize for the case where
- * 	  contexts are loaded but no instructions cause TLB misses. (I know
- * 	  this will happen but I'm not optimizing for it).
- * 	- GRU instructions to invalidate TLB entries are SLOOOOWWW - normally
+ * 	  cause TLBmisses. It is yest necessary to optimize for the case where
+ * 	  contexts are loaded but yes instructions cause TLB misses. (I kyesw
+ * 	  this will happen but I'm yest optimizing for it).
+ * 	- GRU instructions to invalidate TLB entries are SLOOOOWWW - yesrmally
  * 	  a few usec but in unusual cases, it could be longer. Avoid if
  * 	  possible.
- * 	- intrablade process migration between cpus is not frequent but is
+ * 	- intrablade process migration between cpus is yest frequent but is
  * 	  common.
- * 	- a GRU context is not typically migrated to a different GRU on the
+ * 	- a GRU context is yest typically migrated to a different GRU on the
  * 	  blade because of intrablade migration
  *	- interblade migration is rare. Processes migrate their GRU context to
  *	  the new blade.
  *	- if interblade migration occurs, migration back to the original blade
- *	  is very very rare (ie., no optimization for this case)
+ *	  is very very rare (ie., yes optimization for this case)
  *	- most GRU instruction operate on a subset of the user REGIONS. Code
- *	  & shared library regions are not likely targets of GRU instructions.
+ *	  & shared library regions are yest likely targets of GRU instructions.
  *
  * To help improve the efficiency of TLB invalidation, the GMS data
  * structure is maintained for EACH address space (MM struct). The GMS is
@@ -123,7 +123,7 @@ static void get_unlock_tgh_handle(struct gru_tlb_global_handle *tgh)
  *
  * 	- asid[maxgrus] array. ASIDs are assigned to a GRU when a context is
  * 	  loaded into the GRU.
- * 	- asidmap[maxgrus]. bitmap to make it easier to find non-zero asids in
+ * 	- asidmap[maxgrus]. bitmap to make it easier to find yesn-zero asids in
  * 	  the above array
  *	- ctxbitmap[maxgrus]. Indicates the contexts that are currently active
  *	  in the GRU for the address space. This bitmap must be passed to the
@@ -131,11 +131,11 @@ static void get_unlock_tgh_handle(struct gru_tlb_global_handle *tgh)
  *
  * The current algorithm for invalidating TLBs is:
  * 	- scan the asidmap for GRUs where the context has been loaded, ie,
- * 	  asid is non-zero.
+ * 	  asid is yesn-zero.
  * 	- for each gru found:
- * 		- if the ctxtmap is non-zero, there are active contexts in the
+ * 		- if the ctxtmap is yesn-zero, there are active contexts in the
  * 		  GRU. TLB invalidate instructions must be issued to the GRU.
- *		- if the ctxtmap is zero, no context is active. Set the ASID to
+ *		- if the ctxtmap is zero, yes context is active. Set the ASID to
  *		  zero to force a full TLB invalidation. This is fast but will
  *		  cause a lot of TLB misses if the context is reloaded onto the
  *		  GRU
@@ -204,13 +204,13 @@ void gru_flush_all_tlb(struct gru_state *gru)
 }
 
 /*
- * MMUOPS notifier callout functions
+ * MMUOPS yestifier callout functions
  */
-static int gru_invalidate_range_start(struct mmu_notifier *mn,
-			const struct mmu_notifier_range *range)
+static int gru_invalidate_range_start(struct mmu_yestifier *mn,
+			const struct mmu_yestifier_range *range)
 {
 	struct gru_mm_struct *gms = container_of(mn, struct gru_mm_struct,
-						 ms_notifier);
+						 ms_yestifier);
 
 	STAT(mmu_invalidate_range);
 	atomic_inc(&gms->ms_range_active);
@@ -221,11 +221,11 @@ static int gru_invalidate_range_start(struct mmu_notifier *mn,
 	return 0;
 }
 
-static void gru_invalidate_range_end(struct mmu_notifier *mn,
-			const struct mmu_notifier_range *range)
+static void gru_invalidate_range_end(struct mmu_yestifier *mn,
+			const struct mmu_yestifier_range *range)
 {
 	struct gru_mm_struct *gms = container_of(mn, struct gru_mm_struct,
-						 ms_notifier);
+						 ms_yestifier);
 
 	/* ..._and_test() provides needed barrier */
 	(void)atomic_dec_and_test(&gms->ms_range_active);
@@ -235,7 +235,7 @@ static void gru_invalidate_range_end(struct mmu_notifier *mn,
 		gms, range->start, range->end);
 }
 
-static struct mmu_notifier *gru_alloc_notifier(struct mm_struct *mm)
+static struct mmu_yestifier *gru_alloc_yestifier(struct mm_struct *mm)
 {
 	struct gru_mm_struct *gms;
 
@@ -246,36 +246,36 @@ static struct mmu_notifier *gru_alloc_notifier(struct mm_struct *mm)
 	spin_lock_init(&gms->ms_asid_lock);
 	init_waitqueue_head(&gms->ms_wait_queue);
 
-	return &gms->ms_notifier;
+	return &gms->ms_yestifier;
 }
 
-static void gru_free_notifier(struct mmu_notifier *mn)
+static void gru_free_yestifier(struct mmu_yestifier *mn)
 {
-	kfree(container_of(mn, struct gru_mm_struct, ms_notifier));
+	kfree(container_of(mn, struct gru_mm_struct, ms_yestifier));
 	STAT(gms_free);
 }
 
-static const struct mmu_notifier_ops gru_mmuops = {
+static const struct mmu_yestifier_ops gru_mmuops = {
 	.invalidate_range_start	= gru_invalidate_range_start,
 	.invalidate_range_end	= gru_invalidate_range_end,
-	.alloc_notifier		= gru_alloc_notifier,
-	.free_notifier		= gru_free_notifier,
+	.alloc_yestifier		= gru_alloc_yestifier,
+	.free_yestifier		= gru_free_yestifier,
 };
 
-struct gru_mm_struct *gru_register_mmu_notifier(void)
+struct gru_mm_struct *gru_register_mmu_yestifier(void)
 {
-	struct mmu_notifier *mn;
+	struct mmu_yestifier *mn;
 
-	mn = mmu_notifier_get_locked(&gru_mmuops, current->mm);
+	mn = mmu_yestifier_get_locked(&gru_mmuops, current->mm);
 	if (IS_ERR(mn))
 		return ERR_CAST(mn);
 
-	return container_of(mn, struct gru_mm_struct, ms_notifier);
+	return container_of(mn, struct gru_mm_struct, ms_yestifier);
 }
 
-void gru_drop_mmu_notifier(struct gru_mm_struct *gms)
+void gru_drop_mmu_yestifier(struct gru_mm_struct *gms)
 {
-	mmu_notifier_put(&gms->ms_notifier);
+	mmu_yestifier_put(&gms->ms_yestifier);
 }
 
 /*
@@ -286,7 +286,7 @@ void gru_drop_mmu_notifier(struct gru_mm_struct *gms)
  * 	- the rest are used by off-blade cpus. This usage is
  * 	  less frequent than blade-local usage.
  *
- * For now, use 16 handles for local flushes, 8 for remote flushes. If the blade
+ * For yesw, use 16 handles for local flushes, 8 for remote flushes. If the blade
  * has less tan or equal to 16 cpus, each cpu has a unique handle that it can
  * use.
  */

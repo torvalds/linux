@@ -10,7 +10,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included
+ * The above copyright yestice and this permission yestice shall be included
  * in all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
@@ -15980,12 +15980,12 @@
 #define GC_USER_PRIM_CONFIG__INACTIVE_VGT_PA__SHIFT 0x18
 #define WD_DEBUG_REG0__wd_busy_extended_MASK 0x1
 #define WD_DEBUG_REG0__wd_busy_extended__SHIFT 0x0
-#define WD_DEBUG_REG0__wd_nodma_busy_extended_MASK 0x2
-#define WD_DEBUG_REG0__wd_nodma_busy_extended__SHIFT 0x1
+#define WD_DEBUG_REG0__wd_yesdma_busy_extended_MASK 0x2
+#define WD_DEBUG_REG0__wd_yesdma_busy_extended__SHIFT 0x1
 #define WD_DEBUG_REG0__wd_busy_MASK 0x4
 #define WD_DEBUG_REG0__wd_busy__SHIFT 0x2
-#define WD_DEBUG_REG0__wd_nodma_busy_MASK 0x8
-#define WD_DEBUG_REG0__wd_nodma_busy__SHIFT 0x3
+#define WD_DEBUG_REG0__wd_yesdma_busy_MASK 0x8
+#define WD_DEBUG_REG0__wd_yesdma_busy__SHIFT 0x3
 #define WD_DEBUG_REG0__rbiu_busy_MASK 0x10
 #define WD_DEBUG_REG0__rbiu_busy__SHIFT 0x4
 #define WD_DEBUG_REG0__spl_dma_busy_MASK 0x20
@@ -16148,8 +16148,8 @@
 #define WD_DEBUG_REG3__dma_zero_indices_p0_q__SHIFT 0xa
 #define WD_DEBUG_REG3__dma_req_path_p3_q_MASK 0x800
 #define WD_DEBUG_REG3__dma_req_path_p3_q__SHIFT 0xb
-#define WD_DEBUG_REG3__dma_not_eop_p1_q_MASK 0x1000
-#define WD_DEBUG_REG3__dma_not_eop_p1_q__SHIFT 0xc
+#define WD_DEBUG_REG3__dma_yest_eop_p1_q_MASK 0x1000
+#define WD_DEBUG_REG3__dma_yest_eop_p1_q__SHIFT 0xc
 #define WD_DEBUG_REG3__out_of_range_p4_MASK 0x2000
 #define WD_DEBUG_REG3__out_of_range_p4__SHIFT 0xd
 #define WD_DEBUG_REG3__last_sub_dma_p3_q_MASK 0x4000
@@ -16230,10 +16230,10 @@
 #define WD_DEBUG_REG4__last_sd_of_inst_p2__SHIFT 0x16
 #define WD_DEBUG_REG4__last_sd_of_di_p2_MASK 0x800000
 #define WD_DEBUG_REG4__last_sd_of_di_p2__SHIFT 0x17
-#define WD_DEBUG_REG4__not_eop_wait_p1_q_MASK 0x1000000
-#define WD_DEBUG_REG4__not_eop_wait_p1_q__SHIFT 0x18
-#define WD_DEBUG_REG4__not_eop_wait_q_MASK 0x2000000
-#define WD_DEBUG_REG4__not_eop_wait_q__SHIFT 0x19
+#define WD_DEBUG_REG4__yest_eop_wait_p1_q_MASK 0x1000000
+#define WD_DEBUG_REG4__yest_eop_wait_p1_q__SHIFT 0x18
+#define WD_DEBUG_REG4__yest_eop_wait_q_MASK 0x2000000
+#define WD_DEBUG_REG4__yest_eop_wait_q__SHIFT 0x19
 #define WD_DEBUG_REG4__ext_event_wait_p1_q_MASK 0x4000000
 #define WD_DEBUG_REG4__ext_event_wait_p1_q__SHIFT 0x1a
 #define WD_DEBUG_REG4__ext_event_wait_q_MASK 0x8000000
@@ -16268,8 +16268,8 @@
 #define WD_DEBUG_REG5__p1_dma_zero_indices_p0_q__SHIFT 0xa
 #define WD_DEBUG_REG5__p1_dma_req_path_p3_q_MASK 0x800
 #define WD_DEBUG_REG5__p1_dma_req_path_p3_q__SHIFT 0xb
-#define WD_DEBUG_REG5__p1_dma_not_eop_p1_q_MASK 0x1000
-#define WD_DEBUG_REG5__p1_dma_not_eop_p1_q__SHIFT 0xc
+#define WD_DEBUG_REG5__p1_dma_yest_eop_p1_q_MASK 0x1000
+#define WD_DEBUG_REG5__p1_dma_yest_eop_p1_q__SHIFT 0xc
 #define WD_DEBUG_REG5__p1_out_of_range_p4_MASK 0x2000
 #define WD_DEBUG_REG5__p1_out_of_range_p4__SHIFT 0xd
 #define WD_DEBUG_REG5__p1_last_sub_dma_p3_q_MASK 0x4000
@@ -16310,12 +16310,12 @@
 #define WD_DEBUG_REG5__p1_wd_dma2draw_fifo_full__SHIFT 0x1f
 #define IA_DEBUG_REG0__ia_busy_extended_MASK 0x1
 #define IA_DEBUG_REG0__ia_busy_extended__SHIFT 0x0
-#define IA_DEBUG_REG0__ia_nodma_busy_extended_MASK 0x2
-#define IA_DEBUG_REG0__ia_nodma_busy_extended__SHIFT 0x1
+#define IA_DEBUG_REG0__ia_yesdma_busy_extended_MASK 0x2
+#define IA_DEBUG_REG0__ia_yesdma_busy_extended__SHIFT 0x1
 #define IA_DEBUG_REG0__ia_busy_MASK 0x4
 #define IA_DEBUG_REG0__ia_busy__SHIFT 0x2
-#define IA_DEBUG_REG0__ia_nodma_busy_MASK 0x8
-#define IA_DEBUG_REG0__ia_nodma_busy__SHIFT 0x3
+#define IA_DEBUG_REG0__ia_yesdma_busy_MASK 0x8
+#define IA_DEBUG_REG0__ia_yesdma_busy__SHIFT 0x3
 #define IA_DEBUG_REG0__SPARE0_MASK 0x10
 #define IA_DEBUG_REG0__SPARE0__SHIFT 0x4
 #define IA_DEBUG_REG0__dma_req_busy_MASK 0x20
@@ -16858,8 +16858,8 @@
 #define VGT_DEBUG_REG1__out_prim_read__SHIFT 0x1f
 #define VGT_DEBUG_REG2__hs_grp_busy_MASK 0x1
 #define VGT_DEBUG_REG2__hs_grp_busy__SHIFT 0x0
-#define VGT_DEBUG_REG2__hs_noif_busy_MASK 0x2
-#define VGT_DEBUG_REG2__hs_noif_busy__SHIFT 0x1
+#define VGT_DEBUG_REG2__hs_yesif_busy_MASK 0x2
+#define VGT_DEBUG_REG2__hs_yesif_busy__SHIFT 0x1
 #define VGT_DEBUG_REG2__tfmmIsBusy_MASK 0x4
 #define VGT_DEBUG_REG2__tfmmIsBusy__SHIFT 0x2
 #define VGT_DEBUG_REG2__lsVertIfBusy_0_MASK 0x8
@@ -16972,8 +16972,8 @@
 #define VGT_DEBUG_REG7__TF_addr__SHIFT 0x10
 #define VGT_DEBUG_REG8__rcm_busy_q_MASK 0x1
 #define VGT_DEBUG_REG8__rcm_busy_q__SHIFT 0x0
-#define VGT_DEBUG_REG8__rcm_noif_busy_q_MASK 0x2
-#define VGT_DEBUG_REG8__rcm_noif_busy_q__SHIFT 0x1
+#define VGT_DEBUG_REG8__rcm_yesif_busy_q_MASK 0x2
+#define VGT_DEBUG_REG8__rcm_yesif_busy_q__SHIFT 0x1
 #define VGT_DEBUG_REG8__r1_inst_rtr_MASK 0x4
 #define VGT_DEBUG_REG8__r1_inst_rtr__SHIFT 0x2
 #define VGT_DEBUG_REG8__spi_gsprim_fifo_busy_q_MASK 0x8
@@ -17016,8 +17016,8 @@
 #define VGT_DEBUG_REG8__tm_rcm_es_tbl_rtr__SHIFT 0x15
 #define VGT_DEBUG_REG8__VGT_SPI_esvert_rtr_q_MASK 0x400000
 #define VGT_DEBUG_REG8__VGT_SPI_esvert_rtr_q__SHIFT 0x16
-#define VGT_DEBUG_REG8__r2_no_bp_rtr_MASK 0x800000
-#define VGT_DEBUG_REG8__r2_no_bp_rtr__SHIFT 0x17
+#define VGT_DEBUG_REG8__r2_yes_bp_rtr_MASK 0x800000
+#define VGT_DEBUG_REG8__r2_yes_bp_rtr__SHIFT 0x17
 #define VGT_DEBUG_REG8__hold_for_es_flush_MASK 0x1000000
 #define VGT_DEBUG_REG8__hold_for_es_flush__SHIFT 0x18
 #define VGT_DEBUG_REG8__gs_event_fifo_empty_MASK 0x2000000
@@ -17052,8 +17052,8 @@
 #define VGT_DEBUG_REG9__pending_es_send_r3_q__SHIFT 0x8
 #define VGT_DEBUG_REG9__pending_es_flush_r3_MASK 0x200
 #define VGT_DEBUG_REG9__pending_es_flush_r3__SHIFT 0x9
-#define VGT_DEBUG_REG9__gs_tbl_num_es_per_gs_r3_q_not_0_MASK 0x400
-#define VGT_DEBUG_REG9__gs_tbl_num_es_per_gs_r3_q_not_0__SHIFT 0xa
+#define VGT_DEBUG_REG9__gs_tbl_num_es_per_gs_r3_q_yest_0_MASK 0x400
+#define VGT_DEBUG_REG9__gs_tbl_num_es_per_gs_r3_q_yest_0__SHIFT 0xa
 #define VGT_DEBUG_REG9__gs_tbl_prim_cnt_r3_q_MASK 0x3f800
 #define VGT_DEBUG_REG9__gs_tbl_prim_cnt_r3_q__SHIFT 0xb
 #define VGT_DEBUG_REG9__gs_tbl_eop_r3_q_MASK 0x40000
@@ -17066,10 +17066,10 @@
 #define VGT_DEBUG_REG9__invalidate_rb_roll_over_q__SHIFT 0x17
 #define VGT_DEBUG_REG9__gs_instancing_state_q_MASK 0x1000000
 #define VGT_DEBUG_REG9__gs_instancing_state_q__SHIFT 0x18
-#define VGT_DEBUG_REG9__es_per_gs_vert_cnt_r3_q_not_0_MASK 0x2000000
-#define VGT_DEBUG_REG9__es_per_gs_vert_cnt_r3_q_not_0__SHIFT 0x19
-#define VGT_DEBUG_REG9__gs_prim_per_es_ctr_r3_q_not_0_MASK 0x4000000
-#define VGT_DEBUG_REG9__gs_prim_per_es_ctr_r3_q_not_0__SHIFT 0x1a
+#define VGT_DEBUG_REG9__es_per_gs_vert_cnt_r3_q_yest_0_MASK 0x2000000
+#define VGT_DEBUG_REG9__es_per_gs_vert_cnt_r3_q_yest_0__SHIFT 0x19
+#define VGT_DEBUG_REG9__gs_prim_per_es_ctr_r3_q_yest_0_MASK 0x4000000
+#define VGT_DEBUG_REG9__gs_prim_per_es_ctr_r3_q_yest_0__SHIFT 0x1a
 #define VGT_DEBUG_REG9__pre_r0_rtr_MASK 0x8000000
 #define VGT_DEBUG_REG9__pre_r0_rtr__SHIFT 0x1b
 #define VGT_DEBUG_REG9__valid_r3_q_MASK 0x10000000
@@ -17100,8 +17100,8 @@
 #define VGT_DEBUG_REG10__es_rb_space_avail_r2_q_8_0__SHIFT 0x17
 #define VGT_DEBUG_REG11__tm_busy_q_MASK 0x1
 #define VGT_DEBUG_REG11__tm_busy_q__SHIFT 0x0
-#define VGT_DEBUG_REG11__tm_noif_busy_q_MASK 0x2
-#define VGT_DEBUG_REG11__tm_noif_busy_q__SHIFT 0x1
+#define VGT_DEBUG_REG11__tm_yesif_busy_q_MASK 0x2
+#define VGT_DEBUG_REG11__tm_yesif_busy_q__SHIFT 0x1
 #define VGT_DEBUG_REG11__tm_out_busy_q_MASK 0x4
 #define VGT_DEBUG_REG11__tm_out_busy_q__SHIFT 0x2
 #define VGT_DEBUG_REG11__es_rb_dealloc_fifo_busy_MASK 0x8
@@ -17160,8 +17160,8 @@
 #define VGT_DEBUG_REG11__send_event_q__SHIFT 0x1d
 #define VGT_DEBUG_REG11__es_tbl_empty_MASK 0x40000000
 #define VGT_DEBUG_REG11__es_tbl_empty__SHIFT 0x1e
-#define VGT_DEBUG_REG11__no_active_states_r0_MASK 0x80000000
-#define VGT_DEBUG_REG11__no_active_states_r0__SHIFT 0x1f
+#define VGT_DEBUG_REG11__yes_active_states_r0_MASK 0x80000000
+#define VGT_DEBUG_REG11__yes_active_states_r0__SHIFT 0x1f
 #define VGT_DEBUG_REG12__gs_state0_r0_q_MASK 0x7
 #define VGT_DEBUG_REG12__gs_state0_r0_q__SHIFT 0x0
 #define VGT_DEBUG_REG12__gs_state1_r0_q_MASK 0x38
@@ -17200,10 +17200,10 @@
 #define VGT_DEBUG_REG13__gs_state15_r0_q__SHIFT 0xf
 #define VGT_DEBUG_REG13__gs_tbl_wrptr_r0_q_3_0_MASK 0x3c0000
 #define VGT_DEBUG_REG13__gs_tbl_wrptr_r0_q_3_0__SHIFT 0x12
-#define VGT_DEBUG_REG13__gsfetch_done_fifo_cnt_q_not_0_MASK 0x400000
-#define VGT_DEBUG_REG13__gsfetch_done_fifo_cnt_q_not_0__SHIFT 0x16
-#define VGT_DEBUG_REG13__gsfetch_done_cnt_q_not_0_MASK 0x800000
-#define VGT_DEBUG_REG13__gsfetch_done_cnt_q_not_0__SHIFT 0x17
+#define VGT_DEBUG_REG13__gsfetch_done_fifo_cnt_q_yest_0_MASK 0x400000
+#define VGT_DEBUG_REG13__gsfetch_done_fifo_cnt_q_yest_0__SHIFT 0x16
+#define VGT_DEBUG_REG13__gsfetch_done_cnt_q_yest_0_MASK 0x800000
+#define VGT_DEBUG_REG13__gsfetch_done_cnt_q_yest_0__SHIFT 0x17
 #define VGT_DEBUG_REG13__es_tbl_full_MASK 0x1000000
 #define VGT_DEBUG_REG13__es_tbl_full__SHIFT 0x18
 #define VGT_DEBUG_REG13__SPARE1_MASK 0x2000000
@@ -17218,12 +17218,12 @@
 #define VGT_DEBUG_REG14__gsfetch_done_fifo_full__SHIFT 0x4
 #define VGT_DEBUG_REG14__gs_rb_space_avail_r0_MASK 0x20
 #define VGT_DEBUG_REG14__gs_rb_space_avail_r0__SHIFT 0x5
-#define VGT_DEBUG_REG14__smx_es_done_cnt_r0_q_not_0_MASK 0x40
-#define VGT_DEBUG_REG14__smx_es_done_cnt_r0_q_not_0__SHIFT 0x6
+#define VGT_DEBUG_REG14__smx_es_done_cnt_r0_q_yest_0_MASK 0x40
+#define VGT_DEBUG_REG14__smx_es_done_cnt_r0_q_yest_0__SHIFT 0x6
 #define VGT_DEBUG_REG14__SPARE8_MASK 0x180
 #define VGT_DEBUG_REG14__SPARE8__SHIFT 0x7
-#define VGT_DEBUG_REG14__vs_done_cnt_q_not_0_MASK 0x200
-#define VGT_DEBUG_REG14__vs_done_cnt_q_not_0__SHIFT 0x9
+#define VGT_DEBUG_REG14__vs_done_cnt_q_yest_0_MASK 0x200
+#define VGT_DEBUG_REG14__vs_done_cnt_q_yest_0__SHIFT 0x9
 #define VGT_DEBUG_REG14__es_flush_cnt_busy_q_MASK 0x400
 #define VGT_DEBUG_REG14__es_flush_cnt_busy_q__SHIFT 0xa
 #define VGT_DEBUG_REG14__gs_tbl_full_r0_MASK 0x800
@@ -17236,14 +17236,14 @@
 #define VGT_DEBUG_REG14__SPARE__SHIFT 0x16
 #define VGT_DEBUG_REG14__VGT_SE1SPI_gsthread_rtr_q_MASK 0x2000000
 #define VGT_DEBUG_REG14__VGT_SE1SPI_gsthread_rtr_q__SHIFT 0x19
-#define VGT_DEBUG_REG14__smx1_es_done_cnt_r0_q_not_0_MASK 0x4000000
-#define VGT_DEBUG_REG14__smx1_es_done_cnt_r0_q_not_0__SHIFT 0x1a
+#define VGT_DEBUG_REG14__smx1_es_done_cnt_r0_q_yest_0_MASK 0x4000000
+#define VGT_DEBUG_REG14__smx1_es_done_cnt_r0_q_yest_0__SHIFT 0x1a
 #define VGT_DEBUG_REG14__se1spi_esthread_fifo_busy_MASK 0x8000000
 #define VGT_DEBUG_REG14__se1spi_esthread_fifo_busy__SHIFT 0x1b
 #define VGT_DEBUG_REG14__SPARE1_MASK 0x10000000
 #define VGT_DEBUG_REG14__SPARE1__SHIFT 0x1c
-#define VGT_DEBUG_REG14__gsfetch_done_se1_cnt_q_not_0_MASK 0x20000000
-#define VGT_DEBUG_REG14__gsfetch_done_se1_cnt_q_not_0__SHIFT 0x1d
+#define VGT_DEBUG_REG14__gsfetch_done_se1_cnt_q_yest_0_MASK 0x20000000
+#define VGT_DEBUG_REG14__gsfetch_done_se1_cnt_q_yest_0__SHIFT 0x1d
 #define VGT_DEBUG_REG14__SPARE0_MASK 0x40000000
 #define VGT_DEBUG_REG14__SPARE0__SHIFT 0x1e
 #define VGT_DEBUG_REG14__VGT_SE1SPI_esthread_rtr_q_MASK 0x80000000
@@ -17268,8 +17268,8 @@
 #define VGT_DEBUG_REG15__SPARE25__SHIFT 0x14
 #define VGT_DEBUG_REG15__st_cut_mode_q_MASK 0xc000000
 #define VGT_DEBUG_REG15__st_cut_mode_q__SHIFT 0x1a
-#define VGT_DEBUG_REG15__gs_done_array_q_not_0_MASK 0x10000000
-#define VGT_DEBUG_REG15__gs_done_array_q_not_0__SHIFT 0x1c
+#define VGT_DEBUG_REG15__gs_done_array_q_yest_0_MASK 0x10000000
+#define VGT_DEBUG_REG15__gs_done_array_q_yest_0__SHIFT 0x1c
 #define VGT_DEBUG_REG15__SPARE31_MASK 0xe0000000
 #define VGT_DEBUG_REG15__SPARE31__SHIFT 0x1d
 #define VGT_DEBUG_REG16__gog_busy_MASK 0x1
@@ -17322,10 +17322,10 @@
 #define VGT_DEBUG_REG16__gog_out_prim_state_sel__SHIFT 0x19
 #define VGT_DEBUG_REG16__multiple_streams_en_r1_q_MASK 0x10000000
 #define VGT_DEBUG_REG16__multiple_streams_en_r1_q__SHIFT 0x1c
-#define VGT_DEBUG_REG16__vs_vert_count_r2_q_not_0_MASK 0x20000000
-#define VGT_DEBUG_REG16__vs_vert_count_r2_q_not_0__SHIFT 0x1d
-#define VGT_DEBUG_REG16__num_gs_r2_q_not_0_MASK 0x40000000
-#define VGT_DEBUG_REG16__num_gs_r2_q_not_0__SHIFT 0x1e
+#define VGT_DEBUG_REG16__vs_vert_count_r2_q_yest_0_MASK 0x20000000
+#define VGT_DEBUG_REG16__vs_vert_count_r2_q_yest_0__SHIFT 0x1d
+#define VGT_DEBUG_REG16__num_gs_r2_q_yest_0_MASK 0x40000000
+#define VGT_DEBUG_REG16__num_gs_r2_q_yest_0__SHIFT 0x1e
 #define VGT_DEBUG_REG16__new_vs_thread_r2_MASK 0x80000000
 #define VGT_DEBUG_REG16__new_vs_thread_r2__SHIFT 0x1f
 #define VGT_DEBUG_REG17__gog_out_prim_rel_indx2_5_0_MASK 0x3f
@@ -17442,8 +17442,8 @@
 #define VGT_DEBUG_REG19__filter_event__SHIFT 0x1f
 #define VGT_DEBUG_REG20__dbg_VGT_SPI_vsthread_sovertexindex_MASK 0xffff
 #define VGT_DEBUG_REG20__dbg_VGT_SPI_vsthread_sovertexindex__SHIFT 0x0
-#define VGT_DEBUG_REG20__dbg_VGT_SPI_vsthread_sovertexcount_not_0_MASK 0x10000
-#define VGT_DEBUG_REG20__dbg_VGT_SPI_vsthread_sovertexcount_not_0__SHIFT 0x10
+#define VGT_DEBUG_REG20__dbg_VGT_SPI_vsthread_sovertexcount_yest_0_MASK 0x10000
+#define VGT_DEBUG_REG20__dbg_VGT_SPI_vsthread_sovertexcount_yest_0__SHIFT 0x10
 #define VGT_DEBUG_REG20__SPARE17_MASK 0x20000
 #define VGT_DEBUG_REG20__SPARE17__SHIFT 0x11
 #define VGT_DEBUG_REG20__alloc_counter_q_MASK 0x3c0000
@@ -17452,10 +17452,10 @@
 #define VGT_DEBUG_REG20__curr_dealloc_distance_q__SHIFT 0x16
 #define VGT_DEBUG_REG20__new_allocate_q_MASK 0x20000000
 #define VGT_DEBUG_REG20__new_allocate_q__SHIFT 0x1d
-#define VGT_DEBUG_REG20__curr_slot_in_vtx_vect_q_not_0_MASK 0x40000000
-#define VGT_DEBUG_REG20__curr_slot_in_vtx_vect_q_not_0__SHIFT 0x1e
-#define VGT_DEBUG_REG20__int_vtx_counter_q_not_0_MASK 0x80000000
-#define VGT_DEBUG_REG20__int_vtx_counter_q_not_0__SHIFT 0x1f
+#define VGT_DEBUG_REG20__curr_slot_in_vtx_vect_q_yest_0_MASK 0x40000000
+#define VGT_DEBUG_REG20__curr_slot_in_vtx_vect_q_yest_0__SHIFT 0x1e
+#define VGT_DEBUG_REG20__int_vtx_counter_q_yest_0_MASK 0x80000000
+#define VGT_DEBUG_REG20__int_vtx_counter_q_yest_0__SHIFT 0x1f
 #define VGT_DEBUG_REG21__out_indx_fifo_empty_MASK 0x1
 #define VGT_DEBUG_REG21__out_indx_fifo_empty__SHIFT 0x0
 #define VGT_DEBUG_REG21__indx_side_fifo_empty_MASK 0x2
@@ -17482,8 +17482,8 @@
 #define VGT_DEBUG_REG21__vsthread_buff_full__SHIFT 0xb
 #define VGT_DEBUG_REG21__interfaces_rtr_MASK 0x1000
 #define VGT_DEBUG_REG21__interfaces_rtr__SHIFT 0xc
-#define VGT_DEBUG_REG21__indx_count_q_not_0_MASK 0x2000
-#define VGT_DEBUG_REG21__indx_count_q_not_0__SHIFT 0xd
+#define VGT_DEBUG_REG21__indx_count_q_yest_0_MASK 0x2000
+#define VGT_DEBUG_REG21__indx_count_q_yest_0__SHIFT 0xd
 #define VGT_DEBUG_REG21__wait_for_external_eopg_q_MASK 0x4000
 #define VGT_DEBUG_REG21__wait_for_external_eopg_q__SHIFT 0xe
 #define VGT_DEBUG_REG21__full_state_p1_q_MASK 0x8000
@@ -17498,8 +17498,8 @@
 #define VGT_DEBUG_REG21__lshs_dealloc_p1__SHIFT 0x15
 #define VGT_DEBUG_REG21__stream_id_r2_q_MASK 0x400000
 #define VGT_DEBUG_REG21__stream_id_r2_q__SHIFT 0x16
-#define VGT_DEBUG_REG21__vtx_vect_counter_q_not_0_MASK 0x800000
-#define VGT_DEBUG_REG21__vtx_vect_counter_q_not_0__SHIFT 0x17
+#define VGT_DEBUG_REG21__vtx_vect_counter_q_yest_0_MASK 0x800000
+#define VGT_DEBUG_REG21__vtx_vect_counter_q_yest_0__SHIFT 0x17
 #define VGT_DEBUG_REG21__buff_full_p1_MASK 0x1000000
 #define VGT_DEBUG_REG21__buff_full_p1__SHIFT 0x18
 #define VGT_DEBUG_REG21__strmout_valid_p1_MASK 0x2000000
@@ -17514,8 +17514,8 @@
 #define VGT_DEBUG_REG21__p0_rtr__SHIFT 0x1d
 #define VGT_DEBUG_REG21__eopg_p0_q_MASK 0x40000000
 #define VGT_DEBUG_REG21__eopg_p0_q__SHIFT 0x1e
-#define VGT_DEBUG_REG21__p0_nobp_MASK 0x80000000
-#define VGT_DEBUG_REG21__p0_nobp__SHIFT 0x1f
+#define VGT_DEBUG_REG21__p0_yesbp_MASK 0x80000000
+#define VGT_DEBUG_REG21__p0_yesbp__SHIFT 0x1f
 #define VGT_DEBUG_REG22__cm_state16_MASK 0x3
 #define VGT_DEBUG_REG22__cm_state16__SHIFT 0x0
 #define VGT_DEBUG_REG22__cm_state17_MASK 0xc

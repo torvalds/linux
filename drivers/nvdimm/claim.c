@@ -169,7 +169,7 @@ ssize_t nd_namespace_store(struct device *dev,
 
 	found = device_find_child(dev->parent, name, namespace_match);
 	if (!found) {
-		dev_dbg(dev, "'%s' not found under %s\n", name,
+		dev_dbg(dev, "'%s' yest found under %s\n", name,
 				dev_name(dev->parent));
 		len = -ENODEV;
 		goto out;
@@ -309,7 +309,7 @@ int devm_nsio_enable(struct device *dev, struct nd_namespace_io *nsio,
 	nsio->size = size;
 	if (!devm_request_mem_region(dev, res->start, size,
 				dev_name(&ndns->dev))) {
-		dev_warn(dev, "could not reserve region %pR\n", res);
+		dev_warn(dev, "could yest reserve region %pR\n", res);
 		return -EBUSY;
 	}
 

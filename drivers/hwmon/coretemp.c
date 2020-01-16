@@ -39,10 +39,10 @@ module_param_named(tjmax, force_tjmax, int, 0444);
 MODULE_PARM_DESC(tjmax, "TjMax value in degrees Celsius");
 
 #define PKG_SYSFS_ATTR_NO	1	/* Sysfs attribute for package temp */
-#define BASE_SYSFS_ATTR_NO	2	/* Sysfs Base attr no for coretemp */
+#define BASE_SYSFS_ATTR_NO	2	/* Sysfs Base attr yes for coretemp */
 #define NUM_REAL_CORES		128	/* Number of Real cores per cpu */
 #define CORETEMP_NAME_LENGTH	19	/* String Length of attrs */
-#define MAX_CORE_ATTRS		4	/* Maximum no of basic attrs */
+#define MAX_CORE_ATTRS		4	/* Maximum yes of basic attrs */
 #define TOTAL_ATTRS		(MAX_CORE_ATTRS + 1)
 #define MAX_CORE_DATA		(NUM_REAL_CORES + BASE_SYSFS_ATTR_NO)
 
@@ -161,7 +161,7 @@ static ssize_t show_temp(struct device *dev,
 	if (!tdata->valid || time_after(jiffies, tdata->last_updated + HZ)) {
 		rdmsr_on_cpu(tdata->cpu, tdata->status_reg, &eax, &edx);
 		/*
-		 * Ignore the valid bit. In all observed cases the register
+		 * Igyesre the valid bit. In all observed cases the register
 		 * value is either low or zero if the valid bit is 0.
 		 * Return it instead of reporting an error which doesn't
 		 * really help at all.
@@ -225,7 +225,7 @@ static const struct tjmax_model tjmax_model_table[] = {
 
 static int adjust_tjmax(struct cpuinfo_x86 *c, u32 id, struct device *dev)
 {
-	/* The 100C is default for both mobile and non mobile CPUs */
+	/* The 100C is default for both mobile and yesn mobile CPUs */
 
 	int tjmax = 100000;
 	int tjmax_ee = 85000;
@@ -260,7 +260,7 @@ static int adjust_tjmax(struct cpuinfo_x86 *c, u32 id, struct device *dev)
 			return tm->tjmax;
 	}
 
-	/* Early chips have no MSR for TjMax */
+	/* Early chips have yes MSR for TjMax */
 
 	if (c->x86_model == 0xf && c->x86_stepping < 4)
 		usemsr_ee = 0;
@@ -281,8 +281,8 @@ static int adjust_tjmax(struct cpuinfo_x86 *c, u32 id, struct device *dev)
 			usemsr_ee = 0;
 		} else if (c->x86_model < 0x17 && !(eax & 0x10000000)) {
 			/*
-			 * Trust bit 28 up to Penryn, I could not find any
-			 * documentation on that; if you happen to know
+			 * Trust bit 28 up to Penryn, I could yest find any
+			 * documentation on that; if you happen to kyesw
 			 * someone at Intel please ask
 			 */
 			usemsr_ee = 0;
@@ -355,7 +355,7 @@ static int get_tjmax(struct cpuinfo_x86 *c, u32 id, struct device *dev)
 	} else {
 		val = (eax >> 16) & 0xff;
 		/*
-		 * If the TjMax is not plausible, an assumption
+		 * If the TjMax is yest plausible, an assumption
 		 * will be used
 		 */
 		if (val) {
@@ -365,20 +365,20 @@ static int get_tjmax(struct cpuinfo_x86 *c, u32 id, struct device *dev)
 	}
 
 	if (force_tjmax) {
-		dev_notice(dev, "TjMax forced to %d degrees C by user\n",
+		dev_yestice(dev, "TjMax forced to %d degrees C by user\n",
 			   force_tjmax);
 		return force_tjmax * 1000;
 	}
 
 	/*
 	 * An assumption is made for early CPUs and unreadable MSR.
-	 * NOTE: the calculated value may not be correct.
+	 * NOTE: the calculated value may yest be correct.
 	 */
 	return adjust_tjmax(c, id, dev);
 }
 
 static int create_core_attrs(struct temp_data *tdata, struct device *dev,
-			     int attr_no)
+			     int attr_yes)
 {
 	int i;
 	static ssize_t (*const rd_ptr[TOTAL_ATTRS]) (struct device *dev,
@@ -391,12 +391,12 @@ static int create_core_attrs(struct temp_data *tdata, struct device *dev,
 
 	for (i = 0; i < tdata->attr_size; i++) {
 		snprintf(tdata->attr_name[i], CORETEMP_NAME_LENGTH,
-			 "temp%d_%s", attr_no, suffixes[i]);
+			 "temp%d_%s", attr_yes, suffixes[i]);
 		sysfs_attr_init(&tdata->sd_attrs[i].dev_attr.attr);
 		tdata->sd_attrs[i].dev_attr.attr.name = tdata->attr_name[i];
 		tdata->sd_attrs[i].dev_attr.attr.mode = 0444;
 		tdata->sd_attrs[i].dev_attr.show = rd_ptr[i];
-		tdata->sd_attrs[i].index = attr_no;
+		tdata->sd_attrs[i].index = attr_yes;
 		tdata->attrs[i] = &tdata->sd_attrs[i].dev_attr.attr;
 	}
 	tdata->attr_group.attrs = tdata->attrs;
@@ -414,7 +414,7 @@ static int chk_ucode_version(unsigned int cpu)
 	 * fixed for stepping D0 (6EC).
 	 */
 	if (c->x86_model == 0xe && c->x86_stepping < 0xc && c->microcode < 0x39) {
-		pr_err("Errata AE18 not fixed, update BIOS or microcode of the CPU!\n");
+		pr_err("Errata AE18 yest fixed, update BIOS or microcode of the CPU!\n");
 		return -ENODEV;
 	}
 	return 0;
@@ -454,7 +454,7 @@ static int create_core_data(struct platform_device *pdev, unsigned int cpu,
 	struct platform_data *pdata = platform_get_drvdata(pdev);
 	struct cpuinfo_x86 *c = &cpu_data(cpu);
 	u32 eax, edx;
-	int err, attr_no;
+	int err, attr_yes;
 
 	/*
 	 * Find attr number for sysfs:
@@ -462,9 +462,9 @@ static int create_core_data(struct platform_device *pdev, unsigned int cpu,
 	 * The attr number is always core id + 2
 	 * The Pkgtemp will always show up as temp1_*, if available
 	 */
-	attr_no = pkg_flag ? PKG_SYSFS_ATTR_NO : TO_ATTR_NO(cpu);
+	attr_yes = pkg_flag ? PKG_SYSFS_ATTR_NO : TO_ATTR_NO(cpu);
 
-	if (attr_no > MAX_CORE_DATA - 1)
+	if (attr_yes > MAX_CORE_DATA - 1)
 		return -ERANGE;
 
 	tdata = init_temp_data(cpu, pkg_flag);
@@ -481,7 +481,7 @@ static int create_core_data(struct platform_device *pdev, unsigned int cpu,
 
 	/*
 	 * Read the still undocumented bits 8:15 of IA32_TEMPERATURE_TARGET.
-	 * The target temperature is available on older CPUs but not in this
+	 * The target temperature is available on older CPUs but yest in this
 	 * register. Atoms don't have the register at all.
 	 */
 	if (c->x86_model > 0xe && c->x86_model != 0x1c) {
@@ -494,16 +494,16 @@ static int create_core_data(struct platform_device *pdev, unsigned int cpu,
 		}
 	}
 
-	pdata->core_data[attr_no] = tdata;
+	pdata->core_data[attr_yes] = tdata;
 
 	/* Create sysfs interfaces */
-	err = create_core_attrs(tdata, pdata->hwmon_dev, attr_no);
+	err = create_core_attrs(tdata, pdata->hwmon_dev, attr_yes);
 	if (err)
 		goto exit_free;
 
 	return 0;
 exit_free:
-	pdata->core_data[attr_no] = NULL;
+	pdata->core_data[attr_yes] = NULL;
 	kfree(tdata);
 	return err;
 }
@@ -594,7 +594,7 @@ static int coretemp_cpu_online(unsigned int cpu)
 
 	/*
 	 * Don't execute this on resume as the offline callback did
-	 * not get executed on suspend.
+	 * yest get executed on suspend.
 	 */
 	if (cpuhp_tasks_frozen)
 		return 0;
@@ -632,7 +632,7 @@ static int coretemp_cpu_online(unsigned int cpu)
 
 	pdata = platform_get_drvdata(pdev);
 	/*
-	 * Check whether a thread sibling is already online. If not add the
+	 * Check whether a thread sibling is already online. If yest add the
 	 * interface for this CPU core.
 	 */
 	if (!cpumask_intersects(&pdata->cpumask, topology_sibling_cpumask(cpu)))
@@ -656,7 +656,7 @@ static int coretemp_cpu_offline(unsigned int cpu)
 	if (cpuhp_tasks_frozen)
 		return 0;
 
-	/* If the physical CPU device does not exist, just return */
+	/* If the physical CPU device does yest exist, just return */
 	if (!pdev)
 		return 0;
 

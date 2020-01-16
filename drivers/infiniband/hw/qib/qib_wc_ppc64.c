@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -49,14 +49,14 @@ int qib_enable_wc(struct qib_devdata *dd)
 }
 
 /**
- * qib_unordered_wc - indicate whether write combining is unordered
+ * qib_uyesrdered_wc - indicate whether write combining is uyesrdered
  *
  * Because our performance depends on our ability to do write
  * combining mmio writes in the most efficient way, we need to
- * know if we are on a processor that may reorder stores when
+ * kyesw if we are on a processor that may reorder stores when
  * write combining.
  */
-int qib_unordered_wc(void)
+int qib_uyesrdered_wc(void)
 {
 	return 1;
 }

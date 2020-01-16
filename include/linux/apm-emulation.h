@@ -14,7 +14,7 @@
 
 /*
  * This structure gets filled in by the machine specific 'get_power_status'
- * implementation.  Any fields which are not set default to a safe value.
+ * implementation.  Any fields which are yest set default to a safe value.
  */
 struct apm_power_info {
 	unsigned char	ac_line_status;

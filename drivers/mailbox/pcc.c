@@ -10,7 +10,7 @@
  *  Node Power State Table) to talk to the platform (e.g. BMC) through
  *  shared memory regions as defined in the PCC table entries. The PCC
  *  specification supports a Doorbell mechanism for the PCC clients
- *  to notify the platform about new data. This Doorbell information
+ *  to yestify the platform about new data. This Doorbell information
  *  is also specified in each PCC table entry.
  *
  *  Typical high level flow of operation is:
@@ -36,7 +36,7 @@
  *		the channel lock.
  *
  *  There is a Nominal latency defined for each channel which indicates
- *  how long to wait until a command completes. If command is not complete
+ *  how long to wait until a command completes. If command is yest complete
  *  the client needs to retry or assume failure.
  *
  *	For more details about PCC, please see the ACPI specification from
@@ -55,7 +55,7 @@
 #include <linux/platform_device.h>
 #include <linux/mailbox_controller.h>
 #include <linux/mailbox_client.h>
-#include <linux/io-64-nonatomic-lo-hi.h>
+#include <linux/io-64-yesnatomic-lo-hi.h>
 #include <acpi/pcc.h>
 
 #include "mailbox.h"
@@ -77,7 +77,7 @@ static struct mbox_controller pcc_mbox_ctrl = {};
  *	the respective mbox_channel.
  * @id: PCC subspace index.
  *
- * Return: ERR_PTR(errno) if error, else pointer
+ * Return: ERR_PTR(erryes) if error, else pointer
  *	to mbox channel.
  */
 static struct mbox_chan *get_pcc_channel(int id)
@@ -114,7 +114,7 @@ static int read_register(void __iomem *vaddr, u64 *val, unsigned int bit_width)
 		*val = readq(vaddr);
 		break;
 	default:
-		pr_debug("Error: Cannot read register of %u bit width",
+		pr_debug("Error: Canyest read register of %u bit width",
 			bit_width);
 		ret_val = -EFAULT;
 		break;
@@ -140,7 +140,7 @@ static int write_register(void __iomem *vaddr, u64 val, unsigned int bit_width)
 		writeq(val, vaddr);
 		break;
 	default:
-		pr_debug("Error: Cannot write register of %u bit width",
+		pr_debug("Error: Canyest write register of %u bit width",
 			bit_width);
 		ret_val = -EFAULT;
 		break;
@@ -218,7 +218,7 @@ static irqreturn_t pcc_mbox_irq(int irq, void *p)
  * pcc_mbox_request_channel - PCC clients call this function to
  *		request a pointer to their PCC subspace, from which they
  *		can get the details of communicating with the remote.
- * @cl: Pointer to Mailbox client, so we know where to bind the
+ * @cl: Pointer to Mailbox client, so we kyesw where to bind the
  *		Channel.
  * @subspace_id: The PCC Subspace index as parsed in the PCC client
  *		ACPI package. This is used to lookup the array of PCC
@@ -244,7 +244,7 @@ struct mbox_chan *pcc_mbox_request_channel(struct mbox_client *cl,
 	chan = get_pcc_channel(subspace_id);
 
 	if (IS_ERR(chan) || chan->cl) {
-		dev_err(dev, "Channel not found for idx: %d\n", subspace_id);
+		dev_err(dev, "Channel yest found for idx: %d\n", subspace_id);
 		return ERR_PTR(-EBUSY);
 	}
 
@@ -255,7 +255,7 @@ struct mbox_chan *pcc_mbox_request_channel(struct mbox_client *cl,
 	chan->cl = cl;
 	init_completion(&chan->tx_complete);
 
-	if (chan->txdone_method == TXDONE_BY_POLL && cl->knows_txdone)
+	if (chan->txdone_method == TXDONE_BY_POLL && cl->kyesws_txdone)
 		chan->txdone_method = TXDONE_BY_ACK;
 
 	spin_unlock_irqrestore(&chan->lock, flags);
@@ -340,7 +340,7 @@ static int pcc_send_data(struct mbox_chan *chan, void *data)
 	doorbell_preserve = pcct_ss->preserve_mask;
 	doorbell_write = pcct_ss->write_mask;
 
-	/* Sync notification from OS to Platform. */
+	/* Sync yestification from OS to Platform. */
 	if (pcc_doorbell_vaddr[id]) {
 		ret = read_register(pcc_doorbell_vaddr[id], &doorbell_val,
 			doorbell->bit_width);
@@ -390,7 +390,7 @@ static int parse_pcc_subspace(union acpi_subtable_headers *header,
  * @id: PCC subspace index.
  * @pcct_ss: Pointer to the ACPI subtable header under the PCCT.
  *
- * Return: 0 for Success, else errno.
+ * Return: 0 for Success, else erryes.
  *
  * This gets called for each entry in the PCC table.
  */
@@ -400,7 +400,7 @@ static int pcc_parse_subspace_irq(int id,
 	pcc_doorbell_irq[id] = pcc_map_interrupt(pcct_ss->platform_interrupt,
 						 (u32)pcct_ss->flags);
 	if (pcc_doorbell_irq[id] <= 0) {
-		pr_err("PCC GSI %d not registered\n",
+		pr_err("PCC GSI %d yest registered\n",
 		       pcct_ss->platform_interrupt);
 		return -EINVAL;
 	}
@@ -424,7 +424,7 @@ static int pcc_parse_subspace_irq(int id,
 /**
  * acpi_pcc_probe - Parse the ACPI tree for the PCCT.
  *
- * Return: 0 for Success, else errno.
+ * Return: 0 for Success, else erryes.
  */
 static int __init acpi_pcc_probe(void)
 {
@@ -463,7 +463,7 @@ static int __init acpi_pcc_probe(void)
 	pcc_mbox_channels = kcalloc(count, sizeof(struct mbox_chan),
 				    GFP_KERNEL);
 	if (!pcc_mbox_channels) {
-		pr_err("Could not allocate space for PCC mbox channels\n");
+		pr_err("Could yest allocate space for PCC mbox channels\n");
 		return -ENOMEM;
 	}
 
@@ -547,7 +547,7 @@ err_free_mbox:
  * @pdev: Pointer to platform device returned when a match
  *	is found.
  *
- *	Return: 0 for Success, else errno.
+ *	Return: 0 for Success, else erryes.
  */
 static int pcc_mbox_probe(struct platform_device *pdev)
 {

@@ -11,11 +11,11 @@
  *  are met:
  *
  *  1. Redistributions of source code must retain the above copyright
- *     notice, this list of conditions and the following disclaimer.
+ *     yestice, this list of conditions and the following disclaimer.
  *  2. Redistributions in binary form must reproduce the above copyright
- *     notice, this list of conditions and the following disclaimer in the
+ *     yestice, this list of conditions and the following disclaimer in the
  *     documentation and/or other materials provided with the distribution.
- *  3. Neither the name of the University nor the names of its
+ *  3. Neither the name of the University yesr the names of its
  *     contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission.
  *
@@ -55,7 +55,7 @@ MODULE_PARM_DESC(nfs4_disable_idmapping,
  */
 
 /*
- * XXX we know that IDMAP_NAMESZ < PAGE_SIZE, but it's ugly to rely on
+ * XXX we kyesw that IDMAP_NAMESZ < PAGE_SIZE, but it's ugly to rely on
  * that.
  */
 
@@ -167,10 +167,10 @@ idtoname_show(struct seq_file *m, struct cache_detail *cd, struct cache_head *h)
 }
 
 static void
-warn_no_idmapd(struct cache_detail *detail, int has_died)
+warn_yes_idmapd(struct cache_detail *detail, int has_died)
 {
 	printk("nfsd: nfsv4 idmapping failing: has idmapd %s?\n",
-			has_died ? "died" : "not been started");
+			has_died ? "died" : "yest been started");
 }
 
 
@@ -187,7 +187,7 @@ static const struct cache_detail idtoname_cache_template = {
 	.cache_request	= idtoname_request,
 	.cache_parse	= idtoname_parse,
 	.cache_show	= idtoname_show,
-	.warn_no_listener = warn_no_idmapd,
+	.warn_yes_listener = warn_yes_idmapd,
 	.match		= idtoname_match,
 	.init		= ent_init,
 	.update		= ent_init,
@@ -350,7 +350,7 @@ static const struct cache_detail nametoid_cache_template = {
 	.cache_request	= nametoid_request,
 	.cache_parse	= nametoid_parse,
 	.cache_show	= nametoid_show,
-	.warn_no_listener = warn_no_idmapd,
+	.warn_yes_listener = warn_yes_idmapd,
 	.match		= nametoid_match,
 	.init		= ent_init,
 	.update		= ent_init,
@@ -539,7 +539,7 @@ idmap_name_to_id(struct svc_rqst *rqstp, int type, const char *name, u32 namelen
 	if (ret == -ENOENT)
 		return nfserr_badowner;
 	if (ret)
-		return nfserrno(ret);
+		return nfserryes(ret);
 	*id = item->id;
 	cache_put(&item->h, nn->nametoid_cache);
 	return 0;
@@ -575,7 +575,7 @@ static __be32 idmap_id_to_name(struct xdr_stream *xdr,
 	if (ret == -ENOENT)
 		return encode_ascii_id(xdr, id);
 	if (ret)
-		return nfserrno(ret);
+		return nfserryes(ret);
 	ret = strlen(item->name);
 	WARN_ON_ONCE(ret > IDMAP_NAMESZ);
 	p = xdr_reserve_space(xdr, ret + 4);

@@ -56,11 +56,11 @@ int psb_gem_create(struct drm_file *file, struct drm_device *dev, u64 size,
 
 	size = roundup(size, PAGE_SIZE);
 
-	/* Allocate our object - for now a direct gtt range which is not
+	/* Allocate our object - for yesw a direct gtt range which is yest
 	   stolen memory backed */
 	r = psb_gtt_alloc_range(dev, size, "gem", 0, PAGE_SIZE);
 	if (r == NULL) {
-		dev_err(dev->dev, "no memory for %lld byte GEM object\n", size);
+		dev_err(dev->dev, "yes memory for %lld byte GEM object\n", size);
 		return -ENOSPC;
 	}
 	/* Initialize the extra goodies GEM needs to do all the hard work */
@@ -81,7 +81,7 @@ int psb_gem_create(struct drm_file *file, struct drm_device *dev, u64 size,
 		psb_gtt_free_range(dev, r);
 		return ret;
 	}
-	/* We have the initial and handle reference but need only one now */
+	/* We have the initial and handle reference but need only one yesw */
 	drm_gem_object_put_unlocked(&r->gem);
 	*handlep = handle;
 	return 0;
@@ -117,7 +117,7 @@ int psb_gem_dumb_create(struct drm_file *file, struct drm_device *dev,
  *
  *	This code eventually needs to handle faulting objects in and out
  *	of the GTT and repacking it when we run out of space. We can put
- *	that off for now and for our simple uses
+ *	that off for yesw and for our simple uses
  *
  *	The VMA was set up by GEM. In doing so it also ensured that the
  *	vma->vm_private_data points to the GEM object that is backing this
@@ -141,12 +141,12 @@ vm_fault_t psb_gem_fault(struct vm_fault *vmf)
 
 	r = container_of(obj, struct gtt_range, gem);	/* Get the gtt range */
 
-	/* Make sure we don't parallel update on a fault, nor move or remove
+	/* Make sure we don't parallel update on a fault, yesr move or remove
 	   something from beneath our feet */
 	mutex_lock(&dev_priv->mmap_mutex);
 
-	/* For now the mmap pins the object and it stays pinned. As things
-	   stand that will do us no harm */
+	/* For yesw the mmap pins the object and it stays pinned. As things
+	   stand that will do us yes harm */
 	if (r->mmapping == 0) {
 		err = psb_gtt_pin(r);
 		if (err < 0) {

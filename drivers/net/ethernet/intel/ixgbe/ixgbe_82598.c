@@ -88,9 +88,9 @@ static s32 ixgbe_get_invariants_82598(struct ixgbe_hw *hw)
  *  ixgbe_init_phy_ops_82598 - PHY/SFP specific init
  *  @hw: pointer to hardware structure
  *
- *  Initialize any function pointers that were not able to be
+ *  Initialize any function pointers that were yest able to be
  *  set during get_invariants because the PHY/SFP type was
- *  not known.  Perform the SFP init if necessary.
+ *  yest kyeswn.  Perform the SFP init if necessary.
  *
  **/
 static s32 ixgbe_init_phy_ops_82598(struct ixgbe_hw *hw)
@@ -122,7 +122,7 @@ static s32 ixgbe_init_phy_ops_82598(struct ixgbe_hw *hw)
 		ret_val = phy->ops.identify_sfp(hw);
 		if (ret_val)
 			return ret_val;
-		if (hw->phy.sfp_type == ixgbe_sfp_type_unknown)
+		if (hw->phy.sfp_type == ixgbe_sfp_type_unkyeswn)
 			return IXGBE_ERR_SFP_NOT_SUPPORTED;
 
 		/* Check to see if SFP+ module is supported */
@@ -178,7 +178,7 @@ static s32 ixgbe_get_link_capabilities_82598(struct ixgbe_hw *hw,
 
 	/*
 	 * Determine link capabilities based on the stored value of AUTOC,
-	 * which represents EEPROM defaults.  If AUTOC value has not been
+	 * which represents EEPROM defaults.  If AUTOC value has yest been
 	 * stored, use the current register value.
 	 */
 	if (hw->mac.orig_link_settings_stored)
@@ -229,7 +229,7 @@ static enum ixgbe_media_type ixgbe_get_media_type_82598(struct ixgbe_hw *hw)
 {
 	/* Detect if there is a copper PHY attached. */
 	switch (hw->phy.type) {
-	case ixgbe_phy_cu_unknown:
+	case ixgbe_phy_cu_unkyeswn:
 	case ixgbe_phy_tn:
 		return ixgbe_media_type_copper;
 
@@ -261,7 +261,7 @@ static enum ixgbe_media_type ixgbe_get_media_type_82598(struct ixgbe_hw *hw)
 		return ixgbe_media_type_copper;
 
 	default:
-		return ixgbe_media_type_unknown;
+		return ixgbe_media_type_unkyeswn;
 	}
 }
 
@@ -299,7 +299,7 @@ static s32 ixgbe_fc_enable_82598(struct ixgbe_hw *hw)
 
 	/*
 	 * On 82598 having Rx FC on causes resets while doing 1G
-	 * so if it's on turn it off once we know link_speed. For
+	 * so if it's on turn it off once we kyesw link_speed. For
 	 * more details see 82598 Specification update.
 	 */
 	hw->mac.ops.check_link(hw, &link_speed, &link_up, false);
@@ -309,10 +309,10 @@ static s32 ixgbe_fc_enable_82598(struct ixgbe_hw *hw)
 			hw->fc.requested_mode = ixgbe_fc_tx_pause;
 			break;
 		case ixgbe_fc_rx_pause:
-			hw->fc.requested_mode = ixgbe_fc_none;
+			hw->fc.requested_mode = ixgbe_fc_yesne;
 			break;
 		default:
-			/* no change */
+			/* yes change */
 			break;
 		}
 	}
@@ -331,14 +331,14 @@ static s32 ixgbe_fc_enable_82598(struct ixgbe_hw *hw)
 	 * The possible values of fc.current_mode are:
 	 * 0: Flow control is completely disabled
 	 * 1: Rx flow control is enabled (we can receive pause frames,
-	 *    but not send pause frames).
+	 *    but yest send pause frames).
 	 * 2: Tx flow control is enabled (we can send pause frames but
-	 *     we do not support receiving pause frames).
+	 *     we do yest support receiving pause frames).
 	 * 3: Both Rx and Tx flow control (symmetric) are enabled.
 	 * other: Invalid.
 	 */
 	switch (hw->fc.current_mode) {
-	case ixgbe_fc_none:
+	case ixgbe_fc_yesne:
 		/*
 		 * Flow control is disabled by software override or autoneg.
 		 * The code below will actually disable it in the HW.
@@ -439,12 +439,12 @@ static s32 ixgbe_start_mac_link_82598(struct ixgbe_hw *hw,
 			}
 			if (!(links_reg & IXGBE_LINKS_KX_AN_COMP)) {
 				status = IXGBE_ERR_AUTONEG_NOT_COMPLETE;
-				hw_dbg(hw, "Autonegotiation did not complete.\n");
+				hw_dbg(hw, "Autonegotiation did yest complete.\n");
 			}
 		}
 	}
 
-	/* Add delay to filter out noises during initial link setup */
+	/* Add delay to filter out yesises during initial link setup */
 	msleep(50);
 
 	return status;
@@ -454,7 +454,7 @@ static s32 ixgbe_start_mac_link_82598(struct ixgbe_hw *hw,
  *  ixgbe_validate_link_ready - Function looks for phy link
  *  @hw: pointer to hardware structure
  *
- *  Function indicates success when phy link is available. If phy is not ready
+ *  Function indicates success when phy link is available. If phy is yest ready
  *  within 5 seconds of MAC indicating link, the function returns error.
  **/
 static s32 ixgbe_validate_link_ready(struct ixgbe_hw *hw)
@@ -489,7 +489,7 @@ static s32 ixgbe_validate_link_ready(struct ixgbe_hw *hw)
  *  @hw: pointer to hardware structure
  *  @speed: pointer to link speed
  *  @link_up: true is link is up, false otherwise
- *  @link_up_wait_to_complete: bool used to wait for link up or not
+ *  @link_up_wait_to_complete: bool used to wait for link up or yest
  *
  *  Reads the links register to determine if link is up and the current speed
  **/
@@ -665,7 +665,7 @@ static s32 ixgbe_reset_hw_82598(struct ixgbe_hw *hw)
 	/*
 	 * Power up the Atlas Tx lanes if they are currently powered down.
 	 * Atlas Tx lanes are powered down for MAC loopback tests, but
-	 * they are not automatically restored on reset.
+	 * they are yest automatically restored on reset.
 	 */
 	hw->mac.ops.read_analog_reg8(hw, IXGBE_ATLAS_PDN_LPBK, &analog_val);
 	if (analog_val & IXGBE_ATLAS_PDN_TX_REG_EN) {
@@ -748,7 +748,7 @@ mac_reset_top:
 	IXGBE_WRITE_REG(hw, IXGBE_GHECCR, gheccr);
 
 	/*
-	 * Store the original AUTOC value if it has not been
+	 * Store the original AUTOC value if it has yest been
 	 * stored off yet.  Otherwise restore the stored original
 	 * AUTOC value since the reset operation sets back to deaults.
 	 */
@@ -803,7 +803,7 @@ static s32 ixgbe_set_vmdq_82598(struct ixgbe_hw *hw, u32 rar, u32 vmdq)
  *  ixgbe_clear_vmdq_82598 - Disassociate a VMDq set index from an rx address
  *  @hw: pointer to hardware struct
  *  @rar: receive address register index to associate with a VMDq index
- *  @vmdq: VMDq clear index (not used in 82598, but elsewhere)
+ *  @vmdq: VMDq clear index (yest used in 82598, but elsewhere)
  **/
 static s32 ixgbe_clear_vmdq_82598(struct ixgbe_hw *hw, u32 rar, u32 vmdq)
 {
@@ -992,7 +992,7 @@ static s32 ixgbe_read_i2c_phy_82598(struct ixgbe_hw *hw, u8 dev_addr,
 		}
 
 		if (sfp_stat != IXGBE_I2C_EEPROM_STATUS_PASS) {
-			hw_dbg(hw, "EEPROM read did not pass.\n");
+			hw_dbg(hw, "EEPROM read did yest pass.\n");
 			status = IXGBE_ERR_SFP_NOT_PRESENT;
 			goto out;
 		}
@@ -1047,7 +1047,7 @@ static s32 ixgbe_read_i2c_sff8472_82598(struct ixgbe_hw *hw, u8 byte_offset,
  *  @hw: pointer to the HW structure
  *
  *  Calls common function and corrects issue with some single port devices
- *  that enable LAN1 but not LAN0.
+ *  that enable LAN1 but yest LAN0.
  **/
 static void ixgbe_set_lan_id_multi_port_pcie_82598(struct ixgbe_hw *hw)
 {

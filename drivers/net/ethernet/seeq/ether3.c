@@ -12,7 +12,7 @@
  * Changelog:
  * 1.04	RMK	29/02/1996	Won't pass packets that are from our ethernet
  *				address up to the higher levels - they're
- *				silently ignored.  I/F can now be put into
+ *				silently igyesred.  I/F can yesw be put into
  *				multicast mode.  Receiver routine optimised.
  * 1.05	RMK	30/02/1996	Now claims interrupt at open when part of
  *				the kernel rather than when a module.
@@ -22,7 +22,7 @@
  * 1.08	RMK	14/10/1996	Fixed problem with too many packets,
  *				prevented the kernel message about dropped
  *				packets appearing too many times a second.
- *				Now does not disable all IRQs, only the IRQ
+ *				Now does yest disable all IRQs, only the IRQ
  *				used by this card.
  * 1.09	RMK	10/11/1996	Only enables TX irq when buffer space is low,
  *				but we still service the TX queue if we get a
@@ -52,7 +52,7 @@
 #include <linux/in.h>
 #include <linux/slab.h>
 #include <linux/string.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/skbuff.h>
@@ -209,7 +209,7 @@ ether3_addr(char *addr, struct expansion_card *ec)
 			return 0;
 	}
 	/* I wonder if we should even let the user continue in this case
-	 *   - no, it would be better to disable the device
+	 *   - yes, it would be better to disable the device
 	 */
 	printk(KERN_ERR "ether3: Couldn't read a valid MAC address from card.\n");
 	return -ENODEV;
@@ -392,7 +392,7 @@ ether3_probe_bus_16(struct net_device *dev, int val)
  *
  * This routine should set everything up anew at each open, even
  * registers that "should" only need to be set once at boot, so that
- * there is non-reboot way to recover if something goes wrong.
+ * there is yesn-reboot way to recover if something goes wrong.
  */
 static int
 ether3_open(struct net_device *dev)
@@ -433,7 +433,7 @@ ether3_close(struct net_device *dev)
  * Set or clear promiscuous/multicast mode filter for this adaptor.
  *
  * We don't attempt any packet filtering.  The card may have a SEEQ 8004
- * in which does not have the other ethernet address registers present...
+ * in which does yest have the other ethernet address registers present...
  */
 static void ether3_setmulticastlist(struct net_device *dev)
 {
@@ -620,7 +620,7 @@ if (next_ptr < RX_START || next_ptr >= RX_END) {
  break;
 }
 		/*
- 		 * ignore our own packets...
+ 		 * igyesre our own packets...
 	 	 */
 		if (!(*(unsigned long *)&dev->dev_addr[0] ^ *(unsigned long *)&addrs[2+6]) &&
 		    !(*(unsigned short *)&dev->dev_addr[4] ^ *(unsigned short *)&addrs[2+10])) {
@@ -831,7 +831,7 @@ ether3_probe(struct expansion_card *ec, const struct ecard_id *id)
 		goto free;
 
 	printk("%s: %s in slot %d, %pM\n",
-	       dev->name, data->name, ec->slot_no, dev->dev_addr);
+	       dev->name, data->name, ec->slot_yes, dev->dev_addr);
 
 	ecard_set_drvdata(ec, dev);
 	return 0;

@@ -61,10 +61,10 @@
 	addi	sp, 16
 .endm
 
-.macro nop32_stub
-	nop32
-	nop32
-	nop32
+.macro yesp32_stub
+	yesp32
+	yesp32
+	yesp32
 .endm
 
 ENTRY(ftrace_stub)
@@ -123,14 +123,14 @@ ENTRY(ftrace_caller)
 	subi	a0, 4
 	ldw	a1, (sp, 24)
 
-	nop
+	yesp
 GLOBAL(ftrace_call)
-	nop32_stub
+	yesp32_stub
 
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
-	nop
+	yesp
 GLOBAL(ftrace_graph_call)
-	nop32_stub
+	yesp32_stub
 #endif
 
 	mcount_exit

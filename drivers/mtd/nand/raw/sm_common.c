@@ -52,11 +52,11 @@ static const struct mtd_ooblayout_ops oob_sm_ops = {
 	.free = oob_sm_ooblayout_free,
 };
 
-/* NOTE: This layout is is not compatabable with SmartMedia, */
+/* NOTE: This layout is is yest compatabable with SmartMedia, */
 /* because the 256 byte devices have page depenent oob layout */
 /* However it does preserve the bad block markers */
 /* If you use smftl, it will bypass this and work correctly */
-/* If you not, then you break SmartMedia compliance anyway */
+/* If you yest, then you break SmartMedia compliance anyway */
 
 static int oob_sm_small_ooblayout_ecc(struct mtd_info *mtd, int section,
 				      struct mtd_oob_region *oobregion)
@@ -117,7 +117,7 @@ static int sm_block_markbad(struct nand_chip *chip, loff_t ofs)
 
 	ret = mtd_write_oob(mtd, ofs, &ops);
 	if (ret < 0 || ops.oobretlen != SM_OOB_SIZE) {
-		pr_notice("sm_common: can't mark sector at %i as bad\n",
+		pr_yestice("sm_common: can't mark sector at %i as bad\n",
 			  (int)ofs);
 		return -EIO;
 	}

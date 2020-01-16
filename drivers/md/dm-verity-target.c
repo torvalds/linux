@@ -28,9 +28,9 @@
 
 #define DM_VERITY_MAX_CORRUPTED_ERRS	100
 
-#define DM_VERITY_OPT_LOGGING		"ignore_corruption"
+#define DM_VERITY_OPT_LOGGING		"igyesre_corruption"
 #define DM_VERITY_OPT_RESTART		"restart_on_corruption"
-#define DM_VERITY_OPT_IGN_ZEROES	"ignore_zero_blocks"
+#define DM_VERITY_OPT_IGN_ZEROES	"igyesre_zero_blocks"
 #define DM_VERITY_OPT_AT_MOST_ONCE	"check_at_most_once"
 
 #define DM_VERITY_OPTS_MAX		(2 + DM_VERITY_OPTS_FEC + \
@@ -49,12 +49,12 @@ struct dm_verity_prefetch_work {
 
 /*
  * Auxiliary structure appended to each dm-bufio buffer. If the value
- * hash_verified is nonzero, hash of the block has been verified.
+ * hash_verified is yesnzero, hash of the block has been verified.
  *
  * The variable hash_verified is set to 0 when allocating the buffer, then
  * it can be changed to 1 and it is never reset to 0 again.
  *
- * There is no lock around this value, a race condition can at worst cause
+ * There is yes lock around this value, a race condition can at worst cause
  * that multiple processes verify the hash of the same buffer simultaneously
  * and write 1 to hash_verified simultaneously.
  * This condition is harmless, so we don't need locking.
@@ -84,8 +84,8 @@ static sector_t verity_map_sector(struct dm_verity *v, sector_t bi_sector)
 /*
  * Return hash position of a specified block at a specified tree level
  * (0 is the lowest level).
- * The lowest "hash_per_block_bits"-bits of the result denote hash position
- * inside a hash block. The remaining bits denote location of the hash block.
+ * The lowest "hash_per_block_bits"-bits of the result deyeste hash position
+ * inside a hash block. The remaining bits deyeste location of the hash block.
  */
 static sector_t verity_position_at_level(struct dm_verity *v, sector_t block,
 					 int level)
@@ -553,7 +553,7 @@ static void verity_work(struct work_struct *w)
 {
 	struct dm_verity_io *io = container_of(w, struct dm_verity_io, work);
 
-	verity_finish_io(io, errno_to_blk_status(verity_verify_io(io)));
+	verity_finish_io(io, erryes_to_blk_status(verity_verify_io(io)));
 }
 
 static void verity_end_io(struct bio *bio)
@@ -571,7 +571,7 @@ static void verity_end_io(struct bio *bio)
 
 /*
  * Prefetch buffers for the specified io.
- * The root buffer is not prefetched, it is assumed that it will be cached
+ * The root buffer is yest prefetched, it is assumed that it will be cached
  * all the time.
  */
 static void verity_prefetch_io(struct work_struct *work)
@@ -591,7 +591,7 @@ static void verity_prefetch_io(struct work_struct *work)
 
 			cluster >>= v->data_dev_block_bits;
 			if (unlikely(!cluster))
-				goto no_prefetch_cluster;
+				goto yes_prefetch_cluster;
 
 			if (unlikely(cluster & (cluster - 1)))
 				cluster = 1 << __fls(cluster);
@@ -601,7 +601,7 @@ static void verity_prefetch_io(struct work_struct *work)
 			if (unlikely(hash_block_end >= v->hash_blocks))
 				hash_block_end = v->hash_blocks - 1;
 		}
-no_prefetch_cluster:
+yes_prefetch_cluster:
 		dm_bufio_prefetch(v->bufio, hash_block_start,
 				  hash_block_end - hash_block_start + 1);
 	}
@@ -751,7 +751,7 @@ static int verity_prepare_ioctl(struct dm_target *ti, struct block_device **bdev
 	*bdev = v->data_dev->bdev;
 
 	if (v->data_start ||
-	    ti->len != i_size_read(v->data_dev->bdev->bd_inode) >> SECTOR_SHIFT)
+	    ti->len != i_size_read(v->data_dev->bdev->bd_iyesde) >> SECTOR_SHIFT)
 		return 1;
 	return 0;
 }
@@ -896,7 +896,7 @@ static int verity_parse_opt_args(struct dm_arg_set *as, struct dm_verity *v,
 		} else if (!strcasecmp(arg_name, DM_VERITY_OPT_IGN_ZEROES)) {
 			r = verity_alloc_zero_digest(v);
 			if (r) {
-				ti->error = "Cannot allocate zero digest";
+				ti->error = "Canyest allocate zero digest";
 				return r;
 			}
 			continue;
@@ -941,7 +941,7 @@ static int verity_parse_opt_args(struct dm_arg_set *as, struct dm_verity *v,
  *	<hash start block>
  *	<algorithm>
  *	<digest>
- *	<salt>		Hex string or "-" if no salt.
+ *	<salt>		Hex string or "-" if yes salt.
  */
 static int verity_ctr(struct dm_target *ti, unsigned argc, char **argv)
 {
@@ -958,7 +958,7 @@ static int verity_ctr(struct dm_target *ti, unsigned argc, char **argv)
 
 	v = kzalloc(sizeof(struct dm_verity), GFP_KERNEL);
 	if (!v) {
-		ti->error = "Cannot allocate verity structure";
+		ti->error = "Canyest allocate verity structure";
 		return -ENOMEM;
 	}
 	ti->private = v;
@@ -975,7 +975,7 @@ static int verity_ctr(struct dm_target *ti, unsigned argc, char **argv)
 	}
 
 	if (argc < 10) {
-		ti->error = "Not enough arguments";
+		ti->error = "Not eyesugh arguments";
 		r = -EINVAL;
 		goto bad;
 	}
@@ -1046,14 +1046,14 @@ static int verity_ctr(struct dm_target *ti, unsigned argc, char **argv)
 
 	v->alg_name = kstrdup(argv[7], GFP_KERNEL);
 	if (!v->alg_name) {
-		ti->error = "Cannot allocate algorithm name";
+		ti->error = "Canyest allocate algorithm name";
 		r = -ENOMEM;
 		goto bad;
 	}
 
 	v->tfm = crypto_alloc_ahash(v->alg_name, 0, 0);
 	if (IS_ERR(v->tfm)) {
-		ti->error = "Cannot initialize hash function";
+		ti->error = "Canyest initialize hash function";
 		r = PTR_ERR(v->tfm);
 		v->tfm = NULL;
 		goto bad;
@@ -1078,7 +1078,7 @@ static int verity_ctr(struct dm_target *ti, unsigned argc, char **argv)
 
 	v->root_digest = kmalloc(v->digest_size, GFP_KERNEL);
 	if (!v->root_digest) {
-		ti->error = "Cannot allocate root digest";
+		ti->error = "Canyest allocate root digest";
 		r = -ENOMEM;
 		goto bad;
 	}
@@ -1094,7 +1094,7 @@ static int verity_ctr(struct dm_target *ti, unsigned argc, char **argv)
 		v->salt_size = strlen(argv[9]) / 2;
 		v->salt = kmalloc(v->salt_size, GFP_KERNEL);
 		if (!v->salt) {
-			ti->error = "Cannot allocate salt";
+			ti->error = "Canyest allocate salt";
 			r = -ENOMEM;
 			goto bad;
 		}
@@ -1163,7 +1163,7 @@ static int verity_ctr(struct dm_target *ti, unsigned argc, char **argv)
 		1 << v->hash_dev_block_bits, 1, sizeof(struct buffer_aux),
 		dm_bufio_alloc_callback, NULL);
 	if (IS_ERR(v->bufio)) {
-		ti->error = "Cannot initialize dm-bufio";
+		ti->error = "Canyest initialize dm-bufio";
 		r = PTR_ERR(v->bufio);
 		v->bufio = NULL;
 		goto bad;
@@ -1178,7 +1178,7 @@ static int verity_ctr(struct dm_target *ti, unsigned argc, char **argv)
 	/* WQ_UNBOUND greatly improves performance when running on ramdisk */
 	v->verify_wq = alloc_workqueue("kverityd", WQ_CPU_INTENSIVE | WQ_MEM_RECLAIM | WQ_UNBOUND, num_online_cpus());
 	if (!v->verify_wq) {
-		ti->error = "Cannot allocate workqueue";
+		ti->error = "Canyest allocate workqueue";
 		r = -ENOMEM;
 		goto bad;
 	}
@@ -1191,7 +1191,7 @@ static int verity_ctr(struct dm_target *ti, unsigned argc, char **argv)
 		goto bad;
 
 	ti->per_io_data_size = roundup(ti->per_io_data_size,
-				       __alignof__(struct dm_verity_io));
+				       __aligyesf__(struct dm_verity_io));
 
 	verity_verify_sig_opts_cleanup(&verify_args);
 

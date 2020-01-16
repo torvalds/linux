@@ -22,7 +22,7 @@
 
 #include <linux/device.h>
 #include <linux/init.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/scatterlist.h>
@@ -2052,7 +2052,7 @@ static int atmel_aes_authenc_transfer(struct atmel_aes_dev *dd, int err,
 	/*
 	 * Here we always set the 2nd parameter of atmel_aes_write_ctrl() to
 	 * 'true' even if the data transfer is actually performed by the CPU (so
-	 * not by the DMA) because we must force the AES_MR_SMOD bitfield to the
+	 * yest by the DMA) because we must force the AES_MR_SMOD bitfield to the
 	 * value AES_MR_SMOD_IDATAR0. Indeed, both AES_MR_SMOD and SHA_MR_SMOD
 	 * must be set to *_MR_SMOD_IDATAR0.
 	 */
@@ -2211,8 +2211,8 @@ static int atmel_aes_authenc_crypt(struct aead_request *req,
 	rctx->textlen = req->cryptlen - (enc ? 0 : authsize);
 
 	/*
-	 * Currently, empty messages are not supported yet:
-	 * the SHA auto-padding can be used only on non-empty messages.
+	 * Currently, empty messages are yest supported yet:
+	 * the SHA auto-padding can be used only on yesn-empty messages.
 	 * Hence a special case needs to be implemented for empty message.
 	 */
 	if (!rctx->textlen && !req->assoclen)
@@ -2403,7 +2403,7 @@ static int atmel_aes_dma_init(struct atmel_aes_dev *dd,
 err_dma_out:
 	dma_release_channel(dd->src.chan);
 err_dma_in:
-	dev_warn(dd->dev, "no DMA channel available\n");
+	dev_warn(dd->dev, "yes DMA channel available\n");
 	return -ENODEV;
 }
 
@@ -2439,7 +2439,7 @@ static irqreturn_t atmel_aes_irq(int irq, void *dev_id)
 		if (AES_FLAGS_BUSY & aes_dd->flags)
 			tasklet_schedule(&aes_dd->done_task);
 		else
-			dev_warn(aes_dd->dev, "AES interrupt when no active requests.\n");
+			dev_warn(aes_dd->dev, "AES interrupt when yes active requests.\n");
 		return IRQ_HANDLED;
 	}
 
@@ -2580,11 +2580,11 @@ MODULE_DEVICE_TABLE(of, atmel_aes_dt_ids);
 
 static struct crypto_platform_data *atmel_aes_of_init(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	struct crypto_platform_data *pdata;
 
 	if (!np) {
-		dev_err(&pdev->dev, "device node not found\n");
+		dev_err(&pdev->dev, "device yesde yest found\n");
 		return ERR_PTR(-EINVAL);
 	}
 
@@ -2654,7 +2654,7 @@ static int atmel_aes_probe(struct platform_device *pdev)
 	/* Get the base address */
 	aes_res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!aes_res) {
-		dev_err(dev, "no MEM resource info\n");
+		dev_err(dev, "yes MEM resource info\n");
 		err = -ENODEV;
 		goto res_err;
 	}

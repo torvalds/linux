@@ -1,11 +1,11 @@
 .. Permission is granted to copy, distribute and/or modify this
 .. document under the terms of the GNU Free Documentation License,
 .. Version 1.1 or any later version published by the Free Software
-.. Foundation, with no Invariant Sections, no Front-Cover Texts
-.. and no Back-Cover Texts. A copy of the license is included at
+.. Foundation, with yes Invariant Sections, yes Front-Cover Texts
+.. and yes Back-Cover Texts. A copy of the license is included at
 .. Documentation/media/uapi/fdl-appendix.rst.
 ..
-.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
+.. TODO: replace it to GFDL-1.1-or-later WITH yes-invariant-sections
 
 .. _pixfmt-rgb:
 
@@ -980,7 +980,7 @@ next to each other in memory.
 
     \endgroup
 
-.. note:: Bit 7 is the most significant bit.
+.. yeste:: Bit 7 is the most significant bit.
 
 The usage and value of the alpha bits (a) in the ARGB and ABGR formats
 (collectively referred to as alpha formats) depend on the device type
@@ -1003,7 +1003,7 @@ Otherwise a corresponding format without an alpha component (XRGB or
 XBGR) must be used instead of an alpha format.
 
 The XRGB and XBGR formats contain undefined bits (-). Applications,
-devices and drivers must ignore those bits, for both
+devices and drivers must igyesre those bits, for both
 :ref:`capture` and :ref:`output` devices.
 
 **Byte Order.**
@@ -1076,10 +1076,10 @@ Each cell is one byte.
 
 .. raw:: latex
 
-    \normalsize
+    \yesrmalsize
 
 Formats defined in :ref:`pixfmt-rgb-deprecated` are deprecated and
-must not be used by new drivers. They are documented here for reference.
+must yest be used by new drivers. They are documented here for reference.
 The meaning of their alpha bits ``(a)`` are ill-defined and interpreted as in
 either the corresponding ARGB or XRGB format, depending on the driver.
 

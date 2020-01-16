@@ -74,15 +74,15 @@ static irqreturn_t hdmi_irq_handler(int irq, void *data)
 		/*
 		 * If we get both connect and disconnect interrupts at the same
 		 * time, turn off the PHY, clear interrupts, and restart, which
-		 * raises connect interrupt if a cable is connected, or nothing
-		 * if cable is not connected.
+		 * raises connect interrupt if a cable is connected, or yesthing
+		 * if cable is yest connected.
 		 */
 
 		hdmi_wp_set_phy_pwr(wp, HDMI_PHYPWRCMD_OFF);
 
 		/*
 		 * We always get bogus CONNECT & DISCONNECT interrupts when
-		 * setting the PHY to LDOON. To ignore those, we force the RXDET
+		 * setting the PHY to LDOON. To igyesre those, we force the RXDET
 		 * line to 0 until the PHY power state has been changed.
 		 */
 		v = hdmi_read_reg(hdmi->phy.base, HDMI_TXPHY_PAD_CFG_CTRL);
@@ -510,7 +510,7 @@ static int hdmi_audio_start(struct device *dev)
 
 	if (hd->display_enabled) {
 		if (!hdmi_mode_has_audio(&hd->cfg))
-			DSSERR("%s: Video mode does not support audio\n",
+			DSSERR("%s: Video mode does yest support audio\n",
 			       __func__);
 		hdmi_start_audio_stream(hd);
 	}
@@ -526,7 +526,7 @@ static void hdmi_audio_stop(struct device *dev)
 	unsigned long flags;
 
 	if (!hdmi_mode_has_audio(&hd->cfg))
-		DSSERR("%s: Video mode does not support audio\n", __func__);
+		DSSERR("%s: Video mode does yest support audio\n", __func__);
 
 	spin_lock_irqsave(&hd->audio_playing_lock, flags);
 
@@ -680,16 +680,16 @@ static void hdmi5_uninit_output(struct omap_hdmi *hdmi)
 static int hdmi5_probe_of(struct omap_hdmi *hdmi)
 {
 	struct platform_device *pdev = hdmi->pdev;
-	struct device_node *node = pdev->dev.of_node;
-	struct device_node *ep;
+	struct device_yesde *yesde = pdev->dev.of_yesde;
+	struct device_yesde *ep;
 	int r;
 
-	ep = of_graph_get_endpoint_by_regs(node, 0, 0);
+	ep = of_graph_get_endpoint_by_regs(yesde, 0, 0);
 	if (!ep)
 		return 0;
 
 	r = hdmi_parse_lanes_of(pdev, ep, &hdmi->phy);
-	of_node_put(ep);
+	of_yesde_put(ep);
 	return r;
 }
 

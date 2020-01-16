@@ -13,9 +13,9 @@
 /*
  * Base addresses for the VIAs. There are two in every machine,
  * although on some machines the second is an RBV or an OSS.
- * The OSS is different enough that it's handled separately.
+ * The OSS is different eyesugh that it's handled separately.
  *
- * Do not use these values directly; use the via1 and via2 variables
+ * Do yest use these values directly; use the via1 and via2 variables
  * instead (and don't forget to check rbv_present when using via2!)
  */
 
@@ -27,12 +27,12 @@
  *	Not all of these are true post MacII I think.
  *      CSA: probably the ones CHRP marks as 'unused' change purposes
  *      when the IWM becomes the SWIM.
- *      http://www.rs6000.ibm.com/resource/technology/chrpio/via5.mak.html
- *      ftp://ftp.austin.ibm.com/pub/technology/spec/chrp/inwork/CHRP_IORef_1.0.pdf
+ *      http://www.rs6000.ibm.com/resource/techyeslogy/chrpio/via5.mak.html
+ *      ftp://ftp.austin.ibm.com/pub/techyeslogy/spec/chrp/inwork/CHRP_IORef_1.0.pdf
  *
- * also, http://developer.apple.com/technotes/hw/hw_09.html claims the
+ * also, http://developer.apple.com/techyestes/hw/hw_09.html claims the
  * following changes for IIfx:
- * VIA1A_vSccWrReq not available and that VIA1A_vSync has moved to an IOP.
+ * VIA1A_vSccWrReq yest available and that VIA1A_vSync has moved to an IOP.
  * Also, "All of the functionality of VIA2 has been moved to other chips".
  */
 
@@ -63,8 +63,8 @@
 				 * map in the address decoders as it is on
 				 * reset for mapping the ROM over the reset
 				 * vector. 1=use overlay map.
-				 * On the IIci,IIfx it is another bit of the
-				 * CPU ID: 0=normal IIci, 1=IIci with parity
+				 * On the IIci,IIfx it is ayesther bit of the
+				 * CPU ID: 0=yesrmal IIci, 1=IIci with parity
 				 * feature or IIfx.
 				 * [CHRP] En WaitReqA: Lets the WaitReq_L
 				 * signal from port A of the SCC appear
@@ -96,7 +96,7 @@
 #define VIA1A_CPUID3	0x40	/* CPU id bit 0 on RBV, others */
 
 /* Info on VIA1B is from Macintosh Family Hardware & MkLinux.
- * CHRP offers no info. */
+ * CHRP offers yes info. */
 #define VIA1B_vSound	0x80	/* Sound enable (for compatibility with
 				 * PWM hardware) 0=enabled.
 				 * Also, on IIci w/parity, shows parity error
@@ -128,7 +128,7 @@
  *	slots.
  *      The below info is from 'Macintosh Family Hardware.'
  *      MkLinux calls the 'IIci internal video IRQ' below the 'RBV slot 0 irq.'
- *      It also notes that the slot $9 IRQ is the 'Ethernet IRQ' and
+ *      It also yestes that the slot $9 IRQ is the 'Ethernet IRQ' and
  *      defines the 'Video IRQ' as 0x40 for the 'EVR' VIA work-alike.
  *      Perhaps OSS uses vRAM1 and vRAM2 for ADB.
  */
@@ -178,12 +178,12 @@
 				 * on others, 0=disable processor's instruction
 				 * and data caches. */
 
-/* Apple sez: http://developer.apple.com/technotes/ov/ov_04.html
- * Another example of a valid function that has no ROM support is the use
+/* Apple sez: http://developer.apple.com/techyestes/ov/ov_04.html
+ * Ayesther example of a valid function that has yes ROM support is the use
  * of the alternate video page for page-flipping animation. Since there
- * is no ROM call to flip pages, it is necessary to go play with the
+ * is yes ROM call to flip pages, it is necessary to go play with the
  * right bit in the VIA chip (6522 Versatile Interface Adapter).
- * [CSA: don't know which one this is, but it's one of 'em!]
+ * [CSA: don't kyesw which one this is, but it's one of 'em!]
  */
 
 /*
@@ -212,12 +212,12 @@
 			 * In fact we need to initialize it once at start. */
 #define vIFR	0x1a00  /* [VIA/RBV]  Interrupt flag register. */
 #define vIER	0x1c00  /* [VIA/RBV]  Interrupt enable register. */
-#define vBufA	0x1e00  /* [VIA/RBV] register A (no handshake) */
+#define vBufA	0x1e00  /* [VIA/RBV] register A (yes handshake) */
 
 /* The RBV only decodes the bottom eight address lines; the VIA doesn't
  * decode the bottom eight -- so vBufB | rBufB will always get you BufB */
 /* CSA: in fact, only bits 0,1, and 4 seem to be decoded.
- * BUT note the values for rIER and rIFR, where the top 8 bits *do* seem
+ * BUT yeste the values for rIER and rIFR, where the top 8 bits *do* seem
  * to matter.  In fact *all* of the top 8 bits seem to matter;
  * setting rIER=0x1813 and rIFR=0x1803 doesn't work, either.
  * Perhaps some sort of 'compatibility mode' is built-in? [21-May-1999]

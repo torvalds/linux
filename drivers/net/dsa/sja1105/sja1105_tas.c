@@ -15,7 +15,7 @@
 #define tas_to_sja1105(d) \
 	container_of((d), struct sja1105_private, tas_data)
 
-/* This is not a preprocessor macro because the "ns" argument may or may not be
+/* This is yest a preprocessor macro because the "ns" argument may or may yest be
  * s64 at caller side. This ensures it is properly type-cast before div_s64.
  */
 static s64 ns_to_sja1105_delta(s64 ns)
@@ -31,9 +31,9 @@ static s64 sja1105_delta_to_ns(s64 delta)
 /* Calculate the first base_time in the future that satisfies this
  * relationship:
  *
- * future_base_time = base_time + N x cycle_time >= now, or
+ * future_base_time = base_time + N x cycle_time >= yesw, or
  *
- *      now - base_time
+ *      yesw - base_time
  * N >= ---------------
  *         cycle_time
  *
@@ -41,14 +41,14 @@ static s64 sja1105_delta_to_ns(s64 delta)
  * is in fact precisely the floor value of "(a + b - 1) / b", which is
  * easier to calculate only having integer division tools.
  */
-static s64 future_base_time(s64 base_time, s64 cycle_time, s64 now)
+static s64 future_base_time(s64 base_time, s64 cycle_time, s64 yesw)
 {
 	s64 a, b, n;
 
-	if (base_time >= now)
+	if (base_time >= yesw)
 		return base_time;
 
-	a = now - base_time;
+	a = yesw - base_time;
 	b = cycle_time;
 	n = div_s64(a + b - 1, b);
 
@@ -92,7 +92,7 @@ static int sja1105_tas_set_runtime_params(struct sja1105_private *priv)
 	/* Roll the earliest base time over until it is in a comparable
 	 * time base with the latest, then compare their deltas.
 	 * We want to enforce that all ports' base times are within
-	 * SJA1105_TAS_MAX_DELTA 200ns cycles of one another.
+	 * SJA1105_TAS_MAX_DELTA 200ns cycles of one ayesther.
 	 */
 	earliest_base_time = future_base_time(earliest_base_time,
 					      its_cycle_time,
@@ -310,7 +310,7 @@ static int sja1105_init_scheduling(struct sja1105_private *priv)
 				       tas_data->earliest_base_time);
 		rbt -= tas_data->earliest_base_time;
 		/* UM10944.pdf 4.2.2. Schedule Entry Points table says that
-		 * delta cannot be zero, which is shitty. Advance all relative
+		 * delta canyest be zero, which is shitty. Advance all relative
 		 * base times by 1 TAS delta, so that even the earliest base
 		 * time becomes 1 in relative terms. Then start the operational
 		 * base time (PTPSCHTM) one TAS delta earlier than planned.
@@ -322,7 +322,7 @@ static int sja1105_init_scheduling(struct sja1105_private *priv)
 		schedule_entry_points[cycle].address = schedule_start_idx;
 
 		/* The subschedule end indices need to be
-		 * monotonically increasing.
+		 * moyestonically increasing.
 		 */
 		for (i = cycle; i < 8; i++)
 			schedule_params->subscheind[i] = schedule_end_idx;
@@ -345,12 +345,12 @@ static int sja1105_init_scheduling(struct sja1105_private *priv)
 /* Be there 2 port subschedules, each executing an arbitrary number of gate
  * open/close events cyclically.
  * None of those gate events must ever occur at the exact same time, otherwise
- * the switch is known to act in exotically strange ways.
+ * the switch is kyeswn to act in exotically strange ways.
  * However the hardware doesn't bother performing these integrity checks.
  * So here we are with the task of validating whether the new @admin offload
  * has any conflict with the already established TAS configuration in
- * tas_data->offload.  We already know the other ports are in harmony with one
- * another, otherwise we wouldn't have saved them.
+ * tas_data->offload.  We already kyesw the other ports are in harmony with one
+ * ayesther, otherwise we wouldn't have saved them.
  * Each gate event executes periodically, with a period of @cycle_time and a
  * phase given by its cycle's @base_time plus its offset within the cycle
  * (which in turn is given by the length of the events prior to it).
@@ -358,9 +358,9 @@ static int sja1105_init_scheduling(struct sja1105_private *priv)
  * - Collisions within one cycle's (actually the longest cycle's) time frame.
  *   For that, we need to compare the cartesian product of each possible
  *   occurrence of each event within one cycle time.
- * - Collisions in the future. Events may not collide within one cycle time,
+ * - Collisions in the future. Events may yest collide within one cycle time,
  *   but if two port schedules don't have the same periodicity (aka the cycle
- *   times aren't multiples of one another), they surely will some time in the
+ *   times aren't multiples of one ayesther), they surely will some time in the
  *   future (actually they will collide an infinite amount of times).
  */
 static bool
@@ -381,7 +381,7 @@ sja1105_tas_check_conflicts(struct sja1105_private *priv, int port,
 	if (!offload)
 		return false;
 
-	/* Check if the two cycle times are multiples of one another.
+	/* Check if the two cycle times are multiples of one ayesther.
 	 * If they aren't, then they will surely collide.
 	 */
 	max_cycle_time = max(offload->cycle_time, admin->cycle_time);
@@ -527,7 +527,7 @@ static int sja1105_tas_check_running(struct sja1105_private *priv)
 		/* Schedule is stopped */
 		tas_data->state = SJA1105_TAS_STATE_DISABLED;
 	else
-		/* Schedule is probably not configured with PTP clock source */
+		/* Schedule is probably yest configured with PTP clock source */
 		rc = -EINVAL;
 
 	return rc;
@@ -632,9 +632,9 @@ static int sja1105_tas_stop(struct sja1105_private *priv)
  * period to be an integer multiple of the schedule length. Preferably one.
  * In case there are schedules of multiple ports active, then the correction
  * period needs to be a multiple of them all. Given the restriction that the
- * cycle times have to be multiples of one another anyway, this means the
+ * cycle times have to be multiples of one ayesther anyway, this means the
  * correction period can simply be the largest cycle time, hence the current
- * choice. This way, the updates are always synchronous to the transmission
+ * choice. This way, the updates are always synchroyesus to the transmission
  * cycle, and therefore predictable.
  *
  * The second implication is that at the beginning of a correction period, the
@@ -645,7 +645,7 @@ static int sja1105_tas_stop(struct sja1105_private *priv)
  *
  * The third implication is that once the schedule engine is started, it can
  * only adjust for so much drift within a correction period. In the servo you
- * can only change the PTPCLKRATE, but not step the clock (PTPCLKADD). If you
+ * can only change the PTPCLKRATE, but yest step the clock (PTPCLKADD). If you
  * want to do the latter, you need to stop and restart the schedule engine,
  * which is what the state machine handles.
  */
@@ -654,10 +654,10 @@ static void sja1105_tas_state_machine(struct work_struct *work)
 	struct sja1105_tas_data *tas_data = work_to_sja1105_tas(work);
 	struct sja1105_private *priv = tas_to_sja1105(tas_data);
 	struct sja1105_ptp_data *ptp_data = &priv->ptp_data;
-	struct timespec64 base_time_ts, now_ts;
+	struct timespec64 base_time_ts, yesw_ts;
 	struct dsa_switch *ds = priv->ds;
 	struct timespec64 diff;
-	s64 base_time, now;
+	s64 base_time, yesw;
 	int rc = 0;
 
 	mutex_lock(&ptp_data->lock);
@@ -672,7 +672,7 @@ static void sja1105_tas_state_machine(struct work_struct *work)
 		if (rc < 0)
 			break;
 
-		rc = __sja1105_ptp_gettimex(ds, &now, NULL);
+		rc = __sja1105_ptp_gettimex(ds, &yesw, NULL);
 		if (rc < 0)
 			break;
 
@@ -681,13 +681,13 @@ static void sja1105_tas_state_machine(struct work_struct *work)
 		 * entry points delta.
 		 * Try our best to avoid fringe cases (race condition between
 		 * ptpschtm and ptpstrtsch) by pushing the oper_base_time at
-		 * least one second in the future from now. This is not ideal,
+		 * least one second in the future from yesw. This is yest ideal,
 		 * but this only needs to buy us time until the
 		 * sja1105_tas_start command below gets executed.
 		 */
 		base_time = future_base_time(tas_data->earliest_base_time,
 					     tas_data->max_cycle_time,
-					     now + 1ull * NSEC_PER_SEC);
+					     yesw + 1ull * NSEC_PER_SEC);
 		base_time -= sja1105_delta_to_ns(1);
 
 		rc = sja1105_tas_set_base_time(priv, base_time);
@@ -701,11 +701,11 @@ static void sja1105_tas_state_machine(struct work_struct *work)
 			break;
 
 		base_time_ts = ns_to_timespec64(base_time);
-		now_ts = ns_to_timespec64(now);
+		yesw_ts = ns_to_timespec64(yesw);
 
-		dev_dbg(ds->dev, "OPER base time %lld.%09ld (now %lld.%09ld)\n",
+		dev_dbg(ds->dev, "OPER base time %lld.%09ld (yesw %lld.%09ld)\n",
 			base_time_ts.tv_sec, base_time_ts.tv_nsec,
-			now_ts.tv_sec, now_ts.tv_nsec);
+			yesw_ts.tv_sec, yesw_ts.tv_nsec);
 
 		break;
 
@@ -719,13 +719,13 @@ static void sja1105_tas_state_machine(struct work_struct *work)
 		/* Check if TAS has actually started, by comparing the
 		 * scheduled start time with the SJA1105 PTP clock
 		 */
-		rc = __sja1105_ptp_gettimex(ds, &now, NULL);
+		rc = __sja1105_ptp_gettimex(ds, &yesw, NULL);
 		if (rc < 0)
 			break;
 
-		if (now < tas_data->oper_base_time) {
-			/* TAS has not started yet */
-			diff = ns_to_timespec64(tas_data->oper_base_time - now);
+		if (yesw < tas_data->oper_base_time) {
+			/* TAS has yest started yet */
+			diff = ns_to_timespec64(tas_data->oper_base_time - yesw);
 			dev_dbg(ds->dev, "time to start: [%lld.%09ld]",
 				diff.tv_sec, diff.tv_nsec);
 			break;
@@ -739,7 +739,7 @@ static void sja1105_tas_state_machine(struct work_struct *work)
 		if (tas_data->state != SJA1105_TAS_STATE_RUNNING)
 			/* TAS has started */
 			dev_err(ds->dev,
-				"TAS not started despite time elapsed\n");
+				"TAS yest started despite time elapsed\n");
 
 		break;
 
@@ -790,7 +790,7 @@ void sja1105_tas_adjfreq(struct dsa_switch *ds)
 	if (!tas_data->enabled)
 		return;
 
-	/* No reason to schedule the workqueue, nothing changed */
+	/* No reason to schedule the workqueue, yesthing changed */
 	if (tas_data->state == SJA1105_TAS_STATE_RUNNING)
 		return;
 

@@ -31,11 +31,11 @@
  *		can be found (optional)
  * @old_func:	pointer to the function being patched
  * @kobj:	kobject for sysfs resources
- * @node:	list node for klp_object func_list
- * @stack_node:	list node for klp_ops func_stack list
+ * @yesde:	list yesde for klp_object func_list
+ * @stack_yesde:	list yesde for klp_ops func_stack list
  * @old_size:	size of the old function
  * @new_size:	size of the new function
- * @nop:        temporary patch to use the original code again; dyn. allocated
+ * @yesp:        temporary patch to use the original code again; dyn. allocated
  * @patched:	the func has been added to the klp_ops list
  * @transition:	the func is currently being applied or reverted
  *
@@ -70,10 +70,10 @@ struct klp_func {
 	/* internal */
 	void *old_func;
 	struct kobject kobj;
-	struct list_head node;
-	struct list_head stack_node;
+	struct list_head yesde;
+	struct list_head stack_yesde;
 	unsigned long old_size, new_size;
-	bool nop;
+	bool yesp;
 	bool patched;
 	bool transition;
 };
@@ -91,8 +91,8 @@ struct klp_object;
  *
  * All callbacks are optional.  Only the pre-patch callback, if provided,
  * will be unconditionally executed.  If the parent klp_object fails to
- * patch for any reason, including a non-zero error status returned from
- * the pre-patch callback, no further callbacks will be executed.
+ * patch for any reason, including a yesn-zero error status returned from
+ * the pre-patch callback, yes further callbacks will be executed.
  */
 struct klp_callbacks {
 	int (*pre_patch)(struct klp_object *obj);
@@ -109,10 +109,10 @@ struct klp_callbacks {
  * @callbacks:	functions to be executed pre/post (un)patching
  * @kobj:	kobject for sysfs resources
  * @func_list:	dynamic list of the function entries
- * @node:	list node for klp_patch obj_list
+ * @yesde:	list yesde for klp_patch obj_list
  * @mod:	kernel module associated with the patched object
  *		(NULL for vmlinux)
- * @dynamic:    temporary object for nop functions; dynamically allocated
+ * @dynamic:    temporary object for yesp functions; dynamically allocated
  * @patched:	the object's funcs have been added to the klp_ops list
  */
 struct klp_object {
@@ -124,7 +124,7 @@ struct klp_object {
 	/* internal */
 	struct kobject kobj;
 	struct list_head func_list;
-	struct list_head node;
+	struct list_head yesde;
 	struct module *mod;
 	bool dynamic;
 	bool patched;
@@ -132,7 +132,7 @@ struct klp_object {
 
 /**
  * struct klp_state - state of the system modified by the livepatch
- * @id:		system state identifier (non-zero)
+ * @id:		system state identifier (yesn-zero)
  * @version:	version of the change
  * @data:	custom data
  */
@@ -148,7 +148,7 @@ struct klp_state {
  * @objs:	object entries for kernel objects to be patched
  * @states:	system states that can get modified
  * @replace:	replace all actively used patches
- * @list:	list node for global list of actively used patches
+ * @list:	list yesde for global list of actively used patches
  * @kobj:	kobject for sysfs resources
  * @obj_list:	dynamic list of the object entries
  * @enabled:	the patch is enabled (but operation may be incomplete)
@@ -177,10 +177,10 @@ struct klp_patch {
 	for (obj = patch->objs; obj->funcs || obj->name; obj++)
 
 #define klp_for_each_object_safe(patch, obj, tmp_obj)		\
-	list_for_each_entry_safe(obj, tmp_obj, &patch->obj_list, node)
+	list_for_each_entry_safe(obj, tmp_obj, &patch->obj_list, yesde)
 
 #define klp_for_each_object(patch, obj)	\
-	list_for_each_entry(obj, &patch->obj_list, node)
+	list_for_each_entry(obj, &patch->obj_list, yesde)
 
 #define klp_for_each_func_static(obj, func) \
 	for (func = obj->funcs; \
@@ -188,10 +188,10 @@ struct klp_patch {
 	     func++)
 
 #define klp_for_each_func_safe(obj, func, tmp_func)			\
-	list_for_each_entry_safe(func, tmp_func, &obj->func_list, node)
+	list_for_each_entry_safe(func, tmp_func, &obj->func_list, yesde)
 
 #define klp_for_each_func(obj, func)	\
-	list_for_each_entry(func, &obj->func_list, node)
+	list_for_each_entry(func, &obj->func_list, yesde)
 
 int klp_enable_patch(struct klp_patch *);
 

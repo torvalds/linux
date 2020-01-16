@@ -5,7 +5,7 @@ Required properties:
 - reg:			: The I2C slave address for the STPMIC1 chip.
 - interrupts:		: The interrupt line the device is connected to.
 - #interrupt-cells:	: Should be 1.
-- interrupt-controller:	: Marks the device node as an interrupt controller.
+- interrupt-controller:	: Marks the device yesde as an interrupt controller.
 			    Interrupt numbers are defined at
 			    dt-bindings/mfd/st,stpmic1.h.
 

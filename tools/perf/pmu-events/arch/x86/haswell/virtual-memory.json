@@ -59,7 +59,7 @@
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
     {
-        "PublicDescription": "This event counts load operations from a 4K page that miss the first DTLB level but hit the second and do not cause page walks.",
+        "PublicDescription": "This event counts load operations from a 4K page that miss the first DTLB level but hit the second and do yest cause page walks.",
         "EventCode": "0x08",
         "Counter": "0,1,2,3",
         "UMask": "0x20",
@@ -69,7 +69,7 @@
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
     {
-        "PublicDescription": "This event counts load operations from a 2M page that miss the first DTLB level but hit the second and do not cause page walks.",
+        "PublicDescription": "This event counts load operations from a 2M page that miss the first DTLB level but hit the second and do yest cause page walks.",
         "EventCode": "0x08",
         "Counter": "0,1,2,3",
         "UMask": "0x40",
@@ -85,7 +85,7 @@
         "UMask": "0x60",
         "EventName": "DTLB_LOAD_MISSES.STLB_HIT",
         "SampleAfterValue": "2000003",
-        "BriefDescription": "Load operations that miss the first DTLB level but hit the second and do not cause page walks",
+        "BriefDescription": "Load operations that miss the first DTLB level but hit the second and do yest cause page walks",
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
     {
@@ -158,7 +158,7 @@
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
     {
-        "PublicDescription": "This event counts store operations from a 4K page that miss the first DTLB level but hit the second and do not cause page walks.",
+        "PublicDescription": "This event counts store operations from a 4K page that miss the first DTLB level but hit the second and do yest cause page walks.",
         "EventCode": "0x49",
         "Counter": "0,1,2,3",
         "UMask": "0x20",
@@ -168,7 +168,7 @@
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
     {
-        "PublicDescription": "This event counts store operations from a 2M page that miss the first DTLB level but hit the second and do not cause page walks.",
+        "PublicDescription": "This event counts store operations from a 2M page that miss the first DTLB level but hit the second and do yest cause page walks.",
         "EventCode": "0x49",
         "Counter": "0,1,2,3",
         "UMask": "0x40",
@@ -178,13 +178,13 @@
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
     {
-        "PublicDescription": "Store operations that miss the first TLB level but hit the second and do not cause page walks.",
+        "PublicDescription": "Store operations that miss the first TLB level but hit the second and do yest cause page walks.",
         "EventCode": "0x49",
         "Counter": "0,1,2,3",
         "UMask": "0x60",
         "EventName": "DTLB_STORE_MISSES.STLB_HIT",
         "SampleAfterValue": "100003",
-        "BriefDescription": "Store operations that miss the first TLB level but hit the second and do not cause page walks",
+        "BriefDescription": "Store operations that miss the first TLB level but hit the second and do yest cause page walks",
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
     {
@@ -292,7 +292,7 @@
         "UMask": "0x60",
         "EventName": "ITLB_MISSES.STLB_HIT",
         "SampleAfterValue": "100003",
-        "BriefDescription": "Operations that miss the first ITLB level but hit the second and do not cause any page walks",
+        "BriefDescription": "Operations that miss the first ITLB level but hit the second and do yest cause any page walks",
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
     {

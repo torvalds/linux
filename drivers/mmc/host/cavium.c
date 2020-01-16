@@ -43,7 +43,7 @@ const char *cvm_mmc_irq_names[] = {
 /*
  * The Cavium MMC host hardware assumes that all commands have fixed
  * command and response types.  These are correct if MMC devices are
- * being used.  However, non-MMC devices like SD use command and
+ * being used.  However, yesn-MMC devices like SD use command and
  * response types that are unexpected by the host hardware.
  *
  * The command and response types can be overridden by supplying an
@@ -267,7 +267,7 @@ static void cvm_mmc_reset_bus(struct cvm_mmc_slot *slot)
 	writeq(wdog, slot->host->base + MIO_EMM_WDOG(host));
 }
 
-/* Switch to another slot if needed */
+/* Switch to ayesther slot if needed */
 static void cvm_mmc_switch_to(struct cvm_mmc_slot *slot)
 {
 	struct cvm_mmc_host *host = slot->host;
@@ -481,13 +481,13 @@ irqreturn_t cvm_mmc_interrupt(int irq, void *dev_id)
 		    emm_int & MIO_EMM_INT_DMA_ERR;
 
 	if (!(host_done && req->done))
-		goto no_req_done;
+		goto yes_req_done;
 
 	req->cmd->error = check_status(rsp_sts);
 
 	if (host->dma_active && req->data)
 		if (!finish_dma(host, req->data))
-			goto no_req_done;
+			goto yes_req_done;
 
 	set_cmd_response(host, req, rsp_sts);
 	if ((emm_int & MIO_EMM_INT_DMA_ERR) &&
@@ -497,7 +497,7 @@ irqreturn_t cvm_mmc_interrupt(int irq, void *dev_id)
 	host->current_req = NULL;
 	req->done(req);
 
-no_req_done:
+yes_req_done:
 	if (host->dmar_fixup_done)
 		host->dmar_fixup_done(host);
 	if (host_done)
@@ -575,7 +575,7 @@ static u64 prepare_dma_sg(struct cvm_mmc_host *host, struct mmc_data *data)
 
 		/*
 		 * If we have scatter-gather support we also have an extra
-		 * register for the DMA addr, so no need to check
+		 * register for the DMA addr, so yes need to check
 		 * host->big_dma_addr here.
 		 */
 		rw = (data->flags & MMC_DATA_WRITE) ? 1 : 0;
@@ -601,9 +601,9 @@ static u64 prepare_dma_sg(struct cvm_mmc_host *host, struct mmc_data *data)
 
 	/*
 	 * In difference to prepare_dma_single we don't return the
-	 * address here, as it would not make sense for scatter-gather.
+	 * address here, as it would yest make sense for scatter-gather.
 	 * The dma fixup is only required on models that don't support
-	 * scatter-gather, so that is not a problem.
+	 * scatter-gather, so that is yest a problem.
 	 */
 	return 1;
 
@@ -658,7 +658,7 @@ static void cvm_mmc_dma_request(struct mmc_host *mmc,
 	if (!mrq->data || !mrq->data->sg || !mrq->data->sg_len ||
 	    !mrq->stop || mrq->stop->opcode != MMC_STOP_TRANSMISSION) {
 		dev_err(&mmc->card->dev,
-			"Error: cmv_mmc_dma_request no data\n");
+			"Error: cmv_mmc_dma_request yes data\n");
 		goto error;
 	}
 
@@ -951,19 +951,19 @@ static int cvm_mmc_init_lowlevel(struct cvm_mmc_slot *slot)
 static int cvm_mmc_of_parse(struct device *dev, struct cvm_mmc_slot *slot)
 {
 	u32 id, cmd_skew = 0, dat_skew = 0, bus_width = 0;
-	struct device_node *node = dev->of_node;
+	struct device_yesde *yesde = dev->of_yesde;
 	struct mmc_host *mmc = slot->mmc;
 	u64 clock_period;
 	int ret;
 
-	ret = of_property_read_u32(node, "reg", &id);
+	ret = of_property_read_u32(yesde, "reg", &id);
 	if (ret) {
-		dev_err(dev, "Missing or invalid reg property on %pOF\n", node);
+		dev_err(dev, "Missing or invalid reg property on %pOF\n", yesde);
 		return ret;
 	}
 
 	if (id >= CAVIUM_MAX_MMC || slot->host->slot[id]) {
-		dev_err(dev, "Invalid reg property on %pOF\n", node);
+		dev_err(dev, "Invalid reg property on %pOF\n", yesde);
 		return -EINVAL;
 	}
 
@@ -971,7 +971,7 @@ static int cvm_mmc_of_parse(struct device *dev, struct cvm_mmc_slot *slot)
 	if (ret)
 		return ret;
 	/*
-	 * Legacy Octeon firmware has no regulator entry, fall-back to
+	 * Legacy Octeon firmware has yes regulator entry, fall-back to
 	 * a hard-coded voltage to get a sane OCR.
 	 */
 	if (IS_ERR(mmc->supply.vmmc))
@@ -984,7 +984,7 @@ static int cvm_mmc_of_parse(struct device *dev, struct cvm_mmc_slot *slot)
 
 	/* Set bus width */
 	if (!(mmc->caps & (MMC_CAP_8_BIT_DATA | MMC_CAP_4_BIT_DATA))) {
-		of_property_read_u32(node, "cavium,bus-max-width", &bus_width);
+		of_property_read_u32(yesde, "cavium,bus-max-width", &bus_width);
 		if (bus_width == 8)
 			mmc->caps |= MMC_CAP_8_BIT_DATA | MMC_CAP_4_BIT_DATA;
 		else if (bus_width == 4)
@@ -993,15 +993,15 @@ static int cvm_mmc_of_parse(struct device *dev, struct cvm_mmc_slot *slot)
 
 	/* Set maximum and minimum frequency */
 	if (!mmc->f_max)
-		of_property_read_u32(node, "spi-max-frequency", &mmc->f_max);
+		of_property_read_u32(yesde, "spi-max-frequency", &mmc->f_max);
 	if (!mmc->f_max || mmc->f_max > 52000000)
 		mmc->f_max = 52000000;
 	mmc->f_min = 400000;
 
 	/* Sampling register settings, period in picoseconds */
 	clock_period = 1000000000000ull / slot->host->sys_freq;
-	of_property_read_u32(node, "cavium,cmd-clk-skew", &cmd_skew);
-	of_property_read_u32(node, "cavium,dat-clk-skew", &dat_skew);
+	of_property_read_u32(yesde, "cavium,cmd-clk-skew", &cmd_skew);
+	of_property_read_u32(yesde, "cavium,dat-clk-skew", &dat_skew);
 	slot->cmd_cnt = (cmd_skew + clock_period / 2) / clock_period;
 	slot->dat_cnt = (dat_skew + clock_period / 2) / clock_period;
 
@@ -1031,7 +1031,7 @@ int cvm_mmc_of_slot_probe(struct device *dev, struct cvm_mmc_host *host)
 	mmc->ops = &cvm_mmc_ops;
 
 	/*
-	 * We only have a 3.3v supply, we cannot support any
+	 * We only have a 3.3v supply, we canyest support any
 	 * of the UHS modes. We do support the high speed DDR
 	 * modes up to 52MHz.
 	 *

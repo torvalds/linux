@@ -229,7 +229,7 @@ EXPORT_SYMBOL_GPL(snd_hdac_bus_update_rirb);
  * snd_hdac_bus_get_response - receive a response via RIRB
  * @bus: HD-audio core bus
  * @addr: codec address
- * @res: pointer to store the value, NULL when not needed
+ * @res: pointer to store the value, NULL when yest needed
  *
  * Returns zero if a value is read, or a negative error code.
  */
@@ -326,7 +326,7 @@ int snd_hdac_bus_parse_capabilities(struct hdac_bus *bus)
 			break;
 
 		default:
-			dev_err(bus->dev, "Unknown capability %d\n", cur_cap);
+			dev_err(bus->dev, "Unkyeswn capability %d\n", cur_cap);
 			cur_cap = 0;
 			break;
 		}
@@ -415,7 +415,7 @@ int snd_hdac_bus_reset_link(struct hdac_bus *bus, bool full_reset)
  skip_reset:
 	/* check to see if controller is ready */
 	if (!snd_hdac_chip_readb(bus, GCTL)) {
-		dev_dbg(bus->dev, "controller not ready!\n");
+		dev_dbg(bus->dev, "controller yest ready!\n");
 		return -EBUSY;
 	}
 
@@ -538,7 +538,7 @@ EXPORT_SYMBOL_GPL(snd_hdac_bus_stop_chip);
  * @status: INTSTS register value
  * @ask: callback to be called for woken streams
  *
- * Returns the bits of handled streams, or zero if no stream is handled.
+ * Returns the bits of handled streams, or zero if yes stream is handled.
  */
 int snd_hdac_bus_handle_stream_irq(struct hdac_bus *bus, unsigned int status,
 				    void (*ack)(struct hdac_bus *,

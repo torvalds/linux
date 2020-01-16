@@ -113,7 +113,7 @@ struct battery_thresh sharpsl_battery_levels_acin[] = {
 	{   0,   0},
 };
 
-struct battery_thresh sharpsl_battery_levels_noac[] = {
+struct battery_thresh sharpsl_battery_levels_yesac[] = {
 	{ 213, 100},
 	{ 212,  98},
 	{ 211,  95},
@@ -170,7 +170,7 @@ extern int max1111_read_channel(int);
  */
 int sharpsl_pm_pxa_read_max1111(int channel)
 {
-	/* Ugly, better move this function into another module */
+	/* Ugly, better move this function into ayesther module */
 	if (machine_is_tosa())
 	    return 0;
 
@@ -189,7 +189,7 @@ static int get_percentage(int voltage)
 	if (sharpsl_pm.charge_mode == CHRG_ON)
 		thresh = bl_status ? sharpsl_pm.machinfo->bat_levels_acin_bl : sharpsl_pm.machinfo->bat_levels_acin;
 	else
-		thresh = bl_status ? sharpsl_pm.machinfo->bat_levels_noac_bl : sharpsl_pm.machinfo->bat_levels_noac;
+		thresh = bl_status ? sharpsl_pm.machinfo->bat_levels_yesac_bl : sharpsl_pm.machinfo->bat_levels_yesac;
 
 	while (i > 0 && (voltage > thresh[i].voltage))
 		i--;
@@ -205,8 +205,8 @@ static int get_apm_status(int voltage)
 		high_thresh = sharpsl_pm.machinfo->status_high_acin;
 		low_thresh = sharpsl_pm.machinfo->status_low_acin;
 	} else {
-		high_thresh = sharpsl_pm.machinfo->status_high_noac;
-		low_thresh = sharpsl_pm.machinfo->status_low_noac;
+		high_thresh = sharpsl_pm.machinfo->status_high_yesac;
+		low_thresh = sharpsl_pm.machinfo->status_low_yesac;
 	}
 
 	if (voltage >= high_thresh)
@@ -232,7 +232,7 @@ static void sharpsl_battery_thread(struct work_struct *private_)
 
 	sharpsl_pm.battstat.ac_status = (sharpsl_pm.machinfo->read_devdata(SHARPSL_STATUS_ACIN) ? APM_AC_ONLINE : APM_AC_OFFLINE);
 
-	/* Corgi cannot confirm when battery fully charged so periodically kick! */
+	/* Corgi canyest confirm when battery fully charged so periodically kick! */
 	if (!sharpsl_pm.machinfo->batfull_irq && (sharpsl_pm.charge_mode == CHRG_ON)
 			&& time_after(jiffies, sharpsl_pm.charge_start_time +  SHARPSL_CHARGE_ON_TIME_INTERVAL))
 		schedule_delayed_work(&toggle_charger, 0);
@@ -243,8 +243,8 @@ static void sharpsl_battery_thread(struct work_struct *private_)
 			break;
 	}
 	if (voltage <= 0) {
-		voltage = sharpsl_pm.machinfo->bat_levels_noac[0].voltage;
-		dev_warn(sharpsl_pm.dev, "Warning: Cannot read main battery!\n");
+		voltage = sharpsl_pm.machinfo->bat_levels_yesac[0].voltage;
+		dev_warn(sharpsl_pm.dev, "Warning: Canyest read main battery!\n");
 	}
 
 	voltage = sharpsl_average_value(voltage);
@@ -404,7 +404,7 @@ static irqreturn_t sharpsl_fatal_isr(int irq, void *dev_id)
 	int is_fatal = 0;
 
 	if (!sharpsl_pm.machinfo->read_devdata(SHARPSL_STATUS_LOCK)) {
-		dev_err(sharpsl_pm.dev, "Battery now Unlocked! Suspending.\n");
+		dev_err(sharpsl_pm.dev, "Battery yesw Unlocked! Suspending.\n");
 		is_fatal = 1;
 	}
 
@@ -601,7 +601,7 @@ static void corgi_goto_sleep(unsigned long alarm_time, unsigned int alarm_enable
 	dev_dbg(sharpsl_pm.dev, "Time is: %08x\n", RCNR);
 
 	dev_dbg(sharpsl_pm.dev, "Offline Charge Activate = %d\n", sharpsl_pm.flags & SHARPSL_DO_OFFLINE_CHRG);
-	/* not charging and AC-IN! */
+	/* yest charging and AC-IN! */
 
 	if ((sharpsl_pm.flags & SHARPSL_DO_OFFLINE_CHRG) && (sharpsl_pm.machinfo->read_devdata(SHARPSL_STATUS_ACIN))) {
 		dev_dbg(sharpsl_pm.dev, "Activating Offline Charger...\n");
@@ -639,7 +639,7 @@ static int corgi_enter_suspend(unsigned long alarm_time, unsigned int alarm_enab
 {
 	if (!sharpsl_pm.machinfo->should_wakeup(!(sharpsl_pm.flags & SHARPSL_ALARM_ACTIVE) && alarm_enable)) {
 		if (!(sharpsl_pm.flags & SHARPSL_ALARM_ACTIVE)) {
-			dev_dbg(sharpsl_pm.dev, "No user triggered wakeup events and not charging. Strange. Suspend.\n");
+			dev_dbg(sharpsl_pm.dev, "No user triggered wakeup events and yest charging. Strange. Suspend.\n");
 			corgi_goto_sleep(alarm_time, alarm_enable, state);
 			return 1;
 		}
@@ -855,18 +855,18 @@ static int sharpsl_pm_probe(struct platform_device *pdev)
 	/* Register interrupt handlers */
 	irq = gpio_to_irq(sharpsl_pm.machinfo->gpio_acin);
 	if (request_irq(irq, sharpsl_ac_isr, IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING, "AC Input Detect", sharpsl_ac_isr)) {
-		dev_err(sharpsl_pm.dev, "Could not get irq %d.\n", irq);
+		dev_err(sharpsl_pm.dev, "Could yest get irq %d.\n", irq);
 	}
 
 	irq = gpio_to_irq(sharpsl_pm.machinfo->gpio_batlock);
 	if (request_irq(irq, sharpsl_fatal_isr, IRQF_TRIGGER_FALLING, "Battery Cover", sharpsl_fatal_isr)) {
-		dev_err(sharpsl_pm.dev, "Could not get irq %d.\n", irq);
+		dev_err(sharpsl_pm.dev, "Could yest get irq %d.\n", irq);
 	}
 
 	if (sharpsl_pm.machinfo->gpio_fatal) {
 		irq = gpio_to_irq(sharpsl_pm.machinfo->gpio_fatal);
 		if (request_irq(irq, sharpsl_fatal_isr, IRQF_TRIGGER_FALLING, "Fatal Battery", sharpsl_fatal_isr)) {
-			dev_err(sharpsl_pm.dev, "Could not get irq %d.\n", irq);
+			dev_err(sharpsl_pm.dev, "Could yest get irq %d.\n", irq);
 		}
 	}
 
@@ -874,7 +874,7 @@ static int sharpsl_pm_probe(struct platform_device *pdev)
 		/* Register interrupt handler. */
 		irq = gpio_to_irq(sharpsl_pm.machinfo->gpio_batfull);
 		if (request_irq(irq, sharpsl_chrg_full_isr, IRQF_TRIGGER_RISING, "CO", sharpsl_chrg_full_isr)) {
-			dev_err(sharpsl_pm.dev, "Could not get irq %d.\n", irq);
+			dev_err(sharpsl_pm.dev, "Could yest get irq %d.\n", irq);
 		}
 	}
 

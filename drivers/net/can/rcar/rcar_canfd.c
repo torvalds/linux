@@ -9,14 +9,14 @@
  *  - Classical CAN (CAN 2.0) only mode
  *
  * This driver puts the controller in CAN FD only mode by default. In this
- * mode, the controller acts as a CAN FD node that can also interoperate with
- * CAN 2.0 nodes.
+ * mode, the controller acts as a CAN FD yesde that can also interoperate with
+ * CAN 2.0 yesdes.
  *
  * To switch the controller to Classical CAN (CAN 2.0) only mode, add
- * "renesas,no-can-fd" optional property to the device tree node. A h/w reset is
+ * "renesas,yes-can-fd" optional property to the device tree yesde. A h/w reset is
  * also required to switch modes.
  *
- * Note: The h/w manual register naming convention is clumsy and not acceptable
+ * Note: The h/w manual register naming convention is clumsy and yest acceptable
  * to use as it is in the driver. However, those names are added as comments
  * wherever it is modified to a readable name.
  */
@@ -26,7 +26,7 @@
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/interrupt.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/netdevice.h>
 #include <linux/platform_device.h>
 #include <linux/can/led.h>
@@ -515,8 +515,8 @@ struct rcar_canfd_global {
 	bool fdmode;			/* CAN FD or Classical CAN only mode */
 };
 
-/* CAN FD mode nominal rate constants */
-static const struct can_bittiming_const rcar_canfd_nom_bittiming_const = {
+/* CAN FD mode yesminal rate constants */
+static const struct can_bittiming_const rcar_canfd_yesm_bittiming_const = {
 	.name = RCANFD_DRV_NAME,
 	.tseg1_min = 2,
 	.tseg1_max = 128,
@@ -741,7 +741,7 @@ static void rcar_canfd_configure_afl_rules(struct rcar_canfd_global *gpriv,
 
 	/* Accept all IDs */
 	rcar_canfd_write(gpriv->base, RCANFD_GAFLID(offset, start), 0);
-	/* IDE or RTR is not considered for matching */
+	/* IDE or RTR is yest considered for matching */
 	rcar_canfd_write(gpriv->base, RCANFD_GAFLM(offset, start), 0);
 	/* Any data length accepted */
 	rcar_canfd_write(gpriv->base, RCANFD_GAFLP0(offset, start), 0);
@@ -1115,7 +1115,7 @@ static void rcar_canfd_state_change(struct net_device *ndev,
 	struct can_frame *cf;
 	struct sk_buff *skb;
 
-	/* Handle transition from error to normal states */
+	/* Handle transition from error to yesrmal states */
 	if (txerr < 96 && rxerr < 96)
 		state = CAN_STATE_ERROR_ACTIVE;
 	else if (txerr < 128 && rxerr < 128)
@@ -1578,7 +1578,7 @@ static int rcar_canfd_channel_probe(struct rcar_canfd_global *gpriv, u32 ch,
 	dev_info(&pdev->dev, "can_clk rate is %u\n", priv->can.clock.freq);
 
 	if (gpriv->fdmode) {
-		priv->can.bittiming_const = &rcar_canfd_nom_bittiming_const;
+		priv->can.bittiming_const = &rcar_canfd_yesm_bittiming_const;
 		priv->can.data_bittiming_const =
 			&rcar_canfd_data_bittiming_const;
 
@@ -1633,19 +1633,19 @@ static int rcar_canfd_probe(struct platform_device *pdev)
 	void __iomem *addr;
 	u32 sts, ch, fcan_freq;
 	struct rcar_canfd_global *gpriv;
-	struct device_node *of_child;
+	struct device_yesde *of_child;
 	unsigned long channels_mask = 0;
 	int err, ch_irq, g_irq;
 	bool fdmode = true;			/* CAN FD only mode - default */
 
-	if (of_property_read_bool(pdev->dev.of_node, "renesas,no-can-fd"))
+	if (of_property_read_bool(pdev->dev.of_yesde, "renesas,yes-can-fd"))
 		fdmode = false;			/* Classical CAN only mode */
 
-	of_child = of_get_child_by_name(pdev->dev.of_node, "channel0");
+	of_child = of_get_child_by_name(pdev->dev.of_yesde, "channel0");
 	if (of_child && of_device_is_available(of_child))
 		channels_mask |= BIT(0);	/* Channel 0 */
 
-	of_child = of_get_child_by_name(pdev->dev.of_node, "channel1");
+	of_child = of_get_child_by_name(pdev->dev.of_yesde, "channel1");
 	if (of_child && of_device_is_available(of_child))
 		channels_mask |= BIT(1);	/* Channel 1 */
 
@@ -1675,12 +1675,12 @@ static int rcar_canfd_probe(struct platform_device *pdev)
 	gpriv->clkp = devm_clk_get(&pdev->dev, "fck");
 	if (IS_ERR(gpriv->clkp)) {
 		err = PTR_ERR(gpriv->clkp);
-		dev_err(&pdev->dev, "cannot get peripheral clock, error %d\n",
+		dev_err(&pdev->dev, "canyest get peripheral clock, error %d\n",
 			err);
 		goto fail_dev;
 	}
 
-	/* fCAN clock: Pick External clock. If not available fallback to
+	/* fCAN clock: Pick External clock. If yest available fallback to
 	 * CANFD clock
 	 */
 	gpriv->can_clk = devm_clk_get(&pdev->dev, "can_clk");
@@ -1689,7 +1689,7 @@ static int rcar_canfd_probe(struct platform_device *pdev)
 		if (IS_ERR(gpriv->can_clk)) {
 			err = PTR_ERR(gpriv->can_clk);
 			dev_err(&pdev->dev,
-				"cannot get canfd clock, error %d\n", err);
+				"canyest get canfd clock, error %d\n", err);
 			goto fail_dev;
 		}
 		gpriv->fcan = RCANFD_CANFDCLK;

@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -32,7 +32,7 @@ nv41_timer_init(struct nvkm_timer *tmr)
 	u32 f = device->crystal;
 	u32 m = 1, n, d;
 
-	/* aim for 31.25MHz, which gives us nanosecond timestamps */
+	/* aim for 31.25MHz, which gives us nayessecond timestamps */
 	d = 1000000 / 32;
 	n = f;
 
@@ -60,7 +60,7 @@ nv41_timer_init(struct nvkm_timer *tmr)
 	nvkm_debug(subdev, "input frequency : %dHz\n", f);
 	nvkm_debug(subdev, "input multiplier: %d\n", m);
 	nvkm_debug(subdev, "numerator       : %08x\n", n);
-	nvkm_debug(subdev, "denominator     : %08x\n", d);
+	nvkm_debug(subdev, "deyesminator     : %08x\n", d);
 	nvkm_debug(subdev, "timer frequency : %dHz\n", (f * m) * d / n);
 
 	nvkm_wr32(device, 0x009220, m - 1);

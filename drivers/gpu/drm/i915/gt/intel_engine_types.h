@@ -85,7 +85,7 @@ struct intel_instdone {
  * struct i915_wa_ctx_bb:
  *  offset: specifies batch starting position, also helpful in case
  *    if we want to have multiple batches at different offsets based on
- *    some criteria. It is not a requirement at the moment but provides
+ *    some criteria. It is yest a requirement at the moment but provides
  *    an option for future use.
  *  size: size of the batch in DWORDS
  */
@@ -153,9 +153,9 @@ struct intel_engine_execlists {
 	struct i915_priolist default_priolist;
 
 	/**
-	 * @no_priolist: priority lists disabled
+	 * @yes_priolist: priority lists disabled
 	 */
-	bool no_priolist;
+	bool yes_priolist;
 
 	/**
 	 * @submit_reg: gen-specific execlist submission register
@@ -172,15 +172,15 @@ struct intel_engine_execlists {
 
 #define EXECLIST_MAX_PORTS 2
 	/**
-	 * @active: the currently known context executing on HW
+	 * @active: the currently kyeswn context executing on HW
 	 */
 	struct i915_request * const *active;
 	/**
-	 * @inflight: the set of contexts submitted and acknowleged by HW
+	 * @inflight: the set of contexts submitted and ackyeswleged by HW
 	 *
 	 * The set of inflight contexts is managed by reading CS events
-	 * from the HW. On a context-switch event (not preemption), we
-	 * know the HW has transitioned from port0 to port1, and we
+	 * from the HW. On a context-switch event (yest preemption), we
+	 * kyesw the HW has transitioned from port0 to port1, and we
 	 * advance our inflight/active tracking accordingly.
 	 */
 	struct i915_request *inflight[EXECLIST_MAX_PORTS + 1 /* sentinel */];
@@ -203,7 +203,7 @@ struct intel_engine_execlists {
 	 *
 	 * We submit multiple contexts to the HW simultaneously and would
 	 * like to occasionally switch between them to emulate timeslicing.
-	 * To know when timeslicing is suitable, we track the priority of
+	 * To kyesw when timeslicing is suitable, we track the priority of
 	 * the context submitted second.
 	 */
 	int switch_priority_hint;
@@ -217,7 +217,7 @@ struct intel_engine_execlists {
 	 * we need to preempt the executing requests to service the queue.
 	 * However, since the we may have recorded the priority of an inflight
 	 * request we wanted to preempt but since completed, at the time of
-	 * dequeuing the priority hint may no longer may match the highest
+	 * dequeuing the priority hint may yes longer may match the highest
 	 * available request priority.
 	 */
 	int queue_priority_hint;
@@ -284,7 +284,7 @@ struct intel_engine_cs {
 	unsigned int context_tag;
 #define NUM_CONTEXT_TAG roundup_pow_of_two(2 * EXECLIST_MAX_PORTS)
 
-	struct rb_node uabi_node;
+	struct rb_yesde uabi_yesde;
 
 	struct intel_sseu sseu;
 
@@ -318,18 +318,18 @@ struct intel_engine_cs {
 
 	/* Rather than have every client wait upon all user interrupts,
 	 * with the herd waking after every interrupt and each doing the
-	 * heavyweight seqno dance, we delegate the task (of being the
+	 * heavyweight seqyes dance, we delegate the task (of being the
 	 * bottom-half of the user interrupt) to the first client. After
 	 * every interrupt, we wake up one client, who does the heavyweight
-	 * coherent seqno read and either goes back to sleep (if incomplete),
+	 * coherent seqyes read and either goes back to sleep (if incomplete),
 	 * or wakes up all the completed clients in parallel, before then
 	 * transferring the bottom-half status to the next client in the queue.
 	 *
 	 * Compared to walking the entire list of waiters in a single dedicated
 	 * bottom-half, we reduce the latency of the first waiter by avoiding
-	 * a context switch, but incur additional coherent seqno reads when
+	 * a context switch, but incur additional coherent seqyes reads when
 	 * following the chain of request breadcrumbs. Since it is most likely
-	 * that we have a single client waiting on each seqno, then reducing
+	 * that we have a single client waiting on each seqyes, then reducing
 	 * the overhead of waking that client is much preferred.
 	 */
 	struct intel_breadcrumbs {
@@ -434,7 +434,7 @@ struct intel_engine_cs {
 	/*
 	 * Call when the priority on a request has changed and it and its
 	 * dependencies may need rescheduling. Note the request itself may
-	 * not be ready to run!
+	 * yest be ready to run!
 	 */
 	void		(*schedule)(struct i915_request *request,
 				    const struct i915_sched_attr *attr);
@@ -459,8 +459,8 @@ struct intel_engine_cs {
 	struct intel_timeline *retire;
 	struct work_struct retire_work;
 
-	/* status_notifier: list of callbacks for context-switch changes */
-	struct atomic_notifier_head context_status_notifier;
+	/* status_yestifier: list of callbacks for context-switch changes */
+	struct atomic_yestifier_head context_status_yestifier;
 
 #define I915_ENGINE_USING_CMD_PARSER BIT(0)
 #define I915_ENGINE_SUPPORTS_STATS   BIT(1)
@@ -473,7 +473,7 @@ struct intel_engine_cs {
 	unsigned int flags;
 
 	/*
-	 * Table of commands the command parser needs to know about
+	 * Table of commands the command parser needs to kyesw about
 	 * for this engine.
 	 */
 	DECLARE_HASHTABLE(cmd_hash, I915_CMD_HASH_ORDER);
@@ -490,7 +490,7 @@ struct intel_engine_cs {
 	 *
 	 * If the command parser finds an entry for a command in the engine's
 	 * cmd_tables, it gets the command's length based on the table entry.
-	 * If not, it calls this function to determine the per-engine length
+	 * If yest, it calls this function to determine the per-engine length
 	 * field encoding for the command (i.e. different opcode ranges use
 	 * certain bits to encode the command length in the header).
 	 */
@@ -522,7 +522,7 @@ struct intel_engine_cs {
 		/**
 		 * @total: Total time this engine was busy.
 		 *
-		 * Accumulated time not counting the most recent block in cases
+		 * Accumulated time yest counting the most recent block in cases
 		 * where engine is currently busy (active > 0).
 		 */
 		ktime_t total;

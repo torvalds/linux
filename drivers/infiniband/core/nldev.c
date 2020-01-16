@@ -1,15 +1,15 @@
 /*
- * Copyright (c) 2017 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2017 Mellayesx Techyeslogies. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
  *
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    yestice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
+ *    yestice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the names of the copyright holders nor the names of its
+ * 3. Neither the names of the copyright holders yesr the names of its
  *    contributors may be used to endorse or promote products derived from
  *    this software without specific prior written permission.
  *
@@ -260,14 +260,14 @@ static int fill_dev_info(struct sk_buff *msg, struct ib_device *device)
 		return -EMSGSIZE;
 
 	if (nla_put_u64_64bit(msg, RDMA_NLDEV_ATTR_NODE_GUID,
-			      be64_to_cpu(device->node_guid),
+			      be64_to_cpu(device->yesde_guid),
 			      RDMA_NLDEV_ATTR_PAD))
 		return -EMSGSIZE;
 	if (nla_put_u64_64bit(msg, RDMA_NLDEV_ATTR_SYS_IMAGE_GUID,
 			      be64_to_cpu(device->attrs.sys_image_guid),
 			      RDMA_NLDEV_ATTR_PAD))
 		return -EMSGSIZE;
-	if (nla_put_u8(msg, RDMA_NLDEV_ATTR_DEV_NODE_TYPE, device->node_type))
+	if (nla_put_u8(msg, RDMA_NLDEV_ATTR_DEV_NODE_TYPE, device->yesde_type))
 		return -EMSGSIZE;
 	if (nla_put_u8(msg, RDMA_NLDEV_ATTR_DEV_DIM, device->use_cq_dim))
 		return -EMSGSIZE;
@@ -355,7 +355,7 @@ static int fill_res_info_entry(struct sk_buff *msg,
 {
 	struct nlattr *entry_attr;
 
-	entry_attr = nla_nest_start_noflag(msg,
+	entry_attr = nla_nest_start_yesflag(msg,
 					   RDMA_NLDEV_ATTR_RES_SUMMARY_ENTRY);
 	if (!entry_attr)
 		return -EMSGSIZE;
@@ -391,7 +391,7 @@ static int fill_res_info(struct sk_buff *msg, struct ib_device *device)
 	if (fill_nldev_handle(msg, device))
 		return -EMSGSIZE;
 
-	table_attr = nla_nest_start_noflag(msg, RDMA_NLDEV_ATTR_RES_SUMMARY);
+	table_attr = nla_nest_start_yesflag(msg, RDMA_NLDEV_ATTR_RES_SUMMARY);
 	if (!table_attr)
 		return -EMSGSIZE;
 
@@ -430,7 +430,7 @@ static int fill_res_name_pid(struct sk_buff *msg,
 		pid = task_pid_vnr(res->task);
 		/*
 		 * Task is dead and in zombie state.
-		 * There is no need to print PID anymore.
+		 * There is yes need to print PID anymore.
 		 */
 		if (pid)
 			/*
@@ -477,7 +477,7 @@ static int fill_res_qp_entry(struct sk_buff *msg, bool has_cap_net_admin,
 	if (port && port != qp_attr.port_num)
 		return -EAGAIN;
 
-	/* In create_qp() port is not set yet */
+	/* In create_qp() port is yest set yet */
 	if (qp_attr.port_num &&
 	    nla_put_u32(msg, RDMA_NLDEV_ATTR_PORT_INDEX, qp_attr.port_num))
 		goto err;
@@ -974,7 +974,7 @@ out:	cb->args[0] = idx;
 static int nldev_get_dumpit(struct sk_buff *skb, struct netlink_callback *cb)
 {
 	/*
-	 * There is no need to take lock, because
+	 * There is yes need to take lock, because
 	 * we are relying on ib_core's locking.
 	 */
 	return ib_enum_all_devs(_nldev_get_dumpit, skb, cb);
@@ -1328,12 +1328,12 @@ static int res_get_common_dumpit(struct sk_buff *skb,
 	err = nlmsg_parse_deprecated(cb->nlh, 0, tb, RDMA_NLDEV_ATTR_MAX - 1,
 				     nldev_policy, NULL);
 	/*
-	 * Right now, we are expecting the device index to get res information,
+	 * Right yesw, we are expecting the device index to get res information,
 	 * but it is possible to extend this code to return all devices in
 	 * one shot by checking the existence of RDMA_NLDEV_ATTR_DEV_INDEX.
 	 * if it doesn't exist, we will iterate over all devices.
 	 *
-	 * But it is not needed for now.
+	 * But it is yest needed for yesw.
 	 */
 	if (err || !tb[RDMA_NLDEV_ATTR_DEV_INDEX])
 		return -EINVAL;
@@ -1344,7 +1344,7 @@ static int res_get_common_dumpit(struct sk_buff *skb,
 		return -EINVAL;
 
 	/*
-	 * If no PORT_INDEX is supplied, we will return all QPs from that device
+	 * If yes PORT_INDEX is supplied, we will return all QPs from that device
 	 */
 	if (tb[RDMA_NLDEV_ATTR_PORT_INDEX]) {
 		port = nla_get_u32(tb[RDMA_NLDEV_ATTR_PORT_INDEX]);
@@ -1363,7 +1363,7 @@ static int res_get_common_dumpit(struct sk_buff *skb,
 		goto err;
 	}
 
-	table_attr = nla_nest_start_noflag(skb, fe->nldev_attr);
+	table_attr = nla_nest_start_yesflag(skb, fe->nldev_attr);
 	if (!table_attr) {
 		ret = -EMSGSIZE;
 		goto err;
@@ -1386,7 +1386,7 @@ static int res_get_common_dumpit(struct sk_buff *skb,
 
 		filled = true;
 
-		entry_attr = nla_nest_start_noflag(skb, fe->entry);
+		entry_attr = nla_nest_start_yesflag(skb, fe->entry);
 		if (!entry_attr) {
 			ret = -EMSGSIZE;
 			rdma_restrack_put(res);

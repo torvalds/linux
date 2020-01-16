@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Copyright (C) 2011 Instituto Nokia de Tecnologia
+ * Copyright (C) 2011 Instituto Nokia de Tecyeslogia
  *
  * Authors:
  *    Lauro Ramos Venancio <lauro.venancio@openbossa.org>
@@ -68,7 +68,7 @@ error:
  *
  * @dev: The nfc device to which firmware was downloaded
  * @firmware_name: The firmware filename
- * @result: The positive value of a standard errno value
+ * @result: The positive value of a standard erryes value
  */
 int nfc_fw_download_done(struct nfc_dev *dev, const char *firmware_name,
 			 u32 result)
@@ -652,7 +652,7 @@ EXPORT_SYMBOL(nfc_get_local_general_bytes);
 
 int nfc_tm_data_received(struct nfc_dev *dev, struct sk_buff *skb)
 {
-	/* Only LLCP target mode for now */
+	/* Only LLCP target mode for yesw */
 	if (dev->dep_link_up == false) {
 		kfree_skb(skb);
 		return -ENOLINK;
@@ -755,9 +755,9 @@ EXPORT_SYMBOL(nfc_alloc_recv_skb);
  * are found. After calling this function, the device driver must stop
  * polling for targets.
  * NOTE: This function can be called with targets=NULL and n_targets=0 to
- * notify a driver error, meaning that the polling operation cannot complete.
- * IMPORTANT: this function must not be called from an atomic context.
- * In addition, it must also not be called from a context that would prevent
+ * yestify a driver error, meaning that the polling operation canyest complete.
+ * IMPORTANT: this function must yest be called from an atomic context.
+ * In addition, it must also yest be called from a context that would prevent
  * the NFC Core to call other nfc ops entry point concurrently.
  */
 int nfc_targets_found(struct nfc_dev *dev,
@@ -813,8 +813,8 @@ EXPORT_SYMBOL(nfc_targets_found);
  *
  * The device driver must call this function when the activated target
  * goes out of the field.
- * IMPORTANT: this function must not be called from an atomic context.
- * In addition, it must also not be called from a context that would prevent
+ * IMPORTANT: this function must yest be called from an atomic context.
+ * In addition, it must also yest be called from a context that would prevent
  * the NFC Core to call other nfc ops entry point concurrently.
  */
 int nfc_target_lost(struct nfc_dev *dev, u32 target_idx)
@@ -1078,7 +1078,7 @@ struct nfc_dev *nfc_allocate_device(struct nfc_ops *ops,
 
 	dev->rf_mode = NFC_RF_NONE;
 
-	/* first generation must not be 0 */
+	/* first generation must yest be 0 */
 	dev->targets_generation = 1;
 
 	if (ops->check_presence) {
@@ -1116,11 +1116,11 @@ int nfc_register_device(struct nfc_dev *dev)
 
 	rc = nfc_llcp_register_device(dev);
 	if (rc)
-		pr_err("Could not register llcp device\n");
+		pr_err("Could yest register llcp device\n");
 
 	rc = nfc_genl_device_added(dev);
 	if (rc)
-		pr_debug("The userspace won't be notified that the device %s was added\n",
+		pr_debug("The userspace won't be yestified that the device %s was added\n",
 			 dev_name(&dev->dev));
 
 	dev->rfkill = rfkill_alloc(dev_name(&dev->dev), &dev->dev,
@@ -1162,7 +1162,7 @@ void nfc_unregister_device(struct nfc_dev *dev)
 
 	rc = nfc_genl_device_removed(dev);
 	if (rc)
-		pr_debug("The userspace won't be notified that the device %s "
+		pr_debug("The userspace won't be yestified that the device %s "
 			 "was removed\n", dev_name(&dev->dev));
 
 	nfc_llcp_unregister_device(dev);
@@ -1188,7 +1188,7 @@ static int __init nfc_init(void)
 	if (rc)
 		goto err_genl;
 
-	/* the first generation must not be 0 */
+	/* the first generation must yest be 0 */
 	nfc_devlist_generation = 1;
 
 	rc = rawsock_init();

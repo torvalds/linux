@@ -11,8 +11,8 @@
 #include <dt-bindings/input/input.h>
 
 / {
-	model = "FriendlyARM NanoPi Duo2";
-	compatible = "friendlyarm,nanopi-duo2", "allwinner,sun8i-h3";
+	model = "FriendlyARM NayesPi Duo2";
+	compatible = "friendlyarm,nayespi-duo2", "allwinner,sun8i-h3";
 
 	aliases {
 		serial0 = &uart0;
@@ -26,13 +26,13 @@
 		compatible = "gpio-leds";
 
 		pwr {
-			label = "nanopi:red:pwr";
+			label = "nayespi:red:pwr";
 			gpios = <&r_pio 0 10 GPIO_ACTIVE_HIGH>; /* PL10 */
 			default-state = "on";
 		};
 
 		status {
-			label = "nanopi:green:status";
+			label = "nayespi:green:status";
 			gpios = <&pio 0 10 GPIO_ACTIVE_HIGH>; /* PA10 */
 		};
 	};
@@ -117,7 +117,7 @@
 	vqmmc-supply = <&reg_vcc3v3>;
 	mmc-pwrseq = <&wifi_pwrseq>;
 	bus-width = <4>;
-	non-removable;
+	yesn-removable;
 	status = "okay";
 
 	sdio_wifi: sdio_wifi@1 {

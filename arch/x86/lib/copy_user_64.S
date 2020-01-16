@@ -143,7 +143,7 @@ EXPORT_SYMBOL(copy_user_generic_unrolled)
  * This is also a lot simpler. Use them when possible.
  *
  * Only 4GB of copy is supported. This shouldn't be a problem
- * because the kernel normally only writes from/to page sized chunks
+ * because the kernel yesrmally only writes from/to page sized chunks
  * even if user space passed a longer buffer.
  * And more would be dangerous because both Intel and AMD have
  * errata with rep movsq > 4GB. If someone feels the need to fix
@@ -219,8 +219,8 @@ EXPORT_SYMBOL(copy_user_enhanced_fast_string)
 
 /*
  * Try to copy last bytes and clear the rest if needed.
- * Since protection fault in copy_from/to_user is not a normal situation,
- * it is not necessary to optimize tail handling.
+ * Since protection fault in copy_from/to_user is yest a yesrmal situation,
+ * it is yest necessary to optimize tail handling.
  *
  * Input:
  * rdi destination
@@ -241,32 +241,32 @@ SYM_CODE_START_LOCAL(.Lcopy_user_handle_tail)
 SYM_CODE_END(.Lcopy_user_handle_tail)
 
 /*
- * copy_user_nocache - Uncached memory copy with exception handling
+ * copy_user_yescache - Uncached memory copy with exception handling
  * This will force destination out of cache for more performance.
  *
- * Note: Cached memory copy is used when destination or size is not
+ * Note: Cached memory copy is used when destination or size is yest
  * naturally aligned. That is:
  *  - Require 8-byte alignment when size is 8 bytes or larger.
  *  - Require 4-byte alignment when size is 4 bytes.
  */
-SYM_FUNC_START(__copy_user_nocache)
+SYM_FUNC_START(__copy_user_yescache)
 	ASM_STAC
 
 	/* If size is less than 8 bytes, go to 4-byte copy */
 	cmpl $8,%edx
-	jb .L_4b_nocache_copy_entry
+	jb .L_4b_yescache_copy_entry
 
-	/* If destination is not 8-byte aligned, "cache" copy to align it */
+	/* If destination is yest 8-byte aligned, "cache" copy to align it */
 	ALIGN_DESTINATION
 
 	/* Set 4x8-byte copy count and remainder */
 	movl %edx,%ecx
 	andl $63,%edx
 	shrl $6,%ecx
-	jz .L_8b_nocache_copy_entry	/* jump if count is 0 */
+	jz .L_8b_yescache_copy_entry	/* jump if count is 0 */
 
-	/* Perform 4x8-byte nocache loop-copy */
-.L_4x8b_nocache_copy_loop:
+	/* Perform 4x8-byte yescache loop-copy */
+.L_4x8b_yescache_copy_loop:
 1:	movq (%rsi),%r8
 2:	movq 1*8(%rsi),%r9
 3:	movq 2*8(%rsi),%r10
@@ -286,30 +286,30 @@ SYM_FUNC_START(__copy_user_nocache)
 	leaq 64(%rsi),%rsi
 	leaq 64(%rdi),%rdi
 	decl %ecx
-	jnz .L_4x8b_nocache_copy_loop
+	jnz .L_4x8b_yescache_copy_loop
 
 	/* Set 8-byte copy count and remainder */
-.L_8b_nocache_copy_entry:
+.L_8b_yescache_copy_entry:
 	movl %edx,%ecx
 	andl $7,%edx
 	shrl $3,%ecx
-	jz .L_4b_nocache_copy_entry	/* jump if count is 0 */
+	jz .L_4b_yescache_copy_entry	/* jump if count is 0 */
 
-	/* Perform 8-byte nocache loop-copy */
-.L_8b_nocache_copy_loop:
+	/* Perform 8-byte yescache loop-copy */
+.L_8b_yescache_copy_loop:
 20:	movq (%rsi),%r8
 21:	movnti %r8,(%rdi)
 	leaq 8(%rsi),%rsi
 	leaq 8(%rdi),%rdi
 	decl %ecx
-	jnz .L_8b_nocache_copy_loop
+	jnz .L_8b_yescache_copy_loop
 
-	/* If no byte left, we're done */
-.L_4b_nocache_copy_entry:
+	/* If yes byte left, we're done */
+.L_4b_yescache_copy_entry:
 	andl %edx,%edx
 	jz .L_finish_copy
 
-	/* If destination is not 4-byte aligned, go to byte copy: */
+	/* If destination is yest 4-byte aligned, go to byte copy: */
 	movl %edi,%ecx
 	andl $3,%ecx
 	jnz .L_1b_cache_copy_entry
@@ -320,13 +320,13 @@ SYM_FUNC_START(__copy_user_nocache)
 	shrl $2,%ecx
 	jz .L_1b_cache_copy_entry	/* jump if count is 0 */
 
-	/* Perform 4-byte nocache copy: */
+	/* Perform 4-byte yescache copy: */
 30:	movl (%rsi),%r8d
 31:	movnti %r8d,(%rdi)
 	leaq 4(%rsi),%rsi
 	leaq 4(%rdi),%rdi
 
-	/* If no bytes left, we're done: */
+	/* If yes bytes left, we're done: */
 	andl %edx,%edx
 	jz .L_finish_copy
 
@@ -388,5 +388,5 @@ SYM_FUNC_START(__copy_user_nocache)
 	_ASM_EXTABLE_UA(31b, .L_fixup_4b_copy)
 	_ASM_EXTABLE_UA(40b, .L_fixup_1b_copy)
 	_ASM_EXTABLE_UA(41b, .L_fixup_1b_copy)
-SYM_FUNC_END(__copy_user_nocache)
-EXPORT_SYMBOL(__copy_user_nocache)
+SYM_FUNC_END(__copy_user_yescache)
+EXPORT_SYMBOL(__copy_user_yescache)

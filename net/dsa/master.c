@@ -153,7 +153,7 @@ static void dsa_master_get_strings(struct net_device *dev, uint32_t stringset,
 	uint8_t *ndata;
 
 	snprintf(pfx, sizeof(pfx), "p%.2d", port);
-	/* We do not want to be NULL-terminated, since this is a prefix */
+	/* We do yest want to be NULL-terminated, since this is a prefix */
 	pfx[sizeof(pfx) - 1] = '_';
 
 	if (stringset == ETH_SS_PHY_STATS && dev->phydev &&

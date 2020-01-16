@@ -93,7 +93,7 @@ static ssize_t qeth_dev_inbuf_size_show(struct device *dev,
 
 static DEVICE_ATTR(inbuf_size, 0444, qeth_dev_inbuf_size_show, NULL);
 
-static ssize_t qeth_dev_portno_show(struct device *dev,
+static ssize_t qeth_dev_portyes_show(struct device *dev,
 			struct device_attribute *attr, char *buf)
 {
 	struct qeth_card *card = dev_get_drvdata(dev);
@@ -101,12 +101,12 @@ static ssize_t qeth_dev_portno_show(struct device *dev,
 	return sprintf(buf, "%i\n", card->dev->dev_port);
 }
 
-static ssize_t qeth_dev_portno_store(struct device *dev,
+static ssize_t qeth_dev_portyes_store(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct qeth_card *card = dev_get_drvdata(dev);
 	char *tmp;
-	unsigned int portno, limit;
+	unsigned int portyes, limit;
 	int rc = 0;
 
 	mutex_lock(&card->conf_mutex);
@@ -115,28 +115,28 @@ static ssize_t qeth_dev_portno_store(struct device *dev,
 		goto out;
 	}
 
-	portno = simple_strtoul(buf, &tmp, 16);
-	if (portno > QETH_MAX_PORTNO) {
+	portyes = simple_strtoul(buf, &tmp, 16);
+	if (portyes > QETH_MAX_PORTNO) {
 		rc = -EINVAL;
 		goto out;
 	}
 	limit = (card->ssqd.pcnt ? card->ssqd.pcnt - 1 : card->ssqd.pcnt);
-	if (portno > limit) {
+	if (portyes > limit) {
 		rc = -EINVAL;
 		goto out;
 	}
-	card->dev->dev_port = portno;
+	card->dev->dev_port = portyes;
 out:
 	mutex_unlock(&card->conf_mutex);
 	return rc ? rc : count;
 }
 
-static DEVICE_ATTR(portno, 0644, qeth_dev_portno_show, qeth_dev_portno_store);
+static DEVICE_ATTR(portyes, 0644, qeth_dev_portyes_show, qeth_dev_portyes_store);
 
 static ssize_t qeth_dev_portname_show(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
-	return sprintf(buf, "no portname required\n");
+	return sprintf(buf, "yes portname required\n");
 }
 
 static ssize_t qeth_dev_portname_store(struct device *dev,
@@ -145,7 +145,7 @@ static ssize_t qeth_dev_portname_store(struct device *dev,
 	struct qeth_card *card = dev_get_drvdata(dev);
 
 	dev_warn_once(&card->gdev->dev,
-		      "portname is deprecated and is ignored\n");
+		      "portname is deprecated and is igyesred\n");
 	return count;
 }
 
@@ -190,7 +190,7 @@ static ssize_t qeth_dev_prioqing_store(struct device *dev,
 	/* check if 1920 devices are supported ,
 	 * if though we have to permit priority queueing
 	 */
-	if (card->qdio.no_out_queues == 1) {
+	if (card->qdio.yes_out_queues == 1) {
 		card->qdio.do_prio_queueing = QETH_PRIOQ_DEFAULT;
 		rc = -EPERM;
 		goto out;
@@ -212,19 +212,19 @@ static ssize_t qeth_dev_prioqing_store(struct device *dev,
 		}
 		card->qdio.do_prio_queueing = QETH_PRIO_Q_ING_VLAN;
 		card->qdio.default_out_queue = QETH_DEFAULT_QUEUE;
-	} else if (sysfs_streq(buf, "no_prio_queueing:0")) {
+	} else if (sysfs_streq(buf, "yes_prio_queueing:0")) {
 		card->qdio.do_prio_queueing = QETH_NO_PRIO_QUEUEING;
 		card->qdio.default_out_queue = 0;
-	} else if (sysfs_streq(buf, "no_prio_queueing:1")) {
+	} else if (sysfs_streq(buf, "yes_prio_queueing:1")) {
 		card->qdio.do_prio_queueing = QETH_NO_PRIO_QUEUEING;
 		card->qdio.default_out_queue = 1;
-	} else if (sysfs_streq(buf, "no_prio_queueing:2")) {
+	} else if (sysfs_streq(buf, "yes_prio_queueing:2")) {
 		card->qdio.do_prio_queueing = QETH_NO_PRIO_QUEUEING;
 		card->qdio.default_out_queue = 2;
-	} else if (sysfs_streq(buf, "no_prio_queueing:3")) {
+	} else if (sysfs_streq(buf, "yes_prio_queueing:3")) {
 		card->qdio.do_prio_queueing = QETH_NO_PRIO_QUEUEING;
 		card->qdio.default_out_queue = 3;
-	} else if (sysfs_streq(buf, "no_prio_queueing")) {
+	} else if (sysfs_streq(buf, "yes_prio_queueing")) {
 		card->qdio.do_prio_queueing = QETH_NO_PRIO_QUEUEING;
 		card->qdio.default_out_queue = QETH_DEFAULT_QUEUE;
 	} else
@@ -314,7 +314,7 @@ static ssize_t qeth_dev_performance_stats_store(struct device *dev,
 
 	if (reset) {
 		memset(&card->stats, 0, sizeof(card->stats));
-		for (i = 0; i < card->qdio.no_out_queues; i++) {
+		for (i = 0; i < card->qdio.yes_out_queues; i++) {
 			queue = card->qdio.out_qs[i];
 			if (!queue)
 				break;
@@ -401,7 +401,7 @@ out:
 static DEVICE_ATTR(layer2, 0644, qeth_dev_layer2_show,
 		   qeth_dev_layer2_store);
 
-#define ATTR_QETH_ISOLATION_NONE	("none")
+#define ATTR_QETH_ISOLATION_NONE	("yesne")
 #define ATTR_QETH_ISOLATION_FWD		("forward")
 #define ATTR_QETH_ISOLATION_DROP	("drop")
 
@@ -432,7 +432,7 @@ static ssize_t qeth_dev_isolation_store(struct device *dev,
 	mutex_lock(&card->conf_mutex);
 	if (!IS_OSD(card) && !IS_OSX(card)) {
 		rc = -EOPNOTSUPP;
-		dev_err(&card->gdev->dev, "Adapter does not "
+		dev_err(&card->gdev->dev, "Adapter does yest "
 			"support QDIO data connection isolation\n");
 		goto out;
 	}
@@ -481,7 +481,7 @@ static ssize_t qeth_dev_switch_attrs_show(struct device *dev,
 		return rc;
 
 	if (!sw_info.capabilities)
-		rc = sprintf(buf, "unknown");
+		rc = sprintf(buf, "unkyeswn");
 
 	if (sw_info.capabilities & QETH_SWITCH_FORW_802_1)
 		rc = sprintf(buf, (sw_info.settings & QETH_SWITCH_FORW_802_1 ?
@@ -649,7 +649,7 @@ static struct attribute *qeth_device_attrs[] = {
 	&dev_attr_if_name.attr,
 	&dev_attr_card_type.attr,
 	&dev_attr_inbuf_size.attr,
-	&dev_attr_portno.attr,
+	&dev_attr_portyes.attr,
 	&dev_attr_portname.attr,
 	&dev_attr_priority_queueing.attr,
 	&dev_attr_buffer_count.attr,

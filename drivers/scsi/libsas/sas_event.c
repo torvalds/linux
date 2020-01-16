@@ -19,9 +19,9 @@ int sas_queue_work(struct sas_ha_struct *ha, struct sas_work *sw)
 		return 0;
 
 	if (test_bit(SAS_HA_DRAINING, &ha->state)) {
-		/* add it to the defer list, if not already pending */
-		if (list_empty(&sw->drain_node))
-			list_add_tail(&sw->drain_node, &ha->defer_q);
+		/* add it to the defer list, if yest already pending */
+		if (list_empty(&sw->drain_yesde))
+			list_add_tail(&sw->drain_yesde, &ha->defer_q);
 	} else
 		rc = queue_work(ha->event_q, &sw->work);
 
@@ -57,8 +57,8 @@ void __sas_drain_work(struct sas_ha_struct *ha)
 
 	spin_lock_irq(&ha->lock);
 	clear_bit(SAS_HA_DRAINING, &ha->state);
-	list_for_each_entry_safe(sw, _sw, &ha->defer_q, drain_node) {
-		list_del_init(&sw->drain_node);
+	list_for_each_entry_safe(sw, _sw, &ha->defer_q, drain_yesde) {
+		list_del_init(&sw->drain_yesde);
 		ret = sas_queue_work(ha, sw);
 		if (ret != 1)
 			sas_free_event(to_asd_sas_event(&sw->work));
@@ -109,7 +109,7 @@ void sas_enable_revalidation(struct sas_ha_struct *ha)
 
 		sas_phy = container_of(port->phy_list.next, struct asd_sas_phy,
 				port_phy_el);
-		ha->notify_port_event(sas_phy, PORTE_BROADCAST_RCVD);
+		ha->yestify_port_event(sas_phy, PORTE_BROADCAST_RCVD);
 	}
 	mutex_unlock(&ha->disco_mutex);
 }
@@ -131,7 +131,7 @@ static void sas_phy_event_worker(struct work_struct *work)
 	sas_free_event(ev);
 }
 
-static int sas_notify_port_event(struct asd_sas_phy *phy, enum port_event event)
+static int sas_yestify_port_event(struct asd_sas_phy *phy, enum port_event event)
 {
 	struct asd_sas_event *ev;
 	struct sas_ha_struct *ha = phy->ha;
@@ -152,7 +152,7 @@ static int sas_notify_port_event(struct asd_sas_phy *phy, enum port_event event)
 	return ret;
 }
 
-int sas_notify_phy_event(struct asd_sas_phy *phy, enum phy_event event)
+int sas_yestify_phy_event(struct asd_sas_phy *phy, enum phy_event event)
 {
 	struct asd_sas_event *ev;
 	struct sas_ha_struct *ha = phy->ha;
@@ -175,8 +175,8 @@ int sas_notify_phy_event(struct asd_sas_phy *phy, enum phy_event event)
 
 int sas_init_events(struct sas_ha_struct *sas_ha)
 {
-	sas_ha->notify_port_event = sas_notify_port_event;
-	sas_ha->notify_phy_event = sas_notify_phy_event;
+	sas_ha->yestify_port_event = sas_yestify_port_event;
+	sas_ha->yestify_phy_event = sas_yestify_phy_event;
 
 	return 0;
 }

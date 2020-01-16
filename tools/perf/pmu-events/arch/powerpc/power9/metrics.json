@@ -71,7 +71,7 @@
         "MetricName": "dfu_stall_cpi"
     },
     {
-        "BriefDescription": "Completion stall by Dcache miss which resolved off node memory/cache",
+        "BriefDescription": "Completion stall by Dcache miss which resolved off yesde memory/cache",
         "MetricExpr": "(PM_CMPLU_STALL_DMISS_L3MISS - PM_CMPLU_STALL_DMISS_L21_L31 - PM_CMPLU_STALL_DMISS_LMEM - PM_CMPLU_STALL_DMISS_REMOTE)/PM_RUN_INST_CMPL",
         "MetricGroup": "cpi_breakdown",
         "MetricName": "dmiss_distant_stall_cpi"
@@ -92,7 +92,7 @@
         "BriefDescription": "Completion stall due to cache miss that resolves in the L2 or L3 without conflict",
         "MetricExpr": "(PM_CMPLU_STALL_DMISS_L2L3 - PM_CMPLU_STALL_DMISS_L2L3_CONFLICT)/PM_RUN_INST_CMPL",
         "MetricGroup": "cpi_breakdown",
-        "MetricName": "dmiss_l2l3_noconflict_stall_cpi"
+        "MetricName": "dmiss_l2l3_yesconflict_stall_cpi"
     },
     {
         "BriefDescription": "Completion stall by Dcache miss which resolved in L2/L3",
@@ -116,7 +116,7 @@
         "BriefDescription": "Completion stall by Dcache miss which resolved outside of local memory",
         "MetricExpr": "(PM_CMPLU_STALL_DMISS_L3MISS - PM_CMPLU_STALL_DMISS_L21_L31 - PM_CMPLU_STALL_DMISS_LMEM)/PM_RUN_INST_CMPL",
         "MetricGroup": "cpi_breakdown",
-        "MetricName": "dmiss_non_local_stall_cpi"
+        "MetricName": "dmiss_yesn_local_stall_cpi"
     },
     {
         "BriefDescription": "Completion stall by Dcache miss which resolved from remote chip (cache or memory)",
@@ -166,7 +166,7 @@
         "MetricName": "erat_miss_stall_cpi"
     },
     {
-        "BriefDescription": "Cycles in which the NTC instruction is not allowed to complete because it was interrupted by ANY exception, which has to be serviced before the instruction can complete",
+        "BriefDescription": "Cycles in which the NTC instruction is yest allowed to complete because it was interrupted by ANY exception, which has to be serviced before the instruction can complete",
         "MetricExpr": "PM_CMPLU_STALL_EXCEPTION/PM_RUN_INST_CMPL",
         "MetricGroup": "cpi_breakdown",
         "MetricName": "exception_stall_cpi"
@@ -184,7 +184,7 @@
         "MetricName": "exec_unit_stall_cpi"
     },
     {
-        "BriefDescription": "Cycles in which the NTC instruction is not allowed to complete because any of the 4 threads in the same core suffered a flush, which blocks completion",
+        "BriefDescription": "Cycles in which the NTC instruction is yest allowed to complete because any of the 4 threads in the same core suffered a flush, which blocks completion",
         "MetricExpr": "PM_CMPLU_STALL_FLUSH_ANY_THREAD/PM_RUN_INST_CMPL",
         "MetricGroup": "cpi_breakdown",
         "MetricName": "flush_any_thread_stall_cpi"
@@ -295,7 +295,7 @@
         "MetricName": "lsu_stall_cpi"
     },
     {
-        "BriefDescription": "Completion stall because the ISU is updating the register and notifying the Effective Address Table (EAT)",
+        "BriefDescription": "Completion stall because the ISU is updating the register and yestifying the Effective Address Table (EAT)",
         "MetricExpr": "PM_CMPLU_STALL_MTFPSCR/PM_RUN_INST_CMPL",
         "MetricGroup": "cpi_breakdown",
         "MetricName": "mtfpscr_stall_cpi"
@@ -313,10 +313,10 @@
         "MetricName": "nested_tend_stall_cpi"
     },
     {
-        "BriefDescription": "Number of cycles the ICT has no itags assigned to this thread",
+        "BriefDescription": "Number of cycles the ICT has yes itags assigned to this thread",
         "MetricExpr": "PM_ICT_NOSLOT_CYC/PM_RUN_INST_CMPL",
         "MetricGroup": "cpi_breakdown",
-        "MetricName": "nothing_dispatched_cpi"
+        "MetricName": "yesthing_dispatched_cpi"
     },
     {
         "BriefDescription": "Finish stall because the NTF instruction was one that must finish at dispatch.",
@@ -337,13 +337,13 @@
         "MetricName": "ntc_flush_stall_cpi"
     },
     {
-        "BriefDescription": "The NTC instruction is being held at dispatch because it lost arbitration onto the issue pipe to another instruction (from the same thread or a different thread)",
+        "BriefDescription": "The NTC instruction is being held at dispatch because it lost arbitration onto the issue pipe to ayesther instruction (from the same thread or a different thread)",
         "MetricExpr": "PM_NTC_ISSUE_HELD_ARB/PM_RUN_INST_CMPL",
         "MetricGroup": "cpi_breakdown",
         "MetricName": "ntc_issue_held_arb_cpi"
     },
     {
-        "BriefDescription": "The NTC instruction is being held at dispatch because there are no slots in the DARQ for it",
+        "BriefDescription": "The NTC instruction is being held at dispatch because there are yes slots in the DARQ for it",
         "MetricExpr": "PM_NTC_ISSUE_HELD_DARQ_FULL/PM_RUN_INST_CMPL",
         "MetricGroup": "cpi_breakdown",
         "MetricName": "ntc_issue_held_darq_full_cpi"
@@ -402,7 +402,7 @@
         "MetricName": "slb_stall_cpi"
     },
     {
-        "BriefDescription": "Finish stall while waiting for the non-speculative finish of either a stcx waiting for its result or a load waiting for non-critical sectors of data and ECC",
+        "BriefDescription": "Finish stall while waiting for the yesn-speculative finish of either a stcx waiting for its result or a load waiting for yesn-critical sectors of data and ECC",
         "MetricExpr": "PM_CMPLU_STALL_SPEC_FINISH/PM_RUN_INST_CMPL",
         "MetricGroup": "cpi_breakdown",
         "MetricName": "spec_finish_stall_cpi"
@@ -425,7 +425,7 @@
         "MetricName": "st_fwd_stall_cpi"
     },
     {
-        "BriefDescription": "Nothing completed and ICT not empty",
+        "BriefDescription": "Nothing completed and ICT yest empty",
         "MetricExpr": "PM_CMPLU_STALL/PM_RUN_INST_CMPL",
         "MetricGroup": "cpi_breakdown",
         "MetricName": "stall_cpi"
@@ -1822,67 +1822,67 @@
     {
         "BriefDescription": "Ict empty for this thread due to branch mispred",
         "MetricExpr": "PM_ICT_NOSLOT_BR_MPRED/PM_RUN_INST_CMPL",
-        "MetricName": "ict_noslot_br_mpred_cpi"
+        "MetricName": "ict_yesslot_br_mpred_cpi"
     },
     {
         "BriefDescription": "Ict empty for this thread due to Icache Miss and branch mispred",
         "MetricExpr": "PM_ICT_NOSLOT_BR_MPRED_ICMISS/PM_RUN_INST_CMPL",
-        "MetricName": "ict_noslot_br_mpred_icmiss_cpi"
+        "MetricName": "ict_yesslot_br_mpred_icmiss_cpi"
     },
     {
         "BriefDescription": "ICT other stalls",
         "MetricExpr": "(PM_ICT_NOSLOT_CYC - PM_ICT_NOSLOT_IC_MISS - PM_ICT_NOSLOT_BR_MPRED_ICMISS - PM_ICT_NOSLOT_BR_MPRED - PM_ICT_NOSLOT_DISP_HELD)/PM_RUN_INST_CMPL",
-        "MetricName": "ict_noslot_cyc_other_cpi"
+        "MetricName": "ict_yesslot_cyc_other_cpi"
     },
     {
         "BriefDescription": "Cycles in which the NTC instruciton is held at dispatch for any reason",
         "MetricExpr": "PM_ICT_NOSLOT_DISP_HELD/PM_RUN_INST_CMPL",
-        "MetricName": "ict_noslot_disp_held_cpi"
+        "MetricName": "ict_yesslot_disp_held_cpi"
     },
     {
         "BriefDescription": "Ict empty for this thread due to dispatch holds because the History Buffer was full. Could be GPR/VSR/VMR/FPR/CR/XVF",
         "MetricExpr": "PM_ICT_NOSLOT_DISP_HELD_HB_FULL/PM_RUN_INST_CMPL",
-        "MetricName": "ict_noslot_disp_held_hb_full_cpi"
+        "MetricName": "ict_yesslot_disp_held_hb_full_cpi"
     },
     {
         "BriefDescription": "Ict empty for this thread due to dispatch hold on this thread due to Issue q full, BRQ full, XVCF Full, Count cache, Link, Tar full",
         "MetricExpr": "PM_ICT_NOSLOT_DISP_HELD_ISSQ/PM_RUN_INST_CMPL",
-        "MetricName": "ict_noslot_disp_held_issq_cpi"
+        "MetricName": "ict_yesslot_disp_held_issq_cpi"
     },
     {
         "BriefDescription": "ICT_NOSLOT_DISP_HELD_OTHER_CPI",
         "MetricExpr": "(PM_ICT_NOSLOT_DISP_HELD - PM_ICT_NOSLOT_DISP_HELD_HB_FULL - PM_ICT_NOSLOT_DISP_HELD_SYNC - PM_ICT_NOSLOT_DISP_HELD_TBEGIN - PM_ICT_NOSLOT_DISP_HELD_ISSQ)/PM_RUN_INST_CMPL",
-        "MetricName": "ict_noslot_disp_held_other_cpi"
+        "MetricName": "ict_yesslot_disp_held_other_cpi"
     },
     {
         "BriefDescription": "Dispatch held due to a synchronizing instruction at dispatch",
         "MetricExpr": "PM_ICT_NOSLOT_DISP_HELD_SYNC/PM_RUN_INST_CMPL",
-        "MetricName": "ict_noslot_disp_held_sync_cpi"
+        "MetricName": "ict_yesslot_disp_held_sync_cpi"
     },
     {
         "BriefDescription": "the NTC instruction is being held at dispatch because it is a tbegin instruction and there is an older tbegin in the pipeline that must complete before the younger tbegin can dispatch",
         "MetricExpr": "PM_ICT_NOSLOT_DISP_HELD_TBEGIN/PM_RUN_INST_CMPL",
-        "MetricName": "ict_noslot_disp_held_tbegin_cpi"
+        "MetricName": "ict_yesslot_disp_held_tbegin_cpi"
     },
     {
         "BriefDescription": "ICT_NOSLOT_IC_L2_CPI",
         "MetricExpr": "(PM_ICT_NOSLOT_IC_MISS - PM_ICT_NOSLOT_IC_L3 - PM_ICT_NOSLOT_IC_L3MISS)/PM_RUN_INST_CMPL",
-        "MetricName": "ict_noslot_ic_l2_cpi"
+        "MetricName": "ict_yesslot_ic_l2_cpi"
     },
     {
         "BriefDescription": "Ict empty for this thread due to icache misses that were sourced from the local L3",
         "MetricExpr": "PM_ICT_NOSLOT_IC_L3/PM_RUN_INST_CMPL",
-        "MetricName": "ict_noslot_ic_l3_cpi"
+        "MetricName": "ict_yesslot_ic_l3_cpi"
     },
     {
-        "BriefDescription": "Ict empty for this thread due to icache misses that were sourced from beyond the local L3. The source could be local/remote/distant memory or another core's cache",
+        "BriefDescription": "Ict empty for this thread due to icache misses that were sourced from beyond the local L3. The source could be local/remote/distant memory or ayesther core's cache",
         "MetricExpr": "PM_ICT_NOSLOT_IC_L3MISS/PM_RUN_INST_CMPL",
-        "MetricName": "ict_noslot_ic_l3miss_cpi"
+        "MetricName": "ict_yesslot_ic_l3miss_cpi"
     },
     {
         "BriefDescription": "Ict empty for this thread due to Icache Miss",
         "MetricExpr": "PM_ICT_NOSLOT_IC_MISS/PM_RUN_INST_CMPL",
-        "MetricName": "ict_noslot_ic_miss_cpi"
+        "MetricName": "ict_yesslot_ic_miss_cpi"
     },
     {
         "BriefDescription": "Rate of IERAT reloads from L2",
@@ -1930,7 +1930,7 @@
         "MetricName": "l2_rc_usage"
     },
     {
-        "BriefDescription": "Average number of Snoop machines used. 1 of 8 SN machines is sampled every L2 cycle",
+        "BriefDescription": "Average number of Syesop machines used. 1 of 8 SN machines is sampled every L2 cycle",
         "MetricExpr": "PM_SN_USAGE / PM_RUN_CYC * 8",
         "MetricName": "l2_sn_usage"
     },

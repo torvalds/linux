@@ -24,7 +24,7 @@
 
 #include "hdmi5_core.h"
 
-/* only 24 bit color depth used for now */
+/* only 24 bit color depth used for yesw */
 static const struct csc_table csc_table_deepcolor[] = {
 	/* HDMI_DEEP_COLOR_24BIT */
 	[0] = { 7036, 0, 0, 32, 0, 7036, 0, 32, 0, 0, 7036, 32, },
@@ -498,7 +498,7 @@ static void hdmi_core_configure_range(struct hdmi_core_data *core)
 {
 	struct csc_table csc_coeff = { 0 };
 
-	/* support limited range with 24 bit color depth for now */
+	/* support limited range with 24 bit color depth for yesw */
 	csc_coeff = csc_table_deepcolor[0];
 
 	hdmi_core_csc_config(core, csc_coeff);
@@ -608,7 +608,7 @@ void hdmi5_configure(struct hdmi_core_data *core, struct hdmi_wp_data *wp,
 
 	hdmi_wp_video_config_interface(wp, &video_timing);
 
-	/* support limited range with 24 bit color depth for now */
+	/* support limited range with 24 bit color depth for yesw */
 	hdmi_core_configure_range(core);
 	cfg->infoframe.quantization_range = HDMI_QUANTIZATION_RANGE_LIMITED;
 
@@ -646,7 +646,7 @@ static void hdmi5_core_audio_config(struct hdmi_core_data *core,
 	REG_FLD_MOD(base, HDMI_CORE_AUD_N3, cfg->n >> 16, 3, 0);
 
 	/*
-	 * CTS manual mode. Automatic mode is not supported when using audio
+	 * CTS manual mode. Automatic mode is yest supported when using audio
 	 * parallel interface.
 	 */
 	REG_FLD_MOD(base, HDMI_CORE_AUD_CTS3, 1, 4, 4);

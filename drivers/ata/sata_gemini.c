@@ -58,7 +58,7 @@ struct sata_gemini {
  * master/slave configuration.
  *
  * We also bring out different blocks on the actual IDE
- * pins (not SATA pins) if (and only if) these are muxed in.
+ * pins (yest SATA pins) if (and only if) these are muxed in.
  *
  * 111-100 - Reserved
  * Mode 0: 000 - ata0 master <-> sata0
@@ -129,7 +129,7 @@ bool gemini_sata_bridge_enabled(struct sata_gemini *sg, bool is_ata1)
 		return false;
 	/*
 	 * In muxmode 2 and 3 one of the ATA controllers is
-	 * actually not connected to any SATA bridge.
+	 * actually yest connected to any SATA bridge.
 	 */
 	if ((sg->muxmode == GEMINI_MUXMODE_2) &&
 	    !is_ata1)
@@ -187,7 +187,7 @@ static int gemini_sata_setup_bridge(struct sata_gemini *sg,
 	bridge_online = !!(val & GEMINI_SATA_STATUS_PHY_READY);
 
 	dev_info(sg->dev, "SATA%d PHY %s\n", bridge,
-		 bridge_online ? "ready" : "not ready");
+		 bridge_online ? "ready" : "yest ready");
 
 	return bridge_online ? 0: -ENODEV;
 }
@@ -204,7 +204,7 @@ int gemini_sata_start_bridge(struct sata_gemini *sg, unsigned int bridge)
 	clk_enable(pclk);
 	msleep(10);
 
-	/* Do not keep clocking a bridge that is not online */
+	/* Do yest keep clocking a bridge that is yest online */
 	ret = gemini_sata_setup_bridge(sg, bridge);
 	if (ret)
 		clk_disable(pclk);
@@ -242,12 +242,12 @@ static int gemini_sata_bridge_init(struct sata_gemini *sg)
 
 	sg->sata0_pclk = devm_clk_get(dev, "SATA0_PCLK");
 	if (IS_ERR(sg->sata0_pclk)) {
-		dev_err(dev, "no SATA0 PCLK");
+		dev_err(dev, "yes SATA0 PCLK");
 		return -ENODEV;
 	}
 	sg->sata1_pclk = devm_clk_get(dev, "SATA1_PCLK");
 	if (IS_ERR(sg->sata1_pclk)) {
-		dev_err(dev, "no SATA1 PCLK");
+		dev_err(dev, "yes SATA1 PCLK");
 		return -ENODEV;
 	}
 
@@ -265,14 +265,14 @@ static int gemini_sata_bridge_init(struct sata_gemini *sg)
 
 	sg->sata0_reset = devm_reset_control_get_exclusive(dev, "sata0");
 	if (IS_ERR(sg->sata0_reset)) {
-		dev_err(dev, "no SATA0 reset controller\n");
+		dev_err(dev, "yes SATA0 reset controller\n");
 		clk_disable_unprepare(sg->sata1_pclk);
 		clk_disable_unprepare(sg->sata0_pclk);
 		return PTR_ERR(sg->sata0_reset);
 	}
 	sg->sata1_reset = devm_reset_control_get_exclusive(dev, "sata1");
 	if (IS_ERR(sg->sata1_reset)) {
-		dev_err(dev, "no SATA1 reset controller\n");
+		dev_err(dev, "yes SATA1 reset controller\n");
 		clk_disable_unprepare(sg->sata1_pclk);
 		clk_disable_unprepare(sg->sata0_pclk);
 		return PTR_ERR(sg->sata1_reset);
@@ -305,7 +305,7 @@ static int gemini_setup_ide_pins(struct device *dev)
 
 	ret = pinctrl_select_state(p, ide_state);
 	if (ret) {
-		dev_err(dev, "could not select IDE state\n");
+		dev_err(dev, "could yest select IDE state\n");
 		return ret;
 	}
 
@@ -315,7 +315,7 @@ static int gemini_setup_ide_pins(struct device *dev)
 static int gemini_sata_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 	struct sata_gemini *sg;
 	struct regmap *map;
 	struct resource *res;
@@ -339,7 +339,7 @@ static int gemini_sata_probe(struct platform_device *pdev)
 
 	map = syscon_regmap_lookup_by_phandle(np, "syscon");
 	if (IS_ERR(map)) {
-		dev_err(dev, "no global syscon\n");
+		dev_err(dev, "yes global syscon\n");
 		return PTR_ERR(map);
 	}
 
@@ -361,7 +361,7 @@ static int gemini_sata_probe(struct platform_device *pdev)
 
 	ret = of_property_read_u32(np, "cortina,gemini-ata-muxmode", &muxmode);
 	if (ret) {
-		dev_err(dev, "could not parse ATA muxmode\n");
+		dev_err(dev, "could yest parse ATA muxmode\n");
 		goto out_unprep_clk;
 	}
 	if (muxmode > GEMINI_MUXMODE_3) {

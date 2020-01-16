@@ -158,7 +158,7 @@ static int snd_gusclassic_probe(struct device *dev, unsigned int n)
 	error = -ENODEV;
 	if (gus->max_flag || gus->ess_flag) {
 		dev_err(dev, "GUS Classic or ACE soundcard was "
-			"not detected at 0x%lx\n", gus->gf1.port);
+			"yest detected at 0x%lx\n", gus->gf1.port);
 		goto out;
 	}
 

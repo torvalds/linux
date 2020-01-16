@@ -27,7 +27,7 @@
  * a rising edge on port C bit 3 acts as an external trigger, which can be
  * used to wake up tasks.  This is like the comedi_parport device, but the
  * only way to physically disable the interrupt on the PC36AT is to remove
- * the IRQ jumper.  If no interrupt is connected, then subdevice 1 is
+ * the IRQ jumper.  If yes interrupt is connected, then subdevice 1 is
  * unused.
  */
 

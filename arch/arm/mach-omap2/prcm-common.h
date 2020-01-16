@@ -492,7 +492,7 @@ struct omap_prcm_irq {
  * @suspend_save_flag: set to true after IRQ masks have been saved and disabled
  *
  * @saved_mask, @priority_mask, @base_irq, @suspended, and
- * @suspend_save_flag are populated dynamically, and are not to be
+ * @suspend_save_flag are populated dynamically, and are yest to be
  * specified in static initializers.
  */
 struct omap_prcm_irq_setup {
@@ -537,7 +537,7 @@ struct omap_domain_base {
  * @flags: PRCM module init flags
  * @device_inst_offset: device instance offset within the module address space
  * @init: low level PRCM init function for this module
- * @np: device node for this PRCM module
+ * @np: device yesde for this PRCM module
  */
 struct omap_prcm_init_data {
 	int index;
@@ -547,7 +547,7 @@ struct omap_prcm_init_data {
 	u16 flags;
 	s32 device_inst_offset;
 	int (*init)(const struct omap_prcm_init_data *data);
-	struct device_node *np;
+	struct device_yesde *np;
 };
 
 extern void omap_prcm_irq_cleanup(void);

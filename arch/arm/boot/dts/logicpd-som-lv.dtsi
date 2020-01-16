@@ -27,7 +27,7 @@
 
 	/* HS USB Host PHY on PORT 1 */
 	hsusb2_phy: hsusb2_phy {
-		compatible = "usb-nop-xceiv";
+		compatible = "usb-yesp-xceiv";
 		reset-gpios = <&gpio1 4 GPIO_ACTIVE_LOW>; /* gpio_4 */
 		#phy-cells = <0>;
 	};
@@ -129,7 +129,7 @@
 	pinctrl-0 = <&mmc3_pins &wl127x_gpio>;
 	pinctrl-names = "default";
 	vmmc-supply = <&wl12xx_vmmc>;
-	non-removable;
+	yesn-removable;
 	bus-width = <4>;
 	cap-power-off-card;
 	#address-cells = <1>;

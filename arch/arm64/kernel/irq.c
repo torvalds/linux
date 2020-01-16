@@ -43,12 +43,12 @@ static void init_irq_stacks(void)
 	unsigned long *p;
 
 	for_each_possible_cpu(cpu) {
-		p = arch_alloc_vmap_stack(IRQ_STACK_SIZE, cpu_to_node(cpu));
+		p = arch_alloc_vmap_stack(IRQ_STACK_SIZE, cpu_to_yesde(cpu));
 		per_cpu(irq_stack_ptr, cpu) = p;
 	}
 }
 #else
-/* irq stack only needs to be 16 byte aligned - not IRQ_STACK_SIZE aligned. */
+/* irq stack only needs to be 16 byte aligned - yest IRQ_STACK_SIZE aligned. */
 DEFINE_PER_CPU_ALIGNED(unsigned long [IRQ_STACK_SIZE/sizeof(long)], irq_stack);
 
 static void init_irq_stacks(void)
@@ -80,13 +80,13 @@ void __init init_IRQ(void)
 /*
  * Stubs to make nmi_enter/exit() code callable from ASM
  */
-asmlinkage void notrace asm_nmi_enter(void)
+asmlinkage void yestrace asm_nmi_enter(void)
 {
 	nmi_enter();
 }
 NOKPROBE_SYMBOL(asm_nmi_enter);
 
-asmlinkage void notrace asm_nmi_exit(void)
+asmlinkage void yestrace asm_nmi_exit(void)
 {
 	nmi_exit();
 }

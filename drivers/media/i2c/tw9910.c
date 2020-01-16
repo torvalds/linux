@@ -5,11 +5,11 @@
  * Copyright (C) 2017 Jacopo Mondi <jacopo+renesas@jmondi.org>
  *
  * Copyright (C) 2008 Renesas Solutions Corp.
- * Kuninori Morimoto <morimoto.kuninori@renesas.com>
+ * Kuniyesri Morimoto <morimoto.kuniyesri@renesas.com>
  *
  * Based on ov772x driver,
  *
- * Copyright (C) 2008 Kuninori Morimoto <morimoto.kuninori@renesas.com>
+ * Copyright (C) 2008 Kuniyesri Morimoto <morimoto.kuniyesri@renesas.com>
  * Copyright 2006-7 Jonathan Corbet <corbet@lwn.net>
  * Copyright (C) 2008 Magnus Damm
  * Copyright (C) 2008, Guennadi Liakhovetski <kernel@pengutronix.de>
@@ -150,7 +150,7 @@
 			 /* 0 : free-run output mode */
 #define AINC        0x10 /* Serial interface auto-indexing control */
 			 /* 0 : auto-increment */
-			 /* 1 : non-auto */
+			 /* 1 : yesn-auto */
 #define VSCTL       0x08 /* 1 : Vertical out ctrl by DVALID */
 			 /* 0 : Vertical out ctrl by HACTIVE and DVALID */
 #define OEN_TRI_SEL_MASK	0x07
@@ -204,7 +204,7 @@
 #define RTSEL_FIELD 0x06 /* 0110 = FIELD */
 #define RTSEL_RTCO  0x07 /* 0111 = RTCO ( Real Time Control ) */
 
-/* HSYNC start and end are constant for now */
+/* HSYNC start and end are constant for yesw */
 #define HSYNC_START	0x0260
 #define HSYNC_END	0x0300
 
@@ -232,7 +232,7 @@ struct tw9910_priv {
 	struct gpio_desc		*pdn_gpio;
 	struct gpio_desc		*rstb_gpio;
 	const struct tw9910_scale_ctrl	*scale;
-	v4l2_std_id			norm;
+	v4l2_std_id			yesrm;
 	u32				revision;
 };
 
@@ -425,7 +425,7 @@ static int tw9910_power(struct i2c_client *client, int enable)
 	return tw9910_mask_set(client, ACNTL2, ACNTL2_PDN_MASK, acntl2);
 }
 
-static const struct tw9910_scale_ctrl *tw9910_select_norm(v4l2_std_id norm,
+static const struct tw9910_scale_ctrl *tw9910_select_yesrm(v4l2_std_id yesrm,
 							  u32 width, u32 height)
 {
 	const struct tw9910_scale_ctrl *scale;
@@ -433,10 +433,10 @@ static const struct tw9910_scale_ctrl *tw9910_select_norm(v4l2_std_id norm,
 	__u32 diff = 0xffffffff, tmp;
 	int size, i;
 
-	if (norm & V4L2_STD_NTSC) {
+	if (yesrm & V4L2_STD_NTSC) {
 		scale = tw9910_ntsc_scales;
 		size = ARRAY_SIZE(tw9910_ntsc_scales);
-	} else if (norm & V4L2_STD_PAL) {
+	} else if (yesrm & V4L2_STD_PAL) {
 		scale = tw9910_pal_scales;
 		size = ARRAY_SIZE(tw9910_pal_scales);
 	} else {
@@ -481,7 +481,7 @@ static int tw9910_s_stream(struct v4l2_subdev *sd, int enable)
 		val = OEN_TRI_SEL_ALL_ON;
 
 		if (!priv->scale) {
-			dev_err(&client->dev, "norm select error\n");
+			dev_err(&client->dev, "yesrm select error\n");
 			return -EPERM;
 		}
 
@@ -498,17 +498,17 @@ static int tw9910_s_stream(struct v4l2_subdev *sd, int enable)
 	return tw9910_power(client, enable);
 }
 
-static int tw9910_g_std(struct v4l2_subdev *sd, v4l2_std_id *norm)
+static int tw9910_g_std(struct v4l2_subdev *sd, v4l2_std_id *yesrm)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	struct tw9910_priv *priv = to_tw9910(client);
 
-	*norm = priv->norm;
+	*yesrm = priv->yesrm;
 
 	return 0;
 }
 
-static int tw9910_s_std(struct v4l2_subdev *sd, v4l2_std_id norm)
+static int tw9910_s_std(struct v4l2_subdev *sd, v4l2_std_id yesrm)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	struct tw9910_priv *priv = to_tw9910(client);
@@ -518,11 +518,11 @@ static int tw9910_s_std(struct v4l2_subdev *sd, v4l2_std_id norm)
 	unsigned int vdelay;
 	int ret;
 
-	if (!(norm & (V4L2_STD_NTSC | V4L2_STD_PAL)))
+	if (!(yesrm & (V4L2_STD_NTSC | V4L2_STD_PAL)))
 		return -EINVAL;
 
-	priv->norm = norm;
-	if (norm & V4L2_STD_525_60) {
+	priv->yesrm = yesrm;
+	if (yesrm & V4L2_STD_525_60) {
 		vact = 240;
 		vdelay = 18;
 		ret = tw9910_mask_set(client, VVBI, 0x10, 0x10);
@@ -653,8 +653,8 @@ static int tw9910_set_frame(struct v4l2_subdev *sd, u32 *width, u32 *height)
 	int ret = -EINVAL;
 	u8 val;
 
-	/* Select suitable norm. */
-	priv->scale = tw9910_select_norm(priv->norm, *width, *height);
+	/* Select suitable yesrm. */
+	priv->scale = tw9910_select_yesrm(priv->yesrm, *width, *height);
 	if (!priv->scale)
 		goto tw9910_set_fmt_error;
 
@@ -734,7 +734,7 @@ static int tw9910_get_selection(struct v4l2_subdev *sd,
 
 	sel->r.left	= 0;
 	sel->r.top	= 0;
-	if (priv->norm & V4L2_STD_NTSC) {
+	if (priv->yesrm & V4L2_STD_NTSC) {
 		sel->r.width	= 640;
 		sel->r.height	= 480;
 	} else {
@@ -757,7 +757,7 @@ static int tw9910_get_fmt(struct v4l2_subdev *sd,
 		return -EINVAL;
 
 	if (!priv->scale) {
-		priv->scale = tw9910_select_norm(priv->norm, 640, 480);
+		priv->scale = tw9910_select_yesrm(priv->yesrm, 640, 480);
 		if (!priv->scale)
 			return -EINVAL;
 	}
@@ -818,8 +818,8 @@ static int tw9910_set_fmt(struct v4l2_subdev *sd,
 	mf->code = MEDIA_BUS_FMT_UYVY8_2X8;
 	mf->colorspace = V4L2_COLORSPACE_SMPTE170M;
 
-	/* Select suitable norm. */
-	scale = tw9910_select_norm(priv->norm, mf->width, mf->height);
+	/* Select suitable yesrm. */
+	scale = tw9910_select_yesrm(priv->yesrm, mf->width, mf->height);
 	if (!scale)
 		return -EINVAL;
 
@@ -868,7 +868,7 @@ static int tw9910_video_probe(struct i2c_client *client)
 	dev_info(&client->dev, "tw9910 Product ID %0x:%0x\n",
 		 id, priv->revision);
 
-	priv->norm = V4L2_STD_NTSC;
+	priv->yesrm = V4L2_STD_NTSC;
 	priv->scale = &tw9910_ntsc_scales[0];
 
 done:
@@ -897,9 +897,9 @@ static int tw9910_enum_mbus_code(struct v4l2_subdev *sd,
 	return 0;
 }
 
-static int tw9910_g_tvnorms(struct v4l2_subdev *sd, v4l2_std_id *norm)
+static int tw9910_g_tvyesrms(struct v4l2_subdev *sd, v4l2_std_id *yesrm)
 {
-	*norm = V4L2_STD_NTSC | V4L2_STD_PAL;
+	*yesrm = V4L2_STD_NTSC | V4L2_STD_PAL;
 
 	return 0;
 }
@@ -908,7 +908,7 @@ static const struct v4l2_subdev_video_ops tw9910_subdev_video_ops = {
 	.s_std		= tw9910_s_std,
 	.g_std		= tw9910_g_std,
 	.s_stream	= tw9910_s_stream,
-	.g_tvnorms	= tw9910_g_tvnorms,
+	.g_tvyesrms	= tw9910_g_tvyesrms,
 };
 
 static const struct v4l2_subdev_pad_ops tw9910_subdev_pad_ops = {
@@ -1023,5 +1023,5 @@ static struct i2c_driver tw9910_i2c_driver = {
 module_i2c_driver(tw9910_i2c_driver);
 
 MODULE_DESCRIPTION("V4L2 driver for TW9910 video decoder");
-MODULE_AUTHOR("Kuninori Morimoto");
+MODULE_AUTHOR("Kuniyesri Morimoto");
 MODULE_LICENSE("GPL v2");

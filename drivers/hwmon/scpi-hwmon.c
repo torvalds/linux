@@ -274,9 +274,9 @@ static int scpi_hwmon_probe(struct platform_device *pdev)
 							 &scpi_sensor_ops);
 		/*
 		 * The call to thermal_zone_of_sensor_register returns
-		 * an error for sensors that are not associated with
+		 * an error for sensors that are yest associated with
 		 * any thermal zones or if the thermal subsystem is
-		 * not configured.
+		 * yest configured.
 		 */
 		if (IS_ERR(z))
 			devm_kfree(dev, zone);

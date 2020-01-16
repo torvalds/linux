@@ -92,15 +92,15 @@ static inline void omap1_mmc_mux(struct omap_mmc_platform_data *mmc_controller,
 		if (mmc_controller->slots[0].wires == 4 && !cpu_is_omap7xx()) {
 			omap_cfg_reg(MMC_DAT1);
 			/* NOTE: DAT2 can be on W10 (here) or M15 */
-			if (!mmc_controller->slots[0].nomux)
+			if (!mmc_controller->slots[0].yesmux)
 				omap_cfg_reg(MMC_DAT2);
 			omap_cfg_reg(MMC_DAT3);
 		}
 	}
 
-	/* Block 2 is on newer chips, and has many pinout options */
+	/* Block 2 is on newer chips, and has many piyesut options */
 	if (cpu_is_omap16xx() && controller_nr == 1) {
-		if (!mmc_controller->slots[1].nomux) {
+		if (!mmc_controller->slots[1].yesmux) {
 			omap_cfg_reg(Y8_1610_MMC2_CMD);
 			omap_cfg_reg(Y10_1610_MMC2_CLK);
 			omap_cfg_reg(R18_1610_MMC2_CLKIN);
@@ -332,13 +332,13 @@ static struct platform_device omap_uwire_device = {
 
 static void omap_init_uwire(void)
 {
-	/* FIXME define and use a boot tag; not all boards will be hooking
+	/* FIXME define and use a boot tag; yest all boards will be hooking
 	 * up devices to the microwire controller, and multi-board configs
 	 * mean that CONFIG_SPI_OMAP_UWIRE may be configured anyway...
 	 */
 
 	/* board-specific code must configure chipselects (only a few
-	 * are normally used) and SCLK/SDI/SDO (each has two choices).
+	 * are yesrmally used) and SCLK/SDI/SDO (each has two choices).
 	 */
 	(void) platform_device_register(&omap_uwire_device);
 }
@@ -379,7 +379,7 @@ static void omap1_init_rng(void)
  * on-chip peripherals accessible on this board (except for few like USB):
  *
  *  (a) Does any "standard config" pin muxing needed.  Board-specific
- *	code will have muxed GPIO pins and done "nonstandard" setup;
+ *	code will have muxed GPIO pins and done "yesnstandard" setup;
  *	that code could live in the boot loader.
  *  (b) Populating board-specific platform_data with the data drivers
  *	rely on to handle wiring variations.
@@ -389,10 +389,10 @@ static void omap1_init_rng(void)
  * Claiming GPIOs, and setting their direction and initial values, is the
  * responsibility of the device drivers.  So is responding to probe().
  *
- * Board-specific knowledge like creating devices or pin setup is to be
+ * Board-specific kyeswledge like creating devices or pin setup is to be
  * kept out of drivers as much as possible.  In particular, pin setup
  * may be handled by the boot loader, and drivers should expect it will
- * normally have been done by the time they're probed.
+ * yesrmally have been done by the time they're probed.
  */
 static int __init omap1_init_devices(void)
 {

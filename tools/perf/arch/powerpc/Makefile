@@ -19,7 +19,7 @@ sysprf := $(srctree)/tools/perf/arch/powerpc/entry/syscalls
 sysdef := $(sysprf)/syscall.tbl
 systbl := $(sysprf)/mksyscalltbl
 
-# Create output directory if not already present
+# Create output directory if yest already present
 _dummy := $(shell [ -d '$(out)' ] || mkdir -p '$(out)')
 
 $(header64): $(sysdef) $(systbl)

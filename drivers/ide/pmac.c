@@ -22,7 +22,7 @@
 #include <linux/init.h>
 #include <linux/delay.h>
 #include <linux/ide.h>
-#include <linux/notifier.h>
+#include <linux/yestifier.h>
 #include <linux/module.h>
 #include <linux/reboot.h>
 #include <linux/pci.h>
@@ -54,7 +54,7 @@ typedef struct pmac_ide_hwif {
 	int				aapl_bus_id;
 	unsigned			broken_dma : 1;
 	unsigned			broken_dma_warn : 1;
-	struct device_node*		node;
+	struct device_yesde*		yesde;
 	struct macio_dev		*mdev;
 	u32				timings[4];
 	volatile u32 __iomem *		*kauai_fcr;
@@ -104,14 +104,14 @@ static const char* model_name[] = {
  * Timing configuration register definitions
  */
 
-/* Number of IDE_SYSCLK_NS ticks, argument is in nanoseconds */
+/* Number of IDE_SYSCLK_NS ticks, argument is in nayesseconds */
 #define SYSCLK_TICKS(t)		(((t) + IDE_SYSCLK_NS - 1) / IDE_SYSCLK_NS)
 #define SYSCLK_TICKS_66(t)	(((t) + IDE_SYSCLK_66_NS - 1) / IDE_SYSCLK_66_NS)
 #define IDE_SYSCLK_NS		30	/* 33Mhz cell */
 #define IDE_SYSCLK_66_NS	15	/* 66Mhz cell */
 
 /* 133Mhz cell, found in shasta.
- * See comments about 100 Mhz Uninorth 2...
+ * See comments about 100 Mhz Uniyesrth 2...
  * Note that PIO_MASK and MDMA_MASK seem to overlap
  */
 #define TR_133_PIOREG_PIO_MASK		0xff000fff
@@ -119,8 +119,8 @@ static const char* model_name[] = {
 #define TR_133_UDMAREG_UDMA_MASK	0x0003ffff
 #define TR_133_UDMAREG_UDMA_EN		0x00000001
 
-/* 100Mhz cell, found in Uninorth 2. I don't have much infos about
- * this one yet, it appears as a pci device (106b/0033) on uninorth
+/* 100Mhz cell, found in Uniyesrth 2. I don't have much infos about
+ * this one yet, it appears as a pci device (106b/0033) on uniyesrth
  * internal PCI bus and it's clock is controlled like gem or fw. It
  * appears to be an evolution of keylargo ATA4 with a timing register
  * extended to 2 32bits registers and a similar DBDMA channel. Other
@@ -133,7 +133,7 @@ static const char* model_name[] = {
  * register controls the UDMA timings. At least, it seems bit 0
  * of this one enables UDMA vs. MDMA, and bits 4..7 are the
  * cycle time in units of 10ns. Bits 8..15 are used by I don't
- * know their meaning yet
+ * kyesw their meaning yet
  */
 #define TR_100_PIOREG_PIO_MASK		0xff000fff
 #define TR_100_PIOREG_MDMA_MASK		0x00fff000
@@ -183,7 +183,7 @@ static const char* model_name[] = {
  * Darwin code base limit OHare to 150ns cycle time. I decided to do
  * the same here fore safety against broken old hardware ;)
  * The HalfTick bit, when set, adds half a clock (15ns) to the access
- * time and removes one from recovery. It's not supported on KeyLargo
+ * time and removes one from recovery. It's yest supported on KeyLargo
  * implementation afaik. The E bit appears to be set for PIO mode 0 and
  * is used to reach long timings used in this mode.
  */
@@ -391,7 +391,7 @@ kauai_lookup_timing(struct kauai_timing* table, int cycle_time)
  * the BSY bit (typically some combo drives slave on the UDMA
  * bus) after a hard reset. Since we hard reset all drives on
  * KeyLargo ATA66, we have to keep that delay around. I may end
- * up not hard resetting anymore on these and keep the delay only
+ * up yest hard resetting anymore on these and keep the delay only
  * for older interfaces instead (we have to reset when coming
  * from MacOS...) --BenH. 
  */
@@ -809,7 +809,7 @@ static void pmac_ide_set_dma_mode(ide_hwif_t *hwif, ide_drive_t *drive)
 }
 
 /*
- * Blast some well known "safe" values to the timing registers at init or
+ * Blast some well kyeswn "safe" values to the timing registers at init or
  * wakeup from sleep time, before we do real calculation
  */
 static void
@@ -871,7 +871,7 @@ static int pmac_ide_do_suspend(pmac_ide_hwif_t *pmif)
 	}
 
 	/* Disable the bus on older machines and the cell on kauai */
-	ppc_md.feature_call(PMAC_FTR_IDE_ENABLE, pmif->node, pmif->aapl_bus_id,
+	ppc_md.feature_call(PMAC_FTR_IDE_ENABLE, pmif->yesde, pmif->aapl_bus_id,
 			    0);
 
 	return 0;
@@ -884,10 +884,10 @@ static int pmac_ide_do_resume(pmac_ide_hwif_t *pmif)
 {
 	/* Hard reset & re-enable controller (do we really need to reset ? -BenH) */
 	if (!on_media_bay(pmif)) {
-		ppc_md.feature_call(PMAC_FTR_IDE_RESET, pmif->node, pmif->aapl_bus_id, 1);
-		ppc_md.feature_call(PMAC_FTR_IDE_ENABLE, pmif->node, pmif->aapl_bus_id, 1);
+		ppc_md.feature_call(PMAC_FTR_IDE_RESET, pmif->yesde, pmif->aapl_bus_id, 1);
+		ppc_md.feature_call(PMAC_FTR_IDE_ENABLE, pmif->yesde, pmif->aapl_bus_id, 1);
 		msleep(10);
-		ppc_md.feature_call(PMAC_FTR_IDE_RESET, pmif->node, pmif->aapl_bus_id, 0);
+		ppc_md.feature_call(PMAC_FTR_IDE_RESET, pmif->yesde, pmif->aapl_bus_id, 0);
 
 		/* Kauai has it different */
 		if (pmif->kauai_fcr) {
@@ -910,12 +910,12 @@ static int pmac_ide_do_resume(pmac_ide_hwif_t *pmif)
 static u8 pmac_ide_cable_detect(ide_hwif_t *hwif)
 {
 	pmac_ide_hwif_t *pmif = dev_get_drvdata(hwif->gendev.parent);
-	struct device_node *np = pmif->node;
+	struct device_yesde *np = pmif->yesde;
 	const char *cable = of_get_property(np, "cable-type", NULL);
-	struct device_node *root = of_find_node_by_path("/");
+	struct device_yesde *root = of_find_yesde_by_path("/");
 	const char *model = of_get_property(root, "model", NULL);
 
-	of_node_put(root);
+	of_yesde_put(root);
 	/* Get cable type from device-tree. */
 	if (cable && !strncmp(cable, "80-", 3)) {
 		/* Some drives fail to detect 80c cable in PowerBook */
@@ -1016,7 +1016,7 @@ static const struct ide_port_info pmac_port_info = {
  */
 static int pmac_ide_setup_device(pmac_ide_hwif_t *pmif, struct ide_hw *hw)
 {
-	struct device_node *np = pmif->node;
+	struct device_yesde *np = pmif->yesde;
 	const int *bidp;
 	struct ide_host *host;
 	ide_hwif_t *hwif;
@@ -1041,7 +1041,7 @@ static int pmac_ide_setup_device(pmac_ide_hwif_t *pmif, struct ide_hw *hw)
 		d.port_ops = &pmac_ide_ata4_port_ops;
 		d.udma_mask = ATA_UDMA5;
 	} else if (of_device_is_compatible(np, "keylargo-ata")) {
-		if (of_node_name_eq(np, "ata-4")) {
+		if (of_yesde_name_eq(np, "ata-4")) {
 			pmif->kind = controller_kl_ata4;
 			d.port_ops = &pmac_ide_ata4_port_ops;
 			d.udma_mask = ATA_UDMA4;
@@ -1141,8 +1141,8 @@ static int pmac_ide_macio_attach(struct macio_dev *mdev,
 		return -ENOMEM;
 
 	if (macio_resource_count(mdev) == 0) {
-		printk(KERN_WARNING "ide-pmac: no address for %pOF\n",
-				    mdev->ofdev.dev.of_node);
+		printk(KERN_WARNING "ide-pmac: yes address for %pOF\n",
+				    mdev->ofdev.dev.of_yesde);
 		rc = -ENXIO;
 		goto out_free_pmif;
 	}
@@ -1150,19 +1150,19 @@ static int pmac_ide_macio_attach(struct macio_dev *mdev,
 	/* Request memory resource for IO ports */
 	if (macio_request_resource(mdev, 0, "ide-pmac (ports)")) {
 		printk(KERN_ERR "ide-pmac: can't request MMIO resource for "
-				"%pOF!\n", mdev->ofdev.dev.of_node);
+				"%pOF!\n", mdev->ofdev.dev.of_yesde);
 		rc = -EBUSY;
 		goto out_free_pmif;
 	}
 			
 	/* XXX This is bogus. Should be fixed in the registry by checking
 	 * the kind of host interrupt controller, a bit like gatwick
-	 * fixes in irq.c. That works well enough for the single case
+	 * fixes in irq.c. That works well eyesugh for the single case
 	 * where that happens though...
 	 */
 	if (macio_irq_count(mdev) == 0) {
-		printk(KERN_WARNING "ide-pmac: no intrs for device %pOF, using "
-				    "13\n", mdev->ofdev.dev.of_node);
+		printk(KERN_WARNING "ide-pmac: yes intrs for device %pOF, using "
+				    "13\n", mdev->ofdev.dev.of_yesde);
 		irq = irq_create_mapping(NULL, 13);
 	} else
 		irq = macio_irq(mdev, 0);
@@ -1171,7 +1171,7 @@ static int pmac_ide_macio_attach(struct macio_dev *mdev,
 	regbase = (unsigned long) base;
 
 	pmif->mdev = mdev;
-	pmif->node = mdev->ofdev.dev.of_node;
+	pmif->yesde = mdev->ofdev.dev.of_yesde;
 	pmif->regbase = regbase;
 	pmif->irq = irq;
 	pmif->kauai_fcr = NULL;
@@ -1180,7 +1180,7 @@ static int pmac_ide_macio_attach(struct macio_dev *mdev,
 		if (macio_request_resource(mdev, 1, "ide-pmac (dma)"))
 			printk(KERN_WARNING "ide-pmac: can't request DMA "
 					    "resource for %pOF!\n",
-					    mdev->ofdev.dev.of_node);
+					    mdev->ofdev.dev.of_yesde);
 		else
 			pmif->dma_regs = ioremap(macio_resource_start(mdev, 1), 0x1000);
 	} else
@@ -1251,16 +1251,16 @@ pmac_ide_macio_resume(struct macio_dev *mdev)
 static int pmac_ide_pci_attach(struct pci_dev *pdev,
 			       const struct pci_device_id *id)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 	pmac_ide_hwif_t *pmif;
 	void __iomem *base;
 	unsigned long rbase, rlen;
 	int rc;
 	struct ide_hw hw;
 
-	np = pci_device_to_OF_node(pdev);
+	np = pci_device_to_OF_yesde(pdev);
 	if (np == NULL) {
-		printk(KERN_ERR "ide-pmac: cannot find MacIO node for Kauai ATA interface\n");
+		printk(KERN_ERR "ide-pmac: canyest find MacIO yesde for Kauai ATA interface\n");
 		return -ENODEV;
 	}
 
@@ -1277,14 +1277,14 @@ static int pmac_ide_pci_attach(struct pci_dev *pdev,
 	pci_set_master(pdev);
 			
 	if (pci_request_regions(pdev, "Kauai ATA")) {
-		printk(KERN_ERR "ide-pmac: Cannot obtain PCI resources for "
+		printk(KERN_ERR "ide-pmac: Canyest obtain PCI resources for "
 				"%pOF\n", np);
 		rc = -ENXIO;
 		goto out_free_pmif;
 	}
 
 	pmif->mdev = NULL;
-	pmif->node = np;
+	pmif->yesde = np;
 
 	rbase = pci_resource_start(pdev, 0);
 	rlen = pci_resource_len(pdev, 0);
@@ -1479,7 +1479,7 @@ static int pmac_ide_build_dmatable(ide_drive_t *drive, struct ide_cmd *cmd)
 
 		if (pmif->broken_dma && cur_addr & (L1_CACHE_BYTES - 1)) {
 			if (pmif->broken_dma_warn == 0) {
-				printk(KERN_WARNING "%s: DMA on non aligned address, "
+				printk(KERN_WARNING "%s: DMA on yesn aligned address, "
 				       "switching to PIO on Ohare chipset\n", drive->name);
 				pmif->broken_dma_warn = 1;
 			}
@@ -1561,7 +1561,7 @@ pmac_ide_dma_start(ide_drive_t *drive)
 	dma = pmif->dma_regs;
 
 	writel((RUN << 16) | RUN, &dma->control);
-	/* Make sure it gets to the controller right now */
+	/* Make sure it gets to the controller right yesw */
 	(void)readl(&dma->control);
 }
 
@@ -1587,10 +1587,10 @@ pmac_ide_dma_end (ide_drive_t *drive)
 }
 
 /*
- * Check out that the interrupt we got was for us. We can't always know this
+ * Check out that the interrupt we got was for us. We can't always kyesw this
  * for sure with those Apple interfaces (well, we could on the recent ones but
- * that's not implemented yet), on the other hand, we don't have shared interrupts
- * so it's not really a problem
+ * that's yest implemented yet), on the other hand, we don't have shared interrupts
+ * so it's yest really a problem
  */
 static int
 pmac_ide_dma_test_irq (ide_drive_t *drive)

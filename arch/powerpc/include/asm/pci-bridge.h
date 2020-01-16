@@ -9,7 +9,7 @@
 #include <linux/ioport.h>
 #include <linux/numa.h>
 
-struct device_node;
+struct device_yesde;
 
 /*
  * PCI controller operations
@@ -53,15 +53,15 @@ struct pci_controller {
 	struct pci_bus *bus;
 	char is_dynamic;
 #ifdef CONFIG_PPC64
-	int node;
+	int yesde;
 #endif
-	struct device_node *dn;
-	struct list_head list_node;
+	struct device_yesde *dn;
+	struct list_head list_yesde;
 	struct device *parent;
 
-	int first_busno;
-	int last_busno;
-	int self_busno;
+	int first_busyes;
+	int last_busyes;
+	int self_busyes;
 	struct resource busn;
 
 	void __iomem *io_base_virt;
@@ -168,15 +168,15 @@ static inline struct pci_controller *pci_bus_to_host(const struct pci_bus *bus)
 
 #ifndef CONFIG_PPC64
 
-extern int pci_device_from_OF_node(struct device_node *node,
+extern int pci_device_from_OF_yesde(struct device_yesde *yesde,
 				   u8 *bus, u8 *devfn);
 extern void pci_create_OF_bus_map(void);
 
 #else	/* CONFIG_PPC64 */
 
 /*
- * PCI stuff, for nodes representing PCI devices, pointed to
- * by device_node->data.
+ * PCI stuff, for yesdes representing PCI devices, pointed to
+ * by device_yesde->data.
  */
 struct iommu_table;
 
@@ -185,7 +185,7 @@ struct pci_dn {
 #define PCI_DN_FLAG_IOV_VF	0x01
 #define PCI_DN_FLAG_DEAD	0x02    /* Device has been hot-removed */
 
-	int	busno;			/* pci bus number */
+	int	busyes;			/* pci bus number */
 	int	devfn;			/* pci device and function number */
 	int	vendor_id;		/* Vendor ID */
 	int	device_id;		/* Device ID */
@@ -217,7 +217,7 @@ struct pci_dn {
 	struct resource holes[PCI_SRIOV_NUM_BARS];
 };
 
-/* Get the pointer to a device_node's pci_dn */
+/* Get the pointer to a device_yesde's pci_dn */
 #define PCI_DN(dn)	((struct pci_dn *) (dn)->data)
 
 extern struct pci_dn *pci_get_pdn_by_devfn(struct pci_bus *bus,
@@ -225,16 +225,16 @@ extern struct pci_dn *pci_get_pdn_by_devfn(struct pci_bus *bus,
 extern struct pci_dn *pci_get_pdn(struct pci_dev *pdev);
 extern struct pci_dn *add_dev_pci_data(struct pci_dev *pdev);
 extern void remove_dev_pci_data(struct pci_dev *pdev);
-extern struct pci_dn *pci_add_device_node_info(struct pci_controller *hose,
-					       struct device_node *dn);
-extern void pci_remove_device_node_info(struct device_node *dn);
+extern struct pci_dn *pci_add_device_yesde_info(struct pci_controller *hose,
+					       struct device_yesde *dn);
+extern void pci_remove_device_yesde_info(struct device_yesde *dn);
 
-static inline int pci_device_from_OF_node(struct device_node *np,
+static inline int pci_device_from_OF_yesde(struct device_yesde *np,
 					  u8 *bus, u8 *devfn)
 {
 	if (!PCI_DN(np))
 		return -ENODEV;
-	*bus = PCI_DN(np)->busno;
+	*bus = PCI_DN(np)->busyes;
 	*devfn = PCI_DN(np)->devfn;
 	return 0;
 }
@@ -248,8 +248,8 @@ static inline struct eeh_dev *pdn_to_eeh_dev(struct pci_dn *pdn)
 #define pdn_to_eeh_dev(x)	(NULL)
 #endif
 
-/** Find the bus corresponding to the indicated device node */
-extern struct pci_bus *pci_find_bus_by_node(struct device_node *dn);
+/** Find the bus corresponding to the indicated device yesde */
+extern struct pci_bus *pci_find_bus_by_yesde(struct device_yesde *dn);
 
 /** Remove all of the PCI devices under this bus */
 extern void pci_hp_remove_devices(struct pci_bus *bus);
@@ -261,25 +261,25 @@ extern int pcibios_unmap_io_space(struct pci_bus *bus);
 extern int pcibios_map_io_space(struct pci_bus *bus);
 
 #ifdef CONFIG_NUMA
-#define PHB_SET_NODE(PHB, NODE)		((PHB)->node = (NODE))
+#define PHB_SET_NODE(PHB, NODE)		((PHB)->yesde = (NODE))
 #else
-#define PHB_SET_NODE(PHB, NODE)		((PHB)->node = NUMA_NO_NODE)
+#define PHB_SET_NODE(PHB, NODE)		((PHB)->yesde = NUMA_NO_NODE)
 #endif
 
 #endif	/* CONFIG_PPC64 */
 
 /* Get the PCI host controller for an OF device */
 extern struct pci_controller *pci_find_hose_for_OF_device(
-			struct device_node* node);
+			struct device_yesde* yesde);
 
 extern struct pci_controller *pci_find_controller_for_domain(int domain_nr);
 
-/* Fill up host controller resources from the OF node */
+/* Fill up host controller resources from the OF yesde */
 extern void pci_process_bridge_OF_ranges(struct pci_controller *hose,
-			struct device_node *dev, int primary);
+			struct device_yesde *dev, int primary);
 
 /* Allocate & free a PCI host bridge structure */
-extern struct pci_controller *pcibios_alloc_controller(struct device_node *dev);
+extern struct pci_controller *pcibios_alloc_controller(struct device_yesde *dev);
 extern void pcibios_free_controller(struct pci_controller *phb);
 extern void pcibios_free_controller_deferred(struct pci_host_bridge *bridge);
 

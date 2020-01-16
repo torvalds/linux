@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-yeste */
 /*
  * VFIO API definition
  *
@@ -26,7 +26,7 @@
 #define VFIO_SPAPR_TCE_IOMMU		2
 #define VFIO_TYPE1v2_IOMMU		3
 /*
- * IOMMU enforces DMA cache coherence (ex. PCIe NoSnoop stripping).  This
+ * IOMMU enforces DMA cache coherence (ex. PCIe NoSyesop stripping).  This
  * capability is subject to change as groups are added or removed.
  */
 #define VFIO_DMA_CC_IOMMU		4
@@ -40,8 +40,8 @@
 #define VFIO_SPAPR_TCE_v2_IOMMU		7
 
 /*
- * The No-IOMMU IOMMU offers no translation or isolation for devices and
- * supports no ioctls outside of VFIO_CHECK_EXTENSION.  Use of VFIO's No-IOMMU
+ * The No-IOMMU IOMMU offers yes translation or isolation for devices and
+ * supports yes ioctls outside of VFIO_CHECK_EXTENSION.  Use of VFIO's No-IOMMU
  * code will taint the host kernel and should be used with extreme caution.
  */
 #define VFIO_NOIOMMU_IOMMU		8
@@ -83,8 +83,8 @@ struct vfio_info_cap_header {
  * the capability chain flag bit set, a zero value for the first capability
  * offset (if available within the provided argsz), and argsz will be
  * updated to report the necessary buffer size.  For compatibility, the
- * INFO ioctl will not report error in this case, but the capability chain
- * will not be available.
+ * INFO ioctl will yest report error in this case, but the capability chain
+ * will yest be available.
  */
 
 /* -------- IOCTLs for VFIO file descriptor (/dev/vfio/vfio) -------- */
@@ -104,7 +104,7 @@ struct vfio_info_cap_header {
  * VFIO_CHECK_EXTENSION - _IOW(VFIO_TYPE, VFIO_BASE + 1, __u32)
  *
  * Check whether an extension is supported.
- * Return: 0 if not supported, 1 (or some other positive integer) if supported.
+ * Return: 0 if yest supported, 1 (or some other positive integer) if supported.
  * Availability: Always
  */
 #define VFIO_CHECK_EXTENSION		_IO(VFIO_TYPE, VFIO_BASE + 1)
@@ -117,7 +117,7 @@ struct vfio_info_cap_header {
  * type.  A group must be set to this file descriptor before this
  * ioctl is available.  The IOMMU interfaces enabled by this call are
  * specific to the value set.
- * Return: 0 on success, -errno on failure
+ * Return: 0 on success, -erryes on failure
  * Availability: When VFIO group attached
  */
 #define VFIO_SET_IOMMU			_IO(VFIO_TYPE, VFIO_BASE + 2)
@@ -130,7 +130,7 @@ struct vfio_info_cap_header {
  *
  * Retrieve information about the group.  Fills in provided
  * struct vfio_group_info.  Caller sets argsz.
- * Return: 0 on succes, -errno on failure.
+ * Return: 0 on succes, -erryes on failure.
  * Availability: Always
  */
 struct vfio_group_status {
@@ -150,7 +150,7 @@ struct vfio_group_status {
  * groups.  Only when a container is set are all of the interfaces
  * of the VFIO file descriptor and the VFIO group file descriptor
  * available to the user.
- * Return: 0 on success, -errno on failure.
+ * Return: 0 on success, -erryes on failure.
  * Availability: Always
  */
 #define VFIO_GROUP_SET_CONTAINER	_IO(VFIO_TYPE, VFIO_BASE + 4)
@@ -165,7 +165,7 @@ struct vfio_group_status {
  * from a container, the IOMMU will be disabled and all state lost,
  * effectively also returning the VFIO file descriptor to an initial
  * state.
- * Return: 0 on success, -errno on failure.
+ * Return: 0 on success, -erryes on failure.
  * Availability: When attached to container
  */
 #define VFIO_GROUP_UNSET_CONTAINER	_IO(VFIO_TYPE, VFIO_BASE + 5)
@@ -177,7 +177,7 @@ struct vfio_group_status {
  * the provided string.  The string should match a device listed in
  * the devices subdirectory of the IOMMU group sysfs entry.  The
  * group containing the device must already be added to this context.
- * Return: new file descriptor on success, -errno on failure.
+ * Return: new file descriptor on success, -erryes on failure.
  * Availability: When attached to container
  */
 #define VFIO_GROUP_GET_DEVICE_FD	_IO(VFIO_TYPE, VFIO_BASE + 6)
@@ -190,7 +190,7 @@ struct vfio_group_status {
  *
  * Retrieve information about the device.  Fills in provided
  * struct vfio_device_info.  Caller sets argsz.
- * Return: 0 on success, -errno on failure.
+ * Return: 0 on success, -erryes on failure.
  */
 struct vfio_device_info {
 	__u32	argsz;
@@ -228,7 +228,7 @@ struct vfio_device_info {
  * intended to describe MMIO, I/O port, as well as bus specific
  * regions (ex. PCI config space).  Zero sized regions may be used
  * to describe unimplemented regions (ex. unimplemented PCI BARs).
- * Return: 0 on success, -errno on failure.
+ * Return: 0 on success, -erryes on failure.
  */
 struct vfio_region_info {
 	__u32	argsz;
@@ -276,11 +276,11 @@ struct vfio_region_info_cap_sparse_mmap {
  * VFIO_PCI_VGA_REGION_INDEX and let vfio-pci simply define that all indexes
  * greater than or equal to VFIO_PCI_NUM_REGIONS are device specific and we'd
  * make a "VGA" device specific type to describe the VGA access space.  This
- * means that non-VGA devices wouldn't need to waste this index, and thus the
+ * means that yesn-VGA devices wouldn't need to waste this index, and thus the
  * address space associated with it due to implementation of device file
  * descriptor offsets in vfio-pci.
  *
- * The current implementation is now part of the user ABI, so we can't use this
+ * The current implementation is yesw part of the user ABI, so we can't use this
  * for VGA, but there are other upcoming use cases, such as opregions for Intel
  * IGD devices and framebuffers for vGPU devices.  We missed VGA, but we'll
  * use this for future additions.
@@ -357,8 +357,8 @@ struct vfio_region_info_cap_type {
  * @link_state: display link state (read/write).
  * VFIO_DEVICE_GFX_LINK_STATE_UP: Monitor is turned on.
  * VFIO_DEVICE_GFX_LINK_STATE_DOWN: Monitor is turned off.
- * @max_xres: max display width (0 == no limitation, readonly).
- * @max_yres: max display height (0 == no limitation, readonly).
+ * @max_xres: max display width (0 == yes limitation, readonly).
+ * @max_yres: max display height (0 == yes limitation, readonly).
  *
  * EDID update protocol:
  *   (1) set link-state to down.
@@ -381,7 +381,7 @@ struct vfio_region_gfx_edid {
 
 /*
  * The MSIX mappable capability informs that MSIX data of a BAR can be mmapped
- * which allows direct access to non-MSIX registers which happened to be within
+ * which allows direct access to yesn-MSIX registers which happened to be within
  * the same system page.
  *
  * Even though the userspace gets direct access to the MSIX data, the existing
@@ -406,7 +406,7 @@ struct vfio_region_info_cap_nvlink2_ssatgt {
  * the NVlink2 bridge driver from the bridge's "ibm,nvlink-speed"
  * property in the device tree. The value is fixed in the hardware
  * and failing to provide the correct value results in the link
- * not working with no indication from the driver why.
+ * yest working with yes indication from the driver why.
  */
 #define VFIO_REGION_INFO_CAP_NVLINK2_LNKSPD	5
 
@@ -439,7 +439,7 @@ struct vfio_region_info_cap_nvlink2_lnkspd {
  * level triggered interrupts.
  *
  * The NORESIZE flag indicates that the interrupt lines within the index
- * are setup as a set and new subindexes cannot be enabled without first
+ * are setup as a set and new subindexes canyest be enabled without first
  * disabling the entire index.  This is used for interrupts like PCI MSI
  * and MSI-X where the driver may only use a subset of the available
  * indexes, but VFIO needs to enable a specific number of vectors
@@ -473,7 +473,7 @@ struct vfio_irq_info {
  * flags = (DATA_NONE|ACTION_UNMASK), index = 0, start = 0, count = 1.
  *
  * DATA_BOOL allows sparse support for the same on arrays of interrupts.
- * For example, to mask interrupts [0,1] and [0,3] (but not [0,2]):
+ * For example, to mask interrupts [0,1] and [0,3] (but yest [0,2]):
  * flags = (DATA_BOOL|ACTION_MASK), index = 0, start = 1, count = 3,
  * data = {1,0,1}
  *
@@ -501,7 +501,7 @@ struct vfio_irq_info {
 struct vfio_irq_set {
 	__u32	argsz;
 	__u32	flags;
-#define VFIO_IRQ_SET_DATA_NONE		(1 << 0) /* Data not present */
+#define VFIO_IRQ_SET_DATA_NONE		(1 << 0) /* Data yest present */
 #define VFIO_IRQ_SET_DATA_BOOL		(1 << 1) /* Data is bool (u8) */
 #define VFIO_IRQ_SET_DATA_EVENTFD	(1 << 2) /* Data is eventfd (s32) */
 #define VFIO_IRQ_SET_ACTION_MASK	(1 << 3) /* Mask interrupt */
@@ -584,8 +584,8 @@ enum {
  * VFIO_DEVICE_GET_PCI_HOT_RESET_INFO - _IORW(VFIO_TYPE, VFIO_BASE + 12,
  *					      struct vfio_pci_hot_reset_info)
  *
- * Return: 0 on success, -errno on failure:
- *	-enospc = insufficient buffer, -enodev = unsupported for device.
+ * Return: 0 on success, -erryes on failure:
+ *	-eyesspc = insufficient buffer, -eyesdev = unsupported for device.
  */
 struct vfio_pci_dependent_device {
 	__u32	group_id;
@@ -607,7 +607,7 @@ struct vfio_pci_hot_reset_info {
  * VFIO_DEVICE_PCI_HOT_RESET - _IOW(VFIO_TYPE, VFIO_BASE + 13,
  *				    struct vfio_pci_hot_reset)
  *
- * Return: 0 on success, -errno on failure.
+ * Return: 0 on success, -erryes on failure.
  */
 struct vfio_pci_hot_reset {
 	__u32	argsz;
@@ -626,10 +626,10 @@ struct vfio_pci_hot_reset {
  *
  * flags supported:
  * - VFIO_GFX_PLANE_TYPE_PROBE and VFIO_GFX_PLANE_TYPE_DMABUF are set
- *   to ask if the mdev supports dma-buf. 0 on support, -EINVAL on no
+ *   to ask if the mdev supports dma-buf. 0 on support, -EINVAL on yes
  *   support for dma-buf.
  * - VFIO_GFX_PLANE_TYPE_PROBE and VFIO_GFX_PLANE_TYPE_REGION are set
- *   to ask if the mdev supports region. 0 on support, -EINVAL on no
+ *   to ask if the mdev supports region. 0 on support, -EINVAL on yes
  *   support for region.
  * - VFIO_GFX_PLANE_TYPE_DMABUF or VFIO_GFX_PLANE_TYPE_REGION is set
  *   with each call to query the plane info.
@@ -639,9 +639,9 @@ struct vfio_pci_hot_reset {
  * 1. Plane could be disabled by guest. In that case, success will be
  *    returned with zero-initialized drm_format, size, width and height
  *    fields.
- * 2. x_hot/y_hot is set to 0xFFFFFFFF if no hotspot information available
+ * 2. x_hot/y_hot is set to 0xFFFFFFFF if yes hotspot information available
  *
- * Return: 0 on success, -errno on other failure.
+ * Return: 0 on success, -erryes on other failure.
  */
 struct vfio_device_gfx_plane_info {
 	__u32 argsz;
@@ -686,11 +686,11 @@ struct vfio_device_gfx_plane_info {
  *
  * Perform a write to the device at the specified device fd offset, with
  * the specified data and width when the provided eventfd is triggered.
- * vfio bus drivers may not support this for all regions, for all widths,
+ * vfio bus drivers may yest support this for all regions, for all widths,
  * or at all.  vfio-pci currently only enables support for BAR regions,
  * excluding the MSI-X vector table.
  *
- * Return: 0 on success, -errno on failure.
+ * Return: 0 on success, -erryes on failure.
  */
 struct vfio_device_ioeventfd {
 	__u32	argsz;
@@ -728,7 +728,7 @@ struct vfio_iommu_type1_info {
 
 /*
  * The IOVA capability allows to report the valid IOVA range(s)
- * excluding any non-relaxable reserved regions exposed by
+ * excluding any yesn-relaxable reserved regions exposed by
  * devices attached to the container. Any DMA map attempt
  * outside the valid iova range will return error.
  *
@@ -816,7 +816,7 @@ struct vfio_iommu_spapr_tce_ddw_info {
 /*
  * The SPAPR TCE info struct provides the information about the PCI bus
  * address ranges available for DMA, these values are programmed into
- * the hardware so the guest has to know that information.
+ * the hardware so the guest has to kyesw that information.
  *
  * The DMA 32 bit window start is an absolute PCI bus address.
  * The IOVA address passed via map/unmap ioctls are absolute PCI bus

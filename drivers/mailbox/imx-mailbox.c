@@ -290,7 +290,7 @@ static void imx_mu_init_generic(struct imx_mu_priv *priv)
 static int imx_mu_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
+	struct device_yesde *np = dev->of_yesde;
 	struct imx_mu_priv *priv;
 	const struct imx_mu_dcfg *dcfg;
 	unsigned int i;

@@ -117,7 +117,7 @@ static struct em_perf_domain *em_create_pd(cpumask_t *span, int nr_states,
 		 * higher capacity states.
 		 */
 		if (freq <= prev_freq) {
-			pr_err("pd%d: non-increasing freq: %lu\n", cpu, freq);
+			pr_err("pd%d: yesn-increasing freq: %lu\n", cpu, freq);
 			goto free_cs_table;
 		}
 
@@ -141,7 +141,7 @@ static struct em_perf_domain *em_create_pd(cpumask_t *span, int nr_states,
 		 */
 		opp_eff = freq / power;
 		if (opp_eff >= prev_opp_eff)
-			pr_warn("pd%d: hertz/watts ratio non-monotonically decreasing: em_cap_state %d >= em_cap_state%d\n",
+			pr_warn("pd%d: hertz/watts ratio yesn-moyestonically decreasing: em_cap_state %d >= em_cap_state%d\n",
 					cpu, i, i - 1);
 		prev_opp_eff = opp_eff;
 	}
@@ -192,7 +192,7 @@ EXPORT_SYMBOL_GPL(em_cpu_get);
  * defined in cb.
  *
  * If multiple clients register the same performance domain, all but the first
- * registration will be ignored.
+ * registration will be igyesred.
  *
  * Return 0 on success
  */

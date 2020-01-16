@@ -69,7 +69,7 @@ static inline u64 __raw_readq(const volatile void __iomem *addr)
 static inline void __raw_writeb(u8 b, const volatile void __iomem *addr)
 {
 	__asm__ __volatile__("stba\t%r0, [%1] %2\t/* pci_raw_writeb */"
-			     : /* no outputs */
+			     : /* yes outputs */
 			     : "Jr" (b), "r" (addr), "i" (ASI_PHYS_BYPASS_EC_E));
 }
 
@@ -77,7 +77,7 @@ static inline void __raw_writeb(u8 b, const volatile void __iomem *addr)
 static inline void __raw_writew(u16 w, const volatile void __iomem *addr)
 {
 	__asm__ __volatile__("stha\t%r0, [%1] %2\t/* pci_raw_writew */"
-			     : /* no outputs */
+			     : /* yes outputs */
 			     : "Jr" (w), "r" (addr), "i" (ASI_PHYS_BYPASS_EC_E));
 }
 
@@ -85,7 +85,7 @@ static inline void __raw_writew(u16 w, const volatile void __iomem *addr)
 static inline void __raw_writel(u32 l, const volatile void __iomem *addr)
 {
 	__asm__ __volatile__("stwa\t%r0, [%1] %2\t/* pci_raw_writel */"
-			     : /* no outputs */
+			     : /* yes outputs */
 			     : "Jr" (l), "r" (addr), "i" (ASI_PHYS_BYPASS_EC_E));
 }
 
@@ -93,7 +93,7 @@ static inline void __raw_writel(u32 l, const volatile void __iomem *addr)
 static inline void __raw_writeq(u64 q, const volatile void __iomem *addr)
 {
 	__asm__ __volatile__("stxa\t%r0, [%1] %2\t/* pci_raw_writeq */"
-			     : /* no outputs */
+			     : /* yes outputs */
 			     : "Jr" (q), "r" (addr), "i" (ASI_PHYS_BYPASS_EC_E));
 }
 
@@ -157,7 +157,7 @@ static inline u64 readq(const volatile void __iomem *addr)
 static inline void writeb(u8 b, volatile void __iomem *addr)
 {
 	__asm__ __volatile__("stba\t%r0, [%1] %2\t/* pci_writeb */"
-			     : /* no outputs */
+			     : /* yes outputs */
 			     : "Jr" (b), "r" (addr), "i" (ASI_PHYS_BYPASS_EC_E_L)
 			     : "memory");
 }
@@ -167,7 +167,7 @@ static inline void writeb(u8 b, volatile void __iomem *addr)
 static inline void writew(u16 w, volatile void __iomem *addr)
 {
 	__asm__ __volatile__("stha\t%r0, [%1] %2\t/* pci_writew */"
-			     : /* no outputs */
+			     : /* yes outputs */
 			     : "Jr" (w), "r" (addr), "i" (ASI_PHYS_BYPASS_EC_E_L)
 			     : "memory");
 }
@@ -177,7 +177,7 @@ static inline void writew(u16 w, volatile void __iomem *addr)
 static inline void writel(u32 l, volatile void __iomem *addr)
 {
 	__asm__ __volatile__("stwa\t%r0, [%1] %2\t/* pci_writel */"
-			     : /* no outputs */
+			     : /* yes outputs */
 			     : "Jr" (l), "r" (addr), "i" (ASI_PHYS_BYPASS_EC_E_L)
 			     : "memory");
 }
@@ -187,7 +187,7 @@ static inline void writel(u32 l, volatile void __iomem *addr)
 static inline void writeq(u64 q, volatile void __iomem *addr)
 {
 	__asm__ __volatile__("stxa\t%r0, [%1] %2\t/* pci_writeq */"
-			     : /* no outputs */
+			     : /* yes outputs */
 			     : "Jr" (q), "r" (addr), "i" (ASI_PHYS_BYPASS_EC_E_L)
 			     : "memory");
 }
@@ -285,7 +285,7 @@ static inline void writesl(void __iomem *port, const void *buf, unsigned long co
 #define IO_SPACE_LIMIT 0xffffffffffffffffUL
 
 /* Now, SBUS variants, only difference from PCI is that we do
- * not use little-endian ASIs.
+ * yest use little-endian ASIs.
  */
 static inline u8 sbus_readb(const volatile void __iomem *addr)
 {
@@ -399,14 +399,14 @@ static inline void memcpy_toio(volatile void __iomem *dst, const void *src,
 #ifdef __KERNEL__
 
 /* On sparc64 we have the whole physical IO address space accessible
- * using physically addressed loads and stores, so this does nothing.
+ * using physically addressed loads and stores, so this does yesthing.
  */
 static inline void __iomem *ioremap(unsigned long offset, unsigned long size)
 {
 	return (void __iomem *)offset;
 }
 
-#define ioremap_nocache(X,Y)		ioremap((X),(Y))
+#define ioremap_yescache(X,Y)		ioremap((X),(Y))
 #define ioremap_uc(X,Y)			ioremap((X),(Y))
 #define ioremap_wc(X,Y)			ioremap((X),(Y))
 #define ioremap_wt(X,Y)			ioremap((X),(Y))

@@ -155,17 +155,17 @@
         "EventCode": "0x4",
         "EventName": "UNC_M_CAS_COUNT.ALL",
         "PerPkg": "1",
-        "PublicDescription": "Counts all CAS (Column Address Select) commands issued to DRAM per memory channel.  CAS commands are issued to specify the address to read or write on DRAM, so this event increments for every read and write. This event counts whether AutoPrecharge (which closes the DRAM Page automatically after a read/write) is enabled or not.",
+        "PublicDescription": "Counts all CAS (Column Address Select) commands issued to DRAM per memory channel.  CAS commands are issued to specify the address to read or write on DRAM, so this event increments for every read and write. This event counts whether AutoPrecharge (which closes the DRAM Page automatically after a read/write) is enabled or yest.",
         "UMask": "0xF",
         "Unit": "iMC"
     },
     {
-        "BriefDescription": "All DRAM Read CAS Commands issued (does not include underfills)",
+        "BriefDescription": "All DRAM Read CAS Commands issued (does yest include underfills)",
         "Counter": "0,1,2,3",
         "EventCode": "0x4",
         "EventName": "UNC_M_CAS_COUNT.RD_REG",
         "PerPkg": "1",
-        "PublicDescription": "Counts CAS (Column Access Select) regular read commands issued to DRAM on a per channel basis.  CAS commands are issued to specify the address to read or write on DRAM, and this event increments for every regular read.  This event only counts regular reads and does not includes underfill reads due to partial write requests.  This event counts whether AutoPrecharge (which closes the DRAM Page automatically after a read/write)  is enabled or not.",
+        "PublicDescription": "Counts CAS (Column Access Select) regular read commands issued to DRAM on a per channel basis.  CAS commands are issued to specify the address to read or write on DRAM, and this event increments for every regular read.  This event only counts regular reads and does yest includes underfill reads due to partial write requests.  This event counts whether AutoPrecharge (which closes the DRAM Page automatically after a read/write)  is enabled or yest.",
         "UMask": "0x1",
         "Unit": "iMC"
     },
@@ -245,7 +245,7 @@
         "EventCode": "0x10",
         "EventName": "UNC_M_RPQ_INSERTS",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of read requests allocated into the Read Pending Queue (RPQ).  This queue is used to schedule reads out to the memory controller and to track the requests.  Requests allocate into the RPQ soon after they enter the memory controller, and need credits for an entry in this buffer before being sent from the CHA to the iMC.  The requests deallocate after the read CAS command has been issued to DRAM.  This event counts both Isochronous and non-Isochronous requests which were issued to the RPQ.",
+        "PublicDescription": "Counts the number of read requests allocated into the Read Pending Queue (RPQ).  This queue is used to schedule reads out to the memory controller and to track the requests.  Requests allocate into the RPQ soon after they enter the memory controller, and need credits for an entry in this buffer before being sent from the CHA to the iMC.  The requests deallocate after the read CAS command has been issued to DRAM.  This event counts both Isochroyesus and yesn-Isochroyesus requests which were issued to the RPQ.",
         "Unit": "iMC"
     },
     {
@@ -254,7 +254,7 @@
         "EventCode": "0x80",
         "EventName": "UNC_M_RPQ_OCCUPANCY",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of entries in the Read Pending Queue (RPQ) at each cycle.  This can then be used to calculate both the average occupancy of the queue (in conjunction with the number of cycles not empty) and the average latency in the queue (in conjunction with the number of allocations).  The RPQ is used to schedule reads out to the memory controller and to track the requests.  Requests allocate into the RPQ soon after they enter the memory controller, and need credits for an entry in this buffer before being sent from the CHA to the iMC. They deallocate from the RPQ after the CAS command has been issued to memory.",
+        "PublicDescription": "Counts the number of entries in the Read Pending Queue (RPQ) at each cycle.  This can then be used to calculate both the average occupancy of the queue (in conjunction with the number of cycles yest empty) and the average latency in the queue (in conjunction with the number of allocations).  The RPQ is used to schedule reads out to the memory controller and to track the requests.  Requests allocate into the RPQ soon after they enter the memory controller, and need credits for an entry in this buffer before being sent from the CHA to the iMC. They deallocate from the RPQ after the CAS command has been issued to memory.",
         "Unit": "iMC"
     },
     {
@@ -302,7 +302,7 @@
         "EventCode": "0x81",
         "EventName": "UNC_M_WPQ_OCCUPANCY",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of entries in the Write Pending Queue (WPQ) at each cycle.  This can then be used to calculate both the average queue occupancy (in conjunction with the number of cycles not empty) and the average latency (in conjunction with the number of allocations).  The WPQ is used to schedule writes out to the memory controller and to track the requests.  Requests allocate into the WPQ soon after they enter the memory controller, and need credits for an entry in this buffer before being sent from the CHA to the iMC (memory controller).  They deallocate after being issued to DRAM.  Write requests themselves are able to complete (from the perspective of the rest of the system) as soon they have 'posted' to the iMC.  This is not to be confused with actually performing the write to DRAM.  Therefore, the average latency for this queue is actually not useful for deconstruction intermediate write latencies.  So, we provide filtering based on if the request has posted or not.  By using the 'not posted' filter, we can track how long writes spent in the iMC before completions were sent to the HA.  The 'posted' filter, on the other hand, provides information about how much queueing is actually happenning in the iMC for writes before they are actually issued to memory.  High average occupancies will generally coincide with high write major mode counts. Is there a filter of sorts???",
+        "PublicDescription": "Counts the number of entries in the Write Pending Queue (WPQ) at each cycle.  This can then be used to calculate both the average queue occupancy (in conjunction with the number of cycles yest empty) and the average latency (in conjunction with the number of allocations).  The WPQ is used to schedule writes out to the memory controller and to track the requests.  Requests allocate into the WPQ soon after they enter the memory controller, and need credits for an entry in this buffer before being sent from the CHA to the iMC (memory controller).  They deallocate after being issued to DRAM.  Write requests themselves are able to complete (from the perspective of the rest of the system) as soon they have 'posted' to the iMC.  This is yest to be confused with actually performing the write to DRAM.  Therefore, the average latency for this queue is actually yest useful for deconstruction intermediate write latencies.  So, we provide filtering based on if the request has posted or yest.  By using the 'yest posted' filter, we can track how long writes spent in the iMC before completions were sent to the HA.  The 'posted' filter, on the other hand, provides information about how much queueing is actually happenning in the iMC for writes before they are actually issued to memory.  High average occupancies will generally coincide with high write major mode counts. Is there a filter of sorts???",
         "Unit": "iMC"
     }
 ]

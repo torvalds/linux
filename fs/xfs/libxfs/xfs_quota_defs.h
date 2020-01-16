@@ -11,7 +11,7 @@
  */
 
 /*
- * Even though users may not have quota limits occupying all 64-bits,
+ * Even though users may yest have quota limits occupying all 64-bits,
  * they may need 64-bit accounting. Hence, 64-bit quota-counters,
  * and quota-limits. This is a waste in the common case, but hey ...
  */
@@ -47,11 +47,11 @@ typedef uint16_t	xfs_qwarncnt_t;
  * modified. Hence for this case we need to reserve space for at least 4 dquots.
  *
  * And in the worst case, there's a rename operation that can be modifying up to
- * 4 inodes with dquots attached to them. In reality, the only inodes that can
- * have their dquots modified are the source and destination directory inodes
+ * 4 iyesdes with dquots attached to them. In reality, the only iyesdes that can
+ * have their dquots modified are the source and destination directory iyesdes
  * due to directory name creation and removal. That can require space allocation
- * and/or freeing on both directory inodes, and hence all three dquots on each
- * inode can be modified. And if the directories are world writeable, all the
+ * and/or freeing on both directory iyesdes, and hence all three dquots on each
+ * iyesde can be modified. And if the directories are world writeable, all the
  * dquots can be unique and so 6 dquots can be modified....
  *
  * And, of course, we also need to take into account the dquot log format item
@@ -80,8 +80,8 @@ typedef uint16_t	xfs_qwarncnt_t;
 	(XFS_UQUOTA_ACTIVE | XFS_GQUOTA_ACTIVE | XFS_PQUOTA_ACTIVE)
 
 /*
- * Checking XFS_IS_*QUOTA_ON() while holding any inode lock guarantees
- * quota will be not be switched off as long as that inode lock is held.
+ * Checking XFS_IS_*QUOTA_ON() while holding any iyesde lock guarantees
+ * quota will be yest be switched off as long as that iyesde lock is held.
  */
 #define XFS_IS_QUOTA_ON(mp)	((mp)->m_qflags & (XFS_UQUOTA_ACTIVE | \
 						   XFS_GQUOTA_ACTIVE | \
@@ -97,10 +97,10 @@ typedef uint16_t	xfs_qwarncnt_t;
  */
 #define XFS_QMOPT_UQUOTA	0x0000004 /* user dquot requested */
 #define XFS_QMOPT_PQUOTA	0x0000008 /* project dquot requested */
-#define XFS_QMOPT_FORCE_RES	0x0000010 /* ignore quota limits */
+#define XFS_QMOPT_FORCE_RES	0x0000010 /* igyesre quota limits */
 #define XFS_QMOPT_SBVERSION	0x0000040 /* change superblock version num */
 #define XFS_QMOPT_GQUOTA	0x0002000 /* group dquot requested */
-#define XFS_QMOPT_ENOSPC	0x0004000 /* enospc instead of edquot (prj) */
+#define XFS_QMOPT_ENOSPC	0x0004000 /* eyesspc instead of edquot (prj) */
 
 /*
  * flags to xfs_trans_mod_dquot to indicate which field needs to be

@@ -9,7 +9,7 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/types.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/bug.h>
 #include <linux/interrupt.h>
 #include <linux/workqueue.h>
@@ -1082,26 +1082,26 @@ static struct gsc_driverdata gsc_5433_drvdata = {
 	.num_clocks = 4,
 };
 
-static const struct of_device_id exynos_gsc_match[] = {
+static const struct of_device_id exyyess_gsc_match[] = {
 	{
-		.compatible = "samsung,exynos5250-gsc",
+		.compatible = "samsung,exyyess5250-gsc",
 		.data = &gsc_v_5250_drvdata,
 	},
 	{
-		.compatible = "samsung,exynos5420-gsc",
+		.compatible = "samsung,exyyess5420-gsc",
 		.data = &gsc_v_5420_drvdata,
 	},
 	{
-		.compatible = "samsung,exynos5433-gsc",
+		.compatible = "samsung,exyyess5433-gsc",
 		.data = &gsc_5433_drvdata,
 	},
 	{
-		.compatible = "samsung,exynos5-gsc",
+		.compatible = "samsung,exyyess5-gsc",
 		.data = &gsc_v_100_drvdata,
 	},
 	{},
 };
-MODULE_DEVICE_TABLE(of, exynos_gsc_match);
+MODULE_DEVICE_TABLE(of, exyyess_gsc_match);
 
 static int gsc_probe(struct platform_device *pdev)
 {
@@ -1116,12 +1116,12 @@ static int gsc_probe(struct platform_device *pdev)
 	if (!gsc)
 		return -ENOMEM;
 
-	ret = of_alias_get_id(pdev->dev.of_node, "gsc");
+	ret = of_alias_get_id(pdev->dev.of_yesde, "gsc");
 	if (ret < 0)
 		return ret;
 
 	if (drv_data == &gsc_v_100_drvdata)
-		dev_info(dev, "compatible 'exynos5-gsc' is deprecated\n");
+		dev_info(dev, "compatible 'exyyess5-gsc' is deprecated\n");
 
 	gsc->id = ret;
 	if (gsc->id >= drv_data->num_entities) {
@@ -1219,7 +1219,7 @@ static int gsc_remove(struct platform_device *pdev)
 	for (i = 0; i < gsc->num_clocks; i++)
 		clk_disable_unprepare(gsc->clock[i]);
 
-	pm_runtime_put_noidle(&pdev->dev);
+	pm_runtime_put_yesidle(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
 
 	dev_dbg(&pdev->dev, "%s driver unloaded\n", pdev->name);
@@ -1318,7 +1318,7 @@ static struct platform_driver gsc_driver = {
 	.driver = {
 		.name	= GSC_MODULE_NAME,
 		.pm	= &gsc_pm_ops,
-		.of_match_table = exynos_gsc_match,
+		.of_match_table = exyyess_gsc_match,
 	}
 };
 

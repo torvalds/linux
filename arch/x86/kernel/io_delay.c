@@ -48,8 +48,8 @@ void native_io_delay(void)
 	case IO_DELAY_TYPE_UDELAY:
 		/*
 		 * 2 usecs is an upper-bound for the outb delay but
-		 * note that udelay doesn't have the bus-level
-		 * side-effects that outb does, nor does udelay() have
+		 * yeste that udelay doesn't have the bus-level
+		 * side-effects that outb does, yesr does udelay() have
 		 * precise timings during very early bootup (the delays
 		 * are shorter until calibrated):
 		 */
@@ -64,7 +64,7 @@ EXPORT_SYMBOL(native_io_delay);
 static int __init dmi_io_delay_0xed_port(const struct dmi_system_id *id)
 {
 	if (io_delay_type == IO_DELAY_TYPE_0X80) {
-		pr_notice("%s: using 0xed I/O delay port\n", id->ident);
+		pr_yestice("%s: using 0xed I/O delay port\n", id->ident);
 		io_delay_type = IO_DELAY_TYPE_0XED;
 	}
 
@@ -136,7 +136,7 @@ static int __init io_delay_param(char *s)
 		io_delay_type = IO_DELAY_TYPE_0XED;
 	else if (!strcmp(s, "udelay"))
 		io_delay_type = IO_DELAY_TYPE_UDELAY;
-	else if (!strcmp(s, "none"))
+	else if (!strcmp(s, "yesne"))
 		io_delay_type = IO_DELAY_TYPE_NONE;
 	else
 		return -EINVAL;

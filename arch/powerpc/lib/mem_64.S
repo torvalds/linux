@@ -5,7 +5,7 @@
  * Copyright (C) 1996 Paul Mackerras.
  */
 #include <asm/processor.h>
-#include <asm/errno.h>
+#include <asm/erryes.h>
 #include <asm/ppc_asm.h>
 #include <asm/export.h>
 #include <asm/kasan.h>

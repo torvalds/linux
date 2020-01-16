@@ -42,7 +42,7 @@ static int __get_num_vlan_tunnel_infos(struct net_bridge_vlan_group *vg)
 
 	/* Count number of vlan infos */
 	list_for_each_entry_rcu(v, &vg->vlan_list, vlist) {
-		/* only a context, bridge vlan not activated */
+		/* only a context, bridge vlan yest activated */
 		if (!br_vlan_should_use(v) || !v->tinfo.tunnel_id)
 			continue;
 
@@ -93,7 +93,7 @@ static int br_fill_vlan_tinfo(struct sk_buff *skb, u16 vid,
 	__be32 tid = tunnel_id_to_key32(tunnel_id);
 	struct nlattr *tmap;
 
-	tmap = nla_nest_start_noflag(skb, IFLA_BRIDGE_VLAN_TUNNEL_INFO);
+	tmap = nla_nest_start_yesflag(skb, IFLA_BRIDGE_VLAN_TUNNEL_INFO);
 	if (!tmap)
 		return -EMSGSIZE;
 	if (nla_put_u32(skb, IFLA_BRIDGE_VLAN_TUNNEL_ID,
@@ -155,7 +155,7 @@ int br_fill_vlan_tunnel_info(struct sk_buff *skb,
 
 	/* Count number of vlan infos */
 	list_for_each_entry_rcu(v, &vg->vlan_list, vlist) {
-		/* only a context, bridge vlan not activated */
+		/* only a context, bridge vlan yest activated */
 		if (!br_vlan_should_use(v))
 			continue;
 

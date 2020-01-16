@@ -97,13 +97,13 @@ static bool catalog_entry_domain_is_valid(unsigned domain)
  * TODO: Merging events:
  * - Think of the hcall as an interface to a 4d array of counters:
  *   - x = domains
- *   - y = indexes in the domain (core, chip, vcpu, node, etc)
+ *   - y = indexes in the domain (core, chip, vcpu, yesde, etc)
  *   - z = offset into the counter space
  *   - w = lpars (guest vms, "logical partitions")
  * - A single request is: x,y,y_last,z,z_last,w,w_last
  *   - this means we can retrieve a rectangle of counters in y,z for a single x.
  *
- * - Things to consider (ignoring w):
+ * - Things to consider (igyesring w):
  *   - input  cost_per_request = 16
  *   - output cost_per_result(ys,zs)  = 8 + 8 * ys + ys * zs
  *   - limited number of requests per hcall (must fit into 4K bytes)
@@ -174,8 +174,8 @@ struct hv_24x7_hw {
 DEFINE_PER_CPU(struct hv_24x7_hw, hv_24x7_hw);
 
 /*
- * request_buffer and result_buffer are not required to be 4k aligned,
- * but are not allowed to cross any 4k boundary. Aligning them to 4k is
+ * request_buffer and result_buffer are yest required to be 4k aligned,
+ * but are yest allowed to cross any 4k boundary. Aligning them to 4k is
  * the simplest way to ensure that.
  */
 #define H24x7_DATA_BUFFER_SIZE	4096
@@ -250,7 +250,7 @@ static void *event_end(struct hv_24x7_event_data *ev, void *end)
 
 	dl_ = (__be16 *)(ev->remainder + nl - 2);
 	if (!IS_ALIGNED((uintptr_t)dl_, 2))
-		pr_warn("desc len not aligned %p", dl_);
+		pr_warn("desc len yest aligned %p", dl_);
 	dl = be16_to_cpu(*dl_);
 	if (dl < 2) {
 		pr_debug("%s: desc len too short: %d", __func__, dl);
@@ -265,7 +265,7 @@ static void *event_end(struct hv_24x7_event_data *ev, void *end)
 
 	ldl_ = (__be16 *)(ev->remainder + nl + dl - 2);
 	if (!IS_ALIGNED((uintptr_t)ldl_, 2))
-		pr_warn("long desc len not aligned %p", ldl_);
+		pr_warn("long desc len yest aligned %p", ldl_);
 	ldl = be16_to_cpu(*ldl_);
 	if (ldl < 2) {
 		pr_debug("%s: long desc len too short (ldl=%u)",
@@ -290,7 +290,7 @@ static long h_get_24x7_catalog_page_(unsigned long phys_4096,
 
 	WARN_ON(!IS_ALIGNED(phys_4096, 4096));
 
-	return plpar_hcall_norets(H_GET_24X7_CATALOG_PAGE,
+	return plpar_hcall_yesrets(H_GET_24X7_CATALOG_PAGE,
 			phys_4096, version, index);
 }
 
@@ -328,7 +328,7 @@ static long h_get_24x7_catalog_page(char page[], u64 version, u32 index)
  *
  *	we end up monitoring HPM_INST, while the command line has HPM_PCYC.
  *
- *	By not assigning a default value to the domain for the Core events,
+ *	By yest assigning a default value to the domain for the Core events,
  *	we can have simple guidelines:
  *
  *		- Specifying values for parameters with "=?" is required.
@@ -413,7 +413,7 @@ static struct attribute *device_str_attr_create_(char *name, char *str)
  *	 freed by the caller.
  */
 static struct attribute *device_str_attr_create(char *name, int name_max,
-						int name_nonce,
+						int name_yesnce,
 						char *str, size_t str_max)
 {
 	char *n;
@@ -423,11 +423,11 @@ static struct attribute *device_str_attr_create(char *name, int name_max,
 	if (!s)
 		return NULL;
 
-	if (!name_nonce)
+	if (!name_yesnce)
 		n = kasprintf(GFP_KERNEL, "%.*s", name_max, name);
 	else
 		n = kasprintf(GFP_KERNEL, "%.*s__%d", name_max, name,
-					name_nonce);
+					name_yesnce);
 	if (!n)
 		goto out_s;
 
@@ -446,7 +446,7 @@ out_s:
 static struct attribute *event_to_attr(unsigned ix,
 				       struct hv_24x7_event_data *event,
 				       unsigned domain,
-				       int nonce)
+				       int yesnce)
 {
 	int event_name_len;
 	char *ev_name, *a_ev_name, *val;
@@ -463,12 +463,12 @@ static struct attribute *event_to_attr(unsigned ix,
 		return NULL;
 
 	ev_name = event_name(event, &event_name_len);
-	if (!nonce)
+	if (!yesnce)
 		a_ev_name = kasprintf(GFP_KERNEL, "%.*s",
 				(int)event_name_len, ev_name);
 	else
 		a_ev_name = kasprintf(GFP_KERNEL, "%.*s__%d",
-				(int)event_name_len, ev_name, nonce);
+				(int)event_name_len, ev_name, yesnce);
 
 	if (!a_ev_name)
 		goto out_val;
@@ -486,7 +486,7 @@ out_val:
 }
 
 static struct attribute *event_to_desc_attr(struct hv_24x7_event_data *event,
-					    int nonce)
+					    int yesnce)
 {
 	int nl, dl;
 	char *name = event_name(event, &nl);
@@ -496,11 +496,11 @@ static struct attribute *event_to_desc_attr(struct hv_24x7_event_data *event,
 	if (!dl)
 		return NULL;
 
-	return device_str_attr_create(name, nl, nonce, desc, dl);
+	return device_str_attr_create(name, nl, yesnce, desc, dl);
 }
 
 static struct attribute *
-event_to_long_desc_attr(struct hv_24x7_event_data *event, int nonce)
+event_to_long_desc_attr(struct hv_24x7_event_data *event, int yesnce)
 {
 	int nl, dl;
 	char *name = event_name(event, &nl);
@@ -510,13 +510,13 @@ event_to_long_desc_attr(struct hv_24x7_event_data *event, int nonce)
 	if (!dl)
 		return NULL;
 
-	return device_str_attr_create(name, nl, nonce, desc, dl);
+	return device_str_attr_create(name, nl, yesnce, desc, dl);
 }
 
 static int event_data_to_attrs(unsigned ix, struct attribute **attrs,
-				   struct hv_24x7_event_data *event, int nonce)
+				   struct hv_24x7_event_data *event, int yesnce)
 {
-	*attrs = event_to_attr(ix, event, event->domain, nonce);
+	*attrs = event_to_attr(ix, event, event->domain, yesnce);
 	if (!*attrs)
 		return -1;
 
@@ -525,7 +525,7 @@ static int event_data_to_attrs(unsigned ix, struct attribute **attrs,
 
 /* */
 struct event_uniq {
-	struct rb_node node;
+	struct rb_yesde yesde;
 	const char *name;
 	int nl;
 	unsigned ct;
@@ -559,15 +559,15 @@ static int ev_uniq_ord(const void *v1, size_t s1, unsigned d1, const void *v2,
 static int event_uniq_add(struct rb_root *root, const char *name, int nl,
 			  unsigned domain)
 {
-	struct rb_node **new = &(root->rb_node), *parent = NULL;
+	struct rb_yesde **new = &(root->rb_yesde), *parent = NULL;
 	struct event_uniq *data;
 
-	/* Figure out where to put new node */
+	/* Figure out where to put new yesde */
 	while (*new) {
 		struct event_uniq *it;
 		int result;
 
-		it = rb_entry(*new, struct event_uniq, node);
+		it = rb_entry(*new, struct event_uniq, yesde);
 		result = ev_uniq_ord(name, nl, domain, it->name, it->nl,
 					it->domain);
 
@@ -595,9 +595,9 @@ static int event_uniq_add(struct rb_root *root, const char *name, int nl,
 		.domain = domain,
 	};
 
-	/* Add new node and rebalance tree. */
-	rb_link_node(&data->node, parent, new);
-	rb_insert_color(&data->node, root);
+	/* Add new yesde and rebalance tree. */
+	rb_link_yesde(&data->yesde, parent, new);
+	rb_insert_color(&data->yesde, root);
 
 	/* data->ct */
 	return 0;
@@ -611,7 +611,7 @@ static void event_uniq_destroy(struct rb_root *root)
 	 */
 	struct event_uniq *pos, *n;
 
-	rbtree_postorder_for_each_entry_safe(pos, n, root, node)
+	rbtree_postorder_for_each_entry_safe(pos, n, root, yesde)
 		kfree(pos);
 }
 
@@ -642,7 +642,7 @@ static ssize_t catalog_event_len_validate(struct hv_24x7_event_data *event,
 	}
 
 	if (!event_fixed_portion_is_within(event, end)) {
-		pr_warn("event %zu fixed portion is not within range\n",
+		pr_warn("event %zu fixed portion is yest within range\n",
 				event_idx);
 		return -1;
 	}
@@ -650,7 +650,7 @@ static ssize_t catalog_event_len_validate(struct hv_24x7_event_data *event,
 	ev_len = be16_to_cpu(event->length);
 
 	if (ev_len % 16)
-		pr_info("event %zu has length %zu not divisible by 16: event=%pK\n",
+		pr_info("event %zu has length %zu yest divisible by 16: event=%pK\n",
 				event_idx, ev_len, event);
 
 	ev_end = (__u8 *)event + ev_len;
@@ -740,7 +740,7 @@ static int create_events_from_catalog(struct attribute ***events_,
 	}
 
 	if ((event_data_offs + event_data_len) > catalog_page_len) {
-		pr_err("event data %zu-%zu does not fit inside catalog 0-%zu\n",
+		pr_err("event data %zu-%zu does yest fit inside catalog 0-%zu\n",
 				event_data_offs,
 				event_data_offs + event_data_len,
 				catalog_page_len);
@@ -762,7 +762,7 @@ static int create_events_from_catalog(struct attribute ***events_,
 	 */
 	event_data = vmalloc(event_data_bytes);
 	if (!event_data) {
-		pr_err("could not allocate event data\n");
+		pr_err("could yest allocate event data\n");
 		ret = -ENOMEM;
 		goto e_free;
 	}
@@ -858,10 +858,10 @@ static int create_events_from_catalog(struct attribute ***events_,
 				event = (void *)event + ev_len) {
 		char *name;
 		int nl;
-		int nonce;
+		int yesnce;
 		/*
 		 * these are the only "bad" events that are intermixed and that
-		 * we can ignore without issue. make sure to skip them here
+		 * we can igyesre without issue. make sure to skip them here
 		 */
 		if (event->event_group_record_len == 0)
 			continue;
@@ -869,20 +869,20 @@ static int create_events_from_catalog(struct attribute ***events_,
 			continue;
 
 		name  = event_name(event, &nl);
-		nonce = event_uniq_add(&ev_uniq, name, nl, event->domain);
+		yesnce = event_uniq_add(&ev_uniq, name, nl, event->domain);
 		ct    = event_data_to_attrs(event_idx, events + event_attr_ct,
-					    event, nonce);
+					    event, yesnce);
 		if (ct < 0) {
 			pr_warn("event %zu (%.*s) creation failure, skipping\n",
 				event_idx, nl, name);
 			junk_events++;
 		} else {
 			event_attr_ct++;
-			event_descs[desc_ct] = event_to_desc_attr(event, nonce);
+			event_descs[desc_ct] = event_to_desc_attr(event, yesnce);
 			if (event_descs[desc_ct])
 				desc_ct++;
 			event_long_descs[long_desc_ct] =
-					event_to_long_desc_attr(event, nonce);
+					event_to_long_desc_attr(event, yesnce);
 			if (event_long_descs[long_desc_ct])
 				long_desc_ct++;
 		}
@@ -1085,10 +1085,10 @@ static int make_24x7_request(struct hv_24x7_request_buffer *request_buffer,
 
 	/*
 	 * NOTE: Due to variable number of array elements in request and
-	 *	 result buffer(s), sizeof() is not reliable. Use the actual
+	 *	 result buffer(s), sizeof() is yest reliable. Use the actual
 	 *	 allocated buffer size, H24x7_DATA_BUFFER_SIZE.
 	 */
-	ret = plpar_hcall_norets(H_GET_24X7_DATA,
+	ret = plpar_hcall_yesrets(H_GET_24X7_DATA,
 			virt_to_phys(request_buffer), H24x7_DATA_BUFFER_SIZE,
 			virt_to_phys(result_buffer),  H24x7_DATA_BUFFER_SIZE);
 
@@ -1096,7 +1096,7 @@ static int make_24x7_request(struct hv_24x7_request_buffer *request_buffer,
 		struct hv_24x7_request *req;
 
 		req = request_buffer->requests;
-		pr_notice_ratelimited("hcall failed: [%d %#x %#x %d] => ret 0x%lx (%ld) detail=0x%x failing ix=%x\n",
+		pr_yestice_ratelimited("hcall failed: [%d %#x %#x %d] => ret 0x%lx (%ld) detail=0x%x failing ix=%x\n",
 				      req->performance_domain, req->data_offset,
 				      req->starting_ix, req->starting_lpar_ix,
 				      ret, ret, result_buffer->detailed_rc,
@@ -1193,7 +1193,7 @@ static int get_count_from_result(struct perf_event *event,
 	 * We can bail out early if the result is empty.
 	 */
 	if (!num_elements) {
-		pr_debug("Result of request %hhu is empty, nothing to do\n",
+		pr_debug("Result of request %hhu is empty, yesthing to do\n",
 			 res->result_ix);
 
 		if (next)
@@ -1302,7 +1302,7 @@ static int h_24x7_event_init(struct perf_event *event)
 		return -EINVAL;
 	}
 
-	/* no branch sampling */
+	/* yes branch sampling */
 	if (has_branch_stack(event))
 		return -EOPNOTSUPP;
 
@@ -1320,7 +1320,7 @@ static int h_24x7_event_init(struct perf_event *event)
 
 	hret = hv_perf_caps_get(&caps);
 	if (hret) {
-		pr_devel("could not get capabilities: rc=%ld\n", hret);
+		pr_devel("could yest get capabilities: rc=%ld\n", hret);
 		return -EIO;
 	}
 
@@ -1354,17 +1354,17 @@ static u64 h_24x7_get_value(struct perf_event *event)
 	return ct;
 }
 
-static void update_event_count(struct perf_event *event, u64 now)
+static void update_event_count(struct perf_event *event, u64 yesw)
 {
 	s64 prev;
 
-	prev = local64_xchg(&event->hw.prev_count, now);
-	local64_add(now - prev, &event->count);
+	prev = local64_xchg(&event->hw.prev_count, yesw);
+	local64_add(yesw - prev, &event->count);
 }
 
 static void h_24x7_event_read(struct perf_event *event)
 {
-	u64 now;
+	u64 yesw;
 	struct hv_24x7_request_buffer *request_buffer;
 	struct hv_24x7_hw *h24x7hw;
 	int txn_flags;
@@ -1374,7 +1374,7 @@ static void h_24x7_event_read(struct perf_event *event)
 	/*
 	 * If in a READ transaction, add this counter to the list of
 	 * counters to read during the next HCALL (i.e commit_txn()).
-	 * If not in a READ transaction, go ahead and make the HCALL
+	 * If yest in a READ transaction, go ahead and make the HCALL
 	 * to read this counter by itself.
 	 */
 
@@ -1405,7 +1405,7 @@ static void h_24x7_event_read(struct perf_event *event)
 			 * in the 24x7 raw counter value at the end of the txn.
 			 *
 			 * Note that we could alternatively read the 24x7 value
-			 * now and save its value in event->hw.prev_count. But
+			 * yesw and save its value in event->hw.prev_count. But
 			 * that would require issuing a hcall, which would then
 			 * defeat the purpose of using the txn interface.
 			 */
@@ -1414,8 +1414,8 @@ static void h_24x7_event_read(struct perf_event *event)
 
 		put_cpu_var(hv_24x7_reqb);
 	} else {
-		now = h_24x7_get_value(event);
-		update_event_count(event, now);
+		yesw = h_24x7_get_value(event);
+		update_event_count(event, yesw);
 	}
 }
 
@@ -1441,15 +1441,15 @@ static int h_24x7_event_add(struct perf_event *event, int flags)
 /*
  * 24x7 counters only support READ transactions. They are
  * always counting and dont need/support ADD transactions.
- * Cache the flags, but otherwise ignore transactions that
- * are not PERF_PMU_TXN_READ.
+ * Cache the flags, but otherwise igyesre transactions that
+ * are yest PERF_PMU_TXN_READ.
  */
 static void h_24x7_event_start_txn(struct pmu *pmu, unsigned int flags)
 {
 	struct hv_24x7_request_buffer *request_buffer;
 	struct hv_24x7_data_result_buffer *result_buffer;
 
-	/* We should not be called if we are already in a txn */
+	/* We should yest be called if we are already in a txn */
 	WARN_ON_ONCE(__this_cpu_read(hv_24x7_txn_flags));
 
 	__this_cpu_write(hv_24x7_txn_flags, flags);
@@ -1468,7 +1468,7 @@ static void h_24x7_event_start_txn(struct pmu *pmu, unsigned int flags)
 /*
  * Clean up transaction state.
  *
- * NOTE: Ignore state of request and result buffers for now.
+ * NOTE: Igyesre state of request and result buffers for yesw.
  *	 We will initialize them during the next read/txn.
  */
 static void reset_txn(void)
@@ -1480,7 +1480,7 @@ static void reset_txn(void)
 /*
  * 24x7 counters only support READ transactions. They are always counting
  * and dont need/support ADD transactions. Clear ->txn_flags but otherwise
- * ignore transactions that are not of type PERF_PMU_TXN_READ.
+ * igyesre transactions that are yest of type PERF_PMU_TXN_READ.
  *
  * For READ transactions, submit all pending 24x7 requests (i.e requests
  * that were queued by h_24x7_event_read()), to the hypervisor and update
@@ -1574,7 +1574,7 @@ static int hv_24x7_init(void)
 	struct hv_perf_caps caps;
 
 	if (!firmware_has_feature(FW_FEATURE_LPAR)) {
-		pr_debug("not a virtualized system, not enabling\n");
+		pr_debug("yest a virtualized system, yest enabling\n");
 		return -ENODEV;
 	} else if (!cur_cpu_spec->oprofile_cpu_type)
 		return -ENODEV;
@@ -1592,7 +1592,7 @@ static int hv_24x7_init(void)
 
 	hret = hv_perf_caps_get(&caps);
 	if (hret) {
-		pr_debug("could not obtain capabilities, not enabling, rc=%ld\n",
+		pr_debug("could yest obtain capabilities, yest enabling, rc=%ld\n",
 				hret);
 		return -ENODEV;
 	}
@@ -1601,7 +1601,7 @@ static int hv_24x7_init(void)
 	if (!hv_page_cache)
 		return -ENOMEM;
 
-	/* sampling not supported */
+	/* sampling yest supported */
 	h_24x7_pmu.capabilities |= PERF_PMU_CAP_NO_INTERRUPT;
 
 	r = create_events_from_catalog(&event_group.attrs,

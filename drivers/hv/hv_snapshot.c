@@ -45,7 +45,7 @@ static const int fw_versions[] = {
  * only one message at a time.
  *
  * While the request/response protocol is guaranteed by the host, we further
- * ensure this by serializing packet processing in this driver - we do not
+ * ensure this by serializing packet processing in this driver - we do yest
  * read additional packets from the VMBUs until the current packet is fully
  * handled.
  */
@@ -132,7 +132,7 @@ static int vss_on_msg(void *msg, int len)
 	struct hv_vss_msg *vss_msg = (struct hv_vss_msg *)msg;
 
 	if (len != sizeof(*vss_msg)) {
-		pr_debug("VSS: Message size does not match length\n");
+		pr_debug("VSS: Message size does yest match length\n");
 		return -EINVAL;
 	}
 
@@ -163,7 +163,7 @@ static int vss_on_msg(void *msg, int len)
 		}
 	} else {
 		/* This is a spurious call! */
-		pr_debug("VSS: Transaction not active\n");
+		pr_debug("VSS: Transaction yest active\n");
 		return -EINVAL;
 	}
 	return 0;
@@ -218,7 +218,7 @@ static void vss_handle_request(struct work_struct *dummy)
 	case VSS_OP_FREEZE:
 	case VSS_OP_HOT_BACKUP:
 		if (vss_transaction.state < HVUTIL_READY) {
-			/* Userspace is not registered yet */
+			/* Userspace is yest registered yet */
 			pr_debug("VSS: Not ready for request.\n");
 			vss_respond_to_host(HV_E_FAIL);
 			return;
@@ -322,7 +322,7 @@ void hv_vss_onchannelcallback(void *context)
 
 			/*
 			 * Stash away this global state for completing the
-			 * transaction; note transactions are serialized.
+			 * transaction; yeste transactions are serialized.
 			 */
 
 			vss_transaction.recv_len = recvlen;
@@ -355,7 +355,7 @@ hv_vss_init(struct hv_util_service *srv)
 {
 	if (vmbus_proto_version < VERSION_WIN8_1) {
 		pr_warn("Integration service 'Backup (volume snapshot)'"
-			" not supported on this host version.\n");
+			" yest supported on this host version.\n");
 		return -ENOTSUPP;
 	}
 	recv_buffer = srv->recv_buffer;
@@ -363,7 +363,7 @@ hv_vss_init(struct hv_util_service *srv)
 
 	/*
 	 * When this driver loads, the user level daemon that
-	 * processes the host requests may not yet be running.
+	 * processes the host requests may yest yet be running.
 	 * Defer processing channel callbacks until the daemon
 	 * has registered.
 	 */

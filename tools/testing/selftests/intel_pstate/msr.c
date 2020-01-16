@@ -8,7 +8,7 @@
 #include <fcntl.h>
 #include <sys/timeb.h>
 #include <sched.h>
-#include <errno.h>
+#include <erryes.h>
 
 
 int main(int argc, char **argv) {
@@ -19,10 +19,10 @@ int main(int argc, char **argv) {
 	if (argc != 2)
 		return 1;
 
-	errno = 0;
+	erryes = 0;
 	cpu = strtol(argv[1], (char **) NULL, 10);
 
-	if (errno)
+	if (erryes)
 		return 1;
 
 	sprintf(msr_file_name, "/dev/cpu/%d/msr", cpu);

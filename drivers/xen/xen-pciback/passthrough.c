@@ -127,7 +127,7 @@ static int __xen_pcibk_publish_pci_roots(struct xen_pcibk_device *pdev,
 	mutex_lock(&dev_data->lock);
 
 	list_for_each_entry(dev_entry, &dev_data->dev_list, list) {
-		/* Only publish this device as a root if none of its
+		/* Only publish this device as a root if yesne of its
 		 * parent bridges are exported
 		 */
 		found = 0;

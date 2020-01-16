@@ -14,7 +14,7 @@ Required properties:
   - reg: Physical base address and size of the block of registers used by
     the processor.
   - interrupts: Interrupt list, as defined in ../interrupt-controller/interrupts.txt,
-    interrupt client nodes.
+    interrupt client yesdes.
   - interrupt-names: name of the engine inside the processor that will
     use the corresponding interrupt. Should be one of "DE" or "SE".
   - clocks: A list of phandle + clock-specifier pairs, one for each entry
@@ -27,15 +27,15 @@ Required properties:
   - arm,malidp-output-port-lines: Array of u8 values describing the number
     of output lines per channel (R, G and B).
 
-Required sub-nodes:
+Required sub-yesdes:
   - port: The Mali DP connection to an encoder input port. The connection
     is modelled using the OF graph bindings specified in
     Documentation/devicetree/bindings/graph.txt
 
 Optional properties:
-  - memory-region: phandle to a node describing memory (see
+  - memory-region: phandle to a yesde describing memory (see
     Documentation/devicetree/bindings/reserved-memory/reserved-memory.txt)
-    to be used for the framebuffer; if not present, the framebuffer may
+    to be used for the framebuffer; if yest present, the framebuffer may
     be located anywhere in memory.
   - arm,malidp-arqos-high-level: integer of u32 value describing the ARQoS
     levels of DP500's QoS signaling.

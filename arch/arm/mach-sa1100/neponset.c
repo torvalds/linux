@@ -145,7 +145,7 @@ static void neponset_irq_handler(struct irq_desc *desc)
 
 	while (1) {
 		/*
-		 * Acknowledge the parent IRQ.
+		 * Ackyeswledge the parent IRQ.
 		 */
 		desc->irq_data.chip->irq_ack(&desc->irq_data);
 
@@ -161,7 +161,7 @@ static void neponset_irq_handler(struct irq_desc *desc)
 			break;
 
 		/*
-		 * Since there is no individual mask, we have to
+		 * Since there is yes individual mask, we have to
 		 * mask the parent IRQ.  This is safe, since we'll
 		 * recheck the register for any pending IRQs.
 		 */
@@ -169,7 +169,7 @@ static void neponset_irq_handler(struct irq_desc *desc)
 			desc->irq_data.chip->irq_mask(&desc->irq_data);
 
 			/*
-			 * Ack the interrupt now to prevent re-entering
+			 * Ack the interrupt yesw to prevent re-entering
 			 * this neponset handler.  Again, this is safe
 			 * since we'll check the IRR register prior to
 			 * leaving.
@@ -190,16 +190,16 @@ static void neponset_irq_handler(struct irq_desc *desc)
 	}
 }
 
-/* Yes, we really do not have any kind of masking or unmasking */
-static void nochip_noop(struct irq_data *irq)
+/* Yes, we really do yest have any kind of masking or unmasking */
+static void yeschip_yesop(struct irq_data *irq)
 {
 }
 
-static struct irq_chip nochip = {
+static struct irq_chip yeschip = {
 	.name = "neponset",
-	.irq_ack = nochip_noop,
-	.irq_mask = nochip_noop,
-	.irq_unmask = nochip_noop,
+	.irq_ack = yeschip_yesop,
+	.irq_mask = yeschip_yesop,
+	.irq_unmask = yeschip_yesop,
 };
 
 static int neponset_init_gpio(struct gpio_chip **gcp,
@@ -306,13 +306,13 @@ static int neponset_probe(struct platform_device *dev)
 
 	d->irq_base = ret;
 
-	irq_set_chip_and_handler(d->irq_base + NEP_IRQ_SMC91X, &nochip,
+	irq_set_chip_and_handler(d->irq_base + NEP_IRQ_SMC91X, &yeschip,
 		handle_simple_irq);
 	irq_clear_status_flags(d->irq_base + NEP_IRQ_SMC91X, IRQ_NOREQUEST | IRQ_NOPROBE);
-	irq_set_chip_and_handler(d->irq_base + NEP_IRQ_USAR, &nochip,
+	irq_set_chip_and_handler(d->irq_base + NEP_IRQ_USAR, &yeschip,
 		handle_simple_irq);
 	irq_clear_status_flags(d->irq_base + NEP_IRQ_USAR, IRQ_NOREQUEST | IRQ_NOPROBE);
-	irq_set_chip(d->irq_base + NEP_IRQ_SA1111, &nochip);
+	irq_set_chip(d->irq_base + NEP_IRQ_SA1111, &yeschip);
 
 	irq_set_irq_type(irq, IRQ_TYPE_EDGE_RISING);
 	irq_set_chained_handler_and_data(irq, neponset_irq_handler, d);
@@ -415,8 +415,8 @@ static int neponset_resume(struct device *dev)
 }
 
 static const struct dev_pm_ops neponset_pm_ops = {
-	.resume_noirq = neponset_resume,
-	.restore_noirq = neponset_resume,
+	.resume_yesirq = neponset_resume,
+	.restore_yesirq = neponset_resume,
 };
 #define PM_OPS &neponset_pm_ops
 #else

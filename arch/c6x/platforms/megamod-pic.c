@@ -168,14 +168,14 @@ static void __init set_megamod_mux(struct megamod_pic *pic, int src, int output)
  * withing the array. The first cell in the array corresponds to priority
  * 4 and the last (12th) cell corresponds to priority 15. The allowed
  * values are 4 - ((NR_COMBINERS * 32) - 1). Note that the combined interrupt
- * sources (0 - 3) are not allowed to be mapped through this property. They
+ * sources (0 - 3) are yest allowed to be mapped through this property. They
  * are handled through the "interrupts" property. This allows us to use a
- * value of zero as a "do not map" placeholder.
+ * value of zero as a "do yest map" placeholder.
  */
 static void __init parse_priority_map(struct megamod_pic *pic,
 				      int *mapping, int size)
 {
-	struct device_node *np = irq_domain_get_of_node(pic->irqhost);
+	struct device_yesde *np = irq_domain_get_of_yesde(pic->irqhost);
 	const __be32 *map;
 	int i, maplen;
 	u32 val;
@@ -195,7 +195,7 @@ static void __init parse_priority_map(struct megamod_pic *pic,
 	}
 }
 
-static struct megamod_pic * __init init_megamod_pic(struct device_node *np)
+static struct megamod_pic * __init init_megamod_pic(struct device_yesde *np)
 {
 	struct megamod_pic *pic;
 	int i, irq;
@@ -205,14 +205,14 @@ static struct megamod_pic * __init init_megamod_pic(struct device_node *np)
 
 	pic = kzalloc(sizeof(struct megamod_pic), GFP_KERNEL);
 	if (!pic) {
-		pr_err("%pOF: Could not alloc PIC structure.\n", np);
+		pr_err("%pOF: Could yest alloc PIC structure.\n", np);
 		return NULL;
 	}
 
 	pic->irqhost = irq_domain_add_linear(np, NR_COMBINERS * 32,
 					     &megamod_domain_ops, pic);
 	if (!pic->irqhost) {
-		pr_err("%pOF: Could not alloc host.\n", np);
+		pr_err("%pOF: Could yest alloc host.\n", np);
 		goto error_free;
 	}
 
@@ -222,7 +222,7 @@ static struct megamod_pic * __init init_megamod_pic(struct device_node *np)
 
 	pic->regs = of_iomap(np, 0);
 	if (!pic->regs) {
-		pr_err("%pOF: Could not map registers.\n", np);
+		pr_err("%pOF: Could yest map registers.\n", np);
 		goto error_free;
 	}
 
@@ -250,7 +250,7 @@ static struct megamod_pic * __init init_megamod_pic(struct device_node *np)
 
 		irq_data = irq_get_irq_data(irq);
 		if (!irq_data) {
-			pr_err("%pOF: combiner-%d no irq_data for virq %d!\n",
+			pr_err("%pOF: combiner-%d yes irq_data for virq %d!\n",
 			       np, i, irq);
 			continue;
 		}
@@ -303,7 +303,7 @@ error_free:
 
 /*
  * Return next active event after ACK'ing it.
- * Return -1 if no events active.
+ * Return -1 if yes events active.
  */
 static int get_exception(void)
 {
@@ -328,14 +328,14 @@ static void assert_event(unsigned int val)
 
 void __init megamod_pic_init(void)
 {
-	struct device_node *np;
+	struct device_yesde *np;
 
-	np = of_find_compatible_node(NULL, NULL, "ti,c64x+megamod-pic");
+	np = of_find_compatible_yesde(NULL, NULL, "ti,c64x+megamod-pic");
 	if (!np)
 		return;
 
 	mm_pic = init_megamod_pic(np);
-	of_node_put(np);
+	of_yesde_put(np);
 
 	soc_ops.get_exception = get_exception;
 	soc_ops.assert_event = assert_event;

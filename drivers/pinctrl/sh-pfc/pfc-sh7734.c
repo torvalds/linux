@@ -3,7 +3,7 @@
  * SH7734 processor support - PFC hardware block
  *
  * Copyright (C) 2012  Renesas Solutions Corp.
- * Copyright (C) 2012  Nobuhiro Iwamatsu <nobuhiro.iwamatsu.yj@renesas.com>
+ * Copyright (C) 2012  Nobuhiro Iwamatsu <yesbuhiro.iwamatsu.yj@renesas.com>
  */
 #include <linux/init.h>
 #include <linux/kernel.h>

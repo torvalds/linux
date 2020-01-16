@@ -176,9 +176,9 @@ enum wpan_phy_flags {
 struct wpan_phy {
 	/* If multiple wpan_phys are registered and you're handed e.g.
 	 * a regular netdev with assigned ieee802154_ptr, you won't
-	 * know whether it points to a wpan_phy your driver has registered
-	 * or not. Assign this to something global to your driver to
-	 * help determine whether you own this wpan_phy or not.
+	 * kyesw whether it points to a wpan_phy your driver has registered
+	 * or yest. Assign this to something global to your driver to
+	 * help determine whether you own this wpan_phy or yest.
 	 */
 	const void *privid;
 
@@ -186,7 +186,7 @@ struct wpan_phy {
 
 	/*
 	 * This is a PIB according to 802.15.4-2011.
-	 * We do not provide timing-related variables, as they
+	 * We do yest provide timing-related variables, as they
 	 * aren't used outside of driver
 	 */
 	u8 current_channel;
@@ -357,7 +357,7 @@ struct wpan_dev {
 
 	bool promiscuous_mode;
 
-	/* fallback for acknowledgment bit setting */
+	/* fallback for ackyeswledgment bit setting */
 	bool ackreq;
 };
 

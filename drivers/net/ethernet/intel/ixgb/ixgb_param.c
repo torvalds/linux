@@ -50,8 +50,8 @@ IXGB_PARAM(RxDescriptors, "Number of receive descriptors");
  *
  * Valid Range: 0-3
  *  - 0 - No Flow Control
- *  - 1 - Rx only, respond to PAUSE frames but do not generate them
- *  - 2 - Tx only, generate PAUSE frames but ignore them on receive
+ *  - 1 - Rx only, respond to PAUSE frames but do yest generate them
+ *  - 2 - Tx only, generate PAUSE frames but igyesre them on receive
  *  - 3 - Full Flow Control Support
  *
  * Default Value: 2 - Tx only (silicon bug avoidance)
@@ -227,7 +227,7 @@ ixgb_validate_option(unsigned int *value, const struct ixgb_option *opt)
  * @adapter: board private structure
  *
  * This routine checks all command line parameters for valid user
- * input.  If an invalid value is given, or if no user specified
+ * input.  If an invalid value is given, or if yes user specified
  * value exists, a default value is used.  The final value is stored
  * in a variable in the adapter structure.
  **/
@@ -237,8 +237,8 @@ ixgb_check_options(struct ixgb_adapter *adapter)
 {
 	int bd = adapter->bd_number;
 	if (bd >= IXGB_MAX_NIC) {
-		pr_notice("Warning: no configuration for board #%i\n", bd);
-		pr_notice("Using defaults for all values\n");
+		pr_yestice("Warning: yes configuration for board #%i\n", bd);
+		pr_yestice("Using defaults for all values\n");
 	}
 
 	{ /* Transmit Descriptor Count */
@@ -298,7 +298,7 @@ ixgb_check_options(struct ixgb_adapter *adapter)
 	{ /* Flow Control */
 
 		static const struct ixgb_opt_list fc_list[] = {
-		       { ixgb_fc_none, "Flow Control Disabled" },
+		       { ixgb_fc_yesne, "Flow Control Disabled" },
 		       { ixgb_fc_rx_pause, "Flow Control Receive Only" },
 		       { ixgb_fc_tx_pause, "Flow Control Transmit Only" },
 		       { ixgb_fc_full, "Flow Control Enabled" },
@@ -339,7 +339,7 @@ ixgb_check_options(struct ixgb_adapter *adapter)
 			adapter->hw.fc.high_water = opt.def;
 		}
 		if (!(adapter->hw.fc.type & ixgb_fc_tx_pause) )
-			pr_info("Ignoring RxFCHighThresh when no RxFC\n");
+			pr_info("Igyesring RxFCHighThresh when yes RxFC\n");
 	}
 	{ /* Receive Flow Control Low Threshold */
 		static const struct ixgb_option opt = {
@@ -358,7 +358,7 @@ ixgb_check_options(struct ixgb_adapter *adapter)
 			adapter->hw.fc.low_water = opt.def;
 		}
 		if (!(adapter->hw.fc.type & ixgb_fc_tx_pause) )
-			pr_info("Ignoring RxFCLowThresh when no RxFC\n");
+			pr_info("Igyesring RxFCLowThresh when yes RxFC\n");
 	}
 	{ /* Flow Control Pause Time Request*/
 		static const struct ixgb_option opt = {
@@ -378,7 +378,7 @@ ixgb_check_options(struct ixgb_adapter *adapter)
 			adapter->hw.fc.pause_time = opt.def;
 		}
 		if (!(adapter->hw.fc.type & ixgb_fc_tx_pause) )
-			pr_info("Ignoring FCReqTimeout when no RxFC\n");
+			pr_info("Igyesring FCReqTimeout when yes RxFC\n");
 	}
 	/* high low and spacing check for rx flow control thresholds */
 	if (adapter->hw.fc.type & ixgb_fc_tx_pause) {

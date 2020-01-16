@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -174,12 +174,12 @@ void hubbub21_program_urgent_watermarks(
 				DCHUBBUB_ARB_FRAC_URG_BW_FLIP_A, watermarks->a.frac_urg_bw_flip);
 	}
 
-	if (safe_to_lower || watermarks->a.frac_urg_bw_nom
-			> hubbub1->watermarks.a.frac_urg_bw_nom) {
-		hubbub1->watermarks.a.frac_urg_bw_nom = watermarks->a.frac_urg_bw_nom;
+	if (safe_to_lower || watermarks->a.frac_urg_bw_yesm
+			> hubbub1->watermarks.a.frac_urg_bw_yesm) {
+		hubbub1->watermarks.a.frac_urg_bw_yesm = watermarks->a.frac_urg_bw_yesm;
 
 		REG_SET(DCHUBBUB_ARB_FRAC_URG_BW_NOM_A, 0,
-				DCHUBBUB_ARB_FRAC_URG_BW_NOM_A, watermarks->a.frac_urg_bw_nom);
+				DCHUBBUB_ARB_FRAC_URG_BW_NOM_A, watermarks->a.frac_urg_bw_yesm);
 	}
 	if (safe_to_lower || watermarks->a.urgent_latency_ns > hubbub1->watermarks.a.urgent_latency_ns) {
 		hubbub1->watermarks.a.urgent_latency_ns = watermarks->a.urgent_latency_ns;
@@ -212,12 +212,12 @@ void hubbub21_program_urgent_watermarks(
 				DCHUBBUB_ARB_FRAC_URG_BW_FLIP_B, watermarks->a.frac_urg_bw_flip);
 	}
 
-	if (safe_to_lower || watermarks->a.frac_urg_bw_nom
-			> hubbub1->watermarks.a.frac_urg_bw_nom) {
-		hubbub1->watermarks.a.frac_urg_bw_nom = watermarks->a.frac_urg_bw_nom;
+	if (safe_to_lower || watermarks->a.frac_urg_bw_yesm
+			> hubbub1->watermarks.a.frac_urg_bw_yesm) {
+		hubbub1->watermarks.a.frac_urg_bw_yesm = watermarks->a.frac_urg_bw_yesm;
 
 		REG_SET(DCHUBBUB_ARB_FRAC_URG_BW_NOM_B, 0,
-				DCHUBBUB_ARB_FRAC_URG_BW_NOM_B, watermarks->a.frac_urg_bw_nom);
+				DCHUBBUB_ARB_FRAC_URG_BW_NOM_B, watermarks->a.frac_urg_bw_yesm);
 	}
 
 	if (safe_to_lower || watermarks->b.urgent_latency_ns > hubbub1->watermarks.b.urgent_latency_ns) {
@@ -251,12 +251,12 @@ void hubbub21_program_urgent_watermarks(
 				DCHUBBUB_ARB_FRAC_URG_BW_FLIP_C, watermarks->a.frac_urg_bw_flip);
 	}
 
-	if (safe_to_lower || watermarks->a.frac_urg_bw_nom
-			> hubbub1->watermarks.a.frac_urg_bw_nom) {
-		hubbub1->watermarks.a.frac_urg_bw_nom = watermarks->a.frac_urg_bw_nom;
+	if (safe_to_lower || watermarks->a.frac_urg_bw_yesm
+			> hubbub1->watermarks.a.frac_urg_bw_yesm) {
+		hubbub1->watermarks.a.frac_urg_bw_yesm = watermarks->a.frac_urg_bw_yesm;
 
 		REG_SET(DCHUBBUB_ARB_FRAC_URG_BW_NOM_C, 0,
-				DCHUBBUB_ARB_FRAC_URG_BW_NOM_C, watermarks->a.frac_urg_bw_nom);
+				DCHUBBUB_ARB_FRAC_URG_BW_NOM_C, watermarks->a.frac_urg_bw_yesm);
 	}
 
 	if (safe_to_lower || watermarks->c.urgent_latency_ns > hubbub1->watermarks.c.urgent_latency_ns) {
@@ -290,12 +290,12 @@ void hubbub21_program_urgent_watermarks(
 				DCHUBBUB_ARB_FRAC_URG_BW_FLIP_D, watermarks->a.frac_urg_bw_flip);
 	}
 
-	if (safe_to_lower || watermarks->a.frac_urg_bw_nom
-			> hubbub1->watermarks.a.frac_urg_bw_nom) {
-		hubbub1->watermarks.a.frac_urg_bw_nom = watermarks->a.frac_urg_bw_nom;
+	if (safe_to_lower || watermarks->a.frac_urg_bw_yesm
+			> hubbub1->watermarks.a.frac_urg_bw_yesm) {
+		hubbub1->watermarks.a.frac_urg_bw_yesm = watermarks->a.frac_urg_bw_yesm;
 
 		REG_SET(DCHUBBUB_ARB_FRAC_URG_BW_NOM_D, 0,
-				DCHUBBUB_ARB_FRAC_URG_BW_NOM_D, watermarks->a.frac_urg_bw_nom);
+				DCHUBBUB_ARB_FRAC_URG_BW_NOM_D, watermarks->a.frac_urg_bw_yesm);
 	}
 
 	if (safe_to_lower || watermarks->d.urgent_latency_ns > hubbub1->watermarks.d.urgent_latency_ns) {
@@ -537,8 +537,8 @@ void hubbub21_program_watermarks(
 	 * by the ARB_MIN_REQ_OUTSTANDING. To determine that the DCHub requestors are well ahead of the amortized schedule,
 	 * the slack of the next winner is compared with the ARB_SAT_LEVEL in DLG RefClk cycles.
 	 *
-	 * TODO: Revisit request limit after figure out right number. request limit for Renoir isn't decided yet, set maximum value (0x1FF)
-	 * to turn off it for now.
+	 * TODO: Revisit request limit after figure out right number. request limit for Reyesir isn't decided yet, set maximum value (0x1FF)
+	 * to turn off it for yesw.
 	 */
 	REG_SET(DCHUBBUB_ARB_SAT_LEVEL, 0,
 			DCHUBBUB_ARB_SAT_LEVEL, 60 * refclk_mhz);

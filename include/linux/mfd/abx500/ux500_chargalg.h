@@ -33,7 +33,7 @@ struct ux500_charger_ops {
  * @ops			ux500 charger operations
  * @max_out_volt	maximum output charger voltage in mV
  * @max_out_curr	maximum output charger current in mA
- * @enabled		indicates if this charger is used or not
+ * @enabled		indicates if this charger is used or yest
  * @external		external charger unit (pm2xxx)
  */
 struct ux500_charger {
@@ -46,6 +46,6 @@ struct ux500_charger {
 	bool external;
 };
 
-extern struct blocking_notifier_head charger_notifier_list;
+extern struct blocking_yestifier_head charger_yestifier_list;
 
 #endif

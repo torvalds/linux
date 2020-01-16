@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Samsung's Exynos4210 based SMDKV310 board device tree source
+ * Samsung's Exyyess4210 based SMDKV310 board device tree source
  *
  * Copyright (c) 2010-2011 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com
@@ -8,17 +8,17 @@
  *		www.linaro.org
  *
  * Device tree source file for Samsung's SMDKV310 board which is based on
- * Samsung's Exynos4210 SoC.
+ * Samsung's Exyyess4210 SoC.
  */
 
 /dts-v1/;
-#include "exynos4210.dtsi"
+#include "exyyess4210.dtsi"
 #include <dt-bindings/gpio/gpio.h>
-#include "exynos-mfc-reserved-memory.dtsi"
+#include "exyyess-mfc-reserved-memory.dtsi"
 
 / {
-	model = "Samsung smdkv310 evaluation board based on Exynos4210";
-	compatible = "samsung,smdkv310", "samsung,exynos4210", "samsung,exynos4";
+	model = "Samsung smdkv310 evaluation board based on Exyyess4210";
+	compatible = "samsung,smdkv310", "samsung,exyyess4210", "samsung,exyyess4";
 
 	memory@40000000 {
 		device_type = "memory";
@@ -64,7 +64,7 @@
 &keypad {
 	samsung,keypad-num-rows = <2>;
 	samsung,keypad-num-columns = <8>;
-	linux,keypad-no-autorepeat;
+	linux,keypad-yes-autorepeat;
 	wakeup-source;
 	pinctrl-names = "default";
 	pinctrl-0 = <&keypad_rows &keypad_cols>;

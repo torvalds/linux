@@ -169,10 +169,10 @@ static int rockchip_mbox_probe(struct platform_device *pdev)
 	struct resource *res;
 	int ret, irq, i;
 
-	if (!pdev->dev.of_node)
+	if (!pdev->dev.of_yesde)
 		return -ENODEV;
 
-	match = of_match_node(rockchip_mbox_of_match, pdev->dev.of_node);
+	match = of_match_yesde(rockchip_mbox_of_match, pdev->dev.of_yesde);
 	drv_data = (const struct rockchip_mbox_data *)match->data;
 
 	mb = devm_kzalloc(&pdev->dev, sizeof(*mb), GFP_KERNEL);

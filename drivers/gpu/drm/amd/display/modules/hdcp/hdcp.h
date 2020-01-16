@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -254,7 +254,7 @@ enum mod_hdcp_status mod_hdcp_read_l_prime(struct mod_hdcp *hdcp);
 enum mod_hdcp_status mod_hdcp_read_rx_id_list(struct mod_hdcp *hdcp);
 enum mod_hdcp_status mod_hdcp_read_stream_ready(struct mod_hdcp *hdcp);
 enum mod_hdcp_status mod_hdcp_write_ake_init(struct mod_hdcp *hdcp);
-enum mod_hdcp_status mod_hdcp_write_no_stored_km(struct mod_hdcp *hdcp);
+enum mod_hdcp_status mod_hdcp_write_yes_stored_km(struct mod_hdcp *hdcp);
 enum mod_hdcp_status mod_hdcp_write_stored_km(struct mod_hdcp *hdcp);
 enum mod_hdcp_status mod_hdcp_write_lc_init(struct mod_hdcp *hdcp);
 enum mod_hdcp_status mod_hdcp_write_eks(struct mod_hdcp *hdcp);
@@ -313,7 +313,7 @@ static inline uint8_t is_hdcp1(struct mod_hdcp *hdcp)
 	return (is_in_hdcp1_states(hdcp) || is_in_hdcp1_dp_states(hdcp));
 }
 
-static inline uint8_t is_in_cp_not_desired_state(struct mod_hdcp *hdcp)
+static inline uint8_t is_in_cp_yest_desired_state(struct mod_hdcp *hdcp)
 {
 	return current_state(hdcp) == HDCP_CP_NOT_DESIRED;
 }

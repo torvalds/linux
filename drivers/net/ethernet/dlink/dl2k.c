@@ -398,7 +398,7 @@ parse_eeprom (struct net_device *dev)
 		case 7:
 		case 8:	/* Reversed */
 			break;
-		default:	/* Unknown cell */
+		default:	/* Unkyeswn cell */
 			return -1;
 		}
 		i = next;
@@ -511,7 +511,7 @@ static int alloc_list(struct net_device *dev)
 		np->rx_ring[i].next_desc = cpu_to_le64(np->rx_ring_dma +
 						((i + 1) % RX_RING_SIZE) *
 						sizeof(struct netdev_desc));
-		/* Rubicon now supports 40 bits of addressing space. */
+		/* Rubicon yesw supports 40 bits of addressing space. */
 		np->rx_ring[i].fraginfo =
 		    cpu_to_le64(pci_map_single(
 				  np->pdev, skb->data, np->rx_buf_sz,
@@ -761,7 +761,7 @@ start_xmit (struct sk_buff *skb, struct net_device *dev)
 	np->cur_tx = (np->cur_tx + 1) % TX_RING_SIZE;
 	if ((np->cur_tx - np->old_tx + TX_RING_SIZE) % TX_RING_SIZE
 			< TX_QUEUE_LEN - 1 && np->speed != 10) {
-		/* do nothing */
+		/* do yesthing */
 	} else if (!netif_queue_stopped(dev)) {
 		netif_stop_queue (dev);
 	}
@@ -854,7 +854,7 @@ rio_free_tx (struct net_device *dev, int irq)
 		spin_unlock_irqrestore(&np->tx_lock, flag);
 	np->old_tx = entry;
 
-	/* If the ring is no longer full, clear tx_full and
+	/* If the ring is yes longer full, clear tx_full and
 	   call netif_wake_queue() */
 
 	if (netif_queue_stopped(dev) &&
@@ -1085,7 +1085,7 @@ get_stats (struct net_device *dev)
 #endif
 	unsigned int stat_reg;
 
-	/* All statistics registers need to be acknowledged,
+	/* All statistics registers need to be ackyeswledged,
 	   else statistic overflow could cause problems */
 
 	dev->stats.rx_packets += dr32(FramesRcvOk);
@@ -1146,7 +1146,7 @@ clear_stats (struct net_device *dev)
 	int i;
 #endif
 
-	/* All statistics registers need to be acknowledged,
+	/* All statistics registers need to be ackyeswledged,
 	   else statistic overflow could cause problems */
 	dr32(FramesRcvOk);
 	dr32(FramesXmtOk);
@@ -1325,7 +1325,7 @@ static int rio_set_link_ksettings(struct net_device *dev,
 			np->speed = 100;
 			np->full_duplex = (duplex == DUPLEX_FULL);
 			break;
-		case SPEED_1000: /* not supported */
+		case SPEED_1000: /* yest supported */
 		default:
 			return -EINVAL;
 		}
@@ -1511,7 +1511,7 @@ mii_get_media (struct net_device *dev)
 	bmsr = mii_read (dev, phy_addr, MII_BMSR);
 	if (np->an_enable) {
 		if (!(bmsr & BMSR_ANEGCOMPLETE)) {
-			/* Auto-Negotiation not completed */
+			/* Auto-Negotiation yest completed */
 			return -1;
 		}
 		negotiate = mii_read (dev, phy_addr, MII_ADVERTISE) &
@@ -1641,7 +1641,7 @@ mii_set_media (struct net_device *dev)
 		mii_write (dev, phy_addr, MII_BMCR, bmcr);
 		mdelay (100);	/* wait a certain time */
 
-		/* 4) Advertise nothing */
+		/* 4) Advertise yesthing */
 		mii_write (dev, phy_addr, MII_ADVERTISE, 0);
 
 		/* 5) Set media and Power Up */
@@ -1684,7 +1684,7 @@ mii_get_media_pcs (struct net_device *dev)
 	bmsr = mii_read (dev, phy_addr, PCS_BMSR);
 	if (np->an_enable) {
 		if (!(bmsr & BMSR_ANEGCOMPLETE)) {
-			/* Auto-Negotiation not completed */
+			/* Auto-Negotiation yest completed */
 			return -1;
 		}
 		negotiate = mii_read (dev, phy_addr, PCS_ANAR) &
@@ -1772,7 +1772,7 @@ mii_set_media_pcs (struct net_device *dev)
 		mii_write (dev, phy_addr, MII_BMCR, bmcr);
 		mdelay(10);
 
-		/*  Advertise nothing */
+		/*  Advertise yesthing */
 		mii_write (dev, phy_addr, MII_ADVERTISE, 0);
 	}
 	return 0;

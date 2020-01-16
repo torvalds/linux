@@ -173,8 +173,8 @@ struct i915_perf_stream {
 	/**
 	 * @hold_preemption: Whether preemption is put on hold for command
 	 * submissions done on the @ctx. This is useful for some drivers that
-	 * cannot easily post process the OA buffer context to subtract delta
-	 * of performance counters not associated with @ctx.
+	 * canyest easily post process the OA buffer context to subtract delta
+	 * of performance counters yest associated with @ctx.
 	 */
 	bool hold_preemption;
 
@@ -212,7 +212,7 @@ struct i915_perf_stream {
 
 	/**
 	 * @poll_check_timer: High resolution timer that will periodically
-	 * check for data in the circular OA buffer for notifying userspace
+	 * check for data in the circular OA buffer for yestifying userspace
 	 * (e.g. during a read() or poll()).
 	 */
 	struct hrtimer poll_check_timer;
@@ -265,7 +265,7 @@ struct i915_perf_stream {
 		 * happen in response to a hrtimer event and likely complete
 		 * before the next callback.
 		 *
-		 * Note: This lock is not held *while* reading and copying data
+		 * Note: This lock is yest held *while* reading and copying data
 		 * to userspace so the value of head observed in htrimer
 		 * callbacks won't represent any partial consumption of data.
 		 */
@@ -276,7 +276,7 @@ struct i915_perf_stream {
 		 * used for reading.
 		 *
 		 * Initial values of 0xffffffff are invalid and imply that an
-		 * update is required (and should be ignored by an attempted
+		 * update is required (and should be igyesred by an attempted
 		 * read)
 		 */
 		struct {
@@ -289,8 +289,8 @@ struct i915_perf_stream {
 		unsigned int aged_tail_idx;
 
 		/**
-		 * @aging_timestamp: A monotonic timestamp for when the current aging tail pointer
-		 * was read; used to determine when it is old enough to trust.
+		 * @aging_timestamp: A moyestonic timestamp for when the current aging tail pointer
+		 * was read; used to determine when it is old eyesugh to trust.
 		 */
 		u64 aging_timestamp;
 
@@ -305,10 +305,10 @@ struct i915_perf_stream {
 	} oa_buffer;
 
 	/**
-	 * @noa_wait: A batch buffer doing a wait on the GPU for the NOA logic to be
+	 * @yesa_wait: A batch buffer doing a wait on the GPU for the NOA logic to be
 	 * reprogrammed.
 	 */
-	struct i915_vma *noa_wait;
+	struct i915_vma *yesa_wait;
 };
 
 /**
@@ -408,7 +408,7 @@ struct i915_perf {
 	struct i915_perf_stream *exclusive_stream;
 
 	/**
-	 * For rate limiting any notifications of spurious
+	 * For rate limiting any yestifications of spurious
 	 * invalid OA reports
 	 */
 	struct ratelimit_state spurious_report_rs;
@@ -429,7 +429,7 @@ struct i915_perf {
 	struct i915_oa_ops ops;
 	const struct i915_oa_format *oa_formats;
 
-	atomic64_t noa_programming_delay;
+	atomic64_t yesa_programming_delay;
 };
 
 #endif /* _I915_PERF_TYPES_H_ */

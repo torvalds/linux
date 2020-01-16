@@ -300,7 +300,7 @@ static int host_write_ctrl_unsafe(unsigned io_base, unsigned char data,
  * Check that the MIDI subsystem is operational. If it isn't,
  * then we will hang the computer if we try to use it ...
  *
- * NOTE: This check is based upon observation, not documentation.
+ * NOTE: This check is based upon observation, yest documentation.
  */
 static inline int verify_mpu401(const struct snd_mpu401 *mpu)
 {
@@ -367,9 +367,9 @@ static int sscape_wait_dma_unsafe(unsigned io_base, enum GA_REG reg,
 
 /*
  * Wait for the On-Board Processor to return its start-up
- * acknowledgement sequence. This wait is too long for
+ * ackyeswledgement sequence. This wait is too long for
  * us to perform "busy-waiting", and so we must sleep.
- * This in turn means that we must not be holding any
+ * This in turn means that we must yest be holding any
  * spinlocks when we call this function.
  */
 static int obp_startup_ack(struct soundscape *s, unsigned timeout)
@@ -393,10 +393,10 @@ static int obp_startup_ack(struct soundscape *s, unsigned timeout)
 }
 
 /*
- * Wait for the host to return its start-up acknowledgement
+ * Wait for the host to return its start-up ackyeswledgement
  * sequence. This wait is too long for us to perform
  * "busy-waiting", and so we must sleep. This in turn means
- * that we must not be holding any spinlocks when we call
+ * that we must yest be holding any spinlocks when we call
  * this function.
  */
 static int host_startup_ack(struct soundscape *s, unsigned timeout)
@@ -492,7 +492,7 @@ static int upload_dma_data(struct soundscape *s, const unsigned char *data,
 	spin_unlock_irqrestore(&s->lock, flags);
 
 	/*
-	 * If all has gone well, then the board should acknowledge
+	 * If all has gone well, then the board should ackyeswledge
 	 * the new upload and tell us that it has rebooted OK. We
 	 * give it 5 seconds (max) ...
 	 */
@@ -635,7 +635,7 @@ static int sscape_midi_put(struct snd_kcontrol *kctl,
 	/*
 	 * To successfully change the MIDI volume setting, you seem to
 	 * have to write a volume command, write the new volume value,
-	 * and then perform another volume-related command. Perhaps the
+	 * and then perform ayesther volume-related command. Perhaps the
 	 * first command is an "open" and the second command is a "close"?
 	 */
 	if (s->midi_vol == new_val) {
@@ -704,7 +704,7 @@ static int detect_sscape(struct soundscape *s, long wss_io)
 
 	/*
 	 * The following code is lifted from the original OSS driver,
-	 * and as I don't have a datasheet I cannot really comment
+	 * and as I don't have a datasheet I canyest really comment
 	 * on what it is doing...
 	 */
 	if ((inb(HOST_CTRL_IO(s->io_base)) & 0x78) != 0)
@@ -906,7 +906,7 @@ static int create_ad1845(struct snd_card *card, unsigned port,
 			err = snd_ctl_add(card,
 					  snd_ctl_new1(&midi_mixer_ctl, chip));
 			if (err < 0) {
-				snd_printk(KERN_ERR "sscape: Could not create "
+				snd_printk(KERN_ERR "sscape: Could yest create "
 						    "MIDI mixer control\n");
 				goto _error;
 			}
@@ -973,7 +973,7 @@ static int create_sscape(int dev, struct snd_card *card)
 	sscape->io_base = port[dev];
 
 	if (!detect_sscape(sscape, wss_port[dev])) {
-		printk(KERN_ERR "sscape: hardware not detected at 0x%x\n",
+		printk(KERN_ERR "sscape: hardware yest detected at 0x%x\n",
 			sscape->io_base);
 		err = -ENODEV;
 		goto _release_dma;
@@ -993,7 +993,7 @@ static int create_sscape(int dev, struct snd_card *card)
 		name = "Soundscape VIVO";
 		break;
 	default:
-		name = "unknown Soundscape";
+		name = "unkyeswn Soundscape";
 		break;
 	}
 
@@ -1051,7 +1051,7 @@ static int create_sscape(int dev, struct snd_card *card)
 	spin_unlock_irqrestore(&sscape->lock, flags);
 
 	/*
-	 * We have now enabled the codec chip, and so we should
+	 * We have yesw enabled the codec chip, and so we should
 	 * detect the AD1845 device ...
 	 */
 	err = create_ad1845(card, wss_port[dev], irq[dev],
@@ -1113,7 +1113,7 @@ static int create_sscape(int dev, struct snd_card *card)
 	 * Now that we have successfully created this sound card,
 	 * it is safe to store the pointer.
 	 * NOTE: we only register the sound card's "destructor"
-	 *       function now that our "constructor" has completed.
+	 *       function yesw that our "constructor" has completed.
 	 */
 	card->private_free = soundscape_free;
 
@@ -1228,7 +1228,7 @@ static int sscape_pnp_detect(struct pnp_card_link *pcard,
 		return -ENOSPC;
 
 	/*
-	 * Check that we still have room for another sound card ...
+	 * Check that we still have room for ayesther sound card ...
 	 */
 	dev = pnp_request_card_device(pcard, pid->devs[0].id, NULL);
 	if (!dev)

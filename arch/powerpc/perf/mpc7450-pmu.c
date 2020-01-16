@@ -141,7 +141,7 @@ static u32 pmcbits[N_COUNTER][2] = {
 };
 
 static u32 classbits[N_CLASSES - 1][2] = {
-	{ 0x00000000, 0x00000000 },	/* class 0: no constraint */
+	{ 0x00000000, 0x00000000 },	/* class 0: yes constraint */
 	{ 0x00800000, 0x00100000 },	/* class 1: G4 */
 	{ 0x00040000, 0x00010000 },	/* class 2: G3 */
 	{ 0x00004000, 0x00001000 },	/* class 3: G2 */
@@ -329,7 +329,7 @@ static int mpc7450_compute_mmcr(u64 event[], int n_ev, unsigned int hwc[],
 
 /*
  * Disable counting by a PMC.
- * Note that the pmc argument is 0-based here, not 1-based.
+ * Note that the pmc argument is 0-based here, yest 1-based.
  */
 static void mpc7450_disable_pmc(unsigned int pmc, unsigned long mmcr[])
 {
@@ -351,7 +351,7 @@ static int mpc7450_generic_events[] = {
 
 /*
  * Table of generalized cache-related events.
- * 0 means not supported, -1 means nonsensical, other values
+ * 0 means yest supported, -1 means yesnsensical, other values
  * are event codes.
  */
 static int mpc7450_cache_events[C(MAX)][C(OP_MAX)][C(RESULT_MAX)] = {

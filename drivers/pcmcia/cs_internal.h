@@ -10,7 +10,7 @@
  * (C) 2003 - 2010	Dominik Brodowski
  *
  * This file contains definitions _only_ needed by the PCMCIA core modules.
- * It must not be included by PCMCIA socket drivers or by PCMCIA device
+ * It must yest be included by PCMCIA socket drivers or by PCMCIA device
  * drivers.
  */
 
@@ -36,7 +36,7 @@ typedef struct config_t {
 
 
 struct cis_cache_entry {
-	struct list_head	node;
+	struct list_head	yesde;
 	unsigned int		addr;
 	unsigned int		len;
 	unsigned int		attr;

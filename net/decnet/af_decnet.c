@@ -33,10 +33,10 @@
  *       Patrick Caulfield: Fixes to delayed acceptance logic.
  *         David S. Miller: New socket locking
  *        Steve Whitehouse: Socket list hashing/locking
- *         Arnaldo C. Melo: use capable, not suser
+ *         Arnaldo C. Melo: use capable, yest suser
  *        Steve Whitehouse: Removed unused code. Fix to use sk->allocation
  *                          when required.
- *       Patrick Caulfield: /proc/net/decnet now has object name/number
+ *       Patrick Caulfield: /proc/net/decnet yesw has object name/number
  *        Steve Whitehouse: Fixed local port allocation, hashed sk list
  *          Matthew Wilcox: Fixes for dn_ioctl()
  *        Steve Whitehouse: New connect/accept logic to allow timeouts and
@@ -92,7 +92,7 @@ Version 0.0.6    2.1.110   07-aug-98   Eduardo Marcelo Serrat
 *******************************************************************************/
 
 #include <linux/module.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/types.h>
 #include <linux/slab.h>
 #include <linux/socket.h>
@@ -164,7 +164,7 @@ static struct hlist_head *dn_find_list(struct sock *sk)
 }
 
 /*
- * Valid ports are those greater than zero and not already in use.
+ * Valid ports are those greater than zero and yest already in use.
  */
 static int check_port(__le16 port)
 {
@@ -219,7 +219,7 @@ static int dn_hash_sock(struct sock *sk)
 	if ((list = dn_find_list(sk)) == NULL)
 		goto out;
 
-	sk_add_node(sk, list);
+	sk_add_yesde(sk, list);
 	rv = 0;
 out:
 	write_unlock_bh(&dn_hash_lock);
@@ -229,14 +229,14 @@ out:
 static void dn_unhash_sock(struct sock *sk)
 {
 	write_lock(&dn_hash_lock);
-	sk_del_node_init(sk);
+	sk_del_yesde_init(sk);
 	write_unlock(&dn_hash_lock);
 }
 
 static void dn_unhash_sock_bh(struct sock *sk)
 {
 	write_lock_bh(&dn_hash_lock);
-	sk_del_node_init(sk);
+	sk_del_yesde_init(sk);
 	write_unlock_bh(&dn_hash_lock);
 }
 
@@ -270,10 +270,10 @@ static void dn_rehash_sock(struct sock *sk)
 		return;
 
 	write_lock_bh(&dn_hash_lock);
-	sk_del_node_init(sk);
+	sk_del_yesde_init(sk);
 	DN_SK(sk)->addrloc = 0;
 	list = listen_hash(&DN_SK(sk)->addr);
-	sk_add_node(sk, list);
+	sk_add_yesde(sk, list);
 	write_unlock_bh(&dn_hash_lock);
 }
 
@@ -308,8 +308,8 @@ int dn_sockaddr2username(struct sockaddr_dn *sdn, unsigned char *buf, unsigned c
 /*
  * On reception of usernames, we handle types 1 and 0 for destination
  * addresses only. Types 2 and 4 are used for source addresses, but the
- * UIC, GIC are ignored and they are both treated the same way. Type 3
- * is never used as I've no idea what its purpose might be or what its
+ * UIC, GIC are igyesred and they are both treated the same way. Type 3
+ * is never used as I've yes idea what its purpose might be or what its
  * format is.
  */
 int dn_username2sockaddr(unsigned char *data, int len, struct sockaddr_dn *sdn, unsigned char *fmt)
@@ -475,7 +475,7 @@ static struct sock *dn_alloc_sock(struct net *net, struct socket *sock, gfp_t gf
 
 	sk->sk_backlog_rcv = dn_nsp_backlog_rcv;
 	sk->sk_destruct    = dn_destruct;
-	sk->sk_no_check_tx = 1;
+	sk->sk_yes_check_tx = 1;
 	sk->sk_family      = PF_DECnet;
 	sk->sk_protocol    = 0;
 	sk->sk_allocation  = gfp;
@@ -502,7 +502,7 @@ static struct sock *dn_alloc_sock(struct net *net, struct socket *sock, gfp_t gf
 	scp->info_rem = 0;
 	scp->info_loc = 0x03; /* NSP version 4.1 */
 	scp->segsize_rem = 230 - DN_MAX_NSP_DATA_HEADER; /* Default: Updated by remote segsize */
-	scp->nonagle = 0;
+	scp->yesnagle = 0;
 	scp->multi_ireq = 1;
 	scp->accept_mode = ACC_IMMED;
 	scp->addr.sdn_family    = AF_DECnet;
@@ -540,7 +540,7 @@ static void dn_keepalive(struct sock *sk)
 
 	/*
 	 * By checking the other_data transmit queue is empty
-	 * we are double checking that we are not sending too
+	 * we are double checking that we are yest sending too
 	 * many of these keepalive frames.
 	 */
 	if (skb_queue_empty(&scp->other_xmit_queue))
@@ -550,7 +550,7 @@ static void dn_keepalive(struct sock *sk)
 
 /*
  * Timer for shutdown/destroyed sockets.
- * When socket is dead & no packets have been sent for a
+ * When socket is dead & yes packets have been sent for a
  * certain amount of time, they are removed by this
  * routine. Also takes care of sending out DI & DC
  * frames at correct times.
@@ -654,11 +654,11 @@ disc_reject:
 
 char *dn_addr2asc(__u16 addr, char *buf)
 {
-	unsigned short node, area;
+	unsigned short yesde, area;
 
-	node = addr & 0x03ff;
+	yesde = addr & 0x03ff;
 	area = addr >> 10;
-	sprintf(buf, "%hd.%hd", area, node);
+	sprintf(buf, "%hd.%hd", area, yesde);
 
 	return buf;
 }
@@ -728,7 +728,7 @@ static int dn_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 	if (saddr->sdn_family != AF_DECnet)
 		return -EINVAL;
 
-	if (le16_to_cpu(saddr->sdn_nodeaddrl) && (le16_to_cpu(saddr->sdn_nodeaddrl) != 2))
+	if (le16_to_cpu(saddr->sdn_yesdeaddrl) && (le16_to_cpu(saddr->sdn_yesdeaddrl) != 2))
 		return -EINVAL;
 
 	if (le16_to_cpu(saddr->sdn_objnamel) > DN_MAXOBJL)
@@ -742,7 +742,7 @@ static int dn_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 		return -EACCES;
 
 	if (!(saddr->sdn_flags & SDF_WILD)) {
-		if (le16_to_cpu(saddr->sdn_nodeaddrl)) {
+		if (le16_to_cpu(saddr->sdn_yesdeaddrl)) {
 			rcu_read_lock();
 			ldev = NULL;
 			for_each_netdev_rcu(&init_net, dev) {
@@ -837,7 +837,7 @@ static int dn_confirm_accept(struct sock *sk, long *timeo, gfp_t allocation)
 		err = sock_error(sk);
 		if (err)
 			break;
-		err = sock_intr_errno(*timeo);
+		err = sock_intr_erryes(*timeo);
 		if (signal_pending(current))
 			break;
 		err = -EAGAIN;
@@ -878,7 +878,7 @@ static int dn_wait_run(struct sock *sk, long *timeo)
 		err = sock_error(sk);
 		if (err)
 			break;
-		err = sock_intr_errno(*timeo);
+		err = sock_intr_erryes(*timeo);
 		if (signal_pending(current))
 			break;
 		err = -ETIMEDOUT;
@@ -1020,7 +1020,7 @@ static void dn_access_copy(struct sk_buff *skb, struct accessdata_dn *acc)
 static void dn_user_copy(struct sk_buff *skb, struct optdata_dn *opt)
 {
 	unsigned char *ptr = skb->data;
-	u16 len = *ptr++; /* yes, it's 8bit on the wire */
+	u16 len = *ptr++; /* no, it's 8bit on the wire */
 
 	BUG_ON(len > 16); /* we've checked the contents earlier */
 	opt->opt_optl   = cpu_to_le16(len);
@@ -1049,7 +1049,7 @@ static struct sk_buff *dn_wait_for_connect(struct sock *sk, long *timeo)
 		err = -EINVAL;
 		if (sk->sk_state != TCP_LISTEN)
 			break;
-		err = sock_intr_errno(*timeo);
+		err = sock_intr_erryes(*timeo);
 		if (signal_pending(current))
 			break;
 		err = -EAGAIN;
@@ -1115,7 +1115,7 @@ static int dn_accept(struct socket *sock, struct socket *newsock, int flags,
 		DN_SK(newsk)->segsize_rem = 230;
 
 	if ((DN_SK(newsk)->services_rem & NSP_FC_MASK) == NSP_FC_NONE)
-		DN_SK(newsk)->max_window = decnet_no_fc_max_cwnd;
+		DN_SK(newsk)->max_window = decnet_yes_fc_max_cwnd;
 
 	newsk->sk_state  = TCP_LISTEN;
 	memcpy(&(DN_SK(newsk)->addr), &(DN_SK(sk)->addr), sizeof(struct sockaddr_dn));
@@ -1456,19 +1456,19 @@ static int __dn_setsockopt(struct socket *sock, int level,int optname, char __us
 	case DSO_NODELAY:
 		if (optlen != sizeof(int))
 			return -EINVAL;
-		if (scp->nonagle == TCP_NAGLE_CORK)
+		if (scp->yesnagle == TCP_NAGLE_CORK)
 			return -EINVAL;
-		scp->nonagle = (u.val == 0) ? 0 : TCP_NAGLE_OFF;
-		/* if (scp->nonagle == 1) { Push pending frames } */
+		scp->yesnagle = (u.val == 0) ? 0 : TCP_NAGLE_OFF;
+		/* if (scp->yesnagle == 1) { Push pending frames } */
 		break;
 
 	case DSO_CORK:
 		if (optlen != sizeof(int))
 			return -EINVAL;
-		if (scp->nonagle == TCP_NAGLE_OFF)
+		if (scp->yesnagle == TCP_NAGLE_OFF)
 			return -EINVAL;
-		scp->nonagle = (u.val == 0) ? 0 : TCP_NAGLE_CORK;
-		/* if (scp->nonagle == 0) { Push pending frames } */
+		scp->yesnagle = (u.val == 0) ? 0 : TCP_NAGLE_CORK;
+		/* if (scp->yesnagle == 0) { Push pending frames } */
 		break;
 
 	case DSO_SERVICES:
@@ -1595,14 +1595,14 @@ static int __dn_getsockopt(struct socket *sock, int level,int optname, char __us
 	case DSO_NODELAY:
 		if (r_len > sizeof(int))
 			r_len = sizeof(int);
-		val = (scp->nonagle == TCP_NAGLE_OFF);
+		val = (scp->yesnagle == TCP_NAGLE_OFF);
 		r_data = &val;
 		break;
 
 	case DSO_CORK:
 		if (r_len > sizeof(int))
 			r_len = sizeof(int);
-		val = (scp->nonagle == TCP_NAGLE_CORK);
+		val = (scp->yesnagle == TCP_NAGLE_CORK);
 		r_data = &val;
 		break;
 
@@ -1732,7 +1732,7 @@ static int dn_recvmsg(struct socket *sock, struct msghdr *msg, size_t size,
 			goto out;
 
 		if (signal_pending(current)) {
-			rv = sock_intr_errno(timeo);
+			rv = sock_intr_erryes(timeo);
 			goto out;
 		}
 
@@ -1840,7 +1840,7 @@ static inline int dn_queue_too_long(struct dn_scp *scp, struct sk_buff_head *que
  * are at least 230 bytes in size. This excludes any headers which the NSP
  * layer might add, so we always assume that we'll be using the maximal
  * length header on data packets. The variation in length is due to the
- * inclusion (or not) of the two 16 bit acknowledgement fields so it doesn't
+ * inclusion (or yest) of the two 16 bit ackyeswledgement fields so it doesn't
  * make much practical difference.
  */
 unsigned int dn_mss_from_pmtu(struct net_device *dev, int mtu)
@@ -1869,7 +1869,7 @@ static inline unsigned int dn_current_mss(struct sock *sk, int flags)
 {
 	struct dst_entry *dst = __sk_dst_get(sk);
 	struct dn_scp *scp = DN_SK(sk);
-	int mss_now = min_t(int, scp->segsize_loc, scp->segsize_rem);
+	int mss_yesw = min_t(int, scp->segsize_loc, scp->segsize_rem);
 
 	/* Other data messages are limited to 16 bytes per packet */
 	if (flags & MSG_OOB)
@@ -1878,24 +1878,24 @@ static inline unsigned int dn_current_mss(struct sock *sk, int flags)
 	/* This works out the maximum size of segment we can send out */
 	if (dst) {
 		u32 mtu = dst_mtu(dst);
-		mss_now = min_t(int, dn_mss_from_pmtu(dst->dev, mtu), mss_now);
+		mss_yesw = min_t(int, dn_mss_from_pmtu(dst->dev, mtu), mss_yesw);
 	}
 
-	return mss_now;
+	return mss_yesw;
 }
 
 /*
  * N.B. We get the timeout wrong here, but then we always did get it
- * wrong before and this is another step along the road to correcting
+ * wrong before and this is ayesther step along the road to correcting
  * it. It ought to get updated each time we pass through the routine,
- * but in practise it probably doesn't matter too much for now.
+ * but in practise it probably doesn't matter too much for yesw.
  */
 static inline struct sk_buff *dn_alloc_send_pskb(struct sock *sk,
-			      unsigned long datalen, int noblock,
+			      unsigned long datalen, int yesblock,
 			      int *errcode)
 {
 	struct sk_buff *skb = sock_alloc_send_skb(sk, datalen,
-						   noblock, errcode);
+						   yesblock, errcode);
 	if (skb) {
 		skb->protocol = htons(ETH_P_DNA_RT);
 		skb->pkt_type = PACKET_OUTGOING;
@@ -1977,7 +1977,7 @@ static int dn_sendmsg(struct socket *sock, struct msghdr *msg, size_t size)
 			goto out;
 
 		if (signal_pending(current)) {
-			err = sock_intr_errno(timeo);
+			err = sock_intr_erryes(timeo);
 			goto out;
 		}
 
@@ -2076,10 +2076,10 @@ out_err:
 	return err;
 }
 
-static int dn_device_event(struct notifier_block *this, unsigned long event,
+static int dn_device_event(struct yestifier_block *this, unsigned long event,
 			   void *ptr)
 {
-	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
+	struct net_device *dev = netdev_yestifier_info_to_dev(ptr);
 
 	if (!net_eq(dev_net(dev), &init_net))
 		return NOTIFY_DONE;
@@ -2098,8 +2098,8 @@ static int dn_device_event(struct notifier_block *this, unsigned long event,
 	return NOTIFY_DONE;
 }
 
-static struct notifier_block dn_dev_notifier = {
-	.notifier_call = dn_device_event,
+static struct yestifier_block dn_dev_yestifier = {
+	.yestifier_call = dn_device_event,
 };
 
 static struct packet_type dn_dix_packet_type __read_mostly = {
@@ -2320,7 +2320,7 @@ static const struct proto_ops dn_proto_ops = {
 	.release =	dn_release,
 	.bind =		dn_bind,
 	.connect =	dn_connect,
-	.socketpair =	sock_no_socketpair,
+	.socketpair =	sock_yes_socketpair,
 	.accept =	dn_accept,
 	.getname =	dn_getname,
 	.poll =		dn_poll,
@@ -2331,8 +2331,8 @@ static const struct proto_ops dn_proto_ops = {
 	.getsockopt =	dn_getsockopt,
 	.sendmsg =	dn_sendmsg,
 	.recvmsg =	dn_recvmsg,
-	.mmap =		sock_no_mmap,
-	.sendpage =	sock_no_sendpage,
+	.mmap =		sock_yes_mmap,
+	.sendpage =	sock_yes_sendpage,
 };
 
 MODULE_DESCRIPTION("The Linux DECnet Network Protocol");
@@ -2360,7 +2360,7 @@ static int __init decnet_init(void)
 
 	sock_register(&dn_family_ops);
 	dev_add_pack(&dn_dix_packet_type);
-	register_netdevice_notifier(&dn_dev_notifier);
+	register_netdevice_yestifier(&dn_dev_yestifier);
 
 	proc_create_seq_private("decnet", 0444, init_net.proc_net,
 			&dn_socket_seq_ops, sizeof(struct dn_iter_state),
@@ -2386,7 +2386,7 @@ static void __exit decnet_exit(void)
 
 	dn_unregister_sysctl();
 
-	unregister_netdevice_notifier(&dn_dev_notifier);
+	unregister_netdevice_yestifier(&dn_dev_yestifier);
 
 	dn_route_cleanup();
 	dn_dev_cleanup();

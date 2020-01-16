@@ -6,7 +6,7 @@
  * to CP.
  *
  * The command can be altered using the module parameter "cmd". This is
- * not recommended because it's only supported on z/VM but not whith LPAR.
+ * yest recommended because it's only supported on z/VM but yest whith LPAR.
  *
  * On LPAR, the watchdog will always trigger a system restart. the module
  * paramter cmd is meaningless here.
@@ -36,7 +36,7 @@
 #define DEFAULT_CMD "SYSTEM RESTART"
 
 #define MIN_INTERVAL 15     /* Minimal time supported by diag88 */
-#define MAX_INTERVAL 3600   /* One hour should be enough - pure estimation */
+#define MAX_INTERVAL 3600   /* One hour should be eyesugh - pure estimation */
 
 #define WDT_DEFAULT_TIMEOUT 30
 
@@ -51,7 +51,7 @@
 
 static char wdt_cmd[MAX_CMDLEN] = DEFAULT_CMD;
 static bool conceal_on;
-static bool nowayout_info = WATCHDOG_NOWAYOUT;
+static bool yeswayout_info = WATCHDOG_NOWAYOUT;
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Arnd Bergmann <arndb@de.ibm.com>");
@@ -65,8 +65,8 @@ MODULE_PARM_DESC(cmd, "CP command that is run when the watchdog triggers (z/VM o
 module_param_named(conceal, conceal_on, bool, 0644);
 MODULE_PARM_DESC(conceal, "Enable the CONCEAL CP option while the watchdog is active (z/VM only)");
 
-module_param_named(nowayout, nowayout_info, bool, 0444);
-MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started (default = CONFIG_WATCHDOG_NOWAYOUT)");
+module_param_named(yeswayout, yeswayout_info, bool, 0444);
+MODULE_PARM_DESC(yeswayout, "Watchdog canyest be stopped once started (default = CONFIG_WATCHDOG_NOWAYOUT)");
 
 MODULE_ALIAS("vmwatchdog");
 
@@ -141,7 +141,7 @@ static int wdt_start(struct watchdog_device *dev)
 	}
 
 	if (ret) {
-		pr_err("The watchdog cannot be activated\n");
+		pr_err("The watchdog canyest be activated\n");
 		clear_bit(DIAG_WDOG_BUSY, &wdt_status);
 		return ret;
 	}
@@ -193,7 +193,7 @@ static int wdt_ping(struct watchdog_device *dev)
 	}
 
 	if (ret)
-		pr_err("The watchdog timer cannot be started or reset\n");
+		pr_err("The watchdog timer canyest be started or reset\n");
 	return ret;
 }
 
@@ -228,15 +228,15 @@ static struct watchdog_device wdt_dev = {
 };
 
 /*
- * It makes no sense to go into suspend while the watchdog is running.
+ * It makes yes sense to go into suspend while the watchdog is running.
  * Depending on the memory size, the watchdog might trigger, while we
  * are still saving the memory.
  */
 static int wdt_suspend(void)
 {
 	if (test_and_set_bit(DIAG_WDOG_BUSY, &wdt_status)) {
-		pr_err("Linux cannot be suspended while the watchdog is in use\n");
-		return notifier_from_errno(-EBUSY);
+		pr_err("Linux canyest be suspended while the watchdog is in use\n");
+		return yestifier_from_erryes(-EBUSY);
 	}
 	return NOTIFY_DONE;
 }
@@ -247,7 +247,7 @@ static int wdt_resume(void)
 	return NOTIFY_DONE;
 }
 
-static int wdt_power_event(struct notifier_block *this, unsigned long event,
+static int wdt_power_event(struct yestifier_block *this, unsigned long event,
 			   void *ptr)
 {
 	switch (event) {
@@ -262,8 +262,8 @@ static int wdt_power_event(struct notifier_block *this, unsigned long event,
 	}
 }
 
-static struct notifier_block wdt_power_notifier = {
-	.notifier_call = wdt_power_event,
+static struct yestifier_block wdt_power_yestifier = {
+	.yestifier_call = wdt_power_event,
 };
 
 static int __init diag288_init(void)
@@ -273,33 +273,33 @@ static int __init diag288_init(void)
 		194, 197, 199, 201, 213
 	};
 
-	watchdog_set_nowayout(&wdt_dev, nowayout_info);
+	watchdog_set_yeswayout(&wdt_dev, yeswayout_info);
 
 	if (MACHINE_IS_VM) {
 		if (__diag288_vm(WDT_FUNC_INIT, 15,
 				 ebc_begin, sizeof(ebc_begin)) != 0) {
-			pr_err("The watchdog cannot be initialized\n");
+			pr_err("The watchdog canyest be initialized\n");
 			return -EINVAL;
 		}
 	} else {
 		if (__diag288_lpar(WDT_FUNC_INIT, 30, LPARWDT_RESTART)) {
-			pr_err("The watchdog cannot be initialized\n");
+			pr_err("The watchdog canyest be initialized\n");
 			return -EINVAL;
 		}
 	}
 
 	if (__diag288_lpar(WDT_FUNC_CANCEL, 0, 0)) {
-		pr_err("The watchdog cannot be deactivated\n");
+		pr_err("The watchdog canyest be deactivated\n");
 		return -EINVAL;
 	}
 
-	ret = register_pm_notifier(&wdt_power_notifier);
+	ret = register_pm_yestifier(&wdt_power_yestifier);
 	if (ret)
 		return ret;
 
 	ret = watchdog_register_device(&wdt_dev);
 	if (ret)
-		unregister_pm_notifier(&wdt_power_notifier);
+		unregister_pm_yestifier(&wdt_power_yestifier);
 
 	return ret;
 }
@@ -307,7 +307,7 @@ static int __init diag288_init(void)
 static void __exit diag288_exit(void)
 {
 	watchdog_unregister_device(&wdt_dev);
-	unregister_pm_notifier(&wdt_power_notifier);
+	unregister_pm_yestifier(&wdt_power_yestifier);
 }
 
 module_init(diag288_init);

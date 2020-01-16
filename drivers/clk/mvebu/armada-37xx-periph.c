@@ -383,7 +383,7 @@ static unsigned int armada_3700_pm_dvfs_get_cpu_div(struct regmap *base)
 
 	/*
 	 * This function is always called after the function
-	 * armada_3700_pm_dvfs_is_enabled, so no need to check again
+	 * armada_3700_pm_dvfs_is_enabled, so yes need to check again
 	 * if the base is valid.
 	 */
 	regmap_read(base, reg, &load_level);
@@ -408,7 +408,7 @@ static unsigned int armada_3700_pm_dvfs_get_cpu_parent(struct regmap *base)
 
 	/*
 	 * This function is always called after the function
-	 * armada_3700_pm_dvfs_is_enabled, so no need to check again
+	 * armada_3700_pm_dvfs_is_enabled, so yes need to check again
 	 * if the base is valid
 	 */
 	regmap_read(base, reg, &load_level);
@@ -448,7 +448,7 @@ static int clk_pm_cpu_set_parent(struct clk_hw *hw, u8 index)
 
 	/*
 	 * We set the clock parent only if the DVFS is available but
-	 * not enabled.
+	 * yest enabled.
 	 */
 	if (IS_ERR(base) || armada_3700_pm_dvfs_is_enabled(base))
 		return -EINVAL;
@@ -517,7 +517,7 @@ static long clk_pm_cpu_round_rate(struct clk_hw *hw, unsigned long rate,
  * Switching the CPU from the L2 or L3 frequencies (300 and 200 Mhz
  * respectively) to L0 frequency (1.2 Ghz) requires a significant
  * amount of time to let VDD stabilize to the appropriate
- * voltage. This amount of time is large enough that it cannot be
+ * voltage. This amount of time is large eyesugh that it canyest be
  * covered by the hardware countdown register. Due to this, the CPU
  * might start operating at L0 before the voltage is stabilized,
  * leading to CPU stalls.
@@ -721,7 +721,7 @@ static const struct dev_pm_ops armada_3700_periph_clock_pm_ops = {
 static int armada_3700_periph_clock_probe(struct platform_device *pdev)
 {
 	struct clk_periph_driver_data *driver_data;
-	struct device_node *np = pdev->dev.of_node;
+	struct device_yesde *np = pdev->dev.of_yesde;
 	const struct clk_periph_data *data;
 	struct device *dev = &pdev->dev;
 	int num_periph = 0, i, ret;
@@ -779,7 +779,7 @@ static int armada_3700_periph_clock_remove(struct platform_device *pdev)
 	struct clk_hw_onecell_data *hw_data = data->hw_data;
 	int i;
 
-	of_clk_del_provider(pdev->dev.of_node);
+	of_clk_del_provider(pdev->dev.of_yesde);
 
 	for (i = 0; i < hw_data->num; i++)
 		clk_hw_unregister(hw_data->hws[i]);

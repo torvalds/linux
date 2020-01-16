@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -52,7 +52,7 @@
  * very rarely occurs.  An application encountering this "back-pressure" is
  * considered a bug.
  *
- * This is implemented by having each node maintain bitmaps which indicate
+ * This is implemented by having each yesde maintain bitmaps which indicate
  * which ports on bound addresses are congested.  As the bitmap changes it is
  * sent through all the connections which terminate in the local address of the
  * bitmap which changed.
@@ -63,14 +63,14 @@
  * reasonably efficiently.  This is much easier to implement than some
  * finer-grained communication of per-port congestion.  The sender does a very
  * inexpensive bit test to test if the port it's about to send to is congested
- * or not.
+ * or yest.
  */
 
 /*
  * Interaction with poll is a tad tricky. We want all processes stuck in
  * poll to wake up and check whether a congested destination became uncongested.
- * The really sad thing is we have no idea which destinations the application
- * wants to send to - we don't even know which rds_connections are involved.
+ * The really sad thing is we have yes idea which destinations the application
+ * wants to send to - we don't even kyesw which rds_connections are involved.
  * So until we implement a more flexible rds poll interface, we have to make
  * do with this:
  * We maintain a global counter that is incremented each time a congestion map
@@ -104,15 +104,15 @@ static struct rb_root rds_cong_tree = RB_ROOT;
 static struct rds_cong_map *rds_cong_tree_walk(const struct in6_addr *addr,
 					       struct rds_cong_map *insert)
 {
-	struct rb_node **p = &rds_cong_tree.rb_node;
-	struct rb_node *parent = NULL;
+	struct rb_yesde **p = &rds_cong_tree.rb_yesde;
+	struct rb_yesde *parent = NULL;
 	struct rds_cong_map *map;
 
 	while (*p) {
 		int diff;
 
 		parent = *p;
-		map = rb_entry(parent, struct rds_cong_map, m_rb_node);
+		map = rb_entry(parent, struct rds_cong_map, m_rb_yesde);
 
 		diff = rds_addr_cmp(addr, &map->m_addr);
 		if (diff < 0)
@@ -124,8 +124,8 @@ static struct rds_cong_map *rds_cong_tree_walk(const struct in6_addr *addr,
 	}
 
 	if (insert) {
-		rb_link_node(&insert->m_rb_node, parent, p);
-		rb_insert_color(&insert->m_rb_node, &rds_cong_tree);
+		rb_link_yesde(&insert->m_rb_yesde, parent, p);
+		rb_insert_color(&insert->m_rb_yesde, &rds_cong_tree);
 	}
 	return NULL;
 }
@@ -187,7 +187,7 @@ void rds_cong_add_conn(struct rds_connection *conn)
 {
 	unsigned long flags;
 
-	rdsdebug("conn %p now on map %p\n", conn, conn->c_lcong);
+	rdsdebug("conn %p yesw on map %p\n", conn, conn->c_lcong);
 	spin_lock_irqsave(&rds_cong_lock, flags);
 	list_add_tail(&conn->c_map_item, &conn->c_lcong->m_conn_list);
 	spin_unlock_irqrestore(&rds_cong_lock, flags);
@@ -228,7 +228,7 @@ void rds_cong_queue_updates(struct rds_cong_map *map)
 		if (!test_and_set_bit(0, &conn->c_map_queued) &&
 		    !rds_destroy_pending(cp->cp_conn)) {
 			rds_stats_inc(s_cong_update_queued);
-			/* We cannot inline the call to rds_send_xmit() here
+			/* We canyest inline the call to rds_send_xmit() here
 			 * for two reasons (both pertaining to a TCP transport):
 			 * 1. When we get here from the receive path, we
 			 *    are already holding the sock_lock (held by
@@ -268,10 +268,10 @@ void rds_cong_map_updated(struct rds_cong_map *map, uint64_t portmask)
 		read_lock_irqsave(&rds_cong_monitor_lock, flags);
 		list_for_each_entry(rs, &rds_cong_monitor, rs_cong_list) {
 			spin_lock(&rs->rs_lock);
-			rs->rs_cong_notify |= (rs->rs_cong_mask & portmask);
+			rs->rs_cong_yestify |= (rs->rs_cong_mask & portmask);
 			rs->rs_cong_mask &= ~portmask;
 			spin_unlock(&rs->rs_lock);
-			if (rs->rs_cong_notify)
+			if (rs->rs_cong_yestify)
 				rds_wake_sk_sleep(rs);
 		}
 		read_unlock_irqrestore(&rds_cong_monitor_lock, flags);
@@ -292,7 +292,7 @@ int rds_cong_updated_since(unsigned long *recent)
 /*
  * We're called under the locking that protects the sockets receive buffer
  * consumption.  This makes it a lot easier for the caller to only call us
- * when it knows that an existing set bit needs to be cleared, and vice versa.
+ * when it kyesws that an existing set bit needs to be cleared, and vice versa.
  * We can't block and we need to deal with concurrent sockets working against
  * the same per-address map.
  */
@@ -354,7 +354,7 @@ void rds_cong_remove_socket(struct rds_sock *rs)
 	list_del_init(&rs->rs_cong_list);
 	write_unlock_irqrestore(&rds_cong_monitor_lock, flags);
 
-	/* update congestion map for now-closed port */
+	/* update congestion map for yesw-closed port */
 	spin_lock_irqsave(&rds_cong_lock, flags);
 	map = rds_cong_tree_walk(&rs->rs_bound_addr, NULL);
 	spin_unlock_irqrestore(&rds_cong_lock, flags);
@@ -365,12 +365,12 @@ void rds_cong_remove_socket(struct rds_sock *rs)
 	}
 }
 
-int rds_cong_wait(struct rds_cong_map *map, __be16 port, int nonblock,
+int rds_cong_wait(struct rds_cong_map *map, __be16 port, int yesnblock,
 		  struct rds_sock *rs)
 {
 	if (!rds_cong_test_bit(map, port))
 		return 0;
-	if (nonblock) {
+	if (yesnblock) {
 		if (rs && rs->rs_cong_monitor) {
 			unsigned long flags;
 
@@ -398,14 +398,14 @@ int rds_cong_wait(struct rds_cong_map *map, __be16 port, int nonblock,
 
 void rds_cong_exit(void)
 {
-	struct rb_node *node;
+	struct rb_yesde *yesde;
 	struct rds_cong_map *map;
 	unsigned long i;
 
-	while ((node = rb_first(&rds_cong_tree))) {
-		map = rb_entry(node, struct rds_cong_map, m_rb_node);
+	while ((yesde = rb_first(&rds_cong_tree))) {
+		map = rb_entry(yesde, struct rds_cong_map, m_rb_yesde);
 		rdsdebug("freeing map %p\n", map);
-		rb_erase(&map->m_rb_node, &rds_cong_tree);
+		rb_erase(&map->m_rb_yesde, &rds_cong_tree);
 		for (i = 0; i < RDS_CONG_MAP_PAGES && map->m_page_addrs[i]; i++)
 			free_page(map->m_page_addrs[i]);
 		kfree(map);

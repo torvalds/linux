@@ -44,7 +44,7 @@
 #define MAG3110_CTRL_AC BIT(0) /* continuous measurements */
 
 #define MAG3110_CTRL_AUTO_MRST_EN BIT(7) /* magnetic auto-reset */
-#define MAG3110_CTRL_RAW BIT(5) /* measurements not user-offset corrected */
+#define MAG3110_CTRL_RAW BIT(5) /* measurements yest user-offset corrected */
 
 #define MAG3110_DEVICE_ID 0xc4
 
@@ -85,7 +85,7 @@ static int mag3110_request(struct mag3110_data *data)
 	}
 
 	if (tries < 0) {
-		dev_err(&data->client->dev, "data not ready\n");
+		dev_err(&data->client->dev, "data yest ready\n");
 		return -EIO;
 	}
 
@@ -195,7 +195,7 @@ static int mag3110_wait_standby(struct mag3110_data *data)
 	}
 
 	if (tries < 0) {
-		dev_err(&data->client->dev, "device not entering standby mode\n");
+		dev_err(&data->client->dev, "device yest entering standby mode\n");
 		return -EIO;
 	}
 
@@ -406,7 +406,7 @@ static irqreturn_t mag3110_trigger_handler(int irq, void *p)
 		iio_get_time_ns(indio_dev));
 
 done:
-	iio_trigger_notify_done(indio_dev->trig);
+	iio_trigger_yestify_done(indio_dev->trig);
 	return IRQ_HANDLED;
 }
 

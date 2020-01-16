@@ -49,12 +49,12 @@ extern int reserve_elfcorehdr(u64 *start, u64 *end);
 #define GRANULEROUNDUP(n)	(((n)+IA64_GRANULE_SIZE-1) & ~(IA64_GRANULE_SIZE-1))
 
 #ifdef CONFIG_NUMA
-  extern void call_pernode_memory (unsigned long start, unsigned long len, void *func);
+  extern void call_peryesde_memory (unsigned long start, unsigned long len, void *func);
 #else
-# define call_pernode_memory(start, len, func)	(*func)(start, len, 0)
+# define call_peryesde_memory(start, len, func)	(*func)(start, len, 0)
 #endif
 
-#define IGNORE_PFN0	1	/* XXX fix me: ignore pfn 0 until TLB miss handler is updated... */
+#define IGNORE_PFN0	1	/* XXX fix me: igyesre pfn 0 until TLB miss handler is updated... */
 
 extern int register_active_ranges(u64 start, u64 len, int nid);
 
@@ -66,7 +66,7 @@ extern int register_active_ranges(u64 start, u64 len, int nid);
   extern int create_mem_map_page_table(u64 start, u64 end, void *arg);
   extern int vmemmap_find_next_valid_pfn(int, int);
 #else
-static inline int vmemmap_find_next_valid_pfn(int node, int i)
+static inline int vmemmap_find_next_valid_pfn(int yesde, int i)
 {
 	return i + 1;
 }

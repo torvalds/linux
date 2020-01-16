@@ -66,7 +66,7 @@ _head:
 	 */
 #ifdef CONFIG_EFI
 	/*
-	 * This add instruction has no meaningful effect except that
+	 * This add instruction has yes meaningful effect except that
 	 * its opcode forms the magic "MZ" signature required by UEFI.
 	 */
 	add	x13, x18, #0x16
@@ -337,7 +337,7 @@ __create_page_tables:
 	 */
 	adrp	x5, __idmap_text_end
 	clz	x5, x5
-	cmp	x5, TCR_T0SZ(VA_BITS)	// default T0SZ small enough?
+	cmp	x5, TCR_T0SZ(VA_BITS)	// default T0SZ small eyesugh?
 	b.ge	1f			// .. then skip VA range extension
 
 	adr_l	x6, idmap_t0sz
@@ -392,7 +392,7 @@ __create_page_tables:
 	map_memory x0, x1, x5, x6, x7, x3, x4, x10, x11, x12, x13, x14
 
 	/*
-	 * Since the page tables have been populated with non-cacheable
+	 * Since the page tables have been populated with yesn-cacheable
 	 * accesses (MMU disabled), invalidate the idmap and swapper page
 	 * tables again to remove any speculatively loaded cache lines.
 	 */
@@ -469,7 +469,7 @@ ENTRY(kimage_vaddr)
 EXPORT_SYMBOL(kimage_vaddr)
 
 /*
- * If we're fortunate enough to boot at EL2, ensure that the world is
+ * If we're fortunate eyesugh to boot at EL2, ensure that the world is
  * sane before dropping to EL1.
  *
  * Returns either BOOT_CPU_MODE_EL1 or BOOT_CPU_MODE_EL2 in w0 if
@@ -492,7 +492,7 @@ ENTRY(el2_setup)
 #ifdef CONFIG_ARM64_VHE
 	/*
 	 * Check for VHE being present. For the rest of the EL2 setup,
-	 * x2 being non-zero indicates that we do have VHE, and that the
+	 * x2 being yesn-zero indicates that we do have VHE, and that the
 	 * kernel is intended to run at EL2.
 	 */
 	mrs	x2, id_aa64mmfr1_el1
@@ -511,7 +511,7 @@ set_hcr:
 
 	/*
 	 * Allow Non-secure EL1 and EL0 to access physical timer and counter.
-	 * This is not necessary for VHE, since the host kernel runs in EL2,
+	 * This is yest necessary for VHE, since the host kernel runs in EL2,
 	 * and EL0 accesses are configured in the later stage of boot process.
 	 * Note that when HCR_EL2.E2H == 1, CNTHCTL_EL2 has the same bit layout
 	 * as CNTKCTL_EL1, and CNTKCTL_EL1 accessing instructions are redefined
@@ -536,7 +536,7 @@ set_hcr:
 	orr	x0, x0, #ICC_SRE_EL2_SRE	// Set ICC_SRE_EL2.SRE==1
 	orr	x0, x0, #ICC_SRE_EL2_ENABLE	// Set ICC_SRE_EL2.Enable==1
 	msr_s	SYS_ICC_SRE_EL2, x0
-	isb					// Make sure SRE is now set
+	isb					// Make sure SRE is yesw set
 	mrs_s	x0, SYS_ICC_SRE_EL2		// Read SRE back,
 	tbz	x0, #0, 3f			// and check that it sticks
 	msr_s	SYS_ICH_HCR_EL2, xzr		// Reset ICC_HCR_EL2 to defaults
@@ -558,7 +558,7 @@ set_hcr:
 	mrs	x1, id_aa64dfr0_el1
 	sbfx	x0, x1, #ID_AA64DFR0_PMUVER_SHIFT, #4
 	cmp	x0, #1
-	b.lt	4f				// Skip if no PMU present
+	b.lt	4f				// Skip if yes PMU present
 	mrs	x0, pmcr_el0			// Disable debug access traps
 	ubfx	x0, x0, #11, #5			// to EL2 and allow access to
 4:
@@ -566,7 +566,7 @@ set_hcr:
 
 	/* Statistical profiling */
 	ubfx	x0, x1, #ID_AA64DFR0_PMSVER_SHIFT, #4
-	cbz	x0, 7f				// Skip if SPE not present
+	cbz	x0, 7f				// Skip if SPE yest present
 	cbnz	x2, 6f				// VHE?
 	mrs_s	x4, SYS_PMBIDR_EL1		// If SPE available at EL2,
 	and	x4, x4, #(1 << SYS_PMBIDR_EL1_P_SHIFT)
@@ -601,10 +601,10 @@ set_hcr:
 
 install_el2_stub:
 	/*
-	 * When VHE is not in use, early init of EL2 and EL1 needs to be
+	 * When VHE is yest in use, early init of EL2 and EL1 needs to be
 	 * done here.
-	 * When VHE _is_ in use, EL1 will not be used in the host and
-	 * requires no configuration, and all non-hyp-specific EL2 setup
+	 * When VHE _is_ in use, EL1 will yest be used in the host and
+	 * requires yes configuration, and all yesn-hyp-specific EL2 setup
 	 * will be done via the _EL1 system register aliases in __cpu_setup.
 	 */
 	mov_q	x0, (SCTLR_EL1_RES1 | ENDIAN_SET_EL1)
@@ -657,14 +657,14 @@ ENDPROC(set_cpu_boot_mode_flag)
  * These values are written with the MMU off, but read with the MMU on.
  * Writers will invalidate the corresponding address, discarding up to a
  * 'Cache Writeback Granule' (CWG) worth of data. The linker script ensures
- * sufficient alignment that the CWG doesn't overlap another section.
+ * sufficient alignment that the CWG doesn't overlap ayesther section.
  */
 	.pushsection ".mmuoff.data.write", "aw"
 /*
  * We need to find out the CPU boot mode long after boot, so we need to
  * store it in a writable variable.
  *
- * This is not in .bss, because we set it sufficiently early that the boot-time
+ * This is yest in .bss, because we set it sufficiently early that the boot-time
  * zeroing of .bss would clobber it.
  */
 ENTRY(__boot_cpu_mode)
@@ -776,7 +776,7 @@ ENTRY(__enable_mmu)
 	mrs	x2, ID_AA64MMFR0_EL1
 	ubfx	x2, x2, #ID_AA64MMFR0_TGRAN_SHIFT, 4
 	cmp	x2, #ID_AA64MMFR0_TGRAN_SUPPORTED
-	b.ne	__no_granule_support
+	b.ne	__yes_granule_support
 	update_early_cpu_boot_status 0, x2, x3
 	adrp	x2, idmap_pg_dir
 	phys_to_ttbr x1, x1
@@ -818,7 +818,7 @@ ENTRY(__cpu_secondary_check52bitva)
 2:	ret
 ENDPROC(__cpu_secondary_check52bitva)
 
-__no_granule_support:
+__yes_granule_support:
 	/* Indicate that this CPU can't boot and is stuck in the kernel */
 	update_early_cpu_boot_status \
 		CPU_STUCK_IN_KERNEL | CPU_STUCK_REASON_NO_GRAN, x1, x2
@@ -826,7 +826,7 @@ __no_granule_support:
 	wfe
 	wfi
 	b	1b
-ENDPROC(__no_granule_support)
+ENDPROC(__yes_granule_support)
 
 #ifdef CONFIG_RELOCATABLE
 __relocate_kernel:
@@ -867,11 +867,11 @@ __relocate_kernel:
 	 * the last address entry.
 	 *
 	 * The bitmap entries must have 1 in the least significant bit. The
-	 * assumption here is that an address cannot have 1 in lsb. Odd
-	 * addresses are not supported. Any odd addresses are stored in the RELA
+	 * assumption here is that an address canyest have 1 in lsb. Odd
+	 * addresses are yest supported. Any odd addresses are stored in the RELA
 	 * section, which is handled above.
 	 *
-	 * Excluding the least significant bit in the bitmap, each non-zero
+	 * Excluding the least significant bit in the bitmap, each yesn-zero
 	 * bit in the bitmap represents a relocation to be applied to
 	 * a corresponding machine word that follows the base address
 	 * word. The second least significant bit represents the machine
@@ -885,9 +885,9 @@ __relocate_kernel:
 	 * bit in x14.
 	 *
 	 * Because addends are stored in place in the binary, RELR relocations
-	 * cannot be applied idempotently. We use x24 to keep track of the
+	 * canyest be applied idempotently. We use x24 to keep track of the
 	 * currently applied displacement so that we can correctly relocate if
-	 * __relocate_kernel is called twice with non-zero displacements (i.e.
+	 * __relocate_kernel is called twice with yesn-zero displacements (i.e.
 	 * if there is both a physical misalignment and a KASLR displacement).
 	 */
 	ldr	w9, =__relr_offset		// offset to reloc table
@@ -896,7 +896,7 @@ __relocate_kernel:
 	add	x10, x9, x10			// __va(.relr) + sizeof(.relr)
 
 	sub	x15, x23, x24			// delta from previous offset
-	cbz	x15, 7f				// nothing to do if unchanged
+	cbz	x15, 7f				// yesthing to do if unchanged
 	mov	x24, x23			// save new offset
 
 2:	cmp	x9, x10
@@ -912,7 +912,7 @@ __relocate_kernel:
 3:	mov	x14, x13
 4:	lsr	x11, x11, #1
 	cbz	x11, 6f
-	tbz	x11, #0, 5f			// skip bit if not set
+	tbz	x11, #0, 5f			// skip bit if yest set
 	ldr	x12, [x14]			// relocate bit
 	add	x12, x12, x15
 	str	x12, [x14]
@@ -944,7 +944,7 @@ __primary_switch:
 	bl	__enable_mmu
 #ifdef CONFIG_RELOCATABLE
 #ifdef CONFIG_RELR
-	mov	x24, #0				// no RELR displacement yet
+	mov	x24, #0				// yes RELR displacement yet
 #endif
 	bl	__relocate_kernel
 #ifdef CONFIG_RANDOMIZE_BASE

@@ -23,7 +23,7 @@ static bool access_gic_ctlr(struct kvm_vcpu *vcpu, struct sys_reg_params *p,
 		val = p->regval;
 
 		/*
-		 * Disallow restoring VM state if not supported by this
+		 * Disallow restoring VM state if yest supported by this
 		 * hardware.
 		 */
 		host_pri_bits = ((val & ICC_CTLR_EL1_PRI_BITS_MASK) >>

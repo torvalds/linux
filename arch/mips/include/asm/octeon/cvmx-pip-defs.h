@@ -17,7 +17,7 @@
  * details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this file; if not, write to the Free Software
+ * along with this file; if yest, write to the Free Software
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
  * or visit http://www.gnu.org/licenses/.
  *
@@ -44,7 +44,7 @@ enum cvmx_pip_port_parse_mode {
 	 */
 	CVMX_PIP_PORT_CFG_MODE_SKIPL2 = 1ull,
 	/*
-	 * Input packets are assumed to be IP.	Results from non IP
+	 * Input packets are assumed to be IP.	Results from yesn IP
 	 * packets is undefined. Pointers reference the beginning of
 	 * the IP header.
 	 */
@@ -1787,11 +1787,11 @@ union cvmx_pip_prt_tagx {
 		uint64_t tcp4_tag_type:2;
 		uint64_t ip6_tag_type:2;
 		uint64_t ip4_tag_type:2;
-		uint64_t non_tag_type:2;
+		uint64_t yesn_tag_type:2;
 		uint64_t grp:4;
 #else
 		uint64_t grp:4;
-		uint64_t non_tag_type:2;
+		uint64_t yesn_tag_type:2;
 		uint64_t ip4_tag_type:2;
 		uint64_t ip6_tag_type:2;
 		uint64_t tcp4_tag_type:2;
@@ -1850,11 +1850,11 @@ union cvmx_pip_prt_tagx {
 		uint64_t tcp4_tag_type:2;
 		uint64_t ip6_tag_type:2;
 		uint64_t ip4_tag_type:2;
-		uint64_t non_tag_type:2;
+		uint64_t yesn_tag_type:2;
 		uint64_t grp:4;
 #else
 		uint64_t grp:4;
-		uint64_t non_tag_type:2;
+		uint64_t yesn_tag_type:2;
 		uint64_t ip4_tag_type:2;
 		uint64_t ip6_tag_type:2;
 		uint64_t tcp4_tag_type:2;
@@ -1905,11 +1905,11 @@ union cvmx_pip_prt_tagx {
 		uint64_t tcp4_tag_type:2;
 		uint64_t ip6_tag_type:2;
 		uint64_t ip4_tag_type:2;
-		uint64_t non_tag_type:2;
+		uint64_t yesn_tag_type:2;
 		uint64_t grp:4;
 #else
 		uint64_t grp:4;
-		uint64_t non_tag_type:2;
+		uint64_t yesn_tag_type:2;
 		uint64_t ip4_tag_type:2;
 		uint64_t ip6_tag_type:2;
 		uint64_t tcp4_tag_type:2;

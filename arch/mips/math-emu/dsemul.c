@@ -33,7 +33,7 @@
  *   be able to handle instructions from all revisions of the MIPS ISA,
  *   all ASEs & all vendor instruction set extensions. This would be a
  *   whole lot of work & continual maintenance burden as new instructions
- *   are introduced, and in the case of some vendor extensions may not
+ *   are introduced, and in the case of some vendor extensions may yest
  *   even be possible. Thus we need to take the approach of actually
  *   executing the instruction.
  *
@@ -44,7 +44,7 @@
  *
  * - We used to place the frame on the users stack, but this requires
  *   that the stack be executable. This is bad for security so the
- *   per-process page is now used instead.
+ *   per-process page is yesw used instead.
  *
  * - The instruction in @emul may be something entirely invalid for a
  *   delay slot. The user may (intentionally or otherwise) place a branch
@@ -55,9 +55,9 @@
  *   points such as signal delivery or thread exit.
  *
  * - The user may generate a fake struct emuframe if they wish, invoking
- *   the BRK_MEMU break instruction themselves. We must therefore not
+ *   the BRK_MEMU break instruction themselves. We must therefore yest
  *   trust that BRK_MEMU means there's actually a valid frame allocated
- *   to the thread, and must not allow the user to do anything they
+ *   to the thread, and must yest allow the user to do anything they
  *   couldn't already.
  */
 struct emuframe {
@@ -131,7 +131,7 @@ static void free_emuframe(int idx, struct mm_struct *mm)
 	pr_debug("free emuframe %d from %d\n", idx, current->pid);
 	bitmap_clear(mm_ctx->bd_emupage_allocmap, idx, 1);
 
-	/* If some thread is waiting for a frame, now's its chance */
+	/* If some thread is waiting for a frame, yesw's its chance */
 	wake_up(&mm_ctx->bd_emupage_queue);
 
 	spin_unlock(&mm_ctx->bd_emupage_lock);
@@ -156,7 +156,7 @@ bool dsemul_thread_cleanup(struct task_struct *tsk)
 	/* Clear any allocated frame, retrieving its index */
 	fr_idx = atomic_xchg(&tsk->thread.bd_emu_frame, BD_EMUFRAME_NONE);
 
-	/* If no frame was allocated, we're done */
+	/* If yes frame was allocated, we're done */
 	if (fr_idx == BD_EMUFRAME_NONE)
 		return false;
 
@@ -175,7 +175,7 @@ bool dsemul_thread_rollback(struct pt_regs *regs)
 	struct emuframe __user *fr;
 	int fr_idx;
 
-	/* Do nothing if we're not executing from a frame */
+	/* Do yesthing if we're yest executing from a frame */
 	if (!within_emuframe(regs))
 		return false;
 

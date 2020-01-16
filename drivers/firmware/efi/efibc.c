@@ -58,7 +58,7 @@ static int efibc_set_variable(const char *name, const char *value)
 	return ret;
 }
 
-static int efibc_reboot_notifier_call(struct notifier_block *notifier,
+static int efibc_reboot_yestifier_call(struct yestifier_block *yestifier,
 				      unsigned long event, void *data)
 {
 	const char *reason = "shutdown";
@@ -76,8 +76,8 @@ static int efibc_reboot_notifier_call(struct notifier_block *notifier,
 	return NOTIFY_DONE;
 }
 
-static struct notifier_block efibc_reboot_notifier = {
-	.notifier_call = efibc_reboot_notifier_call,
+static struct yestifier_block efibc_reboot_yestifier = {
+	.yestifier_call = efibc_reboot_yestifier_call,
 };
 
 static int __init efibc_init(void)
@@ -87,9 +87,9 @@ static int __init efibc_init(void)
 	if (!efi_enabled(EFI_RUNTIME_SERVICES))
 		return -ENODEV;
 
-	ret = register_reboot_notifier(&efibc_reboot_notifier);
+	ret = register_reboot_yestifier(&efibc_reboot_yestifier);
 	if (ret)
-		pr_err("unable to register reboot notifier\n");
+		pr_err("unable to register reboot yestifier\n");
 
 	return ret;
 }
@@ -97,7 +97,7 @@ module_init(efibc_init);
 
 static void __exit efibc_exit(void)
 {
-	unregister_reboot_notifier(&efibc_reboot_notifier);
+	unregister_reboot_yestifier(&efibc_reboot_yestifier);
 }
 module_exit(efibc_exit);
 

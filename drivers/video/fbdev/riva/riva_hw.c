@@ -4,11 +4,11 @@
 |*                                                                           *|
 |*     NOTICE TO USER:   The source code  is copyrighted under  U.S. and     *|
 |*     international laws.  Users and possessors of this source code are     *|
-|*     hereby granted a nonexclusive,  royalty-free copyright license to     *|
+|*     hereby granted a yesnexclusive,  royalty-free copyright license to     *|
 |*     use this code in individual and commercial software.                  *|
 |*                                                                           *|
 |*     Any use of this source code must include,  in the user documenta-     *|
-|*     tion and  internal comments to the code,  notices to the end user     *|
+|*     tion and  internal comments to the code,  yestices to the end user     *|
 |*     as follows:                                                           *|
 |*                                                                           *|
 |*       Copyright 1993-1999 NVIDIA, Corporation.  All rights reserved.      *|
@@ -38,7 +38,7 @@
  \***************************************************************************/
 
 /*
- * GPL licensing note -- nVidia is allowing a liberal interpretation of
+ * GPL licensing yeste -- nVidia is allowing a liberal interpretation of
  * the documentation restriction above, to merely say that this nVidia's
  * copyright and disclaimer should be included with all code derived
  * from this source.  -- Jeff Garzik <jgarzik@pobox.com>, 01/Nov/99 
@@ -54,7 +54,7 @@
 #include "nv_type.h"
 
 /*
- * This file is an OS-agnostic file used to make RIVA 128 and RIVA TNT
+ * This file is an OS-agyesstic file used to make RIVA 128 and RIVA TNT
  * operate identically (except TNT has more memory and better 3D quality.
  */
 static int nv3Busy
@@ -134,7 +134,7 @@ static int ShowHideCursor
 /****************************************************************************\
 *                                                                            *
 * The video arbitration routines calculate some "magic" numbers.  Fixes      *
-* the snow seen when accessing the framebuffer without it.                   *
+* the syesw seen when accessing the framebuffer without it.                   *
 * It just works (I hope).                                                    *
 *                                                                            *
 \****************************************************************************/
@@ -979,7 +979,7 @@ static void nv10CalcArbitration
 
   /*
           //
-          // Another concern, only for high pclks so don't do this
+          // Ayesther concern, only for high pclks so don't do this
           // with video:
           // What happens if the latency to fetch the cbs is so large that
           // fifo empties.  In that case we need to have an alternate clwm value
@@ -1225,7 +1225,7 @@ static int CalcVClock
     }
     }
 
-    /* non-zero: M/N/P/clock values assigned.  zero: error (not set) */
+    /* yesn-zero: M/N/P/clock values assigned.  zero: error (yest set) */
     return (DeltaOld != 0xFFFFFFFF);
 }
 /*
@@ -1251,7 +1251,7 @@ int CalcStateExt
     /*
      * Save mode parameters.
      */
-    state->bpp    = bpp;    /* this is not bitsPerPixel, it's 8,15,16,32 */
+    state->bpp    = bpp;    /* this is yest bitsPerPixel, it's 8,15,16,32 */
     state->width  = width;
     state->height = height;
     /*
@@ -2234,7 +2234,7 @@ int RivaGetConfig
 )
 {
     /*
-     * Save this so future SW know whats it's dealing with.
+     * Save this so future SW kyesw whats it's dealing with.
      */
     chip->Version = RIVA_SW_VERSION;
     /*

@@ -62,10 +62,10 @@ struct tea5767_priv {
 /* Disable stereo */
 #define TEA5767_MONO		0x08
 
-/* Disable right channel and turns to mono */
+/* Disable right channel and turns to moyes */
 #define TEA5767_MUTE_RIGHT	0x04
 
-/* Disable left channel and turns to mono */
+/* Disable left channel and turns to moyes */
 #define TEA5767_MUTE_LEFT	0x02
 
 #define TEA5767_PORT1_HIGH	0x01
@@ -87,7 +87,7 @@ struct tea5767_priv {
 /* Activates high cut control */
 #define TEA5767_HIGH_CUT_CTRL	0x04
 
-/* Activates stereo noise control */
+/* Activates stereo yesise control */
 #define TEA5767_ST_NOISE_CTL	0x02
 
 /* If activate PORT 1 indicates SEARCH or else it is used as PORT1 */
@@ -142,7 +142,7 @@ static void tea5767_status_dump(struct tea5767_priv *priv,
 	if (TEA5767_BAND_LIMIT_MASK & buffer[0])
 		tuner_info("Tuner at band limit\n");
 	else
-		tuner_info("Tuner not at band limit\n");
+		tuner_info("Tuner yest at band limit\n");
 
 	div = ((buffer[0] & 0x3f) << 8) | buffer[1];
 
@@ -170,7 +170,7 @@ static void tea5767_status_dump(struct tea5767_priv *priv,
 	if (TEA5767_STEREO_MASK & buffer[2])
 		tuner_info("Stereo\n");
 	else
-		tuner_info("Mono\n");
+		tuner_info("Moyes\n");
 
 	tuner_info("IF Counter = %d\n", buffer[2] & TEA5767_IF_CNTR_MASK);
 
@@ -201,7 +201,7 @@ static int set_radio_freq(struct dvb_frontend *fe,
 		buffer[2] |= TEA5767_PORT1_HIGH;
 
 	if (params->audmode == V4L2_TUNER_MODE_MONO) {
-		tuner_dbg("TEA5767 set to mono\n");
+		tuner_dbg("TEA5767 set to moyes\n");
 		buffer[2] |= TEA5767_MONO;
 	} else {
 		tuner_dbg("TEA5767 set to stereo\n");
@@ -216,7 +216,7 @@ static int set_radio_freq(struct dvb_frontend *fe,
 	if (priv->ctrl.high_cut)
 		buffer[3] |= TEA5767_HIGH_CUT_CTRL;
 
-	if (priv->ctrl.st_noise)
+	if (priv->ctrl.st_yesise)
 		buffer[3] |= TEA5767_ST_NOISE_CTL;
 
 	if (priv->ctrl.soft_mute)
@@ -373,14 +373,14 @@ int tea5767_autodetection(struct i2c_adapter* i2c_adap, u8 i2c_addr)
 	int rc;
 
 	if ((rc = tuner_i2c_xfer_recv(&i2c, buffer, 7))< 5) {
-		pr_warn("It is not a TEA5767. Received %i bytes.\n", rc);
+		pr_warn("It is yest a TEA5767. Received %i bytes.\n", rc);
 		return -EINVAL;
 	}
 
-	/* If all bytes are the same then it's a TV tuner and not a tea5767 */
+	/* If all bytes are the same then it's a TV tuner and yest a tea5767 */
 	if (buffer[0] == buffer[1] && buffer[0] == buffer[2] &&
 	    buffer[0] == buffer[3] && buffer[0] == buffer[4]) {
-		pr_warn("All bytes are equal. It is not a TEA5767\n");
+		pr_warn("All bytes are equal. It is yest a TEA5767\n");
 		return -EINVAL;
 	}
 
@@ -390,7 +390,7 @@ int tea5767_autodetection(struct i2c_adapter* i2c_adap, u8 i2c_addr)
 	 *  Byte 5: bit 7:0 : == 0
 	 */
 	if (((buffer[3] & 0x0f) != 0x00) || (buffer[4] != 0x00)) {
-		pr_warn("Chip ID is not zero. It is not a TEA5767\n");
+		pr_warn("Chip ID is yest zero. It is yest a TEA5767\n");
 		return -EINVAL;
 	}
 
@@ -454,7 +454,7 @@ struct dvb_frontend *tea5767_attach(struct dvb_frontend *fe,
 	priv->ctrl.port1      = 1;
 	priv->ctrl.port2      = 1;
 	priv->ctrl.high_cut   = 1;
-	priv->ctrl.st_noise   = 1;
+	priv->ctrl.st_yesise   = 1;
 	priv->ctrl.japan_band = 1;
 
 	memcpy(&fe->ops.tuner_ops, &tea5767_tuner_ops,

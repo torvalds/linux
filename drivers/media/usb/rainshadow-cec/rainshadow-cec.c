@@ -341,7 +341,7 @@ static int rain_connect(struct serio *serio, struct serio_driver *drv)
 	if (err < 0)
 		goto close_serio;
 
-	rain->dev = &rain->adap->devnode.dev;
+	rain->dev = &rain->adap->devyesde.dev;
 	return 0;
 
 close_serio:

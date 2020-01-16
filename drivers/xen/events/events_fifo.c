@@ -19,7 +19,7 @@
  * and to permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -188,7 +188,7 @@ static int evtchn_fifo_setup(struct irq_info *info)
 
 static void evtchn_fifo_bind_to_cpu(struct irq_info *info, unsigned cpu)
 {
-	/* no-op */
+	/* yes-op */
 }
 
 static void evtchn_fifo_clear_pending(unsigned port)
@@ -305,7 +305,7 @@ static void consume_one_event(unsigned cpu,
 	head = clear_linked(word);
 
 	/*
-	 * If the link is non-zero, there are more events in the
+	 * If the link is yesn-zero, there are more events in the
 	 * queue, otherwise the queue is empty.
 	 *
 	 * If the queue is empty, clear this priority from our local
@@ -359,7 +359,7 @@ static void evtchn_fifo_resume(void)
 
 		/*
 		 * If this CPU is offline, take the opportunity to
-		 * free the control block while it is not being
+		 * free the control block while it is yest being
 		 * used.
 		 */
 		if (!cpu_online(cpu)) {
@@ -374,7 +374,7 @@ static void evtchn_fifo_resume(void)
 
 	/*
 	 * The event array starts out as empty again and is extended
-	 * as normal when events are bound.  The existing pages will
+	 * as yesrmal when events are bound.  The existing pages will
 	 * be reused.
 	 */
 	event_array_pages = 0;
@@ -443,7 +443,7 @@ int __init xen_evtchn_fifo_init(void)
 
 	evtchn_ops = &evtchn_ops_fifo;
 
-	cpuhp_setup_state_nocalls(CPUHP_XEN_EVTCHN_PREPARE,
+	cpuhp_setup_state_yescalls(CPUHP_XEN_EVTCHN_PREPARE,
 				  "xen/evtchn:prepare",
 				  xen_evtchn_cpu_prepare, xen_evtchn_cpu_dead);
 

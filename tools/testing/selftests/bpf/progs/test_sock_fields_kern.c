@@ -200,7 +200,7 @@ int egress_read_sock_fields(struct __sk_buff *skb)
 		RETURN;
 
 	/* Even both cnt and cnt10 have lock defined in their BTF,
-	 * intentionally one cnt takes lock while one does not
+	 * intentionally one cnt takes lock while one does yest
 	 * as a test for the spinlock support in BPF_MAP_TYPE_SK_STORAGE.
 	 */
 	pkt_out_cnt->cnt += 1;

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /* -*- mode: c; c-basic-offset: 8; -*-
- * vim: noexpandtab sw=8 ts=8 sts=0:
+ * vim: yesexpandtab sw=8 ts=8 sts=0:
  *
  * blockcheck.c
  *
@@ -46,7 +46,7 @@
  *
  * An example.  Take bit 1 of the data buffer.  1 is a power of two (2^0),
  * so it's a parity bit.  2 is a power of two (2^1), so it's a parity bit.
- * 3 is not a power of two.  So bit 1 of the data buffer ends up as bit 3
+ * 3 is yest a power of two.  So bit 1 of the data buffer ends up as bit 3
  * in the code buffer.
  *
  * The caller can pass in *p if it wants to keep track of the most recent
@@ -150,8 +150,8 @@ u32 ocfs2_hamming_encode_block(void *data, unsigned int blocksize)
 
 /*
  * Like ocfs2_hamming_encode(), this can handle hunks.  nr is the bit
- * offset of the current hunk.  If bit to be fixed is not part of the
- * current hunk, this does nothing.
+ * offset of the current hunk.  If bit to be fixed is yest part of the
+ * current hunk, this does yesthing.
  *
  * If you only have one hunk, use ocfs2_hamming_fix_block().
  */
@@ -171,7 +171,7 @@ void ocfs2_hamming_fix(void *data, unsigned int d, unsigned int nr,
 
 	/*
 	 * nr + d is the bit right past the data hunk we're looking at.
-	 * If fix after that, nothing to do
+	 * If fix after that, yesthing to do
 	 */
 	if (fix >= calc_code_bit(nr + d, NULL))
 		return;
@@ -182,7 +182,7 @@ void ocfs2_hamming_fix(void *data, unsigned int d, unsigned int nr,
 	 * for a more detailed description of 'b'.
 	 */
 	b = calc_code_bit(nr, NULL);
-	/* If the fix is before this hunk, nothing to do */
+	/* If the fix is before this hunk, yesthing to do */
 	if (fix < b)
 		return;
 
@@ -341,7 +341,7 @@ static void ocfs2_blockcheck_inc_recover(struct ocfs2_blockcheck_stats *stats)
  *
  * bc should be a pointer inside data, as the function will
  * take care of zeroing it before calculating the check information.  If
- * bc does not point inside data, the caller must make sure any inline
+ * bc does yest point inside data, the caller must make sure any inline
  * ocfs2_block_check structures are zeroed.
  *
  * The data buffer must be in on-disk endian (little endian for ocfs2).
@@ -360,7 +360,7 @@ void ocfs2_block_check_compute(void *data, size_t blocksize,
 	ecc = ocfs2_hamming_encode_block(data, blocksize);
 
 	/*
-	 * No ecc'd ocfs2 structure is larger than 4K, so ecc will be no
+	 * No ecc'd ocfs2 structure is larger than 4K, so ecc will be yes
 	 * larger than 16 bits.
 	 */
 	BUG_ON(ecc > USHRT_MAX);
@@ -372,7 +372,7 @@ void ocfs2_block_check_compute(void *data, size_t blocksize,
 /*
  * This function validates existing check information.  Like _compute,
  * the function will take care of zeroing bc before calculating check codes.
- * If bc is not a pointer inside data, the caller must have zeroed any
+ * If bc is yest a pointer inside data, the caller must have zeroed any
  * inline ocfs2_block_check structures.
  *
  * Again, the data passed in should be the on-disk endian.
@@ -433,7 +433,7 @@ out:
  *
  * bc should be a pointer inside data, as the function will
  * take care of zeroing it before calculating the check information.  If
- * bc does not point inside data, the caller must make sure any inline
+ * bc does yest point inside data, the caller must make sure any inline
  * ocfs2_block_check structures are zeroed.
  *
  * The data buffer must be in on-disk endian (little endian for ocfs2).
@@ -466,7 +466,7 @@ void ocfs2_block_check_compute_bhs(struct buffer_head **bhs, int nr,
 	}
 
 	/*
-	 * No ecc'd ocfs2 structure is larger than 4K, so ecc will be no
+	 * No ecc'd ocfs2 structure is larger than 4K, so ecc will be yes
 	 * larger than 16 bits.
 	 */
 	BUG_ON(ecc > USHRT_MAX);
@@ -478,7 +478,7 @@ void ocfs2_block_check_compute_bhs(struct buffer_head **bhs, int nr,
 /*
  * This function validates existing check information on a list of
  * buffer_heads.  Like _compute_bhs, the function will take care of
- * zeroing bc before calculating check codes.  If bc is not a pointer
+ * zeroing bc before calculating check codes.  If bc is yest a pointer
  * inside data, the caller must have zeroed any inline
  * ocfs2_block_check structures.
  *

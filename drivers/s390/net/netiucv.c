@@ -30,7 +30,7 @@
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/types.h>
 #include <linux/interrupt.h>
 #include <linux/timer.h>
@@ -380,7 +380,7 @@ enum conn_events {
 
 static const char *conn_event_names[] = {
 	"Remote connection request",
-	"Remote connection acknowledge",
+	"Remote connection ackyeswledge",
 	"Remote connection reject",
 	"Connection suspended",
 	"Connection resumed",
@@ -398,26 +398,26 @@ static const char *conn_event_names[] = {
  */
 enum conn_states {
 	/**
-	 * Connection not assigned to any device,
+	 * Connection yest assigned to any device,
 	 * initial state, invalid
 	 */
 	CONN_STATE_INVALID,
 
 	/**
-	 * Userid assigned but not operating
+	 * Userid assigned but yest operating
 	 */
 	CONN_STATE_STOPPED,
 
 	/**
 	 * Connection registered,
-	 * no connection request sent yet,
-	 * no connection request received
+	 * yes connection request sent yet,
+	 * yes connection request received
 	 */
 	CONN_STATE_STARTWAIT,
 
 	/**
 	 * Connection registered and connection request sent,
-	 * no acknowledge and no connection request received yet.
+	 * yes ackyeswledge and yes connection request received yet.
 	 */
 	CONN_STATE_SETUPWAIT,
 
@@ -595,7 +595,7 @@ static void netiucv_callback_connres(struct iucv_path *path, u8 *ipuser)
 /**
  * NOP action for statemachines
  */
-static void netiucv_action_nop(fsm_instance *fi, int event, void *arg)
+static void netiucv_action_yesp(fsm_instance *fi, int event, void *arg)
 {
 }
 
@@ -923,7 +923,7 @@ static void conn_action_start(fsm_instance *fi, int event, void *arg)
 		break;
 	case 15:
 		dev_err(privptr->dev,
-			"The IUCV device cannot connect to a z/VM guest with no"
+			"The IUCV device canyest connect to a z/VM guest with yes"
 			" IUCV authorization\n");
 		fsm_newstate(fi, CONN_STATE_CONNERR);
 		break;
@@ -980,7 +980,7 @@ static void conn_action_inval(fsm_instance *fi, int event, void *arg)
 		netdev->name, conn->userid);
 }
 
-static const fsm_node conn_fsm[] = {
+static const fsm_yesde conn_fsm[] = {
 	{ CONN_STATE_INVALID,   CONN_EVENT_START,    conn_action_inval      },
 	{ CONN_STATE_STOPPED,   CONN_EVENT_START,    conn_action_start      },
 
@@ -1012,7 +1012,7 @@ static const fsm_node conn_fsm[] = {
 	{ CONN_STATE_IDLE,      CONN_EVENT_TXDONE,   conn_action_txdone     },
 };
 
-static const int CONN_FSM_LEN = sizeof(conn_fsm) / sizeof(fsm_node);
+static const int CONN_FSM_LEN = sizeof(conn_fsm) / sizeof(fsm_yesde);
 
 
 /*
@@ -1117,7 +1117,7 @@ dev_action_conndown(fsm_instance *fi, int event, void *arg)
 	}
 }
 
-static const fsm_node dev_fsm[] = {
+static const fsm_yesde dev_fsm[] = {
 	{ DEV_STATE_STOPPED,    DEV_EVENT_START,   dev_action_start    },
 
 	{ DEV_STATE_STOPWAIT,   DEV_EVENT_START,   dev_action_start    },
@@ -1128,10 +1128,10 @@ static const fsm_node dev_fsm[] = {
 
 	{ DEV_STATE_RUNNING,    DEV_EVENT_STOP,    dev_action_stop     },
 	{ DEV_STATE_RUNNING,    DEV_EVENT_CONDOWN, dev_action_conndown },
-	{ DEV_STATE_RUNNING,    DEV_EVENT_CONUP,   netiucv_action_nop  },
+	{ DEV_STATE_RUNNING,    DEV_EVENT_CONUP,   netiucv_action_yesp  },
 };
 
-static const int DEV_FSM_LEN = sizeof(dev_fsm) / sizeof(fsm_node);
+static const int DEV_FSM_LEN = sizeof(dev_fsm) / sizeof(fsm_yesde);
 
 /**
  * Transmit a packet.
@@ -1191,7 +1191,7 @@ static int netiucv_transmit_skb(struct iucv_connection *conn,
 			copied = 1;
 		}
 		/**
-		 * skb now is below 2G and has enough room. Add headers.
+		 * skb yesw is below 2G and has eyesugh room. Add headers.
 		 */
 		header.next = nskb->len + NETIUCV_HDRLEN;
 		memcpy(skb_push(nskb, NETIUCV_HDRLEN), &header, NETIUCV_HDRLEN);
@@ -1375,7 +1375,7 @@ static int netiucv_tx(struct sk_buff *skb, struct net_device *dev)
 	}
 
 	/**
-	 * If connection is not running, try to restart it
+	 * If connection is yest running, try to restart it
 	 * and throw away packet.
 	 */
 	if (fsm_getstate(privptr->fsm) != DEV_STATE_RUNNING) {
@@ -2102,7 +2102,7 @@ static ssize_t remove_store(struct device_driver *drv, const char *buf,
 		read_unlock_bh(&iucv_connection_rwlock);
                 if (ndev->flags & (IFF_UP | IFF_RUNNING)) {
 			dev_warn(dev, "The IUCV device is connected"
-				" to %s and cannot be removed\n",
+				" to %s and canyest be removed\n",
 				priv->conn->userid);
 			IUCV_DBF_TEXT(data, 2, "remove_write: still active\n");
 			return -EPERM;
@@ -2112,7 +2112,7 @@ static ssize_t remove_store(struct device_driver *drv, const char *buf,
                 return count;
         }
 	read_unlock_bh(&iucv_connection_rwlock);
-	IUCV_DBF_TEXT(data, 2, "remove_write: unknown device\n");
+	IUCV_DBF_TEXT(data, 2, "remove_write: unkyeswn device\n");
         return -EINVAL;
 }
 static DRIVER_ATTR_WO(remove);

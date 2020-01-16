@@ -1,10 +1,10 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * This file contains low-level functions for performing various
- * types of TLB invalidations on various processors with no hash
+ * types of TLB invalidations on various processors with yes hash
  * table.
  *
- * This file implements the following functions for all no-hash
+ * This file implements the following functions for all yes-hash
  * processors. Some aren't implemented for some variants. Some
  * are inline in tlbflush.h
  *
@@ -84,7 +84,7 @@ _GLOBAL(__tlbil_va)
 	 * between the mtspr and the tlbsx.
 	 *
 	 * Critical and Machine Check interrupts take care of saving
-	 * and restoring MMUCR, so only normal interrupts have to be
+	 * and restoring MMUCR, so only yesrmal interrupts have to be
 	 * taken care of.
 	 */
 	wrteei	0
@@ -138,7 +138,7 @@ END_MMU_FTR_SECTION_IFSET(MMU_FTR_TYPE_47x)
 	blr
 2:
 #ifdef CONFIG_PPC_47x
-	/* 476 variant. There's not simple way to do this, hopefully we'll
+	/* 476 variant. There's yest simple way to do this, hopefully we'll
 	 * try to limit the amount of such full invalidates
 	 */
 	mfmsr	r11		/* Interrupts off */
@@ -189,7 +189,7 @@ END_MMU_FTR_SECTION_IFSET(MMU_FTR_TYPE_47x)
 
 /*
  * _tlbivax_bcast is only on 47x. We don't bother doing a runtime
- * check though, it will blow up soon enough if we mistakenly try
+ * check though, it will blow up soon eyesugh if we mistakenly try
  * to use it on a 440.
  */
 _GLOBAL(_tlbivax_bcast)
@@ -211,7 +211,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_476_DD2)
 	blr
 /*
  * DD2 HW could hang if in instruction fetch happens before msync completes.
- * Touch enough instruction cache lines to ensure cache hits
+ * Touch eyesugh instruction cache lines to ensure cache hits
  */
 1:	mflr	r9
 	bl	2f
@@ -223,14 +223,14 @@ END_FTR_SECTION_IFSET(CPU_FTR_476_DD2)
 	add	r6,r6,r7
 	PPC_ICBT(0,R6,R7)		/* touch next cache line */
 	sync
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
+	yesp
+	yesp
+	yesp
+	yesp
+	yesp
+	yesp
+	yesp
+	yesp
 	mtlr	r9
 	wrtee	r10
 	blr
@@ -286,14 +286,14 @@ ALT_MMU_FTR_SECTION_END_IFSET(MMU_FTR_USE_TLBILX)
 
 /*
  * Flush MMU TLB for a particular address, but only on the local processor
- * (no broadcast)
+ * (yes broadcast)
  */
 _GLOBAL(__tlbil_va)
 	mfmsr	r10
 	wrteei	0
 	slwi	r4,r4,16
 	ori	r4,r4,(MAS6_ISIZE(BOOK3E_PAGESZ_4K))@l
-	mtspr	SPRN_MAS6,r4		/* assume AS=0 for now */
+	mtspr	SPRN_MAS6,r4		/* assume AS=0 for yesw */
 BEGIN_MMU_FTR_SECTION
 	tlbsx	0,r3
 	mfspr	r4,SPRN_MAS1		/* check valid */
@@ -327,7 +327,7 @@ _GLOBAL(_tlbil_pid)
 	isync
 	blr
 
-_GLOBAL(_tlbil_pid_noind)
+_GLOBAL(_tlbil_pid_yesind)
 	slwi	r4,r3,MAS6_SPID_SHIFT
 	mfmsr	r10
 	ori	r4,r4,MAS6_SIND
@@ -353,7 +353,7 @@ _GLOBAL(_tlbil_va)
 	rlwimi	r4,r5,MAS6_ISIZE_SHIFT,MAS6_ISIZE_MASK
 	beq	1f
 	rlwimi	r4,r6,MAS6_SIND_SHIFT,MAS6_SIND
-1:	mtspr	SPRN_MAS6,r4		/* assume AS=0 for now */
+1:	mtspr	SPRN_MAS6,r4		/* assume AS=0 for yesw */
 	PPC_TLBILX_VA(0,R3)
 	msync
 	isync
@@ -368,7 +368,7 @@ _GLOBAL(_tlbivax_bcast)
 	rlwimi	r4,r5,MAS6_ISIZE_SHIFT,MAS6_ISIZE_MASK
 	beq	1f
 	rlwimi	r4,r6,MAS6_SIND_SHIFT,MAS6_SIND
-1:	mtspr	SPRN_MAS6,r4		/* assume AS=0 for now */
+1:	mtspr	SPRN_MAS6,r4		/* assume AS=0 for yesw */
 	PPC_TLBIVAX(0,R3)
 	eieio
 	tlbsync

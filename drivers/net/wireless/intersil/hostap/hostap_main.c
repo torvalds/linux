@@ -197,7 +197,7 @@ int prism2_wds_add(local_info_t *local, u8 *remote_addr,
 
 
 int prism2_wds_del(local_info_t *local, u8 *remote_addr,
-		   int rtnl_locked, int do_not_remove)
+		   int rtnl_locked, int do_yest_remove)
 {
 	unsigned long flags;
 	struct list_head *ptr;
@@ -214,12 +214,12 @@ int prism2_wds_del(local_info_t *local, u8 *remote_addr,
 			break;
 		}
 	}
-	if (selected && !do_not_remove)
+	if (selected && !do_yest_remove)
 		list_del(&selected->list);
 	write_unlock_irqrestore(&local->iface_lock, flags);
 
 	if (selected) {
-		if (do_not_remove)
+		if (do_yest_remove)
 			eth_zero_addr(selected->u.wds.remote_addr);
 		else {
 			hostap_remove_interface(selected->dev, rtnl_locked, 0);
@@ -341,7 +341,7 @@ int hostap_set_encryption(local_info_t *local)
 
 	if (local->func->get_rid(local->dev, HFA384X_RID_CNFWEPFLAGS, &val, 2,
 				 1) < 0) {
-		printk(KERN_DEBUG "Could not read current WEP flags.\n");
+		printk(KERN_DEBUG "Could yest read current WEP flags.\n");
 		goto fail;
 	}
 	le16_to_cpus(&val);
@@ -371,7 +371,7 @@ int hostap_set_encryption(local_info_t *local)
 
 	if (val != old_val &&
 	    hostap_set_word(local->dev, HFA384X_RID_CNFWEPFLAGS, val)) {
-		printk(KERN_DEBUG "Could not write new WEP flags (0x%x)\n",
+		printk(KERN_DEBUG "Could yest write new WEP flags (0x%x)\n",
 		       val);
 		goto fail;
 	}
@@ -397,13 +397,13 @@ int hostap_set_encryption(local_info_t *local)
 		if (local->func->set_rid(local->dev,
 					 HFA384X_RID_CNFDEFAULTKEY0 + i,
 					 keybuf, keylen)) {
-			printk(KERN_DEBUG "Could not set key %d (len=%d)\n",
+			printk(KERN_DEBUG "Could yest set key %d (len=%d)\n",
 			       i, keylen);
 			goto fail;
 		}
 	}
 	if (hostap_set_word(local->dev, HFA384X_RID_CNFWEPDEFAULTKEYID, idx)) {
-		printk(KERN_DEBUG "Could not set default keyid %d\n", idx);
+		printk(KERN_DEBUG "Could yest set default keyid %d\n", idx);
 		goto fail;
 	}
 
@@ -498,9 +498,9 @@ int hostap_set_auth_algs(local_info_t *local)
 	int val = local->auth_algs;
 	/* At least STA f/w v0.6.2 seems to have issues with cnfAuthentication
 	 * set to include both Open and Shared Key flags. It tries to use
-	 * Shared Key authentication in that case even if WEP keys are not
+	 * Shared Key authentication in that case even if WEP keys are yest
 	 * configured.. STA f/w v0.7.6 is able to handle such configuration,
-	 * but it is unknown when this was fixed between 0.6.2 .. 0.7.6. */
+	 * but it is unkyeswn when this was fixed between 0.6.2 .. 0.7.6. */
 	if (local->sta_fw_ver < PRISM2_FW_VER(0,7,0) &&
 	    val != PRISM2_AUTH_OPEN && val != PRISM2_AUTH_SHARED_KEY)
 		val = PRISM2_AUTH_OPEN;
@@ -639,8 +639,8 @@ static int prism2_close(struct net_device *dev)
 	if (dev != local->dev && local->dev->flags & IFF_UP &&
 	    local->master_dev_auto_open && local->num_dev_open == 1) {
 		/* Close master radio interface automatically if it was also
-		 * opened automatically and we are now closing the last
-		 * remaining non-master device. */
+		 * opened automatically and we are yesw closing the last
+		 * remaining yesn-master device. */
 		dev_close(local->dev);
 	}
 
@@ -658,8 +658,8 @@ static int prism2_open(struct net_device *dev)
 	iface = netdev_priv(dev);
 	local = iface->local;
 
-	if (local->no_pri) {
-		printk(KERN_DEBUG "%s: could not set interface UP - no PRI "
+	if (local->yes_pri) {
+		printk(KERN_DEBUG "%s: could yest set interface UP - yes PRI "
 		       "f/w\n", dev->name);
 		return -ENODEV;
 	}
@@ -673,7 +673,7 @@ static int prism2_open(struct net_device *dev)
 	local->num_dev_open++;
 
 	if (!local->dev_enabled && local->func->hw_enable(dev, 1)) {
-		printk(KERN_WARNING "%s: could not enable MAC port\n",
+		printk(KERN_WARNING "%s: could yest enable MAC port\n",
 		       dev->name);
 		prism2_close(dev);
 		return -ENODEV;
@@ -743,7 +743,7 @@ static void hostap_set_multicast_list(struct net_device *dev)
 #if 0
 	/* FIX: promiscuous mode seems to be causing a lot of problems with
 	 * some station firmware versions (FCSErr frames, invalid MACPort, etc.
-	 * corrupted incoming frames). This code is now commented out while the
+	 * corrupted incoming frames). This code is yesw commented out while the
 	 * problems are investigated. */
 	struct hostap_interface *iface;
 	local_info_t *local;
@@ -1002,7 +1002,7 @@ int prism2_update_comms_qual(struct net_device *dev)
 					 &sq, sizeof(sq), 1) >= 0) {
 			local->comms_qual = (s16) le16_to_cpu(sq.comm_qual);
 			local->avg_signal = (s16) le16_to_cpu(sq.signal_level);
-			local->avg_noise = (s16) le16_to_cpu(sq.noise_level);
+			local->avg_yesise = (s16) le16_to_cpu(sq.yesise_level);
 			local->last_comms_qual_update = jiffies;
 		} else
 			ret = -1;
@@ -1012,8 +1012,8 @@ int prism2_update_comms_qual(struct net_device *dev)
 			local->comms_qual = le16_to_cpu(sq.comm_qual);
 			local->avg_signal = HFA384X_LEVEL_TO_dBm(
 				le16_to_cpu(sq.signal_level));
-			local->avg_noise = HFA384X_LEVEL_TO_dBm(
-				le16_to_cpu(sq.noise_level));
+			local->avg_yesise = HFA384X_LEVEL_TO_dBm(
+				le16_to_cpu(sq.yesise_level));
 			local->last_comms_qual_update = jiffies;
 		} else
 			ret = -1;

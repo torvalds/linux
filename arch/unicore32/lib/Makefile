@@ -22,7 +22,7 @@ GNU_LIBGCC_A_OBJS	+= _divsi3.o _modsi3.o _ucmpdi2.o _umodsi3.o _udivsi3.o
 lib-y	+= $(GNU_LIBC_A_OBJS) $(GNU_LIBGCC_A_OBJS)
 
 $(addprefix $(obj)/, $(GNU_LIBC_A_OBJS)):
-	$(Q)$(AR) p $(GNU_LIBC_A) $(notdir $@) > $@
+	$(Q)$(AR) p $(GNU_LIBC_A) $(yestdir $@) > $@
 
 $(addprefix $(obj)/, $(GNU_LIBGCC_A_OBJS)):
-	$(Q)$(AR) p $(GNU_LIBGCC_A) $(notdir $@) > $@
+	$(Q)$(AR) p $(GNU_LIBGCC_A) $(yestdir $@) > $@

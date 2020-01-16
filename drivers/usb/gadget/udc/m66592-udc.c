@@ -244,7 +244,7 @@ static int pipe_buffer_setting(struct m66592 *m66592,
 		buf_bsize = 0;
 		break;
 	case M66592_BULK:
-		/* isochronous pipes may be used as bulk pipes */
+		/* isochroyesus pipes may be used as bulk pipes */
 		if (info->pipe >= M66592_BASE_PIPENUM_BULK)
 			bufnum = info->pipe - M66592_BASE_PIPENUM_BULK;
 		else
@@ -289,7 +289,7 @@ static void pipe_buffer_release(struct m66592 *m66592,
 	} else if (is_interrupt_pipe(info->pipe))
 		m66592->interrupt--;
 	else if (is_isoc_pipe(info->pipe)) {
-		m66592->isochronous--;
+		m66592->isochroyesus--;
 		if (info->type == M66592_BULK)
 			m66592->bulk--;
 	} else
@@ -394,13 +394,13 @@ static int alloc_pipe_config(struct m66592_ep *ep,
 	switch (desc->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK) {
 	case USB_ENDPOINT_XFER_BULK:
 		if (m66592->bulk >= M66592_MAX_NUM_BULK) {
-			if (m66592->isochronous >= M66592_MAX_NUM_ISOC) {
+			if (m66592->isochroyesus >= M66592_MAX_NUM_ISOC) {
 				pr_err("bulk pipe is insufficient\n");
 				return -ENODEV;
 			} else {
 				info.pipe = M66592_BASE_PIPENUM_ISOC
-						+ m66592->isochronous;
-				counter = &m66592->isochronous;
+						+ m66592->isochroyesus;
+				counter = &m66592->isochroyesus;
 			}
 		} else {
 			info.pipe = M66592_BASE_PIPENUM_BULK + m66592->bulk;
@@ -419,13 +419,13 @@ static int alloc_pipe_config(struct m66592_ep *ep,
 		counter = &m66592->interrupt;
 		break;
 	case USB_ENDPOINT_XFER_ISOC:
-		if (m66592->isochronous >= M66592_MAX_NUM_ISOC) {
-			pr_err("isochronous pipe is insufficient\n");
+		if (m66592->isochroyesus >= M66592_MAX_NUM_ISOC) {
+			pr_err("isochroyesus pipe is insufficient\n");
 			return -ENODEV;
 		}
-		info.pipe = M66592_BASE_PIPENUM_ISOC + m66592->isochronous;
+		info.pipe = M66592_BASE_PIPENUM_ISOC + m66592->isochroyesus;
 		info.type = M66592_ISO;
-		counter = &m66592->isochronous;
+		counter = &m66592->isochroyesus;
 		break;
 	default:
 		pr_err("unexpect xfer type\n");
@@ -448,7 +448,7 @@ static int alloc_pipe_config(struct m66592_ep *ep,
 	}
 
 	(*counter)++;
-	if ((counter == &m66592->isochronous) && info.type == M66592_BULK)
+	if ((counter == &m66592->isochroyesus) && info.type == M66592_BULK)
 		m66592->bulk++;
 
 	m66592_ep_setting(m66592, ep, desc, info.pipe, dma);
@@ -483,7 +483,7 @@ static void pipe_irq_disable(struct m66592 *m66592, u16 pipenum)
 	disable_irq_nrdy(m66592, pipenum);
 }
 
-/* if complete is true, gadget driver complete function is not call */
+/* if complete is true, gadget driver complete function is yest call */
 static void control_end(struct m66592 *m66592, unsigned ccpl)
 {
 	m66592->ep[0].internal_ccpl = ccpl;
@@ -803,7 +803,7 @@ static void irq_packet_write(struct m66592_ep *ep, struct m66592_request *req)
 	if (unlikely((tmp & M66592_FRDY) == 0)) {
 		pipe_stop(m66592, pipenum);
 		pipe_irq_disable(m66592, pipenum);
-		pr_err("write fifo not ready. pipnum=%d\n", pipenum);
+		pr_err("write fifo yest ready. pipnum=%d\n", pipenum);
 		return;
 	}
 
@@ -852,7 +852,7 @@ static void irq_packet_read(struct m66592_ep *ep, struct m66592_request *req)
 		req->req.status = -EPIPE;
 		pipe_stop(m66592, pipenum);
 		pipe_irq_disable(m66592, pipenum);
-		pr_err("read fifo not ready");
+		pr_err("read fifo yest ready");
 		return;
 	}
 
@@ -1127,7 +1127,7 @@ static void m66592_update_usb_speed(struct m66592 *m66592)
 		break;
 	default:
 		m66592->gadget.speed = USB_SPEED_UNKNOWN;
-		pr_err("USB speed unknown\n");
+		pr_err("USB speed unkyeswn\n");
 	}
 }
 
@@ -1206,7 +1206,7 @@ static irqreturn_t m66592_irq(int irq, void *_m66592)
 
 	if (m66592->pdata->on_chip && !intsts0 && !intenb0) {
 		/*
-		 * When USB clock stops, it cannot read register. Even if a
+		 * When USB clock stops, it canyest read register. Even if a
 		 * clock stops, the interrupt occurs. So this driver turn on
 		 * a clock by this timing and do re-reading of register.
 		 */
@@ -1531,7 +1531,7 @@ static int m66592_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static void nop_completion(struct usb_ep *ep, struct usb_request *r)
+static void yesp_completion(struct usb_ep *ep, struct usb_request *r)
 {
 }
 
@@ -1567,7 +1567,7 @@ static int m66592_probe(struct platform_device *pdev)
 	}
 
 	if (dev_get_platdata(&pdev->dev) == NULL) {
-		dev_err(&pdev->dev, "no platform data\n");
+		dev_err(&pdev->dev, "yes platform data\n");
 		ret = -ENODEV;
 		goto clean_up;
 	}
@@ -1603,7 +1603,7 @@ static int m66592_probe(struct platform_device *pdev)
 		snprintf(clk_name, sizeof(clk_name), "usbf%d", pdev->id);
 		m66592->clk = clk_get(&pdev->dev, clk_name);
 		if (IS_ERR(m66592->clk)) {
-			dev_err(&pdev->dev, "cannot get clock \"%s\"\n",
+			dev_err(&pdev->dev, "canyest get clock \"%s\"\n",
 				clk_name);
 			ret = PTR_ERR(m66592->clk);
 			goto clean_up2;
@@ -1654,7 +1654,7 @@ static int m66592_probe(struct platform_device *pdev)
 		ret = -ENOMEM;
 		goto clean_up3;
 	}
-	m66592->ep0_req->complete = nop_completion;
+	m66592->ep0_req->complete = yesp_completion;
 
 	init_controller(m66592);
 

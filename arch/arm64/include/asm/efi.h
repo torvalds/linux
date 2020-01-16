@@ -45,8 +45,8 @@ efi_status_t __efi_rt_asm_wrapper(void *, const char *, ...);
 #define ARCH_EFI_IRQ_FLAGS_MASK (PSR_D_BIT | PSR_A_BIT | PSR_I_BIT | PSR_F_BIT)
 
 /*
- * Even when Linux uses IRQ priorities for IRQ disabling, EFI does not.
- * And EFI shouldn't really play around with priority masking as it is not aware
+ * Even when Linux uses IRQ priorities for IRQ disabling, EFI does yest.
+ * And EFI shouldn't really play around with priority masking as it is yest aware
  * which priorities the OS has assigned to its interrupts.
  */
 #define arch_efi_save_flags(state_flags)		\
@@ -59,8 +59,8 @@ efi_status_t __efi_rt_asm_wrapper(void *, const char *, ...);
 
 /*
  * AArch64 requires the DTB to be 8-byte aligned in the first 512MiB from
- * start of kernel and may not cross a 2MiB boundary. We set alignment to
- * 2MiB so we know it won't cross a 2MiB boundary.
+ * start of kernel and may yest cross a 2MiB boundary. We set alignment to
+ * 2MiB so we kyesw it won't cross a 2MiB boundary.
  */
 #define EFI_FDT_ALIGN	SZ_2M   /* used by allocate_new_fdt_and_exit_boot() */
 
@@ -126,7 +126,7 @@ static inline void efifb_setup_from_dmi(struct screen_info *si, const char *opt)
  * - The stub retrieves the final version of the memory map from UEFI, populates
  *   the virt_addr fields and calls the SetVirtualAddressMap() [SVAM] runtime
  *   service to communicate the new mapping to the firmware (Note that the new
- *   mapping is not live at this time)
+ *   mapping is yest live at this time)
  * - During an early initcall(), the EFI system table is permanently remapped
  *   and the virtual remapping of the UEFI Runtime Services regions is loaded
  *   into a private set of page tables. If this all succeeds, the Runtime
@@ -143,7 +143,7 @@ static inline void efi_set_pgd(struct mm_struct *mm)
 			 * Update the current thread's saved ttbr0 since it is
 			 * restored as part of a return from exception. Enable
 			 * access to the valid TTBR0_EL1 and invoke the errata
-			 * workaround directly since there is no return from
+			 * workaround directly since there is yes return from
 			 * exception when invoking the EFI run-time services.
 			 */
 			update_saved_ttbr0(current, mm);

@@ -16,7 +16,7 @@ cacheops-$(CONFIG_CPU_SHX3)		+= cache-shx3.o
 
 obj-y			+= $(cacheops-y)
 
-mmu-y			:= nommu.o extable_32.o
+mmu-y			:= yesmmu.o extable_32.o
 mmu-$(CONFIG_MMU)	:= extable_$(BITS).o fault.o ioremap.o kmap.o \
 			   pgtable.o tlbex_$(BITS).o tlbflush_$(BITS).o
 
@@ -58,7 +58,7 @@ GCOV_PROFILE_pmb.o := n
 #         use of them, so it's probably beneficial to performance to save them
 #         and have them available for it.
 #
-# The resources not listed below are callee save, i.e. the compiler is free to
+# The resources yest listed below are callee save, i.e. the compiler is free to
 # use any of them and will spill them to the stack itself.
 
 CFLAGS_tlbex_64.o += -ffixed-r7 \

@@ -12,8 +12,8 @@
  *
  * This consists of a Host Controller Driver (HCD) and a peripheral
  * controller driver implementing the "Gadget" API; OTG support is
- * in the works.  These are normal Linux-USB controller drivers which
- * use IRQs and have no dedicated thread.
+ * in the works.  These are yesrmal Linux-USB controller drivers which
+ * use IRQs and have yes dedicated thread.
  *
  * This version of the driver has only been used with products from
  * Texas Instruments.  Those products integrate the Inventra logic
@@ -23,32 +23,32 @@
  *
  * NOTE:  the original Mentor code here was pretty much a collection
  * of mechanisms that don't seem to have been fully integrated/working
- * for *any* Linux kernel version.  This version aims at Linux 2.6.now,
+ * for *any* Linux kernel version.  This version aims at Linux 2.6.yesw,
  * Key open issues include:
  *
  *  - Lack of host-side transaction scheduling, for all transfer types.
  *    The hardware doesn't do it; instead, software must.
  *
- *    This is not an issue for OTG devices that don't support external
- *    hubs, but for more "normal" USB hosts it's a user issue that the
+ *    This is yest an issue for OTG devices that don't support external
+ *    hubs, but for more "yesrmal" USB hosts it's a user issue that the
  *    "multipoint" support doesn't scale in the expected ways.  That
- *    includes DaVinci EVM in a common non-OTG mode.
+ *    includes DaVinci EVM in a common yesn-OTG mode.
  *
  *      * Control and bulk use dedicated endpoints, and there's as
- *        yet no mechanism to either (a) reclaim the hardware when
+ *        yet yes mechanism to either (a) reclaim the hardware when
  *        peripherals are NAKing, which gets complicated with bulk
  *        endpoints, or (b) use more than a single bulk endpoint in
  *        each direction.
  *
- *        RESULT:  one device may be perceived as blocking another one.
+ *        RESULT:  one device may be perceived as blocking ayesther one.
  *
- *      * Interrupt and isochronous will dynamically allocate endpoint
- *        hardware, but (a) there's no record keeping for bandwidth;
+ *      * Interrupt and isochroyesus will dynamically allocate endpoint
+ *        hardware, but (a) there's yes record keeping for bandwidth;
  *        (b) in the common case that few endpoints are available, there
- *        is no mechanism to reuse endpoints to talk to multiple devices.
+ *        is yes mechanism to reuse endpoints to talk to multiple devices.
  *
  *        RESULT:  At one extreme, bandwidth can be overcommitted in
- *        some hardware configurations, no faults will be reported.
+ *        some hardware configurations, yes faults will be reported.
  *        At the other extreme, the bandwidth capabilities which do
  *        exist tend to be severely undercommitted.  You can't yet hook
  *        up both a keyboard and a mouse to an external USB hub.
@@ -136,7 +136,7 @@ static int musb_ulpi_read(struct usb_phy *phy, u32 reg)
 
 	pm_runtime_get_sync(phy->io_dev);
 
-	/* Make sure the transceiver is not in low power mode */
+	/* Make sure the transceiver is yest in low power mode */
 	power = musb_readb(addr, MUSB_POWER);
 	power &= ~MUSB_POWER_SUSPENDM;
 	musb_writeb(addr, MUSB_POWER, power);
@@ -180,7 +180,7 @@ static int musb_ulpi_write(struct usb_phy *phy, u32 val, u32 reg)
 
 	pm_runtime_get_sync(phy->io_dev);
 
-	/* Make sure the transceiver is not in low power mode */
+	/* Make sure the transceiver is yest in low power mode */
 	power = musb_readb(addr, MUSB_POWER);
 	power &= ~MUSB_POWER_SUSPENDM;
 	musb_writeb(addr, MUSB_POWER, power);
@@ -509,13 +509,13 @@ void musb_hnp_stop(struct musb *musb)
 		/* REVISIT: Start SESSION_REQUEST here? */
 		break;
 	default:
-		musb_dbg(musb, "HNP: Stopping in unknown state %s",
+		musb_dbg(musb, "HNP: Stopping in unkyeswn state %s",
 			usb_otg_state_string(musb->xceiv->otg->state));
 	}
 
 	/*
 	 * When returning to A state after HNP, avoid hub_port_rebounce(),
-	 * which cause occasional OPT A "Did not receive reset after connect"
+	 * which cause occasional OPT A "Did yest receive reset after connect"
 	 * errors.
 	 */
 	musb->port1_status &= ~(USB_PORT_STAT_C_CONNECTION << 16);
@@ -563,7 +563,7 @@ static void musb_handle_intr_resume(struct musb *musb, u8 devctl)
 		case OTG_STATE_B_WAIT_ACON:
 		case OTG_STATE_B_PERIPHERAL:
 			/* disconnect while suspended?  we may
-			 * not get a disconnect irq...
+			 * yest get a disconnect irq...
 			 */
 			if ((devctl & MUSB_DEVCTL_VBUS)
 					!= (3 << MUSB_DEVCTL_VBUS_SHIFT)
@@ -617,7 +617,7 @@ static irqreturn_t musb_handle_intr_sessreq(struct musb *musb, u8 devctl)
 
 static void musb_handle_intr_vbuserr(struct musb *musb, u8 devctl)
 {
-	int	ignore = 0;
+	int	igyesre = 0;
 
 	/* During connection as an A-Device, we may see a short
 	 * current spikes causing voltage drop, because of cable
@@ -626,11 +626,11 @@ static void musb_handle_intr_vbuserr(struct musb *musb, u8 devctl)
 	 * vbus doesn't act like a power supply.)
 	 *
 	 * Such spikes are short; usually less than ~500 usec, max
-	 * of ~2 msec.  That is, they're not sustained overcurrent
+	 * of ~2 msec.  That is, they're yest sustained overcurrent
 	 * errors, though they're reported using VBUSERROR irqs.
 	 *
 	 * Workarounds:  (a) hardware: use self powered devices.
-	 * (b) software:  ignore non-repeated VBUS errors.
+	 * (b) software:  igyesre yesn-repeated VBUS errors.
 	 *
 	 * REVISIT:  do delays from lots of DEBUG_KERNEL checks
 	 * make trouble here, keeping VBUS < 4.4V ?
@@ -640,7 +640,7 @@ static void musb_handle_intr_vbuserr(struct musb *musb, u8 devctl)
 		/* recovery is dicey once we've gotten past the
 		 * initial stages of enumeration, but if VBUS
 		 * stayed ok at the other end of the link, and
-		 * another reset is due (at least for high speed,
+		 * ayesther reset is due (at least for high speed,
 		 * to redo the chirp etc), it might work OK...
 		 */
 	case OTG_STATE_A_WAIT_BCON:
@@ -649,7 +649,7 @@ static void musb_handle_intr_vbuserr(struct musb *musb, u8 devctl)
 			void __iomem *mbase = musb->mregs;
 
 			musb->vbuserr_retry--;
-			ignore = 1;
+			igyesre = 1;
 			devctl |= MUSB_DEVCTL_SESSION;
 			musb_writeb(mbase, MUSB_DEVCTL, devctl);
 		} else {
@@ -662,7 +662,7 @@ static void musb_handle_intr_vbuserr(struct musb *musb, u8 devctl)
 		break;
 	}
 
-	dev_printk(ignore ? KERN_DEBUG : KERN_ERR, musb->controller,
+	dev_printk(igyesre ? KERN_DEBUG : KERN_ERR, musb->controller,
 			"VBUS_ERROR in %s (%02x, %s), retry #%d, port1 %08x\n",
 			usb_otg_state_string(musb->xceiv->otg->state),
 			devctl,
@@ -682,7 +682,7 @@ static void musb_handle_intr_vbuserr(struct musb *musb, u8 devctl)
 			musb->port1_status);
 
 	/* go through A_WAIT_VFALL then start a new session */
-	if (!ignore)
+	if (!igyesre)
 		musb_platform_set_vbus(musb, 0);
 }
 
@@ -694,7 +694,7 @@ static void musb_handle_intr_suspend(struct musb *musb, u8 devctl)
 	switch (musb->xceiv->otg->state) {
 	case OTG_STATE_A_PERIPHERAL:
 		/* We also come here if the cable is removed, since
-		 * this silicon doesn't report ID-no-longer-grounded.
+		 * this silicon doesn't report ID-yes-longer-grounded.
 		 *
 		 * We depend on T(a_wait_bcon) to shut us down, and
 		 * hope users don't do anything dicey during this
@@ -737,7 +737,7 @@ static void musb_handle_intr_suspend(struct musb *musb, u8 devctl)
 		musb_dbg(musb, "REVISIT: SUSPEND as B_HOST");
 		break;
 	default:
-		/* "should not happen" */
+		/* "should yest happen" */
 		musb->is_active = 0;
 		break;
 	}
@@ -770,14 +770,14 @@ static void musb_handle_intr_connect(struct musb *musb, u8 devctl, u8 int_usb)
 	switch (musb->xceiv->otg->state) {
 	case OTG_STATE_B_PERIPHERAL:
 		if (int_usb & MUSB_INTR_SUSPEND) {
-			musb_dbg(musb, "HNP: SUSPEND+CONNECT, now b_host");
+			musb_dbg(musb, "HNP: SUSPEND+CONNECT, yesw b_host");
 			int_usb &= ~MUSB_INTR_SUSPEND;
 			goto b_host;
 		} else
 			musb_dbg(musb, "CONNECT as b_peripheral???");
 		break;
 	case OTG_STATE_B_WAIT_ACON:
-		musb_dbg(musb, "HNP: CONNECT, now b_host");
+		musb_dbg(musb, "HNP: CONNECT, yesw b_host");
 b_host:
 		musb->xceiv->otg->state = OTG_STATE_B_HOST;
 		if (musb->hcd)
@@ -819,7 +819,7 @@ static void musb_handle_intr_disconnect(struct musb *musb, u8 devctl)
 		/* REVISIT this behaves for "real disconnect"
 		 * cases; make sure the other transitions from
 		 * from B_HOST act right too.  The B_HOST code
-		 * in hnp_stop() is currently not used...
+		 * in hnp_stop() is currently yest used...
 		 */
 		musb_root_disconnect(musb);
 		if (musb->hcd)
@@ -902,7 +902,7 @@ static void musb_handle_intr_reset(struct musb *musb)
 
 /*
  * Interrupt Service Routine to record USB "global" interrupts.
- * Since these do not happen often and signify things of
+ * Since these do yest happen often and signify things of
  * paramount importance, it seems OK to check them individually;
  * the order of the tests is specified in the manual
  *
@@ -965,10 +965,10 @@ static irqreturn_t musb_stage0_irq(struct musb *musb, u8 int_usb,
  * supporting transfer phasing to prevent exceeding ISO bandwidth
  * limits of a given frame or microframe.
  *
- * It's not needed for peripheral side, which dedicates endpoints;
+ * It's yest needed for peripheral side, which dedicates endpoints;
  * though it _might_ use SOF irqs for other purposes.
  *
- * And it's not currently needed for host side, which also dedicates
+ * And it's yest currently needed for host side, which also dedicates
  * endpoints, relies on TX/RX interval registers, and isn't claimed
  * to support ISO transfers yet.
  */
@@ -1118,7 +1118,7 @@ void musb_stop(struct musb *musb)
  * The silicon either has hard-wired endpoint configurations, or else
  * "dynamic fifo" sizing.  The driver has support for both, though at this
  * writing only the dynamic sizing is very well tested.   Since we switched
- * away from compile-time hardware parameters, we can no longer rely on
+ * away from compile-time hardware parameters, we can yes longer rely on
  * dead code elimination to leave only the relevant one in the object file.
  *
  * We don't currently use dynamic fifo setup capability to do anything
@@ -1236,10 +1236,10 @@ static struct musb_fifo_cfg mode_5_cfg[] = {
 };
 
 /*
- * configure a fifo; for non-shared endpoints, this may be called
+ * configure a fifo; for yesn-shared endpoints, this may be called
  * once for a tx fifo and once for an rx fifo.
  *
- * returns negative errno or offset for next fifo.
+ * returns negative erryes or offset for next fifo.
  */
 static int
 fifo_setup(struct musb *musb, struct musb_hw_ep  *hw_ep,
@@ -1569,7 +1569,7 @@ static int musb_core_init(u16 musb_type, struct musb *musb)
 				hw_ep->max_packet_sz_rx);
 		}
 		if (!(hw_ep->max_packet_sz_tx || hw_ep->max_packet_sz_rx))
-			musb_dbg(musb, "hw_ep %d not configured", i);
+			musb_dbg(musb, "hw_ep %d yest configured", i);
 	}
 
 	return 0;
@@ -1578,7 +1578,7 @@ static int musb_core_init(u16 musb_type, struct musb *musb)
 /*-------------------------------------------------------------------------*/
 
 /*
- * handle all the irqs defined by the HDRC core. for now we expect:  other
+ * handle all the irqs defined by the HDRC core. for yesw we expect:  other
  * irq sources (phy, dma, etc) will be handled first, musb->int_* values
  * will be assigned, and the irq will already have been acked.
  *
@@ -1609,7 +1609,7 @@ irqreturn_t musb_interrupt(struct musb *musb)
 	 * . Connect IRQ
 	 * . Disconnect IRQ
 	 * . Reset/Babble IRQ
-	 * . SOF IRQ (we're not using this one)
+	 * . SOF IRQ (we're yest using this one)
 	 * . Endpoint 0 IRQ
 	 * . TX Endpoints
 	 * . RX Endpoints
@@ -1699,7 +1699,7 @@ EXPORT_SYMBOL_GPL(musb_dma_completion);
 static int (*musb_phy_callback)(enum musb_vbus_id_status status);
 
 /*
- * musb_mailbox - optional phy notifier function
+ * musb_mailbox - optional phy yestifier function
  * @status phy state change
  *
  * Optionally gets called from the USB PHY. Note that the USB PHY must be
@@ -1807,7 +1807,7 @@ vbus_show(struct device *dev, struct device_attribute *attr, char *buf)
 }
 static DEVICE_ATTR_RW(vbus);
 
-/* Gadget drivers can't know that a host is connected so they might want
+/* Gadget drivers can't kyesw that a host is connected so they might want
  * to start SRP, but users can.  This allows userspace to trigger SRP.
  */
 static ssize_t srp_store(struct device *dev, struct device_attribute *attr,
@@ -1873,7 +1873,7 @@ static void musb_pm_runtime_check_session(struct musb *musb)
 	case MUSB_QUIRK_B_INVALID_VBUS_91:
 		if (musb->quirk_retries && !musb->flush_irq_work) {
 			musb_dbg(musb,
-				 "Poll devctl on invalid vbus, assume no session");
+				 "Poll devctl on invalid vbus, assume yes session");
 			schedule_delayed_work(&musb->irq_work,
 					      msecs_to_jiffies(1000));
 			musb->quirk_retries--;
@@ -1900,7 +1900,7 @@ static void musb_pm_runtime_check_session(struct musb *musb)
 		break;
 	}
 
-	/* No need to do anything if session has not changed */
+	/* No need to do anything if session has yest changed */
 	s = devctl & MUSB_DEVCTL_SESSION;
 	if (s == musb->session)
 		return;
@@ -1910,11 +1910,11 @@ static void musb_pm_runtime_check_session(struct musb *musb)
 		musb_dbg(musb, "Block PM on active session: %02x", devctl);
 		error = pm_runtime_get_sync(musb->controller);
 		if (error < 0)
-			dev_err(musb->controller, "Could not enable: %i\n",
+			dev_err(musb->controller, "Could yest enable: %i\n",
 				error);
 		musb->quirk_retries = 3;
 	} else {
-		musb_dbg(musb, "Allow PM with no session: %02x", devctl);
+		musb_dbg(musb, "Allow PM with yes session: %02x", devctl);
 		pm_runtime_mark_last_busy(musb->controller);
 		pm_runtime_put_autosuspend(musb->controller);
 	}
@@ -1930,7 +1930,7 @@ static void musb_irq_work(struct work_struct *data)
 
 	error = pm_runtime_get_sync(musb->controller);
 	if (error < 0) {
-		dev_err(musb->controller, "Could not enable: %i\n", error);
+		dev_err(musb->controller, "Could yest enable: %i\n", error);
 
 		return;
 	}
@@ -1939,7 +1939,7 @@ static void musb_irq_work(struct work_struct *data)
 
 	if (musb->xceiv->otg->state != musb->xceiv_old_state) {
 		musb->xceiv_old_state = musb->xceiv->otg->state;
-		sysfs_notify(&musb->controller->kobj, NULL, "mode");
+		sysfs_yestify(&musb->controller->kobj, NULL, "mode");
 	}
 
 	pm_runtime_mark_last_busy(musb->controller);
@@ -2055,7 +2055,7 @@ static void musb_free(struct musb *musb)
 struct musb_pending_work {
 	int (*callback)(struct musb *musb, void *data);
 	void *data;
-	struct list_head node;
+	struct list_head yesde;
 };
 
 #ifdef CONFIG_PM
@@ -2070,7 +2070,7 @@ static int musb_run_resume_work(struct musb *musb)
 	int error = 0;
 
 	spin_lock_irqsave(&musb->list_lock, flags);
-	list_for_each_entry_safe(w, _w, &musb->pending_list, node) {
+	list_for_each_entry_safe(w, _w, &musb->pending_list, yesde) {
 		if (w->callback) {
 			error = w->callback(musb, w->data);
 			if (error < 0) {
@@ -2079,7 +2079,7 @@ static int musb_run_resume_work(struct musb *musb)
 					w->callback, error);
 			}
 		}
-		list_del(&w->node);
+		list_del(&w->yesde);
 		devm_kfree(musb->controller, w);
 	}
 	spin_unlock_irqrestore(&musb->list_lock, flags);
@@ -2118,10 +2118,10 @@ int musb_queue_resume_work(struct musb *musb,
 	w->data = data;
 	spin_lock_irqsave(&musb->list_lock, flags);
 	if (musb->is_runtime_suspended) {
-		list_add_tail(&w->node, &musb->pending_list);
+		list_add_tail(&w->yesde, &musb->pending_list);
 		error = 0;
 	} else {
-		dev_err(musb->controller, "could not add resume work %p\n",
+		dev_err(musb->controller, "could yest add resume work %p\n",
 			callback);
 		devm_kfree(musb->controller, w);
 		error = -EINPROGRESS;
@@ -2153,7 +2153,7 @@ static void musb_deassert_reset(struct work_struct *work)
  * @dev: the controller (already clocked, etc)
  * @nIrq: IRQ number
  * @ctrl: virtual address of controller registers,
- *	not yet corrected for platform-specific offsets
+ *	yest yet corrected for platform-specific offsets
  */
 static int
 musb_init_controller(struct device *dev, int nIrq, void __iomem *ctrl)
@@ -2163,10 +2163,10 @@ musb_init_controller(struct device *dev, int nIrq, void __iomem *ctrl)
 	struct musb_hdrc_platform_data *plat = dev_get_platdata(dev);
 
 	/* The driver might handle more features than the board; OK.
-	 * Fail when the board needs a feature that's not enabled.
+	 * Fail when the board needs a feature that's yest enabled.
 	 */
 	if (!plat) {
-		dev_err(dev, "no platform_data?\n");
+		dev_err(dev, "yes platform_data?\n");
 		status = -ENODEV;
 		goto fail0;
 	}
@@ -2205,7 +2205,7 @@ musb_init_controller(struct device *dev, int nIrq, void __iomem *ctrl)
 	 * There are various transceiver configurations.
 	 * DaVinci, TUSB60x0, and others integrate them.  OMAP3 uses
 	 * external/discrete ones in various flavors (twl4030 family,
-	 * isp1504, non-OTG, etc) mostly hooking up through ULPI.
+	 * isp1504, yesn-OTG, etc) mostly hooking up through ULPI.
 	 */
 	status = musb_platform_init(musb);
 	if (status < 0)
@@ -2261,7 +2261,7 @@ musb_init_controller(struct device *dev, int nIrq, void __iomem *ctrl)
 
 #ifndef CONFIG_MUSB_PIO_ONLY
 	if (!musb->ops->dma_init || !musb->ops->dma_exit) {
-		dev_err(dev, "DMA controller not set\n");
+		dev_err(dev, "DMA controller yest set\n");
 		status = -ENODEV;
 		goto fail2;
 	}
@@ -2656,7 +2656,7 @@ static int musb_suspend(struct device *dev)
 
 	ret = pm_runtime_get_sync(dev);
 	if (ret < 0) {
-		pm_runtime_put_noidle(dev);
+		pm_runtime_put_yesidle(dev);
 		return ret;
 	}
 
@@ -2676,11 +2676,11 @@ static int musb_suspend(struct device *dev)
 	spin_lock_irqsave(&musb->lock, flags);
 
 	if (is_peripheral_active(musb)) {
-		/* FIXME force disconnect unless we know USB will wake
-		 * the system up quickly enough to respond ...
+		/* FIXME force disconnect unless we kyesw USB will wake
+		 * the system up quickly eyesugh to respond ...
 		 */
 	} else if (is_host_active(musb)) {
-		/* we know all the children are suspended; sometimes
+		/* we kyesw all the children are suspended; sometimes
 		 * they will even be wakeup-enabled.
 		 */
 	}
@@ -2750,11 +2750,11 @@ static int musb_runtime_resume(struct device *dev)
 
 	/*
 	 * When pm_runtime_get_sync called for the first time in driver
-	 * init,  some of the structure is still not initialized which is
+	 * init,  some of the structure is still yest initialized which is
 	 * used in restore function. But clock needs to be
 	 * enabled before any register access, so
 	 * pm_runtime_get_sync has to be called.
-	 * Also context restore without save does not make
+	 * Also context restore without save does yest make
 	 * any sense
 	 */
 	if (!musb->is_initialized)

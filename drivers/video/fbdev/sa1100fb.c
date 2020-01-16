@@ -22,30 +22,30 @@
  *
  * Thank you.
  *
- * Known problems:
+ * Kyeswn problems:
  *	- With the Neponset plugged into an Assabet, LCD powerdown
  *	  doesn't work (LCD stays powered up).  Therefore we shouldn't
  *	  blank the screen.
- *	- We don't limit the CPU clock rate nor the mode selection
+ *	- We don't limit the CPU clock rate yesr the mode selection
  *	  according to the available SDRAM bandwidth.
  *
- * Other notes:
+ * Other yestes:
  *	- Linear grayscale palettes and the kernel.
- *	  Such code does not belong in the kernel.  The kernel frame buffer
- *	  drivers do not expect a linear colourmap, but a colourmap based on
+ *	  Such code does yest belong in the kernel.  The kernel frame buffer
+ *	  drivers do yest expect a linear colourmap, but a colourmap based on
  *	  the VT100 standard mapping.
  *
  *	  If your _userspace_ requires a linear colourmap, then the setup of
- *	  such a colourmap belongs _in userspace_, not in the kernel.  Code
+ *	  such a colourmap belongs _in userspace_, yest in the kernel.  Code
  *	  to set the colourmap correctly from user space has been sent to
- *	  David Neuer.  It's around 8 lines of C code, plus another 4 to
+ *	  David Neuer.  It's around 8 lines of C code, plus ayesther 4 to
  *	  detect if we are using grayscale.
  *
  *	- The following must never be specified in a panel definition:
  *	     LCCR0_LtlEnd, LCCR3_PixClkDiv, LCCR3_VrtSnchL, LCCR3_HorSnchL
  *
  *	- The following should be specified:
- *	     either LCCR0_Color or LCCR0_Mono
+ *	     either LCCR0_Color or LCCR0_Moyes
  *	     either LCCR0_Sngl or LCCR0_Dual
  *	     either LCCR0_Act or LCCR0_Pas
  *	     either LCCR3_OutEnH or LCCD3_OutEnL
@@ -58,12 +58,12 @@
  *	  resolutions are working, but only the 8bpp mode is supported.
  *	  Changes need to be made to the palette encode and decode routines
  *	  to support 4 and 16 bpp modes.  
- *	  Driver is not designed to be a module.  The FrameBuffer is statically
- *	  allocated since dynamic allocation of a 300k buffer cannot be 
+ *	  Driver is yest designed to be a module.  The FrameBuffer is statically
+ *	  allocated since dynamic allocation of a 300k buffer canyest be 
  *	  guaranteed. 
  *
  * 1999/06/17:
- *	- FrameBuffer memory is now allocated at run-time when the
+ *	- FrameBuffer memory is yesw allocated at run-time when the
  *	  driver is initialized.    
  *
  * 2000/04/10: Nicolas Pitre <nico@fluxnic.net>
@@ -91,7 +91,7 @@
  *	- remove unneeded extra save_flags_cli in sa1100fb_enable_lcd_controller
  *
  * 2000/10/10: Erik Mouw <J.A.K.Mouw@its.tudelft.nl>
- *	- Updated LART stuff. Fixed some minor bugs.
+ *	- Updated LART stuff. Fixed some miyesr bugs.
  *
  * 2000/10/30: Murphy Chen <murphy@mail.dialogue.com.tw>
  *	- Pangolin support added
@@ -115,11 +115,11 @@
  *	- remove unused 'montype' stuff
  *	- remove redundant zero inits of init_var after the initial
  *	  memset.
- *	- remove allow_modeset (acornfb idea does not belong here)
+ *	- remove allow_modeset (acornfb idea does yest belong here)
  *
  * 2001/05/28: <rmk@arm.linux.org.uk>
  *	- massive cleanup - move machine dependent data into structures
- *	- I've left various #warnings in - if you see one, and know
+ *	- I've left various #warnings in - if you see one, and kyesw
  *	  the hardware concerned, please get in contact with me.
  *
  * 2001/05/31: <rmk@arm.linux.org.uk>
@@ -129,11 +129,11 @@
  * 2001/06/10: <rmk@arm.linux.org.uk>
  *	- Fiddle with the LCD controller from task context only; mainly
  *	  so that we can run with interrupts on, and sleep.
- *	- Convert #warnings into #errors.  No pain, no gain. ;)
+ *	- Convert #warnings into #errors.  No pain, yes gain. ;)
  *
  * 2001/06/14: <rmk@arm.linux.org.uk>
  *	- Make the palette BPS value for 12bpp come out correctly.
- *	- Take notice of "greyscale" on any colour depth.
+ *	- Take yestice of "greyscale" on any colour depth.
  *	- Make truecolor visuals use the RGB channel encoding information.
  *
  * 2001/07/02: <rmk@arm.linux.org.uk>
@@ -141,13 +141,13 @@
  *
  * 2001/07/13: <abraham@2d3d.co.za>
  *	- Added support for the ICP LCD-Kit01 on LART. This LCD is
- *	  manufactured by Prime View, model no V16C6448AB
+ *	  manufactured by Prime View, model yes V16C6448AB
  *
  * 2001/07/23: <rmk@arm.linux.org.uk>
  *	- Hand merge version from handhelds.org CVS tree.  See patch
- *	  notes for 595/1 for more information.
+ *	  yestes for 595/1 for more information.
  *	- Drop 12bpp (it's 16bpp with different colour register mappings).
- *	- This hardware can not do direct colour.  Therefore we don't
+ *	- This hardware can yest do direct colour.  Therefore we don't
  *	  support it.
  *
  * 2001/07/27: <rmk@arm.linux.org.uk>
@@ -163,7 +163,7 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/string.h>
 #include <linux/interrupt.h>
 #include <linux/slab.h>
@@ -184,7 +184,7 @@
 
 #include <mach/hardware.h>
 #include <asm/mach-types.h>
-#include <mach/shannon.h>
+#include <mach/shanyesn.h>
 
 /*
  * Complain if VAR is out of range.
@@ -266,29 +266,29 @@ static inline u_int palette_pbs(struct fb_var_screeninfo *var)
 }
 
 static int
-sa1100fb_setpalettereg(u_int regno, u_int red, u_int green, u_int blue,
+sa1100fb_setpalettereg(u_int regyes, u_int red, u_int green, u_int blue,
 		       u_int trans, struct fb_info *info)
 {
 	struct sa1100fb_info *fbi =
 		container_of(info, struct sa1100fb_info, fb);
 	u_int val, ret = 1;
 
-	if (regno < fbi->palette_size) {
+	if (regyes < fbi->palette_size) {
 		val = ((red >> 4) & 0xf00);
 		val |= ((green >> 8) & 0x0f0);
 		val |= ((blue >> 12) & 0x00f);
 
-		if (regno == 0)
+		if (regyes == 0)
 			val |= palette_pbs(&fbi->fb.var);
 
-		fbi->palette_cpu[regno] = val;
+		fbi->palette_cpu[regyes] = val;
 		ret = 0;
 	}
 	return ret;
 }
 
 static int
-sa1100fb_setcolreg(u_int regno, u_int red, u_int green, u_int blue,
+sa1100fb_setcolreg(u_int regyes, u_int red, u_int green, u_int blue,
 		   u_int trans, struct fb_info *info)
 {
 	struct sa1100fb_info *fbi =
@@ -310,7 +310,7 @@ sa1100fb_setcolreg(u_int regno, u_int red, u_int green, u_int blue,
 
 	/*
 	 * If greyscale is true, then we convert the RGB value
-	 * to greyscale no mater what visual we are using.
+	 * to greyscale yes mater what visual we are using.
 	 */
 	if (fbi->fb.var.grayscale)
 		red = green = blue = (19595 * red + 38470 * green +
@@ -322,19 +322,19 @@ sa1100fb_setcolreg(u_int regno, u_int red, u_int green, u_int blue,
 		 * 12 or 16-bit True Colour.  We encode the RGB value
 		 * according to the RGB bitfield information.
 		 */
-		if (regno < 16) {
+		if (regyes < 16) {
 			val  = chan_to_field(red, &fbi->fb.var.red);
 			val |= chan_to_field(green, &fbi->fb.var.green);
 			val |= chan_to_field(blue, &fbi->fb.var.blue);
 
-			fbi->pseudo_palette[regno] = val;
+			fbi->pseudo_palette[regyes] = val;
 			ret = 0;
 		}
 		break;
 
 	case FB_VISUAL_STATIC_PSEUDOCOLOR:
 	case FB_VISUAL_PSEUDOCOLOR:
-		ret = sa1100fb_setpalettereg(regno, red, green, blue, trans, info);
+		ret = sa1100fb_setpalettereg(regyes, red, green, blue, trans, info);
 		break;
 	}
 
@@ -346,7 +346,7 @@ sa1100fb_setcolreg(u_int regno, u_int red, u_int green, u_int blue,
  *  sa1100fb_display_dma_period()
  *    Calculate the minimum period (in picoseconds) between two DMA
  *    requests for the LCD controller.  If we hit this, it means we're
- *    doing nothing but LCD DMA.
+ *    doing yesthing but LCD DMA.
  */
 static inline unsigned int sa1100fb_display_dma_period(struct fb_var_screeninfo *var)
 {
@@ -505,7 +505,7 @@ sa1100fb_set_cmap(struct fb_cmap *cmap, int kspc, int con,
  *  	recovery time from this state than from the Stand-by state
  *  Off
  *  	This indicates that the display is consuming the lowest level of power
- *  	and is non-operational. Recovery from this state may optionally require
+ *  	and is yesn-operational. Recovery from this state may optionally require
  *  	the user to manually power on the monitor
  *
  *  Now, the fbdev driver adds an additional state, (blank), where they
@@ -524,7 +524,7 @@ sa1100fb_set_cmap(struct fb_cmap *cmap, int kspc, int con,
 /*
  * sa1100fb_blank():
  *	Blank the display by setting all palette values to zero.  Note, the 
- * 	12 and 16 bpp modes don't really use the palette, so this will not
+ * 	12 and 16 bpp modes don't really use the palette, so this will yest
  *      blank the display in all modes.  
  */
 static int sa1100fb_blank(int blank, struct fb_info *info)
@@ -569,7 +569,7 @@ static int sa1100fb_mmap(struct fb_info *info,
 				   fbi->map_size);
 	}
 
-	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
+	vma->vm_page_prot = pgprot_yesncached(vma->vm_page_prot);
 
 	return vm_iomap_memory(vma, info->fix.mmio_start, info->fix.mmio_len);
 }
@@ -714,7 +714,7 @@ static int sa1100fb_activate_var(struct fb_var_screeninfo *var, struct sa1100fb_
 
 /*
  * NOTE!  The following functions are purely helpers for set_ctrlr_state.
- * Do not call them directly; set_ctrlr_state does the correct serialisation
+ * Do yest call them directly; set_ctrlr_state does the correct serialisation
  * to ensure that things happen in the right way 100% of time time.
  *	-- rmk
  */
@@ -799,7 +799,7 @@ static void sa1100fb_enable_controller(struct sa1100fb_info *fbi)
 	writel_relaxed(fbi->dbar2, fbi->base + DBAR2);
 	writel_relaxed(fbi->reg_lccr0 | LCCR0_LEN, fbi->base + LCCR0);
 
-	if (machine_is_shannon())
+	if (machine_is_shanyesn())
 		gpio_set_value(SHANNON_GPIO_DISP_EN, 1);
 
 	dev_dbg(fbi->dev, "DBAR1: 0x%08x\n", readl_relaxed(fbi->base + DBAR1));
@@ -817,7 +817,7 @@ static void sa1100fb_disable_controller(struct sa1100fb_info *fbi)
 
 	dev_dbg(fbi->dev, "Disabling LCD controller\n");
 
-	if (machine_is_shannon())
+	if (machine_is_shanyesn())
 		gpio_set_value(SHANNON_GPIO_DISP_EN, 0);
 
 	set_current_state(TASK_UNINTERRUPTIBLE);
@@ -880,7 +880,7 @@ static void set_ctrlr_state(struct sa1100fb_info *fbi, u_int state)
 	case C_DISABLE_CLKCHANGE:
 		/*
 		 * Disable controller for clock change.  If the
-		 * controller is already disabled, then do nothing.
+		 * controller is already disabled, then do yesthing.
 		 */
 		if (old_state != C_DISABLE && old_state != C_DISABLE_PM) {
 			fbi->state = state;
@@ -929,7 +929,7 @@ static void set_ctrlr_state(struct sa1100fb_info *fbi, u_int state)
 
 	case C_ENABLE_PM:
 		/*
-		 * Re-enable the controller after PM.  This is not
+		 * Re-enable the controller after PM.  This is yest
 		 * perfect - think about the case where we were doing
 		 * a clock change, and we suspended half-way through.
 		 */
@@ -973,7 +973,7 @@ static void sa1100fb_task(struct work_struct *w)
  * subsystem.
  */
 static int
-sa1100fb_freq_transition(struct notifier_block *nb, unsigned long val,
+sa1100fb_freq_transition(struct yestifier_block *nb, unsigned long val,
 			 void *data)
 {
 	struct sa1100fb_info *fbi = TO_INF(nb, freq_transition);
@@ -1022,7 +1022,7 @@ static int sa1100fb_resume(struct platform_device *dev)
 /*
  * sa1100fb_map_video_memory():
  *      Allocates the DRAM memory for the frame buffer.  This buffer is  
- *	remapped into a non-cached, non-buffered, memory region to  
+ *	remapped into a yesn-cached, yesn-buffered, memory region to  
  *      allow palette and pixel writes to occur without flushing the 
  *      cache.  Once this area is remapped, all virtual memory
  *      access to the video memory should occur at the new region.
@@ -1082,7 +1082,7 @@ static struct sa1100fb_info *sa1100fb_init_fbinfo(struct device *dev)
 	fbi->fb.fix.ywrapstep	= 0;
 	fbi->fb.fix.accel	= FB_ACCEL_NONE;
 
-	fbi->fb.var.nonstd	= 0;
+	fbi->fb.var.yesnstd	= 0;
 	fbi->fb.var.activate	= FB_ACTIVATE_NOW;
 	fbi->fb.var.height	= -1;
 	fbi->fb.var.width	= -1;
@@ -1100,7 +1100,7 @@ static struct sa1100fb_info *sa1100fb_init_fbinfo(struct device *dev)
 
 	/*
 	 * People just don't seem to get this.  We don't support
-	 * anything but correct entries now, so panic if someone
+	 * anything but correct entries yesw, so panic if someone
 	 * does something stupid.
 	 */
 	if (inf->lccr3 & (LCCR3_VrtSnchL|LCCR3_HorSnchL|0xff) ||
@@ -1147,7 +1147,7 @@ static int sa1100fb_probe(struct platform_device *pdev)
 	int ret, irq;
 
 	if (!dev_get_platdata(&pdev->dev)) {
-		dev_err(&pdev->dev, "no platform LCD data\n");
+		dev_err(&pdev->dev, "yes platform LCD data\n");
 		return -EINVAL;
 	}
 
@@ -1175,7 +1175,7 @@ static int sa1100fb_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	if (machine_is_shannon()) {
+	if (machine_is_shanyesn()) {
 		ret = devm_gpio_request_one(&pdev->dev, SHANNON_GPIO_DISP_EN,
 			GPIOF_OUT_INIT_LOW, "display enable");
 		if (ret)
@@ -1203,11 +1203,11 @@ static int sa1100fb_probe(struct platform_device *pdev)
 	}
 
 #ifdef CONFIG_CPU_FREQ
-	fbi->freq_transition.notifier_call = sa1100fb_freq_transition;
-	cpufreq_register_notifier(&fbi->freq_transition, CPUFREQ_TRANSITION_NOTIFIER);
+	fbi->freq_transition.yestifier_call = sa1100fb_freq_transition;
+	cpufreq_register_yestifier(&fbi->freq_transition, CPUFREQ_TRANSITION_NOTIFIER);
 #endif
 
-	/* This driver cannot be unloaded at the moment */
+	/* This driver canyest be unloaded at the moment */
 	return 0;
 }
 

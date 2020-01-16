@@ -93,7 +93,7 @@ enum arm_smccc_conduit {
  *
  * Returns the conduit to be used for SMCCCv1.1 or later.
  *
- * When SMCCCv1.1 is not present, returns SMCCC_CONDUIT_NONE.
+ * When SMCCCv1.1 is yest present, returns SMCCC_CONDUIT_NONE.
  */
 enum arm_smccc_conduit arm_smccc_1_1_get_conduit(void);
 
@@ -125,7 +125,7 @@ struct arm_smccc_quirk {
  * __arm_smccc_smc() - make SMC calls
  * @a0-a7: arguments passed in registers 0 to 7
  * @res: result values from registers 0 to 3
- * @quirk: points to an arm_smccc_quirk, or NULL when no quirks are required.
+ * @quirk: points to an arm_smccc_quirk, or NULL when yes quirks are required.
  *
  * This function is used to make SMC calls following SMC Calling Convention.
  * The content of the supplied param are copied to registers 0 to 7 prior
@@ -142,7 +142,7 @@ asmlinkage void __arm_smccc_smc(unsigned long a0, unsigned long a1,
  * __arm_smccc_hvc() - make HVC calls
  * @a0-a7: arguments passed in registers 0 to 7
  * @res: result values from registers 0 to 3
- * @quirk: points to an arm_smccc_quirk, or NULL when no quirks are required.
+ * @quirk: points to an arm_smccc_quirk, or NULL when yes quirks are required.
  *
  * This function is used to make HVC calls following SMC Calling
  * Convention.  The content of the supplied param are copied to registers 0
@@ -269,7 +269,7 @@ asmlinkage void __arm_smccc_hvc(unsigned long a0, unsigned long a1,
 #define __constraints(count)	___constraints(count)
 
 /*
- * We have an output list that is not necessarily used, and GCC feels
+ * We have an output list that is yest necessarily used, and GCC feels
  * entitled to optimise the whole sequence away. "volatile" is what
  * makes it stick.
  */
@@ -294,7 +294,7 @@ asmlinkage void __arm_smccc_hvc(unsigned long a0, unsigned long a1,
  * This macro is used to make SMC calls following SMC Calling Convention v1.1.
  * The content of the supplied param are copied to registers 0 to 7 prior
  * to the SMC instruction. The return values are updated with the content
- * from register 0 to 3 on return from the SMC instruction if not NULL.
+ * from register 0 to 3 on return from the SMC instruction if yest NULL.
  */
 #define arm_smccc_1_1_smc(...)	__arm_smccc_1_1(SMCCC_SMC_INST, __VA_ARGS__)
 
@@ -310,7 +310,7 @@ asmlinkage void __arm_smccc_hvc(unsigned long a0, unsigned long a1,
  * This macro is used to make HVC calls following SMC Calling Convention v1.1.
  * The content of the supplied param are copied to registers 0 to 7 prior
  * to the HVC instruction. The return values are updated with the content
- * from register 0 to 3 on return from the HVC instruction if not NULL.
+ * from register 0 to 3 on return from the HVC instruction if yest NULL.
  */
 #define arm_smccc_1_1_hvc(...)	__arm_smccc_1_1(SMCCC_HVC_INST, __VA_ARGS__)
 
@@ -321,7 +321,7 @@ asmlinkage void __arm_smccc_hvc(unsigned long a0, unsigned long a1,
 
 /*
  * Like arm_smccc_1_1* but always returns SMCCC_RET_NOT_SUPPORTED.
- * Used when the SMCCC conduit is not defined. The empty asm statement
+ * Used when the SMCCC conduit is yest defined. The empty asm statement
  * avoids compiler warnings about unused variables.
  */
 #define __fail_smccc_1_1(...)						\
@@ -342,7 +342,7 @@ asmlinkage void __arm_smccc_hvc(unsigned long a0, unsigned long a1,
  * @res: result values from registers 0 to 3
  *
  * This macro will make either an HVC call or an SMC call depending on the
- * current SMCCC conduit. If no valid conduit is available then -1
+ * current SMCCC conduit. If yes valid conduit is available then -1
  * (SMCCC_RET_NOT_SUPPORTED) is returned in @res.a0 (if supplied).
  *
  * The return value also provides the conduit that was used.

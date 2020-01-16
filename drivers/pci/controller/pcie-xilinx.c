@@ -6,7 +6,7 @@
  *
  * Based on the Tegra PCIe driver
  *
- * Bits taken from Synopsys DesignWare Host controller driver and
+ * Bits taken from Syyespsys DesignWare Host controller driver and
  * ARM PCI Host generic driver.
  */
 
@@ -98,7 +98,7 @@
  * @reg_base: IO Mapped Register Base
  * @irq: Interrupt number
  * @msi_pages: MSI pages
- * @root_busno: Root Bus number
+ * @root_busyes: Root Bus number
  * @dev: Device pointer
  * @msi_domain: MSI IRQ domain pointer
  * @leg_domain: Legacy IRQ domain pointer
@@ -108,7 +108,7 @@ struct xilinx_pcie_port {
 	void __iomem *reg_base;
 	u32 irq;
 	unsigned long msi_pages;
-	u8 root_busno;
+	u8 root_busyes;
 	struct device *dev;
 	struct irq_domain *msi_domain;
 	struct irq_domain *leg_domain;
@@ -162,12 +162,12 @@ static bool xilinx_pcie_valid_device(struct pci_bus *bus, unsigned int devfn)
 	struct xilinx_pcie_port *port = bus->sysdata;
 
 	/* Check if link is up when trying to access downstream ports */
-	if (bus->number != port->root_busno)
+	if (bus->number != port->root_busyes)
 		if (!xilinx_pcie_link_up(port))
 			return false;
 
 	/* Only one device down on each root port */
-	if (bus->number == port->root_busno && devfn > 0)
+	if (bus->number == port->root_busyes && devfn > 0)
 		return false;
 
 	return true;
@@ -501,21 +501,21 @@ error:
 static int xilinx_pcie_init_irq_domain(struct xilinx_pcie_port *port)
 {
 	struct device *dev = port->dev;
-	struct device_node *node = dev->of_node;
-	struct device_node *pcie_intc_node;
+	struct device_yesde *yesde = dev->of_yesde;
+	struct device_yesde *pcie_intc_yesde;
 	int ret;
 
 	/* Setup INTx */
-	pcie_intc_node = of_get_next_child(node, NULL);
-	if (!pcie_intc_node) {
-		dev_err(dev, "No PCIe Intc node found\n");
+	pcie_intc_yesde = of_get_next_child(yesde, NULL);
+	if (!pcie_intc_yesde) {
+		dev_err(dev, "No PCIe Intc yesde found\n");
 		return -ENODEV;
 	}
 
-	port->leg_domain = irq_domain_add_linear(pcie_intc_node, PCI_NUM_INTX,
+	port->leg_domain = irq_domain_add_linear(pcie_intc_yesde, PCI_NUM_INTX,
 						 &intx_domain_ops,
 						 port);
-	of_node_put(pcie_intc_node);
+	of_yesde_put(pcie_intc_yesde);
 	if (!port->leg_domain) {
 		dev_err(dev, "Failed to get a INTx IRQ domain\n");
 		return -ENODEV;
@@ -523,7 +523,7 @@ static int xilinx_pcie_init_irq_domain(struct xilinx_pcie_port *port)
 
 	/* Setup MSI */
 	if (IS_ENABLED(CONFIG_PCI_MSI)) {
-		port->msi_domain = irq_domain_add_linear(node,
+		port->msi_domain = irq_domain_add_linear(yesde,
 							 XILINX_NUM_MSI_IRQS,
 							 &msi_domain_ops,
 							 &xilinx_pcie_msi_chip);
@@ -580,11 +580,11 @@ static void xilinx_pcie_init_port(struct xilinx_pcie_port *port)
 static int xilinx_pcie_parse_dt(struct xilinx_pcie_port *port)
 {
 	struct device *dev = port->dev;
-	struct device_node *node = dev->of_node;
+	struct device_yesde *yesde = dev->of_yesde;
 	struct resource regs;
 	int err;
 
-	err = of_address_to_resource(node, 0, &regs);
+	err = of_address_to_resource(yesde, 0, &regs);
 	if (err) {
 		dev_err(dev, "missing \"reg\" property\n");
 		return err;
@@ -594,7 +594,7 @@ static int xilinx_pcie_parse_dt(struct xilinx_pcie_port *port)
 	if (IS_ERR(port->reg_base))
 		return PTR_ERR(port->reg_base);
 
-	port->irq = irq_of_parse_and_map(node, 0);
+	port->irq = irq_of_parse_and_map(yesde, 0);
 	err = devm_request_irq(dev, port->irq, xilinx_pcie_intr_handler,
 			       IRQF_SHARED | IRQF_NO_THREAD,
 			       "xilinx-pcie", port);
@@ -620,7 +620,7 @@ static int xilinx_pcie_probe(struct platform_device *pdev)
 	struct pci_host_bridge *bridge;
 	int err;
 
-	if (!dev->of_node)
+	if (!dev->of_yesde)
 		return -ENODEV;
 
 	bridge = devm_pci_alloc_host_bridge(dev, sizeof(*port));
@@ -670,7 +670,7 @@ static int xilinx_pcie_probe(struct platform_device *pdev)
 	bus = bridge->bus;
 
 	pci_assign_unassigned_bus_resources(bus);
-	list_for_each_entry(child, &bus->children, node)
+	list_for_each_entry(child, &bus->children, yesde)
 		pcie_bus_configure_settings(child);
 	pci_bus_add_devices(bus);
 	return 0;

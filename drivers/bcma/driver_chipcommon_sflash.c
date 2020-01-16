@@ -156,7 +156,7 @@ int bcma_sflash_init(struct bcma_drv_cc *cc)
 		  sflash->numblocks);
 
 	/* Prepare platform device, but don't register it yet. It's too early,
-	 * malloc (required by device_private_init) is not available yet. */
+	 * malloc (required by device_private_init) is yest available yet. */
 	bcma_sflash_dev.resource[0].end = bcma_sflash_dev.resource[0].start +
 					  sflash->size;
 	bcma_sflash_dev.dev.platform_data = sflash;

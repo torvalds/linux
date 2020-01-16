@@ -311,7 +311,7 @@ static unsigned short init4[128] = {
 };
 
 /* send an initialization array
- * Taken from the oss driver, not obvious from the doc how this
+ * Taken from the oss driver, yest obvious from the doc how this
  * is meant to work
  */
 static void
@@ -358,7 +358,7 @@ init_arrays(struct snd_emu8000 *emu)
 
 /*
  * Size the onboard memory.
- * This is written so as not to need arbitrary delays after the write. It
+ * This is written so as yest to need arbitrary delays after the write. It
  * seems that the only way to do this is to use the one channel and keep
  * reallocating between read and write.
  */
@@ -377,7 +377,7 @@ size_dram(struct snd_emu8000 *emu)
 	snd_emu8000_dma_chan(emu, 1, EMU8000_RAM_READ);
 	EMU8000_SMALW_WRITE(emu, EMU8000_DRAM_OFFSET);
 	EMU8000_SMLD_WRITE(emu, UNIQUE_ID1);
-	snd_emu8000_init_fm(emu); /* This must really be here and not 2 lines back even */
+	snd_emu8000_init_fm(emu); /* This must really be here and yest 2 lines back even */
 	snd_emu8000_write_wait(emu);
 
 	/*
@@ -404,14 +404,14 @@ size_dram(struct snd_emu8000 *emu)
 
 		/*
 		 * read the data on the just written DRAM address
-		 * if not the same then we have reached the end of ram.
+		 * if yest the same then we have reached the end of ram.
 		 */
 		/*snd_emu8000_dma_chan(emu, 0, EMU8000_RAM_READ);*/
 		EMU8000_SMALR_WRITE(emu, EMU8000_DRAM_OFFSET + (size>>1));
 		/*snd_emu8000_read_wait(emu);*/
 		EMU8000_SMLD_READ(emu); /* discard stale data  */
 		if (EMU8000_SMLD_READ(emu) != UNIQUE_ID2)
-			break; /* no memory at this address */
+			break; /* yes memory at this address */
 		snd_emu8000_read_wait(emu);
 
 		/*
@@ -509,7 +509,7 @@ snd_emu8000_init_hw(struct snd_emu8000 *emu)
 	EMU8000_HWCF1_WRITE(emu, 0x0059);
 	EMU8000_HWCF2_WRITE(emu, 0x0020);
 
-	/* disable audio; this seems to reduce a clicking noise a bit.. */
+	/* disable audio; this seems to reduce a clicking yesise a bit.. */
 	EMU8000_HWCF3_WRITE(emu, 0);
 
 	/* initialize audio channels */

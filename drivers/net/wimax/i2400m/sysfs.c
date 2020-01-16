@@ -35,7 +35,7 @@ ssize_t i2400m_idle_timeout_store(struct device *dev,
 
 	result = -EINVAL;
 	if (sscanf(buf, "%u\n", &val) != 1)
-		goto error_no_unsigned;
+		goto error_yes_unsigned;
 	if (val != 0 && (val < 100 || val > 300000 || val % 100 != 0)) {
 		dev_err(dev, "idle_timeout: %u: invalid msecs specification; "
 			"valid values are 0, 100-300000 in 100 increments\n",
@@ -45,7 +45,7 @@ ssize_t i2400m_idle_timeout_store(struct device *dev,
 	result = i2400m_set_idle_timeout(i2400m, val);
 	if (result >= 0)
 		result = size;
-error_no_unsigned:
+error_yes_unsigned:
 error_bad_value:
 	return result;
 }

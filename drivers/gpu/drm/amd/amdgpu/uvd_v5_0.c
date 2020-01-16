@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -203,7 +203,7 @@ done:
  *
  * @adev: amdgpu_device pointer
  *
- * Stop the UVD block, mark ring as not ready any more
+ * Stop the UVD block, mark ring as yest ready any more
  */
 static int uvd_v5_0_hw_fini(void *handle)
 {
@@ -248,7 +248,7 @@ static int uvd_v5_0_resume(void *handle)
  *
  * @adev: amdgpu_device pointer
  *
- * Let the UVD memory controller know it's offsets
+ * Let the UVD memory controller kyesw it's offsets
  */
 static void uvd_v5_0_mc_resume(struct amdgpu_device *adev)
 {
@@ -370,7 +370,7 @@ static int uvd_v5_0_start(struct amdgpu_device *adev)
 		if (status & 2)
 			break;
 
-		DRM_ERROR("UVD not responding, trying to reset the VCPU!!!\n");
+		DRM_ERROR("UVD yest responding, trying to reset the VCPU!!!\n");
 		WREG32_P(mmUVD_SOFT_RESET, UVD_SOFT_RESET__VCPU_SOFT_RESET_MASK,
 				~UVD_SOFT_RESET__VCPU_SOFT_RESET_MASK);
 		mdelay(10);
@@ -380,7 +380,7 @@ static int uvd_v5_0_start(struct amdgpu_device *adev)
 	}
 
 	if (r) {
-		DRM_ERROR("UVD not responding, giving up!!!\n");
+		DRM_ERROR("UVD yest responding, giving up!!!\n");
 		return r;
 	}
 	/* enable master interrupt */
@@ -537,7 +537,7 @@ static void uvd_v5_0_ring_emit_ib(struct amdgpu_ring *ring,
 	amdgpu_ring_write(ring, ib->length_dw);
 }
 
-static void uvd_v5_0_ring_insert_nop(struct amdgpu_ring *ring, uint32_t count)
+static void uvd_v5_0_ring_insert_yesp(struct amdgpu_ring *ring, uint32_t count)
 {
 	int i;
 
@@ -815,7 +815,7 @@ static void uvd_v5_0_get_clockgating_state(void *handle, u32 *flags)
 
 	if (RREG32_SMC(ixCURRENT_PG_STATUS) &
 				CURRENT_PG_STATUS__UVD_PG_STATUS_MASK) {
-		DRM_INFO("Cannot get clockgating state when UVD is powergated.\n");
+		DRM_INFO("Canyest get clockgating state when UVD is powergated.\n");
 		goto out;
 	}
 
@@ -850,19 +850,19 @@ static const struct amdgpu_ring_funcs uvd_v5_0_ring_funcs = {
 	.type = AMDGPU_RING_TYPE_UVD,
 	.align_mask = 0xf,
 	.support_64bit_ptrs = false,
-	.no_user_fence = true,
+	.yes_user_fence = true,
 	.get_rptr = uvd_v5_0_ring_get_rptr,
 	.get_wptr = uvd_v5_0_ring_get_wptr,
 	.set_wptr = uvd_v5_0_ring_set_wptr,
 	.parse_cs = amdgpu_uvd_ring_parse_cs,
 	.emit_frame_size =
-		14, /* uvd_v5_0_ring_emit_fence  x1 no user fence */
+		14, /* uvd_v5_0_ring_emit_fence  x1 yes user fence */
 	.emit_ib_size = 6, /* uvd_v5_0_ring_emit_ib */
 	.emit_ib = uvd_v5_0_ring_emit_ib,
 	.emit_fence = uvd_v5_0_ring_emit_fence,
 	.test_ring = uvd_v5_0_ring_test_ring,
 	.test_ib = amdgpu_uvd_ring_test_ib,
-	.insert_nop = uvd_v5_0_ring_insert_nop,
+	.insert_yesp = uvd_v5_0_ring_insert_yesp,
 	.pad_ib = amdgpu_ring_generic_pad_ib,
 	.begin_use = amdgpu_uvd_ring_begin_use,
 	.end_use = amdgpu_uvd_ring_end_use,
@@ -888,7 +888,7 @@ const struct amdgpu_ip_block_version uvd_v5_0_ip_block =
 {
 		.type = AMD_IP_BLOCK_TYPE_UVD,
 		.major = 5,
-		.minor = 0,
+		.miyesr = 0,
 		.rev = 0,
 		.funcs = &uvd_v5_0_ip_funcs,
 };

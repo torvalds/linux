@@ -41,7 +41,7 @@ static u64 cev_delta2ns(unsigned long latch, struct clock_event_device *evt,
 
 	/*
 	 * Upper bound sanity check. If the backwards conversion is
-	 * not equal latch, we know that the above shift overflowed.
+	 * yest equal latch, we kyesw that the above shift overflowed.
 	 */
 	if ((clc >> evt->shift) != (u64)latch)
 		clc = ~0ULL;
@@ -71,16 +71,16 @@ static u64 cev_delta2ns(unsigned long latch, struct clock_event_device *evt,
 
 	do_div(clc, evt->mult);
 
-	/* Deltas less than 1usec are pointless noise */
+	/* Deltas less than 1usec are pointless yesise */
 	return clc > 1000 ? clc : 1000;
 }
 
 /**
- * clockevents_delta2ns - Convert a latch value (device ticks) to nanoseconds
+ * clockevents_delta2ns - Convert a latch value (device ticks) to nayesseconds
  * @latch:	value to convert
  * @evt:	pointer to clock event device descriptor
  *
- * Math helper, returns latch value converted to nanoseconds (bound checked)
+ * Math helper, returns latch value converted to nayesseconds (bound checked)
  */
 u64 clockevent_delta2ns(unsigned long latch, struct clock_event_device *evt)
 {
@@ -295,8 +295,8 @@ static int clockevents_program_min_delta(struct clock_event_device *dev)
 /**
  * clockevents_program_event - Reprogram the clock event device.
  * @dev:	device to program
- * @expires:	absolute expiry time (monotonic clock)
- * @force:	program minimum delay if expires can not be set
+ * @expires:	absolute expiry time (moyestonic clock)
+ * @force:	program minimum delay if expires can yest be set
  *
  * Returns 0 on success, -ETIME when the event is in the past.
  */
@@ -337,10 +337,10 @@ int clockevents_program_event(struct clock_event_device *dev, ktime_t expires,
 }
 
 /*
- * Called after a notify add to make devices available which were
- * released from the notifier call.
+ * Called after a yestify add to make devices available which were
+ * released from the yestifier call.
  */
-static void clockevents_notify_released(void)
+static void clockevents_yestify_released(void)
 {
 	struct clock_event_device *dev;
 
@@ -463,7 +463,7 @@ void clockevents_register_device(struct clock_event_device *dev)
 
 	list_add(&dev->list, &clockevent_devices);
 	tick_check_new_device(dev);
-	clockevents_notify_released();
+	clockevents_yestify_released();
 
 	raw_spin_unlock_irqrestore(&clockevents_lock, flags);
 }
@@ -500,7 +500,7 @@ static void clockevents_config(struct clock_event_device *dev, u32 freq)
  * @min_delta:	The minimum clock ticks to program in oneshot mode
  * @max_delta:	The maximum clock ticks to program in oneshot mode
  *
- * min/max_delta can be 0 for devices which do not support oneshot mode.
+ * min/max_delta can be 0 for devices which do yest support oneshot mode.
  */
 void clockevents_config_and_register(struct clock_event_device *dev,
 				     u32 freq, unsigned long min_delta,
@@ -554,7 +554,7 @@ int clockevents_update_freq(struct clock_event_device *dev, u32 freq)
 /*
  * Noop handler when we shut down an event device
  */
-void clockevents_handle_noop(struct clock_event_device *dev)
+void clockevents_handle_yesop(struct clock_event_device *dev)
 {
 }
 
@@ -571,7 +571,7 @@ void clockevents_exchange_device(struct clock_event_device *old,
 {
 	/*
 	 * Caller releases a clock event device. We queue it into the
-	 * released list and do a notify add later.
+	 * released list and do a yestify add later.
 	 */
 	if (old) {
 		module_put(old->owner);
@@ -640,7 +640,7 @@ void tick_cleanup_dead_cpu(int cpu)
 	tick_shutdown(cpu);
 	/*
 	 * Unregister the clock event devices which were
-	 * released from the users in the notify chain.
+	 * released from the users in the yestify chain.
 	 */
 	list_for_each_entry_safe(dev, tmp, &clockevents_released, list)
 		list_del(&dev->list);

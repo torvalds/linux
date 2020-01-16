@@ -9,7 +9,7 @@ extern void tlb_remove_table(struct mmu_gather *tlb, void *table);
 #ifdef CONFIG_PPC64
 extern void tlb_flush_pgtable(struct mmu_gather *tlb, unsigned long address);
 #else
-/* 44x etc which is BOOKE not BOOK3E */
+/* 44x etc which is BOOKE yest BOOK3E */
 static inline void tlb_flush_pgtable(struct mmu_gather *tlb,
 				     unsigned long address)
 {
@@ -29,9 +29,9 @@ static inline void pgd_free(struct mm_struct *mm, pgd_t *pgd)
 }
 
 #ifdef CONFIG_PPC64
-#include <asm/nohash/64/pgalloc.h>
+#include <asm/yeshash/64/pgalloc.h>
 #else
-#include <asm/nohash/32/pgalloc.h>
+#include <asm/yeshash/32/pgalloc.h>
 #endif
 
 static inline void pgtable_free(void *table, int shift)

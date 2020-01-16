@@ -120,7 +120,7 @@ static int cs_parser(struct hl_fpriv *hpriv, struct hl_cs_job *job)
 		}
 
 		/*
-		 * Whether the parsing worked or not, we don't need the
+		 * Whether the parsing worked or yest, we don't need the
 		 * original CB anymore because it was already parsed and
 		 * won't be accessed again for this CS
 		 */
@@ -143,7 +143,7 @@ static void free_job(struct hl_device *hdev, struct hl_cs_job *job)
 
 		/*
 		 * We might arrive here from rollback and patched CB wasn't
-		 * created, so we need to check it's not NULL
+		 * created, so we need to check it's yest NULL
 		 */
 		if (job->patched_cb) {
 			spin_lock(&job->patched_cb->lock);
@@ -172,7 +172,7 @@ static void free_job(struct hl_device *hdev, struct hl_cs_job *job)
 	 * modifying the list at the same time
 	 */
 	spin_lock(&cs->job_lock);
-	list_del(&job->cs_node);
+	list_del(&job->cs_yesde);
 	spin_unlock(&cs->job_lock);
 
 	hl_debugfs_remove_job(hdev, job);
@@ -199,9 +199,9 @@ static void cs_do_release(struct kref *ref)
 	 * need to go over the internal jobs and free them. Otherwise, we
 	 * will have leaked memory and what's worse, the CS object (and
 	 * potentially the CTX object) could be released, while the JOB
-	 * still holds a pointer to them (but no reference).
+	 * still holds a pointer to them (but yes reference).
 	 */
-	list_for_each_entry_safe(job, tmp, &cs->job_list, cs_node)
+	list_for_each_entry_safe(job, tmp, &cs->job_list, cs_yesde)
 		free_job(hdev, job);
 
 	/* We also need to update CI for internal queues */
@@ -228,7 +228,7 @@ static void cs_do_release(struct kref *ref)
 
 		spin_lock(&hdev->hw_queues_mirror_lock);
 		/* remove CS from hw_queues mirror list */
-		list_del_init(&cs->mirror_node);
+		list_del_init(&cs->mirror_yesde);
 		spin_unlock(&hdev->hw_queues_mirror_lock);
 
 		/*
@@ -247,7 +247,7 @@ static void cs_do_release(struct kref *ref)
 			/* queue TDR for next CS */
 			next = list_first_entry_or_null(
 					&hdev->hw_queues_mirror_list,
-					struct hl_cs, mirror_node);
+					struct hl_cs, mirror_yesde);
 
 			if ((next) && (!next->tdr_active)) {
 				next->tdr_active = true;
@@ -381,7 +381,7 @@ static void cs_rollback(struct hl_device *hdev, struct hl_cs *cs)
 {
 	struct hl_cs_job *job, *tmp;
 
-	list_for_each_entry_safe(job, tmp, &cs->job_list, cs_node)
+	list_for_each_entry_safe(job, tmp, &cs->job_list, cs_yesde)
 		free_job(hdev, job);
 }
 
@@ -394,7 +394,7 @@ void hl_cs_rollback_all(struct hl_device *hdev)
 
 	/* Make sure we don't have leftovers in the H/W queues mirror list */
 	list_for_each_entry_safe(cs, tmp, &hdev->hw_queues_mirror_list,
-				mirror_node) {
+				mirror_yesde) {
 		cs_get(cs);
 		cs->aborted = true;
 		dev_warn_ratelimited(hdev->dev, "Killing CS %d.%llu\n",
@@ -411,7 +411,7 @@ static void job_wq_completion(struct work_struct *work)
 	struct hl_cs *cs = job->cs;
 	struct hl_device *hdev = cs->ctx->hdev;
 
-	/* job is no longer needed */
+	/* job is yes longer needed */
 	free_job(hdev, job);
 }
 
@@ -593,7 +593,7 @@ static int _hl_cs_ioctl(struct hl_fpriv *hpriv, void __user *chunks,
 
 		cs->jobs_in_queue_cnt[job->hw_queue_id]++;
 
-		list_add_tail(&job->cs_node, &cs->job_list);
+		list_add_tail(&job->cs_yesde, &cs->job_list);
 
 		/*
 		 * Increment CS reference. When CS reference is 0, CS is
@@ -690,7 +690,7 @@ int hl_cs_ioctl(struct hl_fpriv *hpriv, void *data)
 					"Failed to switch to context %d, rejecting CS! %d\n",
 					ctx->asid, rc);
 				/*
-				 * If we timedout, or if the device is not IDLE
+				 * If we timedout, or if the device is yest IDLE
 				 * while we want to do context-switch (-EBUSY),
 				 * we need to soft-reset because QMAN is
 				 * probably stuck. However, we can't call to

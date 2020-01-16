@@ -121,7 +121,7 @@ static inline unsigned long ppc_global_function_entry(void *func)
 	/* PPC64 ABIv2 the global entry point is at the address */
 	return (unsigned long)func;
 #else
-	/* All other cases there is no change vs ppc_function_entry() */
+	/* All other cases there is yes change vs ppc_function_entry() */
 	return ppc_function_entry(func);
 #endif
 }
@@ -153,7 +153,7 @@ static inline unsigned long ppc_kallsyms_lookup_name(const char *name)
 	}
 	addr = kallsyms_lookup_name(dot_name);
 	if (!addr && dot_appended)
-		/* Let's try the original non-dot symbol lookup	*/
+		/* Let's try the original yesn-dot symbol lookup	*/
 		addr = kallsyms_lookup_name(name);
 #elif defined(PPC64_ELF_ABI_v2)
 	addr = kallsyms_lookup_name(name);

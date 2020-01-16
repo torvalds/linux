@@ -12,7 +12,7 @@
 
 #ifdef __KERNEL__
 
-/* ACPICA external files should not include ACPICA headers directly. */
+/* ACPICA external files should yest include ACPICA headers directly. */
 
 #if !defined(BUILDING_ACPICA) && !defined(_LINUX_ACPI_H)
 #error "Please don't include <acpi/acpi.h> directly, include <linux/acpi.h> instead."

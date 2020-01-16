@@ -71,7 +71,7 @@ static struct l2tp_session *l2tp_nl_session_get(struct genl_info *info)
 	return session;
 }
 
-static int l2tp_nl_cmd_noop(struct sk_buff *skb, struct genl_info *info)
+static int l2tp_nl_cmd_yesop(struct sk_buff *skb, struct genl_info *info)
 {
 	struct sk_buff *msg;
 	void *hdr;
@@ -101,7 +101,7 @@ out:
 	return ret;
 }
 
-static int l2tp_tunnel_notify(struct genl_family *family,
+static int l2tp_tunnel_yestify(struct genl_family *family,
 			      struct genl_info *info,
 			      struct l2tp_tunnel *tunnel,
 			      u8 cmd)
@@ -118,7 +118,7 @@ static int l2tp_tunnel_notify(struct genl_family *family,
 
 	if (ret >= 0) {
 		ret = genlmsg_multicast_allns(family, msg, 0, 0, GFP_ATOMIC);
-		/* We don't care if no one is listening */
+		/* We don't care if yes one is listening */
 		if (ret == -ESRCH)
 			ret = 0;
 		return ret;
@@ -129,7 +129,7 @@ static int l2tp_tunnel_notify(struct genl_family *family,
 	return ret;
 }
 
-static int l2tp_session_notify(struct genl_family *family,
+static int l2tp_session_yestify(struct genl_family *family,
 			       struct genl_info *info,
 			       struct l2tp_session *session,
 			       u8 cmd)
@@ -146,7 +146,7 @@ static int l2tp_session_notify(struct genl_family *family,
 
 	if (ret >= 0) {
 		ret = genlmsg_multicast_allns(family, msg, 0, 0, GFP_ATOMIC);
-		/* We don't care if no one is listening */
+		/* We don't care if yes one is listening */
 		if (ret == -ESRCH)
 			ret = 0;
 		return ret;
@@ -251,7 +251,7 @@ static int l2tp_nl_cmd_tunnel_create(struct sk_buff *skb, struct genl_info *info
 		kfree(tunnel);
 		goto out;
 	}
-	ret = l2tp_tunnel_notify(&l2tp_nl_family, info, tunnel,
+	ret = l2tp_tunnel_yestify(&l2tp_nl_family, info, tunnel,
 				 L2TP_CMD_TUNNEL_CREATE);
 	l2tp_tunnel_dec_refcount(tunnel);
 
@@ -278,7 +278,7 @@ static int l2tp_nl_cmd_tunnel_delete(struct sk_buff *skb, struct genl_info *info
 		goto out;
 	}
 
-	l2tp_tunnel_notify(&l2tp_nl_family, info,
+	l2tp_tunnel_yestify(&l2tp_nl_family, info,
 			   tunnel, L2TP_CMD_TUNNEL_DELETE);
 
 	l2tp_tunnel_delete(tunnel);
@@ -311,7 +311,7 @@ static int l2tp_nl_cmd_tunnel_modify(struct sk_buff *skb, struct genl_info *info
 	if (info->attrs[L2TP_ATTR_DEBUG])
 		tunnel->debug = nla_get_u32(info->attrs[L2TP_ATTR_DEBUG]);
 
-	ret = l2tp_tunnel_notify(&l2tp_nl_family, info,
+	ret = l2tp_tunnel_yestify(&l2tp_nl_family, info,
 				 tunnel, L2TP_CMD_TUNNEL_MODIFY);
 
 	l2tp_tunnel_dec_refcount(tunnel);
@@ -342,7 +342,7 @@ static int l2tp_nl_tunnel_send(struct sk_buff *skb, u32 portid, u32 seq, int fla
 	    nla_put_u16(skb, L2TP_ATTR_ENCAP_TYPE, tunnel->encap))
 		goto nla_put_failure;
 
-	nest = nla_nest_start_noflag(skb, L2TP_ATTR_STATS);
+	nest = nla_nest_start_yesflag(skb, L2TP_ATTR_STATS);
 	if (nest == NULL)
 		goto nla_put_failure;
 
@@ -388,15 +388,15 @@ static int l2tp_nl_tunnel_send(struct sk_buff *skb, u32 portid, u32 seq, int fla
 	case L2TP_ENCAPTYPE_UDP:
 		switch (sk->sk_family) {
 		case AF_INET:
-			if (nla_put_u8(skb, L2TP_ATTR_UDP_CSUM, !sk->sk_no_check_tx))
+			if (nla_put_u8(skb, L2TP_ATTR_UDP_CSUM, !sk->sk_yes_check_tx))
 				goto nla_put_failure;
 			break;
 #if IS_ENABLED(CONFIG_IPV6)
 		case AF_INET6:
-			if (udp_get_no_check6_tx(sk) &&
+			if (udp_get_yes_check6_tx(sk) &&
 			    nla_put_flag(skb, L2TP_ATTR_UDP_ZERO_CSUM6_TX))
 				goto nla_put_failure;
-			if (udp_get_no_check6_rx(sk) &&
+			if (udp_get_yes_check6_rx(sk) &&
 			    nla_put_flag(skb, L2TP_ATTR_UDP_ZERO_CSUM6_RX))
 				goto nla_put_failure;
 			break;
@@ -626,7 +626,7 @@ static int l2tp_nl_cmd_session_create(struct sk_buff *skb, struct genl_info *inf
 	if (ret >= 0) {
 		session = l2tp_tunnel_get_session(tunnel, session_id);
 		if (session) {
-			ret = l2tp_session_notify(&l2tp_nl_family, info, session,
+			ret = l2tp_session_yestify(&l2tp_nl_family, info, session,
 						  L2TP_CMD_SESSION_CREATE);
 			l2tp_session_dec_refcount(session);
 		}
@@ -650,7 +650,7 @@ static int l2tp_nl_cmd_session_delete(struct sk_buff *skb, struct genl_info *inf
 		goto out;
 	}
 
-	l2tp_session_notify(&l2tp_nl_family, info,
+	l2tp_session_yestify(&l2tp_nl_family, info,
 			    session, L2TP_CMD_SESSION_DELETE);
 
 	pw_type = session->pwtype;
@@ -692,7 +692,7 @@ static int l2tp_nl_cmd_session_modify(struct sk_buff *skb, struct genl_info *inf
 	if (info->attrs[L2TP_ATTR_RECV_TIMEOUT])
 		session->reorder_timeout = nla_get_msecs(info->attrs[L2TP_ATTR_RECV_TIMEOUT]);
 
-	ret = l2tp_session_notify(&l2tp_nl_family, info,
+	ret = l2tp_session_yestify(&l2tp_nl_family, info,
 				  session, L2TP_CMD_SESSION_MODIFY);
 
 	l2tp_session_dec_refcount(session);
@@ -739,7 +739,7 @@ static int l2tp_nl_session_send(struct sk_buff *skb, u32 portid, u32 seq, int fl
 			   session->reorder_timeout, L2TP_ATTR_PAD)))
 		goto nla_put_failure;
 
-	nest = nla_nest_start_noflag(skb, L2TP_ATTR_STATS);
+	nest = nla_nest_start_yesflag(skb, L2TP_ATTR_STATS);
 	if (nest == NULL)
 		goto nla_put_failure;
 
@@ -913,7 +913,7 @@ static const struct genl_ops l2tp_nl_ops[] = {
 	{
 		.cmd = L2TP_CMD_NOOP,
 		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
-		.doit = l2tp_nl_cmd_noop,
+		.doit = l2tp_nl_cmd_yesop,
 		/* can be retrieved by unprivileged users */
 	},
 	{

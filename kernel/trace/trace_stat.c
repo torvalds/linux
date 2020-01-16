@@ -19,12 +19,12 @@
 
 
 /*
- * List of stat red-black nodes from a tracer
+ * List of stat red-black yesdes from a tracer
  * We use a such tree to sort quickly the stat
  * entries from the tracer.
  */
-struct stat_node {
-	struct rb_node		node;
+struct stat_yesde {
+	struct rb_yesde		yesde;
 	void			*stat;
 };
 
@@ -46,12 +46,12 @@ static struct dentry		*stat_dir;
 
 static void __reset_stat_session(struct stat_session *session)
 {
-	struct stat_node *snode, *n;
+	struct stat_yesde *syesde, *n;
 
-	rbtree_postorder_for_each_entry_safe(snode, n, &session->stat_root, node) {
+	rbtree_postorder_for_each_entry_safe(syesde, n, &session->stat_root, yesde) {
 		if (session->ts->stat_release)
-			session->ts->stat_release(snode->stat);
-		kfree(snode);
+			session->ts->stat_release(syesde->stat);
+		kfree(syesde);
 	}
 
 	session->stat_root = RB_ROOT;
@@ -74,8 +74,8 @@ static void destroy_session(struct stat_session *session)
 
 static int insert_stat(struct rb_root *root, void *stat, cmp_func_t cmp)
 {
-	struct rb_node **new = &(root->rb_node), *parent = NULL;
-	struct stat_node *data;
+	struct rb_yesde **new = &(root->rb_yesde), *parent = NULL;
+	struct stat_yesde *data;
 
 	data = kzalloc(sizeof(*data), GFP_KERNEL);
 	if (!data)
@@ -83,14 +83,14 @@ static int insert_stat(struct rb_root *root, void *stat, cmp_func_t cmp)
 	data->stat = stat;
 
 	/*
-	 * Figure out where to put new node
+	 * Figure out where to put new yesde
 	 * This is a descendent sorting
 	 */
 	while (*new) {
-		struct stat_node *this;
+		struct stat_yesde *this;
 		int result;
 
-		this = container_of(*new, struct stat_node, node);
+		this = container_of(*new, struct stat_yesde, yesde);
 		result = cmp(data->stat, this->stat);
 
 		parent = *new;
@@ -100,14 +100,14 @@ static int insert_stat(struct rb_root *root, void *stat, cmp_func_t cmp)
 			new = &((*new)->rb_right);
 	}
 
-	rb_link_node(&data->node, parent, new);
-	rb_insert_color(&data->node, root);
+	rb_link_yesde(&data->yesde, parent, new);
+	rb_insert_color(&data->yesde, root);
 	return 0;
 }
 
 /*
  * For tracers that don't provide a stat_cmp callback.
- * This one will force an insertion as right-most node
+ * This one will force an insertion as right-most yesde
  * in the rbtree.
  */
 static int dummy_cmp(const void *p1, const void *p2)
@@ -171,7 +171,7 @@ exit_free_rbtree:
 static void *stat_seq_start(struct seq_file *s, loff_t *pos)
 {
 	struct stat_session *session = s->private;
-	struct rb_node *node;
+	struct rb_yesde *yesde;
 	int n = *pos;
 	int i;
 
@@ -185,24 +185,24 @@ static void *stat_seq_start(struct seq_file *s, loff_t *pos)
 		n--;
 	}
 
-	node = rb_first(&session->stat_root);
-	for (i = 0; node && i < n; i++)
-		node = rb_next(node);
+	yesde = rb_first(&session->stat_root);
+	for (i = 0; yesde && i < n; i++)
+		yesde = rb_next(yesde);
 
-	return node;
+	return yesde;
 }
 
 static void *stat_seq_next(struct seq_file *s, void *p, loff_t *pos)
 {
 	struct stat_session *session = s->private;
-	struct rb_node *node = p;
+	struct rb_yesde *yesde = p;
 
 	(*pos)++;
 
 	if (p == SEQ_START_TOKEN)
 		return rb_first(&session->stat_root);
 
-	return rb_next(node);
+	return rb_next(yesde);
 }
 
 static void stat_seq_stop(struct seq_file *s, void *p)
@@ -214,7 +214,7 @@ static void stat_seq_stop(struct seq_file *s, void *p)
 static int stat_seq_show(struct seq_file *s, void *v)
 {
 	struct stat_session *session = s->private;
-	struct stat_node *l = container_of(v, struct stat_node, node);
+	struct stat_yesde *l = container_of(v, struct stat_yesde, yesde);
 
 	if (v == SEQ_START_TOKEN)
 		return session->ts->stat_headers(s);
@@ -230,11 +230,11 @@ static const struct seq_operations trace_stat_seq_ops = {
 };
 
 /* The session stat is refilled and resorted at each stat file opening */
-static int tracing_stat_open(struct inode *inode, struct file *file)
+static int tracing_stat_open(struct iyesde *iyesde, struct file *file)
 {
 	int ret;
 	struct seq_file *m;
-	struct stat_session *session = inode->i_private;
+	struct stat_session *session = iyesde->i_private;
 
 	ret = security_locked_down(LOCKDOWN_TRACEFS);
 	if (ret)
@@ -256,9 +256,9 @@ static int tracing_stat_open(struct inode *inode, struct file *file)
 }
 
 /*
- * Avoid consuming memory with our now useless rbtree.
+ * Avoid consuming memory with our yesw useless rbtree.
  */
-static int tracing_stat_release(struct inode *i, struct file *f)
+static int tracing_stat_release(struct iyesde *i, struct file *f)
 {
 	struct stat_session *session = i->i_private;
 
@@ -284,7 +284,7 @@ static int tracing_stat_init(void)
 
 	stat_dir = tracefs_create_dir("trace_stat", d_tracing);
 	if (!stat_dir)
-		pr_warn("Could not create tracefs 'trace_stat' entry\n");
+		pr_warn("Could yest create tracefs 'trace_stat' entry\n");
 	return 0;
 }
 
@@ -303,7 +303,7 @@ static int init_stat_file(struct stat_session *session)
 
 int register_stat_tracer(struct tracer_stat *trace)
 {
-	struct stat_session *session, *node;
+	struct stat_session *session, *yesde;
 	int ret;
 
 	if (!trace)
@@ -314,8 +314,8 @@ int register_stat_tracer(struct tracer_stat *trace)
 
 	/* Already registered? */
 	mutex_lock(&all_stat_sessions_mutex);
-	list_for_each_entry(node, &all_stat_sessions, session_list) {
-		if (node->ts == trace) {
+	list_for_each_entry(yesde, &all_stat_sessions, session_list) {
+		if (yesde->ts == trace) {
 			mutex_unlock(&all_stat_sessions_mutex);
 			return -EINVAL;
 		}
@@ -347,13 +347,13 @@ int register_stat_tracer(struct tracer_stat *trace)
 
 void unregister_stat_tracer(struct tracer_stat *trace)
 {
-	struct stat_session *node, *tmp;
+	struct stat_session *yesde, *tmp;
 
 	mutex_lock(&all_stat_sessions_mutex);
-	list_for_each_entry_safe(node, tmp, &all_stat_sessions, session_list) {
-		if (node->ts == trace) {
-			list_del(&node->session_list);
-			destroy_session(node);
+	list_for_each_entry_safe(yesde, tmp, &all_stat_sessions, session_list) {
+		if (yesde->ts == trace) {
+			list_del(&yesde->session_list);
+			destroy_session(yesde);
 			break;
 		}
 	}

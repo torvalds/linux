@@ -53,7 +53,7 @@ extern char __ctors_start[], __ctors_end[];
 /* Start and end of .opd section - used for function descriptors. */
 extern char __start_opd[], __end_opd[];
 
-extern __visible const void __nosave_begin, __nosave_end;
+extern __visible const void __yessave_begin, __yessave_end;
 
 /* Function descriptor handling (if any).  Override in asm/sections.h */
 #ifndef dereference_function_descriptor
@@ -110,7 +110,7 @@ static inline bool memory_contains(void *begin, void *end, void *virt,
 
 /**
  * memory_intersects - checks if the region occupied by an object intersects
- *                     with another memory region
+ *                     with ayesther memory region
  * @begin: virtual address of the beginning of the memory regien
  * @end: virtual address of the end of the memory region
  * @virt: virtual address of the memory object

@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -124,7 +124,7 @@ static int pm_create_runlist_ib(struct packet_manager *pm,
 	unsigned int alloc_size_bytes;
 	unsigned int *rl_buffer, rl_wptr, i;
 	int retval, proccesses_mapped;
-	struct device_process_node *cur;
+	struct device_process_yesde *cur;
 	struct qcm_process_device *qpd;
 	struct queue *q;
 	struct kernel_queue *kq;
@@ -148,7 +148,7 @@ static int pm_create_runlist_ib(struct packet_manager *pm,
 		qpd = cur->qpd;
 		/* build map process packet */
 		if (proccesses_mapped >= pm->dqm->processes_count) {
-			pr_debug("Not enough space left in runlist IB\n");
+			pr_debug("Not eyesugh space left in runlist IB\n");
 			pm_release_ib(pm);
 			return -ENOMEM;
 		}

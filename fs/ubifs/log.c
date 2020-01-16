@@ -11,7 +11,7 @@
 /*
  * This file is a part of UBIFS journal implementation and contains various
  * functions which manipulate the log. The log is a fixed area on the flash
- * which does not contain any data but refers to buds. The log is a part of the
+ * which does yest contain any data but refers to buds. The log is a part of the
  * journal.
  */
 
@@ -25,15 +25,15 @@ static int dbg_check_bud_bytes(struct ubifs_info *c);
  * @lnum: logical eraseblock number to search
  *
  * This function searches bud LEB @lnum. Returns bud description object in case
- * of success and %NULL if there is no bud with this LEB number.
+ * of success and %NULL if there is yes bud with this LEB number.
  */
 struct ubifs_bud *ubifs_search_bud(struct ubifs_info *c, int lnum)
 {
-	struct rb_node *p;
+	struct rb_yesde *p;
 	struct ubifs_bud *bud;
 
 	spin_lock(&c->buds_lock);
-	p = c->buds.rb_node;
+	p = c->buds.rb_yesde;
 	while (p) {
 		bud = rb_entry(p, struct ubifs_bud, rb);
 		if (lnum < bud->lnum)
@@ -54,11 +54,11 @@ struct ubifs_bud *ubifs_search_bud(struct ubifs_info *c, int lnum)
  * @c: UBIFS file-system description object
  * @lnum: logical eraseblock number to search
  *
- * This functions returns the wbuf for @lnum or %NULL if there is not one.
+ * This functions returns the wbuf for @lnum or %NULL if there is yest one.
  */
 struct ubifs_wbuf *ubifs_get_wbuf(struct ubifs_info *c, int lnum)
 {
-	struct rb_node *p;
+	struct rb_yesde *p;
 	struct ubifs_bud *bud;
 	int jhead;
 
@@ -66,7 +66,7 @@ struct ubifs_wbuf *ubifs_get_wbuf(struct ubifs_info *c, int lnum)
 		return NULL;
 
 	spin_lock(&c->buds_lock);
-	p = c->buds.rb_node;
+	p = c->buds.rb_yesde;
 	while (p) {
 		bud = rb_entry(p, struct ubifs_bud, rb);
 		if (lnum < bud->lnum)
@@ -111,12 +111,12 @@ static inline long long empty_log_bytes(const struct ubifs_info *c)
  */
 void ubifs_add_bud(struct ubifs_info *c, struct ubifs_bud *bud)
 {
-	struct rb_node **p, *parent = NULL;
+	struct rb_yesde **p, *parent = NULL;
 	struct ubifs_bud *b;
 	struct ubifs_jhead *jhead;
 
 	spin_lock(&c->buds_lock);
-	p = &c->buds.rb_node;
+	p = &c->buds.rb_yesde;
 	while (*p) {
 		parent = *p;
 		b = rb_entry(parent, struct ubifs_bud, rb);
@@ -127,7 +127,7 @@ void ubifs_add_bud(struct ubifs_info *c, struct ubifs_bud *bud)
 			p = &(*p)->rb_right;
 	}
 
-	rb_link_node(&bud->rb, parent, p);
+	rb_link_yesde(&bud->rb, parent, p);
 	rb_insert_color(&bud->rb, &c->buds);
 	if (c->jheads) {
 		jhead = &c->jheads[bud->jhead];
@@ -136,7 +136,7 @@ void ubifs_add_bud(struct ubifs_info *c, struct ubifs_bud *bud)
 		ubifs_assert(c, c->replaying && c->ro_mount);
 
 	/*
-	 * Note, although this is a new bud, we anyway account this space now,
+	 * Note, although this is a new bud, we anyway account this space yesw,
 	 * before any data has been written to it, because this is about to
 	 * guarantee fixed mount time, and this bud will anyway be read and
 	 * scanned.
@@ -155,8 +155,8 @@ void ubifs_add_bud(struct ubifs_info *c, struct ubifs_bud *bud)
  * @lnum: LEB number of the bud
  * @offs: starting offset of the bud
  *
- * This function writes a reference node for the new bud LEB @lnum to the log,
- * and adds it to the buds trees. It also makes sure that log size does not
+ * This function writes a reference yesde for the new bud LEB @lnum to the log,
+ * and adds it to the buds trees. It also makes sure that log size does yest
  * exceed the 'c->max_bud_bytes' limit. Returns zero in case of success,
  * %-EAGAIN if commit is required, and a negative error code in case of
  * failure.
@@ -165,12 +165,12 @@ int ubifs_add_bud_to_log(struct ubifs_info *c, int jhead, int lnum, int offs)
 {
 	int err;
 	struct ubifs_bud *bud;
-	struct ubifs_ref_node *ref;
+	struct ubifs_ref_yesde *ref;
 
 	bud = kmalloc(sizeof(struct ubifs_bud), GFP_NOFS);
 	if (!bud)
 		return -ENOMEM;
-	ref = kzalloc(c->ref_node_alsz, GFP_NOFS);
+	ref = kzalloc(c->ref_yesde_alsz, GFP_NOFS);
 	if (!ref) {
 		kfree(bud);
 		return -ENOMEM;
@@ -183,9 +183,9 @@ int ubifs_add_bud_to_log(struct ubifs_info *c, int jhead, int lnum, int offs)
 		goto out_unlock;
 	}
 
-	/* Make sure we have enough space in the log */
-	if (empty_log_bytes(c) - c->ref_node_alsz < c->min_log_bytes) {
-		dbg_log("not enough log space - %lld, required %d",
+	/* Make sure we have eyesugh space in the log */
+	if (empty_log_bytes(c) - c->ref_yesde_alsz < c->min_log_bytes) {
+		dbg_log("yest eyesugh log space - %lld, required %d",
 			empty_log_bytes(c), c->min_log_bytes);
 		ubifs_commit_required(c);
 		err = -EAGAIN;
@@ -193,11 +193,11 @@ int ubifs_add_bud_to_log(struct ubifs_info *c, int jhead, int lnum, int offs)
 	}
 
 	/*
-	 * Make sure the amount of space in buds will not exceed the
+	 * Make sure the amount of space in buds will yest exceed the
 	 * 'c->max_bud_bytes' limit, because we want to guarantee mount time
 	 * limits.
 	 *
-	 * It is not necessary to hold @c->buds_lock when reading @c->bud_bytes
+	 * It is yest necessary to hold @c->buds_lock when reading @c->bud_bytes
 	 * because we are holding @c->log_mutex. All @c->bud_bytes take place
 	 * when both @c->log_mutex and @c->bud_bytes are locked.
 	 */
@@ -210,7 +210,7 @@ int ubifs_add_bud_to_log(struct ubifs_info *c, int jhead, int lnum, int offs)
 	}
 
 	/*
-	 * If the journal is full enough - start background commit. Note, it is
+	 * If the journal is full eyesugh - start background commit. Note, it is
 	 * OK to read 'c->cmt_state' without spinlock because integer reads
 	 * are atomic in the kernel.
 	 */
@@ -226,12 +226,12 @@ int ubifs_add_bud_to_log(struct ubifs_info *c, int jhead, int lnum, int offs)
 	bud->jhead = jhead;
 	bud->log_hash = NULL;
 
-	ref->ch.node_type = UBIFS_REF_NODE;
+	ref->ch.yesde_type = UBIFS_REF_NODE;
 	ref->lnum = cpu_to_le32(bud->lnum);
 	ref->offs = cpu_to_le32(bud->start);
 	ref->jhead = cpu_to_le32(jhead);
 
-	if (c->lhead_offs > c->leb_size - c->ref_node_alsz) {
+	if (c->lhead_offs > c->leb_size - c->ref_yesde_alsz) {
 		c->lhead_lnum = ubifs_next_log_lnum(c, c->lhead_lnum);
 		ubifs_assert(c, c->lhead_lnum != c->ltail_lnum);
 		c->lhead_offs = 0;
@@ -250,7 +250,7 @@ int ubifs_add_bud_to_log(struct ubifs_info *c, int jhead, int lnum, int offs)
 		 * to the log, we have to make sure it is mapped, because
 		 * otherwise we'd risk to refer an LEB with garbage in case of
 		 * an unclean reboot, because the target LEB might have been
-		 * unmapped, but not yet physically erased.
+		 * unmapped, but yest yet physically erased.
 		 */
 		err = ubifs_leb_map(c, bud->lnum);
 		if (err)
@@ -259,7 +259,7 @@ int ubifs_add_bud_to_log(struct ubifs_info *c, int jhead, int lnum, int offs)
 
 	dbg_log("write ref LEB %d:%d",
 		c->lhead_lnum, c->lhead_offs);
-	err = ubifs_write_node(c, ref, UBIFS_REF_NODE_SZ, c->lhead_lnum,
+	err = ubifs_write_yesde(c, ref, UBIFS_REF_NODE_SZ, c->lhead_lnum,
 			       c->lhead_offs);
 	if (err)
 		goto out_unlock;
@@ -272,7 +272,7 @@ int ubifs_add_bud_to_log(struct ubifs_info *c, int jhead, int lnum, int offs)
 	if (err)
 		goto out_unlock;
 
-	c->lhead_offs += c->ref_node_alsz;
+	c->lhead_offs += c->ref_yesde_alsz;
 
 	ubifs_add_bud(c, bud);
 
@@ -291,19 +291,19 @@ out_unlock:
  * remove_buds - remove used buds.
  * @c: UBIFS file-system description object
  *
- * This function removes use buds from the buds tree. It does not remove the
+ * This function removes use buds from the buds tree. It does yest remove the
  * buds which are pointed to by journal heads.
  */
 static void remove_buds(struct ubifs_info *c)
 {
-	struct rb_node *p;
+	struct rb_yesde *p;
 
 	ubifs_assert(c, list_empty(&c->old_buds));
 	c->cmt_bud_bytes = 0;
 	spin_lock(&c->buds_lock);
 	p = rb_first(&c->buds);
 	while (p) {
-		struct rb_node *p1 = p;
+		struct rb_yesde *p1 = p;
 		struct ubifs_bud *bud;
 		struct ubifs_wbuf *wbuf;
 
@@ -313,8 +313,8 @@ static void remove_buds(struct ubifs_info *c)
 
 		if (wbuf->lnum == bud->lnum) {
 			/*
-			 * Do not remove buds which are pointed to by journal
-			 * heads (non-closed buds).
+			 * Do yest remove buds which are pointed to by journal
+			 * heads (yesn-closed buds).
 			 */
 			c->cmt_bud_bytes += wbuf->offs - bud->start;
 			dbg_log("preserve %d:%d, jhead %s, bud bytes %d, cmt_bud_bytes %lld",
@@ -328,10 +328,10 @@ static void remove_buds(struct ubifs_info *c)
 				c->leb_size - bud->start, c->cmt_bud_bytes);
 			rb_erase(p1, &c->buds);
 			/*
-			 * If the commit does not finish, the recovery will need
+			 * If the commit does yest finish, the recovery will need
 			 * to replay the journal, in which case the old buds
-			 * must be unchanged. Do not release them until post
-			 * commit i.e. do not allow them to be garbage
+			 * must be unchanged. Do yest release them until post
+			 * commit i.e. do yest allow them to be garbage
 			 * collected.
 			 */
 			list_move(&bud->list, &c->old_buds);
@@ -345,9 +345,9 @@ static void remove_buds(struct ubifs_info *c)
  * @c: UBIFS file-system description object
  * @ltail_lnum: return new log tail LEB number
  *
- * The commit operation starts with writing "commit start" node to the log and
- * reference nodes for all journal heads which will define new journal after
- * the commit has been finished. The commit start and reference nodes are
+ * The commit operation starts with writing "commit start" yesde to the log and
+ * reference yesdes for all journal heads which will define new journal after
+ * the commit has been finished. The commit start and reference yesdes are
  * written in one go to the nearest empty log LEB (hence, when commit is
  * finished UBIFS may safely unmap all the previous log LEBs). This function
  * returns zero in case of success and a negative error code in case of
@@ -356,8 +356,8 @@ static void remove_buds(struct ubifs_info *c)
 int ubifs_log_start_commit(struct ubifs_info *c, int *ltail_lnum)
 {
 	void *buf;
-	struct ubifs_cs_node *cs;
-	struct ubifs_ref_node *ref;
+	struct ubifs_cs_yesde *cs;
+	struct ubifs_ref_yesde *ref;
 	int err, i, max_len, len;
 
 	err = dbg_check_bud_bytes(c);
@@ -370,9 +370,9 @@ int ubifs_log_start_commit(struct ubifs_info *c, int *ltail_lnum)
 	if (!buf)
 		return -ENOMEM;
 
-	cs->ch.node_type = UBIFS_CS_NODE;
-	cs->cmt_no = cpu_to_le64(c->cmt_no);
-	ubifs_prepare_node(c, cs, UBIFS_CS_NODE_SZ, 0);
+	cs->ch.yesde_type = UBIFS_CS_NODE;
+	cs->cmt_yes = cpu_to_le64(c->cmt_yes);
+	ubifs_prepare_yesde(c, cs, UBIFS_CS_NODE_SZ, 0);
 
 	err = ubifs_shash_init(c, c->log_hash);
 	if (err)
@@ -383,9 +383,9 @@ int ubifs_log_start_commit(struct ubifs_info *c, int *ltail_lnum)
 		goto out;
 
 	/*
-	 * Note, we do not lock 'c->log_mutex' because this is the commit start
-	 * phase and we are exclusively using the log. And we do not lock
-	 * write-buffer because nobody can write to the file-system at this
+	 * Note, we do yest lock 'c->log_mutex' because this is the commit start
+	 * phase and we are exclusively using the log. And we do yest lock
+	 * write-buffer because yesbody can write to the file-system at this
 	 * phase.
 	 */
 
@@ -400,12 +400,12 @@ int ubifs_log_start_commit(struct ubifs_info *c, int *ltail_lnum)
 		dbg_log("add ref to LEB %d:%d for jhead %s",
 			lnum, offs, dbg_jhead(i));
 		ref = buf + len;
-		ref->ch.node_type = UBIFS_REF_NODE;
+		ref->ch.yesde_type = UBIFS_REF_NODE;
 		ref->lnum = cpu_to_le32(lnum);
 		ref->offs = cpu_to_le32(offs);
 		ref->jhead = cpu_to_le32(i);
 
-		ubifs_prepare_node(c, ref, UBIFS_REF_NODE_SZ, 0);
+		ubifs_prepare_yesde(c, ref, UBIFS_REF_NODE_SZ, 0);
 		len += UBIFS_REF_NODE_SZ;
 
 		err = ubifs_shash_update(c, c->log_hash, ref,
@@ -443,7 +443,7 @@ int ubifs_log_start_commit(struct ubifs_info *c, int *ltail_lnum)
 	remove_buds(c);
 
 	/*
-	 * We have started the commit and now users may use the rest of the log
+	 * We have started the commit and yesw users may use the rest of the log
 	 * for new writes.
 	 */
 	c->min_log_bytes = 0;
@@ -459,7 +459,7 @@ out:
  * @ltail_lnum: new log tail LEB number
  *
  * This function is called on when the commit operation was finished. It
- * moves log tail to new position and updates the master node so that it stores
+ * moves log tail to new position and updates the master yesde so that it stores
  * the new log tail LEB number. Returns zero in case of success and a negative
  * error code in case of failure.
  */
@@ -479,8 +479,8 @@ int ubifs_log_end_commit(struct ubifs_info *c, int ltail_lnum)
 
 	c->ltail_lnum = ltail_lnum;
 	/*
-	 * The commit is finished and from now on it must be guaranteed that
-	 * there is always enough space for the next commit.
+	 * The commit is finished and from yesw on it must be guaranteed that
+	 * there is always eyesugh space for the next commit.
 	 */
 	c->min_log_bytes = c->leb_size;
 
@@ -542,11 +542,11 @@ out:
 
 /**
  * struct done_ref - references that have been done.
- * @rb: rb-tree node
+ * @rb: rb-tree yesde
  * @lnum: LEB number
  */
 struct done_ref {
-	struct rb_node rb;
+	struct rb_yesde rb;
 	int lnum;
 };
 
@@ -555,12 +555,12 @@ struct done_ref {
  * @done_tree: rb-tree to store references that have been done
  * @lnum: LEB number of reference
  *
- * This function returns %1 if the reference has been done, %0 if not, otherwise
+ * This function returns %1 if the reference has been done, %0 if yest, otherwise
  * a negative error code is returned.
  */
 static int done_already(struct rb_root *done_tree, int lnum)
 {
-	struct rb_node **p = &done_tree->rb_node, *parent = NULL;
+	struct rb_yesde **p = &done_tree->rb_yesde, *parent = NULL;
 	struct done_ref *dr;
 
 	while (*p) {
@@ -580,7 +580,7 @@ static int done_already(struct rb_root *done_tree, int lnum)
 
 	dr->lnum = lnum;
 
-	rb_link_node(&dr->rb, parent, p);
+	rb_link_yesde(&dr->rb, parent, p);
 	rb_insert_color(&dr->rb, done_tree);
 
 	return 0;
@@ -599,19 +599,19 @@ static void destroy_done_tree(struct rb_root *done_tree)
 }
 
 /**
- * add_node - add a node to the consolidated log.
+ * add_yesde - add a yesde to the consolidated log.
  * @c: UBIFS file-system description object
  * @buf: buffer to which to add
  * @lnum: LEB number to which to write is passed and returned here
  * @offs: offset to where to write is passed and returned here
- * @node: node to add
+ * @yesde: yesde to add
  *
  * This function returns %0 on success and a negative error code on failure.
  */
-static int add_node(struct ubifs_info *c, void *buf, int *lnum, int *offs,
-		    void *node)
+static int add_yesde(struct ubifs_info *c, void *buf, int *lnum, int *offs,
+		    void *yesde)
 {
-	struct ubifs_ch *ch = node;
+	struct ubifs_ch *ch = yesde;
 	int len = le32_to_cpu(ch->len), remains = c->leb_size - *offs;
 
 	if (len > remains) {
@@ -624,7 +624,7 @@ static int add_node(struct ubifs_info *c, void *buf, int *lnum, int *offs,
 		*lnum = ubifs_next_log_lnum(c, *lnum);
 		*offs = 0;
 	}
-	memcpy(buf + *offs, node, len);
+	memcpy(buf + *offs, yesde, len);
 	*offs += ALIGN(len, 8);
 	return 0;
 }
@@ -634,15 +634,15 @@ static int add_node(struct ubifs_info *c, void *buf, int *lnum, int *offs,
  * @c: UBIFS file-system description object
  *
  * Repeated failed commits could cause the log to be full, but at least 1 LEB is
- * needed for commit. This function rewrites the reference nodes in the log
- * omitting duplicates, and failed CS nodes, and leaving no gaps.
+ * needed for commit. This function rewrites the reference yesdes in the log
+ * omitting duplicates, and failed CS yesdes, and leaving yes gaps.
  *
  * This function returns %0 on success and a negative error code on failure.
  */
 int ubifs_consolidate_log(struct ubifs_info *c)
 {
 	struct ubifs_scan_leb *sleb;
-	struct ubifs_scan_node *snod;
+	struct ubifs_scan_yesde *syesd;
 	struct rb_root done_tree = RB_ROOT;
 	int lnum, err, first = 1, write_lnum, offs = 0;
 	void *buf;
@@ -660,18 +660,18 @@ int ubifs_consolidate_log(struct ubifs_info *c)
 			err = PTR_ERR(sleb);
 			goto out_free;
 		}
-		list_for_each_entry(snod, &sleb->nodes, list) {
-			switch (snod->type) {
+		list_for_each_entry(syesd, &sleb->yesdes, list) {
+			switch (syesd->type) {
 			case UBIFS_REF_NODE: {
-				struct ubifs_ref_node *ref = snod->node;
+				struct ubifs_ref_yesde *ref = syesd->yesde;
 				int ref_lnum = le32_to_cpu(ref->lnum);
 
 				err = done_already(&done_tree, ref_lnum);
 				if (err < 0)
 					goto out_scan;
 				if (err != 1) {
-					err = add_node(c, buf, &write_lnum,
-						       &offs, snod->node);
+					err = add_yesde(c, buf, &write_lnum,
+						       &offs, syesd->yesde);
 					if (err)
 						goto out_scan;
 				}
@@ -680,8 +680,8 @@ int ubifs_consolidate_log(struct ubifs_info *c)
 			case UBIFS_CS_NODE:
 				if (!first)
 					break;
-				err = add_node(c, buf, &write_lnum, &offs,
-					       snod->node);
+				err = add_yesde(c, buf, &write_lnum, &offs,
+					       syesd->yesde);
 				if (err)
 					goto out_scan;
 				first = 0;

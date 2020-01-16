@@ -130,8 +130,8 @@ void smp_callin(void)
 	mmgrab(&init_mm);
 	current->active_mm = &init_mm;
 
-	/* inform the notifiers about the new cpu */
-	notify_cpu_starting(cpuid);
+	/* inform the yestifiers about the new cpu */
+	yestify_cpu_starting(cpuid);
 
 	while (!cpumask_test_cpu(cpuid, &smp_commenced_mask))
 		rmb();
@@ -269,7 +269,7 @@ static void smp_synchronize_one_tick(int cpu)
 	while (!go[MASTER])
 		rmb();
 
-	/* now let the client proceed into his loop */
+	/* yesw let the client proceed into his loop */
 	go[MASTER] = 0;
 	membar_safe("#StoreLoad");
 
@@ -305,7 +305,7 @@ static void ldom_startcpu_cpuid(unsigned int cpu, unsigned long thread_reg,
 			 num_kernel_image_mappings - 1),
 			GFP_KERNEL);
 	if (!hdesc) {
-		printk(KERN_ERR "ldom_startcpu_cpuid: Cannot allocate "
+		printk(KERN_ERR "ldom_startcpu_cpuid: Canyest allocate "
 		       "hvtramp_descr.\n");
 		return;
 	}
@@ -372,7 +372,7 @@ static int smp_boot_one_cpu(unsigned int cpu, struct task_struct *idle)
 #endif
 			prom_startcpu_cpuid(cpu, entry, cookie);
 	} else {
-		struct device_node *dp = of_find_node_by_cpuid(cpu);
+		struct device_yesde *dp = of_find_yesde_by_cpuid(cpu);
 
 		prom_startcpu(dp->phandle, entry, cookie);
 	}
@@ -479,8 +479,8 @@ static void spitfire_xcall_deliver(struct trap_per_cpu *tb, int cnt)
 		spitfire_xcall_helper(data0, data1, data2, pstate, cpu_list[i]);
 }
 
-/* Cheetah now allows to send the whole 64-bytes of data in the interrupt
- * packet, but we have no use for that.  However we do take advantage of
+/* Cheetah yesw allows to send the whole 64-bytes of data in the interrupt
+ * packet, but we have yes use for that.  However we do take advantage of
  * the new pipelining feature (ie. dispatch to multiple cpus simultaneously).
  */
 static void cheetah_xcall_deliver(struct trap_per_cpu *tb, int cnt)
@@ -512,7 +512,7 @@ retry:
 			     "stxa	%1, [%4] %6\n\t"
 			     "stxa	%2, [%5] %6\n\t"
 			     "membar	#Sync\n\t"
-			     : /* no outputs */
+			     : /* yes outputs */
 			     : "r" (mondo[0]), "r" (mondo[1]), "r" (mondo[2]),
 			       "r" (0x40), "r" (0x50), "r" (0x60),
 			       "i" (ASI_INTR_W));
@@ -540,7 +540,7 @@ retry:
 			__asm__ __volatile__(
 				"stxa	%%g0, [%0] %1\n\t"
 				"membar	#Sync\n\t"
-				: /* no outputs */
+				: /* yes outputs */
 				: "r" (target), "i" (ASI_INTR_W));
 			nack_busy_id++;
 			if (nack_busy_id == 32) {
@@ -586,7 +586,7 @@ retry:
 				     : : "r" (pstate));
 
 		if (dispatch_stat & busy_mask) {
-			/* Busy bits will not clear, continue instead
+			/* Busy bits will yest clear, continue instead
 			 * of freezing up on this cpu.
 			 */
 			printk("CPU[%d]: mondo stuckage result[%016llx]\n",
@@ -599,7 +599,7 @@ retry:
 			 */
 			udelay(2 * nack_busy_id);
 
-			/* Clear out the mask bits for cpus which did not
+			/* Clear out the mask bits for cpus which did yest
 			 * NACK us.
 			 */
 			for (i = 0; i < cnt; i++) {
@@ -634,7 +634,7 @@ retry:
 /* Multi-cpu list version.
  *
  * Deliver xcalls to 'cnt' number of cpus in 'cpu_list'.
- * Sometimes not all cpus receive the mondo, requiring us to re-send
+ * Sometimes yest all cpus receive the mondo, requiring us to re-send
  * the mondo until all cpus have received, or cpus are truly stuck
  * unable to receive mondo, and we timeout.
  * Occasionally a target cpu strand is borrowed briefly by hypervisor to
@@ -653,7 +653,7 @@ static void hypervisor_xcall_deliver(struct trap_per_cpu *tb, int cnt)
 	unsigned long xc_rcvd = 0;
 	unsigned long status;
 	int ecpuerror_id = 0;
-	int enocpu_id = 0;
+	int eyescpu_id = 0;
 	u16 *cpu_list;
 	u16 cpu;
 
@@ -677,7 +677,7 @@ static void hypervisor_xcall_deliver(struct trap_per_cpu *tb, int cnt)
 		if (likely(status == HV_EOK))
 			goto xcall_done;
 
-		/* If not these non-fatal errors, panic */
+		/* If yest these yesn-fatal errors, panic */
 		if (unlikely((status != HV_EWOULDBLOCK) &&
 			(status != HV_ECPUERROR) &&
 			(status != HV_ENOCPU)))
@@ -686,21 +686,21 @@ static void hypervisor_xcall_deliver(struct trap_per_cpu *tb, int cnt)
 		/* First, see if we made any forward progress.
 		 *
 		 * Go through the cpu_list, count the target cpus that have
-		 * received our mondo (n_sent), and those that did not (rem).
+		 * received our mondo (n_sent), and those that did yest (rem).
 		 * Re-pack cpu_list with the cpus remain to be retried in the
 		 * front - this simplifies tracking the truly stalled cpus.
 		 *
 		 * The hypervisor indicates successful sends by setting
 		 * cpu list entries to the value 0xffff.
 		 *
-		 * EWOULDBLOCK means some target cpus did not receive the
+		 * EWOULDBLOCK means some target cpus did yest receive the
 		 * mondo and retry usually helps.
 		 *
 		 * ECPUERROR means at least one target cpu is in error state,
 		 * it's usually safe to skip the faulty cpu and retry.
 		 *
 		 * ENOCPU means one of the target cpu doesn't belong to the
-		 * domain, perhaps offlined which is unexpected, but not
+		 * domain, perhaps offlined which is unexpected, but yest
 		 * fatal and it's okay to skip the offlined cpu.
 		 */
 		rem = 0;
@@ -713,7 +713,7 @@ static void hypervisor_xcall_deliver(struct trap_per_cpu *tb, int cnt)
 				(sun4v_cpu_state(cpu) == HV_CPU_STATE_ERROR)) {
 				ecpuerror_id = cpu + 1;
 			} else if (status == HV_ENOCPU && !cpu_online(cpu)) {
-				enocpu_id = cpu + 1;
+				eyescpu_id = cpu + 1;
 			} else {
 				cpu_list[rem++] = cpu;
 			}
@@ -742,7 +742,7 @@ static void hypervisor_xcall_deliver(struct trap_per_cpu *tb, int cnt)
 		target_cpu_busy = (xc_rcvd < CPU_MONDO_COUNTER(first_cpu));
 		xc_rcvd = CPU_MONDO_COUNTER(first_cpu);
 
-		/* Retry count is for no progress. If we're making progress,
+		/* Retry count is for yes progress. If we're making progress,
 		 * reset the retry count.
 		 */
 		if (likely(mondo_delivered || target_cpu_busy)) {
@@ -765,9 +765,9 @@ xcall_done:
 	if (unlikely(ecpuerror_id > 0)) {
 		pr_crit("CPU[%d]: SUN4V mondo cpu error, target cpu(%d) was in error state\n",
 		       this_cpu, ecpuerror_id - 1);
-	} else if (unlikely(enocpu_id > 0)) {
-		pr_crit("CPU[%d]: SUN4V mondo cpu error, target cpu(%d) does not belong to the domain\n",
-		       this_cpu, enocpu_id - 1);
+	} else if (unlikely(eyescpu_id > 0)) {
+		pr_crit("CPU[%d]: SUN4V mondo cpu error, target cpu(%d) does yest belong to the domain\n",
+		       this_cpu, eyescpu_id - 1);
 	}
 	return;
 
@@ -778,8 +778,8 @@ fatal_errors:
 	panic("Unexpected SUN4V mondo error %lu\n", status);
 
 fatal_mondo_timeout:
-	/* some cpus being non-responsive to the cpu mondo */
-	pr_crit("CPU[%d]: SUN4V mondo timeout, cpu(%d) made no forward progress after %d retries. Total target cpus(%d).\n",
+	/* some cpus being yesn-responsive to the cpu mondo */
+	pr_crit("CPU[%d]: SUN4V mondo timeout, cpu(%d) made yes forward progress after %d retries. Total target cpus(%d).\n",
 	       this_cpu, first_cpu, (tot_retries + retries), tot_cpus);
 	panic("SUN4V mondo timeout panic\n");
 }
@@ -798,9 +798,9 @@ static void xcall_deliver(u64 data0, u64 data1, u64 data2, const cpumask_t *mask
 	 * Otherwise if we send an xcall from interrupt context it will
 	 * corrupt both our mondo block and cpu list state.
 	 *
-	 * One consequence of this is that we cannot use timeout mechanisms
+	 * One consequence of this is that we canyest use timeout mechanisms
 	 * that depend upon interrupts being delivered locally.  So, for
-	 * example, we cannot sample jiffies and expect it to advance.
+	 * example, we canyest sample jiffies and expect it to advance.
 	 *
 	 * Fortunately, udelay() uses %stick/%tick so we can use that.
 	 */
@@ -892,9 +892,9 @@ static void tsb_sync(void *info)
 	struct trap_per_cpu *tp = &trap_block[raw_smp_processor_id()];
 	struct mm_struct *mm = info;
 
-	/* It is not valid to test "current->active_mm == mm" here.
+	/* It is yest valid to test "current->active_mm == mm" here.
 	 *
-	 * The value of "current" is not changed atomically with
+	 * The value of "current" is yest changed atomically with
 	 * switch_mm().  But that's OK, we just need to check the
 	 * current cpu's trap block PGD physical address.
 	 */
@@ -1034,7 +1034,7 @@ void smp_fetch_global_pmu(void)
 		smp_cross_call(&xcall_fetch_glob_pmu, 0, 0, 0);
 }
 
-/* We know that the window frames of the user have been flushed
+/* We kyesw that the window frames of the user have been flushed
  * to the stack before we get here because all callers of us
  * are flush_tlb_*() routines, and these run after flush_cache_*()
  * which performs the flushw.
@@ -1053,16 +1053,16 @@ void smp_fetch_global_pmu(void)
  *    cross calls.
  *
  *    One invariant is that when a cpu switches to a process, and
- *    that processes tsk->active_mm->cpu_vm_mask does not have the
+ *    that processes tsk->active_mm->cpu_vm_mask does yest have the
  *    current cpu's bit set, that tlb context is flushed locally.
  *
- *    If the address space is non-shared (ie. mm->count == 1) we avoid
+ *    If the address space is yesn-shared (ie. mm->count == 1) we avoid
  *    cross calls when we want to flush the currently running process's
  *    tlb state.  This is done by clearing all cpu bits except the current
  *    processor's in current->mm->cpu_vm_mask and performing the
  *    flush locally only.  This will force any subsequent cpus which run
  *    this task to flush the context from the local tlb if the process
- *    migrates to another cpu (again).
+ *    migrates to ayesther cpu (again).
  *
  * 3) For shared address spaces (threads) and swapping we bite the
  *    bullet for most cases and perform the cross call (but only to
@@ -1326,7 +1326,7 @@ int __cpu_up(unsigned int cpu, struct task_struct *tidle)
 			ret = -ENODEV;
 		} else {
 			/* On SUN4V, writes to %tick and %stick are
-			 * not allowed.
+			 * yest allowed.
 			 */
 			if (tlb_type != hypervisor)
 				smp_synchronize_one_tick(cpu);
@@ -1353,7 +1353,7 @@ void cpu_play_dead(void)
 		sun4v_cpu_qconf(HV_CPU_QUEUE_RES_ERROR,
 				tb->resum_mondo_pa, 0);
 		sun4v_cpu_qconf(HV_CPU_QUEUE_NONRES_ERROR,
-				tb->nonresum_mondo_pa, 0);
+				tb->yesnresum_mondo_pa, 0);
 	}
 
 	cpumask_clear_cpu(cpu, &smp_commenced_mask);
@@ -1392,7 +1392,7 @@ int __cpu_disable(void)
 
 	smp_wmb();
 
-	/* Make sure no interrupts point to this cpu.  */
+	/* Make sure yes interrupts point to this cpu.  */
 	fixup_irqs();
 
 	local_irq_enable();
@@ -1494,8 +1494,8 @@ void smp_send_reschedule(int cpu)
 	}
 
 	/* Use IPI in following cases:
-	 * - cpu poke not supported
-	 * - cpu not idle
+	 * - cpu poke yest supported
+	 * - cpu yest idle
 	 * - send_cpu_poke() returns with error
 	 */
 	send_cpu_ipi(cpu);
@@ -1504,25 +1504,25 @@ void smp_send_reschedule(int cpu)
 void smp_init_cpu_poke(void)
 {
 	unsigned long major;
-	unsigned long minor;
+	unsigned long miyesr;
 	int ret;
 
 	if (tlb_type != hypervisor)
 		return;
 
-	ret = sun4v_hvapi_get(HV_GRP_CORE, &major, &minor);
+	ret = sun4v_hvapi_get(HV_GRP_CORE, &major, &miyesr);
 	if (ret) {
-		pr_debug("HV_GRP_CORE is not registered\n");
+		pr_debug("HV_GRP_CORE is yest registered\n");
 		return;
 	}
 
-	if (major == 1 && minor >= 6) {
+	if (major == 1 && miyesr >= 6) {
 		/* CPU POKE is registered. */
 		cpu_poke = true;
 		return;
 	}
 
-	pr_debug("CPU_POKE not supported\n");
+	pr_debug("CPU_POKE yest supported\n");
 }
 
 void __irq_entry smp_receive_signal_client(int irq, struct pt_regs *regs)
@@ -1584,20 +1584,20 @@ static void * __init pcpu_alloc_bootmem(unsigned int cpu, size_t size,
 {
 	const unsigned long goal = __pa(MAX_DMA_ADDRESS);
 #ifdef CONFIG_NEED_MULTIPLE_NODES
-	int node = cpu_to_node(cpu);
+	int yesde = cpu_to_yesde(cpu);
 	void *ptr;
 
-	if (!node_online(node) || !NODE_DATA(node)) {
+	if (!yesde_online(yesde) || !NODE_DATA(yesde)) {
 		ptr = memblock_alloc_from(size, align, goal);
-		pr_info("cpu %d has no node %d or node-local memory\n",
-			cpu, node);
+		pr_info("cpu %d has yes yesde %d or yesde-local memory\n",
+			cpu, yesde);
 		pr_debug("per cpu data for cpu%d %lu bytes at %016lx\n",
 			 cpu, size, __pa(ptr));
 	} else {
 		ptr = memblock_alloc_try_nid(size, align, goal,
-					     MEMBLOCK_ALLOC_ACCESSIBLE, node);
-		pr_debug("per cpu data for cpu%d %lu bytes on node%d at "
-			 "%016lx\n", cpu, size, node, __pa(ptr));
+					     MEMBLOCK_ALLOC_ACCESSIBLE, yesde);
+		pr_debug("per cpu data for cpu%d %lu bytes on yesde%d at "
+			 "%016lx\n", cpu, size, yesde, __pa(ptr));
 	}
 	return ptr;
 #else
@@ -1612,7 +1612,7 @@ static void __init pcpu_free_bootmem(void *ptr, size_t size)
 
 static int __init pcpu_cpu_distance(unsigned int from, unsigned int to)
 {
-	if (cpu_to_node(from) == cpu_to_node(to))
+	if (cpu_to_yesde(from) == cpu_to_yesde(to))
 		return LOCAL_DISTANCE;
 	else
 		return REMOTE_DISTANCE;
@@ -1624,7 +1624,7 @@ static void __init pcpu_populate_pte(unsigned long addr)
 	pud_t *pud;
 	pmd_t *pmd;
 
-	if (pgd_none(*pgd)) {
+	if (pgd_yesne(*pgd)) {
 		pud_t *new;
 
 		new = memblock_alloc_from(PAGE_SIZE, PAGE_SIZE, PAGE_SIZE);
@@ -1634,7 +1634,7 @@ static void __init pcpu_populate_pte(unsigned long addr)
 	}
 
 	pud = pud_offset(pgd, addr);
-	if (pud_none(*pud)) {
+	if (pud_yesne(*pud)) {
 		pmd_t *new;
 
 		new = memblock_alloc_from(PAGE_SIZE, PAGE_SIZE, PAGE_SIZE);
@@ -1683,7 +1683,7 @@ void __init setup_per_cpu_areas(void)
 					   pcpu_free_bootmem,
 					   pcpu_populate_pte);
 	if (rc < 0)
-		panic("cannot initialize percpu area (err=%d)", rc);
+		panic("canyest initialize percpu area (err=%d)", rc);
 
 	delta = (unsigned long)pcpu_base_addr - (unsigned long)__per_cpu_start;
 	for_each_possible_cpu(cpu)

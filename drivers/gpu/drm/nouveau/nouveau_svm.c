@@ -8,7 +8,7 @@
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in
+ * The above copyright yestice and this permission yestice shall be included in
  * all copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -19,12 +19,12 @@
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  */
-#include "nouveau_svm.h"
-#include "nouveau_drv.h"
-#include "nouveau_chan.h"
-#include "nouveau_dmem.h"
+#include "yesuveau_svm.h"
+#include "yesuveau_drv.h"
+#include "yesuveau_chan.h"
+#include "yesuveau_dmem.h"
 
-#include <nvif/notify.h>
+#include <nvif/yestify.h>
 #include <nvif/object.h>
 #include <nvif/vmm.h>
 
@@ -36,12 +36,12 @@
 #include <linux/sort.h>
 #include <linux/hmm.h>
 
-struct nouveau_svm {
-	struct nouveau_drm *drm;
+struct yesuveau_svm {
+	struct yesuveau_drm *drm;
 	struct mutex mutex;
 	struct list_head inst;
 
-	struct nouveau_svm_fault_buffer {
+	struct yesuveau_svm_fault_buffer {
 		int id;
 		struct nvif_object object;
 		u32 entries;
@@ -49,9 +49,9 @@ struct nouveau_svm {
 		u32 putaddr;
 		u32 get;
 		u32 put;
-		struct nvif_notify notify;
+		struct nvif_yestify yestify;
 
-		struct nouveau_svm_fault {
+		struct yesuveau_svm_fault {
 			u64 inst;
 			u64 addr;
 			u64 time;
@@ -61,7 +61,7 @@ struct nouveau_svm {
 			u8  access;
 			u8  client;
 			u8  fault;
-			struct nouveau_svmm *svmm;
+			struct yesuveau_svmm *svmm;
 		} **fault;
 		int fault_nr;
 	} buffer[1];
@@ -70,16 +70,16 @@ struct nouveau_svm {
 #define SVM_DBG(s,f,a...) NV_DEBUG((s)->drm, "svm: "f"\n", ##a)
 #define SVM_ERR(s,f,a...) NV_WARN((s)->drm, "svm: "f"\n", ##a)
 
-struct nouveau_ivmm {
-	struct nouveau_svmm *svmm;
+struct yesuveau_ivmm {
+	struct yesuveau_svmm *svmm;
 	u64 inst;
 	struct list_head head;
 };
 
-static struct nouveau_ivmm *
-nouveau_ivmm_find(struct nouveau_svm *svm, u64 inst)
+static struct yesuveau_ivmm *
+yesuveau_ivmm_find(struct yesuveau_svm *svm, u64 inst)
 {
-	struct nouveau_ivmm *ivmm;
+	struct yesuveau_ivmm *ivmm;
 	list_for_each_entry(ivmm, &svm->inst, head) {
 		if (ivmm->inst == inst)
 			return ivmm;
@@ -87,9 +87,9 @@ nouveau_ivmm_find(struct nouveau_svm *svm, u64 inst)
 	return NULL;
 }
 
-struct nouveau_svmm {
-	struct mmu_notifier notifier;
-	struct nouveau_vmm *vmm;
+struct yesuveau_svmm {
+	struct mmu_yestifier yestifier;
+	struct yesuveau_vmm *vmm;
 	struct {
 		unsigned long start;
 		unsigned long limit;
@@ -104,11 +104,11 @@ struct nouveau_svmm {
 	NV_WARN((s)->vmm->cli->drm, "svm-%p: "f"\n", (s), ##a)
 
 int
-nouveau_svmm_bind(struct drm_device *dev, void *data,
+yesuveau_svmm_bind(struct drm_device *dev, void *data,
 		  struct drm_file *file_priv)
 {
-	struct nouveau_cli *cli = nouveau_cli(file_priv);
-	struct drm_nouveau_svm_bind *args = data;
+	struct yesuveau_cli *cli = yesuveau_cli(file_priv);
+	struct drm_yesuveau_svm_bind *args = data;
 	unsigned target, cmd, priority;
 	unsigned long addr, end, size;
 	struct mm_struct *mm;
@@ -149,7 +149,7 @@ nouveau_svmm_bind(struct drm_device *dev, void *data,
 	}
 
 	/*
-	 * FIXME: For now refuse non 0 stride, we need to change the migrate
+	 * FIXME: For yesw refuse yesn 0 stride, we need to change the migrate
 	 * kernel function to handle stride to avoid to create a mess within
 	 * each device driver.
 	 */
@@ -163,7 +163,7 @@ nouveau_svmm_bind(struct drm_device *dev, void *data,
 		return -EINVAL;
 
 	/*
-	 * Ok we are ask to do something sane, for now we only support migrate
+	 * Ok we are ask to do something sane, for yesw we only support migrate
 	 * commands but we will add things like memory policy (what to do on
 	 * page fault) and maybe some other commands.
 	 */
@@ -180,8 +180,8 @@ nouveau_svmm_bind(struct drm_device *dev, void *data,
 			break;
 
 		next = min(vma->vm_end, end);
-		/* This is a best effort so we ignore errors */
-		nouveau_dmem_migrate_vma(cli->drm, vma, addr, next);
+		/* This is a best effort so we igyesre errors */
+		yesuveau_dmem_migrate_vma(cli->drm, vma, addr, next);
 		addr = next;
 	}
 
@@ -200,12 +200,12 @@ nouveau_svmm_bind(struct drm_device *dev, void *data,
 
 /* Unlink channel instance from SVMM. */
 void
-nouveau_svmm_part(struct nouveau_svmm *svmm, u64 inst)
+yesuveau_svmm_part(struct yesuveau_svmm *svmm, u64 inst)
 {
-	struct nouveau_ivmm *ivmm;
+	struct yesuveau_ivmm *ivmm;
 	if (svmm) {
 		mutex_lock(&svmm->vmm->cli->drm->svm->mutex);
-		ivmm = nouveau_ivmm_find(svmm->vmm->cli->drm->svm, inst);
+		ivmm = yesuveau_ivmm_find(svmm->vmm->cli->drm->svm, inst);
 		if (ivmm) {
 			list_del(&ivmm->head);
 			kfree(ivmm);
@@ -216,9 +216,9 @@ nouveau_svmm_part(struct nouveau_svmm *svmm, u64 inst)
 
 /* Link channel instance to SVMM. */
 int
-nouveau_svmm_join(struct nouveau_svmm *svmm, u64 inst)
+yesuveau_svmm_join(struct yesuveau_svmm *svmm, u64 inst)
 {
-	struct nouveau_ivmm *ivmm;
+	struct yesuveau_ivmm *ivmm;
 	if (svmm) {
 		if (!(ivmm = kmalloc(sizeof(*ivmm), GFP_KERNEL)))
 			return -ENOMEM;
@@ -234,7 +234,7 @@ nouveau_svmm_join(struct nouveau_svmm *svmm, u64 inst)
 
 /* Invalidate SVMM address-range on GPU. */
 static void
-nouveau_svmm_invalidate(struct nouveau_svmm *svmm, u64 start, u64 limit)
+yesuveau_svmm_invalidate(struct yesuveau_svmm *svmm, u64 start, u64 limit)
 {
 	if (limit > start) {
 		bool super = svmm->vmm->vmm.object.client->super;
@@ -249,15 +249,15 @@ nouveau_svmm_invalidate(struct nouveau_svmm *svmm, u64 start, u64 limit)
 }
 
 static int
-nouveau_svmm_invalidate_range_start(struct mmu_notifier *mn,
-				    const struct mmu_notifier_range *update)
+yesuveau_svmm_invalidate_range_start(struct mmu_yestifier *mn,
+				    const struct mmu_yestifier_range *update)
 {
-	struct nouveau_svmm *svmm =
-		container_of(mn, struct nouveau_svmm, notifier);
+	struct yesuveau_svmm *svmm =
+		container_of(mn, struct yesuveau_svmm, yestifier);
 	unsigned long start = update->start;
 	unsigned long limit = update->end;
 
-	if (!mmu_notifier_range_blockable(update))
+	if (!mmu_yestifier_range_blockable(update))
 		return -EAGAIN;
 
 	SVMM_DBG(svmm, "invalidate %016lx-%016lx", start, limit);
@@ -268,49 +268,49 @@ nouveau_svmm_invalidate_range_start(struct mmu_notifier *mn,
 
 	if (limit > svmm->unmanaged.start && start < svmm->unmanaged.limit) {
 		if (start < svmm->unmanaged.start) {
-			nouveau_svmm_invalidate(svmm, start,
+			yesuveau_svmm_invalidate(svmm, start,
 						svmm->unmanaged.limit);
 		}
 		start = svmm->unmanaged.limit;
 	}
 
-	nouveau_svmm_invalidate(svmm, start, limit);
+	yesuveau_svmm_invalidate(svmm, start, limit);
 
 out:
 	mutex_unlock(&svmm->mutex);
 	return 0;
 }
 
-static void nouveau_svmm_free_notifier(struct mmu_notifier *mn)
+static void yesuveau_svmm_free_yestifier(struct mmu_yestifier *mn)
 {
-	kfree(container_of(mn, struct nouveau_svmm, notifier));
+	kfree(container_of(mn, struct yesuveau_svmm, yestifier));
 }
 
-static const struct mmu_notifier_ops nouveau_mn_ops = {
-	.invalidate_range_start = nouveau_svmm_invalidate_range_start,
-	.free_notifier = nouveau_svmm_free_notifier,
+static const struct mmu_yestifier_ops yesuveau_mn_ops = {
+	.invalidate_range_start = yesuveau_svmm_invalidate_range_start,
+	.free_yestifier = yesuveau_svmm_free_yestifier,
 };
 
 void
-nouveau_svmm_fini(struct nouveau_svmm **psvmm)
+yesuveau_svmm_fini(struct yesuveau_svmm **psvmm)
 {
-	struct nouveau_svmm *svmm = *psvmm;
+	struct yesuveau_svmm *svmm = *psvmm;
 	if (svmm) {
 		mutex_lock(&svmm->mutex);
 		svmm->vmm = NULL;
 		mutex_unlock(&svmm->mutex);
-		mmu_notifier_put(&svmm->notifier);
+		mmu_yestifier_put(&svmm->yestifier);
 		*psvmm = NULL;
 	}
 }
 
 int
-nouveau_svmm_init(struct drm_device *dev, void *data,
+yesuveau_svmm_init(struct drm_device *dev, void *data,
 		  struct drm_file *file_priv)
 {
-	struct nouveau_cli *cli = nouveau_cli(file_priv);
-	struct nouveau_svmm *svmm;
-	struct drm_nouveau_svm_init *args = data;
+	struct yesuveau_cli *cli = yesuveau_cli(file_priv);
+	struct yesuveau_svmm *svmm;
+	struct drm_yesuveau_svm_init *args = data;
 	int ret;
 
 	/* Allocate tracking for SVM-enabled VMM. */
@@ -343,11 +343,11 @@ nouveau_svmm_init(struct drm_device *dev, void *data,
 		goto out_free;
 
 	down_write(&current->mm->mmap_sem);
-	svmm->notifier.ops = &nouveau_mn_ops;
-	ret = __mmu_notifier_register(&svmm->notifier, current->mm);
+	svmm->yestifier.ops = &yesuveau_mn_ops;
+	ret = __mmu_yestifier_register(&svmm->yestifier, current->mm);
 	if (ret)
 		goto out_mm_unlock;
-	/* Note, ownership of svmm transfers to mmu_notifier */
+	/* Note, ownership of svmm transfers to mmu_yestifier */
 
 	cli->svm.svmm = svmm;
 	cli->svm.cli = cli;
@@ -364,14 +364,14 @@ out_free:
 }
 
 static const u64
-nouveau_svm_pfn_flags[HMM_PFN_FLAG_MAX] = {
+yesuveau_svm_pfn_flags[HMM_PFN_FLAG_MAX] = {
 	[HMM_PFN_VALID         ] = NVIF_VMM_PFNMAP_V0_V,
 	[HMM_PFN_WRITE         ] = NVIF_VMM_PFNMAP_V0_W,
 	[HMM_PFN_DEVICE_PRIVATE] = NVIF_VMM_PFNMAP_V0_VRAM,
 };
 
 static const u64
-nouveau_svm_pfn_values[HMM_PFN_VALUE_MAX] = {
+yesuveau_svm_pfn_values[HMM_PFN_VALUE_MAX] = {
 	[HMM_PFN_ERROR  ] = ~NVIF_VMM_PFNMAP_V0_V,
 	[HMM_PFN_NONE   ] =  NVIF_VMM_PFNMAP_V0_NONE,
 	[HMM_PFN_SPECIAL] = ~NVIF_VMM_PFNMAP_V0_V,
@@ -379,7 +379,7 @@ nouveau_svm_pfn_values[HMM_PFN_VALUE_MAX] = {
 
 /* Issue fault replay for GPU to retry accesses that faulted previously. */
 static void
-nouveau_svm_fault_replay(struct nouveau_svm *svm)
+yesuveau_svm_fault_replay(struct yesuveau_svm *svm)
 {
 	SVM_DBG(svm, "replay");
 	WARN_ON(nvif_object_mthd(&svm->drm->client.vmm.vmm.object,
@@ -388,13 +388,13 @@ nouveau_svm_fault_replay(struct nouveau_svm *svm)
 				 sizeof(struct gp100_vmm_fault_replay_vn)));
 }
 
-/* Cancel a replayable fault that could not be handled.
+/* Cancel a replayable fault that could yest be handled.
  *
  * Cancelling the fault will trigger recovery to reset the engine
  * and kill the offending channel (ie. GPU SIGSEGV).
  */
 static void
-nouveau_svm_fault_cancel(struct nouveau_svm *svm,
+yesuveau_svm_fault_cancel(struct yesuveau_svm *svm,
 			 u64 inst, u8 hub, u8 gpc, u8 client)
 {
 	SVM_DBG(svm, "cancel %016llx %d %02x %02x", inst, hub, gpc, client);
@@ -409,20 +409,20 @@ nouveau_svm_fault_cancel(struct nouveau_svm *svm,
 }
 
 static void
-nouveau_svm_fault_cancel_fault(struct nouveau_svm *svm,
-			       struct nouveau_svm_fault *fault)
+yesuveau_svm_fault_cancel_fault(struct yesuveau_svm *svm,
+			       struct yesuveau_svm_fault *fault)
 {
-	nouveau_svm_fault_cancel(svm, fault->inst,
+	yesuveau_svm_fault_cancel(svm, fault->inst,
 				      fault->hub,
 				      fault->gpc,
 				      fault->client);
 }
 
 static int
-nouveau_svm_fault_cmp(const void *a, const void *b)
+yesuveau_svm_fault_cmp(const void *a, const void *b)
 {
-	const struct nouveau_svm_fault *fa = *(struct nouveau_svm_fault **)a;
-	const struct nouveau_svm_fault *fb = *(struct nouveau_svm_fault **)b;
+	const struct yesuveau_svm_fault *fa = *(struct yesuveau_svm_fault **)a;
+	const struct yesuveau_svm_fault *fb = *(struct yesuveau_svm_fault **)b;
 	int ret;
 	if ((ret = (s64)fa->inst - fb->inst))
 		return ret;
@@ -434,8 +434,8 @@ nouveau_svm_fault_cmp(const void *a, const void *b)
 }
 
 static void
-nouveau_svm_fault_cache(struct nouveau_svm *svm,
-			struct nouveau_svm_fault_buffer *buffer, u32 offset)
+yesuveau_svm_fault_cache(struct yesuveau_svm *svm,
+			struct yesuveau_svm_fault_buffer *buffer, u32 offset)
 {
 	struct nvif_object *memory = &buffer->object;
 	const u32 instlo = nvif_rd32(memory, offset + 0x00);
@@ -450,7 +450,7 @@ nouveau_svm_fault_cache(struct nouveau_svm *svm,
 	const u8     gpc = (info & 0x1f000000) >> 24;
 	const u8     hub = (info & 0x00100000) >> 20;
 	const u8  client = (info & 0x00007f00) >> 8;
-	struct nouveau_svm_fault *fault;
+	struct yesuveau_svm_fault *fault;
 
 	//XXX: i think we're supposed to spin waiting */
 	if (WARN_ON(!(info & 0x80000000)))
@@ -461,7 +461,7 @@ nouveau_svm_fault_cache(struct nouveau_svm *svm,
 	if (!buffer->fault[buffer->fault_nr]) {
 		fault = kmalloc(sizeof(*fault), GFP_KERNEL);
 		if (WARN_ON(!fault)) {
-			nouveau_svm_fault_cancel(svm, inst, hub, gpc, client);
+			yesuveau_svm_fault_cancel(svm, inst, hub, gpc, client);
 			return;
 		}
 		buffer->fault[buffer->fault_nr] = fault;
@@ -482,26 +482,26 @@ nouveau_svm_fault_cache(struct nouveau_svm *svm,
 		fault->inst, fault->addr, fault->access);
 }
 
-struct svm_notifier {
-	struct mmu_interval_notifier notifier;
-	struct nouveau_svmm *svmm;
+struct svm_yestifier {
+	struct mmu_interval_yestifier yestifier;
+	struct yesuveau_svmm *svmm;
 };
 
-static bool nouveau_svm_range_invalidate(struct mmu_interval_notifier *mni,
-					 const struct mmu_notifier_range *range,
+static bool yesuveau_svm_range_invalidate(struct mmu_interval_yestifier *mni,
+					 const struct mmu_yestifier_range *range,
 					 unsigned long cur_seq)
 {
-	struct svm_notifier *sn =
-		container_of(mni, struct svm_notifier, notifier);
+	struct svm_yestifier *sn =
+		container_of(mni, struct svm_yestifier, yestifier);
 
 	/*
 	 * serializes the update to mni->invalidate_seq done by caller and
 	 * prevents invalidation of the PTE from progressing while HW is being
-	 * programmed. This is very hacky and only works because the normal
-	 * notifier that does invalidation is always called after the range
-	 * notifier.
+	 * programmed. This is very hacky and only works because the yesrmal
+	 * yestifier that does invalidation is always called after the range
+	 * yestifier.
 	 */
-	if (mmu_notifier_range_blockable(range))
+	if (mmu_yestifier_range_blockable(range))
 		mutex_lock(&sn->svmm->mutex);
 	else if (!mutex_trylock(&sn->svmm->mutex))
 		return false;
@@ -510,34 +510,34 @@ static bool nouveau_svm_range_invalidate(struct mmu_interval_notifier *mni,
 	return true;
 }
 
-static const struct mmu_interval_notifier_ops nouveau_svm_mni_ops = {
-	.invalidate = nouveau_svm_range_invalidate,
+static const struct mmu_interval_yestifier_ops yesuveau_svm_mni_ops = {
+	.invalidate = yesuveau_svm_range_invalidate,
 };
 
-static int nouveau_range_fault(struct nouveau_svmm *svmm,
-			       struct nouveau_drm *drm, void *data, u32 size,
-			       u64 *pfns, struct svm_notifier *notifier)
+static int yesuveau_range_fault(struct yesuveau_svmm *svmm,
+			       struct yesuveau_drm *drm, void *data, u32 size,
+			       u64 *pfns, struct svm_yestifier *yestifier)
 {
 	unsigned long timeout =
 		jiffies + msecs_to_jiffies(HMM_RANGE_DEFAULT_TIMEOUT);
 	/* Have HMM fault pages within the fault window to the GPU. */
 	struct hmm_range range = {
-		.notifier = &notifier->notifier,
-		.start = notifier->notifier.interval_tree.start,
-		.end = notifier->notifier.interval_tree.last + 1,
+		.yestifier = &yestifier->yestifier,
+		.start = yestifier->yestifier.interval_tree.start,
+		.end = yestifier->yestifier.interval_tree.last + 1,
 		.pfns = pfns,
-		.flags = nouveau_svm_pfn_flags,
-		.values = nouveau_svm_pfn_values,
+		.flags = yesuveau_svm_pfn_flags,
+		.values = yesuveau_svm_pfn_values,
 		.pfn_shift = NVIF_VMM_PFNMAP_V0_ADDR_SHIFT,
 	};
-	struct mm_struct *mm = notifier->notifier.mm;
+	struct mm_struct *mm = yestifier->yestifier.mm;
 	long ret;
 
 	while (true) {
 		if (time_after(jiffies, timeout))
 			return -EBUSY;
 
-		range.notifier_seq = mmu_interval_read_begin(range.notifier);
+		range.yestifier_seq = mmu_interval_read_begin(range.yestifier);
 		range.default_flags = 0;
 		range.pfn_flags_mask = -1UL;
 		down_read(&mm->mmap_sem);
@@ -550,15 +550,15 @@ static int nouveau_range_fault(struct nouveau_svmm *svmm,
 		}
 
 		mutex_lock(&svmm->mutex);
-		if (mmu_interval_read_retry(range.notifier,
-					    range.notifier_seq)) {
+		if (mmu_interval_read_retry(range.yestifier,
+					    range.yestifier_seq)) {
 			mutex_unlock(&svmm->mutex);
 			continue;
 		}
 		break;
 	}
 
-	nouveau_dmem_convert_pfn(drm, &range);
+	yesuveau_dmem_convert_pfn(drm, &range);
 
 	svmm->vmm->vmm.object.client->super = true;
 	ret = nvif_object_ioctl(&svmm->vmm->vmm.object, data, size, NULL);
@@ -569,14 +569,14 @@ static int nouveau_range_fault(struct nouveau_svmm *svmm,
 }
 
 static int
-nouveau_svm_fault(struct nvif_notify *notify)
+yesuveau_svm_fault(struct nvif_yestify *yestify)
 {
-	struct nouveau_svm_fault_buffer *buffer =
-		container_of(notify, typeof(*buffer), notify);
-	struct nouveau_svm *svm =
+	struct yesuveau_svm_fault_buffer *buffer =
+		container_of(yestify, typeof(*buffer), yestify);
+	struct yesuveau_svm *svm =
 		container_of(buffer, typeof(*svm), buffer[buffer->id]);
 	struct nvif_object *device = &svm->drm->client.device.object;
-	struct nouveau_svmm *svmm;
+	struct yesuveau_svmm *svmm;
 	struct {
 		struct {
 			struct nvif_ioctl_v0 i;
@@ -604,7 +604,7 @@ nouveau_svm_fault(struct nvif_notify *notify)
 
 	SVM_DBG(svm, "get %08x put %08x", buffer->get, buffer->put);
 	while (buffer->get != buffer->put) {
-		nouveau_svm_fault_cache(svm, buffer, buffer->get * 0x20);
+		yesuveau_svm_fault_cache(svm, buffer, buffer->get * 0x20);
 		if (++buffer->get == buffer->entries)
 			buffer->get = 0;
 	}
@@ -616,14 +616,14 @@ nouveau_svm_fault(struct nvif_notify *notify)
 	 * type to reduce the amount of work when handling the faults.
 	 */
 	sort(buffer->fault, buffer->fault_nr, sizeof(*buffer->fault),
-	     nouveau_svm_fault_cmp, NULL);
+	     yesuveau_svm_fault_cmp, NULL);
 
 	/* Lookup SVMM structure for each unique instance pointer. */
 	mutex_lock(&svm->mutex);
 	for (fi = 0, svmm = NULL; fi < buffer->fault_nr; fi++) {
 		if (!svmm || buffer->fault[fi]->inst != inst) {
-			struct nouveau_ivmm *ivmm =
-				nouveau_ivmm_find(svm, buffer->fault[fi]->inst);
+			struct yesuveau_ivmm *ivmm =
+				yesuveau_ivmm_find(svm, buffer->fault[fi]->inst);
 			svmm = ivmm ? ivmm->svmm : NULL;
 			inst = buffer->fault[fi]->inst;
 			SVM_DBG(svm, "inst %016llx -> svm-%p", inst, svmm);
@@ -640,12 +640,12 @@ nouveau_svm_fault(struct nvif_notify *notify)
 	args.i.p.version = 0;
 
 	for (fi = 0; fn = fi + 1, fi < buffer->fault_nr; fi = fn) {
-		struct svm_notifier notifier;
+		struct svm_yestifier yestifier;
 		struct mm_struct *mm;
 
-		/* Cancel any faults from non-SVM channels. */
+		/* Cancel any faults from yesn-SVM channels. */
 		if (!(svmm = buffer->fault[fi]->svmm)) {
-			nouveau_svm_fault_cancel_fault(svm, buffer->fault[fi]);
+			yesuveau_svm_fault_cancel_fault(svm, buffer->fault[fi]);
 			continue;
 		}
 		SVMM_DBG(svmm, "addr %016llx", buffer->fault[fi]->addr);
@@ -662,9 +662,9 @@ nouveau_svm_fault(struct nvif_notify *notify)
 			start = max_t(u64, start, svmm->unmanaged.limit);
 		SVMM_DBG(svmm, "wndw %016llx-%016llx", start, limit);
 
-		mm = svmm->notifier.mm;
-		if (!mmget_not_zero(mm)) {
-			nouveau_svm_fault_cancel_fault(svm, buffer->fault[fi]);
+		mm = svmm->yestifier.mm;
+		if (!mmget_yest_zero(mm)) {
+			yesuveau_svm_fault_cancel_fault(svm, buffer->fault[fi]);
 			continue;
 		}
 
@@ -677,7 +677,7 @@ nouveau_svm_fault(struct nvif_notify *notify)
 			SVMM_ERR(svmm, "wndw %016llx-%016llx", start, limit);
 			up_read(&mm->mmap_sem);
 			mmput(mm);
-			nouveau_svm_fault_cancel_fault(svm, buffer->fault[fi]);
+			yesuveau_svm_fault_cancel_fault(svm, buffer->fault[fi]);
 			continue;
 		}
 		start = max_t(u64, start, vma->vm_start);
@@ -688,7 +688,7 @@ nouveau_svm_fault(struct nvif_notify *notify)
 		if (buffer->fault[fi]->addr != start) {
 			SVMM_ERR(svmm, "addr %016llx", buffer->fault[fi]->addr);
 			mmput(mm);
-			nouveau_svm_fault_cancel_fault(svm, buffer->fault[fi]);
+			yesuveau_svm_fault_cancel_fault(svm, buffer->fault[fi]);
 			continue;
 		}
 
@@ -743,17 +743,17 @@ nouveau_svm_fault(struct nvif_notify *notify)
 			 args.i.p.addr,
 			 args.i.p.addr + args.i.p.size, fn - fi);
 
-		notifier.svmm = svmm;
-		ret = mmu_interval_notifier_insert(&notifier.notifier,
-						   svmm->notifier.mm,
+		yestifier.svmm = svmm;
+		ret = mmu_interval_yestifier_insert(&yestifier.yestifier,
+						   svmm->yestifier.mm,
 						   args.i.p.addr, args.i.p.size,
-						   &nouveau_svm_mni_ops);
+						   &yesuveau_svm_mni_ops);
 		if (!ret) {
-			ret = nouveau_range_fault(
+			ret = yesuveau_range_fault(
 				svmm, svm->drm, &args,
 				sizeof(args.i) + pi * sizeof(args.phys[0]),
-				args.phys, &notifier);
-			mmu_interval_notifier_remove(&notifier.notifier);
+				args.phys, &yestifier);
+			mmu_interval_yestifier_remove(&yestifier.yestifier);
 		}
 		mmput(mm);
 
@@ -763,13 +763,13 @@ nouveau_svm_fault(struct nvif_notify *notify)
 		 * If handling failed completely, cancel all faults.
 		 */
 		while (fi < fn) {
-			struct nouveau_svm_fault *fault = buffer->fault[fi++];
+			struct yesuveau_svm_fault *fault = buffer->fault[fi++];
 			pi = (fault->addr - args.i.p.addr) >> PAGE_SHIFT;
 			if (ret ||
 			     !(args.phys[pi] & NVIF_VMM_PFNMAP_V0_V) ||
 			    (!(args.phys[pi] & NVIF_VMM_PFNMAP_V0_W) &&
 			     fault->access != 0 && fault->access != 3)) {
-				nouveau_svm_fault_cancel_fault(svm, fault);
+				yesuveau_svm_fault_cancel_fault(svm, fault);
 				continue;
 			}
 			replay++;
@@ -778,32 +778,32 @@ nouveau_svm_fault(struct nvif_notify *notify)
 
 	/* Issue fault replay to the GPU. */
 	if (replay)
-		nouveau_svm_fault_replay(svm);
+		yesuveau_svm_fault_replay(svm);
 	return NVIF_NOTIFY_KEEP;
 }
 
 static void
-nouveau_svm_fault_buffer_fini(struct nouveau_svm *svm, int id)
+yesuveau_svm_fault_buffer_fini(struct yesuveau_svm *svm, int id)
 {
-	struct nouveau_svm_fault_buffer *buffer = &svm->buffer[id];
-	nvif_notify_put(&buffer->notify);
+	struct yesuveau_svm_fault_buffer *buffer = &svm->buffer[id];
+	nvif_yestify_put(&buffer->yestify);
 }
 
 static int
-nouveau_svm_fault_buffer_init(struct nouveau_svm *svm, int id)
+yesuveau_svm_fault_buffer_init(struct yesuveau_svm *svm, int id)
 {
-	struct nouveau_svm_fault_buffer *buffer = &svm->buffer[id];
+	struct yesuveau_svm_fault_buffer *buffer = &svm->buffer[id];
 	struct nvif_object *device = &svm->drm->client.device.object;
 	buffer->get = nvif_rd32(device, buffer->getaddr);
 	buffer->put = nvif_rd32(device, buffer->putaddr);
 	SVM_DBG(svm, "get %08x put %08x (init)", buffer->get, buffer->put);
-	return nvif_notify_get(&buffer->notify);
+	return nvif_yestify_get(&buffer->yestify);
 }
 
 static void
-nouveau_svm_fault_buffer_dtor(struct nouveau_svm *svm, int id)
+yesuveau_svm_fault_buffer_dtor(struct yesuveau_svm *svm, int id)
 {
-	struct nouveau_svm_fault_buffer *buffer = &svm->buffer[id];
+	struct yesuveau_svm_fault_buffer *buffer = &svm->buffer[id];
 	int i;
 
 	if (buffer->fault) {
@@ -812,17 +812,17 @@ nouveau_svm_fault_buffer_dtor(struct nouveau_svm *svm, int id)
 		kvfree(buffer->fault);
 	}
 
-	nouveau_svm_fault_buffer_fini(svm, id);
+	yesuveau_svm_fault_buffer_fini(svm, id);
 
-	nvif_notify_fini(&buffer->notify);
+	nvif_yestify_fini(&buffer->yestify);
 	nvif_object_fini(&buffer->object);
 }
 
 static int
-nouveau_svm_fault_buffer_ctor(struct nouveau_svm *svm, s32 oclass, int id)
+yesuveau_svm_fault_buffer_ctor(struct yesuveau_svm *svm, s32 oclass, int id)
 {
-	struct nouveau_svm_fault_buffer *buffer = &svm->buffer[id];
-	struct nouveau_drm *drm = svm->drm;
+	struct yesuveau_svm_fault_buffer *buffer = &svm->buffer[id];
+	struct yesuveau_drm *drm = svm->drm;
 	struct nvif_object *device = &drm->client.device.object;
 	struct nvif_clb069_v0 args = {};
 	int ret;
@@ -841,9 +841,9 @@ nouveau_svm_fault_buffer_ctor(struct nouveau_svm *svm, s32 oclass, int id)
 	buffer->getaddr = args.get;
 	buffer->putaddr = args.put;
 
-	ret = nvif_notify_init(&buffer->object, nouveau_svm_fault, true,
+	ret = nvif_yestify_init(&buffer->object, yesuveau_svm_fault, true,
 			       NVB069_V0_NTFY_FAULT, NULL, 0, 0,
-			       &buffer->notify);
+			       &buffer->yestify);
 	if (ret)
 		return ret;
 
@@ -851,45 +851,45 @@ nouveau_svm_fault_buffer_ctor(struct nouveau_svm *svm, s32 oclass, int id)
 	if (!buffer->fault)
 		return -ENOMEM;
 
-	return nouveau_svm_fault_buffer_init(svm, id);
+	return yesuveau_svm_fault_buffer_init(svm, id);
 }
 
 void
-nouveau_svm_resume(struct nouveau_drm *drm)
+yesuveau_svm_resume(struct yesuveau_drm *drm)
 {
-	struct nouveau_svm *svm = drm->svm;
+	struct yesuveau_svm *svm = drm->svm;
 	if (svm)
-		nouveau_svm_fault_buffer_init(svm, 0);
+		yesuveau_svm_fault_buffer_init(svm, 0);
 }
 
 void
-nouveau_svm_suspend(struct nouveau_drm *drm)
+yesuveau_svm_suspend(struct yesuveau_drm *drm)
 {
-	struct nouveau_svm *svm = drm->svm;
+	struct yesuveau_svm *svm = drm->svm;
 	if (svm)
-		nouveau_svm_fault_buffer_fini(svm, 0);
+		yesuveau_svm_fault_buffer_fini(svm, 0);
 }
 
 void
-nouveau_svm_fini(struct nouveau_drm *drm)
+yesuveau_svm_fini(struct yesuveau_drm *drm)
 {
-	struct nouveau_svm *svm = drm->svm;
+	struct yesuveau_svm *svm = drm->svm;
 	if (svm) {
-		nouveau_svm_fault_buffer_dtor(svm, 0);
+		yesuveau_svm_fault_buffer_dtor(svm, 0);
 		kfree(drm->svm);
 		drm->svm = NULL;
 	}
 }
 
 void
-nouveau_svm_init(struct nouveau_drm *drm)
+yesuveau_svm_init(struct yesuveau_drm *drm)
 {
 	static const struct nvif_mclass buffers[] = {
 		{   VOLTA_FAULT_BUFFER_A, 0 },
 		{ MAXWELL_FAULT_BUFFER_A, 0 },
 		{}
 	};
-	struct nouveau_svm *svm;
+	struct yesuveau_svm *svm;
 	int ret;
 
 	/* Disable on Volta and newer until channel recovery is fixed,
@@ -909,13 +909,13 @@ nouveau_svm_init(struct nouveau_drm *drm)
 	ret = nvif_mclass(&drm->client.device.object, buffers);
 	if (ret < 0) {
 		SVM_DBG(svm, "No supported fault buffer class");
-		nouveau_svm_fini(drm);
+		yesuveau_svm_fini(drm);
 		return;
 	}
 
-	ret = nouveau_svm_fault_buffer_ctor(svm, buffers[ret].oclass, 0);
+	ret = yesuveau_svm_fault_buffer_ctor(svm, buffers[ret].oclass, 0);
 	if (ret) {
-		nouveau_svm_fini(drm);
+		yesuveau_svm_fini(drm);
 		return;
 	}
 

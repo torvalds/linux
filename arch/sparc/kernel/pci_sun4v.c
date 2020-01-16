@@ -33,21 +33,21 @@
 #define PFX		DRIVER_NAME ": "
 
 static unsigned long vpci_major;
-static unsigned long vpci_minor;
+static unsigned long vpci_miyesr;
 
 struct vpci_version {
 	unsigned long major;
-	unsigned long minor;
+	unsigned long miyesr;
 };
 
 /* Ordered from largest major to lowest */
 static struct vpci_version vpci_versions[] = {
-	{ .major = 2, .minor = 0 },
-	{ .major = 1, .minor = 1 },
+	{ .major = 2, .miyesr = 0 },
+	{ .major = 1, .miyesr = 1 },
 };
 
 static unsigned long vatu_major = 1;
-static unsigned long vatu_minor = 1;
+static unsigned long vatu_miyesr = 1;
 
 #define PGLIST_NENTS	(PAGE_SIZE / sizeof(u64))
 
@@ -200,8 +200,8 @@ static void *dma_4v_alloc_coherent(struct device *dev, size_t size,
 	if (attrs & DMA_ATTR_WEAK_ORDERING)
 		prot = HV_PCI_MAP_ATTR_RELAXED_ORDER;
 
-	nid = dev->archdata.numa_node;
-	page = alloc_pages_node(nid, gfp, order);
+	nid = dev->archdata.numa_yesde;
+	page = alloc_pages_yesde(nid, gfp, order);
 	if (unlikely(!page))
 		return NULL;
 
@@ -558,7 +558,7 @@ static int dma_4v_map_sg(struct device *dev, struct scatterlist *sglist,
 
 		/* If we are in an open segment, try merging */
 		if (segstart != s) {
-			/* We cannot merge if:
+			/* We canyest merge if:
 			 * - allocated dma_addr isn't contiguous to previous allocation
 			 */
 			if ((dma_addr != dma_next) ||
@@ -697,9 +697,9 @@ static const struct dma_map_ops sun4v_dma_ops = {
 static void pci_sun4v_scan_bus(struct pci_pbm_info *pbm, struct device *parent)
 {
 	struct property *prop;
-	struct device_node *dp;
+	struct device_yesde *dp;
 
-	dp = pbm->op->dev.of_node;
+	dp = pbm->op->dev.of_yesde;
 	prop = of_find_property(dp, "66mhz-capable", NULL);
 	pbm->is_66mhz_capable = (prop != NULL);
 	pbm->pci_bus = pci_scan_one_pbm(pbm, parent);
@@ -809,14 +809,14 @@ static int pci_sun4v_atu_init(struct pci_pbm_info *pbm)
 	const u32 *page_size;
 	int len;
 
-	ranges = of_get_property(pbm->op->dev.of_node, "iommu-address-ranges",
+	ranges = of_get_property(pbm->op->dev.of_yesde, "iommu-address-ranges",
 				 &len);
 	if (!ranges) {
 		pr_err(PFX "No iommu-address-ranges\n");
 		return -EINVAL;
 	}
 
-	page_size = of_get_property(pbm->op->dev.of_node, "iommu-pagesizes",
+	page_size = of_get_property(pbm->op->dev.of_yesde, "iommu-pagesizes",
 				    NULL);
 	if (!page_size) {
 		pr_err(PFX "No iommu-pagesizes\n");
@@ -830,7 +830,7 @@ static int pci_sun4v_atu_init(struct pci_pbm_info *pbm)
 	 * address ranges[2] and ranges[3] are same we can select either of
 	 * ranges[2] or ranges[3] for mapping. However due to 'size' is too
 	 * large for OS to allocate IOTSB we are using fix size 32G
-	 * (ATU_64_SPACE_SIZE) which is more than enough for all PCIe devices
+	 * (ATU_64_SPACE_SIZE) which is more than eyesugh for all PCIe devices
 	 * to share.
 	 */
 	atu->ranges = (struct atu_ranges *)ranges;
@@ -857,7 +857,7 @@ static int pci_sun4v_atu_init(struct pci_pbm_info *pbm)
 		return -ENOMEM;
 
 	iommu_tbl_pool_init(&atu->tbl, num_iotte, IO_PAGE_SHIFT,
-			    NULL, false /* no large_pool */,
+			    NULL, false /* yes large_pool */,
 			    0 /* default npools */,
 			    false /* want span boundary checking */);
 
@@ -872,7 +872,7 @@ static int pci_sun4v_iommu_init(struct pci_pbm_info *pbm)
 	u32 dma_mask, dma_offset;
 	const u32 *vdma;
 
-	vdma = of_get_property(pbm->op->dev.of_node, "virtual-dma", NULL);
+	vdma = of_get_property(pbm->op->dev.of_yesde, "virtual-dma", NULL);
 	if (!vdma)
 		vdma = vdma_default;
 
@@ -902,7 +902,7 @@ static int pci_sun4v_iommu_init(struct pci_pbm_info *pbm)
 		return -ENOMEM;
 	}
 	iommu_tbl_pool_init(&iommu->tbl, num_tsb_entries, IO_PAGE_SHIFT,
-			    NULL, false /* no large_pool */,
+			    NULL, false /* yes large_pool */,
 			    0 /* default npools */,
 			    false /* want span boundary checking */);
 	sz = probe_existing_entries(pbm, &iommu->tbl);
@@ -927,7 +927,7 @@ struct pci_sun4v_msiq_entry {
 #define MSIQ_TYPE_INTX			0x08
 #define MSIQ_TYPE_NONE2			0xff
 
-	u64		intx_sysino;
+	u64		intx_sysiyes;
 	u64		reserved1;
 	u64		stick;
 	u64		req_id;  /* bus/device/func */
@@ -1063,7 +1063,7 @@ static int pci_sun4v_msiq_alloc(struct pci_pbm_info *pbm)
 	order = get_order(alloc_size);
 	pages = __get_free_pages(GFP_KERNEL | __GFP_COMP, order);
 	if (pages == 0UL) {
-		printk(KERN_ERR "MSI: Cannot allocate MSI queues (o=%lu).\n",
+		printk(KERN_ERR "MSI: Canyest allocate MSI queues (o=%lu).\n",
 		       order);
 		return -ENOMEM;
 	}
@@ -1087,7 +1087,7 @@ static int pci_sun4v_msiq_alloc(struct pci_pbm_info *pbm)
 					  pbm->msiq_first + i,
 					  &ret1, &ret2);
 		if (err) {
-			printk(KERN_ERR "MSI: Cannot read msiq (err=%lu)\n",
+			printk(KERN_ERR "MSI: Canyest read msiq (err=%lu)\n",
 			       err);
 			goto h_error;
 		}
@@ -1131,9 +1131,9 @@ static void pci_sun4v_msiq_free(struct pci_pbm_info *pbm)
 
 static int pci_sun4v_msiq_build_irq(struct pci_pbm_info *pbm,
 				    unsigned long msiqid,
-				    unsigned long devino)
+				    unsigned long deviyes)
 {
-	unsigned int irq = sun4v_build_irq(pbm->devhandle, devino);
+	unsigned int irq = sun4v_build_irq(pbm->devhandle, deviyes);
 
 	if (!irq)
 		return -ENOMEM;
@@ -1170,10 +1170,10 @@ static void pci_sun4v_msi_init(struct pci_pbm_info *pbm)
 static int pci_sun4v_pbm_init(struct pci_pbm_info *pbm,
 			      struct platform_device *op, u32 devhandle)
 {
-	struct device_node *dp = op->dev.of_node;
+	struct device_yesde *dp = op->dev.of_yesde;
 	int err;
 
-	pbm->numa_node = of_node_to_nid(dp);
+	pbm->numa_yesde = of_yesde_to_nid(dp);
 
 	pbm->pci_ops = &sun4v_pci_ops;
 	pbm->config_space_reg_bits = 12;
@@ -1187,7 +1187,7 @@ static int pci_sun4v_pbm_init(struct pci_pbm_info *pbm,
 	pbm->name = dp->full_name;
 
 	printk("%s: SUN4V PCI Bus Module\n", pbm->name);
-	printk("%s: On NUMA node %d\n", pbm->name, pbm->numa_node);
+	printk("%s: On NUMA yesde %d\n", pbm->name, pbm->numa_yesde);
 
 	pci_determine_mem_io_space(pbm);
 
@@ -1201,7 +1201,7 @@ static int pci_sun4v_pbm_init(struct pci_pbm_info *pbm,
 
 	pci_sun4v_scan_bus(pbm, &op->dev);
 
-	/* if atu_init fails its not complete failure.
+	/* if atu_init fails its yest complete failure.
 	 * we can still continue using legacy iommu.
 	 */
 	if (pbm->iommu->atu) {
@@ -1224,42 +1224,42 @@ static int pci_sun4v_probe(struct platform_device *op)
 	const struct linux_prom64_registers *regs;
 	static int hvapi_negotiated = 0;
 	struct pci_pbm_info *pbm;
-	struct device_node *dp;
+	struct device_yesde *dp;
 	struct iommu *iommu;
 	struct atu *atu;
 	u32 devhandle;
 	int i, err = -ENODEV;
 	static bool hv_atu = true;
 
-	dp = op->dev.of_node;
+	dp = op->dev.of_yesde;
 
 	if (!hvapi_negotiated++) {
 		for (i = 0; i < ARRAY_SIZE(vpci_versions); i++) {
 			vpci_major = vpci_versions[i].major;
-			vpci_minor = vpci_versions[i].minor;
+			vpci_miyesr = vpci_versions[i].miyesr;
 
 			err = sun4v_hvapi_register(HV_GRP_PCI, vpci_major,
-						   &vpci_minor);
+						   &vpci_miyesr);
 			if (!err)
 				break;
 		}
 
 		if (err) {
-			pr_err(PFX "Could not register hvapi, err=%d\n", err);
+			pr_err(PFX "Could yest register hvapi, err=%d\n", err);
 			return err;
 		}
-		pr_info(PFX "Registered hvapi major[%lu] minor[%lu]\n",
-			vpci_major, vpci_minor);
+		pr_info(PFX "Registered hvapi major[%lu] miyesr[%lu]\n",
+			vpci_major, vpci_miyesr);
 
-		err = sun4v_hvapi_register(HV_GRP_ATU, vatu_major, &vatu_minor);
+		err = sun4v_hvapi_register(HV_GRP_ATU, vatu_major, &vatu_miyesr);
 		if (err) {
 			/* don't return an error if we fail to register the
 			 * ATU group, but ATU hcalls won't be available.
 			 */
 			hv_atu = false;
 		} else {
-			pr_info(PFX "Registered hvapi ATU major[%lu] minor[%lu]\n",
-				vatu_major, vatu_minor);
+			pr_info(PFX "Registered hvapi ATU major[%lu] miyesr[%lu]\n",
+				vatu_major, vatu_miyesr);
 		}
 
 		dma_ops = &sun4v_dma_ops;
@@ -1268,7 +1268,7 @@ static int pci_sun4v_probe(struct platform_device *op)
 	regs = of_get_property(dp, "reg", NULL);
 	err = -ENODEV;
 	if (!regs) {
-		printk(KERN_ERR PFX "Could not find config registers\n");
+		printk(KERN_ERR PFX "Could yest find config registers\n");
 		goto out_err;
 	}
 	devhandle = (regs->phys_addr >> 32UL) & 0x0fffffff;
@@ -1288,13 +1288,13 @@ static int pci_sun4v_probe(struct platform_device *op)
 
 	pbm = kzalloc(sizeof(*pbm), GFP_KERNEL);
 	if (!pbm) {
-		printk(KERN_ERR PFX "Could not allocate pci_pbm_info\n");
+		printk(KERN_ERR PFX "Could yest allocate pci_pbm_info\n");
 		goto out_err;
 	}
 
 	iommu = kzalloc(sizeof(struct iommu), GFP_KERNEL);
 	if (!iommu) {
-		printk(KERN_ERR PFX "Could not allocate pbm iommu\n");
+		printk(KERN_ERR PFX "Could yest allocate pbm iommu\n");
 		goto out_free_controller;
 	}
 
@@ -1303,7 +1303,7 @@ static int pci_sun4v_probe(struct platform_device *op)
 	if (hv_atu) {
 		atu = kzalloc(sizeof(*atu), GFP_KERNEL);
 		if (!atu)
-			pr_err(PFX "Could not allocate atu\n");
+			pr_err(PFX "Could yest allocate atu\n");
 		else
 			iommu->atu = atu;
 	}

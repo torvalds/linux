@@ -528,7 +528,7 @@ asm volatile("mcr p14, "#op1", %0, "#crn", "#crm", "#op2 : : "r" (val));\
 #define WCP14_ETMITCTRL(val)		MCR14(val, 1, c7, c0, 4)
 #define WCP14_ETMCLAIMSET(val)		MCR14(val, 1, c7, c8, 6)
 #define WCP14_ETMCLAIMCLR(val)		MCR14(val, 1, c7, c9, 6)
-/* Writes to this from CP14 interface are ignored */
+/* Writes to this from CP14 interface are igyesred */
 #define WCP14_ETMLAR(val)		MCR14(val, 1, c7, c12, 6)
 
 #endif

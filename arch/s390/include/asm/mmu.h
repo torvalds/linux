@@ -3,7 +3,7 @@
 #define __MMU_H
 
 #include <linux/cpumask.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 
 typedef struct {
 	spinlock_t lock;

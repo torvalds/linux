@@ -78,7 +78,7 @@ struct yld_ctl_packet {
  */
 #define CMD_RING_VOLUME		0x11
 
-/* Set ringtone notes
+/* Set ringtone yestes
  *
  * cmd		0x02
  * size		1-11

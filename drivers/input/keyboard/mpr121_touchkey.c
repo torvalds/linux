@@ -212,7 +212,7 @@ static int mpr121_phys_init(struct mpr121_touchkey *mpr121,
 
 	/*
 	 * Quick charge bit will let the capacitive charge to ready
-	 * state quickly, or the buttons may not function after system
+	 * state quickly, or the buttons may yest function after system
 	 * boot.
 	 */
 	eleconf = mpr121->keycount | ELECTRODE_CONF_QUICK_CHARGE;
@@ -326,7 +326,7 @@ static int mpr_touchkey_probe(struct i2c_client *client,
 					    MPR121_MAX_POLL_INTERVAL);
 	} else {
 		dev_err(dev,
-			"invalid IRQ number and polling not configured\n");
+			"invalid IRQ number and polling yest configured\n");
 		return -EINVAL;
 	}
 

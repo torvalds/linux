@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -38,7 +38,7 @@
 /*
  * Trivial bitmap-based allocator. If the random flag is set, the
  * allocator is designed to:
- * - pseudo-randomize the id returned such that it is not trivially predictable.
+ * - pseudo-randomize the id returned such that it is yest trivially predictable.
  * - avoid reuse of recently used id (at the expense of predictability)
  */
 u32 c4iw_id_alloc(struct c4iw_id_table *alloc)

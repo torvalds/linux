@@ -31,7 +31,7 @@
 #define CEPH_OPT_FSID             (1<<0)
 #define CEPH_OPT_NOSHARE          (1<<1) /* don't share client with other sbs */
 #define CEPH_OPT_MYIP             (1<<2) /* specified my ip */
-#define CEPH_OPT_NOCRC            (1<<3) /* no data crc on writes */
+#define CEPH_OPT_NOCRC            (1<<3) /* yes data crc on writes */
 #define CEPH_OPT_NOMSGAUTH	  (1<<4) /* don't require msg signing feat */
 #define CEPH_OPT_TCP_NODELAY	  (1<<5) /* TCP_NODELAY on TCP sockets */
 #define CEPH_OPT_NOMSGSIGN	  (1<<6) /* don't sign msgs */
@@ -72,7 +72,7 @@ struct ceph_options {
 #define CEPH_MOUNT_TIMEOUT_DEFAULT	msecs_to_jiffies(60 * 1000)
 #define CEPH_OSD_KEEPALIVE_DEFAULT	msecs_to_jiffies(5 * 1000)
 #define CEPH_OSD_IDLE_TTL_DEFAULT	msecs_to_jiffies(60 * 1000)
-#define CEPH_OSD_REQUEST_TIMEOUT_DEFAULT 0  /* no timeout */
+#define CEPH_OSD_REQUEST_TIMEOUT_DEFAULT 0  /* yes timeout */
 
 #define CEPH_MONC_HUNT_INTERVAL		msecs_to_jiffies(3 * 1000)
 #define CEPH_MONC_PING_INTERVAL		msecs_to_jiffies(10 * 1000)
@@ -87,7 +87,7 @@ struct ceph_options {
  * The largest possible rbd data object is 32M.
  * The largest possible rbd object map object is 64M.
  *
- * There is no limit on the size of cephfs objects, but it has to obey
+ * There is yes limit on the size of cephfs objects, but it has to obey
  * rsize and wsize mount options anyway.
  */
 #define CEPH_MSG_MAX_DATA_LEN	(64*1024*1024)
@@ -187,16 +187,16 @@ static inline int calc_pages_for(u64 off, u64 len)
 #define RB_BYPTR(a)      (&(a))
 #define RB_CMP3WAY(a, b) ((a) < (b) ? -1 : (a) > (b))
 
-#define DEFINE_RB_INSDEL_FUNCS2(name, type, keyfld, cmpexp, keyexp, nodefld) \
+#define DEFINE_RB_INSDEL_FUNCS2(name, type, keyfld, cmpexp, keyexp, yesdefld) \
 static void insert_##name(struct rb_root *root, type *t)		\
 {									\
-	struct rb_node **n = &root->rb_node;				\
-	struct rb_node *parent = NULL;					\
+	struct rb_yesde **n = &root->rb_yesde;				\
+	struct rb_yesde *parent = NULL;					\
 									\
-	BUG_ON(!RB_EMPTY_NODE(&t->nodefld));				\
+	BUG_ON(!RB_EMPTY_NODE(&t->yesdefld));				\
 									\
 	while (*n) {							\
-		type *cur = rb_entry(*n, type, nodefld);		\
+		type *cur = rb_entry(*n, type, yesdefld);		\
 		int cmp;						\
 									\
 		parent = *n;						\
@@ -209,28 +209,28 @@ static void insert_##name(struct rb_root *root, type *t)		\
 			BUG();						\
 	}								\
 									\
-	rb_link_node(&t->nodefld, parent, n);				\
-	rb_insert_color(&t->nodefld, root);				\
+	rb_link_yesde(&t->yesdefld, parent, n);				\
+	rb_insert_color(&t->yesdefld, root);				\
 }									\
 static void erase_##name(struct rb_root *root, type *t)			\
 {									\
-	BUG_ON(RB_EMPTY_NODE(&t->nodefld));				\
-	rb_erase(&t->nodefld, root);					\
-	RB_CLEAR_NODE(&t->nodefld);					\
+	BUG_ON(RB_EMPTY_NODE(&t->yesdefld));				\
+	rb_erase(&t->yesdefld, root);					\
+	RB_CLEAR_NODE(&t->yesdefld);					\
 }
 
 /*
- * @lookup_param_type is a parameter and not constructed from (@type,
+ * @lookup_param_type is a parameter and yest constructed from (@type,
  * @keyfld) with typeof() because adding const is too unwieldy.
  */
 #define DEFINE_RB_LOOKUP_FUNC2(name, type, keyfld, cmpexp, keyexp,	\
-			       lookup_param_type, nodefld)		\
+			       lookup_param_type, yesdefld)		\
 static type *lookup_##name(struct rb_root *root, lookup_param_type key)	\
 {									\
-	struct rb_node *n = root->rb_node;				\
+	struct rb_yesde *n = root->rb_yesde;				\
 									\
 	while (n) {							\
-		type *cur = rb_entry(n, type, nodefld);			\
+		type *cur = rb_entry(n, type, yesdefld);			\
 		int cmp;						\
 									\
 		cmp = cmpexp(key, keyexp(cur->keyfld));			\
@@ -246,27 +246,27 @@ static type *lookup_##name(struct rb_root *root, lookup_param_type key)	\
 }
 
 #define DEFINE_RB_FUNCS2(name, type, keyfld, cmpexp, keyexp,		\
-			 lookup_param_type, nodefld)			\
-DEFINE_RB_INSDEL_FUNCS2(name, type, keyfld, cmpexp, keyexp, nodefld)	\
+			 lookup_param_type, yesdefld)			\
+DEFINE_RB_INSDEL_FUNCS2(name, type, keyfld, cmpexp, keyexp, yesdefld)	\
 DEFINE_RB_LOOKUP_FUNC2(name, type, keyfld, cmpexp, keyexp,		\
-		       lookup_param_type, nodefld)
+		       lookup_param_type, yesdefld)
 
 /*
  * Shorthands for integer keys.
  */
-#define DEFINE_RB_INSDEL_FUNCS(name, type, keyfld, nodefld)		\
-DEFINE_RB_INSDEL_FUNCS2(name, type, keyfld, RB_CMP3WAY, RB_BYVAL, nodefld)
+#define DEFINE_RB_INSDEL_FUNCS(name, type, keyfld, yesdefld)		\
+DEFINE_RB_INSDEL_FUNCS2(name, type, keyfld, RB_CMP3WAY, RB_BYVAL, yesdefld)
 
-#define DEFINE_RB_LOOKUP_FUNC(name, type, keyfld, nodefld)		\
+#define DEFINE_RB_LOOKUP_FUNC(name, type, keyfld, yesdefld)		\
 extern type __lookup_##name##_key;					\
 DEFINE_RB_LOOKUP_FUNC2(name, type, keyfld, RB_CMP3WAY, RB_BYVAL,	\
-		       typeof(__lookup_##name##_key.keyfld), nodefld)
+		       typeof(__lookup_##name##_key.keyfld), yesdefld)
 
-#define DEFINE_RB_FUNCS(name, type, keyfld, nodefld)			\
-DEFINE_RB_INSDEL_FUNCS(name, type, keyfld, nodefld)			\
-DEFINE_RB_LOOKUP_FUNC(name, type, keyfld, nodefld)
+#define DEFINE_RB_FUNCS(name, type, keyfld, yesdefld)			\
+DEFINE_RB_INSDEL_FUNCS(name, type, keyfld, yesdefld)			\
+DEFINE_RB_LOOKUP_FUNC(name, type, keyfld, yesdefld)
 
-extern struct kmem_cache *ceph_inode_cachep;
+extern struct kmem_cache *ceph_iyesde_cachep;
 extern struct kmem_cache *ceph_cap_cachep;
 extern struct kmem_cache *ceph_cap_flush_cachep;
 extern struct kmem_cache *ceph_dentry_cachep;

@@ -391,7 +391,7 @@ static int ax88772_hw_reset(struct usbnet *dev, int in_pm)
 
 	msleep(150);
 
-	if (in_pm && (!asix_mdio_read_nopm(dev->net, dev->mii.phy_id,
+	if (in_pm && (!asix_mdio_read_yespm(dev->net, dev->mii.phy_id,
 					   MII_PHYSID1))){
 		ret = -EIO;
 		goto out;
@@ -483,7 +483,7 @@ static int ax88772a_hw_reset(struct usbnet *dev, int in_pm)
 
 	msleep(200);
 
-	if (in_pm && (!asix_mdio_read_nopm(dev->net, dev->mii.phy_id,
+	if (in_pm && (!asix_mdio_read_yespm(dev->net, dev->mii.phy_id,
 					   MII_PHYSID1))) {
 		ret = -1;
 		goto out;
@@ -504,28 +504,28 @@ static int ax88772a_hw_reset(struct usbnet *dev, int in_pm)
 		}
 	} else if ((chipcode & AX_CHIPCODE_MASK) == AX_AX88772A_CHIPCODE) {
 		/* Check if the PHY registers have default settings */
-		phy14h = asix_mdio_read_nopm(dev->net, dev->mii.phy_id,
+		phy14h = asix_mdio_read_yespm(dev->net, dev->mii.phy_id,
 					     AX88772A_PHY14H);
-		phy15h = asix_mdio_read_nopm(dev->net, dev->mii.phy_id,
+		phy15h = asix_mdio_read_yespm(dev->net, dev->mii.phy_id,
 					     AX88772A_PHY15H);
-		phy16h = asix_mdio_read_nopm(dev->net, dev->mii.phy_id,
+		phy16h = asix_mdio_read_yespm(dev->net, dev->mii.phy_id,
 					     AX88772A_PHY16H);
 
 		netdev_dbg(dev->net,
 			   "772a_hw_reset: MR20=0x%x MR21=0x%x MR22=0x%x\n",
 			   phy14h, phy15h, phy16h);
 
-		/* Restore PHY registers default setting if not */
+		/* Restore PHY registers default setting if yest */
 		if (phy14h != AX88772A_PHY14H_DEFAULT)
-			asix_mdio_write_nopm(dev->net, dev->mii.phy_id,
+			asix_mdio_write_yespm(dev->net, dev->mii.phy_id,
 					     AX88772A_PHY14H,
 					     AX88772A_PHY14H_DEFAULT);
 		if (phy15h != AX88772A_PHY15H_DEFAULT)
-			asix_mdio_write_nopm(dev->net, dev->mii.phy_id,
+			asix_mdio_write_yespm(dev->net, dev->mii.phy_id,
 					     AX88772A_PHY15H,
 					     AX88772A_PHY15H_DEFAULT);
 		if (phy16h != AX88772A_PHY16H_DEFAULT)
-			asix_mdio_write_nopm(dev->net, dev->mii.phy_id,
+			asix_mdio_write_yespm(dev->net, dev->mii.phy_id,
 					     AX88772A_PHY16H,
 					     AX88772A_PHY16H_DEFAULT);
 	}
@@ -602,11 +602,11 @@ static void ax88772_suspend(struct usbnet *dev)
 
 	/* Preserve BMCR for restoring */
 	priv->presvd_phy_bmcr =
-		asix_mdio_read_nopm(dev->net, dev->mii.phy_id, MII_BMCR);
+		asix_mdio_read_yespm(dev->net, dev->mii.phy_id, MII_BMCR);
 
 	/* Preserve ANAR for restoring */
 	priv->presvd_phy_advertise =
-		asix_mdio_read_nopm(dev->net, dev->mii.phy_id, MII_ADVERTISE);
+		asix_mdio_read_yespm(dev->net, dev->mii.phy_id, MII_ADVERTISE);
 }
 
 static int asix_suspend(struct usb_interface *intf, pm_message_t message)
@@ -626,14 +626,14 @@ static void ax88772_restore_phy(struct usbnet *dev)
 
 	if (priv->presvd_phy_advertise) {
 		/* Restore Advertisement control reg */
-		asix_mdio_write_nopm(dev->net, dev->mii.phy_id, MII_ADVERTISE,
+		asix_mdio_write_yespm(dev->net, dev->mii.phy_id, MII_ADVERTISE,
 				     priv->presvd_phy_advertise);
 
 		/* Restore BMCR */
 		if (priv->presvd_phy_bmcr & BMCR_ANENABLE)
 			priv->presvd_phy_bmcr |= BMCR_ANRESTART;
 
-		asix_mdio_write_nopm(dev->net, dev->mii.phy_id, MII_BMCR,
+		asix_mdio_write_yespm(dev->net, dev->mii.phy_id, MII_BMCR,
 				     priv->presvd_phy_bmcr);
 
 		priv->presvd_phy_advertise = 0;
@@ -741,7 +741,7 @@ static int ax88772_bind(struct usbnet *dev, struct usb_interface *intf)
 
 	/* Asix framing packs multiple eth frames into a 2K usb bulk transfer */
 	if (dev->driver_info->flags & FLAG_FRAMING_AX) {
-		/* hard_mtu  is still the default - the device does not support
+		/* hard_mtu  is still the default - the device does yest support
 		   jumbo eth frames */
 		dev->rx_urb_size = 2048;
 	}
@@ -1087,7 +1087,7 @@ static int ax88178_bind(struct usbnet *dev, struct usb_interface *intf)
 	dev->net->ethtool_ops = &ax88178_ethtool_ops;
 	dev->net->max_mtu = 16384 - (dev->net->hard_header_len + 4);
 
-	/* Blink LEDS so users know driver saw dongle */
+	/* Blink LEDS so users kyesw driver saw dongle */
 	asix_sw_reset(dev, 0, 0);
 	msleep(150);
 
@@ -1096,7 +1096,7 @@ static int ax88178_bind(struct usbnet *dev, struct usb_interface *intf)
 
 	/* Asix framing packs multiple eth frames into a 2K usb bulk transfer */
 	if (dev->driver_info->flags & FLAG_FRAMING_AX) {
-		/* hard_mtu  is still the default - the device does not support
+		/* hard_mtu  is still the default - the device does yest support
 		   jumbo eth frames */
 		dev->rx_urb_size = 2048;
 	}
@@ -1189,7 +1189,7 @@ static const struct driver_info ax88178_info = {
 
 /*
  * USBLINK 20F9 "USB 2.0 LAN" USB ethernet adapter, typically found in
- * no-name packaging.
+ * yes-name packaging.
  * USB device strings are:
  *   1: Manufacturer: USBLINK
  *   2: Product: HG20F9 USB2.0
@@ -1280,7 +1280,7 @@ static const struct usb_device_id	products [] = {
 	USB_DEVICE (0x04f1, 0x3008),
 	.driver_info = (unsigned long) &ax8817x_info,
 }, {
-	// Lenovo U2L100P 10/100
+	// Leyesvo U2L100P 10/100
 	USB_DEVICE (0x17ef, 0x7203),
 	.driver_info = (unsigned long)&ax88772b_info,
 }, {
@@ -1359,7 +1359,7 @@ static const struct usb_device_id	products [] = {
 	/*
 	 * USBLINK HG20F9 "USB 2.0 LAN"
 	 * Appears to have gazumped Linksys's manufacturer ID but
-	 * doesn't (yet) conflict with any known Linksys product.
+	 * doesn't (yet) conflict with any kyeswn Linksys product.
 	 */
 	USB_DEVICE(0x066b, 0x20f9),
 	.driver_info = (unsigned long) &hg20f9_info,

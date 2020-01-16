@@ -43,7 +43,7 @@ static const char * cdb_byte0_names[] = {
 /* 13-16 */ "Verify(6)", "Recover Buffered Data", "Mode Select(6)",
 	    "Reserve(6)",
 /* 17-1a */ "Release(6)", "Copy", "Erase", "Mode Sense(6)",
-/* 1b-1d */ "Start/Stop Unit", "Receive Diagnostic", "Send Diagnostic",
+/* 1b-1d */ "Start/Stop Unit", "Receive Diagyesstic", "Send Diagyesstic",
 /* 1e-1f */ "Prevent/Allow Medium Removal", NULL,
 /* 20-22 */  NULL, NULL, NULL,
 /* 23-28 */ "Read Format Capacities", "Set Window",
@@ -61,7 +61,7 @@ static const char * cdb_byte0_names[] = {
 /* 42-48 */ "Unmap/Read sub-channel", "Read TOC/PMA/ATIP",
 	    "Read density support", "Play audio(10)", "Get configuration",
 	    "Play audio msf", "Sanitize/Play audio track/index",
-/* 49-4f */ "Play track relative(10)", "Get event status notification",
+/* 49-4f */ "Play track relative(10)", "Get event status yestification",
             "Pause/resume", "Log Select", "Log Sense", "Stop play/scan",
             NULL,
 /* 50-55 */ "Xdwrite", "Xpwrite, Read disk info", "Xdread, Read track info",
@@ -171,7 +171,7 @@ static const struct value_name_pair pr_out_arr[] = {
 	{0x3, "Persistent reserve out, clear"},
 	{0x4, "Persistent reserve out, preempt"},
 	{0x5, "Persistent reserve out, preempt and abort"},
-	{0x6, "Persistent reserve out, register and ignore existing key"},
+	{0x6, "Persistent reserve out, register and igyesre existing key"},
 	{0x7, "Persistent reserve out, register and move"},
 };
 #define PR_OUT_SZ ARRAY_SIZE(pr_out_arr)
@@ -326,7 +326,7 @@ struct error_info2 {
 static const struct error_info2 additional2[] =
 {
 	{0x40, 0x00, 0x7f, "Ram failure", ""},
-	{0x40, 0x80, 0xff, "Diagnostic failure on component", ""},
+	{0x40, 0x80, 0xff, "Diagyesstic failure on component", ""},
 	{0x41, 0x00, 0xff, "Data path failure", ""},
 	{0x42, 0x00, 0xff, "Power-on or self-test failure", ""},
 	{0x4D, 0x00, 0xff, "Tagged overlapped commands", "task tag "},
@@ -336,10 +336,10 @@ static const struct error_info2 additional2[] =
 
 /* description of the sense key values */
 static const char * const snstext[] = {
-	"No Sense",	    /* 0: There is no sense information */
+	"No Sense",	    /* 0: There is yes sense information */
 	"Recovered Error",  /* 1: The last command completed successfully
 				  but used error correction */
-	"Not Ready",	    /* 2: The addressed target is not ready */
+	"Not Ready",	    /* 2: The addressed target is yest ready */
 	"Medium Error",	    /* 3: Data error detected on the medium */
 	"Hardware Error",   /* 4: Controller or device failure */
 	"Illegal Request",  /* 5: Error in request */
@@ -355,12 +355,12 @@ static const char * const snstext[] = {
 				  reserved in SPC-4 rev 36 */
 	"Volume Overflow",  /* D: Medium full with still data to be written */
 	"Miscompare",	    /* E: Source data and data on the medium
-				  do not agree */
+				  do yest agree */
 	"Completed",	    /* F: command completed sense data reported,
 				  may occur for successful command */
 };
 
-/* Get sense key string or NULL if not available */
+/* Get sense key string or NULL if yest available */
 const char *
 scsi_sense_key_string(unsigned char key)
 {
@@ -371,7 +371,7 @@ scsi_sense_key_string(unsigned char key)
 EXPORT_SYMBOL(scsi_sense_key_string);
 
 /*
- * Get additional sense code string or NULL if not available.
+ * Get additional sense code string or NULL if yest available.
  * This string may contain a "%x" and should be printed with ascq as arg.
  */
 const char *

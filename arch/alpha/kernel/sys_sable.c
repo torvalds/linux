@@ -54,7 +54,7 @@ static void sable_lynx_init_irq(int nr_of_irqs);
 /***********************************************************************/
 /*
  *   For SABLE, which is really baroque, we manage 40 IRQ's, but the
- *   hardware really only supports 24, not via normal ISA PIC,
+ *   hardware really only supports 24, yest via yesrmal ISA PIC,
  *   but cascaded custom 8259's, etc.
  *	 0-7  (char at 536)
  *	 8-15 (char at 53a)
@@ -176,9 +176,9 @@ sable_init_irq(void)
  *  0       TULIP
  *  1       SCSI
  *  2       PCI-EISA bridge
- *  3       none
- *  4       none
- *  5       none
+ *  3       yesne
+ *  4       yesne
+ *  5       yesne
  *  6       PCI on board slot 0
  *  7       PCI on board slot 1
  *  8       PCI on board slot 2
@@ -201,9 +201,9 @@ sable_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 		{ 32+0,  32+0,  32+0,  32+0,  32+0},  /* IdSel 0,  TULIP  */
 		{ 32+1,  32+1,  32+1,  32+1,  32+1},  /* IdSel 1,  SCSI   */
 		{   -1,    -1,    -1,    -1,    -1},  /* IdSel 2,  SIO   */
-		{   -1,    -1,    -1,    -1,    -1},  /* IdSel 3,  none   */
-		{   -1,    -1,    -1,    -1,    -1},  /* IdSel 4,  none   */
-		{   -1,    -1,    -1,    -1,    -1},  /* IdSel 5,  none   */
+		{   -1,    -1,    -1,    -1,    -1},  /* IdSel 3,  yesne   */
+		{   -1,    -1,    -1,    -1,    -1},  /* IdSel 4,  yesne   */
+		{   -1,    -1,    -1,    -1,    -1},  /* IdSel 5,  yesne   */
 		{ 32+2,  32+2,  32+2,  32+2,  32+2},  /* IdSel 6,  slot 0 */
 		{ 32+3,  32+3,  32+3,  32+3,  32+3},  /* IdSel 7,  slot 1 */
 		{ 32+4,  32+4,  32+4,  32+4,  32+4}   /* IdSel 8,  slot 2 */
@@ -352,12 +352,12 @@ lynx_init_irq(void)
  * The device to slot mapping looks like:
  *
  * Slot     Device
- *  0       none
- *  1       none
+ *  0       yesne
+ *  1       yesne
  *  2       PCI-EISA bridge
  *  3       PCI-PCI bridge
  *  4       NCR 810 (Demi-Lynx only)
- *  5       none
+ *  5       yesne
  *  6       PCI on board slot 4
  *  7       PCI on board slot 5
  *  8       PCI on board slot 6
@@ -383,19 +383,19 @@ lynx_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 		{   -1,    -1,    -1,    -1,    -1},  /* IdSel 13,  PCEB   */
 		{   -1,    -1,    -1,    -1,    -1},  /* IdSel 14,  PPB    */
 		{   28,    28,    28,    28,    28},  /* IdSel 15,  NCR demi */
-		{   -1,    -1,    -1,    -1,    -1},  /* IdSel 16,  none   */
+		{   -1,    -1,    -1,    -1,    -1},  /* IdSel 16,  yesne   */
 		{   32,    32,    33,    34,    35},  /* IdSel 17,  slot 4 */
 		{   36,    36,    37,    38,    39},  /* IdSel 18,  slot 5 */
 		{   40,    40,    41,    42,    43},  /* IdSel 19,  slot 6 */
 		{   44,    44,    45,    46,    47},  /* IdSel 20,  slot 7 */
-		{   -1,    -1,    -1,    -1,    -1},  /* IdSel 22,  none   */
+		{   -1,    -1,    -1,    -1,    -1},  /* IdSel 22,  yesne   */
 		/* The following are actually behind the PPB. */
-		{   -1,    -1,    -1,    -1,    -1},  /* IdSel 16   none */
+		{   -1,    -1,    -1,    -1,    -1},  /* IdSel 16   yesne */
 		{   28,    28,    28,    28,    28},  /* IdSel 17   NCR lynx */
-		{   -1,    -1,    -1,    -1,    -1},  /* IdSel 18   none */
-		{   -1,    -1,    -1,    -1,    -1},  /* IdSel 19   none */
-		{   -1,    -1,    -1,    -1,    -1},  /* IdSel 20   none */
-		{   -1,    -1,    -1,    -1,    -1},  /* IdSel 21   none */
+		{   -1,    -1,    -1,    -1,    -1},  /* IdSel 18   yesne */
+		{   -1,    -1,    -1,    -1,    -1},  /* IdSel 19   yesne */
+		{   -1,    -1,    -1,    -1,    -1},  /* IdSel 20   yesne */
+		{   -1,    -1,    -1,    -1,    -1},  /* IdSel 21   yesne */
 		{   48,    48,    49,    50,    51},  /* IdSel 22   slot 0 */
 		{   52,    52,    53,    54,    55},  /* IdSel 23   slot 1 */
 		{   56,    56,    57,    58,    59},  /* IdSel 24   slot 2 */

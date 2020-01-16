@@ -12,11 +12,11 @@
  *     conditions are met:
  *
  *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer.
  *
  *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
+ *        copyright yestice, this list of conditions and the following
  *        disclaimer in the documentation and/or other materials
  *        provided with the distribution.
  *
@@ -73,7 +73,7 @@ enum {
 	MLX4_CMD_ALLOCATE_VPP	 = 0x80,
 	MLX4_CMD_SET_VPORT_QOS	 = 0x81,
 
-	/*master notify fw on finish for slave's flr*/
+	/*master yestify fw on finish for slave's flr*/
 	MLX4_CMD_INFORM_FLR_DONE = 0x5b,
 	MLX4_CMD_VIRT_PORT_MAP   = 0x5c,
 	MLX4_CMD_GET_OP_REQ      = 0x59,
@@ -223,14 +223,14 @@ enum {
 
 /*
  * MLX4_RX_CSUM_MODE_VAL_NON_TCP_UDP -
- * Receive checksum value is reported in CQE also for non TCP/UDP packets.
+ * Receive checksum value is reported in CQE also for yesn TCP/UDP packets.
  *
  * MLX4_RX_CSUM_MODE_L4 -
- * L4_CSUM bit in CQE, which indicates whether or not L4 checksum
+ * L4_CSUM bit in CQE, which indicates whether or yest L4 checksum
  * was validated correctly, is supported.
  *
  * MLX4_RX_CSUM_MODE_IP_OK_IP_NON_TCP_UDP -
- * IP_OK CQE's field is supported also for non TCP/UDP IP packets.
+ * IP_OK CQE's field is supported also for yesn TCP/UDP IP packets.
  *
  * MLX4_RX_CSUM_MODE_MULTI_VLAN -
  * Receive Checksum offload is supported for packets with more than 2 vlan headers.
@@ -269,7 +269,7 @@ int __mlx4_cmd(struct mlx4_dev *dev, u64 in_param, u64 *out_param,
 	       int out_is_imm, u32 in_modifier, u8 op_modifier,
 	       u16 op, unsigned long timeout, int native);
 
-/* Invoke a command with no output parameter */
+/* Invoke a command with yes output parameter */
 static inline int mlx4_cmd(struct mlx4_dev *dev, u64 in_param, u32 in_modifier,
 			   u8 op_modifier, u16 op, unsigned long timeout,
 			   int native)
@@ -323,7 +323,7 @@ void mlx4_report_internal_err_comm_event(struct mlx4_dev *dev);
 /*
  * mlx4_get_slave_default_vlan -
  * return true if VST ( default vlan)
- * if VST, will return vlan & qos (if not NULL)
+ * if VST, will return vlan & qos (if yest NULL)
  */
 bool mlx4_get_slave_default_vlan(struct mlx4_dev *dev, int port, int slave,
 				 u16 *vlan, u8 *qos);

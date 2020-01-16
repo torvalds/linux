@@ -66,9 +66,9 @@ static void irqc_dbg(struct irqc_irq *i, char *str)
 static unsigned char irqc_sense[IRQ_TYPE_SENSE_MASK + 1] = {
 	[IRQ_TYPE_LEVEL_LOW]	= 0x01,
 	[IRQ_TYPE_LEVEL_HIGH]	= 0x02,
-	[IRQ_TYPE_EDGE_FALLING]	= 0x04,	/* Synchronous */
-	[IRQ_TYPE_EDGE_RISING]	= 0x08,	/* Synchronous */
-	[IRQ_TYPE_EDGE_BOTH]	= 0x0c,	/* Synchronous */
+	[IRQ_TYPE_EDGE_FALLING]	= 0x04,	/* Synchroyesus */
+	[IRQ_TYPE_EDGE_RISING]	= 0x08,	/* Synchroyesus */
+	[IRQ_TYPE_EDGE_BOTH]	= 0x0c,	/* Synchroyesus */
 };
 
 static int irqc_irq_set_type(struct irq_data *d, unsigned int type)
@@ -153,7 +153,7 @@ static int irqc_probe(struct platform_device *pdev)
 
 	p->number_of_irqs = k;
 	if (p->number_of_irqs < 1) {
-		dev_err(dev, "not enough IRQ resources\n");
+		dev_err(dev, "yest eyesugh IRQ resources\n");
 		ret = -EINVAL;
 		goto err_runtime_pm_disable;
 	}
@@ -167,11 +167,11 @@ static int irqc_probe(struct platform_device *pdev)
 
 	p->cpu_int_base = p->iomem + IRQC_INT_CPU_BASE(0); /* SYS-SPI */
 
-	p->irq_domain = irq_domain_add_linear(dev->of_node, p->number_of_irqs,
+	p->irq_domain = irq_domain_add_linear(dev->of_yesde, p->number_of_irqs,
 					      &irq_generic_chip_ops, p);
 	if (!p->irq_domain) {
 		ret = -ENXIO;
-		dev_err(dev, "cannot initialize irq domain\n");
+		dev_err(dev, "canyest initialize irq domain\n");
 		goto err_runtime_pm_disable;
 	}
 
@@ -179,7 +179,7 @@ static int irqc_probe(struct platform_device *pdev)
 					     1, "irqc", handle_level_irq,
 					     0, 0, IRQ_GC_INIT_NESTED_LOCK);
 	if (ret) {
-		dev_err(dev, "cannot allocate generic chip\n");
+		dev_err(dev, "canyest allocate generic chip\n");
 		goto err_remove_domain;
 	}
 

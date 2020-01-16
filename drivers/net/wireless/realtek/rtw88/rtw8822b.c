@@ -55,7 +55,7 @@ static int rtw8822b_read_efuse(struct rtw_dev *rtwdev, u8 *log_map)
 		rtw8822be_efuse_parsing(efuse, map);
 		break;
 	default:
-		/* unsupported now */
+		/* unsupported yesw */
 		return -ENOTSUPP;
 	}
 
@@ -938,7 +938,7 @@ static void rtw8822b_query_rx_desc(struct rtw_dev *rtwdev, u8 *rx_desc,
 	/* drv_info_sz is in unit of 8-bytes */
 	pkt_stat->drv_info_sz *= 8;
 
-	/* c2h cmd pkt's rx/phy status is not interested */
+	/* c2h cmd pkt's rx/phy status is yest interested */
 	if (pkt_stat->is_c2h)
 		return;
 
@@ -1124,7 +1124,7 @@ static void rtw8822b_coex_cfg_init(struct rtw_dev *rtwdev)
 
 	/* enable PTA (tx/rx signal form WiFi side) */
 	rtw_write8_set(rtwdev, REG_QUEUE_CTRL, BIT_PTA_WL_TX_EN);
-	/* wl tx signal to PTA not case EDCCA */
+	/* wl tx signal to PTA yest case EDCCA */
 	rtw_write8_clr(rtwdev, REG_QUEUE_CTRL, BIT_PTA_EDCCA_EN);
 	/* GNT_BT=1 while select both */
 	rtw_write8_set(rtwdev, REG_BT_COEX_V2, BIT_GNT_BT_POLARITY);
@@ -2229,7 +2229,7 @@ static const struct coex_5g_afh_map afh_5g_8822b[] = { {0, 0, 0} };
 
 /* wl_tx_dec_power, bt_tx_dec_power, wl_rx_gain, bt_rx_lna_constrain */
 static const struct coex_rf_para rf_para_tx_8822b[] = {
-	{0, 0, false, 7},  /* for normal */
+	{0, 0, false, 7},  /* for yesrmal */
 	{0, 16, false, 7}, /* for WL-CPT */
 	{4, 0, true, 1},
 	{3, 6, true, 1},
@@ -2238,7 +2238,7 @@ static const struct coex_rf_para rf_para_tx_8822b[] = {
 };
 
 static const struct coex_rf_para rf_para_rx_8822b[] = {
-	{0, 0, false, 7},  /* for normal */
+	{0, 0, false, 7},  /* for yesrmal */
 	{0, 16, false, 7}, /* for WL-CPT */
 	{4, 0, true, 1},
 	{3, 6, true, 1},

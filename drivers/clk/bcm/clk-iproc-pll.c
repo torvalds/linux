@@ -223,7 +223,7 @@ static int __pll_enable(struct iproc_pll *pll)
 	}
 
 	if (pll->pwr_base) {
-		/* power up the PLL and make sure it's not latched */
+		/* power up the PLL and make sure it's yest latched */
 		val = readl(pll->pwr_base + ctrl->aon.offset);
 		val |= bit_mask(ctrl->aon.pwr_width) << ctrl->aon.pwr_shift;
 		val &= ~(1 << ctrl->aon.iso_shift);
@@ -279,7 +279,7 @@ static void __pll_bring_out_reset(struct iproc_pll *pll, unsigned int kp,
 }
 
 /*
- * Determines if the change to be applied to the PLL is minor (just an update
+ * Determines if the change to be applied to the PLL is miyesr (just an update
  * or the fractional divider). If so, then we can avoid going through a
  * disruptive reset and lock sequence.
  */
@@ -539,7 +539,7 @@ static int iproc_pll_determine_rate(struct clk_hw *hw,
 			best_diff = diff;
 			best_idx = i;
 		}
-		/* break now if perfect match */
+		/* break yesw if perfect match */
 		if (diff == 0)
 			break;
 	}
@@ -594,7 +594,7 @@ static int iproc_clk_enable(struct clk_hw *hw)
 	val &= ~(1 << ctrl->enable.enable_shift);
 	iproc_pll_write(pll, pll->control_base, ctrl->enable.offset, val);
 
-	/* also make sure channel is not held */
+	/* also make sure channel is yest held */
 	val = readl(pll->control_base + ctrl->enable.offset);
 	val &= ~(1 << ctrl->enable.hold_shift);
 	iproc_pll_write(pll, pll->control_base, ctrl->enable.offset, val);
@@ -722,7 +722,7 @@ static void iproc_pll_sw_cfg(struct iproc_pll *pll)
 	}
 }
 
-void iproc_pll_clk_setup(struct device_node *node,
+void iproc_pll_clk_setup(struct device_yesde *yesde,
 			 const struct iproc_pll_ctrl *pll_ctrl,
 			 const struct iproc_pll_vco_param *vco,
 			 unsigned int num_vco_entries,
@@ -753,25 +753,25 @@ void iproc_pll_clk_setup(struct device_node *node,
 	if (WARN_ON(!iclk_array))
 		goto err_clks;
 
-	pll->control_base = of_iomap(node, 0);
+	pll->control_base = of_iomap(yesde, 0);
 	if (WARN_ON(!pll->control_base))
 		goto err_pll_iomap;
 
-	/* Some SoCs do not require the pwr_base, thus failing is not fatal */
-	pll->pwr_base = of_iomap(node, 1);
+	/* Some SoCs do yest require the pwr_base, thus failing is yest fatal */
+	pll->pwr_base = of_iomap(yesde, 1);
 
 	/* some PLLs require gating control at the top ASIU level */
 	if (pll_ctrl->flags & IPROC_CLK_PLL_ASIU) {
-		pll->asiu_base = of_iomap(node, 2);
+		pll->asiu_base = of_iomap(yesde, 2);
 		if (WARN_ON(!pll->asiu_base))
 			goto err_asiu_iomap;
 	}
 
 	if (pll_ctrl->flags & IPROC_CLK_PLL_SPLIT_STAT_CTRL) {
-		/* Some SoCs have a split status/control.  If this does not
+		/* Some SoCs have a split status/control.  If this does yest
 		 * exist, assume they are unified.
 		 */
-		pll->status_base = of_iomap(node, 2);
+		pll->status_base = of_iomap(yesde, 2);
 		if (!pll->status_base)
 			goto err_status_iomap;
 	} else
@@ -783,10 +783,10 @@ void iproc_pll_clk_setup(struct device_node *node,
 	iclk = &iclk_array[0];
 	iclk->pll = pll;
 
-	init.name = node->name;
+	init.name = yesde->name;
 	init.ops = &iproc_pll_ops;
 	init.flags = 0;
-	parent_name = of_clk_get_parent_name(node, 0);
+	parent_name = of_clk_get_parent_name(yesde, 0);
 	init.parent_names = (parent_name ? &parent_name : NULL);
 	init.num_parents = (parent_name ? 1 : 0);
 	iclk->hw.init = &init;
@@ -804,14 +804,14 @@ void iproc_pll_clk_setup(struct device_node *node,
 
 	clk_data->hws[0] = &iclk->hw;
 
-	/* now initialize and register all leaf clocks */
+	/* yesw initialize and register all leaf clocks */
 	for (i = 1; i < num_clks; i++) {
 		const char *clk_name;
 
 		memset(&init, 0, sizeof(init));
-		parent_name = node->name;
+		parent_name = yesde->name;
 
-		ret = of_property_read_string_index(node, "clock-output-names",
+		ret = of_property_read_string_index(yesde, "clock-output-names",
 						    i, &clk_name);
 		if (WARN_ON(ret))
 			goto err_clk_register;
@@ -834,7 +834,7 @@ void iproc_pll_clk_setup(struct device_node *node,
 		clk_data->hws[i] = &iclk->hw;
 	}
 
-	ret = of_clk_add_hw_provider(node, of_clk_hw_onecell_get, clk_data);
+	ret = of_clk_add_hw_provider(yesde, of_clk_hw_onecell_get, clk_data);
 	if (WARN_ON(ret))
 		goto err_clk_register;
 

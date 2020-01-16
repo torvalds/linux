@@ -10,7 +10,7 @@
 
 /*
  * We always define HW_PAGE_SHIFT to 12 as use of 64K pages remains Linux
- * specific, every notion of page number shared with the firmware, TCEs,
+ * specific, every yestion of page number shared with the firmware, TCEs,
  * iommu, etc... still uses a page size of 4K.
  */
 #define HW_PAGE_SHIFT		12
@@ -23,7 +23,7 @@
  */
 #define PAGE_FACTOR		(PAGE_SHIFT - HW_PAGE_SHIFT)
 
-/* Segment size; normal 256M segments */
+/* Segment size; yesrmal 256M segments */
 #define SID_SHIFT		28
 #define SID_MASK		ASM_CONST(0xfffffffff)
 #define ESID_MASK		0xfffffffff0000000UL
@@ -90,7 +90,7 @@ extern u64 ppc64_pft_size;
 
 /*
  * This is the default if a program doesn't have a PT_GNU_STACK
- * program header entry. The PPC64 ELF ABI has a non executable stack
+ * program header entry. The PPC64 ELF ABI has a yesn executable stack
  * stack by default, so in the absence of a PT_GNU_STACK program header
  * we turn execute permission off.
  */

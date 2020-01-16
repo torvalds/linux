@@ -405,7 +405,7 @@
  * Data Mover Descriptor Count Register (Table 7-25)
  */
 
-/* no bitfields */
+/* yes bitfields */
 
 /*
  * Data Mover Current Descriptor Address (Table 7-24)

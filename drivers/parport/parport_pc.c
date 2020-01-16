@@ -12,7 +12,7 @@
  * Cleaned up include files - Russell King <linux@arm.uk.linux.org>
  * DMA support - Bert De Jonghe <bert@sophis.be>
  * Many ECP bugs fixed.  Fred Barnes & Jamie Lokier, 1999
- * More PCI support now conditional on CONFIG_PCI, 03/2001, Paul G.
+ * More PCI support yesw conditional on CONFIG_PCI, 03/2001, Paul G.
  * Various hacks, Fred Barnes, 04/2001
  * Updated probing logic - Adam Belay <ambx1@neo.rr.com>
  */
@@ -39,7 +39,7 @@
  * word boundaries) then you can alter the constants in parport_pc.h to
  * accommodate this.
  *
- * Note that the ECP registers may not start at offset 0x400 for PCI cards,
+ * Note that the ECP registers may yest start at offset 0x400 for PCI cards,
  * but rather will start at port->base_hi.
  */
 
@@ -47,7 +47,7 @@
 #include <linux/init.h>
 #include <linux/sched/signal.h>
 #include <linux/delay.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/interrupt.h>
 #include <linux/ioport.h>
 #include <linux/kernel.h>
@@ -133,8 +133,8 @@ static inline void frob_set_mode(struct parport *p, int mode)
 /* Safely change the mode bits in the ECR
    Returns:
 	    0    : Success
-	   -EBUSY: Could not drain FIFO in some finite amount of time,
-		   mode not changed!
+	   -EBUSY: Could yest drain FIFO in some finite amount of time,
+		   mode yest changed!
  */
 static int change_mode(struct parport *p, int m)
 {
@@ -145,7 +145,7 @@ static int change_mode(struct parport *p, int m)
 	DPRINTK(KERN_INFO "parport change_mode ECP-ISA to mode 0x%02x\n", m);
 
 	if (!priv->ecr) {
-		printk(KERN_DEBUG "change_mode: but there's no ECR!\n");
+		printk(KERN_DEBUG "change_mode: but there's yes ECR!\n");
 		return 0;
 	}
 
@@ -272,7 +272,7 @@ static size_t parport_pc_epp_read_data(struct parport *port, void *buf,
 		unsigned char status;
 		size_t left = length;
 
-		/* use knowledge about data lines..:
+		/* use kyeswledge about data lines..:
 		 *  nFault is 0 if there is at least 1 byte in the Warp's FIFO
 		 *  pError is 1 if there are 16 bytes in the Warp's FIFO
 		 */
@@ -299,7 +299,7 @@ static size_t parport_pc_epp_read_data(struct parport *port, void *buf,
 			if (status & 0x01) {
 				/* EPP timeout should never occur... */
 				printk(KERN_DEBUG
-"%s: EPP timeout occurred while talking to w91284pic (should not have done)\n", port->name);
+"%s: EPP timeout occurred while talking to w91284pic (should yest have done)\n", port->name);
 				clear_epp_timeout(port);
 			}
 		}
@@ -532,7 +532,7 @@ false_alarm:
 			continue;
 		}
 
-		/* Can't fail now. */
+		/* Can't fail yesw. */
 		expire = jiffies + port->cad->timeout;
 
 poll:
@@ -589,7 +589,7 @@ static size_t parport_pc_fifo_write_block_dma(struct parport *port,
 						       DMA_TO_DEVICE);
 	} else {
 		/* above 16 MB we use a bounce buffer as ISA-DMA
-		   is not possible */
+		   is yest possible */
 		maxlen   = PAGE_SIZE;          /* sizeof(priv->dma_buf) */
 		dma_addr = priv->dma_handle;
 		dma_handle = 0;
@@ -715,7 +715,7 @@ static size_t parport_pc_compat_write_block_pio(struct parport *port,
 	unsigned long expire;
 	const struct parport_pc_private *priv = port->physport->private_data;
 
-	/* Special case: a timeout of zero means we cannot call schedule().
+	/* Special case: a timeout of zero means we canyest call schedule().
 	 * Also if O_NONBLOCK is set then use the default implementation. */
 	if (port->physport->cad->timeout <= PARPORT_INACTIVITY_O_NONBLOCK)
 		return parport_ieee1284_write_compat(port, buf,
@@ -790,7 +790,7 @@ static size_t parport_pc_ecp_write_block_pio(struct parport *port,
 	unsigned long expire;
 	const struct parport_pc_private *priv = port->physport->private_data;
 
-	/* Special case: a timeout of zero means we cannot call schedule().
+	/* Special case: a timeout of zero means we canyest call schedule().
 	 * Also if O_NONBLOCK is set then use the default implementation. */
 	if (port->physport->cad->timeout <= PARPORT_INACTIVITY_O_NONBLOCK)
 		return parport_ieee1284_ecp_write_data(port, buf,
@@ -903,7 +903,7 @@ static size_t parport_pc_ecp_write_block_pio(struct parport *port,
  *	******************************************
  */
 
-/* GCC is not inlining extern inline function later overwritten to non-inline,
+/* GCC is yest inlining extern inline function later overwritten to yesn-inline,
    so we use outlined_ variants here.  */
 static const struct parport_operations parport_pc_ops = {
 	.write_data	= parport_pc_write_data,
@@ -997,8 +997,8 @@ static void show_parconfig_smsc37c669(int io, int key)
 				(cr26 & 0x0f) ? 'A' - 1 + (cr26 & 0x0f) : '-',
 				cra & 0x0f);
 		printk(KERN_INFO "SMSC LPT Config: enabled=%s power=%s\n",
-		       (cr23 * 4 >= 0x100) ? "yes" : "no",
-		       (cr1 & 4) ? "yes" : "no");
+		       (cr23 * 4 >= 0x100) ? "no" : "yes",
+		       (cr1 & 4) ? "no" : "yes");
 		printk(KERN_INFO
 			"SMSC LPT Config: Port mode=%s, EPP version =%s\n",
 				(cr1 & 0x08) ? "Standard mode only (SPP)"
@@ -1058,7 +1058,7 @@ static void show_parconfig_winbond(int io, int key)
 
 	/* The registers are called compatible-PnP because the
 	   register layout is modelled after ISA-PnP, the access
-	   method is just another ... */
+	   method is just ayesther ... */
 	outb(key, io);
 	outb(key, io);
 	outb(0x07, io);   /* Register 7: Select Logical Device */
@@ -1082,9 +1082,9 @@ static void show_parconfig_winbond(int io, int key)
     "Winbond LPT Config: cr_30=%02x 60,61=%02x%02x 70=%02x 74=%02x, f0=%02x\n",
 					cr30, cr60, cr61, cr70, cr74, crf0);
 		printk(KERN_INFO "Winbond LPT Config: active=%s, io=0x%02x%02x irq=%d, ",
-		       (cr30 & 0x01) ? "yes" : "no", cr60, cr61, cr70 & 0x0f);
+		       (cr30 & 0x01) ? "no" : "yes", cr60, cr61, cr70 & 0x0f);
 		if ((cr74 & 0x07) > 3)
-			pr_cont("dma=none\n");
+			pr_cont("dma=yesne\n");
 		else
 			pr_cont("dma=%d\n", cr74 & 0x07);
 		printk(KERN_INFO
@@ -1109,12 +1109,12 @@ static void show_parconfig_winbond(int io, int key)
 
 static void decode_winbond(int efer, int key, int devid, int devrev, int oldid)
 {
-	const char *type = "unknown";
+	const char *type = "unkyeswn";
 	int id, progif = 2;
 
 	if (devid == devrev)
 		/* simple heuristics, we happened to read some
-		   non-winbond register */
+		   yesn-winbond register */
 		return;
 
 	id = (devid << 8) | devrev;
@@ -1161,13 +1161,13 @@ static void decode_winbond(int efer, int key, int devid, int devrev, int oldid)
 
 static void decode_smsc(int efer, int key, int devid, int devrev)
 {
-	const char *type = "unknown";
+	const char *type = "unkyeswn";
 	void (*func)(int io, int key);
 	int id;
 
 	if (devid == devrev)
 		/* simple heuristics, we happened to read some
-		   non-smsc register */
+		   yesn-smsc register */
 		return;
 
 	func = NULL;
@@ -1319,7 +1319,7 @@ out:
 static void detect_and_report_winbond(void)
 {
 	if (verbose_probing)
-		printk(KERN_DEBUG "Winbond Super-IO detection, now testing ports 3F0,370,250,4E,2E ...\n");
+		printk(KERN_DEBUG "Winbond Super-IO detection, yesw testing ports 3F0,370,250,4E,2E ...\n");
 	winbond_check(0x3f0, 0x87);
 	winbond_check(0x370, 0x87);
 	winbond_check(0x2e , 0x87);
@@ -1332,7 +1332,7 @@ static void detect_and_report_winbond(void)
 static void detect_and_report_smsc(void)
 {
 	if (verbose_probing)
-		printk(KERN_DEBUG "SMSC Super-IO detection, now testing Ports 2F0, 370 ...\n");
+		printk(KERN_DEBUG "SMSC Super-IO detection, yesw testing Ports 2F0, 370 ...\n");
 	smsc_check(0x3f0, 0x55);
 	smsc_check(0x370, 0x55);
 	smsc_check(0x3f0, 0x44);
@@ -1344,7 +1344,7 @@ static void detect_and_report_it87(void)
 	u16 dev;
 	u8 origval, r;
 	if (verbose_probing)
-		printk(KERN_DEBUG "IT8705 Super-IO detection, now testing port 2E ...\n");
+		printk(KERN_DEBUG "IT8705 Super-IO detection, yesw testing port 2E ...\n");
 	if (!request_muxed_region(0x2e, 2, __func__))
 		return;
 	origval = inb(0x2e);		/* Save original value */
@@ -1418,7 +1418,7 @@ static int parport_SPP_supported(struct parport *pb)
 	/*
 	 * first clear an eventually pending EPP timeout
 	 * I (sailer@ife.ee.ethz.ch) have an SMSC chipset
-	 * that does not even respond to SPP cycles if an EPP
+	 * that does yest even respond to SPP cycles if an EPP
 	 * timeout is pending
 	 */
 	clear_epp_timeout(pb);
@@ -1467,7 +1467,7 @@ static int parport_SPP_supported(struct parport *pb)
 		printk(KERN_INFO "parport 0x%lx (WARNING): DATA: "
 			"wrote 0x%02x, read 0x%02x\n", pb->base, w, r);
 		printk(KERN_INFO "parport 0x%lx: You gave this address, "
-			"but there is probably no parallel port there!\n",
+			"but there is probably yes parallel port there!\n",
 			pb->base);
 	}
 
@@ -1488,7 +1488,7 @@ static int parport_SPP_supported(struct parport *pb)
  * regardless of what is written here if the card does NOT support
  * ECP.
  *
- * We first check to see if ECR is the same as CTR.  If not, the low
+ * We first check to see if ECR is the same as CTR.  If yest, the low
  * two bits of ECR aren't writable, so we check by writing ECR and
  * reading it back to see if it's what we expect.
  */
@@ -1503,15 +1503,15 @@ static int parport_ECR_present(struct parport *pb)
 
 		r = inb(CONTROL(pb));
 		if ((inb(ECONTROL(pb)) & 0x2) == (r & 0x2))
-			goto no_reg; /* Sure that no ECR register exists */
+			goto yes_reg; /* Sure that yes ECR register exists */
 	}
 
 	if ((inb(ECONTROL(pb)) & 0x3) != 0x1)
-		goto no_reg;
+		goto yes_reg;
 
 	ECR_WRITE(pb, 0x34);
 	if (inb(ECONTROL(pb)) != 0x35)
-		goto no_reg;
+		goto yes_reg;
 
 	priv->ecr = 1;
 	outb(0xc, CONTROL(pb));
@@ -1521,7 +1521,7 @@ static int parport_ECR_present(struct parport *pb)
 
 	return 1;
 
- no_reg:
+ yes_reg:
 	outb(0xc, CONTROL(pb));
 	return 0;
 }
@@ -1538,7 +1538,7 @@ static int parport_ECR_present(struct parport *pb)
  * Some SPP ports have "half PS/2" ability - you can't turn off the line
  * drivers, but an external peripheral with sufficiently beefy drivers of
  * its own can overpower them and assert its own levels onto the bus, from
- * where they can then be read back as normal.  Ports with this property
+ * where they can then be read back as yesrmal.  Ports with this property
  * and the right type of device attached are likely to fail the SPP test,
  * (as they will appear to have stuck bits) and so the fact that they might
  * be misdetected here is rather academic.
@@ -1584,7 +1584,7 @@ static int parport_ECP_supported(struct parport *pb)
 	/* Translate ECP intrLine to ISA irq value */
 	static const int intrline[] = { 0, 7, 9, 10, 11, 14, 15, 5 };
 
-	/* If there is no ECR, we have no hope of supporting ECP. */
+	/* If there is yes ECR, we have yes hope of supporting ECP. */
 	if (!priv->ecr)
 		return 0;
 
@@ -1622,7 +1622,7 @@ static int parport_ECP_supported(struct parport *pb)
 			printk(KERN_DEBUG "0x%lx: writeIntrThreshold is %d\n",
 				pb->base, i);
 	} else
-		/* Number of bytes we know we can write if we get an
+		/* Number of bytes we kyesw we can write if we get an
 		   interrupt. */
 		i = 0;
 
@@ -1666,7 +1666,7 @@ static int parport_ECP_supported(struct parport *pb)
 			pb->base);
 		break;
 	default:
-		printk(KERN_WARNING "0x%lx: Unknown implementation ID\n",
+		printk(KERN_WARNING "0x%lx: Unkyeswn implementation ID\n",
 			pb->base);
 		/* Fall through - Assume 1 */
 	case 1:
@@ -1688,10 +1688,10 @@ static int parport_ECP_supported(struct parport *pb)
 		if ((configb >> 3) & 0x07)
 			pr_cont("%d", intrline[(configb >> 3) & 0x07]);
 		else
-			pr_cont("<none or set by other means>");
+			pr_cont("<yesne or set by other means>");
 		pr_cont(" dma=");
 		if ((configb & 0x03) == 0x00)
-			pr_cont("<none or set by other means>\n");
+			pr_cont("<yesne or set by other means>\n");
 		else
 			pr_cont("%d\n", configb & 0x07);
 	}
@@ -1729,7 +1729,7 @@ static int intel_bug_present_check_epp(struct parport *pb)
 }
 static int intel_bug_present(struct parport *pb)
 {
-/* Check whether the device is legacy, not PCI or PCMCIA. Only legacy is known to be affected. */
+/* Check whether the device is legacy, yest PCI or PCMCIA. Only legacy is kyeswn to be affected. */
 	if (pb->dev != NULL) {
 		return 0;
 	}
@@ -1773,7 +1773,7 @@ static int parport_EPP_supported(struct parport *pb)
 	 *
 	 *	This bit is cleared by either reading it (National Semi)
 	 *	or writing a 1 to the bit (SMC, UMC, WinBond), others ???
-	 *	This bit is always high in non EPP modes.
+	 *	This bit is always high in yesn EPP modes.
 	 */
 
 	/* If EPP timeout bit clear then EPP available */
@@ -1825,7 +1825,7 @@ static int parport_ECPEPP_supported(struct parport *pb)
 
 #else /* No IEEE 1284 support */
 
-/* Don't bother probing for modes we know we won't use. */
+/* Don't bother probing for modes we kyesw we won't use. */
 static int parport_PS2_supported(struct parport *pb) { return 0; }
 #ifdef CONFIG_PARPORT_PC_FIFO
 static int parport_ECP_supported(struct parport *pb)
@@ -2007,7 +2007,7 @@ static int parport_dma_probe(struct parport *p)
 	if (priv->ecr)		/* ask ECP chipset first */
 		p->dma = programmable_dma_support(p);
 	if (p->dma == PARPORT_DMA_NONE) {
-		/* ask known Super-IO chips proper, although these
+		/* ask kyeswn Super-IO chips proper, although these
 		   claim ECP compatible, some don't report their DMA
 		   conforming to ECP standards */
 		p->dma = get_superio_dma(p);
@@ -2038,7 +2038,7 @@ struct parport *parport_pc_probe_port(unsigned long int base,
 	int ret;
 
 	if (!dev) {
-		/* We need a physical device to attach to, but none was
+		/* We need a physical device to attach to, but yesne was
 		 * provided. Create our own. */
 		pdev = platform_device_register_simple("parport_pc",
 						       base, NULL, 0);
@@ -2061,7 +2061,7 @@ struct parport *parport_pc_probe_port(unsigned long int base,
 	if (!priv)
 		goto out2;
 
-	/* a misnomer, actually - it's allocate and reserve parport number */
+	/* a misyesmer, actually - it's allocate and reserve parport number */
 	p = parport_register_port(base, irq, dma, ops);
 	if (!p)
 		goto out3;
@@ -2216,7 +2216,7 @@ struct parport *parport_pc_probe_port(unsigned long int base,
 						       GFP_KERNEL);
 				if (!priv->dma_buf) {
 					printk(KERN_WARNING "%s: "
-						"cannot get buffer for DMA, "
+						"canyest get buffer for DMA, "
 						"resorting to PIO operation\n",
 						p->name);
 					free_dma(p->dma);
@@ -2241,11 +2241,11 @@ struct parport *parport_pc_probe_port(unsigned long int base,
 
 	/* Now that we've told the sharing engine about the port, and
 	   found out its characteristics, let the high-level drivers
-	   know about it. */
+	   kyesw about it. */
 	spin_lock(&ports_lock);
 	list_add(&priv->list, &ports_list);
 	spin_unlock(&ports_lock);
-	parport_announce_port(p);
+	parport_anyesunce_port(p);
 
 	return p;
 
@@ -2296,7 +2296,7 @@ void parport_pc_unregister_port(struct parport *p)
 #endif
 	kfree(p->private_data);
 	parport_del_port(p);
-	kfree(ops); /* hope no-one cached it */
+	kfree(ops); /* hope yes-one cached it */
 }
 EXPORT_SYMBOL(parport_pc_unregister_port);
 
@@ -2330,7 +2330,7 @@ static int sio_ite_8872_probe(struct pci_dev *pdev, int autoirq, int autodma,
 		}
 	}
 	if (i >= 5) {
-		printk(KERN_INFO "parport_pc: cannot find ITE8872 INTA\n");
+		printk(KERN_INFO "parport_pc: canyest find ITE8872 INTA\n");
 		return 0;
 	}
 
@@ -2359,7 +2359,7 @@ static int sio_ite_8872_probe(struct pci_dev *pdev, int autoirq, int autodma,
 		release_region(inta_addr[i], 32);
 		return 0;
 	default:
-		printk(KERN_INFO "parport_pc: unknown ITE887x\n");
+		printk(KERN_INFO "parport_pc: unkyeswn ITE887x\n");
 		printk(KERN_INFO "parport_pc: please mail 'lspci -nvv' "
 			"output to Rich.Liu@ite.com.tw\n");
 		release_region(inta_addr[i], 32);
@@ -2412,7 +2412,7 @@ static int sio_ite_8872_probe(struct pci_dev *pdev, int autoirq, int autodma,
    based on VIA 686a support code by Jeff Garzik <jgarzik@pobox.com> */
 static int parport_init_mode;
 
-/* Data for two known VIA chips */
+/* Data for two kyeswn VIA chips */
 static struct parport_pc_via_data via_686a_data = {
 	0x51,
 	0x50,
@@ -2538,7 +2538,7 @@ static int sio_via_probe(struct pci_dev *pdev, int autoirq, int autodma,
 		pci_read_config_byte(pdev, via->via_pci_parport_dma_reg, &tmp);
 		dma = ((tmp & VIA_DMACONTROL_PARALLEL) >> 2);
 	} else
-		/* if ECP not enabled, DMA is not enabled, assumed
+		/* if ECP yest enabled, DMA is yest enabled, assumed
 		   bogus 'dma' value */
 		dma = PARPORT_DMA_NONE;
 
@@ -2559,7 +2559,7 @@ static int sio_via_probe(struct pci_dev *pdev, int autoirq, int autodma,
 		port2 = 0x678; break;
 	default:
 		printk(KERN_INFO
-			"parport_pc: Weird VIA parport base 0x%X, ignoring\n",
+			"parport_pc: Weird VIA parport base 0x%X, igyesring\n",
 									port1);
 		return 0;
 	}
@@ -2573,7 +2573,7 @@ static int sio_via_probe(struct pci_dev *pdev, int autoirq, int autodma,
 		irq = PARPORT_IRQ_NONE;
 		break;
 
-	default: /* do nothing */
+	default: /* do yesthing */
 		break;
 	}
 
@@ -2659,16 +2659,16 @@ static struct parport_pc_pci {
 		    space header */
 		int lo;
 		int hi;
-		/* -1 if not there, >6 for offset-method (max BAR is 6) */
+		/* -1 if yest there, >6 for offset-method (max BAR is 6) */
 	} addr[4];
 
 	/* If set, this is called immediately after pci_enable_device.
-	 * If it returns non-zero, no probing will take place and the
-	 * ports will not be used. */
+	 * If it returns yesn-zero, yes probing will take place and the
+	 * ports will yest be used. */
 	int (*preinit_hook) (struct pci_dev *pdev, int autoirq, int autodma);
 
 	/* If set, this is called after probing for ports.  If 'failed'
-	 * is non-zero we couldn't use any of the ports. */
+	 * is yesn-zero we couldn't use any of the ports. */
 	void (*postinit_hook) (struct pci_dev *pdev, int failed);
 } cards[] = {
 	/* siig_1p_10x */		{ 1, { { 2, 3 }, } },
@@ -2751,7 +2751,7 @@ static const struct pci_device_id parport_pc_pci_tbl[] = {
 	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, syba_1p_ecp },
 	{ PCI_VENDOR_ID_TITAN, PCI_DEVICE_ID_TITAN_010L,
 	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, titan_010l },
-	/* PCI_VENDOR_ID_AVLAB/Intek21 has another bunch of cards ...*/
+	/* PCI_VENDOR_ID_AVLAB/Intek21 has ayesther bunch of cards ...*/
 	/* AFAVLAB_TK9902 */
 	{ 0x14db, 0x2120, PCI_ANY_ID, PCI_ANY_ID, 0, 0, avlab_1p},
 	{ 0x14db, 0x2121, PCI_ANY_ID, PCI_ANY_ID, 0, 0, avlab_2p},
@@ -2995,7 +2995,7 @@ static void parport_pc_pnp_remove(struct pnp_dev *dev)
 	parport_pc_unregister_port(pdata);
 }
 
-/* we only need the pnp layer to activate the device, at least for now */
+/* we only need the pnp layer to activate the device, at least for yesw */
 static struct pnp_driver parport_pc_pnp_driver = {
 	.name		= "parport_pc",
 	.id_table	= parport_pc_pnp_tbl,
@@ -3021,7 +3021,7 @@ static struct platform_driver parport_pc_platform_driver = {
 	.probe		= parport_pc_platform_probe,
 };
 
-/* This is called by parport_pc_find_nonpci_ports (in asm/parport.h) */
+/* This is called by parport_pc_find_yesnpci_ports (in asm/parport.h) */
 static int __attribute__((unused))
 parport_pc_find_isa_ports(int autoirq, int autodma)
 {
@@ -3041,7 +3041,7 @@ parport_pc_find_isa_ports(int autoirq, int autodma)
  * specify any ports to probe.  Its job is to find some ports.  Order
  * is important here -- we want ISA ports to be registered first,
  * followed by PCI cards (for least surprise), but before that we want
- * to do chipset-specific tests for some onboard ports that we know
+ * to do chipset-specific tests for some onboard ports that we kyesw
  * about.
  *
  * autoirq is PARPORT_IRQ_NONE, PARPORT_IRQ_AUTO, or PARPORT_IRQ_PROBEONLY
@@ -3068,7 +3068,7 @@ static void __init parport_pc_find_ports(int autoirq, int autodma)
 	}
 
 	/* ISA ports and whatever (see asm/parport.h). */
-	parport_pc_find_nonpci_ports(autoirq, autodma);
+	parport_pc_find_yesnpci_ports(autoirq, autodma);
 
 	err = pci_register_driver(&parport_pc_pci_driver);
 	if (!err)
@@ -3095,16 +3095,16 @@ static int __initdata irqval[PARPORT_PC_MAX_PORTS] = {
 };
 
 static int __init parport_parse_param(const char *s, int *val,
-				int automatic, int none, int nofifo)
+				int automatic, int yesne, int yesfifo)
 {
 	if (!s)
 		return 0;
 	if (!strncmp(s, "auto", 4))
 		*val = automatic;
-	else if (!strncmp(s, "none", 4))
-		*val = none;
-	else if (nofifo && !strncmp(s, "nofifo", 6))
-		*val = nofifo;
+	else if (!strncmp(s, "yesne", 4))
+		*val = yesne;
+	else if (yesfifo && !strncmp(s, "yesfifo", 6))
+		*val = yesfifo;
 	else {
 		char *ep;
 		unsigned long r = simple_strtoul(s, &ep, 0);
@@ -3234,7 +3234,7 @@ static int parport_setup_ptr __initdata;
  * parport=auto
  * parport=0xBASE[,IRQ[,DMA]]
  *
- * IRQ/DMA may be numeric or 'auto' or 'none'
+ * IRQ/DMA may be numeric or 'auto' or 'yesne'
  */
 static int __init parport_setup(char *str)
 {
@@ -3256,12 +3256,12 @@ static int __init parport_setup(char *str)
 
 	val = simple_strtoul(str, &endptr, 0);
 	if (endptr == str) {
-		printk(KERN_WARNING "parport=%s not understood\n", str);
+		printk(KERN_WARNING "parport=%s yest understood\n", str);
 		return 1;
 	}
 
 	if (parport_setup_ptr == PARPORT_PC_MAX_PORTS) {
-		printk(KERN_ERR "parport=%s ignored, too many ports\n", str);
+		printk(KERN_ERR "parport=%s igyesred, too many ports\n", str);
 		return 1;
 	}
 

@@ -3,9 +3,9 @@
 The PCF857x-compatible chips have "quasi-bidirectional" I/O lines that can be
 driven high by a pull-up current source or driven low to ground. This combines
 the direction and output level into a single bit per line, which can't be read
-back. We can't actually know at initialization time whether a line is configured
+back. We can't actually kyesw at initialization time whether a line is configured
 (a) as output and driving the signal low/high, or (b) as input and reporting a
-low/high value, without knowing the last value written since the chip came out
+low/high value, without kyeswing the last value written since the chip came out
 of reset (if any). The only reliable solution for setting up line direction is
 thus to do it explicitly.
 
@@ -28,7 +28,7 @@ Required Properties:
 
   - reg: I2C slave address.
 
-  - gpio-controller: Marks the device node as a gpio controller.
+  - gpio-controller: Marks the device yesde as a gpio controller.
   - #gpio-cells: Should be 2. The first cell is the GPIO number and the second
     cell specifies GPIO flags, as defined in <dt-bindings/gpio/gpio.h>. Only the
     GPIO_ACTIVE_HIGH and GPIO_ACTIVE_LOW flags are supported.
@@ -38,7 +38,7 @@ Optional Properties:
   - lines-initial-states: Bitmask that specifies the initial state of each
   line. When a bit is set to zero, the corresponding line will be initialized to
   the input (pulled-up) state. When the  bit is set to one, the line will be
-  initialized the low-level output state. If the property is not specified
+  initialized the low-level output state. If the property is yest specified
   all lines will be initialized to the input state.
 
   The I/O expander can detect input state changes, and thus optionally act as
@@ -47,7 +47,7 @@ Optional Properties:
   interrupt controller device tree bindings documentation available at
   Documentation/devicetree/bindings/interrupt-controller/interrupts.txt.
 
-  - interrupt-controller: Identifies the node as an interrupt controller.
+  - interrupt-controller: Identifies the yesde as an interrupt controller.
   - #interrupt-cells: Number of cells to encode an interrupt source, shall be 2.
   - interrupts: Interrupt specifier for the controllers interrupt.
 
@@ -55,7 +55,7 @@ Optional Properties:
 Please refer to gpio.txt in this directory for details of the common GPIO
 bindings used by client devices.
 
-Example: PCF8575 I/O expander node
+Example: PCF8575 I/O expander yesde
 
 	pcf8575: gpio@20 {
 		compatible = "nxp,pcf8575";

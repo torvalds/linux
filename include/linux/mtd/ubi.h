@@ -29,7 +29,7 @@
  * UBI_READWRITE: read-write mode
  * UBI_EXCLUSIVE: exclusive mode
  * UBI_METAONLY: modify only the volume meta-data,
- *  i.e. the data stored in the volume table, but not in any of volume LEBs.
+ *  i.e. the data stored in the volume table, but yest in any of volume LEBs.
  */
 enum {
 	UBI_READONLY = 1,
@@ -47,17 +47,17 @@ enum {
  * @used_ebs: how many physical eraseblocks of this volume actually contain any
  *            data
  * @vol_type: volume type (%UBI_DYNAMIC_VOLUME or %UBI_STATIC_VOLUME)
- * @corrupted: non-zero if the volume is corrupted (static volumes only)
- * @upd_marker: non-zero if the volume has update marker set
+ * @corrupted: yesn-zero if the volume is corrupted (static volumes only)
+ * @upd_marker: yesn-zero if the volume has update marker set
  * @alignment: volume alignment
  * @usable_leb_size: how many bytes are available in logical eraseblocks of
  *                   this volume
  * @name_len: volume name length
  * @name: volume name
- * @cdev: UBI volume character device major and minor numbers
+ * @cdev: UBI volume character device major and miyesr numbers
  *
  * The @corrupted flag is only relevant to static volumes and is always zero
- * for dynamic ones. This is because UBI does not care about dynamic volume
+ * for dynamic ones. This is because UBI does yest care about dynamic volume
  * data protection and only cares about protecting static volume data.
  *
  * The @upd_marker flag is set if the volume update operation was interrupted.
@@ -70,7 +70,7 @@ enum {
  * To put it differently, @corrupted and @upd_marker fields have different
  * semantics:
  *     o the @corrupted flag means that this static volume is corrupted for some
- *       reasons, but not because an interrupted volume update
+ *       reasons, but yest because an interrupted volume update
  *     o the @upd_marker field means that the volume is damaged because of an
  *       interrupted update operation.
  *
@@ -82,7 +82,7 @@ enum {
  * @used_bytes field is equivalent to @size*@usable_leb_size, and the @used_ebs
  * field is equivalent to @size.
  *
- * In general, logical eraseblock size is a property of the UBI device, not
+ * In general, logical eraseblock size is a property of the UBI device, yest
  * of the UBI volume. Indeed, the logical eraseblock size depends on the
  * physical eraseblock size and on how much bytes UBI headers consume. But
  * because of the volume alignment (@alignment), the usable size of logical
@@ -132,7 +132,7 @@ struct ubi_sgl {
  * ubi_sgl_init - initialize an UBI scatter gather list data structure.
  * @usgl: the UBI scatter gather struct itself
  *
- * Please note that you still have to use sg_init_table() or any adequate
+ * Please yeste that you still have to use sg_init_table() or any adequate
  * function to initialize the unterlaying struct scatterlist.
  */
 static inline void ubi_sgl_init(struct ubi_sgl *usgl)
@@ -151,15 +151,15 @@ static inline void ubi_sgl_init(struct ubi_sgl *usgl)
  * @max_write_size: maximum amount of bytes the underlying flash can write at a
  *                  time (MTD write buffer size)
  * @ro_mode: if this device is in read-only mode
- * @cdev: UBI character device major and minor numbers
+ * @cdev: UBI character device major and miyesr numbers
  *
  * Note, @leb_size is the logical eraseblock size offered by the UBI device.
  * Volumes of this UBI device may have smaller logical eraseblock size if their
- * alignment is not equivalent to %1.
+ * alignment is yest equivalent to %1.
  *
  * The @max_write_size field describes flash write maximum write unit. For
  * example, NOR flash allows for changing individual bytes, so @min_io_size is
- * %1. However, it does not mean than NOR flash has to write data byte-by-byte.
+ * %1. However, it does yest mean than NOR flash has to write data byte-by-byte.
  * Instead, CFI NOR flashes have a write-buffer of, e.g., 64 bytes, and when
  * writing large chunks of data, they write 64-bytes at a time. Obviously, this
  * improves write throughput.
@@ -184,7 +184,7 @@ struct ubi_device_info {
 };
 
 /*
- * Volume notification types.
+ * Volume yestification types.
  * @UBI_VOLUME_ADDED: a volume has been added (an UBI device was attached or a
  *                    volume was created)
  * @UBI_VOLUME_REMOVED: a volume has been removed (an UBI device was detached
@@ -194,7 +194,7 @@ struct ubi_device_info {
  * @UBI_VOLUME_UPDATED: data has been written to a volume
  *
  * These constants define which type of event has happened when a volume
- * notification function is invoked.
+ * yestification function is invoked.
  */
 enum {
 	UBI_VOLUME_ADDED,
@@ -205,15 +205,15 @@ enum {
 };
 
 /*
- * struct ubi_notification - UBI notification description structure.
+ * struct ubi_yestification - UBI yestification description structure.
  * @di: UBI device description object
  * @vi: UBI volume description object
  *
- * UBI notifiers are called with a pointer to an object of this type. The
- * object describes the notification. Namely, it provides a description of the
- * UBI device and UBI volume the notification informs about.
+ * UBI yestifiers are called with a pointer to an object of this type. The
+ * object describes the yestification. Namely, it provides a description of the
+ * UBI device and UBI volume the yestification informs about.
  */
-struct ubi_notification {
+struct ubi_yestification {
 	struct ubi_device_info di;
 	struct ubi_volume_info vi;
 };
@@ -229,9 +229,9 @@ struct ubi_volume_desc *ubi_open_volume_nm(int ubi_num, const char *name,
 					   int mode);
 struct ubi_volume_desc *ubi_open_volume_path(const char *pathname, int mode);
 
-int ubi_register_volume_notifier(struct notifier_block *nb,
-				 int ignore_existing);
-int ubi_unregister_volume_notifier(struct notifier_block *nb);
+int ubi_register_volume_yestifier(struct yestifier_block *nb,
+				 int igyesre_existing);
+int ubi_unregister_volume_yestifier(struct yestifier_block *nb);
 
 void ubi_close_volume(struct ubi_volume_desc *desc);
 int ubi_leb_read(struct ubi_volume_desc *desc, int lnum, char *buf, int offset,
@@ -250,7 +250,7 @@ int ubi_sync(int ubi_num);
 int ubi_flush(int ubi_num, int vol_id, int lnum);
 
 /*
- * This function is the same as the 'ubi_leb_read()' function, but it does not
+ * This function is the same as the 'ubi_leb_read()' function, but it does yest
  * provide the checking capability.
  */
 static inline int ubi_read(struct ubi_volume_desc *desc, int lnum, char *buf,
@@ -261,7 +261,7 @@ static inline int ubi_read(struct ubi_volume_desc *desc, int lnum, char *buf,
 
 /*
  * This function is the same as the 'ubi_leb_read_sg()' function, but it does
- * not provide the checking capability.
+ * yest provide the checking capability.
  */
 static inline int ubi_read_sg(struct ubi_volume_desc *desc, int lnum,
 			      struct ubi_sgl *sgl, int offset, int len)

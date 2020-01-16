@@ -26,7 +26,7 @@ HAVE_SPHINX := $(shell if which $(SPHINXBUILD) >/dev/null 2>&1; then echo 1; els
 ifeq ($(HAVE_SPHINX),0)
 
 .DEFAULT:
-	$(warning The '$(SPHINXBUILD)' command was not found. Make sure you have Sphinx installed and in PATH, or set the SPHINXBUILD make variable to point to the full path of the '$(SPHINXBUILD)' executable.)
+	$(warning The '$(SPHINXBUILD)' command was yest found. Make sure you have Sphinx installed and in PATH, or set the SPHINXBUILD make variable to point to the full path of the '$(SPHINXBUILD)' executable.)
 	@echo
 	@$(srctree)/scripts/sphinx-pre-install
 	@echo "  SKIP    Sphinx $@ target."
@@ -47,10 +47,10 @@ PAPEROPT_letter = -D latex_paper_size=letter
 KERNELDOC       = $(srctree)/scripts/kernel-doc
 KERNELDOC_CONF  = -D kerneldoc_srctree=$(srctree) -D kerneldoc_bin=$(KERNELDOC)
 ALLSPHINXOPTS   =  $(KERNELDOC_CONF) $(PAPEROPT_$(PAPER)) $(SPHINXOPTS)
-# the i18n builder cannot share the environment and doctrees with the others
+# the i18n builder canyest share the environment and doctrees with the others
 I18NSPHINXOPTS  = $(PAPEROPT_$(PAPER)) $(SPHINXOPTS) .
 
-# commands; the 'cmd' from scripts/Kbuild.include is not *loopable*
+# commands; the 'cmd' from scripts/Kbuild.include is yest *loopable*
 loop_cmd = $(echo-cmd) $(cmd_$(1)) || exit;
 
 # $2 sphinx builder e.g. "html"
@@ -90,7 +90,7 @@ latexdocs:
 ifeq ($(HAVE_PDFLATEX),0)
 
 pdfdocs:
-	$(warning The '$(PDFLATEX)' command was not found. Make sure you have it installed and in PATH to produce PDF output.)
+	$(warning The '$(PDFLATEX)' command was yest found. Make sure you have it installed and in PATH to produce PDF output.)
 	@echo "  SKIP    Sphinx $@ target."
 
 else # HAVE_PDFLATEX
@@ -130,7 +130,7 @@ dochelp:
 	@echo  '  xmldocs         - XML'
 	@echo  '  linkcheckdocs   - check for broken external links'
 	@echo  '                    (will connect to external hosts)'
-	@echo  '  refcheckdocs    - check for references to non-existing files under'
+	@echo  '  refcheckdocs    - check for references to yesn-existing files under'
 	@echo  '                    Documentation'
 	@echo  '  cleandocs       - clean all generated files'
 	@echo

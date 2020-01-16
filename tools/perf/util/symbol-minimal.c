@@ -2,7 +2,7 @@
 #include "symbol.h"
 #include "symsrc.h"
 
-#include <errno.h>
+#include <erryes.h>
 #include <unistd.h>
 #include <stdio.h>
 #include <fcntl.h>
@@ -31,7 +31,7 @@ static bool check_need_swap(int file_endian)
 
 #define NT_GNU_BUILD_ID	3
 
-static int read_build_id(void *note_data, size_t note_len, void *bf,
+static int read_build_id(void *yeste_data, size_t yeste_len, void *bf,
 			 size_t size, bool need_swap)
 {
 	struct {
@@ -41,8 +41,8 @@ static int read_build_id(void *note_data, size_t note_len, void *bf,
 	} *nhdr;
 	void *ptr;
 
-	ptr = note_data;
-	while (ptr < (note_data + note_len)) {
+	ptr = yeste_data;
+	while (ptr < (yeste_data + yeste_len)) {
 		const char *name;
 		size_t namesz, descsz;
 
@@ -256,7 +256,7 @@ int symsrc__init(struct symsrc *ss, struct dso *dso, const char *name,
 {
 	int fd = open(name, O_RDONLY);
 	if (fd < 0)
-		goto out_errno;
+		goto out_erryes;
 
 	ss->name = strdup(name);
 	if (!ss->name)
@@ -268,8 +268,8 @@ int symsrc__init(struct symsrc *ss, struct dso *dso, const char *name,
 	return 0;
 out_close:
 	close(fd);
-out_errno:
-	dso->load_errno = errno;
+out_erryes:
+	dso->load_erryes = erryes;
 	return -1;
 }
 

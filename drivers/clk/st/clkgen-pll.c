@@ -398,7 +398,7 @@ static int set_rate_stm_pll3200c32(struct clk_hw *hw, unsigned long rate,
 }
 
 /* PLL output structure
- * FVCO >> /2 >> FVCOBY2 (no output)
+ * FVCO >> /2 >> FVCOBY2 (yes output)
  *                 |> Divider (ODF) >> PHI
  *
  * FVCOby2 output = (input * 2 * NDIV) / IDF (assuming FRAC_CONTROL==L)
@@ -619,18 +619,18 @@ static struct clk * __init clkgen_pll_register(const char *parent_name,
 }
 
 static void __iomem * __init clkgen_get_register_base(
-				struct device_node *np)
+				struct device_yesde *np)
 {
-	struct device_node *pnode;
+	struct device_yesde *pyesde;
 	void __iomem *reg = NULL;
 
-	pnode = of_get_parent(np);
-	if (!pnode)
+	pyesde = of_get_parent(np);
+	if (!pyesde)
 		return NULL;
 
-	reg = of_iomap(pnode, 0);
+	reg = of_iomap(pyesde, 0);
 
-	of_node_put(pnode);
+	of_yesde_put(pyesde);
 	return reg;
 }
 
@@ -685,7 +685,7 @@ static struct clk * __init clkgen_odf_register(const char *parent_name,
 }
 
 
-static void __init clkgen_c32_pll_setup(struct device_node *np,
+static void __init clkgen_c32_pll_setup(struct device_yesde *np,
 		struct clkgen_pll_data *data)
 {
 	struct clk *clk;
@@ -753,28 +753,28 @@ err:
 	kfree(clk_data->clks);
 	kfree(clk_data);
 }
-static void __init clkgen_c32_pll0_setup(struct device_node *np)
+static void __init clkgen_c32_pll0_setup(struct device_yesde *np)
 {
 	clkgen_c32_pll_setup(np,
 			(struct clkgen_pll_data *) &st_pll3200c32_cx_0);
 }
 CLK_OF_DECLARE(c32_pll0, "st,clkgen-pll0", clkgen_c32_pll0_setup);
 
-static void __init clkgen_c32_pll1_setup(struct device_node *np)
+static void __init clkgen_c32_pll1_setup(struct device_yesde *np)
 {
 	clkgen_c32_pll_setup(np,
 			(struct clkgen_pll_data *) &st_pll3200c32_cx_1);
 }
 CLK_OF_DECLARE(c32_pll1, "st,clkgen-pll1", clkgen_c32_pll1_setup);
 
-static void __init clkgen_c32_plla9_setup(struct device_node *np)
+static void __init clkgen_c32_plla9_setup(struct device_yesde *np)
 {
 	clkgen_c32_pll_setup(np,
 			(struct clkgen_pll_data *) &st_pll3200c32_407_a9);
 }
 CLK_OF_DECLARE(c32_plla9, "st,stih407-clkgen-plla9", clkgen_c32_plla9_setup);
 
-static void __init clkgen_c28_plla9_setup(struct device_node *np)
+static void __init clkgen_c28_plla9_setup(struct device_yesde *np)
 {
 	clkgen_c32_pll_setup(np,
 			(struct clkgen_pll_data *) &st_pll4600c28_418_a9);

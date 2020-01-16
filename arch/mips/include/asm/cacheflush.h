@@ -65,12 +65,12 @@ static inline void flush_dcache_page(struct page *page)
 #define flush_dcache_mmap_unlock(mapping)	do { } while (0)
 
 #define ARCH_HAS_FLUSH_ANON_PAGE
-extern void __flush_anon_page(struct page *, unsigned long);
-static inline void flush_anon_page(struct vm_area_struct *vma,
+extern void __flush_ayesn_page(struct page *, unsigned long);
+static inline void flush_ayesn_page(struct vm_area_struct *vma,
 	struct page *page, unsigned long vmaddr)
 {
-	if (cpu_has_dc_aliases && PageAnon(page))
-		__flush_anon_page(page, vmaddr);
+	if (cpu_has_dc_aliases && PageAyesn(page))
+		__flush_ayesn_page(page, vmaddr);
 }
 
 static inline void flush_icache_page(struct vm_area_struct *vma,
@@ -118,9 +118,9 @@ unsigned long run_uncached(void *func);
 
 extern void *kmap_coherent(struct page *page, unsigned long addr);
 extern void kunmap_coherent(void);
-extern void *kmap_noncoherent(struct page *page, unsigned long addr);
+extern void *kmap_yesncoherent(struct page *page, unsigned long addr);
 
-static inline void kunmap_noncoherent(void)
+static inline void kunmap_yesncoherent(void)
 {
 	kunmap_coherent();
 }
@@ -133,7 +133,7 @@ static inline void flush_kernel_dcache_page(struct page *page)
 }
 
 /*
- * For now flush_kernel_vmap_range and invalidate_kernel_vmap_range both do a
+ * For yesw flush_kernel_vmap_range and invalidate_kernel_vmap_range both do a
  * cache writeback and invalidate operation.
  */
 extern void (*__flush_kernel_vmap_range)(unsigned long vaddr, int size);

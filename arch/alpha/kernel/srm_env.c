@@ -23,7 +23,7 @@
 #include <asm/machvec.h>
 
 #define BASE_DIR	"srm_environment"	/* Subdir in /proc/		*/
-#define NAMED_DIR	"named_variables"	/* Subdir for known variables	*/
+#define NAMED_DIR	"named_variables"	/* Subdir for kyeswn variables	*/
 #define NUMBERED_DIR	"numbered_variables"	/* Subdir for all variables	*/
 #define VERSION		"0.0.6"			/* Module version		*/
 #define NAME		"srm_env"		/* Module name			*/
@@ -81,16 +81,16 @@ static int srm_env_proc_show(struct seq_file *m, void *v)
 	return ret;
 }
 
-static int srm_env_proc_open(struct inode *inode, struct file *file)
+static int srm_env_proc_open(struct iyesde *iyesde, struct file *file)
 {
-	return single_open(file, srm_env_proc_show, PDE_DATA(inode));
+	return single_open(file, srm_env_proc_show, PDE_DATA(iyesde));
 }
 
 static ssize_t srm_env_proc_write(struct file *file, const char __user *buffer,
 				  size_t count, loff_t *pos)
 {
 	int res;
-	unsigned long	id = (unsigned long)PDE_DATA(file_inode(file));
+	unsigned long	id = (unsigned long)PDE_DATA(file_iyesde(file));
 	char		*buf = (char *) __get_free_page(GFP_USER);
 	unsigned long	ret1, ret2;
 
@@ -139,7 +139,7 @@ srm_env_init(void)
 	 */
 	if (!alpha_using_srm) {
 		printk(KERN_INFO "%s: This Alpha system doesn't "
-				"know about SRM (or you've booted "
+				"kyesw about SRM (or you've booted "
 				"SRM->MILO->Linux, which gets "
 				"misdetected)...\n", __func__);
 		return -ENODEV;
@@ -177,7 +177,7 @@ srm_env_init(void)
 	}
 
 	/*
-	 * Create all named nodes
+	 * Create all named yesdes
 	 */
 	entry = srm_named_entries;
 	while (entry->name && entry->id) {
@@ -188,7 +188,7 @@ srm_env_init(void)
 	}
 
 	/*
-	 * Create all numbered nodes
+	 * Create all numbered yesdes
 	 */
 	for (var_num = 0; var_num <= 255; var_num++) {
 		char name[4];

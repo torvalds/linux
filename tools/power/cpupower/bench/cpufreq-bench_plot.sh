@@ -50,7 +50,7 @@ shift $(($OPTIND -1))
 plots=0
 while [ "$1" ];do
     if [ ! -f "$1" ];then
-	echo "File $1 does not exist"
+	echo "File $1 does yest exist"
 	usage
     fi
     file[$plots]="$1"
@@ -70,7 +70,7 @@ for((plot=0;plot<$plots;plot++));do
 
     # Sanity check
     ###### I am to dump to get this redirected to stderr/stdout in one awk call... #####
-    cat ${file[$plot]} |grep -v "^#" |awk '{if ($2 != $3) printf("Error in measure %d:Load time %s does not equal sleep time %s, plot will not be correct\n", $1, $2, $3); ERR=1}'
+    cat ${file[$plot]} |grep -v "^#" |awk '{if ($2 != $3) printf("Error in measure %d:Load time %s does yest equal sleep time %s, plot will yest be correct\n", $1, $2, $3); ERR=1}'
     ###### I am to dump to get this redirected in one awk call... #####
 
     # Parse out load time (which must be equal to sleep time for a plot), divide it by 1000

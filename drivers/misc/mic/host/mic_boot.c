@@ -110,7 +110,7 @@ static void __iomem *__mic_ioremap(struct vop_device *vpdev,
 
 static void __mic_iounmap(struct vop_device *vpdev, void __iomem *va)
 {
-	/* nothing to do */
+	/* yesthing to do */
 }
 
 static struct vop_hw_ops vop_hw_ops = {
@@ -294,7 +294,7 @@ static void __iomem *___mic_ioremap(struct scif_hw_dev *scdev,
 
 static void ___mic_iounmap(struct scif_hw_dev *scdev, void __iomem *va)
 {
-	/* nothing to do */
+	/* yesthing to do */
 }
 
 static struct scif_hw_ops scif_hw_ops = {
@@ -372,7 +372,7 @@ void mic_bootparam_init(struct mic_device *mdev)
 
 	bootparam->magic = cpu_to_le32(MIC_MAGIC);
 	bootparam->h2c_config_db = -1;
-	bootparam->node_id = mdev->id + 1;
+	bootparam->yesde_id = mdev->id + 1;
 	bootparam->scif_host_dma_addr = 0x0;
 	bootparam->scif_card_dma_addr = 0x0;
 	bootparam->c2h_scif_db = -1;
@@ -430,7 +430,7 @@ static int mic_request_dma_chans(struct mic_device *mdev)
  * mic_free_dma_chans - release DMA channels
  * @mdev: pointer to mic_device instance
  *
- * returns none
+ * returns yesne
  */
 static void mic_free_dma_chans(struct mic_device *mdev)
 {
@@ -538,7 +538,7 @@ static void _mic_stop(struct cosm_device *cdev, bool force)
 static ssize_t _mic_family(struct cosm_device *cdev, char *buf)
 {
 	struct mic_device *mdev = cosmdev_to_mdev(cdev);
-	static const char *family[MIC_FAMILY_LAST] = { "x100", "Unknown" };
+	static const char *family[MIC_FAMILY_LAST] = { "x100", "Unkyeswn" };
 
 	return scnprintf(buf, PAGE_SIZE, "%s\n", family[mdev->family]);
 }

@@ -5,7 +5,7 @@
  *
  * Contact Information:
  * wlanfae <wlanfae@realtek.com>
- * Realtek Corporation, No. 2, Innovation Road II, Hsinchu Science Park,
+ * Realtek Corporation, No. 2, Inyesvation Road II, Hsinchu Science Park,
  * Hsinchu 300, Taiwan.
  *
  * Larry Finger <Larry.Finger@lwfinger.net>
@@ -75,21 +75,21 @@ static void _rtl88e_fw_page_write(struct adapter *adapt,
 static void _rtl88e_write_fw(struct adapter *adapt, u8 *buffer, u32 size)
 {
 	u8 *buf_ptr = buffer;
-	u32 page_no, remain;
+	u32 page_yes, remain;
 	u32 page, offset;
 
-	page_no = size / FW_8192C_PAGE_SIZE;
+	page_yes = size / FW_8192C_PAGE_SIZE;
 	remain = size % FW_8192C_PAGE_SIZE;
 
-	for (page = 0; page < page_no; page++) {
+	for (page = 0; page < page_yes; page++) {
 		offset = page * FW_8192C_PAGE_SIZE;
 		_rtl88e_fw_page_write(adapt, page, (buf_ptr + offset),
 				      FW_8192C_PAGE_SIZE);
 	}
 
 	if (remain) {
-		offset = page_no * FW_8192C_PAGE_SIZE;
-		page = page_no;
+		offset = page_yes * FW_8192C_PAGE_SIZE;
+		page = page_yes;
 		_rtl88e_fw_page_write(adapt, page, (buf_ptr + offset), remain);
 	}
 }
@@ -153,7 +153,7 @@ int rtl88eu_download_fw(struct adapter *adapt)
 	unsigned int trailing_zeros_length;
 
 	if (request_firmware(&fw, fw_name, device)) {
-		dev_err(device, "Firmware %s not available\n", fw_name);
+		dev_err(device, "Firmware %s yest available\n", fw_name);
 		return -ENOENT;
 	}
 

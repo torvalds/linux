@@ -9,7 +9,7 @@
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/string.h>
-#include <linux/errno.h>
+#include <linux/erryes.h>
 #include <linux/err.h>
 #include <linux/module.h>
 #include <asm/fcx.h>
@@ -32,10 +32,10 @@
  * - optionally provide ready-made interrogate tcw and associated structures
  *
  * Restrictions apply to the itcws created with these construction functions:
- * - tida only supported for data address, not for tccb
- * - only contiguous tidaw-lists (no ttic)
- * - total number of bytes required per itcw may not exceed 4k bytes
- * - either read or write operation (may not work with r=0 and w=0)
+ * - tida only supported for data address, yest for tccb
+ * - only contiguous tidaw-lists (yes ttic)
+ * - total number of bytes required per itcw may yest exceed 4k bytes
+ * - either read or write operation (may yest work with r=0 and w=0)
  *
  * Example:
  * struct itcw *itcw;
@@ -78,9 +78,9 @@ EXPORT_SYMBOL(itcw_get_tcw);
 
 /**
  * itcw_calc_size - return the size of an itcw with the given parameters
- * @intrg: if non-zero, add an interrogate tcw
+ * @intrg: if yesn-zero, add an interrogate tcw
  * @max_tidaws: maximum number of tidaws to be used for data addressing or zero
- * if no tida is to be used.
+ * if yes tida is to be used.
  * @intrg_max_tidaws: maximum number of tidaws to be used for data addressing
  * by the interrogate tcw, if specified
  *
@@ -111,7 +111,7 @@ size_t itcw_calc_size(int intrg, int max_tidaws, int intrg_max_tidaws)
 	/* Maximum required alignment padding. */
 	len += /* Initial TCW */ 63 + /* Interrogate TCCB */ 7;
 
-	/* TIDAW lists may not cross a 4k boundary. To cross a
+	/* TIDAW lists may yest cross a 4k boundary. To cross a
 	 * boundary we need to add a TTIC TIDAW. We need to reserve
 	 * one additional TIDAW for a TTIC that we may need to add due
 	 * to the placement of the data chunk in memory, and a further
@@ -156,9 +156,9 @@ static inline void *fit_chunk(addr_t *start, addr_t end, size_t len,
  * @size: number of bytes in buffer
  * @op: %ITCW_OP_READ for a read operation tcw, %ITCW_OP_WRITE for a write
  * operation tcw
- * @intrg: if non-zero, add and initialize an interrogate tcw
+ * @intrg: if yesn-zero, add and initialize an interrogate tcw
  * @max_tidaws: maximum number of tidaws to be used for data addressing or zero
- * if no tida is to be used.
+ * if yes tida is to be used.
  * @intrg_max_tidaws: maximum number of tidaws to be used for data addressing
  * by the interrogate tcw, if specified
  *
@@ -167,9 +167,9 @@ static inline void *fit_chunk(addr_t *start, addr_t end, size_t len,
  * successive calls to other helper functions. Note: the buffer needs to be
  * located below the 2G address limit. The resulting tcw has the following
  * restrictions:
- *  - no tccb tidal
- *  - input/output tidal is contiguous (no ttic)
- *  - total data should not exceed 4k
+ *  - yes tccb tidal
+ *  - input/output tidal is contiguous (yes ttic)
+ *  - total data should yest exceed 4k
  *  - tcw specifies either read or write operation
  *
  * On success, return pointer to the resulting incremental tcw data structure,
@@ -278,7 +278,7 @@ EXPORT_SYMBOL(itcw_init);
  * @itcw: address of the itcw
  * @cmd: the dcw command
  * @flags: flags for the dcw
- * @cd: address of control data for this dcw or NULL if none is required
+ * @cd: address of control data for this dcw or NULL if yesne is required
  * @cd_count: number of control data bytes for this dcw
  * @count: number of data bytes for this dcw
  *
@@ -311,7 +311,7 @@ EXPORT_SYMBOL(itcw_add_dcw);
  * available space.
  *
  * Note: TTIC tidaws are automatically added when needed, so explicitly calling
- * this interface with the TTIC flag is not supported. The last-tidaw flag
+ * this interface with the TTIC flag is yest supported. The last-tidaw flag
  * for the last tidaw in the list will be set by itcw_finalize.
  */
 struct tidaw *itcw_add_tidaw(struct itcw *itcw, u8 flags, void *addr, u32 count)
@@ -342,10 +342,10 @@ EXPORT_SYMBOL(itcw_add_tidaw);
  * @itcw: address of the itcw
  * @addr: the data address
  * @use_tidal: zero of the data address specifies a contiguous block of data,
- * non-zero if it specifies a list if tidaws.
+ * yesn-zero if it specifies a list if tidaws.
  *
  * Set the input/output data address of the itcw (depending on the value of the
- * r-flag and w-flag). If @use_tidal is non-zero, the corresponding tida flag
+ * r-flag and w-flag). If @use_tidal is yesn-zero, the corresponding tida flag
  * is set as well.
  */
 void itcw_set_data(struct itcw *itcw, void *addr, int use_tidal)
@@ -360,7 +360,7 @@ EXPORT_SYMBOL(itcw_set_data);
  *
  * Calculate tcw input-/output-count and tccbl fields and add a tcat the tccb.
  * In case input- or output-tida is used, the tidaw-list must be stored in
- * continuous storage (no ttic). The tcal field in the tccb must be
+ * continuous storage (yes ttic). The tcal field in the tccb must be
  * up-to-date.
  */
 void itcw_finalize(struct itcw *itcw)

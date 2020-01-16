@@ -42,35 +42,35 @@ static const struct of_device_id syscon_pldset_of_match[] = {
 };
 
 static int __init
-realview_gic_of_init(struct device_node *node, struct device_node *parent)
+realview_gic_of_init(struct device_yesde *yesde, struct device_yesde *parent)
 {
 	struct regmap *map;
-	struct device_node *np;
+	struct device_yesde *np;
 	const struct of_device_id *gic_id;
 	u32 pld1_ctrl;
 
-	np = of_find_matching_node_and_match(NULL, syscon_pldset_of_match,
+	np = of_find_matching_yesde_and_match(NULL, syscon_pldset_of_match,
 					     &gic_id);
 	if (!np)
 		return -ENODEV;
 	pld1_ctrl = (u32)gic_id->data;
 
 	/* The PB11MPCore GIC needs to be configured in the syscon */
-	map = syscon_node_to_regmap(np);
+	map = syscon_yesde_to_regmap(np);
 	if (!IS_ERR(map)) {
-		/* new irq mode with no DCC */
+		/* new irq mode with yes DCC */
 		regmap_write(map, REALVIEW_SYS_LOCK_OFFSET,
 			     VERSATILE_LOCK_VAL);
 		regmap_update_bits(map, pld1_ctrl,
 				   PLD_INTMODE_NEW_NO_DCC,
 				   PLD_INTMODE_MASK);
 		regmap_write(map, REALVIEW_SYS_LOCK_OFFSET, 0x0000);
-		pr_info("RealView GIC: set up interrupt controller to NEW mode, no DCC\n");
+		pr_info("RealView GIC: set up interrupt controller to NEW mode, yes DCC\n");
 	} else {
-		pr_err("RealView GIC setup: could not find syscon\n");
+		pr_err("RealView GIC setup: could yest find syscon\n");
 		return -ENODEV;
 	}
-	return gic_of_init(node, parent);
+	return gic_of_init(yesde, parent);
 }
 IRQCHIP_DECLARE(armtc11mp_gic, "arm,tc11mp-gic", realview_gic_of_init);
 IRQCHIP_DECLARE(armeb11mp_gic, "arm,eb11mp-gic", realview_gic_of_init);

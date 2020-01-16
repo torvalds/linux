@@ -10,7 +10,7 @@
 static const struct dvb_frontend_ops tda10071_ops;
 
 /*
- * XXX: regmap_update_bits() does not fit our needs as it does not support
+ * XXX: regmap_update_bits() does yest fit our needs as it does yest support
  * partially volatile registers. Also it performs register read even mask is as
  * wide as register value.
  */
@@ -21,7 +21,7 @@ static int tda10071_wr_reg_mask(struct tda10071_dev *dev,
 	int ret;
 	u8 tmp;
 
-	/* no need for read if whole reg is written */
+	/* yes need for read if whole reg is written */
 	if (mask != 0xff) {
 		ret = regmap_bulk_read(dev->regmap, reg, &tmp, 1);
 		if (ret)
@@ -450,7 +450,7 @@ static int tda10071_read_status(struct dvb_frontend *fe, enum fe_status *status)
 			goto error;
 
 		if (dev->meas_count == uitmp) {
-			dev_dbg(&client->dev, "meas not ready=%02x\n", uitmp);
+			dev_dbg(&client->dev, "meas yest ready=%02x\n", uitmp);
 			ret = 0;
 			goto error;
 		} else {
@@ -839,7 +839,7 @@ static int tda10071_init(struct dvb_frontend *fe)
 		ret = request_firmware(&fw, fw_file, &client->dev);
 		if (ret) {
 			dev_err(&client->dev,
-				"did not find the firmware file '%s' (status %d). You can use <kernel_dir>/scripts/get_dvb_firmware to get the firmware\n",
+				"did yest find the firmware file '%s' (status %d). You can use <kernel_dir>/scripts/get_dvb_firmware to get the firmware\n",
 				fw_file, ret);
 			goto error;
 		}
@@ -875,7 +875,7 @@ static int tda10071_init(struct dvb_frontend *fe)
 		dev_info(&client->dev, "downloading firmware from file '%s'\n",
 			 fw_file);
 
-		/* do not download last byte */
+		/* do yest download last byte */
 		fw_size = fw->size - 1;
 
 		for (remaining = fw_size; remaining > 0;
@@ -911,7 +911,7 @@ static int tda10071_init(struct dvb_frontend *fe)
 			goto error;
 
 		if (uitmp) {
-			dev_info(&client->dev, "firmware did not run\n");
+			dev_info(&client->dev, "firmware did yest run\n");
 			ret = -EFAULT;
 			goto error;
 		} else {
